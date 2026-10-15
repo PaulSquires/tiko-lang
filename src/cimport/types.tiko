@@ -47,7 +47,7 @@ end function
 '' typedef reference in one. Named-type is what is inside it -- never the canonical type,
 '' which would throw the typedef away and turn LPCWSTR into 'const ushort ptr'.
 function Unwrap( byref x as CImp, byval t as CXType ) as CXType
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (t.kind = CXType_Elaborated) andalso (guard < 16)
         t = x.api->Type_getNamedType( t )
         guard += 1
@@ -59,7 +59,7 @@ end function
 '' mapping that disagrees about the width is refused rather than trusted.
 private function Builtin_( byref x as CImp, byval t as CXType, byref why as string ) as string
     dim as string r
-    dim as long want = 0
+    dim as int32 want = 0
     select case t.kind
     case CXType_Void                       : return "any"
     case CXType_Bool                       : r = "boolean"  : want = 1
@@ -84,14 +84,14 @@ private function Builtin_( byref x as CImp, byval t as CXType, byref why as stri
     case CXType_WChar
         '' C++ only in practice -- C's wchar_t is a typedef -- but it is two bytes on
         '' Windows and four on Linux either way.
-        dim as longint wsz = x.api->Type_getSizeOf( t )
+        dim as int64 wsz = x.api->Type_getSizeOf( t )
         if wsz = 2 then return "ushort"
         if wsz = 4 then return "long"
         why = "wchar_t is " & wsz & " bytes, which has no FreeBASIC equivalent"
         return ""
     '' THE REASONS ARE fbc-modern's WORDS, so the two importers' ledgers can be diffed.
     case CXType_LongDouble
-        dim as longint ldsz = x.api->Type_getSizeOf( t )
+        dim as int64 ldsz = x.api->Type_getSizeOf( t )
         if ldsz = 8 then return "double"
         why = "long double is " & ldsz & " bytes here; FreeBASIC has no 80-bit type"
         return ""
@@ -111,7 +111,7 @@ private function Builtin_( byref x as CImp, byval t as CXType, byref why as stri
         why = "no FreeBASIC type for C type '" & ClangText( *x.api, x.api->getTypeSpelling( t ) ) & "'"
         return ""
     end select
-    dim as longint got = x.api->Type_getSizeOf( t )
+    dim as int64 got = x.api->Type_getSizeOf( t )
     if got <> want then
         why = "'" & r & "' is " & want & " bytes but clang says " & got
         return ""
@@ -121,7 +121,7 @@ end function
 
 '' The FreeBASIC name of whatever a type REFERS TO -- a typedef, a record or an enum --
 '' through its declaration's USR, which is what pass 1 named.
-private function DeclUsrOf_( byref x as CImp, byval t as CXType ) as long
+private function DeclUsrOf_( byref x as CImp, byval t as CXType ) as int32
     dim as CXCursor d = x.api->getTypeDeclaration( t )
     dim as string usr = CursorUsr( x, d )
     if len( usr ) = 0 then return -1
@@ -147,7 +147,7 @@ end function
 '' reached through a pointer gets a forward alias too, and import.tiko writes it as
 '' 'type Name__fwd as Name', the alias that introduces Name. Without it, a function taking
 '' a pointer to a record the layout check refused broke the whole binding.
-private sub NeedFwd_( byref x as CImp, byval id as long, byref usr as string, byref nm as string )
+private sub NeedFwd_( byref x as CImp, byval id as int32, byref usr as string, byref nm as string )
     if (UsrState( x, id ) and US_FWD) <> 0 then return
     UsrSet( x, id, US_FWD )
     x.fwdUsr.Push( usr )
@@ -156,9 +156,9 @@ end sub
 
 private function PtrToRecord_( byref x as CImp, byval pt as CXType, byval constPointee as boolean, _
                                byref why as string, byref wholeText as string ) as boolean
-    dim as long id = DeclUsrOf_( x, pt )
+    dim as int32 id = DeclUsrOf_( x, pt )
     if id < 0 then return false
-    dim as ubyte st = UsrState( x, id )
+    dim as uint8 st = UsrState( x, id )
     dim as string nm = UsrFbName( x, id )
     dim as CXCursor d = x.api->getTypeDeclaration( pt )
     dim as boolean self_ = (len( x.curRecordUsr ) > 0) andalso (CursorUsr( x, d ) = x.curRecordUsr)
@@ -189,12 +189,12 @@ end function
 '' its own: its name is the record's, and it is written when the record is. fbc-modern walks
 '' through it the same way, which is why windows.h's LPUNKNOWN is 'IUnknown__ptr'.
 private function TypedefWritten_( byref x as CImp, byval t as CXType ) as boolean
-    dim as long id = DeclUsrOf_( x, t )
+    dim as int32 id = DeclUsrOf_( x, t )
     if id < 0 then return false
     if (UsrState( x, id ) and US_EMITTED) = 0 then return false
     dim as CXType u = Unwrap( x, x.api->getTypedefDeclUnderlyingType( x.api->getTypeDeclaration( t ) ) )
     if (u.kind = CXType_Record) orelse (u.kind = CXType_Enum) then
-        dim as long rid = DeclUsrOf_( x, u )
+        dim as int32 rid = DeclUsrOf_( x, u )
         if (rid >= 0) andalso (UsrFbName( x, rid ) = UsrFbName( x, id )) then return false
     end if
     return true
@@ -203,7 +203,7 @@ end function
 '' What a chain of typedefs not yet written stands for: the first written typedef, or the
 '' type at the end -- a record, when the pointer needs its forward-alias rule.
 private function UnwrittenTypedefs_( byref x as CImp, byval t as CXType ) as CXType
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (t.kind = CXType_Typedef) andalso (guard < 32)
         if TypedefWritten_( x, t ) then exit while
         dim as CXCursor d = x.api->getTypeDeclaration( t )
@@ -230,12 +230,12 @@ function TypeText( byref x as CImp, byval t0 as CXType, byref why as string ) as
         return TypeText( x, x.api->getTypedefDeclUnderlyingType( d ), why )
 
     case CXType_Record
-        dim as long id = DeclUsrOf_( x, t )
+        dim as int32 id = DeclUsrOf_( x, t )
         if id < 0 then
             why = "a record clang does not name"
             return ""
         end if
-        dim as ubyte st = UsrState( x, id )
+        dim as uint8 st = UsrState( x, id )
         dim as string nm = UsrFbName( x, id )
         if (st and US_REFUSED) <> 0 then
             why = "uses '" & nm & "', which was skipped"
@@ -250,7 +250,7 @@ function TypeText( byref x as CImp, byval t0 as CXType, byref why as string ) as
         return nm
 
     case CXType_Enum
-        dim as long id = DeclUsrOf_( x, t )
+        dim as int32 id = DeclUsrOf_( x, t )
         dim as string nm
         if id >= 0 then nm = UsrFbName( x, id )
         if len( nm ) then return nm
@@ -326,7 +326,7 @@ function TypeText( byref x as CImp, byval t0 as CXType, byref why as string ) as
         if constSelf then r &= " const ptr" else r &= " ptr"
         '' FreeBASIC's pointer indirection stops at eight levels. Deeper never occurs in a
         '' real header, but truncating silently would be worse than refusing.
-        dim as long lv = 0, at = instr( r, " ptr" )
+        dim as int32 lv = 0, at = instr( r, " ptr" )
         while at > 0
             lv += 1
             at = instr( at + 4, r, " ptr" )
@@ -383,7 +383,7 @@ end function
 '' pascal -- is refused rather than approximated, because on x86-64 pascal still reverses
 '' the arguments.
 function FnTypeText( byref x as CImp, byval t as CXType, byref why as string ) as string
-    dim as long cc = x.api->getFunctionTypeCallingConv( t )
+    dim as int32 cc = x.api->getFunctionTypeCallingConv( t )
     select case cc
     case CXCallingConv_Default, CXCallingConv_C, CXCallingConv_Win64, CXCallingConv_X86_64SysV, _
          CXCallingConv_AAPCS, CXCallingConv_AAPCS_VFP
@@ -398,8 +398,8 @@ function FnTypeText( byref x as CImp, byval t as CXType, byref why as string ) a
     end select
 
     dim as string ps
-    dim as long n = x.api->getNumArgTypes( t )
-    for i as long = 0 to n - 1
+    dim as int32 n = x.api->getNumArgTypes( t )
+    for i as int32 = 0 to n - 1
         dim as string pt = ParamTypeText( x, x.api->getArgType( t, i ), why )
         if len( pt ) = 0 then return ""
         if i > 0 then ps &= ", "

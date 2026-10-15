@@ -37,7 +37,7 @@
 namespace Tko.CImport
 
 '' -1 when the word is not a keyword, else its KeywordClass.
-private function KeywordClassOf_( byref n as string ) as long
+private function KeywordClassOf_( byref n as string ) as int32
     select case ucase( n )
     #define KW( k_name, k_spell, k_class ) case k_spell : return k_class
     TKO_KEYWORD_LIST( KW )
@@ -89,7 +89,7 @@ private function IsBuiltinValue_( byref lc as string ) as boolean
 end function
 
 function NameReservedType( byref n as string ) as boolean
-    dim as long k = KeywordClassOf_( n )
+    dim as int32 k = KeywordClassOf_( n )
     if (k = KWCLASS_KEYWORD) orelse (k = KWCLASS_OPERATOR) then return true
     dim as string lc = lcase( n )
     '' OBJECT is a TYPE in fbc's symbol table: a name that is a type blocks another.
@@ -145,7 +145,7 @@ end function
 '' ---------------------------------------------------------------- claims
 
 private function Claimed_( byref x as CImp, byval ns as CImpNs, byref n as string ) as boolean
-    dim as long f = cast( long, x.strs.Fold( x.strs.GetString( n ) ) )
+    dim as int32 f = cast( int32, x.strs.Fold( x.strs.GetString( n ) ) )
     if ns = NS_TYPE then
         if f < x.claimType.Count then return (x.claimType[f] <> 0)
     else
@@ -155,7 +155,7 @@ private function Claimed_( byref x as CImp, byval ns as CImpNs, byref n as strin
 end function
 
 private sub Take_( byref x as CImp, byval ns as CImpNs, byref n as string )
-    dim as long f = cast( long, x.strs.Fold( x.strs.GetString( n ) ) )
+    dim as int32 f = cast( int32, x.strs.Fold( x.strs.GetString( n ) ) )
     if ns = NS_TYPE then
         while x.claimType.Count <= f : x.claimType.Push( 0 ) : wend
         x.claimType[f] = 1
@@ -171,8 +171,8 @@ sub NameSeedClaim( byref x as CImp, byval ns as CImpNs, byref n as string )
 end sub
 
 private sub Ledger_( byref x as CImp, byval rk as CImpRenameKind, byref cname as string, _
-                     byref fb as string, byval why as long )
-    x.renKind.Push( cast( long, rk ) )
+                     byref fb as string, byval why as int32 )
+    x.renKind.Push( cast( int32, rk ) )
     x.renWhy.Push( why )
     x.renC.Push( cname )
     x.renFb.Push( fb )
@@ -186,7 +186,7 @@ end sub
 function NameClaim( byref x as CImp, byval ns as CImpNs, byref cname as string, _
                     byval rk as CImpRenameKind, byval ledger as boolean = true ) as string
     dim as string cand = cname
-    dim as long why = -1
+    dim as int32 why = -1
     dim as boolean reserved
     if ns = NS_TYPE then reserved = NameReservedType( cname ) else reserved = NameReservedValue( cname )
     if reserved then
@@ -197,7 +197,7 @@ function NameClaim( byref x as CImp, byval ns as CImpNs, byref cname as string, 
     '' name moved at all. windows.h: BYTE takes BYTE_, then 'byte' takes byte_2, and
     '' fbc-modern's ledger calls that "(FreeBASIC reserved)".
     if Claimed_( x, ns, cand ) then
-        dim as long k = 2
+        dim as int32 k = 2
         while Claimed_( x, ns, cname & "_" & k )
             k += 1
         wend
@@ -215,7 +215,7 @@ function NameTaken( byref x as CImp, byref n as string ) as boolean
     return Claimed_( x, NS_TYPE, n ) orelse Claimed_( x, NS_VALUE, n )
 end function
 
-function RenameLine( byref x as CImp, byval i as long ) as string
+function RenameLine( byref x as CImp, byval i as int32 ) as string
     dim as string k
     select case x.renKind[i]
     case RK_TYPE : k = "type     "
@@ -230,8 +230,8 @@ end function
 
 '' ---------------------------------------------------------------- per-USR state
 
-function UsrId( byref x as CImp, byref usr as string ) as long
-    dim as long id = cast( long, x.strs.GetString( usr ) )
+function UsrId( byref x as CImp, byref usr as string ) as int32
+    dim as int32 id = cast( int32, x.strs.GetString( usr ) )
     while x.usrState.Count <= id
         x.usrState.Push( 0 )
         x.usrName.Push( 0 )
@@ -239,24 +239,24 @@ function UsrId( byref x as CImp, byref usr as string ) as long
     return id
 end function
 
-function UsrState( byref x as CImp, byval id as long ) as ubyte
+function UsrState( byref x as CImp, byval id as int32 ) as uint8
     if (id < 0) orelse (id >= x.usrState.Count) then return 0
     return x.usrState[id]
 end function
 
-sub UsrSet( byref x as CImp, byval id as long, byval bits as ubyte )
+sub UsrSet( byref x as CImp, byval id as int32, byval bits as uint8 )
     if (id < 0) orelse (id >= x.usrState.Count) then return
     x.usrState[id] = x.usrState[id] or bits
 end sub
 
-function UsrFbName( byref x as CImp, byval id as long ) as string
+function UsrFbName( byref x as CImp, byval id as int32 ) as string
     if (id < 0) orelse (id >= x.usrName.Count) then return ""
-    dim as long k = x.usrName[id]
+    dim as int32 k = x.usrName[id]
     if k <= 0 then return ""
     return x.fbNames[k - 1]
 end function
 
-sub UsrSetName( byref x as CImp, byval id as long, byref fb as string )
+sub UsrSetName( byref x as CImp, byval id as int32, byref fb as string )
     if (id < 0) orelse (id >= x.usrName.Count) then return
     x.fbNames.Push( fb )
     x.usrName[id] = x.fbNames.Count

@@ -37,11 +37,11 @@ namespace Tko.Text
 
     '' Significant digits fbc keeps. Not a formatting width -- the exact expansion is
     '' rounded to this many digits and only then laid out.
-    const STR_DOUBLE_DIGITS as long = 16
-    const STR_SINGLE_DIGITS as long = 7
+    const STR_DOUBLE_DIGITS as int32 = 16
+    const STR_SINGLE_DIGITS as int32 = 7
 
-    declare function StrOfDouble( byval v as double ) as string
-    declare function StrOfSingle( byval v as single ) as string
+    declare function StrOfDouble( byval v as float64 ) as string
+    declare function StrOfSingle( byval v as float32 ) as string
 
 end namespace
 

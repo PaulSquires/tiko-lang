@@ -9,18 +9,18 @@
 '' The nested body parses with its own section state, so the label is applied here
 '' instead, and only to members that carry none of their own.
 private sub ApplyVisibility _
-    ( byref p as Tko.ParserState, byval n as Tko.NodeId, byval vis as ushort )
+    ( byref p as Tko.ParserState, byval n as Tko.NodeId, byval vis as uint16 )
 
     if (vis = 0) orelse (n = Tko.NODE_NONE) then return
-    if p.ast->nodes[cast( long, n )].kind <> Tko.N_TYPE then return
+    if p.ast->nodes[cast( int32, n )].kind <> Tko.N_TYPE then return
 
     dim as Tko.StmtPayload ptr tp = _
-        @p.ast->stmts[cast( long, p.ast->nodes[cast( long, n )].data )]
+        @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, n )].data )]
 
-    for i as long = 0 to tp->count - 1
+    for i as int32 = 0 to tp->count - 1
         dim as Tko.NodeId m = cast( Tko.NodeId, p.ast->children[tp->first + i] )
         if m = Tko.NODE_NONE then continue for
-        dim as Tko.NodeKind mk = p.ast->nodes[cast( long, m )].kind
+        dim as Tko.NodeKind mk = p.ast->nodes[cast( int32, m )].kind
         if mk = Tko.N_TYPE then
             ApplyVisibility( p, m, vis )
         '' N_CONST AND N_VAR TOO. A 'const' or a 'static' inside a type body is a
@@ -33,8 +33,8 @@ private sub ApplyVisibility _
         elseif (mk = Tko.N_FIELD) orelse (mk = Tko.N_PROC) orelse _
                (mk = Tko.N_CONST) orelse (mk = Tko.N_VAR) orelse (mk = Tko.N_ENUM) then
             dim as Tko.StmtPayload ptr mp = _
-                @p.ast->stmts[cast( long, p.ast->nodes[cast( long, m )].data )]
-            dim as ushort had = mp->extra and _
+                @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, m )].data )]
+            dim as uint16 had = mp->extra and _
                                 (Tko.PF_MEMB_PRIVATE or Tko.PF_MEMB_PROTECTED)
             if had = 0 then mp->extra or= vis
         end if

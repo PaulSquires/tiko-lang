@@ -34,7 +34,7 @@ function PrepareModuleUnit _
     for each nm as string in files
         srcInputs.Push( JoinPath( w.dir_, nm ) )
         '' Loaded first, before anything else: FileIds 1..n.
-        ctx.modFiles.Push( cast( ulong, srcInputs.Count ) )
+        ctx.modFiles.Push( cast( uint32, srcInputs.Count ) )
     next
     ctx.modChain = w.chain
     ctx.modName = mid( w.chain, instrrev( w.chain, "." ) + 1 )
@@ -49,7 +49,7 @@ sub ModuleUnitConfig _
       byref files as Tko.IdVec, byref noDefines as Tko.StrVec )
 
     files.Clear( )
-    for each f as ulong in ctx.modFiles
+    for each f as uint32 in ctx.modFiles
         files.Push( f )
     next
     cfg.moduleFiles = @files

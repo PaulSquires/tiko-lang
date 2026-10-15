@@ -12,7 +12,7 @@
 '' it, of 'typeof' a variable and of an alias of it all agree, 8 on win64 and 24 on Linux.
 private function TypeNamedInExpr_( byref c as Ctx, byval nm as Tko.InternId ) as Tko.TypeId
     if nm = 0 then return Tko.TYPE_NONE
-    for gi as long = c.gparamName.Count - 1 to 0 step -1
+    for gi as int32 = c.gparamName.Count - 1 to 0 step -1
         if cast( Tko.InternId, c.gparamName[gi] ) = nm then
             return cast( Tko.TypeId, c.gparamType[gi] )
         end if

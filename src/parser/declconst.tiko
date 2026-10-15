@@ -16,32 +16,32 @@
 '' 'const WINVER = _WIN32_WINNT' on the line after '_WIN32_WINNT' itself.
 private function ConstFoldsToInt_ _
     ( byref p as Tko.ParserState, byval e as Tko.NodeId, _
-      byref outv as longint ) as boolean
+      byref outv as int64 ) as boolean
 
     if e = Tko.NODE_NONE then return false
     select case p.ast->Kind( e )
     case Tko.N_INT_LIT
         dim as Tko.LiteralPayload ptr lp = _
-            @p.ast->literals[cast( long, p.ast->nodes[cast( long, e )].data )]
-        outv = cast( longint, lp->intValue )
+            @p.ast->literals[cast( int32, p.ast->nodes[cast( int32, e )].data )]
+        outv = cast( int64, lp->intValue )
         return true
     case Tko.N_UNARY
         dim as Tko.UnaryPayload ptr up = _
-            @p.ast->unaries[cast( long, p.ast->nodes[cast( long, e )].data )]
+            @p.ast->unaries[cast( int32, p.ast->nodes[cast( int32, e )].data )]
         if cast( Tko.TokenKind, up->op ) <> Tko.TK_MINUS then return false
-        dim as longint inner = 0
+        dim as int64 inner = 0
         if ConstFoldsToInt_( p, up->operand, inner ) = false then return false
         outv = -inner
         return true
     case Tko.N_PAREN
         dim as Tko.ListPayload ptr pl = _
-            @p.ast->lists[cast( long, p.ast->nodes[cast( long, e )].data )]
+            @p.ast->lists[cast( int32, p.ast->nodes[cast( int32, e )].data )]
         if pl->count <> 1 then return false
         return ConstFoldsToInt_( p, cast( Tko.NodeId, p.ast->children[pl->first] ), outv )
     case Tko.N_BINARY
         dim as Tko.BinaryPayload ptr bp = _
-            @p.ast->binaries[cast( long, p.ast->nodes[cast( long, e )].data )]
-        dim as longint lv = 0, rv = 0
+            @p.ast->binaries[cast( int32, p.ast->nodes[cast( int32, e )].data )]
+        dim as int64 lv = 0, rv = 0
         if ConstFoldsToInt_( p, bp->lhs, lv ) = false then return false
         if ConstFoldsToInt_( p, bp->rhs, rv ) = false then return false
         select case cast( Tko.TokenKind, bp->op )
@@ -58,7 +58,7 @@ private function ConstFoldsToInt_ _
     case Tko.N_IDENT
         if p.stream = 0 then return false
         dim as Tko.InternId inm = _
-            p.ast->idents[cast( long, p.ast->nodes[cast( long, e )].data )].name
+            p.ast->idents[cast( int32, p.ast->nodes[cast( int32, e )].data )].name
         return Tko.PpNotedConst( *cast( Tko.PpStream ptr, p.stream ), inm, outv )
     end select
     return false
@@ -71,12 +71,12 @@ end function
 '' evaluated, which is what the fold means. Only what ConstFoldsToInt_ can read counts.
 function FoldConstIif_( byref p as Tko.ParserState, byval n as Tko.NodeId ) as Tko.NodeId
     if p.ast->Kind( n ) <> Tko.N_CALL then return n
-    dim as Tko.ListPayload ptr lp = @p.ast->lists[cast( long, p.ast->nodes[cast( long, n )].data )]
+    dim as Tko.ListPayload ptr lp = @p.ast->lists[cast( int32, p.ast->nodes[cast( int32, n )].data )]
     if (lp->count <> 3) orelse (lp->target = Tko.NODE_NONE) then return n
     if p.ast->Kind( lp->target ) <> Tko.N_IDENT then return n
-    dim as Tko.InternId nm = p.ast->idents[cast( long, p.ast->nodes[cast( long, lp->target )].data )].name
+    dim as Tko.InternId nm = p.ast->idents[cast( int32, p.ast->nodes[cast( int32, lp->target )].data )].name
     if lcase( p.names->Spelling( nm ) ) <> "iif" then return n
-    dim as longint v = 0
+    dim as int64 v = 0
     if ConstFoldsToInt_( p, cast( Tko.NodeId, p.ast->children[lp->first] ), v ) = false then return n
     return cast( Tko.NodeId, p.ast->children[lp->first + iif( v <> 0, 1, 2 )] )
 end function
@@ -88,9 +88,9 @@ end function
 private function ConstStrText_( byref p as Tko.ParserState, byval v as Tko.NodeId, byref tx as string ) as boolean
     if v = Tko.NODE_NONE then return false
     if p.ast->Kind( v ) = Tko.N_CALL then
-        dim as Tko.ListPayload ptr cl = @p.ast->lists[cast( long, p.ast->nodes[cast( long, v )].data )]
+        dim as Tko.ListPayload ptr cl = @p.ast->lists[cast( int32, p.ast->nodes[cast( int32, v )].data )]
         if (cl->count < 1) orelse (cl->target = Tko.NODE_NONE) orelse (p.ast->Kind( cl->target ) <> Tko.N_IDENT) then return false
-        dim as string fnm = lcase( p.names->Spelling( p.ast->idents[cast( long, p.ast->nodes[cast( long, cl->target )].data )].name ) )
+        dim as string fnm = lcase( p.names->Spelling( p.ast->idents[cast( int32, p.ast->nodes[cast( int32, cl->target )].data )].name ) )
         if ConstStrText_( p, cast( Tko.NodeId, p.ast->children[cl->first] ), tx ) = false then return false
         select case fnm
         case "lcase" : tx = lcase( tx )
@@ -101,12 +101,12 @@ private function ConstStrText_( byref p as Tko.ParserState, byval v as Tko.NodeI
         return true
     end if
     if p.ast->Kind( v ) <> Tko.N_STRING_LIT then return false
-    dim as Tko.LiteralPayload ptr lp = @p.ast->literals[cast( long, p.ast->nodes[cast( long, v )].data )]
+    dim as Tko.LiteralPayload ptr lp = @p.ast->literals[cast( int32, p.ast->nodes[cast( int32, v )].data )]
     dim as Tko.SourceFile ptr f = p.src->FileAt( cast( Tko.FileId, lp->strFile ) )
     if f = 0 then return false
     if (lp->strOffset < 0) orelse (lp->strOffset + lp->strLength > f->text.Count) then return false
     tx = space( lp->strLength )
-    for i as long = 0 to lp->strLength - 1
+    for i as int32 = 0 to lp->strLength - 1
         tx[i] = f->text[lp->strOffset + i]
     next
     return true

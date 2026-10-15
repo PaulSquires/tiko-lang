@@ -24,7 +24,7 @@ namespace Tko.DiagOut
 
     '' Flush the engine, write the file if one was asked for, and return rc unchanged --
     '' so every exit of Run( ) can read 'return Tko.DiagOut.Finish( ctx, code )'.
-    declare function Finish( byref ctx as Tko.CompilerContext, byval rc as long ) as long
+    declare function Finish( byref ctx as Tko.CompilerContext, byval rc as int32 ) as int32
 
 end namespace
 

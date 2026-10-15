@@ -6,20 +6,20 @@
 
 namespace Tko
 
-function VTables.Find( byval t as TypeId ) as long
-    for i as long = 0 to this.types_.Count - 1
+function VTables.Find( byval t as TypeId ) as int32
+    for i as int32 = 0 to this.types_.Count - 1
         if this.types_[i].type_ = t then return i
     next
     return -1
 end function
 
 function VTables.SlotOf _
-    ( byval t as TypeId, byval p as SymbolId, byval decl as NodeId ) as long
+    ( byval t as TypeId, byval p as SymbolId, byval decl as NodeId ) as int32
 
-    dim as long vi = this.Find( t )
+    dim as int32 vi = this.Find( t )
     if vi < 0 then return -1
     dim as VtInfo ptr v = @this.types_[vi]
-    for i as long = 0 to v->count - 1
+    for i as int32 = 0 to v->count - 1
         if this.slots[v->first + i].proc_ = p then return i
     next
 
@@ -29,7 +29,7 @@ function VTables.SlotOf _
     '' every call through a base handle to an abstract method, which is the whole of
     '' fb/comptr.bi's surface. Matched by its DECLARATION NODE instead.
     if decl = NODE_NONE then return -1
-    for i as long = 0 to v->count - 1
+    for i as int32 = 0 to v->count - 1
         if this.slots[v->first + i].decl = decl then return i
     next
     return -1
@@ -40,16 +40,16 @@ end function
 '' derived type's override comparable at all.
 private sub ParamTypes_ _
     ( byref ast as AstArena, byref info as SemanticInfo, byval decl as NodeId, _
-      byref outv as containers.Array( of ulong ) )
+      byref outv as containers.Array( of uint32 ) )
 
     if decl = NODE_NONE then return
     if ast.Kind( decl ) <> N_PROC then return
-    dim as StmtPayload ptr sp = @ast.stmts[cast( long, ast.nodes[cast( long, decl )].data )]
-    for i as long = 0 to sp->count - 1
+    dim as StmtPayload ptr sp = @ast.stmts[cast( int32, ast.nodes[cast( int32, decl )].data )]
+    for i as int32 = 0 to sp->count - 1
         dim as NodeId prm = cast( NodeId, ast.children[sp->first + i] )
         if ast.Kind( prm ) <> N_PARAM then continue for
-        dim as StmtPayload ptr pp = @ast.stmts[cast( long, ast.nodes[cast( long, prm )].data )]
-        outv.Push( cast( ulong, info.TypeOf_( pp->a ) ) )
+        dim as StmtPayload ptr pp = @ast.stmts[cast( int32, ast.nodes[cast( int32, prm )].data )]
+        outv.Push( cast( uint32, info.TypeOf_( pp->a ) ) )
     next
 end sub
 
@@ -94,7 +94,7 @@ private sub NoteMismatch_ _
 
     dim as VtMismatch m
     m.decl = decl
-    m.kind = cast( ubyte, kind )
+    m.kind = cast( uint8, kind )
     store.mismatches.Push( m )
 end sub
 
@@ -104,7 +104,7 @@ private function ReturnTypeOf_ _
 
     if decl = NODE_NONE then return TYPE_NONE
     if ast.Kind( decl ) <> N_PROC then return TYPE_NONE
-    dim as StmtPayload ptr sp = @ast.stmts[cast( long, ast.nodes[cast( long, decl )].data )]
+    dim as StmtPayload ptr sp = @ast.stmts[cast( int32, ast.nodes[cast( int32, decl )].data )]
     if sp->a = NODE_NONE then return TYPE_NONE
     return info.TypeOf_( sp->a )
 end function
@@ -119,26 +119,26 @@ private sub CompareByref_ _
     if (oldd = NODE_NONE) orelse (newd = NODE_NONE) then return
     if ast.Kind( oldd ) <> N_PROC then return
     if ast.Kind( newd ) <> N_PROC then return
-    dim as StmtPayload ptr op = @ast.stmts[cast( long, ast.nodes[cast( long, oldd )].data )]
-    dim as StmtPayload ptr np = @ast.stmts[cast( long, ast.nodes[cast( long, newd )].data )]
+    dim as StmtPayload ptr op = @ast.stmts[cast( int32, ast.nodes[cast( int32, oldd )].data )]
+    dim as StmtPayload ptr np = @ast.stmts[cast( int32, ast.nodes[cast( int32, newd )].data )]
     if op->count <> np->count then return
-    for i as long = 0 to op->count - 1
+    for i as int32 = 0 to op->count - 1
         dim as NodeId a = cast( NodeId, ast.children[op->first + i] )
         dim as NodeId b = cast( NodeId, ast.children[np->first + i] )
         if ast.Kind( a ) <> N_PARAM then continue for
         if ast.Kind( b ) <> N_PARAM then continue for
-        dim as ushort flagsA = ast.nodes[cast( long, a )].flags
-        dim as ushort flagsB = ast.nodes[cast( long, b )].flags
-        dim as ushort mask = cast( ushort, NF_BYREF or NF_BYVAL_WRITTEN )
-        dim as ushort ma = cast( ushort, flagsA and mask )
-        dim as ushort mb = cast( ushort, flagsB and mask )
+        dim as uint16 flagsA = ast.nodes[cast( int32, a )].flags
+        dim as uint16 flagsB = ast.nodes[cast( int32, b )].flags
+        dim as uint16 mask = cast( uint16, NF_BYREF or NF_BYVAL_WRITTEN )
+        dim as uint16 ma = cast( uint16, flagsA and mask )
+        dim as uint16 mb = cast( uint16, flagsB and mask )
         '' A BYDESC PARAMETER'S RANK IS PART OF THE SIGNATURE -- fbc error 231 for
         '' '( ) as integer' overridden by '( any ) as integer', and 223 ("not overriding
         '' any virtual method") for '( any )' by '( any, any )'. The rank as written is
         '' what the parser recorded in 'extra': 0 for '( )', 1 for '( any )', and so on.
         if ((flagsA and NF_ARRAY) <> 0) andalso ((flagsB and NF_ARRAY) <> 0) then
-            dim as StmtPayload ptr pa = @ast.stmts[cast( long, ast.nodes[cast( long, a )].data )]
-            dim as StmtPayload ptr pb = @ast.stmts[cast( long, ast.nodes[cast( long, b )].data )]
+            dim as StmtPayload ptr pa = @ast.stmts[cast( int32, ast.nodes[cast( int32, a )].data )]
+            dim as StmtPayload ptr pb = @ast.stmts[cast( int32, ast.nodes[cast( int32, b )].data )]
             if pa->extra <> pb->extra then
                 NoteMismatch_( store, newd, VTM_RANK )
                 return
@@ -158,15 +158,15 @@ end sub
 '' (virtual/virtual.bas, bydescParams2). The rank as written is the parameter's 'extra'.
 private function RanksAgree_ ( byref ast as AstArena, byval a as NodeId, byval b as NodeId ) as boolean
     if (a = NODE_NONE) orelse (b = NODE_NONE) then return true
-    dim as StmtPayload ptr pa = @ast.stmts[cast( long, ast.nodes[cast( long, a )].data )]
-    dim as StmtPayload ptr pb = @ast.stmts[cast( long, ast.nodes[cast( long, b )].data )]
+    dim as StmtPayload ptr pa = @ast.stmts[cast( int32, ast.nodes[cast( int32, a )].data )]
+    dim as StmtPayload ptr pb = @ast.stmts[cast( int32, ast.nodes[cast( int32, b )].data )]
     if pa->count <> pb->count then return true
-    for i as long = 0 to pa->count - 1
+    for i as int32 = 0 to pa->count - 1
         dim as NodeId x = cast( NodeId, ast.children[pa->first + i] )
         dim as NodeId y = cast( NodeId, ast.children[pb->first + i] )
         if (ast.Kind( x ) <> N_PARAM) orelse (ast.Kind( y ) <> N_PARAM) then continue for
-        if ((ast.nodes[cast( long, x )].flags and NF_ARRAY) = 0) orelse ((ast.nodes[cast( long, y )].flags and NF_ARRAY) = 0) then continue for
-        if ast.stmts[cast( long, ast.nodes[cast( long, x )].data )].extra <> ast.stmts[cast( long, ast.nodes[cast( long, y )].data )].extra then return false
+        if ((ast.nodes[cast( int32, x )].flags and NF_ARRAY) = 0) orelse ((ast.nodes[cast( int32, y )].flags and NF_ARRAY) = 0) then continue for
+        if ast.stmts[cast( int32, ast.nodes[cast( int32, x )].data )].extra <> ast.stmts[cast( int32, ast.nodes[cast( int32, y )].data )].extra then return false
     next
     return true
 end function
@@ -241,7 +241,7 @@ end function
 '' which is why fbc accepts 'stdcall' over 'cdecl' on win64 and refuses it on win32.
 '' An absent keyword means CDECL, so it compares equal to a written one.
 private function CallConvDiffers_ _
-    ( byref types as TypeContext, byval a as ushort, byval b as ushort ) as boolean
+    ( byref types as TypeContext, byval a as uint16, byval b as uint16 ) as boolean
 
     dim as boolean pa = ((a and PF_PASCAL) <> 0)
     dim as boolean pb = ((b and PF_PASCAL) <> 0)
@@ -266,16 +266,16 @@ private sub CheckOverrideBody_ _
     '' BY THEIR RETURN TYPE and by nothing else -- virtual.bas declares 'cast( ) as
     '' string' beside 'cast( ) as integer' -- so a parameter-list match says nothing
     '' about whether one overrides the other, and every pair looked incompatible.
-    dim as StmtPayload ptr osp = @ast.stmts[cast( long, ast.nodes[cast( long, oldd )].data )]
-    dim as StmtPayload ptr nsp = @ast.stmts[cast( long, ast.nodes[cast( long, newd )].data )]
+    dim as StmtPayload ptr osp = @ast.stmts[cast( int32, ast.nodes[cast( int32, oldd )].data )]
+    dim as StmtPayload ptr nsp = @ast.stmts[cast( int32, ast.nodes[cast( int32, newd )].data )]
     dim as boolean isOperator = (cast( TokenKind, osp->op ) = KW_OPERATOR) orelse _
                                 (cast( TokenKind, nsp->op ) = KW_OPERATOR)
 
     '' A COVARIANT BYREF RESULT IS LEGAL: 'byref as A' overridden by 'byref as B' where
     '' B extends A, which compatible-override.bas writes. By VALUE the same pair is fbc
     '' error 225, which is why the test is on the byref-ness rather than on the types.
-    dim as ushort obf = cast( ushort, ast.nodes[cast( long, oldd )].flags and NF_BYREF )
-    dim as ushort nbf = cast( ushort, ast.nodes[cast( long, newd )].flags and NF_BYREF )
+    dim as uint16 obf = cast( uint16, ast.nodes[cast( int32, oldd )].flags and NF_BYREF )
+    dim as uint16 nbf = cast( uint16, ast.nodes[cast( int32, newd )].flags and NF_BYREF )
     dim as boolean bothByref = (obf <> 0) andalso (nbf <> 0)
 
     dim as TypeId ra = ReturnTypeOf_( ast, info, oldd )
@@ -304,8 +304,8 @@ private sub CheckOverrideBody_ _
         return
     end if
     if isOperator then return
-    dim as ushort ca = cast( ushort, osp->extra and PF_CONST )
-    dim as ushort cb = cast( ushort, nsp->extra and PF_CONST )
+    dim as uint16 ca = cast( uint16, osp->extra and PF_CONST )
+    dim as uint16 cb = cast( uint16, nsp->extra and PF_CONST )
     if ca <> cb then
         NoteMismatch_( store, newd, VTM_CONST )
         return
@@ -332,19 +332,19 @@ private function Overrides_ _
     ( byref ast as AstArena, byref info as SemanticInfo, byval a as NodeId, _
       byval b as NodeId ) as boolean
 
-    dim as containers.Array( of ulong ) pa, pb
+    dim as containers.Array( of uint32 ) pa, pb
     ParamTypes_( ast, info, a, pa )
     ParamTypes_( ast, info, b, pb )
     if pa.Count <> pb.Count then return false
-    for i as long = 0 to pa.Count - 1
+    for i as int32 = 0 to pa.Count - 1
         if pa[i] <> pb[i] then return false
     next
     '' AN OPERATOR IS ALSO TOLD APART BY ITS RESULT: 'cast( ) as string' and 'cast( ) as integer' take
     '' the same (no) parameters and are two slots. Read as one, the second took the first's slot and
     '' a call to the first went direct -- A's string cast through an 'A ptr' to a B (virtual/virtual.bas).
-    dim as StmtPayload ptr sa = @ast.stmts[cast( long, ast.nodes[cast( long, a )].data )]
-    dim as StmtPayload ptr sb = @ast.stmts[cast( long, ast.nodes[cast( long, b )].data )]
-    if (sa->op = cast( ushort, KW_OPERATOR )) andalso (sb->op = cast( ushort, KW_OPERATOR )) then
+    dim as StmtPayload ptr sa = @ast.stmts[cast( int32, ast.nodes[cast( int32, a )].data )]
+    dim as StmtPayload ptr sb = @ast.stmts[cast( int32, ast.nodes[cast( int32, b )].data )]
+    if (sa->op = cast( uint16, KW_OPERATOR )) andalso (sb->op = cast( uint16, KW_OPERATOR )) then
         if ReturnTypeOf_( ast, info, a ) <> ReturnTypeOf_( ast, info, b ) then return false
     end if
     return true
@@ -361,7 +361,7 @@ private function BaseTypeOf_ _
     if bf = SYMBOL_NONE then return TYPE_NONE
     dim as Symbol ptr b = syms.SymbolAt( bf )
     if b = 0 then return TYPE_NONE
-    if b->kind <> cast( ubyte, SYM_FIELD ) then return TYPE_NONE
+    if b->kind <> cast( uint8, SYM_FIELD ) then return TYPE_NONE
     return b->type_
 end function
 
@@ -386,7 +386,7 @@ private function ExtendsObject_ _
       byval baseNm as InternId, byval objNm as InternId ) as boolean
 
     dim as TypeId cur = t
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> TYPE_NONE) andalso (guard < 64)
         guard += 1
         if types.NameOf( cur ) = objNm then return true
@@ -412,7 +412,7 @@ private function DeclaredDtorOf_ _
     dim as SymScope ptr sc = syms.ScopeAt( s->inner )
     if sc = 0 then return NODE_NONE
     dim as SymbolId cur = sc->firstSym
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Symbol ptr m = syms.SymbolAt( cur )
@@ -421,11 +421,11 @@ private function DeclaredDtorOf_ _
         while ov <> SYMBOL_NONE
             dim as Symbol ptr mo = syms.SymbolAt( ov )
             if mo = 0 then exit while
-            if mo->kind = cast( ubyte, SYM_PROC ) then
+            if mo->kind = cast( uint8, SYM_PROC ) then
                 dim as NodeId d = cast( NodeId, mo->payload )
                 if (d <> NODE_NONE) andalso (ast.Kind( d ) = N_PROC) then
                     dim as StmtPayload ptr dsp = _
-                        @ast.stmts[cast( long, ast.nodes[cast( long, d )].data )]
+                        @ast.stmts[cast( int32, ast.nodes[cast( int32, d )].data )]
                     if cast( TokenKind, dsp->op ) = KW_DESTRUCTOR then return d
                 end if
             end if
@@ -466,7 +466,7 @@ private sub CheckImplicitDtorConv_ _
     dim as NodeId bd = DeclaredDtorOf_( ast, syms, bs )
     if bd = NODE_NONE then return
     dim as StmtPayload ptr bsp = _
-        @ast.stmts[cast( long, ast.nodes[cast( long, bd )].data )]
+        @ast.stmts[cast( int32, ast.nodes[cast( int32, bd )].data )]
     if (bsp->extra and PF_VIRTUAL) = 0 then return
 
     '' AGAINST THE DEFAULT, which is what an implicit destructor is given -- so the
@@ -491,14 +491,14 @@ private function TemplateScopeOf_ _
     dim as NodeId dn = cast( NodeId, s->payload )
     if dn = NODE_NONE then return SCOPE_NONE
     if ast.Kind( dn ) <> N_TYPE then return SCOPE_NONE
-    dim as StmtPayload ptr sp = @ast.stmts[cast( long, ast.nodes[cast( long, dn )].data )]
+    dim as StmtPayload ptr sp = @ast.stmts[cast( int32, ast.nodes[cast( int32, dn )].data )]
     if sp->b = NODE_NONE then return SCOPE_NONE
     if sp->name = 0 then return SCOPE_NONE
     if s->name = sp->name then return SCOPE_NONE
     dim as SymbolId gt = syms.LookupLocalTyped( s->parent, sp->name, true )
     dim as Symbol ptr gs = syms.SymbolAt( gt )
     if gs = 0 then return SCOPE_NONE
-    if gs->kind <> cast( ubyte, SYM_UDT ) then return SCOPE_NONE
+    if gs->kind <> cast( uint8, SYM_UDT ) then return SCOPE_NONE
     return gs->inner
 end function
 
@@ -529,13 +529,13 @@ private function DeclaresName_ _
 
     dim as Symbol ptr s = syms.SymbolAt( UdtSymbolOf_( syms, types, t ) )
     if s = 0 then return false
-    for pass_ as long = 0 to 1
+    for pass_ as int32 = 0 to 1
         dim as ScopeId sc = s->inner
         if pass_ = 1 then sc = TemplateScopeOf_( ast, syms, s )
         if sc = SCOPE_NONE then continue for
         dim as Symbol ptr m = syms.SymbolAt( syms.LookupLocal( sc, nm ) )
         if m <> 0 then
-            if m->kind = cast( ubyte, SYM_PROC ) then return true
+            if m->kind = cast( uint8, SYM_PROC ) then return true
         end if
     next
     return false
@@ -553,7 +553,7 @@ private function SlotClosedFor_ _
     if sl->open = false then return true
     if isDtor then return (sl->owner <> bt)
     dim as TypeId cur = bt
-    for guard as long = 0 to 64
+    for guard as int32 = 0 to 64
         if (cur = TYPE_NONE) orelse (cur = sl->owner) then return false
         if DeclaresName_( ast, syms, types, cur, nm ) then return true
         dim as Symbol ptr cs = syms.SymbolAt( UdtSymbolOf_( syms, types, cur ) )
@@ -588,7 +588,7 @@ private function BuildOne_ _
     v.count = 0
 
     if (bt <> TYPE_NONE) andalso (bt <> t) then
-        dim as long bi = store.Find( bt )
+        dim as int32 bi = store.Find( bt )
         if bi >= 0 then
             dim as VtInfo ptr b = @store.types_[bi]
             '' COPIED TO A LOCAL FIRST. 'store.slots.Push( store.slots[ i ] )' pushes an
@@ -603,7 +603,7 @@ private function BuildOne_ _
             '' IShellItem_ is the smallest shape in the corpus: three inherited slots
             '' from ComUnknown and five of its own, all eight abstract, and slot 0
             '' came out non-abstract with no name.
-            for i as long = 0 to b->count - 1
+            for i as int32 = 0 to b->count - 1
                 dim as VtSlot bs = store.slots[b->first + i]
                 store.slots.Push( bs )
                 v.count += 1
@@ -632,15 +632,15 @@ private function BuildOne_ _
     '' unchanged by this: the template pass matches the same inherited slots and the
     '' instantiation pass replaces them again.
     dim as ScopeId tmplScope = TemplateScopeOf_( ast, syms, s )
-    dim as long nInherited = v.count   '' slots below this came from the base
-    for pass_ as long = 0 to 1
+    dim as int32 nInherited = v.count   '' slots below this came from the base
+    for pass_ as int32 = 0 to 1
         dim as ScopeId msc = s->inner
         if pass_ = 0 then msc = tmplScope
         if msc = SCOPE_NONE then continue for
         dim as SymScope ptr sc = syms.ScopeAt( msc )
         if sc <> 0 then
             dim as SymbolId cur = sc->firstSym
-            dim as long guard = 0
+            dim as int32 guard = 0
             while (cur <> SYMBOL_NONE) andalso (guard < 100000)
                 guard += 1
                 dim as Symbol ptr m = syms.SymbolAt( cur )
@@ -650,11 +650,11 @@ private function BuildOne_ _
                 while ov <> SYMBOL_NONE
                     dim as Symbol ptr mo = syms.SymbolAt( ov )
                     if mo = 0 then exit while
-                    if mo->kind = cast( ubyte, SYM_PROC ) then
+                    if mo->kind = cast( uint8, SYM_PROC ) then
                         dim as NodeId decl = cast( NodeId, mo->payload )
                         if (decl <> NODE_NONE) andalso (ast.Kind( decl ) = N_PROC) then
                             dim as StmtPayload ptr pp = _
-                                @ast.stmts[cast( long, ast.nodes[cast( long, decl )].data )]
+                                @ast.stmts[cast( int32, ast.nodes[cast( int32, decl )].data )]
                             dim as boolean isAbstract = ((pp->extra and PF_ABSTRACT) <> 0)
                             dim as boolean isVirtual = ((pp->extra and PF_VIRTUAL) <> 0) orelse _
                                                        isAbstract
@@ -664,8 +664,8 @@ private function BuildOne_ _
                             '' 'declare function f( ) as long override' carries neither
                             '' modifier tiko-lang records, and it is B's f that a call through
                             '' an A ptr must reach.
-                            dim as long at = -1, loose = -1
-                            for i as long = 0 to v.count - 1
+                            dim as int32 at = -1, loose = -1
+                            for i as int32 = 0 to v.count - 1
                                 dim as VtSlot ptr sl = @store.slots[v.first + i]
                                 if sl->name <> mo->name then continue for
                                 if Overrides_( ast, info, sl->decl, decl ) then
@@ -690,7 +690,7 @@ private function BuildOne_ _
 
                             if at >= 0 then
                                 '' AN ABSTRACT SLOT IS NULL, and an override fills it.
-                                store.overrode.Push( cast( ulong, decl ) )
+                                store.overrode.Push( cast( uint32, decl ) )
                                 dim as VtSlot ptr sl = @store.slots[v.first + at]
                                 CheckOverrideBody_( ast, info, types, store, sl->decl, decl )
                                 sl->proc_ = iif( isAbstract, cast( SymbolId, SYMBOL_NONE ), ov )
@@ -741,7 +741,7 @@ private function IsGenericTemplateUdt_ _
     dim as NodeId dn = cast( NodeId, s->payload )
     if dn = NODE_NONE then return false
     if ast.Kind( dn ) <> N_TYPE then return false
-    dim as StmtPayload ptr sp = @ast.stmts[cast( long, ast.nodes[cast( long, dn )].data )]
+    dim as StmtPayload ptr sp = @ast.stmts[cast( int32, ast.nodes[cast( int32, dn )].data )]
     if sp->b = NODE_NONE then return false
     return (s->name = sp->name)
 end function
@@ -760,17 +760,17 @@ end function
 private sub NotePatternOnly_ _
     ( byref ast as AstArena, byref syms as SymbolTable, byref store as VTables )
 
-    for i as long = 1 to syms.Count( )
+    for i as int32 = 1 to syms.Count( )
         dim as Symbol ptr s = syms.SymbolAt( cast( SymbolId, i ) )
         if s = 0 then continue for
-        if s->kind <> cast( ubyte, SYM_UDT ) then continue for
+        if s->kind <> cast( uint8, SYM_UDT ) then continue for
         if IsGenericTemplateUdt_( ast, s ) = false then continue for
         if s->inner = SCOPE_NONE then continue for
         dim as boolean used = false
-        for j as long = 1 to syms.Count( )
+        for j as int32 = 1 to syms.Count( )
             dim as Symbol ptr u = syms.SymbolAt( cast( SymbolId, j ) )
             if u = 0 then continue for
-            if u->kind <> cast( ubyte, SYM_UDT ) then continue for
+            if u->kind <> cast( uint8, SYM_UDT ) then continue for
             if TemplateScopeOf_( ast, syms, u ) = s->inner then
                 used = true
                 exit for
@@ -780,7 +780,7 @@ private sub NotePatternOnly_ _
         dim as SymScope ptr sc = syms.ScopeAt( s->inner )
         if sc = 0 then continue for
         dim as SymbolId cur = sc->firstSym
-        dim as long guard = 0
+        dim as int32 guard = 0
         while (cur <> SYMBOL_NONE) andalso (guard < 100000)
             guard += 1
             dim as Symbol ptr m = syms.SymbolAt( cur )
@@ -789,8 +789,8 @@ private sub NotePatternOnly_ _
             while ov <> SYMBOL_NONE
                 dim as Symbol ptr mo = syms.SymbolAt( ov )
                 if mo = 0 then exit while
-                if mo->kind = cast( ubyte, SYM_PROC ) then
-                    store.patternOnly.Push( cast( ulong, mo->payload ) )
+                if mo->kind = cast( uint8, SYM_PROC ) then
+                    store.patternOnly.Push( cast( uint32, mo->payload ) )
                 end if
                 ov = mo->nextOverload
             wend
@@ -801,7 +801,7 @@ end sub
 
 function ComputeVTables _
     ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
-      byref info as SemanticInfo, byref store as VTables ) as long
+      byref info as SemanticInfo, byref store as VTables ) as int32
 
     if syms.names = 0 then return 0
     store.baseName = syms.names->GetString( "base" )
@@ -813,10 +813,10 @@ function ComputeVTables _
     dim as boolean progress = true
     while progress
         progress = false
-        for i as long = 1 to syms.Count( )
+        for i as int32 = 1 to syms.Count( )
             dim as Symbol ptr s = syms.SymbolAt( cast( SymbolId, i ) )
             if s = 0 then continue for
-            if s->kind <> cast( ubyte, SYM_UDT ) then continue for
+            if s->kind <> cast( uint8, SYM_UDT ) then continue for
             if s->type_ = TYPE_NONE then continue for
             if store.Find( s->type_ ) >= 0 then continue for
             if IsGenericTemplateUdt_( ast, s ) then continue for
@@ -838,10 +838,10 @@ function DumpVTables _
       byref info as SemanticInfo ) as string
 
     dim as IrText outp
-    for i as long = 0 to store.types_.Count - 1
+    for i as int32 = 0 to store.types_.Count - 1
         dim as VtInfo ptr v = @store.types_[i]
         outp += types.Name( v->type_ ) & " vtable " & str( v->count ) & " slot(s)" & chr( 10 )
-        for j as long = 0 to v->count - 1
+        for j as int32 = 0 to v->count - 1
             dim as VtSlot ptr sl = @store.slots[v->first + j]
             dim as string who = "<abstract>"
             if (sl->proc_ <> SYMBOL_NONE) andalso (sl->decl <> NODE_NONE) then

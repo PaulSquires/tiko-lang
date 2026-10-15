@@ -19,14 +19,14 @@ function Dump _
     '' THE COUNTS EXCLUDE THE PRELUDE TOO, or they would contradict the rows below --
     '' thirty declarations counted and none of them printed. The prelude's own total is
     '' reported beside them rather than hidden.
-    dim as long nbuiltin = 0
-    for i as long = 1 to syms.Count( )
+    dim as int32 nbuiltin = 0
+    for i as int32 = 1 to syms.Count( )
         dim as Tko.Symbol ptr s = syms.SymbolAt( cast( Tko.SymbolId, i ) )
         if s = 0 then continue for
         if src.IsBuiltin( s->loc ) then nbuiltin += 1
     next
-    dim as long nscopes = 0
-    for i as long = 1 to syms.ScopeCount( )
+    dim as int32 nscopes = 0
+    for i as int32 = 1 to syms.ScopeCount( )
         dim as Tko.SymScope ptr sc = syms.ScopeAt( cast( Tko.ScopeId, i ) )
         if sc = 0 then continue for
         if sc->owner <> Tko.SYMBOL_NONE then
@@ -43,7 +43,7 @@ function Dump _
     if nbuiltin > 0 then outp += "  (builtin: " & nbuiltin & ")"
     outp += chr( 10 )
 
-    for i as long = 1 to syms.ScopeCount( )
+    for i as int32 = 1 to syms.ScopeCount( )
         dim as Tko.SymScope ptr sc = syms.ScopeAt( cast( Tko.ScopeId, i ) )
         if sc->count = 0 then continue for
         '' A scope the prelude opened -- the body of one of its declarations -- is not
@@ -56,7 +56,7 @@ function Dump _
         end if
         '' How many of this scope's symbols are the user's, which is what the rows
         '' below will actually show.
-        dim as long nvis = 0
+        dim as int32 nvis = 0
         dim as Tko.SymbolId vc = sc->firstSym
         while vc <> Tko.SYMBOL_NONE
             dim as Tko.Symbol ptr vs = syms.SymbolAt( vc )
@@ -92,7 +92,7 @@ function Dump _
             if (s->flags and Tko.SYMF_DECLARED) <> 0 then row += " declared"
             if (s->flags and Tko.SYMF_DEFINED) <> 0 then row += " defined"
             if (s->flags and Tko.SYMF_BUILTIN) <> 0 then row += " builtin"
-            if s->callConv <> cast( ubyte, Tko.CC_NONE ) then
+            if s->callConv <> cast( uint8, Tko.CC_NONE ) then
                 row += " " & Tko.CallConvName( cast( Tko.CallConv, s->callConv ) )
             end if
             if (s->flags and Tko.SYMF_FUNCNAME) <> 0 then row += " funcname"

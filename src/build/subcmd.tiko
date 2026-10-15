@@ -31,7 +31,7 @@ private function ParseArgs_ _
 
     dim as boolean ok = true
     a.verb = args[0]
-    dim as long i = 1
+    dim as int32 i = 1
     while i < args.Count
         dim as string w = args[i]
         '' '--' ENDS tiko's arguments: the rest are the program's, for 'tiko run' only.
@@ -40,7 +40,7 @@ private function ParseArgs_ _
                 diags.ReportGlobal( Tko.TKO0154, "--", "tiko " & a.verb )
                 ok = false
             end if
-            for k as long = i + 1 to args.Count - 1
+            for k as int32 = i + 1 to args.Count - 1
                 a.runArgs.Push( args[k] )
             next
             exit while
@@ -164,16 +164,16 @@ end function
 
 '' ONE DIAGNOSTICS FILE FOR THE WHOLE BUILD: each target's run wrote its own, and they are
 '' joined -- one header, every record in target order, one 'end' with the totals.
-private sub MergeDiagFiles_( byref dest as string, byref parts as Tko.StrVec, byval rc as long )
+private sub MergeDiagFiles_( byref dest as string, byref parts as Tko.StrVec, byval rc as int32 )
     dim as string header = "", body = ""
-    dim as long errs = 0, warns = 0
+    dim as int32 errs = 0, warns = 0
     for each part as string in parts
         dim as string t
         if Tko.DiskCache.ReadAll( part, t ) = false then continue for
         kill( part )
-        dim as long p = 1
+        dim as int32 p = 1
         while p <= len( t )
-            dim as long e = instr( p, t, chr( 10 ) )
+            dim as int32 e = instr( p, t, chr( 10 ) )
             if e = 0 then e = len( t ) + 1
             dim as string ln = mid( t, p, e - p )
             p = e + 1
@@ -183,7 +183,7 @@ private sub MergeDiagFiles_( byref dest as string, byref parts as Tko.StrVec, by
             end if
             if ln = header then continue while
             if left( ln, 4 ) = "end" & chr( 9 ) then
-                dim as long t1 = instr( 5, ln, chr( 9 ) )
+                dim as int32 t1 = instr( 5, ln, chr( 9 ) )
                 errs += valint( mid( ln, 5, t1 - 5 ) )
                 warns += valint( mid( ln, t1 + 1 ) )
                 continue while
@@ -192,7 +192,7 @@ private sub MergeDiagFiles_( byref dest as string, byref parts as Tko.StrVec, by
         wend
     next
     if len( header ) = 0 then return
-    dim as long fh = freefile
+    dim as int32 fh = freefile
     if open( dest for output as #fh ) <> 0 then return
     print #fh, header & chr( 10 ) & body & "end" & chr( 9 ) & errs & chr( 9 ) & warns & chr( 9 ) & rc & chr( 10 );
     close #fh
@@ -218,7 +218,7 @@ end function
 '' its import library is for the linker, not the program. A failure is TKO0171, exit 5.
 private function CopyTo_ _
     ( byref p as TargetPlan, byref obs as Observer, byval wordy as boolean, _
-      byref diags as Tko.DiagnosticEngine ) as long
+      byref diags as Tko.DiagnosticEngine ) as int32
 
     for each dir_ as string in p.copyTo
         dim as string dst = CopyPath_( dir_, p.artifact )
@@ -247,7 +247,7 @@ private function CopyTo_ _
     return Tko.EXIT_OK
 end function
 
-private sub BuildEnd_( byref obs as Observer, byref p as TargetPlan, byval rc as long )
+private sub BuildEnd_( byref obs as Observer, byref p as TargetPlan, byval rc as int32 )
     EmitLine( obs, """event"":""build-end"",""target"":" & JsonStr( p.name ) & ",""errors"":" & _
                    obs.errors & ",""warnings"":" & obs.warnings & ",""exit"":" & rc & ",""ms"":" & _
                    clng( ( timer - obs.t0 ) * 1000 ) )
@@ -272,7 +272,7 @@ private function Plan_ _
             continue for
         end if
         '' TWO TARGETS MAY NOT WRITE ONE FILE (TKO0165).
-        for k as long = 0 to arts.Count - 1
+        for k as int32 = 0 to arts.Count - 1
             if arts[k] = p.artifact then ctx.diags.ReportGlobal( Tko.TKO0165, plans[k], n, p.artifact ) : ok = false
         next
         arts.Push( p.artifact )
@@ -294,11 +294,11 @@ end function
 private function Build_ _
     ( byref a as BuildArgs, byref m as Tko.Modules.Manifest, byref mdir as string, _
       byref plans as Tko.StrVec, byref ctx as Tko.CompilerContext, byref obs as Observer, _
-      byval checkOnly as boolean = false ) as long
+      byval checkOnly as boolean = false ) as int32
 
-    dim as long rc = Tko.EXIT_OK
+    dim as int32 rc = Tko.EXIT_OK
     dim as Tko.StrVec diagParts
-    for i as long = 0 to plans.Count - 1
+    for i as int32 = 0 to plans.Count - 1
         dim as TargetPlan p
         '' Several targets: each run writes a diagnostics file of its own, joined at the end.
         dim as string ownDiag = a.diagFile
@@ -344,7 +344,7 @@ end function
 '' of the running executable -- tiko's -- before the current one for a bare name.
 private function Run_ _
     ( byref a as BuildArgs, byref m as Tko.Modules.Manifest, byref mdir as string, _
-      byref plans as Tko.StrVec, byref ctx as Tko.CompilerContext, byref obs as Observer ) as long
+      byref plans as Tko.StrVec, byref ctx as Tko.CompilerContext, byref obs as Observer ) as int32
 
     if plans.Count <> 1 then
         dim as string list_ = ""
@@ -360,7 +360,7 @@ private function Run_ _
         ctx.diags.ReportGlobal( Tko.TKO0168, p.name, p.kind )
         return Tko.EXIT_CMDLINE
     end if
-    dim as long rc = Build_( a, m, mdir, plans, ctx, obs )
+    dim as int32 rc = Build_( a, m, mdir, plans, ctx, obs )
     if rc <> Tko.EXIT_OK then return rc
 
     '' THE FIRST copy_to COPY, when the target has one: it is the one beside the DLLs and data
@@ -377,14 +377,14 @@ private function Run_ _
         ctx.diags.ReportGlobal( Tko.TKO0111, "could not start " & exe )
         return Tko.EXIT_TOOL_FAILED
     end if
-    dim as long prc = Tko.Spawn.Wait( pr )
+    dim as int32 prc = Tko.Spawn.Wait( pr )
     EmitLine( obs, """event"":""run-end"",""exit"":" & prc )
     return prc
 end function
 
 private function Clean_ _
     ( byref a as BuildArgs, byref m as Tko.Modules.Manifest, byref mdir as string, _
-      byref plans as Tko.StrVec, byref ctx as Tko.CompilerContext, byref obs as Observer ) as long
+      byref plans as Tko.StrVec, byref ctx as Tko.CompilerContext, byref obs as Observer ) as int32
 
     for each n as string in plans
         dim as TargetPlan p
@@ -416,9 +416,9 @@ end function
 '' the observer rather than printed (modgraph.tiko).
 private function Metadata_ _
     ( byref a as BuildArgs, byval hasM as boolean, byref m as Tko.Modules.Manifest, byref mdir as string, _
-      byref plans as Tko.StrVec, byref ctx as Tko.CompilerContext, byref obs as Observer ) as long
+      byref plans as Tko.StrVec, byref ctx as Tko.CompilerContext, byref obs as Observer ) as int32
 
-    dim as long rc = Tko.EXIT_OK
+    dim as int32 rc = Tko.EXIT_OK
     dim as Tko.StrVec profiles
     ProfileNames( m, profiles )
     dim as string tj = "", uj = "", pj = ""
@@ -463,7 +463,7 @@ private function Metadata_ _
         if len( a.target ) > 0 then g.Push( "-target" ) : g.Push( a.target )
         g.Push( "--print-graph" )
         obs.includesJson = "[]" : obs.definesJson = "[]"
-        dim as long grc = Tko.Driver.Run( g, 0, 0, @obs )
+        dim as int32 grc = Tko.Driver.Run( g, 0, 0, @obs )
         if grc <> Tko.EXIT_OK then rc = grc
         for each r as string in p.roots
             uj &= iif( len( uj ) > 0, ",", "" ) & "{""target"":" & JsonStr( p.name ) & ",""root"":" & JsonStr( r ) & _
@@ -487,7 +487,7 @@ private function Metadata_ _
     return rc
 end function
 
-function Entry( byref args as Tko.StrVec ) as long
+function Entry( byref args as Tko.StrVec ) as int32
     if args.IsEmpty( ) then return Tko.Driver.Run( args )
     if IsCommand( args[0] ) = false then return Tko.Driver.Run( args )
 
@@ -558,7 +558,7 @@ function Entry( byref args as Tko.StrVec ) as long
         ok = Plan_( a, hasM, m, mdir, targets, ctx, plans )
     end if
 
-    dim as long rc = Tko.EXIT_CMDLINE
+    dim as int32 rc = Tko.EXIT_CMDLINE
     if ok then
         select case a.verb
         case "build"

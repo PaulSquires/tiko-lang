@@ -9,39 +9,39 @@ constructor MirModule( )
 end constructor
 
 destructor MirModule( )
-    for i as long = 0 to this.functions.Count - 1
+    for i as int32 = 0 to this.functions.Count - 1
         if this.functions[i] <> 0 then delete this.functions[i]
     next
 end destructor
 
-function IdMap.Find( byval k as ulong ) as long
-    dim as long cap = this.keys.Count
+function IdMap.Find( byval k as uint32 ) as int32
+    dim as int32 cap = this.keys.Count
     if cap = 0 then return -1
-    dim as long i = cast( long, (k * 2654435761ul) and cast( ulong, cap - 1 ) )
+    dim as int32 i = cast( int32, (k * 2654435761ul) and cast( uint32, cap - 1 ) )
     do
-        dim as ulong at = this.keys[i]
+        dim as uint32 at = this.keys[i]
         if at = 0 then return -1
         if at = k then return this.vals[i]
         i = (i + 1) and (cap - 1)
     loop
 end function
 
-sub IdMap.Put( byval k as ulong, byval v as long )
+sub IdMap.Put( byval k as uint32, byval v as int32 )
     if (this.used + 1) * 2 > this.keys.Count then
-        dim as containers.Array( of ulong ) ok = this.keys
-        dim as containers.Array( of long ) ov = this.vals
-        dim as long ncap = iif( this.keys.Count = 0, 64, this.keys.Count * 2 )
+        dim as containers.Array( of uint32 ) ok = this.keys
+        dim as containers.Array( of int32 ) ov = this.vals
+        dim as int32 ncap = iif( this.keys.Count = 0, 64, this.keys.Count * 2 )
         this.keys.Clear( ) : this.vals.Clear( )
-        for j as long = 1 to ncap
+        for j as int32 = 1 to ncap
             this.keys.Push( 0 ) : this.vals.Push( 0 )
         next
         this.used = 0
-        for j as long = 0 to ok.Count - 1
+        for j as int32 = 0 to ok.Count - 1
             if ok[j] <> 0 then this.Put( ok[j], ov[j] )
         next
     end if
-    dim as long cap = this.keys.Count
-    dim as long i = cast( long, (k * 2654435761ul) and cast( ulong, cap - 1 ) )
+    dim as int32 cap = this.keys.Count
+    dim as int32 i = cast( int32, (k * 2654435761ul) and cast( uint32, cap - 1 ) )
     do
         if this.keys[i] = 0 then
             this.keys[i] = k
@@ -58,10 +58,10 @@ sub IdMap.Put( byval k as ulong, byval v as long )
 end sub
 
 sub MirFunction.AddParam _
-    ( byval ty as MirType, byval aggSize as ulong, byval aggClass as ulong, _
-      byval attr as ubyte, byval ext as ubyte )
+    ( byval ty as MirType, byval aggSize as uint32, byval aggClass as uint32, _
+      byval attr as uint8, byval ext as uint8 )
 
-    this.paramTys.Push( cast( ubyte, ty ) )
+    this.paramTys.Push( cast( uint8, ty ) )
     this.paramAggs.Push( aggSize )
     this.paramClasses.Push( aggClass )
     this.paramAttrs.Push( attr )
@@ -69,7 +69,7 @@ sub MirFunction.AddParam _
     '' already goes through -- so a signature cannot record an arity without saying
     '' whether that parameter widens. The ABI pass reads both.
     this.paramExt.Push( ext )
-    this.paramNarrow.Push( cast( ubyte, ty ) )
+    this.paramNarrow.Push( cast( uint8, ty ) )
     this.paramCount = this.paramTys.Count
 end sub
 
@@ -78,10 +78,10 @@ end sub
 '' its name's chain -- newest first, which is what a lookup for 'the definition' wants
 '' to find without walking the declarations behind it.
 private sub IndexName_ _
-    ( byref idx as containers.Array( of long ), byval nm as InternId, byval at as long, _
-      byref nextOut as long )
+    ( byref idx as containers.Array( of int32 ), byval nm as InternId, byval at as int32, _
+      byref nextOut as int32 )
 
-    dim as long key = cast( long, nm )
+    dim as int32 key = cast( int32, nm )
     while idx.Count <= key
         idx.Push( 0 )
     wend
@@ -91,9 +91,9 @@ end sub
 
 '' The head of a name's chain, as an index, or -1 when the name has no entry.
 private function HeadOf_ _
-    ( byref idx as containers.Array( of long ), byval nm as InternId ) as long
+    ( byref idx as containers.Array( of int32 ), byval nm as InternId ) as int32
 
-    dim as long key = cast( long, nm )
+    dim as int32 key = cast( int32, nm )
     if (key < 0) orelse (key >= idx.Count) then return -1
     return idx[key] - 1
 end function
@@ -103,19 +103,19 @@ function MirModule.AddFunction _
 
     dim as MirFunction ptr f = new MirFunction
     f->name = nm
-    f->retTy = cast( ubyte, retTy )
+    f->retTy = cast( uint8, retTy )
     f->nextTemp = 1
     this.functions.Push( f )
     IndexName_( this.funcByName, nm, this.functions.Count - 1, f->nextSameName )
     return f
 end function
 
-function MirModule.FirstFunctionNamed( byval nm as InternId ) as long
+function MirModule.FirstFunctionNamed( byval nm as InternId ) as int32
     return HeadOf_( this.funcByName, nm )
 end function
 
-function MirModule.FindPtrTable( byval nm as InternId ) as long
-    dim as long at = HeadOf_( this.globalByName, nm )
+function MirModule.FindPtrTable( byval nm as InternId ) as int32
+    dim as int32 at = HeadOf_( this.globalByName, nm )
     while at >= 0
         if this.globals[at].isPtrTable then return at
         at = this.globals[at].nextSameName - 1
@@ -123,8 +123,8 @@ function MirModule.FindPtrTable( byval nm as InternId ) as long
     return -1
 end function
 
-function MirModule.FindVarGlobal( byval nm as InternId ) as long
-    dim as long at = HeadOf_( this.globalByName, nm )
+function MirModule.FindVarGlobal( byval nm as InternId ) as int32
+    dim as int32 at = HeadOf_( this.globalByName, nm )
     while at >= 0
         if this.globals[at].isVar then return at
         at = this.globals[at].nextSameName - 1
@@ -139,20 +139,20 @@ end function
 '' pool because a narrow and a wide literal of the same text are different objects.
 '' A DATA block. Never shared: two identical blocks are still two blocks, because
 '' the chain threads through their terminators and sharing one would make it a cycle.
-function MirModule.AddDataBlock( byref names as Interner ) as long
+function MirModule.AddDataBlock( byref names as Interner ) as int32
     dim as MirGlobal g
     g.isData = true
     g.dataFirst = this.dataTypes.Count
     g.dataCount = 0
     g.name = names.GetString( "$data" & str( this.globals.Count ) )
     this.globals.Push( g )
-    dim as long at = this.globals.Count - 1
+    dim as int32 at = this.globals.Count - 1
     IndexName_( this.globalByName, g.name, at, this.globals[at].nextSameName )
     return at
 end function
 
 sub MirModule.PushDataEntry _
-    ( byval g as long, byval ty as long, byval ref as long )
+    ( byval g as int32, byval ty as int32, byval ref as int32 )
 
     if (g < 0) orelse (g >= this.globals.Count) then return
     this.dataTypes.Push( ty )
@@ -170,17 +170,17 @@ end sub
 '' Two literals with the same TEXT have the same units, so the text is still the
 '' merge key.
 function MirModule.AddWideStringUnits _
-    ( byref text as string, byref units as containers.Array( of ulong ), _
-      byref names as Interner ) as long
+    ( byref text as string, byref units as containers.Array( of uint32 ), _
+      byref names as Interner ) as int32
 
     '' ...AND THE SAME UNITS. A UTF-8 source's '"Ω"' decodes to one unit where a
     '' byte-preserved file's same two bytes are two, so the text alone is not the key.
-    for i as long = 0 to this.globals.Count - 1
+    for i as int32 = 0 to this.globals.Count - 1
         if this.globals[i].isString andalso this.globals[i].isWide andalso _
            (this.globals[i].bytes = text) then
             if this.globals[i].wcharCount <> units.Count then continue for
             dim as boolean same = true
-            for u as long = 0 to units.Count - 1
+            for u as int32 = 0 to units.Count - 1
                 if this.wcharPool[this.globals[i].wcharFirst + u] <> units[u] then
                     same = false
                     exit for
@@ -197,9 +197,9 @@ function MirModule.AddWideStringUnits _
     g.wcharCount = units.Count
     g.name = names.GetString( "$wstr" & str( this.globals.Count ) )
     this.globals.Push( g )
-    dim as long at = this.globals.Count - 1
+    dim as int32 at = this.globals.Count - 1
     IndexName_( this.globalByName, g.name, at, this.globals[at].nextSameName )
-    for i as long = 0 to units.Count - 1
+    for i as int32 = 0 to units.Count - 1
         this.wcharPool.Push( units[i] )
     next
     return at
@@ -209,11 +209,11 @@ end function
 '' decode goes through here, and the units are filled in the same way so nothing
 '' downstream has to know which entry point was used.
 function MirModule.AddWideStringLiteral _
-    ( byref text as string, byref names as Interner ) as long
+    ( byref text as string, byref names as Interner ) as int32
 
-    dim as containers.Array( of ulong ) units
-    for i as long = 0 to len( text ) - 1
-        units.Push( cast( ulong, text[i] ) )
+    dim as containers.Array( of uint32 ) units
+    for i as int32 = 0 to len( text ) - 1
+        units.Push( cast( uint32, text[i] ) )
     next
     return this.AddWideStringUnits( text, units, names )
 end function
@@ -221,13 +221,13 @@ end function
 '' Identical literals share one global. See MirModule.strByText for why this is a
 '' lookup and what the scan before it cost.
 function MirModule.AddStringLiteral _
-    ( byref text as string, byref names as Interner ) as long
+    ( byref text as string, byref names as Interner ) as int32
 
-    dim as long key = cast( long, names.GetString( text ) )
+    dim as int32 key = cast( int32, names.GetString( text ) )
     while this.strByText.Count <= key
         this.strByText.Push( 0 )
     wend
-    dim as long seen = this.strByText[key]
+    dim as int32 seen = this.strByText[key]
     if seen > 0 then return seen - 1
 
     dim as MirGlobal g
@@ -235,16 +235,16 @@ function MirModule.AddStringLiteral _
     g.isString = true
     g.name = names.GetString( "$str" & str( this.globals.Count ) )
     this.globals.Push( g )
-    dim as long idx = this.globals.Count - 1
+    dim as int32 idx = this.globals.Count - 1
     IndexName_( this.globalByName, g.name, idx, this.globals[idx].nextSameName )
     this.strByText[key] = idx + 1
     return idx
 end function
 
-function MirModule.AddPtrTable( byval nm as InternId ) as long
+function MirModule.AddPtrTable( byval nm as InternId ) as int32
     '' By NAME, so a type's table is found again rather than built twice: the base's
     '' RTTI is referenced by every type below it in the chain.
-    dim as long found = this.FindPtrTable( nm )
+    dim as int32 found = this.FindPtrTable( nm )
     if found >= 0 then return found
     dim as MirGlobal g
     g.name = nm
@@ -252,39 +252,39 @@ function MirModule.AddPtrTable( byval nm as InternId ) as long
     g.ptrFirst = this.ptrKinds.Count
     g.ptrCount = 0
     this.globals.Push( g )
-    dim as long at = this.globals.Count - 1
+    dim as int32 at = this.globals.Count - 1
     IndexName_( this.globalByName, nm, at, this.globals[at].nextSameName )
     return at
 end function
 
 '' The three entry kinds. Each APPENDS, so a table has to be filled before the next one
 '' is opened -- the pool is shared and the runs are contiguous.
-sub MirModule.PushPtrNull( byval g as long, byval off as long = -1 )
+sub MirModule.PushPtrNull( byval g as int32, byval off as int32 = -1 )
     this.ptrKinds.Push( 0 )
     this.ptrRefs.Push( 0 )
     this.ptrOffs.Push( off )
     this.globals[g].ptrCount += 1
 end sub
 
-sub MirModule.PushPtrGlobal( byval g as long, byval which as long, byval off as long = -1 )
+sub MirModule.PushPtrGlobal( byval g as int32, byval which as int32, byval off as int32 = -1 )
     this.ptrKinds.Push( 1 )
-    this.ptrRefs.Push( cast( ulong, which ) )
+    this.ptrRefs.Push( cast( uint32, which ) )
     this.ptrOffs.Push( off )
     this.globals[g].ptrCount += 1
 end sub
 
-sub MirModule.PushPtrFunc( byval g as long, byval nm as InternId, byval off as long = -1 )
+sub MirModule.PushPtrFunc( byval g as int32, byval nm as InternId, byval off as int32 = -1 )
     this.ptrKinds.Push( 2 )
-    this.ptrRefs.Push( cast( ulong, nm ) )
+    this.ptrRefs.Push( cast( uint32, nm ) )
     this.ptrOffs.Push( off )
     this.globals[g].ptrCount += 1
 end sub
 
 function MirModule.AddVarGlobal _
     ( byval nm as InternId, byval ty as MirType, byval ft as Tko.TypeId, _
-      byval sizeBytes as long ) as long
+      byval sizeBytes as int32 ) as int32
 
-    dim as long found = this.FindVarGlobal( nm )
+    dim as int32 found = this.FindVarGlobal( nm )
     if found >= 0 then return found
     dim as MirGlobal g
     g.name = nm
@@ -293,11 +293,11 @@ function MirModule.AddVarGlobal _
     '' field would name the first global in the module as every static pointer's
     '' initial value.
     g.initReloc = -1
-    g.ty = cast( ubyte, ty )
+    g.ty = cast( uint8, ty )
     g.frontendType = ft
     g.size = sizeBytes
     this.globals.Push( g )
-    dim as long at = this.globals.Count - 1
+    dim as int32 at = this.globals.Count - 1
     IndexName_( this.globalByName, nm, at, this.globals[at].nextSameName )
     return at
 end function
@@ -328,7 +328,7 @@ function OpName( byval o as MirOp ) as string
     return "?"
 end function
 
-function OpArity( byval o as MirOp ) as long
+function OpArity( byval o as MirOp ) as int32
     select case o
     #define OP( o_id, o_name, o_args, o_res ) case o_id : return o_args
     TKO_MIR_LIST( OP )
@@ -423,20 +423,20 @@ end function
 '' The length is an M_CONST operand of the call: the count of the literal's units, or
 '' that count with the top bit set, which is how lowering marks a literal's length.
 private function FixUtf16Length_ _
-    ( byval f as MirFunction ptr, byref argPool as containers.Array( of ulong ), _
-      byval ak as long, byval oldCount as long, byval newCount as long ) as boolean
+    ( byval f as MirFunction ptr, byref argPool as containers.Array( of uint32 ), _
+      byval ak as int32, byval oldCount as int32, byval newCount as int32 ) as boolean
 
     if (ak + 1) >= argPool.Count then return false
-    if argPool[ak] <> cast( ulong, MV_TEMP ) then return false
-    dim as ulong tid = argPool[ak + 1]
-    for bi as long = 0 to f->blocks.Count - 1
-        for ii as long = 0 to f->blocks[bi].insts.Count - 1
+    if argPool[ak] <> cast( uint32, MV_TEMP ) then return false
+    dim as uint32 tid = argPool[ak + 1]
+    for bi as int32 = 0 to f->blocks.Count - 1
+        for ii as int32 = 0 to f->blocks[bi].insts.Count - 1
             dim as MirInst ptr ci = @f->blocks[bi].insts[ii]
             if ci->result <> tid then continue for
             if cast( MirOp, ci->op ) <> M_CONST then return false
-            dim as longint flag = ci->imm and &h8000000000000000ll
+            dim as int64 flag = ci->imm and &h8000000000000000ll
             if (ci->imm and &h7FFFFFFFFFFFFFFFll) <> oldCount then return false
-            ci->imm = flag or cast( longint, newCount )
+            ci->imm = flag or cast( int64, newCount )
             return true
         next
     next
@@ -444,30 +444,30 @@ private function FixUtf16Length_ _
 end function
 
 sub MirModule.SplitUtf16Literals( byref names as Interner )
-    for fi as long = 0 to this.functions.Count - 1
+    for fi as int32 = 0 to this.functions.Count - 1
         dim as MirFunction ptr f = this.functions[fi]
         if f = 0 then continue for
-        for bi as long = 0 to f->blocks.Count - 1
-            for ii as long = 0 to f->blocks[bi].insts.Count - 1
+        for bi as int32 = 0 to f->blocks.Count - 1
+            for ii as int32 = 0 to f->blocks[bi].insts.Count - 1
                 dim as MirInst ptr ins = @f->blocks[bi].insts[ii]
                 if cast( MirOp, ins->op ) <> M_CALL_RTL then continue for
-                dim as long ci = cast( long, ins->callee )
+                dim as int32 ci = cast( int32, ins->callee )
                 if (ci < 0) orelse (ci >= this.functions.Count) then continue for
                 if this.functions[ci] = 0 then continue for
                 if left( names.Spelling( this.functions[ci]->name ), 7 ) <> "fb_UStr" then continue for
-                for k as long = 0 to ins->count - 1
-                    dim as long ak = (ins->first + k) * 2
+                for k as int32 = 0 to ins->count - 1
+                    dim as int32 ak = (ins->first + k) * 2
                     if (ak + 1) >= this.argPool.Count then exit for
-                    if this.argPool[ak] <> cast( ulong, MV_GLOBAL ) then continue for
-                    dim as long gi = cast( long, this.argPool[ak + 1] )
+                    if this.argPool[ak] <> cast( uint32, MV_GLOBAL ) then continue for
+                    dim as int32 gi = cast( int32, this.argPool[ak + 1] )
                     if (gi < 0) orelse (gi >= this.globals.Count) then continue for
                     if (this.globals[gi].isWide = false) orelse this.globals[gi].isUtf16 then continue for
                     '' The units, copied out first: pushing a pool element into its own
                     '' pool hands Push a reference the reallocation invalidates.
-                    dim as containers.Array( of ulong ) units
+                    dim as containers.Array( of uint32 ) units
                     dim as boolean astral = false
-                    for u as long = 0 to this.globals[gi].wcharCount - 1
-                        dim as ulong cu = this.wcharPool[this.globals[gi].wcharFirst + u]
+                    for u as int32 = 0 to this.globals[gi].wcharCount - 1
+                        dim as uint32 cu = this.wcharPool[this.globals[gi].wcharFirst + u]
                         if cu > &hFFFF then
                             astral = true
                             cu -= &h10000
@@ -484,12 +484,12 @@ sub MirModule.SplitUtf16Literals( byref names as Interner )
                             continue for
                         end if
                     end if
-                    dim as long twin = -1
-                    for gj as long = 0 to this.globals.Count - 1
+                    dim as int32 twin = -1
+                    for gj as int32 = 0 to this.globals.Count - 1
                         if this.globals[gj].isUtf16 = false then continue for
                         if this.globals[gj].wcharCount <> units.Count then continue for
                         dim as boolean same = true
-                        for u as long = 0 to units.Count - 1
+                        for u as int32 = 0 to units.Count - 1
                             if this.wcharPool[this.globals[gj].wcharFirst + u] <> units[u] then
                                 same = false
                                 exit for
@@ -509,7 +509,7 @@ sub MirModule.SplitUtf16Literals( byref names as Interner )
                         g.wcharFirst = this.wcharPool.Count
                         g.wcharCount = units.Count
                         g.name = names.GetString( "$ustr" & str( this.globals.Count ) )
-                        for u as long = 0 to units.Count - 1
+                        for u as int32 = 0 to units.Count - 1
                             this.wcharPool.Push( units[u] )
                         next
                         this.globals.Push( g )
@@ -517,7 +517,7 @@ sub MirModule.SplitUtf16Literals( byref names as Interner )
                         IndexName_( this.globalByName, g.name, twin, _
                                     this.globals[twin].nextSameName )
                     end if
-                    this.argPool[ak + 1] = cast( ulong, twin )
+                    this.argPool[ak + 1] = cast( uint32, twin )
                 next
             next
         next

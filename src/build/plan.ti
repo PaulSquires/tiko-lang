@@ -28,7 +28,7 @@ namespace Tko.Build
         as string  manifest      '' --manifest: tiko.toml or its directory, else the nearest
         as boolean json
         as boolean verbose
-        as long    jobs          '' -j: the job budget (TKO_JOBS for this build); 0 = default
+        as int32    jobs          '' -j: the job budget (TKO_JOBS for this build); 0 = default
         as Tko.StrVec runArgs    '' 'tiko run': what follows '--', for the program
     end type
 

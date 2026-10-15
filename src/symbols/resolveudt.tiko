@@ -35,11 +35,11 @@ private function UdtSymOfT_ _
 end function
 
 declare function UdtHasProcs_ _
-    ( byref c as Ctx, byval sid as Tko.SymbolId, byval depth as long ) as boolean
+    ( byref c as Ctx, byval sid as Tko.SymbolId, byval depth as int32 ) as boolean
 
 '' True when this member's type brings a constructor or destructor with it.
 private function TypeBringsProcs_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byval depth as long ) as boolean
+    ( byref c as Ctx, byval t as Tko.TypeId, byval depth as int32 ) as boolean
 
     if t = Tko.TYPE_NONE then return false
     if depth > 16 then return false
@@ -68,7 +68,7 @@ end function
 '' dim/union-init.bas), and error 263 extending OBJECT, a type with a destructor, or one
 '' with a string field. Its methods stay its own.
 private function BaseBringsStructors_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byval depth as long ) as boolean
+    ( byref c as Ctx, byval t as Tko.TypeId, byval depth as int32 ) as boolean
 
     if (t = Tko.TYPE_NONE) orelse (depth > 16) then return false
     dim as Tko.TypeId u = c.types->Unqualify( t )
@@ -84,9 +84,9 @@ private function BaseBringsStructors_ _
     while m <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr ms = c.syms->SymbolAt( m )
         if ms = 0 then exit while
-        if ms->kind = cast( ubyte, Tko.SYM_PROC ) then
+        if ms->kind = cast( uint8, Tko.SYM_PROC ) then
             if (ms->name = ctorNm) orelse (ms->name = dtorNm) then return true
-        elseif ms->kind = cast( ubyte, Tko.SYM_FIELD ) then
+        elseif ms->kind = cast( uint8, Tko.SYM_FIELD ) then
             if BaseBringsStructors_( c, ms->type_, depth + 1 ) then return true
         end if
         m = ms->nextInScope
@@ -95,7 +95,7 @@ private function BaseBringsStructors_ _
 end function
 
 function UdtHasProcs_ _
-    ( byref c as Ctx, byval sid as Tko.SymbolId, byval depth as long ) as boolean
+    ( byref c as Ctx, byval sid as Tko.SymbolId, byval depth as int32 ) as boolean
 
     if sid = Tko.SYMBOL_NONE then return false
     if depth > 16 then return false
@@ -106,13 +106,13 @@ function UdtHasProcs_ _
     if sc = 0 then return false
 
     dim as Tko.SymbolId m = sc->firstSym
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (m <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr ms = c.syms->SymbolAt( m )
         if ms = 0 then exit while
-        if ms->kind = cast( ubyte, Tko.SYM_PROC ) then return true
-        if ms->kind = cast( ubyte, Tko.SYM_FIELD ) then
+        if ms->kind = cast( uint8, Tko.SYM_PROC ) then return true
+        if ms->kind = cast( uint8, Tko.SYM_FIELD ) then
             if ms->name = c.names->Fold( c.names->GetString( "base" ) ) then
                 if BaseBringsStructors_( c, ms->type_, depth ) then return true
             elseif TypeBringsProcs_( c, ms->type_, depth ) then
@@ -128,21 +128,21 @@ private function ScopeIsInProc_ _
     ( byref c as Ctx, byval scope_ as Tko.ScopeId ) as boolean
 
     dim as Tko.ScopeId cur = scope_
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SCOPE_NONE) andalso (guard < 1000)
         guard += 1
         dim as Tko.SymScope ptr sc = c.syms->ScopeAt( cur )
         if sc = 0 then return false
-        if sc->kind = cast( ubyte, Tko.SCOPEK_PROC ) then return true
+        if sc->kind = cast( uint8, Tko.SCOPEK_PROC ) then return true
         cur = sc->parent
     wend
     return false
 end function
 
 private sub CheckNoMethodsInProc_( byref c as Ctx )
-    for i as long = 0 to c.syms->symbols.Count - 1
+    for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Tko.Symbol ptr s = @c.syms->symbols[i]
-        if s->kind <> cast( ubyte, Tko.SYM_UDT ) then continue for
+        if s->kind <> cast( uint8, Tko.SYM_UDT ) then continue for
         if ScopeIsInProc_( c, s->parent ) = false then continue for
         '' 'type U extends object' INSIDE A SUB is refused too -- fbc error 263, the same
         '' one -- with no method declared at all: extending gives the type a vtable

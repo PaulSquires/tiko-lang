@@ -34,36 +34,36 @@ namespace Tko.CImport
 '' clang_disposeString; 'private_flags' says who owns it and is never read here.
 type CXString
     as any ptr data
-    as ulong private_flags
+    as uint32 private_flags
 end type
 
 '' Index.h:2337. 'kind' is a CXCursorKind.
 type CXCursor
-    as long kind
-    as long xdata
+    as int32 kind
+    as int32 xdata
     data(0 to 2) as any ptr
 end type
 
 '' Index.h:3090. 'kind' is a CXTypeKind.
 type CXType
-    as long kind
+    as int32 kind
     data(0 to 1) as any ptr
 end type
 
 '' CXSourceLocation.h:44 and :55.
 type CXSourceLocation
     ptr_data(0 to 1) as any ptr
-    as ulong int_data
+    as uint32 int_data
 end type
 type CXSourceRange
     ptr_data(0 to 1) as any ptr
-    as ulong begin_int_data
-    as ulong end_int_data
+    as uint32 begin_int_data
+    as uint32 end_int_data
 end type
 
 '' Index.h:5025. 'int_data(0)' holds the CXTokenKind; the rest is libclang's.
 type CXToken
-    int_data(0 to 3) as ulong
+    int_data(0 to 3) as uint32
     as any ptr ptr_data
 end type
 
@@ -76,9 +76,9 @@ type CXUnsavedFile
     as zstring ptr Filename
     as zstring ptr Contents
 #ifdef __FB_WIN32__
-    as ulong Length
+    as uint32 Length
 #else
-    as ulongint Length
+    as uint64 Length
 #endif
 end type
 
@@ -125,16 +125,16 @@ const CXTranslationUnit_KeepGoing                   = &h200   '' :787
 
 '' Index.h:4002. BOTH CURSORS ARRIVE BY VALUE -- the callee side of the ABI question.
 type CXCursorVisitor as function cdecl _
-    ( byval cursor as CXCursor, byval parent as CXCursor, byval client as any ptr ) as long
+    ( byval cursor as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
 
 '' Index.h:6739. The field arrives by value; the result is a CXVisitorResult (:6081).
-type CXFieldVisitor as function cdecl ( byval cursor as CXCursor, byval client as any ptr ) as long
+type CXFieldVisitor as function cdecl ( byval cursor as CXCursor, byval client as any ptr ) as int32
 const CXVisit_Continue = 1
 
 '' Index.h, CXInclusionVisitor: the included file, the stack that led to it, and its depth.
 type CXInclusionVisitor as sub cdecl _
     ( byval included as any ptr, byval stack as CXSourceLocation ptr, _
-      byval depth as ulong, byval client as any ptr )
+      byval depth as uint32, byval client as any ptr )
 
 '' ---------------------------------------------------------------- entry points
 ''
@@ -151,80 +151,80 @@ type CXInclusionVisitor as sub cdecl _
     FN( getCString, "clang_getCString", ( byval s as CXString ), zstring ptr )
     SB( disposeString, "clang_disposeString", ( byval s as CXString ) )
     '' ---- index and translation unit
-    FN( createIndex, "clang_createIndex", ( byval excludeFromPch as long, byval displayDiagnostics as long ), any ptr )
+    FN( createIndex, "clang_createIndex", ( byval excludeFromPch as int32, byval displayDiagnostics as int32 ), any ptr )
     SB( disposeIndex, "clang_disposeIndex", ( byval idx as any ptr ) )
-    FN( parseTranslationUnit, "clang_parseTranslationUnit", ( byval idx as any ptr, byval sourceFilename as zstring ptr, byval args as zstring ptr ptr, byval numArgs as long, byval unsaved as CXUnsavedFile ptr, byval numUnsaved as ulong, byval options as ulong ), any ptr )
+    FN( parseTranslationUnit, "clang_parseTranslationUnit", ( byval idx as any ptr, byval sourceFilename as zstring ptr, byval args as zstring ptr ptr, byval numArgs as int32, byval unsaved as CXUnsavedFile ptr, byval numUnsaved as uint32, byval options as uint32 ), any ptr )
     SB( disposeTranslationUnit, "clang_disposeTranslationUnit", ( byval tu as any ptr ) )
     FN( getTranslationUnitCursor, "clang_getTranslationUnitCursor", ( byval tu as any ptr ), CXCursor )
     '' ---- cursors
     FN( getCursorSpelling, "clang_getCursorSpelling", ( byval c as CXCursor ), CXString )
-    FN( getCursorKind, "clang_getCursorKind", ( byval c as CXCursor ), long )
+    FN( getCursorKind, "clang_getCursorKind", ( byval c as CXCursor ), int32 )
     FN( getCursorUSR, "clang_getCursorUSR", ( byval c as CXCursor ), CXString )
     FN( getCursorType, "clang_getCursorType", ( byval c as CXCursor ), CXType )
-    FN( visitChildren, "clang_visitChildren", ( byval parent as CXCursor, byval visitor as CXCursorVisitor, byval client as any ptr ), ulong )
-    FN( Type_visitFields, "clang_Type_visitFields", ( byval t as CXType, byval visitor as CXFieldVisitor, byval client as any ptr ), ulong )  '' :6761
-    FN( isCursorDefinition, "clang_isCursorDefinition", ( byval c as CXCursor ), ulong )
+    FN( visitChildren, "clang_visitChildren", ( byval parent as CXCursor, byval visitor as CXCursorVisitor, byval client as any ptr ), uint32 )
+    FN( Type_visitFields, "clang_Type_visitFields", ( byval t as CXType, byval visitor as CXFieldVisitor, byval client as any ptr ), uint32 )  '' :6761
+    FN( isCursorDefinition, "clang_isCursorDefinition", ( byval c as CXCursor ), uint32 )
     FN( getCursorSemanticParent, "clang_getCursorSemanticParent", ( byval c as CXCursor ), CXCursor )
     FN( getCursorLocation, "clang_getCursorLocation", ( byval c as CXCursor ), CXSourceLocation )
     FN( getCursorExtent, "clang_getCursorExtent", ( byval c as CXCursor ), CXSourceRange )
     '' ---- tokens: Index.h:5047, :5055, :5085, :5124
-    FN( getTokenKind, "clang_getTokenKind", ( byval t as CXToken ), long )
+    FN( getTokenKind, "clang_getTokenKind", ( byval t as CXToken ), int32 )
     FN( getTokenSpelling, "clang_getTokenSpelling", ( byval tu as any ptr, byval t as CXToken ), CXString )
-    SB( tokenize, "clang_tokenize", ( byval tu as any ptr, byval r as CXSourceRange, byval toks as CXToken ptr ptr, byval n as ulong ptr ) )
-    SB( disposeTokens, "clang_disposeTokens", ( byval tu as any ptr, byval toks as CXToken ptr, byval n as ulong ) )
+    SB( tokenize, "clang_tokenize", ( byval tu as any ptr, byval r as CXSourceRange, byval toks as CXToken ptr ptr, byval n as uint32 ptr ) )
+    SB( disposeTokens, "clang_disposeTokens", ( byval tu as any ptr, byval toks as CXToken ptr, byval n as uint32 ) )
     FN( getRangeStart, "clang_getRangeStart", ( byval r as CXSourceRange ), CXSourceLocation )
     FN( getRangeEnd, "clang_getRangeEnd", ( byval r as CXSourceRange ), CXSourceLocation )
-    SB( getExpansionLocation, "clang_getExpansionLocation", ( byval loc as CXSourceLocation, byval file as any ptr ptr, byval line_ as ulong ptr, byval column as ulong ptr, byval offset as ulong ptr ) )
+    SB( getExpansionLocation, "clang_getExpansionLocation", ( byval loc as CXSourceLocation, byval file as any ptr ptr, byval line_ as uint32 ptr, byval column as uint32 ptr, byval offset as uint32 ptr ) )
     '' ---- types
     FN( getTypeSpelling, "clang_getTypeSpelling", ( byval t as CXType ), CXString )
-    FN( Type_getSizeOf, "clang_Type_getSizeOf", ( byval t as CXType ), longint )
-    FN( Type_getAlignOf, "clang_Type_getAlignOf", ( byval t as CXType ), longint )
-    FN( Type_getOffsetOf, "clang_Type_getOffsetOf", ( byval t as CXType, byval field as zstring ptr ), longint )
-    FN( Cursor_getOffsetOfField, "clang_Cursor_getOffsetOfField", ( byval c as CXCursor ), longint )
+    FN( Type_getSizeOf, "clang_Type_getSizeOf", ( byval t as CXType ), int64 )
+    FN( Type_getAlignOf, "clang_Type_getAlignOf", ( byval t as CXType ), int64 )
+    FN( Type_getOffsetOf, "clang_Type_getOffsetOf", ( byval t as CXType, byval field as zstring ptr ), int64 )
+    FN( Cursor_getOffsetOfField, "clang_Cursor_getOffsetOfField", ( byval c as CXCursor ), int64 )
     FN( getPointeeType, "clang_getPointeeType", ( byval t as CXType ), CXType )
     FN( Type_getNamedType, "clang_Type_getNamedType", ( byval t as CXType ), CXType )
     FN( getCanonicalType, "clang_getCanonicalType", ( byval t as CXType ), CXType )
     FN( getTypeDeclaration, "clang_getTypeDeclaration", ( byval t as CXType ), CXCursor )
     FN( getTypedefDeclUnderlyingType, "clang_getTypedefDeclUnderlyingType", ( byval c as CXCursor ), CXType )
     FN( getTypedefName, "clang_getTypedefName", ( byval t as CXType ), CXString )
-    FN( isConstQualifiedType, "clang_isConstQualifiedType", ( byval t as CXType ), ulong )
+    FN( isConstQualifiedType, "clang_isConstQualifiedType", ( byval t as CXType ), uint32 )
     FN( getElementType, "clang_getElementType", ( byval t as CXType ), CXType )
-    FN( getNumElements, "clang_getNumElements", ( byval t as CXType ), longint )
+    FN( getNumElements, "clang_getNumElements", ( byval t as CXType ), int64 )
     '' ---- records and enums
-    FN( Cursor_isBitField, "clang_Cursor_isBitField", ( byval c as CXCursor ), ulong )
-    FN( getFieldDeclBitWidth, "clang_getFieldDeclBitWidth", ( byval c as CXCursor ), long )
-    FN( Cursor_isAnonymous, "clang_Cursor_isAnonymous", ( byval c as CXCursor ), ulong )
-    FN( Cursor_isAnonymousRecordDecl, "clang_Cursor_isAnonymousRecordDecl", ( byval c as CXCursor ), ulong )
+    FN( Cursor_isBitField, "clang_Cursor_isBitField", ( byval c as CXCursor ), uint32 )
+    FN( getFieldDeclBitWidth, "clang_getFieldDeclBitWidth", ( byval c as CXCursor ), int32 )
+    FN( Cursor_isAnonymous, "clang_Cursor_isAnonymous", ( byval c as CXCursor ), uint32 )
+    FN( Cursor_isAnonymousRecordDecl, "clang_Cursor_isAnonymousRecordDecl", ( byval c as CXCursor ), uint32 )
     FN( getEnumDeclIntegerType, "clang_getEnumDeclIntegerType", ( byval c as CXCursor ), CXType )
-    FN( getEnumConstantDeclValue, "clang_getEnumConstantDeclValue", ( byval c as CXCursor ), longint )
-    FN( getEnumConstantDeclUnsignedValue, "clang_getEnumConstantDeclUnsignedValue", ( byval c as CXCursor ), ulongint )
+    FN( getEnumConstantDeclValue, "clang_getEnumConstantDeclValue", ( byval c as CXCursor ), int64 )
+    FN( getEnumConstantDeclUnsignedValue, "clang_getEnumConstantDeclUnsignedValue", ( byval c as CXCursor ), uint64 )
     '' ---- functions
     FN( getResultType, "clang_getResultType", ( byval t as CXType ), CXType )
     FN( getCursorResultType, "clang_getCursorResultType", ( byval c as CXCursor ), CXType )
-    FN( getNumArgTypes, "clang_getNumArgTypes", ( byval t as CXType ), long )
-    FN( getArgType, "clang_getArgType", ( byval t as CXType, byval i as ulong ), CXType )
-    FN( isFunctionTypeVariadic, "clang_isFunctionTypeVariadic", ( byval t as CXType ), ulong )
-    FN( getFunctionTypeCallingConv, "clang_getFunctionTypeCallingConv", ( byval t as CXType ), long )
-    FN( Cursor_getNumArguments, "clang_Cursor_getNumArguments", ( byval c as CXCursor ), long )
-    FN( Cursor_getArgument, "clang_Cursor_getArgument", ( byval c as CXCursor, byval i as ulong ), CXCursor )
-    FN( Cursor_isFunctionInlined, "clang_Cursor_isFunctionInlined", ( byval c as CXCursor ), ulong )
-    FN( Cursor_isVariadic, "clang_Cursor_isVariadic", ( byval c as CXCursor ), ulong )
-    FN( Cursor_getStorageClass, "clang_Cursor_getStorageClass", ( byval c as CXCursor ), long )
+    FN( getNumArgTypes, "clang_getNumArgTypes", ( byval t as CXType ), int32 )
+    FN( getArgType, "clang_getArgType", ( byval t as CXType, byval i as uint32 ), CXType )
+    FN( isFunctionTypeVariadic, "clang_isFunctionTypeVariadic", ( byval t as CXType ), uint32 )
+    FN( getFunctionTypeCallingConv, "clang_getFunctionTypeCallingConv", ( byval t as CXType ), int32 )
+    FN( Cursor_getNumArguments, "clang_Cursor_getNumArguments", ( byval c as CXCursor ), int32 )
+    FN( Cursor_getArgument, "clang_Cursor_getArgument", ( byval c as CXCursor, byval i as uint32 ), CXCursor )
+    FN( Cursor_isFunctionInlined, "clang_Cursor_isFunctionInlined", ( byval c as CXCursor ), uint32 )
+    FN( Cursor_isVariadic, "clang_Cursor_isVariadic", ( byval c as CXCursor ), uint32 )
+    FN( Cursor_getStorageClass, "clang_Cursor_getStorageClass", ( byval c as CXCursor ), int32 )
     '' ---- macros and evaluation
-    FN( Cursor_isMacroFunctionLike, "clang_Cursor_isMacroFunctionLike", ( byval c as CXCursor ), ulong )
-    FN( Cursor_isMacroBuiltin, "clang_Cursor_isMacroBuiltin", ( byval c as CXCursor ), ulong )
+    FN( Cursor_isMacroFunctionLike, "clang_Cursor_isMacroFunctionLike", ( byval c as CXCursor ), uint32 )
+    FN( Cursor_isMacroBuiltin, "clang_Cursor_isMacroBuiltin", ( byval c as CXCursor ), uint32 )
     FN( Cursor_Evaluate, "clang_Cursor_Evaluate", ( byval c as CXCursor ), any ptr )
-    FN( EvalResult_getKind, "clang_EvalResult_getKind", ( byval e as any ptr ), long )
-    FN( EvalResult_getAsLongLong, "clang_EvalResult_getAsLongLong", ( byval e as any ptr ), longint )
-    FN( EvalResult_isUnsignedInt, "clang_EvalResult_isUnsignedInt", ( byval e as any ptr ), ulong )
-    FN( EvalResult_getAsDouble, "clang_EvalResult_getAsDouble", ( byval e as any ptr ), double )
+    FN( EvalResult_getKind, "clang_EvalResult_getKind", ( byval e as any ptr ), int32 )
+    FN( EvalResult_getAsLongLong, "clang_EvalResult_getAsLongLong", ( byval e as any ptr ), int64 )
+    FN( EvalResult_isUnsignedInt, "clang_EvalResult_isUnsignedInt", ( byval e as any ptr ), uint32 )
+    FN( EvalResult_getAsDouble, "clang_EvalResult_getAsDouble", ( byval e as any ptr ), float64 )
     FN( EvalResult_getAsStr, "clang_EvalResult_getAsStr", ( byval e as any ptr ), zstring ptr )
     SB( EvalResult_dispose, "clang_EvalResult_dispose", ( byval e as any ptr ) )
     '' ---- diagnostics (CXDiagnostic.h)
-    FN( getNumDiagnostics, "clang_getNumDiagnostics", ( byval tu as any ptr ), ulong )
-    FN( getDiagnostic, "clang_getDiagnostic", ( byval tu as any ptr, byval i as ulong ), any ptr )
-    FN( getDiagnosticSeverity, "clang_getDiagnosticSeverity", ( byval d as any ptr ), long )
-    FN( formatDiagnostic, "clang_formatDiagnostic", ( byval d as any ptr, byval options as ulong ), CXString )
+    FN( getNumDiagnostics, "clang_getNumDiagnostics", ( byval tu as any ptr ), uint32 )
+    FN( getDiagnostic, "clang_getDiagnostic", ( byval tu as any ptr, byval i as uint32 ), any ptr )
+    FN( getDiagnosticSeverity, "clang_getDiagnosticSeverity", ( byval d as any ptr ), int32 )
+    FN( formatDiagnostic, "clang_formatDiagnostic", ( byval d as any ptr, byval options as uint32 ), CXString )
     SB( disposeDiagnostic, "clang_disposeDiagnostic", ( byval d as any ptr ) )
     FN( getDiagnosticLocation, "clang_getDiagnosticLocation", ( byval d as any ptr ), CXSourceLocation )
     '' ---- files (CXFile.h) and inclusions
@@ -243,7 +243,7 @@ type ClangApi
     as string why              '' why it is not usable, for the diagnostic
     as string libPath          '' what was opened
     as string version          '' clang_getClangVersion's text
-    as long major
+    as int32 major
 
     #define FN( n, cname, params, ret ) n as function cdecl params as ret
     #define SB( n, cname, params ) n as sub cdecl params

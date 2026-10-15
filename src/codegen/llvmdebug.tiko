@@ -11,8 +11,8 @@ namespace Tko.Codegen
 '' escape LLVM reads as two hex digits.
 private function MetaStr_( byref s as string ) as string
     dim as string r = chr( 34 )
-    for i as long = 0 to len( s ) - 1
-        dim as ubyte ch = s[i]
+    for i as int32 = 0 to len( s ) - 1
+        dim as uint8 ch = s[i]
         if (ch < 32) orelse (ch > 126) orelse (ch = 34) orelse (ch = 92) then
             r += chr( 92 ) & hex( ch, 2 )
         else
@@ -22,8 +22,8 @@ private function MetaStr_( byref s as string ) as string
     return r & chr( 34 )
 end function
 
-private function NewNode_( byref d as DebugInfo, byref body as string ) as long
-    dim as long id = d.nextId
+private function NewNode_( byref d as DebugInfo, byref body as string ) as int32
+    dim as int32 id = d.nextId
     d.nextId += 1
     d.nodes += "!" & str( id ) & " = " & body & chr( 10 )
     return id
@@ -32,21 +32,21 @@ end function
 '' A NUMBER NOW, ITS TEXT LATER: a composite type names its members and its members
 '' name it back, and the compile unit lists globals that do not exist yet. LLVM reads
 '' metadata by number, in any order.
-private function ReserveNode_( byref d as DebugInfo ) as long
-    dim as long id = d.nextId
+private function ReserveNode_( byref d as DebugInfo ) as int32
+    dim as int32 id = d.nextId
     d.nextId += 1
     return id
 end function
 
-private sub DefineNode_( byref d as DebugInfo, byval id as long, byref body as string )
+private sub DefineNode_( byref d as DebugInfo, byval id as int32, byref body as string )
     d.nodes += "!" & str( id ) & " = " & body & chr( 10 )
 end sub
 
 '' DIFile wants the name and the directory apart; both separators are split on, since a
 '' path from the command line may use either on Windows.
-private function FileNode_( byref d as DebugInfo, byref path as string ) as long
-    dim as long cut_ = 0
-    for i as long = len( path ) to 1 step -1
+private function FileNode_( byref d as DebugInfo, byref path as string ) as int32
+    dim as int32 cut_ = 0
+    for i as int32 = len( path ) to 1 step -1
         dim as string ch = mid( path, i, 1 )
         if (ch = "/") orelse (ch = chr( 92 )) then
             cut_ = i
@@ -60,9 +60,9 @@ private function FileNode_( byref d as DebugInfo, byref path as string ) as long
 end function
 
 '' The DIFile for FileId + 1, made on first use; 0 is the module's own.
-private function FileFor_( byref d as DebugInfo, byval fileKey as ulong ) as long
+private function FileFor_( byref d as DebugInfo, byval fileKey as uint32 ) as int32
     if (fileKey = 0) orelse (d.sm = 0) then return d.mainFileId
-    while d.fileMeta.Count <= cast( long, fileKey )
+    while d.fileMeta.Count <= cast( int32, fileKey )
         d.fileMeta.Push( 0 )
     wend
     if d.fileMeta[fileKey] = 0 then
@@ -76,12 +76,12 @@ end function
 
 '' Where a symbol was declared: its DIFile and its line.
 private sub DeclSite_( byref d as DebugInfo, byval s as Tko.Symbol ptr, _
-                       byref fileNode as long, byref lineNo as long )
+                       byref fileNode as int32, byref lineNo as int32 )
     fileNode = d.mainFileId
     lineNo = 0
     if d.sm = 0 then exit sub
     dim as Tko.DecodedLoc dl = d.sm->Decode( s->loc )
-    fileNode = FileFor_( d, cast( ulong, dl.file ) + 1 )
+    fileNode = FileFor_( d, cast( uint32, dl.file ) + 1 )
     lineNo = dl.physLine
 end sub
 
@@ -110,11 +110,11 @@ sub DbgBegin _
 end sub
 
 '' The reserved number for a procedure's subprogram, made on first ask.
-private function SpFor_( byref d as DebugInfo, byval procSym as ulong ) as long
-    for i as long = 0 to d.spSym.Count - 1
+private function SpFor_( byref d as DebugInfo, byval procSym as uint32 ) as int32
+    for i as int32 = 0 to d.spSym.Count - 1
         if d.spSym[i] = procSym then return d.spId[i]
     next
-    dim as long id = ReserveNode_( d )
+    dim as int32 id = ReserveNode_( d )
     d.spSym.Push( procSym )
     d.spId.Push( id )
     d.spDone.Push( 0 )
@@ -126,12 +126,12 @@ end function
 private function QualifiedName_( byref d as DebugInfo, byval s as Tko.Symbol ptr ) as string
     dim as string r = SpellingOf_( d, s )
     dim as Tko.ScopeId sc = s->parent
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (sc <> Tko.SCOPE_NONE) andalso (guard < 64)
         dim as Tko.SymScope ptr sp = d.fe->syms->ScopeAt( sc )
         if sp = 0 then exit while
-        dim as boolean named = (sp->kind = cast( ubyte, Tko.SCOPEK_TYPE )) orelse _
-                               (sp->kind = cast( ubyte, Tko.SCOPEK_NAMESPACE ))
+        dim as boolean named = (sp->kind = cast( uint8, Tko.SCOPEK_TYPE )) orelse _
+                               (sp->kind = cast( uint8, Tko.SCOPEK_NAMESPACE ))
         if named andalso (sp->owner <> Tko.SYMBOL_NONE) then
             dim as Tko.Symbol ptr os = d.fe->syms->SymbolAt( sp->owner )
             if os <> 0 then r = SpellingOf_( d, os ) & "." & r
@@ -143,21 +143,21 @@ private function QualifiedName_( byref d as DebugInfo, byval s as Tko.Symbol ptr
 end function
 
 function DbgSubprogram _
-    ( byref d as DebugInfo, byref linkName as string, byval fileKey as ulong, _
-      byval lineNo as long, byval procSym as ulong ) as long
+    ( byref d as DebugInfo, byref linkName as string, byval fileKey as uint32, _
+      byval lineNo as int32, byval procSym as uint32 ) as int32
 
-    dim as long fm = FileFor_( d, fileKey )
-    dim as long ln = lineNo
+    dim as int32 fm = FileFor_( d, fileKey )
+    dim as int32 ln = lineNo
     if ln < 0 then ln = 0
     '' THE SOURCE NAME, which is what a call stack should show: 'Add', not 'ADD' or
     '' '_ZN1T4GETUEv'. The link name stays as the linkage name.
     dim as string nm = linkName
-    dim as long id
+    dim as int32 id
     if (procSym <> 0) andalso (d.fe <> 0) then
         dim as Tko.Symbol ptr ps = d.fe->syms->SymbolAt( cast( Tko.SymbolId, procSym ) )
         if ps <> 0 then nm = QualifiedName_( d, ps )
         id = SpFor_( d, procSym )
-        for i as long = 0 to d.spSym.Count - 1
+        for i as int32 = 0 to d.spSym.Count - 1
             if d.spSym[i] = procSym then d.spDone[i] = 1
         next
     else
@@ -184,9 +184,9 @@ end function
 '' ONE NODE PER RUN OF A LINE, not per instruction: consecutive instructions share the
 '' statement they came from, and a revisited line simply gets another node, which LLVM
 '' accepts.
-function DbgLocSuffix( byref d as DebugInfo, byval lineNo as long ) as string
+function DbgLocSuffix( byref d as DebugInfo, byval lineNo as int32 ) as string
     if d.curSp < 0 then return ""
-    dim as long ln = lineNo
+    dim as int32 ln = lineNo
     if ln < 0 then ln = 0
     if ln <> d.locLine then
         d.locId = NewNode_( d, "!DILocation(line: " & str( ln ) & ", scope: !" & _
@@ -198,15 +198,15 @@ end function
 
 
 function DbgDeclare _
-    ( byref d as DebugInfo, byval sym as ulong, byval frontType as Tko.TypeId, _
+    ( byref d as DebugInfo, byval sym as uint32, byval frontType as Tko.TypeId, _
       byval slotIsPtr as boolean, byref slotName as string ) as string
 
     if (d.fe = 0) orelse (d.curSp < 0) orelse (sym = 0) then return ""
     dim as Tko.Symbol ptr s = d.fe->syms->SymbolAt( cast( Tko.SymbolId, sym ) )
     if s = 0 then return ""
-    dim as boolean isParam = (s->kind = cast( ubyte, Tko.SYM_PARAMETER ))
-    if (isParam = false) andalso (s->kind <> cast( ubyte, Tko.SYM_VARIABLE )) then return ""
-    dim as long ty = DbgType( d, frontType )
+    dim as boolean isParam = (s->kind = cast( uint8, Tko.SYM_PARAMETER ))
+    if (isParam = false) andalso (s->kind <> cast( uint8, Tko.SYM_VARIABLE )) then return ""
+    dim as int32 ty = DbgType( d, frontType )
     if ty < 0 then return ""
     '' PASSED BY ADDRESS: a UDT or a string taken by value lives in the caller, and the
     '' slot holds its address -- so the slot's type is a reference to the value's.
@@ -214,18 +214,18 @@ function DbgDeclare _
         ty = NewNode_( d, "!DIDerivedType(tag: DW_TAG_reference_type, baseType: " & _
                           TypeRef_( ty ) & ", size: " & str( PtrBits_( d ) ) & ")" )
     end if
-    dim as long fl, ln
+    dim as int32 fl, ln
     DeclSite_( d, s, fl, ln )
     dim as string argPart = ""
     if isParam then
         d.argNo += 1
         argPart = ", arg: " & str( d.argNo )
     end if
-    dim as long v = NewNode_( d, "!DILocalVariable(name: " & MetaStr_( SpellingOf_( d, s ) ) & _
+    dim as int32 v = NewNode_( d, "!DILocalVariable(name: " & MetaStr_( SpellingOf_( d, s ) ) & _
                                   argPart & ", scope: !" & str( d.curSp ) & ", file: !" & _
                                   str( fl ) & ", line: " & str( ln ) & ", type: " & _
                                   TypeRef_( ty ) & ")" )
-    dim as long at = NewNode_( d, "!DILocation(line: " & str( ln ) & ", scope: !" & _
+    dim as int32 at = NewNode_( d, "!DILocation(line: " & str( ln ) & ", scope: !" & _
                                    str( d.curSp ) & ")" )
     '' THE INTRINSIC, NOT THE RECORD (T67). '#dbg_declare( ... )' is LLVM 19's spelling,
     '' and Ubuntu's clang 18 -- tiko's stated minimum, and the default /usr/bin/clang on
@@ -236,13 +236,13 @@ function DbgDeclare _
 end function
 
 '' The procedure a symbol is declared inside, 0 at module level.
-private function OwningProc_( byref d as DebugInfo, byval s as Tko.Symbol ptr ) as ulong
+private function OwningProc_( byref d as DebugInfo, byval s as Tko.Symbol ptr ) as uint32
     dim as Tko.ScopeId sc = s->parent
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (sc <> Tko.SCOPE_NONE) andalso (guard < Tko.SCOPE_WALK_MAX)
         dim as Tko.SymScope ptr sp = d.fe->syms->ScopeAt( sc )
         if sp = 0 then exit while
-        if sp->kind = cast( ubyte, Tko.SCOPEK_PROC ) then return cast( ulong, sp->owner )
+        if sp->kind = cast( uint8, Tko.SCOPEK_PROC ) then return cast( uint32, sp->owner )
         sc = sp->parent
         guard += 1
     wend
@@ -250,29 +250,29 @@ private function OwningProc_( byref d as DebugInfo, byval s as Tko.Symbol ptr ) 
 end function
 
 function DbgGlobal _
-    ( byref d as DebugInfo, byval sym as ulong, byref linkName as string, _
+    ( byref d as DebugInfo, byval sym as uint32, byref linkName as string, _
       byval isLocal as boolean ) as string
 
     if (d.fe = 0) orelse (sym = 0) then return ""
     dim as Tko.Symbol ptr s = d.fe->syms->SymbolAt( cast( Tko.SymbolId, sym ) )
     if s = 0 then return ""
-    dim as long ty = DbgType( d, s->type_ )
+    dim as int32 ty = DbgType( d, s->type_ )
     if ty < 0 then return ""
-    dim as long fl, ln
+    dim as int32 fl, ln
     DeclSite_( d, s, fl, ln )
     '' A STATIC LOCAL is scoped to its procedure, so the debugger lists it there.
     '' NO linkageName: lldb shows a variable by it when there is one, and a static local
     '' is 'SHOW$callcount' there. The address comes from the definition it is attached to.
-    dim as long scope_ = d.cuId
-    dim as ulong owner = OwningProc_( d, s )
+    dim as int32 scope_ = d.cuId
+    dim as uint32 owner = OwningProc_( d, s )
     if owner <> 0 then scope_ = SpFor_( d, owner )
-    dim as long gv = NewNode_( d, "distinct !DIGlobalVariable(name: " & _
+    dim as int32 gv = NewNode_( d, "distinct !DIGlobalVariable(name: " & _
                                   MetaStr_( SpellingOf_( d, s ) ) & _
                                   ", scope: !" & str( scope_ ) & _
                                   ", file: !" & str( fl ) & ", line: " & str( ln ) & _
                                   ", type: " & TypeRef_( ty ) & ", isLocal: " & _
                                   iif( isLocal, "true", "false" ) & ", isDefinition: true)" )
-    dim as long ge = NewNode_( d, "!DIGlobalVariableExpression(var: !" & str( gv ) & _
+    dim as int32 ge = NewNode_( d, "!DIGlobalVariableExpression(var: !" & str( gv ) & _
                                   ", expr: !DIExpression())" )
     d.globals += ", !" & str( ge )
     return ", !dbg !" & str( ge )
@@ -284,11 +284,11 @@ function DbgFinish( byref d as DebugInfo ) as string
     '' its statics are still globals. The number is referenced, so it is defined here,
     '' as a subprogram with no code.
     if d.fe <> 0 then
-        for i as long = 0 to d.spSym.Count - 1
+        for i as int32 = 0 to d.spSym.Count - 1
             if d.spDone[i] <> 0 then continue for
             dim as Tko.Symbol ptr ps = d.fe->syms->SymbolAt( cast( Tko.SymbolId, d.spSym[i] ) )
             dim as string nm = "?"
-            dim as long fl = d.mainFileId, ln = 0
+            dim as int32 fl = d.mainFileId, ln = 0
             if ps <> 0 then
                 nm = QualifiedName_( d, ps )
                 DeclSite_( d, ps, fl, ln )
@@ -312,8 +312,8 @@ function DbgFinish( byref d as DebugInfo ) as string
                             str( d.mainFileId ) & ", producer: ""tiko-lang"", " & _
                             "isOptimized: false, runtimeVersion: 0, " & _
                             "emissionKind: " & kind_ & gl & ")" )
-    dim as long fv = NewNode_( d, "!{i32 2, !""Debug Info Version"", i32 3}" )
-    dim as long dv = NewNode_( d, "!{i32 7, !""Dwarf Version"", i32 4}" )
+    dim as int32 fv = NewNode_( d, "!{i32 2, !""Debug Info Version"", i32 3}" )
+    dim as int32 dv = NewNode_( d, "!{i32 7, !""Dwarf Version"", i32 4}" )
     '' The intrinsic the variable declarations call (T67); a declaration nothing calls costs
     '' nothing.
     return chr( 10 ) & "declare void @llvm.dbg.declare(metadata, metadata, metadata)" & chr( 10 ) & _

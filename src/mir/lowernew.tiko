@@ -34,8 +34,8 @@ private function LowerNewArray_ _
 
     '' PLACEMENT: the pointer is child 0 and the COUNT follows it.
     dim as boolean isPlace = _
-        ((c.ast->nodes[cast( long, id )].flags and Tko.NF_PLACEMENT) <> 0)
-    dim as long cntAt = np->first
+        ((c.ast->nodes[cast( int32, id )].flags and Tko.NF_PLACEMENT) <> 0)
+    dim as int32 cntAt = np->first
     if isPlace then
         if np->count <> 2 then return false
         cntAt += 1
@@ -50,7 +50,7 @@ private function LowerNewArray_ _
     '' so the whole 'dim p as const A ptr = new const A' declined.
     dim as Tko.TypeId el = c.types->Unqualify( c.info->TypeOf_( np->target ) )
     if el = Tko.TYPE_NONE then return false
-    dim as long esz = SizeOfType( c, el )
+    dim as int32 esz = SizeOfType( c, el )
     if esz <= 0 then return false
 
     dim as MirType zt = MT_I64
@@ -60,17 +60,17 @@ private function LowerNewArray_ _
     '' writes 'new ClassUDT[sidefx( )]' precisely to check that it runs once.
     dim as Tko.NodeId cntE = cast( Tko.NodeId, c.ast->children[cntAt] )
     dim as MirValue cnt0 = LowerExpr( c, cntE )
-    if cnt0.kind = cast( ubyte, MV_NONE ) then return false
+    if cnt0.kind = cast( uint8, MV_NONE ) then return false
     dim as MirValue cnt = CoerceTy( c, cnt0, zt, c.info->TypeOf_( cntE ) )
 
     '' n * sizeof( T ), folded into calloc's FIRST argument as the scalar form does.
     dim as MirInst mul
-    mul.op = cast( ushort, M_MUL )
-    mul.ty = cast( ubyte, zt )
+    mul.op = cast( uint16, M_MUL )
+    mul.ty = cast( uint8, zt )
     mul.a = cnt
     mul.b = ConstInt( c, esz, zt )
     dim as MirValue bytes_ = Emit( c, mul )
-    if bytes_.kind = cast( ubyte, MV_NONE ) then return false
+    if bytes_.kind = cast( uint8, MV_NONE ) then return false
 
     '' THE COOKIE (T37), keyed on "the type has a destructor" -- a written one or the one
     '' fbc writes for a string field -- and never on a placement array. Measured:
@@ -81,7 +81,7 @@ private function LowerNewArray_ _
     ''     TMP = (struct NOISY*)((uint8*)TMP + 8ll);
     ''
     '' Without it 'delete[]' had no count, declined, and ran no destructor at all.
-    dim as long ckBytes = c.types->target.pointerBits \ 8
+    dim as int32 ckBytes = c.types->target.pointerBits \ 8
     dim as boolean cookie = false
     if isPlace = false then
         cookie = (DtorOf_( c, el ) <> Tko.SYMBOL_NONE)
@@ -91,12 +91,12 @@ private function LowerNewArray_ _
     end if
     if cookie then
         dim as MirInst hdr
-        hdr.op = cast( ushort, M_ADD )
-        hdr.ty = cast( ubyte, zt )
+        hdr.op = cast( uint16, M_ADD )
+        hdr.ty = cast( uint8, zt )
         hdr.a = bytes_
         hdr.b = ConstInt( c, ckBytes, zt )
         bytes_ = Emit( c, hdr )
-        if bytes_.kind = cast( ubyte, MV_NONE ) then return false
+        if bytes_.kind = cast( uint8, MV_NONE ) then return false
     end if
 
     '' A PLACEMENT ARRAY ALLOCATES NOTHING EITHER, and it has no cookie to write,
@@ -113,7 +113,7 @@ private function LowerNewArray_ _
     '' 'new T[n] { any }' CHANGES ANYTHING ONLY OVER AN ELEMENT NOTHING CONSTRUCTS; over
     '' one with a constructor fbc warns (19) that it has no effect. Measured: 'new V[3]
     '' {any}' is malloc( 24 ) with no memset, and its placement form drops the memset.
-    dim as boolean noInit = ((c.ast->nodes[cast( long, id )].flags and Tko.NF_NOINIT) <> 0)
+    dim as boolean noInit = ((c.ast->nodes[cast( int32, id )].flags and Tko.NF_NOINIT) <> 0)
     if noInit then noInit = (CtorOf_( c, el, 0 ) = Tko.SYMBOL_NONE)
     if noInit then
         if c.types->Kind( el ) = Tko.TK_UDT then noInit = (TypeNeedsInit_( c, el ) = false)
@@ -123,7 +123,7 @@ private function LowerNewArray_ _
     if isPlace then
         dim as Tko.NodeId pe = cast( Tko.NodeId, c.ast->children[np->first] )
         raw = LowerExpr( c, pe )
-        if raw.kind = cast( ubyte, MV_NONE ) then return false
+        if raw.kind = cast( uint8, MV_NONE ) then return false
         raw = Coerce( c, raw, MT_PTR, true )
     else
         '' ...AND THE ARRAY FORM TAKES 'operator new[]', which is a DIFFERENT operator
@@ -133,52 +133,52 @@ private function LowerNewArray_ _
         dim as Tko.SymbolId opNewA = _
             StructorWithArity( c, StructorOf( c, el, "new[]" ), 1 )
         if opNewA <> Tko.SYMBOL_NONE then
-            dim as containers.Array( of ulong ) nb
-            nb.Push( cast( ulong, bytes_.kind ) ) : nb.Push( cast( ulong, bytes_.id ) )
+            dim as containers.Array( of uint32 ) nb
+            nb.Push( cast( uint32, bytes_.kind ) ) : nb.Push( cast( uint32, bytes_.id ) )
             raw = EmitDirectCall_( c, opNewA, MT_PTR, nb )
         elseif noInit then
-            dim as containers.Array( of ulong ) ma
-            ma.Push( cast( ulong, bytes_.kind ) ) : ma.Push( cast( ulong, bytes_.id ) )
+            dim as containers.Array( of uint32 ) ma
+            ma.Push( cast( uint32, bytes_.kind ) ) : ma.Push( cast( uint32, bytes_.id ) )
             raw = EmitAllocCall_( c, RTL_MALLOC, ma )
         else
-            dim as containers.Array( of ulong ) aa
-            aa.Push( cast( ulong, bytes_.kind ) ) : aa.Push( cast( ulong, bytes_.id ) )
-            aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( 1 )
+            dim as containers.Array( of uint32 ) aa
+            aa.Push( cast( uint32, bytes_.kind ) ) : aa.Push( cast( uint32, bytes_.id ) )
+            aa.Push( cast( uint32, MV_CONST_INT ) ) : aa.Push( 1 )
             raw = EmitAllocCall_( c, RTL_CALLOC, aa )
         end if
     end if
-    if raw.kind = cast( ubyte, MV_NONE ) then return false
+    if raw.kind = cast( uint8, MV_NONE ) then return false
 
-    dim as long pbytes = c.types->target.pointerBits \ 8
-    dim as long slot = NewTempLocal( c, MT_PTR, pbytes )
+    dim as int32 pbytes = c.types->target.pointerBits \ 8
+    dim as int32 slot = NewTempLocal( c, MT_PTR, pbytes )
     if slot < 0 then return false
     dim as MirValue saddr
-    saddr.kind = cast( ubyte, MV_LOCAL )
-    saddr.ty = cast( ubyte, MT_PTR )
+    saddr.kind = cast( uint8, MV_LOCAL )
+    saddr.ty = cast( uint8, MT_PTR )
     saddr.id = slot
     StoreThrough( c, saddr, raw )
 
     '' The count at offset 0 and the pointer past it, inside the allocation's null check.
     if cookie then
         dim as MirInst ckz
-        ckz.op = cast( ushort, M_ICMP_NE )
-        ckz.ty = cast( ubyte, MT_I32 )
+        ckz.op = cast( uint16, M_ICMP_NE )
+        ckz.ty = cast( uint8, MT_I32 )
         ckz.a = raw
         ckz.b = ConstInt( c, 0, MT_PTR )
         dim as MirValue ckok = Emit( c, ckz )
-        if ckok.kind = cast( ubyte, MV_NONE ) then return false
-        dim as long ckB = NewBlock( c, "newarr.cookie" )
-        dim as long ckJ = NewBlock( c, "newarr.cookied" )
+        if ckok.kind = cast( uint8, MV_NONE ) then return false
+        dim as int32 ckB = NewBlock( c, "newarr.cookie" )
+        dim as int32 ckJ = NewBlock( c, "newarr.cookied" )
         Terminate( c, MTERM_CONDBR, ckB, ckJ, ckok )
         c.curBlock = ckB
         StoreThrough( c, raw, cnt )
         dim as MirInst bump
-        bump.op = cast( ushort, M_PTR_ADD )
-        bump.ty = cast( ubyte, MT_PTR )
+        bump.op = cast( uint16, M_PTR_ADD )
+        bump.ty = cast( uint8, MT_PTR )
         bump.a = raw
         bump.b = ConstInt( c, ckBytes, zt )
         dim as MirValue past = Emit( c, bump )
-        if past.kind = cast( ubyte, MV_NONE ) then return false
+        if past.kind = cast( uint8, MV_NONE ) then return false
         StoreThrough( c, saddr, past )
         Terminate( c, MTERM_BR, ckJ, -1, NoVal( ) )
         c.curBlock = ckJ
@@ -200,49 +200,49 @@ private function LowerNewArray_ _
     if zeroArr then zeroArr = (implCtor = false)
     if zeroArr then
         dim as MirValue zp = LowerExprLoad( c, saddr, MT_PTR )
-        if zp.kind = cast( ubyte, MV_NONE ) then return false
+        if zp.kind = cast( uint8, MV_NONE ) then return false
         dim as MirInst zc
-        zc.op = cast( ushort, M_ICMP_NE )
-        zc.ty = cast( ubyte, MT_I32 )
+        zc.op = cast( uint16, M_ICMP_NE )
+        zc.ty = cast( uint8, MT_I32 )
         zc.a = zp
         zc.b = ConstInt( c, 0, MT_PTR )
         dim as MirValue zcond = Emit( c, zc )
-        if zcond.kind = cast( ubyte, MV_NONE ) then return false
-        dim as long zbody = NewBlock( c, "newp.zero" )
-        dim as long zjoin = NewBlock( c, "newp.join" )
+        if zcond.kind = cast( uint8, MV_NONE ) then return false
+        dim as int32 zbody = NewBlock( c, "newp.zero" )
+        dim as int32 zjoin = NewBlock( c, "newp.join" )
         Terminate( c, MTERM_CONDBR, zbody, zjoin, zcond )
         c.curBlock = zbody
-        dim as containers.Array( of ulong ) za
-        za.Push( cast( ulong, zp.kind ) ) : za.Push( cast( ulong, zp.id ) )
-        za.Push( cast( ulong, MV_CONST_INT ) ) : za.Push( 0 )
-        za.Push( cast( ulong, bytes_.kind ) ) : za.Push( cast( ulong, bytes_.id ) )
+        dim as containers.Array( of uint32 ) za
+        za.Push( cast( uint32, zp.kind ) ) : za.Push( cast( uint32, zp.id ) )
+        za.Push( cast( uint32, MV_CONST_INT ) ) : za.Push( 0 )
+        za.Push( cast( uint32, bytes_.kind ) ) : za.Push( cast( uint32, bytes_.id ) )
         EmitRtl( c, RTL_MEMSET, za )
         Terminate( c, MTERM_BR, zjoin, -1, NoVal( ) )
         c.curBlock = zjoin
     end if
 
     if (ctor <> Tko.SYMBOL_NONE) orelse implCtor then
-        dim as long cursor = NewTempLocal( c, MT_PTR, pbytes )
-        dim as long left_ = NewTempLocal( c, zt, TyWidthBytes_( zt ) )
+        dim as int32 cursor = NewTempLocal( c, MT_PTR, pbytes )
+        dim as int32 left_ = NewTempLocal( c, zt, TyWidthBytes_( zt ) )
         if (cursor < 0) orelse (left_ < 0) then return false
         dim as MirValue cur, rem_
-        cur.kind = cast( ubyte, MV_LOCAL ) : cur.ty = cast( ubyte, MT_PTR ) : cur.id = cursor
-        rem_.kind = cast( ubyte, MV_LOCAL ) : rem_.ty = cast( ubyte, MT_PTR ) : rem_.id = left_
+        cur.kind = cast( uint8, MV_LOCAL ) : cur.ty = cast( uint8, MT_PTR ) : cur.id = cursor
+        rem_.kind = cast( uint8, MV_LOCAL ) : rem_.ty = cast( uint8, MT_PTR ) : rem_.id = left_
 
         dim as MirValue pv0 = LowerExprLoad( c, saddr, MT_PTR )
-        if pv0.kind = cast( ubyte, MV_NONE ) then return false
+        if pv0.kind = cast( uint8, MV_NONE ) then return false
         dim as MirInst nz
-        nz.op = cast( ushort, M_ICMP_NE )
-        nz.ty = cast( ubyte, MT_I32 )
+        nz.op = cast( uint16, M_ICMP_NE )
+        nz.ty = cast( uint8, MT_I32 )
         nz.a = pv0
         nz.b = ConstInt( c, 0, MT_PTR )
         dim as MirValue okv = Emit( c, nz )
-        if okv.kind = cast( ubyte, MV_NONE ) then return false
+        if okv.kind = cast( uint8, MV_NONE ) then return false
 
-        dim as long initB = NewBlock( c, "newarr.init" )
-        dim as long testB = NewBlock( c, "newarr.test" )
-        dim as long bodyB = NewBlock( c, "newarr.body" )
-        dim as long doneB = NewBlock( c, "newarr.done" )
+        dim as int32 initB = NewBlock( c, "newarr.init" )
+        dim as int32 testB = NewBlock( c, "newarr.test" )
+        dim as int32 bodyB = NewBlock( c, "newarr.body" )
+        dim as int32 doneB = NewBlock( c, "newarr.done" )
         Terminate( c, MTERM_CONDBR, initB, doneB, okv )
 
         c.curBlock = initB
@@ -252,38 +252,38 @@ private function LowerNewArray_ _
 
         c.curBlock = testB
         dim as MirValue rv = LowerExprLoad( c, rem_, zt )
-        if rv.kind = cast( ubyte, MV_NONE ) then return false
+        if rv.kind = cast( uint8, MV_NONE ) then return false
         dim as MirInst more
-        more.op = cast( ushort, M_ICMP_NE )
-        more.ty = cast( ubyte, MT_I32 )
+        more.op = cast( uint16, M_ICMP_NE )
+        more.ty = cast( uint8, MT_I32 )
         more.a = rv
         more.b = ConstInt( c, 0, zt )
         dim as MirValue mv = Emit( c, more )
-        if mv.kind = cast( ubyte, MV_NONE ) then return false
+        if mv.kind = cast( uint8, MV_NONE ) then return false
         Terminate( c, MTERM_CONDBR, bodyB, doneB, mv )
 
         c.curBlock = bodyB
         dim as MirValue ev = LowerExprLoad( c, cur, MT_PTR )
-        if ev.kind = cast( ubyte, MV_NONE ) then return false
-        dim as containers.Array( of ulong ) noargs
+        if ev.kind = cast( uint8, MV_NONE ) then return false
+        dim as containers.Array( of uint32 ) noargs
         if ctor <> Tko.SYMBOL_NONE then
             EmitStructorCall( c, ctor, -1, @ev, @noargs )
         else
             CallImplicitCtor_( c, el, ev )
         end if
         dim as MirInst adv
-        adv.op = cast( ushort, M_PTR_ADD )
-        adv.ty = cast( ubyte, MT_PTR )
+        adv.op = cast( uint16, M_PTR_ADD )
+        adv.ty = cast( uint8, MT_PTR )
         adv.a = ev
         adv.b = ConstInt( c, esz, zt )
         dim as MirValue nx = Emit( c, adv )
-        if nx.kind = cast( ubyte, MV_NONE ) then return false
+        if nx.kind = cast( uint8, MV_NONE ) then return false
         StoreThrough( c, cur, nx )
         dim as MirValue rv2 = LowerExprLoad( c, rem_, zt )
-        if rv2.kind = cast( ubyte, MV_NONE ) then return false
+        if rv2.kind = cast( uint8, MV_NONE ) then return false
         dim as MirInst dec
-        dec.op = cast( ushort, M_SUB )
-        dec.ty = cast( ubyte, zt )
+        dec.op = cast( uint16, M_SUB )
+        dec.ty = cast( uint8, zt )
         dec.a = rv2
         dec.b = ConstInt( c, 1, zt )
         StoreThrough( c, rem_, Emit( c, dec ) )
@@ -293,17 +293,17 @@ private function LowerNewArray_ _
     end if
 
     outv = LowerExprLoad( c, saddr, MT_PTR )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 
 '' Whether the first 'n' fields of 'el' can take the 'n' arguments one value each -- a
 '' scalar, or a record given a value of exactly its type -- the shape LowerBaseFieldInit_
 '' fills (T32).
 private function ScalarFieldList_ _
-    ( byref c as Ctx, byval el as Tko.TypeId, byval n as long, byval first_ as long ) as boolean
-    dim as containers.Array( of ulong ) lOff, lTy
+    ( byref c as Ctx, byval el as Tko.TypeId, byval n as int32, byval first_ as int32 ) as boolean
+    dim as containers.Array( of uint32 ) lOff, lTy
     if BaseLeafSlots_( c, el, first_, n, lOff, lTy ) = false then return false
-    for i as long = 0 to n - 1
+    for i as int32 = 0 to n - 1
         dim as MirType fmt = LowerType( cast( Tko.TypeId, lTy[i] ), *c.types )
         if fmt = MT_VOID then return false
         '' A record field needs an argument of exactly its type (LowerBaseFieldInit_).
@@ -323,13 +323,13 @@ end function
 '' 'object' is never entered -- its one field is the vptr. False when the arguments outnumber
 '' the slots.
 private sub BaseLeafWalk_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byval off as long, byval first_ as long, _
-      byval n as long, byref ai as long, byref lOff as containers.Array( of ulong ), _
-      byref lTy as containers.Array( of ulong ) )
-    dim as long ui = c.udts->Find( t )
+    ( byref c as Ctx, byval t as Tko.TypeId, byval off as int32, byval first_ as int32, _
+      byval n as int32, byref ai as int32, byref lOff as containers.Array( of uint32 ), _
+      byref lTy as containers.Array( of uint32 ) )
+    dim as int32 ui = c.udts->Find( t )
     if ui < 0 then return
-    dim as long f0 = c.udts->udts[ui].first
-    for i as long = 0 to c.udts->udts[ui].count - 1
+    dim as int32 f0 = c.udts->udts[ui].first
+    for i as int32 = 0 to c.udts->udts[ui].count - 1
         if ai >= n then return
         dim as Tko.UdtField ptr fld = @c.udts->fields[f0 + i]
         dim as Tko.TypeId ft = c.types->Unqualify( fld->type_ )
@@ -342,15 +342,15 @@ private sub BaseLeafWalk_ _
                 continue for
             end if
         end if
-        lOff.Push( cast( ulong, off + fld->offset ) ) : lTy.Push( cast( ulong, fld->type_ ) )
+        lOff.Push( cast( uint32, off + fld->offset ) ) : lTy.Push( cast( uint32, fld->type_ ) )
         ai += 1
     next
 end sub
 
 function BaseLeafSlots_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byval first_ as long, byval n as long, _
-      byref lOff as containers.Array( of ulong ), byref lTy as containers.Array( of ulong ) ) as boolean
-    dim as long ai = 0
+    ( byref c as Ctx, byval t as Tko.TypeId, byval first_ as int32, byval n as int32, _
+      byref lOff as containers.Array( of uint32 ), byref lTy as containers.Array( of uint32 ) ) as boolean
+    dim as int32 ai = 0
     BaseLeafWalk_( c, t, 0, first_, n, ai, lOff, lTy )
     return (ai = n)
 end function
@@ -360,9 +360,9 @@ function LowerNew_ _
 
     if c.ast->Kind( id ) <> Tko.N_NEW then return false
     dim as Tko.ListPayload ptr np = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if np->target = Tko.NODE_NONE then return false
-    if (c.ast->nodes[cast( long, id )].flags and Tko.NF_ARRAY) <> 0 then
+    if (c.ast->nodes[cast( int32, id )].flags and Tko.NF_ARRAY) <> 0 then
         return LowerNewArray_( c, id, np, outv )
     end if
 
@@ -374,7 +374,7 @@ function LowerNew_ _
     '' so the whole 'dim p as const A ptr = new const A' declined.
     dim as Tko.TypeId el = c.types->Unqualify( c.info->TypeOf_( np->target ) )
     if el = Tko.TYPE_NONE then return false
-    dim as long esz = SizeOfType( c, el )
+    dim as int32 esz = SizeOfType( c, el )
     if esz <= 0 then return false
 
     '' PLACEMENT NEW ALLOCATES NOTHING: the pointer is the one written, cast to the
@@ -388,11 +388,11 @@ function LowerNew_ _
     ''     __builtin_memset( TMP$2$0, 0, 8ull );
     ''     label$10:;
     dim as boolean isPlace = _
-        ((c.ast->nodes[cast( long, id )].flags and Tko.NF_PLACEMENT) <> 0)
+        ((c.ast->nodes[cast( int32, id )].flags and Tko.NF_PLACEMENT) <> 0)
     '' 'new T( any )' -- allocated and NOT initialised: no constructor, no zeroing.
-    dim as boolean noInit = ((c.ast->nodes[cast( long, id )].flags and Tko.NF_NOINIT) <> 0)
-    dim as long argFirst = np->first
-    dim as long argCount = np->count
+    dim as boolean noInit = ((c.ast->nodes[cast( int32, id )].flags and Tko.NF_NOINIT) <> 0)
+    dim as int32 argFirst = np->first
+    dim as int32 argCount = np->count
     dim as MirValue raw
     if isPlace then
         if argCount < 1 then return false
@@ -400,7 +400,7 @@ function LowerNew_ _
         argFirst += 1
         argCount -= 1
         raw = LowerExpr( c, pe )
-        if raw.kind = cast( ubyte, MV_NONE ) then return false
+        if raw.kind = cast( uint8, MV_NONE ) then return false
         raw = Coerce( c, raw, MT_PTR, true )
     else
         '' A TYPE'S OWN 'operator new' IS THE ALLOCATOR, and it was never asked for.
@@ -420,36 +420,36 @@ function LowerNew_ _
         dim as Tko.SymbolId opNew = _
             StructorWithArity( c, StructorOf( c, el, "new" ), 1 )
         if opNew <> Tko.SYMBOL_NONE then
-            dim as containers.Array( of ulong ) na
-            na.Push( cast( ulong, MV_CONST_INT ) ) : na.Push( cast( ulong, esz ) )
+            dim as containers.Array( of uint32 ) na
+            na.Push( cast( uint32, MV_CONST_INT ) ) : na.Push( cast( uint32, esz ) )
             raw = EmitDirectCall_( c, opNew, MT_PTR, na )
         elseif noInit then
             '' 'new T( any )': malloc( bytes ), which zeroes nothing.
-            dim as containers.Array( of ulong ) ma
-            ma.Push( cast( ulong, MV_CONST_INT ) ) : ma.Push( cast( ulong, esz ) )
+            dim as containers.Array( of uint32 ) ma
+            ma.Push( cast( uint32, MV_CONST_INT ) ) : ma.Push( cast( uint32, esz ) )
             raw = EmitAllocCall_( c, RTL_MALLOC, ma )
         else
             '' calloc( bytes, 1 ). The second argument is the ELEMENT COUNT and fbc always
             '' passes 1, folding the whole size into the first -- not the other way round.
-            dim as containers.Array( of ulong ) aa
-            aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( cast( ulong, esz ) )
-            aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( 1 )
+            dim as containers.Array( of uint32 ) aa
+            aa.Push( cast( uint32, MV_CONST_INT ) ) : aa.Push( cast( uint32, esz ) )
+            aa.Push( cast( uint32, MV_CONST_INT ) ) : aa.Push( 1 )
             raw = EmitAllocCall_( c, RTL_CALLOC, aa )
         end if
     end if
-    if raw.kind = cast( ubyte, MV_NONE ) then return false
+    if raw.kind = cast( uint8, MV_NONE ) then return false
 
     '' The allocation lives in a slot, because the construction below is a BRANCH and
     '' the value has to survive the join.
-    dim as long slot = NewTempLocal( c, MT_PTR, c.types->target.pointerBits \ 8 )
+    dim as int32 slot = NewTempLocal( c, MT_PTR, c.types->target.pointerBits \ 8 )
     if slot < 0 then return false
     dim as MirValue saddr
-    saddr.kind = cast( ubyte, MV_LOCAL )
-    saddr.ty = cast( ubyte, MT_PTR )
+    saddr.kind = cast( uint8, MV_LOCAL )
+    saddr.ty = cast( uint8, MT_PTR )
     saddr.id = slot
     dim as MirInst st0
-    st0.op = cast( ushort, M_STORE )
-    st0.ty = cast( ubyte, MT_VOID )
+    st0.op = cast( uint16, M_STORE )
+    st0.ty = cast( uint8, MT_VOID )
     st0.a = saddr
     st0.b = raw
     Emit( c, st0 )
@@ -479,9 +479,9 @@ function LowerNew_ _
     if (argCount = 1) andalso (c.types->Kind( el ) = Tko.TK_UDT) then
         dim as Tko.NodeId tla = cast( Tko.NodeId, c.ast->children[argFirst] )
         if c.ast->Kind( tla ) = Tko.N_TUPLE then
-            if (c.ast->nodes[cast( long, tla )].flags and Tko.NF_TYPE_LITERAL) <> 0 then
+            if (c.ast->nodes[cast( int32, tla )].flags and Tko.NF_TYPE_LITERAL) <> 0 then
                 dim as Tko.ListPayload ptr tlp = _
-                    @c.ast->lists[cast( long, c.ast->nodes[cast( long, tla )].data )]
+                    @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, tla )].data )]
                 if (tlp->target = Tko.NODE_NONE) andalso (tlp->count >= 1) then
                     if StructorOf( c, el, "__ctor" ) = Tko.SYMBOL_NONE then
                         argFirst = tlp->first
@@ -494,16 +494,16 @@ function LowerNew_ _
 
     dim as Tko.SymbolId ctor = Tko.SYMBOL_NONE
     if (argCount > 0) andalso (c.types->Kind( el ) = Tko.TK_UDT) then
-        dim as containers.Array( of ulong ) ctArgT
+        dim as containers.Array( of uint32 ) ctArgT
         dim as boolean ctTyped = true
-        for i as long = 0 to argCount - 1
+        for i as int32 = 0 to argCount - 1
             dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[argFirst + i] )
             dim as Tko.TypeId at3 = CtorArgTypeOf_( c, an )   '' a concatenation is its widest term
             if at3 = Tko.TYPE_NONE then
                 ctTyped = false
                 exit for
             end if
-            ctArgT.Push( cast( ulong, at3 ) )
+            ctArgT.Push( cast( uint32, at3 ) )
         next
         if ctTyped then ctor = PickCtor( c, StructorOf( c, el, "__ctor" ), ctArgT )
     end if
@@ -549,7 +549,7 @@ function LowerNew_ _
     '' T's own vptr and assigns T's members. The source's address is taken where the
     '' 'new' is written, as every other argument is.
     dim as boolean implCopy = false, upCopy = false
-    dim as long upBytes = 0
+    dim as int32 upBytes = 0
     dim as MirValue copySrc
     '' ...PLACEMENT TOO: 'new( p ) t2( x4 )' over a t4 x4 is the same slice into p (structs/udt-upcast-3.bas).
     if cbool( ctor = Tko.SYMBOL_NONE ) andalso cbool( argCount = 1 ) andalso _
@@ -564,14 +564,14 @@ function LowerNew_ _
         if IsThisPointerIdent_( c, csn ) then cst = c.types->Unqualify( c.types->Inner( cst ) )
         if c.types->BaseDistance( cst, el ) >= 0 then
             copySrc = InitSourceAddr_( c, csn )
-            implCopy = (copySrc.kind <> cast( ubyte, MV_NONE ))
+            implCopy = (copySrc.kind <> cast( uint8, MV_NONE ))
         '' ...AND A BASE (OR A BASE'S BASE) INITIALISES THE BASE PART of plain data, the rest
         '' zeroed: 'new T3( x1 )' over 'T3 extends T2 extends T1' is measured as
         '' 'memcpy( (T1*)TMP, &X1, 8 )' into calloc'd storage (structs/udt-upcast-2.bas).
         elseif (c.types->BaseDistance( el, cst ) > 0) andalso (TypeNeedsInit_( c, el ) = false) then
             copySrc = InitSourceAddr_( c, csn )
             upBytes = SizeOfType( c, cst )
-            upCopy = (copySrc.kind <> cast( ubyte, MV_NONE )) andalso (upBytes > 0)
+            upCopy = (copySrc.kind <> cast( uint8, MV_NONE )) andalso (upBytes > 0)
         end if
     end if
 
@@ -605,7 +605,7 @@ function LowerNew_ _
         if noCtor then noCtor = (fieldInit = false)
         placeZero = noCtor
     end if
-    dim as containers.Array( of ulong ) cargs
+    dim as containers.Array( of uint32 ) cargs
     if (ctor <> Tko.SYMBOL_NONE) andalso (isPlace = false) then
         '' THE ARGUMENTS BEFORE THE BRANCH. fbc evaluates them where the 'new' is
         '' written, not inside the null-guarded arm -- which matters the moment one has
@@ -623,18 +623,18 @@ function LowerNew_ _
     if needsGuard = false then needsGuard = fieldInit
     if needsGuard then
         dim as MirValue pv = LowerExprLoad( c, saddr, MT_PTR )
-        if pv.kind = cast( ubyte, MV_NONE ) then return false
+        if pv.kind = cast( uint8, MV_NONE ) then return false
         dim as MirValue zero = ConstInt( c, 0, MT_PTR )
         dim as MirInst cmp
-        cmp.op = cast( ushort, M_ICMP_NE )
-        cmp.ty = cast( ubyte, MT_I32 )
+        cmp.op = cast( uint16, M_ICMP_NE )
+        cmp.ty = cast( uint8, MT_I32 )
         cmp.a = pv
         cmp.b = zero
         dim as MirValue cond = Emit( c, cmp )
-        if cond.kind = cast( ubyte, MV_NONE ) then return false
+        if cond.kind = cast( uint8, MV_NONE ) then return false
 
-        dim as long bodyB = NewBlock( c, "new.ctor" )
-        dim as long joinB = NewBlock( c, "new.join" )
+        dim as int32 bodyB = NewBlock( c, "new.ctor" )
+        dim as int32 joinB = NewBlock( c, "new.join" )
         Terminate( c, MTERM_CONDBR, bodyB, joinB, cond )
         c.curBlock = bodyB
         '' A PLACEMENT NEW'S CONSTRUCTOR ARGUMENTS ARE EVALUATED INSIDE THE GUARD.
@@ -652,17 +652,17 @@ function LowerNew_ _
         elseif implCopy then
             CallImplicitCopy_( c, el, pv, copySrc )
         elseif upCopy then
-            dim as containers.Array( of ulong ) ua
+            dim as containers.Array( of uint32 ) ua
             if isPlace then
-                ua.Push( cast( ulong, pv.kind ) ) : ua.Push( cast( ulong, pv.id ) )
-                ua.Push( cast( ulong, MV_CONST_INT ) ) : ua.Push( 0 )
-                ua.Push( cast( ulong, MV_CONST_INT ) ) : ua.Push( cast( ulong, SizeOfType( c, el ) ) )
+                ua.Push( cast( uint32, pv.kind ) ) : ua.Push( cast( uint32, pv.id ) )
+                ua.Push( cast( uint32, MV_CONST_INT ) ) : ua.Push( 0 )
+                ua.Push( cast( uint32, MV_CONST_INT ) ) : ua.Push( cast( uint32, SizeOfType( c, el ) ) )
                 EmitRtl( c, RTL_MEMSET, ua )
                 ua.Clear( )
             end if
-            ua.Push( cast( ulong, pv.kind ) ) : ua.Push( cast( ulong, pv.id ) )
-            ua.Push( cast( ulong, copySrc.kind ) ) : ua.Push( cast( ulong, copySrc.id ) )
-            ua.Push( cast( ulong, MV_CONST_INT ) ) : ua.Push( cast( ulong, upBytes ) )
+            ua.Push( cast( uint32, pv.kind ) ) : ua.Push( cast( uint32, pv.id ) )
+            ua.Push( cast( uint32, copySrc.kind ) ) : ua.Push( cast( uint32, copySrc.id ) )
+            ua.Push( cast( uint32, MV_CONST_INT ) ) : ua.Push( cast( uint32, upBytes ) )
             EmitRtl( c, RTL_MEM_COPY, ua )
         elseif scalarInit andalso IsStringType( c, el ) then
             '' calloc zeroed the descriptor, so it is a valid empty string to assign into;
@@ -678,18 +678,18 @@ function LowerNew_ _
                 iv = LowerNumArg_( c, ive, LowerType( el, *c.types ) )   '' 'new long( m )': its numeric cast
             else
                 iv = LowerExpr( c, ive )
-                if iv.kind = cast( ubyte, MV_NONE ) then return false
+                if iv.kind = cast( uint8, MV_NONE ) then return false
                 iv = CoerceTy( c, iv, LowerType( el, *c.types ), el)
             end if
-            if iv.kind = cast( ubyte, MV_NONE ) then return false
+            if iv.kind = cast( uint8, MV_NONE ) then return false
             StoreThrough( c, pv, iv )
         elseif fieldInit then
             if LowerBaseFieldInit_( c, pv, el, argFirst, argCount ) = false then return false
         elseif placeZero then
-            dim as containers.Array( of ulong ) pz
-            pz.Push( cast( ulong, pv.kind ) ) : pz.Push( cast( ulong, pv.id ) )
-            pz.Push( cast( ulong, MV_CONST_INT ) ) : pz.Push( 0 )
-            pz.Push( cast( ulong, MV_CONST_INT ) ) : pz.Push( cast( ulong, esz ) )
+            dim as containers.Array( of uint32 ) pz
+            pz.Push( cast( uint32, pv.kind ) ) : pz.Push( cast( uint32, pv.id ) )
+            pz.Push( cast( uint32, MV_CONST_INT ) ) : pz.Push( 0 )
+            pz.Push( cast( uint32, MV_CONST_INT ) ) : pz.Push( cast( uint32, esz ) )
             EmitRtl( c, RTL_MEMSET, pz )
         else
             CallImplicitCtor_( c, el, pv )
@@ -699,7 +699,7 @@ function LowerNew_ _
     end if
 
     outv = LowerExprLoad( c, saddr, MT_PTR )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 
 '' 'delete[] p' OVER A TYPE WITH A DESTRUCTOR (T37) -- the other half of the cookie
@@ -720,83 +720,83 @@ function LowerDeleteArray_ _
     ( byref c as Ctx, byval pe as Tko.NodeId, byval el as Tko.TypeId, _
       byval dtor as Tko.SymbolId, byval implDtor as boolean ) as boolean
 
-    dim as long esz = SizeOfType( c, c.types->Unqualify( el ) )
+    dim as int32 esz = SizeOfType( c, c.types->Unqualify( el ) )
     if esz <= 0 then return false
     dim as MirType zt = MT_I64
     if c.types->target.pointerBits = 32 then zt = MT_I32
-    dim as long pbytes = c.types->target.pointerBits \ 8
+    dim as int32 pbytes = c.types->target.pointerBits \ 8
 
     dim as MirValue p = LowerExpr( c, pe )
-    if p.kind = cast( ubyte, MV_NONE ) then return false
+    if p.kind = cast( uint8, MV_NONE ) then return false
     p = Coerce( c, p, MT_PTR )
     dim as MirInst nz
-    nz.op = cast( ushort, M_ICMP_NE )
-    nz.ty = cast( ubyte, MT_I32 )
+    nz.op = cast( uint16, M_ICMP_NE )
+    nz.ty = cast( uint8, MT_I32 )
     nz.a = p
     nz.b = ConstInt( c, 0, MT_PTR )
     dim as MirValue okv = Emit( c, nz )
-    if okv.kind = cast( ubyte, MV_NONE ) then return false
-    dim as long bodyB = NewBlock( c, "delarr.body" )
-    dim as long testB = NewBlock( c, "delarr.test" )
-    dim as long loopB = NewBlock( c, "delarr.loop" )
-    dim as long freeB = NewBlock( c, "delarr.free" )
-    dim as long joinB = NewBlock( c, "delarr.join" )
+    if okv.kind = cast( uint8, MV_NONE ) then return false
+    dim as int32 bodyB = NewBlock( c, "delarr.body" )
+    dim as int32 testB = NewBlock( c, "delarr.test" )
+    dim as int32 loopB = NewBlock( c, "delarr.loop" )
+    dim as int32 freeB = NewBlock( c, "delarr.free" )
+    dim as int32 joinB = NewBlock( c, "delarr.join" )
     Terminate( c, MTERM_CONDBR, bodyB, joinB, okv )
 
     c.curBlock = bodyB
     dim as MirInst hb
-    hb.op = cast( ushort, M_PTR_ADD )
-    hb.ty = cast( ubyte, MT_PTR )
+    hb.op = cast( uint16, M_PTR_ADD )
+    hb.ty = cast( uint8, MT_PTR )
     hb.a = p
     hb.b = ConstInt( c, -pbytes, zt )
     dim as MirValue base_ = Emit( c, hb )
-    if base_.kind = cast( ubyte, MV_NONE ) then return false
+    if base_.kind = cast( uint8, MV_NONE ) then return false
     dim as MirValue n = LowerExprLoad( c, base_, zt )
-    if n.kind = cast( ubyte, MV_NONE ) then return false
+    if n.kind = cast( uint8, MV_NONE ) then return false
     dim as MirInst mul
-    mul.op = cast( ushort, M_MUL )
-    mul.ty = cast( ubyte, zt )
+    mul.op = cast( uint16, M_MUL )
+    mul.ty = cast( uint8, zt )
     mul.a = n
     mul.b = ConstInt( c, esz, zt )
     dim as MirInst endp
-    endp.op = cast( ushort, M_PTR_ADD )
-    endp.ty = cast( ubyte, MT_PTR )
+    endp.op = cast( uint16, M_PTR_ADD )
+    endp.ty = cast( uint8, MT_PTR )
     endp.a = p
     endp.b = Emit( c, mul )
     dim as MirValue ev = Emit( c, endp )
-    if ev.kind = cast( ubyte, MV_NONE ) then return false
-    dim as long cursor = NewTempLocal( c, MT_PTR, pbytes )
-    dim as long left_ = NewTempLocal( c, zt, TyWidthBytes_( zt ) )
+    if ev.kind = cast( uint8, MV_NONE ) then return false
+    dim as int32 cursor = NewTempLocal( c, MT_PTR, pbytes )
+    dim as int32 left_ = NewTempLocal( c, zt, TyWidthBytes_( zt ) )
     if (cursor < 0) orelse (left_ < 0) then return false
     dim as MirValue cur, rem_
-    cur.kind = cast( ubyte, MV_LOCAL ) : cur.ty = cast( ubyte, MT_PTR ) : cur.id = cursor
-    rem_.kind = cast( ubyte, MV_LOCAL ) : rem_.ty = cast( ubyte, MT_PTR ) : rem_.id = left_
+    cur.kind = cast( uint8, MV_LOCAL ) : cur.ty = cast( uint8, MT_PTR ) : cur.id = cursor
+    rem_.kind = cast( uint8, MV_LOCAL ) : rem_.ty = cast( uint8, MT_PTR ) : rem_.id = left_
     StoreThrough( c, cur, ev )
     StoreThrough( c, rem_, n )
     Terminate( c, MTERM_BR, testB, -1, NoVal( ) )
 
     c.curBlock = testB
     dim as MirValue rv = LowerExprLoad( c, rem_, zt )
-    if rv.kind = cast( ubyte, MV_NONE ) then return false
+    if rv.kind = cast( uint8, MV_NONE ) then return false
     dim as MirInst more
-    more.op = cast( ushort, M_ICMP_NE )
-    more.ty = cast( ubyte, MT_I32 )
+    more.op = cast( uint16, M_ICMP_NE )
+    more.ty = cast( uint8, MT_I32 )
     more.a = rv
     more.b = ConstInt( c, 0, zt )
     dim as MirValue mv = Emit( c, more )
-    if mv.kind = cast( ubyte, MV_NONE ) then return false
+    if mv.kind = cast( uint8, MV_NONE ) then return false
     Terminate( c, MTERM_CONDBR, loopB, freeB, mv )
 
     c.curBlock = loopB
     dim as MirValue cv = LowerExprLoad( c, cur, MT_PTR )
-    if cv.kind = cast( ubyte, MV_NONE ) then return false
+    if cv.kind = cast( uint8, MV_NONE ) then return false
     dim as MirInst back
-    back.op = cast( ushort, M_PTR_ADD )
-    back.ty = cast( ubyte, MT_PTR )
+    back.op = cast( uint16, M_PTR_ADD )
+    back.ty = cast( uint8, MT_PTR )
     back.a = cv
     back.b = ConstInt( c, -esz, zt )
     dim as MirValue pv = Emit( c, back )
-    if pv.kind = cast( ubyte, MV_NONE ) then return false
+    if pv.kind = cast( uint8, MV_NONE ) then return false
     StoreThrough( c, cur, pv )
     if dtor <> Tko.SYMBOL_NONE then
         EmitStructorCall( c, dtor, -1, @pv )
@@ -804,10 +804,10 @@ function LowerDeleteArray_ _
         CallImplicitDtor_( c, el, pv )
     end if
     dim as MirValue rv2 = LowerExprLoad( c, rem_, zt )
-    if rv2.kind = cast( ubyte, MV_NONE ) then return false
+    if rv2.kind = cast( uint8, MV_NONE ) then return false
     dim as MirInst dec
-    dec.op = cast( ushort, M_SUB )
-    dec.ty = cast( ubyte, zt )
+    dec.op = cast( uint16, M_SUB )
+    dec.ty = cast( uint8, zt )
     dec.a = rv2
     dec.b = ConstInt( c, 1, zt )
     StoreThrough( c, rem_, Emit( c, dec ) )
@@ -815,8 +815,8 @@ function LowerDeleteArray_ _
 
     '' THE COOKIE'S ADDRESS IS WHAT WAS ALLOCATED, so it is what is released.
     c.curBlock = freeB
-    dim as containers.Array( of ulong ) da
-    da.Push( cast( ulong, base_.kind ) ) : da.Push( cast( ulong, base_.id ) )
+    dim as containers.Array( of uint32 ) da
+    da.Push( cast( uint32, base_.kind ) ) : da.Push( cast( uint32, base_.id ) )
     dim as Tko.SymbolId opDel = StructorWithArity( c, StructorOf( c, el, "delete[]" ), 1 )
     if opDel <> Tko.SYMBOL_NONE then
         EmitDirectCall_( c, opDel, MT_VOID, da )
@@ -839,7 +839,7 @@ private function AllocOverride_( byref c as Ctx, byval nm as string ) as Tko.Sym
     if c.modScope <> Tko.SCOPE_NONE then sid = c.syms->LookupLocal( c.modScope, fn )
     if sid = Tko.SYMBOL_NONE then sid = c.syms->LookupLocal( Tko.SCOPE_GLOBAL, fn )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-    if (s = 0) orelse (s->kind <> cast( ubyte, Tko.SYM_PROC )) orelse ((s->flags and Tko.SYMF_BUILTIN) <> 0) then return Tko.SYMBOL_NONE
+    if (s = 0) orelse (s->kind <> cast( uint8, Tko.SYM_PROC )) orelse ((s->flags and Tko.SYMF_BUILTIN) <> 0) then return Tko.SYMBOL_NONE
     dim as Tko.SourceFile ptr sf = c.srcMgr->FileAt( c.srcMgr->Decode( s->loc ).file )
     if (sf = 0) orelse sf->isVirtual then return Tko.SYMBOL_NONE
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
@@ -847,7 +847,7 @@ private function AllocOverride_( byref c as Ctx, byval nm as string ) as Tko.Sym
     return sid
 end function
 
-function EmitAllocCall_( byref c as Ctx, byval r as RtlId, byref args as containers.Array( of ulong ) ) as MirValue
+function EmitAllocCall_( byref c as Ctx, byval r as RtlId, byref args as containers.Array( of uint32 ) ) as MirValue
     dim as string nm
     select case r
     case RTL_CALLOC : nm = "callocate"

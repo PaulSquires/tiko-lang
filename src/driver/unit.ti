@@ -24,33 +24,33 @@ namespace Tko.Driver
 '' with in restartArgs. The restart is Run's to perform: it is a fresh Run( ) over the
 '' command line, which only Run has.
 declare function CompileUnit _
-    ( byref ctx as Tko.CompilerContext, byval i as long, byval srcCount as long, _
-      byval restartDepth as long, byval wantsOutput as boolean, _
+    ( byref ctx as Tko.CompilerContext, byval i as int32, byval srcCount as int32, _
+      byval restartDepth as int32, byval wantsOutput as boolean, _
       byref linkObjs as Tko.StrVec, byref tempObjs as Tko.StrVec, _
-      byref toolExit as long, byref restartArgs as Tko.StrVec ) as boolean
+      byref toolExit as int32, byref restartArgs as Tko.StrVec ) as boolean
 
 '' Does unit i's top-level code become 'main'? (unit.tiko; the unit cache keys on it too)
 declare function IsMainUnit_ _
-    ( byref ctx as Tko.CompilerContext, byval id as Tko.FileId, byval i as long ) as boolean
+    ( byref ctx as Tko.CompilerContext, byval id as Tko.FileId, byval i as int32 ) as boolean
 
 '' ---- driver.tiko's helpers that the unit pass calls too. Defined there.
 declare function ModuleStem( byref path_ as string ) as string
 declare function StripExt_( byref path_ as string ) as string
 declare function ToolFail_ _
-    ( byref ctx as Tko.CompilerContext, byval code as long, byval id as Tko.DiagId, _
-      byref a0 as string = "", byref a1 as string = "", byref a2 as string = "" ) as long
+    ( byref ctx as Tko.CompilerContext, byval code as int32, byval id as Tko.DiagId, _
+      byref a0 as string = "", byref a1 as string = "", byref a2 as string = "" ) as int32
 declare function FrontendFailed_( byref ctx as Tko.CompilerContext ) as boolean
 declare function EmitStopFile_ _
     ( byref ctx as Tko.CompilerContext, byref irText as string, _
       byref td as Tko.Codegen.TargetDescription, byval id as Tko.FileId, _
-      byval i as long, byval srcCount as long ) as long
+      byval i as int32, byval srcCount as int32 ) as int32
 '' WAITS FOR EVERY QUEUED clang -c (driver/objqueue.ti) and returns the first failure, already
 '' reported, or EXIT_OK. Called before anything reads an object.
-declare function DrainObjects( byref ctx as Tko.CompilerContext ) as long
+declare function DrainObjects( byref ctx as Tko.CompilerContext ) as int32
 
 declare function BuildFromIr _
     ( byref ctx as Tko.CompilerContext, byref irText as string, _
-      byref td as Tko.Codegen.TargetDescription, byref objPath as string ) as long
+      byref td as Tko.Codegen.TargetDescription, byref objPath as string ) as int32
 declare function MakePpConfig( byref ctx as Tko.CompilerContext ) as Tko.PpConfig
 '' Is an fb_ name a runtime procedure -- for Check.ReportUndeclared. Defined in unit.tiko.
 declare function IsRtlName( byref nm as string ) as boolean

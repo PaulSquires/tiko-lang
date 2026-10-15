@@ -24,30 +24,30 @@ type Ctx
     as Tko.SymbolId         currentProc
     '' The open WITH subjects, innermost last. A '.field' written inside one has no
     '' base in the AST and takes the innermost of these.
-    as containers.Array( of ulong )  withSubject
+    as containers.Array( of uint32 )  withSubject
     '' For the BACKPATCH pass: this walk is in source order, and a typedef may name a
     '' type declared later. The typedefs, and the declarations that could not be typed
     '' because of one.
-    as containers.Array( of ulong )  typedefNode
-    as containers.Array( of ulong )  typedefScope
+    as containers.Array( of uint32 )  typedefNode
+    as containers.Array( of uint32 )  typedefScope
     '' How deep ResolveTypeRef is in typedefs it chased ahead of the walk -- see
     '' ChaseTypedef_ in resolvetype.tiko. Bounds an alias cycle.
-    as long                  typedefChase
+    as int32                  typedefChase
     '' PARAMETERS whose typeref would not resolve on the first pass, revisited after
     '' BackpatchTypedefs -- the same treatment pendingItem gives a variable. Every
     '' mingw binding needs it: win/windef.bi writes 'type WPARAM as UINT_PTR'
     '' before including the header that declares UINT_PTR.
-    as containers.Array( of ulong )  pendParam
-    as containers.Array( of ulong )  pendParamScope
+    as containers.Array( of uint32 )  pendParam
+    as containers.Array( of uint32 )  pendParamScope
     '' PROCEDURES whose RESULT typeref would not resolve, for the same reason.
-    as containers.Array( of ulong )  pendResultProc
-    as containers.Array( of ulong )  pendResultProcScope
+    as containers.Array( of uint32 )  pendResultProc
+    as containers.Array( of uint32 )  pendResultProcScope
     '' TYPE FIELDS, for the same reason: 'wParam as WPARAM' inside a TYPE met the same
     '' unresolved typedef, and a UDT with an untyped field gets NO LAYOUT -- so
     '' REBARBANDINFOW, returned by value from AfxNova's AfxGetRebarBandInfo, reached the
     '' backend with no size at all and stopped it with an ICE.
-    as containers.Array( of ulong )  pendField
-    as containers.Array( of ulong )  pendFieldScope
+    as containers.Array( of uint32 )  pendField
+    as containers.Array( of uint32 )  pendFieldScope
     '' TYPE ARGUMENTS IN EXPRESSIONS -- 'cast( LPARAM, p )', 'type<LPARAM>( 0 )' --
     '' for the same reason. The cast's result type IS its typeref's, cached here, so
     '' one resolved before its typedef leaves the call it is an argument of untyped:
@@ -56,26 +56,26 @@ type Ctx
     '' reason and repaired the same way -- except that the type is INTERNED and
     '' already bound to variables by the time the name becomes known, so the
     '' backpatch mends the TYPE rather than re-deriving it. See BackpatchTypedefs.
-    as containers.Array( of ulong )  pendProcType
-    as containers.Array( of ulong )  pendProcTypeScope
-    as containers.Array( of ulong )  pendProcTypeId
-    as containers.Array( of ulong )  pendExprType
-    as containers.Array( of ulong )  pendExprTypeScope
-    as containers.Array( of ulong )  pendingItem
-    as containers.Array( of ulong )  pendingScope
-    as containers.Array( of ulong )  rtlSeen      '' LOCATIONS reported TKO0813 -- resolvertl.tiko
-    as containers.Array( of ulong )  rtlUndef     '' runtime names an '#undef' freed -- resolvertl.tiko
-    as containers.Array( of ulong )  genArgSeen   '' LOCATIONS reported TKO0815/0816 -- resolvetype.tiko
+    as containers.Array( of uint32 )  pendProcType
+    as containers.Array( of uint32 )  pendProcTypeScope
+    as containers.Array( of uint32 )  pendProcTypeId
+    as containers.Array( of uint32 )  pendExprType
+    as containers.Array( of uint32 )  pendExprTypeScope
+    as containers.Array( of uint32 )  pendingItem
+    as containers.Array( of uint32 )  pendingScope
+    as containers.Array( of uint32 )  rtlSeen      '' LOCATIONS reported TKO0813 -- resolvertl.tiko
+    as containers.Array( of uint32 )  rtlUndef     '' runtime names an '#undef' freed -- resolvertl.tiko
+    as containers.Array( of uint32 )  genArgSeen   '' LOCATIONS reported TKO0815/0816 -- resolvetype.tiko
     '' GOTOs, DEFERs and what TKO0827 reported, in walk order -- resolvedefer.tiko.
-    as containers.Array( of ulong )  xgName, xgNode, xgProc, xgSeq
-    as containers.Array( of ulong )  xdScope, xdNode, xdProc, xdSeq
-    as containers.Array( of ulong )  xSeenGoto, xSeenDefer
-    as ulong                 xSeq
+    as containers.Array( of uint32 )  xgName, xgNode, xgProc, xgSeq
+    as containers.Array( of uint32 )  xdScope, xdNode, xdProc, xdSeq
+    as containers.Array( of uint32 )  xSeenGoto, xSeenDefer
+    as uint32                 xSeq
     '' The generic type parameters currently in scope, innermost binding last: the
     '' name and the TypeId it stands for. A plain stack rather than a map, because a
     '' generic has one or two parameters and instantiation nests at most a few deep.
-    as containers.Array( of ulong )  gparamName
-    as containers.Array( of ulong )  gparamType
+    as containers.Array( of uint32 )  gparamName
+    as containers.Array( of uint32 )  gparamType
     '' THE PARSER, still holding the token buffer the unit was parsed from. Kept as an
     '' 'any ptr' so this header does not have to include the parser's -- generic.tiko
     '' casts it back. Zero when the caller has no parser to give, in which case a
@@ -90,32 +90,32 @@ type Ctx
     '' up -- including the one for the very DIM whose type is being resolved -- is a
     '' pointer INTO that vector, and dangles the moment it reallocates. The first
     '' 'dim as Box( of long ) a' in a file came out untyped for exactly that reason.
-    as containers.Array( of ulong )  pendInst
-    as containers.Array( of ulong )  pendInstArgs
+    as containers.Array( of uint32 )  pendInst
+    as containers.Array( of uint32 )  pendInstArgs
     '' How far pendInst has been drained. A cursor rather than a clear, because the
     '' drain is RE-ENTERED: instantiating one member walks its body, which reaches the
     '' same statement boundary and drains again. Each entry is still done once.
-    as long                  pendDone
+    as int32                  pendDone
     '' GENERIC PROCEDURES waiting to be instantiated. Six entries each -- the generic's
     '' node, the symbol the call site was already given, its structural name, the scope
     '' it lives in, and the (first, count) of its arguments in pendProcArgs.
-    as containers.Array( of ulong )  pendProc
-    as containers.Array( of ulong )  pendProcArgs
-    as long                  pendProcDone
+    as containers.Array( of uint32 )  pendProc
+    as containers.Array( of uint32 )  pendProcArgs
+    as int32                  pendProcDone
     '' HOW DEEP INSTANTIATION HAS GONE -- see InstDepthOk_ in generic.tiko. 'instDepth' is fbc's
     '' counted depth and 'instChain' the real one; each queued entry keeps its chain.
-    as long                  instDepth, instChain, maxInstDepth
-    as containers.Array( of ulong )  pendInstChain, pendProcChain
+    as int32                  instDepth, instChain, maxInstDepth
+    as containers.Array( of uint32 )  pendInstChain, pendProcChain
     '' ...and each queued entry's instantiation frame, for the TKO0903 chain (T16,
     '' instframe.tiko); curInstFrame is the TYPE instantiation being drained, or 0.
-    as containers.Array( of ulong )  pendInstFrame, pendProcFrame
-    as long                  curInstFrame
+    as containers.Array( of uint32 )  pendInstFrame, pendProcFrame
+    as int32                  curInstFrame
     '' THE INSTANTIATION CACHE for generic procedures, one entry each: the key and the
     '' symbol it produced. A SIDE table rather than a name lookup, because the key has
     '' to name the GENERIC as well as the arguments and the symbol's name must not --
     '' the name is what gets mangled, and fbc's is "MK<8>", not "MK#11<8>".
-    as containers.Array( of ulong )  procInstKey
-    as containers.Array( of ulong )  procInstSym
+    as containers.Array( of uint32 )  procInstKey
+    as containers.Array( of uint32 )  procInstSym
     '' WALKING A PARAMETER DEFAULT, which is written at the DECLARATION and evaluated at
     '' the call site -- not inside the procedure's body, though it is walked in the
     '' procedure's scope. A module-level local is visible to it, and fbc refuses it for a
@@ -132,8 +132,8 @@ declare function ResolveTypeRef _
 declare function ProcResultType_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.ScopeId ) as Tko.TypeId
 declare function ArrayFromBounds _
-    ( byref c as Ctx, byval base_ as Tko.TypeId, byval first as long, _
-      byval count as long, _
+    ( byref c as Ctx, byval base_ as Tko.TypeId, byval first as int32, _
+      byval count as int32, _
       byval scope_ as Tko.ScopeId = Tko.SCOPE_NONE ) as Tko.TypeId
 declare sub WalkStmt _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
@@ -150,10 +150,10 @@ declare sub BindDeclType _
     ( byref c as Ctx, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
       byval t as Tko.TypeId, byval force as boolean = false )
 declare function InitCountAt _
-    ( byref c as Ctx, byval init as Tko.NodeId, byval depth as long ) as long
+    ( byref c as Ctx, byval init as Tko.NodeId, byval depth as int32 ) as int32
 declare function ArrayFromPairs _
     ( byref c as Ctx, byval base_ as Tko.TypeId, _
-      byref los as containers.Array( of ulong ), byref his as containers.Array( of ulong ), _
+      byref los as containers.Array( of uint32 ), byref his as containers.Array( of uint32 ), _
       byval init as Tko.NodeId = Tko.NODE_NONE, _
       byval emptyIsDynamic as boolean = false, _
       byval scope_ as Tko.ScopeId = Tko.SCOPE_NONE ) as Tko.TypeId

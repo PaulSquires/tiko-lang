@@ -12,9 +12,9 @@ namespace Tko.Mir
 
 '' EmitRtl takes each argument as its KIND and then its ID, two ulongs. Spelled out
 '' at every other call site; once here, because this call pushes six.
-private sub PushArg_( byref a as containers.Array( of ulong ), byref v as MirValue )
-    a.Push( cast( ulong, v.kind ) )
-    a.Push( cast( ulong, v.id ) )
+private sub PushArg_( byref a as containers.Array( of uint32 ), byref v as MirValue )
+    a.Push( cast( uint32, v.kind ) )
+    a.Push( cast( uint32, v.id ) )
 end sub
 
 '' The array's own name, which is what turns the runtime message from 'array
@@ -32,7 +32,7 @@ private function ArrayNameOf_( byref c as Ctx, byval target as Tko.NodeId ) as s
     if target = Tko.NODE_NONE then return ""
     if c.ast->Kind( target ) <> Tko.N_IDENT then return ""
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, target )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, target )].data )]
     return ucase( c.names->Spelling( ip->name ) )
 end function
 
@@ -69,16 +69,16 @@ end function
 '' A SUBSCRIPT'S VALUE WHEN IT IS A CONSTANT: the M_CONST just emitted for it, through the
 '' sext Coerce may have added and the 'neg' of a negative literal. Only the last few instructions of the block are read --
 '' the constant is always among them -- so a long block costs nothing.
-private function ConstIndex_( byref c as Ctx, byval v as MirValue, byref outV as longint ) as boolean
+private function ConstIndex_( byref c as Ctx, byval v as MirValue, byref outV as int64 ) as boolean
     if (c.f = 0) orelse (c.curBlock < 0) then return false
-    dim as longint sign_ = 1
-    for hop as long = 0 to 3
-        if v.kind <> cast( ubyte, MV_TEMP ) then return false
+    dim as int64 sign_ = 1
+    for hop as int32 = 0 to 3
+        if v.kind <> cast( uint8, MV_TEMP ) then return false
         dim as MirBlock ptr b = @c.f->blocks[c.curBlock]
         dim as MirInst ptr found = 0
-        dim as long stopAt = b->insts.Count - 8
+        dim as int32 stopAt = b->insts.Count - 8
         if stopAt < 0 then stopAt = 0
-        for i as long = b->insts.Count - 1 to stopAt step -1
+        for i as int32 = b->insts.Count - 1 to stopAt step -1
             if b->insts[i].result = v.id then found = @b->insts[i] : exit for
         next
         if found = 0 then return false
@@ -101,24 +101,24 @@ end function
 
 sub EmitBoundsCheck_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval target as Tko.NodeId, _
-      byval at as Tko.TypeId, byval k as long, byref iv as MirValue, _
+      byval at as Tko.TypeId, byval k as int32, byref iv as MirValue, _
       byval offTy as MirType )
 
     dim as boolean loKnown = false, hiKnown = false
-    dim as longint lo = c.types->ArrayBound( at, k, false, loKnown )
-    dim as longint hi = c.types->ArrayBound( at, k, true, hiKnown )
+    dim as int64 lo = c.types->ArrayBound( at, k, false, loKnown )
+    dim as int64 hi = c.types->ArrayBound( at, k, true, hiKnown )
     if (loKnown = false) orelse (hiKnown = false) then return
 
     '' A CONSTANT SUBSCRIPT OUTSIDE CONSTANT BOUNDS IS A COMPILE-TIME ERROR -- fbc's 92,
     '' "Array out-of-bounds", under -exx or -earray only (measured on fbc-modern 1.20: 'print
     '' a( 0 )' over 'a( 1 to 3 )', a field array, a shared one read in a SUB). tiko built it
     '' and left it to the run time (audit F-71). Once per place, however often it lowers.
-    dim as longint cv
+    dim as int64 cv
     if (c.diags <> 0) andalso ConstIndex_( c, iv, cv ) then
         if (cv < lo) orelse (cv > hi) then
             dim as Tko.DiagnosticEngine ptr de = cast( Tko.DiagnosticEngine ptr, c.diags )
             dim as boolean seen = false
-            for i as long = 0 to de->pending.Count - 1
+            for i as int32 = 0 to de->pending.Count - 1
                 if (de->pending[i].id = Tko.TKO0960) andalso (de->pending[i].range.first = c.ast->Loc( id )) then seen = true
             next
             if seen = false then
@@ -136,7 +136,7 @@ sub EmitBoundsCheck_ _
     dim as MirValue nameV = LowerTextAddr( c, ArrayNameOf_( c, target ) )
     dim as MirValue lineV = ConstInt( c, fd.lineNo, MT_I32 )
 
-    dim as containers.Array( of ulong ) ba
+    dim as containers.Array( of uint32 ) ba
     PushArg_( ba, iv )
     if lo <> 0 then PushArg_( ba, ConstInt( c, lo, offTy ) )
     PushArg_( ba, ConstInt( c, hi, offTy ) )
@@ -177,7 +177,7 @@ sub EmitBoundsCheckRange_ _
     dim as MirValue fileV = LowerTextAddr( c, c.srcMgr->PathOf( fd.file ) )
     dim as MirValue nameV = LowerTextAddr( c, ArrayNameOf_( c, target ) )
 
-    dim as containers.Array( of ulong ) ba
+    dim as containers.Array( of uint32 ) ba
     PushArg_( ba, iv )
     PushArg_( ba, lov )
     PushArg_( ba, hiv )
@@ -201,16 +201,16 @@ end sub
 '' that differs from the array's rank, which a 'dim a( )' cannot tell at compile time.
 sub EmitDimensionCheck_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval target as Tko.NodeId, _
-      byref desc as MirValue, byval count as long )
+      byref desc as MirValue, byval count as int32 )
 
-    if desc.kind = cast( ubyte, MV_NONE ) then return
+    if desc.kind = cast( uint8, MV_NONE ) then return
     dim as MirType zt = MT_I64
     if c.types->target.pointerBits = 32 then zt = MT_I32
     dim as Tko.DecodedLoc fd = c.srcMgr->Decode( c.ast->Loc( id ) )
     dim as MirValue fileV = LowerTextAddr( c, c.srcMgr->PathOf( fd.file ) )
     dim as MirValue nameV = LowerTextAddr( c, ArrayNameOf_( c, target ) )
 
-    dim as containers.Array( of ulong ) da
+    dim as containers.Array( of uint32 ) da
     PushArg_( da, ConstInt( c, count, zt ) )
     PushArg_( da, desc )
     PushArg_( da, ConstInt( c, fd.lineNo, MT_I32 ) )
@@ -240,7 +240,7 @@ end sub
 '' before ON ERROR existed -- was correct for the same reason, and stopped being correct
 '' the moment a handler could exist.
 sub EmitErrorJump_( byref c as Ctx, byref r as MirValue )
-    if r.kind = cast( ubyte, MV_NONE ) then return
+    if r.kind = cast( uint8, MV_NONE ) then return
 
     '' THE JUMP BLOCK IS CREATED FIRST, and that is not a preference. A block's
     '' instructions are an EXTENT over the function's one list, so blocks have to be
@@ -250,14 +250,14 @@ sub EmitErrorJump_( byref c as Ctx, byref r as MirValue )
     '' handler came out empty, the code after it was spliced into the wrong block, and
     '' 'exit sub' disappeared. The IR looked plausible and the program printed
     '' 'no error' where fbc printed 'sub caught'.
-    dim as long jumpB = NewBlock( c, "errjmp" )
-    dim as long contB = NewBlock( c, "errok" )
+    dim as int32 jumpB = NewBlock( c, "errjmp" )
+    dim as int32 contB = NewBlock( c, "errok" )
     Terminate( c, MTERM_CONDBR, jumpB, contB, r )
 
     '' The jump block holds nothing but the indirect branch; its destinations are
     '' patched in at the end of the procedure.
     c.curBlock = jumpB
-    c.errIndirectBlocks.Push( cast( ulong, jumpB ) )
+    c.errIndirectBlocks.Push( cast( uint32, jumpB ) )
     Terminate( c, MTERM_INDIRECTBR, -1, -1, r )
     c.curBlock = contB
 end sub
@@ -276,18 +276,18 @@ end sub
 '' and carried on. The throw is the one LowerError makes, through the same jump.
 sub EmitRtlErrorCheck_( byref c as Ctx, byval id as Tko.NodeId, byref rc as MirValue )
     if (c.errFlags and 1) = 0 then return
-    if rc.kind = cast( ubyte, MV_NONE ) then return
+    if rc.kind = cast( uint8, MV_NONE ) then return
 
     dim as MirInst ne_
-    ne_.op = cast( ushort, M_ICMP_NE )
-    ne_.ty = cast( ubyte, MT_I8 )
+    ne_.op = cast( uint16, M_ICMP_NE )
+    ne_.ty = cast( uint8, MT_I8 )
     ne_.a = rc
     ne_.b = ConstInt( c, 0, cast( MirType, rc.ty ) )
     dim as MirValue failed = Emit( c, ne_ )
 
     '' The throw block first, for the reason EmitErrorJump_ gives.
-    dim as long throwB = NewBlock( c, "rterr" )
-    dim as long contB = NewBlock( c, "rtok" )
+    dim as int32 throwB = NewBlock( c, "rterr" )
+    dim as int32 contB = NewBlock( c, "rtok" )
     Terminate( c, MTERM_CONDBR, throwB, contB, failed )
     c.curBlock = throwB
 
@@ -300,17 +300,17 @@ sub EmitRtlErrorCheck_( byref c as Ctx, byval id as Tko.NodeId, byref rc as MirV
     if sf <> 0 then
         if sf->isVirtual andalso (d.shownName <> Tko.INTERN_NONE) then fname = c.srcMgr->ShownPathOf( d )
     end if
-    dim as containers.Array( of ulong ) args
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, d.lineNo ) )
-    args.Push( cast( ulong, MV_GLOBAL ) )
-    args.Push( cast( ulong, c.m->AddStringLiteral( fname, *c.names ) ) )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    dim as containers.Array( of uint32 ) args
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, d.lineNo ) )
+    args.Push( cast( uint32, MV_GLOBAL ) )
+    args.Push( cast( uint32, c.m->AddStringLiteral( fname, *c.names ) ) )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )
     dim as MirValue jr = EmitRtl( c, RTL_ERROR_THROW_AT, args )
-    if jr.kind = cast( ubyte, MV_NONE ) then
+    if jr.kind = cast( uint8, MV_NONE ) then
         Terminate( c, MTERM_UNREACHABLE, -1, -1, NoVal( ) )
     else
-        c.errIndirectBlocks.Push( cast( ulong, c.curBlock ) )
+        c.errIndirectBlocks.Push( cast( uint32, c.curBlock ) )
         Terminate( c, MTERM_INDIRECTBR, -1, -1, jr )
     end if
     c.curBlock = contB
@@ -325,26 +325,26 @@ sub ResolveErrorJumps_( byref c as Ctx )
     '' through fb_ErrorJmpBuf, which arms it; then the handler, which disarms it again
     '' when the caller had none -- every non-null handler was installed with a setjmp.
     if c.errLocalSave > 0 then
-        dim as long savedCurBlk = c.curBlock
-        for bi as long = 0 to c.f->blocks.Count - 1
-            if c.f->blocks[bi].term <> cast( ubyte, MTERM_RET ) then continue for
+        dim as int32 savedCurBlk = c.curBlock
+        for bi as int32 = 0 to c.f->blocks.Count - 1
+            if c.f->blocks[bi].term <> cast( uint8, MTERM_RET ) then continue for
             c.curBlock = bi
-            dim as containers.Array( of ulong ) none
+            dim as containers.Array( of uint32 ) none
             dim as MirValue jb = EmitRtl( c, RTL_ERROR_JMPBUF, none )
-            dim as containers.Array( of ulong ) cp
-            cp.Push( cast( ulong, jb.kind ) ) : cp.Push( cast( ulong, jb.id ) )
-            cp.Push( cast( ulong, MV_LOCAL ) ) : cp.Push( cast( ulong, c.errLocalSave - 1 ) )
-            cp.Push( cast( ulong, MV_CONST_INT ) ) : cp.Push( ERR_LOCAL_JMP_BYTES )
+            dim as containers.Array( of uint32 ) cp
+            cp.Push( cast( uint32, jb.kind ) ) : cp.Push( cast( uint32, jb.id ) )
+            cp.Push( cast( uint32, MV_LOCAL ) ) : cp.Push( cast( uint32, c.errLocalSave - 1 ) )
+            cp.Push( cast( uint32, MV_CONST_INT ) ) : cp.Push( ERR_LOCAL_JMP_BYTES )
             EmitRtl( c, RTL_MEM_COPY, cp )
             dim as MirInst ld
-            ld.op = cast( ushort, M_LOAD )
-            ld.ty = cast( ubyte, MT_PTR )
-            ld.a.kind = cast( ubyte, MV_LOCAL )
-            ld.a.ty = cast( ubyte, MT_PTR )
+            ld.op = cast( uint16, M_LOAD )
+            ld.ty = cast( uint8, MT_PTR )
+            ld.a.kind = cast( uint8, MV_LOCAL )
+            ld.a.ty = cast( uint8, MT_PTR )
             ld.a.id = c.errLocalHandler
             dim as MirValue h = Emit( c, ld )
-            dim as containers.Array( of ulong ) ha
-            ha.Push( cast( ulong, h.kind ) ) : ha.Push( cast( ulong, h.id ) )
+            dim as containers.Array( of uint32 ) ha
+            ha.Push( cast( uint32, h.kind ) ) : ha.Push( cast( uint32, h.id ) )
             EmitRtl( c, RTL_ERROR_SET_HANDLER, ha )
         next
         c.curBlock = savedCurBlk
@@ -354,37 +354,37 @@ sub ResolveErrorJumps_( byref c as Ctx )
     '' THE HANDLER ADDRESSES FIRST: every 'ON ERROR GOTO label' left a null placeholder
     '' where the block address belongs, because the label's block did not exist yet and
     '' could not be made to. Now it does -- the label has been lowered in its own order.
-    for i as long = 0 to c.errPendingArg.Count - 1
-        dim as long slot = cast( long, c.errPendingSlot[i] )
-        dim as long blk = c.labelBlock[slot]
+    for i as int32 = 0 to c.errPendingArg.Count - 1
+        dim as int32 slot = cast( int32, c.errPendingSlot[i] )
+        dim as int32 blk = c.labelBlock[slot]
         '' A LABEL THAT WAS NEVER REACHED has no block, and inventing one here would
         '' create it after every other -- an empty block nothing branches into, named by
         '' a handler that can never run. The placeholder stays null, which is exactly
         '' 'ON ERROR GOTO 0'.
         if blk < 0 then continue for
-        dim as long at = cast( long, c.errPendingArg[i] )
+        dim as int32 at = cast( int32, c.errPendingArg[i] )
         if (at < 0) orelse (at + 1 >= c.m->argPool.Count) then continue for
-        c.m->argPool[at] = cast( ulong, MV_BLOCKADDR )
-        c.m->argPool[at + 1] = cast( ulong, blk )
+        c.m->argPool[at] = cast( uint32, MV_BLOCKADDR )
+        c.m->argPool[at + 1] = cast( uint32, blk )
         dim as boolean known = false
-        for h as long = 0 to c.errHandlerBlocks.Count - 1
-            if c.errHandlerBlocks[h] = cast( ulong, blk ) then known = true
+        for h as int32 = 0 to c.errHandlerBlocks.Count - 1
+            if c.errHandlerBlocks[h] = cast( uint32, blk ) then known = true
         next
-        if known = false then c.errHandlerBlocks.Push( cast( ulong, blk ) )
+        if known = false then c.errHandlerBlocks.Push( cast( uint32, blk ) )
     next
     c.errPendingArg.Clear( )
     c.errPendingSlot.Clear( )
 
-    for i as long = 0 to c.errIndirectBlocks.Count - 1
-        dim as long b = cast( long, c.errIndirectBlocks[i] )
+    for i as int32 = 0 to c.errIndirectBlocks.Count - 1
+        dim as int32 b = cast( int32, c.errIndirectBlocks[i] )
         if (b < 0) orelse (b >= c.f->blocks.Count) then continue for
         if c.errHandlerBlocks.Count = 0 then
             '' No handler in this procedure: see EmitErrorJump_. The runtime aborts
             '' rather than returning, so this block cannot be reached.
-            c.f->blocks[b].term = cast( ubyte, MTERM_UNREACHABLE )
+            c.f->blocks[b].term = cast( uint8, MTERM_UNREACHABLE )
             continue for
         end if
-        for h as long = 0 to c.errHandlerBlocks.Count - 1
+        for h as int32 = 0 to c.errHandlerBlocks.Count - 1
             c.f->blocks[b].indirectTargets.Push( c.errHandlerBlocks[h] )
         next
     next
@@ -405,11 +405,11 @@ end sub
 sub EmitNullCheck_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byref pv as MirValue )
 
-    if pv.kind = cast( ubyte, MV_NONE ) then return
+    if pv.kind = cast( uint8, MV_NONE ) then return
     dim as Tko.DecodedLoc fd = c.srcMgr->Decode( c.ast->Loc( id ) )
     dim as MirValue fileV = LowerTextAddr( c, c.srcMgr->PathOf( fd.file ) )
 
-    dim as containers.Array( of ulong ) na
+    dim as containers.Array( of uint32 ) na
     PushArg_( na, pv )
     PushArg_( na, ConstInt( c, fd.lineNo, MT_I32 ) )
     PushArg_( na, fileV )

@@ -62,14 +62,14 @@ private function ExactOverloadFor_ _
     ( byref c as Ctx, byval head as Tko.SymbolId, byval cp as Tko.ListPayload ptr ) as boolean
 
     dim as Tko.SymbolId sid = head
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (sid <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
         if s = 0 then exit while
-        if (s->kind = cast( ubyte, Tko.SYM_PROC )) andalso (cp->count <= ProcParamCount_( c, sid )) then
+        if (s->kind = cast( uint8, Tko.SYM_PROC )) andalso (cp->count <= ProcParamCount_( c, sid )) then
             dim as boolean same = true
-            for i as long = 0 to cp->count - 1
+            for i as int32 = 0 to cp->count - 1
                 dim as Tko.TypeId at = BareArgType_( c, _
                     c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[cp->first + i] ) ) )
                 if at = Tko.TYPE_NONE then same = false : exit for
@@ -108,12 +108,12 @@ private function UdtOverloadTakes_ _
     ( byref c as Ctx, byval head as Tko.SymbolId, byval ka as Tko.TypeId ) as boolean
 
     dim as Tko.SymbolId sid = head
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (sid <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
         if s = 0 then exit while
-        if s->kind = cast( ubyte, Tko.SYM_PROC ) then
+        if s->kind = cast( uint8, Tko.SYM_PROC ) then
             if ProcParamCount_( c, sid ) >= 1 then
                 if BareArgType_( c, ProcParamTypeAt_( c, sid, 0 ) ) = ka then return true
             end if
@@ -128,8 +128,8 @@ private function ProcIsOperator_( byref c as Ctx, byval s as Tko.Symbol ptr ) as
     dim as Tko.NodeId decl = cast( Tko.NodeId, s->payload )
     if decl = Tko.NODE_NONE then return false
     if c.ast->Kind( decl ) <> Tko.N_PROC then return false
-    return (c.ast->stmts[cast( long, c.ast->nodes[cast( long, decl )].data )].op = _
-            cast( ushort, Tko.KW_OPERATOR ))
+    return (c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, decl )].data )].op = _
+            cast( uint16, Tko.KW_OPERATOR ))
 end function
 
 '' A PROCEDURE OF THE PROGRAM'S OWN, SPELLED LIKE A BUILTIN: WHICH ONE RUNS. Measured
@@ -161,8 +161,8 @@ private function BuiltinBesideUserProc_ _
     t = Tko.TYPE_NONE
     dim as Tko.SymScope ptr ps = c.syms->ScopeAt( bsym->parent )
     if ps = 0 then return false
-    if (ps->kind <> cast( ubyte, Tko.SCOPEK_GLOBAL )) andalso _
-       (ps->kind <> cast( ubyte, Tko.SCOPEK_MODULE )) then return false
+    if (ps->kind <> cast( uint8, Tko.SCOPEK_GLOBAL )) andalso _
+       (ps->kind <> cast( uint8, Tko.SCOPEK_MODULE )) then return false
     if cp->count >= 1 then
         dim as Tko.TypeId ka = BareArgType_( c, _
             c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[cp->first] ) ) )
@@ -185,7 +185,7 @@ private function IntrinsicCallType_ _
     if cp->target = Tko.NODE_NONE then return Tko.TYPE_NONE
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return Tko.TYPE_NONE
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
     dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
     if IsTypedIntrinsicName( nm ) = false then return Tko.TYPE_NONE
 
@@ -214,7 +214,7 @@ private function IntrinsicCallType_ _
     dim as Tko.Symbol ptr bsym = c.syms->SymbolAt( c.info->RefOf( cp->target ) )
     if bsym <> 0 then
         if UdtShadowsIntrinsic_( c, bsym ) then return Tko.TYPE_NONE  '' see there
-        if (bsym->kind = cast( ubyte, Tko.SYM_PROC )) andalso (ProcIsOperator_( c, bsym ) = false) then
+        if (bsym->kind = cast( uint8, Tko.SYM_PROC )) andalso (ProcIsOperator_( c, bsym ) = false) then
             dim as Tko.TypeId bt
             if BuiltinBesideUserProc_( c, cp, nm, bsym, bt ) = false then return Tko.TYPE_NONE
             c.info->SetRef( cp->target, Tko.SYMBOL_NONE )
@@ -235,12 +235,12 @@ end function
 '' in source order. The chain itself is not in that order.
 function FirstDeclared_( byref c as Ctx, byval head as Tko.SymbolId ) as Tko.SymbolId
     dim as Tko.SymbolId best = head, cur = head
-    dim as long bestAt = &h7FFFFFFF, guard = 0
+    dim as int32 bestAt = &h7FFFFFFF, guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
         if s = 0 then exit while
-        dim as long pn = cast( long, s->payload )
+        dim as int32 pn = cast( int32, s->payload )
         if (pn > 0) andalso (pn < bestAt) then
             if c.ast->Kind( cast( Tko.NodeId, pn ) ) = Tko.N_PROC then bestAt = pn : best = cur
         end if

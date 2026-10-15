@@ -17,7 +17,7 @@
 namespace Tko.UnitCache
 
 '' The name a unit's last key is kept under, for -v's miss reason: one per source path.
-private function Chain_( byref ctx as Tko.CompilerContext, byval i as long ) as string
+private function Chain_( byref ctx as Tko.CompilerContext, byval i as int32 ) as string
     dim as string p = ctx.sources.AbsPathOf( cast( Tko.FileId, i ) )
     #ifdef __FB_WIN32__
         p = Tko.Text.LowerAscii( p )
@@ -31,7 +31,7 @@ end function
 '' console's colour, a child's unit.
 private function ArgsLine_( byref ctx as Tko.CompilerContext, byref args as Tko.StrVec ) as string
     dim as string r = ""
-    dim as long k = 0
+    dim as int32 k = 0
     while k < args.Count
         dim as string w = args[k]
         k += 1
@@ -53,7 +53,7 @@ private function ArgsLine_( byref ctx as Tko.CompilerContext, byref args as Tko.
 end function
 
 sub Open _
-    ( byref ctx as Tko.CompilerContext, byref args as Tko.StrVec, byval restartDepth as long, _
+    ( byref ctx as Tko.CompilerContext, byref args as Tko.StrVec, byval restartDepth as int32, _
       byval eligible as boolean, byref s as Store )
 
     s.root = ""
@@ -71,7 +71,7 @@ sub Open _
 end sub
 
 function TryHit _
-    ( byref ctx as Tko.CompilerContext, byref s as Store, byval i as long, byref key as string, _
+    ( byref ctx as Tko.CompilerContext, byref s as Store, byval i as int32, byref key as string, _
       byref linkObjs as Tko.StrVec, byref tempObjs as Tko.StrVec ) as boolean
 
     key = ""
@@ -118,7 +118,7 @@ sub Before( byref ctx as Tko.CompilerContext, byref linkObjs as Tko.StrVec, byre
 end sub
 
 function After _
-    ( byref ctx as Tko.CompilerContext, byref s as Store, byval i as long, byref key as string, _
+    ( byref ctx as Tko.CompilerContext, byref s as Store, byval i as int32, byref key as string, _
       byref m as Mark, byref linkObjs as Tko.StrVec ) as string
 
     if len( key ) = 0 then return "compiled"
@@ -152,18 +152,18 @@ end function
 
 sub Commit( byref ctx as Tko.CompilerContext, byref s as Store )
     if len( s.root ) = 0 then return
-    for k as long = 0 to s.keys.Count - 1
+    for k as int32 = 0 to s.keys.Count - 1
         if fs.IsFile( s.objs[k] ) = false then continue for
         Tko.Modules.ModuleCacheCommit( s.root, s.keys[k], s.chains[k], s.objs[k], "", s.libs[k], s.deps[k] )
     next
 end sub
 
-function Crashed( byref s as Store, byval i as long ) as boolean
+function Crashed( byref s as Store, byval i as int32 ) as boolean
     if s.state.Count <= i then return false
     return s.state[i] = UNIT_CRASHED
 end function
 
-sub Report( byref ctx as Tko.CompilerContext, byref s as Store, byval i as long, byref status as string )
+sub Report( byref ctx as Tko.CompilerContext, byref s as Store, byval i as int32, byref status as string )
     if i <= s.emitted then exit sub
     dim as string st = status
     if (s.state.Count > i) andalso (s.state[i] = UNIT_CHILD) then st = "miss"
@@ -172,7 +172,7 @@ sub Report( byref ctx as Tko.CompilerContext, byref s as Store, byval i as long,
 end sub
 
 '' Unit i against the cache, without compiling: its state, key, and a hit's object and libs.
-private sub Probe_( byref ctx as Tko.CompilerContext, byref s as Store, byval i as long, byval hitState as long )
+private sub Probe_( byref ctx as Tko.CompilerContext, byref s as Store, byval i as int32, byval hitState as int32 )
     dim as Tko.FileId id = cast( Tko.FileId, i )
     dim as string key = Tko.Modules.UnitKey( ctx, id, Tko.Driver.IsMainUnit_( ctx, id, i ), i = 1, s.args )
     dim as string hitObj, hitIface, hitLibs
@@ -188,9 +188,9 @@ end sub
 '' a child's that the cache now holds -- and stop at the first that is not: the loop sends
 '' that one, and the rest, in order. So the events come in unit order whatever order the
 '' children finish in, and -j 1 and -j 8 send the same ones.
-private sub Advance_( byref ctx as Tko.CompilerContext, byref s as Store, byval srcCount as long )
+private sub Advance_( byref ctx as Tko.CompilerContext, byref s as Store, byval srcCount as int32 )
     while s.emitted < srcCount
-        dim as long nx = s.emitted + 1
+        dim as int32 nx = s.emitted + 1
         dim as boolean settled = (s.state[nx] = UNIT_HIT) orelse (s.state[nx] = UNIT_CHILD)
         if settled = false then exit while
         Report( ctx, s, nx, "hit" )
@@ -199,7 +199,7 @@ end sub
 
 function RunChildren _
     ( byref ctx as Tko.CompilerContext, byref s as Store, byref args as Tko.StrVec, _
-      byval srcCount as long ) as long
+      byval srcCount as int32 ) as int32
 
     s.emitted = 0
     if len( s.root ) = 0 then return Tko.EXIT_OK
@@ -208,19 +208,19 @@ function RunChildren _
     if ctx.options.buildOnlyUnit > 0 then return Tko.EXIT_OK
     if ctx.options.outKind = Tko.OUT_STATICLIB then return Tko.EXIT_OK
     if s.lookupOnly then return Tko.EXIT_OK
-    dim as long jobs = Tko.Spawn.DefaultJobs( )
+    dim as int32 jobs = Tko.Spawn.DefaultJobs( )
     if (jobs < 2) orelse (srcCount < 2) then return Tko.EXIT_OK
     dim as string exe = Tko.Platform.SelfPath( )
     if len( exe ) = 0 then return Tko.EXIT_OK
 
     '' THE PROBE: every root against the cache.
-    for i as long = 0 to srcCount
+    for i as int32 = 0 to srcCount
         '' cast: an enum CONSTANT passed byref arrives as 0 -- tiko's own bug, which the seed
         '' that builds this source has too (repro in the B4 notes); a cast is an expression.
-        s.state.Push( cast( ulong, UNIT_MISS ) ) : s.pkey.Push( "" ) : s.pobj.Push( "" ) : s.plibs.Push( "" )
+        s.state.Push( cast( uint32, UNIT_MISS ) ) : s.pkey.Push( "" ) : s.pobj.Push( "" ) : s.plibs.Push( "" )
     next
     dim as Tko.IdVec misses
-    for i as long = 1 to srcCount
+    for i as int32 = 1 to srcCount
         Probe_( ctx, s, i, UNIT_HIT )
         if s.state[i] = UNIT_MISS then misses.Push( i )
         '' -v's line for the unit, as TryHit prints it when no probe ran -- and the miss's
@@ -242,15 +242,15 @@ function RunChildren _
     for each a as string in args
         base_ &= Tko.Spawn.QuoteArg( a ) & " "
     next
-    dim as long rc = Tko.EXIT_OK
+    dim as int32 rc = Tko.EXIT_OK
     dim as Tko.IdVec running
-    dim as containers.Array( of longint ) procs
-    dim as long nextMiss = 0
+    dim as containers.Array( of int64 ) procs
+    dim as int32 nextMiss = 0
     dim as boolean stopStarting = false
     while (nextMiss < misses.Count) orelse (running.Count > 0)
         '' Start up to the budget -- none after a child failed: the loop compiles the rest.
         while (stopStarting = false) andalso (nextMiss < misses.Count) andalso (running.Count < jobs)
-            dim as long u = misses[nextMiss]
+            dim as int32 u = misses[nextMiss]
             nextMiss += 1
             dim as Tko.Spawn.Proc p = Tko.Spawn.Start( exe, base_ & "--build-only-unit " & u, true )
             if p = 0 then
@@ -261,9 +261,9 @@ function RunChildren _
         wend
         if running.Count = 0 then exit while
         '' The OLDEST child first: one wait at a time, and the events want the earliest units.
-        dim as long u0 = running[0]
-        dim as long crc = Tko.Spawn.Wait( procs[0] )
-        for k as long = 1 to running.Count - 1
+        dim as int32 u0 = running[0]
+        dim as int32 crc = Tko.Spawn.Wait( procs[0] )
+        for k as int32 = 1 to running.Count - 1
             running[k - 1] = running[k] : procs[k - 1] = procs[k]
         next
         running.Pop( ) : procs.Pop( )
@@ -358,7 +358,7 @@ sub LinkRecord( byref ctx as Tko.CompilerContext, byref sig as string, byval lin
     if linked = false then return
     dim as string art = Tko.DiskCache.Stamp( ctx.options.outputPath )
     if len( art ) = 0 then return
-    dim as long fh = freefile
+    dim as int32 fh = freefile
     if open( rec for output as #fh ) <> 0 then return
     print #fh, sig & "artifact " & art & chr( 10 );
     close #fh

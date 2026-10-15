@@ -11,13 +11,13 @@ namespace Tko
 
 dim shared as zstring ptr punctText( 0 to TK_KIND_COUNT - 1 )
 dim shared as zstring ptr kindNames( 0 to TK_KIND_COUNT - 1 )
-dim shared as ubyte kindClasses( 0 to TK_KIND_COUNT - 1 )
+dim shared as uint8 kindClasses( 0 to TK_KIND_COUNT - 1 )
 dim shared as boolean tokenTablesReady = false
 
 private sub InitTokenTables( )
     if tokenTablesReady then return
 
-    for i as long = 0 to TK_KIND_COUNT - 1
+    for i as int32 = 0 to TK_KIND_COUNT - 1
         punctText(i) = @""
         kindNames(i) = @"?"
     next
@@ -40,7 +40,7 @@ private sub InitTokenTables( )
     #macro KW( k_name, k_text, k_class )
         punctText(k_name) = @k_text
         kindNames(k_name) = @#k_name
-        kindClasses(k_name) = cast( ubyte, k_class )
+        kindClasses(k_name) = cast( uint8, k_class )
     #endmacro
     TKO_KEYWORD_LIST( KW )
     #undef KW
@@ -112,7 +112,7 @@ function IsPunctKind( byval k as TokenKind ) as boolean
     return (k > TK_PUNCT_FIRST) andalso (k < TK_PUNCT_LAST)
 end function
 
-function SuffixCharText( byval flags as ushort ) as string
+function SuffixCharText( byval flags as uint16 ) as string
     select case cast( SuffixChar, (flags and TF_SUFFIX_MASK) shr TF_SUFFIX_SHIFT )
     case SUFC_DOLLAR  : return "$"
     case SUFC_PERCENT : return "%"
@@ -124,15 +124,15 @@ function SuffixCharText( byval flags as ushort ) as string
 end function
 
 function KeywordMap.KindOf( byval id as InternId ) as TokenKind
-    dim as boolean out_ = (id = INTERN_NONE) orelse (cast( long, id ) > this.maxId)
+    dim as boolean out_ = (id = INTERN_NONE) orelse (cast( int32, id ) > this.maxId)
     if out_ then return TK_IDENT
-    return cast( TokenKind, this.kinds[cast( long, id )] )
+    return cast( TokenKind, this.kinds[cast( int32, id )] )
 end function
 
 function KeywordMap.ClassOf( byval id as InternId ) as KeywordClass
-    dim as boolean out_ = (id = INTERN_NONE) orelse (cast( long, id ) > this.maxId)
+    dim as boolean out_ = (id = INTERN_NONE) orelse (cast( int32, id ) > this.maxId)
     if out_ then return KWCLASS_KEYWORD
-    return cast( KeywordClass, this.classes[cast( long, id )] )
+    return cast( KeywordClass, this.classes[cast( int32, id )] )
 end function
 
 end namespace
@@ -148,13 +148,13 @@ sub InitKeywords _
         scope
             dim as string folded = Tko.Text.LowerAscii( k_text )
             dim as Tko.InternId id = names.GetString( folded )
-            while map.kinds.Count <= cast( long, id )
-                map.kinds.Push( cast( ushort, Tko.TK_IDENT ) )
+            while map.kinds.Count <= cast( int32, id )
+                map.kinds.Push( cast( uint16, Tko.TK_IDENT ) )
                 map.classes.Push( 0 )
             wend
-            map.kinds[cast( long, id )] = cast( ushort, k_name )
-            map.classes[cast( long, id )] = cast( ubyte, k_class )
-            if cast( long, id ) > map.maxId then map.maxId = cast( long, id )
+            map.kinds[cast( int32, id )] = cast( uint16, k_name )
+            map.classes[cast( int32, id )] = cast( uint8, k_class )
+            if cast( int32, id ) > map.maxId then map.maxId = cast( int32, id )
         end scope
     #endmacro
     TKO_KEYWORD_LIST( KW )
@@ -163,34 +163,34 @@ end sub
 
 '' ------------------------------------------------------------- character tests
 
-private function IsDigit( byval c as ubyte ) as boolean
+private function IsDigit( byval c as uint8 ) as boolean
     return (c >= 48) andalso (c <= 57)
 end function
 
-private function IsHexDigit( byval c as ubyte ) as boolean
+private function IsHexDigit( byval c as uint8 ) as boolean
     dim as boolean d = (c >= 48) andalso (c <= 57)
     dim as boolean u = (c >= 65) andalso (c <= 70)
     dim as boolean l = (c >= 97) andalso (c <= 102)
     return d orelse u orelse l
 end function
 
-private function IsIdentStart( byval c as ubyte ) as boolean
+private function IsIdentStart( byval c as uint8 ) as boolean
     dim as boolean u = (c >= 65) andalso (c <= 90)
     dim as boolean l = (c >= 97) andalso (c <= 122)
     return u orelse l orelse (c = 95)
 end function
 
-private function IsIdentCont( byval c as ubyte ) as boolean
+private function IsIdentCont( byval c as uint8 ) as boolean
     return IsIdentStart( c ) orelse IsDigit( c )
 end function
 
-private function IsSpace( byval c as ubyte ) as boolean
+private function IsSpace( byval c as uint8 ) as boolean
     return (c = 32) orelse (c = 9) orelse (c = 11) orelse (c = 12)
 end function
 
 '' &H &O &B or a bare digit: the byte after '&' decides literal versus concat.
 '' Probe L1 in docs/language/probes.md -- whitespace is significant here.
-private function StartsNumericAfterAmp( byval c as ubyte ) as boolean
+private function StartsNumericAfterAmp( byval c as uint8 ) as boolean
     dim as boolean radix = (c = 72) orelse (c = 104) orelse _
                            (c = 79) orelse (c = 111) orelse _
                            (c = 66) orelse (c = 98)
@@ -200,39 +200,39 @@ end function
 '' ------------------------------------------------------------------ the state
 
 type Scanner
-    as const ubyte ptr p
-    as long   n
-    as long   i
+    as const uint8 ptr p
+    as int32   n
+    as int32   i
     as Tko.FileId file
     as Tko.SourceManager ptr src
     as Tko.Interner ptr names
     as Tko.KeywordMap ptr kwmap
     as Tko.DiagnosticEngine ptr diags
     as Tko.Lex.Result ptr outp
-    as ushort pendingFlags
-    as long   remAt = -1            '' where the last REM comment began, -1 when none is open
+    as uint16 pendingFlags
+    as int32   remAt = -1            '' where the last REM comment began, -1 when none is open
 end type
 
-private function LocAt( byref s as Scanner, byval offset as long ) as Tko.SourceLoc
+private function LocAt( byref s as Scanner, byval offset as int32 ) as Tko.SourceLoc
     return s.src->LocFor( s.file, offset )
 end function
 
 private sub Emit _
-    ( byref s as Scanner, byval kind as Tko.TokenKind, byval first as long, _
-      byval payload as ulong = 0 )
+    ( byref s as Scanner, byval kind as Tko.TokenKind, byval first as int32, _
+      byval payload as uint32 = 0 )
 
     dim as Tko.Token t
-    t.kind = cast( ushort, kind )
+    t.kind = cast( uint16, kind )
     t.flags = s.pendingFlags
     t.loc = LocAt( s, first )
-    t.length = cast( ulong, s.i - first )
+    t.length = cast( uint32, s.i - first )
     t.literal = payload
     s.outp->tokens.Push( t )
     s.pendingFlags = 0
 end sub
 
 private sub Report _
-    ( byref s as Scanner, byval id as Tko.DiagId, byval first as long, _
+    ( byref s as Scanner, byval id as Tko.DiagId, byval first as int32, _
       byval a0 as string = "" )
 
     dim as Tko.SourceRange r
@@ -244,8 +244,8 @@ end sub
 '' ------------------------------------------------------------------- comments
 
 '' /' ... '/ and they NEST (probe L6).
-private sub SkipBlockComment( byref s as Scanner, byval first as long )
-    dim as long depth = 1
+private sub SkipBlockComment( byref s as Scanner, byval first as int32 )
+    dim as int32 depth = 1
     s.i += 2
     while s.i < s.n
         dim as boolean opens = (s.p[s.i] = 47) andalso (s.i + 1 < s.n) andalso (s.p[s.i + 1] = 39)
@@ -267,14 +267,14 @@ end sub
 '' Is the text at 'at' the keyword REM, followed by something that cannot continue an
 '' identifier? It is a comment to the end of the line, and it may follow a line
 '' continuation exactly as an apostrophe may.
-private function IsRemWord_( byref s as Scanner, byval at as long ) as boolean
+private function IsRemWord_( byref s as Scanner, byval at as int32 ) as boolean
     if at + 2 >= s.n then return false
-    dim as ubyte a0 = s.p[at], a1 = s.p[at + 1], a2 = s.p[at + 2]
+    dim as uint8 a0 = s.p[at], a1 = s.p[at + 1], a2 = s.p[at + 2]
     if (a0 <> 82) andalso (a0 <> 114) then return false      '' R r
     if (a1 <> 69) andalso (a1 <> 101) then return false      '' E e
     if (a2 <> 77) andalso (a2 <> 109) then return false      '' M m
     if at + 3 >= s.n then return true
-    dim as ubyte a3 = s.p[at + 3]
+    dim as uint8 a3 = s.p[at + 3]
     if (a3 >= 48) andalso (a3 <= 57) then return false
     if (a3 >= 65) andalso (a3 <= 90) then return false
     if (a3 >= 97) andalso (a3 <= 122) then return false
@@ -291,12 +291,12 @@ end function
 '' dialect, error 146 -- measured, '$include: 'f.bi'' and '$dynamic -- where tiko dropped
 '' them as comments, so an '$include' silently included nothing. Only these three words:
 '' any other '$' in a comment is a comment.
-private sub OtherMeta_( byref s as Scanner, byval at as long )
+private sub OtherMeta_( byref s as Scanner, byval at as int32 )
     if len( s.outp->otherMeta ) > 0 then exit sub
-    dim as long i = at + 1
+    dim as int32 i = at + 1
     dim as string w
     while (i < s.n) andalso (len( w ) < 8)
-        dim as ubyte c = s.p[i]
+        dim as uint8 c = s.p[i]
         if (c >= 97) andalso (c <= 122) then c -= 32
         if (c < 65) orelse (c > 90) then exit while
         w &= chr( c )
@@ -304,16 +304,16 @@ private sub OtherMeta_( byref s as Scanner, byval at as long )
     wend
     if (w <> "INCLUDE") andalso (w <> "DYNAMIC") andalso (w <> "STATIC") then exit sub
     if i < s.n then
-        dim as ubyte c = s.p[i]
+        dim as uint8 c = s.p[i]
         if ((c >= 48) andalso (c <= 57)) orelse (c = 95) then exit sub
     end if
     s.outp->otherMeta = "$" & w
     s.outp->otherMetaAt = LocAt( s, at )
 end sub
 
-private sub LangMeta_( byref s as Scanner, byval at as long )
+private sub LangMeta_( byref s as Scanner, byval at as int32 )
     if len( s.outp->langMeta ) > 0 then exit sub
-    dim as long i = at
+    dim as int32 i = at
     if (i < s.n) andalso (s.p[i] = 39) then i += 1
     while (i < s.n) andalso ((s.p[i] = 32) orelse (s.p[i] = 9))
         i += 1
@@ -324,7 +324,7 @@ private sub LangMeta_( byref s as Scanner, byval at as long )
         OtherMeta_( s, i )
         exit sub
     end if
-    dim as long mark = i
+    dim as int32 mark = i
     i += 5
     while (i < s.n) andalso ((s.p[i] = 32) orelse (s.p[i] = 9))
         i += 1
@@ -335,14 +335,14 @@ private sub LangMeta_( byref s as Scanner, byval at as long )
         i += 1
     wend
     if (i >= s.n) orelse (s.p[i] <> 34) then exit sub                 '' "
-    dim as long v0 = i + 1
+    dim as int32 v0 = i + 1
     i = v0
     while (i < s.n) andalso (s.p[i] <> 34) andalso (s.p[i] <> 10)
         i += 1
     wend
     if (i >= s.n) orelse (s.p[i] <> 34) then exit sub
     dim as string v = space( i - v0 )
-    for k as long = 0 to i - v0 - 1
+    for k as int32 = 0 to i - v0 - 1
         v[k] = s.p[v0 + k]
     next
     s.outp->langMeta = v
@@ -360,7 +360,7 @@ end sub
 '' ---------------------------------------------------------------- identifiers
 
 private sub ScanIdentifier( byref s as Scanner )
-    dim as long first = s.i
+    dim as int32 first = s.i
     while (s.i < s.n) andalso IsIdentCont( s.p[s.i] )
         s.i += 1
     wend
@@ -376,15 +376,15 @@ private sub ScanIdentifier( byref s as Scanner )
     ''
     '' The WARNING is not emitted -- the lexer has no diagnostic channel for one -- so
     '' this silently accepts what fbc accepts noisily. dim/identifier-length.bas.
-    dim as long n = s.i - first
+    dim as int32 n = s.i - first
     if n > 128 then n = 128
-    dim as ubyte folded(0 to 255)
+    dim as uint8 folded(0 to 255)
     dim as Tko.InternId id = Tko.INTERN_NONE
     if n <= 256 then
         Tko.Text.LowerAsciiInto( @s.p[first], n, @folded(0) )
         id = s.names->Get( @folded(0), n )
     else
-        dim as ubyte ptr heap_ = allocate( n )
+        dim as uint8 ptr heap_ = allocate( n )
         Tko.Text.LowerAsciiInto( @s.p[first], n, heap_ )
         id = s.names->Get( heap_, n )
         deallocate( heap_ )
@@ -392,9 +392,9 @@ private sub ScanIdentifier( byref s as Scanner )
 
     '' A trailing $ % & ! # is a type suffix. In -lang fb it is warned about and
     '' ignored (probe L2), which is a later phase's job -- the lexer only records it.
-    dim as ushort extra = 0
+    dim as uint16 extra = 0
     if s.i < s.n then
-        dim as ubyte c = s.p[s.i]
+        dim as uint8 c = s.p[s.i]
         dim as boolean suffix = (c = 36) orelse (c = 37) orelse (c = 38) orelse _
                                 (c = 33) orelse (c = 35)
         '' '#' is the Double suffix, but 'a##b' is the paste operator: a doubled '#'
@@ -403,7 +403,7 @@ private sub ScanIdentifier( byref s as Scanner )
             if s.p[s.i + 1] = 35 then suffix = false
         end if
         if suffix then
-            dim as ushort sc = 0
+            dim as uint16 sc = 0
             select case c
             case 36 : sc = Tko.SUFC_DOLLAR
             case 37 : sc = Tko.SUFC_PERCENT
@@ -423,11 +423,11 @@ private sub ScanIdentifier( byref s as Scanner )
     '' MEMBER'S NAME: 't.rem' is the field a TYPE declared as 'as long rem' (T93). The
     '' line's end remembers where a skipped REM began (TF_REM_COMMENT).
     if kind = Tko.KW_REM then
-        dim as long nt = s.outp->tokens.Count
+        dim as int32 nt = s.outp->tokens.Count
         if nt > 0 then
             dim as Tko.TokenKind pk = cast( Tko.TokenKind, s.outp->tokens[nt - 1].kind )
             if (pk = Tko.TK_DOT) orelse (pk = Tko.TK_ARROW) then
-                Emit( s, Tko.TK_IDENT, first, cast( ulong, id ) )
+                Emit( s, Tko.TK_IDENT, first, cast( uint32, id ) )
                 return
             end if
         end if
@@ -438,7 +438,7 @@ private sub ScanIdentifier( byref s as Scanner )
     end if
 
     if kind = Tko.TK_IDENT then
-        Emit( s, Tko.TK_IDENT, first, cast( ulong, id ) )
+        Emit( s, Tko.TK_IDENT, first, cast( uint32, id ) )
     else
         Emit( s, kind, first )
     end if
@@ -446,9 +446,9 @@ end sub
 
 '' -------------------------------------------------------------------- numbers
 
-private sub PushLiteral( byref s as Scanner, byref lit as Tko.Literal, byval first as long )
+private sub PushLiteral( byref s as Scanner, byref lit as Tko.Literal, byval first as int32 )
     s.outp->literals.Push( lit )
-    Emit( s, cast( Tko.TokenKind, lit.kind ), first, cast( ulong, s.outp->literals.Count - 1 ) )
+    Emit( s, cast( Tko.TokenKind, lit.kind ), first, cast( uint32, s.outp->literals.Count - 1 ) )
 end sub
 
 '' Reads the trailing type suffix of a numeric literal. Longest match first:
@@ -471,8 +471,8 @@ private function ScanNumSuffix _
       byval radix as boolean = false ) as Tko.NumSuffix
     if s.i >= s.n then return Tko.NSUF_NONE
 
-    dim as ubyte c0 = s.p[s.i]
-    dim as ubyte u0 = c0
+    dim as uint8 c0 = s.p[s.i]
+    dim as uint8 u0 = c0
     if (u0 >= 97) andalso (u0 <= 122) then u0 -= 32
 
     select case u0
@@ -498,11 +498,11 @@ private function ScanNumSuffix _
     case 38                                  '' &
         s.i += 1 : return Tko.NSUF_LONG
     case 85                                  '' U, UL, ULL
-        dim as long save = s.i
+        dim as int32 save = s.i
         s.i += 1
-        dim as long ells = 0
+        dim as int32 ells = 0
         while (s.i < s.n) andalso ells < 2
-            dim as ubyte c = s.p[s.i]
+            dim as uint8 c = s.p[s.i]
             if (c = 76) orelse (c = 108) then
                 ells += 1 : s.i += 1
             else
@@ -516,7 +516,7 @@ private function ScanNumSuffix _
     case 76                                  '' L, LL
         s.i += 1
         if s.i < s.n then
-            dim as ubyte c = s.p[s.i]
+            dim as uint8 c = s.p[s.i]
             if (c = 76) orelse (c = 108) then
                 s.i += 1
                 return Tko.NSUF_LONGINT
@@ -528,7 +528,7 @@ private function ScanNumSuffix _
     return Tko.NSUF_NONE
 end function
 
-private function DigitValue( byval c as ubyte ) as long
+private function DigitValue( byval c as uint8 ) as int32
     if IsDigit( c ) then return c - 48
     if (c >= 65) andalso (c <= 70) then return c - 55
     if (c >= 97) andalso (c <= 102) then return c - 87
@@ -536,12 +536,12 @@ private function DigitValue( byval c as ubyte ) as long
 end function
 
 '' &H &O &B and the bare-& octal form.
-private sub ScanRadixLiteral( byref s as Scanner, byval first as long )
+private sub ScanRadixLiteral( byref s as Scanner, byval first as int32 )
     s.i += 1                                    '' past '&'
 
-    dim as long radix = 8
+    dim as int32 radix = 8
     if s.i < s.n then
-        dim as ubyte c = s.p[s.i]
+        dim as uint8 c = s.p[s.i]
         select case c
         case 72, 104 : radix = 16 : s.i += 1
         case 79, 111 : radix = 8  : s.i += 1
@@ -549,11 +549,11 @@ private sub ScanRadixLiteral( byref s as Scanner, byval first as long )
         end select
     end if
 
-    dim as ulongint value = 0
-    dim as long digits = 0
+    dim as uint64 value = 0
+    dim as int32 digits = 0
     dim as boolean over = false
     while s.i < s.n
-        dim as long d = DigitValue( s.p[s.i] )
+        dim as int32 d = DigitValue( s.p[s.i] )
         if (d < 0) orelse (d >= radix) then exit while
         if value > ((&hFFFFFFFFFFFFFFFFull - d) \ radix) then over = true
         value = value * radix + d
@@ -569,23 +569,23 @@ private sub ScanRadixLiteral( byref s as Scanner, byval first as long )
     if over then Report( s, Tko.TKO0205, first )
 
     dim as Tko.Literal lit
-    lit.kind = cast( ubyte, Tko.TK_INT_LIT )
-    lit.radix = cast( ubyte, radix )
+    lit.kind = cast( uint8, Tko.TK_INT_LIT )
+    lit.radix = cast( uint8, radix )
     lit.intValue = value
-    lit.suffix = cast( ubyte, ScanNumSuffix( s, false, true ) )
+    lit.suffix = cast( uint8, ScanNumSuffix( s, false, true ) )
     '' A FLOAT SUFFIX MAKES IT A FLOAT, whatever the radix: '&h3d!' is a SINGLE of 61 and
     '' '&o7d' a DOUBLE of 7, measured. The suffix was recorded on an INTEGER token, and
     '' the literal typed as an integer.
     select case cast( Tko.NumSuffix, lit.suffix )
     case Tko.NSUF_SINGLE, Tko.NSUF_DOUBLE
-        lit.kind = cast( ubyte, Tko.TK_FLOAT_LIT )
-        lit.fltValue = cast( double, value )
+        lit.kind = cast( uint8, Tko.TK_FLOAT_LIT )
+        lit.fltValue = cast( float64, value )
     end select
     PushLiteral( s, lit, first )
 end sub
 
 private sub ScanNumber( byref s as Scanner )
-    dim as long first = s.i
+    dim as int32 first = s.i
     dim as boolean isFloat = false
 
     while (s.i < s.n) andalso IsDigit( s.p[s.i] )
@@ -615,10 +615,10 @@ private sub ScanNumber( byref s as Scanner )
     '' the sign belongs to the exponent even with nothing after it, so '3d+x' is refused
     '' and '3d -1' is 2. The marker was read only with digits after it, so '3d' was the
     '' integer 3 and then an identifier 'd' -- "expected the end of the statement".
-    dim as long expAt = -1
+    dim as int32 expAt = -1
     dim as boolean expDigits = false
     if s.i < s.n then
-        dim as ubyte c = s.p[s.i]
+        dim as uint8 c = s.p[s.i]
         if (c = 69) orelse (c = 101) orelse (c = 68) orelse (c = 100) then
             isFloat = true
             expAt = s.i
@@ -633,36 +633,36 @@ private sub ScanNumber( byref s as Scanner )
         end if
     end if
 
-    dim as long digitsEnd = s.i
+    dim as int32 digitsEnd = s.i
     dim as Tko.NumSuffix suffix = ScanNumSuffix( s, isFloat )
     dim as boolean floatSuffix = (suffix = Tko.NSUF_SINGLE) orelse (suffix = Tko.NSUF_DOUBLE)
     if floatSuffix then isFloat = true
 
     dim as Tko.Literal lit
     lit.radix = 10
-    lit.suffix = cast( ubyte, suffix )
+    lit.suffix = cast( uint8, suffix )
 
     '' An exponent with no digits is left out of what val( ) is handed.
-    dim as long spellEnd = digitsEnd
+    dim as int32 spellEnd = digitsEnd
     if (expAt >= 0) andalso (expDigits = false) then spellEnd = expAt
     dim as string spelling = space( spellEnd - first )
     memcpy( strptr( spelling ), @s.p[first], spellEnd - first )
 
     if isFloat then
-        lit.kind = cast( ubyte, Tko.TK_FLOAT_LIT )
+        lit.kind = cast( uint8, Tko.TK_FLOAT_LIT )
         '' 'd' is FreeBASIC's double exponent marker; val( ) wants 'e'.
-        dim as long at = instr( spelling, "d" )
+        dim as int32 at = instr( spelling, "d" )
         if at = 0 then at = instr( spelling, "D" )
         if at > 0 then spelling = left( spelling, at - 1 ) & "e" & mid( spelling, at + 1 )
         lit.fltValue = val( spelling )
     else
-        lit.kind = cast( ubyte, Tko.TK_INT_LIT )
+        lit.kind = cast( uint8, Tko.TK_INT_LIT )
         '' UNSIGNED, so 18446744073709551615 keeps all 64 bits -- the TYPE then says
         '' how to read them (Check.DecimalLitUnsigned).
         lit.intValue = valulng( spelling )
         '' PAST 64 BITS IS fbc's WARNING 8, "Literal number too big, truncated" -- the value
         '' was already fbc's (all ones); only the word was missing (audit F-67).
-        dim as long nz = 1
+        dim as int32 nz = 1
         while (nz < len( spelling )) andalso (spelling[nz - 1] = 48) : nz += 1 : wend
         dim as string dg = mid( spelling, nz )
         if (len( dg ) > 20) orelse ((len( dg ) = 20) andalso (dg > "18446744073709551615")) then Report( s, Tko.TKO0205, first )
@@ -675,16 +675,16 @@ end sub
 
 '' The payload span is recorded UNDECODED: OPTION ESCAPE decides what a plain "..."
 '' means and the lexer does not know it yet (docs/plan/03 section 5.1).
-private sub ScanString( byref s as Scanner, byval kind as Tko.StringKind, byval first as long )
+private sub ScanString( byref s as Scanner, byval kind as Tko.StringKind, byval first as int32 )
     if kind <> Tko.STRK_PLAIN then s.i += 1     '' past the ! or $
     s.i += 1                                    '' past the opening quote
 
-    dim as long textFirst = s.i
+    dim as int32 textFirst = s.i
     dim as boolean closed = false
     dim as boolean wide = false
 
     while s.i < s.n
-        dim as ubyte c = s.p[s.i]
+        dim as uint8 c = s.p[s.i]
         if c = 10 then exit while               '' a literal never crosses a newline
         if c = 34 then
             dim as boolean doubled = (s.i + 1 < s.n) andalso (s.p[s.i + 1] = 34)
@@ -705,7 +705,7 @@ private sub ScanString( byref s as Scanner, byval kind as Tko.StringKind, byval 
         s.i += 1
     wend
 
-    dim as long textLast = s.i
+    dim as int32 textLast = s.i
     if closed then
         s.i += 1
     else
@@ -717,10 +717,10 @@ private sub ScanString( byref s as Scanner, byval kind as Tko.StringKind, byval 
     end if
 
     dim as Tko.Literal lit
-    lit.kind = cast( ubyte, Tko.TK_STRING_LIT )
-    lit.strKind = cast( ubyte, kind )
+    lit.kind = cast( uint8, Tko.TK_STRING_LIT )
+    lit.strKind = cast( uint8, kind )
     if wide then lit.strWide = 1
-    lit.textFile = cast( long, s.file )
+    lit.textFile = cast( int32, s.file )
     lit.textOffset = textFirst
     lit.textLength = textLast - textFirst
     PushLiteral( s, lit, first )
@@ -759,30 +759,30 @@ end sub
 
 '' 'q' is the first quote. True when it starts '"""' with only spaces/tabs (and a CR) after
 '' it and then a newline -- no newline, no body, so EOF right after it is not an opener.
-private function IsBlockOpener( byref s as Scanner, byval q as long ) as boolean
+private function IsBlockOpener( byref s as Scanner, byval q as int32 ) as boolean
     if q + 2 >= s.n then return false
     if (s.p[q + 1] <> 34) orelse (s.p[q + 2] <> 34) then return false
-    dim as long j = q + 3
+    dim as int32 j = q + 3
     while (j < s.n) andalso ((s.p[j] = 32) orelse (s.p[j] = 9) orelse (s.p[j] = 13))
         j += 1
     wend
     return (j < s.n) andalso (s.p[j] = 10)
 end function
 
-private sub ScanBlockString( byref s as Scanner, byval kind as Tko.StringKind, byval first as long )
-    dim as long q = first
+private sub ScanBlockString( byref s as Scanner, byval kind as Tko.StringKind, byval first as int32 )
+    dim as int32 q = first
     if kind <> Tko.STRK_PLAIN then q += 1
-    dim as long j = q + 3
+    dim as int32 j = q + 3
     while s.p[j] <> 10                          '' IsBlockOpener found this newline
         j += 1
     wend
-    dim as long bodyFirst = j + 1
+    dim as int32 bodyFirst = j + 1
 
     '' The closing line: the first that starts, after spaces and tabs, with '"""'.
-    dim as long closerLine = -1, closerQuote = -1
-    dim as long ln = bodyFirst
+    dim as int32 closerLine = -1, closerQuote = -1
+    dim as int32 ln = bodyFirst
     while ln < s.n
-        dim as long k = ln
+        dim as int32 k = ln
         while (k < s.n) andalso ((s.p[k] = 32) orelse (s.p[k] = 9))
             k += 1
         wend
@@ -797,8 +797,8 @@ private sub ScanBlockString( byref s as Scanner, byval kind as Tko.StringKind, b
         ln = k + 1
     wend
 
-    dim as long bodyEnd = closerLine
-    dim as long margin = 0
+    dim as int32 bodyEnd = closerLine
+    dim as int32 margin = 0
     if closerLine < 0 then
         '' Everything to the end of the file is the body, undedented: nothing else can
         '' say where it was meant to stop.
@@ -811,17 +811,17 @@ private sub ScanBlockString( byref s as Scanner, byval kind as Tko.StringKind, b
 
     '' Each body byte becomes at most two ('"' doubles), plus one LF per line.
     dim as string outp = space( 2 * (bodyEnd - bodyFirst) + 2 )
-    dim as long n = 0
+    dim as int32 n = 0
     dim as boolean wide = false
     dim as boolean firstLine = true
     dim as boolean joinNext = false
-    dim as long ls = bodyFirst
+    dim as int32 ls = bodyFirst
     while ls < bodyEnd
-        dim as long le = ls
+        dim as int32 le = ls
         while (le < bodyEnd) andalso (s.p[le] <> 10)
             le += 1
         wend
-        dim as long ce = le
+        dim as int32 ce = le
         if (ce > ls) andalso (s.p[ce - 1] = 13) then ce -= 1
 
         if (firstLine = false) andalso (joinNext = false) then
@@ -832,7 +832,7 @@ private sub ScanBlockString( byref s as Scanner, byval kind as Tko.StringKind, b
         joinNext = false
 
         dim as boolean blank = true
-        for bi as long = ls to ce - 1
+        for bi as int32 = ls to ce - 1
             if (s.p[bi] <> 32) andalso (s.p[bi] <> 9) then
                 blank = false
                 exit for
@@ -842,14 +842,14 @@ private sub ScanBlockString( byref s as Scanner, byval kind as Tko.StringKind, b
         if blank = false then
             dim as boolean indented = (ce - ls) >= margin
             if indented then
-                for mi as long = 0 to margin - 1
+                for mi as int32 = 0 to margin - 1
                     if s.p[ls + mi] <> s.p[closerLine + mi] then
                         indented = false
                         exit for
                     end if
                 next
             end if
-            dim as long k = ls + margin
+            dim as int32 k = ls + margin
             if indented = false then
                 dim as Tko.SourceRange r
                 r.first = LocAt( s, ls )
@@ -863,13 +863,13 @@ private sub ScanBlockString( byref s as Scanner, byval kind as Tko.StringKind, b
             end if
 
             while k < ce
-                dim as ubyte c = s.p[k]
+                dim as uint8 c = s.p[k]
                 if (kind = Tko.STRK_ESCAPED) andalso (c = 92) then
                     if k + 1 >= ce then
                         joinNext = true             '' a backslash ending the line
                         exit while
                     end if
-                    dim as ubyte nx = s.p[k + 1]
+                    dim as uint8 nx = s.p[k + 1]
                     if (nx = 117) orelse (nx = 85) then wide = true
                     outp[n] = c
                     outp[n + 1] = nx
@@ -895,11 +895,11 @@ private sub ScanBlockString( byref s as Scanner, byval kind as Tko.StringKind, b
     '' body that begins with a byte-order mark is not taken for one by the source manager.
     dim as string payload = left( outp, n )
     dim as Tko.Literal lit
-    lit.kind = cast( ubyte, Tko.TK_STRING_LIT )
-    lit.strKind = cast( ubyte, kind )
+    lit.kind = cast( uint8, Tko.TK_STRING_LIT )
+    lit.strKind = cast( uint8, kind )
     if wide then lit.strWide = 1
     lit.strBlock = 1
-    lit.textFile = cast( long, s.src->AddVirtual( "<block string>", chr( 34 ) & payload & chr( 34 ) ) )
+    lit.textFile = cast( int32, s.src->AddVirtual( "<block string>", chr( 34 ) & payload & chr( 34 ) ) )
     lit.textOffset = 1
     lit.textLength = n
     PushLiteral( s, lit, first )
@@ -908,13 +908,13 @@ end sub
 '' ---------------------------------------------------------------- punctuation
 
 private sub ScanPunct( byref s as Scanner )
-    dim as long first = s.i
-    dim as ubyte c = s.p[s.i]
-    dim as ubyte c1 = 0
+    dim as int32 first = s.i
+    dim as uint8 c = s.p[s.i]
+    dim as uint8 c1 = 0
     if s.i + 1 < s.n then c1 = s.p[s.i + 1]
 
     dim as Tko.TokenKind kind = Tko.TK_INVALID
-    dim as long nchars = 1
+    dim as int32 nchars = 1
 
     select case c
     case 40 : kind = Tko.TK_LPAREN
@@ -1057,7 +1057,7 @@ sub Run _
     s.pendingFlags = Tko.TF_AT_LINE_START
 
     while s.i < s.n
-        dim as ubyte c = s.p[s.i]
+        dim as uint8 c = s.p[s.i]
 
         '' ---- whitespace, continuations and newlines
         if IsSpace( c ) then
@@ -1072,10 +1072,10 @@ sub Run _
         end if
 
         if c = 10 then
-            dim as long first = s.i
+            dim as int32 first = s.i
             s.i += 1
-            dim as ulong remLoc = 0
-            if s.remAt >= 0 then remLoc = cast( ulong, LocAt( s, s.remAt ) )
+            dim as uint32 remLoc = 0
+            if s.remAt >= 0 then remLoc = cast( uint32, LocAt( s, s.remAt ) )
             s.remAt = -1
             Emit( s, Tko.TK_EOL, first, remLoc )
             s.pendingFlags = Tko.TF_AT_LINE_START
@@ -1121,7 +1121,7 @@ sub Run _
                    (s.p[s.i + 2] = 35) then pasteAdj = true
             end if
             if (nameChar = false) andalso (pasteAdj = false) then
-                dim as long j = s.i + 1
+                dim as int32 j = s.i + 1
                 while (j < s.n) andalso (s.p[j] <> 10)
                     j += 1
                 wend
@@ -1155,7 +1155,7 @@ sub Run _
         '' Flagged, because the parser has to tell it from a real newline: 'name:' is a
         '' label and 'name' on its own is a call.
         if c = 58 then
-            dim as long first = s.i
+            dim as int32 first = s.i
             s.i += 1
             s.pendingFlags or= Tko.TF_COLON
             Emit( s, Tko.TK_EOL, first )
@@ -1221,7 +1221,7 @@ sub Run _
 
     '' Exactly one TK_EOF, at the end-of-file location the source manager reserves.
     dim as Tko.Token eof
-    eof.kind = cast( ushort, Tko.TK_EOF )
+    eof.kind = cast( uint16, Tko.TK_EOF )
     eof.flags = s.pendingFlags
     eof.loc = src.LocFor( file, s.n )
     eof.length = 0
@@ -1229,7 +1229,7 @@ sub Run _
     outp.tokens.Push( eof )
 
     for each t as Tko.Token in outp.tokens
-        if t.kind = cast( ushort, Tko.TK_INVALID ) then outp.invalidCount += 1
+        if t.kind = cast( uint16, Tko.TK_INVALID ) then outp.invalidCount += 1
     next
 end sub
 
@@ -1242,7 +1242,7 @@ function Dump _
     dim as IrText outp
     outp += "file " & src.PathOf( file ) & ", " & r.tokens.Count & " tokens" & chr( 10 )
 
-    dim as long index = 0
+    dim as int32 index = 0
     for each t as Tko.Token in r.tokens
         dim as Tko.DecodedLoc d = src.Decode( t.loc )
         dim as Tko.TokenKind k = cast( Tko.TokenKind, t.kind )
@@ -1257,13 +1257,13 @@ function Dump _
         case Tko.TK_IDENT
             row += "'" & names.Spelling( cast( Tko.InternId, t.literal ) ) & "'"
         case Tko.TK_INT_LIT
-            dim as Tko.Literal ptr lit = @r.literals[cast( long, t.literal )]
+            dim as Tko.Literal ptr lit = @r.literals[cast( int32, t.literal )]
             row += str( lit->intValue ) & " radix=" & lit->radix & " suffix=" & lit->suffix
         case Tko.TK_FLOAT_LIT
-            dim as Tko.Literal ptr lit = @r.literals[cast( long, t.literal )]
+            dim as Tko.Literal ptr lit = @r.literals[cast( int32, t.literal )]
             row += str( lit->fltValue ) & " suffix=" & lit->suffix
         case Tko.TK_STRING_LIT
-            dim as Tko.Literal ptr lit = @r.literals[cast( long, t.literal )]
+            dim as Tko.Literal ptr lit = @r.literals[cast( int32, t.literal )]
             '' The literal's OWN file, not the dump's: they differ once a token has
             '' come through macro expansion.
             dim as Tko.SourceFile ptr f = src.FileAt( cast( Tko.FileId, lit->textFile ) )
@@ -1275,7 +1275,7 @@ function Dump _
             '' A block string's payload holds real newlines; one row per token stays.
             if lit->strBlock <> 0 then
                 dim as string shown = ""
-                for k as long = 0 to len( payload ) - 1
+                for k as int32 = 0 to len( payload ) - 1
                     shown += iif( payload[k] = 10, "<LF>", chr( payload[k] ) )
                 next
                 payload = shown

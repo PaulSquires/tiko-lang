@@ -31,7 +31,7 @@ private function IsGenericMemberBody_ _
     if owner = 0 then return false
     dim as Tko.Symbol ptr os = c.syms->SymbolAt( owner->owner )
     if os = 0 then return false
-    if os->kind <> cast( ubyte, Tko.SYM_UDT ) then return false
+    if os->kind <> cast( uint8, Tko.SYM_UDT ) then return false
     dim as Tko.NodeId tn = cast( Tko.NodeId, os->payload )
     if tn = Tko.NODE_NONE then return false
     if c.ast->Kind( tn ) <> Tko.N_TYPE then return false
@@ -66,19 +66,19 @@ private function BodyCallsStructorWord_ _
     if body = Tko.NODE_NONE then return false
     if c.ast->Kind( body ) <> Tko.N_BLOCK then return false
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, body )].data )]
-    for i as long = 0 to lp->count - 1
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, body )].data )]
+    for i as int32 = 0 to lp->count - 1
         dim as Tko.NodeId st = cast( Tko.NodeId, c.ast->children[lp->first + i] )
         if c.ast->Kind( st ) <> Tko.N_AMBIGUOUS then continue for
         dim as Tko.NodeId e = StmtOf( c, st )->a
         if e = Tko.NODE_NONE then continue for
         if c.ast->Kind( e ) <> Tko.N_CALL then continue for
         dim as Tko.ListPayload ptr cp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
         if cp->target = Tko.NODE_NONE then continue for
         if c.ast->Kind( cp->target ) <> Tko.N_IDENT then continue for
         dim as Tko.IdentPayload ptr tip = _
-            @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
         if Tko.Text.LowerAscii( c.names->Spelling( tip->name ) ) = want then return true
     next
     return false
@@ -149,7 +149,7 @@ sub LowerProc _
         '' Declared 'agg', the function returned the object by the hidden-pointer
         '' convention while every CALL to it read a pointer -- and 'operator ->', which
         '' is byref by construction, is the shape that made it visible.
-        if (c.ast->nodes[cast( long, id )].flags and Tko.NF_BYREF) <> 0 then
+        if (c.ast->nodes[cast( int32, id )].flags and Tko.NF_BYREF) <> 0 then
             declRet = MT_PTR
         end if
     end if
@@ -197,15 +197,15 @@ sub LowerProc _
         if Tko.Mangle.IsInstName( *c.types, sp->name ) then f->isWeak = true
     end if
     dim as MirFunction ptr savedF = c.f
-    dim as long savedB = c.curBlock
+    dim as int32 savedB = c.curBlock
     dim as Tko.SymbolId savedSym = c.curProcSym
     c.f = f
     if c.srcMgr <> 0 then
         dim as Tko.DecodedLoc dbgAt = c.srcMgr->Decode( c.ast->Loc( id ) )
-        f->dbgFile = cast( ulong, dbgAt.file ) + 1
+        f->dbgFile = cast( uint32, dbgAt.file ) + 1
         f->dbgLine = dbgAt.physLine
     end if
-    c.curProcSym = sid : f->procSym = cast( ulong, sid )
+    c.curProcSym = sid : f->procSym = cast( uint32, sid )
     c.st->functions += 1
 
     '' An instance method takes THIS as parameter ZERO. It is never written in the
@@ -288,11 +288,11 @@ sub LowerProc _
             dim as boolean inType = false
             if ts <> 0 then
                 dim as Tko.ScopeId walk = ts->parent
-                dim as long guard = 0
+                dim as int32 guard = 0
                 while (walk <> Tko.SCOPE_NONE) andalso (guard < 64)
                     dim as Tko.SymScope ptr sc2 = c.syms->ScopeAt( walk )
                     if sc2 = 0 then exit while
-                    if sc2->kind = cast( ubyte, Tko.SCOPEK_TYPE ) then
+                    if sc2->kind = cast( uint8, Tko.SCOPEK_TYPE ) then
                         inType = true
                         exit while
                     end if
@@ -323,16 +323,16 @@ sub LowerProc _
     '' SCALAR result: a STRING or UDT return goes through a hidden pointer tiko-lang does
     '' not model yet, and inventing a slot for one would miscompile silently rather
     '' than decline -- which is the failure mode this file has hit four times.
-    dim as long savedRes = c.resultSlot
-    dim as ubyte savedResTy = c.resultTy
+    dim as int32 savedRes = c.resultSlot
+    dim as uint8 savedResTy = c.resultTy
     dim as Tko.TypeId savedResType = c.resultType
-    dim as long savedSret = c.sretParam
+    dim as int32 savedSret = c.sretParam
     dim as boolean savedUdtRes = c.udtResult
     dim as boolean savedByrefRes = c.byrefResult
     c.udtResult = false
     c.byrefResult = false
     c.resultSlot = -1
-    c.resultTy = cast( ubyte, MT_VOID )
+    c.resultTy = cast( uint8, MT_VOID )
     c.resultType = Tko.TYPE_NONE
     c.sretParam = -1
 
@@ -353,7 +353,7 @@ sub LowerProc _
     '' STRING or ZSTRING result had no slot at all and declined instead -- which is
     '' every 'function = *strptr( s )' in functions/temp-strings.bas.
     dim as boolean byrefDecl = _
-        ((c.ast->nodes[cast( long, id )].flags and Tko.NF_BYREF) <> 0)
+        ((c.ast->nodes[cast( int32, id )].flags and Tko.NF_BYREF) <> 0)
     c.byrefResult = byrefDecl andalso (rt <> Tko.TYPE_NONE)
     if c.byrefResult then
         scalarResult = false
@@ -400,7 +400,7 @@ sub LowerProc _
     end if
     if stringResult then
         c.resultSlot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
-        c.resultTy = cast( ubyte, MT_AGG )
+        c.resultTy = cast( uint8, MT_AGG )
         c.resultType = rt
         '' THE RESULT DESCRIPTOR CARRIES ITS OWN FLAVOUR. IsUStringDest_ asks the
         '' slot's frontendType, and this temporary had none: a 'function f( ) as
@@ -411,8 +411,8 @@ sub LowerProc _
             c.f->locals[c.resultSlot].frontendType = rt
         end if
         dim as MirValue sa
-        sa.kind = cast( ubyte, MV_LOCAL )
-        sa.ty = cast( ubyte, MT_PTR )
+        sa.kind = cast( uint8, MV_LOCAL )
+        sa.ty = cast( uint8, MT_PTR )
         sa.id = c.resultSlot
         '' The descriptor must be ZEROED before anything registers a delete for it,
         '' exactly as a string local is.
@@ -423,19 +423,19 @@ sub LowerProc _
         '' The hidden pointer is parameter 0, BEFORE 'this'. Its slot is an ordinary
         '' local holding the pointer, exactly as 'this' is.
         c.sretParam = NewTempLocal( c, MT_PTR, c.types->target.pointerBits \ 8 )
-        c.resultTy = cast( ubyte, MT_AGG )
+        c.resultTy = cast( uint8, MT_AGG )
         c.resultType = rt
         dim as MirValue sa
-        sa.kind = cast( ubyte, MV_LOCAL )
-        sa.ty = cast( ubyte, MT_PTR )
+        sa.kind = cast( uint8, MV_LOCAL )
+        sa.ty = cast( uint8, MT_PTR )
         sa.id = c.sretParam
         dim as MirValue spv
-        spv.kind = cast( ubyte, MV_PARAM )
-        spv.ty = cast( ubyte, MT_PTR )
+        spv.kind = cast( uint8, MV_PARAM )
+        spv.ty = cast( uint8, MT_PTR )
         spv.id = 0
         dim as MirInst sins
-        sins.op = cast( ushort, M_STORE )
-        sins.ty = cast( ubyte, MT_VOID )
+        sins.op = cast( uint16, M_STORE )
+        sins.ty = cast( uint8, MT_VOID )
         sins.a = sa
         sins.b = spv
         Emit( c, sins )
@@ -443,7 +443,7 @@ sub LowerProc _
         '' THE RESULT IS DEFAULT-CONSTRUCTED AT ENTRY unless the body leaves through
         '' 'return expr' -- including a body that never sets it. See InitResultAtEntry_.
         dim as MirValue rdst = LowerExprLoad( c, sa, MT_PTR )
-        if rdst.kind <> cast( ubyte, MV_NONE ) then
+        if rdst.kind <> cast( uint8, MV_NONE ) then
             InitResultAtEntry_( c, rt, rdst, sp->b, false )
         end if
     end if
@@ -488,39 +488,39 @@ sub LowerProc _
     end if
     if udtByValue then
         c.resultSlot = NewTempLocal( c, MT_AGG, SizeOfType( c, rt ) )
-        c.resultTy = cast( ubyte, MT_AGG )
+        c.resultTy = cast( uint8, MT_AGG )
         c.resultType = rt
         c.udtResult = true
         '' Zeroed or constructed exactly where fbc does it -- see InitResultAtEntry_.
         dim as MirValue ua
-        ua.kind = cast( ubyte, MV_LOCAL )
-        ua.ty = cast( ubyte, MT_PTR )
+        ua.kind = cast( uint8, MV_LOCAL )
+        ua.ty = cast( uint8, MT_PTR )
         ua.id = c.resultSlot
         InitResultAtEntry_( c, rt, ua, sp->b, true )
     end if
 
     if c.byrefResult then
         c.resultSlot = NewTempLocal( c, MT_PTR, c.types->target.pointerBits \ 8 )
-        c.resultTy = cast( ubyte, MT_PTR )
+        c.resultTy = cast( uint8, MT_PTR )
         c.resultType = rt
         dim as MirValue ba
-        ba.kind = cast( ubyte, MV_LOCAL )
-        ba.ty = cast( ubyte, MT_PTR )
+        ba.kind = cast( uint8, MV_LOCAL )
+        ba.ty = cast( uint8, MT_PTR )
         ba.id = c.resultSlot
         StoreThrough( c, ba, ConstInt( c, 0, MT_PTR ) )
     end if
 
     if scalarResult then
         c.resultSlot = NewTempLocal( c, rmt, c.types->Layout( rt ).size )
-        c.resultTy = cast( ubyte, rmt )
+        c.resultTy = cast( uint8, rmt )
         c.resultType = rt
         dim as MirValue ra
-        ra.kind = cast( ubyte, MV_LOCAL )
-        ra.ty = cast( ubyte, MT_PTR )
+        ra.kind = cast( uint8, MV_LOCAL )
+        ra.ty = cast( uint8, MT_PTR )
         ra.id = c.resultSlot
         dim as MirInst zi
-        zi.op = cast( ushort, M_STORE )
-        zi.ty = cast( ubyte, MT_VOID )
+        zi.op = cast( uint16, M_STORE )
+        zi.ty = cast( uint8, MT_VOID )
         zi.a = ra
         zi.b = ZeroOf( c, rmt )
         Emit( c, zi )
@@ -533,7 +533,7 @@ sub LowerProc _
     '' parameter shift up by one. Measured in fbc's own assembly: for a method with a
     '' hidden pointer, RCX is the pointer and RDX is 'this', and a later double lands
     '' in XMM3 rather than XMM1.
-    dim as long pidx = 0
+    dim as int32 pidx = 0
     if c.sretParam >= 0 then
         f->AddParam( MT_PTR )
         f->hasSretParam = true
@@ -543,7 +543,7 @@ sub LowerProc _
         '' THIS is a POINTER TO the object -- the symbol carries that type, so the slot
         '' comes out a pointer and 'this.field' reaches through it like any other
         '' pointer base. It is what fbc's own C says: 'struct $1T* THIS$1'.
-        dim as long tslot = LocalFor( c, thisSym )
+        dim as int32 tslot = LocalFor( c, thisSym )
         '' AN UNTYPED 'this' HAS NO SLOT AT ALL, and storing the receiver into one is
         '' malformed. That happens when the structor's owner does not name a type here
         '' -- which is now TKO0323 -- so the error is already reported and the store
@@ -551,7 +551,7 @@ sub LowerProc _
         '' than a void slot; substituting zero pointed at somebody else's local.
         dim as boolean thisTyped = (tslot >= 0)
         if thisTyped andalso (tslot < c.f->locals.Count) then
-            thisTyped = (c.f->locals[tslot].ty <> cast( ubyte, MT_VOID ))
+            thisTyped = (c.f->locals[tslot].ty <> cast( uint8, MT_VOID ))
         end if
         if thisTyped = false then
             '' The ARGUMENT still exists and is still a pointer -- only the STORE into
@@ -563,7 +563,7 @@ sub LowerProc _
     end if
     if thisSym <> Tko.SYMBOL_NONE then
         f->AddParam( MT_PTR )
-        dim as long tslot = LocalFor( c, thisSym )
+        dim as int32 tslot = LocalFor( c, thisSym )
         '' NO SLOT MEANS NO STORE. 'this' has no slot when its owner does not name a
         '' type here -- TKO0323, already reported -- and substituting slot ZERO wrote
         '' the receiver into whatever local happened to be first, or into no local at
@@ -572,23 +572,23 @@ sub LowerProc _
         '' does not change with a diagnostic.
         if tslot >= 0 then
             dim as MirValue taddr
-            taddr.kind = cast( ubyte, MV_LOCAL )
-            taddr.ty = cast( ubyte, MT_PTR )
+            taddr.kind = cast( uint8, MV_LOCAL )
+            taddr.ty = cast( uint8, MT_PTR )
             taddr.id = tslot
             dim as MirValue tpv
-            tpv.kind = cast( ubyte, MV_PARAM )
-            tpv.ty = cast( ubyte, MT_PTR )
+            tpv.kind = cast( uint8, MV_PARAM )
+            tpv.ty = cast( uint8, MT_PTR )
             tpv.id = pidx
             dim as MirInst tins
-            tins.op = cast( ushort, M_STORE )
-            tins.ty = cast( ubyte, MT_VOID )
+            tins.op = cast( uint16, M_STORE )
+            tins.ty = cast( uint8, MT_VOID )
             tins.a = taddr
             tins.b = tpv
             Emit( c, tins )
         end if
         pidx += 1
     end if
-    for i as long = 0 to sp->count - 1
+    for i as int32 = 0 to sp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[sp->first + i] )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         dim as Tko.StmtPayload ptr pp = StmtOf( c, prm )
@@ -596,7 +596,7 @@ sub LowerProc _
         '' COUNTED into the arity, which nothing noticed while the arity was all there
         '' was: a variadic's declared arity was one too many and every call to it
         '' disagreed with it by exactly the ellipsis.
-        if pp->op = cast( ushort, Tko.TK_ELLIPSIS ) then
+        if pp->op = cast( uint16, Tko.TK_ELLIPSIS ) then
             f->isVariadic = true
             pidx += 1
             continue for
@@ -606,7 +606,7 @@ sub LowerProc _
         '' THE SLOT'S TYPE IS THE PARAMETER'S TYPE. Where there is no slot -- an
         '' unresolved or unnamed parameter -- the declared type is lowered instead, so
         '' the arity and the signature stay the same length either way.
-        dim as long pslot = -1
+        dim as int32 pslot = -1
         if psid <> Tko.SYMBOL_NONE then pslot = LocalFor( c, psid )
         if (pslot >= 0) andalso (pslot < c.f->locals.Count) then
             '' The SLOT already knows how many bytes it reserved, which is the same
@@ -617,10 +617,10 @@ sub LowerProc _
             '' to classify. It then rewrote the prologue to copy an object into a slot
             '' that holds an address.
             dim as MirType pmt = cast( MirType, c.f->locals[pslot].ty )
-            dim as ulong psz = 0
-            dim as ulong pcl = 0
+            dim as uint32 psz = 0
+            dim as uint32 pcl = 0
             if pmt = MT_AGG then
-                psz = cast( ulong, c.f->locals[pslot].size )
+                psz = cast( uint32, c.f->locals[pslot].size )
                 pcl = ClassifyEightbytes( c, c.f->locals[pslot].frontendType )
             end if
             '' THE DEFINITION WIDENS EXACTLY AS THE DECLARATION DOES, off the slot's own
@@ -631,28 +631,28 @@ sub LowerProc _
         else
             dim as Tko.TypeId pt = c.info->TypeOf_( pp->a )
             dim as MirType pmt2 = ParamMirType( c, pt )
-            dim as ulong psz2 = 0
-            dim as ulong pcl2 = 0
+            dim as uint32 psz2 = 0
+            dim as uint32 pcl2 = 0
             if pmt2 = MT_AGG then
-                psz2 = cast( ulong, SizeOfType( c, pt ) )
+                psz2 = cast( uint32, SizeOfType( c, pt ) )
                 pcl2 = ClassifyEightbytes( c, pt )
             end if
             f->AddParam( pmt2, psz2, pcl2, TKO_PA_NONE, ParamExtClass_( c, pt ) )
         end if
         if psid <> Tko.SYMBOL_NONE then
-            dim as long slot = pslot
+            dim as int32 slot = pslot
             if slot >= 0 then
                 dim as MirValue addr
-                addr.kind = cast( ubyte, MV_LOCAL )
-                addr.ty = cast( ubyte, MT_PTR )
+                addr.kind = cast( uint8, MV_LOCAL )
+                addr.ty = cast( uint8, MT_PTR )
                 addr.id = slot
                 dim as MirValue pv
-                pv.kind = cast( ubyte, MV_PARAM )
+                pv.kind = cast( uint8, MV_PARAM )
                 pv.ty = c.f->locals[slot].ty
                 pv.id = pidx
                 dim as MirInst ins
-                ins.op = cast( ushort, M_STORE )
-                ins.ty = cast( ubyte, MT_VOID )
+                ins.op = cast( uint16, M_STORE )
+                ins.ty = cast( uint8, MT_VOID )
                 ins.a = addr
                 ins.b = pv
                 Emit( c, ins )
@@ -705,7 +705,7 @@ sub LowerProc _
 
     if wantsPrologue then
         dim as MirValue ta = AddrOfVar( c, thisSym )
-        if ta.kind <> cast( ubyte, MV_NONE ) then
+        if ta.kind <> cast( uint8, MV_NONE ) then
             dim as MirValue tv = LowerExprLoad( c, ta, MT_PTR )
             if inCtor then
                 '' A DELEGATING CONSTRUCTOR HAS NO PROLOGUE AT ALL -- see
@@ -741,16 +741,16 @@ sub LowerProc _
     dim as MirValue savedModName, savedFuncName
     if namesProc then
         dim as Tko.DecodedLoc pfd = c.srcMgr->Decode( c.ast->Loc( id ) )
-        dim as containers.Array( of ulong ) ma
+        dim as containers.Array( of uint32 ) ma
         dim as MirValue mv = LowerTextAddr( c, c.srcMgr->PathOf( pfd.file ) )
-        ma.Push( cast( ulong, mv.kind ) ) : ma.Push( cast( ulong, mv.id ) )
+        ma.Push( cast( uint32, mv.kind ) ) : ma.Push( cast( uint32, mv.id ) )
         savedModName = EmitRtl( c, RTL_ERROR_SET_MOD_NAME, ma )
-        dim as containers.Array( of ulong ) fa
+        dim as containers.Array( of uint32 ) fa
         dim as MirValue fv = LowerTextAddr( c, Tko.Text.UpperAscii( c.names->Spelling( sp->name ) ) )
-        fa.Push( cast( ulong, fv.kind ) ) : fa.Push( cast( ulong, fv.id ) )
+        fa.Push( cast( uint32, fv.kind ) ) : fa.Push( cast( uint32, fv.id ) )
         savedFuncName = EmitRtl( c, RTL_ERROR_SET_FUNC_NAME, fa )
     end if
-    dim as long scopeDepthIn = c.scopeMark.Count
+    dim as int32 scopeDepthIn = c.scopeMark.Count
     PushScope( c )
 
     '' THE IMPLICIT EPILOGUE OF A DESTRUCTOR -- the fields in REVERSE declaration order,
@@ -768,11 +768,11 @@ sub LowerProc _
     if wantsEpilogue then
         '' The slot holds THIS, which is a pointer, so the action LOADS it rather than
         '' taking its address.
-        dim as long tslot = LocalFor( c, thisSym )
+        dim as int32 tslot = LocalFor( c, thisSym )
         if tslot >= 0 then
             c.cleanupNode.Push( CLEANUP_DTOR_EPILOGUE )
             c.cleanupSlot.Push( tslot )
-            c.cleanupType.Push( cast( ulong, structorType ) )
+            c.cleanupType.Push( cast( uint32, structorType ) )
         end if
     end if
 
@@ -794,8 +794,8 @@ sub LowerProc _
     if c.udtResult andalso (c.resultSlot >= 0) then
         '' By value: the result local's VALUE, exactly as fbc returns fb$result.
         dim as MirValue ura
-        ura.kind = cast( ubyte, MV_LOCAL )
-        ura.ty = cast( ubyte, MT_PTR )
+        ura.kind = cast( uint8, MV_LOCAL )
+        ura.ty = cast( uint8, MT_PTR )
         ura.id = c.resultSlot
         Terminate( c, MTERM_RET, -1, -1, LowerExprLoad( c, ura, MT_AGG ) )
     elseif c.sretParam >= 0 then
@@ -803,17 +803,17 @@ sub LowerProc _
         '' function fell off the end or not: fbc emits 'return tmp$2$1' at the exit
         '' label either way.
         dim as MirValue spa2
-        spa2.kind = cast( ubyte, MV_LOCAL )
-        spa2.ty = cast( ubyte, MT_PTR )
+        spa2.kind = cast( uint8, MV_LOCAL )
+        spa2.ty = cast( uint8, MT_PTR )
         spa2.id = c.sretParam
         Terminate( c, MTERM_RET, -1, -1, LowerExprLoad( c, spa2, MT_PTR ) )
-    elseif (c.resultSlot >= 0) andalso (c.resultTy = cast( ubyte, MT_AGG )) then
+    elseif (c.resultSlot >= 0) andalso (c.resultTy = cast( uint8, MT_AGG )) then
         dim as MirValue ra2
-        ra2.kind = cast( ubyte, MV_LOCAL )
-        ra2.ty = cast( ubyte, MT_PTR )
+        ra2.kind = cast( uint8, MV_LOCAL )
+        ra2.ty = cast( uint8, MT_PTR )
         ra2.id = c.resultSlot
-        dim as containers.Array( of ulong ) rargs
-        rargs.Push( cast( ulong, ra2.kind ) ) : rargs.Push( cast( ulong, ra2.id ) )
+        dim as containers.Array( of uint32 ) rargs
+        rargs.Push( cast( uint32, ra2.kind ) ) : rargs.Push( cast( uint32, ra2.id ) )
         dim as MirValue rv2 = EmitRtl( c, ResultTempRtl_( c ), rargs )
         Terminate( c, MTERM_RET, -1, -1, rv2 )
     else
@@ -847,29 +847,29 @@ sub LowerProc _
     ''
     '' Reverse order, as fbc restores them: the function name, then the module name.
     if namesProc then
-        dim as long savedCurBlk = c.curBlock
-        for bi as long = 0 to c.f->blocks.Count - 1
-            if c.f->blocks[bi].term <> cast( ubyte, MTERM_RET ) then continue for
+        dim as int32 savedCurBlk = c.curBlock
+        for bi as int32 = 0 to c.f->blocks.Count - 1
+            if c.f->blocks[bi].term <> cast( uint8, MTERM_RET ) then continue for
             c.curBlock = bi
-            dim as containers.Array( of ulong ) ra
-            ra.Push( cast( ulong, savedFuncName.kind ) )
-            ra.Push( cast( ulong, savedFuncName.id ) )
+            dim as containers.Array( of uint32 ) ra
+            ra.Push( cast( uint32, savedFuncName.kind ) )
+            ra.Push( cast( uint32, savedFuncName.id ) )
             EmitRtl( c, RTL_ERROR_SET_FUNC_NAME, ra )
-            dim as containers.Array( of ulong ) rb
-            rb.Push( cast( ulong, savedModName.kind ) )
-            rb.Push( cast( ulong, savedModName.id ) )
+            dim as containers.Array( of uint32 ) rb
+            rb.Push( cast( uint32, savedModName.kind ) )
+            rb.Push( cast( uint32, savedModName.id ) )
             EmitRtl( c, RTL_ERROR_SET_MOD_NAME, rb )
         next
         c.curBlock = savedCurBlk
     end if
-    for bi as long = 0 to c.f->blocks.Count - 1
-        if c.f->blocks[bi].term <> cast( ubyte, MTERM_NONE ) then continue for
+    for bi as int32 = 0 to c.f->blocks.Count - 1
+        if c.f->blocks[bi].term <> cast( uint8, MTERM_NONE ) then continue for
         c.st->blocksRepaired += 1
         if bi + 1 < c.f->blocks.Count then
-            c.f->blocks[bi].term = cast( ubyte, MTERM_BR )
+            c.f->blocks[bi].term = cast( uint8, MTERM_BR )
             c.f->blocks[bi].target = bi + 1
         else
-            c.f->blocks[bi].term = cast( ubyte, MTERM_RET )
+            c.f->blocks[bi].term = cast( uint8, MTERM_RET )
         end if
     next
 
@@ -966,7 +966,7 @@ function LowerSretResult _
     '' and run, the function returns 123.
     dim as boolean bareLit = (c.ast->Kind( valueE ) = Tko.N_TUPLE)
     if bareLit then
-        bareLit = ((c.ast->nodes[cast( long, valueE )].flags and _
+        bareLit = ((c.ast->nodes[cast( int32, valueE )].flags and _
                     Tko.NF_TYPE_LITERAL) <> 0)
     end if
     '' THE NAMED FORM IS A LITERAL TOO. 'type<T>( )' carries its own type, so the
@@ -990,7 +990,7 @@ function LowerSretResult _
     dim as boolean tupleLit = false
     if (bareLit = false) andalso (namedLit = false) then
         if c.ast->Kind( valueE ) = Tko.N_TUPLE then
-            if (c.ast->nodes[cast( long, valueE )].flags and _
+            if (c.ast->nodes[cast( int32, valueE )].flags and _
                 Tko.NF_TYPE_LITERAL) = 0 then
                 if c.resultType <> Tko.TYPE_NONE then
                     tupleLit = IsTupleType_( c, c.types->Unqualify( c.resultType ) )
@@ -1019,11 +1019,11 @@ function LowerSretResult _
         '' would have left two owners of it.
         if isReturn andalso (c.types->Kind( lt ) = Tko.TK_UDT) then
             dim as MirValue rsa
-            rsa.kind = cast( ubyte, MV_LOCAL )
-            rsa.ty = cast( ubyte, MT_PTR )
+            rsa.kind = cast( uint8, MV_LOCAL )
+            rsa.ty = cast( uint8, MT_PTR )
             rsa.id = c.sretParam
             dim as MirValue rdst = LowerExprLoad( c, rsa, MT_PTR )
-            if rdst.kind <> cast( ubyte, MV_NONE ) then
+            if rdst.kind <> cast( uint8, MV_NONE ) then
                 if LowerCtorInit( c, -1, lt, valueE, @rdst ) then return true
                 '' THE HIDDEN POINTER'S STORAGE IS RAW, and a field list ASSIGNS into
                 '' its leaves. Assigning into a field nobody constructed is one
@@ -1034,9 +1034,9 @@ function LowerSretResult _
             end if
         end if
         if (bareLit orelse tupleLit) andalso (c.types->Kind( lt ) = Tko.TK_UDT) then
-            dim as long lsz = SizeOfType( c, lt )
+            dim as int32 lsz = SizeOfType( c, lt )
             if lsz > 0 then
-                dim as long lslot = NewTempLocal( c, MT_AGG, lsz )
+                dim as int32 lslot = NewTempLocal( c, MT_AGG, lsz )
                 if lslot >= 0 then
                     if LowerCtorInit( c, lslot, lt, valueE ) then
                         '' NOT REGISTERED FOR DESTRUCTION. The store below is a
@@ -1052,20 +1052,20 @@ function LowerSretResult _
                         '' trade fbc makes for its own move of a bare literal into
                         '' the hidden pointer.
                         dim as MirValue laddr2
-                        laddr2.kind = cast( ubyte, MV_LOCAL )
-                        laddr2.ty = cast( ubyte, MT_PTR )
+                        laddr2.kind = cast( uint8, MV_LOCAL )
+                        laddr2.ty = cast( uint8, MT_PTR )
                         laddr2.id = lslot
                         dim as MirValue lv2 = LowerExprLoad( c, laddr2, MT_AGG )
-                        if lv2.kind <> cast( ubyte, MV_NONE ) then
+                        if lv2.kind <> cast( uint8, MV_NONE ) then
                             dim as MirValue lsa
-                            lsa.kind = cast( ubyte, MV_LOCAL )
-                            lsa.ty = cast( ubyte, MT_PTR )
+                            lsa.kind = cast( uint8, MV_LOCAL )
+                            lsa.ty = cast( uint8, MT_PTR )
                             lsa.id = c.sretParam
                             dim as MirValue ldst = LowerExprLoad( c, lsa, MT_PTR )
-                            if ldst.kind <> cast( ubyte, MV_NONE ) then
+                            if ldst.kind <> cast( uint8, MV_NONE ) then
                                 dim as MirInst lst
-                                lst.op = cast( ushort, M_STORE )
-                                lst.ty = cast( ubyte, MT_VOID )
+                                lst.op = cast( uint16, M_STORE )
+                                lst.ty = cast( uint8, MT_VOID )
                                 lst.a = ldst
                                 lst.b = lv2
                                 Emit( c, lst )
@@ -1088,47 +1088,47 @@ function LowerSretResult _
     '' program exited 0xC0000374 after printing the right answer.
     ''
     '' ONLY THE ONE THIS EXPRESSION BUILT, which is why the mark is taken here.
-    dim as long smark = c.udtTemps.Count
+    dim as int32 smark = c.udtTemps.Count
     dim as MirValue val = LowerExpr( c, valueE )
     dim as MirValue movedFrom
-    if val.kind = cast( ubyte, MV_NONE ) then
+    if val.kind = cast( uint8, MV_NONE ) then
         dim as MirValue src = LowerAddr( c, valueE )
-        if src.kind = cast( ubyte, MV_NONE ) then return false
+        if src.kind = cast( uint8, MV_NONE ) then return false
         movedFrom = src
         val = LowerExprLoad( c, src, MT_AGG )
     end if
-    if val.kind = cast( ubyte, MV_NONE ) then return false
+    if val.kind = cast( uint8, MV_NONE ) then return false
     '' A USER OPERATOR'S HIDDEN RESULT IS ITS TEMPORARY'S ADDRESS -- see LowerUserBinaryOp_
     '' -- and the object is the bytes behind it. 'return m & " " & str( y )' over a type
     '' with no copy constructor stored the temporary's ADDRESS into the caller's object.
-    if val.kind = cast( ubyte, MV_LOCAL ) then
-        if c.f->locals[val.id].ty = cast( ubyte, MT_AGG ) then
+    if val.kind = cast( uint8, MV_LOCAL ) then
+        if c.f->locals[val.id].ty = cast( uint8, MT_AGG ) then
             '' ...COPIED, not moved, when an operator built it -- RetFromUserOp_.
             if RetFromUserOp_( c, valueE ) = false then movedFrom = val
             val = LowerExprLoad( c, val, MT_AGG )
-            if val.kind = cast( ubyte, MV_NONE ) then return false
+            if val.kind = cast( uint8, MV_NONE ) then return false
         end if
     end if
     '' THE OUTERMOST temporary the expression built, which is the object whose bytes
     '' the store moves. Anything deeper -- an argument's temporary, say -- was
     '' consumed inside and still has to be destroyed.
-    if movedFrom.kind = cast( ubyte, MV_LOCAL ) then
+    if movedFrom.kind = cast( uint8, MV_LOCAL ) then
         ForgetUdtTemp_( c, movedFrom.id )
     elseif (c.udtTemps.Count > smark) andalso _
            (c.ast->Kind( valueE ) = Tko.N_TUPLE) then
-        ForgetUdtTemp_( c, cast( long, c.udtTemps[c.udtTemps.Count - 1] ) )
+        ForgetUdtTemp_( c, cast( int32, c.udtTemps[c.udtTemps.Count - 1] ) )
     end if
 
     dim as MirValue sa
-    sa.kind = cast( ubyte, MV_LOCAL )
-    sa.ty = cast( ubyte, MT_PTR )
+    sa.kind = cast( uint8, MV_LOCAL )
+    sa.ty = cast( uint8, MT_PTR )
     sa.id = c.sretParam
     dim as MirValue dst = LowerExprLoad( c, sa, MT_PTR )
-    if dst.kind = cast( ubyte, MV_NONE ) then return false
+    if dst.kind = cast( uint8, MV_NONE ) then return false
 
     dim as MirInst st
-    st.op = cast( ushort, M_STORE )
-    st.ty = cast( ubyte, MT_VOID )
+    st.op = cast( uint16, M_STORE )
+    st.ty = cast( uint8, MT_VOID )
     st.a = dst
     st.b = val
     Emit( c, st )
@@ -1201,12 +1201,12 @@ sub LowerMainModule _
         f->isPrivate = true
     end if
     dim as MirFunction ptr savedF = c.f
-    dim as long savedB = c.curBlock
+    dim as int32 savedB = c.curBlock
     c.f = f
     if c.srcMgr <> 0 then
         dim as Tko.DecodedLoc dbgAt = c.srcMgr->Decode( c.ast->Loc( root ) )
-        f->dbgFile = cast( ulong, iif( c.moduleFile >= 0, c.moduleFile, dbgAt.file ) ) + 1
-        f->dbgLine = iif( cast( ulong, dbgAt.file ) + 1 = f->dbgFile, dbgAt.physLine, 1 )
+        f->dbgFile = cast( uint32, iif( c.moduleFile >= 0, c.moduleFile, dbgAt.file ) ) + 1
+        f->dbgLine = iif( cast( uint32, dbgAt.file ) + 1 = f->dbgFile, dbgAt.physLine, 1 )
     end if
     c.st->functions += 1
     c.curBlock = NewBlock( c, "entry" )
@@ -1216,32 +1216,32 @@ sub LowerMainModule _
     '' loaded at the bottom.
     dim as MirValue resAddr
     if isMainModule then
-        dim as long resSlot = NewTempLocal( c, MT_I32, 4 )
-        resAddr.kind = cast( ubyte, MV_LOCAL )
-        resAddr.ty = cast( ubyte, MT_PTR )
+        dim as int32 resSlot = NewTempLocal( c, MT_I32, 4 )
+        resAddr.kind = cast( uint8, MV_LOCAL )
+        resAddr.ty = cast( uint8, MT_PTR )
         resAddr.id = resSlot
         dim as MirInst z
-        z.op = cast( ushort, M_STORE )
-        z.ty = cast( ubyte, MT_VOID )
+        z.op = cast( uint16, M_STORE )
+        z.ty = cast( uint8, MT_VOID )
         z.a = resAddr
         z.b = ConstInt( c, 0, MT_I32 )
         Emit( c, z )
 
         dim as MirValue argcv, argvv
-        argcv.kind = cast( ubyte, MV_PARAM )
-        argcv.ty = cast( ubyte, MT_I32 )
+        argcv.kind = cast( uint8, MV_PARAM )
+        argcv.ty = cast( uint8, MT_I32 )
         argcv.id = 0
-        argvv.kind = cast( ubyte, MV_PARAM )
-        argvv.ty = cast( ubyte, MT_PTR )
+        argvv.kind = cast( uint8, MV_PARAM )
+        argvv.ty = cast( uint8, MT_PTR )
         argvv.id = 1
-        dim as containers.Array( of ulong ) ia
-        ia.Push( cast( ulong, argcv.kind ) ) : ia.Push( cast( ulong, argcv.id ) )
-        ia.Push( cast( ulong, argvv.kind ) ) : ia.Push( cast( ulong, argvv.id ) )
+        dim as containers.Array( of uint32 ) ia
+        ia.Push( cast( uint32, argcv.kind ) ) : ia.Push( cast( uint32, argcv.id ) )
+        ia.Push( cast( uint32, argvv.kind ) ) : ia.Push( cast( uint32, argvv.id ) )
         dim as MirValue zero_ = ConstInt( c, 0, MT_I32 )
-        ia.Push( cast( ulong, zero_.kind ) ) : ia.Push( cast( ulong, zero_.id ) )
+        ia.Push( cast( uint32, zero_.kind ) ) : ia.Push( cast( uint32, zero_.id ) )
         EmitRtl( c, RTL_INIT, ia )
         '' -e: fbc's 'fb_InitSignals( )' after fb_Init -- 'b \ 0' is runtime error 11 (F-59).
-        dim as containers.Array( of ulong ) noArgs : if (c.errFlags and 1) <> 0 then EmitRtl( c, RTL_INIT_SIGNALS, noArgs )
+        dim as containers.Array( of uint32 ) noArgs : if (c.errFlags and 1) <> 0 then EmitRtl( c, RTL_INIT_SIGNALS, noArgs )
     end if
 
     ClearLabels( c, 0 )
@@ -1277,28 +1277,28 @@ sub LowerMainModule _
         '' whenever a name has been set at all -- so setting nothing is a third answer
         '' and matches neither.
         dim as Tko.DecodedLoc pfd = c.srcMgr->Decode( c.ast->Loc( root ) )
-        dim as containers.Array( of ulong ) ma
+        dim as containers.Array( of uint32 ) ma
         dim as MirValue mv = LowerTextAddr( c, c.srcMgr->PathOf( pfd.file ) )
-        ma.Push( cast( ulong, mv.kind ) ) : ma.Push( cast( ulong, mv.id ) )
+        ma.Push( cast( uint32, mv.kind ) ) : ma.Push( cast( uint32, mv.id ) )
         savedModName = EmitRtl( c, RTL_ERROR_SET_MOD_NAME, ma )
-        dim as containers.Array( of ulong ) fa
+        dim as containers.Array( of uint32 ) fa
         dim as MirValue fv = LowerTextAddr( c, "" )
-        fa.Push( cast( ulong, fv.kind ) ) : fa.Push( cast( ulong, fv.id ) )
+        fa.Push( cast( uint32, fv.kind ) ) : fa.Push( cast( uint32, fv.id ) )
         savedFuncName = EmitRtl( c, RTL_ERROR_SET_FUNC_NAME, fa )
     end if
-    dim as long scopeDepthIn = c.scopeMark.Count
+    dim as int32 scopeDepthIn = c.scopeMark.Count
     PushScope( c )
     '' The children are walked directly rather than through LowerBlock. N_MODULE is a
     '' LIST node, so handing it to a routine that reads a statement payload would read
     '' the wrong pool -- the mistake this file has made three times already.
     dim as Tko.ListPayload ptr mp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, root )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, root )].data )]
     c.labelBase = scopeDepthIn + 1
-    for i as long = 0 to mp->count - 1
+    for i as int32 = 0 to mp->count - 1
         ScanLabels( c, cast( Tko.NodeId, c.ast->children[mp->first + i] ), _
                     scopeDepthIn + 1 )
     next
-    for i as long = 0 to mp->count - 1
+    for i as int32 = 0 to mp->count - 1
         LowerStmt( c, cast( Tko.NodeId, c.ast->children[mp->first + i] ) )
     next
     CloseScope( c )
@@ -1310,9 +1310,9 @@ sub LowerMainModule _
     '' preceding it, so shutting the runtime down before releasing its strings would
     '' invert the order fbc actually emits.
     if isMainModule then
-        dim as containers.Array( of ulong ) ea
+        dim as containers.Array( of uint32 ) ea
         dim as MirValue zend = ConstInt( c, 0, MT_I32 )
-        ea.Push( cast( ulong, zend.kind ) ) : ea.Push( cast( ulong, zend.id ) )
+        ea.Push( cast( uint32, zend.kind ) ) : ea.Push( cast( uint32, zend.id ) )
         EmitRtl( c, RTL_END, ea )
 
         dim as MirValue rv = LowerExprLoad( c, resAddr, MT_I32 )
@@ -1339,29 +1339,29 @@ sub LowerMainModule _
     ''
     '' Reverse order, as fbc restores them: the function name, then the module name.
     if namesProc then
-        dim as long savedCurBlk = c.curBlock
-        for bi as long = 0 to c.f->blocks.Count - 1
-            if c.f->blocks[bi].term <> cast( ubyte, MTERM_RET ) then continue for
+        dim as int32 savedCurBlk = c.curBlock
+        for bi as int32 = 0 to c.f->blocks.Count - 1
+            if c.f->blocks[bi].term <> cast( uint8, MTERM_RET ) then continue for
             c.curBlock = bi
-            dim as containers.Array( of ulong ) ra
-            ra.Push( cast( ulong, savedFuncName.kind ) )
-            ra.Push( cast( ulong, savedFuncName.id ) )
+            dim as containers.Array( of uint32 ) ra
+            ra.Push( cast( uint32, savedFuncName.kind ) )
+            ra.Push( cast( uint32, savedFuncName.id ) )
             EmitRtl( c, RTL_ERROR_SET_FUNC_NAME, ra )
-            dim as containers.Array( of ulong ) rb
-            rb.Push( cast( ulong, savedModName.kind ) )
-            rb.Push( cast( ulong, savedModName.id ) )
+            dim as containers.Array( of uint32 ) rb
+            rb.Push( cast( uint32, savedModName.kind ) )
+            rb.Push( cast( uint32, savedModName.id ) )
             EmitRtl( c, RTL_ERROR_SET_MOD_NAME, rb )
         next
         c.curBlock = savedCurBlk
     end if
-    for bi as long = 0 to c.f->blocks.Count - 1
-        if c.f->blocks[bi].term <> cast( ubyte, MTERM_NONE ) then continue for
+    for bi as int32 = 0 to c.f->blocks.Count - 1
+        if c.f->blocks[bi].term <> cast( uint8, MTERM_NONE ) then continue for
         c.st->blocksRepaired += 1
         if bi + 1 < c.f->blocks.Count then
-            c.f->blocks[bi].term = cast( ubyte, MTERM_BR )
+            c.f->blocks[bi].term = cast( uint8, MTERM_BR )
             c.f->blocks[bi].target = bi + 1
         else
-            c.f->blocks[bi].term = cast( ubyte, MTERM_RET )
+            c.f->blocks[bi].term = cast( uint8, MTERM_RET )
         end if
     next
 
@@ -1396,7 +1396,7 @@ private function TopItemIsCode_( byref c as Ctx, byval id as Tko.NodeId ) as boo
     case Tko.N_NAMESPACE, Tko.N_EXTERN_BLOCK
         '' Its BODY decides, exactly as WalkTop below descends into one.
         dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-        for i as long = 0 to sp->count - 1
+        for i as int32 = 0 to sp->count - 1
             if TopItemIsCode_( c, cast( Tko.NodeId, c.ast->children[sp->first + i] ) ) then
                 return true
             end if
@@ -1409,8 +1409,8 @@ end function
 function ModuleHasCode( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if id = Tko.NODE_NONE then return false
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-    for i as long = 0 to lp->count - 1
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    for i as int32 = 0 to lp->count - 1
         if TopItemIsCode_( c, cast( Tko.NodeId, c.ast->children[lp->first + i] ) ) then
             return true
         end if
@@ -1423,13 +1423,13 @@ private sub WalkTop( byref c as Ctx, byval id as Tko.NodeId )
     select case c.ast->Kind( id )
     case Tko.N_MODULE, Tko.N_BLOCK
         dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-        for i as long = 0 to lp->count - 1
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        for i as int32 = 0 to lp->count - 1
             WalkTop( c, cast( Tko.NodeId, c.ast->children[lp->first + i] ) )
         next
     case Tko.N_NAMESPACE, Tko.N_EXTERN_BLOCK
         dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-        for i as long = 0 to sp->count - 1
+        for i as int32 = 0 to sp->count - 1
             WalkTop( c, cast( Tko.NodeId, c.ast->children[sp->first + i] ) )
         next
     case Tko.N_PROC
@@ -1446,8 +1446,8 @@ function Lower _
       byref m as MirModule, byref st as LowerStats, _
       byval isMainModule as boolean = true, _
       byref moduleName as string = "", _
-      byval errFlags as long = 0, _
-      byval diags as any ptr = 0, byval moduleFile as long = -1 ) as long
+      byval errFlags as int32 = 0, _
+      byval diags as any ptr = 0, byval moduleFile as int32 = -1 ) as int32
 
     dim as Ctx c
     c.srcMgr = @src
@@ -1482,7 +1482,7 @@ function Lower _
     '' were created after the unit's root block was closed, so nothing reaches them
     '' from root -- they would be collected, resolved and typed, and then silently not
     '' emitted, which reads at a call site as a call into a name with no code.
-    for i as long = 0 to ast.extraTopLevel.Count - 1
+    for i as int32 = 0 to ast.extraTopLevel.Count - 1
         WalkTop( c, cast( Tko.NodeId, ast.extraTopLevel[i] ) )
     next
     LowerMainModule( c, root, isMainModule, moduleName )

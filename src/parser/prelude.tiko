@@ -304,19 +304,19 @@ end function
 function PreludeProcSpellings( ) as string
     dim as string t = lcase( PreludeText( ) )
     dim as string out_ = "|"
-    dim as long i = 1
+    dim as int32 i = 1
     do
-        dim as long a = instr( i, t, "declare " )
+        dim as int32 a = instr( i, t, "declare " )
         if a = 0 then exit do
         i = a + 8
-        dim as long w = instr( i, t, " " )
+        dim as int32 w = instr( i, t, " " )
         if w = 0 then exit do
         dim as string kw = mid( t, i, w - i )
         if (kw = "sub") orelse (kw = "function") then
-            dim as long k = w + 1
-            dim as long e = k
+            dim as int32 k = w + 1
+            dim as int32 e = k
             while e <= len( t )
-                dim as ubyte ch = t[e - 1]
+                dim as uint8 ch = t[e - 1]
                 dim as boolean alnum = ((ch >= 97) andalso (ch <= 122)) orelse _
                                        ((ch >= 48) andalso (ch <= 57)) orelse (ch = 95)
                 if alnum = false then exit while

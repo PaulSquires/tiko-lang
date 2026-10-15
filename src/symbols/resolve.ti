@@ -34,9 +34,9 @@ namespace Tko
         AMB_ERROR
     end enum
 
-    type SymIdVec  as containers.Array( of ulong )
-    type TypeIdVec3 as containers.Array( of ulong )
-    type ByteVec   as containers.Array( of ubyte )
+    type SymIdVec  as containers.Array( of uint32 )
+    type TypeIdVec3 as containers.Array( of uint32 )
+    type ByteVec   as containers.Array( of uint8 )
 
     '' Per-node annotations. Dense arrays indexed by NodeId: the AST is contiguous, so
     '' this is cheaper and simpler than a map.
@@ -44,7 +44,7 @@ namespace Tko
         as SymIdVec   refSymbol     '' NodeId -> SymbolId  (identifiers, call targets)
         '' Bumped by every SetType and SetRef that CHANGES something: Check's "this node
         '' is untyped" memo is valid only while it is unchanged.
-        as ulong      version
+        as uint32      version
         as TypeIdVec3 nodeType      '' NodeId -> TypeId    (type references)
         as SymIdVec   nodeScope     '' NodeId -> ScopeId   (recorded by Collect)
         as ByteVec    ambiguous     '' NodeId -> AmbiguousResolution
@@ -59,7 +59,7 @@ namespace Tko
         '' so lowering reads the choice instead of making it again (audit Phase 4).
         as SymIdVec   decision
 
-        declare sub Resize( byval nodeCount as long )
+        declare sub Resize( byval nodeCount as int32 )
         declare sub SetRef( byval n as NodeId, byval s as SymbolId )
         declare function RefOf( byval n as NodeId ) as SymbolId
         declare sub SetType( byval n as NodeId, byval t as TypeId )
@@ -68,8 +68,8 @@ namespace Tko
         declare function ScopeOf( byval n as NodeId ) as ScopeId
         declare sub SetAmbiguous( byval n as NodeId, byval a as AmbiguousResolution )
         declare function AmbiguousOf( byval n as NodeId ) as AmbiguousResolution
-        declare sub SetInstFrame( byval n as NodeId, byval f as long )
-        declare function InstFrameOf( byval n as NodeId ) as long
+        declare sub SetInstFrame( byval n as NodeId, byval f as int32 )
+        declare function InstFrameOf( byval n as NodeId ) as int32
         declare sub SetDecision( byval n as NodeId, byval s as SymbolId )
         declare function DecisionOf( byval n as NodeId ) as SymbolId
     end type
@@ -79,26 +79,26 @@ end namespace
 namespace Tko.Resolve
 
     type Stats
-        as long references        '' identifiers bound to a symbol
-        as long builtins          '' names that are BUILTIN (LEN, ASC, SIN ...)
-        as long undefined_        '' genuinely unresolved
-        as long typeRefs
-        as long calls
-        as long assigns
+        as int32 references        '' identifiers bound to a symbol
+        as int32 builtins          '' names that are BUILTIN (LEN, ASC, SIN ...)
+        as int32 undefined_        '' genuinely unresolved
+        as int32 typeRefs
+        as int32 calls
+        as int32 assigns
         '' Triage aid: the interned names that did not bind, so the causes can be
         '' aggregated instead of guessed at.
-        as containers.Array( of ulong ) unresolvedNames
+        as containers.Array( of uint32 ) unresolvedNames
         '' ...and the NODES, for the undeclared-name report that runs after Check
         '' (Check.ReportUndeclared) -- Resolve cannot make it, because a builtin that is
         '' not a keyword binds nothing either and only a later pass can rule it out.
-        as containers.Array( of ulong ) unresolvedIds
+        as containers.Array( of uint32 ) unresolvedIds
         '' ...and the TYPE REFERENCES whose name found nothing -- 'dim as Foo a', 'type X as
         '' FB.Array( of Cell )' with no Array declared. Reported after Check, by the same
         '' pass, once nothing has typed them by then; see undeclared.tiko.
-        as containers.Array( of ulong ) unresolvedTypes
+        as containers.Array( of uint32 ) unresolvedTypes
         '' ...and the operands of len / sizeof / typeof whose namespace prefix was DROPPED
         '' (resolveintr.tiko DropNsPrefix_): an undeclared one is told why (undeclared.tiko).
-        as containers.Array( of ulong ) droppedNsIds
+        as containers.Array( of uint32 ) droppedNsIds
     end type
 
     declare sub Run _
@@ -107,7 +107,7 @@ namespace Tko.Resolve
           byref names as Tko.Interner, byref diags as Tko.DiagnosticEngine, _
           byref src as Tko.SourceManager, _
           byref info as Tko.SemanticInfo, byref st as Stats, _
-          byval parser as any ptr = 0, byval maxInstDepth as long = 64 )
+          byval parser as any ptr = 0, byval maxInstDepth as int32 = 64 )
 
     declare function Dump _
         ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _

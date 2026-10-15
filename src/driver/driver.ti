@@ -36,7 +36,7 @@ namespace Tko
         '' How many of diags' errors are TOOLCHAIN failures (driver.tiko, ToolFail_). The
         '' exit code tells the two apart -- 1 for the program, 3/4/5 for the machine --
         '' and 'the engine holds an error' no longer can, now that both are diagnostics.
-        as long              toolErrors
+        as int32              toolErrors
 
         '' SHARED BY EVERY COMPILATION UNIT OF THIS INVOCATION: the lexed token vectors,
         '' and the literal pool their tokens index. A header included by all 92 of
@@ -55,7 +55,7 @@ namespace Tko
         '' ('http'), and its files in order. modFileCount = 0 for a classic compile.
         as string                 modChain
         as string                 modName
-        as long                   modFileCount
+        as int32                   modFileCount
         as FileIdVec              modFiles
         '' ...and its PACKAGE: the name, and the root its relative imports stay inside.
         as string                 modPkgName
@@ -131,8 +131,8 @@ namespace Tko.Driver
     '' how tikoParser.dll (src/api) drives a scan through the same command line as a CLI run.
     '' 'buildOut', when given, is the Tko.Build.Observer of a 'tiko build' (src/build).
     declare function Run _
-        ( byref args as Tko.StrVec, byval restartDepth as long = 0, _
-          byval scanOut as any ptr = 0, byval buildOut as any ptr = 0 ) as long
+        ( byref args as Tko.StrVec, byval restartDepth as int32 = 0, _
+          byval scanOut as any ptr = 0, byval buildOut as any ptr = 0 ) as int32
 
     '' The output a run with these options writes when no '-o' names one, by fbc's rule.
     declare function DefaultOutput( byref o as Tko.DriverOptions ) as string

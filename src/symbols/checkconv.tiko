@@ -7,7 +7,7 @@
 function ConversionCost _
     ( byval from_ as Tko.TypeId, byval to_ as Tko.TypeId, _
       byref types as Tko.TypeContext, _
-      byval overloaded as boolean = false ) as long
+      byval overloaded as boolean = false ) as int32
 
     if (from_ = Tko.TYPE_NONE) orelse (to_ = Tko.TYPE_NONE) then return CONV_NONE
     if from_ = to_ then return CONV_EXACT
@@ -77,7 +77,7 @@ function ConversionCost _
     '' functions each have a { string, wstring, ustring } overload set.
     if (types.Kind( from_ ) = Tko.TK_BUILTIN) andalso _
        (types.Kind( to_ ) = Tko.TK_BUILTIN) then
-        dim as long sr = StringPref_( types.BuiltinOf( from_ ), types.BuiltinOf( to_ ) )
+        dim as int32 sr = StringPref_( types.BuiltinOf( from_ ), types.BuiltinOf( to_ ) )
         '' ...but a STRING reaching a WIDE string is fbc's HALF tier, dearer than a
         '' 'zstring ptr' -- see CONV_STR_TO_USTR. Measured: a string offered { byref
         '' const ustring, const zstring ptr } takes the pointer, and so does one offered
@@ -162,22 +162,22 @@ function ConversionCost _
         return CONV_NONE
     end if
 
-    dim as long sr = Rank_( srcB )
-    dim as long dr = Rank_( dstB )
+    dim as int32 sr = Rank_( srcB )
+    dim as int32 dr = Rank_( dstB )
 
     '' BOOLEAN on either side is its own tier, dearer than any numeric conversion
     '' however lossy: offered 'byte' and 'boolean' for a DOUBLE argument, fbc takes
     '' byte. Within the tier a SIGNED parameter is preferred, then the lower rank --
     '' a boolean argument offered 'uinteger' and 'longint' takes longint.
     if (srcB = Tko.TY_BOOLEAN) orelse (dstB = Tko.TY_BOOLEAN) then
-        dim as long b = CONV_BOOL
+        dim as int32 b = CONV_BOOL
         if dr = 0 then return b + 1
         '' Within the tier, in order: the integer class beats the float class, then
         '' the nearest WIDTH, then SIGNED before unsigned, then rank. That last pair
         '' is what makes a boolean argument offered 'uinteger' and 'longint' take
         '' longint -- the only case in the table where the higher rank wins.
         if IsFloat_( dstB ) then b += 1000
-        dim as long bs = types.Layout( to_ ).size - 1
+        dim as int32 bs = types.Layout( to_ ).size - 1
         if bs < 0 then bs = -bs
         b += bs * 16
         if IsUnsignedInt_( dstB ) then b += 8
@@ -196,14 +196,14 @@ function ConversionCost _
 
     '' Staying in the class beats changing it OUTRIGHT, even when staying means
     '' narrowing: offered 'short' and 'double' for a LONG argument, fbc takes short.
-    dim as long cost = CONV_NUMERIC      '' see its declaration
+    dim as int32 cost = CONV_NUMERIC      '' see its declaration
     if IsFloat_( srcB ) <> IsFloat_( dstB ) then cost += CONV_CLASS
 
     '' Then SIZE: the same width beats a widening, and a widening beats a narrowing.
     '' 'byte' beats 'short' for a UBYTE argument (same width), while 'longint' beats
     '' 'short' for a LONG argument (widening rather than narrowing).
-    dim as long ss = types.Layout( from_ ).size
-    dim as long ds = types.Layout( to_ ).size
+    dim as int32 ss = types.Layout( from_ ).size
+    dim as int32 ds = types.Layout( to_ ).size
     '' Width dominates every later tiebreak: a LONG argument offered 'byte' and
     '' 'ushort' takes ushort, the nearer width, even though byte matches its
     '' signedness and ushort does not.
@@ -232,7 +232,7 @@ function ConversionCost _
     '' does not apply: a SINGLE argument offered 'integer' and 'longint' takes
     '' integer, though longint is nearer in rank.
     if IsFloat_( srcB ) = IsFloat_( dstB ) then
-        dim as long rd = dr - sr
+        dim as int32 rd = dr - sr
         if rd < 0 then rd = -rd
         cost += rd * 2
     end if

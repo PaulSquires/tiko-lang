@@ -12,11 +12,11 @@ namespace Tko
 
 type PpValue
     as boolean  isStr
-    as longint  num
+    as int64  num
     '' A FLOATING value -- a float literal, or '/' of anything. 'num' then holds it
     '' rounded, for the builtins that only read an integer.
     as boolean  isFlt
-    as double   fnum
+    as float64   fnum
     '' AN UNSIGNED integer -- a decimal literal above the longint range, and what is
     '' computed from one. Compared and divided unsigned; 'num' holds its 64 bits.
     as boolean  isUns
@@ -48,7 +48,7 @@ end type
 type PpExprState
     as PpEngine ptr e
     as TokenVec ptr toks
-    as long     pos
+    as int32     pos
     as boolean  bad
 end type
 
@@ -59,9 +59,9 @@ private function StrTokenIsEscaped_ _
     ( byref e as PpEngine, byref t as Token ) as boolean
 
     if Tk( t ) <> TK_STRING_LIT then return false
-    dim as long li = cast( long, t.literal )
+    dim as int32 li = cast( int32, t.literal )
     if (li < 0) orelse (li >= (*e.lits).Count) then return false
-    return ((*e.lits)[li].strKind = cast( ubyte, STRK_ESCAPED ))
+    return ((*e.lits)[li].strKind = cast( uint8, STRK_ESCAPED ))
 end function
 
 private function PxPeek( byref x as PpExprState ) as TokenKind
@@ -79,14 +79,14 @@ private sub PxNext( byref x as PpExprState )
     x.pos += 1
 end sub
 
-private function PxNum( byval v as longint ) as PpValue
+private function PxNum( byval v as int64 ) as PpValue
     dim as PpValue r
     r.isStr = false
     r.num = v
     return r
 end function
 
-private function PxFlt( byval d as double ) as PpValue
+private function PxFlt( byval d as float64 ) as PpValue
     dim as PpValue r
     r.isFlt = true
     r.fnum = d
@@ -95,9 +95,9 @@ private function PxFlt( byval d as double ) as PpValue
 end function
 
 '' An operand as a double, and as an integer -- FreeBASIC rounds a float to nearest.
-private function PxD( byref v as PpValue ) as double
+private function PxD( byref v as PpValue ) as float64
     if v.isFlt then return v.fnum
-    if v.isUns then return cast( double, cast( ulongint, v.num ) )
+    if v.isUns then return cast( float64, cast( uint64, v.num ) )
     return cdbl( v.num )
 end function
 
@@ -108,21 +108,21 @@ private function PxName_( byref nm as string ) as PpValue
     return r
 end function
 
-private function PxNumU( byval v as longint, byval uns as boolean ) as PpValue
+private function PxNumU( byval v as int64, byval uns as boolean ) as PpValue
     dim as PpValue r = PxNum( v )
     r.isUns = uns
     return r
 end function
 
 '' A float result, single when every float operand is one -- 'single op integer' stays single.
-private function PxFltOf_( byval d as double, byref l as PpValue, byref r as PpValue ) as PpValue
+private function PxFltOf_( byval d as float64, byref l as PpValue, byref r as PpValue ) as PpValue
     dim as boolean sg = (l.isSgl orelse (l.isFlt = false)) andalso (r.isSgl orelse (r.isFlt = false)) andalso (l.isSgl orelse r.isSgl)
     dim as PpValue v = PxFlt( iif( sg, cdbl( csng( d ) ), d ) )
     v.isSgl = sg
     return v
 end function
 
-private function PxSgl_( byval d as double ) as PpValue
+private function PxSgl_( byval d as float64 ) as PpValue
     dim as PpValue v = PxFlt( cdbl( csng( d ) ) )
     v.isSgl = true
     return v
@@ -130,7 +130,7 @@ end function
 
 '' THE LITERAL'S OWN SUFFIX, from the lexer's record -- the same field Check types the literal by.
 private function LitSuffix_( byref e as PpEngine, byref t as Token ) as NumSuffix
-    dim as long li = cast( long, t.literal )
+    dim as int32 li = cast( int32, t.literal )
     if (li < 0) orelse (li >= (*e.lits).Count) then return NSUF_NONE
     return cast( NumSuffix, (*e.lits)[li].suffix )
 end function
@@ -141,24 +141,24 @@ end function
 '' is why '1ul > -1' is true; 'u' and 'ull' unsigned 64; '!' / 'f' a single. Unsuffixed, a
 '' DECIMAL from 2^31 to 2^32-1 or from 2^63 up is unsigned -- Check.DecimalLitUnsigned, so
 '' '3000000000 \ -2' is 0, as fbc answers -- and a hex, octal or binary one never is.
-private function PxIntLit_( byref x as PpExprState, byval v as longint, byval sf as NumSuffix, byval dec as boolean ) as PpValue
+private function PxIntLit_( byref x as PpExprState, byval v as int64, byval sf as NumSuffix, byval dec as boolean ) as PpValue
     '' THE LITERAL MODEL (lexer/littype.tiko) -- the one Check types the literal by, so '#if' and code
     '' cannot disagree about a literal's type.
     dim as boolean is64 = x.e->cfg->targetIs64
-    dim as long lc = LiteralClassOf( sf, iif( dec, 10, 16 ), cast( ulongint, v ), false, is64 )
+    dim as int32 lc = LiteralClassOf( sf, iif( dec, 10, 16 ), cast( uint64, v ), false, is64 )
     select case lc
-    case LC_LONG     : return PxNum( cast( long, v ) )
-    case LC_ULONG    : return PxNum( cast( longint, cast( ulong, v ) ) )
+    case LC_LONG     : return PxNum( cast( int32, v ) )
+    case LC_ULONG    : return PxNum( cast( int64, cast( uint32, v ) ) )
     case LC_UINTEGER, LC_ULONGINT : return PxNumU( v, true )
-    case LC_SINGLE   : return PxSgl_( cast( double, v ) )
-    case LC_DOUBLE   : return PxFlt( cast( double, v ) )
+    case LC_SINGLE   : return PxSgl_( cast( float64, v ) )
+    case LC_DOUBLE   : return PxFlt( cast( float64, v ) )
     end select
     '' An INTEGER is the target's: 32 bits on a 32-bit one, where '&hFFFFFFFF' is -1.
-    if (lc = LC_INTEGER) andalso (is64 = false) then return PxNum( cast( long, v ) )
+    if (lc = LC_INTEGER) andalso (is64 = false) then return PxNum( cast( int32, v ) )
     return PxNum( v )
 end function
 
-private function PxI( byref v as PpValue ) as longint
+private function PxI( byref v as PpValue ) as int64
     return v.num
 end function
 
@@ -190,7 +190,7 @@ declare function PxNot( byref x as PpExprState ) as PpValue
 '' '#if sizeof( integer ) = 8' would have taken the wrong branch of every header on
 '' win32 -- silently, since a wrong branch is not an error. WSTRING and ZSTRING were
 '' simply absent, which is what '#if sizeof( wstring ) = 4' failed on.
-private function BuiltinSizeOf( byval k as TokenKind, byval is64 as boolean ) as long
+private function BuiltinSizeOf( byval k as TokenKind, byval is64 as boolean ) as int32
     select case k
     case KW_BYTE, KW_UBYTE, KW_BOOLEAN            : return 1
     case KW_ZSTRING                               : return 1
@@ -206,30 +206,30 @@ end function
 '' Two 'typeof' operands can be compared without a symbol table when BOTH name a
 '' type directly: 'typeof( long ) = typeof( long )'. The token kind is the identity.
 '' 'typeof( someVariable )' needs the type system and is not evaluable here.
-private function TypeIdentityOf( byval k as TokenKind ) as long
+private function TypeIdentityOf( byval k as TokenKind ) as int32
     '' The IDENTITY of a builtin is its token kind, so the size argument is irrelevant
     '' here -- any target that gives it a size gives it an identity.
-    if BuiltinSizeOf( k, true ) >= 0 then return cast( long, k )
+    if BuiltinSizeOf( k, true ) >= 0 then return cast( int32, k )
     select case k
-    case KW_ANY, KW_ZSTRING, KW_WSTRING, KW_USTRING : return cast( long, k )
+    case KW_ANY, KW_ZSTRING, KW_WSTRING, KW_USTRING : return cast( int32, k )
     end select
     return -1
 end function
 
 '' WHAT tiko's FIXED-WIDTH NAMES STAND FOR when the program has not typedef'd them itself:
 '' the prelude's ten, which are parsed after the unit and so never noted (prelude.tiko).
-private function FixedWidthKind_( byref nm as string ) as long
+private function FixedWidthKind_( byref nm as string ) as int32
     select case lcase( nm )
-    case "int8"    : return cast( long, KW_BYTE )
-    case "uint8"   : return cast( long, KW_UBYTE )
-    case "int16"   : return cast( long, KW_SHORT )
-    case "uint16"  : return cast( long, KW_USHORT )
-    case "int32"   : return cast( long, KW_LONG )
-    case "uint32"  : return cast( long, KW_ULONG )
-    case "int64"   : return cast( long, KW_LONGINT )
-    case "uint64"  : return cast( long, KW_ULONGINT )
-    case "float32" : return cast( long, KW_SINGLE )
-    case "float64" : return cast( long, KW_DOUBLE )
+    case "int8"    : return cast( int32, KW_BYTE )
+    case "uint8"   : return cast( int32, KW_UBYTE )
+    case "int16"   : return cast( int32, KW_SHORT )
+    case "uint16"  : return cast( int32, KW_USHORT )
+    case "int32"   : return cast( int32, KW_LONG )
+    case "uint32"  : return cast( int32, KW_ULONG )
+    case "int64"   : return cast( int32, KW_LONGINT )
+    case "uint64"  : return cast( int32, KW_ULONGINT )
+    case "float32" : return cast( int32, KW_SINGLE )
+    case "float64" : return cast( int32, KW_DOUBLE )
     end select
     return 0
 end function
@@ -239,25 +239,25 @@ end function
 '' operand -- '[const] T [ptr ...]' or a variable -- as a key, with its ')' consumed; ""
 '' when it is anything else, which stays unevaluable.
 '' Is a type of folded id ix declared in namespace ns ("" the global one)?
-private function TypeInNs_( byref e as PpEngine, byval ix as long, byref ns as string ) as boolean
+private function TypeInNs_( byref e as PpEngine, byval ix as int32, byref ns as string ) as boolean
     if (ix < 0) orelse (ix >= e.typeNs.Count) then return false
     return instr( e.typeNs[ix], "|" & ns & "|" ) > 0
 end function
 
 '' 'Q<ns>:<id>', with an EMPTY ns for the global one: resolved, so never resolved again.
-private function NsKey_( byref ns as string, byval ix as long ) as string
+private function NsKey_( byref ns as string, byval ix as int32 ) as string
     return "Q" & ns & ":" & str( ix )
 end function
 
 '' The namespace a 'using' in ns imported that declares ix, or NONE ("?").
 '' ...AND ON THROUGH THE USED NAMESPACE'S OWN USINGS: 'using N2' where N2 holds 'using N1' makes N1's
 '' T a bare 'T' (namespace/ns-using2.bas). 'depth' stops a cycle.
-private function TypeThroughUsing_( byref e as PpEngine, byval ix as long, byref ns as string, byval depth as long = 0 ) as string
+private function TypeThroughUsing_( byref e as PpEngine, byval ix as int32, byref ns as string, byval depth as int32 = 0 ) as string
     if depth > 8 then return "?"
     dim as string pre = "|" & ns & ">"
-    dim as long at = instr( e.usingIn, pre )
+    dim as int32 at = instr( e.usingIn, pre )
     while at > 0
-        dim as long st_ = at + len( pre )
+        dim as int32 st_ = at + len( pre )
         dim as string tgt = mid( e.usingIn, st_, instr( st_, e.usingIn, "|" ) - st_ )
         if TypeInNs_( e, ix, tgt ) then return tgt
         dim as string deeper = TypeThroughUsing_( e, ix, tgt, depth + 1 )
@@ -272,7 +272,7 @@ end function
 '' each enclosing one, then the usings made along that chain. "" when nothing declares it,
 '' and the caller keeps the namespace-blind answer.
 private function NsTypeKey_ _
-    ( byref e as PpEngine, byval ix as long, byref qual as string, byval isGlobal as boolean ) as string
+    ( byref e as PpEngine, byval ix as int32, byref qual as string, byval isGlobal as boolean ) as string
     if isGlobal then
         if TypeInNs_( e, ix, "" ) then return NsKey_( "", ix )
         return ""
@@ -283,7 +283,7 @@ private function NsTypeKey_ _
         if qu <> "?" then return NsKey_( qu, ix )
         return ""
     end if
-    for pass as long = 0 to 1
+    for pass as int32 = 0 to 1
         dim as string ns = e.curNs
         do
             if pass = 0 then
@@ -293,7 +293,7 @@ private function NsTypeKey_ _
                 if un <> "?" then return NsKey_( un, ix )
             end if
             if len( ns ) = 0 then exit do
-            dim as long dp = instrrev( ns, "." )
+            dim as int32 dp = instrrev( ns, "." )
             ns = iif( dp > 0, left( ns, dp - 1 ), "" )
         loop
     next
@@ -346,7 +346,7 @@ private function PxProcPtrOperand_( byref x as PpExprState ) as string
     dim as boolean isStructor = (mem = "constructor") orelse (mem = "destructor")
     dim as string txt = ""
     dim as InternId mk = x.e->names->GetString( lcase( owner & "." & mem ) )
-    dim as long mix = cast( long, mk )
+    dim as int32 mix = cast( int32, mk )
     dim as string noted = ""
     if mix < x.e->memberKey.Count then noted = x.e->memberKey[mix]
     if PxPeek( x ) = TK_COMMA then
@@ -363,8 +363,8 @@ private function PxProcPtrOperand_( byref x as PpExprState ) as string
         if isStructor then
             cc = "CDECL"
         elseif len( noted ) > 0 then
-            dim as long op = instr( noted, "(" )
-            dim as long sp1 = instr( noted, " " )
+            dim as int32 op = instr( noted, "(" )
+            dim as int32 sp1 = instr( noted, " " )
             if (sp1 > 0) andalso (sp1 < op) then cc = mid( noted, sp1 + 1, op - sp1 - 1 )
         end if
         if PxPeek( x ) <> TK_LPAREN then return ""
@@ -414,7 +414,7 @@ end function
 private function PxTypeOperand_( byref x as PpExprState ) as string
     '' 'procptr( T.m [, sig] )' -- see PxProcPtrOperand_.
     scope
-        dim as long ppAt = x.pos
+        dim as int32 ppAt = x.pos
         dim as string ppKey = PxProcPtrOperand_( x )
         if len( ppKey ) > 0 then return ppKey
         x.pos = ppAt
@@ -437,7 +437,7 @@ private function PxTypeOperand_( byref x as PpExprState ) as string
         PxNext( x ) : PxNext( x )
     wend
     if (PxPeek( x ) = TK_IDENT) andalso (qGlobal orelse (len( qual ) > 0) orelse (len( x.e->curNs ) > 0) orelse (len( x.e->usingIn ) > 0)) then
-        dim as long qix = cast( long, x.e->names->Fold( cast( InternId, PxTok( x ).literal ) ) )
+        dim as int32 qix = cast( int32, x.e->names->Fold( cast( InternId, PxTok( x ).literal ) ) )
         dim as string qkey = NsTypeKey_( *x.e, qix, qual, qGlobal )
         if len( qkey ) > 0 then
             PxNext( x )
@@ -463,7 +463,7 @@ private function PxTypeOperand_( byref x as PpExprState ) as string
         nmId = x.e->names->GetString( Text.LowerAscii( TokenKindText( k ) ) )
     end if
     if nmId <> INTERN_NONE then
-        dim as long ix = cast( long, x.e->names->Fold( nmId ) )
+        dim as int32 ix = cast( int32, x.e->names->Fold( nmId ) )
         dim as boolean isType = false
         if ix < x.e->typedefKey.Count then isType = (len( x.e->typedefKey[ix] ) > 0)
         if (isType = false) andalso (ix < x.e->typeNameMark.Count) then isType = (x.e->typeNameMark[ix] <> 0)
@@ -472,7 +472,7 @@ private function PxTypeOperand_( byref x as PpExprState ) as string
         if isType then key = "N" & str( ix )
         if len( key ) = 0 then return ""
     elseif TypeIdentityOf( k ) >= 0 then
-        key = "K" & str( cast( long, k ) )
+        key = "K" & str( cast( int32, k ) )
     else
         return ""
     end if
@@ -490,20 +490,20 @@ end function
 '' kind, as 'typeof( long )' always was; anything else -- a pointer, a named type -- a
 '' string no number can equal.
 private function PxTypeValue_( byref e as PpEngine, byval key as string ) as PpValue
-    for guard as long = 0 to 15
+    for guard as int32 = 0 to 15
         if left( key, 1 ) = "P" then exit for     '' a procedure type's text -- PxProcPtrOperand_
-        dim as long sp = instr( key, " " )
+        dim as int32 sp = instr( key, " " )
         dim as string base_ = iif( sp > 0, left( key, sp - 1 ), key )
         dim as string rest = iif( sp > 0, mid( key, sp ), "" )
         if left( base_, 1 ) <> "N" then exit for
-        dim as long ix = valint( mid( base_, 2 ) )
+        dim as int32 ix = valint( mid( base_, 2 ) )
         if ix < e.typedefKey.Count then
             if len( e.typedefKey[ix] ) > 0 then
                 key = e.typedefKey[ix] & rest
                 continue for
             end if
         end if
-        dim as long fw = FixedWidthKind_( e.names->Spelling( cast( InternId, ix ) ) )
+        dim as int32 fw = FixedWidthKind_( e.names->Spelling( cast( InternId, ix ) ) )
         if fw > 0 then key = "K" & str( fw ) & rest
         '' ...AND A NAMED TYPE THROUGH THE NAMESPACES, so a variable's 'UDT' reads as the type
         '' itself does: 'NS.UDT' (fbc-int/query-symbol.bas, a type declared in a TEST).
@@ -524,14 +524,14 @@ private function PxTypeValue_( byref e as PpEngine, byval key as string ) as PpV
         pr.str_ = mid( key, 2 )
         return pr
     end if
-    dim as long sp2 = instr( key, " " )
+    dim as int32 sp2 = instr( key, " " )
     dim as string b2 = iif( sp2 > 0, left( key, sp2 - 1 ), key )
     dim as string tail2 = iif( sp2 > 0, mid( key, sp2 ), "" )
     dim as string txt
     if left( b2, 1 ) = "K" then
         txt = TokenKindText( cast( TokenKind, valint( mid( b2, 2 ) ) ) )
     elseif left( b2, 1 ) = "Q" then
-        dim as long qc = instr( b2, ":" )
+        dim as int32 qc = instr( b2, ":" )
         txt = e.names->Spelling( cast( InternId, valint( mid( b2, qc + 1 ) ) ) )
         if qc > 2 then txt = mid( b2, 2, qc - 2 ) & "." & txt
     else
@@ -556,17 +556,17 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
         dim as string sp = SpellOf( *x.e, t )
         PxNext( x )
         dim as string digits = sp
-        dim as longint v = 0
+        dim as int64 v = 0
         if len( digits ) >= 2 andalso (digits[0] = 38) then          '' &H &O &B
-            dim as long radix = 8
-            dim as ubyte c = digits[1]
+            dim as int32 radix = 8
+            dim as uint8 c = digits[1]
             if (c = 72) orelse (c = 104) then radix = 16
             if (c = 66) orelse (c = 98) then radix = 2
-            dim as long start = 2
+            dim as int32 start = 2
             if (c >= 48) andalso (c <= 57) then start = 1
-            for i as long = start to len( digits ) - 1
-                dim as long d = -1
-                dim as ubyte ch = digits[i]
+            for i as int32 = start to len( digits ) - 1
+                dim as int32 d = -1
+                dim as uint8 ch = digits[i]
                 if (ch >= 48) andalso (ch <= 57) then d = ch - 48
                 if (ch >= 65) andalso (ch <= 70) then d = ch - 55
                 if (ch >= 97) andalso (ch <= 102) then d = ch - 87
@@ -581,8 +581,8 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
             '' Check.DecimalLitUnsigned -- and '#if 18446744073709551615 > 0' is true to
             '' fbc. Read as a longint it was -1. It is carried UNSIGNED, so it still
             '' equals a '&hFFFFFFFFFFFFFFFF' beside it, which a double would not.
-            dim as ulongint uv = valulng( digits )
-            return PxIntLit_( x, cast( longint, uv ), LitSuffix_( *x.e, t ), true )   '' '5ull > -1' is false
+            dim as uint64 uv = valulng( digits )
+            return PxIntLit_( x, cast( int64, uv ), LitSuffix_( *x.e, t ), true )   '' '5ull > -1' is false
         end if
         return PxNum( v )
 
@@ -606,8 +606,8 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
             dim as string sp = SpellOf( *x.e, st )
             PxNext( x )
             '' Strip the delimiters and any !/$ prefix; comparisons are on content.
-            dim as long a = instr( sp, """" )
-            dim as long b = instrrev( sp, """" )
+            dim as int32 a = instr( sp, """" )
+            dim as int32 b = instrrev( sp, """" )
             dim as string body
             if (a > 0) andalso (b > a) then
                 body = mid( sp, a + 1, b - a - 1 )
@@ -618,7 +618,7 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
             '' lexer only refuses to end the literal there, so the collapse happens on
             '' the way out, exactly as the MIR reader does it.
             dim as string coll
-            dim as long i = 1
+            dim as int32 i = 1
             while i <= len( body )
                 dim as string ch = mid( body, i, 1 )
                 coll += ch
@@ -772,7 +772,7 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
         end if
         if k = KW_CDBL then return PxFlt( PxD( ca ) )
         if k = KW_CSNG then return PxSgl_( PxD( ca ) )
-        dim as longint ci
+        dim as int64 ci
         if ca.isFlt then
             ci = clngint( ca.fnum )   '' round half to even, as fbc's CINT
         else
@@ -781,18 +781,18 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
         select case k
         case KW_CINT
             if x.e->cfg->targetIs64 then return PxNum( ci )
-            return PxNum( cast( long, ci ) )
-        case KW_CLNG      : return PxNum( cast( long, ci ) )
+            return PxNum( cast( int32, ci ) )
+        case KW_CLNG      : return PxNum( cast( int32, ci ) )
         case KW_CLNGINT   : return PxNum( ci )
         case KW_CUINT
             if x.e->cfg->targetIs64 then return PxNumU( ci, true )
-            return PxNum( cast( longint, cast( ulong, ci ) ) )
-        case KW_CULNG     : return PxNum( cast( longint, cast( ulong, ci ) ) )
+            return PxNum( cast( int64, cast( uint32, ci ) ) )
+        case KW_CULNG     : return PxNum( cast( int64, cast( uint32, ci ) ) )
         case KW_CULNGINT  : return PxNumU( ci, true )
-        case KW_CSHORT    : return PxNum( cast( short, ci ) )
-        case KW_CUSHORT   : return PxNum( cast( ushort, ci ) )
-        case KW_CBYTE     : return PxNum( cast( byte, ci ) )
-        case else         : return PxNum( cast( ubyte, ci ) )
+        case KW_CSHORT    : return PxNum( cast( int16, ci ) )
+        case KW_CUSHORT   : return PxNum( cast( uint16, ci ) )
+        case KW_CBYTE     : return PxNum( cast( int8, ci ) )
+        case else         : return PxNum( cast( uint8, ci ) )
         end select
 
     '' IIF picks a branch; BOTH are parsed, because the unchosen one still has to
@@ -831,13 +831,13 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
         dim as boolean paren = (PxPeek( x ) = TK_LPAREN)
         if paren then PxNext( x )
         if paren andalso (k = KW_TYPEOF) then
-            dim as long at0 = x.pos
+            dim as int32 at0 = x.pos
             dim as string key = PxTypeOperand_( x )
             if len( key ) > 0 then return PxTypeValue_( *x.e, key )
             x.pos = at0
         end if
         dim as TokenKind inner = PxPeek( x )
-        dim as long v = -1
+        dim as int32 v = -1
         if k = KW_SIZEOF then
             v = BuiltinSizeOf( inner, x.e->cfg->targetIs64 )
         else
@@ -852,7 +852,7 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
         end if
         '' Consume to the matching ')' either way, so recovery stays sane.
         if paren then
-            dim as long depth = 1
+            dim as int32 depth = 1
             while (depth > 0) andalso (x.pos < x.toks->Count)
                 if PxPeek( x ) = TK_LPAREN then depth += 1
                 if PxPeek( x ) = TK_RPAREN then depth -= 1
@@ -1005,7 +1005,7 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
         '' read 0 and took the false branch: LOCALE_NAME_USER_DEFAULT and the rest of
         '' the Vista-and-later half were never declared.
         if x.e <> 0 then
-            dim as longint cv = 0
+            dim as int64 cv = 0
             if PpConstValue( *x.e, t.literal, cv ) then return PxNum( cv )
             dim as string csv
             if PpConstStrValue( *x.e, t.literal, csv ) then   '' 'const S1 = "abc"'
@@ -1112,7 +1112,7 @@ private function PxIntDiv( byref x as PpExprState ) as PpValue
             x.bad = true
             l = PxNum( 0 )
         elseif l.isUns orelse r.isUns then
-            l = PxNumU( cast( longint, cast( ulongint, PxI( l ) ) \ cast( ulongint, PxI( r ) ) ), true )
+            l = PxNumU( cast( int64, cast( uint64, PxI( l ) ) \ cast( uint64, PxI( r ) ) ), true )
         else
             l = PxNum( PxI( l ) \ PxI( r ) )
         end if
@@ -1129,7 +1129,7 @@ private function PxMod( byref x as PpExprState ) as PpValue
             x.bad = true
             l = PxNum( 0 )
         elseif l.isUns orelse r.isUns then
-            l = PxNumU( cast( longint, cast( ulongint, PxI( l ) ) mod cast( ulongint, PxI( r ) ) ), true )
+            l = PxNumU( cast( int64, cast( uint64, PxI( l ) ) mod cast( uint64, PxI( r ) ) ), true )
         else
             l = PxNum( PxI( l ) mod PxI( r ) )
         end if
@@ -1147,7 +1147,7 @@ private function PxShift( byref x as PpExprState ) as PpValue
         if k = KW_SHL then
             l = PxNumU( PxI( l ) shl PxI( r ), l.isUns )
         elseif l.isUns then
-            l = PxNumU( cast( longint, cast( ulongint, PxI( l ) ) shr PxI( r ) ), true )
+            l = PxNumU( cast( int64, cast( uint64, PxI( l ) ) shr PxI( r ) ), true )
         else
             l = PxNum( PxI( l ) shr PxI( r ) )
         end if
@@ -1225,7 +1225,7 @@ private function PxRel( byref x as PpExprState ) as PpValue
             case else  : res = (a >= b)
             end select
         elseif l.isFlt orelse r.isFlt then
-            dim as double a = PxD( l ), b = PxD( r )
+            dim as float64 a = PxD( l ), b = PxD( r )
             select case k
             case TK_EQ : res = (a = b)
             case TK_NE : res = (a <> b)
@@ -1235,7 +1235,7 @@ private function PxRel( byref x as PpExprState ) as PpValue
             case else  : res = (a >= b)
             end select
         elseif l.isUns orelse r.isUns then
-            dim as ulongint a = cast( ulongint, l.num ), b = cast( ulongint, r.num )
+            dim as uint64 a = cast( uint64, l.num ), b = cast( uint64, r.num )
             select case k
             case TK_EQ : res = (a = b)
             case TK_NE : res = (a <> b)
@@ -1360,7 +1360,7 @@ function PpEvalValueTokens _
 end function
 
 function PpEvalIntTokens _
-    ( byref e as PpEngine, byref toks as TokenVec, byref ok as boolean ) as longint
+    ( byref e as PpEngine, byref toks as TokenVec, byref ok as boolean ) as int64
 
     dim as PpExprState x
     x.e = @e

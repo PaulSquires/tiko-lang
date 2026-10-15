@@ -11,7 +11,7 @@ namespace Tko
 private function PpFindOrAddMacro _
     ( byref e as PpEngine, byval id as InternId ) as PpMacro ptr
 
-    dim as long slot = SlotOf( e, id )
+    dim as int32 slot = SlotOf( e, id )
     if slot > 0 then return @e.macros[slot - 1]
 
     dim as PpMacro m
@@ -74,7 +74,7 @@ private sub PpReadParams( byref e as PpEngine, byval m as PpMacro ptr, byval isB
 
         dim as InternId pn = ParamNameId_( e, t )
         if (pn <> 0) andalso (Tk( t ) <> TK_ELLIPSIS) then
-            m->params.Push( cast( ulong, pn ) )
+            m->params.Push( cast( uint32, pn ) )
             Advance( e )
         elseif Tk( t ) = TK_ELLIPSIS then
             m->isVariadic = true
@@ -104,12 +104,12 @@ end sub
 '' on consecutive lines, and fbc accepts it: measured, '#define A 1' twice is fine and
 '' '#define B 1' then '#define B 2' is error 4. The VALUES are what has to match.
 private function SameLiteral_ _
-    ( byref e as PpEngine, byval a as ulong, byval b as ulong ) as boolean
+    ( byref e as PpEngine, byval a as uint32, byval b as uint32 ) as boolean
 
     if a = b then return true
     if e.outp = 0 then return false
-    dim as long ia = cast( long, a )
-    dim as long ib = cast( long, b )
+    dim as int32 ia = cast( int32, a )
+    dim as int32 ib = cast( int32, b )
     if (ia < 0) orelse (ia >= (*e.lits).Count) then return false
     if (ib < 0) orelse (ib >= (*e.lits).Count) then return false
     dim as Literal ptr la = @(*e.lits)[ia]
@@ -117,7 +117,7 @@ private function SameLiteral_ _
     if la->kind <> lb->kind then return false
     if la->strKind <> lb->strKind then return false
     if la->suffix <> lb->suffix then return false
-    dim as boolean isStr = (la->kind = cast( ubyte, TK_STRING_LIT ))
+    dim as boolean isStr = (la->kind = cast( uint8, TK_STRING_LIT ))
     if isStr = false then
         if la->intValue <> lb->intValue then return false
         return (la->fltValue = lb->fltValue)
@@ -140,7 +140,7 @@ private function IdenticalRedefinition_ _
 
     if m->isFunc orelse oldIsFunc then return false
     if m->body.Count <> oldBody.Count then return false
-    for i as long = 0 to m->body.Count - 1
+    for i as int32 = 0 to m->body.Count - 1
         if m->body[i].kind <> oldBody[i].kind then return false
         dim as TokenKind bk = cast( TokenKind, m->body[i].kind )
         dim as boolean isLit = (bk = TK_INT_LIT) orelse (bk = TK_FLOAT_LIT)
@@ -219,7 +219,7 @@ private sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock 
     dim as boolean oldIsFunc = m->isFunc
     dim as TokenVec oldBody
     if wasDefined then
-        for i as long = 0 to m->body.Count - 1
+        for i as int32 = 0 to m->body.Count - 1
             oldBody.Push( m->body[i] )
         next
     end if
@@ -269,7 +269,7 @@ private sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock 
     ''
     '' A continuation INSIDE the parameter list is untouched -- PpReadParams has
     '' already consumed those, and fbc accepts '#macro m( a, _' with 'b )' below it.
-    SkipMacroHeader_( e ) : dim as long nest = 0   '' #macro inside #macro nests (pp/macro_nested1.bas)
+    SkipMacroHeader_( e ) : dim as int32 nest = 0   '' #macro inside #macro nests (pp/macro_nested1.bas)
     do
         dim as Token u
         if PeekTok( e, u ) = false then
@@ -281,7 +281,7 @@ private sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock 
         if (Tk( u ) = TK_HASH) andalso atLineStart then
             '' Look at the word after '#' without consuming it unless it matches.
             dim as PpFrame ptr f = @e.frames[e.frames.Count - 1]
-            dim as long save = f->pos
+            dim as int32 save = f->pos
             Advance( e )
             dim as Token w
             dim as boolean isEnd = false
@@ -326,16 +326,16 @@ private sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock 
     ''
     '' One program changes direction: a body whose FIRST line is a preprocessor
     '' directive, invoked after a ':', becomes an error. fbc errors on it too.
-    dim as long lead = 0
+    dim as int32 lead = 0
     while lead < m->body.Count
         if Tk( m->body[lead] ) <> TK_EOL then exit while
         lead += 1
     wend
     if lead > 0 then
-        for i as long = lead to m->body.Count - 1
+        for i as int32 = lead to m->body.Count - 1
             m->body[i - lead] = m->body[i]
         next
-        for i as long = 1 to lead
+        for i as int32 = 1 to lead
             m->body.Pop( )
         next
     end if
@@ -398,8 +398,8 @@ end sub
 '' ------------------------------------------------------------------- expansion
 
 type ArgList
-    as containers.Array( of long ) firsts    '' index into flat
-    as containers.Array( of long ) counts
+    as containers.Array( of int32 ) firsts    '' index into flat
+    as containers.Array( of int32 ) counts
     as TokenVec            flat
     as SourceLoc           closeLoc   '' the closing ')', for __LINE__ -- see PpFrame.lineLoc
 end type
@@ -421,7 +421,7 @@ private function PpReadArgs _
         Advance( e )
     end if
 
-    dim as long depth = iif( bare, 0, 1 )
+    dim as int32 depth = iif( bare, 0, 1 )
     '' COMMAS THAT BELONG TO A NESTED PARENTHESIS-LESS MACRO ARE NOT SEPARATORS.
     ''
     ''     foo( bar 1, 2, 3, baz( 4, 5, 6 ) )
@@ -433,11 +433,11 @@ private function PpReadArgs _
     ''
     '' A VARIADIC one is not counted: how many commas it claims is not knowable
     '' from its declaration, so those keep splitting as they did.
-    dim as long pendingCommas = 0
+    dim as int32 pendingCommas = 0
     dim as boolean pendSet = false
     dim as boolean pendSpace = false
-    dim as long first = 0
-    dim as long count = 0
+    dim as int32 first = 0
+    dim as int32 count = 0
     dim as boolean started = false
 
     do
@@ -593,7 +593,7 @@ end function
 '' builtins that want a count and wrong for __FB_EVAL__, which wants whichever the
 '' expression turned out to be.
 private function BuiltinValueArg_ _
-    ( byref e as PpEngine, byref args as ArgList, byval idx as long, _
+    ( byref e as PpEngine, byref args as ArgList, byval idx as int32, _
       byref ok as boolean ) as PpValue
 
     dim as PpValue empty_
@@ -601,18 +601,18 @@ private function BuiltinValueArg_ _
     if (idx < 0) orelse (idx >= args.firsts.Count) then return empty_
 
     dim as TokenVec ptr raw = new TokenVec
-    dim as long first = args.firsts[idx]
-    for i as long = 0 to args.counts[idx] - 1
+    dim as int32 first = args.firsts[idx]
+    for i as int32 = 0 to args.counts[idx] - 1
         raw->Push( args.flat[first + i] )
     next
 
-    dim as long baseDepth = e.frames.Count
-    dim as long savedFloor = e.frameFloor
+    dim as int32 baseDepth = e.frames.Count
+    dim as int32 savedFloor = e.frameFloor
     e.frameFloor = baseDepth
     PushFrame( e, raw, INTERN_NONE, FILE_NONE, true )
 
     dim as TokenVec expanded
-    dim as long guard = 0
+    dim as int32 guard = 0
     do
         guard += 1
         if guard > 100000 then exit do
@@ -684,7 +684,7 @@ private function EvalLiteral_ _
     ( byref v as PpValue, byref ok as boolean ) as string
 
     ok = true
-    if v.isStr = false then return iif( v.isFlt, iif( v.isSgl, str( csng( v.fnum ) ), str( v.fnum ) ), iif( v.isUns, str( cast( ulongint, v.num ) ), str( v.num ) ) )   '' a single re-emits as one
+    if v.isStr = false then return iif( v.isFlt, iif( v.isSgl, str( csng( v.fnum ) ), str( v.fnum ) ), iif( v.isUns, str( cast( uint64, v.num ) ), str( v.num ) ) )   '' a single re-emits as one
     '' A WIDE RESULT IS STILL REFUSED. It re-emits as '!"\uXXXX"' per character,
     '' four UPPERCASE hex digits -- measured, __FB_EVAL__( wstr("A") ) is
     '' '\u0041' -- and the preprocessor has no wide value to render.
@@ -705,14 +705,14 @@ private function EvalLiteral_ _
             ok = false
             return ""
         end if
-        for i as long = 1 to len( v.str_ )
+        for i as int32 = 1 to len( v.str_ )
             if asc( mid( v.str_, i, 1 ) ) > 127 then
                 ok = false
                 return ""
             end if
         next
         dim as string w = "!" & chr( 34 )
-        for i as long = 1 to len( v.str_ )
+        for i as int32 = 1 to len( v.str_ )
             w += "\u" & Tko.Text.UpperAscii( hex( asc( mid( v.str_, i, 1 ) ), 4 ) )
         next
         return w & chr( 34 )
@@ -725,7 +725,7 @@ private function EvalLiteral_ _
     '' __FB_EVAL__( "A" + !"\0" ) is '\x41\x00' and not a truncated "A" -- the NUL
     '' that ends a literal at RUNTIME does not end this one.
     dim as boolean hasNul = false
-    for i as long = 1 to len( v.str_ )
+    for i as int32 = 1 to len( v.str_ )
         if asc( mid( v.str_, i, 1 ) ) = 0 then
             hasNul = true
             exit for
@@ -733,7 +733,7 @@ private function EvalLiteral_ _
     next
     if hasNul then
         dim as string h = "!" & chr( 34 )
-        for i as long = 1 to len( v.str_ )
+        for i as int32 = 1 to len( v.str_ )
             '' ONE backslash: a plain FreeBASIC literal processes no escapes, so
             '' the doubled spelling emitted the text of an escape rather than one.
             h += "\x" & Tko.Text.UpperAscii( hex( asc( mid( v.str_, i, 1 ) ), 2 ) )
@@ -745,8 +745,8 @@ private function EvalLiteral_ _
     '' A QUOTE DOES NOT: it goes out raw, exactly as fbc writes it, because
     '' '__FB_UNQUOTE__( __FB_EVAL__( ... __FB_QUOTE__( tmp ) ) )' cannot work otherwise.
     '' A TAB is fine and is emitted raw, which is what fbc does with it.
-    for i as long = 1 to len( v.str_ )
-        dim as long ch = asc( mid( v.str_, i, 1 ) )
+    for i as int32 = 1 to len( v.str_ )
+        dim as int32 ch = asc( mid( v.str_, i, 1 ) )
         if (ch = 10) orelse (ch = 13) then
             ok = false
             return ""
@@ -761,26 +761,26 @@ end function
 declare function GapText_( byref e as PpEngine, byref a as Token, byref b as Token ) as string
 
 private function ExpandedArgText_ _
-    ( byref e as PpEngine, byref args as ArgList, byval idx as long ) as string
+    ( byref e as PpEngine, byref args as ArgList, byval idx as int32 ) as string
 
     if (idx < 0) orelse (idx >= args.firsts.Count) then return ""
 
     dim as TokenVec ptr raw = new TokenVec
-    dim as long first = args.firsts[idx]
-    for i as long = 0 to args.counts[idx] - 1
+    dim as int32 first = args.firsts[idx]
+    for i as int32 = 0 to args.counts[idx] - 1
         raw->Push( args.flat[first + i] )
     next
 
-    dim as long baseDepth = e.frames.Count
+    dim as int32 baseDepth = e.frames.Count
     '' THE FRAMES BELOW THIS ONE ARE NOT THIS WALK'S TO POP. See PpEngine.frameFloor:
     '' without it a nested builtin whose ')' ends the enclosing frame took that frame
     '' and the macro body's with it, and its own result then landed below this walk.
-    dim as long savedFloor = e.frameFloor
+    dim as int32 savedFloor = e.frameFloor
     e.frameFloor = baseDepth
     PushFrame( e, raw, INTERN_NONE, FILE_NONE, true )
 
     dim as string outp = ""
-    dim as long n = 0
+    dim as int32 n = 0
     '' THE FIRST TOKEN AN EXPANSION PRODUCES TAKES THE SPACING OF THE NAME THAT
     '' TRIGGERED IT, not its own. A macro's body begins after the space separating it
     '' from the name in the '#define', so that space sits on its first body token --
@@ -798,7 +798,7 @@ private function ExpandedArgText_ _
     dim as boolean pendSet = false
     dim as boolean pendSpace = false
     dim as Token prevT
-    dim as long guard = 0
+    dim as int32 guard = 0
     do
         guard += 1
         if guard > 100000 then exit do
@@ -839,12 +839,12 @@ end function
 
 '' A run of the re-split list, comma-joined.
 private function ListJoin_ _
-    ( byref lst as containers.Array( of string ), byval from as long, byval upto as long ) as string
+    ( byref lst as containers.Array( of string ), byval from as int32, byval upto as int32 ) as string
 
     dim as string s = ""
-    dim as long last = upto
+    dim as int32 last = upto
     if last > lst.Count - 1 then last = lst.Count - 1
-    for i as long = from to last
+    for i as int32 = from to last
         if i > from then s += ", "
         s += lst[i]
     next
@@ -894,8 +894,8 @@ private function SplitAtToken_ _
     if nv.Count <> 1 then return ""
 
     dim as string want = Text.LowerAscii( SpellOf( e, nv[0] ) )
-    dim as long hit = -1
-    for i as long = 0 to tv.Count - 1
+    dim as int32 hit = -1
+    for i as int32 = 0 to tv.Count - 1
         if Text.LowerAscii( SpellOf( e, tv[i] ) ) = want then
             hit = i
             exit for
@@ -903,8 +903,8 @@ private function SplitAtToken_ _
     next
     if hit < 0 then return ""
 
-    dim as long lo_ = 0
-    dim as long hi_ = hit - 1
+    dim as int32 lo_ = 0
+    dim as int32 hi_ = hit - 1
     if wantLeft = false then
         lo_ = hit + 1
         hi_ = tv.Count - 1
@@ -912,7 +912,7 @@ private function SplitAtToken_ _
     '' Respelled the way ArgText does it, so the spacing that came in comes back out
     '' and a stringize of the result reads as it was written.
     dim as string s = ""
-    for i as long = lo_ to hi_
+    for i as int32 = lo_ to hi_
         dim as boolean sep = ((tv[i].flags and TF_SPACE_BEFORE) <> 0) andalso (i > lo_)
         if sep then s += " "
         s += SpellOf( e, tv[i] )
@@ -921,11 +921,11 @@ private function SplitAtToken_ _
 end function
 
 private sub ExpandedArgList_ _
-    ( byref e as PpEngine, byref args as ArgList, byval from as long, _
+    ( byref e as PpEngine, byref args as ArgList, byval from as int32, _
       byref outp as containers.Array( of string ) )
 
     dim as string joined = ""
-    for i as long = from to args.firsts.Count - 1
+    for i as int32 = from to args.firsts.Count - 1
         if i > from then joined += ", "
         joined += ExpandedArgText_( e, args, i )
     next
@@ -935,12 +935,12 @@ private sub ExpandedArgList_ _
     '' An ESCAPED string -- '!"...' -- also skips the character after a backslash: in
     '' '!"BS BS BS Q Q Q 2,3"' the backslash-quote is no end, and the comma is inside
     '' (pp/macro-arg-extract.bas, nested_comma_direct).
-    dim as long depth = 0
+    dim as int32 depth = 0
     dim as boolean inQuote = false, inEsc = false
     dim as string cur = ""
-    dim as long i = 0
+    dim as int32 i = 0
     while i < len( joined )
-        dim as ubyte ch = joined[i]
+        dim as uint8 ch = joined[i]
         i += 1
         if inQuote then
             cur += chr( ch )
@@ -988,28 +988,28 @@ end sub
 '' the runtime headers is a small literal, and a half-understood expression here would
 '' silently chunk the list the wrong way rather than say so.
 private function BuiltinIntArg_ _
-    ( byref e as PpEngine, byref args as ArgList, byval idx as long, _
-      byref ok as boolean ) as longint
+    ( byref e as PpEngine, byref args as ArgList, byval idx as int32, _
+      byref ok as boolean ) as int64
 
     ok = false
     if (idx < 0) orelse (idx >= args.firsts.Count) then return 0
 
     dim as TokenVec ptr raw = new TokenVec
-    dim as long first = args.firsts[idx]
-    for i as long = 0 to args.counts[idx] - 1
+    dim as int32 first = args.firsts[idx]
+    for i as int32 = 0 to args.counts[idx] - 1
         raw->Push( args.flat[first + i] )
     next
 
-    dim as long baseDepth = e.frames.Count
+    dim as int32 baseDepth = e.frames.Count
     '' THE FRAMES BELOW THIS ONE ARE NOT THIS WALK'S TO POP. See PpEngine.frameFloor:
     '' without it a nested builtin whose ')' ends the enclosing frame took that frame
     '' and the macro body's with it, and its own result then landed below this walk.
-    dim as long savedFloor = e.frameFloor
+    dim as int32 savedFloor = e.frameFloor
     e.frameFloor = baseDepth
     PushFrame( e, raw, INTERN_NONE, FILE_NONE, true )
 
     dim as TokenVec expanded
-    dim as long guard = 0
+    dim as int32 guard = 0
     do
         guard += 1
         if guard > 100000 then exit do
@@ -1035,8 +1035,8 @@ private function BuiltinIntArg_ _
     return PpEvalIntTokens( e, expanded, ok )
 end function
 
-private function ArgIndexOf( byval m as PpMacro ptr, byval id as InternId ) as long
-    for i as long = 0 to m->params.Count - 1
+private function ArgIndexOf( byval m as PpMacro ptr, byval id as InternId ) as int32
+    for i as int32 = 0 to m->params.Count - 1
         if cast( InternId, m->params[i] ) = id then return i
     next
     return -1
@@ -1065,7 +1065,7 @@ declare function Stringised_( byref t as string ) as string   '' macrobuiltin.ti
 private function Unstringised_( byref t as string, byref ok as boolean ) as string
     ok = false
     dim as string src = trim( t )
-    dim as long i = 0
+    dim as int32 i = 0
     if len( src ) = 0 then return ""
     if (src[0] = 36) orelse (src[0] = 33) then i = 1   '' '$' or '!'
     if i >= len( src ) then return ""
@@ -1093,12 +1093,12 @@ private function Unstringised_( byref t as string, byref ok as boolean ) as stri
     return ""
 end function
 private function ArgText _
-    ( byref e as PpEngine, byref args as ArgList, byval idx as long ) as string
+    ( byref e as PpEngine, byref args as ArgList, byval idx as int32 ) as string
 
     if (idx < 0) orelse (idx >= args.firsts.Count) then return ""
     dim as string s = ""
-    dim as long first = args.firsts[idx]
-    for i as long = 0 to args.counts[idx] - 1
+    dim as int32 first = args.firsts[idx]
+    for i as int32 = 0 to args.counts[idx] - 1
         dim as Token t = args.flat[first + i]
         dim as boolean sep = ((t.flags and TF_SPACE_BEFORE) <> 0) andalso (i > 0)
         if sep then s += " "
@@ -1109,13 +1109,13 @@ end function
 
 '' The arguments from 'from' onward, comma-joined -- the tail a builtin passes on.
 private function ArgTail_ _
-    ( byref e as PpEngine, byref args as ArgList, byval from as long, _
-      byval upto as long ) as string
+    ( byref e as PpEngine, byref args as ArgList, byval from as int32, _
+      byval upto as int32 ) as string
 
     dim as string s = ""
-    dim as long last = upto
+    dim as int32 last = upto
     if last >= args.firsts.Count then last = args.firsts.Count - 1
-    for i as long = from to last
+    for i as int32 = from to last
         if i > from then s += ", "
         s += ArgText( e, args, i )
     next
@@ -1146,7 +1146,7 @@ private function PasteSpelling_ _
 
     dim as InternId pn = ParamNameId_( e, t )
     if pn <> 0 then
-        dim as long ai = ArgIndexOf( m, pn )
+        dim as int32 ai = ArgIndexOf( m, pn )
         if ai >= 0 then return ExpandedArgText_( e, args, ai )
     end if
     return SpellOf( e, t )
@@ -1166,7 +1166,7 @@ end function
 '' line to reach the output, which EmitTok is what decides -- see e.eatNextEol, and the
 '' three shapes measured there.
 private function IsLineJoinAt_ _
-    ( byref e as PpEngine, byval m as PpMacro ptr, byval j as long ) as boolean
+    ( byref e as PpEngine, byval m as PpMacro ptr, byval j as int32 ) as boolean
 
     if (j + 2) >= m->body.Count then return false
     if Tk( m->body[j] ) <> TK_HASH then return false
@@ -1202,8 +1202,8 @@ private sub PpSubstitute _
     '' JoinSubstituted_, which runs over the finished run. This records which tokens
     '' came from a parameter, a paste or a stringise, and whether the body glued them on.
     dim as PieceVec pieces
-    dim as long pieceAt = 0
-    dim as long i = 0
+    dim as int32 pieceAt = 0
+    dim as int32 i = 0
     while i < m->body.Count
         if IsLineJoinAt_( e, m, i ) then
             '' A MARKER, NOT A FLAG. This loop walks the whole body before one token
@@ -1214,7 +1214,7 @@ private sub PpSubstitute _
             '' where fbc joins, which is what made pp/token-pasting.bas's static
             '' array declaration vanish. EmitTok arms the join when this reaches it.
             dim as Token mark = m->body[i]
-            mark.kind = cast( ushort, TK_EOL )
+            mark.kind = cast( uint16, TK_EOL )
             mark.length = 0
             mark.flags or= TF_FROM_MACRO or TF_SYNTHESISED or TF_JOIN_MARK
             mark.flags and= not (TF_COLON or TF_AT_LINE_START)
@@ -1273,7 +1273,7 @@ private sub PpSubstitute _
                 dim as Token nt = m->body[i + 1]
                 dim as InternId np = ParamNameId_( e, nt )
                 if np <> 0 then
-                    dim as long ai = ArgIndexOf( m, np )
+                    dim as int32 ai = ArgIndexOf( m, np )
                     if ai >= 0 then
                         '' THE ARGUMENT IS EXPANDED FIRST. Measured, and it is the
                         '' opposite of C, whose '#' stringifies the raw operand:
@@ -1345,12 +1345,12 @@ private sub PpSubstitute _
         '' A plain parameter reference splices the argument's tokens.
         dim as InternId bp = ParamNameId_( e, bt )
         if bp <> 0 then
-            dim as long ai = ArgIndexOf( m, bp )
+            dim as int32 ai = ArgIndexOf( m, bp )
             if ai >= 0 then
                 pieceAt = outv.Count
                 if ai < args.firsts.Count then
-                    dim as long first = args.firsts[ai]
-                    for j as long = 0 to args.counts[ai] - 1
+                    dim as int32 first = args.firsts[ai]
+                    for j as int32 = 0 to args.counts[ai] - 1
                         dim as Token at = args.flat[first + j]
                         at.flags or= TF_FROM_MACRO
                         outv.Push( at )
@@ -1461,13 +1461,13 @@ private function PpExpand _
         dim as ArgList args
         if PpReadArgs( e, m, args, bare ) = false then return true
 
-        dim as long want = m->params.Count
-        dim as long got = args.firsts.Count
+        dim as int32 want = m->params.Count
+        dim as int32 got = args.firsts.Count
         '' A VARIADIC TAIL MAY BE EMPTY: '#macro m( a, c... )' invoked as 'm( 1 )' is
         '' legal, and the test for it -- '#if #c = ""' -- is the usual way a macro asks
         '' whether it got any. Requiring got >= want made the empty case, which is the
         '' one worth testing for, the one that could not be written.
-        dim as long need = want
+        dim as int32 need = want
         if m->isVariadic then need = want - 1
         dim as boolean countOk = (got = want) orelse (m->isVariadic andalso (got >= need))
         if countOk = false then

@@ -5,10 +5,10 @@
 
 '' How many parameters a procedure declaration writes.
 private function ProcArity _
-    ( byref w as Walker, byval sp as Tko.StmtPayload ptr ) as long
+    ( byref w as Walker, byval sp as Tko.StmtPayload ptr ) as int32
 
-    dim as long n = 0
-    for i as long = 0 to sp->count - 1
+    dim as int32 n = 0
+    for i as int32 = 0 to sp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, w.ast->children[sp->first + i] )
         if w.ast->Kind( prm ) = Tko.N_PARAM then n += 1
     next
@@ -28,12 +28,12 @@ private sub SpreadOverloadFlag_ _
     if nm = 0 then return
     dim as boolean any_ = ((StmtOf( w, id )->extra and Tko.PF_OVERLOAD) <> 0)
     dim as Tko.SymbolId cur = w.syms->LookupLocal( scope_, nm )
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr s = w.syms->SymbolAt( cur )
         if s = 0 then exit while
-        if s->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
+        if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         if (pn <> Tko.NODE_NONE) andalso (pn <> 0) then
             if w.ast->Kind( pn ) = Tko.N_PROC then
@@ -51,7 +51,7 @@ private sub SpreadOverloadFlag_ _
         guard += 1
         dim as Tko.Symbol ptr s = w.syms->SymbolAt( cur )
         if s = 0 then exit while
-        if s->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
+        if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         if (pn <> Tko.NODE_NONE) andalso (pn <> 0) then
             if w.ast->Kind( pn ) = Tko.N_PROC then
@@ -79,16 +79,16 @@ private function MemberDeclForDef_ _
 
     dim as Tko.SymbolId head = w.syms->LookupLocal( scope_, nm )
     if head = Tko.SYMBOL_NONE then return head
-    dim as long want = ProcArity( w, sp )
+    dim as int32 want = ProcArity( w, sp )
     dim as Tko.SymbolId found = Tko.SYMBOL_NONE
-    dim as long hits = 0
+    dim as int32 hits = 0
     dim as Tko.SymbolId cur = head
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr s = w.syms->SymbolAt( cur )
         if s = 0 then exit while
-        if s->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
+        if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         if (pn <> Tko.NODE_NONE) andalso (w.ast->Kind( pn ) = Tko.N_PROC) then
             dim as Tko.StmtPayload ptr dp = StmtOf( w, pn )
@@ -120,16 +120,16 @@ private function UndefinedProcWithArity _
     ( byref w as Walker, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
       byval sp as Tko.StmtPayload ptr ) as Tko.SymbolId
 
-    dim as long want = ProcArity( w, sp )
+    dim as int32 want = ProcArity( w, sp )
     dim as boolean ovl = ((sp->extra and Tko.PF_OVERLOAD) <> 0) orelse _
-                         (sp->op = cast( ushort, Tko.KW_OPERATOR ))
+                         (sp->op = cast( uint16, Tko.KW_OPERATOR ))
     dim as Tko.SymbolId found = Tko.SYMBOL_NONE
-    dim as long hits = 0
+    dim as int32 hits = 0
     dim as Tko.SymbolId cur = w.syms->LookupLocal( scope_, nm )
     while cur <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr s = w.syms->SymbolAt( cur )
         if s = 0 then exit while
-        if s->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
+        if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         dim as boolean isProc = (pn <> Tko.NODE_NONE) andalso (pn <> 0)
         if isProc then isProc = (w.ast->Kind( pn ) = Tko.N_PROC)
@@ -177,12 +177,12 @@ private sub BindCallConv _
     dim as Tko.CallConv here = Tko.CallConvOf( sp->extra )
     if here = Tko.CC_NONE then return
     if firstSighting then
-        s->callConv = cast( ubyte, here )
+        s->callConv = cast( uint8, here )
         return
     end if
     dim as Tko.CallConv had = cast( Tko.CallConv, s->callConv )
     if Effective_( had ) = here then
-        s->callConv = cast( ubyte, here )
+        s->callConv = cast( uint8, here )
         return
     end if
     '' A header whose '...' the parser refused has had its one error (ParserRefused_).
@@ -238,7 +238,7 @@ end sub
 private sub DeclareBuiltinConst _
     ( byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
       byref types as Tko.TypeContext, byref diags as Tko.DiagnosticEngine, _
-      byval spelling as string, byval value as long )
+      byval spelling as string, byval value as int32 )
 
     dim as Tko.SymbolId sid = DeclareGlobal( syms, names, diags, spelling )
     dim as Tko.Symbol ptr s = syms.SymbolAt( sid )

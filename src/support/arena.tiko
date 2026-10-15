@@ -20,12 +20,12 @@ sub ByteArena.Free( )
     this.used = 0
 end sub
 
-function ByteArena.BlockCount( ) as long
+function ByteArena.BlockCount( ) as int32
     return this.blocks.Count
 end function
 
 function ByteArena.Alloc _
-    ( byval n as long, byval alignment as long = 8 ) as ubyte ptr
+    ( byval n as int32, byval alignment as int32 = 8 ) as uint8 ptr
 
     if n <= 0 then n = 1
 
@@ -33,14 +33,14 @@ function ByteArena.Alloc _
     '' so a request can never straddle the end of a block.
     dim as uinteger addr = cast( uinteger, this.cur )
     dim as uinteger misalign = addr and cast( uinteger, alignment - 1 )
-    dim as long pad = 0
-    if misalign <> 0 then pad = alignment - cast( long, misalign )
+    dim as int32 pad = 0
+    if misalign <> 0 then pad = alignment - cast( int32, misalign )
 
     if pad + n > this.remaining then
-        dim as long blockBytes = ARENA_BLOCK_BYTES
+        dim as int32 blockBytes = ARENA_BLOCK_BYTES
         if n + alignment > blockBytes then blockBytes = n + alignment
 
-        dim as ubyte ptr blk = callocate( blockBytes )
+        dim as uint8 ptr blk = callocate( blockBytes )
         if blk = 0 then
             print "tiko-lang: internal error: out of memory allocating "; blockBytes; " bytes"
             end EXIT_ICE
@@ -53,10 +53,10 @@ function ByteArena.Alloc _
         addr = cast( uinteger, this.cur )
         misalign = addr and cast( uinteger, alignment - 1 )
         pad = 0
-        if misalign <> 0 then pad = alignment - cast( long, misalign )
+        if misalign <> 0 then pad = alignment - cast( int32, misalign )
     end if
 
-    dim as ubyte ptr result = this.cur + pad
+    dim as uint8 ptr result = this.cur + pad
     this.cur = result + n
     this.remaining -= (pad + n)
     this.used += n
@@ -64,9 +64,9 @@ function ByteArena.Alloc _
 end function
 
 function ByteArena.AllocCopy _
-    ( byval src as const ubyte ptr, byval n as long ) as ubyte ptr
+    ( byval src as const uint8 ptr, byval n as int32 ) as uint8 ptr
 
-    dim as ubyte ptr dst = this.Alloc( n, 1 )
+    dim as uint8 ptr dst = this.Alloc( n, 1 )
     if n > 0 then memcpy( dst, src, n )
     return dst
 end function

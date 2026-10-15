@@ -72,8 +72,8 @@ private function AmNamedVar_( byref c as Ctx, byval a as Tko.NodeId ) as boolean
     if c.ast->Kind( a ) <> Tko.N_IDENT then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( a ) )
     if s = 0 then return false
-    return (s->kind = cast( ubyte, Tko.SYM_VARIABLE )) orelse _
-           (s->kind = cast( ubyte, Tko.SYM_PARAMETER ))
+    return (s->kind = cast( uint8, Tko.SYM_VARIABLE )) orelse _
+           (s->kind = cast( uint8, Tko.SYM_PARAMETER ))
 end function
 
 '' WHAT A POINTER-VALUED ARGUMENT FOLDS TO, as far as the null-pointer rule cares:
@@ -94,21 +94,21 @@ enum AmFold
 end enum
 
 private function AmFold_ _
-    ( byref c as Ctx, byval n as Tko.NodeId, byref v as longint, byval depth as long ) as AmFold
+    ( byref c as Ctx, byval n as Tko.NodeId, byref v as int64, byval depth as int32 ) as AmFold
 
     if (n = Tko.NODE_NONE) orelse (depth > 32) then return AM_UNKNOWN
     select case c.ast->Kind( n )
     case Tko.N_INT_LIT
-        v = c.ast->literals[cast( long, c.ast->nodes[cast( long, n )].data )].intValue
+        v = c.ast->literals[cast( int32, c.ast->nodes[cast( int32, n )].data )].intValue
         return iif( v = 0, AM_ZERO, AM_NONZERO )
     case Tko.N_PAREN
         dim as Tko.ListPayload ptr pp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
         if pp->count <> 1 then return AM_UNKNOWN
         return AmFold_( c, cast( Tko.NodeId, c.ast->children[pp->first] ), v, depth + 1 )
     case Tko.N_UNARY
         dim as Tko.UnaryPayload ptr up = _
-            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, n )].data )]
+            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, n )].data )]
         select case cast( Tko.TokenKind, up->op )
         case Tko.TK_MINUS, Tko.TK_PLUS
         case else : return AM_NONCONST            '' '@x', 'not x', ...
@@ -120,8 +120,8 @@ private function AmFold_ _
         return r
     case Tko.N_BINARY
         dim as Tko.BinaryPayload ptr bp = _
-            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, n )].data )]
-        dim as longint l, r
+            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+        dim as int64 l, r
         dim as AmFold fl = AmFold_( c, bp->lhs, l, depth + 1 )
         dim as AmFold fr = AmFold_( c, bp->rhs, r, depth + 1 )
         if (fl = AM_NONCONST) orelse (fr = AM_NONCONST) then return AM_NONCONST
@@ -137,11 +137,11 @@ private function AmFold_ _
         '' 'cptr( T, x )' and 'cast( T, x )' are their operand; any other call is not a
         '' constant -- 'mkp( )' is error 24.
         dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
         if lp->target = Tko.NODE_NONE then return AM_NONCONST
         if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return AM_NONCONST
         dim as Tko.IdentPayload ptr ip = _
-            @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
         '' ...AND THE ONE-ARGUMENT INTEGER CONVERSIONS: 'cbyte( 0 )' is a constant zero too
         '' (overload/pointers.bas const0).
         if lp->count = 1 then
@@ -161,7 +161,7 @@ private function AmFold_ _
         '' A NAMED CONSTANT is its initialiser; a variable is not a constant.
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
         if s = 0 then return AM_UNKNOWN
-        if s->kind <> cast( ubyte, Tko.SYM_CONSTANT ) then return AM_NONCONST
+        if s->kind <> cast( uint8, Tko.SYM_CONSTANT ) then return AM_NONCONST
         if (s->flags and Tko.SYMF_BUILTIN) <> 0 then return AM_UNKNOWN
         dim as Tko.NodeId item = cast( Tko.NodeId, s->payload )
         if (item = Tko.NODE_NONE) orelse (c.ast->Kind( item ) <> Tko.N_VAR_ITEM) then return AM_UNKNOWN
@@ -171,7 +171,7 @@ private function AmFold_ _
 end function
 
 private function AmNullPtrConst_( byref c as Ctx, byval a as Tko.NodeId ) as boolean
-    dim as longint v
+    dim as int64 v
     return (AmFold_( c, a, v, 0 ) = AM_ZERO)
 end function
 
@@ -203,7 +203,7 @@ end function
 ''   in the C, and 'F( &TMP )' through a byref one. numbers/cast-nullptr.bas.
 private function ArgShapeCost_ _
     ( byref c as Ctx, byval a as Tko.NodeId, byval prm as Tko.NodeId, _
-      byval at as Tko.TypeId, byval pt as Tko.TypeId, byval userCost as long ) as long
+      byval at as Tko.TypeId, byval pt as Tko.TypeId, byval userCost as int32 ) as int32
 
     if userCost < CONV_NONE then return userCost
     if (a = Tko.NODE_NONE) orelse (prm = Tko.NODE_NONE) then return userCost
@@ -212,7 +212,7 @@ private function ArgShapeCost_ _
     dim as Tko.TypeId pu = c.types->Unqualify( pt )
     if c.types->Kind( au ) = Tko.TK_REFERENCE then au = c.types->Unqualify( c.types->Inner( au ) )
     if c.types->Kind( pu ) = Tko.TK_REFERENCE then pu = c.types->Unqualify( c.types->Inner( pu ) )
-    dim as boolean byref_ = ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0)
+    dim as boolean byref_ = ((c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0)
 
     if (c.types->Kind( au ) = Tko.TK_ENUM) andalso (c.types->Kind( pu ) = Tko.TK_POINTER) then
         if byref_ = false then return CONV_PTR_CLASS
@@ -286,7 +286,7 @@ private function AmBadPair_ _
             case Tko.TY_SINGLE, Tko.TY_DOUBLE : return true
             end select
             '' Otherwise not a null constant, nor a constant shape AmFold_ cannot evaluate.
-            dim as longint fv
+            dim as int64 fv
             dim as AmFold f = AmFold_( c, a, fv, 0 )
             return (f = AM_NONZERO) orelse (f = AM_NONCONST)
         end if
@@ -309,11 +309,11 @@ private function AmBadPair_ _
     return false
 end function
 
-declare function PackedArgCost_( byref c as Ctx, byval an as Tko.NodeId, byval prm as Tko.NodeId, byval at as Tko.TypeId, byval pt as Tko.TypeId, byval overloaded as boolean ) as long   '' overloadvar.tiko
-declare function TypedVariadicSpread_( byref c as Ctx, byval nFixed as long, byval argFirst as long, byval argCount as long ) as boolean
+declare function PackedArgCost_( byref c as Ctx, byval an as Tko.NodeId, byval prm as Tko.NodeId, byval at as Tko.TypeId, byval pt as Tko.TypeId, byval overloaded as boolean ) as int32   '' overloadvar.tiko
+declare function TypedVariadicSpread_( byref c as Ctx, byval nFixed as int32, byval argFirst as int32, byval argCount as int32 ) as boolean
 declare function UserConvCost_ _
     ( byref c as Ctx, byval from_ as Tko.TypeId, byval to_ as Tko.TypeId, _
-      byval depth as long = 0, byval overloaded as boolean = false ) as long
+      byval depth as int32 = 0, byval overloaded as boolean = false ) as int32
 
 '' A UDT PARAMETER THAT NO CONSTRUCTOR BUILDS FROM THE ARGUMENT -- fbc's 58, whatever else
 '' the type declares. Measured against fbc-modern 1.20, byref and byval alike: a string, a
@@ -350,31 +350,31 @@ end function
 '' the first argument that is one of the pairs above, and nothing otherwise.
 private sub ReportArgMismatch_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval callee as Tko.SymbolId, _
-      byval argFirst as long, byval argCount as long, byref argT as containers.Array( of ulong ) )
+      byval argFirst as int32, byval argCount as int32, byref argT as containers.Array( of uint32 ) )
 
     if c.info->AmbiguousOf( id ) = Tko.AMB_PROPERTY_SET then exit sub
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( callee )
     if s = 0 then exit sub
-    if s->kind <> cast( ubyte, Tko.SYM_PROC ) then exit sub
+    if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit sub
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then exit sub
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
     if (pp->extra and Tko.PF_GENERIC_PROC) <> 0 then exit sub
-    if pp->op = cast( ushort, Tko.KW_PROPERTY ) then exit sub
+    if pp->op = cast( uint16, Tko.KW_PROPERTY ) then exit sub
 
-    dim as long ai = 0
-    for i as long = 0 to pp->count - 1
+    dim as int32 ai = 0
+    for i as int32 = 0 to pp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         if ai >= argCount then exit for
         if ai >= argT.Count then exit for
         dim as Tko.StmtPayload ptr sp = StmtOf( c, prm )
-        if sp->op = cast( ushort, Tko.TK_ELLIPSIS ) then exit for
+        if sp->op = cast( uint16, Tko.TK_ELLIPSIS ) then exit for
         '' A TYPED VARIADIC THAT IS PACKED: the first argument that is no element (overloadvar.tiko).
-        if ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_VARIADIC) <> 0) andalso _
+        if ((c.ast->nodes[cast( int32, prm )].flags and Tko.NF_VARIADIC) <> 0) andalso _
            (TypedVariadicSpread_( c, ai, argFirst, argCount ) = false) then
             dim as Tko.TypeId vpt = c.info->TypeOf_( sp->a )
-            for k as long = ai to argCount - 1
+            for k as int32 = ai to argCount - 1
                 dim as Tko.TypeId vat = Tko.TYPE_NONE
                 if k < argT.Count then vat = cast( Tko.TypeId, argT[k] )
                 dim as Tko.NodeId van = cast( Tko.NodeId, c.ast->children[argFirst + k] )
@@ -388,13 +388,13 @@ private sub ReportArgMismatch_ _
         dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[argFirst + ai] )
         dim as Tko.TypeId at = cast( Tko.TypeId, argT[ai] )
         ai += 1
-        if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_ARRAY) <> 0 then continue for
+        if (c.ast->nodes[cast( int32, prm )].flags and Tko.NF_ARRAY) <> 0 then continue for
         if (at = Tko.TYPE_NONE) orelse (sp->a = Tko.NODE_NONE) then continue for
         select case c.ast->Kind( a )
         case Tko.N_ELIDED, Tko.N_TUPLE : continue for
         case Tko.N_UNARY
             dim as Tko.UnaryPayload ptr up = _
-                @c.ast->unaries[cast( long, c.ast->nodes[cast( long, a )].data )]
+                @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, a )].data )]
             if cast( Tko.TokenKind, up->op ) = Tko.KW_BYVAL then continue for
         end select
         dim as Tko.TypeId pt = c.info->TypeOf_( sp->a )
@@ -403,11 +403,11 @@ private sub ReportArgMismatch_ _
         dim as Tko.TypeId pu = c.types->Unqualify( pt )
         if c.types->Kind( au ) = Tko.TK_REFERENCE then au = c.types->Unqualify( c.types->Inner( au ) )
         if c.types->Kind( pu ) = Tko.TK_REFERENCE then pu = c.types->Unqualify( c.types->Inner( pu ) )
-        dim as boolean byref_ = ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0)
+        dim as boolean byref_ = ((c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0)
         '' A UDT WITH A CAST, FOR ANOTHER UDT NOTHING CONVERTS IT TO -- fbc's 58: a constructor takes
         '' the cast's result only into a string (UdtPairConverts_, latesweeps2.tiko). A plain UDT is
         '' AmBadPair_'s; a tuple tupleconv.tiko's; an operator falls back to the intrinsic.
-        if (pp->op <> cast( ushort, Tko.KW_OPERATOR )) andalso (c.types->Kind( au ) = Tko.TK_UDT) andalso _
+        if (pp->op <> cast( uint16, Tko.KW_OPERATOR )) andalso (c.types->Kind( au ) = Tko.TK_UDT) andalso _
            (c.types->Kind( pu ) = Tko.TK_UDT) then
             dim as string tn0 = left( c.names->Spelling( c.types->NameOf( au ) ), 1 )
             dim as boolean tup0 = (tn0 = "(") orelse (tn0 = "$") orelse (tn0 = "~")
@@ -429,9 +429,9 @@ end sub
 '' names the fix (docs/tiko-nullptr RFC §5.3). Any symbol called nullptr of type 'any ptr'
 '' qualifies: a program's own 'const nullptr as any ptr = 0' means the same thing.
 private sub NullptrTieNote_ _
-    ( byref c as Ctx, byval argFirst as long, byval argCount as long )
+    ( byref c as Ctx, byval argFirst as int32, byval argCount as int32 )
     dim as Tko.InternId nm = c.names->Fold( c.names->GetString( "nullptr" ) )
-    for i as long = 0 to argCount - 1
+    for i as int32 = 0 to argCount - 1
         dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[argFirst + i] )
         if c.ast->Kind( a ) <> Tko.N_IDENT then continue for
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( a ) )

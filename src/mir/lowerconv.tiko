@@ -22,7 +22,7 @@
 namespace Tko.Mir
 
 declare function StrSwapKind_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref nOut as longint ) as long
+    ( byref c as Ctx, byval t as Tko.TypeId, byref nOut as int64 ) as int32
 
 
 '' DOES THIS UDT EXTEND THE BUILT-IN 'zstring'? Measured, and NEITHER HALF ALONE IS
@@ -46,7 +46,7 @@ private function ExtendsStrKind_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval want as Tko.BuiltinType ) as boolean
 
     dim as Tko.TypeId cur = c.types->Unqualify( t )
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.TYPE_NONE) andalso (guard < 32)
         guard += 1
         if c.types->Kind( cur ) = Tko.TK_BUILTIN then
@@ -82,7 +82,7 @@ private function ConvName_ _
     if cp->target = Tko.NODE_NONE then return ""
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return ""
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
     dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
     select case nm
     case "cbyte", "cubyte", "cshort", "cushort", "clng", "culng", "cint", "cuint", _
@@ -97,7 +97,7 @@ function IsConvIntrinsic _
     ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     return len( ConvName_( c, cp ) ) > 0
 end function
 
@@ -116,7 +116,7 @@ function StrIdentityConvOperand_ _
     if id = Tko.NODE_NONE then return Tko.NODE_NONE
     if c.ast->Kind( id ) <> Tko.N_CALL then return Tko.NODE_NONE
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     dim as string nm = ConvName_( c, cp )
     if (nm <> "cast") andalso (nm <> "cptr") then return Tko.NODE_NONE
     if cp->count <> 2 then return Tko.NODE_NONE
@@ -185,12 +185,12 @@ function LowerConvIntrinsic _
 
     dim as MirValue v
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     dim as string nm = ConvName_( c, cp )
     if len( nm ) = 0 then return v
 
     '' CAST and CPTR take the TYPE first, so the value is the second argument.
-    dim as long vi = 0
+    dim as int32 vi = 0
     if (nm = "cast") orelse (nm = "cptr") then
         if cp->count <> 2 then return v
         vi = 1
@@ -272,10 +272,10 @@ function LowerConvIntrinsic _
             else
                 if WideOperand_( c, arg, wd ) = false then return v
             end if
-            if wd.kind = cast( ubyte, MV_NONE ) then return v
-            dim as containers.Array( of ulong ) wargs
-            wargs.Push( cast( ulong, wd.kind ) ) : wargs.Push( cast( ulong, wd.id ) )
-            dim as long ww = RTL_WSTR_VALINT
+            if wd.kind = cast( uint8, MV_NONE ) then return v
+            dim as containers.Array( of uint32 ) wargs
+            wargs.Push( cast( uint32, wd.kind ) ) : wargs.Push( cast( uint32, wd.id ) )
+            dim as int32 ww = RTL_WSTR_VALINT
             dim as MirType wmt = MT_I32
             select case nm
             '' CBOOL PARSES THE WORD, not a number: fbc has an entry point of its own
@@ -295,7 +295,7 @@ function LowerConvIntrinsic _
                 ww = RTL_WSTR_VALINT : wmt = MT_I32
             end select
             dim as MirValue wr = EmitRtl( c, ww, wargs )
-            if wr.kind = cast( ubyte, MV_NONE ) then return v
+            if wr.kind = cast( uint8, MV_NONE ) then return v
             dim as MirType wwant = mt
             if wwant = MT_VOID then wwant = wmt
             dim as boolean wU = (ww = RTL_WSTR_VALULNG) orelse (ww = RTL_WSTR_VALUINT)
@@ -336,8 +336,8 @@ function LowerConvIntrinsic _
         '' not lowered', so the sweep has never seen it. StrSwapKind_ is the predicate
         '' the rest of the compiler uses for exactly this reason; the WIDE kinds are
         '' already answered by the branch above, so only the narrow ones are taken here.
-        dim as longint fixN = 0
-        dim as long fixK = StrSwapKind_( c, at2, fixN )
+        dim as int64 fixN = 0
+        dim as int32 fixK = StrSwapKind_( c, at2, fixN )
         dim as boolean argIsStr = IsStringType( c, at2 )
         if argIsStr = false then
             argIsStr = (fixK = 0) orelse (fixK = 1) orelse (fixK = 3) orelse (fixK = 4)
@@ -367,17 +367,17 @@ function LowerConvIntrinsic _
                 ''     FBSTRING* vr2 = fb_StrAllocTempDescZ( vr );
                 ''     int32     vr3 = fb_VALINT( vr2 );
                 if udtRaw then
-                    dim as containers.Array( of ulong ) tda
-                    tda.Push( cast( ulong, sd.kind ) ) : tda.Push( cast( ulong, sd.id ) )
+                    dim as containers.Array( of uint32 ) tda
+                    tda.Push( cast( uint32, sd.kind ) ) : tda.Push( cast( uint32, sd.id ) )
                     sd = EmitRtl( c, RTL_STR_TEMPZ_NOLEN, tda )
                 end if
             else
                 if StrDescriptorOf_( c, arg, sd ) = false then return v
             end if
-            if sd.kind = cast( ubyte, MV_NONE ) then return v
-            dim as containers.Array( of ulong ) vargs
-            vargs.Push( cast( ulong, sd.kind ) ) : vargs.Push( cast( ulong, sd.id ) )
-            dim as long vw = RTL_VAL
+            if sd.kind = cast( uint8, MV_NONE ) then return v
+            dim as containers.Array( of uint32 ) vargs
+            vargs.Push( cast( uint32, sd.kind ) ) : vargs.Push( cast( uint32, sd.id ) )
+            dim as int32 vw = RTL_VAL
             dim as MirType vmt = MT_F64
             select case nm
             '' The narrow twin of the same rule -- see the wide row above.
@@ -395,7 +395,7 @@ function LowerConvIntrinsic _
                 vw = RTL_VALINT : vmt = MT_I32
             end select
             dim as MirValue vr2 = EmitRtl( c, vw, vargs )
-            if vr2.kind = cast( ubyte, MV_NONE ) then return v
+            if vr2.kind = cast( uint8, MV_NONE ) then return v
             dim as MirType vwant = mt
             if vwant = MT_VOID then vwant = vmt
             dim as boolean vU = (vw = RTL_VALULNG) orelse (vw = RTL_VALUINT)
@@ -459,11 +459,11 @@ function LowerConvIntrinsic _
         dim as Tko.SymbolId exact = ExactCastOverload_( c, argT2, dstT )
         if exact <> Tko.SYMBOL_NONE then
             dim as MirValue eself = LowerAddr( c, arg )
-            if eself.kind <> cast( ubyte, MV_NONE ) then
+            if eself.kind <> cast( uint8, MV_NONE ) then
                 dim as MirType emt = LowerType( c.types->Unqualify( dstT ), *c.types )
                 if (emt <> MT_VOID) andalso (emt <> MT_AGG) then
                     uv = EmitMemberCall( c, exact, eself, emt )
-                    gotU = (uv.kind <> cast( ubyte, MV_NONE ))
+                    gotU = (uv.kind <> cast( uint8, MV_NONE ))
                 end if
             end if
         end if
@@ -473,10 +473,10 @@ function LowerConvIntrinsic _
             if uwant = MT_VOID then uwant = LowerType( dstT, *c.types )
             if uwant = MT_VOID then uwant = cast( MirType, uv.ty )
             if uwant = cast( MirType, uv.ty ) then return uv
-            if (uwant = MT_PTR) orelse (uv.ty = cast( ubyte, MT_PTR )) then
+            if (uwant = MT_PTR) orelse (uv.ty = cast( uint8, MT_PTR )) then
                 dim as MirInst ubc
-                ubc.op = cast( ushort, M_BITCAST )
-                ubc.ty = cast( ubyte, uwant )
+                ubc.op = cast( uint16, M_BITCAST )
+                ubc.ty = cast( uint8, uwant )
                 ubc.a = uv
                 return Emit( c, ubc )
             end if
@@ -495,15 +495,15 @@ function LowerConvIntrinsic _
     end if
 
     dim as MirValue x = LowerExpr( c, arg )
-    if x.kind = cast( ubyte, MV_NONE ) then return v
+    if x.kind = cast( uint8, MV_NONE ) then return v
 
     '' CBOOL is a COMPARISON, not a narrowing: fbc emits '(boolean)(V != 0)', so
     '' cbool( 256 ) is true where a truncation to one byte would make it false.
     if nm = "cbool" then
         dim as MirInst ins
-        ins.op = cast( ushort, iif( IsFloatTy( cast( MirType, x.ty ) ), _
+        ins.op = cast( uint16, iif( IsFloatTy( cast( MirType, x.ty ) ), _
                                     M_FCMP_NE, M_ICMP_NE ) )
-        ins.ty = cast( ubyte, MT_I8 )
+        ins.ty = cast( uint8, MT_I8 )
         ins.a = x
         if IsFloatTy( cast( MirType, x.ty ) ) then
             ins.b = ConstFloat( c, 0.0, cast( MirType, x.ty ) )
@@ -526,8 +526,8 @@ function LowerConvIntrinsic _
     '' -- it is a NEGATE, not a widening, and skipping it gave 1 where fbc gives -1.
     if IsBooleanType( c, c.info->TypeOf_( arg ) ) then
         dim as MirInst ng0
-        ng0.op = cast( ushort, M_SUB )
-        ng0.ty = cast( ubyte, MT_I8 )
+        ng0.op = cast( uint16, M_SUB )
+        ng0.ty = cast( uint8, MT_I8 )
         ng0.a = ConstInt( c, 0, MT_I8 )
         ng0.b = NormaliseBool( c, x )
         x = Emit( c, ng0 )
@@ -535,10 +535,10 @@ function LowerConvIntrinsic _
         return Coerce( c, x, want, false )
     end if
     if want = cast( MirType, x.ty ) then return x
-    if (want = MT_PTR) orelse (x.ty = cast( ubyte, MT_PTR )) then
+    if (want = MT_PTR) orelse (x.ty = cast( uint8, MT_PTR )) then
         dim as MirInst bc
-        bc.op = cast( ushort, M_BITCAST )
-        bc.ty = cast( ubyte, want )
+        bc.op = cast( uint16, M_BITCAST )
+        bc.ty = cast( uint8, want )
         bc.a = x
         return Emit( c, bc )
     end if
@@ -559,8 +559,8 @@ function LowerConvIntrinsic _
     '' and it returned long before this point. So a boolean source always negates.
     if IsBooleanType( c, c.info->TypeOf_( arg ) ) then
         dim as MirInst ng
-        ng.op = cast( ushort, M_SUB )
-        ng.ty = cast( ubyte, MT_I8 )
+        ng.op = cast( uint16, M_SUB )
+        ng.ty = cast( uint8, MT_I8 )
         ng.a = ConstInt( c, 0, MT_I8 )
         ng.b = NormaliseBool( c, x )
         x = Emit( c, ng )

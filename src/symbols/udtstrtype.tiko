@@ -19,7 +19,7 @@ private function UdtStringCastType_ _
     '' FBC'S PICK FIRST -- the cast scoring best against STRING (castpick.tiko), the one lowering
     '' calls (lowercastpick.tiko ScoredStrTerm_), so the type and the call cannot disagree:
     '' [as ustring, as string] is STRING, [as ustring, byref as zstring] ZSTRING, either order.
-    dim as long spOc, spCls
+    dim as int32 spOc, spCls
     dim as Tko.SymbolId spSym = Tko.Check.StrCastPick( *c.ast, *c.syms, *c.types, *c.names, u, Tko.Check.CT_STRING, spOc, spCls )
     if spOc = Tko.Check.CP_OK then
         select case spCls

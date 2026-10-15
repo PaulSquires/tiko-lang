@@ -31,7 +31,7 @@ private function CompoundBinOp_( byval op as Tko.TokenKind, byref selfNm as stri
 end function
 
 private sub CompoundUserOp_( byref c as Ctx, byval n as Tko.NodeId )
-    dim as Tko.StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, n )].data )]
+    dim as Tko.StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, n )].data )]
     if (sp->a = Tko.NODE_NONE) orelse (sp->b = Tko.NODE_NONE) then return
     dim as string selfNm = ""
     dim as Tko.TokenKind bop = CompoundBinOp_( cast( Tko.TokenKind, sp->op ), selfNm )
@@ -47,7 +47,7 @@ private sub CompoundUserOp_( byref c as Ctx, byval n as Tko.NodeId )
     if lUdt then
         if UdtOperatorNamed_( c, lt, selfNm ) <> Tko.SYMBOL_NONE then return
     end if
-    dim as long uopSeen
+    dim as int32 uopSeen
     dim as Tko.SymbolId uop = UserBinaryOp_( c, bop, lt, rt, uopSeen )
     dim as Tko.Symbol ptr us = c.syms->SymbolAt( uop )
     if us = 0 then return
@@ -65,10 +65,10 @@ private sub WalkAll( byref c as Ctx )
     '' Every expression node in the arena, in id order. Expressions are created
     '' bottom-up by the parser, so a child always has a LOWER id than its parent and
     '' one linear pass types the whole tree without recursion into statements.
-    for i as long = 1 to c.ast->Count( )
+    for i as int32 = 1 to c.ast->Count( )
         if c.diags->Stopped( ) then exit for      '' past the error cap
         dim as Tko.NodeId n = cast( Tko.NodeId, i )
-        c.syms->usePos = cast( ulong, i )    '' which side of an '#undef': see UndefSym
+        c.syms->usePos = cast( uint32, i )    '' which side of an '#undef': see UndefSym
         select case c.ast->Kind( n )
         case Tko.N_INT_LIT, Tko.N_FLOAT_LIT, Tko.N_STRING_LIT, Tko.N_STRCAT, _
              Tko.N_IDENT, Tko.N_PAREN, Tko.N_UNARY, Tko.N_BINARY, _
@@ -93,7 +93,7 @@ private sub WalkAll( byref c as Ctx )
             '' are STATEMENTS: PRINT has no type and never will, and asking would
             '' count eighteen of them as 'untyped' in a file that has none.
             dim as Tko.StmtPayload ptr wsp = _
-                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, n )].data )]
+                @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, n )].data )]
             select case cast( Tko.TokenKind, wsp->op )
             case Tko.KW_CLOSE, Tko.KW_OPEN, Tko.KW_GET, Tko.KW_PUT, _
                  Tko.KW_INPUT, Tko.KW_WINPUT, Tko.KW_THREADCALL
@@ -112,7 +112,7 @@ private sub WalkAll( byref c as Ctx )
             '' LowerStmtCall reads it from.
             if c.info->AmbiguousOf( n ) = Tko.AMB_CALL then
                 dim as Tko.StmtPayload ptr asp = _
-                    @c.ast->stmts[cast( long, c.ast->nodes[cast( long, n )].data )]
+                    @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, n )].data )]
                 '' AN N_MEMBER CALLEE IS THE SAME STATEMENT. 'f.bar 1' over an
                 '' overloaded member costed nothing either, and its binding lives on the
                 '' MEMBER node -- which is where LowerStmtCall reads it from, so
@@ -139,7 +139,7 @@ private sub WalkAll( byref c as Ctx )
                             '' Only when there is a choice to make: a single candidate
                             '' is already bound, and re-costing it could only take a
                             '' binding away.
-                            if (acs->kind = cast( ubyte, Tko.SYM_PROC )) andalso _
+                            if (acs->kind = cast( uint8, Tko.SYM_PROC )) andalso _
                                (acs->nextOverload <> Tko.SYMBOL_NONE) then
                                 ResolveCall_( c, asp->a, ac, asp->first, asp->count )
                             end if

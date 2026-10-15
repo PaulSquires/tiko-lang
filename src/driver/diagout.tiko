@@ -18,7 +18,7 @@ function Start( byref ctx as Tko.CompilerContext ) as boolean
     '' NEVER ONE OF THE INPUTS: opening it for output truncates it, and the source was
     '' gone before a byte of it was read (audit F-65).
     dim as string dfAbs = Tko.Modules.AbsPath( ctx.options.diagFile )
-    for k as long = 0 to ctx.options.inputs.Count - 1
+    for k as int32 = 0 to ctx.options.inputs.Count - 1
         dim as string inAbs = Tko.Modules.AbsPath( ctx.options.inputs[k] )
         #ifdef __FB_WIN32__
             dim as boolean same = (lcase( inAbs ) = lcase( dfAbs ))
@@ -31,10 +31,10 @@ function Start( byref ctx as Tko.CompilerContext ) as boolean
             return false
         end if
     next
-    dim as long fh = freefile
+    dim as int32 fh = freefile
     '' Spelled as its own statement: the function form of OPEN inside an IF condition
     '' confuses the parser (see BuildFromIr).
-    dim as long orc = open( ctx.options.diagFile for output as #fh )
+    dim as int32 orc = open( ctx.options.diagFile for output as #fh )
     if orc <> 0 then
         ctx.diags.ReportGlobal( Tko.TKO0117, ctx.options.diagFile )
         ctx.options.diagFile = ""
@@ -46,7 +46,7 @@ function Start( byref ctx as Tko.CompilerContext ) as boolean
     return true
 end function
 
-function Finish( byref ctx as Tko.CompilerContext, byval rc as long ) as long
+function Finish( byref ctx as Tko.CompilerContext, byval rc as int32 ) as int32
     ctx.diags.Flush( )
     Tko.Build.OnFinish( ctx.build, ctx.diags.ErrorCount( ), ctx.diags.WarningCount( ), rc )
     if len( ctx.options.diagFile ) = 0 then return rc
@@ -58,8 +58,8 @@ function Finish( byref ctx as Tko.CompilerContext, byval rc as long ) as long
 
     '' Nowhere is left to report a failure here -- Start proved the path writable, and
     '' the console already has every diagnostic -- so a failed write is dropped.
-    dim as long fh = freefile
-    dim as long orc = open( ctx.options.diagFile for output as #fh )
+    dim as int32 fh = freefile
+    dim as int32 orc = open( ctx.options.diagFile for output as #fh )
     if orc <> 0 then return rc
     print #fh, body;
     close #fh

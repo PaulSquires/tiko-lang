@@ -17,29 +17,29 @@
 
 namespace Tko
 
-    const ARENA_BLOCK_BYTES as long = 65536
+    const ARENA_BLOCK_BYTES as int32 = 65536
 
     type BlockVec as containers.Array( of any ptr )
 
     type ByteArena
         as BlockVec  blocks
-        as ubyte ptr cur           '' bump pointer into the newest block
-        as long      remaining     '' bytes left in the newest block
-        as longint   reserved      '' total bytes obtained from the allocator
-        as longint   used          '' total bytes handed out, excluding padding
+        as uint8 ptr cur           '' bump pointer into the newest block
+        as int32      remaining     '' bytes left in the newest block
+        as int64   reserved      '' total bytes obtained from the allocator
+        as int64   used          '' total bytes handed out, excluding padding
 
         declare destructor( )
 
         '' Alignment must be a power of two.
         declare function Alloc _
-            ( byval n as long, byval alignment as long = 8 ) as ubyte ptr
+            ( byval n as int32, byval alignment as int32 = 8 ) as uint8 ptr
 
         '' Copy n bytes into the arena and return the copy.
         declare function AllocCopy _
-            ( byval src as const ubyte ptr, byval n as long ) as ubyte ptr
+            ( byval src as const uint8 ptr, byval n as int32 ) as uint8 ptr
 
         declare sub Free( )
-        declare function BlockCount( ) as long
+        declare function BlockCount( ) as int32
     end type
 
 end namespace

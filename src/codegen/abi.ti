@@ -38,22 +38,22 @@ namespace Tko.Codegen
 
     '' The only question the classifier asks is how many bytes. See the header comment.
     declare function ClassifyAggregate _
-        ( byval sizeBytes as long, byref target as TargetDescription ) as AbiClassKind
+        ( byval sizeBytes as int32, byref target as TargetDescription ) as AbiClassKind
 
     '' The MIR type an aggregate of this size is coerced to, for ABIC_DIRECT_INT.
-    declare function DirectIntType( byval sizeBytes as long ) as Tko.Mir.MirType
+    declare function DirectIntType( byval sizeBytes as int32 ) as Tko.Mir.MirType
 
     type AbiStats
-        as long functionsRewritten
-        as long callsRewritten
-        as long sretReturns
-        as long coercedReturns
-        as long indirectParams
-        as long coercedParams
+        as int32 functionsRewritten
+        as int32 callsRewritten
+        as int32 sretReturns
+        as int32 coercedReturns
+        as int32 indirectParams
+        as int32 coercedParams
         '' Something the pass could not model. It is COUNTED rather than guessed at:
         '' a half-applied ABI is a miscompile, and the emitter's own ICE is a better
         '' failure than a call whose two halves disagree.
-        as long declined
+        as int32 declined
     end type
 
     declare sub LowerModule _
@@ -62,7 +62,7 @@ namespace Tko.Codegen
 
     '' The order n IR parameters or arguments of f are WRITTEN in: reversed for pascal.
     declare sub PascalParamOrder _
-        ( byval f as Tko.Mir.MirFunction ptr, byval n as long, byref order as containers.Array( of long ) )
+        ( byval f as Tko.Mir.MirFunction ptr, byval n as int32, byref order as containers.Array( of int32 ) )
 
 end namespace
 

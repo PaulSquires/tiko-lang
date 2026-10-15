@@ -35,7 +35,7 @@ private function TcTuple_ ( byref c as Ctx, byval t as TypeId ) as boolean
 end function
 
 '' Does a UDT need constructing: a constructor of its own, a vtable, or a field that does?
-private function TcNeedsCtor_ ( byref c as Ctx, byval t as TypeId, byval depth as long ) as boolean
+private function TcNeedsCtor_ ( byref c as Ctx, byval t as TypeId, byval depth as int32 ) as boolean
     if depth > 8 then return false
     t = c.types->Unqualify( t )
     if c.types->Kind( t ) <> TK_UDT then return false
@@ -51,11 +51,11 @@ private function TcNeedsCtor_ ( byref c as Ctx, byval t as TypeId, byval depth a
     dim as SymScope ptr sc = c.syms->ScopeAt( s->inner )
     if sc = 0 then return false
     dim as SymbolId cur = sc->firstSym
-    for guard as long = 0 to 9999
+    for guard as int32 = 0 to 9999
         if cur = SYMBOL_NONE then exit for
         dim as Symbol ptr f = c.syms->SymbolAt( cur )
         if f = 0 then exit for
-        if f->kind = cast( ubyte, SYM_FIELD ) then
+        if f->kind = cast( uint8, SYM_FIELD ) then
             dim as TypeId ft = c.types->Unqualify( f->type_ )
             if c.types->IsDynArray( ft ) then return true
             if c.types->Kind( ft ) = TK_BUILTIN then
@@ -111,15 +111,15 @@ end function
 '' Does one of the type's 'operator let' overloads take a value of type 'vu'?
 private function TcLetTakes_ ( byref c as Ctx, byval eu as TypeId, byval vu as TypeId ) as boolean
     dim as Symbol ptr ls = StructorOf_( c, eu, "let" )
-    for guard as long = 0 to 255
+    for guard as int32 = 0 to 255
         if ls = 0 then exit for
         dim as NodeId pn = cast( NodeId, ls->payload )
         if (pn <> NODE_NONE) andalso (c.ast->Kind( pn ) = N_PROC) then
-            dim as StmtPayload ptr pp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, pn )].data )]
-            for i as long = 0 to pp->count - 1
+            dim as StmtPayload ptr pp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
+            for i as int32 = 0 to pp->count - 1
                 dim as NodeId prm = cast( NodeId, c.ast->children[pp->first + i] )
                 if c.ast->Kind( prm ) <> N_PARAM then continue for
-                dim as StmtPayload ptr qp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )]
+                dim as StmtPayload ptr qp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, prm )].data )]
                 if TcParamTakes_( c, c.info->TypeOf_( qp->a ), vu ) then return true
                 exit for
             next
@@ -188,7 +188,7 @@ end function
 '' fields, or 0. A type with a constructor, or a base, builds its fields itself and is not
 '' judged: 'type( ... )' over one is a constructor call.
 private function TlTextField_ _
-    ( byref c as Ctx, byval t as TypeId, byval depth as long, byval wantU as boolean ) as Symbol ptr
+    ( byref c as Ctx, byval t as TypeId, byval depth as int32, byval wantU as boolean ) as Symbol ptr
     if depth > 8 then return 0
     t = c.types->Unqualify( t )
     if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
@@ -206,11 +206,11 @@ private function TlTextField_ _
     dim as SymScope ptr sc = c.syms->ScopeAt( s->inner )
     if sc = 0 then return 0
     dim as SymbolId cur = sc->firstSym
-    for guard as long = 0 to 9999
+    for guard as int32 = 0 to 9999
         if cur = SYMBOL_NONE then exit for
         dim as Symbol ptr f = c.syms->SymbolAt( cur )
         if f = 0 then exit for
-        if (f->kind = cast( ubyte, SYM_FIELD )) andalso (f->type_ <> TYPE_NONE) then
+        if (f->kind = cast( uint8, SYM_FIELD )) andalso (f->type_ <> TYPE_NONE) then
             dim as TypeId ft = c.types->Unqualify( f->type_ )
             if c.types->Kind( ft ) = TK_BUILTIN then
                 if c.types->BuiltinOf( ft ) = TY_STRING then return f
@@ -233,13 +233,13 @@ private function TypeLitTextBad_ _
     ( byref c as Ctx, byval dest as TypeId, byval rn as NodeId, byval isDim as boolean ) as boolean
     if (rn = NODE_NONE) orelse (dest = TYPE_NONE) then return false
     while c.ast->Kind( rn ) = N_PAREN
-        dim as ListPayload ptr pl = @c.ast->lists[cast( long, c.ast->nodes[cast( long, rn )].data )]
+        dim as ListPayload ptr pl = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, rn )].data )]
         if pl->count <> 1 then exit while
         rn = cast( NodeId, c.ast->children[pl->first] )
     wend
     if c.ast->Kind( rn ) <> N_TUPLE then return false
-    if (c.ast->nodes[cast( long, rn )].flags and NF_TYPE_LITERAL) = 0 then return false
-    dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, rn )].data )]
+    if (c.ast->nodes[cast( int32, rn )].flags and NF_TYPE_LITERAL) = 0 then return false
+    dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, rn )].data )]
     if (lp->count = 0) orelse (lp->target <> NODE_NONE) then return false
     if TcTuple_( c, c.info->TypeOf_( rn ) ) = false then return false
     dim as Symbol ptr f = TlTextField_( c, dest, 0, true )
@@ -252,19 +252,19 @@ private function TypeLitTextBad_ _
 end function
 
 private function TupleConvBad_ _
-    ( byref c as Ctx, byval t as TypeId, byval rn as NodeId, byval depth as long ) as boolean
+    ( byref c as Ctx, byval t as TypeId, byval rn as NodeId, byval depth as int32 ) as boolean
     if (rn = NODE_NONE) orelse (depth > 8) then return false
     '' '( ( 1, 2 ) )' is the literal inside.
     while c.ast->Kind( rn ) = N_PAREN
-        dim as ListPayload ptr pl = @c.ast->lists[cast( long, c.ast->nodes[cast( long, rn )].data )]
+        dim as ListPayload ptr pl = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, rn )].data )]
         if pl->count <> 1 then exit while
         rn = cast( NodeId, c.ast->children[pl->first] )
     wend
     if c.ast->Kind( rn ) <> N_TUPLE then return TupleValueBad_( c, t, rn )
-    if (c.ast->nodes[cast( long, rn )].flags and NF_TYPE_LITERAL) <> 0 then return false
+    if (c.ast->nodes[cast( int32, rn )].flags and NF_TYPE_LITERAL) <> 0 then return false
     t = c.types->Unqualify( t )
     if TcTuple_( c, t ) = false then return false
-    dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, rn )].data )]
+    dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, rn )].data )]
     if lp->target <> NODE_NONE then return false
     '' The element types, in order, off the tuple's own scope.
     dim as InternId tn = c.types->NameOf( t )
@@ -276,18 +276,18 @@ private function TupleConvBad_ _
     if (s = 0) orelse (s->inner = SCOPE_NONE) then return false
     dim as SymScope ptr sc = c.syms->ScopeAt( s->inner )
     if sc = 0 then return false
-    dim as containers.Array( of ulong ) ets
+    dim as containers.Array( of uint32 ) ets
     dim as SymbolId cur = sc->firstSym
-    for guard as long = 0 to 9999
+    for guard as int32 = 0 to 9999
         if cur = SYMBOL_NONE then exit for
         dim as Symbol ptr f = c.syms->SymbolAt( cur )
         if f = 0 then exit for
-        if f->kind = cast( ubyte, SYM_FIELD ) then ets.Push( cast( ulong, f->type_ ) )
+        if f->kind = cast( uint8, SYM_FIELD ) then ets.Push( cast( uint32, f->type_ ) )
         cur = f->nextInScope
     next
     '' A count that does not match is the arity rule's (TKO0825), not this one.
     if ets.Count <> lp->count then return false
-    for i as long = 0 to lp->count - 1
+    for i as int32 = 0 to lp->count - 1
         dim as NodeId e = cast( NodeId, c.ast->children[lp->first + i] )
         dim as TypeId et = cast( TypeId, ets[i] )
         if c.ast->Kind( e ) = N_TUPLE then

@@ -13,12 +13,12 @@ namespace Tko.Mir
 
 '' The SysV eightbyte classes, spelled. '[I]' one INTEGER eightbyte, '[S,I]' an SSE
 '' then an INTEGER, '[M]' MEMORY. Empty when nothing was classified.
-private function EbName( byval packed as ulong ) as string
+private function EbName( byval packed as uint32 ) as string
     if packed = 0 then return ""
     if packed = TKO_EB_MEMORY then return "[M]"
     dim as string r = "["
-    dim as ulong c0 = TKO_EB0( packed )
-    dim as ulong c1 = TKO_EB1( packed )
+    dim as uint32 c0 = TKO_EB0( packed )
+    dim as uint32 c1 = TKO_EB1( packed )
     if c0 = TKO_EB_SSE then r += "S" else r += "I"
     if c1 <> TKO_EB_NONE then
         if c1 = TKO_EB_SSE then r += ",S" else r += ",I"
@@ -32,7 +32,7 @@ end function
 '' UCRT, so the SELF-BUILT compiler dumped different MIR from the fbc-built one for the
 '' same input -- tests/mir/float-const-fold failed under stage2 and nowhere else. These
 '' are the spellings the goldens were written with; the sign of a NaN was never shown.
-private function FloatConstText_( byval v as double ) as string
+private function FloatConstText_( byval v as float64 ) as string
     if v <> v then return "nan"
     if v > 1.7976931348623157e308 then return "inf"
     if v < -1.7976931348623157e308 then return "-inf"
@@ -50,10 +50,10 @@ private function ValStr _
         '' otherwise the -1 that means "a var-length string descriptor" prints as
         '' 4294967295. Constants carried inline are limited to 32 bits by that field;
         '' a wider one needs a const instruction, which is what LowerExpr emits.
-        return str( cast( longint, cast( long, v.id ) ) )
+        return str( cast( int64, cast( int32, v.id ) ) )
     case MV_LOCAL
-        if cast( long, v.id ) < f.locals.Count then
-            return "@" & names.Spelling( f.locals[cast( long, v.id )].name )
+        if cast( int32, v.id ) < f.locals.Count then
+            return "@" & names.Spelling( f.locals[cast( int32, v.id )].name )
         end if
         return "@?" & str( v.id )
     case MV_PARAM       : return "$" & str( v.id )
@@ -61,8 +61,8 @@ private function ValStr _
         '' Named, not numbered: a golden diff should not churn because an unrelated
         '' literal was added ahead of this one in the table.
         if m <> 0 then
-            if cast( long, v.id ) < m->globals.Count then
-                return "@@" & names.Spelling( m->globals[cast( long, v.id )].name )
+            if cast( int32, v.id ) < m->globals.Count then
+                return "@@" & names.Spelling( m->globals[cast( int32, v.id )].name )
             end if
         end if
         return "@@?" & str( v.id )
@@ -73,7 +73,7 @@ private function ValStr _
 end function
 
 private function BlockName _
-    ( byref f as MirFunction, byval idx as long, byref names as Tko.Interner ) as string
+    ( byref f as MirFunction, byval idx as int32, byref names as Tko.Interner ) as string
 
     if (idx < 0) orelse (idx >= f.blocks.Count) then return "bb?"
     dim as Tko.InternId l = f.blocks[idx].label
@@ -95,7 +95,7 @@ private function InstStr _
     select case op
     case M_CONST
         s += " " & TypeName( cast( MirType, ins.ty ) ) & " "
-        if (ins.ty = cast( ubyte, MT_F32 )) orelse (ins.ty = cast( ubyte, MT_F64 )) then
+        if (ins.ty = cast( uint8, MT_F32 )) orelse (ins.ty = cast( uint8, MT_F64 )) then
             s += FloatConstText_( ins.fimm )
         else
             s += str( ins.imm )
@@ -105,7 +105,7 @@ private function InstStr _
         s += " " & ValStr( f, ins.a, names, @m ) & ", " & str( ins.imm )
 
     case M_ALLOCA
-        dim as long li = cast( long, ins.imm )
+        dim as int32 li = cast( int32, ins.imm )
         s += " " & TypeName( cast( MirType, ins.ty ) )
         if (li >= 0) andalso (li < f.locals.Count) then
             s += " " & names.Spelling( f.locals[li].name )
@@ -115,8 +115,8 @@ private function InstStr _
         '' The function's NAME, which is what makes the dump readable; the index it
         '' actually carries would say nothing.
         s += " " & TypeName( cast( MirType, ins.ty ) ) & " "
-        if cast( long, ins.callee ) < m.functions.Count then
-            s += names.Spelling( m.functions[cast( long, ins.callee )]->name )
+        if cast( int32, ins.callee ) < m.functions.Count then
+            s += names.Spelling( m.functions[cast( int32, ins.callee )]->name )
         else
             s += "?" & str( ins.callee )
         end if
@@ -126,30 +126,30 @@ private function InstStr _
         if op = M_CALL_IND then
             '' The callee is a VALUE here, not a table index.
             s += ValStr( f, ins.a, names, @m )
-        elseif cast( long, ins.callee ) < m.functions.Count then
-            s += names.Spelling( m.functions[cast( long, ins.callee )]->name )
+        elseif cast( int32, ins.callee ) < m.functions.Count then
+            s += names.Spelling( m.functions[cast( int32, ins.callee )]->name )
         else
             s += "?" & str( ins.callee )
         end if
         s += "("
-        for i as long = 0 to ins.count - 1
+        for i as int32 = 0 to ins.count - 1
             if i > 0 then s += ", "
             dim as MirValue av
-            dim as long slot = (ins.first + i) * 2
+            dim as int32 slot = (ins.first + i) * 2
             if (slot + 1) < m.argPool.Count then
-                av.kind = cast( ubyte, m.argPool[slot] )
+                av.kind = cast( uint8, m.argPool[slot] )
                 av.id = m.argPool[slot + 1]
             end if
             s += ValStr( f, av, names, @m )
         next
         s += ")"
         '' A PAIR RETURN's destination, which the ABI pass put in 'b'.
-        if ins.b.kind = cast( ubyte, MV_LOCAL ) then
+        if ins.b.kind = cast( uint8, MV_LOCAL ) then
             s += " into " & ValStr( f, ins.b, names, @m )
         end if
 
     case else
-        dim as long n = OpArity( op )
+        dim as int32 n = OpArity( op )
         if n >= 1 then s += " " & ValStr( f, ins.a, names, @m )
         if n >= 2 then s += ", " & ValStr( f, ins.b, names, @m )
     end select
@@ -162,14 +162,14 @@ function DumpModule _
     dim as IrText outp
     '' Globals come first so a function body's diff is not disturbed by one being
     '' added.
-    for i as long = 0 to m.globals.Count - 1
+    for i as int32 = 0 to m.globals.Count - 1
         if m.globals[i].isData then
             '' A DATA block prints as its entries. TYPE is the datum's CHARACTER
             '' LENGTH, not a datatype, and -1 marks the terminator -- whose NODE is
             '' the next block, or nothing.
             outp += "global data " & names.Spelling( m.globals[i].name ) & " ["
-            for k as long = 0 to m.globals[i].dataCount - 1
-                dim as long e = m.globals[i].dataFirst + k
+            for k as int32 = 0 to m.globals[i].dataCount - 1
+                dim as int32 e = m.globals[i].dataFirst + k
                 if k > 0 then outp += ","
                 outp += " " & m.dataTypes[e] & " -> "
                 if m.dataRefs[e] < 0 then
@@ -187,13 +187,13 @@ function DumpModule _
             dim as string pk = "global ptrs "
             if m.globals[i].isExternal then pk = "extern ptrs "
             outp += pk & names.Spelling( m.globals[i].name ) & " ["
-            for k as long = 0 to m.globals[i].ptrCount - 1
-                dim as long e = m.globals[i].ptrFirst + k
+            for k as int32 = 0 to m.globals[i].ptrCount - 1
+                dim as int32 e = m.globals[i].ptrFirst + k
                 if k > 0 then outp += ","
                 select case m.ptrKinds[e]
                 case 0 : outp += " 0"
                 case 1 : outp += " @" & names.Spelling( _
-                             m.globals[cast( long, m.ptrRefs[e] )].name )
+                             m.globals[cast( int32, m.ptrRefs[e] )].name )
                 case else : outp += " " & names.Spelling( cast( Tko.InternId, m.ptrRefs[e] ) )
                 end select
             next
@@ -210,11 +210,11 @@ function DumpModule _
             if m.globals[i].isWide then
                 outp += iif( m.globals[i].isUtf16, "global u16str ", "global wstr " ) & _
                         names.Spelling( m.globals[i].name ) & " " & chr( 34 )
-                for k as long = 0 to m.globals[i].wcharCount - 1
-                    dim as ulong u = m.wcharPool[m.globals[i].wcharFirst + k]
+                for k as int32 = 0 to m.globals[i].wcharCount - 1
+                    dim as uint32 u = m.wcharPool[m.globals[i].wcharFirst + k]
                     if (u >= 32) andalso (u < 127) andalso (u <> 34) andalso _
                        (u <> 92) then
-                        outp += chr( cast( long, u ) )
+                        outp += chr( cast( int32, u ) )
                     else
                         outp += "\u" & ucase( hex( u, 4 ) )
                     end if
@@ -230,7 +230,7 @@ function DumpModule _
             '' a store somewhere.
             outp += "global var " & TypeName( cast( MirType, m.globals[i].ty ) ) & _
                     " " & names.Spelling( m.globals[i].name )
-            if m.globals[i].ty = cast( ubyte, MT_AGG ) then
+            if m.globals[i].ty = cast( uint8, MT_AGG ) then
                 outp += " size " & str( m.globals[i].size )
             end if
             '' AN ADDRESS INITIALISER prints as the thing it points at: '@name' for
@@ -244,14 +244,14 @@ function DumpModule _
                 '' A MIXED IMAGE prints each address at its byte offset, '+8 @g'; the
                 '' data bytes between them are the initialiser's own constants.
                 outp += iif( m.globals[i].ptrMixed, " = image [", " = [" )
-                for k as long = 0 to m.globals[i].ptrCount - 1
-                    dim as long e = m.globals[i].ptrFirst + k
+                for k as int32 = 0 to m.globals[i].ptrCount - 1
+                    dim as int32 e = m.globals[i].ptrFirst + k
                     if k > 0 then outp += ","
                     if m.globals[i].ptrMixed then outp += " +" & str( m.ptrOffs[e] )
                     select case m.ptrKinds[e]
                     case 0 : outp += " 0"
                     case 1 : outp += " @" & names.Spelling( _
-                                 m.globals[cast( long, m.ptrRefs[e] )].name )
+                                 m.globals[cast( int32, m.ptrRefs[e] )].name )
                     case else
                         outp += " " & names.Spelling( _
                             cast( Tko.InternId, m.ptrRefs[e] ) )
@@ -260,7 +260,7 @@ function DumpModule _
                 outp += " ]"
             elseif m.globals[i].initReloc >= 0 then
                 outp += " = @" & names.Spelling( _
-                    m.globals[cast( long, m.globals[i].initReloc )].name )
+                    m.globals[cast( int32, m.globals[i].initReloc )].name )
                 if m.globals[i].initRelocOff <> 0 then
                     outp += " + " & str( m.globals[i].initRelocOff )
                 end if
@@ -272,29 +272,29 @@ function DumpModule _
                 '' its bytes in hex, which is what it is.
                 if len( m.globals[i].initBytes ) > 0 then
                     outp += " = bytes"
-                    for bi as long = 0 to len( m.globals[i].initBytes ) - 1
+                    for bi as int32 = 0 to len( m.globals[i].initBytes ) - 1
                         outp += " " & hex( asc( mid( m.globals[i].initBytes, bi + 1, 1 ) ), 2 )
                     next
-                elseif (m.globals[i].ty = cast( ubyte, MT_F32 )) orelse _
-                       (m.globals[i].ty = cast( ubyte, MT_F64 )) then
+                elseif (m.globals[i].ty = cast( uint8, MT_F32 )) orelse _
+                       (m.globals[i].ty = cast( uint8, MT_F64 )) then
                     '' A NON-FINITE VALUE PRINTS ITS BITS. 'str( )' renders every NaN
                     '' as 'nan' whatever its sign, and the sign is exactly what a test
                     '' comparing a bit pattern is looking at -- numbers/infnan is that
                     '' test and its own comment says so. INF too, for the same reason:
                     '' the two of them are the values this dump has to be able to tell
                     '' apart.
-                    dim as double fv = m.globals[i].initFlt
+                    dim as float64 fv = m.globals[i].initFlt
                     if (fv <> fv) orelse (fv > 1.7976931348623157e308) orelse _
                        (fv < -1.7976931348623157e308) then
                         '' IN THE GLOBAL'S OWN WIDTH: an f32 holds a float, and
                         '' printing the double's 64 bits beside it would name a value
                         '' the global cannot hold.
-                        if m.globals[i].ty = cast( ubyte, MT_F32 ) then
-                            dim as single sv = cast( single, fv )
-                            dim as ulong sb = *cptr( ulong ptr, @sv )
+                        if m.globals[i].ty = cast( uint8, MT_F32 ) then
+                            dim as float32 sv = cast( float32, fv )
+                            dim as uint32 sb = *cptr( uint32 ptr, @sv )
                             outp += " = 0x" & hex( sb, 8 )
                         else
-                            dim as ulongint bits_ = *cptr( ulongint ptr, @fv )
+                            dim as uint64 bits_ = *cptr( uint64 ptr, @fv )
                             outp += " = 0x" & hex( bits_, 16 )
                         end if
                     else
@@ -307,7 +307,7 @@ function DumpModule _
             outp += chr( 10 )
         end if
     next
-    for fi as long = 0 to m.functions.Count - 1
+    for fi as int32 = 0 to m.functions.Count - 1
         dim as MirFunction ptr f = m.functions[fi]
         if f = 0 then continue for
 
@@ -325,7 +325,7 @@ function DumpModule _
         '' THE PARAMETER'S TYPE, beside its number. The dump used to print '$0, $1'
         '' and nothing else, which is all there was to print; the signature is now
         '' recorded and a golden that cannot see it cannot protect it.
-        for i as long = 0 to f->paramCount - 1
+        for i as int32 = 0 to f->paramCount - 1
             if i > 0 then outp += ", "
             dim as string pty = "?"
             if i < f->paramTys.Count then
@@ -334,7 +334,7 @@ function DumpModule _
                 '' ABI intent that nothing else in the dump reveals, and a classifier
                 '' that cannot be READ cannot be checked against the toolchain it has
                 '' to agree with.
-                if cast( MirType, f->paramTys[i] ) = cast( ubyte, MT_AGG ) then
+                if cast( MirType, f->paramTys[i] ) = cast( uint8, MT_AGG ) then
                     '' Only where a size is actually known. A zero is how a DECLINED
                     '' or unrecorded aggregate reads, and annotating that says nothing
                     '' while churning every golden that contains one.
@@ -362,28 +362,28 @@ function DumpModule _
 
         '' Locals are listed before the blocks so a diff of the body is not disturbed
         '' by a slot being added.
-        for i as long = 0 to f->locals.Count - 1
+        for i as int32 = 0 to f->locals.Count - 1
             outp += "  local " & TypeName( cast( MirType, f->locals[i].ty ) ) & " " & _
                     names.Spelling( f->locals[i].name )
-            if f->locals[i].ty = cast( ubyte, MT_AGG ) then
+            if f->locals[i].ty = cast( uint8, MT_AGG ) then
                 outp += " size " & str( f->locals[i].size )
             end if
             outp += chr( 10 )
         next
 
-        for bi as long = 0 to f->blocks.Count - 1
+        for bi as int32 = 0 to f->blocks.Count - 1
             dim as MirBlock ptr b = @f->blocks[bi]
             outp += "  " & BlockName( *f, bi, names ) & ":" & chr( 10 )
-            for i as long = 0 to b->insts.Count - 1
+            for i as int32 = 0 to b->insts.Count - 1
                 outp += InstStr( *f, b->insts[i], m, names ) & chr( 10 )
             next
             select case cast( MirTermKind, b->term )
             case MTERM_RET
-                if b->cond.kind = cast( ubyte, MV_NONE ) then
+                if b->cond.kind = cast( uint8, MV_NONE ) then
                     outp += "    ret" & chr( 10 )
                 else
                     outp += "    ret " & ValStr( *f, b->cond, names, @m )
-                    if b->ret2.kind <> cast( ubyte, MV_NONE ) then
+                    if b->ret2.kind <> cast( uint8, MV_NONE ) then
                         outp += ", " & ValStr( *f, b->ret2, names, @m )
                     end if
                     outp += chr( 10 )
@@ -398,9 +398,9 @@ function DumpModule _
                 outp += "    unreachable" & chr( 10 )
             case MTERM_INDIRECTBR
                 outp += "    indirectbr " & ValStr( *f, b->cond, names, @m )
-                for ti as long = 0 to b->indirectTargets.Count - 1
+                for ti as int32 = 0 to b->indirectTargets.Count - 1
                     outp += ", " & BlockName( *f, _
-                        cast( long, b->indirectTargets[ti] ), names )
+                        cast( int32, b->indirectTargets[ti] ), names )
                 next
                 outp += chr( 10 )
             case else

@@ -11,7 +11,7 @@ declare sub NoteParamType_( byref p as Tko.ParserState, byval n as Tko.NodeId )
 private function ParseParam( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.Token t = Cur( p )
     dim as Tko.StmtPayload sp
-    dim as ushort flags = 0
+    dim as uint16 flags = 0
 
     if Accept( p, Tko.KW_BYVAL ) then
         '' RECORDED, because the absence of NF_BYREF does NOT mean byval: with neither
@@ -32,7 +32,7 @@ private function ParseParam( byref p as Tko.ParserState ) as Tko.NodeId
         '' looked like a one-argument call to a two-parameter procedure and declined.
         ''
         '' 'op' is the keyword that spelled a node, which is free on an N_PARAM.
-        sp.op = cast( ushort, Tko.TK_ELLIPSIS )
+        sp.op = cast( uint16, Tko.TK_ELLIPSIS )
         dim as Tko.NodeId v = MakeStmt( p, Tko.N_PARAM, t.loc, sp )
         return v
     end if
@@ -80,8 +80,8 @@ private function ParseParam( byref p as Tko.ParserState ) as Tko.NodeId
         '' and 'first/count' are NOT free after all: the AST dumper prints a
         '' statement's children from them, so a rank written there came out as
         '' phantom child nodes in every parser golden.
-        dim as long acommas = 0
-        dim as long adepth = 0
+        dim as int32 acommas = 0
+        dim as int32 adepth = 0
         dim as boolean anyInside = false
         while (AtEnd( p ) = false)
             dim as Tko.TokenKind at2 = Peek( p )
@@ -94,7 +94,7 @@ private function ParseParam( byref p as Tko.ParserState ) as Tko.NodeId
         wend
         Expect( p, Tko.TK_RPAREN, ")" )
         flags or= Tko.NF_ARRAY
-        if anyInside then sp.extra = cast( ushort, acommas + 1 )
+        if anyInside then sp.extra = cast( uint16, acommas + 1 )
     end if
 
     if Accept( p, Tko.KW_AS ) then sp.a = TypeRef( p )
@@ -122,7 +122,7 @@ private function ParseParam( byref p as Tko.ParserState ) as Tko.NodeId
     if sawEq then sp.b = Expression( p )
 
     dim as Tko.NodeId n = MakeStmt( p, Tko.N_PARAM, t.loc, sp )
-    p.ast->nodes[cast( long, n )].flags or= flags
+    p.ast->nodes[cast( int32, n )].flags or= flags
     NoteParamType_( p, n )
     return n
 end function
@@ -140,14 +140,14 @@ private sub ParseArrayBounds _
     if Accept( p, Tko.TK_LPAREN ) = false then return
     if Peek( p ) <> Tko.TK_RPAREN then
         do
-            dim as long before = p.pos
+            dim as int32 before = p.pos
             dim as Tko.NodeId first_ = BoundExpr( p )
             if Accept( p, Tko.KW_TO ) then
-                bounds.Push( cast( ulong, first_ ) )
-                bounds.Push( cast( ulong, BoundExpr( p ) ) )
+                bounds.Push( cast( uint32, first_ ) )
+                bounds.Push( cast( uint32, BoundExpr( p ) ) )
             else
-                bounds.Push( cast( ulong, Tko.NODE_NONE ) )
-                bounds.Push( cast( ulong, first_ ) )
+                bounds.Push( cast( uint32, Tko.NODE_NONE ) )
+                bounds.Push( cast( uint32, first_ ) )
             end if
             if p.pos = before then exit do
             if Accept( p, Tko.TK_COMMA ) = false then exit do
@@ -156,7 +156,7 @@ private sub ParseArrayBounds _
     Expect( p, Tko.TK_RPAREN, ")" )
     sp.first = p.ast->children.Count
     sp.count = bounds.Count
-    for i as long = 0 to bounds.Count - 1
+    for i as int32 = 0 to bounds.Count - 1
         p.ast->children.Push( bounds[i] )
     next
 end sub
@@ -167,8 +167,8 @@ end sub
 function StringLitText( byref p as Tko.ParserState ) as Tko.InternId
     dim as Tko.Token t = Cur( p )
     if p.litPool = 0 then return 0
-    if cast( long, t.literal ) >= p.litPool->Count then return 0
-    dim as Tko.Literal ptr lit = @(*p.litPool)[cast( long, t.literal )]
+    if cast( int32, t.literal ) >= p.litPool->Count then return 0
+    dim as Tko.Literal ptr lit = @(*p.litPool)[cast( int32, t.literal )]
     if lit->textLength <= 0 then return 0
     '' The literal's OWN file. Taking it from t.loc breaks for any token produced by
     '' macro expansion, whose loc points at the use site rather than at the text.
@@ -211,8 +211,8 @@ sub ParseParamList( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
         Advance( p )
         if Peek( p ) <> Tko.TK_RPAREN then
             do
-                dim as long before = p.pos
-                params.Push( cast( ulong, ParseParam( p ) ) )
+                dim as int32 before = p.pos
+                params.Push( cast( uint32, ParseParam( p ) ) )
                 if p.pos = before then exit do
                 if Accept( p, Tko.TK_COMMA ) = false then exit do
             loop
@@ -221,20 +221,20 @@ sub ParseParamList( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
     end if
     sp.first = p.ast->children.Count
     sp.count = params.Count
-    for i as long = 0 to params.Count - 1
+    for i as int32 = 0 to params.Count - 1
         p.ast->children.Push( params[i] )
     next
     '' A TYPED VARIADIC IS THE LAST PARAMETER AND HAS NO DEFAULT -- what the arguments past
     '' the fixed ones pack into, so nothing can follow it and nothing is left to default.
     '' One per list falls out of the first rule; so does a C '...' after one.
     if p.silent = false then
-        for i as long = 0 to params.Count - 1
+        for i as int32 = 0 to params.Count - 1
             dim as Tko.NodeId vn = cast( Tko.NodeId, params[i] )
             if p.ast->Kind( vn ) <> Tko.N_PARAM then continue for
-            if (p.ast->nodes[cast( long, vn )].flags and Tko.NF_VARIADIC) = 0 then continue for
+            if (p.ast->nodes[cast( int32, vn )].flags and Tko.NF_VARIADIC) = 0 then continue for
             if i < params.Count - 1 then
                 p.diags->Report( Tko.TKO0973, Tko.PointRange( p.ast->Loc( vn ) ) )
-            elseif p.ast->stmts[cast( long, p.ast->nodes[cast( long, vn )].data )].b <> Tko.NODE_NONE then
+            elseif p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, vn )].data )].b <> Tko.NODE_NONE then
                 p.diags->Report( Tko.TKO0974, Tko.PointRange( p.ast->Loc( vn ) ) )
             end if
         next
@@ -255,8 +255,8 @@ private sub CheckPropertyShape_ _
         p.diags->Report( Tko.TKO0788, Tko.PointRange( at ) )
         exit sub
     end if
-    dim as long n = 0
-    for i as long = 0 to sp.count - 1
+    dim as int32 n = 0
+    for i as int32 = 0 to sp.count - 1
         if p.ast->Kind( cast( Tko.NodeId, p.ast->children[sp.first + i] ) ) = Tko.N_PARAM then n += 1
     next
     if sp.a <> Tko.NODE_NONE then
@@ -396,7 +396,7 @@ private sub ReadOperatorName _
     if (sp.name <> 0) andalso (Peek( p ) = Tko.TK_LBRACKET) then
         dim as string hadw = Tko.Text.LowerAscii( p.names->Spelling( sp.name ) )
         if (hadw = "new") orelse (hadw = "delete") then
-            dim as long sv = p.pos
+            dim as int32 sv = p.pos
             Advance( p )
             if Peek( p ) = Tko.TK_RBRACKET then
                 Advance( p )

@@ -8,8 +8,8 @@
 declare function SameProcResult_ _
     ( byref c as Ctx, byval a as Tko.TypeId, byval b as Tko.TypeId ) as boolean
 declare function SameParamType_ _
-    ( byref c as Ctx, byval callee as Tko.SymbolId, byval pi as long, _
-      byval st as Tko.TypeId, byval si as long ) as boolean
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval pi as int32, _
+      byval st as Tko.TypeId, byval si as int32 ) as boolean
 declare function ProcPickByType_ _
     ( byref c as Ctx, byval fnE as Tko.NodeId, byval st as Tko.TypeId ) as Tko.SymbolId
 declare function ProcPtrByType_ _
@@ -45,17 +45,17 @@ function ProcAddrForWanted_ _
     dim as Tko.NodeId fnE = Tko.NODE_NONE
     select case c.ast->Kind( id )
     case Tko.N_ADDROF
-        fnE = c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )].operand
+        fnE = c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )].operand
     case Tko.N_CALL
         dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         if (lp->count <> 1) orelse (lp->target = Tko.NODE_NONE) then return false
         fnE = cast( Tko.NodeId, c.ast->children[lp->first] )
     end select
     if fnE = Tko.NODE_NONE then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( fnE ) )
     if s = 0 then return false
-    if s->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    if s->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     if s->nextOverload = Tko.SYMBOL_NONE then return false
     '' WHICH OVERLOAD IS CHECK'S, recorded on 'f' (checkdecide.tiko DecideProcAddr_) by the same
     '' signature rule ProcPickByType_ applies -- and '@f' is typed by it, where Check used to
@@ -64,7 +64,7 @@ function ProcAddrForWanted_ _
     dim as Tko.SymbolId pick = c.info->DecisionOf( fnE )
     if pick = Tko.SYMBOL_NONE then return false
     outv = FuncAddrOf( c, pick )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 
 '' The overload in the chain that starts at whatever 'fnE' is bound to whose signature
@@ -109,17 +109,17 @@ function ProcPickByType_ _
     dim as Tko.SymbolId first_ = c.info->RefOf( fnE )
     if first_ = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
 
-    dim as long want = c.types->ProcParamCount( st )
+    dim as int32 want = c.types->ProcParamCount( st )
     dim as Tko.TypeId wantRet = c.types->Inner( st )
     dim as Tko.SymbolId cur = first_
     while cur <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
         if cs = 0 then exit while
-        if cs->kind = cast( ubyte, Tko.SYM_PROC ) then
+        if cs->kind = cast( uint8, Tko.SYM_PROC ) then
             dim as boolean ok = (ParamCountOf( c, cur ) = want)
             if ok then ok = SameProcResult_( c, cs->type_, wantRet )
             if ok then
-                for i as long = 0 to want - 1
+                for i as int32 = 0 to want - 1
                     if SameParamType_( c, cur, i, st, i ) = false then
                         ok = false
                         exit for
@@ -140,7 +140,7 @@ function ProcPtrByType_ _
     dim as Tko.SymbolId pick = ProcPickByType_( c, fnE, st )
     if pick = Tko.SYMBOL_NONE then return false
     outv = FuncAddrOf( c, pick )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 
 
@@ -171,8 +171,8 @@ end function
 '' reference wrapper is stripped from both because only the proc type carries it;
 '' BYREF is compared from the parameter node's own flag against that wrapper.
 function SameParamType_ _
-    ( byref c as Ctx, byval callee as Tko.SymbolId, byval pi as long, _
-      byval st as Tko.TypeId, byval si as long ) as boolean
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval pi as int32, _
+      byval st as Tko.TypeId, byval si as int32 ) as boolean
 
     dim as Tko.TypeId want = c.types->ProcParam( st, si )
     if want = Tko.TYPE_NONE then return false
@@ -195,14 +195,14 @@ function LowerProcPtr _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     '' 'procptr( T.constructor, sub( byval as integer ) )' WRITES A SECOND ARGUMENT to
     '' pick between overloads, so one is not the only legal count.
     if (lp->count <> 1) andalso (lp->count <> 2) then return false
     if lp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
     if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "procptr" then return false
 
     '' The operand names a PROCEDURE. Anything else -- an overload set nothing chose
@@ -224,7 +224,7 @@ function LowerProcPtr _
         if IsVirtualArg_( c, va ) then
             if c.ast->Kind( fnE ) <> Tko.N_MEMBER then return false
             dim as Tko.BinaryPayload ptr vmb = _
-                @c.ast->binaries[cast( long, c.ast->nodes[cast( long, fnE )].data )]
+                @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, fnE )].data )]
             dim as Tko.TypeId vot = c.types->Unqualify( c.info->TypeOf_( vmb->lhs ) )
             if vot = Tko.TYPE_NONE then
                 '' 'T.m' names the TYPE, not a value, so the base carries no type of
@@ -249,10 +249,10 @@ function LowerProcPtr _
             '' and is dispatched through it -- but fbc answers -1 for
             '' 'procptr( D.proc1, virtual )', not the slot it occupies. Measured, and
             '' the answer is a CONSTANT either way rather than a decline.
-            dim as long vslot = -1
+            dim as int32 vslot = -1
             dim as Tko.NodeId vpn = cast( Tko.NodeId, vpsy->payload )
             if (vpn <> Tko.NODE_NONE) andalso (c.ast->Kind( vpn ) = Tko.N_PROC) then
-                dim as ushort vmods = StmtOf( c, vpn )->extra
+                dim as uint16 vmods = StmtOf( c, vpn )->extra
                 if (vmods and (Tko.PF_VIRTUAL or Tko.PF_ABSTRACT)) <> 0 then
                     vslot = c.vts->SlotOf( vot, vps, vpn )
                 end if
@@ -301,22 +301,22 @@ function LowerProcPtr _
     '' always bound by Resolve, and a bare 'val' then read as the runtime's.
     dim as Tko.SymbolId usid = c.info->RefOf( fnE )
     if (usid = Tko.SYMBOL_NONE) andalso (c.ast->Kind( fnE ) = Tko.N_IDENT) then
-        usid = c.syms->Lookup( c.info->ScopeOf( fnE ), c.ast->idents[cast( long, c.ast->nodes[cast( long, fnE )].data )].name )
+        usid = c.syms->Lookup( c.info->ScopeOf( fnE ), c.ast->idents[cast( int32, c.ast->nodes[cast( int32, fnE )].data )].name )
     end if
     dim as boolean userBound = false
     dim as Tko.Symbol ptr ubs = c.syms->SymbolAt( usid )
-    if ubs <> 0 then userBound = (ubs->kind = cast( ubyte, Tko.SYM_PROC )) andalso ((ubs->flags and Tko.SYMF_BUILTIN) = 0)
+    if ubs <> 0 then userBound = (ubs->kind = cast( uint8, Tko.SYM_PROC )) andalso ((ubs->flags and Tko.SYMF_BUILTIN) = 0)
     if userBound then   '' ...and declared in the program, not the prelude's runtime declarations
         dim as Tko.SourceFile ptr usf = c.srcMgr->FileAt( c.srcMgr->Decode( ubs->loc ).file )
         if (usf = 0) orelse usf->isVirtual then userBound = false
     end if
     if userBound andalso (lp->count = 1) andalso (c.info->RefOf( fnE ) = Tko.SYMBOL_NONE) then
         outv = FuncAddrOf( c, usid )
-        return (outv.kind <> cast( ubyte, MV_NONE ))
+        return (outv.kind <> cast( uint8, MV_NONE ))
     end if
     if (c.ast->Kind( fnE ) = Tko.N_IDENT) andalso (userBound = false) then
         dim as Tko.IdentPayload ptr rip = _
-            @c.ast->idents[cast( long, c.ast->nodes[cast( long, fnE )].data )]
+            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, fnE )].data )]
         dim as RtlId rr = RtlByName( c.names->Spelling( rip->name ) )
         '' ...AND AN INTRINSIC NAMES ONE TOO. 'procptr( cls )' is '&fb_Cls' --
         '' measured, for sixty spellings -- so the keyword resolves to the same
@@ -328,8 +328,8 @@ function LowerProcPtr _
         if rr <> RTL_NONE then
             dim as boolean is32 = (c.types->target.pointerBits = 32)
             dim as Tko.InternId rnm = c.names->GetString( RtlLinkName( rr, is32 ) )
-            dim as long ridx = -1
-            for i as long = 0 to c.m->functions.Count - 1
+            dim as int32 ridx = -1
+            for i as int32 = 0 to c.m->functions.Count - 1
                 if c.m->functions[i]->name = rnm then
                     ridx = i
                     exit for
@@ -343,11 +343,11 @@ function LowerProcPtr _
                 ridx = c.m->functions.Count - 1
             end if
             dim as MirInst rfa
-            rfa.op = cast( ushort, M_FUNC_ADDR )
-            rfa.ty = cast( ubyte, MT_PTR )
-            rfa.callee = cast( ulong, ridx )
+            rfa.op = cast( uint16, M_FUNC_ADDR )
+            rfa.ty = cast( uint8, MT_PTR )
+            rfa.callee = cast( uint32, ridx )
             outv = Emit( c, rfa )
-            return (outv.kind <> cast( ubyte, MV_NONE ))
+            return (outv.kind <> cast( uint8, MV_NONE ))
         end if
     end if
 
@@ -371,7 +371,7 @@ function LowerProcPtr _
             if (apn <> Tko.NODE_NONE) andalso (c.ast->Kind( apn ) = Tko.N_PROC) then
                 if (StmtOf( c, apn )->extra and Tko.PF_ABSTRACT) <> 0 then
                     outv = ConstInt( c, 0, MT_PTR )
-                    return (outv.kind <> cast( ubyte, MV_NONE ))
+                    return (outv.kind <> cast( uint8, MV_NONE ))
                 end if
             end if
         end if
@@ -381,7 +381,7 @@ function LowerProcPtr _
     dim as Tko.SymbolId fsid = c.info->RefOf( fnE )
     if (lp->count = 1) andalso (c.ast->Kind( fnE ) = Tko.N_MEMBER) then fsid = FirstDeclaredOf_( c, fsid )
     outv = FuncAddrOf( c, fsid )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 
 '' The overload in sid's chain whose declaration comes first -- the arena is in source order.
@@ -392,12 +392,12 @@ private function FirstDeclaredOf_( byref c as Ctx, byval sid as Tko.SymbolId ) a
     dim as Tko.SymbolId cur = c.syms->LookupLocal( hs->parent, hs->name )
     if cur = Tko.SYMBOL_NONE then cur = sid
     dim as Tko.SymbolId best = sid
-    dim as long bestAt = &h7FFFFFFF, guard = 0
+    dim as int32 bestAt = &h7FFFFFFF, guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
         if s = 0 then exit while
-        dim as long pn = cast( long, s->payload )
+        dim as int32 pn = cast( int32, s->payload )
         if (pn > 0) andalso (pn < bestAt) then
             if c.ast->Kind( cast( Tko.NodeId, pn ) ) = Tko.N_PROC then bestAt = pn : best = cur
         end if

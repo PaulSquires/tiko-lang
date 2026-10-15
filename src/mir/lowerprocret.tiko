@@ -14,7 +14,7 @@
 '' a descriptor.
 function LowerStringReturn( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
     if c.resultSlot < 0 then return false
-    if c.resultTy <> cast( ubyte, MT_AGG ) then return false
+    if c.resultTy <> cast( uint8, MT_AGG ) then return false
     '' AND THE RESULT MUST ACTUALLY BE A STRING. MT_AGG alone stopped being enough the
     '' moment a by-value UDT result got an aggregate slot too: every 'return <udt>'
     '' came through here, tried a string assignment into it, and then emitted
@@ -38,11 +38,11 @@ function LowerStringReturn( byref c as Ctx, byval valueE as Tko.NodeId ) as bool
     EmitCleanupsTo( c, 0 )
 
     dim as MirValue rsa
-    rsa.kind = cast( ubyte, MV_LOCAL )
-    rsa.ty = cast( ubyte, MT_PTR )
+    rsa.kind = cast( uint8, MV_LOCAL )
+    rsa.ty = cast( uint8, MT_PTR )
     rsa.id = c.resultSlot
-    dim as containers.Array( of ulong ) rr
-    rr.Push( cast( ulong, rsa.kind ) ) : rr.Push( cast( ulong, rsa.id ) )
+    dim as containers.Array( of uint32 ) rr
+    rr.Push( cast( uint32, rsa.kind ) ) : rr.Push( cast( uint32, rsa.id ) )
     Terminate( c, MTERM_RET, -1, -1, EmitRtl( c, ResultTempRtl_( c ), rr ) )
     c.curBlock = -1
     return true
@@ -80,7 +80,7 @@ end function
 '' x86-64 and the emitted IR is identical; it is carried because it is part of the
 '' signature, because win32 is a stated target, and because it is unrecoverable later.
 function ProcCallConv_ _
-    ( byref c as Ctx, byval pn as Tko.NodeId ) as ubyte
+    ( byref c as Ctx, byval pn as Tko.NodeId ) as uint8
 
     if pn = Tko.NODE_NONE then return TKO_CC_CDECL
     dim as Tko.StmtPayload ptr sp = StmtOf( c, pn )
@@ -99,7 +99,7 @@ function CallIsPascal_ _
     if viaPointer then return c.types->IsPascal( sigT )
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
     if cs = 0 then return false
-    if cs->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    if cs->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
     if pn = Tko.NODE_NONE then return false
     if c.ast->Kind( pn ) <> Tko.N_PROC then return false
@@ -129,8 +129,8 @@ private function SretCopyResult_ _
                 if TermIsWide_( c, valueE ) orelse ConcatHasWideTerm_( c, valueE ) then xvt = c.types->Builtin( Tko.TY_WSTRING )
             end if
             if (xvt <> Tko.TYPE_NONE) andalso (xvt <> c.types->Unqualify( rt )) then
-                dim as containers.Array( of ulong ) xT
-                xT.Push( cast( ulong, xvt ) )
+                dim as containers.Array( of uint32 ) xT
+                xT.Push( cast( uint32, xvt ) )
                 dim as Tko.TypeId urt = c.types->Unqualify( rt )
                 '' ANOTHER UDT WITH NO CONSTRUCTOR TO TAKE IT is the DEFAULT constructor and then the
                 '' assignment ladder 'u = v' walks. Measured, 'return v' over TU with lets only:
@@ -141,18 +141,18 @@ private function SretCopyResult_ _
                 dim as boolean xRef
                 if (c.types->Kind( xvt ) = Tko.TK_UDT) andalso (UdtPtrCast_( c, xvt, urt, xRef ) <> Tko.SYMBOL_NONE) then
                     dim as MirValue bsa
-                    bsa.kind = cast( ubyte, MV_LOCAL ) : bsa.ty = cast( ubyte, MT_PTR ) : bsa.id = c.sretParam
+                    bsa.kind = cast( uint8, MV_LOCAL ) : bsa.ty = cast( uint8, MT_PTR ) : bsa.id = c.sretParam
                     dim as MirValue bdst = LowerExprLoad( c, bsa, MT_PTR )
-                    if bdst.kind <> cast( ubyte, MV_NONE ) then
+                    if bdst.kind <> cast( uint8, MV_NONE ) then
                         if ByrefCastInit_( c, -1, urt, valueE, @bdst ) then return true
                     end if
                 end if
                 if noCtor andalso (c.types->Kind( xvt ) = Tko.TK_UDT) andalso (StructorOf( c, urt, "let" ) <> Tko.SYMBOL_NONE) then
                     dim as Tko.SymbolId zct = StructorWithArity( c, StructorOf( c, urt, "__ctor" ), 0 )
                     dim as MirValue ysa
-                    ysa.kind = cast( ubyte, MV_LOCAL ) : ysa.ty = cast( ubyte, MT_PTR ) : ysa.id = c.sretParam
+                    ysa.kind = cast( uint8, MV_LOCAL ) : ysa.ty = cast( uint8, MT_PTR ) : ysa.id = c.sretParam
                     dim as MirValue ydst = LowerExprLoad( c, ysa, MT_PTR )
-                    if (zct <> Tko.SYMBOL_NONE) andalso (ydst.kind <> cast( ubyte, MV_NONE )) then
+                    if (zct <> Tko.SYMBOL_NONE) andalso (ydst.kind <> cast( uint8, MV_NONE )) then
                         EmitStructorCall( c, zct, -1, @ydst )
                         if LetViaCast_( c, Tko.NODE_NONE, valueE, urt, xvt, @ydst ) then return true
                         if LowerUserLetConv_( c, Tko.NODE_NONE, rt, valueE, c.sretParam ) then return true
@@ -161,11 +161,11 @@ private function SretCopyResult_ _
                 end if
                 if noCtor = false then
                     dim as MirValue xsa
-                    xsa.kind = cast( ubyte, MV_LOCAL )
-                    xsa.ty = cast( ubyte, MT_PTR )
+                    xsa.kind = cast( uint8, MV_LOCAL )
+                    xsa.ty = cast( uint8, MT_PTR )
                     xsa.id = c.sretParam
                     dim as MirValue xdst = LowerExprLoad( c, xsa, MT_PTR )
-                    if xdst.kind <> cast( ubyte, MV_NONE ) then
+                    if xdst.kind <> cast( uint8, MV_NONE ) then
                         if LowerConvCtorInit_( c, -1, c.types->Unqualify( rt ), valueE, @xdst ) then return true
                     end if
                 end if
@@ -193,24 +193,24 @@ private function SretCopyResult_ _
         dim as Tko.TypeId irt = c.types->Unqualify( rt )
         dim as boolean inPlace = (TypeCtorTypeOf_( c, valueE ) = irt)
         if (inPlace = false) andalso (c.ast->Kind( valueE ) = Tko.N_TUPLE) then
-            if (c.ast->nodes[cast( long, valueE )].flags and Tko.NF_TYPE_LITERAL) <> 0 then
+            if (c.ast->nodes[cast( int32, valueE )].flags and Tko.NF_TYPE_LITERAL) <> 0 then
                 inPlace = (c.types->Unqualify( c.info->TypeOf_( valueE ) ) = irt)
             end if
         end if
         if inPlace then
             dim as Tko.ListPayload ptr icp = _
-                @c.ast->lists[cast( long, c.ast->nodes[cast( long, valueE )].data )]
-            dim as containers.Array( of ulong ) iT
-            for i as long = 0 to icp->count - 1
-                iT.Push( cast( ulong, c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[icp->first + i] ) ) ) )
+                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, valueE )].data )]
+            dim as containers.Array( of uint32 ) iT
+            for i as int32 = 0 to icp->count - 1
+                iT.Push( cast( uint32, c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[icp->first + i] ) ) ) )
             next
             if PickCtor( c, StructorOf( c, irt, "__ctor" ), iT ) <> Tko.SYMBOL_NONE then
                 dim as MirValue isa
-                isa.kind = cast( ubyte, MV_LOCAL )
-                isa.ty = cast( ubyte, MT_PTR )
+                isa.kind = cast( uint8, MV_LOCAL )
+                isa.ty = cast( uint8, MT_PTR )
                 isa.id = c.sretParam
                 dim as MirValue idst = LowerExprLoad( c, isa, MT_PTR )
-                if idst.kind <> cast( ubyte, MV_NONE ) then
+                if idst.kind <> cast( uint8, MV_NONE ) then
                     if LowerCtorInit( c, -1, irt, valueE, @idst ) then return true
                 end if
             end if
@@ -234,19 +234,19 @@ private function SretCopyResult_ _
     else
         src = LowerAddr( c, valueE )
     end if
-    if src.kind = cast( ubyte, MV_NONE ) then return false
+    if src.kind = cast( uint8, MV_NONE ) then return false
 
     dim as MirValue sa
-    sa.kind = cast( ubyte, MV_LOCAL )
-    sa.ty = cast( ubyte, MT_PTR )
+    sa.kind = cast( uint8, MV_LOCAL )
+    sa.ty = cast( uint8, MT_PTR )
     sa.id = c.sretParam
     dim as MirValue dst = LowerExprLoad( c, sa, MT_PTR )
-    if dst.kind = cast( ubyte, MV_NONE ) then return false
+    if dst.kind = cast( uint8, MV_NONE ) then return false
 
     if written then
-        dim as containers.Array( of ulong ) cargs
-        cargs.Push( cast( ulong, src.kind ) )
-        cargs.Push( cast( ulong, src.id ) )
+        dim as containers.Array( of uint32 ) cargs
+        cargs.Push( cast( uint32, src.kind ) )
+        cargs.Push( cast( uint32, src.id ) )
         EmitStructorCall( c, cc, -1, @dst, @cargs )
     else
         CallImplicitCopy_( c, rt, dst, src )
@@ -275,8 +275,8 @@ function UdtConvResult_ _
         '' A TYPED value only when the type has an overload that takes it; anything else
         '' stays with the ordinary copy.
         if c.types->Unqualify( vt ) = rt then return false
-        dim as containers.Array( of ulong ) argT
-        argT.Push( cast( ulong, vt ) )
+        dim as containers.Array( of uint32 ) argT
+        argT.Push( cast( uint32, vt ) )
         dim as Tko.SymbolId over = Tko.SYMBOL_NONE
         if isReturn then
             over = PickCtor( c, StructorOf( c, rt, "__ctor" ), argT )
@@ -288,7 +288,7 @@ function UdtConvResult_ _
                 if zct = Tko.SYMBOL_NONE then return false
                 EmitStructorCall( c, zct, c.resultSlot )
                 dim as MirValue rsa
-                rsa.kind = cast( ubyte, MV_LOCAL ) : rsa.ty = cast( ubyte, MT_PTR ) : rsa.id = c.resultSlot
+                rsa.kind = cast( uint8, MV_LOCAL ) : rsa.ty = cast( uint8, MT_PTR ) : rsa.id = c.resultSlot
                 if LetViaCast_( c, Tko.NODE_NONE, valueE, rt, uvt, @rsa ) then return true
                 return LowerUserLetConv_( c, Tko.NODE_NONE, rt, valueE, c.resultSlot, true )
             end if
@@ -328,9 +328,9 @@ function SretAssignResult_ _
         '' same ladder -- LetViaCast_ (structs/udt-init-ops-1.bas ns42-44).
         if (vt <> Tko.TYPE_NONE) andalso (c.types->Kind( vt ) = Tko.TK_UDT) then
             dim as MirValue lsa
-            lsa.kind = cast( ubyte, MV_LOCAL ) : lsa.ty = cast( ubyte, MT_PTR ) : lsa.id = c.sretParam
+            lsa.kind = cast( uint8, MV_LOCAL ) : lsa.ty = cast( uint8, MT_PTR ) : lsa.id = c.sretParam
             dim as MirValue ldst = LowerExprLoad( c, lsa, MT_PTR )
-            if (ldst.kind <> cast( ubyte, MV_NONE )) andalso LetViaCast_( c, Tko.NODE_NONE, valueE, c.types->Unqualify( rt ), vt, @ldst ) then return true
+            if (ldst.kind <> cast( uint8, MV_NONE )) andalso LetViaCast_( c, Tko.NODE_NONE, valueE, c.types->Unqualify( rt ), vt, @ldst ) then return true
         end if
         return LowerUserLetConv_( c, Tko.NODE_NONE, rt, valueE, c.sretParam )
     end if
@@ -340,22 +340,22 @@ function SretAssignResult_ _
     else
         src = LowerAddr( c, valueE )
     end if
-    if src.kind = cast( ubyte, MV_NONE ) then return false
+    if src.kind = cast( uint8, MV_NONE ) then return false
 
     dim as MirValue sa
-    sa.kind = cast( ubyte, MV_LOCAL )
-    sa.ty = cast( ubyte, MT_PTR )
+    sa.kind = cast( uint8, MV_LOCAL )
+    sa.ty = cast( uint8, MT_PTR )
     sa.id = c.sretParam
     dim as MirValue dst = LowerExprLoad( c, sa, MT_PTR )
-    if dst.kind = cast( ubyte, MV_NONE ) then return false
+    if dst.kind = cast( uint8, MV_NONE ) then return false
 
-    dim as containers.Array( of ulong ) letT
-    letT.Push( cast( ulong, rt ) )
+    dim as containers.Array( of uint32 ) letT
+    letT.Push( cast( uint32, rt ) )
     dim as Tko.SymbolId ulet = PickCtor( c, StructorOf( c, rt, "let" ), letT )
     if ulet <> Tko.SYMBOL_NONE then
-        dim as containers.Array( of ulong ) largs
-        largs.Push( cast( ulong, src.kind ) )
-        largs.Push( cast( ulong, src.id ) )
+        dim as containers.Array( of uint32 ) largs
+        largs.Push( cast( uint32, src.kind ) )
+        largs.Push( cast( uint32, src.id ) )
         EmitStructorCall( c, ulet, -1, @dst, @largs )
         return true
     end if
@@ -366,10 +366,10 @@ function SretAssignResult_ _
     '' THE BITWISE COPY NEEDS ITS SIZE: M_LOAD of an MT_AGG carries the byte count
     '' in its immediate, and the destination here is a raw pointer with no slot for
     '' the emitter to read one off.
-    dim as long rsz = SizeOfType( c, rt )
+    dim as int32 rsz = SizeOfType( c, rt )
     if rsz <= 0 then return false
     dim as MirValue whole = LowerExprLoad( c, src, MT_AGG, rsz )
-    if whole.kind = cast( ubyte, MV_NONE ) then return false
+    if whole.kind = cast( uint8, MV_NONE ) then return false
     StoreThrough( c, dst, whole )
     return true
 end function
@@ -398,7 +398,7 @@ end function
 '' in Check -- see ScanReturnStyles_ in latesweeps.tiko -- and this is the lowering
 '' half of it.
 function BodyAssignsResult_ _
-    ( byref c as Ctx, byval id as Tko.NodeId, byval depth as long = 0 ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId, byval depth as int32 = 0 ) as boolean
 
     if id = Tko.NODE_NONE then return false
     if depth > 256 then return false
@@ -419,8 +419,8 @@ function BodyAssignsResult_ _
     if Tko.NodeKindCategory( k ) = Tko.NCAT_TYPE then return false
     if (k = Tko.N_MODULE) orelse (k = Tko.N_BLOCK) then
         dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-        for i as long = 0 to lp->count - 1
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        for i as int32 = 0 to lp->count - 1
             if BodyAssignsResult_( c, cast( Tko.NodeId, c.ast->children[lp->first + i] ), _
                                    depth + 1 ) then return true
         next
@@ -430,7 +430,7 @@ function BodyAssignsResult_ _
     if sp = 0 then return false
     if BodyAssignsResult_( c, sp->b, depth + 1 ) then return true
     if BodyAssignsResult_( c, sp->c, depth + 1 ) then return true
-    for i as long = 0 to sp->count - 1
+    for i as int32 = 0 to sp->count - 1
         if BodyAssignsResult_( c, cast( Tko.NodeId, c.ast->children[sp->first + i] ), _
                                depth + 1 ) then return true
     next
@@ -441,7 +441,7 @@ end function
 '' return t : end scope' under an IF is measured to suppress the entry construction as
 '' surely as a top-level one does.
 function BodyReturnsValue_ _
-    ( byref c as Ctx, byval id as Tko.NodeId, byval depth as long = 0 ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId, byval depth as int32 = 0 ) as boolean
 
     if id = Tko.NODE_NONE then return false
     if depth > 256 then return false
@@ -452,8 +452,8 @@ function BodyReturnsValue_ _
     if Tko.NodeKindCategory( k ) = Tko.NCAT_TYPE then return false
     if (k = Tko.N_MODULE) orelse (k = Tko.N_BLOCK) then
         dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-        for i as long = 0 to lp->count - 1
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        for i as int32 = 0 to lp->count - 1
             if BodyReturnsValue_( c, cast( Tko.NodeId, c.ast->children[lp->first + i] ), _
                                   depth + 1 ) then return true
         next
@@ -463,7 +463,7 @@ function BodyReturnsValue_ _
     if sp = 0 then return false
     if BodyReturnsValue_( c, sp->b, depth + 1 ) then return true
     if BodyReturnsValue_( c, sp->c, depth + 1 ) then return true
-    for i as long = 0 to sp->count - 1
+    for i as int32 = 0 to sp->count - 1
         if BodyReturnsValue_( c, cast( Tko.NodeId, c.ast->children[sp->first + i] ), _
                               depth + 1 ) then return true
     next
@@ -501,7 +501,7 @@ sub InitResultAtEntry_ _
         if needsCtor then
             if BodyReturnsValue_( c, body ) then exit sub
             if rct <> Tko.SYMBOL_NONE then
-                dim as containers.Array( of ulong ) rnone
+                dim as containers.Array( of uint32 ) rnone
                 EmitStructorCall( c, rct, -1, @dst, @rnone )
             else
                 CallImplicitCtor_( c, rt, dst )
@@ -510,12 +510,12 @@ sub InitResultAtEntry_ _
         end if
     end if
     if zeroTrivial = false then exit sub
-    dim as long sz = SizeOfType( c, rt )
+    dim as int32 sz = SizeOfType( c, rt )
     if sz <= 0 then exit sub
-    dim as containers.Array( of ulong ) bz
-    bz.Push( cast( ulong, dst.kind ) ) : bz.Push( cast( ulong, dst.id ) )
-    bz.Push( cast( ulong, MV_CONST_INT ) ) : bz.Push( 0 )
-    bz.Push( cast( ulong, MV_CONST_INT ) ) : bz.Push( cast( ulong, sz ) )
+    dim as containers.Array( of uint32 ) bz
+    bz.Push( cast( uint32, dst.kind ) ) : bz.Push( cast( uint32, dst.id ) )
+    bz.Push( cast( uint32, MV_CONST_INT ) ) : bz.Push( 0 )
+    bz.Push( cast( uint32, MV_CONST_INT ) ) : bz.Push( cast( uint32, sz ) )
     EmitRtl( c, RTL_MEMSET, bz )
 end sub
 
@@ -547,7 +547,7 @@ function DeclForName_( byref c as Ctx, byval id as Tko.NodeId, byval s as Tko.Sy
     dim as Tko.NodeId dn = cast( Tko.NodeId, s->payload )
     if (dn = Tko.NODE_NONE) orelse (dn = id) orelse (c.ast->Kind( dn ) <> Tko.N_PROC) then return id
     dim as Tko.StmtPayload ptr dp = StmtOf( c, dn )
-    for k as long = 0 to dp->count - 1
+    for k as int32 = 0 to dp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[dp->first + k] )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         dim as Tko.TypeId pt = c.types->Unqualify( c.info->TypeOf_( StmtOf( c, prm )->a ) )

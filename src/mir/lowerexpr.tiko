@@ -6,7 +6,7 @@
 '' 'A$0 = (void*)((uint8*)A$0 + 1ll)'. Taking the size raw would multiply by zero
 '' and never move.
 function PtrArithElem_ _
-    ( byref c as Ctx, byval t as Tko.TypeId ) as long
+    ( byref c as Ctx, byval t as Tko.TypeId ) as int32
 
     if t = Tko.TYPE_NONE then return 0
     dim as Tko.TypeId u = c.types->Unqualify( t )
@@ -31,7 +31,7 @@ function PtrArithElem_ _
         case else           : return 1
         end select
     end if
-    dim as long sz = SizeOfType( c, el )
+    dim as int32 sz = SizeOfType( c, el )
     if sz < 1 then sz = 1
     return sz
 end function
@@ -92,12 +92,12 @@ private function LowerMainArg_ _
     if c.ast->Kind( id ) <> Tko.N_IDENT then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
     if s = 0 then return false
-    if s->kind <> cast( ubyte, Tko.SYM_VARIABLE ) then return false
+    if s->kind <> cast( uint8, Tko.SYM_VARIABLE ) then return false
     dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->parent )
     if sc = 0 then return false
-    if sc->kind <> cast( ubyte, Tko.SCOPEK_MODULE ) then return false
+    if sc->kind <> cast( uint8, Tko.SCOPEK_MODULE ) then return false
     dim as string nm = c.names->Spelling( s->name )
-    dim as long which = -1
+    dim as int32 which = -1
     if nm = "__fb_argc__" then which = 0
     if nm = "__fb_argv__" then which = 1
     if which < 0 then return false
@@ -109,8 +109,8 @@ private function LowerMainArg_ _
         outv = ConstInt( c, 0, mt )
         return true
     end if
-    outv.kind = cast( ubyte, MV_PARAM )
-    outv.ty = cast( ubyte, mt )
+    outv.kind = cast( uint8, MV_PARAM )
+    outv.ty = cast( uint8, mt )
     outv.id = which
     return true
 end function
@@ -131,7 +131,7 @@ function LowerExpr _
     if (mt = MT_F32) orelse (mt = MT_F64) then
         dim as Tko.NodeKind fk = c.ast->Kind( id )
         if (fk = Tko.N_BINARY) orelse (fk = Tko.N_UNARY) then
-            dim as double fd
+            dim as float64 fd
             if Tko.Check.ConstFloatOf( *c.ast, id, fd, 0, c.syms, c.info->ScopeOf( id ), c.names ) then
                 return ConstFloat( c, fd, mt )
             end if
@@ -182,22 +182,22 @@ function LowerExpr _
         end if
         if isInputExpr then
             dim as MirValue nv = LowerExpr( c, isp->a )
-            if nv.kind = cast( ubyte, MV_NONE ) then return v
+            if nv.kind = cast( uint8, MV_NONE ) then return v
             nv = Coerce( c, nv, MT_I64, false )
-            if nv.kind = cast( ubyte, MV_NONE ) then return v
+            if nv.kind = cast( uint8, MV_NONE ) then return v
             dim as MirValue fv
             if isp->b <> Tko.NODE_NONE then
                 fv = LowerExpr( c, isp->b )
-                if fv.kind = cast( ubyte, MV_NONE ) then return v
+                if fv.kind = cast( uint8, MV_NONE ) then return v
                 fv = Coerce( c, fv, MT_I32, false )
             else
                 fv = ConstInt( c, 0, MT_I32 )
             end if
-            if fv.kind = cast( ubyte, MV_NONE ) then return v
-            dim as containers.Array( of ulong ) iargs
-            iargs.Push( cast( ulong, nv.kind ) ) : iargs.Push( cast( ulong, nv.id ) )
-            iargs.Push( cast( ulong, fv.kind ) ) : iargs.Push( cast( ulong, fv.id ) )
-            dim as long iw = RTL_FILE_STR_INPUT
+            if fv.kind = cast( uint8, MV_NONE ) then return v
+            dim as containers.Array( of uint32 ) iargs
+            iargs.Push( cast( uint32, nv.kind ) ) : iargs.Push( cast( uint32, nv.id ) )
+            iargs.Push( cast( uint32, fv.kind ) ) : iargs.Push( cast( uint32, fv.id ) )
+            dim as int32 iw = RTL_FILE_STR_INPUT
             if iop = Tko.KW_WINPUT then iw = RTL_FILE_WSTR_INPUT
             return EmitRtl( c, iw, iargs )
         end if
@@ -214,13 +214,13 @@ function LowerExpr _
 
     case Tko.N_INT_LIT
         dim as Tko.LiteralPayload ptr lp = _
-            @c.ast->literals[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->literals[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         if mt = MT_VOID then mt = MT_I64
-        return ConstInt( c, cast( longint, lp->intValue ), mt )
+        return ConstInt( c, cast( int64, lp->intValue ), mt )
 
     case Tko.N_FLOAT_LIT
         dim as Tko.LiteralPayload ptr lp = _
-            @c.ast->literals[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->literals[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         if mt = MT_VOID then mt = MT_F64
         return ConstFloat( c, lp->fltValue, mt )
 
@@ -239,7 +239,7 @@ function LowerExpr _
 
     case Tko.N_PAREN
         dim as Tko.ListPayload ptr pp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         if pp->count <> 1 then return v
         return LowerExpr( c, cast( Tko.NodeId, c.ast->children[pp->first] ) )
 
@@ -251,7 +251,7 @@ function LowerExpr _
         '' The two kinds share every step but one; only the property call is
         '' member-specific.
         dim as MirValue pre = LowerPredeclared( c, id )
-        if pre.kind <> cast( ubyte, MV_NONE ) then return pre
+        if pre.kind <> cast( uint8, MV_NONE ) then return pre
         if LowerMainArg_( c, id, pre ) then return pre
         if BareTypeNameTemp_( c, id, pre ) then return LowerExprLoad( c, pre, MT_AGG )   '' a TYPE NAME as a value: see LowerAddr
 
@@ -287,15 +287,15 @@ function LowerExpr _
         '' answers nothing here and falls through as before.
         if (c.ast->Kind( id ) = Tko.N_IDENT) andalso (c.info->RefOf( id ) = Tko.SYMBOL_NONE) then
             if LowerBuiltinProc( c, id, 0, 0, bpc, true ) then
-                if bpc.kind <> cast( ubyte, MV_NONE ) then return bpc
+                if bpc.kind <> cast( uint8, MV_NONE ) then return bpc
             end if
         end if
 
         dim as MirValue addr = LowerAddr( c, id )
-        if addr.kind = cast( ubyte, MV_NONE ) then return v
+        if addr.kind = cast( uint8, MV_NONE ) then return v
         dim as MirInst ins
-        ins.op = cast( ushort, M_LOAD )
-        ins.ty = cast( ubyte, mt )
+        ins.op = cast( uint16, M_LOAD )
+        ins.ty = cast( uint8, mt )
         ins.a = addr
         '' AN AGGREGATE LOAD CARRIES ITS SIZE, because the address alone cannot answer
         '' for it: reading a BYREF UDT parameter loads through a TEMP holding the
@@ -318,8 +318,8 @@ function LowerExpr _
                     aft = c.types->Inner( afu )
                 end if
             end if
-            dim as long asz = SizeOfType( c, aft )
-            if asz > 0 then ins.imm = cast( longint, asz )
+            dim as int32 asz = SizeOfType( c, aft )
+            if asz > 0 then ins.imm = cast( int64, asz )
         end if
         return Emit( c, ins )
 
@@ -337,7 +337,7 @@ function LowerExpr _
         '' wrote through whatever the stack held. Silent, because a DIM initialiser
         '' that would not lower skipped its store without counting it.
         dim as Tko.UnaryPayload ptr ap = _
-            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         '' '@this' IS THE OBJECT'S ADDRESS, which is the slot's VALUE and not the
         '' slot. The receiver is held as a POINTER -- IsThisPointerIdent_ exists
         '' because several sites need to know it -- so LowerAddr answers with the
@@ -356,7 +356,7 @@ function LowerExpr _
         '' them read through the object instead of to it.
         if IsThisPointerIdent_( c, ap->operand ) then
             dim as MirValue tsl = LowerAddr( c, ap->operand )
-            if tsl.kind <> cast( ubyte, MV_NONE ) then
+            if tsl.kind <> cast( uint8, MV_NONE ) then
                 return LowerExprLoad( c, tsl, MT_PTR )
             end if
         end if
@@ -372,10 +372,10 @@ function LowerExpr _
                     UdtMemberNamed_( c, c.types->Unqualify( aoT ), "@" )
                 if aoOp <> Tko.SYMBOL_NONE then
                     dim as MirValue aoSelf = LowerAddr( c, ap->operand )
-                    if aoSelf.kind <> cast( ubyte, MV_NONE ) then
-                        dim as containers.Array( of ulong ) aoArgs
-                        aoArgs.Push( cast( ulong, aoSelf.kind ) )
-                        aoArgs.Push( cast( ulong, aoSelf.id ) )
+                    if aoSelf.kind <> cast( uint8, MV_NONE ) then
+                        dim as containers.Array( of uint32 ) aoArgs
+                        aoArgs.Push( cast( uint32, aoSelf.kind ) )
+                        aoArgs.Push( cast( uint32, aoSelf.id ) )
                         if MemberVSlot_( c, aoOp ) >= 0 then return EmitMemberCall( c, aoOp, aoSelf, MT_PTR )   '' a VIRTUAL '@' through the vptr (virtual.bas)
                         return EmitDirectCall_( c, aoOp, MT_PTR, aoArgs )
                     end if
@@ -406,12 +406,12 @@ function LowerExpr _
         if IsConstNameRef_( c, litOp ) then
             dim as Tko.Symbol ptr acs = c.syms->SymbolAt( c.info->RefOf( litOp ) )
             if acs <> 0 then
-                if acs->kind = cast( ubyte, Tko.SYM_CONSTANT ) then
+                if acs->kind = cast( uint8, Tko.SYM_CONSTANT ) then
                     dim as string actx
                     if ConstStringTextOf_( c, litOp, actx ) then
                         dim as MirValue acv
-                        acv.kind = cast( ubyte, MV_GLOBAL )
-                        acv.ty = cast( ubyte, MT_PTR )
+                        acv.kind = cast( uint8, MV_GLOBAL )
+                        acv.ty = cast( uint8, MT_PTR )
                         acv.id = c.m->AddStringLiteral( actx, *c.names )
                         return acv
                     end if
@@ -436,23 +436,23 @@ function LowerExpr _
         dim as Tko.NodeId inA = Unparen_( c, ap->operand )
         if c.ast->Kind( inA ) = Tko.N_ADDROF then
             dim as Tko.UnaryPayload ptr ap2 = _
-                @c.ast->unaries[cast( long, c.ast->nodes[cast( long, inA )].data )]
+                @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, inA )].data )]
             dim as Tko.NodeId nmA = Unparen_( c, ap2->operand )
             if c.ast->Kind( nmA ) = Tko.N_IDENT then
                 dim as Tko.Symbol ptr syA = c.syms->SymbolAt( c.info->RefOf( nmA ) )
                 if syA <> 0 then
                     dim as boolean isParam = _
-                        (syA->kind = cast( ubyte, Tko.SYM_PARAMETER ))
+                        (syA->kind = cast( uint8, Tko.SYM_PARAMETER ))
                     dim as boolean isRef = false
                     if syA->type_ <> Tko.TYPE_NONE then
                         isRef = (c.types->Kind( syA->type_ ) = Tko.TK_REFERENCE)
                     end if
                     if isParam andalso isRef then
-                        dim as long pslot = LocalFor( c, c.info->RefOf( nmA ) )
+                        dim as int32 pslot = LocalFor( c, c.info->RefOf( nmA ) )
                         if pslot >= 0 then
                             dim as MirValue pv
-                            pv.kind = cast( ubyte, MV_LOCAL )
-                            pv.ty = cast( ubyte, MT_PTR )
+                            pv.kind = cast( uint8, MV_LOCAL )
+                            pv.ty = cast( uint8, MT_PTR )
                             pv.id = pslot
                             return pv
                         end if
@@ -463,7 +463,7 @@ function LowerExpr _
 
         dim as MirValue wrv
         if WideOperand_( c, ap->operand, wrv ) then
-            if wrv.kind <> cast( ubyte, MV_NONE ) then return wrv
+            if wrv.kind <> cast( uint8, MV_NONE ) then return wrv
         end if
         return LowerAddr( c, ap->operand )
 
@@ -490,7 +490,7 @@ function LowerExpr _
         if LowerUdtIndexOp_( c, id, ixv, ixByref ) then
             if ixByref = false then return ixv
             dim as Tko.ListPayload ptr xp0 = _
-                @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
             dim as Tko.TypeId xt0 = c.info->TypeOf_( xp0->target )
             dim as Tko.SymbolId ixs0 = UdtMemberNamed_( c, xt0, "[]" )
             dim as Tko.Symbol ptr ixsy0 = c.syms->SymbolAt( ixs0 )
@@ -502,7 +502,7 @@ function LowerExpr _
             '' the store of it into a real 16-byte slot was refused. The operator's
             '' RETURN TYPE is the size -- a byref result is a reference to the
             '' element, so the referent is what crosses.
-            dim as long rsz = 0
+            dim as int32 rsz = 0
             if rmt = MT_AGG then
                 dim as Tko.TypeId ret0 = c.types->Unqualify( ixsy0->type_ )
                 if c.types->Kind( ret0 ) = Tko.TK_REFERENCE then
@@ -516,7 +516,7 @@ function LowerExpr _
         dim as MirType imt = mt
         if imt = MT_VOID then
             dim as Tko.ListPayload ptr xp = _
-                @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
             dim as Tko.TypeId xt = c.info->TypeOf_( xp->target )
             if xt <> Tko.TYPE_NONE then
                 '' A STRING SUBSCRIPTED IS ITS CHARACTER -- one byte narrow, TWO wide,
@@ -540,7 +540,7 @@ function LowerExpr _
                 end if
 
                 '' 4 is a Linux wchar -- CharElemSize_ says why it matters.
-                dim as long cesz = CharElemSize_( c, xt )
+                dim as int32 cesz = CharElemSize_( c, xt )
                 if cesz = 1 then
                     imt = MT_I8
                 elseif cesz = 2 then
@@ -549,7 +549,7 @@ function LowerExpr _
                     imt = MT_I32
                 elseif c.types->Kind( xt ) = Tko.TK_POINTER then
                     imt = LowerType( c.types->Inner( xt ), *c.types )
-                    dim as long pesz = CharElemSize_( c, c.types->Inner( xt ) )
+                    dim as int32 pesz = CharElemSize_( c, c.types->Inner( xt ) )
                     if pesz = 1 then
                         imt = MT_I8
                     elseif pesz = 2 then
@@ -562,19 +562,19 @@ function LowerExpr _
         end if
         if imt = MT_VOID then return v
         dim as MirValue ia = LowerAddr( c, id )
-        if ia.kind = cast( ubyte, MV_NONE ) then return v
+        if ia.kind = cast( uint8, MV_NONE ) then return v
         '' AND AN AGGREGATE ELEMENT NEEDS ITS SIZE. The address is a computed
         '' temp -- a getelementptr -- so the emitter has no slot to measure and
         '' wrote '[0 x i8]'; 'f( pre, parray[j], post )' over a one-byte UDT
         '' stored that into a real [1 x i8] slot and clang refused the module.
         '' Check does not type an N_INDEX, so the ELEMENT type comes from the
         '' target's when the node itself has none.
-        dim as long ixsz = 0
+        dim as int32 ixsz = 0
         if imt = MT_AGG then
             dim as Tko.TypeId iet = c.info->TypeOf_( id )
             if iet = Tko.TYPE_NONE then
                 dim as Tko.ListPayload ptr xp2 = _
-                    @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+                    @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
                 dim as Tko.TypeId xt2 = c.info->TypeOf_( xp2->target )
                 if xt2 <> Tko.TYPE_NONE then
                     dim as Tko.TypeId bt2 = c.types->Unqualify( xt2 )
@@ -617,13 +617,13 @@ function LowerExpr _
                 dim as Tko.NodeId don = cast( Tko.NodeId, dos->payload )
                 if don <> Tko.NODE_NONE then
                     if c.ast->Kind( don ) = Tko.N_PROC then
-                        byrefRes = ((c.ast->nodes[cast( long, don )].flags and _
+                        byrefRes = ((c.ast->nodes[cast( int32, don )].flags and _
                                      Tko.NF_BYREF) <> 0)
                     end if
                 end if
                 if byrefRes = false then
                     dim as Tko.UnaryPayload ptr dvp = _
-                        @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+                        @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
                     dim as MirValue dvv
                     if LowerUserUnaryOp_( c, id, dvp, mt, dvv ) then return dvv
                 end if
@@ -632,7 +632,7 @@ function LowerExpr _
         '' '*p' is a LOAD THROUGH the pointer. LowerAddr already knows the shape --
         '' the address is the pointer's VALUE -- so this is the load around it.
         dim as MirValue da = LowerAddr( c, id )
-        if da.kind = cast( ubyte, MV_NONE ) then return v
+        if da.kind = cast( uint8, MV_NONE ) then return v
         '' '*pz' AND '*pw' AS A NUMBER ARE ONE CHARACTER, unsigned. Measured:
         '' 'd = *pz' over a 'zstring ptr' is '(double)(uint8)*PZ$0' and over a
         '' 'wstring ptr' it is '(double)*PW$0' out of a uint16*. The ordinary load
@@ -659,7 +659,7 @@ function LowerExpr _
 
     case Tko.N_UNARY
         dim as Tko.UnaryPayload ptr up = _
-            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
 
         '' A user-defined unary operator is a call, as the binary one is.
         dim as MirValue uuv
@@ -673,7 +673,7 @@ function LowerExpr _
         if UserCastToNum_( c, up->operand, x ) = false then
             x = LowerExpr( c, up->operand )
         end if
-        if x.kind = cast( ubyte, MV_NONE ) then return v
+        if x.kind = cast( uint8, MV_NONE ) then return v
         '' THE OPERAND IS COERCED TO THE RESULT'S TYPE, which the BINARY path has
         '' always done and this one did not. Check types 'not flags' over a ULONG as a
         '' 64-bit value while the operand stays i32, and the instruction was emitted
@@ -687,12 +687,12 @@ function LowerExpr _
         '' mask. The widening follows the OPERAND's signedness, so a ULONG
         '' zero-extends and a LONG sign-extends.
         x = CoerceTy( c, x, mt, c.info->TypeOf_( up->operand ), ft )
-        if x.kind = cast( ubyte, MV_NONE ) then return v
+        if x.kind = cast( uint8, MV_NONE ) then return v
         dim as MirInst ins
-        ins.ty = cast( ubyte, mt )
+        ins.ty = cast( uint8, mt )
         ins.a = x
         select case cast( Tko.TokenKind, up->op )
-        case Tko.TK_MINUS : ins.op = cast( ushort, M_NEG )
+        case Tko.TK_MINUS : ins.op = cast( uint16, M_NEG )
         case Tko.TK_PLUS  : return x
         case Tko.KW_NOT
             '' 'NOT' OVER A BOOLEAN IS A LOGICAL NEGATION, not a bitwise one.
@@ -712,22 +712,22 @@ function LowerExpr _
             '' 'not (a)' -- and every one of them had been compiled and never run.
             if IsBooleanType( c, c.info->TypeOf_( up->operand ) ) then
                 dim as MirInst bz
-                bz.op = cast( ushort, M_ICMP_EQ )
-                bz.ty = cast( ubyte, MT_I8 )
+                bz.op = cast( uint16, M_ICMP_EQ )
+                bz.ty = cast( uint8, MT_I8 )
                 bz.a = x
                 bz.b = ConstInt( c, 0, cast( MirType, x.ty ) )
                 dim as MirValue bv = Emit( c, bz )
-                if bv.kind = cast( ubyte, MV_NONE ) then return v
+                if bv.kind = cast( uint8, MV_NONE ) then return v
                 return CoerceTy( c, bv, mt, c.info->TypeOf_( id ), ft )
             end if
-            ins.op = cast( ushort, M_NOT )
+            ins.op = cast( uint16, M_NOT )
         case else         : return v
         end select
         return Emit( c, ins )
 
     case Tko.N_BINARY
         dim as Tko.BinaryPayload ptr bp = _
-            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         dim as Tko.TokenKind tk = cast( Tko.TokenKind, bp->op )
 
         '' 'a IS T' -- the RTTI type test, and not an arithmetic operator at all.
@@ -790,9 +790,9 @@ function LowerExpr _
         '' 'fb_StrCompare( Z1, 8ll, Z2, 8ll )'. It lowered, it verified, and it was
         '' wrong.
         if cmpStr = false then
-            dim as longint fcn
-            dim as long lk = StrSwapKind_( c, c.info->TypeOf_( bp->lhs ), fcn )
-            dim as long rk = StrSwapKind_( c, c.info->TypeOf_( bp->rhs ), fcn )
+            dim as int64 fcn
+            dim as int32 lk = StrSwapKind_( c, c.info->TypeOf_( bp->lhs ), fcn )
+            dim as int32 rk = StrSwapKind_( c, c.info->TypeOf_( bp->rhs ), fcn )
             '' ...AND THE UTF FLAVOURS, 2 and 4. 'ustring * 4' is an ARRAY of the
             '' fixustr builtin, which is neither IsStringType nor IsWideString_, so
             '' 'return ( text = o.text )' over two of them fell to the NUMERIC path
@@ -845,7 +845,7 @@ function LowerExpr _
         end if
         if cmpStr then
             dim as MirValue sc = LowerStrCompare( c, id, bp, tk )
-            if sc.kind <> cast( ubyte, MV_NONE ) then return sc
+            if sc.kind <> cast( uint8, MV_NONE ) then return sc
             return v
         end if
 
@@ -889,7 +889,7 @@ function LowerExpr _
 
         if lCast = false then l = LowerExpr( c, bp->lhs )
         if rCast = false then r = LowerExpr( c, bp->rhs )
-        if (l.kind = cast( ubyte, MV_NONE )) orelse (r.kind = cast( ubyte, MV_NONE )) then
+        if (l.kind = cast( uint8, MV_NONE )) orelse (r.kind = cast( uint8, MV_NONE )) then
             return v
         end if
 
@@ -906,9 +906,9 @@ function LowerExpr _
         if tk = Tko.TK_CARET then
             dim as MirValue pl = CoerceTy( c, l, MT_F64, c.info->TypeOf_( bp->lhs ))
             dim as MirValue pr = CoerceTy( c, r, MT_F64, c.info->TypeOf_( bp->rhs ))
-            dim as containers.Array( of ulong ) pa
-            pa.Push( cast( ulong, pl.kind ) ) : pa.Push( cast( ulong, pl.id ) )
-            pa.Push( cast( ulong, pr.kind ) ) : pa.Push( cast( ulong, pr.id ) )
+            dim as containers.Array( of uint32 ) pa
+            pa.Push( cast( uint32, pl.kind ) ) : pa.Push( cast( uint32, pl.id ) )
+            pa.Push( cast( uint32, pr.kind ) ) : pa.Push( cast( uint32, pr.id ) )
             return EmitRtl( c, RTL_POW, pa )
         end if
         '' The operand type decides signed versus unsigned, and it is the OPERANDS'
@@ -948,31 +948,31 @@ function LowerExpr _
             end if
             pv = Coerce( c, pv, MT_PTR, false )
             ov = CoerceTy( c, ov, offTy, ot )
-            dim as long eszA = PtrArithElem_( c, iif( lpA, lt, rt ) )
+            dim as int32 eszA = PtrArithElem_( c, iif( lpA, lt, rt ) )
             if eszA > 1 then
                 dim as MirInst scA
-                scA.op = cast( ushort, M_MUL )
-                scA.ty = cast( ubyte, offTy )
+                scA.op = cast( uint16, M_MUL )
+                scA.ty = cast( uint8, offTy )
                 scA.a = ov
                 scA.b = ConstInt( c, eszA, offTy )
                 ov = Emit( c, scA )
-                if ov.kind = cast( ubyte, MV_NONE ) then return v
+                if ov.kind = cast( uint8, MV_NONE ) then return v
             end if
             '' 'p - n' IS 'p + (-n)'. M_PTR_ADD has no subtracting form and fbc
             '' writes the same thing: 'r - 2' over an 'integer ptr' is
             '' '(uint8*)R + -16'.
             if tk = Tko.TK_MINUS then
                 dim as MirInst ngA
-                ngA.op = cast( ushort, M_SUB )
-                ngA.ty = cast( ubyte, offTy )
+                ngA.op = cast( uint16, M_SUB )
+                ngA.ty = cast( uint8, offTy )
                 ngA.a = ConstInt( c, 0, offTy )
                 ngA.b = ov
                 ov = Emit( c, ngA )
-                if ov.kind = cast( ubyte, MV_NONE ) then return v
+                if ov.kind = cast( uint8, MV_NONE ) then return v
             end if
             dim as MirInst paA
-            paA.op = cast( ushort, M_PTR_ADD )
-            paA.ty = cast( ubyte, MT_PTR )
+            paA.op = cast( uint16, M_PTR_ADD )
+            paA.ty = cast( uint8, MT_PTR )
             paA.a = pv
             paA.b = ov
             return Emit( c, paA )
@@ -1123,21 +1123,21 @@ function LowerExpr _
         dim as boolean rPtr = PtrArithElem_( c, rt ) > 0
         dim as boolean addSub = (tk = Tko.TK_PLUS) orelse (tk = Tko.TK_MINUS)
         if addSub andalso (lPtr <> rPtr) then
-            dim as long esz = PtrArithElem_( c, lt )
+            dim as int32 esz = PtrArithElem_( c, lt )
             if lPtr = false then esz = PtrArithElem_( c, rt )
             if esz > 1 then
                 dim as MirInst sc
-                sc.op = cast( ushort, M_MUL )
-                sc.ty = cast( ubyte, opTy )
+                sc.op = cast( uint16, M_MUL )
+                sc.ty = cast( uint8, opTy )
                 sc.b = ConstInt( c, esz, opTy )
                 if lPtr then
                     sc.a = r
                     r = Emit( c, sc )
-                    if r.kind = cast( ubyte, MV_NONE ) then return v
+                    if r.kind = cast( uint8, MV_NONE ) then return v
                 else
                     sc.a = l
                     l = Emit( c, sc )
-                    if l.kind = cast( ubyte, MV_NONE ) then return v
+                    if l.kind = cast( uint8, MV_NONE ) then return v
                 end if
             end if
         end if
@@ -1179,8 +1179,8 @@ function LowerExpr _
             if dcv.known then return ConstInt( c, dcv.value, mt )
         end if
         dim as MirInst ins
-        ins.op = cast( ushort, op )
-        ins.ty = cast( ubyte, iif( mt = MT_VOID, opTy, mt ) )
+        ins.op = cast( uint16, op )
+        ins.ty = cast( uint8, iif( mt = MT_VOID, opTy, mt ) )
         '' A COMPARISON'S RESULT IS AN INTEGER, whatever the expression around it
         '' wants. Taking the EXPRESSION's type typed the compare itself as a float
         '' where one was expected -- 'zext i1 %t51.c to double', which is not a cast
@@ -1188,7 +1188,7 @@ function LowerExpr _
         '' happens AFTER the negation below, which is where it belongs: fbc writes
         '' '-(A < B)' and then converts that.
         if IsCmpOp_( op ) andalso IsFloatTy( cast( MirType, ins.ty ) ) then
-            ins.ty = cast( ubyte, MT_I32 )
+            ins.ty = cast( uint8, MT_I32 )
         end if
 
         '' THE OPERANDS ARE WIDENED TO THE RESULT, for an operation whose result IS a
@@ -1245,8 +1245,8 @@ function LowerExpr _
             if lBool andalso rBool then
                 l = NormaliseBool( c, l )
                 r = NormaliseBool( c, r )
-                if l.kind = cast( ubyte, MV_NONE ) then return v
-                if r.kind = cast( ubyte, MV_NONE ) then return v
+                if l.kind = cast( uint8, MV_NONE ) then return v
+                if r.kind = cast( uint8, MV_NONE ) then return v
             end if
         end if
         ins.a = l
@@ -1258,15 +1258,15 @@ function LowerExpr _
         dim as boolean isSub = (tk = Tko.TK_MINUS)
         dim as boolean bothPtr = lPtr andalso rPtr
         if isSub andalso bothPtr then
-            dim as long dsz = PtrArithElem_( c, lt )
+            dim as int32 dsz = PtrArithElem_( c, lt )
             if dsz > 1 then
                 dim as MirInst dv
-                dv.op = cast( ushort, M_SDIV )
-                dv.ty = cast( ubyte, ins.ty )
+                dv.op = cast( uint16, M_SDIV )
+                dv.ty = cast( uint8, ins.ty )
                 dv.a = res
                 dv.b = ConstInt( c, dsz, cast( MirType, ins.ty ) )
                 res = Emit( c, dv )
-                if res.kind = cast( ubyte, MV_NONE ) then return v
+                if res.kind = cast( uint8, MV_NONE ) then return v
             end if
         end if
 
@@ -1279,11 +1279,11 @@ function LowerExpr _
         '' whether it is nonzero, and fbc emits no negation there either.
         if IsCmpOp_( op ) andalso (id <> c.rawCmpNode) then
             dim as MirInst neg
-            neg.op = cast( ushort, M_NEG )
+            neg.op = cast( uint16, M_NEG )
             neg.ty = ins.ty
             neg.a = res
             res = Emit( c, neg )
-            if res.kind = cast( ubyte, MV_NONE ) then return v
+            if res.kind = cast( uint8, MV_NONE ) then return v
             '' ...AND THEN CONVERTED, for the float case the compare could not
             '' carry itself. -1 and 0 become -1.0 and 0.0.
             if (mt <> MT_VOID) andalso (mt <> MT_AGG) then

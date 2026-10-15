@@ -14,12 +14,12 @@ function Dump _
             " type refs, " & st.calls & " calls, " & st.assigns & _
             " assignments" & chr( 10 )
 
-    for i as long = 0 to st.unresolvedNames.Count - 1
+    for i as int32 = 0 to st.unresolvedNames.Count - 1
         outp += "  unresolved: " & _
                 names.Spelling( cast( Tko.InternId, st.unresolvedNames[i] ) ) & chr( 10 )
     next
 
-    for i as long = 1 to ast.Count( )
+    for i as int32 = 1 to ast.Count( )
         dim as Tko.NodeId n = cast( Tko.NodeId, i )
         dim as Tko.NodeKind k = ast.Kind( n )
 

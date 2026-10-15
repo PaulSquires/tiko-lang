@@ -26,19 +26,19 @@ end sub
 '' something fails: built for every instruction up front, it was a string concatenation per
 '' instruction of every build (7 million in tiko-lang's self-compile; speed audit).
 '' i < 0 is the block itself -- a terminator's operand -- named as the block alone.
-private function IW_( byref bn as string, byval i as long, byval op as MirOp ) as string
+private function IW_( byref bn as string, byval i as int32, byval op as MirOp ) as string
     if i < 0 then return bn
     return bn & ":" & str( i ) & " " & OpName( op )
 end function
 
 private sub CheckUse_ _
-    ( byref r as VerifyResult, byref bn as string, byval i as long, byval op as MirOp, _
-      byref v as MirValue, defined_ as containers.Array( of ubyte ) )
+    ( byref r as VerifyResult, byref bn as string, byval i as int32, byval op as MirOp, _
+      byref v as MirValue, defined_ as containers.Array( of uint8 ) )
 
-    if v.kind <> cast( ubyte, MV_TEMP ) then return
-    if cast( long, v.id ) >= defined_.Count then
+    if v.kind <> cast( uint8, MV_TEMP ) then return
+    if cast( int32, v.id ) >= defined_.Count then
         Fail( r, IW_( bn, i, op ), "uses %" & str( v.id ) & " past the function's temp counter" )
-    elseif defined_[cast( long, v.id )] = 0 then
+    elseif defined_[cast( int32, v.id )] = 0 then
         Fail( r, IW_( bn, i, op ), "uses %" & str( v.id ) & " before it is defined" )
     end if
 end sub
@@ -49,7 +49,7 @@ function Verify _
 
     dim as VerifyResult r
 
-    for fi as long = 0 to m.functions.Count - 1
+    for fi as int32 = 0 to m.functions.Count - 1
         dim as MirFunction ptr f = m.functions[fi]
         if f = 0 then continue for
         if f->isDefinition = false then continue for
@@ -62,8 +62,8 @@ function Verify _
 
         '' Which temps have been defined. Not dominance -- that needs a CFG walk --
         '' but it does catch a use of a temp that was never produced at all.
-        dim as containers.Array( of ubyte ) defined_
-        for i as long = 0 to f->nextTemp
+        dim as containers.Array( of uint8 ) defined_
+        for i as int32 = 0 to f->nextTemp
             defined_.Push( 0 )
         next
 
@@ -77,25 +77,25 @@ function Verify _
         '' ORDER: the entry block is where they all live, but a later block's use is
         '' seen before the entry block is finished being read only if the walk is
         '' single-pass. Two passes is simpler than reasoning about that.
-        dim as containers.Array( of ubyte ) allocated_
-        for i as long = 0 to f->locals.Count
+        dim as containers.Array( of uint8 ) allocated_
+        for i as int32 = 0 to f->locals.Count
             allocated_.Push( 0 )
         next
-        for bi as long = 0 to f->blocks.Count - 1
-            for ii as long = 0 to f->blocks[bi].insts.Count - 1
+        for bi as int32 = 0 to f->blocks.Count - 1
+            for ii as int32 = 0 to f->blocks[bi].insts.Count - 1
                 dim as MirInst ptr ai = @f->blocks[bi].insts[ii]
                 if cast( MirOp, ai->op ) <> M_ALLOCA then continue for
-                dim as long sl = cast( long, ai->imm )
+                dim as int32 sl = cast( int32, ai->imm )
                 if (sl >= 0) andalso (sl < allocated_.Count) then allocated_[sl] = 1
             next
         next
 
-        for bi as long = 0 to f->blocks.Count - 1
+        for bi as int32 = 0 to f->blocks.Count - 1
             dim as MirBlock ptr b = @f->blocks[bi]
             dim as string bn = fn & ":" & str( bi )
 
             '' Rule 1: every block ends in exactly one terminator.
-            if b->term = cast( ubyte, MTERM_NONE ) then
+            if b->term = cast( uint8, MTERM_NONE ) then
                 Fail( r, bn, "block has no terminator" )
             end if
 
@@ -112,7 +112,7 @@ function Verify _
                 end if
             end if
 
-            for i as long = 0 to b->insts.Count - 1
+            for i as int32 = 0 to b->insts.Count - 1
                 dim as MirInst ptr ins = @b->insts[i]
                 dim as MirOp op = cast( MirOp, ins->op )
 
@@ -127,15 +127,15 @@ function Verify _
                 '' A void call is the one result-producing opcode that legitimately
                 '' has no result: there is no value to name.
                 dim as boolean wantsResult = OpHasResult( op )
-                if ins->ty = cast( ubyte, MT_VOID ) then wantsResult = false
+                if ins->ty = cast( uint8, MT_VOID ) then wantsResult = false
                 if wantsResult then
                     if ins->result = 0 then
                         Fail( r, IW_( bn, i, op ), "result-producing opcode with no result temp" )
-                    elseif cast( long, ins->result ) < defined_.Count then
-                        if defined_[cast( long, ins->result )] <> 0 then
+                    elseif cast( int32, ins->result ) < defined_.Count then
+                        if defined_[cast( int32, ins->result )] <> 0 then
                             Fail( r, IW_( bn, i, op ), "temp %" & str( ins->result ) & " defined twice" )
                         end if
-                        defined_[cast( long, ins->result )] = 1
+                        defined_[cast( int32, ins->result )] = 1
                     else
                         Fail( r, IW_( bn, i, op ), "temp %" & str( ins->result ) & _
                               " is past the function's temp counter" )
@@ -147,8 +147,8 @@ function Verify _
                 '' Rule 9c: a slot that is USED must have been ALLOCATED. See the
                 '' sweep above for what this is for. A GLOBAL is storage in its own
                 '' right and is not allocated by anything here.
-                if ins->a.kind = cast( ubyte, MV_LOCAL ) then
-                    dim as long sl = cast( long, ins->a.id )
+                if ins->a.kind = cast( uint8, MV_LOCAL ) then
+                    dim as int32 sl = cast( int32, ins->a.id )
                     if (sl >= 0) andalso (sl < allocated_.Count) then
                         if allocated_[sl] = 0 then
                             Fail( r, IW_( bn, i, op ), "uses slot " & str( sl ) & _
@@ -156,8 +156,8 @@ function Verify _
                         end if
                     end if
                 end if
-                if ins->b.kind = cast( ubyte, MV_LOCAL ) then
-                    dim as long sl = cast( long, ins->b.id )
+                if ins->b.kind = cast( uint8, MV_LOCAL ) then
+                    dim as int32 sl = cast( int32, ins->b.id )
                     if (sl >= 0) andalso (sl < allocated_.Count) then
                         if allocated_[sl] = 0 then
                             Fail( r, IW_( bn, i, op ), "uses slot " & str( sl ) & _
@@ -167,7 +167,7 @@ function Verify _
                 end if
 
                 '' Operands that name a temp must name one that exists.
-                dim as long n = OpArity( op )
+                dim as int32 n = OpArity( op )
                 if n >= 1 then CheckUse_( r, bn, i, op, ins->a, defined_ )
                 if n >= 2 then CheckUse_( r, bn, i, op, ins->b, defined_ )
 
@@ -178,9 +178,9 @@ function Verify _
                        ((ins->first < 0) orelse ((ins->first + ins->count) * 2 > m.argPool.Count)) then
                         Fail( r, IW_( bn, i, op ), "call arguments past the end of the pool" )
                     else
-                        for q as long = 0 to ins->count - 1
+                        for q as int32 = 0 to ins->count - 1
                             dim as MirValue av
-                            av.kind = cast( ubyte, m.argPool[(ins->first + q) * 2] )
+                            av.kind = cast( uint8, m.argPool[(ins->first + q) * 2] )
                             av.id = m.argPool[(ins->first + q) * 2 + 1]
                             CheckUse_( r, bn, i, op, av, defined_ )
                         next
@@ -196,7 +196,7 @@ function Verify _
                 ''
                 '' A VARIADIC callee is checked as a MINIMUM: the tail is what it is.
                 if (op = M_CALL) orelse (op = M_CALL_RTL) then
-                    dim as long ci = cast( long, ins->callee )
+                    dim as int32 ci = cast( int32, ins->callee )
                     if (ci >= 0) andalso (ci < m.functions.Count) then
                         dim as MirFunction ptr cf = m.functions[ci]
                         if cf <> 0 then
@@ -229,23 +229,23 @@ function Verify _
                 '' both sides: an aggregate is copied rather than loaded and stored
                 '' whole, so its 'type' is not a width.
                 if op = M_STORE then
-                    dim as long slotTy = -1
-                    if ins->a.kind = cast( ubyte, MV_LOCAL ) then
+                    dim as int32 slotTy = -1
+                    if ins->a.kind = cast( uint8, MV_LOCAL ) then
                         if (ins->a.id >= 0) andalso (ins->a.id < f->locals.Count) then
-                            slotTy = cast( long, f->locals[ins->a.id].ty )
+                            slotTy = cast( int32, f->locals[ins->a.id].ty )
                         end if
-                    elseif ins->a.kind = cast( ubyte, MV_GLOBAL ) then
+                    elseif ins->a.kind = cast( uint8, MV_GLOBAL ) then
                         if (ins->a.id >= 0) andalso (ins->a.id < m.globals.Count) then
                             if m.globals[ins->a.id].isVar then
-                                slotTy = cast( long, m.globals[ins->a.id].ty )
+                                slotTy = cast( int32, m.globals[ins->a.id].ty )
                             end if
                         end if
                     end if
-                    dim as long valTy = cast( long, ins->b.ty )
+                    dim as int32 valTy = cast( int32, ins->b.ty )
                     dim as boolean checkable = (slotTy >= 0) andalso _
-                        (slotTy <> cast( long, MT_AGG )) andalso _
-                        (valTy <> cast( long, MT_AGG )) andalso _
-                        (valTy <> cast( long, MT_VOID ))
+                        (slotTy <> cast( int32, MT_AGG )) andalso _
+                        (valTy <> cast( int32, MT_AGG )) andalso _
+                        (valTy <> cast( int32, MT_VOID ))
                     if checkable andalso (slotTy <> valTy) then
                         Fail( r, IW_( bn, i, op ), "stores " & TypeName( cast( MirType, valTy ) ) & _
                                      " into a " & TypeName( cast( MirType, slotTy ) ) & _
@@ -254,7 +254,7 @@ function Verify _
                 end if
 
                 '' A void value can be produced but never consumed.
-                if OpHasResult( op ) andalso (ins->ty = cast( ubyte, MT_VOID )) then
+                if OpHasResult( op ) andalso (ins->ty = cast( uint8, MT_VOID )) then
                     if (op <> M_CALL) andalso (op <> M_CALL_RTL) andalso _
                        (op <> M_CALL_IND) then
                         Fail( r, IW_( bn, i, op ), "non-call opcode produces void" )
@@ -270,10 +270,10 @@ function Verify _
             if tk = MTERM_RET then
                 CheckUse_( r, bn, -1, cast( MirOp, 0 ), b->cond, defined_ )
                 CheckUse_( r, bn, -1, cast( MirOp, 0 ), b->ret2, defined_ )
-                dim as boolean hasVal = (b->cond.kind <> cast( ubyte, MV_NONE ))
-                if (f->retTy = cast( ubyte, MT_VOID )) andalso hasVal then
+                dim as boolean hasVal = (b->cond.kind <> cast( uint8, MV_NONE ))
+                if (f->retTy = cast( uint8, MT_VOID )) andalso hasVal then
                     Fail( r, bn, "a function returning void returns a value" )
-                elseif (f->retTy <> cast( ubyte, MT_VOID )) andalso (hasVal = false) then
+                elseif (f->retTy <> cast( uint8, MT_VOID )) andalso (hasVal = false) then
                     Fail( r, bn, "a function returning " & TypeName( cast( MirType, f->retTy ) ) & _
                                  " returns no value" )
                 end if
@@ -284,15 +284,15 @@ function Verify _
         '' Reachability is a fixed point over the terminators, cheap here because a
         '' block has at most two successors.
         if strict = false then continue for
-        dim as containers.Array( of ubyte ) seen
-        for i as long = 0 to f->blocks.Count - 1
+        dim as containers.Array( of uint8 ) seen
+        for i as int32 = 0 to f->blocks.Count - 1
             seen.Push( 0 )
         next
         seen[0] = 1
         dim as boolean changed = true
         while changed
             changed = false
-            for bi as long = 0 to f->blocks.Count - 1
+            for bi as int32 = 0 to f->blocks.Count - 1
                 if seen[bi] = 0 then continue for
                 dim as MirBlock ptr b = @f->blocks[bi]
                 dim as MirTermKind tk = cast( MirTermKind, b->term )
@@ -314,7 +314,7 @@ function Verify _
                 end if
             next
         wend
-        for bi as long = 0 to f->blocks.Count - 1
+        for bi as int32 = 0 to f->blocks.Count - 1
             if seen[bi] = 0 then
                 Fail( r, fn & ":" & str( bi ), "block is unreachable from entry" )
             end if

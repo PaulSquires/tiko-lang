@@ -25,14 +25,14 @@ private function UdtTextCast_ ( byref c as Ctx, byval t as TypeId ) as BuiltinTy
     '' ANYWHERE UP THE BASE CHAIN: fbc's udt-wstring tests declare 'UWSTRING_FIXED extends
     '' UWSTRING_FIXED_BASE extends wstring', and 'wstr( u )' over one is accepted.
     dim as TypeId bt = BaseOf_( c, t )
-    for depth as long = 0 to 31
+    for depth as int32 = 0 to 31
         if bt = TYPE_NONE then exit for
         bt = c.types->Unqualify( bt )
         if c.types->Kind( bt ) <> TK_UDT then return TY_NONE
         bt = BaseOf_( c, bt )
     next
     dim as Symbol ptr cs = StructorOf_( c, t, "cast" )
-    for guard as long = 0 to 63
+    for guard as int32 = 0 to 63
         if cs = 0 then exit for
         dim as TypeId rt = c.types->Unqualify( cs->type_ )
         if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
@@ -56,7 +56,7 @@ private function UdtHasNumericCast_ ( byref c as Ctx, byval t as TypeId ) as boo
     if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
     if c.types->Kind( t ) <> TK_UDT then return false
     dim as Symbol ptr cs = StructorOf_( c, t, "cast" )
-    for guard as long = 0 to 63
+    for guard as int32 = 0 to 63
         if cs = 0 then exit for
         dim as TypeId rt = c.types->Unqualify( cs->type_ )
         if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
@@ -79,7 +79,7 @@ private function UdtHasTextClassCast_ ( byref c as Ctx, byval t as TypeId ) as b
     if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
     if c.types->Kind( t ) <> TK_UDT then return false
     dim as SymbolId cs = Tko.Check.StructorNamed( *c.syms, *c.types, *c.names, t, "cast" )
-    for guard as long = 0 to 63
+    for guard as int32 = 0 to 63
         if cs = SYMBOL_NONE then exit for
         select case Tko.Check.CastResultClass( *c.ast, *c.syms, *c.types, cs )
         case Tko.Check.CR_STRING, Tko.Check.CR_USTRING, Tko.Check.CR_CHAR, Tko.Check.CR_WCHAR
@@ -91,12 +91,12 @@ private function UdtHasTextClassCast_ ( byref c as Ctx, byval t as TypeId ) as b
 end function
 
 private sub CheckUdtStrIntrinsic_ ( byref c as Ctx, byval id as NodeId )
-    dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if (lp->count < 1) orelse (lp->target = NODE_NONE) then return
     if c.ast->Kind( lp->target ) <> N_IDENT then return
     if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return
     dim as string nm = lcase( c.names->Spelling( _
-        c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )].name ) )
+        c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )].name ) )
     dim as NodeId a = cast( NodeId, c.ast->children[lp->first] )
     dim as TypeId at = c.info->TypeOf_( a )
     if at = TYPE_NONE then return
@@ -111,7 +111,7 @@ private sub CheckUdtStrIntrinsic_ ( byref c as Ctx, byval id as NodeId )
     select case nm
     case "val", "valint", "vallng", "valuint", "valulng", "left", "right"
         if UdtHasTextClassCast_( c, at ) then
-            dim as long ioc, iprm
+            dim as int32 ioc, iprm
             Tko.Check.IntrStrOvlPick( *c.ast, *c.syms, *c.types, *c.names, at, (nm = "left") orelse (nm = "right"), ioc, iprm )
             if ioc = Tko.Check.CP_AMBIGUOUS then
                 c.diags->Report( TKO0660, PointRange( c.ast->Loc( a ) ), nm )
@@ -124,11 +124,11 @@ private sub CheckUdtStrIntrinsic_ ( byref c as Ctx, byval id as NodeId )
 end sub
 
 private sub CheckUdtPrintUsing_ ( byref c as Ctx, byval id as NodeId )
-    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if cast( TokenKind, sp->op ) <> KW_PRINT then return
     if sp->extra = 0 then return
     '' The format is not one of the children; every child is an item or a separator.
-    for i as long = 0 to sp->count - 1
+    for i as int32 = 0 to sp->count - 1
         dim as NodeId it = cast( NodeId, c.ast->children[sp->first + i] )
         if c.ast->Kind( it ) = N_PRINT_SEP then continue for
         dim as TypeId at = c.info->TypeOf_( it )

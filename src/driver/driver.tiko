@@ -58,8 +58,8 @@ destructor CompilerContext( )
     '' NO clang OUTLIVES ITS BUILD. A run that returned early -- an error in a later unit, a
     '' failed module -- never drained the object queue; its jobs are waited for here, quietly,
     '' so none is still writing an object after tiko has exited.
-    for k as long = this.objq.reaped to this.objq.procs.Count - 1
-        dim as long rc = Tko.Spawn.Wait( this.objq.procs[k] )
+    for k as int32 = this.objq.reaped to this.objq.procs.Count - 1
+        dim as int32 rc = Tko.Spawn.Wait( this.objq.procs[k] )
         if (rc = 0) andalso (this.objq.keepTemps = false) then kill( this.objq.irPaths[k] )
     next
     for each p as any ptr in this.ppLexed
@@ -95,14 +95,14 @@ namespace Tko.Driver
 '' cmd.exe reaches this arm.
 function ModuleStem( byref path_ as string ) as string
     dim as string r = path_
-    for i as long = len( r ) to 1 step -1
+    for i as int32 = len( r ) to 1 step -1
         dim as string ch = mid( r, i, 1 )
         if (ch = "/") orelse (ch = "\") then
             r = mid( r, i + 1 )
             exit for
         end if
     next
-    dim as long dot = instrrev( r, "." )
+    dim as int32 dot = instrrev( r, "." )
     if dot > 1 then r = left( r, dot - 1 )
     return r
 end function
@@ -127,8 +127,8 @@ end function
 function StripExt_( byref path_ as string ) as string
     '' The last dot, but only after the last separator: 'a.b/c' has no extension,
     '' and a leading dot is the whole name rather than an empty one.
-    dim as long cut = 0
-    for i as long = len( path_ ) to 1 step -1
+    dim as int32 cut = 0
+    for i as int32 = len( path_ ) to 1 step -1
         dim as string ch = mid( path_, i, 1 )
         if (ch = "/") orelse (ch = "\") then exit for
         if (ch = ".") andalso (cut = 0) then cut = i
@@ -140,7 +140,7 @@ end function
 '' THE MODULE A '-tkomod' RECORD'S OBJECT HOLDS. '-c' writes it as '<chain>.o' beside its
 '' output (Modules.ArchiveMemberPath), so the file name less '.o' is the chain.
 private function RecordChain_( byref p as string ) as string
-    dim as long k = len( p )
+    dim as int32 k = len( p )
     while (k > 0) andalso (p[k - 1] <> 47) andalso (p[k - 1] <> 92)
         k -= 1
     wend
@@ -189,8 +189,8 @@ private function DefaultOutputPath_( byref o as Tko.DriverOptions ) as string
     dim as boolean prefixed = (o.outKind = Tko.OUT_STATICLIB) orelse _
         ((o.outKind = Tko.OUT_DLL) andalso (Tko.TargetIsWindows( o.target ) = false))
     if prefixed then
-        dim as long cut = 0
-        for i as long = len( stem ) to 1 step -1
+        dim as int32 cut = 0
+        for i as int32 = len( stem ) to 1 step -1
             dim as string ch = mid( stem, i, 1 )
             if (ch = "/") orelse (ch = "\") then
                 cut = i
@@ -234,13 +234,13 @@ end function
 '' the middle one is not known until the parse has run.
 private function AssembledLibPaths_( byref ctx as Tko.CompilerContext ) as Tko.StrVec
     dim as Tko.StrVec r
-    for i as long = 0 to ctx.options.libPaths.Count - 1
+    for i as int32 = 0 to ctx.options.libPaths.Count - 1
         r.Push( ctx.options.libPaths[i] )
     next
-    for i as long = 0 to ctx.options.pragmaLibPaths.Count - 1
+    for i as int32 = 0 to ctx.options.pragmaLibPaths.Count - 1
         r.Push( ctx.options.pragmaLibPaths[i] )
     next
-    for i as long = 0 to ctx.options.defaultLibPaths.Count - 1
+    for i as int32 = 0 to ctx.options.defaultLibPaths.Count - 1
         r.Push( ctx.options.defaultLibPaths[i] )
     next
     return r
@@ -295,7 +295,7 @@ end sub
 
 private sub DumpSourceTable( byref ctx as Tko.CompilerContext )
     print "loaded "; ctx.sources.Count( ); " file(s)"
-    for i as long = 1 to ctx.sources.Count( )
+    for i as int32 = 1 to ctx.sources.Count( )
         dim as Tko.FileId id = cast( Tko.FileId, i )
         dim as Tko.SourceFile ptr f = ctx.sources.FileAt( id )
         print using "  [&] & bytes=& lines=& encoding=& hash=&"; _
@@ -319,8 +319,8 @@ end sub
 '' arena bytes per token. Counted as elements times element size over the arrays the
 '' arena is made of -- USED, not reserved, because a growable array's slack is an
 '' allocation policy and the budget is about the representation.
-private function AstBytes_( byref a as Tko.AstArena ) as longint
-    dim as longint pools = a.children.Count + a.tokenRanges.Count + _
+private function AstBytes_( byref a as Tko.AstArena ) as int64
+    dim as int64 pools = a.children.Count + a.tokenRanges.Count + _
                            a.extraTopLevel.Count + a.callTypeArgs.Count + _
                            a.structorPrio.Count + a.procEnds.Count
     return a.nodes.Count    * sizeof( Tko.AstNode ) + _
@@ -330,7 +330,7 @@ private function AstBytes_( byref a as Tko.AstArena ) as longint
            a.idents.Count   * sizeof( Tko.IdentPayload ) + _
            a.lists.Count    * sizeof( Tko.ListPayload ) + _
            a.stmts.Count    * sizeof( Tko.StmtPayload ) + _
-           pools * sizeof( ulong )
+           pools * sizeof( uint32 )
 end function
 
 '' A TOOLCHAIN FAILURE IS A DIAGNOSTIC WITHOUT A LOCATION that still exits with the TOOL's
@@ -341,10 +341,10 @@ end function
 '' lld's own stderr the way the 'tiko:' line did. Measured as a difference, not assumed
 '' to be one: a -Wno- of the id reports nothing and must count nothing.
 function ToolFail_ _
-    ( byref ctx as Tko.CompilerContext, byval code as long, byval id as Tko.DiagId, _
-      byref a0 as string = "", byref a1 as string = "", byref a2 as string = "" ) as long
+    ( byref ctx as Tko.CompilerContext, byval code as int32, byval id as Tko.DiagId, _
+      byref a0 as string = "", byref a1 as string = "", byref a2 as string = "" ) as int32
 
-    dim as long before = ctx.diags.ErrorCount( )
+    dim as int32 before = ctx.diags.ErrorCount( )
     ctx.diags.ReportGlobal( id, a0, a1, a2 )
     ctx.toolErrors += ctx.diags.ErrorCount( ) - before
     ctx.diags.Flush( )
@@ -394,10 +394,10 @@ end function
 '' '-flto' would put LLVM bitcode here, which is neither of these and is not wrong.
 private function ObjectLooksElf_( byref path_ as string, byref known as boolean ) as boolean
     known = false
-    dim as long fh = freefile
+    dim as int32 fh = freefile
     if open( path_ for binary access read as #fh ) <> 0 then return false
-    dim as ubyte b(0 to 3)
-    dim as longint n = 4
+    dim as uint8 b(0 to 3)
+    dim as int64 n = 4
     get #fh, 1, b(0), n
     close #fh
     if n < 4 then return false
@@ -431,7 +431,7 @@ end function
 function EmitStopFile_ _
     ( byref ctx as Tko.CompilerContext, byref irText as string, _
       byref td as Tko.Codegen.TargetDescription, byval id as Tko.FileId, _
-      byval i as long, byval srcCount as long ) as long
+      byval i as int32, byval srcCount as int32 ) as int32
 
     dim as string ext = iif( ctx.options.emitAsm, ".s", ".ll" )
     dim as string outp = ctx.options.outputPath
@@ -446,8 +446,8 @@ function EmitStopFile_ _
     end if
     dim as string irPath = outp
     if ctx.options.emitAsm then irPath = outp & ".ll"
-    dim as long fh = freefile
-    dim as long orc = open( irPath for output as #fh )
+    dim as int32 fh = freefile
+    dim as int32 orc = open( irPath for output as #fh )
     if orc <> 0 then return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0112, irPath )
     print #fh, irText;
     close #fh
@@ -458,20 +458,20 @@ function EmitStopFile_ _
         return ToolFail_( ctx, Tko.EXIT_NO_TOOLCHAIN, Tko.TKO0111, tools.why )
     end if
     tools.optLevel = ctx.options.optLevel
-    dim as long rc = Tko.Codegen.CompileIrAsm( tools, td, irPath, outp, ctx.options.keepTemps )
+    dim as int32 rc = Tko.Codegen.CompileIrAsm( tools, td, irPath, outp, ctx.options.keepTemps )
     if rc <> 0 then return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0113, irPath, str( rc ) )
     return Tko.EXIT_OK
 end function
 
 private function ObjectChecks_ _
-    ( byref ctx as Tko.CompilerContext, byval rc as long, byref irPath as string, _
-      byref objPath as string, byval wantElf as boolean, byref triple as string ) as long
+    ( byref ctx as Tko.CompilerContext, byval rc as int32, byref irPath as string, _
+      byref objPath as string, byval wantElf as boolean, byref triple as string ) as int32
 
     if rc <> 0 then
         return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0113, irPath, str( rc ) )
     end if
-    dim as long ofh = freefile
-    dim as long orc2 = open( objPath for binary access read as #ofh )
+    dim as int32 ofh = freefile
+    dim as int32 orc2 = open( objPath for binary access read as #ofh )
     if orc2 <> 0 then return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0962, objPath )
     close #ofh
 
@@ -491,9 +491,9 @@ end function
 '' THE OBJECT QUEUE (driver/objqueue.ti). Job k is waited for once, by Reap_, in start order;
 '' its '.ll' goes when clang succeeded, as CompileIr deletes it, and the object is checked as
 '' an inline compile's is.
-private function Reap_( byref ctx as Tko.CompilerContext, byval k as long ) as long
-    dim as double t0 = timer
-    dim as long rc = Tko.Spawn.Wait( ctx.objq.procs[k] )
+private function Reap_( byref ctx as Tko.CompilerContext, byval k as int32 ) as int32
+    dim as float64 t0 = timer
+    dim as int32 rc = Tko.Spawn.Wait( ctx.objq.procs[k] )
     ctx.objq.procs[k] = 0
     ctx.timing.Add( Tko.PH_CLANG, t0 )
     ctx.timing.clangBusy += timer - ctx.objq.starts[k]
@@ -509,21 +509,21 @@ end function
 private function QueueObject_ _
     ( byref ctx as Tko.CompilerContext, byref tools as Tko.Codegen.ToolPaths, _
       byref td as Tko.Codegen.TargetDescription, byref irPath as string, _
-      byref objPath as string ) as long
+      byref objPath as string ) as int32
 
-    dim as long fail = Tko.EXIT_OK
+    dim as int32 fail = Tko.EXIT_OK
     while (ctx.objq.procs.Count - ctx.objq.reaped) >= ctx.objq.maxJobs
-        dim as long r = Reap_( ctx, ctx.objq.reaped )
+        dim as int32 r = Reap_( ctx, ctx.objq.reaped )
         ctx.objq.reaped += 1
         if (r <> Tko.EXIT_OK) andalso (fail = Tko.EXIT_OK) then fail = r
     wend
     dim as boolean wantElf = (td.objFormat = Tko.Codegen.OBJ_ELF)
-    dim as double tSpawn = timer
+    dim as float64 tSpawn = timer
     dim as Tko.Spawn.Proc pr = Tko.Codegen.StartCompileIr( tools, td, irPath, objPath )
     ctx.timing.Add( Tko.PH_SPAWN, tSpawn )
     if pr = 0 then
         '' NOT STARTED: what exec reported for a clang it could not run.
-        dim as long r = ObjectChecks_( ctx, -1, irPath, objPath, wantElf, td.triple )
+        dim as int32 r = ObjectChecks_( ctx, -1, irPath, objPath, wantElf, td.triple )
         return iif( fail <> Tko.EXIT_OK, fail, r )
     end if
     ctx.objq.keepTemps = ctx.options.keepTemps
@@ -531,16 +531,16 @@ private function QueueObject_ _
     ctx.objq.irPaths.Push( irPath )
     ctx.objq.objPaths.Push( objPath )
     ctx.objq.triples.Push( td.triple )
-    dim as ubyte elfFlag = iif( wantElf, 1, 0 )
+    dim as uint8 elfFlag = iif( wantElf, 1, 0 )
     ctx.objq.wantElf.Push( elfFlag )
     ctx.objq.starts.Push( timer )
     return fail
 end function
 
-function DrainObjects( byref ctx as Tko.CompilerContext ) as long
-    dim as long fail = Tko.EXIT_OK
+function DrainObjects( byref ctx as Tko.CompilerContext ) as int32
+    dim as int32 fail = Tko.EXIT_OK
     while ctx.objq.reaped < ctx.objq.procs.Count
-        dim as long r = Reap_( ctx, ctx.objq.reaped )
+        dim as int32 r = Reap_( ctx, ctx.objq.reaped )
         ctx.objq.reaped += 1
         if (r <> Tko.EXIT_OK) andalso (fail = Tko.EXIT_OK) then fail = r
     wend
@@ -556,13 +556,13 @@ end function
 private sub KillTemps_( byref ctx as Tko.CompilerContext, byref tempObjs as Tko.StrVec )
     if ctx.options.keepTemps then exit sub
     for each t as string in tempObjs
-        dim as long kr = kill( t )   '' the function form: one already gone is no error
+        dim as int32 kr = kill( t )   '' the function form: one already gone is no error
     next
 end sub
 
 function BuildFromIr _
     ( byref ctx as Tko.CompilerContext, byref irText as string, _
-      byref td as Tko.Codegen.TargetDescription, byref objPath as string ) as long
+      byref td as Tko.Codegen.TargetDescription, byref objPath as string ) as int32
 
     dim as Tko.Codegen.ToolPaths tools = _
         Tools_( ctx )
@@ -583,11 +583,11 @@ function BuildFromIr _
     '' made it happen.
     dim as string irPath = objPath & ".ll"
 
-    dim as double tWrite = timer
-    dim as long fh = freefile
+    dim as float64 tWrite = timer
+    dim as int32 fh = freefile
     '' The function form of OPEN inside an IF condition confuses the parser here --
     '' it is spelled as its own statement instead, which is clearer anyway.
-    dim as long orc = open( irPath for output as #fh )
+    dim as int32 orc = open( irPath for output as #fh )
     if orc <> 0 then
         return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0112, irPath )
     end if
@@ -599,13 +599,13 @@ function BuildFromIr _
     '' the compile "succeeded", the .ll was deleted, and the missing object surfaced only as
     '' a link error -- or, with an object left from an earlier build, not at all (audit F-74,
     '' CG-17). So the old object goes first, and the new one must exist afterwards.
-    dim as long okill = kill( objPath )
+    dim as int32 okill = kill( objPath )
     dim as boolean wantElf = (td.objFormat = Tko.Codegen.OBJ_ELF)
     '' QUEUED, unless TKO_JOBS=1 asked for one at a time (driver/objqueue.ti).
     if ctx.objq.maxJobs = 0 then ctx.objq.maxJobs = Tko.Spawn.DefaultJobs( )
     if ctx.objq.maxJobs > 1 then return QueueObject_( ctx, tools, td, irPath, objPath )
-    dim as double tClang = timer
-    dim as long rc = Tko.Codegen.CompileIr( tools, td, irPath, objPath, _
+    dim as float64 tClang = timer
+    dim as int32 rc = Tko.Codegen.CompileIr( tools, td, irPath, objPath, _
                                             ctx.options.keepTemps )
     ctx.timing.Add( Tko.PH_CLANG, tClang )
     ctx.timing.clangBusy += timer - tClang
@@ -617,7 +617,7 @@ end function
 '' '-lib': the objects into an archive, and no link at all.
 private function ArchiveAll _
     ( byref ctx as Tko.CompilerContext, byref objs as Tko.StrVec, _
-      byref keep as Tko.StrVec ) as long
+      byref keep as Tko.StrVec ) as int32
 
     dim as Tko.Codegen.ToolPaths tools = _
         Tools_( ctx )
@@ -625,14 +625,14 @@ private function ArchiveAll _
         return ToolFail_( ctx, Tko.EXIT_NO_TOOLCHAIN, Tko.TKO0111, tools.why )
     end if
 
-    dim as long rc = Tko.Codegen.ArchiveLib( tools, objs, ctx.options.outputPath )
+    dim as int32 rc = Tko.Codegen.ArchiveLib( tools, objs, ctx.options.outputPath )
     if rc <> 0 then
         return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0115, str( rc ) )
     end if
 
     '' The same rule the link follows: only what THIS build made is removed.
     if ctx.options.keepTemps = false then
-        for i as long = 0 to keep.Count - 1
+        for i as int32 = 0 to keep.Count - 1
             kill( keep[i] )
         next
     end if
@@ -643,7 +643,7 @@ end function
 '' THE LINK, ONCE, OVER EVERY OBJECT the build produced or was handed.
 private function LinkAll _
     ( byref ctx as Tko.CompilerContext, byref objs as Tko.StrVec, _
-      byref td as Tko.Codegen.TargetDescription, byref keep as Tko.StrVec ) as long
+      byref td as Tko.Codegen.TargetDescription, byref keep as Tko.StrVec ) as int32
 
     dim as Tko.Codegen.ToolPaths tools = _
         Tools_( ctx )
@@ -655,17 +655,17 @@ private function LinkAll _
     '' first, then '#inclib'. fbc emits both as -l<name> ahead of its own runtime,
     '' measured -- a user library may call INTO libfb, and an archive is searched
     '' once, where it appears.
-    for i as long = 0 to ctx.options.libs.Count - 1
+    for i as int32 = 0 to ctx.options.libs.Count - 1
         tools.libs.Push( ctx.options.libs[i] )
     next
-    for i as long = 0 to ctx.options.pragmaLibs.Count - 1
+    for i as int32 = 0 to ctx.options.pragmaLibs.Count - 1
         tools.libs.Push( ctx.options.pragmaLibs[i] )
     next
     '' A '.dll' THAT '#foreignlib' FOUND WITHOUT AN IMPORT LIBRARY (T98). lld-link refuses
     '' a DLL -- 'bad file type' -- so on windows-x86_64 the import library is made here,
     '' from the DLL's own export table, beside the output like the objects, and deleted
     '' with them. The MinGW target keeps the file: GNU-style links take a DLL as it is.
-    for i as long = 0 to ctx.options.pragmaLibFiles.Count - 1
+    for i as int32 = 0 to ctx.options.pragmaLibFiles.Count - 1
         dim as string lf = ctx.options.pragmaLibFiles[i]
         if (ctx.options.target = Tko.TARGET_WINDOWS_X86_64) andalso _
            (len( lf ) > 4) andalso (lcase( right( lf, 4 ) ) = ".dll") then
@@ -676,14 +676,14 @@ private function LinkAll _
             end if
             dim as string defFile = ctx.options.outputPath & ".implib" & i & ".def"
             dim as string implib = ctx.options.outputPath & ".implib" & i & ".lib"
-            dim as long fh = freefile
+            dim as int32 fh = freefile
             if open( defFile for output as #fh ) <> 0 then
                 return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0172, lf, "'" & defFile & "' cannot be written" )
             end if
             print #fh, defText;
             close #fh
             keep.Push( defFile )
-            dim as long drc = Tko.Codegen.MakeImportLib( tools, defFile, implib )
+            dim as int32 drc = Tko.Codegen.MakeImportLib( tools, defFile, implib )
             if drc <> 0 then
                 return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0172, lf, _
                     iif( drc = -1, "there is no llvm-dlltool beside clang, at '" & tools.dlltoolExe & "'", _
@@ -694,7 +694,7 @@ private function LinkAll _
         end if
         tools.libFiles.Push( lf )
     next
-    for i as long = 0 to ctx.options.linkerOpts.Count - 1
+    for i as int32 = 0 to ctx.options.linkerOpts.Count - 1
         tools.linkerOpts.Push( ctx.options.linkerOpts[i] )
     next
 
@@ -714,8 +714,8 @@ private function LinkAll _
     if ctx.options.outKind = Tko.OUT_DLL then tools.buildDll = true
     if (ctx.options.outKind = Tko.OUT_DLL) andalso Tko.TargetIsWindows( ctx.options.target ) then
         dim as string stem = StripExt_( ctx.options.outputPath )
-        dim as long cut = 0
-        for i as long = len( stem ) to 1 step -1
+        dim as int32 cut = 0
+        for i as int32 = len( stem ) to 1 step -1
             dim as string ch = mid( stem, i, 1 )
             if (ch = "/") orelse (ch = "\") then
                 cut = i
@@ -725,7 +725,7 @@ private function LinkAll _
         tools.implibPath = left( stem, cut ) & "lib" & mid( stem, cut + 1 ) & ".dll.a"
     end if
 
-    dim as long rc = Tko.Codegen.LinkExe( tools, td, objs, ctx.options.outputPath )
+    dim as int32 rc = Tko.Codegen.LinkExe( tools, td, objs, ctx.options.outputPath )
     if rc <> 0 then
         return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0116, str( rc ) )
     end if
@@ -733,7 +733,7 @@ private function LinkAll _
     '' ONLY WHAT THIS BUILD MADE. An object the user named on the command line is
     '' theirs and is not deleted, however temporary it looks.
     if ctx.options.keepTemps = false then
-        for i as long = 0 to keep.Count - 1
+        for i as int32 = 0 to keep.Count - 1
             kill( keep[i] )
         next
     end if
@@ -751,13 +751,13 @@ end function
 '' file and one naming an option tiko does not have becomes its usual error.
 private function RestartWith_ _
     ( byref args as Tko.StrVec, byref injected as Tko.StrVec, _
-      byval depth as long, byval buildOut as any ptr ) as long
+      byval depth as int32, byval buildOut as any ptr ) as int32
 
     dim as Tko.StrVec again
-    for i as long = 0 to args.Count - 1
+    for i as int32 = 0 to args.Count - 1
         again.Push( args[i] )
     next
-    for i as long = 0 to injected.Count - 1
+    for i as int32 = 0 to injected.Count - 1
         again.Push( injected[i] )
     next
     return Run( again, depth + 1, 0, buildOut )
@@ -768,10 +768,10 @@ function DefaultOutput( byref o as Tko.DriverOptions ) as string
 end function
 
 function Run _
-    ( byref args as Tko.StrVec, byval restartDepth as long = 0, _
-      byval scanOut as any ptr = 0, byval buildOut as any ptr = 0 ) as long
+    ( byref args as Tko.StrVec, byval restartDepth as int32 = 0, _
+      byval scanOut as any ptr = 0, byval buildOut as any ptr = 0 ) as int32
 
-    dim as double tRunStart = timer
+    dim as float64 tRunStart = timer
     dim as Tko.CompilerContext ctx
     ctx.build = buildOut
 
@@ -788,7 +788,7 @@ function Run _
     '' Set once, at the point of failure, and returned by the tail in preference to
     '' EXIT_OK. It does not override EXIT_USER_ERROR: a program that failed to
     '' compile is a user error first, and the toolchain never ran.
-    dim as long toolExit = Tko.EXIT_OK
+    dim as int32 toolExit = Tko.EXIT_OK
 
     dim as boolean cmdOk = Tko.Cmdline.Parse( args, ctx.options, ctx.diags )
     ApplyDiagPolicy( ctx )
@@ -895,7 +895,7 @@ function Run _
         '' '--emit-tki': the module built as an importer builds it (T55), not alone -- a
         '' module unit alone cannot read the interfaces of what it imports.
         if ctx.options.emitTki then
-            dim as long erc = Tko.Modules.EmitInterface( ctx, modDirs[0] )
+            dim as int32 erc = Tko.Modules.EmitInterface( ctx, modDirs[0] )
             ctx.diags.Flush( )
             return Tko.DiagOut.Finish( ctx, erc )
         end if
@@ -908,7 +908,7 @@ function Run _
     end if
 
     '' ---- load every source ------------------------------------------------
-    dim as double tLoadStart = timer
+    dim as float64 tLoadStart = timer
     for each inputPath as string in srcInputs
         dim as ustring why = ""
         dim as Tko.FileId id
@@ -944,7 +944,7 @@ function Run _
         end if
     next
 
-    dim as double tLoad = timer - tLoadStart
+    dim as float64 tLoad = timer - tLoadStart
     ctx.timing.Add( Tko.PH_LOAD, tLoadStart )
 
     '' THE SCAN'S ROOT IS files[0] -- the editor finds its root in the file table by path,
@@ -958,7 +958,7 @@ function Run _
     '' The roots are the sources just loaded; every module file the graph reaches is
     '' loaded after them, so the count is taken now (ADR 0017, src/driver/modgraph.tiko).
     if ctx.options.printGraph then
-        dim as long grc = Tko.Modules.PrintGraph( ctx, ctx.sources.Count( ) )
+        dim as int32 grc = Tko.Modules.PrintGraph( ctx, ctx.sources.Count( ) )
         ctx.diags.Flush( )
         return Tko.DiagOut.Finish( ctx, grc )
     end if
@@ -971,8 +971,8 @@ function Run _
     '' module build and can only matter to an '#if' around a #cinclude. '#cmdline' restarts
     '' as a compile's does, because its -cinclude and -cdefine change what is imported.
     if ctx.options.printCIncludes then
-        dim as long nroots = ctx.sources.Count( )
-        for i as long = 1 to nroots
+        dim as int32 nroots = ctx.sources.Count( )
+        for i as int32 = 1 to nroots
             dim as Tko.PpResult r
             dim as Tko.PpConfig cfg = MakePpConfig( ctx )
             cfg.cmdlineIgnored = (i > 1)
@@ -982,7 +982,7 @@ function Run _
                        ctx.diags, cfg, r )
             if (i = 1) andalso (restartDepth = 0) andalso (r.cmdlineArgs.Count > 0) then
                 dim as Tko.StrVec again
-                for k as long = 0 to r.cmdlineArgs.Count - 1
+                for k as int32 = 0 to r.cmdlineArgs.Count - 1
                     again.Push( r.cmdlineArgs[k] )
                 next
                 return RestartWith_( args, again, restartDepth, buildOut )
@@ -1016,9 +1016,9 @@ function Run _
         if ctx.diags.HasErrors( ) = false then DumpSourceTable( ctx )
     elseif ctx.options.lexOnly then
         '' The corpus gate: lex everything, report what came out, produce no dump.
-        dim as longint tokens = 0, invalid = 0, bytes_ = 0
-        dim as double tLexStart = timer
-        for i as long = 1 to ctx.sources.Count( )
+        dim as int64 tokens = 0, invalid = 0, bytes_ = 0
+        dim as float64 tLexStart = timer
+        for i as int32 = 1 to ctx.sources.Count( )
             dim as Tko.FileId id = cast( Tko.FileId, i )
             dim as Tko.Lex.Result r
             Tko.Lex.Run( ctx.sources, id, ctx.names, ctx.keywords, ctx.diags, r )
@@ -1026,13 +1026,13 @@ function Run _
             invalid += r.invalidCount
             bytes_ += ctx.sources.FileAt( id )->text.Count
         next
-        dim as double tLex = timer - tLexStart
+        dim as float64 tLex = timer - tLexStart
 
         print "lexed "; ctx.sources.Count( ); " file(s), "; bytes_; " bytes, "; _
               tokens; " tokens, "; invalid; " invalid"
 
         if ctx.options.timePasses then
-            dim as double mb = bytes_ / 1048576.0
+            dim as float64 mb = bytes_ / 1048576.0
             print using "  load  ##.### s  (#####.# MB/s)"; tLoad; mb / iif( tLoad > 0, tLoad, 1 )
             print using "  lex   ##.### s  (#####.# MB/s)"; tLex; mb / iif( tLex > 0, tLex, 1 )
         end if
@@ -1059,7 +1059,7 @@ function Run _
         '' once each however many roots name them -- ONCE PER MODULE, not per path: two
         '' roots compiled into different directories each name their own '<chain>.o'.
         dim as Tko.StrVec modObjs
-        for i as long = 0 to objInputs.Count - 1
+        for i as int32 = 0 to objInputs.Count - 1
             linkObjs.Push( objInputs[i] )
             '' ...AND WHAT IT ASKS THE LINK FOR -- its '.fbctinf', as fbc reads it. See
             '' codegen/objinfo.ti; ApexWealth's network object named winhttp only there.
@@ -1088,7 +1088,7 @@ function Run _
         ''
         '' WINDOWS ONLY, and said rather than ignored: there is nothing to link a
         '' resource into on ELF, and a '.rc' handed to a Linux build is a mistake.
-        for i as long = 0 to rcInputs.Count - 1
+        for i as int32 = 0 to rcInputs.Count - 1
             if Tko.TargetIsWindows( ctx.options.target ) = false then
                 ctx.diags.ReportGlobal( Tko.TKO0108, rcInputs[i] )
                 continue for
@@ -1104,7 +1104,7 @@ function Run _
             '' (audit F-74, CG-16).
             dim as string resPath = StripExt_( rcInputs[i] ) & ".res"
             if len( ctx.options.outputPath ) then resPath = ctx.options.outputPath & ".rc" & str( i + 1 ) & ".res"
-            dim as long rrc = Tko.Codegen.CompileRc( rt_, rcInputs[i], resPath )
+            dim as int32 rrc = Tko.Codegen.CompileRc( rt_, rcInputs[i], resPath )
             if rrc <> 0 then
                 ctx.diags.ReportGlobal( Tko.TKO0110, rcInputs[i], str( rrc ) )
             else
@@ -1115,7 +1115,7 @@ function Run _
         next
         '' THE BOUND IS FROZEN. Count( ) grows as the preprocessor opens includes,
         '' and reading it each time round would compile every header as a unit.
-        dim as long srcCount = ctx.sources.Count( )
+        dim as int32 srcCount = ctx.sources.Count( )
         '' A MODULE UNIT IS ONE UNIT, however many files it has: the engine reads them all.
         if ctx.modFileCount > 0 then srcCount = 1
         '' THE MODULES THE ROOTS IMPORT ARE BUILT FIRST, dependencies first (ADR 0017), into
@@ -1137,7 +1137,7 @@ function Run _
             hcfg.scanHeader = true
             hcfg.scanQuiet = true
             '' Its diagnostics are forgotten: the compile reads the file again (F-52).
-            dim as long hp0, he0, hw0, hs0
+            dim as int32 hp0, he0, hw0, hs0
             ctx.diags.Snapshot( hp0, he0, hw0, hs0 )
             Tko.PpRun( ctx.sources, cast( Tko.FileId, 1 ), ctx.names, ctx.keywords, _
                        ctx.diags, hcfg, hpr )
@@ -1148,7 +1148,7 @@ function Run _
             end if
         end if
         if builds then
-            dim as double tImp = timer
+            dim as float64 tImp = timer
             dim as boolean impOk = Tko.Modules.BuildImports( ctx, srcCount, linkObjs, tempObjs, toolExit )
             ctx.timing.importSecs += timer - tImp
             if impOk = false then
@@ -1188,7 +1188,7 @@ function Run _
             Tko.Modules.BuildImports( ctx, srcCount, linkObjs, tempObjs, toolExit, true )
             cast( Tko.Scan.ScanResult ptr, ctx.scan )->importing = false
         end if
-        dim as double tFrontStart = timer
+        dim as float64 tFrontStart = timer
         '' A 'tiko build' CACHES ITS ROOTS (unitcache.ti) when the run links.
         dim as Tko.UnitCache.Store ucs
         '' ...AND 'tiko check' READS IT: a hit is a root with nothing to report (unitcache.ti).
@@ -1196,9 +1196,9 @@ function Run _
             (scanning = false) andalso (ctx.options.emitIr = false) andalso (ctx.options.emitAsm = false)
         Tko.UnitCache.Open( ctx, args, restartDepth, ucLinks, ucs )
         '' ...AND COMPILES THE ONES THAT MISS IN PARALLEL CHILDREN first (tiko-build B4).
-        dim as long ucRc = Tko.UnitCache.RunChildren( ctx, ucs, args, srcCount )
+        dim as int32 ucRc = Tko.UnitCache.RunChildren( ctx, ucs, args, srcCount )
         if (ucRc <> Tko.EXIT_OK) andalso (toolExit = Tko.EXIT_OK) then toolExit = ucRc
-        for i as long = 1 to srcCount
+        for i as int32 = 1 to srcCount
             '' PAST THE ERROR CAP no further unit is compiled.
             if ctx.diags.Stopped( ) then exit for
             '' A 'tiko build' CHILD compiles its one root; a root whose child died is not retried.
@@ -1229,7 +1229,7 @@ function Run _
         next
         '' EVERY OBJECT EXISTS BEFORE ANYTHING READS ONE, and a clang that failed is reported
         '' now, as the first failure, exactly as it was when it ran inline.
-        dim as long drained = DrainObjects( ctx )
+        dim as int32 drained = DrainObjects( ctx )
         if (drained <> Tko.EXIT_OK) andalso (toolExit = Tko.EXIT_OK) then toolExit = drained
         '' ...and the roots' entries are stored while their objects still exist.
         if (toolExit = Tko.EXIT_OK) andalso (FrontendFailed_( ctx ) = false) then Tko.UnitCache.Commit( ctx, ucs )
@@ -1281,7 +1281,7 @@ function Run _
                 if ctx.options.outKind = Tko.OUT_STATICLIB then
                     toolExit = ArchiveAll( ctx, linkObjs, tempObjs )
                 else
-                    dim as double tLink = timer
+                    dim as float64 tLink = timer
                     '' ...NOT AGAIN, under 'tiko build', when nothing it reads changed (unitcache.ti).
                     dim as string lsig = Tko.UnitCache.LinkSignature( ctx, args, linkObjs )
                     if Tko.UnitCache.LinkUpToDate( ctx, lsig ) then
@@ -1304,11 +1304,11 @@ function Run _
         KillTemps_( ctx, tempObjs )
 
     elseif ctx.options.dumpAst orelse ctx.options.parseOnly then
-        dim as longint nodes = 0
-        dim as longint astBytes = 0
-        dim as longint toks = 0
-        dim as double tParseStart = timer
-        for i as long = 1 to ctx.sources.Count( )
+        dim as int64 nodes = 0
+        dim as int64 astBytes = 0
+        dim as int64 toks = 0
+        dim as float64 tParseStart = timer
+        for i as int32 = 1 to ctx.sources.Count( )
             dim as Tko.FileId id = cast( Tko.FileId, i )
             '' PULL: the parser drives the preprocessor, rather than consuming a
             '' vector the preprocessor finished building first.
@@ -1355,7 +1355,7 @@ function Run _
             end if
         next
 
-        dim as double tParse = timer - tParseStart
+        dim as float64 tParse = timer - tParseStart
         if ctx.options.parseOnly then
             '' Count INPUTS, not sources: the preprocessor creates virtual files for
             '' '##' pasting and they are not what the user asked about.
@@ -1372,7 +1372,7 @@ function Run _
     elseif ctx.options.parseExpr then
         '' One expression per source line. This is the expression parser's test hook
         '' and the harness the precedence differential runs through.
-        for i as long = 1 to ctx.sources.Count( )
+        for i as int32 = 1 to ctx.sources.Count( )
             dim as Tko.FileId id = cast( Tko.FileId, i )
             dim as Tko.Lex.Result lr
             Tko.Lex.Run( ctx.sources, id, ctx.names, ctx.keywords, ctx.diags, lr )
@@ -1388,7 +1388,7 @@ function Run _
             p.diags = @ctx.diags
             p.pos = 0
 
-            dim as long lineNo = 0
+            dim as int32 lineNo = 0
             while p.pos < lr.tokens.Count
                 dim as Tko.TokenKind k = cast( Tko.TokenKind, lr.tokens[p.pos].kind )
                 if k = Tko.TK_EOF then exit while
@@ -1412,9 +1412,9 @@ function Run _
         next
 
     elseif ctx.options.ppOnly then
-        dim as longint tokens = 0, includes = 0, expansions = 0
-        dim as double tPpStart = timer
-        for i as long = 1 to ctx.sources.Count( )
+        dim as int64 tokens = 0, includes = 0, expansions = 0
+        dim as float64 tPpStart = timer
+        for i as int32 = 1 to ctx.sources.Count( )
             dim as Tko.PpResult r
             dim as Tko.PpConfig cfg = MakePpConfig( ctx )
             cfg.cmdlineIgnored = (i > 1)
@@ -1424,7 +1424,7 @@ function Run _
             includes += r.includeCount
             expansions += r.expansionCount
         next
-        dim as double tPp = timer - tPpStart
+        dim as float64 tPp = timer - tPpStart
         print "preprocessed "; ctx.sources.Count( ); " file(s), "; tokens; " tokens, "; _
               includes; " includes, "; expansions; " expansions"
         if ctx.options.timePasses then
@@ -1432,7 +1432,7 @@ function Run _
         end if
 
     elseif ctx.options.dumpTokens then
-        for i as long = 1 to ctx.sources.Count( )
+        for i as int32 = 1 to ctx.sources.Count( )
             dim as Tko.FileId id = cast( Tko.FileId, i )
             if ctx.options.dumpPp then
                 dim as Tko.PpResult r
@@ -1471,7 +1471,7 @@ function Run _
     '' THE PROGRAM FIRST: a program that failed to compile is a user error, and the
     '' toolchain never ran. A toolchain failure is an error in the engine too, now, so
     '' this asks FrontendFailed_ rather than HasErrors.
-    dim as long rc = Tko.EXIT_OK
+    dim as int32 rc = Tko.EXIT_OK
     if FrontendFailed_( ctx ) then
         rc = Tko.EXIT_USER_ERROR
     elseif toolExit <> Tko.EXIT_OK then

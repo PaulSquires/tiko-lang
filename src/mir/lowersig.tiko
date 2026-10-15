@@ -8,7 +8,7 @@
 namespace Tko.Mir
 
 declare function StrSwapKind_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as int64 ) as int32
 
 '' THE SIGNATURE OF A PROCEDURE THIS MODULE DOES NOT DEFINE.
 ''
@@ -31,7 +31,7 @@ declare function StrSwapKind_ _
 '' widen, an i32 is already the width, and an aggregate is the ABI pass's business.
 '' MirFunction.paramExt says why this matters and what it cost.
 function ParamExtClass_ _
-    ( byref c as Ctx, byval t as Tko.TypeId ) as ubyte
+    ( byref c as Ctx, byval t as Tko.TypeId ) as uint8
 
     select case ParamMirType( c, t )
     case MT_I8, MT_I16
@@ -78,12 +78,12 @@ sub SignatureFromProc _
     dim as Tko.StmtPayload ptr sp = StmtOf( c, pn )
     if sp = 0 then return
 
-    for i as long = 0 to sp->count - 1
+    for i as int32 = 0 to sp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[sp->first + i] )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         '' THE ELLIPSIS IS AN N_PARAM and is not a parameter: it carries no type and
         '' contributes no argument. LLVM spells it in the signature's tail instead.
-        if StmtOf( c, prm )->op = cast( ushort, Tko.TK_ELLIPSIS ) then
+        if StmtOf( c, prm )->op = cast( uint16, Tko.TK_ELLIPSIS ) then
             f->isVariadic = true
             continue for
         end if
@@ -108,17 +108,17 @@ sub SignatureFromProc _
         '' parameter SLOTS, where an array slot is already a pointer, so this only
         '' shows when the CALL is lowered before the callee's body -- which is what a
         '' generic calling a generic does. The same call from module scope was right.
-        dim as boolean isArr = ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_ARRAY) <> 0)
-        if isArr orelse ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0) then
+        dim as boolean isArr = ((c.ast->nodes[cast( int32, prm )].flags and Tko.NF_ARRAY) <> 0)
+        if isArr orelse ((c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0) then
             f->AddParam( MT_PTR )
         else
             '' The SIZE only where it is genuinely an aggregate -- see the definition
             '' path above for what recording it otherwise did.
             dim as MirType smt = ParamMirType( c, pt )
-            dim as ulong ssz = 0
-            dim as ulong scl = 0
+            dim as uint32 ssz = 0
+            dim as uint32 scl = 0
             if smt = MT_AGG then
-                ssz = cast( ulong, SizeOfType( c, pt ) )
+                ssz = cast( uint32, SizeOfType( c, pt ) )
                 scl = ClassifyEightbytes( c, pt )
             end if
             f->AddParam( smt, ssz, scl, TKO_PA_NONE, ParamExtClass_( c, pt ) )
@@ -142,7 +142,7 @@ end sub
 '' ApexWealth's quote provider came back failed and test_net crashed. The call names this
 '' declaration by index (plus one, as a virtual call does); nothing links against it. One per
 '' procedure type, found again by TYPE. -1 when the type is not a procedure's.
-function PtrCallSigIndex_( byref c as Ctx, byval sigT as Tko.TypeId ) as long
+function PtrCallSigIndex_( byref c as Ctx, byval sigT as Tko.TypeId ) as int32
     if sigT = Tko.TYPE_NONE then return -1
     if c.types->Kind( sigT ) <> Tko.TK_PROC then return -1
     '' KEYED ON THE TYPE, not on a name built from it. The name is still what the
@@ -150,7 +150,7 @@ function PtrCallSigIndex_( byref c as Ctx, byval sigT as Tko.TypeId ) as long
     '' read it -- and it is built ONCE, when the signature is first made. Finding it
     '' again used to build that string and intern it at every procedure-pointer call
     '' site, and then scan every function in the module.
-    dim as long tkey = cast( long, sigT )
+    dim as int32 tkey = cast( int32, sigT )
     while c.m->procSigByType.Count <= tkey
         c.m->procSigByType.Push( 0 )
     wend
@@ -167,7 +167,7 @@ function PtrCallSigIndex_( byref c as Ctx, byval sigT as Tko.TypeId ) as long
     '' run (in $tko.procsig.54)". Unseen while a signature went only on calls returning an
     '' aggregate -- a string call never did. fbc's functions/ignore-result.bas, 'pstring( )'.
     if (rmt = MT_AGG) andalso IsStringType( c, rt ) then
-        dim as longint rsn
+        dim as int64 rsn
         if StrSwapKind_( c, rt, rsn ) = 0 then rmt = MT_PTR
     end if
     '' A RESULT THAT UsesSretReturn COMES BACK THROUGH A LEADING POINTER, as a named
@@ -194,12 +194,12 @@ function PtrCallSigIndex_( byref c as Ctx, byval sigT as Tko.TypeId ) as long
         f->retSize = SizeOfType( c, rt )
         f->retClass = ClassifyEightbytes( c, rt )
     end if
-    for i as long = 0 to c.types->ProcParamCount( sigT ) - 1
+    for i as int32 = 0 to c.types->ProcParamCount( sigT ) - 1
         dim as Tko.TypeId pt = c.types->ProcParam( sigT, i )
         if c.types->Kind( pt ) = Tko.TK_REFERENCE then
             f->AddParam( MT_PTR )
         elseif ParamMirType( c, pt ) = MT_AGG then
-            f->AddParam( MT_AGG, cast( ulong, SizeOfType( c, pt ) ), ClassifyEightbytes( c, pt ) )
+            f->AddParam( MT_AGG, cast( uint32, SizeOfType( c, pt ) ), ClassifyEightbytes( c, pt ) )
         else
             '' A PROCEDURE POINTER'S SIGNATURE WIDENS TOO. The call goes through this
             '' declaration, so a narrow parameter here must say so or the call site and
@@ -219,9 +219,9 @@ end function
 function DeclIndexFor_ _
     ( byref c as Ctx, byval cnm as Tko.InternId, byval callTy as MirType, _
       byval cs as Tko.Symbol ptr, byval withSret as boolean, _
-      byval withThis as boolean ) as long
+      byval withThis as boolean ) as int32
 
-    for i as long = 0 to c.m->functions.Count - 1
+    for i as int32 = 0 to c.m->functions.Count - 1
         if c.m->functions[i]->name = cnm then
             '' AN EXISTING DECLARATION MAY HAVE BEEN BUILT WITHOUT THE RECEIVER. The
             '' name is the only key, so an entry made where 'withThis' was false
@@ -241,7 +241,7 @@ function DeclIndexFor_ _
             '' as a fresh declaration would; a real 'declare sub X( )' rebuilds to itself.
             if (have->isDefinition = false) andalso (cs <> 0) andalso _
                (have->paramTys.Count = 0) andalso (cast( MirType, have->retTy ) = MT_VOID) then
-                have->retTy = cast( ubyte, callTy )
+                have->retTy = cast( uint8, callTy )
                 if callTy = MT_AGG then
                     have->retSize = SizeOfType( c, cs->type_ )
                     have->retClass = ClassifyEightbytes( c, cs->type_ )
@@ -250,7 +250,7 @@ function DeclIndexFor_ _
                 return i
             end if
             if (have->isDefinition = false) andalso (cs <> 0) then
-                dim as long wantN = 0
+                dim as int32 wantN = 0
                 if withSret then wantN += 1
                 if withThis then wantN += 1
                 if have->paramTys.Count < wantN then
@@ -298,15 +298,15 @@ function FuncAddrOf( byref c as Ctx, byval fsid as Tko.SymbolId, _
     dim as MirValue none_
     dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsid )
     if fs = 0 then return none_
-    if fs->kind <> cast( ubyte, Tko.SYM_PROC ) then return none_
+    if fs->kind <> cast( uint8, Tko.SYM_PROC ) then return none_
     dim as Tko.NodeId pn = cast( Tko.NodeId, fs->payload )
     if pn = Tko.NODE_NONE then return none_
     if c.ast->Kind( pn ) <> Tko.N_PROC then return none_
 
     dim as Tko.InternId nm = c.names->GetString( _
         Tko.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
-    dim as long fidx = -1
-    for i as long = 0 to c.m->functions.Count - 1
+    dim as int32 fidx = -1
+    for i as int32 = 0 to c.m->functions.Count - 1
         if c.m->functions[i]->name = nm then
             fidx = i
             exit for
@@ -320,9 +320,9 @@ function FuncAddrOf( byref c as Ctx, byval fsid as Tko.SymbolId, _
     end if
 
     dim as MirInst fa
-    fa.op = cast( ushort, M_FUNC_ADDR )
-    fa.ty = cast( ubyte, MT_PTR )
-    fa.callee = cast( ulong, fidx )
+    fa.op = cast( uint16, M_FUNC_ADDR )
+    fa.ty = cast( uint8, MT_PTR )
+    fa.callee = cast( uint32, fidx )
     return Emit( c, fa )
 end function
 

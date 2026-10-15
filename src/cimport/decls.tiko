@@ -51,7 +51,7 @@ end function
 declare sub NameNested_( byref x as CImp, byval c as CXCursor )
 
 private sub NameRecord_( byref x as CImp, byval c as CXCursor )
-    dim as long id = UsrId( x, CursorUsr( x, c ) )
+    dim as int32 id = UsrId( x, CursorUsr( x, c ) )
     dim as boolean def_ = (x.api->isCursorDefinition( c ) <> 0)
     if def_ then UsrSet( x, id, US_DEFINED )
     dim as string nm = CursorName( x, c )
@@ -63,7 +63,7 @@ private sub NameRecord_( byref x as CImp, byval c as CXCursor )
 end sub
 
 private sub NameEnum_( byref x as CImp, byval c as CXCursor )
-    dim as long id = UsrId( x, CursorUsr( x, c ) )
+    dim as int32 id = UsrId( x, CursorUsr( x, c ) )
     if x.api->isCursorDefinition( c ) then UsrSet( x, id, US_DEFINED )
     dim as string nm = CursorName( x, c )
     if (len( nm ) > 0) andalso ((UsrState( x, id ) and US_NAMED) = 0) then
@@ -75,7 +75,7 @@ end sub
 '' Named records and enums declared INSIDE a record are file-scope declarations in C and
 '' need names too; so does every enum's constants, which are module-level values.
 private function NestedVisit_ cdecl _
-    ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as long
+    ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
     dim as CImp ptr xp = client
     select case xp->api->getCursorKind( c )
     case CXCursor_StructDecl, CXCursor_UnionDecl
@@ -88,7 +88,7 @@ private function NestedVisit_ cdecl _
     case CXCursor_EnumDecl
         NameEnum_( *xp, c )
     case CXCursor_EnumConstantDecl
-        dim as long id = UsrId( *xp, CursorUsr( *xp, c ) )
+        dim as int32 id = UsrId( *xp, CursorUsr( *xp, c ) )
         if (UsrState( *xp, id ) and US_NAMED) = 0 then
             UsrSetName( *xp, id, NameClaim( *xp, NS_VALUE, CursorName( *xp, c ), RK_CONST ) )
             '' An enumerator is emitted with its enum; it counts as declared for an alias.
@@ -110,13 +110,13 @@ end sub
 ''   typedef struct X X;            one entity with two spellings of one name -- the
 ''                                  record's name serves both
 private sub NameTypedef_( byref x as CImp, byval c as CXCursor )
-    dim as long id = UsrId( x, CursorUsr( x, c ) )
+    dim as int32 id = UsrId( x, CursorUsr( x, c ) )
     if (UsrState( x, id ) and US_NAMED) <> 0 then return
     dim as string nm = CursorName( x, c )
     dim as CXType u = Unwrap( x, x.api->getTypedefDeclUnderlyingType( c ) )
     if (u.kind = CXType_Record__) orelse (u.kind = CXType_Enum__) then
         dim as CXCursor d = x.api->getTypeDeclaration( u )
-        dim as long rid = UsrId( x, CursorUsr( x, d ) )
+        dim as int32 rid = UsrId( x, CursorUsr( x, d ) )
         dim as string dn = CursorName( x, d )
         if len( dn ) = 0 then
             if (UsrState( x, rid ) and US_NAMED) = 0 then
@@ -139,7 +139,7 @@ private sub NameTypedef_( byref x as CImp, byval c as CXCursor )
 end sub
 
 private function Pass1_ cdecl _
-    ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as long
+    ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
     dim as CImp ptr xp = client
     select case xp->api->getCursorKind( c )
     case CXCursor_StructDecl, CXCursor_UnionDecl
@@ -154,7 +154,7 @@ private function Pass1_ cdecl _
         '' _InterlockedIncrement' cannot become an alias -- the inline InterlockedIncrement
         '' holds the name. But it is not LEDGERED: a rename of a function that is never
         '' written lists a name no binding declares (the UCRT's inline 'time' as 'time_').
-        dim as long id = UsrId( *xp, CursorUsr( *xp, c ) )
+        dim as int32 id = UsrId( *xp, CursorUsr( *xp, c ) )
         if (UsrState( *xp, id ) and US_NAMED) = 0 then
             dim as boolean noSym = NoSymbol_( *xp, c )
             UsrSetName( *xp, id, NameClaim( *xp, NS_VALUE, CursorName( *xp, c ), RK_PROC, noSym = false ) )
@@ -162,7 +162,7 @@ private function Pass1_ cdecl _
         end if
     case CXCursor_VarDecl
         if xp->api->Cursor_getStorageClass( c ) <> CX_SC_Static then
-            dim as long id = UsrId( *xp, CursorUsr( *xp, c ) )
+            dim as int32 id = UsrId( *xp, CursorUsr( *xp, c ) )
             if (UsrState( *xp, id ) and US_NAMED) = 0 then
                 UsrSetName( *xp, id, NameClaim( *xp, NS_VALUE, CursorName( *xp, c ), RK_VAR ) )
                 NoteDecl( *xp, CursorName( *xp, c ), id )
@@ -187,7 +187,7 @@ type EnumBody_
 end type
 
 private function EnumConst_ cdecl _
-    ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as long
+    ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
     dim as EnumBody_ ptr eb = client
     dim as CImp ptr xp = eb->x
     if xp->api->getCursorKind( c ) = CXCursor_EnumConstantDecl then
@@ -208,7 +208,7 @@ end function
 '' of clang's underlying integer and the constants a nameless ENUM block, every value
 '' written out -- which also keeps 0x80000000 from being renumbered.
 private sub EmitEnum_( byref x as CImp, byval c as CXCursor )
-    dim as long id = UsrId( x, CursorUsr( x, c ) )
+    dim as int32 id = UsrId( x, CursorUsr( x, c ) )
     if (UsrState( x, id ) and (US_EMITTED or US_REFUSED)) <> 0 then return
     if x.api->isCursorDefinition( c ) = 0 then return
     dim as string nm = UsrFbName( x, id )
@@ -253,8 +253,8 @@ private function TypedefText_( byref x as CImp, byval c as CXCursor, byref why a
     dim as CXType ut = x.api->getTypedefDeclUnderlyingType( c )
     dim as CXType u = Unwrap( x, ut )
     if u.kind = CXType_Record__ then
-        dim as long rid = UsrId( x, CursorUsr( x, x.api->getTypeDeclaration( u ) ) )
-        dim as ubyte st = UsrState( x, rid )
+        dim as int32 rid = UsrId( x, CursorUsr( x, x.api->getTypeDeclaration( u ) ) )
+        dim as uint8 st = UsrState( x, rid )
         if ((st and US_DEFINED) <> 0) andalso ((st and (US_EMITTED or US_REFUSED)) = 0) then
             deferIt = true
             return ""
@@ -276,8 +276,8 @@ end function
 
 private sub EmitTypedef_( byref x as CImp, byval c as CXCursor )
     dim as string usr = CursorUsr( x, c )
-    dim as long id = UsrId( x, usr )
-    dim as ubyte st = UsrState( x, id )
+    dim as int32 id = UsrId( x, usr )
+    dim as uint8 st = UsrState( x, id )
     if (st and (US_EMITTED or US_REFUSED)) <> 0 then return
     '' Named an anonymous record or enum: that declaration carries the name.
     if (st and US_TYPEDEFD) <> 0 then
@@ -291,7 +291,7 @@ private sub EmitTypedef_( byref x as CImp, byval c as CXCursor )
     dim as CXType u = Unwrap( x, x.api->getTypedefDeclUnderlyingType( c ) )
     if u.kind = CXType_Record__ then
         dim as CXCursor d = x.api->getTypeDeclaration( u )
-        dim as long rid = UsrId( x, CursorUsr( x, d ) )
+        dim as int32 rid = UsrId( x, CursorUsr( x, d ) )
         if UsrFbName( x, rid ) = nm then
             if (UsrState( x, rid ) and US_DEFINED) = 0 then
                 if (UsrState( x, rid ) and US_EMITTED) = 0 then
@@ -326,9 +326,9 @@ end sub
 '' ones taken '_', unnamed ones left unnamed -- 'byval as HWND', because C gave no name.
 private function Params_( byref x as CImp, byval c as CXCursor, byref why as string ) as string
     dim as CXType ft = x.api->getCursorType( c )
-    dim as long n = x.api->Cursor_getNumArguments( c )
+    dim as int32 n = x.api->Cursor_getNumArguments( c )
     dim as string ps
-    for i as long = 0 to n - 1
+    for i as int32 = 0 to n - 1
         dim as CXCursor a = x.api->Cursor_getArgument( c, i )
         dim as string pn = NameParam( CursorName( x, a ) )
         '' THE PARAMETER'S OWN TYPE, as written: the function type's copy is canonical for
@@ -360,14 +360,14 @@ end function
 
 private sub EmitFunction_( byref x as CImp, byval c as CXCursor )
     if NoSymbol_( x, c ) then
-        dim as long sid = UsrId( x, CursorUsr( x, c ) )
+        dim as int32 sid = UsrId( x, CursorUsr( x, c ) )
         if (UsrState( x, sid ) and US_REFUSED) = 0 then
             x.nStatic += 1
             UsrSet( x, sid, US_REFUSED )
         end if
         return
     end if
-    dim as long id = UsrId( x, CursorUsr( x, c ) )
+    dim as int32 id = UsrId( x, CursorUsr( x, c ) )
     if (UsrState( x, id ) and (US_EMITTED or US_REFUSED)) <> 0 then return
     dim as string cname = CursorName( x, c )
     dim as string nm = UsrFbName( x, id )
@@ -410,7 +410,7 @@ type DllScan_
 end type
 
 private function DllScanVisit_ cdecl _
-    ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as long
+    ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
     dim as DllScan_ ptr ds = client
     if ds->x->api->getCursorKind( c ) = CXCursor_DLLImport then ds->found = true
     return CXChildVisit_Continue
@@ -421,7 +421,7 @@ end function
 '' linker needs to know. An array keeps its bounds.
 private sub EmitVar_( byref x as CImp, byval c as CXCursor )
     if x.api->Cursor_getStorageClass( c ) = CX_SC_Static then return
-    dim as long id = UsrId( x, CursorUsr( x, c ) )
+    dim as int32 id = UsrId( x, CursorUsr( x, c ) )
     if (UsrState( x, id ) and (US_EMITTED or US_REFUSED)) <> 0 then return
     dim as string cname = CursorName( x, c )
     dim as string nm = UsrFbName( x, id )
@@ -436,7 +436,7 @@ private sub EmitVar_( byref x as CImp, byval c as CXCursor )
     end if
     if vu.kind = CXType_ConstantArray__ then
         dim as string d
-        dim as long rank = 0
+        dim as int32 rank = 0
         while vu.kind = CXType_ConstantArray__
             if rank > 0 then d &= ", "
             d &= "0 to " & (x.api->getNumElements( vu ) - 1)
@@ -463,7 +463,7 @@ end sub
 
 private sub EmitRecordAt_( byref x as CImp, byval c as CXCursor )
     if x.api->isCursorDefinition( c ) = 0 then return
-    dim as long id = UsrId( x, CursorUsr( x, c ) )
+    dim as int32 id = UsrId( x, CursorUsr( x, c ) )
     if (UsrState( x, id ) and (US_EMITTED or US_REFUSED)) <> 0 then return
     dim as string nm = UsrFbName( x, id )
     '' An anonymous record with no typedef to name it is either an anonymous member or the
@@ -479,7 +479,7 @@ private sub EmitRecordAt_( byref x as CImp, byval c as CXCursor )
 end sub
 
 private function Pass2_ cdecl _
-    ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as long
+    ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
     dim as CImp ptr xp = client
     select case xp->api->getCursorKind( c )
     case CXCursor_StructDecl, CXCursor_UnionDecl
@@ -503,9 +503,9 @@ private sub RetryDeferred_( byref x as CImp )
     dim as boolean moved = true
     while moved
         moved = false
-        for i as long = 0 to x.nDeferred - 1
+        for i as int32 = 0 to x.nDeferred - 1
             dim as CXCursor c = x.deferred( i )
-            dim as long id = UsrId( x, CursorUsr( x, c ) )
+            dim as int32 id = UsrId( x, CursorUsr( x, c ) )
             if (UsrState( x, id ) and (US_EMITTED or US_REFUSED)) <> 0 then continue for
             dim as string why
             dim as boolean deferIt
@@ -521,8 +521,8 @@ private sub RetryDeferred_( byref x as CImp )
             moved = true
         next
     wend
-    for i as long = 0 to x.nDeferred - 1
-        dim as long id = UsrId( x, CursorUsr( x, x.deferred( i ) ) )
+    for i as int32 = 0 to x.nDeferred - 1
+        dim as int32 id = UsrId( x, CursorUsr( x, x.deferred( i ) ) )
         if (UsrState( x, id ) and (US_EMITTED or US_REFUSED)) = 0 then
             UsrSet( x, id, US_REFUSED )
             Skip( x, "typedef", UsrFbName( x, id ), "names a record that never arrived" )

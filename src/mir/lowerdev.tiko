@@ -20,13 +20,13 @@ private function LowerSeekStmt_( byref c as Ctx, byval id as Tko.NodeId ) as boo
        (c.ast->Kind( poE ) = Tko.N_ELIDED) then return false
 
     dim as MirValue ch = LowerNumArg_( c, chE, MT_I32 )
-    if ch.kind = cast( ubyte, MV_NONE ) then return false
+    if ch.kind = cast( uint8, MV_NONE ) then return false
     dim as MirValue po = LowerNumArg_( c, poE, MT_I64 )
-    if po.kind = cast( ubyte, MV_NONE ) then return false
+    if po.kind = cast( uint8, MV_NONE ) then return false
 
-    dim as containers.Array( of ulong ) args
-    args.Push( cast( ulong, ch.kind ) ) : args.Push( cast( ulong, ch.id ) )
-    args.Push( cast( ulong, po.kind ) ) : args.Push( cast( ulong, po.id ) )
+    dim as containers.Array( of uint32 ) args
+    args.Push( cast( uint32, ch.kind ) ) : args.Push( cast( uint32, ch.id ) )
+    args.Push( cast( uint32, po.kind ) ) : args.Push( cast( uint32, po.id ) )
     EmitRtlErrorCheck_( c, id, EmitRtl( c, RTL_FILE_SEEK, args ) )     '' -e (T68)
     return true
 end function
@@ -49,13 +49,13 @@ end function
 '' is the same either way -- 'var oldcolors = color( 1 )' is 'fb_Color( 1, 0, 2u )',
 '' the same call the statement makes with its result discarded.
 private function LowerColorArgs_ _
-    ( byref c as Ctx, byval first as long, byval count as long, _
+    ( byref c as Ctx, byval first as int32, byval count as int32, _
       byref outv as MirValue ) as boolean
 
     if count > 2 then return false
-    dim as long mask = 0
-    dim as containers.Array( of ulong ) args
-    for k as long = 0 to 1
+    dim as int32 mask = 0
+    dim as containers.Array( of uint32 ) args
+    for k as int32 = 0 to 1
         dim as Tko.NodeId e = Tko.NODE_NONE
         if k < count then e = cast( Tko.NodeId, c.ast->children[first + k] )
         if e <> Tko.NODE_NONE then
@@ -63,28 +63,28 @@ private function LowerColorArgs_ _
         end if
         if e = Tko.NODE_NONE then
             mask or= (1 shl k)
-            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+            args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )
         else
             dim as MirValue v = LowerNumArg_( c, e, MT_I32 )
-            if v.kind = cast( ubyte, MV_NONE ) then return false
-            args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
+            if v.kind = cast( uint8, MV_NONE ) then return false
+            args.Push( cast( uint32, v.kind ) ) : args.Push( cast( uint32, v.id ) )
         end if
     next
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, mask ) )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, mask ) )
     outv = EmitRtl( c, RTL_COLOR, args )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 
 '' 'color( fg )' IN EXPRESSION POSITION yields the PREVIOUS colours, which is what
 '' the runtime returns and what 'var oldcolors = color( 1 )' is for.
 function LowerColorCall_ _
-    ( byref c as Ctx, byval calleeNode as Tko.NodeId, byval argFirst as long, _
-      byval argCount as long, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval calleeNode as Tko.NodeId, byval argFirst as int32, _
+      byval argCount as int32, byref outv as MirValue ) as boolean
 
     if calleeNode = Tko.NODE_NONE then return false
     if c.ast->Kind( calleeNode ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, calleeNode )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, calleeNode )].data )]
     if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "color" then
         return false
     end if
@@ -129,12 +129,12 @@ private function LowerErrSet_( byref c as Ctx, byval id as Tko.NodeId ) as boole
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     if sp->a = Tko.NODE_NONE then return false
     dim as MirValue v = LowerNumArg_( c, sp->a, MT_I32 )
-    if v.kind = cast( ubyte, MV_NONE ) then return false
-    if v.kind = cast( ubyte, MV_NONE ) then return false
-    dim as containers.Array( of ulong ) args
-    args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
+    if v.kind = cast( uint8, MV_NONE ) then return false
+    if v.kind = cast( uint8, MV_NONE ) then return false
+    dim as containers.Array( of uint32 ) args
+    args.Push( cast( uint32, v.kind ) ) : args.Push( cast( uint32, v.id ) )
     dim as MirValue r = EmitRtl( c, RTL_ERR_SET, args )
-    return (r.kind <> cast( ubyte, MV_NONE ))
+    return (r.kind <> cast( uint8, MV_NONE ))
 end function
 
 private function LowerWidthStmt_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
@@ -152,7 +152,7 @@ private function LowerWidthStmt_( byref c as Ctx, byval id as Tko.NodeId ) as bo
         '' ...ANY string: a 'string * N', a zstring, '*pz', a ustring and a wide value too. Only
         '' a var-length string counted, so '*pz' and 'wstr( "lpt1:" )' took the NUMERIC form.
         dim as Tko.TypeId a0t = c.info->TypeOf_( a0 )
-        dim as longint a0n
+        dim as int64 a0n
         dim as boolean isStr = (c.ast->Kind( a0 ) = Tko.N_STRING_LIT)
         if isStr = false then isStr = IsStringType( c, a0t ) orelse IsWideString_( c, a0t ) orelse cbool( StrSwapKind_( c, a0t, a0n ) >= 1 ) orelse TermIsWide_( c, a0 )
         if isStr then
@@ -162,35 +162,35 @@ private function LowerWidthStmt_( byref c as Ctx, byval id as Tko.NodeId ) as bo
             dim as Tko.NodeId a1 = cast( Tko.NodeId, c.ast->children[sp->first + 1] )
             if c.ast->Kind( a1 ) = Tko.N_ELIDED then return false
             dim as MirValue nv = LowerNumArg_( c, a1, MT_I32 )
-            if nv.kind = cast( ubyte, MV_NONE ) then return false
-            dim as containers.Array( of ulong ) dargs
-            dargs.Push( cast( ulong, dv.kind ) ) : dargs.Push( cast( ulong, dv.id ) )
-            dargs.Push( cast( ulong, nv.kind ) ) : dargs.Push( cast( ulong, nv.id ) )
+            if nv.kind = cast( uint8, MV_NONE ) then return false
+            dim as containers.Array( of uint32 ) dargs
+            dargs.Push( cast( uint32, dv.kind ) ) : dargs.Push( cast( uint32, dv.id ) )
+            dargs.Push( cast( uint32, nv.kind ) ) : dargs.Push( cast( uint32, nv.id ) )
             dim as MirValue dr = EmitRtl( c, RTL_WIDTH_DEV, dargs )
             EmitRtlErrorCheck_( c, id, dr )                 '' -e (T68)
-            return (dr.kind <> cast( ubyte, MV_NONE ))
+            return (dr.kind <> cast( uint8, MV_NONE ))
         end if
     end if
 
-    dim as containers.Array( of ulong ) args
-    for k as long = 0 to 1
+    dim as containers.Array( of uint32 ) args
+    for k as int32 = 0 to 1
         dim as Tko.NodeId e = Tko.NODE_NONE
         if k < sp->count then e = cast( Tko.NodeId, c.ast->children[sp->first + k] )
         if e <> Tko.NODE_NONE then
             if c.ast->Kind( e ) = Tko.N_ELIDED then e = Tko.NODE_NONE
         end if
         if e = Tko.NODE_NONE then
-            args.Push( cast( ulong, MV_CONST_INT ) )
-            args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+            args.Push( cast( uint32, MV_CONST_INT ) )
+            args.Push( cast( uint32, cast( uint64, -1 ) ) )
         else
             dim as MirValue v = LowerNumArg_( c, e, MT_I32 )
-            if v.kind = cast( ubyte, MV_NONE ) then return false
-            args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
+            if v.kind = cast( uint8, MV_NONE ) then return false
+            args.Push( cast( uint32, v.kind ) ) : args.Push( cast( uint32, v.id ) )
         end if
     next
     dim as MirValue wr = EmitRtl( c, RTL_WIDTH, args )
     EmitRtlErrorCheck_( c, id, wr )                         '' -e (T68)
-    return (wr.kind <> cast( ubyte, MV_NONE ))
+    return (wr.kind <> cast( uint8, MV_NONE ))
 end function
 
 private function LowerColorStmt_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
@@ -225,13 +225,13 @@ private function LowerLockStmt_ _
 
     dim as Tko.NodeId hn = cast( Tko.NodeId, c.ast->children[sp->first] )
     dim as MirValue hv = LowerNumArg_( c, hn, MT_I32 )
-    if hv.kind = cast( ubyte, MV_NONE ) then return false
-    if hv.kind = cast( ubyte, MV_NONE ) then return false
+    if hv.kind = cast( uint8, MV_NONE ) then return false
+    if hv.kind = cast( uint8, MV_NONE ) then return false
 
     dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[sp->first + 1] )
     dim as MirValue av = LowerNumArg_( c, an, MT_I64 )
-    if av.kind = cast( ubyte, MV_NONE ) then return false
-    if av.kind = cast( ubyte, MV_NONE ) then return false
+    if av.kind = cast( uint8, MV_NONE ) then return false
+    if av.kind = cast( uint8, MV_NONE ) then return false
 
     '' The default bound is materialised only when there is no 'to', so the range form
     '' does not carry a dead 'const i64 0' fbc never emits.
@@ -239,20 +239,20 @@ private function LowerLockStmt_ _
     if sp->count = 3 then
         dim as Tko.NodeId bn = cast( Tko.NodeId, c.ast->children[sp->first + 2] )
         bv = LowerNumArg_( c, bn, MT_I64 )
-        if bv.kind = cast( ubyte, MV_NONE ) then return false
+        if bv.kind = cast( uint8, MV_NONE ) then return false
     else
         bv = ConstInt( c, 0, MT_I64 )
     end if
-    if bv.kind = cast( ubyte, MV_NONE ) then return false
+    if bv.kind = cast( uint8, MV_NONE ) then return false
 
-    dim as containers.Array( of ulong ) args
-    args.Push( cast( ulong, hv.kind ) ) : args.Push( cast( ulong, hv.id ) )
-    args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
-    args.Push( cast( ulong, bv.kind ) ) : args.Push( cast( ulong, bv.id ) )
-    dim as long w = RTL_FILE_LOCK
+    dim as containers.Array( of uint32 ) args
+    args.Push( cast( uint32, hv.kind ) ) : args.Push( cast( uint32, hv.id ) )
+    args.Push( cast( uint32, av.kind ) ) : args.Push( cast( uint32, av.id ) )
+    args.Push( cast( uint32, bv.kind ) ) : args.Push( cast( uint32, bv.id ) )
+    dim as int32 w = RTL_FILE_LOCK
     if isUnlock then w = RTL_FILE_UNLOCK
     dim as MirValue r = EmitRtl( c, w, args )
-    return (r.kind <> cast( ubyte, MV_NONE ))
+    return (r.kind <> cast( uint8, MV_NONE ))
 end function
 
 '' NAME old AS new -- rename a file.
@@ -278,11 +278,11 @@ private function EmitRename_ _
     dim as MirValue newp
     if ZstrDataOf_( c, newN, newp ) = false then return false
 
-    dim as containers.Array( of ulong ) args
-    args.Push( cast( ulong, oldp.kind ) ) : args.Push( cast( ulong, oldp.id ) )
-    args.Push( cast( ulong, newp.kind ) ) : args.Push( cast( ulong, newp.id ) )
+    dim as containers.Array( of uint32 ) args
+    args.Push( cast( uint32, oldp.kind ) ) : args.Push( cast( uint32, oldp.id ) )
+    args.Push( cast( uint32, newp.kind ) ) : args.Push( cast( uint32, newp.id ) )
     outv = EmitRtl( c, RTL_RENAME, args )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 
 private function LowerNameStmt_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
@@ -302,12 +302,12 @@ private function LowerNameFn_ _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if cp->count <> 2 then return false
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
     if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "name" then return false
 
     return EmitRename_( c, cast( Tko.NodeId, c.ast->children[cp->first] ), _
@@ -333,11 +333,11 @@ private function LowerScreenFn_ _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
     if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "screen" then return false
     if (cp->count < 2) orelse (cp->count > 3) then return false
 
@@ -347,26 +347,26 @@ private function LowerScreenFn_ _
     '' Source order, then swapped at the call: fbc evaluates the row expression first
     '' even though the column is passed first, and either may have a side effect.
     dim as MirValue rowV = LowerNumArg_( c, rowN, MT_I32 )
-    if rowV.kind = cast( ubyte, MV_NONE ) then return false
-    if rowV.kind = cast( ubyte, MV_NONE ) then return false
+    if rowV.kind = cast( uint8, MV_NONE ) then return false
+    if rowV.kind = cast( uint8, MV_NONE ) then return false
     dim as MirValue colV = LowerNumArg_( c, colN, MT_I32 )
-    if colV.kind = cast( ubyte, MV_NONE ) then return false
-    if colV.kind = cast( ubyte, MV_NONE ) then return false
+    if colV.kind = cast( uint8, MV_NONE ) then return false
+    if colV.kind = cast( uint8, MV_NONE ) then return false
 
     dim as MirValue flagV
     if cp->count = 3 then
         dim as Tko.NodeId fN = cast( Tko.NodeId, c.ast->children[cp->first + 2] )
         flagV = LowerNumArg_( c, fN, MT_I32 )
-        if flagV.kind = cast( ubyte, MV_NONE ) then return false
+        if flagV.kind = cast( uint8, MV_NONE ) then return false
     else
         flagV = ConstInt( c, 0, MT_I32 )
     end if
-    if flagV.kind = cast( ubyte, MV_NONE ) then return false
+    if flagV.kind = cast( uint8, MV_NONE ) then return false
 
-    dim as containers.Array( of ulong ) args
-    args.Push( cast( ulong, colV.kind ) ) : args.Push( cast( ulong, colV.id ) )
-    args.Push( cast( ulong, rowV.kind ) ) : args.Push( cast( ulong, rowV.id ) )
-    args.Push( cast( ulong, flagV.kind ) ) : args.Push( cast( ulong, flagV.id ) )
+    dim as containers.Array( of uint32 ) args
+    args.Push( cast( uint32, colV.kind ) ) : args.Push( cast( uint32, colV.id ) )
+    args.Push( cast( uint32, rowV.kind ) ) : args.Push( cast( uint32, rowV.id ) )
+    args.Push( cast( uint32, flagV.kind ) ) : args.Push( cast( uint32, flagV.id ) )
     outv = EmitRtl( c, RTL_READ_XY, args )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function

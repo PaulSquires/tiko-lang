@@ -7,17 +7,17 @@ namespace Tko.Codegen
 
 using Tko.Mir
 
-function AggType( byval sizeBytes as long ) as string
+function AggType( byval sizeBytes as int32 ) as string
     '' A ZERO-BYTE aggregate is still a type LLVM must be able to name. '[0 x i8]' is
     '' legal and is what an empty UDT is; refusing it here would decline a program
     '' fbc accepts.
-    dim as long n = sizeBytes
+    dim as int32 n = sizeBytes
     if n < 0 then n = 0
     return "[" & str( n ) & " x i8]"
 end function
 
 function LlvmType _
-    ( byval t as MirType, byval aggSize as long ) as string
+    ( byval t as MirType, byval aggSize as int32 ) as string
 
     select case t
     case MT_VOID : return "void"
@@ -37,21 +37,21 @@ function LlvmType _
 end function
 
 function LlvmFloatConst _
-    ( byval v as double, byval isSingle as boolean ) as string
+    ( byval v as float64, byval isSingle as boolean ) as string
 
-    dim as double d = v
+    dim as float64 d = v
     '' A SINGLE is ROUNDED THROUGH 'single' FIRST. LLVM requires the hex form of a
     '' 'float' constant to be a double that is exactly representable as a float; the
     '' bits of the original double are not, and it rejects them. Rounding here is the
     '' same rounding the target does.
-    if isSingle then d = cast( double, cast( single, v ) )
-    dim as ulongint bits = 0
+    if isSingle then d = cast( float64, cast( float32, v ) )
+    dim as uint64 bits = 0
     '' The BIT PATTERN, not a reinterpretation of the number: memcpy through a pointer
     '' is the one spelling that cannot be optimised into a conversion.
     dim as any ptr src = @d
     dim as any ptr dst = @bits
-    for i as long = 0 to 7
-        cast( ubyte ptr, dst )[i] = cast( ubyte ptr, src )[i]
+    for i as int32 = 0 to 7
+        cast( uint8 ptr, dst )[i] = cast( uint8 ptr, src )[i]
     next
     dim as string h = hex( bits, 16 )
     return "0x" & h

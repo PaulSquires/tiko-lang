@@ -44,7 +44,7 @@ namespace Tko.Codegen
         as TargetLayout layout
         '' The convention a procedure gets when the source names none. All three
         '' collapse on x86-64; win32 is where this stops being cosmetic.
-        as ubyte        defaultCallConv
+        as uint8        defaultCallConv
     end type
 
     declare function TargetFor( byval t as TargetId ) as TargetDescription

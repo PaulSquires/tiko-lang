@@ -60,12 +60,12 @@ end function
 '' string or character literal is not a bracket.
 private function Balanced_( byref x as CImp, byval c as CXCursor ) as boolean
     dim as CXToken ptr toks
-    dim as ulong nt
+    dim as uint32 nt
     x.api->tokenize( x.tu, x.api->getCursorExtent( c ), @toks, @nt )
     if toks = 0 then return true
-    dim as long depth = 0
+    dim as int32 depth = 0
     dim as boolean ok = true
-    for i as long = 0 to cast( long, nt ) - 1
+    for i as int32 = 0 to cast( int32, nt ) - 1
         if x.api->getTokenKind( toks[i] ) = CXToken_Punctuation then
             select case ClangText( *x.api, x.api->getTokenSpelling( x.tu, toks[i] ) )
             case "(", "[", "{" : depth += 1
@@ -97,7 +97,7 @@ sub MacroCandidate( byref x as CImp, byval c as CXCursor )
     '' A macro redefined keeps its FIRST position; its value is whatever clang says it is
     '' at the end of the unit, which is where the probes are. By interned id: a scan of
     '' the list per macro was five seconds of windows.h's 23,000.
-    dim as long nid = cast( long, x.strs.GetString( n ) )
+    dim as int32 nid = cast( int32, x.strs.GetString( n ) )
     if nid < x.macroSeen.Count then
         if x.macroSeen[nid] then return
     end if
@@ -108,15 +108,15 @@ end sub
 '' Marks a macro as considered -- by this import, or by the earlier one a delta import is
 '' seeded with, whose binding already has it.
 sub MacroSeen( byref x as CImp, byref n as string )
-    dim as long nid = cast( long, x.strs.GetString( n ) )
+    dim as int32 nid = cast( int32, x.strs.GetString( n ) )
     while x.macroSeen.Count <= nid
         x.macroSeen.Push( 0 )
     wend
     x.macroSeen[nid] = 1
 end sub
 
-sub NoteDecl( byref x as CImp, byref cname as string, byval uid as long )
-    dim as long id = cast( long, x.strs.GetString( cname ) )
+sub NoteDecl( byref x as CImp, byref cname as string, byval uid as int32 )
+    dim as int32 id = cast( int32, x.strs.GetString( cname ) )
     while x.cDeclUsr.Count <= id
         x.cDeclUsr.Push( 0 )
     wend
@@ -137,11 +137,11 @@ type Probe_
     as CImp ptr x
     as string prefix              '' '__tko_probe_', '__tko_alias_' or '__tko_field_'
     as string ptr values          '' index -> text, "" when nothing usable
-    as long n
+    as int32 n
     as ProbeMode_ mode
 end type
 
-private function ProbeIndex_( byref nm as string, byref prefix as string ) as long
+private function ProbeIndex_( byref nm as string, byref prefix as string ) as int32
     if left( nm, len( prefix ) ) <> prefix then return -1
     return valint( mid( nm, len( prefix ) + 1 ) )
 end function
@@ -150,9 +150,9 @@ end function
 '' THE SHORTEST SPELLING THAT READS BACK AS THE SAME DOUBLE -- 15, 16 or 17 significant
 '' digits. 'str( d )' gave 16 at most, so DBL_MAX's 1.797693134862316e+308 read back as
 '' INF and 0.1 + 0.2 as 0.3 (audit F-50); 17 always round-trips.
-private function FloatText_( byval d as double ) as string
+private function FloatText_( byval d as float64 ) as string
     dim as zstring * 40 buf
-    for digits as long = 15 to 17
+    for digits as int32 = 15 to 17
         snprintf( @buf, 40, "%.*g", digits, d )
         if strtod( @buf, 0 ) = d then exit for
     next
@@ -169,15 +169,15 @@ private function ValueText_( byref x as CImp, byval vd as CXCursor ) as string
     select case x.api->EvalResult_getKind( ev )
     case CXEval_Int
         if vt.kind <> CXType_Pointer_ then
-            dim as longint v = x.api->EvalResult_getAsLongLong( ev )
+            dim as int64 v = x.api->EvalResult_getAsLongLong( ev )
             if x.api->EvalResult_isUnsignedInt( ev ) then
-                r = str( cast( ulongint, v ) ) & "ull"
+                r = str( cast( uint64, v ) ) & "ull"
             else
                 r = str( v )
             end if
         end if
     case CXEval_Float
-        dim as double d = x.api->EvalResult_getAsDouble( ev )
+        dim as float64 d = x.api->EvalResult_getAsDouble( ev )
         '' A FINITE STAND-IN FOR INFINITY WOULD BE A DIFFERENT NUMBER WEARING THE RIGHT
         '' NAME. NaN is the value unequal to itself; infinity is the one that stays itself
         '' when halved. Either is marked, to be ledgered rather than lost without a word.
@@ -227,7 +227,7 @@ type FieldScan_
     as string why                 '' "" while every field is usable
 end type
 
-private function FieldScanVisit_ cdecl ( byval c as CXCursor, byval client as any ptr ) as long
+private function FieldScanVisit_ cdecl ( byval c as CXCursor, byval client as any ptr ) as int32
     dim as FieldScan_ ptr s = client
     dim as CImp ptr xp = s->x
     if len( s->why ) > 0 then return CXVisit_Continue
@@ -237,7 +237,7 @@ private function FieldScanVisit_ cdecl ( byval c as CXCursor, byval client as an
     elseif xp->api->Cursor_isBitField( c ) then
         s->why = "a struct value with bit field '" & nm & "'"
     else
-        dim as long k = xp->api->getCanonicalType( xp->api->getCursorType( c ) ).kind
+        dim as int32 k = xp->api->getCanonicalType( xp->api->getCursorType( c ) ).kind
         '' Bool through LongDouble are clang's arithmetic kinds (Index.h:2926-2948).
         if ((k < 3) orelse (k > 23)) andalso (k <> 106) then
             s->why = "a struct value whose field '" & nm & "' is not a number"
@@ -264,11 +264,11 @@ private function RecordShape_( byref x as CImp, byval vd as CXCursor ) as string
 end function
 
 private function ProbeVisit_ cdecl _
-    ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as long
+    ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
     dim as Probe_ ptr p = client
     dim as CImp ptr xp = p->x
     if xp->api->getCursorKind( c ) <> CXCursor_VarDecl then return CXChildVisit_Continue
-    dim as long i = ProbeIndex_( CursorName( *xp, c ), p->prefix )
+    dim as int32 i = ProbeIndex_( CursorName( *xp, c ), p->prefix )
     if (i < 0) orelse (i >= p->n) then return CXChildVisit_Continue
     select case p->mode
     case PM_ALIAS
@@ -297,30 +297,30 @@ end function
 '' Probes whose line clang reports an error on are cleared from 'live' and the parse runs
 '' again; returns false only when an error cannot be pinned on a probe.
 private function ProbeParse_( byref x as CImp, lines() as string, live() as boolean, _
-                              byval n as long, byref prelude as string, byref prefix as string, _
+                              byval n as int32, byref prelude as string, byref prefix as string, _
                               byval mode as ProbeMode_, values() as string ) as boolean
     dim as string unitName = "tiko-cimport-macros.c"
-    dim as long baseLine = 1
-    for i as long = 1 to len( x.unitText )
+    dim as int32 baseLine = 1
+    for i as int32 = 1 to len( x.unitText )
         if x.unitText[i - 1] = 10 then baseLine += 1
     next
-    for i as long = 1 to len( prelude )
+    for i as int32 = 1 to len( prelude )
         if prelude[i - 1] = 10 then baseLine += 1
     next
 
     dim as Tko.StrVec av
-    for i as long = 0 to x.args.Count - 1
+    for i as int32 = 0 to x.args.Count - 1
         av.Push( x.args[i] )
     next
     av.Push( "-ferror-limit=0" )
     dim as zstring ptr argv( 0 to av.Count )
-    for i as long = 0 to av.Count - 1
+    for i as int32 = 0 to av.Count - 1
         argv( i ) = strptr( av[i] )
     next
 
-    for round as long = 1 to MAX_ROUNDS
+    for round as int32 = 1 to MAX_ROUNDS
         dim as string text = x.unitText & prelude
-        for i as long = 0 to n - 1
+        for i as int32 = 0 to n - 1
             if live( i ) then text &= lines( i )
             text &= chr( 10 )
         next
@@ -337,14 +337,14 @@ private function ProbeParse_( byref x as CImp, lines() as string, live() as bool
             return false
         end if
 
-        dim as long dropped = 0, unpinned = 0
-        for di as long = 0 to x.api->getNumDiagnostics( tu ) - 1
+        dim as int32 dropped = 0, unpinned = 0
+        for di as int32 = 0 to x.api->getNumDiagnostics( tu ) - 1
             dim as any ptr d = x.api->getDiagnostic( tu, di )
             if x.api->getDiagnosticSeverity( d ) >= 3 then
                 dim as any ptr f
-                dim as ulong ln, col, off
+                dim as uint32 ln, col, off
                 x.api->getExpansionLocation( x.api->getDiagnosticLocation( d ), @f, @ln, @col, @off )
-                dim as long k = cast( long, ln ) - baseLine
+                dim as int32 k = cast( int32, ln ) - baseLine
                 dim as string fn
                 if f <> 0 then fn = ClangText( *x.api, x.api->getFileName( f ) )
                 if (fn = unitName) andalso (k >= 0) andalso (k < n) then
@@ -382,8 +382,8 @@ end function
 
 private function IsIdent_( byref s as string ) as boolean
     if len( s ) = 0 then return false
-    for i as long = 0 to len( s ) - 1
-        dim as ubyte ch = s[i]
+    for i as int32 = 0 to len( s ) - 1
+        dim as uint8 ch = s[i]
         dim as boolean ok = (ch = asc( "_" )) orelse ((ch >= asc( "A" )) andalso (ch <= asc( "Z" ))) _
                             orelse ((ch >= asc( "a" )) andalso (ch <= asc( "z" )))
         if (i > 0) andalso (ch >= asc( "0" )) andalso (ch <= asc( "9" )) then ok = true
@@ -395,18 +395,18 @@ end function
 '' A record-valued macro as 'type<Name>(v, ...)' from its RECORD_ shape and the field
 '' probes from 'first' on -- or "" and why not.
 private function RecordValue_( byref x as CImp, byref shape as string, fvals() as string, _
-                               byval first as long, byref why as string ) as string
+                               byval first as int32, byref why as string ) as string
     dim as string f = mid( shape, len( RECORD_ ) + 1 ) & chr( 9 )
-    dim as long st = instr( f, chr( 9 ) )
-    dim as long u = UsrId( x, left( f, st - 1 ) )
+    dim as int32 st = instr( f, chr( 9 ) )
+    dim as int32 u = UsrId( x, left( f, st - 1 ) )
     if ((UsrState( x, u ) and US_EMITTED) = 0) orelse ((UsrState( x, u ) and US_OPAQUE) <> 0) then
         why = "a struct value whose type was not imported"
         return ""
     end if
     dim as string r = "type<" & UsrFbName( x, u ) & ">("
-    dim as long k = first
+    dim as int32 k = first
     do
-        dim as long en = instr( st + 1, f, chr( 9 ) )
+        dim as int32 en = instr( st + 1, f, chr( 9 ) )
         if en = 0 then exit do
         dim as string v = fvals( k )
         if (len( v ) = 0) orelse (v = NONFINITE_) then
@@ -422,18 +422,18 @@ private function RecordValue_( byref x as CImp, byref shape as string, fvals() a
 end function
 
 sub MacroPass( byref x as CImp )
-    dim as long n = x.macroNames.Count
+    dim as int32 n = x.macroNames.Count
     if n = 0 then return
 
     dim as string lines( 0 to n - 1 )
     dim as boolean live( 0 to n - 1 )
     dim as string values( 0 to n - 1 )
-    for i as long = 0 to n - 1
+    for i as int32 = 0 to n - 1
         lines( i ) = "__auto_type __tko_probe_" & i & " = (" & x.macroNames[i] & ");"
         live( i ) = true
     next
     if (x.opts->macroValState = 1) andalso (x.opts->macroValues.Count = n) then
-        for i as long = 0 to n - 1
+        for i as int32 = 0 to n - 1
             values( i ) = x.opts->macroValues[i]
         next
     elseif x.opts->macroValState = -1 then
@@ -444,44 +444,44 @@ sub MacroPass( byref x as CImp )
         return
     else
         x.opts->macroValState = 1
-        for i as long = 0 to n - 1
+        for i as int32 = 0 to n - 1
             x.opts->macroValues.Push( values( i ) )
         next
     end if
 
     '' THE FIELDS OF THE RECORD-VALUED ONES, one probe each, macro by macro.
     dim as Tko.StrVec flines
-    dim as long fidx( 0 to n - 1 )             '' macro -> its first field probe
-    for i as long = 0 to n - 1
+    dim as int32 fidx( 0 to n - 1 )             '' macro -> its first field probe
+    for i as int32 = 0 to n - 1
         fidx( i ) = flines.Count
         if left( values( i ), len( RECORD_ ) ) <> RECORD_ then continue for
         dim as string f = values( i ) & chr( 9 )
-        dim as long st = instr( f, chr( 9 ) )
+        dim as int32 st = instr( f, chr( 9 ) )
         do
-            dim as long en = instr( st + 1, f, chr( 9 ) )
+            dim as int32 en = instr( st + 1, f, chr( 9 ) )
             if en = 0 then exit do
             flines.Push( "__auto_type __tko_field_" & flines.Count & " = (" & x.macroNames[i] & _
                          ")." & mid( f, st + 1, en - st - 1 ) & ";" )
             st = en
         loop
     next
-    dim as long nf = flines.Count
+    dim as int32 nf = flines.Count
     dim as string fvals( 0 to iif( nf > 0, nf - 1, 0 ) )
     if nf > 0 then
         if (x.opts->macroFldState = 1) andalso (x.opts->macroFlds.Count = nf) then
-            for k as long = 0 to nf - 1
+            for k as int32 = 0 to nf - 1
                 fvals( k ) = x.opts->macroFlds[k]
             next
         elseif x.opts->macroFldState = 0 then
             dim as string fl( 0 to nf - 1 )
             dim as boolean flive( 0 to nf - 1 )
-            for k as long = 0 to nf - 1
+            for k as int32 = 0 to nf - 1
                 fl( k ) = flines[k]
                 flive( k ) = true
             next
             if ProbeParse_( x, fl(), flive(), nf, chr( 10 ), "__tko_field_", PM_FIELD, fvals() ) then
                 x.opts->macroFldState = 1
-                for k as long = 0 to nf - 1
+                for k as int32 = 0 to nf - 1
                     x.opts->macroFlds.Push( fvals( k ) )
                 next
             else
@@ -493,7 +493,7 @@ sub MacroPass( byref x as CImp )
     '' THE CONSTANTS, in definition order. A constant's name is a VALUE name and is claimed
     '' like one; a renamed constant is renamed for the user, since a CONST is not a symbol
     '' the linker sees.
-    for i as long = 0 to n - 1
+    for i as int32 = 0 to n - 1
         if len( values( i ) ) = 0 then continue for
         if values( i ) = NONFINITE_ then
             Skip( x, "define", x.macroNames[i], "value is infinity or NaN, which has no FreeBASIC literal" )
@@ -519,22 +519,22 @@ sub MacroPass( byref x as CImp )
 
     '' THE ALIASES. Whatever produced no value is stringified; an expansion that is a plain
     '' identifier naming something declared here becomes a #define.
-    dim as long na = 0
-    for i as long = 0 to n - 1
+    dim as int32 na = 0
+    for i as int32 = 0 to n - 1
         if len( values( i ) ) = 0 then na += 1
     next
     if na = 0 then return
     dim as string alines( 0 to n - 1 )
     dim as boolean alive( 0 to n - 1 )
     dim as string exps( 0 to n - 1 )
-    for i as long = 0 to n - 1
+    for i as int32 = 0 to n - 1
         alive( i ) = (len( values( i ) ) = 0)
         alines( i ) = "const char *__tko_alias_" & i & " = __tko_str(" & x.macroNames[i] & ");"
     next
     dim as string prelude = chr( 10 ) & "#define __tko_str2(x) #x" & chr( 10 ) & _
                             "#define __tko_str(x) __tko_str2(x)" & chr( 10 )
     if (x.opts->macroExpState = 1) andalso (x.opts->macroExps.Count = n) then
-        for i as long = 0 to n - 1
+        for i as int32 = 0 to n - 1
             exps( i ) = x.opts->macroExps[i]
         next
     elseif x.opts->macroExpState = -1 then
@@ -544,7 +544,7 @@ sub MacroPass( byref x as CImp )
         return
     else
         x.opts->macroExpState = 1
-        for i as long = 0 to n - 1
+        for i as int32 = 0 to n - 1
             x.opts->macroExps.Push( exps( i ) )
         next
     end if
@@ -554,14 +554,14 @@ sub MacroPass( byref x as CImp )
     '' rewrites tokens before the parser sees them, so keeping either would silently send
     '' every use of the other to the wrong target. Both go, and the ledger says so.
     dim as string target( 0 to n - 1 )
-    for i as long = 0 to n - 1
+    for i as int32 = 0 to n - 1
         if len( exps( i ) ) = 0 then continue for
         dim as string e = trim( exps( i ) )
         if IsIdent_( e ) = false then continue for
         if e = x.macroNames[i] then continue for
-        dim as long cid = cast( long, x.strs.GetString( e ) )
+        dim as int32 cid = cast( int32, x.strs.GetString( e ) )
         if cid >= x.cDeclUsr.Count then continue for
-        dim as long u = x.cDeclUsr[cid] - 1
+        dim as int32 u = x.cDeclUsr[cid] - 1
         if u < 0 then continue for
         if (UsrState( x, u ) and US_EMITTED) = 0 then continue for
         target( i ) = UsrFbName( x, u )
@@ -569,11 +569,11 @@ sub MacroPass( byref x as CImp )
     '' ...AND AN ALIAS CANNOT SHARE A NAME WITH ANYTHING DECLARED, for the same reason:
     '' mingw's '#define toascii __toascii' beside winuser.h's ToAscii would rewrite every
     '' ToAscii. fbc-modern's reason, word for word.
-    for i as long = 0 to n - 1
+    for i as int32 = 0 to n - 1
         if len( target( i ) ) = 0 then continue for
         dim as string li = lcase( x.macroNames[i] )
         dim as boolean clash = NameTaken( x, x.macroNames[i] )
-        for j as long = 0 to n - 1
+        for j as int32 = 0 to n - 1
             if (j <> i) andalso (len( target( j ) ) > 0) andalso (lcase( x.macroNames[j] ) = li) then
                 clash = true
             end if

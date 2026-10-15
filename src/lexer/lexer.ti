@@ -32,7 +32,7 @@ namespace Tko.Lex
     type Result
         as Tko.TokenVec   tokens
         as Tko.LiteralVec literals
-        as long           invalidCount
+        as int32           invalidCount
         '' '$lang: "qb"' in a comment -- the METACOMMAND spelling of '#lang', which fbc
         '' honours in any comment ('rem $lang:' too). The first one in the file; the
         '' preprocessor refuses anything but "fb" exactly as it refuses '#lang'.

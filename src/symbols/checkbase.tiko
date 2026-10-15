@@ -12,7 +12,7 @@
 '' could answer one question would give it a reason to ask others.
 private sub RecordUdtBases_( byref c as Ctx )
     dim as Tko.InternId baseNm = c.names->GetString( "base" )
-    for i as long = 1 to c.types->Count( )
+    for i as int32 = 1 to c.types->Count( )
         dim as Tko.TypeId t = cast( Tko.TypeId, i )
         if c.types->Kind( t ) <> Tko.TK_UDT then continue for
         dim as Tko.InternId tn = c.types->NameOf( t )
@@ -46,9 +46,9 @@ end sub
 '' { object, T1, T2 } a T3 argument takes T2, and offered { object, T1 } it takes T1.
 private function UdtBaseCost_ _
     ( byval from_ as Tko.TypeId, byval to_ as Tko.TypeId, _
-      byref types as Tko.TypeContext ) as long
+      byref types as Tko.TypeContext ) as int32
 
-    dim as long ud = types.BaseDistance( from_, to_ )
+    dim as int32 ud = types.BaseDistance( from_, to_ )
     if ud <= 0 then return CONV_NONE
     '' ...to a CONST base from a non-const argument: one tier down -- CONV_UDT_CONST_ADD.
     if types.IsConst( to_ ) andalso (types.IsConst( from_ ) = false) then
@@ -77,11 +77,11 @@ private function AddrOfType_ _
 
     if c.types->Unqualify( inner ) = c.types->Builtin( Tko.TY_STRING ) then
         dim as Tko.NodeId lo = operand
-        for guard as long = 0 to 15
+        for guard as int32 = 0 to 15
             if lo = Tko.NODE_NONE then exit for
             if c.ast->Kind( lo ) <> Tko.N_PAREN then exit for
             dim as Tko.ListPayload ptr pp = _
-                @c.ast->lists[cast( long, c.ast->nodes[cast( long, lo )].data )]
+                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, lo )].data )]
             if pp->count <> 1 then exit for
             lo = cast( Tko.NodeId, c.ast->children[pp->first] )
         next
@@ -92,7 +92,7 @@ private function AddrOfType_ _
                 isLit = true
             case Tko.N_IDENT, Tko.N_MEMBER
                 dim as Tko.Symbol ptr ks = c.syms->SymbolAt( c.info->RefOf( lo ) )
-                if ks <> 0 then isLit = (ks->kind = cast( ubyte, Tko.SYM_CONSTANT ))
+                if ks <> 0 then isLit = (ks->kind = cast( uint8, Tko.SYM_CONSTANT ))
             end select
             if isLit then return c.types->Pointer_( c.types->Builtin( Tko.TY_ZSTRING ) )
         end if
@@ -101,7 +101,7 @@ private function AddrOfType_ _
     if c.ast->Kind( operand ) = Tko.N_IDENT then
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( operand ) )
         if s <> 0 then
-            if s->kind = cast( ubyte, Tko.SYM_PARAMETER ) then
+            if s->kind = cast( uint8, Tko.SYM_PARAMETER ) then
                 if s->name = c.names->Fold( c.names->GetString( "this" ) ) then
                     if c.types->Kind( c.types->Unqualify( inner ) ) = Tko.TK_POINTER then return inner
                 end if
@@ -135,7 +135,7 @@ private function EnumValueBase_ _
     '' ONCE: an untyped node is typed again on every visit -- TypeOf_ caches only a type
     '' it found -- so the same member was reported twice.
     dim as Tko.SourceLoc bl = c.ast->Loc( b )
-    for i as long = 0 to c.diags->pending.Count - 1
+    for i as int32 = 0 to c.diags->pending.Count - 1
         if (c.diags->pending[i].id = Tko.TKO0835) andalso (c.diags->pending[i].range.first = bl) then return true
     next
     c.diags->Report( Tko.TKO0835, Tko.PointRange( bl ), c.names->Spelling( s->name ) )
@@ -155,7 +155,7 @@ private function ThisArgType_ _
     if c.ast->Kind( a ) <> Tko.N_IDENT then return at
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( a ) )
     if s = 0 then return at
-    if s->kind <> cast( ubyte, Tko.SYM_PARAMETER ) then return at
+    if s->kind <> cast( uint8, Tko.SYM_PARAMETER ) then return at
     if s->name <> c.names->Fold( c.names->GetString( "this" ) ) then return at
     dim as Tko.TypeId u = c.types->Unqualify( at )
     if c.types->Kind( u ) <> Tko.TK_POINTER then return at
@@ -178,16 +178,16 @@ private function ParenlessMethodOf_ _
     ( byref c as Ctx, byval sid as Tko.SymbolId, byval id as Tko.NodeId ) as Tko.SymbolId
 
     if sid = Tko.SYMBOL_NONE then return sid
-    if (c.ast->nodes[cast( long, id )].flags and Tko.NF_CALL_TARGET) <> 0 then return sid
+    if (c.ast->nodes[cast( int32, id )].flags and Tko.NF_CALL_TARGET) <> 0 then return sid
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
     if s = 0 then return sid
-    if s->kind <> cast( ubyte, Tko.SYM_PROC ) then return sid
+    if s->kind <> cast( uint8, Tko.SYM_PROC ) then return sid
     if s->nextOverload = Tko.SYMBOL_NONE then return sid
 
     dim as Tko.SymbolId pick = Tko.SYMBOL_NONE
-    dim as long found = 0
+    dim as int32 found = 0
     dim as Tko.SymbolId cur = sid
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 256)
         guard += 1
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
@@ -196,7 +196,7 @@ private function ParenlessMethodOf_ _
         if pn = Tko.NODE_NONE then return sid
         if c.ast->Kind( pn ) <> Tko.N_PROC then return sid
         dim as Tko.StmtPayload ptr pp = _
-            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, pn )].data )]
+            @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
         '' A SUB OR A FUNCTION; a property already has PropertyReadAccessor_.
         select case cast( Tko.TokenKind, pp->op )
         case Tko.KW_SUB, Tko.KW_FUNCTION
@@ -204,12 +204,12 @@ private function ParenlessMethodOf_ _
             return sid
         end select
         dim as boolean callable = true
-        for i as long = 0 to pp->count - 1
+        for i as int32 = 0 to pp->count - 1
             dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
             if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
             dim as Tko.StmtPayload ptr prp = _
-                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )]
-            if prp->op = cast( ushort, Tko.TK_ELLIPSIS ) then continue for
+                @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, prm )].data )]
+            if prp->op = cast( uint16, Tko.TK_ELLIPSIS ) then continue for
             if prp->b = Tko.NODE_NONE then
                 callable = false
                 exit for
@@ -225,7 +225,7 @@ private function ParenlessMethodOf_ _
     if pick = sid then return sid
     c.info->SetRef( id, pick )
     if c.ast->Kind( id ) = Tko.N_MEMBER then
-        c.info->SetRef( c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )].rhs, pick )
+        c.info->SetRef( c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )].rhs, pick )
     end if
     return pick
 end function
@@ -242,7 +242,7 @@ private function UdtShadowsIntrinsic_ _
     ( byref c as Ctx, byval bsym as Tko.Symbol ptr ) as boolean
 
     if bsym = 0 then return false
-    if bsym->kind <> cast( ubyte, Tko.SYM_UDT ) then return false
+    if bsym->kind <> cast( uint8, Tko.SYM_UDT ) then return false
     if bsym->type_ = Tko.TYPE_NONE then return false
     return (c.types->Kind( c.types->Unqualify( bsym->type_ ) ) = Tko.TK_UDT)
 end function
@@ -270,23 +270,23 @@ private function UdtArgInert_ _
     dim as string h = left( tsp, 1 )
     if (h = "(") orelse (h = "$") orelse (h = "~") orelse (instr( tsp, "<" ) > 0) then return false
     dim as Tko.TypeId t = u
-    for guard as long = 0 to 31
+    for guard as int32 = 0 to 31
         if (t = Tko.TYPE_NONE) orelse (c.types->Kind( t ) <> Tko.TK_UDT) then exit for
         if UdtMemberSym_( c, t, "cast" ) <> Tko.SYMBOL_NONE then return false
         t = c.types->BaseOf( t )
     next
     dim as Tko.SymbolId ck = callee
-    for guard as long = 0 to 999
+    for guard as int32 = 0 to 999
         if ck = Tko.SYMBOL_NONE then exit for
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( ck )
         if cs = 0 then exit for
         dim as Tko.NodeId cn = cast( Tko.NodeId, cs->payload )
         if (cn = Tko.NODE_NONE) orelse (c.ast->Kind( cn ) <> Tko.N_PROC) then return false
-        dim as Tko.StmtPayload ptr cp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, cn )].data )]
-        for i as long = 0 to cp->count - 1
+        dim as Tko.StmtPayload ptr cp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, cn )].data )]
+        for i as int32 = 0 to cp->count - 1
             dim as Tko.NodeId pn = cast( Tko.NodeId, c.ast->children[cp->first + i] )
             if c.ast->Kind( pn ) <> Tko.N_PARAM then continue for
-            dim as Tko.NodeId pa = c.ast->stmts[cast( long, c.ast->nodes[cast( long, pn )].data )].a
+            dim as Tko.NodeId pa = c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )].a
             if pa = Tko.NODE_NONE then return false
             dim as Tko.TypeId pt = c.types->Unqualify( c.info->TypeOf_( pa ) )
             if c.types->Kind( pt ) = Tko.TK_REFERENCE then pt = c.types->Unqualify( c.types->Inner( pt ) )
@@ -316,7 +316,7 @@ private function UdtReachable_ _
     if (left( psp, 1 ) = "(") orelse (left( psp, 1 ) = "$") orelse (instr( psp, "<" ) > 0) then return true
     if UdtMemberSym_( c, p, "__ctor" ) <> Tko.SYMBOL_NONE then return true
     dim as Tko.TypeId t = u
-    for guard as long = 0 to 31
+    for guard as int32 = 0 to 31
         if (t = Tko.TYPE_NONE) orelse (c.types->Kind( t ) <> Tko.TK_UDT) then exit for
         if t = p then return true
         t = c.types->BaseOf( t )
@@ -334,7 +334,7 @@ private function ByrefSameInt_ _
     ( byref c as Ctx, byval a as Tko.TypeId, byval b as Tko.TypeId ) as boolean
     dim as Tko.TypeId ua = c.types->Unqualify( a ), ub = c.types->Unqualify( b )
     if (c.types->Kind( ua ) <> Tko.TK_BUILTIN) orelse (c.types->Kind( ub ) <> Tko.TK_BUILTIN) then return false
-    dim as long sa = 0, sb = 0
+    dim as int32 sa = 0, sb = 0
     select case c.types->BuiltinOf( ua )
     case Tko.TY_BYTE, Tko.TY_SHORT, Tko.TY_LONG, Tko.TY_INTEGER, Tko.TY_LONGINT : sa = 1
     case Tko.TY_UBYTE, Tko.TY_USHORT, Tko.TY_ULONG, Tko.TY_UINTEGER, Tko.TY_ULONGINT : sa = 2
@@ -354,9 +354,9 @@ end function
 '' through a different cast -- and tiko bound one in silence, because a UDT argument
 '' otherwise keeps the tie report quiet (overload.tiko says why). A builtin or pointer
 '' argument beside it is fine; any other UDT argument still keeps it quiet.
-function UdtCastTie_( byref c as Ctx, byref argT as containers.Array( of ulong ) ) as boolean
+function UdtCastTie_( byref c as Ctx, byref argT as containers.Array( of uint32 ) ) as boolean
     dim as boolean any_ = false
-    for i as long = 0 to argT.Count - 1
+    for i as int32 = 0 to argT.Count - 1
         dim as Tko.TypeId a = c.types->Unqualify( cast( Tko.TypeId, argT[i] ) )
         if a = Tko.TYPE_NONE then return false
         if c.types->Kind( a ) = Tko.TK_REFERENCE then a = c.types->Unqualify( c.types->Inner( a ) )
@@ -382,6 +382,6 @@ private function ByrefPropOperand_ _
     if c.ast->Kind( operand ) <> Tko.N_MEMBER then return false
     dim as Tko.NodeId ppn = cast( Tko.NodeId, psym->payload )
     if (ppn = Tko.NODE_NONE) orelse (c.ast->Kind( ppn ) <> Tko.N_PROC) then return false
-    if c.ast->stmts[cast( long, c.ast->nodes[cast( long, ppn )].data )].op <> cast( ushort, Tko.KW_PROPERTY ) then return false
-    return ((c.ast->nodes[cast( long, ppn )].flags and Tko.NF_BYREF) <> 0)
+    if c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, ppn )].data )].op <> cast( uint16, Tko.KW_PROPERTY ) then return false
+    return ((c.ast->nodes[cast( int32, ppn )].flags and Tko.NF_BYREF) <> 0)
 end function

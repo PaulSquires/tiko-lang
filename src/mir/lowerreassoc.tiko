@@ -25,19 +25,19 @@
 
 namespace Tko.Mir
 
-const RA_LEAF  as long = 0
-const RA_CONST as long = 1
-const RA_BOP   as long = 2
-const RA_NEG   as long = 3
+const RA_LEAF  as int32 = 0
+const RA_CONST as int32 = 1
+const RA_BOP   as int32 = 2
+const RA_NEG   as int32 = 3
 
 type RaNode
-    as long     kind
-    as long     op        '' TK_PLUS / TK_MINUS / TK_STAR / TK_SLASH, RA_BOP only
-    as long     l = -1    '' RA_BOP, and RA_NEG's operand
-    as long     r = -1
+    as int32     kind
+    as int32     op        '' TK_PLUS / TK_MINUS / TK_STAR / TK_SLASH, RA_BOP only
+    as int32     l = -1    '' RA_BOP, and RA_NEG's operand
+    as int32     r = -1
     as MirValue v         '' RA_LEAF: already at the chain's type
     as boolean  isVar     '' RA_LEAF: a plain variable, which is all ConstRemNeg rewrites
-    as double   cv        '' RA_CONST
+    as float64   cv        '' RA_CONST
 end type
 
 type RaTree
@@ -47,12 +47,12 @@ end type
 
 '' What one AST node is to the chain. A child is part of the chain only while it is the
 '' chain's own arithmetic at the chain's own type; anything else is a boundary.
-const RAC_BAD   as long = -1   '' an operand this cannot lower as a number: do not take it
-const RAC_LEAF  as long = 0
-const RAC_CONST as long = 1
-const RAC_BOP   as long = 2
-const RAC_NEG   as long = 3
-const RAC_PAREN as long = 4
+const RAC_BAD   as int32 = -1   '' an operand this cannot lower as a number: do not take it
+const RAC_LEAF  as int32 = 0
+const RAC_CONST as int32 = 1
+const RAC_BOP   as int32 = 2
+const RAC_NEG   as int32 = 3
+const RAC_PAREN as int32 = 4
 
 private function RaNumeric_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     if t = Tko.TYPE_NONE then return false
@@ -75,11 +75,11 @@ private function RaIntConstShape_( byref c as Ctx, byval id as Tko.NodeId ) as b
     case Tko.N_INT_LIT, Tko.N_IDENT, Tko.N_CALL
         return true
     case Tko.N_PAREN
-        dim as Tko.ListPayload ptr pp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        dim as Tko.ListPayload ptr pp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         if pp->count <> 1 then return false
         return RaIntConstShape_( c, cast( Tko.NodeId, c.ast->children[pp->first] ) )
     case Tko.N_UNARY
-        dim as Tko.UnaryPayload ptr up = @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        dim as Tko.UnaryPayload ptr up = @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         if cast( Tko.TokenKind, up->op ) <> Tko.TK_MINUS then return false
         return RaIntConstShape_( c, up->operand )
     end select
@@ -87,7 +87,7 @@ private function RaIntConstShape_( byref c as Ctx, byval id as Tko.NodeId ) as b
 end function
 
 private function RaClass_ _
-    ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType, byref d as double ) as long
+    ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType, byref d as float64 ) as int32
 
     dim as Tko.TypeId t = c.info->TypeOf_( id )
     if RaNumeric_( c, t ) = false then return RAC_BAD
@@ -101,10 +101,10 @@ private function RaClass_ _
     if nt <> mt then return RAC_LEAF
     select case c.ast->Kind( id )
     case Tko.N_PAREN
-        dim as Tko.ListPayload ptr pp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        dim as Tko.ListPayload ptr pp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         if pp->count = 1 then return RAC_PAREN
     case Tko.N_BINARY
-        dim as Tko.BinaryPayload ptr bp = @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        dim as Tko.BinaryPayload ptr bp = @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         select case cast( Tko.TokenKind, bp->op )
         case Tko.TK_PLUS, Tko.TK_MINUS, Tko.TK_STAR, Tko.TK_SLASH
             dim as boolean ln = RaNumeric_( c, c.info->TypeOf_( bp->lhs ) )
@@ -113,7 +113,7 @@ private function RaClass_ _
             return RAC_BAD
         end select
     case Tko.N_UNARY
-        dim as Tko.UnaryPayload ptr up = @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        dim as Tko.UnaryPayload ptr up = @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         if cast( Tko.TokenKind, up->op ) = Tko.TK_MINUS then
             if RaNumeric_( c, c.info->TypeOf_( up->operand ) ) then return RAC_NEG
             return RAC_BAD
@@ -123,48 +123,48 @@ private function RaClass_ _
 end function
 
 private function RaParenInner_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
-    dim as Tko.ListPayload ptr pp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as Tko.ListPayload ptr pp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     return cast( Tko.NodeId, c.ast->children[pp->first] )
 end function
 
 '' Is the chain worth taking? Needs a constant, a non-constant, and nothing unlowerable.
 private sub RaScan_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType, _
-      byref nConst as long, byref nLeaf as long, byref bad as boolean )
+      byref nConst as int32, byref nLeaf as int32, byref bad as boolean )
     if bad then exit sub
-    dim as double d
+    dim as float64 d
     select case RaClass_( c, id, mt, d )
     case RAC_BAD   : bad = true
     case RAC_CONST : nConst += 1
     case RAC_LEAF  : nLeaf += 1
     case RAC_PAREN : RaScan_( c, RaParenInner_( c, id ), mt, nConst, nLeaf, bad )
     case RAC_NEG
-        dim as Tko.UnaryPayload ptr up = @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        dim as Tko.UnaryPayload ptr up = @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         RaScan_( c, up->operand, mt, nConst, nLeaf, bad )
     case RAC_BOP
-        dim as Tko.BinaryPayload ptr bp = @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        dim as Tko.BinaryPayload ptr bp = @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         RaScan_( c, bp->lhs, mt, nConst, nLeaf, bad )
         RaScan_( c, bp->rhs, mt, nConst, nLeaf, bad )
     end select
 end sub
 
-private function RaNew_( byref t as RaTree, byref n as RaNode ) as long
+private function RaNew_( byref t as RaTree, byref n as RaNode ) as int32
     t.nodes.Push( n )
     return t.nodes.Count - 1
 end function
 
-private function RaConst_( byref t as RaTree, byval d as double ) as long
+private function RaConst_( byref t as RaTree, byval d as float64 ) as int32
     dim as RaNode n
     n.kind = RA_CONST
     n.cv = d
     return RaNew_( t, n )
 end function
 
-private function RaIsConst_( byref t as RaTree, byval i as long ) as boolean
+private function RaIsConst_( byref t as RaTree, byval i as int32 ) as boolean
     return t.nodes[i].kind = RA_CONST
 end function
 
-private function RaNeg_( byref t as RaTree, byval x as long ) as long
+private function RaNeg_( byref t as RaTree, byval x as int32 ) as int32
     if RaIsConst_( t, x ) then return RaConst_( t, -t.nodes[x].cv )
     dim as RaNode n
     n.kind = RA_NEG
@@ -174,12 +174,12 @@ end function
 
 '' A new 'l op r', normalised as fbc normalises every node it builds.
 private function RaBop_ _
-    ( byref t as RaTree, byval op as long, byval l as long, byval r as long ) as long
+    ( byref t as RaTree, byval op as int32, byval l as int32, byval r as int32 ) as int32
     dim as boolean lc = RaIsConst_( t, l )
     dim as boolean rc = RaIsConst_( t, r )
     if lc andalso rc then
-        dim as double a = t.nodes[l].cv
-        dim as double b = t.nodes[r].cv
+        dim as float64 a = t.nodes[l].cv
+        dim as float64 b = t.nodes[r].cv
         select case op
         case Tko.TK_PLUS  : return RaConst_( t, a + b )
         case Tko.TK_MINUS : return RaConst_( t, a - b )
@@ -192,7 +192,7 @@ private function RaBop_ _
         case Tko.TK_PLUS, Tko.TK_STAR
             swap l, r
         case Tko.TK_MINUS
-            dim as long nr = RaNeg_( t, r )
+            dim as int32 nr = RaNeg_( t, r )
             op = Tko.TK_PLUS
             r = l
             l = nr
@@ -210,32 +210,32 @@ private function RaBop_ _
 end function
 
 '' AST -> tree. Non-constant operands are lowered here, in source order.
-private function RaBuild_( byref c as Ctx, byref t as RaTree, byval id as Tko.NodeId ) as long
-    dim as double d
+private function RaBuild_( byref c as Ctx, byref t as RaTree, byval id as Tko.NodeId ) as int32
+    dim as float64 d
     select case RaClass_( c, id, t.ty, d )
     case RAC_CONST
         return RaConst_( t, d )
     case RAC_PAREN
         return RaBuild_( c, t, RaParenInner_( c, id ) )
     case RAC_NEG
-        dim as Tko.UnaryPayload ptr up = @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
-        dim as long x = RaBuild_( c, t, up->operand )
+        dim as Tko.UnaryPayload ptr up = @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        dim as int32 x = RaBuild_( c, t, up->operand )
         if x < 0 then return -1
         return RaNeg_( t, x )
     case RAC_BOP
-        dim as Tko.BinaryPayload ptr bp = @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
-        dim as long op = cast( long, bp->op )
+        dim as Tko.BinaryPayload ptr bp = @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        dim as int32 op = cast( int32, bp->op )
         dim as Tko.NodeId rhsId = bp->rhs
-        dim as long l = RaBuild_( c, t, bp->lhs )
+        dim as int32 l = RaBuild_( c, t, bp->lhs )
         if l < 0 then return -1
-        dim as long r = RaBuild_( c, t, rhsId )
+        dim as int32 r = RaBuild_( c, t, rhsId )
         if r < 0 then return -1
         return RaBop_( t, op, l, r )
     case RAC_LEAF
         dim as MirValue lv = LowerExpr( c, id )
-        if lv.kind = cast( ubyte, MV_NONE ) then return -1
+        if lv.kind = cast( uint8, MV_NONE ) then return -1
         lv = CoerceTy( c, lv, t.ty, c.info->TypeOf_( id ) )
-        if lv.kind = cast( ubyte, MV_NONE ) then return -1
+        if lv.kind = cast( uint8, MV_NONE ) then return -1
         dim as RaNode n
         n.kind = RA_LEAF
         n.v = lv
@@ -244,8 +244,8 @@ private function RaBuild_( byref c as Ctx, byref t as RaTree, byval id as Tko.No
             if sid <> Tko.SYMBOL_NONE then
                 dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
                 if s <> 0 then
-                    dim as boolean vk = (s->kind = cast( ubyte, Tko.SYM_VARIABLE )) orelse _
-                                        (s->kind = cast( ubyte, Tko.SYM_PARAMETER ))
+                    dim as boolean vk = (s->kind = cast( uint8, Tko.SYM_VARIABLE )) orelse _
+                                        (s->kind = cast( uint8, Tko.SYM_PARAMETER ))
                     n.isVar = vk andalso ((s->flags and Tko.SYMF_BYREF) = 0)
                 end if
             end if
@@ -255,7 +255,7 @@ private function RaBuild_( byref c as Ctx, byref t as RaTree, byval id as Tko.No
     return -1
 end function
 
-private function RaIsBop_( byref t as RaTree, byval i as long, byval op as long ) as boolean
+private function RaIsBop_( byref t as RaTree, byval i as int32, byval op as int32 ) as boolean
     if t.nodes[i].kind <> RA_BOP then return false
     return t.nodes[i].op = op
 end function
@@ -263,11 +263,11 @@ end function
 '' Walks a node's operands with 'pass', storing what comes back.
 #macro RA_WALK( pass, t, n )
     if t.nodes[n].l >= 0 then
-        dim as long wl = pass( t, t.nodes[n].l )
+        dim as int32 wl = pass( t, t.nodes[n].l )
         t.nodes[n].l = wl
     end if
     if (t.nodes[n].kind = RA_BOP) andalso (t.nodes[n].r >= 0) then
-        dim as long wr = pass( t, t.nodes[n].r )
+        dim as int32 wr = pass( t, t.nodes[n].r )
         t.nodes[n].r = wr
     end if
 #endmacro
@@ -275,31 +275,31 @@ end function
 '' ---------------------------------------------------------------- distribution
 
 '' Pulls the constant summands out of a '+' chain, summing them into 'acc'.
-private function RaDistSum_( byref t as RaTree, byval n as long, byref acc as long ) as long
+private function RaDistSum_( byref t as RaTree, byval n as int32, byref acc as int32 ) as int32
     if RaIsBop_( t, n, Tko.TK_PLUS ) = false then return n
-    dim as long l = t.nodes[n].l
-    dim as long r = t.nodes[n].r
+    dim as int32 l = t.nodes[n].l
+    dim as int32 r = t.nodes[n].r
     if RaIsConst_( t, r ) then
         if acc < 0 then acc = r else acc = RaBop_( t, Tko.TK_PLUS, acc, r )
         return RaDistSum_( t, l, acc )
     end if
-    dim as long nl = RaDistSum_( t, l, acc )
+    dim as int32 nl = RaDistSum_( t, l, acc )
     t.nodes[n].l = nl
-    dim as long nr = RaDistSum_( t, r, acc )
+    dim as int32 nr = RaDistSum_( t, r, acc )
     t.nodes[n].r = nr
     return n
 end function
 
-private function RaDistMul_( byref t as RaTree, byval n as long ) as long
+private function RaDistMul_( byref t as RaTree, byval n as int32 ) as int32
     RA_WALK( RaDistMul_, t, n )
     if RaIsBop_( t, n, Tko.TK_STAR ) = false then return n
-    dim as long r = t.nodes[n].r
+    dim as int32 r = t.nodes[n].r
     if RaIsConst_( t, r ) = false then return n
-    dim as long acc = -1
-    dim as long nl = RaDistSum_( t, t.nodes[n].l, acc )
+    dim as int32 acc = -1
+    dim as int32 nl = RaDistSum_( t, t.nodes[n].l, acc )
     t.nodes[n].l = nl
     if acc < 0 then return n
-    dim as long prod = RaBop_( t, Tko.TK_STAR, acc, RaConst_( t, t.nodes[r].cv ) )
+    dim as int32 prod = RaBop_( t, Tko.TK_STAR, acc, RaConst_( t, t.nodes[r].cv ) )
     return RaBop_( t, Tko.TK_PLUS, n, prod )
 end function
 
@@ -308,13 +308,13 @@ end function
 '' Collects the constant right operands of a '+'/'-' chain into 'acc', the outermost
 '' first, inverting under the right side of a '-'.
 private function RaAccumAS_ _
-    ( byref t as RaTree, byval n as long, byref acc as long, byval sign as long ) as long
+    ( byref t as RaTree, byval n as int32, byref acc as int32, byval sign as int32 ) as int32
     if t.nodes[n].kind <> RA_BOP then return n
-    dim as long o = t.nodes[n].op
+    dim as int32 o = t.nodes[n].op
     if (o <> Tko.TK_PLUS) andalso (o <> Tko.TK_MINUS) then return n
-    dim as long l = t.nodes[n].l
-    dim as long r = t.nodes[n].r
-    dim as long rsign = sign
+    dim as int32 l = t.nodes[n].l
+    dim as int32 r = t.nodes[n].r
+    dim as int32 rsign = sign
     if o = Tko.TK_MINUS then rsign = -sign
     if RaIsConst_( t, r ) then
         if acc >= 0 then
@@ -326,35 +326,35 @@ private function RaAccumAS_ _
         end if
         return RaAccumAS_( t, l, acc, sign )
     end if
-    dim as long nl = RaAccumAS_( t, l, acc, sign )
+    dim as int32 nl = RaAccumAS_( t, l, acc, sign )
     t.nodes[n].l = nl
-    dim as long nr = RaAccumAS_( t, r, acc, rsign )
+    dim as int32 nr = RaAccumAS_( t, r, acc, rsign )
     t.nodes[n].r = nr
     return n
 end function
 
-private function RaAccumMul_( byref t as RaTree, byval n as long, byref acc as long ) as long
+private function RaAccumMul_( byref t as RaTree, byval n as int32, byref acc as int32 ) as int32
     if RaIsBop_( t, n, Tko.TK_STAR ) = false then return n
-    dim as long l = t.nodes[n].l
-    dim as long r = t.nodes[n].r
+    dim as int32 l = t.nodes[n].l
+    dim as int32 r = t.nodes[n].r
     if RaIsConst_( t, r ) then
         if acc < 0 then acc = r else acc = RaBop_( t, Tko.TK_STAR, acc, r )
         return RaAccumMul_( t, l, acc )
     end if
-    dim as long nl = RaAccumMul_( t, l, acc )
+    dim as int32 nl = RaAccumMul_( t, l, acc )
     t.nodes[n].l = nl
-    dim as long nr = RaAccumMul_( t, r, acc )
+    dim as int32 nr = RaAccumMul_( t, r, acc )
     t.nodes[n].r = nr
     return n
 end function
 
 '' Under a node whose right operand is a constant.
-private function RaAccum1_( byref t as RaTree, byval n as long ) as long
+private function RaAccum1_( byref t as RaTree, byval n as int32 ) as int32
     RA_WALK( RaAccum1_, t, n )
     if t.nodes[n].kind <> RA_BOP then return n
     if RaIsConst_( t, t.nodes[n].r ) = false then return n
-    dim as long o = t.nodes[n].op
-    dim as long acc = -1
+    dim as int32 o = t.nodes[n].op
+    dim as int32 acc = -1
     select case o
     case Tko.TK_PLUS, Tko.TK_MINUS
         n = RaAccumAS_( t, n, acc, 1 )
@@ -367,10 +367,10 @@ private function RaAccum1_( byref t as RaTree, byval n as long ) as long
 end function
 
 '' Under every '+' and '*'.
-private function RaAccum2_( byref t as RaTree, byval n as long ) as long
+private function RaAccum2_( byref t as RaTree, byval n as int32 ) as int32
     RA_WALK( RaAccum2_, t, n )
     if t.nodes[n].kind <> RA_BOP then return n
-    dim as long acc = -1
+    dim as int32 acc = -1
     select case t.nodes[n].op
     case Tko.TK_PLUS
         n = RaAccumAS_( t, n, acc, 1 )
@@ -383,13 +383,13 @@ private function RaAccum2_( byref t as RaTree, byval n as long ) as long
 end function
 
 '' '-v + c' -> 'c - v', for a plain variable only.
-private function RaRemNeg_( byref t as RaTree, byval n as long ) as long
+private function RaRemNeg_( byref t as RaTree, byval n as int32 ) as int32
     RA_WALK( RaRemNeg_, t, n )
     if RaIsBop_( t, n, Tko.TK_PLUS ) = false then return n
-    dim as long l = t.nodes[n].l
-    dim as long r = t.nodes[n].r
+    dim as int32 l = t.nodes[n].l
+    dim as int32 r = t.nodes[n].r
     if (t.nodes[l].kind <> RA_NEG) orelse (RaIsConst_( t, r ) = false) then return n
-    dim as long ll = t.nodes[l].l
+    dim as int32 ll = t.nodes[l].l
     if t.nodes[ll].kind <> RA_LEAF then return n
     if t.nodes[ll].isVar = false then return n
     t.nodes[n].op = Tko.TK_MINUS
@@ -400,7 +400,7 @@ end function
 
 '' ---------------------------------------------------------------- emission
 
-private function RaEmit_( byref c as Ctx, byref t as RaTree, byval n as long ) as MirValue
+private function RaEmit_( byref c as Ctx, byref t as RaTree, byval n as int32 ) as MirValue
     dim as MirValue none_
     select case t.nodes[n].kind
     case RA_LEAF
@@ -409,20 +409,20 @@ private function RaEmit_( byref c as Ctx, byref t as RaTree, byval n as long ) a
         return ConstFloat( c, t.nodes[n].cv, t.ty )
     case RA_NEG
         dim as MirValue x = RaEmit_( c, t, t.nodes[n].l )
-        if x.kind = cast( ubyte, MV_NONE ) then return none_
+        if x.kind = cast( uint8, MV_NONE ) then return none_
         dim as MirInst ng
-        ng.op = cast( ushort, M_NEG )
-        ng.ty = cast( ubyte, t.ty )
+        ng.op = cast( uint16, M_NEG )
+        ng.ty = cast( uint8, t.ty )
         ng.a = x
         return Emit( c, ng )
     case RA_BOP
         dim as MirValue a = RaEmit_( c, t, t.nodes[n].l )
-        if a.kind = cast( ubyte, MV_NONE ) then return none_
+        if a.kind = cast( uint8, MV_NONE ) then return none_
         dim as MirValue b = RaEmit_( c, t, t.nodes[n].r )
-        if b.kind = cast( ubyte, MV_NONE ) then return none_
+        if b.kind = cast( uint8, MV_NONE ) then return none_
         dim as MirInst ins
-        ins.op = cast( ushort, BinOpFor( cast( Tko.TokenKind, t.nodes[n].op ), t.ty, false ) )
-        ins.ty = cast( ubyte, t.ty )
+        ins.op = cast( uint16, BinOpFor( cast( Tko.TokenKind, t.nodes[n].op ), t.ty, false ) )
+        ins.ty = cast( uint8, t.ty )
         ins.a = a
         ins.b = b
         return Emit( c, ins )
@@ -436,16 +436,16 @@ function LowerFloatChain _
     ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType, byref outv as MirValue ) as boolean
 
     if IsFloatTy( mt ) = false then return false
-    dim as double d
+    dim as float64 d
     if RaClass_( c, id, mt, d ) <> RAC_BOP then return false
-    dim as long nConst, nLeaf
+    dim as int32 nConst, nLeaf
     dim as boolean bad
     RaScan_( c, id, mt, nConst, nLeaf, bad )
     if bad orelse (nConst = 0) orelse (nLeaf = 0) then return false
 
     dim as RaTree t
     t.ty = mt
-    dim as long root = RaBuild_( c, t, id )
+    dim as int32 root = RaBuild_( c, t, id )
     if root < 0 then
         dim as MirValue none_
         outv = none_

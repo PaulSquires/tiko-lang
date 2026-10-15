@@ -31,7 +31,7 @@ private function InheritedMember_ _
 
     '' Down the chain, a link at a time. Single inheritance, so there is one chain
     '' and no ambiguity; the depth cap is a cycle guard, not a language limit.
-    for depth as long = 0 to 31
+    for depth as int32 = 0 to 31
         if t = Tko.TYPE_NONE then return false
         if c.types->Kind( t ) <> Tko.TK_UDT then return false
         dim as Tko.InternId tn = c.types->NameOf( t )

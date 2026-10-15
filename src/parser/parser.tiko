@@ -108,7 +108,7 @@ sub EndOfStatement( byref p as Tko.ParserState )
             if Peek( p ) = Tko.KW_ENDIF then return
             if Peek( p ) = Tko.KW_END then
                 if HasTok( p, p.pos + 1 ) then
-                    if p.toks->At( p.pos + 1 ).kind = cast( ubyte, Tko.KW_IF ) then
+                    if p.toks->At( p.pos + 1 ).kind = cast( uint8, Tko.KW_IF ) then
                         return
                     end if
                 end if
@@ -121,7 +121,7 @@ end sub
 
 '' Recovery: consume to the next line, guaranteeing progress so no input can loop.
 private sub Sync( byref p as Tko.ParserState )
-    dim as long before = p.pos
+    dim as int32 before = p.pos
     EndOfStatement( p )
     if p.pos = before then Advance( p )
 end sub
@@ -145,7 +145,7 @@ function BlockBody_( byref p as Tko.ParserState ) as Tko.NodeId
         if AtEnd( p ) then exit do
         if IsBlockEnderAt( p ) then exit do
         dim as Tko.NodeId s = Statement( p )
-        if s <> Tko.NODE_NONE then items.Push( cast( ulong, s ) )
+        if s <> Tko.NODE_NONE then items.Push( cast( uint32, s ) )
     loop
     return MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, items )
 end function
@@ -235,12 +235,12 @@ private function ParseIf( byref p as Tko.ParserState ) as Tko.NodeId
             '' token of an expansion carries the invocation's location, so three
             '' consecutive 'assert_( ... )' lines looked like one line and the
             '' second and third were swallowed into the first's then-branch.
-            dim as long slGuard = 0
+            dim as int32 slGuard = 0
             do
                 slGuard += 1
                 if slGuard > 10000 then exit do
                 dim as Tko.NodeId s = Statement( p )
-                if s <> Tko.NODE_NONE then one.Push( cast( ulong, s ) )
+                if s <> Tko.NODE_NONE then one.Push( cast( uint32, s ) )
                 if s = Tko.NODE_NONE then exit do
                 if AtEnd( p ) then exit do
                 if p.pos <= 0 then exit do
@@ -251,7 +251,7 @@ private function ParseIf( byref p as Tko.ParserState ) as Tko.NodeId
                 '' stops the loop.
                 if Peek( p ) = Tko.KW_END then
                     if HasTok( p, p.pos + 1 ) then
-                        if p.toks->At( p.pos + 1 ).kind = cast( ubyte, Tko.KW_IF ) then
+                        if p.toks->At( p.pos + 1 ).kind = cast( uint8, Tko.KW_IF ) then
                             exit do
                         end if
                     end if
@@ -260,7 +260,7 @@ private function ParseIf( byref p as Tko.ParserState ) as Tko.NodeId
             p.stopAtElse = savedSAE
         end if
         first_.b = MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, one )
-        branches.Push( cast( ulong, MakeStmt( p, Tko.N_IF_BRANCH, t.loc, first_ ) ) )
+        branches.Push( cast( uint32, MakeStmt( p, Tko.N_IF_BRANCH, t.loc, first_ ) ) )
 
         '' ...and the ELSE that follows an empty then-branch is this IF's, so it is
         '' taken here. The two halves are inseparable: leaving the ELSE for the
@@ -287,7 +287,7 @@ private function ParseIf( byref p as Tko.ParserState ) as Tko.NodeId
         dim as boolean elseIsOurs = (Peek( p ) = Tko.KW_ELSE)
         if elseIsOurs andalso (p.pos > 0) then
             dim as Tko.Token ptr pv = @p.toks->At( p.pos - 1 )
-            if pv->kind = cast( ubyte, Tko.TK_EOL ) then
+            if pv->kind = cast( uint8, Tko.TK_EOL ) then
                 elseIsOurs = ((pv->flags and Tko.TF_COLON) <> 0)
             end if
         end if
@@ -303,7 +303,7 @@ private function ParseIf( byref p as Tko.ParserState ) as Tko.NodeId
             '' the corpus's own idiom -- compound/if.bas's test_singleline_scope
             '' writes all three arms that way over line continuations.
             dim as Tko.NodeIdVec eone
-            dim as long elGuard = 0
+            dim as int32 elGuard = 0
             '' ...AND THE SAME STOP, so an 'end if' after the else-statement is left for
             '' this IF below rather than walked past and discarded -- see EndOfStatement.
             dim as boolean elSavedSAE = p.stopAtElse
@@ -312,7 +312,7 @@ private function ParseIf( byref p as Tko.ParserState ) as Tko.NodeId
                 elGuard += 1
                 if elGuard > 10000 then exit do
                 dim as Tko.NodeId es = Statement( p )
-                if es <> Tko.NODE_NONE then eone.Push( cast( ulong, es ) )
+                if es <> Tko.NODE_NONE then eone.Push( cast( uint32, es ) )
                 if es = Tko.NODE_NONE then exit do
                 if AtEnd( p ) then exit do
                 if p.pos <= 0 then exit do
@@ -323,7 +323,7 @@ private function ParseIf( byref p as Tko.ParserState ) as Tko.NodeId
                 if (Peek( p ) = Tko.KW_ELSE) orelse (Peek( p ) = Tko.KW_ENDIF) then exit do
                 if Peek( p ) = Tko.KW_END then
                     if HasTok( p, p.pos + 1 ) then
-                        if p.toks->At( p.pos + 1 ).kind = cast( ubyte, Tko.KW_IF ) then
+                        if p.toks->At( p.pos + 1 ).kind = cast( uint8, Tko.KW_IF ) then
                             exit do
                         end if
                     end if
@@ -344,7 +344,7 @@ private function ParseIf( byref p as Tko.ParserState ) as Tko.NodeId
         '' unclosed hundreds of lines later. The 'end' is this IF's only if it is on
         '' this IF's own line.
         if (Peek( p ) = Tko.KW_END) andalso HasTok( p, p.pos + 1 ) then
-            if p.toks->At( p.pos + 1 ).kind = cast( ubyte, Tko.KW_IF ) then
+            if p.toks->At( p.pos + 1 ).kind = cast( uint8, Tko.KW_IF ) then
                 if p.src->Decode( Cur( p ).loc ).physLine = _
                    p.src->Decode( t.loc ).physLine then
                     Advance( p )
@@ -361,18 +361,18 @@ private function ParseIf( byref p as Tko.ParserState ) as Tko.NodeId
         end if
 
         dim as Tko.NodeId n = MakeStmt( p, Tko.N_IF, t.loc, sp )
-        p.ast->nodes[cast( long, n )].flags or= Tko.NF_SINGLE_LINE
+        p.ast->nodes[cast( int32, n )].flags or= Tko.NF_SINGLE_LINE
         dim as Tko.StmtPayload done_
         done_.b = MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, branches )
         '' THE ELSE BLOCK TRAVELS IN 'c', and this payload REPLACES the node's, so
         '' it has to be carried across or the branch just parsed is thrown away.
         done_.c = sp.c
-        p.ast->stmts[cast( long, p.ast->nodes[cast( long, n )].data )] = done_
+        p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, n )].data )] = done_
         return n
     end if
 
     first_.b = Block( p )
-    branches.Push( cast( ulong, MakeStmt( p, Tko.N_IF_BRANCH, t.loc, first_ ) ) )
+    branches.Push( cast( uint32, MakeStmt( p, Tko.N_IF_BRANCH, t.loc, first_ ) ) )
 
     while Peek( p ) = Tko.KW_ELSEIF
         dim as Tko.Token et = Cur( p )
@@ -381,7 +381,7 @@ private function ParseIf( byref p as Tko.ParserState ) as Tko.NodeId
         br.a = Expression( p )
         if Peek( p ) = Tko.KW_THEN then Advance( p )
         br.b = Block( p )
-        branches.Push( cast( ulong, MakeStmt( p, Tko.N_IF_BRANCH, et.loc, br ) ) )
+        branches.Push( cast( uint32, MakeStmt( p, Tko.N_IF_BRANCH, et.loc, br ) ) )
     wend
 
     if Accept( p, Tko.KW_ELSE ) then sp.c = Block( p )
@@ -415,7 +415,7 @@ private function ParseSelect( byref p as Tko.ParserState ) as Tko.NodeId
     end if
 
     dim as Tko.StmtPayload sp
-    if isConst then sp.op = cast( ushort, Tko.KW_CONST )
+    if isConst then sp.op = cast( uint16, Tko.KW_CONST )
     sp.a = Expression( p )
 
     dim as Tko.NodeIdVec cases
@@ -444,17 +444,17 @@ private function ParseSelect( byref p as Tko.ParserState ) as Tko.NodeId
                     p.diags->Report( Tko.TKO0419, Tko.PointRange( pt.loc ) )
                 end if
                 if IsRelOp_( Peek( p ) ) = false then ErrorNode( p, Tko.TKO0401, "a relational operator" )   '' fbc's 285
-                pat.op = cast( ushort, Peek( p ) )
+                pat.op = cast( uint16, Peek( p ) )
                 Advance( p )
                 pat.a = Expression( p )
-                patterns.Push( cast( ulong, MakeStmt( p, Tko.N_CASE_RANGE, pt.loc, pat ) ) )
+                patterns.Push( cast( uint32, MakeStmt( p, Tko.N_CASE_RANGE, pt.loc, pat ) ) )
             else
                 pat.a = Expression( p )
                 if Accept( p, Tko.KW_TO ) then
                     pat.b = Expression( p )
-                    patterns.Push( cast( ulong, MakeStmt( p, Tko.N_CASE_RANGE, pt.loc, pat ) ) )
+                    patterns.Push( cast( uint32, MakeStmt( p, Tko.N_CASE_RANGE, pt.loc, pat ) ) )
                 else
-                    patterns.Push( cast( ulong, pat.a ) )
+                    patterns.Push( cast( uint32, pat.a ) )
                 end if
             end if
             if Accept( p, Tko.TK_COMMA ) = false then exit do
@@ -462,11 +462,11 @@ private function ParseSelect( byref p as Tko.ParserState ) as Tko.NodeId
 
         cs.first = p.ast->children.Count
         cs.count = patterns.Count
-        for i as long = 0 to patterns.Count - 1
+        for i as int32 = 0 to patterns.Count - 1
             p.ast->children.Push( patterns[i] )
         next
         cs.b = Block( p )
-        cases.Push( cast( ulong, MakeStmt( p, Tko.N_CASE, ct.loc, cs ) ) )
+        cases.Push( cast( uint32, MakeStmt( p, Tko.N_CASE, ct.loc, cs ) ) )
     loop
 
     '' fbc error 34, "Expected 'CASE', found 'end'" -- and it fires on a PLAIN select
@@ -513,7 +513,7 @@ private function ParseFor( byref p as Tko.ParserState ) as Tko.NodeId
         dim as boolean isByref = false
         if Accept( p, Tko.KW_BYREF ) then
             isByref = true
-            sp.op = cast( ushort, Tko.KW_BYREF )
+            sp.op = cast( uint16, Tko.KW_BYREF )
         end if
 
         '' 'for each (k, v) in c' -- THE LIST FORM, desugared here into the ordinary
@@ -539,7 +539,7 @@ private function ParseFor( byref p as Tko.ParserState ) as Tko.NodeId
             Advance( p )
             do
                 if Peek( p ) <> Tko.TK_IDENT then return ErrorNode( p, Tko.TKO0406 )
-                dnames.Push( cast( ulong, cast( Tko.InternId, Cur( p ).literal ) ) )
+                dnames.Push( cast( uint32, cast( Tko.InternId, Cur( p ).literal ) ) )
                 Advance( p )
                 if Accept( p, Tko.TK_COMMA ) = false then exit do
             loop
@@ -553,7 +553,7 @@ private function ParseFor( byref p as Tko.ParserState ) as Tko.NodeId
             dim as Tko.IdentPayload tip
             tip.name = feTmp
             p.ast->idents.Push( tip )
-            sp.a = NewNodeAt( p, Tko.N_IDENT, t.loc, cast( ulong, p.ast->idents.Count - 1 ) )
+            sp.a = NewNodeAt( p, Tko.N_IDENT, t.loc, cast( uint32, p.ast->idents.Count - 1 ) )
         else
             sp.a = Expression( p, Tko.PREC_POSTFIX )
         end if
@@ -572,18 +572,18 @@ private function ParseFor( byref p as Tko.ParserState ) as Tko.NodeId
         dim as Tko.NodeId seq = Expression( p )
         sp.first = p.ast->children.Count
         sp.count = 1
-        p.ast->children.Push( cast( ulong, seq ) )
+        p.ast->children.Push( cast( uint32, seq ) )
         p.forDepth += 1
         sp.b = Block( p )
         p.forDepth -= 1
-        dim as ushort eachFlags = 0
+        dim as uint16 eachFlags = 0
         if dnames.Count > 0 then
             sp.b = ForEachDestructure_( p, t, feTmp, dnames, sp.b )
             eachFlags = Tko.NF_DESTRUCTURE
         end if
         AcceptNext_( p, t.loc, true )
         dim as Tko.NodeId en = MakeStmt( p, Tko.N_FOREACH, t.loc, sp )
-        p.ast->nodes[cast( long, en )].flags or= eachFlags
+        p.ast->nodes[cast( int32, en )].flags or= eachFlags
         return en
     end if
 
@@ -610,14 +610,14 @@ private function ParseFor( byref p as Tko.ParserState ) as Tko.NodeId
 
     sp.first = p.ast->children.Count
     sp.count = 3
-    p.ast->children.Push( cast( ulong, fromExpr ) )
-    p.ast->children.Push( cast( ulong, toExpr ) )
-    p.ast->children.Push( cast( ulong, stepExpr ) )
+    p.ast->children.Push( cast( uint32, fromExpr ) )
+    p.ast->children.Push( cast( uint32, toExpr ) )
+    p.ast->children.Push( cast( uint32, stepExpr ) )
 
     p.forDepth += 1
     sp.b = Block( p )
     p.forDepth -= 1
-    if sp.b <> Tko.NODE_NONE then p.ast->nodes[cast( long, sp.b )].loc = Cur( p ).loc   '' the NEXT, for diagnostics
+    if sp.b <> Tko.NODE_NONE then p.ast->nodes[cast( int32, sp.b )].loc = Cur( p ).loc   '' the NEXT, for diagnostics
     AcceptNext_( p, t.loc )
 
     return MakeStmt( p, Tko.N_FOR, t.loc, sp )
@@ -628,7 +628,7 @@ private function ParseDo( byref p as Tko.ParserState ) as Tko.NodeId
     Advance( p )
 
     dim as Tko.StmtPayload sp
-    dim as ushort flags = 0
+    dim as uint16 flags = 0
 
     if Peek( p ) = Tko.KW_WHILE then
         Advance( p )
@@ -656,7 +656,7 @@ private function ParseDo( byref p as Tko.ParserState ) as Tko.NodeId
     end if
 
     dim as Tko.NodeId n = MakeStmt( p, Tko.N_DO, t.loc, sp )
-    p.ast->nodes[cast( long, n )].flags or= flags
+    p.ast->nodes[cast( int32, n )].flags or= flags
     return n
 end function
 
@@ -706,7 +706,7 @@ private function ParseExitLike _
                                 (k = Tko.KW_CONSTRUCTOR) orelse (k = Tko.KW_DESTRUCTOR) orelse _
                                 (k = Tko.KW_OPERATOR) orelse (k = Tko.KW_ANY)
         if target = false then exit do
-        if sp.op = 0 then sp.op = cast( ushort, k )
+        if sp.op = 0 then sp.op = cast( uint16, k )
         sp.extra += 1
         Advance( p )
         if Accept( p, Tko.TK_COMMA ) = false then exit do
@@ -752,13 +752,13 @@ end function
 '' expression. Decided by AS, BYREF or BYVAL appearing at depth one -- a parameter
 '' cannot be written without one of them, and an expression cannot contain one there.
 private function LooksLikeParamList _
-    ( byref p as Tko.ParserState, byval at as long ) as boolean
+    ( byref p as Tko.ParserState, byval at as int32 ) as boolean
 
-    dim as long depth = 0
-    dim as long i = at
+    dim as int32 depth = 0
+    dim as int32 i = at
     '' Bounded: a runaway scan over a file with an unbalanced paren would otherwise
     '' walk the whole token stream on every 'operator ='.
-    dim as long guard = 0
+    dim as int32 guard = 0
     while HasTok( p, i ) andalso (guard < 4096)
         dim as Tko.TokenKind k = cast( Tko.TokenKind, p.toks->At( i ).kind )
         select case k
@@ -860,7 +860,7 @@ private function ParseAmbiguous( byref p as Tko.ParserState ) as Tko.NodeId
                               (k = Tko.TK_CARETEQ) orelse (k = Tko.TK_AMPEQ)
     if isAssign then
         dim as boolean fatArrow = (k = Tko.TK_FATARROW) : if fatArrow then k = Tko.TK_EQ
-        sp.op = cast( ushort, k )
+        sp.op = cast( uint16, k )
         Advance( p )
         '' 'i +=> 1' IS THE SAME STATEMENT AS 'i += 1'. FreeBASIC spells every
         '' compound assignment two ways, and the second lexes as the operator token
@@ -870,7 +870,7 @@ private function ParseAmbiguous( byref p as Tko.ParserState ) as Tko.NodeId
         Accept( p, Tko.TK_GT )
         sp.b = Expression( p )
         dim as Tko.NodeId an = MakeStmt( p, Tko.N_AMBIGUOUS, t.loc, sp )
-        if fatArrow then p.ast->nodes[cast( long, an )].flags or= Tko.NF_FAT_ARROW
+        if fatArrow then p.ast->nodes[cast( int32, an )].flags or= Tko.NF_FAT_ARROW
         return an
     end if
 
@@ -878,15 +878,15 @@ private function ParseAmbiguous( byref p as Tko.ParserState ) as Tko.NodeId
     '' '+=' is one token and was always taken; separated, the operator arrives on its own
     '' and the statement read as the expression 'i' followed by a paren-less call.
     '' Measured: fbc takes both as 'i += 5'.
-    dim as ushort spacedOp = 0
+    dim as uint16 spacedOp = 0
     select case k
-    case Tko.TK_PLUS      : spacedOp = cast( ushort, Tko.TK_PLUSEQ )
-    case Tko.TK_MINUS     : spacedOp = cast( ushort, Tko.TK_MINUSEQ )
-    case Tko.TK_STAR      : spacedOp = cast( ushort, Tko.TK_STAREQ )
-    case Tko.TK_SLASH     : spacedOp = cast( ushort, Tko.TK_SLASHEQ )
-    case Tko.TK_BACKSLASH : spacedOp = cast( ushort, Tko.TK_BSLASHEQ )
-    case Tko.TK_CARET     : spacedOp = cast( ushort, Tko.TK_CARETEQ )
-    case Tko.TK_AMP       : spacedOp = cast( ushort, Tko.TK_AMPEQ )
+    case Tko.TK_PLUS      : spacedOp = cast( uint16, Tko.TK_PLUSEQ )
+    case Tko.TK_MINUS     : spacedOp = cast( uint16, Tko.TK_MINUSEQ )
+    case Tko.TK_STAR      : spacedOp = cast( uint16, Tko.TK_STAREQ )
+    case Tko.TK_SLASH     : spacedOp = cast( uint16, Tko.TK_SLASHEQ )
+    case Tko.TK_BACKSLASH : spacedOp = cast( uint16, Tko.TK_BSLASHEQ )
+    case Tko.TK_CARET     : spacedOp = cast( uint16, Tko.TK_CARETEQ )
+    case Tko.TK_AMP       : spacedOp = cast( uint16, Tko.TK_AMPEQ )
     end select
     if (spacedOp <> 0) andalso HasTok( p, p.pos + 1 ) then
         dim as Tko.TokenKind k3 = cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )
@@ -911,7 +911,7 @@ private function ParseAmbiguous( byref p as Tko.ParserState ) as Tko.NodeId
     if Tko.IsWordAssignOp( k ) andalso HasTok( p, p.pos + 1 ) then
         dim as Tko.TokenKind k2 = cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )
         if (k2 = Tko.TK_EQ) orelse (k2 = Tko.TK_FATARROW) then
-            sp.op = cast( ushort, k )
+            sp.op = cast( uint16, k )
             Advance( p )
             Advance( p )
             sp.b = Expression( p )
@@ -941,12 +941,12 @@ private function ParseAmbiguous( byref p as Tko.ParserState ) as Tko.NodeId
     if Peek( p ) = Tko.TK_COMMA then
         if p.ast->Kind( sp.a ) = Tko.N_CALL then
             dim as Tko.ListPayload ptr lcp = _
-                @p.ast->lists[cast( long, p.ast->nodes[cast( long, sp.a )].data )]
+                @p.ast->lists[cast( int32, p.ast->nodes[cast( int32, sp.a )].data )]
             if (lcp->count = 1) andalso (lcp->target <> Tko.NODE_NONE) then
                 dim as Tko.NodeId inner = _
                     cast( Tko.NodeId, p.ast->children[lcp->first] )
                 sp.a = lcp->target
-                args.Push( cast( ulong, inner ) )
+                args.Push( cast( uint32, inner ) )
                 Advance( p )        '' the comma
             end if
         end if
@@ -962,7 +962,7 @@ private function ParseAmbiguous( byref p as Tko.ParserState ) as Tko.NodeId
             '' 'locate ,,0' -- a PAREN-LESS call may elide arguments too, and the
             '' empty slots still count. LOCATE is not in the intrinsic registry, so
             '' this is the list it actually goes through.
-            args.Push( cast( ulong, ArgOrElided( p, Tko.TK_EOL, false ) ) )  '' 'F typeof( x )' is fbc's 1
+            args.Push( cast( uint32, ArgOrElided( p, Tko.TK_EOL, false ) ) )  '' 'F typeof( x )' is fbc's 1
             if Accept( p, Tko.TK_COMMA ) = false then exit do
         loop
     end if
@@ -970,7 +970,7 @@ private function ParseAmbiguous( byref p as Tko.ParserState ) as Tko.NodeId
     if fnCall <> Tko.NODE_NONE then sp.a = fnCall : args.Clear( )
     sp.first = p.ast->children.Count
     sp.count = args.Count
-    for i as long = 0 to args.Count - 1
+    for i as int32 = 0 to args.Count - 1
         p.ast->children.Push( args[i] )
     next
 
@@ -1105,7 +1105,7 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
         '' only showed up when the IF was the LAST statement of a block, because
         '' otherwise the token it ate was an ordinary statement that reparsed fine.
         if (n <> Tko.NODE_NONE) andalso _
-           ((p.ast->nodes[cast( long, n )].flags and Tko.NF_SINGLE_LINE) <> 0) then
+           ((p.ast->nodes[cast( int32, n )].flags and Tko.NF_SINGLE_LINE) <> 0) then
             consumesLine = false
         end if
     case Tko.KW_SELECT    : n = ParseSelect( p )
@@ -1150,7 +1150,7 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
         '' COMPILE-TIME one that can name types ('#assert typeof( a ) = typeof( b )'),
         '' so it belongs to the parser, not the PP. See probe P2. So is an '#undef' of a
         '' name that is not a macro: it removes a DECLARED symbol -- see UndefSym.
-        dim as long save = p.pos
+        dim as int32 save = p.pos
         Advance( p )
         dim as string hw = ""
         if Peek( p ) = Tko.TK_IDENT then
@@ -1187,12 +1187,12 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
         '' -- a body that is nothing at all once the preprocessor has run, and the
         '' file's subject is the '#pragma reserve' above it rather than the asm.
         '' Emitting an N_ASM with no content is what an empty block MEANS.
-        dim as long asmFirst = p.pos
+        dim as int32 asmFirst = p.pos
         while (Peek( p ) <> Tko.KW_END) andalso (AtEnd( p ) = false)
             Advance( p )
         wend
         dim as boolean asmEmpty = true
-        for ai as long = asmFirst to p.pos - 1
+        for ai as int32 = asmFirst to p.pos - 1
             if cast( Tko.TokenKind, p.toks->At( ai ).kind ) <> Tko.TK_EOL then
                 asmEmpty = false
                 exit for
@@ -1223,7 +1223,7 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
             dim as Tko.StmtPayload sp
             sp.a = NewNodeAt( p, Tko.N_FUNCRESULT, t.loc, 0 )
             Advance( p )                       '' the keyword
-            sp.op = cast( ushort, Tko.TK_EQ )
+            sp.op = cast( uint16, Tko.TK_EQ )
             Advance( p )                       '' the '='
             sp.b = Expression( p )
             n = MakeStmt( p, Tko.N_AMBIGUOUS, t.loc, sp )
@@ -1272,7 +1272,7 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
             '' the ordinary call-or-assign ambiguity, which Resolve decides.
             n = ParseAmbiguous( p )
         elseif Tko.IsStatementIntrinsic( k ) then
-            dim as long intrTok0 = p.pos
+            dim as int32 intrTok0 = p.pos
             n = ParseIntrinsic( p )
             '' THE TOKENS ARE KEPT so Resolve can read the statement again as a CALL. A
             '' statement keyword is not reserved from procedure names: fbc accepts
@@ -1403,7 +1403,7 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
             Advance( p )
             Advance( p )
             dim as Tko.StmtPayload erp
-            erp.op = cast( ushort, Tko.KW_ERR )
+            erp.op = cast( uint16, Tko.KW_ERR )
             erp.a = Expression( p )
             n = MakeStmt( p, Tko.N_INTRINSIC, t.loc, erp )
         elseif k = Tko.TK_QUESTION then
@@ -1454,19 +1454,19 @@ private sub ParsePrelude( byref p as Tko.ParserState, byref items as Tko.NodeIdV
     q.kw = 0
     q.pos = 0
 
-    dim as long guard = 0
+    dim as int32 guard = 0
     do
         guard += 1
         if guard > 10000 then exit do
         SkipEols( q )
         if AtEnd( q ) then exit do
-        dim as long before = q.pos
+        dim as int32 before = q.pos
         dim as Tko.NodeId s = Statement( q )
-        if s <> Tko.NODE_NONE then items.Push( cast( ulong, s ) )
+        if s <> Tko.NODE_NONE then items.Push( cast( uint32, s ) )
         if q.pos = before then Advance( q )
     loop
     '' The prelude's procedures -- SLEEP, KILL, LOCATE -- are known to the unit's labels.
-    for each nm as ulong in q.procNames
+    for each nm as uint32 in q.procNames
         p.procNames.Push( nm )
     next
 end sub
@@ -1477,9 +1477,9 @@ function Unit( byref p as Tko.ParserState ) as Tko.NodeId
     do
         SkipEols( p )
         if AtEnd( p ) then exit do
-        dim as long before = p.pos
+        dim as int32 before = p.pos
         dim as Tko.NodeId s = Statement( p )
-        if s <> Tko.NODE_NONE then items.Push( cast( ulong, s ) )
+        if s <> Tko.NODE_NONE then items.Push( cast( uint32, s ) )
         if p.pos = before then Advance( p )        '' guaranteed progress
     loop
     '' LAST, not first. Collect is a whole pass before anything looks a name up, so
@@ -1489,7 +1489,7 @@ function Unit( byref p as Tko.ParserState ) as Tko.NodeId
     '' THE HOISTED LAMBDAS, before the prelude and after the unit's own statements.
     '' Each is an ordinary module-level procedure by the time anything looks at it;
     '' the expression that wrote one holds '@its name'.
-    for i as long = 0 to p.lambdas.Count - 1
+    for i as int32 = 0 to p.lambdas.Count - 1
         items.Push( p.lambdas[i] )
     next
 

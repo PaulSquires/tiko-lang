@@ -12,7 +12,7 @@
 namespace Tko.Mir
 
     type VerifyResult
-        as long    failures
+        as int32    failures
         as string  report
     end type
 

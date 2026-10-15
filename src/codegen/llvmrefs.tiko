@@ -19,34 +19,34 @@ using Tko.Mir
 '' not marked here: the emitter treats both as roots, because the list it writes at the
 '' end of the module is what calls them.
 function ReferencedFunctions _
-    ( byref m as Tko.Mir.MirModule ) as containers.Array( of ubyte )
+    ( byref m as Tko.Mir.MirModule ) as containers.Array( of uint8 )
 
-    dim as containers.Array( of ubyte ) refd
-    for fi as long = 0 to m.functions.Count - 1
+    dim as containers.Array( of uint8 ) refd
+    for fi as int32 = 0 to m.functions.Count - 1
         refd.Push( 0 )
     next
-    for fi as long = 0 to m.functions.Count - 1
+    for fi as int32 = 0 to m.functions.Count - 1
         dim as MirFunction ptr f = m.functions[fi]
         if f = 0 then continue for
-        for bi as long = 0 to f->blocks.Count - 1
+        for bi as int32 = 0 to f->blocks.Count - 1
             dim as MirBlock ptr b = @f->blocks[bi]
-            for ii as long = 0 to b->insts.Count - 1
+            for ii as int32 = 0 to b->insts.Count - 1
                 dim as MirInst ptr ins = @b->insts[ii]
                 select case cast( MirOp, ins->op )
                 case M_CALL, M_FUNC_ADDR
-                    dim as long ci = cast( long, ins->callee )
+                    dim as int32 ci = cast( int32, ins->callee )
                     if (ci >= 0) andalso (ci < refd.Count) then refd[ci] = 1
                 end select
             next
         next
     next
-    for gi as long = 0 to m.globals.Count - 1
+    for gi as int32 = 0 to m.globals.Count - 1
         dim as MirGlobal ptr g = @m.globals[gi]
         if g->ptrCount <= 0 then continue for
-        for i as long = 0 to g->ptrCount - 1
+        for i as int32 = 0 to g->ptrCount - 1
             if m.ptrKinds[g->ptrFirst + i] <> 2 then continue for
             dim as Tko.InternId pn = cast( Tko.InternId, m.ptrRefs[g->ptrFirst + i] )
-            dim as long at = m.FirstFunctionNamed( pn )
+            dim as int32 at = m.FirstFunctionNamed( pn )
             if at >= 0 then refd[at] = 1
         next
     next
@@ -59,11 +59,11 @@ function ReferencedFunctions _
     '' "use of undefined value '@HASH_ADD'" -- fbcunit, found by build/suiterun.sh.
     '' Down the name's own chain, which the module keeps, rather than over every
     '' function for every marked one.
-    for i as long = 0 to m.functions.Count - 1
+    for i as int32 = 0 to m.functions.Count - 1
         if refd[i] = 0 then continue for
         dim as MirFunction ptr f = m.functions[i]
         if f = 0 then continue for
-        dim as long at = m.FirstFunctionNamed( f->name )
+        dim as int32 at = m.FirstFunctionNamed( f->name )
         while at >= 0
             if m.functions[at] = 0 then exit while
             refd[at] = 1
@@ -99,10 +99,10 @@ function DeclareUnknownVtableSlots _
     '' loaded and called indirectly with the call site's own signature, and a
     '' name this module does call has a MirFunction and is skipped here.
     dim as string decls
-    for gi as long = 0 to m.globals.Count - 1
+    for gi as int32 = 0 to m.globals.Count - 1
         dim as MirGlobal ptr g = @m.globals[gi]
         if g->ptrCount <= 0 then continue for
-        for i as long = 0 to g->ptrCount - 1
+        for i as int32 = 0 to g->ptrCount - 1
             if m.ptrKinds[g->ptrFirst + i] <> 2 then continue for
             dim as Tko.InternId pn = cast( Tko.InternId, m.ptrRefs[g->ptrFirst + i] )
             if m.FirstFunctionNamed( pn ) >= 0 then continue for

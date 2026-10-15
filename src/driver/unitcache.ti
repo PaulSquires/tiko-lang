@@ -46,7 +46,7 @@ namespace Tko.UnitCache
         as Tko.StrVec pobj
         as Tko.StrVec plibs
         '' Unit events are sent in unit order: 1 .. emitted have been (Report).
-        as long       emitted
+        as int32       emitted
         '' 'tiko check' (--frontend-only): the cache is READ and never written. A hit was
         '' stored only by a build that compiled the unit with no error and no warning, and a
         '' check reports a subset of what a build does -- so a hit is a unit the check would
@@ -56,28 +56,28 @@ namespace Tko.UnitCache
 
     '' What the run held before a unit compiled, so After( ) can say what it added.
     type Mark
-        as long libs0
-        as long paths0
-        as long files0
-        as long objs0
-        as long errs0
-        as long warns0
+        as int32 libs0
+        as int32 paths0
+        as int32 files0
+        as int32 objs0
+        as int32 errs0
+        as int32 warns0
     end type
 
     '' 'eligible': the run links (no -c, no IR or assembly stop, no dump, no scan).
     declare sub Open _
-        ( byref ctx as Tko.CompilerContext, byref args as Tko.StrVec, byval restartDepth as long, _
+        ( byref ctx as Tko.CompilerContext, byref args as Tko.StrVec, byval restartDepth as int32, _
           byval eligible as boolean, byref s as Store )
     '' Unit i from the cache: its object joins the link and its libraries are replayed.
     '' 'key' is set either way ("" when the unit is not cached at all).
     declare function TryHit _
-        ( byref ctx as Tko.CompilerContext, byref s as Store, byval i as long, byref key as string, _
+        ( byref ctx as Tko.CompilerContext, byref s as Store, byval i as int32, byref key as string, _
           byref linkObjs as Tko.StrVec, byref tempObjs as Tko.StrVec ) as boolean
     declare sub Before( byref ctx as Tko.CompilerContext, byref linkObjs as Tko.StrVec, byref m as Mark )
     '' After unit i compiled: remembered for Commit when it may be stored. Returns the unit
     '' event's status -- "miss" when the cache is on, "compiled" when it is not.
     declare function After _
-        ( byref ctx as Tko.CompilerContext, byref s as Store, byval i as long, byref key as string, _
+        ( byref ctx as Tko.CompilerContext, byref s as Store, byval i as int32, byref key as string, _
           byref m as Mark, byref linkObjs as Tko.StrVec ) as string
     '' Once the objects exist and before the link deletes them.
     declare sub Commit( byref ctx as Tko.CompilerContext, byref s as Store )
@@ -92,10 +92,10 @@ namespace Tko.UnitCache
     '' code: EXIT_CHILD_CRASHED when a child died (TKO0167), else EXIT_OK.
     declare function RunChildren _
         ( byref ctx as Tko.CompilerContext, byref s as Store, byref args as Tko.StrVec, _
-          byval srcCount as long ) as long
+          byval srcCount as int32 ) as int32
     '' Unit i's event, in order: once per unit, "miss" for one a child compiled.
-    declare sub Report( byref ctx as Tko.CompilerContext, byref s as Store, byval i as long, byref status as string )
-    declare function Crashed( byref s as Store, byval i as long ) as boolean
+    declare sub Report( byref ctx as Tko.CompilerContext, byref s as Store, byval i as int32, byref status as string )
+    declare function Crashed( byref s as Store, byval i as int32 ) as boolean
 
     '' THE LINK, skipped when nothing it reads has changed (tiko-build B5): its signature --
     '' "" outside a 'tiko build' -- whether '<output>.link' holds it with the artefact as it is,

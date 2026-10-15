@@ -10,9 +10,9 @@
 '' Indexed by folded InternId; built on first use and again whenever the table has grown, so a
 '' symbol declared by an earlier sweep is never missed.
 type OwnerIndex
-    as long                  builtAt = -1   '' symbols.Count when built; -1 = never
-    as containers.Array( of long )   nsHits, nsInner, udtHits, udtInner
-    as containers.Array( of ubyte )  head           '' a namespace, type or typedef has this name
+    as int32                  builtAt = -1   '' symbols.Count when built; -1 = never
+    as containers.Array( of int32 )   nsHits, nsInner, udtHits, udtInner
+    as containers.Array( of uint8 )  head           '' a namespace, type or typedef has this name
 end type
 
 type Ctx

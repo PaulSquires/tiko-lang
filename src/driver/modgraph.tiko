@@ -25,15 +25,15 @@
 
 namespace Tko.Modules
 
-private function NodeFor_( byref g as ModGraph, byref w as ModWhere, byval loc as Tko.SourceLoc ) as long
-    for i as long = 0 to g.chains.Count - 1
+private function NodeFor_( byref g as ModGraph, byref w as ModWhere, byval loc as Tko.SourceLoc ) as int32
+    for i as int32 = 0 to g.chains.Count - 1
         if g.chains[i] = w.chain then return i
     next
     g.chains.Push( w.chain )
     g.dirs.Push( w.dir_ )
     g.pkgNames.Push( w.pkgName )
     g.pkgRoots.Push( w.pkgRoot )
-    g.firstLoc.Push( cast( ulong, loc ) )
+    g.firstLoc.Push( cast( uint32, loc ) )
     return g.chains.Count - 1
 end function
 
@@ -52,7 +52,7 @@ private sub ScanFile_ _
     '' says it once. Through the real engine a lexer warning came out twice in a build
     '' ('print "abc' -- TKO0201 twice), and a lexer ERROR stopped the graph and hid
     '' every later error with it (audit F-52). The graph's own errors come after.
-    dim as long p0, e0, w0, s0
+    dim as int32 p0, e0, w0, s0
     ctx.diags.Snapshot( p0, e0, w0, s0 )
     Tko.PpRun( ctx.sources, id, ctx.names, ctx.keywords, ctx.diags, cfg, pr )
     ctx.diags.RollBack( p0, e0, w0, s0 )
@@ -62,28 +62,28 @@ end sub
 '' root file, from nowhere (from = -1): a root is never imported, so it needs no node.
 private sub AddImports_ _
     ( byref ctx as Tko.CompilerContext, byref g as ModGraph, byref pr as Tko.PpResult, _
-      byval from as long, byref fromDir as string, byref pkgName as string, _
+      byval from as int32, byref fromDir as string, byref pkgName as string, _
       byref pkgRoot as string )
 
-    for k as long = 0 to pr.imports.Count - 1
+    for k as int32 = 0 to pr.imports.Count - 1
         dim as ModWhere w
         if ResolveImport( ctx, pr.imports[k], fromDir, pkgName, pkgRoot, w ) = false then
             continue for
         end if
-        dim as long m = NodeFor_( g, w, pr.imports[k].loc )
+        dim as int32 m = NodeFor_( g, w, pr.imports[k].loc )
         if from < 0 then continue for
-        g.edgeFrom.Push( cast( ulong, from ) )
-        g.edgeTo.Push( cast( ulong, m ) )
-        g.edgeLoc.Push( cast( ulong, pr.imports[k].loc ) )
+        g.edgeFrom.Push( cast( uint32, from ) )
+        g.edgeTo.Push( cast( uint32, m ) )
+        g.edgeLoc.Push( cast( uint32, pr.imports[k].loc ) )
     next
 end sub
 
 private sub ExpandNode_ _
-    ( byref ctx as Tko.CompilerContext, byref g as ModGraph, byval n as long, byval quiet as boolean )
+    ( byref ctx as Tko.CompilerContext, byref g as ModGraph, byval n as int32, byval quiet as boolean )
     dim as string dir_ = g.dirs[n]
     dim as Tko.StrVec files
     ModuleFiles( dir_, files )
-    g.fileFirst.Push( cast( ulong, g.fileIds.Count ) )
+    g.fileFirst.Push( cast( uint32, g.fileIds.Count ) )
     if files.Count = 0 then
         ctx.diags.Report( Tko.TKO0147, Tko.PointRange( cast( Tko.SourceLoc, g.firstLoc[n] ) ), dir_ )
         '' Its count too, or every later node's files are read from the wrong place.
@@ -98,7 +98,7 @@ private sub ExpandNode_ _
             ctx.diags.ReportGlobal( Tko.TKO0001, path_, Tko.Text.UStringToUtf8( why ) )
             continue for
         end if
-        g.fileIds.Push( cast( ulong, id ) )
+        g.fileIds.Push( cast( uint32, id ) )
         dim as Tko.PpResult pr
         ScanFile_( ctx, id, false, pr, quiet )
         '' A module file that is not one is the compile's to report when the scan is quiet.
@@ -110,21 +110,21 @@ private sub ExpandNode_ _
         dim as string pr_ = g.pkgRoots[n]
         AddImports_( ctx, g, pr, n, dir_, pn, pr_ )
     next
-    g.fileCount.Push( cast( ulong, g.fileIds.Count ) - g.fileFirst[n] )
+    g.fileCount.Push( cast( uint32, g.fileIds.Count ) - g.fileFirst[n] )
 end sub
 
 '' ------------------------------------------------------------------ cycles
 
 private sub ReportCycle_( byref ctx as Tko.CompilerContext, byref g as ModGraph, _
-                          byval fromK as long, byval closing as long )
+                          byval fromK as int32, byval closing as int32 )
     dim as string text_ = ""
-    for k as long = fromK to g.stackNode.Count - 1
+    for k as int32 = fromK to g.stackNode.Count - 1
         text_ += g.chains[g.stackNode[k]] & " -> "
     next
     text_ += g.chains[g.edgeTo[closing]]
     ctx.diags.Report( Tko.TKO0141, _
         Tko.PointRange( cast( Tko.SourceLoc, g.edgeLoc[closing] ) ), text_ )
-    for k as long = fromK + 1 to g.stackNode.Count - 1
+    for k as int32 = fromK + 1 to g.stackNode.Count - 1
         ctx.diags.AddNote( Tko.TKO0906, _
             Tko.PointRange( cast( Tko.SourceLoc, g.edgeLoc[g.stackEdge[k]] ) ) )
     next
@@ -132,18 +132,18 @@ private sub ReportCycle_( byref ctx as Tko.CompilerContext, byref g as ModGraph,
 end sub
 
 private sub Visit_( byref ctx as Tko.CompilerContext, byref g as ModGraph, _
-                    byval n as long, byval via as long )
+                    byval n as int32, byval via as int32 )
     g.color[n] = 1
-    g.stackNode.Push( cast( ulong, n ) )
-    g.stackEdge.Push( cast( ulong, iif( via < 0, 0, via ) ) )
-    for e as long = 0 to g.edgeFrom.Count - 1
+    g.stackNode.Push( cast( uint32, n ) )
+    g.stackEdge.Push( cast( uint32, iif( via < 0, 0, via ) ) )
+    for e as int32 = 0 to g.edgeFrom.Count - 1
         if g.cycled then exit for
-        if cast( long, g.edgeFrom[e] ) <> n then continue for
-        dim as long m = g.edgeTo[e]
+        if cast( int32, g.edgeFrom[e] ) <> n then continue for
+        dim as int32 m = g.edgeTo[e]
         if g.color[m] = 1 then
-            dim as long fromK = 0
-            for k as long = 0 to g.stackNode.Count - 1
-                if cast( long, g.stackNode[k] ) = m then fromK = k
+            dim as int32 fromK = 0
+            for k as int32 = 0 to g.stackNode.Count - 1
+                if cast( int32, g.stackNode[k] ) = m then fromK = k
             next
             ReportCycle_( ctx, g, fromK, e )
         elseif g.color[m] = 0 then
@@ -159,18 +159,18 @@ end sub
 
 '' Dependencies first; among the modules that are ready, the least chain.
 private sub Order_( byref g as ModGraph, byref order as Tko.IdVec )
-    dim as long n = g.chains.Count
+    dim as int32 n = g.chains.Count
     dim as Tko.IdVec placed
-    for i as long = 0 to n - 1
+    for i as int32 = 0 to n - 1
         placed.Push( 0 )
     next
-    for round_ as long = 1 to n
-        dim as long best = -1
-        for i as long = 0 to n - 1
+    for round_ as int32 = 1 to n
+        dim as int32 best = -1
+        for i as int32 = 0 to n - 1
             if placed[i] <> 0 then continue for
             dim as boolean ready = true
-            for e as long = 0 to g.edgeFrom.Count - 1
-                if cast( long, g.edgeFrom[e] ) <> i then continue for
+            for e as int32 = 0 to g.edgeFrom.Count - 1
+                if cast( int32, g.edgeFrom[e] ) <> i then continue for
                 if placed[g.edgeTo[e]] = 0 then ready = false : exit for
             next
             if ready = false then continue for
@@ -182,23 +182,23 @@ private sub Order_( byref g as ModGraph, byref order as Tko.IdVec )
         next
         if best < 0 then exit for         '' only after a cycle, which is reported already
         placed[best] = 1
-        order.Push( cast( ulong, best ) )
+        order.Push( cast( uint32, best ) )
     next
 end sub
 
 function BuildGraph _
-    ( byref ctx as Tko.CompilerContext, byval rootCount as long, byval quiet as boolean, _
+    ( byref ctx as Tko.CompilerContext, byval rootCount as int32, byval quiet as boolean, _
       byref g as ModGraph ) as boolean
 
     if rootCount < 1 then return true
-    dim as long errorsBefore = ctx.diags.ErrorCount( )
+    dim as int32 errorsBefore = ctx.diags.ErrorCount( )
 
     '' The root files' package: the FIRST root file's directory (RFC-0007 §1).
     '' The roots' package: the nearest tiko.toml's, else the anonymous one (RFC-0007 §1).
     ResetPackages( ctx )
     dim as string anon, rootDir
     if RootPackage( ctx, anon, rootDir ) = false then return false
-    for r as long = 1 to rootCount
+    for r as int32 = 1 to rootCount
         dim as Tko.FileId id = cast( Tko.FileId, r )
         dim as Tko.PpResult pr
         ScanFile_( ctx, id, true, pr, quiet )
@@ -207,16 +207,16 @@ function BuildGraph _
     next
 
     '' The worklist is the node list itself: expanding a node appends the new ones.
-    dim as long i = 0
+    dim as int32 i = 0
     while i < g.chains.Count
         ExpandNode_( ctx, g, i, quiet )
         i += 1
     wend
 
-    for k as long = 0 to g.chains.Count - 1
+    for k as int32 = 0 to g.chains.Count - 1
         g.color.Push( 0 )
     next
-    for k as long = 0 to g.chains.Count - 1
+    for k as int32 = 0 to g.chains.Count - 1
         if g.cycled then exit for
         if g.color[k] = 0 then Visit_( ctx, g, k, -1 )
     next
@@ -226,7 +226,7 @@ function BuildGraph _
     return true
 end function
 
-function PrintGraph( byref ctx as Tko.CompilerContext, byval rootCount as long ) as long
+function PrintGraph( byref ctx as Tko.CompilerContext, byval rootCount as int32 ) as int32
     dim as ModGraph g
     dim as boolean built = BuildGraph( ctx, rootCount, false, g )
     '' 'tiko metadata' HEARS WHAT IS KNOWN EVEN WHEN THE GRAPH HAS AN ERROR: the search
@@ -242,23 +242,23 @@ function PrintGraph( byref ctx as Tko.CompilerContext, byval rootCount as long )
     end if
     dim as Tko.IdVec order
     if built then
-        for each o as ulong in g.order
+        for each o as uint32 in g.order
             order.Push( o )
         next
     else
-        for k as long = 0 to g.fileCount.Count - 1
-            order.Push( cast( ulong, k ) )
+        for k as int32 = 0 to g.fileCount.Count - 1
+            order.Push( cast( uint32, k ) )
         next
     end if
-    dim as long width_ = 0
-    for k as long = 0 to g.chains.Count - 1
+    dim as int32 width_ = 0
+    for k as int32 = 0 to g.chains.Count - 1
         if len( g.chains[k] ) > width_ then width_ = len( g.chains[k] )
     next
-    for each n as ulong in order
+    for each n as uint32 in order
         dim as string ln = g.chains[n] & space( width_ - len( g.chains[n] ) + 2 ) & g.dirs[n]
         '' What it imports, by chain, sorted and once each.
         dim as Tko.StrVec deps
-        for e as long = 0 to g.edgeFrom.Count - 1
+        for e as int32 = 0 to g.edgeFrom.Count - 1
             if g.edgeFrom[e] <> n then continue for
             dim as string c = g.chains[g.edgeTo[e]]
             dim as boolean seen = false
@@ -266,7 +266,7 @@ function PrintGraph( byref ctx as Tko.CompilerContext, byval rootCount as long )
                 if d = c then seen = true : exit for
             next
             if seen then continue for
-            dim as long at = deps.Count
+            dim as int32 at = deps.Count
             deps.Push( c )
             while at > 0
                 if deps[at - 1] <= c then exit while
@@ -278,7 +278,7 @@ function PrintGraph( byref ctx as Tko.CompilerContext, byval rootCount as long )
         '' 'tiko metadata' LISTENS INSTEAD (src/build): the module, its files and its imports.
         if ctx.build <> 0 then
             dim as Tko.StrVec files
-            for k as long = 0 to g.fileCount[n] - 1
+            for k as int32 = 0 to g.fileCount[n] - 1
                 files.Push( ctx.sources.PathOf( cast( Tko.FileId, g.fileIds[g.fileFirst[n] + k] ) ) )
             next
             Tko.Build.OnModule( ctx.build, g.chains[n], g.dirs[n], g.pkgNames[n], files, deps )
@@ -286,7 +286,7 @@ function PrintGraph( byref ctx as Tko.CompilerContext, byval rootCount as long )
         end if
         if deps.Count > 0 then
             ln += "  ["
-            for d as long = 0 to deps.Count - 1
+            for d as int32 = 0 to deps.Count - 1
                 if d > 0 then ln += " "
                 ln += deps[d]
             next

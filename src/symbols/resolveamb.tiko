@@ -44,7 +44,7 @@ private function ReadCallAssignAsCall_ _
     if c.ast->Kind( sp->a ) <> Tko.N_CALL then return false
     '' Only a plain '=': '+=' and its family are never a comparison, and neither is '=>'.
     if cast( Tko.TokenKind, sp->op ) <> Tko.TK_EQ then return false
-    if (c.ast->nodes[cast( long, id )].flags and Tko.NF_FAT_ARROW) <> 0 then return false
+    if (c.ast->nodes[cast( int32, id )].flags and Tko.NF_FAT_ARROW) <> 0 then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
     '' A MEMBER CALL HAS NOT BOUND YET. Resolve runs before Check, so
     '' 'a.At( 2 ) = 88' has no RefOf on its member node and 'sid' falls back to the
@@ -59,11 +59,11 @@ private function ReadCallAssignAsCall_ _
     '' The member is therefore looked up BY NAME in the base's own type scope --
     '' what matters is only whether the name is a PROCEDURE, not which overload.
     if s <> 0 then
-        if s->kind <> cast( ubyte, Tko.SYM_PROC ) then
+        if s->kind <> cast( uint8, Tko.SYM_PROC ) then
             dim as Tko.NodeId cal2 = ListOf( c, sp->a )->target
             if c.ast->Kind( cal2 ) = Tko.N_MEMBER then
                 dim as Tko.BinaryPayload ptr mb2 = _
-                    @c.ast->binaries[cast( long, c.ast->nodes[cast( long, cal2 )].data )]
+                    @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, cal2 )].data )]
                 '' THE BASE VARIABLE'S DECLARED TYPE, not the expression's. Resolve
                 '' runs before Check, so TypeOf_ on the base is TYPE_NONE here --
                 '' measured -- while the symbol the base bound to already carries it.
@@ -84,7 +84,7 @@ private function ReadCallAssignAsCall_ _
                                     tsy2->inner, IdentNameOf( c, mb2->rhs ) )
                                 dim as Tko.Symbol ptr msy2 = c.syms->SymbolAt( mm2 )
                                 if msy2 <> 0 then
-                                    if msy2->kind = cast( ubyte, Tko.SYM_PROC ) then
+                                    if msy2->kind = cast( uint8, Tko.SYM_PROC ) then
                                         '' A PROPERTY IS NOT FOLDED. 'p.Item( 2 ) = 7'
                                         '' is a SETTER CALL, which is the one member
                                         '' shape where the '=' really is the value --
@@ -96,7 +96,7 @@ private function ReadCallAssignAsCall_ _
                                         if mpn2 <> Tko.NODE_NONE then
                                             if c.ast->Kind( mpn2 ) = Tko.N_PROC then
                                                 isProp2 = (StmtOf( c, mpn2 )->op = _
-                                                    cast( ushort, Tko.KW_PROPERTY ))
+                                                    cast( uint16, Tko.KW_PROPERTY ))
                                             end if
                                         end if
                                         if isProp2 = false then s = msy2
@@ -110,7 +110,7 @@ private function ReadCallAssignAsCall_ _
         end if
     end if
     if s = 0 then return false
-    if s->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    if s->kind <> cast( uint8, Tko.SYM_PROC ) then return false
 
     dim as Tko.ListPayload ptr lp = ListOf( c, sp->a )
     '' EXACTLY ONE WRITTEN ARGUMENT, not "at least one" (T19). fbc re-reads 'f( x ) = v' because
@@ -130,19 +130,19 @@ private function ReadCallAssignAsCall_ _
     '' THE REWRITE. The arena is plain data, so the node is appended the way the
     '' parser appends one; nothing else here builds nodes, which is why this is
     '' spelled out rather than borrowed.
-    dim as long lastIx = lp->first + lp->count - 1
+    dim as int32 lastIx = lp->first + lp->count - 1
     dim as Tko.BinaryPayload bp
-    bp.op = cast( ushort, Tko.TK_EQ )
+    bp.op = cast( uint16, Tko.TK_EQ )
     bp.lhs = cast( Tko.NodeId, c.ast->children[lastIx] )
     bp.rhs = sp->b
     c.ast->binaries.Push( bp )
     dim as Tko.AstNode bn
-    bn.kind = cast( ushort, Tko.N_BINARY )
+    bn.kind = cast( uint16, Tko.N_BINARY )
     bn.flags = Tko.NF_FOLDED_EQ         '' Check's warning 34 reads it -- byrefcheck.tiko (T19)
     bn.loc = c.ast->Loc( id )
-    bn.data = cast( ulong, c.ast->binaries.Count - 1 )
+    bn.data = cast( uint32, c.ast->binaries.Count - 1 )
     c.ast->nodes.Push( bn )
-    c.ast->children[lastIx] = cast( ulong, c.ast->nodes.Count - 1 )
+    c.ast->children[lastIx] = cast( uint32, c.ast->nodes.Count - 1 )
 
     '' The statement is now a CALL and nothing else: its assigned value has moved
     '' inside the argument, and leaving 'b' set would lower it twice.
@@ -186,7 +186,7 @@ private function ReadDotArgAsCall_ _
     if c.ast->Kind( mnode ) <> Tko.N_MEMBER then return false
 
     dim as Tko.BinaryPayload ptr mb = _
-        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, mnode )].data )]
+        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, mnode )].data )]
     dim as Tko.NodeId base_ = mb->lhs
     if base_ = Tko.NODE_NONE then return false
 
@@ -206,7 +206,7 @@ private function ReadDotArgAsCall_ _
         '' absent, or '..x', whose base is the global-scope marker. 'a.b.c' over a real
         '' variable is none of this and is left exactly as it parsed.
         dim as Tko.BinaryPayload ptr bb = _
-            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, base_ )].data )]
+            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, base_ )].data )]
         dim as boolean leadingDot = (bb->lhs = Tko.NODE_NONE)
         if leadingDot = false then
             leadingDot = (c.ast->Kind( bb->lhs ) = Tko.N_GLOBALSCOPE)
@@ -219,7 +219,7 @@ private function ReadDotArgAsCall_ _
     '' path and its ordinary diagnostic.
     dim as Tko.Symbol ptr bs = c.syms->SymbolAt( c.info->RefOf( base_ ) )
     if bs = 0 then return false
-    if bs->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    if bs->kind <> cast( uint8, Tko.SYM_PROC ) then return false
 
     '' THE REWRITE. Dropping the member's base turns '<.Proc>.Fn' back into the '.Fn'
     '' it was written as, and the whole of what the postfix parser built becomes the
@@ -229,8 +229,8 @@ private function ReadDotArgAsCall_ _
     dim as Tko.NodeId newArg = sp->a
     mb->lhs = Tko.NODE_NONE
 
-    dim as long oldFirst = sp->first
-    dim as long oldCount = sp->count
+    dim as int32 oldFirst = sp->first
+    dim as int32 oldCount = sp->count
 
     '' AN ELIDED FIRST ARGUMENT IS THE HOLE THIS CALL LEFT, and it is filled rather
     '' than pushed past. '.Take3 .InnerP( h, 0 ), 1, 2' reaches here as the head plus
@@ -239,7 +239,7 @@ private function ReadDotArgAsCall_ _
     '' no longer in the list -- the same shape ParseAmbiguous lifts for 'proc (x), y',
     '' which only handles the one-argument group. Prepending in front of it made a
     '' four-argument call of a three-argument SUB, and the call declined to lower.
-    dim as long skip = 0
+    dim as int32 skip = 0
     if oldCount > 0 then
         if c.ast->Kind( cast( Tko.NodeId, c.ast->children[oldFirst] ) ) = _
            Tko.N_ELIDED then skip = 1
@@ -258,8 +258,8 @@ private function ReadDotArgAsCall_ _
     '' AfxNova's CImageCtx alone: '.SendMessageW .GetParent( hwnd ), uMsg, wParam,
     '' lParam'.
     if (skip = 0) andalso (oldCount > 0) andalso (c.ast->Kind( sp->a ) = Tko.N_MEMBER) then
-        dim as ulong inner = c.ast->children[oldFirst]
-        dim as long liftFirst = c.ast->children.Count
+        dim as uint32 inner = c.ast->children[oldFirst]
+        dim as int32 liftFirst = c.ast->children.Count
         c.ast->children.Push( inner )
         dim as Tko.ListPayload lp2
         lp2.target = newArg
@@ -267,10 +267,10 @@ private function ReadDotArgAsCall_ _
         lp2.count = 1
         c.ast->lists.Push( lp2 )
         dim as Tko.AstNode cn
-        cn.kind = cast( ushort, Tko.N_CALL )
+        cn.kind = cast( uint16, Tko.N_CALL )
         cn.flags = 0
         cn.loc = c.ast->Loc( newArg )
-        cn.data = cast( ulong, c.ast->lists.Count - 1 )
+        cn.data = cast( uint32, c.ast->lists.Count - 1 )
         c.ast->nodes.Push( cn )
         newArg = cast( Tko.NodeId, c.ast->nodes.Count - 1 )
         '' THE SIDE TABLES ARE SIZED TO THE NODE COUNT, and this node did not exist when
@@ -284,16 +284,16 @@ private function ReadDotArgAsCall_ _
 
     '' THROUGH A LOCAL. Pushing an element of the same vector passes a reference into
     '' storage the push may have just reallocated.
-    dim as long newFirst = c.ast->children.Count
-    c.ast->children.Push( cast( ulong, newArg ) )
-    for i as long = skip to oldCount - 1
-        dim as ulong ch = c.ast->children[oldFirst + i]
+    dim as int32 newFirst = c.ast->children.Count
+    c.ast->children.Push( cast( uint32, newArg ) )
+    for i as int32 = skip to oldCount - 1
+        dim as uint32 ch = c.ast->children[oldFirst + i]
         c.ast->children.Push( ch )
     next
     sp->first = newFirst
     sp->count = oldCount + 1 - skip
     sp->a = base_
-    c.ast->nodes[cast( long, base_ )].flags or= Tko.NF_CALL_TARGET  '' the statement's callee
+    c.ast->nodes[cast( int32, base_ )].flags or= Tko.NF_CALL_TARGET  '' the statement's callee
 
     '' RE-WALKED, because the first walk bound it as a member of the base and this is
     '' not that any more: the name has to find the one at global scope now.
@@ -312,7 +312,7 @@ private function PropertyNameSym_ _
 
     dim as Tko.Symbol ptr hs = c.syms->SymbolAt( headSid )
     if hs <> 0 then
-        if hs->kind = cast( ubyte, Tko.SYM_PROC ) then return headSid
+        if hs->kind = cast( uint8, Tko.SYM_PROC ) then return headSid
     end if
 
     dim as Tko.NodeId callee = ListOf( c, callNode )->target
@@ -323,7 +323,7 @@ private function PropertyNameSym_ _
     dim as Tko.SymbolId msid = c.info->RefOf( callee )
     dim as Tko.Symbol ptr ms = c.syms->SymbolAt( msid )
     if ms <> 0 then
-        if ms->kind = cast( ubyte, Tko.SYM_PROC ) then return msid
+        if ms->kind = cast( uint8, Tko.SYM_PROC ) then return msid
     end if
 
     if hs = 0 then return headSid
@@ -340,7 +340,7 @@ private function PropertyNameSym_ _
     if tsy->inner = Tko.SCOPE_NONE then return headSid
 
     dim as Tko.BinaryPayload ptr mb = _
-        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, callee )].data )]
+        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, callee )].data )]
     dim as Tko.SymbolId mm = c.syms->LookupLocal( tsy->inner, IdentNameOf( c, mb->rhs ) )
     if mm = Tko.SYMBOL_NONE then return headSid
     return mm
@@ -354,16 +354,16 @@ private function HasPropertySetter_ _
     ( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
 
     dim as Tko.SymbolId cur = sid
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 1000)
         guard += 1
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
         if s = 0 then exit while
-        if s->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
+        if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
             dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
-            if pp->op = cast( ushort, Tko.KW_PROPERTY ) then
+            if pp->op = cast( uint16, Tko.KW_PROPERTY ) then
                 '' No result node is what makes a property a SETTER.
                 if pp->a = Tko.NODE_NONE then return true
             end if
@@ -379,7 +379,7 @@ private sub ResolveAmbiguous _
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     WalkExpr( c, sp->a, scope_ )
     WalkExpr( c, sp->b, scope_ )
-    for i as long = 0 to sp->count - 1
+    for i as int32 = 0 to sp->count - 1
         WalkExpr( c, cast( Tko.NodeId, c.ast->children[sp->first + i] ), scope_ )
     next
 
@@ -401,12 +401,12 @@ private sub ResolveAmbiguous _
 
     '' The target's head symbol: for a.b.c the head is a.
     dim as Tko.NodeId head = sp->a
-    dim as long guard = 0
+    dim as int32 guard = 0
     while guard < 64
         guard += 1
         dim as Tko.NodeKind hk = c.ast->Kind( head )
         if hk = Tko.N_MEMBER then
-            head = c.ast->binaries[cast( long, c.ast->nodes[cast( long, head )].data )].lhs
+            head = c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, head )].data )].lhs
         elseif (hk = Tko.N_CALL) orelse (hk = Tko.N_INDEX) then
             head = ListOf( c, head )->target
         else
@@ -514,15 +514,15 @@ private sub ResolveAmbiguous _
         '' PROPERTY is a setter call, and another overload of the current function is its own
         '' result, so neither is judged.
         if (isResult = false) andalso bareName andalso (s <> 0) then
-            if s->kind = cast( ubyte, Tko.SYM_PROC ) then
+            if s->kind = cast( uint8, Tko.SYM_PROC ) then
                 dim as Tko.NodeId fpn = cast( Tko.NodeId, s->payload )
                 dim as boolean isFunc = false
                 if (fpn <> Tko.NODE_NONE) andalso (c.ast->Kind( fpn ) = Tko.N_PROC) then
-                    isFunc = (StmtOf( c, fpn )->op = cast( ushort, Tko.KW_FUNCTION ))
+                    isFunc = (StmtOf( c, fpn )->op = cast( uint16, Tko.KW_FUNCTION ))
                 end if
                 dim as boolean ownOverload = false
                 dim as Tko.SymbolId ov = sid
-                for guard as long = 0 to 255
+                for guard as int32 = 0 to 255
                     if ov = Tko.SYMBOL_NONE then exit for
                     if ov = c.currentProc then ownOverload = true
                     ov = c.syms->SymbolAt( ov )->nextOverload
@@ -596,7 +596,7 @@ private function TypeIsIncomplete_ _
     ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
 
     dim as Tko.TypeId u = t
-    for depth as long = 0 to 15
+    for depth as int32 = 0 to 15
         if u = Tko.TYPE_NONE then return false
         u = c.types->Unqualify( u )
         select case c.types->Kind( u )

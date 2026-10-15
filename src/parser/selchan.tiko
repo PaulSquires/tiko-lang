@@ -45,11 +45,11 @@ declare function IsContextual _
     ( byref p as Tko.ParserState, byref word as string ) as boolean
 
 '' The five case forms, in the order the dispatch chain tests them.
-const SELCASE_RECV    as long = 0
-const SELCASE_SEND    as long = 1
-const SELCASE_DISCARD as long = 2
-const SELCASE_TIMEOUT as long = 3
-const SELCASE_ELSE    as long = 4
+const SELCASE_RECV    as int32 = 0
+const SELCASE_SEND    as int32 = 1
+const SELCASE_DISCARD as int32 = 2
+const SELCASE_TIMEOUT as int32 = 3
+const SELCASE_ELSE    as int32 = 4
 
 '' 'select channel' is spelled with a CONTEXTUAL word: 'channel' is not reserved, so it
 '' arrives as an identifier and is recognised by spelling, exactly as 'defer', 'spawn'
@@ -80,7 +80,7 @@ private function SelDot_ _
     ( byref p as Tko.ParserState, byval lc as Tko.SourceLoc, _
       byval lhs as Tko.NodeId, byref nm as string ) as Tko.NodeId
     dim as Tko.BinaryPayload bp
-    bp.op = cast( ushort, Tko.TK_DOT )
+    bp.op = cast( uint16, Tko.TK_DOT )
     bp.lhs = lhs
     bp.rhs = SelIdent_( p, lc, nm )
     p.ast->binaries.Push( bp )
@@ -127,12 +127,12 @@ private function SelDim_ _
     item.a = ty
     item.b = init_
     dim as Tko.NodeIdVec items
-    items.Push( cast( ulong, MakeStmt( p, Tko.N_VAR_ITEM, lc, item ) ) )
+    items.Push( cast( uint32, MakeStmt( p, Tko.N_VAR_ITEM, lc, item ) ) )
     dim as Tko.StmtPayload dsp
-    dsp.op = cast( ushort, iif( isVar, Tko.KW_VAR, Tko.KW_DIM ) )
+    dsp.op = cast( uint16, iif( isVar, Tko.KW_VAR, Tko.KW_DIM ) )
     dsp.first = p.ast->children.Count
     dsp.count = items.Count
-    for i as long = 0 to items.Count - 1
+    for i as int32 = 0 to items.Count - 1
         p.ast->children.Push( items[i] )
     next
     return MakeStmt( p, Tko.N_VAR, lc, dsp )
@@ -140,15 +140,15 @@ end function
 
 '' An integer literal, for the case indices and the two negative sentinels.
 private function SelInt_ _
-    ( byref p as Tko.ParserState, byval lc as Tko.SourceLoc, byval v as longint ) as Tko.NodeId
+    ( byref p as Tko.ParserState, byval lc as Tko.SourceLoc, byval v as int64 ) as Tko.NodeId
     dim as Tko.LiteralPayload lp
-    lp.intValue = cast( ulongint, abs( v ) )
+    lp.intValue = cast( uint64, abs( v ) )
     lp.radix = 10
     p.ast->literals.Push( lp )
     dim as Tko.NodeId n = NewNodeAt( p, Tko.N_INT_LIT, lc, p.ast->literals.Count - 1 )
     if v < 0 then
         dim as Tko.UnaryPayload up
-        up.op = cast( ushort, Tko.TK_MINUS )
+        up.op = cast( uint16, Tko.TK_MINUS )
         up.operand = n
         p.ast->unaries.Push( up )
         n = NewNodeAt( p, Tko.N_UNARY, lc, p.ast->unaries.Count - 1 )
@@ -161,7 +161,7 @@ private function SelEq_ _
     ( byref p as Tko.ParserState, byval lc as Tko.SourceLoc, _
       byval lhs as Tko.NodeId, byval rhs as Tko.NodeId ) as Tko.NodeId
     dim as Tko.BinaryPayload bp
-    bp.op = cast( ushort, Tko.TK_EQ )
+    bp.op = cast( uint16, Tko.TK_EQ )
     bp.lhs = lhs
     bp.rhs = rhs
     p.ast->binaries.Push( bp )
@@ -199,10 +199,10 @@ function ParseSelectChannel_ _
     dim as Tko.SourceLoc lc = t.loc
     Advance( p )                              '' past 'channel'
 
-    dim as containers.Array( of ulong ) kinds
-    dim as containers.Array( of ulong ) chans         '' the channel expression
-    dim as containers.Array( of ulong ) vals          '' a send's value / a receive's target
-    dim as containers.Array( of ulong ) bodies
+    dim as containers.Array( of uint32 ) kinds
+    dim as containers.Array( of uint32 ) chans         '' the channel expression
+    dim as containers.Array( of uint32 ) vals          '' a send's value / a receive's target
+    dim as containers.Array( of uint32 ) bodies
     dim as Tko.NodeId timeoutMs = Tko.NODE_NONE
     dim as Tko.NodeId timeoutBody = Tko.NODE_NONE
     dim as Tko.NodeId elseBody = Tko.NODE_NONE
@@ -256,10 +256,10 @@ function ParseSelectChannel_ _
                 bad = true
                 exit do
             end if
-            kinds.Push( cast( ulong, SELCASE_SEND ) )
-            chans.Push( cast( ulong, Expression( p ) ) )
-            vals.Push( cast( ulong, sv ) )
-            bodies.Push( cast( ulong, Block( p ) ) )
+            kinds.Push( cast( uint32, SELCASE_SEND ) )
+            chans.Push( cast( uint32, Expression( p ) ) )
+            vals.Push( cast( uint32, sv ) )
+            bodies.Push( cast( uint32, Block( p ) ) )
             continue do
         end if
 
@@ -281,10 +281,10 @@ function ParseSelectChannel_ _
             exit do
         end if
         Advance( p )
-        kinds.Push( cast( ulong, iif( rv = Tko.NODE_NONE, SELCASE_DISCARD, SELCASE_RECV ) ) )
-        chans.Push( cast( ulong, Expression( p ) ) )
-        vals.Push( cast( ulong, rv ) )
-        bodies.Push( cast( ulong, Block( p ) ) )
+        kinds.Push( cast( uint32, iif( rv = Tko.NODE_NONE, SELCASE_DISCARD, SELCASE_RECV ) ) )
+        chans.Push( cast( uint32, Expression( p ) ) )
+        vals.Push( cast( uint32, rv ) )
+        bodies.Push( cast( uint32, Block( p ) ) )
     loop
 
     '' BOTH A TIMEOUT AND AN ELSE (T79): fbc's error 365, reported at 'end select' as
@@ -318,24 +318,24 @@ function ParseSelectChannel_ _
     ctxTy.ownerName = SelName_( p, TasksNs( p ) )
     dim as Tko.NodeId ctxTyN = MakeStmt( p, Tko.N_TYPEREF, lc, ctxTy )
     TasksQual( p, ctxTyN, 1 )
-    body.Push( cast( ulong, SelDim_( p, lc, "__tkosel_sc", ctxTyN, Tko.NODE_NONE, false ) ) )
+    body.Push( cast( uint32, SelDim_( p, lc, "__tkosel_sc", ctxTyN, Tko.NODE_NONE, false ) ) )
 
     '' ---- registration, in SOURCE ORDER --------------------------------------
-    dim as long ci = 0
-    for i as long = 0 to kinds.Count - 1
+    dim as int32 ci = 0
+    for i as int32 = 0 to kinds.Count - 1
         dim as string cnm = "__tkosel_c" & trim( str( ci ) )
         '' 'var __cN = <channel expr>' -- the channel COPY, whose type is the
         '' channel's and needs no naming.
-        body.Push( cast( ulong, SelDim_( p, lc, cnm, Tko.NODE_NONE, _
+        body.Push( cast( uint32, SelDim_( p, lc, cnm, Tko.NODE_NONE, _
             cast( Tko.NodeId, chans[i] ), true ) ) )
 
         dim as Tko.NodeIdVec aargs
-        aargs.Push( cast( ulong, SelIdent_( p, lc, "__tkosel_sc" ) ) )
-        aargs.Push( cast( ulong, SelInt_( p, lc, ci ) ) )
-        aargs.Push( cast( ulong, SelIdent_( p, lc, cnm ) ) )
+        aargs.Push( cast( uint32, SelIdent_( p, lc, "__tkosel_sc" ) ) )
+        aargs.Push( cast( uint32, SelInt_( p, lc, ci ) ) )
+        aargs.Push( cast( uint32, SelIdent_( p, lc, cnm ) ) )
 
         dim as string addNm = "SelectAddRecv"
-        select case cast( long, kinds[i] )
+        select case cast( int32, kinds[i] )
         case SELCASE_SEND
             '' The value goes in a temp of the CHANNEL'S ELEMENT type, which is
             '' spellable only as 'typeof( *c.ElemPtr( ) )' -- inferring it from the
@@ -345,7 +345,7 @@ function ParseSelectChannel_ _
             dim as Tko.NodeId ep = SelCallExpr_( p, lc, _
                 SelDot_( p, lc, SelIdent_( p, lc, cnm ), "ElemPtr" ), noargs )
             dim as Tko.UnaryPayload dp
-            dp.op = cast( ushort, Tko.TK_STAR )
+            dp.op = cast( uint16, Tko.TK_STAR )
             dp.operand = ep
             p.ast->unaries.Push( dp )
             dim as Tko.NodeId deref = NewNodeAt( p, Tko.N_DEREF, lc, p.ast->unaries.Count - 1 )
@@ -355,18 +355,18 @@ function ParseSelectChannel_ _
             dim as Tko.StmtPayload toType
             toType.b = deref
             toType.name = SelName_( p, "typeof" )
-            toType.op = cast( ushort, Tko.KW_TYPEOF )
+            toType.op = cast( uint16, Tko.KW_TYPEOF )
             dim as Tko.NodeId tyN = MakeStmt( p, Tko.N_TYPEREF, lc, toType )
-            body.Push( cast( ulong, SelDim_( p, lc, vnm, tyN, _
+            body.Push( cast( uint32, SelDim_( p, lc, vnm, tyN, _
                 cast( Tko.NodeId, vals[i] ), false ) ) )
-            aargs.Push( cast( ulong, SelIdent_( p, lc, vnm ) ) )
+            aargs.Push( cast( uint32, SelIdent_( p, lc, vnm ) ) )
             addNm = "SelectAddSend"
         case SELCASE_RECV
             aargs.Push( vals[i] )
         case else
             addNm = "SelectAddRecvDiscard"
         end select
-        body.Push( cast( ulong, SelCallStmt_( p, lc, SelFb_( p, lc, addNm ), aargs ) ) )
+        body.Push( cast( uint32, SelCallStmt_( p, lc, SelFb_( p, lc, addNm ), aargs ) ) )
         ci += 1
     next
 
@@ -374,80 +374,80 @@ function ParseSelectChannel_ _
     '' the receive and send cases left it.
     if sawTimeout then
         dim as Tko.NodeIdVec targs
-        targs.Push( cast( ulong, timeoutMs ) )
-        body.Push( cast( ulong, SelCallStmt_( p, lc, _
+        targs.Push( cast( uint32, timeoutMs ) )
+        body.Push( cast( uint32, SelCallStmt_( p, lc, _
             SelDot_( p, lc, SelIdent_( p, lc, "__tkosel_sc" ), "SetTimeout" ), targs ) ) )
     end if
     if sawElse then
         dim as Tko.NodeIdVec eargs
-        body.Push( cast( ulong, SelCallStmt_( p, lc, _
+        body.Push( cast( uint32, SelCallStmt_( p, lc, _
             SelDot_( p, lc, SelIdent_( p, lc, "__tkosel_sc" ), "SetElse" ), eargs ) ) )
     end if
 
     '' 'dim as long __f = FB.SelectRun( __sc )'
     dim as Tko.NodeIdVec rargs
-    rargs.Push( cast( ulong, SelIdent_( p, lc, "__tkosel_sc" ) ) )
+    rargs.Push( cast( uint32, SelIdent_( p, lc, "__tkosel_sc" ) ) )
     dim as Tko.StmtPayload longTy
     longTy.name = SelName_( p, "long" )
-    longTy.op = cast( ushort, Tko.KW_LONG )
-    body.Push( cast( ulong, SelDim_( p, lc, "__tkosel_f", _
+    longTy.op = cast( uint16, Tko.KW_LONG )
+    body.Push( cast( uint32, SelDim_( p, lc, "__tkosel_f", _
         MakeStmt( p, Tko.N_TYPEREF, lc, longTy ), _
         SelCallExpr_( p, lc, SelFb_( p, lc, "SelectRun" ), rargs ), false ) ) )
 
     '' ---- the dispatch chain -------------------------------------------------
     dim as Tko.NodeIdVec branches
     ci = 0
-    for i as long = 0 to kinds.Count - 1
+    for i as int32 = 0 to kinds.Count - 1
         dim as string cnm = "__tkosel_c" & trim( str( ci ) )
         dim as Tko.NodeIdVec items
         '' THE COMMIT RUNS ONLY ON THE POLL PATH: on the wake path the counterparty
         '' has already moved the value, and committing again would move a second.
         dim as Tko.NodeIdVec cargs
-        cargs.Push( cast( ulong, SelIdent_( p, lc, "__tkosel_sc" ) ) )
-        cargs.Push( cast( ulong, SelInt_( p, lc, ci ) ) )
-        cargs.Push( cast( ulong, SelIdent_( p, lc, cnm ) ) )
+        cargs.Push( cast( uint32, SelIdent_( p, lc, "__tkosel_sc" ) ) )
+        cargs.Push( cast( uint32, SelInt_( p, lc, ci ) ) )
+        cargs.Push( cast( uint32, SelIdent_( p, lc, cnm ) ) )
         dim as string comNm = "SelectCommitRecv"
-        if cast( long, kinds[i] ) = SELCASE_SEND then comNm = "SelectCommitSend"
+        if cast( int32, kinds[i] ) = SELCASE_SEND then comNm = "SelectCommitSend"
         dim as Tko.NodeIdVec guardItems
-        guardItems.Push( cast( ulong, SelCallStmt_( p, lc, SelFb_( p, lc, comNm ), cargs ) ) )
+        guardItems.Push( cast( uint32, SelCallStmt_( p, lc, SelFb_( p, lc, comNm ), cargs ) ) )
         dim as Tko.NodeIdVec prArgs
         dim as Tko.NodeIdVec guardBranches
-        guardBranches.Push( cast( ulong, SelBranch_( p, lc, _
+        guardBranches.Push( cast( uint32, SelBranch_( p, lc, _
             SelCallExpr_( p, lc, _
                 SelDot_( p, lc, SelIdent_( p, lc, "__tkosel_sc" ), "PolledReady" ), prArgs ), _
             guardItems ) ) )
-        items.Push( cast( ulong, SelChain_( p, lc, guardBranches ) ) )
+        items.Push( cast( uint32, SelChain_( p, lc, guardBranches ) ) )
         items.Push( bodies[i] )
-        branches.Push( cast( ulong, SelBranch_( p, lc, _
+        branches.Push( cast( uint32, SelBranch_( p, lc, _
             SelEq_( p, lc, SelIdent_( p, lc, "__tkosel_f" ), SelInt_( p, lc, ci ) ), items ) ) )
         ci += 1
     next
     if sawTimeout then
         dim as Tko.NodeIdVec titems
-        titems.Push( cast( ulong, timeoutBody ) )
-        branches.Push( cast( ulong, SelBranch_( p, lc, _
+        titems.Push( cast( uint32, timeoutBody ) )
+        branches.Push( cast( uint32, SelBranch_( p, lc, _
             SelEq_( p, lc, SelIdent_( p, lc, "__tkosel_f" ), SelInt_( p, lc, -2 ) ), titems ) ) )
     end if
     if sawElse then
         dim as Tko.NodeIdVec eitems
-        eitems.Push( cast( ulong, elseBody ) )
-        branches.Push( cast( ulong, SelBranch_( p, lc, _
+        eitems.Push( cast( uint32, elseBody ) )
+        branches.Push( cast( uint32, SelBranch_( p, lc, _
             SelEq_( p, lc, SelIdent_( p, lc, "__tkosel_f" ), SelInt_( p, lc, -3 ) ), eitems ) ) )
     end if
     if branches.Count > 0 then
-        body.Push( cast( ulong, SelChain_( p, lc, branches ) ) )
+        body.Push( cast( uint32, SelChain_( p, lc, branches ) ) )
     end if
 
     '' ---- the releases, in REVERSE registration order ------------------------
-    for i as long = kinds.Count - 1 to 0 step -1
+    for i as int32 = kinds.Count - 1 to 0 step -1
         dim as string cnm = "__tkosel_c" & trim( str( i ) )
         dim as Tko.NodeIdVec relArgs
-        relArgs.Push( cast( ulong, SelIdent_( p, lc, "__tkosel_sc" ) ) )
-        relArgs.Push( cast( ulong, SelInt_( p, lc, i ) ) )
-        relArgs.Push( cast( ulong, SelIdent_( p, lc, cnm ) ) )
+        relArgs.Push( cast( uint32, SelIdent_( p, lc, "__tkosel_sc" ) ) )
+        relArgs.Push( cast( uint32, SelInt_( p, lc, i ) ) )
+        relArgs.Push( cast( uint32, SelIdent_( p, lc, cnm ) ) )
         dim as string relNm = "SelectReleaseRecv"
-        if cast( long, kinds[i] ) = SELCASE_SEND then relNm = "SelectReleaseSend"
-        body.Push( cast( ulong, SelCallStmt_( p, lc, SelFb_( p, lc, relNm ), relArgs ) ) )
+        if cast( int32, kinds[i] ) = SELCASE_SEND then relNm = "SelectReleaseSend"
+        body.Push( cast( uint32, SelCallStmt_( p, lc, SelFb_( p, lc, relNm ), relArgs ) ) )
     next
 
     '' A SCOPE, so the context, the channel copies and the send temporaries are

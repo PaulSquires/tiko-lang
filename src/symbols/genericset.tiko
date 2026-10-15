@@ -6,7 +6,7 @@
 private function IsGenericProcSym_( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
     if s = 0 then return false
-    if s->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    if s->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if pn = Tko.NODE_NONE then return false
     if c.ast->Kind( pn ) <> Tko.N_PROC then return false
@@ -37,12 +37,12 @@ private function GenericOfSet_( byref c as Ctx, byval head as Tko.SymbolId ) as 
     dim as Tko.SymbolId found = Tko.SYMBOL_NONE
     dim as boolean ordinary = false
     dim as Tko.SymbolId cur = head
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
         if s = 0 then exit while
-        if s->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
+        if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
         if IsGenericProcSym_( c, cur ) then
             if found = Tko.SYMBOL_NONE then found = cur
         elseif (s->flags and Tko.SYMF_GENERIC_INST) = 0 then
@@ -57,12 +57,12 @@ end function
 '' THE FIRST ORDINARY PROCEDURE of the chain that starts at 'head', or SYMBOL_NONE.
 private function FirstOrdinaryOf_( byref c as Ctx, byval head as Tko.SymbolId ) as Tko.SymbolId
     dim as Tko.SymbolId cur = head
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
         if s = 0 then exit while
-        if s->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
+        if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
         if (IsGenericProcSym_( c, cur ) = false) andalso ((s->flags and Tko.SYMF_GENERIC_INST) = 0) then return cur
         cur = s->nextOverload
     wend

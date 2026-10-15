@@ -16,7 +16,7 @@
 '' ONE PARAMETER'S TYPE, off a procedure symbol. The same walk the lowering's
 '' ParamTypeAt does; Check needs it to look at a constructor it did not itself call.
 private function ProcParamTypeAt_ _
-    ( byref c as Ctx, byval proc_ as Tko.SymbolId, byval idx as long ) as Tko.TypeId
+    ( byref c as Ctx, byval proc_ as Tko.SymbolId, byval idx as int32 ) as Tko.TypeId
 
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( proc_ )
     if s = 0 then return Tko.TYPE_NONE
@@ -24,14 +24,14 @@ private function ProcParamTypeAt_ _
     if pn = Tko.NODE_NONE then return Tko.TYPE_NONE
     if c.ast->Kind( pn ) <> Tko.N_PROC then return Tko.TYPE_NONE
     dim as Tko.StmtPayload ptr pp = _
-        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, pn )].data )]
-    dim as long seen = 0
-    for i as long = 0 to pp->count - 1
+        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
+    dim as int32 seen = 0
+    for i as int32 = 0 to pp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         if seen = idx then
             dim as Tko.StmtPayload ptr ps = _
-                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )]
+                @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, prm )].data )]
             return c.info->TypeOf_( ps->a )
         end if
         seen += 1
@@ -41,7 +41,7 @@ end function
 
 '' How many parameters a procedure symbol was declared with.
 private function ProcParamCount_ _
-    ( byref c as Ctx, byval proc_ as Tko.SymbolId ) as long
+    ( byref c as Ctx, byval proc_ as Tko.SymbolId ) as int32
 
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( proc_ )
     if s = 0 then return -1
@@ -49,9 +49,9 @@ private function ProcParamCount_ _
     if pn = Tko.NODE_NONE then return -1
     if c.ast->Kind( pn ) <> Tko.N_PROC then return -1
     dim as Tko.StmtPayload ptr pp = _
-        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, pn )].data )]
-    dim as long np = 0
-    for i as long = 0 to pp->count - 1
+        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
+    dim as int32 np = 0
+    for i as int32 = 0 to pp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
         if c.ast->Kind( prm ) = Tko.N_PARAM then np += 1
     next
@@ -77,7 +77,7 @@ end function
 '' the DOUBLE overload. Saturating instead would have made the two tie.
 private function UserConvCost_ _
     ( byref c as Ctx, byval from_ as Tko.TypeId, byval to_ as Tko.TypeId, _
-      byval depth as long = 0, byval overloaded as boolean = false ) as long
+      byval depth as int32 = 0, byval overloaded as boolean = false ) as int32
 
     if (from_ = Tko.TYPE_NONE) orelse (to_ = Tko.TYPE_NONE) then return CONV_NONE
     dim as Tko.TypeId f = c.types->Unqualify( from_ )
@@ -90,7 +90,7 @@ private function UserConvCost_ _
     end if
     if f = t then return CONV_NONE
 
-    dim as long best = CONV_NONE
+    dim as int32 best = CONV_NONE
     '' A UDT INTO 'string': fbc's best cast against STRING must be text (castpick.tiko) -- [as zstring ptr, as ustring] is 58.
     dim as boolean udtToStr = cbool( (c.types->Kind( f ) = Tko.TK_UDT) andalso (c.types->Kind( t ) = Tko.TK_BUILTIN) )
     if udtToStr andalso cbool( c.types->BuiltinOf( t ) = Tko.TY_STRING ) andalso cbool( Tko.Check.UdtStrCastFit( *c.ast, *c.syms, *c.types, *c.names, f, Tko.Check.CT_STRING ) > 0 ) then return CONV_NONE
@@ -99,7 +99,7 @@ private function UserConvCost_ _
     '' parameter is not the destination type itself, which is the copy constructor.
     if c.types->Kind( t ) = Tko.TK_UDT then
         dim as Tko.SymbolId cur = UdtMemberSym_( c, t, "__ctor" )
-        dim as long guard = 0
+        dim as int32 guard = 0
         while (cur <> Tko.SYMBOL_NONE) andalso (guard < 1000)
             guard += 1
             dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
@@ -112,7 +112,7 @@ private function UserConvCost_ _
                         pu = c.types->Unqualify( c.types->Inner( pu ) )
                     end if
                     if pu <> t then
-                        dim as long sc = ConversionCost( f, pt, *c.types )
+                        dim as int32 sc = ConversionCost( f, pt, *c.types )
                         '' TWO CHAINED USER CONVERSIONS: a cast on the SOURCE that
                         '' answers what the conversion constructor wants. Measured --
                         '' 'u <> v' over a TV that casts to STRING and a TU built
@@ -145,7 +145,7 @@ private function UserConvCost_ _
     '' the target chosen by what the parameter wants rather than by a fixed class.
     if c.types->Kind( f ) = Tko.TK_UDT then
         dim as Tko.SymbolId cur = UdtMemberSym_( c, f, "cast" )
-        dim as long guard = 0
+        dim as int32 guard = 0
         while (cur <> Tko.SYMBOL_NONE) andalso (guard < 1000)
             guard += 1
             dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
@@ -189,7 +189,7 @@ private function UserConvCost_ _
                     if c.types->Kind( ru ) = Tko.TK_BUILTIN then strToPtr = IsStringy_( c.types->BuiltinOf( ru ) )
                     if c.types->Kind( ru ) = Tko.TK_POINTER then strToPtr = (Tko.Check.PtrCastReaches( *c.types, ru, t ) = false)   '' 'long ptr' to 'byte ptr' is 58
                 end if
-                dim as long sc = CONV_NONE
+                dim as int32 sc = CONV_NONE
                 if (anyPtrCast = false) andalso (strToPtr = false) then
                     sc = ConversionCost( ru, t, *c.types ) : if (sc > 0) andalso (sc < CONV_NONE) then sc = CONV_NUMERIC   '' cast + any conversion: one flat score, fbc's 98
                     if (sc = CONV_NUMERIC) andalso Tko.Check.StringSameWidth( *c.types, ru, t ) then sc = CONV_WIDEN   '' structpick.tiko
@@ -230,7 +230,7 @@ private function IsArrayArgShape_ _
     if c.ast->Kind( e ) <> Tko.N_CALL then return false
     if c.types->IsDynArray( c.types->Unqualify( c.info->TypeOf_( e ) ) ) then return true   '' 'f( )' that RETURNS an array
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
     if lp->count <> 0 then return false
     if lp->target = Tko.NODE_NONE then return false
     dim as Tko.TypeId tt = c.info->TypeOf_( lp->target )
@@ -243,13 +243,13 @@ end function
 '' redimrank.tiko, which Visibility's rank tests share. Only asked of an argument
 '' IsArrayArgShape_ accepted.
 private function ArgArrayRank_ _
-    ( byref c as Ctx, byval e as Tko.NodeId ) as long
+    ( byref c as Ctx, byval e as Tko.NodeId ) as int32
 
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
     dim as Tko.TypeId u = c.types->Unqualify( c.info->TypeOf_( lp->target ) )
-    if c.types->IsDynArray( u ) = false then return c.types->types[cast( long, u )].dims
-    dim as long r = c.types->DynRank( u )
+    if c.types->IsDynArray( u ) = false then return c.types->types[cast( int32, u )].dims
+    dim as int32 r = c.types->DynRank( u )
     if r > 0 then return r
     return Tko.RedimRank.FirstRank( *c.ast, *c.syms, *c.types, *c.info, _
                                     c.info->RefOf( lp->target ) )
@@ -333,7 +333,7 @@ declare function ProcHasBody_ _
 '' 'seen': 0 nothing, 1 an ordinary candidate none of which fits (TKO0820 at the caller), 2 a fit.
 private function UserBinaryOp_ _
     ( byref c as Ctx, byval op as Tko.TokenKind, byval lt as Tko.TypeId, _
-      byval rt as Tko.TypeId, byref seen as long ) as Tko.SymbolId
+      byval rt as Tko.TypeId, byref seen as int32 ) as Tko.SymbolId
 
     seen = 0
     dim as string nm = Tko.TokenKindText( op )
@@ -342,17 +342,17 @@ private function UserBinaryOp_ _
 
     '' The candidates: the left operand's members, the right operand's, then the scope
     '' the expression is written in.
-    dim as containers.Array( of ulong ) heads
+    dim as containers.Array( of uint32 ) heads
     dim as Tko.SymbolId h1 = UdtOperatorNamed_( c, lt, nm )
-    if h1 <> Tko.SYMBOL_NONE then heads.Push( cast( ulong, h1 ) )
+    if h1 <> Tko.SYMBOL_NONE then heads.Push( cast( uint32, h1 ) )
     dim as Tko.SymbolId h2 = UdtOperatorNamed_( c, rt, nm )
-    if (h2 <> Tko.SYMBOL_NONE) andalso (h2 <> h1) then heads.Push( cast( ulong, h2 ) )
+    if (h2 <> Tko.SYMBOL_NONE) andalso (h2 <> h1) then heads.Push( cast( uint32, h2 ) )
     '' FROM THE OPERAND TYPE'S OWN SCOPE, not from the expression's: Check has no
     '' current scope, and SCOPE_GLOBAL holds only the builtins -- the trap this
     '' codebase has now hit three times. A type and the operators over it are declared
     '' together, which is what makes the declaring scope the right place to look, and
     '' Lookup walks outward from there.
-    for si as long = 0 to 1
+    for si as int32 = 0 to 1
         dim as Tko.TypeId ot = iif( si = 0, lt, rt )
         if ot = Tko.TYPE_NONE then continue for
         dim as Tko.ScopeId sc = cast( Tko.ScopeId, c.types->DeclScopeOf( c.types->Unqualify( ot ) ) )
@@ -360,10 +360,10 @@ private function UserBinaryOp_ _
         dim as Tko.SymbolId h3 = c.syms->Lookup( sc, fold )
         if h3 = Tko.SYMBOL_NONE then continue for
         dim as boolean dup = false
-        for k as long = 0 to heads.Count - 1
+        for k as int32 = 0 to heads.Count - 1
             if cast( Tko.SymbolId, heads[k] ) = h3 then dup = true
         next
-        if dup = false then heads.Push( cast( ulong, h3 ) )
+        if dup = false then heads.Push( cast( uint32, h3 ) )
     next
 
     '' ...AND FROM ANY NAMESPACE NESTED INSIDE IT. Lookup walks OUTWARD, so an operator
@@ -372,7 +372,7 @@ private function UserBinaryOp_ _
     '' namespace/mangling-nested-namespace-abbreviation.bas writes, and fbc finds it
     '' with no 'using' at all -- measured, it compiles and prints 3. One level, and only
     '' namespaces: this is a lookup widening, not a scope-chain change.
-    for si as long = 0 to 1
+    for si as int32 = 0 to 1
         dim as Tko.TypeId ot2 = iif( si = 0, lt, rt )
         if ot2 = Tko.TYPE_NONE then continue for
         dim as Tko.ScopeId sc2 = _
@@ -381,21 +381,21 @@ private function UserBinaryOp_ _
         dim as Tko.SymScope ptr ss2 = c.syms->ScopeAt( sc2 )
         if ss2 = 0 then continue for
         dim as Tko.SymbolId m2 = ss2->firstSym
-        dim as long g2 = 0
+        dim as int32 g2 = 0
         while (m2 <> Tko.SYMBOL_NONE) andalso (g2 < 4096)
             g2 += 1
             dim as Tko.Symbol ptr ms2 = c.syms->SymbolAt( m2 )
             if ms2 = 0 then exit while
-            if ms2->kind = cast( ubyte, Tko.SYM_NAMESPACE ) then
+            if ms2->kind = cast( uint8, Tko.SYM_NAMESPACE ) then
                 if ms2->inner <> Tko.SCOPE_NONE then
                     dim as Tko.SymbolId h4 = _
                         c.syms->LookupLocal( cast( Tko.ScopeId, ms2->inner ), fold )
                     if h4 <> Tko.SYMBOL_NONE then
                         dim as boolean dup2 = false
-                        for k as long = 0 to heads.Count - 1
+                        for k as int32 = 0 to heads.Count - 1
                             if cast( Tko.SymbolId, heads[k] ) = h4 then dup2 = true
                         next
-                        if dup2 = false then heads.Push( cast( ulong, h4 ) )
+                        if dup2 = false then heads.Push( cast( uint32, h4 ) )
                     end if
                 end if
             end if
@@ -430,47 +430,47 @@ private function UserBinaryOp_ _
     ''
     '' Restricted to a UDT operand whose declaring scope is exactly SCOPE_GLOBAL, so a
     '' type declared at module or namespace level reaches nothing it did not already.
-    for si as long = 0 to 1
+    for si as int32 = 0 to 1
         dim as Tko.TypeId ot3 = iif( si = 0, lt, rt )
         if IsUdtOperand_( c, ot3 ) = false then continue for
         dim as Tko.ScopeId sc3 = _
             cast( Tko.ScopeId, c.types->DeclScopeOf( c.types->Unqualify( ot3 ) ) )
         if sc3 <> Tko.SCOPE_GLOBAL then continue for
-        for mi as long = 0 to c.syms->scopes.Count - 1
+        for mi as int32 = 0 to c.syms->scopes.Count - 1
             dim as Tko.ScopeId msc = cast( Tko.ScopeId, mi )
             dim as Tko.SymScope ptr ms3 = c.syms->ScopeAt( msc )
             if ms3 = 0 then continue for
-            if ms3->kind <> cast( ubyte, Tko.SCOPEK_MODULE ) then continue for
+            if ms3->kind <> cast( uint8, Tko.SCOPEK_MODULE ) then continue for
             dim as Tko.SymbolId h5 = c.syms->LookupLocal( msc, fold )
             if h5 = Tko.SYMBOL_NONE then continue for
             dim as boolean dup3 = false
-            for k as long = 0 to heads.Count - 1
+            for k as int32 = 0 to heads.Count - 1
                 if cast( Tko.SymbolId, heads[k] ) = h5 then dup3 = true
             next
-            if dup3 = false then heads.Push( cast( ulong, h5 ) )
+            if dup3 = false then heads.Push( cast( uint32, h5 ) )
         next
     next
     if heads.Count = 0 then return Tko.SYMBOL_NONE
 
     dim as Tko.SymbolId best = Tko.SYMBOL_NONE
-    dim as long bestCost = CONV_NONE
-    dim as long ties = 0
-    for hi as long = 0 to heads.Count - 1
+    dim as int32 bestCost = CONV_NONE
+    dim as int32 ties = 0
+    for hi as int32 = 0 to heads.Count - 1
         dim as Tko.SymbolId cur = cast( Tko.SymbolId, heads[hi] )
         while cur <> Tko.SYMBOL_NONE
             dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
             if s = 0 then exit while
-            if s->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
+            if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
             dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
             if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
                 dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
-                if pp->op = cast( ushort, Tko.KW_OPERATOR ) then
+                if pp->op = cast( uint16, Tko.KW_OPERATOR ) then
                     '' A MEMBER operator takes ONE parameter and the receiver; a
                     '' global one takes two.
-                    dim as long np = 0
+                    dim as int32 np = 0
                     dim as Tko.TypeId p0 = Tko.TYPE_NONE
                     dim as Tko.TypeId p1 = Tko.TYPE_NONE
-                    for i as long = 0 to pp->count - 1
+                    for i as int32 = 0 to pp->count - 1
                         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
                         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
                         if np = 0 then
@@ -491,12 +491,12 @@ private function UserBinaryOp_ _
                     '' TWO CHAINED user conversions -- a cast to STRING and then a
                     '' constructor FROM string -- are still not modelled, here or in
                     '' UserConvCost_, and still decline.
-                    dim as long total = CONV_NONE
+                    dim as int32 total = CONV_NONE
                     if np = 2 then
-                        dim as long c0 = ConversionCost( lt, p0, *c.types )
+                        dim as int32 c0 = ConversionCost( lt, p0, *c.types )
                         dim as boolean u0 = (c0 >= CONV_NONE)
                         if u0 then c0 = UserConvCost_( c, lt, p0 )
-                        dim as long c1 = ConversionCost( rt, p1, *c.types )
+                        dim as int32 c1 = ConversionCost( rt, p1, *c.types )
                         dim as boolean u1 = (c1 >= CONV_NONE)
                         if u1 then c1 = UserConvCost_( c, rt, p1 )
                         '' ONE OPERAND HAS TO BE THE OPERATOR'S OWN TYPE ALREADY. A global
@@ -532,10 +532,10 @@ private function UserBinaryOp_ _
                         '' as D )' win the binary '-' and be called with one operand.
                         dim as Tko.SymScope ptr osc = c.syms->ScopeAt( s->parent )
                         if osc <> 0 then
-                            if osc->kind = cast( ubyte, Tko.SCOPEK_TYPE ) then
+                            if osc->kind = cast( uint8, Tko.SCOPEK_TYPE ) then
                                 '' The receiver is the LEFT operand and is not costed:
                                 '' fbc only considers a member operator for its own type.
-                                dim as long c1 = ConversionCost( rt, p0, *c.types )
+                                dim as int32 c1 = ConversionCost( rt, p0, *c.types )
                                 if c1 >= CONV_NONE then c1 = UserConvCost_( c, rt, p0 )
                                 if c1 < CONV_NONE then total = c1
                             end if
@@ -583,42 +583,42 @@ function UserUnaryOp_ _
     if len( nm ) = 0 then return Tko.SYMBOL_NONE
     dim as Tko.InternId fold = c.names->Fold( c.names->GetString( nm ) )
 
-    dim as containers.Array( of ulong ) heads
+    dim as containers.Array( of uint32 ) heads
     dim as Tko.SymbolId h1 = UdtOperatorNamed_( c, ot, nm )
-    if h1 <> Tko.SYMBOL_NONE then heads.Push( cast( ulong, h1 ) )
+    if h1 <> Tko.SYMBOL_NONE then heads.Push( cast( uint32, h1 ) )
     dim as Tko.ScopeId sc = cast( Tko.ScopeId, c.types->DeclScopeOf( c.types->Unqualify( ot ) ) )
     if sc <> Tko.SCOPE_NONE then
         dim as Tko.SymbolId h2 = c.syms->Lookup( sc, fold )
-        if (h2 <> Tko.SYMBOL_NONE) andalso (h2 <> h1) then heads.Push( cast( ulong, h2 ) )
+        if (h2 <> Tko.SYMBOL_NONE) andalso (h2 <> h1) then heads.Push( cast( uint32, h2 ) )
     end if
     if heads.Count = 0 then return Tko.SYMBOL_NONE
 
     dim as Tko.SymbolId best = Tko.SYMBOL_NONE
-    dim as long bestCost = CONV_NONE
-    dim as long ties = 0
-    for hi as long = 0 to heads.Count - 1
+    dim as int32 bestCost = CONV_NONE
+    dim as int32 ties = 0
+    for hi as int32 = 0 to heads.Count - 1
         dim as Tko.SymbolId cur = cast( Tko.SymbolId, heads[hi] )
         while cur <> Tko.SYMBOL_NONE
             dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
             if s = 0 then exit while
-            if s->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
+            if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
             dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
             if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
                 dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
-                if pp->op = cast( ushort, Tko.KW_OPERATOR ) then
-                    dim as long np = 0
+                if pp->op = cast( uint16, Tko.KW_OPERATOR ) then
+                    dim as int32 np = 0
                     dim as Tko.TypeId p0 = Tko.TYPE_NONE
-                    for i as long = 0 to pp->count - 1
+                    for i as int32 = 0 to pp->count - 1
                         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
                         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
                         if np = 0 then p0 = c.info->TypeOf_( StmtOf( c, prm )->a )
                         np += 1
                     next
-                    dim as long total = CONV_NONE
+                    dim as int32 total = CONV_NONE
                     dim as Tko.SymScope ptr osc = c.syms->ScopeAt( s->parent )
                     dim as boolean member_ = false
                     if osc <> 0 then
-                        member_ = (osc->kind = cast( ubyte, Tko.SCOPEK_TYPE ))
+                        member_ = (osc->kind = cast( uint8, Tko.SCOPEK_TYPE ))
                     end if
                     if (np = 1) andalso (member_ = false) then
                         total = ConversionCost( ot, p0, *c.types )
@@ -696,11 +696,11 @@ private function BareTypeLiteral_ _
 
     if a = Tko.NODE_NONE then return false
     if c.ast->Kind( a ) <> Tko.N_TUPLE then return false
-    if (c.ast->nodes[cast( long, a )].flags and Tko.NF_TYPE_LITERAL) = 0 then
+    if (c.ast->nodes[cast( int32, a )].flags and Tko.NF_TYPE_LITERAL) = 0 then
         return false
     end if
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, a )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, a )].data )]
     return (lp->target = Tko.NODE_NONE)
 end function
 
@@ -709,19 +709,19 @@ end function
 
 private function ResolveCall_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval callee as Tko.SymbolId, _
-      byval argFirst as long, byval argCount as long ) as Tko.TypeId
+      byval argFirst as int32, byval argCount as int32 ) as Tko.TypeId
 
     '' Argument types first; an untyped argument makes the whole call undecidable
     '' rather than wrong.
-    dim as containers.Array( of ulong ) argT
-    for i as long = 0 to argCount - 1
+    dim as containers.Array( of uint32 ) argT
+    for i as int32 = 0 to argCount - 1
         dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[argFirst + i] )
         '' AN ELIDED ARGUMENT -- 'locate , 10' -- has no type and needs none: it takes
         '' the parameter's default, so it is recorded as TYPE_NONE and costed as a
         '' parameter that was not written at all. Treating it as an untyped argument
         '' made every call with a hole in it undecidable.
         if c.ast->Kind( a ) = Tko.N_ELIDED then
-            argT.Push( cast( ulong, Tko.TYPE_NONE ) )
+            argT.Push( cast( uint32, Tko.TYPE_NONE ) )
             continue for
         end if
         dim as Tko.TypeId at = ThisArgType_( c, a, TypeOf_( c, a ) )  '' 'this' is the object
@@ -734,7 +734,7 @@ private function ResolveCall_ _
         if at = Tko.TYPE_NONE then
             dim as Tko.NodeId leaf = UntypedLeaf_( c, a )
             NoteUntypedName_( c, leaf )
-            dim as long ak = cast( long, c.ast->Kind( leaf ) )
+            dim as int32 ak = cast( int32, c.ast->Kind( leaf ) )
             while c.st->argUntypedKind.Count <= ak
                 c.st->argUntypedKind.Push( 0 )
             wend
@@ -751,23 +751,23 @@ private function ResolveCall_ _
             if ConcatHasUString_( c, a ) then at = c.types->Builtin( Tko.TY_USTRING )
         end if
         if (c.ast->Kind( a ) = Tko.N_CALL) andalso c.types->IsDynArray( c.types->Unqualify( at ) ) then at = c.types->Inner( c.types->Unqualify( at ) )   '' an ARRAY RESULT arrives as its element, as 'a( )' does
-        argT.Push( cast( ulong, at ) )
+        argT.Push( cast( uint32, at ) )
     next
 
     dim as Tko.SymbolId best = Tko.SYMBOL_NONE
-    dim as long bestCost = CONV_NONE
-    dim as long ties = 0
+    dim as int32 bestCost = CONV_NONE
+    dim as int32 ties = 0
 
     '' How many candidates there are CHANGES WHAT IS VIABLE, so it has to be known
     '' before any of them is costed. fbc accepts a warning-3 pointer conversion for a
     '' procedure called on its own and refuses the identical conversion the moment a
     '' second overload exists, however unviable that second one is.
-    dim as long ncand = 0
+    dim as int32 ncand = 0
     dim as Tko.SymbolId walk = callee
     while walk <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr ws = c.syms->SymbolAt( walk )
         if ws = 0 then exit while
-        if ws->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
+        if ws->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
         ncand += 1
         walk = ws->nextOverload
     wend
@@ -778,7 +778,7 @@ private function ResolveCall_ _
     while cur <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
         if s = 0 then exit while
-        if s->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
+        if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
             dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
@@ -796,7 +796,7 @@ private function ResolveCall_ _
             '' A PROPERTY with no result is a setter; every other procedure without
             '' one is a SUB, which is callable as a statement and is scored here for
             '' that.
-            if pp->op = cast( ushort, Tko.KW_PROPERTY ) then
+            if pp->op = cast( uint16, Tko.KW_PROPERTY ) then
                 if pp->a = Tko.NODE_NONE then
                     cur = s->nextOverload
                     continue while
@@ -814,12 +814,12 @@ private function ResolveCall_ _
             '' both declared, 'F 1' is its error 98, AMBIGUOUS -- so a defaulted
             '' candidate really is viable and ties with the exact-arity one rather than
             '' losing to it. Ties already return TYPE_NONE here.
-            dim as long np = 0
+            dim as int32 np = 0
             dim as boolean variadic = false
-            for i as long = 0 to pp->count - 1
+            for i as int32 = 0 to pp->count - 1
                 dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
                 if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
-                if StmtOf( c, prm )->op = cast( ushort, Tko.TK_ELLIPSIS ) then
+                if StmtOf( c, prm )->op = cast( uint16, Tko.TK_ELLIPSIS ) then
                     variadic = true
                 else
                     np += 1
@@ -830,7 +830,7 @@ private function ResolveCall_ _
             dim as Tko.NodeId tvPrm = TypedVariadicParam_( c, pp )
             dim as boolean expandTV = false
             if tvPrm <> Tko.NODE_NONE then expandTV = (TypedVariadicSpread_( c, np - 1, argFirst, argT.Count ) = false)
-            dim as long npA = iif( expandTV, np - 1, np )
+            dim as int32 npA = iif( expandTV, np - 1, np )
             dim as boolean arityOk = (npA = argT.Count)
             if variadic orelse expandTV then
                 if argT.Count >= npA then arityOk = true
@@ -838,8 +838,8 @@ private function ResolveCall_ _
             if (variadic = false) andalso (arityOk = false) andalso (argT.Count < npA) then
                 '' Every parameter the call did not reach must have a default.
                 arityOk = true
-                dim as long seen = 0
-                for i as long = 0 to pp->count - 1
+                dim as int32 seen = 0
+                for i as int32 = 0 to pp->count - 1
                     dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
                     if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
                     if expandTV andalso (prm = tvPrm) then exit for
@@ -853,14 +853,14 @@ private function ResolveCall_ _
                 next
             end if
             if arityOk then
-                dim as long total = 0
-                dim as long ai = 0
+                dim as int32 total = 0
+                dim as int32 ai = 0
                 dim as boolean viable = true
-                for i as long = 0 to pp->count - 1
+                for i as int32 = 0 to pp->count - 1
                     dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
                     if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
                     dim as Tko.StmtPayload ptr sp2 = StmtOf( c, prm )
-                    if sp2->op = cast( ushort, Tko.TK_ELLIPSIS ) then continue for
+                    if sp2->op = cast( uint16, Tko.TK_ELLIPSIS ) then continue for
                     if expandTV andalso (prm = tvPrm) then exit for   '' packed below
                     '' Past the written arguments, or an elided one: the default
                     '' stands and there is nothing to convert. An elided argument
@@ -903,14 +903,14 @@ private function ResolveCall_ _
                             cast( Tko.NodeId, c.ast->children[argFirst + ai] )
                         if c.ast->Kind( bvn ) = Tko.N_UNARY then
                             dim as Tko.UnaryPayload ptr bvp = _
-                                @c.ast->unaries[cast( long, _
-                                    c.ast->nodes[cast( long, bvn )].data )]
+                                @c.ast->unaries[cast( int32, _
+                                    c.ast->nodes[cast( int32, bvn )].data )]
                             argIsByval = _
                                 (cast( Tko.TokenKind, bvp->op ) = Tko.KW_BYVAL)
                         end if
                     end if
                     if argIsByval andalso (prm <> Tko.NODE_NONE) then
-                        if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
+                        if (c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0 then
                             '' A POINTER OR A POINTER-WIDE INTEGER and nothing else:
                             '' the value stands in for an ADDRESS, so a float or a
                             '' string is still not viable.
@@ -931,7 +931,7 @@ private function ResolveCall_ _
                     end if
 
                     if (prm <> Tko.NODE_NONE) andalso (pt <> Tko.TYPE_NONE) then
-                        if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
+                        if (c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0 then
                             '' A CONST ARGUMENT DOES NOT REACH A NON-CONST BYREF
                             '' PARAMETER. Measured, and the same for a UDT and a plain
                             '' integer: fbc error 181, "Invalid assignment/conversion".
@@ -980,7 +980,7 @@ private function ResolveCall_ _
                     '' the initialiser it fed simply had no value and declined.
                     dim as boolean anyArrayParam = false
                     if (prm <> Tko.NODE_NONE) andalso (pt <> Tko.TYPE_NONE) then
-                        if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_ARRAY) <> 0 then
+                        if (c.ast->nodes[cast( int32, prm )].flags and Tko.NF_ARRAY) <> 0 then
                             if c.types->Kind( pt ) = Tko.TK_BUILTIN then
                                 anyArrayParam = _
                                     (c.types->BuiltinOf( pt ) = Tko.TY_ANY)
@@ -1008,7 +1008,7 @@ private function ResolveCall_ _
                     '' type is an array, which is what tells the two apart here.
                     if (prm <> Tko.NODE_NONE) andalso (ai < argCount) then
                         dim as boolean prmArray = _
-                            ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_ARRAY) <> 0)
+                            ((c.ast->nodes[cast( int32, prm )].flags and Tko.NF_ARRAY) <> 0)
                         dim as Tko.NodeId an4 = _
                             cast( Tko.NodeId, c.ast->children[argFirst + ai] )
                         dim as boolean argArray = IsArrayArgShape_( c, an4 )
@@ -1023,10 +1023,10 @@ private function ResolveCall_ _
                         '' (TKO0660) -- including after 'dim a( )' and 'redim a( 0 to 0 )',
                         '' where the redim is what gives the argument its rank.
                         if prmArray andalso argArray then
-                            dim as long pr = cast( long, _
-                                c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )].extra )
+                            dim as int32 pr = cast( int32, _
+                                c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, prm )].data )].extra )
                             if pr > 0 then
-                                dim as long ar = ArgArrayRank_( c, an4 )
+                                dim as int32 ar = ArgArrayRank_( c, an4 )
                                 if (ar > 0) andalso (ar <> pr) then
                                     viable = false
                                     exit for
@@ -1068,7 +1068,7 @@ private function ResolveCall_ _
                     dim as Tko.TypeId costFrom = at2
                     dim as Tko.NodeId an6 = Tko.NODE_NONE
                     if ai < argCount then an6 = cast( Tko.NodeId, c.ast->children[argFirst + ai] )
-                    dim as long sw = ConstStrArgWidth_( c, an6 )
+                    dim as int32 sw = ConstStrArgWidth_( c, an6 )
                     dim as boolean constStr = (sw = 1) orelse (sw = 2)
                     if constStr andalso StrFamilyParam_( c, pt ) then
                         if sw = 2 then
@@ -1077,13 +1077,13 @@ private function ResolveCall_ _
                             costFrom = c.types->Builtin( Tko.TY_ZSTRING )
                         end if
                     end if
-                    dim as long cost = ConversionCost( costFrom, pt, *c.types, overloaded )
+                    dim as int32 cost = ConversionCost( costFrom, pt, *c.types, overloaded )
                     '' ...and a NAMED CONST STRING to a byval non-const string is one tier down.
                     dim as boolean constCopy = (cost = CONV_EXACT)
                     if constCopy then constCopy = IsVarStrType_( c, at2 )
                     if constCopy then constCopy = IsVarStrType_( c, pt )
                     if constCopy then
-                        constCopy = ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) = 0)
+                        constCopy = ((c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) = 0)
                     end if
                     if constCopy then constCopy = c.types->IsConst( at2 )
                     if constCopy then constCopy = (c.types->IsConst( pt ) = false)
@@ -1116,7 +1116,7 @@ private function ResolveCall_ _
                 next
                 if viable andalso expandTV then
                     dim as Tko.NodeId tvBad
-                    dim as long tvCost = PackedArgsCost_( c, tvPrm, argFirst, ai, argT, overloaded, tvBad )
+                    dim as int32 tvCost = PackedArgsCost_( c, tvPrm, argFirst, ai, argT, overloaded, tvBad )
                     if tvCost < 0 then viable = false else total += tvCost + CONV_EXPANDED
                 end if
                 if viable then
@@ -1178,7 +1178,7 @@ private function ResolveCall_ _
             '' refused eleven com/*.bas files fbc accepts. A POINTER to a UDT is fine:
             '' the pointee is not converted.
             dim as boolean allTyped = true
-            for i as long = 0 to argT.Count - 1
+            for i as int32 = 0 to argT.Count - 1
                 dim as Tko.TypeId a2t = cast( Tko.TypeId, argT[i] )
                 if a2t = Tko.TYPE_NONE then
                     allTyped = false
@@ -1198,7 +1198,7 @@ private function ResolveCall_ _
             '' reporting refused eleven com/*.bas files fbc accepts.
             dim as boolean scorable = true
             dim as Tko.SymbolId ck = callee
-            dim as long cg = 0
+            dim as int32 cg = 0
             while (ck <> Tko.SYMBOL_NONE) andalso (cg < 1000)
                 cg += 1
                 dim as Tko.Symbol ptr cs2 = c.syms->SymbolAt( ck )
@@ -1209,12 +1209,12 @@ private function ResolveCall_ _
                     '' A GENERIC candidate is not scorable at all: its parameter names a
                     '' type parameter, and tiko-lang does not instantiate one here.
                     if (cpp->extra and Tko.PF_GENERIC_PROC) <> 0 then scorable = false
-                    for i as long = 0 to cpp->count - 1
+                    for i as int32 = 0 to cpp->count - 1
                         dim as Tko.NodeId prm2 = _
                             cast( Tko.NodeId, c.ast->children[cpp->first + i] )
                         if c.ast->Kind( prm2 ) <> Tko.N_PARAM then continue for
                         dim as Tko.StmtPayload ptr psp = StmtOf( c, prm2 )
-                        if psp->op = cast( ushort, Tko.TK_ELLIPSIS ) then continue for
+                        if psp->op = cast( uint16, Tko.TK_ELLIPSIS ) then continue for
                         if psp->a = Tko.NODE_NONE then continue for
                         if c.info->TypeOf_( psp->a ) = Tko.TYPE_NONE then
                             scorable = false
@@ -1254,7 +1254,7 @@ private function ResolveCall_ _
         '' UDT argument brings conversions and generics this scoring does not model, and
         '' an untyped one means something earlier declined.
         dim as boolean tieTyped = true
-        for i as long = 0 to argT.Count - 1
+        for i as int32 = 0 to argT.Count - 1
             dim as Tko.TypeId a3 = cast( Tko.TypeId, argT[i] )
             if a3 = Tko.TYPE_NONE then
                 tieTyped = false
@@ -1299,7 +1299,7 @@ private function ResolveCall_ _
     '' Retyped HERE rather than during scoring: the parameter is only known once a
     '' candidate has won, and a bare literal cannot help choose between candidates --
     '' fbc cannot either, and says so.
-    for i as long = 0 to argCount - 1
+    for i as int32 = 0 to argCount - 1
         dim as Tko.NodeId a2 = cast( Tko.NodeId, c.ast->children[argFirst + i] )
         if BareTypeLiteral_( c, a2 ) = false then continue for
         dim as Tko.TypeId pt2 = ProcParamTypeAt_( c, best, i )
@@ -1318,7 +1318,7 @@ end function
 '' below take the tables, so they cannot use Check's own StmtOf.
 private function StmtAt_ _
     ( byref ast as Tko.AstArena, byval id as Tko.NodeId ) as Tko.StmtPayload ptr
-    return @ast.stmts[cast( long, ast.nodes[cast( long, id )].data )]
+    return @ast.stmts[cast( int32, ast.nodes[cast( int32, id )].data )]
 end function
 
 '' HOW GOOD A NUMERIC 'operator cast' IS, for choosing among several. Higher wins; 0
@@ -1339,7 +1339,7 @@ end function
 '' LONG from either declaration order; longint then beats long. It is fbc's own type
 '' ordering, and every pair above was checked both ways round.
 function NumericCastRank _
-    ( byref types as Tko.TypeContext, byval t as Tko.TypeId ) as long
+    ( byref types as Tko.TypeContext, byval t as Tko.TypeId ) as int32
 
     if t = Tko.TYPE_NONE then return 0
     dim as Tko.TypeId u = types.Unqualify( t )
@@ -1395,14 +1395,14 @@ function ArrowOperatorFor _
     while cur <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr s = syms.SymbolAt( cur )
         if s = 0 then exit while
-        if s->kind = cast( ubyte, Tko.SYM_PROC ) then
+        if s->kind = cast( uint8, Tko.SYM_PROC ) then
             dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
             if (pn <> Tko.NODE_NONE) andalso (ast.Kind( pn ) = Tko.N_PROC) then
                 dim as Tko.StmtPayload ptr pp = StmtAt_( ast, pn )
-                if pp->op = cast( ushort, Tko.KW_OPERATOR ) then
-                    dim as long np = 0
+                if pp->op = cast( uint16, Tko.KW_OPERATOR ) then
+                    dim as int32 np = 0
                     dim as Tko.TypeId p0 = Tko.TYPE_NONE
-                    for i as long = 0 to pp->count - 1
+                    for i as int32 = 0 to pp->count - 1
                         dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[pp->first + i] )
                         if ast.Kind( prm ) <> Tko.N_PARAM then continue for
                         if np = 0 then p0 = info.TypeOf_( StmtAt_( ast, prm )->a )

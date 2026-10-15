@@ -27,13 +27,13 @@ end function
 
 type TomlCursor_
     as string  s
-    as long    p             '' 1-based
+    as int32    p             '' 1-based
     as string  err_
 end type
 
 private sub Ws_( byref c as TomlCursor_ )
     while c.p <= len( c.s )
-        dim as ubyte ch = c.s[c.p - 1]
+        dim as uint8 ch = c.s[c.p - 1]
         if (ch <> 32) andalso (ch <> 9) then exit while
         c.p += 1
     wend
@@ -49,9 +49,9 @@ end function
 private function Key_( byref c as TomlCursor_, byref k as string ) as boolean
     Ws_( c )
     if c.p > len( c.s ) then return false
-    dim as ubyte ch = c.s[c.p - 1]
+    dim as uint8 ch = c.s[c.p - 1]
     if (ch = 34) orelse (ch = 39) then
-        dim as long q = instr( c.p + 1, c.s, chr( ch ) )
+        dim as int32 q = instr( c.p + 1, c.s, chr( ch ) )
         if q = 0 then
             c.err_ = "unterminated quoted key"
             return false
@@ -60,7 +60,7 @@ private function Key_( byref c as TomlCursor_, byref k as string ) as boolean
         c.p = q + 1
         return true
     end if
-    dim as long st = c.p
+    dim as int32 st = c.p
     while c.p <= len( c.s )
         ch = c.s[c.p - 1]
         dim as boolean ok = ((ch >= 48) andalso (ch <= 57)) orelse ((ch >= 65) andalso (ch <= 90)) orelse _
@@ -85,7 +85,7 @@ private function Value_( byref c as TomlCursor_, byref v as string, byref kind a
         c.err_ = "expected a value"
         return false
     end if
-    dim as ubyte ch = c.s[c.p - 1]
+    dim as uint8 ch = c.s[c.p - 1]
     if ch = 34 then
         if mid( c.s, c.p, 3 ) = chr( 34, 34, 34 ) then
             c.err_ = "multi-line strings are not in the subset tiko reads"
@@ -103,14 +103,14 @@ private function Value_( byref c as TomlCursor_, byref v as string, byref kind a
             if ch = 92 then
                 c.p += 1
                 if c.p > len( c.s ) then exit while
-                dim as ubyte e = c.s[c.p - 1]
+                dim as uint8 e = c.s[c.p - 1]
                 select case e
                 case 92 : v &= chr( 92 )
                 case 34 : v &= chr( 34 )
                 case asc( "n" ) : v &= chr( 10 )
                 case asc( "t" ) : v &= chr( 9 )
                 case asc( "u" )
-                    dim as long cp = valint( "&h" & mid( c.s, c.p + 1, 4 ) )
+                    dim as int32 cp = valint( "&h" & mid( c.s, c.p + 1, 4 ) )
                     if cp < 128 then v &= chr( cp ) else v &= "?"
                     c.p += 4
                 case else
@@ -127,7 +127,7 @@ private function Value_( byref c as TomlCursor_, byref v as string, byref kind a
         return false
     end if
     if ch = 39 then
-        dim as long q = instr( c.p + 1, c.s, "'" )
+        dim as int32 q = instr( c.p + 1, c.s, "'" )
         if q = 0 then
             c.err_ = "unterminated string"
             return false
@@ -138,7 +138,7 @@ private function Value_( byref c as TomlCursor_, byref v as string, byref kind a
         return true
     end if
     if ch = asc( "{" ) then
-        dim as long q = instr( c.p, c.s, "}" )
+        dim as int32 q = instr( c.p, c.s, "}" )
         if q = 0 then
             c.err_ = "unterminated inline table"
             return false
@@ -153,7 +153,7 @@ private function Value_( byref c as TomlCursor_, byref v as string, byref kind a
         a.s = mid( c.s, c.p + 1 )
         a.p = 1
         v = ""
-        dim as long n = 0
+        dim as int32 n = 0
         do
             Ws_( a )
             if a.p > len( a.s ) then
@@ -186,7 +186,7 @@ private function Value_( byref c as TomlCursor_, byref v as string, byref kind a
         kind = "a"
         return true
     end if
-    dim as long st = c.p
+    dim as int32 st = c.p
     while c.p <= len( c.s )
         ch = c.s[c.p - 1]
         if (ch = 32) orelse (ch = 9) orelse (ch = asc( "," )) orelse (ch = asc( "}" )) orelse (ch = asc( "#" )) then exit while
@@ -198,8 +198,8 @@ private function Value_( byref c as TomlCursor_, byref v as string, byref kind a
         return true
     end if
     dim as boolean digits = (len( v ) > 0)
-    for i as long = 0 to len( v ) - 1
-        dim as ubyte d = v[i]
+    for i as int32 = 0 to len( v ) - 1
+        dim as uint8 d = v[i]
         dim as boolean ok = ((d >= 48) andalso (d <= 57)) orelse ((i = 0) andalso ((d = 43) orelse (d = 45))) orelse (d = 95)
         if ok = false then digits = false
     next
@@ -255,8 +255,8 @@ end function
 '' A NAME in [target.NAME] / [profile.NAME]: a word an output file can be named after.
 private function BuildName_( byref n as string ) as boolean
     if len( n ) = 0 then return false
-    for i as long = 0 to len( n ) - 1
-        dim as ubyte ch = n[i]
+    for i as int32 = 0 to len( n ) - 1
+        dim as uint8 ch = n[i]
         dim as boolean ok = ((ch >= 97) andalso (ch <= 122)) orelse ((ch >= 48) andalso (ch <= 57)) orelse _
                             (ch = 95) orelse (ch = 45)
         if ok = false then return false
@@ -269,7 +269,7 @@ private function BuildTable_( byref m as Manifest, byref table_ as string ) as s
     dim as boolean isT = (left( table_, 7 ) = "target.")
     if (isT = false) andalso (left( table_, 8 ) <> "profile.") then return "unknown table [" & table_ & "]"
     dim as string rest = mid( table_, iif( isT, 8, 9 ) )
-    dim as long dt = instr( rest, "." )
+    dim as int32 dt = instr( rest, "." )
     if dt > 0 then
         if (isT = false) orelse (mid( rest, dt + 1 ) <> "defines") then return "unknown table [" & table_ & "]"
         rest = left( rest, dt - 1 )
@@ -303,7 +303,7 @@ private function BuildKey_ _
 
     dim as boolean isT = (left( table_, 7 ) = "target.")
     dim as string rest = mid( table_, iif( isT, 8, 9 ) )
-    dim as long dt = instr( rest, "." )
+    dim as int32 dt = instr( rest, "." )
     if dt > 0 then
         if kind <> "s" then return "a define's value is a string"
         m.tgtName.Push( left( rest, dt - 1 ) ) : m.tgtKey.Push( "define" ) : m.tgtVal.Push( k & "=" & v )
@@ -365,11 +365,11 @@ function LoadManifest _
     m.dir_ = NormPath( dir_ )
     m.name = ""
     dim as string table_ = ""
-    dim as long lineNo = 0
-    dim as long p = 1
+    dim as int32 lineNo = 0
+    dim as int32 p = 1
     dim as boolean ok = true
     while p <= len( text_ )
-        dim as long e = instr( p, text_, chr( 10 ) )
+        dim as int32 e = instr( p, text_, chr( 10 ) )
         if e = 0 then e = len( text_ ) + 1
         dim as string ln = mid( text_, p, e - p )
         p = e + 1
@@ -384,7 +384,7 @@ function LoadManifest _
             if mid( c.s, c.p, 2 ) = "[[" then
                 why = "arrays of tables are not in the subset tiko reads"
             else
-                dim as long q = instr( c.p, c.s, "]" )
+                dim as int32 q = instr( c.p, c.s, "]" )
                 if q = 0 then
                     why = "unterminated table header"
                 else
@@ -444,7 +444,7 @@ function LoadManifest _
                     end if
                     '' [dependencies.x] or [dependencies.x.defines]
                     dim as string rest = mid( table_, 14 )
-                    dim as long dt = instr( rest, "." )
+                    dim as int32 dt = instr( rest, "." )
                     if dt = 0 then
                         if k <> "path" then
                             why = "a dependency takes 'path' in v1, not '" & k & "'"

@@ -24,9 +24,9 @@ private function BaseLacksDefaultCtor_ ( byref c as Ctx, byval base_ as TypeId )
     if base_ = TYPE_NONE then return false
     dim as Symbol ptr walk = StructorOf_( c, base_, "__ctor" )
     if walk = 0 then return false
-    for guard as long = 0 to 999
+    for guard as int32 = 0 to 999
         if walk = 0 then exit for
-        dim as long req = RequiredParams_( c, cast( NodeId, walk->payload ) )
+        dim as int32 req = RequiredParams_( c, cast( NodeId, walk->payload ) )
         if (req = 0) orelse (req = -1) then return false
         walk = c.syms->SymbolAt( walk->nextOverload )
     next
@@ -41,16 +41,16 @@ end function
 '' 187 (structs/implicit-copyctor-impossible.bas), fine once both are written.
 private function HasCopyCtor_ ( byref c as Ctx, byval t as TypeId, byval wantConst as boolean = true, byref nm as string = "__ctor" ) as boolean
     dim as Symbol ptr ct = StructorOf_( c, t, nm )
-    for guard as long = 0 to 999
+    for guard as int32 = 0 to 999
         if ct = 0 then exit for
         dim as NodeId cd = cast( NodeId, ct->payload )
         if (cd = NODE_NONE) orelse (c.ast->Kind( cd ) <> N_PROC) then return (nm = "__ctor")
-        dim as StmtPayload ptr cp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, cd )].data )]
+        dim as StmtPayload ptr cp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, cd )].data )]
         if RequiredParams_( c, cd ) = 1 then
-            for i as long = 0 to cp->count - 1
+            for i as int32 = 0 to cp->count - 1
                 dim as NodeId pn = cast( NodeId, c.ast->children[cp->first + i] )
                 if c.ast->Kind( pn ) <> N_PARAM then continue for
-                dim as NodeId pta = c.ast->stmts[cast( long, c.ast->nodes[cast( long, pn )].data )].a
+                dim as NodeId pta = c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )].a
                 if pta = NODE_NONE then exit for
                 dim as TypeId pt = c.info->TypeOf_( pta )
                 if c.types->Kind( c.types->Unqualify( pt ) ) = TK_REFERENCE then pt = c.types->Inner( c.types->Unqualify( pt ) )
@@ -69,29 +69,29 @@ end function
 private function CtorCallsBase_ ( byref c as Ctx, byval body as NodeId ) as boolean
     if (body = NODE_NONE) orelse (c.ast->Kind( body ) <> N_BLOCK) then return true
     dim as InternId ctorNm = c.names->Fold( c.names->GetString( "constructor" ) )
-    dim as ListPayload ptr bp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, body )].data )]
-    for i as long = 0 to bp->count - 1
+    dim as ListPayload ptr bp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, body )].data )]
+    for i as int32 = 0 to bp->count - 1
         dim as NodeId st = cast( NodeId, c.ast->children[bp->first + i] )
         if st = NODE_NONE then continue for
         dim as NodeId call_ = st
         if c.ast->Kind( st ) = N_AMBIGUOUS then
-            dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, st )].data )]
+            dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, st )].data )]
             if sp->op <> 0 then return false
             call_ = sp->a
         end if
         if (call_ = NODE_NONE) orelse (c.ast->Kind( call_ ) <> N_CALL) then return false
-        dim as NodeId tg = c.ast->lists[cast( long, c.ast->nodes[cast( long, call_ )].data )].target
+        dim as NodeId tg = c.ast->lists[cast( int32, c.ast->nodes[cast( int32, call_ )].data )].target
         if (tg = NODE_NONE) orelse (c.ast->Kind( tg ) <> N_IDENT) then return false
-        dim as InternId nm = c.names->Fold( c.ast->idents[cast( long, c.ast->nodes[cast( long, tg )].data )].name )
+        dim as InternId nm = c.names->Fold( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, tg )].data )].name )
         return (nm = c.names->Fold( c.baseName )) orelse (nm = ctorNm)
     next
     return false
 end function
 
 private sub CheckBaseHasDefaultCtor_( byref c as Ctx )
-    for i as long = 0 to c.syms->symbols.Count - 1
+    for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
-        if s->kind <> cast( ubyte, SYM_UDT ) then continue for
+        if s->kind <> cast( uint8, SYM_UDT ) then continue for
         if s->type_ = TYPE_NONE then continue for
         if BaseLacksDefaultCtor_( c, BaseOf_( c, s->type_ ) ) = false then continue for
         if StructorOf_( c, s->type_, "__ctor" ) = 0 then
@@ -103,18 +103,18 @@ private sub CheckBaseHasDefaultCtor_( byref c as Ctx )
         end if
     next
     '' Each constructor DEFINED over such a type must initialize its base itself.
-    for n as long = 1 to c.ast->Count( ) - 1
+    for n as int32 = 1 to c.ast->Count( ) - 1
         if c.ast->Kind( cast( NodeId, n ) ) <> N_PROC then continue for
-        dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[n].data )]
-        if sp->op <> cast( ushort, KW_CONSTRUCTOR ) then continue for
+        dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
+        if sp->op <> cast( uint16, KW_CONSTRUCTOR ) then continue for
         if sp->b = NODE_NONE then continue for
         dim as Symbol ptr us = c.syms->SymbolAt( c.syms->LookupTyped( c.info->ScopeOf( cast( NodeId, n ) ), sp->name, true ) )
-        if (us = 0) orelse (us->kind <> cast( ubyte, SYM_UDT )) orelse (us->type_ = TYPE_NONE) then continue for
+        if (us = 0) orelse (us->kind <> cast( uint8, SYM_UDT )) orelse (us->type_ = TYPE_NONE) then continue for
         if BaseLacksDefaultCtor_( c, BaseOf_( c, us->type_ ) ) = false then continue for
         if CtorCallsBase_( c, sp->b ) then continue for
         dim as SourceLoc at = c.ast->Loc( cast( NodeId, n ) )
-        for k as long = 0 to c.ast->procEnds.Count - 2 step 2
-            if c.ast->procEnds[k] = cast( ulong, n ) then at = cast( SourceLoc, c.ast->procEnds[k + 1] )
+        for k as int32 = 0 to c.ast->procEnds.Count - 2 step 2
+            if c.ast->procEnds[k] = cast( uint32, n ) then at = cast( SourceLoc, c.ast->procEnds[k + 1] )
         next
         c.diags->Report( TKO0927, PointRange( at ), c.names->Spelling( us->name ) )
     next

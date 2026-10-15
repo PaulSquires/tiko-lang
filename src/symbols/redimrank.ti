@@ -23,12 +23,12 @@ namespace Tko.RedimRank
     declare function ItemRank _
         ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
           byref info as SemanticInfo, byval item as NodeId, byref sid as SymbolId, _
-          byval scope_ as ScopeId = SCOPE_NONE ) as long
+          byval scope_ as ScopeId = SCOPE_NONE ) as int32
 
     '' The rank the FIRST redim of 'target', in source order, gives it -- or 0.
     declare function FirstRank _
         ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
-          byref info as SemanticInfo, byval target as SymbolId ) as long
+          byref info as SemanticInfo, byval target as SymbolId ) as int32
 
 end namespace
 

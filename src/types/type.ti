@@ -23,7 +23,7 @@
 
 namespace Tko
 
-    type TypeId as ulong
+    type TypeId as uint32
     const TYPE_NONE as TypeId = 0
 
     '' BUILTIN( id name, spelling, bits, signed, class )
@@ -124,29 +124,29 @@ namespace Tko
         TK_FORWARD      '' named but not yet complete
     end enum
 
-    const TF_CONST    as ushort = &h0001
-    const TF_COMPLETE as ushort = &h0002
+    const TF_CONST    as uint16 = &h0001
+    const TF_COMPLETE as uint16 = &h0002
     '' A PROCEDURE TYPE THAT ENDS IN '...'. Part of the TYPE, not of a declaration:
     '' 'sub cdecl( byval as integer, ... )' and 'sub cdecl( byval as integer )' are
     '' two different procedure-pointer types and fbc mangles them apart -- '...zE'
     '' against nothing -- so two overloads distinguished only by the ellipsis
     '' collided on one symbol.
-    const TF_VARIADIC as ushort = &h0004
+    const TF_VARIADIC as uint16 = &h0004
     '' A PASCAL PROCEDURE TYPE, whose arguments go in REVERSE -- on x86-64 too, measured:
     '' fbc-modern defines 'function P pascal ( a, b )' as 'i32 @P( i32 %B, i32 %A )'. A
     '' call through the pointer must know, so it is part of the type. Not of the mangled
     '' name: fbc writes a pascal and a cdecl procedure-pointer parameter identically.
-    const TF_PASCAL   as ushort = &h0008
+    const TF_PASCAL   as uint16 = &h0008
     '' A PROCEDURE TYPE WHOSE LAST PARAMETER IS A TYPED VARIADIC -- 'args( ) as T ...'
     '' (docs/tiko-params/RFC-0001). The ABI is the array parameter's, so the flag changes
     '' nothing about the call but how its arguments are written: a call through the
     '' pointer packs them, as a direct call does.
-    const TF_TYPED_VARIADIC as ushort = &h0010
+    const TF_TYPED_VARIADIC as uint16 = &h0010
 
     type TypeInfo
-        as ubyte    kind
-        as ubyte    builtin        '' BuiltinType, when kind = TK_BUILTIN
-        as ushort   flags
+        as uint8    kind
+        as uint8    builtin        '' BuiltinType, when kind = TK_BUILTIN
+        as uint16   flags
         as TypeId   inner          '' pointee / referent / element / return type
         as InternId name           '' UDT, enum, typedef
         '' THE SOURCE SPELLING, CASE PRESERVED, for a UDT declared inside an
@@ -157,15 +157,15 @@ namespace Tko
         '' FB type, and the PARAMETER's type in its own case because it is not.
         as InternId rawName
 
-        as long     first          '' element list (tuple, proc params), into a pool
+        as int32     first          '' element list (tuple, proc params), into a pool
                                    '' TK_ARRAY: (lo, hi) pairs, into boundPool
-        as long     count
-        as long     dims           '' array rank; -1 for a dynamic array
-        as long     packing        '' UDT: the 'field = N' cap, 0 for none
-        as long     elems          '' TK_ARRAY: TOTAL element count across all
+        as int32     count
+        as int32     dims           '' array rank; -1 for a dynamic array
+        as int32     packing        '' UDT: the 'field = N' cap, 0 for none
+        as int32     elems          '' TK_ARRAY: TOTAL element count across all
                                    '' dimensions, which is what a layout needs;
                                    '' 0 when the count is not known
-        as ulong    declScope      '' UDT/ENUM/TYPEDEF: the scope it was declared in.
+        as uint32    declScope      '' UDT/ENUM/TYPEDEF: the scope it was declared in.
                                    '' Part of the IDENTITY -- two namespaces may each
                                    '' hold a 'Vec' -- and part of the mangled name,
                                    '' which spells a namespaced UDT as N<prefix>3VECE.
@@ -200,18 +200,18 @@ namespace Tko
 
     '' Target facts, injected. The frontend never hard-codes a size.
     type TargetLayout
-        as long pointerBits        '' 64
-        as long wcharBytes         '' 2 on Windows, 4 on Linux
-        as long stringBytes        '' sizeof( FBSTRING ) -- 24 on x86-64
-        as long stringAlign
-        as long maxAlign
+        as int32 pointerBits        '' 64
+        as int32 wcharBytes         '' 2 on Windows, 4 on Linux
+        as int32 stringBytes        '' sizeof( FBSTRING ) -- 24 on x86-64
+        as int32 stringAlign
+        as int32 maxAlign
         '' sizeof( cva_list ) and its alignment. MEASURED, and it is not derivable from
         '' the pointer width: fbc emits '__builtin_memset( &ARGS, 0, N )' at every
         '' 'dim as cva_list' declaration, and N is 8 on win64, 4 on win32 and 24 on
         '' Linux x86-64 -- where a va_list is the SysV register-save record, not a
         '' pointer. Getting it wrong is a stack overwrite, not a wrong number.
-        as long cvaListBytes
-        as long cvaListAlign
+        as int32 cvaListBytes
+        as int32 cvaListAlign
         '' Windows or not. Only cva_list needs it so far, and only for its MANGLING,
         '' which is target-dependent in a way no width explains -- see BuiltinCode.
         as boolean isWindows
@@ -223,11 +223,11 @@ namespace Tko
     end type
 
     type TypeVec  as containers.Array( of TypeInfo )
-    type TypeIdVec2 as containers.Array( of ulong )
+    type TypeIdVec2 as containers.Array( of uint32 )
 
     type TypeLayout
-        as long size
-        as long align
+        as int32 size
+        as int32 align
     end type
 
     '' A CHAINED HASH INDEX OVER THE TYPE TABLE, for one lookup key.
@@ -247,23 +247,23 @@ namespace Tko
         as TypeIdVec2  lasts       '' bucket -> last TypeId in it
         as TypeIdVec2  chain       '' TypeId -> next TypeId in its bucket, 0 = end
         as TypeIdVec2  hashes      '' TypeId -> its hash, kept for Rehash
-        as long        mask
+        as int32        mask
 
         declare constructor( )
         '' 'id' must be the next TypeId: the table only ever appends.
-        declare sub Add( byval id as TypeId, byval h as ulong )
-        declare function Lookup( byval h as ulong ) as TypeId
+        declare sub Add( byval id as TypeId, byval h as uint32 )
+        declare function Lookup( byval h as uint32 ) as TypeId
         declare function After( byval id as TypeId ) as TypeId
 
         private:
-        declare sub Link_( byval id as long )
-        declare sub Rehash( byval slots as long )
+        declare sub Link_( byval id as int32 )
+        declare sub Rehash( byval slots as int32 )
     end type
 
     type TypeContext
         as TypeVec       types
         as TypeIdVec2    pool        '' element lists
-        as containers.Array( of longint ) boundPool   '' TK_ARRAY (lo, hi) pairs
+        as containers.Array( of int64 ) boundPool   '' TK_ARRAY (lo, hi) pairs
         as Interner ptr  names
         as TargetLayout  target
         '' THE INTERNING INDEXES, one per finder's key -- see TypeIndex. Push_ files every
@@ -282,11 +282,11 @@ namespace Tko
         '' no tiko object could be linked against an fbc-built one that used a generic.
         '' Keyed by that folded name; the declared spelling and the argument TypeIds
         '' are what the Itanium template form needs. See Mangle.RegisterInst.
-        as containers.Array( of ulong ) instName
-        as containers.Array( of ulong ) instSpell
-        as containers.Array( of long )  instArgFirst
-        as containers.Array( of long )  instArgCount
-        as containers.Array( of ulong ) instArgs
+        as containers.Array( of uint32 ) instName
+        as containers.Array( of uint32 ) instSpell
+        as containers.Array( of int32 )  instArgFirst
+        as containers.Array( of int32 )  instArgCount
+        as containers.Array( of uint32 ) instArgs
         '' NAME A BUILTIN THE WAY THIS PROGRAM DOES (T34): int32, float64, uint8 ... rather than
         '' long, double, ubyte. Those sized names are prelude typedefs, so a type that came from
         '' 'int32' IS 'long' here and the spelling is gone; the driver sets this per unit from
@@ -304,36 +304,36 @@ namespace Tko
         '' what makes indexing lowerable: the address of a(i,j) needs each dimension's
         '' stride and the lbound bias, and the total element count alone gives neither.
         declare function ArrayOf _
-            ( byval elem as TypeId, byval rank as long, _
-              byval elems as long = 0, _
-              byval bounds as containers.Array( of longint ) ptr = 0 ) as TypeId
+            ( byval elem as TypeId, byval rank as int32, _
+              byval elems as int32 = 0, _
+              byval bounds as containers.Array( of int64 ) ptr = 0 ) as TypeId
         '' The declared bounds of one dimension. 'known' is false for an array whose
         '' bounds were not constant, in which case nothing may be folded.
         declare function ArrayBound _
-            ( byval t as TypeId, byval dim_ as long, byval hi as boolean, _
-              byref known as boolean ) as longint
-        declare function Qualify( byval t as TypeId, byval fl as ushort ) as TypeId
+            ( byval t as TypeId, byval dim_ as int32, byval hi as boolean, _
+              byref known as boolean ) as int64
+        declare function Qualify( byval t as TypeId, byval fl as uint16 ) as TypeId
         '' A UDT, ENUM or TYPEDEF is identified by its NAME, not structurally, so it
         '' needs its own finder: Find( ) compares inner/flags/rank and would collapse
         '' two unrelated types into one.
         declare function NamedType _
             ( byval k as TypeKind, byval nm as InternId, _
-              byval declScope as ulong = 0, byval rawNm as InternId = 0 ) as TypeId
+              byval declScope as uint32 = 0, byval rawNm as InternId = 0 ) as TypeId
         declare function NameOf( byval t as TypeId ) as InternId
-        declare function ElemCount( byval t as TypeId ) as long
-        declare function ProcParamCount( byval t as TypeId ) as long
+        declare function ElemCount( byval t as TypeId ) as int32
+        declare function ProcParamCount( byval t as TypeId ) as int32
         declare function ProcParam _
-            ( byval t as TypeId, byval i as long ) as TypeId
-        declare function Packing( byval t as TypeId ) as long
-        declare function DeclScopeOf( byval t as TypeId ) as ulong
+            ( byval t as TypeId, byval i as int32 ) as TypeId
+        declare function Packing( byval t as TypeId ) as int32
+        declare function DeclScopeOf( byval t as TypeId ) as uint32
         '' The type a UDT extends, and the number of 'extends' links from a derived
         '' type up to one of its bases -- 0 when they are the same type, -1 when 'to_'
         '' is not a base of 'from_' at all.
         declare function BaseOf( byval t as TypeId ) as TypeId
         declare sub SetBase( byval t as TypeId, byval b as TypeId )
         declare function BaseDistance _
-            ( byval from_ as TypeId, byval to_ as TypeId ) as long
-        declare sub SetPacking( byval t as TypeId, byval n as long )
+            ( byval from_ as TypeId, byval to_ as TypeId ) as int32
+        declare sub SetPacking( byval t as TypeId, byval n as int32 )
         '' THE RESULT OF A PROCEDURE TYPE, set AFTER the fact. A procedure type whose
         '' result names a typedef declared later in the unit is built with no result at
         '' all, and everything already bound to it keeps that TypeId -- so the repair
@@ -344,7 +344,7 @@ namespace Tko
         '' commoner half of that, because win/windef.bi writes both LPARAM and LRESULT
         '' ahead of the include that declares what they alias.
         declare sub SetProcParam _
-            ( byval t as TypeId, byval idx as long, byval pt as TypeId )
+            ( byval t as TypeId, byval idx as int32, byval pt as TypeId )
         '' Qualify( ) can only ADD flags. Removing const needs its own operation --
         '' 'Qualify( t, 0 )' silently returns t unchanged.
         declare function Unqualify( byval t as TypeId ) as TypeId
@@ -356,9 +356,9 @@ namespace Tko
         declare function Kind( byval t as TypeId ) as TypeKind
         declare function BuiltinOf( byval t as TypeId ) as BuiltinType
         declare function DynArrayOf _
-            ( byval elem as TypeId, byval rank as long ) as TypeId
+            ( byval elem as TypeId, byval rank as int32 ) as TypeId
         declare function IsDynArray( byval t as TypeId ) as boolean
-        declare function DynRank( byval t as TypeId ) as long
+        declare function DynRank( byval t as TypeId ) as int32
         declare function Inner( byval t as TypeId ) as TypeId
         declare function IsConst( byval t as TypeId ) as boolean
         '' A procedure type written with a trailing '...'.
@@ -369,14 +369,14 @@ namespace Tko
 
         declare function Layout( byval t as TypeId ) as TypeLayout
         declare function Name( byval t as TypeId ) as string
-        declare function Count( ) as long
+        declare function Count( ) as int32
 
         private:
         '' Parameters are not named 'kind'/'inner': those collide with the member
         '' functions Kind( ) and Inner( ) inside a member body.
         declare function Find _
-            ( byval wantKind as TypeKind, byval innerT as TypeId, byval fl as ushort, _
-              byval rank as long ) as TypeId
+            ( byval wantKind as TypeKind, byval innerT as TypeId, byval fl as uint16, _
+              byval rank as int32 ) as TypeId
         '' Appends one entry and files it under every index. The only way in after slot 0.
         declare function Push_( byref n as TypeInfo ) as TypeId
     end type

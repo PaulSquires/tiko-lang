@@ -25,7 +25,7 @@ namespace Tko.Mir
 '' the caller has already produced the operands the way the parameters want them.
 function EmitDirectCall_ _
     ( byref c as Ctx, byval sym as Tko.SymbolId, byval rt as MirType, _
-      byref args as containers.Array( of ulong ), byval withSret as boolean = false ) as MirValue
+      byref args as containers.Array( of uint32 ), byval withSret as boolean = false ) as MirValue
 
     dim as MirValue none_
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sym )
@@ -34,16 +34,16 @@ function EmitDirectCall_ _
     if pn = Tko.NODE_NONE then return none_
     if c.ast->Kind( pn ) <> Tko.N_PROC then return none_
 
-    dim as long first = c.m->argPool.Count \ 2
-    for i as long = 0 to args.Count - 1
+    dim as int32 first = c.m->argPool.Count \ 2
+    for i as int32 = 0 to args.Count - 1
         c.m->argPool.Push( args[i] )
     next
-    dim as long nargs = args.Count \ 2
+    dim as int32 nargs = args.Count \ 2
 
     dim as Tko.InternId nm = c.names->GetString( _
         Tko.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
-    dim as long fidx = -1
-    for i as long = 0 to c.m->functions.Count - 1
+    dim as int32 fidx = -1
+    for i as int32 = 0 to c.m->functions.Count - 1
         if c.m->functions[i]->name = nm then
             fidx = i
             exit for
@@ -73,8 +73,8 @@ function EmitDirectCall_ _
     end if
 
     dim as MirInst ins
-    ins.op = cast( ushort, M_CALL )
-    ins.ty = cast( ubyte, rt )
+    ins.op = cast( uint16, M_CALL )
+    ins.ty = cast( uint8, rt )
     ins.first = first
     ins.count = nargs
     ins.callee = fidx
@@ -103,7 +103,7 @@ function MemberCallRetTy_ _
     if c.ast->Kind( pn ) <> Tko.N_PROC then return MT_VOID
     dim as Tko.InternId nm = c.names->GetString( _
         Tko.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
-    for i as long = 0 to c.m->functions.Count - 1
+    for i as int32 = 0 to c.m->functions.Count - 1
         if c.m->functions[i]->name = nm then
             return cast( MirType, c.m->functions[i]->retTy )
         end if
@@ -113,8 +113,8 @@ end function
 
 function EmitMemberCallArgs_ _
     ( byref c as Ctx, byval sym as Tko.SymbolId, byref self_ as MirValue, _
-      byval rt as MirType, byval args as containers.Array( of ulong ) ptr, _
-      byval vslot as long ) as MirValue
+      byval rt as MirType, byval args as containers.Array( of uint32 ) ptr, _
+      byval vslot as int32 ) as MirValue
 
     dim as MirValue none_
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sym )
@@ -122,7 +122,7 @@ function EmitMemberCallArgs_ _
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if pn = Tko.NODE_NONE then return none_
     if c.ast->Kind( pn ) <> Tko.N_PROC then return none_
-    if self_.kind = cast( ubyte, MV_NONE ) then return none_
+    if self_.kind = cast( uint8, MV_NONE ) then return none_
 
     '' A UDT RESULT THAT TRAVELS THROUGH A HIDDEN POINTER needs somewhere to land, and
     '' the CALLER provides it: a temporary passed as ARGUMENT ZERO, before the
@@ -142,8 +142,8 @@ function EmitMemberCallArgs_ _
     '' this very module did not declare.
     dim as Tko.InternId nm = c.names->GetString( _
         Tko.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
-    dim as long fidx = -1
-    for i as long = 0 to c.m->functions.Count - 1
+    dim as int32 fidx = -1
+    for i as int32 = 0 to c.m->functions.Count - 1
         if c.m->functions[i]->name = nm then
             fidx = i
             exit for
@@ -165,32 +165,32 @@ function EmitMemberCallArgs_ _
     '' against a definition taking the result pointer too, and handed clang a
     '' zero-sized aggregate. At module level the definition already existed.
     if (fidx < 0) andalso (s->type_ <> Tko.TYPE_NONE) then
-        dim as boolean isByrefRet = ((c.ast->nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0)
+        dim as boolean isByrefRet = ((c.ast->nodes[cast( int32, pn )].flags and Tko.NF_BYREF) <> 0)
         dim as boolean isCastOp = (StmtOf( c, pn )->name = c.names->Fold( c.names->GetString( "cast" ) ))
         if (isByrefRet = false) andalso (isCastOp = false) then
             if LowerType( s->type_, *c.types ) = MT_AGG then useSret = UsesSretReturn( c, s->type_ )
         end if
     end if
 
-    dim as long first = c.m->argPool.Count \ 2
-    dim as long nargs = 0
+    dim as int32 first = c.m->argPool.Count \ 2
+    dim as int32 nargs = 0
     if useSret then
         '' Destroyed at the end of the statement, beside every other temporary of a
         '' type that needs it -- or the variable a declaration is building, SretInPlaceInit_.
-        dim as long tslot = SretResultSlot_( c, s->type_, true, sym )
+        dim as int32 tslot = SretResultSlot_( c, s->type_, true, sym )
         if tslot < 0 then return none_
-        sretTmp.kind = cast( ubyte, MV_LOCAL )
-        sretTmp.ty = cast( ubyte, MT_PTR )
+        sretTmp.kind = cast( uint8, MV_LOCAL )
+        sretTmp.ty = cast( uint8, MT_PTR )
         sretTmp.id = tslot
-        c.m->argPool.Push( cast( ulong, sretTmp.kind ) )
-        c.m->argPool.Push( cast( ulong, sretTmp.id ) )
+        c.m->argPool.Push( cast( uint32, sretTmp.kind ) )
+        c.m->argPool.Push( cast( uint32, sretTmp.id ) )
         nargs += 1
     end if
-    c.m->argPool.Push( cast( ulong, self_.kind ) )
-    c.m->argPool.Push( cast( ulong, self_.id ) )
+    c.m->argPool.Push( cast( uint32, self_.kind ) )
+    c.m->argPool.Push( cast( uint32, self_.id ) )
     nargs += 1
     if args <> 0 then
-        for i as long = 0 to args->Count - 1
+        for i as int32 = 0 to args->Count - 1
             c.m->argPool.Push( (*args)[i] )
         next
         nargs += args->Count \ 2
@@ -210,8 +210,8 @@ function EmitMemberCallArgs_ _
     end if
 
     dim as MirInst ins
-    ins.op = cast( ushort, M_CALL )
-    ins.ty = cast( ubyte, callTy )
+    ins.op = cast( uint16, M_CALL )
+    ins.ty = cast( uint8, callTy )
     ins.first = first
     ins.count = nargs
     ins.callee = fidx
@@ -223,10 +223,10 @@ function EmitMemberCallArgs_ _
     '' along as callee + 1, the convention an M_CALL_IND uses (see DeclIndexFor_).
     if vslot >= 0 then
         dim as MirValue vfp = VirtualCalleeOf_( c, self_, vslot )
-        if vfp.kind <> cast( ubyte, MV_NONE ) then
-            ins.op = cast( ushort, M_CALL_IND )
+        if vfp.kind <> cast( uint8, MV_NONE ) then
+            ins.op = cast( uint16, M_CALL_IND )
             ins.a = vfp
-            ins.callee = cast( ulong, fidx + 1 )
+            ins.callee = cast( uint32, fidx + 1 )
             if callTy = MT_AGG then ins.imm = SizeOfType( c, s->type_ )
         end if
     end if
@@ -250,7 +250,7 @@ function EmitMemberCall _
     return EmitMemberCallArgs_( c, sym, self_, rt, 0, MemberVSlot_( c, sym ) )
 end function
 
-function MemberVSlot_( byref c as Ctx, byval sym as Tko.SymbolId ) as long
+function MemberVSlot_( byref c as Ctx, byval sym as Tko.SymbolId ) as int32
     if c.vts = 0 then return -1
     dim as Tko.Symbol ptr ms = c.syms->SymbolAt( sym )
     if ms = 0 then return -1
@@ -258,7 +258,7 @@ function MemberVSlot_( byref c as Ctx, byval sym as Tko.SymbolId ) as long
     if (md = Tko.NODE_NONE) orelse (c.ast->Kind( md ) <> Tko.N_PROC) then return -1
     if (StmtOf( c, md )->extra and (Tko.PF_VIRTUAL or Tko.PF_ABSTRACT)) = 0 then return -1
     dim as Tko.SymScope ptr os = c.syms->ScopeAt( ms->parent )
-    if (os = 0) orelse (os->kind <> cast( ubyte, Tko.SCOPEK_TYPE )) then return -1
+    if (os = 0) orelse (os->kind <> cast( uint8, Tko.SCOPEK_TYPE )) then return -1
     dim as Tko.Symbol ptr ow = c.syms->SymbolAt( os->owner )
     if ow = 0 then return -1
     return c.vts->SlotOf( c.types->Unqualify( ow->type_ ), sym, md )
@@ -273,7 +273,7 @@ end function
 '' must not build x.
 function SretResultSlot_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval registerDtor as boolean, _
-      byval sym as Tko.SymbolId ) as long
+      byval sym as Tko.SymbolId ) as int32
 
     if c.sretIntoOn andalso (sym = c.sretIntoSym) then
         if c.types->Unqualify( t ) = c.sretIntoType then
@@ -282,12 +282,12 @@ function SretResultSlot_ _
             return c.sretIntoSlot
         end if
     end if
-    dim as long tslot = NewTempLocal( c, MT_AGG, SizeOfType( c, t ) )
+    dim as int32 tslot = NewTempLocal( c, MT_AGG, SizeOfType( c, t ) )
     if tslot < 0 then return tslot
     if registerDtor then
         if TypeNeedsDtor_( c, t ) then
-            c.udtTemps.Push( cast( ulong, tslot ) )
-            c.udtTempTypes.Push( cast( ulong, t ) )
+            c.udtTemps.Push( cast( uint32, tslot ) )
+            c.udtTempTypes.Push( cast( uint32, t ) )
         end if
     end if
     return tslot
@@ -297,12 +297,12 @@ end function
 '' the statement's list now. An operator's result is made after its operands, so it has
 '' to die before their temporaries do. The variable a declaration offered is not a
 '' temporary and is left alone.
-sub SretResultSlotAfter_( byref c as Ctx, byval t as Tko.TypeId, byval slot as long )
+sub SretResultSlotAfter_( byref c as Ctx, byval t as Tko.TypeId, byval slot as int32 )
     if slot < 0 then return
     if c.sretIntoTaken andalso (slot = c.sretIntoSlot) then return
     if TypeNeedsDtor_( c, t ) = false then return
-    c.udtTemps.Push( cast( ulong, slot ) )
-    c.udtTempTypes.Push( cast( ulong, t ) )
+    c.udtTemps.Push( cast( uint32, slot ) )
+    c.udtTempTypes.Push( cast( uint32, t ) )
 end sub
 
 '' A PAREN-LESS PROPERTY'S GETTER: CHECK'S CHOICE, recorded on the member -- the accessor with
@@ -313,12 +313,12 @@ private function SoleGetter_( byref c as Ctx, byval member as Tko.NodeId ) as Tk
     dim as Tko.SymbolId sid = c.info->RefOf( member )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
     if s = 0 then return Tko.SYMBOL_NONE
-    if s->kind <> cast( ubyte, Tko.SYM_PROC ) then return Tko.SYMBOL_NONE
+    if s->kind <> cast( uint8, Tko.SYM_PROC ) then return Tko.SYMBOL_NONE
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then return Tko.SYMBOL_NONE
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
-    if (pp->op <> cast( ushort, Tko.KW_PROPERTY )) orelse (pp->a = Tko.NODE_NONE) then return Tko.SYMBOL_NONE
-    for i as long = 0 to pp->count - 1
+    if (pp->op <> cast( uint16, Tko.KW_PROPERTY )) orelse (pp->a = Tko.NODE_NONE) then return Tko.SYMBOL_NONE
+    for i as int32 = 0 to pp->count - 1
         if c.ast->Kind( cast( Tko.NodeId, c.ast->children[pp->first + i] ) ) = Tko.N_PARAM then return Tko.SYMBOL_NONE
     next
     return sid
@@ -347,7 +347,7 @@ end function
 '' to that symbol (SretResultSlot_). True when x has been dealt with, and nothing may
 '' construct or store it after.
 function SretInPlaceInit_ _
-    ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+    ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
       byval e as Tko.NodeId ) as boolean
 
     if (slot < 0) orelse (e = Tko.NODE_NONE) then return false
@@ -359,7 +359,7 @@ function SretInPlaceInit_ _
     case Tko.N_CALL
         '' The binding LowerAddr's call arm reads; a TYPE's constructor is not one.
         dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
         if lp->target = Tko.NODE_NONE then return false
         select case c.ast->Kind( lp->target )
         case Tko.N_IDENT, Tko.N_MEMBER
@@ -385,13 +385,13 @@ function SretInPlaceInit_ _
             if callee = Tko.SYMBOL_NONE then return false
             dim as Tko.Symbol ptr bs = c.syms->SymbolAt( callee )
             if bs = 0 then return false
-            if bs->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+            if bs->kind <> cast( uint8, Tko.SYM_PROC ) then return false
             dim as Tko.NodeId bpn = cast( Tko.NodeId, bs->payload )
             if bpn = Tko.NODE_NONE then return false
             if c.ast->Kind( bpn ) <> Tko.N_PROC then return false
-            if StmtOf( c, bpn )->op = cast( ushort, Tko.KW_PROPERTY ) then return false
+            if StmtOf( c, bpn )->op = cast( uint16, Tko.KW_PROPERTY ) then return false
             if IsVariadicProc( c, callee ) then return false
-            for i as long = 0 to ParamCountOf( c, callee ) - 1
+            for i as int32 = 0 to ParamCountOf( c, callee ) - 1
                 if ParamDefaultAt( c, callee, i ) = Tko.NODE_NONE then return false
             next
             isBare = true
@@ -402,20 +402,20 @@ function SretInPlaceInit_ _
     if callee = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
     if cs = 0 then return false
-    if cs->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    if cs->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
     if pn = Tko.NODE_NONE then return false
     if c.ast->Kind( pn ) <> Tko.N_PROC then return false
-    if (c.ast->nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0 then return false
+    if (c.ast->nodes[cast( int32, pn )].flags and Tko.NF_BYREF) <> 0 then return false
     if isOp then
-        if StmtOf( c, pn )->op <> cast( ushort, Tko.KW_OPERATOR ) then return false
+        if StmtOf( c, pn )->op <> cast( uint16, Tko.KW_OPERATOR ) then return false
     end if
     if cs->type_ = Tko.TYPE_NONE then return false
     dim as Tko.TypeId ut = c.types->Unqualify( t )
     if c.types->Unqualify( cs->type_ ) <> ut then return false
     if UsesSretReturn( c, cs->type_ ) = false then return false
 
-    dim as long cmark = c.udtTemps.Count
+    dim as int32 cmark = c.udtTemps.Count
     c.sretIntoSlot = slot
     c.sretIntoType = ut
     c.sretIntoSym = callee
@@ -426,12 +426,12 @@ function SretInPlaceInit_ _
     if isProp then
         c.sretIntoNode = e
         c.sretIntoAtNode = true
-        if LowerPropertyGet_( c, e, ra ) = false then ra.kind = cast( ubyte, MV_NONE )
+        if LowerPropertyGet_( c, e, ra ) = false then ra.kind = cast( uint8, MV_NONE )
         c.sretIntoAtNode = false
     elseif isBare then
         '' ...and a paren-less call's is LowerBareProcCall_, asked for the ADDRESS.
         c.sretIntoOn = true
-        if LowerBareProcCall_( c, e, MT_PTR, ra ) = false then ra.kind = cast( ubyte, MV_NONE )
+        if LowerBareProcCall_( c, e, MT_PTR, ra ) = false then ra.kind = cast( uint8, MV_NONE )
     else
         c.sretIntoOn = true
         ra = LowerAddr( c, e )
@@ -441,13 +441,13 @@ function SretInPlaceInit_ _
     c.sretIntoTaken = false
 
     if taken then
-        if (ra.kind = cast( ubyte, MV_LOCAL )) andalso (ra.id = slot) then return true
+        if (ra.kind = cast( uint8, MV_LOCAL )) andalso (ra.id = slot) then return true
         '' Something other than the initialiser took it, so x holds the wrong object.
         '' Not reachable by the shapes above; declined rather than miscompiled.
         SkipHere( c )
         return true
     end if
-    if ra.kind = cast( ubyte, MV_NONE ) then
+    if ra.kind = cast( uint8, MV_NONE ) then
         SkipHere( c )
         return true
     end if
@@ -459,24 +459,24 @@ function SretInPlaceInit_ _
         mv = ra
         if c.udtTemps.Count > cmark then
             if c.types->Unqualify( cast( Tko.TypeId, c.udtTempTypes[c.udtTempTypes.Count - 1] ) ) = ut then
-                ForgetUdtTemp_( c, cast( long, c.udtTemps[c.udtTemps.Count - 1] ) )
+                ForgetUdtTemp_( c, cast( int32, c.udtTemps[c.udtTemps.Count - 1] ) )
             end if
         end if
     else
-        dim as long sz = SizeOfType( c, t )
+        dim as int32 sz = SizeOfType( c, t )
         if sz > 0 then mv = LowerExprLoad( c, ra, MT_AGG, sz )
     end if
-    if mv.kind = cast( ubyte, MV_NONE ) then
+    if mv.kind = cast( uint8, MV_NONE ) then
         SkipHere( c )
         return true
     end if
     dim as MirValue dst
-    dst.kind = cast( ubyte, MV_LOCAL )
-    dst.ty = cast( ubyte, MT_PTR )
+    dst.kind = cast( uint8, MV_LOCAL )
+    dst.ty = cast( uint8, MT_PTR )
     dst.id = slot
     StoreThrough( c, dst, mv )
     if isProp = false then
-        if ra.kind = cast( ubyte, MV_LOCAL ) then ForgetUdtTemp_( c, ra.id )
+        if ra.kind = cast( uint8, MV_LOCAL ) then ForgetUdtTemp_( c, ra.id )
     end if
     return true
 end function
@@ -511,7 +511,7 @@ function UntypedCallResult_( byref c as Ctx, byval e as Tko.NodeId ) as Tko.Type
     if e = Tko.NODE_NONE then return Tko.TYPE_NONE
     if c.ast->Kind( e ) <> Tko.N_CALL then return Tko.TYPE_NONE
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
     if lp->target = Tko.NODE_NONE then return Tko.TYPE_NONE
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return Tko.TYPE_NONE
     if TypeCtorTypeOf_( c, e ) <> Tko.TYPE_NONE then return Tko.TYPE_NONE
@@ -520,11 +520,11 @@ function UntypedCallResult_( byref c as Ctx, byval e as Tko.NodeId ) as Tko.Type
     if callee = Tko.SYMBOL_NONE then return Tko.TYPE_NONE
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
     if cs = 0 then return Tko.TYPE_NONE
-    if cs->kind <> cast( ubyte, Tko.SYM_PROC ) then return Tko.TYPE_NONE
+    if cs->kind <> cast( uint8, Tko.SYM_PROC ) then return Tko.TYPE_NONE
     dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
     if pn = Tko.NODE_NONE then return Tko.TYPE_NONE
     if c.ast->Kind( pn ) <> Tko.N_PROC then return Tko.TYPE_NONE
-    if (c.ast->nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0 then return Tko.TYPE_NONE
+    if (c.ast->nodes[cast( int32, pn )].flags and Tko.NF_BYREF) <> 0 then return Tko.TYPE_NONE
     return cs->type_
 end function
 

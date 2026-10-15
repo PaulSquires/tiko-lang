@@ -24,11 +24,11 @@
 private sub PreExpandBareArgs_ _
     ( byref e as PpEngine, byref args as ArgList )
 
-    dim as long n = args.firsts.Count
+    dim as int32 n = args.firsts.Count
     if n = 0 then return
 
     dim as boolean anyBare = false
-    for ai as long = 0 to n - 1
+    for ai as int32 = 0 to n - 1
         if args.counts[ai] < 2 then continue for
         dim as Token t0 = args.flat[args.firsts[ai]]
         if Tk( t0 ) <> TK_IDENT then continue for
@@ -42,7 +42,7 @@ private sub PreExpandBareArgs_ _
     if anyBare = false then return
 
     dim as ArgList outA
-    for ai as long = 0 to n - 1
+    for ai as int32 = 0 to n - 1
         dim as boolean isBare = false
         if args.counts[ai] >= 2 then
             dim as Token t0 = args.flat[args.firsts[ai]]
@@ -57,12 +57,12 @@ private sub PreExpandBareArgs_ _
             end if
         end if
 
-        dim as long first = outA.flat.Count
-        dim as long count = 0
+        dim as int32 first = outA.flat.Count
+        dim as int32 count = 0
         if isBare then
             dim as TokenVec tv
             RelexInto( e, ExpandedArgText_( e, args, ai ), LOC_NONE, tv )
-            for j as long = 0 to tv.Count - 1
+            for j as int32 = 0 to tv.Count - 1
                 dim as Token nt = tv[j]
                 '' THE ARGUMENT'S OWN LEADING SPACE SURVIVES THE REPLACEMENT.
                 '' Relexed tokens carry the spacing of the synthesised text, so two
@@ -77,7 +77,7 @@ private sub PreExpandBareArgs_ _
                 count += 1
             next
         else
-            for j as long = 0 to args.counts[ai] - 1
+            for j as int32 = 0 to args.counts[ai] - 1
                 outA.flat.Push( args.flat[args.firsts[ai] + j] )
                 count += 1
             next
@@ -89,10 +89,10 @@ private sub PreExpandBareArgs_ _
     args.flat.Clear( )
     args.firsts.Clear( )
     args.counts.Clear( )
-    for j as long = 0 to outA.flat.Count - 1
+    for j as int32 = 0 to outA.flat.Count - 1
         args.flat.Push( outA.flat[j] )
     next
-    for j as long = 0 to outA.firsts.Count - 1
+    for j as int32 = 0 to outA.firsts.Count - 1
         args.firsts.Push( outA.firsts[j] )
         args.counts.Push( outA.counts[j] )
     next
@@ -105,11 +105,11 @@ end sub
 private function SelfRecursive_ _
     ( byref e as PpEngine, byval m as PpMacro ptr, byref use as Token ) as boolean
     if e.frames.Count > 0 then
-        dim as long ft = e.frames.Count - 1
+        dim as int32 ft = e.frames.Count - 1
         if (e.frames[ft].hides = m->name) andalso (e.frames[ft].useLoc <> LOC_NONE) then
             dim as boolean fromBody = (e.src->Decode( use.loc ).file <> e.src->Decode( e.frames[ft].useLoc ).file) orelse (e.src->Decode( use.loc ).lineNo <> e.src->Decode( e.frames[ft].useLoc ).lineNo)
             if fromBody andalso m->isFunc then
-                dim as long np_ = e.frames[ft].pos + 1
+                dim as int32 np_ = e.frames[ft].pos + 1
                 fromBody = (np_ < e.frames[ft].toks->Count) andalso (Tk( (*e.frames[ft].toks)[np_] ) = TK_LPAREN)
             end if
             if fromBody then

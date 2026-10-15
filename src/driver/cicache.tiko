@@ -46,9 +46,9 @@ private function GccOnPath_( ) as string
 #else
     dim as string sep = ":", exe = "/gcc"
 #endif
-    dim as long st = 1
+    dim as int32 st = 1
     while st <= len( p ) + 1
-        dim as long en = instr( st, p, sep )
+        dim as int32 en = instr( st, p, sep )
         if en = 0 then en = len( p ) + 1
         dim as string d = mid( p, st, en - st )
         if cbool( len( d ) > 0 ) andalso fs.IsFile( d & exe ) then return d & exe
@@ -88,15 +88,15 @@ function CacheLookup _
     if Tko.DiskCache.ReadAll( d & "/deps.txt", deps ) = false then return false
     if Tko.DiskCache.ReadAll( d & "/key.txt", k ) = false then return false
     if k <> key then return false
-    dim as long p = 1
+    dim as int32 p = 1
     while p <= len( deps )
-        dim as long e = instr( p, deps, chr( 10 ) )
+        dim as int32 e = instr( p, deps, chr( 10 ) )
         if e = 0 then e = len( deps ) + 1
         dim as string ln = mid( deps, p, e - p )
         p = e + 1
         if len( ln ) = 0 then continue while
-        dim as long t1 = instr( ln, chr( 9 ) )
-        dim as long t2 = instr( t1 + 1, ln, chr( 9 ) )
+        dim as int32 t1 = instr( ln, chr( 9 ) )
+        dim as int32 t2 = instr( t1 + 1, ln, chr( 9 ) )
         if (t1 = 0) orelse (t2 = 0) then return false
         if Tko.DiskCache.Stamp( mid( ln, t2 + 1 ) ) <> left( ln, t2 - 1 ) then return false
     wend
@@ -115,7 +115,7 @@ function CacheStore _
         if fs.IsDir( d ) = false then return ""
     end if
     dim as string dl
-    for i as long = 0 to deps.Count - 1
+    for i as int32 = 0 to deps.Count - 1
         dim as string st = Tko.DiskCache.Stamp( deps[i] )
         if len( st ) = 0 then return ""
         dl &= st & chr( 9 ) & deps[i] & chr( 10 )

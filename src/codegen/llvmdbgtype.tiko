@@ -26,13 +26,13 @@ private function SpellingOf_( byref d as DebugInfo, byval s as Tko.Symbol ptr ) 
     '' ...and the WHOLE line is read, from its start: a shared variable's location is
     '' past its name.
     dim as string raw
-    dim as long i = dl.offset
+    dim as int32 i = dl.offset
     if (dl.physLine >= 1) andalso (dl.physLine <= sf->lineStarts.Count) then
         i = sf->lineStarts[dl.physLine - 1]
     end if
-    dim as long lim = i + 1024
+    dim as int32 lim = i + 1024
     while (i >= 0) andalso (i < sf->text.Count) andalso (i < lim)
-        dim as ubyte ch = sf->text[i]
+        dim as uint8 ch = sf->text[i]
         if (ch = 10) orelse (ch = 13) then exit while
         dim as boolean isId = ((ch >= 65) andalso (ch <= 90)) orelse _
                               ((ch >= 97) andalso (ch <= 122)) orelse _
@@ -49,12 +49,12 @@ private function SpellingOf_( byref d as DebugInfo, byval s as Tko.Symbol ptr ) 
     return folded
 end function
 
-private function PtrBits_( byref d as DebugInfo ) as long
+private function PtrBits_( byref d as DebugInfo ) as int32
     return d.fe->types->target.pointerBits
 end function
 
 '' '!N' for a type node, 'null' for void.
-private function TypeRef_( byval ty as long ) as string
+private function TypeRef_( byval ty as int32 ) as string
     if ty <= 0 then return "null"
     return "!" & str( ty )
 end function
@@ -84,8 +84,8 @@ private function NamedSym_( byref d as DebugInfo, byval t as Tko.TypeId ) as Tko
     if sid = Tko.SYMBOL_NONE then return 0
     dim as Tko.Symbol ptr s = d.fe->syms->SymbolAt( sid )
     if s = 0 then return 0
-    if (s->kind <> cast( ubyte, Tko.SYM_UDT )) andalso _
-       (s->kind <> cast( ubyte, Tko.SYM_ENUM )) then return 0
+    if (s->kind <> cast( uint8, Tko.SYM_UDT )) andalso _
+       (s->kind <> cast( uint8, Tko.SYM_ENUM )) then return 0
     return s
 end function
 
@@ -95,7 +95,7 @@ private function TypeName_( byref d as DebugInfo, byval t as Tko.TypeId ) as str
     return d.fe->types->Name( t )
 end function
 
-declare function DbgType( byref d as DebugInfo, byval t as Tko.TypeId ) as long
+declare function DbgType( byref d as DebugInfo, byval t as Tko.TypeId ) as int32
 
 '' A type as FreeBASIC writes it -- 'long', 'Node ptr', 'zstring * 8' -- for the names
 '' a debugger shows: an array's element and a dynamic array's descriptor.
@@ -114,74 +114,74 @@ private function DisplayName_( byref d as DebugInfo, byval t as Tko.TypeId ) as 
 end function
 
 '' The storage size of a type in BYTES, as layout computes it.
-private function SizeBytes_( byref d as DebugInfo, byval t as Tko.TypeId ) as longint
+private function SizeBytes_( byref d as DebugInfo, byval t as Tko.TypeId ) as int64
     dim as Tko.TypeContext ptr tc = d.fe->types
     dim as Tko.TypeId u = tc->Unqualify( t )
     select case tc->Kind( u )
     case Tko.TK_UDT
-        dim as long ui = d.fe->udts->Find( u )
+        dim as int32 ui = d.fe->udts->Find( u )
         if ui >= 0 then return d.fe->udts->udts[ui].size
         return 0
     case Tko.TK_ARRAY
         if tc->IsDynArray( u ) then
-            dim as long rk = tc->DynRank( u )
+            dim as int32 rk = tc->DynRank( u )
             if rk <= 0 then rk = 8
             return (PtrBits_( d ) \ 8) * (6 + 3 * rk)
         end if
-        return cast( longint, tc->types[cast( long, u )].elems ) * SizeBytes_( d, tc->Inner( u ) )
+        return cast( int64, tc->types[cast( int32, u )].elems ) * SizeBytes_( d, tc->Inner( u ) )
     case Tko.TK_TYPEDEF
         return SizeBytes_( d, tc->Inner( u ) )
     end select
     return tc->Layout( u ).size
 end function
 
-private function Basic_( byref nm as string, byval bits as long, byref enc as string ) as string
+private function Basic_( byref nm as string, byval bits as int32, byref enc as string ) as string
     return "!DIBasicType(name: " & MetaStr_( nm ) & ", size: " & str( bits ) & _
            ", encoding: " & enc & ")"
 end function
 
 '' A typedef called 'nm' over the basic type 'basic' (a node body).
 private function Named_( byref d as DebugInfo, byref nm as string, byref basic as string ) as string
-    dim as long b = NewNode_( d, basic )
+    dim as int32 b = NewNode_( d, basic )
     return "!DIDerivedType(tag: DW_TAG_typedef, name: " & MetaStr_( nm ) & ", baseType: !" & _
            str( b ) & ")"
 end function
 
 '' 'integer', for the descriptors' counts and an enum's underlying type.
-private function IntType_( byref d as DebugInfo ) as long
+private function IntType_( byref d as DebugInfo ) as int32
     if d.intType = 0 then
         d.intType = DbgType( d, d.fe->types->Builtin( Tko.TY_INTEGER ) )
     end if
     return d.intType
 end function
 
-private function Member_( byref d as DebugInfo, byval scope_ as long, byref nm as string, _
-                          byval ty as long, byval bits as longint, byval offBits as longint ) as long
+private function Member_( byref d as DebugInfo, byval scope_ as int32, byref nm as string, _
+                          byval ty as int32, byval bits as int64, byval offBits as int64 ) as int32
     return NewNode_( d, "!DIDerivedType(tag: DW_TAG_member, name: " & MetaStr_( nm ) & _
                         ", scope: !" & str( scope_ ) & ", baseType: " & TypeRef_( ty ) & _
                         ", size: " & str( bits ) & ", offset: " & str( offBits ) & ")" )
 end function
 
 '' A STRING or USTRING: the descriptor, { data, len, size }. 'unit' is the character.
-private sub Descriptor_( byref d as DebugInfo, byval id as long, byref nm as string, _
-                         byval unitTy as long )
-    dim as long pb = PtrBits_( d )
-    dim as long pdata = NewNode_( d, "!DIDerivedType(tag: DW_TAG_pointer_type, baseType: " & _
+private sub Descriptor_( byref d as DebugInfo, byval id as int32, byref nm as string, _
+                         byval unitTy as int32 )
+    dim as int32 pb = PtrBits_( d )
+    dim as int32 pdata = NewNode_( d, "!DIDerivedType(tag: DW_TAG_pointer_type, baseType: " & _
                                      TypeRef_( unitTy ) & ", size: " & str( pb ) & ")" )
-    dim as long it = IntType_( d )
-    dim as long m0 = Member_( d, id, "data", pdata, pb, 0 )
-    dim as long m1 = Member_( d, id, "len", it, pb, pb )
-    dim as long m2 = Member_( d, id, "size", it, pb, 2 * pb )
+    dim as int32 it = IntType_( d )
+    dim as int32 m0 = Member_( d, id, "data", pdata, pb, 0 )
+    dim as int32 m1 = Member_( d, id, "len", it, pb, pb )
+    dim as int32 m2 = Member_( d, id, "size", it, pb, 2 * pb )
     DefineNode_( d, id, "!DICompositeType(tag: DW_TAG_structure_type, name: " & _
                         MetaStr_( nm ) & ", size: " & str( 3 * pb ) & _
                         ", elements: !{!" & str( m0 ) & ", !" & str( m1 ) & ", !" & _
                         str( m2 ) & "})" )
 end sub
 
-private function Builtin_( byref d as DebugInfo, byval id as long, byval t as Tko.TypeId ) as long
+private function Builtin_( byref d as DebugInfo, byval id as int32, byval t as Tko.TypeId ) as int32
     dim as Tko.TypeContext ptr tc = d.fe->types
     dim as Tko.BuiltinType b = tc->BuiltinOf( t )
-    dim as long bits = tc->Layout( t ).size * 8
+    dim as int32 bits = tc->Layout( t ).size * 8
     dim as string nm = Tko.BuiltinName( b )
     dim as string body_
     select case b
@@ -222,30 +222,30 @@ end function
 
 '' A FIXED ARRAY: one DISubrange per dimension, outermost first -- FreeBASIC is row-major,
 '' as C is. A 'zstring * N' is an array too, of N characters with no declared bounds.
-private function FixedArray_( byref d as DebugInfo, byval id as long, byval t as Tko.TypeId ) as long
+private function FixedArray_( byref d as DebugInfo, byval id as int32, byval t as Tko.TypeId ) as int32
     dim as Tko.TypeContext ptr tc = d.fe->types
-    dim as long et = DbgType( d, tc->Inner( t ) )
+    dim as int32 et = DbgType( d, tc->Inner( t ) )
     if et < 0 then return -1
-    dim as long rank = tc->types[cast( long, t )].dims
+    dim as int32 rank = tc->types[cast( int32, t )].dims
     dim as string subs = ""
     dim as string bounds = ""
-    for k as long = 0 to rank - 1
+    for k as int32 = 0 to rank - 1
         dim as boolean k1, k2
-        dim as longint lo = tc->ArrayBound( t, k, false, k1 )
-        dim as longint hi = tc->ArrayBound( t, k, true, k2 )
+        dim as int64 lo = tc->ArrayBound( t, k, false, k1 )
+        dim as int64 hi = tc->ArrayBound( t, k, true, k2 )
         if (k1 = false) orelse (k2 = false) then
             subs = ""
             bounds = ""
             exit for
         end if
         bounds += iif( len( bounds ) > 0, ", ", "" ) & str( lo ) & " to " & str( hi )
-        dim as long sr = NewNode_( d, "!DISubrange(count: " & str( hi - lo + 1 ) & _
+        dim as int32 sr = NewNode_( d, "!DISubrange(count: " & str( hi - lo + 1 ) & _
                                       ", lowerBound: " & str( lo ) & ")" )
         subs += iif( len( subs ) > 0, ", !", "!" ) & str( sr )
     next
     if len( subs ) = 0 then
-        dim as long sr = NewNode_( d, "!DISubrange(count: " & _
-                                      str( tc->types[cast( long, t )].elems ) & ")" )
+        dim as int32 sr = NewNode_( d, "!DISubrange(count: " & _
+                                      str( tc->types[cast( int32, t )].elems ) & ")" )
         subs = "!" & str( sr )
     end if
     dim as string arr = "!DICompositeType(tag: DW_TAG_array_type, baseType: " & _
@@ -269,12 +269,12 @@ private function FixedArray_( byref d as DebugInfo, byval id as long, byval t as
         end select
     end if
     if len( fixNm ) > 0 then
-        dim as long an = NewNode_( d, arr )
+        dim as int32 an = NewNode_( d, arr )
         DefineNode_( d, id, "!DIDerivedType(tag: DW_TAG_typedef, name: " & _
-                            MetaStr_( fixNm & " * " & str( tc->types[cast( long, t )].elems ) ) & _
+                            MetaStr_( fixNm & " * " & str( tc->types[cast( int32, t )].elems ) ) & _
                             ", baseType: !" & str( an ) & ")" )
     elseif len( bounds ) > 0 then
-        dim as long an = NewNode_( d, arr )
+        dim as int32 an = NewNode_( d, arr )
         DefineNode_( d, id, "!DIDerivedType(tag: DW_TAG_typedef, name: " & _
                             MetaStr_( DisplayName_( d, tc->Inner( t ) ) & "(" & bounds & ")" ) & _
                             ", baseType: !" & str( an ) & ")" )
@@ -287,25 +287,25 @@ end function
 '' A DYNAMIC ARRAY is its descriptor (lib/rt/src/inc/descriptors.ti, src/mir/lowerdesc.tiko):
 '' data, ptr, size, element_len, dimensions, flags, then dimtb[rank] { elements, lbound,
 '' ubound }. 'data' is typed, so a debugger can show the elements through it.
-private function DynArray_( byref d as DebugInfo, byval id as long, byval t as Tko.TypeId ) as long
+private function DynArray_( byref d as DebugInfo, byval id as int32, byval t as Tko.TypeId ) as int32
     dim as Tko.TypeContext ptr tc = d.fe->types
-    dim as long et = DbgType( d, tc->Inner( t ) )
+    dim as int32 et = DbgType( d, tc->Inner( t ) )
     if et < 0 then return -1
-    dim as long pb = PtrBits_( d )
-    dim as long it = IntType_( d )
-    dim as long rk = tc->DynRank( t )
+    dim as int32 pb = PtrBits_( d )
+    dim as int32 it = IntType_( d )
+    dim as int32 rk = tc->DynRank( t )
     if rk <= 0 then rk = 8
-    dim as long pe = NewNode_( d, "!DIDerivedType(tag: DW_TAG_pointer_type, baseType: " & _
+    dim as int32 pe = NewNode_( d, "!DIDerivedType(tag: DW_TAG_pointer_type, baseType: " & _
                                   TypeRef_( et ) & ", size: " & str( pb ) & ")" )
-    dim as long dimT = ReserveNode_( d )
-    dim as long e0 = Member_( d, dimT, "elements", it, pb, 0 )
-    dim as long e1 = Member_( d, dimT, "lbound", it, pb, pb )
-    dim as long e2 = Member_( d, dimT, "ubound", it, pb, 2 * pb )
+    dim as int32 dimT = ReserveNode_( d )
+    dim as int32 e0 = Member_( d, dimT, "elements", it, pb, 0 )
+    dim as int32 e1 = Member_( d, dimT, "lbound", it, pb, pb )
+    dim as int32 e2 = Member_( d, dimT, "ubound", it, pb, 2 * pb )
     DefineNode_( d, dimT, "!DICompositeType(tag: DW_TAG_structure_type, name: ""FBARRAYDIM"", " & _
                           "size: " & str( 3 * pb ) & ", elements: !{!" & str( e0 ) & ", !" & _
                           str( e1 ) & ", !" & str( e2 ) & "})" )
-    dim as long sr = NewNode_( d, "!DISubrange(count: " & str( rk ) & ")" )
-    dim as long dimsArr = NewNode_( d, "!DICompositeType(tag: DW_TAG_array_type, baseType: !" & _
+    dim as int32 sr = NewNode_( d, "!DISubrange(count: " & str( rk ) & ")" )
+    dim as int32 dimsArr = NewNode_( d, "!DICompositeType(tag: DW_TAG_array_type, baseType: !" & _
                                        str( dimT ) & ", size: " & str( 3 * pb * rk ) & _
                                        ", elements: !{!" & str( sr ) & "})" )
     dim as string ms = ""
@@ -339,17 +339,17 @@ end function
 '' A UDT: its fields from the layout store, in declaration order with their offsets.
 '' An anonymous union's members arrive already flattened at their real offsets, so they
 '' are plain members; 'extends' is the field named 'base', and it is INHERITANCE.
-private function Udt_( byref d as DebugInfo, byval id as long, byval t as Tko.TypeId ) as long
+private function Udt_( byref d as DebugInfo, byval id as int32, byval t as Tko.TypeId ) as int32
     dim as Tko.TypeContext ptr tc = d.fe->types
     dim as Tko.Symbol ptr us = NamedSym_( d, t )
     dim as string nm = TypeName_( d, t )
-    dim as long fl = d.mainFileId, ln = 0
+    dim as int32 fl = d.mainFileId, ln = 0
     if us <> 0 then DeclSite_( d, us, fl, ln )
     dim as string tag = "DW_TAG_structure_type"
     if us <> 0 then
         if (us->flags and Tko.SYMF_UNION_KIND) <> 0 then tag = "DW_TAG_union_type"
     end if
-    dim as long ui = d.fe->udts->Find( t )
+    dim as int32 ui = d.fe->udts->Find( t )
     if ui < 0 then
         '' INCOMPLETE -- declared, never defined here: a forward declaration.
         DefineNode_( d, id, "!DICompositeType(tag: " & tag & ", name: " & MetaStr_( nm ) & _
@@ -359,15 +359,15 @@ private function Udt_( byref d as DebugInfo, byval id as long, byval t as Tko.Ty
     end if
     dim as Tko.UdtInfo ptr info = @d.fe->udts->udts[ui]
     dim as string ms = ""
-    for k as long = info->first to info->first + info->count - 1
+    for k as int32 = info->first to info->first + info->count - 1
         dim as Tko.UdtField ptr fd = @d.fe->udts->fields[k]
         '' A BITFIELD READS UNSIGNED, whatever it was declared as: measured, fbc prints
         '' 5 for 'A : 3 as long' holding 5, where a signed 3-bit field would be -3.
         dim as Tko.TypeId fty = fd->type_
         if fd->bitWidth > 0 then fty = Unsigned_( d, fty )
-        dim as long ft = DbgType( d, fty )
+        dim as int32 ft = DbgType( d, fty )
         if ft < 0 then continue for
-        dim as long mn
+        dim as int32 mn
         dim as boolean isBase = (fd->name = d.fe->udts->baseName) andalso _
                                 (tc->BaseOf( t ) <> Tko.TYPE_NONE)
         if isBase then
@@ -403,9 +403,9 @@ end function
 
 '' An ENUM: pointer-sized, its enumerators the SYM_ENUMCONSTs of its scope, each value in
 '' the symbol's payload.
-private function Enum_( byref d as DebugInfo, byval id as long, byval t as Tko.TypeId ) as long
+private function Enum_( byref d as DebugInfo, byval id as int32, byval t as Tko.TypeId ) as int32
     dim as Tko.Symbol ptr es = NamedSym_( d, t )
-    dim as long fl = d.mainFileId, ln = 0
+    dim as int32 fl = d.mainFileId, ln = 0
     dim as string ms = ""
     if es <> 0 then
         DeclSite_( d, es, fl, ln )
@@ -415,8 +415,8 @@ private function Enum_( byref d as DebugInfo, byval id as long, byval t as Tko.T
             while k <> Tko.SYMBOL_NONE
                 dim as Tko.Symbol ptr cs = d.fe->syms->SymbolAt( k )
                 if cs = 0 then exit while
-                if cs->kind = cast( ubyte, Tko.SYM_ENUMCONST ) then
-                    dim as long en = NewNode_( d, "!DIEnumerator(name: " & _
+                if cs->kind = cast( uint8, Tko.SYM_ENUMCONST ) then
+                    dim as int32 en = NewNode_( d, "!DIEnumerator(name: " & _
                                                   MetaStr_( SpellingOf_( d, cs ) ) & _
                                                   ", value: " & str( cs->payload ) & ")" )
                     ms += iif( len( ms ) > 0, ", !", "!" ) & str( en )
@@ -434,12 +434,12 @@ end function
 
 '' A PROCEDURE TYPE is the procedure's signature; 'dim f as sub( )' is a POINTER to one,
 '' as the type table has it, so it arrives here through TK_POINTER.
-private function Proc_( byref d as DebugInfo, byval id as long, byval t as Tko.TypeId ) as long
+private function Proc_( byref d as DebugInfo, byval id as int32, byval t as Tko.TypeId ) as int32
     dim as Tko.TypeContext ptr tc = d.fe->types
-    dim as long rt = DbgType( d, tc->Inner( t ) )
+    dim as int32 rt = DbgType( d, tc->Inner( t ) )
     dim as string ts = TypeRef_( iif( rt < 0, 0, rt ) )
-    for k as long = 0 to tc->ProcParamCount( t ) - 1
-        dim as long pt = DbgType( d, tc->ProcParam( t, k ) )
+    for k as int32 = 0 to tc->ProcParamCount( t ) - 1
+        dim as int32 pt = DbgType( d, tc->ProcParam( t, k ) )
         ts += ", " & TypeRef_( iif( pt < 0, 0, pt ) )
     next
     DefineNode_( d, id, "!DISubroutineType(types: !{" & ts & "})" )
@@ -448,21 +448,21 @@ end function
 
 '' The DI type of a TypeId: its node number, 0 for void, -1 for a type that cannot be
 '' described (a variable of one is simply left out).
-function DbgType( byref d as DebugInfo, byval t as Tko.TypeId ) as long
+function DbgType( byref d as DebugInfo, byval t as Tko.TypeId ) as int32
     if (d.fe = 0) orelse (t = Tko.TYPE_NONE) then return 0
     dim as Tko.TypeContext ptr tc = d.fe->types
-    dim as long ti = cast( long, t )
+    dim as int32 ti = cast( int32, t )
     if (ti < 0) orelse (ti >= tc->types.Count) then return -1
     while d.typeMeta.Count <= ti
         d.typeMeta.Push( 0 )
     wend
     if d.typeMeta[ti] = -2 then return 0
     if d.typeMeta[ti] <> 0 then return d.typeMeta[ti]
-    dim as long id = ReserveNode_( d )
+    dim as int32 id = ReserveNode_( d )
     d.typeMeta[ti] = id
-    dim as long r = -1
+    dim as int32 r = -1
     if tc->IsConst( t ) then
-        dim as long bt = DbgType( d, tc->Unqualify( t ) )
+        dim as int32 bt = DbgType( d, tc->Unqualify( t ) )
         if bt >= 0 then
             DefineNode_( d, id, "!DIDerivedType(tag: DW_TAG_const_type, baseType: " & _
                                 TypeRef_( bt ) & ")" )
@@ -473,7 +473,7 @@ function DbgType( byref d as DebugInfo, byval t as Tko.TypeId ) as long
         case Tko.TK_BUILTIN
             r = Builtin_( d, id, t )
         case Tko.TK_POINTER, Tko.TK_REFERENCE
-            dim as long bt = DbgType( d, tc->Inner( t ) )
+            dim as int32 bt = DbgType( d, tc->Inner( t ) )
             if bt < 0 then bt = 0
             dim as string tag = "DW_TAG_pointer_type"
             if tc->Kind( t ) = Tko.TK_REFERENCE then tag = "DW_TAG_reference_type"
@@ -493,7 +493,7 @@ function DbgType( byref d as DebugInfo, byval t as Tko.TypeId ) as long
         case Tko.TK_PROC
             r = Proc_( d, id, t )
         case Tko.TK_TYPEDEF
-            dim as long bt = DbgType( d, tc->Inner( t ) )
+            dim as int32 bt = DbgType( d, tc->Inner( t ) )
             if bt >= 0 then
                 DefineNode_( d, id, "!DIDerivedType(tag: DW_TAG_typedef, name: " & _
                                     MetaStr_( tc->Name( t ) ) & ", baseType: " & _

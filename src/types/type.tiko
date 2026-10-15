@@ -11,9 +11,9 @@ namespace Tko
 
 type BuiltinInfo
     as zstring ptr name
-    as long        bits          '' 0 = target-dependent
+    as int32        bits          '' 0 = target-dependent
     as boolean     signed_
-    as ubyte       class_
+    as uint8       class_
 end type
 
 dim shared as BuiltinInfo builtinTb( 0 to TY_BUILTIN_COUNT - 1 )
@@ -21,17 +21,17 @@ dim shared as boolean builtinReady = false
 
 private sub InitBuiltins( )
     if builtinReady then return
-    for i as long = 0 to TY_BUILTIN_COUNT - 1
+    for i as int32 = 0 to TY_BUILTIN_COUNT - 1
         builtinTb(i).name = @"?"
         builtinTb(i).bits = 0
         builtinTb(i).signed_ = false
-        builtinTb(i).class_ = cast( ubyte, TC_VOID )
+        builtinTb(i).class_ = cast( uint8, TC_VOID )
     next
     #macro BUILTIN( b_id, b_name, b_bits, b_signed, b_class )
         builtinTb(b_id).name = @b_name
         builtinTb(b_id).bits = b_bits
         builtinTb(b_id).signed_ = b_signed
-        builtinTb(b_id).class_ = cast( ubyte, b_class )
+        builtinTb(b_id).class_ = cast( uint8, b_class )
     #endmacro
     TKO_BUILTIN_LIST( BUILTIN )
     #undef BUILTIN
@@ -163,13 +163,13 @@ constructor TypeContext( )
     '' Slot 0 is TYPE_NONE; the builtins then occupy 1..TY_BUILTIN_COUNT-1 in enum
     '' order, so Builtin( b ) is an identity map and dumps are stable.
     dim as TypeInfo z
-    z.kind = cast( ubyte, TK_ERROR )
+    z.kind = cast( uint8, TK_ERROR )
     this.types.Push( z )
 
-    for b as long = 1 to TY_BUILTIN_COUNT - 1
+    for b as int32 = 1 to TY_BUILTIN_COUNT - 1
         dim as TypeInfo bi
-        bi.kind = cast( ubyte, TK_BUILTIN )
-        bi.builtin = cast( ubyte, b )
+        bi.kind = cast( uint8, TK_BUILTIN )
+        bi.builtin = cast( uint8, b )
         bi.flags = TF_COMPLETE
         bi.inner = TYPE_NONE
         bi.dims = 0
@@ -182,13 +182,13 @@ sub TypeContext.Attach( byval it as Interner ptr, byref tgt as TargetLayout )
     this.target = tgt
 end sub
 
-function TypeContext.Count( ) as long
+function TypeContext.Count( ) as int32
     return this.types.Count - 1
 end function
 
 '' ------------------------------------------------------------------ interning
 
-const TYPEINDEX_INITIAL_SLOTS as long = 1024
+const TYPEINDEX_INITIAL_SLOTS as int32 = 1024
 
 constructor TypeIndex( )
     '' TypeId 0 is TYPE_NONE and is never filed; its slot keeps 'chain' and 'hashes'
@@ -198,80 +198,80 @@ constructor TypeIndex( )
     this.Rehash( TYPEINDEX_INITIAL_SLOTS )
 end constructor
 
-sub TypeIndex.Link_( byval id as long )
-    dim as long b = cast( long, this.hashes[id] and cast( ulong, this.mask ) )
+sub TypeIndex.Link_( byval id as int32 )
+    dim as int32 b = cast( int32, this.hashes[id] and cast( uint32, this.mask ) )
     if this.buckets[b] = 0 then
-        this.buckets[b] = cast( ulong, id )
+        this.buckets[b] = cast( uint32, id )
     else
-        this.chain[cast( long, this.lasts[b] )] = cast( ulong, id )
+        this.chain[cast( int32, this.lasts[b] )] = cast( uint32, id )
     end if
-    this.lasts[b] = cast( ulong, id )
+    this.lasts[b] = cast( uint32, id )
 end sub
 
-sub TypeIndex.Rehash( byval slots as long )
+sub TypeIndex.Rehash( byval slots as int32 )
     this.buckets.Clear( )
     this.lasts.Clear( )
     this.buckets.Reserve( slots )
     this.lasts.Reserve( slots )
-    for b as long = 0 to slots - 1
+    for b as int32 = 0 to slots - 1
         this.buckets.Push( 0 )
         this.lasts.Push( 0 )
     next
     this.mask = slots - 1
     '' RE-LINKED IN ASCENDING ORDER, so every chain stays sorted by TypeId.
-    for id as long = 1 to this.chain.Count - 1
+    for id as int32 = 1 to this.chain.Count - 1
         this.chain[id] = 0
         this.Link_( id )
     next
 end sub
 
-sub TypeIndex.Add( byval id as TypeId, byval h as ulong )
+sub TypeIndex.Add( byval id as TypeId, byval h as uint32 )
     this.chain.Push( 0 )
     this.hashes.Push( h )
-    this.Link_( cast( long, id ) )
+    this.Link_( cast( int32, id ) )
     '' Grow at an average chain length of one.
     if this.chain.Count - 1 > this.mask + 1 then this.Rehash( (this.mask + 1) * 2 )
 end sub
 
-function TypeIndex.Lookup( byval h as ulong ) as TypeId
-    return cast( TypeId, this.buckets[cast( long, h and cast( ulong, this.mask ) )] )
+function TypeIndex.Lookup( byval h as uint32 ) as TypeId
+    return cast( TypeId, this.buckets[cast( int32, h and cast( uint32, this.mask ) )] )
 end function
 
 function TypeIndex.After( byval id as TypeId ) as TypeId
-    return cast( TypeId, this.chain[cast( long, id )] )
+    return cast( TypeId, this.chain[cast( int32, id )] )
 end function
 
 '' One index key: up to four fields, FNV-1a over their bytes -- the interner's hash.
 '' A signed field goes in as its bit pattern, so every caller casts it the same way.
 private function TypeKey_ _
-    ( byval a as ulong, byval b as ulong, byval c as ulong, byval d as ulong ) as ulong
+    ( byval a as uint32, byval b as uint32, byval c as uint32, byval d as uint32 ) as uint32
 
-    dim as ulong k(0 to 3) = { a, b, c, d }
-    return HashBytes( cast( const ubyte ptr, @k(0) ), 16 )
+    dim as uint32 k(0 to 3) = { a, b, c, d }
+    return HashBytes( cast( const uint8 ptr, @k(0) ), 16 )
 end function
 
 function TypeContext.Push_( byref n as TypeInfo ) as TypeId
     this.types.Push( n )
     dim as TypeId id = cast( TypeId, this.types.Count - 1 )
-    this.byShape.Add( id, TypeKey_( n.kind, n.inner, n.flags, cast( ulong, n.dims ) ) )
-    this.byArray.Add( id, TypeKey_( n.kind, n.inner, cast( ulong, n.dims ), _
-                                    cast( ulong, n.elems ) ) )
+    this.byShape.Add( id, TypeKey_( n.kind, n.inner, n.flags, cast( uint32, n.dims ) ) )
+    this.byArray.Add( id, TypeKey_( n.kind, n.inner, cast( uint32, n.dims ), _
+                                    cast( uint32, n.elems ) ) )
     this.byBuiltin.Add( id, TypeKey_( n.kind, n.builtin, n.flags, 0 ) )
     this.byName.Add( id, TypeKey_( n.kind, n.name, n.declScope, 0 ) )
-    this.byProc.Add( id, TypeKey_( n.kind, n.inner, cast( ulong, n.count ), _
+    this.byProc.Add( id, TypeKey_( n.kind, n.inner, cast( uint32, n.count ), _
                                    n.flags and TF_VARIADIC ) )
     return id
 end function
 
 function TypeContext.Find _
-    ( byval wantKind as TypeKind, byval innerT as TypeId, byval fl as ushort, _
-      byval rank as long ) as TypeId
+    ( byval wantKind as TypeKind, byval innerT as TypeId, byval fl as uint16, _
+      byval rank as int32 ) as TypeId
 
-    dim as ulong h = TypeKey_( cast( ulong, wantKind ), innerT, fl, cast( ulong, rank ) )
+    dim as uint32 h = TypeKey_( cast( uint32, wantKind ), innerT, fl, cast( uint32, rank ) )
     dim as TypeId i = this.byShape.Lookup( h )
     while i <> TYPE_NONE
-        dim as TypeInfo ptr t = @this.types[cast( long, i )]
-        dim as boolean same = (t->kind = cast( ubyte, wantKind )) andalso _
+        dim as TypeInfo ptr t = @this.types[cast( int32, i )]
+        dim as boolean same = (t->kind = cast( uint8, wantKind )) andalso _
                               (t->inner = innerT) andalso _
                               (t->flags = fl) andalso (t->dims = rank)
         if same then return i
@@ -279,7 +279,7 @@ function TypeContext.Find _
     wend
 
     dim as TypeInfo n
-    n.kind = cast( ubyte, wantKind )
+    n.kind = cast( uint8, wantKind )
     n.builtin = 0
     n.flags = fl
     n.inner = innerT
@@ -315,7 +315,7 @@ end function
 '' and the rest are new. Rank 0 is genuinely unspecified rather than zero-dimensional;
 '' fbc gives that descriptor the full eight slots because it does not know either.
 function TypeContext.DynArrayOf _
-    ( byval elem as TypeId, byval rank as long ) as TypeId
+    ( byval elem as TypeId, byval rank as int32 ) as TypeId
 
     return this.ArrayOf( elem, -(rank + 1), 0, 0 )
 end function
@@ -325,17 +325,17 @@ end function
 function TypeContext.IsDynArray( byval t as TypeId ) as boolean
     if t = TYPE_NONE then return false
     if this.Kind( t ) <> TK_ARRAY then return false
-    return (this.types[cast( long, t )].dims < 0)
+    return (this.types[cast( int32, t )].dims < 0)
 end function
 
-function TypeContext.DynRank( byval t as TypeId ) as long
+function TypeContext.DynRank( byval t as TypeId ) as int32
     if this.IsDynArray( t ) = false then return 0
-    return (-this.types[cast( long, t )].dims) - 1
+    return (-this.types[cast( int32, t )].dims) - 1
 end function
 
 function TypeContext.ArrayOf _
-    ( byval elem as TypeId, byval rank as long, byval elems as long, _
-      byval bounds as containers.Array( of longint ) ptr ) as TypeId
+    ( byval elem as TypeId, byval rank as int32, byval elems as int32, _
+      byval bounds as containers.Array( of int64 ) ptr ) as TypeId
 
     '' The element COUNT is part of the identity: 'long a(0 to 3)' and
     '' 'long a(0 to 7)' are different types with different sizes, and Find( ) alone
@@ -345,11 +345,11 @@ function TypeContext.ArrayOf _
     '' element count and the same size, but different lbound biases, so indexing them
     '' produces different addresses. Sharing one type between them would fold the wrong
     '' bias into every subscript of one of the two.
-    dim as ulong h = TypeKey_( TK_ARRAY, elem, cast( ulong, rank ), cast( ulong, elems ) )
+    dim as uint32 h = TypeKey_( TK_ARRAY, elem, cast( uint32, rank ), cast( uint32, elems ) )
     dim as TypeId i = this.byArray.Lookup( h )
     while i <> TYPE_NONE
-        dim as TypeInfo ptr t = @this.types[cast( long, i )]
-        if (t->kind = cast( ubyte, TK_ARRAY )) andalso (t->inner = elem) andalso _
+        dim as TypeInfo ptr t = @this.types[cast( int32, i )]
+        if (t->kind = cast( uint8, TK_ARRAY )) andalso (t->inner = elem) andalso _
            (t->dims = rank) andalso (t->elems = elems) then
             dim as boolean same = true
             if bounds = 0 then
@@ -358,7 +358,7 @@ function TypeContext.ArrayOf _
                 if t->count <> bounds->Count then
                     same = false
                 else
-                    for j as long = 0 to t->count - 1
+                    for j as int32 = 0 to t->count - 1
                         if this.boundPool[t->first + j] <> (*bounds)[j] then same = false
                     next
                 end if
@@ -368,7 +368,7 @@ function TypeContext.ArrayOf _
         i = this.byArray.After( i )
     wend
     dim as TypeInfo n
-    n.kind = cast( ubyte, TK_ARRAY )
+    n.kind = cast( uint8, TK_ARRAY )
     n.flags = TF_COMPLETE
     n.inner = elem
     n.dims = rank
@@ -376,7 +376,7 @@ function TypeContext.ArrayOf _
     n.first = this.boundPool.Count
     n.count = 0
     if bounds <> 0 then
-        for j as long = 0 to bounds->Count - 1
+        for j as int32 = 0 to bounds->Count - 1
             this.boundPool.Push( (*bounds)[j] )
         next
         n.count = bounds->Count
@@ -385,14 +385,14 @@ function TypeContext.ArrayOf _
 end function
 
 function TypeContext.ArrayBound _
-    ( byval t as TypeId, byval dim_ as long, byval hi as boolean, _
-      byref known as boolean ) as longint
+    ( byval t as TypeId, byval dim_ as int32, byval hi as boolean, _
+      byref known as boolean ) as int64
 
     known = false
     if t = TYPE_NONE then return 0
-    dim as TypeInfo ptr ti = @this.types[cast( long, t )]
-    if ti->kind <> cast( ubyte, TK_ARRAY ) then return 0
-    dim as long idx = dim_ * 2
+    dim as TypeInfo ptr ti = @this.types[cast( int32, t )]
+    if ti->kind <> cast( uint8, TK_ARRAY ) then return 0
+    dim as int32 idx = dim_ * 2
     if hi then idx += 1
     if (idx < 0) orelse (idx >= ti->count) then return 0
     known = true
@@ -401,16 +401,16 @@ end function
 
 '' 'const T' is the same type with a flag, so const-ness never changes identity of
 '' anything else about it.
-function TypeContext.Qualify( byval t as TypeId, byval fl as ushort ) as TypeId
+function TypeContext.Qualify( byval t as TypeId, byval fl as uint16 ) as TypeId
     if t = TYPE_NONE then return t
-    dim as TypeInfo ptr src = @this.types[cast( long, t )]
-    dim as ushort want = src->flags or fl
+    dim as TypeInfo ptr src = @this.types[cast( int32, t )]
+    dim as uint16 want = src->flags or fl
     if want = src->flags then return t
 
-    if src->kind = cast( ubyte, TK_BUILTIN ) then
+    if src->kind = cast( uint8, TK_BUILTIN ) then
         dim as TypeId i = this.byBuiltin.Lookup( TypeKey_( src->kind, src->builtin, want, 0 ) )
         while i <> TYPE_NONE
-            dim as TypeInfo ptr c = @this.types[cast( long, i )]
+            dim as TypeInfo ptr c = @this.types[cast( int32, i )]
             dim as boolean same = (c->kind = src->kind) andalso _
                                   (c->builtin = src->builtin) andalso (c->flags = want)
             if same then return i
@@ -435,7 +435,7 @@ function TypeContext.Qualify( byval t as TypeId, byval fl as ushort ) as TypeId
         dim as InternId nm = src->name
         dim as TypeId i = this.byName.Lookup( TypeKey_( src->kind, nm, src->declScope, 0 ) )
         while i <> TYPE_NONE
-            dim as TypeInfo ptr c2 = @this.types[cast( long, i )]
+            dim as TypeInfo ptr c2 = @this.types[cast( int32, i )]
             dim as TypeId here = i
             i = this.byName.After( i )
             if c2->kind <> src->kind then continue while
@@ -463,13 +463,13 @@ end function
 
 function TypeContext.NamedType _
     ( byval k as TypeKind, byval nm as InternId, _
-      byval declScope as ulong = 0, byval rawNm as InternId = 0 ) as TypeId
+      byval declScope as uint32 = 0, byval rawNm as InternId = 0 ) as TypeId
 
     if nm = 0 then return TYPE_NONE
-    dim as TypeId i = this.byName.Lookup( TypeKey_( cast( ulong, k ), nm, declScope, 0 ) )
+    dim as TypeId i = this.byName.Lookup( TypeKey_( cast( uint32, k ), nm, declScope, 0 ) )
     while i <> TYPE_NONE
-        dim as TypeInfo ptr t = @this.types[cast( long, i )]
-        if (t->kind = cast( ubyte, k )) andalso (t->name = nm) andalso _
+        dim as TypeInfo ptr t = @this.types[cast( int32, i )]
+        if (t->kind = cast( uint8, k )) andalso (t->name = nm) andalso _
            (t->declScope = declScope) then
             '' A LATER SIGHTING MAY BE THE ONE THAT KNOWS THE SPELLING: the type is
             '' created by whatever names it first, which can be a forward reference.
@@ -479,7 +479,7 @@ function TypeContext.NamedType _
         i = this.byName.After( i )
     wend
     dim as TypeInfo n
-    n.kind = cast( ubyte, k )
+    n.kind = cast( uint8, k )
     n.flags = TF_COMPLETE
     n.name = nm
     n.rawName = rawNm
@@ -489,14 +489,14 @@ end function
 
 function TypeContext.Unqualify( byval t as TypeId ) as TypeId
     if t = TYPE_NONE then return t
-    dim as TypeInfo ptr src = @this.types[cast( long, t )]
-    dim as ushort want = src->flags and (not TF_CONST)
+    dim as TypeInfo ptr src = @this.types[cast( int32, t )]
+    dim as uint16 want = src->flags and (not TF_CONST)
     if want = src->flags then return t
 
-    if src->kind = cast( ubyte, TK_BUILTIN ) then
+    if src->kind = cast( uint8, TK_BUILTIN ) then
         dim as TypeId i = this.byBuiltin.Lookup( TypeKey_( src->kind, src->builtin, want, 0 ) )
         while i <> TYPE_NONE
-            dim as TypeInfo ptr c = @this.types[cast( long, i )]
+            dim as TypeInfo ptr c = @this.types[cast( int32, i )]
             dim as boolean same = (c->kind = src->kind) andalso _
                                   (c->builtin = src->builtin) andalso (c->flags = want)
             if same then return i
@@ -520,7 +520,7 @@ function TypeContext.Unqualify( byval t as TypeId ) as TypeId
         dim as InternId nm = src->name
         dim as TypeId i = this.byName.Lookup( TypeKey_( src->kind, nm, src->declScope, 0 ) )
         while i <> TYPE_NONE
-            dim as TypeInfo ptr c2 = @this.types[cast( long, i )]
+            dim as TypeInfo ptr c2 = @this.types[cast( int32, i )]
             dim as TypeId here = i
             i = this.byName.After( i )
             if c2->kind <> src->kind then continue while
@@ -553,17 +553,17 @@ function TypeContext.ProcType _
     '' THE ELLIPSIS IS PART OF THE KEY. Two procedure types with the same parameters
     '' and a different tail are different types; sharing the cache entry made them one.
 
-    dim as ulong vflag = 0
+    dim as uint32 vflag = 0
     if variadic then vflag = TF_VARIADIC
     if pascal_ then vflag or= TF_PASCAL
     if typedVar then vflag or= TF_TYPED_VARIADIC
     dim as TypeId i = this.byProc.Lookup( _
-        TypeKey_( TK_PROC, ret, cast( ulong, params.Count ), vflag ) )
+        TypeKey_( TK_PROC, ret, cast( uint32, params.Count ), vflag ) )
     while i <> TYPE_NONE
-        dim as TypeInfo ptr t = @this.types[cast( long, i )]
+        dim as TypeInfo ptr t = @this.types[cast( int32, i )]
         dim as TypeId here = i
         i = this.byProc.After( i )
-        if t->kind <> cast( ubyte, TK_PROC ) then continue while
+        if t->kind <> cast( uint8, TK_PROC ) then continue while
         if t->inner <> ret then continue while
         if t->count <> params.Count then continue while
         dim as boolean tv = ((t->flags and TF_VARIADIC) <> 0)
@@ -572,7 +572,7 @@ function TypeContext.ProcType _
         if tpas <> pascal_ then continue while
         if ((t->flags and TF_TYPED_VARIADIC) <> 0) <> typedVar then continue while
         dim as boolean same = true
-        for j as long = 0 to t->count - 1
+        for j as int32 = 0 to t->count - 1
             if this.pool[t->first + j] <> params[j] then
                 same = false
                 exit for
@@ -582,7 +582,7 @@ function TypeContext.ProcType _
     wend
 
     dim as TypeInfo n
-    n.kind = cast( ubyte, TK_PROC )
+    n.kind = cast( uint8, TK_PROC )
     n.flags = TF_COMPLETE
     if variadic then n.flags or= TF_VARIADIC
     if pascal_ then n.flags or= TF_PASCAL
@@ -590,88 +590,88 @@ function TypeContext.ProcType _
     n.inner = ret
     n.first = this.pool.Count
     n.count = params.Count
-    for k as long = 0 to params.Count - 1
+    for k as int32 = 0 to params.Count - 1
         this.pool.Push( params[k] )
     next
     return this.Push_( n )
 end function
 
-function TypeContext.DeclScopeOf( byval t as TypeId ) as ulong
-    if (t = TYPE_NONE) orelse (cast( long, t ) >= this.types.Count) then return 0
-    return this.types[cast( long, t )].declScope
+function TypeContext.DeclScopeOf( byval t as TypeId ) as uint32
+    if (t = TYPE_NONE) orelse (cast( int32, t ) >= this.types.Count) then return 0
+    return this.types[cast( int32, t )].declScope
 end function
 
-function TypeContext.Packing( byval t as TypeId ) as long
-    if (t = TYPE_NONE) orelse (cast( long, t ) >= this.types.Count) then return 0
-    return this.types[cast( long, t )].packing
+function TypeContext.Packing( byval t as TypeId ) as int32
+    if (t = TYPE_NONE) orelse (cast( int32, t ) >= this.types.Count) then return 0
+    return this.types[cast( int32, t )].packing
 end function
 
 '' See the header. ONLY a procedure type, and ONLY while its result is still unset:
 '' the type is INTERNED, so overwriting a result that was deliberately chosen would
 '' silently re-point every other holder of the same TypeId.
 sub TypeContext.SetProcResult( byval t as TypeId, byval ret as TypeId )
-    if (t = TYPE_NONE) orelse (cast( long, t ) >= this.types.Count) then return
+    if (t = TYPE_NONE) orelse (cast( int32, t ) >= this.types.Count) then return
     if ret = TYPE_NONE then return
-    if this.types[cast( long, t )].kind <> cast( ubyte, TK_PROC ) then return
-    if this.types[cast( long, t )].inner <> TYPE_NONE then return
-    this.types[cast( long, t )].inner = ret
+    if this.types[cast( int32, t )].kind <> cast( uint8, TK_PROC ) then return
+    if this.types[cast( int32, t )].inner <> TYPE_NONE then return
+    this.types[cast( int32, t )].inner = ret
 end sub
 
 '' See SetProcResult. ONLY while the parameter is still unset, and only inside the
 '' parameter list this type actually owns -- the pool is shared, so a bad index would
 '' write over somebody else's signature rather than fail.
 sub TypeContext.SetProcParam _
-    ( byval t as TypeId, byval idx as long, byval pt as TypeId )
+    ( byval t as TypeId, byval idx as int32, byval pt as TypeId )
 
-    if (t = TYPE_NONE) orelse (cast( long, t ) >= this.types.Count) then return
+    if (t = TYPE_NONE) orelse (cast( int32, t ) >= this.types.Count) then return
     if pt = TYPE_NONE then return
-    dim as TypeInfo ptr n = @this.types[cast( long, t )]
-    if n->kind <> cast( ubyte, TK_PROC ) then return
+    dim as TypeInfo ptr n = @this.types[cast( int32, t )]
+    if n->kind <> cast( uint8, TK_PROC ) then return
     if (idx < 0) orelse (idx >= n->count) then return
     if this.pool[n->first + idx] <> TYPE_NONE then return
     this.pool[n->first + idx] = pt
 end sub
 
-sub TypeContext.SetPacking( byval t as TypeId, byval n as long )
-    if (t = TYPE_NONE) orelse (cast( long, t ) >= this.types.Count) then return
-    this.types[cast( long, t )].packing = n
+sub TypeContext.SetPacking( byval t as TypeId, byval n as int32 )
+    if (t = TYPE_NONE) orelse (cast( int32, t ) >= this.types.Count) then return
+    this.types[cast( int32, t )].packing = n
 end sub
 
-function TypeContext.ElemCount( byval t as TypeId ) as long
-    if (t = TYPE_NONE) orelse (cast( long, t ) >= this.types.Count) then return 0
-    return this.types[cast( long, t )].elems
+function TypeContext.ElemCount( byval t as TypeId ) as int32
+    if (t = TYPE_NONE) orelse (cast( int32, t ) >= this.types.Count) then return 0
+    return this.types[cast( int32, t )].elems
 end function
 
 '' A PROCEDURE TYPE'S PARAMETERS -- how many, and the i'th. They live in the shared
 '' pool at 'first', which is where ProcType put them; 'elems' is an ARRAY's count and
 '' says nothing about a proc.
-function TypeContext.ProcParamCount( byval t as TypeId ) as long
+function TypeContext.ProcParamCount( byval t as TypeId ) as int32
     if this.Kind( t ) <> TK_PROC then return 0
-    return this.types[cast( long, t )].count
+    return this.types[cast( int32, t )].count
 end function
 
-function TypeContext.ProcParam( byval t as TypeId, byval i as long ) as TypeId
+function TypeContext.ProcParam( byval t as TypeId, byval i as int32 ) as TypeId
     if this.Kind( t ) <> TK_PROC then return TYPE_NONE
-    dim as TypeInfo ptr ti = @this.types[cast( long, t )]
+    dim as TypeInfo ptr ti = @this.types[cast( int32, t )]
     if (i < 0) orelse (i >= ti->count) then return TYPE_NONE
     return cast( TypeId, this.pool[ti->first + i] )
 end function
 
 function TypeContext.NameOf( byval t as TypeId ) as InternId
-    if (t = TYPE_NONE) orelse (cast( long, t ) >= this.types.Count) then return 0
-    return this.types[cast( long, t )].name
+    if (t = TYPE_NONE) orelse (cast( int32, t ) >= this.types.Count) then return 0
+    return this.types[cast( int32, t )].name
 end function
 
 function TypeContext.BaseOf( byval t as TypeId ) as TypeId
     if t = TYPE_NONE then return TYPE_NONE
-    if cast( long, t ) >= this.types.Count then return TYPE_NONE
-    return this.types[cast( long, t )].baseType
+    if cast( int32, t ) >= this.types.Count then return TYPE_NONE
+    return this.types[cast( int32, t )].baseType
 end function
 
 sub TypeContext.SetBase( byval t as TypeId, byval b as TypeId )
     if t = TYPE_NONE then return
-    if cast( long, t ) >= this.types.Count then return
-    this.types[cast( long, t )].baseType = b
+    if cast( int32, t ) >= this.types.Count then return
+    this.types[cast( int32, t )].baseType = b
 end sub
 
 '' How many 'extends' links separate a derived type from one of its bases. 0 when they
@@ -680,13 +680,13 @@ end sub
 '' Single inheritance, so there is one chain and no ambiguity; the depth cap is a cycle
 '' guard, not a language limit.
 function TypeContext.BaseDistance _
-    ( byval from_ as TypeId, byval to_ as TypeId ) as long
+    ( byval from_ as TypeId, byval to_ as TypeId ) as int32
 
     if (from_ = TYPE_NONE) orelse (to_ = TYPE_NONE) then return -1
     dim as TypeId a = this.Unqualify( from_ )
     dim as TypeId b = this.Unqualify( to_ )
     if a = b then return 0
-    for d as long = 1 to 31
+    for d as int32 = 1 to 31
         a = this.Unqualify( this.BaseOf( a ) )
         if a = TYPE_NONE then return -1
         if a = b then return d
@@ -696,43 +696,43 @@ end function
 
 function TypeContext.Kind( byval t as TypeId ) as TypeKind
     if t = TYPE_NONE then return TK_ERROR
-    if cast( long, t ) >= this.types.Count then return TK_ERROR
-    return cast( TypeKind, this.types[cast( long, t )].kind )
+    if cast( int32, t ) >= this.types.Count then return TK_ERROR
+    return cast( TypeKind, this.types[cast( int32, t )].kind )
 end function
 
 function TypeContext.BuiltinOf( byval t as TypeId ) as BuiltinType
     if this.Kind( t ) <> TK_BUILTIN then return TY_NONE
-    return cast( BuiltinType, this.types[cast( long, t )].builtin )
+    return cast( BuiltinType, this.types[cast( int32, t )].builtin )
 end function
 
 function TypeContext.Inner( byval t as TypeId ) as TypeId
     if t = TYPE_NONE then return TYPE_NONE
-    if cast( long, t ) >= this.types.Count then return TYPE_NONE
-    return this.types[cast( long, t )].inner
+    if cast( int32, t ) >= this.types.Count then return TYPE_NONE
+    return this.types[cast( int32, t )].inner
 end function
 
 function TypeContext.IsConst( byval t as TypeId ) as boolean
     if t = TYPE_NONE then return false
-    if cast( long, t ) >= this.types.Count then return false
-    return ((this.types[cast( long, t )].flags and TF_CONST) <> 0)
+    if cast( int32, t ) >= this.types.Count then return false
+    return ((this.types[cast( int32, t )].flags and TF_CONST) <> 0)
 end function
 
 function TypeContext.IsVariadic( byval t as TypeId ) as boolean
     if t = TYPE_NONE then return false
-    if cast( long, t ) >= this.types.Count then return false
-    return ((this.types[cast( long, t )].flags and TF_VARIADIC) <> 0)
+    if cast( int32, t ) >= this.types.Count then return false
+    return ((this.types[cast( int32, t )].flags and TF_VARIADIC) <> 0)
 end function
 
 function TypeContext.IsTypedVariadic( byval t as TypeId ) as boolean
     if t = TYPE_NONE then return false
-    if cast( long, t ) >= this.types.Count then return false
-    return ((this.types[cast( long, t )].flags and TF_TYPED_VARIADIC) <> 0)
+    if cast( int32, t ) >= this.types.Count then return false
+    return ((this.types[cast( int32, t )].flags and TF_TYPED_VARIADIC) <> 0)
 end function
 
 function TypeContext.IsPascal( byval t as TypeId ) as boolean
     if t = TYPE_NONE then return false
-    if cast( long, t ) >= this.types.Count then return false
-    return ((this.types[cast( long, t )].flags and TF_PASCAL) <> 0)
+    if cast( int32, t ) >= this.types.Count then return false
+    return ((this.types[cast( int32, t )].flags and TF_PASCAL) <> 0)
 end function
 
 '' --------------------------------------------------------------------- layout
@@ -743,7 +743,7 @@ function TypeContext.Layout( byval t as TypeId ) as TypeLayout
     r.align = 1
     if t = TYPE_NONE then return r
 
-    dim as long ptrBytes = this.target.pointerBits \ 8
+    dim as int32 ptrBytes = this.target.pointerBits \ 8
 
     select case this.Kind( t )
     case TK_POINTER, TK_REFERENCE, TK_PROC
@@ -805,7 +805,7 @@ function TypeContext.Layout( byval t as TypeId ) as TypeLayout
         '' on the type now: it is part of the type's identity, because two arrays of
         '' different lengths are different types with different sizes.
         r = this.Layout( this.Inner( t ) )
-        dim as long n = this.types[cast( long, t )].elems
+        dim as int32 n = this.types[cast( int32, t )].elems
         if n > 0 then r.size *= n
 
     case else
@@ -854,13 +854,13 @@ function TypeContext.Name( byval t as TypeId ) as string
             select case this.BuiltinOf( el )
             case TY_ZSTRING, TY_WSTRING, TY_USTRING
                 return prefix & BuiltinName( this.BuiltinOf( el ) ) & " * " & _
-                       this.types[cast( long, t )].elems
+                       this.types[cast( int32, t )].elems
             end select
         end if
-        dim as long d = this.types[cast( long, t )].dims
+        dim as int32 d = this.types[cast( int32, t )].dims
         dim as string dims = ""
         if d > 0 then
-            for i as long = 2 to d
+            for i as int32 = 2 to d
                 dims += ","
             next
         end if
@@ -868,11 +868,11 @@ function TypeContext.Name( byval t as TypeId ) as string
     case TK_PROC
         '' 'sub( as long )' / 'function( as double ) as long'. A procedure type reads as
         '' its own declaration, which is what a diagnostic about one needs to say.
-        dim as long pn = this.types[cast( long, t )].count
+        dim as int32 pn = this.types[cast( int32, t )].count
         dim as string ps = ""
-        for i as long = 0 to pn - 1
+        for i as int32 = 0 to pn - 1
             if i > 0 then ps += ", "
-            ps += "as " & this.Name( cast( TypeId, this.pool[this.types[cast( long, t )].first + i] ) )
+            ps += "as " & this.Name( cast( TypeId, this.pool[this.types[cast( int32, t )].first + i] ) )
         next
         dim as TypeId rt = this.Inner( t )
         dim as boolean isSub = (this.Kind( rt ) = TK_BUILTIN)
@@ -880,7 +880,7 @@ function TypeContext.Name( byval t as TypeId ) as string
         if isSub then return prefix & "sub( " & ps & " )"
         return prefix & "function( " & ps & " ) as " & this.Name( rt )
     case TK_UDT, TK_ENUM, TK_TYPEDEF, TK_FORWARD
-        dim as InternId nm = this.types[cast( long, t )].name
+        dim as InternId nm = this.types[cast( int32, t )].name
         if (this.names <> 0) andalso (nm <> INTERN_NONE) then
             return prefix & this.names->Spelling( nm )
         end if
@@ -901,7 +901,7 @@ function DumpTypes( byref tc as TypeContext ) as string
             " bytes align " & tc.target.stringAlign & chr( 10 )
     outp += "types: " & tc.Count( ) & chr( 10 )
 
-    for i as long = 1 to tc.Count( )
+    for i as int32 = 1 to tc.Count( )
         dim as TypeId t = cast( TypeId, i )
         dim as TypeLayout ly = tc.Layout( t )
         dim as string nm = tc.Name( t )

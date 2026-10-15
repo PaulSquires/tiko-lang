@@ -12,7 +12,7 @@
 ''     [as ustring, as string]             STRING          (walk: the first)
 ''     [as ustring, byref as zstring]      the ZSTRING one (walk: the first)
 ''     [as ustring, byref as wstring]      USTRING, a UTF-16 term -- StrTermFlavour_ said WIDE
-function ScoredStrTerm_( byref c as Ctx, byval t as Tko.TypeId, byref sym as Tko.SymbolId ) as long
+function ScoredStrTerm_( byref c as Ctx, byval t as Tko.TypeId, byref sym as Tko.SymbolId ) as int32
     sym = Tko.SYMBOL_NONE
     '' A BUILT-IN'S OVERLOAD PICK, when one is being lowered (castForce, IntrCastForce_): the cast
     '' fbc's overload resolution chose is the one called, whatever the string table would say.
@@ -30,8 +30,8 @@ function ScoredStrTerm_( byref c as Ctx, byval t as Tko.TypeId, byref sym as Tko
             fcur = c.syms->SymbolAt( fcur )->nextOverload
         wend
     end if
-    dim as long oc, cls
-    dim as long tg = c.strCastTarget
+    dim as int32 oc, cls
+    dim as int32 tg = c.strCastTarget
     if tg = 0 then tg = Tko.Check.CT_STRING
     dim as Tko.SymbolId s = Tko.Check.StrCastPick( *c.ast, *c.syms, *c.types, *c.names, t, tg, oc, cls )
     if oc <> Tko.Check.CP_OK then return 0
@@ -67,14 +67,14 @@ function UserCastToStr_ _
     '' FBC'S PICK FIRST (ScoredStrTerm_): a narrow or ustring winner is the cast; a wide one means
     '' this is not a narrow term at all. Only when the score decides nothing does the walk below.
     dim as Tko.SymbolId scored
-    dim as long sk = ScoredStrTerm_( c, t, scored )
+    dim as int32 sk = ScoredStrTerm_( c, t, scored )
     if sk = 3 then return false
     if sk <> 0 then
         dim as MirValue sself
         if UdtSelfAddr_( c, id, sself ) = false then return false
         outv = EmitMemberCall( c, scored, sself, MT_PTR )
-        if outv.kind = cast( ubyte, MV_NONE ) then return false
-        dim as long scls = Tko.Check.CastResultClass( *c.ast, *c.syms, *c.types, scored )
+        if outv.kind = cast( uint8, MV_NONE ) then return false
+        dim as int32 scls = Tko.Check.CastResultClass( *c.ast, *c.syms, *c.types, scored )
         raw = (scls = Tko.Check.CR_CHAR) orelse (scls = Tko.Check.CR_CHARPTR)   '' a char* either way
         return true
     end if
@@ -94,7 +94,7 @@ function UdtCastIsUStr_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if t = Tko.TYPE_NONE then return false
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
     dim as Tko.SymbolId scored
-    dim as long sk = ScoredStrTerm_( c, t, scored )     '' fbc's pick, as UserCastToStr_ takes it
+    dim as int32 sk = ScoredStrTerm_( c, t, scored )     '' fbc's pick, as UserCastToStr_ takes it
     return (sk = 2)
 end function
 
@@ -122,7 +122,7 @@ function UserCastToWstr_ _
     dim as MirValue self_
     if UdtSelfAddr_( c, id, self_ ) = false then return false
     outv = EmitMemberCall( c, want, self_, MT_PTR )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 
 '' (Moved from lowerwstr.tiko at its 1500-line cap.)
@@ -136,7 +136,7 @@ function WideCastOverload_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.Symbo
     if c.types->Kind( c.types->Unqualify( t ) ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
     '' C4: castpick's WSTRING row, where 'byref as wstring' (500) and 'as wstring ptr' (499) beat
     '' every other cast -- the walk's two passes ("a pointer last") were that order spelt out.
-    dim as long oc, cls
+    dim as int32 oc, cls
     dim as Tko.SymbolId s = Tko.Check.StrCastPick( *c.ast, *c.syms, *c.types, *c.names, t, Tko.Check.CT_WSTRING, oc, cls )
     if (cls = Tko.Check.CR_WCHAR) orelse (cls = Tko.Check.CR_WCHARPTR) then return s
     return Tko.SYMBOL_NONE
@@ -150,7 +150,7 @@ function HasNarrowStrCast_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     t = c.types->Unqualify( t )
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
     dim as Tko.SymbolId cur = UdtMemberNamed_( c, t, "cast" )
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
@@ -182,7 +182,7 @@ function UserCastToWide_ _
     '' only of a type WITH a wide cast: callers try this to choose a path, and a narrow-only type
     '' must keep answering no ('dim ru as wstring * 50 = mid( uu, 1 )' is fb_StrMid, then assign).
     dim as Tko.SymbolId scored
-    dim as long sk = ScoredStrTerm_( c, c.info->TypeOf_( id ), scored )
+    dim as int32 sk = ScoredStrTerm_( c, c.info->TypeOf_( id ), scored )
     if (sk = 1) orelse (sk = 2) then return NarrowToWideTemp_( c, id, outv )
     if (sk = 3) andalso (scored <> Tko.SYMBOL_NONE) then want = scored   '' 'byref as wstring' or a 'wstring ptr' -- fbc's pick
 
@@ -195,20 +195,20 @@ function UserCastToWide_ _
     dim as Tko.Symbol ptr bs = 0
     dim as Tko.NodeKind ik = c.ast->Kind( id )
     if (ik = Tko.N_IDENT) orelse (ik = Tko.N_MEMBER) then bs = c.syms->SymbolAt( c.info->RefOf( id ) )
-    if (bs <> 0) andalso (bs->kind = cast( ubyte, Tko.SYM_PROC )) then
-        dim as long bsz = SizeOfType( c, c.types->Unqualify( c.info->TypeOf_( id ) ) )
+    if (bs <> 0) andalso (bs->kind = cast( uint8, Tko.SYM_PROC )) then
+        dim as int32 bsz = SizeOfType( c, c.types->Unqualify( c.info->TypeOf_( id ) ) )
         if bsz <= 0 then return false
         if LowerBareProcCall_( c, id, MT_AGG, brv ) = false then return false
-        self_.kind = cast( ubyte, MV_LOCAL ) : self_.ty = cast( ubyte, MT_PTR )
+        self_.kind = cast( uint8, MV_LOCAL ) : self_.ty = cast( uint8, MT_PTR )
         self_.id = NewTempLocal( c, MT_AGG, bsz )
-        if cast( long, self_.id ) < 0 then return false
+        if cast( int32, self_.id ) < 0 then return false
         StoreThrough( c, self_, brv )
     elseif UdtSelfAddr_( c, id, self_ ) = false then   '' an operator's result has no address
         return false
     end if
-    if self_.kind = cast( ubyte, MV_NONE ) then return false
+    if self_.kind = cast( uint8, MV_NONE ) then return false
     outv = EmitMemberCall( c, want, self_, MT_PTR )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 
 '' THE TARGET A DESTINATION ASKS WITH. A ustring or wstring destination fed DIRECTLY by a UDT asks
@@ -228,11 +228,11 @@ end function
 
 function LowerStringAssignTo _
     ( byref c as Ctx, byref dst as MirValue, byval target as Tko.NodeId, _
-      byval value as Tko.NodeId, byval dstFlavour as long ) as boolean
+      byval value as Tko.NodeId, byval dstFlavour as int32 ) as boolean
     dim as boolean isU = IsUStringType( c, c.info->TypeOf_( target ) )
     if target = Tko.NODE_NONE then isU = IsUStringDest_( c, dst )
     if dstFlavour >= 0 then isU = (dstFlavour = 1)
-    dim as long saveT = c.strCastTarget
+    dim as int32 saveT = c.strCastTarget
     if c.strCastTarget = 0 then c.strCastTarget = iif( isU andalso DirectUdtSource_( c, value ), Tko.Check.CT_USTRING, Tko.Check.CT_STRING )
     dim as boolean ok = LowerStringAssignTo_( c, dst, target, value, dstFlavour )
     c.strCastTarget = saveT
@@ -240,9 +240,9 @@ function LowerStringAssignTo _
 end function
 
 function LowerWideAssignTo _
-    ( byref c as Ctx, byref dst as MirValue, byval n as long, _
+    ( byref c as Ctx, byref dst as MirValue, byval n as int32, _
       byval value as Tko.NodeId ) as boolean
-    dim as long saveT = c.strCastTarget
+    dim as int32 saveT = c.strCastTarget
     if c.strCastTarget = 0 then c.strCastTarget = iif( DirectUdtSource_( c, value ), Tko.Check.CT_WSTRING, Tko.Check.CT_STRING )
     dim as boolean ok = LowerWideAssignTo_( c, dst, n, value )
     c.strCastTarget = saveT
@@ -251,12 +251,12 @@ end function
 
 '' THE DECLARATION FORM -- 'dim as ustring s = u' -- which never reaches LowerStringAssignTo.
 function LowerStringInit _
-    ( byref c as Ctx, byval slot as long, byval target as Tko.NodeId, _
+    ( byref c as Ctx, byval slot as int32, byval target as Tko.NodeId, _
       byval value as Tko.NodeId ) as boolean
     dim as boolean isU = false
     if slot >= 0 then isU = IsUStringType( c, c.f->locals[slot].frontendType )
     if isU = false then isU = IsUStringType( c, c.info->TypeOf_( target ) )
-    dim as long saveT = c.strCastTarget
+    dim as int32 saveT = c.strCastTarget
     if c.strCastTarget = 0 then c.strCastTarget = iif( isU andalso DirectUdtSource_( c, value ), Tko.Check.CT_USTRING, Tko.Check.CT_STRING )
     dim as boolean ok = LowerStringInit_( c, slot, target, value )
     c.strCastTarget = saveT
@@ -267,20 +267,20 @@ end function
 '' -- not the string table's -- is the one their operand calls: 'left( x, 1 )' over [as string,
 '' byref as zstring] calls the zstring cast, 'val( x )' over [byref as wstring, as zstring ptr]
 '' the wstring one. 0 for any other call, or when the pick is not clean (Check reported it).
-function IntrCastForce_( byref c as Ctx, byval id as Tko.NodeId ) as long
+function IntrCastForce_( byref c as Ctx, byval id as Tko.NodeId ) as int32
     if c.ast->Kind( id ) <> Tko.N_CALL then return 0
-    dim as Tko.ListPayload ptr cp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as Tko.ListPayload ptr cp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if (cp->count < 1) orelse (cp->target = Tko.NODE_NONE) then return 0
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return 0
-    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )].name ) )
+    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )].name ) )
     if instr( " left right val valint vallng valuint valulng ", " " & nm & " " ) = 0 then return 0
     if CallsUserProcNamedLikeBuiltin( c, id ) then return 0
     dim as Tko.TypeId at = c.types->Unqualify( c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[cp->first] ) ) )
     if c.types->Kind( at ) <> Tko.TK_UDT then return 0
-    dim as long oc, prm
+    dim as int32 oc, prm
     dim as Tko.SymbolId s = Tko.Check.IntrStrOvlPick( *c.ast, *c.syms, *c.types, *c.names, at, (nm = "left") orelse (nm = "right"), oc, prm )
     if oc <> Tko.Check.CP_OK then return 0
-    return cast( long, s )
+    return cast( int32, s )
 end function
 
 declare function LowerWideRvalueB_( byref c as Ctx, byval value as Tko.NodeId, byref outv as MirValue ) as boolean
@@ -289,18 +289,18 @@ declare function LowerUStrIntrinB_( byref c as Ctx, byval id as Tko.NodeId, byre
 '' The four entry points that lower these calls, each under the call's own force -- set for its
 '' operand and restored on the way out, so it never reaches anything else.
 function LowerStrRvalue( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
-    dim as long cfs = c.castForce : c.castForce = IntrCastForce_( c, id )
+    dim as int32 cfs = c.castForce : c.castForce = IntrCastForce_( c, id )
     function = LowerStrRvalueB_( c, id, outv ) : c.castForce = cfs
 end function
 function LowerStrNumCall_( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
-    dim as long cfs = c.castForce : c.castForce = IntrCastForce_( c, id )
+    dim as int32 cfs = c.castForce : c.castForce = IntrCastForce_( c, id )
     function = LowerStrNumCallB_( c, id, outv ) : c.castForce = cfs
 end function
 function LowerWideRvalue( byref c as Ctx, byval value as Tko.NodeId, byref outv as MirValue ) as boolean
-    dim as long cfs = c.castForce : c.castForce = IntrCastForce_( c, value )
+    dim as int32 cfs = c.castForce : c.castForce = IntrCastForce_( c, value )
     function = LowerWideRvalueB_( c, value, outv ) : c.castForce = cfs
 end function
 function LowerUStrIntrin_( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
-    dim as long cfs = c.castForce : c.castForce = IntrCastForce_( c, id )
+    dim as int32 cfs = c.castForce : c.castForce = IntrCastForce_( c, id )
     function = LowerUStrIntrinB_( c, id, outv ) : c.castForce = cfs
 end function

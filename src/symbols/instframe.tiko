@@ -30,11 +30,11 @@
 '' to that type's frame.
 function InstFrameFor_ _
     ( byref c as Ctx, byval at_ as Tko.NodeId, byval gname as Tko.InternId, _
-      byref argTypes as containers.Array( of ulong ), byval fallback as long ) as long
+      byref argTypes as containers.Array( of uint32 ), byval fallback as int32 ) as int32
 
     if at_ = Tko.NODE_NONE then return fallback
     dim as string t = c.names->Spelling( gname ) & "( of "
-    for i as long = 0 to argTypes.Count - 1
+    for i as int32 = 0 to argTypes.Count - 1
         if i > 0 then t &= ", "
         t &= c.types->Name( cast( Tko.TypeId, argTypes[i] ) )
     next
@@ -48,19 +48,19 @@ end function
 '' error in it belongs to the same instantiation as the body it was written in.
 sub MarkInstBody_ _
     ( byref c as Ctx, byval fresh as Tko.NodeId, byref q as Tko.ParserState, _
-      byval frame as long )
+      byval frame as int32 )
 
     if frame <= 0 then return
     c.info->Resize( c.ast->Count( ) )
     c.info->SetInstFrame( fresh, frame )
-    for li as long = 0 to q.lambdas.Count - 1
+    for li as int32 = 0 to q.lambdas.Count - 1
         c.info->SetInstFrame( cast( Tko.NodeId, q.lambdas[li] ), frame )
     next
 end sub
 
 '' The frame queued with entry 'k' of a pending list, or 0 for one queued before frames
 '' existed -- the lists are parallel, and a short one means none.
-function PendingFrame_( byref frames as containers.Array( of ulong ), byval k as long ) as long
+function PendingFrame_( byref frames as containers.Array( of uint32 ), byval k as int32 ) as int32
     if (k < 0) orelse (k >= frames.Count) then return 0
-    return cast( long, frames[k] )
+    return cast( int32, frames[k] )
 end function

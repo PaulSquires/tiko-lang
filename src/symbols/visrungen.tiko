@@ -6,8 +6,8 @@
 '' 131 statements beside compound/for_UDT_counter2.bas -- shared one cache, so the second unit's
 '' statement calls were judged as values (TKO0873 on fbcunit's own macros). Run bumps this once per
 '' unit (bump = true) and every such cache keys on it as well. A static, not 'dim shared' (D12).
-function VisRunGen_( byval bump as boolean = false ) as ulong
-    static as ulong g = 0
+function VisRunGen_( byval bump as boolean = false ) as uint32
+    static as uint32 g = 0
     if bump then g += 1
     return g
 end function

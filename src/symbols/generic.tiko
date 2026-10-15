@@ -13,7 +13,7 @@ namespace Tko.Resolve
 declare sub InstantiateMembers_ _
     ( byref c as Ctx, byval gnode as Tko.NodeId, byval gname as Tko.InternId, _
       byval inm as Tko.InternId, byval iin as Tko.ScopeId, byval scope_ as Tko.ScopeId, _
-      byval argFirst as long, byval argCount as long )
+      byval argFirst as int32, byval argCount as int32 )
 
 #include once "symbols/instframe.tiko"
 
@@ -51,16 +51,16 @@ declare sub InstantiateMembers_ _
 '' extend, is capped here too, at 256 or the limit if that is higher, with the same error.
 private function InstDepthOk_ _
     ( byref c as Ctx, byval at_ as Tko.NodeId, byval gname as Tko.InternId ) as boolean
-    dim as long cap = iif( c.maxInstDepth > 256, c.maxInstDepth, 256 )
-    dim as long lim = c.maxInstDepth
+    dim as int32 cap = iif( c.maxInstDepth > 256, c.maxInstDepth, 256 )
+    dim as int32 lim = c.maxInstDepth
     if c.instChain + 1 > cap then
         lim = cap
     elseif c.instDepth + 1 <= c.maxInstDepth then
         return true
     end if
     '' Once per place: the walk can resolve one type reference more than once.
-    dim as ulong at = cast( ulong, c.ast->Loc( at_ ) )
-    for i as long = 0 to c.genArgSeen.Count - 1
+    dim as uint32 at = cast( uint32, c.ast->Loc( at_ ) )
+    for i as int32 = 0 to c.genArgSeen.Count - 1
         if c.genArgSeen[i] = at then return false
     next
     c.genArgSeen.Push( at )
@@ -73,7 +73,7 @@ function InstantiateGeneric_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval sp as Tko.StmtPayload ptr, _
       byval scope_ as Tko.ScopeId, byval gsid as Tko.SymbolId ) as Tko.TypeId
     '' READ ONCE: resolving an argument below can move the arena 'sp' points into.
-    dim as long spCount = sp->count, spFirst = sp->first
+    dim as int32 spCount = sp->count, spFirst = sp->first
 
     '' THE GENERIC IS PASSED IN, already resolved -- including through a namespace
     '' qualifier, which is where every container in the runtime headers lives. Looking
@@ -84,7 +84,7 @@ function InstantiateGeneric_ _
     '' on an ordinary type would be read as an instantiation.
     dim as Tko.Symbol ptr gs = c.syms->SymbolAt( gsid )
     if gs = 0 then return Tko.TYPE_NONE
-    if gs->kind <> cast( ubyte, Tko.SYM_UDT ) then return Tko.TYPE_NONE
+    if gs->kind <> cast( uint8, Tko.SYM_UDT ) then return Tko.TYPE_NONE
     dim as Tko.NodeId gn = cast( Tko.NodeId, gs->payload )
     if gn = Tko.NODE_NONE then return Tko.TYPE_NONE
     if c.ast->Kind( gn ) <> Tko.N_TYPE then return Tko.TYPE_NONE
@@ -92,18 +92,18 @@ function InstantiateGeneric_ _
     if gp->b = Tko.NODE_NONE then return Tko.TYPE_NONE
     if c.ast->Kind( gp->b ) <> Tko.N_BLOCK then return Tko.TYPE_NONE
     dim as Tko.ListPayload ptr plist = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, gp->b )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, gp->b )].data )]
     if plist->count <> spCount then return Tko.TYPE_NONE
 
     '' THE REST READ NOW, like spCount: 'gs' points into the SYMBOL TABLE, 'gp' and
     '' 'plist' into AST arenas, and both the argument resolve and the DeclareSym below
     '' can reallocate them. 'gs->flags' read after DeclareSym was a freed block: silent
     '' on Windows, a SEGV on Linux in an 18-line program using fb/logging.bi.
-    dim as long plFirst = plist->first
-    dim as long gpCount = gp->count
-    dim as long gpFirst = gp->first
+    dim as int32 plFirst = plist->first
+    dim as int32 gpCount = gp->count
+    dim as int32 gpFirst = gp->first
     dim as Tko.InternId gname = gs->name
-    dim as ulong gflags = gs->flags
+    dim as uint32 gflags = gs->flags
     dim as Tko.ScopeId ghome = gs->parent
 
     '' The ARGUMENTS, resolved in the scope that wrote them. One that does not resolve
@@ -122,14 +122,14 @@ function InstantiateGeneric_ _
     '' at module scope instead, so the mangled names came out as the bare source
     '' spelling and every call site linked to nothing.
     dim as string key = c.names->Spelling( gname ) & "<"
-    dim as containers.Array( of ulong ) argTypes
-    for i as long = 0 to spCount - 1
+    dim as containers.Array( of uint32 ) argTypes
+    for i as int32 = 0 to spCount - 1
         dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[spFirst + i] )
         dim as Tko.TypeId at = ResolveTypeRef( c, an, scope_ )
         if at = Tko.TYPE_NONE then return Tko.TYPE_NONE
-        argTypes.Push( cast( ulong, at ) )
+        argTypes.Push( cast( uint32, at ) )
         if i > 0 then key += ","
-        key += str( cast( long, at ) )
+        key += str( cast( int32, at ) )
     next
     key += ">"
 
@@ -164,12 +164,12 @@ function InstantiateGeneric_ _
     '' declaration's NF_IS_UNION and the layout pass reads SYMF_UNION_KIND off the
     '' symbol; nothing set it here, so 'union Pun( of T )' laid out as a STRUCT --
     '' fields that must overlap did not and sizeof came out double, with no diagnostic.
-    if (c.ast->nodes[cast( long, gn )].flags and Tko.NF_IS_UNION) <> 0 then
+    if (c.ast->nodes[cast( int32, gn )].flags and Tko.NF_IS_UNION) <> 0 then
         isym->flags or= Tko.SYMF_UNION_KIND
     end if
     dim as Tko.ScopeId iin = c.syms->OpenScope( Tko.SCOPEK_TYPE, ghome, isid )
     isym->inner = iin
-    isym->type_ = c.types->NamedType( Tko.TK_UDT, inm, cast( ulong, ghome ) )
+    isym->type_ = c.types->NamedType( Tko.TK_UDT, inm, cast( uint32, ghome ) )
     '' FOR THE MANGLER, which spells this 3BoxI8FBSTRINGE by the DECLARED name.
     scope
         dim as Tko.InternId gspell = StmtOf( c, gn )->rawName
@@ -179,30 +179,30 @@ function InstantiateGeneric_ _
     '' The symbol is published BEFORE the fields are walked, so a generic that refers
     '' to itself behind a pointer -- 'as Node( of T ) ptr nxt' -- finds the cache
     '' rather than recursing for ever.
-    isym->payload = cast( long, gn )
+    isym->payload = cast( int32, gn )
 
     '' The parameters bind for as long as the fields are being resolved.
-    dim as long gmark = c.gparamName.Count
-    for i as long = 0 to spCount - 1
+    dim as int32 gmark = c.gparamName.Count
+    for i as int32 = 0 to spCount - 1
         dim as Tko.NodeId pn = cast( Tko.NodeId, c.ast->children[plFirst + i] )
         if c.ast->Kind( pn ) <> Tko.N_IDENT then continue for
         dim as Tko.IdentPayload ptr pip = _
-            @c.ast->idents[cast( long, c.ast->nodes[cast( long, pn )].data )]
-        c.gparamName.Push( cast( ulong, pip->name ) )
+            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
+        c.gparamName.Push( cast( uint32, pip->name ) )
         c.gparamType.Push( argTypes[i] )
     next
 
-    dim as long tfr = InstFrameFor_( c, id, gname, argTypes, 0 ) : c.diags->EnterInst( tfr )
+    dim as int32 tfr = InstFrameFor_( c, id, gname, argTypes, 0 ) : c.diags->EnterInst( tfr )
     c.instDepth += 1 : c.instChain += 1  '' a field's type is one deeper -- InstDepthOk_
-    for i as long = 0 to gpCount - 1
+    for i as int32 = 0 to gpCount - 1
         dim as Tko.NodeId m = cast( Tko.NodeId, c.ast->children[gpFirst + i] )
         if c.ast->Kind( m ) <> Tko.N_FIELD then continue for
         dim as Tko.StmtPayload ptr fp = StmtOf( c, m )
         if fp->name = 0 then continue for
         dim as Tko.InternId fnm = fp->name
         dim as Tko.NodeId fty = fp->a
-        dim as long fFirst = fp->first
-        dim as long fCount = fp->count
+        dim as int32 fFirst = fp->first
+        dim as int32 fCount = fp->count
         dim as Tko.TypeId ft = ResolveTypeRef( c, fty, iin )
         ft = ArrayFromBounds( c, ft, fFirst, fCount, iin )
         dim as boolean fdup = false
@@ -219,14 +219,14 @@ function InstantiateGeneric_ _
     if gs = 0 then return Tko.TYPE_NONE
 
     '' THE MEMBERS, AFTER THE WALK. See Ctx.pendInst for why this cannot happen here.
-    dim as long argFirst = c.pendInstArgs.Count
-    for i as long = 0 to spCount - 1
+    dim as int32 argFirst = c.pendInstArgs.Count
+    for i as int32 = 0 to spCount - 1
         c.pendInstArgs.Push( argTypes[i] )
     next
-    c.pendInst.Push( cast( ulong, gn ) )
-    c.pendInst.Push( cast( ulong, gs->name ) )
-    c.pendInst.Push( cast( ulong, inm ) )
-    c.pendInst.Push( cast( ulong, iin ) )
+    c.pendInst.Push( cast( uint32, gn ) )
+    c.pendInst.Push( cast( uint32, gs->name ) )
+    c.pendInst.Push( cast( uint32, inm ) )
+    c.pendInst.Push( cast( uint32, iin ) )
     '' THE GENERIC'S OWN SCOPE, not the use site's. An instantiated member body is the
     '' generic's source re-read, so its names have to resolve where they were WRITTEN:
     '' 'function Array( of T ).GetIterator( ) as ArrayIterator( of T )' names its
@@ -235,11 +235,11 @@ function InstantiateGeneric_ _
     '' type at all and 'for each' over any container declined.
     dim as Tko.ScopeId gscope = gs->parent
     if gscope = Tko.SCOPE_NONE then gscope = scope_
-    c.pendInst.Push( cast( ulong, gscope ) )
-    c.pendInst.Push( cast( ulong, argFirst ) )
-    c.pendInst.Push( cast( ulong, spCount ) )
-    c.pendInstChain.Push( cast( ulong, c.instChain + 1 ) )
-    c.pendInstFrame.Push( cast( ulong, tfr ) )     '' the frame the fields were resolved in
+    c.pendInst.Push( cast( uint32, gscope ) )
+    c.pendInst.Push( cast( uint32, argFirst ) )
+    c.pendInst.Push( cast( uint32, spCount ) )
+    c.pendInstChain.Push( cast( uint32, c.instChain + 1 ) )
+    c.pendInstFrame.Push( cast( uint32, tfr ) )     '' the frame the fields were resolved in
 
     while c.gparamName.Count > gmark
         c.gparamName.Pop( )
@@ -281,7 +281,7 @@ function RewriteShadowedIntrinsic_ _
     if p0->toks = 0 then return false
     dim as Tko.TokenKind kw = cast( Tko.TokenKind, StmtOf( c, id )->op )
     if Tko.IsKeywordKind( kw ) = false then return false
-    dim as long t0, t1
+    dim as int32 t0, t1
     if c.ast->TokensOf( id, t0, t1 ) = false then return false
     if (t0 < 0) orelse (t0 >= p0->toks->Count) then return false
     if cast( Tko.TokenKind, p0->toks->At( t0 ).kind ) <> kw then return false
@@ -294,18 +294,18 @@ function RewriteShadowedIntrinsic_ _
     dim as Tko.InternId raw = c.names->GetString( Tko.Text.LowerAscii( spell ) )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.syms->Lookup( scope_, c.names->Fold( raw ) ) )
     if s = 0 then return false
-    if s->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    if s->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     dim as Tko.NodeId decl = cast( Tko.NodeId, s->payload )
     if decl <> Tko.NODE_NONE then
         if c.ast->Kind( decl ) = Tko.N_PROC then
-            if StmtOf( c, decl )->op = cast( ushort, Tko.KW_OPERATOR ) then return false
+            if StmtOf( c, decl )->op = cast( uint16, Tko.KW_OPERATOR ) then return false
         end if
     end if
 
-    dim as ushort oldKind = p0->toks->At( t0 ).kind
-    dim as ulong oldLit = p0->toks->At( t0 ).literal
-    p0->toks->At( t0 ).kind = cast( ushort, Tko.TK_IDENT )
-    p0->toks->At( t0 ).literal = cast( ulong, raw )
+    dim as uint16 oldKind = p0->toks->At( t0 ).kind
+    dim as uint32 oldLit = p0->toks->At( t0 ).literal
+    p0->toks->At( t0 ).kind = cast( uint16, Tko.TK_IDENT )
+    p0->toks->At( t0 ).literal = cast( uint32, raw )
 
     dim as Tko.ParserState q
     q.toks = p0->toks
@@ -332,9 +332,9 @@ function RewriteShadowedIntrinsic_ _
     end if
 
     c.info->Resize( c.ast->Count( ) )
-    dim as Tko.SourceLoc keepLoc = c.ast->nodes[cast( long, id )].loc
-    c.ast->nodes[cast( long, id )] = c.ast->nodes[cast( long, fresh )]
-    c.ast->nodes[cast( long, id )].loc = keepLoc
+    dim as Tko.SourceLoc keepLoc = c.ast->nodes[cast( int32, id )].loc
+    c.ast->nodes[cast( int32, id )] = c.ast->nodes[cast( int32, fresh )]
+    c.ast->nodes[cast( int32, id )].loc = keepLoc
     return true
 end function
 
@@ -354,19 +354,19 @@ end function
 '' spelling and the TypeIds of its arguments, so this is a DECODE of that encoding
 '' rather than a guess -- the two belong together and must move together.
 private function InstArgsOf_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref outv as containers.Array( of ulong ) ) as boolean
+    ( byref c as Ctx, byval t as Tko.TypeId, byref outv as containers.Array( of uint32 ) ) as boolean
 
     if t = Tko.TYPE_NONE then return false
     dim as Tko.TypeId ut = c.types->Unqualify( t )
     if c.types->Kind( ut ) <> Tko.TK_UDT then return false
     dim as string nm = c.names->Spelling( c.types->NameOf( ut ) )
-    dim as long lt_ = instr( nm, "<" )
+    dim as int32 lt_ = instr( nm, "<" )
     if lt_ = 0 then return false
     if right( nm, 1 ) <> ">" then return false
     dim as string body = mid( nm, lt_ + 1, len( nm ) - lt_ - 1 )
-    dim as long from = 1
+    dim as int32 from = 1
     do
-        dim as long comma = instr( from, body, "," )
+        dim as int32 comma = instr( from, body, "," )
         dim as string piece
         if comma = 0 then
             piece = mid( body, from )
@@ -374,7 +374,7 @@ private function InstArgsOf_ _
             piece = mid( body, from, comma - from )
         end if
         if len( trim( piece ) ) = 0 then return false
-        outv.Push( cast( ulong, cast( long, val( piece ) ) ) )
+        outv.Push( cast( uint32, cast( int32, val( piece ) ) ) )
         if comma = 0 then exit do
         from = comma + 1
     loop
@@ -391,7 +391,7 @@ private function SameGeneric_ _
     ( byref c as Ctx, byval argT as Tko.TypeId, byval want as Tko.InternId ) as boolean
     dim as string an = lcase( c.names->Spelling( c.types->NameOf( c.types->Unqualify( argT ) ) ) )
     dim as string wn = lcase( c.names->Spelling( want ) )
-    dim as long lt_ = instr( an, "<" )
+    dim as int32 lt_ = instr( an, "<" )
     if (lt_ = 0) orelse (len( wn ) = 0) then return false
     an = left( an, lt_ - 1 )
     if instrrev( an, "." ) > 0 then an = mid( an, instrrev( an, "." ) + 1 )
@@ -422,32 +422,32 @@ end function
 
 private function InferProcTypeArgs_ _
     ( byref c as Ctx, byval callId as Tko.NodeId, byval gn as Tko.NodeId, _
-      byval scope_ as Tko.ScopeId, byref outT as containers.Array( of ulong ) ) as boolean
+      byval scope_ as Tko.ScopeId, byref outT as containers.Array( of uint32 ) ) as boolean
 
     dim as Tko.StmtPayload ptr gp = StmtOf( c, gn )
     if gp->c = Tko.NODE_NONE then return false
     if c.ast->Kind( gp->c ) <> Tko.N_BLOCK then return false
     dim as Tko.ListPayload ptr gl = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, gp->c )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, gp->c )].data )]
     if gl->count <= 0 then return false
 
     dim as Tko.ListPayload ptr cl = ListOf( c, callId )
 
-    for g as long = 0 to gl->count - 1
+    for g as int32 = 0 to gl->count - 1
         dim as Tko.NodeId gnm = cast( Tko.NodeId, c.ast->children[gl->first + g] )
         if c.ast->Kind( gnm ) <> Tko.N_IDENT then return false
         dim as Tko.InternId want = IdentNameOf( c, gnm )
         if want = 0 then return false
 
         dim as Tko.TypeId got = Tko.TYPE_NONE
-        for k as long = 0 to gp->count - 1
+        for k as int32 = 0 to gp->count - 1
             if k >= cl->count then exit for
             dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[gp->first + k] )
             if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
             dim as Tko.StmtPayload ptr pp = StmtOf( c, prm )
             if pp->a = Tko.NODE_NONE then continue for
             if c.ast->Kind( pp->a ) <> Tko.N_TYPEREF then continue for
-            dim as Tko.AstNode ptr tn = @c.ast->nodes[cast( long, pp->a )]
+            dim as Tko.AstNode ptr tn = @c.ast->nodes[cast( int32, pp->a )]
             dim as Tko.StmtPayload ptr tp = StmtOf( c, pp->a )
 
             '' 'byval p as T ptr' -- A POINTER PARAMETER STILL NAMES T. Pointers were
@@ -482,7 +482,7 @@ private function InferProcTypeArgs_ _
                 continue for
             end if
             if isPtrParam then
-                dim as long pi_ = InferPtrInst_( c, tp, want, cast( Tko.NodeId, c.ast->children[cl->first + k] ), scope_, got )
+                dim as int32 pi_ = InferPtrInst_( c, tp, want, cast( Tko.NodeId, c.ast->children[cl->first + k] ), scope_, got )
                 if pi_ < 0 then return false
                 if pi_ > 0 then continue for
             end if
@@ -494,8 +494,8 @@ private function InferProcTypeArgs_ _
                 '' nothing and declined -- fb/comptr.bi's ComQI and ComQIAs are both
                 '' this shape, and they are what the whole com family asserts on.
                 if tp->count <= 0 then continue for
-                dim as long at_ = -1
-                for j as long = 0 to tp->count - 1
+                dim as int32 at_ = -1
+                for j as int32 = 0 to tp->count - 1
                     dim as Tko.NodeId an2 = cast( Tko.NodeId, c.ast->children[tp->first + j] )
                     if c.ast->Kind( an2 ) <> Tko.N_TYPEREF then continue for
                     if StmtOf( c, an2 )->name = want then
@@ -525,7 +525,7 @@ private function InferProcTypeArgs_ _
                 '' written as an instantiation and the argument is not one: the
                 '' candidate cannot apply, and saying so is what lets the concrete
                 '' overloads be considered.
-                dim as containers.Array( of ulong ) iargs
+                dim as containers.Array( of uint32 ) iargs
                 if InstArgsOf_( c, argT, iargs ) = false then return false
                 if SameGeneric_( c, argT, tp->name ) = false then return false
                 if at_ >= iargs.Count then return false
@@ -537,7 +537,7 @@ private function InferProcTypeArgs_ _
             if MergeInferred_( c, got, cand ) = false then return false
         next
         if got = Tko.TYPE_NONE then return false
-        outT.Push( cast( ulong, got ) )
+        outT.Push( cast( uint32, got ) )
     next
     return true
 end function
@@ -559,7 +559,7 @@ end function
 '' all -- which is every ordinary call, so it must be cheap to say no.
 declare function InstantiateProcAt_ _
     ( byref c as Ctx, byval gn as Tko.NodeId, byval gsid as Tko.SymbolId, _
-      byval gname as Tko.InternId, byref argTypes as containers.Array( of ulong ), _
+      byval gname as Tko.InternId, byref argTypes as containers.Array( of uint32 ), _
       byval at_ as Tko.NodeId = Tko.NODE_NONE ) as Tko.SymbolId
 
 
@@ -570,7 +570,7 @@ function InstantiateGenericProc_ _
 
     if c.parser = 0 then return Tko.SYMBOL_NONE
     if c.ast->Kind( callId ) <> Tko.N_CALL then return Tko.SYMBOL_NONE
-    dim as long taFirst, taCount
+    dim as int32 taFirst, taCount
     dim as boolean written = c.ast->CallTypeArgsOf( callId, taFirst, taCount )
 
     dim as Tko.ListPayload ptr lp = ListOf( c, callId )
@@ -595,7 +595,7 @@ function InstantiateGenericProc_ _
     dim as boolean qualified = false
     if c.ast->Kind( tgt ) = Tko.N_MEMBER then
         dim as Tko.BinaryPayload ptr qbp = _
-            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, tgt )].data )]
+            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, tgt )].data )]
         if c.ast->Kind( qbp->lhs ) <> Tko.N_IDENT then return Tko.SYMBOL_NONE
         '' THE NAMESPACE'S OWN BINDING, which Resolve has already made -- and its
         '' member scope is 'inner', not 'payload'.
@@ -605,7 +605,7 @@ function InstantiateGenericProc_ _
         end if
         dim as Tko.Symbol ptr nss = c.syms->SymbolAt( nsid )
         if nss = 0 then return Tko.SYMBOL_NONE
-        if nss->kind <> cast( ubyte, Tko.SYM_NAMESPACE ) then return Tko.SYMBOL_NONE
+        if nss->kind <> cast( uint8, Tko.SYM_NAMESPACE ) then return Tko.SYMBOL_NONE
         lookScope = cast( Tko.ScopeId, nss->inner )
         tgt = qbp->rhs
         qualified = true
@@ -627,7 +627,7 @@ function InstantiateGenericProc_ _
     end if
     dim as Tko.Symbol ptr gs = c.syms->SymbolAt( gsid )
     if gs = 0 then return Tko.SYMBOL_NONE
-    if gs->kind <> cast( ubyte, Tko.SYM_PROC ) then return Tko.SYMBOL_NONE
+    if gs->kind <> cast( uint8, Tko.SYM_PROC ) then return Tko.SYMBOL_NONE
     '' A NAME BOTH GENERIC AND NOT: the set's generic, or none -- GenericOfSet_.
     dim as Tko.SymbolId headSid = gsid
     gsid = GenericOfSet_( c, gsid )
@@ -642,9 +642,9 @@ function InstantiateGenericProc_ _
             c.info->SetRef( lp->target, ord )
         end if
         if written andalso (ord <> Tko.SYMBOL_NONE) then
-            dim as ulong at = cast( ulong, c.ast->Loc( callId ) )
+            dim as uint32 at = cast( uint32, c.ast->Loc( callId ) )
             dim as boolean seen = false
-            for i as long = 0 to c.genArgSeen.Count - 1
+            for i as int32 = 0 to c.genArgSeen.Count - 1
                 if c.genArgSeen[i] = at then seen = true
             next
             if seen = false then
@@ -671,13 +671,13 @@ function InstantiateGenericProc_ _
     if gp->c = Tko.NODE_NONE then return Tko.SYMBOL_NONE
     if c.ast->Kind( gp->c ) <> Tko.N_BLOCK then return Tko.SYMBOL_NONE
     dim as Tko.ListPayload ptr pl = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, gp->c )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, gp->c )].data )]
     '' ...WRITTEN WITH THE WRONG NUMBER is fbc's 336: 'Mk( of long, long )( 1 )' over
     '' 'Mk( of T )' dropped its statement in silence. See GenericArgsCheck_ for the type half.
     if written andalso (pl->count <> taCount) then
-        dim as ulong at = cast( ulong, c.ast->Loc( callId ) )
+        dim as uint32 at = cast( uint32, c.ast->Loc( callId ) )
         dim as boolean seen = false
-        for i as long = 0 to c.genArgSeen.Count - 1
+        for i as int32 = 0 to c.genArgSeen.Count - 1
             if c.genArgSeen[i] = at then seen = true
         next
         if seen = false then
@@ -692,19 +692,19 @@ function InstantiateGenericProc_ _
     '' own arguments where they were not. One that does not resolve means no
     '' instantiation rather than a wrong one -- the call then declines, which is the
     '' honest outcome and the same rule the type half uses.
-    dim as containers.Array( of ulong ) argTypes
+    dim as containers.Array( of uint32 ) argTypes
     if written then
-        for i as long = 0 to taCount - 1
+        for i as int32 = 0 to taCount - 1
             dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[taFirst + i] )
             dim as Tko.TypeId at = ResolveTypeRef( c, an, scope_ )
             if at = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
-            argTypes.Push( cast( ulong, at ) )
+            argTypes.Push( cast( uint32, at ) )
         next
     else
         if InferProcTypeArgs_( c, callId, gn, scope_, argTypes ) = false then
             return Tko.SYMBOL_NONE
         end if
-        taCount = cast( long, argTypes.Count )
+        taCount = cast( int32, argTypes.Count )
         if pl->count <> taCount then return Tko.SYMBOL_NONE
     end if
 
@@ -716,12 +716,12 @@ end function
 '' TYPE it is written over. Everything from the cache key down is the same work.
 function InstantiateProcAt_ _
     ( byref c as Ctx, byval gn as Tko.NodeId, byval gsid as Tko.SymbolId, _
-      byval gname as Tko.InternId, byref argTypes as containers.Array( of ulong ), _
+      byval gname as Tko.InternId, byref argTypes as containers.Array( of uint32 ), _
       byval at_ as Tko.NodeId ) as Tko.SymbolId
 
     dim as Tko.Symbol ptr gs = c.syms->SymbolAt( gsid )
     if gs = 0 then return Tko.SYMBOL_NONE
-    dim as long taCount = cast( long, argTypes.Count )
+    dim as int32 taCount = cast( int32, argTypes.Count )
 
     '' THE GENERIC'S OWN SYMBOL IS PART OF THE KEY. Name plus type arguments is not
     '' enough: fb/comptr.bi declares TWO global 'operator ->', one over ComPtr and one
@@ -734,9 +734,9 @@ function InstantiateProcAt_ _
     '' Two CALL SITES naming the same instantiation still meet at one symbol, which is
     '' what the cache is for -- they reach it through the same generic.
     dim as string key = c.names->Spelling( gname ) & "<"
-    for i as long = 0 to taCount - 1
+    for i as int32 = 0 to taCount - 1
         if i > 0 then key += ","
-        key += str( cast( long, argTypes[i] ) )
+        key += str( cast( int32, argTypes[i] ) )
     next
     key += ">"
 
@@ -761,8 +761,8 @@ function InstantiateProcAt_ _
     '' "MK<8>", which the mangle gate and four goldens said at once. Two SYM_PROCs of
     '' one name in one scope chain as overloads, so the two arrows coexist.
     dim as Tko.InternId ikey = _
-        c.names->Fold( c.names->GetString( key & "#" & str( cast( long, gsid ) ) ) )
-    for i as long = 0 to cast( long, c.procInstKey.Count ) - 1
+        c.names->Fold( c.names->GetString( key & "#" & str( cast( int32, gsid ) ) ) )
+    for i as int32 = 0 to cast( int32, c.procInstKey.Count ) - 1
         if cast( Tko.InternId, c.procInstKey[i] ) = ikey then
             return cast( Tko.SymbolId, c.procInstSym[i] )
         end if
@@ -788,21 +788,21 @@ function InstantiateProcAt_ _
         if pspell = 0 then pspell = gname
         Tko.Mangle.RegisterInst( *c.types, inm, pspell, argTypes )
     end scope
-    c.procInstKey.Push( cast( ulong, ikey ) )
-    c.procInstSym.Push( cast( ulong, isid ) )
+    c.procInstKey.Push( cast( uint32, ikey ) )
+    c.procInstSym.Push( cast( uint32, isid ) )
 
-    dim as long argFirst = c.pendProcArgs.Count
-    for i as long = 0 to taCount - 1
+    dim as int32 argFirst = c.pendProcArgs.Count
+    for i as int32 = 0 to taCount - 1
         c.pendProcArgs.Push( argTypes[i] )
     next
-    c.pendProc.Push( cast( ulong, gn ) )
-    c.pendProc.Push( cast( ulong, isid ) )
-    c.pendProc.Push( cast( ulong, inm ) )
-    c.pendProc.Push( cast( ulong, home ) )
-    c.pendProc.Push( cast( ulong, argFirst ) )
-    c.pendProc.Push( cast( ulong, taCount ) )
-    c.pendProcChain.Push( cast( ulong, c.instChain + 1 ) )
-    c.pendProcFrame.Push( cast( ulong, _
+    c.pendProc.Push( cast( uint32, gn ) )
+    c.pendProc.Push( cast( uint32, isid ) )
+    c.pendProc.Push( cast( uint32, inm ) )
+    c.pendProc.Push( cast( uint32, home ) )
+    c.pendProc.Push( cast( uint32, argFirst ) )
+    c.pendProc.Push( cast( uint32, taCount ) )
+    c.pendProcChain.Push( cast( uint32, c.instChain + 1 ) )
+    c.pendProcFrame.Push( cast( uint32, _
         InstFrameFor_( c, at_, gname, argTypes, c.curInstFrame ) ) )
     return isid
 end function
@@ -817,37 +817,37 @@ sub InstantiatePendingProcs_( byref c as Ctx )
     if p0->toks = 0 then return
 
     while c.pendProcDone < c.pendProc.Count
-        dim as long i = c.pendProcDone
+        dim as int32 i = c.pendProcDone
         c.pendProcDone += 6
         dim as Tko.NodeId gn = cast( Tko.NodeId, c.pendProc[i] )
         dim as Tko.SymbolId isid = cast( Tko.SymbolId, c.pendProc[i + 1] )
         dim as Tko.InternId inm = cast( Tko.InternId, c.pendProc[i + 2] )
         dim as Tko.ScopeId home = cast( Tko.ScopeId, c.pendProc[i + 3] )
-        dim as long argFirst = cast( long, c.pendProc[i + 4] )
-        dim as long argCount = cast( long, c.pendProc[i + 5] )
+        dim as int32 argFirst = cast( int32, c.pendProc[i + 4] )
+        dim as int32 argCount = cast( int32, c.pendProc[i + 5] )
 
-        dim as long t0, t1
+        dim as int32 t0, t1
         if c.ast->TokensOf( gn, t0, t1 ) = false then continue while
         '' As a member body: depth 1, its own chain -- InstDepthOk_.
-        dim as long sDepth = c.instDepth, sChain = c.instChain
+        dim as int32 sDepth = c.instDepth, sChain = c.instChain
         c.instDepth = 1 : c.instChain = 1
-        if i \ 6 < c.pendProcChain.Count then c.instChain = cast( long, c.pendProcChain[i \ 6] )
-        dim as long pfr = PendingFrame_( c.pendProcFrame, i \ 6 )
+        if i \ 6 < c.pendProcChain.Count then c.instChain = cast( int32, c.pendProcChain[i \ 6] )
+        dim as int32 pfr = PendingFrame_( c.pendProcFrame, i \ 6 )
 
         '' The parameters bind for as long as the fresh nodes are being resolved.
-        dim as long gmark = c.gparamName.Count
+        dim as int32 gmark = c.gparamName.Count
         dim as Tko.StmtPayload ptr gp = StmtOf( c, gn )
         if gp->c <> Tko.NODE_NONE then
             if c.ast->Kind( gp->c ) = Tko.N_BLOCK then
                 dim as Tko.ListPayload ptr pl = _
-                    @c.ast->lists[cast( long, c.ast->nodes[cast( long, gp->c )].data )]
-                for k as long = 0 to argCount - 1
+                    @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, gp->c )].data )]
+                for k as int32 = 0 to argCount - 1
                     if k >= pl->count then exit for
                     dim as Tko.NodeId pn = cast( Tko.NodeId, c.ast->children[pl->first + k] )
                     if c.ast->Kind( pn ) <> Tko.N_IDENT then continue for
                     dim as Tko.IdentPayload ptr pip = _
-                        @c.ast->idents[cast( long, c.ast->nodes[cast( long, pn )].data )]
-                    c.gparamName.Push( cast( ulong, pip->name ) )
+                        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
+                    c.gparamName.Push( cast( uint32, pip->name ) )
                     c.gparamType.Push( c.pendProcArgs[argFirst + k] )
                 next
             end if
@@ -898,19 +898,19 @@ sub InstantiatePendingProcs_( byref c as Ctx )
             ''
             '' Collected BEFORE the body that names them, so '@__tko_lambda_...'
             '' resolves; walked after, with the generic's parameters still bound.
-            for li as long = 0 to q.lambdas.Count - 1
+            for li as int32 = 0 to q.lambdas.Count - 1
                 dim as Tko.NodeId lam = cast( Tko.NodeId, q.lambdas[li] )
                 '' CONCRETE now, like the body it came out of: the re-parse marked it
                 '' a template because the enclosing generic header is still spelled
                 '' '( of T )', and lowering skips anything carrying that.
                 StmtOf( c, lam )->extra and= not Tko.PF_GENERIC_PROC
-                c.ast->extraTopLevel.Push( cast( ulong, lam ) )
+                c.ast->extraTopLevel.Push( cast( uint32, lam ) )
                 c.info->Resize( c.ast->Count( ) )
                 Tko.Collect.One( *c.ast, lam, home, *c.syms, *c.names, *c.types, _
                                  *c.diags, *c.info )
             next
 
-            c.ast->extraTopLevel.Push( cast( ulong, fresh ) )
+            c.ast->extraTopLevel.Push( cast( uint32, fresh ) )
             c.info->Resize( c.ast->Count( ) )
             Tko.Collect.One( *c.ast, fresh, home, *c.syms, *c.names, *c.types, _
                              *c.diags, *c.info )
@@ -936,7 +936,7 @@ sub InstantiatePendingProcs_( byref c as Ctx )
             '' body has to resolve, and that needs the symbol, not the walk.
             MarkInstBody_( c, fresh, q, pfr ) : c.diags->EnterInst( pfr )
             WalkStmt( c, fresh, home )
-            for li as long = 0 to q.lambdas.Count - 1
+            for li as int32 = 0 to q.lambdas.Count - 1
                 WalkStmt( c, cast( Tko.NodeId, q.lambdas[li] ), home )
             next
             c.diags->LeaveInst( pfr )
@@ -1023,7 +1023,7 @@ end function
 function QualifierPrefix_( byref c as Ctx, byval sc as Tko.ScopeId ) as string
     dim as string parts
     dim as Tko.ScopeId cur = sc
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SCOPE_NONE) andalso (guard < 32)
         guard += 1
         dim as Tko.SymScope ptr s = c.syms->ScopeAt( cur )
@@ -1045,9 +1045,9 @@ end function
 sub WalkBlock_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.ScopeId )
     dim as Tko.ListPayload ptr lp = ListOf( c, id )
-    dim as long lfirst = lp->first
-    dim as long lcount = lp->count
-    for i as long = 0 to lcount - 1
+    dim as int32 lfirst = lp->first
+    dim as int32 lcount = lp->count
+    for i as int32 = 0 to lcount - 1
         WalkStmt( c, cast( Tko.NodeId, c.ast->children[lfirst + i] ), here )
     next
 end sub
@@ -1137,28 +1137,28 @@ end sub
 '' lowering. Fixing THIS trigger would not fix that.
 private sub InstantiateGlobalOpsFor_ _
     ( byref c as Ctx, byval gname as Tko.InternId, byval scope_ as Tko.ScopeId, _
-      byval argFirst as long, byval argCount as long )
+      byval argFirst as int32, byval argCount as int32 )
 
     if argCount <= 0 then return
-    dim as long n0 = c.ast->tokenRanges.Count
-    for i as long = 0 to n0 - 3 step 3
+    dim as int32 n0 = c.ast->tokenRanges.Count
+    for i as int32 = 0 to n0 - 3 step 3
         dim as Tko.NodeId dn = cast( Tko.NodeId, c.ast->tokenRanges[i] )
         if c.ast->Kind( dn ) <> Tko.N_PROC then continue for
         dim as Tko.StmtPayload ptr dp = StmtOf( c, dn )
         if (dp->extra and Tko.PF_GENERIC_PROC) = 0 then continue for
-        if dp->op <> cast( ushort, Tko.KW_OPERATOR ) then continue for
+        if dp->op <> cast( uint16, Tko.KW_OPERATOR ) then continue for
         if dp->ownerName <> 0 then continue for
 
         '' The same arity of type parameters, or the arguments do not fit.
         if dp->c = Tko.NODE_NONE then continue for
         if c.ast->Kind( dp->c ) <> Tko.N_BLOCK then continue for
         dim as Tko.ListPayload ptr tl = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, dp->c )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, dp->c )].data )]
         if tl->count <> argCount then continue for
 
         '' ...and a first parameter that names THIS generic.
         dim as boolean overThis = false
-        for k as long = 0 to dp->count - 1
+        for k as int32 = 0 to dp->count - 1
             dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[dp->first + k] )
             if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
             dim as Tko.NodeId tn = StmtOf( c, prm )->a
@@ -1186,8 +1186,8 @@ private sub InstantiateGlobalOpsFor_ _
         wend
         if found = Tko.SYMBOL_NONE then continue for
 
-        dim as containers.Array( of ulong ) argTypes
-        for k as long = 0 to argCount - 1
+        dim as containers.Array( of uint32 ) argTypes
+        for k as int32 = 0 to argCount - 1
             argTypes.Push( c.pendInstArgs[argFirst + k] )
         next
         dim as Tko.SymbolId isid = InstantiateProcAt_( c, dn, found, dp->name, argTypes )
@@ -1205,24 +1205,24 @@ sub InstantiatePending_( byref c as Ctx )
     '' Drained rather than iterated: a member body may name another generic, and
     '' resolving it appends here. The count is re-read every time round.
     while c.pendDone < c.pendInst.Count
-        dim as long i = c.pendDone
+        dim as int32 i = c.pendDone
         c.pendDone += 7
         '' A replayed body runs at DEPTH 1, and extends the real chain -- InstDepthOk_.
-        dim as long sDepth = c.instDepth, sChain = c.instChain, sFrame = c.curInstFrame
+        dim as int32 sDepth = c.instDepth, sChain = c.instChain, sFrame = c.curInstFrame
         c.instDepth = 1 : c.instChain = 1
-        if i \ 7 < c.pendInstChain.Count then c.instChain = cast( long, c.pendInstChain[i \ 7] )
+        if i \ 7 < c.pendInstChain.Count then c.instChain = cast( int32, c.pendInstChain[i \ 7] )
         c.curInstFrame = PendingFrame_( c.pendInstFrame, i \ 7 )
         InstantiateMembers_( c, cast( Tko.NodeId, c.pendInst[i] ), _
                              cast( Tko.InternId, c.pendInst[i + 1] ), _
                              cast( Tko.InternId, c.pendInst[i + 2] ), _
                              cast( Tko.ScopeId, c.pendInst[i + 3] ), _
                              cast( Tko.ScopeId, c.pendInst[i + 4] ), _
-                             cast( long, c.pendInst[i + 5] ), _
-                             cast( long, c.pendInst[i + 6] ) )
+                             cast( int32, c.pendInst[i + 5] ), _
+                             cast( int32, c.pendInst[i + 6] ) )
         InstantiateGlobalOpsFor_( c, cast( Tko.InternId, c.pendInst[i + 1] ), _
                                   cast( Tko.ScopeId, c.pendInst[i + 4] ), _
-                                  cast( long, c.pendInst[i + 5] ), _
-                                  cast( long, c.pendInst[i + 6] ) )
+                                  cast( int32, c.pendInst[i + 5] ), _
+                                  cast( int32, c.pendInst[i + 6] ) )
         c.instDepth = sDepth : c.instChain = sChain : c.curInstFrame = sFrame
     wend
 end sub
@@ -1260,12 +1260,12 @@ end sub
 '' modifiers -- emitted 'call _ZN6BOX<8>2NMEv' where an IntBox was in hand and printed
 '' "Box". Both halves read the flags off the node this puts them on.
 private function TypeBodyProcMods_ _
-    ( byref c as Ctx, byval gnode as Tko.NodeId, byval mname as Tko.InternId ) as ulong
+    ( byref c as Ctx, byval gnode as Tko.NodeId, byval mname as Tko.InternId ) as uint32
 
     if (gnode = Tko.NODE_NONE) orelse (mname = 0) then return 0
     if c.ast->Kind( gnode ) <> Tko.N_TYPE then return 0
     dim as Tko.StmtPayload ptr tp = StmtOf( c, gnode )
-    for i as long = 0 to tp->count - 1
+    for i as int32 = 0 to tp->count - 1
         dim as Tko.NodeId m = cast( Tko.NodeId, c.ast->children[tp->first + i] )
         if c.ast->Kind( m ) <> Tko.N_PROC then continue for
         dim as Tko.StmtPayload ptr mp = StmtOf( c, m )
@@ -1278,7 +1278,7 @@ end function
 private sub InstantiateMembers_ _
     ( byref c as Ctx, byval gnode as Tko.NodeId, byval gname as Tko.InternId, _
       byval inm as Tko.InternId, byval iin as Tko.ScopeId, byval scope_ as Tko.ScopeId, _
-      byval argFirst as long, byval argCount as long )
+      byval argFirst as int32, byval argCount as int32 )
 
     if c.parser = 0 then return
     dim as Tko.ParserState ptr p0 = cast( Tko.ParserState ptr, c.parser )
@@ -1289,26 +1289,26 @@ private sub InstantiateMembers_ _
     '' generic, not this one. Taking the count first keeps this loop over its own work.
     '' THE TYPE PARAMETERS, bound again. They were popped when the type half finished,
     '' and the member signatures -- 'byval x as T' -- are what needs them.
-    dim as long gmark = c.gparamName.Count
+    dim as int32 gmark = c.gparamName.Count
     dim as Tko.StmtPayload ptr gp = StmtOf( c, gnode )
     if gp->b <> Tko.NODE_NONE then
         if c.ast->Kind( gp->b ) = Tko.N_BLOCK then
             dim as Tko.ListPayload ptr pl = _
-                @c.ast->lists[cast( long, c.ast->nodes[cast( long, gp->b )].data )]
-            for i as long = 0 to argCount - 1
+                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, gp->b )].data )]
+            for i as int32 = 0 to argCount - 1
                 if i >= pl->count then exit for
                 dim as Tko.NodeId pn = cast( Tko.NodeId, c.ast->children[pl->first + i] )
                 if c.ast->Kind( pn ) <> Tko.N_IDENT then continue for
                 dim as Tko.IdentPayload ptr pip = _
-                    @c.ast->idents[cast( long, c.ast->nodes[cast( long, pn )].data )]
-                c.gparamName.Push( cast( ulong, pip->name ) )
+                    @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
+                c.gparamName.Push( cast( uint32, pip->name ) )
                 c.gparamType.Push( c.pendInstArgs[argFirst + i] )
             next
         end if
     end if
 
-    dim as long n0 = c.ast->tokenRanges.Count
-    for i as long = 0 to n0 - 3 step 3
+    dim as int32 n0 = c.ast->tokenRanges.Count
+    for i as int32 = 0 to n0 - 3 step 3
         dim as Tko.NodeId dn = cast( Tko.NodeId, c.ast->tokenRanges[i] )
         if c.ast->Kind( dn ) <> Tko.N_PROC then continue for
         dim as Tko.StmtPayload ptr dp = StmtOf( c, dn )
@@ -1327,8 +1327,8 @@ private sub InstantiateMembers_ _
         '' That is ComPtr's and SharedPtr's refcounting, LinkedList's teardown and
         '' Channel's reference count, none of which were running.
         dim as boolean isStructor = _
-            (dp->op = cast( ushort, Tko.KW_CONSTRUCTOR )) orelse _
-            (dp->op = cast( ushort, Tko.KW_DESTRUCTOR ))
+            (dp->op = cast( uint16, Tko.KW_CONSTRUCTOR )) orelse _
+            (dp->op = cast( uint16, Tko.KW_DESTRUCTOR ))
         dim as boolean mine = (dp->ownerName = gname)
         if mine = false then
             if isStructor then mine = (dp->name = gname)
@@ -1347,7 +1347,7 @@ private sub InstantiateMembers_ _
         q.src = c.srcMgr
         q.names = c.names
         q.diags = c.diags
-        q.pos = cast( long, c.ast->tokenRanges[i + 1] )
+        q.pos = cast( int32, c.ast->tokenRanges[i + 1] )
         q.silent = true
         q.lambdaSeq = p0->lambdaSeq
         q.procNames = p0->procNames       '' 'name :' is a label only if no procedure
@@ -1383,7 +1383,7 @@ private sub InstantiateMembers_ _
         '' ...AND THE VIRTUAL MODIFIERS GO ON. See TypeBodyProcMods_.
         fp2->extra or= TypeBodyProcMods_( c, gnode, fp2->name )
         dim as Tko.InternId mname = fp2->name
-        dim as ushort mop = fp2->op
+        dim as uint16 mop = fp2->op
 
         '' THE MEMBER'S SYMBOL, declared here because nothing else will. Collect treats
         '' 'sub Box.Put( )' as a DEFINITION of something declared elsewhere and
@@ -1427,7 +1427,7 @@ private sub InstantiateMembers_ _
                     '' which links to nothing. It is also what carries the signature,
                     '' and this instantiation's signature is on this instantiation's
                     '' own node, not the generic's.
-                    msym->payload = cast( long, fresh )
+                    msym->payload = cast( int32, fresh )
                     msym->flags or= Tko.SYMF_DEFINED or Tko.SYMF_GENERIC_INST
                 end if
             end if
@@ -1438,16 +1438,16 @@ private sub InstantiateMembers_ _
         '' it would be collected, resolved, typed -- and never emitted.
         '' The same lambda hoist the procedure half does, and for the same reason: the
         '' re-parse owns the procedures it hoists and this ParserState is a local.
-        for li as long = 0 to q.lambdas.Count - 1
+        for li as int32 = 0 to q.lambdas.Count - 1
             dim as Tko.NodeId lam = cast( Tko.NodeId, q.lambdas[li] )
             StmtOf( c, lam )->extra and= not Tko.PF_GENERIC_PROC
-            c.ast->extraTopLevel.Push( cast( ulong, lam ) )
+            c.ast->extraTopLevel.Push( cast( uint32, lam ) )
             c.info->Resize( c.ast->Count( ) )
             Tko.Collect.One( *c.ast, lam, scope_, *c.syms, *c.names, *c.types, _
                              *c.diags, *c.info )
         next
 
-        c.ast->extraTopLevel.Push( cast( ulong, fresh ) )
+        c.ast->extraTopLevel.Push( cast( uint32, fresh ) )
         c.info->Resize( c.ast->Count( ) )
         Tko.Collect.One( *c.ast, fresh, scope_, *c.syms, *c.names, *c.types, _
                          *c.diags, *c.info )
@@ -1456,7 +1456,7 @@ private sub InstantiateMembers_ _
         '' synthesised by the walk of the N_CLOSURE node inside the body.
         MarkInstBody_( c, fresh, q, c.curInstFrame ) : c.diags->EnterInst( c.curInstFrame )
         WalkStmt( c, fresh, scope_ )
-        for li as long = 0 to q.lambdas.Count - 1
+        for li as int32 = 0 to q.lambdas.Count - 1
             WalkStmt( c, cast( Tko.NodeId, q.lambdas[li] ), scope_ )
         next
         c.diags->LeaveInst( c.curInstFrame )

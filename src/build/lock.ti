@@ -12,7 +12,7 @@
 namespace Tko.Build
 
     type BuildLock
-        as longint h = -1      '' a HANDLE or a file descriptor; -1 when nothing is held
+        as int64 h = -1      '' a HANDLE or a file descriptor; -1 when nothing is held
         as string  path_
     end type
 

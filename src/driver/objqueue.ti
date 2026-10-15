@@ -20,12 +20,12 @@
 namespace Tko
 
     type ObjQueue
-        as long                     maxJobs        '' 0 until the first object is built
-        as containers.Array( of longint )   procs          '' 0 once waited for
+        as int32                     maxJobs        '' 0 until the first object is built
+        as containers.Array( of int64 )   procs          '' 0 once waited for
         as StrVec                   irPaths, objPaths, triples
-        as containers.Array( of ubyte )     wantElf
-        as containers.Array( of double )    starts
-        as long                     reaped         '' jobs [0, reaped) have been waited for
+        as containers.Array( of uint8 )     wantElf
+        as containers.Array( of float64 )    starts
+        as int32                     reaped         '' jobs [0, reaped) have been waited for
         as boolean                  keepTemps
     end type
 

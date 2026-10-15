@@ -13,19 +13,19 @@ namespace Tko.Resolve
 function StmtOf _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.StmtPayload ptr
     if id = Tko.NODE_NONE then return 0
-    return @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    return @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
 end function
 
 function ListOf _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.ListPayload ptr
     if id = Tko.NODE_NONE then return 0
-    return @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    return @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
 end function
 
 function IdentNameOf _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.InternId
     if c.ast->Kind( id ) <> Tko.N_IDENT then return Tko.INTERN_NONE
-    return c.ast->idents[cast( long, c.ast->nodes[cast( long, id )].data )].name
+    return c.ast->idents[cast( int32, c.ast->nodes[cast( int32, id )].data )].name
 end function
 
 end namespace

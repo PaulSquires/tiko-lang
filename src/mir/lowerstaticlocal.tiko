@@ -6,7 +6,7 @@
 
 
 declare function EmitStaticDtorThunk_ _
-    ( byref c as Ctx, byval g as long, byval t as Tko.TypeId ) as long
+    ( byref c as Ctx, byval g as int32, byval t as Tko.TypeId ) as int32
 
 '' A STATIC LOCAL COPIED OUT OF AN EXPRESSION OF ITS OWN TYPE -- 'static as H s = mk( 3 )',
 '' 'static as H s = mk', 'static as H s = obj.mk( 3 )'. LowerCtorInit takes a constructor
@@ -42,24 +42,24 @@ private function LowerStaticCopyInit_ _
     if LowerBareProcCall_( c, init_, MT_PTR, sa ) = false then sa = LowerAddr( c, init_ )
     '' Declined, not dropped: falling back to the default constructor from here would
     '' be the silent loss this exists to end.
-    if sa.kind = cast( ubyte, MV_NONE ) then
+    if sa.kind = cast( uint8, MV_NONE ) then
         SkipHere( c )
         return true
     end if
 
     dim as Tko.SymbolId ucp = CopyCtorOf_( c, t )
     if ucp <> Tko.SYMBOL_NONE then
-        dim as containers.Array( of ulong ) cargs
-        cargs.Push( cast( ulong, sa.kind ) )
-        cargs.Push( cast( ulong, sa.id ) )
+        dim as containers.Array( of uint32 ) cargs
+        cargs.Push( cast( uint32, sa.kind ) )
+        cargs.Push( cast( uint32, sa.id ) )
         EmitStructorCall( c, ucp, -1, @ga, @cargs )
     elseif NeedsLetBody_( c, t ) then
         CallImplicitCopy_( c, t, ga, sa )
     else
         dim as MirValue mv
-        dim as long sz = SizeOfType( c, t )
+        dim as int32 sz = SizeOfType( c, t )
         if sz > 0 then mv = LowerExprLoad( c, sa, MT_AGG, sz )
-        if mv.kind = cast( ubyte, MV_NONE ) then
+        if mv.kind = cast( uint8, MV_NONE ) then
             SkipHere( c )
             return true
         end if
@@ -101,28 +101,28 @@ end function
 '' static local is not at all. It went out external, so two modules each with a 'private function
 '' nextId' holding a constructed 'static c' failed the link on 'duplicate symbol: NEXTID$c$init'
 '' -- fbc emits the guard module-local (measured 2026-09-27: nothing external for it).
-function StaticOnceBegin_( byref c as Ctx, byval g as long, byval suffix as string ) as long
+function StaticOnceBegin_( byref c as Ctx, byval g as int32, byval suffix as string ) as int32
     dim as Tko.InternId gnm = c.names->GetString( c.names->Spelling( c.m->globals[g].name ) & suffix )
-    dim as long gg = c.m->AddVarGlobal( gnm, MT_I64, Tko.TYPE_NONE, 8 )
+    dim as int32 gg = c.m->AddVarGlobal( gnm, MT_I64, Tko.TYPE_NONE, 8 )
     c.m->globals[gg].isInternal = c.m->globals[g].isInternal
     dim as MirValue gaddr
-    gaddr.kind = cast( ubyte, MV_GLOBAL ) : gaddr.ty = cast( ubyte, MT_PTR ) : gaddr.id = gg
+    gaddr.kind = cast( uint8, MV_GLOBAL ) : gaddr.ty = cast( uint8, MT_PTR ) : gaddr.id = gg
     dim as MirValue gv = LowerExprLoad( c, gaddr, MT_I64 )
-    if gv.kind = cast( ubyte, MV_NONE ) then return -1
+    if gv.kind = cast( uint8, MV_NONE ) then return -1
     dim as MirInst tst
-    tst.op = cast( ushort, M_ICMP_NE ) : tst.ty = cast( ubyte, MT_I32 )
+    tst.op = cast( uint16, M_ICMP_NE ) : tst.ty = cast( uint8, MT_I32 )
     tst.a = gv : tst.b = ConstInt( c, 0, MT_I64 )
     dim as MirValue done_ = Emit( c, tst )
-    if done_.kind = cast( ubyte, MV_NONE ) then return -1
-    dim as long initB = NewBlock( c, "static.init" )
-    dim as long skipB = NewBlock( c, "static.done" )
+    if done_.kind = cast( uint8, MV_NONE ) then return -1
+    dim as int32 initB = NewBlock( c, "static.init" )
+    dim as int32 skipB = NewBlock( c, "static.done" )
     Terminate( c, MTERM_CONDBR, skipB, initB, done_ )
     c.curBlock = initB
     StoreThrough( c, gaddr, ConstInt( c, 1, MT_I64 ) )
     return skipB
 end function
 
-sub StaticOnceEnd_( byref c as Ctx, byval skipB as long )
+sub StaticOnceEnd_( byref c as Ctx, byval skipB as int32 )
     Terminate( c, MTERM_BR, skipB, -1, NoVal( ) )
     c.curBlock = skipB
 end sub
@@ -135,15 +135,15 @@ function StaticDynBoundsOnce_( byref c as Ctx, byval sid as Tko.SymbolId, byval 
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
     if (s = 0) orelse (c.types->IsDynArray( s->type_ ) = false) then return false
     if (ip->c = Tko.NODE_NONE) orelse (AnyDimCount( c, ip ) <> 0) then return false
-    dim as long g = GlobalFor( c, sid )
+    dim as int32 g = GlobalFor( c, sid )
     if g < 0 then return false
     dim as MirValue ga
-    ga.kind = cast( ubyte, MV_GLOBAL ) : ga.ty = cast( ubyte, MT_PTR ) : ga.id = g
-    dim as long skipB = StaticOnceBegin_( c, g, "$bounds" )
+    ga.kind = cast( uint8, MV_GLOBAL ) : ga.ty = cast( uint8, MT_PTR ) : ga.id = g
+    dim as int32 skipB = StaticOnceBegin_( c, g, "$bounds" )
     if skipB < 0 then return false
     '' THE BOUNDS' OWN TEMPORARIES DIE INSIDE THE GUARD: 'static a( 0 to f( T( 1 ) ) )' destroyed
     '' T( 1 ) again on every later call, where fbc does it once (structs/temp-var-dtors.bas).
-    dim as long bmark = c.udtTemps.Count
+    dim as int32 bmark = c.udtTemps.Count
     if EmitArrayBounds( c, ga, s->type_, ip, false ) = false then SkipHere( c )
     ReleaseUdtTemps_( c, bmark )
     StaticOnceEnd_( c, skipB )
@@ -195,17 +195,17 @@ function LowerStaticLocalInit_ _
     end if
     if (wantsC = false) andalso (wantsD = false) then return false
 
-    dim as long g = GlobalFor( c, sid )
+    dim as int32 g = GlobalFor( c, sid )
     if g < 0 then return false
     dim as MirValue ga
-    ga.kind = cast( ubyte, MV_GLOBAL )
-    ga.ty = cast( ubyte, MT_PTR )
+    ga.kind = cast( uint8, MV_GLOBAL )
+    ga.ty = cast( uint8, MT_PTR )
     ga.id = g
 
     '' A TYPE WITH ONLY A DESTRUCTOR keeps its initialiser IMAGE: 'static as DtorUDT x = ( 123 )' is
     '' emitted as any global's, and only the atexit registration is guarded (dim/udt-init.bas).
     if isUdt andalso (wantsC = false) andalso (init_ <> Tko.NODE_NONE) then InitSharedGlobal( c, sid, init_ )
-    dim as long skipB = StaticOnceBegin_( c, g, "$init" )
+    dim as int32 skipB = StaticOnceBegin_( c, g, "$init" )
     if skipB < 0 then return false
 
     '' THE CONSTRUCTOR. 'static as T a = T( 1 )' selects one by its arguments exactly
@@ -213,9 +213,9 @@ function LowerStaticLocalInit_ _
     '' one for a type that needs initialising and declares none.
     dim as boolean constructed = false
     '' The temporaries the initialiser makes die INSIDE the guarded block: see below.
-    dim as long smark = c.strTemps.Count
-    dim as long wmark = c.wstrTemps.Count
-    dim as long umark = c.udtTemps.Count
+    dim as int32 smark = c.strTemps.Count
+    dim as int32 wmark = c.wstrTemps.Count
+    dim as int32 umark = c.udtTemps.Count
     if isUdt andalso (init_ <> Tko.NODE_NONE) then
         constructed = LowerCtorInit( c, -1, t, init_, @ga )
     end if
@@ -226,7 +226,7 @@ function LowerStaticLocalInit_ _
         if isUdt then
             dim as Tko.SymbolId ct = StructorWithArity( c, ctors, 0 )
             if ct <> Tko.SYMBOL_NONE then
-                dim as containers.Array( of ulong ) none1
+                dim as containers.Array( of uint32 ) none1
                 EmitStructorCall( c, ct, -1, @ga, @none1 )
                 constructed = true
             elseif TypeNeedsInit_( c, t ) then
@@ -249,17 +249,17 @@ function LowerStaticLocalInit_ _
     '' THE DESTRUCTOR, through a thunk of its own -- atexit takes a void() and the
     '' destructor takes the object, so there is nothing to register directly.
     if wantsD then
-        dim as long thunk = EmitStaticDtorThunk_( c, g, t )
+        dim as int32 thunk = EmitStaticDtorThunk_( c, g, t )
         if thunk >= 0 then
             dim as MirInst fa
-            fa.op = cast( ushort, M_FUNC_ADDR )
-            fa.ty = cast( ubyte, MT_PTR )
-            fa.callee = cast( ulong, thunk )
+            fa.op = cast( uint16, M_FUNC_ADDR )
+            fa.ty = cast( uint8, MT_PTR )
+            fa.callee = cast( uint32, thunk )
             dim as MirValue fv = Emit( c, fa )
-            if fv.kind <> cast( ubyte, MV_NONE ) then
-                dim as containers.Array( of ulong ) aargs
-                aargs.Push( cast( ulong, fv.kind ) )
-                aargs.Push( cast( ulong, fv.id ) )
+            if fv.kind <> cast( uint8, MV_NONE ) then
+                dim as containers.Array( of uint32 ) aargs
+                aargs.Push( cast( uint32, fv.kind ) )
+                aargs.Push( cast( uint32, fv.id ) )
                 EmitRtl( c, RTL_ATEXIT, aargs )
             end if
         end if
@@ -283,29 +283,29 @@ end function
 '' The thunk atexit is handed: a void() that destroys ONE static, built beside the
 '' procedure that declared it rather than inside it.
 private function EmitStaticDtorThunk_ _
-    ( byref c as Ctx, byval g as long, byval t as Tko.TypeId ) as long
+    ( byref c as Ctx, byval g as int32, byval t as Tko.TypeId ) as int32
 
     dim as Tko.InternId nm = _
         c.names->GetString( c.names->Spelling( c.m->globals[g].name ) & "$dtor" )
     dim as MirFunction ptr f = c.m->AddFunction( nm, MT_VOID )
     f->isDefinition = true
-    dim as long idx = c.m->functions.Count - 1
+    dim as int32 idx = c.m->functions.Count - 1
 
     dim as MirFunction ptr savedF = c.f
-    dim as long savedB = c.curBlock
+    dim as int32 savedB = c.curBlock
     c.f = f
     c.st->functions += 1
     c.curBlock = NewBlock( c, "entry" )
 
     dim as MirValue ga
-    ga.kind = cast( ubyte, MV_GLOBAL )
-    ga.ty = cast( ubyte, MT_PTR )
+    ga.kind = cast( uint8, MV_GLOBAL )
+    ga.ty = cast( uint8, MT_PTR )
     ga.id = g
 
     if c.types->Kind( t ) = Tko.TK_UDT then
         dim as Tko.SymbolId dt = StructorWithArity( c, StructorOf( c, t, "__dtor" ), 0 )
         if dt <> Tko.SYMBOL_NONE then
-            dim as containers.Array( of ulong ) none2
+            dim as containers.Array( of uint32 ) none2
             EmitStructorCall( c, dt, -1, @ga, @none2 )
         elseif TypeNeedsDtor_( c, t ) then
             CallImplicitDtor_( c, t, ga )

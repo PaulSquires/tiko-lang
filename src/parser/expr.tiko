@@ -9,25 +9,25 @@ namespace Tko
 '' ---------------------------------------------------------------- node metadata
 
 dim shared as zstring ptr nodeNames( 0 to N_KIND_COUNT - 1 )
-dim shared as ubyte       nodeCats( 0 to N_KIND_COUNT - 1 )
+dim shared as uint8       nodeCats( 0 to N_KIND_COUNT - 1 )
 dim shared as boolean     nodeTablesReady = false
 
 private sub InitNodeTables( )
     if nodeTablesReady then return
-    for i as long = 0 to N_KIND_COUNT - 1
+    for i as int32 = 0 to N_KIND_COUNT - 1
         nodeNames(i) = @"?"
         nodeCats(i) = 0
     next
     #macro NODE( n_name, n_cat )
         nodeNames(n_name) = @#n_name
-        nodeCats(n_name) = cast( ubyte, n_cat )
+        nodeCats(n_name) = cast( uint8, n_cat )
     #endmacro
     TKO_NODE_LIST( NODE )
     #undef NODE
     nodeTablesReady = true
 end sub
 
-function CallConvOf( byval procFlags as ushort ) as CallConv
+function CallConvOf( byval procFlags as uint16 ) as CallConv
     if (procFlags and PF_CDECL) <> 0 then return CC_CDECL
     if (procFlags and PF_STDCALL) <> 0 then return CC_STDCALL
     if (procFlags and PF_PASCAL) <> 0 then return CC_PASCAL
@@ -62,7 +62,7 @@ end function
 constructor AstArena( )
     '' Index 0 is a permanent sentinel so NodeId 0 can mean "none".
     dim as AstNode z
-    z.kind = cast( ushort, N_NONE )
+    z.kind = cast( uint16, N_NONE )
     z.flags = 0
     z.loc = LOC_NONE
     z.data = 0
@@ -71,47 +71,47 @@ end constructor
 
 function AstArena.Kind( byval id as NodeId ) as NodeKind
     if id = NODE_NONE then return N_NONE
-    if cast( long, id ) >= this.nodes.Count then return N_NONE
-    return cast( NodeKind, this.nodes[cast( long, id )].kind )
+    if cast( int32, id ) >= this.nodes.Count then return N_NONE
+    return cast( NodeKind, this.nodes[cast( int32, id )].kind )
 end function
 
 function AstArena.Loc( byval id as NodeId ) as SourceLoc
     if id = NODE_NONE then return LOC_NONE
-    if cast( long, id ) >= this.nodes.Count then return LOC_NONE
-    return this.nodes[cast( long, id )].loc
+    if cast( int32, id ) >= this.nodes.Count then return LOC_NONE
+    return this.nodes[cast( int32, id )].loc
 end function
 
-function AstArena.Count( ) as long
+function AstArena.Count( ) as int32
     return this.nodes.Count - 1
 end function
 
 sub AstArena.RecordTokens _
-    ( byval id as NodeId, byval firstTok as long, byval lastTok as long )
+    ( byval id as NodeId, byval firstTok as int32, byval lastTok as int32 )
     if id = NODE_NONE then return
     if lastTok < firstTok then return
-    this.tokenRanges.Push( cast( ulong, id ) )
-    this.tokenRanges.Push( cast( ulong, firstTok ) )
-    this.tokenRanges.Push( cast( ulong, lastTok ) )
+    this.tokenRanges.Push( cast( uint32, id ) )
+    this.tokenRanges.Push( cast( uint32, firstTok ) )
+    this.tokenRanges.Push( cast( uint32, lastTok ) )
 end sub
 
 '' Scanned BACKWARDS, so a node recorded twice reads as its most recent range. That
 '' does not happen today; it is the safe direction if it ever does.
 sub AstArena.RecordCallTypeArgs _
-    ( byval id as NodeId, byval firstArg as long, byval argCount as long )
+    ( byval id as NodeId, byval firstArg as int32, byval argCount as int32 )
     if id = NODE_NONE then return
     if argCount <= 0 then return
-    this.callTypeArgs.Push( cast( ulong, id ) )
-    this.callTypeArgs.Push( cast( ulong, firstArg ) )
-    this.callTypeArgs.Push( cast( ulong, argCount ) )
+    this.callTypeArgs.Push( cast( uint32, id ) )
+    this.callTypeArgs.Push( cast( uint32, firstArg ) )
+    this.callTypeArgs.Push( cast( uint32, argCount ) )
 end sub
 
 function AstArena.CallTypeArgsOf _
-    ( byval id as NodeId, byref firstArg as long, byref argCount as long ) as boolean
+    ( byval id as NodeId, byref firstArg as int32, byref argCount as int32 ) as boolean
     if id = NODE_NONE then return false
-    for i as long = this.callTypeArgs.Count - 3 to 0 step -3
+    for i as int32 = this.callTypeArgs.Count - 3 to 0 step -3
         if cast( NodeId, this.callTypeArgs[i] ) = id then
-            firstArg = cast( long, this.callTypeArgs[i + 1] )
-            argCount = cast( long, this.callTypeArgs[i + 2] )
+            firstArg = cast( int32, this.callTypeArgs[i + 1] )
+            argCount = cast( int32, this.callTypeArgs[i + 2] )
             return true
         end if
     next
@@ -119,12 +119,12 @@ function AstArena.CallTypeArgsOf _
 end function
 
 function AstArena.TokensOf _
-    ( byval id as NodeId, byref firstTok as long, byref lastTok as long ) as boolean
+    ( byval id as NodeId, byref firstTok as int32, byref lastTok as int32 ) as boolean
     if id = NODE_NONE then return false
-    for i as long = this.tokenRanges.Count - 3 to 0 step -3
+    for i as int32 = this.tokenRanges.Count - 3 to 0 step -3
         if cast( NodeId, this.tokenRanges[i] ) = id then
-            firstTok = cast( long, this.tokenRanges[i + 1] )
-            lastTok = cast( long, this.tokenRanges[i + 2] )
+            firstTok = cast( int32, this.tokenRanges[i + 1] )
+            lastTok = cast( int32, this.tokenRanges[i + 2] )
             return true
         end if
     next
@@ -133,10 +133,10 @@ end function
 
 private function NewNode _
     ( byref a as AstArena, byval kind as NodeKind, byval loc as SourceLoc, _
-      byval payload as ulong ) as NodeId
+      byval payload as uint32 ) as NodeId
 
     dim as AstNode n
-    n.kind = cast( ushort, kind )
+    n.kind = cast( uint16, kind )
     n.flags = 0
     n.loc = loc
     n.data = payload
@@ -146,16 +146,16 @@ end function
 
 '' --------------------------------------------------------------- infix lookup
 
-dim shared as ubyte   infixPrecTb( 0 to TK_KIND_COUNT - 1 )
+dim shared as uint8   infixPrecTb( 0 to TK_KIND_COUNT - 1 )
 dim shared as boolean infixReady = false
 
-function InfixPrec( byval k as TokenKind ) as long
+function InfixPrec( byval k as TokenKind ) as int32
     if infixReady = false then
-        for i as long = 0 to TK_KIND_COUNT - 1
+        for i as int32 = 0 to TK_KIND_COUNT - 1
             infixPrecTb(i) = 0
         next
         #macro BINOP( b_kind, b_prec )
-            infixPrecTb(b_kind) = cast( ubyte, b_prec )
+            infixPrecTb(b_kind) = cast( uint8, b_prec )
         #endmacro
         TKO_BINOP_LIST( BINOP )
         #undef BINOP
@@ -172,7 +172,7 @@ namespace Tko.Parse
 
 '' -------------------------------------------------------------- token helpers
 
-function HasTok( byref p as Tko.ParserState, byval want as long ) as boolean
+function HasTok( byref p as Tko.ParserState, byval want as int32 ) as boolean
     if want < 0 then return false
     if p.stream <> 0 then
         return Tko.PpEnsure( *cast( Tko.PpStream ptr, p.stream ), want )
@@ -233,8 +233,8 @@ private function MakeLiteral _
       byref pool as Tko.LiteralVec ) as Tko.NodeId
 
     dim as Tko.LiteralPayload lp
-    if cast( long, t.literal ) < pool.Count then
-        dim as Tko.Literal ptr src = @pool[cast( long, t.literal )]
+    if cast( int32, t.literal ) < pool.Count then
+        dim as Tko.Literal ptr src = @pool[cast( int32, t.literal )]
         lp.intValue = src->intValue
         lp.fltValue = src->fltValue
         lp.strFile = src->textFile
@@ -287,8 +287,8 @@ private function SizedConvKeyword_ _
     end if
 
     '' A TOKEN'S 'literal' IS A POOL INDEX, not the value.
-    dim as longint wv = -1
-    dim as long li = cast( long, p.toks->At( p.pos + 2 ).literal )
+    dim as int64 wv = -1
+    dim as int32 li = cast( int32, p.toks->At( p.pos + 2 ).literal )
     if li < p.litPool->Count then wv = (*p.litPool)[li].intValue
 
     dim as boolean uns = (k = Tko.KW_CUINT)
@@ -329,8 +329,8 @@ private function SizedCvKeyword_ _
     end if
 
     '' A TOKEN'S 'literal' IS A POOL INDEX, not the value.
-    dim as longint wv = -1
-    dim as long li = cast( long, p.toks->At( p.pos + 2 ).literal )
+    dim as int64 wv = -1
+    dim as int32 li = cast( int32, p.toks->At( p.pos + 2 ).literal )
     if li < p.litPool->Count then wv = (*p.litPool)[li].intValue
 
     dim as boolean isMk = (k = Tko.KW_MKI)
@@ -357,17 +357,17 @@ sub MarkCallTarget_( byref p as Tko.ParserState, byval n as Tko.NodeId )
     if n = Tko.NODE_NONE then return
     dim as Tko.NodeKind k = p.ast->Kind( n )
     if k = Tko.N_PAREN then
-        dim as Tko.ListPayload ptr pl = @p.ast->lists[cast( long, p.ast->nodes[cast( long, n )].data )]
+        dim as Tko.ListPayload ptr pl = @p.ast->lists[cast( int32, p.ast->nodes[cast( int32, n )].data )]
         if pl->count > 0 then MarkCallTarget_( p, cast( Tko.NodeId, p.ast->children[pl->first] ) )
     end if
-    if (k = Tko.N_IDENT) orelse (k = Tko.N_MEMBER) then p.ast->nodes[cast( long, n )].flags or= Tko.NF_CALL_TARGET
+    if (k = Tko.N_IDENT) orelse (k = Tko.N_MEMBER) then p.ast->nodes[cast( int32, n )].flags or= Tko.NF_CALL_TARGET
 end sub
 private function MakeUnary _
     ( byref p as Tko.ParserState, byval op as Tko.TokenKind, byval loc as Tko.SourceLoc, _
       byval operand as Tko.NodeId, byval kind as Tko.NodeKind = Tko.N_UNARY ) as Tko.NodeId
 
     dim as Tko.UnaryPayload up
-    up.op = cast( ushort, op )
+    up.op = cast( uint16, op )
     up.operand = operand
     if kind = Tko.N_ADDROF then MarkCallTarget_( p, operand )
     p.ast->unaries.Push( up )
@@ -378,8 +378,8 @@ end function
 '' site has a name it generated and no token to make one from.
 function MakeAddrOfName _
     ( byref p as Tko.ParserState, byval nm as Tko.InternId, _
-      byval loc as Tko.SourceLoc, byval spellOff as long, _
-      byval spellLen as long ) as Tko.NodeId
+      byval loc as Tko.SourceLoc, byval spellOff as int32, _
+      byval spellLen as int32 ) as Tko.NodeId
 
     dim as Tko.IdentPayload ip
     ip.name = nm
@@ -396,7 +396,7 @@ private function MakeBinary _
       byval lhs as Tko.NodeId, byval rhs as Tko.NodeId ) as Tko.NodeId
 
     dim as Tko.BinaryPayload bp
-    bp.op = cast( ushort, op )
+    bp.op = cast( uint16, op )
     bp.lhs = lhs
     bp.rhs = rhs
     p.ast->binaries.Push( bp )
@@ -413,7 +413,7 @@ function MakeList _
     lp.target = target
     lp.first = p.ast->children.Count
     lp.count = items.Count
-    for i as long = 0 to items.Count - 1
+    for i as int32 = 0 to items.Count - 1
         p.ast->children.Push( items[i] )
     next
     p.ast->lists.Push( lp )
@@ -436,7 +436,7 @@ end function
 
 function NewNodeAt _
     ( byref p as Tko.ParserState, byval kind as Tko.NodeKind, byval loc as Tko.SourceLoc, _
-      byval payload as ulong ) as Tko.NodeId
+      byval payload as uint32 ) as Tko.NodeId
     return Tko.NewNode( *p.ast, kind, loc, payload )
 end function
 
@@ -488,14 +488,14 @@ private function TypeArgCall _
     if k = Tko.KW_PROCPTR then
         dim as boolean savedPP = p.inProcPtrArg
         p.inProcPtrArg = true
-        items.Push( cast( ulong, Expression( p ) ) )
+        items.Push( cast( uint32, Expression( p ) ) )
         p.inProcPtrArg = savedPP
         if Accept( p, Tko.TK_COMMA ) then
             dim as Tko.TokenKind sk2 = Peek( p )
             if (sk2 = Tko.KW_SUB) orelse (sk2 = Tko.KW_FUNCTION) then
-                items.Push( cast( ulong, TypeRef( p ) ) )
+                items.Push( cast( uint32, TypeRef( p ) ) )
             else
-                items.Push( cast( ulong, TypeofArgExpression( p ) ) )
+                items.Push( cast( uint32, TypeofArgExpression( p ) ) )
             end if
         end if
         Expect( p, Tko.TK_RPAREN, ")" )
@@ -503,9 +503,9 @@ private function TypeArgCall _
     end if
 
     if k = Tko.KW_CVA_ARG then
-        items.Push( cast( ulong, Expression( p ) ) )
+        items.Push( cast( uint32, Expression( p ) ) )
         Expect( p, Tko.TK_COMMA, "," )
-        items.Push( cast( ulong, TypeRef( p ) ) )
+        items.Push( cast( uint32, TypeRef( p ) ) )
         Expect( p, Tko.TK_RPAREN, ")" )
         return PostfixChain( p, MakeList( p, Tko.N_CALL, t.loc, callee, items ) )
     end if
@@ -551,7 +551,7 @@ private function TypeArgCall _
         '' The '( of' lookahead is the same one TypeRef uses, and it consults no
         '' symbol table -- which this layer may not do.
         if (looksLikeType = false) andalso (Peek( p ) = Tko.TK_IDENT) then
-            dim as long savedGp = p.pos
+            dim as int32 savedGp = p.pos
             Advance( p )
             '' A QUALIFIED GENERIC is a type too: 'sizeof( NS.Cell( of short ) )' is 2 to fbc,
             '' and only the unqualified name was looked past, so the dotted one parsed as a
@@ -573,13 +573,13 @@ private function TypeArgCall _
         end if
 
         if always orelse looksLikeType orelse TypeArgIsTupleType( p, k ) then
-            items.Push( cast( ulong, TypeRef( p ) ) )
+            items.Push( cast( uint32, TypeRef( p ) ) )
         else
-            items.Push( cast( ulong, Expression( p ) ) )
+            items.Push( cast( uint32, Expression( p ) ) )
         end if
 
         while Accept( p, Tko.TK_COMMA )
-            items.Push( cast( ulong, Expression( p ) ) )
+            items.Push( cast( uint32, Expression( p ) ) )
         wend
     end if
     Expect( p, Tko.TK_RPAREN, ")" )
@@ -628,9 +628,9 @@ private function AllowsAnyArg _
     ( byref p as Tko.ParserState, byval callee as Tko.NodeId ) as boolean
 
     if callee = Tko.NODE_NONE then return false
-    dim as Tko.AstNode ptr n = @p.ast->nodes[cast( long, callee )]
+    dim as Tko.AstNode ptr n = @p.ast->nodes[cast( int32, callee )]
     if cast( Tko.NodeKind, n->kind ) <> Tko.N_IDENT then return false
-    dim as string nm = p.names->Spelling( p.ast->idents[cast( long, n->data )].name )
+    dim as string nm = p.names->Spelling( p.ast->idents[cast( int32, n->data )].name )
     select case nm
     case "instr", "instrrev", "trim", "ltrim", "rtrim"
         return true
@@ -647,10 +647,10 @@ private function IsProcPtrCallee_ _
     ( byref p as Tko.ParserState, byval callee as Tko.NodeId ) as boolean
 
     if callee = Tko.NODE_NONE then return false
-    dim as Tko.AstNode ptr n = @p.ast->nodes[cast( long, callee )]
+    dim as Tko.AstNode ptr n = @p.ast->nodes[cast( int32, callee )]
     if cast( Tko.NodeKind, n->kind ) <> Tko.N_IDENT then return false
     dim as string nm = Tko.Text.LowerAscii( _
-        p.names->Spelling( p.ast->idents[cast( long, n->data )].name ) )
+        p.names->Spelling( p.ast->idents[cast( int32, n->data )].name ) )
     return (nm = "procptr")
 end function
 
@@ -665,7 +665,7 @@ end function
 
 '' Consume a balanced parenthesised group, cursor on the '('.
 private sub SkipBalanced( byref p as Tko.ParserState )
-    dim as long depth = 0
+    dim as int32 depth = 0
     do
         dim as Tko.TokenKind k = Peek( p )
         if k = Tko.TK_LPAREN then depth += 1
@@ -712,7 +712,7 @@ function PostfixChain _
                 Advance( p )
                 Advance( p )              '' past '(' and 'of'
                 do
-                    typeArgs.Push( cast( ulong, TypeRef( p ) ) )
+                    typeArgs.Push( cast( uint32, TypeRef( p ) ) )
                     if Accept( p, Tko.TK_COMMA ) = false then exit do
                 loop
                 Expect( p, Tko.TK_RPAREN, ")" )
@@ -743,14 +743,14 @@ function PostfixChain _
                                   (Peek( p ) = Tko.KW_FUNCTION)
                     end if
                     if wantSig then
-                        items.Push( cast( ulong, TypeRef( p ) ) )
+                        items.Push( cast( uint32, TypeRef( p ) ) )
                     elseif anyOk andalso (items.Count > 0) andalso (Peek( p ) = Tko.KW_ANY) then
                         dim as Tko.Token anyTok = Cur( p )
                         Advance( p )
-                        items.Push( cast( ulong, MakeUnary( p, Tko.KW_ANY, anyTok.loc, _
+                        items.Push( cast( uint32, MakeUnary( p, Tko.KW_ANY, anyTok.loc, _
                                                             Expression( p ) ) ) )
                     else
-                        items.Push( cast( ulong, ArgOrElided( p, closer, TypeofArgCallee( p, result ) ) ) )
+                        items.Push( cast( uint32, ArgOrElided( p, closer, TypeofArgCallee( p, result ) ) ) )
                     end if
                     if Accept( p, Tko.TK_COMMA ) = false then exit do
                 loop
@@ -761,9 +761,9 @@ function PostfixChain _
             '' THE PENDING TYPE ARGUMENTS BELONG TO THIS CALL. Cleared afterwards, so a
             '' second call in the same postfix chain does not inherit them.
             if typeArgs.Count > 0 then
-                dim as long taFirst = p.ast->children.Count
-                dim as long taCount = typeArgs.Count
-                for i as long = 0 to taCount - 1
+                dim as int32 taFirst = p.ast->children.Count
+                dim as int32 taCount = typeArgs.Count
+                for i as int32 = 0 to taCount - 1
                     p.ast->children.Push( typeArgs[i] )
                 next
                 p.ast->RecordCallTypeArgs( result, taFirst, taCount )
@@ -780,7 +780,7 @@ function PostfixChain _
             '' arrow returns, dereferenced -- and 'x->***pppi' is three of them. Without
             '' this the '*' stood where the member name belonged and the whole
             '' expression was TKO0402.
-            dim as long arrowDerefs = 0
+            dim as int32 arrowDerefs = 0
             if k = Tko.TK_ARROW then
                 while Peek( p ) = Tko.TK_STAR
                     Advance( p )
@@ -822,7 +822,7 @@ function PostfixChain _
                 oip.name = opNm
                 dim as Tko.FileId odf
                 oip.spellOffset = p.src->LocOffset( nameTok.loc, odf )
-                oip.spellLength = cast( long, nameTok.length )
+                oip.spellLength = cast( int32, nameTok.length )
                 p.ast->idents.Push( oip )
                 member = NewNode( *p.ast, Tko.N_IDENT, nameTok.loc, _
                                   p.ast->idents.Count - 1 )
@@ -831,12 +831,12 @@ function PostfixChain _
                 member = MakeIdent( p, nameTok )
             end if
             result = MakeBinary( p, k, t.loc, result, member )
-            p.ast->nodes[cast( long, result )].kind = cast( ushort, Tko.N_MEMBER )
+            p.ast->nodes[cast( int32, result )].kind = cast( uint16, Tko.N_MEMBER )
             if k = Tko.TK_ARROW then
-                p.ast->nodes[cast( long, result )].flags or= Tko.NF_ARROW
+                p.ast->nodes[cast( int32, result )].flags or= Tko.NF_ARROW
             end if
             '' ...and the derefs wrap the ACCESS, innermost first.
-            for di as long = 1 to arrowDerefs
+            for di as int32 = 1 to arrowDerefs
                 result = MakeUnary( p, Tko.TK_STAR, t.loc, result, Tko.N_DEREF )
             next
 
@@ -919,11 +919,11 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
         '' corpus's parse errors.
         if Peek( p ) <> Tko.TK_STRING_LIT then return first_
         dim as Tko.NodeIdVec pieces
-        pieces.Push( cast( ulong, first_ ) )
+        pieces.Push( cast( uint32, first_ ) )
         while Peek( p ) = Tko.TK_STRING_LIT
             dim as Tko.Token nt = Cur( p )
             Advance( p )
-            pieces.Push( cast( ulong, MakeLiteral( p, nt, Tko.N_STRING_LIT, *p.litPool ) ) )
+            pieces.Push( cast( uint32, MakeLiteral( p, nt, Tko.N_STRING_LIT, *p.litPool ) ) )
         wend
         return MakeList( p, Tko.N_STRCAT, t.loc, Tko.NODE_NONE, pieces )
 
@@ -946,7 +946,7 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
         '' 'extra' to say which -- 'a' the count and 'b' the channel.
         Advance( p )
         dim as Tko.StmtPayload inp
-        inp.op = cast( ushort, k )
+        inp.op = cast( uint16, k )
         inp.extra = 8
         if Accept( p, Tko.TK_LPAREN ) = false then
             return ErrorNode( p, Tko.TKO0401 )
@@ -973,11 +973,11 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
         '' the way OPEN, GET, PUT and CLOSE already do.
         Advance( p )
         dim as Tko.StmtPayload tcp
-        tcp.op = cast( ushort, Tko.KW_THREADCALL )
+        tcp.op = cast( uint16, Tko.KW_THREADCALL )
         dim as Tko.NodeId tcCall = Expression( p, Tko.PREC_POSTFIX )
         tcp.first = p.ast->children.Count
         tcp.count = 1
-        p.ast->children.Push( cast( ulong, tcCall ) )
+        p.ast->children.Push( cast( uint32, tcCall ) )
         return MakeStmt( p, Tko.N_INTRINSIC, t.loc, tcp )
 
     case Tko.KW_NEW
@@ -1008,12 +1008,12 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
         end if
         dim as Tko.NodeId nty = TypeRef( p )
         dim as Tko.NodeIdVec nargs
-        if nplace <> Tko.NODE_NONE then nargs.Push( cast( ulong, nplace ) )
+        if nplace <> Tko.NODE_NONE then nargs.Push( cast( uint32, nplace ) )
         dim as boolean nIsArray = false, nNoInit = false
         if Peek( p ) = Tko.TK_LBRACKET then
             Advance( p )
             nIsArray = true
-            nargs.Push( cast( ulong, Expression( p ) ) )
+            nargs.Push( cast( uint32, Expression( p ) ) )
             Expect( p, Tko.TK_RBRACKET, "]" )
             '' '{ any }' LEAVES THE ARRAY UNINITIALISED -- the array form only: 'new U
             '' {any}' is fbc's error 3. It was left on the line and never honoured.
@@ -1031,17 +1031,17 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
                 nNoInit = true
             elseif Peek( p ) <> Tko.TK_RPAREN then
                 do
-                    nargs.Push( cast( ulong, Expression( p ) ) )
+                    nargs.Push( cast( uint32, Expression( p ) ) )
                     if Accept( p, Tko.TK_COMMA ) = false then exit do
                 loop
             end if
             Expect( p, Tko.TK_RPAREN, ")" )
         end if
         dim as Tko.NodeId nn = MakeList( p, Tko.N_NEW, t.loc, nty, nargs )
-        if nIsArray then p.ast->nodes[cast( long, nn )].flags or= Tko.NF_ARRAY
-        if nNoInit then p.ast->nodes[cast( long, nn )].flags or= Tko.NF_NOINIT
+        if nIsArray then p.ast->nodes[cast( int32, nn )].flags or= Tko.NF_ARRAY
+        if nNoInit then p.ast->nodes[cast( int32, nn )].flags or= Tko.NF_NOINIT
         if nplace <> Tko.NODE_NONE then
-            p.ast->nodes[cast( long, nn )].flags or= Tko.NF_PLACEMENT
+            p.ast->nodes[cast( int32, nn )].flags or= Tko.NF_PLACEMENT
         end if
         return nn
 
@@ -1062,7 +1062,7 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
         '' N_TUPLE -- with the type reference in the list's TARGET, which the bare form
         '' leaves empty.
         dim as Tko.NodeId litType = Tko.NODE_NONE
-        dim as long save_ = p.pos
+        dim as int32 save_ = p.pos
         Advance( p )                                  '' 'type'
         if Peek( p ) = Tko.TK_LT then
             Advance( p )
@@ -1108,7 +1108,7 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
            ((Peek( p ) = Tko.TK_EOL) orelse (Peek( p ) = Tko.TK_EOF)) then
             dim as Tko.NodeIdVec noItems
             dim as Tko.NodeId en = MakeList( p, Tko.N_TUPLE, t.loc, litType, noItems )
-            p.ast->nodes[cast( long, en )].flags or= Tko.NF_TYPE_LITERAL
+            p.ast->nodes[cast( int32, en )].flags or= Tko.NF_TYPE_LITERAL
             return en
         end if
         if (Peek( p ) <> Tko.TK_LPAREN) andalso (litType <> Tko.NODE_NONE) then
@@ -1117,9 +1117,9 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
             '' the operand -- while 'type<integer>1 * 2' is 2 and 'type<integer>2 shl 1'
             '' is 4, so multiplication and shift do not. A unary minus binds in too:
             '' 'type<integer>-1' is -1.
-            oneItem.Push( cast( ulong, Expression( p, Tko.PREC_SIGN ) ) )
+            oneItem.Push( cast( uint32, Expression( p, Tko.PREC_SIGN ) ) )
             dim as Tko.NodeId bn = MakeList( p, Tko.N_TUPLE, t.loc, litType, oneItem )
-            p.ast->nodes[cast( long, bn )].flags or= Tko.NF_TYPE_LITERAL
+            p.ast->nodes[cast( int32, bn )].flags or= Tko.NF_TYPE_LITERAL
             return PostfixChain( p, bn )
         end if
         if Peek( p ) <> Tko.TK_LPAREN then
@@ -1130,14 +1130,14 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
         dim as Tko.NodeIdVec titems
         if Peek( p ) <> Tko.TK_RPAREN then
             do
-                titems.Push( cast( ulong, Expression( p ) ) )
+                titems.Push( cast( uint32, Expression( p ) ) )
                 if Accept( p, Tko.TK_COMMA ) = false then exit do
             loop
         end if
         Expect( p, Tko.TK_RPAREN, ")" )
         dim as Tko.NodeId tn = MakeList( p, Tko.N_TUPLE, t.loc, litType, titems )
-        p.ast->nodes[cast( long, tn )].flags or= Tko.NF_HAS_COMMA
-        p.ast->nodes[cast( long, tn )].flags or= Tko.NF_TYPE_LITERAL
+        p.ast->nodes[cast( int32, tn )].flags or= Tko.NF_HAS_COMMA
+        p.ast->nodes[cast( int32, tn )].flags or= Tko.NF_TYPE_LITERAL
         return PostfixChain( p, tn )
 
     case Tko.TK_LPAREN
@@ -1153,7 +1153,7 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
                 '' 'A = *(int32*)TMP; B = *(int32*)((uint8*)TMP + 8)'. Expression( )
                 '' made an N_ERROR for the empty slot, silently, and the whole
                 '' destructuring then declined.
-                items.Push( cast( ulong, ArgOrElided( p, Tko.TK_RPAREN, false ) ) )  '' '( typeof( x ) )' is fbc's 9
+                items.Push( cast( uint32, ArgOrElided( p, Tko.TK_RPAREN, false ) ) )  '' '( typeof( x ) )' is fbc's 9
                 if Accept( p, Tko.TK_COMMA ) = false then exit do
                 sawComma = true
             loop
@@ -1163,7 +1163,7 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
         dim as Tko.NodeId n = 0
         if sawComma then
             n = MakeList( p, Tko.N_TUPLE, t.loc, Tko.NODE_NONE, items )
-            p.ast->nodes[cast( long, n )].flags or= Tko.NF_HAS_COMMA
+            p.ast->nodes[cast( int32, n )].flags or= Tko.NF_HAS_COMMA
         else
             n = MakeList( p, Tko.N_PAREN, t.loc, Tko.NODE_NONE, items )
         end if
@@ -1174,7 +1174,7 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
         dim as Tko.NodeIdVec items
         if Peek( p ) <> Tko.TK_RBRACE then
             do
-                items.Push( cast( ulong, Expression( p ) ) )
+                items.Push( cast( uint32, Expression( p ) ) )
                 if Accept( p, Tko.TK_COMMA ) = false then exit do
             loop
         end if
@@ -1270,7 +1270,7 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
                 Advance( p )
                 dim as Tko.NodeId member = MakeIdent( p, nameTok )
                 dim as Tko.NodeId n = MakeBinary( p, Tko.TK_DOT, t.loc, base_, member )
-                p.ast->nodes[cast( long, n )].kind = cast( ushort, Tko.N_MEMBER )
+                p.ast->nodes[cast( int32, n )].kind = cast( uint16, Tko.N_MEMBER )
                 return PostfixChain( p, n )
             end if
             return base_
@@ -1287,7 +1287,7 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
                 dim as Tko.NodeId member = MakeIdent( p, nameTok )
                 dim as Tko.NodeId n = MakeBinary( p, Tko.TK_DOT, t.loc, _
                                                   Tko.NODE_NONE, member )
-                p.ast->nodes[cast( long, n )].kind = cast( ushort, Tko.N_MEMBER )
+                p.ast->nodes[cast( int32, n )].kind = cast( uint16, Tko.N_MEMBER )
                 return PostfixChain( p, n )
             end if
         end if
@@ -1305,7 +1305,7 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
         dim as Tko.TokenKind wk = SizedConvKeyword_( p, k )
         if wk <> cast( Tko.TokenKind, 0 ) then
             dim as Tko.Token wt = t
-            wt.kind = cast( ushort, wk )
+            wt.kind = cast( uint16, wk )
             return PostfixChain( p, MakeIdent( p, wt ) )
         end if
     end if
@@ -1323,7 +1323,7 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
         dim as Tko.TokenKind ck = SizedCvKeyword_( p, k )
         if ck <> cast( Tko.TokenKind, 0 ) then
             dim as Tko.Token ct = t
-            ct.kind = cast( ushort, ck )
+            ct.kind = cast( uint16, ck )
             return PostfixChain( p, MakeIdent( p, ct ) )
         end if
     end if
@@ -1350,7 +1350,7 @@ end function
 
 '' 'seed' is a LEFT OPERAND already parsed -- see ParenGroupOperand_ in parserend.tiko.
 function Expression _
-    ( byref p as Tko.ParserState, byval minPrec as long = 1, _
+    ( byref p as Tko.ParserState, byval minPrec as int32 = 1, _
       byval seed as Tko.NodeId = Tko.NODE_NONE ) as Tko.NodeId
 
     p.depth += 1
@@ -1362,10 +1362,10 @@ function Expression _
     dim as Tko.NodeId left = seed
     if left = Tko.NODE_NONE then left = Prefix( p )
 
-    dim as long chain = 0
+    dim as int32 chain = 0
     do
         dim as Tko.TokenKind k = Peek( p )
-        dim as long prec = Tko.InfixPrec( k )
+        dim as int32 prec = Tko.InfixPrec( k )
         if prec = 0 then exit do
         if prec < minPrec then exit do
         chain += 1   '' PAST PARSE_MAX_CHAIN in one chain: refused -- ChainTooLong_, parserend.tiko
@@ -1413,11 +1413,11 @@ namespace Tko.Parse
 
 private sub DumpNode _
     ( byref ast as Tko.AstArena, byref src as Tko.SourceManager, _
-      byref names as Tko.Interner, byval id as Tko.NodeId, byval indent as long, _
+      byref names as Tko.Interner, byval id as Tko.NodeId, byval indent as int32, _
       byref outp as string )
 
     if id = Tko.NODE_NONE then return
-    dim as Tko.AstNode ptr n = @ast.nodes[cast( long, id )]
+    dim as Tko.AstNode ptr n = @ast.nodes[cast( int32, id )]
     dim as Tko.NodeKind k = cast( Tko.NodeKind, n->kind )
     dim as Tko.DecodedLoc d = src.Decode( n->loc )
 
@@ -1425,25 +1425,25 @@ private sub DumpNode _
 
     select case k
     case Tko.N_INT_LIT
-        dim as Tko.LiteralPayload ptr lp = @ast.literals[cast( long, n->data )]
+        dim as Tko.LiteralPayload ptr lp = @ast.literals[cast( int32, n->data )]
         row += " " & str( lp->intValue ) & " radix=" & lp->radix
     case Tko.N_FLOAT_LIT
-        dim as Tko.LiteralPayload ptr lp = @ast.literals[cast( long, n->data )]
+        dim as Tko.LiteralPayload ptr lp = @ast.literals[cast( int32, n->data )]
         row += " " & str( lp->fltValue )
     case Tko.N_STRING_LIT
-        dim as Tko.LiteralPayload ptr lp = @ast.literals[cast( long, n->data )]
+        dim as Tko.LiteralPayload ptr lp = @ast.literals[cast( int32, n->data )]
         row += " len=" & lp->strLength & " kind=" & lp->strKind
     case Tko.N_IDENT
-        dim as Tko.IdentPayload ptr ip = @ast.idents[cast( long, n->data )]
+        dim as Tko.IdentPayload ptr ip = @ast.idents[cast( int32, n->data )]
         row += " '" & names.Spelling( ip->name ) & "'"
     case Tko.N_UNARY, Tko.N_ADDROF, Tko.N_DEREF
-        dim as Tko.UnaryPayload ptr up = @ast.unaries[cast( long, n->data )]
+        dim as Tko.UnaryPayload ptr up = @ast.unaries[cast( int32, n->data )]
         row += " " & Tko.TokenKindText( cast( Tko.TokenKind, up->op ) )
     case Tko.N_BINARY, Tko.N_MEMBER
-        dim as Tko.BinaryPayload ptr bp = @ast.binaries[cast( long, n->data )]
+        dim as Tko.BinaryPayload ptr bp = @ast.binaries[cast( int32, n->data )]
         row += " " & Tko.TokenKindText( cast( Tko.TokenKind, bp->op ) )
     case Tko.N_INTRINSIC
-        dim as Tko.StmtPayload ptr ip = @ast.stmts[cast( long, n->data )]
+        dim as Tko.StmtPayload ptr ip = @ast.stmts[cast( int32, n->data )]
         '' TokenKindText, matching the statement dumper: one shape printed one way.
         if ip->op <> 0 then
             dim as string ot = Tko.TokenKindText( cast( Tko.TokenKind, ip->op ) )
@@ -1456,10 +1456,10 @@ private sub DumpNode _
 
     select case k
     case Tko.N_UNARY, Tko.N_ADDROF, Tko.N_DEREF
-        dim as Tko.UnaryPayload ptr up = @ast.unaries[cast( long, n->data )]
+        dim as Tko.UnaryPayload ptr up = @ast.unaries[cast( int32, n->data )]
         DumpNode( ast, src, names, up->operand, indent + 1, outp )
     case Tko.N_BINARY, Tko.N_MEMBER
-        dim as Tko.BinaryPayload ptr bp = @ast.binaries[cast( long, n->data )]
+        dim as Tko.BinaryPayload ptr bp = @ast.binaries[cast( int32, n->data )]
         DumpNode( ast, src, names, bp->lhs, indent + 1, outp )
         DumpNode( ast, src, names, bp->rhs, indent + 1, outp )
     case Tko.N_INTRINSIC
@@ -1468,20 +1468,20 @@ private sub DumpNode _
         '' printer stops at the bare row and every child is invisible to a golden,
         '' which is precisely how a construct that parsed but dropped its arguments
         '' would look.
-        dim as Tko.StmtPayload ptr ip = @ast.stmts[cast( long, n->data )]
+        dim as Tko.StmtPayload ptr ip = @ast.stmts[cast( int32, n->data )]
         DumpNode( ast, src, names, ip->a, indent + 1, outp )
         DumpNode( ast, src, names, ip->b, indent + 1, outp )
         DumpNode( ast, src, names, ip->c, indent + 1, outp )
-        for i as long = 0 to ip->count - 1
+        for i as int32 = 0 to ip->count - 1
             DumpNode( ast, src, names, _
                       cast( Tko.NodeId, ast.children[ip->first + i] ), indent + 1, outp )
         next
     case Tko.N_CALL, Tko.N_INDEX, Tko.N_PAREN, Tko.N_TUPLE, Tko.N_INITIALIZER, Tko.N_STRCAT
-        dim as Tko.ListPayload ptr lp = @ast.lists[cast( long, n->data )]
+        dim as Tko.ListPayload ptr lp = @ast.lists[cast( int32, n->data )]
         if lp->target <> Tko.NODE_NONE then
             DumpNode( ast, src, names, lp->target, indent + 1, outp )
         end if
-        for i as long = 0 to lp->count - 1
+        for i as int32 = 0 to lp->count - 1
             dim as Tko.NodeId child = cast( Tko.NodeId, ast.children[lp->first + i] )
             DumpNode( ast, src, names, child, indent + 1, outp )
         next

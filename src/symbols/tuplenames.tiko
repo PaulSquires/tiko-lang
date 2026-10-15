@@ -25,7 +25,7 @@
 '' names nothing), a 'for each' variable, an IIF or a cast, and a tuple written inside a
 '' generic template.
 
-const TUPLE_SHAPE_DEPTH_MAX as long = 32
+const TUPLE_SHAPE_DEPTH_MAX as int32 = 32
 
 '' Is t the synthetic UDT a tuple desugars into -- '$tup:<id>:<id>' (symbol.tiko)?
 private function TnIsTuple_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
@@ -38,12 +38,12 @@ end function
 
 '' The tuple typeref a TYPE REFERENCE describes, looking through 'ptr' and typedefs.
 private function TupleShapeOfRef_ _
-    ( byref c as Ctx, byval tr as Tko.NodeId, byval depth as long ) as Tko.NodeId
+    ( byref c as Ctx, byval tr as Tko.NodeId, byval depth as int32 ) as Tko.NodeId
 
-    for guard as long = depth to TUPLE_SHAPE_DEPTH_MAX
+    for guard as int32 = depth to TUPLE_SHAPE_DEPTH_MAX
         if (tr = Tko.NODE_NONE) orelse (c.ast->Kind( tr ) <> Tko.N_TYPEREF) then return Tko.NODE_NONE
         dim as Tko.StmtPayload ptr sp = StmtOf( c, tr )
-        if (c.ast->nodes[cast( long, tr )].flags and Tko.NF_PTR) <> 0 then
+        if (c.ast->nodes[cast( int32, tr )].flags and Tko.NF_PTR) <> 0 then
             tr = sp->a
             continue for
         end if
@@ -52,19 +52,19 @@ private function TupleShapeOfRef_ _
         '' whose payload is the typeref it aliases (collect.tiko).
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( tr ) )
         if s = 0 then return Tko.NODE_NONE
-        if s->kind <> cast( ubyte, Tko.SYM_TYPEDEF ) then return Tko.NODE_NONE
+        if s->kind <> cast( uint8, Tko.SYM_TYPEDEF ) then return Tko.NODE_NONE
         tr = cast( Tko.NodeId, s->payload )
     next
     return Tko.NODE_NONE
 end function
 
 declare function TupleShapeOf_ _
-    ( byref c as Ctx, byval e as Tko.NodeId, byval depth as long ) as Tko.NodeId
+    ( byref c as Ctx, byval e as Tko.NodeId, byval depth as int32 ) as Tko.NodeId
 
 '' The declared typeref of a symbol's own declaration: a variable's item, a parameter,
 '' a field, a function's result.
 private function TupleDeclRef_ _
-    ( byref c as Ctx, byval sid as Tko.SymbolId, byval depth as long ) as Tko.NodeId
+    ( byref c as Ctx, byval sid as Tko.SymbolId, byval depth as int32 ) as Tko.NodeId
 
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
     if s = 0 then return Tko.NODE_NONE
@@ -92,18 +92,18 @@ end function
 
 '' The shape of an EXPRESSION: the tuple typeref of the declaration it reaches.
 function TupleShapeOf_ _
-    ( byref c as Ctx, byval e as Tko.NodeId, byval depth as long ) as Tko.NodeId
+    ( byref c as Ctx, byval e as Tko.NodeId, byval depth as int32 ) as Tko.NodeId
 
     if (e = Tko.NODE_NONE) orelse (depth > TUPLE_SHAPE_DEPTH_MAX) then return Tko.NODE_NONE
     select case c.ast->Kind( e )
     case Tko.N_PAREN
-        dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+        dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
         if lp->count <> 1 then return Tko.NODE_NONE
         return TupleShapeOf_( c, cast( Tko.NodeId, c.ast->children[lp->first] ), depth + 1 )
     case Tko.N_DEREF
-        return TupleShapeOf_( c, c.ast->unaries[cast( long, c.ast->nodes[cast( long, e )].data )].operand, depth + 1 )
+        return TupleShapeOf_( c, c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, e )].data )].operand, depth + 1 )
     case Tko.N_INDEX
-        return TupleShapeOf_( c, c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )].target, depth + 1 )
+        return TupleShapeOf_( c, c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )].target, depth + 1 )
     case Tko.N_IDENT
         return TupleDeclRef_( c, c.info->RefOf( e ), depth )
     case Tko.N_CALL
@@ -111,7 +111,7 @@ function TupleShapeOf_ _
         '' the array's own variable, whose typeref names the element.
         dim as Tko.SymbolId sid = c.info->RefOf( e )
         if sid = Tko.SYMBOL_NONE then
-            sid = c.info->RefOf( c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )].target )
+            sid = c.info->RefOf( c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )].target )
         end if
         return TupleDeclRef_( c, sid, depth )
     case Tko.N_MEMBER
@@ -119,13 +119,13 @@ function TupleShapeOf_ _
         if f = 0 then return Tko.NODE_NONE
         '' An ELEMENT of a tuple: the element's own typeref in the base's shape.
         dim as Tko.SymScope ptr fsc = c.syms->ScopeAt( f->parent )
-        if (f->kind = cast( ubyte, Tko.SYM_FIELD )) andalso (fsc <> 0) then
+        if (f->kind = cast( uint8, Tko.SYM_FIELD )) andalso (fsc <> 0) then
             dim as Tko.Symbol ptr owner = c.syms->SymbolAt( fsc->owner )
             if owner <> 0 then
                 if left( c.names->Spelling( owner->name ), 5 ) = "$tup:" then
-                    dim as long k = valint( mid( c.names->Spelling( f->name ), 2 ) )
+                    dim as int32 k = valint( mid( c.names->Spelling( f->name ), 2 ) )
                     dim as Tko.NodeId bs = TupleShapeOf_( c, _
-                        c.ast->binaries[cast( long, c.ast->nodes[cast( long, e )].data )].lhs, depth + 1 )
+                        c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, e )].data )].lhs, depth + 1 )
                     if bs = Tko.NODE_NONE then return Tko.NODE_NONE
                     dim as Tko.StmtPayload ptr bp = StmtOf( c, bs )
                     if (k < 1) orelse (k > bp->count) then return Tko.NODE_NONE
@@ -151,14 +151,14 @@ private function TupleNamedField_ _
     dim as Tko.StmtPayload ptr sp = StmtOf( c, shape )
     '' A shape is trusted only for a tuple of its own arity. '$tup:6:6' has two.
     dim as string key = c.names->Spelling( c.types->NameOf( c.types->Unqualify( bt ) ) )
-    dim as long arity = 0
-    for i as long = 0 to len( key ) - 1
+    dim as int32 arity = 0
+    for i as int32 = 0 to len( key ) - 1
         if key[i] = asc( ":" ) then arity += 1
     next
     if arity <> sp->count then return Tko.SYMBOL_NONE
-    dim as Tko.IdentPayload ptr ip = @c.ast->idents[cast( long, c.ast->nodes[cast( long, rhs )].data )]
+    dim as Tko.IdentPayload ptr ip = @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, rhs )].data )]
     dim as Tko.InternId want = c.names->Fold( ip->name )
-    for k as long = 1 to sp->count
+    for k as int32 = 1 to sp->count
         dim as Tko.NodeId el = cast( Tko.NodeId, c.ast->children[sp->first + k - 1] )
         if c.ast->Kind( el ) <> Tko.N_TYPEREF then continue for
         dim as Tko.InternId en = StmtOf( c, el )->aliasName

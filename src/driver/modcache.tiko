@@ -39,7 +39,7 @@
 '' ModifiedUtc( ) reports -- so an entry's age is one subtraction. fbc-modern's runtime and
 '' tiko-rt both define it (lib/rt/src/chrono/clock.tiko).
 extern "C"
-    declare function fb_DtClockUtcNow( ) as longint
+    declare function fb_DtClockUtcNow( ) as int64
 end extern
 
 namespace Tko.Modules
@@ -68,10 +68,10 @@ end function
 '' Only a directory named like an entry -- sixteen hex digits -- holding a key.txt is ever
 '' removed, and never the pool itself: TKO_MODCACHE may name any directory.
 
-const TICKS_PER_DAY as longint = 864000000000ll
-const UNUSED_DAYS as long = 7
+const TICKS_PER_DAY as int64 = 864000000000ll
+const UNUSED_DAYS as int32 = 7
 
-private function Mtime_( byref p as string ) as longint
+private function Mtime_( byref p as string ) as int64
     dim as fs.FsResultInfo r = fs.Stat( p )
     if r.IsOk( ) = false then return 0
     return r.Value( ).ModifiedUtc( )
@@ -79,8 +79,8 @@ end function
 
 private function IsEntry_( byref root as string, byref nm as string ) as boolean
     if len( nm ) <> 16 then return false
-    for i as long = 0 to 15
-        dim as ubyte c = nm[i]
+    for i as int32 = 0 to 15
+        dim as uint8 c = nm[i]
         dim as boolean hexd = ((c >= asc( "0" )) andalso (c <= asc( "9" ))) orelse _
                               ((c >= asc( "a" )) andalso (c <= asc( "f" )))
         if hexd = false then return false
@@ -89,8 +89,8 @@ private function IsEntry_( byref root as string, byref nm as string ) as boolean
 end function
 
 '' When a build last wrote or read the entry: its 'used' stamp, else its key.
-private function LastUse_( byref d as string ) as longint
-    dim as longint t = Mtime_( JoinPath( d, "used" ) )
+private function LastUse_( byref d as string ) as int64
+    dim as int64 t = Mtime_( JoinPath( d, "used" ) )
     if t = 0 then t = Mtime_( JoinPath( d, "key.txt" ) )
     return t
 end function
@@ -98,9 +98,9 @@ end function
 '' A key without its sources and interfaces: what says which build the entry is for.
 private function Config_( byref key as string ) as string
     dim as string r = ""
-    dim as long p = 1
+    dim as int32 p = 1
     while p <= len( key )
-        dim as long e = instr( p, key, Nl_( ) )
+        dim as int32 e = instr( p, key, Nl_( ) )
         if e = 0 then e = len( key ) + 1
         dim as string ln = mid( key, p, e - p )
         p = e + 1
@@ -116,7 +116,7 @@ private sub DropStaleChains_( byref root as string )
     dim as string cd = JoinPath( root, "chains" )
     dim as containers.Array( of fs.DirEntry ) es
     if fs.ListDir( cd, es ).IsOk( ) = false then return
-    for k as long = 0 to es.Count - 1
+    for k as int32 = 0 to es.Count - 1
         if es[k].IsFile( ) = false then continue for
         dim as string p = JoinPath( cd, es[k].Name( ) )
         if right( p, 4 ) <> ".key" then continue for
@@ -130,18 +130,18 @@ end sub
 '' builds starting together do not both walk the pool.
 private sub Trim_( byref root as string )
     dim as string tf = JoinPath( root, "trim.txt" )
-    dim as longint now_ = fb_DtClockUtcNow( )
-    dim as longint last_ = Mtime_( tf )
+    dim as int64 now_ = fb_DtClockUtcNow( )
+    dim as int64 last_ = Mtime_( tf )
     if (last_ > 0) andalso (now_ - last_ < TICKS_PER_DAY) then return
     Tko.DiskCache.Commit( tf, "", 7 )
     dim as containers.Array( of fs.DirEntry ) es
     if fs.ListDir( root, es ).IsOk( ) = false then return
-    for k as long = 0 to es.Count - 1
+    for k as int32 = 0 to es.Count - 1
         if es[k].IsDirectory( ) = false then continue for
         dim as string nm = es[k].Name( )
         if IsEntry_( root, nm ) = false then continue for
         dim as string d = JoinPath( root, nm )
-        dim as longint used_ = LastUse_( d )
+        dim as int64 used_ = LastUse_( d )
         if used_ = 0 then continue for
         if now_ - used_ > UNUSED_DAYS * TICKS_PER_DAY then fs.RemoveDirAll( d )
     next
@@ -175,10 +175,10 @@ end function
 function CleanModuleCache( byref ctx as Tko.CompilerContext ) as string
     dim as string root = PoolDir_( ctx )
     if len( root ) = 0 then return ""
-    dim as long n = 0
+    dim as int32 n = 0
     dim as containers.Array( of fs.DirEntry ) es
     if fs.ListDir( root, es ).IsOk( ) then
-        for k as long = 0 to es.Count - 1
+        for k as int32 = 0 to es.Count - 1
             if es[k].IsDirectory( ) = false then continue for
             dim as string nm = es[k].Name( )
             if IsEntry_( root, nm ) = false then continue for
@@ -191,10 +191,10 @@ end function
 
 '' Module n's dependencies, all of them, each once.
 private sub Closure_ _
-    ( byref ctx as Tko.CompilerContext, byval n as long, byref seen as containers.Array( of ubyte ) )
-    for e as long = 0 to ctx.ifaceEdgeFrom.Count - 1
-        if cast( long, ctx.ifaceEdgeFrom[e] ) <> n then continue for
-        dim as long m = cast( long, ctx.ifaceEdgeTo[e] )
+    ( byref ctx as Tko.CompilerContext, byval n as int32, byref seen as containers.Array( of uint8 ) )
+    for e as int32 = 0 to ctx.ifaceEdgeFrom.Count - 1
+        if cast( int32, ctx.ifaceEdgeFrom[e] ) <> n then continue for
+        dim as int32 m = cast( int32, ctx.ifaceEdgeTo[e] )
         if seen[m] <> 0 then continue for
         seen[m] = 1
         Closure_( ctx, m, seen )
@@ -248,7 +248,7 @@ private function OptionLines_( byref ctx as Tko.CompilerContext ) as string
     return k
 end function
 
-function ModuleKey( byref ctx as Tko.CompilerContext, byval n as long ) as string
+function ModuleKey( byref ctx as Tko.CompilerContext, byval n as int32 ) as string
     dim as string nl = Nl_( )
     dim as Tko.DriverOptions ptr o = @ctx.options
     dim as string k = "tki-format 1" & nl
@@ -264,30 +264,30 @@ function ModuleKey( byref ctx as Tko.CompilerContext, byval n as long ) as strin
     k &= "module " & ctx.ifaceChains[n] & nl
     k &= "dir " & KeyPath_( ctx.ifaceDirs[n] ) & nl
     '' Its sources, in the order the unit reads them -- sorted already (ModuleFiles).
-    for each f as ulong in ctx.modFiles
+    for each f as uint32 in ctx.modFiles
         dim as string p = ctx.sources.AbsPathOf( cast( Tko.FileId, f ) )
         dim as string text_
         Tko.DiskCache.ReadAll( p, text_ )
-        dim as long cut = instrrev( p, "/" )
+        dim as int32 cut = instrrev( p, "/" )
         if instrrev( p, chr( 92 ) ) > cut then cut = instrrev( p, chr( 92 ) )
         k &= "source " & mid( p, cut + 1 ) & " " & len( text_ ) & " " & _
              Tko.DiskCache.Hash( text_ ) & nl
     next
     '' The interfaces of its closure, by chain -- the graph's chain order is the sort.
-    dim as containers.Array( of ubyte ) seen
-    for i as long = 0 to ctx.ifaceChains.Count - 1
+    dim as containers.Array( of uint8 ) seen
+    for i as int32 = 0 to ctx.ifaceChains.Count - 1
         seen.Push( 0 )
     next
     Closure_( ctx, n, seen )
     dim as Tko.StrVec lines_
-    for i as long = 0 to ctx.ifaceChains.Count - 1
+    for i as int32 = 0 to ctx.ifaceChains.Count - 1
         if seen[i] = 0 then continue for
         lines_.Push( "iface " & ctx.ifaceChains[i] & " " & Tko.DiskCache.Hash( ctx.ifaceTexts[i] ) )
     next
     '' Insertion sort: a closure is small.
-    for i as long = 1 to lines_.Count - 1
+    for i as int32 = 1 to lines_.Count - 1
         dim as string v = lines_[i]
-        dim as long j = i - 1
+        dim as int32 j = i - 1
         while (j >= 0) andalso (lines_[j] > v)
             lines_[j + 1] = lines_[j]
             j -= 1
@@ -314,15 +314,15 @@ function ModuleCacheLookup _
     if Tko.DiskCache.ReadAll( JoinPath( d, "deps.txt" ), deps ) = false then return false
     if Tko.DiskCache.ReadAll( JoinPath( d, "key.txt" ), k ) = false then return false
     if k <> key then return false
-    dim as long p = 1
+    dim as int32 p = 1
     while p <= len( deps )
-        dim as long e = instr( p, deps, Nl_( ) )
+        dim as int32 e = instr( p, deps, Nl_( ) )
         if e = 0 then e = len( deps ) + 1
         dim as string ln = mid( deps, p, e - p )
         p = e + 1
         if len( ln ) = 0 then continue while
-        dim as long t1 = instr( ln, chr( 9 ) )
-        dim as long t2 = 0
+        dim as int32 t1 = instr( ln, chr( 9 ) )
+        dim as int32 t2 = 0
         if t1 > 0 then t2 = instr( t1 + 1, ln, chr( 9 ) )
         if t2 = 0 then return false
         '' AN ABSENT DEPENDENCY must still be absent: a header now at an include candidate
@@ -346,9 +346,9 @@ end function
 '' which.
 private function ChainFile_( byref root as string, byref chain as string, byref key as string ) as string
     dim as string d = ""
-    dim as long at = instr( Nl_( ) & key, Nl_( ) & "dir " )
+    dim as int32 at = instr( Nl_( ) & key, Nl_( ) & "dir " )
     if at > 0 then
-        dim as long e = instr( at, key, Nl_( ) )
+        dim as int32 e = instr( at, key, Nl_( ) )
         if e = 0 then e = len( key ) + 1
         d = mid( key, at, e - at )
     end if
@@ -382,12 +382,12 @@ function UnitKey _
     Tko.DiskCache.ReadAll( p, text_ )
     k &= "source " & KeyPath_( p ) & " " & len( text_ ) & " " & Tko.DiskCache.Hash( text_ ) & nl
     dim as Tko.StrVec lines_
-    for i as long = 0 to ctx.ifaceChains.Count - 1
+    for i as int32 = 0 to ctx.ifaceChains.Count - 1
         lines_.Push( "iface " & ctx.ifaceChains[i] & " " & Tko.DiskCache.Hash( ctx.ifaceTexts[i] ) )
     next
-    for i as long = 1 to lines_.Count - 1
+    for i as int32 = 1 to lines_.Count - 1
         dim as string v = lines_[i]
-        dim as long j = i - 1
+        dim as int32 j = i - 1
         while (j >= 0) andalso (lines_[j] > v)
             lines_[j + 1] = lines_[j]
             j -= 1
@@ -404,9 +404,9 @@ function ModuleCacheDeps( byref ctx as Tko.CompilerContext, byref dl as string )
     '' What the unit read that is not its own source nor an interface held in memory.
     dl = ""
     dim as Tko.StrVec done_
-    for each f as ulong in ctx.unitFilesRead
+    for each f as uint32 in ctx.unitFilesRead
         dim as boolean own = false
-        for each m as ulong in ctx.modFiles
+        for each m as uint32 in ctx.modFiles
             if m = f then own = true
         next
         if own then continue for
@@ -473,9 +473,9 @@ function MissReason _
     if Tko.DiskCache.ReadAll( ChainFile_( root, chain, key ), last_ ) = false then
         return "new"
     end if
-    dim as long p = 1
+    dim as int32 p = 1
     while p <= len( key )
-        dim as long e = instr( p, key, Nl_( ) )
+        dim as int32 e = instr( p, key, Nl_( ) )
         if e = 0 then e = len( key ) + 1
         dim as string ln = mid( key, p, e - p )
         p = e + 1

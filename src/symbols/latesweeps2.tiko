@@ -28,7 +28,7 @@ end function
 private function DeclaresAnywhere_ _
     ( byref c as Ctx, byval udt as TypeId, byref nm as string ) as boolean
     dim as TypeId t = udt
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (t <> TYPE_NONE) andalso (guard < 64)
         guard += 1
         if c.types->Kind( t ) <> TK_UDT then return true
@@ -84,18 +84,18 @@ end function
 '' lowering, finding no conversion, copied S's bytes into the T.
 private function UdtPairConverts_ ( byref c as Ctx, byval dst as TypeId, byval src as TypeId, byval byAssign as boolean ) as boolean
     if TcTuple_( c, dst ) orelse TcTuple_( c, src ) then return true   '' a tuple's elements are judged in tupleconv.tiko
-    dim as containers.Array( of ulong ) one
-    one.Push( cast( ulong, src ) )
+    dim as containers.Array( of uint32 ) one
+    one.Push( cast( uint32, src ) )
     '' AN ASSIGNMENT IS NOT A CONSTRUCTION: 'q = s' and 'function = s' over a T built from
     '' S's string cast are fbc's 181 (Rescued_'s table: a LET or a CAST rescues it).
-    for k as long = iif( byAssign, 1, 0 ) to 1
+    for k as int32 = iif( byAssign, 1, 0 ) to 1
         dim as SymbolId head = Tko.Check.StructorNamed( *c.syms, *c.types, *c.names, dst, iif( k = 0, "__ctor", "let" ) )
         if head <> SYMBOL_NONE then
             if Tko.Check.PickStructor( *c.ast, *c.syms, *c.types, *c.names, *c.info, head, one ) <> SYMBOL_NONE then return true
         end if
     next
     dim as SymbolId cur = Tko.Check.StructorNamed( *c.syms, *c.types, *c.names, src, "cast" )
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Symbol ptr cs = c.syms->SymbolAt( cur )
@@ -142,13 +142,13 @@ private sub RequireOperator_ _
         if (gts <> 0) andalso (gts->payload <> 0) then
             dim as NodeId gn = cast( NodeId, gts->payload )
             if c.ast->Kind( gn ) = N_TYPE then
-                dim as StmtPayload ptr gp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, gn )].data )]
+                dim as StmtPayload ptr gp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, gn )].data )]
                 if gp->b <> NODE_NONE then
-                    dim as long seenNm = 0, hiddenNm = 0
-                    for gi as long = 0 to gp->count - 1
+                    dim as int32 seenNm = 0, hiddenNm = 0
+                    for gi as int32 = 0 to gp->count - 1
                         dim as NodeId gm = cast( NodeId, c.ast->children[gp->first + gi] )
                         if (gm = NODE_NONE) orelse (c.ast->Kind( gm ) <> N_PROC) then continue for
-                        dim as StmtPayload ptr gmp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, gm )].data )]
+                        dim as StmtPayload ptr gmp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, gm )].data )]
                         if (gmp->name = 0) orelse (Text.LowerAscii( c.names->Spelling( gmp->name ) ) <> nm) then continue for
                         seenNm += 1
                         if (gmp->extra and (PF_MEMB_PRIVATE or PF_MEMB_PROTECTED)) <> 0 then hiddenNm += 1
@@ -164,7 +164,7 @@ private sub RequireOperator_ _
     end if
     if st = 0 then return
     dim as Symbol ptr walk = st
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (walk <> 0) andalso (guard < 1000)
         guard += 1
         if StructorReachable_( c, walk, u, here ) then return
@@ -289,7 +289,7 @@ end sub
 private function IsSpawnFrameField_ ( byref c as Ctx, byval n as NodeId ) as boolean
     if c.ast->Kind( n ) <> N_MEMBER then return false
     dim as BinaryPayload ptr bp = _
-        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, n )].data )]
+        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, n )].data )]
     dim as TypeId ft = c.info->TypeOf_( bp->lhs )
     if ft = TYPE_NONE then return false
     ft = c.types->Unqualify( ft )
@@ -301,12 +301,12 @@ end function
 private sub CheckUdtAssign_ ( byref c as Ctx, byval id as NodeId )
     if c.info->AmbiguousOf( id ) <> AMB_ASSIGN then return
     dim as StmtPayload ptr sp = _
-        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if cast( TokenKind, sp->op ) <> TK_EQ then return
     if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then return
     '' A PROPERTY on the left is a call, and its setter's parameter is not measured.
     dim as Symbol ptr ls = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
-    if (ls <> 0) andalso (ls->kind = cast( ubyte, SYM_PROC )) then return
+    if (ls <> 0) andalso (ls->kind = cast( uint8, SYM_PROC )) then return
     '' ONLY A PLAIN LVALUE ON THE LEFT: 'let( a, b ) = x' unpacks and is its own rule,
     '' and 'this = other' assigns the object, which tiko-lang types as a POINTER.
     select case c.ast->Kind( sp->a )
@@ -319,7 +319,7 @@ private sub CheckUdtAssign_ ( byref c as Ctx, byval id as NodeId )
     '' making, judged by the iif rule; a call that binds no symbol is not this question.
     if c.ast->Kind( sp->b ) = N_CALL then
         dim as ListPayload ptr rl = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->b )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, sp->b )].data )]
         if c.info->RefOf( rl->target ) = SYMBOL_NONE then return
     end if
     JudgeConversion_( c, id, c.info->TypeOf_( sp->a ), c.info->TypeOf_( sp->b ), _
@@ -327,23 +327,23 @@ private sub CheckUdtAssign_ ( byref c as Ctx, byval id as NodeId )
 end sub
 
 private sub CheckUdtInits_ ( byref c as Ctx )
-    for i as long = 0 to c.syms->symbols.Count - 1
+    for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
-        if s->kind <> cast( ubyte, SYM_VARIABLE ) then continue for
+        if s->kind <> cast( uint8, SYM_VARIABLE ) then continue for
         if (s->flags and SYMF_BYREF) <> 0 then continue for
         if s->type_ = TYPE_NONE then continue for
         if s->payload = 0 then continue for
         dim as NodeId item = cast( NodeId, s->payload )
         if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
         dim as StmtPayload ptr ip = _
-            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+            @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, item )].data )]
         if ip->b = NODE_NONE then continue for
         '' A DECLARED TYPE ONLY: 'var x = y' takes y's type and converts nothing.
         if ip->a = NODE_NONE then continue for
         if IsThisBase_( c, ip->b ) then continue for
         select case c.ast->Kind( ip->b )
         case N_TUPLE, N_PAREN
-            if (c.ast->nodes[cast( long, ip->b )].flags and NF_TYPE_LITERAL) = 0 then continue for
+            if (c.ast->nodes[cast( int32, ip->b )].flags and NF_TYPE_LITERAL) = 0 then continue for
         case N_INITIALIZER
             continue for
         end select
@@ -358,12 +358,12 @@ private sub CheckUdtInits_ ( byref c as Ctx )
     next
     '' ...AND THE QUALIFIED DEFINITION OF A STATIC MEMBER, 'var UDT.x = type<B>( ... )',
     '' whose symbol's own item is the 'static x as A' inside the type -- fbc error 20.
-    for n as long = 0 to c.ast->Count( ) - 1
+    for n as int32 = 0 to c.ast->Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_VAR_ITEM then continue for
         if (c.ast->nodes[n].flags and NF_QUALIFIED) = 0 then continue for
         dim as StmtPayload ptr ip = _
-            @c.ast->stmts[cast( long, c.ast->nodes[n].data )]
+            @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
         if ip->b = NODE_NONE then continue for
         dim as Symbol ptr ms = c.syms->SymbolAt( c.info->RefOf( id ) )
         if ms = 0 then
@@ -374,11 +374,11 @@ private sub CheckUdtInits_ ( byref c as Ctx )
             ms = c.syms->SymbolAt( c.syms->LookupLocal( osc, c.names->Fold( ip->name ) ) )
             if ms = 0 then continue for
         end if
-        if ms->kind <> cast( ubyte, SYM_VARIABLE ) then continue for
+        if ms->kind <> cast( uint8, SYM_VARIABLE ) then continue for
         if ms->type_ = TYPE_NONE then continue for
         select case c.ast->Kind( ip->b )
         case N_TUPLE, N_PAREN
-            if (c.ast->nodes[cast( long, ip->b )].flags and NF_TYPE_LITERAL) = 0 then continue for
+            if (c.ast->nodes[cast( int32, ip->b )].flags and NF_TYPE_LITERAL) = 0 then continue for
         case N_INITIALIZER
             continue for
         end select
@@ -404,13 +404,13 @@ private function GenericDeclaresMember_ _
     if gn = NODE_NONE then return false
     if c.ast->Kind( gn ) <> N_TYPE then return false
     dim as StmtPayload ptr gp = _
-        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, gn )].data )]
-    for i as long = 0 to gp->count - 1
+        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, gn )].data )]
+    for i as int32 = 0 to gp->count - 1
         dim as NodeId m = cast( NodeId, c.ast->children[gp->first + i] )
         select case c.ast->Kind( m )
         case N_FIELD, N_PROC, N_CONST, N_VAR, N_ENUM, N_TYPE
             dim as StmtPayload ptr mp2 = _
-                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, m )].data )]
+                @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, m )].data )]
             if mp2->name <> 0 then
                 if c.names->Fold( mp2->name ) = want then return true
             end if
@@ -428,7 +428,7 @@ declare sub TupleMemberBad_ ( byref c as Ctx, byval t as TypeId, byval lhs as No
 
 private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
     dim as BinaryPayload ptr mp = _
-        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     dim as TokenKind op = cast( TokenKind, mp->op )
     if (op <> TK_DOT) andalso (op <> TK_ARROW) then return
     if (mp->lhs = NODE_NONE) orelse (mp->rhs = NODE_NONE) then return
@@ -472,18 +472,18 @@ private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
         if op <> TK_DOT then return
         if c.types->Kind( c.types->Unqualify( ValueType_( c, bt ) ) ) = TK_POINTER then return
         if c.ast->Kind( mp->lhs ) = N_IDENT then
-            if left( c.names->Spelling( c.ast->idents[cast( long, c.ast->nodes[cast( long, mp->lhs )].data )].name ), 1 ) = "$" then return
+            if left( c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, mp->lhs )].data )].name ), 1 ) = "$" then return
         end if
         dim as string lnm = c.types->Name( bu )
         dim as NodeId ln = mp->lhs
         if c.ast->Kind( ln ) = N_CALL then
-            ln = c.ast->lists[cast( long, c.ast->nodes[cast( long, ln )].data )].target
+            ln = c.ast->lists[cast( int32, c.ast->nodes[cast( int32, ln )].data )].target
         end if
         if (ln <> NODE_NONE) andalso (c.ast->Kind( ln ) = N_IDENT) then
-            lnm = c.names->Spelling( c.ast->idents[cast( long, c.ast->nodes[cast( long, ln )].data )].name )
+            lnm = c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, ln )].data )].name )
         end if
         c.diags->Report( TKO0972, PointRange( c.ast->Loc( mp->rhs ) ), lnm, _
-            c.names->Spelling( c.ast->idents[cast( long, c.ast->nodes[cast( long, mp->rhs )].data )].name ), _
+            c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, mp->rhs )].data )].name ), _
             c.types->Name( bu ) )
         return
     end if
@@ -495,7 +495,7 @@ private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
             return
         end select
         c.diags->Report( TKO0739, PointRange( c.ast->Loc( mp->rhs ) ), c.types->Name( bu ), _
-            c.names->Spelling( c.ast->idents[cast( long, c.ast->nodes[cast( long, mp->rhs )].data )].name ) )
+            c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, mp->rhs )].data )].name ) )
         return
     end if
     '' A TUPLE's members are '_1' to '_n' and nothing else -- see TupleMemberBad_.
@@ -510,11 +510,11 @@ private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
     '' runtime headers. 'a.NoSuchThing( )' over an FB.Array( of long ) compiled clean
     '' and printed an empty line where fbc answers error 18. The name is reported
     '' WITHOUT the key, because 'ARRAY<6>' is not what anyone wrote.
-    dim as long lt = instr( tnm, "<" )
+    dim as int32 lt = instr( tnm, "<" )
     if lt > 0 then tnm = left( tnm, lt - 1 )
     if TupleLike_( c, bu ) then TupleMemberBad_( c, bu, mp->lhs, mp->rhs ) : return
     dim as InternId want = c.names->Fold( _
-        c.ast->idents[cast( long, c.ast->nodes[cast( long, mp->rhs )].data )].name )
+        c.ast->idents[cast( int32, c.ast->nodes[cast( int32, mp->rhs )].data )].name )
     '' 'b.constructor( )' and 'pb->destructor( )' are explicit structor calls, which
     '' CheckExplicitStructor_ judges; neither name is ever a member.
     select case lcase( c.names->Spelling( want ) )
@@ -522,7 +522,7 @@ private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
         return
     end select
     dim as TypeId t = bu
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (t <> TYPE_NONE) andalso (guard < 64)
         guard += 1
         dim as Symbol ptr ts = UdtSymbolOf_( c, t )
@@ -532,12 +532,12 @@ private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
         '' A UNION or an ANONYMOUS aggregate inside the type is not searched here, so
         '' a type holding one is not judged at all.
         if (ts->flags and SYMF_UNION_KIND) <> 0 then return
-        for i as long = 0 to c.syms->symbols.Count - 1
+        for i as int32 = 0 to c.syms->symbols.Count - 1
             dim as Symbol ptr f = @c.syms->symbols[i]
             if f->parent <> ts->inner then continue for
             if (f->flags and SYMF_UNION) <> 0 then return
             if c.names->Fold( f->name ) = want then return
-            if f->kind = cast( ubyte, SYM_FIELD ) then
+            if f->kind = cast( uint8, SYM_FIELD ) then
                 '' An anonymous nested TYPE/UNION field opens its members into the
                 '' owner: decline over any field whose type is an unnamed UDT.
                 if f->type_ <> TYPE_NONE then
@@ -561,9 +561,9 @@ end sub
 '' parameter defaulted is a default constructor and passes.
 private sub CheckEraseDefaultCtor_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
-        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if cast( TokenKind, sp->op ) <> KW_ERASE then return
-    for i as long = 0 to sp->count - 1
+    for i as int32 = 0 to sp->count - 1
         dim as NodeId arg = cast( NodeId, c.ast->children[sp->first + i] )
         if arg = NODE_NONE then continue for
         dim as Symbol ptr av = c.syms->SymbolAt( c.info->RefOf( arg ) )
@@ -576,7 +576,7 @@ private sub CheckEraseDefaultCtor_ ( byref c as Ctx, byval id as NodeId )
         dim as Symbol ptr ct = StructorOf_( c, el, "__ctor" )
         if ct = 0 then continue for
         dim as boolean hasDefault = false
-        dim as long guard = 0
+        dim as int32 guard = 0
         while (ct <> 0) andalso (guard < 1000)
             guard += 1
             dim as NodeId cd = cast( NodeId, ct->payload )
@@ -603,14 +603,14 @@ end sub
 ''            only constructor has every parameter defaulted; so does a declaration.
 private sub CheckProcDefinitionShapes_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
-        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if sp->b = NODE_NONE then return
-    for i as long = 0 to sp->count - 1
+    for i as int32 = 0 to sp->count - 1
         dim as NodeId prm = cast( NodeId, c.ast->children[sp->first + i] )
         if c.ast->Kind( prm ) <> N_PARAM then continue for
         dim as StmtPayload ptr pp = _
-            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )]
-        if pp->op = cast( ushort, TK_ELLIPSIS ) then continue for
+            @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, prm )].data )]
+        if pp->op = cast( uint16, TK_ELLIPSIS ) then continue for
         if pp->name = 0 then
             c.diags->Report( TKO0733, PointRange( c.ast->Loc( prm ) ) )
             exit for
@@ -628,7 +628,7 @@ private sub CheckProcDefinitionShapes_ ( byref c as Ctx, byval id as NodeId )
         return
     end if
     if cast( TokenKind, sp->op ) <> KW_FUNCTION then return
-    if (c.ast->nodes[cast( long, id )].flags and NF_BYREF) <> 0 then return
+    if (c.ast->nodes[cast( int32, id )].flags and NF_BYREF) <> 0 then return
     if c.types->Kind( ru ) <> TK_UDT then return
     '' 'RETURN' CONSTRUCTS THE RESULT IN PLACE and needs no default constructor; only the
     '' implicit result variable that 'function =' assigns into does. Measured, over a type
@@ -646,7 +646,7 @@ private sub CheckProcDefinitionShapes_ ( byref c as Ctx, byval id as NodeId )
     if sawReturn then return
     dim as Symbol ptr ct = StructorOf_( c, ru, "__ctor" )
     if ct = 0 then return
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (ct <> 0) andalso (guard < 1000)
         guard += 1
         dim as NodeId cd = cast( NodeId, ct->payload )
@@ -670,29 +670,29 @@ end sub
 ''     static byref ri as integer = i (local)  error 11    a static reference to a local
 ''     static byref ri as integer = g (shared) OK
 private sub CheckByrefInitShapes_ ( byref c as Ctx )
-    for i as long = 0 to c.syms->symbols.Count - 1
+    for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
-        if s->kind <> cast( ubyte, SYM_VARIABLE ) then continue for
+        if s->kind <> cast( uint8, SYM_VARIABLE ) then continue for
         if (s->flags and SYMF_BYREF) = 0 then continue for
         if s->payload = 0 then continue for
         dim as NodeId item = cast( NodeId, s->payload )
         if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
         dim as StmtPayload ptr ip = _
-            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+            @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, item )].data )]
         if ip->b = NODE_NONE then continue for
         dim as NodeId init = ip->b
         dim as NodeKind ik = c.ast->Kind( init )
         if (ik = N_TUPLE) andalso _
-           ((c.ast->nodes[cast( long, init )].flags and NF_TYPE_LITERAL) <> 0) then
+           ((c.ast->nodes[cast( int32, init )].flags and NF_TYPE_LITERAL) <> 0) then
             c.diags->Report( TKO0643, PointRange( c.ast->Loc( init ) ), _
                              c.names->Spelling( s->name ) )
             continue for
         end if
         if ik = N_CALL then
             dim as ListPayload ptr lp = _
-                @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
+                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init )].data )]
             dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
-            if (ts <> 0) andalso (ts->kind = cast( ubyte, SYM_UDT )) then
+            if (ts <> 0) andalso (ts->kind = cast( uint8, SYM_UDT )) then
                 c.diags->Report( TKO0643, PointRange( c.ast->Loc( init ) ), _
                                  c.names->Spelling( s->name ) )
                 continue for
@@ -733,9 +733,9 @@ private sub CheckByrefInitShapes_ ( byref c as Ctx )
         '' write two. tiko bound them at run time. A local variable is TKO0730's, below.
         if (s->flags and (SYMF_SHARED or SYMF_STATIC)) <> 0 then
             dim as NodeId sb = init
-            for upi as long = 0 to 15
+            for upi as int32 = 0 to 15
                 if c.ast->Kind( sb ) <> N_PAREN then exit for
-                dim as ListPayload ptr upp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, sb )].data )]
+                dim as ListPayload ptr upp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, sb )].data )]
                 if upp->count <> 1 then exit for
                 sb = cast( NodeId, c.ast->children[upp->first] )
             next
@@ -749,33 +749,33 @@ private sub CheckByrefInitShapes_ ( byref c as Ctx )
                 dim as Symbol ptr mv = c.syms->SymbolAt( c.info->RefOf( sb ) )
                 if mv = 0 then
                     fixedAddr = false
-                elseif (mv->kind <> cast( ubyte, SYM_VARIABLE )) andalso ((mv->flags and SYMF_STATIC) = 0) then
+                elseif (mv->kind <> cast( uint8, SYM_VARIABLE )) andalso ((mv->flags and SYMF_STATIC) = 0) then
                     fixedAddr = false
                 end if
             case N_CALL
-                dim as ListPayload ptr sl = @c.ast->lists[cast( long, c.ast->nodes[cast( long, sb )].data )]
+                dim as ListPayload ptr sl = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, sb )].data )]
                 dim as Symbol ptr av = c.syms->SymbolAt( c.info->RefOf( sl->target ) )
-                if (av <> 0) andalso (av->kind = cast( ubyte, SYM_PROC )) then
+                if (av <> 0) andalso (av->kind = cast( uint8, SYM_PROC )) then
                     '' A BYREF result is an address known only at run time; a by-value one
                     '' has none at all, and that is TKO0643's (fbc's 24), not this rule's.
                     dim as NodeId pv = cast( NodeId, av->payload )
                     if (pv <> NODE_NONE) andalso (c.ast->Kind( pv ) = N_PROC) then
-                        if ((c.ast->nodes[cast( long, pv )].flags and NF_BYREF) <> 0) orelse _
-                           ((c.ast->stmts[cast( long, c.ast->nodes[cast( long, pv )].data )].extra and PF_BYREF_RESULT) <> 0) then fixedAddr = false
+                        if ((c.ast->nodes[cast( int32, pv )].flags and NF_BYREF) <> 0) orelse _
+                           ((c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pv )].data )].extra and PF_BYREF_RESULT) <> 0) then fixedAddr = false
                     end if
-                elseif (av = 0) orelse (av->kind <> cast( ubyte, SYM_VARIABLE )) orelse (av->type_ = TYPE_NONE) then
+                elseif (av = 0) orelse (av->kind <> cast( uint8, SYM_VARIABLE )) orelse (av->type_ = TYPE_NONE) then
                     fixedAddr = false
                 elseif c.types->IsDynArray( c.types->Unqualify( av->type_ ) ) then
                     fixedAddr = false
                 else
-                    for ai as long = 0 to sl->count - 1
+                    for ai as int32 = 0 to sl->count - 1
                         dim as NodeId ax = cast( NodeId, c.ast->children[sl->first + ai] )
-                        if c.ast->Kind( ax ) = N_UNARY then ax = c.ast->unaries[cast( long, c.ast->nodes[cast( long, ax )].data )].operand
+                        if c.ast->Kind( ax ) = N_UNARY then ax = c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, ax )].data )].operand
                         select case c.ast->Kind( ax )
                         case N_INT_LIT
                         case N_IDENT
                             dim as Symbol ptr xs = c.syms->SymbolAt( c.info->RefOf( ax ) )
-                            if (xs = 0) orelse ((xs->kind <> cast( ubyte, SYM_CONSTANT )) andalso (xs->kind <> cast( ubyte, SYM_ENUMCONST ))) then fixedAddr = false
+                            if (xs = 0) orelse ((xs->kind <> cast( uint8, SYM_CONSTANT )) andalso (xs->kind <> cast( uint8, SYM_ENUMCONST ))) then fixedAddr = false
                         case else
                             fixedAddr = false
                         end select
@@ -791,7 +791,7 @@ private sub CheckByrefInitShapes_ ( byref c as Ctx )
         '' The static-reference rule.
         if ((s->flags and SYMF_STATIC) <> 0) andalso (ik = N_IDENT) then
             dim as Symbol ptr vs = c.syms->SymbolAt( c.info->RefOf( init ) )
-            if (vs <> 0) andalso (vs->kind = cast( ubyte, SYM_VARIABLE )) then
+            if (vs <> 0) andalso (vs->kind = cast( uint8, SYM_VARIABLE )) then
                 if (vs->flags and (SYMF_SHARED or SYMF_STATIC or SYMF_EXTERN or _
                                    SYMF_COMMON)) = 0 then
                     c.diags->Report( TKO0730, PointRange( c.ast->Loc( init ) ), _
@@ -827,18 +827,18 @@ end sub
 
 '' One folded array bound, or 'known = false'.
 private function FoldBound_ _
-    ( byref c as Ctx, byval n as NodeId, byref known as boolean ) as longint
+    ( byref c as Ctx, byval n as NodeId, byref known as boolean ) as int64
     known = false
     if n = NODE_NONE then return 0
     select case c.ast->Kind( n )
     case N_INT_LIT
         known = true
-        return cast( longint, c.ast->literals[cast( long, c.ast->nodes[cast( long, n )].data )].intValue )
+        return cast( int64, c.ast->literals[cast( int32, c.ast->nodes[cast( int32, n )].data )].intValue )
     case N_UNARY
         dim as UnaryPayload ptr up = _
-            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, n )].data )]
+            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, n )].data )]
         if cast( TokenKind, up->op ) <> TK_MINUS then return 0
-        dim as longint v = FoldBound_( c, up->operand, known )
+        dim as int64 v = FoldBound_( c, up->operand, known )
         return -v
     end select
     return 0
@@ -847,21 +847,21 @@ end function
 '' The written bounds of a declaration item: lo/hi pairs into 'lo'/'hi', the rank as the
 '' result, -1 when any bound does not fold. '...' takes its size from the initializer.
 private function WrittenBounds_ _
-    ( byref c as Ctx, byval item as NodeId, lo() as longint, hi() as longint ) as long
+    ( byref c as Ctx, byval item as NodeId, lo() as int64, hi() as int64 ) as int32
     dim as StmtPayload ptr ip = _
-        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, item )].data )]
     if ip->c = NODE_NONE then return 0
     if c.ast->Kind( ip->c ) <> N_BLOCK then return 0
     dim as ListPayload ptr bl = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, ip->c )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, ip->c )].data )]
     if bl->count <= 0 then return 0
     if bl->count > 8 then return -1
-    for d as long = 0 to bl->count - 1
+    for d as int32 = 0 to bl->count - 1
         dim as NodeId r = cast( NodeId, c.ast->children[bl->first + d] )
         if r = NODE_NONE then return -1
         if c.ast->Kind( r ) <> N_CASE_RANGE then return -1
         dim as StmtPayload ptr rp = _
-            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, r )].data )]
+            @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, r )].data )]
         if (rp->a = NODE_NONE) orelse (rp->b = NODE_NONE) then return -1
         dim as boolean k1, k2
         lo(d) = FoldBound_( c, rp->a, k1 )
@@ -870,7 +870,7 @@ private function WrittenBounds_ _
             if (bl->count <> 1) orelse (ip->b = NODE_NONE) then return -1
             if c.ast->Kind( ip->b ) <> N_INITIALIZER then return -1
             dim as ListPayload ptr il = _
-                @c.ast->lists[cast( long, c.ast->nodes[cast( long, ip->b )].data )]
+                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, ip->b )].data )]
             hi(d) = lo(d) + il->count - 1
         else
             hi(d) = FoldBound_( c, rp->b, k2 )
@@ -897,29 +897,29 @@ end function
 '' Both statements sit in ONE BLOCK -- the module's, or a namespace's -- so the pairing
 '' is by name within a block, which is what keeps a same-named local in some procedure
 '' out of it.
-private sub CheckExternRange_ ( byref c as Ctx, byval first as long, byval count as long )
-    for i as long = 0 to count - 1
+private sub CheckExternRange_ ( byref c as Ctx, byval first as int32, byval count as int32 )
+    for i as int32 = 0 to count - 1
         dim as NodeId st = cast( NodeId, c.ast->children[first + i] )
         if st = NODE_NONE then continue for
         if c.ast->Kind( st ) = N_NAMESPACE then
             dim as StmtPayload ptr np = _
-                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, st )].data )]
+                @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, st )].data )]
             CheckExternRange_( c, np->first, np->count )
             continue for
         end if
         if c.ast->Kind( st ) <> N_VAR then continue for
         dim as StmtPayload ptr sp = _
-            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, st )].data )]
-        if sp->op <> cast( ushort, KW_EXTERN ) then continue for
-        for j as long = 0 to sp->count - 1
+            @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, st )].data )]
+        if sp->op <> cast( uint16, KW_EXTERN ) then continue for
+        for j as int32 = 0 to sp->count - 1
             dim as NodeId ex = cast( NodeId, c.ast->children[sp->first + j] )
             if c.ast->Kind( ex ) <> N_VAR_ITEM then continue for
             dim as StmtPayload ptr ep = _
-                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, ex )].data )]
+                @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, ex )].data )]
             if ep->name = 0 then continue for
             dim as InternId want = c.names->Fold( ep->name )
-            dim as longint elo(0 to 7), ehi(0 to 7)
-            dim as long erank = WrittenBounds_( c, ex, elo(), ehi() )
+            dim as int64 elo(0 to 7), ehi(0 to 7)
+            dim as int32 erank = WrittenBounds_( c, ex, elo(), ehi() )
             dim as TypeId et = TYPE_NONE
             if ep->a <> NODE_NONE then et = c.types->Unqualify( c.info->TypeOf_( ep->a ) )
             dim as boolean isString = false
@@ -927,22 +927,22 @@ private sub CheckExternRange_ ( byref c as Ctx, byval first as long, byval count
                 isString = (c.types->BuiltinOf( et ) = TY_STRING)
             end if
             '' Every later declaration of the name in this block.
-            for k as long = i + 1 to count - 1
+            for k as int32 = i + 1 to count - 1
                 dim as NodeId st2 = cast( NodeId, c.ast->children[first + k] )
                 if st2 = NODE_NONE then continue for
                 if c.ast->Kind( st2 ) <> N_VAR then continue for
                 dim as StmtPayload ptr sp2 = _
-                    @c.ast->stmts[cast( long, c.ast->nodes[cast( long, st2 )].data )]
-                if sp2->op = cast( ushort, KW_EXTERN ) then continue for
-                for m as long = 0 to sp2->count - 1
+                    @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, st2 )].data )]
+                if sp2->op = cast( uint16, KW_EXTERN ) then continue for
+                for m as int32 = 0 to sp2->count - 1
                     dim as NodeId df = cast( NodeId, c.ast->children[sp2->first + m] )
                     if c.ast->Kind( df ) <> N_VAR_ITEM then continue for
                     dim as StmtPayload ptr dp = _
-                        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, df )].data )]
+                        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, df )].data )]
                     if dp->name = 0 then continue for
                     if c.names->Fold( dp->name ) <> want then continue for
-                    if (c.ast->nodes[cast( long, df )].flags and NF_QUALIFIED) <> 0 then continue for
-                    if sp2->op = cast( ushort, KW_REDIM ) then
+                    if (c.ast->nodes[cast( int32, df )].flags and NF_QUALIFIED) <> 0 then continue for
+                    if sp2->op = cast( uint16, KW_REDIM ) then
                         if (dp->a <> NODE_NONE) andalso (erank > 0) then
                             c.diags->Report( TKO0723, PointRange( c.ast->Loc( df ) ) )
                         end if
@@ -954,15 +954,15 @@ private sub CheckExternRange_ ( byref c as Ctx, byval first as long, byval count
                         continue for
                     end if
                     if erank <= 0 then continue for
-                    dim as longint dlo(0 to 7), dhi(0 to 7)
-                    dim as long drank = WrittenBounds_( c, df, dlo(), dhi() )
+                    dim as int64 dlo(0 to 7), dhi(0 to 7)
+                    dim as int32 drank = WrittenBounds_( c, df, dlo(), dhi() )
                     if drank <= 0 then continue for
                     if drank <> erank then
                         c.diags->Report( TKO0728, PointRange( c.ast->Loc( df ) ), _
                                          c.names->Spelling( dp->name ) )
                         continue for
                     end if
-                    for d as long = 0 to erank - 1
+                    for d as int32 = 0 to erank - 1
                         if (dlo(d) <> elo(d)) orelse (dhi(d) <> ehi(d)) then
                             c.diags->Report( TKO0727, PointRange( c.ast->Loc( df ) ), _
                                              c.names->Spelling( dp->name ) )
@@ -980,7 +980,7 @@ private sub CheckExternBlock_ ( byref c as Ctx, byval blk as NodeId )
     dim as NodeKind bk = c.ast->Kind( blk )
     if (bk <> N_BLOCK) andalso (bk <> N_MODULE) then return
     dim as ListPayload ptr bl = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, blk )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, blk )].data )]
     CheckExternRange_( c, bl->first, bl->count )
 end sub
 
@@ -990,7 +990,7 @@ end sub
 '' ON LOCAL ERROR 4.
 private sub CheckOnGotoSelector_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
-        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if cast( TokenKind, sp->op ) <> KW_ON then return
     if (sp->extra <> 2) andalso (sp->extra <> 3) then return
     if sp->a = NODE_NONE then return
@@ -1012,7 +1012,7 @@ end sub
 '' included, finds nothing.
 private sub CheckNamespaceMember_ ( byref c as Ctx, byval id as NodeId )
     dim as BinaryPayload ptr mp = _
-        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if cast( TokenKind, mp->op ) <> TK_DOT then return
     if (mp->lhs = NODE_NONE) orelse (mp->rhs = NODE_NONE) then return
     if c.ast->Kind( mp->rhs ) <> N_IDENT then return
@@ -1020,10 +1020,10 @@ private sub CheckNamespaceMember_ ( byref c as Ctx, byval id as NodeId )
     if c.info->RefOf( mp->rhs ) <> SYMBOL_NONE then return
     dim as Symbol ptr bs = c.syms->SymbolAt( c.info->RefOf( mp->lhs ) )
     if bs = 0 then return
-    if bs->kind <> cast( ubyte, SYM_NAMESPACE ) then return
+    if bs->kind <> cast( uint8, SYM_NAMESPACE ) then return
     if bs->inner = SCOPE_NONE then return
     dim as InternId want = c.names->Fold( _
-        c.ast->idents[cast( long, c.ast->nodes[cast( long, mp->rhs )].data )].name )
+        c.ast->idents[cast( int32, c.ast->nodes[cast( int32, mp->rhs )].data )].name )
     c.syms->privileged = c.syms->IsImportNs( c.info->RefOf( mp->lhs ) )
     dim as SymbolId found_ = c.syms->LookupInNamespace( bs->inner, want )
     c.syms->privileged = false
@@ -1043,32 +1043,32 @@ end sub
 '' from the initializer, so the initializer cannot ask for it. Measured: 'ubound' in any
 '' element position is refused; 'lbound' is accepted (it is the written lower bound).
 private function MentionsUbound_ _
-    ( byref c as Ctx, byval n as NodeId, byval sym as SymbolId, byval depth as long ) as boolean
+    ( byref c as Ctx, byval n as NodeId, byval sym as SymbolId, byval depth as int32 ) as boolean
     if (n = NODE_NONE) orelse (depth > 8) then return false
     select case c.ast->Kind( n )
     case N_CALL
         dim as ListPayload ptr lp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
         if (lp->target <> NODE_NONE) andalso (c.ast->Kind( lp->target ) = N_IDENT) then
             dim as string tn = lcase( c.names->Spelling( _
-                c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )].name ) )
+                c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )].name ) )
             if (tn = "ubound") andalso (lp->count >= 1) then
                 dim as NodeId a0 = cast( NodeId, c.ast->children[lp->first] )
                 if c.info->RefOf( a0 ) = sym then return true
             end if
         end if
-        for i as long = 0 to lp->count - 1
+        for i as int32 = 0 to lp->count - 1
             if MentionsUbound_( c, cast( NodeId, c.ast->children[lp->first + i] ), sym, depth + 1 ) then return true
         next
     case N_INITIALIZER, N_TUPLE, N_PAREN
         dim as ListPayload ptr lp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
-        for i as long = 0 to lp->count - 1
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+        for i as int32 = 0 to lp->count - 1
             if MentionsUbound_( c, cast( NodeId, c.ast->children[lp->first + i] ), sym, depth + 1 ) then return true
         next
     case N_BINARY
         dim as BinaryPayload ptr bp = _
-            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, n )].data )]
+            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, n )].data )]
         if MentionsUbound_( c, bp->lhs, sym, depth + 1 ) then return true
         if MentionsUbound_( c, bp->rhs, sym, depth + 1 ) then return true
     end select
@@ -1081,16 +1081,16 @@ end function
 private function ExternDeclaredElsewhere_ _
     ( byref c as Ctx, byval nm as InternId ) as boolean
     dim as InternId want = c.names->Fold( nm )
-    for n as long = 0 to c.ast->Count( ) - 1
+    for n as int32 = 0 to c.ast->Count( ) - 1
         if c.ast->Kind( cast( NodeId, n ) ) <> N_VAR then continue for
         dim as StmtPayload ptr sp = _
-            @c.ast->stmts[cast( long, c.ast->nodes[n].data )]
-        if sp->op <> cast( ushort, KW_EXTERN ) then continue for
-        for i as long = 0 to sp->count - 1
+            @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
+        if sp->op <> cast( uint16, KW_EXTERN ) then continue for
+        for i as int32 = 0 to sp->count - 1
             dim as NodeId item = cast( NodeId, c.ast->children[sp->first + i] )
             if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
             dim as StmtPayload ptr ip = _
-                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+                @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, item )].data )]
             if ip->name = 0 then continue for
             if c.names->Fold( ip->name ) = want then return true
         next
@@ -1099,24 +1099,24 @@ private function ExternDeclaredElsewhere_ _
 end function
 
 private sub CheckEllipsisUbound_ ( byref c as Ctx )
-    for i as long = 0 to c.syms->symbols.Count - 1
+    for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
-        if s->kind <> cast( ubyte, SYM_VARIABLE ) then continue for
+        if s->kind <> cast( uint8, SYM_VARIABLE ) then continue for
         if s->payload = 0 then continue for
         dim as NodeId item = cast( NodeId, s->payload )
         if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
         dim as StmtPayload ptr ip = _
-            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+            @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, item )].data )]
         if (ip->b = NODE_NONE) orelse (ip->c = NODE_NONE) then continue for
         if c.ast->Kind( ip->c ) <> N_BLOCK then continue for
         dim as ListPayload ptr bl = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, ip->c )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, ip->c )].data )]
         dim as boolean sawEllipsis = false
-        for d as long = 0 to bl->count - 1
+        for d as int32 = 0 to bl->count - 1
             dim as NodeId r = cast( NodeId, c.ast->children[bl->first + d] )
             if (r = NODE_NONE) orelse (c.ast->Kind( r ) <> N_CASE_RANGE) then continue for
             dim as StmtPayload ptr rp = _
-                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, r )].data )]
+                @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, r )].data )]
             if (rp->b <> NODE_NONE) andalso (c.ast->Kind( rp->b ) = N_ELLIPSIS) then sawEllipsis = true
             if (rp->a <> NODE_NONE) andalso (c.ast->Kind( rp->a ) = N_ELLIPSIS) then sawEllipsis = true
         next
@@ -1138,12 +1138,12 @@ end sub
 '' the ARRAY form its element count there, and fbc allows no constructor arguments
 '' alongside either. So 'new( buf ) T' and 'new T[ 5 ]' both call the DEFAULT constructor.
 private sub NewCtorArgs_ _
-    ( byref c as Ctx, byval id as NodeId, byref first as long, byref count as long )
+    ( byref c as Ctx, byval id as NodeId, byref first as int32, byref count as int32 )
     dim as ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     first = lp->first
     count = lp->count
-    dim as ushort fl = c.ast->nodes[cast( long, id )].flags
+    dim as uint16 fl = c.ast->nodes[cast( int32, id )].flags
     if (fl and NF_PLACEMENT) <> 0 then
         first += 1
         count -= 1
@@ -1161,7 +1161,7 @@ private sub CheckOperatorVisibility_ _
     case N_AMBIGUOUS
         if c.info->AmbiguousOf( id ) <> AMB_ASSIGN then return
         dim as StmtPayload ptr sp = _
-            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then return
         dim as TokenKind op = cast( TokenKind, sp->op )
         if op = TK_EQ then
@@ -1188,7 +1188,7 @@ private sub CheckOperatorVisibility_ _
 
     case N_ADDROF
         dim as UnaryPayload ptr up = _
-            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         if up->operand = NODE_NONE then return
         '' 'varptr', 'strptr' and 'procptr' share this node; only '@' is an operator.
         if cast( TokenKind, up->op ) <> TK_AT then return
@@ -1197,11 +1197,11 @@ private sub CheckOperatorVisibility_ _
     case N_CALL
         '' 'str( x )' AND 'wstr( x )' CONVERT THROUGH THE 'cast': a private one is fbc's 202
         '' (measured 2026-09-30; overload/op_ctor_coercion-3 reaches it as str( type<T>( x1 ) )).
-        dim as ListPayload ptr clp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        dim as ListPayload ptr clp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         if (clp->target = NODE_NONE) orelse (clp->count <> 1) then return
         if c.ast->Kind( clp->target ) <> N_IDENT then return
         if c.info->RefOf( clp->target ) <> SYMBOL_NONE then return
-        select case lcase( c.names->Spelling( c.ast->idents[cast( long, c.ast->nodes[cast( long, clp->target )].data )].name ) )
+        select case lcase( c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, clp->target )].data )].name ) )
         case "str", "wstr"
             dim as TypeId at_ = ValueType_( c, c.info->TypeOf_( cast( NodeId, c.ast->children[clp->first] ) ) )
             if (at_ <> TYPE_NONE) andalso (c.types->Kind( at_ ) = TK_UDT) then RequireOperator_( c, at_, "cast", here, id )
@@ -1209,7 +1209,7 @@ private sub CheckOperatorVisibility_ _
 
     case N_NEW
         dim as ListPayload ptr lp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         if lp->target = NODE_NONE then return
         dim as TypeId nt = c.types->Unqualify( c.info->TypeOf_( lp->target ) )
         if nt = TYPE_NONE then return
@@ -1217,7 +1217,7 @@ private sub CheckOperatorVisibility_ _
         RequireOperator_( c, nt, "new", here, id )
         '' ...AND THE CONSTRUCTOR IT CALLS -- fbc's 204 for the default one and 205 for
         '' the copy, both the same refusal. 'new T[ 5 ]' default-constructs every element.
-        dim as long cfirst, ccount
+        dim as int32 cfirst, ccount
         NewCtorArgs_( c, id, cfirst, ccount )
         if ccount = 0 then
             CheckOneStructor_( c, nt, "__ctor", here, c.ast->Loc( id ), 0 )
@@ -1230,7 +1230,7 @@ private sub CheckOperatorVisibility_ _
 
     case N_DELETE_STMT
         dim as StmtPayload ptr sp = _
-            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         if sp->a = NODE_NONE then return
         dim as TypeId pt = ValueType_( c, c.info->TypeOf_( sp->a ) )
         if pt = TYPE_NONE then return
@@ -1240,7 +1240,7 @@ private sub CheckOperatorVisibility_ _
     case N_FOR
         '' A UDT COUNTER DRIVES THE LOOP THROUGH ALL THREE OF ITS OPERATORS.
         dim as StmtPayload ptr sp = _
-            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         if sp->a = NODE_NONE then return
         dim as TypeId ct = c.info->TypeOf_( sp->a )
         RequireOperator_( c, ct, "for", here, id )
@@ -1263,10 +1263,10 @@ private function HiddenFieldOf_ _
     dim as Symbol ptr ts = UdtSymbolOf_( c, u )
     if ts = 0 then return 0
     if ts->inner = SCOPE_NONE then return 0
-    for i as long = 0 to c.syms->symbols.Count - 1
+    for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr f = @c.syms->symbols[i]
         if f->parent <> ts->inner then continue for
-        if f->kind <> cast( ubyte, SYM_FIELD ) then continue for
+        if f->kind <> cast( uint8, SYM_FIELD ) then continue for
         if (f->flags and (SYMF_MEMB_PRIVATE or SYMF_MEMB_PROTECTED)) = 0 then continue for
         if StructorReachable_( c, f, u, here ) then continue for
         return f
@@ -1282,15 +1282,15 @@ private sub ReportHiddenField_ _
 end sub
 
 private sub CheckAggregateInitVisibility_( byref c as Ctx )
-    for i as long = 0 to c.syms->symbols.Count - 1
+    for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
-        if s->kind <> cast( ubyte, SYM_VARIABLE ) then continue for
+        if s->kind <> cast( uint8, SYM_VARIABLE ) then continue for
         if s->type_ = TYPE_NONE then continue for
         if s->payload = 0 then continue for
         dim as NodeId item = cast( NodeId, s->payload )
         if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
         dim as StmtPayload ptr ip = _
-            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+            @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, item )].data )]
         if ip->b = NODE_NONE then continue for
         '' BOTH SPELLINGS: the bare '( 3 )' and the 'type<T>( 3 )' literal are refused
         '' alike, which was measured -- so NF_TYPE_LITERAL is not consulted here.
@@ -1322,7 +1322,7 @@ private sub CheckLetUnpackVisibility_ _
     ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
     if c.info->AmbiguousOf( id ) <> AMB_ASSIGN then return
     dim as StmtPayload ptr sp = _
-        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then return
     if cast( TokenKind, sp->op ) <> TK_EQ then return
     select case c.ast->Kind( sp->a )

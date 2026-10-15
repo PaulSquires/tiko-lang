@@ -11,12 +11,12 @@ namespace Tko.Mir
 using Tko
 
 declare function StrSwapKind_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as int64 ) as int32
 
 declare function UsingRtlFor _
     ( byref c as Ctx, byval t as Tko.TypeId, byref isWide as boolean ) as RtlId
 declare function UsingOne_ _
-    ( byref c as Ctx, byval it as Tko.NodeId, byval mask as long, _
+    ( byref c as Ctx, byval it as Tko.NodeId, byval mask as int32, _
       byref chan as MirValue ) as boolean
 
 
@@ -49,12 +49,12 @@ declare function UsingOne_ _
 private function IsPrintPos_( byref c as Ctx, byval it as Tko.NodeId ) as boolean
     if c.ast->Kind( it ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, it )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, it )].data )]
     if cp->count <> 1 then return false
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
     dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
     return (nm = "spc") orelse (nm = "tab")
 end function
@@ -64,7 +64,7 @@ end function
 '' what follows it -- so the run needs a starting index and a format that may come from
 '' either place. The leading form passes the defaults and reads exactly as it did.
 function LowerPrintUsing _
-    ( byref c as Ctx, byval id as Tko.NodeId, byval fromIdx as long = 0, _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval fromIdx as int32 = 0, _
       byval fmtNode as Tko.NodeId = Tko.NODE_NONE ) as boolean
 
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
@@ -81,17 +81,17 @@ function LowerPrintUsing _
     '' expression into a temporary evaluated before Init, so a channel with a side
     '' effect runs once. The console is the immediate 0, not an instruction.
     dim as MirValue chan
-    chan.kind = cast( ubyte, MV_CONST_INT )
-    chan.ty = cast( ubyte, MT_I32 )
+    chan.kind = cast( uint8, MV_CONST_INT )
+    chan.ty = cast( uint8, MT_I32 )
     chan.id = 0
     '' THE CHANNEL'S TEMPORARIES, THE FORMAT'S AND EACH ITEM'S die as that part is done,
     '' as PRINT's do -- see LowerPrint. Measured, fbc's 'print using str( takeR( mkH( 5 ) ) )
     '' & ":## ##"; cnt( ); cnt( )' destroys the format's temporary after Init and prints
     '' '5: 1  1'.
-    dim as long umark = c.udtTemps.Count
+    dim as int32 umark = c.udtTemps.Count
     if sp->a <> Tko.NODE_NONE then
         dim as MirValue ch = LowerExpr( c, sp->a )
-        if ch.kind = cast( ubyte, MV_NONE ) then return false
+        if ch.kind = cast( uint8, MV_NONE ) then return false
         chan = CoerceTy( c, ch, MT_I32, c.info->TypeOf_( sp->a ))
         ReleaseUdtTemps_( c, umark )
     end if
@@ -100,17 +100,17 @@ function LowerPrintUsing _
     '' temporary one exactly as PRINT does with a literal item.
     dim as MirValue fmt
     '' The slot a WIDE format was converted into, or -1. It is released after Init.
-    dim as long fmtTmp = -1
+    dim as int32 fmtTmp = -1
     '' The ustring copy a 'ustring * N' or an rvalue format needs, released after Init
     '' beside the wide one -- see UStrOutOperand_.
-    dim as long ufmtSlot = -1
+    dim as int32 ufmtSlot = -1
     if c.ast->Kind( fmtNode ) = Tko.N_STRING_LIT then
         dim as string litText = StringLitText_( c, fmtNode )
-        dim as containers.Array( of ulong ) ta
-        ta.Push( cast( ulong, MV_GLOBAL ) )
-        ta.Push( cast( ulong, c.m->AddStringLiteral( litText, *c.names ) ) )
-        ta.Push( cast( ulong, MV_CONST_INT ) )
-        ta.Push( cast( ulong, len( litText ) ) )
+        dim as containers.Array( of uint32 ) ta
+        ta.Push( cast( uint32, MV_GLOBAL ) )
+        ta.Push( cast( uint32, c.m->AddStringLiteral( litText, *c.names ) ) )
+        ta.Push( cast( uint32, MV_CONST_INT ) )
+        ta.Push( cast( uint32, len( litText ) ) )
         fmt = EmitRtl( c, RTL_STR_TEMPZ, ta )
     else
         '' A WSTRING FORMAT IS CONVERTED TO A NARROW TEMPORARY, and this used to be
@@ -142,8 +142,8 @@ function LowerPrintUsing _
             fmtTmp = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
             if fmtTmp < 0 then return false
             dim as MirValue fdst
-            fdst.kind = cast( ubyte, MV_LOCAL )
-            fdst.ty = cast( ubyte, MT_PTR )
+            fdst.kind = cast( uint8, MV_LOCAL )
+            fdst.ty = cast( uint8, MT_PTR )
             fdst.id = fmtTmp
             ZeroStrDescriptor( c, fdst )
             if LowerWideToNarrowSlot( c, fmtTmp, _
@@ -170,8 +170,8 @@ function LowerPrintUsing _
         '' Init what comes back: 'vr = fb_UStrToStr( &U$0, -1ll ); fb_PrintUsingInit(
         '' vr )', and the same over a 'ustring * N' with its tagged length.
         if UStrOutOperand_( c, Unparen_( c, fmtNode ), fmt, ufmtSlot ) then
-            dim as containers.Array( of ulong ) ufa
-            ufa.Push( cast( ulong, fmt.kind ) ) : ufa.Push( cast( ulong, fmt.id ) )
+            dim as containers.Array( of uint32 ) ufa
+            ufa.Push( cast( uint32, fmt.kind ) ) : ufa.Push( cast( uint32, fmt.id ) )
             PushStrLen_( c, ufa, -1 )
             fmt = EmitRtl( c, RTL_USTR_TO_STR, ufa )
         elseif NamesProc_( c, fmtNode ) orelse _
@@ -181,26 +181,26 @@ function LowerPrintUsing _
             '' had no address at all and dropped the statement. An N_CALL that is an
             '' array element still falls through to the address below.
             StrDescriptorOf_( c, Unparen_( c, fmtNode ), fmt )
-            if fmt.kind = cast( ubyte, MV_NONE ) then
+            if fmt.kind = cast( uint8, MV_NONE ) then
                 fmt = LowerAddr( c, Unparen_( c, fmtNode ) )
             end if
         else
             fmt = LowerAddr( c, Unparen_( c, fmtNode ) )
         end if
-        if fmt.kind = cast( ubyte, MV_NONE ) then
+        if fmt.kind = cast( uint8, MV_NONE ) then
             if ConcatToTempDesc_( c, Unparen_( c, fmtNode ), fmt ) = false then
                 return false
             end if
         end if
         end if
     end if
-    if fmt.kind = cast( ubyte, MV_NONE ) then return false
+    if fmt.kind = cast( uint8, MV_NONE ) then return false
 
     '' Every item is lowered into a scratch list FIRST, so that a type this does not
     '' handle declines BEFORE Init is emitted. Emitting Init and then giving up would
     '' leave the runtime holding a format string with no End to close it.
-    dim as containers.Array( of ulong ) itemNode
-    for i as long = fromIdx to sp->count - 1
+    dim as containers.Array( of uint32 ) itemNode
+    for i as int32 = fromIdx to sp->count - 1
         dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[sp->first + i] )
         if c.ast->Kind( it ) = Tko.N_PRINT_SEP then continue for
         '' SPC AND TAB ARE POSITIONING ITEMS, and they appear INSIDE a using run:
@@ -209,7 +209,7 @@ function LowerPrintUsing _
         '' USING entry point at all, so this test refused them and took the whole
         '' statement with it.
         if IsPrintPos_( c, it ) then
-            itemNode.Push( cast( ulong, it ) )
+            itemNode.Push( cast( uint32, it ) )
             continue for
         end if
         dim as boolean isWide
@@ -229,44 +229,44 @@ function LowerPrintUsing _
         '' asked for the right one. Both read the terms.
         if itemOk = false then
             if c.ast->Kind( it ) = Tko.N_BINARY then
-                dim as containers.Array( of ulong ) uct
+                dim as containers.Array( of uint32 ) uct
                 FlattenConcat( c, it, uct )
                 itemOk = ConcatTermsAreU_( c, uct )
             end if
         end if
         if itemOk = false then return false
-        itemNode.Push( cast( ulong, it ) )
+        itemNode.Push( cast( uint32, it ) )
     next
 
-    dim as containers.Array( of ulong ) ia
-    ia.Push( cast( ulong, fmt.kind ) ) : ia.Push( cast( ulong, fmt.id ) )
+    dim as containers.Array( of uint32 ) ia
+    ia.Push( cast( uint32, fmt.kind ) ) : ia.Push( cast( uint32, fmt.id ) )
     EmitRtl( c, RTL_USING_INIT, ia )
     ReleaseUStrOut_( c, ufmtSlot )
     '' ...and the wide format's temporary is released right after Init, which is where
     '' fbc releases it: Init has copied the format out by then.
     if fmtTmp >= 0 then
         dim as MirValue fd
-        fd.kind = cast( ubyte, MV_LOCAL )
-        fd.ty = cast( ubyte, MT_PTR )
+        fd.kind = cast( uint8, MV_LOCAL )
+        fd.ty = cast( uint8, MT_PTR )
         fd.id = fmtTmp
-        dim as containers.Array( of ulong ) da
-        da.Push( cast( ulong, fd.kind ) ) : da.Push( cast( ulong, fd.id ) )
+        dim as containers.Array( of uint32 ) da
+        da.Push( cast( uint32, fd.kind ) ) : da.Push( cast( uint32, fd.id ) )
         EmitRtl( c, RTL_STR_DELETE, da )
     end if
     ReleaseUdtTemps_( c, umark )
 
-    for i as long = 0 to itemNode.Count - 1
+    for i as int32 = 0 to itemNode.Count - 1
         '' The last item carries 0x80000001; every earlier one carries 0. A TRAILING
         '' ';' suppresses the newline, and then the last item carries 0 as well.
-        dim as long mask = 0
+        dim as int32 mask = 0
         if i = itemNode.Count - 1 then
             if UsingEndsLine_( c, sp ) then mask = -2147483647
         end if
         if UsingOne_( c, cast( Tko.NodeId, itemNode[i] ), mask, chan ) = false then
             '' Init is already out. Closing the bracket is the least wrong thing
             '' available, and the statement is still counted as skipped.
-            dim as containers.Array( of ulong ) ea
-            ea.Push( cast( ulong, chan.kind ) ) : ea.Push( cast( ulong, chan.id ) )
+            dim as containers.Array( of uint32 ) ea
+            ea.Push( cast( uint32, chan.kind ) ) : ea.Push( cast( uint32, chan.id ) )
             EmitRtl( c, RTL_USING_END, ea )
             SkipHere( c )
             return true
@@ -274,8 +274,8 @@ function LowerPrintUsing _
         ReleaseUdtTemps_( c, umark )
     next
 
-    dim as containers.Array( of ulong ) ea
-    ea.Push( cast( ulong, chan.kind ) ) : ea.Push( cast( ulong, chan.id ) )
+    dim as containers.Array( of uint32 ) ea
+    ea.Push( cast( uint32, chan.kind ) ) : ea.Push( cast( uint32, chan.id ) )
     EmitRtl( c, RTL_USING_END, ea )
     return true
 end function
@@ -291,7 +291,7 @@ end function
 
 '' One USING item.
 private function UsingOne_ _
-    ( byref c as Ctx, byval it as Tko.NodeId, byval mask as long, _
+    ( byref c as Ctx, byval it as Tko.NodeId, byval mask as int32, _
       byref chan as MirValue ) as boolean
 
     '' A POSITIONING ITEM prints nothing of its own and takes no mask -- the same rule
@@ -307,17 +307,17 @@ private function UsingOne_ _
     '' type does not say: Check types every '&' as STRING.
     dim as boolean itIsU = IsUStringType( c, t )
     if (itIsU = false) andalso (c.ast->Kind( it ) = Tko.N_BINARY) then
-        dim as containers.Array( of ulong ) uts
+        dim as containers.Array( of uint32 ) uts
         FlattenConcat( c, it, uts )
         itIsU = ConcatTermsAreU_( c, uts )
     end if
     if itIsU then
         dim as MirValue uov
-        dim as long uoslot = -1
+        dim as int32 uoslot = -1
         if UStrOutOperand_( c, it, uov, uoslot ) = false then return false
-        dim as containers.Array( of ulong ) uoa
-        uoa.Push( cast( ulong, chan.kind ) ) : uoa.Push( cast( ulong, chan.id ) )
-        uoa.Push( cast( ulong, uov.kind ) ) : uoa.Push( cast( ulong, uov.id ) )
+        dim as containers.Array( of uint32 ) uoa
+        uoa.Push( cast( uint32, chan.kind ) ) : uoa.Push( cast( uint32, chan.id ) )
+        uoa.Push( cast( uint32, uov.kind ) ) : uoa.Push( cast( uint32, uov.id ) )
         PushConst( uoa, mask )
         EmitRtl( c, RTL_USING_USTR, uoa )
         ReleaseUStrOut_( c, uoslot )
@@ -341,7 +341,7 @@ private function UsingOne_ _
             if (uwhich <> RTL_NONE) andalso (uwide = false) then
                 dim as MirValue uv
                 if UserCastToNum_( c, it, uv ) then
-                    if uv.kind <> cast( ubyte, MV_NONE ) then
+                    if uv.kind <> cast( uint8, MV_NONE ) then
                         '' TO THE ENTRY POINT'S WIDTH, not the cast's: a long cast goes to fb_PrintUsingLongint
                         '' and must arrive as an i64 -- 'i32 but expected i64', clang's words.
                         dim as MirType uwant = MT_I64
@@ -351,11 +351,11 @@ private function UsingOne_ _
                         case RTL_USING_BOOLEAN : uwant = MT_I8
                         end select
                         uv = CoerceTy( c, uv, uwant, ut )
-                        dim as containers.Array( of ulong ) uargs
-                        uargs.Push( cast( ulong, chan.kind ) )
-                        uargs.Push( cast( ulong, chan.id ) )
-                        uargs.Push( cast( ulong, uv.kind ) )
-                        uargs.Push( cast( ulong, uv.id ) )
+                        dim as containers.Array( of uint32 ) uargs
+                        uargs.Push( cast( uint32, chan.kind ) )
+                        uargs.Push( cast( uint32, chan.id ) )
+                        uargs.Push( cast( uint32, uv.kind ) )
+                        uargs.Push( cast( uint32, uv.id ) )
                         PushConst( uargs, mask )
                         EmitRtl( c, uwhich, uargs )
                         return true
@@ -368,8 +368,8 @@ private function UsingOne_ _
     dim as RtlId which = UsingRtlFor( c, t, isWide )
     if which = RTL_NONE then return false
 
-    dim as containers.Array( of ulong ) args
-    args.Push( cast( ulong, chan.kind ) ) : args.Push( cast( ulong, chan.id ) )
+    dim as containers.Array( of uint32 ) args
+    args.Push( cast( uint32, chan.kind ) ) : args.Push( cast( uint32, chan.id ) )
 
     if isWide then
         '' A wide item passes the POINTER; a wide string has no descriptor.
@@ -380,11 +380,11 @@ private function UsingOne_ _
         '' closed its bracket and gave up. WideOperand_ knows all three spellings of a
         '' wide operand, which is exactly what this argument is.
         dim as MirValue wa = LowerAddr( c, it )
-        if wa.kind = cast( ubyte, MV_NONE ) then
+        if wa.kind = cast( uint8, MV_NONE ) then
             if WideOperand_( c, Unparen_( c, it ), wa ) = false then return false
         end if
-        if wa.kind = cast( ubyte, MV_NONE ) then return false
-        args.Push( cast( ulong, wa.kind ) ) : args.Push( cast( ulong, wa.id ) )
+        if wa.kind = cast( uint8, MV_NONE ) then return false
+        args.Push( cast( uint32, wa.kind ) ) : args.Push( cast( uint32, wa.id ) )
         PushConst( args, mask )
         EmitRtl( c, RTL_USING_WSTR, args )
         return true
@@ -392,19 +392,19 @@ private function UsingOne_ _
 
     if which = RTL_USING_STR then
         dim as MirValue desc
-        dim as longint ukn
-        dim as long uk = StrSwapKind_( c, c.info->TypeOf_( it ), ukn )
+        dim as int64 ukn
+        dim as int32 uk = StrSwapKind_( c, c.info->TypeOf_( it ), ukn )
         if (uk = 1) orelse (uk = 3) then
             '' A FIXED OR ZSTRING ITEM: its address is no descriptor -- a temporary one
             '' (StrDescriptorOf_), measured 'fb_StrAllocTempDescF( F, <tag> )' / ...DescZ( Z ).
             if StrDescriptorOf_( c, it, desc ) = false then return false
         elseif c.ast->Kind( it ) = Tko.N_STRING_LIT then
             dim as string litText = StringLitText_( c, it )
-            dim as containers.Array( of ulong ) ta
-            ta.Push( cast( ulong, MV_GLOBAL ) )
-            ta.Push( cast( ulong, c.m->AddStringLiteral( litText, *c.names ) ) )
-            ta.Push( cast( ulong, MV_CONST_INT ) )
-            ta.Push( cast( ulong, len( litText ) ) )
+            dim as containers.Array( of uint32 ) ta
+            ta.Push( cast( uint32, MV_GLOBAL ) )
+            ta.Push( cast( uint32, c.m->AddStringLiteral( litText, *c.names ) ) )
+            ta.Push( cast( uint32, MV_CONST_INT ) )
+            ta.Push( cast( uint32, len( litText ) ) )
             desc = EmitRtl( c, RTL_STR_TEMPZ, ta )
         elseif NamesProc_( c, it ) then
             '' A PAREN-LESS CALL IS A CALL -- see the FORMAT above. Measured, fbc
@@ -416,7 +416,7 @@ private function UsingOne_ _
             '' and it is what the corpus passes -- 'PRINT_USING_N( fmt, num, cmp )'
             '' expands cmp to a QT() concat at every one of its 20 call sites.
             desc = LowerAddr( c, Unparen_( c, it ) )
-            if desc.kind = cast( ubyte, MV_NONE ) then
+            if desc.kind = cast( uint8, MV_NONE ) then
                 '' A STRING-RETURNING CALL IS ALREADY A DESCRIPTOR. Measured:
                 ''
                 ''     vr = fb_HEXEx_l( 255, 8 ); fb_PrintUsingStr( 0, vr, mask )
@@ -436,8 +436,8 @@ private function UsingOne_ _
                 end if
             end if
         end if
-        if desc.kind = cast( ubyte, MV_NONE ) then return false
-        args.Push( cast( ulong, desc.kind ) ) : args.Push( cast( ulong, desc.id ) )
+        if desc.kind = cast( uint8, MV_NONE ) then return false
+        args.Push( cast( uint32, desc.kind ) ) : args.Push( cast( uint32, desc.id ) )
         PushConst( args, mask )
         EmitRtl( c, RTL_USING_STR, args )
         return true
@@ -453,8 +453,8 @@ private function UsingOne_ _
     end select
 
     dim as MirValue v = LowerNumArg_( c, it, want )   '' a UDT through its numeric cast
-    if v.kind = cast( ubyte, MV_NONE ) then return false
-    args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
+    if v.kind = cast( uint8, MV_NONE ) then return false
+    args.Push( cast( uint32, v.kind ) ) : args.Push( cast( uint32, v.id ) )
     PushConst( args, mask )
     EmitRtl( c, which, args )
     return true
@@ -490,8 +490,8 @@ private function UsingRtlFor _
     if IsStringType( c, t ) then return RTL_USING_STR
     '' ...AND EVERY OTHER NARROW STRING: 'string * N', 'zstring * N', '*pz' -- fbc's
     '' fb_PrintUsingStr over a temporary descriptor (the item branch). tiko declined them.
-    dim as longint ukn0
-    dim as long uk0 = StrSwapKind_( c, ut, ukn0 )
+    dim as int64 ukn0
+    dim as int32 uk0 = StrSwapKind_( c, ut, ukn0 )
     if (uk0 = 1) orelse (uk0 = 3) then return RTL_USING_STR
 
     select case c.types->Kind( t )
@@ -533,12 +533,12 @@ function LowerPrintPos _
 
     if c.ast->Kind( it ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, it )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, it )].data )]
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     if cp->count <> 1 then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
     dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
 
     dim as RtlId r = RTL_NONE
@@ -555,11 +555,11 @@ function LowerPrintPos _
 
     dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
     dim as MirValue n = LowerNumArg_( c, a0, want )   '' a UDT through its numeric cast
-    if n.kind = cast( ubyte, MV_NONE ) then return false
+    if n.kind = cast( uint8, MV_NONE ) then return false
 
-    dim as containers.Array( of ulong ) args
-    args.Push( cast( ulong, chan.kind ) ) : args.Push( cast( ulong, chan.id ) )
-    args.Push( cast( ulong, n.kind ) ) : args.Push( cast( ulong, n.id ) )
+    dim as containers.Array( of uint32 ) args
+    args.Push( cast( uint32, chan.kind ) ) : args.Push( cast( uint32, chan.id ) )
+    args.Push( cast( uint32, n.kind ) ) : args.Push( cast( uint32, n.id ) )
     EmitRtl( c, r, args )
     return true
 end function

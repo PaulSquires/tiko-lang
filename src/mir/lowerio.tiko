@@ -16,13 +16,13 @@ using Tko
 declare function PokeTypeName_ _
     ( byref c as Ctx, byval n as Tko.NodeId ) as Tko.BuiltinType
 declare function StrSwapKind_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as int64 ) as int32
 declare function WriteRtlFor_( byref c as Ctx, byval t as Tko.TypeId ) as RtlId
-declare function UFixDestTemp_( byref c as Ctx, byval e as Tko.NodeId, byref outa as MirValue, byref outSlot as long ) as boolean
-declare sub UFixDestBack_( byref c as Ctx, byval e as Tko.NodeId, byval slot as long )
-declare function WideConstUnitCount_( byref c as Ctx, byval id as Tko.NodeId ) as long
+declare function UFixDestTemp_( byref c as Ctx, byval e as Tko.NodeId, byref outa as MirValue, byref outSlot as int32 ) as boolean
+declare sub UFixDestBack_( byref c as Ctx, byval e as Tko.NodeId, byval slot as int32 )
+declare function WideConstUnitCount_( byref c as Ctx, byval id as Tko.NodeId ) as int32
 declare function WriteOne_ _
-    ( byref c as Ctx, byval it as Tko.NodeId, byval mask as long, _
+    ( byref c as Ctx, byval it as Tko.NodeId, byval mask as int32, _
       byref chan as MirValue ) as boolean
 '' WRITE -- the statement and its per-type entry points -- split out at the
 '' 1500-line cap and INCLUDED here, inside the same namespace. Nothing moved
@@ -40,8 +40,8 @@ private function EmitBin_ _
       byref a as MirValue, byref b as MirValue ) as MirValue
 
     dim as MirInst ins
-    ins.op = cast( ushort, op )
-    ins.ty = cast( ubyte, ty )
+    ins.op = cast( uint16, op )
+    ins.ty = cast( uint8, ty )
     ins.a = a
     ins.b = b
     return Emit( c, ins )
@@ -67,14 +67,14 @@ function LowerBitOp _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if cp->count <> 2 then return false
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr tip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
     dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( tip->name ) )
-    dim as long which = 0
+    dim as int32 which = 0
     select case nm
     case "bit"      : which = 1
     case "bitset"   : which = 2
@@ -89,55 +89,55 @@ function LowerBitOp _
     dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[cp->first] )
     dim as Tko.NodeId bn = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
     dim as MirValue av = LowerExprN_( c, an )
-    if av.kind = cast( ubyte, MV_NONE ) then return false
+    if av.kind = cast( uint8, MV_NONE ) then return false
     dim as MirValue bv = LowerExprN_( c, bn )
-    if bv.kind = cast( ubyte, MV_NONE ) then return false
+    if bv.kind = cast( uint8, MV_NONE ) then return false
     av = CoerceTy( c, av, MT_I64, NumSrcType_( c, an ))
     bv = CoerceTy( c, bv, MT_I64, NumSrcType_( c, bn ))
 
     dim as MirValue k63
-    k63.kind = cast( ubyte, MV_CONST_INT )
-    k63.ty = cast( ubyte, MT_I64 )
+    k63.kind = cast( uint8, MV_CONST_INT )
+    k63.ty = cast( uint8, MT_I64 )
     k63.id = 63
     dim as MirValue idx = EmitBin_( c, M_AND, MT_I64, bv, k63 )
-    if idx.kind = cast( ubyte, MV_NONE ) then return false
+    if idx.kind = cast( uint8, MV_NONE ) then return false
     dim as MirValue one
-    one.kind = cast( ubyte, MV_CONST_INT )
-    one.ty = cast( ubyte, MT_I64 )
+    one.kind = cast( uint8, MV_CONST_INT )
+    one.ty = cast( uint8, MT_I64 )
     one.id = 1
     dim as MirValue mask = EmitBin_( c, M_SHL, MT_I64, one, idx )
-    if mask.kind = cast( ubyte, MV_NONE ) then return false
+    if mask.kind = cast( uint8, MV_NONE ) then return false
 
     if which = 2 then
         outv = EmitBin_( c, M_OR, MT_I64, av, mask )
-        return (outv.kind <> cast( ubyte, MV_NONE ))
+        return (outv.kind <> cast( uint8, MV_NONE ))
     end if
     if which = 3 then
         dim as MirInst nt
-        nt.op = cast( ushort, M_NOT )
-        nt.ty = cast( ubyte, MT_I64 )
+        nt.op = cast( uint16, M_NOT )
+        nt.ty = cast( uint8, MT_I64 )
         nt.a = mask
         dim as MirValue inv = Emit( c, nt )
-        if inv.kind = cast( ubyte, MV_NONE ) then return false
+        if inv.kind = cast( uint8, MV_NONE ) then return false
         outv = EmitBin_( c, M_AND, MT_I64, av, inv )
-        return (outv.kind <> cast( ubyte, MV_NONE ))
+        return (outv.kind <> cast( uint8, MV_NONE ))
     end if
 
     dim as MirValue got = EmitBin_( c, M_AND, MT_I64, av, mask )
-    if got.kind = cast( ubyte, MV_NONE ) then return false
+    if got.kind = cast( uint8, MV_NONE ) then return false
     dim as MirValue zero
-    zero.kind = cast( ubyte, MV_CONST_INT )
-    zero.ty = cast( ubyte, MT_I64 )
+    zero.kind = cast( uint8, MV_CONST_INT )
+    zero.ty = cast( uint8, MT_I64 )
     zero.id = 0
     dim as MirValue ne = EmitBin_( c, M_ICMP_NE, MT_I64, got, zero )
-    if ne.kind = cast( ubyte, MV_NONE ) then return false
+    if ne.kind = cast( uint8, MV_NONE ) then return false
     '' 0 or -1, which is the NEGATION of the 0-or-1 comparison.
     dim as MirInst ng
-    ng.op = cast( ushort, M_NEG )
-    ng.ty = cast( ubyte, MT_I64 )
+    ng.op = cast( uint16, M_NEG )
+    ng.ty = cast( uint8, MT_I64 )
     ng.a = ne
     outv = Emit( c, ng )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 
 #include once "mir/lowerstrintr.tiko"
@@ -170,7 +170,7 @@ function LowerLrset( byref c as Ctx, byval id as Tko.NodeId, byval isRight as bo
     dim as Tko.NodeId asn = cast( Tko.NodeId, c.ast->children[sp->first] )
     if c.ast->Kind( asn ) <> Tko.N_BINARY then return false
     dim as Tko.BinaryPayload ptr bp = _
-        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, asn )].data )]
+        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, asn )].data )]
     if cast( Tko.TokenKind, bp->op ) <> Tko.TK_EQ then return false
     dim as Tko.NodeId dstE = bp->lhs
     dim as Tko.NodeId srcE = bp->rhs
@@ -203,9 +203,9 @@ function LowerLrset( byref c as Ctx, byval id as Tko.NodeId, byval isRight as bo
     else
         dst = LowerAddr( c, dstE )
     end if
-    if dst.kind = cast( ubyte, MV_NONE ) then return false
+    if dst.kind = cast( uint8, MV_NONE ) then return false
 
-    dim as containers.Array( of ulong ) args
+    dim as containers.Array( of uint32 ) args
 
     '' A WIDE destination takes the wide pair, and only a wide source -- which may
     '' itself be a UDT with a wide 'operator cast'.
@@ -219,26 +219,26 @@ function LowerLrset( byref c as Ctx, byval id as Tko.NodeId, byval isRight as bo
         elseif NarrowToWideTemp_( c, srcE, wsrc ) = false then
             return false
         end if
-        if wsrc.kind = cast( ubyte, MV_NONE ) then return false
-        args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
-        args.Push( cast( ulong, wsrc.kind ) ) : args.Push( cast( ulong, wsrc.id ) )
+        if wsrc.kind = cast( uint8, MV_NONE ) then return false
+        args.Push( cast( uint32, dst.kind ) ) : args.Push( cast( uint32, dst.id ) )
+        args.Push( cast( uint32, wsrc.kind ) ) : args.Push( cast( uint32, wsrc.id ) )
         EmitRtl( c, iif( isRight, RTL_WSTR_RSET, RTL_WSTR_LSET ), args )
         return true
     end if
 
     '' A ZSTRING destination borrows a temporary descriptor over its own bytes.
-    dim as longint zn
-    dim as long dk = StrSwapKind_( c, dt, zn )
+    dim as int64 zn
+    dim as int32 dk = StrSwapKind_( c, dt, zn )
     '' A NARROW UDT DESTINATION IS ALREADY ITS OWN char*, so it borrows one the same
     '' way: measured, fbc wraps the operator's result in fb_StrAllocTempDescZ exactly as
     '' it wraps a zstring variable's address. StrSwapKind_ answers -1 for the UDT, which
     '' is the honest answer about the TYPE and the wrong one about the value in hand.
     if dstFromCast andalso (dstIsWideRaw = false) then dk = 1
     if dk = 1 then
-        dim as containers.Array( of ulong ) ta
-        ta.Push( cast( ulong, dst.kind ) ) : ta.Push( cast( ulong, dst.id ) )
+        dim as containers.Array( of uint32 ) ta
+        ta.Push( cast( uint32, dst.kind ) ) : ta.Push( cast( uint32, dst.id ) )
         dst = EmitRtl( c, RTL_STR_TEMPZ_NOLEN, ta )
-        if dst.kind = cast( ubyte, MV_NONE ) then return false
+        if dst.kind = cast( uint8, MV_NONE ) then return false
     elseif dk = 3 then
         '' A 'string * N' DESTINATION IS NOT A DESCRIPTOR AND CANNOT BORROW ONE. It has
         '' entry points of its own that take the bytes and the TAGGED length -- measured
@@ -248,9 +248,9 @@ function LowerLrset( byref c as Ctx, byval id as Tko.NodeId, byval isRight as bo
         '' eight bytes of PADDING as a descriptor pointer.
         dim as MirValue fsrc
         if StrDescriptorOf_( c, srcE, fsrc ) = false then return false
-        args.Push( cast( ulong, dst.kind ) )  : args.Push( cast( ulong, dst.id ) )
+        args.Push( cast( uint32, dst.kind ) )  : args.Push( cast( uint32, dst.id ) )
         PushStrLen_( c, args, zn )
-        args.Push( cast( ulong, fsrc.kind ) ) : args.Push( cast( ulong, fsrc.id ) )
+        args.Push( cast( uint32, fsrc.kind ) ) : args.Push( cast( uint32, fsrc.id ) )
         EmitRtl( c, iif( isRight, RTL_STR_RSET_ANA, RTL_STR_LSET_ANA ), args )
         return true
     elseif (dk = 4) orelse IsUStringType( c, dt ) then
@@ -275,10 +275,10 @@ function LowerLrset( byref c as Ctx, byval id as Tko.NodeId, byval isRight as bo
         dim as boolean litSrc = (c.ast->Kind( usrc ) = Tko.N_STRING_LIT)
         if (litSrc = false) andalso IsConstNameRef_( c, usrc ) then litSrc = ConstStringTextOf_( c, usrc, uct )   '' a CONSTANT, not any name
         if litSrc andalso (IsWideString_( c, c.info->TypeOf_( srcE ) ) = false) then
-            dim as longint ldlen = -1
+            dim as int64 ldlen = -1
             if dk = 4 then ldlen = zn
-            dim as containers.Array( of ulong ) la
-            la.Push( cast( ulong, dst.kind ) ) : la.Push( cast( ulong, dst.id ) )
+            dim as containers.Array( of uint32 ) la
+            la.Push( cast( uint32, dst.kind ) ) : la.Push( cast( uint32, dst.id ) )
             PushStrLen_( c, la, ldlen )
             if EmitStrTerm( c, la, usrc, true ) = false then return false
             EmitRtl( c, iif( isRight, RTL_USTR_RSET, RTL_USTR_LSET ), la )
@@ -287,35 +287,35 @@ function LowerLrset( byref c as Ctx, byval id as Tko.NodeId, byval isRight as bo
         dim as MirValue uconv
         if IsWideString_( c, c.info->TypeOf_( srcE ) ) then
             dim as MirValue wp = LowerAddr( c, srcE )
-            if wp.kind = cast( ubyte, MV_NONE ) then return false
-            dim as containers.Array( of ulong ) wa
-            wa.Push( cast( ulong, wp.kind ) ) : wa.Push( cast( ulong, wp.id ) )
+            if wp.kind = cast( uint8, MV_NONE ) then return false
+            dim as containers.Array( of uint32 ) wa
+            wa.Push( cast( uint32, wp.kind ) ) : wa.Push( cast( uint32, wp.id ) )
             uconv = EmitRtl( c, RTL_WSTR_TO_USTR, wa )
         else
             dim as MirValue np
-            dim as longint nn
-            dim as long sk = StrSwapKind_( c, c.info->TypeOf_( srcE ), nn )
+            dim as int64 nn
+            dim as int32 sk = StrSwapKind_( c, c.info->TypeOf_( srcE ), nn )
             if sk < 0 then return false
             np = LowerAddr( c, srcE )
             '' ...AND A NARROW RVALUE -- a concatenation, a call -- converts from its descriptor.
-            if np.kind = cast( ubyte, MV_NONE ) then
+            if np.kind = cast( uint8, MV_NONE ) then
                 if StrDescriptorOf_( c, srcE, np ) = false then return false
                 nn = -1
             end if
-            if np.kind = cast( ubyte, MV_NONE ) then return false
-            dim as containers.Array( of ulong ) na
-            na.Push( cast( ulong, np.kind ) ) : na.Push( cast( ulong, np.id ) )
+            if np.kind = cast( uint8, MV_NONE ) then return false
+            dim as containers.Array( of uint32 ) na
+            na.Push( cast( uint32, np.kind ) ) : na.Push( cast( uint32, np.id ) )
             PushStrLen_( c, na, nn )
             uconv = EmitRtl( c, RTL_STR_TO_USTR, na )
         end if
-        if uconv.kind = cast( ubyte, MV_NONE ) then return false
+        if uconv.kind = cast( uint8, MV_NONE ) then return false
         '' A var-length ustring passes -1 where a fixed one passes its tag.
-        dim as longint dlen = -1
+        dim as int64 dlen = -1
         if dk = 4 then dlen = zn
-        dim as containers.Array( of ulong ) ua
-        ua.Push( cast( ulong, dst.kind ) ) : ua.Push( cast( ulong, dst.id ) )
+        dim as containers.Array( of uint32 ) ua
+        ua.Push( cast( uint32, dst.kind ) ) : ua.Push( cast( uint32, dst.id ) )
         PushStrLen_( c, ua, dlen )
-        ua.Push( cast( ulong, uconv.kind ) ) : ua.Push( cast( ulong, uconv.id ) )
+        ua.Push( cast( uint32, uconv.kind ) ) : ua.Push( cast( uint32, uconv.id ) )
         PushStrLen_( c, ua, -1 )
         EmitRtl( c, iif( isRight, RTL_USTR_RSET, RTL_USTR_LSET ), ua )
         return true
@@ -328,8 +328,8 @@ function LowerLrset( byref c as Ctx, byval id as Tko.NodeId, byval isRight as bo
 
     dim as MirValue src
     if StrDescriptorOf_( c, srcE, src ) = false then return false
-    args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
-    args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
+    args.Push( cast( uint32, dst.kind ) ) : args.Push( cast( uint32, dst.id ) )
+    args.Push( cast( uint32, src.kind ) ) : args.Push( cast( uint32, src.id ) )
     EmitRtl( c, iif( isRight, RTL_STR_RSET, RTL_STR_LSET ), args )
     return true
 end function
@@ -350,7 +350,7 @@ private function PrintStrRtl_( byref c as Ctx, byval it as Tko.NodeId ) as RtlId
     '' type said narrow while the bytes were UTF-16: 'print "FAIL: " & what' printed
     '' "F A I L : ". fbc types that concatenation USTRING and calls fb_PrintUStr.
     if c.ast->Kind( it ) = Tko.N_BINARY then
-        dim as containers.Array( of ulong ) pts
+        dim as containers.Array( of uint32 ) pts
         FlattenConcat( c, it, pts )
         if ConcatTermsAreU_( c, pts ) then return RTL_PRINT_USTR
     end if
@@ -358,7 +358,7 @@ private function PrintStrRtl_( byref c as Ctx, byval it as Tko.NodeId ) as RtlId
 end function
 
 function PrintOne _
-    ( byref c as Ctx, byval it as Tko.NodeId, byval mask as long, _
+    ( byref c as Ctx, byval it as Tko.NodeId, byval mask as int32, _
       byref chan as MirValue ) as boolean
 
     '' SPC and TAB are POSITIONING items, not values: they take no mask and print
@@ -380,7 +380,7 @@ function PrintOne _
     if t = Tko.TYPE_NONE then
         if c.ast->Kind( it ) = Tko.N_BINARY then
             dim as Tko.BinaryPayload ptr cbp = _
-                @c.ast->binaries[cast( long, c.ast->nodes[cast( long, it )].data )]
+                @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, it )].data )]
             dim as Tko.TokenKind cbop = cast( Tko.TokenKind, cbp->op )
             if (cbop = Tko.TK_PLUS) orelse (cbop = Tko.TK_AMP) then
                 t = c.info->TypeOf_( cbp->lhs )
@@ -395,7 +395,7 @@ function PrintOne _
     if IsStringType( c, t ) = false then
         if StrIdentityConvOperand_( c, it ) <> Tko.NODE_NONE then
             dim as Tko.ListPayload ptr scp = _
-                @c.ast->lists[cast( long, c.ast->nodes[cast( long, it )].data )]
+                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, it )].data )]
             dim as Tko.NodeId stn = cast( Tko.NodeId, c.ast->children[scp->first] )
             if c.ast->Kind( stn ) = Tko.N_TYPEREF then
                 t = c.types->Unqualify( c.info->TypeOf_( stn ) )
@@ -403,8 +403,8 @@ function PrintOne _
         end if
     end if
 
-    dim as containers.Array( of ulong ) args
-    args.Push( cast( ulong, chan.kind ) ) : args.Push( cast( ulong, chan.id ) )
+    dim as containers.Array( of uint32 ) args
+    args.Push( cast( uint32, chan.kind ) ) : args.Push( cast( uint32, chan.id ) )
 
     '' A WIDE STRING has its own entry point, and the same (channel, value, mask)
     '' shape as the narrow one -- fbc emits 'fb_PrintWstr( 0, (uint16*)W, 1 )'. It
@@ -421,7 +421,7 @@ function PrintOne _
     dim as MirValue wcc
     dim as boolean itIsU = (PrintStrRtl_( c, it ) = RTL_PRINT_USTR)
     if (itIsU = false) andalso ConcatHasWideTerm_( c, it ) andalso WideConcatToTemp_( c, it, wcc ) then
-        args.Push( cast( ulong, wcc.kind ) ) : args.Push( cast( ulong, wcc.id ) )
+        args.Push( cast( uint32, wcc.kind ) ) : args.Push( cast( uint32, wcc.id ) )
         PushConst( args, mask )
         EmitRtl( c, RTL_PRINT_WSTR, args )
         return true
@@ -433,7 +433,7 @@ function PrintOne _
     if IsWstrCall_( c, it ) orelse IntrinOverWideConcat_( c, it ) then
         dim as MirValue wv
         if WideOperand_( c, it, wv ) = false then return false
-        args.Push( cast( ulong, wv.kind ) ) : args.Push( cast( ulong, wv.id ) )
+        args.Push( cast( uint32, wv.kind ) ) : args.Push( cast( uint32, wv.id ) )
         PushConst( args, mask )
         EmitRtl( c, RTL_PRINT_WSTR, args )
         return true
@@ -446,7 +446,7 @@ function PrintOne _
         '' beside it worked.
         dim as MirValue wa
         if WideOperand_( c, it, wa ) = false then return false
-        args.Push( cast( ulong, wa.kind ) ) : args.Push( cast( ulong, wa.id ) )
+        args.Push( cast( uint32, wa.kind ) ) : args.Push( cast( uint32, wa.id ) )
         PushConst( args, mask )
         EmitRtl( c, RTL_PRINT_WSTR, args )
         return true
@@ -461,8 +461,8 @@ function PrintOne _
     '' Measured: 'print *pz' is 'fb_StrAllocTempDescZ( PZ )' and then fb_PrintString.
     '' Only the fixed narrow flavour had a branch here, so every print through a
     '' zstring pointer declined.
-    dim as longint fpn
-    dim as long fpk = StrSwapKind_( c, t, fpn )
+    dim as int64 fpn
+    dim as int32 fpk = StrSwapKind_( c, t, fpn )
     '' A 'ustring * N' IS COPIED INTO A USTRING FIRST -- fb_PrintUStr takes a descriptor, and
     '' the fixed one has none. It had no branch, so 'print u' over one printed NOTHING, in
     '' silence, while 'print u & "!"' beside it worked. Measured, fbc-modern:
@@ -474,30 +474,30 @@ function PrintOne _
     '' changes nothing, so that copy is not made here. fpn is the tagged length already.
     if fpk = 4 then
         dim as MirValue fua = LowerAddr( c, it )
-        if fua.kind = cast( ubyte, MV_NONE ) then return false
-        dim as long fus = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+        if fua.kind = cast( uint8, MV_NONE ) then return false
+        dim as int32 fus = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
         if fus < 0 then return false
         dim as MirValue fut
-        fut.kind = cast( ubyte, MV_LOCAL ) : fut.ty = cast( ubyte, MT_PTR ) : fut.id = fus
+        fut.kind = cast( uint8, MV_LOCAL ) : fut.ty = cast( uint8, MT_PTR ) : fut.id = fus
         ZeroStrDescriptor( c, fut )
-        dim as containers.Array( of ulong ) fargs
+        dim as containers.Array( of uint32 ) fargs
         PushStrArg( fargs, fut )
-        fargs.Push( cast( ulong, fua.kind ) ) : fargs.Push( cast( ulong, fua.id ) )
+        fargs.Push( cast( uint32, fua.kind ) ) : fargs.Push( cast( uint32, fua.id ) )
         PushStrLen_( c, fargs, fpn )
         PushConst( fargs, 0 )
         EmitRtl( c, RTL_USTR_ASSIGN, fargs )
-        args.Push( cast( ulong, fut.kind ) ) : args.Push( cast( ulong, fut.id ) )
+        args.Push( cast( uint32, fut.kind ) ) : args.Push( cast( uint32, fut.id ) )
         PushConst( args, mask )
         EmitRtl( c, RTL_PRINT_USTR, args )
-        dim as containers.Array( of ulong ) fdel
-        fdel.Push( cast( ulong, fut.kind ) ) : fdel.Push( cast( ulong, fut.id ) )
+        dim as containers.Array( of uint32 ) fdel
+        fdel.Push( cast( uint32, fut.kind ) ) : fdel.Push( cast( uint32, fut.id ) )
         EmitRtl( c, RTL_USTR_DELETE, fdel )
         return true
     end if
     if (fpk = 3) orelse (fpk = 1) then
         dim as MirValue fd
         if StrDescriptorOf_( c, it, fd ) = false then return false
-        args.Push( cast( ulong, fd.kind ) ) : args.Push( cast( ulong, fd.id ) )
+        args.Push( cast( uint32, fd.kind ) ) : args.Push( cast( uint32, fd.id ) )
         PushConst( args, mask )
         EmitRtl( c, PrintStrRtl_( c, it ), args )
         return true
@@ -517,8 +517,8 @@ function PrintOne _
     if IsStringIif_( c, it ) then
         dim as MirValue iv
         if LowerIif( c, it, MT_VOID, iv ) = false then return false
-        if iv.kind = cast( ubyte, MV_NONE ) then return false
-        args.Push( cast( ulong, iv.kind ) ) : args.Push( cast( ulong, iv.id ) )
+        if iv.kind = cast( uint8, MV_NONE ) then return false
+        args.Push( cast( uint32, iv.kind ) ) : args.Push( cast( uint32, iv.id ) )
         PushConst( args, mask )
         EmitRtl( c, PrintStrRtl_( c, it ), args )
         return true
@@ -531,7 +531,7 @@ function PrintOne _
     '' not, because the assignment path had the same branch in the right order.
     dim as MirValue srv
     if LowerStrRvalue( c, it, srv ) then
-        args.Push( cast( ulong, srv.kind ) ) : args.Push( cast( ulong, srv.id ) )
+        args.Push( cast( uint32, srv.kind ) ) : args.Push( cast( uint32, srv.id ) )
         PushConst( args, mask )
         EmitRtl( c, PrintStrRtl_( c, it ), args )
         return true
@@ -545,7 +545,7 @@ function PrintOne _
     '' nothing but those.
     dim as MirValue uov
     if LowerStrOperandOp_( c, it, uov ) then
-        args.Push( cast( ulong, uov.kind ) ) : args.Push( cast( ulong, uov.id ) )
+        args.Push( cast( uint32, uov.kind ) ) : args.Push( cast( uint32, uov.id ) )
         PushConst( args, mask )
         EmitRtl( c, PrintStrRtl_( c, it ), args )
         return true
@@ -605,7 +605,7 @@ function PrintOne _
         if isCallish then
             dim as MirValue cd
             if StrDescriptorOf_( c, it, cd ) then
-                args.Push( cast( ulong, cd.kind ) ) : args.Push( cast( ulong, cd.id ) )
+                args.Push( cast( uint32, cd.kind ) ) : args.Push( cast( uint32, cd.id ) )
                 PushConst( args, mask )
                 EmitRtl( c, PrintStrRtl_( c, it ), args )
                 return true
@@ -616,7 +616,7 @@ function PrintOne _
         '' descriptor and that is what gets printed.
         dim as MirValue cat
         if ConcatToTempDesc_( c, it, cat ) then
-            args.Push( cast( ulong, cat.kind ) ) : args.Push( cast( ulong, cat.id ) )
+            args.Push( cast( uint32, cat.kind ) ) : args.Push( cast( uint32, cat.id ) )
             PushConst( args, mask )
             EmitRtl( c, PrintStrRtl_( c, it ), args )
             return true
@@ -629,17 +629,17 @@ function PrintOne _
             '' fb_StrAssign but 3 for "lit" to fb_StrAllocTempDescZEx. The Z in the
             '' name is the difference -- it already knows the bytes are terminated,
             '' so it is not being told to include the terminator in the count.
-            dim as containers.Array( of ulong ) ta
-            ta.Push( cast( ulong, MV_GLOBAL ) )
-            ta.Push( cast( ulong, c.m->AddStringLiteral( litText, *c.names ) ) )
-            ta.Push( cast( ulong, MV_CONST_INT ) )
-            ta.Push( cast( ulong, len( litText ) ) )
+            dim as containers.Array( of uint32 ) ta
+            ta.Push( cast( uint32, MV_GLOBAL ) )
+            ta.Push( cast( uint32, c.m->AddStringLiteral( litText, *c.names ) ) )
+            ta.Push( cast( uint32, MV_CONST_INT ) )
+            ta.Push( cast( uint32, len( litText ) ) )
             desc = EmitRtl( c, RTL_STR_TEMPZ, ta )
         else
             desc = LowerAddr( c, it )
         end if
-        if desc.kind = cast( ubyte, MV_NONE ) then return false
-        args.Push( cast( ulong, desc.kind ) ) : args.Push( cast( ulong, desc.id ) )
+        if desc.kind = cast( uint8, MV_NONE ) then return false
+        args.Push( cast( uint32, desc.kind ) ) : args.Push( cast( uint32, desc.id ) )
         PushConst( args, mask )
         EmitRtl( c, PrintStrRtl_( c, it ), args )
         return true
@@ -653,13 +653,13 @@ function PrintOne _
     if c.types->Kind( t ) = Tko.TK_UDT then
         dim as MirValue uv
         if StrDescriptorOf_( c, it, uv ) then
-            args.Push( cast( ulong, uv.kind ) ) : args.Push( cast( ulong, uv.id ) )
+            args.Push( cast( uint32, uv.kind ) ) : args.Push( cast( uint32, uv.id ) )
             PushConst( args, mask )
             EmitRtl( c, PrintStrRtl_( c, it ), args )
             return true
         end if
         if WideOperand_( c, it, uv ) then
-            args.Push( cast( ulong, uv.kind ) ) : args.Push( cast( ulong, uv.id ) )
+            args.Push( cast( uint32, uv.kind ) ) : args.Push( cast( uint32, uv.id ) )
             PushConst( args, mask )
             EmitRtl( c, RTL_PRINT_WSTR, args )
             return true
@@ -674,7 +674,7 @@ function PrintOne _
     dim as RtlId which = PrintRtlFor( c, t )
     if which = RTL_NONE then return false
     dim as MirValue v = LowerExpr( c, it )
-    if v.kind = cast( ubyte, MV_NONE ) then return false
+    if v.kind = cast( uint8, MV_NONE ) then return false
 
     '' A POINTER PRINTS AS AN UNSIGNED INTEGER, and it must be COERCED into one first.
     '' LowerType of a pointer is MT_PTR, so this coercion was a no-op and the ptr went
@@ -688,7 +688,7 @@ function PrintOne _
         if c.types->target.pointerBits = 32 then pty = MT_I32
     end if
     v = Coerce( c, v, pty )
-    args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
+    args.Push( cast( uint32, v.kind ) ) : args.Push( cast( uint32, v.id ) )
     PushConst( args, mask )
     EmitRtl( c, which, args )
     return true
@@ -755,7 +755,7 @@ private function OpenDeviceRtl_ _
     select case c.ast->Kind( a )
     case Tko.N_IDENT
         dim as Tko.IdentPayload ptr ip = _
-            @c.ast->idents[cast( long, c.ast->nodes[cast( long, a )].data )]
+            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, a )].data )]
         dw = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
         '' ERR IS ASKED BEFORE THE BINDING TEST, and that order is the fix rather than
         '' a detail. tiko's prelude declares 'err' as an alias for fb_ErrorGetNum, so
@@ -787,7 +787,7 @@ function LowerOpenCall_ _
 
     if c.ast->Kind( id ) <> Tko.N_INTRINSIC then return false
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-    if sp->op <> cast( ushort, Tko.KW_OPEN ) then return false
+    if sp->op <> cast( uint16, Tko.KW_OPEN ) then return false
     if sp->a = Tko.NODE_NONE then return false
     if sp->b = Tko.NODE_NONE then return false
     '' THE ENCODING FORM IS A DIFFERENT ENTRY POINT taking a trailing char*, not an
@@ -822,13 +822,13 @@ function LowerOpenCall_ _
         if opN <> Tko.NODE_NONE then
             if StrDescriptorOf_( c, opN, fn ) = false then return false
         else
-            dim as containers.Array( of ulong ) ea
-            ea.Push( cast( ulong, MV_GLOBAL ) )
-            ea.Push( cast( ulong, c.m->AddStringLiteral( "", *c.names ) ) )
-            ea.Push( cast( ulong, MV_CONST_INT ) ) : ea.Push( 0 )
+            dim as containers.Array( of uint32 ) ea
+            ea.Push( cast( uint32, MV_GLOBAL ) )
+            ea.Push( cast( uint32, c.m->AddStringLiteral( "", *c.names ) ) )
+            ea.Push( cast( uint32, MV_CONST_INT ) ) : ea.Push( 0 )
             fn = EmitRtl( c, RTL_STR_TEMPZ, ea )
         end if
-        if fn.kind = cast( ubyte, MV_NONE ) then return false
+        if fn.kind = cast( uint8, MV_NONE ) then return false
     elseif UStrToStrTemp_( c, sp->a, fn ) then   '' a ustring name: fb_UStrToStr first
     elseif TermIsWide_( c, sp->a ) orelse ConcatHasWideTerm_( c, sp->a ) then
         '' A WIDE NAME -- a wstring, or a DWSTRING through its 'cast( ) as wstring' -- goes
@@ -841,46 +841,46 @@ function LowerOpenCall_ _
     end if
 
     dim as MirValue num = LowerNumArg_( c, sp->b, MT_I32 )
-    if num.kind = cast( ubyte, MV_NONE ) then return false
-    if num.kind = cast( ubyte, MV_NONE ) then return false
+    if num.kind = cast( uint8, MV_NONE ) then return false
+    if num.kind = cast( uint8, MV_NONE ) then return false
 
     '' The record length, or 0 -- NOT 128. Lowered before the argument list is built so
     '' a failure declines rather than leaving half a call behind.
     dim as MirValue rl
     if sp->c <> Tko.NODE_NONE then
         rl = LowerNumArg_( c, sp->c, MT_I32 )
-        if rl.kind = cast( ubyte, MV_NONE ) then return false
-        if rl.kind = cast( ubyte, MV_NONE ) then return false
+        if rl.kind = cast( uint8, MV_NONE ) then return false
+        if rl.kind = cast( uint8, MV_NONE ) then return false
     else
         rl = ConstInt( c, 0, MT_I32 )
     end if
 
-    dim as MirValue md = ConstInt( c, cast( longint, sp->extra and Tko.OPEN_MODE_MASK ), MT_I32 )
-    dim as MirValue ac = ConstInt( c, cast( longint, _
+    dim as MirValue md = ConstInt( c, cast( int64, sp->extra and Tko.OPEN_MODE_MASK ), MT_I32 )
+    dim as MirValue ac = ConstInt( c, cast( int64, _
         (sp->extra and Tko.OPEN_ACCESS_MASK) shr Tko.OPEN_ACCESS_SHIFT ), MT_I32 )
-    dim as MirValue lk = ConstInt( c, cast( longint, _
+    dim as MirValue lk = ConstInt( c, cast( int64, _
         (sp->extra and Tko.OPEN_LOCK_MASK) shr Tko.OPEN_LOCK_SHIFT ), MT_I32 )
 
-    dim as containers.Array( of ulong ) args
-    args.Push( cast( ulong, fn.kind ) ) : args.Push( cast( ulong, fn.id ) )
-    args.Push( cast( ulong, md.kind ) ) : args.Push( cast( ulong, md.id ) )
-    args.Push( cast( ulong, ac.kind ) ) : args.Push( cast( ulong, ac.id ) )
-    args.Push( cast( ulong, lk.kind ) ) : args.Push( cast( ulong, lk.id ) )
-    args.Push( cast( ulong, num.kind ) ) : args.Push( cast( ulong, num.id ) )
-    args.Push( cast( ulong, rl.kind ) ) : args.Push( cast( ulong, rl.id ) )
+    dim as containers.Array( of uint32 ) args
+    args.Push( cast( uint32, fn.kind ) ) : args.Push( cast( uint32, fn.id ) )
+    args.Push( cast( uint32, md.kind ) ) : args.Push( cast( uint32, md.id ) )
+    args.Push( cast( uint32, ac.kind ) ) : args.Push( cast( uint32, ac.id ) )
+    args.Push( cast( uint32, lk.kind ) ) : args.Push( cast( uint32, lk.id ) )
+    args.Push( cast( uint32, num.kind ) ) : args.Push( cast( uint32, num.id ) )
+    args.Push( cast( uint32, rl.kind ) ) : args.Push( cast( uint32, rl.id ) )
     if devR <> RTL_NONE then
         '' SEVEN ARGUMENTS, the ENCODING form's, with a NULL encoding pointer -- measured
         '' on all six: 'fb_FileOpenCons( ""desc, 3u, 0u, 0u, 1, 0, (char*)0ull )'.
         dim as MirValue nul = ConstInt( c, 0, MT_PTR )
-        args.Push( cast( ulong, nul.kind ) ) : args.Push( cast( ulong, nul.id ) )
+        args.Push( cast( uint32, nul.kind ) ) : args.Push( cast( uint32, nul.id ) )
         outv = EmitRtl( c, devR, args )
-    elseif enc.kind <> cast( ubyte, MV_NONE ) then
-        args.Push( cast( ulong, enc.kind ) ) : args.Push( cast( ulong, enc.id ) )
+    elseif enc.kind <> cast( uint8, MV_NONE ) then
+        args.Push( cast( uint32, enc.kind ) ) : args.Push( cast( uint32, enc.id ) )
         outv = EmitRtl( c, RTL_FILE_OPEN_ENCOD, args )
     else
         outv = EmitRtl( c, RTL_FILE_OPEN, args )
     end if
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 
 
@@ -913,10 +913,10 @@ private function LineInputFileUStr_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval chanE as Tko.NodeId, _
       byref da as MirValue ) as boolean
     dim as MirValue fn = LowerNumArg_( c, chanE, MT_I32 )
-    if fn.kind = cast( ubyte, MV_NONE ) then return false
-    dim as containers.Array( of ulong ) a
-    a.Push( cast( ulong, fn.kind ) ) : a.Push( cast( ulong, fn.id ) )
-    a.Push( cast( ulong, da.kind ) ) : a.Push( cast( ulong, da.id ) )
+    if fn.kind = cast( uint8, MV_NONE ) then return false
+    dim as containers.Array( of uint32 ) a
+    a.Push( cast( uint32, fn.kind ) ) : a.Push( cast( uint32, fn.id ) )
+    a.Push( cast( uint32, da.kind ) ) : a.Push( cast( uint32, da.id ) )
     '' fbc marks it throwable: under -e a failed read raises (T68).
     EmitRtlErrorCheck_( c, id, EmitRtl( c, RTL_FILE_LINEINPUT_U, a ) )
     return true
@@ -924,10 +924,10 @@ end function
 
 '' The narrow temporary a console LINE INPUT reads into: 'da' becomes its address.
 private function UStrLineTemp_( byref c as Ctx, byref da as MirValue ) as boolean
-    dim as long slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+    dim as int32 slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
     if slot < 0 then return false
-    da.kind = cast( ubyte, MV_LOCAL )
-    da.ty = cast( ubyte, MT_PTR )
+    da.kind = cast( uint8, MV_LOCAL )
+    da.ty = cast( uint8, MT_PTR )
     da.id = slot
     ZeroStrDescriptor( c, da )
     return true
@@ -935,16 +935,16 @@ end function
 
 '' ...converted into the ustring, and released.
 private sub UStrFromLineTemp_( byref c as Ctx, byref u as MirValue, byref tmp as MirValue )
-    dim as containers.Array( of ulong ) a
-    a.Push( cast( ulong, u.kind ) ) : a.Push( cast( ulong, u.id ) )
+    dim as containers.Array( of uint32 ) a
+    a.Push( cast( uint32, u.kind ) ) : a.Push( cast( uint32, u.id ) )
     PushStrLen_( c, a, -1 )
-    a.Push( cast( ulong, tmp.kind ) ) : a.Push( cast( ulong, tmp.id ) )
+    a.Push( cast( uint32, tmp.kind ) ) : a.Push( cast( uint32, tmp.id ) )
     PushStrLen_( c, a, -1 )
-    a.Push( cast( ulong, MV_CONST_INT ) ) : a.Push( 0 )
-    a.Push( cast( ulong, MV_CONST_INT ) ) : a.Push( 0 )
+    a.Push( cast( uint32, MV_CONST_INT ) ) : a.Push( 0 )
+    a.Push( cast( uint32, MV_CONST_INT ) ) : a.Push( 0 )
     EmitRtl( c, RTL_USTR_FROM_A, a )
-    dim as containers.Array( of ulong ) d
-    d.Push( cast( ulong, tmp.kind ) ) : d.Push( cast( ulong, tmp.id ) )
+    dim as containers.Array( of uint32 ) d
+    d.Push( cast( uint32, tmp.kind ) ) : d.Push( cast( uint32, tmp.id ) )
     EmitRtl( c, RTL_STR_DELETE, d )
 end sub
 
@@ -958,7 +958,7 @@ function LowerLineInput( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     '' first one is; without, a second child means the FIRST was a prompt -- 'line
     '' input ps, s' -- which the parser cannot tell from a second destination because
     '' plain INPUT takes a list and LINE INPUT never does.
-    dim as long dstIdx = 0
+    dim as int32 dstIdx = 0
     dim as Tko.NodeId prompt = sp->c
     if sp->a = Tko.NODE_NONE then
         if (prompt = Tko.NODE_NONE) andalso (sp->count >= 2) then
@@ -970,15 +970,15 @@ function LowerLineInput( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 
     dim as Tko.NodeId dst = cast( Tko.NodeId, c.ast->children[sp->first + dstIdx] )
     dim as Tko.TypeId dt = c.info->TypeOf_( dst )
-    dim as longint dlen
-    dim as long dk = StrSwapKind_( c, dt, dlen )
+    dim as int64 dlen
+    dim as int32 dk = StrSwapKind_( c, dt, dlen )
     if dk < 0 then return false
     dim as boolean wide = (dk = 2)
 
     dim as MirValue da = LowerAddr( c, dst )
-    if da.kind = cast( ubyte, MV_NONE ) then return false
+    if da.kind = cast( uint8, MV_NONE ) then return false
     '' A 'ustring * N' READS INTO A USTRING TEMPORARY, copied back -- see UFixDestTemp_.
-    dim as long ufSlot = -1
+    dim as int32 ufSlot = -1
     if dk = 4 then
         if UFixDestTemp_( c, dst, da, ufSlot ) = false then return false
     end if
@@ -1000,23 +1000,23 @@ function LowerLineInput( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if dstIdx + 1 < sp->count then
         dim as Tko.NodeId mn = cast( Tko.NodeId, c.ast->children[sp->first + dstIdx + 1] )
         mx = LowerExpr( c, mn )
-        if mx.kind = cast( ubyte, MV_NONE ) then return false
+        if mx.kind = cast( uint8, MV_NONE ) then return false
         mx = Coerce( c, mx, iif( c.types->target.pointerBits = 32, MT_I32, MT_I64 ), false )
     end if
 
-    dim as containers.Array( of ulong ) args
+    dim as containers.Array( of uint32 ) args
     if sp->a <> Tko.NODE_NONE then
         dim as MirValue fn = LowerNumArg_( c, sp->a, MT_I32 )
-        if fn.kind = cast( ubyte, MV_NONE ) then return false
-        args.Push( cast( ulong, fn.kind ) ) : args.Push( cast( ulong, fn.id ) )
+        if fn.kind = cast( uint8, MV_NONE ) then return false
+        args.Push( cast( uint32, fn.kind ) ) : args.Push( cast( uint32, fn.id ) )
     else
         '' THE PROMPT IS A DESCRIPTOR on the narrow path and a uint16* on the wide one,
         '' and an absent prompt is the EMPTY STRING rather than a null pointer.
         dim as MirValue pv
         if wide then
             if prompt = Tko.NODE_NONE then
-                pv.kind = cast( ubyte, MV_GLOBAL )
-                pv.ty = cast( ubyte, MT_PTR )
+                pv.kind = cast( uint8, MV_GLOBAL )
+                pv.ty = cast( uint8, MT_PTR )
                 pv.id = c.m->AddWideStringLiteral( "", *c.names )
             elseif WideOperand_( c, prompt, pv ) = false then
                 '' A NARROW prompt on the wide path is CONVERTED, not refused: fbc
@@ -1025,10 +1025,10 @@ function LowerLineInput( byref c as Ctx, byval id as Tko.NodeId ) as boolean
             end if
         else
             if prompt = Tko.NODE_NONE then
-                dim as containers.Array( of ulong ) ea
-                ea.Push( cast( ulong, MV_GLOBAL ) )
-                ea.Push( cast( ulong, c.m->AddStringLiteral( "", *c.names ) ) )
-                ea.Push( cast( ulong, MV_CONST_INT ) )
+                dim as containers.Array( of uint32 ) ea
+                ea.Push( cast( uint32, MV_GLOBAL ) )
+                ea.Push( cast( uint32, c.m->AddStringLiteral( "", *c.names ) ) )
+                ea.Push( cast( uint32, MV_CONST_INT ) )
                 ea.Push( 0 )
                 pv = EmitRtl( c, RTL_STR_TEMPZ, ea )
             elseif StrDescriptorOf_( c, prompt, pv ) = false then
@@ -1037,26 +1037,26 @@ function LowerLineInput( byref c as Ctx, byval id as Tko.NodeId ) as boolean
                 if WideToNarrowTemp_( c, prompt, pv ) = false then return false
             end if
         end if
-        if pv.kind = cast( ubyte, MV_NONE ) then return false
-        args.Push( cast( ulong, pv.kind ) ) : args.Push( cast( ulong, pv.id ) )
+        if pv.kind = cast( uint8, MV_NONE ) then return false
+        args.Push( cast( uint32, pv.kind ) ) : args.Push( cast( uint32, pv.id ) )
     end if
 
-    args.Push( cast( ulong, da.kind ) ) : args.Push( cast( ulong, da.id ) )
-    if mx.kind <> cast( ubyte, MV_NONE ) then
-        args.Push( cast( ulong, mx.kind ) ) : args.Push( cast( ulong, mx.id ) )
+    args.Push( cast( uint32, da.kind ) ) : args.Push( cast( uint32, da.id ) )
+    if mx.kind <> cast( uint8, MV_NONE ) then
+        args.Push( cast( uint32, mx.kind ) ) : args.Push( cast( uint32, mx.id ) )
     else
         '' A 'string * N' length is TAGGED and 64 bits wide; pushed as a 32-bit constant
         '' it lost the tag, and 'line input #1, f' read "abc" plus a NUL where fbc reads
         '' "abcd". Its padding is filled, too -- the -1 below.
         PushStrLen_( c, args, dlen )
     end if
-    dim as long fillRem = iif( dk = 3, -1, 0 )
+    dim as int32 fillRem = iif( dk = 3, -1, 0 )
 
     if sp->a <> Tko.NODE_NONE then
         if wide then
             EmitRtl( c, RTL_FILE_LINEINPUT_W, args )
         else
-            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, fillRem ) )
+            args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, fillRem ) )
             EmitRtl( c, RTL_FILE_LINEINPUT, args )
         end if
         return true
@@ -1067,15 +1067,15 @@ function LowerLineInput( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     '' only after a prompt ended by ';' -- measured, fbc passes -1 for 'line input p; s'
     '' and 0 for 'line input p, s' or no prompt at all. The parser marks a comma with
     '' bit 8. That flag was a constant 0 here, taken for a second reserved argument.
-    dim as long addNewline = -1
+    dim as int32 addNewline = -1
     if (sp->extra and 4) <> 0 then addNewline = 0
-    dim as long addQuestion = 0
+    dim as int32 addQuestion = 0
     if ((sp->c <> Tko.NODE_NONE) orelse ((sp->extra and 16) <> 0)) andalso ((sp->extra and 8) = 0) then addQuestion = -1   '' 16: a bare ';' (IntrInput)
     if wide = false then
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, fillRem ) )
+        args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, fillRem ) )
     end if
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, addQuestion ) )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, addNewline ) )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, addQuestion ) )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, addNewline ) )
     if wide then
         EmitRtl( c, RTL_LINEINPUT_W, args )
     else
@@ -1088,7 +1088,7 @@ end function
 
 '' The runtime entry point for reading ONE destination of a given type.
 private function InputRtlFor _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as RtlId
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as int64 ) as RtlId
 
     n = -1
     if t = Tko.TYPE_NONE then return RTL_NONE
@@ -1097,8 +1097,8 @@ private function InputRtlFor _
         return RTL_INPUT_WSTR
     end if
     if IsUStringType( c, t ) then return RTL_INPUT_USTR      '' T66
-    dim as longint zn
-    dim as long sk = StrSwapKind_( c, t, zn )
+    dim as int64 zn
+    dim as int32 sk = StrSwapKind_( c, t, zn )
     if sk = 0 then return RTL_INPUT_STRING
     if sk = 1 then
         n = zn
@@ -1141,11 +1141,11 @@ private function InputPrompt( byref c as Ctx, byval promptE as Tko.NodeId ) as M
             ptext = StringLitText_( c, promptE )
         end if
     end if
-    dim as containers.Array( of ulong ) ta
-    ta.Push( cast( ulong, MV_GLOBAL ) )
-    ta.Push( cast( ulong, c.m->AddStringLiteral( ptext, *c.names ) ) )
-    ta.Push( cast( ulong, MV_CONST_INT ) )
-    ta.Push( cast( ulong, len( ptext ) ) )
+    dim as containers.Array( of uint32 ) ta
+    ta.Push( cast( uint32, MV_GLOBAL ) )
+    ta.Push( cast( uint32, c.m->AddStringLiteral( ptext, *c.names ) ) )
+    ta.Push( cast( uint32, MV_CONST_INT ) )
+    ta.Push( cast( uint32, len( ptext ) ) )
     return EmitRtl( c, RTL_STR_TEMPZ, ta )
 end function
 
@@ -1171,19 +1171,19 @@ function LowerInput _
 
     '' A LEADING semicolon suppresses the echoed newline. The parser marks it with
     '' bit 4, because bit 1 already meant LINE INPUT.
-    dim as long echoNewline = -1
+    dim as int32 echoNewline = -1
     if (sp->extra and 4) <> 0 then echoNewline = 0
     '' A comma after the prompt suppresses the question mark and a semicolon keeps it.
     '' The parser marks the comma with bit 8; measured, fbc passes 0 for
     '' 'input "x", a' and -1 for 'input "x"; a' and for no prompt.
-    dim as long addQuestion = -1
+    dim as int32 addQuestion = -1
     if (sp->extra and 8) <> 0 then addQuestion = 0
 
     dim as boolean toFile = (sp->a <> Tko.NODE_NONE)
     dim as MirValue chan
     if toFile then
         dim as MirValue ch = LowerExpr( c, sp->a )
-        if ch.kind = cast( ubyte, MV_NONE ) then return false
+        if ch.kind = cast( uint8, MV_NONE ) then return false
         chan = CoerceTy( c, ch, MT_I32, c.info->TypeOf_( sp->a ))
     end if
 
@@ -1197,44 +1197,44 @@ function LowerInput _
     '' EVERY DESTINATION IS CHECKED FIRST. Emitting the start call and then declining
     '' on the third variable would leave the program prompting for input it never
     '' reads.
-    for i as long = 0 to sp->count - 1
+    for i as int32 = 0 to sp->count - 1
         dim as Tko.NodeId d = cast( Tko.NodeId, c.ast->children[sp->first + i] )
-        dim as longint dn2
+        dim as int64 dn2
         if InputRtlFor( c, c.info->TypeOf_( d ), dn2 ) = RTL_NONE then return false
     next
 
-    dim as containers.Array( of ulong ) sargs
+    dim as containers.Array( of uint32 ) sargs
     if toFile then
-        sargs.Push( cast( ulong, chan.kind ) ) : sargs.Push( cast( ulong, chan.id ) )
+        sargs.Push( cast( uint32, chan.kind ) ) : sargs.Push( cast( uint32, chan.id ) )
         EmitRtl( c, RTL_FILE_INPUT, sargs )
     else
         dim as MirValue pr2 = InputPrompt( c, sp->c )
-        if pr2.kind = cast( ubyte, MV_NONE ) then return false
-        sargs.Push( cast( ulong, pr2.kind ) ) : sargs.Push( cast( ulong, pr2.id ) )
-        sargs.Push( cast( ulong, MV_CONST_INT ) ) : sargs.Push( cast( ulong, addQuestion ) )
-        sargs.Push( cast( ulong, MV_CONST_INT ) ) : sargs.Push( cast( ulong, echoNewline ) )
+        if pr2.kind = cast( uint8, MV_NONE ) then return false
+        sargs.Push( cast( uint32, pr2.kind ) ) : sargs.Push( cast( uint32, pr2.id ) )
+        sargs.Push( cast( uint32, MV_CONST_INT ) ) : sargs.Push( cast( uint32, addQuestion ) )
+        sargs.Push( cast( uint32, MV_CONST_INT ) ) : sargs.Push( cast( uint32, echoNewline ) )
         EmitRtl( c, RTL_CONSOLE_INPUT, sargs )
     end if
 
-    for i as long = 0 to sp->count - 1
+    for i as int32 = 0 to sp->count - 1
         dim as Tko.NodeId d = cast( Tko.NodeId, c.ast->children[sp->first + i] )
-        dim as longint dn3
+        dim as int64 dn3
         dim as RtlId r = InputRtlFor( c, c.info->TypeOf_( d ), dn3 )
         dim as MirValue da2 = LowerAddr( c, d )
-        if da2.kind = cast( ubyte, MV_NONE ) then return false
-        dim as long ufs = -1
-        dim as longint ufn
+        if da2.kind = cast( uint8, MV_NONE ) then return false
+        dim as int32 ufs = -1
+        dim as int64 ufn
         if (r = RTL_INPUT_USTR) andalso (StrSwapKind_( c, c.info->TypeOf_( d ), ufn ) = 4) then
             if UFixDestTemp_( c, d, da2, ufs ) = false then return false   '' 'ustring * N' -- see UFixDestTemp_
         end if
-        dim as containers.Array( of ulong ) dargs
-        dargs.Push( cast( ulong, da2.kind ) ) : dargs.Push( cast( ulong, da2.id ) )
+        dim as containers.Array( of uint32 ) dargs
+        dargs.Push( cast( uint32, da2.kind ) ) : dargs.Push( cast( uint32, da2.id ) )
         if r = RTL_INPUT_STRING then
             '' A tagged length is 64 bits wide, and a FIXED string's padding is filled: -1.
             PushStrLen_( c, dargs, dn3 )
-            dargs.Push( cast( ulong, MV_CONST_INT ) ) : dargs.Push( cast( ulong, iif( dn3 < -1, -1, 0 ) ) )
+            dargs.Push( cast( uint32, MV_CONST_INT ) ) : dargs.Push( cast( uint32, iif( dn3 < -1, -1, 0 ) ) )
         elseif r = RTL_INPUT_WSTR then
-            dargs.Push( cast( ulong, MV_CONST_INT ) ) : dargs.Push( cast( ulong, dn3 ) )
+            dargs.Push( cast( uint32, MV_CONST_INT ) ) : dargs.Push( cast( uint32, dn3 ) )
         end if
         dim as MirValue ir = EmitRtl( c, r, dargs )
         if r = RTL_INPUT_USTR then EmitRtlErrorCheck_( c, id, ir )   '' fbc's is throwable

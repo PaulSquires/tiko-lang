@@ -9,8 +9,8 @@
 private sub TypedefKeywordTarget_( byref p as Tko.ParserState, byval n as Tko.NodeId )
     if (n = Tko.NODE_NONE) orelse p.silent then return
     if p.ast->Kind( n ) <> Tko.N_TYPEREF then return
-    if (p.ast->nodes[cast( long, n )].flags and Tko.NF_PROC_TYPE) <> 0 then return
-    dim as Tko.TokenKind k = cast( Tko.TokenKind, p.ast->stmts[cast( long, p.ast->nodes[cast( long, n )].data )].op )
+    if (p.ast->nodes[cast( int32, n )].flags and Tko.NF_PROC_TYPE) <> 0 then return
+    dim as Tko.TokenKind k = cast( Tko.TokenKind, p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, n )].data )].op )
     if Tko.IsKeywordKind( k ) = false then return
     if Tko.IsTypeKeyword( k ) then return
     if Tko.KeywordClassOf( k ) = Tko.KWCLASS_INTRINSIC then return
@@ -19,7 +19,7 @@ end sub
 
 private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.Token t = Cur( p )
-    dim as long typeTok0 = p.pos
+    dim as int32 typeTok0 = p.pos
     dim as boolean isUnion = (Peek( p ) = Tko.KW_UNION)
     Advance( p )
 
@@ -47,11 +47,11 @@ private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
             dim as Tko.StmtPayload ep
             ep.a = aliased
             if DeclName( p, ep.name ) = false then exit while
-            extra.Push( cast( ulong, MakeStmt( p, Tko.N_TYPEDEF, nt.loc, ep ) ) )
+            extra.Push( cast( uint32, MakeStmt( p, Tko.N_TYPEDEF, nt.loc, ep ) ) )
         wend
         sp.first = p.ast->children.Count
         sp.count = extra.Count
-        for i as long = 0 to extra.Count - 1
+        for i as int32 = 0 to extra.Count - 1
             p.ast->children.Push( extra[i] )
         next
         return MakeStmt( p, Tko.N_TYPEDEF, t.loc, sp )
@@ -131,11 +131,11 @@ private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
             if Accept( p, Tko.KW_AS ) = false then exit while
             ep2.a = TypeRef( p )
             TypedefKeywordTarget_( p, ep2.a )
-            extra2.Push( cast( ulong, MakeStmt( p, Tko.N_TYPEDEF, nt2.loc, ep2 ) ) )
+            extra2.Push( cast( uint32, MakeStmt( p, Tko.N_TYPEDEF, nt2.loc, ep2 ) ) )
         wend
         sp.first = p.ast->children.Count
         sp.count = extra2.Count
-        for i as long = 0 to extra2.Count - 1
+        for i as int32 = 0 to extra2.Count - 1
             p.ast->children.Push( extra2[i] )
         next
         return MakeStmt( p, Tko.N_TYPEDEF, t.loc, sp )
@@ -150,7 +150,7 @@ private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
     '' spelling, and a paren group that does not start with it keeps the old blind
     '' skip rather than being reinterpreted.
     if Peek( p ) = Tko.TK_LPAREN then
-        dim as long saveG = p.pos
+        dim as int32 saveG = p.pos
         Advance( p )
         dim as boolean isGen = false
         if Peek( p ) = Tko.TK_IDENT then
@@ -233,7 +233,7 @@ private function ParseEnumDecl( byref p as Tko.ParserState ) as Tko.NodeId
     '' structs/udt-ops-check.bi's '#if (TX_id = TX_as_integer)' took every branch and
     '' declared TX five times. Module level only, as for a const; a value that does not
     '' fold leaves the rest of the enum unknown.
-    dim as longint enumNext = 0
+    dim as int64 enumNext = 0
     dim as boolean enumKnown = true
     dim as Tko.NodeIdVec items
     do
@@ -256,13 +256,13 @@ private function ParseEnumDecl( byref p as Tko.ParserState ) as Tko.NodeId
             Tko.PpNoteConst( *cast( Tko.PpStream ptr, p.stream ), ip.name, enumNext, it.loc )
         end if
         enumNext += 1
-        items.Push( cast( ulong, MakeStmt( p, Tko.N_ENUM_ITEM, it.loc, ip ) ) )
+        items.Push( cast( uint32, MakeStmt( p, Tko.N_ENUM_ITEM, it.loc, ip ) ) )
         if Accept( p, Tko.TK_COMMA ) = false then EndOfStatement( p )
     loop
 
     sp.first = p.ast->children.Count
     sp.count = items.Count
-    for i as long = 0 to items.Count - 1
+    for i as int32 = 0 to items.Count - 1
         p.ast->children.Push( items[i] )
     next
     if (items.Count = 0) andalso EndsHere_( p, Tko.KW_ENUM ) then p.diags->Report( Tko.TKO0876, Tko.PointRange( Cur( p ).loc ), "ENUM" )  '' declempty.tiko
@@ -288,13 +288,13 @@ private sub MarkCxx_( byref p as Tko.ParserState, byval n as Tko.NodeId )
     select case p.ast->Kind( n )
     case Tko.N_PROC, Tko.N_TYPE, Tko.N_VAR
         dim as Tko.StmtPayload ptr mp = _
-            @p.ast->stmts[cast( long, p.ast->nodes[cast( long, n )].data )]
+            @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, n )].data )]
         mp->extra or= Tko.PF_CXX
     case Tko.N_NAMESPACE
         dim as Tko.StmtPayload ptr np = _
-            @p.ast->stmts[cast( long, p.ast->nodes[cast( long, n )].data )]
+            @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, n )].data )]
         np->extra or= Tko.PF_CXX
-        for i as long = 0 to np->count - 1
+        for i as int32 = 0 to np->count - 1
             MarkCxx_( p, cast( Tko.NodeId, p.ast->children[np->first + i] ) )
         next
     end select
@@ -306,11 +306,11 @@ private function ParseNamespaceDecl( byref p as Tko.ParserState ) as Tko.NodeId
     '' 'namespace a.b.c' opens THREE nested namespaces, not one called 'c'. fbcunit's
     '' SUITE macro expands to exactly this, and keeping only the last component made
     '' every generated procedure mangle three qualifiers short of fbc's.
-    dim as containers.Array( of ulong ) parts
+    dim as containers.Array( of uint32 ) parts
     '' THE SOURCE SPELLING OF EACH COMPONENT. A namespace inside 'extern "C++"'
     '' mangles by what was WRITTEN -- measured, fbc emits _ZN2nn2g4Ev where the
     '' same namespace outside gives _ZN2NN2G4Ev. Unread anywhere else.
-    dim as containers.Array( of ulong ) rawParts
+    dim as containers.Array( of uint32 ) rawParts
     dim as Tko.StmtPayload sp
     dim as Tko.InternId nsRaw = RawSpelling( p )
     DeclName( p, sp.name )
@@ -350,19 +350,19 @@ private function ParseNamespaceDecl( byref p as Tko.ParserState ) as Tko.NodeId
             Advance( p )
         end if
     end if
-    parts.Push( cast( ulong, sp.name ) )
-    rawParts.Push( cast( ulong, nsRaw ) )
+    parts.Push( cast( uint32, sp.name ) )
+    rawParts.Push( cast( uint32, nsRaw ) )
     while Peek( p ) = Tko.TK_DOT
         Advance( p )
         nsRaw = RawSpelling( p )
         DeclName( p, sp.name )
-        parts.Push( cast( ulong, sp.name ) )
-        rawParts.Push( cast( ulong, nsRaw ) )
+        parts.Push( cast( uint32, sp.name ) )
+        rawParts.Push( cast( uint32, nsRaw ) )
     wend
 
     dim as Tko.NodeIdVec members
     dim as string outerNs = p.nsPath
-    for i as long = 0 to parts.Count - 1
+    for i as int32 = 0 to parts.Count - 1
         if len( p.nsPath ) > 0 then p.nsPath += "."
         p.nsPath += Tko.Text.LowerAscii( p.names->Spelling( cast( Tko.InternId, parts[i] ) ) )
     next
@@ -372,9 +372,9 @@ private function ParseNamespaceDecl( byref p as Tko.ParserState ) as Tko.NodeId
         SkipEols( p )
         if AtEnd( p ) then exit do
         if Peek( p ) = Tko.KW_END then exit do
-        dim as long before = p.pos
+        dim as int32 before = p.pos
         dim as Tko.NodeId s = Statement( p )
-        if s <> Tko.NODE_NONE then members.Push( cast( ulong, s ) )
+        if s <> Tko.NODE_NONE then members.Push( cast( uint32, s ) )
         if p.pos = before then Advance( p )
     loop
     p.nsDepth -= 1
@@ -383,7 +383,7 @@ private function ParseNamespaceDecl( byref p as Tko.ParserState ) as Tko.NodeId
 
     sp.first = p.ast->children.Count
     sp.count = members.Count
-    for i as long = 0 to members.Count - 1
+    for i as int32 = 0 to members.Count - 1
         p.ast->children.Push( members[i] )
     next
     ExpectEnd( p, Tko.KW_NAMESPACE )
@@ -392,13 +392,13 @@ private function ParseNamespaceDecl( byref p as Tko.ParserState ) as Tko.NodeId
     sp.name = cast( Tko.InternId, parts[parts.Count - 1] )
     sp.rawName = cast( Tko.InternId, rawParts[rawParts.Count - 1] )
     dim as Tko.NodeId n = MakeStmt( p, Tko.N_NAMESPACE, t.loc, sp )
-    for i as long = parts.Count - 2 to 0 step -1
+    for i as int32 = parts.Count - 2 to 0 step -1
         dim as Tko.StmtPayload outer
         outer.name = cast( Tko.InternId, parts[i] )
         outer.rawName = cast( Tko.InternId, rawParts[i] )
         outer.first = p.ast->children.Count
         outer.count = 1
-        p.ast->children.Push( cast( ulong, n ) )
+        p.ast->children.Push( cast( uint32, n ) )
         n = MakeStmt( p, Tko.N_NAMESPACE, t.loc, outer )
     next
     return n
@@ -417,7 +417,7 @@ private function MarkPrivate _
     '' data is 0, and the flag landed on stmts[0] -- another statement's (audit F-72).
     if Tko.NodeKindCategory( p.ast->Kind( n ) ) <> Tko.NCAT_DECL then return n
     dim as Tko.StmtPayload ptr sp = _
-        @p.ast->stmts[cast( long, p.ast->nodes[cast( long, n )].data )]
+        @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, n )].data )]
     if visKw = Tko.KW_PUBLIC then
         sp->extra or= Tko.PF_VIS_PUBLIC
         return n
@@ -482,13 +482,13 @@ end sub
 
 '' '#pragma private' IN EFFECT AT TOKEN pos (PpResult.privateAt): fbc makes every procedure
 '' defined under it private, a method's body too, unless it says 'public'.
-private function PragmaPrivate_( byref p as Tko.ParserState, byval pos_ as long ) as boolean
+private function PragmaPrivate_( byref p as Tko.ParserState, byval pos_ as int32 ) as boolean
     if p.stream = 0 then return false
     dim as Tko.PpStream ptr st = cast( Tko.PpStream ptr, p.stream )
     if st->outp = 0 then return false
     dim as boolean on_ = false
-    for i as long = 0 to st->outp->privateAt.Count - 2 step 2
-        if cast( long, st->outp->privateAt[i] ) > pos_ then exit for
+    for i as int32 = 0 to st->outp->privateAt.Count - 2 step 2
+        if cast( int32, st->outp->privateAt[i] ) > pos_ then exit for
         on_ = (st->outp->privateAt[i + 1] <> 0)
     next
     return on_
@@ -534,7 +534,7 @@ private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
                     '' ...AND LINKED, as a declare's own 'lib' clause is -- see
                     '' ParserState.declLibs. AfxNova's AfxGdiPlus.bi names gdiplus
                     '' ONLY here, so dropping it left every Gdip* call undefined.
-                    if blib <> 0 then p.declLibs.Push( cast( ulong, blib ) )
+                    if blib <> 0 then p.declLibs.Push( cast( uint32, blib ) )
                     Advance( p )
                 end if
             end if
@@ -550,7 +550,7 @@ private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
             '' ...and the convention a procedure written inside gets when it writes none,
             '' for the '...' rule: see CheckVarargConv_. Lexical, so it reaches a TYPE's
             '' members and a procedure TYPE as well as a plain declaration.
-            dim as ubyte outerConv = p.externConv
+            dim as uint8 outerConv = p.externConv
             p.externConv = Tko.CC_NONE
             if lang <> 0 then
                 dim as string lgl = Tko.Text.LowerAscii( p.names->Spelling( lang ) )
@@ -568,22 +568,22 @@ private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
                 SkipEols( p )
                 if AtEnd( p ) then exit do
                 if Peek( p ) = Tko.KW_END then exit do
-                dim as long before = p.pos
+                dim as int32 before = p.pos
                 dim as Tko.NodeId st = Statement( p )
-                if st <> Tko.NODE_NONE then members.Push( cast( ulong, st ) )
+                if st <> Tko.NODE_NONE then members.Push( cast( uint32, st ) )
                 if p.pos = before then Advance( p )
             loop
 
             sp.first = p.ast->children.Count
             sp.count = members.Count
-            for i as long = 0 to members.Count - 1
+            for i as int32 = 0 to members.Count - 1
                 dim as Tko.NodeId m = cast( Tko.NodeId, members[i] )
                 '' A FOREIGN BLOCK NAMES ITS VARIABLES TOO, not only its procedures.
                 '' 'extern "Windows" : extern CLSID_ShellLink as const GUID' links by
                 '' the source spelling; the same line outside a block is 'CLSID_SHELLLINK$'.
                 if (foreign_ orelse cxx_) andalso (p.ast->Kind( m ) = Tko.N_TYPE) then
                     dim as Tko.StmtPayload ptr tp2 = _
-                        @p.ast->stmts[cast( long, p.ast->nodes[cast( long, m )].data )]
+                        @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, m )].data )]
                     if cxx_ then
                         tp2->extra or= Tko.PF_CXX
                     else
@@ -592,7 +592,7 @@ private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
                 end if
                 if foreign_ andalso (p.ast->Kind( m ) = Tko.N_VAR) then
                     dim as Tko.StmtPayload ptr vp = _
-                        @p.ast->stmts[cast( long, p.ast->nodes[cast( long, m )].data )]
+                        @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, m )].data )]
                     vp->extra or= Tko.PF_FOREIGN
                 end if
                 if cxx_ then MarkCxx_( p, m )
@@ -603,7 +603,7 @@ private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
                 if foreign_ andalso (p.ast->Kind( m ) = Tko.N_NAMESPACE) then MarkCxx_( p, m )
                 if foreign_ andalso (p.ast->Kind( m ) = Tko.N_PROC) then
                     dim as Tko.StmtPayload ptr mp = _
-                        @p.ast->stmts[cast( long, p.ast->nodes[cast( long, m )].data )]
+                        @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, m )].data )]
                     mp->extra or= Tko.PF_FOREIGN
                     '' The BLOCK supplies a convention to members that wrote none:
                     '' measured, 'extern "C"' gives _EC and 'extern "Windows"' _EW@4.
@@ -637,7 +637,7 @@ private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
     '' which is where the decline landed. ParseProc's own modifier loop already reads
     '' the whole run; only the routing here stopped at one.
     if procQual then
-        dim as long q = p.pos + 1
+        dim as int32 q = p.pos + 1
         do while HasTok( p, q )
             select case cast( Tko.TokenKind, p.toks->At( q ).kind )
             case Tko.KW_CONST, Tko.KW_STATIC, Tko.KW_VIRTUAL, Tko.KW_ABSTRACT
@@ -704,11 +704,11 @@ private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
             dim as Tko.StmtPayload up
             up.name = p.names->GetString( mp )
             NoteUsing_( p, mp )
-            moreUsing.Push( cast( ulong, MakeStmt( p, Tko.N_USING, ut.loc, up ) ) )
+            moreUsing.Push( cast( uint32, MakeStmt( p, Tko.N_USING, ut.loc, up ) ) )
         wend
         sp.first = p.ast->children.Count
         sp.count = moreUsing.Count
-        for i as long = 0 to moreUsing.Count - 1
+        for i as int32 = 0 to moreUsing.Count - 1
             p.ast->children.Push( moreUsing[i] )
         next
         return MakeStmt( p, Tko.N_USING, t.loc, sp )
@@ -735,12 +735,12 @@ end function
 
 '' ...and, in a module unit, where each one's tokens are (RFC-0004 §3).
 function Declaration( byref p as Tko.ParserState ) as Tko.NodeId
-    dim as long tok0 = p.pos
+    dim as int32 tok0 = p.pos
     dim as Tko.NodeId n = Declaration_( p )
     if p.recordDecls andalso (n <> Tko.NODE_NONE) andalso (p.pos > tok0) then
-        p.ast->declRanges.Push( cast( ulong, n ) )
-        p.ast->declRanges.Push( cast( ulong, tok0 ) )
-        p.ast->declRanges.Push( cast( ulong, p.pos ) )
+        p.ast->declRanges.Push( cast( uint32, n ) )
+        p.ast->declRanges.Push( cast( uint32, tok0 ) )
+        p.ast->declRanges.Push( cast( uint32, p.pos ) )
     end if
     return n
 end function

@@ -11,34 +11,34 @@ namespace Tko.Mir
 '' what parks it in a temporary and registers that for the fb_WstrDelete at the end of
 '' the statement. Declared here because this is its own compilation unit.
 declare function WideConcatStep_ _
-    ( byref c as Ctx, byref args as containers.Array( of ulong ), byval r as RtlId, _
+    ( byref c as Ctx, byref args as containers.Array( of uint32 ), byval r as RtlId, _
       byref acc as MirValue ) as boolean
 
 '' Defined in lowerstrkind.tiko: which fixed-string flavour a type is, and its length.
 declare function StrSwapKind_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as int64 ) as int32
 
 '' A 'string * N' TO A NEW WIDE TEMPORARY: copied into a var-length one first, since it is
 '' space-padded and unterminated, then fb_StrToWstr over that copy -- the 'sk = 3' row of
 '' LowerWstrOf below, and NarrowToWideTemp_'s for a 'wstring ptr' argument. 'zn' is the
 '' length StrSwapKind_ gave, already tagged.
 function FixStrWideTemp_ _
-    ( byref c as Ctx, byval a as Tko.NodeId, byval zn as longint, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval a as Tko.NodeId, byval zn as int64, byref outv as MirValue ) as boolean
 
     dim as MirValue fa2 = LowerAddr( c, a )
-    if fa2.kind = cast( ubyte, MV_NONE ) then return false
-    dim as long fslot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+    if fa2.kind = cast( uint8, MV_NONE ) then return false
+    dim as int32 fslot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
     if fslot < 0 then return false
     dim as MirValue fd
-    fd.kind = cast( ubyte, MV_LOCAL )
-    fd.ty = cast( ubyte, MT_PTR )
+    fd.kind = cast( uint8, MV_LOCAL )
+    fd.ty = cast( uint8, MT_PTR )
     fd.id = fslot
     ZeroStrDescriptor( c, fd )
-    dim as containers.Array( of ulong ) faa
-    faa.Push( cast( ulong, fd.kind ) ) : faa.Push( cast( ulong, fd.id ) )
-    faa.Push( cast( ulong, MV_CONST_INT ) )
-    faa.Push( cast( ulong, cast( ulongint, -1 ) ) )
-    faa.Push( cast( ulong, fa2.kind ) ) : faa.Push( cast( ulong, fa2.id ) )
+    dim as containers.Array( of uint32 ) faa
+    faa.Push( cast( uint32, fd.kind ) ) : faa.Push( cast( uint32, fd.id ) )
+    faa.Push( cast( uint32, MV_CONST_INT ) )
+    faa.Push( cast( uint32, cast( uint64, -1 ) ) )
+    faa.Push( cast( uint32, fa2.kind ) ) : faa.Push( cast( uint32, fa2.id ) )
     '' ALREADY ENCODED: StrSwapKind_ hands back a FIXSTR's length in the tagged
     '' form, because that is the only form any runtime call wants it in --
     '' encoding it a second time here would set the tag bit on a value that
@@ -46,22 +46,22 @@ function FixStrWideTemp_ _
     '' PushStrLen_: pushing it as a ulong truncates the tag away and the runtime
     '' reads a plain length of 10.
     PushStrLen_( c, faa, zn )
-    faa.Push( cast( ulong, MV_CONST_INT ) ) : faa.Push( 0 )
+    faa.Push( cast( uint32, MV_CONST_INT ) ) : faa.Push( 0 )
     EmitRtl( c, RTL_STR_ASSIGN, faa )
     '' Released at the END OF THE STATEMENT, with the other string temporaries.
-    c.strTemps.Push( cast( ulong, fslot ) )
+    c.strTemps.Push( cast( uint32, fslot ) )
 
     dim as MirInst ffa
-    ffa.op = cast( ushort, M_FIELD_ADDR )
-    ffa.ty = cast( ubyte, MT_PTR )
+    ffa.op = cast( uint16, M_FIELD_ADDR )
+    ffa.ty = cast( uint8, MT_PTR )
     ffa.a = fd
     ffa.imm = 0
     dim as MirValue fpa = Emit( c, ffa )
-    if fpa.kind = cast( ubyte, MV_NONE ) then return false
+    if fpa.kind = cast( uint8, MV_NONE ) then return false
     dim as MirValue fraw = LowerExprLoad( c, fpa, MT_PTR )
-    if fraw.kind = cast( ubyte, MV_NONE ) then return false
-    dim as containers.Array( of ulong ) fargs
-    fargs.Push( cast( ulong, fraw.kind ) ) : fargs.Push( cast( ulong, fraw.id ) )
+    if fraw.kind = cast( uint8, MV_NONE ) then return false
+    dim as containers.Array( of uint32 ) fargs
+    fargs.Push( cast( uint32, fraw.kind ) ) : fargs.Push( cast( uint32, fraw.id ) )
     return WideConcatStep_( c, fargs, RTL_STR_TO_WSTR, outv )
 end function
 
@@ -70,12 +70,12 @@ function LowerWstrOf _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if lp->count <> 1 then return false
     if lp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
     if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "wstr" then return false
 
     dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[lp->first] )
@@ -88,11 +88,11 @@ function LowerWstrOf _
     if c.ast->Kind( a ) = Tko.N_STRING_LIT then
         '' Through the wide reader, so a '\uXXXX' is a CODE UNIT here and not six
         '' characters of spelling.
-        dim as long wch2 = 0
-        dim as long wg2 = WideLitGlobal_( c, a, wch2 )
+        dim as int32 wch2 = 0
+        dim as int32 wg2 = WideLitGlobal_( c, a, wch2 )
         if wg2 < 0 then return false
-        outv.kind = cast( ubyte, MV_GLOBAL )
-        outv.ty = cast( ubyte, MT_PTR )
+        outv.kind = cast( uint8, MV_GLOBAL )
+        outv.ty = cast( uint8, MT_PTR )
         outv.id = wg2
         return true
     end if
@@ -105,9 +105,9 @@ function LowerWstrOf _
     '' displayed whatever reused the memory.
     dim as string cft
     if ConstStringTextOf_( c, a, cft ) then
-        dim as long cfn = 0
-        outv.kind = cast( ubyte, MV_GLOBAL )
-        outv.ty = cast( ubyte, MT_PTR )
+        dim as int32 cfn = 0
+        outv.kind = cast( uint8, MV_GLOBAL )
+        outv.ty = cast( uint8, MT_PTR )
         outv.id = WideFoldedText_( c, a, cft, cfn )
         return true
     end if
@@ -127,7 +127,7 @@ function LowerWstrOf _
     '' Falling through instead made the whole expression decline.
     if IsWideString_( c, at ) then
         outv = LowerAddr( c, a )
-        return (outv.kind <> cast( ubyte, MV_NONE ))
+        return (outv.kind <> cast( uint8, MV_NONE ))
     end if
 
     '' A USTRING IS TRANSCODED FIRST. Its descriptor's data pointer is UTF-16, and
@@ -145,45 +145,45 @@ function LowerWstrOf _
     '' A VAR-LENGTH ONE ONLY: fbc REFUSES 'wstr( uf )' over a 'ustring * N' with its
     '' error 24, "Invalid data types", so there is nothing to reproduce here. It goes on
     '' declining, which is what it did before -- reporting it belongs in Check.
-    dim as longint uzn
+    dim as int64 uzn
     if IsUStringType( c, at ) andalso (StrSwapKind_( c, at, uzn ) <> 4) then
         dim as MirValue uo
-        dim as long uoslot = -1
+        dim as int32 uoslot = -1
         if UStrOutOperand_( c, a, uo, uoslot ) = false then return false
-        dim as containers.Array( of ulong ) ua
-        ua.Push( cast( ulong, uo.kind ) ) : ua.Push( cast( ulong, uo.id ) )
+        dim as containers.Array( of uint32 ) ua
+        ua.Push( cast( uint32, uo.kind ) ) : ua.Push( cast( uint32, uo.id ) )
         PushStrLen_( c, ua, -1 )
         dim as MirValue nv = EmitRtl( c, RTL_USTR_TO_STR, ua )
         ReleaseUStrOut_( c, uoslot )
-        if nv.kind = cast( ubyte, MV_NONE ) then return false
-        dim as long uslot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+        if nv.kind = cast( uint8, MV_NONE ) then return false
+        dim as int32 uslot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
         if uslot < 0 then return false
         dim as MirValue und
-        und.kind = cast( ubyte, MV_LOCAL ) : und.ty = cast( ubyte, MT_PTR ) : und.id = uslot
+        und.kind = cast( uint8, MV_LOCAL ) : und.ty = cast( uint8, MT_PTR ) : und.id = uslot
         ZeroStrDescriptor( c, und )
-        dim as containers.Array( of ulong ) sa
-        sa.Push( cast( ulong, und.kind ) ) : sa.Push( cast( ulong, und.id ) )
+        dim as containers.Array( of uint32 ) sa
+        sa.Push( cast( uint32, und.kind ) ) : sa.Push( cast( uint32, und.id ) )
         PushStrLen_( c, sa, -1 )
-        sa.Push( cast( ulong, nv.kind ) ) : sa.Push( cast( ulong, nv.id ) )
+        sa.Push( cast( uint32, nv.kind ) ) : sa.Push( cast( uint32, nv.id ) )
         PushStrLen_( c, sa, -1 )
-        sa.Push( cast( ulong, MV_CONST_INT ) ) : sa.Push( 0 )
+        sa.Push( cast( uint32, MV_CONST_INT ) ) : sa.Push( 0 )
         EmitRtl( c, RTL_STR_ASSIGN, sa )
-        c.strTemps.Push( cast( ulong, uslot ) )
+        c.strTemps.Push( cast( uint32, uslot ) )
         dim as MirInst ufa
-        ufa.op = cast( ushort, M_FIELD_ADDR ) : ufa.ty = cast( ubyte, MT_PTR )
+        ufa.op = cast( uint16, M_FIELD_ADDR ) : ufa.ty = cast( uint8, MT_PTR )
         ufa.a = und : ufa.imm = 0
         dim as MirValue upa = Emit( c, ufa )
-        if upa.kind = cast( ubyte, MV_NONE ) then return false
+        if upa.kind = cast( uint8, MV_NONE ) then return false
         dim as MirValue uraw = LowerExprLoad( c, upa, MT_PTR )
-        if uraw.kind = cast( ubyte, MV_NONE ) then return false
-        dim as containers.Array( of ulong ) wargs
-        wargs.Push( cast( ulong, uraw.kind ) ) : wargs.Push( cast( ulong, uraw.id ) )
+        if uraw.kind = cast( uint8, MV_NONE ) then return false
+        dim as containers.Array( of uint32 ) wargs
+        wargs.Push( cast( uint32, uraw.kind ) ) : wargs.Push( cast( uint32, uraw.id ) )
         return WideConcatStep_( c, wargs, RTL_STR_TO_WSTR, outv )
     end if
 
     '' A NARROW STRING: the raw data pointer, not the descriptor.
-    dim as longint zn
-    dim as long sk = StrSwapKind_( c, at, zn )
+    dim as int64 zn
+    dim as int32 sk = StrSwapKind_( c, at, zn )
     if sk = 0 then
         '' A PAREN-LESS CALL HAS NO ADDRESS EITHER -- 'wstr( o.GetS )' took LowerAddr's
         '' answer, the procedure's CODE address, as the descriptor -- so it is left to
@@ -200,7 +200,7 @@ function LowerWstrOf _
         ''
         '' -- which is 'wstr( "asd" + chr( 0 ) )', the shape wstring/instr_0.bas is
         '' written out of. Asking only for an address declined every one of them.
-        if d.kind = cast( ubyte, MV_NONE ) then
+        if d.kind = cast( uint8, MV_NONE ) then
             if ConcatToTemp_( c, a, d ) = false then
                 '' NOR HAS A CALL. 'f( hex( 1 ) )' against a 'byref w as wstring'
                 '' parameter is measured as a NARROW temporary and then the
@@ -213,34 +213,34 @@ function LowerWstrOf _
                 '' -- the same temporary a byval string parameter gets. Without it
                 '' every narrow RVALUE handed to a wide parameter declined:
                 '' functions/temp-strings.bas writes the shape twelve times.
-                dim as long nslot = _
+                dim as int32 nslot = _
                     NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
                 if nslot < 0 then return false
                 dim as MirValue nd
-                nd.kind = cast( ubyte, MV_LOCAL )
-                nd.ty = cast( ubyte, MT_PTR )
+                nd.kind = cast( uint8, MV_LOCAL )
+                nd.ty = cast( uint8, MT_PTR )
                 nd.id = nslot
                 ZeroStrDescriptor( c, nd )
                 if StrInitFrom_( c, nd, a ) = false then return false
                 '' Released at the END OF THE STATEMENT, beside the other string
                 '' temporaries, which is the life fbc gives it.
-                c.strTemps.Push( cast( ulong, nslot ) )
+                c.strTemps.Push( cast( uint32, nslot ) )
                 d = nd
             end if
         end if
-        if d.kind = cast( ubyte, MV_NONE ) then return false
+        if d.kind = cast( uint8, MV_NONE ) then return false
         '' Field 0 of the descriptor is its data pointer.
         dim as MirInst fa
-        fa.op = cast( ushort, M_FIELD_ADDR )
-        fa.ty = cast( ubyte, MT_PTR )
+        fa.op = cast( uint16, M_FIELD_ADDR )
+        fa.ty = cast( uint8, MT_PTR )
         fa.a = d
         fa.imm = 0
         dim as MirValue pa = Emit( c, fa )
-        if pa.kind = cast( ubyte, MV_NONE ) then return false
+        if pa.kind = cast( uint8, MV_NONE ) then return false
         dim as MirValue raw = LowerExprLoad( c, pa, MT_PTR )
-        if raw.kind = cast( ubyte, MV_NONE ) then return false
-        dim as containers.Array( of ulong ) sargs
-        sargs.Push( cast( ulong, raw.kind ) ) : sargs.Push( cast( ulong, raw.id ) )
+        if raw.kind = cast( uint8, MV_NONE ) then return false
+        dim as containers.Array( of uint32 ) sargs
+        sargs.Push( cast( uint32, raw.kind ) ) : sargs.Push( cast( uint32, raw.id ) )
         '' AND THE RESULT IS OWNED. fbc writes 'vr = fb_StrToWstr( ... )' and a
         '' matching fb_WstrDelete at the end of the statement -- measured over all
         '' three narrow shapes, six conversions and six deletes. EmitRtl alone
@@ -249,9 +249,9 @@ function LowerWstrOf _
     elseif sk = 1 then
         '' A ZSTRING * N IS already a char array: its address is the char*.
         dim as MirValue za = LowerAddr( c, a )
-        if za.kind = cast( ubyte, MV_NONE ) then return false
-        dim as containers.Array( of ulong ) zargs
-        zargs.Push( cast( ulong, za.kind ) ) : zargs.Push( cast( ulong, za.id ) )
+        if za.kind = cast( uint8, MV_NONE ) then return false
+        dim as containers.Array( of uint32 ) zargs
+        zargs.Push( cast( uint32, za.kind ) ) : zargs.Push( cast( uint32, za.id ) )
         return WideConcatStep_( c, zargs, RTL_STR_TO_WSTR, outv )
     elseif sk = 3 then
         '' A 'string * N' IS NOT A CHAR ARRAY THE WAY A ZSTRING IS: it is SPACE-PADDED
@@ -322,10 +322,10 @@ function LowerWstrOf _
     end if
 
     dim as MirValue av = LowerExpr( c, a )
-    if av.kind = cast( ubyte, MV_NONE ) then return false
+    if av.kind = cast( uint8, MV_NONE ) then return false
     av = CoerceTy( c, av, want, at)
-    dim as containers.Array( of ulong ) args
-    args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
+    dim as containers.Array( of uint32 ) args
+    args.Push( cast( uint32, av.kind ) ) : args.Push( cast( uint32, av.id ) )
     '' THROUGH WideConcatStep_, WHICH REGISTERS THE RESULT FOR ITS fb_WstrDelete, as the
     '' string rows above already did. EmitRtl alone dropped the pointer: 'print "a" &
     '' wstr( i )' leaked one allocation per run, and so did every scalar wstr( ) in a
@@ -342,14 +342,14 @@ function WideConstLitNode_( byref c as Ctx, byval e as Tko.NodeId, byval viaWstr
     select case c.ast->Kind( e )
     case Tko.N_CALL
         if IsWstrCall_( c, e ) = false then return Tko.NODE_NONE
-        dim as Tko.ListPayload ptr wl = @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+        dim as Tko.ListPayload ptr wl = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
         if wl->count <> 1 then return Tko.NODE_NONE
         return WideConstLitNode_( c, cast( Tko.NodeId, c.ast->children[wl->first] ), true )
     case Tko.N_STRING_LIT
         if viaWstr orelse LitHasUnicodeEscape_( c, e ) then return e
     case Tko.N_IDENT, Tko.N_MEMBER
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( e ) )
-        if (cs = 0) orelse (cs->kind <> cast( ubyte, Tko.SYM_CONSTANT )) orelse ((cs->flags and Tko.SYMF_BUILTIN) <> 0) then return Tko.NODE_NONE
+        if (cs = 0) orelse (cs->kind <> cast( uint8, Tko.SYM_CONSTANT )) orelse ((cs->flags and Tko.SYMF_BUILTIN) <> 0) then return Tko.NODE_NONE
         if (cs->payload = 0) orelse (c.ast->Kind( cast( Tko.NodeId, cs->payload ) ) <> Tko.N_VAR_ITEM) then return Tko.NODE_NONE
         return WideConstLitNode_( c, StmtOf( c, cast( Tko.NodeId, cs->payload ) )->b, viaWstr )
     end select
@@ -358,7 +358,7 @@ end function
 
 '' ITS CHARACTER COUNT, or -1. fbc's sizeof of one is (chars + 1) * wchar, 12 for "hello", where
 '' tiko measured the narrow text or the bare element (quirk/len-sizeof-udt-member.bas).
-function WideConstChars_( byref c as Ctx, byval e as Tko.NodeId ) as long
+function WideConstChars_( byref c as Ctx, byval e as Tko.NodeId ) as int32
     dim as Tko.NodeId wl = WideConstLitNode_( c, e )
     if wl = Tko.NODE_NONE then return -1
     return WideLitChars_( c, wl )
@@ -372,11 +372,11 @@ end function
 function Utf8WideLit_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     e = Unparen_( c, e )
     if (e = Tko.NODE_NONE) orelse (c.ast->Kind( e ) <> Tko.N_STRING_LIT) then return false
-    dim as Tko.LiteralPayload ptr lp = @c.ast->literals[cast( long, c.ast->nodes[cast( long, e )].data )]
+    dim as Tko.LiteralPayload ptr lp = @c.ast->literals[cast( int32, c.ast->nodes[cast( int32, e )].data )]
     dim as Tko.SourceFile ptr f = c.srcMgr->FileAt( cast( Tko.FileId, lp->strFile ) )
     if (f = 0) orelse (f->encoding = Tko.Text.ENC_BYTES) then return false
     if (lp->strOffset < 0) orelse (lp->strOffset + lp->strLength > f->text.Count) then return false
-    for i as long = 0 to lp->strLength - 1
+    for i as int32 = 0 to lp->strLength - 1
         if f->text[lp->strOffset + i] >= 128 then return true
     next
     return false

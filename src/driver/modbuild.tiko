@@ -32,16 +32,16 @@ end function
 
 '' What a unit added to the link since the counts were taken, as a cache entry's libs.txt.
 function LibsSince _
-    ( byref ctx as Tko.CompilerContext, byval libs0 as long, byval paths0 as long, _
-      byval files0 as long ) as string
+    ( byref ctx as Tko.CompilerContext, byval libs0 as int32, byval paths0 as int32, _
+      byval files0 as int32 ) as string
     dim as string libs = ""
-    for k as long = libs0 to ctx.options.pragmaLibs.Count - 1
+    for k as int32 = libs0 to ctx.options.pragmaLibs.Count - 1
         libs &= "lib" & chr( 9 ) & ctx.options.pragmaLibs[k] & chr( 10 )
     next
-    for k as long = paths0 to ctx.options.pragmaLibPaths.Count - 1
+    for k as int32 = paths0 to ctx.options.pragmaLibPaths.Count - 1
         libs &= "libpath" & chr( 9 ) & ctx.options.pragmaLibPaths[k] & chr( 10 )
     next
-    for k as long = files0 to ctx.options.pragmaLibFiles.Count - 1
+    for k as int32 = files0 to ctx.options.pragmaLibFiles.Count - 1
         libs &= "libfile" & chr( 9 ) & ctx.options.pragmaLibFiles[k] & chr( 10 )
     next
     if ctx.unitThreadRtl then libs &= "mt" & chr( 9 ) & "1" & chr( 10 )
@@ -50,13 +50,13 @@ end function
 
 '' A cached unit's contribution to the link, as its entry recorded it.
 sub ReplayLibs( byref ctx as Tko.CompilerContext, byref libs as string )
-    dim as long p = 1
+    dim as int32 p = 1
     while p <= len( libs )
-        dim as long e = instr( p, libs, chr( 10 ) )
+        dim as int32 e = instr( p, libs, chr( 10 ) )
         if e = 0 then e = len( libs ) + 1
         dim as string ln = mid( libs, p, e - p )
         p = e + 1
-        dim as long t = instr( ln, chr( 9 ) )
+        dim as int32 t = instr( ln, chr( 9 ) )
         if t = 0 then continue while
         dim as string v = mid( ln, t + 1 )
         select case left( ln, t - 1 )
@@ -75,8 +75,8 @@ private function PrivateTempDir_( ) as string
     dim as string tmp = environ( "TEMP" )
     if len( tmp ) = 0 then tmp = environ( "TMPDIR" )
     if len( tmp ) = 0 then tmp = "/tmp"
-    dim as string stamp_ = hex( cast( ulong, ( timer * 1000000 ) mod 4294967296 ) )
-    for n as long = 0 to 999
+    dim as string stamp_ = hex( cast( uint32, ( timer * 1000000 ) mod 4294967296 ) )
+    for n as int32 = 0 to 999
         dim as string d = JoinPath( tmp, "tiko-" & stamp_ & "-" & n )
         if mkdir( d ) = 0 then return d
     next
@@ -84,9 +84,9 @@ private function PrivateTempDir_( ) as string
 end function
 
 function BuildImports _
-    ( byref ctx as Tko.CompilerContext, byval rootCount as long, _
+    ( byref ctx as Tko.CompilerContext, byval rootCount as int32, _
       byref linkObjs as Tko.StrVec, byref tempObjs as Tko.StrVec, _
-      byref toolExit as long, byval scanOnly as boolean ) as boolean
+      byref toolExit as int32, byval scanOnly as boolean ) as boolean
 
     dim as ModGraph g
     if BuildGraph( ctx, rootCount, true, g ) = false then return false
@@ -123,19 +123,19 @@ function BuildImports _
     ctx.ifaceDirs.Clear( )
     ctx.ifaceTexts.Clear( )
     ctx.ifaceFiles.Clear( )
-    for i as long = 0 to g.chains.Count - 1
+    for i as int32 = 0 to g.chains.Count - 1
         ctx.ifaceChains.Push( g.chains[i] )
         ctx.ifaceDirs.Push( NormPath( g.dirs[i] ) )
         ctx.ifaceTexts.Push( "" )
-        ctx.ifaceFiles.Push( cast( ulong, Tko.FILE_NONE ) )
+        ctx.ifaceFiles.Push( cast( uint32, Tko.FILE_NONE ) )
     next
     ctx.ifaceOrder.Clear( )
-    for each o as ulong in g.order
+    for each o as uint32 in g.order
         ctx.ifaceOrder.Push( o )
     next
     ctx.ifaceEdgeFrom.Clear( )
     ctx.ifaceEdgeTo.Clear( )
-    for e as long = 0 to g.edgeFrom.Count - 1
+    for e as int32 = 0 to g.edgeFrom.Count - 1
         ctx.ifaceEdgeFrom.Push( g.edgeFrom[e] )
         ctx.ifaceEdgeTo.Push( g.edgeTo[e] )
     next
@@ -149,13 +149,13 @@ function BuildImports _
     '' here and stored once the queue has drained.
     dim as Tko.StrVec storeKeys, storeObjs, storeIfaces, storeLibs, storeChains, storeDeps
 
-    for each n as ulong in g.order
+    for each n as uint32 in g.order
         ctx.modChain = g.chains[n]
         ctx.modPkgName = g.pkgNames[n]
         ctx.modPkgRoot = g.pkgRoots[n]
         ctx.modName = mid( ctx.modChain, instrrev( ctx.modChain, "." ) + 1 )
         ctx.modFiles.Clear( )
-        for k as long = 0 to g.fileCount[n] - 1
+        for k as int32 = 0 to g.fileCount[n] - 1
             ctx.modFiles.Push( g.fileIds[g.fileFirst[n] + k] )
         next
         ctx.modFileCount = ctx.modFiles.Count
@@ -165,7 +165,7 @@ function BuildImports _
         '' whatever this one's errors, because the code being scanned is being written.
         if scanOnly then
             dim as Tko.StrVec noRestart
-            Tko.Driver.CompileUnit( ctx, cast( long, ctx.modFiles[0] ), 1, 1, false, _
+            Tko.Driver.CompileUnit( ctx, cast( int32, ctx.modFiles[0] ), 1, 1, false, _
                                     linkObjs, tempObjs, toolExit, noRestart )
             continue for
         end if
@@ -193,7 +193,7 @@ function BuildImports _
             end if
             linkObjs.Push( hitObj )
             ctx.ifaceTexts[n] = hitIface
-            ctx.ifaceFiles[n] = cast( ulong, ctx.sources.AddVirtual( ctx.modChain & ".tki", hitIface ) )
+            ctx.ifaceFiles[n] = cast( uint32, ctx.sources.AddVirtual( ctx.modChain & ".tki", hitIface ) )
             ReplayLibs( ctx, hitLibs )
             continue for
         end if
@@ -202,13 +202,13 @@ function BuildImports _
         end if
 
         '' WHAT THIS MODULE ADDS TO THE LINK is what its compile appends, and is recorded.
-        dim as long libs0 = ctx.options.pragmaLibs.Count
-        dim as long paths0 = ctx.options.pragmaLibPaths.Count
-        dim as long files0 = ctx.options.pragmaLibFiles.Count
-        dim as long objs0 = linkObjs.Count
+        dim as int32 libs0 = ctx.options.pragmaLibs.Count
+        dim as int32 paths0 = ctx.options.pragmaLibPaths.Count
+        dim as int32 files0 = ctx.options.pragmaLibFiles.Count
+        dim as int32 objs0 = linkObjs.Count
         dim as Tko.StrVec restartArgs
         '' A module cannot '#cmdline' (TKO0366), so this never asks for a restart.
-        Tko.Driver.CompileUnit( ctx, cast( long, ctx.modFiles[0] ), 1, 1, true, _
+        Tko.Driver.CompileUnit( ctx, cast( int32, ctx.modFiles[0] ), 1, 1, true, _
                                 linkObjs, tempObjs, toolExit, restartArgs )
         if (toolExit <> Tko.EXIT_OK) orelse Tko.Driver.FrontendFailed_( ctx ) then exit for
         Tko.Build.OnUnit( ctx.build, "module", ctx.modChain, "miss" )
@@ -232,10 +232,10 @@ function BuildImports _
         end if
     next
     if storeKeys.Count > 0 then
-        dim as long drained = Tko.Driver.DrainObjects( ctx )
+        dim as int32 drained = Tko.Driver.DrainObjects( ctx )
         if (drained <> Tko.EXIT_OK) andalso (toolExit = Tko.EXIT_OK) then toolExit = drained
         if toolExit = Tko.EXIT_OK then
-            for k as long = 0 to storeKeys.Count - 1
+            for k as int32 = 0 to storeKeys.Count - 1
                 ModuleCacheCommit( cacheRoot, storeKeys[k], storeChains[k], storeObjs[k], _
                                    storeIfaces[k], storeLibs[k], storeDeps[k] )
             next
@@ -252,7 +252,7 @@ function BuildImports _
     return (toolExit = Tko.EXIT_OK) andalso (Tko.Driver.FrontendFailed_( ctx ) = false)
 end function
 
-function EmitInterface( byref ctx as Tko.CompilerContext, byref dir_ as string ) as long
+function EmitInterface( byref ctx as Tko.CompilerContext, byref dir_ as string ) as int32
     dim as string d = AbsPath( dir_ )
     while (len( d ) > 1) andalso (right( d, 1 ) = "/")
         d = left( d, len( d ) - 1 )
@@ -273,7 +273,7 @@ function EmitInterface( byref ctx as Tko.CompilerContext, byref dir_ as string )
     dim as string path_ = "./" & mid( d, instrrev( d, "/" ) + 1 )
     if w.pkgName <> ANON_PACKAGE then
         path_ = w.chain
-        for i as long = 0 to len( path_ ) - 1
+        for i as int32 = 0 to len( path_ ) - 1
             if path_[i] = 46 then path_[i] = 47
         next
     end if
@@ -285,14 +285,14 @@ function EmitInterface( byref ctx as Tko.CompilerContext, byref dir_ as string )
     if len( privDir ) = 0 then privDir = environ( "TEMP" )
     ctx.options.outputPath = JoinPath( privDir, "tiko-emit-tki" )
     dim as Tko.StrVec linkObjs, tempObjs
-    dim as long toolExit = Tko.EXIT_OK
+    dim as int32 toolExit = Tko.EXIT_OK
     dim as boolean ok = BuildImports( ctx, 1, linkObjs, tempObjs, toolExit )
     for each t as string in tempObjs
         if fs.IsFile( t ) then kill( t )
     next
     if privDir <> environ( "TEMP" ) then fs.RemoveDirAll( privDir )
     if ok = false then return iif( toolExit <> Tko.EXIT_OK, toolExit, Tko.EXIT_USER_ERROR )
-    for i as long = 0 to ctx.ifaceDirs.Count - 1
+    for i as int32 = 0 to ctx.ifaceDirs.Count - 1
         dim as string a = AbsPath( ctx.ifaceDirs[i] ), b = AbsPath( d )
         #ifdef __FB_WIN32__
             a = Tko.Text.LowerAscii( a ) : b = Tko.Text.LowerAscii( b )

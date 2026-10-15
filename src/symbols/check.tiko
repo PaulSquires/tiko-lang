@@ -19,15 +19,15 @@ type Ctx
     '' How deep the CONST-initialiser chain is. 'const A = B' takes its type from B,
     '' so a circular pair would recurse until the stack ran out; a compiler must not
     '' fall over on input fbc merely rejects.
-    as long                     constDepth
+    as int32                     constDepth
     '' THE UNTYPED MEMO -- see TypeOf_ (audit F-36).
-    as long                     typeDepth
-    as ulong                    memoEpoch
-    as containers.Array( of ulong )     memoEp
-    as containers.Array( of ulong )     memoVer
+    as int32                     typeDepth
+    as uint32                    memoEpoch
+    as containers.Array( of uint32 )     memoEp
+    as containers.Array( of uint32 )     memoVer
 end type
 
-const CONST_DEPTH_MAX as long = 64
+const CONST_DEPTH_MAX as int32 = 64
 
 '' ------------------------------------------------------------------- classes
 
@@ -42,7 +42,7 @@ declare function IsPointerSized_ _
 declare function PointerCost_ _
     ( byval from_ as Tko.TypeId, byval to_ as Tko.TypeId, _
       byval srcP as boolean, byval dstP as boolean, _
-      byref types as Tko.TypeContext, byval overloaded as boolean ) as long
+      byref types as Tko.TypeContext, byval overloaded as boolean ) as int32
 
 private function IsFloat_( byval b as Tko.BuiltinType ) as boolean
     return (b = Tko.TY_SINGLE) orelse (b = Tko.TY_DOUBLE)
@@ -172,7 +172,7 @@ end function
 '' 'byte \ double' is INTEGER and not LONGINT -- measured, and the difference only
 '' shows on win32 where those two are not the same type.
 private function IntWidth_ _
-    ( byval b as Tko.BuiltinType, byref types as Tko.TypeContext ) as long
+    ( byval b as Tko.BuiltinType, byref types as Tko.TypeContext ) as int32
     if IsInt_( b ) = false then return 0
     return types.Layout( types.Builtin( b ) ).size
 end function
@@ -181,10 +181,10 @@ private function IntResult_ _
     ( byval lb as Tko.BuiltinType, byval rb as Tko.BuiltinType, _
       byref types as Tko.TypeContext ) as Tko.TypeId
 
-    dim as long iw = IntWidth_( Tko.TY_INTEGER, types )
-    dim as long lw = IntWidth_( lb, types )
-    dim as long rw = IntWidth_( rb, types )
-    dim as long w = iw
+    dim as int32 iw = IntWidth_( Tko.TY_INTEGER, types )
+    dim as int32 lw = IntWidth_( lb, types )
+    dim as int32 rw = IntWidth_( rb, types )
+    dim as int32 w = iw
     if lw > w then w = lw
     if rw > w then w = rw
 
@@ -211,7 +211,7 @@ end function
 '' INTEGER sits before LONGINT even though both are 64-bit, and an argument of type
 '' LONG offered 'integer' and 'longint' picks INTEGER. Rank is used only to break
 '' ties within a conversion class, and to tell widening from narrowing.
-private function Rank_( byval b as Tko.BuiltinType ) as long
+private function Rank_( byval b as Tko.BuiltinType ) as int32
     select case b
     case Tko.TY_BYTE     : return 1
     case Tko.TY_UBYTE    : return 2
@@ -279,11 +279,11 @@ end function
 '' is symmetric: a ZSTRING source puts 'string' first and a STRING source puts
 '' 'zstring' first.
 private function StringPref_ _
-    ( byval srcB as Tko.BuiltinType, byval dstB as Tko.BuiltinType ) as long
+    ( byval srcB as Tko.BuiltinType, byval dstB as Tko.BuiltinType ) as int32
 
     if IsStringy_( srcB ) = false then return -1
     if IsStringy_( dstB ) = false then return -1
-    dim as long order( 0 to 3 )
+    dim as int32 order( 0 to 3 )
     select case srcB
     case Tko.TY_STRING
         order(0) = Tko.TY_ZSTRING : order(1) = Tko.TY_STRING
@@ -298,7 +298,7 @@ private function StringPref_ _
         order(0) = Tko.TY_ZSTRING : order(1) = Tko.TY_USTRING
         order(2) = Tko.TY_STRING  : order(3) = Tko.TY_WSTRING
     end select
-    for i as long = 0 to 3
+    for i as int32 = 0 to 3
         if order( i ) = dstB then return i
     next
     return -1
@@ -417,7 +417,7 @@ private function FieldOf_ _
         dim as Tko.SymbolId lit = c.syms->LookupLocal( s->inner, litNm )
         dim as Tko.Symbol ptr ls = c.syms->SymbolAt( lit )
         if ls <> 0 then
-            if ls->kind = cast( ubyte, Tko.SYM_FIELD ) then return lit
+            if ls->kind = cast( uint8, Tko.SYM_FIELD ) then return lit
         end if
     end if
     dim as Tko.SymbolId found = c.syms->LookupLocal( s->inner, nm )
@@ -459,7 +459,7 @@ private function FieldOf_ _
     if gnode = Tko.NODE_NONE then return Tko.SYMBOL_NONE
     if c.ast->Kind( gnode ) <> Tko.N_TYPE then return Tko.SYMBOL_NONE
     dim as Tko.StmtPayload ptr gp = _
-        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, gnode )].data )]
+        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, gnode )].data )]
     if gp->b = Tko.NODE_NONE then return Tko.SYMBOL_NONE      '' not a generic
     if gp->name = 0 then return Tko.SYMBOL_NONE
     if gp->name = tn then return Tko.SYMBOL_NONE              '' it IS the generic
@@ -474,7 +474,7 @@ end function
 
 private function StmtOf _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.StmtPayload ptr
-    return @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    return @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
 end function
 
 #include once "symbols/tuplenames.tiko"
@@ -532,7 +532,7 @@ function DecimalLitUnsigned( byref lp as Tko.LiteralPayload ) as boolean
 end function
 
 '' A literal class as the builtin it is (lexer/littype.tiko).
-function LitClassBuiltin( byref types as Tko.TypeContext, byval lc as long ) as Tko.TypeId
+function LitClassBuiltin( byref types as Tko.TypeContext, byval lc as int32 ) as Tko.TypeId
     select case lc
     case Tko.LC_UINTEGER : return types.Builtin( Tko.TY_UINTEGER )
     case Tko.LC_LONG     : return types.Builtin( Tko.TY_LONG )
@@ -551,7 +551,7 @@ private function LiteralType_ _
     select case c.ast->Kind( id )
     case Tko.N_INT_LIT
         dim as Tko.LiteralPayload ptr lp = _
-            @c.ast->literals[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->literals[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         '' THE LITERAL MODEL (lexer/littype.tiko) -- suffix first, then by magnitude and radix, as
         '' fbc's lexer types it. Typed INTEGER always, 's < 3000000000' over 'dim s as integer =
         '' -1' was TRUE and '3000000000 \ -2' negative, where fbc reads the literal unsigned.
@@ -563,7 +563,7 @@ private function LiteralType_ _
         '' double' for 'u( 1.0f ), u( 1.0! ), u( 1.0 )' and tiko answered double
         '' three times. The lexer already records NSUF_SINGLE; nothing read it.
         dim as Tko.LiteralPayload ptr fp = _
-            @c.ast->literals[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->literals[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         return LitClassBuiltin( *c.types, Tko.LiteralClassOf( fp->suffix, fp->radix, 0, true, true ) )
     case Tko.N_STRING_LIT, Tko.N_STRCAT
         return c.types->Builtin( Tko.TY_STRING )
@@ -621,7 +621,7 @@ function TypeOf_ _
     if id = Tko.NODE_NONE then return Tko.TYPE_NONE
     dim as Tko.TypeId known = c.info->TypeOf_( id )
     if known <> Tko.TYPE_NONE then return known
-    dim as long n = cast( long, id )
+    dim as int32 n = cast( int32, id )
     if c.typeDepth = 0 then c.memoEpoch += 1
     if n < c.memoEp.Count then
         if (c.memoEp[n] = c.memoEpoch) andalso (c.memoVer[n] = c.info->version) then
@@ -675,7 +675,7 @@ private function TypeOfUncached_ _
     case Tko.N_IDENT
         dim as Tko.SymbolId sid = ParenlessMethodOf_( c, c.info->RefOf( id ), id )
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-        if s <> 0 then t = s->type_ : if (s->kind = cast( ubyte, Tko.SYM_PROC )) andalso c.types->IsDynArray( t ) then t = Tko.TYPE_NONE   '' an ARRAY RESULT is not the procedure's own type: the callee of 'f( )' must not read as an array being subscripted
+        if s <> 0 then t = s->type_ : if (s->kind = cast( uint8, Tko.SYM_PROC )) andalso c.types->IsDynArray( t ) then t = Tko.TYPE_NONE   '' an ARRAY RESULT is not the procedure's own type: the callee of 'f( )' must not read as an array being subscripted
 
         '' A REFERENCE IS TRANSPARENT IN AN EXPRESSION. 'byref n as integer' makes the
         '' SYMBOL a reference-to-integer, because the slot has to hold an address, but
@@ -695,7 +695,7 @@ private function TypeOfUncached_ _
         '' can be typed before the declaration is reached and TypeOf_ memoises: an
         '' early use would cache TYPE_NONE and never look again.
         if (t = Tko.TYPE_NONE) andalso (s <> 0) then
-            if (s->kind = cast( ubyte, Tko.SYM_CONSTANT )) andalso (s->payload <> 0) then
+            if (s->kind = cast( uint8, Tko.SYM_CONSTANT )) andalso (s->payload <> 0) then
                 dim as Tko.NodeId item = cast( Tko.NodeId, s->payload )
                 if c.ast->Kind( item ) = Tko.N_VAR_ITEM then
                     if c.constDepth < CONST_DEPTH_MAX then
@@ -725,7 +725,7 @@ private function TypeOfUncached_ _
         '' be typed before the declaration is walked, and TypeOf_ memoises, so binding
         '' this eagerly would cache TYPE_NONE against the early use and never revisit.
         if (t = Tko.TYPE_NONE) andalso (s <> 0) then
-            if (s->kind = cast( ubyte, Tko.SYM_VARIABLE )) andalso (s->payload <> 0) then
+            if (s->kind = cast( uint8, Tko.SYM_VARIABLE )) andalso (s->payload <> 0) then
                 dim as Tko.NodeId item = cast( Tko.NodeId, s->payload )
                 if c.ast->Kind( item ) = Tko.N_VAR_ITEM then
                     dim as Tko.StmtPayload ptr ip = StmtOf( c, item )
@@ -756,7 +756,7 @@ private function TypeOfUncached_ _
         '' tuple has no target and is left alone here, so the tuple feature is
         '' untouched.
         dim as Tko.ListPayload ptr tl = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         if tl->target <> Tko.NODE_NONE then
             if c.ast->Kind( tl->target ) = Tko.N_TYPEREF then
                 t = c.info->TypeOf_( tl->target )
@@ -774,16 +774,16 @@ private function TypeOfUncached_ _
             ''
             '' ComputeUdtLayouts runs AFTER Check and walks symbols, so a type declared
             '' here is laid out with every other.
-            dim as containers.Array( of ulong ) tets
+            dim as containers.Array( of uint32 ) tets
             dim as boolean allTyped = true
-            for i as long = 0 to tl->count - 1
+            for i as int32 = 0 to tl->count - 1
                 dim as Tko.TypeId et = _
                     TypeOf_( c, cast( Tko.NodeId, c.ast->children[tl->first + i] ) )
                 if et = Tko.TYPE_NONE then
                     allTyped = false
                     exit for
                 end if
-                tets.Push( cast( ulong, c.types->Unqualify( et ) ) )
+                tets.Push( cast( uint32, c.types->Unqualify( et ) ) )
             next
             if allTyped then
                 t = Tko.TupleUdtFor( *c.syms, *c.types, *c.names, tets, c.ast->Loc( id ) )
@@ -797,14 +797,14 @@ private function TypeOfUncached_ _
         '' pool indexes a different array entirely, which is a segfault, not a
         '' wrong answer.
         dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         if lp->count > 0 then
             t = TypeOf_( c, cast( Tko.NodeId, c.ast->children[lp->first] ) )
         end if
 
     case Tko.N_UNARY
         dim as Tko.UnaryPayload ptr up = _
-            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         dim as Tko.TypeId inner = TypeOf_( c, up->operand )
         dim as Tko.TokenKind op = cast( Tko.TokenKind, up->op )
 
@@ -885,7 +885,7 @@ private function TypeOfUncached_ _
 
     case Tko.N_BINARY
         dim as Tko.BinaryPayload ptr bp = _
-            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         dim as Tko.TypeId lt = TypeOf_( c, bp->lhs )
         dim as Tko.TypeId rt = TypeOf_( c, bp->rhs )
         dim as Tko.TokenKind op = cast( Tko.TokenKind, bp->op )
@@ -907,7 +907,7 @@ private function TypeOfUncached_ _
         '' 'x - y' over two UDTs went down the builtin path -- and a UDT with an
         '' 'operator cast' to a number then SUBTRACTED THE RAW AGGREGATES as integers,
         '' emitting code, verifying, and never calling the operator that was written.
-        dim as Tko.SymbolId uop = Tko.SYMBOL_NONE : dim as long uopSeen = 0
+        dim as Tko.SymbolId uop = Tko.SYMBOL_NONE : dim as int32 uopSeen = 0
         if IsUdtOperand_( c, lt ) orelse IsUdtOperand_( c, rt ) then
             uop = UserBinaryOp_( c, op, lt, rt, uopSeen )
             if uop <> Tko.SYMBOL_NONE then
@@ -967,7 +967,7 @@ private function TypeOfUncached_ _
                     '' what fbc gives one: the members carry values, and only the enum
                     '' TYPE carries a name.
                     if (t = Tko.TYPE_NONE) andalso _
-                       (qs->kind = cast( ubyte, Tko.SYM_ENUMCONST )) then
+                       (qs->kind = cast( uint8, Tko.SYM_ENUMCONST )) then
                         t = c.types->Builtin( Tko.TY_INTEGER )
                     end if
                     exit select
@@ -1000,7 +1000,7 @@ private function TypeOfUncached_ _
         end if
 
         dim as Tko.BinaryPayload ptr mp = _
-            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         dim as Tko.TypeId bt = TypeOf_( c, mp->lhs )
         '' 'p->f' and 'p.f' on a pointer both reach through it, and CONST is
         '' transparent on the way: 'byref x as const T' and 'byval p as const T ptr'
@@ -1024,12 +1024,12 @@ private function TypeOfUncached_ _
         ''
         '' Only when the base has no field of that name itself: a UDT may declare both.
         if (bt <> Tko.TYPE_NONE) andalso _
-           ((c.ast->nodes[cast( long, id )].flags and Tko.NF_ARROW) <> 0) then
+           ((c.ast->nodes[cast( int32, id )].flags and Tko.NF_ARROW) <> 0) then
             if c.types->Kind( bt ) = Tko.TK_UDT then
                 dim as boolean haveOwn = false
                 if c.ast->Kind( mp->rhs ) = Tko.N_IDENT then
                     dim as Tko.IdentPayload ptr ap0 = _
-                        @c.ast->idents[cast( long, c.ast->nodes[cast( long, mp->rhs )].data )]
+                        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, mp->rhs )].data )]
                     haveOwn = (FieldOf_( c, bt, ap0->name ) <> Tko.SYMBOL_NONE)
                 end if
                 if haveOwn = false then
@@ -1055,7 +1055,7 @@ private function TypeOfUncached_ _
         if (bt <> Tko.TYPE_NONE) andalso (c.ast->Kind( mp->rhs ) = Tko.N_IDENT) then
             if c.types->Kind( bt ) = Tko.TK_ENUM then
                 dim as Tko.IdentPayload ptr eip = _
-                    @c.ast->idents[cast( long, c.ast->nodes[cast( long, mp->rhs )].data )]
+                    @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, mp->rhs )].data )]
                 dim as Tko.ScopeId eds = cast( Tko.ScopeId, c.types->DeclScopeOf( bt ) )
                 dim as Tko.InternId etn = c.types->NameOf( bt )
                 dim as Tko.SymbolId ets = c.syms->LookupLocalTyped( eds, etn, true )
@@ -1081,7 +1081,7 @@ private function TypeOfUncached_ _
 
         if (bt <> Tko.TYPE_NONE) andalso (c.ast->Kind( mp->rhs ) = Tko.N_IDENT) then
             dim as Tko.IdentPayload ptr ip = _
-                @c.ast->idents[cast( long, c.ast->nodes[cast( long, mp->rhs )].data )]
+                @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, mp->rhs )].data )]
             dim as Tko.SymbolId fs = FieldOf_( c, bt, ip->name )
             if fs = Tko.SYMBOL_NONE then fs = TupleNamedField_( c, bt, mp->lhs, mp->rhs )   '' 'r.tl' -- tuplenames.tiko
             '' A PROPERTY OVERLOAD SET'S HEAD MAY BE THE SETTER, and a setter has no
@@ -1152,7 +1152,7 @@ private function TypeOfUncached_ _
         '' chain. Score every candidate against the arguments and take the unique
         '' cheapest -- a tie is an ambiguous call, not a silent pick.
         dim as Tko.ListPayload ptr cp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         '' Indexing and calling share a spelling, so the callee's TYPE decides which
         '' this is. An array subscript yields the ELEMENT type; without this the whole
         '' expression is untyped and every use of a(i) falls back to nothing.
@@ -1179,8 +1179,8 @@ private function TypeOfUncached_ _
                     '' 'Alias( ).a' left the call untyped and the '.a' on it had nothing
                     '' to offset from -- while 'T( ).a' and 'type<Alias>( ).a' beside it
                     '' both worked.
-                    dim as boolean udtCallee = (cs2->kind = cast( ubyte, Tko.SYM_UDT ))
-                    if cs2->kind = cast( ubyte, Tko.SYM_TYPEDEF ) then
+                    dim as boolean udtCallee = (cs2->kind = cast( uint8, Tko.SYM_UDT ))
+                    if cs2->kind = cast( uint8, Tko.SYM_TYPEDEF ) then
                         '' THE TYPEDEF'S OWN TYPE IS A TK_TYPEDEF PLACEHOLDER, not the
                         '' UDT -- so what says this names an object is the type the
                         '' NAME resolves to, which is already in hand.
@@ -1269,7 +1269,7 @@ private function TypeOfUncached_ _
         '' 'new T' IS A POINTER TO T, whatever else it is. Resolve typed the target as
         '' a type reference; this turns it into the pointer the expression yields.
         dim as Tko.ListPayload ptr np = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         if np->target <> Tko.NODE_NONE then
             dim as Tko.TypeId nt = c.info->TypeOf_( np->target )
             if nt <> Tko.TYPE_NONE then t = c.types->Pointer_( nt )
@@ -1283,7 +1283,7 @@ private function TypeOfUncached_ _
         ''
         '' In -lang fb '[ ]' is only ever pointer indexing, so the type is the pointee.
         dim as Tko.ListPayload ptr xp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         if xp->target <> Tko.NODE_NONE then
             dim as Tko.TypeId pt = TypeOf_( c, xp->target )
             if pt <> Tko.TYPE_NONE then
@@ -1378,7 +1378,7 @@ private function TypeOfUncached_ _
     case Tko.N_DEREF
         '' Built by MakeUnary, so the payload is a UNARY, not a statement.
         dim as Tko.UnaryPayload ptr dp = _
-            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         dim as Tko.TypeId inner = TypeOf_( c, dp->operand )
         if inner <> Tko.TYPE_NONE then
             if c.types->Kind( inner ) = Tko.TK_POINTER then t = c.types->Inner( inner )
@@ -1404,7 +1404,7 @@ private function TypeOfUncached_ _
 
     case Tko.N_ADDROF
         dim as Tko.UnaryPayload ptr ap = _
-            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         '' '@mysub' AND '@myfunc' -- A PROCEDURE has no type of its own on its
         '' symbol: that slot holds its RETURN type. So the operand of '@f' came
         '' back typed LONG and 'var v = @f' inferred 'long ptr', while '@s' over a
@@ -1420,7 +1420,7 @@ private function TypeOfUncached_ _
         dim as Tko.SymbolId psid = c.info->RefOf( ap->operand )
         dim as Tko.Symbol ptr psym = c.syms->SymbolAt( psid )
         '' '@x.f' over a BYREF PROPERTY GETTER is its answer's address, 'integer ptr' (checkbase.tiko).
-        if (psym <> 0) andalso (psym->kind = cast( ubyte, Tko.SYM_PROC )) then
+        if (psym <> 0) andalso (psym->kind = cast( uint8, Tko.SYM_PROC )) then
             if ByrefPropOperand_( c, ap->operand, psym ) = false then t = ProcTypeOfSymbol_( c, psid )
         end if
         if t = Tko.TYPE_NONE then
@@ -1435,7 +1435,7 @@ private function TypeOfUncached_ _
             if aop <> Tko.SYMBOL_NONE then
                 dim as Tko.Symbol ptr aos = c.syms->SymbolAt( aop )
                 if aos <> 0 then
-                    if (aos->kind = cast( ubyte, Tko.SYM_PROC )) andalso _
+                    if (aos->kind = cast( uint8, Tko.SYM_PROC )) andalso _
                        (aos->type_ <> Tko.TYPE_NONE) then
                         t = aos->type_
                     end if
@@ -1469,7 +1469,7 @@ function Run _
     ( byref ast as Tko.AstArena, byval root as Tko.NodeId, _
       byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
       byref names as Tko.Interner, byref diags as Tko.DiagnosticEngine, _
-      byref info as Tko.SemanticInfo, byref st as Stats ) as long
+      byref info as Tko.SemanticInfo, byref st as Stats ) as int32
 
     dim as Ctx c
     c.ast = @ast

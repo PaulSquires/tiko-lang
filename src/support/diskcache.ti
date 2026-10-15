@@ -21,7 +21,7 @@ declare function ReadAll( byref path_ as string, byref text as string ) as boole
 
 '' Write under a temporary name, then move it over the real one. 'serial' tells apart the
 '' temporaries of one commit made in the same microsecond.
-declare function Commit( byref path_ as string, byref text as string, byval serial as long ) as boolean
+declare function Commit( byref path_ as string, byref text as string, byval serial as int32 ) as boolean
 
 '' <the user's cache directory>/tiko/<leaf>: %LOCALAPPDATA% on Windows, $XDG_CACHE_HOME or
 '' ~/.cache elsewhere. "" when the environment names none.

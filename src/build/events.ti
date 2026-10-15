@@ -17,12 +17,12 @@ namespace Tko.Build
 
     type Observer
         as boolean json
-        as double  t0
-        as long    units          '' unit events so far
+        as float64  t0
+        as int32    units          '' unit events so far
         as boolean finished       '' OnFinish ran: the driver's run reached its end
-        as long    exitCode
-        as long    errors
-        as long    warnings
+        as int32    exitCode
+        as int32    errors
+        as int32    warnings
         '' 'tiko metadata' (B2): what a '--print-graph' run reports instead of printing --
         '' each module once, as a JSON object, and where the last run looked for imports.
         as Tko.StrVec modChains
@@ -38,12 +38,12 @@ namespace Tko.Build
         ( byval obs as any ptr, byref kind as string, byref unitName as string, byref status as string )
     '' How many units the build has -- modules and roots -- once the module graph is known,
     '' before the first unit event: {"event":"plan","units":N}.
-    declare sub OnPlan( byval obs as any ptr, byval units as long )
+    declare sub OnPlan( byval obs as any ptr, byval units as int32 )
     '' 'kind' is "exe", "dll", "lib" or "obj"; the path as the link wrote it.
     declare sub OnArtifact( byval obs as any ptr, byref kind as string, byref path_ as string )
     '' The run's totals, from DiagOut.Finish -- once per run, the '#cmdline' restart included.
     declare sub OnFinish _
-        ( byval obs as any ptr, byval errors as long, byval warnings as long, byval rc as long )
+        ( byval obs as any ptr, byval errors as int32, byval warnings as int32, byval rc as int32 )
 
     '' One module of a '--print-graph' run: its chain, directory, package, files and the chains
     '' it imports. Kept once per chain, across the runs of every target.

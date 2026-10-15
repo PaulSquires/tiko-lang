@@ -33,18 +33,18 @@ namespace Tko
     end enum
 
     type PhaseTimes
-        as double secs(0 to PH_COUNT - 1)
-        as long   hits(0 to PH_COUNT - 1)
+        as float64 secs(0 to PH_COUNT - 1)
+        as int32   hits(0 to PH_COUNT - 1)
         '' THE MODULE BUILD (ADR 0017) as one wall-clock span: its units' phases are ALSO in
         '' the rows above, so it is reported as 'of which', never added to them.
-        as double importSecs
+        as float64 importSecs
         '' clang's own run time summed over every job -- more than PH_CLANG once the jobs
         '' overlap the front end or each other, and the difference is what overlapping saved.
-        as double clangBusy
-        as long   clangJobs
-        declare sub Add( byval ph as PhaseId, byval t0 as double )
+        as float64 clangBusy
+        as int32   clangJobs
+        declare sub Add( byval ph as PhaseId, byval t0 as float64 )
     end type
 
-    declare sub ReportPhaseTimes( byref pt as PhaseTimes, byval total as double )
+    declare sub ReportPhaseTimes( byref pt as PhaseTimes, byval total as float64 )
 
 end namespace

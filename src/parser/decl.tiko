@@ -69,8 +69,8 @@ private function RawSpelling( byref p as Tko.ParserState ) as Tko.InternId
     dim as Tko.DecodedLoc d : d.offset = p.src->LocOffset( t.loc, d.file )   '' no column: O(1)
     dim as Tko.SourceFile ptr f = p.src->FileAt( d.file )
     if f = 0 then return 0
-    if (d.offset + cast( long, t.length )) > f->text.Count then return 0
-    dim as Tko.InternId raw = p.names->Get( @f->text[d.offset], cast( long, t.length ) )
+    if (d.offset + cast( int32, t.length )) > f->text.Count then return 0
+    dim as Tko.InternId raw = p.names->Get( @f->text[d.offset], cast( int32, t.length ) )
     '' ...ONLY IF THOSE BYTES ARE ACTUALLY THIS TOKEN. A token the preprocessor
     '' BUILT -- a '##' paste, or a macro parameter substituted in -- keeps the
     '' location it was expanded at, so the source there spells the INVOCATION and
@@ -96,13 +96,13 @@ private function MakeMemberRef_ _
       byval lhs as Tko.NodeId, byval rhs as Tko.NodeId ) as Tko.NodeId
 
     dim as Tko.BinaryPayload bp
-    bp.op = cast( ushort, Tko.TK_DOT )
+    bp.op = cast( uint16, Tko.TK_DOT )
     bp.lhs = lhs
     bp.rhs = rhs
     p.ast->binaries.Push( bp )
     dim as Tko.NodeId n = _
         NewNodeAt( p, Tko.N_BINARY, dotTok.loc, p.ast->binaries.Count - 1 )
-    p.ast->nodes[cast( long, n )].kind = cast( ushort, Tko.N_MEMBER )
+    p.ast->nodes[cast( int32, n )].kind = cast( uint16, Tko.N_MEMBER )
     return n
 end function
 
@@ -160,9 +160,9 @@ private sub ParseArrayBoundsInto _
                 dim as Tko.StmtPayload rp
                 rp.a = lo
                 rp.b = BoundExpr( p )
-                dims.Push( cast( ulong, MakeStmt( p, Tko.N_CASE_RANGE, rt.loc, rp ) ) )
+                dims.Push( cast( uint32, MakeStmt( p, Tko.N_CASE_RANGE, rt.loc, rp ) ) )
             else
-                dims.Push( cast( ulong, lo ) )
+                dims.Push( cast( uint32, lo ) )
             end if
             if Accept( p, Tko.TK_COMMA ) = false then exit do
         loop
@@ -207,7 +207,7 @@ private function VarItem _
         '' THE CHAIN IS BUILT BY HAND, not through the postfix parser: that one takes
         '' the '( 0 to 2 )' that follows as a CALL and swallows the bounds -- the same
         '' reason the parenthesised form below reads its group explicitly.
-        dim as long dguard = 0
+        dim as int32 dguard = 0
         do
             dguard += 1
             if dguard > 64 then exit do
@@ -222,13 +222,13 @@ private function VarItem _
         loop
         if dbase = Tko.NODE_NONE then return ErrorNode( p, Tko.TKO0406 )
         sp.b = dbase
-        sp.extra = cast( ushort, Tko.KW_REDIM )
+        sp.extra = cast( uint16, Tko.KW_REDIM )
         ParseArrayBoundsInto( p, sp, t )
         '' ...AND THE 'AS' CLAUSE, which the plain form reads further down and this one
         '' left on the line: 'redim .array1(2 to 2) as integer' is namespace/redim-3.bas.
         if Accept( p, Tko.KW_AS ) then sp.a = TypeRef( p )
         dim as Tko.NodeId dn = MakeStmt( p, Tko.N_VAR_ITEM, t.loc, sp )
-        if sp.c <> Tko.NODE_NONE then p.ast->nodes[cast( long, dn )].flags or= Tko.NF_ARRAY
+        if sp.c <> Tko.NODE_NONE then p.ast->nodes[cast( int32, dn )].flags or= Tko.NF_ARRAY
         return dn
     end if
 
@@ -245,11 +245,11 @@ private function VarItem _
         Advance( p )                          '' '('
         sp.b = Expression( p )
         Expect( p, Tko.TK_RPAREN, ")" )
-        sp.extra = cast( ushort, Tko.KW_REDIM )
+        sp.extra = cast( uint16, Tko.KW_REDIM )
         ParseArrayBoundsInto( p, sp, t )
         if Accept( p, Tko.KW_AS ) then sp.a = TypeRef( p )
         dim as Tko.NodeId rn = MakeStmt( p, Tko.N_VAR_ITEM, t.loc, sp )
-        if sp.c <> Tko.NODE_NONE then p.ast->nodes[cast( long, rn )].flags or= Tko.NF_ARRAY
+        if sp.c <> Tko.NODE_NONE then p.ast->nodes[cast( int32, rn )].flags or= Tko.NF_ARRAY
         return rn
     end if
 
@@ -306,7 +306,7 @@ private function VarItem _
         if qexpr <> Tko.NODE_NONE then
             qexpr = MakeMemberRef_( p, dotTok, qexpr, MakeIdent( p, memberTok ) )
             if isArrow then
-                p.ast->nodes[cast( long, qexpr )].flags or= Tko.NF_ARROW
+                p.ast->nodes[cast( int32, qexpr )].flags or= Tko.NF_ARROW
             end if
         end if
     loop
@@ -317,7 +317,7 @@ private function VarItem _
     end if
     if isRedim andalso qualified andalso (qexpr <> Tko.NODE_NONE) then
         sp.b = qexpr
-        sp.extra = cast( ushort, Tko.KW_REDIM )
+        sp.extra = cast( uint16, Tko.KW_REDIM )
     end if
 
     ParseArrayBoundsInto( p, sp, t )
@@ -348,8 +348,8 @@ private function VarItem _
     end if
 
     dim as Tko.NodeId n = MakeStmt( p, Tko.N_VAR_ITEM, t.loc, sp )
-    if sp.c <> Tko.NODE_NONE then p.ast->nodes[cast( long, n )].flags or= Tko.NF_ARRAY
-    if qualified then p.ast->nodes[cast( long, n )].flags or= Tko.NF_QUALIFIED
+    if sp.c <> Tko.NODE_NONE then p.ast->nodes[cast( int32, n )].flags or= Tko.NF_ARRAY
+    if qualified then p.ast->nodes[cast( int32, n )].flags or= Tko.NF_QUALIFIED
     return n
 end function
 
@@ -372,7 +372,7 @@ end function
 '' two in one loop body -- distinct.
 private function VarDestructure _
     ( byref p as Tko.ParserState, byref t as Tko.Token, _
-      byref sp as Tko.StmtPayload, byval flags as ushort ) as Tko.NodeId
+      byref sp as Tko.StmtPayload, byval flags as uint16 ) as Tko.NodeId
 
     dim as Tko.Token lp = Cur( p )
     Advance( p )        '' '('
@@ -384,7 +384,7 @@ private function VarDestructure _
         if DeclName( p, nm ) = false then
             return ErrorNode( p, Tko.TKO0406 )
         end if
-        names.Push( cast( ulong, nm ) )
+        names.Push( cast( uint32, nm ) )
         if Accept( p, Tko.TK_COMMA ) = false then exit do
     loop
     Expect( p, Tko.TK_RPAREN, ")" )
@@ -404,33 +404,33 @@ private function VarDestructure _
     dim as Tko.StmtPayload tp
     tp.name = tmpName
     tp.b = rhs
-    items.Push( cast( ulong, MakeStmt( p, Tko.N_VAR_ITEM, lp.loc, tp ) ) )
+    items.Push( cast( uint32, MakeStmt( p, Tko.N_VAR_ITEM, lp.loc, tp ) ) )
 
-    for i as long = 0 to names.Count - 1
+    for i as int32 = 0 to names.Count - 1
         dim as Tko.IdentPayload bip
         bip.name = tmpName
         p.ast->idents.Push( bip )
         dim as Tko.NodeId base_ = _
-            NewNodeAt( p, Tko.N_IDENT, lp.loc, cast( ulong, p.ast->idents.Count - 1 ) )
+            NewNodeAt( p, Tko.N_IDENT, lp.loc, cast( uint32, p.ast->idents.Count - 1 ) )
         dim as Tko.IdentPayload fip
         fip.name = p.names->GetString( "_" & str( i + 1 ) )
         p.ast->idents.Push( fip )
         dim as Tko.NodeId fld = _
-            NewNodeAt( p, Tko.N_IDENT, lp.loc, cast( ulong, p.ast->idents.Count - 1 ) )
+            NewNodeAt( p, Tko.N_IDENT, lp.loc, cast( uint32, p.ast->idents.Count - 1 ) )
 
         dim as Tko.StmtPayload ep
         ep.name = cast( Tko.InternId, names[i] )
         ep.b = MakeMemberRef_( p, lp, base_, fld )
-        items.Push( cast( ulong, MakeStmt( p, Tko.N_VAR_ITEM, lp.loc, ep ) ) )
+        items.Push( cast( uint32, MakeStmt( p, Tko.N_VAR_ITEM, lp.loc, ep ) ) )
     next
 
     sp.first = p.ast->children.Count
     sp.count = items.Count
-    for i as long = 0 to items.Count - 1
+    for i as int32 = 0 to items.Count - 1
         p.ast->children.Push( items[i] )
     next
     dim as Tko.NodeId n = MakeStmt( p, Tko.N_VAR, t.loc, sp )
-    p.ast->nodes[cast( long, n )].flags or= (flags or Tko.NF_DECL_WRITTEN)
+    p.ast->nodes[cast( int32, n )].flags or= (flags or Tko.NF_DECL_WRITTEN)
     return n
 end function
 
@@ -461,29 +461,29 @@ function ForEachDestructure_ _
     if p.ast->Kind( body ) <> Tko.N_BLOCK then return body
 
     dim as Tko.NodeIdVec items
-    for i as long = 0 to names.Count - 1
+    for i as int32 = 0 to names.Count - 1
         dim as Tko.IdentPayload bip
         bip.name = tmpName
         p.ast->idents.Push( bip )
         dim as Tko.NodeId base_ = _
-            NewNodeAt( p, Tko.N_IDENT, t.loc, cast( ulong, p.ast->idents.Count - 1 ) )
+            NewNodeAt( p, Tko.N_IDENT, t.loc, cast( uint32, p.ast->idents.Count - 1 ) )
         dim as Tko.IdentPayload fip
         fip.name = p.names->GetString( "_" & str( i + 1 ) )
         p.ast->idents.Push( fip )
         dim as Tko.NodeId fld = _
-            NewNodeAt( p, Tko.N_IDENT, t.loc, cast( ulong, p.ast->idents.Count - 1 ) )
+            NewNodeAt( p, Tko.N_IDENT, t.loc, cast( uint32, p.ast->idents.Count - 1 ) )
 
         dim as Tko.StmtPayload ep
         ep.name = cast( Tko.InternId, names[i] )
         ep.b = MakeMemberRef_( p, t, base_, fld )
-        items.Push( cast( ulong, MakeStmt( p, Tko.N_VAR_ITEM, t.loc, ep ) ) )
+        items.Push( cast( uint32, MakeStmt( p, Tko.N_VAR_ITEM, t.loc, ep ) ) )
     next
 
     dim as Tko.StmtPayload vp
-    vp.op = cast( ushort, Tko.KW_VAR )
+    vp.op = cast( uint16, Tko.KW_VAR )
     vp.first = p.ast->children.Count
     vp.count = items.Count
-    for i as long = 0 to items.Count - 1
+    for i as int32 = 0 to items.Count - 1
         p.ast->children.Push( items[i] )
     next
     dim as Tko.NodeId decls = MakeStmt( p, Tko.N_VAR, t.loc, vp )
@@ -492,10 +492,10 @@ function ForEachDestructure_ _
     '' body's own run is already closed, so the declarations cannot be pushed in front
     '' of it in place. The old run is simply left unreferenced.
     dim as Tko.ListPayload ptr bl = _
-        @p.ast->lists[cast( long, p.ast->nodes[cast( long, body )].data )]
+        @p.ast->lists[cast( int32, p.ast->nodes[cast( int32, body )].data )]
     dim as Tko.NodeIdVec stmts
-    stmts.Push( cast( ulong, decls ) )
-    for i as long = 0 to bl->count - 1
+    stmts.Push( cast( uint32, decls ) )
+    for i as int32 = 0 to bl->count - 1
         stmts.Push( p.ast->children[bl->first + i] )
     next
     return MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, stmts )
@@ -505,8 +505,8 @@ end function
 private function ParseVarDecl( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.Token t = Cur( p )
     dim as Tko.StmtPayload sp
-    sp.op = cast( ushort, Peek( p ) )
-    dim as ushort flags = 0
+    sp.op = cast( uint16, Peek( p ) )
+    dim as uint16 flags = 0
 
     '' The leading keywords may stack: 'dim shared', 'static shared', 'redim preserve'.
     do
@@ -554,13 +554,13 @@ private function ParseVarDecl( byref p as Tko.ParserState ) as Tko.NodeId
     '' 'var (a, b) = expr' -- DESTRUCTURING DECLARATION, which had no parse at all:
     '' the '(' was read where a name belongs and the whole statement died as
     '' 'expected an identifier'.
-    if (sp.op = cast( ushort, Tko.KW_VAR )) andalso (Peek( p ) = Tko.TK_LPAREN) then
+    if (sp.op = cast( uint16, Tko.KW_VAR )) andalso (Peek( p ) = Tko.TK_LPAREN) then
         if sharedType = Tko.NODE_NONE then return VarDestructure( p, t, sp, flags )
     end if
 
     dim as Tko.NodeIdVec items
     do
-        dim as long before = p.pos
+        dim as int32 before = p.pos
         '' 'byref' AGAIN, ON A LATER ITEM: 'dim byref r1 as integer = i, byref r2 as
         '' integer = i' is two aliases, and fbc reads the second 'byref' as a modifier
         '' exactly like the first. Only the LEADING one was consumed, by the modifier
@@ -575,15 +575,15 @@ private function ParseVarDecl( byref p as Tko.ParserState ) as Tko.NodeId
             Advance( p )
             itemByref = true
         end if
-        dim as Tko.NodeId item = VarItem( p, sp.op = cast( ushort, Tko.KW_REDIM ) )
-        if itemByref then p.ast->nodes[cast( long, item )].flags or= Tko.NF_BYREF
-        items.Push( cast( ulong, item ) )
+        dim as Tko.NodeId item = VarItem( p, sp.op = cast( uint16, Tko.KW_REDIM ) )
+        if itemByref then p.ast->nodes[cast( int32, item )].flags or= Tko.NF_BYREF
+        items.Push( cast( uint32, item ) )
         '' The item may be an ERROR node, which has no StmtPayload -- indexing its
         '' 'data' as one is a segfault. Error nodes must be checked for, never
         '' assumed away (docs/plan/05 invariant 5).
         dim as boolean isItem = (p.ast->Kind( item ) = Tko.N_VAR_ITEM)
         if isItem andalso (sharedType <> Tko.NODE_NONE) then
-            dim as long si = cast( long, p.ast->nodes[cast( long, item )].data )
+            dim as int32 si = cast( int32, p.ast->nodes[cast( int32, item )].data )
             if p.ast->stmts[si].a = Tko.NODE_NONE then p.ast->stmts[si].a = sharedType
         end if
         if isItem = false then exit do
@@ -593,12 +593,12 @@ private function ParseVarDecl( byref p as Tko.ParserState ) as Tko.NodeId
 
     sp.first = p.ast->children.Count
     sp.count = items.Count
-    for i as long = 0 to items.Count - 1
+    for i as int32 = 0 to items.Count - 1
         p.ast->children.Push( items[i] )
     next
 
     dim as Tko.NodeId n = MakeStmt( p, Tko.N_VAR, t.loc, sp )
-    p.ast->nodes[cast( long, n )].flags or= (flags or Tko.NF_DECL_WRITTEN)
+    p.ast->nodes[cast( int32, n )].flags or= (flags or Tko.NF_DECL_WRITTEN)
     return n
 end function
 
@@ -623,15 +623,15 @@ private function ParseConstDecl( byref p as Tko.ParserState ) as Tko.NodeId
 
     do
         dim as Tko.NodeId item = VarItem( p, false )
-        items.Push( cast( ulong, item ) )
+        items.Push( cast( uint32, item ) )
         '' TOLD TO THE PREPROCESSOR AS EACH ONE IS READ, not at the end: 'const a =
         '' 1, b = a' names the first from the second, and the module-level guard is
         '' the one NoteDeclaredName_ uses -- a field or a local is not something an
         '' '#if' above it can see.
         if (p.aggDepth = 0) andalso (p.stream <> 0) then   '' a local too, undone at 'end sub'
             if p.ast->Kind( item ) = Tko.N_VAR_ITEM then
-                dim as long csi = cast( long, p.ast->nodes[cast( long, item )].data )
-                dim as longint cval = 0
+                dim as int32 csi = cast( int32, p.ast->nodes[cast( int32, item )].data )
+                dim as int64 cval = 0
                 if ConstFoldsToInt_( p, p.ast->stmts[csi].b, cval ) then
                     Tko.PpNoteConst( *cast( Tko.PpStream ptr, p.stream ), _
                                      p.ast->stmts[csi].name, cval, p.ast->Loc( item ), cbool( p.procDepth <> 0 ) )
@@ -643,14 +643,14 @@ private function ParseConstDecl( byref p as Tko.ParserState ) as Tko.NodeId
         '' An ERROR node has no StmtPayload; indexing its 'data' as one is a segfault.
         if p.ast->Kind( item ) <> Tko.N_VAR_ITEM then exit do
         if sharedType <> Tko.NODE_NONE then
-            dim as long si = cast( long, p.ast->nodes[cast( long, item )].data )
+            dim as int32 si = cast( int32, p.ast->nodes[cast( int32, item )].data )
             if p.ast->stmts[si].a = Tko.NODE_NONE then p.ast->stmts[si].a = sharedType
         end if
         if Accept( p, Tko.TK_COMMA ) = false then exit do
     loop
     sp.first = p.ast->children.Count
     sp.count = items.Count
-    for i as long = 0 to items.Count - 1
+    for i as int32 = 0 to items.Count - 1
         p.ast->children.Push( items[i] )
     next
     return MakeStmt( p, Tko.N_CONST, t.loc, sp )
@@ -662,7 +662,7 @@ private function ParseProc _
     ( byref p as Tko.ParserState, byval declareOnly as boolean ) as Tko.NodeId
 
     dim as Tko.Token t = Cur( p )
-    dim as long procTok0 = p.pos
+    dim as int32 procTok0 = p.pos
     dim as Tko.StmtPayload sp
 
     '' 'const function T.F( )' and 'static sub T.S( )' put the modifier BEFORE the
@@ -729,7 +729,7 @@ private function ParseProc _
             p.diags->Report( Tko.TKO0681, Tko.PointRange( vaTok.loc ) )
         end if
     end if
-    sp.op = cast( ushort, kw )
+    sp.op = cast( uint16, kw )
     Advance( p )
 
     '' A CALLING CONVENTION SITS WHERE A CONSTRUCTOR'S NAME WOULD BE, and a
@@ -792,7 +792,7 @@ private function ParseProc _
 
     '' FBC-Modern generics: 'type Box( of T )' and 'function Max( of T )( ... )'.
     if Peek( p ) = Tko.TK_LPAREN then
-        dim as long save = p.pos
+        dim as int32 save = p.pos
         Advance( p )
         dim as boolean isGeneric = false
         if Peek( p ) = Tko.TK_IDENT then
@@ -882,7 +882,7 @@ private function ParseProc _
                 EmptyAliasCheck( p, lbn, libTok, true )
                 '' THE NAME IS KEPT. It was read and discarded, so the clause asked
                 '' for a library and nothing linked one -- see ParserState.declLibs.
-                if lbn <> 0 then p.declLibs.Push( cast( ulong, lbn ) )
+                if lbn <> 0 then p.declLibs.Push( cast( uint32, lbn ) )
                 Advance( p )
             elseif Peek( p ) = Tko.TK_IDENT then
                 Advance( p )    '' 'lib SYS' names a '#foreignlib' binding, linked by name
@@ -909,7 +909,7 @@ private function ParseProc _
     '' 'override' IS KEPT. It is a promise that this declaration replaces an inherited
     '' virtual, and fbc checks it -- error 223, "Not overriding any virtual method". The
     '' loop consumed it with everything else, so a broken promise said nothing.
-    dim as long structPrio = 0
+    dim as int32 structPrio = 0
     while (Peek( p ) <> Tko.TK_EOL) andalso (AtEnd( p ) = false)
         '' Spelled out rather than through IsContextual, which is defined AFTER this
         '' file in parser.tiko: 'override' is not a reserved word, so it arrives as an
@@ -963,13 +963,13 @@ private function ParseProc _
                 if HasTok( p, p.pos + 1 ) then
                     if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_INT_LIT then
                         Advance( p )
-                        dim as longint prio = -1
-                        dim as long pli = cast( long, Cur( p ).literal )
+                        dim as int64 prio = -1
+                        dim as int32 pli = cast( int32, Cur( p ).literal )
                         if pli < p.litPool->Count then prio = (*p.litPool)[pli].intValue
                         if (prio < 101) orelse (prio > 65535) then
                             p.diags->Report( Tko.TKO0422, Tko.PointRange( Cur( p ).loc ) )
                         else
-                            structPrio = cast( long, prio )
+                            structPrio = cast( int32, prio )
                         end if
                     end if
                 end if
@@ -1036,21 +1036,21 @@ private function ParseProc _
     '' is 'this.name': 'b : print' in 'sub T.a' calls T.b, and was a label named b.
     dim as boolean isMember = qualified orelse (p.aggDepth > 0)
     if isMember then
-        p.memberProcNames.Push( cast( ulong, sp.name ) )
+        p.memberProcNames.Push( cast( uint32, sp.name ) )
     else
-        p.procNames.Push( cast( ulong, sp.name ) )
+        p.procNames.Push( cast( uint32, sp.name ) )
     end if
     if declareOnly then
         dim as Tko.NodeId dn = MakeStmt( p, Tko.N_PROC, t.loc, sp )
-        if qualified then p.ast->nodes[cast( long, dn )].flags or= Tko.NF_QUALIFIED
-        if byrefRet then p.ast->nodes[cast( long, dn )].flags or= Tko.NF_BYREF
+        if qualified then p.ast->nodes[cast( int32, dn )].flags or= Tko.NF_QUALIFIED
+        if byrefRet then p.ast->nodes[cast( int32, dn )].flags or= Tko.NF_BYREF
         return dn
     end if
 
     dim as boolean inGeneric = ((sp.extra and Tko.PF_GENERIC_PROC) <> 0)
     if inGeneric then
         p.genericDepth += 1
-        p.genericParams.Push( cast( ulong, sp.c ) )
+        p.genericParams.Push( cast( uint32, sp.c ) )
     end if
     '' See ParserState.procDepth: nothing declared inside a body is told to the
     '' preprocessor, because fbc's 'defined' stops seeing it when the body ends.
@@ -1067,11 +1067,11 @@ private function ParseProc _
     dim as Tko.NodeId pn = MakeStmt( p, Tko.N_PROC, t.loc, sp )
     p.ast->RecordProcEnd( pn, p.toks->At( p.pos - 1 ).loc )   '' the body's last line
     if structPrio > 0 then
-        p.ast->structorPrio.Push( cast( ulong, pn ) )
-        p.ast->structorPrio.Push( cast( ulong, structPrio ) )
+        p.ast->structorPrio.Push( cast( uint32, pn ) )
+        p.ast->structorPrio.Push( cast( uint32, structPrio ) )
     end if
-    if qualified then p.ast->nodes[cast( long, pn )].flags or= Tko.NF_QUALIFIED
-    if byrefRet then p.ast->nodes[cast( long, pn )].flags or= Tko.NF_BYREF
+    if qualified then p.ast->nodes[cast( int32, pn )].flags or= Tko.NF_QUALIFIED
+    if byrefRet then p.ast->nodes[cast( int32, pn )].flags or= Tko.NF_BYREF
     '' A QUALIFIED DEFINITION -- 'function Box.Get( ) as T' -- may belong to a generic,
     '' and a GENERIC PROCEDURE is one in its own right. Either way instantiating it has
     '' to parse this body again to get nodes of its own. Nothing else is recorded: an
@@ -1115,7 +1115,7 @@ private function ParseAggregateBody _
         dim as Tko.StmtPayload bp
         bp.name = p.names->GetString( "base" )
         bp.a = sp.c
-        members.Push( cast( ulong, MakeStmt( p, Tko.N_FIELD, t.loc, bp ) ) )
+        members.Push( cast( uint32, MakeStmt( p, Tko.N_FIELD, t.loc, bp ) ) )
     end if
 
     '' The access section in force. Measured against fbc rather than assumed:
@@ -1128,7 +1128,7 @@ private function ParseAggregateBody _
     ''
     '' A label reaches into a nested anonymous union too, which falls out of keeping
     '' one variable across the whole member loop.
-    dim as ushort vis = 0
+    dim as uint16 vis = 0
 
     do
         SkipEols( p )
@@ -1160,7 +1160,7 @@ private function ParseAggregateBody _
             continue do
         end if
 
-        dim as long before = p.pos
+        dim as int32 before = p.pos
         dim as Tko.TokenKind k = Peek( p )
 
         '' 'private:' and friends. The colon is what tells a LABEL from the PRIVATE
@@ -1240,7 +1240,7 @@ private function ParseAggregateBody _
                     end if
                 end if
                 ParseArrayBounds( p, fp )
-                if fp.count > 0 then fp.op = cast( ushort, iif( redimFld, Tko.KW_REDIM, Tko.KW_DIM ) )
+                if fp.count > 0 then fp.op = cast( uint16, iif( redimFld, Tko.KW_REDIM, Tko.KW_DIM ) )
                 '' A BITFIELD IN THE TYPE-FIRST SPELLING: 'as ulong a : 3'.
                 '' fbc accepts TWO spellings and rejects a third -- measured,
                 '' 'a : 3 as ulong' and 'as ulong a : 3' both compile and
@@ -1260,7 +1260,7 @@ private function ParseAggregateBody _
                 '' why this asks IsColonHere rather than accepting a TK_COLON --
                 '' the same note the name-first branch carries.
                 if IsColonHere( p ) then
-                    dim as long fsave = p.pos
+                    dim as int32 fsave = p.pos
                     Advance( p )
                     '' ...AND ONLY WHEN A WIDTH FOLLOWS. A ':' after a field is
                     '' normally a STATEMENT SEPARATOR -- 'as integer x : as
@@ -1299,7 +1299,7 @@ private function ParseAggregateBody _
                 if fEq then fp.c = Expression( p )
                 fp.a = shared_
                 fp.extra or= vis
-                members.Push( cast( ulong, MakeStmt( p, Tko.N_FIELD, ft.loc, fp ) ) )
+                members.Push( cast( uint32, MakeStmt( p, Tko.N_FIELD, ft.loc, fp ) ) )
                 if Accept( p, Tko.TK_COMMA ) = false then exit do
             loop
             StrayAfterField_( p )
@@ -1329,7 +1329,7 @@ private function ParseAggregateBody _
             '' SCALAR. Measured against fbc: that type is 40 bytes with 'b' at 32, and
             '' tiko-lang made it 24 with 'b' at 16.
             ParseArrayBounds( p, fp )
-            if fp.count > 0 then fp.op = cast( ushort, iif( redimFld, Tko.KW_REDIM, Tko.KW_DIM ) )
+            if fp.count > 0 then fp.op = cast( uint16, iif( redimFld, Tko.KW_REDIM, Tko.KW_DIM ) )
             '' 'Shared : 1 as ULONG_PTR' -- the bitfield width, as the name-first branch reads it.
             if IsColonHere( p ) then
                 Advance( p )
@@ -1337,7 +1337,7 @@ private function ParseAggregateBody _
             end if
             if Accept( p, Tko.KW_AS ) then fp.a = TypeRef( p )
             fp.extra or= vis
-            members.Push( cast( ulong, MakeStmt( p, Tko.N_FIELD, ft.loc, fp ) ) )
+            members.Push( cast( uint32, MakeStmt( p, Tko.N_FIELD, ft.loc, fp ) ) )
             StrayAfterField_( p )
         elseif IsDeclarationStart( k ) then
             dim as Tko.NodeId mn = Declaration( p )
@@ -1346,20 +1346,20 @@ private function ParseAggregateBody _
             '' payload and corrupt it silently.
             dim as boolean tagIt = (vis <> 0) andalso (mn <> Tko.NODE_NONE)
             if tagIt then
-                select case p.ast->nodes[cast( long, mn )].kind
+                select case p.ast->nodes[cast( int32, mn )].kind
                 '' N_CONST and N_VAR belong here with N_PROC: a 'const' or a 'static'
                 '' inside a type body is a MEMBER, and 'T.MYCONST' from outside is fbc
                 '' error 202 exactly as a private field is. All three carry a
                 '' StmtPayload whose 'extra' is the modifier set.
                 case Tko.N_PROC, Tko.N_CONST, Tko.N_VAR, Tko.N_ENUM
                     dim as Tko.StmtPayload ptr mp = _
-                        @p.ast->stmts[cast( long, p.ast->nodes[cast( long, mn )].data )]
+                        @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, mn )].data )]
                     mp->extra or= vis
                 case Tko.N_TYPE
                     ApplyVisibility( p, mn, vis )
                 end select
             end if
-            members.Push( cast( ulong, mn ) )
+            members.Push( cast( uint32, mn ) )
         elseif (k = Tko.TK_IDENT) orelse Tko.IsKeywordKind( k ) then
             '' A field: 'name as T' or 'as T name' (the latter via ParseVarDecl).
             dim as Tko.Token ft = Cur( p )
@@ -1380,7 +1380,7 @@ private function ParseAggregateBody _
                 end if
                 ParseArrayBounds( p, fp )
                 if fp.count > 0 then
-                    fp.op = cast( ushort, iif( redimFld, Tko.KW_REDIM, Tko.KW_DIM ) )   '' marks 'has bounds'
+                    fp.op = cast( uint16, iif( redimFld, Tko.KW_REDIM, Tko.KW_DIM ) )   '' marks 'has bounds'
                 end if
 
                 '' A BITFIELD: 'xb0 : 1 as ulong'. The width comes BEFORE the type --
@@ -1411,7 +1411,7 @@ private function ParseAggregateBody _
                 '' the next field as the expression and ran off the end of the TYPE:
                 '' three corpus files that fbc accepts reported "expected 'end TYPE'".
                 fp.extra or= vis
-                members.Push( cast( ulong, MakeStmt( p, Tko.N_FIELD, ft.loc, fp ) ) )
+                members.Push( cast( uint32, MakeStmt( p, Tko.N_FIELD, ft.loc, fp ) ) )
                 StrayAfterField_( p )
             end if
         end if
@@ -1422,14 +1422,14 @@ private function ParseAggregateBody _
 
     sp.first = p.ast->children.Count
     sp.count = members.Count
-    for i as long = 0 to members.Count - 1
+    for i as int32 = 0 to members.Count - 1
         p.ast->children.Push( members[i] )
     next
 
     EmptyAggCheck_( p, sp, isUnion )
     ExpectEnd( p, iif( isUnion, Tko.KW_UNION, Tko.KW_TYPE ), t.loc )
     dim as Tko.NodeId n = MakeStmt( p, Tko.N_TYPE, t.loc, sp )
-    if isUnion then p.ast->nodes[cast( long, n )].flags or= Tko.NF_IS_UNION
+    if isUnion then p.ast->nodes[cast( int32, n )].flags or= Tko.NF_IS_UNION
     '' THE DECREMENT USED TO SIT AFTER THE RETURN, so aggDepth only ever grew: once one
     '' TYPE had been seen anywhere in the unit, a bare anonymous 'union' at module level
     '' was accepted for the rest of the file rather than being the error fbc calls it.
@@ -1451,9 +1451,9 @@ private sub ParseFieldClause( byref p as Tko.ParserState, byref sp as Tko.StmtPa
     dim as Tko.NodeId nExpr = Expression( p )
     sp.extra = 0
     '' A CONSTANT, not only a literal: 'field = PK', '( 1 )' and '1 + 0' were ignored (sizeof 8; fbc's 5).
-    dim as longint fv = 0 : if nExpr = Tko.NODE_NONE then return
+    dim as int64 fv = 0 : if nExpr = Tko.NODE_NONE then return
     if (ConstFoldsToInt_( p, nExpr, fv ) = false) orelse (fv < 0) orelse (fv > 65535) then return
-    sp.extra = cast( ushort, fv )
+    sp.extra = cast( uint16, fv )
 end sub
 
 '' The names in a generic's parameter list, after the 'of', as an N_BLOCK of N_IDENT.
@@ -1462,7 +1462,7 @@ end sub
 function ParseTypeParams( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.Token t = Cur( p )
     dim as Tko.NodeIdVec names
-    dim as containers.Array( of ulong ) seen
+    dim as containers.Array( of uint32 ) seen
     do
         if (Peek( p ) <> Tko.TK_IDENT) andalso (Tko.IsKeywordKind( Peek( p ) ) = false) then
             '' 'type Empty( of )' and 'type NotId( of 42 )'. fbc reports both at the
@@ -1475,15 +1475,15 @@ function ParseTypeParams( byref p as Tko.ParserState ) as Tko.NodeId
         dim as Tko.Token nt = Cur( p )
         dim as Tko.InternId nid = cast( Tko.InternId, nt.literal )
         dim as boolean dup = false
-        for i as long = 0 to seen.Count - 1
+        for i as int32 = 0 to seen.Count - 1
             if cast( Tko.InternId, seen[i] ) = nid then dup = true
         next
         if dup then
             ErrorNode( p, Tko.TKO0322, p.names->Spelling( nid ) )
         else
-            seen.Push( cast( ulong, nid ) )
+            seen.Push( cast( uint32, nid ) )
         end if
-        names.Push( cast( ulong, MakeIdent( p, nt ) ) )
+        names.Push( cast( uint32, MakeIdent( p, nt ) ) )
         Advance( p )
         if Accept( p, Tko.TK_COMMA ) = false then exit do
     loop

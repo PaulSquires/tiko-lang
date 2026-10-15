@@ -148,10 +148,10 @@ function RtlLinkName( byval r as RtlId, byval is32 as boolean ) as string
         return "_" & nm
     end select
 
-    dim as long total = 0
-    for i as long = 0 to len( ps ) - 1
+    dim as int32 total = 0
+    for i as int32 = 0 to len( ps ) - 1
         dim as MirType t = RtlTypeOfLetter( mid( ps, i + 1, 1 ), true )
-        dim as long sz = 4
+        dim as int32 sz = 4
         if (t = MT_I64) orelse (t = MT_F64) then sz = 8
         total += sz
     next
@@ -167,7 +167,7 @@ function RtlParams( byval r as RtlId ) as string
     return ""
 end function
 
-function RtlArity( byval r as RtlId ) as long
+function RtlArity( byval r as RtlId ) as int32
     return len( RtlParams( r ) )
 end function
 
@@ -182,7 +182,7 @@ sub RtlSignature _
     '' wrong here: it produced a fifth, void parameter on fb_ThreadCall, whose real
     '' signature is 'void* fb_ThreadCall( void*, int32, int64, int32, ... )'.
     dim as string ps = RtlParams( r )
-    for i as long = 0 to len( ps ) - 1
+    for i as int32 = 0 to len( ps ) - 1
         if ps[i] = asc( "." ) then exit for
         f->AddParam( RtlParamType( r, i, is32 ) )
     next
@@ -194,7 +194,7 @@ sub RtlSignature _
 end sub
 
 function RtlParamType _
-    ( byval r as RtlId, byval i as long, byval is32 as boolean ) as MirType
+    ( byval r as RtlId, byval i as int32, byval is32 as boolean ) as MirType
 
     dim as string p = RtlParams( r )
     if (i < 0) orelse (i >= len( p )) then return MT_VOID
@@ -203,12 +203,12 @@ end function
 
 function DumpRtl( byval is32 as boolean ) as string
     dim as string outp = ""
-    for i as long = 1 to RTL_COUNT - 1
+    for i as int32 = 1 to RTL_COUNT - 1
         dim as RtlId r = cast( RtlId, i )
         outp += RtlLinkName( r, is32 ) & " " & _
                 TypeName( RtlReturn( r, is32 ) ) & " ("
         dim as string ps = RtlParams( r )
-        for j as long = 0 to len( ps ) - 1
+        for j as int32 = 0 to len( ps ) - 1
             if j > 0 then outp += ", "
             if mid( ps, j + 1, 1 ) = "." then
                 outp += "..."

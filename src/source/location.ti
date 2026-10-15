@@ -21,7 +21,7 @@
 
 namespace Tko
 
-    type SourceLoc as ulong
+    type SourceLoc as uint32
 
     const LOC_NONE as SourceLoc = 0
 
@@ -38,10 +38,10 @@ namespace Tko
     '' anything the user reads wants lineNo and shownName.
     type DecodedLoc
         as FileId   file
-        as long     lineNo         '' 1-based, as presented
-        as long     physLine       '' 1-based, as stored
-        as long     column         '' 1-based, display columns (tabs expanded)
-        as long     offset         '' byte offset within the file's buffer
+        as int32     lineNo         '' 1-based, as presented
+        as int32     physLine       '' 1-based, as stored
+        as int32     column         '' 1-based, display columns (tabs expanded)
+        as int32     offset         '' byte offset within the file's buffer
         as InternId shownName      '' presented path, or INTERN_NONE for the file's own
     end type
 

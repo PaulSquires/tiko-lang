@@ -17,8 +17,8 @@ private sub CollectAnonAggregate_ _
     '' apart afterwards.
     dim as boolean saved = w.inUnion
     dim as boolean savedFirst = w.unionFirst
-    dim as long savedDepth = w.anonDepth
-    dim as ushort savedMask = w.anonUnionMask
+    dim as int32 savedDepth = w.anonDepth
+    dim as uint16 savedMask = w.anonUnionMask
     dim as boolean thisIsUnion = ((n->flags and Tko.NF_IS_UNION) <> 0)
     w.inUnion = thisIsUnion
     w.anonDepth = savedDepth + 1
@@ -27,18 +27,18 @@ private sub CollectAnonAggregate_ _
     '' entered on the way to it, not just the innermost.
     w.anonOpen += 1
     if w.anonDepth <= 16 then
-        dim as ushort bit_ = cast( ushort, 1 shl (w.anonDepth - 1) )
+        dim as uint16 bit_ = cast( uint16, 1 shl (w.anonDepth - 1) )
         if thisIsUnion then
             w.anonUnionMask or= bit_
         else
-            w.anonUnionMask and= cast( ushort, not bit_ )
+            w.anonUnionMask and= cast( uint16, not bit_ )
         end if
     end if
     '' Every anonymous group marks its OWN first field -- union or type alike --
     '' so the layout can tell two adjacent groups apart.
     w.unionFirst = true
     '' ITS OWN 'field = N', which ParseFieldClause left in 'extra' -- see Symbol.anonPack.
-    dim as long savedPack = w.anonPack, savedPackLevel = w.anonPackLevel
+    dim as int32 savedPack = w.anonPack, savedPackLevel = w.anonPackLevel
     if (sp->extra > 0) andalso (sp->extra <= 255) then
         w.anonPack = sp->extra : w.anonPackLevel = w.anonDepth
     end if

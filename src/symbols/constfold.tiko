@@ -19,19 +19,19 @@ namespace Tko.Check
 '' A TYPE (or, 'wantType' false, a NAMESPACE) named by an identifier or a dotted path of them.
 private function QualifiedTypeSym_ _
     ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byval scope_ as Tko.ScopeId, _
-      byval n as Tko.NodeId, byval wantType as boolean, byval depth as long ) as Tko.SymbolId
+      byval n as Tko.NodeId, byval wantType as boolean, byval depth as int32 ) as Tko.SymbolId
     if (n = Tko.NODE_NONE) orelse (depth > 16) then return Tko.SYMBOL_NONE
     if ast.Kind( n ) = Tko.N_IDENT then
-        dim as Tko.InternId nm = ast.idents[cast( long, ast.nodes[cast( long, n )].data )].name
+        dim as Tko.InternId nm = ast.idents[cast( int32, ast.nodes[cast( int32, n )].data )].name
         if wantType then return syms.LookupTyped( scope_, nm, true )
         return syms.Lookup( scope_, nm )
     end if
     if ast.Kind( n ) <> Tko.N_MEMBER then return Tko.SYMBOL_NONE
-    dim as Tko.BinaryPayload ptr bp = @ast.binaries[cast( long, ast.nodes[cast( long, n )].data )]
+    dim as Tko.BinaryPayload ptr bp = @ast.binaries[cast( int32, ast.nodes[cast( int32, n )].data )]
     if ast.Kind( bp->rhs ) <> Tko.N_IDENT then return Tko.SYMBOL_NONE
     dim as Tko.Symbol ptr ns = syms.SymbolAt( QualifiedTypeSym_( ast, syms, scope_, bp->lhs, false, depth + 1 ) )
-    if (ns = 0) orelse (ns->kind <> cast( ubyte, Tko.SYM_NAMESPACE )) orelse (ns->inner = Tko.SCOPE_NONE) then return Tko.SYMBOL_NONE
-    dim as Tko.InternId rn = ast.idents[cast( long, ast.nodes[cast( long, bp->rhs )].data )].name
+    if (ns = 0) orelse (ns->kind <> cast( uint8, Tko.SYM_NAMESPACE )) orelse (ns->inner = Tko.SCOPE_NONE) then return Tko.SYMBOL_NONE
+    dim as Tko.InternId rn = ast.idents[cast( int32, ast.nodes[cast( int32, bp->rhs )].data )].name
     return syms.LookupInNamespaceTyped( ns->inner, rn, wantType )
 end function
 
@@ -41,9 +41,9 @@ end function
 '' a folded '2.5 ^ 2.5' came out one ulp off the same 'x ^ x' at run time (consteval.bas). The
 '' UCRT's own pow is used when it can be found; elsewhere, FB's '^'. No inline asm: tiko builds
 '' tiko, and refuses it.
-private function FoldPow_( byval x as double, byval y as double ) as double
+private function FoldPow_( byval x as float64, byval y as float64 ) as float64
 #ifdef __FB_WIN32__
-    static as function cdecl( byval as double, byval as double ) as double upow
+    static as function cdecl( byval as float64, byval as float64 ) as float64 upow
     static as boolean tried
     if tried = false then
         tried = true
@@ -66,7 +66,7 @@ end function
 ''   - Shifts are done at 64 bits: 1 shl 32 is 4294967296, not 0.
 ''   - NOT is a bitwise complement, so 'not 0' is -1.
 
-private function CV_( byval v as longint ) as ConstVal
+private function CV_( byval v as int64 ) as ConstVal
     dim as ConstVal r
     r.known = true
     r.value = v
@@ -77,12 +77,12 @@ end function
 '' A value folded at a WIDTH. Anything narrower than 64 bits is sign-extended back, so
 '' the stored value is always the one a 64-bit register would hold -- '1 shl 31' at 32
 '' bits is -2147483648, not 2147483648.
-private function CVW_( byval v as longint, byval bits as long ) as ConstVal
+private function CVW_( byval v as int64, byval bits as int32 ) as ConstVal
     dim as ConstVal r
     r.known = true
     r.bits = iif( bits <= 32, 32, 64 )
     if r.bits = 32 then
-        r.value = cast( longint, cast( long, v ) )
+        r.value = cast( int64, cast( int32, v ) )
     else
         r.value = v
     end if
@@ -96,21 +96,21 @@ private function NarrowConstTo_ _
     ( byref v as ConstVal, byval bt as Tko.BuiltinType ) as ConstVal
 
     select case bt
-    case Tko.TY_BYTE     : return CV_( cast( longint, cast( byte,   v.value ) ) )
-    case Tko.TY_UBYTE    : return CV_( cast( longint, cast( ubyte,  v.value ) ) )
-    case Tko.TY_SHORT    : return CV_( cast( longint, cast( short,  v.value ) ) )
-    case Tko.TY_USHORT   : return CV_( cast( longint, cast( ushort, v.value ) ) )
-    case Tko.TY_LONG     : return CVW_( cast( longint, cast( long,  v.value ) ), 32 )
-    case Tko.TY_ULONG    : return CVW_( cast( longint, cast( ulong, v.value ) ), 64 )
+    case Tko.TY_BYTE     : return CV_( cast( int64, cast( int8,   v.value ) ) )
+    case Tko.TY_UBYTE    : return CV_( cast( int64, cast( uint8,  v.value ) ) )
+    case Tko.TY_SHORT    : return CV_( cast( int64, cast( int16,  v.value ) ) )
+    case Tko.TY_USHORT   : return CV_( cast( int64, cast( uint16, v.value ) ) )
+    case Tko.TY_LONG     : return CVW_( cast( int64, cast( int32,  v.value ) ), 32 )
+    case Tko.TY_ULONG    : return CVW_( cast( int64, cast( uint32, v.value ) ), 64 )
     case Tko.TY_BOOLEAN  : return CV_( iif( v.value <> 0, -1, 0 ) )
     end select
     return v
 end function
 
 '' The width a binary operator folds at: the WIDER of its operands.
-private function WiderOf_( byref a as ConstVal, byref b as ConstVal ) as long
-    dim as long wa = iif( a.bits = 0, 64, a.bits )
-    dim as long wb = iif( b.bits = 0, 64, b.bits )
+private function WiderOf_( byref a as ConstVal, byref b as ConstVal ) as int32
+    dim as int32 wa = iif( a.bits = 0, 64, a.bits )
+    dim as int32 wb = iif( b.bits = 0, 64, b.bits )
     return iif( wa > wb, wa, wb )
 end function
 
@@ -121,7 +121,7 @@ end function
 private function DottedScope_ _
     ( byref ast as Tko.AstArena, byval syms as Tko.SymbolTable ptr, _
       byval scope_ as Tko.ScopeId, byval id as Tko.NodeId, _
-      byval depth as long ) as Tko.ScopeId
+      byval depth as int32 ) as Tko.ScopeId
 
     if syms = 0 then return Tko.SCOPE_NONE
     if id = Tko.NODE_NONE then return Tko.SCOPE_NONE
@@ -129,7 +129,7 @@ private function DottedScope_ _
     select case ast.Kind( id )
     case Tko.N_IDENT
         dim as Tko.InternId nm = _
-            ast.idents[cast( long, ast.nodes[cast( long, id )].data )].name
+            ast.idents[cast( int32, ast.nodes[cast( int32, id )].data )].name
         dim as Tko.SymbolId sid = syms->Lookup( scope_, nm )
         if sid = Tko.SYMBOL_NONE then return Tko.SCOPE_NONE
         dim as Tko.Symbol ptr s = syms->SymbolAt( sid )
@@ -137,12 +137,12 @@ private function DottedScope_ _
         return s->inner
     case Tko.N_MEMBER
         dim as Tko.BinaryPayload ptr mb = _
-            @ast.binaries[cast( long, ast.nodes[cast( long, id )].data )]
+            @ast.binaries[cast( int32, ast.nodes[cast( int32, id )].data )]
         dim as Tko.ScopeId outer = DottedScope_( ast, syms, scope_, mb->lhs, depth + 1 )
         if outer = Tko.SCOPE_NONE then return Tko.SCOPE_NONE
         if ast.Kind( mb->rhs ) <> Tko.N_IDENT then return Tko.SCOPE_NONE
         dim as Tko.InternId rn = _
-            ast.idents[cast( long, ast.nodes[cast( long, mb->rhs )].data )].name
+            ast.idents[cast( int32, ast.nodes[cast( int32, mb->rhs )].data )].name
         dim as Tko.SymbolId rid = syms->LookupLocal( outer, rn )
         if rid = Tko.SYMBOL_NONE then return Tko.SCOPE_NONE
         dim as Tko.Symbol ptr rs = syms->SymbolAt( rid )
@@ -161,21 +161,21 @@ end function
 '' The same as CVW_, carrying the UNSIGNEDNESS through. Separate rather than a default
 '' argument so every existing call keeps folding as signed, which is what it was.
 private function CVWU_ _
-    ( byval v as longint, byval bits as long, byval uns as boolean ) as ConstVal
+    ( byval v as int64, byval bits as int32, byval uns as boolean ) as ConstVal
     dim as ConstVal r = CVW_( v, bits )
     r.uns = uns
     return r
 end function
 
 private function CVBool_( byval b as boolean ) as ConstVal
-    return CV_( iif( b, cast( longint, -1 ), cast( longint, 0 ) ) )
+    return CV_( iif( b, cast( int64, -1 ), cast( int64, 0 ) ) )
 end function
 
 '' BY SQUARING: a loop of 'e' multiplications hung on 'const KP = 1 ^ 9000000000000000000'
 '' and took five seconds over 1 ^ 2000000000. The wrap is the same either way.
-private function IPow_( byval b as longint, byval e as longint ) as longint
+private function IPow_( byval b as int64, byval e as int64 ) as int64
     if e < 0 then return 0
-    dim as longint r = 1
+    dim as int64 r = 1
     while e > 0
         if (e and 1) <> 0 then r *= b
         e shr= 1
@@ -188,26 +188,26 @@ end function
 '' The numeric value of a literal argument, as a double, so the rounding intrinsics
 '' can see 2.5 rather than an integer. Returns false when it is not a literal.
 private function LitNum_ _
-    ( byref ast as Tko.AstArena, byval id as Tko.NodeId, byref d as double ) as boolean
+    ( byref ast as Tko.AstArena, byval id as Tko.NodeId, byref d as float64 ) as boolean
 
     if id = Tko.NODE_NONE then return false
     dim as Tko.NodeKind k = ast.Kind( id )
     if k = Tko.N_PAREN then
         dim as Tko.ListPayload ptr pp = _
-            @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
+            @ast.lists[cast( int32, ast.nodes[cast( int32, id )].data )]
         if pp->count <> 1 then return false
         return LitNum_( ast, cast( Tko.NodeId, ast.children[pp->first] ), d )
     end if
     if k = Tko.N_UNARY then
         dim as Tko.UnaryPayload ptr up = _
-            @ast.unaries[cast( long, ast.nodes[cast( long, id )].data )]
+            @ast.unaries[cast( int32, ast.nodes[cast( int32, id )].data )]
         if LitNum_( ast, up->operand, d ) = false then return false
         if cast( Tko.TokenKind, up->op ) = Tko.TK_MINUS then d = -d
         return true
     end if
     dim as Tko.LiteralPayload ptr lp = 0
     if (k = Tko.N_FLOAT_LIT) orelse (k = Tko.N_INT_LIT) then
-        lp = @ast.literals[cast( long, ast.nodes[cast( long, id )].data )]
+        lp = @ast.literals[cast( int32, ast.nodes[cast( int32, id )].data )]
     end if
     if lp = 0 then return false
     if k = Tko.N_FLOAT_LIT then
@@ -216,13 +216,13 @@ private function LitNum_ _
         '' Measured: '1.1f * 1.0' is 3FF19999A0000000 in fbc, and '1.1f * 2.4f * 5.4f'
         '' is 41641895 -- the product of the three single values taken in DOUBLE, then
         '' rounded -- where the exact decimals give 41641893.
-        if cast( Tko.NumSuffix, lp->suffix ) = Tko.NSUF_SINGLE then d = cast( single, d )
+        if cast( Tko.NumSuffix, lp->suffix ) = Tko.NSUF_SINGLE then d = cast( float32, d )
     elseif Tko.LiteralClassUnsigned( Tko.LiteralClassOf( lp->suffix, lp->radix, lp->intValue, false, true ) ) then   '' the literal model
         '' AN UNSIGNED LITERAL CONVERTS AS ONE: '10000000000000000000 / 3' folded the
         '' bits as a signed -8.4e18 and printed -2.8e18 where fbc prints 3.3e18.
-        d = cast( double, lp->intValue )
+        d = cast( float64, lp->intValue )
     else
-        d = cast( double, cast( longint, lp->intValue ) )
+        d = cast( float64, cast( int64, lp->intValue ) )
     end if
     return true
 end function
@@ -235,8 +235,8 @@ end function
 '' Only the four arithmetic operators and unary minus, which is what a floating
 '' constant expression is made of. A mixed expression folds in DOUBLE, as fbc's does.
 function ConstFloatOf _
-    ( byref ast as Tko.AstArena, byval id as Tko.NodeId, byref outd as double, _
-      byval depth as long = 0, byval syms as Tko.SymbolTable ptr = 0, _
+    ( byref ast as Tko.AstArena, byval id as Tko.NodeId, byref outd as float64, _
+      byval depth as int32 = 0, byval syms as Tko.SymbolTable ptr = 0, _
       byval scope_ as Tko.ScopeId = 0, byval names as Tko.Interner ptr = 0 ) as boolean
 
     if id = Tko.NODE_NONE then return false
@@ -248,16 +248,16 @@ function ConstFloatOf _
 
     case Tko.N_PAREN
         dim as Tko.ListPayload ptr pp = _
-            @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
+            @ast.lists[cast( int32, ast.nodes[cast( int32, id )].data )]
         if pp->count <> 1 then return false
         return ConstFloatOf( ast, cast( Tko.NodeId, ast.children[pp->first] ), _
                              outd, depth + 1, syms, scope_, names )
 
     '' ...and 'type<double>( 2.5 )', a one-element literal of a builtin type, is its element.
     case Tko.N_TUPLE
-        if (ast.nodes[cast( long, id )].flags and Tko.NF_TYPE_LITERAL) = 0 then return false
+        if (ast.nodes[cast( int32, id )].flags and Tko.NF_TYPE_LITERAL) = 0 then return false
         dim as Tko.ListPayload ptr tl = _
-            @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
+            @ast.lists[cast( int32, ast.nodes[cast( int32, id )].data )]
         if (tl->count <> 1) orelse (tl->target = Tko.NODE_NONE) then return false
         if ast.Kind( tl->target ) <> Tko.N_TYPEREF then return false
         return ConstFloatOf( ast, cast( Tko.NodeId, ast.children[tl->first] ), _
@@ -265,7 +265,7 @@ function ConstFloatOf _
 
     case Tko.N_UNARY
         dim as Tko.UnaryPayload ptr up = _
-            @ast.unaries[cast( long, ast.nodes[cast( long, id )].data )]
+            @ast.unaries[cast( int32, ast.nodes[cast( int32, id )].data )]
         if ConstFloatOf( ast, up->operand, outd, depth + 1, syms, scope_, names ) = false then
             return false
         end if
@@ -278,8 +278,8 @@ function ConstFloatOf _
 
     case Tko.N_BINARY
         dim as Tko.BinaryPayload ptr bp = _
-            @ast.binaries[cast( long, ast.nodes[cast( long, id )].data )]
-        dim as double l, r
+            @ast.binaries[cast( int32, ast.nodes[cast( int32, id )].data )]
+        dim as float64 l, r
         if ConstFloatOf( ast, bp->lhs, l, depth + 1, syms, scope_, names ) = false then
             return false
         end if
@@ -315,24 +315,24 @@ function ConstFloatOf _
         if syms = 0 then return false
         if depth >= 16 then return false
         dim as Tko.InternId inm = _
-            ast.idents[cast( long, ast.nodes[cast( long, id )].data )].name
+            ast.idents[cast( int32, ast.nodes[cast( int32, id )].data )].name
         dim as Tko.SymbolId csid = syms->Lookup( scope_, inm )
         if csid = Tko.SYMBOL_NONE then return false
         dim as Tko.Symbol ptr cs = syms->SymbolAt( csid )
         if cs = 0 then return false
-        if cs->kind <> cast( ubyte, Tko.SYM_CONSTANT ) then return false
+        if cs->kind <> cast( uint8, Tko.SYM_CONSTANT ) then return false
         if (cs->flags and Tko.SYMF_BUILTIN) <> 0 then return false
         if cs->payload = 0 then return false
         dim as Tko.NodeId citem = cast( Tko.NodeId, cs->payload )
         if ast.Kind( citem ) <> Tko.N_VAR_ITEM then return false
         dim as Tko.StmtPayload ptr cip = _
-            @ast.stmts[cast( long, ast.nodes[cast( long, citem )].data )]
+            @ast.stmts[cast( int32, ast.nodes[cast( int32, citem )].data )]
         if ConstFloatOf( ast, cip->b, outd, depth + 1, syms, cs->parent, names ) = false then
             return false
         end if
         '' 'const KS as single = 1.1' holds the SINGLE value: 'fa * KS * 2.4f * 5.4f'
         '' is 41641895 in fbc, as for a '1.1f' literal. A builtin's TypeId is its kind.
-        if cs->type_ = cast( Tko.TypeId, Tko.TY_SINGLE ) then outd = cast( single, outd )
+        if cs->type_ = cast( Tko.TypeId, Tko.TY_SINGLE ) then outd = cast( float32, outd )
         return true
 
     '' AN INTRINSIC OVER A CONSTANT IS A CONSTANT to fbc, and it joins the regrouping of
@@ -347,18 +347,18 @@ function ConstFloatOf _
     case Tko.N_CALL
         if names = 0 then return false
         dim as Tko.ListPayload ptr cp = _
-            @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
+            @ast.lists[cast( int32, ast.nodes[cast( int32, id )].data )]
         if (cp->target = Tko.NODE_NONE) orelse (cp->count <> 1) then return false
         if ast.Kind( cp->target ) <> Tko.N_IDENT then return false
         dim as Tko.IdentPayload ptr ip = _
-            @ast.idents[cast( long, ast.nodes[cast( long, cp->target )].data )]
+            @ast.idents[cast( int32, ast.nodes[cast( int32, cp->target )].data )]
         dim as string nm = Tko.Text.LowerAscii( names->Spelling( ip->name ) )
         select case nm
         case "abs", "sgn", "int", "fix", "frac", "sqr", "csng", "cdbl", "cint", "clng", "clngint", "atn"
         case else
             return false
         end select
-        dim as double x
+        dim as float64 x
         if ConstFloatOf( ast, cast( Tko.NodeId, ast.children[cp->first] ), x, _
                          depth + 1, syms, scope_, names ) = false then
             return false
@@ -372,7 +372,7 @@ function ConstFloatOf _
         case "sqr"
             if x < 0 then return false
             outd = sqr( x )
-        case "csng" : outd = cast( single, x )
+        case "csng" : outd = cast( float32, x )
         case "cdbl" : outd = x
         '' ATN IS A LIBM ANSWER and was left out for that reason -- but it is MEASURED now:
         '' fbc-modern's folded 'dim shared as double a( ) = { atn( x ), ... }' against
@@ -383,8 +383,8 @@ function ConstFloatOf _
         case "atn"  : outd = atn( x )
         case else
             if (x >= 2147483647.0) orelse (x <= -2147483648.0) then return false
-            dim as double fl = int( x )
-            dim as double diff = x - fl
+            dim as float64 fl = int( x )
+            dim as float64 diff = x - fl
             if diff > 0.5 then
                 fl += 1
             elseif diff = 0.5 then
@@ -399,12 +399,12 @@ end function
 
 '' CINT rounds HALF TO EVEN -- cint(2.5) is 2 and cint(3.5) is 4 -- which is the one
 '' rule here nobody guesses right. INT floors, FIX truncates toward zero.
-private function RoundHalfEven_( byval d as double ) as longint
-    dim as double f = int( d )
-    dim as double diff = d - f
-    if diff > 0.5 then return cast( longint, f ) + 1
-    if diff < 0.5 then return cast( longint, f )
-    dim as longint fi = cast( longint, f )
+private function RoundHalfEven_( byval d as float64 ) as int64
+    dim as float64 f = int( d )
+    dim as float64 diff = d - f
+    if diff > 0.5 then return cast( int64, f ) + 1
+    if diff < 0.5 then return cast( int64, f )
+    dim as int64 fi = cast( int64, f )
     if (fi mod 2) = 0 then return fi
     return fi + 1
 end function
@@ -440,7 +440,7 @@ private function ConstStrLen_ _
     ( byref ast as Tko.AstArena, byval id as Tko.NodeId, _
       byref src as Tko.SourceManager, byref names as Tko.Interner, _
       byval syms as Tko.SymbolTable ptr, byval scope_ as Tko.ScopeId, _
-      byval depth as long ) as long
+      byval depth as int32 ) as int32
 
     if id = Tko.NODE_NONE then return -1
     if depth >= 16 then return -1
@@ -448,8 +448,8 @@ private function ConstStrLen_ _
     select case ast.Kind( id )
     case Tko.N_STRING_LIT
         dim as Tko.LiteralPayload ptr lp = _
-            @ast.literals[cast( long, ast.nodes[cast( long, id )].data )]
-        if lp->strKind = cast( ubyte, Tko.STRK_ESCAPED ) then return -1
+            @ast.literals[cast( int32, ast.nodes[cast( int32, id )].data )]
+        if lp->strKind = cast( uint8, Tko.STRK_ESCAPED ) then return -1
         if lp->strLength <= 0 then return 0
         dim as Tko.SourceFile ptr f = src.FileAt( cast( Tko.FileId, lp->strFile ) )
         if f = 0 then return -1
@@ -457,9 +457,9 @@ private function ConstStrLen_ _
         '' '""' INSIDE A LITERAL IS ONE QUOTE. Measured: len( "q""q" ) is 3. The span
         '' recorded is the RAW source, so the collapse happens here -- and only for the
         '' PLAIN kind: '$"..."' processes nothing at all.
-        if lp->strKind = cast( ubyte, Tko.STRK_RAW ) then return lp->strLength
-        dim as long n = 0
-        dim as long i = 0
+        if lp->strKind = cast( uint8, Tko.STRK_RAW ) then return lp->strLength
+        dim as int32 n = 0
+        dim as int32 i = 0
         while i < lp->strLength
             dim as boolean doubled = (f->text[lp->strOffset + i] = 34) andalso _
                                      (i + 1 < lp->strLength) andalso _
@@ -472,10 +472,10 @@ private function ConstStrLen_ _
     case Tko.N_STRCAT
         '' Adjacent literals: '"a" "b"' is one string.
         dim as Tko.ListPayload ptr sp = _
-            @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
-        dim as long total = 0
-        for i as long = 0 to sp->count - 1
-            dim as long n = ConstStrLen_( ast, cast( Tko.NodeId, ast.children[sp->first + i] ), _
+            @ast.lists[cast( int32, ast.nodes[cast( int32, id )].data )]
+        dim as int32 total = 0
+        for i as int32 = 0 to sp->count - 1
+            dim as int32 n = ConstStrLen_( ast, cast( Tko.NodeId, ast.children[sp->first + i] ), _
                                           src, names, syms, scope_, depth + 1 )
             if n < 0 then return -1
             total += n
@@ -484,7 +484,7 @@ private function ConstStrLen_ _
 
     case Tko.N_PAREN
         dim as Tko.ListPayload ptr pp = _
-            @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
+            @ast.lists[cast( int32, ast.nodes[cast( int32, id )].data )]
         if pp->count <> 1 then return -1
         return ConstStrLen_( ast, cast( Tko.NodeId, ast.children[pp->first] ), _
                              src, names, syms, scope_, depth + 1 )
@@ -492,12 +492,12 @@ private function ConstStrLen_ _
     case Tko.N_BINARY
         '' '&' concatenates, and so does '+' between two strings.
         dim as Tko.BinaryPayload ptr bp = _
-            @ast.binaries[cast( long, ast.nodes[cast( long, id )].data )]
+            @ast.binaries[cast( int32, ast.nodes[cast( int32, id )].data )]
         dim as Tko.TokenKind op = cast( Tko.TokenKind, bp->op )
         if (op <> Tko.TK_AMP) andalso (op <> Tko.TK_PLUS) then return -1
-        dim as long a = ConstStrLen_( ast, bp->lhs, src, names, syms, scope_, depth + 1 )
+        dim as int32 a = ConstStrLen_( ast, bp->lhs, src, names, syms, scope_, depth + 1 )
         if a < 0 then return -1
-        dim as long b = ConstStrLen_( ast, bp->rhs, src, names, syms, scope_, depth + 1 )
+        dim as int32 b = ConstStrLen_( ast, bp->rhs, src, names, syms, scope_, depth + 1 )
         if b < 0 then return -1
         return a + b
 
@@ -508,18 +508,18 @@ private function ConstStrLen_ _
         '' node, and neither is a string.
         if syms = 0 then return -1
         dim as Tko.InternId inm = _
-            ast.idents[cast( long, ast.nodes[cast( long, id )].data )].name
+            ast.idents[cast( int32, ast.nodes[cast( int32, id )].data )].name
         dim as Tko.SymbolId csid = syms->Lookup( scope_, inm )
         if csid = Tko.SYMBOL_NONE then return -1
         dim as Tko.Symbol ptr cs = syms->SymbolAt( csid )
         if cs = 0 then return -1
-        if cs->kind <> cast( ubyte, Tko.SYM_CONSTANT ) then return -1
+        if cs->kind <> cast( uint8, Tko.SYM_CONSTANT ) then return -1
         if (cs->flags and Tko.SYMF_BUILTIN) <> 0 then return -1
         if cs->payload = 0 then return -1
         dim as Tko.NodeId citem = cast( Tko.NodeId, cs->payload )
         if ast.Kind( citem ) <> Tko.N_VAR_ITEM then return -1
         dim as Tko.StmtPayload ptr cip = _
-            @ast.stmts[cast( long, ast.nodes[cast( long, citem )].data )]
+            @ast.stmts[cast( int32, ast.nodes[cast( int32, citem )].data )]
         return ConstStrLen_( ast, cip->b, src, names, syms, cs->parent, depth + 1 )
     end select
 
@@ -538,7 +538,7 @@ private function MeasuredTypeOf_ _
     ( byval types as Tko.TypeContext ptr, byval t as Tko.TypeId ) as Tko.TypeId
 
     dim as Tko.TypeId tu = t
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (types->Kind( tu ) = Tko.TK_ARRAY) andalso (guard < 16)
         guard += 1
         dim as Tko.TypeId el = types->Inner( tu )
@@ -557,16 +557,16 @@ end function
 private function ConstCall_ _
     ( byref ast as Tko.AstArena, byval id as Tko.NodeId, _
       byref src as Tko.SourceManager, byref names as Tko.Interner, _
-      byval intBits as long, byval syms as Tko.SymbolTable ptr, _
-      byval scope_ as Tko.ScopeId, byval depth as long, _
+      byval intBits as int32, byval syms as Tko.SymbolTable ptr, _
+      byval scope_ as Tko.ScopeId, byval depth as int32, _
       byval types as Tko.TypeContext ptr, byval info as Tko.SemanticInfo ptr ) as ConstVal
 
     dim as Tko.ListPayload ptr cp = _
-        @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
+        @ast.lists[cast( int32, ast.nodes[cast( int32, id )].data )]
     if cp->target = Tko.NODE_NONE then return CVNone_( )
     if ast.Kind( cp->target ) <> Tko.N_IDENT then return CVNone_( )
     dim as Tko.IdentPayload ptr ip = _
-        @ast.idents[cast( long, ast.nodes[cast( long, cp->target )].data )]
+        @ast.idents[cast( int32, ast.nodes[cast( int32, cp->target )].data )]
     dim as string nm = Tko.Text.LowerAscii( names.Spelling( ip->name ) )
 
     '' 'len' OF A COMPILE-TIME STRING. See ConstStrLen_ above for why -- 'string *
@@ -598,14 +598,14 @@ private function ConstCall_ _
                 dim as Tko.TypeId tu = _
                     MeasuredTypeOf_( types, types->Unqualify( tt ) )
                 if types->Kind( tu ) <> Tko.TK_UDT then
-                    dim as long sz = types->Layout( tu ).size
-                    if sz > 0 then return CVW_( cast( longint, sz ), 32 )
+                    dim as int32 sz = types->Layout( tu ).size
+                    if sz > 0 then return CVW_( cast( int64, sz ), 32 )
                 elseif syms <> 0 then
                     dim as Tko.UdtLayouts ls
                     Tko.ComputeUdtLayouts( *syms, *types, ls )
-                    dim as long ix = ls.Find( tu )
+                    dim as int32 ix = ls.Find( tu )
                     if ix >= 0 then
-                        if ls.udts[ix].size > 0 then return CVW_( cast( longint, ls.udts[ix].size ), 32 )
+                        if ls.udts[ix].size > 0 then return CVW_( cast( int64, ls.udts[ix].size ), 32 )
                     end if
                 end if
             end if
@@ -620,14 +620,14 @@ private function ConstCall_ _
         if ((ast.Kind( ta ) = Tko.N_IDENT) orelse (ast.Kind( ta ) = Tko.N_MEMBER)) andalso (syms <> 0) then
             dim as Tko.Symbol ptr us = syms->SymbolAt( QualifiedTypeSym_( ast, *syms, scope_, ta, true, 0 ) )
             if us <> 0 then
-                if (us->kind = cast( ubyte, Tko.SYM_UDT )) andalso (us->type_ <> Tko.TYPE_NONE) then
+                if (us->kind = cast( uint8, Tko.SYM_UDT )) andalso (us->type_ <> Tko.TYPE_NONE) then
                     dim as Tko.TypeId ut = types->Unqualify( us->type_ )
                     if types->Kind( ut ) = Tko.TK_UDT then
                         dim as Tko.UdtLayouts ls2
                         Tko.ComputeUdtLayouts( *syms, *types, ls2 )
-                        dim as long ix2 = ls2.Find( ut )
+                        dim as int32 ix2 = ls2.Find( ut )
                         if ix2 >= 0 then
-                            if ls2.udts[ix2].size > 0 then return CVW_( cast( longint, ls2.udts[ix2].size ), 32 )
+                            if ls2.udts[ix2].size > 0 then return CVW_( cast( int64, ls2.udts[ix2].size ), 32 )
                         end if
                     end if
                 end if
@@ -636,9 +636,9 @@ private function ConstCall_ _
     end if
 
     if (nm = "len") andalso (cp->count = 1) then
-        dim as long sl = ConstStrLen_( ast, cast( Tko.NodeId, ast.children[cp->first] ), _
+        dim as int32 sl = ConstStrLen_( ast, cast( Tko.NodeId, ast.children[cp->first] ), _
                                        src, names, syms, scope_, depth )
-        if sl >= 0 then return CVW_( cast( longint, sl ), 32 )
+        if sl >= 0 then return CVW_( cast( int64, sl ), 32 )
         return CVNone_( )
     end if
 
@@ -650,9 +650,9 @@ private function ConstCall_ _
     '' and fifteen AfxUrl* functions dropped the call that fills it. A string VARIABLE is not
     '' ConstStrLen_'s business, so 'sizeof( s )' keeps its descriptor's size.
     if (nm = "sizeof") andalso (cp->count = 1) then
-        dim as long zl = ConstStrLen_( ast, cast( Tko.NodeId, ast.children[cp->first] ), _
+        dim as int32 zl = ConstStrLen_( ast, cast( Tko.NodeId, ast.children[cp->first] ), _
                                        src, names, syms, scope_, depth )
-        if zl >= 0 then return CVW_( cast( longint, zl + 1 ), 32 )
+        if zl >= 0 then return CVW_( cast( int64, zl + 1 ), 32 )
     end if
 
     '' 'lbound( a [, d] )' AND 'ubound( a [, d] )' OF A FIXED ARRAY ARE ITS DECLARED BOUNDS.
@@ -666,16 +666,16 @@ private function ConstCall_ _
         dim as Tko.NodeId ba = cast( Tko.NodeId, ast.children[cp->first] )
         if ast.Kind( ba ) <> Tko.N_IDENT then return CVNone_( )
         dim as Tko.Symbol ptr bs = syms->SymbolAt( syms->Lookup( scope_, _
-            ast.idents[cast( long, ast.nodes[cast( long, ba )].data )].name ) )
+            ast.idents[cast( int32, ast.nodes[cast( int32, ba )].data )].name ) )
         if bs = 0 then return CVNone_( )
-        if bs->kind <> cast( ubyte, Tko.SYM_VARIABLE ) then return CVNone_( )
+        if bs->kind <> cast( uint8, Tko.SYM_VARIABLE ) then return CVNone_( )
         dim as Tko.TypeId bt = types->Unqualify( bs->type_ )
         if bt = Tko.TYPE_NONE then return CVNone_( )
         if types->Kind( bt ) <> Tko.TK_ARRAY then return CVNone_( )
         if types->IsDynArray( bt ) then return CVNone_( )
-        dim as long rank = types->types[cast( long, bt )].dims
+        dim as int32 rank = types->types[cast( int32, bt )].dims
         if rank < 1 then return CVNone_( )
-        dim as longint bd = 1
+        dim as int64 bd = 1
         if cp->count = 2 then
             dim as ConstVal dv = ConstOf( ast, cast( Tko.NodeId, ast.children[cp->first + 1] ), _
                                           src, names, intBits, syms, scope_, depth + 1, types, info )
@@ -684,7 +684,7 @@ private function ConstCall_ _
         end if
         if (bd < 1) orelse (bd > rank) then return CVNone_( )
         dim as boolean bk = false
-        dim as longint bv = types->ArrayBound( bt, cast( long, bd - 1 ), (nm = "ubound"), bk )
+        dim as int64 bv = types->ArrayBound( bt, cast( int32, bd - 1 ), (nm = "ubound"), bk )
         if bk = false then return CVNone_( )
         return CV_( bv )
     end if
@@ -694,7 +694,7 @@ private function ConstCall_ _
                                      src, names, intBits, syms, scope_, depth, _
                                      types, info )
         if c.known = false then return CVNone_( )
-        dim as long pick = iif( c.value <> 0, 1, 2 )
+        dim as int32 pick = iif( c.value <> 0, 1, 2 )
         return ConstOf( ast, cast( Tko.NodeId, ast.children[cp->first + pick] ), _
                         src, names, intBits, syms, scope_, depth, types, info)
     end if
@@ -747,7 +747,7 @@ private function ConstCall_ _
     if (nm = "len") orelse (nm = "asc") then
         if ast.Kind( a0 ) <> Tko.N_STRING_LIT then return CVNone_( )
         dim as Tko.LiteralPayload ptr lp = _
-            @ast.literals[cast( long, ast.nodes[cast( long, a0 )].data )]
+            @ast.literals[cast( int32, ast.nodes[cast( int32, a0 )].data )]
         '' THE DECODED TEXT, not the span: 'asc( !"\n" )' read the backslash, 92, where
         '' fbc's is 10, and 'len( "a""b" )' counted the doubled quote. A wide literal is
         '' not folded here.
@@ -759,17 +759,17 @@ private function ConstCall_ _
         if f = 0 then return CVNone_( )
         if (lp->strOffset < 0) orelse (lp->strOffset + lp->strLength > f->text.Count) then return CVNone_( )
         dim as string body = space( lp->strLength )
-        for i as long = 0 to lp->strLength - 1
+        for i as int32 = 0 to lp->strLength - 1
             body[i] = f->text[lp->strOffset + i]
         next
         dim as string txt
-        dim as long i2 = 0
+        dim as int32 i2 = 0
         while i2 < len( body )
             txt += chr( body[i2] )
             if (body[i2] = 34) andalso (i2 + 1 < len( body )) andalso (body[i2 + 1] = 34) then i2 += 1
             i2 += 1
         wend
-        if lp->strKind = cast( ubyte, Tko.STRK_ESCAPED ) then
+        if lp->strKind = cast( uint8, Tko.STRK_ESCAPED ) then
             dim as boolean wasWide = false
             txt = Tko.Text.DecodeEscapedBody( txt, wasWide )
             if wasWide then return CVNone_( )
@@ -792,7 +792,7 @@ private function ConstCall_ _
     '' The bytes come out of the SOURCE SPAN, the same way LEN and ASC read theirs, so
     '' a literal whose span is longer than its decoded length -- one with an escape in
     '' it -- is refused rather than read wrong.
-    dim as long cvBytes = 0
+    dim as int32 cvBytes = 0
     select case nm
     case "cvshort" : cvBytes = 2
     case "cvl", "cvs" : cvBytes = 4
@@ -805,13 +805,13 @@ private function ConstCall_ _
     if (nm = "cvs") orelse (nm = "cvd") then cvBytes = 0
     if (cvBytes >= 2) andalso (ast.Kind( a0 ) = Tko.N_STRING_LIT) then
         dim as Tko.LiteralPayload ptr clp = _
-            @ast.literals[cast( long, ast.nodes[cast( long, a0 )].data )]
+            @ast.literals[cast( int32, ast.nodes[cast( int32, a0 )].data )]
         '' AN ESCAPED LITERAL IS NOT ITS OWN BYTES. An escaped newline spans two
         '' characters and is
         '' one byte, so reading the span would fold the backslash. Refused rather than
         '' decoded: the plain and raw kinds are the ones whose span IS the value, and
         '' those are what the corpus writes.
-        dim as boolean cvPlain = (clp->strKind <> cast( ubyte, Tko.STRK_ESCAPED ))
+        dim as boolean cvPlain = (clp->strKind <> cast( uint8, Tko.STRK_ESCAPED ))
         if cvPlain andalso (clp->strLength >= cvBytes) then
             '' THE SPAN'S OWN FILE, not the node's location -- macro expansion is free
             '' to rewrite the second and the payload says so in its own comment.
@@ -819,21 +819,21 @@ private function ConstCall_ _
                 src.FileAt( cast( Tko.FileId, clp->strFile ) )
             if cf <> 0 then
                 if (clp->strOffset + cvBytes) <= cf->text.Count then
-                    dim as ulongint acc = 0
-                    for i as long = cvBytes - 1 to 0 step -1
-                        acc = (acc shl 8) or cast( ulongint, cf->text[clp->strOffset + i] )
+                    dim as uint64 acc = 0
+                    for i as int32 = cvBytes - 1 to 0 step -1
+                        acc = (acc shl 8) or cast( uint64, cf->text[clp->strOffset + i] )
                     next
                     select case cvBytes
-                    case 2 : return CVW_( cast( longint, cast( short, acc ) ), 32 )
-                    case 4 : return CVW_( cast( longint, cast( long, acc ) ), 32 )
+                    case 2 : return CVW_( cast( int64, cast( int16, acc ) ), 32 )
+                    case 4 : return CVW_( cast( int64, cast( int32, acc ) ), 32 )
                     end select
-                    return CV_( cast( longint, acc ) )
+                    return CV_( cast( int64, acc ) )
                 end if
             end if
         end if
     end if
 
-    dim as double d = 0
+    dim as float64 d = 0
     dim as boolean isNum = LitNum_( ast, a0, d )
     dim as ConstVal iv = ConstOf( ast, a0, src, names, intBits, syms, scope_, depth, types, info)
     '' A NAMED float constant, or an EXPRESSION over one, is a number too -- but only
@@ -856,7 +856,7 @@ private function ConstCall_ _
     '' needs none of it.
     case "cint", "clngint"
         if isNum then
-            dim as longint r = RoundHalfEven_( d )
+            dim as int64 r = RoundHalfEven_( d )
             if nm = "cint" then return CV_( r )
             return CV_( r )
         end if
@@ -871,19 +871,19 @@ private function ConstCall_ _
         '' AN INTEGER WRAPS: 'clng( &hFFFFFFFF )' is -1 and 'clng( 3000000000 )'
         '' -1294967296, measured -- the indefinite value is a FLOAT conversion's, and an
         '' integer literal took the float path because it is a literal.
-        if iv.known then return CV_( cast( longint, cast( long, iv.value ) ) )
+        if iv.known then return CV_( cast( int64, cast( int32, iv.value ) ) )
         if isNum then
-            dim as longint r = RoundHalfEven_( d )
+            dim as int64 r = RoundHalfEven_( d )
             if (r > 2147483647ll) orelse (r < -2147483648ll) then
                 return CV_( -2147483648ll )
             end if
             return CV_( r )
         end if
     case "int"
-        if isNum then return CV_( cast( longint, int( d ) ) )
+        if isNum then return CV_( cast( int64, int( d ) ) )
         if iv.known then return CV_( iv.value )
     case "fix"
-        if isNum then return CV_( cast( longint, fix( d ) ) )
+        if isNum then return CV_( cast( int64, fix( d ) ) )
         if iv.known then return CV_( iv.value )
 
     '' THE REST OF THE CONVERSION FAMILY, which folds by TRUNCATING to the target's
@@ -893,17 +893,17 @@ private function ConstCall_ _
     ''
     '' CLNG keeps its own case above: an out-of-range float does not wrap there, it
     '' becomes the x86 indefinite value, and that is measured rather than derived.
-    case "cbyte"   : if iv.known then return CVW_( cast( longint, cast( byte, iv.value ) ), 32 )
-    case "cubyte"  : if iv.known then return CVWU_( cast( longint, cast( ubyte, iv.value ) ), 32, true )
-    case "cshort"  : if iv.known then return CVW_( cast( longint, cast( short, iv.value ) ), 32 )
-    case "cushort" : if iv.known then return CVWU_( cast( longint, cast( ushort, iv.value ) ), 32, true )
-    case "culng"   : if iv.known then return CVWU_( cast( longint, cast( ulong, iv.value ) ), 32, true )
+    case "cbyte"   : if iv.known then return CVW_( cast( int64, cast( int8, iv.value ) ), 32 )
+    case "cubyte"  : if iv.known then return CVWU_( cast( int64, cast( uint8, iv.value ) ), 32, true )
+    case "cshort"  : if iv.known then return CVW_( cast( int64, cast( int16, iv.value ) ), 32 )
+    case "cushort" : if iv.known then return CVWU_( cast( int64, cast( uint16, iv.value ) ), 32, true )
+    case "culng"   : if iv.known then return CVWU_( cast( int64, cast( uint32, iv.value ) ), 32, true )
     case "cuint", "culngint"
         '' AN UNSIGNED TARGET TAKES THE WHOLE 64-BIT RANGE, so the float path cannot
         '' go through the signed rounding above: measured, fbc folds
         '' 'culngint( 2^63 )' to 9223372036854775808ull and 'culngint( 2^64 - 2^11 )'
         '' to 18446744073709549568ull, both of which are negative read as signed.
-        if isNum then return CVWU_( cast( longint, culngint( d ) ), 64, true )
+        if isNum then return CVWU_( cast( int64, culngint( d ) ), 64, true )
         if iv.known then return CVWU_( iv.value, 64, true )
     case "cbool"
         '' A FreeBASIC truth value is -1, never 1.
@@ -917,17 +917,17 @@ end function
 '' than the type table, which this module does not have.
 function ClampConstToTypeRef _
     ( byref ast as Tko.AstArena, byval tref as Tko.NodeId, _
-      byref v as ConstVal, byval intBits as long ) as ConstVal
+      byref v as ConstVal, byval intBits as int32 ) as ConstVal
 
     if v.known = false then return v
     if tref = Tko.NODE_NONE then return v
     if ast.Kind( tref ) <> Tko.N_TYPEREF then return v
-    dim as Tko.AstNode ptr tn = @ast.nodes[cast( long, tref )]
+    dim as Tko.AstNode ptr tn = @ast.nodes[cast( int32, tref )]
     if (tn->flags and Tko.NF_PTR) <> 0 then return v
     if (tn->flags and Tko.NF_PROC_TYPE) <> 0 then return v
     dim as Tko.StmtPayload ptr tp = _
-        @ast.stmts[cast( long, ast.nodes[cast( long, tref )].data )]
-    dim as long bits = 0
+        @ast.stmts[cast( int32, ast.nodes[cast( int32, tref )].data )]
+    dim as int32 bits = 0
     dim as boolean uns = false
     select case cast( Tko.TokenKind, tp->op )
     '' BOOLEAN IS NOT A WIDTH, and falling through to the mask below treated it as
@@ -949,25 +949,25 @@ function ClampConstToTypeRef _
     end select
     '' TRUNCATED AT THE DECLARED WIDTH, by hand: CVW_ rounds every width up to 32 or
     '' 64 and sign-extends, so it cannot say 255 for a ubyte at all.
-    dim as ulongint mask = &hFFFFFFFFFFFFFFFFull
+    dim as uint64 mask = &hFFFFFFFFFFFFFFFFull
     if bits < 64 then mask = (1ull shl bits) - 1
-    dim as ulongint raw = cast( ulongint, v.value ) and mask
+    dim as uint64 raw = cast( uint64, v.value ) and mask
     if uns = false then
-        dim as ulongint signBit = 1ull shl (bits - 1)
+        dim as uint64 signBit = 1ull shl (bits - 1)
         if (raw and signBit) <> 0 then raw or= (not mask)
     end if
     dim as ConstVal r
     r.known = true
     r.bits = iif( bits <= 32, 32, 64 )
-    r.value = cast( longint, raw )
+    r.value = cast( int64, raw )
     r.uns = uns
     return r
 end function
 function ConstOf _
     ( byref ast as Tko.AstArena, byval id as Tko.NodeId, _
       byref src as Tko.SourceManager, byref names as Tko.Interner, _
-      byval intBits as long = 64, byval syms as Tko.SymbolTable ptr = 0, _
-      byval scope_ as Tko.ScopeId = 0, byval depth as long = 0, _
+      byval intBits as int32 = 64, byval syms as Tko.SymbolTable ptr = 0, _
+      byval scope_ as Tko.ScopeId = 0, byval depth as int32 = 0, _
       byval types as Tko.TypeContext ptr = 0, _
       byval info as Tko.SemanticInfo ptr = 0 ) as ConstVal
 
@@ -976,8 +976,8 @@ function ConstOf _
     select case ast.Kind( id )
     case Tko.N_INT_LIT
         dim as Tko.LiteralPayload ptr lp = _
-            @ast.literals[cast( long, ast.nodes[cast( long, id )].data )]
-        dim as longint iv = cast( longint, lp->intValue )
+            @ast.literals[cast( int32, ast.nodes[cast( int32, id )].data )]
+        dim as int64 iv = cast( int64, lp->intValue )
         '' ...AND AN UNSUFFIXED DECIMAL OF 2^31 TO 2^32 - 1, OR 2^63 UP, IS UINTEGER, as
         '' Check types it -- 'const BIGC = 18446744073709551615 : print BIGC > 0' folded
         '' as -1 > 0.
@@ -985,8 +985,8 @@ function ConstOf _
         '' literal folds in 32 bits, a decimal past 2^32 in 64 on a 32-bit target, and an unsuffixed
         '' decimal of 2^31 to 2^32 - 1 is unsigned -- 'const BIGC = 18446744073709551615 : print
         '' BIGC > 0' folded as -1 > 0 before.
-        dim as long ilc = Tko.LiteralClassOf( lp->suffix, lp->radix, lp->intValue, false, intBits >= 64 )
-        dim as long ibits = Tko.LiteralClassBits( ilc, intBits )
+        dim as int32 ilc = Tko.LiteralClassOf( lp->suffix, lp->radix, lp->intValue, false, intBits >= 64 )
+        dim as int32 ibits = Tko.LiteralClassBits( ilc, intBits )
         if ibits = 0 then ibits = intBits
         return CVWU_( iv, ibits, Tko.LiteralClassUnsigned( ilc ) )
 
@@ -1003,31 +1003,31 @@ function ConstOf _
         if syms = 0 then return CVNone_( )
         if depth >= 16 then return CVNone_( )
         dim as Tko.BinaryPayload ptr qm = _
-            @ast.binaries[cast( long, ast.nodes[cast( long, id )].data )]
+            @ast.binaries[cast( int32, ast.nodes[cast( int32, id )].data )]
         if ast.Kind( qm->rhs ) <> Tko.N_IDENT then return CVNone_( )
         dim as Tko.ScopeId qs = DottedScope_( ast, syms, scope_, qm->lhs, 0 )
         if qs = Tko.SCOPE_NONE then return CVNone_( )
         dim as Tko.InternId qn = _
-            ast.idents[cast( long, ast.nodes[cast( long, qm->rhs )].data )].name
+            ast.idents[cast( int32, ast.nodes[cast( int32, qm->rhs )].data )].name
         dim as Tko.SymbolId qsid = syms->LookupLocal( qs, qn )
         if qsid = Tko.SYMBOL_NONE then return CVNone_( )
         dim as Tko.Symbol ptr qsy = syms->SymbolAt( qsid )
         if qsy = 0 then return CVNone_( )
         '' An ENUM MEMBER keeps THE VALUE in 'payload' -- see the N_IDENT case.
-        if qsy->kind = cast( ubyte, Tko.SYM_ENUMCONST ) then
+        if qsy->kind = cast( uint8, Tko.SYM_ENUMCONST ) then
             return CVW_( qsy->payload, 64 )
         end if
         '' A qualified 'const' is the ordinary constant path, re-entered at the
         '' declaration's own scope so ITS initialiser folds in the right place.
-        if qsy->kind <> cast( ubyte, Tko.SYM_CONSTANT ) then return CVNone_( )
+        if qsy->kind <> cast( uint8, Tko.SYM_CONSTANT ) then return CVNone_( )
         if (qsy->flags and Tko.SYMF_BUILTIN) <> 0 then
-            return CVW_( cast( longint, qsy->payload ), 32 )
+            return CVW_( cast( int64, qsy->payload ), 32 )
         end if
         if qsy->payload = 0 then return CVNone_( )
         dim as Tko.NodeId qitem = cast( Tko.NodeId, qsy->payload )
         if ast.Kind( qitem ) <> Tko.N_VAR_ITEM then return CVNone_( )
         dim as Tko.StmtPayload ptr qip = _
-            @ast.stmts[cast( long, ast.nodes[cast( long, qitem )].data )]
+            @ast.stmts[cast( int32, ast.nodes[cast( int32, qitem )].data )]
         dim as ConstVal qvv = ConstOf( ast, qip->b, src, names, intBits, syms, _
                                        qsy->parent, depth + 1, types, info )
         return ClampConstToTypeRef( ast, qip->a, qvv, intBits )
@@ -1045,7 +1045,7 @@ function ConstOf _
         if syms = 0 then return CVNone_( )
         if depth >= 16 then return CVNone_( )
         dim as Tko.InternId inm = _
-            ast.idents[cast( long, ast.nodes[cast( long, id )].data )].name
+            ast.idents[cast( int32, ast.nodes[cast( int32, id )].data )].name
         dim as Tko.SymbolId csid = syms->Lookup( scope_, inm )
         if csid = Tko.SYMBOL_NONE then return CVNone_( )
         dim as Tko.Symbol ptr cs = syms->SymbolAt( csid )
@@ -1054,14 +1054,14 @@ function ConstOf _
         '' out once and put THE VALUE in 'payload', where a plain constant keeps a node
         '' id. The symbol kind is what says which, and reading one as the other indexes
         '' the wrong pool.
-        if cs->kind = cast( ubyte, Tko.SYM_ENUMCONST ) then
+        if cs->kind = cast( uint8, Tko.SYM_ENUMCONST ) then
             '' 64, not 32. An enum is INTEGER-sized -- measured, 'print sizeof( E )'
             '' is 8 on win64 and fbc prints a member declared 4000000000 back
             '' unchanged. Folding it at 32 sign-truncated the value here, so the
             '' member came out -294967296 before anything could print it.
             return CVW_( cs->payload, 64 )
         end if
-        if cs->kind <> cast( ubyte, Tko.SYM_CONSTANT ) then return CVNone_( )
+        if cs->kind <> cast( uint8, Tko.SYM_CONSTANT ) then return CVNone_( )
 
         '' A PREDECLARED constant -- 'true' and 'false' -- keeps THE VALUE in 'payload'
         '' where a user constant keeps a node id, which is what SYMF_BUILTIN exists to
@@ -1070,14 +1070,14 @@ function ConstOf _
         '' The same payload-pool mistake this codebase has now made seven times, made
         '' here by the code that added this case.
         if (cs->flags and Tko.SYMF_BUILTIN) <> 0 then
-            return CVW_( cast( longint, cs->payload ), 32 )
+            return CVW_( cast( int64, cs->payload ), 32 )
         end if
 
         if cs->payload = 0 then return CVNone_( )
         dim as Tko.NodeId citem = cast( Tko.NodeId, cs->payload )
         if ast.Kind( citem ) <> Tko.N_VAR_ITEM then return CVNone_( )
         dim as Tko.StmtPayload ptr cip = _
-            @ast.stmts[cast( long, ast.nodes[cast( long, citem )].data )]
+            @ast.stmts[cast( int32, ast.nodes[cast( int32, citem )].data )]
         dim as ConstVal ivv = _
             ConstOf( ast, cip->b, src, names, intBits, syms, cs->parent, depth + 1, types, info)
         '' AT THE CONSTANT'S OWN DECLARED WIDTH AND SIGNEDNESS.
@@ -1093,14 +1093,14 @@ function ConstOf _
 
     case Tko.N_PAREN
         dim as Tko.ListPayload ptr pp = _
-            @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
+            @ast.lists[cast( int32, ast.nodes[cast( int32, id )].data )]
         if pp->count <> 1 then return CVNone_( )
         return ConstOf( ast, cast( Tko.NodeId, ast.children[pp->first] ), src, names, _
                         intBits, syms, scope_, depth, types, info)
 
     case Tko.N_UNARY
         dim as Tko.UnaryPayload ptr up = _
-            @ast.unaries[cast( long, ast.nodes[cast( long, id )].data )]
+            @ast.unaries[cast( int32, ast.nodes[cast( int32, id )].data )]
         dim as ConstVal v = ConstOf( ast, up->operand, src, names, intBits, syms, scope_, depth, types, info)
         if v.known = false then return CVNone_( )
         '' A unary operator folds at its OPERAND's width: 'not 0' is -1 either way, but
@@ -1108,7 +1108,7 @@ function ConstOf _
         '' ...AND AT NO LESS THAN INTEGER WIDTH, because fbc promotes a narrower operand
         '' before it operates: '-ula' over a ULONG of 4294967295 is -4294967295, and the
         '' 32-bit wrap folded it to 1. Unsigned only if the operand IS the result width.
-        dim as long uw2 = v.bits
+        dim as int32 uw2 = v.bits
         if uw2 < intBits then uw2 = intBits
         dim as boolean uu = v.uns andalso (v.bits = uw2)
         select case cast( Tko.TokenKind, up->op )
@@ -1120,25 +1120,25 @@ function ConstOf _
 
     case Tko.N_BINARY
         dim as Tko.BinaryPayload ptr bp = _
-            @ast.binaries[cast( long, ast.nodes[cast( long, id )].data )]
+            @ast.binaries[cast( int32, ast.nodes[cast( int32, id )].data )]
         dim as ConstVal l = ConstOf( ast, bp->lhs, src, names, intBits, syms, scope_, depth, types, info)
         if l.known = false then return CVNone_( )
         dim as ConstVal r = ConstOf( ast, bp->rhs, src, names, intBits, syms, scope_, depth, types, info)
         if r.known = false then return CVNone_( )
-        dim as longint a = l.value
-        dim as longint b = r.value
+        dim as int64 a = l.value
+        dim as int64 b = r.value
         '' The operator folds at the WIDER operand's width, and the result is narrowed
         '' back to it. A COMPARISON is not arithmetic: its result is INTEGER, so it takes
         '' the target's width whatever the operands were.
-        dim as long w = WiderOf_( l, r )
+        dim as int32 w = WiderOf_( l, r )
         if w < intBits then w = intBits
         '' A 32-BIT UNSIGNED OPERAND WIDENS BY ZERO-EXTENSION. It is stored sign-extended
         '' (CVW_), which is right at its own width and wrong one width up: '&hFFFFFFFFul
         '' shr 4' folded as -1 shr 4 = -1 where fbc's is 268435455, and '4000000000ul *
         '' 2ul' to -589934592 where fbc's is 8000000000. The same expression at run time
         '' was right, so the constant and the code disagreed.
-        if cbool( w > 32 ) andalso cbool( l.bits = 32 ) andalso l.uns then a = cast( longint, cast( ulong, a ) )
-        if cbool( w > 32 ) andalso cbool( r.bits = 32 ) andalso r.uns then b = cast( longint, cast( ulong, b ) )
+        if cbool( w > 32 ) andalso cbool( l.bits = 32 ) andalso l.uns then a = cast( int64, cast( uint32, a ) )
+        if cbool( w > 32 ) andalso cbool( r.bits = 32 ) andalso r.uns then b = cast( int64, cast( uint32, b ) )
         '' ...AND NEVER NARROWER THAN INTEGER, which is where fbc promotes both operands
         '' first. Measured: 'const a as long = 2000000000 : a + a' is 4000000000 and
         '' folded to -294967296, and 'ula shl one' over a ULONG and a UBYTE is 8589934590
@@ -1156,17 +1156,17 @@ function ConstOf _
         '' counts, because that is the value's real width -- comparing the
         '' sign-extended 64-bit form would make every negative-looking 32-bit constant
         '' larger than it is.
-        dim as ulongint ua = cast( ulongint, a )
-        dim as ulongint ub = cast( ulongint, b )
+        dim as uint64 ua = cast( uint64, a )
+        dim as uint64 ub = cast( uint64, b )
         if w = 32 then
-            ua = cast( ulongint, cast( ulong, a ) )
-            ub = cast( ulongint, cast( ulong, b ) )
+            ua = cast( uint64, cast( uint32, a ) )
+            ub = cast( uint64, cast( uint32, b ) )
         end if
 
         '' SHIFTS are done at the operand width, so '1 shl 31' is -2147483648 on win32
         '' and 2147483648 on win64, and '1 shl 32' is 1 there and 4294967296 here. That
         '' is a wrap, not an error: fbc warns and carries on.
-        dim as longint sb = b
+        dim as int64 sb = b
         if (w = 32) andalso (sb >= 0) then sb = sb and 31
 
         select case cast( Tko.TokenKind, bp->op )
@@ -1178,7 +1178,7 @@ function ConstOf _
             '' 18446744073709551615ull', 'big \ 2' is 9223372036854775807 and folded to 0,
             '' and '-8 \ 3u' is 6148914691236517202 where a signed divide gives -2.
             if b = 0 then return CVNone_( )
-            if uw then return CVWU_( cast( longint, ua \ ub ), w, true )
+            if uw then return CVWU_( cast( int64, ua \ ub ), w, true )
             '' THE ONE QUOTIENT THAT DOES NOT FIT: 'MIN \ -1' traps the x86 divide -- in THIS
             '' compiler, folding it -- and fbc folds it to 0 with warning 25 (consteval.bas).
             if (b = -1) andalso (a = &h8000000000000000ll) then return CVWU_( 0, w, false )
@@ -1186,7 +1186,7 @@ function ConstOf _
         case Tko.KW_MOD
             '' The same rule: 'big mod 7' is 1, not 18446744073709551615.
             if b = 0 then return CVNone_( )
-            if uw then return CVWU_( cast( longint, ua mod ub ), w, true )
+            if uw then return CVWU_( cast( int64, ua mod ub ), w, true )
             if b = -1 then return CVWU_( 0, w, false )   '' 'MIN mod -1' traps as the divide does
             return CVWU_( a mod b, w, false )
         case Tko.TK_CARET     : return CVWU_( IPow_( a, b ), w, uw )
@@ -1199,8 +1199,8 @@ function ConstOf _
             '' 'const u as uinteger = &hFFFFFFFFFFFFFFFFull', 'u shr 1' is
             '' 9223372036854775807 to fbc and folded to -1. At 32 bits it must shift the
             '' 32-bit value rather than the sign-extended one: '&hFFFFFFFF shr 4' is -1.
-            if uw then return CVWU_( cast( longint, ua shr sb ), w, true )
-            if w = 32 then return CVWU_( cast( longint, cast( long, a ) ) shr sb, w, false )
+            if uw then return CVWU_( cast( int64, ua shr sb ), w, true )
+            if w = 32 then return CVWU_( cast( int64, cast( int32, a ) ) shr sb, w, false )
             return CVWU_( a shr sb, w, false )
         case Tko.KW_AND       : return CVWU_( a and b, w, uw )
         case Tko.KW_OR        : return CVWU_( a or b, w, uw )
@@ -1232,8 +1232,8 @@ function ConstOf _
     '' 'type<byte>( 1 )' -- A ONE-ELEMENT LITERAL OF A BUILTIN TYPE is its element at that type:
     '' 'dim shared b as byte = type<byte>( 1 )' folds in fbc (dim/global-init.bas) and declined here.
     case Tko.N_TUPLE
-        if (ast.nodes[cast( long, id )].flags and Tko.NF_TYPE_LITERAL) = 0 then return CVNone_( )
-        dim as Tko.ListPayload ptr tl = @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
+        if (ast.nodes[cast( int32, id )].flags and Tko.NF_TYPE_LITERAL) = 0 then return CVNone_( )
+        dim as Tko.ListPayload ptr tl = @ast.lists[cast( int32, ast.nodes[cast( int32, id )].data )]
         if (tl->count <> 1) orelse (tl->target = Tko.NODE_NONE) then return CVNone_( )
         if ast.Kind( tl->target ) <> Tko.N_TYPEREF then return CVNone_( )
         dim as ConstVal tv = ConstOf( ast, cast( Tko.NodeId, ast.children[tl->first] ), src, names, _

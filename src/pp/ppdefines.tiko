@@ -13,8 +13,8 @@ private sub PpDefineMore_( byref e as PpEngine )
     '' NEVER EXPANDING, as TRUE and FALSE are (PPB_SELF): '#ifdef __FB_ARGC__' sees it, and
     '' the name reaches the parser untouched -- fbc's '#print __FB_ARGC__' prints the name.
     dim as string fv = TKO_FBC_COMPAT
-    dim as long d1 = instr( fv, "." )
-    dim as long d2 = instr( d1 + 1, fv, "." )
+    dim as int32 d1 = instr( fv, "." )
+    dim as int32 d2 = instr( d1 + 1, fv, "." )
     PpDefineValue( e, "__FB_VER_MAJOR__", str( valint( left( fv, d1 - 1 ) ) ) )
     PpDefineValue( e, "__FB_VER_MINOR__", str( valint( mid( fv, d1 + 1, d2 - d1 - 1 ) ) ) )
     PpDefineValue( e, "__FB_VER_PATCH__", str( valint( mid( fv, d2 + 1 ) ) ) )

@@ -12,7 +12,7 @@ dim shared as boolean symNamesReady = false
 
 private sub InitSymNames( )
     if symNamesReady then return
-    for i as long = 0 to SYM_KIND_COUNT - 1
+    for i as int32 = 0 to SYM_KIND_COUNT - 1
         symKindNames(i) = @"?"
     next
     #macro SYM( s_id, s_name )
@@ -43,9 +43,9 @@ end function
 
 '' ------------------------------------------------------------------- lifetime
 
-const SYMTAB_INITIAL_SLOTS as long = 4096
-const SYMTAB_LOAD_NUM as long = 7
-const SYMTAB_LOAD_DEN as long = 10
+const SYMTAB_INITIAL_SLOTS as int32 = 4096
+const SYMTAB_LOAD_NUM as int32 = 7
+const SYMTAB_LOAD_DEN as int32 = 10
 
 constructor SymbolTable( )
     this.names = 0
@@ -54,16 +54,16 @@ constructor SymbolTable( )
 
     '' Index 0 is the "none" sentinel for both tables.
     dim as Symbol z
-    z.kind = cast( ubyte, SYM_NONE )
+    z.kind = cast( uint8, SYM_NONE )
     this.symbols.Push( z )
 
     dim as SymScope zs
-    zs.kind = cast( ubyte, SCOPEK_GLOBAL )
+    zs.kind = cast( uint8, SCOPEK_GLOBAL )
     this.scopes.Push( zs )
 
     '' Scope 1 is always global.
     dim as SymScope g
-    g.kind = cast( ubyte, SCOPEK_GLOBAL )
+    g.kind = cast( uint8, SCOPEK_GLOBAL )
     g.parent = SCOPE_NONE
     g.owner = SYMBOL_NONE
     g.firstSym = SYMBOL_NONE
@@ -82,24 +82,24 @@ sub SymbolTable.Attach( byval it as Interner ptr )
     this.names = it
 end sub
 
-function SymbolTable.Count( ) as long
+function SymbolTable.Count( ) as int32
     return this.symbols.Count - 1
 end function
 
-function SymbolTable.ScopeCount( ) as long
+function SymbolTable.ScopeCount( ) as int32
     return this.scopes.Count - 1
 end function
 
 function SymbolTable.SymbolAt( byval id as SymbolId ) as Symbol ptr
     if id = SYMBOL_NONE then return 0
-    if cast( long, id ) >= this.symbols.Count then return 0
-    return @this.symbols[cast( long, id )]
+    if cast( int32, id ) >= this.symbols.Count then return 0
+    return @this.symbols[cast( int32, id )]
 end function
 
 function SymbolTable.ScopeAt( byval id as ScopeId ) as SymScope ptr
     if id = SCOPE_NONE then return 0
-    if cast( long, id ) >= this.scopes.Count then return 0
-    return @this.scopes[cast( long, id )]
+    if cast( int32, id ) >= this.scopes.Count then return 0
+    return @this.scopes[cast( int32, id )]
 end function
 
 '' --------------------------------------------------------------------- lookup
@@ -107,34 +107,34 @@ end function
 '' a scope is usually tiny, and thousands of tiny tables cost more than one big one.
 
 private function ScopeNameHash _
-    ( byval scope_ as ScopeId, byval nm as InternId ) as ulong
+    ( byval scope_ as ScopeId, byval nm as InternId ) as uint32
 
-    dim as ulong h = &h811C9DC5
-    h xor= cast( ulong, scope_ )
+    dim as uint32 h = &h811C9DC5
+    h xor= cast( uint32, scope_ )
     h *= &h01000193
-    h xor= cast( ulong, nm )
+    h xor= cast( uint32, nm )
     h *= &h01000193
     return h
 end function
 
-sub SymbolTable.Rehash( byval newSlots as long )
+sub SymbolTable.Rehash( byval newSlots as int32 )
     dim as SymSlotVec fresh
     fresh.Reserve( newSlots )
-    for i as long = 0 to newSlots - 1
+    for i as int32 = 0 to newSlots - 1
         fresh.Push( 0 )
     next
 
-    dim as long newMask = newSlots - 1
-    for i as long = 1 to this.symbols.Count - 1
+    dim as int32 newMask = newSlots - 1
+    for i as int32 = 1 to this.symbols.Count - 1
         dim as Symbol ptr s = @this.symbols[i]
         '' Only the FIRST of an overload chain is indexed; the rest hang off it. And
         '' only the NEWEST generation of a name: an older one hangs off that.
         if (s->flags and (SYMF_OVERLOAD or SYMF_SUPERSEDED)) <> 0 then continue for
-        dim as long slot = cast( long, ScopeNameHash( s->parent, s->name ) ) and newMask
+        dim as int32 slot = cast( int32, ScopeNameHash( s->parent, s->name ) ) and newMask
         while fresh[slot] <> 0
             slot = (slot + 1) and newMask
         wend
-        fresh[slot] = cast( ulong, i )
+        fresh[slot] = cast( uint32, i )
     next
 
     swap this.slots, fresh
@@ -149,11 +149,11 @@ function IsTypeNameKind( byval k as SymbolKind ) as boolean
 end function
 
 function SymbolTable.SlotFor _
-    ( byval scope_ as ScopeId, byval nm as InternId ) as long
+    ( byval scope_ as ScopeId, byval nm as InternId ) as int32
 
-    dim as long slot = cast( long, ScopeNameHash( scope_, nm ) ) and this.mask
+    dim as int32 slot = cast( int32, ScopeNameHash( scope_, nm ) ) and this.mask
     while this.slots[slot] <> 0
-        dim as Symbol ptr s = @this.symbols[cast( long, this.slots[slot] )]
+        dim as Symbol ptr s = @this.symbols[cast( int32, this.slots[slot] )]
         if (s->parent = scope_) andalso (s->name = nm) then return slot
         slot = (slot + 1) and this.mask
     wend
@@ -164,7 +164,7 @@ function SymbolTable.LookupLocal _
     ( byval scope_ as ScopeId, byval nm as InternId ) as SymbolId
 
     if scope_ = SCOPE_NONE then return SYMBOL_NONE
-    dim as long slot = this.SlotFor( scope_, nm )
+    dim as int32 slot = this.SlotFor( scope_, nm )
     dim as SymbolId head = cast( SymbolId, this.slots[slot] )
     if head = SYMBOL_NONE then return head
     if this.aliasPairSym.Count > 0 then
@@ -175,14 +175,14 @@ function SymbolTable.LookupLocal _
 end function
 
 function SymbolTable.AliasHidden( byval sid as SymbolId ) as boolean
-    dim as ulong at = this.usePos
+    dim as uint32 at = this.usePos
     if at = USEPOS_LATEST then at = this.aliasPos
-    if (at = 0) orelse (at >= cast( ulong, this.nodeModFile.Count )) then return false
-    dim as ulong f = this.nodeModFile[at]
+    if (at = 0) orelse (at >= cast( uint32, this.nodeModFile.Count )) then return false
+    dim as uint32 f = this.nodeModFile[at]
     if f = 0 then return false
     dim as boolean isAlias = false
-    for k as long = 0 to this.aliasPairSym.Count - 1
-        if this.aliasPairSym[k] <> cast( ulong, sid ) then continue for
+    for k as int32 = 0 to this.aliasPairSym.Count - 1
+        if this.aliasPairSym[k] <> cast( uint32, sid ) then continue for
         isAlias = true
         if this.aliasPairFile[k] = f then return false
     next
@@ -193,10 +193,10 @@ end function
 '' symbol an '#undef' replaced hangs off its successor through 'olderGen', and each is
 '' visible from where it was born up to the '#undef' that removed it.
 function SymbolTable.LiveGen( byval id as SymbolId ) as SymbolId
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (id <> SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
-        dim as Symbol ptr s = @this.symbols[cast( long, id )]
+        dim as Symbol ptr s = @this.symbols[cast( int32, id )]
         dim as boolean born = (s->bornAt <= this.usePos)
         dim as boolean alive = (s->diedAt = 0) orelse (this.usePos < s->diedAt)
         if born andalso alive then return id
@@ -225,8 +225,8 @@ end function
 '' through 'using http' -- it is not found, and the unit's undeclared-name report says why
 '' (TKO0860, from hiddenHits).
 function SymbolTable.IsImportNs( byval sid as SymbolId ) as boolean
-    for each x as ulong in this.importNs
-        if x = cast( ulong, sid ) then return true
+    for each x as uint32 in this.importNs
+        if x = cast( uint32, sid ) then return true
     next
     return false
 end function
@@ -234,11 +234,11 @@ end function
 function SymbolTable.PublicOnly( byval got as SymbolId ) as SymbolId
     if got = SYMBOL_NONE then return got
     if this.privileged then return got
-    dim as ulong f = this.symbols[cast( long, got )].flags
+    dim as uint32 f = this.symbols[cast( int32, got )].flags
     if (f and (SYMF_IMPORTED or SYMF_PUBLIC)) <> SYMF_IMPORTED then return got
     '' A NAMESPACE has no word of its own: its members each say whether they are public.
-    if this.symbols[cast( long, got )].kind = cast( ubyte, SYM_NAMESPACE ) then return got
-    this.hiddenHits.Push( cast( ulong, got ) )
+    if this.symbols[cast( int32, got )].kind = cast( uint8, SYM_NAMESPACE ) then return got
+    this.hiddenHits.Push( cast( uint32, got ) )
     return SYMBOL_NONE
 end function
 
@@ -246,7 +246,7 @@ end function
 '' it and would not return it (SymbolTable.PublicOnly): its chain, as written in source.
 '' "" when no lookup did.
 function SymbolTable.HiddenModuleOf( byval nm as InternId ) as string
-    for each h as ulong in this.hiddenHits
+    for each h as uint32 in this.hiddenHits
         dim as Symbol ptr s = this.SymbolAt( cast( SymbolId, h ) )
         if s = 0 then continue for
         if s->name <> nm then continue for
@@ -255,8 +255,8 @@ function SymbolTable.HiddenModuleOf( byval nm as InternId ) as string
         while cur <> SCOPE_NONE
             dim as SymScope ptr sc = this.ScopeAt( cur )
             if sc = 0 then exit while
-            for k as long = 0 to this.importNs.Count - 1
-                if this.importNs[k] = cast( ulong, sc->owner ) then
+            for k as int32 = 0 to this.importNs.Count - 1
+                if this.importNs[k] = cast( uint32, sc->owner ) then
                     return lcase( this.importChains[k] )
                 end if
             next
@@ -268,14 +268,14 @@ end function
 
 function SymbolTable.LookupInNamespace _
     ( byval nsScope as ScopeId, byval nm as InternId, _
-      byval depth as long ) as SymbolId
+      byval depth as int32 ) as SymbolId
 
     if nsScope = SCOPE_NONE then return SYMBOL_NONE
     dim as SymbolId got = this.LookupLocal( nsScope, nm )
     if got <> SYMBOL_NONE then return this.PublicOnly( got )
     if depth >= 8 then return SYMBOL_NONE
-    for i as long = 0 to this.usingAt.Count - 1
-        if this.usingAt[i] <> cast( ulong, nsScope ) then continue for
+    for i as int32 = 0 to this.usingAt.Count - 1
+        if this.usingAt[i] <> cast( uint32, nsScope ) then continue for
         if this.UsingHere( i ) = false then continue for
         got = this.LookupInNamespace( cast( ScopeId, this.usingInner[i] ), nm, depth + 1 )
         if got <> SYMBOL_NONE then return got
@@ -299,17 +299,17 @@ end function
 '' DEPTH-LIMITED for the same reason: a using chain can be cyclic.
 function SymbolTable.LookupInNamespaceTyped _
     ( byval nsScope as ScopeId, byval nm as InternId, byval wantType as boolean, _
-      byval depth as long ) as SymbolId
+      byval depth as int32 ) as SymbolId
 
     if nsScope = SCOPE_NONE then return SYMBOL_NONE
     dim as SymbolId got = this.LookupLocalTyped( nsScope, nm, wantType )
     if got <> SYMBOL_NONE then
-        dim as Symbol ptr g = @this.symbols[cast( long, got )]
+        dim as Symbol ptr g = @this.symbols[cast( int32, got )]
         if IsTypeNameKind( cast( SymbolKind, g->kind ) ) = wantType then return this.PublicOnly( got )
     end if
     if depth >= 8 then return SYMBOL_NONE
-    for i as long = 0 to this.usingAt.Count - 1
-        if this.usingAt[i] <> cast( ulong, nsScope ) then continue for
+    for i as int32 = 0 to this.usingAt.Count - 1
+        if this.usingAt[i] <> cast( uint32, nsScope ) then continue for
         if this.UsingHere( i ) = false then continue for
         got = this.LookupInNamespaceTyped( _
             cast( ScopeId, this.usingInner[i] ), nm, wantType, depth + 1 )
@@ -332,11 +332,11 @@ function SymbolTable.LookupThroughUsings _
     ( byval scope_ as ScopeId, byval nm as InternId ) as SymbolId
 
     dim as ScopeId s = scope_
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (s <> SCOPE_NONE) andalso (guard < 1024)
         guard += 1
-        for i as long = 0 to this.usingAt.Count - 1
-            if this.usingAt[i] <> cast( ulong, s ) then continue for
+        for i as int32 = 0 to this.usingAt.Count - 1
+            if this.usingAt[i] <> cast( uint32, s ) then continue for
             if this.UsingHere( i ) = false then continue for
             dim as SymbolId got = _
                 this.LookupInNamespace( cast( ScopeId, this.usingInner[i] ), nm )
@@ -355,7 +355,7 @@ function SymbolTable.LookupLocalTyped _
 
     dim as SymbolId head = this.LookupLocal( scope_, nm )
     if head = SYMBOL_NONE then return SYMBOL_NONE
-    dim as Symbol ptr h = @this.symbols[cast( long, head )]
+    dim as Symbol ptr h = @this.symbols[cast( int32, head )]
     if IsTypeNameKind( cast( SymbolKind, h->kind ) ) = wantType then return head
     dim as SymbolId alt = h->altClass
     dim as boolean byPos = (this.undefs > 0) orelse (this.shadows > 0)
@@ -373,7 +373,7 @@ end function
 private function DeclaredAbove_( byref t as SymbolTable, byval id as SymbolId ) as boolean
     if t.usePos = USEPOS_LATEST then return true
     if t.modFileCount > 0 then return true
-    dim as ulong at = t.symbols[cast( long, id )].declAt
+    dim as uint32 at = t.symbols[cast( int32, id )].declAt
     return (at = 0) orelse (at <= t.usePos)
 end function
 
@@ -383,12 +383,12 @@ function SymbolTable.LookupTyped _
 
     dim as SymbolId decl = SYMBOL_NONE
     dim as ScopeId sc = scope_
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (sc <> SCOPE_NONE) andalso (guard < SCOPE_WALK_MAX)
         guard += 1
         dim as SymbolId got = this.LookupLocalTyped( sc, nm, wantType )
         if got <> SYMBOL_NONE then
-            dim as Symbol ptr g = @this.symbols[cast( long, got )]
+            dim as Symbol ptr g = @this.symbols[cast( int32, got )]
             if IsTypeNameKind( cast( SymbolKind, g->kind ) ) = wantType then
                 decl = got
                 exit while
@@ -409,8 +409,8 @@ function SymbolTable.LookupTyped _
     guard = 0
     while (sc <> SCOPE_NONE) andalso (guard < SCOPE_WALK_MAX)
         guard += 1
-        for i as long = 0 to this.usingAt.Count - 1
-            if this.usingAt[i] <> cast( ulong, sc ) then continue for
+        for i as int32 = 0 to this.usingAt.Count - 1
+            if this.usingAt[i] <> cast( uint32, sc ) then continue for
             if this.UsingHere( i ) = false then continue for
             '' ...AND THROUGH THAT NAMESPACE'S OWN USINGS. See
             '' LookupInNamespaceTyped: a single probe missed every transitive one.
@@ -432,7 +432,7 @@ function SymbolTable.Lookup _
     '' The declarations on the chain, innermost first...
     dim as SymbolId decl = SYMBOL_NONE
     dim as ScopeId s = scope_
-    dim as long guard = 0
+    dim as int32 guard = 0
     while s <> SCOPE_NONE
         guard += 1
         if guard > 1024 then exit while          '' a cycle would be a table bug
@@ -454,8 +454,8 @@ function SymbolTable.Lookup _
     while s <> SCOPE_NONE
         guard += 1
         if guard > 1024 then exit while
-        for i as long = 0 to this.usingAt.Count - 1
-            if this.usingAt[i] <> cast( ulong, s ) then continue for
+        for i as int32 = 0 to this.usingAt.Count - 1
+            if this.usingAt[i] <> cast( uint32, s ) then continue for
             if this.UsingHere( i ) = false then continue for
             dim as SymbolId got = this.PublicOnly( this.LookupLocal( cast( ScopeId, this.usingInner[i] ), nm ) )
             if got <> SYMBOL_NONE then return got
@@ -472,11 +472,11 @@ end function
 '' to fall back to, so the walking Lookup carries on into the enclosing scope on its
 '' own -- which is the whole of the behaviour wanted.
 sub SymbolTable.ShadowFrom _
-    ( byval id as SymbolId, byval at as ulong )
+    ( byval id as SymbolId, byval at as uint32 )
 
     if id = SYMBOL_NONE then return
     if at = 0 then return                    '' 0 already means 'from the start'
-    dim as Symbol ptr s = @this.symbols[cast( long, id )]
+    dim as Symbol ptr s = @this.symbols[cast( int32, id )]
     if s->bornAt <> 0 then return            '' an '#undef' generation owns it
     s->bornAt = at
     this.shadows += 1
@@ -487,10 +487,10 @@ end sub
 '' unit are read in sorted order as one unit, so 'using util' in a.tiko made util's names
 '' usable bare in b.tiko, while 'util.Foo' there was already refused (AliasHidden). Any
 '' other using, and one written in a header (file 0), applies to the whole scope as before.
-function SymbolTable.UsingFileOf( byval node as ulong, byval nsScope as ScopeId ) as ulong
-    if (node = 0) orelse (node >= cast( ulong, this.nodeModFile.Count )) then return 0
+function SymbolTable.UsingFileOf( byval node as uint32, byval nsScope as ScopeId ) as uint32
+    if (node = 0) orelse (node >= cast( uint32, this.nodeModFile.Count )) then return 0
     dim as ScopeId sc = nsScope
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (sc <> SCOPE_NONE) andalso (guard < SCOPE_WALK_MAX)
         guard += 1
         dim as SymScope ptr s_ = this.ScopeAt( sc )
@@ -503,31 +503,31 @@ end function
 
 '' Whether a lookup from node 'at' sees a using of unit file 'uf'. A node of no unit file
 '' (a header's, or one made later) sees every using.
-function SymbolTable.UsingFileSees( byval uf as ulong, byval at as ulong ) as boolean
+function SymbolTable.UsingFileSees( byval uf as uint32, byval at as uint32 ) as boolean
     if uf = 0 then return true
-    if (at = 0) orelse (at >= cast( ulong, this.nodeModFile.Count )) then return true
-    dim as ulong f = this.nodeModFile[at]
+    if (at = 0) orelse (at >= cast( uint32, this.nodeModFile.Count )) then return true
+    dim as uint32 f = this.nodeModFile[at]
     return (f = 0) orelse (f = uf)
 end function
 
 '' The node being looked up from is AliasHidden's: usePos, or aliasPos at USEPOS_LATEST.
-function SymbolTable.UsingHere( byval i as long ) as boolean
-    dim as ulong at = this.usePos
+function SymbolTable.UsingHere( byval i as int32 ) as boolean
+    dim as uint32 at = this.usePos
     if at = USEPOS_LATEST then at = this.aliasPos
     return this.UsingFileSees( this.usingFile[i], at )
 end function
 
 sub SymbolTable.AddUsing _
-    ( byval scope_ as ScopeId, byval nsScope as ScopeId, byval node as ulong )
+    ( byval scope_ as ScopeId, byval nsScope as ScopeId, byval node as uint32 )
     if (scope_ = SCOPE_NONE) orelse (nsScope = SCOPE_NONE) then return
-    dim as ulong f = this.UsingFileOf( node, nsScope )
-    for i as long = 0 to this.usingAt.Count - 1
-        if (this.usingAt[i] = cast( ulong, scope_ )) andalso _
-           (this.usingInner[i] = cast( ulong, nsScope )) andalso _
+    dim as uint32 f = this.UsingFileOf( node, nsScope )
+    for i as int32 = 0 to this.usingAt.Count - 1
+        if (this.usingAt[i] = cast( uint32, scope_ )) andalso _
+           (this.usingInner[i] = cast( uint32, nsScope )) andalso _
            (this.usingFile[i] = f) then return
     next
-    this.usingAt.Push( cast( ulong, scope_ ) )
-    this.usingInner.Push( cast( ulong, nsScope ) )
+    this.usingAt.Push( cast( uint32, scope_ ) )
+    this.usingInner.Push( cast( uint32, nsScope ) )
     this.usingFile.Push( f )
 end sub
 
@@ -546,14 +546,14 @@ end sub
 '' name starts a new generation in DeclareSym. crt/string.bi's '#undef strstr' over
 '' shlwapi's StrStr is the real-world case -- two overloads, and every call ambiguous.
 sub SymbolTable.UndefSym _
-    ( byval scope_ as ScopeId, byval nm as InternId, byval at as ulong )
+    ( byval scope_ as ScopeId, byval nm as InternId, byval at as uint32 )
 
     if nm = INTERN_NONE then return
-    dim as ulong savePos = this.usePos
+    dim as uint32 savePos = this.usePos
     this.usePos = USEPOS_LATEST
     dim as ScopeId sc = scope_
     dim as SymbolId head = SYMBOL_NONE
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (sc <> SCOPE_NONE) andalso (guard < 1024)
         guard += 1
         head = this.LookupLocal( sc, nm )
@@ -564,7 +564,7 @@ sub SymbolTable.UndefSym _
     wend
     dim as SymbolId alt = SYMBOL_NONE
     if head <> SYMBOL_NONE then
-        alt = this.symbols[cast( long, head )].altClass
+        alt = this.symbols[cast( int32, head )].altClass
         if alt <> SYMBOL_NONE then alt = this.LiveGen( alt )
     end if
     this.usePos = savePos
@@ -572,37 +572,37 @@ sub SymbolTable.UndefSym _
     this.undefs += 1
 
     if alt > head then
-        this.symbols[cast( long, alt )].diedAt = at
+        this.symbols[cast( int32, alt )].diedAt = at
         return
     end if
 
     '' THE HEAD. Its next live overload of the same class becomes the head from 'at' on
     '' -- or its partner of the other class, if it has none. The chain itself is left
     '' alone, so a use before 'at' still sees every overload.
-    dim as Symbol ptr h = @this.symbols[cast( long, head )]
+    dim as Symbol ptr h = @this.symbols[cast( int32, head )]
     h->diedAt = at
     dim as boolean headIsType = IsTypeNameKind( cast( SymbolKind, h->kind ) )
     dim as SymbolId nx = h->nextOverload
     guard = 0
     while (nx <> SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
-        dim as Symbol ptr o = @this.symbols[cast( long, nx )]
+        dim as Symbol ptr o = @this.symbols[cast( int32, nx )]
         dim as boolean sameClass = (IsTypeNameKind( cast( SymbolKind, o->kind ) ) = headIsType)
         if sameClass andalso (o->diedAt = 0) then exit while
         nx = o->nextOverload
     wend
     if nx = SYMBOL_NONE then nx = alt
     if nx = SYMBOL_NONE then return
-    dim as Symbol ptr ns = @this.symbols[cast( long, nx )]
-    ns->flags and= not cast( ulong, SYMF_OVERLOAD )
+    dim as Symbol ptr ns = @this.symbols[cast( int32, nx )]
+    ns->flags and= not cast( uint32, SYMF_OVERLOAD )
     ns->olderGen = head
     ns->bornAt = at
     if nx <> alt then
         ns->altClass = alt
-        if alt <> SYMBOL_NONE then this.symbols[cast( long, alt )].altClass = nx
+        if alt <> SYMBOL_NONE then this.symbols[cast( int32, alt )].altClass = nx
     end if
     h->flags or= SYMF_SUPERSEDED
-    this.slots[this.SlotFor( sc, nm )] = cast( ulong, nx )
+    this.slots[this.SlotFor( sc, nm )] = cast( uint32, nx )
 end sub
 
 '' -------------------------------------------------------------- construction
@@ -612,7 +612,7 @@ function SymbolTable.OpenScope _
       byval owner as SymbolId ) as ScopeId
 
     dim as SymScope sc
-    sc.kind = cast( ubyte, k )
+    sc.kind = cast( uint8, k )
     sc.parent = parent
     sc.owner = owner
     sc.firstSym = SYMBOL_NONE
@@ -629,30 +629,30 @@ function SymbolTable.DeclareSym _
     duplicate = false
     if scope_ = SCOPE_NONE then return SYMBOL_NONE
 
-    dim as long slot = this.SlotFor( scope_, nm )
+    dim as int32 slot = this.SlotFor( scope_, nm )
     dim as SymbolId existing = cast( SymbolId, this.slots[slot] )
 
     '' AFTER AN '#undef' -- see UndefSym. Judged at the END of what has been collected,
     '' never from a use position: a declaration is always the newest thing so far.
     dim as SymbolId genOlder = SYMBOL_NONE     '' the dead slot head this one replaces
     dim as SymbolId altOlder = SYMBOL_NONE     '' the dead partner this one may replace
-    dim as ulong genBorn = 0
+    dim as uint32 genBorn = 0
     if (existing <> SYMBOL_NONE) andalso (this.undefs > 0) then
-        dim as ulong savePos = this.usePos
+        dim as uint32 savePos = this.usePos
         this.usePos = USEPOS_LATEST
-        dim as Symbol ptr g = @this.symbols[cast( long, existing )]
+        dim as Symbol ptr g = @this.symbols[cast( int32, existing )]
         if this.LiveGen( existing ) = SYMBOL_NONE then
             genOlder = existing
             genBorn = g->diedAt
             if g->altClass <> SYMBOL_NONE then
-                dim as ulong ad = this.symbols[cast( long, g->altClass )].diedAt
+                dim as uint32 ad = this.symbols[cast( int32, g->altClass )].diedAt
                 if ad > genBorn then genBorn = ad
             end if
             existing = SYMBOL_NONE
         elseif g->altClass <> SYMBOL_NONE then
             if this.LiveGen( g->altClass ) = SYMBOL_NONE then
                 altOlder = g->altClass
-                genBorn = this.symbols[cast( long, altOlder )].diedAt
+                genBorn = this.symbols[cast( int32, altOlder )].diedAt
             end if
         end if
         this.usePos = savePos
@@ -660,7 +660,7 @@ function SymbolTable.DeclareSym _
 
     dim as SymbolId chainTo = SYMBOL_NONE
     if existing <> SYMBOL_NONE then
-        dim as Symbol ptr e = @this.symbols[cast( long, existing )]
+        dim as Symbol ptr e = @this.symbols[cast( int32, existing )]
 
         '' ONCE THE PAIR IS FORMED, judge against the member of THIS class. The slot
         '' keeps whichever came first, so a third declaration arriving at a name that
@@ -682,7 +682,7 @@ function SymbolTable.DeclareSym _
                 (IsTypeNameKind( cast( SymbolKind, e->kind ) ) <> IsTypeNameKind( k ))
             if headIsOther then
                 dim as SymbolId partner = e->altClass
-                dim as Symbol ptr pe = @this.symbols[cast( long, partner )]
+                dim as Symbol ptr pe = @this.symbols[cast( int32, partner )]
                 dim as boolean partnerIsMine = _
                     (IsTypeNameKind( cast( SymbolKind, pe->kind ) ) = IsTypeNameKind( k ))
                 if partnerIsMine then
@@ -692,7 +692,7 @@ function SymbolTable.DeclareSym _
             end if
         end if
 
-        dim as boolean bothProcs = (e->kind = cast( ubyte, SYM_PROC )) andalso _
+        dim as boolean bothProcs = (e->kind = cast( uint8, SYM_PROC )) andalso _
                                    (k = SYM_PROC)
         '' A TYPE NAME and a VALUE name may share a spelling. The pair is chained
         '' through altClass; the slot keeps whichever came first, so a caller that
@@ -715,7 +715,7 @@ function SymbolTable.DeclareSym _
         '' which reported 'already declared in this scope' for a program fbc compiles.
         '' Overwriting the slot is safe because the member has its OWN copy in the
         '' enum's scope: the enclosing binding is the unqualified convenience alone.
-        dim as boolean enumYields = (e->kind = cast( ubyte, SYM_ENUMCONST )) andalso _
+        dim as boolean enumYields = (e->kind = cast( uint8, SYM_ENUMCONST )) andalso _
                                     (k <> SYM_ENUMCONST)
         if enumYields then
             existing = SYMBOL_NONE
@@ -728,7 +728,7 @@ function SymbolTable.DeclareSym _
     end if
 
     dim as Symbol s
-    s.kind = cast( ubyte, k )
+    s.kind = cast( uint8, k )
     s.flags = 0
     s.name = nm
     s.parent = scope_
@@ -744,46 +744,46 @@ function SymbolTable.DeclareSym _
     if chainTo <> SYMBOL_NONE then
         '' Linked BOTH ways, so either end of the pair finds the other however the
         '' lookup arrived.
-        this.symbols[cast( long, id )].altClass = chainTo
-        this.symbols[cast( long, chainTo )].altClass = id
+        this.symbols[cast( int32, id )].altClass = chainTo
+        this.symbols[cast( int32, chainTo )].altClass = id
     end if
 
     if (chainTo <> SYMBOL_NONE) andalso (altOlder <> SYMBOL_NONE) then
         '' A NEW PARTNER FOR A LIVE HEAD whose old one was '#undef'ed. NOT chained onto
         '' the head's overload list, which still holds the old partner: seen from a use
         '' before the '#undef', this one would look like another overload of it.
-        this.symbols[cast( long, id )].flags or= SYMF_OVERLOAD
-        this.symbols[cast( long, id )].olderGen = altOlder
-        this.symbols[cast( long, id )].bornAt = genBorn
+        this.symbols[cast( int32, id )].flags or= SYMF_OVERLOAD
+        this.symbols[cast( int32, id )].olderGen = altOlder
+        this.symbols[cast( int32, id )].bornAt = genBorn
     elseif existing <> SYMBOL_NONE then
         '' Chain onto the end of the overload list; the head stays indexed.
-        this.symbols[cast( long, id )].flags or= SYMF_OVERLOAD
+        this.symbols[cast( int32, id )].flags or= SYMF_OVERLOAD
         dim as SymbolId cur = existing
-        dim as long guard = 0
-        while this.symbols[cast( long, cur )].nextOverload <> SYMBOL_NONE
-            cur = this.symbols[cast( long, cur )].nextOverload
+        dim as int32 guard = 0
+        while this.symbols[cast( int32, cur )].nextOverload <> SYMBOL_NONE
+            cur = this.symbols[cast( int32, cur )].nextOverload
             guard += 1
             if guard > 4096 then exit while
         wend
-        this.symbols[cast( long, cur )].nextOverload = id
+        this.symbols[cast( int32, cur )].nextOverload = id
     elseif genOlder <> SYMBOL_NONE then
         '' A NEW GENERATION: every earlier symbol of this name here was '#undef'ed. It
         '' takes the slot, and the old head stays reachable through it.
-        this.symbols[cast( long, genOlder )].flags or= SYMF_SUPERSEDED
-        this.symbols[cast( long, id )].olderGen = genOlder
-        this.symbols[cast( long, id )].bornAt = genBorn
-        this.slots[slot] = cast( ulong, id )
+        this.symbols[cast( int32, genOlder )].flags or= SYMF_SUPERSEDED
+        this.symbols[cast( int32, id )].olderGen = genOlder
+        this.symbols[cast( int32, id )].bornAt = genBorn
+        this.slots[slot] = cast( uint32, id )
     else
-        this.slots[slot] = cast( ulong, id )
+        this.slots[slot] = cast( uint32, id )
         this.occupied += 1
     end if
 
     '' Declaration order is observable -- destruction runs in reverse of it.
-    dim as SymScope ptr sc = @this.scopes[cast( long, scope_ )]
+    dim as SymScope ptr sc = @this.scopes[cast( int32, scope_ )]
     if sc->firstSym = SYMBOL_NONE then
         sc->firstSym = id
     else
-        this.symbols[cast( long, sc->lastSym )].nextInScope = id
+        this.symbols[cast( int32, sc->lastSym )].nextInScope = id
     end if
     sc->lastSym = id
     sc->count += 1
@@ -812,16 +812,16 @@ sub SymbolTable.ChainOverload _
     if head = SYMBOL_NONE then return
     if head = id then return
     dim as SymbolId cur = head
-    dim as long guard = 0
+    dim as int32 guard = 0
     do
         if cur = id then return
-        if this.symbols[cast( long, cur )].nextOverload = SYMBOL_NONE then exit do
-        cur = this.symbols[cast( long, cur )].nextOverload
+        if this.symbols[cast( int32, cur )].nextOverload = SYMBOL_NONE then exit do
+        cur = this.symbols[cast( int32, cur )].nextOverload
         guard += 1
         if guard > 4096 then return
     loop
-    this.symbols[cast( long, cur )].nextOverload = id
-    this.symbols[cast( long, id )].flags or= SYMF_OVERLOAD
+    this.symbols[cast( int32, cur )].nextOverload = id
+    this.symbols[cast( int32, id )].flags or= SYMF_OVERLOAD
 end sub
 
 '' The synthetic UDT a tuple desugars into. See symbol.ti for why it is shared.
@@ -833,15 +833,15 @@ end sub
 '' with the same element types are ONE type and assignable to each other.
 function TupleUdtFor _
     ( byref syms as SymbolTable, byref types as TypeContext, _
-      byref names as Interner, byref elemTypes as containers.Array( of ulong ), _
+      byref names as Interner, byref elemTypes as containers.Array( of uint32 ), _
       byval at as SourceLoc ) as TypeId
 
     if elemTypes.Count = 0 then return TYPE_NONE
 
     dim as string key = "$tup"
-    for i as long = 0 to elemTypes.Count - 1
+    for i as int32 = 0 to elemTypes.Count - 1
         if cast( TypeId, elemTypes[i] ) = TYPE_NONE then return TYPE_NONE
-        key += ":" & str( cast( long, elemTypes[i] ) )
+        key += ":" & str( cast( int32, elemTypes[i] ) )
     next
 
     dim as InternId tnm = names.Fold( names.GetString( key ) )
@@ -855,8 +855,8 @@ function TupleUdtFor _
     if ts = 0 then return TYPE_NONE
     dim as ScopeId tin = syms.OpenScope( SCOPEK_TYPE, SCOPE_GLOBAL, tsid )
     ts->inner = tin
-    ts->type_ = types.NamedType( TK_UDT, tnm, cast( ulong, SCOPE_GLOBAL ) )
-    for i as long = 0 to elemTypes.Count - 1
+    ts->type_ = types.NamedType( TK_UDT, tnm, cast( uint32, SCOPE_GLOBAL ) )
+    for i as int32 = 0 to elemTypes.Count - 1
         dim as InternId fnm = names.Fold( names.GetString( "_" & str( i + 1 ) ) )
         dim as boolean fdup = false
         dim as SymbolId fsid = syms.DeclareSym( tin, fnm, SYM_FIELD, at, fdup )

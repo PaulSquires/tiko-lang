@@ -78,7 +78,7 @@ def main() -> int:
         out.append(f'    KW( {(name + ",").ljust(namew + 1)} "{spelling}",{" " * (width - len(spelling))} {cls} )')
     out.append("#endmacro")
     out.append("")
-    out.append(f"const TKO_KEYWORD_COUNT as long = {len(kept)}")
+    out.append(f"const TKO_KEYWORD_COUNT as int32 = {len(kept)}")
     out.append("")
     out.append("#endif")
 

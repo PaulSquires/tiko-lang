@@ -57,17 +57,17 @@ private function CvaAddr_ _
     '' The temporary is the OPERAND'S OWN, so writing through it -- which cva_arg
     '' does, advancing the cursor -- advances the copy and not the caller's list.
     '' That is what BYVAL means here, and it is what fbc does with it.
-    if outv.kind = cast( ubyte, MV_NONE ) then
-        dim as long csz = SizeOfType( c, u )
+    if outv.kind = cast( uint8, MV_NONE ) then
+        dim as int32 csz = SizeOfType( c, u )
         if csz > 0 then
             dim as MirType cmt = LowerType( u, *c.types )
             dim as MirValue cv = LowerExpr( c, e )
-            if cv.kind <> cast( ubyte, MV_NONE ) then
-                dim as long cslot = NewTempLocal( c, cmt, csz )
+            if cv.kind <> cast( uint8, MV_NONE ) then
+                dim as int32 cslot = NewTempLocal( c, cmt, csz )
                 if cslot >= 0 then
                     dim as MirValue cdst
-                    cdst.kind = cast( ubyte, MV_LOCAL )
-                    cdst.ty = cast( ubyte, MT_PTR )
+                    cdst.kind = cast( uint8, MV_LOCAL )
+                    cdst.ty = cast( uint8, MT_PTR )
                     cdst.id = cslot
                     StoreThrough( c, cdst, cv )
                     outv = cdst
@@ -75,7 +75,7 @@ private function CvaAddr_ _
             end if
         end if
     end if
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 
 '' THE OPERANDS OF A GENERIC-FORM INTRINSIC, unwrapped.
@@ -87,7 +87,7 @@ end function
 '' where two operands were expected, which is what made all three decline while
 '' cva_arg -- an ordinary call -- already worked.
 private function CvaOperands_ _
-    ( byref c as Ctx, byval id as NodeId, byref outFirst as long ) as long
+    ( byref c as Ctx, byval id as NodeId, byref outFirst as int32 ) as int32
 
     dim as StmtPayload ptr sp = StmtOf( c, id )
     if sp->count <> 1 then
@@ -101,7 +101,7 @@ private function CvaOperands_ _
         return 1
     end if
     dim as ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, only_ )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, only_ )].data )]
     outFirst = lp->first
     return lp->count
 end function
@@ -110,7 +110,7 @@ end function
 private function CvaPair_ _
     ( byref c as Ctx, byval id as NodeId, byref a as NodeId, byref b as NodeId ) as boolean
 
-    dim as long first_
+    dim as int32 first_
     if CvaOperands_( c, id, first_ ) <> 2 then return false
     a = cast( NodeId, c.ast->children[first_] )
     b = cast( NodeId, c.ast->children[first_ + 1] )
@@ -119,7 +119,7 @@ end function
 
 '' 'cva_end( list )' -- one operand.
 private function CvaSingle_( byref c as Ctx, byval id as NodeId ) as NodeId
-    dim as long first_
+    dim as int32 first_
     if CvaOperands_( c, id, first_ ) <> 1 then return NODE_NONE
     return cast( NodeId, c.ast->children[first_] )
 end function
@@ -128,8 +128,8 @@ private sub EmitVa2_ _
     ( byref c as Ctx, byval op as MirOp, byref a as MirValue, byref b as MirValue )
 
     dim as MirInst ins
-    ins.op = cast( ushort, op )
-    ins.ty = cast( ubyte, MT_VOID )
+    ins.op = cast( uint16, op )
+    ins.ty = cast( uint8, MT_VOID )
     ins.a = a
     ins.b = b
     Emit( c, ins )
@@ -145,7 +145,7 @@ function LowerCvaStart( byref c as Ctx, byval id as NodeId ) as boolean
     '' LLVM ignores it (llvm.va_start takes only the list), but dropping it here would
     '' throw away the only record of which parameter the cursor starts after.
     dim as MirValue nv = LowerExpr( c, lb )
-    if nv.kind = cast( ubyte, MV_NONE ) then return false
+    if nv.kind = cast( uint8, MV_NONE ) then return false
     EmitVa2_( c, M_VA_START, av, nv )
     return true
 end function
@@ -165,8 +165,8 @@ function LowerCvaEnd( byref c as Ctx, byval id as NodeId ) as boolean
     dim as MirValue av
     if CvaAddr_( c, l, av ) = false then return false
     dim as MirInst ins
-    ins.op = cast( ushort, M_VA_END )
-    ins.ty = cast( ubyte, MT_VOID )
+    ins.op = cast( uint16, M_VA_END )
+    ins.ty = cast( uint8, MT_VOID )
     ins.a = av
     Emit( c, ins )
     return true
@@ -179,12 +179,12 @@ function LowerCvaArg _
 
     if c.ast->Kind( id ) <> N_CALL then return false
     dim as ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if lp->count <> 2 then return false
     if lp->target = NODE_NONE then return false
     if c.ast->Kind( lp->target ) <> N_IDENT then return false
     dim as IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
     if Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "cva_arg" then return false
 
     '' The RESULT TYPE is the second argument, read as a type. Check types the call the
@@ -217,14 +217,14 @@ function LowerCvaArg _
         readTy = MT_I64
     end select
     dim as MirInst ins
-    ins.op = cast( ushort, M_VA_ARG )
-    ins.ty = cast( ubyte, readTy )
+    ins.op = cast( uint16, M_VA_ARG )
+    ins.ty = cast( uint8, readTy )
     ins.a = av
     outv = Emit( c, ins )
-    if outv.kind = cast( ubyte, MV_NONE ) then return false
+    if outv.kind = cast( uint8, MV_NONE ) then return false
     if readTy <> mt then
         outv = Coerce( c, outv, mt, IsUnsignedType( c, rt ) )
-        if outv.kind = cast( ubyte, MV_NONE ) then return false
+        if outv.kind = cast( uint8, MV_NONE ) then return false
     end if
     return true
 end function

@@ -24,7 +24,7 @@ namespace Tko.Collect
           byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
           byref types as Tko.TypeContext, byref diags as Tko.DiagnosticEngine, _
           byref info as Tko.SemanticInfo, _
-          byval src as Tko.SourceManager ptr = 0 ) as long
+          byval src as Tko.SourceManager ptr = 0 ) as int32
 
     '' COLLECT ONE NODE into an existing scope, for a declaration that did not exist
     '' when Run walked the unit: an instantiated generic member. Run itself cannot be
@@ -33,7 +33,7 @@ namespace Tko.Collect
         ( byref ast as Tko.AstArena, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId, _
           byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
           byref types as Tko.TypeContext, byref diags as Tko.DiagnosticEngine, _
-          byref info as Tko.SemanticInfo ) as long
+          byref info as Tko.SemanticInfo ) as int32
 
     '' --dump-symbols. Byte-stable; lists each scope in declaration order.
     declare function Dump _

@@ -26,7 +26,7 @@ end function
 '' '__FB_WIN64__' is predefined on Windows and simply absent on Linux, and '#ifdef
 '' __FB_WIN64__' must be allowed on both. 'defined' is the operator, not a name.
 private function PpModIsPredefName_( byref e as PpEngine, byval id as InternId ) as boolean
-    dim as long i = cast( long, id )
+    dim as int32 i = cast( int32, id )
     if (i > 0) andalso (i < e.modst.predefMark.Count) then
         if e.modst.predefMark[i] <> 0 then return true
     end if
@@ -40,7 +40,7 @@ end function
 '' Runs between PpDefineBuiltins and PpDefineFromCommandLine, so every macro defined so far
 '' is a builtin and every one defined later is the user's.
 sub PpModAfterBuiltins( byref e as PpEngine )
-    for i as long = 0 to e.macroSlot.Count - 1
+    for i as int32 = 0 to e.macroSlot.Count - 1
         if e.macroSlot[i] = 0 then continue for
         while e.modst.predefMark.Count <= i
             e.modst.predefMark.Push( 0 )
@@ -56,7 +56,7 @@ function PpModFirstUserIdent( byref e as PpEngine ) as string
     if e.frames.Count = 0 then return ""
     dim as PpFrame ptr f = @e.frames[e.frames.Count - 1]
     if f->file = FILE_NONE then return ""
-    for p as long = f->pos to f->toks->Count - 1
+    for p as int32 = f->pos to f->toks->Count - 1
         dim as Token t = f->toks->At( p )
         dim as TokenKind k = Tk( t )
         if (k = TK_EOL) orelse (k = TK_EOF) then exit for
@@ -77,7 +77,7 @@ end sub
 '' Checked whether or not the branch is taken: '#ifdef MYFLAG' around an import is wrong
 '' whatever MYFLAG is today, because a file's header must be decidable from the target.
 private sub PpModCheckConds_( byref e as PpEngine, byval at as SourceLoc )
-    for i as long = 0 to e.conds.Count - 1
+    for i as int32 = 0 to e.conds.Count - 1
         if len( e.conds[i].userName ) = 0 then continue for
         Report( e, TKO0363, at, e.conds[i].userName )
         return
@@ -90,13 +90,13 @@ end sub
 sub PpModNoteHeader( byref e as PpEngine, byval from as FileId, byval got as FileId )
     if e.cfg->moduleFiles = 0 then return
     dim as boolean own = false
-    for each m as ulong in *e.cfg->moduleFiles
-        if m = cast( ulong, from ) then own = true
+    for each m as uint32 in *e.cfg->moduleFiles
+        if m = cast( uint32, from ) then own = true
     next
-    dim as long root = -1
+    dim as int32 root = -1
     if own then
         dim as string p = e.src->AbsPathOf( got )
-        for k as long = 0 to e.outp->modHeaders.Count - 1
+        for k as int32 = 0 to e.outp->modHeaders.Count - 1
             if e.outp->modHeaders[k] = p then root = k
         next
         if root < 0 then
@@ -105,20 +105,20 @@ sub PpModNoteHeader( byref e as PpEngine, byval from as FileId, byval got as Fil
         end if
     else
         '' A file a header includes belongs to that header's subtree.
-        for k as long = 0 to e.outp->modHdrFile.Count - 1
-            if e.outp->modHdrFile[k] = cast( ulong, from ) then
-                root = cast( long, e.outp->modHdrRoot[k] )
+        for k as int32 = 0 to e.outp->modHdrFile.Count - 1
+            if e.outp->modHdrFile[k] = cast( uint32, from ) then
+                root = cast( int32, e.outp->modHdrRoot[k] )
                 exit for
             end if
         next
         if root < 0 then return
     end if
     '' The first header to reach a file keeps it.
-    for each f as ulong in e.outp->modHdrFile
-        if f = cast( ulong, got ) then return
+    for each f as uint32 in e.outp->modHdrFile
+        if f = cast( uint32, got ) then return
     next
-    e.outp->modHdrFile.Push( cast( ulong, got ) )
-    e.outp->modHdrRoot.Push( cast( ulong, root ) )
+    e.outp->modHdrFile.Push( cast( uint32, got ) )
+    e.outp->modHdrRoot.Push( cast( uint32, root ) )
 end sub
 
 '' 'public #cinclude "x.h"' AT THE START OF A LINE (book work item T101): 'public' is consumed
@@ -150,8 +150,8 @@ sub PpModCIncludeHeader( byref e as PpEngine, byval at as SourceLoc, byval got a
     PpModNoteHeader( e, d.file, got )
     if e.modst.cincPublic = false then return
     dim as string p = e.src->AbsPathOf( got )
-    dim as long k = -1
-    for i as long = 0 to e.outp->modHeaders.Count - 1
+    dim as int32 k = -1
+    for i as int32 = 0 to e.outp->modHeaders.Count - 1
         if e.outp->modHeaders[i] = p then k = i
     next
     if (e.modst.isModuleFile = false) orelse (k < 0) then
@@ -162,10 +162,10 @@ sub PpModCIncludeHeader( byref e as PpEngine, byval at as SourceLoc, byval got a
         Report( e, TKO0340, at, p )
         return
     end if
-    for each r as ulong in e.outp->modHdrPublic
-        if r = cast( ulong, k ) then return
+    for each r as uint32 in e.outp->modHdrPublic
+        if r = cast( uint32, k ) then return
     next
-    e.outp->modHdrPublic.Push( cast( ulong, k ) )
+    e.outp->modHdrPublic.Push( cast( uint32, k ) )
 end sub
 
 '' Reading for an '#import': a module's interface, or a header it includes (RFC-0004 §5).
@@ -232,8 +232,8 @@ end function
 private function PpModSegmentProblem_( byref e as PpEngine, byref seg as string ) as string
     if len( seg ) = 0 then return "the path has an empty segment"
     if (seg = ".") orelse (seg = "..") then return "'.' and '..' may only begin a path"
-    for i as long = 0 to len( seg ) - 1
-        dim as ubyte c = seg[i]
+    for i as int32 = 0 to len( seg ) - 1
+        dim as uint8 c = seg[i]
         dim as boolean letter = ((c >= 65) andalso (c <= 90)) orelse ((c >= 97) andalso (c <= 122))
         dim as boolean digit = (c >= 48) andalso (c <= 57)
         dim as boolean under = (c = 95)
@@ -251,7 +251,7 @@ end function
 private function PpModPathProblem_( byref e as PpEngine, byref p as string ) as string
     if len( p ) = 0 then return "the path is empty"
     if instr( p, "\" ) > 0 then return "use '/' to separate the segments of a path"
-    dim as long i = 1
+    dim as int32 i = 1
     if left( p, 2 ) = "./" then
         i = 3
     else
@@ -261,9 +261,9 @@ private function PpModPathProblem_( byref e as PpEngine, byref p as string ) as 
     end if
     dim as string rest = mid( p, i )
     if len( rest ) = 0 then return "the path names no module"
-    dim as long st = 1
+    dim as int32 st = 1
     do
-        dim as long sl = instr( st, rest, "/" )
+        dim as int32 sl = instr( st, rest, "/" )
         dim as string seg = iif( sl = 0, mid( rest, st ), mid( rest, st, sl - st ) )
         dim as string why = PpModSegmentProblem_( e, seg )
         if len( why ) > 0 then return why
@@ -274,7 +274,7 @@ private function PpModPathProblem_( byref e as PpEngine, byref p as string ) as 
 end function
 
 private function PpModLastSegment_( byref p as string ) as string
-    dim as long sl = instrrev( p, "/" )
+    dim as int32 sl = instrrev( p, "/" )
     return mid( p, sl + 1 )
 end function
 
@@ -293,8 +293,8 @@ private function PpModString_ _
         return false
     end if
     dim as string spelled = SpellOf( e, t )
-    dim as long a = instr( spelled, """" )
-    dim as long b = instrrev( spelled, """" )
+    dim as int32 a = instr( spelled, """" )
+    dim as int32 b = instrrev( spelled, """" )
     if (a <> 1) orelse (b <= a) then
         Report( e, TKO0364, at, what, "a path is a plain quoted string" )
         SkipToEol( e )
@@ -308,11 +308,11 @@ end function
 '' The directory the root file is in, by name: what '#module' must be called.
 private function PpModDirName_( byref e as PpEngine ) as string
     dim as string p = e.src->AbsPathOf( e.rootFile )
-    dim as long n = len( p )
-    dim as long lastSep = 0
-    dim as long prevSep = 0
-    for i as long = 1 to n
-        dim as ubyte c = p[i - 1]
+    dim as int32 n = len( p )
+    dim as int32 lastSep = 0
+    dim as int32 prevSep = 0
+    for i as int32 = 1 to n
+        dim as uint8 c = p[i - 1]
         if (c = 47) orelse (c = 92) then
             prevSep = lastSep
             lastSep = i
@@ -333,7 +333,7 @@ end sub
 private sub PpModModule_( byref e as PpEngine, byval at as SourceLoc )
     '' A MODULE FILE REACHED BY '#include' (TKO0367): a module is reachable by '#import'
     '' only, and pasting one of its files into another unit would compile it twice.
-    dim as long top = e.frames.Count - 1
+    dim as int32 top = e.frames.Count - 1
     dim as boolean included = (top > 0)
     if included then included = (e.frames[top].file <> FILE_NONE)
     if included then included = (e.frames[top].file <> e.rootFile)
@@ -450,13 +450,13 @@ private sub PpModImport_( byref e as PpEngine, byval at as SourceLoc )
     dim as PpImportFn fn = e.cfg->importFn
     dim as string chain_
     if fn( e.cfg->importCtx, rec, got, chain_ ) = false then return
-    e.modst.aliasIds.Push( cast( ulong, e.names->GetString( Text.LowerAscii( rec.alias_ ) ) ) )
+    e.modst.aliasIds.Push( cast( uint32, e.names->GetString( Text.LowerAscii( rec.alias_ ) ) ) )
     e.modst.aliasChains.Push( chain_ )
-    for k as long = got.Count - 1 to 0 step -1
+    for k as int32 = got.Count - 1 to 0 step -1
         dim as FileId id = cast( FileId, got[k] )
         if PpAlreadyOnce( e, id ) then continue for
-        e.onceFiles.Push( cast( ulong, id ) )
-        e.modst.ifaceFiles.Push( cast( ulong, id ) )
+        e.onceFiles.Push( cast( uint32, id ) )
+        e.modst.ifaceFiles.Push( cast( uint32, id ) )
         dim as TokenVec ptr toks = PpLexFile( e, id )
         PushFrame( e, toks, INTERN_NONE, id, false )
         e.frames[e.frames.Count - 1].iface = true
@@ -468,31 +468,31 @@ end sub
 private sub PpModRecordExport_( byref e as PpEngine, byval m as PpMacro ptr, byref nm as string )
     dim as PpResult ptr r = e.outp
     r->expName.Push( nm )
-    dim as ulong fl = 0
+    dim as uint32 fl = 0
     if m->isFunc then fl or= 1
     if m->isVariadic then fl or= 4
-    for i as long = 0 to m->body.Count - 1
+    for i as int32 = 0 to m->body.Count - 1
         dim as boolean realEol = (Tk( m->body[i] ) = TK_EOL)
         if realEol then realEol = ((m->body[i].flags and TF_COLON) = 0)
         if realEol then fl or= 2
     next
     r->expFlags.Push( fl )
-    r->expParamFirst.Push( cast( ulong, r->expParams.Count ) )
-    r->expParamCount.Push( cast( ulong, m->params.Count ) )
-    for each p as ulong in m->params
+    r->expParamFirst.Push( cast( uint32, r->expParams.Count ) )
+    r->expParamCount.Push( cast( uint32, m->params.Count ) )
+    for each p as uint32 in m->params
         r->expParams.Push( p )
     next
-    r->expBodyFirst.Push( cast( ulong, r->expBody.Count ) )
-    r->expBodyCount.Push( cast( ulong, m->body.Count ) )
-    for i as long = 0 to m->body.Count - 1
+    r->expBodyFirst.Push( cast( uint32, r->expBody.Count ) )
+    r->expBodyCount.Push( cast( uint32, m->body.Count ) )
+    for i as int32 = 0 to m->body.Count - 1
         r->expBody.Push( m->body[i] )
     next
-    r->expLoc.Push( cast( ulong, m->loc ) )
+    r->expLoc.Push( cast( uint32, m->loc ) )
 end sub
 
 function PpModMacroName( byref chain as string, byref nm as string ) as string
     dim as string s = "__tko_mac_" & chain & "__" & Text.LowerAscii( nm )
-    for i as long = 0 to len( s ) - 1
+    for i as int32 = 0 to len( s ) - 1
         if s[i] = asc( "." ) then s[i] = asc( "_" )
     next
     return s
@@ -502,8 +502,8 @@ end function
 '' its module exports (RFC-0004 §6): expanded through the macro's interface name. The three
 '' tokens have to be in one frame. False, touching nothing, when it is not one.
 function PpModQualifiedMacro( byref e as PpEngine, byref t as Token ) as boolean
-    dim as long ai = -1
-    for i as long = 0 to e.modst.aliasIds.Count - 1
+    dim as int32 ai = -1
+    for i as int32 = 0 to e.modst.aliasIds.Count - 1
         if e.modst.aliasIds[i] = t.literal then ai = i
     next
     if ai < 0 then return false
@@ -577,8 +577,8 @@ end sub
 
 '' The directory part of a path, as written.
 private function PpModDirOf_( byref p as string ) as string
-    for i as long = len( p ) to 1 step -1
-        dim as ubyte c = p[i - 1]
+    for i as int32 = len( p ) to 1 step -1
+        dim as uint8 c = p[i - 1]
         if (c = 47) orelse (c = 92) then return left( p, i - 1 )
     next
     return "."
@@ -589,12 +589,12 @@ end function
 '' -- and not in a header it included.
 sub PpModJournal( byref e as PpEngine, byval m as PpMacro ptr )
     if e.cfg->moduleFiles = 0 then return
-    for k as long = e.frames.Count - 1 to 0 step -1
+    for k as int32 = e.frames.Count - 1 to 0 step -1
         if e.frames[k].file = FILE_NONE then continue for
         if e.frames[k].file <> e.rootFile then return
         exit for
     next
-    e.modst.journalSlot.Push( cast( ulong, SlotOf( e, m->name ) ) )
+    e.modst.journalSlot.Push( cast( uint32, SlotOf( e, m->name ) ) )
     e.modst.journalMac.Push( *m )
 end sub
 
@@ -605,7 +605,7 @@ sub PpModEndFile( byref e as PpEngine )
         dim as string p = e.src->PathOf( e.rootFile )
         Report( e, TKO0145, e.src->LocFor( e.rootFile, 0 ), p, PpModDirOf_( p ) )
     end if
-    for k as long = e.modst.journalSlot.Count - 1 to 0 step -1
+    for k as int32 = e.modst.journalSlot.Count - 1 to 0 step -1
         e.macros[e.modst.journalSlot[k] - 1] = e.modst.journalMac[k]
     next
     e.modst.journalSlot.Clear( )
@@ -649,7 +649,7 @@ function PpModNextFile( byref e as PpEngine ) as boolean
 
     dim as TokenVec ptr sep = new TokenVec
     dim as Token t
-    t.kind = cast( ushort, TK_EOL )
+    t.kind = cast( uint16, TK_EOL )
     t.flags = 0
     t.loc = e.src->LocFor( nx, 0 )
     t.length = 0

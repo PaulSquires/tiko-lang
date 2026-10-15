@@ -15,7 +15,7 @@ private function ConcatHasUString_ _
     '' "y" ) ) )' is USTRING; typed STRING, 'print' of it went to fb_PrintString.
     if c.ast->Kind( id ) = Tko.N_PAREN then
         dim as Tko.ListPayload ptr pp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         if pp->count <> 1 then return false
         return ConcatHasUString_( c, cast( Tko.NodeId, c.ast->children[pp->first] ) )
     end if
@@ -29,7 +29,7 @@ private function ConcatHasUString_ _
     if c.ast->Kind( id ) <> Tko.N_BINARY then return false
     if bt <> Tko.TY_STRING then return false
     dim as Tko.BinaryPayload ptr bp = _
-        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     dim as Tko.TokenKind op = cast( Tko.TokenKind, bp->op )
     if (op <> Tko.TK_AMP) andalso (op <> Tko.TK_PLUS) then return false
     if ConcatHasUString_( c, bp->lhs ) then return true
@@ -51,7 +51,7 @@ private function ConcatHasWideCastTerm_ _
         '' A TYPED binary is some other operation -- a user 'operator +' among them.
         if t <> Tko.TYPE_NONE then return false
         dim as Tko.BinaryPayload ptr bp = _
-            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         dim as Tko.TokenKind op = cast( Tko.TokenKind, bp->op )
         if (op <> Tko.TK_AMP) andalso (op <> Tko.TK_PLUS) then return false
         if ConcatHasWideCastTerm_( c, bp->lhs ) then return true
@@ -94,12 +94,12 @@ end function
 '' literal with a unicode escape, a wide CONST and a wide-and-narrow concatenation exactly
 '' as a 'wstring * 8' one. A string VARIABLE, or 'sv & "z"', is a STRING and is not this.
 private function ConstStrArgWidth_ _
-    ( byref c as Ctx, byval a as Tko.NodeId, byval depth as long = 0 ) as long
+    ( byref c as Ctx, byval a as Tko.NodeId, byval depth as int32 = 0 ) as int32
 
     if (a = Tko.NODE_NONE) orelse (depth > 16) then return 0
     select case c.ast->Kind( a )
     case Tko.N_STRING_LIT
-        if c.ast->literals[cast( long, c.ast->nodes[cast( long, a )].data )].strWide <> 0 then
+        if c.ast->literals[cast( int32, c.ast->nodes[cast( int32, a )].data )].strWide <> 0 then
             return 2
         end if
         return 1
@@ -108,14 +108,14 @@ private function ConstStrArgWidth_ _
     case Tko.N_STRCAT, Tko.N_PAREN
         '' Adjacent literals are one; a parenthesis holds one expression.
         dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, a )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, a )].data )]
         dim as boolean isCat = (c.ast->Kind( a ) = Tko.N_STRCAT)
         if lp->count < 1 then return 0
         if (isCat = false) andalso (lp->count <> 1) then return 0
-        dim as long w = 0
-        for i as long = 0 to lp->count - 1
+        dim as int32 w = 0
+        for i as int32 = 0 to lp->count - 1
             dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[lp->first + i] )
-            dim as long wi = ConstStrArgWidth_( c, e, depth + 1 )
+            dim as int32 wi = ConstStrArgWidth_( c, e, depth + 1 )
             if wi = 0 then return 0
             if isCat then
                 if wi = 3 then return 0
@@ -125,11 +125,11 @@ private function ConstStrArgWidth_ _
         return w
     case Tko.N_BINARY
         dim as Tko.BinaryPayload ptr bp = _
-            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, a )].data )]
+            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, a )].data )]
         dim as Tko.TokenKind op = cast( Tko.TokenKind, bp->op )
         if (op <> Tko.TK_AMP) andalso (op <> Tko.TK_PLUS) then return 0
-        dim as long lw = ConstStrArgWidth_( c, bp->lhs, depth + 1 )
-        dim as long rw = ConstStrArgWidth_( c, bp->rhs, depth + 1 )
+        dim as int32 lw = ConstStrArgWidth_( c, bp->lhs, depth + 1 )
+        dim as int32 rw = ConstStrArgWidth_( c, bp->rhs, depth + 1 )
         if (lw = 0) orelse (rw = 0) then return 0
         '' '&' takes a number on either side and '+' does not; one side must be a string.
         if (lw = 3) andalso (rw = 3) then return 0
@@ -139,7 +139,7 @@ private function ConstStrArgWidth_ _
     case Tko.N_IDENT
         dim as Tko.Symbol ptr ks = c.syms->SymbolAt( c.info->RefOf( a ) )
         if ks = 0 then return 0
-        if ks->kind <> cast( ubyte, Tko.SYM_CONSTANT ) then return 0
+        if ks->kind <> cast( uint8, Tko.SYM_CONSTANT ) then return 0
         '' A PREDECLARED constant -- 'true', 'false' -- carries a VALUE here, not a node.
         if (ks->payload <= 0) orelse (ks->payload >= c.ast->nodes.Count) then return 0
         dim as Tko.NodeId item = cast( Tko.NodeId, ks->payload )
@@ -197,7 +197,7 @@ private function ConcatHasWideStr_ _
     if id = Tko.NODE_NONE then return false
     if c.ast->Kind( id ) = Tko.N_PAREN then
         dim as Tko.ListPayload ptr pp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         if pp->count <> 1 then return false
         return ConcatHasWideStr_( c, cast( Tko.NodeId, c.ast->children[pp->first] ) )
     end if
@@ -213,7 +213,7 @@ private function ConcatHasWideStr_ _
     if c.ast->Kind( id ) <> Tko.N_BINARY then return false
     if bt <> Tko.TY_STRING then return false
     dim as Tko.BinaryPayload ptr bp = _
-        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     dim as Tko.TokenKind op = cast( Tko.TokenKind, bp->op )
     if (op <> Tko.TK_AMP) andalso (op <> Tko.TK_PLUS) then return false
     if ConcatHasWideStr_( c, bp->lhs ) then return true
@@ -225,7 +225,7 @@ end function
 '' whatever the other arguments say (overload/const.bas). tiko let it bind the non-const one.
 private function ArrayConstMismatch_( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId ) as boolean
     if (e = Tko.NODE_NONE) orelse (pt = Tko.TYPE_NONE) orelse (c.ast->Kind( e ) <> Tko.N_CALL) then return false
-    dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+    dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
     if lp->target = Tko.NODE_NONE then return false
     '' THE CONST MAY SIT ON THE ARRAY OR ON ITS ELEMENT, either side.
     dim as Tko.TypeId at0 = c.info->TypeOf_( lp->target )

@@ -67,13 +67,13 @@ private function SpTypeRef_ _
     tp.name = nm
     '' A BUILTIN TYPE IS NAMED BY ITS KEYWORD, in 'op', and not by a name: the
     '' name 'any' resolves to no symbol at all.
-    tp.op = cast( ushort, kw )
+    tp.op = cast( uint16, kw )
     dim as Tko.NodeId n = MakeStmt( p, Tko.N_TYPEREF, loc, tp )
     if isPtr = false then return n
     dim as Tko.StmtPayload up
     up.a = n
     dim as Tko.NodeId pn = MakeStmt( p, Tko.N_TYPEREF, loc, up )
-    p.ast->nodes[cast( long, pn )].flags or= Tko.NF_PTR
+    p.ast->nodes[cast( int32, pn )].flags or= Tko.NF_PTR
     return pn
 end function
 
@@ -85,26 +85,26 @@ private function SpMember_ _
       byval fieldNm as Tko.InternId, byval loc as Tko.SourceLoc ) as Tko.NodeId
 
     dim as Tko.UnaryPayload dp
-    dp.op = cast( ushort, Tko.TK_STAR )
+    dp.op = cast( uint16, Tko.TK_STAR )
     dp.operand = SpIdent_( p, baseNm, loc )
     p.ast->unaries.Push( dp )
     dim as Tko.NodeId der = NewNodeAt( p, Tko.N_DEREF, loc, p.ast->unaries.Count - 1 )
 
     dim as Tko.BinaryPayload mb
-    mb.op = cast( ushort, Tko.TK_DOT )
+    mb.op = cast( uint16, Tko.TK_DOT )
     mb.lhs = der
     mb.rhs = SpIdent_( p, fieldNm, loc )
     p.ast->binaries.Push( mb )
     dim as Tko.NodeId mem = _
         NewNodeAt( p, Tko.N_BINARY, loc, p.ast->binaries.Count - 1 )
-    p.ast->nodes[cast( long, mem )].kind = cast( ushort, Tko.N_MEMBER )
+    p.ast->nodes[cast( int32, mem )].kind = cast( uint16, Tko.N_MEMBER )
     return mem
 end function
 
 '' The frame type's field name for argument K. '__ARG_0', '__ARG_1', ... -- positional,
 '' because an argument has no name to borrow the way a capture does.
 function SpawnArgFieldName _
-    ( byref names as Tko.Interner, byval k as long ) as Tko.InternId
+    ( byref names as Tko.Interner, byval k as int32 ) as Tko.InternId
     return names.Fold( names.GetString( "__ARG_" & trim( str( k ) ) ) )
 end function
 
@@ -118,7 +118,7 @@ function MakeSpawn_ _
     if callNode = Tko.NODE_NONE then return Tko.NODE_NONE
     if p.ast->Kind( callNode ) <> Tko.N_CALL then return Tko.NODE_NONE
     dim as Tko.ListPayload ptr cp = _
-        @p.ast->lists[cast( long, p.ast->nodes[cast( long, callNode )].data )]
+        @p.ast->lists[cast( int32, p.ast->nodes[cast( int32, callNode )].data )]
     if cp->target = Tko.NODE_NONE then return Tko.NODE_NONE
     '' A PLAIN NAME ONLY. The frame's field types are the CALLEE'S PARAMETER types,
     '' which Resolve looks up by name from the spawn site's scope; a dotted or
@@ -126,7 +126,7 @@ function MakeSpawn_ _
     '' be guessed at. Every 'spawn' in the corpus names a plain sub.
     if p.ast->Kind( cp->target ) <> Tko.N_IDENT then return Tko.NODE_NONE
 
-    dim as ulong shash = 0
+    dim as uint32 shash = 0
     dim as Tko.DecodedLoc sd = p.src->Decode( t.loc )
     dim as Tko.SourceFile ptr sf = p.src->FileAt( sd.file )
     if sf <> 0 then shash = sf->contentHash
@@ -142,8 +142,8 @@ function MakeSpawn_ _
     '' READ OUT BEFORE ANYTHING ELSE IS BUILT. 'cp' points INTO the list pool, and
     '' every MakeList below appends to it -- one growth and the pointer is stale,
     '' which is a wrong callee and a wrong argument count with nothing to say so.
-    dim as long argc = cp->count
-    dim as long argFirst = cp->first
+    dim as int32 argc = cp->count
+    dim as int32 argFirst = cp->first
     dim as Tko.NodeId calleeN = cp->target
 
     '' ---- the thunk's body
@@ -156,18 +156,18 @@ function MakeSpawn_ _
     vi.b = SpIdent_( p, sfpNm, t.loc )
     dim as Tko.NodeId viN = MakeStmt( p, Tko.N_VAR_ITEM, t.loc, vi )
     dim as Tko.StmtPayload vs
-    vs.op = cast( ushort, Tko.KW_DIM )
+    vs.op = cast( uint16, Tko.KW_DIM )
     vs.first = p.ast->children.Count
     vs.count = 1
-    p.ast->children.Push( cast( ulong, viN ) )
-    body.Push( cast( ulong, MakeStmt( p, Tko.N_VAR, t.loc, vs ) ) )
+    p.ast->children.Push( cast( uint32, viN ) )
+    body.Push( cast( uint32, MakeStmt( p, Tko.N_VAR, t.loc, vs ) ) )
 
     '' 'f( (*__tko_sf).__ARG_0, ... )' -- THE ORIGINAL CALLEE NODE IS REUSED. It is an
     '' expression the parser already built and nothing else refers to it, so there is
     '' no aliasing: the N_CALL it came from is discarded here.
     dim as Tko.NodeIdVec cargs
-    for k as long = 0 to argc - 1
-        cargs.Push( cast( ulong, _
+    for k as int32 = 0 to argc - 1
+        cargs.Push( cast( uint32, _
             SpMember_( p, sfNm, SpawnArgFieldName( *p.names, k ), t.loc ) ) )
     next
     dim as Tko.NodeId inner = _
@@ -176,7 +176,7 @@ function MakeSpawn_ _
     '' value -- which is the node the parser makes for every other one.
     dim as Tko.StmtPayload es
     es.a = inner
-    body.Push( cast( ulong, MakeStmt( p, Tko.N_AMBIGUOUS, t.loc, es ) ) )
+    body.Push( cast( uint32, MakeStmt( p, Tko.N_AMBIGUOUS, t.loc, es ) ) )
 
     '' 'delete __tko_sf' -- WHICH IS WHAT DESTROYS THE ARGUMENTS. The frame's fields are
     '' the copies made at the spawn; a plain deallocate would leak every string, array
@@ -184,7 +184,7 @@ function MakeSpawn_ _
     '' virtual destructor.
     dim as Tko.StmtPayload ds
     ds.a = SpIdent_( p, sfNm, t.loc )
-    body.Push( cast( ulong, MakeStmt( p, Tko.N_DELETE_STMT, t.loc, ds ) ) )
+    body.Push( cast( uint32, MakeStmt( p, Tko.N_DELETE_STMT, t.loc, ds ) ) )
 
     '' ---- the thunk itself: 'sub __tko_spawnfn_TAG( byval __tko_sfp as any ptr )'
     ''
@@ -195,18 +195,18 @@ function MakeSpawn_ _
     pp0.name = sfpNm
     pp0.a = SpTypeRef_( p, 0, t.loc, true, Tko.KW_ANY )
     dim as Tko.NodeId prm = MakeStmt( p, Tko.N_PARAM, t.loc, pp0 )
-    p.ast->nodes[cast( long, prm )].flags or= Tko.NF_BYVAL_WRITTEN
+    p.ast->nodes[cast( int32, prm )].flags or= Tko.NF_BYVAL_WRITTEN
 
     dim as Tko.StmtPayload fp
     fp.name = fnNm
     fp.rawName = fnNm
-    fp.op = cast( ushort, Tko.KW_SUB )
+    fp.op = cast( uint16, Tko.KW_SUB )
     fp.first = p.ast->children.Count
     fp.count = 1
-    p.ast->children.Push( cast( ulong, prm ) )
+    p.ast->children.Push( cast( uint32, prm ) )
     fp.b = MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, body )
     dim as Tko.NodeId fn = MakeStmt( p, Tko.N_PROC, t.loc, fp )
-    p.lambdas.Push( cast( ulong, fn ) )
+    p.lambdas.Push( cast( uint32, fn ) )
 
     '' ---- the statement: the frame's NAME, the thunk, and the arguments
     '' THE THUNK IS NAMED, NOT CHILDED. It is already a module-level statement --
@@ -243,35 +243,35 @@ function MakeSpawn_ _
     si.b = newN
     dim as Tko.NodeId sitemN = MakeStmt( p, Tko.N_VAR_ITEM, t.loc, si )
     dim as Tko.StmtPayload sv
-    sv.op = cast( ushort, Tko.KW_DIM )
+    sv.op = cast( uint16, Tko.KW_DIM )
     sv.first = p.ast->children.Count
     sv.count = 1
-    p.ast->children.Push( cast( ulong, sitemN ) )
-    site.Push( cast( ulong, MakeStmt( p, Tko.N_VAR, t.loc, sv ) ) )
+    p.ast->children.Push( cast( uint32, sitemN ) )
+    site.Push( cast( uint32, MakeStmt( p, Tko.N_VAR, t.loc, sv ) ) )
 
     '' One assignment per argument, in the order they were written.
-    for k as long = 0 to argc - 1
+    for k as int32 = 0 to argc - 1
         dim as Tko.StmtPayload asn
         asn.a = SpMember_( p, sfvNm, SpawnArgFieldName( *p.names, k ), t.loc )
         asn.b = cast( Tko.NodeId, p.ast->children[argFirst + k] )
-        asn.op = cast( ushort, Tko.TK_EQ )
-        site.Push( cast( ulong, MakeStmt( p, Tko.N_AMBIGUOUS, t.loc, asn ) ) )
+        asn.op = cast( uint16, Tko.TK_EQ )
+        site.Push( cast( uint32, MakeStmt( p, Tko.N_AMBIGUOUS, t.loc, asn ) ) )
     next
 
     '' 'FB.Spawn( @thunk, frame )' -- the runtime call, named through the namespace
     '' the program has already included: TasksNs.
     dim as Tko.BinaryPayload qb
-    qb.op = cast( ushort, Tko.TK_DOT )
+    qb.op = cast( uint16, Tko.TK_DOT )
     qb.lhs = SpIdent_( p, p.names->Fold( p.names->GetString( TasksNs( p ) ) ), t.loc )
     TasksQual( p, qb.lhs, 0 )
     qb.rhs = SpIdent_( p, p.names->Fold( p.names->GetString( "spawn" ) ), t.loc )
     p.ast->binaries.Push( qb )
     dim as Tko.NodeId qn = _
         NewNodeAt( p, Tko.N_BINARY, t.loc, p.ast->binaries.Count - 1 )
-    p.ast->nodes[cast( long, qn )].kind = cast( ushort, Tko.N_MEMBER )
+    p.ast->nodes[cast( int32, qn )].kind = cast( uint16, Tko.N_MEMBER )
 
     dim as Tko.UnaryPayload ap
-    ap.op = cast( ushort, Tko.TK_AT )
+    ap.op = cast( uint16, Tko.TK_AT )
     ap.operand = SpIdent_( p, fnNm, t.loc )
     MarkCallTarget_( p, ap.operand )        '' '@thunk' is addressed, not a paren-less read
     p.ast->unaries.Push( ap )
@@ -279,11 +279,11 @@ function MakeSpawn_ _
         NewNodeAt( p, Tko.N_ADDROF, t.loc, p.ast->unaries.Count - 1 )
 
     dim as Tko.NodeIdVec sargs
-    sargs.Push( cast( ulong, adr ) )
-    sargs.Push( cast( ulong, SpIdent_( p, sfvNm, t.loc ) ) )
+    sargs.Push( cast( uint32, adr ) )
+    sargs.Push( cast( uint32, SpIdent_( p, sfvNm, t.loc ) ) )
     dim as Tko.StmtPayload cs
     cs.a = MakeList( p, Tko.N_CALL, t.loc, qn, sargs )
-    site.Push( cast( ulong, MakeStmt( p, Tko.N_AMBIGUOUS, t.loc, cs ) ) )
+    site.Push( cast( uint32, MakeStmt( p, Tko.N_AMBIGUOUS, t.loc, cs ) ) )
 
     dim as Tko.StmtPayload scp
     scp.b = MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, site )
@@ -297,8 +297,8 @@ function MakeSpawn_ _
     ssp.name = frmNm
     ssp.rawName = fnNm
     ssp.aliasName = _
-        p.ast->idents[cast( long, p.ast->nodes[cast( long, calleeN )].data )].name
-    ssp.extra = cast( ushort, argc )
+        p.ast->idents[cast( int32, p.ast->nodes[cast( int32, calleeN )].data )].name
+    ssp.extra = cast( uint16, argc )
     ssp.b = scN
     '' ...and the CALLEE NODE, the one the thunk's call reuses, so Resolve can tell
     '' 'spawn' names no procedure (T76) and stop the thunk reporting it as undeclared.
@@ -315,17 +315,17 @@ end function
 '' to nothing, the report is TKO0423 and not an undeclared 'fb'.
 function TasksNs( byref p as Tko.ParserState ) as string
     if p.ifaceChains <> 0 then
-        for k as long = 0 to p.ifaceChains->Count - 1
+        for k as int32 = 0 to p.ifaceChains->Count - 1
             if (*p.ifaceChains)[k] = "std.tasks" then return "__tko_mod_std_tasks"
         next
     end if
     return "FB"
 end function
 
-sub TasksQual( byref p as Tko.ParserState, byval n as Tko.NodeId, byval what as long )
+sub TasksQual( byref p as Tko.ParserState, byval n as Tko.NodeId, byval what as int32 )
     if TasksNs( p ) <> "FB" then return
-    p.ast->tasksQual.Push( cast( ulong, n ) )
-    p.ast->tasksQual.Push( cast( ulong, what ) )
+    p.ast->tasksQual.Push( cast( uint32, n ) )
+    p.ast->tasksQual.Push( cast( uint32, what ) )
 end sub
 
 end namespace

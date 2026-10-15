@@ -88,7 +88,7 @@ private function TryTailJoin_( byref e as PpEngine ) as boolean
     dim as Token j = jv[0]
     '' The joined token stands where the expansion's tail stood: it takes that token's
     '' leading spacing and line position, never the swallowed one's.
-    dim as ushort keep = a.flags and _
+    dim as uint16 keep = a.flags and _
         (TF_SPACE_BEFORE or TF_AT_LINE_START or TF_COLON or TF_LINE_JOINED)
     j.flags = (j.flags and (not (TF_SPACE_BEFORE or TF_AT_LINE_START or _
                                  TF_COLON or TF_LINE_JOINED))) or keep
@@ -127,8 +127,8 @@ end function
 '' 12, where tiko splices 'two' and the rescan's own tail join cannot reach the front of
 '' an expansion. And '&hn' needs '&h' to survive lexing with no digits after it, which
 '' it does not; no corpus file or bundled header writes either shape.
-type PieceVec as containers.Array( of long )
-type ByteVec as containers.Array( of ubyte )
+type PieceVec as containers.Array( of int32 )
+type ByteVec as containers.Array( of uint8 )
 
 '' Two tokens, joined if their spellings re-lex as exactly one -- TryTailJoin_'s rule,
 '' and its reasons, applied to a seam inside the expansion instead of the one at its end.
@@ -153,9 +153,9 @@ private function JoinPair_ _
     '' A RE-LEX THAT REPORTS SOMETHING IS NOT A JOIN: '&' against 'hx' would say "'&' is
     '' not followed by any digits" about text nobody wrote. Diagnostics are buffered
     '' until Flush, so a speculative one is taken back off the pending list.
-    dim as long e0 = e.diags->errors
-    dim as long w0 = e.diags->warnings
-    dim as long p0 = e.diags->pending.Count
+    dim as int32 e0 = e.diags->errors
+    dim as int32 w0 = e.diags->warnings
+    dim as int32 p0 = e.diags->pending.Count
     dim as TokenVec jv
     RelexInto( e, sa + sb, a.loc, jv )
     dim as boolean reported = (e.diags->errors <> e0) orelse (e.diags->warnings <> w0)
@@ -173,7 +173,7 @@ private function JoinPair_ _
     j = jv[0]
     '' The joined token stands where the LEFT one stood: it takes that token's leading
     '' spacing and line position, never the swallowed one's.
-    dim as ushort keep = a.flags and _
+    dim as uint16 keep = a.flags and _
         (TF_SPACE_BEFORE or TF_AT_LINE_START or TF_COLON or TF_LINE_JOINED)
     j.flags = (j.flags and (not (TF_SPACE_BEFORE or TF_AT_LINE_START or _
                                  TF_COLON or TF_LINE_JOINED))) or keep
@@ -185,11 +185,11 @@ end function
 '' (BELOW the start for an empty argument), and whether the body had no space in front
 '' of it.
 private sub PieceMark_ _
-    ( byref pieces as PieceVec, byval first as long, byval last_ as long, _
-      byval bodyFlags as ushort )
+    ( byref pieces as PieceVec, byval first as int32, byval last_ as int32, _
+      byval bodyFlags as uint16 )
     pieces.Push( first )
     pieces.Push( last_ )
-    dim as long g = 0
+    dim as int32 g = 0
     if (bodyFlags and TF_SPACE_BEFORE) = 0 then g = 1
     pieces.Push( g )
 end sub
@@ -201,22 +201,22 @@ private sub JoinSubstituted_ _
     ( byref e as PpEngine, byref toks as TokenVec, byref pieces as PieceVec )
 
     if pieces.Count = 0 then return
-    dim as long n = toks.Count
+    dim as int32 n = toks.Count
     if n < 2 then return
 
     '' 0 a body token, 1 the first token of a substituted run, 2 inside one.
     dim as ByteVec kind_
     dim as ByteVec glued
-    for i as long = 0 to n - 1
+    for i as int32 = 0 to n - 1
         kind_.Push( 0 )
-        dim as ubyte gb = 0
+        dim as uint8 gb = 0
         if (toks[i].flags and TF_SPACE_BEFORE) = 0 then gb = 1
         glued.Push( gb )
     next
 
-    for pi as long = 0 to pieces.Count - 3 step 3
-        dim as long f = pieces[pi]
-        dim as long l = pieces[pi + 1]
+    for pi as int32 = 0 to pieces.Count - 3 step 3
+        dim as int32 f = pieces[pi]
+        dim as int32 l = pieces[pi + 1]
         dim as boolean g = (pieces[pi + 2] <> 0)
         if f >= n then continue for
         if f > l then
@@ -227,14 +227,14 @@ private sub JoinSubstituted_ _
         end if
         kind_[f] = 1
         if g then glued[f] = 1 else glued[f] = 0
-        for i as long = f + 1 to l
+        for i as int32 = f + 1 to l
             if i < n then kind_[i] = 2
         next
     next
 
     dim as TokenVec outv
     dim as ByteVec outKind
-    for i as long = 0 to n - 1
+    for i as int32 = 0 to n - 1
         dim as boolean tryJoin = (outv.Count > 0) andalso (kind_[i] <> 2)
         if tryJoin then tryJoin = (glued[i] <> 0)
         if tryJoin then tryJoin = (kind_[i] = 1) orelse (outKind[outKind.Count - 1] <> 0)
@@ -245,7 +245,7 @@ private sub JoinSubstituted_ _
                 '' '=' as equality inside the argument list and assigns nothing.
                 dim as Token ptr slot = @outv.At( outv.Count - 1 )
                 *slot = j
-                dim as ubyte ptr kslot = @outKind.At( outKind.Count - 1 )
+                dim as uint8 ptr kslot = @outKind.At( outKind.Count - 1 )
                 *kslot = 1
                 continue for
             end if
@@ -255,7 +255,7 @@ private sub JoinSubstituted_ _
     next
 
     toks.Clear( )
-    for i as long = 0 to outv.Count - 1
+    for i as int32 = 0 to outv.Count - 1
         toks.Push( outv[i] )
     next
 end sub

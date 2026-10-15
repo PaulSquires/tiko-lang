@@ -73,7 +73,7 @@ namespace Tko
         BINOP( TK_CARET,      PREC_POWER   )
     #endmacro
 
-    declare function InfixPrec( byval k as TokenKind ) as long
+    declare function InfixPrec( byval k as TokenKind ) as int32
 
 end namespace
 

@@ -59,7 +59,7 @@ namespace Tko
     type InstFrame
         as string      text          '' 'Ranked( of opaque_ )'
         as SourceRange range         '' the line that asked for it
-        as long        parent
+        as int32        parent
     end type
 
     type InstFrameVec as containers.Array( of InstFrame )
@@ -74,7 +74,7 @@ namespace Tko
         '' The instantiation being checked when this was reported, or 0. Expanded into
         '' TKO0903 notes at Flush, AFTER any AddNote ones, so 'declared here' stays next to
         '' the error it explains and the chain reads outward from it.
-        as long        instFrame
+        as int32        instFrame
     end type
 
     type DiagVec as containers.Array( of Diagnostic )

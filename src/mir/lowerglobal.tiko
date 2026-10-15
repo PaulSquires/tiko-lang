@@ -45,14 +45,14 @@ end function
 declare function UniqueGlobalName _
     ( byref c as Ctx, byval nm as Tko.InternId ) as Tko.InternId
 
-function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as long
+function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as int32
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
     if s = 0 then return -1
 
     '' Keyed by SYMBOL, not by spelling. Two statics called 'n' in sibling scopes of one
     '' procedure are two declarations and therefore two symbols; keying on the name
     '' merged them into a single variable that both scopes incremented.
-    dim as long knownG = c.gvarBySym.Find( cast( ulong, sid ) )
+    dim as int32 knownG = c.gvarBySym.Find( cast( uint32, sid ) )
     if knownG >= 0 then return knownG
 
     dim as Tko.InternId nm = s->name
@@ -66,7 +66,7 @@ function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as long
         '' member the local way gave it whichever member function first touched it,
         '' so two translation units would not agree on the symbol.
         dim as Tko.SymScope ptr ps = c.syms->ScopeAt( s->parent )
-        if ps <> 0 then memberStatic = (ps->kind = cast( ubyte, Tko.SCOPEK_TYPE ))
+        if ps <> 0 then memberStatic = (ps->kind = cast( uint8, Tko.SCOPEK_TYPE ))
         if memberStatic then
             dim as string smn = Tko.Mangle.StaticMemberName( _
                 *c.syms, s->parent, *c.names, c.names->Spelling( s->name ) )
@@ -107,7 +107,7 @@ function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as long
             nm = c.names->GetString( dflt )
             dim as Tko.SymScope ptr vps = c.syms->ScopeAt( s->parent )
             if vps <> 0 then
-                if vps->kind = cast( ubyte, Tko.SCOPEK_NAMESPACE ) then
+                if vps->kind = cast( uint8, Tko.SCOPEK_NAMESPACE ) then
                     dim as string qn = Tko.Mangle.StaticMemberName( _
                         *c.syms, s->parent, *c.names, c.names->Spelling( s->name ) )
                     if len( qn ) > 0 then nm = c.names->GetString( qn )
@@ -120,14 +120,14 @@ function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as long
     dim as boolean modVar = ((s->flags and Tko.SYMF_MODSRC) <> 0)
     if modVar then modVar = (linksByName = false)
     if modVar then nm = c.names->GetString( Tko.Mangle.ModuleVarName( *c.syms, sid, *c.names ) )
-    dim as long sz = SizeOfType( c, s->type_ )
+    dim as int32 sz = SizeOfType( c, s->type_ )
     '' The storage NAME must still be unique, because it is what a linker and a golden
     '' diff see. A collision here means two distinct symbols wanted the same spelling,
     '' so the later one is suffixed rather than silently sharing.
     if linksByName = false then nm = UniqueGlobalName( c, nm )
 
-    dim as long g = c.m->AddVarGlobal( nm, LowerType( s->type_, *c.types ), s->type_, sz )
-    c.m->globals[g].sym = cast( ulong, sid )
+    dim as int32 g = c.m->AddVarGlobal( nm, LowerType( s->type_, *c.types ), s->type_, sz )
+    c.m->globals[g].sym = cast( uint32, sid )
     '' AND WHO MAY SEE IT. Everything here went out with external linkage, so two modules
     '' that each wrote 'dim shared e' -- or each held a 'private sub P' with a 'static sl'
     '' -- were 'lld-link: error: duplicate symbol: e', where fbc compiles both and gives
@@ -165,9 +165,9 @@ function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as long
     else
         c.m->globals[g].isInternal = true
     end if
-    c.gvarSym.Push( cast( ulong, sid ) )
+    c.gvarSym.Push( cast( uint32, sid ) )
     c.gvarSlot.Push( g )
-    c.gvarBySym.Put( cast( ulong, sid ), g )
+    c.gvarBySym.Put( cast( uint32, sid ), g )
     return g
 end function
 
@@ -179,7 +179,7 @@ private function UniqueGlobalName _
     if c.m->FindVarGlobal( nm ) < 0 then return nm
 
     dim as string base_ = c.names->Spelling( nm )
-    for n as long = 2 to 1000
+    for n as int32 = 2 to 1000
         dim as Tko.InternId cand = c.names->GetString( base_ & "$" & str( n ) )
         if c.m->FindVarGlobal( cand ) < 0 then return cand
     next

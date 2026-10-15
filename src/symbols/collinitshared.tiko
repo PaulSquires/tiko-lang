@@ -12,7 +12,7 @@
 
 private sub CollInitSharedRefs_ ( byref c as Ctx, byval s as Symbol ptr )
     if s = 0 then return
-    if s->kind <> cast( ubyte, SYM_VARIABLE ) then return
+    if s->kind <> cast( uint8, SYM_VARIABLE ) then return
     if s->payload <= 0 then return
     dim as NodeId item = cast( NodeId, s->payload )
     if c.ast->Kind( item ) <> N_VAR_ITEM then return
@@ -21,16 +21,16 @@ private sub CollInitSharedRefs_ ( byref c as Ctx, byval s as Symbol ptr )
     dim as boolean inModule = ((s->flags and SYMF_SHARED) <> 0)
     if inModule = false then
         dim as SymScope ptr sc = c.syms->ScopeAt( s->parent )
-        if sc <> 0 then inModule = (sc->kind = cast( ubyte, SCOPEK_NAMESPACE ))
+        if sc <> 0 then inModule = (sc->kind = cast( uint8, SCOPEK_NAMESPACE ))
     end if
     if inModule = false then return
-    dim as ListPayload ptr bl = @c.ast->lists[cast( long, c.ast->nodes[cast( long, blk )].data )]
-    dim as long first_ = bl->first
-    dim as long count_ = bl->count
-    for k as long = 0 to count_ - 1
+    dim as ListPayload ptr bl = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, blk )].data )]
+    dim as int32 first_ = bl->first
+    dim as int32 count_ = bl->count
+    for k as int32 = 0 to count_ - 1
         dim as NodeId st = cast( NodeId, c.ast->children[first_ + k] )
         '' The statement's call: CheckSharedRef_ walks its ARGUMENTS and not its callee,
         '' which is 'x.Push' -- the variable itself.
-        CheckSharedRef_( c, c.ast->stmts[cast( long, c.ast->nodes[cast( long, st )].data )].a, s->name )
+        CheckSharedRef_( c, c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, st )].data )].a, s->name )
     next
 end sub

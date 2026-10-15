@@ -87,7 +87,7 @@ function ByvalDefaultArg_ _
     '' 'sext i64 0 to i32', which clang refuses. Every fbx CDialog example died on it --
     '' 'declare constructor( ..., byval fontStyle as BYTE = 0, byval charset as BYTE =
     '' DEFAULT_CHARSET )' -- while 'dim as T v = T( 5 )' beside it, written, built.
-    if (av.kind <> cast( ubyte, MV_NONE )) andalso (pty <> Tko.TYPE_NONE) then
+    if (av.kind <> cast( uint8, MV_NONE )) andalso (pty <> Tko.TYPE_NONE) then
         dim as MirType pmt = LowerType( pty, *c.types )
         if (pmt <> MT_VOID) andalso (pmt <> MT_AGG) then
             av = CoerceTy( c, av, pmt, c.info->TypeOf_( dv ), pty )
@@ -110,7 +110,7 @@ function ByrefAggTempOf_ _
     '' The scalar arm of the same loop already made a temporary and passed its address;
     '' this gives the aggregate one too. functions/paraminit.bas (ctors1) and
     '' structs/temp-var-dtors.bas are the corpus files that were failing.
-    if rv.kind = cast( ubyte, MV_NONE ) then return false
+    if rv.kind = cast( uint8, MV_NONE ) then return false
     if pty = Tko.TYPE_NONE then return false
     '' ONLY AN INSTRUCTION RESULT, and only an aggregate one. MV_LOCAL, MV_GLOBAL and
     '' MV_PARAM already ARE the object's address -- see the MV_LOCAL comment in mir.ti
@@ -123,7 +123,7 @@ function ByrefAggTempOf_ _
     ''
     '' and tests/mir/field-init-convctor caught it -- the same mistake as the zstring
     '' one in CtorByrefArgAddr_, made again in the other helper.
-    if rv.kind <> cast( ubyte, MV_TEMP ) then return false
+    if rv.kind <> cast( uint8, MV_TEMP ) then return false
     if cast( MirType, rv.ty ) <> MT_AGG then return false
     dim as Tko.TypeId ru = c.types->Unqualify( pty )
     if c.types->Kind( ru ) = Tko.TK_REFERENCE then
@@ -131,12 +131,12 @@ function ByrefAggTempOf_ _
     end if
     dim as MirType pmt = LowerType( ru, *c.types )
     if pmt <> MT_AGG then return false
-    dim as long sz = SizeOfType( c, ru )
+    dim as int32 sz = SizeOfType( c, ru )
     if sz <= 0 then return false
-    dim as long slot = NewTempLocal( c, pmt, sz )
+    dim as int32 slot = NewTempLocal( c, pmt, sz )
     if slot < 0 then return false
-    outv.kind = cast( ubyte, MV_LOCAL )
-    outv.ty = cast( ubyte, MT_PTR )
+    outv.kind = cast( uint8, MV_LOCAL )
+    outv.ty = cast( uint8, MT_PTR )
     outv.id = slot
     StoreThrough( c, outv, rv )
     return true
@@ -162,7 +162,7 @@ function CtorByrefArgAddr_ _
       byref outv as MirValue ) as boolean
 
     outv = LowerAddr( c, argNode )
-    if outv.kind <> cast( ubyte, MV_NONE ) then return true
+    if outv.kind <> cast( uint8, MV_NONE ) then return true
 
     '' A ZSTRING OR WSTRING REFERENT IS ALREADY A POINTER, so it must NOT be given a
     '' temporary: the VALUE of a string literal is its address, which is exactly what
@@ -178,7 +178,7 @@ function CtorByrefArgAddr_ _
     end if
 
     outv = ByrefTemp_( c, argNode, pty )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 
 function CtorByrefRvalue_ _
@@ -204,13 +204,13 @@ function ByrefTemp_ _
     dim as MirType pmt = LowerType( c.types->Unqualify( pt ), *c.types )
 
     dim as MirValue rv = LowerExpr( c, argNode )
-    if rv.kind = cast( ubyte, MV_NONE ) then
+    if rv.kind = cast( uint8, MV_NONE ) then
         '' A value that would not lower may still have an address -- and if it has
         '' one, LowerAddr would have found it before this was ever called.
         return none_
     end if
 
-    dim as long sz = 0
+    dim as int32 sz = 0
     if pmt = MT_VOID then
         '' 'byref r as any' HAS NO TYPE TO MAKE A TEMPORARY OF, so the ARGUMENT's own
         '' type is what fbc uses -- and a CONSTANT is not given a temporary at all, it
@@ -242,11 +242,11 @@ function ByrefTemp_ _
         if pmt = MT_AGG then sz = SizeOfType( c, pt )
     end if
 
-    dim as long slot = NewTempLocal( c, pmt, sz )
+    dim as int32 slot = NewTempLocal( c, pmt, sz )
     if slot < 0 then return none_
     dim as MirValue tmp
-    tmp.kind = cast( ubyte, MV_LOCAL )
-    tmp.ty = cast( ubyte, MT_PTR )
+    tmp.kind = cast( uint8, MV_LOCAL )
+    tmp.ty = cast( uint8, MT_PTR )
     tmp.id = slot
     StoreThrough( c, tmp, rv )
     return tmp
@@ -263,7 +263,7 @@ function ByrefTempOf_ _
     ( byref c as Ctx, byref rv as MirValue, byval pt as Tko.TypeId ) as MirValue
 
     dim as MirValue none_
-    if rv.kind = cast( ubyte, MV_NONE ) then return none_
+    if rv.kind = cast( uint8, MV_NONE ) then return none_
     if pt = Tko.TYPE_NONE then return none_
     dim as Tko.TypeId rt = c.types->Unqualify( pt )
     if c.types->Kind( rt ) = Tko.TK_REFERENCE then
@@ -272,12 +272,12 @@ function ByrefTempOf_ _
     dim as MirType pmt = LowerType( rt, *c.types )
     if (pmt = MT_VOID) orelse (pmt = MT_AGG) then return none_
     dim as MirValue v2 = CoerceTy( c, rv, pmt, rt )
-    if v2.kind = cast( ubyte, MV_NONE ) then return none_
-    dim as long slot = NewTempLocal( c, pmt, c.types->Layout( rt ).size )
+    if v2.kind = cast( uint8, MV_NONE ) then return none_
+    dim as int32 slot = NewTempLocal( c, pmt, c.types->Layout( rt ).size )
     if slot < 0 then return none_
     dim as MirValue tmp
-    tmp.kind = cast( ubyte, MV_LOCAL )
-    tmp.ty = cast( ubyte, MT_PTR )
+    tmp.kind = cast( uint8, MV_LOCAL )
+    tmp.ty = cast( uint8, MT_PTR )
     tmp.id = slot
     StoreThrough( c, tmp, v2 )
     return tmp
@@ -318,7 +318,7 @@ function ParenlessProcTemp_ _
 
     if argNode = Tko.NODE_NONE then return false
     dim as Tko.NodeId inner = Unparen_( c, argNode )
-    dim as long peel = 0
+    dim as int32 peel = 0
     while peel < 16
         dim as Tko.NodeId nco = NoConvOperand_( c, inner )
         if nco = Tko.NODE_NONE then exit while
@@ -329,7 +329,7 @@ function ParenlessProcTemp_ _
     if (k <> Tko.N_IDENT) andalso (k <> Tko.N_MEMBER) then return false
     dim as Tko.Symbol ptr ps = c.syms->SymbolAt( c.info->RefOf( inner ) )
     if ps = 0 then return false
-    if ps->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    if ps->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     outa = ByrefTemp_( c, argNode, pt )
     return true
 end function
@@ -341,7 +341,7 @@ function HasUdtConvCtor_ _
     ( byref c as Ctx, byval pt as Tko.TypeId, byval at as Tko.TypeId ) as boolean
 
     dim as Tko.SymbolId cur = StructorOf( c, pt, "__ctor" )
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 256)
         guard += 1
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
@@ -388,7 +388,7 @@ function WideArgCharPtrCtor_ _
     if c.types->Kind( pu ) <> Tko.TK_UDT then return false
     if WideValueForCharMember_( c, argNode ) = false then return false
     dim as Tko.SymbolId cur = StructorOf( c, pu, "__ctor" )
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 256)
         guard += 1
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
@@ -423,7 +423,7 @@ function WideCharOverload_ _
 
     dim as Tko.SymbolId ptrPick = Tko.SYMBOL_NONE
     dim as Tko.SymbolId cur = first_
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 256)
         guard += 1
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
@@ -518,16 +518,16 @@ function ByrefConvArg_ _
 
     dim as MirValue none_
     outa = none_
-    dim as long ts = -1
+    dim as int32 ts = -1
     dim as Tko.TypeId tt = Tko.TYPE_NONE
     if UdtConvTemp_( c, argNode, pu, outa, ts, tt, true ) = false then
         outa = none_
-        c.blameNode = cast( ulong, argNode )
+        c.blameNode = cast( uint32, argNode )
         return true
     end if
     if ts >= 0 then
-        c.udtTemps.Push( cast( ulong, ts ) )
-        c.udtTempTypes.Push( cast( ulong, tt ) )
+        c.udtTemps.Push( cast( uint32, ts ) )
+        c.udtTempTypes.Push( cast( uint32, tt ) )
     end if
     return true
 end function
@@ -556,14 +556,14 @@ private function ByrefUdtArg_ _
         if c.types->Kind( ppt ) = Tko.TK_REFERENCE then ppt = c.types->Inner( ppt )
         if Tko.Check.ConversionCost( obT, ppt, *c.types ) < Tko.Check.CONV_NUMERIC then
             outa = InitSourceAddr_( c, argNode )
-            return (outa.kind <> cast( ubyte, MV_NONE ))
+            return (outa.kind <> cast( uint8, MV_NONE ))
         end if
     end if
     if ByrefConvArg_( c, argNode, pt, outa ) then
-        return (outa.kind <> cast( ubyte, MV_NONE ))
+        return (outa.kind <> cast( uint8, MV_NONE ))
     end if
     if ParenlessProcTemp_( c, argNode, pt, outa ) then
-        return (outa.kind <> cast( ubyte, MV_NONE ))
+        return (outa.kind <> cast( uint8, MV_NONE ))
     end if
     outa = LowerAddr( c, argNode )
     return true
@@ -585,28 +585,28 @@ end function
 '' that is not a 'string * N'.
 function FixStrZArgTemp_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byref outa as MirValue, _
-      byref strTemps as containers.Array( of ulong ), byref strTempTypes as containers.Array( of ulong ), _
-      byref backNodes as containers.Array( of ulong ), byref backSlots as containers.Array( of ulong ) ) as boolean
+      byref strTemps as containers.Array( of uint32 ), byref strTempTypes as containers.Array( of uint32 ), _
+      byref backNodes as containers.Array( of uint32 ), byref backSlots as containers.Array( of uint32 ) ) as boolean
 
     if argNode = Tko.NODE_NONE then return false
-    dim as longint fn_
+    dim as int64 fn_
     if StrSwapKind_( c, c.info->TypeOf_( argNode ), fn_ ) <> 3 then return false
     dim as Tko.TypeId npt = c.types->Builtin( Tko.TY_STRING )
     dim as MirValue tv
-    dim as long slot = -1
+    dim as int32 slot = -1
     if ByvalStrTemp_( c, argNode, npt, tv, slot ) = false then return false
     if slot < 0 then return false
-    strTemps.Push( cast( ulong, slot ) )
-    strTempTypes.Push( cast( ulong, npt ) )
-    backNodes.Push( cast( ulong, argNode ) )
-    backSlots.Push( cast( ulong, slot ) )
+    strTemps.Push( cast( uint32, slot ) )
+    strTempTypes.Push( cast( uint32, npt ) )
+    backNodes.Push( cast( uint32, argNode ) )
+    backSlots.Push( cast( uint32, slot ) )
     dim as MirInst fa
-    fa.op = cast( ushort, M_FIELD_ADDR ) : fa.ty = cast( ubyte, MT_PTR )
+    fa.op = cast( uint16, M_FIELD_ADDR ) : fa.ty = cast( uint8, MT_PTR )
     fa.a = tv : fa.imm = 0
     dim as MirValue pa = Emit( c, fa )
-    if pa.kind = cast( ubyte, MV_NONE ) then return false
+    if pa.kind = cast( uint8, MV_NONE ) then return false
     outa = LowerExprLoad( c, pa, MT_PTR )
-    return (outa.kind <> cast( ubyte, MV_NONE ))
+    return (outa.kind <> cast( uint8, MV_NONE ))
 end function
 
 '' A LVALUE USTRING FOR A WIDE PARAMETER IS ITS DATA POINTER, which is already UTF-16.
@@ -623,19 +623,19 @@ function UStrDataArg_( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirV
     '' filled a buffer that was gone at the end of the statement, and u stayed empty.
     if (c.types->Kind( ut ) = Tko.TK_ARRAY) andalso IsUStringType( c, ut ) then
         outv = LowerAddr( c, e )
-        return (outv.kind <> cast( ubyte, MV_NONE ))
+        return (outv.kind <> cast( uint8, MV_NONE ))
     end if
     if c.types->Kind( ut ) <> Tko.TK_BUILTIN then return false
     if c.types->BuiltinOf( ut ) <> Tko.TY_USTRING then return false
     dim as MirValue ua = LowerAddr( c, e )
-    if ua.kind = cast( ubyte, MV_NONE ) then return false
+    if ua.kind = cast( uint8, MV_NONE ) then return false
     dim as MirInst ufa
-    ufa.op = cast( ushort, M_FIELD_ADDR ) : ufa.ty = cast( ubyte, MT_PTR )
+    ufa.op = cast( uint16, M_FIELD_ADDR ) : ufa.ty = cast( uint8, MT_PTR )
     ufa.a = ua : ufa.imm = 0
     dim as MirValue upa = Emit( c, ufa )
-    if upa.kind = cast( ubyte, MV_NONE ) then return false
+    if upa.kind = cast( uint8, MV_NONE ) then return false
     outv = LowerExprLoad( c, upa, MT_PTR )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 
 '' A USTRING READ BY A NARROW-ONLY ENTRY POINT IS CONVERTED FIRST. Measured, fbc lowers
@@ -650,10 +650,10 @@ function UStrToStrTemp_( byref c as Ctx, byval e as Tko.NodeId, byref outv as Mi
     '' ...AND A 'ustring * N', whose (buffer, tag) pair EmitStrTerm pushes: measured,
     '' 'fb_VAL( fb_UStrToStr( LF$0, &h8000000000000005 ) )'. It was a false TKO0626.
     if IsUStringType( c, ut ) = false then return false
-    dim as containers.Array( of ulong ) args
+    dim as containers.Array( of uint32 ) args
     if EmitStrTerm( c, args, e, true ) = false then return false
     outv = EmitRtl( c, RTL_USTR_TO_STR, args )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 
 '' A STRING ARGUMENT TO A CONSTRUCTOR, by type or -- an untyped wide call -- by shape.
@@ -674,7 +674,7 @@ function CtorArgLowersLate_( byref c as Ctx, byval a as Tko.NodeId ) as boolean
     '' ...AND A UDT TYPE LITERAL: 'type<C>( type<C>( 5 ) )' built the inner temporary for a
     '' value nobody passed, then again for the copy constructor -- two constructors where fbc
     '' has one (structs/udt-upcast-4.bas's shapes over a type with a copy constructor).
-    if (c.ast->Kind( a ) = Tko.N_TUPLE) andalso ((c.ast->nodes[cast( long, a )].flags and Tko.NF_TYPE_LITERAL) <> 0) then
+    if (c.ast->Kind( a ) = Tko.N_TUPLE) andalso ((c.ast->nodes[cast( int32, a )].flags and Tko.NF_TYPE_LITERAL) <> 0) then
         return (c.types->Kind( c.types->Unqualify( t ) ) = Tko.TK_UDT)
     end if
     if c.ast->Kind( a ) <> Tko.N_CALL then return false
@@ -714,14 +714,14 @@ end function
 '' literal has no side effect, so leaving it out reorders nothing. The pick is made here
 '' from the argument TYPES, which is all PickCtor reads; 'idx' counts arguments.
 function CtorLitArgIsWide_ _
-    ( byref c as Ctx, byval ctors as Tko.SymbolId, byval first_ as long, _
-      byval count as long, byval idx as long ) as boolean
+    ( byref c as Ctx, byval ctors as Tko.SymbolId, byval first_ as int32, _
+      byval count as int32, byval idx as int32 ) as boolean
 
     dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[first_ + idx] )
     if c.ast->Kind( Unparen_( c, a ) ) <> Tko.N_STRING_LIT then return false
-    dim as containers.Array( of ulong ) argT
-    for i as long = 0 to count - 1
-        argT.Push( cast( ulong, c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[first_ + i] ) ) ) )
+    dim as containers.Array( of uint32 ) argT
+    for i as int32 = 0 to count - 1
+        argT.Push( cast( uint32, c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[first_ + i] ) ) ) )
     next
     dim as Tko.SymbolId pick = PickCtor( c, ctors, argT )
     if pick = Tko.SYMBOL_NONE then return false
@@ -730,12 +730,12 @@ function CtorLitArgIsWide_ _
     dim as Tko.NodeId pn = cast( Tko.NodeId, ps->payload )
     if pn = Tko.NODE_NONE then return false
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
-    dim as long seen = 0
-    for k as long = 0 to pp->count - 1
+    dim as int32 seen = 0
+    for k as int32 = 0 to pp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + k] )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         if seen = idx then
-            if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) = 0 then return false
+            if (c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) = 0 then return false
             dim as Tko.TypeId u = c.types->Unqualify( c.info->TypeOf_( StmtOf( c, prm )->a ) )
             if c.types->Kind( u ) = Tko.TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
             if c.types->Kind( u ) <> Tko.TK_BUILTIN then return false

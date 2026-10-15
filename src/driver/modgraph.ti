@@ -36,7 +36,7 @@ end type
 '' cycle check, the order. quiet: the headers' own diagnostics are left to the compile.
 '' False when an error was reported.
 declare function BuildGraph _
-    ( byref ctx as Tko.CompilerContext, byval rootCount as long, byval quiet as boolean, _
+    ( byref ctx as Tko.CompilerContext, byval rootCount as int32, byval quiet as boolean, _
       byref g as ModGraph ) as boolean
 
 '' '--print-graph'. Reads the header of each of the first rootCount source files and of
@@ -45,6 +45,6 @@ declare function BuildGraph _
 ''     chain  directory  [the chains it imports]
 ''
 '' Returns the exit code; nothing is printed once an error has been reported.
-declare function PrintGraph( byref ctx as Tko.CompilerContext, byval rootCount as long ) as long
+declare function PrintGraph( byref ctx as Tko.CompilerContext, byval rootCount as int32 ) as int32
 
 end namespace

@@ -22,9 +22,9 @@ namespace Tko
 
     '' ---------------------------------------------------------------- identity
 
-    const TKO_VERSION_MAJOR  as long = 0
-    const TKO_VERSION_MINOR  as long = 1
-    const TKO_VERSION_PATCH  as long = 0
+    const TKO_VERSION_MAJOR  as int32 = 0
+    const TKO_VERSION_MINOR  as int32 = 1
+    const TKO_VERSION_PATCH  as int32 = 0
     const TKO_VERSION_SUFFIX as string = "-dev"
 
     '' The fbc release whose language and runtime ABI tiko-lang targets. Reported as
@@ -50,8 +50,8 @@ namespace Tko
     '' -------------------------------------------------------------- scalar ids
     '' Handles, not pointers. 0 always means "none" so a zeroed record is empty.
 
-    type InternId as ulong
-    type FileId   as ulong
+    type InternId as uint32
+    type FileId   as uint32
 
     const INTERN_NONE as InternId = 0
     const FILE_NONE   as FileId   = 0
@@ -63,7 +63,7 @@ namespace Tko
     '' under whatever name re-parsing the generic's body left in hFieldId's static
     '' buffer. tiko-lang takes both spellings; see
     '' docs/internals/phase-7-generic-type-field.md.
-    type ByteBuf as containers.Array( of ubyte )
+    type ByteBuf as containers.Array( of uint8 )
 
     '' Lives here rather than in driver/options.ti because the preprocessor needs it
     '' and may not depend on the driver.
@@ -71,7 +71,7 @@ namespace Tko
 
     '' FileIds, as a list: a module unit's files (ADR 0017), which are not contiguous once
     '' a program's roots are loaded ahead of them.
-    type FileIdVec as containers.Array( of ulong )
+    type FileIdVec as containers.Array( of uint32 )
 
 end namespace
 

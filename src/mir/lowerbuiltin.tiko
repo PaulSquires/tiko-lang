@@ -24,7 +24,7 @@
 '' own 'assert_' macro around it with nothing declaring it anywhere, and fbc compiles
 '' them. 2,054 unlowered calls came from that one macro.
 private function BuiltinProcRtl _
-    ( byref nm as string, byref argc as long, byref retTy as MirType, _
+    ( byref nm as string, byref argc as int32, byref retTy as MirType, _
       byval unboundOnly as boolean = false ) as RtlId
 
     select case nm
@@ -133,39 +133,39 @@ sub NoteBuiltinDecline( byref c as Ctx, byval calleeNode as Tko.NodeId )
     if c.ast->Kind( calleeNode ) <> Tko.N_IDENT then exit sub
     if c.info->RefOf( calleeNode ) <> Tko.SYMBOL_NONE then exit sub
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, calleeNode )].data )]
-    if cast( long, ip->name ) <= TKO_KEYWORD_COUNT then exit sub
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, calleeNode )].data )]
+    if cast( int32, ip->name ) <= TKO_KEYWORD_COUNT then exit sub
     dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
-    dim as long argc = 0
+    dim as int32 argc = 0
     dim as MirType ty = MT_VOID
     dim as boolean known = Tko.Check.IsTypedIntrinsicName( nm )
     if BuiltinProcRtl( nm, argc, ty, true ) <> RTL_NONE then known = true
     if known = false then exit sub
-    c.badBuiltinNode = cast( ulong, calleeNode )
+    c.badBuiltinNode = cast( uint32, calleeNode )
 end sub
 
 sub ReportBuiltinDecline( byref c as Ctx )
     dim as Tko.NodeId callee = cast( Tko.NodeId, c.badBuiltinNode )
     c.badBuiltinNode = 0
     if (callee = Tko.NODE_NONE) orelse (c.diags = 0) then exit sub
-    for each seen as ulong in c.st->badBuiltinCalls
-        if seen = cast( ulong, callee ) then exit sub
+    for each seen as uint32 in c.st->badBuiltinCalls
+        if seen = cast( uint32, callee ) then exit sub
     next
-    c.st->badBuiltinCalls.Push( cast( ulong, callee ) )
+    c.st->badBuiltinCalls.Push( cast( uint32, callee ) )
     '' NOT ON A LINE THAT ALREADY HAS AN ERROR. The builtin's call is not always why the
     '' statement was dropped: in 'tmp$ = space( 4 )' it was the undeclared tmp$, already
     '' TKO0743, and blaming 'space' as well was a false second error on the line.
     dim as Tko.DiagnosticEngine ptr de = cast( Tko.DiagnosticEngine ptr, c.diags )
     if c.srcMgr <> 0 then
         dim as Tko.DecodedLoc bl = c.srcMgr->Decode( c.ast->Loc( callee ) )
-        for i as long = 0 to de->pending.Count - 1
+        for i as int32 = 0 to de->pending.Count - 1
             if (de->pending[i].sev <> Tko.SEV_ERROR) orelse (de->pending[i].hasLocation = false) then continue for
             dim as Tko.DecodedLoc dl = c.srcMgr->Decode( de->pending[i].range.first )
             if (dl.file = bl.file) andalso (dl.physLine = bl.physLine) then exit sub
         next
     end if
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, callee )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, callee )].data )]
     de->Report( Tko.TKO0801, _
         Tko.PointRange( c.ast->Loc( callee ) ), c.names->Spelling( ip->name ) )
 end sub
@@ -173,14 +173,14 @@ end sub
 '' Lower a call to one of them. Returns false when the callee is not a built-in, so an
 '' ordinary unbound callee still declines as it did.
 function LowerBuiltinProc _
-    ( byref c as Ctx, byval calleeNode as Tko.NodeId, byval argFirst as long, _
-      byval argCount as long, byref outv as MirValue, _
+    ( byref c as Ctx, byval calleeNode as Tko.NodeId, byval argFirst as int32, _
+      byval argCount as int32, byref outv as MirValue, _
       byval unboundOnly as boolean = false ) as boolean
 
     if calleeNode = Tko.NODE_NONE then return false
     if c.ast->Kind( calleeNode ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, calleeNode )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, calleeNode )].data )]
     dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
 
     '' ASSERT AND ASSERTWARN EMIT NOTHING, and their argument is NOT EVALUATED.
@@ -193,14 +193,14 @@ function LowerBuiltinProc _
         return true
     end if
 
-    dim as long argc = argCount
+    dim as int32 argc = argCount
     dim as MirType retTy = MT_VOID
     dim as RtlId r = BuiltinProcRtl( nm, argc, retTy, unboundOnly )
     if r = RTL_NONE then return false
 
     '' The declared arity, so a wrong-arity call is left to decline rather than being
     '' handed to the runtime with a short stack.
-    dim as long want = RtlArity( r )
+    dim as int32 want = RtlArity( r )
     dim as boolean callocOneArg = (r = RTL_CALLOC) andalso (argCount = 1)
     '' 'width' DEFAULTS EVERY ARGUMENT IT IS NOT GIVEN, to -1. Measured:
     ''
@@ -210,14 +210,14 @@ function LowerBuiltinProc _
     ''
     '' The arity guard refused the short forms outright, so 'w = loword( width( ) )'
     '' produced no value and the assignment around it declined.
-    dim as long widthShort = 0
+    dim as int32 widthShort = 0
     if (r = RTL_WIDTH) andalso (argCount < want) then widthShort = want - argCount
     '' PCOPY's defaults are WIDTH's, -1 each: 'pcopy' is fb_PageCopy( -1, -1 ).
     if (r = RTL_PCOPY) andalso (argCount < want) then widthShort = want - argCount
     '' STOP, SYSTEM and WAIT default the missing argument to 0 instead: 'stop' is
     '' fb_End( 0 ) and 'wait p, m' is fb_Wait( p, m, 0 ).
     '' One argument each, and no more: 'wait 1' is fbc's error 1, not fb_Wait( 1, 0, 0 ).
-    dim as long zeroShort = 0
+    dim as int32 zeroShort = 0
     if (r = RTL_END) andalso (argCount = 0) then zeroShort = 1
     if (r = RTL_WAIT) andalso (argCount = want - 1) then zeroShort = 1
     '' 'screenlist( )' is fb_GfxScreenList( 0 ), and 'bload f' is fb_GfxBload( &F,
@@ -252,8 +252,8 @@ function LowerBuiltinProc _
     refuse = refuse andalso notShort
     if refuse then return false
 
-    dim as containers.Array( of ulong ) args
-    for i as long = 0 to argCount - 1
+    dim as containers.Array( of uint32 ) args
+    for i as int32 = 0 to argCount - 1
         dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[argFirst + i] )
 
         '' AN ELIDED ARGUMENT IS THE DEFAULT fbc passes in its place. Measured:
@@ -265,7 +265,7 @@ function LowerBuiltinProc _
         ''
         '' Any other builtin, or BLOAD's and BSAVE's file name, declines -- TKO0801.
         if c.ast->Kind( a ) = Tko.N_ELIDED then
-            dim as long dflt = 0
+            dim as int32 dflt = 0
             select case r
             case RTL_BLOAD, RTL_BSAVE
                 if i = 0 then return false
@@ -274,7 +274,7 @@ function LowerBuiltinProc _
             case else
                 return false
             end select
-            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, dflt ) )
+            args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, dflt ) )
             continue for
         end if
 
@@ -293,7 +293,7 @@ function LowerBuiltinProc _
         dim as boolean forcedByval = false
         if c.ast->Kind( a ) = Tko.N_UNARY then
             dim as Tko.UnaryPayload ptr bup = _
-                @c.ast->unaries[cast( long, c.ast->nodes[cast( long, a )].data )]
+                @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, a )].data )]
             if cast( Tko.TokenKind, bup->op ) = Tko.KW_BYVAL then
                 forcedByval = true
                 a = bup->operand
@@ -301,18 +301,18 @@ function LowerBuiltinProc _
         end if
         if forcedByval then
             dim as MirValue bv = LowerExpr( c, a )
-            if bv.kind = cast( ubyte, MV_NONE ) then return false
+            if bv.kind = cast( uint8, MV_NONE ) then return false
             bv = Coerce( c, bv, MT_PTR, false )
-            if bv.kind = cast( ubyte, MV_NONE ) then return false
-            args.Push( cast( ulong, bv.kind ) )
-            args.Push( cast( ulong, bv.id ) )
+            if bv.kind = cast( uint8, MV_NONE ) then return false
+            args.Push( cast( uint32, bv.kind ) )
+            args.Push( cast( uint32, bv.id ) )
             continue for
         end if
 
         '' CLEAR's first argument is an LVALUE whose ADDRESS is passed, not its value.
         if (r = RTL_MEMSET) andalso (i = 0) then
             dim as MirValue da = LowerAddr( c, a )
-            if da.kind = cast( ubyte, MV_NONE ) then
+            if da.kind = cast( uint8, MV_NONE ) then
                 '' NOT AN LVALUE. 'clear' takes 'byref as any', and fbc has three
                 '' answers for an argument with no address of its own -- measured, all
                 '' three from the same probe:
@@ -339,30 +339,30 @@ function LowerBuiltinProc _
                     *c.ast, a, *c.srcMgr, *c.names, c.types->target.pointerBits, _
                     c.syms, Tko.SCOPE_GLOBAL )
                 if acv.known then
-                    args.Push( cast( ulong, MV_CONST_INT ) )
-                    args.Push( cast( ulong, cast( long, acv.value ) ) )
+                    args.Push( cast( uint32, MV_CONST_INT ) )
+                    args.Push( cast( uint32, cast( int32, acv.value ) ) )
                     continue for
                 end if
                 dim as MirValue vv = LowerExpr( c, a )
-                if vv.kind = cast( ubyte, MV_NONE ) then return false
+                if vv.kind = cast( uint8, MV_NONE ) then return false
                 '' A GLOBAL's address is a link-time constant and goes straight in.
-                if vv.kind = cast( ubyte, MV_GLOBAL ) then
-                    args.Push( cast( ulong, vv.kind ) )
-                    args.Push( cast( ulong, vv.id ) )
+                if vv.kind = cast( uint8, MV_GLOBAL ) then
+                    args.Push( cast( uint32, vv.kind ) )
+                    args.Push( cast( uint32, vv.id ) )
                     continue for
                 end if
-                dim as long pbytes = c.types->target.pointerBits \ 8
-                dim as long tslot = NewTempLocal( c, MT_PTR, pbytes )
+                dim as int32 pbytes = c.types->target.pointerBits \ 8
+                dim as int32 tslot = NewTempLocal( c, MT_PTR, pbytes )
                 if tslot < 0 then return false
                 dim as MirValue tv
-                tv.kind = cast( ubyte, MV_LOCAL )
-                tv.ty = cast( ubyte, MT_PTR )
+                tv.kind = cast( uint8, MV_LOCAL )
+                tv.ty = cast( uint8, MT_PTR )
                 tv.id = tslot
                 StoreThrough( c, tv, Coerce( c, vv, MT_PTR, false ) )
-                args.Push( cast( ulong, tv.kind ) ) : args.Push( cast( ulong, tv.id ) )
+                args.Push( cast( uint32, tv.kind ) ) : args.Push( cast( uint32, tv.id ) )
                 continue for
             end if
-            args.Push( cast( ulong, da.kind ) ) : args.Push( cast( ulong, da.id ) )
+            args.Push( cast( uint32, da.kind ) ) : args.Push( cast( uint32, da.id ) )
             continue for
         end if
         '' BSAVE AND BLOAD TAKE A STRING DESCRIPTOR, not a char pointer. Measured:
@@ -419,8 +419,8 @@ function LowerBuiltinProc _
         if wantsStrDesc then
             dim as MirValue sdv
             if StrDescriptorOf_( c, a, sdv ) then
-                args.Push( cast( ulong, sdv.kind ) )
-                args.Push( cast( ulong, sdv.id ) )
+                args.Push( cast( uint32, sdv.kind ) )
+                args.Push( cast( uint32, sdv.id ) )
                 continue for
             end if
             '' ...AND A UDT IS CONVERTED INTO A DESCRIPTOR OF ITS OWN, because it has
@@ -446,59 +446,59 @@ function LowerBuiltinProc _
             end if
             if c.types->Kind( adt ) = Tko.TK_UDT then
                 dim as Tko.TypeId snp = c.types->Builtin( Tko.TY_STRING )
-                dim as long sslot = -1
+                dim as int32 sslot = -1
                 if ByvalStrTemp_( c, a, snp, sdv, sslot ) then
                     if sslot >= 0 then
                         c.f->locals[sslot].frontendType = snp
-                        c.strTemps.Push( cast( ulong, sslot ) )
+                        c.strTemps.Push( cast( uint32, sslot ) )
                     end if
-                    args.Push( cast( ulong, sdv.kind ) )
-                    args.Push( cast( ulong, sdv.id ) )
+                    args.Push( cast( uint32, sdv.kind ) )
+                    args.Push( cast( uint32, sdv.id ) )
                     continue for
                 end if
             end if
         end if
 
         dim as MirValue av = LowerExpr( c, a )
-        if av.kind = cast( ubyte, MV_NONE ) then return false
+        if av.kind = cast( uint8, MV_NONE ) then return false
         av = CoerceTy( c, av, RtlParamType( r, i, (c.types->target.pointerBits = 32) ), c.info->TypeOf_( a ) )
-        args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
+        args.Push( cast( uint32, av.kind ) ) : args.Push( cast( uint32, av.id ) )
     next
     '' 'callocate( n )' -- fbc supplies the element size itself.
     if callocOneArg then
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 1 )
+        args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 1 )
     end if
 
     '' ...and the defaulted tails, in the same place and for the same reason.
-    for k as long = 1 to widthShort
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, -1 ) )
+    for k as int32 = 1 to widthShort
+        args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, -1 ) )
     next
     if bsaveShort then
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+        args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )
+        args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )
     end if
     if bsave3 then
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+        args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )
     end if
-    for k as long = 1 to zeroShort
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    for k as int32 = 1 to zeroShort
+        args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )
     next
     if bloadShort then
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+        args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )
     end if
     if runShort then
-        dim as containers.Array( of ulong ) ta
-        ta.Push( cast( ulong, MV_GLOBAL ) )
-        ta.Push( cast( ulong, c.m->AddStringLiteral( "", *c.names ) ) )
-        ta.Push( cast( ulong, MV_CONST_INT ) ) : ta.Push( 0 )
+        dim as containers.Array( of uint32 ) ta
+        ta.Push( cast( uint32, MV_GLOBAL ) )
+        ta.Push( cast( uint32, c.m->AddStringLiteral( "", *c.names ) ) )
+        ta.Push( cast( uint32, MV_CONST_INT ) ) : ta.Push( 0 )
         dim as MirValue ev = EmitRtl( c, RTL_STR_TEMPZ, ta )
-        if ev.kind = cast( ubyte, MV_NONE ) then return false
-        args.Push( cast( ulong, ev.kind ) ) : args.Push( cast( ulong, ev.id ) )
+        if ev.kind = cast( uint8, MV_NONE ) then return false
+        args.Push( cast( uint32, ev.kind ) ) : args.Push( cast( uint32, ev.id ) )
     end if
 
     outv = EmitRtl( c, r, args )
     if retTy = MT_VOID then return true
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 
 

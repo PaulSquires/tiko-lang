@@ -17,7 +17,7 @@
 '' tiko dropped every one of those statements in silence -- 'print len( s, 2 )' printed
 '' nothing. Library functions ('val', 'hex', 'left', 'space') are fbc's overloaded
 '' declarations with their own errors, and are not in the table.
-private function BuiltinArity_ ( byref nm as string, byref lo as long, byref hi as long ) as boolean
+private function BuiltinArity_ ( byref nm as string, byref lo as int32, byref hi as int32 ) as boolean
     select case nm
     case "len", "sizeof", "abs", "sqr", "sgn", "int", "fix", "sin", "cos", "tan", "atn", _
          "exp", "log", "frac", "str"
@@ -37,13 +37,13 @@ private function BuiltinArity_ ( byref nm as string, byref lo as long, byref hi 
 end function
 
 private sub CheckBuiltinArity_ ( byref c as Ctx, byval id as NodeId )
-    dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if (lp->target = NODE_NONE) orelse (c.ast->Kind( lp->target ) <> N_IDENT) then return
     if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return
     if c.info->RefOf( id ) <> SYMBOL_NONE then return
     dim as string nm = lcase( c.names->Spelling( _
-        c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )].name ) )
-    dim as long lo, hi
+        c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )].name ) )
+    dim as int32 lo, hi
     if BuiltinArity_( nm, lo, hi ) = false then return
     if (lp->count >= lo) andalso (lp->count <= hi) then return
     c.diags->Report( TKO0801, PointRange( c.ast->Loc( id ) ), nm )
@@ -54,14 +54,14 @@ end sub
 '' argument list" (fbc accepts it). Asked only when about to report, so the scan over
 '' every call costs the ordinary path nothing.
 private function IsOffsetofField_ ( byref c as Ctx, byval id as NodeId ) as boolean
-    for i as long = 1 to c.ast->Count( )
+    for i as int32 = 1 to c.ast->Count( )
         if c.ast->Kind( cast( NodeId, i ) ) <> N_CALL then continue for
-        dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[i].data )]
+        dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[i].data )]
         if lp->count <> 2 then continue for
         if cast( NodeId, c.ast->children[lp->first + 1] ) <> id then continue for
         if (lp->target = NODE_NONE) orelse (c.ast->Kind( lp->target ) <> N_IDENT) then continue for
         dim as string cn = lcase( c.names->Spelling( _
-            c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )].name ) )
+            c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )].name ) )
         return (cn = "offsetof")
     next
     return false
@@ -69,10 +69,10 @@ end function
 
 '' ...and the bare name, 'print len': a name no call owns (NF_CALL_TARGET marks one that is).
 private sub CheckBareBuiltin_ ( byref c as Ctx, byval id as NodeId )
-    if (c.ast->nodes[cast( long, id )].flags and NF_CALL_TARGET) <> 0 then return
+    if (c.ast->nodes[cast( int32, id )].flags and NF_CALL_TARGET) <> 0 then return
     if c.info->RefOf( id ) <> SYMBOL_NONE then return
-    dim as string nm = lcase( c.names->Spelling( c.ast->idents[cast( long, c.ast->nodes[cast( long, id )].data )].name ) )
-    dim as long lo, hi
+    dim as string nm = lcase( c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, id )].data )].name ) )
+    dim as int32 lo, hi
     if BuiltinArity_( nm, lo, hi ) = false then return
     if IsOffsetofField_( c, id ) then return
     c.diags->Report( TKO0872, PointRange( c.ast->Loc( id ) ), nm )

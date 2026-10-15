@@ -65,13 +65,13 @@ private function IsClassLikeUdt_ _
 
     dim as Tko.Symbol ptr u = w.syms->SymbolAt( id )
     if u = 0 then return false
-    if u->kind <> cast( ubyte, Tko.SYM_UDT ) then return false
+    if u->kind <> cast( uint8, Tko.SYM_UDT ) then return false
     if (u->flags and Tko.SYMF_GENERIC_INST) <> 0 then return false
     if w.src->IsBuiltin( u->loc ) then return false
     '' The payload is the N_TYPE node: 'b' holds a generic's parameters, 'c' the base.
     dim as Tko.NodeId node = cast( Tko.NodeId, u->payload )
     dim as boolean isTypeNode = (node <> Tko.NODE_NONE)
-    if isTypeNode then isTypeNode = (cast( long, node ) < w.ast->nodes.Count)
+    if isTypeNode then isTypeNode = (cast( int32, node ) < w.ast->nodes.Count)
     if isTypeNode then isTypeNode = (w.ast->Kind( node ) = Tko.N_TYPE)
     if isTypeNode then
         dim as Tko.StmtPayload ptr tp = StmtOf( w, node )
@@ -99,7 +99,7 @@ private function OuterValueTaken_ _
     ( byref w as Walker, byval sc as Tko.ScopeId, byval nm as Tko.InternId ) as Tko.SymbolId
 
     dim as Tko.SymbolId sid = w.syms->LookupLocal( sc, nm )
-    for pass as long = 0 to 1
+    for pass as int32 = 0 to 1
         dim as Tko.Symbol ptr s = w.syms->SymbolAt( sid )
         if s = 0 then exit for
         select case cast( Tko.SymbolKind, s->kind )
@@ -108,10 +108,10 @@ private function OuterValueTaken_ _
             if own then own = (w.src->IsBuiltin( s->loc ) = false)
             '' A GENERIC procedure does not count: 'function G( of T )' and then a local G
             '' compiles in fbc.
-            if own andalso (s->kind = cast( ubyte, Tko.SYM_PROC )) then
+            if own andalso (s->kind = cast( uint8, Tko.SYM_PROC )) then
                 dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
                 dim as boolean isProc = (pn <> Tko.NODE_NONE)
-                if isProc then isProc = (cast( long, pn ) < w.ast->nodes.Count)
+                if isProc then isProc = (cast( int32, pn ) < w.ast->nodes.Count)
                 if isProc then isProc = (w.ast->Kind( pn ) = Tko.N_PROC)
                 if isProc then own = ((StmtOf( w, pn )->extra and Tko.PF_GENERIC_PROC) = 0)
             end if
@@ -144,7 +144,7 @@ private function ClassNameTaken_ _
     if w.src->IsBuiltin( loc ) then return Tko.SYMBOL_NONE
 
     dim as Tko.ScopeId sc = scope_
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (sc <> Tko.SCOPE_NONE) andalso (guard < Tko.SCOPE_WALK_MAX)
         guard += 1
         dim as Tko.SymScope ptr ss = w.syms->ScopeAt( sc )
@@ -157,7 +157,7 @@ private function ClassNameTaken_ _
             dim as Tko.NodeId pn = Tko.NODE_NONE
             if ps <> 0 then pn = cast( Tko.NodeId, ps->payload )
             dim as boolean isProc = (pn <> Tko.NODE_NONE)
-            if isProc then isProc = (cast( long, pn ) < w.ast->nodes.Count)
+            if isProc then isProc = (cast( int32, pn ) < w.ast->nodes.Count)
             if isProc then isProc = (w.ast->Kind( pn ) = Tko.N_PROC)
             if isProc then
                 if (StmtOf( w, pn )->extra and Tko.PF_GENERIC_PROC) <> 0 then return Tko.SYMBOL_NONE
@@ -175,7 +175,7 @@ private function ClassNameTaken_ _
             dim as Tko.SymbolId eid = w.syms->LookupLocal( sc, nm )
             dim as Tko.Symbol ptr es = w.syms->SymbolAt( eid )
             if es <> 0 then
-                if es->kind = cast( ubyte, Tko.SYM_ENUM ) then return eid
+                if es->kind = cast( uint8, Tko.SYM_ENUM ) then return eid
             end if
         end if
         select case cast( Tko.ScopeKind, ss->kind )
@@ -245,12 +245,12 @@ private sub NoteDeclAt_ _
     if s = 0 then return
     if s->declAt <> 0 then return
     if w.src->IsBuiltin( w.ast->Loc( at ) ) then return
-    s->declAt = cast( ulong, at )
+    s->declAt = cast( uint32, at )
 end sub
 
 private sub MarkShadow_ _
     ( byref w as Walker, byval sid as Tko.SymbolId, byval scope_ as Tko.ScopeId, _
-      byval nm as Tko.InternId, byval k as Tko.SymbolKind, byval dflags as ushort, _
+      byval nm as Tko.InternId, byval k as Tko.SymbolKind, byval dflags as uint16, _
       byval item as Tko.NodeId, byval ip as Tko.StmtPayload ptr )
 
     if sid = Tko.SYMBOL_NONE then return
@@ -294,7 +294,7 @@ private sub MarkShadow_ _
         '' which sent 'dim as long v = v + 1' to the OUTER v and printed 12 where fbc
         '' prints 1. Everything parsed for the previous statement is lower still, so
         '' the two sides do not overlap.
-        w.syms->ShadowFrom( sid, cast( ulong, lo ) )
+        w.syms->ShadowFrom( sid, cast( uint32, lo ) )
     end select
 end sub
 
@@ -325,7 +325,7 @@ sub DeclareLabel_( byref w as Walker, byval scope_ as Tko.ScopeId, byval id as T
     dim as Tko.InternId nm = StmtOf( w, id )->name
     if nm = Tko.INTERN_NONE then return
     dim as Tko.SourceLoc loc = w.ast->Loc( id )
-    for guard as long = 0 to 4095
+    for guard as int32 = 0 to 4095
         dim as Tko.SymScope ptr ss = w.syms->ScopeAt( scope_ )
         if ss = 0 then exit for
         if ss->kind <> Tko.SCOPEK_BLOCK then exit for
@@ -376,7 +376,7 @@ private function Declare_ _
                 return Tko.SYMBOL_NONE
             end if
             if oldIsPrelude andalso (newIsPrelude = false) then
-                old->kind = cast( ubyte, k )
+                old->kind = cast( uint8, k )
                 old->loc = loc
                 old->payload = 0
                 old->type_ = Tko.TYPE_NONE

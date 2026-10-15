@@ -25,9 +25,9 @@
 
 namespace Tko.Scan
 
-function ScanResult.FileIndex( byref absPath as string ) as long
+function ScanResult.FileIndex( byref absPath as string ) as int32
     dim as string key = Tko.Text.LowerAscii( absPath )
-    for i as long = 0 to this.files.Count - 1
+    for i as int32 = 0 to this.files.Count - 1
         if Tko.Text.LowerAscii( this.files[i] ) = key then return i
     next
     this.files.Push( absPath )
@@ -42,11 +42,11 @@ type Harvest_
     as Tko.SymbolTable ptr     syms
     as Tko.SemanticInfo ptr    info
     as ScanResult ptr          r
-    as long    fileMap( any )      '' FileId -> files index + 1
-    as long    symRec( any )       '' SymbolId -> record index + 1
-    as ulong   defNode( any )      '' SymbolId -> its definition's N_PROC node
-    as ulong   endLoc( any )       '' N_PROC node -> where its END is
-    as long    scopeParent( any )  '' ScopeId -> record index + 1 of its owner; 0 = top
+    as int32    fileMap( any )      '' FileId -> files index + 1
+    as int32    symRec( any )       '' SymbolId -> record index + 1
+    as uint32   defNode( any )      '' SymbolId -> its definition's N_PROC node
+    as uint32   endLoc( any )       '' N_PROC node -> where its END is
+    as int32    scopeParent( any )  '' ScopeId -> record index + 1 of its owner; 0 = top
     as boolean scopeOk( any )      '' ScopeId -> harvested at all
     as boolean scopeLocal( any )   '' ScopeId -> inside a procedure body
     as string  typeName( any )     '' TypeId -> its spelling, once found
@@ -57,7 +57,7 @@ private function Spell_( byref h as Harvest_, byval nm as Tko.InternId ) as stri
     return h.ctx->names.Spelling( nm )
 end function
 
-private function IsWordByte_( byval b as ubyte ) as boolean
+private function IsWordByte_( byval b as uint8 ) as boolean
     if (b >= asc( "a" )) andalso (b <= asc( "z" )) then return true
     if (b >= asc( "A" )) andalso (b <= asc( "Z" )) then return true
     if (b >= asc( "0" )) andalso (b <= asc( "9" )) then return true
@@ -67,10 +67,10 @@ end function
 
 '' The 1-based position of 'folded' in 'ln' at or after 'from_', as a whole word and
 '' ignoring ASCII case; 0 if it is not there.
-private function FindWord_( byref ln as string, byref folded as string, byval from_ as long ) as long
-    dim as long n = len( folded )
+private function FindWord_( byref ln as string, byref folded as string, byval from_ as int32 ) as int32
+    dim as int32 n = len( folded )
     if n = 0 then return 0
-    for i as long = from_ to len( ln ) - n + 1
+    for i as int32 = from_ to len( ln ) - n + 1
         if Tko.Text.LowerAscii( mid( ln, i, n ) ) <> folded then continue for
         dim as boolean leftOk = (i = 1)
         if leftOk = false then leftOk = (IsWordByte_( ln[i - 2] ) = false)
@@ -85,7 +85,7 @@ end function
 '' 1-based column it was found at, or the location's own when it was not.
 private function CasedName_ _
     ( byref h as Harvest_, byval at as Tko.SourceLoc, byref folded as string, _
-      byref col as long ) as string
+      byref col as int32 ) as string
 
     col = 0
     if (at = Tko.LOC_NONE) orelse (len( folded ) = 0) then return folded
@@ -93,9 +93,9 @@ private function CasedName_ _
     col = d.column
     if d.file = Tko.FILE_NONE then return folded
     dim as string ln = h.ctx->sources.LineText( d.file, d.physLine )
-    dim as long from_ = d.offset - h.ctx->sources.LineStart( d.file, d.physLine ) + 1
+    dim as int32 from_ = d.offset - h.ctx->sources.LineStart( d.file, d.physLine ) + 1
     if (from_ < 1) orelse (from_ > len( ln )) then from_ = 1
-    dim as long at_ = FindWord_( ln, folded, from_ )
+    dim as int32 at_ = FindWord_( ln, folded, from_ )
     if at_ = 0 then at_ = FindWord_( ln, folded, 1 )
     if at_ = 0 then return folded
     col = at_
@@ -104,11 +104,11 @@ end function
 
 '' The record file index of a decoded location. An interface file presents its module's
 '' source through '#line', so the PRESENTED name wins when there is one.
-private function FileOf_( byref h as Harvest_, byref d as Tko.DecodedLoc ) as long
+private function FileOf_( byref h as Harvest_, byref d as Tko.DecodedLoc ) as int32
     if d.shownName <> Tko.INTERN_NONE then
         return h.r->FileIndex( Spell_( h, d.shownName ) )
     end if
-    dim as long fid = cast( long, d.file )
+    dim as int32 fid = cast( int32, d.file )
     if fid <= 0 then return -1
     if fid > ubound( h.fileMap ) then redim preserve h.fileMap( fid + 64 )
     if h.fileMap( fid ) = 0 then
@@ -119,7 +119,7 @@ end function
 
 '' A UDT, enum or typedef by its source spelling: the declaring symbol's line, searched.
 private function NamedTypeText_( byref h as Harvest_, byval t as Tko.TypeId ) as string
-    dim as long ti = cast( long, t )
+    dim as int32 ti = cast( int32, t )
     if ti > ubound( h.typeNamed ) then
         redim preserve h.typeNamed( ti + 256 )
         redim preserve h.typeName( ti + 256 )
@@ -132,7 +132,7 @@ private function NamedTypeText_( byref h as Harvest_, byval t as Tko.TypeId ) as
     dim as Tko.SymbolId sid = h.syms->LookupLocalTyped( sc, nm, true )
     if sid <> Tko.SYMBOL_NONE then
         dim as Tko.Symbol ptr s = h.syms->SymbolAt( sid )
-        dim as long c
+        dim as int32 c
         if s <> 0 then outs = CasedName_( h, s->loc, folded, c )
     end if
     h.typeNamed( ti ) = true
@@ -145,8 +145,8 @@ end function
 '' spells a UDT folded and 'string * 20' as 'fixstr()', so this is its own renderer. A
 '' reference and an array are FLAGS, not text: SF_BYREF and SF_ARRAY.
 private function TypeText_ _
-    ( byref h as Harvest_, byval t as Tko.TypeId, byref flags as long, _
-      byval depth as long = 0 ) as string
+    ( byref h as Harvest_, byval t as Tko.TypeId, byref flags as int32, _
+      byval depth as int32 = 0 ) as string
 
     if (t = Tko.TYPE_NONE) orelse (depth > 16) then return ""
     dim as Tko.TypeKind k = h.ctx->types.Kind( t )
@@ -186,7 +186,7 @@ private function TypeText_ _
     return h.ctx->types.Name( t )
 end function
 
-private function KindOf_( byval s as Tko.Symbol ptr ) as long
+private function KindOf_( byval s as Tko.Symbol ptr ) as int32
     select case cast( Tko.SymbolKind, s->kind )
     case Tko.SYM_PROC
         if s->type_ <> Tko.TYPE_NONE then return SK_FUNCTION
@@ -207,13 +207,13 @@ private function KindOf_( byval s as Tko.Symbol ptr ) as long
 end function
 
 '' A node the symbol table points at, if it really is one of the kind asked for.
-private function NodeIs_( byref h as Harvest_, byval n as longint, byval k as Tko.NodeKind ) as boolean
+private function NodeIs_( byref h as Harvest_, byval n as int64, byval k as Tko.NodeKind ) as boolean
     if (n <= 0) orelse (n > h.ast->Count( )) then return false
     return (h.ast->Kind( cast( Tko.NodeId, n ) ) = k)
 end function
 
 private function StmtAt_( byref h as Harvest_, byval n as Tko.NodeId ) as Tko.StmtPayload ptr
-    return @h.ast->stmts[cast( long, h.ast->nodes[cast( long, n )].data )]
+    return @h.ast->stmts[cast( int32, h.ast->nodes[cast( int32, n )].data )]
 end function
 
 '' The N_PROC node that carries a procedure's modifiers: its definition, else its first
@@ -226,8 +226,8 @@ end function
 
 '' Appends a record at 'at' and returns its index.
 private function AddRec_ _
-    ( byref h as Harvest_, byval kind as long, byval nm as string, byval parent as long, _
-      byval at as Tko.SourceLoc, byval folded as string ) as long
+    ( byref h as Harvest_, byval kind as int32, byval nm as string, byval parent as int32, _
+      byval at as Tko.SourceLoc, byval folded as string ) as int32
 
     dim as ScanSym rec
     rec.kind = kind
@@ -254,7 +254,7 @@ private function Skip_( byref h as Harvest_, byval sid as Tko.SymbolId, byval s 
     if s->loc = Tko.LOC_NONE then return true
     if h.ctx->sources.IsBuiltin( s->loc ) then return true
     if cast( Tko.SymbolKind, s->kind ) = Tko.SYM_LABEL then return true
-    dim as ulong gone = Tko.SYMF_SUPERSEDED or Tko.SYMF_GENERIC_INST or Tko.SYMF_IMPORTED
+    dim as uint32 gone = Tko.SYMF_SUPERSEDED or Tko.SYMF_GENERIC_INST or Tko.SYMF_IMPORTED
     if (s->flags and gone) <> 0 then return true
     if h.syms->IsImportNs( sid ) then return true
     dim as string nm = Spell_( h, s->name )
@@ -265,13 +265,13 @@ end function
 
 '' The scope a symbol's own records hang off: for a symbol in a harvested scope, that
 '' scope's owner record, 0 = top level.
-private sub OpenScope_( byref h as Harvest_, byval sc as long )
+private sub OpenScope_( byref h as Harvest_, byval sc as int32 )
     dim as Tko.SymScope ptr scp = h.syms->ScopeAt( cast( Tko.ScopeId, sc ) )
     h.scopeOk( sc ) = false
     h.scopeParent( sc ) = 0
     h.scopeLocal( sc ) = false
     if scp = 0 then return
-    dim as long up = cast( long, scp->parent )
+    dim as int32 up = cast( int32, scp->parent )
     dim as boolean upOk = true
     if (up > 0) andalso (up < sc) then upOk = h.scopeOk( up )
     select case cast( Tko.ScopeKind, scp->kind )
@@ -286,7 +286,7 @@ private sub OpenScope_( byref h as Harvest_, byval sc as long )
     case Tko.SCOPEK_PROC
         '' ONLY THE PROCEDURE'S OWN SCOPE: a DECLARE and its definition each open one,
         '' and the symbol's 'inner' is the definition's -- which has the body's names.
-        dim as long own = cast( long, scp->owner )
+        dim as int32 own = cast( int32, scp->owner )
         if (own > 0) andalso (own <= ubound( h.symRec )) then
             if h.symRec( own ) > 0 then
                 if h.syms->SymbolAt( scp->owner )->inner = cast( Tko.ScopeId, sc ) then
@@ -297,7 +297,7 @@ private sub OpenScope_( byref h as Harvest_, byval sc as long )
             end if
         end if
     case else  '' TYPE, NAMESPACE (and an enum's own scope, which is a namespace)
-        dim as long own = cast( long, scp->owner )
+        dim as int32 own = cast( int32, scp->owner )
         if own = 0 then
             '' An anonymous namespace: its names belong to the enclosing scope.
             if (up > 0) andalso (up < sc) then
@@ -318,9 +318,9 @@ end sub
 '' THE IMPLICIT THIS of a member procedure that is only DECLAREd: the definition's scope
 '' would have one, but there is no definition to have opened it.
 private sub AddThis_ _
-    ( byref h as Harvest_, byval procRec as long, byval udtRec as long, byval at as Tko.SourceLoc )
+    ( byref h as Harvest_, byval procRec as int32, byval udtRec as int32, byval at as Tko.SourceLoc )
 
-    dim as long r = AddRec_( h, SK_PARAM, "this", procRec, at, "this" )
+    dim as int32 r = AddRec_( h, SK_PARAM, "this", procRec, at, "this" )
     h.r->syms[r].flags = SF_INSTANCE or SF_UDTTYPE
     h.r->syms[r].col = 0
     if udtRec >= 0 then h.r->syms[r].typeText = h.r->syms[udtRec].name
@@ -335,12 +335,12 @@ private function AnonEnumMember_( byref h as Harvest_, byval s as Tko.Symbol ptr
 end function
 
 private sub HarvestSymbol_ _
-    ( byref h as Harvest_, byval sid as Tko.SymbolId, byval sc as long )
+    ( byref h as Harvest_, byval sid as Tko.SymbolId, byval sc as int32 )
 
     dim as Tko.Symbol ptr s = h.syms->SymbolAt( sid )
     if s = 0 then return
     if Skip_( h, sid, s ) then return
-    dim as long kind = KindOf_( s )
+    dim as int32 kind = KindOf_( s )
     if kind = 0 then return
     dim as Tko.SymScope ptr scp = h.syms->ScopeAt( cast( Tko.ScopeId, sc ) )
     dim as Tko.SymbolKind sk = cast( Tko.SymbolKind, s->kind )
@@ -369,7 +369,7 @@ private sub HarvestSymbol_ _
         end if
     end if
 
-    dim as long parent = h.scopeParent( sc ) - 1
+    dim as int32 parent = h.scopeParent( sc ) - 1
     dim as boolean local_ = h.scopeLocal( sc )
     dim as Tko.NodeId pnode = Tko.NODE_NONE
     if sk = Tko.SYM_PROC then pnode = ProcNode_( h, sid, s )
@@ -398,15 +398,15 @@ private sub HarvestSymbol_ _
     dim as string shown = ""
     if folded = "__ctor" then shown = "Constructor"
     if folded = "__dtor" then shown = "Destructor"
-    dim as long ri = AddRec_( h, kind, shown, parent, at, folded )
-    if cast( long, sid ) <= ubound( h.symRec ) then h.symRec( sid ) = ri + 1
+    dim as int32 ri = AddRec_( h, kind, shown, parent, at, folded )
+    if cast( int32, sid ) <= ubound( h.symRec ) then h.symRec( sid ) = ri + 1
 
-    dim as long fl = 0
+    dim as int32 fl = 0
     select case sk
     case Tko.SYM_UDT
         '' A TYPE's text is what it EXTENDS -- the editor follows it to inherited members.
         dim as Tko.TypeId bt = h.ctx->types.BaseOf( s->type_ )
-        dim as long ignore = 0
+        dim as int32 ignore = 0
         if bt <> Tko.TYPE_NONE then h.r->syms[ri].typeText = TypeText_( h, bt, ignore )
     case Tko.SYM_ENUM, Tko.SYM_NAMESPACE
     case else
@@ -429,7 +429,7 @@ private sub HarvestSymbol_ _
         end if
         if NodeIs_( h, s->payload, Tko.N_PARAM ) then
             dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
-            dim as ushort nf = h.ast->nodes[cast( long, pn )].flags
+            dim as uint16 nf = h.ast->nodes[cast( int32, pn )].flags
             if (nf and Tko.NF_BYREF) <> 0 then fl or= SF_BYREF
             if (nf and Tko.NF_ARRAY) <> 0 then fl or= SF_ARRAY
             if StmtAt_( h, pn )->b <> Tko.NODE_NONE then fl or= SF_OPTIONAL
@@ -451,8 +451,8 @@ private sub HarvestSymbol_ _
 
     if dn <> Tko.NODE_NONE then
         h.r->syms[ri].bodyLine = h.r->syms[ri].line
-        dim as ulong el = 0
-        if cast( long, dn ) <= ubound( h.endLoc ) then el = h.endLoc( dn )
+        dim as uint32 el = 0
+        if cast( int32, dn ) <= ubound( h.endLoc ) then el = h.endLoc( dn )
         if el <> 0 then
             h.r->syms[ri].bodyEndLine = h.ctx->sources.Decode( cast( Tko.SourceLoc, el ) ).lineNo
         else
@@ -471,7 +471,7 @@ private sub HarvestSymbol_ _
         dim as Tko.SymScope ptr iscope = h.syms->ScopeAt( s->inner )
         if iscope <> 0 then
             if h.syms->IsImportNs( iscope->owner ) then
-                for k as long = 0 to h.syms->importNs.Count - 1
+                for k as int32 = 0 to h.syms->importNs.Count - 1
                     if cast( Tko.SymbolId, h.syms->importNs[k] ) = iscope->owner then
                         h.r->aliasRec.Push( ri )
                         h.r->aliasChain.Push( h.syms->importChains[k] )
@@ -493,14 +493,14 @@ end sub
 
 '' HOW OFTEN EACH HARVESTED SYMBOL IS READ AND WRITTEN -- see the header.
 private sub CountRefs_( byref h as Harvest_ )
-    dim as long nNodes = h.ast->Count( )
-    for n as long = 1 to nNodes
+    dim as int32 nNodes = h.ast->Count( )
+    for n as int32 = 1 to nNodes
         if h.ast->Kind( cast( Tko.NodeId, n ) ) <> Tko.N_IDENT then continue for
-        dim as long sid = cast( long, h.info->RefOf( cast( Tko.NodeId, n ) ) )
+        dim as int32 sid = cast( int32, h.info->RefOf( cast( Tko.NodeId, n ) ) )
         if (sid <= 0) orelse (sid > ubound( h.symRec )) then continue for
         if h.symRec( sid ) > 0 then h.r->syms[h.symRec( sid ) - 1].reads += 1
     next
-    for n as long = 1 to nNodes
+    for n as int32 = 1 to nNodes
         dim as Tko.NodeId id = cast( Tko.NodeId, n )
         if h.ast->Kind( id ) <> Tko.N_AMBIGUOUS then continue for
         if h.info->AmbiguousOf( id ) <> Tko.AMB_ASSIGN then continue for
@@ -508,14 +508,14 @@ private sub CountRefs_( byref h as Harvest_ )
         dim as Tko.NodeId tgt = sp->a
         if tgt = Tko.NODE_NONE then continue for
         if h.ast->Kind( tgt ) = Tko.N_MEMBER then
-            tgt = h.ast->binaries[cast( long, h.ast->nodes[cast( long, tgt )].data )].rhs
+            tgt = h.ast->binaries[cast( int32, h.ast->nodes[cast( int32, tgt )].data )].rhs
         end if
         if tgt = Tko.NODE_NONE then continue for
         if h.ast->Kind( tgt ) <> Tko.N_IDENT then continue for
-        dim as long sid = cast( long, h.info->RefOf( tgt ) )
+        dim as int32 sid = cast( int32, h.info->RefOf( tgt ) )
         if (sid <= 0) orelse (sid > ubound( h.symRec )) then continue for
         if h.symRec( sid ) = 0 then continue for
-        dim as long ri = h.symRec( sid ) - 1
+        dim as int32 ri = h.symRec( sid ) - 1
         h.r->syms[ri].writes += 1
         '' A PLAIN '=' only writes; 'x += 1' reads x as well, and keeps its read.
         if sp->op = Tko.TK_EQ then
@@ -525,17 +525,17 @@ private sub CountRefs_( byref h as Harvest_ )
 end sub
 
 '' AN EXPORTED MACRO'S BODY AS WRITTEN -- 'FB.PathJoin' -- when it is on one line; "".
-private function ExportBody_( byref h as Harvest_, byref pr as Tko.PpResult, byval k as long ) as string
-    dim as long f = cast( long, pr.expBodyFirst[k] )
-    dim as long n = cast( long, pr.expBodyCount[k] )
+private function ExportBody_( byref h as Harvest_, byref pr as Tko.PpResult, byval k as int32 ) as string
+    dim as int32 f = cast( int32, pr.expBodyFirst[k] )
+    dim as int32 n = cast( int32, pr.expBodyCount[k] )
     if n <= 0 then return ""
     dim as Tko.DecodedLoc a = h.ctx->sources.Decode( pr.expBody[f].loc )
     dim as Tko.DecodedLoc b = h.ctx->sources.Decode( pr.expBody[f + n - 1].loc )
     if (a.file = Tko.FILE_NONE) orelse (a.file <> b.file) orelse (a.physLine <> b.physLine) then return ""
     dim as string ln = h.ctx->sources.LineText( a.file, a.physLine )
-    dim as long ls = h.ctx->sources.LineStart( a.file, a.physLine )
-    dim as long st = a.offset - ls + 1
-    dim as long en = b.offset - ls + cast( long, pr.expBody[f + n - 1].length )
+    dim as int32 ls = h.ctx->sources.LineStart( a.file, a.physLine )
+    dim as int32 st = a.offset - ls + 1
+    dim as int32 en = b.offset - ls + cast( int32, pr.expBody[f + n - 1].length )
     if (st < 1) orelse (en < st) then return ""
     return mid( ln, st, en - st + 1 )
 end function
@@ -543,13 +543,13 @@ end function
 '' WHAT AN EXPORTED MACRO NAMES, when its body is nothing but a name -- 'FB.PathJoin', a
 '' facade's every body -- looked up in the module's own unit, where the header that
 '' declares it was included: the record's ref is that declaration.
-private sub ExportTarget_( byref h as Harvest_, byref pr as Tko.PpResult, byval k as long, byval ri as long )
-    dim as long f = cast( long, pr.expBodyFirst[k] )
-    dim as long n = cast( long, pr.expBodyCount[k] )
+private sub ExportTarget_( byref h as Harvest_, byref pr as Tko.PpResult, byval k as int32, byval ri as int32 )
+    dim as int32 f = cast( int32, pr.expBodyFirst[k] )
+    dim as int32 n = cast( int32, pr.expBodyCount[k] )
     if (n <= 0) orelse ((n and 1) = 0) then return
     dim as Tko.ScopeId sc = Tko.ModSym.ModuleScope( *h.syms )
     dim as Tko.Symbol ptr s = 0
-    for i as long = 0 to n - 1 step 2
+    for i as int32 = 0 to n - 1 step 2
         if cast( Tko.TokenKind, pr.expBody[f + i].kind ) <> Tko.TK_IDENT then return
         if i + 1 < n then
             if cast( Tko.TokenKind, pr.expBody[f + i + 1].kind ) <> Tko.TK_DOT then return
@@ -561,7 +561,7 @@ private sub ExportTarget_( byref h as Harvest_, byref pr as Tko.PpResult, byval 
         if s = 0 then return
         if i + 2 < n then
             '' A qualifier: the namespace, past any type of the same name.
-            while (s <> 0) andalso (s->kind <> cast( ubyte, Tko.SYM_NAMESPACE ))
+            while (s <> 0) andalso (s->kind <> cast( uint8, Tko.SYM_NAMESPACE ))
                 s = h.syms->SymbolAt( s->altClass )
             wend
             if s = 0 then return
@@ -580,10 +580,10 @@ end sub
 '' unit: a root's '#export' is TKO0369.
 private sub HarvestExports_( byref h as Harvest_, byref pr as Tko.PpResult )
     if h.r->importing = false then return
-    for k as long = 0 to pr.expName.Count - 1
+    for k as int32 = 0 to pr.expName.Count - 1
         dim as Tko.SourceLoc at = Tko.LOC_NONE
         if k < pr.expLoc.Count then at = cast( Tko.SourceLoc, pr.expLoc[k] )
-        dim as long ri = AddRec_( h, SK_DEFINE, pr.expName[k], -1, at, _
+        dim as int32 ri = AddRec_( h, SK_DEFINE, pr.expName[k], -1, at, _
                                   Tko.Text.LowerAscii( pr.expName[k] ) )
         h.r->syms[ri].isPublic = true
         h.r->syms[ri].typeText = ExportBody_( h, pr, k )
@@ -615,21 +615,21 @@ private sub Harvest_Unit _
     redim h.typeNamed( 0 )
 
     '' Each procedure's DEFINITION, and where its body ends.
-    for n as long = 1 to ast.Count( )
+    for n as int32 = 1 to ast.Count( )
         dim as Tko.NodeId id = cast( Tko.NodeId, n )
         if ast.Kind( id ) <> Tko.N_PROC then continue for
         if StmtAt_( h, id )->b = Tko.NODE_NONE then continue for
-        dim as long sid = cast( long, info.RefOf( id ) )
-        if (sid > 0) andalso (sid <= ubound( h.defNode )) then h.defNode( sid ) = cast( ulong, id )
+        dim as int32 sid = cast( int32, info.RefOf( id ) )
+        if (sid > 0) andalso (sid <= ubound( h.defNode )) then h.defNode( sid ) = cast( uint32, id )
     next
-    for i as long = 0 to ast.procEnds.Count - 2 step 2
-        dim as long pn = cast( long, ast.procEnds[i] )
+    for i as int32 = 0 to ast.procEnds.Count - 2 step 2
+        dim as int32 pn = cast( int32, ast.procEnds[i] )
         if (pn > 0) andalso (pn <= ubound( h.endLoc )) then h.endLoc( pn ) = ast.procEnds[i + 1]
     next
 
     '' Every scope in the order it was opened -- an owner's scope before the scopes
     '' inside it -- and every symbol of a harvested one in declaration order.
-    for sc as long = 1 to syms.ScopeCount( )
+    for sc as int32 = 1 to syms.ScopeCount( )
         OpenScope_( h, sc )
         if h.scopeOk( sc ) = false then continue for
         dim as Tko.SymbolId sid = syms.ScopeAt( cast( Tko.ScopeId, sc ) )->firstSym
@@ -640,7 +640,7 @@ private sub Harvest_Unit _
     next
 
     '' The macros the unit defined.
-    for i as long = 0 to macros.Count - 1
+    for i as int32 = 0 to macros.Count - 1
         dim as string folded = Spell_( h, macros[i].name )
         if len( folded ) = 0 then continue for
         '' The predefined ones (__fb_win32__ ...) have no location at all.
@@ -684,12 +684,12 @@ end sub
 sub Finish( byref ctx as Tko.CompilerContext )
     dim as ScanResult ptr r = cast( ScanResult ptr, ctx.scan )
     if r = 0 then return
-    dim as long n = r->syms.Count
+    dim as int32 n = r->syms.Count
 
     '' Each alias takes its module's public top-level symbols.
-    for a as long = 0 to r->aliasRec.Count - 1
+    for a as int32 = 0 to r->aliasRec.Count - 1
         dim as string want = Tko.Text.LowerAscii( r->aliasChain[a] )
-        for i as long = 0 to n - 1
+        for i as int32 = 0 to n - 1
             if r->syms[i].parent >= 0 then continue for
             if r->syms[i].isPublic = false then continue for
             if Tko.Text.LowerAscii( r->syms[i].chain ) <> want then continue for
@@ -699,15 +699,15 @@ sub Finish( byref ctx as Tko.CompilerContext )
 
     '' WHAT THE ROOT CANNOT SEE goes: a module's record still at top level (private, or of
     '' a module only a module imports), and everything under one.
-    for i as long = 0 to n - 1
+    for i as int32 = 0 to n - 1
         if (len( r->syms[i].chain ) > 0) andalso (r->syms[i].parent < 0) then r->syms[i].dropped = true
     next
     dim as boolean moved = true
     while moved
         moved = false
-        for i as long = 0 to n - 1
+        for i as int32 = 0 to n - 1
             if r->syms[i].dropped then continue for
-            dim as long pa = r->syms[i].parent
+            dim as int32 pa = r->syms[i].parent
             if (pa >= 0) andalso (pa < n) then
                 if r->syms[pa].dropped then
                     r->syms[i].dropped = true
@@ -718,25 +718,25 @@ sub Finish( byref ctx as Tko.CompilerContext )
     wend
 
     '' Compact, renumbering the parents.
-    dim as long newIx( any )
+    dim as int32 newIx( any )
     redim newIx( n )
     dim as ScanSymVec kept
-    for i as long = 0 to n - 1
+    for i as int32 = 0 to n - 1
         if r->syms[i].dropped then continue for
         newIx( i ) = kept.Count
         kept.Push( r->syms[i] )
     next
-    for i as long = 0 to kept.Count - 1
-        dim as long pa = kept[i].parent
+    for i as int32 = 0 to kept.Count - 1
+        dim as int32 pa = kept[i].parent
         if (pa >= 0) andalso (pa < n) then kept[i].parent = newIx( pa ) else kept[i].parent = -1
     next
     r->syms.Clear( )
-    for i as long = 0 to kept.Count - 1
+    for i as int32 = 0 to kept.Count - 1
         r->syms.Push( kept[i] )
     next
 
     '' The diagnostics, as the engine holds them before any flush.
-    for i as long = 0 to ctx.diags.pending.Count - 1
+    for i as int32 = 0 to ctx.diags.pending.Count - 1
         dim as ScanDiag dg
         dg.code = valint( mid( Tko.DiagIdName( ctx.diags.pending[i].id ), 4 ) )
         dg.file = -1
@@ -751,21 +751,21 @@ sub Finish( byref ctx as Tko.CompilerContext )
 end sub
 
 private function BaseName_( byref p as string ) as string
-    dim as long a = instrrev( p, "\" )
-    dim as long b = instrrev( p, "/" )
+    dim as int32 a = instrrev( p, "\" )
+    dim as int32 b = instrrev( p, "/" )
     if b > a then a = b
     return mid( p, a + 1 )
 end function
 
 function Dump( byref r as ScanResult ) as string
     dim as string o = "files: " & r.files.Count & chr( 10 )
-    for i as long = 0 to r.files.Count - 1
+    for i as int32 = 0 to r.files.Count - 1
         o &= "  [" & i & "] " & BaseName_( r.files[i] ) & chr( 10 )
     next
     dim as string kinds( 13 ) = { "?", "sub", "function", "param", "type", "union", "field", _
                                   "enum", "enumval", "var", "const", "typedef", "define", "namespace" }
     o &= "symbols: " & r.syms.Count & chr( 10 )
-    for i as long = 0 to r.syms.Count - 1
+    for i as int32 = 0 to r.syms.Count - 1
         dim as ScanSym ptr s = @r.syms[i]
         dim as string k = "?"
         if (s->kind >= 1) andalso (s->kind <= 13) then k = kinds( s->kind )

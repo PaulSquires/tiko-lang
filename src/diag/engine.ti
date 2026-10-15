@@ -24,17 +24,17 @@
 
 namespace Tko
 
-    const DIAG_DEFAULT_MAX_ERRORS as long = 20
+    const DIAG_DEFAULT_MAX_ERRORS as int32 = 20
 
-    type SeverityVec as containers.Array( of long )
+    type SeverityVec as containers.Array( of int32 )
 
     type DiagnosticEngine
         as SourceManager ptr sources
         as DiagVec    pending
-        as long       errors
-        as long       warnings
-        as long       suppressedCount
-        as long       maxErrors
+        as int32       errors
+        as int32       warnings
+        as int32       suppressedCount
+        as int32       maxErrors
         as boolean    warningsAsErrors
         as boolean    capReported
         '' THE CAP STOPS THE COMPILE, not just the output. It only dropped errors, and the
@@ -64,7 +64,7 @@ namespace Tko
         '' notes pointing at each line that asked. Stored here because every pass that can
         '' report from inside an instantiation -- resolve, check, visibility -- shares this.
         as InstFrameVec instFrames
-        as containers.Array( of long ) instActive
+        as containers.Array( of int32 ) instActive
 
         declare constructor( )
         declare sub Attach( byval src as SourceManager ptr )
@@ -87,20 +87,20 @@ namespace Tko
         '' A new frame, numbered from 1. 'parent' is the frame active when the
         '' instantiation was ASKED FOR -- ActiveInst( ) at that moment -- or 0.
         declare function AddInstFrame _
-            ( byref text as string, byval rng as SourceRange, byval parent as long ) as long
-        declare sub EnterInst( byval frame as long )     '' 0 is accepted and ignored
-        declare sub LeaveInst( byval frame as long )     '' pairs with EnterInst( frame )
-        declare function ActiveInst( ) as long
+            ( byref text as string, byval rng as SourceRange, byval parent as int32 ) as int32
+        declare sub EnterInst( byval frame as int32 )     '' 0 is accepted and ignored
+        declare sub LeaveInst( byval frame as int32 )     '' pairs with EnterInst( frame )
+        declare function ActiveInst( ) as int32
 
-        declare function ErrorCount( ) as long
+        declare function ErrorCount( ) as int32
         '' A SNAPSHOT, and a return to it: everything reported since is forgotten,
         '' counts included. For a pass whose diagnostics the real one repeats -- the
         '' module graph's header scan (audit F-52).
-        declare sub Snapshot( byref pendingAt as long, byref errorsAt as long, _
-                              byref warningsAt as long, byref suppressedAt as long )
-        declare sub RollBack( byval pendingAt as long, byval errorsAt as long, _
-                              byval warningsAt as long, byval suppressedAt as long )
-        declare function WarningCount( ) as long
+        declare sub Snapshot( byref pendingAt as int32, byref errorsAt as int32, _
+                              byref warningsAt as int32, byref suppressedAt as int32 )
+        declare sub RollBack( byval pendingAt as int32, byval errorsAt as int32, _
+                              byval warningsAt as int32, byval suppressedAt as int32 )
+        declare function WarningCount( ) as int32
         declare function HasErrors( ) as boolean
         '' PAST THE ERROR CAP: the parser sees the end of its input, the walks give up and
         '' the driver compiles no further unit. Cleared again by a RollBack under the cap.
@@ -109,7 +109,7 @@ namespace Tko
         declare sub Ignore( byval id as DiagId )
         declare sub Promote( byval id as DiagId, byval s as Severity )
         declare sub SetWarningsAsErrors( byval v as boolean )
-        declare sub SetMaxErrors( byval n as long )
+        declare sub SetMaxErrors( byval n as int32 )
         declare sub SetColorMode( byval newMode as DiagColorMode )
         declare sub SetFormat( byval f as DiagOutputFormat )
         declare sub EnableMachine( )

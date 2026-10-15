@@ -8,7 +8,7 @@ namespace Tko.Text
 '' --------------------------------------------------------------------- detection
 
 function DetectEncoding _
-    ( byval p as const ubyte ptr, byval n as long ) as Encoding
+    ( byval p as const uint8 ptr, byval n as int32 ) as Encoding
 
     if n >= 3 then
         dim as boolean utf8bom = (p[0] = &hEF) andalso (p[1] = &hBB) andalso (p[2] = &hBF)
@@ -46,18 +46,18 @@ function EncodingName( byval e as Encoding ) as string
 end function
 
 function FirstInvalidUtf8 _
-    ( byval p as const ubyte ptr, byval n as long ) as long
+    ( byval p as const uint8 ptr, byval n as int32 ) as int32
 
-    dim as long i = 0
+    dim as int32 i = 0
     while i < n
-        dim as ubyte b = p[i]
+        dim as uint8 b = p[i]
         if b < &h80 then
             i += 1
             continue while
         end if
 
-        dim as long need = 0
-        dim as ulong cp = 0
+        dim as int32 need = 0
+        dim as uint32 cp = 0
         if (b and &hE0) = &hC0 then
             need = 1 : cp = b and &h1F
         elseif (b and &hF0) = &hE0 then
@@ -69,8 +69,8 @@ function FirstInvalidUtf8 _
         end if
 
         if i + need >= n then return i
-        for k as long = 1 to need
-            dim as ubyte c = p[i + k]
+        for k as int32 = 1 to need
+            dim as uint8 c = p[i + k]
             if (c and &hC0) <> &h80 then return i
             cp = (cp shl 6) or (c and &h3F)
         next
@@ -92,18 +92,18 @@ function FirstInvalidUtf8 _
 end function
 
 function IsValidUtf8 _
-    ( byval p as const ubyte ptr, byval n as long ) as boolean
+    ( byval p as const uint8 ptr, byval n as int32 ) as boolean
     return (FirstInvalidUtf8( p, n ) < 0)
 end function
 
 '' ------------------------------------------------------------------- utf-8 codec
 
 function Utf8SeqLen _
-    ( byval p as const ubyte ptr, byval n as long, byval i as long ) as long
+    ( byval p as const uint8 ptr, byval n as int32, byval i as int32 ) as int32
 
     if i >= n then return 0
-    dim as ubyte b = p[i]
-    dim as long want = 1
+    dim as uint8 b = p[i]
+    dim as int32 want = 1
     if b >= &hF0 then
         want = 4
     elseif b >= &hE0 then
@@ -116,18 +116,18 @@ function Utf8SeqLen _
 end function
 
 function DecodeUtf8 _
-    ( byval p as const ubyte ptr, byval n as long, byref i as long ) as ulong
+    ( byval p as const uint8 ptr, byval n as int32, byref i as int32 ) as uint32
 
     if i >= n then return 0
 
-    dim as ubyte b = p[i]
+    dim as uint8 b = p[i]
     if b < &h80 then
         i += 1
         return b
     end if
 
-    dim as long need = 0
-    dim as ulong cp = 0
+    dim as int32 need = 0
+    dim as uint32 cp = 0
     if (b and &hE0) = &hC0 then
         need = 1 : cp = b and &h1F
     elseif (b and &hF0) = &hE0 then
@@ -144,8 +144,8 @@ function DecodeUtf8 _
         return REPLACEMENT_CP
     end if
 
-    for k as long = 1 to need
-        dim as ubyte c = p[i + k]
+    for k as int32 = 1 to need
+        dim as uint8 c = p[i + k]
         if (c and &hC0) <> &h80 then
             i += 1                      '' truncated: consume exactly one byte
             return REPLACEMENT_CP
@@ -159,25 +159,25 @@ function DecodeUtf8 _
     return cp
 end function
 
-sub AppendUtf8( byref dst as ByteBuf, byval cp as ulong )
+sub AppendUtf8( byref dst as ByteBuf, byval cp as uint32 )
     dim as boolean isSurrogate = (cp >= &hD800) andalso (cp <= &hDFFF)
     dim as boolean bad = isSurrogate orelse (cp > &h10FFFF)
     if bad then cp = REPLACEMENT_CP
 
     if cp < &h80 then
-        dst.Push( cast( ubyte, cp ) )
+        dst.Push( cast( uint8, cp ) )
     elseif cp < &h800 then
-        dst.Push( cast( ubyte, &hC0 or (cp shr 6) ) )
-        dst.Push( cast( ubyte, &h80 or (cp and &h3F) ) )
+        dst.Push( cast( uint8, &hC0 or (cp shr 6) ) )
+        dst.Push( cast( uint8, &h80 or (cp and &h3F) ) )
     elseif cp < &h10000 then
-        dst.Push( cast( ubyte, &hE0 or (cp shr 12) ) )
-        dst.Push( cast( ubyte, &h80 or ((cp shr 6) and &h3F) ) )
-        dst.Push( cast( ubyte, &h80 or (cp and &h3F) ) )
+        dst.Push( cast( uint8, &hE0 or (cp shr 12) ) )
+        dst.Push( cast( uint8, &h80 or ((cp shr 6) and &h3F) ) )
+        dst.Push( cast( uint8, &h80 or (cp and &h3F) ) )
     else
-        dst.Push( cast( ubyte, &hF0 or (cp shr 18) ) )
-        dst.Push( cast( ubyte, &h80 or ((cp shr 12) and &h3F) ) )
-        dst.Push( cast( ubyte, &h80 or ((cp shr 6) and &h3F) ) )
-        dst.Push( cast( ubyte, &h80 or (cp and &h3F) ) )
+        dst.Push( cast( uint8, &hF0 or (cp shr 18) ) )
+        dst.Push( cast( uint8, &h80 or ((cp shr 12) and &h3F) ) )
+        dst.Push( cast( uint8, &h80 or ((cp shr 6) and &h3F) ) )
+        dst.Push( cast( uint8, &h80 or (cp and &h3F) ) )
     end if
 end sub
 
@@ -186,25 +186,25 @@ end sub
 private sub Utf16ToUtf8 _
     ( byref src as ByteBuf, byref dst as ByteBuf, byval bigEndian as boolean )
 
-    dim as long n = src.Count
-    dim as long i = 2                       '' skip the BOM
+    dim as int32 n = src.Count
+    dim as int32 i = 2                       '' skip the BOM
     while i + 1 < n
-        dim as ulong u = 0
+        dim as uint32 u = 0
         if bigEndian then
-            u = (cast( ulong, src[i] ) shl 8) or src[i + 1]
+            u = (cast( uint32, src[i] ) shl 8) or src[i + 1]
         else
-            u = (cast( ulong, src[i + 1] ) shl 8) or src[i]
+            u = (cast( uint32, src[i + 1] ) shl 8) or src[i]
         end if
         i += 2
 
         dim as boolean isHigh = (u >= &hD800) andalso (u <= &hDBFF)
         dim as boolean havePair = isHigh andalso (i + 1 < n)
         if havePair then
-            dim as ulong lo = 0
+            dim as uint32 lo = 0
             if bigEndian then
-                lo = (cast( ulong, src[i] ) shl 8) or src[i + 1]
+                lo = (cast( uint32, src[i] ) shl 8) or src[i + 1]
             else
-                lo = (cast( ulong, src[i + 1] ) shl 8) or src[i]
+                lo = (cast( uint32, src[i + 1] ) shl 8) or src[i]
             end if
             dim as boolean isLow = (lo >= &hDC00) andalso (lo <= &hDFFF)
             if isLow then
@@ -217,11 +217,11 @@ private sub Utf16ToUtf8 _
     wend
 end sub
 
-private sub CopyFrom( byref src as ByteBuf, byref dst as ByteBuf, byval first as long )
-    dim as long n = src.Count
+private sub CopyFrom( byref src as ByteBuf, byref dst as ByteBuf, byval first as int32 )
+    dim as int32 n = src.Count
     if first >= n then return
     dst.Reserve( n - first )
-    for i as long = first to n - 1
+    for i as int32 = first to n - 1
         dst.Push( src[i] )
     next
 end sub
@@ -236,20 +236,20 @@ end sub
 private sub Utf32ToUtf8 _
     ( byref src as ByteBuf, byref dst as ByteBuf, byval bigEndian as boolean )
 
-    dim as long i = 0
-    dim as long n = src.Count( )
+    dim as int32 i = 0
+    dim as int32 n = src.Count( )
     while i + 3 < n
-        dim as ulong cp
+        dim as uint32 cp
         if bigEndian then
-            cp = (cast( ulong, src.At( i ) ) shl 24) or _
-                 (cast( ulong, src.At( i + 1 ) ) shl 16) or _
-                 (cast( ulong, src.At( i + 2 ) ) shl 8) or _
-                  cast( ulong, src.At( i + 3 ) )
+            cp = (cast( uint32, src.At( i ) ) shl 24) or _
+                 (cast( uint32, src.At( i + 1 ) ) shl 16) or _
+                 (cast( uint32, src.At( i + 2 ) ) shl 8) or _
+                  cast( uint32, src.At( i + 3 ) )
         else
-            cp = (cast( ulong, src.At( i + 3 ) ) shl 24) or _
-                 (cast( ulong, src.At( i + 2 ) ) shl 16) or _
-                 (cast( ulong, src.At( i + 1 ) ) shl 8) or _
-                  cast( ulong, src.At( i ) )
+            cp = (cast( uint32, src.At( i + 3 ) ) shl 24) or _
+                 (cast( uint32, src.At( i + 2 ) ) shl 16) or _
+                 (cast( uint32, src.At( i + 1 ) ) shl 8) or _
+                  cast( uint32, src.At( i ) )
         end if
         i += 4
         '' The BOM, only at the very start.
@@ -286,7 +286,7 @@ end sub
 
 '' ------------------------------------------------------------------- columns
 
-function DisplayWidth( byval cp as ulong ) as long
+function DisplayWidth( byval cp as uint32 ) as int32
     if cp = 0 then return 0
 
     dim as boolean combining = ((cp >= &h0300) andalso (cp <= &h036F)) orelse _
@@ -309,28 +309,28 @@ function DisplayWidth( byval cp as ulong ) as long
 end function
 
 function ColumnOf _
-    ( byval p as const ubyte ptr, byval lineStart as long, _
-      byval byteOffset as long, byval tabWidth as long ) as long
+    ( byval p as const uint8 ptr, byval lineStart as int32, _
+      byval byteOffset as int32, byval tabWidth as int32 ) as int32
 
     '' PRINTABLE ASCII FIRST, with no call per byte: each such byte is one column, which is
     '' what DecodeUtf8 + DisplayWidth give it. Decode asks for a column on every location it
     '' is handed -- 53 million characters walked in tiko-lang's self-compile -- and nearly
     '' every line is ASCII. A tab, a NUL or a non-ASCII byte hands over to the full walk
     '' from where this stopped.
-    dim as long i = lineStart
+    dim as int32 i = lineStart
     while i < byteOffset
-        dim as ubyte b = p[i]
+        dim as uint8 b = p[i]
         if (b = 9) orelse (b = 0) orelse (b >= 128) then exit while
         i += 1
     wend
     if i = byteOffset then return byteOffset - lineStart + 1
-    dim as long col = i - lineStart
+    dim as int32 col = i - lineStart
     while i < byteOffset
         if p[i] = 9 then                    '' tab advances to the next stop
             col = ((col \ tabWidth) + 1) * tabWidth
             i += 1
         else
-            dim as ulong cp = DecodeUtf8( p, byteOffset, i )
+            dim as uint32 cp = DecodeUtf8( p, byteOffset, i )
             col += DisplayWidth( cp )
         end if
     wend
@@ -340,11 +340,11 @@ end function
 '' --------------------------------------------------------------------- folding
 
 sub LowerAsciiInto _
-    ( byval src as const ubyte ptr, byval n as long, byval dst as ubyte ptr )
+    ( byval src as const uint8 ptr, byval n as int32, byval dst as uint8 ptr )
 
     if n <= 0 then return
-    for i as long = 0 to n - 1
-        dim as ubyte b = src[i]
+    for i as int32 = 0 to n - 1
+        dim as uint8 b = src[i]
         dim as boolean upper = (b >= 65) andalso (b <= 90)
         if upper then
             dst[i] = b + 32
@@ -357,16 +357,16 @@ end sub
 function LowerAscii( byval s as string ) as string
     dim as string r = s
     if len( r ) = 0 then return r
-    LowerAsciiInto( cast( const ubyte ptr, strptr( s ) ), len( r ), _
-                    cast( ubyte ptr, strptr( r ) ) )
+    LowerAsciiInto( cast( const uint8 ptr, strptr( s ) ), len( r ), _
+                    cast( uint8 ptr, strptr( r ) ) )
     return r
 end function
 
 function UpperAscii( byval s as string ) as string
     dim as string r = s
     if len( r ) = 0 then return r
-    dim as ubyte ptr q = cast( ubyte ptr, strptr( r ) )
-    for i as long = 0 to len( r ) - 1
+    dim as uint8 ptr q = cast( uint8 ptr, strptr( r ) )
+    for i as int32 = 0 to len( r ) - 1
         if (q[i] >= 97) andalso (q[i] <= 122) then q[i] -= 32
     next
     return r
@@ -374,7 +374,7 @@ end function
 
 '' ------------------------------------------------------------- ustring bridges
 
-function Utf8ToUString( byval p as const ubyte ptr, byval n as long ) as ustring
+function Utf8ToUString( byval p as const uint8 ptr, byval n as int32 ) as ustring
     if n <= 0 then return ""
     dim as string tmp = space( n )
     memcpy( strptr( tmp ), p, n )
@@ -388,14 +388,14 @@ end function
 '' One radix run: at most 'maxd' digits in 'radix', clamped at 255. 'i' indexes the
 '' first digit and is advanced past what was consumed.
 private function ReadRadixIn_ _
-    ( byref b as string, byref i as long, byval radix as long, _
-      byval maxd as long ) as long
+    ( byref b as string, byref i as int32, byval radix as int32, _
+      byval maxd as int32 ) as int32
 
-    dim as long v = 0
-    dim as long d = 0
+    dim as int32 v = 0
+    dim as int32 d = 0
     while (d < maxd) andalso (i <= len( b ))
-        dim as long k = asc( mid( b, i, 1 ) )
-        dim as long dv = -1
+        dim as int32 k = asc( mid( b, i, 1 ) )
+        dim as int32 dv = -1
         if (k >= 48) andalso (k <= 57) then dv = k - 48
         if (k >= 97) andalso (k <= 102) then dv = k - 87
         if (k >= 65) andalso (k <= 70) then dv = k - 55
@@ -412,10 +412,10 @@ end function
 '' NOTHING; 'i' advances past everything consumed. Byte-for-byte the rule MIR's own
 '' reader applies -- the two used to be one routine over a source SPAN, which the
 '' preprocessor has no way to reach.
-function EscapeByteAt( byref b as string, byref i as long ) as long
+function EscapeByteAt( byref b as string, byref i as int32 ) as int32
     i += 1
     if i > len( b ) then return 92
-    dim as long c = asc( mid( b, i, 1 ) )
+    dim as int32 c = asc( mid( b, i, 1 ) )
     select case c
     case asc( "a" ) : i += 1 : return 7
     case asc( "b" ) : i += 1 : return 8
@@ -430,10 +430,10 @@ function EscapeByteAt( byref b as string, byref i as long ) as long
     end select
     '' DECIMAL, not octal, one to three digits, clamped at 255.
     if (c >= 48) andalso (c <= 57) then
-        dim as long v = 0
-        dim as long d = 0
+        dim as int32 v = 0
+        dim as int32 d = 0
         while (d < 3) andalso (i <= len( b ))
-            dim as long k = asc( mid( b, i, 1 ) )
+            dim as int32 k = asc( mid( b, i, 1 ) )
             if (k < 48) orelse (k > 57) then exit while
             v = v * 10 + (k - 48)
             i += 1
@@ -448,7 +448,7 @@ function EscapeByteAt( byref b as string, byref i as long ) as long
     end if
     if c = 38 then
         if i + 1 <= len( b ) then
-            dim as long r = asc( mid( b, i + 1, 1 ) )
+            dim as int32 r = asc( mid( b, i + 1, 1 ) )
             select case r
             case asc( "h" ), asc( "H" ) : i += 2 : return ReadRadixIn_( b, i, 16, 2 )
             case asc( "o" ), asc( "O" ) : i += 2 : return ReadRadixIn_( b, i, 8, 3 )
@@ -467,14 +467,14 @@ function DecodeEscapedBody _
     ( byref body as string, byref outWide as boolean ) as string
 
     outWide = false
-    dim as long n = len( body )
+    dim as int32 n = len( body )
     '' A UNICODE escape promotes the WHOLE literal to a wstring, which is a different
     '' object and not this routine's to invent.
     '' PAIR BY PAIR: the 'U' in '\\Users' follows an escaped backslash and is text.
-    dim as long k = 1
+    dim as int32 k = 1
     while k <= n - 1
         if asc( mid( body, k, 1 ) ) = 92 then
-            dim as long nx = asc( mid( body, k + 1, 1 ) )
+            dim as int32 nx = asc( mid( body, k + 1, 1 ) )
             if (nx = asc( "u" )) orelse (nx = asc( "U" )) then
                 outWide = true
                 return ""
@@ -484,10 +484,10 @@ function DecodeEscapedBody _
         k += 1
     wend
     dim as string r = ""
-    dim as long i = 1
+    dim as int32 i = 1
     while i <= n
         if asc( mid( body, i, 1 ) ) = 92 then
-            dim as long v = EscapeByteAt( body, i )
+            dim as int32 v = EscapeByteAt( body, i )
             if v >= 0 then r += chr( v )
         else
             r += mid( body, i, 1 )

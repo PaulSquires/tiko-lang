@@ -47,7 +47,7 @@ private sub GenericMemberList_ ( byref c as Ctx, byval id as Tko.NodeId, byval h
     if c.ast->Kind( sp->c ) <> Tko.N_BLOCK then return
     dim as Tko.Symbol ptr gs = c.syms->SymbolAt( LookupDottedType_( c, here, sp->ownerName ) )
     if gs = 0 then return
-    if gs->kind <> cast( ubyte, Tko.SYM_UDT ) then return
+    if gs->kind <> cast( uint8, Tko.SYM_UDT ) then return
     if (gs->flags and Tko.SYMF_GENERIC_INST) <> 0 then return
     dim as Tko.NodeId gn = cast( Tko.NodeId, gs->payload )
     if gn = Tko.NODE_NONE then return
@@ -59,7 +59,7 @@ private sub GenericMemberList_ ( byref c as Ctx, byval id as Tko.NodeId, byval h
     dim as Tko.ListPayload ptr gl = ListOf( c, glist )
     dim as boolean same = (dl->count = gl->count)
     if same then
-        for i as long = 0 to gl->count - 1
+        for i as int32 = 0 to gl->count - 1
             if IdentNameOf( c, cast( Tko.NodeId, c.ast->children[dl->first + i] ) ) <> _
                IdentNameOf( c, cast( Tko.NodeId, c.ast->children[gl->first + i] ) ) then
                 same = false
@@ -68,13 +68,13 @@ private sub GenericMemberList_ ( byref c as Ctx, byval id as Tko.NodeId, byval h
     end if
     if same then return
     '' Once per SOURCE LOCATION: an instantiation re-parses the member into new nodes.
-    dim as ulong at = cast( ulong, c.ast->Loc( id ) )
-    for i as long = 0 to c.genArgSeen.Count - 1
+    dim as uint32 at = cast( uint32, c.ast->Loc( id ) )
+    for i as int32 = 0 to c.genArgSeen.Count - 1
         if c.genArgSeen[i] = at then return
     next
     c.genArgSeen.Push( at )
     dim as string want
-    for i as long = 0 to gl->count - 1
+    for i as int32 = 0 to gl->count - 1
         if i > 0 then want &= ", "
         want &= c.names->Spelling( IdentNameOf( c, cast( Tko.NodeId, c.ast->children[gl->first + i] ) ) )
     next

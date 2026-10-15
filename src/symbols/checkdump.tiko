@@ -11,7 +11,7 @@ function Dump _
       byref info as Tko.SemanticInfo, byref st as Stats ) as string
 
     dim as IrText outp
-    for i as long = 1 to ast.Count( )
+    for i as int32 = 1 to ast.Count( )
         dim as Tko.NodeId n = cast( Tko.NodeId, i )
 
         '' An assignment reports its LEGALITY rather than a type, so
@@ -23,7 +23,7 @@ function Dump _
                 '' different arena, which is the exact mistake phase-5-check.md warns
                 '' about, made again while writing this.
                 dim as Tko.StmtPayload ptr ap = _
-                    @ast.stmts[cast( long, ast.nodes[cast( long, n )].data )]
+                    @ast.stmts[cast( int32, ast.nodes[cast( int32, n )].data )]
                 dim as Tko.TypeId dt = info.TypeOf_( ap->a )
                 dim as Tko.TypeId st2 = info.TypeOf_( ap->b )
                 dim as string verdict = "assign:unknown"
@@ -42,7 +42,7 @@ function Dump _
 
         if ast.Kind( n ) <> Tko.N_INTRINSIC then continue for
         dim as Tko.StmtPayload ptr sp = _
-            @ast.stmts[cast( long, ast.nodes[cast( long, n )].data )]
+            @ast.stmts[cast( int32, ast.nodes[cast( int32, n )].data )]
         if sp->count <= 0 then continue for
         dim as Tko.NodeId arg = cast( Tko.NodeId, ast.children[sp->first] )
         if arg = Tko.NODE_NONE then continue for
@@ -58,13 +58,13 @@ function Dump _
                     str( cv.value ) & chr( 10 )
         end if
     next
-    for i as long = 0 to st.argUntypedNames.Count - 1
+    for i as int32 = 0 to st.argUntypedNames.Count - 1
         outp += "arg-untyped-name " & _
                 names.Spelling( cast( Tko.InternId, st.argUntypedNames[i] ) ) & chr( 10 )
     next
     '' The expression forms that came back untyped in ARGUMENT position, which is the
     '' list of things to implement next: one of these declines its whole statement.
-    for i as long = 0 to st.argUntypedKind.Count - 1
+    for i as int32 = 0 to st.argUntypedKind.Count - 1
         if st.argUntypedKind[i] = 0 then continue for
         outp += "arg-untyped " & Tko.NodeKindName( cast( Tko.NodeKind, i ) ) & " " & _
                 str( st.argUntypedKind[i] ) & chr( 10 )
@@ -83,8 +83,8 @@ function DumpDecisions _
       byref info as Tko.SemanticInfo ) as string
 
     dim as string outp
-    dim as long n_ = 0
-    for i as long = 1 to ast.Count( )
+    dim as int32 n_ = 0
+    for i as int32 = 1 to ast.Count( )
         dim as Tko.NodeId n = cast( Tko.NodeId, i )
         dim as Tko.SymbolId d = info.DecisionOf( n )
         if d = Tko.SYMBOL_NONE then continue for

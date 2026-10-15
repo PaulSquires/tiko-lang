@@ -13,7 +13,7 @@
 '' and both kinds of namespace body; fbc's fbc-int/query-symbol.bas reads a const named
 '' like fbc-int/symbol.bi's isUDT( sym ) inside fbcunit's SUITE namespace.
 private function BareMacroAtGlobal_( byref c as Ctx, byval scope_ as Tko.ScopeId ) as boolean
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (scope_ <> Tko.SCOPE_NONE) andalso (guard < Tko.SCOPE_WALK_MAX)
         guard += 1
         dim as Tko.SymScope ptr sc = c.syms->ScopeAt( scope_ )
@@ -27,9 +27,9 @@ private function BareMacroAtGlobal_( byref c as Ctx, byval scope_ as Tko.ScopeId
             dim as Tko.Symbol ptr os = c.syms->SymbolAt( sc->owner )
             if os <> 0 then
                 dim as Tko.NodeId dn = cast( Tko.NodeId, os->payload )
-                if (dn > 0) andalso (cast( long, dn ) <= c.ast->Count( )) then
+                if (dn > 0) andalso (cast( int32, dn ) <= c.ast->Count( )) then
                     if c.ast->Kind( dn ) = Tko.N_PROC then
-                        if (c.ast->nodes[cast( long, dn )].flags and Tko.NF_QUALIFIED) <> 0 then return false
+                        if (c.ast->nodes[cast( int32, dn )].flags and Tko.NF_QUALIFIED) <> 0 then return false
                     end if
                 end if
             end if
@@ -45,7 +45,7 @@ end function
 '' the body and binds it, and the INSTANTIATION is what gets checked: its scopes belong to
 '' an instance, which is not a template.
 private function InTemplate_( byref c as Ctx, byval scope_ as Tko.ScopeId ) as boolean
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (scope_ <> Tko.SCOPE_NONE) andalso (guard < Tko.SCOPE_WALK_MAX)
         guard += 1
         dim as Tko.SymScope ptr sc = c.syms->ScopeAt( scope_ )
@@ -58,13 +58,13 @@ private function InTemplate_( byref c as Ctx, byval scope_ as Tko.ScopeId ) as b
             '' in 'b', so it passed for the template below. 'as Wdiget oops' in a generic
             '' type's field was reported nowhere -- fbc's generics/fail-error-in-body.bas,
             '' error 14 at the instantiation (fbc-modern 1.20, 2026-09-25).
-            if os->kind = cast( ubyte, Tko.SYM_UDT ) then
+            if os->kind = cast( uint8, Tko.SYM_UDT ) then
                 if instr( c.names->Spelling( os->name ), "<" ) > 0 then return false
             end if
             dim as Tko.NodeId dn = cast( Tko.NodeId, os->payload )
-            dim as boolean isNode = (os->kind = cast( ubyte, Tko.SYM_UDT )) orelse _
-                                    (os->kind = cast( ubyte, Tko.SYM_PROC ))
-            if isNode andalso (dn > 0) andalso (cast( long, dn ) <= c.ast->Count( )) then
+            dim as boolean isNode = (os->kind = cast( uint8, Tko.SYM_UDT )) orelse _
+                                    (os->kind = cast( uint8, Tko.SYM_PROC ))
+            if isNode andalso (dn > 0) andalso (cast( int32, dn ) <= c.ast->Count( )) then
                 select case c.ast->Kind( dn )
                 case Tko.N_TYPE
                     if StmtOf( c, dn )->b <> Tko.NODE_NONE then return true
@@ -85,7 +85,7 @@ private sub NoteUnboundType_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
     if c.st->unresolvedTypes.Count >= 200000 then return
     if InTemplate_( c, scope_ ) then return
-    c.st->unresolvedTypes.Push( cast( ulong, id ) )
+    c.st->unresolvedTypes.Push( cast( uint32, id ) )
 end sub
 
 '' Kept for the report after Check -- which makes it only if nothing types the name by
@@ -94,7 +94,7 @@ private sub NoteUnbound_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
     if c.st->unresolvedIds.Count >= 200000 then return
     if InTemplate_( c, scope_ ) then return
-    c.st->unresolvedIds.Push( cast( ulong, id ) )
+    c.st->unresolvedIds.Push( cast( uint32, id ) )
 end sub
 
 '' A NAME DECLARED BELOW ITS USE is fbc's error 42, as if it were never declared: fbc
@@ -116,10 +116,10 @@ private function DeclaredBelow_ _
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
     if s = 0 then return false
     if s->declAt = 0 then return false
-    if cast( ulong, use ) >= s->declAt then return false
+    if cast( uint32, use ) >= s->declAt then return false
     '' ...NOT IN A MODULE, whose declarations have no order (ADR 0017; RFC-0003 §5).
     if Tko.ModSym.OrderFree( *c.syms, sid ) then return false
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (scope_ <> Tko.SCOPE_NONE) andalso (guard < Tko.SCOPE_WALK_MAX)
         guard += 1
         dim as Tko.SymScope ptr sc = c.syms->ScopeAt( scope_ )
@@ -196,7 +196,7 @@ private function ModuleLocalHidden_ _
     if c.inParamDefault then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
     if s = 0 then return false
-    if s->kind <> cast( ubyte, Tko.SYM_VARIABLE ) then return false
+    if s->kind <> cast( uint8, Tko.SYM_VARIABLE ) then return false
     '' SHARED, COMMON SHARED and EXTERN all give it module storage a procedure may name.
     '' A plain COMMON does not: fbc hides 'common n' exactly as it hides 'dim n'.
     '' A DEFINITION OF AN EXTERN carries SYMF_SHARED for the same reason -- see collect.tiko
@@ -207,16 +207,16 @@ private function ModuleLocalHidden_ _
     '' procedures, measured above, and a block scope's are not on a procedure's chain.
     dim as Tko.SymScope ptr ds = c.syms->ScopeAt( s->parent )
     if ds = 0 then return false
-    if ds->kind <> cast( ubyte, Tko.SCOPEK_MODULE ) then return false
+    if ds->kind <> cast( uint8, Tko.SCOPEK_MODULE ) then return false
     '' ...AND USED FROM INSIDE A PROCEDURE: the first PROC scope on the way out says so,
     '' and reaching the module scope first says the use is at module level.
     dim as Tko.ScopeId sc = scope_
-    for guard as long = 0 to 255
+    for guard as int32 = 0 to 255
         if sc = Tko.SCOPE_NONE then return false
         dim as Tko.SymScope ptr ss = c.syms->ScopeAt( sc )
         if ss = 0 then return false
-        if ss->kind = cast( ubyte, Tko.SCOPEK_PROC ) then return true
-        if ss->kind = cast( ubyte, Tko.SCOPEK_MODULE ) then return false
+        if ss->kind = cast( uint8, Tko.SCOPEK_PROC ) then return true
+        if ss->kind = cast( uint8, Tko.SCOPEK_MODULE ) then return false
         sc = ss->parent
     next
     return false
@@ -235,13 +235,13 @@ private function VisibleAbove_ _
     if sid = Tko.SYMBOL_NONE then return sid
     if DeclaredBelow_( c, sid, use, scope_ ) = false then return sid
     dim as Tko.ScopeId sc = scope_
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (sc <> Tko.SCOPE_NONE) andalso (guard < Tko.SCOPE_WALK_MAX)
         guard += 1
         dim as Tko.SymbolId got = c.syms->LookupLocalTyped( sc, nm, false )
         if VisibleValue_( c, got, use, scope_ ) then return got
-        for i as long = 0 to c.syms->usingAt.Count - 1
-            if c.syms->usingAt[i] <> cast( ulong, sc ) then continue for
+        for i as int32 = 0 to c.syms->usingAt.Count - 1
+            if c.syms->usingAt[i] <> cast( uint32, sc ) then continue for
             if c.syms->UsingHere( i ) = false then continue for
             got = c.syms->LookupInNamespaceTyped( _
                 cast( Tko.ScopeId, c.syms->usingInner[i] ), nm, false, 0 )
@@ -283,9 +283,9 @@ private sub ForwardTypeRef_ _
     if c.info->RefOf( id ) = sid then exit sub
     if InTemplate_( c, scope_ ) then exit sub
     if DeclaredBelow_( c, sid, id, scope_ ) = false then exit sub
-    for i as long = 0 to c.typedefNode.Count - 1
+    for i as int32 = 0 to c.typedefNode.Count - 1
         dim as Tko.NodeId t = StmtOf( c, cast( Tko.NodeId, c.typedefNode[i] ) )->a
-        dim as long guard = 0
+        dim as int32 guard = 0
         while (t <> Tko.NODE_NONE) andalso (guard < 64)
             guard += 1
             '' ...an UNQUALIFIED target only: 'type X as NS.Foo' above NS.Foo is fbc's
@@ -308,7 +308,7 @@ end sub
 function ParamDefaultScope_( byref c as Ctx, byval here as Tko.ScopeId ) as Tko.ScopeId
     dim as Tko.SymScope ptr hs = c.syms->ScopeAt( here )
     if hs = 0 then return here
-    if hs->kind <> cast( ubyte, Tko.SCOPEK_PROC ) then return here
+    if hs->kind <> cast( uint8, Tko.SCOPEK_PROC ) then return here
     if hs->parent = Tko.SCOPE_NONE then return here
     return hs->parent
 end function

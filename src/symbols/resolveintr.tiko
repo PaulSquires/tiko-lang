@@ -27,7 +27,7 @@ private sub BuiltinCallTarget_ _
     if tg = Tko.NODE_NONE then return
     if c.ast->Kind( tg ) = Tko.N_MEMBER then
         dim as Tko.BinaryPayload ptr gmb = _
-            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, tg )].data )]
+            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, tg )].data )]
         dim as boolean viaGlobal = false
         if gmb->lhs = Tko.NODE_NONE then
             viaGlobal = (c.withSubject.Count = 0)
@@ -43,23 +43,23 @@ private sub BuiltinCallTarget_ _
     dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( IdentNameOf( c, tg ) ) )
     if Check.IsTypedIntrinsicName( nm ) = false then return
     lp->target = tg
-    c.ast->nodes[cast( long, tg )].flags or= Tko.NF_CALL_TARGET   '' the CALLED name now
+    c.ast->nodes[cast( int32, tg )].flags or= Tko.NF_CALL_TARGET   '' the CALLED name now
 
     dim as Tko.Symbol ptr bs = c.syms->SymbolAt( c.info->RefOf( tg ) )
     if bs = 0 then return
-    if bs->kind <> cast( ubyte, Tko.SYM_PROC ) then return
+    if bs->kind <> cast( uint8, Tko.SYM_PROC ) then return
     dim as Tko.NodeId decl = cast( Tko.NodeId, bs->payload )
     if decl <> Tko.NODE_NONE then
         if c.ast->Kind( decl ) = Tko.N_PROC then
-            if c.ast->stmts[cast( long, c.ast->nodes[cast( long, decl )].data )].op = _
-               cast( ushort, Tko.KW_OPERATOR ) then return
+            if c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, decl )].data )].op = _
+               cast( uint16, Tko.KW_OPERATOR ) then return
         end if
     end if
     dim as Tko.SymScope ptr ns = c.syms->ScopeAt( bs->parent )
     if ns = 0 then return
-    if ns->kind <> cast( ubyte, Tko.SCOPEK_NAMESPACE ) then return
+    if ns->kind <> cast( uint8, Tko.SCOPEK_NAMESPACE ) then return
     dim as Tko.ScopeId sc = scope_
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (sc <> Tko.SCOPE_NONE) andalso (guard < Tko.SCOPE_WALK_MAX)
         guard += 1
         if sc = bs->parent then return
@@ -95,23 +95,23 @@ sub DropNsPrefix_ _
     ( byref c as Ctx, byval opnd as Tko.NodeId, byval scope_ as Tko.ScopeId )
 
     dim as Tko.NodeId n = opnd, parent = Tko.NODE_NONE
-    dim as long guard = 0
+    dim as int32 guard = 0
     do while (n <> Tko.NODE_NONE) andalso (guard < 256)
         guard += 1
         select case c.ast->Kind( n )
         case Tko.N_BINARY
             parent = Tko.NODE_NONE
-            n = c.ast->binaries[cast( long, c.ast->nodes[cast( long, n )].data )].lhs
+            n = c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, n )].data )].lhs
         case Tko.N_CALL, Tko.N_INDEX
             parent = n
             n = ListOf( c, n )->target
         case Tko.N_MEMBER
             dim as Tko.BinaryPayload ptr mb = _
-                @c.ast->binaries[cast( long, c.ast->nodes[cast( long, n )].data )]
+                @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, n )].data )]
             if mb->lhs = Tko.NODE_NONE then return
             dim as Tko.Symbol ptr bs = c.syms->SymbolAt( c.info->RefOf( mb->lhs ) )
             dim as boolean viaNs = false
-            if bs <> 0 then viaNs = (bs->kind = cast( ubyte, Tko.SYM_NAMESPACE ))
+            if bs <> 0 then viaNs = (bs->kind = cast( uint8, Tko.SYM_NAMESPACE ))
             if viaNs = false then
                 parent = Tko.NODE_NONE
                 n = mb->lhs
@@ -120,11 +120,11 @@ sub DropNsPrefix_ _
             if c.ast->Kind( mb->rhs ) <> Tko.N_IDENT then return
             dim as Tko.Symbol ptr ps = c.syms->SymbolAt( c.info->RefOf( mb->rhs ) )
             if ps = 0 then return
-            if ps->kind <> cast( ubyte, Tko.SYM_PROC ) then return
-            c.ast->nodes[cast( long, n )].kind = cast( ushort, Tko.N_IDENT )
-            c.ast->nodes[cast( long, n )].data = c.ast->nodes[cast( long, mb->rhs )].data
+            if ps->kind <> cast( uint8, Tko.SYM_PROC ) then return
+            c.ast->nodes[cast( int32, n )].kind = cast( uint16, Tko.N_IDENT )
+            c.ast->nodes[cast( int32, n )].data = c.ast->nodes[cast( int32, mb->rhs )].data
             c.info->SetRef( n, Tko.SYMBOL_NONE )
-            c.st->droppedNsIds.Push( cast( ulong, n ) )
+            c.st->droppedNsIds.Push( cast( uint32, n ) )
             WalkExpr( c, n, scope_ )
             if parent <> Tko.NODE_NONE then
                 if c.ast->Kind( parent ) = Tko.N_CALL then
@@ -162,7 +162,7 @@ private sub LenOperandPrefix_ _
     '' call would be well-formed.
     if c.ast->Kind( op0 ) <> Tko.N_IDENT then return
     dim as Tko.Symbol ptr ops = c.syms->SymbolAt( c.info->RefOf( op0 ) )
-    if (ops = 0) orelse (ops->kind <> cast( ubyte, Tko.SYM_PROC )) then return
+    if (ops = 0) orelse (ops->kind <> cast( uint8, Tko.SYM_PROC )) then return
     dim as Tko.SymbolId ots = c.syms->LookupTyped( scope_, IdentNameOf( c, op0 ), true )
     if ots <> Tko.SYMBOL_NONE then c.info->SetRef( op0, ots )
 end sub

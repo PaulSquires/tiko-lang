@@ -25,7 +25,7 @@ end type
 '' The file a cursor was written in, as clang reports it.
 private function FileOf_( byref api as ClangApi, byval c as CXCursor ) as string
     dim as any ptr f
-    dim as ulong ln, col, off
+    dim as uint32 ln, col, off
     api.getExpansionLocation( api.getCursorLocation( c ), @f, @ln, @col, @off )
     if f = 0 then return ""
     return ClangText( api, api.getFileName( f ) )
@@ -35,11 +35,11 @@ private function EndsWithName_( byref path as string, byref name_ as string ) as
     if len( path ) < len( name_ ) then return false
     if lcase( right( path, len( name_ ) ) ) <> lcase( name_ ) then return false
     if len( path ) = len( name_ ) then return true
-    dim as long ch = path[len( path ) - len( name_ ) - 1]
+    dim as int32 ch = path[len( path ) - len( name_ ) - 1]
     return (ch = asc( "/" )) orelse (ch = asc( "\" ))
 end function
 
-private function KindName_( byval k as long ) as string
+private function KindName_( byval k as int32 ) as string
     select case k
     case CXCursor_StructDecl       : return "struct"
     case CXCursor_UnionDecl        : return "union"
@@ -56,11 +56,11 @@ end function
 
 '' A record's members, one level down -- the offsets are clang's, in BITS.
 private function ProbeField_ cdecl _
-    ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as long
+    ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
 
     dim as ProbeCtx_ ptr px = client
     dim as ClangApi ptr a = px->api
-    dim as long k = a->getCursorKind( c )
+    dim as int32 k = a->getCursorKind( c )
     if k = CXCursor_FieldDecl then
         dim as string w = "-"
         if a->Cursor_isBitField( c ) then w = str( a->getFieldDeclBitWidth( c ) )
@@ -75,12 +75,12 @@ private function ProbeField_ cdecl _
 end function
 
 private function ProbeTop_ cdecl _
-    ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as long
+    ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
 
     dim as ProbeCtx_ ptr px = client
     dim as ClangApi ptr a = px->api
     if EndsWithName_( FileOf_( *a, c ), px->header ) = false then return CXChildVisit_Continue
-    dim as long k = a->getCursorKind( c )
+    dim as int32 k = a->getCursorKind( c )
     dim as CXType t = a->getCursorType( c )
     px->outp &= KindName_( k ) & " " & ClangText( *a, a->getCursorSpelling( c ) ) & _
                 " : " & ClangText( *a, a->getTypeSpelling( t ) )
@@ -109,7 +109,7 @@ end function
 
 private sub ProbeInclusion_ cdecl _
     ( byval included as any ptr, byval stack as CXSourceLocation ptr, _
-      byval depth as ulong, byval client as any ptr )
+      byval depth as uint32, byval client as any ptr )
 
     dim as ProbeCtx_ ptr px = client
     dim as ClangApi ptr a = px->api
@@ -117,7 +117,7 @@ private sub ProbeInclusion_ cdecl _
 end sub
 
 function CImportProbe( byref clangExe as string, byref header as string, _
-                       byref triple as string, byref cincludes as Tko.StrVec ) as long
+                       byref triple as string, byref cincludes as Tko.StrVec ) as int32
 
     dim as ClangApi api
     if ClangLoad( api, clangExe ) = false then
@@ -132,19 +132,19 @@ function CImportProbe( byref clangExe as string, byref header as string, _
 
     '' THE ARGUMENTS OUTLIVE THE CALL: argv holds pointers into these strings.
     dim as string av( 0 to 63 )
-    dim as long ac = 0
+    dim as int32 ac = 0
     av( ac ) = "-x" : ac += 1
     av( ac ) = "c" : ac += 1
     av( ac ) = "-std=c11" : ac += 1
     av( ac ) = "--target=" & triple : ac += 1
     if len( rdir ) then av( ac ) = "-resource-dir=" & rdir : ac += 1
-    for i as long = 0 to cincludes.Count - 1
+    for i as int32 = 0 to cincludes.Count - 1
         if ac >= 62 then exit for
         av( ac ) = "-I" : ac += 1
         av( ac ) = cincludes[i] : ac += 1
     next
     dim as zstring ptr argv( 0 to 63 )
-    for i as long = 0 to ac - 1
+    for i as int32 = 0 to ac - 1
         argv( i ) = strptr( av( i ) )
     next
 
@@ -167,16 +167,16 @@ function CImportProbe( byref clangExe as string, byref header as string, _
     dim as ProbeCtx_ px
     px.api = @api
     '' Declarations are reported from the named header only; its includes are listed.
-    dim as long slash = 0
-    for i as long = len( header ) to 1 step -1
+    dim as int32 slash = 0
+    for i as int32 = len( header ) to 1 step -1
         if (header[i - 1] = asc( "/" )) orelse (header[i - 1] = asc( "\" )) then slash = i : exit for
     next
     px.header = mid( header, slash + 1 )
 
-    dim as long nerr = 0
-    for i as long = 0 to api.getNumDiagnostics( tu ) - 1
+    dim as int32 nerr = 0
+    for i as int32 = 0 to api.getNumDiagnostics( tu ) - 1
         dim as any ptr d = api.getDiagnostic( tu, i )
-        dim as long sev = api.getDiagnosticSeverity( d )
+        dim as int32 sev = api.getDiagnosticSeverity( d )
         if sev >= 3 then nerr += 1
         px.outp &= "diag " & sev & " " & ClangText( api, api.formatDiagnostic( d, 3 ) ) & chr( 10 )
         api.disposeDiagnostic( d )

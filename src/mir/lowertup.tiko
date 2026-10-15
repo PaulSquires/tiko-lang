@@ -6,10 +6,10 @@
 '' Defined below and used by LowerTupleCompare, which comes first.
 declare function TupleElemCmp_ _
     ( byref c as Ctx, byref ldst as MirValue, byref rdst as MirValue, _
-      byval et as Tko.TypeId, byval off as long, byval isEq as boolean ) as MirValue
+      byval et as Tko.TypeId, byval off as int32, byval isEq as boolean ) as MirValue
 declare function TupleElems_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref etypes as containers.Array( of ulong ), _
-      byref eoffs as containers.Array( of ulong ), byval flatten as boolean = true ) as boolean
+    ( byref c as Ctx, byval t as Tko.TypeId, byref etypes as containers.Array( of uint32 ), _
+      byref eoffs as containers.Array( of uint32 ), byval flatten as boolean = true ) as boolean
 
 '' TUPLE EQUALITY, which is a SHORT-CIRCUIT CHAIN over the elements.
 ''
@@ -43,39 +43,39 @@ function LowerTupleCompare _
 
     '' The elements, in declaration order, with their offsets. A structure that is not
     '' a tuple comes back false and takes no part in this.
-    dim as containers.Array( of ulong ) etypes
-    dim as containers.Array( of ulong ) eoffs
+    dim as containers.Array( of uint32 ) etypes
+    dim as containers.Array( of uint32 ) eoffs
     if TupleElems_( c, lt, etypes, eoffs, true ) = false then return false
 
     '' EACH SIDE'S ADDRESS ONCE, in a slot so it survives the blocks below.
-    dim as long pbytes = c.types->target.pointerBits \ 8
+    dim as int32 pbytes = c.types->target.pointerBits \ 8
     dim as MirValue la = LowerAddr( c, bp->lhs )
-    if la.kind = cast( ubyte, MV_NONE ) then return false
+    if la.kind = cast( uint8, MV_NONE ) then return false
     dim as MirValue ra = LowerAddr( c, bp->rhs )
-    if ra.kind = cast( ubyte, MV_NONE ) then return false
-    dim as long lslot = NewTempLocal( c, MT_PTR, pbytes )
-    dim as long rslot = NewTempLocal( c, MT_PTR, pbytes )
+    if ra.kind = cast( uint8, MV_NONE ) then return false
+    dim as int32 lslot = NewTempLocal( c, MT_PTR, pbytes )
+    dim as int32 rslot = NewTempLocal( c, MT_PTR, pbytes )
     if (lslot < 0) orelse (rslot < 0) then return false
     dim as MirValue ldst, rdst
-    ldst.kind = cast( ubyte, MV_LOCAL ) : ldst.ty = cast( ubyte, MT_PTR ) : ldst.id = lslot
-    rdst.kind = cast( ubyte, MV_LOCAL ) : rdst.ty = cast( ubyte, MT_PTR ) : rdst.id = rslot
+    ldst.kind = cast( uint8, MV_LOCAL ) : ldst.ty = cast( uint8, MT_PTR ) : ldst.id = lslot
+    rdst.kind = cast( uint8, MV_LOCAL ) : rdst.ty = cast( uint8, MT_PTR ) : rdst.id = rslot
     StoreThrough( c, ldst, la )
     StoreThrough( c, rdst, ra )
 
     dim as boolean isEq = (tk = Tko.TK_EQ)
-    dim as long slot = NewTempLocal( c, MT_I32, 4 )
+    dim as int32 slot = NewTempLocal( c, MT_I32, 4 )
     if slot < 0 then return false
     dim as MirValue acc
-    acc.kind = cast( ubyte, MV_LOCAL ) : acc.ty = cast( ubyte, MT_PTR ) : acc.id = slot
+    acc.kind = cast( uint8, MV_LOCAL ) : acc.ty = cast( uint8, MT_PTR ) : acc.id = slot
 
     dim as MirValue cur = TupleElemCmp_( c, ldst, rdst, _
-        cast( Tko.TypeId, etypes[0] ), cast( long, eoffs[0] ), isEq )
-    if cur.kind = cast( ubyte, MV_NONE ) then return false
+        cast( Tko.TypeId, etypes[0] ), cast( int32, eoffs[0] ), isEq )
+    if cur.kind = cast( uint8, MV_NONE ) then return false
 
-    for i as long = 1 to etypes.Count - 1
-        dim as long rhsB = NewBlock( c, "tup.rhs" )
-        dim as long shortB = NewBlock( c, "tup.short" )
-        dim as long joinB = NewBlock( c, "tup.join" )
+    for i as int32 = 1 to etypes.Count - 1
+        dim as int32 rhsB = NewBlock( c, "tup.rhs" )
+        dim as int32 shortB = NewBlock( c, "tup.short" )
+        dim as int32 joinB = NewBlock( c, "tup.join" )
         if isEq then
             Terminate( c, MTERM_CONDBR, rhsB, shortB, cur )
         else
@@ -84,24 +84,24 @@ function LowerTupleCompare _
 
         c.curBlock = rhsB
         dim as MirValue nx = TupleElemCmp_( c, ldst, rdst, _
-            cast( Tko.TypeId, etypes[i] ), cast( long, eoffs[i] ), isEq )
-        if nx.kind = cast( ubyte, MV_NONE ) then return false
+            cast( Tko.TypeId, etypes[i] ), cast( int32, eoffs[i] ), isEq )
+        if nx.kind = cast( uint8, MV_NONE ) then return false
         dim as MirInst ng
-        ng.op = cast( ushort, M_NEG )
-        ng.ty = cast( ubyte, MT_I32 )
+        ng.op = cast( uint16, M_NEG )
+        ng.ty = cast( uint8, MT_I32 )
         ng.a = Coerce( c, nx, MT_I32, false )
         StoreThrough( c, acc, Emit( c, ng ) )
         Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
 
         c.curBlock = shortB
-        dim as longint shortV = 0
+        dim as int64 shortV = 0
         if isEq = false then shortV = -1
         StoreThrough( c, acc, ConstInt( c, shortV, MT_I32 ) )
         Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
 
         c.curBlock = joinB
         cur = LowerExprLoad( c, acc, MT_I32 )
-        if cur.kind = cast( ubyte, MV_NONE ) then return false
+        if cur.kind = cast( uint8, MV_NONE ) then return false
         '' The accumulator IS the negated answer, so the next round branches on it
         '' directly and only a one-element tuple needs the negation below.
         if i = etypes.Count - 1 then
@@ -111,8 +111,8 @@ function LowerTupleCompare _
     next
 
     dim as MirInst ng1
-    ng1.op = cast( ushort, M_NEG )
-    ng1.ty = cast( ubyte, MT_I32 )
+    ng1.op = cast( uint16, M_NEG )
+    ng1.ty = cast( uint8, MT_I32 )
     ng1.a = Coerce( c, cur, MT_I32, false )
     outv = Emit( c, ng1 )
     return true
@@ -136,21 +136,21 @@ private function TupleUdtCmpOp_ _
     if sc = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
     dim as Tko.SymbolId cur = _
         c.syms->Lookup( sc, c.names->Fold( c.names->GetString( nm ) ) )
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 256)
         guard += 1
         dim as Tko.Symbol ptr os = c.syms->SymbolAt( cur )
         if os = 0 then exit while
-        if os->kind = cast( ubyte, Tko.SYM_PROC ) then
+        if os->kind = cast( uint8, Tko.SYM_PROC ) then
             dim as Tko.NodeId pn = cast( Tko.NodeId, os->payload )
             dim as boolean isProc = (pn <> Tko.NODE_NONE)
             if isProc then isProc = (c.ast->Kind( pn ) = Tko.N_PROC)
             if isProc then
                 dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
-                if pp->op = cast( ushort, Tko.KW_OPERATOR ) then
-                    dim as long np = 0
+                if pp->op = cast( uint16, Tko.KW_OPERATOR ) then
+                    dim as int32 np = 0
                     dim as boolean bothMine = true
-                    for i as long = 0 to pp->count - 1
+                    for i as int32 = 0 to pp->count - 1
                         dim as Tko.NodeId prm = _
                             cast( Tko.NodeId, c.ast->children[pp->first + i] )
                         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
@@ -170,7 +170,7 @@ end function
 '' and compared, RAW -- the negation belongs to the chain, not to the element.
 function TupleElemCmp_ _
     ( byref c as Ctx, byref ldst as MirValue, byref rdst as MirValue, _
-      byval et as Tko.TypeId, byval off as long, byval isEq as boolean ) as MirValue
+      byval et as Tko.TypeId, byval off as int32, byval isEq as boolean ) as MirValue
 
     dim as MirValue none_
     dim as MirType emt = LowerType( et, *c.types )
@@ -178,13 +178,13 @@ function TupleElemCmp_ _
 
     dim as MirValue lp = LowerExprLoad( c, ldst, MT_PTR )
     dim as MirValue rp = LowerExprLoad( c, rdst, MT_PTR )
-    if lp.kind = cast( ubyte, MV_NONE ) then return none_
-    if rp.kind = cast( ubyte, MV_NONE ) then return none_
+    if lp.kind = cast( uint8, MV_NONE ) then return none_
+    if rp.kind = cast( uint8, MV_NONE ) then return none_
 
     dim as MirInst lf, rf
-    lf.op = cast( ushort, M_FIELD_ADDR ) : lf.ty = cast( ubyte, MT_PTR )
+    lf.op = cast( uint16, M_FIELD_ADDR ) : lf.ty = cast( uint8, MT_PTR )
     lf.a = lp : lf.imm = off
-    rf.op = cast( ushort, M_FIELD_ADDR ) : rf.ty = cast( ubyte, MT_PTR )
+    rf.op = cast( uint16, M_FIELD_ADDR ) : rf.ty = cast( uint8, MT_PTR )
     rf.a = rp : rf.imm = off
     dim as MirValue laddr = Emit( c, lf )
     dim as MirValue raddr = Emit( c, rf )
@@ -197,17 +197,17 @@ function TupleElemCmp_ _
     '' descriptor is an aggregate, so comparing it as one would compare the pointer
     '' and the length rather than the text.
     if IsStringType( c, et ) then
-        dim as containers.Array( of ulong ) sargs
+        dim as containers.Array( of uint32 ) sargs
         PushStrArg( sargs, laddr )
         PushStrArg( sargs, raddr )
         dim as MirValue sc = EmitRtl( c, RTL_STR_COMPARE, sargs )
-        if sc.kind = cast( ubyte, MV_NONE ) then return none_
+        if sc.kind = cast( uint8, MV_NONE ) then return none_
         dim as MirInst scmp
-        scmp.op = cast( ushort, BinOpFor( etk, MT_I32, false ) )
-        scmp.ty = cast( ubyte, MT_I32 )
+        scmp.op = cast( uint16, BinOpFor( etk, MT_I32, false ) )
+        scmp.ty = cast( uint8, MT_I32 )
         scmp.a = sc
         scmp.b = ConstInt( c, 0, MT_I32 )
-        if scmp.op = cast( ushort, M_NONE ) then return none_
+        if scmp.op = cast( uint16, M_NONE ) then return none_
         return Emit( c, scmp )
     end if
 
@@ -236,43 +236,43 @@ function TupleElemCmp_ _
             dim as MirType cmt = LowerType( crt, *c.types )
             dim as MirValue lcv = EmitMemberCall( c, ccs, laddr, cmt )
             dim as MirValue rcv = EmitMemberCall( c, ccs, raddr, cmt )
-            if (lcv.kind = cast( ubyte, MV_NONE )) orelse (rcv.kind = cast( ubyte, MV_NONE )) then return none_
+            if (lcv.kind = cast( uint8, MV_NONE )) orelse (rcv.kind = cast( uint8, MV_NONE )) then return none_
             dim as MirInst ccmp
-            ccmp.op = cast( ushort, BinOpFor( etk, cmt, IsUnsignedType( c, crt ) ) )
-            ccmp.ty = cast( ubyte, MT_I32 )
+            ccmp.op = cast( uint16, BinOpFor( etk, cmt, IsUnsignedType( c, crt ) ) )
+            ccmp.ty = cast( uint8, MT_I32 )
             ccmp.a = lcv : ccmp.b = rcv
-            if ccmp.op = cast( ushort, M_NONE ) then return none_
+            if ccmp.op = cast( uint16, M_NONE ) then return none_
             return Emit( c, ccmp )
         end if
         dim as Tko.Symbol ptr ucs = c.syms->SymbolAt( ucmp )
         if ucs = 0 then return none_
         dim as MirType urt = MT_I64
         if ucs->type_ <> Tko.TYPE_NONE then urt = LowerType( ucs->type_, *c.types )
-        dim as containers.Array( of ulong ) uargs
-        uargs.Push( cast( ulong, laddr.kind ) ) : uargs.Push( cast( ulong, laddr.id ) )
-        uargs.Push( cast( ulong, raddr.kind ) ) : uargs.Push( cast( ulong, raddr.id ) )
+        dim as containers.Array( of uint32 ) uargs
+        uargs.Push( cast( uint32, laddr.kind ) ) : uargs.Push( cast( uint32, laddr.id ) )
+        uargs.Push( cast( uint32, raddr.kind ) ) : uargs.Push( cast( uint32, raddr.id ) )
         '' RAW, AS EVERY ELEMENT IS: the chain above negates a 1/0 into FreeBASIC's -1/0, and the
         '' operator already answers -1 -- negated, 't1 = t2' printed 1 where fbc-modern prints -1.
         dim as MirValue ures = EmitDirectCall_( c, ucmp, urt, uargs )
-        if (ures.kind = cast( ubyte, MV_NONE )) orelse (urt = MT_VOID) orelse (urt = MT_AGG) then return ures
+        if (ures.kind = cast( uint8, MV_NONE )) orelse (urt = MT_VOID) orelse (urt = MT_AGG) then return ures
         dim as MirInst unz
-        unz.op = cast( ushort, BinOpFor( Tko.TK_NE, urt, false ) )
-        unz.ty = cast( ubyte, MT_I32 )
+        unz.op = cast( uint16, BinOpFor( Tko.TK_NE, urt, false ) )
+        unz.ty = cast( uint8, MT_I32 )
         unz.a = ures : unz.b = ConstInt( c, 0, urt )
-        if unz.op = cast( ushort, M_NONE ) then return ures
+        if unz.op = cast( uint16, M_NONE ) then return ures
         return Emit( c, unz )
     end if
     dim as MirValue lv = LowerExprLoad( c, laddr, emt )
     dim as MirValue rv = LowerExprLoad( c, raddr, emt )
-    if lv.kind = cast( ubyte, MV_NONE ) then return none_
-    if rv.kind = cast( ubyte, MV_NONE ) then return none_
+    if lv.kind = cast( uint8, MV_NONE ) then return none_
+    if rv.kind = cast( uint8, MV_NONE ) then return none_
 
     dim as MirInst cmp
-    cmp.op = cast( ushort, BinOpFor( etk, emt, IsUnsignedType( c, et ) ) )
-    cmp.ty = cast( ubyte, MT_I32 )
+    cmp.op = cast( uint16, BinOpFor( etk, emt, IsUnsignedType( c, et ) ) )
+    cmp.ty = cast( uint8, MT_I32 )
     cmp.a = lv
     cmp.b = rv
-    if cmp.op = cast( ushort, M_NONE ) then return none_
+    if cmp.op = cast( uint16, M_NONE ) then return none_
     return Emit( c, cmp )
 end function
 
@@ -283,8 +283,8 @@ end function
 '' has no members of its own, so those two facts are what tell one from an ordinary
 '' structure. There is no other marker on the type.
 function TupleElems_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref etypes as containers.Array( of ulong ), _
-      byref eoffs as containers.Array( of ulong ), byval flatten as boolean ) as boolean
+    ( byref c as Ctx, byval t as Tko.TypeId, byref etypes as containers.Array( of uint32 ), _
+      byref eoffs as containers.Array( of uint32 ), byval flatten as boolean ) as boolean
 
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
     dim as Tko.SymbolId ts = UdtSymOf_( c, t )
@@ -294,34 +294,34 @@ function TupleElems_ _
     dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
     if sc = 0 then return false
 
-    dim as long n = 0
+    dim as int32 n = 0
     dim as Tko.SymbolId cur = sc->firstSym
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
         if f = 0 then exit while
-        if f->kind = cast( ubyte, Tko.SYM_FIELD ) then
+        if f->kind = cast( uint8, Tko.SYM_FIELD ) then
             n += 1
             if c.names->Spelling( f->name ) <> ("_" & trim( str( n ) )) then return false
             dim as boolean found = false
-            dim as long off = c.udts->FieldOffset( t, f->name, found )
+            dim as int32 off = c.udts->FieldOffset( t, f->name, found )
             if found = false then return false
             '' A NESTED TUPLE IS FLATTENED into its own leaves, at their offsets from
             '' here -- measured: '((long, long), long)' is THREE element comparisons in
             '' one chain, not a comparison of a pair against a pair.
-            dim as containers.Array( of ulong ) sub_t, sub_o
+            dim as containers.Array( of uint32 ) sub_t, sub_o
             if flatten andalso _
                TupleElems_( c, c.types->Unqualify( f->type_ ), sub_t, sub_o, true ) then
-                for k as long = 0 to sub_t.Count - 1
+                for k as int32 = 0 to sub_t.Count - 1
                     etypes.Push( sub_t[k] )
-                    eoffs.Push( cast( ulong, off + cast( long, sub_o[k] ) ) )
+                    eoffs.Push( cast( uint32, off + cast( int32, sub_o[k] ) ) )
                 next
             else
-                etypes.Push( cast( ulong, f->type_ ) )
-                eoffs.Push( cast( ulong, off ) )
+                etypes.Push( cast( uint32, f->type_ ) )
+                eoffs.Push( cast( uint32, off ) )
             end if
-        elseif f->kind = cast( ubyte, Tko.SYM_PROC ) then
+        elseif f->kind = cast( uint8, Tko.SYM_PROC ) then
             return false
         end if
         cur = f->nextInScope
@@ -347,8 +347,8 @@ end function
 '' NAMES' CURRENT VALUES and stored the call's result into it. Nothing was assigned
 '' to a, b or c, no decline said so, and it verified.
 private function DestructureElems_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref etypes as containers.Array( of ulong ), _
-      byref eoffs as containers.Array( of ulong ) ) as boolean
+    ( byref c as Ctx, byval t as Tko.TypeId, byref etypes as containers.Array( of uint32 ), _
+      byref eoffs as containers.Array( of uint32 ) ) as boolean
 
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
     dim as Tko.SymbolId ts = UdtSymOf_( c, t )
@@ -359,17 +359,17 @@ private function DestructureElems_ _
     if sc = 0 then return false
 
     dim as Tko.SymbolId cur = sc->firstSym
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
         if f = 0 then exit while
-        if f->kind = cast( ubyte, Tko.SYM_FIELD ) then
+        if f->kind = cast( uint8, Tko.SYM_FIELD ) then
             dim as boolean found = false
-            dim as long off = c.udts->FieldOffset( t, f->name, found )
+            dim as int32 off = c.udts->FieldOffset( t, f->name, found )
             if found = false then return false
-            etypes.Push( cast( ulong, f->type_ ) )
-            eoffs.Push( cast( ulong, off ) )
+            etypes.Push( cast( uint32, f->type_ ) )
+            eoffs.Push( cast( uint32, off ) )
         end if
         cur = f->nextInScope
     wend
@@ -398,18 +398,18 @@ function LowerDestructure _
     '' ...or a 'let( x )' of ONE name, an N_PAREN the parser marked NF_LET_LIST: the first field.
     if c.ast->Kind( target ) <> Tko.N_TUPLE then
         if c.ast->Kind( target ) <> Tko.N_PAREN then return false
-        if (c.ast->nodes[cast( long, target )].flags and Tko.NF_LET_LIST) = 0 then return false
+        if (c.ast->nodes[cast( int32, target )].flags and Tko.NF_LET_LIST) = 0 then return false
     end if
     dim as Tko.ListPayload ptr tl = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, target )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, target )].data )]
     if tl->count <= 0 then return false
 
     '' THE ELEMENTS OF THE SOURCE, top level only: 'let ((a,b),c) = n' names three
     '' lvalues and the middle one is a tuple of its own, which this does not model --
     '' the counts would not match and it declines.
     dim as Tko.TypeId vt = c.types->Unqualify( c.info->TypeOf_( value ) )
-    dim as containers.Array( of ulong ) etypes
-    dim as containers.Array( of ulong ) eoffs
+    dim as containers.Array( of uint32 ) etypes
+    dim as containers.Array( of uint32 ) eoffs
     if DestructureElems_( c, vt, etypes, eoffs ) = false then return false
     '' FEWER NAMES THAN FIELDS IS LEGAL and takes the leading ones; MORE is fbc
     '' error 266 and declines here.
@@ -418,32 +418,32 @@ function LowerDestructure _
     '' THE RIGHT SIDE ONCE. An addressable value is read where it is; anything else --
     '' a call, a literal -- is built into a temporary first, which is what fbc does.
     dim as MirValue src = LowerAddr( c, value )
-    if src.kind = cast( ubyte, MV_NONE ) then
-        dim as long vsz = SizeOfType( c, vt )
+    if src.kind = cast( uint8, MV_NONE ) then
+        dim as int32 vsz = SizeOfType( c, vt )
         if vsz <= 0 then return false
-        dim as long tslot = NewTempLocal( c, MT_AGG, vsz )
+        dim as int32 tslot = NewTempLocal( c, MT_AGG, vsz )
         if tslot < 0 then return false
         dim as MirValue tdst
-        tdst.kind = cast( ubyte, MV_LOCAL )
-        tdst.ty = cast( ubyte, MT_PTR )
+        tdst.kind = cast( uint8, MV_LOCAL )
+        tdst.ty = cast( uint8, MT_PTR )
         tdst.id = tslot
         dim as MirValue rv = LowerExpr( c, value )
-        if rv.kind = cast( ubyte, MV_NONE ) then return false
+        if rv.kind = cast( uint8, MV_NONE ) then return false
         StoreThrough( c, tdst, rv )
         src = tdst
     end if
 
     '' ...and the address held in a slot, so every element reads the same one.
-    dim as long pbytes = c.types->target.pointerBits \ 8
-    dim as long pslot = NewTempLocal( c, MT_PTR, pbytes )
+    dim as int32 pbytes = c.types->target.pointerBits \ 8
+    dim as int32 pslot = NewTempLocal( c, MT_PTR, pbytes )
     if pslot < 0 then return false
     dim as MirValue pdst
-    pdst.kind = cast( ubyte, MV_LOCAL )
-    pdst.ty = cast( ubyte, MT_PTR )
+    pdst.kind = cast( uint8, MV_LOCAL )
+    pdst.ty = cast( uint8, MT_PTR )
     pdst.id = pslot
     StoreThrough( c, pdst, src )
 
-    for i as long = 0 to tl->count - 1
+    for i as int32 = 0 to tl->count - 1
         dim as Tko.NodeId nm = cast( Tko.NodeId, c.ast->children[tl->first + i] )
         '' AN ELIDED SLOT IS SKIPPED AND STILL COUNTS. 'let( a, , b ) = f( )' takes
         '' the FIRST and THIRD elements -- measured, fbc writes
@@ -453,28 +453,28 @@ function LowerDestructure _
         if c.ast->Kind( nm ) = Tko.N_ELIDED then continue for
         dim as Tko.TypeId et = cast( Tko.TypeId, etypes[i] )
         dim as MirValue base_ = LowerExprLoad( c, pdst, MT_PTR )
-        if base_.kind = cast( ubyte, MV_NONE ) then return false
+        if base_.kind = cast( uint8, MV_NONE ) then return false
         dim as MirInst fa
-        fa.op = cast( ushort, M_FIELD_ADDR )
-        fa.ty = cast( ubyte, MT_PTR )
+        fa.op = cast( uint16, M_FIELD_ADDR )
+        fa.ty = cast( uint8, MT_PTR )
         fa.a = base_
-        fa.imm = cast( long, eoffs[i] )
+        fa.imm = cast( int32, eoffs[i] )
         dim as MirValue saddr = Emit( c, fa )
-        if saddr.kind = cast( ubyte, MV_NONE ) then return false
+        if saddr.kind = cast( uint8, MV_NONE ) then return false
 
         dim as MirValue daddr = LowerAddr( c, nm )
-        if daddr.kind = cast( ubyte, MV_NONE ) then return false
+        if daddr.kind = cast( uint8, MV_NONE ) then return false
 
         '' A STRING ELEMENT IS A RUNTIME CALL, from one descriptor into another.
         if IsStringType( c, et ) then
-            dim as containers.Array( of ulong ) sargs
+            dim as containers.Array( of uint32 ) sargs
             PushStrArg( sargs, daddr )
             PushStrArg( sargs, saddr )
-            sargs.Push( cast( ulong, MV_CONST_INT ) )
+            sargs.Push( cast( uint32, MV_CONST_INT ) )
             sargs.Push( 0 )
-            dim as long which = RTL_STR_ASSIGN
+            dim as int32 which = RTL_STR_ASSIGN
             if IsUStringType( c, et ) then which = RTL_USTR_ASSIGN
-            if EmitRtl( c, which, sargs ).kind = cast( ubyte, MV_NONE ) then return false
+            if EmitRtl( c, which, sargs ).kind = cast( uint8, MV_NONE ) then return false
             continue for
         end if
 
@@ -482,7 +482,7 @@ function LowerDestructure _
         if emt = MT_VOID then return false
         if emt = MT_AGG then return false
         dim as MirValue ev = LowerExprLoad( c, saddr, emt )
-        if ev.kind = cast( ubyte, MV_NONE ) then return false
+        if ev.kind = cast( uint8, MV_NONE ) then return false
         dim as MirType dmt = LowerType( c.info->TypeOf_( nm ), *c.types )
         if dmt = MT_VOID then dmt = emt
         StoreThrough( c, daddr, CoerceTy( c, ev, dmt, et) )
@@ -493,6 +493,6 @@ end function
 '' IS THIS TYPE A TUPLE? Its fields are named '_1', '_2', ... in order and it has no
 '' members of its own; there is no other marker.
 function IsTupleType_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
-    dim as containers.Array( of ulong ) ts, os
+    dim as containers.Array( of uint32 ) ts, os
     return TupleElems_( c, c.types->Unqualify( t ), ts, os, false )
 end function

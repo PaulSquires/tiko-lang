@@ -9,7 +9,7 @@ namespace Tko.Mir
 
 using Tko
 declare function StrSwapKind_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as int64 ) as int32
 
 
 
@@ -51,8 +51,8 @@ private function CtorArgValue_ _
                 '' -- and 'dim a as uzstr_t = iif( expr, t1, t2 )' over two of them
                 '' then fell through to LowerExpr, which an iif has no value for.
                 '' udt-zstring/iif.bas is four statements of it.
-                dim as longint askn
-                dim as long ask = StrSwapKind_( c, at, askn )
+                dim as int64 askn
+                dim as int32 ask = StrSwapKind_( c, at, askn )
                 dim as boolean narrowArg = IsStringType( c, at )
                 if narrowArg then narrowArg = (IsUStringType( c, at ) = false)
                 if narrowArg = false then narrowArg = (ask = 1) orelse (ask = 3)
@@ -132,7 +132,7 @@ private function CtorArgValue_ _
             '' address arm below handed a variable its own address to be read as a W, and a
             '' literal a bare W-sized temporary that no constructor ever ran on.
             if ByrefConvArg_( c, argNode, u, outv ) then
-                return (outv.kind <> cast( ubyte, MV_NONE ))
+                return (outv.kind <> cast( uint8, MV_NONE ))
             end if
             '' A BYREF SCALAR TAKES AN ADDRESS TOO. This asked for a UDT, so
             '' 'constructor UDT( byref as const integer )' -- which is what an
@@ -153,7 +153,7 @@ private function CtorArgValue_ _
             '' A NARROW ONE IS WIDENED: 'WS( n & "!" )' was not lowered at all.
             if WideRefCtorArg_( c, argNode, u, outv ) then return true
             dim as MirValue ra = LowerAddr( c, argNode )
-            if ra.kind <> cast( ubyte, MV_NONE ) then
+            if ra.kind <> cast( uint8, MV_NONE ) then
                 outv = ra
                 return true
             end if
@@ -176,19 +176,19 @@ private function CtorArgValue_ _
             if (nc <> Tko.SYMBOL_NONE) andalso (nmt <> MT_VOID) andalso (nmt <> MT_AGG) then
                 if UserCastToNum_( c, argNode, outv, pt ) = false then return false
                 outv = CoerceTy( c, outv, nmt, c.syms->SymbolAt( nc )->type_, pt )
-                return (outv.kind <> cast( ubyte, MV_NONE ))
+                return (outv.kind <> cast( uint8, MV_NONE ))
             end if
         end if
     end if
     outv = LowerExpr( c, argNode )
-    if outv.kind = cast( ubyte, MV_NONE ) then return false
+    if outv.kind = cast( uint8, MV_NONE ) then return false
     if pt <> Tko.TYPE_NONE then
         dim as MirType pmt = LowerType( pt, *c.types )
         if (pmt <> MT_VOID) andalso (pmt <> MT_AGG) then
             outv = CoerceTy( c, outv, pmt, pt)
         end if
     end if
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 
 '' A UDT PARAMETER THE ARGUMENT REACHES THROUGH ONE OF THAT UDT'S OWN CONSTRUCTORS -- the
@@ -209,7 +209,7 @@ end function
 '' the first arity-1 constructor picked the narrow one for a wide argument, which
 '' then had no value to build.
 function CharPtrCtorInit_ _
-    ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+    ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
       byval init_ as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
 
     '' ...AND SO HAS ANY UNBOUND CALL. 'dim u4 as uzstr_t = wstr( u1 )' is the
@@ -270,9 +270,9 @@ function CharPtrCtorInit_ _
     if spt = Tko.TYPE_NONE then return false
     dim as MirValue iav
     if CtorArgValue_( c, init_, spt, iav ) = false then return false
-    dim as containers.Array( of ulong ) iargs
-    iargs.Push( cast( ulong, iav.kind ) )
-    iargs.Push( cast( ulong, iav.id ) )
+    dim as containers.Array( of uint32 ) iargs
+    iargs.Push( cast( uint32, iav.kind ) )
+    iargs.Push( cast( uint32, iav.id ) )
     EmitStructorCall( c, sc, slot, selfv, @iargs )
     return true
 end function
@@ -286,7 +286,7 @@ end function
 '' The destination is a SLOT or, for an ARRAY ELEMENT, an address -- selfv. An element
 '' of a brace initialiser has no slot of its own.
 function LowerConvCtorInit_ _
-    ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+    ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
       byval init_ as Tko.NodeId, byval selfv as MirValue ptr ) as boolean
 
     if init_ = Tko.NODE_NONE then return false
@@ -301,7 +301,7 @@ function LowerConvCtorInit_ _
     dim as Tko.TypeId it = c.info->TypeOf_( init_ )
     if fromArray then
         dim as Tko.ListPayload ptr alp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, init_ )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init_ )].data )]
         it = c.info->TypeOf_( alp->target )
     end if
     '' AN 'iif' HAS NO TYPE AT ALL -- Check computes none for one, deliberately,
@@ -331,8 +331,8 @@ function LowerConvCtorInit_ _
 
     dim as Tko.SymbolId ctors = StructorOf( c, t, "__ctor" )
     if ctors = Tko.SYMBOL_NONE then return false
-    dim as containers.Array( of ulong ) argT
-    argT.Push( cast( ulong, it ) )
+    dim as containers.Array( of uint32 ) argT
+    argT.Push( cast( uint32, it ) )
     dim as Tko.SymbolId pick = PickCtor( c, ctors, argT )
     '' ...AND A FIXED-LENGTH STRING ARGUMENT HAS A TYPE THE COSTING CANNOT CONVERT
     '' to a character POINTER, so 'dim u4 as uzstr_t = wstr( u1 )' found no
@@ -350,11 +350,11 @@ function LowerConvCtorInit_ _
     dim as Tko.TypeId pt = Tko.TYPE_NONE
     dim as boolean ptByref = false
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
-    for i as long = 0 to pp->count - 1
+    for i as int32 = 0 to pp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         pt = c.info->TypeOf_( StmtOf( c, prm )->a )
-        ptByref = ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0)
+        ptByref = ((c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0)
         exit for
     next
 
@@ -403,7 +403,7 @@ function LowerConvCtorInit_ _
         '' sends to the descriptor path.
         dim as MirValue cva
         if ByrefConvArg_( c, init_, pt, cva ) then
-            if cva.kind = cast( ubyte, MV_NONE ) then return false
+            if cva.kind = cast( uint8, MV_NONE ) then return false
             av = cva
             tookAddr = true
         end if
@@ -414,10 +414,10 @@ function LowerConvCtorInit_ _
             '' parameter has no address to take, and fbc materialises one: measured,
             '' 'TMP$ = 2; _ZN3UDTC1ERKi( &C, &TMP$ )'. ByrefTemp_ is the same
             '' borrowing every ordinary byref argument already uses.
-            if ra.kind = cast( ubyte, MV_NONE ) then
+            if ra.kind = cast( uint8, MV_NONE ) then
                 if pt <> Tko.TYPE_NONE then ra = ByrefTemp_( c, init_, pt )
             end if
-            if ra.kind <> cast( ubyte, MV_NONE ) then
+            if ra.kind <> cast( uint8, MV_NONE ) then
                 av = ra
                 tookAddr = true
             end if
@@ -429,9 +429,9 @@ function LowerConvCtorInit_ _
     elseif CtorArgValue_( c, init_, pt, av ) = false then   '' its temporary's copy-back: NarrowRefStrArg_
         return false
     end if
-    dim as containers.Array( of ulong ) cargs
-    cargs.Push( cast( ulong, av.kind ) )
-    cargs.Push( cast( ulong, av.id ) )
+    dim as containers.Array( of uint32 ) cargs
+    cargs.Push( cast( uint32, av.kind ) )
+    cargs.Push( cast( uint32, av.id ) )
     EmitStructorCall( c, pick, slot, selfv, @cargs )
     return true
 end function
@@ -458,7 +458,7 @@ end function
 '' LowerAddr, because an address emitted for an overload that does not exist is dead.
 function LowerUserLetConv_ _
     ( byref c as Ctx, byval target as Tko.NodeId, byval t as Tko.TypeId, _
-      byval value as Tko.NodeId, byval sretSlot as long = -1, byval slotIsObject as boolean = false ) as boolean
+      byval value as Tko.NodeId, byval sretSlot as int32 = -1, byval slotIsObject as boolean = false ) as boolean
 
     if value = Tko.NODE_NONE then return false
     if t = Tko.TYPE_NONE then return false
@@ -489,8 +489,8 @@ function LowerUserLetConv_ _
     if wideLet then pick = WideCharOverload_( c, lets )
     wideLet = (pick <> Tko.SYMBOL_NONE)
     if pick = Tko.SYMBOL_NONE then
-        dim as containers.Array( of ulong ) argT
-        argT.Push( cast( ulong, vt ) )
+        dim as containers.Array( of uint32 ) argT
+        argT.Push( cast( uint32, vt ) )
         pick = PickCtor( c, lets, argT )
     end if
     if pick = Tko.SYMBOL_NONE then return false
@@ -504,11 +504,11 @@ function LowerUserLetConv_ _
     dim as boolean ulByref = false
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
     if pp = 0 then return false
-    for i as long = 0 to pp->count - 1
+    for i as int32 = 0 to pp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         pt = c.info->TypeOf_( StmtOf( c, prm )->a )
-        ulByref = ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0)
+        ulByref = ((c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0)
         exit for
     next
 
@@ -517,15 +517,15 @@ function LowerUserLetConv_ _
     dim as MirValue da
     if sretSlot >= 0 then
         dim as MirValue ssa
-        ssa.kind = cast( ubyte, MV_LOCAL )
-        ssa.ty = cast( ubyte, MT_PTR )
+        ssa.kind = cast( uint8, MV_LOCAL )
+        ssa.ty = cast( uint8, MT_PTR )
         ssa.id = sretSlot
         da = ssa  '' 'slotIsObject': a by-value UDT result slot IS the object
         if slotIsObject = false then da = LowerExprLoad( c, ssa, MT_PTR )
     else
         da = LowerAddr( c, target )
     end if
-    if da.kind = cast( ubyte, MV_NONE ) then return false
+    if da.kind = cast( uint8, MV_NONE ) then return false
     dim as MirValue av
     '' A BYREF UDT PARAMETER TAKES AN ADDRESS -- see LowerConvCtorInit_ for the
     '' same trap: the parameter's TYPE does not say byref, because a reference is
@@ -552,7 +552,7 @@ function LowerUserLetConv_ _
             if LowerBareProcCall_( c, value, MT_PTR, ura ) = false then
                 ura = LowerAddr( c, value )
             end if
-            if ura.kind <> cast( ubyte, MV_NONE ) then
+            if ura.kind <> cast( uint8, MV_NONE ) then
                 av = ura
                 ulTook = true
             end if
@@ -578,7 +578,7 @@ function LowerUserLetConv_ _
             end if
             if sameChars then
                 dim as MirValue wra = LowerAddr( c, value )
-                if wra.kind <> cast( ubyte, MV_NONE ) then
+                if wra.kind <> cast( uint8, MV_NONE ) then
                     av = wra
                     ulTook = true
                 end if
@@ -594,8 +594,8 @@ function LowerUserLetConv_ _
     if (ulTook = false) andalso (CtorArgValue_( c, value, pt, av ) = false) then
         return false
     end if
-    dim as containers.Array( of ulong ) largs
-    largs.Push( cast( ulong, av.kind ) ) : largs.Push( cast( ulong, av.id ) )
+    dim as containers.Array( of uint32 ) largs
+    largs.Push( cast( uint32, av.kind ) ) : largs.Push( cast( uint32, av.id ) )
     if EmitVirtualMember_( c, pick, t, da, @largs ) = false then EmitStructorCall( c, pick, -1, @da, @largs )   '' lowervtab.tiko
     return true
 end function
@@ -609,7 +609,7 @@ end function
 '' An argument of exactly the type only -- a derived value still declines. A call result
 '' is copied from its temporary, which is then destroyed, as fbc does: 'C( f( ) )'.
 private function ImplicitCopyCall_ _
-    ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+    ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
       byval cp as Tko.ListPayload ptr, byval selfv as MirValue ptr ) as boolean
 
     if cp->count <> 1 then return false
@@ -618,13 +618,13 @@ private function ImplicitCopyCall_ _
     dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[cp->first] )
     if c.types->Unqualify( c.info->TypeOf_( a ) ) <> c.types->Unqualify( t ) then return false
     dim as MirValue src = LowerAddr( c, a )
-    if src.kind = cast( ubyte, MV_NONE ) then return false
+    if src.kind = cast( uint8, MV_NONE ) then return false
     dim as MirValue dst
     if selfv <> 0 then
         dst = *selfv
     else
-        dst.kind = cast( ubyte, MV_LOCAL )
-        dst.ty = cast( ubyte, MT_PTR )
+        dst.kind = cast( uint8, MV_LOCAL )
+        dst.ty = cast( uint8, MT_PTR )
         dst.id = slot
     end if
     CallImplicitCopy_( c, t, dst, src )
@@ -633,7 +633,7 @@ end function
 
 
 function LowerCtorInit _
-    ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+    ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
       byval init_ as Tko.NodeId, byval selfv as MirValue ptr ) as boolean
 
     if init_ = Tko.NODE_NONE then return false
@@ -649,7 +649,7 @@ function LowerCtorInit _
     '' '_ZN7CTORUDTC1Ei( @a, @$tmp2 )' where 123 belonged. It lowered and it verified.
     dim as boolean isLiteral = false
     if c.ast->Kind( init_ ) = Tko.N_TUPLE then
-        if (c.ast->nodes[cast( long, init_ )].flags and Tko.NF_TYPE_LITERAL) = 0 then
+        if (c.ast->nodes[cast( int32, init_ )].flags and Tko.NF_TYPE_LITERAL) = 0 then
             return false
         end if
         isLiteral = true
@@ -658,7 +658,7 @@ function LowerCtorInit _
     end if
 
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, init_ )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init_ )].data )]
     if isLiteral = false then
         if cp->target = Tko.NODE_NONE then return false
         '' A QUALIFIED CALLEE -- 'dim as N.T x = N.T( args )' -- is the same constructor
@@ -672,7 +672,7 @@ function LowerCtorInit _
             if TypeCtorTypeOf_( c, init_ ) <> c.types->Unqualify( t ) then return false
         else
             dim as Tko.IdentPayload ptr ip = _
-                @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+                @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
             '' A GENERIC IS NAMED BY ITS TEMPLATE AT THE CALL AND BY ITS INSTANTIATION
             '' IN THE TYPE: 'Box( of long )( 7 )' spells the callee 'Box' while the
             '' declared type is 'Box<6>', so a name comparison alone said no and the
@@ -703,9 +703,9 @@ function LowerCtorInit _
     '' path converts through CtorArgValue_; declining here costs nothing, nothing having
     '' been emitted.
     scope
-        dim as containers.Array( of ulong ) preT
-        for i as long = 0 to cp->count - 1
-            preT.Push( cast( ulong, CtorArgTypeOf_( c, cast( Tko.NodeId, c.ast->children[cp->first + i] ) ) ) )
+        dim as containers.Array( of uint32 ) preT
+        for i as int32 = 0 to cp->count - 1
+            preT.Push( cast( uint32, CtorArgTypeOf_( c, cast( Tko.NodeId, c.ast->children[cp->first + i] ) ) ) )
         next
         dim as Tko.SymbolId pre = PickCtor( c, ctors, preT )
         '' A TYPED VARIADIC CONSTRUCTOR packs its arguments -- CtorInitVariadic_ (lowercall.tiko).
@@ -714,7 +714,7 @@ function LowerCtorInit _
             if ImplicitCopyCall_( c, slot, t, cp, selfv ) then return true
         end if
         if pre <> Tko.SYMBOL_NONE then
-            for i as long = 0 to cp->count - 1
+            for i as int32 = 0 to cp->count - 1
                 if ParamIsByref( c, pre, i ) then
                     dim as Tko.NodeId pa = cast( Tko.NodeId, c.ast->children[cp->first + i] )
                     if ByrefConvNeeded_( c, pa, ParamTypeAt( c, pre, i ) ) then return false
@@ -725,9 +725,9 @@ function LowerCtorInit _
 
     '' Argument VALUES first, then the pick: the types are needed to choose, and the
     '' values must be evaluated in source order regardless of which overload wins.
-    dim as containers.Array( of ulong ) argT
-    dim as containers.Array( of ulong ) argKind
-    dim as containers.Array( of ulong ) argId
+    dim as containers.Array( of uint32 ) argT
+    dim as containers.Array( of uint32 ) argKind
+    dim as containers.Array( of uint32 ) argId
     '' AN ARRAY ARGUMENT TAKES A DESCRIPTOR. Measured: fbc builds a static one for a
     '' fixed-length array and passes its address --
     ''
@@ -742,40 +742,40 @@ function LowerCtorInit _
     '' The shape answers for itself, which is what lets this run before the overload is
     '' picked: 'garr( )' is an empty call over a name whose type is an ARRAY, and
     '' nothing else is.
-    dim as containers.Array( of ulong ) argDesc
+    dim as containers.Array( of uint32 ) argDesc
     '' ...AND THE NODES THEY CAME FROM, because a byval STRING parameter needs the
     '' argument again once the overload is known: see the temporary below.
-    dim as containers.Array( of ulong ) argNode
-    for i as long = 0 to cp->count - 1
+    dim as containers.Array( of uint32 ) argNode
+    for i as int32 = 0 to cp->count - 1
         dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[cp->first + i] )
-        argNode.Push( cast( ulong, a ) )
+        argNode.Push( cast( uint32, a ) )
         dim as MirValue adv
         if ArrayDescArg_( c, a, true, adv ) then
-            argT.Push( cast( ulong, CtorArgTypeOf_( c, a ) ) )
-            argKind.Push( cast( ulong, adv.kind ) )
-            argId.Push( cast( ulong, adv.id ) )
+            argT.Push( cast( uint32, CtorArgTypeOf_( c, a ) ) )
+            argKind.Push( cast( uint32, adv.kind ) )
+            argId.Push( cast( uint32, adv.id ) )
             argDesc.Push( 1 )
             continue for
         end if
         '' A LITERAL FOR A BYREF WSTRING WAITS FOR ITS PARAMETER -- CtorLitArgIsWide_.
         if CtorLitArgIsWide_( c, ctors, cp->first, cp->count, i ) then
-            argT.Push( cast( ulong, CtorArgTypeOf_( c, a ) ) ) : argKind.Push( cast( ulong, MV_NONE ) ) : argId.Push( 0 ) : argDesc.Push( 0 )
+            argT.Push( cast( uint32, CtorArgTypeOf_( c, a ) ) ) : argKind.Push( cast( uint32, MV_NONE ) ) : argId.Push( 0 ) : argDesc.Push( 0 )
             continue for
         end if
         '' ...AND SO DOES A STRING, OR A CALL RETURNING A UDT -- CtorArgLowersLate_. The loop
         '' below lowers it again from its node for the parameter it binds; a value taken here
         '' was dead, and for a call it was a second evaluation.
         if CtorArgLowersLate_( c, a ) then
-            argT.Push( cast( ulong, CtorArgTypeOf_( c, a ) ) ) : argKind.Push( cast( ulong, MV_NONE ) ) : argId.Push( 0 ) : argDesc.Push( 0 )
+            argT.Push( cast( uint32, CtorArgTypeOf_( c, a ) ) ) : argKind.Push( cast( uint32, MV_NONE ) ) : argId.Push( 0 ) : argDesc.Push( 0 )
             continue for
         end if
         dim as MirValue av = LowerExpr( c, a )
         '' NOTHING TO PASS IS NOT AN ARGUMENT. Pushing it anyway put a hole in the
         '' call and counted the statement as fully lowered.
-        if av.kind = cast( ubyte, MV_NONE ) then return false
-        argT.Push( cast( ulong, CtorArgTypeOf_( c, a ) ) )
-        argKind.Push( cast( ulong, av.kind ) )
-        argId.Push( cast( ulong, av.id ) )
+        if av.kind = cast( uint8, MV_NONE ) then return false
+        argT.Push( cast( uint32, CtorArgTypeOf_( c, a ) ) )
+        argKind.Push( cast( uint32, av.kind ) )
+        argId.Push( cast( uint32, av.id ) )
         argDesc.Push( 0 )
     next
 
@@ -791,11 +791,11 @@ function LowerCtorInit _
     '' be needed, so it has to be written down.
     dim as Tko.StmtPayload ptr cpp = StmtOf( c, pn )
     '' The caller-built string descriptors, deleted after the call returns.
-    dim as containers.Array( of ulong ) strTmp
-    dim as containers.Array( of ulong ) strTmpTy
-    dim as containers.Array( of ulong ) backN, backS   '' byref copy-backs owed -- FlushStrCopyBacks
-    dim as long ai2 = 0
-    for i as long = 0 to cpp->count - 1
+    dim as containers.Array( of uint32 ) strTmp
+    dim as containers.Array( of uint32 ) strTmpTy
+    dim as containers.Array( of uint32 ) backN, backS   '' byref copy-backs owed -- FlushStrCopyBacks
+    dim as int32 ai2 = 0
+    for i as int32 = 0 to cpp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[cpp->first + i] )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         if ai2 >= argT.Count then exit for
@@ -804,8 +804,8 @@ function LowerCtorInit _
             continue for
         end if
         dim as MirValue av
-        av.kind = cast( ubyte, argKind[ai2] )
-        av.ty = cast( ubyte, LowerType( cast( Tko.TypeId, argT[ai2] ), *c.types ) )
+        av.kind = cast( uint8, argKind[ai2] )
+        av.ty = cast( uint8, LowerType( cast( Tko.TypeId, argT[ai2] ), *c.types ) )
         av.id = argId[ai2]
         dim as Tko.StmtPayload ptr sp3 = StmtOf( c, prm )
         dim as Tko.TypeId pty = c.info->TypeOf_( sp3->a )
@@ -832,9 +832,9 @@ function LowerCtorInit _
             '' ...AND A NARROW ONE FOR A USTRING PARAMETER IS CONVERSION -- UStrParamArgTemp_.
             dim as MirValue usd
             if UStrParamArgTemp_( c, cast( Tko.NodeId, argNode[ai2] ), pty, usd ) then
-                argKind[ai2] = cast( ulong, usd.kind )
-                argId[ai2] = cast( ulong, usd.id )
-                argT[ai2] = cast( ulong, pty )
+                argKind[ai2] = cast( uint32, usd.kind )
+                argId[ai2] = cast( uint32, usd.id )
+                argT[ai2] = cast( uint32, pty )
                 ai2 += 1
                 continue for
             end if
@@ -846,17 +846,17 @@ function LowerCtorInit _
                 '' 'U( str( n ) )' handed over the pool temporary, which its first read freed.
                 dim as MirValue wsa
                 if NarrowRefStrArg_( c, cast( Tko.NodeId, argNode[ai2] ), pty, wsa, strTmp, strTmpTy, backN, backS ) then
-                    argKind[ai2] = cast( ulong, wsa.kind )
-                    argId[ai2] = cast( ulong, wsa.id )
-                    argT[ai2] = cast( ulong, pty )
+                    argKind[ai2] = cast( uint32, wsa.kind )
+                    argId[ai2] = cast( uint32, wsa.id )
+                    argT[ai2] = cast( uint32, pty )
                     ai2 += 1
                     continue for
                 end if
                 dim as MirValue sd
                 if StrDescriptorOf_( c, cast( Tko.NodeId, argNode[ai2] ), sd ) then
-                    argKind[ai2] = cast( ulong, sd.kind )
-                    argId[ai2] = cast( ulong, sd.id )
-                    argT[ai2] = cast( ulong, pty )
+                    argKind[ai2] = cast( uint32, sd.kind )
+                    argId[ai2] = cast( uint32, sd.id )
+                    argT[ai2] = cast( uint32, pty )
                     ai2 += 1
                     continue for
                 end if
@@ -865,17 +865,17 @@ function LowerCtorInit _
             '' gave 'dim as WU f = WU( "Mars" )' the narrow text's own address.
             dim as MirValue wra
             if WideRefCtorArg_( c, cast( Tko.NodeId, argNode[ai2] ), pty, wra ) then
-                argKind[ai2] = cast( ulong, wra.kind )
-                argId[ai2] = cast( ulong, wra.id )
-                argT[ai2] = cast( ulong, pty )
+                argKind[ai2] = cast( uint32, wra.kind )
+                argId[ai2] = cast( uint32, wra.id )
+                argT[ai2] = cast( uint32, pty )
                 ai2 += 1
                 continue for
             end if
             '' ...OR A TEMPORARY'S, when the argument is an rvalue -- CtorByrefArgAddr_.
             dim as MirValue ba
             if CtorByrefArgAddr_( c, cast( Tko.NodeId, argNode[ai2] ), pty, ba ) then
-                argKind[ai2] = cast( ulong, ba.kind ) : argId[ai2] = cast( ulong, ba.id )
-                argT[ai2] = cast( ulong, pty ) : ai2 += 1
+                argKind[ai2] = cast( uint32, ba.kind ) : argId[ai2] = cast( uint32, ba.id )
+                argT[ai2] = cast( uint32, pty ) : ai2 += 1
                 continue for
             end if
         end if
@@ -891,13 +891,13 @@ function LowerCtorInit _
         '' the measurement. Only the constructor path had never been given them.
         if ParamIsIndirectStr_( c, pick, ai2 ) then
             dim as MirValue sa
-            dim as long sslot = -1
+            dim as int32 sslot = -1
             if ByvalStrTemp_( c, cast( Tko.NodeId, argNode[ai2] ), pty, sa, sslot ) then
-                argKind[ai2] = cast( ulong, sa.kind )
-                argId[ai2] = cast( ulong, sa.id )
-                argT[ai2] = cast( ulong, pty )
-                strTmp.Push( cast( ulong, sslot ) )
-                strTmpTy.Push( cast( ulong, pty ) )
+                argKind[ai2] = cast( uint32, sa.kind )
+                argId[ai2] = cast( uint32, sa.id )
+                argT[ai2] = cast( uint32, pty )
+                strTmp.Push( cast( uint32, sslot ) )
+                strTmpTy.Push( cast( uint32, pty ) )
                 ai2 += 1
                 continue for
             end if
@@ -908,12 +908,12 @@ function LowerCtorInit _
         '' over a 'zstring ptr' passed nothing -- an operand with no kind, TKO0993.
         scope
             dim as MirValue cpv
-            dim as long cpk = PtrStrArg_( c, cast( Tko.NodeId, argNode[ai2] ), pty, false, cpv, strTmp, strTmpTy, backN, backS )
+            dim as int32 cpk = PtrStrArg_( c, cast( Tko.NodeId, argNode[ai2] ), pty, false, cpv, strTmp, strTmpTy, backN, backS )
             if cpk < 0 then return false
             if cpk > 0 then
-                argKind[ai2] = cast( ulong, cpv.kind )
-                argId[ai2] = cast( ulong, cpv.id )
-                argT[ai2] = cast( ulong, pty )
+                argKind[ai2] = cast( uint32, cpv.kind )
+                argId[ai2] = cast( uint32, cpv.id )
+                argT[ai2] = cast( uint32, pty )
                 ai2 += 1
                 continue for
             end if
@@ -926,13 +926,13 @@ function LowerCtorInit _
                (Tko.Check.NumericCastPick( *c.syms, *c.types, *c.names, nau, pty ) <> Tko.SYMBOL_NONE) then
                 dim as MirValue ncv
                 if CtorArgValue_( c, cast( Tko.NodeId, argNode[ai2] ), pty, ncv ) = false then return false
-                argKind[ai2] = ncv.kind : argId[ai2] = ncv.id : argT[ai2] = cast( ulong, pty )
+                argKind[ai2] = ncv.kind : argId[ai2] = ncv.id : argT[ai2] = cast( uint32, pty )
                 ai2 += 1
                 continue for
             end if
         end scope
-        if av.kind = cast( ubyte, MV_NONE ) then av = LowerExpr( c, cast( Tko.NodeId, argNode[ai2] ) ) : av.ty = cast( ubyte, LowerType( cast( Tko.TypeId, argT[ai2] ), *c.types ) )
-        if av.kind = cast( ubyte, MV_NONE ) then return false   '' a deferred argument that did not lower
+        if av.kind = cast( uint8, MV_NONE ) then av = LowerExpr( c, cast( Tko.NodeId, argNode[ai2] ) ) : av.ty = cast( uint8, LowerType( cast( Tko.TypeId, argT[ai2] ), *c.types ) )
+        if av.kind = cast( uint8, MV_NONE ) then return false   '' a deferred argument that did not lower
         dim as MirValue cv = Coerce( c, av, LowerType( pty, *c.types ) )
         argKind[ai2] = cv.kind
         argId[ai2] = cv.id
@@ -948,15 +948,15 @@ function LowerCtorInit _
         '' expected 'i64'". The literal is INTEGER and the parameter is T = LONG, so
         '' the two only disagree when a generic's parameter is narrower than the
         '' argument -- which is why it took a generic to show.
-        if pty <> Tko.TYPE_NONE then argT[ai2] = cast( ulong, pty )
+        if pty <> Tko.TYPE_NONE then argT[ai2] = cast( uint32, pty )
         ai2 += 1
     next
 
     '' EVERY PARAMETER PAST THE WRITTEN ARGUMENTS TAKES ITS DEFAULT, now that a
     '' constructor with a defaulted tail can be picked at all. Without this the
     '' call would go out one argument short and the callee would read the slot.
-    dim as long dseen = 0
-    for i as long = 0 to cpp->count - 1
+    dim as int32 dseen = 0
+    for i as int32 = 0 to cpp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[cpp->first + i] )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         if dseen >= argT.Count then
@@ -973,20 +973,20 @@ function LowerCtorInit _
             '' take, so this LOADED it: 'byref x1 as UDT1 = UDT1( 456 )' emitted
             '' 'load [8 x i8]' and passed the aggregate. CtorByrefArgAddr_ gives an
             '' rvalue a temporary -- functions/paraminit.bas, TEST_GROUP ctors1.
-            if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
+            if (c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0 then
                 if c.types->Kind( c.types->Unqualify( dt ) ) = Tko.TK_UDT then
                     dref = CtorByrefArgAddr_( c, dsp->b, dt, dv )
                 end if
             end if
             if dref = false then
                 dv = LowerExpr( c, dsp->b )
-                if dv.kind = cast( ubyte, MV_NONE ) then return false
+                if dv.kind = cast( uint8, MV_NONE ) then return false
                 dv = CoerceTy( c, dv, LowerType( dt, *c.types ), dt)
-                if dv.kind = cast( ubyte, MV_NONE ) then return false
+                if dv.kind = cast( uint8, MV_NONE ) then return false
             end if
-            argT.Push( cast( ulong, dt ) )
-            argKind.Push( cast( ulong, dv.kind ) )
-            argId.Push( cast( ulong, dv.id ) )
+            argT.Push( cast( uint32, dt ) )
+            argKind.Push( cast( uint32, dv.kind ) )
+            argId.Push( cast( uint32, dv.id ) )
             argDesc.Push( 0 )
         end if
         dseen += 1
@@ -994,23 +994,23 @@ function LowerCtorInit _
 
     '' THE RECEIVER, which is a local slot in every case but one: a STATIC LOCAL lives
     '' in module storage, so its address is a global and there is no slot to name.
-    dim as long first = c.m->argPool.Count \ 2
+    dim as int32 first = c.m->argPool.Count \ 2
     if selfv <> 0 then
-        c.m->argPool.Push( cast( ulong, selfv->kind ) )
-        c.m->argPool.Push( cast( ulong, selfv->id ) )
+        c.m->argPool.Push( cast( uint32, selfv->kind ) )
+        c.m->argPool.Push( cast( uint32, selfv->id ) )
     else
-        c.m->argPool.Push( cast( ulong, MV_LOCAL ) )
-        c.m->argPool.Push( cast( ulong, slot ) )
+        c.m->argPool.Push( cast( uint32, MV_LOCAL ) )
+        c.m->argPool.Push( cast( uint32, slot ) )
     end if
-    for i as long = 0 to argT.Count - 1
+    for i as int32 = 0 to argT.Count - 1
         c.m->argPool.Push( argKind[i] )
         c.m->argPool.Push( argId[i] )
     next
 
     dim as Tko.InternId nm = c.names->GetString( _
         Tko.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
-    dim as long fidx = -1
-    for i as long = 0 to c.m->functions.Count - 1
+    dim as int32 fidx = -1
+    for i as int32 = 0 to c.m->functions.Count - 1
         if c.m->functions[i]->name = nm then
             fidx = i
             exit for
@@ -1030,8 +1030,8 @@ function LowerCtorInit _
     end if
 
     dim as MirInst ins
-    ins.op = cast( ushort, M_CALL )
-    ins.ty = cast( ubyte, MT_VOID )
+    ins.op = cast( uint16, M_CALL )
+    ins.ty = cast( uint8, MT_VOID )
     ins.first = first
     ins.count = argT.Count + 1
     ins.callee = fidx
@@ -1040,13 +1040,13 @@ function LowerCtorInit _
     if backN.Count > 0 then CopyBackStrArgs( c, backN, backS )
     '' ...AND RELEASED, in reverse, which is the order the ordinary call path uses
     '' when there is more than one.
-    for k as long = strTmp.Count - 1 to 0 step -1
+    for k as int32 = strTmp.Count - 1 to 0 step -1
         dim as MirValue sd
-        sd.kind = cast( ubyte, MV_LOCAL )
-        sd.ty = cast( ubyte, MT_PTR )
-        sd.id = cast( long, strTmp[k] )
-        dim as containers.Array( of ulong ) dargs
-        dargs.Push( cast( ulong, sd.kind ) ) : dargs.Push( cast( ulong, sd.id ) )
+        sd.kind = cast( uint8, MV_LOCAL )
+        sd.ty = cast( uint8, MT_PTR )
+        sd.id = cast( int32, strTmp[k] )
+        dim as containers.Array( of uint32 ) dargs
+        dargs.Push( cast( uint32, sd.kind ) ) : dargs.Push( cast( uint32, sd.id ) )
         EmitRtl( c, StrRtlFor_( c, cast( Tko.TypeId, strTmpTy[k] ), RTL_STR_DELETE ), _
                  dargs )
     next
@@ -1057,7 +1057,7 @@ end function
 '' form above and by 'return T( ... )', which constructs into the RESULT slot and needs
 '' no temporary at all.
 function EmitTypeCtorInto_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byval slot as long, _
+    ( byref c as Ctx, byval t as Tko.TypeId, byval slot as int32, _
       byval cp as Tko.ListPayload ptr, byval callId as Tko.NodeId ) as boolean
 
     '' PICKED BY THE ARGUMENT TYPES, with arity as the fallback.
@@ -1083,16 +1083,16 @@ function EmitTypeCtorInto_ _
     dim as boolean ctPicked = false
     if (t <> Tko.TYPE_NONE) andalso (cp->count > 0) then
         if c.types->Kind( t ) = Tko.TK_UDT then
-            dim as containers.Array( of ulong ) ctArgT
+            dim as containers.Array( of uint32 ) ctArgT
             dim as boolean ctTyped = true
-            for i as long = 0 to cp->count - 1
+            for i as int32 = 0 to cp->count - 1
                 dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[cp->first + i] )
                 dim as Tko.TypeId at3 = c.info->TypeOf_( an )
                 if at3 = Tko.TYPE_NONE then
                     ctTyped = false
                     exit for
                 end if
-                ctArgT.Push( cast( ulong, at3 ) )
+                ctArgT.Push( cast( uint32, at3 ) )
             next
             if ctTyped then
                 '' CHECK'S CHOICE, recorded on the call (checkdecide.tiko DecideCtorCall_) by the
@@ -1127,8 +1127,8 @@ function EmitTypeCtorInto_ _
         if cp->count <> 0 then return false
         if TypeNeedsInit_( c, t ) = false then return false
         dim as MirValue sa
-        sa.kind = cast( ubyte, MV_LOCAL )
-        sa.ty = cast( ubyte, MT_PTR )
+        sa.kind = cast( uint8, MV_LOCAL )
+        sa.ty = cast( uint8, MT_PTR )
         sa.id = slot
         CallImplicitCtor_( c, t, sa )
         return true
@@ -1143,7 +1143,7 @@ function EmitTypeCtorInto_ _
     if cn = Tko.NODE_NONE then return false
     dim as Tko.StmtPayload ptr pp = StmtOf( c, cn )
 
-    dim as containers.Array( of ulong ) args
+    dim as containers.Array( of uint32 ) args
     if PushCtorArgs_( c, ctor, cp->first, cp->count, args ) = false then return false
 
     EmitStructorCall( c, ctor, slot, 0, @args )
@@ -1154,8 +1154,8 @@ end function
 '' Shared with 'new T( ... )', which pushed every argument as a plain expression and so
 '' had none of this: an ARRAY argument produced nothing and was pushed anyway.
 function PushCtorArgs_ _
-    ( byref c as Ctx, byval ctor as Tko.SymbolId, byval first_ as long, _
-      byval count as long, byref args as containers.Array( of ulong ) ) as boolean
+    ( byref c as Ctx, byval ctor as Tko.SymbolId, byval first_ as int32, _
+      byval count as int32, byref args as containers.Array( of uint32 ) ) as boolean
 
     dim as Tko.Symbol ptr cs2 = c.syms->SymbolAt( ctor )
     if cs2 = 0 then return false
@@ -1163,8 +1163,8 @@ function PushCtorArgs_ _
     if cn2 = Tko.NODE_NONE then return false
     dim as Tko.StmtPayload ptr pp = StmtOf( c, cn2 )
 
-    dim as long pi = 0
-    for i as long = 0 to count - 1
+    dim as int32 pi = 0
+    for i as int32 = 0 to count - 1
         dim as Tko.NodeId ae = cast( Tko.NodeId, c.ast->children[first_ + i] )
 
         '' A TYPED VARIADIC takes every argument from here on, packed -- unless it is ONE
@@ -1173,7 +1173,7 @@ function PushCtorArgs_ _
             if (count - i <> 1) orelse (IsWholeArrayArg_( c, ae ) = false) then
                 dim as MirValue tvv
                 if PackTypedVariadic_( c, ctor, pi, first_ + i, count - i, tvv ) = false then return false
-                args.Push( cast( ulong, tvv.kind ) ) : args.Push( cast( ulong, tvv.id ) )
+                args.Push( cast( uint32, tvv.kind ) ) : args.Push( cast( uint32, tvv.id ) )
                 pi += 1
                 exit for
             end if
@@ -1191,7 +1191,7 @@ function PushCtorArgs_ _
         '' its only argument belongs. It verified.
         dim as MirValue adv
         if ArrayDescArg_( c, ae, ParamIsArray( c, ctor, pi ), adv ) then
-            args.Push( cast( ulong, adv.kind ) ) : args.Push( cast( ulong, adv.id ) )
+            args.Push( cast( uint32, adv.kind ) ) : args.Push( cast( uint32, adv.id ) )
             pi += 1
             continue for
         end if
@@ -1203,13 +1203,13 @@ function PushCtorArgs_ _
         '' '[24 x i8]' is what that produced -- clang's own words.
         dim as Tko.TypeId pt = Tko.TYPE_NONE
         dim as boolean ptByref = false
-        dim as long seen = 0
-        for k as long = 0 to pp->count - 1
+        dim as int32 seen = 0
+        for k as int32 = 0 to pp->count - 1
             dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + k] )
             if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
             if seen = pi then
                 pt = c.info->TypeOf_( StmtOf( c, prm )->a )
-                ptByref = ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0)
+                ptByref = ((c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0)
                 exit for
             end if
             seen += 1
@@ -1231,8 +1231,8 @@ function PushCtorArgs_ _
         '' constructor path and not through this one.
         dim as MirValue av
         if CtorArgValue_( c, ae, pt, av ) = false then return false
-        if av.kind = cast( ubyte, MV_NONE ) then return false
-        args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
+        if av.kind = cast( uint8, MV_NONE ) then return false
+        args.Push( cast( uint32, av.kind ) ) : args.Push( cast( uint32, av.id ) )
     next
 
     '' EVERY PARAMETER PAST THE WRITTEN ARGUMENTS TAKES ITS DEFAULT. fbc fills
@@ -1240,17 +1240,17 @@ function PushCtorArgs_ _
     '' 'constructor( byval c as long, byval os as long = 0 )' is
     '' '_ZN1AC1Eii( &A, 5, 0 )' -- and without this the call went out ONE ARGUMENT
     '' SHORT, which the callee then read off the stack.
-    dim as long seen2 = 0
-    for k as long = 0 to pp->count - 1
+    dim as int32 seen2 = 0
+    for k as int32 = 0 to pp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + k] )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         if seen2 >= pi then
             dim as Tko.StmtPayload ptr dp = StmtOf( c, prm )
             '' ...and a typed variadic no argument reached is the EMPTY pack.
-            if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_VARIADIC) <> 0 then
+            if (c.ast->nodes[cast( int32, prm )].flags and Tko.NF_VARIADIC) <> 0 then
                 dim as MirValue tve
                 if PackTypedVariadic_( c, ctor, seen2, 0, 0, tve ) = false then return false
-                args.Push( cast( ulong, tve.kind ) ) : args.Push( cast( ulong, tve.id ) )
+                args.Push( cast( uint32, tve.kind ) ) : args.Push( cast( uint32, tve.id ) )
                 seen2 += 1
                 continue for
             end if
@@ -1260,7 +1260,7 @@ function PushCtorArgs_ _
             dim as boolean dref2 = false
             '' A BYREF DEFAULT IS AN ADDRESS here too -- see the other half of this
             '' same rule above.
-            if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
+            if (c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0 then
                 if dt <> Tko.TYPE_NONE then
                     if c.types->Kind( c.types->Unqualify( dt ) ) = Tko.TK_UDT then
                         '' ...AND AN RVALUE DEFAULT GETS A TEMPORARY -- CtorByrefArgAddr_.
@@ -1276,15 +1276,15 @@ function PushCtorArgs_ _
             end if
             if dref2 = false then
                 dv = LowerExpr( c, dp->b )
-                if dv.kind = cast( ubyte, MV_NONE ) then return false
+                if dv.kind = cast( uint8, MV_NONE ) then return false
                 if dt <> Tko.TYPE_NONE then
                     dv = CoerceTy( c, dv, LowerType( dt, *c.types ), dt )
-                    if dv.kind = cast( ubyte, MV_NONE ) then return false
+                    if dv.kind = cast( uint8, MV_NONE ) then return false
                 end if
                 '' ...and a byval non-trivial UDT default takes a POINTER to a copy.
                 ByvalIndirectRetemp_( c, dv, dt )
             end if
-            args.Push( cast( ulong, dv.kind ) ) : args.Push( cast( ulong, dv.id ) )
+            args.Push( cast( uint32, dv.kind ) ) : args.Push( cast( uint32, dv.id ) )
         end if
         seen2 += 1
     next
@@ -1321,11 +1321,11 @@ end function
 '' on everywhere else in this file.
 function LowerBaseFieldInit_ _
     ( byref c as Ctx, byval selfAddr as MirValue, byval bt as Tko.TypeId, _
-      byval first_ as long, byval count as long ) as boolean
+      byval first_ as int32, byval count as int32 ) as boolean
 
-    dim as long bsz = SizeOfType( c, bt )
+    dim as int32 bsz = SizeOfType( c, bt )
     if bsz <= 0 then return false
-    dim as long bui = c.udts->Find( bt )
+    dim as int32 bui = c.udts->Find( bt )
     if bui < 0 then return false
 
     '' A SINGLE ARGUMENT OF THE BASE'S OWN TYPE IS A COPY of the whole subobject.
@@ -1334,7 +1334,7 @@ function LowerBaseFieldInit_ _
         dim as Tko.TypeId ot2 = c.types->Unqualify( c.info->TypeOf_( only_ ) )
         if ot2 = c.types->Unqualify( bt ) then
             dim as MirValue src = LowerAddr( c, only_ )
-            if src.kind = cast( ubyte, MV_NONE ) then return false
+            if src.kind = cast( uint8, MV_NONE ) then return false
             '' WITH THE BASE'S SIZE. 'src' is a computed address -- for
             '' 'constructor C3( byref p0 as P )' doing 'base( p0 )' it is the
             '' pointer loaded out of the reference -- and a temp has no storage for
@@ -1342,18 +1342,18 @@ function LowerBaseFieldInit_ _
             '' stored nothing: the program printed two stack addresses where fbc
             '' prints 9 and 8.
             dim as MirValue whole = LowerExprLoad( c, src, MT_AGG, bsz )
-            if whole.kind = cast( ubyte, MV_NONE ) then return false
+            if whole.kind = cast( uint8, MV_NONE ) then return false
             StoreThrough( c, selfAddr, whole )
             return true
         end if
     end if
 
     '' THE LEADING FIELDS, one value each, in declaration order.
-    dim as containers.Array( of ulong ) lOff, lTy   '' a base subobject is entered -- lowernew.tiko BaseLeafSlots_
+    dim as containers.Array( of uint32 ) lOff, lTy   '' a base subobject is entered -- lowernew.tiko BaseLeafSlots_
     if BaseLeafSlots_( c, bt, first_, count, lOff, lTy ) = false then return false
-    dim as long tailOff = bsz
-    for i as long = 0 to count - 1
-        dim as Tko.TypeId fty = cast( Tko.TypeId, lTy[i] ) : dim as long foff = cast( long, lOff[i] )
+    dim as int32 tailOff = bsz
+    for i as int32 = 0 to count - 1
+        dim as Tko.TypeId fty = cast( Tko.TypeId, lTy[i] ) : dim as int32 foff = cast( int32, lOff[i] )
         dim as MirType fmt = LowerType( fty, *c.types )
         if fmt = MT_VOID then return false
         dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[first_ + i] )
@@ -1363,16 +1363,16 @@ function LowerBaseFieldInit_ _
             if c.types->Unqualify( c.info->TypeOf_( a ) ) <> c.types->Unqualify( fty ) then return false
         end if
         dim as MirValue av = LowerExpr( c, a )
-        if av.kind = cast( ubyte, MV_NONE ) then return false
+        if av.kind = cast( uint8, MV_NONE ) then return false
         if fmt <> MT_AGG then av = CoerceTy( c, av, fmt, c.info->TypeOf_( a ))
-        if av.kind = cast( ubyte, MV_NONE ) then return false
+        if av.kind = cast( uint8, MV_NONE ) then return false
         dim as MirInst fa
-        fa.op = cast( ushort, M_FIELD_ADDR )
-        fa.ty = cast( ubyte, MT_PTR )
+        fa.op = cast( uint16, M_FIELD_ADDR )
+        fa.ty = cast( uint8, MT_PTR )
         fa.a = selfAddr
         fa.imm = foff
         dim as MirValue faddr = Emit( c, fa )
-        if faddr.kind = cast( ubyte, MV_NONE ) then return false
+        if faddr.kind = cast( uint8, MV_NONE ) then return false
         StoreThrough( c, faddr, av )
         if i = count - 1 then tailOff = foff + SizeOfType( c, fty )
     next
@@ -1381,16 +1381,16 @@ function LowerBaseFieldInit_ _
     '' where the derived constructor writes those bytes again a line later.
     if (count > 0) andalso (tailOff < bsz) then
         dim as MirInst ta
-        ta.op = cast( ushort, M_FIELD_ADDR )
-        ta.ty = cast( ubyte, MT_PTR )
+        ta.op = cast( uint16, M_FIELD_ADDR )
+        ta.ty = cast( uint8, MT_PTR )
         ta.a = selfAddr
         ta.imm = tailOff
         dim as MirValue taddr = Emit( c, ta )
-        if taddr.kind = cast( ubyte, MV_NONE ) then return false
-        dim as containers.Array( of ulong ) za
-        za.Push( cast( ulong, taddr.kind ) ) : za.Push( cast( ulong, taddr.id ) )
-        za.Push( cast( ulong, MV_CONST_INT ) ) : za.Push( 0 )
-        za.Push( cast( ulong, MV_CONST_INT ) ) : za.Push( cast( ulong, bsz - tailOff ) )
+        if taddr.kind = cast( uint8, MV_NONE ) then return false
+        dim as containers.Array( of uint32 ) za
+        za.Push( cast( uint32, taddr.kind ) ) : za.Push( cast( uint32, taddr.id ) )
+        za.Push( cast( uint32, MV_CONST_INT ) ) : za.Push( 0 )
+        za.Push( cast( uint32, MV_CONST_INT ) ) : za.Push( cast( uint32, bsz - tailOff ) )
         EmitRtl( c, RTL_MEMSET, za )
     end if
     return true
@@ -1401,11 +1401,11 @@ function LowerBaseCtorCall_ _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr tip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
     '' 'base( ... )' AND 'constructor( ... )' ARE THE SAME STATEMENT WITH A DIFFERENT
     '' RECEIVER: one initialises the base subobject, the other DELEGATES to another
     '' constructor of this same type over the whole of 'this'. Measured on fbc, which
@@ -1438,7 +1438,7 @@ function LowerBaseCtorCall_ _
         if bsid = Tko.SYMBOL_NONE then return false
         dim as Tko.Symbol ptr bs = c.syms->SymbolAt( bsid )
         if bs = 0 then return false
-        if bs->kind <> cast( ubyte, Tko.SYM_FIELD ) then return false
+        if bs->kind <> cast( uint8, Tko.SYM_FIELD ) then return false
         bt = bs->type_
         if bt = Tko.TYPE_NONE then return false
     end if
@@ -1456,7 +1456,7 @@ function LowerBaseCtorCall_ _
         '' through to an ordinary call of a procedure named 'base' and declined -- seven
         '' corpus statements, in the four files whose whole subject is base initialisers.
         dim as MirValue frecv = AddrOfThisField( c, bsid )
-        if frecv.kind = cast( ubyte, MV_NONE ) then return false
+        if frecv.kind = cast( uint8, MV_NONE ) then return false
         return LowerBaseFieldInit_( c, frecv, bt, cp->first, cp->count )
     end if
 
@@ -1470,13 +1470,13 @@ function LowerBaseCtorCall_ _
     '' fills those defaults, as fbc does at the call. Each argument is still lowered
     '' once, in source order: the pick needs only types, which CtorArgTypeOf_ gives
     '' without lowering anything.
-    dim as containers.Array( of ulong ) argT
-    for i as long = 0 to cp->count - 1
-        argT.Push( cast( ulong, CtorArgTypeOf_( c, cast( Tko.NodeId, c.ast->children[cp->first + i] ) ) ) )
+    dim as containers.Array( of uint32 ) argT
+    for i as int32 = 0 to cp->count - 1
+        argT.Push( cast( uint32, CtorArgTypeOf_( c, cast( Tko.NodeId, c.ast->children[cp->first + i] ) ) ) )
     next
     dim as Tko.SymbolId pick = PickCtor( c, ctors, argT )
     if pick = Tko.SYMBOL_NONE then return false
-    dim as containers.Array( of ulong ) cargs
+    dim as containers.Array( of uint32 ) cargs
     if PushCtorArgs_( c, pick, cp->first, cp->count, cargs ) = false then return false
 
     dim as MirValue recv
@@ -1484,12 +1484,12 @@ function LowerBaseCtorCall_ _
         '' THIS holds a pointer, so the receiver is its VALUE -- the whole object, at
         '' offset zero -- where the base form takes the address of a field inside it.
         dim as MirValue ta = AddrOfVar( c, tsid )
-        if ta.kind = cast( ubyte, MV_NONE ) then return false
+        if ta.kind = cast( uint8, MV_NONE ) then return false
         recv = LowerExprLoad( c, ta, MT_PTR )
     else
         recv = AddrOfThisField( c, bsid )
     end if
-    if recv.kind = cast( ubyte, MV_NONE ) then return false
+    if recv.kind = cast( uint8, MV_NONE ) then return false
     EmitStructorCall( c, pick, -1, @recv, @cargs )
     return true
 end function

@@ -12,7 +12,7 @@ using Tko
 '' Defined in lowerstr.tiko: what kind of string a type is, for the runtime's argument
 '' shape. Declared here for the same reason lowersub.tiko declares it.
 declare function StrSwapKind_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as int64 ) as int32
 
 '' IS 'id' A NAME BOUND TO A PROCEDURE -- 'FreeS', 'o.GetS', 'T.StS', a property 'o.PS'?
 '' Read as a value, every one of them is a CALL, and LowerAddr's answer for one is the
@@ -27,7 +27,7 @@ function NamesProc_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     end if
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
     if s = 0 then return false
-    return (s->kind = cast( ubyte, Tko.SYM_PROC ))
+    return (s->kind = cast( uint8, Tko.SYM_PROC ))
 end function
 
 '' A narrow string operand as an FBSTRING DESCRIPTOR pointer, however it is spelled:
@@ -66,23 +66,23 @@ function StrDescriptorOf_ _
             '' the way 'dim w as ustring = u' is (fb_UStrInit from a UTF-16 literal), and
             '' released with the statement's other string temporaries.
             if IsUStringType( c, c.info->TypeOf_( id ) ) then
-                dim as long us = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+                dim as int32 us = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
                 if us < 0 then return false
                 c.f->locals[us].frontendType = c.types->Builtin( Tko.TY_USTRING )
                 if LowerStringInit( c, us, id, id ) = false then return false
-                c.strTemps.Push( cast( ulong, us ) )
-                outv.kind = cast( ubyte, MV_LOCAL )
-                outv.ty = cast( ubyte, MT_PTR )
+                c.strTemps.Push( cast( uint32, us ) )
+                outv.kind = cast( uint8, MV_LOCAL )
+                outv.ty = cast( uint8, MT_PTR )
                 outv.id = us
                 return true
             end if
-            dim as containers.Array( of ulong ) ca
-            ca.Push( cast( ulong, MV_GLOBAL ) )
-            ca.Push( cast( ulong, c.m->AddStringLiteral( constText, *c.names ) ) )
-            ca.Push( cast( ulong, MV_CONST_INT ) )
-            ca.Push( cast( ulong, len( constText ) ) )
+            dim as containers.Array( of uint32 ) ca
+            ca.Push( cast( uint32, MV_GLOBAL ) )
+            ca.Push( cast( uint32, c.m->AddStringLiteral( constText, *c.names ) ) )
+            ca.Push( cast( uint32, MV_CONST_INT ) )
+            ca.Push( cast( uint32, len( constText ) ) )
             outv = EmitRtl( c, RTL_STR_TEMPZ, ca )
-            return (outv.kind <> cast( ubyte, MV_NONE ))
+            return (outv.kind <> cast( uint8, MV_NONE ))
         end if
     end if
 
@@ -102,26 +102,26 @@ function StrDescriptorOf_ _
             if (fns->flags and Tko.SYMF_FUNCNAME) <> 0 then
                 dim as string fnText = Tko.Mangle.ProcNameOrMain( _
                     *c.syms, c.curProcSym, *c.names )
-                dim as containers.Array( of ulong ) fa
-                fa.Push( cast( ulong, MV_GLOBAL ) )
-                fa.Push( cast( ulong, c.m->AddStringLiteral( fnText, *c.names ) ) )
-                fa.Push( cast( ulong, MV_CONST_INT ) )
-                fa.Push( cast( ulong, len( fnText ) ) )
+                dim as containers.Array( of uint32 ) fa
+                fa.Push( cast( uint32, MV_GLOBAL ) )
+                fa.Push( cast( uint32, c.m->AddStringLiteral( fnText, *c.names ) ) )
+                fa.Push( cast( uint32, MV_CONST_INT ) )
+                fa.Push( cast( uint32, len( fnText ) ) )
                 outv = EmitRtl( c, RTL_STR_TEMPZ, fa )
-                return (outv.kind <> cast( ubyte, MV_NONE ))
+                return (outv.kind <> cast( uint8, MV_NONE ))
             end if
         end if
     end if
 
     if c.ast->Kind( id ) = Tko.N_STRING_LIT then
         dim as string litText = StringLitText_( c, id )
-        dim as containers.Array( of ulong ) ta
-        ta.Push( cast( ulong, MV_GLOBAL ) )
-        ta.Push( cast( ulong, c.m->AddStringLiteral( litText, *c.names ) ) )
-        ta.Push( cast( ulong, MV_CONST_INT ) )
-        ta.Push( cast( ulong, len( litText ) ) )
+        dim as containers.Array( of uint32 ) ta
+        ta.Push( cast( uint32, MV_GLOBAL ) )
+        ta.Push( cast( uint32, c.m->AddStringLiteral( litText, *c.names ) ) )
+        ta.Push( cast( uint32, MV_CONST_INT ) )
+        ta.Push( cast( uint32, len( litText ) ) )
         outv = EmitRtl( c, RTL_STR_TEMPZ, ta )
-        return (outv.kind <> cast( ubyte, MV_NONE ))
+        return (outv.kind <> cast( uint8, MV_NONE ))
     end if
     '' 'dir( ... )' -- an INTRINSIC whose result is a descriptor pointer already, so it
     '' belongs here rather than on the value path: every use of it is a string, and
@@ -138,7 +138,7 @@ function StrDescriptorOf_ _
         if (iisp->extra and 8) <> 0 then
             if cast( Tko.TokenKind, iisp->op ) = Tko.KW_INPUT then
                 dim as MirValue iiv = LowerExpr( c, id )
-                if iiv.kind <> cast( ubyte, MV_NONE ) then
+                if iiv.kind <> cast( uint8, MV_NONE ) then
                     outv = iiv
                     return true
                 end if
@@ -154,13 +154,13 @@ function StrDescriptorOf_ _
     if c.ast->Kind( id ) = Tko.N_CALL then
         if IsStringType( c, c.info->TypeOf_( id ) ) then
             dim as Tko.ListPayload ptr scp = _
-                @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
             dim as Tko.SymbolId scallee = c.info->RefOf( id )
             if scallee = Tko.SYMBOL_NONE then scallee = c.info->RefOf( scp->target )
             if scallee <> Tko.SYMBOL_NONE then
                 dim as MirValue scv = LowerCallParts( c, scp->target, scallee, _
                                                       scp->first, scp->count, MT_PTR )
-                if scv.kind <> cast( ubyte, MV_NONE ) then
+                if scv.kind <> cast( uint8, MV_NONE ) then
                     outv = scv
                     return true
                 end if
@@ -214,12 +214,12 @@ function StrDescriptorOf_ _
         dim as Tko.Symbol ptr msy3 = c.syms->SymbolAt( c.info->RefOf( id ) )
         dim as boolean isProp3 = false
         if msy3 <> 0 then
-            if msy3->kind = cast( ubyte, Tko.SYM_PROC ) then
+            if msy3->kind = cast( uint8, Tko.SYM_PROC ) then
                 dim as Tko.NodeId mpn3 = cast( Tko.NodeId, msy3->payload )
                 if mpn3 <> Tko.NODE_NONE then
                     if c.ast->Kind( mpn3 ) = Tko.N_PROC then
                         isProp3 = (StmtOf( c, mpn3 )->op = _
-                            cast( ushort, Tko.KW_PROPERTY ))
+                            cast( uint16, Tko.KW_PROPERTY ))
                     end if
                 end if
             end if
@@ -228,14 +228,14 @@ function StrDescriptorOf_ _
             dim as MirValue pgv2
             if LowerPropertyGet_( c, id, pgv2 ) then
                 outv = pgv2
-                return (outv.kind <> cast( ubyte, MV_NONE ))
+                return (outv.kind <> cast( uint8, MV_NONE ))
             end if
         end if
     end if
 
     if IsStringType( c, c.info->TypeOf_( id ) ) then
         outv = LowerAddr( c, id )
-        if outv.kind <> cast( ubyte, MV_NONE ) then return true
+        if outv.kind <> cast( uint8, MV_NONE ) then return true
     end if
 
     '' A STRING RVALUE FROM THE INTRINSIC FAMILY -- 'mid( s, 1 )', 'trim', 'ucase',
@@ -251,15 +251,15 @@ function StrDescriptorOf_ _
     '' A 'string * N' BORROWS A DESCRIPTOR FROM ITS OWN ENTRY POINT, taking the TAGGED
     '' length -- 'fb_StrAllocTempDescF( A, -9223372036854775776ll )'. It is not the Z
     '' form, which strlen's a NUL-terminated buffer a fixed string does not have.
-    dim as longint fdn
+    dim as int64 fdn
     if StrSwapKind_( c, c.info->TypeOf_( id ), fdn ) = 3 then
         dim as MirValue fa = LowerAddr( c, id )
-        if fa.kind <> cast( ubyte, MV_NONE ) then
-            dim as containers.Array( of ulong ) fta
-            fta.Push( cast( ulong, fa.kind ) ) : fta.Push( cast( ulong, fa.id ) )
+        if fa.kind <> cast( uint8, MV_NONE ) then
+            dim as containers.Array( of uint32 ) fta
+            fta.Push( cast( uint32, fa.kind ) ) : fta.Push( cast( uint32, fa.id ) )
             PushStrLen_( c, fta, fdn )
             outv = EmitRtl( c, RTL_STR_TEMPF, fta )
-            if outv.kind <> cast( ubyte, MV_NONE ) then return true
+            if outv.kind <> cast( uint8, MV_NONE ) then return true
         end if
     end if
 
@@ -267,14 +267,14 @@ function StrDescriptorOf_ _
     '' temporary one over its own bytes, from the NO-LENGTH variant that works the
     '' length out from the terminator. That is what fbc emits for 'trim( z )':
     '' 'vr = fb_StrAllocTempDescZ( Z )' and then the trim on vr.
-    dim as longint zn
+    dim as int64 zn
     if StrSwapKind_( c, c.info->TypeOf_( id ), zn ) = 1 then
         dim as MirValue za = LowerAddr( c, id )
-        if za.kind <> cast( ubyte, MV_NONE ) then
-            dim as containers.Array( of ulong ) ta
-            ta.Push( cast( ulong, za.kind ) ) : ta.Push( cast( ulong, za.id ) )
+        if za.kind <> cast( uint8, MV_NONE ) then
+            dim as containers.Array( of uint32 ) ta
+            ta.Push( cast( uint32, za.kind ) ) : ta.Push( cast( uint32, za.id ) )
             outv = EmitRtl( c, RTL_STR_TEMPZ_NOLEN, ta )
-            if outv.kind <> cast( ubyte, MV_NONE ) then return true
+            if outv.kind <> cast( uint8, MV_NONE ) then return true
         end if
     end if
     '' A CONCATENATION, before any type test: a concat IS string-typed, so the
@@ -298,10 +298,10 @@ function StrDescriptorOf_ _
         '' A BARE char* borrows a temporary descriptor, exactly as a 'zstring * N'
         '' variable does -- and from the NO-LENGTH entry point, because a converted
         '' result carries no declared length to pass.
-        dim as containers.Array( of ulong ) ta
-        ta.Push( cast( ulong, ucv.kind ) ) : ta.Push( cast( ulong, ucv.id ) )
+        dim as containers.Array( of uint32 ) ta
+        ta.Push( cast( uint32, ucv.kind ) ) : ta.Push( cast( uint32, ucv.id ) )
         outv = EmitRtl( c, RTL_STR_TEMPZ_NOLEN, ta )
-        return (outv.kind <> cast( ubyte, MV_NONE ))
+        return (outv.kind <> cast( uint8, MV_NONE ))
     end if
 
     '' AN IIF, whatever its arms look like: everything that asks for a descriptor is
@@ -326,7 +326,7 @@ end function
 function IifArmsScalar_ _
     ( byref c as Ctx, byval thenE as Tko.NodeId, byval elseE as Tko.NodeId ) as boolean
 
-    for i as long = 0 to 1
+    for i as int32 = 0 to 1
         dim as Tko.TypeId t = c.info->TypeOf_( iif( i = 0, thenE, elseE ) )
         if t = Tko.TYPE_NONE then return false
         t = c.types->Unqualify( t )
@@ -351,7 +351,7 @@ end function
 '' The statement then declines where it can be seen, rather than corrupting what follows.
 '' 'elseB' is the arm not yet built, or -1 when the failure is in the ELSE arm itself.
 function StrIifAbandon_ _
-    ( byref c as Ctx, byval joinB as long, byval elseB as long ) as boolean
+    ( byref c as Ctx, byval joinB as int32, byval elseB as int32 ) as boolean
 
     Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
     if elseB >= 0 then

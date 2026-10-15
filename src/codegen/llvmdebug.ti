@@ -44,28 +44,28 @@ namespace Tko.Codegen
     type DebugInfo
         as Tko.SourceManager ptr sm
         as DebugFrontend ptr fe
-        as long     nextId          '' the next metadata number
+        as int32     nextId          '' the next metadata number
         as string   nodes           '' every '!N = ...' line so far
-        as long     cuId
-        as long     typeId          '' the one subroutine type every subprogram shares
-        as long     mainFileId
+        as int32     cuId
+        as int32     typeId          '' the one subroutine type every subprogram shares
+        as int32     mainFileId
         '' FileId + 1 -> the DIFile's metadata number, 0 while it has none.
-        as containers.Array( of long ) fileMeta
-        as long     curSp           '' the subprogram being emitted, -1 outside one
-        as long     curFile         '' ...and its DIFile
-        as long     locLine         '' the line the last DILocation was made for
-        as long     locId
-        as long     argNo           '' parameters declared so far in this subprogram
+        as containers.Array( of int32 ) fileMeta
+        as int32     curSp           '' the subprogram being emitted, -1 outside one
+        as int32     curFile         '' ...and its DIFile
+        as int32     locLine         '' the line the last DILocation was made for
+        as int32     locId
+        as int32     argNo           '' parameters declared so far in this subprogram
         '' TypeId -> its DI type node, 0 while it has none. -1 is "cannot be described".
-        as containers.Array( of long ) typeMeta
+        as containers.Array( of int32 ) typeMeta
         '' A procedure's SUBPROGRAM NUMBER, reserved before the procedure is emitted:
         '' a static local is a GLOBAL, globals are emitted first, and its scope is the
         '' procedure it lives in.
-        as containers.Array( of ulong ) spSym
-        as containers.Array( of long )  spId
-        as containers.Array( of ubyte ) spDone      '' ...and whether its text has been written
+        as containers.Array( of uint32 ) spSym
+        as containers.Array( of int32 )  spId
+        as containers.Array( of uint8 ) spDone      '' ...and whether its text has been written
         as string   globals         '' ', !N' for each DIGlobalVariableExpression
-        as long     intType         '' 'integer', for the descriptors' counts
+        as int32     intType         '' 'integer', for the descriptors' counts
     end type
 
     declare sub DbgBegin _
@@ -76,22 +76,22 @@ namespace Tko.Codegen
     '' 0 means the module's own file. 'procSym' names it by its source spelling; 0 for
     '' main and the module constructors, which keep their link names.
     declare function DbgSubprogram _
-        ( byref d as DebugInfo, byref linkName as string, byval fileKey as ulong, _
-          byval lineNo as long, byval procSym as ulong = 0 ) as long
+        ( byref d as DebugInfo, byref linkName as string, byval fileKey as uint32, _
+          byval lineNo as int32, byval procSym as uint32 = 0 ) as int32
 
     '' ', !dbg !N' for an instruction on this line, or nothing outside a subprogram.
-    declare function DbgLocSuffix( byref d as DebugInfo, byval lineNo as long ) as string
+    declare function DbgLocSuffix( byref d as DebugInfo, byval lineNo as int32 ) as string
 
     '' The '#dbg_declare' line for a slot, or "" when it is not a user variable. 'sym'
     '' and 'frontType' are MirLocal's; 'slotIsPtr' says the slot holds a POINTER to a
     '' value of that type (a UDT or string passed by value, which MIR passes by address).
     declare function DbgDeclare _
-        ( byref d as DebugInfo, byval sym as ulong, byval frontType as Tko.TypeId, _
+        ( byref d as DebugInfo, byval sym as uint32, byval frontType as Tko.TypeId, _
           byval slotIsPtr as boolean, byref slotName as string ) as string
 
     '' ', !dbg !N' for a variable global's definition, or "".
     declare function DbgGlobal _
-        ( byref d as DebugInfo, byval sym as ulong, byref linkName as string, _
+        ( byref d as DebugInfo, byval sym as uint32, byref linkName as string, _
           byval isLocal as boolean ) as string
 
     '' The module-level half: the compile unit list, the flags, and every node.

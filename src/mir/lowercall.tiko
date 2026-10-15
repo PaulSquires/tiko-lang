@@ -8,46 +8,46 @@
 #include once "lowerctx.ti"
 
 namespace Tko.Mir
-declare function CallFailed_( byref c as Ctx, byref v as MirValue, byval ln as long = 0 ) as MirValue : declare sub UStrBackPush_( byref c as Ctx, byval e as Tko.NodeId, byval slot as long, byref nodes as containers.Array( of ulong ), byref slots as containers.Array( of ulong ) )
+declare function CallFailed_( byref c as Ctx, byref v as MirValue, byval ln as int32 = 0 ) as MirValue : declare sub UStrBackPush_( byref c as Ctx, byval e as Tko.NodeId, byval slot as int32, byref nodes as containers.Array( of uint32 ), byref slots as containers.Array( of uint32 ) )
 declare function ClosureInvokeSym_ _
     ( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
 declare function SigParamIsRef_ _
-    ( byref c as Ctx, byval sigT as Tko.TypeId, byval idx as long ) as boolean
+    ( byref c as Ctx, byval sigT as Tko.TypeId, byval idx as int32 ) as boolean
 declare function ArgParamType_ _
     ( byref c as Ctx, byval callee as Tko.SymbolId, byval sigT as Tko.TypeId, _
-      byval idx as long ) as Tko.TypeId
+      byval idx as int32 ) as Tko.TypeId
 '' ByvalStrTemp_, UStrResultArgTemp_, ParamWantsWideRef_ and IsNarrowStrArg_ are in lowerctx.ti.
 declare function FixedUStrArgTemp_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, _
-      byref outa as MirValue, byref outSlot as long ) as boolean
+      byref outa as MirValue, byref outSlot as int32 ) as boolean
 declare sub CopyBackUStrArgs_ _
-    ( byref c as Ctx, byref nodes as containers.Array( of ulong ), _
-      byref slots as containers.Array( of ulong ) )
+    ( byref c as Ctx, byref nodes as containers.Array( of uint32 ), _
+      byref slots as containers.Array( of uint32 ) )
 declare sub DeleteStrArgTemps_ _
-    ( byref c as Ctx, byref slots as containers.Array( of ulong ), _
-      byref types as containers.Array( of ulong ), byval defer as boolean = false )
+    ( byref c as Ctx, byref slots as containers.Array( of uint32 ), _
+      byref types as containers.Array( of uint32 ), byval defer as boolean = false )
 
 
 declare function BareTypeLiteralArg_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
-      byref outSlot as long ) as boolean
+      byref outSlot as int32 ) as boolean
 declare function UdtConvTemp_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
-      byref outa as MirValue, byref outSlot as long, byref outType as Tko.TypeId, _
+      byref outa as MirValue, byref outSlot as int32, byref outType as Tko.TypeId, _
       byval preferCast as boolean = false ) as boolean
 declare function ArgNeedsUdtConv_ _
-    ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long, _
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as int32, _
       byval argNode as Tko.NodeId ) as boolean
 declare function ByvalUdtCopyArg_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
-      byref outa as MirValue, byref outSlot as long, byref outType as Tko.TypeId ) as boolean
+      byref outa as MirValue, byref outSlot as int32, byref outType as Tko.TypeId ) as boolean
 
 
 using Tko
 
 
 declare function StrSwapKind_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as int64 ) as int32
 
 
 '' AN ARRAY PASSED TO A BYDESC PARAMETER -- 'Q( v( ) )' against 'sub Q( a( ) as long )'.
@@ -69,7 +69,7 @@ function ArrayDescArg_ _
     dim as Tko.NodeId nameNode = argNode
     if c.ast->Kind( argNode ) = Tko.N_CALL then
         dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, argNode )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, argNode )].data )]
         if lp->count <> 0 then return false
         if lp->target = Tko.NODE_NONE then return false
         nameNode = lp->target
@@ -80,7 +80,7 @@ function ArrayDescArg_ _
     if c.types->Kind( at ) <> Tko.TK_ARRAY then return false
 
     dim as MirValue base_ = LowerAddr( c, nameNode )
-    if base_.kind = cast( ubyte, MV_NONE ) then return false
+    if base_.kind = cast( uint8, MV_NONE ) then return false
     if c.types->IsDynArray( at ) then
         outv = base_
         return true
@@ -98,7 +98,7 @@ function IsWholeArrayArg_( byref c as Ctx, byval argNode as Tko.NodeId ) as bool
     end if
     if c.ast->Kind( argNode ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, argNode )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, argNode )].data )]
     if (lp->count <> 0) orelse (lp->target = Tko.NODE_NONE) then return false
     dim as Tko.TypeId at = c.info->TypeOf_( lp->target )
     if at = Tko.TYPE_NONE then return false
@@ -112,8 +112,8 @@ end function
 '' temporary: erased at the end of the statement, which destroys its elements, as every
 '' other argument temporary lives exactly that long.
 function PackTypedVariadic_ _
-    ( byref c as Ctx, byval callee as Tko.SymbolId, byval pidx as long, _
-      byval first as long, byval n as long, byref outv as MirValue, _
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval pidx as int32, _
+      byval first as int32, byval n as int32, byref outv as MirValue, _
       byval elWant as Tko.TypeId = Tko.TYPE_NONE ) as boolean
 
     '' Through a POINTER there is no callee symbol: the caller passes the element type.
@@ -122,19 +122,19 @@ function PackTypedVariadic_ _
     if el = Tko.TYPE_NONE then return false
     el = c.types->Unqualify( el )
     dim as Tko.TypeId rt = c.types->DynArrayOf( el, 1 )
-    dim as long slot = NewTempLocal( c, MT_AGG, DescBytesFor( c, 1 ) )
+    dim as int32 slot = NewTempLocal( c, MT_AGG, DescBytesFor( c, 1 ) )
     if slot < 0 then return false
     dim as MirValue desc
-    desc.kind = cast( ubyte, MV_LOCAL ) : desc.ty = cast( ubyte, MT_PTR ) : desc.id = slot
+    desc.kind = cast( uint8, MV_LOCAL ) : desc.ty = cast( uint8, MT_PTR ) : desc.id = slot
     InitDynArrayDesc( c, desc, rt )
     if n > 0 then
         if EmitRedimConst_( c, desc, rt, n ) = false then return false
         dim as MirValue base_ = DynArrayDataPtr( c, desc )
-        if base_.kind = cast( ubyte, MV_NONE ) then return false
+        if base_.kind = cast( uint8, MV_NONE ) then return false
         if PackedElemsInit_( c, base_, el, first, n ) = false then return false
     end if
-    c.udtTemps.Push( cast( ulong, slot ) )
-    c.udtTempTypes.Push( cast( ulong, rt ) )
+    c.udtTemps.Push( cast( uint32, slot ) )
+    c.udtTempTypes.Push( cast( uint32, rt ) )
     outv = desc
     return true
 end function
@@ -160,10 +160,10 @@ end function
 '' value-first path in LowerCtorInit lowers every argument before the pick and has no
 '' place for a packed array.
 function CtorInitVariadic_ _
-    ( byref c as Ctx, byval ctor as Tko.SymbolId, byval slot as long, _
+    ( byref c as Ctx, byval ctor as Tko.SymbolId, byval slot as int32, _
       byval selfv as MirValue ptr, byval cp as Tko.ListPayload ptr ) as boolean
 
-    dim as containers.Array( of ulong ) args
+    dim as containers.Array( of uint32 ) args
     if PushCtorArgs_( c, ctor, cp->first, cp->count, args ) = false then return false
     EmitStructorCall( c, ctor, slot, selfv, @args )
     return true
@@ -176,7 +176,7 @@ end function
 
 function LowerCallParts _
     ( byref c as Ctx, byval calleeNode as Tko.NodeId, byval callee as Tko.SymbolId, _
-      byval argFirst as long, byval argCount as long, _
+      byval argFirst as int32, byval argCount as int32, _
       byval mt as MirType, byval wantRef as boolean = false ) as MirValue
 
     dim as MirValue v
@@ -261,14 +261,14 @@ function LowerCallParts _
     dim as Tko.TypeId calleeSigT = Tko.TYPE_NONE
     '' A CLOSURE OBJECT'S ADDRESS, and the shift it puts on every parameter index.
     dim as MirValue closureSelf
-    dim as long pbase = 0
+    dim as int32 pbase = 0
     if exprCallee then
         dim as Tko.TypeId eT = c.types->Unqualify( c.info->TypeOf_( calleeNode ) )
         if c.types->Kind( eT ) = Tko.TK_REFERENCE then eT = c.types->Inner( eT )
         if c.types->Kind( eT ) = Tko.TK_POINTER then eT = c.types->Inner( eT )
         if c.types->Kind( eT ) = Tko.TK_PROC then calleeSigT = eT
     end if
-    if (exprCallee = false) andalso (cs->kind <> cast( ubyte, Tko.SYM_PROC )) then
+    if (exprCallee = false) andalso (cs->kind <> cast( uint8, Tko.SYM_PROC )) then
         dim as Tko.TypeId ct = cs->type_
         if ct <> Tko.TYPE_NONE then
             if c.types->Kind( ct ) = Tko.TK_REFERENCE then ct = c.types->Inner( ct )
@@ -285,7 +285,7 @@ function LowerCallParts _
             dim as Tko.SymbolId civ = ClosureInvokeSym_( c, ct )
             if civ <> Tko.SYMBOL_NONE then
                 dim as MirValue selfv = LowerAddr( c, calleeNode )
-                if selfv.kind = cast( ubyte, MV_NONE ) then
+                if selfv.kind = cast( uint8, MV_NONE ) then
                     return CallFailed_( c, v, __LINE__ )
                 end if
                 closureSelf = selfv
@@ -306,20 +306,20 @@ function LowerCallParts _
     '' with this one's, because the callee's extent was opened before its arguments were
     '' lowered: 'F( G( 7 ), 9 )' emitted 'call void F(%4, %5)' -- F( 7, G(7) ) -- and
     '' dropped the 9 entirely. No decline, no diagnostic, wrong arguments.
-    dim as containers.Array( of ulong ) argv
+    dim as containers.Array( of uint32 ) argv
     '' THE CALLER-BUILT COPIES of byval non-trivial UDT arguments, and the conversions,
     '' are not collected here: each goes on the statement's temporary list the moment it
     '' is made -- see ByvalUdtCopyArg_. The STRING descriptors are collected, and
     '' released with the runtime right after the call rather than with a destructor.
-    dim as containers.Array( of ulong ) strTemps
-    dim as containers.Array( of ulong ) strTempTypes
+    dim as containers.Array( of uint32 ) strTemps
+    dim as containers.Array( of uint32 ) strTempTypes
     '' ...and the COPY-OUT a fixed USTRING argument needs. fbc copies a
     '' 'ustring * N' into a descriptor, calls, copies BACK and deletes; the
     '' write-back is not something DeleteStrArgTemps_ can do, so the source
     '' node and the temporary are kept until after the call.
-    dim as containers.Array( of ulong ) ustrBackNode
-    dim as containers.Array( of ulong ) ustrBackSlot
-    dim as long tempSlot = -1
+    dim as containers.Array( of uint32 ) ustrBackNode
+    dim as containers.Array( of uint32 ) ustrBackSlot
+    dim as int32 tempSlot = -1
     dim as Tko.TypeId tempType = Tko.TYPE_NONE
 
     '' THE RECEIVER IS THE FIRST ARGUMENT of an instance method, and it was missing.
@@ -356,23 +356,23 @@ function LowerCallParts _
     if cs <> 0 then
         dim as Tko.NodeId cpn = cast( Tko.NodeId, cs->payload )
         if cpn <> Tko.NODE_NONE then
-            if (c.ast->nodes[cast( long, cpn )].flags and Tko.NF_BYREF) <> 0 then
+            if (c.ast->nodes[cast( int32, cpn )].flags and Tko.NF_BYREF) <> 0 then
                 calleeByrefRet = true
             end if
         end if
     end if
-    dim as long headMark = c.udtTemps.Count
+    dim as int32 headMark = c.udtTemps.Count
     dim as Tko.TypeId sretT = SretCallType_( c, cs, viaPointer, calleeSigT )  '' a POINTER'S too
     if sretT <> Tko.TYPE_NONE then
         if UsesSretReturn( c, sretT ) andalso (calleeByrefRet = false) then
             '' ...or the variable a declaration is building -- SretInPlaceInit_.
-            dim as long tslot = SretResultSlot_( c, sretT, true, callee )
+            dim as int32 tslot = SretResultSlot_( c, sretT, true, callee )
             if tslot < 0 then return CallFailed_( c, v, __LINE__ )
-            sretTmp.kind = cast( ubyte, MV_LOCAL )
-            sretTmp.ty = cast( ubyte, MT_PTR )
+            sretTmp.kind = cast( uint8, MV_LOCAL )
+            sretTmp.ty = cast( uint8, MT_PTR )
             sretTmp.id = tslot
-            argv.Push( cast( ulong, sretTmp.kind ) )
-            argv.Push( cast( ulong, sretTmp.id ) )
+            argv.Push( cast( uint32, sretTmp.kind ) )
+            argv.Push( cast( uint32, sretTmp.id ) )
         end if
     end if
 
@@ -391,12 +391,12 @@ function LowerCallParts _
     '' ...LESS THE RECEIVER, when the callee declares one as a real parameter. A
     '' closure's '__fbinvoke' does; counting it here would run the loop one past
     '' the written arguments and decline on a parameter that is already pushed.
-    dim as long nparams = ParamCountOf( c, callee ) - pbase
+    dim as int32 nparams = ParamCountOf( c, callee ) - pbase
     dim as Tko.NodeId ptrDecl = PtrCallDecl_( c, viaPointer, calleeSigT, calleeNode, nparams )
-    dim as long slots = argCount
+    dim as int32 slots = argCount
     if (nparams > slots) andalso (IsVariadicProc( c, callee ) = false) then slots = nparams
     '' A TYPED VARIADIC, unless SPREAD: one slot, the packed array -- PackTypedVariadic_.
-    dim as long tvAt = -1
+    dim as int32 tvAt = -1
     dim as Tko.TypeId tvEl = Tko.TYPE_NONE   '' through a pointer, the element type off the signature
     dim as boolean tvHere = (viaPointer = false) andalso (nparams > 0)
     if tvHere then tvHere = ParamIsVariadic_( c, callee, nparams - 1 + pbase )
@@ -424,22 +424,22 @@ function LowerCallParts _
     '' That is the REVERSE OF THE ORDER THEY ARE PASSED, so a PASCAL call (codegen/abi.tiko)
     '' runs left to right, its receiver -- passed last -- FIRST: 'P3( G(1), G(2), G(3) )' is
     '' 123, 'getT( ).M( G(1), G(2) )' getT 1 2. Slots fill as evaluated; argv is in POSITION order.
-    dim as containers.Array( of ulong ) slotKind
-    dim as containers.Array( of ulong ) slotId
+    dim as containers.Array( of uint32 ) slotKind
+    dim as containers.Array( of uint32 ) slotId
     '' ...and where each argument's temporaries begin -- see CallTempsInSourceOrder_.
-    dim as containers.Array( of ulong ) segFrom
-    dim as long argMark = c.udtTemps.Count
-    for i as long = 0 to slots - 1 : slotKind.Push( cast( ulong, MV_NONE ) ) : slotId.Push( 0 ) : segFrom.Push( 0 ) : next
+    dim as containers.Array( of uint32 ) segFrom
+    dim as int32 argMark = c.udtTemps.Count
+    for i as int32 = 0 to slots - 1 : slotKind.Push( cast( uint32, MV_NONE ) ) : slotId.Push( 0 ) : segFrom.Push( 0 ) : next
     dim as boolean l2r = CallIsPascal_( c, callee, viaPointer, calleeSigT )
     if l2r then self_ = ReceiverOf( c, calleeNode, callee )
-    for i as long = iif( l2r, 0, slots - 1 ) to iif( l2r, slots - 1, 0 ) step iif( l2r, 1, -1 )
-        segFrom[i] = cast( ulong, c.udtTemps.Count )
+    for i as int32 = iif( l2r, 0, slots - 1 ) to iif( l2r, slots - 1, 0 ) step iif( l2r, 1, -1 )
+        segFrom[i] = cast( uint32, c.udtTemps.Count )
         if i = tvAt then
             dim as MirValue tvv
-            dim as long tvn = argCount - tvAt
+            dim as int32 tvn = argCount - tvAt
             if tvn < 0 then tvn = 0
             if PackTypedVariadic_( c, callee, i + pbase, argFirst + tvAt, tvn, tvv, tvEl ) = false then return CallFailed_( c, v, __LINE__ )
-            slotKind[i] = cast( ulong, tvv.kind ) : slotId[i] = cast( ulong, tvv.id )
+            slotKind[i] = cast( uint32, tvv.kind ) : slotId[i] = cast( uint32, tvv.id )
             continue for
         end if
         '' AN ELIDED ARGUMENT TAKES THE DEFAULT TOO. 'locate , 10' is the shape that
@@ -457,7 +457,7 @@ function LowerCallParts _
         if argNode <> Tko.NODE_NONE then
             if c.ast->Kind( argNode ) = Tko.N_UNARY then
                 dim as Tko.UnaryPayload ptr bup = _
-                    @c.ast->unaries[cast( long, c.ast->nodes[cast( long, argNode )].data )]
+                    @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, argNode )].data )]
                 if cast( Tko.TokenKind, bup->op ) = Tko.KW_BYVAL then
                     forcedByval = true
                     argNode = bup->operand
@@ -487,13 +487,13 @@ function LowerCallParts _
         '' parameter is the ordinary spelling and means nothing extra.
         if forcedByval andalso declRef then
             dim as MirValue bva = LowerExpr( c, argNode )
-            if bva.kind = cast( ubyte, MV_NONE ) then
-                c.blameNode = cast( ulong, argNode )
+            if bva.kind = cast( uint8, MV_NONE ) then
+                c.blameNode = cast( uint32, argNode )
                 return CallFailed_( c, v, __LINE__ )
             end if
             bva = Coerce( c, bva, MT_PTR, false )
-            slotKind[i] = cast( ulong, bva.kind )
-            slotId[i] = cast( ulong, bva.id )
+            slotKind[i] = cast( uint32, bva.kind )
+            slotId[i] = cast( uint32, bva.id )
             continue for
         end if
 
@@ -509,14 +509,14 @@ function LowerCallParts _
             arrParam = c.types->IsDynArray( spt )
         end if
         if ArrayDescArg_( c, argNode, arrParam, adv ) then
-            slotKind[i] = cast( ulong, adv.kind )
-            slotId[i] = cast( ulong, adv.id )
+            slotKind[i] = cast( uint32, adv.kind )
+            slotId[i] = cast( uint32, adv.id )
             continue for
         end if
 
         dim as boolean litAny = wantsRef andalso ParamIsAny_( c, ArgParamType_( c, callee, calleeSigT, i + pbase ) )   '' a literal for 'byref as any' is its BYTES (void_param.bas)
         if litAny then litAny = (c.ast->Kind( argNode ) = Tko.N_STRING_LIT)
-        if litAny then dim as MirValue lav = LowerStringLitAddr( c, argNode ) : slotKind[i] = cast( ulong, lav.kind ) : slotId[i] = cast( ulong, lav.id ) : continue for
+        if litAny then dim as MirValue lav = LowerStringLitAddr( c, argNode ) : slotKind[i] = cast( uint32, lav.kind ) : slotId[i] = cast( uint32, lav.id ) : continue for
         dim as MirValue a
         '' A BYREF STRING PARAMETER TAKES A DESCRIPTOR, and a literal has none.
         '' Measured: fbc builds one -- 'fb_StrAllocTempDescZEx( "x.txt", 5 )' -- and
@@ -540,7 +540,7 @@ function LowerCallParts _
             '' builtin, and StrSwapKind_ recognises only the SIZED form, so every
             '' 'byref w as wstring' fell through to the ordinary byref path.
             if wantsDesc = false then
-                dim as longint pn
+                dim as int64 pn
                 if IsWideString_( c, prt ) then
                     wantsWide = true
                 elseif StrSwapKind_( c, prt, pn ) = 1 then
@@ -575,12 +575,12 @@ function LowerCallParts _
                ConcatHasWideTerm_( c, argNode ) orelse LitHasUnicodeEscape_( c, argNode ) then
                 dim as Tko.TypeId wsp = c.types->Builtin( Tko.TY_STRING )
                 if ByvalStrTemp_( c, argNode, wsp, a, tempSlot ) then
-                    strTemps.Push( cast( ulong, tempSlot ) )
-                    strTempTypes.Push( cast( ulong, wsp ) )
-                    ustrBackNode.Push( cast( ulong, argNode ) ) : ustrBackSlot.Push( cast( ulong, tempSlot ) )
+                    strTemps.Push( cast( uint32, tempSlot ) )
+                    strTempTypes.Push( cast( uint32, wsp ) )
+                    ustrBackNode.Push( cast( uint32, argNode ) ) : ustrBackSlot.Push( cast( uint32, tempSlot ) )
                 end if
             end if
-            if a.kind = cast( ubyte, MV_NONE ) then RuntimeUStrNarrowArg_( c, callee, argNode, ArgParamType_( c, callee, calleeSigT, i + pbase ), a )
+            if a.kind = cast( uint8, MV_NONE ) then RuntimeUStrNarrowArg_( c, callee, argNode, ArgParamType_( c, callee, calleeSigT, i + pbase ), a )
             '' EVERY OTHER SHAPE IS A TEMPORARY -- see StrArgOwnDescriptor_ for the
             '' probe. Only a var-length string LVALUE passes its own descriptor; a
             '' literal, a fixed-length string, a concatenation, a function result
@@ -590,23 +590,23 @@ function LowerCallParts _
             '' NARROW PARAMETERS ONLY. A ustring parameter already has its three
             '' arms above and they were measured one at a time; folding them into
             '' this one would re-open the branch order 5z closed.
-            if a.kind = cast( ubyte, MV_NONE ) then
+            if a.kind = cast( uint8, MV_NONE ) then
                 dim as Tko.TypeId spt = ArgParamType_( c, callee, calleeSigT, i + pbase )
                 if (IsUStringType( c, spt ) = false) andalso _
                    (RuntimeEntryCallee_( c, callee ) = false) then
-                    dim as longint ufn_ : dim as boolean ufArg = (StrSwapKind_( c, c.info->TypeOf_( argNode ), ufn_ ) = 4)   '' 'ustring * N': fb_UStrToStr, NO copy-back (fbc)
+                    dim as int64 ufn_ : dim as boolean ufArg = (StrSwapKind_( c, c.info->TypeOf_( argNode ), ufn_ ) = 4)   '' 'ustring * N': fb_UStrToStr, NO copy-back (fbc)
                     if NarrowRefStrArg_( c, argNode, spt, a, strTemps, strTempTypes, ustrBackNode, ustrBackSlot ) then
                     elseif ufArg then
                         dim as Tko.TypeId npt = c.types->Builtin( Tko.TY_STRING )
                         if ByvalStrTemp_( c, argNode, npt, a, tempSlot ) then
-                            strTemps.Push( cast( ulong, tempSlot ) )
-                            strTempTypes.Push( cast( ulong, npt ) )
+                            strTemps.Push( cast( uint32, tempSlot ) )
+                            strTempTypes.Push( cast( uint32, npt ) )
                         end if
                     end if
                 end if
             end if
 
-            if a.kind = cast( ubyte, MV_NONE ) then
+            if a.kind = cast( uint8, MV_NONE ) then
                 if StrDescriptorOf_( c, argNode, a ) = false then
                     '' A UDT CASTING ONLY TO A WSTRING -- see WideUdtStrArgTemp_.
                     if WideUdtStrArgTemp_( c, argNode, ArgParamType_( c, callee, calleeSigT, _
@@ -616,7 +616,7 @@ function LowerCallParts _
                 end if
             end if
             '' NOTHING TO PASS IS NOT AN ARGUMENT.
-            if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v, __LINE__ )
+            if a.kind = cast( uint8, MV_NONE ) then return CallFailed_( c, v, __LINE__ )
         elseif wantsWide then
             '' A NARROW LVALUE IS CONVERTED, NOT ADDRESSED. LowerAddr answers for a
             '' string VARIABLE -- with its DESCRIPTOR's address -- so the fallback
@@ -630,7 +630,7 @@ function LowerCallParts _
                 if IsNarrowStrArg_( c, c.info->TypeOf_( argNode ) ) then
                     NarrowToWideTemp_( c, argNode, a )
                 end if
-                if a.kind = cast( ubyte, MV_NONE ) then a = LowerAddr( c, argNode )
+                if a.kind = cast( uint8, MV_NONE ) then a = LowerAddr( c, argNode )
             end if
             '' A NARROW ARGUMENT IS CONVERTED, and an RVALUE has no address to fall
             '' back on. Measured -- 'f( hex( 1 ) )' against 'byref w as wstring' is a
@@ -642,10 +642,10 @@ function LowerCallParts _
             ''
             '' functions/temp-strings.bas writes the shape twelve times and every one
             '' of them declined.
-            if a.kind = cast( ubyte, MV_NONE ) then
+            if a.kind = cast( uint8, MV_NONE ) then
                 NarrowToWideTemp_( c, argNode, a )
             end if
-            if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v, __LINE__ )
+            if a.kind = cast( uint8, MV_NONE ) then return CallFailed_( c, v, __LINE__ )
         elseif wantsZ then
             '' A WIDE LVALUE IS CONVERTED TOO, not passed: its address is UTF-16, which the callee read as
             '' 'T' (functions/zwstring-params.bas). Left without an address it takes the temporary below.
@@ -659,27 +659,27 @@ function LowerCallParts _
             '' -- the same narrow temporary a byval string parameter gets, read one
             '' level further. A wide RVALUE has no address either way, so both the
             '' descriptor and the address answered nothing and the call declined.
-            if a.kind = cast( ubyte, MV_NONE ) then
+            if a.kind = cast( uint8, MV_NONE ) then
                 dim as MirValue wzt
                 '' THE TEMPORARY IS A NARROW STRING, whatever the argument was:
                 '' 'fb_WstrAssignToA' writes an FBSTRING, and it is the temporary's
                 '' own type that says which deleter releases it.
                 dim as Tko.TypeId wzp = c.types->Builtin( Tko.TY_STRING )
                 if ByvalStrTemp_( c, argNode, wzp, wzt, tempSlot ) then
-                    strTemps.Push( cast( ulong, tempSlot ) )
-                    strTempTypes.Push( cast( ulong, wzp ) )
+                    strTemps.Push( cast( uint32, tempSlot ) )
+                    strTempTypes.Push( cast( uint32, wzp ) )
                     dim as MirInst wzf
-                    wzf.op = cast( ushort, M_FIELD_ADDR )
-                    wzf.ty = cast( ubyte, MT_PTR )
+                    wzf.op = cast( uint16, M_FIELD_ADDR )
+                    wzf.ty = cast( uint8, MT_PTR )
                     wzf.a = wzt
                     wzf.imm = 0
                     dim as MirValue wzpa = Emit( c, wzf )
-                    if wzpa.kind <> cast( ubyte, MV_NONE ) then
+                    if wzpa.kind <> cast( uint8, MV_NONE ) then
                         a = LowerExprLoad( c, wzpa, MT_PTR )
                     end if
                 end if
             end if
-            if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v, __LINE__ )
+            if a.kind = cast( uint8, MV_NONE ) then return CallFailed_( c, v, __LINE__ )
         elseif wantsRef then
             '' A CAPTURING LAMBDA PASSED BY REFERENCE IS AN OBJECT IN A TEMPORARY.
             '' It is a literal, so it has no address of its own and LowerAddr found
@@ -697,25 +697,25 @@ function LowerCallParts _
             if c.ast->Kind( argNode ) = Tko.N_CLOSURE then
                 dim as MirValue cla
                 if LowerClosureAddr_( c, argNode, cla ) then
-                    slotKind[i] = cast( ulong, cla.kind )
-                    slotId[i] = cast( ulong, cla.id )
+                    slotKind[i] = cast( uint32, cla.kind )
+                    slotId[i] = cast( uint32, cla.id )
                     continue for
                 end if
             end if
 
             '' 'f( foo )' / '= foo' -- a TYPE NAME is a default-constructed temporary (lowerparam.tiko).
             dim as MirValue bta
-            if BareTypeNameTemp_( c, argNode, bta ) then slotKind[i] = cast( ulong, bta.kind ) : slotId[i] = cast( ulong, bta.id ) : continue for
+            if BareTypeNameTemp_( c, argNode, bta ) then slotKind[i] = cast( uint32, bta.kind ) : slotId[i] = cast( uint32, bta.id ) : continue for
             '' 'f( type( ) )' -- see BareTypeLiteralArg_. The literal has no type of
             '' its own, so nothing typed it and LowerAddr had nothing to take.
-            dim as long btSlot = -1
+            dim as int32 btSlot = -1
             if BareTypeLiteralArg_( c, argNode, _
                     ArgParamType_( c, callee, calleeSigT, i + pbase ), btSlot ) then
-                a.kind = cast( ubyte, MV_LOCAL )
-                a.ty = cast( ubyte, MT_PTR )
+                a.kind = cast( uint8, MV_LOCAL )
+                a.ty = cast( uint8, MT_PTR )
                 a.id = btSlot
-                slotKind[i] = cast( ulong, a.kind )
-                slotId[i] = cast( ulong, a.id )
+                slotKind[i] = cast( uint32, a.kind )
+                slotId[i] = cast( uint32, a.id )
                 continue for
             end if
             '' A UDT PASSED BYREF TO A PARAMETER OF ANOTHER TYPE IS ITS
@@ -736,7 +736,7 @@ function LowerCallParts _
                 a = ByrefTempOf_( c, brCast, brPt )
             end if
             '' A CONVERSION, A PAREN-LESS PROCEDURE, OR THE ADDRESS -- see ByrefUdtArg_.
-            if (a.kind = cast( ubyte, MV_NONE )) andalso (ByrefUdtArg_( c, argNode, brPt, a ) = false) then return CallFailed_( c, v, __LINE__ )
+            if (a.kind = cast( uint8, MV_NONE )) andalso (ByrefUdtArg_( c, argNode, brPt, a ) = false) then return CallFailed_( c, v, __LINE__ )
             '' AN ARGUMENT WITH NO ADDRESS -- a literal, a computed value, or the
             '' DEFAULT of an omitted one -- still has to be passed by reference, and a
             '' value is not a pointer. fbc materialises a temporary, stores the value
@@ -752,26 +752,26 @@ function LowerCallParts _
             ''
             '' Passing the VALUE -- which is what this did -- handed the callee a
             '' number where it expected a pointer, and it then wrote through it.
-            if a.kind = cast( ubyte, MV_NONE ) then
+            if a.kind = cast( uint8, MV_NONE ) then
                 a = ByrefTemp_( c, argNode, ArgParamType_( c, callee, calleeSigT, i + pbase ) )
             end if
             '' Still nothing: decline, rather than pass something that is not the
             '' variable the callee will write through.
-            if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v, __LINE__ )
+            if a.kind = cast( uint8, MV_NONE ) then return CallFailed_( c, v, __LINE__ )
         else
             '' A STRING FOR A 'zstring ptr' / 'wstring ptr' PARAMETER OR A VARIADIC TAIL -- PtrStrArg_,
             '' the one encoder a constructor shares: its data pointer, a terminated copy of a
             '' 'string * N' (copied back), or a converted temporary.
             dim as Tko.TypeId ppt = ArgParamType_( c, callee, calleeSigT, i + pbase )
             dim as boolean pvar = (ppt = Tko.TYPE_NONE) andalso ((callee <> Tko.SYMBOL_NONE) orelse (calleeSigT <> Tko.TYPE_NONE))
-            dim as long psk = PtrStrArg_( c, argNode, ppt, pvar, a, strTemps, strTempTypes, ustrBackNode, ustrBackSlot )
+            dim as int32 psk = PtrStrArg_( c, argNode, ppt, pvar, a, strTemps, strTempTypes, ustrBackNode, ustrBackSlot )
             if psk < 0 then
-                c.blameNode = cast( ulong, argNode )
+                c.blameNode = cast( uint32, argNode )
                 return CallFailed_( c, v, __LINE__ )
             end if
             if psk > 0 then
-                slotKind[i] = cast( ulong, a.kind )
-                slotId[i] = cast( ulong, a.id )
+                slotKind[i] = cast( uint32, a.kind )
+                slotId[i] = cast( uint32, a.id )
                 continue for
             end if
 
@@ -801,13 +801,13 @@ function LowerCallParts _
             if ParamIsIndirectStr_( c, callee, i + pbase, calleeSigT ) then
                 dim as Tko.TypeId spt = ArgParamType_( c, callee, calleeSigT, i + pbase )
                 if ByvalStrTemp_( c, argNode, spt, a, tempSlot ) = false then
-                    c.blameNode = cast( ulong, argNode )
+                    c.blameNode = cast( uint32, argNode )
                     return CallFailed_( c, v, __LINE__ )
                 end if
-                strTemps.Push( cast( ulong, tempSlot ) )
-                strTempTypes.Push( cast( ulong, spt ) )
-                slotKind[i] = cast( ulong, a.kind )
-                slotId[i] = cast( ulong, a.id )
+                strTemps.Push( cast( uint32, tempSlot ) )
+                strTempTypes.Push( cast( uint32, spt ) )
+                slotKind[i] = cast( uint32, a.kind )
+                slotId[i] = cast( uint32, a.id )
                 continue for
             end if
 
@@ -818,13 +818,13 @@ function LowerCallParts _
                 dim as Tko.TypeId upt = ArgParamType_( c, callee, calleeSigT, i + pbase )
                 dim as MirValue ca
                 if UdtConvTemp_( c, argNode, upt, ca, tempSlot, tempType ) = false then
-                    c.blameNode = cast( ulong, argNode )
+                    c.blameNode = cast( uint32, argNode )
                     return CallFailed_( c, v, __LINE__ )
                 end if
                 '' A statement temporary -- see ByvalUdtCopyArg_.
                 if tempSlot >= 0 then
-                    c.udtTemps.Push( cast( ulong, tempSlot ) )
-                    c.udtTempTypes.Push( cast( ulong, tempType ) )
+                    c.udtTemps.Push( cast( uint32, tempSlot ) )
+                    c.udtTempTypes.Push( cast( uint32, tempType ) )
                 end if
                 '' THE CALLEE TAKES WHAT IT WOULD HAVE TAKEN ANYWAY: the temporary's
                 '' ADDRESS when the type is passed indirectly, and the aggregate itself
@@ -834,52 +834,52 @@ function LowerCallParts _
                     a = ca
                 else
                     a = LowerExprLoad( c, ca, MT_AGG )
-                    if a.kind = cast( ubyte, MV_NONE ) then
-                        c.blameNode = cast( ulong, argNode )
+                    if a.kind = cast( uint8, MV_NONE ) then
+                        c.blameNode = cast( uint32, argNode )
                         return CallFailed_( c, v, __LINE__ )
                     end if
                 end if
-                slotKind[i] = cast( ulong, a.kind )
-                slotId[i] = cast( ulong, a.id )
+                slotKind[i] = cast( uint32, a.kind )
+                slotId[i] = cast( uint32, a.id )
                 continue for
             end if
 
             '' 'f( type( ) )' AGAIN, for a BYVAL parameter: same temporary, and the
             '' callee takes its address or its value by the usual rule.
-            dim as long bvSlot = -1
+            dim as int32 bvSlot = -1
             if BareTypeLiteralArg_( c, argNode, _
                     ArgParamType_( c, callee, calleeSigT, i + pbase ), bvSlot ) then
                 dim as MirValue bva
-                bva.kind = cast( ubyte, MV_LOCAL )
-                bva.ty = cast( ubyte, MT_PTR )
+                bva.kind = cast( uint8, MV_LOCAL )
+                bva.ty = cast( uint8, MT_PTR )
                 bva.id = bvSlot
                 if ParamIsIndirectUdt_( c, callee, i + pbase, calleeSigT ) then
                     a = bva
                 else
                     a = LowerExprLoad( c, bva, MT_AGG )
-                    if a.kind = cast( ubyte, MV_NONE ) then
-                        c.blameNode = cast( ulong, argNode )
+                    if a.kind = cast( uint8, MV_NONE ) then
+                        c.blameNode = cast( uint32, argNode )
                         return CallFailed_( c, v, __LINE__ )
                     end if
                 end if
-                slotKind[i] = cast( ulong, a.kind )
-                slotId[i] = cast( ulong, a.id )
+                slotKind[i] = cast( uint32, a.kind )
+                slotId[i] = cast( uint32, a.id )
                 continue for
             end if
 
             if ParamIsIndirectUdt_( c, callee, i + pbase, calleeSigT ) then
                 if ByvalUdtCopyArg_( c, argNode, ArgParamType_( c, callee, calleeSigT, i + pbase ), _
                                      a, tempSlot, tempType ) = false then
-                    c.blameNode = cast( ulong, argNode )
+                    c.blameNode = cast( uint32, argNode )
                     return CallFailed_( c, v, __LINE__ )
                 end if
                 '' A statement temporary, registered as it is made -- see ByvalUdtCopyArg_.
                 if tempSlot >= 0 then
-                    c.udtTemps.Push( cast( ulong, tempSlot ) )
-                    c.udtTempTypes.Push( cast( ulong, tempType ) )
+                    c.udtTemps.Push( cast( uint32, tempSlot ) )
+                    c.udtTempTypes.Push( cast( uint32, tempType ) )
                 end if
-                slotKind[i] = cast( ulong, a.kind )
-                slotId[i] = cast( ulong, a.id )
+                slotKind[i] = cast( uint32, a.kind )
+                slotId[i] = cast( uint32, a.id )
                 continue for
             end if
 
@@ -909,8 +909,8 @@ function LowerCallParts _
             '' The ARGUMENT is what gets the blame: inside a macro the statement's own
             '' location is the macro BODY, while the argument's tokens come from the
             '' invocation and point at the work.
-            if a.kind = cast( ubyte, MV_NONE ) then
-                c.blameNode = cast( ulong, argNode )
+            if a.kind = cast( uint8, MV_NONE ) then
+                c.blameNode = cast( uint32, argNode )
                 return CallFailed_( c, v, __LINE__ )
             end if
             '' TO THE PARAMETER'S TYPE, not the argument's. 'randomize 42' passes an
@@ -923,8 +923,8 @@ function LowerCallParts _
             if forcedByval andalso ParamIsByref( c, callee, i + pbase ) then
                 '' The parameter is a REFERENCE and the value is standing in for one,
                 '' so the width is the pointer's, not the parameter's declared type.
-                if a.kind <> cast( ubyte, MV_NONE ) then a = Coerce( c, a, MT_PTR, false )
-            elseif (pt <> Tko.TYPE_NONE) andalso (a.kind <> cast( ubyte, MV_NONE )) then
+                if a.kind <> cast( uint8, MV_NONE ) then a = Coerce( c, a, MT_PTR, false )
+            elseif (pt <> Tko.TYPE_NONE) andalso (a.kind <> cast( uint8, MV_NONE )) then
                 dim as MirType pmt = LowerType( pt, *c.types )
                 if (pmt <> MT_VOID) andalso (pmt <> MT_AGG) then
                     '' ARGUMENT'S TYPE IS THE SOURCE, PARAMETER'S THE DESTINATION.
@@ -933,7 +933,7 @@ function LowerCallParts _
                     '' over a 'byval as boolean' passed FALSE, 256 and 0xFF being 0.
                     a = CoerceTy( c, a, pmt, c.info->TypeOf_( argNode ), pt )
                 end if
-            elseif (pt = Tko.TYPE_NONE) andalso (a.kind <> cast( ubyte, MV_NONE )) then
+            elseif (pt = Tko.TYPE_NONE) andalso (a.kind <> cast( uint8, MV_NONE )) then
                 '' DEFAULT ARGUMENT PROMOTION. An argument past the named parameters
                 '' has no declared type to be coerced to, and went out at its own
                 '' width: a UBYTE wrote EIGHT BITS of an eight-byte slot and left the
@@ -951,28 +951,28 @@ function LowerCallParts _
                 end select
             end if
         end if
-        slotKind[i] = cast( ulong, a.kind )
-        slotId[i] = cast( ulong, a.id )
+        slotKind[i] = cast( uint32, a.kind )
+        slotId[i] = cast( uint32, a.id )
     next
 
-    dim as long recvMark = c.udtTemps.Count
+    dim as int32 recvMark = c.udtTemps.Count
     if l2r = false then self_ = ReceiverOf( c, calleeNode, callee )
     CallTempsInSourceOrder_( c, headMark, argMark, recvMark, segFrom )
-    if self_.kind <> cast( ubyte, MV_NONE ) then
-        argv.Push( cast( ulong, self_.kind ) )
-        argv.Push( cast( ulong, self_.id ) )
+    if self_.kind <> cast( uint8, MV_NONE ) then
+        argv.Push( cast( uint32, self_.kind ) )
+        argv.Push( cast( uint32, self_.id ) )
     end if
-    if closureSelf.kind <> cast( ubyte, MV_NONE ) then
-        argv.Push( cast( ulong, closureSelf.kind ) )
-        argv.Push( cast( ulong, closureSelf.id ) )
+    if closureSelf.kind <> cast( uint8, MV_NONE ) then
+        argv.Push( cast( uint32, closureSelf.kind ) )
+        argv.Push( cast( uint32, closureSelf.id ) )
     end if
-    for i as long = 0 to slots - 1
+    for i as int32 = 0 to slots - 1
         argv.Push( slotKind[i] )
         argv.Push( slotId[i] )
     next
-    dim as long first = c.m->argPool.Count \ 2
-    dim as long n = argv.Count \ 2
-    for i as long = 0 to argv.Count - 1
+    dim as int32 first = c.m->argPool.Count \ 2
+    dim as int32 n = argv.Count \ 2
+    for i as int32 = 0 to argv.Count - 1
         c.m->argPool.Push( argv[i] )
     next
 
@@ -998,7 +998,7 @@ function LowerCallParts _
     '' The call's own MIR type follows the callee: an sret function returns the
     '' POINTER it was handed, not an aggregate.
     dim as MirType callTy = mt
-    if sretTmp.kind <> cast( ubyte, MV_NONE ) then callTy = MT_PTR
+    if sretTmp.kind <> cast( uint8, MV_NONE ) then callTy = MT_PTR
 
     '' A VAR-LENGTH STRING RESULT IS A POINTER, and the call took its type from the
     '' EXPRESSION -- where a string is the 24-byte descriptor, MT_AGG. The
@@ -1020,7 +1020,7 @@ function LowerCallParts _
             srT = cs->type_
         end if
         if srT <> Tko.TYPE_NONE then
-            dim as longint srn
+            dim as int64 srn
             dim as boolean srStr = IsStringType( c, srT )
             if srStr then srStr = (StrSwapKind_( c, srT, srn ) = 0)
             if srStr then callTy = MT_PTR
@@ -1033,7 +1033,7 @@ function LowerCallParts _
     '' 'long' -- so a pointer was emitted as an i32 and used as the number. It
     '' lowered and it verified.
     dim as boolean byrefRet = false
-    if sretTmp.kind = cast( ubyte, MV_NONE ) then
+    if sretTmp.kind = cast( uint8, MV_NONE ) then
         if viaPointer then
             if calleeSigT <> Tko.TYPE_NONE then
                 dim as Tko.TypeId srt = c.types->Inner( calleeSigT )
@@ -1043,7 +1043,7 @@ function LowerCallParts _
             dim as Tko.NodeId cpn = cast( Tko.NodeId, cs->payload )
             if cpn <> Tko.NODE_NONE then
                 if c.ast->Kind( cpn ) = Tko.N_PROC then
-                    byrefRet = ((c.ast->nodes[cast( long, cpn )].flags and _
+                    byrefRet = ((c.ast->nodes[cast( int32, cpn )].flags and _
                                  Tko.NF_BYREF) <> 0)
                 end if
             end if
@@ -1102,14 +1102,14 @@ function LowerCallParts _
     ''
     '' fbc does not devirtualise at the C level even on a known-concrete local, and
     '' neither is done here.
-    dim as long vslot = VirtualSlotOf_( c, calleeNode, callee )
+    dim as int32 vslot = VirtualSlotOf_( c, calleeNode, callee )
     if (viaPointer = false) andalso (vslot >= 0) then
-        if self_.kind <> cast( ubyte, MV_NONE ) then
+        if self_.kind <> cast( uint8, MV_NONE ) then
             dim as MirValue vfp = VirtualCalleeOf_( c, self_, vslot )
-            if vfp.kind <> cast( ubyte, MV_NONE ) then
+            if vfp.kind <> cast( uint8, MV_NONE ) then
                 dim as MirInst vc
-                vc.op = cast( ushort, M_CALL_IND )
-                vc.ty = cast( ubyte, callTy )
+                vc.op = cast( uint16, M_CALL_IND )
+                vc.ty = cast( uint8, callTy )
                 vc.a = vfp
                 vc.first = first
                 vc.count = n
@@ -1124,17 +1124,17 @@ function LowerCallParts _
                 '' M_CALL_IND carrying no signature has to be distinguishable from
                 '' one that names the first function. See DeclIndexFor_.
                 if cs <> 0 then
-                    dim as long sidx = DeclIndexFor_( c, cnm, callTy, cs, _
-                        (sretTmp.kind <> cast( ubyte, MV_NONE )), _
-                        (self_.kind <> cast( ubyte, MV_NONE )) )
-                    if sidx >= 0 then vc.callee = cast( ulong, sidx + 1 )
+                    dim as int32 sidx = DeclIndexFor_( c, cnm, callTy, cs, _
+                        (sretTmp.kind <> cast( uint8, MV_NONE )), _
+                        (self_.kind <> cast( uint8, MV_NONE )) )
+                    if sidx >= 0 then vc.callee = cast( uint32, sidx + 1 )
                 end if
                 dim as MirValue vr = Emit( c, vc )
                 CopyBackUStrArgs_( c, ustrBackNode, ustrBackSlot )
         CopyBackUStrArgs_( c, ustrBackNode, ustrBackSlot )
     DeleteStrArgTemps_( c, strTemps, strTempTypes, byrefDecl )
                 c.lastCallOk = true
-                if sretTmp.kind <> cast( ubyte, MV_NONE ) then
+                if sretTmp.kind <> cast( uint8, MV_NONE ) then
                     return LowerExprLoad( c, sretTmp, MT_AGG )
                 end if
                 '' A BYREF RESULT IS READ THROUGH, as the pointer path does: 'xa.f1( )' over a virtual
@@ -1166,10 +1166,10 @@ function LowerCallParts _
         end if
 
         dim as MirValue fp = LowerExpr( c, calleeNode )
-        if fp.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v, __LINE__ )
+        if fp.kind = cast( uint8, MV_NONE ) then return CallFailed_( c, v, __LINE__ )
         dim as MirInst ic
-        ic.op = cast( ushort, M_CALL_IND )
-        ic.ty = cast( ubyte, callTy )
+        ic.op = cast( uint16, M_CALL_IND )
+        ic.ty = cast( uint8, callTy )
         ic.a = Coerce( c, fp, MT_PTR )
         ic.first = first
         ic.count = n
@@ -1180,7 +1180,7 @@ function LowerCallParts _
         end if
         '' ON EVERY CALL THROUGH A POINTER, not only one returning an aggregate -- see
         '' PtrCallSigIndex_ in lowersig.tiko for what its absence did to the arguments.
-        ic.callee = cast( ulong, PtrCallSigIndex_( c, calleeSigT ) + 1 )
+        ic.callee = cast( uint32, PtrCallSigIndex_( c, calleeSigT ) + 1 )
         dim as MirValue iv = Emit( c, ic )
         CopyBackUStrArgs_( c, ustrBackNode, ustrBackSlot )
         CopyBackUStrArgs_( c, ustrBackNode, ustrBackSlot )
@@ -1194,13 +1194,13 @@ function LowerCallParts _
         return SretOrResult_( c, sretTmp, iv, mt )
     end if
 
-    dim as long fidx = DeclIndexFor_( c, cnm, callTy, cs, _
-        (sretTmp.kind <> cast( ubyte, MV_NONE )), _
-        (self_.kind <> cast( ubyte, MV_NONE )) )
+    dim as int32 fidx = DeclIndexFor_( c, cnm, callTy, cs, _
+        (sretTmp.kind <> cast( uint8, MV_NONE )), _
+        (self_.kind <> cast( uint8, MV_NONE )) )
 
     dim as MirInst ins
-    ins.op = cast( ushort, M_CALL )
-    ins.ty = cast( ubyte, callTy )
+    ins.op = cast( uint16, M_CALL )
+    ins.ty = cast( uint8, callTy )
     ins.first = first
     ins.count = n
     ins.callee = fidx
@@ -1217,7 +1217,7 @@ function LowerCallParts _
     '' NOT COVERED, and it declines rather than being approximated: 'F( ).field'.
     '' LowerAddr has no N_CALL case, so there is no address to take an offset from,
     '' and inventing one would mean lowering the call twice.
-    if sretTmp.kind <> cast( ubyte, MV_NONE ) then
+    if sretTmp.kind <> cast( uint8, MV_NONE ) then
         '' ...UNLESS THE CALLER ASKED FOR THE ADDRESS, and LowerAddr does. The comment
         '' above says 'F( ).field' is not covered because LowerAddr has no N_CALL
         '' case; it has had one for some time, and it asks for MT_PTR precisely so it
@@ -1263,7 +1263,7 @@ function LowerCallParts _
     '' fb/decimal.bi returns 'this' and a byref Value( ) that way, so all eight
     '' finance suites were built on it.
     if byrefUdtRef andalso cbool( mt = MT_AGG ) andalso (wantRef = false) then
-        dim as long rsz = SizeOfType( c, cs->type_ )
+        dim as int32 rsz = SizeOfType( c, cs->type_ )
         if rsz > 0 then return LowerExprLoad( c, cv, MT_AGG, rsz )
     end if
     return cv
@@ -1289,19 +1289,19 @@ function LowerBareProcCall_ _
     if sid = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
     if s = 0 then return false
-    if s->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    if s->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     if s->type_ = Tko.TYPE_NONE then return false          '' a SUB has no value
 
     '' EVERY PARAMETER MUST HAVE A DEFAULT. ParamDefaultAt answers for each, and a
     '' variadic tail is not something a bare name can fill.
     if IsVariadicProc( c, sid ) then return false
-    dim as long np = ParamCountOf( c, sid )
-    for i as long = 0 to np - 1
+    dim as int32 np = ParamCountOf( c, sid )
+    for i as int32 = 0 to np - 1
         if ParamDefaultAt( c, sid, i ) = Tko.NODE_NONE then return false
     next
 
     outv = LowerCallParts( c, id, sid, 0, 0, mt )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 
 '' IMP AND EQV ARE TWO INSTRUCTIONS EACH, which is why they are not in the table
@@ -1318,39 +1318,39 @@ function EmitImpEqv_ _
     dim as MirValue none_
     if isBool then
         dim as MirValue raw = EmitImpEqv_( c, tk, ty, l, r, false )
-        if raw.kind = cast( ubyte, MV_NONE ) then return none_
+        if raw.kind = cast( uint8, MV_NONE ) then return none_
         dim as MirInst m1
-        m1.op = cast( ushort, M_AND )
-        m1.ty = cast( ubyte, ty )
+        m1.op = cast( uint16, M_AND )
+        m1.ty = cast( uint8, ty )
         m1.a = raw
         m1.b = ConstInt( c, 1, ty )
         return Emit( c, m1 )
     end if
     if tk = Tko.KW_IMP then
         dim as MirInst n1
-        n1.op = cast( ushort, M_NOT )
-        n1.ty = cast( ubyte, ty )
+        n1.op = cast( uint16, M_NOT )
+        n1.ty = cast( uint8, ty )
         n1.a = l
         dim as MirValue nl = Emit( c, n1 )
-        if nl.kind = cast( ubyte, MV_NONE ) then return none_
+        if nl.kind = cast( uint8, MV_NONE ) then return none_
         dim as MirInst o1
-        o1.op = cast( ushort, M_OR )
-        o1.ty = cast( ubyte, ty )
+        o1.op = cast( uint16, M_OR )
+        o1.ty = cast( uint8, ty )
         o1.a = nl
         o1.b = r
         return Emit( c, o1 )
     end if
     if tk = Tko.KW_EQV then
         dim as MirInst x1
-        x1.op = cast( ushort, M_XOR )
-        x1.ty = cast( ubyte, ty )
+        x1.op = cast( uint16, M_XOR )
+        x1.ty = cast( uint8, ty )
         x1.a = l
         x1.b = r
         dim as MirValue xv = Emit( c, x1 )
-        if xv.kind = cast( ubyte, MV_NONE ) then return none_
+        if xv.kind = cast( uint8, MV_NONE ) then return none_
         dim as MirInst n2
-        n2.op = cast( ushort, M_NOT )
-        n2.ty = cast( ubyte, ty )
+        n2.op = cast( uint16, M_NOT )
+        n2.ty = cast( uint8, ty )
         n2.a = xv
         return Emit( c, n2 )
     end if
@@ -1373,7 +1373,7 @@ end function
 '' every caller here wants the type of the thing, not of the reference to it.
 private function ArgParamType_ _
     ( byref c as Ctx, byval callee as Tko.SymbolId, byval sigT as Tko.TypeId, _
-      byval idx as long ) as Tko.TypeId
+      byval idx as int32 ) as Tko.TypeId
 
     dim as Tko.TypeId t = ParamTypeAt( c, callee, idx )
     if t <> Tko.TYPE_NONE then return t
@@ -1388,7 +1388,7 @@ private function ArgParamType_ _
 end function
 
 private function SigParamIsRef_ _
-    ( byref c as Ctx, byval sigT as Tko.TypeId, byval idx as long ) as boolean
+    ( byref c as Ctx, byval sigT as Tko.TypeId, byval idx as int32 ) as boolean
 
     if sigT = Tko.TYPE_NONE then return false
     if c.types->Kind( sigT ) <> Tko.TK_PROC then return false
@@ -1436,7 +1436,7 @@ end function
 '' retried by another path: 'takeByvalString( hex( 255 ) )' lowers the argument through
 '' here first, fails, and succeeds as an intrinsic. The OUTERMOST call is the last to
 '' write the flag, so what the statement reads is its own outcome.
-private function CallFailed_( byref c as Ctx, byref v as MirValue, byval ln as long = 0 ) as MirValue
+private function CallFailed_( byref c as Ctx, byref v as MirValue, byval ln as int32 = 0 ) as MirValue
     c.lastCallOk = false
     c.lastCallFailLine = ln
     return v

@@ -22,7 +22,7 @@
 
 namespace Tko
 
-    type LongVec as containers.Array( of long )
+    type LongVec as containers.Array( of int32 )
 
     '' ONE '#line' DIRECTIVE. It renumbers from its own physical line, so the line
     '' the directive sits on becomes 'shownLine' and the next is 'shownLine + 1' --
@@ -30,8 +30,8 @@ namespace Tko
     '' report 101. 'shownName' is never INTERN_NONE; a '#line' with no string
     '' inherits the name in force, which is the previous mark's or the file's own.
     type LineMark
-        as long     physLine
-        as long     shownLine
+        as int32     physLine
+        as int32     shownLine
         as InternId shownName
     end type
 
@@ -44,9 +44,9 @@ namespace Tko
         as LongVec         lineStarts    '' byte offset of each line; [0] = 0
         as Tko.Text.Encoding encoding
         as SourceLoc       locBase       '' first location owned by this file
-        as ulong           contentHash   '' for future incremental compilation
+        as uint32           contentHash   '' for future incremental compilation
         as boolean         isVirtual     '' created from memory, not from disk
-        as long            firstBadByte  '' offset of the first invalid UTF-8 byte, or -1
+        as int32            firstBadByte  '' offset of the first invalid UTF-8 byte, or -1
         as LineMarkVec     lineMarks     '' '#line' directives, by increasing physLine
     end type
 
@@ -58,7 +58,7 @@ namespace Tko
         as Interner ptr names           '' borrowed; owned by CompilerContext
         '' REAL FILES BY (folded, on Windows) PATH: FileId per InternId, 0 for none -- Find's
         '' answer without walking the table, which grows by one virtual file per expansion.
-        as containers.Array( of long ) pathIndex
+        as containers.Array( of int32 ) pathIndex
         as InternId   builtinName       '' "<builtin>", interned on first use by IsBuiltin
 
         '' Default-constructed, then attached. Members of CompilerContext need a
@@ -85,26 +85,26 @@ namespace Tko
             ( byref path as ustring, byref content as string ) as FileId
 
         declare function FileAt( byval id as FileId ) as SourceFile ptr
-        declare function Count( ) as long
+        declare function Count( ) as int32
 
         '' Already-loaded lookup by absolute path; FILE_NONE if not loaded.
         declare function Find( byref absPath as ustring ) as FileId
 
-        declare function LocFor( byval id as FileId, byval offset as long ) as SourceLoc
+        declare function LocFor( byval id as FileId, byval offset as int32 ) as SourceLoc
         declare function Decode( byval loc as SourceLoc ) as DecodedLoc
         '' The OFFSET alone, and the file -- no line, no column. Decode's column scans from
         '' the line's start, so a caller wanting only the offset paid O(line) per call: a
         '' 10,000-term 'a + a + ...' line took 6.4 s to parse (audit F-46).
-        declare function LocOffset( byval loc as SourceLoc, byref fileOut as FileId ) as long
+        declare function LocOffset( byval loc as SourceLoc, byref fileOut as FileId ) as int32
 
-        declare function LineCount( byval id as FileId ) as long
+        declare function LineCount( byval id as FileId ) as int32
 
         '' LineCount counts index entries, so a file ending in a newline has one
         '' more than it has lines of text. This is what a user should be shown.
-        declare function ContentLineCount( byval id as FileId ) as long
-        declare function LineStart( byval id as FileId, byval lineNo as long ) as long
-        declare function LineLength( byval id as FileId, byval lineNo as long ) as long
-        declare function LineText( byval id as FileId, byval lineNo as long ) as string
+        declare function ContentLineCount( byval id as FileId ) as int32
+        declare function LineStart( byval id as FileId, byval lineNo as int32 ) as int32
+        declare function LineLength( byval id as FileId, byval lineNo as int32 ) as int32
+        declare function LineText( byval id as FileId, byval lineNo as int32 ) as string
 
         declare function PathOf( byval id as FileId ) as string
         '' The ABSOLUTE, normalised path -- the file's identity, where PathOf is the
@@ -116,7 +116,7 @@ namespace Tko
         '' guard) must not stack duplicates, so a mark on a line already marked
         '' REPLACES it. Pass hasName = false to inherit the name in force.
         declare sub AddLineMark _
-            ( byval id as FileId, byval physLine as long, byval shownLine as long, _
+            ( byval id as FileId, byval physLine as int32, byval shownLine as int32, _
               byval shownName as InternId, byval hasName as boolean )
 
         '' The name a decoded location should be PRINTED under -- the file's own
@@ -126,7 +126,7 @@ namespace Tko
         '' declared like everything else, but it is not what the user wrote, and a dump
         '' that listed its thirty declarations under every file would bury the file.
         declare function IsBuiltin( byval loc as SourceLoc ) as boolean
-        declare function TotalBytes( ) as longint
+        declare function TotalBytes( ) as int64
 
         private:
         declare function Adopt _

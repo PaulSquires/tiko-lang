@@ -35,12 +35,12 @@ function LowerRadixCall_ _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     if (cp->count < 1) orelse (cp->count > 2) then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
     dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
 
     dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
@@ -52,11 +52,11 @@ function LowerRadixCall_ _
     if nm = "space" then
         if cp->count <> 1 then return false
         dim as MirValue n0 = LowerNumArg_( c, a0, MT_I64 )
-        if n0.kind = cast( ubyte, MV_NONE ) then return false
-        dim as containers.Array( of ulong ) sa
-        sa.Push( cast( ulong, n0.kind ) ) : sa.Push( cast( ulong, n0.id ) )
+        if n0.kind = cast( uint8, MV_NONE ) then return false
+        dim as containers.Array( of uint32 ) sa
+        sa.Push( cast( uint32, n0.kind ) ) : sa.Push( cast( uint32, n0.id ) )
         outv = EmitRtl( c, RTL_STR_SPACE, sa )
-        return (outv.kind <> cast( ubyte, MV_NONE ))
+        return (outv.kind <> cast( uint8, MV_NONE ))
     end if
 
     '' 'wstring( n, ch )' IS THE WIDE HALF, with its own two entry points -- measured,
@@ -81,19 +81,19 @@ function LowerRadixCall_ _
             end if
         else
             fv = LowerNumArg_( c, a1, MT_I32 )
-            if fv.kind = cast( ubyte, MV_NONE ) then return false
+            if fv.kind = cast( uint8, MV_NONE ) then return false
         end if
         dim as MirValue n0 = LowerNumArg_( c, a0, MT_I64 )
-        if n0.kind = cast( ubyte, MV_NONE ) then return false
-        dim as containers.Array( of ulong ) sa
-        sa.Push( cast( ulong, n0.kind ) ) : sa.Push( cast( ulong, n0.id ) )
-        sa.Push( cast( ulong, fv.kind ) ) : sa.Push( cast( ulong, fv.id ) )
+        if n0.kind = cast( uint8, MV_NONE ) then return false
+        dim as containers.Array( of uint32 ) sa
+        sa.Push( cast( uint32, n0.kind ) ) : sa.Push( cast( uint32, n0.id ) )
+        sa.Push( cast( uint32, fv.kind ) ) : sa.Push( cast( uint32, fv.id ) )
         if isStr then
             outv = EmitRtl( c, iif( fillWide, RTL_WSTR_FILL2, RTL_STR_FILL2 ), sa )
         else
             outv = EmitRtl( c, iif( fillWide, RTL_WSTR_FILL1, RTL_STR_FILL1 ), sa )
         end if
-        return (outv.kind <> cast( ubyte, MV_NONE ))
+        return (outv.kind <> cast( uint8, MV_NONE ))
     end if
 
     '' EACH OF THE THREE HAS A WIDE TWIN, and its runtime name is not the narrow one
@@ -101,7 +101,7 @@ function LowerRadixCall_ _
     '' one is the shouted fb_HEX_b. The result is a uint16*, so the callers that want a
     '' descriptor cannot have one -- which is why the wide family is recognised here
     '' and its result handed back as the bare pointer it is.
-    dim as long fam = -1
+    dim as int32 fam = -1
     dim as boolean wide = false
     select case nm
     case "hex" : fam = 0
@@ -119,7 +119,7 @@ function LowerRadixCall_ _
     dim as Tko.TypeId at = c.info->TypeOf_( a0 )
     if at = Tko.TYPE_NONE then return false
     dim as MirType amt = LowerType( at, *c.types )
-    dim as long w = -1
+    dim as int32 w = -1
     select case amt
     case MT_I8  : w = 0
     case MT_I16 : w = 1
@@ -229,25 +229,25 @@ function LowerRadixCall_ _
     dim as MirValue n1
     if a1 <> Tko.NODE_NONE then
         n1 = LowerNumArg_( c, a1, MT_I32 )
-        if n1.kind = cast( ubyte, MV_NONE ) then return false
+        if n1.kind = cast( uint8, MV_NONE ) then return false
     end if
     dim as MirValue v0 = LowerExpr( c, a0 )
-    if v0.kind = cast( ubyte, MV_NONE ) then return false
+    if v0.kind = cast( uint8, MV_NONE ) then return false
     if amt = MT_F64 then
         v0 = Coerce( c, v0, MT_I64, false, true )         '' fb_D2UL, as culngint( d ) is
     elseif amt = MT_F32 then
         v0 = Coerce( c, v0, MT_I64 )                      '' fb_F2L ...
-        if v0.kind = cast( ubyte, MV_NONE ) then return false
+        if v0.kind = cast( uint8, MV_NONE ) then return false
         v0 = Coerce( c, v0, MT_I32 )                      '' ... then (uint32)
     else
         v0 = Coerce( c, v0, amt, true )
     end if
-    if v0.kind = cast( ubyte, MV_NONE ) then return false
+    if v0.kind = cast( uint8, MV_NONE ) then return false
 
-    dim as containers.Array( of ulong ) args
-    args.Push( cast( ulong, v0.kind ) ) : args.Push( cast( ulong, v0.id ) )
+    dim as containers.Array( of uint32 ) args
+    args.Push( cast( uint32, v0.kind ) ) : args.Push( cast( uint32, v0.id ) )
     if a1 <> Tko.NODE_NONE then
-        args.Push( cast( ulong, n1.kind ) ) : args.Push( cast( ulong, n1.id ) )
+        args.Push( cast( uint32, n1.kind ) ) : args.Push( cast( uint32, n1.id ) )
     end if
 
     '' THE WIDE HALF RETURNS AN ALLOCATION THE CALLER OWNS. Measured:
@@ -259,5 +259,5 @@ function LowerRadixCall_ _
     if wide then return WideConcatStep_( c, args, r, outv )
 
     outv = EmitRtl( c, r, args )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function

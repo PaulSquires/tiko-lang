@@ -41,22 +41,22 @@ private sub EachStrInit_ _
     ( byref c as Ctx, byref dst as MirValue, byref src as MirValue, _
       byval srcIsU as boolean, byval dstIsU as boolean )
 
-    dim as containers.Array( of ulong ) args
+    dim as containers.Array( of uint32 ) args
     if srcIsU = dstIsU then
         PushStrArg( args, dst )
         PushStrArg( args, src )
-        args.Push( cast( ulong, MV_CONST_INT ) )
+        args.Push( cast( uint32, MV_CONST_INT ) )
         args.Push( 0 )
         EmitRtl( c, iif( dstIsU, RTL_USTR_INIT, RTL_STR_INIT ), args )
         return
     end if
     '' The converters take bare pointers with a size each, as lowerstrargs.tiko passes them.
-    args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
+    args.Push( cast( uint32, dst.kind ) ) : args.Push( cast( uint32, dst.id ) )
     PushStrLen_( c, args, -1 )
-    args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
+    args.Push( cast( uint32, src.kind ) ) : args.Push( cast( uint32, src.id ) )
     PushStrLen_( c, args, -1 )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )   '' fill_rem
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 1 )   '' is_init: dst is fresh
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )   '' fill_rem
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 1 )   '' is_init: dst is fresh
     EmitRtl( c, iif( dstIsU, RTL_USTR_FROM_A, RTL_USTR_TO_A ), args )
 end sub
 
@@ -95,19 +95,19 @@ function LowerForEachIter _
     if vsym = 0 then return false
     if vsym->type_ = Tko.TYPE_NONE then vsym->type_ = elT
     dim as MirValue vaddr = LowerAddr( c, sp->a )
-    if vaddr.kind = cast( ubyte, MV_NONE ) then return false
+    if vaddr.kind = cast( uint8, MV_NONE ) then return false
 
     dim as MirValue cAddr = LowerAddr( c, seqE )
-    if cAddr.kind = cast( ubyte, MV_NONE ) then return false
+    if cAddr.kind = cast( uint8, MV_NONE ) then return false
 
     '' The ITERATOR, in a temporary of its own. GetIterator returns it by value, so the
     '' call's result is stored into that temporary and every later call takes its
     '' address as the receiver.
-    dim as long islot = NewTempLocal( c, MT_AGG, SizeOfType( c, itT ) )
+    dim as int32 islot = NewTempLocal( c, MT_AGG, SizeOfType( c, itT ) )
     if islot < 0 then return false
     dim as MirValue iaddr
-    iaddr.kind = cast( ubyte, MV_LOCAL )
-    iaddr.ty = cast( ubyte, MT_PTR )
+    iaddr.kind = cast( uint8, MV_LOCAL )
+    iaddr.ty = cast( uint8, MT_PTR )
     iaddr.id = islot
 
     '' ...UNLESS THE CALL ALREADY MADE ONE WITH A DESTRUCTOR, and then that temporary IS the
@@ -117,24 +117,24 @@ function LowerForEachIter _
     '' copy was never destroyed. fbc builds the iterator once and destroys it after the
     '' loop, which is exactly the life the temporary already has (tests/mir
     '' foreach-iterator-owner; fbsqlite's 'for each person in outer_').
-    dim as long gmark = c.udtTemps.Count
+    dim as int32 gmark = c.udtTemps.Count
     dim as MirValue got = EmitMemberCall( c, getIt, cAddr, MT_AGG )
-    if got.kind = cast( ubyte, MV_NONE ) then return false
+    if got.kind = cast( uint8, MV_NONE ) then return false
     if c.udtTemps.Count > gmark then
-        iaddr.id = cast( long, c.udtTemps[c.udtTemps.Count - 1] )
+        iaddr.id = cast( int32, c.udtTemps[c.udtTemps.Count - 1] )
     else
         dim as MirInst st0
-        st0.op = cast( ushort, M_STORE )
-        st0.ty = cast( ubyte, MT_VOID )
+        st0.op = cast( uint16, M_STORE )
+        st0.ty = cast( uint8, MT_VOID )
         st0.a = iaddr
         st0.b = got
         Emit( c, st0 )
     end if
 
-    dim as long bodyB = NewBlock( c, "each.body" )
-    dim as long contB = NewBlock( c, "each.cont" )
-    dim as long testB = NewBlock( c, "each.test" )
-    dim as long exitB = NewBlock( c, "each.exit" )
+    dim as int32 bodyB = NewBlock( c, "each.body" )
+    dim as int32 contB = NewBlock( c, "each.cont" )
+    dim as int32 testB = NewBlock( c, "each.test" )
+    dim as int32 exitB = NewBlock( c, "each.exit" )
     Terminate( c, MTERM_BR, testB, -1, NoVal( ) )
 
     c.curBlock = bodyB
@@ -154,8 +154,8 @@ function LowerForEachIter _
     c.breakTo.Push( exitB )
     c.contTo.Push( contB )
     c.loopScope.Push( c.scopeMark.Count )
-    c.loopKind.Push( cast( long, Tko.KW_FOR ) )
-    PushScope( c, cast( ulong, sp->b ) or SCOPE_KEY_OPT )
+    c.loopKind.Push( cast( int32, Tko.KW_FOR ) )
+    PushScope( c, cast( uint32, sp->b ) or SCOPE_KEY_OPT )
 
     '' VALUE( ) RETURNS BY VALUE, so its result lands in an sret temporary that the
     '' call registers for destruction. Registered where? In the ENCLOSING scope,
@@ -164,12 +164,12 @@ function LowerForEachIter _
     '' iteration. The slot is the same one every time round, so the mark is taken
     '' here and released as soon as the element has been copied out of it: exactly
     '' what a loop HEAD does with a condition's temporaries.
-    dim as long umark = c.udtTemps.Count
+    dim as int32 umark = c.udtTemps.Count
 
     dim as boolean vByref = false
     dim as Tko.NodeId vpn = cast( Tko.NodeId, vs2->payload )
     if vpn <> Tko.NODE_NONE then
-        vByref = ((c.ast->nodes[cast( long, vpn )].flags and Tko.NF_BYREF) <> 0)
+        vByref = ((c.ast->nodes[cast( int32, vpn )].flags and Tko.NF_BYREF) <> 0)
     end if
     '' A BYREF LOOP VARIABLE BINDS WHAT Value( ) HANDED BACK. Its type is a
     '' REFERENCE, so its slot holds an ADDRESS and the body reads and writes
@@ -195,23 +195,23 @@ function LowerForEachIter _
             '' that made it. Binding it is honest; writing through it changes a
             '' copy, which is what a byval Value( ) can offer.
             dim as MirValue tmpv = EmitMemberCall( c, valueOf, iaddr, emt )
-            if tmpv.kind = cast( ubyte, MV_NONE ) then return false
+            if tmpv.kind = cast( uint8, MV_NONE ) then return false
             if c.udtTemps.Count > umark then
-                rp.kind = cast( ubyte, MV_LOCAL )
-                rp.ty = cast( ubyte, MT_PTR )
-                rp.id = cast( long, c.udtTemps[c.udtTemps.Count - 1] )
+                rp.kind = cast( uint8, MV_LOCAL )
+                rp.ty = cast( uint8, MT_PTR )
+                rp.id = cast( int32, c.udtTemps[c.udtTemps.Count - 1] )
             end if
         end if
-        if rp.kind = cast( ubyte, MV_NONE ) then return false
-        dim as long rslot = LocalFor( c, c.info->RefOf( sp->a ) )
+        if rp.kind = cast( uint8, MV_NONE ) then return false
+        dim as int32 rslot = LocalFor( c, c.info->RefOf( sp->a ) )
         if rslot < 0 then return false
         dim as MirValue rsa
-        rsa.kind = cast( ubyte, MV_LOCAL )
-        rsa.ty = cast( ubyte, MT_PTR )
+        rsa.kind = cast( uint8, MV_LOCAL )
+        rsa.ty = cast( uint8, MT_PTR )
         rsa.id = rslot
         dim as MirInst rst
-        rst.op = cast( ushort, M_STORE )
-        rst.ty = cast( ubyte, MT_VOID )
+        rst.op = cast( uint16, M_STORE )
+        rst.ty = cast( uint8, MT_VOID )
         rst.a = rsa
         rst.b = rp
         Emit( c, rst )
@@ -230,7 +230,7 @@ function LowerForEachIter _
 
         c.curBlock = testB
         dim as MirValue rok = EmitMemberCall( c, isValid, iaddr, MT_I8 )
-        if rok.kind = cast( ubyte, MV_NONE ) then return false
+        if rok.kind = cast( uint8, MV_NONE ) then return false
         Terminate( c, MTERM_CONDBR, bodyB, exitB, rok )
         c.curBlock = exitB
         return true
@@ -253,9 +253,9 @@ function LowerForEachIter _
     dim as boolean vIsStr = IsStringType( c, elT )
     if lvt <> Tko.TYPE_NONE then vIsStr = vIsStr andalso IsStringType( c, lvt )
     if vIsStr then
-        if vaddr.kind <> cast( ubyte, MV_LOCAL ) then return false
+        if vaddr.kind <> cast( uint8, MV_LOCAL ) then return false
         dim as MirValue sv = EmitMemberCall( c, valueOf, iaddr, MT_PTR )
-        if sv.kind = cast( ubyte, MV_NONE ) then return false
+        if sv.kind = cast( uint8, MV_NONE ) then return false
         EachStrInit_( c, vaddr, sv, IsUStringType( c, elT ), _
                       iif( lvt <> Tko.TYPE_NONE, IsUStringType( c, lvt ), IsUStringType( c, elT ) ) )
         c.cleanupNode.Push( 0 )
@@ -276,7 +276,7 @@ function LowerForEachIter _
 
         c.curBlock = testB
         dim as MirValue sok = EmitMemberCall( c, isValid, iaddr, MT_I8 )
-        if sok.kind = cast( ubyte, MV_NONE ) then return false
+        if sok.kind = cast( uint8, MV_NONE ) then return false
         Terminate( c, MTERM_CONDBR, bodyB, exitB, sok )
         c.curBlock = exitB
         return true
@@ -286,7 +286,7 @@ function LowerForEachIter _
     dim as MirValue evp
     if vByref then
         evp = EmitMemberCall( c, valueOf, iaddr, MT_PTR )
-        if evp.kind = cast( ubyte, MV_NONE ) then return false
+        if evp.kind = cast( uint8, MV_NONE ) then return false
         '' THE ELEMENT'S SIZE TRAVELS WITH THE LOAD: what Value( ) handed back is a
         '' POINTER in a temp, and a temp has no storage for the emitter to size an
         '' aggregate from. Without it, 'for each v in c' over a collection of a
@@ -295,7 +295,7 @@ function LowerForEachIter _
     else
         ev = EmitMemberCall( c, valueOf, iaddr, emt )
     end if
-    if ev.kind = cast( ubyte, MV_NONE ) then return false
+    if ev.kind = cast( uint8, MV_NONE ) then return false
 
     '' AN AGGREGATE ELEMENT IS COPY-CONSTRUCTED, not stored. A load and a store is a
     '' SHALLOW copy: a tuple half that is a string would share its buffer with the
@@ -309,16 +309,16 @@ function LowerForEachIter _
     '' constructor either, so the plain store below still serves it.
     dim as boolean bound = false
     if (emt = MT_AGG) andalso (c.udtTemps.Count > umark) andalso _
-       (vaddr.kind = cast( ubyte, MV_LOCAL )) then
+       (vaddr.kind = cast( uint8, MV_LOCAL )) then
         dim as MirValue sa
-        sa.kind = cast( ubyte, MV_LOCAL )
-        sa.ty = cast( ubyte, MT_PTR )
-        sa.id = cast( long, c.udtTemps[c.udtTemps.Count - 1] )
+        sa.kind = cast( uint8, MV_LOCAL )
+        sa.ty = cast( uint8, MT_PTR )
+        sa.id = cast( int32, c.udtTemps[c.udtTemps.Count - 1] )
         dim as Tko.SymbolId cc = CopyCtorOf_( c, elT )
         if cc <> Tko.SYMBOL_NONE then
-            dim as containers.Array( of ulong ) cargs
-            cargs.Push( cast( ulong, sa.kind ) )
-            cargs.Push( cast( ulong, sa.id ) )
+            dim as containers.Array( of uint32 ) cargs
+            cargs.Push( cast( uint32, sa.kind ) )
+            cargs.Push( cast( uint32, sa.id ) )
             EmitStructorCall( c, cc, -1, @vaddr, @cargs )
             bound = true
         elseif NeedsLetBody_( c, elT ) then
@@ -334,13 +334,13 @@ function LowerForEachIter _
     '' nothing destroyed it per iteration -- fbsqlite's 'for each person in outer_' over a
     '' Statement (a Row holds a Map and arrays) was 0xC0000374.
     dim as boolean byrefAgg = (emt = MT_AGG)
-    dim as boolean varLocal = (vaddr.kind = cast( ubyte, MV_LOCAL ))
+    dim as boolean varLocal = (vaddr.kind = cast( uint8, MV_LOCAL ))
     if (bound = false) andalso vByref andalso byrefAgg andalso varLocal then
         dim as Tko.SymbolId bcc = CopyCtorOf_( c, elT )
         if bcc <> Tko.SYMBOL_NONE then
-            dim as containers.Array( of ulong ) bargs
-            bargs.Push( cast( ulong, evp.kind ) )
-            bargs.Push( cast( ulong, evp.id ) )
+            dim as containers.Array( of uint32 ) bargs
+            bargs.Push( cast( uint32, evp.kind ) )
+            bargs.Push( cast( uint32, evp.id ) )
             EmitStructorCall( c, bcc, -1, @vaddr, @bargs )
             bound = true
         elseif NeedsLetBody_( c, elT ) then
@@ -351,8 +351,8 @@ function LowerForEachIter _
 
     if bound = false then
         dim as MirInst stv
-        stv.op = cast( ushort, M_STORE )
-        stv.ty = cast( ubyte, MT_VOID )
+        stv.op = cast( uint16, M_STORE )
+        stv.ty = cast( uint8, MT_VOID )
         stv.a = vaddr
         stv.b = ev
         Emit( c, stv )
@@ -364,13 +364,13 @@ function LowerForEachIter _
         dim as Tko.SymbolId edt = _
             StructorWithArity( c, StructorOf( c, elT, "__dtor" ), 0 )
         if edt <> Tko.SYMBOL_NONE then
-            c.cleanupNode.Push( cast( ulong, edt ) )
+            c.cleanupNode.Push( cast( uint32, edt ) )
             c.cleanupSlot.Push( vaddr.id )
             c.cleanupType.Push( 0 )
         elseif TypeNeedsDtor_( c, elT ) then
             c.cleanupNode.Push( CLEANUP_IMPLICIT_DTOR )
             c.cleanupSlot.Push( vaddr.id )
-            c.cleanupType.Push( cast( ulong, elT ) )
+            c.cleanupType.Push( cast( uint32, elT ) )
         end if
     end if
 
@@ -390,7 +390,7 @@ function LowerForEachIter _
 
     c.curBlock = testB
     dim as MirValue ok = EmitMemberCall( c, isValid, iaddr, MT_I8 )
-    if ok.kind = cast( ubyte, MV_NONE ) then return false
+    if ok.kind = cast( uint8, MV_NONE ) then return false
     Terminate( c, MTERM_CONDBR, bodyB, exitB, ok )
 
     c.curBlock = exitB
@@ -439,9 +439,9 @@ type EachSeq
     as MirValue     base_
     as MirValue     startV
     as MirValue     limitV
-    as long         cmpOp
-    as long         esz
-    as long         emt
+    as int32         cmpOp
+    as int32         esz
+    as int32         emt
     as Tko.TypeId   elT
     as boolean      elIsStr
     as boolean      elIsU
@@ -467,31 +467,31 @@ private function EachEmit_ _
 
     '' The induction variable, in a temporary of its own -- the loop VARIABLE holds the
     '' element, not the index.
-    dim as long islot = NewTempLocal( c, offTy, iif( offTy = MT_I32, 4, 8 ) )
+    dim as int32 islot = NewTempLocal( c, offTy, iif( offTy = MT_I32, 4, 8 ) )
     if islot < 0 then return false
     dim as MirValue iaddr
-    iaddr.kind = cast( ubyte, MV_LOCAL )
-    iaddr.ty = cast( ubyte, MT_PTR )
+    iaddr.kind = cast( uint8, MV_LOCAL )
+    iaddr.ty = cast( uint8, MT_PTR )
     iaddr.id = islot
     dim as MirInst st0
-    st0.op = cast( ushort, M_STORE )
-    st0.ty = cast( ubyte, MT_VOID )
+    st0.op = cast( uint16, M_STORE )
+    st0.ty = cast( uint8, MT_VOID )
     st0.a = iaddr
     st0.b = sq.startV
     Emit( c, st0 )
 
-    dim as long headB = NewBlock( c, "each.head" )
-    dim as long bodyB = NewBlock( c, "each.body" )
-    dim as long stepB = NewBlock( c, "each.step" )
-    dim as long exitB = NewBlock( c, "each.exit" )
+    dim as int32 headB = NewBlock( c, "each.head" )
+    dim as int32 bodyB = NewBlock( c, "each.body" )
+    dim as int32 stepB = NewBlock( c, "each.step" )
+    dim as int32 exitB = NewBlock( c, "each.exit" )
     Terminate( c, MTERM_BR, headB, -1, NoVal( ) )
 
     '' TEST FIRST, so an empty sequence runs the body no times.
     c.curBlock = headB
     dim as MirValue ix = LowerExprLoad( c, iaddr, offTy )
     dim as MirInst cmp
-    cmp.op = cast( ushort, sq.cmpOp )
-    cmp.ty = cast( ubyte, MT_I8 )
+    cmp.op = cast( uint16, sq.cmpOp )
+    cmp.ty = cast( uint8, MT_I8 )
     cmp.a = ix
     cmp.b = sq.limitV
     dim as MirValue cond = Emit( c, cmp )
@@ -503,19 +503,19 @@ private function EachEmit_ _
     dim as MirValue off = ix2
     if sq.esz <> 1 then
         dim as MirInst mul
-        mul.op = cast( ushort, M_MUL )
-        mul.ty = cast( ubyte, offTy )
+        mul.op = cast( uint16, M_MUL )
+        mul.ty = cast( uint8, offTy )
         mul.a = ix2
         mul.b = ConstInt( c, sq.esz, offTy )
         off = Emit( c, mul )
     end if
     dim as MirInst pa
-    pa.op = cast( ushort, M_PTR_ADD )
-    pa.ty = cast( ubyte, MT_PTR )
+    pa.op = cast( uint16, M_PTR_ADD )
+    pa.ty = cast( uint8, MT_PTR )
     pa.a = sq.base_
     pa.b = off
     dim as MirValue ea = Emit( c, pa )
-    if ea.kind = cast( ubyte, MV_NONE ) then return false
+    if ea.kind = cast( uint8, MV_NONE ) then return false
 
     '' The body's SCOPE is pushed before the element is bound, because a var-len STRING
     '' loop variable is copy-constructed into and has to be released once per iteration
@@ -524,8 +524,8 @@ private function EachEmit_ _
     c.breakTo.Push( exitB )
     c.contTo.Push( stepB )
     c.loopScope.Push( c.scopeMark.Count )
-    c.loopKind.Push( cast( long, Tko.KW_FOR ) )
-    PushScope( c, cast( ulong, sp->b ) or SCOPE_KEY_OPT )
+    c.loopKind.Push( cast( int32, Tko.KW_FOR ) )
+    PushScope( c, cast( uint32, sp->b ) or SCOPE_KEY_OPT )
 
     '' A BYREF LOOP VARIABLE IS BOUND, not filled. Its type is a REFERENCE -- see
     '' resolve.bas -- so its slot holds the ELEMENT'S ADDRESS and every read and
@@ -544,15 +544,15 @@ private function EachEmit_ _
     if vrs <> 0 then vrt = vrs->type_
     if vrt <> Tko.TYPE_NONE then
         if c.types->Kind( vrt ) = Tko.TK_REFERENCE then
-            dim as long vslot = LocalFor( c, c.info->RefOf( sp->a ) )
+            dim as int32 vslot = LocalFor( c, c.info->RefOf( sp->a ) )
             if vslot < 0 then return false
             dim as MirValue vsa
-            vsa.kind = cast( ubyte, MV_LOCAL )
-            vsa.ty = cast( ubyte, MT_PTR )
+            vsa.kind = cast( uint8, MV_LOCAL )
+            vsa.ty = cast( uint8, MT_PTR )
             vsa.id = vslot
             dim as MirInst bst
-            bst.op = cast( ushort, M_STORE )
-            bst.ty = cast( ubyte, MT_VOID )
+            bst.op = cast( uint16, M_STORE )
+            bst.ty = cast( uint8, MT_VOID )
             bst.a = vsa
             bst.b = ea
             Emit( c, bst )
@@ -566,7 +566,7 @@ private function EachEmit_ _
         '' own descriptor owning its own data, so writing to it does not write into the
         '' array. Measured -- fbc emits fb_StrInit from the element's ADDRESS and
         '' fb_StrDelete at the bottom of each iteration.
-        if vaddr.kind <> cast( ubyte, MV_LOCAL ) then return false
+        if vaddr.kind <> cast( uint8, MV_LOCAL ) then return false
         dim as Tko.TypeId evt = c.info->TypeOf_( sp->a )
         EachStrInit_( c, vaddr, ea, sq.elIsU, _
                       iif( evt <> Tko.TYPE_NONE, IsUStringType( c, evt ), sq.elIsU ) )
@@ -583,12 +583,12 @@ private function EachEmit_ _
         '' scope so 'exit for' out of the middle destroys it too. Measured against fbc:
         '' a collection of a counted type runs one constructor and one destructor per
         '' element, and the corpus asserts the two totals are equal.
-        if vaddr.kind <> cast( ubyte, MV_LOCAL ) then return false
+        if vaddr.kind <> cast( uint8, MV_LOCAL ) then return false
         dim as Tko.SymbolId cc = CopyCtorOf_( c, sq.elT )
         if cc <> Tko.SYMBOL_NONE then
-            dim as containers.Array( of ulong ) cargs
-            cargs.Push( cast( ulong, ea.kind ) )
-            cargs.Push( cast( ulong, ea.id ) )
+            dim as containers.Array( of uint32 ) cargs
+            cargs.Push( cast( uint32, ea.kind ) )
+            cargs.Push( cast( uint32, ea.id ) )
             EmitStructorCall( c, cc, -1, @vaddr, @cargs )
         elseif NeedsLetBody_( c, sq.elT ) then
             CallImplicitCopy_( c, sq.elT, vaddr, ea )
@@ -598,19 +598,19 @@ private function EachEmit_ _
             '' clang refused 'for each p as Point in pts' on both targets while the
             '' byref form, which copies nothing, compiled. fbc runs it.
             dim as MirValue whole = LowerExprLoad( c, ea, MT_AGG, SizeOfType( c, sq.elT ) )
-            if whole.kind = cast( ubyte, MV_NONE ) then return false
+            if whole.kind = cast( uint8, MV_NONE ) then return false
             StoreThrough( c, vaddr, whole )
         end if
         dim as Tko.SymbolId edt = _
             StructorWithArity( c, StructorOf( c, sq.elT, "__dtor" ), 0 )
         if edt <> Tko.SYMBOL_NONE then
-            c.cleanupNode.Push( cast( ulong, edt ) )
+            c.cleanupNode.Push( cast( uint32, edt ) )
             c.cleanupSlot.Push( vaddr.id )
             c.cleanupType.Push( 0 )
         elseif TypeNeedsDtor_( c, sq.elT ) then
             c.cleanupNode.Push( CLEANUP_IMPLICIT_DTOR )
             c.cleanupSlot.Push( vaddr.id )
-            c.cleanupType.Push( cast( ulong, sq.elT ) )
+            c.cleanupType.Push( cast( uint32, sq.elT ) )
         end if
     else
         dim as MirValue ev = LowerExprLoad( c, ea, cast( MirType, sq.emt ) )
@@ -627,11 +627,11 @@ private function EachEmit_ _
             dim as boolean uns = true
             if sq.elT <> Tko.TYPE_NONE then uns = IsUnsignedType( c, sq.elT )
             ev = Coerce( c, ev, vmt, uns )
-            if ev.kind = cast( ubyte, MV_NONE ) then return false
+            if ev.kind = cast( uint8, MV_NONE ) then return false
         end if
         dim as MirInst stv
-        stv.op = cast( ushort, M_STORE )
-        stv.ty = cast( ubyte, MT_VOID )
+        stv.op = cast( uint16, M_STORE )
+        stv.ty = cast( uint8, MT_VOID )
         stv.a = vaddr
         stv.b = ev
         Emit( c, stv )
@@ -648,14 +648,14 @@ private function EachEmit_ _
     c.curBlock = stepB
     dim as MirValue ix3 = LowerExprLoad( c, iaddr, offTy )
     dim as MirInst add_
-    add_.op = cast( ushort, M_ADD )
-    add_.ty = cast( ubyte, offTy )
+    add_.op = cast( uint16, M_ADD )
+    add_.ty = cast( uint8, offTy )
     add_.a = ix3
     add_.b = ConstInt( c, 1, offTy )
     dim as MirValue nxt = Emit( c, add_ )
     dim as MirInst st1
-    st1.op = cast( ushort, M_STORE )
-    st1.ty = cast( ubyte, MT_VOID )
+    st1.op = cast( uint16, M_STORE )
+    st1.ty = cast( uint8, MT_VOID )
     st1.a = iaddr
     st1.b = nxt
     Emit( c, st1 )
@@ -678,7 +678,7 @@ private function EachVarAddr_ _
     if vsym->type_ = Tko.TYPE_NONE then vsym->type_ = elT
     if vsym->type_ = Tko.TYPE_NONE then return false
     outv = LowerAddr( c, sp->a )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 
 '' FOR EACH over a VAR-LENGTH STRING, character by character.
@@ -709,30 +709,30 @@ private function LowerForEachStr_ _
     '' from the runtime, and both are read BEFORE the loop, exactly as fbc reads them.
     dim as MirValue da
     if StrDescriptorOf_( c, seqE, da ) = false then da = LowerAddr( c, seqE )
-    if da.kind = cast( ubyte, MV_NONE ) then return false
+    if da.kind = cast( uint8, MV_NONE ) then return false
 
     dim as EachSeq sq
     sq.base_ = LowerExprLoad( c, da, MT_PTR )
-    if sq.base_.kind = cast( ubyte, MV_NONE ) then return false
+    if sq.base_.kind = cast( uint8, MV_NONE ) then return false
 
-    dim as containers.Array( of ulong ) largs
+    dim as containers.Array( of uint32 ) largs
     PushStrArg( largs, da )
     dim as MirValue slen = EmitRtl( c, RTL_STR_LEN, largs )
-    if slen.kind = cast( ubyte, MV_NONE ) then return false
+    if slen.kind = cast( uint8, MV_NONE ) then return false
     slen = Coerce( c, slen, offTy, false )
-    if slen.kind = cast( ubyte, MV_NONE ) then return false
+    if slen.kind = cast( uint8, MV_NONE ) then return false
     dim as MirInst sub_
-    sub_.op = cast( ushort, M_SUB )
-    sub_.ty = cast( ubyte, offTy )
+    sub_.op = cast( uint16, M_SUB )
+    sub_.ty = cast( uint8, offTy )
     sub_.a = slen
     sub_.b = ConstInt( c, 1, offTy )
     sq.limitV = Emit( c, sub_ )
-    if sq.limitV.kind = cast( ubyte, MV_NONE ) then return false
+    if sq.limitV.kind = cast( uint8, MV_NONE ) then return false
 
     sq.startV = ConstInt( c, 0, offTy )
-    sq.cmpOp = cast( long, M_ICMP_SLE )
+    sq.cmpOp = cast( int32, M_ICMP_SLE )
     sq.esz = 1
-    sq.emt = cast( long, MT_I8 )
+    sq.emt = cast( int32, MT_I8 )
     sq.elT = Tko.TYPE_NONE
 
     dim as MirValue vaddr
@@ -787,7 +787,7 @@ function LowerForEachArray _
     '' descriptor, ONCE before the loop. Everything after this differs only in where the
     '' base and the two bounds come from.
     dim as boolean isDyn = c.types->IsDynArray( at )
-    dim as long total = 0
+    dim as int32 total = 0
     if isDyn then
         '' fbc rejects FOR EACH over a multi-dimensional array outright (error 344),
         '' so a written rank above one is not something to lower.
@@ -808,17 +808,17 @@ function LowerForEachArray _
 
     dim as EachSeq sq
     sq.elT = c.types->Inner( at )
-    sq.emt = cast( long, LowerType( sq.elT, *c.types ) )
+    sq.emt = cast( int32, LowerType( sq.elT, *c.types ) )
     sq.elIsStr = IsStringType( c, sq.elT )
     sq.elIsU = IsUStringType( c, sq.elT )
     '' A UDT OR TUPLE ELEMENT is bound by a copy, not by a load and a store -- see
     '' EachEmit_. Anything else aggregate-shaped is not something with a copy to make,
     '' so it still declines rather than being memcpy'd on a guess.
     sq.elIsAgg = (sq.elIsStr = false) andalso _
-                 (sq.emt = cast( long, MT_AGG )) andalso _
+                 (sq.emt = cast( int32, MT_AGG )) andalso _
                  (c.types->Kind( sq.elT ) = Tko.TK_UDT)
     if (sq.elIsStr = false) andalso (sq.elIsAgg = false) then
-        if (sq.emt = cast( long, MT_VOID )) orelse (sq.emt = cast( long, MT_AGG )) then
+        if (sq.emt = cast( int32, MT_VOID )) orelse (sq.emt = cast( int32, MT_AGG )) then
             return false
         end if
     end if
@@ -829,7 +829,7 @@ function LowerForEachArray _
     if EachVarAddr_( c, sp, sq.elT, vaddr ) = false then return false
 
     dim as MirValue seqAddr = LowerAddr( c, seqE )
-    if seqAddr.kind = cast( ubyte, MV_NONE ) then return false
+    if seqAddr.kind = cast( uint8, MV_NONE ) then return false
 
     dim as MirType offTy = MT_I64
     if c.types->target.pointerBits = 32 then offTy = MT_I32
@@ -841,23 +841,23 @@ function LowerForEachArray _
     sq.base_ = seqAddr
     sq.startV = ConstInt( c, 0, offTy )
     sq.limitV = ConstInt( c, total, offTy )
-    sq.cmpOp = cast( long, M_ICMP_SLT )
+    sq.cmpOp = cast( int32, M_ICMP_SLT )
     if isDyn then
-        dim as containers.Array( of ulong ) la
-        la.Push( cast( ulong, seqAddr.kind ) ) : la.Push( cast( ulong, seqAddr.id ) )
-        la.Push( cast( ulong, MV_CONST_INT ) ) : la.Push( 1 )
+        dim as containers.Array( of uint32 ) la
+        la.Push( cast( uint32, seqAddr.kind ) ) : la.Push( cast( uint32, seqAddr.id ) )
+        la.Push( cast( uint32, MV_CONST_INT ) ) : la.Push( 1 )
         sq.startV = EmitRtl( c, RTL_ARRAY_LBOUND, la )
-        dim as containers.Array( of ulong ) ua
-        ua.Push( cast( ulong, seqAddr.kind ) ) : ua.Push( cast( ulong, seqAddr.id ) )
-        ua.Push( cast( ulong, MV_CONST_INT ) ) : ua.Push( 1 )
+        dim as containers.Array( of uint32 ) ua
+        ua.Push( cast( uint32, seqAddr.kind ) ) : ua.Push( cast( uint32, seqAddr.id ) )
+        ua.Push( cast( uint32, MV_CONST_INT ) ) : ua.Push( 1 )
         sq.limitV = EmitRtl( c, RTL_ARRAY_UBOUND, ua )
-        if (sq.startV.kind = cast( ubyte, MV_NONE )) orelse _
-           (sq.limitV.kind = cast( ubyte, MV_NONE )) then
+        if (sq.startV.kind = cast( uint8, MV_NONE )) orelse _
+           (sq.limitV.kind = cast( uint8, MV_NONE )) then
             return false
         end if
         sq.base_ = DynArrayDataPtr( c, seqAddr )
-        if sq.base_.kind = cast( ubyte, MV_NONE ) then return false
-        sq.cmpOp = cast( long, M_ICMP_SLE )
+        if sq.base_.kind = cast( uint8, MV_NONE ) then return false
+        sq.cmpOp = cast( int32, M_ICMP_SLE )
     end if
 
     return EachEmit_( c, sp, vaddr, sq )

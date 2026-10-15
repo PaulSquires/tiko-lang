@@ -15,20 +15,20 @@
 #include once "driver/scan.ti"
 #include once "support/text.ti"
 
-type U16Vec_ as containers.Array( of ushort )
+type U16Vec_ as containers.Array( of uint16 )
 
 '' A host's UTF-16 string as the UTF-8 tiko reads.
 private function Utf16ToUtf8_( byval w as wstring ptr ) as string
     dim as string o = ""
     if w = 0 then return o
-    dim as ushort ptr p = cast( ushort ptr, w )
-    dim as long i = 0
+    dim as uint16 ptr p = cast( uint16 ptr, w )
+    dim as int32 i = 0
     while p[i] <> 0
-        dim as ulong c = p[i]
+        dim as uint32 c = p[i]
         i += 1
         dim as boolean hiSur = (c >= &hD800) andalso (c <= &hDBFF)
         if hiSur then
-            dim as ulong lo = p[i]
+            dim as uint32 lo = p[i]
             if (lo >= &hDC00) andalso (lo <= &hDFFF) then
                 c = &h10000 + ((c - &hD800) shl 10) + (lo - &hDC00)
                 i += 1
@@ -50,14 +50,14 @@ end function
 
 '' Appends a UTF-8 string to the UTF-16 pool, NUL-terminated; returns its offset. A byte
 '' that does not begin a valid sequence is taken as the Latin-1 character it would be.
-private function PoolAdd_( byref pool as U16Vec_, byref s as string ) as long
-    dim as long at = pool.Count
-    dim as long n = len( s )
-    dim as long i = 0
+private function PoolAdd_( byref pool as U16Vec_, byref s as string ) as int32
+    dim as int32 at = pool.Count
+    dim as int32 n = len( s )
+    dim as int32 i = 0
     while i < n
-        dim as ulong b = s[i]
-        dim as ulong c = b
-        dim as long more = 0
+        dim as uint32 b = s[i]
+        dim as uint32 c = b
+        dim as int32 more = 0
         if (b and &hE0) = &hC0 then
             c = b and &h1F : more = 1
         elseif (b and &hF0) = &hE0 then
@@ -67,12 +67,12 @@ private function PoolAdd_( byref pool as U16Vec_, byref s as string ) as long
         end if
         dim as boolean ok = (i + more) < n
         if ok andalso (more > 0) then
-            for k as long = 1 to more
+            for k as int32 = 1 to more
                 if (s[i + k] and &hC0) <> &h80 then ok = false
             next
         end if
         if (more > 0) andalso ok then
-            for k as long = 1 to more
+            for k as int32 = 1 to more
                 c = (c shl 6) or (s[i + k] and &h3F)
             next
             i += more + 1
@@ -82,10 +82,10 @@ private function PoolAdd_( byref pool as U16Vec_, byref s as string ) as long
         end if
         if c >= &h10000 then
             c -= &h10000
-            pool.Push( cast( ushort, &hD800 + (c shr 10) ) )
-            pool.Push( cast( ushort, &hDC00 + (c and &h3FF) ) )
+            pool.Push( cast( uint16, &hD800 + (c shr 10) ) )
+            pool.Push( cast( uint16, &hDC00 + (c and &h3FF) ) )
         else
-            pool.Push( cast( ushort, c ) )
+            pool.Push( cast( uint16, c ) )
         end if
     wend
     pool.Push( 0 )
@@ -99,13 +99,13 @@ private function Marshal_( byref r as Tko.Scan.ScanResult ) as TKP_RESULT ptr
 
     res->fileCount = r.files.Count
     if res->fileCount > 0 then
-        res->fileOffsets = callocate( res->fileCount * sizeof( long ) )
-        for i as long = 0 to res->fileCount - 1
+        res->fileOffsets = callocate( res->fileCount * sizeof( int32 ) )
+        for i as int32 = 0 to res->fileCount - 1
             '' Backslashes, as Windows spells a path: an '#include "a/b.bi"' reaches here with
             '' its slash, and the editor compares names as plain strings.
             dim as string fn = Tko.Text.UpperAscii( r.files[i] )
             #ifdef __FB_WIN32__
-            for k as long = 0 to len( fn ) - 1
+            for k as int32 = 0 to len( fn ) - 1
                 if fn[k] = asc( "/" ) then fn[k] = asc( "\" )
             next
             #endif
@@ -116,7 +116,7 @@ private function Marshal_( byref r as Tko.Scan.ScanResult ) as TKP_RESULT ptr
     res->symbolCount = r.syms.Count
     if res->symbolCount > 0 then
         res->symbols = callocate( res->symbolCount * sizeof( TKP_SYMBOL ) )
-        for i as long = 0 to res->symbolCount - 1
+        for i as int32 = 0 to res->symbolCount - 1
             dim as Tko.Scan.ScanSym ptr s = @r.syms[i]
             dim as TKP_SYMBOL ptr d = @res->symbols[i]
             d->kind = s->kind
@@ -140,7 +140,7 @@ private function Marshal_( byref r as Tko.Scan.ScanResult ) as TKP_RESULT ptr
     res->diagCount = r.diags.Count
     if res->diagCount > 0 then
         res->diags = callocate( res->diagCount * sizeof( TKP_DIAG ) )
-        for i as long = 0 to res->diagCount - 1
+        for i as int32 = 0 to res->diagCount - 1
             res->diags[i].errNum = r.diags[i].code
             res->diags[i].fileIndex = r.diags[i].file
             res->diags[i].lineNum = r.diags[i].line
@@ -149,8 +149,8 @@ private function Marshal_( byref r as Tko.Scan.ScanResult ) as TKP_RESULT ptr
     end if
 
     res->poolChars = pool.Count
-    res->stringPool = callocate( (pool.Count + 1) * sizeof( ushort ) )
-    if pool.Count > 0 then memcpy( res->stringPool, @pool[0], pool.Count * sizeof( ushort ) )
+    res->stringPool = callocate( (pool.Count + 1) * sizeof( uint16 ) )
+    if pool.Count > 0 then memcpy( res->stringPool, @pool[0], pool.Count * sizeof( uint16 ) )
     return res
 end function
 
@@ -166,12 +166,12 @@ end sub
 
 private function DoScan_ _
     ( byref file as string, byval hasText as boolean, byref text as string, _
-      byval options as TKP_OPTIONS ptr, byval ppResult as TKP_RESULT ptr ptr ) as long
+      byval options as TKP_OPTIONS ptr, byval ppResult as TKP_RESULT ptr ptr ) as int32
 
     dim as Tko.StrVec args
     args.Push( "--dump-scan" )
     if options <> 0 then
-        for i as long = 0 to options->includeCount - 1
+        for i as int32 = 0 to options->includeCount - 1
             if options->includePaths = 0 then exit for
             if options->includePaths[i] = 0 then continue for
             args.Push( "-i" )
@@ -185,7 +185,7 @@ private function DoScan_ _
                 args.Push( Utf16ToUtf8_( options->pkgDir ) )
             end if
         end if
-        for i as long = 0 to options->defineCount - 1
+        for i as int32 = 0 to options->defineCount - 1
             if options->defines = 0 then exit for
             if options->defines[i] = 0 then continue for
             args.Push( "-d" )
@@ -212,13 +212,13 @@ private function DoScan_ _
     return TKP_OK
 end function
 
-function tikoparser_version alias "TIKOPARSER_VERSION" ( ) as long export
+function tikoparser_version alias "TIKOPARSER_VERSION" ( ) as int32 export
     return TKP_VERSION
 end function
 
 function tikoparser_scan alias "TIKOPARSER_SCAN" _
     ( byval wszFile as wstring ptr, byval options as TKP_OPTIONS ptr, _
-      byval ppResult as TKP_RESULT ptr ptr ) as long export
+      byval ppResult as TKP_RESULT ptr ptr ) as int32 export
 
     if ppResult = 0 then return TKP_E_BADARGS
     *ppResult = 0
@@ -232,7 +232,7 @@ end function
 
 function tikoparser_scan_text alias "TIKOPARSER_SCAN_TEXT" _
     ( byval pszText as zstring ptr, byval wszName as wstring ptr, _
-      byval options as TKP_OPTIONS ptr, byval ppResult as TKP_RESULT ptr ptr ) as long export
+      byval options as TKP_OPTIONS ptr, byval ppResult as TKP_RESULT ptr ptr ) as int32 export
 
     if ppResult = 0 then return TKP_E_BADARGS
     *ppResult = 0

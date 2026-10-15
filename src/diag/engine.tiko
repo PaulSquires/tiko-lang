@@ -8,13 +8,13 @@
 
 namespace Tko
 
-const POLICY_DEFAULT as long = -1
-const POLICY_IGNORE  as long = -2
+const POLICY_DEFAULT as int32 = -1
+const POLICY_IGNORE  as int32 = -2
 
 '' Diagnostics go to STDERR. FreeBASIC's 'print #0' is the console, i.e. stdout --
 '' which silently sent every diagnostic down the same pipe as --dump-tokens output.
 '' 'open err' is the only way to reach stderr, so the handle is opened once, lazily.
-dim shared as long stderrHandle = 0
+dim shared as int32 stderrHandle = 0
 
 
 
@@ -34,7 +34,7 @@ constructor DiagnosticEngine( )
 
     InitDiagTable( )
     this.policy.Reserve( DIAG_COUNT )
-    for i as long = 0 to DIAG_COUNT - 1
+    for i as int32 = 0 to DIAG_COUNT - 1
         this.policy.Push( POLICY_DEFAULT )
     next
 end constructor
@@ -54,14 +54,14 @@ end sub
 sub DiagnosticEngine.Promote( byval id as DiagId, byval s as Severity )
     dim as boolean bad = (id <= DIAG_NONE) orelse (id >= DIAG_COUNT)
     if bad then return
-    this.policy[id] = cast( long, s )
+    this.policy[id] = cast( int32, s )
 end sub
 
 sub DiagnosticEngine.SetWarningsAsErrors( byval v as boolean )
     this.warningsAsErrors = v
 end sub
 
-sub DiagnosticEngine.SetMaxErrors( byval n as long )
+sub DiagnosticEngine.SetMaxErrors( byval n as int32 )
     if n < 1 then n = 1
     this.maxErrors = n
 end sub
@@ -94,7 +94,7 @@ function DiagnosticEngine.EffectiveSeverity( byval id as DiagId ) as Severity
     dim as Severity base_ = DiagInfoOf( id )->defaultSev
     dim as boolean inRange = (id > DIAG_NONE) andalso (id < DIAG_COUNT)
     if inRange then
-        dim as long p = this.policy[id]
+        dim as int32 p = this.policy[id]
         if p >= 0 then base_ = cast( Severity, p )
     end if
     dim as boolean escalate = this.warningsAsErrors andalso (base_ = SEV_WARNING)
@@ -153,7 +153,7 @@ end sub
 '' ------------------------------------------------------------ instantiations
 
 function DiagnosticEngine.AddInstFrame _
-    ( byref text as string, byval rng as SourceRange, byval parent as long ) as long
+    ( byref text as string, byval rng as SourceRange, byval parent as int32 ) as int32
 
     dim as InstFrame f
     f.text = text
@@ -165,18 +165,18 @@ function DiagnosticEngine.AddInstFrame _
     return this.instFrames.Count
 end function
 
-sub DiagnosticEngine.EnterInst( byval frame as long )
+sub DiagnosticEngine.EnterInst( byval frame as int32 )
     if frame <= 0 then return
     this.instActive.Push( frame )
 end sub
 
-sub DiagnosticEngine.LeaveInst( byval frame as long )
+sub DiagnosticEngine.LeaveInst( byval frame as int32 )
     if frame <= 0 then return
     if this.instActive.IsEmpty( ) then return
     if this.instActive[this.instActive.Count - 1] = frame then this.instActive.Pop( )
 end sub
 
-function DiagnosticEngine.ActiveInst( ) as long
+function DiagnosticEngine.ActiveInst( ) as int32
     if this.instActive.IsEmpty( ) then return 0
     return this.instActive[this.instActive.Count - 1]
 end function
@@ -188,7 +188,7 @@ private sub AppendInstNotes_ _
     ( byref frames as InstFrameVec, byref d as Diagnostic )
 
     const MAX_INST_NOTES = 16
-    dim as long f = d.instFrame, shown = 0
+    dim as int32 f = d.instFrame, shown = 0
     while (f > 0) andalso (f <= frames.Count) andalso (shown < MAX_INST_NOTES)
         dim as DiagNote n
         n.id = TKO0903
@@ -196,7 +196,7 @@ private sub AppendInstNotes_ _
         n.text = FormatDiag( *DiagInfoOf( TKO0903 )->format, frames[f - 1].text, "", "" )
         d.notes.Push( n )
         shown += 1
-        dim as long p = frames[f - 1].parent
+        dim as int32 p = frames[f - 1].parent
         if p >= f then exit while
         f = p
     wend
@@ -240,14 +240,14 @@ sub DiagnosticEngine.Flush( )
     '' Rendered in report order. Determinism is a project requirement, so this
     '' must never become "sorted by location" or "grouped by file".
     if stderrHandle = 0 then
-        dim as long fh = freefile
+        dim as int32 fh = freefile
         open err for output as #fh
         stderrHandle = fh
     end if
-    dim as long h = stderrHandle
+    dim as int32 h = stderrHandle
 
     '' The instantiation chain goes on LAST, after every AddNote -- see Diagnostic.
-    for i as long = 0 to this.pending.Count - 1
+    for i as int32 = 0 to this.pending.Count - 1
         if this.pending[i].instFrame > 0 then AppendInstNotes_( this.instFrames, this.pending[i] )
     next
 
@@ -265,8 +265,8 @@ sub DiagnosticEngine.Flush( )
 end sub
 
 sub DiagnosticEngine.Snapshot _
-    ( byref pendingAt as long, byref errorsAt as long, byref warningsAt as long, _
-      byref suppressedAt as long )
+    ( byref pendingAt as int32, byref errorsAt as int32, byref warningsAt as int32, _
+      byref suppressedAt as int32 )
     pendingAt = this.pending.Count
     errorsAt = this.errors
     warningsAt = this.warnings
@@ -274,8 +274,8 @@ sub DiagnosticEngine.Snapshot _
 end sub
 
 sub DiagnosticEngine.RollBack _
-    ( byval pendingAt as long, byval errorsAt as long, byval warningsAt as long, _
-      byval suppressedAt as long )
+    ( byval pendingAt as int32, byval errorsAt as int32, byval warningsAt as int32, _
+      byval suppressedAt as int32 )
     while this.pending.Count > pendingAt
         this.pending.Pop( )
     wend
@@ -286,11 +286,11 @@ sub DiagnosticEngine.RollBack _
     this.lastDropped = false
 end sub
 
-function DiagnosticEngine.ErrorCount( ) as long
+function DiagnosticEngine.ErrorCount( ) as int32
     return this.errors
 end function
 
-function DiagnosticEngine.WarningCount( ) as long
+function DiagnosticEngine.WarningCount( ) as int32
     return this.warnings
 end function
 

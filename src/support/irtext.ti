@@ -16,7 +16,7 @@ namespace Tko
 
     type IrText
         as string buf
-        as long   used
+        as int32   used
 
         declare operator += ( byref s as string )
         '' The text written so far. A copy: take it once, at the end.
@@ -26,10 +26,10 @@ namespace Tko
     end type
 
     private operator IrText.+= ( byref s as string )
-        dim as long n = len( s )
+        dim as int32 n = len( s )
         if n = 0 then exit operator
         if this.used + n > len( this.buf ) then
-            dim as long cap = len( this.buf ) * 2
+            dim as int32 cap = len( this.buf ) * 2
             if cap < 65536 then cap = 65536
             while cap < this.used + n
                 cap *= 2

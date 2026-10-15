@@ -25,23 +25,23 @@
 '' tupleconv.tiko's TypeLitTextBad_ for one it typed as a tuple and the destination names.
 
 private sub CheckTypeLiteralText_ ( byref c as Ctx )
-    dim as long total = c.ast->Count( )
+    dim as int32 total = c.ast->Count( )
     '' THE 'dim' FORM OVER A 'string' FIELD IS TKO0757's already, from
     '' CheckAggregateInitFields_; it is not reported twice.
-    dim as containers.Array( of ubyte ) dimInit
-    for n as long = 0 to total
+    dim as containers.Array( of uint8 ) dimInit
+    for n as int32 = 0 to total
         dimInit.Push( 0 )
     next
-    for n as long = 1 to total - 1
+    for n as int32 = 1 to total - 1
         if c.ast->Kind( cast( NodeId, n ) ) <> N_VAR_ITEM then continue for
-        dim as NodeId b = c.ast->stmts[cast( long, c.ast->nodes[n].data )].b
-        if (b > 0) andalso (cast( long, b ) < total) then dimInit[cast( long, b )] = 1
+        dim as NodeId b = c.ast->stmts[cast( int32, c.ast->nodes[n].data )].b
+        if (b > 0) andalso (cast( int32, b ) < total) then dimInit[cast( int32, b )] = 1
     next
-    for n as long = 1 to total - 1
+    for n as int32 = 1 to total - 1
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_TUPLE then continue for
         if (c.ast->nodes[n].flags and NF_TYPE_LITERAL) = 0 then continue for
-        if c.ast->lists[cast( long, c.ast->nodes[n].data )].count = 0 then continue for
+        if c.ast->lists[cast( int32, c.ast->nodes[n].data )].count = 0 then continue for
         dim as TypeId t = ValueType_( c, c.info->TypeOf_( id ) )
         if t = TYPE_NONE then continue for
         if c.types->Kind( t ) <> TK_UDT then continue for

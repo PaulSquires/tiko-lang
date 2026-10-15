@@ -15,9 +15,9 @@
 '' FlattenUdtFields_'s own offsets, so the two cannot disagree. Any shape this does not
 '' model answers false and the caller pairs by position as before.
 declare function AlignUdt_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byval leaf0 as long, byval lst as Tko.NodeId, _
-      byref ci as long, byref vNode as containers.Array( of ulong ), byref vStart as containers.Array( of ulong ), _
-      byval depth as long ) as boolean
+    ( byref c as Ctx, byval t as Tko.TypeId, byval leaf0 as int32, byval lst as Tko.NodeId, _
+      byref ci as int32, byref vNode as containers.Array( of uint32 ), byref vStart as containers.Array( of uint32 ), _
+      byval depth as int32 ) as boolean
 
 private function IsBracketed_( byref c as Ctx, byval v as Tko.NodeId ) as boolean
     select case c.ast->Kind( v )
@@ -26,31 +26,31 @@ private function IsBracketed_( byref c as Ctx, byval v as Tko.NodeId ) as boolea
     return false
 end function
 
-private function ListCount_( byref c as Ctx, byval lst as Tko.NodeId ) as long
-    return c.ast->lists[cast( long, c.ast->nodes[cast( long, lst )].data )].count
+private function ListCount_( byref c as Ctx, byval lst as Tko.NodeId ) as int32
+    return c.ast->lists[cast( int32, c.ast->nodes[cast( int32, lst )].data )].count
 end function
 
-private function ListAt_( byref c as Ctx, byval lst as Tko.NodeId, byval i as long ) as Tko.NodeId
-    return cast( Tko.NodeId, c.ast->children[c.ast->lists[cast( long, c.ast->nodes[cast( long, lst )].data )].first + i] )
+private function ListAt_( byref c as Ctx, byval lst as Tko.NodeId, byval i as int32 ) as Tko.NodeId
+    return cast( Tko.NodeId, c.ast->children[c.ast->lists[cast( int32, c.ast->nodes[cast( int32, lst )].data )].first + i] )
 end function
 
 '' ONE UDT-TYPED SLOT -- a field or an element -- at leaf 'start', from list position ci.
 private function AlignUdtSlot_ _
-    ( byref c as Ctx, byval ut as Tko.TypeId, byval start as long, byval lst as Tko.NodeId, _
-      byref ci as long, byref vNode as containers.Array( of ulong ), byref vStart as containers.Array( of ulong ), _
-      byval depth as long ) as boolean
+    ( byref c as Ctx, byval ut as Tko.TypeId, byval start as int32, byval lst as Tko.NodeId, _
+      byref ci as int32, byref vNode as containers.Array( of uint32 ), byref vStart as containers.Array( of uint32 ), _
+      byval depth as int32 ) as boolean
 
     dim as Tko.NodeId v = ListAt_( c, lst, ci )
     if IsBracketed_( c, v ) then
         ci += 1
-        dim as long sub_ = 0
+        dim as int32 sub_ = 0
         if AlignUdt_( c, ut, start, v, sub_, vNode, vStart, depth + 1 ) = false then return false
         return (sub_ >= ListCount_( c, v ))
     end if
     dim as Tko.TypeId vt = c.info->TypeOf_( v )
     if vt <> Tko.TYPE_NONE then
         if c.types->Kind( c.types->Unqualify( vt ) ) = Tko.TK_UDT then
-            vNode.Push( cast( ulong, v ) ) : vStart.Push( cast( ulong, start ) )
+            vNode.Push( cast( uint32, v ) ) : vStart.Push( cast( uint32, start ) )
             ci += 1
             return true
         end if
@@ -59,9 +59,9 @@ private function AlignUdtSlot_ _
 end function
 
 private function AlignElem_ _
-    ( byref c as Ctx, byval et as Tko.TypeId, byval start as long, byval lst as Tko.NodeId, _
-      byref ci as long, byref vNode as containers.Array( of ulong ), byref vStart as containers.Array( of ulong ), _
-      byval depth as long ) as boolean
+    ( byref c as Ctx, byval et as Tko.TypeId, byval start as int32, byval lst as Tko.NodeId, _
+      byref ci as int32, byref vNode as containers.Array( of uint32 ), byref vStart as containers.Array( of uint32 ), _
+      byval depth as int32 ) as boolean
 
     if (c.types->Kind( et ) = Tko.TK_UDT) andalso (IsStringType( c, et ) = false) then
         return AlignUdtSlot_( c, et, start, lst, ci, vNode, vStart, depth )
@@ -70,23 +70,23 @@ private function AlignElem_ _
     select case c.ast->Kind( v )
     case Tko.N_TUPLE, Tko.N_INITIALIZER : return false
     end select
-    vNode.Push( cast( ulong, v ) ) : vStart.Push( cast( ulong, start ) )
+    vNode.Push( cast( uint32, v ) ) : vStart.Push( cast( uint32, start ) )
     ci += 1
     return true
 end function
 
 function AlignUdt_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byval leaf0 as long, byval lst as Tko.NodeId, _
-      byref ci as long, byref vNode as containers.Array( of ulong ), byref vStart as containers.Array( of ulong ), _
-      byval depth as long ) as boolean
+    ( byref c as Ctx, byval t as Tko.TypeId, byval leaf0 as int32, byval lst as Tko.NodeId, _
+      byref ci as int32, byref vNode as containers.Array( of uint32 ), byref vStart as containers.Array( of uint32 ), _
+      byval depth as int32 ) as boolean
 
     if depth > 8 then return false
-    dim as long ui = c.udts->Find( t )
+    dim as int32 ui = c.udts->Find( t )
     if ui < 0 then return false
-    dim as containers.Array( of ulong ) lo, lty, lft
+    dim as containers.Array( of uint32 ) lo, lty, lft
     if FlattenUdtFields_( c, t, 0, lo, lty, 0, lft ) = false then return false
-    dim as long n = ListCount_( c, lst )
-    dim as long li = 0
+    dim as int32 n = ListCount_( c, lst )
+    dim as int32 li = 0
     '' WHICH FIELDS TAKE A VALUE AT ALL: a UNION -- named, or anonymous inside the type --
     '' takes ONE, for its FIRST alternative; every later one is skipped. Measured on
     '' fbc-modern (dim/union-init.bas): '( 1, 2, 3 )' over 'a, union { i, d }, c' is a = 1,
@@ -100,72 +100,72 @@ function AlignUdt_ _
     if usc = 0 then return false
     dim as Tko.SymbolId fcur = usc->firstSym
     dim as boolean isU( 0 to 16 )
-    dim as long alt( 0 to 16 )
+    dim as int32 alt( 0 to 16 )
     isU( 0 ) = IsUnionType_( c, t )
-    for i as long = 0 to c.udts->udts[ui].count - 1
+    for i as int32 = 0 to c.udts->udts[ui].count - 1
         dim as Tko.UdtField ptr fld = @c.udts->fields[c.udts->udts[ui].first + i]
         dim as Tko.TypeId ft = c.types->Unqualify( fld->type_ )
-        dim as long fsz = SizeOfType( c, ft )
+        dim as int32 fsz = SizeOfType( c, ft )
         '' The i-th FIELD symbol is the i-th laid-out field; a mismatch is not modelled.
         dim as Tko.Symbol ptr fs = 0
         while fcur <> Tko.SYMBOL_NONE
             dim as Tko.Symbol ptr cand = c.syms->SymbolAt( fcur )
             fcur = cand->nextInScope
-            if cand->kind = cast( ubyte, Tko.SYM_FIELD ) then
+            if cand->kind = cast( uint8, Tko.SYM_FIELD ) then
                 fs = cand
                 exit while
             end if
         wend
         if (fs = 0) orelse (fs->name <> fld->name) then return false
-        dim as long fd = fs->anonDepth
+        dim as int32 fd = fs->anonDepth
         if fd > 16 then return false
-        dim as long firstNew = fd - fs->anonOpen + 1
-        for lv as long = firstNew to fd
+        dim as int32 firstNew = fd - fs->anonOpen + 1
+        for lv as int32 = firstNew to fd
             if lv >= 1 then
-                isU( lv ) = ((fs->anonUnionMask and cast( ushort, 1 shl (lv - 1) )) <> 0)
+                isU( lv ) = ((fs->anonUnionMask and cast( uint16, 1 shl (lv - 1) )) <> 0)
                 alt( lv ) = 0
             end if
         next
         dim as boolean skipF = false
-        for lv as long = 0 to fd
+        for lv as int32 = 0 to fd
             if isU( lv ) then
                 if (lv = fd) orelse (lv + 1 >= firstNew) then alt( lv ) += 1
                 if alt( lv ) > 1 then skipF = true
             end if
         next
-        dim as long a = li, b = li
+        dim as int32 a = li, b = li
         if skipF = false then
-            if (a < lo.Count) andalso (cast( long, lo[a] ) < fld->offset) then return false
+            if (a < lo.Count) andalso (cast( int32, lo[a] ) < fld->offset) then return false
         end if
-        while (b < lo.Count) andalso (cast( long, lo[b] ) < fld->offset + fsz)
+        while (b < lo.Count) andalso (cast( int32, lo[b] ) < fld->offset + fsz)
             b += 1
         wend
         if b > li then li = b
         if skipF then continue for
         if b = a then continue for
         if ci >= n then return true   '' the rest takes its defaults
-        dim as longint fsn
-        dim as long fsk = StrSwapKind_( c, ft, fsn )
+        dim as int64 fsn
+        dim as int32 fsk = StrSwapKind_( c, ft, fsn )
         if (c.types->Kind( ft ) = Tko.TK_UDT) andalso (IsStringType( c, ft ) = false) then
             if AlignUdtSlot_( c, ft, leaf0 + a, lst, ci, vNode, vStart, depth ) = false then return false
         elseif (c.types->Kind( ft ) = Tko.TK_ARRAY) andalso (c.types->IsDynArray( ft ) = false) andalso _
                (fsk <> 1) andalso (fsk <> 2) andalso (fsk <> 4) then
             if fsk = 3 then return false   '' fbc refuses a 'string * N' field in a list
             dim as Tko.TypeId et = c.types->Unqualify( c.types->Inner( ft ) )
-            dim as long ne = c.types->ElemCount( ft )
+            dim as int32 ne = c.types->ElemCount( ft )
             if (ne <= 0) orelse (((b - a) mod ne) <> 0) then return false
-            dim as long pe = (b - a) \ ne
+            dim as int32 pe = (b - a) \ ne
             dim as Tko.NodeId v = ListAt_( c, lst, ci )
             if c.ast->Kind( v ) = Tko.N_INITIALIZER then
                 ci += 1
-                dim as long c2 = 0
-                for j as long = 0 to ne - 1
+                dim as int32 c2 = 0
+                for j as int32 = 0 to ne - 1
                     if c2 >= ListCount_( c, v ) then exit for
                     if AlignElem_( c, et, leaf0 + a + j * pe, v, c2, vNode, vStart, depth + 1 ) = false then return false
                 next
                 if c2 < ListCount_( c, v ) then return false
             else
-                for j as long = 0 to ne - 1
+                for j as int32 = 0 to ne - 1
                     if ci >= n then exit for
                     if AlignElem_( c, et, leaf0 + a + j * pe, lst, ci, vNode, vStart, depth + 1 ) = false then return false
                 next
@@ -175,7 +175,7 @@ function AlignUdt_ _
             select case c.ast->Kind( v )
             case Tko.N_TUPLE, Tko.N_INITIALIZER : return false
             end select
-            vNode.Push( cast( ulong, v ) ) : vStart.Push( cast( ulong, leaf0 + a ) )
+            vNode.Push( cast( uint32, v ) ) : vStart.Push( cast( uint32, leaf0 + a ) )
             ci += 1
         end if
     next
@@ -185,22 +185,22 @@ end function
 '' ONE DIMENSION'S BRACE LIST at leaf 'base_': the innermost holds elements, every other one
 '' a brace list per index. More entries than the dimension holds is not this.
 private function AlignDim_ _
-    ( byref c as Ctx, byval et as Tko.TypeId, byval d as long, byval rank as long, _
-      byval ext as long ptr, byval strd as long ptr, byval base_ as long, byval lst as Tko.NodeId, _
-      byref vNode as containers.Array( of ulong ), byref vStart as containers.Array( of ulong ) ) as boolean
+    ( byref c as Ctx, byval et as Tko.TypeId, byval d as int32, byval rank as int32, _
+      byval ext as int32 ptr, byval strd as int32 ptr, byval base_ as int32, byval lst as Tko.NodeId, _
+      byref vNode as containers.Array( of uint32 ), byref vStart as containers.Array( of uint32 ) ) as boolean
 
-    dim as long n = ListCount_( c, lst )
+    dim as int32 n = ListCount_( c, lst )
     if n > ext[d] then return false
     if d < rank - 1 then
-        for j as long = 0 to n - 1
+        for j as int32 = 0 to n - 1
             dim as Tko.NodeId sub_ = ListAt_( c, lst, j )
             if c.ast->Kind( sub_ ) <> Tko.N_INITIALIZER then return false
             if AlignDim_( c, et, d + 1, rank, ext, strd, base_ + j * strd[d], sub_, vNode, vStart ) = false then return false
         next
         return true
     end if
-    dim as long ci = 0
-    for j as long = 0 to ext[d] - 1
+    dim as int32 ci = 0
+    for j as int32 = 0 to ext[d] - 1
         if ci >= n then exit for
         if AlignElem_( c, et, base_ + j * strd[d], lst, ci, vNode, vStart, 1 ) = false then return false
     next
@@ -210,7 +210,7 @@ end function
 '' The whole initialiser: true when every value found its field and none was left over.
 function AlignInitValues_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId, _
-      byref vNode as containers.Array( of ulong ), byref vStart as containers.Array( of ulong ) ) as boolean
+      byref vNode as containers.Array( of uint32 ), byref vStart as containers.Array( of uint32 ) ) as boolean
 
     if t = Tko.TYPE_NONE then return false
     t = c.types->Unqualify( t )
@@ -222,28 +222,28 @@ function AlignInitValues_ _
     if c.types->Kind( t ) = Tko.TK_ARRAY then
         if c.types->IsDynArray( t ) then return false
         if c.ast->Kind( init ) <> Tko.N_INITIALIZER then return false
-        dim as long rank = c.types->types[cast( long, t )].dims
+        dim as int32 rank = c.types->types[cast( int32, t )].dims
         if (rank < 1) orelse (rank > 8) then return false
         dim as Tko.TypeId aet = c.types->Unqualify( c.types->Inner( t ) )
-        dim as long pe = 1
+        dim as int32 pe = 1
         if (c.types->Kind( aet ) = Tko.TK_UDT) andalso (IsStringType( c, aet ) = false) then
-            dim as containers.Array( of ulong ) po, pty, pft
+            dim as containers.Array( of uint32 ) po, pty, pft
             if FlattenUdtFields_( c, aet, 0, po, pty, 0, pft ) = false then return false
             pe = po.Count
         elseif LowerType( aet, *c.types ) = MT_AGG then
             return false   '' fixed strings and the like: FixStrArrayImage_ answers those
         end if
         '' THE STRIDE OF EACH DIMENSION, in leaves.
-        dim as long ext( 0 to 7 ), strd( 0 to 7 )
-        for d as long = 0 to rank - 1
+        dim as int32 ext( 0 to 7 ), strd( 0 to 7 )
+        for d as int32 = 0 to rank - 1
             dim as boolean k1 = false, k2 = false
-            dim as longint lo = c.types->ArrayBound( t, d, false, k1 )
-            dim as longint hi = c.types->ArrayBound( t, d, true, k2 )
+            dim as int64 lo = c.types->ArrayBound( t, d, false, k1 )
+            dim as int64 hi = c.types->ArrayBound( t, d, true, k2 )
             if (k1 = false) orelse (k2 = false) orelse (hi < lo) then return false
-            ext( d ) = cast( long, hi - lo + 1 )
+            ext( d ) = cast( int32, hi - lo + 1 )
         next
         strd( rank - 1 ) = pe
-        for d as long = rank - 2 to 0 step -1
+        for d as int32 = rank - 2 to 0 step -1
             strd( d ) = strd( d + 1 ) * ext( d + 1 )
         next
         if AlignDim_( c, aet, 0, rank, @ext( 0 ), @strd( 0 ), 0, init, vNode, vStart ) = false then return false
@@ -255,7 +255,7 @@ function AlignInitValues_ _
     case else
         return false
     end select
-    dim as long ci = 0
+    dim as int32 ci = 0
     if AlignUdt_( c, t, 0, init, ci, vNode, vStart, 0 ) = false then return false
     if ci < ListCount_( c, init ) then return false
     return (vNode.Count > 0)

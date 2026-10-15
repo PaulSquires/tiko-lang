@@ -45,22 +45,22 @@ end function
 '' fbc evaluates an element's base twice for GET, and a call there has side effects, so it
 '' refuses. tiko accepted each. Does 'n' reach its value through a procedure call?
 private function ThroughCall_ ( byref c as Ctx, byval n as NodeId ) as boolean
-    for guard as long = 0 to 63
+    for guard as int32 = 0 to 63
         if n = NODE_NONE then return false
         select case c.ast->Kind( n )
         case N_PAREN
             n = Unparen3_( c, n )
         case N_MEMBER
-            n = c.ast->binaries[cast( long, c.ast->nodes[cast( long, n )].data )].lhs
+            n = c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, n )].data )].lhs
         case N_DEREF
-            n = c.ast->unaries[cast( long, c.ast->nodes[cast( long, n )].data )].operand
+            n = c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, n )].data )].operand
         case N_CALL
-            dim as NodeId tg = c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )].target
+            dim as NodeId tg = c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )].target
             if tg = NODE_NONE then return false
             dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( n ) )
             if ts = 0 then ts = c.syms->SymbolAt( c.info->RefOf( tg ) )
             if ts <> 0 then
-                if ts->kind = cast( ubyte, SYM_PROC ) then return true
+                if ts->kind = cast( uint8, SYM_PROC ) then return true
             end if
             n = tg
         case else
@@ -73,12 +73,12 @@ end function
 private sub CheckGetElemThroughCall_ ( byref c as Ctx, byval n as NodeId )
     '' THE ELEMENT: an indexing call over a field or variable -- not a call's own result.
     if (n = NODE_NONE) orelse (c.ast->Kind( n ) <> N_CALL) then return
-    dim as NodeId tg = c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )].target
+    dim as NodeId tg = c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )].target
     if (tg = NODE_NONE) orelse (c.ast->Kind( tg ) <> N_MEMBER) then return
     dim as Symbol ptr fs = c.syms->SymbolAt( c.info->RefOf( tg ) )
     if fs = 0 then return
-    if fs->kind <> cast( ubyte, SYM_FIELD ) then return
-    if ThroughCall_( c, c.ast->binaries[cast( long, c.ast->nodes[cast( long, tg )].data )].lhs ) = false then return
+    if fs->kind <> cast( uint8, SYM_FIELD ) then return
+    if ThroughCall_( c, c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, tg )].data )].lhs ) = false then return
     c.diags->Report( TKO0883, PointRange( c.ast->Loc( n ) ) )
 end sub
 
@@ -88,7 +88,7 @@ private function LineInputDst_ ( byref c as Ctx, byval t as TypeId ) as boolean
     if t = TYPE_NONE then return true          '' untyped: already reported elsewhere
     dim as TypeId u = c.types->Unqualify( t )
     if c.types->Kind( u ) = TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (c.types->Kind( u ) = TK_ARRAY) andalso (guard < 16)
         guard += 1
         u = c.types->Unqualify( c.types->Inner( u ) )
@@ -107,23 +107,23 @@ private sub ConstOutReport_ ( byref c as Ctx, byval n as NodeId )
 end sub
 
 private sub CheckConstOutput_ ( byref c as Ctx, byval id as NodeId )
-    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if c.ast->Kind( id ) = N_INTRINSIC then
         select case cast( TokenKind, sp->op )
         case KW_INPUT, KW_READ
-            for i as long = 0 to sp->count - 1
+            for i as int32 = 0 to sp->count - 1
                 ConstOutReport_( c, cast( NodeId, c.ast->children[sp->first + i] ) )
             next
         case KW_LINE
             '' LINE INPUT only (bit 1 of 'extra'); the graphics LINE writes nothing.
             if (sp->extra and 1) = 0 then return
-            for i as long = 0 to sp->count - 1
+            for i as int32 = 0 to sp->count - 1
                 ConstOutReport_( c, cast( NodeId, c.ast->children[sp->first + i] ) )
             next
             '' THE DESTINATION -- TKO0967 -- by LowerLineInput's own rule: the first child, or
             '' the second when a console form's prompt was parsed as a child ('line input ps, s').
             '' A maximum length may follow it ('line input #1, *z, 10').
-            dim as long ldi = 0
+            dim as int32 ldi = 0
             dim as boolean promptKid = (sp->a = NODE_NONE) andalso (sp->c = NODE_NONE)
             if promptKid andalso (sp->count >= 2) then ldi = 1
             if ldi < sp->count then
@@ -137,7 +137,7 @@ private sub CheckConstOutput_ ( byref c as Ctx, byval id as NodeId )
             '' The variable read into: the SECOND item of the positional file form -- an
             '' amount and a bytes-read may follow it -- the LAST of the graphics one.
             if sp->count < 1 then return
-            dim as long gi = sp->count - 1
+            dim as int32 gi = sp->count - 1
             if ((sp->extra and 1) <> 0) andalso (sp->count >= 2) then gi = 1
             ConstOutReport_( c, cast( NodeId, c.ast->children[sp->first + gi] ) )
             '' Bit 1 of 'extra' is the FILE form; the graphics one alone refuses a call's element.
@@ -145,7 +145,7 @@ private sub CheckConstOutput_ ( byref c as Ctx, byval id as NodeId )
         case KW_LSET, KW_RSET
             if sp->count < 1 then return
             dim as NodeId t0 = cast( NodeId, c.ast->children[sp->first] )
-            if c.ast->Kind( t0 ) = N_BINARY then t0 = c.ast->binaries[cast( long, c.ast->nodes[cast( long, t0 )].data )].lhs
+            if c.ast->Kind( t0 ) = N_BINARY then t0 = c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, t0 )].data )].lhs
             ConstOutReport_( c, t0 )
         end select
         return
@@ -167,20 +167,20 @@ private sub CheckConstOutput_ ( byref c as Ctx, byval id as NodeId )
         return
     end if
     if callee = 0 then return
-    if callee->kind <> cast( ubyte, SYM_PROC ) then return
+    if callee->kind <> cast( uint8, SYM_PROC ) then return
     dim as NodeId decl = cast( NodeId, callee->payload )
     if (decl = NODE_NONE) orelse (c.ast->Kind( decl ) <> N_PROC) then return
-    dim as StmtPayload ptr pp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, decl )].data )]
-    dim as long ai = 0
-    for i as long = 0 to pp->count - 1
+    dim as StmtPayload ptr pp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, decl )].data )]
+    dim as int32 ai = 0
+    for i as int32 = 0 to pp->count - 1
         dim as NodeId prm = cast( NodeId, c.ast->children[pp->first + i] )
         if c.ast->Kind( prm ) <> N_PARAM then continue for
         if ai >= sp->count then exit for
         dim as NodeId arg = cast( NodeId, c.ast->children[sp->first + ai] )
         ai += 1
-        if (c.ast->nodes[cast( long, prm )].flags and NF_BYREF) = 0 then continue for
+        if (c.ast->nodes[cast( int32, prm )].flags and NF_BYREF) = 0 then continue for
         if c.ast->Kind( arg ) <> N_IDENT then continue for
-        dim as StmtPayload ptr prp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )]
+        dim as StmtPayload ptr prp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, prm )].data )]
         if prp->a <> NODE_NONE then
             dim as TypeId pt = c.info->TypeOf_( prp->a )
             if (pt <> TYPE_NONE) andalso c.types->IsConst( pt ) then continue for

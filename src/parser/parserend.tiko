@@ -136,7 +136,7 @@ function CheckEndOfStatement_ _
     '' A MEMBER ASSIGNMENT LEAVES WHAT FOLLOWS ALONE -- see the header.
     if n <> Tko.NODE_NONE then
         if p.ast->Kind( n ) = Tko.N_AMBIGUOUS then
-            dim as long asi = cast( long, p.ast->nodes[cast( long, n )].data )
+            dim as int32 asi = cast( int32, p.ast->nodes[cast( int32, n )].data )
             dim as Tko.StmtPayload ptr asp = @p.ast->stmts[asi]
             '' op 0 is a CALL; anything else is the assignment token.
             if asp->op <> 0 then
@@ -202,7 +202,7 @@ function AcceptNext_ _
     elseif isEach andalso (Peek( p ) = Tko.TK_IDENT) then
         ErrorNode( p, Tko.TKO0819 )
     end if
-    dim as long depth = 0
+    dim as int32 depth = 0
     while (Peek( p ) <> Tko.TK_EOL) andalso (Peek( p ) <> Tko.TK_EOF)
         dim as Tko.TokenKind k = Peek( p )
         if k = Tko.TK_LPAREN then depth += 1
@@ -235,10 +235,10 @@ end function
 sub MarkLetList_( byref p as Tko.ParserState, byval n as Tko.NodeId )
     if n = Tko.NODE_NONE then return
     if p.ast->Kind( n ) <> Tko.N_AMBIGUOUS then return
-    dim as Tko.NodeId tg = p.ast->stmts[cast( long, p.ast->nodes[cast( long, n )].data )].a
+    dim as Tko.NodeId tg = p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, n )].data )].a
     if tg = Tko.NODE_NONE then return
     if (p.ast->Kind( tg ) <> Tko.N_TUPLE) andalso (p.ast->Kind( tg ) <> Tko.N_PAREN) then return
-    p.ast->nodes[cast( long, tg )].flags or= Tko.NF_LET_LIST
+    p.ast->nodes[cast( int32, tg )].flags or= Tko.NF_LET_LIST
 end sub
 
 '' ------------------------------------------------------------- symbol arguments
@@ -251,7 +251,7 @@ sub MarkSymbolArgs_ _
     ( byref p as Tko.ParserState, byval target as Tko.NodeId, byref items as Tko.NodeIdVec )
     if (target = Tko.NODE_NONE) orelse (items.Count = 0) then return
     if p.ast->Kind( target ) <> Tko.N_IDENT then return
-    select case lcase( p.names->Spelling( p.ast->idents[cast( long, p.ast->nodes[cast( long, target )].data )].name ) )
+    select case lcase( p.names->Spelling( p.ast->idents[cast( int32, p.ast->nodes[cast( int32, target )].data )].name ) )
     case "procptr"
         MarkCallTarget_( p, cast( Tko.NodeId, items[0] ) )
     case "__fb_query_symbol__"
@@ -375,11 +375,11 @@ sub ParenGroupOperand_ _
     if (k = Tko.TK_EQ) orelse (Tko.InfixPrec( k ) = 0) then return
     if sp.a = Tko.NODE_NONE then return
     if p.ast->Kind( sp.a ) <> Tko.N_CALL then return
-    dim as Tko.ListPayload ptr lcp = @p.ast->lists[cast( long, p.ast->nodes[cast( long, sp.a )].data )]
+    dim as Tko.ListPayload ptr lcp = @p.ast->lists[cast( int32, p.ast->nodes[cast( int32, sp.a )].data )]
     if (lcp->count <> 1) orelse (lcp->target = Tko.NODE_NONE) then return
     dim as Tko.NodeId inner = cast( Tko.NodeId, p.ast->children[lcp->first] )
     sp.a = lcp->target
-    args.Push( cast( ulong, Expression( p, 1, inner ) ) )
+    args.Push( cast( uint32, Expression( p, 1, inner ) ) )
     Accept( p, Tko.TK_COMMA )
 end sub
 
@@ -388,8 +388,8 @@ function ParenlessFnCall_ _
       byref args as Tko.NodeIdVec ) as Tko.NodeId
     if args.Count = 0 then return Tko.NODE_NONE
     if p.ast->Kind( callee ) <> Tko.N_IDENT then return Tko.NODE_NONE
-    dim as ulong nm = cast( ulong, p.ast->idents[cast( long, p.ast->nodes[cast( long, callee )].data )].name )
-    for each known as ulong in p.procNames
+    dim as uint32 nm = cast( uint32, p.ast->idents[cast( int32, p.ast->nodes[cast( int32, callee )].data )].name )
+    for each known as uint32 in p.procNames
         if known = nm then return Tko.NODE_NONE
     next
     dim as string spelled = "|" & p.names->Spelling( cast( Tko.InternId, nm ) ) & "|"
@@ -406,8 +406,8 @@ function IsLabelHere_( byref p as Tko.ParserState ) as boolean
     if HasTok( p, p.pos + 1 ) = false then return false
     if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) <> Tko.TK_EOL then return false
     if (p.toks->At( p.pos + 1 ).flags and Tko.TF_COLON) = 0 then return false
-    dim as ulong nm = cast( ulong, Cur( p ).literal )
-    for each known as ulong in p.procNames
+    dim as uint32 nm = cast( uint32, Cur( p ).literal )
+    for each known as uint32 in p.procNames
         if known = nm then return false
     next
     if len( p.preludeProcs ) = 0 then p.preludeProcs = PreludeProcSpellings( )
@@ -422,7 +422,7 @@ function IsLabelHere_( byref p as Tko.ParserState ) as boolean
     if instr( UNDECLARED_RTL_PROCS_, spelled ) > 0 then return false
     '' A METHOD, by bare name inside a member body, is 'this.name' (implicit this).
     if p.memberDepth > 0 then
-        for each known as ulong in p.memberProcNames
+        for each known as uint32 in p.memberProcNames
             if known = nm then return false
         next
     end if
@@ -437,8 +437,8 @@ namespace Tko
 '' beside RecordTokens only because parser/expr.tiko is at the 1500-line cap.
 sub AstArena.RecordProcEnd( byval id as NodeId, byval endLoc as SourceLoc )
     if id = NODE_NONE then return
-    this.procEnds.Push( cast( ulong, id ) )
-    this.procEnds.Push( cast( ulong, endLoc ) )
+    this.procEnds.Push( cast( uint32, id ) )
+    this.procEnds.Push( cast( uint32, endLoc ) )
 end sub
 
 end namespace

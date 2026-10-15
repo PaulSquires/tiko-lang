@@ -19,8 +19,8 @@ declare function LowerCaseTest _
     ( byref c as Ctx, byref slotAddr as MirValue, byval mt as MirType, _
       byval isUns as boolean, byval val as Tko.NodeId, _
       byval subjT as Tko.TypeId = Tko.TYPE_NONE ) as MirValue
-declare function LabelSlot( byref c as Ctx, byval nm as Tko.InternId ) as long
-declare function LabelBlockOf( byref c as Ctx, byval slot as long ) as long
+declare function LabelSlot( byref c as Ctx, byval nm as Tko.InternId ) as int32
+declare function LabelBlockOf( byref c as Ctx, byval slot as int32 ) as int32
 
 '' SELECT CASE, lowered as a COMPARISON CHAIN.
 ''
@@ -41,9 +41,9 @@ declare function LabelBlockOf( byref c as Ctx, byval slot as long ) as long
 '' -- so a decline inside 'CU_ASSERT( x )' was reported against one line of fbcunit.bi,
 '' 1,071 times, whatever it was really about. The argument's own tokens come from the
 '' INVOCATION, so the first descendant without the flag is where the work is.
-private function NonMacroNode_( byref c as Ctx, byval n0 as ulong ) as ulong
+private function NonMacroNode_( byref c as Ctx, byval n0 as uint32 ) as uint32
     dim as Tko.NodeId n = cast( Tko.NodeId, n0 )
-    for guard as long = 0 to 15
+    for guard as int32 = 0 to 15
         if n = Tko.NODE_NONE then return n0
         '' NF_FROM_MACRO is declared and never set, so the test is the LOCATION
         '' itself: a node that came from a macro body sits in the file the '#define'
@@ -52,7 +52,7 @@ private function NonMacroNode_( byref c as Ctx, byval n0 as ulong ) as ulong
         if c.ast->Loc( n ) <> c.ast->Loc( cast( Tko.NodeId, c.curStmtNode ) ) then
             if c.srcMgr->Decode( c.ast->Loc( n ) ).file <> _
                c.srcMgr->Decode( c.ast->Loc( cast( Tko.NodeId, c.curStmtNode ) ) ).file then
-                return cast( ulong, n )
+                return cast( uint32, n )
             end if
         end if
         '' Descend into the first child that has one. The payload pool differs per
@@ -61,19 +61,19 @@ private function NonMacroNode_( byref c as Ctx, byval n0 as ulong ) as ulong
         select case c.ast->Kind( n )
         case Tko.N_PAREN, Tko.N_CALL, Tko.N_INDEX, Tko.N_TUPLE
             dim as Tko.ListPayload ptr lp = _
-                @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
-            if lp->count < 1 then return cast( ulong, n )
+                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+            if lp->count < 1 then return cast( uint32, n )
             n = cast( Tko.NodeId, c.ast->children[lp->first] )
         case Tko.N_BINARY
             dim as Tko.BinaryPayload ptr bp = _
-                @c.ast->binaries[cast( long, c.ast->nodes[cast( long, n )].data )]
+                @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, n )].data )]
             n = bp->lhs
         case Tko.N_UNARY
             dim as Tko.UnaryPayload ptr up = _
-                @c.ast->unaries[cast( long, c.ast->nodes[cast( long, n )].data )]
+                @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, n )].data )]
             n = up->operand
         case else
-            return cast( ulong, n )
+            return cast( uint32, n )
         end select
     next
     return n0
@@ -85,14 +85,14 @@ end function
 '' and failed in another. Measured the hard way: tests/diagnostics/const-target-and-decl
 '' differed between C:\dev\tiko-iso and C:\dev\tiko-iso2 by nothing but that.
 private function SkipSiteName_( byref fileName as string ) as string
-    dim as long at = instr( fileName, "src" & chr( 92 ) )
+    dim as int32 at = instr( fileName, "src" & chr( 92 ) )
     if at = 0 then at = instr( fileName, "src/" )
     if at = 0 then return fileName
     return mid( fileName, at )
 end function
 
 sub SkipAt _
-    ( byref c as Ctx, byref fileName as string, byval lineNo as long )
+    ( byref c as Ctx, byref fileName as string, byval lineNo as int32 )
 
     c.st->skipped += 1
     ReportBuiltinDecline( c )  '' a builtin call declined in the dropped statement
@@ -104,7 +104,7 @@ sub SkipAt _
         '' says which branch gave up; only the source line says what it gave up on,
         '' and the two largest parse-gap items were invisible without it.
         dim as string where = ""
-        dim as ulong blameAt = c.curStmtNode
+        dim as uint32 blameAt = c.curStmtNode
         if c.blameNode <> 0 then blameAt = NonMacroNode_( c, c.blameNode )
         if (c.srcMgr <> 0) andalso (blameAt <> 0) then
             dim as Tko.DecodedLoc sl = _
@@ -118,8 +118,8 @@ sub SkipAt _
     '' than it saved and would not keep the order stable across runs.
     dim as Tko.InternId fid = c.names->GetString( SkipSiteName_( fileName ) )
     dim as boolean seen = false
-    for i as long = 0 to c.st->skipSiteN.Count - 1
-        if (c.st->skipSiteFile[i] = cast( ulong, fid )) andalso _
+    for i as int32 = 0 to c.st->skipSiteN.Count - 1
+        if (c.st->skipSiteFile[i] = cast( uint32, fid )) andalso _
            (c.st->skipSiteLine[i] = lineNo) then
             c.st->skipSiteN[i] += 1
             seen = true
@@ -127,11 +127,11 @@ sub SkipAt _
         end if
     next
     if seen = false then
-        c.st->skipSiteFile.Push( cast( ulong, fid ) )
+        c.st->skipSiteFile.Push( cast( uint32, fid ) )
         c.st->skipSiteLine.Push( lineNo )
         c.st->skipSiteN.Push( 1 )
     end if
-    dim as long k = cast( long, c.curStmtKind )
+    dim as int32 k = cast( int32, c.curStmtKind )
     while c.st->innerKind.Count <= k
         c.st->innerKind.Push( 0 )
     wend
@@ -139,9 +139,9 @@ sub SkipAt _
     '' THE SOURCE LINE, kept for a build to report -- the first twenty, which is enough
     '' to say what to look at and no more than an error list should hold.
     if c.st->skipLocs.Count < 20 then
-        dim as ulong locAt = c.curStmtNode
+        dim as uint32 locAt = c.curStmtNode
         if c.blameNode <> 0 then locAt = NonMacroNode_( c, c.blameNode )
-        if locAt <> 0 then c.st->skipLocs.Push( cast( ulong, c.ast->Loc( cast( Tko.NodeId, locAt ) ) ) )
+        if locAt <> 0 then c.st->skipLocs.Push( cast( uint32, c.ast->Loc( cast( Tko.NodeId, locAt ) ) ) )
     end if
     '' CONSUMED. A blame set for one decline must not be reported for the next.
     c.blameNode = 0
@@ -164,7 +164,7 @@ sub CountUnlowredCall( byref c as Ctx, byval call_ as Tko.NodeId )
     dim as boolean bound = false
     if c.ast->Kind( call_ ) = Tko.N_CALL then
         dim as Tko.ListPayload ptr cp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, call_ )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, call_ )].data )]
         target = cp->target
         bound = (c.info->RefOf( call_ ) <> Tko.SYMBOL_NONE)
     else
@@ -180,7 +180,7 @@ sub CountUnlowredCall( byref c as Ctx, byval call_ as Tko.NodeId )
     '' -- is fbc's 42, and was reported here until every undeclared name was: it is now
     '' Check.ReportUndeclared's (symbols/undeclared.tiko), which saw this one too and
     '' reported it a second time.
-    dim as long tk = cast( long, c.ast->Kind( target ) )
+    dim as int32 tk = cast( int32, c.ast->Kind( target ) )
     while c.st->ambUnboundShape.Count <= tk
         c.st->ambUnboundShape.Push( 0 )
     wend
@@ -190,7 +190,7 @@ sub CountUnlowredCall( byref c as Ctx, byval call_ as Tko.NodeId )
     '' "no type to look in".
     if c.ast->Kind( target ) = Tko.N_MEMBER then
         dim as Tko.BinaryPayload ptr mb = _
-            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, target )].data )]
+            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, target )].data )]
         if c.info->TypeOf_( mb->lhs ) = Tko.TYPE_NONE then
             c.st->ambMemberBaseUntyped += 1
         else
@@ -199,8 +199,8 @@ sub CountUnlowredCall( byref c as Ctx, byval call_ as Tko.NodeId )
         if c.ast->Kind( mb->rhs ) <> Tko.N_IDENT then return
         if c.st->ambMemberNames.Count >= 200000 then return
         dim as Tko.IdentPayload ptr mp = _
-            @c.ast->idents[cast( long, c.ast->nodes[cast( long, mb->rhs )].data )]
-        c.st->ambMemberNames.Push( cast( ulong, mp->name ) )
+            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, mb->rhs )].data )]
+        c.st->ambMemberNames.Push( cast( uint32, mp->name ) )
         return
     end if
 
@@ -209,15 +209,15 @@ sub CountUnlowredCall( byref c as Ctx, byval call_ as Tko.NodeId )
     '' An N_IDENT's payload is an IDENT, not a statement. Reading it through StmtOf
     '' indexes a different pool -- the mistake this project has made six times.
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, target )].data )]
-    c.st->ambUnboundNames.Push( cast( ulong, ip->name ) )
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, target )].data )]
+    c.st->ambUnboundNames.Push( cast( uint32, ip->name ) )
 end sub
 
 '' Records an unlowered STATEMENT, by kind, so the next thing to implement is something
 '' to read off rather than guess at.
 sub SkipStmt( byref c as Ctx, byval id as Tko.NodeId )
     SkipHere( c )
-    dim as long k = cast( long, c.ast->Kind( id ) )
+    dim as int32 k = cast( int32, c.ast->Kind( id ) )
     while c.st->skippedKind.Count <= k
         c.st->skippedKind.Push( 0 )
     wend
@@ -226,13 +226,13 @@ sub SkipStmt( byref c as Ctx, byval id as Tko.NodeId )
     if c.ast->Kind( id ) <> Tko.N_INTRINSIC then return
     '' Every intrinsic shares one node kind, so the keyword is counted separately.
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-    for i as long = 0 to c.st->skippedIntrOp.Count - 1
-        if c.st->skippedIntrOp[i] = cast( ulong, sp->op ) then
+    for i as int32 = 0 to c.st->skippedIntrOp.Count - 1
+        if c.st->skippedIntrOp[i] = cast( uint32, sp->op ) then
             c.st->skippedIntrN[i] += 1
             return
         end if
     next
-    c.st->skippedIntrOp.Push( cast( ulong, sp->op ) )
+    c.st->skippedIntrOp.Push( cast( uint32, sp->op ) )
     c.st->skippedIntrN.Push( 1 )
 end sub
 
@@ -250,9 +250,9 @@ sub LowerEndStmt( byref c as Ctx, byval id as Tko.NodeId )
     if esp->a <> Tko.NODE_NONE then
         code = Coerce( c, LowerExpr( c, esp->a ), MT_I32 )
     end if
-    if code.kind = cast( ubyte, MV_NONE ) then code = ConstInt( c, 0, MT_I32 )
-    dim as containers.Array( of ulong ) ea
-    ea.Push( cast( ulong, code.kind ) ) : ea.Push( cast( ulong, code.id ) )
+    if code.kind = cast( uint8, MV_NONE ) then code = ConstInt( c, 0, MT_I32 )
+    dim as containers.Array( of uint32 ) ea
+    ea.Push( cast( uint32, code.kind ) ) : ea.Push( cast( uint32, code.id ) )
     EmitRtl( c, RTL_END, ea )
     '' fb_End does not return, so nothing follows it in the same block.
     Terminate( c, MTERM_UNREACHABLE, -1, -1, NoVal( ) )
@@ -279,7 +279,7 @@ sub LowerExitLike _
 
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     dim as Tko.TokenKind want = cast( Tko.TokenKind, sp->op )
-    dim as long levels = sp->extra
+    dim as int32 levels = sp->extra
     if levels < 1 then levels = 1
 
     '' EXIT SUB / FUNCTION / PROPERTY / CONSTRUCTOR / DESTRUCTOR / OPERATOR.
@@ -302,8 +302,8 @@ sub LowerExitLike _
         if (c.udtResult = false) andalso (c.sretParam >= 0) then
             EmitCleanupsTo( c, 0 )
             dim as MirValue xsp
-            xsp.kind = cast( ubyte, MV_LOCAL )
-            xsp.ty = cast( ubyte, MT_PTR )
+            xsp.kind = cast( uint8, MV_LOCAL )
+            xsp.ty = cast( uint8, MT_PTR )
             xsp.id = c.sretParam
             Terminate( c, MTERM_RET, -1, -1, LowerExprLoad( c, xsp, MT_PTR ) )
             c.curBlock = -1
@@ -324,11 +324,11 @@ sub LowerExitLike _
     '' Walk outwards counting only frames of the requested KIND. 'exit any' and an
     '' unnamed target take whatever is innermost.
     dim as boolean anyKind = (want = 0) orelse (want = Tko.KW_ANY)
-    dim as long at = -1
-    dim as long seen = 0
-    for i as long = c.loopKind.Count - 1 to 0 step -1
+    dim as int32 at = -1
+    dim as int32 seen = 0
+    for i as int32 = c.loopKind.Count - 1 to 0 step -1
         dim as boolean match = anyKind
-        if match = false then match = (c.loopKind[i] = cast( long, want ))
+        if match = false then match = (c.loopKind[i] = cast( int32, want ))
         '' CONTINUE only ever targets a loop: a select or scope frame has no
         '' continue target, and stepping over it would branch to -1.
         if (isExit = false) andalso (c.contTo[i] < 0) then match = false
@@ -346,11 +346,11 @@ sub LowerExitLike _
         return
     end if
 
-    dim as long dest = c.breakTo[at]
+    dim as int32 dest = c.breakTo[at]
     if isExit = false then dest = c.contTo[at]
     '' A SCOPE frame carries -1 until the first 'exit scope' asks for a block. The
     '' id is written back so the scope itself branches there on the way out.
-    if isExit andalso (dest < 0) andalso (c.loopKind[at] = cast( long, Tko.KW_SCOPE )) then
+    if isExit andalso (dest < 0) andalso (c.loopKind[at] = cast( int32, Tko.KW_SCOPE )) then
         dest = NewBlock( c, "scope.exit" )
         c.breakTo[at] = dest
     end if
@@ -366,7 +366,7 @@ end sub
 
 
 declare function StrSwapKind_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as int64 ) as int32
 declare function LowerStrCaseTest_ _
     ( byref c as Ctx, byref slotAddr as MirValue, byval wide as boolean, _
       byval val as Tko.NodeId ) as MirValue
@@ -393,7 +393,7 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
     '' Measured, the body under fbc's 'select case takeR( mkH( 7 ) )' already sees the
     '' destructor's count, and so does the one under 'select case makeS( 5 ).s', whose
     '' string is copied out first.
-    dim as long smark = c.udtTemps.Count
+    dim as int32 smark = c.udtTemps.Count
 
     '' A STRING SUBJECT IS COMPARED, NOT LOADED. 'select case s : case "a"' was
     '' loading the DESCRIPTOR'S first eight bytes and comparing them against the
@@ -403,14 +403,14 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
     ''
     '' The subject is evaluated ONCE into a slot holding its descriptor pointer, so a
     '' subject with a side effect runs once however many cases follow.
-    dim as long strMode = -1
+    dim as int32 strMode = -1
     '' ...AND A WIDE CHAIN, which Check types STRING: 'select case w & "y"' went to the
     '' narrow descriptor path, declined, and the whole SELECT was dropped -- no case ran.
     '' fbc compares every case value against the chain with fb_WstrCompare.
     if TermIsWide_( c, sp->a ) orelse IsWideChain_( c, sp->a ) then
         strMode = 1
     else
-        dim as longint sn0
+        dim as int64 sn0
         if IsStringType( c, subjT ) orelse (StrSwapKind_( c, subjT, sn0 ) >= 0) then
             strMode = 0
         elseif c.types->Kind( subjT ) = Tko.TK_UDT then
@@ -429,7 +429,7 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
         subjT = c.types->Builtin( iif( mt = MT_I8, Tko.TY_UBYTE, iif( c.types->target.wcharBytes = 4, Tko.TY_ULONG, Tko.TY_USHORT ) ) )
     end if
     dim as MirValue slotAddr
-    dim as long swmark = c.wstrTemps.Count
+    dim as int32 swmark = c.wstrTemps.Count
     if strMode >= 0 then
         dim as MirValue sv
         dim as boolean got = false
@@ -477,30 +477,30 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
             copySubj = (StrArgOwnDescriptor_( c, sp->a, subjT ) = false)
         end if
         if copySubj then
-            dim as long dslot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+            dim as int32 dslot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
             if dslot < 0 then
                 SkipHere( c )
                 return
             end if
             if subjU then c.f->locals[dslot].frontendType = subjT
             dim as MirValue dsc
-            dsc.kind = cast( ubyte, MV_LOCAL )
-            dsc.ty = cast( ubyte, MT_PTR )
+            dsc.kind = cast( uint8, MV_LOCAL )
+            dsc.ty = cast( uint8, MT_PTR )
             dsc.id = dslot
             ZeroStrTempAtEntry_( c, dsc )
-            dim as containers.Array( of ulong ) dargs
-            dargs.Push( cast( ulong, dsc.kind ) ) : dargs.Push( cast( ulong, dsc.id ) )
+            dim as containers.Array( of uint32 ) dargs
+            dargs.Push( cast( uint32, dsc.kind ) ) : dargs.Push( cast( uint32, dsc.id ) )
             PushStrLen_( c, dargs, -1 )
-            dargs.Push( cast( ulong, sv.kind ) ) : dargs.Push( cast( ulong, sv.id ) )
+            dargs.Push( cast( uint32, sv.kind ) ) : dargs.Push( cast( uint32, sv.id ) )
             PushStrLen_( c, dargs, -1 )
-            dargs.Push( cast( ulong, MV_CONST_INT ) ) : dargs.Push( 0 )
+            dargs.Push( cast( uint32, MV_CONST_INT ) ) : dargs.Push( 0 )
             EmitRtl( c, iif( subjU, RTL_USTR_INIT, RTL_STR_ASSIGN ), dargs )
             c.cleanupNode.Push( 0 )
             c.cleanupSlot.Push( dslot )
             c.cleanupType.Push( 0 )
             sv = dsc
         end if
-        dim as long pslot = NewTempLocal( c, MT_PTR, c.types->target.pointerBits \ 8 )
+        dim as int32 pslot = NewTempLocal( c, MT_PTR, c.types->target.pointerBits \ 8 )
         if pslot < 0 then
             SkipHere( c )
             return
@@ -510,8 +510,8 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
         '' ustring compared UTF-16 with fb_StrCompare and matched nothing -- tracks' trade
         '' database refused its own '#tradedb' header. fbc: fb_UStrCompare per case value.
         if IsUStringType( c, subjT ) then c.f->locals[pslot].frontendType = subjT
-        slotAddr.kind = cast( ubyte, MV_LOCAL )
-        slotAddr.ty = cast( ubyte, MT_PTR )
+        slotAddr.kind = cast( uint8, MV_LOCAL )
+        slotAddr.ty = cast( uint8, MT_PTR )
         slotAddr.id = pslot
         StoreThrough( c, slotAddr, sv )
         '' A WIDE or USTRING subject, or a descriptor compared in place, still points into
@@ -523,17 +523,17 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
             return
         end if
         dim as MirValue subj = LowerExpr( c, sp->a )
-        if subj.kind = cast( ubyte, MV_NONE ) then
+        if subj.kind = cast( uint8, MV_NONE ) then
             SkipHere( c )
             return
         end if
-        dim as long slot = NewTempLocal( c, mt, c.types->Layout( subjT ).size )
-        slotAddr.kind = cast( ubyte, MV_LOCAL )
-        slotAddr.ty = cast( ubyte, MT_PTR )
+        dim as int32 slot = NewTempLocal( c, mt, c.types->Layout( subjT ).size )
+        slotAddr.kind = cast( uint8, MV_LOCAL )
+        slotAddr.ty = cast( uint8, MT_PTR )
         slotAddr.id = slot
         dim as MirInst st0
-        st0.op = cast( ushort, M_STORE )
-        st0.ty = cast( ubyte, MT_VOID )
+        st0.op = cast( uint16, M_STORE )
+        st0.ty = cast( uint8, MT_VOID )
         st0.a = slotAddr
         st0.b = subj
         Emit( c, st0 )
@@ -549,10 +549,10 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
     '' that path before its 'goto' to the exit, and at the end of the SELECT.
     dim as boolean wideScope = (strMode = 1)
     if wideScope then
-        PushScope( c, cast( ulong, id ) or SCOPE_KEY_OPT )
-        for k as long = swmark to c.wstrTemps.Count - 1
+        PushScope( c, cast( uint32, id ) or SCOPE_KEY_OPT )
+        for k as int32 = swmark to c.wstrTemps.Count - 1
             c.cleanupNode.Push( CLEANUP_WSTR_DELETE )
-            c.cleanupSlot.Push( cast( long, c.wstrTemps[k] ) )
+            c.cleanupSlot.Push( cast( int32, c.wstrTemps[k] ) )
             c.cleanupType.Push( 0 )
         next
         while c.wstrTemps.Count > swmark
@@ -561,36 +561,36 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
     end if
 
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->b )].data )]
-    dim as long joinB = NewBlock( c, "sel.join" )
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, sp->b )].data )]
+    dim as int32 joinB = NewBlock( c, "sel.join" )
     '' A SELECT is a break TARGET: 'exit select' leaves it. It pushes no continue
     '' target -- 'continue select' does not exist -- so -1 marks the slot as one that
     '' must never be branched to.
     c.breakTo.Push( joinB )
     c.contTo.Push( -1 )
     c.loopScope.Push( c.scopeMark.Count )
-    c.loopKind.Push( cast( long, Tko.KW_SELECT ) )
+    c.loopKind.Push( cast( int32, Tko.KW_SELECT ) )
     dim as boolean isUns = IsUnsignedType( c, subjT )
 
-    for i as long = 0 to lp->count - 1
+    for i as int32 = 0 to lp->count - 1
         dim as Tko.NodeId cs = cast( Tko.NodeId, c.ast->children[lp->first + i] )
         if c.ast->Kind( cs ) <> Tko.N_CASE then continue for
         dim as Tko.StmtPayload ptr cp = StmtOf( c, cs )
-        dim as long bodyB = NewBlock( c, "sel.body" )
-        dim as long nextB = NewBlock( c, "sel.next" )
+        dim as int32 bodyB = NewBlock( c, "sel.body" )
+        dim as int32 nextB = NewBlock( c, "sel.next" )
 
         '' Several values in one CASE are alternatives: any match enters the body, so
         '' each failed test falls through to the next value rather than to the body.
-        for v as long = 0 to cp->count - 1
+        for v as int32 = 0 to cp->count - 1
             dim as Tko.NodeId val = cast( Tko.NodeId, c.ast->children[cp->first + v] )
-            dim as long moreB = nextB
+            dim as int32 moreB = nextB
             if v < cp->count - 1 then moreB = NewBlock( c, "sel.alt" )
             '' A CASE VALUE'S TEMPORARIES DIE BEFORE ITS BRANCH, on both edges. fbc puts the
             '' destructor on the MATCH edge only, so a value that does not match leaks its
             '' temporary -- and 'case takeR( mkH( 1 ) ) to takeR( mkH( 2 ) )' destroys the
             '' second one on the edge that never built it, printing a garbage value. The
             '' match edge is measured and matched; the other edge is a deliberate divergence.
-            dim as long vmark = c.udtTemps.Count
+            dim as int32 vmark = c.udtTemps.Count
             dim as MirValue cond
             if strMode >= 0 then
                 cond = LowerStrCaseTest_( c, slotAddr, (strMode = 1), val )
@@ -598,7 +598,7 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
                 cond = LowerCaseTest( c, slotAddr, mt, isUns, val, subjT )
             end if
             ReleaseUdtTemps_( c, vmark )
-            if cond.kind = cast( ubyte, MV_NONE ) then
+            if cond.kind = cast( uint8, MV_NONE ) then
                 SkipHere( c )
                 Terminate( c, MTERM_BR, moreB, -1, NoVal( ) )
             else
@@ -608,9 +608,9 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
         next
         if cp->count = 0 then Terminate( c, MTERM_BR, bodyB, -1, NoVal( ) )
 
-        dim as long savedCur = c.curBlock
+        dim as int32 savedCur = c.curBlock
         c.curBlock = bodyB
-        PushScope( c, cast( ulong, cp->b ) )
+        PushScope( c, cast( uint32, cp->b ) )
         LowerBlock( c, cp->b )
         CloseScope( c )
         Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
@@ -619,7 +619,7 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
 
     '' CASE ELSE is the trailing block, reached when every test failed.
     if sp->c <> Tko.NODE_NONE then
-        PushScope( c, cast( ulong, sp->c ) )
+        PushScope( c, cast( uint32, sp->c ) )
         LowerBlock( c, sp->c )
         CloseScope( c )
     end if
@@ -661,13 +661,13 @@ private function LowerStrCaseTest_ _
     end if
 
     dim as MirValue c1 = StrCaseCompare_( c, slotAddr, wide, lhsV, op )
-    if c1.kind = cast( ubyte, MV_NONE ) then return none_
+    if c1.kind = cast( uint8, MV_NONE ) then return none_
     if hiV = Tko.NODE_NONE then return c1
     dim as MirValue c2 = StrCaseCompare_( c, slotAddr, wide, hiV, Tko.TK_LE )
-    if c2.kind = cast( ubyte, MV_NONE ) then return none_
+    if c2.kind = cast( uint8, MV_NONE ) then return none_
     dim as MirInst i3
-    i3.op = cast( ushort, M_AND )
-    i3.ty = cast( ubyte, MT_I8 )
+    i3.op = cast( uint16, M_AND )
+    i3.ty = cast( uint8, MT_I8 )
     i3.a = c1
     i3.b = c2
     return Emit( c, i3 )
@@ -680,29 +680,29 @@ private function StrCaseCompare_ _
 
     dim as MirValue none_
     dim as MirValue subjPtr = LowerExprLoad( c, slotAddr, MT_PTR )
-    if subjPtr.kind = cast( ubyte, MV_NONE ) then return none_
+    if subjPtr.kind = cast( uint8, MV_NONE ) then return none_
 
-    dim as containers.Array( of ulong ) args
+    dim as containers.Array( of uint32 ) args
     dim as MirValue cmp
     if wide then
         dim as MirValue rv
         if WideOperand_( c, val, rv ) = false then
             if NarrowToWideTemp_( c, val, rv ) = false then return none_
         end if
-        args.Push( cast( ulong, subjPtr.kind ) ) : args.Push( cast( ulong, subjPtr.id ) )
-        args.Push( cast( ulong, rv.kind ) ) : args.Push( cast( ulong, rv.id ) )
+        args.Push( cast( uint32, subjPtr.kind ) ) : args.Push( cast( uint32, subjPtr.id ) )
+        args.Push( cast( uint32, rv.kind ) ) : args.Push( cast( uint32, rv.id ) )
         cmp = EmitRtl( c, RTL_WSTR_COMPARE, args )
     else
         '' The subject is a descriptor, so its length is -1; the case value pushes its
         '' own (pointer, length) pair the way every string term does.
-        args.Push( cast( ulong, subjPtr.kind ) ) : args.Push( cast( ulong, subjPtr.id ) )
-        args.Push( cast( ulong, MV_CONST_INT ) )
-        args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+        args.Push( cast( uint32, subjPtr.kind ) ) : args.Push( cast( uint32, subjPtr.id ) )
+        args.Push( cast( uint32, MV_CONST_INT ) )
+        args.Push( cast( uint32, cast( uint64, -1 ) ) )
         '' THE SUBJECT'S FLAVOUR, taken from the slot it was stored in: there is no
         '' subject NODE here, only its address, and the case value is usually a narrow
         '' literal that says nothing about which comparison is wanted.
         dim as boolean isU = false
-        if slotAddr.kind = cast( ubyte, MV_LOCAL ) then
+        if slotAddr.kind = cast( uint8, MV_LOCAL ) then
             if (slotAddr.id >= 0) andalso (slotAddr.id < c.f->locals.Count) then
                 isU = IsUStringType( c, c.f->locals[slotAddr.id].frontendType )
             end if
@@ -717,18 +717,18 @@ private function StrCaseCompare_ _
             cmp = EmitRtl( c, RTL_STR_COMPARE, args )
         end if
     end if
-    if cmp.kind = cast( ubyte, MV_NONE ) then return none_
+    if cmp.kind = cast( uint8, MV_NONE ) then return none_
 
     dim as MirInst ins
-    ins.op = cast( ushort, BinOpFor( op, MT_I32, false ) )
-    ins.ty = cast( ubyte, MT_I8 )
+    ins.op = cast( uint16, BinOpFor( op, MT_I32, false ) )
+    ins.ty = cast( uint8, MT_I8 )
     ins.a = cmp
     ins.b = ConstInt( c, 0, MT_I32 )
-    if ins.op = cast( ushort, M_NONE ) then return none_
+    if ins.op = cast( uint16, M_NONE ) then return none_
     return Emit( c, ins )
 end function
 
-private function MirTypeBits_( byval t as MirType ) as long
+private function MirTypeBits_( byval t as MirType ) as int32
     select case t
     case MT_I8  : return 8
     case MT_I16 : return 16
@@ -745,8 +745,8 @@ private function CaseValueFits_ _
     ( byref c as Ctx, byval smt as MirType, byval vmt as MirType, _
       byval uns as boolean, byval vnode as Tko.NodeId ) as boolean
 
-    dim as long sw = MirTypeBits_( smt )
-    dim as long vw = MirTypeBits_( vmt )
+    dim as int32 sw = MirTypeBits_( smt )
+    dim as int32 vw = MirTypeBits_( vmt )
     if (sw = 0) orelse (vw = 0) then return true
     if vw <= sw then return true
     if vnode = Tko.NODE_NONE then return false
@@ -756,7 +756,7 @@ private function CaseValueFits_ _
     dim as Tko.Check.ConstVal cv = Tko.Check.ConstOf( _
         *c.ast, vnode, *c.srcMgr, *c.names, c.types->target.pointerBits, c.syms, sc )
     if cv.known = false then return false
-    dim as longint v = cv.value
+    dim as int64 v = cv.value
     if uns then
         if v < 0 then return false
         return (v <= ((1ll shl sw) - 1))
@@ -836,13 +836,13 @@ private function LowerCaseTest _
                 CoerceTy( c, LowerExprLoad( c, slotAddr, mt ), rmt, subjT )
             dim as MirValue rhs = CoerceTy( c, LowerExpr( c, rp->a ), rmt, _
                                             c.info->TypeOf_( rp->a ), subjT )
-            if rhs.kind = cast( ubyte, MV_NONE ) then return none_
+            if rhs.kind = cast( uint8, MV_NONE ) then return none_
             dim as MirInst ins
-            ins.op = cast( ushort, BinOpFor( op, rmt, runs ) )
-            ins.ty = cast( ubyte, MT_I8 )
+            ins.op = cast( uint16, BinOpFor( op, rmt, runs ) )
+            ins.ty = cast( uint8, MT_I8 )
             ins.a = cur
             ins.b = rhs
-            if ins.op = cast( ushort, M_NONE ) then return none_
+            if ins.op = cast( uint16, M_NONE ) then return none_
             return Emit( c, ins )
         end if
 
@@ -854,10 +854,10 @@ private function LowerCaseTest _
         dim as MirValue lo = CoerceTy( c, LowerExpr( c, rp->a ), lmt, _
                                        c.info->TypeOf_( rp->a ), subjT )
         dim as MirValue c1 = none_
-        if lo.kind <> cast( ubyte, MV_NONE ) then
+        if lo.kind <> cast( uint8, MV_NONE ) then
             dim as MirInst i1
-            i1.op = cast( ushort, BinOpFor( Tko.TK_GE, lmt, luns ) )
-            i1.ty = cast( ubyte, MT_I8 )
+            i1.op = cast( uint16, BinOpFor( Tko.TK_GE, lmt, luns ) )
+            i1.ty = cast( uint8, MT_I8 )
             i1.a = CoerceTy( c, LowerExprLoad( c, slotAddr, mt ), lmt, subjT )
             i1.b = lo
             c1 = Emit( c, i1 )
@@ -867,18 +867,18 @@ private function LowerCaseTest _
         CasePromote_( c, subjT, c.info->TypeOf_( rp->b ), hmt, huns, rp->b )
         dim as MirValue hi = CoerceTy( c, LowerExpr( c, rp->b ), hmt, _
                                        c.info->TypeOf_( rp->b ), subjT )
-        if (c1.kind = cast( ubyte, MV_NONE )) orelse (hi.kind = cast( ubyte, MV_NONE )) then
+        if (c1.kind = cast( uint8, MV_NONE )) orelse (hi.kind = cast( uint8, MV_NONE )) then
             return none_
         end if
         dim as MirInst i2
-        i2.op = cast( ushort, BinOpFor( Tko.TK_LE, hmt, huns ) )
-        i2.ty = cast( ubyte, MT_I8 )
+        i2.op = cast( uint16, BinOpFor( Tko.TK_LE, hmt, huns ) )
+        i2.ty = cast( uint8, MT_I8 )
         i2.a = CoerceTy( c, LowerExprLoad( c, slotAddr, mt ), hmt, subjT )
         i2.b = hi
         dim as MirValue c2 = Emit( c, i2 )
         dim as MirInst i3
-        i3.op = cast( ushort, M_AND )
-        i3.ty = cast( ubyte, MT_I8 )
+        i3.op = cast( uint16, M_AND )
+        i3.ty = cast( uint8, MT_I8 )
         i3.a = c1
         i3.b = c2
         return Emit( c, i3 )
@@ -896,10 +896,10 @@ private function LowerCaseTest _
     CasePromote_( c, subjT, c.info->TypeOf_( val ), emt, euns, val )
     dim as MirValue rhs2 = CoerceTy( c, LowerExpr( c, val ), emt, _
                                      c.info->TypeOf_( val ), subjT )
-    if rhs2.kind = cast( ubyte, MV_NONE ) then return none_
+    if rhs2.kind = cast( uint8, MV_NONE ) then return none_
     dim as MirInst ins2
-    ins2.op = cast( ushort, BinOpFor( Tko.TK_EQ, emt, euns ) )
-    ins2.ty = cast( ubyte, MT_I8 )
+    ins2.op = cast( uint16, BinOpFor( Tko.TK_EQ, emt, euns ) )
+    ins2.ty = cast( uint8, MT_I8 )
     ins2.a = CoerceTy( c, LowerExprLoad( c, slotAddr, mt ), emt, subjT )
     ins2.b = rhs2
 
@@ -933,12 +933,12 @@ end function
 '' needs the error-handler machinery, which is not built.
 '' fb_ErrorSetHandler returns the handler it replaced: 'ON LOCAL ERROR' keeps it.
 private sub SaveOldHandler_( byref c as Ctx, byref old as MirValue )
-    if old.kind = cast( ubyte, MV_NONE ) then return
+    if old.kind = cast( uint8, MV_NONE ) then return
     dim as MirInst st
-    st.op = cast( ushort, M_STORE )
-    st.ty = cast( ubyte, MT_VOID )
-    st.a.kind = cast( ubyte, MV_LOCAL )
-    st.a.ty = cast( ubyte, MT_PTR )
+    st.op = cast( uint16, M_STORE )
+    st.ty = cast( uint8, MT_VOID )
+    st.a.kind = cast( uint8, MV_LOCAL )
+    st.a.ty = cast( uint8, MT_PTR )
     st.a.id = c.errLocalHandler
     st.b = old
     Emit( c, st )
@@ -974,16 +974,16 @@ private sub LowerOnError_( byref c as Ctx, byval id as Tko.NodeId )
     dim as boolean saving = false
     if (sp->extra = 4) andalso (c.errLocalSave = 0) andalso _
        (c.curProcSym <> Tko.SYMBOL_NONE) then
-        dim as long hs = NewTempLocal( c, MT_PTR, 8 )
-        dim as long bs = NewTempLocal( c, MT_AGG, ERR_LOCAL_JMP_BYTES )
+        dim as int32 hs = NewTempLocal( c, MT_PTR, 8 )
+        dim as int32 bs = NewTempLocal( c, MT_AGG, ERR_LOCAL_JMP_BYTES )
         if (hs >= 0) andalso (bs >= 0) then
-            dim as containers.Array( of ulong ) none
+            dim as containers.Array( of uint32 ) none
             dim as MirValue jb = EmitRtl( c, RTL_ERROR_JMPBUF, none )
-            if jb.kind <> cast( ubyte, MV_NONE ) then
-                dim as containers.Array( of ulong ) cp
-                cp.Push( cast( ulong, MV_LOCAL ) ) : cp.Push( cast( ulong, bs ) )
-                cp.Push( cast( ulong, jb.kind ) ) : cp.Push( cast( ulong, jb.id ) )
-                cp.Push( cast( ulong, MV_CONST_INT ) ) : cp.Push( ERR_LOCAL_JMP_BYTES )
+            if jb.kind <> cast( uint8, MV_NONE ) then
+                dim as containers.Array( of uint32 ) cp
+                cp.Push( cast( uint32, MV_LOCAL ) ) : cp.Push( cast( uint32, bs ) )
+                cp.Push( cast( uint32, jb.kind ) ) : cp.Push( cast( uint32, jb.id ) )
+                cp.Push( cast( uint32, MV_CONST_INT ) ) : cp.Push( ERR_LOCAL_JMP_BYTES )
                 EmitRtl( c, RTL_MEM_COPY, cp )
                 c.errLocalSave = bs + 1
                 c.errLocalHandler = hs
@@ -992,20 +992,20 @@ private sub LowerOnError_( byref c as Ctx, byval id as Tko.NodeId )
         end if
     end if
 
-    dim as containers.Array( of ulong ) args
+    dim as containers.Array( of uint32 ) args
     if sp->name = 0 then
         '' 'ON ERROR GOTO 0' -- a null handler. The parser leaves the name empty for the
         '' integer form, which in the fb dialect can only be 0: a numeric label is fbc's
         '' error 146 here, so there is no other integer to mean.
-        args.Push( cast( ulong, MV_CONST_INT ) )
+        args.Push( cast( uint32, MV_CONST_INT ) )
         args.Push( 0 )
         dim as MirValue old0 = EmitRtl( c, RTL_ERROR_SET_HANDLER, args )
         if saving then SaveOldHandler_( c, old0 )
         return
     end if
 
-    dim as long slot = LabelSlot( c, sp->name )
-    dim as long d = c.labelDepth[slot]
+    dim as int32 slot = LabelSlot( c, sp->name )
+    dim as int32 d = c.labelDepth[slot]
     if (d < 0) orelse (d = LABEL_AMBIGUOUS) then
         SkipHere( c )
         return
@@ -1021,13 +1021,13 @@ private sub LowerOnError_( byref c as Ctx, byval id as Tko.NodeId )
     ''
     '' So the operand goes out as a null placeholder and ResolveErrorJumps_ rewrites it
     '' once the label has been reached and its block exists in order.
-    dim as long argAt = c.m->argPool.Count
-    args.Push( cast( ulong, MV_CONST_INT ) )
+    dim as int32 argAt = c.m->argPool.Count
+    args.Push( cast( uint32, MV_CONST_INT ) )
     args.Push( 0 )
     dim as MirValue old = EmitRtl( c, RTL_ERROR_SET_HANDLER, args )
     if saving then SaveOldHandler_( c, old )
-    c.errPendingArg.Push( cast( ulong, argAt ) )
-    c.errPendingSlot.Push( cast( ulong, slot ) )
+    c.errPendingArg.Push( cast( uint32, argAt ) )
+    c.errPendingSlot.Push( cast( uint32, slot ) )
 
     '' AND THE LANDING POINT FOR A THROW IN ANOTHER PROCEDURE.
     ''
@@ -1050,41 +1050,41 @@ private sub LowerOnError_( byref c as Ctx, byval id as Tko.NodeId )
     '' constant this procedure holds -- and jumps through it. The destination list is
     '' filled by ResolveErrorJumps_ with every handler block in this procedure, the
     '' same patch the throw sites use.
-    dim as containers.Array( of ulong ) noargs
+    dim as containers.Array( of uint32 ) noargs
     dim as MirValue buf = EmitRtl( c, RTL_ERROR_JMPBUF, noargs )
-    if buf.kind = cast( ubyte, MV_NONE ) then return
+    if buf.kind = cast( uint8, MV_NONE ) then return
 
-    dim as containers.Array( of ulong ) sjargs
-    sjargs.Push( cast( ulong, buf.kind ) )
-    sjargs.Push( cast( ulong, buf.id ) )
+    dim as containers.Array( of uint32 ) sjargs
+    sjargs.Push( cast( uint32, buf.kind ) )
+    sjargs.Push( cast( uint32, buf.id ) )
     '' A NULL FRAME POINTER, deliberately. MSVC's _setjmp takes (env, frame) and a
     '' null frame is the jump that does NOT unwind SEH, which is the FreeBASIC
     '' semantics; glibc's _setjmp takes (env) alone and ignores the second register.
-    sjargs.Push( cast( ulong, MV_CONST_INT ) )
+    sjargs.Push( cast( uint32, MV_CONST_INT ) )
     sjargs.Push( 0 )
     dim as RtlId sjId = RTL_SETJMP
     if c.types->target.isMsvc then sjId = RTL_SETJMP_MSVC
     dim as MirValue sj = EmitRtl( c, sjId, sjargs )
-    if sj.kind = cast( ubyte, MV_NONE ) then return
+    if sj.kind = cast( uint8, MV_NONE ) then return
 
     dim as MirInst cmp
-    cmp.op = cast( ushort, M_ICMP_NE )
-    cmp.ty = cast( ubyte, MT_I32 )
+    cmp.op = cast( uint16, M_ICMP_NE )
+    cmp.ty = cast( uint8, MT_I32 )
     cmp.a = sj
     cmp.b = ConstInt( c, 0, MT_I32 )
     dim as MirValue cond = Emit( c, cmp )
-    if cond.kind = cast( ubyte, MV_NONE ) then return
+    if cond.kind = cast( uint8, MV_NONE ) then return
 
     '' THE JUMP BLOCK FIRST, for the reason EmitErrorJump_ gives: a block is an extent
     '' over one instruction list, so they have to be filled in creation order.
-    dim as long jumpB = NewBlock( c, "onerr.caught" )
-    dim as long contB = NewBlock( c, "onerr.armed" )
+    dim as int32 jumpB = NewBlock( c, "onerr.caught" )
+    dim as int32 contB = NewBlock( c, "onerr.armed" )
     Terminate( c, MTERM_CONDBR, jumpB, contB, cond )
 
     c.curBlock = jumpB
-    dim as containers.Array( of ulong ) hargs
+    dim as containers.Array( of uint32 ) hargs
     dim as MirValue h = EmitRtl( c, RTL_ERROR_GET_HANDLER, hargs )
-    c.errIndirectBlocks.Push( cast( ulong, jumpB ) )
+    c.errIndirectBlocks.Push( cast( uint32, jumpB ) )
     Terminate( c, MTERM_INDIRECTBR, -1, -1, h )
     c.curBlock = contB
 end sub
@@ -1110,26 +1110,26 @@ sub LowerOnGoto( byref c as Ctx, byval id as Tko.NodeId )
     '' EVERY LABEL FIRST. A list naming one this procedure has not got would leave a
     '' branch to a block that never exists, so nothing is emitted until all of them
     '' are known -- the same rule LowerGoto applies to its single label.
-    dim as containers.Array( of ulong ) blocks
-    for i as long = 0 to sp->count - 1
+    dim as containers.Array( of uint32 ) blocks
+    for i as int32 = 0 to sp->count - 1
         dim as Tko.NodeId ln = cast( Tko.NodeId, c.ast->children[sp->first + i] )
         if c.ast->Kind( ln ) <> Tko.N_IDENT then
             SkipHere( c )
             return
         end if
         dim as Tko.IdentPayload ptr lip = _
-            @c.ast->idents[cast( long, c.ast->nodes[cast( long, ln )].data )]
-        dim as long slot = LabelSlot( c, lip->name )
-        dim as long d = c.labelDepth[slot]
+            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, ln )].data )]
+        dim as int32 slot = LabelSlot( c, lip->name )
+        dim as int32 d = c.labelDepth[slot]
         if (d < 0) orelse (d = LABEL_AMBIGUOUS) then
             SkipHere( c )
             return
         end if
-        blocks.Push( cast( ulong, LabelBlockOf( c, slot ) ) )
+        blocks.Push( cast( uint32, LabelBlockOf( c, slot ) ) )
     next
 
     dim as MirValue sel = LowerExpr( c, sp->a )
-    if sel.kind = cast( ubyte, MV_NONE ) then
+    if sel.kind = cast( uint8, MV_NONE ) then
         SkipHere( c )
         return
     end if
@@ -1137,16 +1137,16 @@ sub LowerOnGoto( byref c as Ctx, byval id as Tko.NodeId )
 
     '' THE LIST IS ONE-BASED: the index is the selector minus one.
     dim as MirValue one
-    one.kind = cast( ubyte, MV_CONST_INT )
-    one.ty = cast( ubyte, MT_I64 )
+    one.kind = cast( uint8, MV_CONST_INT )
+    one.ty = cast( uint8, MT_I64 )
     one.id = 1
     dim as MirInst sub_
-    sub_.op = cast( ushort, M_SUB )
-    sub_.ty = cast( ubyte, MT_I64 )
+    sub_.op = cast( uint16, M_SUB )
+    sub_.ty = cast( uint8, MT_I64 )
     sub_.a = sel
     sub_.b = one
     dim as MirValue idx = Emit( c, sub_ )
-    if idx.kind = cast( ubyte, MV_NONE ) then
+    if idx.kind = cast( uint8, MV_NONE ) then
         SkipHere( c )
         return
     end if
@@ -1154,43 +1154,43 @@ sub LowerOnGoto( byref c as Ctx, byval id as Tko.NodeId )
     '' ...and the range test is UNSIGNED, so 0 and every negative selector fall
     '' through on the same comparison.
     dim as MirValue hi
-    hi.kind = cast( ubyte, MV_CONST_INT )
-    hi.ty = cast( ubyte, MT_I64 )
-    hi.id = cast( ulong, sp->count - 1 )
+    hi.kind = cast( uint8, MV_CONST_INT )
+    hi.ty = cast( uint8, MT_I64 )
+    hi.id = cast( uint32, sp->count - 1 )
     dim as MirInst cmp
-    cmp.op = cast( ushort, M_ICMP_UGT )
-    cmp.ty = cast( ubyte, MT_I64 )
+    cmp.op = cast( uint16, M_ICMP_UGT )
+    cmp.ty = cast( uint8, MT_I64 )
     cmp.a = idx
     cmp.b = hi
     dim as MirValue over = Emit( c, cmp )
-    if over.kind = cast( ubyte, MV_NONE ) then
+    if over.kind = cast( uint8, MV_NONE ) then
         SkipHere( c )
         return
     end if
 
-    dim as long afterB = NewBlock( c, "on.after" )
-    dim as long testB = NewBlock( c, "on.test" )
+    dim as int32 afterB = NewBlock( c, "on.after" )
+    dim as int32 testB = NewBlock( c, "on.test" )
     Terminate( c, MTERM_CONDBR, afterB, testB, over )
 
-    for i as long = 0 to sp->count - 1
+    for i as int32 = 0 to sp->count - 1
         c.curBlock = testB
         dim as MirValue k
-        k.kind = cast( ubyte, MV_CONST_INT )
-        k.ty = cast( ubyte, MT_I64 )
-        k.id = cast( ulong, i )
+        k.kind = cast( uint8, MV_CONST_INT )
+        k.ty = cast( uint8, MT_I64 )
+        k.id = cast( uint32, i )
         dim as MirInst eq
-        eq.op = cast( ushort, M_ICMP_EQ )
-        eq.ty = cast( ubyte, MT_I64 )
+        eq.op = cast( uint16, M_ICMP_EQ )
+        eq.ty = cast( uint8, MT_I64 )
         eq.a = idx
         eq.b = k
         dim as MirValue hit = Emit( c, eq )
-        if hit.kind = cast( ubyte, MV_NONE ) then
+        if hit.kind = cast( uint8, MV_NONE ) then
             SkipHere( c )
             return
         end if
-        dim as long nextB = afterB
+        dim as int32 nextB = afterB
         if i < (sp->count - 1) then nextB = NewBlock( c, "on.test" )
-        Terminate( c, MTERM_CONDBR, cast( long, blocks[i] ), nextB, hit )
+        Terminate( c, MTERM_CONDBR, cast( int32, blocks[i] ), nextB, hit )
         testB = nextB
     next
 
@@ -1200,13 +1200,13 @@ end sub
 
 sub LowerDo( byref c as Ctx, byval id as Tko.NodeId )
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-    dim as ushort flags = c.ast->nodes[cast( long, id )].flags
+    dim as uint16 flags = c.ast->nodes[cast( int32, id )].flags
     dim as boolean postCond = ((flags and Tko.NF_POST_COND) <> 0)
     dim as boolean isUntil = ((flags and Tko.NF_UNTIL) <> 0)
 
-    dim as long headB = NewBlock( c, "do.head" )
-    dim as long bodyB = NewBlock( c, "do.body" )
-    dim as long exitB = NewBlock( c, "do.exit" )
+    dim as int32 headB = NewBlock( c, "do.head" )
+    dim as int32 bodyB = NewBlock( c, "do.body" )
+    dim as int32 exitB = NewBlock( c, "do.exit" )
     Terminate( c, MTERM_BR, iif( postCond, bodyB, headB ), -1, NoVal( ) )
 
     '' THE POST-TEST CONDITION LIVES IN 'c', NOT IN 'a', and this read 'a' either way.
@@ -1235,7 +1235,7 @@ sub LowerDo( byref c as Ctx, byval id as Tko.NodeId )
     if condE <> Tko.NODE_NONE then
         '' A UDT temporary made by the CONDITION dies here, not at the end of the
         '' loop: the head runs again on every iteration and the slot is the same one.
-        dim as long umark = c.udtTemps.Count
+        dim as int32 umark = c.udtTemps.Count
         dim as MirValue cond = LowerCondition( c, condE )
         ReleaseUdtTemps_( c, umark )
         '' UNTIL is the same test with the arms swapped, which is cheaper than
@@ -1253,8 +1253,8 @@ sub LowerDo( byref c as Ctx, byval id as Tko.NodeId )
     c.breakTo.Push( exitB )
     c.contTo.Push( headB )
     c.loopScope.Push( c.scopeMark.Count )
-    c.loopKind.Push( cast( long, Tko.KW_DO ) )
-    PushScope( c, cast( ulong, sp->b ) )
+    c.loopKind.Push( cast( int32, Tko.KW_DO ) )
+    PushScope( c, cast( uint32, sp->b ) )
     LowerBlock( c, sp->b )
     CloseScope( c )
     c.loopScope.Pop( )
@@ -1277,15 +1277,15 @@ sub LowerIf _
         return
     end if
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, branches )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, branches )].data )]
 
-    dim as long joinB = NewBlock( c, "if.join" )
-    for i as long = 0 to lp->count - 1
+    dim as int32 joinB = NewBlock( c, "if.join" )
+    for i as int32 = 0 to lp->count - 1
         dim as Tko.NodeId br = cast( Tko.NodeId, c.ast->children[lp->first + i] )
         if c.ast->Kind( br ) <> Tko.N_IF_BRANCH then continue for
         dim as Tko.StmtPayload ptr bp = StmtOf( c, br )
-        dim as long thenB = NewBlock( c, "if.then" )
-        dim as long elseB = NewBlock( c, "if.else" )
+        dim as int32 thenB = NewBlock( c, "if.then" )
+        dim as int32 elseB = NewBlock( c, "if.else" )
         '' A CONDITION THAT WOULD NOT LOWER IS A DECLINE. It used to go out as
         '' 'condbr _, then, else' -- a conditional branch with NO CONDITION -- which
         '' the verifier passes and a backend cannot mean anything by. The IF counted as
@@ -1321,14 +1321,14 @@ sub LowerIf _
         '' Measured: fbc destroys the condition's temporary immediately after the compare
         '' that used it -- '_ZN7AFXNOVA8DWSTRINGD1Ev( &TMP$9807$2 )' on the next line --
         '' inside the arm, never at the join.
-        dim as long cmark = c.udtTemps.Count
-        dim as long csmark = c.strTemps.Count
-        dim as long cwmark = c.wstrTemps.Count
+        dim as int32 cmark = c.udtTemps.Count
+        dim as int32 csmark = c.strTemps.Count
+        dim as int32 cwmark = c.wstrTemps.Count
         dim as MirValue cond = LowerCondition( c, bp->a )
         ReleaseUdtTemps_( c, cmark )
         ReleaseStrTemps_( c, csmark )
         ReleaseWstrTemps_( c, cwmark )
-        if cond.kind = cast( ubyte, MV_NONE ) then
+        if cond.kind = cast( uint8, MV_NONE ) then
             SkipHere( c )
             Terminate( c, MTERM_BR, thenB, -1, NoVal( ) )
         else
@@ -1350,7 +1350,7 @@ sub LowerIf _
         '' wrote -- the probe crashed. Measured against fbc, which destroys at the
         '' END OF THE ARM, before the statement after the IF.
         c.curBlock = thenB
-        PushScope( c, cast( ulong, bp->b ) )
+        PushScope( c, cast( uint32, bp->b ) )
         LowerBlock( c, bp->b )
         CloseScope( c )
         Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
@@ -1359,7 +1359,7 @@ sub LowerIf _
 
     '' ...AND THE ELSE BODY, for the same reason.
     if sp->c <> Tko.NODE_NONE then
-        PushScope( c, cast( ulong, sp->c ) )
+        PushScope( c, cast( uint32, sp->c ) )
         LowerBlock( c, sp->c )
         CloseScope( c )
     end if

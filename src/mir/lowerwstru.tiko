@@ -15,9 +15,9 @@ namespace Tko.Mir
 '' A ustring anywhere in the chain makes the chain a ustring: into a ustring it belongs to
 '' the conversion fold in lowerterm.tiko, and into a wstring to one fb_UStrAssignToW.
 function ChainTouchesU_( byref c as Ctx, byval value as Tko.NodeId ) as boolean
-    dim as containers.Array( of ulong ) terms
+    dim as containers.Array( of uint32 ) terms
     FlattenConcat( c, value, terms )
-    for i as long = 0 to terms.Count - 1
+    for i as int32 = 0 to terms.Count - 1
         if IsUStringType( c, c.info->TypeOf_( cast( Tko.NodeId, terms[i] ) ) ) then
             return true
         end if
@@ -38,36 +38,36 @@ end function
 ''
 '' 1 lowered, 0 not a ustring source (the caller's other paths apply), -1 declined.
 function WideConcatAssignUStr_ _
-    ( byref c as Ctx, byref dst as MirValue, byval n as long, _
-      byval value as Tko.NodeId ) as long
+    ( byref c as Ctx, byref dst as MirValue, byval n as int32, _
+      byval value as Tko.NodeId ) as int32
 
     if (IsUStringType( c, c.info->TypeOf_( value ) ) = false) andalso _
        (ChainTouchesU_( c, value ) = false) then return 0
     dim as MirValue usrc
-    dim as long uslot = -1
+    dim as int32 uslot = -1
     if UStrOutOperand_( c, value, usrc, uslot ) = false then return -1
-    dim as containers.Array( of ulong ) wa
-    wa.Push( cast( ulong, dst.kind ) ) : wa.Push( cast( ulong, dst.id ) )
+    dim as containers.Array( of uint32 ) wa
+    wa.Push( cast( uint32, dst.kind ) ) : wa.Push( cast( uint32, dst.id ) )
     dim as MirValue cur = EmitRtl( c, RTL_WSTR_TO_USTR, wa )
-    if cur.kind = cast( ubyte, MV_NONE ) then return -1
-    dim as long tslot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+    if cur.kind = cast( uint8, MV_NONE ) then return -1
+    dim as int32 tslot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
     if tslot < 0 then return -1
     dim as MirValue tmp
-    tmp.kind = cast( ubyte, MV_LOCAL ) : tmp.ty = cast( ubyte, MT_PTR ) : tmp.id = tslot
+    tmp.kind = cast( uint8, MV_LOCAL ) : tmp.ty = cast( uint8, MT_PTR ) : tmp.id = tslot
     ZeroStrDescriptor( c, tmp )
-    dim as containers.Array( of ulong ) ca
-    ca.Push( cast( ulong, tmp.kind ) ) : ca.Push( cast( ulong, tmp.id ) )
-    ca.Push( cast( ulong, cur.kind ) ) : ca.Push( cast( ulong, cur.id ) )
-    ca.Push( cast( ulong, MV_CONST_INT ) ) : ca.Push( cast( ulong, cast( ulongint, -1 ) ) )
-    ca.Push( cast( ulong, usrc.kind ) ) : ca.Push( cast( ulong, usrc.id ) )
-    ca.Push( cast( ulong, MV_CONST_INT ) ) : ca.Push( cast( ulong, cast( ulongint, -1 ) ) )
+    dim as containers.Array( of uint32 ) ca
+    ca.Push( cast( uint32, tmp.kind ) ) : ca.Push( cast( uint32, tmp.id ) )
+    ca.Push( cast( uint32, cur.kind ) ) : ca.Push( cast( uint32, cur.id ) )
+    ca.Push( cast( uint32, MV_CONST_INT ) ) : ca.Push( cast( uint32, cast( uint64, -1 ) ) )
+    ca.Push( cast( uint32, usrc.kind ) ) : ca.Push( cast( uint32, usrc.id ) )
+    ca.Push( cast( uint32, MV_CONST_INT ) ) : ca.Push( cast( uint32, cast( uint64, -1 ) ) )
     dim as MirValue joined = EmitRtl( c, RTL_USTR_CONCAT, ca )
-    if joined.kind = cast( ubyte, MV_NONE ) then return -1
-    dim as containers.Array( of ulong ) aa
-    aa.Push( cast( ulong, dst.kind ) ) : aa.Push( cast( ulong, dst.id ) )
-    aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( cast( ulong, n ) )
-    aa.Push( cast( ulong, joined.kind ) ) : aa.Push( cast( ulong, joined.id ) )
-    aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( cast( ulong, cast( ulongint, -1 ) ) )
+    if joined.kind = cast( uint8, MV_NONE ) then return -1
+    dim as containers.Array( of uint32 ) aa
+    aa.Push( cast( uint32, dst.kind ) ) : aa.Push( cast( uint32, dst.id ) )
+    aa.Push( cast( uint32, MV_CONST_INT ) ) : aa.Push( cast( uint32, n ) )
+    aa.Push( cast( uint32, joined.kind ) ) : aa.Push( cast( uint32, joined.id ) )
+    aa.Push( cast( uint32, MV_CONST_INT ) ) : aa.Push( cast( uint32, cast( uint64, -1 ) ) )
     EmitRtl( c, RTL_USTR_TO_W, aa )
     ReleaseUStrOut_( c, uslot )
     return 1

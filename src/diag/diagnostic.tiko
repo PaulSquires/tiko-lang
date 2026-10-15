@@ -41,7 +41,7 @@ end function
 function DiagIdFromName( byval spelling as string ) as DiagId
     InitDiagTable( )
     dim as string want = ucase( trim( spelling ) )
-    for i as long = 1 to DIAG_COUNT - 1
+    for i as int32 = 1 to DIAG_COUNT - 1
         if *diagTable(i).idName = want then return cast( DiagId, i )
     next
     return DIAG_NONE
@@ -61,13 +61,13 @@ function FormatDiag _
       byval a2 as string ) as string
 
     dim as string outp = ""
-    dim as long n = len( fmt )
-    dim as long i = 0
+    dim as int32 n = len( fmt )
+    dim as int32 i = 0
     while i < n
-        dim as ubyte c = fmt[i]
+        dim as uint8 c = fmt[i]
         dim as boolean isPlaceholder = false
         if c = asc( "%" ) andalso (i + 1 < n) then
-            dim as ubyte d = fmt[i + 1]
+            dim as uint8 d = fmt[i + 1]
             isPlaceholder = (d >= asc( "0" )) andalso (d <= asc( "2" ))
         end if
 

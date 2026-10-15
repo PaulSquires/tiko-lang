@@ -10,13 +10,13 @@
 private function FileShown_( byref e as PpEngine, byref d as DecodedLoc ) as string
     if d.shownName <> INTERN_NONE then return e.src->ShownPathOf( d )
     dim as boolean included = false
-    for each f as ulong in e.allIncluded
+    for each f as uint32 in e.allIncluded
         if cast( FileId, f ) = d.file then included = true
     next
     if included = false then return e.src->ShownPathOf( d )
     dim as string ap = e.src->AbsPathOf( d.file )
     #ifdef __FB_WIN32__
-        for k as long = 0 to len( ap ) - 1
+        for k as int32 = 0 to len( ap ) - 1
             if ap[k] = 47 then ap[k] = 92
         next
     #endif
@@ -58,12 +58,12 @@ function PpExpandBuiltin _
     case PPB_PATH
         dim as string ap = e.src->AbsPathOf( d.file )
         #ifdef __FB_WIN32__
-            for k as long = 0 to len( ap ) - 1
+            for k as int32 = 0 to len( ap ) - 1
                 if ap[k] = 47 then ap[k] = 92
             next
         #endif
-        dim as long cut = 0
-        for k as long = len( ap ) - 1 to 0 step -1
+        dim as int32 cut = 0
+        for k as int32 = len( ap ) - 1 to 0 step -1
             if (ap[k] = 47) orelse (ap[k] = 92) then
                 cut = k
                 exit for
@@ -112,12 +112,12 @@ function PpExpandBuiltin _
 
         if m->builtin = PPB_UNIQUEID_PUSH then
             e.uniqueCounter += 1
-            e.uidNames.Push( cast( ulong, ukey ) )
-            e.uidValues.Push( cast( ulong, e.uniqueCounter ) )
+            e.uidNames.Push( cast( uint32, ukey ) )
+            e.uidValues.Push( cast( uint32, e.uniqueCounter ) )
         else
             '' The innermost entry for this name, found by scanning backwards.
-            dim as long utop = -1
-            for i as long = e.uidNames.Count - 1 to 0 step -1
+            dim as int32 utop = -1
+            for i as int32 = e.uidNames.Count - 1 to 0 step -1
                 if cast( InternId, e.uidNames[i] ) = ukey then
                     utop = i
                     exit for
@@ -136,7 +136,7 @@ function PpExpandBuiltin _
                     Report( e, TKO0319, use.loc, ArgText( e, uargs, 0 ) )
                 end if
                 if utop >= 0 then
-                    for i as long = utop to e.uidNames.Count - 2
+                    for i as int32 = utop to e.uidNames.Count - 2
                         e.uidNames[i] = e.uidNames[i + 1]
                         e.uidValues[i] = e.uidValues[i + 1]
                     next
@@ -184,8 +184,8 @@ function PpExpandBuiltin _
             if uok then
                 s = u
             else
-                dim as long a = instr( s, """" )
-                dim as long b = instrrev( s, """" )
+                dim as int32 a = instr( s, """" )
+                dim as int32 b = instrrev( s, """" )
                 if (a > 0) andalso (b > a) then s = mid( s, a + 1, b - a - 1 )
             end if
             RelexInto( e, s, use.loc, *buf )
@@ -230,18 +230,18 @@ function PpExpandBuiltin _
                 Report( e, TKO0306, UseSiteLoc_( e, use ), e.names->Spelling( m->name ), "3" )
             else
                 dim as boolean ok0, ok1, ok2
-                dim as longint wa = BuiltinIntArg_( e, args, 0, ok0 )
-                dim as longint wb = BuiltinIntArg_( e, args, 1, ok1 )
-                dim as longint wc = BuiltinIntArg_( e, args, 2, ok2 )
+                dim as int64 wa = BuiltinIntArg_( e, args, 0, ok0 )
+                dim as int64 wb = BuiltinIntArg_( e, args, 1, ok1 )
+                dim as int64 wc = BuiltinIntArg_( e, args, 2, ok2 )
                 if (ok0 andalso ok1 andalso ok2) = false then
                     Report( e, TKO0324, UseSiteLoc_( e, use ), "1", e.names->Spelling( m->name ) )
                 else
                     dim as string fv = TKO_FBC_COMPAT
-                    dim as long d1 = instr( fv, "." )
-                    dim as long d2 = instr( d1 + 1, fv, "." )
-                    dim as longint ha = valint( left( fv, d1 - 1 ) )
-                    dim as longint hb = valint( mid( fv, d1 + 1, d2 - d1 - 1 ) )
-                    dim as longint hc = valint( mid( fv, d2 + 1 ) )
+                    dim as int32 d1 = instr( fv, "." )
+                    dim as int32 d2 = instr( d1 + 1, fv, "." )
+                    dim as int64 ha = valint( left( fv, d1 - 1 ) )
+                    dim as int64 hb = valint( mid( fv, d1 + 1, d2 - d1 - 1 ) )
+                    dim as int64 hc = valint( mid( fv, d2 + 1 ) )
                     dim as boolean atLeast = (ha > wa)
                     if ha = wa then atLeast = (hb > wb) orelse ((hb = wb) andalso (hc >= wc))
                     RelexInto( e, iif( atLeast, "-1", "0" ), use.loc, *buf )
@@ -254,7 +254,7 @@ function PpExpandBuiltin _
         if PpReadArgs( e, m, args ) then
             dim as containers.Array( of string ) lst
             ExpandedArgList_( e, args, 0, lst )
-            dim as long n = lst.Count
+            dim as int32 n = lst.Count
             if (n = 1) andalso (len( lst[0] ) = 0) then n = 0
             RelexInto( e, str( n ), use.loc, *buf )
         end if
@@ -269,12 +269,12 @@ function PpExpandBuiltin _
         dim as ArgList args
         if PpReadArgs( e, m, args ) then
             dim as boolean iok = false
-            dim as longint i = BuiltinIntArg_( e, args, 0, iok )
+            dim as int64 i = BuiltinIntArg_( e, args, 0, iok )
             '' ...AND NOT A FLOAT, NOR A NAME NO MACRO GIVES A VALUE: the evaluator reads
             '' '3.147' as 3 and an unknown 'jimArg' as 0, where fbc gives 17 and 42
             '' (fbc-modern 1.20, 2026-09-29; pp/macro-arg-extract-fail and -fail3).
             if iok andalso (args.firsts.Count > 0) then
-                for ti as long = 0 to args.counts[0] - 1
+                for ti as int32 = 0 to args.counts[0] - 1
                     dim as Token at_ = args.flat[args.firsts[0] + ti]
                     if Tk( at_ ) = TK_FLOAT_LIT then iok = false
                     if Tk( at_ ) = TK_IDENT then
@@ -292,7 +292,7 @@ function PpExpandBuiltin _
                 dim as containers.Array( of string ) lst
                 ExpandedArgList_( e, args, 1, lst )
                 if i < lst.Count then
-                    RelexInto( e, lst[cast( long, i )], use.loc, *buf )
+                    RelexInto( e, lst[cast( int32, i )], use.loc, *buf )
                 end if
             end if
         end if
@@ -354,7 +354,7 @@ function PpExpandBuiltin _
         dim as ArgList args
         if PpReadArgs( e, m, args ) then
             dim as boolean sok = false
-            dim as longint stp = BuiltinIntArg_( e, args, 1, sok )
+            dim as int64 stp = BuiltinIntArg_( e, args, 1, sok )
             if sok = false then
                 Report( e, TKO0324, use.loc, "2", e.names->Spelling( m->name ) )
             else
@@ -363,25 +363,25 @@ function PpExpandBuiltin _
                 dim as containers.Array( of string ) lst
                 ExpandedArgList_( e, args, 2, lst )
                 if (lst.Count = 1) andalso (len( lst[0] ) = 0) then lst.Pop( )
-                dim as long n = lst.Count                  '' the list length
+                dim as int32 n = lst.Count                  '' the list length
                 dim as string s = ""
-                dim as long calls = 0
+                dim as int32 calls = 0
                 if n > 0 then
                     if stp = 0 then
                         s = mname + "( " + ListJoin_( lst, 0, n - 1 ) + " )"
                     elseif stp > 0 then
-                        dim as long at = 0
+                        dim as int32 at = 0
                         while at < n
-                            dim as long last = at + cast( long, stp ) - 1
+                            dim as int32 last = at + cast( int32, stp ) - 1
                             if last > n - 1 then last = n - 1
                             if calls > 0 then s += " : "
                             s += mname + "( " + ListJoin_( lst, at, last ) + " )"
                             calls += 1
-                            at += cast( long, stp )
+                            at += cast( int32, stp )
                         wend
                     else
-                        dim as long drop = cast( long, -stp )
-                        dim as long at = 0
+                        dim as int32 drop = cast( int32, -stp )
+                        dim as int32 at = 0
                         while at < n
                             if calls > 0 then s += " : "
                             s += mname + "( " + ListJoin_( lst, at, n - 1 ) + " )"
@@ -413,7 +413,7 @@ function PpExpandBuiltin _
         dim as ArgList args
         if PpReadArgs( e, m, args ) then
             dim as string s = ""
-            for i as long = 0 to args.firsts.Count - 1
+            for i as int32 = 0 to args.firsts.Count - 1
                 s += ExpandedArgText_( e, args, i )
             next
             RelexInto( e, s, use.loc, *buf )
@@ -461,8 +461,8 @@ function Stringised_( byref t as string ) as string
     dim as string pend = ""
     dim as boolean pendBreak = false
     dim as boolean seenAny = false
-    for i as long = 0 to len( t ) - 1
-        dim as long ch = t[i]
+    for i as int32 = 0 to len( t ) - 1
+        dim as int32 ch = t[i]
         dim as boolean isWs = (ch = 32) orelse (ch = 9)
         if isWs = false then isWs = (ch = 13) orelse (ch = 10)
         if isWs then
@@ -488,13 +488,13 @@ end function
 '' A TOKEN OF '#print' / '#error' AS fbc SHOWS IT: an object-like macro is EXPANDED --
 '' measured, '#define K 5' then '#print K' prints 5 where tiko printed K (audit F-68).
 '' A function-like macro or a builtin is shown as written; the depth stops a cycle.
-private function PrintSpell_( byref e as PpEngine, byref t as Token, byval depth as long ) as string
+private function PrintSpell_( byref e as PpEngine, byref t as Token, byval depth as int32 ) as string
     if (Tk( t ) = TK_IDENT) andalso (depth < 32) then
         dim as PpMacro ptr m = MacroFor( e, cast( InternId, t.literal ) )
         if m <> 0 then
             if (m->isFunc = false) andalso (m->builtin = PPB_NONE) then
                 dim as string r = ""
-                for k as long = 0 to m->body.Count - 1
+                for k as int32 = 0 to m->body.Count - 1
                     if k > 0 then r += " "
                     r += PrintSpell_( e, m->body[k], depth + 1 )
                 next
@@ -509,19 +509,19 @@ end function
 '' line of source: '#x' over 'a   +   b' is "a   +   b" in fbc (audit F-54). Anything else
 '' -- a token an expansion made, a gap across a line, a comment in it -- is one space.
 function GapText_( byref e as PpEngine, byref a as Token, byref b as Token ) as string
-    dim as long ni = PasteNoteOf_( e, b, true )   '' a paste's own gap -- ppspell.tiko
+    dim as int32 ni = PasteNoteOf_( e, b, true )   '' a paste's own gap -- ppspell.tiko
     if (ni >= 0) andalso (len( e.pasteGap[ni] ) > 0) then return e.pasteGap[ni]
     dim as FileId fileA, fileB
-    dim as long oa = e.src->LocOffset( a.loc, fileA )
-    dim as long ob = e.src->LocOffset( b.loc, fileB )
+    dim as int32 oa = e.src->LocOffset( a.loc, fileA )
+    dim as int32 ob = e.src->LocOffset( b.loc, fileB )
     if (fileA = FILE_NONE) orelse (fileA <> fileB) then return " "
-    dim as long gapFrom = oa + cast( long, a.length )
+    dim as int32 gapFrom = oa + cast( int32, a.length )
     if (ob <= gapFrom) orelse (ob - gapFrom > 256) then return " "
     dim as SourceFile ptr f = e.src->FileAt( fileA )
     if f = 0 then return " "
     dim as string g = ""
-    for k as long = gapFrom to ob - 1
-        dim as ubyte ch = f->text[k]
+    for k as int32 = gapFrom to ob - 1
+        dim as uint8 ch = f->text[k]
         if (ch <> 32) andalso (ch <> 9) then return " "
         g += chr( ch )
     next

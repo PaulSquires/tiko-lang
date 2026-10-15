@@ -22,7 +22,7 @@ end function
 
 function NormPath( byref p as string ) as string
     dim as string s = p
-    for i as long = 0 to len( s ) - 1
+    for i as int32 = 0 to len( s ) - 1
         if s[i] = 92 then s[i] = 47
     next
 
@@ -37,9 +37,9 @@ function NormPath( byref p as string ) as string
     end if
 
     dim as Tko.StrVec segs
-    dim as long st = 1
+    dim as int32 st = 1
     do
-        dim as long sl = instr( st, s, "/" )
+        dim as int32 sl = instr( st, s, "/" )
         dim as string seg = iif( sl = 0, mid( s, st ), mid( s, st, sl - st ) )
         if (seg = "") orelse (seg = ".") then
             '' nothing
@@ -59,7 +59,7 @@ function NormPath( byref p as string ) as string
     loop
 
     dim as string outp = prefix
-    for i as long = 0 to segs.Count - 1
+    for i as int32 = 0 to segs.Count - 1
         if i > 0 then outp += "/"
         outp += segs[i]
     next
@@ -80,7 +80,7 @@ end function
 
 function DirOfFile( byref p as string ) as string
     dim as string n = NormPath( p )
-    dim as long sl = instrrev( n, "/" )
+    dim as int32 sl = instrrev( n, "/" )
     if sl = 0 then return "."
     if sl = 1 then return "/"
     dim as string d = left( n, sl - 1 )
@@ -111,7 +111,7 @@ private function ChainOf_( byref pkgName as string, byref rel as string ) as str
     dim as string c = Tko.Text.LowerAscii( pkgName )
     if len( rel ) = 0 then return c
     dim as string r = Tko.Text.LowerAscii( rel )
-    for i as long = 0 to len( r ) - 1
+    for i as int32 = 0 to len( r ) - 1
         if r[i] = 47 then r[i] = 46
     next
     return c & "." & r
@@ -120,7 +120,7 @@ end function
 '' THE PACKAGE SEARCH ROOTS, in order: each -i the user gave (not the bundled header
 '' directory, which cmdline.tiko appends after them), then each TKO_PATH entry.
 private sub SearchRoots_( byref ctx as Tko.CompilerContext, byref roots as Tko.StrVec )
-    for i as long = 0 to ctx.options.userIncludeCount - 1
+    for i as int32 = 0 to ctx.options.userIncludeCount - 1
         roots.Push( NormPath( ctx.options.includePaths[i] ) )
     next
     dim as string env_ = environ( "TKO_PATH" )
@@ -129,9 +129,9 @@ private sub SearchRoots_( byref ctx as Tko.CompilerContext, byref roots as Tko.S
     #else
         const SEP = ":"
     #endif
-    dim as long st = 1
+    dim as int32 st = 1
     while st <= len( env_ )
-        dim as long sp = instr( st, env_, SEP )
+        dim as int32 sp = instr( st, env_, SEP )
         dim as string one_ = iif( sp = 0, mid( env_, st ), mid( env_, st, sp - st ) )
         if len( one_ ) > 0 then roots.Push( NormPath( one_ ) )
         if sp = 0 then exit while
@@ -171,8 +171,8 @@ sub ResetPackages( byref ctx as Tko.CompilerContext )
     ctx.pkgRootKnown = false
 end sub
 
-private function PkgIndex_( byref ctx as Tko.CompilerContext, byref name_ as string ) as long
-    for i as long = 0 to ctx.pkgNames.Count - 1
+private function PkgIndex_( byref ctx as Tko.CompilerContext, byref name_ as string ) as int32
+    for i as int32 = 0 to ctx.pkgNames.Count - 1
         if ctx.pkgNames[i] = name_ then return i
     next
     return -1
@@ -185,7 +185,7 @@ private function Register_ _
     ( byref ctx as Tko.CompilerContext, byref name_ as string, byref root as string, _
       byval isRoot as boolean ) as boolean
     dim as string n = Tko.Text.LowerAscii( name_ )
-    dim as long at = PkgIndex_( ctx, n )
+    dim as int32 at = PkgIndex_( ctx, n )
     if at >= 0 then
         if SamePath_( ctx.pkgRoots[at], NormPath( root ) ) then return true
         ctx.diags.ReportGlobal( Tko.TKO0149, n, ctx.pkgRoots[at], NormPath( root ) )
@@ -210,14 +210,14 @@ private function Register_ _
             return false
         end if
     end if
-    for k as long = 0 to m.depNames.Count - 1
+    for k as int32 = 0 to m.depNames.Count - 1
         ctx.pkgDepOwner.Push( idx ) : ctx.pkgDepName.Push( m.depNames[k] ) : ctx.pkgDepPath.Push( m.depPaths[k] )
     next
     for each d as string in m.defines
         ctx.pkgDefOwner.Push( idx ) : ctx.pkgDefText.Push( d )
     next
     if isRoot then
-        for k as long = 0 to m.ddDep.Count - 1
+        for k as int32 = 0 to m.ddDep.Count - 1
             ctx.pkgDdDep.Push( Tko.Text.LowerAscii( m.ddDep[k] ) ) : ctx.pkgDdText.Push( m.ddDefine[k] )
         next
     end if
@@ -241,7 +241,7 @@ function RootPackage _
     dim as string abs_ = DirOfFile( ctx.sources.AbsPathOf( cast( Tko.FileId, 1 ) ) )
     dim as string d = abs_
     dim as string rel = first_
-    for guard as long = 0 to 64
+    for guard as int32 = 0 to 64
         if HasManifest( d ) then
             dim as Manifest m
             if LoadManifest( ctx, d, m ) = false then return false
@@ -262,18 +262,18 @@ end function
 
 sub PackageDefines( byref ctx as Tko.CompilerContext, byref name_ as string, byref outv as Tko.StrVec )
     outv.Clear( )
-    dim as long at = PkgIndex_( ctx, Tko.Text.LowerAscii( name_ ) )
+    dim as int32 at = PkgIndex_( ctx, Tko.Text.LowerAscii( name_ ) )
     if at < 0 then return
     dim as string idx = str( at )
-    for k as long = 0 to ctx.pkgDefOwner.Count - 1
+    for k as int32 = 0 to ctx.pkgDefOwner.Count - 1
         if ctx.pkgDefOwner[k] = idx then outv.Push( ctx.pkgDefText[k] )
     next
     '' The root's [dependencies.<this>.defines], key by key.
-    for k as long = 0 to ctx.pkgDdDep.Count - 1
+    for k as int32 = 0 to ctx.pkgDdDep.Count - 1
         if ctx.pkgDdDep[k] <> ctx.pkgNames[at] then continue for
         dim as string kk = Tko.Text.LowerAscii( left( ctx.pkgDdText[k], instr( ctx.pkgDdText[k], "=" ) ) )
         dim as boolean replaced = false
-        for q as long = 0 to outv.Count - 1
+        for q as int32 = 0 to outv.Count - 1
             if Tko.Text.LowerAscii( left( outv[q], instr( outv[q], "=" ) ) ) = kk then
                 outv[q] = ctx.pkgDdText[k]
                 replaced = true
@@ -286,7 +286,7 @@ end sub
 sub ModuleFiles( byref dir_ as string, byref files as Tko.StrVec )
     dim as containers.Array( of fs.DirEntry ) entries
     if fs.ListDir( dir_, entries ).IsOk( ) = false then return
-    for k as long = 0 to entries.Count - 1
+    for k as int32 = 0 to entries.Count - 1
         if entries[k].IsFile( ) = false then continue for
         dim as string nm = entries[k].Name( )
         '' A MODULE'S SOURCES are '.tiko' files, and the legacy '.bas' (T14). A '.ti' is a header.
@@ -294,7 +294,7 @@ sub ModuleFiles( byref dir_ as string, byref files as Tko.StrVec )
         if (right( lnm, 4 ) <> ".bas") andalso (right( lnm, 5 ) <> ".tiko") then continue for
         '' Insertion sort: a module is a handful of files.
         dim as string key = Tko.Text.LowerAscii( nm )
-        dim as long at = files.Count
+        dim as int32 at = files.Count
         files.Push( nm )
         while at > 0
             if Tko.Text.LowerAscii( files[at - 1] ) <= key then exit while
@@ -311,11 +311,11 @@ sub ChainForDir( byref ctx as Tko.CompilerContext, byref dir_ as string, byref o
     SearchRoots_( ctx, roots )
     dim as string pk = PkgDir_( ctx )
     if len( pk ) > 0 then roots.Push( pk )
-    for i as long = 0 to roots.Count - 1
+    for i as int32 = 0 to roots.Count - 1
         if IsWithin_( d, roots[i] ) = false then continue for
         if SamePath_( d, roots[i] ) then continue for
         dim as string rel = Below_( d, roots[i] )
-        dim as long sl = instr( rel, "/" )
+        dim as int32 sl = instr( rel, "/" )
         dim as string first_ = iif( sl = 0, rel, left( rel, sl - 1 ) )
         dim as string rest = iif( sl = 0, "", mid( rel, sl + 1 ) )
         outw.dir_ = d
@@ -324,7 +324,7 @@ sub ChainForDir( byref ctx as Tko.CompilerContext, byref dir_ as string, byref o
         outw.chain = ChainOf_( first_, rest )
         return
     next
-    dim as long sl = instrrev( d, "/" )
+    dim as int32 sl = instrrev( d, "/" )
     outw.dir_ = d
     outw.pkgName = ANON_PACKAGE
     outw.pkgRoot = DirOfFile( d )
@@ -358,7 +358,7 @@ function ResolveImport _
         return true
     end if
 
-    dim as long sl = instr( p, "/" )
+    dim as int32 sl = instr( p, "/" )
     dim as string first_ = iif( sl = 0, p, left( p, sl - 1 ) )
     dim as string rest = iif( sl = 0, "", mid( p, sl + 1 ) )
     dim as string lfirst = Tko.Text.LowerAscii( first_ )
@@ -369,7 +369,7 @@ function ResolveImport _
         if lfirst = Tko.Text.LowerAscii( pkgName ) then proot = pkgRoot
         if len( proot ) = 0 then
             dim as string owner = str( PkgIndex_( ctx, Tko.Text.LowerAscii( pkgName ) ) )
-            for k as long = 0 to ctx.pkgDepName.Count - 1
+            for k as int32 = 0 to ctx.pkgDepName.Count - 1
                 if (ctx.pkgDepOwner[k] = owner) andalso (ctx.pkgDepName[k] = lfirst) then proot = ctx.pkgDepPath[k]
             next
             if len( proot ) > 0 then
@@ -402,7 +402,7 @@ function ResolveImport _
     if len( pk ) > 0 then roots.Push( pk )
 
     dim as string tried = ""
-    for i as long = 0 to roots.Count - 1
+    for i as int32 = 0 to roots.Count - 1
         dim as string proot = JoinPath( roots[i], first_ )
         if fs.IsDir( proot ) = false then
             tried += iif( len( tried ) > 0, ", ", "" ) & proot

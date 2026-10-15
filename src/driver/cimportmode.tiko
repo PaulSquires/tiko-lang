@@ -25,7 +25,7 @@ private function WriteBytes_( byref path_ as string, byref text as string ) as b
         print text;
         return true
     end if
-    dim as long f = freefile( )
+    dim as int32 f = freefile( )
     if open( path_ for binary access write as #f ) <> 0 then return false
     if len( text ) then put #f, , text
     close #f
@@ -54,13 +54,13 @@ sub FillOptions _
       byref io as Tko.CImport.CImportOptions )
 
     dim as Tko.Codegen.TargetDescription td = Tko.Codegen.TargetFor( ctx.options.target )
-    for i as long = 0 to ctx.options.cIncludes.Count - 1
+    for i as int32 = 0 to ctx.options.cIncludes.Count - 1
         io.cincludes.Push( ctx.options.cIncludes[i] )
     next
-    for i as long = 0 to ctx.options.cDefines.Count - 1
+    for i as int32 = 0 to ctx.options.cDefines.Count - 1
         io.cdefines.Push( ctx.options.cDefines[i] )
     next
-    for i as long = 0 to ctx.options.cOpts.Count - 1
+    for i as int32 = 0 to ctx.options.cOpts.Count - 1
         io.copts.Push( ctx.options.cOpts[i] )
     next
     io.csysroot = ctx.options.cSysroot
@@ -71,7 +71,7 @@ sub FillOptions _
     io.clangExe = clangExe
 end sub
 
-function Run( byref ctx as Tko.CompilerContext, byref clangExe as string ) as long
+function Run( byref ctx as Tko.CompilerContext, byref clangExe as string ) as int32
     dim as Tko.Codegen.TargetDescription td = Tko.Codegen.TargetFor( ctx.options.target )
 
     if len( ctx.options.cimportProbe ) then
@@ -91,7 +91,7 @@ function Run( byref ctx as Tko.CompilerContext, byref clangExe as string ) as lo
     end if
 
     dim as Tko.CImport.CImportOptions io
-    for i as long = 0 to ctx.options.cimportHeaders.Count - 1
+    for i as int32 = 0 to ctx.options.cimportHeaders.Count - 1
         io.headers.Push( ctx.options.cimportHeaders[i] )
     next
     FillOptions( ctx, clangExe, io )
@@ -101,7 +101,7 @@ function Run( byref ctx as Tko.CompilerContext, byref clangExe as string ) as lo
     '' 5; char c;' into four bytes, which FreeBASIC's bit-field containers cannot say.
     '' fbc-modern stops the import there (error 390). See ImportChecked.
     dim as Tko.CImport.CImportResult res
-    dim as long irc = ImportChecked( ctx, api, io, res, "" )
+    dim as int32 irc = ImportChecked( ctx, api, io, res, "" )
     if irc = 5 then
         ctx.diags.ReportGlobal( Tko.TKO0122, ctx.options.cimportHeaders[0] )
         return Tko.EXIT_USER_ERROR
@@ -116,7 +116,7 @@ function Run( byref ctx as Tko.CompilerContext, byref clangExe as string ) as lo
         '' fixes it.
         ctx.diags.ReportGlobal( Tko.TKO0120, res.why )
         dim as Tko.SourceRange none_
-        for i as long = 0 to res.clangDiags.Count - 1
+        for i as int32 = 0 to res.clangDiags.Count - 1
             ctx.diags.AddNote( Tko.TKO0900, none_, "clang: " & res.clangDiags[i] )
         next
         if res.namedNotFound then

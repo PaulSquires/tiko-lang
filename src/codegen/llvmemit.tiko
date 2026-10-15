@@ -27,39 +27,39 @@ type EmitCtx
     '' and its uses substitute the literal. That produces the IR a C frontend would
     '' write instead of a pile of 'add i64 0, 5'.
     as containers.Array( of string ) constText
-    as containers.Array( of ubyte )  isConst
+    as containers.Array( of uint8 )  isConst
     '' A temp produced by M_ALLOCA names a SLOT. The slot has its own stable name, so
     '' both spellings of the same address print the same way and the IR does not carry
     '' two names for one alloca.
-    as containers.Array( of long )   allocaSlot
+    as containers.Array( of int32 )   allocaSlot
     '' THE TYPE EACH TEMP WAS PRODUCED WITH. Needed only for a VARIADIC TAIL, where
     '' there is no declared parameter to take the type from and the argument pool
     '' carries a (kind, id) pair and no type at all. Defaulting the tail to i64 is
     '' right for a character code and for a REDIM bound, and wrong for fb_ThreadCall,
     '' whose tail is the user's own arguments and may hold a double -- 'i64 %t7' over
     '' a double is not a coercion, it is IR clang rejects.
-    as containers.Array( of ubyte )  tempTy
+    as containers.Array( of uint8 )  tempTy
     '' AND ITS SIZE, when that type is an aggregate. A temp has no slot to be sized
     '' by, so the only place the width is known is the instruction that DEFINED it --
     '' the load's address, the callee's declared return. Without this every aggregate
     '' that lived in a temp reached ValType with nothing to measure and became
     '' "an aggregate value with no size", which is the largest single class the
     '' codegen scan reports.
-    as containers.Array( of long )   tempAggSize
+    as containers.Array( of int32 )   tempAggSize
     '' WHERE THE EMITTER IS, so an ICE names it. "an aggregate value with no size" is
     '' true and useless on its own: the corpus file it came from has three thousand
     '' instructions and the message pointed at none of them.
     as string                curFn
     '' The instruction being emitted, spelled into an ICE only when there is one.
-    as long                  curOpCode
-    as ulong                 curRes
+    as int32                  curOpCode
+    as uint32                 curRes
     as boolean               curOpSet     '' false until the first instruction: then "" was printed
     '' '-g': the line tables, when asked for, and the line the next body line is on.
     as DebugInfo ptr         dbg
-    as long                  dbgLine
+    as int32                  dbgLine
     '' WHICH HALF OF AN M_ALLOCA TO WRITE -- see EmitBlock's split: 0 both, 1 the 'alloca'
     '' line alone (hoisted to the top of the entry block), 2 everything but that line.
-    as long                  allocaPart
+    as int32                  allocaPart
 end type
 
 '' Forward, because EmitGlobal dispatches to it and FreeBASIC resolves a private
@@ -71,7 +71,7 @@ declare sub EmitVarGlobal _
 declare function SretAttr _
     ( byref e as EmitCtx, byval f as MirFunction ptr ) as string
 declare function ByvalAttr _
-    ( byref e as EmitCtx, byval f as MirFunction ptr, byval i as long ) as string
+    ( byref e as EmitCtx, byval f as MirFunction ptr, byval i as int32 ) as string
 
 private sub Ice( byref e as EmitCtx, byref why as string )
     if len( e.ice ) > 0 then return
@@ -98,16 +98,16 @@ end function
 '' count parameters, allocas and every instruction that happens to yield a value, and
 '' silently miscompiles the moment one of them stops producing one. Named values have
 '' no such rule, and 'source temp 5' stays '%t5' wherever it lands.
-private function TempName( byval id as ulong ) as string
+private function TempName( byval id as uint32 ) as string
     return "%t" & str( id )
 end function
-private function SlotName( byval id as long ) as string
+private function SlotName( byval id as int32 ) as string
     return "%s" & str( id )
 end function
-private function ParamName( byval id as ulong ) as string
+private function ParamName( byval id as uint32 ) as string
     return "%p" & str( id )
 end function
-private function BlockName( byval id as long ) as string
+private function BlockName( byval id as int32 ) as string
     return "L" & str( id )
 end function
 
@@ -123,25 +123,25 @@ end function
 '' copy through a global or a field address emitted '[0 x i8]' -- a zero-byte load,
 '' which clang rejects as a type mismatch against the thing it feeds.
 private function AggSizeOfAddr _
-    ( byref e as EmitCtx, byref v as MirValue, byval immSize as longint ) as long
+    ( byref e as EmitCtx, byref v as MirValue, byval immSize as int64 ) as int32
 
-    if immSize > 0 then return cast( long, immSize )
-    if v.kind = cast( ubyte, MV_LOCAL ) then
-        dim as long slot = cast( long, v.id )
+    if immSize > 0 then return cast( int32, immSize )
+    if v.kind = cast( uint8, MV_LOCAL ) then
+        dim as int32 slot = cast( int32, v.id )
         if e.f <> 0 then
             if (slot >= 0) andalso (slot < e.f->locals.Count) then
                 return e.f->locals[slot].size
             end if
         end if
-    elseif v.kind = cast( ubyte, MV_GLOBAL ) then
-        if cast( long, v.id ) < e.m->globals.Count then
-            return e.m->globals[cast( long, v.id )].size
+    elseif v.kind = cast( uint8, MV_GLOBAL ) then
+        if cast( int32, v.id ) < e.m->globals.Count then
+            return e.m->globals[cast( int32, v.id )].size
         end if
     end if
     return 0
 end function
 
-private function SlotSizeOf( byref e as EmitCtx, byval slot as long ) as long
+private function SlotSizeOf( byref e as EmitCtx, byval slot as int32 ) as int32
     if e.f = 0 then return 0
     if (slot < 0) orelse (slot >= e.f->locals.Count) then return 0
     return e.f->locals[slot].size
@@ -157,24 +157,24 @@ private function ValType( byref e as EmitCtx, byref v as MirValue ) as string
     '' exactly one definition of a temp and it is the authority; a use that wants
     '' another width has to convert, and if MIR did not emit a conversion then the
     '' disagreement is a frontend bug that this makes visible rather than papers over.
-    if v.kind = cast( ubyte, MV_TEMP ) then
-        dim as long tid = cast( long, v.id )
+    if v.kind = cast( uint8, MV_TEMP ) then
+        dim as int32 tid = cast( int32, v.id )
         if (tid >= 0) andalso (tid < e.tempTy.Count) then
             dim as MirType tt = cast( MirType, e.tempTy[tid] )
             if tt <> MT_VOID then t = tt
         end if
     end if
     if t <> MT_AGG then return LlvmType( t )
-    if v.kind = cast( ubyte, MV_LOCAL ) then
-        return AggType( SlotSizeOf( e, cast( long, v.id ) ) )
+    if v.kind = cast( uint8, MV_LOCAL ) then
+        return AggType( SlotSizeOf( e, cast( int32, v.id ) ) )
     end if
-    if v.kind = cast( ubyte, MV_GLOBAL ) then
-        if cast( long, v.id ) < e.m->globals.Count then
-            return AggType( e.m->globals[cast( long, v.id )].size )
+    if v.kind = cast( uint8, MV_GLOBAL ) then
+        if cast( int32, v.id ) < e.m->globals.Count then
+            return AggType( e.m->globals[cast( int32, v.id )].size )
         end if
     end if
-    if v.kind = cast( ubyte, MV_TEMP ) then
-        dim as long tid2 = cast( long, v.id )
+    if v.kind = cast( uint8, MV_TEMP ) then
+        dim as int32 tid2 = cast( int32, v.id )
         if (tid2 >= 0) andalso (tid2 < e.tempAggSize.Count) then
             if e.tempAggSize[tid2] > 0 then return AggType( e.tempAggSize[tid2] )
         end if
@@ -189,7 +189,7 @@ end function
 '' at its level a pointer IS an integer -- and LLVM will not take one: 'store ptr 0' is
 '' rejected with "integer constant must have integer type". A zero is 'null'; anything
 '' else is a genuine address literal and needs the conversion spelled out.
-private function IntAsPtr( byval n as longint ) as string
+private function IntAsPtr( byval n as int64 ) as string
     if n = 0 then return "null"
     return "inttoptr (i64 " & str( n ) & " to ptr)"
 end function
@@ -198,8 +198,8 @@ end function
 '' not a kind, so this is the only way to tell one from a float or an expression.
 private function IsIntegerText_( byref t as string ) as boolean
     if len( t ) = 0 then return false
-    for i as long = 0 to len( t ) - 1
-        dim as ubyte ch = t[i]
+    for i as int32 = 0 to len( t ) - 1
+        dim as uint8 ch = t[i]
         if (i = 0) andalso ((ch = 45) orelse (ch = 43)) then continue for
         if (ch < 48) orelse (ch > 57) then return false
     next
@@ -209,7 +209,7 @@ end function
 private function ValStr( byref e as EmitCtx, byref v as MirValue ) as string
     select case v.kind
     case MV_TEMP
-        dim as long id = cast( long, v.id )
+        dim as int32 id = cast( int32, v.id )
         if (id >= 0) andalso (id < e.isConst.Count) then
             if e.isConst[id] <> 0 then
                 '' A FOLDED CONSTANT IN A POINTER POSITION IS STILL A POINTER.
@@ -233,14 +233,14 @@ private function ValStr( byref e as EmitCtx, byref v as MirValue ) as string
     '' descriptor must read back as -1 rather than as 4294967295 -- the same trap the
     '' MIR dump documents.
     case MV_CONST_INT
-        dim as longint iv = cast( longint, cast( long, v.id ) )
+        dim as int64 iv = cast( int64, cast( int32, v.id ) )
         if cast( MirType, v.ty ) = MT_PTR then return IntAsPtr( iv )
         return str( iv )
-    case MV_LOCAL       : return SlotName( cast( long, v.id ) )
+    case MV_LOCAL       : return SlotName( cast( int32, v.id ) )
     case MV_PARAM       : return ParamName( v.id )
     case MV_GLOBAL
-        if cast( long, v.id ) < e.m->globals.Count then
-            return GlobalName( e, e.m->globals[cast( long, v.id )].name )
+        if cast( int32, v.id ) < e.m->globals.Count then
+            return GlobalName( e, e.m->globals[cast( int32, v.id )].name )
         end if
         Ice( e, "a global operand out of range" )
         return "undef"
@@ -252,7 +252,7 @@ private function ValStr( byref e as EmitCtx, byref v as MirValue ) as string
         '' LLVM spells that ownership in the operand.
         if e.f = 0 then Ice( e, "a block address outside a function" )
         return "blockaddress(" & GlobalName( e, e.f->name ) & ", %" & _
-               BlockName( cast( long, v.id ) ) & ")"
+               BlockName( cast( int32, v.id ) ) & ")"
     end select
     Ice( e, "an operand with no kind" )
     return "undef"
@@ -271,7 +271,7 @@ end function
 '' aggregate takes the target's maximum rather than a computed field alignment: the
 '' frontend's layout already placed the fields, and this is only about the block.
 private function AlignOf _
-    ( byref e as EmitCtx, byval t as MirType, byval sizeBytes as long ) as long
+    ( byref e as EmitCtx, byval t as MirType, byval sizeBytes as int32 ) as int32
 
     select case t
     case MT_I8  : return 1
@@ -280,7 +280,7 @@ private function AlignOf _
     case MT_I64, MT_F64 : return 8
     case MT_PTR : return e.tgt->layout.pointerBits \ 8
     end select
-    dim as long a = e.tgt->layout.maxAlign
+    dim as int32 a = e.tgt->layout.maxAlign
     if sizeBytes < a then
         '' A block smaller than the maximum alignment cannot need more than its own
         '' size, and asking for more of a field inside a larger object is wrong.
@@ -299,9 +299,9 @@ end function
 '' over-statement is undefined, not safe: a 12-byte UDT of longs at offset 12 of an array
 '' was copied with 'align 8' (audit F-74, CG-15). So it claims 1; x86 loses nothing.
 private function AggAccessAlign_ _
-    ( byref e as EmitCtx, byval t as MirType, byval sizeBytes as long, byref addr as MirValue ) as long
+    ( byref e as EmitCtx, byval t as MirType, byval sizeBytes as int32, byref addr as MirValue ) as int32
     if t <> MT_AGG then return AlignOf( e, t, sizeBytes )
-    if (addr.kind = cast( ubyte, MV_LOCAL )) orelse (addr.kind = cast( ubyte, MV_GLOBAL )) then
+    if (addr.kind = cast( uint8, MV_LOCAL )) orelse (addr.kind = cast( uint8, MV_GLOBAL )) then
         return AlignOf( e, t, sizeBytes )
     end if
     return 1
@@ -326,7 +326,7 @@ private sub Line( byref e as EmitCtx, byref t as string )
 end sub
 
 '' THE WIDTH OF AN LLVM INTEGER TYPE, 0 for anything else.
-private function IntTypeBits_( byref ty as string ) as long
+private function IntTypeBits_( byref ty as string ) as int32
     select case ty
     case "i8"  : return 8
     case "i16" : return 16
@@ -353,7 +353,7 @@ private sub EmitFloatToInt_ _
     const N63 = "0xC3E0000000000000"
     const P31 = "0x41E0000000000000"
     const N31 = "0xC1E0000000000000"
-    dim as long w = IntTypeBits_( ty )
+    dim as int32 w = IntTypeBits_( ty )
     if w = 0 then
         Line( e, res & " = " & iif( op = M_FPTOSI, "fptosi ", "fptoui " ) & src & " " & x & " to " & ty )
         return
@@ -401,17 +401,17 @@ private function CallArgs _
     ( byref e as EmitCtx, byref ins as MirInst, byval callee as MirFunction ptr ) as string
 
     dim as string r
-    dim as containers.Array( of long ) ord  '' pascal writes them in reverse -- abi.tiko
+    dim as containers.Array( of int32 ) ord  '' pascal writes them in reverse -- abi.tiko
     PascalParamOrder( callee, ins.count, ord )
-    for q as long = 0 to ins.count - 1
-        dim as long i = ord[q]
-        dim as long k = (ins.first + i) * 2
+    for q as int32 = 0 to ins.count - 1
+        dim as int32 i = ord[q]
+        dim as int32 k = (ins.first + i) * 2
         if (k + 1) >= e.m->argPool.Count then
             Ice( e, "a call argument past the end of the pool" )
             return r
         end if
         dim as MirValue v
-        v.kind = cast( ubyte, e.m->argPool[k] )
+        v.kind = cast( uint8, e.m->argPool[k] )
         v.id = e.m->argPool[k + 1]
         dim as string attr
         '' MT_I64 IS ONLY A FALLBACK, and reaching it used to be a silent mistype.
@@ -426,8 +426,8 @@ private function CallArgs _
         '' variadic tail below already followed. The two cases are one rule and are
         '' now written once.
         dim as MirType pt = MT_I64
-        if (callee = 0) andalso (v.kind = cast( ubyte, MV_TEMP )) then
-            dim as long tid0 = cast( long, v.id )
+        if (callee = 0) andalso (v.kind = cast( uint8, MV_TEMP )) then
+            dim as int32 tid0 = cast( int32, v.id )
             if (tid0 >= 0) andalso (tid0 < e.tempTy.Count) then
                 dim as MirType tt0 = cast( MirType, e.tempTy[tid0] )
                 if tt0 <> MT_VOID then pt = tt0
@@ -440,10 +440,10 @@ private function CallArgs _
             attr += ByvalAttr( e, callee, i )
             if i < callee->paramTys.Count then
                 pt = cast( MirType, callee->paramTys[i] )
-            elseif v.kind = cast( ubyte, MV_TEMP ) then
+            elseif v.kind = cast( uint8, MV_TEMP ) then
                 '' PAST THE DECLARED PARAMETERS: a variadic tail. The value's own
                 '' producer is the only thing that knows its type.
-                dim as long tid = cast( long, v.id )
+                dim as int32 tid = cast( int32, v.id )
                 if (tid >= 0) andalso (tid < e.tempTy.Count) then
                     dim as MirType tt = cast( MirType, e.tempTy[tid] )
                     if tt <> MT_VOID then pt = tt
@@ -452,8 +452,8 @@ private function CallArgs _
         end if
         '' A SLOT OR A GLOBAL IS ITS ADDRESS, whatever it holds -- the pool records
         '' where the argument lives, and for those two that is a pointer.
-        if (v.kind = cast( ubyte, MV_LOCAL )) orelse _
-           (v.kind = cast( ubyte, MV_GLOBAL )) then
+        if (v.kind = cast( uint8, MV_LOCAL )) orelse _
+           (v.kind = cast( uint8, MV_GLOBAL )) then
             pt = MT_PTR
         end if
         '' AN AGGREGATE ARGUMENT NEEDS ITS SIZE. Without one it rendered '[0 x i8]',
@@ -463,21 +463,21 @@ private function CallArgs _
         '' '[16 x i8]'. The callee records the size where there is a callee; an
         '' INDIRECT call has none, so the value's producer is the authority -- the
         '' same rule the type above already follows.
-        dim as long asz = 0
+        dim as int32 asz = 0
         if pt = MT_AGG then
             if callee <> 0 then
                 if i < callee->paramAggs.Count then
-                    asz = cast( long, callee->paramAggs[i] )
+                    asz = cast( int32, callee->paramAggs[i] )
                 end if
             end if
-            if (asz <= 0) andalso (v.kind = cast( ubyte, MV_TEMP )) then
-                dim as long tsz = cast( long, v.id )
+            if (asz <= 0) andalso (v.kind = cast( uint8, MV_TEMP )) then
+                dim as int32 tsz = cast( int32, v.id )
                 if (tsz >= 0) andalso (tsz < e.tempAggSize.Count) then
                     asz = e.tempAggSize[tsz]
                 end if
             end if
         end if
-        v.ty = cast( ubyte, pt )
+        v.ty = cast( uint8, pt )
         if len( r ) > 0 then r += ", "
         r += LlvmType( pt, asz ) & attr & " " & ValStr( e, v )
     next
@@ -498,13 +498,13 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
     '' Recorded before the dispatch, so it holds for every opcode that yields a value --
     '' including the ones that emit nothing and substitute a literal.
     if OpHasResult( op ) then
-        dim as long rid = cast( long, ins.result )
+        dim as int32 rid = cast( int32, ins.result )
         if (rid >= 0) andalso (rid < e.tempTy.Count) then
-            e.tempTy[rid] = cast( ubyte, rt )
+            e.tempTy[rid] = cast( uint8, rt )
             '' See tempAggSize: recorded HERE, beside the type, because this is the
             '' one point that sees the defining instruction.
             if rt = MT_AGG then
-                dim as long asz = 0
+                dim as int32 asz = 0
                 select case op
                 case M_LOAD
                     asz = AggSizeOfAddr( e, ins.a, ins.imm )
@@ -513,7 +513,7 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
                 case M_CALL_IND
                     asz = ins.imm
                 case M_CALL, M_CALL_RTL
-                    dim as long ci2 = cast( long, ins.callee )
+                    dim as int32 ci2 = cast( int32, ins.callee )
                     if (ci2 >= 0) andalso (ci2 < e.m->functions.Count) then
                         dim as MirFunction ptr cf2 = e.m->functions[ci2]
                         if cf2 <> 0 then asz = cf2->retSize
@@ -530,7 +530,7 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
     '' its own. Nothing is emitted and the uses substitute the literal, which produces
     '' the IR a C frontend would write instead of a pile of 'add i64 0, 5'.
     case M_CONST
-        dim as long id = cast( long, ins.result )
+        dim as int32 id = cast( int32, ins.result )
         if (id >= 0) andalso (id < e.isConst.Count) then
             e.isConst[id] = 1
             if isFlt then
@@ -548,8 +548,8 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
     case M_ALLOCA
         '' Emitted under the SLOT's name; the instruction's own temp is recorded as
         '' another spelling of that address rather than given a second name.
-        dim as long slot = cast( long, ins.imm )
-        dim as long rid = cast( long, ins.result )
+        dim as int32 slot = cast( int32, ins.imm )
+        dim as int32 rid = cast( int32, ins.result )
         if (rid >= 0) andalso (rid < e.allocaSlot.Count) then
             e.allocaSlot[rid] = slot
         end if
@@ -562,7 +562,7 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
             return
         end if
         dim as MirType st = cast( MirType, e.f->locals[slot].ty )
-        dim as long sz = e.f->locals[slot].size
+        dim as int32 sz = e.f->locals[slot].size
         '' A VOID SLOT has no storage and no type. It is what a declined declaration
         '' leaves behind; 'alloca void' is not legal IR and would be a worse answer
         '' than saying so.
@@ -573,7 +573,7 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         '' AN AGGREGATE SLOT TAKES THE TARGET'S MAXIMUM: over-aligning STORAGE is always
         '' safe, and a scalar read from its start -- a SysV slot's i32 -- then never
         '' claims more than the slot has (audit F-74, CG-15).
-        dim as long sal = AlignOf( e, st, sz )
+        dim as int32 sal = AlignOf( e, st, sz )
         if (st = MT_AGG) andalso (sal < e.tgt->layout.maxAlign) then sal = e.tgt->layout.maxAlign
         if e.allocaPart <> 2 then
             Line( e, SlotName( slot ) & " = alloca " & LlvmType( st, sz ) & ", align " & str( sal ) )
@@ -586,13 +586,13 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
             Ice( e, "a load of a void" )
             return
         end if
-        dim as long sz = AggSizeOfAddr( e, ins.a, ins.imm )
+        dim as int32 sz = AggSizeOfAddr( e, ins.a, ins.imm )
         Line( e, res & " = load " & LlvmType( rt, sz ) & ", ptr " & ValStr( e, ins.a ) & _
                  ", align " & str( AggAccessAlign_( e, rt, sz, ins.a ) ) )
 
     case M_STORE
         dim as MirType vt = cast( MirType, ins.b.ty )
-        dim as long sz = AggSizeOfAddr( e, ins.a, ins.imm )
+        dim as int32 sz = AggSizeOfAddr( e, ins.a, ins.imm )
         '' THE STORED TYPE IS THE VALUE'S, not the destination's. Where the address is
         '' a TEMP there is no slot to size it by, and LLVM compares the two: a store of
         '' an 8-byte temp through an unsized address emitted 'store [0 x i8] %t6' and
@@ -605,8 +605,8 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         '' against a %t41 defined as '[16 x i8]'. LLVM compares the two and refuses
         '' the module. The destination is a POINTER and the write is the value's
         '' width; a partial store is exactly what an upcast assignment is.
-        if (vt = MT_AGG) andalso (ins.b.kind = cast( ubyte, MV_TEMP )) then
-            dim as long bt = cast( long, ins.b.id )
+        if (vt = MT_AGG) andalso (ins.b.kind = cast( uint8, MV_TEMP )) then
+            dim as int32 bt = cast( int32, ins.b.id )
             if (bt >= 0) andalso (bt < e.tempAggSize.Count) then
                 if e.tempAggSize[bt] > 0 then sz = e.tempAggSize[bt]
             end if
@@ -661,7 +661,7 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         '' register held where fbc prints 2. A constant count is reduced here; any other
         '' is masked first.
         if (op = M_SHL) orelse (op = M_LSHR) orelse (op = M_ASHR) then
-            dim as long sw = IntTypeBits_( ty )
+            dim as int32 sw = IntTypeBits_( ty )
             if sw > 0 then
                 if IsIntegerText_( cnt ) then
                     cnt = str( vallng( cnt ) and (sw - 1) )
@@ -741,7 +741,7 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         '' here. The value passes through instead of being converted.
         dim as string src = ValType( e, ins.a )
         if src = ty then
-            dim as long rid = cast( long, ins.result )
+            dim as int32 rid = cast( int32, ins.result )
             if (rid >= 0) andalso (rid < e.isConst.Count) then
                 e.isConst[rid] = 1
                 e.constText[rid] = ValStr( e, ins.a )
@@ -773,12 +773,12 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
     '' THE ADDRESS OF A FUNCTION IS A CONSTANT, so like M_CONST it emits nothing and
     '' its uses substitute the name.
     case M_FUNC_ADDR
-        dim as long ci = cast( long, ins.callee )
+        dim as int32 ci = cast( int32, ins.callee )
         if (ci < 0) orelse (ci >= e.m->functions.Count) then
             Ice( e, "the address of a function that does not exist" )
             return
         end if
-        dim as long rid = cast( long, ins.result )
+        dim as int32 rid = cast( int32, ins.result )
         if (rid >= 0) andalso (rid < e.isConst.Count) then
             e.isConst[rid] = 1
             e.constText[rid] = GlobalName( e, e.m->functions[ci]->name )
@@ -793,12 +793,12 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
             '' THROUGH THE POINTER; the declaration is only there to type the
             '' arguments, which LLVM matches against each value's own definition.
             '' Recorded PLUS ONE, because zero is function 0.
-            dim as long si2 = cast( long, ins.callee ) - 1
+            dim as int32 si2 = cast( int32, ins.callee ) - 1
             if (si2 >= 0) andalso (si2 < e.m->functions.Count) then
                 cf = e.m->functions[si2]
             end if
         else
-            dim as long ci = cast( long, ins.callee )
+            dim as int32 ci = cast( int32, ins.callee )
             if (ci < 0) orelse (ci >= e.m->functions.Count) then
                 Ice( e, "a call to a function that does not exist" )
                 return
@@ -811,10 +811,10 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         '' against the 8-byte slot its result was stored into. The RESULT TEMP's
         '' recorded size is the same authority the argument rule above uses.
         if rt = MT_AGG then
-            dim as long rsz2 = 0
-            if cf <> 0 then rsz2 = cast( long, cf->retSize )
+            dim as int32 rsz2 = 0
+            if cf <> 0 then rsz2 = cast( int32, cf->retSize )
             if rsz2 <= 0 then
-                dim as long rti = cast( long, ins.result )
+                dim as int32 rti = cast( int32, ins.result )
                 if (rti >= 0) andalso (rti < e.tempAggSize.Count) then
                     rsz2 = e.tempAggSize[rti]
                 end if
@@ -830,7 +830,7 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         if cf <> 0 then
             if cf->isVariadic then
                 sig = ty & " ("
-                for i as long = 0 to cf->paramTys.Count - 1
+                for i as int32 = 0 to cf->paramTys.Count - 1
                     if i > 0 then sig += ", "
                     sig += LlvmType( cast( MirType, cf->paramTys[i] ) )
                 next
@@ -840,7 +840,7 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         end if
         '' A PAIR RETURN: the ABI pass left the destination slot in 'b', and both
         '' registers are written through it -- the first at 0, the second at 8.
-        if (cf <> 0) andalso (ins.b.kind = cast( ubyte, MV_LOCAL )) then
+        if (cf <> 0) andalso (ins.b.kind = cast( uint8, MV_LOCAL )) then
             if cast( MirType, cf->retTy2 ) <> MT_VOID then
                 dim as MirType p0 = cast( MirType, cf->retTy )
                 dim as MirType p1 = cast( MirType, cf->retTy2 )
@@ -907,19 +907,19 @@ end sub
 const SPLIT_INSTS_ = 1000
 
 private sub EmitBlock _
-    ( byref e as EmitCtx, byref b as MirBlock, byval bi as long )
+    ( byref e as EmitCtx, byref b as MirBlock, byval bi as int32 )
 
     e.outp += BlockName( bi ) & ":" & chr( 10 )
     dim as boolean split = (b.insts.Count > SPLIT_INSTS_)
     if split andalso (bi = 0) then
         e.allocaPart = 1
-        for i as long = 0 to b.insts.Count - 1
+        for i as int32 = 0 to b.insts.Count - 1
             if cast( MirOp, b.insts[i].op ) = M_ALLOCA then EmitInst( e, b.insts[i] )
         next
         e.allocaPart = 2
     end if
-    dim as long piece = 0, run_ = 0
-    for i as long = 0 to b.insts.Count - 1
+    dim as int32 piece = 0, run_ = 0
+    for i as int32 = 0 to b.insts.Count - 1
         if split andalso (run_ >= SPLIT_INSTS_) then
             piece += 1
             dim as string nx = BlockName( bi ) & "." & str( piece )
@@ -934,9 +934,9 @@ private sub EmitBlock _
 
     select case cast( MirTermKind, b.term )
     case MTERM_RET
-        if b.cond.kind = cast( ubyte, MV_NONE ) then
+        if b.cond.kind = cast( uint8, MV_NONE ) then
             Line( e, "ret void" )
-        elseif (e.f <> 0) andalso (b.ret2.kind <> cast( ubyte, MV_NONE )) then
+        elseif (e.f <> 0) andalso (b.ret2.kind <> cast( uint8, MV_NONE )) then
             '' TWO REGISTERS, packed into the literal struct the signature declares.
             dim as string pty = LlvmPairType( cast( MirType, e.f->retTy ), _
                                               cast( MirType, e.f->retTy2 ) )
@@ -1001,9 +1001,9 @@ private sub EmitBlock _
         '' the optimiser delete the handler as unreachable and leave the jump pointing
         '' at nothing.
         dim as string dsts = ""
-        for ti as long = 0 to b.indirectTargets.Count - 1
+        for ti as int32 = 0 to b.indirectTargets.Count - 1
             if len( dsts ) > 0 then dsts += ", "
-            dsts += "label %" & BlockName( cast( long, b.indirectTargets[ti] ) )
+            dsts += "label %" & BlockName( cast( int32, b.indirectTargets[ti] ) )
         next
         Line( e, "indirectbr ptr " & ValStr( e, b.cond ) & ", [ " & dsts & " ]" )
     case else
@@ -1040,13 +1040,13 @@ end function
 '' Like sret it must appear identically on the signature and at the call site, which is
 '' why both go through here.
 function ByvalAttr _
-    ( byref e as EmitCtx, byval f as MirFunction ptr, byval i as long ) as string
+    ( byref e as EmitCtx, byval f as MirFunction ptr, byval i as int32 ) as string
 
     if f = 0 then return ""
     if i >= f->paramAttrs.Count then return ""
     if f->paramAttrs[i] <> TKO_PA_BYVAL then return ""
-    dim as long sz = 0
-    if i < f->paramAggs.Count then sz = cast( long, f->paramAggs[i] )
+    dim as int32 sz = 0
+    if i < f->paramAggs.Count then sz = cast( int32, f->paramAggs[i] )
     if sz <= 0 then return ""
     return " byval(" & AggType( sz ) & ") align " & str( AlignOf( e, MT_AGG, sz ) )
 end function
@@ -1055,15 +1055,15 @@ private function ParamList _
     ( byref e as EmitCtx, byval f as MirFunction ptr, byval named as boolean ) as string
 
     dim as string r
-    dim as containers.Array( of long ) ord  '' pascal writes them in reverse -- abi.tiko
+    dim as containers.Array( of int32 ) ord  '' pascal writes them in reverse -- abi.tiko
     PascalParamOrder( f, f->paramTys.Count, ord )
-    for q as long = 0 to f->paramTys.Count - 1
-        dim as long i = ord[q]
+    for q as int32 = 0 to f->paramTys.Count - 1
+        dim as int32 i = ord[q]
         if q > 0 then r += ", "
         r += LlvmType( cast( MirType, f->paramTys[i] ) )
         if i = 0 then r += SretAttr( e, f )
         r += ByvalAttr( e, f, i )
-        if named then r += " " & ParamName( cast( ulong, i ) )
+        if named then r += " " & ParamName( cast( uint32, i ) )
     next
     if f->isVariadic then
         if f->paramTys.Count > 0 then r += ", "
@@ -1088,7 +1088,7 @@ private sub EmitFunction( byref e as EmitCtx, byval f as MirFunction ptr )
     '' store, which this file does not have, and the ABI pass is what removes these --
     '' every one becomes a pointer or a coerced integer. Emitting '[0 x i8]' instead
     '' produced a signature whose own body disagreed with it.
-    for i as long = 0 to f->paramTys.Count - 1
+    for i as int32 = 0 to f->paramTys.Count - 1
         if cast( MirType, f->paramTys[i] ) = MT_AGG then
             Ice( e, "an aggregate parameter passed by value; the ABI pass has not run" )
             return
@@ -1174,15 +1174,15 @@ private sub EmitFunction( byref e as EmitCtx, byval f as MirFunction ptr )
     e.allocaSlot.Clear( )
     e.tempTy.Clear( )
     e.tempAggSize.Clear( )
-    for i as long = 0 to f->nextTemp
+    for i as int32 = 0 to f->nextTemp
         e.constText.Push( "" )
         e.isConst.Push( 0 )
         e.allocaSlot.Push( -1 )
-        e.tempTy.Push( cast( ubyte, MT_VOID ) )
+        e.tempTy.Push( cast( uint8, MT_VOID ) )
         e.tempAggSize.Push( 0 )
     next
 
-    for bi as long = 0 to f->blocks.Count - 1
+    for bi as int32 = 0 to f->blocks.Count - 1
         EmitBlock( e, f->blocks[bi], bi )
     next
     e.outp += "}" & chr( 10 ) & chr( 10 )
@@ -1204,7 +1204,7 @@ end sub
 '' a call the program wrote itself looks exactly like one this emitter made. The
 '' MirFunction table tells them apart.
 private function ModuleDeclares_( byref e as EmitCtx, byref nm as string ) as boolean
-    for i as long = 0 to e.m->functions.Count - 1
+    for i as int32 = 0 to e.m->functions.Count - 1
         dim as MirFunction ptr f = e.m->functions[i]
         if f = 0 then continue for
         if e.names->Spelling( f->name ) = nm then return true
@@ -1213,7 +1213,7 @@ private function ModuleDeclares_( byref e as EmitCtx, byref nm as string ) as bo
 end function
 
 extern "c"
-    declare function MemChr_ alias "memchr" ( byval s as const any ptr, byval c as long, _
+    declare function MemChr_ alias "memchr" ( byval s as const any ptr, byval c as int32, _
                                               byval n as uinteger ) as any ptr
 end extern
 
@@ -1225,20 +1225,20 @@ end extern
 '' per unit -- 1.43 s of tiko-lang's 18 s self-compile (speed audit, 2026-10-07).
 private function CalledNames_( byref body as string ) as string
     dim as string found = chr( 0 )
-    dim as long n = len( body )
+    dim as int32 n = len( body )
     if n = 0 then return found
-    dim as ubyte ptr base_ = cast( ubyte ptr, strptr( body ) )
-    dim as long i = 0
+    dim as uint8 ptr base_ = cast( uint8 ptr, strptr( body ) )
+    dim as int32 i = 0
     while i < n
-        dim as ubyte ptr hit = MemChr_( base_ + i, 64, n - i )
+        dim as uint8 ptr hit = MemChr_( base_ + i, 64, n - i )
         if hit = 0 then exit while
-        i = cast( long, hit - base_ )
-        dim as long st = i + 1, en = 0
+        i = cast( int32, hit - base_ )
+        dim as int32 st = i + 1, en = 0
         if (st < n) andalso (base_[st] = 34) then
             '' '@"name"(' -- the name is what lies between the quotes.
-            dim as ubyte ptr q = MemChr_( base_ + st + 1, 34, n - st - 1 )
+            dim as uint8 ptr q = MemChr_( base_ + st + 1, 34, n - st - 1 )
             if q <> 0 then
-                en = cast( long, q - base_ )
+                en = cast( int32, q - base_ )
                 st += 1
                 if (en + 1 < n) andalso (base_[en + 1] = 40) then
                     '' Recorded WITH its opening quote: '@"x"(' is not '@x(', as no needle
@@ -1251,7 +1251,7 @@ private function CalledNames_( byref body as string ) as string
             '' '@name(' -- an unquoted LLVM identifier, then the parenthesis.
             en = st
             while en < n
-                dim as ubyte c = base_[en]
+                dim as uint8 c = base_[en]
                 dim as boolean ident = ((c >= 48) andalso (c <= 57)) orelse _
                                        ((c >= 65) andalso (c <= 90)) orelse _
                                        ((c >= 97) andalso (c <= 122)) orelse _
@@ -1289,7 +1289,7 @@ private function IntrinsicDecls _
         "llvm.exp.float", "llvm.exp.double", _
         "llvm.fabs.float", "llvm.fabs.double", _
         "llvm.nearbyint.float", "llvm.nearbyint.double" }
-    for i as long = lbound( names_ ) to ubound( names_ )
+    for i as int32 = lbound( names_ ) to ubound( names_ )
         dim as string n = names_( i )
         if Called_( called, n ) = false then continue for
         dim as string t = "double"
@@ -1298,14 +1298,14 @@ private function IntrinsicDecls _
     next
 
     dim as string ints( ... ) = { "i8", "i16", "i32", "i64" }
-    for i as long = lbound( ints ) to ubound( ints )
+    for i as int32 = lbound( ints ) to ubound( ints )
         dim as string t = ints( i )
         if Called_( called, "llvm.abs." & t ) = false then continue for
         r += "declare " & t & " @llvm.abs." & t & "(" & t & ", i1) nounwind" & chr( 10 )
     next
 
     dim as string vas( ... ) = { "va_start", "va_end" }
-    for i as long = lbound( vas ) to ubound( vas )
+    for i as int32 = lbound( vas ) to ubound( vas )
         if Called_( called, "llvm." & vas( i ) ) = false then continue for
         r += "declare void @llvm." & vas( i ) & "(ptr) nounwind" & chr( 10 )
     next
@@ -1316,7 +1316,7 @@ private function IntrinsicDecls _
     '' The four libm functions with no intrinsic. Declared with their real signatures
     '' so that LLVM does not invent one from the call.
     dim as string libm( ... ) = { "tan", "asin", "acos", "atan" }
-    for i as long = lbound( libm ) to ubound( libm )
+    for i as int32 = lbound( libm ) to ubound( libm )
         dim as string n = libm( i )
         '' ...UNLESS THE MODULE DECLARES IT ITSELF. A program may write
         '' 'declare function asinf cdecl alias "asinf"( byval as single ) as single'
@@ -1357,7 +1357,7 @@ function EmitLlvm _
         e.dbg = @dbg
     end if
 
-    for gi as long = 0 to m.globals.Count - 1
+    for gi as int32 = 0 to m.globals.Count - 1
         EmitGlobal( e, m.globals[gi] )
     next
     if m.globals.Count > 0 then e.outp += chr( 10 )
@@ -1365,12 +1365,12 @@ function EmitLlvm _
     '' AN UNREFERENCED PRIVATE PROCEDURE IS NOT EMITTED, because fbc does not emit one:
     '' emitting it made a link fail that fbc links, and only -O0 showed it (LLVM deletes
     '' the internal function at -O1). codegen/llvmrefs.tiko has the measurement.
-    dim as containers.Array( of ubyte ) refd = ReferencedFunctions( m )
+    dim as containers.Array( of uint8 ) refd = ReferencedFunctions( m )
 
     '' DEFINITIONS FIRST, then declarations, which is only a readability choice -- LLVM
     '' does not care -- but it keeps a golden diff of the code away from the churn of
     '' an added runtime declaration.
-    for fi as long = 0 to m.functions.Count - 1
+    for fi as int32 = 0 to m.functions.Count - 1
         dim as MirFunction ptr f = m.functions[fi]
         if f = 0 then continue for
         if f->isDefinition = false then continue for
@@ -1388,12 +1388,12 @@ function EmitLlvm _
     '' does not mind -- the call names an index, not a name -- but LLVM does, and
     '' emitting both is "invalid redefinition of function". The declaration is the
     '' redundant one: everything it could say, the definition says.
-    for fi as long = 0 to m.functions.Count - 1
+    for fi as int32 = 0 to m.functions.Count - 1
         dim as MirFunction ptr f = m.functions[fi]
         if f = 0 then continue for
         if f->isDefinition then continue for
         dim as boolean alsoDefined = false
-        for gi as long = 0 to m.functions.Count - 1
+        for gi as int32 = 0 to m.functions.Count - 1
             dim as MirFunction ptr g = m.functions[gi]
             if g = 0 then continue for
             if g->isDefinition = false then continue for

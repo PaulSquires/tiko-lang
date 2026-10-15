@@ -30,14 +30,14 @@ private function SameWrittenType_ _
     if (a = Tko.NODE_NONE) orelse (b = Tko.NODE_NONE) then return false
     if w.ast->Kind( a ) <> Tko.N_TYPEREF then return false
     if w.ast->Kind( b ) <> Tko.N_TYPEREF then return false
-    dim as ushort af = w.ast->nodes[cast( long, a )].flags
-    dim as ushort bf = w.ast->nodes[cast( long, b )].flags
-    dim as ushort mask = Tko.NF_PTR or Tko.NF_CONST or Tko.NF_PROC_TYPE
+    dim as uint16 af = w.ast->nodes[cast( int32, a )].flags
+    dim as uint16 bf = w.ast->nodes[cast( int32, b )].flags
+    dim as uint16 mask = Tko.NF_PTR or Tko.NF_CONST or Tko.NF_PROC_TYPE
     if (af and mask) <> (bf and mask) then return false
     dim as Tko.StmtPayload ptr ap = StmtOf( w, a )
     dim as Tko.StmtPayload ptr bp = StmtOf( w, b )
     if ap->op <> bp->op then return false
-    if ap->op = cast( ushort, Tko.TK_IDENT ) then
+    if ap->op = cast( uint16, Tko.TK_IDENT ) then
         if ap->name <> bp->name then return false
         '' THE QUALIFIER TOO: overloads over 'A.T' and 'B.T' are two signatures, and fbc
         '' takes both; read as one, the second was refused as a duplicate (TKO0677).
@@ -56,7 +56,7 @@ private function SameSignature_ _
 
     if SameWrittenType_( w, a->a, b->a, scope_ ) = false then return false
     if a->count <> b->count then return false
-    for i as long = 0 to a->count - 1
+    for i as int32 = 0 to a->count - 1
         dim as Tko.NodeId an = cast( Tko.NodeId, w.ast->children[a->first + i] )
         dim as Tko.NodeId bn = cast( Tko.NodeId, w.ast->children[b->first + i] )
         if (w.ast->Kind( an ) <> Tko.N_PARAM) orelse _
@@ -77,13 +77,13 @@ end function
 private function Undecidable_ _
     ( byref w as Walker, byval t as Tko.NodeId, byval scope_ as Tko.ScopeId ) as boolean
 
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (t <> Tko.NODE_NONE) andalso (guard < 64)
         guard += 1
         t = UnaliasWritten_( w, scope_, t )
         if t = Tko.NODE_NONE then exit while
         if w.ast->Kind( t ) <> Tko.N_TYPEREF then exit while
-        if (w.ast->nodes[cast( long, t )].flags and Tko.NF_PROC_TYPE) <> 0 then return true
+        if (w.ast->nodes[cast( int32, t )].flags and Tko.NF_PROC_TYPE) <> 0 then return true
         dim as Tko.StmtPayload ptr tp = StmtOf( w, t )
         if tp->count > 0 then return true
         t = tp->a
@@ -125,7 +125,7 @@ private function SameOverloadIdentity_ _
         if SameWrittenType_( w, a->a, b->a, scope_ ) = false then return false
     end if
     if a->count <> b->count then return false
-    for i as long = 0 to a->count - 1
+    for i as int32 = 0 to a->count - 1
         dim as Tko.NodeId an = cast( Tko.NodeId, w.ast->children[a->first + i] )
         dim as Tko.NodeId bn = cast( Tko.NodeId, w.ast->children[b->first + i] )
         if (w.ast->Kind( an ) <> Tko.N_PARAM) orelse _
@@ -133,11 +133,11 @@ private function SameOverloadIdentity_ _
         dim as Tko.StmtPayload ptr ap = StmtOf( w, an )
         dim as Tko.StmtPayload ptr bp = StmtOf( w, bn )
         '' An ELLIPSIS is a parameter marked in 'op', with no type of its own.
-        dim as boolean aEll = (ap->op = cast( ushort, Tko.TK_ELLIPSIS ))
-        dim as boolean bEll = (bp->op = cast( ushort, Tko.TK_ELLIPSIS ))
+        dim as boolean aEll = (ap->op = cast( uint16, Tko.TK_ELLIPSIS ))
+        dim as boolean bEll = (bp->op = cast( uint16, Tko.TK_ELLIPSIS ))
         if aEll <> bEll then return false
-        dim as boolean aArr = ((w.ast->nodes[cast( long, an )].flags and Tko.NF_ARRAY) <> 0)
-        dim as boolean bArr = ((w.ast->nodes[cast( long, bn )].flags and Tko.NF_ARRAY) <> 0)
+        dim as boolean aArr = ((w.ast->nodes[cast( int32, an )].flags and Tko.NF_ARRAY) <> 0)
+        dim as boolean bArr = ((w.ast->nodes[cast( int32, bn )].flags and Tko.NF_ARRAY) <> 0)
         if aArr <> bArr then return false
         '' The RANK an array parameter spelled, 0 for 'a( )' -- see ParseParam. Unknown
         '' collides with any rank; two known ranks only with each other.
@@ -155,13 +155,13 @@ end function
 '' NAME (a typedef may be 'long ptr'), TYPEOF, a procedure type, generic arguments, a
 '' bare ANY, and USTRING, whose overloading against STRING has not been measured.
 private function BuiltinShape_ _
-    ( byref w as Walker, byval t as Tko.NodeId, byref kw as ushort ) as long
+    ( byref w as Walker, byval t as Tko.NodeId, byref kw as uint16 ) as int32
 
-    dim as long depth = 0
+    dim as int32 depth = 0
     while depth < 64
         if t = Tko.NODE_NONE then return -1
         if w.ast->Kind( t ) <> Tko.N_TYPEREF then return -1
-        dim as ushort fl = w.ast->nodes[cast( long, t )].flags
+        dim as uint16 fl = w.ast->nodes[cast( int32, t )].flags
         if (fl and Tko.NF_PROC_TYPE) <> 0 then return -1
         dim as Tko.StmtPayload ptr tp = StmtOf( w, t )
         if tp->count <> 0 then return -1
@@ -197,21 +197,21 @@ private function CertainlyDifferentParams_ _
       byval b as Tko.StmtPayload ptr ) as boolean
 
     if a->count <> b->count then return false
-    for i as long = 0 to a->count - 1
+    for i as int32 = 0 to a->count - 1
         dim as Tko.NodeId an = cast( Tko.NodeId, w.ast->children[a->first + i] )
         dim as Tko.NodeId bn = cast( Tko.NodeId, w.ast->children[b->first + i] )
         if (w.ast->Kind( an ) <> Tko.N_PARAM) orelse _
            (w.ast->Kind( bn ) <> Tko.N_PARAM) then return false
         dim as Tko.StmtPayload ptr ap = StmtOf( w, an )
         dim as Tko.StmtPayload ptr bp = StmtOf( w, bn )
-        if (ap->op = cast( ushort, Tko.TK_ELLIPSIS )) orelse _
-           (bp->op = cast( ushort, Tko.TK_ELLIPSIS )) then return false
-        dim as boolean aArr = ((w.ast->nodes[cast( long, an )].flags and Tko.NF_ARRAY) <> 0)
-        dim as boolean bArr = ((w.ast->nodes[cast( long, bn )].flags and Tko.NF_ARRAY) <> 0)
+        if (ap->op = cast( uint16, Tko.TK_ELLIPSIS )) orelse _
+           (bp->op = cast( uint16, Tko.TK_ELLIPSIS )) then return false
+        dim as boolean aArr = ((w.ast->nodes[cast( int32, an )].flags and Tko.NF_ARRAY) <> 0)
+        dim as boolean bArr = ((w.ast->nodes[cast( int32, bn )].flags and Tko.NF_ARRAY) <> 0)
         if aArr <> bArr then return true
-        dim as ushort ka = 0, kb = 0
-        dim as long da = BuiltinShape_( w, ap->a, ka )
-        dim as long db = BuiltinShape_( w, bp->a, kb )
+        dim as uint16 ka = 0, kb = 0
+        dim as int32 da = BuiltinShape_( w, ap->a, ka )
+        dim as int32 db = BuiltinShape_( w, bp->a, kb )
         if (da >= 0) andalso (db >= 0) then
             if (da <> db) orelse (ka <> kb) then return true
         end if
@@ -275,23 +275,23 @@ private function ProcRedeclared_ _
 
     '' THE LIVE GENERATION, whatever position a walk last set: a declaration is always
     '' the newest thing so far. Same judgement as DeclareSym's.
-    dim as ulong savePos = w.syms->usePos
+    dim as uint32 savePos = w.syms->usePos
     w.syms->usePos = Tko.USEPOS_LATEST
     dim as Tko.SymbolId cur = w.syms->LookupLocal( scope_, nm )
     w.syms->usePos = savePos
     dim as Tko.Symbol ptr hs = w.syms->SymbolAt( cur )
     if hs = 0 then return Tko.SYMBOL_NONE
     '' A TYPE may share the spelling; its procedures are then its partner.
-    if hs->kind <> cast( ubyte, Tko.SYM_PROC ) then cur = hs->altClass
+    if hs->kind <> cast( uint8, Tko.SYM_PROC ) then cur = hs->altClass
 
     '' A TEMPLATE ANYWHERE in the set, and the name is not judged at all -- see above.
-    dim as long guard = 0
+    dim as int32 guard = 0
     dim as Tko.SymbolId scan = cur
     while (scan <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr g = w.syms->SymbolAt( scan )
         if g = 0 then exit while
-        if g->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
+        if g->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
         dim as Tko.NodeId gn = cast( Tko.NodeId, g->payload )
         if (gn <> Tko.NODE_NONE) andalso (gn <> 0) then
             if w.ast->Kind( gn ) = Tko.N_PROC then
@@ -303,9 +303,9 @@ private function ProcRedeclared_ _
 
     dim as Tko.SymScope ptr sc = w.syms->ScopeAt( scope_ )
     dim as boolean isMember = false
-    if sc <> 0 then isMember = (sc->kind = cast( ubyte, Tko.SCOPEK_TYPE ))
-    dim as boolean isOperator = (sp->op = cast( ushort, Tko.KW_OPERATOR ))
-    dim as boolean byResult = (sp->op = cast( ushort, Tko.KW_PROPERTY ))
+    if sc <> 0 then isMember = (sc->kind = cast( uint8, Tko.SCOPEK_TYPE ))
+    dim as boolean isOperator = (sp->op = cast( uint16, Tko.KW_OPERATOR ))
+    dim as boolean byResult = (sp->op = cast( uint16, Tko.KW_PROPERTY ))
     if isOperator then byResult = (lcase( w.names->Spelling( nm ) ) = "cast")
     dim as boolean isDef = (sp->b <> Tko.NODE_NONE)
     dim as boolean overloadable = isMember orelse isOperator
@@ -316,7 +316,7 @@ private function ProcRedeclared_ _
         guard += 1
         dim as Tko.Symbol ptr s = w.syms->SymbolAt( cur )
         if s = 0 then exit while
-        if s->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
+        if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         dim as boolean here_ = (s->diedAt = 0) andalso (s->parent = scope_)
         dim as boolean hasDecl = (pn <> Tko.NODE_NONE) andalso (pn <> 0)
@@ -353,11 +353,11 @@ end function
 '' blocks the member after it (fbc: 312, then 4 on the next line) -- only the report goes.
 private function ParserRefused_ _
     ( byref w as Walker, byval sp as Tko.StmtPayload ptr ) as boolean
-    for i as long = 0 to sp->count - 1
+    for i as int32 = 0 to sp->count - 1
         dim as Tko.NodeId pn = cast( Tko.NodeId, w.ast->children[sp->first + i] )
         if w.ast->Kind( pn ) = Tko.N_PARAM then
             dim as Tko.StmtPayload ptr pp = StmtOf( w, pn )
-            if pp->op = cast( ushort, Tko.TK_ELLIPSIS ) then
+            if pp->op = cast( uint16, Tko.TK_ELLIPSIS ) then
                 return (pp->extra = Tko.PARAM_VARARG_REFUSED)
             end if
         end if
@@ -381,8 +381,8 @@ private function RefuseRedeclaration_ _
     '' A structor is declared under a synthetic name ('__ctor'); the message says what
     '' was written.
     dim as string shown = w.names->Spelling( nm )
-    if sp->op = cast( ushort, Tko.KW_CONSTRUCTOR ) then shown = "constructor"
-    if sp->op = cast( ushort, Tko.KW_DESTRUCTOR ) then shown = "destructor"
+    if sp->op = cast( uint16, Tko.KW_CONSTRUCTOR ) then shown = "constructor"
+    if sp->op = cast( uint16, Tko.KW_DESTRUCTOR ) then shown = "destructor"
     if asOverload then
         w.diags->Report( Tko.TKO0677, Tko.PointRange( loc ), shown )
     else
@@ -423,47 +423,47 @@ private function RefuseVariadicOverload_ _
     '' Does a declaration take '...'? The ellipsis is a parameter marked in 'op'.
     #macro VARIADIC_( _p_, _out_ )
         _out_ = false
-        for vi as long = 0 to (_p_)->count - 1
+        for vi as int32 = 0 to (_p_)->count - 1
             dim as Tko.NodeId vn = cast( Tko.NodeId, w.ast->children[(_p_)->first + vi] )
             if w.ast->Kind( vn ) = Tko.N_PARAM then
-                if StmtOf( w, vn )->op = cast( ushort, Tko.TK_ELLIPSIS ) then _out_ = true
+                if StmtOf( w, vn )->op = cast( uint16, Tko.TK_ELLIPSIS ) then _out_ = true
             end if
         next
     #endmacro
 
     dim as boolean isVar
     VARIADIC_( sp, isVar )
-    dim as boolean isCtor = (sp->op = cast( ushort, Tko.KW_CONSTRUCTOR ))
+    dim as boolean isCtor = (sp->op = cast( uint16, Tko.KW_CONSTRUCTOR ))
     '' A PROPERTY AND A GLOBAL OPERATOR ARE ALWAYS OVERLOADS TOO, as a constructor is:
     '' measured, 'declare property p cdecl( byval a as long, ... )' is fbc's error 4 and
     '' 'declare operator + cdecl( byref a as T, ... ) as T' its 143, each ALONE. A MEMBER
     '' operator is not: 'declare operator let cdecl( ... )' inside a type compiles.
     dim as boolean isMember = false
     if w.syms->ScopeAt( scope_ ) <> 0 then
-        isMember = (w.syms->ScopeAt( scope_ )->kind = cast( ubyte, Tko.SCOPEK_TYPE ))
+        isMember = (w.syms->ScopeAt( scope_ )->kind = cast( uint8, Tko.SCOPEK_TYPE ))
     end if
-    dim as boolean alwaysSet = isCtor orelse (sp->op = cast( ushort, Tko.KW_PROPERTY ))
-    if (sp->op = cast( ushort, Tko.KW_OPERATOR )) andalso (isMember = false) then alwaysSet = true
+    dim as boolean alwaysSet = isCtor orelse (sp->op = cast( uint16, Tko.KW_PROPERTY ))
+    if (sp->op = cast( uint16, Tko.KW_OPERATOR )) andalso (isMember = false) then alwaysSet = true
     dim as boolean refuse = isVar andalso alwaysSet
 
     if refuse = false then
         '' The live set this would join, as ProcRedeclared_ reads it.
-        dim as long members = 0
+        dim as int32 members = 0
         dim as boolean anyVar = false
-        dim as ulong savePos = w.syms->usePos
+        dim as uint32 savePos = w.syms->usePos
         w.syms->usePos = Tko.USEPOS_LATEST
         dim as Tko.SymbolId cur = w.syms->LookupLocal( scope_, nm )
         w.syms->usePos = savePos
         dim as Tko.Symbol ptr hs = w.syms->SymbolAt( cur )
         if hs <> 0 then
-            if hs->kind <> cast( ubyte, Tko.SYM_PROC ) then cur = hs->altClass
+            if hs->kind <> cast( uint8, Tko.SYM_PROC ) then cur = hs->altClass
         end if
-        dim as long guard = 0
+        dim as int32 guard = 0
         while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
             guard += 1
             dim as Tko.Symbol ptr s = w.syms->SymbolAt( cur )
             if s = 0 then exit while
-            if s->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
+            if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
             dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
             dim as boolean live = (s->diedAt = 0) andalso (s->parent = scope_)
             dim as boolean hasDecl = (pn <> Tko.NODE_NONE) andalso (pn <> 0)
@@ -522,16 +522,16 @@ private function RefuseSecondBody_ _
     if sp->b = Tko.NODE_NONE then return false
     if (sp->extra and Tko.PF_GENERIC_PROC) <> 0 then return false
 
-    dim as long want = ProcArity( w, sp )
+    dim as int32 want = ProcArity( w, sp )
     dim as Tko.SymbolId found = Tko.SYMBOL_NONE
-    dim as long hits = 0
+    dim as int32 hits = 0
     dim as Tko.SymbolId cur = w.syms->LookupLocal( scope_, nm )
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr s = w.syms->SymbolAt( cur )
         if s = 0 then exit while
-        if s->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
+        if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         dim as boolean hasDecl = (pn <> Tko.NODE_NONE) andalso (pn <> 0)
         if hasDecl then hasDecl = (w.ast->Kind( pn ) = Tko.N_PROC)
@@ -559,8 +559,8 @@ private function RefuseSecondBody_ _
     end if
     w.duplicates += 1
     dim as string shown = w.names->Spelling( nm )
-    if sp->op = cast( ushort, Tko.KW_CONSTRUCTOR ) then shown = "constructor"
-    if sp->op = cast( ushort, Tko.KW_DESTRUCTOR ) then shown = "destructor"
+    if sp->op = cast( uint16, Tko.KW_CONSTRUCTOR ) then shown = "constructor"
+    if sp->op = cast( uint16, Tko.KW_DESTRUCTOR ) then shown = "destructor"
     w.diags->Report( Tko.TKO0600, Tko.PointRange( loc ), shown )
     w.diags->AddNote( Tko.TKO0901, Tko.PointRange( fs->loc ) )
     return true
@@ -595,7 +595,7 @@ private function UndefKeeps_ _
         dim as Tko.Symbol ptr os = _
             w.syms->SymbolAt( LookupDottedOwner_( w, scope_, up->ownerName ) )
         if os <> 0 then
-            if os->kind = cast( ubyte, Tko.SYM_NAMESPACE ) then
+            if os->kind = cast( uint8, Tko.SYM_NAMESPACE ) then
                 if os->inner <> Tko.SCOPE_NONE then
                     hit = w.syms->LookupInNamespace( os->inner, up->name )
                 end if
@@ -603,10 +603,10 @@ private function UndefKeeps_ _
         end if
     else
         '' The first symbol a lookup from here finds, as UndefSym takes it.
-        dim as ulong savePos = w.syms->usePos
+        dim as uint32 savePos = w.syms->usePos
         w.syms->usePos = Tko.USEPOS_LATEST
         dim as Tko.ScopeId sc = scope_
-        dim as long guard = 0
+        dim as int32 guard = 0
         while (sc <> Tko.SCOPE_NONE) andalso (guard < 1024)
             guard += 1
             hit = w.syms->LookupLocal( sc, up->name )
@@ -623,7 +623,7 @@ private function UndefKeeps_ _
     if hs = 0 then return dotted
     dim as Tko.SymScope ptr ps = w.syms->ScopeAt( hs->parent )
     dim as boolean inNs = false
-    if ps <> 0 then inNs = (ps->kind = cast( ubyte, Tko.SCOPEK_NAMESPACE ))
+    if ps <> 0 then inNs = (ps->kind = cast( uint8, Tko.SCOPEK_NAMESPACE ))
     if inNs = false then return dotted
     w.diags->Report( Tko.TKO0779, Tko.PointRange( loc ), shown )
     w.diags->AddNote( Tko.TKO0901, Tko.PointRange( hs->loc ) )
@@ -647,12 +647,12 @@ private sub CheckModCtorMember_ _
     if (sp->extra and (Tko.PF_MODCTOR or Tko.PF_MODDTOR)) = 0 then return
     if (os = 0) orelse (os->inner = Tko.SCOPE_NONE) then return
     dim as Tko.Symbol ptr ms = w.syms->SymbolAt( w.syms->LookupLocal( os->inner, sp->name ) )
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (ms <> 0) andalso (guard < 1000)
         guard += 1
         dim as Tko.NodeId md = cast( Tko.NodeId, ms->payload )
         if (md <> Tko.NODE_NONE) andalso (md <> id) andalso (w.ast->Kind( md ) = Tko.N_PROC) then
-            dim as Tko.StmtPayload ptr mp = @w.ast->stmts[cast( long, w.ast->nodes[cast( long, md )].data )]
+            dim as Tko.StmtPayload ptr mp = @w.ast->stmts[cast( int32, w.ast->nodes[cast( int32, md )].data )]
             if mp->b = Tko.NODE_NONE then
                 dim as string what = iif( (sp->extra and Tko.PF_MODCTOR) <> 0, "constructor", "destructor" )
                 dim as string why = ""

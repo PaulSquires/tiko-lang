@@ -28,19 +28,19 @@
 namespace Tko.Mir
 
     type LowerStats
-        as long functions
-        as long blocks
-        as long insts
-        as long skipped        '' statements this slice does not lower yet
+        as int32 functions
+        as int32 blocks
+        as int32 insts
+        as int32 skipped        '' statements this slice does not lower yet
         '' WHERE the first of them are, as SourceLocs -- what a build reports (TKO0994).
-        as containers.Array( of ulong ) skipLocs
+        as containers.Array( of uint32 ) skipLocs
         '' Non-zero means the label pre-scan disagreed with the depth actually open at
         '' the label. Always zero unless ScanLabels has drifted from the lowering.
-        as long labelDepthMismatch
-        as long scopeImbalance '' scopes opened and not closed -- always an ICE
+        as int32 labelDepthMismatch
+        as int32 scopeImbalance '' scopes opened and not closed -- always an ICE
         '' Blocks that had NO TERMINATOR and were given a fallthrough. Always the
         '' downstream mark of a decline: a label block whose statement never lowered.
-        as long blocksRepaired
+        as int32 blocksRepaired
 
         '' WHERE the unlowered statements are, by node kind, and for N_INTRINSIC by the
         '' keyword -- PRINT, INPUT, OPEN and the rest share one node kind, so a count
@@ -48,64 +48,64 @@ namespace Tko.Mir
         ''
         '' A single total invites guessing at what to do next; this makes the answer
         '' something to read off rather than argue about.
-        as containers.Array( of long ) skippedKind
-        as containers.Array( of ulong ) skippedIntrOp
-        as containers.Array( of long ) skippedIntrN
+        as containers.Array( of int32 ) skippedKind
+        as containers.Array( of uint32 ) skippedIntrOp
+        as containers.Array( of int32 ) skippedIntrN
 
         '' Declines that happened INSIDE a statement rather than at the dispatch, by the
         '' kind of statement they were inside. This is where the mass is: the dispatch
         '' breakdown accounts for about 3,700 of ~98,700.
-        as containers.Array( of long ) innerKind
+        as containers.Array( of int32 ) innerKind
 
         '' WHY an N_AMBIGUOUS statement declined. That one bucket is 90% of the total, so
         '' a count against it says only "look here"; this says what to look at. The
         '' callee NAMES are collected for the unresolved case, because the answer to
         '' "what is missing" has twice turned out to be a short list of names rather than
         '' a missing feature.
-        as long ambCallUnbound      '' a call whose callee bound to no symbol
-        as long ambCallNoCode       '' callee bound, and still nothing was emitted
-        as long ambAssign           '' an assignment that did not lower
+        as int32 ambCallUnbound      '' a call whose callee bound to no symbol
+        as int32 ambCallNoCode       '' callee bound, and still nothing was emitted
+        as int32 ambAssign           '' an assignment that did not lower
         '' ...broken down by the TYPE KIND of its TARGET, and by whether the target
         '' had a type at all. A count says how much is owed and nothing about what to
         '' write, and 1,643 assignments emitting nothing was the largest single item in
         '' the corpus with no name on it.
-        as containers.Array( of ulong ) ambAssignKinds
-        as long ambAssignUntyped
+        as containers.Array( of uint32 ) ambAssignKinds
+        as int32 ambAssignUntyped
         '' ...and by the NODE KIND of the VALUE, which is where the failure actually
         '' is: the target being typed says the right-hand side is what would not lower.
-        as containers.Array( of ulong ) ambAssignValKinds
-        as long ambResultNoSlot     '' 'function = expr' whose result type has no slot
+        as containers.Array( of uint32 ) ambAssignValKinds
+        as int32 ambResultNoSlot     '' 'function = expr' whose result type has no slot
         '' WHICH TYPE KIND, indexed by TypeKind. A count alone says how much is owed
         '' and nothing about what to write.
-        as containers.Array( of ulong ) resultNoSlotKinds
-        as long varByref            '' 'dim byref' -- a reference variable, not lowered
-        as long ambOther            '' property-set, result-assign, unclassified
+        as containers.Array( of uint32 ) resultNoSlotKinds
+        as int32 varByref            '' 'dim byref' -- a reference variable, not lowered
+        as int32 ambOther            '' property-set, result-assign, unclassified
         '' ... by the SHAPE of the thing that was not a call, and by the AmbiguousOf
         '' classification when there was no expression to look at. 'other' has been the
         '' second-largest bucket for four commits without anyone knowing what is in it.
-        as containers.Array( of long ) ambOtherShape
-        as containers.Array( of long ) ambOtherClass
-        as containers.Array( of ulong ) ambUnboundNames
+        as containers.Array( of int32 ) ambOtherShape
+        as containers.Array( of int32 ) ambOtherClass
+        as containers.Array( of uint32 ) ambUnboundNames
         '' The callee nodes TKO0801 was reported for, so a call lowered twice says so once.
-        as containers.Array( of ulong ) badBuiltinCalls
+        as containers.Array( of uint32 ) badBuiltinCalls
         '' ... and by the SHAPE of the callee, because only a plain identifier has a
         '' name to collect and most of them are not one.
-        as containers.Array( of long ) ambUnboundShape
+        as containers.Array( of int32 ) ambUnboundShape
         '' For a member callee: the MEMBER's own name, and whether the BASE had a type
         '' at all. The two are different problems -- a member that could not be found on
         '' a type it was looked up in, against a base that was never typed so nothing
         '' could be looked up -- and one list cannot tell them apart.
-        as containers.Array( of ulong ) ambMemberNames
-        as long ambMemberBaseTyped
-        as long ambMemberBaseUntyped
+        as containers.Array( of uint32 ) ambMemberNames
+        as int32 ambMemberBaseTyped
+        as int32 ambMemberBaseUntyped
 
         '' Every decline, by the SITE that recorded it. The bucket breakdown says which
         '' STATEMENT a decline was inside; this says which line of the lowering gave up,
         '' which is the thing you can actually go and implement. Roughly twenty sites, so
         '' a linear scan is cheaper than a map and keeps the order stable.
-        as containers.Array( of ulong ) skipSiteFile   '' InternId of the file name
-        as containers.Array( of long )  skipSiteLine
-        as containers.Array( of long )  skipSiteN
+        as containers.Array( of uint32 ) skipSiteFile   '' InternId of the file name
+        as containers.Array( of int32 )  skipSiteLine
+        as containers.Array( of int32 )  skipSiteN
     end type
 
     '' isMainModule: does this module's top-level code become 'main', or a module
@@ -122,8 +122,8 @@ namespace Tko.Mir
           byref m as MirModule, byref st as LowerStats, _
           byval isMainModule as boolean = true, _
           byref moduleName as string = "", _
-          byval errFlags as long = 0, _
-          byval diags as any ptr = 0, byval moduleFile as long = -1 ) as long
+          byval errFlags as int32 = 0, _
+          byval diags as any ptr = 0, byval moduleFile as int32 = -1 ) as int32
 
     '' THE PROGRAM CALLS A THREAD ENTRY POINT, so the link needs the thread-safe
     '' runtime. Measured on fbc-modern with '-v' and no '-mt' on the command line:

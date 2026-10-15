@@ -13,7 +13,7 @@
 namespace Tko.Modules
 
 '' WHICH MODULE OF THE BUILD an '#import' leads to: its index in ctx.ifaceChains, or -1.
-declare function ImportIndex( byref ctx as Tko.CompilerContext, byref rec as Tko.PpImport ) as long
+declare function ImportIndex( byref ctx as Tko.CompilerContext, byref rec as Tko.PpImport ) as int32
 
 '' The preprocessor reads each '#import''s interfaces in where it stands.
 declare sub InstallImports( byref ctx as Tko.CompilerContext, byref cfg as Tko.PpConfig )

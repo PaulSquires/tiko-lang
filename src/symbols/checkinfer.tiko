@@ -49,13 +49,13 @@ end function
 '' Returns TYPE_NONE when this is not a typeof chain, or when it still cannot be
 '' answered.
 private function RepairTypeofRef_ _
-    ( byref c as Ctx, byval tr as Tko.NodeId, byval depth as long ) as Tko.TypeId
+    ( byref c as Ctx, byval tr as Tko.NodeId, byval depth as int32 ) as Tko.TypeId
 
     if tr = Tko.NODE_NONE then return Tko.TYPE_NONE
     if depth > 8 then return Tko.TYPE_NONE
     if c.ast->Kind( tr ) <> Tko.N_TYPEREF then return Tko.TYPE_NONE
     dim as Tko.StmtPayload ptr tp = StmtOf( c, tr )
-    if (c.ast->nodes[cast( long, tr )].flags and Tko.NF_PTR) <> 0 then
+    if (c.ast->nodes[cast( int32, tr )].flags and Tko.NF_PTR) <> 0 then
         dim as Tko.TypeId inner = RepairTypeofRef_( c, tp->a, depth + 1 )
         if inner = Tko.TYPE_NONE then return Tko.TYPE_NONE
         return c.types->Pointer_( inner )
@@ -98,9 +98,9 @@ end function
 '' 'var byref total = *__tko_cl.__CAP_TOTAL' through the field. Returns how many fields
 '' it filled: that prologue 'var' was inferred, as nothing, by the pass before this one,
 '' and the caller runs that pass again so it reads the field's new type.
-private function CompleteClosureFields_( byref c as Ctx ) as long
-    dim as long filled = 0
-    for i as long = 1 to c.ast->Count( )
+private function CompleteClosureFields_( byref c as Ctx ) as int32
+    dim as int32 filled = 0
+    for i as int32 = 1 to c.ast->Count( )
         dim as Tko.NodeId n = cast( Tko.NodeId, i )
         if c.ast->Kind( n ) <> Tko.N_CLOSURE then continue for
         dim as Tko.StmtPayload ptr sp = StmtOf( c, n )
@@ -109,11 +109,11 @@ private function CompleteClosureFields_( byref c as Ctx ) as long
             c.syms->LookupLocalTyped( Tko.SCOPE_GLOBAL, sp->name, true ) )
         if ts = 0 then continue for
         if ts->inner = Tko.SCOPE_NONE then continue for
-        for k as long = 0 to sp->count - 1
+        for k as int32 = 0 to sp->count - 1
             dim as Tko.NodeId cn = cast( Tko.NodeId, c.ast->children[sp->first + k] )
             if c.ast->Kind( cn ) <> Tko.N_IDENT then continue for
             dim as Tko.InternId cnm = _
-                c.ast->idents[cast( long, c.ast->nodes[cast( long, cn )].data )].name
+                c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cn )].data )].name
             dim as Tko.InternId fnm = c.names->Fold( c.names->GetString( _
                 "__CAP_" & c.names->Spelling( cnm ) ) )
             dim as Tko.Symbol ptr fs = c.syms->SymbolAt( _
@@ -126,7 +126,7 @@ private function CompleteClosureFields_( byref c as Ctx ) as long
             if ct = Tko.TYPE_NONE then continue for
             if c.types->Kind( ct ) = Tko.TK_REFERENCE then ct = c.types->Inner( ct )
             c.info->SetType( cn, ct )
-            if (c.ast->nodes[cast( long, cn )].flags and Tko.NF_BYREF) <> 0 then
+            if (c.ast->nodes[cast( int32, cn )].flags and Tko.NF_BYREF) <> 0 then
                 ct = c.types->Pointer_( ct )
             end if
             fs->type_ = ct
@@ -139,11 +139,11 @@ end function
 '' __FB_ARGV__ (T80): ZSTRING PTR PTR, as fbc types main's parameter, given on the
 '' first use rather than in Collect -- see collecthelp.tiko, DeclareMainArg_.
 function MainArgvType_( byref c as Ctx, byval s as Tko.Symbol ptr ) as Tko.TypeId
-    if s->kind <> cast( ubyte, Tko.SYM_VARIABLE ) then return Tko.TYPE_NONE
+    if s->kind <> cast( uint8, Tko.SYM_VARIABLE ) then return Tko.TYPE_NONE
     if s->payload <> 0 then return Tko.TYPE_NONE
     dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->parent )
     if sc = 0 then return Tko.TYPE_NONE
-    if sc->kind <> cast( ubyte, Tko.SCOPEK_MODULE ) then return Tko.TYPE_NONE
+    if sc->kind <> cast( uint8, Tko.SCOPEK_MODULE ) then return Tko.TYPE_NONE
     if c.names->Spelling( s->name ) <> "__fb_argv__" then return Tko.TYPE_NONE
     s->type_ = c.types->Pointer_( c.types->Pointer_( c.types->Builtin( Tko.TY_ZSTRING ) ) )
     return s->type_
@@ -156,14 +156,14 @@ private sub InferUnusedVarTypes_( byref c as Ctx )
     '' 'var' it stayed untyped and its slot lowered to void, so 'var a = 1' alone in a
     '' file failed while the same line with any declaration after it passed. Five
     '' corpus files, and the whole difference was where the variable happened to sit.
-    for sid as long = 1 to c.syms->Count( )
+    for sid as int32 = 1 to c.syms->Count( )
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( cast( Tko.SymbolId, sid ) )
         if s = 0 then continue for
         '' A CONSTANT too: 'const n1c as typeof( n1 ) = ( n1 )' is the shape the
         '' corpus writes, and a constant's type is bound the same way.
         dim as boolean inferrable = _
-            (s->kind = cast( ubyte, Tko.SYM_VARIABLE )) orelse _
-            (s->kind = cast( ubyte, Tko.SYM_CONSTANT ))
+            (s->kind = cast( uint8, Tko.SYM_VARIABLE )) orelse _
+            (s->kind = cast( uint8, Tko.SYM_CONSTANT ))
         '' A FIELD TOO, and for a sharper reason than a variable: a field left untyped
         '' makes ComputeUdtLayouts refuse the WHOLE UDT, which then vanishes from the
         '' type table with nothing said and every use of it declines. Thirty of the forty
@@ -172,7 +172,7 @@ private sub InferUnusedVarTypes_( byref c as Ctx )
         ''
         '' A BITFIELD is excluded: its payload is the WIDTH, not a node, and its type is
         '' spelled out anyway.
-        if s->kind = cast( ubyte, Tko.SYM_FIELD ) then
+        if s->kind = cast( uint8, Tko.SYM_FIELD ) then
             if (s->flags and Tko.SYMF_BITFIELD) = 0 then inferrable = true
         end if
         if inferrable = false then continue for

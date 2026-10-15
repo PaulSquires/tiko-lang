@@ -41,13 +41,13 @@ private sub CheckVarargConv_ _
       byval inTypeDecl as boolean = false )
 
     if p.fbcallConv = Tko.CC_NONE then exit sub
-    dim as long before = 0
-    for i as long = 0 to sp.count - 1
+    dim as int32 before = 0
+    for i as int32 = 0 to sp.count - 1
         dim as Tko.NodeId pn = cast( Tko.NodeId, p.ast->children[sp.first + i] )
         if p.ast->Kind( pn ) <> Tko.N_PARAM then continue for
         dim as Tko.StmtPayload ptr pp = _
-            @p.ast->stmts[cast( long, p.ast->nodes[cast( long, pn )].data )]
-        if pp->op <> cast( ushort, Tko.TK_ELLIPSIS ) then
+            @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, pn )].data )]
+        if pp->op <> cast( uint16, Tko.TK_ELLIPSIS ) then
             before += 1
             continue for
         end if
@@ -64,9 +64,9 @@ private sub CheckVarargConv_ _
         end if
         pp->extra = Tko.PARAM_VARARG_REFUSED
         if p.silent then
-            p.varargPending.Push( cast( ulong, pn ) )
-            p.varargPending.Push( cast( ulong, d ) )
-            p.varargPending.Push( cast( ulong, cc ) )
+            p.varargPending.Push( cast( uint32, pn ) )
+            p.varargPending.Push( cast( uint32, d ) )
+            p.varargPending.Push( cast( uint32, cc ) )
         else
             p.diags->Report( d, Tko.PointRange( p.ast->Loc( pn ) ), Tko.CallConvName( cc ) )
         end if
@@ -77,9 +77,9 @@ end sub
 '' THE REPORTS A KEPT SPECULATION OWES, from 'mark' on -- or none, when the parse it sits
 '' in is silent too. Either way they are dropped: a speculation that is thrown away
 '' leaves orphan nodes, and nothing reads theirs.
-private sub FlushVarargPending_( byref p as Tko.ParserState, byval mark as long )
+private sub FlushVarargPending_( byref p as Tko.ParserState, byval mark as int32 )
     if p.silent = false then
-        for i as long = mark to p.varargPending.Count - 3 step 3
+        for i as int32 = mark to p.varargPending.Count - 3 step 3
             dim as Tko.NodeId pn = cast( Tko.NodeId, p.varargPending[i] )
             p.diags->Report( cast( Tko.DiagId, p.varargPending[i + 1] ), _
                 Tko.PointRange( p.ast->Loc( pn ) ), _
@@ -96,8 +96,8 @@ end sub
 private function TupleElemBad_( byref p as Tko.ParserState, byval n as Tko.NodeId ) as boolean
     if n = Tko.NODE_NONE then return false
     if p.ast->Kind( n ) <> Tko.N_TYPEREF then return false
-    if (p.ast->nodes[cast( long, n )].flags and Tko.NF_PTR) <> 0 then return false
-    dim as Tko.StmtPayload ptr tp = @p.ast->stmts[cast( long, p.ast->nodes[cast( long, n )].data )]
+    if (p.ast->nodes[cast( int32, n )].flags and Tko.NF_PTR) <> 0 then return false
+    dim as Tko.StmtPayload ptr tp = @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, n )].data )]
     select case cast( Tko.TokenKind, tp->op )
     case Tko.KW_ANY
         return true
@@ -119,8 +119,8 @@ private function ParenOperandIsExpr_( byref p as Tko.ParserState ) as boolean
            (cast( Tko.TokenKind, p.toks->At( p.pos + 2 ).kind ) = Tko.TK_STAR) then return true
     end if
     if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) <> Tko.TK_LPAREN then return false
-    dim as long depth = 0
-    dim as long i = p.pos + 1
+    dim as int32 depth = 0
+    dim as int32 i = p.pos + 1
     while HasTok( p, i )
         select case cast( Tko.TokenKind, p.toks->At( i ).kind )
         case Tko.TK_LPAREN : depth += 1
@@ -138,7 +138,7 @@ end function
 function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.Token t = Cur( p )
     dim as Tko.StmtPayload sp
-    dim as ushort flags = 0
+    dim as uint16 flags = 0
 
     '' A LEADING '..' -- 'dim as ..a.b.T x' and 'type<..a.b.T>( n )'. It names the GLOBAL
     '' scope, exactly as it does in an expression, and it is consumed here so the
@@ -195,7 +195,7 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.TokenKind pk = Peek( p )
     if (pk = Tko.KW_SUB) orelse (pk = Tko.KW_FUNCTION) then
         Advance( p )
-        sp.op = cast( ushort, pk )
+        sp.op = cast( uint16, pk )
         dim as Tko.CallConv ptConv = Tko.CC_NONE
         while Tko.IsCallConvKind( Peek( p ) )
             select case Peek( p )
@@ -242,13 +242,13 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
         if ptConv = Tko.CC_CDECL then sp.extra or= Tko.PF_CDECL
         if ptConv = Tko.CC_STDCALL then sp.extra or= Tko.PF_STDCALL
         dim as Tko.NodeId pn = MakeStmt( p, Tko.N_TYPEREF, t.loc, sp )
-        p.ast->nodes[cast( long, pn )].flags or= flags or Tko.NF_PROC_TYPE
+        p.ast->nodes[cast( int32, pn )].flags or= flags or Tko.NF_PROC_TYPE
         while (Peek( p ) = Tko.KW_PTR) orelse (Peek( p ) = Tko.KW_POINTER)
             Advance( p )
             dim as Tko.StmtPayload up
             up.a = pn
             pn = MakeStmt( p, Tko.N_TYPEREF, t.loc, up )
-            p.ast->nodes[cast( long, pn )].flags or= Tko.NF_PTR
+            p.ast->nodes[cast( int32, pn )].flags or= Tko.NF_PTR
         wend
         return pn
     end if
@@ -298,26 +298,26 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
                         end if
                     end if
                 end if
-                dim as long before = p.pos
+                dim as int32 before = p.pos
                 dim as Tko.NodeId etr = TypeRef( p )
-                elems.Push( cast( ulong, etr ) )
+                elems.Push( cast( uint32, etr ) )
                 if p.pos = before then exit do
                 if (enm <> 0) andalso (p.ast->Kind( etr ) = Tko.N_TYPEREF) then
-                    p.ast->stmts[cast( long, p.ast->nodes[cast( long, etr )].data )].aliasName = enm
+                    p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, etr )].data )].aliasName = enm
                 end if
                 if (tupBad = false) andalso (p.silent = false) then
                     if TupleElemBad_( p, etr ) then
                         p.diags->Report( Tko.TKO0823, Tko.PointRange( eloc ) )
                         tupBad = true
                     elseif enm <> 0 then
-                        for q as long = 0 to enames.Count - 1
+                        for q as int32 = 0 to enames.Count - 1
                             if cast( Tko.InternId, enames[q] ) = enm then
                                 p.diags->Report( Tko.TKO0822, Tko.PointRange( eloc ), p.names->Spelling( enm ) )
                                 tupBad = true
                                 exit for
                             end if
                         next
-                        enames.Push( cast( ulong, enm ) )
+                        enames.Push( cast( uint32, enm ) )
                     end if
                 end if
                 if Accept( p, Tko.TK_COMMA ) = false then exit do
@@ -332,10 +332,10 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
         '' where every other has a STMT payload is the pool mistake this codebase has
         '' made six times. No builtin type is spelled '(' , so the op is free.
         dim as Tko.StmtPayload tp
-        tp.op = cast( ushort, Tko.TK_LPAREN )
+        tp.op = cast( uint16, Tko.TK_LPAREN )
         tp.first = p.ast->children.Count
         tp.count = elems.Count
-        for i as long = 0 to elems.Count - 1
+        for i as int32 = 0 to elems.Count - 1
             p.ast->children.Push( elems[i] )
         next
         return MakeStmt( p, Tko.N_TYPEREF, t.loc, tp )
@@ -349,7 +349,7 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
     else
         sp.name = p.names->GetString( Tko.Text.LowerAscii( Tko.TokenKindText( k ) ) )
     end if
-    sp.op = cast( ushort, k )
+    sp.op = cast( uint16, k )
     Advance( p )
 
     '' 'typeof( X )' as a TYPE. Without this it was read as a NAMED TYPE called
@@ -375,7 +375,7 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
         '' still consumed and DISCARDED. Telling a type from an expression there needs
         '' Check, and an unresolved type is no worse than the named type this used to
         '' produce, while leftover tokens break the parameter list that follows.
-        dim as long save2 = p.pos
+        dim as int32 save2 = p.pos
         dim as boolean tookName = false
         if HasTok( p, p.pos + 1 ) andalso HasTok( p, p.pos + 2 ) then
             dim as Tko.Token inner = p.toks->At( p.pos + 1 )
@@ -408,10 +408,10 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
         '' fbc says LONG, and 'dim as typeof( (l) ) z' could not even be printed. The
         '' expression attempt below takes it.
         if (tookName = false) andalso (ParenOperandIsExpr_( p ) = false) then
-            dim as long saveT = p.pos
+            dim as int32 saveT = p.pos
             dim as boolean savedSilentT = p.silent
-            dim as long savedErrorsT = p.errors
-            dim as long pendMark = p.varargPending.Count
+            dim as int32 savedErrorsT = p.errors
+            dim as int32 pendMark = p.varargPending.Count
             p.silent = true
             Advance( p )                       '' past '('
             dim as Tko.NodeId inner = TypeRef( p )
@@ -434,9 +434,9 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
         end if
 
         if tookName = false then
-            dim as long saveE = p.pos
+            dim as int32 saveE = p.pos
             dim as boolean savedSilent = p.silent
-            dim as long savedErrors = p.errors
+            dim as int32 savedErrors = p.errors
             p.silent = true
             Advance( p )                       '' past '('
             dim as Tko.NodeId opnd = Expression( p )
@@ -454,12 +454,12 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
             if (opnd <> Tko.NODE_NONE) andalso landed then
                 if p.ast->Kind( opnd ) = Tko.N_CALL then
                     dim as Tko.ListPayload ptr olp = _
-                        @p.ast->lists[cast( long, p.ast->nodes[cast( long, opnd )].data )]
+                        @p.ast->lists[cast( int32, p.ast->nodes[cast( int32, opnd )].data )]
                     if olp->target <> Tko.NODE_NONE then
                         if p.ast->Kind( olp->target ) = Tko.N_IDENT then
                             dim as Tko.IdentPayload ptr oip = _
-                                @p.ast->idents[cast( long, _
-                                    p.ast->nodes[cast( long, olp->target )].data )]
+                                @p.ast->idents[cast( int32, _
+                                    p.ast->nodes[cast( int32, olp->target )].data )]
                             select case p.names->Spelling( oip->name )
                             case "sub", "function"
                                 isSignature = true
@@ -480,7 +480,7 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
         end if
 
         if tookName = false orelse (sp.b = Tko.NODE_NONE) then
-            dim as long depth = 0
+            dim as int32 depth = 0
             do
                 dim as Tko.TokenKind tk = Peek( p )
                 if tk = Tko.TK_LPAREN then depth += 1
@@ -511,7 +511,7 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
         end select
         if mapped <> cast( Tko.TokenKind, 0 ) then
             Advance( p )
-            sp.op = cast( ushort, mapped )
+            sp.op = cast( uint16, mapped )
             sp.name = p.names->GetString( _
                 Tko.Text.LowerAscii( Tko.TokenKindText( mapped ) ) )
         elseif u = Tko.TK_IDENT then
@@ -537,15 +537,15 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
     dim as boolean sizedBase = (cast( Tko.TokenKind, sp.op ) = Tko.KW_INTEGER)
     sizedBase = sizedBase orelse (cast( Tko.TokenKind, sp.op ) = Tko.KW_UINTEGER)
     if sizedBase andalso (Peek( p ) = Tko.TK_LT) then
-        dim as long saveW = p.pos
+        dim as int32 saveW = p.pos
         Advance( p )
         dim as Tko.TokenKind wk = cast( Tko.TokenKind, 0 )
         if Peek( p ) = Tko.TK_INT_LIT then
             dim as boolean uns = (cast( Tko.TokenKind, sp.op ) = Tko.KW_UINTEGER)
             '' A TOKEN'S 'literal' IS A POOL INDEX, not the value.
-            dim as longint wv = -1
-            if cast( long, Cur( p ).literal ) < p.litPool->Count then
-                wv = (*p.litPool)[cast( long, Cur( p ).literal )].intValue
+            dim as int64 wv = -1
+            if cast( int32, Cur( p ).literal ) < p.litPool->Count then
+                wv = (*p.litPool)[cast( int32, Cur( p ).literal )].intValue
             end if
             select case wv
             case 8  : wk = iif( uns, Tko.KW_UBYTE,    Tko.KW_BYTE )
@@ -566,7 +566,7 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
             dim as boolean closed = (Peek( p ) = Tko.TK_GT)
             if Peek( p ) = Tko.TK_GE then
                 dim as Tko.Token ptr gt = @(*p.toks)[p.pos]
-                gt->kind = cast( ushort, Tko.TK_EQ )
+                gt->kind = cast( uint16, Tko.TK_EQ )
                 gt->length = 1
                 gt->loc += 1
                 gt->flags or= Tko.TF_SPLIT_GE
@@ -579,7 +579,7 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
                 Advance( p )
             end if
             if closed then
-                sp.op = cast( ushort, wk )
+                sp.op = cast( uint16, wk )
                 sp.name = p.names->GetString( _
                     Tko.Text.LowerAscii( Tko.TokenKindText( wk ) ) )
             else
@@ -647,7 +647,7 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
 
     '' Generic arguments: 'Box( of long )'.
     if Peek( p ) = Tko.TK_LPAREN then
-        dim as long save = p.pos
+        dim as int32 save = p.pos
         Advance( p )
         dim as boolean isGeneric = false
         if Peek( p ) = Tko.TK_IDENT then
@@ -663,15 +663,15 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
             Advance( p )
             dim as Tko.NodeIdVec gargs
             do
-                dim as long beforeG = p.pos
-                gargs.Push( cast( ulong, TypeRef( p ) ) )
+                dim as int32 beforeG = p.pos
+                gargs.Push( cast( uint32, TypeRef( p ) ) )
                 if p.pos = beforeG then exit do
                 if Accept( p, Tko.TK_COMMA ) = false then exit do
             loop
             Expect( p, Tko.TK_RPAREN, ")" )
             sp.first = p.ast->children.Count
             sp.count = gargs.Count
-            for i as long = 0 to gargs.Count - 1
+            for i as int32 = 0 to gargs.Count - 1
                 p.ast->children.Push( gargs[i] )
             next
         else
@@ -691,7 +691,7 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
     '' the shape parses for any type and the diagnostic is owed from the checker, which
     '' does not emit it yet. Recorded rather than silently permitted.
     if Peek( p ) = Tko.KW_ALIAS then
-        dim as long saveAlias = p.pos
+        dim as int32 saveAlias = p.pos
         Advance( p )
         if Peek( p ) = Tko.TK_STRING_LIT then
             sp.b = Expression( p, Tko.PREC_POSTFIX )
@@ -717,7 +717,7 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
     '' them in a wstring or zstring test, for a change that was meant to widen what
     '' parses.
     if Peek( p ) = Tko.TK_STAR then
-        dim as long save = p.pos
+        dim as int32 save = p.pos
         Advance( p )
     '' ...AND AN INTRINSIC MAY START IT. 'len', 'sizeof', 'cast' and 'cptr' are
     '' KEYWORDS, not identifiers, so the three-token test below turned them away and put
@@ -749,7 +749,7 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
     end if
 
     dim as Tko.NodeId n = MakeStmt( p, Tko.N_TYPEREF, t.loc, sp )
-    p.ast->nodes[cast( long, n )].flags or= flags
+    p.ast->nodes[cast( int32, n )].flags or= flags
 
     '' 'ptr' may repeat, and 'const' may appear between the levels.
     ''
@@ -783,13 +783,13 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
         dim as Tko.StmtPayload up
         up.a = n
         n = MakeStmt( p, Tko.N_TYPEREF, t.loc, up )
-        p.ast->nodes[cast( long, n )].flags or= Tko.NF_PTR
+        p.ast->nodes[cast( int32, n )].flags or= Tko.NF_PTR
         if pendingConst then
-            p.ast->nodes[cast( long, n )].flags or= Tko.NF_CONST
+            p.ast->nodes[cast( int32, n )].flags or= Tko.NF_CONST
             pendingConst = false
         end if
     loop
-    if pendingConst then p.ast->nodes[cast( long, n )].flags or= Tko.NF_CONST
+    if pendingConst then p.ast->nodes[cast( int32, n )].flags or= Tko.NF_CONST
 
     return n
 end function
@@ -810,7 +810,7 @@ end function
 function TypeArgIsTupleType( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as boolean
     if (k <> Tko.KW_SIZEOF) andalso (k <> Tko.KW_LEN) then return false
     if Peek( p ) <> Tko.TK_LPAREN then return false
-    dim as long depth = 0, i = p.pos
+    dim as int32 depth = 0, i = p.pos
     dim as boolean comma = false, typeWord = false
     while HasTok( p, i )
         dim as Tko.TokenKind tk = cast( Tko.TokenKind, p.toks->At( i ).kind )
@@ -827,10 +827,10 @@ function TypeArgIsTupleType( byref p as Tko.ParserState, byval k as Tko.TokenKin
         i += 1
     wend
     if (comma = false) orelse (typeWord = false) then return false
-    dim as long save = p.pos
+    dim as int32 save = p.pos
     dim as boolean savedSilent = p.silent
-    dim as long savedErrors = p.errors
-    dim as long pendMark = p.varargPending.Count
+    dim as int32 savedErrors = p.errors
+    dim as int32 pendMark = p.varargPending.Count
     p.silent = true
     dim as Tko.NodeId n = TypeRef( p )
     dim as boolean landed = (n <> Tko.NODE_NONE) andalso (Peek( p ) = Tko.TK_RPAREN)

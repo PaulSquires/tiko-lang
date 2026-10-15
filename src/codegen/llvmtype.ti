@@ -14,7 +14,7 @@ namespace Tko.Codegen
     '' The LLVM type for a MIR type. An AGGREGATE needs its SIZE, which MIR keeps
     '' beside the slot rather than in the type, so it is passed in.
     declare function LlvmType _
-        ( byval t as Tko.Mir.MirType, byval aggSize as long = 0 ) as string
+        ( byval t as Tko.Mir.MirType, byval aggSize as int32 = 0 ) as string
 
     '' AN AGGREGATE IS A BYTE ARRAY, not a reconstructed struct.
     ''
@@ -30,7 +30,7 @@ namespace Tko.Codegen
     ''
     '' The cost is that a debugger sees a byte array; debug info (phase 11) describes
     '' the real fields separately and does not depend on this.
-    declare function AggType( byval sizeBytes as long ) as string
+    declare function AggType( byval sizeBytes as int32 ) as string
 
     '' A FLOAT CONSTANT IN HEXADECIMAL, always.
     ''
@@ -40,7 +40,7 @@ namespace Tko.Codegen
     '' exact by construction -- including for 'float', where LLVM wants the bits of the
     '' double that the float widens to.
     declare function LlvmFloatConst _
-        ( byval v as double, byval isSingle as boolean ) as string
+        ( byval v as float64, byval isSingle as boolean ) as string
 
     '' A SysV aggregate returned in TWO registers, spelled the way clang spells it:
     '' '{ i64, i32 }' for a twelve-byte struct of integers. See abi.tiko.

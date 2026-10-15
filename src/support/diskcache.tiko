@@ -14,8 +14,8 @@
 namespace Tko.DiskCache
 
 function Hash( byref s as string ) as string
-    dim as ulongint h = &hCBF29CE484222325ull
-    for i as long = 0 to len( s ) - 1
+    dim as uint64 h = &hCBF29CE484222325ull
+    for i as int32 = 0 to len( s ) - 1
         h xor= s[i]
         h *= &h100000001B3ull
     next
@@ -43,18 +43,18 @@ function CompilerStamp( ) as string
 end function
 
 function ReadAll( byref path_ as string, byref text as string ) as boolean
-    dim as long f = freefile( )
+    dim as int32 f = freefile( )
     if open( path_ for binary access read as #f ) <> 0 then return false
-    dim as longint n = lof( f )
+    dim as int64 n = lof( f )
     text = space( n )
     if n > 0 then get #f, , text
     close #f
     return true
 end function
 
-function Commit( byref path_ as string, byref text as string, byval serial as long ) as boolean
-    dim as string tmp = path_ & "." & hex( cast( ulongint, timer * 1000000.0 ), 12 ) & "." & serial & ".tmp"
-    dim as long f = freefile( )
+function Commit( byref path_ as string, byref text as string, byval serial as int32 ) as boolean
+    dim as string tmp = path_ & "." & hex( cast( uint64, timer * 1000000.0 ), 12 ) & "." & serial & ".tmp"
+    dim as int32 f = freefile( )
     if open( tmp for binary access write as #f ) <> 0 then return false
     if len( text ) then put #f, , text
     close #f

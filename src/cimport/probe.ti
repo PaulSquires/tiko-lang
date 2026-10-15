@@ -19,6 +19,6 @@ namespace Tko.CImport
 '' could not be loaded. 'clangExe' is the toolchain's clang, beside which libclang is
 '' looked for; 'triple' is the target's; each cincludes() entry becomes a -I.
 declare function CImportProbe( byref clangExe as string, byref header as string, _
-                               byref triple as string, byref cincludes as Tko.StrVec ) as long
+                               byref triple as string, byref cincludes as Tko.StrVec ) as int32
 
 end namespace

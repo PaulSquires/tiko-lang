@@ -6,13 +6,13 @@
 
 namespace Tko
 
-const INTERN_INITIAL_SLOTS as long = 4096
-const INTERN_MAX_LOAD_NUM  as long = 7      '' grow past 7/10 occupancy
-const INTERN_MAX_LOAD_DEN  as long = 10
+const INTERN_INITIAL_SLOTS as int32 = 4096
+const INTERN_MAX_LOAD_NUM  as int32 = 7      '' grow past 7/10 occupancy
+const INTERN_MAX_LOAD_DEN  as int32 = 10
 
-function HashBytes( byval p as const ubyte ptr, byval n as long ) as ulong
-    dim as ulong h = &h811C9DC5
-    for i as long = 0 to n - 1
+function HashBytes( byval p as const uint8 ptr, byval n as int32 ) as uint32
+    dim as uint32 h = &h811C9DC5
+    for i as int32 = 0 to n - 1
         h xor= p[i]
         h *= &h01000193
     next
@@ -25,35 +25,35 @@ constructor Interner( )
     this.Rehash( INTERN_INITIAL_SLOTS )
 end constructor
 
-sub Interner.Rehash( byval newSlots as long )
+sub Interner.Rehash( byval newSlots as int32 )
     dim as SlotVec fresh
     fresh.Reserve( newSlots )
-    for i as long = 0 to newSlots - 1
+    for i as int32 = 0 to newSlots - 1
         fresh.Push( 0 )
     next
 
-    dim as long newMask = newSlots - 1
-    dim as long total = this.entries.Count
-    for idx as long = 0 to total - 1
-        dim as long slot = cast( long, this.entries[idx].hash ) and newMask
+    dim as int32 newMask = newSlots - 1
+    dim as int32 total = this.entries.Count
+    for idx as int32 = 0 to total - 1
+        dim as int32 slot = cast( int32, this.entries[idx].hash ) and newMask
         while fresh[slot] <> 0
             slot = (slot + 1) and newMask
         wend
-        fresh[slot] = cast( ulong, idx + 1 )
+        fresh[slot] = cast( uint32, idx + 1 )
     next
 
     swap this.slots, fresh
     this.mask = newMask
 end sub
 
-function Interner.Get( byval p as const ubyte ptr, byval n as long ) as InternId
+function Interner.Get( byval p as const uint8 ptr, byval n as int32 ) as InternId
     if n < 0 then n = 0
 
-    dim as ulong h = HashBytes( p, n )
-    dim as long slot = cast( long, h ) and this.mask
+    dim as uint32 h = HashBytes( p, n )
+    dim as int32 slot = cast( int32, h ) and this.mask
 
     while this.slots[slot] <> 0
-        dim as long idx = cast( long, this.slots[slot] ) - 1
+        dim as int32 idx = cast( int32, this.slots[slot] ) - 1
         dim as boolean sameHash = (this.entries[idx].hash = h)
         dim as boolean sameLen = (this.entries[idx].length = n)
         if sameHash andalso sameLen then
@@ -65,7 +65,7 @@ function Interner.Get( byval p as const ubyte ptr, byval n as long ) as InternId
     wend
 
     '' Miss: copy the bytes into the arena, NUL-terminated for C interop.
-    dim as ubyte ptr stored = this.store.Alloc( n + 1, 1 )
+    dim as uint8 ptr stored = this.store.Alloc( n + 1, 1 )
     if n > 0 then memcpy( stored, p, n )
     stored[n] = 0
 
@@ -77,7 +77,7 @@ function Interner.Get( byval p as const ubyte ptr, byval n as long ) as InternId
     this.entries.Push( e )
 
     dim as InternId id = cast( InternId, this.entries.Count )
-    this.slots[slot] = cast( ulong, id )
+    this.slots[slot] = cast( uint32, id )
     this.occupied += 1
 
     if this.occupied * INTERN_MAX_LOAD_DEN > (this.mask + 1) * INTERN_MAX_LOAD_NUM then
@@ -88,38 +88,38 @@ function Interner.Get( byval p as const ubyte ptr, byval n as long ) as InternId
 end function
 
 function Interner.GetString( byval s as string ) as InternId
-    return this.Get( cast( const ubyte ptr, strptr( s ) ), len( s ) )
+    return this.Get( cast( const uint8 ptr, strptr( s ) ), len( s ) )
 end function
 
 function Interner.Spelling( byval id as InternId ) as string
     if id = INTERN_NONE then return ""
-    dim as long idx = cast( long, id ) - 1
-    dim as long n = this.entries[idx].length
+    dim as int32 idx = cast( int32, id ) - 1
+    dim as int32 n = this.entries[idx].length
     if n = 0 then return ""
     dim as string r = space( n )
     memcpy( strptr( r ), this.entries[idx].bytes, n )
     return r
 end function
 
-function Interner.Bytes( byval id as InternId ) as const ubyte ptr
+function Interner.Bytes( byval id as InternId ) as const uint8 ptr
     if id = INTERN_NONE then return 0
-    return this.entries[cast( long, id ) - 1].bytes
+    return this.entries[cast( int32, id ) - 1].bytes
 end function
 
-function Interner.Length( byval id as InternId ) as long
+function Interner.Length( byval id as InternId ) as int32
     if id = INTERN_NONE then return 0
-    return this.entries[cast( long, id ) - 1].length
+    return this.entries[cast( int32, id ) - 1].length
 end function
 
 function Interner.Fold( byval id as InternId ) as InternId
     if id = INTERN_NONE then return INTERN_NONE
-    dim as long idx = cast( long, id ) - 1
+    dim as int32 idx = cast( int32, id ) - 1
     if this.entries[idx].folded <> INTERN_NONE then return this.entries[idx].folded
 
-    dim as long n = this.entries[idx].length
+    dim as int32 n = this.entries[idx].length
     dim as InternId result = id
     if n > 0 then
-        dim as ubyte ptr tmp = allocate( n )
+        dim as uint8 ptr tmp = allocate( n )
         Tko.Text.LowerAsciiInto( this.entries[idx].bytes, n, tmp )
         '' Get( ) may push a new entry, which can reallocate the entries array --
         '' so re-index afterwards rather than holding a reference across the call.
@@ -131,11 +131,11 @@ function Interner.Fold( byval id as InternId ) as InternId
     return result
 end function
 
-function Interner.Count( ) as long
+function Interner.Count( ) as int32
     return this.entries.Count
 end function
 
-function Interner.BytesUsed( ) as longint
+function Interner.BytesUsed( ) as int64
     return this.store.used
 end function
 

@@ -23,7 +23,7 @@ private function Tint _
 end function
 
 '' Right-align a line number in a gutter wide enough for the largest one shown.
-private function Gutter( byval n as long, byval gutterWidth as long ) as string
+private function Gutter( byval n as int32, byval gutterWidth as int32 ) as string
     dim as string s = str( n )
     while len( s ) < gutterWidth
         s = " " + s
@@ -50,11 +50,11 @@ function Snippet _
     '' The underline runs to the end of the range when it stays on this line,
     '' otherwise to the end of the line.
     dim as Tko.DecodedLoc b = src.Decode( rng.last )
-    dim as long lastCol = a.column
+    dim as int32 lastCol = a.column
     dim as boolean sameLine = (b.file = a.file) andalso (b.physLine = a.physLine)
     if sameLine andalso (b.column >= a.column) then lastCol = b.column
 
-    dim as long gutterWidth = len( str( a.lineNo ) )
+    dim as int32 gutterWidth = len( str( a.lineNo ) )
     if gutterWidth < 4 then gutterWidth = 4
 
     dim as string pad = space( gutterWidth )
@@ -72,15 +72,15 @@ function Snippet _
     '' the display column put the caret three cells right after one leading tab (F-67).
     dim as string caret = ""
     scope
-        dim as long col = 1, bi = 0, n = len( lineText )
-        dim as const ubyte ptr lp = cast( const ubyte ptr, strptr( lineText ) )
+        dim as int32 col = 1, bi = 0, n = len( lineText )
+        dim as const uint8 ptr lp = cast( const uint8 ptr, strptr( lineText ) )
         while (col < a.column) andalso (bi < n)
             if lp[bi] = 9 then
                 caret += chr( 9 )
                 col = ((col - 1) \ Tko.Text.DEFAULT_TAB_WIDTH + 1) * Tko.Text.DEFAULT_TAB_WIDTH + 1
                 bi += 1
             else
-                dim as long w = Tko.Text.DisplayWidth( Tko.Text.DecodeUtf8( lp, n, bi ) )
+                dim as int32 w = Tko.Text.DisplayWidth( Tko.Text.DecodeUtf8( lp, n, bi ) )
                 caret += space( w )
                 col += w
             end if
@@ -88,7 +88,7 @@ function Snippet _
         if col < a.column then caret += space( a.column - col )
     end scope
     caret += "^"
-    for i as long = a.column + 1 to lastCol
+    for i as int32 = a.column + 1 to lastCol
         caret += "~"
     next
 

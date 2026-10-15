@@ -29,7 +29,7 @@ private function PeekPokeType_ _
     dim as Tko.TypeId tt = c.info->TypeOf_( tn )
     if (tt = Tko.TYPE_NONE) andalso (c.ast->Kind( tn ) = Tko.N_CALL) then
         dim as Tko.ListPayload ptr tlp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, tn )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, tn )].data )]
         if tlp->count = 1 then
             tt = c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[tlp->first] ) )
         end if
@@ -45,7 +45,7 @@ private function PeekPokeType_ _
                 '' Resolve bound the VARIABLE of that spelling; the TYPE that shadows
                 '' it lives in the same scope.
                 dim as Tko.IdentPayload ptr tnip = _
-                    @c.ast->idents[cast( long, c.ast->nodes[cast( long, tn )].data )]
+                    @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, tn )].data )]
                 dim as Tko.SymbolId tt2 = c.syms->LookupTyped( _
                     tsy->parent, tnip->name, true )
                 dim as Tko.Symbol ptr tsy2 = c.syms->SymbolAt( tt2 )
@@ -82,7 +82,7 @@ function LowerPoke( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     '' argument parser reads every argument as an expression, and 'byte' is a keyword
     '' that parses as a name. So it is matched by SPELLING here rather than by node
     '' kind, which is what a type-kind test would have got wrong.
-    dim as long base_ = sp->first
+    dim as int32 base_ = sp->first
     dim as Tko.TypeId dt = c.types->Builtin( Tko.TY_UBYTE )
     if sp->count = 3 then
         if PeekPokeType_( c, cast( Tko.NodeId, c.ast->children[base_] ), dt ) = false then
@@ -95,10 +95,10 @@ function LowerPoke( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if (mt = MT_VOID) orelse (mt = MT_AGG) then return false
 
     dim as MirValue addr = LowerExpr( c, cast( Tko.NodeId, c.ast->children[base_] ) )
-    if addr.kind = cast( ubyte, MV_NONE ) then return false
+    if addr.kind = cast( uint8, MV_NONE ) then return false
     dim as Tko.NodeId vn = cast( Tko.NodeId, c.ast->children[base_ + 1] )
     dim as MirValue val = LowerExprN_( c, vn )
-    if val.kind = cast( ubyte, MV_NONE ) then return false
+    if val.kind = cast( uint8, MV_NONE ) then return false
     val = CoerceTy( c, val, mt, NumSrcType_( c, vn ))
 
     '' THE DESTINATION MUST BE A POINTER VALUE, not a slot. In this IR 'store @p, v'
@@ -108,14 +108,14 @@ function LowerPoke( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     '' pointer temp. Without it 'poke byte, @p, 5' stored an i8 INTO an i64 slot, which
     '' the verifier caught.
     dim as MirValue dst = addr
-    if (dst.kind = cast( ubyte, MV_LOCAL )) orelse (dst.kind = cast( ubyte, MV_GLOBAL )) then
+    if (dst.kind = cast( uint8, MV_LOCAL )) orelse (dst.kind = cast( uint8, MV_GLOBAL )) then
         dim as MirInst fa
-        fa.op = cast( ushort, M_FIELD_ADDR )
-        fa.ty = cast( ubyte, MT_PTR )
+        fa.op = cast( uint16, M_FIELD_ADDR )
+        fa.ty = cast( uint8, MT_PTR )
         fa.a = addr
         fa.imm = 0
         dst = Emit( c, fa )
-        if dst.kind = cast( ubyte, MV_NONE ) then return false
+        if dst.kind = cast( uint8, MV_NONE ) then return false
     end if
 
     '' AND AN INTEGER ADDRESS IS NOT A POINTER EITHER. 'poke b, b' passes an
@@ -124,11 +124,11 @@ function LowerPoke( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     '' all. PEEK already coerces its address; the two halves of one intrinsic
     '' pair gave different answers.
     dst = Coerce( c, dst, MT_PTR, false )
-    if dst.kind = cast( ubyte, MV_NONE ) then return false
+    if dst.kind = cast( uint8, MV_NONE ) then return false
 
     dim as MirInst st
-    st.op = cast( ushort, M_STORE )
-    st.ty = cast( ubyte, MT_VOID )
+    st.op = cast( uint16, M_STORE )
+    st.ty = cast( uint8, MT_VOID )
     st.a = dst
     st.b = val
     Emit( c, st )
@@ -164,23 +164,23 @@ function LowerPeek _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if (cp->count < 1) orelse (cp->count > 2) then return false
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr tip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
     if Tko.Text.LowerAscii( c.names->Spelling( tip->name ) ) <> "peek" then return false
     '' ...AND NOT A PROCEDURE OF THE PROGRAM'S OWN that happens to be spelled PEEK --
     '' see IntrinsicCallType_, which types the call by the same rule.
     scope
         dim as Tko.Symbol ptr psym = c.syms->SymbolAt( c.info->RefOf( cp->target ) )
         if psym <> 0 then
-            if psym->kind = cast( ubyte, Tko.SYM_PROC ) then return false
+            if psym->kind = cast( uint8, Tko.SYM_PROC ) then return false
         end if
     end scope
 
-    dim as long base_ = cp->first
+    dim as int32 base_ = cp->first
     dim as Tko.TypeId dt = c.types->Builtin( Tko.TY_UBYTE )
     if cp->count = 2 then
         dim as Tko.NodeId tn = cast( Tko.NodeId, c.ast->children[base_] )
@@ -195,7 +195,7 @@ function LowerPeek _
             dim as Tko.TypeId tt = c.info->TypeOf_( tn )
             if (tt = Tko.TYPE_NONE) andalso (c.ast->Kind( tn ) = Tko.N_CALL) then
                 dim as Tko.ListPayload ptr tlp = _
-                    @c.ast->lists[cast( long, c.ast->nodes[cast( long, tn )].data )]
+                    @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, tn )].data )]
                 if tlp->count = 1 then
                     tt = c.info->TypeOf_( _
                         cast( Tko.NodeId, c.ast->children[tlp->first] ) )
@@ -214,7 +214,7 @@ function LowerPeek _
                         '' Resolve bound the VARIABLE of that spelling; the TYPE that
                         '' shadows it lives in the same scope.
                         dim as Tko.IdentPayload ptr tnip = _
-                            @c.ast->idents[cast( long, c.ast->nodes[cast( long, tn )].data )]
+                            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, tn )].data )]
                         dim as Tko.SymbolId tt2 = c.syms->LookupTyped( _
                             tsy->parent, tnip->name, true )
                         dim as Tko.Symbol ptr tsy2 = c.syms->SymbolAt( tt2 )
@@ -240,15 +240,15 @@ function LowerPeek _
     end if
 
     dim as MirValue addr = LowerExpr( c, cast( Tko.NodeId, c.ast->children[base_] ) )
-    if addr.kind = cast( ubyte, MV_NONE ) then return false
+    if addr.kind = cast( uint8, MV_NONE ) then return false
     addr = Coerce( c, addr, MT_PTR, false )
-    if addr.kind = cast( ubyte, MV_NONE ) then return false
+    if addr.kind = cast( uint8, MV_NONE ) then return false
     if wantAddr then
         outv = addr
         return true
     end if
     outv = LowerExprLoad( c, addr, mt )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 
 
@@ -257,7 +257,7 @@ private function PokeTypeName_ _
 
     if c.ast->Kind( n ) <> Tko.N_IDENT then return Tko.TY_NONE
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, n )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, n )].data )]
     select case Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
     case "byte"     : return Tko.TY_BYTE
     case "ubyte"    : return Tko.TY_UBYTE

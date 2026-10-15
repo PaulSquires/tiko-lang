@@ -24,8 +24,8 @@ private sub TakenName_( byref e as PpEngine, byref t as Token, byval id as Inter
         if e.outp <> 0 then refused = e.outp->langRefused
         if (DereservedId_( e, Tk( t ) ) = INTERN_NONE) andalso (refused = false) then what = "a reserved word"
     else
-        dim as long ix = cast( long, e.names->Fold( id ) )
-        dim as ulong mark_ = 0
+        dim as int32 ix = cast( int32, e.names->Fold( id ) )
+        dim as uint32 mark_ = 0
         if ix < e.topDeclared.Count then mark_ = e.topDeclared[ix]
         '' A MODULE re-exports what its own headers declare -- a facade is nothing else
         '' (sys/windows: '#define ABC ..ABC') -- and fbc compiles no module to object.
@@ -37,9 +37,9 @@ private sub TakenName_( byref e as PpEngine, byref t as Token, byval id as Inter
         if (len( what ) = 0) andalso (inModule = false) andalso (ix < e.nsMemberOf.Count) then
             dim as string ofs = e.nsMemberOf[ix]
             if len( ofs ) > 0 then
-                dim as long a = 2
+                dim as int32 a = 2
                 while a <= len( ofs )
-                    dim as long b = instr( a, ofs, "|" )
+                    dim as int32 b = instr( a, ofs, "|" )
                     if b = 0 then exit while
                     dim as string ns = mid( ofs, a, b - a )
                     if instr( e.usingPaths, "|" & ns & "|" ) > 0 then
@@ -63,7 +63,7 @@ end sub
 '' '#undef name' OF A DECLARED NAME: fbc removes the symbol, and a '#define' may then take it.
 private sub FreeTakenName_( byref e as PpEngine, byval id as InternId )
     if id = INTERN_NONE then return
-    dim as long ix = cast( long, e.names->Fold( id ) )
+    dim as int32 ix = cast( int32, e.names->Fold( id ) )
     while e.topDeclared.Count <= ix
         e.topDeclared.Push( 0 )
     wend

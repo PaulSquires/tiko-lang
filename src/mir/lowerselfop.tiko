@@ -35,7 +35,7 @@ end function
 
 '' How many parameters a procedure symbol was declared with.
 private function ParamCountOf_ _
-    ( byref c as Ctx, byval proc_ as Tko.SymbolId ) as long
+    ( byref c as Ctx, byval proc_ as Tko.SymbolId ) as int32
 
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( proc_ )
     if s = 0 then return -1
@@ -43,8 +43,8 @@ private function ParamCountOf_ _
     if pn = Tko.NODE_NONE then return -1
     if c.ast->Kind( pn ) <> Tko.N_PROC then return -1
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
-    dim as long np = 0
-    for i as long = 0 to pp->count - 1
+    dim as int32 np = 0
+    for i as int32 = 0 to pp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
         if c.ast->Kind( prm ) = Tko.N_PARAM then np += 1
     next
@@ -69,7 +69,7 @@ private function ArrayArgElem_ _
     dim as Tko.NodeId nameNode = argNode
     if c.ast->Kind( argNode ) = Tko.N_CALL then
         dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, argNode )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, argNode )].data )]
         if lp->count <> 0 then return Tko.TYPE_NONE
         if lp->target = Tko.NODE_NONE then return Tko.TYPE_NONE
         nameNode = lp->target
@@ -147,9 +147,9 @@ function SelfOpMemberCall_ _
     '' exactly the case where guessing writes a call to the wrong one.
     dim as Tko.SymbolId cur = UdtMemberNamed_( c, ut, opn )
     dim as Tko.SymbolId want = Tko.SYMBOL_NONE
-    dim as long best = Tko.Check.CONV_NONE
-    dim as long ties = 0
-    dim as long guard = 0
+    dim as int32 best = Tko.Check.CONV_NONE
+    dim as int32 ties = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 1000)
         guard += 1
         dim as Tko.Symbol ptr os = c.syms->SymbolAt( cur )
@@ -161,7 +161,7 @@ function SelfOpMemberCall_ _
             '' and a mismatch on either side removes the candidate outright.
             dim as boolean pIsArr = ParamIsArray( c, cur, 0 )
             if pIsArr orelse (aet <> Tko.TYPE_NONE) then
-                dim as long acost = Tko.Check.CONV_NONE
+                dim as int32 acost = Tko.Check.CONV_NONE
                 if pIsArr andalso (aet <> Tko.TYPE_NONE) andalso _
                    (pt <> Tko.TYPE_NONE) then
                     if c.types->Unqualify( pt ) = aet then
@@ -183,7 +183,7 @@ function SelfOpMemberCall_ _
                 if c.types->Kind( pu ) = Tko.TK_REFERENCE then
                     pu = c.types->Unqualify( c.types->Inner( pu ) )
                 end if
-                dim as long cost = Tko.Check.CONV_NONE
+                dim as int32 cost = Tko.Check.CONV_NONE
                 if pu = vt then
                     cost = Tko.Check.CONV_EXACT
                 elseif vt <> Tko.TYPE_NONE then
@@ -232,7 +232,7 @@ function SelfOpMemberCall_ _
     if ties > 0 then return false
 
     dim as MirValue self_ = LowerAddr( c, target )
-    if self_.kind = cast( ubyte, MV_NONE ) then return false
+    if self_.kind = cast( uint8, MV_NONE ) then return false
 
     dim as MirValue av
     if wideChosen then
@@ -244,12 +244,12 @@ function SelfOpMemberCall_ _
     elseif SelfOpNeedsUserConv_( c, want, vt ) then
         '' THE TEMPORARY THE COST ABOVE PROMISED, built as a binary operator's operand is
         '' (UserConvOperand_), and destroyed at the end of the statement.
-        dim as long ucSlot = -1
+        dim as int32 ucSlot = -1
         dim as Tko.TypeId ucType = Tko.TYPE_NONE
         if UserConvOperand_( c, value, ParamTypeAt( c, want, 0 ), av, ucSlot, ucType ) = false then return false
         if ucSlot >= 0 then
-            c.udtTemps.Push( cast( ulong, ucSlot ) )
-            c.udtTempTypes.Push( cast( ulong, ucType ) )
+            c.udtTemps.Push( cast( uint32, ucSlot ) )
+            c.udtTempTypes.Push( cast( uint32, ucType ) )
         end if
         '' A BYVAL parameter takes the object, not its address.
         if ParamIsByref( c, want, 0 ) = false then av = LowerExprLoad( c, av, MT_AGG )
@@ -272,18 +272,18 @@ function SelfOpMemberCall_ _
         av = LowerExpr( c, value )
         '' TO THE PARAMETER'S WIDTH, not the operand's -- the same rule an ordinary
         '' call's arguments follow.
-        if av.kind <> cast( ubyte, MV_NONE ) then
+        if av.kind <> cast( uint8, MV_NONE ) then
             dim as MirType pmt = LowerType( ParamTypeAt( c, want, 0 ), *c.types )
             if (pmt <> MT_VOID) andalso (pmt <> MT_AGG) then
                 av = CoerceTy( c, av, pmt, vt)
             end if
         end if
     end if
-    if av.kind = cast( ubyte, MV_NONE ) then return false
+    if av.kind = cast( uint8, MV_NONE ) then return false
 
-    dim as containers.Array( of ulong ) oargs
-    oargs.Push( cast( ulong, av.kind ) )
-    oargs.Push( cast( ulong, av.id ) )
+    dim as containers.Array( of uint32 ) oargs
+    oargs.Push( cast( uint32, av.kind ) )
+    oargs.Push( cast( uint32, av.id ) )
     EmitStructorCall( c, want, -1, @self_, @oargs )
     return true
 end function
@@ -321,8 +321,8 @@ function LowerCompoundViaCast_ _
     if rt = Tko.TYPE_NONE then return false
     dim as MirType wt = LowerType( rt, *c.types )
     if (wt = MT_VOID) orelse (wt = MT_AGG) orelse (wt = MT_PTR) then return false
-    dim as containers.Array( of ulong ) letT
-    letT.Push( cast( ulong, rt ) )
+    dim as containers.Array( of uint32 ) letT
+    letT.Push( cast( uint32, rt ) )
     dim as Tko.SymbolId ulet = PickCtor( c, StructorOf( c, ut, "let" ), letT )
     if ulet = Tko.SYMBOL_NONE then return false
     if ParamIsByref( c, ulet, 0 ) then return false
@@ -331,19 +331,19 @@ function LowerCompoundViaCast_ _
     if (pmt = MT_VOID) orelse (pmt = MT_AGG) then return false
 
     dim as MirValue self_ = LowerAddr( c, target )
-    if self_.kind = cast( ubyte, MV_NONE ) then return false
+    if self_.kind = cast( uint8, MV_NONE ) then return false
     dim as MirValue cur = EmitMemberCall( c, cs, self_, LowerType( ct, *c.types ) )
-    if cur.kind = cast( ubyte, MV_NONE ) then return false
+    if cur.kind = cast( uint8, MV_NONE ) then return false
     cur = CoerceTy( c, cur, wt, ct )
     dim as MirValue rhs = LowerExpr( c, value )
-    if rhs.kind = cast( ubyte, MV_NONE ) then return false
+    if rhs.kind = cast( uint8, MV_NONE ) then return false
     rhs = CoerceTy( c, rhs, wt, vt )
 
     dim as MirValue res
     if bop = Tko.TK_CARET then
-        dim as containers.Array( of ulong ) pa
-        pa.Push( cast( ulong, cur.kind ) ) : pa.Push( cast( ulong, cur.id ) )
-        pa.Push( cast( ulong, rhs.kind ) ) : pa.Push( cast( ulong, rhs.id ) )
+        dim as containers.Array( of uint32 ) pa
+        pa.Push( cast( uint32, cur.kind ) ) : pa.Push( cast( uint32, cur.id ) )
+        pa.Push( cast( uint32, rhs.kind ) ) : pa.Push( cast( uint32, rhs.id ) )
         res = EmitRtl( c, RTL_POW, pa )
     elseif (bop = Tko.KW_IMP) orelse (bop = Tko.KW_EQV) then
         res = EmitImpEqv_( c, bop, wt, cur, rhs )
@@ -351,18 +351,18 @@ function LowerCompoundViaCast_ _
         dim as MirOp mop = BinOpFor( bop, wt, IsUnsignedType( c, rt ) )
         if mop = M_NONE then return false
         dim as MirInst bi
-        bi.op = cast( ushort, mop )
-        bi.ty = cast( ubyte, wt )
+        bi.op = cast( uint16, mop )
+        bi.ty = cast( uint8, wt )
         bi.a = cur
         bi.b = rhs
         res = Emit( c, bi )
     end if
-    if res.kind = cast( ubyte, MV_NONE ) then return false
+    if res.kind = cast( uint8, MV_NONE ) then return false
 
     '' Into the let's parameter as an assignment converts -- rounded, as fbc's 'fb_D2I'.
     dim as MirValue av = CoerceTy( c, res, pmt, rt, pt )
-    dim as containers.Array( of ulong ) largs
-    largs.Push( cast( ulong, av.kind ) ) : largs.Push( cast( ulong, av.id ) )
+    dim as containers.Array( of uint32 ) largs
+    largs.Push( cast( uint32, av.kind ) ) : largs.Push( cast( uint32, av.id ) )
     EmitStructorCall( c, ulet, -1, @self_, @largs )
     return true
 end function
@@ -388,13 +388,13 @@ function LowerRgbCall_ _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
     dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
-    dim as long want = 0
+    dim as int32 want = 0
     if nm = "rgb" then
         want = 3
     elseif nm = "rgba" then
@@ -407,59 +407,59 @@ function LowerRgbCall_ _
     '' One component: masked to a byte and widened, which is what the casts in fbc's
     '' output amount to.
     dim as MirValue parts( 0 to 3 )
-    for i as long = 0 to want - 1
+    for i as int32 = 0 to want - 1
         dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[cp->first + i] )
         dim as MirValue v = LowerNumArg_( c, an, MT_I64 )
-        if v.kind = cast( ubyte, MV_NONE ) then return false
+        if v.kind = cast( uint8, MV_NONE ) then return false
         dim as MirInst m
-        m.op = cast( ushort, M_AND )
-        m.ty = cast( ubyte, MT_I64 )
+        m.op = cast( uint16, M_AND )
+        m.ty = cast( uint8, MT_I64 )
         m.a = v
         m.b = ConstInt( c, 255, MT_I64 )
         parts( i ) = Emit( c, m )
-        if parts( i ).kind = cast( ubyte, MV_NONE ) then return false
+        if parts( i ).kind = cast( uint8, MV_NONE ) then return false
     next
 
     '' Shift each into place, then or them together.
-    dim as long shifts( 0 to 3 ) = { 16, 8, 0, 24 }
+    dim as int32 shifts( 0 to 3 ) = { 16, 8, 0, 24 }
     dim as MirValue acc
-    for i as long = 0 to want - 1
+    for i as int32 = 0 to want - 1
         dim as MirValue term = parts( i )
         if shifts( i ) <> 0 then
             dim as MirInst sh
-            sh.op = cast( ushort, M_SHL )
-            sh.ty = cast( ubyte, MT_I64 )
+            sh.op = cast( uint16, M_SHL )
+            sh.ty = cast( uint8, MT_I64 )
             sh.a = term
             sh.b = ConstInt( c, shifts( i ), MT_I64 )
             term = Emit( c, sh )
-            if term.kind = cast( ubyte, MV_NONE ) then return false
+            if term.kind = cast( uint8, MV_NONE ) then return false
         end if
         if i = 0 then
             acc = term
         else
             dim as MirInst o
-            o.op = cast( ushort, M_OR )
-            o.ty = cast( ubyte, MT_I64 )
+            o.op = cast( uint16, M_OR )
+            o.ty = cast( uint8, MT_I64 )
             o.a = acc
             o.b = term
             acc = Emit( c, o )
-            if acc.kind = cast( ubyte, MV_NONE ) then return false
+            if acc.kind = cast( uint8, MV_NONE ) then return false
         end if
     next
 
     if want = 3 then
         '' The opaque alpha.
         dim as MirInst o2
-        o2.op = cast( ushort, M_OR )
-        o2.ty = cast( ubyte, MT_I64 )
+        o2.op = cast( uint16, M_OR )
+        o2.ty = cast( uint8, MT_I64 )
         o2.a = acc
         o2.b = ConstInt( c, 4278190080, MT_I64 )
         acc = Emit( c, o2 )
-        if acc.kind = cast( ubyte, MV_NONE ) then return false
+        if acc.kind = cast( uint8, MV_NONE ) then return false
     end if
 
     outv = Coerce( c, acc, MT_I32, true )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 
 end namespace

@@ -29,7 +29,7 @@
 '' chain.
 private function CiMember_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval nm as Tko.InternId, _
-      byval depth as long ) as Tko.Symbol ptr
+      byval depth as int32 ) as Tko.Symbol ptr
 
     if depth > 8 then return 0
     t = c.types->Unqualify( t )
@@ -67,13 +67,13 @@ private function CiProc_ _
     dim as Tko.Symbol ptr s = _
         CiMember_( c, t, c.names->Fold( c.names->GetString( nm ) ), 0 )
     if s = 0 then return false
-    return s->kind = cast( ubyte, Tko.SYM_PROC )
+    return s->kind = cast( uint8, Tko.SYM_PROC )
 end function
 
 '' Does the type need constructing? 'sawString' says a var-len string field was among the
 '' reasons -- the one case a field list already has a diagnostic for (TKO0757).
 private function CiNeedsCtor_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byval depth as long, _
+    ( byref c as Ctx, byval t as Tko.TypeId, byval depth as int32, _
       byref sawString as boolean ) as boolean
 
     if depth > 8 then return false
@@ -90,11 +90,11 @@ private function CiNeedsCtor_ _
     if sc = 0 then return false
     dim as boolean needs = false
     dim as Tko.SymbolId cur = sc->firstSym
-    for guard as long = 0 to 9999
+    for guard as int32 = 0 to 9999
         if cur = Tko.SYMBOL_NONE then exit for
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
         if f = 0 then exit for
-        dim as boolean isField = (f->kind = cast( ubyte, Tko.SYM_FIELD ))
+        dim as boolean isField = (f->kind = cast( uint8, Tko.SYM_FIELD ))
         if isField andalso ((f->flags and (Tko.SYMF_STATIC or Tko.SYMF_SHARED)) = 0) then
             dim as Tko.TypeId ft = c.types->Unqualify( f->type_ )
             if c.types->IsDynArray( ft ) then
@@ -116,9 +116,9 @@ end function
 
 private function CiNode_ _
     ( byref c as Ctx, byval k as Tko.NodeKind, byval lc as Tko.SourceLoc, _
-      byval payload as ulong ) as Tko.NodeId
+      byval payload as uint32 ) as Tko.NodeId
     dim as Tko.AstNode n
-    n.kind = cast( ushort, k )
+    n.kind = cast( uint16, k )
     n.flags = 0
     n.loc = lc
     n.data = payload
@@ -142,31 +142,31 @@ private function CiCallStmt_ _
       byval elem as Tko.NodeId ) as Tko.NodeId
 
     dim as Tko.SourceLoc lc = c.ast->Loc( elem )
-    dim as containers.Array( of ulong ) args
+    dim as containers.Array( of uint32 ) args
     dim as boolean nested = (c.ast->Kind( elem ) = Tko.N_INITIALIZER)
     if nested then nested = (ListOf( c, elem )->target = Tko.NODE_NONE)
     if nested then
         dim as Tko.ListPayload ptr el = ListOf( c, elem )
-        for k as long = 0 to el->count - 1
+        for k as int32 = 0 to el->count - 1
             args.Push( c.ast->children[el->first + k] )
         next
     else
-        args.Push( cast( ulong, elem ) )
+        args.Push( cast( uint32, elem ) )
     end if
 
     dim as Tko.BinaryPayload bp
-    bp.op = cast( ushort, Tko.TK_DOT )
+    bp.op = cast( uint16, Tko.TK_DOT )
     bp.lhs = CiIdent_( c, lc, varNm )
     bp.rhs = CiIdent_( c, lc, methodNm )
     c.ast->binaries.Push( bp )
     dim as Tko.NodeId callee = CiNode_( c, Tko.N_MEMBER, lc, c.ast->binaries.Count - 1 )
-    c.ast->nodes[cast( long, callee )].flags or= Tko.NF_CALL_TARGET
+    c.ast->nodes[cast( int32, callee )].flags or= Tko.NF_CALL_TARGET
 
     dim as Tko.ListPayload lp
     lp.target = callee
     lp.first = c.ast->children.Count
     lp.count = args.Count
-    for k as long = 0 to args.Count - 1
+    for k as int32 = 0 to args.Count - 1
         c.ast->children.Push( args[k] )
     next
     c.ast->lists.Push( lp )
@@ -190,9 +190,9 @@ private function CollInit_ _
     dim as Tko.NodeId blk = Tko.CollInitOf( *c.ast, item )
     if blk <> Tko.NODE_NONE then
         dim as Tko.ListPayload ptr bkl = ListOf( c, blk )
-        dim as long bfirst = bkl->first
-        dim as long bcount = bkl->count
-        for k as long = 0 to bcount - 1
+        dim as int32 bfirst = bkl->first
+        dim as int32 bcount = bkl->count
+        for k as int32 = 0 to bcount - 1
             WalkStmt( c, cast( Tko.NodeId, c.ast->children[bfirst + k] ), here )
         next
         return true
@@ -200,7 +200,7 @@ private function CollInit_ _
 
     if revisit then return false
     if c.ast->Kind( id ) <> Tko.N_VAR then return false
-    if sp->op = cast( ushort, Tko.KW_VAR ) then return false
+    if sp->op = cast( uint16, Tko.KW_VAR ) then return false
     dim as Tko.NodeId braces = ip->b
     if braces = Tko.NODE_NONE then return false
     if c.ast->Kind( braces ) <> Tko.N_INITIALIZER then return false
@@ -236,13 +236,13 @@ private function CollInit_ _
     '' initialiser of their own to give.
     dim as Tko.Symbol ptr vs = c.syms->SymbolAt( c.syms->LookupLocal( here, ip->name ) )
     dim as boolean elsewhere = _
-        ((c.ast->nodes[cast( long, item )].flags and Tko.NF_QUALIFIED) <> 0)
+        ((c.ast->nodes[cast( int32, item )].flags and Tko.NF_QUALIFIED) <> 0)
     if vs <> 0 then
         if (vs->flags and (Tko.SYMF_EXTERN or Tko.SYMF_COMMON)) <> 0 then elsewhere = true
     end if
     dim as Tko.SymScope ptr hs = c.syms->ScopeAt( here )
     if hs <> 0 then
-        if hs->kind = cast( ubyte, Tko.SCOPEK_TYPE ) then elsewhere = true
+        if hs->kind = cast( uint8, Tko.SCOPEK_TYPE ) then elsewhere = true
     end if
     if elsewhere then
         c.diags->Report( Tko.TKO0844, Tko.PointRange( c.ast->Loc( braces ) ), _
@@ -253,20 +253,20 @@ private function CollInit_ _
     '' BUILT, then gathered into a block -- each call's own nodes interleave in the pool.
     dim as Tko.InternId varNm = ip->name
     dim as Tko.InternId methodNm = c.names->Fold( c.names->GetString( method ) )
-    dim as containers.Array( of ulong ) elems
+    dim as containers.Array( of uint32 ) elems
     dim as Tko.ListPayload ptr bl = ListOf( c, braces )
-    for k as long = 0 to bl->count - 1
+    for k as int32 = 0 to bl->count - 1
         elems.Push( c.ast->children[bl->first + k] )
     next
-    dim as containers.Array( of ulong ) stmts
-    for k as long = 0 to elems.Count - 1
-        stmts.Push( cast( ulong, CiCallStmt_( c, varNm, methodNm, cast( Tko.NodeId, elems[k] ) ) ) )
+    dim as containers.Array( of uint32 ) stmts
+    for k as int32 = 0 to elems.Count - 1
+        stmts.Push( cast( uint32, CiCallStmt_( c, varNm, methodNm, cast( Tko.NodeId, elems[k] ) ) ) )
     next
     dim as Tko.ListPayload lp
     lp.target = Tko.NODE_NONE
     lp.first = c.ast->children.Count
     lp.count = stmts.Count
-    for k as long = 0 to stmts.Count - 1
+    for k as int32 = 0 to stmts.Count - 1
         c.ast->children.Push( stmts[k] )
     next
     c.ast->lists.Push( lp )
@@ -277,7 +277,7 @@ private function CollInit_ _
     sp = StmtOf( c, id )
     ip = StmtOf( c, item )
     ip->b = Tko.NODE_NONE
-    for k as long = 0 to stmts.Count - 1
+    for k as int32 = 0 to stmts.Count - 1
         WalkStmt( c, cast( Tko.NodeId, stmts[k] ), here )
     next
     sp = StmtOf( c, id )

@@ -13,11 +13,11 @@ namespace Tko.Mir
 
 '' The label slot for a name, created on first mention. A goto may be lowered before
 '' its label exists, so both directions come through here.
-function LabelSlot( byref c as Ctx, byval nm as Tko.InternId ) as long
-    for i as long = 0 to c.labelName.Count - 1
-        if c.labelName[i] = cast( ulong, nm ) then return i
+function LabelSlot( byref c as Ctx, byval nm as Tko.InternId ) as int32
+    for i as int32 = 0 to c.labelName.Count - 1
+        if c.labelName[i] = cast( uint32, nm ) then return i
     next
-    c.labelName.Push( cast( ulong, nm ) )
+    c.labelName.Push( cast( uint32, nm ) )
     c.labelBlock.Push( -1 )
     c.labelDepth.Push( -1 )
     c.labelPathAt.Push( -1 )
@@ -28,7 +28,7 @@ end function
 
 '' Labels are per procedure: the same name in two procedures is two labels. 'base_' is
 '' the scopeMark index of the body's own scope, where every label path starts.
-sub ClearLabels( byref c as Ctx, byval base_ as long )
+sub ClearLabels( byref c as Ctx, byval base_ as int32 )
     while c.labelName.Count > 0
         c.labelName.Pop( ) : c.labelBlock.Pop( ) : c.labelDepth.Pop( )
         c.labelPathAt.Pop( ) : c.labelPathLen.Pop( ) : c.labelCleanupAt.Pop( )
@@ -45,15 +45,15 @@ end sub
 '' path matched -- the label is in a scope still open, the one a backward jump can
 '' rewind inside.
 private function KeptScopes_ _
-    ( byref c as Ctx, byval slot as long, byref within as boolean ) as long
+    ( byref c as Ctx, byval slot as int32, byref within as boolean ) as int32
 
-    dim as long i = c.labelBase
-    dim as long j = 0
-    dim as long at = c.labelPathAt[slot]
-    dim as long n = c.labelPathLen[slot]
+    dim as int32 i = c.labelBase
+    dim as int32 j = 0
+    dim as int32 at = c.labelPathAt[slot]
+    dim as int32 n = c.labelPathLen[slot]
     while i < c.scopeKey.Count
         if j >= n then exit while
-        dim as ulong lk = c.labelPaths[at + j]
+        dim as uint32 lk = c.labelPaths[at + j]
         if c.scopeKey[i] = lk then
             i += 1 : j += 1
         elseif (lk and SCOPE_KEY_OPT) <> 0 then
@@ -72,14 +72,14 @@ end function
 
 '' The pre-scan's half: entering a scope that the lowering will open around 'body'.
 private sub ScanScoped_ _
-    ( byref c as Ctx, byval body as Tko.NodeId, byval depth as long, byval key as ulong )
+    ( byref c as Ctx, byval body as Tko.NodeId, byval depth as int32, byval key as uint32 )
     if body = Tko.NODE_NONE then return
     c.scanPath.Push( key )
     ScanLabels( c, body, depth )
     c.scanPath.Pop( )
 end sub
 
-function LabelBlockOf( byref c as Ctx, byval slot as long ) as long
+function LabelBlockOf( byref c as Ctx, byval slot as int32 ) as int32
     if c.labelBlock[slot] < 0 then
         c.labelBlock[slot] = NewBlock( c, "lbl." & c.names->Spelling( _
             cast( Tko.InternId, c.labelName[slot] ) ) )
@@ -100,7 +100,7 @@ end function
 '' divergence is reported on the first program that shows it instead of quietly
 '' producing the wrong number of destructor calls.
 sub ScanLabels _
-    ( byref c as Ctx, byval id as Tko.NodeId, byval depth as long )
+    ( byref c as Ctx, byval id as Tko.NodeId, byval depth as int32 )
 
     if id = Tko.NODE_NONE then return
     dim as Tko.NodeKind k = c.ast->Kind( id )
@@ -108,7 +108,7 @@ sub ScanLabels _
     select case k
     case Tko.N_LABEL
         dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-        dim as long slot = LabelSlot( c, cast( Tko.InternId, sp->name ) )
+        dim as int32 slot = LabelSlot( c, cast( Tko.InternId, sp->name ) )
         '' The SAME NAME twice in one procedure. Labels are scoped in FreeBASIC, so
         '' sibling scopes may each declare 'label1' -- fbcunit's TEST macro produces
         '' exactly that. Slots are keyed by name alone, which cannot tell them apart,
@@ -121,7 +121,7 @@ sub ScanLabels _
             c.labelDepth[slot] = depth
             c.labelPathAt[slot] = c.labelPaths.Count
             c.labelPathLen[slot] = c.scanPath.Count
-            for i as long = 0 to c.scanPath.Count - 1
+            for i as int32 = 0 to c.scanPath.Count - 1
                 c.labelPaths.Push( c.scanPath[i] )
             next
         end if
@@ -129,8 +129,8 @@ sub ScanLabels _
 
     case Tko.N_BLOCK
         dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-        for i as long = 0 to lp->count - 1
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        for i as int32 = 0 to lp->count - 1
             ScanLabels( c, cast( Tko.NodeId, c.ast->children[lp->first + i] ), depth )
         next
         return
@@ -139,45 +139,45 @@ sub ScanLabels _
         '' Each of these opens exactly one scope around its body, keyed by the body --
         '' the PushScope in the corresponding Lower* routine.
         dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-        ScanScoped_( c, sp->b, depth + 1, cast( ulong, sp->b ) )
+        ScanScoped_( c, sp->b, depth + 1, cast( uint32, sp->b ) )
         return
 
     case Tko.N_FOR
         '' A FOR over a UDT counter opens a scope around the WHOLE loop for the counter,
         '' limit and step, and the body's inside it. Others open only the body's.
         dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-        c.scanPath.Push( cast( ulong, sp->a ) or SCOPE_KEY_OPT )
-        ScanScoped_( c, sp->b, depth + 1, cast( ulong, sp->b ) )
+        c.scanPath.Push( cast( uint32, sp->a ) or SCOPE_KEY_OPT )
+        ScanScoped_( c, sp->b, depth + 1, cast( uint32, sp->b ) )
         c.scanPath.Pop( )
         return
 
     case Tko.N_WITH
         '' A WITH over a temporary subject is a scope, for the temporary (lower.tiko).
         dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-        ScanScoped_( c, sp->b, depth, cast( ulong, sp->b ) or SCOPE_KEY_OPT )
+        ScanScoped_( c, sp->b, depth, cast( uint32, sp->b ) or SCOPE_KEY_OPT )
         return
 
     case Tko.N_FOREACH
         dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-        ScanScoped_( c, sp->b, depth + 1, cast( ulong, sp->b ) or SCOPE_KEY_OPT )
+        ScanScoped_( c, sp->b, depth + 1, cast( uint32, sp->b ) or SCOPE_KEY_OPT )
         return
 
     case Tko.N_SELECT
         '' Every CASE body is a scope of its own, and the SELECT one around them all when
         '' its subject is wide (LowerSelect).
         dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-        c.scanPath.Push( cast( ulong, id ) or SCOPE_KEY_OPT )
+        c.scanPath.Push( cast( uint32, id ) or SCOPE_KEY_OPT )
         if sp->b <> Tko.NODE_NONE then
             dim as Tko.ListPayload ptr lp = _
-                @c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->b )].data )]
-            for i as long = 0 to lp->count - 1
+                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, sp->b )].data )]
+            for i as int32 = 0 to lp->count - 1
                 dim as Tko.NodeId cs = cast( Tko.NodeId, c.ast->children[lp->first + i] )
                 if c.ast->Kind( cs ) = Tko.N_CASE then
-                    ScanScoped_( c, StmtOf( c, cs )->b, depth + 1, cast( ulong, StmtOf( c, cs )->b ) )
+                    ScanScoped_( c, StmtOf( c, cs )->b, depth + 1, cast( uint32, StmtOf( c, cs )->b ) )
                 end if
             next
         end if
-        ScanScoped_( c, sp->c, depth + 1, cast( ulong, sp->c ) )
+        ScanScoped_( c, sp->c, depth + 1, cast( uint32, sp->c ) )
         c.scanPath.Pop( )
         return
 
@@ -190,15 +190,15 @@ sub ScanLabels _
         dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
         if sp->b <> Tko.NODE_NONE then
             dim as Tko.ListPayload ptr bl = _
-                @c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->b )].data )]
-            for i as long = 0 to bl->count - 1
+                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, sp->b )].data )]
+            for i as int32 = 0 to bl->count - 1
                 dim as Tko.NodeId br = cast( Tko.NodeId, c.ast->children[bl->first + i] )
                 if c.ast->Kind( br ) = Tko.N_IF_BRANCH then
-                    ScanScoped_( c, StmtOf( c, br )->b, depth + 1, cast( ulong, StmtOf( c, br )->b ) )
+                    ScanScoped_( c, StmtOf( c, br )->b, depth + 1, cast( uint32, StmtOf( c, br )->b ) )
                 end if
             next
         end if
-        ScanScoped_( c, sp->c, depth + 1, cast( ulong, sp->c ) )
+        ScanScoped_( c, sp->c, depth + 1, cast( uint32, sp->c ) )
         return
     end select
 
@@ -211,12 +211,12 @@ end sub
 
 sub LowerLabel( byref c as Ctx, byval id as Tko.NodeId )
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-    dim as long slot = LabelSlot( c, cast( Tko.InternId, sp->name ) )
+    dim as int32 slot = LabelSlot( c, cast( Tko.InternId, sp->name ) )
 
     '' An ambiguous name gets a FRESH block per occurrence. Sharing one block between
     '' two same-named labels would splice unrelated code together; nothing branches to
     '' these, since LowerGoto declines them.
-    dim as long b
+    dim as int32 b
     if c.labelDepth[slot] = LABEL_AMBIGUOUS then
         b = NewBlock( c, "lbl.dup" )
     else
@@ -231,7 +231,7 @@ sub LowerLabel( byref c as Ctx, byval id as Tko.NodeId )
         c.labelDepth[slot] = c.scopeMark.Count
         c.labelPathAt[slot] = c.labelPaths.Count
         c.labelPathLen[slot] = c.scopeKey.Count - c.labelBase
-        for i as long = c.labelBase to c.scopeKey.Count - 1
+        for i as int32 = c.labelBase to c.scopeKey.Count - 1
             c.labelPaths.Push( c.scopeKey[i] )
         next
         c.labelCleanupAt[slot] = c.cleanupNode.Count
@@ -247,8 +247,8 @@ sub LowerGoto( byref c as Ctx, byval id as Tko.NodeId )
         SkipHere( c )
         return
     end if
-    dim as long slot = LabelSlot( c, cast( Tko.InternId, sp->name ) )
-    dim as long d = c.labelDepth[slot]
+    dim as int32 slot = LabelSlot( c, cast( Tko.InternId, sp->name ) )
+    dim as int32 d = c.labelDepth[slot]
     if d = LABEL_AMBIGUOUS then
         '' Two labels of this name in one procedure; which one is meant depends on
         '' scope, which these slots do not record.
@@ -277,7 +277,7 @@ sub LowerGoto( byref c as Ctx, byval id as Tko.NodeId )
     '' before the definition runs again. fbc prints '+0-0+1-1+2-2'; leaving only whole
     '' scopes printed '+0+1+2-2', and a string defined the same way leaked every pass.
     dim as boolean within
-    dim as long kept = KeptScopes_( c, slot, within )
+    dim as int32 kept = KeptScopes_( c, slot, within )
     if within andalso (c.labelCleanupAt[slot] >= 0) then
         EmitCleanupsFrom( c, c.labelCleanupAt[slot] )
     else

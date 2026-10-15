@@ -25,8 +25,8 @@ declare function UserOpTempAddr_ _
 declare function LowerPtrIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
 
 declare function ArrayStrides _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref strides as containers.Array( of longint ), _
-      byref bias as longint ) as boolean
+    ( byref c as Ctx, byval t as Tko.TypeId, byref strides as containers.Array( of int64 ), _
+      byref bias as int64 ) as boolean
 
 '' Whether a node is an 'iif' whose ARMS are UDTs. Asked before anything is lowered:
 '' LowerAggIif_ emits a branch sequence, and a caller that tried it speculatively and
@@ -34,14 +34,14 @@ declare function ArrayStrides _
 function IsAggIif_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if lp->count <> 3 then return false
     if lp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
     if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "iif" then return false
-    for k as long = 1 to 2
+    for k as int32 = 1 to 2
         dim as Tko.TypeId at = _
             c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[lp->first + k] ) )
         if at <> Tko.TYPE_NONE then
@@ -58,14 +58,14 @@ end function
 function IsStrIif_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if lp->count <> 3 then return false
     if lp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
     if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "iif" then return false
-    for k as long = 1 to 2
+    for k as int32 = 1 to 2
         dim as Tko.TypeId at = _
             c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[lp->first + k] ) )
         if IsStringType( c, at ) = false then return false
@@ -89,7 +89,7 @@ function IsThisPointerIdent_ _
     if c.ast->Kind( n ) <> Tko.N_IDENT then return false
     dim as Tko.Symbol ptr sy = c.syms->SymbolAt( c.info->RefOf( n ) )
     if sy = 0 then return false
-    if sy->kind <> cast( ubyte, Tko.SYM_PARAMETER ) then return false
+    if sy->kind <> cast( uint8, Tko.SYM_PARAMETER ) then return false
     if sy->name <> c.names->Fold( c.names->GetString( "this" ) ) then return false
     if sy->type_ = Tko.TYPE_NONE then return false
     return (c.types->Kind( sy->type_ ) = Tko.TK_POINTER)
@@ -115,7 +115,7 @@ end function
 '' constructor read the slot as the object and faulted.
 function InitSourceAddr_( byref c as Ctx, byval n as Tko.NodeId ) as MirValue
     dim as MirValue a = LowerAddr( c, n )
-    if IsThisPointerIdent_( c, n ) andalso (a.kind <> cast( ubyte, MV_NONE )) then
+    if IsThisPointerIdent_( c, n ) andalso (a.kind <> cast( uint8, MV_NONE )) then
         return LowerExprLoad( c, a, MT_PTR )
     end if
     return a
@@ -140,7 +140,7 @@ end function
 '' the integer family is TC_INT and TC_INTPTR together. Anything else fbc rejects,
 '' and accepting it here would take a program fbc refuses.
 private function NoConvFamily_ _
-    ( byref c as Ctx, byval t as Tko.TypeId ) as long
+    ( byref c as Ctx, byval t as Tko.TypeId ) as int32
 
     dim as Tko.TypeId u = c.types->Unqualify( t )
     '' EVERY POINTER IS ONE FAMILY, and a cast between two of them converts
@@ -176,11 +176,11 @@ function NoConvOperand_ _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return Tko.NODE_NONE
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if lp->target = Tko.NODE_NONE then return Tko.NODE_NONE
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return Tko.NODE_NONE
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
     dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
 
     dim as Tko.NodeId op = Tko.NODE_NONE
@@ -211,9 +211,9 @@ function NoConvOperand_ _
     if c.types->Kind( c.types->Unqualify( ot ) ) = Tko.TK_REFERENCE then
         ot = c.types->Inner( c.types->Unqualify( ot ) )
     end if
-    dim as long fam = NoConvFamily_( c, rt )
+    dim as int32 fam = NoConvFamily_( c, rt )
     if fam = 0 then return Tko.NODE_NONE
-    dim as long ofam = NoConvFamily_( c, ot )
+    dim as int32 ofam = NoConvFamily_( c, ot )
     '' AN INTEGER CAST OVER A POINTER OF ITS SIZE converts nothing either. Measured, fbc takes
     '' 'cast( LPARAM, pItem ) = lPrm' as 'PITEM = (HWND*)LPRM', 'cast( integer, bp ) += 8' as
     '' 'BP = (int8*)((int64)BP + 8)' and '@cast( integer, bp )' as '(int64*)&BP'; the size test
@@ -240,7 +240,7 @@ function LowerAddr _
     dim as Tko.SymbolId bpg = iif( c.ast->Kind( id ) = Tko.N_MEMBER, c.info->RefOf( id ), Tko.SYMBOL_NONE )
     dim as Tko.Symbol ptr bps = iif( bpg <> Tko.SYMBOL_NONE, c.syms->SymbolAt( bpg ), cast( Tko.Symbol ptr, 0 ) )
     dim as Tko.NodeId bpn = iif( bps <> 0, cast( Tko.NodeId, bps->payload ), Tko.NODE_NONE )
-    if (bpn <> Tko.NODE_NONE) andalso (c.ast->Kind( bpn ) = Tko.N_PROC) andalso ((c.ast->nodes[cast( long, bpn )].flags and Tko.NF_BYREF) <> 0) then
+    if (bpn <> Tko.NODE_NONE) andalso (c.ast->Kind( bpn ) = Tko.N_PROC) andalso ((c.ast->nodes[cast( int32, bpn )].flags and Tko.NF_BYREF) <> 0) then
         dim as boolean pw0 = c.propAddrWanted
         c.propAddrWanted = true
         dim as MirValue ppa
@@ -255,12 +255,12 @@ function LowerAddr _
     '' and lowering it each time would call 'with( status( hFindSlot( @this ) ) )' once
     '' per field. fbc evaluates the subject ONCE; its address is on the stack, so this
     '' hands the same one back.
-    for wi as long = c.withNode.Count - 1 to 0 step -1
+    for wi as int32 = c.withNode.Count - 1 to 0 step -1
         if cast( Tko.NodeId, c.withNode[wi] ) = id then
             dim as MirValue wslotv
-            wslotv.kind = cast( ubyte, c.withKind[wi] )
-            wslotv.ty = cast( ubyte, MT_PTR )
-            wslotv.id = cast( long, c.withId[wi] )
+            wslotv.kind = cast( uint8, c.withKind[wi] )
+            wslotv.ty = cast( uint8, MT_PTR )
+            wslotv.id = cast( int32, c.withId[wi] )
             '' The SLOT holds the address; the address IS its contents.
             return LowerExprLoad( c, wslotv, MT_PTR )
         end if
@@ -272,7 +272,7 @@ function LowerAddr _
     '' aggregate temporary -- an address where the object belonged.
     if c.ast->Kind( id ) = Tko.N_PAREN then
         dim as Tko.ListPayload ptr plp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         if plp->count = 1 then
             return LowerAddr( c, cast( Tko.NodeId, c.ast->children[plp->first] ) )
         end if
@@ -290,11 +290,11 @@ function LowerAddr _
     '' types", so a numeric cast is not an lvalue and must keep declining.
     if c.ast->Kind( id ) = Tko.N_CALL then
         dim as Tko.ListPayload ptr xlp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         if (xlp->count = 2) andalso (xlp->target <> Tko.NODE_NONE) then
             if c.ast->Kind( xlp->target ) = Tko.N_IDENT then
                 dim as Tko.IdentPayload ptr xip = _
-                    @c.ast->idents[cast( long, c.ast->nodes[cast( long, xlp->target )].data )]
+                    @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, xlp->target )].data )]
                 dim as string xnm = Tko.Text.LowerAscii( c.names->Spelling( xip->name ) )
                 if xnm = "cast" then
                     dim as Tko.NodeId xt = cast( Tko.NodeId, c.ast->children[xlp->first] )
@@ -312,7 +312,7 @@ function LowerAddr _
                             '' 'memcpy( THIS, &U, 8 )'.
                             if IsThisPointerIdent_( c, xop ) then
                                 dim as MirValue xa = LowerAddr( c, xop )
-                                if xa.kind = cast( ubyte, MV_NONE ) then return xa
+                                if xa.kind = cast( uint8, MV_NONE ) then return xa
                                 return LowerExprLoad( c, xa, MT_PTR )
                             end if
                             '' AN UNRELATED UDT IS CONVERTED, NOT REINTERPRETED: 'cast( B2, a ).w' over an A
@@ -323,10 +323,10 @@ function LowerAddr _
                             if (c.types->Kind( xot ) = Tko.TK_UDT) andalso (c.types->BaseDistance( xot, xtt ) < 0) then
                                 dim as MirValue xcv
                                 if UdtCastValue_( c, xop, xtt, xcv, false ) then
-                                    dim as long xslot = NewTempLocal( c, MT_AGG, SizeOfType( c, xtt ) )
+                                    dim as int32 xslot = NewTempLocal( c, MT_AGG, SizeOfType( c, xtt ) )
                                     if xslot >= 0 then
                                         dim as MirValue xta
-                                        xta.kind = cast( ubyte, MV_LOCAL ) : xta.ty = cast( ubyte, MT_PTR ) : xta.id = xslot
+                                        xta.kind = cast( uint8, MV_LOCAL ) : xta.ty = cast( uint8, MT_PTR ) : xta.id = xslot
                                         StoreThrough( c, xta, xcv )
                                         return xta
                                     end if
@@ -396,7 +396,7 @@ function LowerAddr _
         if LowerTypeCtorTempAddr_( c, id, ctv ) then return ctv
 
         dim as Tko.ListPayload ptr bl = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         dim as Tko.SymbolId bcal = c.info->RefOf( id )
         if bcal = Tko.SYMBOL_NONE then bcal = c.info->RefOf( bl->target )
         dim as Tko.Symbol ptr bcs = c.syms->SymbolAt( bcal )
@@ -409,7 +409,7 @@ function LowerAddr _
         '' The signature's INNER type is what says byref, which is exactly the test
         '' LowerCallParts already makes for the indirect case.
         if bcs <> 0 then
-            if bcs->kind <> cast( ubyte, Tko.SYM_PROC ) then
+            if bcs->kind <> cast( uint8, Tko.SYM_PROC ) then
                 dim as Tko.TypeId sigT = c.types->Unqualify( bcs->type_ )
                 '' ...AND THROUGH A BYREF VARIABLE HOLDING ONE. 'dim byref p2 as
                 '' function( ) byref as integer = p1' is a REFERENCE wrapping the
@@ -428,7 +428,7 @@ function LowerAddr _
                         dim as MirValue iv = LowerCallParts( c, bl->target, bcal, _
                                                             bl->first, bl->count, MT_PTR, _
                                                             true )
-                        if iv.kind <> cast( ubyte, MV_NONE ) then return iv
+                        if iv.kind <> cast( uint8, MV_NONE ) then return iv
                     elseif c.types->Kind( c.types->Unqualify( srt2 ) ) = Tko.TK_UDT then
                         '' ...AND A UDT RESULT BY VALUE, as a named function's is below:
                         '' through a hidden pointer the call's value is the temporary's
@@ -440,16 +440,16 @@ function LowerAddr _
                             dim as MirValue sv = LowerCallParts( c, bl->target, bcal, _
                                                                 bl->first, bl->count, MT_PTR, _
                                                                 true )
-                            if sv.kind <> cast( ubyte, MV_NONE ) then return sv
+                            if sv.kind <> cast( uint8, MV_NONE ) then return sv
                         else
                             dim as MirValue rv = LowerCallParts( c, bl->target, bcal, _
                                                                 bl->first, bl->count, MT_AGG )
-                            if rv.kind <> cast( ubyte, MV_NONE ) then
-                                dim as long rslot = NewTempLocal( c, MT_AGG, SizeOfType( c, srt2 ) )
+                            if rv.kind <> cast( uint8, MV_NONE ) then
+                                dim as int32 rslot = NewTempLocal( c, MT_AGG, SizeOfType( c, srt2 ) )
                                 if rslot >= 0 then
                                     dim as MirValue ra
-                                    ra.kind = cast( ubyte, MV_LOCAL )
-                                    ra.ty = cast( ubyte, MT_PTR )
+                                    ra.kind = cast( uint8, MV_LOCAL )
+                                    ra.ty = cast( uint8, MT_PTR )
                                     ra.id = rslot
                                     StoreThrough( c, ra, rv )
                                     return ra
@@ -466,7 +466,7 @@ function LowerAddr _
             '' temporary's bytes over o and then destroying the temporary: two owners of
             '' one buffer, 0xC0000374 (fbsqlite's WithTransaction). fbc builds o in place,
             '' '__FBINVOKE( &O, F )'; lower.tiko moves the temporary, which counts the same.
-            if bcs->kind <> cast( ubyte, Tko.SYM_PROC ) then
+            if bcs->kind <> cast( uint8, Tko.SYM_PROC ) then
                 dim as Tko.TypeId crt = c.info->TypeOf_( id )
                 dim as Tko.TypeId cot = c.types->Unqualify( bcs->type_ )
                 if c.types->Kind( cot ) = Tko.TK_REFERENCE then
@@ -479,10 +479,10 @@ function LowerAddr _
                 if cloUdt then
                     dim as MirValue cv = LowerCallParts( c, bl->target, bcal, _
                                                         bl->first, bl->count, MT_PTR, true )
-                    if cv.kind <> cast( ubyte, MV_NONE ) then return cv
+                    if cv.kind <> cast( uint8, MV_NONE ) then return cv
                 end if
             end if
-            if bcs->kind = cast( ubyte, Tko.SYM_PROC ) then
+            if bcs->kind = cast( uint8, Tko.SYM_PROC ) then
                 dim as Tko.NodeId bpn = cast( Tko.NodeId, bcs->payload )
                 if (bpn <> Tko.NODE_NONE) andalso (c.ast->Kind( bpn ) = Tko.N_PROC) then
                     '' ...and a UDT RETURNED THROUGH A HIDDEN POINTER is already a
@@ -491,12 +491,12 @@ function LowerAddr _
                     '' and got nothing, which is how fb/chrono.bi writes most of its
                     '' accessors.
                     dim as boolean byrefRet = _
-                        ((c.ast->nodes[cast( long, bpn )].flags and Tko.NF_BYREF) <> 0)
+                        ((c.ast->nodes[cast( int32, bpn )].flags and Tko.NF_BYREF) <> 0)
                     if byrefRet orelse UsesSretReturn( c, bcs->type_ ) then
                         dim as MirValue bv = LowerCallParts( c, bl->target, bcal, _
                                                             bl->first, bl->count, MT_PTR, _
                                                             true )
-                        if bv.kind <> cast( ubyte, MV_NONE ) then return bv
+                        if bv.kind <> cast( uint8, MV_NONE ) then return bv
                     elseif bcs->type_ <> Tko.TYPE_NONE then
                         '' A SMALL UDT COMES BACK IN REGISTERS, so there is no hidden
                         '' temporary to take the address of -- but 'GetD( ).a' still
@@ -505,13 +505,13 @@ function LowerAddr _
                         if c.types->Kind( bcs->type_ ) = Tko.TK_UDT then
                             dim as MirValue av = LowerCallParts( c, bl->target, bcal, _
                                                                  bl->first, bl->count, MT_AGG )
-                            if av.kind <> cast( ubyte, MV_NONE ) then
-                                dim as long aslot = NewTempLocal( c, MT_AGG, _
+                            if av.kind <> cast( uint8, MV_NONE ) then
+                                dim as int32 aslot = NewTempLocal( c, MT_AGG, _
                                     SizeOfType( c, bcs->type_ ) )
                                 if aslot >= 0 then
                                     dim as MirValue at2
-                                    at2.kind = cast( ubyte, MV_LOCAL )
-                                    at2.ty = cast( ubyte, MT_PTR )
+                                    at2.kind = cast( uint8, MV_LOCAL )
+                                    at2.ty = cast( uint8, MT_PTR )
                                     at2.id = aslot
                                     StoreThrough( c, at2, av )
                                     return at2
@@ -536,7 +536,7 @@ function LowerAddr _
         if qsid <> Tko.SYMBOL_NONE then
             dim as Tko.Symbol ptr qs = c.syms->SymbolAt( qsid )
             if qs <> 0 then
-                if qs->kind = cast( ubyte, Tko.SYM_VARIABLE ) then return AddrOfVar( c, qsid )
+                if qs->kind = cast( uint8, Tko.SYM_VARIABLE ) then return AddrOfVar( c, qsid )
                 '' ...AND A QUALIFIED PROCEDURE'S ADDRESS IS ITS OWN. '@NS.Tramp' is
                 '' an N_MEMBER, so it fell through to the FIELD path below, found no
                 '' field of that name and declined -- while '@Tramp' unqualified
@@ -546,7 +546,7 @@ function LowerAddr _
                 ''
                 ''     PW$0  = (tmp$1)&_ZN2NS5TRAMPEPv;
                 ''     PW3$0 = (tmp$1)&TRAMP3;
-                if qs->kind = cast( ubyte, Tko.SYM_PROC ) then return AddrOfVar( c, qsid )
+                if qs->kind = cast( uint8, Tko.SYM_PROC ) then return AddrOfVar( c, qsid )
             end if
         end if
     end if
@@ -556,7 +556,7 @@ function LowerAddr _
     '' nothing is looked up twice.
     if c.ast->Kind( id ) = Tko.N_MEMBER then
         dim as Tko.BinaryPayload ptr mp = _
-            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         '' CONST IS TRANSPARENT TO A FIELD ACCESS, and the UDT store is keyed by the
         '' UNQUALIFIED type -- so 'x.n' over a 'byref x as const T' looked its field up
         '' under a type the store has never heard of, found nothing, and declined.
@@ -573,7 +573,7 @@ function LowerAddr _
         '' and the operator is called AGAIN for every occurrence, which is what fbc
         '' does rather than caching the pointer.
         if (bt <> Tko.TYPE_NONE) andalso _
-           ((c.ast->nodes[cast( long, id )].flags and Tko.NF_ARROW) <> 0) andalso _
+           ((c.ast->nodes[cast( int32, id )].flags and Tko.NF_ARROW) <> 0) andalso _
            (c.types->Kind( bt ) = Tko.TK_UDT) then
             dim as Tko.SymbolId aop = Tko.Check.ArrowOperatorFor( _
                 *c.types, *c.syms, *c.names, *c.ast, *c.info, bt )
@@ -581,10 +581,10 @@ function LowerAddr _
                 dim as Tko.TypeId art = Tko.Check.ArrowResultType( *c.types, *c.syms, aop )
                 if art <> Tko.TYPE_NONE then
                     dim as MirValue self_ = LowerAddr( c, mp->lhs )
-                    if self_.kind = cast( ubyte, MV_NONE ) then return v
-                    dim as containers.Array( of ulong ) aargs
-                    aargs.Push( cast( ulong, self_.kind ) )
-                    aargs.Push( cast( ulong, self_.id ) )
+                    if self_.kind = cast( uint8, MV_NONE ) then return v
+                    dim as containers.Array( of uint32 ) aargs
+                    aargs.Push( cast( uint32, self_.kind ) )
+                    aargs.Push( cast( uint32, self_.id ) )
                     '' 'operator ->' RETURNS BY VALUE UNLESS IT SAYS 'byref as', and
                     '' MT_PTR was hard-coded. Measured, fbc's C for
                     '' 'operator -> ( byref lhs as foo ) as foo' is
@@ -600,7 +600,7 @@ function LowerAddr _
                         dim as Tko.NodeId apn = cast( Tko.NodeId, aos->payload )
                         dim as boolean aByref = false
                         if apn <> Tko.NODE_NONE then
-                            aByref = ((c.ast->nodes[cast( long, apn )].flags and _
+                            aByref = ((c.ast->nodes[cast( int32, apn )].flags and _
                                        Tko.NF_BYREF) <> 0)
                         end if
                         if (aByref = false) andalso (aos->type_ <> Tko.TYPE_NONE) then
@@ -608,16 +608,16 @@ function LowerAddr _
                         end if
                     end if
                     base_ = EmitDirectCall_( c, aop, armt, aargs )
-                    if base_.kind = cast( ubyte, MV_NONE ) then return v
+                    if base_.kind = cast( uint8, MV_NONE ) then return v
                     '' A VALUE HAS NO ADDRESS and this path offsets from one, so the
                     '' returned struct goes into a temporary -- the same one fbc makes.
                     if armt <> MT_PTR then
-                        dim as long asz = SizeOfType( c, aos->type_ )
+                        dim as int32 asz = SizeOfType( c, aos->type_ )
                         if asz <= 0 then return v
-                        dim as long aslot = NewTempLocal( c, armt, asz )
+                        dim as int32 aslot = NewTempLocal( c, armt, asz )
                         dim as MirValue atmp
-                        atmp.kind = cast( ubyte, MV_LOCAL )
-                        atmp.ty = cast( ubyte, MT_PTR )
+                        atmp.kind = cast( uint8, MV_LOCAL )
+                        atmp.ty = cast( uint8, MT_PTR )
                         atmp.id = aslot
                         StoreThrough( c, atmp, base_ )
                         base_ = atmp
@@ -628,11 +628,11 @@ function LowerAddr _
                     if afsym = 0 then return v
                     if (afsym->flags and Tko.SYMF_BITFIELD) <> 0 then return v
                     dim as boolean afound = false
-                    dim as long aoff = c.udts->FieldOffset( bt, afsym->name, afound )
+                    dim as int32 aoff = c.udts->FieldOffset( bt, afsym->name, afound )
                     if afound = false then return v
                     dim as MirInst ains
-                    ains.op = cast( ushort, M_FIELD_ADDR )
-                    ains.ty = cast( ubyte, MT_PTR )
+                    ains.op = cast( uint16, M_FIELD_ADDR )
+                    ains.ty = cast( uint8, MT_PTR )
                     ains.a = base_
                     ains.imm = aoff
                     return Emit( c, ains )
@@ -668,12 +668,12 @@ function LowerAddr _
                 '' narrower comes back as a VALUE and needs one of its own before a
                 '' field offset can be applied to it.
                 if UsesSretReturn( c, bsy->type_ ) = false then
-                    dim as long btslot = _
+                    dim as int32 btslot = _
                         NewTempLocal( c, MT_AGG, SizeOfType( c, bsy->type_ ) )
                     if btslot < 0 then return v
                     dim as MirValue bta
-                    bta.kind = cast( ubyte, MV_LOCAL )
-                    bta.ty = cast( ubyte, MT_PTR )
+                    bta.kind = cast( uint8, MV_LOCAL )
+                    bta.ty = cast( uint8, MT_PTR )
                     bta.id = btslot
                     StoreThrough( c, bta, base_ )
                     base_ = bta
@@ -694,13 +694,13 @@ function LowerAddr _
             '' fbc stops with runtime error 7. An explicit '->' only: a method's own
             '' 'this.x' and bare 'x' are unchecked in fbc's C, and stay so.
             if ((c.errFlags and 16) <> 0) andalso _
-               ((c.ast->nodes[cast( long, id )].flags and Tko.NF_ARROW) <> 0) then
+               ((c.ast->nodes[cast( int32, id )].flags and Tko.NF_ARROW) <> 0) then
                 EmitNullCheck_( c, id, base_ )
             end if
         else
             base_ = LowerAddr( c, mp->lhs )
         end if
-        if base_.kind = cast( ubyte, MV_NONE ) then return v
+        if base_.kind = cast( uint8, MV_NONE ) then return v
         dim as Tko.SymbolId fsym = c.info->RefOf( id )
         dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsym )
         if fs = 0 then return v
@@ -714,11 +714,11 @@ function LowerAddr _
         if (fs->flags and Tko.SYMF_BITFIELD) <> 0 then return v
 
         dim as boolean found = false
-        dim as long off = c.udts->FieldOffset( bt, fs->name, found )
+        dim as int32 off = c.udts->FieldOffset( bt, fs->name, found )
         if found = false then return v
         dim as MirInst ins
-        ins.op = cast( ushort, M_FIELD_ADDR )
-        ins.ty = cast( ubyte, MT_PTR )
+        ins.op = cast( uint16, M_FIELD_ADDR )
+        ins.ty = cast( uint8, MT_PTR )
         ins.a = base_
         ins.imm = off
         return Emit( c, ins )
@@ -734,11 +734,11 @@ function LowerAddr _
     '' and handing back the operand's would read the wrong width from it.
     if c.ast->Kind( id ) = Tko.N_CALL then
         dim as Tko.ListPayload ptr cl = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         if (cl->count = 2) andalso (cl->target <> Tko.NODE_NONE) then
             if c.ast->Kind( cl->target ) = Tko.N_IDENT then
                 dim as Tko.IdentPayload ptr cip = _
-                    @c.ast->idents[cast( long, c.ast->nodes[cast( long, cl->target )].data )]
+                    @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cl->target )].data )]
                 dim as string cnm = Tko.Text.LowerAscii( c.names->Spelling( cip->name ) )
                 if (cnm = "cast") orelse (cnm = "ctype") then
                     dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cl->first] )
@@ -761,7 +761,7 @@ function LowerAddr _
     '' receiver.
     if c.ast->Kind( id ) = Tko.N_PAREN then
         dim as Tko.ListPayload ptr pp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         if pp->count = 1 then
             return LowerAddr( c, cast( Tko.NodeId, c.ast->children[pp->first] ) )
         end if
@@ -773,7 +773,7 @@ function LowerAddr _
     '' to store through.
     if c.ast->Kind( id ) = Tko.N_DEREF then
         dim as Tko.UnaryPayload ptr dp = _
-            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         '' ...UNLESS IT IS A USER OPERATOR. '*p' over a UDT is a CALL to that UDT's
         '' 'operator *', which fb/sharedptr.bi and fb/comptr.bi both declare byref --
         '' and it is spelled with the same token as a dereference, so it arrives here.
@@ -841,7 +841,7 @@ function LowerAddr _
     '' sequence and reaching it twice would evaluate both arms twice.
     if IsAggIif_( c, id ) then
         dim as Tko.ListPayload ptr ip2 = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         dim as MirValue av
         if LowerAggIif_( c, cast( Tko.NodeId, c.ast->children[ip2->first] ), _
                             cast( Tko.NodeId, c.ast->children[ip2->first + 1] ), _
@@ -873,7 +873,7 @@ function LowerAddr _
     '' would write narrow bytes into a UTF-16 descriptor.
     if IsStrIif_( c, id ) then
         dim as Tko.ListPayload ptr ip3 = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         dim as MirValue sv2
         if LowerStringIif_( c, cast( Tko.NodeId, c.ast->children[ip3->first] ), _
                                cast( Tko.NodeId, c.ast->children[ip3->first + 1] ), _
@@ -906,7 +906,7 @@ function LowerAddr _
     '' The sibling-CALL case already had this handled; the sibling-FIELD case did not.
     dim as Tko.Symbol ptr fsy = c.syms->SymbolAt( sid )
     if fsy <> 0 then
-        if fsy->kind = cast( ubyte, Tko.SYM_FIELD ) then return AddrOfThisField( c, sid )
+        if fsy->kind = cast( uint8, Tko.SYM_FIELD ) then return AddrOfThisField( c, sid )
     end if
 
     return AddrOfVar( c, sid )
@@ -940,19 +940,19 @@ function AddrOfThisField( byref c as Ctx, byval fsid as Tko.SymbolId ) as MirVal
     dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsid )
     if fs = 0 then return v
     dim as boolean found = false
-    dim as long off = c.udts->FieldOffset( bt, fs->name, found )
+    dim as int32 off = c.udts->FieldOffset( bt, fs->name, found )
     if found = false then return v
 
     '' THIS holds a pointer, so the base is its VALUE. Its own address would be a
     '' pointer to a pointer.
     dim as MirValue ta = AddrOfVar( c, tsid )
-    if ta.kind = cast( ubyte, MV_NONE ) then return v
+    if ta.kind = cast( uint8, MV_NONE ) then return v
     dim as MirValue base_ = LowerExprLoad( c, ta, MT_PTR )
-    if base_.kind = cast( ubyte, MV_NONE ) then return v
+    if base_.kind = cast( uint8, MV_NONE ) then return v
 
     dim as MirInst fa
-    fa.op = cast( ushort, M_FIELD_ADDR )
-    fa.ty = cast( ubyte, MT_PTR )
+    fa.op = cast( uint16, M_FIELD_ADDR )
+    fa.ty = cast( uint8, MT_PTR )
     fa.a = base_
     fa.imm = off
     return Emit( c, fa )
@@ -972,7 +972,7 @@ end function
 '' '*pz' derefs to. Keeping them apart is what made '(*pz)[i]' match neither the array
 '' test nor the pointer one, so it declined while the two spellings either side of it
 '' worked.
-function CharElemSize_( byref c as Ctx, byval t as Tko.TypeId ) as long
+function CharElemSize_( byref c as Ctx, byval t as Tko.TypeId ) as int32
     if t = Tko.TYPE_NONE then return 0
     dim as Tko.TypeId el = t
     if c.types->Kind( el ) = Tko.TK_ARRAY then el = c.types->Inner( el )
@@ -996,7 +996,7 @@ function LowerPtrIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
     dim as MirValue none_
     if c.ast->Kind( id ) <> Tko.N_INDEX then return none_
     dim as Tko.ListPayload ptr sp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if sp->count <> 1 then return none_
     if sp->target = Tko.NODE_NONE then return none_
 
@@ -1043,7 +1043,7 @@ function LowerPtrIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
     '' so they fell through to the POINTER path, whose type test then refused them. A
     '' read declined and a write stored nowhere. 's[i]' is ordinary FreeBASIC, and
     '' fb/tuiwidth.bi builds every surrogate pair this way.
-    dim as long dsz = 0
+    dim as int32 dsz = 0
     if c.types->Kind( pt ) = Tko.TK_BUILTIN then
         select case c.types->BuiltinOf( pt )
         case Tko.TY_STRING  : dsz = 1
@@ -1051,31 +1051,31 @@ function LowerPtrIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
         end select
     end if
 
-    dim as long esz = CharElemSize_( c, pt )
+    dim as int32 esz = CharElemSize_( c, pt )
     dim as MirValue base_
     if dsz > 0 then
         esz = dsz
         dim as MirValue desc = LowerAddr( c, sp->target )
-        if desc.kind = cast( ubyte, MV_NONE ) then return none_
+        if desc.kind = cast( uint8, MV_NONE ) then return none_
         '' Field 0 of the descriptor is its data pointer.
         dim as MirInst fa
-        fa.op = cast( ushort, M_FIELD_ADDR )
-        fa.ty = cast( ubyte, MT_PTR )
+        fa.op = cast( uint16, M_FIELD_ADDR )
+        fa.ty = cast( uint8, MT_PTR )
         fa.a = desc
         fa.imm = 0
         dim as MirValue pa0 = Emit( c, fa )
-        if pa0.kind = cast( ubyte, MV_NONE ) then return none_
+        if pa0.kind = cast( uint8, MV_NONE ) then return none_
         base_ = LowerExprLoad( c, pa0, MT_PTR )
-        if base_.kind = cast( ubyte, MV_NONE ) then return none_
+        if base_.kind = cast( uint8, MV_NONE ) then return none_
     elseif esz > 0 then
         base_ = LowerAddr( c, sp->target )
-        if base_.kind = cast( ubyte, MV_NONE ) then return none_
+        if base_.kind = cast( uint8, MV_NONE ) then return none_
     else
         if c.types->Kind( pt ) <> Tko.TK_POINTER then return none_
         dim as Tko.TypeId el = c.types->Inner( pt )
         if el = Tko.TYPE_NONE then return none_
         esz = c.types->Layout( el ).size
-        dim as long ui = c.udts->Find( el )
+        dim as int32 ui = c.udts->Find( el )
         if ui >= 0 then esz = c.udts->udts[ui].size
         '' ...AND A FIXED-LENGTH STRING POINTEE STEPS BY ITS CHARACTER, as its arithmetic
         '' does (PtrArithElem_): 'pz[ 2 ]' over '@z', a 'zstring * 64', is the string at
@@ -1089,7 +1089,7 @@ function LowerPtrIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
         '' The POINTER'S VALUE is the base -- not its address, which is where the
         '' pointer variable lives.
         base_ = LowerExpr( c, sp->target )
-        if base_.kind = cast( ubyte, MV_NONE ) then return none_
+        if base_.kind = cast( uint8, MV_NONE ) then return none_
         '' -exx CHECKS 'p[ i ]' FOR NULL (T33): the BASE pointer, not base + i, which is
         '' what fbc passes. A character pointee is left alone, as '*pz' is above.
         if (c.errFlags and 16) <> 0 then          '' -enullptr, in -exx
@@ -1111,23 +1111,23 @@ function LowerPtrIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
     dim as Tko.NodeId ix = cast( Tko.NodeId, c.ast->children[sp->first] )
     dim as MirValue iv
     if IsUdtValue_( c, ix ) then iv = LowerNumArg_( c, ix, offTy ) else iv = LowerExpr( c, ix )   '' a UDT through its cast
-    if iv.kind = cast( ubyte, MV_NONE ) then return none_
+    if iv.kind = cast( uint8, MV_NONE ) then return none_
     if IsUdtValue_( c, ix ) = false then iv = CoerceTy( c, iv, offTy, c.info->TypeOf_( ix ))
 
     dim as MirValue term = iv
     if esz <> 1 then
         dim as MirInst mul
-        mul.op = cast( ushort, M_MUL )
-        mul.ty = cast( ubyte, offTy )
+        mul.op = cast( uint16, M_MUL )
+        mul.ty = cast( uint8, offTy )
         mul.a = iv
         mul.b = ConstInt( c, esz, offTy )
         term = Emit( c, mul )
-        if term.kind = cast( ubyte, MV_NONE ) then return none_
+        if term.kind = cast( uint8, MV_NONE ) then return none_
     end if
 
     dim as MirInst pa
-    pa.op = cast( ushort, M_PTR_ADD )
-    pa.ty = cast( ubyte, MT_PTR )
+    pa.op = cast( uint16, M_PTR_ADD )
+    pa.ty = cast( uint8, MT_PTR )
     pa.a = base_
     pa.b = term
     return Emit( c, pa )
@@ -1142,7 +1142,7 @@ function IsArrayIndex( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     '' now made four times; the rule is to check how a node is CONSTRUCTED, not what its
     '' name suggests.
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if cp->target = Tko.NODE_NONE then return false
     dim as Tko.TypeId t = c.info->TypeOf_( cp->target )
     if t = Tko.TYPE_NONE then return false
@@ -1153,15 +1153,15 @@ end function
 function LowerArrayIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
     dim as MirValue none_
     dim as Tko.ListPayload ptr sp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     dim as Tko.TypeId at = c.info->TypeOf_( sp->target )
 
     '' A DYNAMIC array has no compile-time strides: its base and its per-dimension
     '' element counts live in the descriptor and are read from it.
     if c.types->IsDynArray( at ) then return LowerDynArrayIndex( c, id, sp, at )
 
-    dim as containers.Array( of longint ) strides
-    dim as longint bias
+    dim as containers.Array( of int64 ) strides
+    dim as int64 bias
     if ArrayStrides( c, at, strides, bias ) = false then return none_
     '' A subscript count that does not match the rank is an error the checker should
     '' report; lowering something with the wrong number of indices would compute an
@@ -1169,7 +1169,7 @@ function LowerArrayIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
     if sp->count <> strides.Count then return none_
 
     dim as MirValue base_ = LowerAddr( c, sp->target )
-    if base_.kind = cast( ubyte, MV_NONE ) then return none_
+    if base_.kind = cast( uint8, MV_NONE ) then return none_
 
     '' Offsets are computed at pointer width, so a 32-bit index does not truncate the
     '' product on a large array.
@@ -1177,13 +1177,13 @@ function LowerArrayIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
     if c.types->target.pointerBits = 32 then offTy = MT_I32
 
     dim as MirValue acc
-    for k as long = 0 to sp->count - 1
+    for k as int32 = 0 to sp->count - 1
         dim as Tko.NodeId ix = cast( Tko.NodeId, c.ast->children[sp->first + k] )
         '' A UDT SUBSCRIPT runs its numeric cast: 'ar( m )' over a type casting to long is fbc's
         '' element 3; tiko multiplied the object and the emitter had no operand.
         dim as MirValue iv
         if IsUdtValue_( c, ix ) then iv = LowerNumArg_( c, ix, offTy ) else iv = LowerExpr( c, ix )
-        if iv.kind = cast( ubyte, MV_NONE ) then return none_
+        if iv.kind = cast( uint8, MV_NONE ) then return none_
         '' WIDENED BY THE SUBSCRIPT'S OWN SIGNEDNESS, as LowerPtrIndex and LowerDynArrayIndex
         '' already did: the untyped Coerce sign-extended, so a ubyte 158 indexed element -98 --
         '' out of bounds under -exx, and without it a silent read below the array. tiko-rt's
@@ -1197,39 +1197,39 @@ function LowerArrayIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
         dim as MirValue term = iv
         if strides[k] <> 1 then
             dim as MirInst mul
-            mul.op = cast( ushort, M_MUL )
-            mul.ty = cast( ubyte, offTy )
+            mul.op = cast( uint16, M_MUL )
+            mul.ty = cast( uint8, offTy )
             mul.a = iv
             mul.b = ConstInt( c, strides[k], offTy )
             term = Emit( c, mul )
         end if
 
-        if acc.kind = cast( ubyte, MV_NONE ) then
+        if acc.kind = cast( uint8, MV_NONE ) then
             acc = term
         else
             dim as MirInst add_
-            add_.op = cast( ushort, M_ADD )
-            add_.ty = cast( ubyte, offTy )
+            add_.op = cast( uint16, M_ADD )
+            add_.ty = cast( uint8, offTy )
             add_.a = acc
             add_.b = term
             acc = Emit( c, add_ )
         end if
     next
-    if acc.kind = cast( ubyte, MV_NONE ) then return none_
+    if acc.kind = cast( uint8, MV_NONE ) then return none_
 
     '' The lbound bias is one constant for the whole subscript, subtracted once.
     if bias <> 0 then
         dim as MirInst sub_
-        sub_.op = cast( ushort, M_SUB )
-        sub_.ty = cast( ubyte, offTy )
+        sub_.op = cast( uint16, M_SUB )
+        sub_.ty = cast( uint8, offTy )
         sub_.a = acc
         sub_.b = ConstInt( c, bias, offTy )
         acc = Emit( c, sub_ )
     end if
 
     dim as MirInst pa
-    pa.op = cast( ushort, M_PTR_ADD )
-    pa.ty = cast( ubyte, MT_PTR )
+    pa.op = cast( uint16, M_PTR_ADD )
+    pa.ty = cast( uint8, MT_PTR )
     pa.a = base_
     pa.b = acc
     return Emit( c, pa )
@@ -1241,16 +1241,16 @@ end function
 '' the element COUNTS of every dimension after it. Returns false when the bounds were not
 '' constant, in which case nothing may be folded and the subscript is not lowered.
 private function ArrayStrides _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref strides as containers.Array( of longint ), _
-      byref bias as longint ) as boolean
+    ( byref c as Ctx, byval t as Tko.TypeId, byref strides as containers.Array( of int64 ), _
+      byref bias as int64 ) as boolean
 
     bias = 0
     if t = Tko.TYPE_NONE then return false
     if c.types->Kind( t ) <> Tko.TK_ARRAY then return false
 
     dim as Tko.TypeId elem = c.types->Inner( t )
-    dim as long esz
-    dim as long ui = c.udts->Find( elem )
+    dim as int32 esz
+    dim as int32 ui = c.udts->Find( elem )
     if ui >= 0 then
         esz = c.udts->udts[ui].size
     else
@@ -1260,7 +1260,7 @@ private function ArrayStrides _
 
     '' Rank comes from the retained bounds rather than from 'dims', so a type whose
     '' bounds were dropped cannot silently produce a plausible stride list.
-    dim as long rank = 0
+    dim as int32 rank = 0
     do
         dim as boolean known
         c.types->ArrayBound( t, rank, false, known )
@@ -1269,26 +1269,26 @@ private function ArrayStrides _
     loop
     if rank = 0 then return false
 
-    dim as containers.Array( of longint ) los, counts
-    for k as long = 0 to rank - 1
+    dim as containers.Array( of int64 ) los, counts
+    for k as int32 = 0 to rank - 1
         dim as boolean lk, hk
-        dim as longint lo = c.types->ArrayBound( t, k, false, lk )
-        dim as longint hi = c.types->ArrayBound( t, k, true, hk )
+        dim as int64 lo = c.types->ArrayBound( t, k, false, lk )
+        dim as int64 hi = c.types->ArrayBound( t, k, true, hk )
         if (lk = false) orelse (hk = false) then return false
         if hi < lo then return false
         los.Push( lo )
         counts.Push( hi - lo + 1 )
     next
 
-    for k as long = 0 to rank - 1
+    for k as int32 = 0 to rank - 1
         strides.Push( 0 )
     next
-    dim as longint run = esz
-    for k as long = rank - 1 to 0 step -1
+    dim as int64 run = esz
+    for k as int32 = rank - 1 to 0 step -1
         strides[k] = run
         run *= counts[k]
     next
-    for k as long = 0 to rank - 1
+    for k as int32 = 0 to rank - 1
         bias += los[k] * strides[k]
     next
     return true
@@ -1303,7 +1303,7 @@ private function UserOpTempAddr_ _
     if op = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr os = c.syms->SymbolAt( op )
     if os = 0 then return false
-    if os->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    if os->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     dim as Tko.TypeId rt = os->type_
     if rt = Tko.TYPE_NONE then return false
     if c.types->Kind( c.types->Unqualify( rt ) ) <> Tko.TK_UDT then return false
@@ -1311,21 +1311,21 @@ private function UserOpTempAddr_ _
     '' paths below already know how to read; this one is about a VALUE result.
     dim as Tko.NodeId pn = cast( Tko.NodeId, os->payload )
     if pn = Tko.NODE_NONE then return false
-    if (c.ast->nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0 then return false
+    if (c.ast->nodes[cast( int32, pn )].flags and Tko.NF_BYREF) <> 0 then return false
 
     dim as MirValue uv
     dim as boolean got = false
     if c.ast->Kind( id ) = Tko.N_BINARY then
         dim as Tko.BinaryPayload ptr ubp = _
-            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         got = LowerUserBinaryOp_( c, id, ubp, MT_PTR, uv )
     else
         dim as Tko.UnaryPayload ptr uup = _
-            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         got = LowerUserUnaryOp_( c, id, uup, MT_PTR, uv )
     end if
     if got = false then return false
-    if uv.kind = cast( ubyte, MV_NONE ) then return false
+    if uv.kind = cast( uint8, MV_NONE ) then return false
 
     '' An SRET result IS the temporary's address already.
     if UsesSretReturn( c, rt ) then
@@ -1333,11 +1333,11 @@ private function UserOpTempAddr_ _
         return true
     end if
 
-    dim as long tslot = NewTempLocal( c, MT_AGG, SizeOfType( c, rt ) )
+    dim as int32 tslot = NewTempLocal( c, MT_AGG, SizeOfType( c, rt ) )
     if tslot < 0 then return false
     dim as MirValue ta
-    ta.kind = cast( ubyte, MV_LOCAL )
-    ta.ty = cast( ubyte, MT_PTR )
+    ta.kind = cast( uint8, MV_LOCAL )
+    ta.ty = cast( uint8, MT_PTR )
     ta.id = tslot
     StoreThrough( c, ta, uv )
     outv = ta

@@ -16,20 +16,20 @@
 '' the definition's own type. Only a SCALAR member is judged: an array's element type is
 '' what its definition writes, and its bounds are TKO0751's.
 private sub CheckStaticMemberDef_ ( byref c as Ctx, byval id as NodeId )
-    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
-    for k as long = 0 to sp->count - 1
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    for k as int32 = 0 to sp->count - 1
         dim as NodeId item = cast( NodeId, c.ast->children[sp->first + k] )
         if (item = NODE_NONE) orelse (c.ast->Kind( item ) <> N_VAR_ITEM) then continue for
-        if (c.ast->nodes[cast( long, item )].flags and NF_QUALIFIED) = 0 then continue for
-        dim as StmtPayload ptr ip = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+        if (c.ast->nodes[cast( int32, item )].flags and NF_QUALIFIED) = 0 then continue for
+        dim as StmtPayload ptr ip = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, item )].data )]
         if (ip->ownerName = 0) orelse (ip->c <> NODE_NONE) then continue for
         if instr( c.names->Spelling( ip->ownerName ), "." ) > 0 then continue for
         dim as Symbol ptr os = c.syms->SymbolAt( c.syms->LookupTyped( c.info->ScopeOf( id ), ip->ownerName, true ) )
-        if (os = 0) orelse (os->kind <> cast( ubyte, SYM_UDT )) then continue for
+        if (os = 0) orelse (os->kind <> cast( uint8, SYM_UDT )) then continue for
         '' The member, in the type or in what it extends.
         dim as Symbol ptr ms = 0
         dim as TypeId ut = os->type_
-        for guard as long = 0 to 31
+        for guard as int32 = 0 to 31
             dim as Symbol ptr us = UdtSymbolOf_( c, ut )
             if (us = 0) orelse (us->inner = SCOPE_NONE) then exit for
             ms = c.syms->SymbolAt( c.syms->LookupLocalTyped( us->inner, ip->name, false ) )
@@ -41,7 +41,7 @@ private sub CheckStaticMemberDef_ ( byref c as Ctx, byval id as NodeId )
         if (ms->flags and SYMF_STATIC) = 0 then continue for
         if ms->type_ = TYPE_NONE then continue for
         dim as boolean declByref = ((ms->flags and SYMF_BYREF) <> 0) orelse (c.types->Kind( ms->type_ ) = TK_REFERENCE)
-        dim as boolean defByref = (((c.ast->nodes[cast( long, id )].flags or c.ast->nodes[cast( long, item )].flags) and NF_BYREF) <> 0)
+        dim as boolean defByref = (((c.ast->nodes[cast( int32, id )].flags or c.ast->nodes[cast( int32, item )].flags) and NF_BYREF) <> 0)
         '' 'dim byref T.ri as integer', with nothing to bind: fbc's 320 is HERE, and the
         '' declaration in the type needs none (ByrefNeedsInit_, fieldctor.tiko).
         if declByref andalso defByref andalso (ip->b = NODE_NONE) then
@@ -134,12 +134,12 @@ private function MathArgIsNumber_ _
         '' is the fallback, and on its own found nothing this late.
         dim as SymbolId uo = bound
         if uo = SYMBOL_NONE then uo = c.syms->Lookup( scope_, c.names->Fold( c.names->GetString( nm ) ) )
-        for guard as long = 0 to 63
+        for guard as int32 = 0 to 63
             dim as Symbol ptr os = c.syms->SymbolAt( uo )
             if os = 0 then exit for
             if os->payload <> 0 then
                 if c.ast->Kind( cast( NodeId, os->payload ) ) = N_PROC then
-                    dim as long rk
+                    dim as int32 rk
                     dim as TypeId pt = ParamTypeAt_( c, cast( NodeId, os->payload ), 0, rk )
                     if pt <> TYPE_NONE then
                         pt = c.types->Unqualify( pt )
@@ -160,7 +160,7 @@ private function MathArgIsNumber_ _
             if c.types->Kind( c.types->Unqualify( bt ) ) <> TK_UDT then return true
         end if
         dim as Symbol ptr cs = StructorOf_( c, at, "cast" )
-        for guard as long = 0 to 63
+        for guard as int32 = 0 to 63
             if cs = 0 then exit for
             dim as TypeId rt = c.types->Unqualify( cs->type_ )
             if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
@@ -183,9 +183,9 @@ private sub CheckMathIntrinsic_ _
     ( byref c as Ctx, byval id as NodeId, byval lp as ListPayload ptr, byref nm as string )
 
     if instr( " sin cos tan atn asin acos atan2 exp log sqr abs sgn int fix frac ", " " & nm & " " ) = 0 then return
-    dim as long want = iif( nm = "atan2", 2, 1 )
+    dim as int32 want = iif( nm = "atan2", 2, 1 )
     if lp->count <> want then return
-    for i as long = 0 to want - 1
+    for i as int32 = 0 to want - 1
         dim as TypeId at = c.info->TypeOf_( cast( NodeId, c.ast->children[lp->first + i] ) )
         if MathArgIsNumber_( c, c.info->RefOf( lp->target ), c.info->ScopeOf( id ), nm, at ) = false then
             c.diags->Report( TKO0928, PointRange( c.ast->Loc( id ) ), nm, c.types->Name( c.types->Unqualify( at ) ) )
@@ -270,7 +270,7 @@ private sub CheckUdtExactCast_ _
     if BaseOf_( c, at ) <> TYPE_NONE then return
     dim as Symbol ptr cs = StructorOf_( c, at, "cast" )
     if cs = 0 then return   '' no cast at all is another rule's
-    for guard as long = 0 to 63
+    for guard as int32 = 0 to 63
         if cs = 0 then exit for
         dim as TypeId rt = c.types->Unqualify( cs->type_ )
         if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
@@ -281,7 +281,7 @@ private sub CheckUdtExactCast_ _
 end sub
 
 private sub CheckConvIntrinsic_ ( byref c as Ctx, byval id as NodeId )
-    dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if (lp->target = NODE_NONE) orelse (lp->count < 1) then return
     if c.ast->Kind( lp->target ) <> N_IDENT then return
     dim as string nm = lcase( SpellOf_( c, lp->target ) )
@@ -342,7 +342,7 @@ private sub CheckConvIntrinsic_ ( byref c as Ctx, byval id as NodeId )
         '' A type that extends another may convert through the base's cast: not judged.
         if BaseOf_( c, at ) <> TYPE_NONE then return
         dim as Symbol ptr cs = StructorOf_( c, at, "cast" )
-        for guard as long = 0 to 63
+        for guard as int32 = 0 to 63
             if cs = 0 then exit for
             dim as TypeId rt = c.types->Unqualify( cs->type_ )
             if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
@@ -356,34 +356,34 @@ private sub CheckConvIntrinsic_ ( byref c as Ctx, byval id as NodeId )
 end sub
 
 '' Asked from CheckIncompleteObjects_ in latesweeps4.tiko, which is at the line cap.
-private sub CheckByrefResultCalls_ ( byref c as Ctx, byval total as long )
+private sub CheckByrefResultCalls_ ( byref c as Ctx, byval total as int32 )
     '' A CALL TO A BYREF-RESULT FUNCTION whose declared result is not complete where it is
     '' called: 'print f( )', 'f( )' and 'f( ) = 1' are fbc's 71, '@f( )' is not -- measured
     '' with the typedef rule in CompletedBelow4_. Only a declaration's byref result may name
     '' an incomplete type at all.
-    dim as containers.Array( of ubyte ) addrOf
-    for i as long = 0 to total
+    dim as containers.Array( of uint8 ) addrOf
+    for i as int32 = 0 to total
         addrOf.Push( 0 )
     next
-    for i as long = 1 to total
+    for i as int32 = 1 to total
         if c.ast->Kind( cast( NodeId, i ) ) <> N_ADDROF then continue for
-        dim as NodeId ao = Unparen3_( c, c.ast->unaries[cast( long, c.ast->nodes[i].data )].operand )
-        if (ao > 0) andalso (cast( long, ao ) <= total) then addrOf[cast( long, ao )] = 1
+        dim as NodeId ao = Unparen3_( c, c.ast->unaries[cast( int32, c.ast->nodes[i].data )].operand )
+        if (ao > 0) andalso (cast( int32, ao ) <= total) then addrOf[cast( int32, ao )] = 1
     next
-    for i as long = 1 to total
+    for i as int32 = 1 to total
         if c.ast->Kind( cast( NodeId, i ) ) <> N_CALL then continue for
         if addrOf[i] <> 0 then continue for
-        dim as ListPayload ptr cp = @c.ast->lists[cast( long, c.ast->nodes[i].data )]
+        dim as ListPayload ptr cp = @c.ast->lists[cast( int32, c.ast->nodes[i].data )]
         if cp->target = NODE_NONE then continue for
         dim as Symbol ptr ps = c.syms->SymbolAt( c.info->RefOf( cast( NodeId, i ) ) )
         if ps = 0 then ps = c.syms->SymbolAt( c.info->RefOf( cp->target ) )
-        if (ps = 0) orelse (ps->kind <> cast( ubyte, SYM_PROC )) then continue for
+        if (ps = 0) orelse (ps->kind <> cast( uint8, SYM_PROC )) then continue for
         dim as NodeId pd = cast( NodeId, ps->payload )
         if (pd = NODE_NONE) orelse (c.ast->Kind( pd ) <> N_PROC) then continue for
-        dim as StmtPayload ptr pdp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, pd )].data )]
-        if (((c.ast->nodes[cast( long, pd )].flags and NF_BYREF) <> 0) orelse ((pdp->extra and PF_BYREF_RESULT) <> 0)) = false then continue for
+        dim as StmtPayload ptr pdp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pd )].data )]
+        if (((c.ast->nodes[cast( int32, pd )].flags and NF_BYREF) <> 0) orelse ((pdp->extra and PF_BYREF_RESULT) <> 0)) = false then continue for
         if (pdp->a = NODE_NONE) orelse (c.ast->Kind( pdp->a ) <> N_TYPEREF) then continue for
-        if (c.ast->nodes[cast( long, pdp->a )].flags and (NF_PTR or NF_PROC_TYPE)) <> 0 then continue for
+        if (c.ast->nodes[cast( int32, pdp->a )].flags and (NF_PTR or NF_PROC_TYPE)) <> 0 then continue for
         dim as TypeId rt = c.info->TypeOf_( pdp->a )
         if rt = TYPE_NONE then continue for
         rt = c.types->Unqualify( rt )

@@ -7,8 +7,8 @@ namespace Tko.Build
 
 function JsonStr( byref s as string ) as string
     dim as string r = chr( 34 )
-    for i as long = 0 to len( s ) - 1
-        dim as long ch = s[i]
+    for i as int32 = 0 to len( s ) - 1
+        dim as int32 ch = s[i]
         select case ch
         case 34 : r &= chr( 92, 34 )
         case 92 : r &= chr( 92, 92 )
@@ -26,7 +26,7 @@ end function
 
 function JsonArr( byref v as Tko.StrVec ) as string
     dim as string r = "["
-    for i as long = 0 to v.Count - 1
+    for i as int32 = 0 to v.Count - 1
         if i > 0 then r &= ","
         r &= JsonStr( v[i] )
     next
@@ -76,7 +76,7 @@ sub OnUnit _
                   JsonStr( unitName ) & ",""status"":" & JsonStr( status ) )
 end sub
 
-sub OnPlan( byval obs as any ptr, byval units as long )
+sub OnPlan( byval obs as any ptr, byval units as int32 )
     if obs = 0 then return
     dim as Observer ptr o = obs
     EmitLine( *o, """event"":""plan"",""units"":" & units )
@@ -89,7 +89,7 @@ sub OnArtifact( byval obs as any ptr, byref kind as string, byref path_ as strin
 end sub
 
 sub OnFinish _
-    ( byval obs as any ptr, byval errors as long, byval warnings as long, byval rc as long )
+    ( byval obs as any ptr, byval errors as int32, byval warnings as int32, byval rc as int32 )
 
     if obs = 0 then return
     dim as Observer ptr o = obs

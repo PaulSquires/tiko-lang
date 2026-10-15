@@ -33,10 +33,10 @@ private function AbstractSlot_ _
     ( byref types as TypeContext, byref store as VTables, _
       byval t as TypeId ) as boolean
 
-    dim as long vi = store.Find( t )
+    dim as int32 vi = store.Find( t )
     if vi < 0 then return false
     dim as VtInfo ptr v = @store.types_[vi]
-    for i as long = 0 to v->count - 1
+    for i as int32 = 0 to v->count - 1
         dim as VtSlot ptr sl = @store.slots[v->first + i]
         if sl->proc_ = SYMBOL_NONE then return true
     next
@@ -51,7 +51,7 @@ private function AbstractHere_ _
     if t = TYPE_NONE then return false
     dim as TypeId u = types.Unqualify( t )
     '' An ARRAY of an abstract type is as impossible as one of them, and fbc says so.
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (types.Kind( u ) = TK_ARRAY) andalso (guard < 16)
         guard += 1
         u = types.Unqualify( types.Inner( u ) )
@@ -65,7 +65,7 @@ sub CheckAbstractInstances _
       byref info as SemanticInfo, byref store as VTables, byref names as Interner, _
       byref diags as DiagnosticEngine )
 
-    for i as long = 0 to syms.symbols.Count - 1
+    for i as int32 = 0 to syms.symbols.Count - 1
         dim as Symbol ptr s = @syms.symbols[i]
         dim as SymbolKind k = cast( SymbolKind, s->kind )
         dim as boolean holdsOne = (k = SYM_VARIABLE) orelse (k = SYM_FIELD)
@@ -93,7 +93,7 @@ sub CheckAbstractInstances _
             dim as NodeId decl = cast( NodeId, s->payload )
             if decl = NODE_NONE then continue for
             if ast.Kind( decl ) <> N_PROC then continue for
-            if (ast.nodes[cast( long, decl )].flags and NF_BYREF) <> 0 then continue for
+            if (ast.nodes[cast( int32, decl )].flags and NF_BYREF) <> 0 then continue for
         end if
         if AbstractHere_( types, store, s->type_ ) = false then continue for
         diags.Report( TKO0620, PointRange( s->loc ), names.Spelling( s->name ) )
@@ -106,7 +106,7 @@ sub CheckAbstractInstances _
     '' an abstract type by reference is the ordinary way to pass one -- so the test is on
     '' NF_BYVAL_WRITTEN, which the parser records for exactly this reason: the absence of
     '' NF_BYREF does not mean byval.
-    for n as long = 0 to ast.Count( ) - 1
+    for n as int32 = 0 to ast.Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
         if ast.Kind( id ) <> N_PARAM then continue for
         if (ast.nodes[n].flags and NF_BYVAL_WRITTEN) = 0 then continue for
@@ -114,7 +114,7 @@ sub CheckAbstractInstances _
         '' symbol back onto its node, and its symbol's payload is an index -- the
         '' typeref is the only handle on what was written.
         dim as StmtPayload ptr pp = _
-            @ast.stmts[cast( long, ast.nodes[n].data )]
+            @ast.stmts[cast( int32, ast.nodes[n].data )]
         if AbstractHere_( types, store, info.TypeOf_( pp->a ) ) = false then continue for
         diags.Report( TKO0620, PointRange( ast.Loc( id ) ), names.Spelling( pp->name ) )
     next
@@ -130,7 +130,7 @@ sub CheckAbstractInstances _
     ''
     '' PLACEMENT NEW IS THE SAME NODE and the same rule: 'new( buf ) A' still constructs
     '' an A, it only chooses where.
-    for n as long = 0 to ast.Count( ) - 1
+    for n as int32 = 0 to ast.Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
         dim as NodeKind nk = ast.Kind( id )
         dim as boolean builds = (nk = N_NEW)
@@ -138,7 +138,7 @@ sub CheckAbstractInstances _
             builds = ((ast.nodes[n].flags and NF_TYPE_LITERAL) <> 0)
         end if
         if builds = false then continue for
-        dim as ListPayload ptr lp = @ast.lists[cast( long, ast.nodes[n].data )]
+        dim as ListPayload ptr lp = @ast.lists[cast( int32, ast.nodes[n].data )]
         '' A BARE 'type( )' NAMES NO TYPE. It takes one from the parameter it is being
         '' passed to, so the only handle is the type Check gave the node itself --
         '' 'foo( type( ) )' over a 'byref x as A' is still constructing an A.
@@ -157,29 +157,29 @@ sub CheckAbstractInstances _
     '' ...AND A BARE 'type( )' PASSED TO A PARAMETER, whose type Check did not give the node:
     '' 'foo( type( ) )' over 'byref x as A' constructs an A (virtual/abstract-object-11,
     '' fbc's 306). The parameter's own type reference answers it.
-    for n as long = 0 to ast.Count( ) - 1
+    for n as int32 = 0 to ast.Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
         if ast.Kind( id ) <> N_CALL then continue for
-        dim as ListPayload ptr cp = @ast.lists[cast( long, ast.nodes[n].data )]
+        dim as ListPayload ptr cp = @ast.lists[cast( int32, ast.nodes[n].data )]
         if cp->target = NODE_NONE then continue for
         dim as Symbol ptr ps = syms.SymbolAt( info.RefOf( id ) )
         if ps = 0 then ps = syms.SymbolAt( info.RefOf( cp->target ) )
-        if (ps = 0) orelse (ps->kind <> cast( ubyte, SYM_PROC )) then continue for
+        if (ps = 0) orelse (ps->kind <> cast( uint8, SYM_PROC )) then continue for
         dim as NodeId pd = cast( NodeId, ps->payload )
         if (pd = NODE_NONE) orelse (ast.Kind( pd ) <> N_PROC) then continue for
-        dim as StmtPayload ptr pdp = @ast.stmts[cast( long, ast.nodes[cast( long, pd )].data )]
-        dim as long ai = 0
-        for pi_ as long = 0 to pdp->count - 1
+        dim as StmtPayload ptr pdp = @ast.stmts[cast( int32, ast.nodes[cast( int32, pd )].data )]
+        dim as int32 ai = 0
+        for pi_ as int32 = 0 to pdp->count - 1
             dim as NodeId pn = cast( NodeId, ast.children[pdp->first + pi_] )
             if (pn = NODE_NONE) orelse (ast.Kind( pn ) <> N_PARAM) then continue for
             if ai >= cp->count then exit for
             dim as NodeId arg = cast( NodeId, ast.children[cp->first + ai] )
             ai += 1
             if (arg = NODE_NONE) orelse (ast.Kind( arg ) <> N_TUPLE) then continue for
-            if (ast.nodes[cast( long, arg )].flags and NF_TYPE_LITERAL) = 0 then continue for
-            if ast.lists[cast( long, ast.nodes[cast( long, arg )].data )].target <> NODE_NONE then continue for
+            if (ast.nodes[cast( int32, arg )].flags and NF_TYPE_LITERAL) = 0 then continue for
+            if ast.lists[cast( int32, ast.nodes[cast( int32, arg )].data )].target <> NODE_NONE then continue for
             if info.TypeOf_( arg ) <> TYPE_NONE then continue for
-            dim as NodeId pta = ast.stmts[cast( long, ast.nodes[cast( long, pn )].data )].a
+            dim as NodeId pta = ast.stmts[cast( int32, ast.nodes[cast( int32, pn )].data )].a
             if pta = NODE_NONE then continue for
             dim as TypeId pt = types.Unqualify( info.TypeOf_( pta ) )
             if types.Kind( pt ) = TK_REFERENCE then pt = types.Unqualify( types.Inner( pt ) )
@@ -195,18 +195,18 @@ sub CheckAbstractInstances _
     '' THE CALLEE MUST RESOLVE TO A UDT SYMBOL. A function RETURNING an abstract type by
     '' reference is legal and is how one is used at all, so a test on the call's type
     '' alone would have refused every such call.
-    for n as long = 0 to ast.Count( ) - 1
+    for n as int32 = 0 to ast.Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
         if ast.Kind( id ) <> N_CALL then continue for
-        dim as ListPayload ptr cp = @ast.lists[cast( long, ast.nodes[n].data )]
+        dim as ListPayload ptr cp = @ast.lists[cast( int32, ast.nodes[n].data )]
         if cp->target = NODE_NONE then continue for
         dim as Symbol ptr cs = syms.SymbolAt( info.RefOf( cp->target ) )
         if cs = 0 then continue for
         '' ...OR TO A TYPEDEF FOR ONE. 'type A2 as A : A2( )' constructs the same A,
         '' and fbc refuses it on the same line number.
         dim as boolean namesType = _
-            (cs->kind = cast( ubyte, SYM_UDT )) orelse _
-            (cs->kind = cast( ubyte, SYM_TYPEDEF ))
+            (cs->kind = cast( uint8, SYM_UDT )) orelse _
+            (cs->kind = cast( uint8, SYM_TYPEDEF ))
         if namesType = false then continue for
         dim as TypeId ct = info.TypeOf_( id )
         if AbstractHere_( types, store, ct ) = false then continue for
@@ -229,21 +229,21 @@ sub CheckOverridePromise _
     ( byref ast as AstArena, byref store as VTables, byref names as Interner, _
       byref diags as DiagnosticEngine )
 
-    for n as long = 0 to ast.Count( ) - 1
+    for n as int32 = 0 to ast.Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
         if ast.Kind( id ) <> N_PROC then continue for
-        dim as StmtPayload ptr sp = @ast.stmts[cast( long, ast.nodes[n].data )]
+        dim as StmtPayload ptr sp = @ast.stmts[cast( int32, ast.nodes[n].data )]
         if (sp->extra and PF_OVERRIDE) = 0 then continue for
         dim as boolean found = false
-        for i as long = 0 to store.overrode.Count - 1
-            if store.overrode[i] = cast( ulong, id ) then
+        for i as int32 = 0 to store.overrode.Count - 1
+            if store.overrode[i] = cast( uint32, id ) then
                 found = true
                 exit for
             end if
         next
         if found then continue for
-        for i as long = 0 to store.patternOnly.Count - 1
-            if store.patternOnly[i] = cast( ulong, id ) then
+        for i as int32 = 0 to store.patternOnly.Count - 1
+            if store.patternOnly[i] = cast( uint32, id ) then
                 found = true
                 exit for
             end if
@@ -259,7 +259,7 @@ sub CheckOverrideCompatible _
     ( byref ast as AstArena, byref store as VTables, byref names as Interner, _
       byref diags as DiagnosticEngine )
 
-    for i as long = 0 to store.mismatches.Count - 1
+    for i as int32 = 0 to store.mismatches.Count - 1
         dim as VtMismatch ptr m = @store.mismatches[i]
         if m->decl = NODE_NONE then continue for
         '' fbc 227 IS REPORTED AGAINST A TYPE, not a procedure -- there is no
@@ -268,14 +268,14 @@ sub CheckOverrideCompatible _
         if cast( VtMismatchKind, m->kind ) = VTM_IMPL_DTOR_CC then
             if ast.Kind( m->decl ) <> N_TYPE then continue for
             dim as StmtPayload ptr tsp = _
-                @ast.stmts[cast( long, ast.nodes[cast( long, m->decl )].data )]
+                @ast.stmts[cast( int32, ast.nodes[cast( int32, m->decl )].data )]
             diags.Report( TKO0768, PointRange( ast.Loc( m->decl ) ), _
                           names.Spelling( tsp->name ) )
             continue for
         end if
         if ast.Kind( m->decl ) <> N_PROC then continue for
         dim as StmtPayload ptr sp = _
-            @ast.stmts[cast( long, ast.nodes[cast( long, m->decl )].data )]
+            @ast.stmts[cast( int32, ast.nodes[cast( int32, m->decl )].data )]
         dim as DiagId d = TKO0622
         select case cast( VtMismatchKind, m->kind )
         case VTM_CONST : d = TKO0623

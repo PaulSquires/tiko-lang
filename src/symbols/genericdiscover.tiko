@@ -25,17 +25,17 @@ sub DiscoverInstantiations_ _
 
     if HasGenericDecl_( c ) = false then return
 
-    dim as long dpend = diags.pending.Count
-    dim as long derr = diags.errors
-    dim as long dwarn = diags.warnings
-    dim as long dsupp = diags.suppressedCount
-    dim as long uwalk = c.syms->usingAt.Count
+    dim as int32 dpend = diags.pending.Count
+    dim as int32 derr = diags.errors
+    dim as int32 dwarn = diags.warnings
+    dim as int32 dsupp = diags.suppressedCount
+    dim as int32 uwalk = c.syms->usingAt.Count
     WalkStmt( c, root, Tko.SCOPE_GLOBAL )
-    dim as long uinst = c.syms->usingAt.Count
+    dim as int32 uinst = c.syms->usingAt.Count
     '' ...ALL BUT TKO0829. A field chain that is too deep is found HERE, while the outer
     '' instantiation is made; the real pass then finds it cached and never asks again.
     dim as Tko.DiagVec deep
-    for i as long = dpend to diags.pending.Count - 1
+    for i as int32 = dpend to diags.pending.Count - 1
         if diags.pending[i].id = Tko.TKO0829 then deep.Push( diags.pending[i] )
     next
     while diags.pending.Count > dpend
@@ -51,10 +51,10 @@ sub DiscoverInstantiations_ _
     c.rtlSeen.Clear( )
     c.genArgSeen.Clear( )
     DeferCrossingReset_( c )
-    for i as long = 0 to deep.Count - 1
+    for i as int32 = 0 to deep.Count - 1
         diags.pending.Push( deep[i] )
         diags.errors += 1
-        c.genArgSeen.Push( cast( ulong, deep[i].range.first ) )
+        c.genArgSeen.Push( cast( uint32, deep[i].range.first ) )
     next
     InstantiatePending_( c )
     InstantiatePendingProcs_( c )
@@ -64,7 +64,7 @@ sub DiscoverInstantiations_ _
     '' (fbc: error 42) -- but only in a unit declaring a generic. Removed AFTER the
     '' instantiation, which sees them as the real pass's own InstantiatePending_ does; the
     '' ones an instantiated body registers itself (from uinst on) stay, as it is not walked again.
-    for i as long = uinst - 1 to uwalk step -1
+    for i as int32 = uinst - 1 to uwalk step -1
         c.syms->usingAt.Remove( i )
         c.syms->usingInner.Remove( i )
     next
@@ -72,7 +72,7 @@ sub DiscoverInstantiations_ _
 end sub
 
 function HasGenericDecl_( byref c as Ctx ) as boolean
-    for i as long = 0 to c.ast->tokenRanges.Count - 3 step 3
+    for i as int32 = 0 to c.ast->tokenRanges.Count - 3 step 3
         dim as Tko.NodeId n = cast( Tko.NodeId, c.ast->tokenRanges[i] )
         if c.ast->Kind( n ) = Tko.N_TYPE then return true
         '' A GENERIC PROCEDURE counts too, and it need not be inside a generic type --

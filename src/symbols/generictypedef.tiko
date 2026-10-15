@@ -49,7 +49,7 @@ function ForwardTypedefTarget_ _
     dim as Tko.NodeId an = tsp->a
     if an = Tko.NODE_NONE then return Tko.TYPE_NONE
     if c.ast->Kind( an ) <> Tko.N_TYPEREF then return Tko.TYPE_NONE
-    dim as ushort afl = c.ast->nodes[cast( long, an )].flags
+    dim as uint16 afl = c.ast->nodes[cast( int32, an )].flags
     if (afl and (Tko.NF_PTR or Tko.NF_ARRAY or Tko.NF_PROC_TYPE)) <> 0 then
         return Tko.TYPE_NONE
     end if
@@ -68,7 +68,7 @@ function ForwardTypedefTarget_ _
         Tko.SYM_UDT, c.ast->Loc( an ), fdup )
     dim as Tko.Symbol ptr us = c.syms->SymbolAt( usid )
     if us = 0 then return Tko.TYPE_NONE
-    us->type_ = c.types->NamedType( Tko.TK_FORWARD, ap->name, cast( ulong, here ) )
+    us->type_ = c.types->NamedType( Tko.TK_FORWARD, ap->name, cast( uint32, here ) )
     return us->type_
 end function
 
@@ -108,7 +108,7 @@ end function
 '' Bounded, so 'type a as b : type b as a' stops.
 function ChaseTypedef_( byref c as Ctx, byval s as Tko.Symbol ptr ) as boolean
     if s = 0 then return false
-    if s->kind <> cast( ubyte, Tko.SYM_TYPEDEF ) then return false
+    if s->kind <> cast( uint8, Tko.SYM_TYPEDEF ) then return false
     if c.typedefChase >= 16 then return false
     dim as Tko.NodeId tdn = cast( Tko.NodeId, s->declAt )
     if tdn = Tko.NODE_NONE then return false
@@ -116,12 +116,12 @@ function ChaseTypedef_( byref c as Ctx, byval s as Tko.Symbol ptr ) as boolean
     dim as Tko.NodeId an = StmtOf( c, tdn )->a
     if an = Tko.NODE_NONE then return false
     if c.ast->Kind( an ) <> Tko.N_TYPEREF then return false
-    dim as ushort afl = c.ast->nodes[cast( long, an )].flags
+    dim as uint16 afl = c.ast->nodes[cast( int32, an )].flags
     if (afl and (Tko.NF_PTR or Tko.NF_ARRAY or Tko.NF_PROC_TYPE)) <> 0 then return false
     if StmtOf( c, an )->count <> 0 then return false
     dim as Tko.ScopeId here = cast( Tko.ScopeId, s->parent )
-    c.typedefNode.Push( cast( ulong, tdn ) )
-    c.typedefScope.Push( cast( ulong, here ) )
+    c.typedefNode.Push( cast( uint32, tdn ) )
+    c.typedefScope.Push( cast( uint32, here ) )
     c.typedefChase += 1
     dim as Tko.TypeId t = ResolveTypeRef( c, an, here )
     c.typedefChase -= 1
@@ -132,9 +132,9 @@ function ChaseTypedef_( byref c as Ctx, byval s as Tko.Symbol ptr ) as boolean
 end function
 
 sub BackpatchTypedefs( byref c as Ctx )
-    for r as long = 1 to c.typedefNode.Count
+    for r as int32 = 1 to c.typedefNode.Count
         dim as boolean progress = false
-        for i as long = 0 to c.typedefNode.Count - 1
+        for i as int32 = 0 to c.typedefNode.Count - 1
             dim as Tko.NodeId id = cast( Tko.NodeId, c.typedefNode[i] )
             dim as Tko.ScopeId here = cast( Tko.ScopeId, c.typedefScope[i] )
             dim as Tko.StmtPayload ptr tsp = StmtOf( c, id )
@@ -142,7 +142,7 @@ sub BackpatchTypedefs( byref c as Ctx )
             dim as Tko.Symbol ptr ts = _
                 c.syms->SymbolAt( c.syms->LookupLocalTyped( here, tsp->name, true ) )
             if ts = 0 then continue for
-            if ts->kind <> cast( ubyte, Tko.SYM_TYPEDEF ) then continue for
+            if ts->kind <> cast( uint8, Tko.SYM_TYPEDEF ) then continue for
             dim as Tko.TypeId al = ResolveTypeRef( c, tsp->a, here )
             if (al = Tko.TYPE_NONE) orelse (al = ts->type_) then continue for
             ts->type_ = al
@@ -153,11 +153,11 @@ sub BackpatchTypedefs( byref c as Ctx )
 
 
     '' PARAMETERS AND RESULTS, revisited the same way. See BindParamType_.
-    for i as long = 0 to c.pendParam.Count - 1
+    for i as int32 = 0 to c.pendParam.Count - 1
         BindParamType_( c, cast( Tko.NodeId, c.pendParam[i] ), _
                         cast( Tko.ScopeId, c.pendParamScope[i] ) )
     next
-    for i as long = 0 to c.pendResultProc.Count - 1
+    for i as int32 = 0 to c.pendResultProc.Count - 1
         dim as Tko.NodeId pn2 = cast( Tko.NodeId, c.pendResultProc[i] )
         dim as Tko.StmtPayload ptr psp = StmtOf( c, pn2 )
         dim as Tko.TypeId rt3 = _
@@ -168,7 +168,7 @@ sub BackpatchTypedefs( byref c as Ctx )
         if rs2->type_ = Tko.TYPE_NONE then rs2->type_ = rt3
     next
 
-    for i as long = 0 to c.pendingItem.Count - 1
+    for i as int32 = 0 to c.pendingItem.Count - 1
         dim as Tko.NodeId item = cast( Tko.NodeId, c.pendingItem[i] )
         dim as Tko.ScopeId here = cast( Tko.ScopeId, c.pendingScope[i] )
         dim as Tko.StmtPayload ptr ip = StmtOf( c, item )
@@ -185,7 +185,7 @@ sub BackpatchTypedefs( byref c as Ctx )
     '' WPARAM and LPARAM are exactly that order, under REBARBANDINFOW. A synthesised
     '' 'base' field is not revisited: its lookup starts one scope out on purpose.
     dim as Tko.InternId baseNm = c.names->Fold( c.names->GetString( "base" ) )
-    for i as long = 0 to c.pendField.Count - 1
+    for i as int32 = 0 to c.pendField.Count - 1
         dim as Tko.NodeId fid = cast( Tko.NodeId, c.pendField[i] )
         dim as Tko.ScopeId fhere = cast( Tko.ScopeId, c.pendFieldScope[i] )
         dim as Tko.StmtPayload ptr fsp = StmtOf( c, fid )
@@ -202,7 +202,7 @@ sub BackpatchTypedefs( byref c as Ctx )
     '' 'type R as B' before 'type B as longint', then
     '' 'type F as function( ) as R', and a call through an F returns the value; tiko
     '' emitted 'call.ind void' and the assignment vanished with it.
-    for i as long = 0 to c.pendProcType.Count - 1
+    for i as int32 = 0 to c.pendProcType.Count - 1
         dim as Tko.NodeId ptn = cast( Tko.NodeId, c.pendProcType[i] )
         dim as Tko.StmtPayload ptr psp2 = StmtOf( c, ptn )
         dim as Tko.TypeId rt4 = _
@@ -229,17 +229,17 @@ sub BackpatchTypedefs( byref c as Ctx )
     ''
     '' THE ELLIPSIS IS SKIPPED EXACTLY AS THE BUILDER SKIPS IT, or every parameter
     '' after it would be mended one slot to the left.
-    for i as long = 0 to c.pendProcType.Count - 1
+    for i as int32 = 0 to c.pendProcType.Count - 1
         dim as Tko.TypeId pty = cast( Tko.TypeId, c.pendProcTypeId[i] )
         if c.types->Kind( pty ) <> Tko.TK_PROC then continue for
         dim as Tko.NodeId ptn3 = cast( Tko.NodeId, c.pendProcType[i] )
         dim as Tko.ScopeId psc = cast( Tko.ScopeId, c.pendProcTypeScope[i] )
         dim as Tko.StmtPayload ptr psp3 = StmtOf( c, ptn3 )
-        dim as long slot = 0
-        for k as long = 0 to psp3->count - 1
+        dim as int32 slot = 0
+        for k as int32 = 0 to psp3->count - 1
             dim as Tko.NodeId prm3 = cast( Tko.NodeId, c.ast->children[psp3->first + k] )
             if c.ast->Kind( prm3 ) <> Tko.N_PARAM then continue for
-            if StmtOf( c, prm3 )->op = cast( ushort, Tko.TK_ELLIPSIS ) then continue for
+            if StmtOf( c, prm3 )->op = cast( uint16, Tko.TK_ELLIPSIS ) then continue for
             if slot >= c.types->ProcParamCount( pty ) then exit for
             if c.types->ProcParam( pty, slot ) = Tko.TYPE_NONE then
                 c.types->SetProcParam( pty, slot, _
@@ -253,7 +253,7 @@ sub BackpatchTypedefs( byref c as Ctx )
     '' type on the node when it succeeds, which is all Check reads. Measured on fbc:
     '' 'type LP as LPTR' before 'type LPTR as longint', then 'f( cast( LP, p ) )',
     '' prints the right value; tiko typed the call as nothing and emitted a void call.
-    for i as long = 0 to c.pendExprType.Count - 1
+    for i as int32 = 0 to c.pendExprType.Count - 1
         ResolveTypeRef( c, cast( Tko.NodeId, c.pendExprType[i] ), _
                         cast( Tko.ScopeId, c.pendExprTypeScope[i] ) )
     next
@@ -261,8 +261,8 @@ end sub
 
 sub PendExprTypeRef_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
-    c.pendExprType.Push( cast( ulong, id ) )
-    c.pendExprTypeScope.Push( cast( ulong, scope_ ) )
+    c.pendExprType.Push( cast( uint32, id ) )
+    c.pendExprTypeScope.Push( cast( uint32, scope_ ) )
 end sub
 
 '' N_VAR_ITEM: an N_BLOCK of N_CASE_RANGE, one per dimension.
@@ -274,22 +274,22 @@ function ArrayFromBoundsNode _
     if id = Tko.NODE_NONE then return base_
     if c.ast->Kind( id ) <> Tko.N_BLOCK then return base_
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-    dim as containers.Array( of ulong ) los, his
-    for i as long = 0 to lp->count - 1
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as containers.Array( of uint32 ) los, his
+    for i as int32 = 0 to lp->count - 1
         dim as Tko.NodeId d = cast( Tko.NodeId, c.ast->children[lp->first + i] )
         if c.ast->Kind( d ) = Tko.N_CASE_RANGE then
             '' 'a(0 to 9)' -- both bounds written out.
             dim as Tko.StmtPayload ptr dp = StmtOf( c, d )
-            los.Push( cast( ulong, dp->a ) )
-            his.Push( cast( ulong, dp->b ) )
+            los.Push( cast( uint32, dp->a ) )
+            his.Push( cast( uint32, dp->b ) )
         else
             '' 'a(9)' -- a bare expression, which is the UPPER bound with an implicit
             '' lower bound of 0. It is not an N_CASE_RANGE at all, so a loop that only
             '' accepts one silently gives the array no dimensions and drops it back to
             '' its element type.
-            los.Push( cast( ulong, Tko.NODE_NONE ) )
-            his.Push( cast( ulong, d ) )
+            los.Push( cast( uint32, Tko.NODE_NONE ) )
+            his.Push( cast( uint32, d ) )
         end if
     next
     return ArrayFromPairs( c, base_, los, his, init, true, scope_ )
@@ -315,7 +315,7 @@ end function
 '' and answered nothing. The array then had no constant size and became DYNAMIC.
 private sub ResolveBoundTypeRefs_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId, _
-      byval depth as long = 0 )
+      byval depth as int32 = 0 )
 
     if id = Tko.NODE_NONE then return
     if depth > 16 then return
@@ -329,17 +329,17 @@ private sub ResolveBoundTypeRefs_ _
     select case k
     case Tko.N_BINARY
         dim as Tko.BinaryPayload ptr bp = _
-            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         ResolveBoundTypeRefs_( c, bp->lhs, scope_, depth + 1 )
         ResolveBoundTypeRefs_( c, bp->rhs, scope_, depth + 1 )
     case Tko.N_UNARY
         dim as Tko.UnaryPayload ptr up = _
-            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         ResolveBoundTypeRefs_( c, up->operand, scope_, depth + 1 )
     case Tko.N_CALL, Tko.N_PAREN, Tko.N_INDEX, Tko.N_TUPLE
         dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-        for i as long = 0 to lp->count - 1
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        for i as int32 = 0 to lp->count - 1
             ResolveBoundTypeRefs_( c, cast( Tko.NodeId, c.ast->children[lp->first + i] ), _
                                    scope_, depth + 1 )
         next
@@ -348,7 +348,7 @@ end sub
 
 function ArrayFromPairs _
     ( byref c as Ctx, byval base_ as Tko.TypeId, _
-      byref los as containers.Array( of ulong ), byref his as containers.Array( of ulong ), _
+      byref los as containers.Array( of uint32 ), byref his as containers.Array( of uint32 ), _
       byval init as Tko.NodeId = Tko.NODE_NONE, _
       byval emptyIsDynamic as boolean = false, _
       byval scope_ as Tko.ScopeId = Tko.SCOPE_NONE ) as Tko.TypeId
@@ -376,11 +376,11 @@ function ArrayFromPairs _
     '' 2147483648 elements, which overflowed a LONG to a negative -- and the
     '' 'total <= 0' test below then turned the whole declaration into a DYNAMIC
     '' array, silently. fbc says error 50, 'Array too big'.
-    dim as longint total = 1
+    dim as int64 total = 1
     dim as boolean known = true, badOrder = false
-    dim as containers.Array( of longint ) bounds
-    for i as long = 0 to los.Count - 1
-        dim as longint lo = 0
+    dim as containers.Array( of int64 ) bounds
+    for i as int32 = 0 to los.Count - 1
+        dim as int64 lo = 0
         dim as Tko.NodeId loN = cast( Tko.NodeId, los[i] )
         ResolveBoundTypeRefs_( c, loN, cscope )
         ResolveBoundTypeRefs_( c, cast( Tko.NodeId, his[i] ), cscope )
@@ -391,11 +391,11 @@ function ArrayFromPairs _
                                    c.types, c.info )
             if lv.known then lo = lv.value else known = false
         end if
-        dim as longint hi = lo - 1
+        dim as int64 hi = lo - 1
         dim as Tko.NodeId hiN = cast( Tko.NodeId, his[i] )
         if (hiN <> Tko.NODE_NONE) andalso (c.ast->Kind( hiN ) = Tko.N_ELLIPSIS) then
             '' The bound the initializer implies: lbound + count - 1, per dimension.
-            dim as long got = InitCountAt( c, init, i )
+            dim as int32 got = InitCountAt( c, init, i )
             if got > 0 then hi = lo + got - 1 else known = false
         elseif hiN <> Tko.NODE_NONE then
             '' 'types' AND 'info' ARE FOR 'sizeof( T )'. The corpus writes an array at
@@ -435,7 +435,7 @@ function ArrayFromPairs _
     if total > 2147483647 then
         return c.types->ArrayOf( base_, los.Count, 1, @bounds )
     end if
-    return c.types->ArrayOf( base_, los.Count, cast( long, total ), @bounds )
+    return c.types->ArrayOf( base_, los.Count, cast( int32, total ), @bounds )
 end function
 
 

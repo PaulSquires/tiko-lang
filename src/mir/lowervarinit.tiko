@@ -11,7 +11,7 @@ declare sub LowerCollInit_( byref c as Ctx, byval id as Tko.NodeId, byval item a
 
 sub LowerVarDecl_( byref c as Ctx, byval id as Tko.NodeId )
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-    if sp->op = cast( ushort, Tko.KW_REDIM ) then
+    if sp->op = cast( uint16, Tko.KW_REDIM ) then
         if LowerRedim( c, id, sp ) = false then SkipHere( c )
         return
     end if
@@ -29,12 +29,12 @@ sub LowerVarDecl_( byref c as Ctx, byval id as Tko.NodeId )
     '' silently ALIASED NOTHING -- 'rb = 5' then 'print a' gives 5 under fbc and
     '' would have given 1 here.
     dim as boolean isByrefLocal = _
-        ((c.ast->nodes[cast( long, id )].flags and Tko.NF_BYREF) <> 0)
+        ((c.ast->nodes[cast( int32, id )].flags and Tko.NF_BYREF) <> 0)
     '' EACH DECLARATOR IS A STATEMENT OF ITS OWN for its temporaries. Measured, fbc's
     '' 'dim as long x1 = takeR( mkH( 6 ) ), y1 = cnt( )' has destroyed the first
     '' declarator's temporary before the second one's initialiser runs.
-    dim as long vmark = c.udtTemps.Count
-    for i as long = 0 to sp->count - 1
+    dim as int32 vmark = c.udtTemps.Count
+    for i as int32 = 0 to sp->count - 1
         ReleaseUdtTemps_( c, vmark )
         dim as Tko.NodeId item = cast( Tko.NodeId, c.ast->children[sp->first + i] )
         LowerVarItem_( c, id, item, isByrefLocal )
@@ -55,16 +55,16 @@ sub LowerVarItem_ _
     dim as Tko.StmtPayload ipNoInit
     if (ip->b <> Tko.NODE_NONE) andalso (c.ast->Kind( ip->b ) = Tko.N_IDENT) then
         dim as Tko.Symbol ptr tns = c.syms->SymbolAt( c.info->RefOf( ip->b ) )
-        if (tns <> 0) andalso (tns->kind = cast( ubyte, Tko.SYM_UDT )) then ipNoInit = *ip : ipNoInit.b = Tko.NODE_NONE : ip = @ipNoInit
+        if (tns <> 0) andalso (tns->kind = cast( uint8, Tko.SYM_UDT )) then ipNoInit = *ip : ipNoInit.b = Tko.NODE_NONE : ip = @ipNoInit
     end if
     '' The VARIABLE, not a type name that happens to share the spelling.
     dim as Tko.SymbolId sid = Tko.SYMBOL_NONE
-    if (c.ast->nodes[cast( long, item )].flags and Tko.NF_QUALIFIED) = 0 then
+    if (c.ast->nodes[cast( int32, item )].flags and Tko.NF_QUALIFIED) = 0 then
         sid = c.syms->LookupLocalTyped( c.info->ScopeOf( id ), ip->name, false )
     end if
     '' 'dim shared T.x as integer = 2' DEFINES a static member, looked up
     '' through its OWNER. See StaticMemberSym_.
-    if (c.ast->nodes[cast( long, item )].flags and Tko.NF_QUALIFIED) <> 0 then
+    if (c.ast->nodes[cast( int32, item )].flags and Tko.NF_QUALIFIED) <> 0 then
         sid = StaticMemberSym_( c, id, item )
     end if
     if sid = Tko.SYMBOL_NONE then
@@ -113,7 +113,7 @@ sub LowerVarItem_ _
         return
     end if
 
-    dim as long slot = LocalFor( c, sid )
+    dim as int32 slot = LocalFor( c, sid )
 
     '' THE ALIAS ITSELF: store the referent's ADDRESS in the slot and stop. No
     '' construction, no cleanup and no initialiser store -- the alias owns
@@ -134,7 +134,7 @@ sub LowerVarItem_ _
     dim as Tko.Symbol ptr vs = c.syms->SymbolAt( sid )
     dim as boolean constructed = false
     dim as boolean strInited = false
-    dim as long elemsListed = 0       '' elements a brace list builds -- see below
+    dim as int32 elemsListed = 0       '' elements a brace list builds -- see below
 
     '' EVERY LOCAL WITH NO INITIALISER IS ZEROED, and none of them were.
     ''
@@ -186,18 +186,18 @@ sub LowerVarItem_ _
     if zWant then zWant = (ip->b = Tko.NODE_NONE)
     if zWant then zWant = (zSkip = false)
     if zWant then
-        dim as long zsz = SizeOfType( c, vs->type_ )
+        dim as int32 zsz = SizeOfType( c, vs->type_ )
         if zsz > 0 then
             dim as MirValue zva
-            zva.kind = cast( ubyte, MV_LOCAL )
-            zva.ty = cast( ubyte, MT_PTR )
+            zva.kind = cast( uint8, MV_LOCAL )
+            zva.ty = cast( uint8, MT_PTR )
             zva.id = slot
-            dim as containers.Array( of ulong ) zargs
-            zargs.Push( cast( ulong, zva.kind ) )
-            zargs.Push( cast( ulong, zva.id ) )
-            zargs.Push( cast( ulong, MV_CONST_INT ) ) : zargs.Push( 0 )
-            zargs.Push( cast( ulong, MV_CONST_INT ) )
-            zargs.Push( cast( ulong, zsz ) )
+            dim as containers.Array( of uint32 ) zargs
+            zargs.Push( cast( uint32, zva.kind ) )
+            zargs.Push( cast( uint32, zva.id ) )
+            zargs.Push( cast( uint32, MV_CONST_INT ) ) : zargs.Push( 0 )
+            zargs.Push( cast( uint32, MV_CONST_INT ) )
+            zargs.Push( cast( uint32, zsz ) )
             EmitRtl( c, RTL_MEMSET, zargs )
         end if
     end if
@@ -210,8 +210,8 @@ sub LowerVarItem_ _
     if (slot >= 0) andalso (vs <> 0) then
         if c.types->IsDynArray( vs->type_ ) then
             dim as MirValue dd
-            dd.kind = cast( ubyte, MV_LOCAL )
-            dd.ty = cast( ubyte, MT_PTR )
+            dd.kind = cast( uint8, MV_LOCAL )
+            dd.ty = cast( uint8, MT_PTR )
             dd.id = slot
             InitDynArrayDesc( c, dd, vs->type_ )
             c.cleanupNode.Push( CLEANUP_ERASE_ARRAY )
@@ -250,19 +250,19 @@ sub LowerVarItem_ _
     if (slot >= 0) andalso (vs <> 0) then
         if IsFixedStrArray_( c, vs->type_ ) then
             dim as MirValue za
-            za.kind = cast( ubyte, MV_LOCAL )
-            za.ty = cast( ubyte, MT_PTR )
+            za.kind = cast( uint8, MV_LOCAL )
+            za.ty = cast( uint8, MT_PTR )
             za.id = slot
-            dim as containers.Array( of ulong ) zma
-            zma.Push( cast( ulong, za.kind ) )
-            zma.Push( cast( ulong, za.id ) )
-            zma.Push( cast( ulong, MV_CONST_INT ) ) : zma.Push( 0 )
-            zma.Push( cast( ulong, MV_CONST_INT ) )
-            zma.Push( cast( ulong, SizeOfType( c, vs->type_ ) ) )
+            dim as containers.Array( of uint32 ) zma
+            zma.Push( cast( uint32, za.kind ) )
+            zma.Push( cast( uint32, za.id ) )
+            zma.Push( cast( uint32, MV_CONST_INT ) ) : zma.Push( 0 )
+            zma.Push( cast( uint32, MV_CONST_INT ) )
+            zma.Push( cast( uint32, SizeOfType( c, vs->type_ ) ) )
             EmitRtl( c, RTL_MEMSET, zma )
             c.cleanupNode.Push( CLEANUP_DESTRUCT_STR_ARRAY )
             c.cleanupSlot.Push( slot )
-            c.cleanupType.Push( cast( ulong, vs->type_ ) )
+            c.cleanupType.Push( cast( uint32, vs->type_ ) )
         end if
     end if
 
@@ -289,7 +289,7 @@ sub LowerVarItem_ _
         if ip->b <> Tko.NODE_NONE then
             if c.ast->Kind( ip->b ) = Tko.N_TUPLE then
                 initIsLiteral = _
-                    ((c.ast->nodes[cast( long, ip->b )].flags and _
+                    ((c.ast->nodes[cast( int32, ip->b )].flags and _
                       Tko.NF_TYPE_LITERAL) <> 0)
             elseif c.ast->Kind( ip->b ) = Tko.N_CALL then
                 initIsLiteral = _
@@ -368,12 +368,12 @@ sub LowerVarItem_ _
                     constructed = true
                 elseif (ucp <> Tko.SYMBOL_NONE) orelse wantImplCopy then
                     dim as MirValue dsa
-                    dsa.kind = cast( ubyte, MV_LOCAL )
-                    dsa.ty = cast( ubyte, MT_PTR )
+                    dsa.kind = cast( uint8, MV_LOCAL )
+                    dsa.ty = cast( uint8, MT_PTR )
                     dsa.id = slot
                     '' WHAT THE INITIALISER REGISTERS FOR DESTRUCTION has to
                     '' be known before it is lowered -- see DropMovedTemp_.
-                    dim as long cmark = c.udtTemps.Count
+                    dim as int32 cmark = c.udtTemps.Count
                     dim as MirValue ssa = InitSourceAddr_( c, ip->b )
                     '' A CALL'S HIDDEN-POINTER TEMPORARY IS MOVED, NOT
                     '' COPIED. 'dim as C r = f( )' built the result in a
@@ -399,30 +399,30 @@ sub LowerVarItem_ _
                     if (c.ast->Kind( ip->b ) = Tko.N_CALL) andalso _
                        ((ucp = Tko.SYMBOL_NONE) orelse (ucp = CopyCtorOf_( c, dvt ))) andalso _
                        (ivt = vst) andalso _
-                       (ssa.kind = cast( ubyte, MV_LOCAL )) then
-                        for k as long = cmark to c.udtTemps.Count - 1
-                            if cast( long, c.udtTemps[k] ) = ssa.id then
+                       (ssa.kind = cast( uint8, MV_LOCAL )) then
+                        for k as int32 = cmark to c.udtTemps.Count - 1
+                            if cast( int32, c.udtTemps[k] ) = ssa.id then
                                 movedRes = true
                                 exit for
                             end if
                         next
                     end if
                     if movedRes then
-                        dim as long msz = SizeOfType( c, dvt )
+                        dim as int32 msz = SizeOfType( c, dvt )
                         dim as MirValue mv
                         if msz > 0 then mv = LowerExprLoad( c, ssa, MT_AGG, msz )
-                        if mv.kind <> cast( ubyte, MV_NONE ) then
+                        if mv.kind <> cast( uint8, MV_NONE ) then
                             StoreThrough( c, dsa, mv )
                             ForgetUdtTemp_( c, ssa.id )
                             constructed = true
                         end if
                     end if
                     if (movedRes = false) andalso _
-                       (ssa.kind <> cast( ubyte, MV_NONE )) then
+                       (ssa.kind <> cast( uint8, MV_NONE )) then
                         if ucp <> Tko.SYMBOL_NONE then
-                            dim as containers.Array( of ulong ) cargs
-                            cargs.Push( cast( ulong, ssa.kind ) )
-                            cargs.Push( cast( ulong, ssa.id ) )
+                            dim as containers.Array( of uint32 ) cargs
+                            cargs.Push( cast( uint32, ssa.kind ) )
+                            cargs.Push( cast( uint32, ssa.id ) )
                             EmitStructorCall( c, ucp, slot, 0, @cargs )
                         else
                             CallImplicitCopy_( c, dvt, dsa, ssa )
@@ -441,8 +441,8 @@ sub LowerVarItem_ _
         if constructed = false then
             if c.ast->Kind( ip->b ) = Tko.N_CLOSURE then
                 dim as MirValue clo
-                clo.kind = cast( ubyte, MV_LOCAL )
-                clo.ty = cast( ubyte, MT_PTR )
+                clo.kind = cast( uint8, MV_LOCAL )
+                clo.ty = cast( uint8, MT_PTR )
                 clo.id = slot
                 dim as MirValue cout
                 if LowerClosureAddr_( c, ip->b, cout, @clo ) then
@@ -484,8 +484,8 @@ sub LowerVarItem_ _
         '' exactly those cases; this calls the one tiko-lang synthesises.
         if (ctor = Tko.SYMBOL_NONE) andalso (constructed = false) then
             dim as MirValue va
-            va.kind = cast( ubyte, MV_LOCAL )
-            va.ty = cast( ubyte, MT_PTR )
+            va.kind = cast( uint8, MV_LOCAL )
+            va.ty = cast( uint8, MT_PTR )
             va.id = slot
             '' A UDT ONLY. A bare 'dim as string s' and a bare dynamic
             '' array have their own initialisation at this site already, and
@@ -516,7 +516,7 @@ sub LowerVarItem_ _
         dim as Tko.SymbolId dtor = StructorWithArity( c, _
             StructorOf( c, vs->type_, "__dtor" ), 0 )
         if dtor <> Tko.SYMBOL_NONE then
-            c.cleanupNode.Push( cast( ulong, dtor ) )
+            c.cleanupNode.Push( cast( uint32, dtor ) )
             c.cleanupSlot.Push( slot )
             c.cleanupType.Push( 0 )
         elseif ArrayElemNeedsDtor_( c, vs->type_ ) then
@@ -524,7 +524,7 @@ sub LowerVarItem_ _
             '' which is what 'delete[]' was measured doing.
             c.cleanupNode.Push( CLEANUP_DESTROY_ARRAY )
             c.cleanupSlot.Push( slot )
-            c.cleanupType.Push( cast( ulong, vs->type_ ) )
+            c.cleanupType.Push( cast( uint32, vs->type_ ) )
         elseif (c.types->Kind( vs->type_ ) = Tko.TK_UDT) andalso _
                TypeNeedsDtor_( c, vs->type_ ) then
             '' ...and the destructor fbc synthesises, for the same reasons.
@@ -532,7 +532,7 @@ sub LowerVarItem_ _
             '' scope exit, silently.
             c.cleanupNode.Push( CLEANUP_IMPLICIT_DTOR )
             c.cleanupSlot.Push( slot )
-            c.cleanupType.Push( cast( ulong, vs->type_ ) )
+            c.cleanupType.Push( cast( uint32, vs->type_ ) )
         end if
         if IsStringType( c, vs->type_ ) then
             '' Order matters: the descriptor is made valid BEFORE its release
@@ -553,21 +553,21 @@ sub LowerVarItem_ _
         '' '__builtin_memset( (uint8*)A$1, 32, 32ll )' -- and the one thing here
         '' that a zstring's zero-fill would get wrong rather than merely leave
         '' untidy. Emitted before any initialiser, which then overwrites it.
-        dim as longint fsn3
+        dim as int64 fsn3
         '' ...AND SO IS AN ARRAY OF THEM: 'dim as string * 1 s1( 0 to 1 )' is 'memset( S1$1, 32, 2 )'
         '' (string/string-fixed-array.bas); tiko zero-filled it.
         dim as boolean fsArr = (c.types->Kind( vs->type_ ) = Tko.TK_ARRAY) andalso (c.types->IsDynArray( vs->type_ ) = false)
         if fsArr then fsArr = (StrSwapKind_( c, c.types->Inner( vs->type_ ), fsn3 ) = 3) andalso (ip->b = Tko.NODE_NONE)   '' a list: fb_StrInit per element
         if fsArr orelse (StrSwapKind_( c, vs->type_, fsn3 ) = 3) then
             dim as MirValue fsa
-            fsa.kind = cast( ubyte, MV_LOCAL )
-            fsa.ty = cast( ubyte, MT_PTR )
+            fsa.kind = cast( uint8, MV_LOCAL )
+            fsa.ty = cast( uint8, MT_PTR )
             fsa.id = slot
-            dim as containers.Array( of ulong ) fma
-            fma.Push( cast( ulong, fsa.kind ) ) : fma.Push( cast( ulong, fsa.id ) )
-            fma.Push( cast( ulong, MV_CONST_INT ) ) : fma.Push( 32 )
-            fma.Push( cast( ulong, MV_CONST_INT ) )
-            fma.Push( cast( ulong, iif( fsArr, SizeOfType( c, vs->type_ ), c.types->ElemCount( vs->type_ ) ) ) )
+            dim as containers.Array( of uint32 ) fma
+            fma.Push( cast( uint32, fsa.kind ) ) : fma.Push( cast( uint32, fsa.id ) )
+            fma.Push( cast( uint32, MV_CONST_INT ) ) : fma.Push( 32 )
+            fma.Push( cast( uint32, MV_CONST_INT ) )
+            fma.Push( cast( uint32, iif( fsArr, SizeOfType( c, vs->type_ ), c.types->ElemCount( vs->type_ ) ) ) )
             EmitRtl( c, RTL_MEMSET, fma )
         end if
     end if
@@ -606,12 +606,12 @@ sub LowerVarItem_ _
     '' A FIXED-LENGTH NARROW string initialiser is a runtime call too, and its
     '' length arguments are its own element count rather than -1.
     if needsStore andalso (slot >= 0) then
-        dim as longint zn2
-        dim as long zk2 = StrSwapKind_( c, c.syms->SymbolAt( sid )->type_, zn2 )
+        dim as int64 zn2
+        dim as int32 zk2 = StrSwapKind_( c, c.syms->SymbolAt( sid )->type_, zn2 )
         if (zk2 = 1) orelse (zk2 = 3) orelse (zk2 = 4) then
             dim as MirValue zdst
-            zdst.kind = cast( ubyte, MV_LOCAL )
-            zdst.ty = cast( ubyte, MT_PTR )
+            zdst.kind = cast( uint8, MV_LOCAL )
+            zdst.ty = cast( uint8, MT_PTR )
             zdst.id = slot
             '' A WIDE SOURCE FIRST. 'dim s1 as zstring * 10 = wchr( 65 )' is
             '' 'fb_WstrAssignToA_Init( S1, 10, L"A", 0 )' -- the code folded
@@ -631,11 +631,11 @@ sub LowerVarItem_ _
     end if
 
     if needsStore andalso (slot >= 0) then
-        dim as long wn = _
+        dim as int32 wn = _
             WideStringElems( c, c.syms->SymbolAt( sid )->type_ )
         if wn > 0 then
             dim as MirValue wdst
-            wdst.kind = cast( ubyte, MV_LOCAL )
+            wdst.kind = cast( uint8, MV_LOCAL )
             wdst.id = slot
             if LowerWideAssignTo( c, wdst, wn, ip->b ) then needsStore = false
         end if
@@ -661,7 +661,7 @@ sub LowerVarItem_ _
         if initE = Tko.NODE_NONE then initE = ip->b
         '' See DropMovedTemp_: what this expression registers for destruction
         '' has to be known before it is lowered.
-        dim as long tmark = c.udtTemps.Count
+        dim as int32 tmark = c.udtTemps.Count
         '' ...AND A UDT INITIALISER FOR ANOTHER UDT IS ONE TOO -- UdtCastValue_.
         if UserConvToScalar_( c, initE, dstT, val ) = false then
          if UdtCastValue_( c, initE, dstT, val ) = false then
@@ -685,20 +685,20 @@ sub LowerVarItem_ _
         '' 20 )' allocated r, stored nothing, and printed whatever the stack
         '' held -- with "0 statements not lowered" beside it. Every other
         '' decline in this file is counted; this one was not.
-        if val.kind = cast( ubyte, MV_NONE ) then SkipHere( c )
-        if val.kind <> cast( ubyte, MV_NONE ) then
+        if val.kind = cast( uint8, MV_NONE ) then SkipHere( c )
+        if val.kind <> cast( uint8, MV_NONE ) then
             '' dstT is the DECLARED type, already in hand -- and CoerceTy needs
             '' it: 'dim as boolean b = i' is a comparison and 'dim as byte b = t'
             '' a negate, and both are MT_I8 to the slot.
             val = CoerceTy( c, val, cast( MirType, c.f->locals[slot].ty ), _
                             c.info->TypeOf_( initE ), dstT )
             dim as MirValue addr
-            addr.kind = cast( ubyte, MV_LOCAL )
-            addr.ty = cast( ubyte, MT_PTR )
+            addr.kind = cast( uint8, MV_LOCAL )
+            addr.ty = cast( uint8, MT_PTR )
             addr.id = slot
             dim as MirInst ins
-            ins.op = cast( ushort, M_STORE )
-            ins.ty = cast( ubyte, MT_VOID )
+            ins.op = cast( uint16, M_STORE )
+            ins.ty = cast( uint8, MT_VOID )
             ins.a = addr
             ins.b = val
             Emit( c, ins )
@@ -728,12 +728,12 @@ sub LowerCollInitCalls_( byref c as Ctx, byval item as Tko.NodeId )
     dim as Tko.NodeId blk = Tko.CollInitOf( *c.ast, item )
     if blk = Tko.NODE_NONE then return
     dim as Tko.ListPayload ptr bl = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, blk )].data )]
-    dim as long first_ = bl->first
-    dim as long count_ = bl->count
-    dim as ulong savedPos = c.syms->usePos
-    c.syms->usePos = cast( ulong, item )
-    for k as long = 0 to count_ - 1
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, blk )].data )]
+    dim as int32 first_ = bl->first
+    dim as int32 count_ = bl->count
+    dim as uint32 savedPos = c.syms->usePos
+    c.syms->usePos = cast( uint32, item )
+    for k as int32 = 0 to count_ - 1
         LowerStmtAt_( c, cast( Tko.NodeId, c.ast->children[first_ + k] ) )
     next
     c.syms->usePos = savedPos

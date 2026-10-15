@@ -99,11 +99,11 @@ type TestCase
     as string dir_            '' its directory
     as string kind
     as string args
-    as long   expectExit
+    as int32   expectExit
     as boolean haveExpectExit
     as string golden          '' relative to dir_, or "" for none
     as containers.Array( of string ) targets   '' from <dir>TARGETS, else just win64
-    as long   maxDiag
+    as int32   maxDiag
     as boolean haveMaxDiag
     as Array( of string ) expectOut
     '' EXPECT-OUT-SEQ: substrings that must appear IN THIS ORDER, each after the previous
@@ -126,7 +126,7 @@ type TestCase
     '' above asserts what the COMPILER did; nothing asserted what the program did, so
     '' "links and prints a then b" was checked by hand and recorded in commit messages.
     as string runExe
-    as long   runExit       '' EXPECT-RUN-EXIT; 0 when not given
+    as int32   runExit       '' EXPECT-RUN-EXIT; 0 when not given
     as Array( of string ) expectRunOut
     '' 'RUN-LANE: no' -- left out of the --run-args lane, for a program whose output
     '' legitimately depends on the flags (__FB_OPTIMIZE__, undefined behaviour).
@@ -144,7 +144,7 @@ type Options
     as boolean verbose
     '' HOW MANY TESTS RUN AT ONCE. 0 means one per processor; 1 is serial, which is
     '' what --accept forces and what -j 1 asks for when a failure needs isolating.
-    as long jobs
+    as int32 jobs
     '' THE RUN LANE: '--run-args "-O2"' runs ONLY the tests that RUN what they build, with
     '' these flags added to the compile, and checks what the program did -- not the
     '' goldens, which are the IR at the flags the test names. Every RUN test at -O2 is
@@ -163,8 +163,8 @@ end function
 '' one line. Any other backslash is kept as it is: a Windows path needs no escaping.
 function Unescape_( byval s as string ) as string
     dim as string outp = ""
-    dim as long i = 0
-    dim as long n = len( s )
+    dim as int32 i = 0
+    dim as int32 n = len( s )
     while i < n
         dim as boolean esc = (s[i] = 92) andalso (i + 1 < n)
         if esc then
@@ -209,10 +209,10 @@ end sub
 '' half the whole suite.
 function NormalizeEol( byval s as string ) as string
     if instr( s, chr( 13 ) ) = 0 then return s
-    dim as long n = len( s )
+    dim as int32 n = len( s )
     dim as string outp = space( n )
-    dim as long w = 0
-    for i as long = 0 to n - 1
+    dim as int32 w = 0
+    for i as int32 = 0 to n - 1
         if s[i] <> 13 then outp[w] = s[i] : w += 1
     next
     return left( outp, w )
@@ -237,17 +237,17 @@ end function
 '' WRITTEN IN PLACE, NOT APPENDED, as NormalizeEol is: it runs on both sides of every golden.
 function NormalizeSkipSites( byval s as string ) as string
     if (instr( s, ".bas:" ) = 0) andalso (instr( s, ".tiko:" ) = 0) andalso (instr( s, "skip-site " ) = 0) then return s
-    dim as long n = len( s )
+    dim as int32 n = len( s )
     '' '.bas:' and one digit is 6 bytes and becomes 9, '.tiko:' and one is 7 and becomes 10,
     '' so the text grows by at most half.
     dim as string outp = space( n + n \ 2 + 16 )
-    dim as long w = 0
-    dim as long i = 0
+    dim as int32 w = 0
+    dim as int32 i = 0
     while i < n
         '' '.bas:' or '.tiko:' followed by digits is the only shape this touches: the
         '' compiler's own sources are .tiko since the rename, a test's own file is .bas.
         if (i + 4 < n) andalso (s[i] = 46) then            '' '.'
-            dim as long el = 0                              '' 'bas:' or 'tiko:', with the colon
+            dim as int32 el = 0                              '' 'bas:' or 'tiko:', with the colon
             if (s[i + 1] = 98) andalso (s[i + 2] = 97) andalso (s[i + 3] = 115) andalso (s[i + 4] = 58) then
                 el = 4
             elseif (i + 5 < n) andalso (s[i + 1] = 116) andalso (s[i + 2] = 105) andalso (s[i + 3] = 107) _
@@ -255,8 +255,8 @@ function NormalizeSkipSites( byval s as string ) as string
                 el = 5
             end if
             if el > 0 then
-                dim as long j = i + 1 + el
-                dim as long d = 0
+                dim as int32 j = i + 1 + el
+                dim as int32 d = 0
                 while (j < n) andalso (s[j] >= 48) andalso (s[j] <= 57)
                     j += 1
                     d += 1
@@ -279,12 +279,12 @@ function NormalizeSkipSites( byval s as string ) as string
     outp = left( outp, w )
 
     '' The separator pass: each line holding 'skip-site ', in place.
-    dim as long at = instr( outp, "skip-site " )
+    dim as int32 at = instr( outp, "skip-site " )
     while at > 0
-        dim as long ls = instrrev( outp, chr( 10 ), at )     '' 0 when it is the first line
-        dim as long le = instr( at, outp, chr( 10 ) )
+        dim as int32 ls = instrrev( outp, chr( 10 ), at )     '' 0 when it is the first line
+        dim as int32 le = instr( at, outp, chr( 10 ) )
         if le = 0 then le = len( outp ) + 1
-        for k as long = ls to le - 2
+        for k as int32 = ls to le - 2
             if outp[k] = 92 then outp[k] = asc( "/" )
         next
         if le > len( outp ) then exit while
@@ -324,9 +324,9 @@ function ParseTest( byval path as string, byref tc as TestCase ) as boolean
     tc.runExe = ""
     tc.runExit = 0
 
-    dim as long slash = 0
-    for i as long = len( path ) to 1 step -1
-        dim as ubyte c = path[i - 1]
+    dim as int32 slash = 0
+    for i as int32 = len( path ) to 1 step -1
+        dim as uint8 c = path[i - 1]
         dim as boolean isSep = (c = asc( "/" )) orelse (c = asc( "\" ))
         if isSep then
             slash = i
@@ -336,9 +336,9 @@ function ParseTest( byval path as string, byref tc as TestCase ) as boolean
     tc.dir_ = left( path, slash )
 
     dim as string acc = NormalizeEol( text )
-    dim as long start = 1
+    dim as int32 start = 1
     while start <= len( acc )
-        dim as long nl = instr( start, acc, chr( 10 ) )
+        dim as int32 nl = instr( start, acc, chr( 10 ) )
         dim as string ln
         if nl = 0 then
             ln = mid( acc, start )
@@ -370,7 +370,7 @@ function ParseTest( byval path as string, byref tc as TestCase ) as boolean
             '' Qualifying the line beats dropping the test to one target, which
             '' would have taken the wide-layout coverage off Linux exactly where it
             '' is most worth having. Stored as '<target>' & tab & '<text>'.
-            dim as long rb = instr( ln, "]:" )
+            dim as int32 rb = instr( ln, "]:" )
             if rb > 0 then
                 tc.expectOut.Push( mid( ln, 12, rb - 12 ) & chr( 9 ) & _
                                    Trim_( mid( ln, rb + 2 ) ) )
@@ -420,12 +420,12 @@ function ParseTest( byval path as string, byref tc as TestCase ) as boolean
     '' would silently get only one of them by forgetting it.
     dim as string tf = ReadTextFile( tc.dir_ & "TARGETS" )
     tf = Trim_( NormalizeEol( tf ) )
-    dim as long tnl = instr( tf, chr( 10 ) )
+    dim as int32 tnl = instr( tf, chr( 10 ) )
     if tnl > 0 then tf = Trim_( left( tf, tnl - 1 ) )
     if len( tf ) > 0 then
-        dim as long tp = 1
+        dim as int32 tp = 1
         while tp <= len( tf )
-            dim as long sp = instr( tp, tf, " " )
+            dim as int32 sp = instr( tp, tf, " " )
             dim as string one_
             if sp = 0 then
                 one_ = Trim_( mid( tf, tp ) ) : tp = len( tf ) + 1
@@ -452,7 +452,7 @@ end function
 function NativePath( byval p as string ) as string
     dim as string r = p
     #ifdef __FB_WIN32__
-        for i as long = 0 to len( r ) - 1
+        for i as int32 = 0 to len( r ) - 1
             if r[i] = asc( "/" ) then r[i] = asc( "\\" )
         next
     #endif
@@ -467,31 +467,31 @@ end function
 '' targets. The few kernel32 calls are declared here rather than pulling windows.bi into the
 '' runner's namespace.
 type TtSecAttr_
-    as ulong    nLength
+    as uint32    nLength
     as any ptr  lpSecurityDescriptor
-    as long     bInheritHandle
+    as int32     bInheritHandle
 end type
 type TtStartup_
-    as ulong    cb
+    as uint32    cb
     as zstring ptr lpReserved, lpDesktop, lpTitle
-    as ulong    dwX, dwY, dwXSize, dwYSize, dwXCountChars, dwYCountChars, dwFillAttribute, dwFlags
-    as ushort   wShowWindow, cbReserved2
-    as ubyte ptr lpReserved2
+    as uint32    dwX, dwY, dwXSize, dwYSize, dwXCountChars, dwYCountChars, dwFillAttribute, dwFlags
+    as uint16   wShowWindow, cbReserved2
+    as uint8 ptr lpReserved2
     as any ptr  hStdInput, hStdOutput, hStdError
 end type
 type TtProcInfo_
     as any ptr  hProcess, hThread
-    as ulong    dwProcessId, dwThreadId
+    as uint32    dwProcessId, dwThreadId
 end type
 extern "Windows" lib "kernel32"
-    declare function TtCreatePipe_ alias "CreatePipe" ( byval r as any ptr ptr, byval w as any ptr ptr, byval sa as TtSecAttr_ ptr, byval sz as ulong ) as long
-    declare function TtSetHandleInfo_ alias "SetHandleInformation" ( byval h as any ptr, byval m as ulong, byval f as ulong ) as long
-    declare function TtCreateProcess_ alias "CreateProcessA" ( byval app as zstring ptr, byval cmd as zstring ptr, byval pa as any ptr, byval ta as any ptr, byval inh as long, byval flags as ulong, byval env as any ptr, byval cwd as zstring ptr, byval si as TtStartup_ ptr, byval pi as TtProcInfo_ ptr ) as long
-    declare function TtReadFile_ alias "ReadFile" ( byval h as any ptr, byval buf as any ptr, byval n as ulong, byval got as ulong ptr, byval ov as any ptr ) as long
-    declare function TtCloseHandle_ alias "CloseHandle" ( byval h as any ptr ) as long
-    declare function TtWait_ alias "WaitForSingleObject" ( byval h as any ptr, byval ms as ulong ) as ulong
-    declare function TtExitCode_ alias "GetExitCodeProcess" ( byval h as any ptr, byval code as ulong ptr ) as long
-    declare function TtStdHandle_ alias "GetStdHandle" ( byval n as ulong ) as any ptr
+    declare function TtCreatePipe_ alias "CreatePipe" ( byval r as any ptr ptr, byval w as any ptr ptr, byval sa as TtSecAttr_ ptr, byval sz as uint32 ) as int32
+    declare function TtSetHandleInfo_ alias "SetHandleInformation" ( byval h as any ptr, byval m as uint32, byval f as uint32 ) as int32
+    declare function TtCreateProcess_ alias "CreateProcessA" ( byval app as zstring ptr, byval cmd as zstring ptr, byval pa as any ptr, byval ta as any ptr, byval inh as int32, byval flags as uint32, byval env as any ptr, byval cwd as zstring ptr, byval si as TtStartup_ ptr, byval pi as TtProcInfo_ ptr ) as int32
+    declare function TtReadFile_ alias "ReadFile" ( byval h as any ptr, byval buf as any ptr, byval n as uint32, byval got as uint32 ptr, byval ov as any ptr ) as int32
+    declare function TtCloseHandle_ alias "CloseHandle" ( byval h as any ptr ) as int32
+    declare function TtWait_ alias "WaitForSingleObject" ( byval h as any ptr, byval ms as uint32 ) as uint32
+    declare function TtExitCode_ alias "GetExitCodeProcess" ( byval h as any ptr, byval code as uint32 ptr ) as int32
+    declare function TtStdHandle_ alias "GetStdHandle" ( byval n as uint32 ) as any ptr
 end extern
 
 '' ONE SPAWN AT A TIME. The pipe's write end has to be inheritable, and a child another
@@ -500,7 +500,7 @@ end extern
 dim shared as any ptr spawnMtx_
 spawnMtx_ = MutexCreate( )
 
-private function RunCaptureWin_( byval cmdLine as string, byref outText as string ) as long
+private function RunCaptureWin_( byval cmdLine as string, byref outText as string ) as int32
     outText = ""
     dim as TtSecAttr_ sa
     sa.nLength = sizeof( TtSecAttr_ )
@@ -518,10 +518,10 @@ private function RunCaptureWin_( byval cmdLine as string, byref outText as strin
         return -1
     end if
     TtSetHandleInfo_( rd, 1, 0 )                     '' HANDLE_FLAG_INHERIT off: ours only
-    si.hStdInput = TtStdHandle_( cast( ulong, -10 ) )
+    si.hStdInput = TtStdHandle_( cast( uint32, -10 ) )
     si.hStdOutput = wr
     si.hStdError = wr                                '' '2>&1'
-    dim as long ok = TtCreateProcess_( 0, strptr( buf ), 0, 0, 1, 0, 0, 0, @si, @pi )
+    dim as int32 ok = TtCreateProcess_( 0, strptr( buf ), 0, 0, 1, 0, 0, 0, @si, @pi )
     TtCloseHandle_( wr )                             '' the child holds the only write end
     MutexUnlock( spawnMtx_ )
     if ok = 0 then
@@ -530,14 +530,14 @@ private function RunCaptureWin_( byval cmdLine as string, byref outText as strin
         return -1
     end if
     dim as string chunk = space( 65536 )
-    dim as ulong got
+    dim as uint32 got
     while TtReadFile_( rd, strptr( chunk ), 65536, @got, 0 ) <> 0
         if got = 0 then exit while
         outText &= left( chunk, got )
     wend
     TtCloseHandle_( rd )
     TtWait_( pi.hProcess, &hFFFFFFFF )
-    dim as ulong code
+    dim as uint32 code
     TtExitCode_( pi.hProcess, @code )
     TtCloseHandle_( pi.hThread )
     TtCloseHandle_( pi.hProcess )
@@ -545,7 +545,7 @@ private function RunCaptureWin_( byval cmdLine as string, byref outText as strin
     '' U+FFFD, and the goldens were accepted that way (diagnostics/utf8-caret).
     dim as ustring u8 = outText
     outText = NormalizeEol( u8 )
-    return cast( long, code )
+    return cast( int32, code )
 end function
 #endif
 
@@ -553,7 +553,7 @@ end function
 '' (tiko-build RFC-0001 §4.1); WithTarget_ below does the same for '-target'.
 function ColorFirst_( byval args as string ) as string
     dim as string r = Trim_( args )
-    dim as long sp = instr( r, " " )
+    dim as int32 sp = instr( r, " " )
     dim as string w = iif( sp > 0, left( r, sp - 1 ), r )
     select case w
     case "build", "run", "check", "clean", "metadata"
@@ -564,7 +564,7 @@ end function
 
 function RunTko _
     ( byval tikoPath as string, byval args as string, byref outText as string, _
-      byval slotId as long ) as long
+      byval slotId as int32 ) as int32
 
     #ifdef __FB_WIN32__
         return RunCaptureWin_( NativePath( tikoPath ) & " " & ColorFirst_( args ), outText )
@@ -578,7 +578,7 @@ function RunTko _
     '' the test's own ARGS would swallow it as its value.
     dim as string cmd = NativePath( tikoPath ) & " " & ColorFirst_( args ) & _
                         " > " & NativePath( tmp ) & " 2>&1"
-    dim as long rc = shell( cmd )
+    dim as int32 rc = shell( cmd )
     outText = NormalizeEol( ReadTextFile( tmp ) )
     Kill( tmp )
     return rc
@@ -593,7 +593,7 @@ end type
 '' executable is binary, so it is searched as bytes. False when it cannot be opened.
 function ReadBytes_( byval p as string, byref b as string ) as boolean
     b = ""
-    dim as long f = freefile
+    dim as int32 f = freefile
     if open( p for binary access read as #f ) <> 0 then return false
     if lof( f ) > 0 then
         b = space( lof( f ) )
@@ -606,7 +606,7 @@ end function
 '' DOES THIS FILE EXIST. An open-for-input probe rather than a length test: a
 '' zero-byte golden is a legitimate expectation and must not read as absent.
 function FileExists_( byval p as string ) as boolean
-    dim as long f = freefile
+    dim as int32 f = freefile
     if open( p for input as #f ) <> 0 then return false
     close #f
     return true
@@ -618,8 +618,8 @@ end function
 '' one file apiece.
 function TargetGolden_ _
     ( byval dir_ as string, byval golden as string, byval tgt as string ) as string
-    dim as long dot = 0
-    for i as long = len( golden ) - 1 to 0 step -1
+    dim as int32 dot = 0
+    for i as int32 = len( golden ) - 1 to 0 step -1
         if golden[i] = asc( "." ) then dot = i + 1 : exit for
         if golden[i] = asc( "/" ) then exit for
     next
@@ -648,7 +648,7 @@ end function
 '' SUBCOMMAND ('tiko build ...'), which must itself be first (tiko-build RFC-0001 §4.1).
 function WithTarget_( byval tgt as string, byval rest as string ) as string
     dim as string r = Trim_( rest )
-    dim as long sp = instr( r, " " )
+    dim as int32 sp = instr( r, " " )
     dim as string w = iif( sp > 0, left( r, sp - 1 ), r )
     select case w
     case "build", "run", "check", "clean", "metadata"
@@ -663,13 +663,13 @@ end function
 '' program on Windows the day a test named that target in ARGS.
 function BuiltTarget_( byval tgt as string, byval args as string ) as string
     dim as string t = tgt
-    dim as long at = instr( args, "-target " )
+    dim as int32 at = instr( args, "-target " )
     while at > 0
-        dim as long st = at + 8
+        dim as int32 st = at + 8
         while (st <= len( args )) andalso (mid( args, st, 1 ) = " ")
             st += 1
         wend
-        dim as long en = instr( st, args, " " )
+        dim as int32 en = instr( st, args, " " )
         if en = 0 then en = len( args ) + 1
         t = mid( args, st, en - st )
         at = instr( en, args, "-target " )
@@ -680,23 +680,23 @@ end function
 '' RUN THE PROGRAM A TEST BUILT, and check what it did: exit 0, and every EXPECT-RUN-OUT
 '' in order. Captured through a per-worker file like RunTko's, for the same reason.
 function CheckRun_ _
-    ( byref tc as TestCase, byref why as string, byval slotId as long ) as boolean
+    ( byref tc as TestCase, byref why as string, byval slotId as int32 ) as boolean
 
     if FileExists_( tc.runExe ) = false then
         why = "RUN: no program at " & tc.runExe
         return false
     end if
     dim as string tmp = "build/.tikotest." & slotId & ".run"
-    dim as long rc = shell( NativePath( tc.runExe ) & " > " & NativePath( tmp ) & " 2>&1" )
+    dim as int32 rc = shell( NativePath( tc.runExe ) & " > " & NativePath( tmp ) & " 2>&1" )
     dim as string outp = NormalizeEol( ReadTextFile( tmp ) )
     Kill( tmp )
     if rc <> tc.runExit then
         why = "RUN: " & tc.runExe & " exited " & rc & ", expected " & tc.runExit
         return false
     end if
-    dim as long from_ = 1
+    dim as int32 from_ = 1
     for each want as string in tc.expectRunOut
-        dim as long at = instr( from_, outp, want )
+        dim as int32 at = instr( from_, outp, want )
         if at = 0 then
             why = "RUN: output does not contain, after the previous match: " & want
             return false
@@ -708,17 +708,17 @@ end function
 
 declare function CheckOne_ _
     ( byref tc as TestCase, byref opts as Options, byval tgt as string, _
-      byval rc as long, byref outText as string, byref why as string ) as boolean
+      byval rc as int32, byref outText as string, byref why as string ) as boolean
 
 '' THE STEPS, in order (see the header). False, with why, at the first that fails.
 function RunSteps_ _
     ( byref tc as TestCase, byref opts as Options, byval tgt as string, _
-      byref why as string, byval slotId as long ) as boolean
+      byref why as string, byval slotId as int32 ) as boolean
 
     dim as string outText = ""
-    dim as long n = 0
+    dim as int32 n = 0
     for each st as string in tc.steps
-        dim as long tb = instr( st, chr( 9 ) )
+        dim as int32 tb = instr( st, chr( 9 ) )
         dim as string kind = left( st, tb - 1 )
         dim as string rest = mid( st, tb + 1 )
         select case kind
@@ -731,7 +731,7 @@ function RunSteps_ _
             end if
             fs.CreateDirAll( rest )
         case "COPY"
-            dim as long ar = instr( rest, "=>" )
+            dim as int32 ar = instr( rest, "=>" )
             if ar = 0 then
                 why = "COPY: no '=>' in " & rest
                 return false
@@ -749,7 +749,7 @@ function RunSteps_ _
                 return false
             end if
         case "WRITE"
-            dim as long sp = instr( rest, "::" )
+            dim as int32 sp = instr( rest, "::" )
             if sp = 0 then
                 why = "WRITE: no '::' in " & rest
                 return false
@@ -757,7 +757,7 @@ function RunSteps_ _
             WriteTextFile( Trim_( left( rest, sp - 1 ) ), Unescape_( Trim_( mid( rest, sp + 2 ) ) ) )
         case "STEP"
             n += 1
-            dim as long rc = RunTko( opts.tikoPath, WithTarget_( tgt, rest ), outText, slotId )
+            dim as int32 rc = RunTko( opts.tikoPath, WithTarget_( tgt, rest ), outText, slotId )
             if rc <> 0 then
                 why = "STEP " & n & " exited " & rc & ", expected 0:" & chr( 10 ) & outText
                 return false
@@ -785,7 +785,7 @@ end function
 '' strings are a few bytes per ENV line; they are never freed.
 private sub SetEnv_( byref kv as string )
     static as string keep( any )
-    dim as long n = ubound( keep ) + 1
+    dim as int32 n = ubound( keep ) + 1
     redim preserve keep( n )
     keep( n ) = kv
     setenviron keep( n )
@@ -802,7 +802,7 @@ end sub
 
 function RunOne _
     ( byref tc as TestCase, byref opts as Options, byref why as string, _
-      byval slotId as long ) as boolean
+      byval slotId as int32 ) as boolean
 
     why = ""
 
@@ -814,7 +814,7 @@ function RunOne _
     end if
 
     dim as string args = tc.args
-    dim as long at = instr( args, "%s" )
+    dim as int32 at = instr( args, "%s" )
     while at > 0
         args = left( args, at - 1 ) & tc.path & mid( args, at + 2 )
         at = instr( args, "%s" )
@@ -826,14 +826,14 @@ function RunOne _
     '' following test builds its own command.
     dim as Array( of string ) prevEnv
     for each e_ as string in tc.env
-        dim as long eq0 = instr( e_, "=" )
+        dim as int32 eq0 = instr( e_, "=" )
         if eq0 > 0 then prevEnv.Push( left( e_, eq0 ) & environ( left( e_, eq0 - 1 ) ) )
         SetEnv_( e_ )
     next
 
     dim as string outText = ""
-    dim as long rc = 0
-    for ti as long = 0 to tc.targets.Count - 1
+    dim as int32 rc = 0
+    for ti as int32 = 0 to tc.targets.Count - 1
         dim as string tgt = tc.targets[ti]
         '' EVERY NAMED FILE IS REMOVED FIRST. Without this a test asserting that
         '' a build produced something would pass on the artefact left by the
@@ -851,11 +851,11 @@ function RunOne _
         '' look for, so without this the check would pass without the compiler having
         '' produced anything at all.
         for each f3 as string in tc.expectFileHas
-            dim as long s3 = instr( f3, "::" )
+            dim as int32 s3 = instr( f3, "::" )
             if s3 > 0 then kill( Trim_( left( f3, s3 - 1 ) ) )
         next
         for each f4 as string in tc.expectFileNotHas
-            dim as long s4 = instr( f4, "::" )
+            dim as int32 s4 = instr( f4, "::" )
             if s4 > 0 then kill( Trim_( left( f4, s4 - 1 ) ) )
         next
         '' ...AND THE PROGRAM A RUN WILL START: a stale one from an older compiler would
@@ -891,7 +891,7 @@ end function
 '' to each target rather than to whichever one happened to run last.
 function CheckOne_ _
     ( byref tc as TestCase, byref opts as Options, byval tgt as string, _
-      byval rc as long, byref outText as string, byref why as string ) as boolean
+      byval rc as int32, byref outText as string, byref why as string ) as boolean
 
     if tc.haveExpectExit andalso (rc <> tc.expectExit) then
         why = "exit code " & rc & ", expected " & tc.expectExit
@@ -902,9 +902,9 @@ function CheckOne_ _
     '' warning) are the test's flags' business, as the goldens are.
     if len( opts.runArgs ) > 0 then return true
 
-    dim as long seqAt = 1
+    dim as int32 seqAt = 1
     for each want as string in tc.expectSeq
-        dim as long hit = instr( seqAt, outText, want )
+        dim as int32 hit = instr( seqAt, outText, want )
         if hit = 0 then
             why = "output does not contain, after the previous EXPECT-OUT-SEQ match: " & want
             return false
@@ -912,7 +912,7 @@ function CheckOne_ _
         seqAt = hit + len( want )
     next
     for each want as string in tc.expectOut
-        dim as long tab_ = instr( want, chr( 9 ) )
+        dim as int32 tab_ = instr( want, chr( 9 ) )
         dim as string forTgt = left( want, tab_ - 1 )
         dim as string text_ = mid( want, tab_ + 1 )
         if (len( forTgt ) > 0) andalso (forTgt <> tgt) then continue for
@@ -952,7 +952,7 @@ function CheckOne_ _
     '' searched as bytes, not as lines: an archive is binary, and its member names sit
     '' in fixed-width headers with no newline anywhere near them.
     for each has_ as string in tc.expectFileHas
-        dim as long sep = instr( has_, "::" )
+        dim as int32 sep = instr( has_, "::" )
         if sep = 0 then
             why = "malformed EXPECT-FILE-HAS (want 'path :: text'): " & has_
             return false
@@ -978,7 +978,7 @@ function CheckOne_ _
     '' 'path :: text' -- the file must exist and must NOT contain those bytes. It has
     '' to exist: a mistyped path would otherwise pass by containing nothing.
     for each not_ as string in tc.expectFileNotHas
-        dim as long nsep = instr( not_, "::" )
+        dim as int32 nsep = instr( not_, "::" )
         if nsep = 0 then
             why = "malformed EXPECT-FILE-NOT-HAS (want 'path :: text'): " & not_
             return false
@@ -1003,8 +1003,8 @@ function CheckOne_ _
     if tc.haveMaxDiag then
         '' The plan's recovery criterion: a broken file yields a few useful messages,
         '' not a cascade (docs/plan/04 section 8).
-        dim as long count = 0
-        dim as long at = instr( outText, ": error TKO" )
+        dim as int32 count = 0
+        dim as int32 at = instr( outText, ": error TKO" )
         while at > 0
             count += 1
             at = instr( at + 1, outText, ": error TKO" )
@@ -1044,7 +1044,7 @@ end function
 type Job
     as string path
     as TestCase ptr tc
-    as long state          '' 0 pending, 1 passed, 2 failed
+    as int32 state          '' 0 pending, 1 passed, 2 failed
     as string why
 end type
 
@@ -1068,15 +1068,15 @@ end function
 
 type Pool
     as any ptr mtx
-    as long nextIdx
-    as long nJobs
+    as int32 nextIdx
+    as int32 nJobs
     as Array( of Job ) ptr jobs
     as Options ptr opts
 end type
 
 type WorkerArg
     as Pool ptr pool
-    as long slotId
+    as int32 slotId
 end type
 
 '' A WORKER TAKES THE NEXT INDEX AND RUNS IT. Work-stealing off one counter rather
@@ -1088,7 +1088,7 @@ sub Worker_ cdecl( byval ud as any ptr )
     dim as Pool ptr pl = w->pool
     do
         MutexLock( pl->mtx )
-        dim as long idx = pl->nextIdx
+        dim as int32 idx = pl->nextIdx
         pl->nextIdx += 1
         MutexUnlock( pl->mtx )
         if idx >= pl->nJobs then exit do
@@ -1106,12 +1106,12 @@ end sub
 '' loop: no thread is created, so a serial run stays exactly what it was and neither
 '' --accept nor a single-test filter depends on the threading working.
 sub RunPool_ _
-    ( byref jobs as Array( of Job ), byref opts as Options, byval nWorkers as long )
+    ( byref jobs as Array( of Job ), byref opts as Options, byval nWorkers as int32 )
 
     if jobs.IsEmpty( ) then return
 
     if nWorkers <= 1 then
-        for i as long = 0 to jobs.Count - 1
+        for i as int32 = 0 to jobs.Count - 1
             dim as string why = ""
             if RunOne( *jobs[i].tc, opts, why, 0 ) then
                 jobs[i].state = 1
@@ -1134,12 +1134,12 @@ sub RunPool_ _
 
     dim as WorkerArg wargs( 0 to nWorkers - 1 )
     dim as any ptr handles( 0 to nWorkers - 1 )
-    for i as long = 0 to nWorkers - 1
+    for i as int32 = 0 to nWorkers - 1
         wargs( i ).pool = @pl
         wargs( i ).slotId = i
         handles( i ) = ThreadCreate( @Worker_, @wargs( i ) )
     next
-    for i as long = 0 to nWorkers - 1
+    for i as int32 = 0 to nWorkers - 1
         if handles( i ) <> 0 then ThreadWait( handles( i ) )
     next
 
@@ -1148,10 +1148,10 @@ end sub
 
 '' HOW MANY WORKERS, when -j did not say. NUMBER_OF_PROCESSORS is set on Windows and
 '' is not on Linux, where 4 is a floor that helps and cannot oversubscribe badly.
-function DefaultJobs_( ) as long
+function DefaultJobs_( ) as int32
     dim as string n = environ( "NUMBER_OF_PROCESSORS" )
     if len( n ) > 0 then
-        dim as long v = valint( n )
+        dim as int32 v = valint( n )
         if v >= 1 then return v
     end if
     return 4
@@ -1169,7 +1169,7 @@ opts.verbose = false
 opts.filter = ""
 opts.jobs = 0
 
-dim as long argi = 1
+dim as int32 argi = 1
 while len( command( argi ) ) > 0
     dim as string a = command( argi )
     select case a
@@ -1195,7 +1195,7 @@ if opts.suites.IsEmpty( ) then opts.suites.Push( "tests" )
 '' is the user's cache directory, one pool for every project, which a gate must not fill.
 if len( environ( "TKO_MODCACHE" ) ) = 0 then SetEnv_( "TKO_MODCACHE=build/.modcache" )
 
-dim as long nWorkers = opts.jobs
+dim as int32 nWorkers = opts.jobs
 if nWorkers <= 0 then nWorkers = DefaultJobs_( )
 '' --accept WRITES the goldens. See the note at the top of this file.
 if opts.accept then nWorkers = 1
@@ -1208,7 +1208,7 @@ Sort( files )
 
 '' EVERY TEST IS PARSED FIRST, and the ones that cannot be are counted here rather
 '' than inside a worker: a parse failure is a property of the file, not of the run.
-dim as long skipped = 0
+dim as int32 skipped = 0
 dim as Array( of Job ) parJobs
 dim as Array( of Job ) serJobs
 
@@ -1256,9 +1256,9 @@ RunPool_( serJobs, opts, 1 )
 '' lists rather than a search: the alternative -- looking each path up in both -- is
 '' quadratic, and at 596 tests that is 350k string compares to print 596 lines.
 
-dim as long passed = 0, failed = 0
+dim as int32 passed = 0, failed = 0
 dim as Array( of Failure ) failures
-dim as long pi = 0, si = 0
+dim as int32 pi = 0, si = 0
 
 while (pi < parJobs.Count) orelse (si < serJobs.Count)
     dim as boolean takePar = false
@@ -1269,7 +1269,7 @@ while (pi < parJobs.Count) orelse (si < serJobs.Count)
     end if
 
     dim as string path_ = ""
-    dim as long state = 0
+    dim as int32 state = 0
     dim as string why = ""
     if takePar then
         path_ = parJobs[pi].path : state = parJobs[pi].state : why = parJobs[pi].why

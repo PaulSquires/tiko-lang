@@ -8,16 +8,16 @@
 
 namespace Tko
 
-dim shared as ubyte   intrForm( 0 to TK_KIND_COUNT - 1 )
+dim shared as uint8   intrForm( 0 to TK_KIND_COUNT - 1 )
 dim shared as boolean intrReady = false
 
 private sub InitIntrinsicTable( )
     if intrReady then return
-    for i as long = 0 to TK_KIND_COUNT - 1
-        intrForm(i) = cast( ubyte, IFORM_NONE )
+    for i as int32 = 0 to TK_KIND_COUNT - 1
+        intrForm(i) = cast( uint8, IFORM_NONE )
     next
     #macro INTR( i_kind, i_form )
-        intrForm(i_kind) = cast( ubyte, i_form )
+        intrForm(i_kind) = cast( uint8, i_form )
     #endmacro
     TKO_INTRINSIC_LIST( INTR )
     #undef INTR
@@ -52,10 +52,10 @@ namespace Tko.Parse
 private sub IntrArgList( byref p as Tko.ParserState, byref items as Tko.NodeIdVec )
     do
         if (Peek( p ) = Tko.TK_EOL) orelse AtEnd( p ) then exit do
-        dim as long before = p.pos
+        dim as int32 before = p.pos
         '' 'locate ,,0' -- an intrinsic's arguments may be elided too.
         dim as Tko.NodeId arg = ArgOrElided( p, Tko.TK_EOL )
-        items.Push( cast( ulong, arg ) )
+        items.Push( cast( uint32, arg ) )
         '' The no-progress guard exists to stop a loop that cannot consume anything.
         '' An ELIDED argument consumes nothing BY DEFINITION, so it has to be exempt --
         '' the comma after it is what advances, and without this 'locate ,,0' bailed
@@ -133,8 +133,8 @@ private sub IntrPrint( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
             dim as Tko.Token t = Cur( p )
             Advance( p )
             dim as Tko.StmtPayload ssp
-            ssp.op = cast( ushort, k )
-            items.Push( cast( ulong, MakeStmt( p, Tko.N_PRINT_SEP, t.loc, ssp ) ) )
+            ssp.op = cast( uint16, k )
+            items.Push( cast( uint32, MakeStmt( p, Tko.N_PRINT_SEP, t.loc, ssp ) ) )
             continue do
         end if
         '' 'using' CAN APPEAR AFTER THE LIST HAS STARTED: 'print "ghi"; ", "; using
@@ -151,15 +151,15 @@ private sub IntrPrint( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
             dim as Tko.Token ut = Cur( p )
             Advance( p )
             dim as Tko.StmtPayload usp
-            usp.op = cast( ushort, Tko.KW_USING )
+            usp.op = cast( uint16, Tko.KW_USING )
             usp.a = Expression( p )
-            items.Push( cast( ulong, MakeStmt( p, Tko.N_PRINT_SEP, ut.loc, usp ) ) )
+            items.Push( cast( uint32, MakeStmt( p, Tko.N_PRINT_SEP, ut.loc, usp ) ) )
             Expect( p, Tko.TK_SEMICOLON, ";" )
             afterUsing = true
             continue do
         end if
-        dim as long before = p.pos
-        items.Push( cast( ulong, Expression( p ) ) )
+        dim as int32 before = p.pos
+        items.Push( cast( uint32, Expression( p ) ) )
         if p.pos = before then exit do
         '' AN ITEM ENDS AT A SEPARATOR OR THE END OF THE LIST. Measured: 'print 1 2',
         '' 'print a b', 'print 1; 2 3; 4' and 'print "a" using "&"' are all fbc's error
@@ -170,7 +170,7 @@ private sub IntrPrint( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
 
     sp.first = p.ast->children.Count
     sp.count = items.Count
-    for i as long = 0 to items.Count - 1
+    for i as int32 = 0 to items.Count - 1
         p.ast->children.Push( items[i] )
     next
 end sub
@@ -219,7 +219,7 @@ private sub IntrInput( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
         sp.extra or= iif( Peek( p ) = Tko.TK_COMMA, 8, 16 )
         Advance( p )
     elseif (Peek( p ) = Tko.TK_STRING_LIT) orelse isLine then
-        dim as long save = p.pos
+        dim as int32 save = p.pos
         dim as Tko.NodeId prompt = Expression( p, iif( isLine, Tko.PREC_ANDALSO, Tko.PREC_POSTFIX ) )
         dim as boolean isPrompt = (Peek( p ) = Tko.TK_SEMICOLON) orelse _
                                   (Peek( p ) = Tko.TK_COMMA)
@@ -236,7 +236,7 @@ private sub IntrInput( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
     IntrArgList( p, items )
     sp.first = p.ast->children.Count
     sp.count = items.Count
-    for i as long = 0 to items.Count - 1
+    for i as int32 = 0 to items.Count - 1
         p.ast->children.Push( items[i] )
     next
 end sub
@@ -263,7 +263,7 @@ private sub IntrOpen _
     '' qb/file_open_scrn_fail). LPT, COM and PIPE do take one. The string was collected as a
     '' stray item.
     if (sp.a <> Tko.NODE_NONE) andalso (p.ast->Kind( sp.a ) = Tko.N_IDENT) andalso (Peek( p ) = Tko.TK_STRING_LIT) then
-        dim as string dev = lcase( p.names->Spelling( p.ast->idents[cast( long, p.ast->nodes[cast( long, sp.a )].data )].name ) )
+        dim as string dev = lcase( p.names->Spelling( p.ast->idents[cast( int32, p.ast->nodes[cast( int32, sp.a )].data )].name ) )
         if cbool( (dev = "scrn") orelse (dev = "cons") orelse (dev = "err") ) andalso (p.silent = false) then
             p.diags->Report( Tko.TKO0915, Tko.PointRange( Cur( p ).loc ), dev )
         end if
@@ -308,7 +308,7 @@ private sub IntrOpen _
             '' keyword until AS swallowed the LOCK clause that follows: 'access write
             '' lock read write' read as one four-word access list and gave access 3,
             '' lock 0, where fbc gives access 2, lock 3.
-            dim as long rw_ = 0
+            dim as int32 rw_ = 0
             do
                 select case Peek( p )
                 case Tko.KW_READ  : rw_ or= 1
@@ -319,10 +319,10 @@ private sub IntrOpen _
             loop
             if k = Tko.KW_ACCESS then
                 sp.extra = (sp.extra and not Tko.OPEN_ACCESS_MASK) or _
-                           cast( ushort, rw_ shl Tko.OPEN_ACCESS_SHIFT )
+                           cast( uint16, rw_ shl Tko.OPEN_ACCESS_SHIFT )
             else
                 sp.extra = (sp.extra and not Tko.OPEN_LOCK_MASK) or _
-                           cast( ushort, rw_ shl Tko.OPEN_LOCK_SHIFT )
+                           cast( uint16, rw_ shl Tko.OPEN_LOCK_SHIFT )
             end if
             continue do
         end if
@@ -342,7 +342,7 @@ private sub IntrOpen _
                 '' encoding is the ONE clause fbc does not reduce to an integer -- it
                 '' passes the string through raw and unvalidated, so "bogus" compiles.
                 sp.extra or= Tko.OPEN_HAS_ENCODING
-                items.Push( cast( ulong, Expression( p ) ) )
+                items.Push( cast( uint32, Expression( p ) ) )
             end if
             continue do
         end if
@@ -358,14 +358,14 @@ private sub IntrOpen _
             continue do
         end if
 
-        dim as long before = p.pos
-        items.Push( cast( ulong, Expression( p ) ) )
+        dim as int32 before = p.pos
+        items.Push( cast( uint32, Expression( p ) ) )
         if p.pos = before then exit do
     loop
 
     sp.first = p.ast->children.Count
     sp.count = items.Count
-    for i as long = 0 to items.Count - 1
+    for i as int32 = 0 to items.Count - 1
         p.ast->children.Push( items[i] )
     next
 end sub
@@ -390,14 +390,14 @@ function OpenExprCall( byref p as Tko.ParserState ) as Tko.NodeId
         return ErrorNode( p, Tko.TKO0401, "(" )
     end if
     dim as Tko.StmtPayload sp
-    sp.op = cast( ushort, Tko.KW_OPEN )
+    sp.op = cast( uint16, Tko.KW_OPEN )
     IntrOpen( p, sp, true )
     Expect( p, Tko.TK_RPAREN, ")" )
     if (devN <> Tko.NODE_NONE) andalso (sp.a <> Tko.NODE_NONE) then
-        dim as long nf = p.ast->children.Count
-        p.ast->children.Push( cast( ulong, sp.a ) )
-        for i as long = 0 to sp.count - 1
-            dim as ulong ch = p.ast->children[sp.first + i]   '' a copy: Push may move the array
+        dim as int32 nf = p.ast->children.Count
+        p.ast->children.Push( cast( uint32, sp.a ) )
+        for i as int32 = 0 to sp.count - 1
+            dim as uint32 ch = p.ast->children[sp.first + i]   '' a copy: Push may move the array
             p.ast->children.Push( ch )
         next
         sp.first = nf : sp.count += 1
@@ -431,20 +431,20 @@ function CloseExprCall( byref p as Tko.ParserState ) as Tko.NodeId
     end if
 
     dim as Tko.StmtPayload sp
-    sp.op = cast( ushort, Tko.KW_CLOSE )
+    sp.op = cast( uint16, Tko.KW_CLOSE )
     '' 'close( )' WITH NO CHANNEL is the close-all form, and it has a value too --
     '' measured, 'e = close( )' is 'vr$1 = fb_FileCloseAll( )'. An empty list here is
     '' that, not a missing argument.
     dim as Tko.NodeIdVec items
     if Peek( p ) <> Tko.TK_RPAREN then
         if Peek( p ) = Tko.TK_HASH then Advance( p )
-        items.Push( cast( ulong, Expression( p ) ) )
+        items.Push( cast( uint32, Expression( p ) ) )
     end if
     Expect( p, Tko.TK_RPAREN, ")" )
 
     sp.first = p.ast->children.Count
     sp.count = items.Count
-    for i as long = 0 to items.Count - 1
+    for i as int32 = 0 to items.Count - 1
         p.ast->children.Push( items[i] )
     next
     return MakeStmt( p, Tko.N_INTRINSIC, t.loc, sp )
@@ -459,7 +459,7 @@ function GetPutExprCall( byref p as Tko.ParserState ) as Tko.NodeId
     end if
 
     dim as Tko.StmtPayload sp
-    sp.op = cast( ushort, k )
+    sp.op = cast( uint16, k )
     '' Bit 1 is the FILE form, which is the only one that can appear here: the
     '' graphics GET/PUT has its own coordinate grammar and no value.
     sp.extra = 1
@@ -472,13 +472,13 @@ function GetPutExprCall( byref p as Tko.ParserState ) as Tko.NodeId
     do
         if Peek( p ) = Tko.TK_RPAREN then exit do
         if Peek( p ) = Tko.TK_COMMA then
-            items.Push( cast( ulong, _
+            items.Push( cast( uint32, _
                 NewNodeAt( p, Tko.N_ELIDED, Cur( p ).loc, 0 ) ) )
             Advance( p )
             continue do
         end if
-        dim as long before = p.pos
-        items.Push( cast( ulong, Expression( p ) ) )
+        dim as int32 before = p.pos
+        items.Push( cast( uint32, Expression( p ) ) )
         if p.pos = before then exit do
         if Accept( p, Tko.TK_COMMA ) = false then exit do
     loop
@@ -486,7 +486,7 @@ function GetPutExprCall( byref p as Tko.ParserState ) as Tko.NodeId
 
     sp.first = p.ast->children.Count
     sp.count = items.Count
-    for i as long = 0 to items.Count - 1
+    for i as int32 = 0 to items.Count - 1
         p.ast->children.Push( items[i] )
     next
     return MakeStmt( p, Tko.N_INTRINSIC, t.loc, sp )
@@ -511,13 +511,13 @@ private sub IntrFileNumList _
     do
         if (Peek( p ) = Tko.TK_EOL) orelse AtEnd( p ) then exit do
         if Peek( p ) = Tko.TK_HASH then Advance( p )
-        dim as long before = p.pos
-        items.Push( cast( ulong, Expression( p ) ) )
+        dim as int32 before = p.pos
+        items.Push( cast( uint32, Expression( p ) ) )
         if p.pos = before then exit do
         dim as boolean atRange = takesRange andalso (items.Count = 2)
         if atRange then
             if Accept( p, Tko.KW_TO ) then
-                items.Push( cast( ulong, Expression( p ) ) )
+                items.Push( cast( uint32, Expression( p ) ) )
                 exit do
             end if
         end if
@@ -525,7 +525,7 @@ private sub IntrFileNumList _
     loop
     sp.first = p.ast->children.Count
     sp.count = items.Count
-    for i as long = 0 to items.Count - 1
+    for i as int32 = 0 to items.Count - 1
         p.ast->children.Push( items[i] )
     next
 end sub
@@ -548,7 +548,7 @@ private sub IntrGetPut( byref p as Tko.ParserState, byref sp as Tko.StmtPayload 
     '' 'extra' is what says which of the two statements this is, so the graphics flags
     '' start above it.
     if isFile = false then
-        if ParseGfxGetPut( p, sp.op = cast( ushort, Tko.KW_PUT ), sp ) then return
+        if ParseGfxGetPut( p, sp.op = cast( uint16, Tko.KW_PUT ), sp ) then return
     end if
 
     dim as Tko.NodeIdVec items
@@ -558,8 +558,8 @@ private sub IntrGetPut( byref p as Tko.ParserState, byref sp as Tko.StmtPayload 
     if isFile then
         do
             if (Peek( p ) = Tko.TK_EOL) orelse AtEnd( p ) then exit do
-            dim as long before = p.pos
-            items.Push( cast( ulong, ArgOrElided( p, Tko.TK_EOL, false ) ) )
+            dim as int32 before = p.pos
+            items.Push( cast( uint32, ArgOrElided( p, Tko.TK_EOL, false ) ) )
             if Accept( p, Tko.TK_COMMA ) = false then exit do
             if p.pos = before then exit do
         loop
@@ -571,14 +571,14 @@ private sub IntrGetPut( byref p as Tko.ParserState, byref sp as Tko.StmtPayload 
             Advance( p )
             continue do
         end if
-        dim as long before = p.pos
-        items.Push( cast( ulong, Expression( p ) ) )
+        dim as int32 before = p.pos
+        items.Push( cast( uint32, Expression( p ) ) )
         if p.pos = before then exit do
     loop
 
     sp.first = p.ast->children.Count
     sp.count = items.Count
-    for i as long = 0 to items.Count - 1
+    for i as int32 = 0 to items.Count - 1
         p.ast->children.Push( items[i] )
     next
 end sub
@@ -611,15 +611,15 @@ private sub IntrData( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
     dim as Tko.NodeIdVec items
     do
         if (Peek( p ) = Tko.TK_EOL) orelse AtEnd( p ) then exit do
-        dim as long before = p.pos
-        items.Push( cast( ulong, Expression( p ) ) )
+        dim as int32 before = p.pos
+        items.Push( cast( uint32, Expression( p ) ) )
         '' The no-progress guard: an item that consumed nothing would loop forever.
         if p.pos = before then exit do
         if Accept( p, Tko.TK_COMMA ) = false then exit do
     loop
     sp.first = p.ast->children.Count
     sp.count = items.Count
-    for i as long = 0 to items.Count - 1
+    for i as int32 = 0 to items.Count - 1
         p.ast->children.Push( items[i] )
     next
 end sub
@@ -677,13 +677,13 @@ private sub IntrOn( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
     do
         if (Peek( p ) = Tko.TK_EOL) orelse AtEnd( p ) then exit do
         dim as Tko.Token t = Cur( p )
-        items.Push( cast( ulong, MakeIdent( p, t ) ) )
+        items.Push( cast( uint32, MakeIdent( p, t ) ) )
         Advance( p )
         if Accept( p, Tko.TK_COMMA ) = false then exit do
     loop
     sp.first = p.ast->children.Count
     sp.count = items.Count
-    for i as long = 0 to items.Count - 1
+    for i as int32 = 0 to items.Count - 1
         p.ast->children.Push( items[i] )
     next
 end sub
@@ -723,7 +723,7 @@ function ParseIntrinsic( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.Token t = Cur( p )
     dim as Tko.TokenKind k = Peek( p )
     dim as Tko.StmtPayload sp
-    sp.op = cast( ushort, k )
+    sp.op = cast( uint16, k )
 
     '' '?' is PRINT, and is not a keyword at all.
     dim as Tko.IntrinsicForm form = Tko.IFORM_PRINT
@@ -732,7 +732,7 @@ function ParseIntrinsic( byref p as Tko.ParserState ) as Tko.NodeId
         '' statement kind out of a pure synonym, and the lowerer dispatches on the
         '' op: every '?' reached the end of the dispatcher and declined, while the
         '' 'print' beside it lowered. syntax/non-indexed-array.bas writes it.
-        sp.op = cast( ushort, Tko.KW_PRINT )
+        sp.op = cast( uint16, Tko.KW_PRINT )
     else
         form = Tko.IntrinsicFormOf( k )
     end if
@@ -802,17 +802,17 @@ function ParseIntrinsic( byref p as Tko.ParserState ) as Tko.NodeId
                 dim as Tko.Token lrAt = Cur( p )
                 Advance( p )
                 dim as Tko.BinaryPayload lrBp
-                lrBp.op = cast( ushort, Tko.TK_EQ )
+                lrBp.op = cast( uint16, Tko.TK_EQ )
                 lrBp.lhs = lrLhs
                 lrBp.rhs = Expression( p )
                 p.ast->binaries.Push( lrBp )
                 lrLhs = NewNodeAt( p, Tko.N_BINARY, lrAt.loc, _
-                                    cast( ulong, p.ast->binaries.Count - 1 ) )
+                                    cast( uint32, p.ast->binaries.Count - 1 ) )
             end if
-            lrItems.Push( cast( ulong, lrLhs ) )
+            lrItems.Push( cast( uint32, lrLhs ) )
             sp.first = p.ast->children.Count
             sp.count = lrItems.Count
-            for i as long = 0 to lrItems.Count - 1
+            for i as int32 = 0 to lrItems.Count - 1
                 p.ast->children.Push( lrItems[i] )
             next
             return MakeStmt( p, Tko.N_INTRINSIC, t.loc, sp )
@@ -838,7 +838,7 @@ function ParseIntrinsic( byref p as Tko.ParserState ) as Tko.NodeId
         IntrArgList( p, items )
         sp.first = p.ast->children.Count
         sp.count = items.Count
-        for i as long = 0 to items.Count - 1
+        for i as int32 = 0 to items.Count - 1
             p.ast->children.Push( items[i] )
         next
     end select
@@ -898,7 +898,7 @@ function TypeofArgCallee( byref p as Tko.ParserState, byval callee as Tko.NodeId
     if callee = Tko.NODE_NONE then return false
     if p.ast->Kind( callee ) <> Tko.N_IDENT then return false
     dim as string nm = Tko.Text.LowerAscii( _
-        p.names->Spelling( p.ast->idents[cast( long, p.ast->nodes[cast( long, callee )].data )].name ) )
+        p.names->Spelling( p.ast->idents[cast( int32, p.ast->nodes[cast( int32, callee )].data )].name ) )
     return (nm = "peek")
 end function
 

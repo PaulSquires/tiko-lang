@@ -21,17 +21,17 @@ private function EndsHere_ ( byref p as Tko.ParserState, byval what as Tko.Token
 end function
 
 '' Does this member list hold a field, directly or through an anonymous union or type.
-private function AggHasField_ ( byref p as Tko.ParserState, byval first as long, byval count as long ) as boolean
-    for i as long = first to first + count - 1
+private function AggHasField_ ( byref p as Tko.ParserState, byval first as int32, byval count as int32 ) as boolean
+    for i as int32 = first to first + count - 1
         dim as Tko.NodeId m = cast( Tko.NodeId, p.ast->children[i] )
         if m = Tko.NODE_NONE then continue for
-        select case p.ast->nodes[cast( long, m )].kind
+        select case p.ast->nodes[cast( int32, m )].kind
         case Tko.N_FIELD
             return true
         case Tko.N_VAR
-            if p.ast->stmts[cast( long, p.ast->nodes[cast( long, m )].data )].op = cast( ushort, Tko.KW_REDIM ) then return true
+            if p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, m )].data )].op = cast( uint16, Tko.KW_REDIM ) then return true
         case Tko.N_TYPE
-            dim as Tko.StmtPayload ptr mp = @p.ast->stmts[cast( long, p.ast->nodes[cast( long, m )].data )]
+            dim as Tko.StmtPayload ptr mp = @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, m )].data )]
             if AggHasField_( p, mp->first, mp->count ) then return true
         end select
     next
@@ -40,8 +40,8 @@ end function
 
 '' Is this node the bare word 'any'.
 private function IsAnyWord_ ( byref p as Tko.ParserState, byval n as Tko.NodeId ) as boolean
-    if (n = Tko.NODE_NONE) orelse (p.ast->nodes[cast( long, n )].kind <> Tko.N_IDENT) then return false
-    return lcase( p.names->Spelling( p.ast->idents[cast( long, p.ast->nodes[cast( long, n )].data )].name ) ) = "any"
+    if (n = Tko.NODE_NONE) orelse (p.ast->nodes[cast( int32, n )].kind <> Tko.N_IDENT) then return false
+    return lcase( p.names->Spelling( p.ast->idents[cast( int32, p.ast->nodes[cast( int32, n )].data )].name ) ) = "any"
 end function
 
 '' TWO RULES ABOUT A MEMBER, asked of every body from here. Measured on fbc-modern 1.20,
@@ -59,18 +59,18 @@ end function
 '' 'c', or in 'b' for the type-first spelling.
 private sub AggMemberCheck_ ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, byval isUnion as boolean )
     if p.silent then return
-    for i as long = sp.first to sp.first + sp.count - 1
+    for i as int32 = sp.first to sp.first + sp.count - 1
         dim as Tko.NodeId m = cast( Tko.NodeId, p.ast->children[i] )
         if m = Tko.NODE_NONE then continue for
-        dim as Tko.StmtPayload ptr mp = @p.ast->stmts[cast( long, p.ast->nodes[cast( long, m )].data )]
-        select case p.ast->nodes[cast( long, m )].kind
+        dim as Tko.StmtPayload ptr mp = @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, m )].data )]
+        select case p.ast->nodes[cast( int32, m )].kind
         case Tko.N_VAR
-            if (sp.name = 0) andalso (mp->op = cast( ushort, Tko.KW_STATIC )) then
+            if (sp.name = 0) andalso (mp->op = cast( uint16, Tko.KW_STATIC )) then
                 p.diags->Report( Tko.TKO0884, Tko.PointRange( p.ast->Loc( m ) ), iif( isUnion, "UNION", "TYPE" ) )
             end if
         case Tko.N_FIELD
             '' A 'redim' FIELD IS VAR-LEN TOO: 'redim a( 0 to 1 ) as integer => { 1, 2 }' is fbc's 75.
-            if mp->op = cast( ushort, Tko.KW_REDIM ) then
+            if mp->op = cast( uint16, Tko.KW_REDIM ) then
                 dim as Tko.NodeId rini = mp->c
                 if rini = Tko.NODE_NONE then rini = mp->b
                 if (rini <> Tko.NODE_NONE) andalso (IsAnyWord_( p, rini ) = false) then
@@ -78,9 +78,9 @@ private sub AggMemberCheck_ ( byref p as Tko.ParserState, byref sp as Tko.StmtPa
                 end if
                 continue for
             end if
-            if (mp->count < 1) orelse (mp->op <> cast( ushort, Tko.KW_DIM )) then continue for
+            if (mp->count < 1) orelse (mp->op <> cast( uint16, Tko.KW_DIM )) then continue for
             dim as boolean dyn = true
-            for j as long = mp->first to mp->first + mp->count - 1
+            for j as int32 = mp->first to mp->first + mp->count - 1
                 '' LOW/HIGH PAIRS, and '(any)' has no low bound: an empty slot is skipped.
                 dim as Tko.NodeId bj = cast( Tko.NodeId, p.ast->children[j] )
                 if (bj <> Tko.NODE_NONE) andalso (IsAnyWord_( p, bj ) = false) then dyn = false
@@ -103,10 +103,10 @@ sub AsmReserveInBlock_( byref p as Tko.ParserState, byval blockAt as Tko.SourceL
     if p.stream = 0 then return
     dim as Tko.PpStream ptr st = cast( Tko.PpStream ptr, p.stream )
     if st->outp = 0 then return
-    dim as long n = st->outp->asmReserveAt.Count
-    for i as long = p.asmSeen to n - 1
+    dim as int32 n = st->outp->asmReserveAt.Count
+    for i as int32 = p.asmSeen to n - 1
         dim as Tko.SourceLoc at_ = cast( Tko.SourceLoc, st->outp->asmReserveAt[i] )
-        if (cast( ulong, at_ ) >= cast( ulong, blockAt )) andalso (p.silent = false) then
+        if (cast( uint32, at_ ) >= cast( uint32, blockAt )) andalso (p.silent = false) then
             p.diags->Report( Tko.TKO0920, Tko.PointRange( at_ ) )
         end if
     next

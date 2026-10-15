@@ -34,20 +34,20 @@ private sub ArrayTooBig_ _
     if c.types->IsDynArray( t ) then return
     dim as Tko.TypeId et = c.types->Inner( t )
     if et = Tko.TYPE_NONE then return
-    dim as longint esz = cast( longint, c.types->Layout( et ).size )
+    dim as int64 esz = cast( int64, c.types->Layout( et ).size )
     if esz <= 0 then return
     '' THE COUNT IS RECOMPUTED FROM THE BOUNDS, in 64 bits, and not read off the
     '' type. TypeRecord.elems is a LONG, so 'byte t(0 to &h7FFFFFFF)' -- 2147483648
     '' elements -- has already overflowed to a negative there, and the two shapes
     '' furthest over the limit were the two this check could not see.
-    dim as long dims = c.types->types[cast( long, t )].dims
+    dim as int32 dims = c.types->types[cast( int32, t )].dims
     if dims < 1 then return
-    dim as long bfirst = c.types->types[cast( long, t )].first
-    if c.types->types[cast( long, t )].count < dims * 2 then return
-    dim as longint n = 1
-    for d as long = 0 to dims - 1
-        dim as longint lo = c.types->boundPool[bfirst + d * 2]
-        dim as longint hi = c.types->boundPool[bfirst + d * 2 + 1]
+    dim as int32 bfirst = c.types->types[cast( int32, t )].first
+    if c.types->types[cast( int32, t )].count < dims * 2 then return
+    dim as int64 n = 1
+    for d as int32 = 0 to dims - 1
+        dim as int64 lo = c.types->boundPool[bfirst + d * 2]
+        dim as int64 hi = c.types->boundPool[bfirst + d * 2 + 1]
         '' A LOWER BOUND ABOVE THE UPPER is fbc's error 182, "Invalid array subscript":
         '' 'dim array(1 to 0)', '(0 to -1)', '(-1)', a field or an extern the same, and
         '' '(&h8000000000000000 to &h8000000000000000)' -- an upper bound of LONGINT's minimum
@@ -145,7 +145,7 @@ private function UdtSymOf_ _
 end function
 
 declare function SlotsOfType_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byval depth as long ) as long
+    ( byref c as Ctx, byval t as Tko.TypeId, byval depth as int32 ) as int32
 
 '' One anonymous-aggregate GROUP, counted the way udtlayout.tiko PLACES one: the fields
 '' are a flat list carrying 'anonDepth', a deeper depth opens a nested group, and
@@ -153,31 +153,31 @@ declare function SlotsOfType_ _
 '' shared, because the layout pass returns bytes and this returns slots -- but the
 '' TRAVERSAL has to be identical, or 'union { type { a; b } }' counts as one.
 private function SlotsGroup_ _
-    ( byref c as Ctx, byref flds as containers.Array( of ulong ), byref idx as long, _
-      byval depth as long, byval isUnion as boolean, byval rdepth as long ) as long
+    ( byref c as Ctx, byref flds as containers.Array( of uint32 ), byref idx as int32, _
+      byval depth as int32, byval isUnion as boolean, byval rdepth as int32 ) as int32
 
-    dim as long total = 0
+    dim as int32 total = 0
     '' -2 means "no member seen yet". A UNION answers with its FIRST member's count,
     '' but the loop still has to CONSUME the rest of the group: returning early left
     '' 'idx' inside it, and the caller then read the same members again as a second
     '' group -- which is how 'type T { a; union { b; c } }' counted three.
-    dim as long firstN = -2
+    dim as int32 firstN = -2
     dim as boolean first = true
 
     while idx < flds.Count
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cast( Tko.SymbolId, flds[idx] ) )
         if f = 0 then exit while
-        dim as long fd = cast( long, f->anonDepth )
+        dim as int32 fd = cast( int32, f->anonDepth )
         if fd < depth then exit while
 
         '' Does this field START A NEW GROUP at or above this depth? The same test
         '' PlaceGroup makes, and for the same reason: a field opens the levels
         '' (anonDepth - anonOpen + 1) .. anonDepth.
         if (first = false) andalso (depth > 0) andalso (f->anonOpen > 0) then
-            if (fd - cast( long, f->anonOpen ) + 1) <= depth then exit while
+            if (fd - cast( int32, f->anonOpen ) + 1) <= depth then exit while
         end if
 
-        dim as long n = 0
+        dim as int32 n = 0
         if fd > depth then
             '' THE KIND OF THE LEVEL BEING OPENED, read off the mask exactly as
             '' udtlayout.tiko PlaceGroup reads it. A field's SYMF_UNION describes only
@@ -186,7 +186,7 @@ private function SlotsGroup_ _
             dim as boolean nestedIsUnion = false
             if depth < 16 then
                 nestedIsUnion = ((f->anonUnionMask and _
-                                  cast( ushort, 1 shl depth )) <> 0)
+                                  cast( uint16, 1 shl depth )) <> 0)
             end if
             n = SlotsGroup_( c, flds, idx, depth + 1, nestedIsUnion, rdepth )
         else
@@ -207,7 +207,7 @@ private function SlotsGroup_ _
 end function
 
 private function SlotsOfUdt_ _
-    ( byref c as Ctx, byval u as Tko.TypeId, byval rdepth as long ) as long
+    ( byref c as Ctx, byval u as Tko.TypeId, byval rdepth as int32 ) as int32
 
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( UdtSymOf_( c, u ) )
     if s = 0 then return -1
@@ -215,32 +215,32 @@ private function SlotsOfUdt_ _
     dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
     if sc = 0 then return -1
 
-    dim as containers.Array( of ulong ) flds
+    dim as containers.Array( of uint32 ) flds
     dim as Tko.SymbolId cur = sc->firstSym
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
         if f = 0 then exit while
-        if f->kind = cast( ubyte, Tko.SYM_FIELD ) then
+        if f->kind = cast( uint8, Tko.SYM_FIELD ) then
             '' A BITFIELD is declined for layout everywhere else in this compiler; it
             '' is declined here too rather than counted as an ordinary member.
             if (f->flags and Tko.SYMF_BITFIELD) <> 0 then return -1
             dim as boolean isStatic = ((f->flags and _
                 (Tko.SYMF_STATIC or Tko.SYMF_SHARED)) <> 0)
-            if isStatic = false then flds.Push( cast( ulong, cur ) )
+            if isStatic = false then flds.Push( cast( uint32, cur ) )
         end if
         cur = f->nextInScope
     wend
     if flds.Count = 0 then return -1
 
-    dim as long idx = 0
+    dim as int32 idx = 0
     dim as boolean isUnion = ((s->flags and Tko.SYMF_UNION_KIND) <> 0)
     return SlotsGroup_( c, flds, idx, 0, isUnion, rdepth )
 end function
 
 function SlotsOfType_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byval depth as long ) as long
+    ( byref c as Ctx, byval t as Tko.TypeId, byval depth as int32 ) as int32
 
     if t = Tko.TYPE_NONE then return -1
     if depth > 16 then return -1
@@ -274,7 +274,7 @@ private sub InitTooMany_ _
     if isList = false then return
 
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init )].data )]
 
     '' 'type<child>( 4, 5 )' fills a CHILD and upcasts. Its type ref is the target.
     dim as Tko.TypeId lt = t
@@ -284,7 +284,7 @@ private sub InitTooMany_ _
         lt = a
     end if
 
-    dim as long slots = SlotsOfType_( c, lt, 0 )
+    dim as int32 slots = SlotsOfType_( c, lt, 0 )
     if slots < 0 then return
     if lp->count <= slots then return
 

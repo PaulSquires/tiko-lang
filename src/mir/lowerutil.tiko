@@ -5,15 +5,15 @@
 
 function StmtOf _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.StmtPayload ptr
-    return @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    return @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
 end function
 
 '' -------------------------------------------------------------- construction
 
-function NewBlock( byref c as Ctx, byref label as string ) as long
+function NewBlock( byref c as Ctx, byref label as string ) as int32
     dim as MirBlock b
     b.label = c.names->GetString( label & str( c.f->blocks.Count ) )
-    b.term = cast( ubyte, MTERM_NONE )
+    b.term = cast( uint8, MTERM_NONE )
     b.target = -1
     b.target2 = -1
     c.f->blocks.Push( b )
@@ -26,7 +26,7 @@ end function
 '' never returns to a finished block -- it opens a new one instead.
 '' HAS LowerUserBinaryOp_ ALREADY DECLINED THIS NODE?
 function UserOpDeclined_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
-    dim as long i = cast( long, id )
+    dim as int32 i = cast( int32, id )
     if i < 0 then return false
     if i >= c.userOpDeclined.Count then return false
     return (c.userOpDeclined[i] <> 0)
@@ -59,14 +59,14 @@ end function
 '' there was nowhere to put the answer; the same node in a live block may lower fine.
 sub MarkUserOpDeclined_( byref c as Ctx, byval id as Tko.NodeId )
     if c.curBlock < 0 then return
-    dim as long i = cast( long, id )
+    dim as int32 i = cast( int32, id )
     if i < 0 then return
     '' GROWN ON FIRST USE, not sized up front in Lower: a unit with no declining
     '' operator in it never pays for the table at all, and one that does pays a single
     '' pass. Generic instantiation appends nodes later, so this grows more than once.
     if i >= c.userOpDeclined.Count then
         c.userOpDeclined.Reserve( i + 1 )
-        dim as ubyte zero_ = 0
+        dim as uint8 zero_ = 0
         while c.userOpDeclined.Count <= i
             c.userOpDeclined.Push( zero_ )
         wend
@@ -86,7 +86,7 @@ function Emit( byref c as Ctx, byref ins as MirInst ) as MirValue
     '' keeps for a missing ARGUMENT, applied at the one place every store passes
     '' through, and it counts as a decline like any other unlowered statement.
     if op = M_STORE then
-        if ins.b.kind = cast( ubyte, MV_NONE ) then
+        if ins.b.kind = cast( uint8, MV_NONE ) then
             SkipHere( c )
             return v
         end if
@@ -94,7 +94,7 @@ function Emit( byref c as Ctx, byref ins as MirInst ) as MirValue
     '' An instruction that would produce a VOID result is not emitted at all. It
     '' means the frontend could not type the expression, and a well-formed IR with a
     '' gap in it is far more useful than a complete one that is malformed.
-    if OpHasResult( op ) andalso (ins.ty = cast( ubyte, MT_VOID )) then
+    if OpHasResult( op ) andalso (ins.ty = cast( uint8, MT_VOID )) then
         if (op <> M_CALL) andalso (op <> M_CALL_RTL) andalso _
            (op <> M_CALL_IND) then
             SkipHere( c )
@@ -105,7 +105,7 @@ function Emit( byref c as Ctx, byref ins as MirInst ) as MirValue
     '' one made every constructor call read as '%2 = call void', which is noise in a
     '' listing the golden tests assert on.
     dim as boolean makesValue = OpHasResult( op )
-    if ins.ty = cast( ubyte, MT_VOID ) then makesValue = false
+    if ins.ty = cast( uint8, MT_VOID ) then makesValue = false
     if makesValue then
         ins.result = c.f->nextTemp
         c.f->nextTemp += 1
@@ -120,14 +120,14 @@ function Emit( byref c as Ctx, byref ins as MirInst ) as MirValue
         if (c.curStmtNode <> 0) andalso (c.srcMgr <> 0) andalso (c.f->dbgFile > 0) then
             dim as Tko.DecodedLoc dl = _
                 c.srcMgr->Decode( c.ast->Loc( cast( Tko.NodeId, c.curStmtNode ) ) )
-            if cast( ulong, dl.file ) + 1 = c.f->dbgFile then c.dbgLine = dl.physLine
+            if cast( uint32, dl.file ) + 1 = c.f->dbgFile then c.dbgLine = dl.physLine
         end if
     end if
     ins.dbgLine = c.dbgLine
     c.f->blocks[c.curBlock].insts.Push( ins )
     c.st->insts += 1
     if makesValue then
-        v.kind = cast( ubyte, MV_TEMP )
+        v.kind = cast( uint8, MV_TEMP )
         v.ty = ins.ty
         v.id = ins.result
     end if
@@ -142,15 +142,15 @@ function NoVal( ) as MirValue
 end function
 
 sub Terminate _
-    ( byref c as Ctx, byval k as MirTermKind, byval t1 as long, _
-      byval t2 as long, byref cond as MirValue )
+    ( byref c as Ctx, byval k as MirTermKind, byval t1 as int32, _
+      byval t2 as int32, byref cond as MirValue )
 
     if c.curBlock < 0 then return
     dim as MirBlock ptr b = @c.f->blocks[c.curBlock]
     '' A block already terminated is left alone: the second terminator would be
     '' unreachable, and silently dropping it is what 'return' inside an IF needs.
-    if b->term <> cast( ubyte, MTERM_NONE ) then return
-    b->term = cast( ubyte, k )
+    if b->term <> cast( uint8, MTERM_NONE ) then return
+    b->term = cast( uint8, k )
     b->target = t1
     b->target2 = t2
 
@@ -166,7 +166,7 @@ sub Terminate _
     '' already the shape the ABI wants, and a void return has no value to coerce.
     dim as MirValue rv = cond
     if k = MTERM_RET then
-        if rv.kind <> cast( ubyte, MV_NONE ) then
+        if rv.kind <> cast( uint8, MV_NONE ) then
             dim as MirType want = cast( MirType, c.f->retTy )
             dim as MirType have = cast( MirType, rv.ty )
             dim as boolean bothScalar = _
@@ -181,10 +181,10 @@ sub Terminate _
 end sub
 
 function ConstInt _
-    ( byref c as Ctx, byval v as longint, byval t as MirType ) as MirValue
+    ( byref c as Ctx, byval v as int64, byval t as MirType ) as MirValue
     dim as MirInst ins
-    ins.op = cast( ushort, M_CONST )
-    ins.ty = cast( ubyte, t )
+    ins.op = cast( uint16, M_CONST )
+    ins.ty = cast( uint8, t )
     ins.imm = v
     '' ...AND A FLOAT CONSTANT READS 'fimm': 'ConstInt( c, 1, MT_F64 )' -- a FOR loop's implicit
     '' step over a double counter -- went out as 'const f64 0', and 'for d as double = 1 to 3'
@@ -194,10 +194,10 @@ function ConstInt _
 end function
 
 function ConstFloat _
-    ( byref c as Ctx, byval v as double, byval t as MirType ) as MirValue
+    ( byref c as Ctx, byval v as float64, byval t as MirType ) as MirValue
     dim as MirInst ins
-    ins.op = cast( ushort, M_CONST )
-    ins.ty = cast( ubyte, t )
+    ins.op = cast( uint16, M_CONST )
+    ins.ty = cast( uint8, t )
     ins.fimm = v
     return Emit( c, ins )
 end function
@@ -215,7 +215,7 @@ function IsFloatTy( byval t as MirType ) as boolean
 end function
 
 '' A MIR type's size in BYTES, for the temporaries that hold one.
-function TyWidthBytes_( byval t as MirType ) as long
+function TyWidthBytes_( byval t as MirType ) as int32
     select case t
     case MT_I8  : return 1
     case MT_I16 : return 2
@@ -225,7 +225,7 @@ function TyWidthBytes_( byval t as MirType ) as long
     return 8
 end function
 
-private function TyWidth( byval t as MirType ) as long
+private function TyWidth( byval t as MirType ) as int32
     select case t
     case MT_I8  : return 8
     case MT_I16 : return 16
@@ -266,12 +266,12 @@ end function
 '' what makes the negation that widens one give -1 rather than some other bit pattern.
 function NormaliseBool _
     ( byref c as Ctx, byref v as MirValue ) as MirValue
-    if v.kind = cast( ubyte, MV_NONE ) then return v
+    if v.kind = cast( uint8, MV_NONE ) then return v
     dim as MirType ht = cast( MirType, v.ty )
     if (ht = MT_VOID) orelse (ht = MT_PTR) then return v
     dim as MirInst ne
-    ne.op = cast( ushort, iif( IsFloatTy( ht ), M_FCMP_NE, M_ICMP_NE ) )
-    ne.ty = cast( ubyte, MT_I8 )
+    ne.op = cast( uint16, iif( IsFloatTy( ht ), M_FCMP_NE, M_ICMP_NE ) )
+    ne.ty = cast( uint8, MT_I8 )
     ne.a = v
     ne.b = ZeroOf( c, ht )
     return Emit( c, ne )
@@ -301,7 +301,7 @@ function ThisObjectAddr_ _
     dim as Tko.TypeId t = c.types->Unqualify( c.info->TypeOf_( e ) )
     if c.types->Kind( t ) <> Tko.TK_POINTER then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, e )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, e )].data )]
     if ip->name <> c.names->Fold( c.names->GetString( "this" ) ) then return false
     dim as Tko.TypeId pin = c.types->Unqualify( c.types->Inner( t ) )
     if pin = Tko.TYPE_NONE then return false
@@ -310,9 +310,9 @@ function ThisObjectAddr_ _
     if typeOnly then return true
     '' THE SLOT HOLDS THE POINTER, so the object's address is the slot's VALUE.
     dim as MirValue sa = LowerAddr( c, e )
-    if sa.kind = cast( ubyte, MV_NONE ) then return false
+    if sa.kind = cast( uint8, MV_NONE ) then return false
     dim as MirValue pv = LowerExprLoad( c, sa, MT_PTR )
-    if pv.kind = cast( ubyte, MV_NONE ) then return false
+    if pv.kind = cast( uint8, MV_NONE ) then return false
     outT = pin
     outAddr = pv
     return true
@@ -325,7 +325,7 @@ function CoerceTy _
 
     dim as boolean srcBool = IsBooleanType( c, srcTid )
     dim as boolean dstBool = IsBooleanType( c, dstTid )
-    dim as boolean haveVal = (v.kind <> cast( ubyte, MV_NONE ))
+    dim as boolean haveVal = (v.kind <> cast( uint8, MV_NONE ))
 
     '' NARROWING TO BOOLEAN NORMALISES. Every value stored into a BOOLEAN becomes 0
     '' or 1, and fbc spells it as a compare against zero -- measured, one assignment
@@ -382,10 +382,10 @@ function CoerceTy _
         '' 'dim as integer i = bool_T'. Normalising here costs one compare on a value
         '' that is already 0 or 1, and is the only place that sees both kinds.
         dim as MirValue bv = NormaliseBool( c, v )
-        if bv.kind = cast( ubyte, MV_NONE ) then return bv
+        if bv.kind = cast( uint8, MV_NONE ) then return bv
         dim as MirInst ng
-        ng.op = cast( ushort, M_SUB )
-        ng.ty = cast( ubyte, MT_I8 )
+        ng.op = cast( uint16, M_SUB )
+        ng.ty = cast( uint8, MT_I8 )
         ng.a = ConstInt( c, 0, MT_I8 )
         ng.b = bv
         dim as MirValue nv = Emit( c, ng )
@@ -408,13 +408,13 @@ function CoerceTy _
     '' aggregate load with no width is the '[0 x i8]' this replaces.
     if (want = MT_AGG) andalso haveVal then
         if cast( MirType, v.ty ) = MT_PTR then
-            dim as long asz = SizeOfType( c, dstTid )
+            dim as int32 asz = SizeOfType( c, dstTid )
             if asz > 0 then
                 dim as MirInst al
-                al.op = cast( ushort, M_LOAD )
-                al.ty = cast( ubyte, MT_AGG )
+                al.op = cast( uint16, M_LOAD )
+                al.ty = cast( uint8, MT_AGG )
                 al.a = v
-                al.imm = cast( longint, asz )
+                al.imm = cast( int64, asz )
                 return Emit( c, al )
             end if
         end if
@@ -438,7 +438,7 @@ function Coerce _
       byval srcUnsigned as boolean = false, _
       byval dstUnsigned as boolean = false ) as MirValue
 
-    if v.kind = cast( ubyte, MV_NONE ) then return v
+    if v.kind = cast( uint8, MV_NONE ) then return v
     dim as MirType have = cast( MirType, v.ty )
     if have = want then return v
     if (have = MT_VOID) orelse (want = MT_VOID) then return v
@@ -464,10 +464,10 @@ function Coerce _
         '' 'G( (char*)Z$0 )' for 'g( z )' over a 'zstring * 50': the array's
         '' address, with no load anywhere.
         if (have = MT_AGG) andalso (want = MT_PTR) then
-            if (v.kind = cast( ubyte, MV_LOCAL )) orelse _
-               (v.kind = cast( ubyte, MV_GLOBAL )) then
+            if (v.kind = cast( uint8, MV_LOCAL )) orelse _
+               (v.kind = cast( uint8, MV_GLOBAL )) then
                 dim as MirValue pv = v
-                pv.ty = cast( ubyte, MT_PTR )
+                pv.ty = cast( uint8, MT_PTR )
                 return pv
             end if
         end if
@@ -492,30 +492,30 @@ function Coerce _
         if c.types->target.pointerBits = 32 then intPtrTy = MT_I32
         if want = MT_PTR then
             dim as MirValue w = Coerce( c, v, intPtrTy, srcUnsigned )
-            if w.kind = cast( ubyte, MV_NONE ) then return w
+            if w.kind = cast( uint8, MV_NONE ) then return w
             dim as MirInst bc
-            bc.op = cast( ushort, M_BITCAST )
-            bc.ty = cast( ubyte, MT_PTR )
+            bc.op = cast( uint16, M_BITCAST )
+            bc.ty = cast( uint8, MT_PTR )
             bc.a = w
             return Emit( c, bc )
         end if
         dim as MirInst bc
-        bc.op = cast( ushort, M_BITCAST )
-        bc.ty = cast( ubyte, intPtrTy )
+        bc.op = cast( uint16, M_BITCAST )
+        bc.ty = cast( uint8, intPtrTy )
         bc.a = v
         dim as MirValue w = Emit( c, bc )
-        if w.kind = cast( ubyte, MV_NONE ) then return w
+        if w.kind = cast( uint8, MV_NONE ) then return w
         return Coerce( c, w, want )
     end if
 
     dim as MirInst ins
-    ins.ty = cast( ubyte, want )
+    ins.ty = cast( uint8, want )
     ins.a = v
     dim as boolean hf = IsFloatTy( have )
     dim as boolean wf = IsFloatTy( want )
 
     if hf andalso wf then
-        ins.op = cast( ushort, iif( TyWidth( want ) < TyWidth( have ), M_FPTRUNC, M_FPEXT ) )
+        ins.op = cast( uint16, iif( TyWidth( want ) < TyWidth( have ), M_FPTRUNC, M_FPEXT ) )
     elseif hf then
         '' ROUND FIRST. FreeBASIC converts a float to an integer by rounding to the
         '' nearest, halves to even -- measured by running fbc: 1.4 -> 1, 1.6 -> 2,
@@ -523,11 +523,11 @@ function Coerce _
         '' wrong for three of those five, silently, in every conversion in the tree.
         '' fbc's own C says the same thing: 'fb_D2I( v )' is '(int32)nearbyint( v )'.
         dim as MirInst rn
-        rn.op = cast( ushort, M_NEARBYINT )
-        rn.ty = cast( ubyte, have )
+        rn.op = cast( uint16, M_NEARBYINT )
+        rn.ty = cast( uint8, have )
         rn.a = v
         dim as MirValue rv = Emit( c, rn )
-        if rv.kind <> cast( ubyte, MV_NONE ) then ins.a = rv
+        if rv.kind <> cast( uint8, MV_NONE ) then ins.a = rv
         '' AN UNSIGNED 64-BIT TARGET TAKES ITS OWN CONVERSION. fbc calls fb_D2UL for
         '' 'culngint( d )' and '(uint32)fb_D2L( d )' for 'culng( d )': only at 64
         '' bits does the unsigned range run past what the signed conversion can
@@ -544,7 +544,7 @@ function Coerce _
         dim as boolean narrow32 = (TyWidth( want ) < 32)
         dim as boolean narrow64 = dstUnsigned andalso (TyWidth( want ) < 64)
         if dstUnsigned andalso (TyWidth( want ) = 64) then
-            ins.op = cast( ushort, M_FPTOUI )
+            ins.op = cast( uint16, M_FPTOUI )
         elseif narrow32 orelse narrow64 then
             '' ...AND A NARROWER UNSIGNED TARGET CONVERTS AT 64 AND TRUNCATES, which
             '' is what the comment above already quotes fbc doing -- '(uint32)
@@ -554,28 +554,28 @@ function Coerce _
             '' 2147483648 where fbc prints 4294967295. cuint, being 64-bit, was
             '' right all along.
             dim as MirInst wide
-            wide.op = cast( ushort, M_FPTOSI )
-            wide.ty = cast( ubyte, iif( narrow32, MT_I32, MT_I64 ) )
+            wide.op = cast( uint16, M_FPTOSI )
+            wide.ty = cast( uint8, iif( narrow32, MT_I32, MT_I64 ) )
             wide.a = ins.a
             dim as MirValue wv = Emit( c, wide )
-            if wv.kind = cast( ubyte, MV_NONE ) then return wv
-            ins.op = cast( ushort, M_TRUNC )
+            if wv.kind = cast( uint8, MV_NONE ) then return wv
+            ins.op = cast( uint16, M_TRUNC )
             ins.a = wv
         else
-            ins.op = cast( ushort, M_FPTOSI )
+            ins.op = cast( uint16, M_FPTOSI )
         end if
     elseif wf then
         '' An UNSIGNED source goes through uitofp. sitofp reads the top bit as a sign,
         '' so a ULONGINT near its maximum came out as -1 instead of 1.8e19.
-        ins.op = cast( ushort, iif( srcUnsigned, M_UITOFP, M_SITOFP ) )
+        ins.op = cast( uint16, iif( srcUnsigned, M_UITOFP, M_SITOFP ) )
     else
         if TyWidth( want ) < TyWidth( have ) then
-            ins.op = cast( ushort, M_TRUNC )
+            ins.op = cast( uint16, M_TRUNC )
         elseif TyWidth( want ) > TyWidth( have ) then
             '' ZERO-extend an unsigned source. Sign-extending one turns every value
             '' with its top bit set negative: a UBYTE of 200 widened to a LONG gave
             '' -56, and fbc prints 200.
-            ins.op = cast( ushort, iif( srcUnsigned, M_ZEXT, M_SEXT ) )
+            ins.op = cast( uint16, iif( srcUnsigned, M_ZEXT, M_SEXT ) )
         else
             return v
         end if
@@ -604,31 +604,31 @@ end function
 '' version -- 'r = this.items( this.num )'.
 function LowerExprLoad _
     ( byref c as Ctx, byref addr as MirValue, byval t as MirType, _
-      byval sizeBytes as long = 0 ) as MirValue
+      byval sizeBytes as int32 = 0 ) as MirValue
     dim as MirInst ins
-    ins.op = cast( ushort, M_LOAD )
-    ins.ty = cast( ubyte, t )
+    ins.op = cast( uint16, M_LOAD )
+    ins.ty = cast( uint8, t )
     ins.a = addr
     if (t = MT_AGG) andalso (sizeBytes > 0) then
-        ins.imm = cast( longint, sizeBytes )
+        ins.imm = cast( int64, sizeBytes )
     end if
     return Emit( c, ins )
 end function
 
 function NewTempLocal _
-    ( byref c as Ctx, byval ty as MirType, byval sizeBytes as long ) as long
+    ( byref c as Ctx, byval ty as MirType, byval sizeBytes as int32 ) as int32
 
     dim as MirLocal l
     l.name = c.names->GetString( "$tmp" & str( c.f->locals.Count ) )
-    l.ty = cast( ubyte, ty )
+    l.ty = cast( uint8, ty )
     l.size = sizeBytes
     c.f->locals.Push( l )
 
-    dim as long saved = c.curBlock
+    dim as int32 saved = c.curBlock
     c.curBlock = 0
     dim as MirInst ins
-    ins.op = cast( ushort, M_ALLOCA )
-    ins.ty = cast( ubyte, MT_PTR )
+    ins.op = cast( uint16, M_ALLOCA )
+    ins.ty = cast( uint8, MT_PTR )
     ins.imm = c.f->locals.Count - 1
     Emit( c, ins )
     c.curBlock = saved
@@ -657,21 +657,21 @@ function CallsUserProcNamedLikeBuiltin _
     if id = Tko.NODE_NONE then return false
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( cp->target ) )
     if s = 0 then return false
-    if s->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    if s->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     dim as Tko.NodeId decl = cast( Tko.NodeId, s->payload )
     if decl <> Tko.NODE_NONE then
         if c.ast->Kind( decl ) = Tko.N_PROC then
-            if c.ast->stmts[cast( long, c.ast->nodes[cast( long, decl )].data )].op = _
-               cast( ushort, Tko.KW_OPERATOR ) then return false
+            if c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, decl )].data )].op = _
+               cast( uint16, Tko.KW_OPERATOR ) then return false
         end if
     end if
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
     return Tko.Check.IsTypedIntrinsicName( Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) )
 end function
 
@@ -685,7 +685,7 @@ end function
 private function AuditName_( byref c as Ctx, byval s as Tko.SymbolId ) as string
     dim as Tko.Symbol ptr sp = c.syms->SymbolAt( s )
     if sp = 0 then return "(none)"
-    dim as long ln = 0
+    dim as int32 ln = 0
     if c.srcMgr <> 0 then ln = c.srcMgr->Decode( sp->loc ).lineNo
     return c.names->Spelling( sp->name ) & "@" & ln
 end function
@@ -701,7 +701,7 @@ sub AuditPick( byref c as Ctx, byval n as Tko.NodeId, byref site as string, _
         dim as Tko.DecodedLoc d = c.srcMgr->Decode( c.ast->Loc( n ) )
         where_ = c.srcMgr->PathOf( d.file ) & ":" & d.lineNo
     end if
-    dim as long eh = freefile
+    dim as int32 eh = freefile
     if dest = "1" then
         open err for output as #eh
     elseif open( dest for append as #eh ) <> 0 then

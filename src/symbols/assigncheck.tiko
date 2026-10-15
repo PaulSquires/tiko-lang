@@ -95,7 +95,7 @@ private function ConstDropped_ _
     if (dst = TYPE_NONE) orelse (src = TYPE_NONE) then return false
     dim as TypeId d = c.types->Unqualify( dst )
     dim as TypeId s = c.types->Unqualify( src )
-    dim as long guard = 0
+    dim as int32 guard = 0
     while guard < 32
         guard += 1
         if c.types->Kind( d ) <> TK_POINTER then return false
@@ -118,7 +118,7 @@ private function ThisObjectTarget_( byref c as Ctx, byval n as NodeId ) as boole
     if c.ast->Kind( n ) <> N_IDENT then return false
     dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
     if s = 0 then return false
-    if s->kind <> cast( ubyte, SYM_PARAMETER ) then return false
+    if s->kind <> cast( uint8, SYM_PARAMETER ) then return false
     if s->name <> c.names->Fold( c.names->GetString( "this" ) ) then return false
     dim as TypeId t = c.types->Unqualify( c.info->TypeOf_( n ) )
     if c.types->Kind( t ) <> TK_POINTER then return false
@@ -129,7 +129,7 @@ private sub CheckPtrAssign_ _
     ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId = TYPE_NONE, _
       byval byrefResult as boolean = false )
     dim as StmtPayload ptr sp = _
-        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if sp->op = 0 then return
     if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then return
     if ThisObjectTarget_( c, sp->a ) then return
@@ -142,7 +142,7 @@ private sub CheckPtrAssign_ _
     '' destructure.bas narrows a '(double, double)' into two longs), so a tuple VALUE there is
     '' not a conversion. A literal on the right is still judged element by element.
     dim as boolean destructure = (c.ast->Kind( sp->a ) = N_TUPLE) andalso (c.ast->Kind( sp->b ) <> N_TUPLE)
-    if (sp->op = cast( ushort, TK_EQ )) andalso (destructure = false) then
+    if (sp->op = cast( uint16, TK_EQ )) andalso (destructure = false) then
         if TypeLitTextBad_( c, lt, sp->b, false ) then return  '' tupleconv.tiko (T30)
         if TupleConvBad_( c, lt, sp->b, 0 ) then return  '' tupleconv.tiko
         '' 'function = x' BETWEEN TWO UDTs IS AN ASSIGNMENT: a T result given an S that only a
@@ -159,19 +159,19 @@ private sub CheckPtrAssign_ _
         return
     end if
     '' Only a plain '=': 'p += 1' is pointer arithmetic, not a conversion.
-    if sp->op = cast( ushort, TK_EQ ) then PtrWarn_( c, id, lt, rt, sp->b )
+    if sp->op = cast( uint16, TK_EQ ) then PtrWarn_( c, id, lt, rt, sp->b )
     '' ...but 'n += p' and 'n -= p' store a pointer too (ptrwarn.tiko IntFromPtrWarn_). A
     '' BYREF result takes an address: 'function = @a' (functions/return-byref.bas).
     if byrefResult andalso (c.ast->Kind( sp->a ) = N_FUNCRESULT) then return
     select case sp->op
-    case cast( ushort, TK_EQ ), cast( ushort, TK_PLUSEQ ), cast( ushort, TK_MINUSEQ )
+    case cast( uint16, TK_EQ ), cast( uint16, TK_PLUSEQ ), cast( uint16, TK_MINUSEQ )
         IntFromPtrWarn_( c, id, lt, rt, sp->b )
     end select
 end sub
 
 private sub CheckPtrInit_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr ip = _
-        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if (ip->a = NODE_NONE) orelse (ip->b = NODE_NONE) then return
     dim as TypeId lt = c.info->TypeOf_( ip->a )
     dim as TypeId rt = c.info->TypeOf_( ip->b )
@@ -192,7 +192,7 @@ end sub
 
 private sub CheckPtrFloatAssign_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
-        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if sp->op = 0 then return
     if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then return
     if ThisObjectTarget_( c, sp->a ) then return
@@ -203,7 +203,7 @@ end sub
 '' 'dim p as byte ptr = 1.0' is error 181 exactly as 'p = 1.0' is.
 private sub CheckPtrFloatInit_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr ip = _
-        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if (ip->a = NODE_NONE) orelse (ip->b = NODE_NONE) then return
     PtrFloatPair_( c, id, c.info->TypeOf_( ip->a ), c.info->TypeOf_( ip->b ) )
 end sub
@@ -228,11 +228,11 @@ private sub CheckBaseInitCount_ _
 
     if here = TYPE_NONE then return
     dim as ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if lp->target = NODE_NONE then return
     if c.ast->Kind( lp->target ) <> N_IDENT then return
     dim as InternId nm = _
-        c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )].name
+        c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )].name
     if c.names->Fold( nm ) <> c.names->Fold( c.baseName ) then return
     dim as TypeId base_ = BaseOf_( c, here )
     if base_ = TYPE_NONE then return
@@ -243,18 +243,18 @@ private sub CheckBaseInitCount_ _
     dim as Symbol ptr bct = StructorOf_( c, base_, "__ctor" )
     if bct <> 0 then
         dim as boolean fits = false
-        for guard as long = 0 to 63
+        for guard as int32 = 0 to 63
             if bct = 0 then exit for
             dim as NodeId bd = cast( NodeId, bct->payload )
-            dim as long rq = RequiredParams_( c, bd ), pc = ParamCount_( c, bd )
+            dim as int32 rq = RequiredParams_( c, bd ), pc = ParamCount_( c, bd )
             if (rq < 0) orelse (pc < 0) then fits = true : exit for
             if (lp->count >= rq) andalso (lp->count <= pc) then fits = true : exit for
             '' A variadic constructor takes any count past its fixed ones.
-            dim as StmtPayload ptr bdp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, bd )].data )]
-            for bpi as long = 0 to bdp->count - 1
+            dim as StmtPayload ptr bdp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, bd )].data )]
+            for bpi as int32 = 0 to bdp->count - 1
                 dim as NodeId bp = cast( NodeId, c.ast->children[bdp->first + bpi] )
                 if c.ast->Kind( bp ) <> N_PARAM then continue for
-                if c.ast->stmts[cast( long, c.ast->nodes[cast( long, bp )].data )].op = cast( ushort, TK_ELLIPSIS ) then fits = true
+                if c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, bp )].data )].op = cast( uint16, TK_ELLIPSIS ) then fits = true
             next
             if fits then exit for
             bct = c.syms->SymbolAt( bct->nextOverload )
@@ -276,11 +276,11 @@ private sub CheckBaseInitCount_ _
     dim as Symbol ptr bsym = c.syms->SymbolAt( bsid )
     if bsym = 0 then return
     if bsym->inner = SCOPE_NONE then return
-    dim as long fields = 0
-    for i as long = 0 to c.syms->symbols.Count - 1
+    dim as int32 fields = 0
+    for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr f = @c.syms->symbols[i]
         if f->parent <> bsym->inner then continue for
-        if f->kind <> cast( ubyte, SYM_FIELD ) then continue for
+        if f->kind <> cast( uint8, SYM_FIELD ) then continue for
         if f->name = c.baseName then continue for
         if (f->flags and SYMF_STATIC) <> 0 then continue for
         fields += 1
@@ -306,20 +306,20 @@ end sub
 '' chain is walked one FIELD at a time: a '.' asks its object, a '->' its pointee.
 private sub CheckConstUdtField_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
-        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if sp->op = 0 then return
     dim as NodeId m = sp->a
-    for guard as long = 0 to 31
+    for guard as int32 = 0 to 31
         if m = NODE_NONE then return
         select case c.ast->Kind( m )
         case N_PAREN
-            dim as ListPayload ptr pp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, m )].data )]
+            dim as ListPayload ptr pp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, m )].data )]
             if pp->count <> 1 then return
             m = cast( NodeId, c.ast->children[pp->first] )
             continue for
         case N_CALL
             '' 'cx.a( 1 )' -- a subscript of an array FIELD; a method call is not a target.
-            m = c.ast->lists[cast( long, c.ast->nodes[cast( long, m )].data )].target
+            m = c.ast->lists[cast( int32, c.ast->nodes[cast( int32, m )].data )].target
             if (m = NODE_NONE) orelse (c.ast->Kind( m ) <> N_MEMBER) then return
         case N_MEMBER
         case else
@@ -327,27 +327,27 @@ private sub CheckConstUdtField_ ( byref c as Ctx, byval id as NodeId )
         end select
         dim as Symbol ptr fs = c.syms->SymbolAt( c.info->RefOf( m ) )
         if fs = 0 then return
-        if fs->kind <> cast( ubyte, SYM_FIELD ) then return
+        if fs->kind <> cast( uint8, SYM_FIELD ) then return
         if (fs->flags and SYMF_STATIC) <> 0 then return
         '' A CONST FIELD of any object: 'as const integer k = 1' then 'x.k = 2' wrote it.
         if c.types->IsConst( fs->type_ ) andalso (m = sp->a) then
             c.diags->Report( TKO0617, PointRange( c.ast->Loc( sp->a ) ), c.names->Spelling( fs->name ) )
             return
         end if
-        dim as NodeId lhs = c.ast->binaries[cast( long, c.ast->nodes[cast( long, m )].data )].lhs
+        dim as NodeId lhs = c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, m )].data )].lhs
         if lhs = NODE_NONE then return
         dim as TypeId lt = TYPE_NONE
         '' A VARIABLE'S OWN TYPE, where the walk may have seen a placeholder -- see above.
         dim as Symbol ptr vs = 0
         if c.ast->Kind( lhs ) = N_IDENT then vs = c.syms->SymbolAt( c.info->RefOf( lhs ) )
-        if (vs <> 0) andalso (vs->kind = cast( ubyte, SYM_VARIABLE )) then
+        if (vs <> 0) andalso (vs->kind = cast( uint8, SYM_VARIABLE )) then
             lt = vs->type_
         else
             lt = c.info->TypeOf_( lhs )
         end if
         if lt = TYPE_NONE then return
         if c.types->Kind( lt ) = TK_REFERENCE then lt = c.types->Inner( lt )
-        if (c.ast->nodes[cast( long, m )].flags and NF_ARROW) <> 0 then
+        if (c.ast->nodes[cast( int32, m )].flags and NF_ARROW) <> 0 then
             if c.types->Kind( c.types->Unqualify( lt ) ) <> TK_POINTER then return
             lt = c.types->Inner( c.types->Unqualify( lt ) )
             if c.types->IsConst( lt ) = false then return
@@ -385,9 +385,9 @@ end sub
 private function UdtArgBuilds_ ( byref c as Ctx, byval pu as TypeId, byval au as TypeId ) as boolean
     dim as SymbolId head = Tko.Check.StructorNamed( *c.syms, *c.types, *c.names, pu, "__ctor" )
     if head = SYMBOL_NONE then return false
-    dim as containers.Array( of ulong ) one
-    one.Push( cast( ulong, au ) )
-    dim as long ties = 0
+    dim as containers.Array( of uint32 ) one
+    one.Push( cast( uint32, au ) )
+    dim as int32 ties = 0
     if Tko.Check.PickStructor( *c.ast, *c.syms, *c.types, *c.names, *c.info, head, one, @ties ) <> SYMBOL_NONE then return true
     return (ties > 0)
 end function
@@ -410,7 +410,7 @@ private function UdtArgBad_ ( byref c as Ctx, byval pt as TypeId, byval at as Ty
 end function
 private sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if lp->target = NODE_NONE then return
     '' A BUILTIN'S NAME OVERLOADED BY THE PROGRAM IS NOT THE CALLEE FOR A BUILTIN ARGUMENT.
     '' AfxNova declares 'Left OVERLOAD( byref as DWSTRING, n )' and calls 'LEFT( w, 1 )' over
@@ -422,7 +422,7 @@ private sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
     '' inside a namespace declaring 'hex( byref as string )' is fbc's error 58.
     if (c.ast->Kind( lp->target ) = N_IDENT) andalso (lp->count >= 1) then
         dim as IdentPayload ptr tip = _
-            @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
         '' A SPELLING THE INTRINSIC TABLE TYPES -- hex and val as much as LEN and LEFT.
         dim as boolean builtinNm = _
             Tko.Check.IsTypedIntrinsicName( Text.LowerAscii( c.names->Spelling( tip->name ) ) )
@@ -435,10 +435,10 @@ private sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
         if builtinNm then
             dim as Symbol ptr bops = c.syms->SymbolAt( c.info->RefOf( id ) )
             if bops <> 0 then
-                if (bops->kind = cast( ubyte, SYM_PROC )) andalso (bops->payload <> 0) then
+                if (bops->kind = cast( uint8, SYM_PROC )) andalso (bops->payload <> 0) then
                     dim as NodeId bpn = cast( NodeId, bops->payload )
                     if c.ast->Kind( bpn ) = N_PROC then
-                        if c.ast->stmts[cast( long, c.ast->nodes[cast( long, bpn )].data )].op = cast( ushort, KW_OPERATOR ) then return
+                        if c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, bpn )].data )].op = cast( uint16, KW_OPERATOR ) then return
                     end if
                 end if
             end if
@@ -447,22 +447,22 @@ private sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
     dim as Symbol ptr callee = c.syms->SymbolAt( c.info->RefOf( id ) )
     if callee = 0 then callee = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
     if callee = 0 then return
-    if callee->kind <> cast( ubyte, SYM_PROC ) then return
+    if callee->kind <> cast( uint8, SYM_PROC ) then return
     dim as NodeId decl = cast( NodeId, callee->payload )
     if decl = NODE_NONE then return
     if c.ast->Kind( decl ) <> N_PROC then return
     dim as StmtPayload ptr pp = _
-        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, decl )].data )]
-    dim as long ai = 0
-    for i as long = 0 to pp->count - 1
+        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, decl )].data )]
+    dim as int32 ai = 0
+    for i as int32 = 0 to pp->count - 1
         dim as NodeId prm = cast( NodeId, c.ast->children[pp->first + i] )
         if c.ast->Kind( prm ) <> N_PARAM then continue for
         if ai >= lp->count then exit for
         dim as NodeId arg = cast( NodeId, c.ast->children[lp->first + ai] )
         ai += 1
-        if (c.ast->nodes[cast( long, prm )].flags and NF_ARRAY) <> 0 then continue for
+        if (c.ast->nodes[cast( int32, prm )].flags and NF_ARRAY) <> 0 then continue for
         dim as StmtPayload ptr prp = _
-            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )]
+            @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, prm )].data )]
         if prp->a = NODE_NONE then continue for
         dim as TypeId pt = c.info->TypeOf_( prp->a )
         dim as TypeId at = c.info->TypeOf_( arg )
@@ -471,8 +471,8 @@ private sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
         '' fbc-modern 1.20, 2026-09-29 (structs/anon-void, anon-fwdref). 'type( 0 )' for a
         '' 'byval as any ptr' is fbc's. tiko accepted both.
         if (pt <> TYPE_NONE) andalso (c.ast->Kind( arg ) = N_TUPLE) then
-            if ((c.ast->nodes[cast( long, arg )].flags and NF_TYPE_LITERAL) <> 0) andalso _
-               (c.ast->lists[cast( long, c.ast->nodes[cast( long, arg )].data )].target = NODE_NONE) then
+            if ((c.ast->nodes[cast( int32, arg )].flags and NF_TYPE_LITERAL) <> 0) andalso _
+               (c.ast->lists[cast( int32, c.ast->nodes[cast( int32, arg )].data )].target = NODE_NONE) then
                 dim as TypeId pu = c.types->Unqualify( pt )
                 if c.types->Kind( pu ) = TK_REFERENCE then pu = c.types->Unqualify( c.types->Inner( pu ) )
                 dim as boolean noType = (c.types->Kind( pu ) = TK_FORWARD)
@@ -485,7 +485,7 @@ private sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
         end if
         if (pt = TYPE_NONE) orelse (at = TYPE_NONE) then continue for
         dim as boolean byvalWritten = _
-            ((c.ast->nodes[cast( long, prm )].flags and NF_BYVAL_WRITTEN) <> 0)
+            ((c.ast->nodes[cast( int32, prm )].flags and NF_BYVAL_WRITTEN) <> 0)
         '' AN ARGUMENT IS AN ASSIGNMENT: 'c( @pp )' over 'byval x as integer ptr' with a
         '' 'const integer pp' hands over a 'const integer ptr' and is fbc's 181 too.
         if ConstDropped_( c, pt, at ) then
@@ -495,7 +495,7 @@ private sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
         dim as boolean bad = false
         if c.types->Kind( c.types->Unqualify( pt ) ) = TK_POINTER then
             bad = PtrAssignBad_( c, pt, at )
-        elseif (c.ast->Kind( arg ) = N_TUPLE) andalso ((c.ast->nodes[cast( long, arg )].flags and NF_TYPE_LITERAL) = 0) then
+        elseif (c.ast->Kind( arg ) = N_TUPLE) andalso ((c.ast->nodes[cast( int32, arg )].flags and NF_TYPE_LITERAL) = 0) then
             '' A LITERAL is built at the parameter's type; only its elements are judged.
             dim as TypeId lpt = c.types->Unqualify( pt )
             if c.types->Kind( lpt ) = TK_REFERENCE then lpt = c.types->Inner( lpt )
@@ -579,7 +579,7 @@ private sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
         dim as boolean argByval = false
         if c.ast->Kind( arg ) = N_UNARY then
             dim as UnaryPayload ptr aup = _
-                @c.ast->unaries[cast( long, c.ast->nodes[cast( long, arg )].data )]
+                @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, arg )].data )]
             argByval = (cast( TokenKind, aup->op ) = KW_BYVAL)
         end if
         if (byvalWritten = false) andalso (argByval = false) andalso _
@@ -639,7 +639,7 @@ declare function StrNumMismatch_ _
 '' already right, and is left alone.
 private sub RetypeBareTypeLit_ _
     ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId = TYPE_NONE )
-    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     dim as NodeId v = sp->b
     dim as TypeId dt = TYPE_NONE
     if c.ast->Kind( id ) = N_RETURN then
@@ -656,8 +656,8 @@ private sub RetypeBareTypeLit_ _
     end if
     if (v = NODE_NONE) orelse (dt = TYPE_NONE) then return
     if c.ast->Kind( v ) <> N_TUPLE then return
-    if (c.ast->nodes[cast( long, v )].flags and NF_TYPE_LITERAL) = 0 then return
-    if c.ast->lists[cast( long, c.ast->nodes[cast( long, v )].data )].target <> NODE_NONE then return
+    if (c.ast->nodes[cast( int32, v )].flags and NF_TYPE_LITERAL) = 0 then return
+    if c.ast->lists[cast( int32, c.ast->nodes[cast( int32, v )].data )].target <> NODE_NONE then return
     if c.types->Kind( dt ) = TK_REFERENCE then dt = c.types->Inner( dt )
     dt = c.types->Unqualify( dt )
     if c.types->Kind( dt ) <> TK_UDT then return
@@ -670,7 +670,7 @@ end sub
 private sub CheckStringNumberAssign_ _
     ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId = TYPE_NONE )
     dim as StmtPayload ptr sp = _
-        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     '' THE FUNCTION'S RESULT, set three ways -- 'return v', 'function = v' and 'F = v'
     '' inside F -- is the same question, against the declared result type, which the walk
     '' carries because Check leaves the result untyped. fbc's error 181 for each of them,
@@ -704,7 +704,7 @@ private sub CheckStringNumberAssign_ _
     '' property's READ type is an integer. Comparing the read type against the value
     '' refused a file fbc accepts; which overload runs is not modelled here.
     dim as Symbol ptr lps = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
-    if (lps <> 0) andalso (lps->kind = cast( ubyte, SYM_PROC )) then return
+    if (lps <> 0) andalso (lps->kind = cast( uint8, SYM_PROC )) then return
     if StrNumMismatch_( c, c.info->TypeOf_( sp->a ), c.info->TypeOf_( sp->b ), sp->a, sp->b ) then
         c.diags->Report( TKO0702, PointRange( c.ast->Loc( id ) ) )
     end if

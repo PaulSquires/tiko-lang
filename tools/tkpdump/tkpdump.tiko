@@ -21,10 +21,10 @@ dim shared as TKP_SCAN_FN      pScan
 dim shared as TKP_SCAN_TEXT_FN pText
 dim shared as TKP_FREE_FN      pFree
 
-private function PoolStr_( byval r as TKP_RESULT ptr, byval off as long ) as string
+private function PoolStr_( byval r as TKP_RESULT ptr, byval off as int32 ) as string
     if off < 0 then return ""
     dim as string o = ""
-    dim as ushort ptr p = cast( ushort ptr, r->stringPool ) + off
+    dim as uint16 ptr p = cast( uint16 ptr, r->stringPool ) + off
     while *p <> 0
         o &= iif( *p < 128, chr( *p ), "?" )
         p += 1
@@ -42,7 +42,7 @@ private function Fingerprint_( byval r as TKP_RESULT ptr ) as string
                 r->symbols, r->symbolCount * sizeof( TKP_SYMBOL ) )
     end if
     if r->poolChars > 0 then
-        dim as long nb = r->poolChars * 2
+        dim as int32 nb = r->poolChars * 2
         o &= space( nb )
         memcpy( strptr( o ) + len( o ) - nb, r->stringPool, nb )
     end if
@@ -51,11 +51,11 @@ end function
 
 private sub Dump_( byval r as TKP_RESULT ptr )
     print "files: " & r->fileCount
-    for i as long = 0 to r->fileCount - 1
+    for i as int32 = 0 to r->fileCount - 1
         print "  [" & i & "] " & PoolStr_( r, r->fileOffsets[i] )
     next
     print "symbols: " & r->symbolCount
-    for i as long = 0 to r->symbolCount - 1
+    for i as int32 = 0 to r->symbolCount - 1
         with r->symbols[i]
             dim as string t = PoolStr_( r, .typeOffset )
             print "  [" & i & "] k" & .kind & " " & PoolStr_( r, .nameOffset ) & _
@@ -69,22 +69,22 @@ private sub Dump_( byval r as TKP_RESULT ptr )
     print "diags: " & r->diagCount
 end sub
 
-private function WorkingSetKb_( ) as long
+private function WorkingSetKb_( ) as int32
     dim as PROCESS_MEMORY_COUNTERS pmc
     pmc.cb = sizeof( pmc )
     GetProcessMemoryInfo( GetCurrentProcess( ), @pmc, sizeof( pmc ) )
-    return cast( long, pmc.WorkingSetSize \ 1024 )
+    return cast( int32, pmc.WorkingSetSize \ 1024 )
 end function
 
 '' Bytes every heap in the process holds in BUSY blocks -- what is allocated and not
 '' freed, with none of the working set's page-level noise. EVERY heap: msvcrt's malloc
 '' has a private one of its own, not the process heap.
-private function HeapBusyKb_( ) as long
+private function HeapBusyKb_( ) as int32
     dim as HANDLE hs( 0 to 63 )
-    dim as long nh = GetProcessHeaps( 64, @hs( 0 ) )
+    dim as int32 nh = GetProcessHeaps( 64, @hs( 0 ) )
     if nh > 64 then nh = 64
-    dim as longint total = 0
-    for i as long = 0 to nh - 1
+    dim as int64 total = 0
+    for i as int32 = 0 to nh - 1
         dim as PROCESS_HEAP_ENTRY e
         HeapLock( hs( i ) )
         while HeapWalk( hs( i ), @e )
@@ -92,7 +92,7 @@ private function HeapBusyKb_( ) as long
         wend
         HeapUnlock( hs( i ) )
     next
-    return cast( long, total \ 1024 )
+    return cast( int32, total \ 1024 )
 end function
 
 dim as string dllPath = command( 1 )
@@ -136,24 +136,24 @@ if len( environ( "TKP_PKGDIR" ) ) > 0 then opts.pkgDir = @pkgW
 
 dim as wstring * 1024 fileW = file
 dim as TKP_RESULT ptr r = 0
-dim as long rc = pScan( @fileW, @opts, @r )
+dim as int32 rc = pScan( @fileW, @opts, @r )
 if (rc <> TKP_OK) orelse (r = 0) then
     print "tkpdump: scan returned " & rc
     end 1
 end if
 
-dim as long failures = 0
+dim as int32 failures = 0
 select case mode
 case "text"
     dim as string bytes = ""
-    dim as long f = freefile
+    dim as int32 f = freefile
     if open( file for binary access read as #f ) = 0 then
         bytes = space( lof( f ) )
         if len( bytes ) > 0 then get #f, 1, bytes
         close #f
     end if
     dim as TKP_RESULT ptr r2 = 0
-    dim as long rc2 = pText( strptr( bytes ), @fileW, @opts, @r2 )
+    dim as int32 rc2 = pText( strptr( bytes ), @fileW, @opts, @r2 )
     if (rc2 <> TKP_OK) orelse (r2 = 0) then
         print "TEXT: scan_text returned " & rc2
         failures += 1
@@ -165,13 +165,13 @@ case "text"
     end if
     if r2 then pFree( r2 )
 case "loop"
-    dim as long n = valint( command( 4 ) )
+    dim as int32 n = valint( command( 4 ) )
     if n < 2 then n = 2
     dim as string want = Fingerprint_( r )
     '' The first scan fills the heap and the runtime's caches; growth is measured after it.
-    dim as long ws0 = WorkingSetKb_( )
-    dim as long hb0 = HeapBusyKb_( )
-    for i as long = 2 to n
+    dim as int32 ws0 = WorkingSetKb_( )
+    dim as int32 hb0 = HeapBusyKb_( )
+    for i as int32 = 2 to n
         dim as TKP_RESULT ptr ri = 0
         pScan( @fileW, @opts, @ri )
         if Fingerprint_( ri ) <> want then
@@ -180,10 +180,10 @@ case "loop"
         end if
         pFree( ri )
     next
-    dim as long ws1 = WorkingSetKb_( )
-    dim as long hb1 = HeapBusyKb_( )
+    dim as int32 ws1 = WorkingSetKb_( )
+    dim as int32 hb1 = HeapBusyKb_( )
     print "LOOP: heap in use " & hb0 & " -> " & hb1 & " KB (" & str( fix( (hb1 - hb0) / (n - 1) * 10 ) / 10 ) & " KB/scan)"
-    dim as double perScan = (ws1 - ws0) / (n - 1)
+    dim as float64 perScan = (ws1 - ws0) / (n - 1)
     print "LOOP: " & n & " scans, all identical = " & iif( failures = 0, "yes", "NO" ) & _
           ", working set " & ws0 & " -> " & ws1 & " KB (" & str( fix( perScan * 10 ) / 10 ) & " KB/scan)"
     '' THE HEAP, NOT THE WORKING SET: a leak is a busy block nobody frees, and the heap walk

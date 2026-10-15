@@ -31,12 +31,12 @@ function LowerMidAssign _
 
     if c.ast->Kind( target ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, target )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, target )].data )]
     if (cp->count < 2) orelse (cp->count > 3) then return false
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr tip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
     if Tko.Text.LowerAscii( c.names->Spelling( tip->name ) ) <> "mid" then return false
     '' A NAME THE SOURCE DECLARED IS NOT THE INTRINSIC.
     if c.info->RefOf( cp->target ) <> Tko.SYMBOL_NONE then return false
@@ -47,21 +47,21 @@ function LowerMidAssign _
     if cp->count = 3 then lenN = cast( Tko.NodeId, c.ast->children[cp->first + 2] )
 
     dim as MirValue sv = LowerNumArg_( c, startN, MT_I64 )
-    if sv.kind = cast( ubyte, MV_NONE ) then return false
+    if sv.kind = cast( uint8, MV_NONE ) then return false
 
     '' AN OMITTED LENGTH IS -1 -- 'to the end' -- and not 0.
     dim as MirValue lv
-    lv.kind = cast( ubyte, MV_CONST_INT )
-    lv.ty = cast( ubyte, MT_I64 )
-    lv.id = cast( ulong, cast( ulongint, -1 ) )
+    lv.kind = cast( uint8, MV_CONST_INT )
+    lv.ty = cast( uint8, MT_I64 )
+    lv.id = cast( uint32, cast( uint64, -1 ) )
     if lenN <> Tko.NODE_NONE then
         lv = LowerNumArg_( c, lenN, MT_I64 )
-        if lv.kind = cast( ubyte, MV_NONE ) then return false
+        if lv.kind = cast( uint8, MV_NONE ) then return false
     end if
 
     dim as Tko.TypeId dt = c.info->TypeOf_( dstN )
-    dim as longint dn
-    dim as long dk = StrSwapKind_( c, dt, dn )
+    dim as int64 dn
+    dim as int32 dk = StrSwapKind_( c, dt, dn )
 
     '' A UDT THAT CASTS TO A WSTRING IS A WIDE DESTINATION. StrSwapKind_ answers -1 for
     '' one -- it classifies TYPES, and a UDT is not a string type -- so the wide branch
@@ -104,16 +104,16 @@ function LowerMidAssign _
             dim as MirValue usd
             if StrDescriptorOf_( c, value, usd ) = false then return false
             wsrc = LowerExprLoad( c, usd, MT_PTR )
-            if wsrc.kind = cast( ubyte, MV_NONE ) then return false
+            if wsrc.kind = cast( uint8, MV_NONE ) then return false
         elseif WideOperand_( c, value, wsrc ) = false then
             return false
         end if
-        dim as containers.Array( of ulong ) wa
-        wa.Push( cast( ulong, wd.kind ) ) : wa.Push( cast( ulong, wd.id ) )
-        wa.Push( cast( ulong, MV_CONST_INT ) ) : wa.Push( cast( ulong, dn ) )
-        wa.Push( cast( ulong, sv.kind ) ) : wa.Push( cast( ulong, sv.id ) )
-        wa.Push( cast( ulong, lv.kind ) ) : wa.Push( cast( ulong, lv.id ) )
-        wa.Push( cast( ulong, wsrc.kind ) ) : wa.Push( cast( ulong, wsrc.id ) )
+        dim as containers.Array( of uint32 ) wa
+        wa.Push( cast( uint32, wd.kind ) ) : wa.Push( cast( uint32, wd.id ) )
+        wa.Push( cast( uint32, MV_CONST_INT ) ) : wa.Push( cast( uint32, dn ) )
+        wa.Push( cast( uint32, sv.kind ) ) : wa.Push( cast( uint32, sv.id ) )
+        wa.Push( cast( uint32, lv.kind ) ) : wa.Push( cast( uint32, lv.id ) )
+        wa.Push( cast( uint32, wsrc.kind ) ) : wa.Push( cast( uint32, wsrc.id ) )
         '' A VOID RESULT IS STILL A CALL. EmitRtl hands back MV_NONE for one, so
         '' reading that as failure declined every MID that had just been emitted --
         '' the call went out AND the statement was counted as not lowered.
@@ -141,7 +141,7 @@ function LowerMidAssign _
     '' LENGTH -- 'fb_UStrAssignMid( UF$0, <tagged 10>, 2, 2, ... )', measured -- the pair
     '' EmitStrTerm pushes for one.
     if IsUStringType( c, dt ) orelse (dk = 4) then
-        dim as containers.Array( of ulong ) ua
+        dim as containers.Array( of uint32 ) ua
         if dk = 4 then
             if EmitStrTerm( c, ua, dstN, true ) = false then return false
         else
@@ -149,8 +149,8 @@ function LowerMidAssign _
             if StrDescriptorOf_( c, dstN, ud ) = false then return false
             PushStrArg( ua, ud )
         end if
-        ua.Push( cast( ulong, sv.kind ) ) : ua.Push( cast( ulong, sv.id ) )
-        ua.Push( cast( ulong, lv.kind ) ) : ua.Push( cast( ulong, lv.id ) )
+        ua.Push( cast( uint32, sv.kind ) ) : ua.Push( cast( uint32, sv.id ) )
+        ua.Push( cast( uint32, lv.kind ) ) : ua.Push( cast( uint32, lv.id ) )
         if UStrCmpOperand_( c, ua, value ) = false then return false
         '' A VOID RESULT IS STILL A CALL -- see the wide branch above.
         EmitRtl( c, RTL_USTR_ASSIGN_MID, ua )
@@ -162,15 +162,15 @@ function LowerMidAssign _
     if dk = 0 then
         '' A REAL DESCRIPTOR, passed as it stands.
         ddesc = LowerAddr( c, dstN )
-        if ddesc.kind = cast( ubyte, MV_NONE ) then return false
+        if ddesc.kind = cast( uint8, MV_NONE ) then return false
     elseif (dk = 1) orelse (dk = 3) then
         '' A CHARACTER BUFFER, wrapped in a temporary descriptor -- whose pointer is
         '' the cast's result when the destination was a UDT.
         dim as MirValue bufp = castPtr
         if haveCastPtr = false then bufp = LowerAddr( c, dstN )
-        if bufp.kind = cast( ubyte, MV_NONE ) then return false
-        dim as containers.Array( of ulong ) ta
-        ta.Push( cast( ulong, bufp.kind ) ) : ta.Push( cast( ulong, bufp.id ) )
+        if bufp.kind = cast( uint8, MV_NONE ) then return false
+        dim as containers.Array( of uint32 ) ta
+        ta.Push( cast( uint32, bufp.kind ) ) : ta.Push( cast( uint32, bufp.id ) )
         if dk = 3 then
             '' A FIXED-LENGTH narrow string carries its TAGGED length -- already tagged by
             '' StrSwapKind_, and 64 bits wide on win64, so it goes through PushStrLen_: the inline
@@ -181,7 +181,7 @@ function LowerMidAssign _
         else
             ddesc = EmitRtl( c, RTL_STR_TEMPZ_NOLEN, ta )
         end if
-        if ddesc.kind = cast( ubyte, MV_NONE ) then return false
+        if ddesc.kind = cast( uint8, MV_NONE ) then return false
     else
         return false
     end if
@@ -191,16 +191,16 @@ function LowerMidAssign _
     '' its UTF-16 bytes were written into the string as narrow text -- 'a� def' for 'aÄÖf'.
     dim as MirValue src
     if UStrOperandToNarrow_( c, value, src ) then
-        if src.kind = cast( ubyte, MV_NONE ) then return false
+        if src.kind = cast( uint8, MV_NONE ) then return false
     elseif StrDescriptorOf_( c, value, src ) = false then
         return false
     end if
 
-    dim as containers.Array( of ulong ) args
-    args.Push( cast( ulong, ddesc.kind ) ) : args.Push( cast( ulong, ddesc.id ) )
-    args.Push( cast( ulong, sv.kind ) ) : args.Push( cast( ulong, sv.id ) )
-    args.Push( cast( ulong, lv.kind ) ) : args.Push( cast( ulong, lv.id ) )
-    args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
+    dim as containers.Array( of uint32 ) args
+    args.Push( cast( uint32, ddesc.kind ) ) : args.Push( cast( uint32, ddesc.id ) )
+    args.Push( cast( uint32, sv.kind ) ) : args.Push( cast( uint32, sv.id ) )
+    args.Push( cast( uint32, lv.kind ) ) : args.Push( cast( uint32, lv.id ) )
+    args.Push( cast( uint32, src.kind ) ) : args.Push( cast( uint32, src.id ) )
     EmitRtl( c, RTL_STR_ASSIGN_MID, args )
     return true
 end function
@@ -235,12 +235,12 @@ function LowerDir _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if cp->count > 3 then return false
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr tip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
     if Tko.Text.LowerAscii( c.names->Spelling( tip->name ) ) <> "dir" then return false
     '' A NAME THE SOURCE DECLARED IS NOT THE INTRINSIC.
     if c.info->RefOf( cp->target ) <> Tko.SYMBOL_NONE then return false
@@ -284,8 +284,8 @@ function LowerDir _
     dim as MirValue outp
     dim as boolean wide = false
     if outn = Tko.NODE_NONE then
-        outp.kind = cast( ubyte, MV_CONST_INT )
-        outp.ty = cast( ubyte, MT_PTR )
+        outp.kind = cast( uint8, MV_CONST_INT )
+        outp.ty = cast( uint8, MT_PTR )
         outp.id = 0
     else
         dim as Tko.TypeId ot = c.types->Unqualify( c.info->TypeOf_( outn ) )
@@ -297,16 +297,16 @@ function LowerDir _
             outp = LowerAddr( c, outn )
             wide = (SizeOfType( c, ot ) >= 8)
         end if
-        if outp.kind = cast( ubyte, MV_NONE ) then return false
+        if outp.kind = cast( uint8, MV_NONE ) then return false
     end if
 
-    dim as containers.Array( of ulong ) args
+    dim as containers.Array( of uint32 ) args
     if pat = Tko.NODE_NONE then
-        args.Push( cast( ulong, outp.kind ) ) : args.Push( cast( ulong, outp.id ) )
-        dim as long which = RTL_DIR_NEXT
+        args.Push( cast( uint32, outp.kind ) ) : args.Push( cast( uint32, outp.id ) )
+        dim as int32 which = RTL_DIR_NEXT
         if wide then which = RTL_DIR_NEXT64
         outv = EmitRtl( c, which, args )
-        return (outv.kind <> cast( ubyte, MV_NONE ))
+        return (outv.kind <> cast( uint8, MV_NONE ))
     end if
 
     '' The pattern is a STRING DESCRIPTOR, which is what every runtime entry point
@@ -317,21 +317,21 @@ function LowerDir _
     if UStrToStrTemp_( c, pat, pv ) = false then
         if StrDescriptorOf_( c, pat, pv ) = false then return false
     end if
-    args.Push( cast( ulong, pv.kind ) ) : args.Push( cast( ulong, pv.id ) )
+    args.Push( cast( uint32, pv.kind ) ) : args.Push( cast( uint32, pv.id ) )
 
     '' 33 -- fbNormal, which is fbReadOnly or fbArchive -- and NOT 0.
     if attr = Tko.NODE_NONE then
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 33 )
+        args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 33 )
     else
         dim as MirValue av = LowerNumArg_( c, attr, MT_I32 )
-        if av.kind = cast( ubyte, MV_NONE ) then return false
-        args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
+        if av.kind = cast( uint8, MV_NONE ) then return false
+        args.Push( cast( uint32, av.kind ) ) : args.Push( cast( uint32, av.id ) )
     end if
-    args.Push( cast( ulong, outp.kind ) ) : args.Push( cast( ulong, outp.id ) )
+    args.Push( cast( uint32, outp.kind ) ) : args.Push( cast( uint32, outp.id ) )
 
-    dim as long which2 = RTL_DIR
+    dim as int32 which2 = RTL_DIR
     if wide then which2 = RTL_DIR64
     outv = EmitRtl( c, which2, args )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 

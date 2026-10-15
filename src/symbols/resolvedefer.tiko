@@ -32,7 +32,7 @@
 
 private function DeferProcScope_ ( byref c as Ctx, byval s as Tko.ScopeId ) as Tko.ScopeId
     dim as Tko.ScopeId cur = s
-    for guard as long = 0 to 4095
+    for guard as int32 = 0 to 4095
         if cur = Tko.SCOPE_NONE then exit for
         dim as Tko.SymScope ptr ss = c.syms->ScopeAt( cur )
         if ss = 0 then exit for
@@ -45,7 +45,7 @@ end function
 private function DeferScopeHolds_ _
     ( byref c as Ctx, byval outer as Tko.ScopeId, byval inner as Tko.ScopeId ) as boolean
     dim as Tko.ScopeId cur = inner
-    for guard as long = 0 to 4095
+    for guard as int32 = 0 to 4095
         if cur = Tko.SCOPE_NONE then exit for
         if cur = outer then return true
         dim as Tko.SymScope ptr ss = c.syms->ScopeAt( cur )
@@ -61,14 +61,14 @@ sub DeferCrossingReset_ ( byref c as Ctx )
     c.xSeenGoto.Clear( ) : c.xSeenDefer.Clear( )
 end sub
 
-private sub DeferCrossReport_ ( byref c as Ctx, byval g as long, byval d as long, byval nm as Tko.InternId )
+private sub DeferCrossReport_ ( byref c as Ctx, byval g as int32, byval d as int32, byval nm as Tko.InternId )
     dim as Tko.SourceLoc gl = c.ast->Loc( cast( Tko.NodeId, c.xgNode[g] ) )
     dim as Tko.SourceLoc dl = c.ast->Loc( cast( Tko.NodeId, c.xdNode[d] ) )
-    for i as long = 0 to c.xSeenGoto.Count - 1
-        if (c.xSeenGoto[i] = cast( ulong, gl )) andalso (c.xSeenDefer[i] = cast( ulong, dl )) then return
+    for i as int32 = 0 to c.xSeenGoto.Count - 1
+        if (c.xSeenGoto[i] = cast( uint32, gl )) andalso (c.xSeenDefer[i] = cast( uint32, dl )) then return
     next
-    c.xSeenGoto.Push( cast( ulong, gl ) )
-    c.xSeenDefer.Push( cast( ulong, dl ) )
+    c.xSeenGoto.Push( cast( uint32, gl ) )
+    c.xSeenDefer.Push( cast( uint32, dl ) )
     c.diags->Report( Tko.TKO0827, Tko.PointRange( gl ), c.names->Spelling( nm ) )
 end sub
 
@@ -81,20 +81,20 @@ private sub DeferCrossing_ ( byref c as Ctx, byval id as Tko.NodeId, byval here 
     select case k
     case Tko.N_GOTO
         if sp->name = 0 then return
-        c.xgName.Push( cast( ulong, sp->name ) ) : c.xgNode.Push( cast( ulong, id ) )
-        c.xgProc.Push( cast( ulong, proc ) ) : c.xgSeq.Push( c.xSeq )
+        c.xgName.Push( cast( uint32, sp->name ) ) : c.xgNode.Push( cast( uint32, id ) )
+        c.xgProc.Push( cast( uint32, proc ) ) : c.xgSeq.Push( c.xSeq )
     case Tko.N_DEFER
         '' A bare 'defer' is TKO0828 and defers nothing -- parser/defer.tiko.
         if sp->b = Tko.NODE_NONE then return
-        c.xdScope.Push( cast( ulong, here ) ) : c.xdNode.Push( cast( ulong, id ) )
-        c.xdProc.Push( cast( ulong, proc ) ) : c.xdSeq.Push( c.xSeq )
+        c.xdScope.Push( cast( uint32, here ) ) : c.xdNode.Push( cast( uint32, id ) )
+        c.xdProc.Push( cast( uint32, proc ) ) : c.xdSeq.Push( c.xSeq )
     case Tko.N_LABEL
         if c.xdScope.Count = 0 then return
-        for g as long = 0 to c.xgName.Count - 1
-            if c.xgName[g] <> cast( ulong, sp->name ) then continue for
-            if c.xgProc[g] <> cast( ulong, proc ) then continue for
-            for d as long = 0 to c.xdScope.Count - 1
-                if c.xdProc[d] <> cast( ulong, proc ) then continue for
+        for g as int32 = 0 to c.xgName.Count - 1
+            if c.xgName[g] <> cast( uint32, sp->name ) then continue for
+            if c.xgProc[g] <> cast( uint32, proc ) then continue for
+            for d as int32 = 0 to c.xdScope.Count - 1
+                if c.xdProc[d] <> cast( uint32, proc ) then continue for
                 if c.xdSeq[d] < c.xgSeq[g] then continue for
                 if DeferScopeHolds_( c, cast( Tko.ScopeId, c.xdScope[d] ), here ) then
                     DeferCrossReport_( c, g, d, sp->name )

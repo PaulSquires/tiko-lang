@@ -34,7 +34,7 @@ const SELCONST_SPAN_MAX = 8192
 '' One case value, folded. Returns false when it does not fold -- the caller reports.
 private function SelConstVal_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.ScopeId, _
-      byref outv as longint ) as boolean
+      byref outv as int64 ) as boolean
 
     dim as Tko.Check.ConstVal v = Tko.Check.ConstOf( _
         *c.ast, id, *c.srcMgr, *c.names, 64, c.syms, here )
@@ -67,13 +67,13 @@ private sub ConstBoundCheck_ _
     if ip->b = Tko.NODE_NONE then return
     if c.ast->Kind( ip->b ) <> Tko.N_CALL then return
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, ip->b )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, ip->b )].data )]
     if lp->target = Tko.NODE_NONE then return
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return
     '' A USER SYMBOL OF THAT NAME IS NOT THE INTRINSIC.
     if c.info->RefOf( lp->target ) <> Tko.SYMBOL_NONE then return
     dim as Tko.InternId nm = _
-        c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )].name
+        c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )].name
     dim as string spell = c.names->Spelling( nm )
     if (spell <> "lbound") andalso (spell <> "ubound") then return
     if lp->count < 1 then return
@@ -83,7 +83,7 @@ private sub ConstBoundCheck_ _
     '' because it cannot tell WHICH bound is being asked for.
     if lp->count >= 2 then
         dim as Tko.NodeId dimArg = cast( Tko.NodeId, c.ast->children[lp->first + 1] )
-        dim as longint dv = 0
+        dim as int64 dv = 0
         if SelConstVal_( c, dimArg, here, dv ) = false then
             c.diags->Report( Tko.TKO0674, Tko.PointRange( c.ast->Loc( ip->b ) ) )
             return
@@ -110,14 +110,14 @@ private sub DivByConstZero_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.ScopeId )
 
     dim as Tko.BinaryPayload ptr bp = _
-        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     select case cast( Tko.TokenKind, bp->op )
     case Tko.TK_BACKSLASH, Tko.KW_MOD
     case else
         return
     end select
     if bp->rhs = Tko.NODE_NONE then return
-    dim as longint rv = 0
+    dim as int64 rv = 0
     if SelConstVal_( c, bp->rhs, here, rv ) = false then return
     if rv <> 0 then return
     c.diags->Report( Tko.TKO0671, Tko.PointRange( c.ast->Loc( id ) ) )
@@ -133,22 +133,22 @@ private sub SelectConstCheck_ _
     if sp->b = Tko.NODE_NONE then return
 
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->b )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, sp->b )].data )]
 
     dim as boolean seen = false
-    dim as longint lo = 0, hi = 0
+    dim as int64 lo = 0, hi = 0
 
-    for i as long = 0 to lp->count - 1
+    for i as int32 = 0 to lp->count - 1
         dim as Tko.NodeId cs = cast( Tko.NodeId, c.ast->children[lp->first + i] )
         if c.ast->Kind( cs ) <> Tko.N_CASE then continue for
         dim as Tko.StmtPayload ptr csp = StmtOf( c, cs )
         if csp = 0 then continue for
 
-        for j as long = 0 to csp->count - 1
+        for j as int32 = 0 to csp->count - 1
             dim as Tko.NodeId pn = cast( Tko.NodeId, c.ast->children[csp->first + j] )
             if pn = Tko.NODE_NONE then continue for
 
-            dim as longint a = 0, b = 0
+            dim as int64 a = 0, b = 0
             dim as Tko.NodeId loc = pn
 
             if c.ast->Kind( pn ) = Tko.N_CASE_RANGE then

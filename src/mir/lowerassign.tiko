@@ -19,15 +19,15 @@
 '' the book's fixedpoint.tiko printed -9223372036854775.808 for 0.1 + 0.2. fbc copies
 '' (member-wise) there; only a let whose parameter is the type, or a base of it, is one.
 private function SameTypeLet_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
-    dim as containers.Array( of ulong ) tt
-    tt.Push( cast( ulong, t ) )
+    dim as containers.Array( of uint32 ) tt
+    tt.Push( cast( uint32, t ) )
     dim as Tko.SymbolId lt = PickCtor( c, StructorOf( c, t, "let" ), tt )
     dim as Tko.Symbol ptr ls = c.syms->SymbolAt( lt )
     if ls = 0 then return Tko.SYMBOL_NONE
     dim as Tko.NodeId pn = cast( Tko.NodeId, ls->payload )
     if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then return lt
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
-    for k as long = 0 to pp->count - 1
+    for k as int32 = 0 to pp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + k] )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         dim as Tko.TypeId pt = c.types->Unqualify( c.info->TypeOf_( StmtOf( c, prm )->a ) )
@@ -64,7 +64,7 @@ private function LowerTupleListAssign_ _
 
     if value = Tko.NODE_NONE then return false
     if c.ast->Kind( value ) <> Tko.N_TUPLE then return false
-    if (c.ast->nodes[cast( long, value )].flags and Tko.NF_TYPE_LITERAL) <> 0 then
+    if (c.ast->nodes[cast( int32, value )].flags and Tko.NF_TYPE_LITERAL) <> 0 then
         return false
     end if
     '' A TUPLE TARGET is destructuring -- 'let (a, b) = e' -- and is handled ahead
@@ -75,31 +75,31 @@ private function LowerTupleListAssign_ _
     if dt = Tko.TYPE_NONE then return false
     if c.types->Kind( dt ) <> Tko.TK_UDT then return false
     if IsTupleType_( c, dt ) = false then return false
-    dim as long sz = SizeOfType( c, dt )
+    dim as int32 sz = SizeOfType( c, dt )
     if sz <= 0 then return false
 
     dim as MirValue daddr = LowerAddr( c, target )
-    if daddr.kind = cast( ubyte, MV_NONE ) then return false
+    if daddr.kind = cast( uint8, MV_NONE ) then return false
 
-    dim as long tslot = NewTempLocal( c, MT_AGG, sz )
+    dim as int32 tslot = NewTempLocal( c, MT_AGG, sz )
     if tslot < 0 then return false
     dim as MirValue tv
-    tv.kind = cast( ubyte, MV_LOCAL )
-    tv.ty = cast( ubyte, MT_PTR )
+    tv.kind = cast( uint8, MV_LOCAL )
+    tv.ty = cast( uint8, MT_PTR )
     tv.id = tslot
     if TypeNeedsInit_( c, dt ) then CallImplicitCtor_( c, dt, tv )
     if LowerUdtParenInit_( c, tslot, dt, value ) = false then return false
     if TypeNeedsDtor_( c, dt ) then
-        c.udtTemps.Push( cast( ulong, tslot ) )
-        c.udtTempTypes.Push( cast( ulong, dt ) )
+        c.udtTemps.Push( cast( uint32, tslot ) )
+        c.udtTempTypes.Push( cast( uint32, dt ) )
     end if
 
     '' ASSIGNED, not stored: a tuple whose half owns something has an 'operator let'
     '' and a raw copy would skip it. The same-type one -- the temp is a dt.
     dim as Tko.SymbolId lt = SameTypeLet_( c, dt )
     if lt <> Tko.SYMBOL_NONE then
-        dim as containers.Array( of ulong ) largs
-        largs.Push( cast( ulong, tv.kind ) ) : largs.Push( cast( ulong, tv.id ) )
+        dim as containers.Array( of uint32 ) largs
+        largs.Push( cast( uint32, tv.kind ) ) : largs.Push( cast( uint32, tv.id ) )
         EmitStructorCall( c, lt, -1, @daddr, @largs )
         return true
     end if
@@ -108,7 +108,7 @@ private function LowerTupleListAssign_ _
         return true
     end if
     dim as MirValue whole = LowerExprLoad( c, tv, MT_AGG, sz )
-    if whole.kind = cast( ubyte, MV_NONE ) then return false
+    if whole.kind = cast( uint8, MV_NONE ) then return false
     StoreThrough( c, daddr, whole )
     return true
 end function
@@ -123,7 +123,7 @@ private function LowerBareTypeLiteralAssign_ _
 
     if value = Tko.NODE_NONE then return false
     if c.ast->Kind( value ) <> Tko.N_TUPLE then return false
-    if (c.ast->nodes[cast( long, value )].flags and Tko.NF_TYPE_LITERAL) = 0 then
+    if (c.ast->nodes[cast( int32, value )].flags and Tko.NF_TYPE_LITERAL) = 0 then
         return false
     end if
     '' A TYPE LITERAL THAT DID GET A TYPE is still one, as long as the type is the
@@ -141,13 +141,13 @@ private function LowerBareTypeLiteralAssign_ _
 
     dim as Tko.TypeId dt = c.types->Unqualify( c.info->TypeOf_( target ) )
     if c.types->Kind( dt ) <> Tko.TK_UDT then return false
-    dim as long sz = SizeOfType( c, dt )
+    dim as int32 sz = SizeOfType( c, dt )
     if sz <= 0 then return false
 
     dim as MirValue daddr = LowerAddr( c, target )
-    if daddr.kind = cast( ubyte, MV_NONE ) then return false
+    if daddr.kind = cast( uint8, MV_NONE ) then return false
 
-    dim as long tslot = NewTempLocal( c, MT_AGG, sz )
+    dim as int32 tslot = NewTempLocal( c, MT_AGG, sz )
     if tslot < 0 then return false
     if LowerCtorInit( c, tslot, dt, value ) = false then
         '' A TYPE WITH NO CONSTRUCTOR still has a default value -- fbc emits the
@@ -157,16 +157,16 @@ private function LowerBareTypeLiteralAssign_ _
     end if
     '' DESTROYED AT THE END OF THE STATEMENT, which is the life fbc gives it.
     if TypeNeedsDtor_( c, dt ) then
-        c.udtTemps.Push( cast( ulong, tslot ) )
-        c.udtTempTypes.Push( cast( ulong, dt ) )
+        c.udtTemps.Push( cast( uint32, tslot ) )
+        c.udtTempTypes.Push( cast( uint32, dt ) )
     end if
 
     dim as MirValue taddr
-    taddr.kind = cast( ubyte, MV_LOCAL )
-    taddr.ty = cast( ubyte, MT_PTR )
+    taddr.kind = cast( uint8, MV_LOCAL )
+    taddr.ty = cast( uint8, MT_PTR )
     taddr.id = tslot
     dim as MirValue tv = LowerExprLoad( c, taddr, MT_AGG )
-    if tv.kind = cast( ubyte, MV_NONE ) then return false
+    if tv.kind = cast( uint8, MV_NONE ) then return false
     StoreThrough( c, daddr, tv )
     return true
 end function
@@ -195,7 +195,7 @@ end function
 private function IsSpawnFrameField_ ( byref c as Ctx, byval target as Tko.NodeId ) as boolean
     if c.ast->Kind( target ) <> Tko.N_MEMBER then return false
     dim as Tko.BinaryPayload ptr bp = _
-        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, target )].data )]
+        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, target )].data )]
     dim as Tko.TypeId ft = c.info->TypeOf_( bp->lhs )
     if ft = Tko.TYPE_NONE then return false
     ft = c.types->Unqualify( ft )
@@ -225,32 +225,32 @@ private function LowerSpawnArgAssign_ _
         if c.types->BaseDistance( vt, dt ) >= 0 then return false
         if HasUdtConvCtor_( c, dt, vt ) = false then return false
     else
-        dim as containers.Array( of ulong ) argT
-        argT.Push( cast( ulong, vt ) )
+        dim as containers.Array( of uint32 ) argT
+        argT.Push( cast( uint32, vt ) )
         if PickCtor( c, StructorOf( c, dt, "__ctor" ), argT ) = Tko.SYMBOL_NONE then return false
     end if
-    dim as long sz = SizeOfType( c, dt )
+    dim as int32 sz = SizeOfType( c, dt )
     if sz <= 0 then return false
 
     dim as MirValue daddr = LowerAddr( c, target )
-    if daddr.kind = cast( ubyte, MV_NONE ) then return false
-    dim as long tslot = NewTempLocal( c, MT_AGG, sz )
+    if daddr.kind = cast( uint8, MV_NONE ) then return false
+    dim as int32 tslot = NewTempLocal( c, MT_AGG, sz )
     if tslot < 0 then return false
     if LowerConvCtorInit_( c, tslot, dt, value, 0 ) = false then return false
     if TypeNeedsDtor_( c, dt ) then
-        c.udtTemps.Push( cast( ulong, tslot ) )
-        c.udtTempTypes.Push( cast( ulong, dt ) )
+        c.udtTemps.Push( cast( uint32, tslot ) )
+        c.udtTempTypes.Push( cast( uint32, dt ) )
     end if
     dim as MirValue tv
-    tv.kind = cast( ubyte, MV_LOCAL )
-    tv.ty = cast( ubyte, MT_PTR )
+    tv.kind = cast( uint8, MV_LOCAL )
+    tv.ty = cast( uint8, MT_PTR )
     tv.id = tslot
 
     '' ASSIGNED AS ITS OWN TYPE, as LowerTupleListAssign_ does it.
     dim as Tko.SymbolId lt = SameTypeLet_( c, dt )
     if lt <> Tko.SYMBOL_NONE then
-        dim as containers.Array( of ulong ) largs
-        largs.Push( cast( ulong, tv.kind ) ) : largs.Push( cast( ulong, tv.id ) )
+        dim as containers.Array( of uint32 ) largs
+        largs.Push( cast( uint32, tv.kind ) ) : largs.Push( cast( uint32, tv.id ) )
         EmitStructorCall( c, lt, -1, @daddr, @largs )
         return true
     end if
@@ -259,7 +259,7 @@ private function LowerSpawnArgAssign_ _
         return true
     end if
     dim as MirValue whole = LowerExprLoad( c, tv, MT_AGG, sz )
-    if whole.kind = cast( ubyte, MV_NONE ) then return false
+    if whole.kind = cast( uint8, MV_NONE ) then return false
     StoreThrough( c, daddr, whole )
     return true
 end function
@@ -339,17 +339,17 @@ private sub LowerAssign _
                 dim as Tko.SymbolId tlsid = c.info->RefOf( target )
                 dim as Tko.Symbol ptr tls = c.syms->SymbolAt( tlsid )
                 dim as boolean frameVar = (tls <> 0) andalso (tlk = Tko.N_IDENT)
-                if frameVar then frameVar = (tls->kind = cast( ubyte, Tko.SYM_VARIABLE ))
+                if frameVar then frameVar = (tls->kind = cast( uint8, Tko.SYM_VARIABLE ))
                 if frameVar then frameVar = (IsSharedVar( c, tlsid ) = false)
                 if frameVar then frameVar = (IsStaticLocal( c, tlsid ) = false)
                 if frameVar then
-                    dim as long tlslot = LocalFor( c, tlsid )
+                    dim as int32 tlslot = LocalFor( c, tlsid )
                     if tlslot >= 0 then
                         if LowerUdtParenInit_( c, tlslot, tlt, value ) then return
                     end if
                 else
                     dim as MirValue tlda = LowerAddr( c, target )
-                    if tlda.kind <> cast( ubyte, MV_NONE ) then
+                    if tlda.kind <> cast( uint8, MV_NONE ) then
                         if LowerUdtParenInit_( c, -1, tlt, value, @tlda ) then return
                     end if
                 end if
@@ -406,8 +406,8 @@ private sub LowerAssign _
     ''
     '' The runtime call is the one the DIM INITIALISER already used, and fbc emits the
     '' same thing for both: fb_StrAssign( FA, 8, &C, -1, 0 ).
-    dim as longint zdn
-    dim as long zdk = StrSwapKind_( c, c.info->TypeOf_( target ), zdn )
+    dim as int64 zdn
+    dim as int32 zdk = StrSwapKind_( c, c.info->TypeOf_( target ), zdn )
     '' Kind 4 is a fixed USTRING, which takes the same shape through the UTF-16
     '' entry points.
     '' A NUMBER ASSIGNED THROUGH A ZSTRING OR WSTRING POINTER IS A ONE-CHARACTER
@@ -459,8 +459,8 @@ private sub LowerAssign _
         if nvIsNum then
             dim as MirValue nda = LowerAddr( c, target )
             dim as MirValue nv = LowerExpr( c, value )
-            if (nda.kind = cast( ubyte, MV_NONE )) orelse _
-               (nv.kind = cast( ubyte, MV_NONE )) then
+            if (nda.kind = cast( uint8, MV_NONE )) orelse _
+               (nv.kind = cast( uint8, MV_NONE )) then
                 SkipHere( c )
                 return
             end if
@@ -473,13 +473,13 @@ private sub LowerAssign _
             '' is truncated from there. Converting straight to one byte would not.
             if IsFloatTy( cast( MirType, nv.ty ) ) then
                 nv = Coerce( c, nv, MT_I32, false )
-                if nv.kind = cast( ubyte, MV_NONE ) then
+                if nv.kind = cast( uint8, MV_NONE ) then
                     SkipHere( c )
                     return
                 end if
             end if
             nv = CoerceTy( c, nv, elemTy, nvt)
-            if nv.kind = cast( ubyte, MV_NONE ) then
+            if nv.kind = cast( uint8, MV_NONE ) then
                 SkipHere( c )
                 return
             end if
@@ -490,7 +490,7 @@ private sub LowerAssign _
 
     if (zdk = 1) orelse (zdk = 3) orelse (zdk = 4) then
         dim as MirValue zdst = LowerAddr( c, target )
-        if zdst.kind <> cast( ubyte, MV_NONE ) then
+        if zdst.kind <> cast( uint8, MV_NONE ) then
             if LowerZstrAssignTo( c, zdst, zdn, value, false, (zdk = 4) ) then return
         end if
         SkipHere( c )
@@ -561,7 +561,7 @@ private sub LowerAssign _
     if c.ast->Kind( target ) = Tko.N_IDENT then
         if c.types->Kind( c.types->Unqualify( atl ) ) = Tko.TK_POINTER then
             dim as Tko.IdentPayload ptr tip = _
-                @c.ast->idents[cast( long, c.ast->nodes[cast( long, target )].data )]
+                @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, target )].data )]
             if tip->name = c.names->Fold( c.names->GetString( "this" ) ) then
                 dim as Tko.TypeId pin2 = c.types->Inner( c.types->Unqualify( atl ) )
                 if pin2 <> Tko.TYPE_NONE then
@@ -571,15 +571,15 @@ private sub LowerAssign _
                         if ot = c.types->Unqualify( c.info->TypeOf_( value ) ) then
                             dim as MirValue tsa = LowerAddr( c, target )
                             dim as MirValue ssa = LowerAddr( c, value )
-                            if (tsa.kind <> cast( ubyte, MV_NONE )) andalso _
-                               (ssa.kind <> cast( ubyte, MV_NONE )) then
+                            if (tsa.kind <> cast( uint8, MV_NONE )) andalso _
+                               (ssa.kind <> cast( uint8, MV_NONE )) then
                                 thisDst = LowerExprLoad( c, tsa, MT_PTR )
-                                if thisDst.kind <> cast( ubyte, MV_NONE ) then
+                                if thisDst.kind <> cast( uint8, MV_NONE ) then
                                     dim as Tko.SymbolId tlet = SameTypeLet_( c, ot )
                                     if tlet <> Tko.SYMBOL_NONE then
-                                        dim as containers.Array( of ulong ) tla
-                                        tla.Push( cast( ulong, ssa.kind ) )
-                                        tla.Push( cast( ulong, ssa.id ) )
+                                        dim as containers.Array( of uint32 ) tla
+                                        tla.Push( cast( uint32, ssa.kind ) )
+                                        tla.Push( cast( uint32, ssa.id ) )
                                         EmitStructorCall( c, tlet, -1, @thisDst, @tla )
                                     elseif NeedsLetBody_( c, ot ) then
                                         CallImplicitLet_( c, ot, thisDst, ssa )
@@ -588,7 +588,7 @@ private sub LowerAssign _
                                         '' assignment operator is the bitwise copy.
                                         dim as MirValue sv2 = _
                                             LowerExprLoad( c, ssa, MT_AGG, SizeOfType( c, ot ) )
-                                        if sv2.kind = cast( ubyte, MV_NONE ) then
+                                        if sv2.kind = cast( uint8, MV_NONE ) then
                                             SkipHere( c )
                                             return
                                         end if
@@ -604,7 +604,7 @@ private sub LowerAssign _
                             '' which is how LowerUserLetConv_ reads a result slot. Never the
                             '' plain store below, which wrote the value over the pointer.
                             dim as MirValue tsl = LowerAddr( c, target )
-                            if tsl.kind = cast( ubyte, MV_LOCAL ) then
+                            if tsl.kind = cast( uint8, MV_LOCAL ) then
                                 if LowerUserLetConv_( c, target, ot, value, tsl.id, false ) then return
                             end if
                             SkipHere( c )
@@ -618,25 +618,25 @@ private sub LowerAssign _
     if (atl <> Tko.TYPE_NONE) andalso (c.ast->Kind( value ) = Tko.N_CALL) then
         if c.types->Kind( atl ) = Tko.TK_UDT then
             dim as Tko.ListPayload ptr vlp = _
-                @c.ast->lists[cast( long, c.ast->nodes[cast( long, value )].data )]
+                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, value )].data )]
             dim as Tko.TypeId vat = Tko.TYPE_NONE
             if (vlp->count = 0) andalso (vlp->target <> Tko.NODE_NONE) then
                 vat = c.info->TypeOf_( vlp->target )
             end if
             if vat <> Tko.TYPE_NONE then
                 if c.types->Kind( vat ) = Tko.TK_ARRAY then
-                    dim as containers.Array( of ulong ) latT
-                    latT.Push( cast( ulong, vat ) )
+                    dim as containers.Array( of uint32 ) latT
+                    latT.Push( cast( uint32, vat ) )
                     dim as Tko.SymbolId alet = _
                         PickCtor( c, StructorOf( c, atl, "let" ), latT )
                     if alet <> Tko.SYMBOL_NONE then
                         dim as MirValue ada = LowerAddr( c, target )
                         dim as MirValue aadv
-                        if (ada.kind <> cast( ubyte, MV_NONE )) andalso _
+                        if (ada.kind <> cast( uint8, MV_NONE )) andalso _
                            ArrayDescArg_( c, value, true, aadv ) then
-                            dim as containers.Array( of ulong ) alargs
-                            alargs.Push( cast( ulong, aadv.kind ) )
-                            alargs.Push( cast( ulong, aadv.id ) )
+                            dim as containers.Array( of uint32 ) alargs
+                            alargs.Push( cast( uint32, aadv.kind ) )
+                            alargs.Push( cast( uint32, aadv.id ) )
                             EmitStructorCall( c, alet, -1, @ada, @alargs )
                             return
                         end if
@@ -723,12 +723,12 @@ private sub LowerAssign _
                 if LowerBareProcCall_( c, value, MT_PTR, sa ) = false then
                     sa = LowerAddr( c, value )
                 end if
-                if (da.kind <> cast( ubyte, MV_NONE )) andalso _
-                   (sa.kind <> cast( ubyte, MV_NONE )) then
+                if (da.kind <> cast( uint8, MV_NONE )) andalso _
+                   (sa.kind <> cast( uint8, MV_NONE )) then
                     if ulet <> Tko.SYMBOL_NONE then
-                        dim as containers.Array( of ulong ) largs
-                        largs.Push( cast( ulong, sa.kind ) )
-                        largs.Push( cast( ulong, sa.id ) )
+                        dim as containers.Array( of uint32 ) largs
+                        largs.Push( cast( uint32, sa.kind ) )
+                        largs.Push( cast( uint32, sa.id ) )
                         EmitStructorCall( c, ulet, -1, @da, @largs )
                     else
                         CallImplicitLet_( c, atl, da, sa )
@@ -787,7 +787,7 @@ private sub LowerAssign _
             val = LowerExprWant_( c, value, c.info->TypeOf_( target ) )
         end if
     end if
-    if (addr.kind = cast( ubyte, MV_NONE )) orelse (val.kind = cast( ubyte, MV_NONE )) then
+    if (addr.kind = cast( uint8, MV_NONE )) orelse (val.kind = cast( uint8, MV_NONE )) then
         SkipHere( c )
         return
     end if
@@ -822,8 +822,8 @@ private sub LowerAssign _
         val = CoerceTy( c, val, LowerType( nct, *c.types ), c.info->TypeOf_( target ), nct )
     end if
     dim as MirInst ins
-    ins.op = cast( ushort, M_STORE )
-    ins.ty = cast( ubyte, MT_VOID )
+    ins.op = cast( uint16, M_STORE )
+    ins.ty = cast( uint8, MT_VOID )
     ins.a = addr
     ins.b = val
     Emit( c, ins )

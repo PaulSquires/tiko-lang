@@ -16,22 +16,22 @@
 private function LocalInTemplate_ ( byref c as Ctx, byval s as Symbol ptr ) as boolean
     if s = 0 then return false
     dim as ScopeId sc = s->parent
-    for d as long = 0 to 255
+    for d as int32 = 0 to 255
         if sc = SCOPE_NONE then return false
         dim as SymScope ptr ss = c.syms->ScopeAt( sc )
         if ss = 0 then return false
         dim as Symbol ptr os = c.syms->SymbolAt( ss->owner )
         if os <> 0 then
             if (os->flags and SYMF_GENERIC_INST) <> 0 then return false
-            if os->kind = cast( ubyte, SYM_UDT ) then
+            if os->kind = cast( uint8, SYM_UDT ) then
                 if instr( c.names->Spelling( os->name ), "<" ) > 0 then return false
             end if
             dim as NodeId dn = cast( NodeId, os->payload )
-            if (dn > 0) andalso (cast( long, dn ) <= c.ast->Count( )) then
-                dim as StmtPayload ptr op = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, dn )].data )]
-                if (c.ast->Kind( dn ) = N_TYPE) andalso (os->kind = cast( ubyte, SYM_UDT )) then
+            if (dn > 0) andalso (cast( int32, dn ) <= c.ast->Count( )) then
+                dim as StmtPayload ptr op = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, dn )].data )]
+                if (c.ast->Kind( dn ) = N_TYPE) andalso (os->kind = cast( uint8, SYM_UDT )) then
                     if op->b <> NODE_NONE then return true
-                elseif (c.ast->Kind( dn ) = N_PROC) andalso (os->kind = cast( ubyte, SYM_PROC )) then
+                elseif (c.ast->Kind( dn ) = N_PROC) andalso (os->kind = cast( uint8, SYM_PROC )) then
                     if (op->extra and PF_GENERIC_PROC) <> 0 then return true
                 end if
             end if

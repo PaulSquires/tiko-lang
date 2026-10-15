@@ -63,7 +63,7 @@ private function ForeignLibResolve_ _
     '' SOURCE-RELATIVE, not relative to the working directory: a binding written in
     '' a header must find the library sitting beside that header whoever includes it.
     dim as string base_ = spec
-    for i as long = 1 to len( base_ )
+    for i as int32 = 1 to len( base_ )
         if mid( base_, i, 1 ) = "\" then mid( base_, i, 1 ) = "/"
     next
     dim as boolean absolute_ = false
@@ -76,8 +76,8 @@ private function ForeignLibResolve_ _
         dim as DecodedLoc d = e.src->Decode( at )
         dim as string here = e.src->PathOf( d.file )
         dim as string dir_ = ""
-        for i as long = len( here ) to 1 step -1
-            dim as ubyte c = here[i - 1]
+        for i as int32 = len( here ) to 1 step -1
+            dim as uint8 c = here[i - 1]
             if (c = 47) orelse (c = 92) then
                 dir_ = left( here, i )
                 exit for
@@ -88,8 +88,8 @@ private function ForeignLibResolve_ _
 
     dim as string dirPart = ""
     dim as string stem = base_
-    for i as long = len( base_ ) to 1 step -1
-        dim as ubyte c = base_[i - 1]
+    for i as int32 = len( base_ ) to 1 step -1
+        dim as uint8 c = base_[i - 1]
         if (c = 47) orelse (c = 92) then
             dirPart = left( base_, i )
             stem = mid( base_, i + 1 )
@@ -110,10 +110,10 @@ private function ForeignLibResolve_ _
     dim as StrVec exts
     ForeignLibExts_( e, isStatic, exts )
 
-    for v as long = 0 to variants.Count - 1
-        for x as long = 0 to exts.Count - 1
+    for v as int32 = 0 to variants.Count - 1
+        for x as int32 = 0 to exts.Count - 1
             dim as string cand = dirPart & variants[v] & exts[x]
-            dim as long fh = freefile
+            dim as int32 fh = freefile
             if open( cand for input as #fh ) = 0 then
                 close #fh
                 return cand

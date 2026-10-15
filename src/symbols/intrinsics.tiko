@@ -21,7 +21,7 @@ private function UdtDerivesFromWide_( byref c as Ctx, byval t as Tko.TypeId ) as
     dim as Tko.TypeId u = c.types->Unqualify( t )
     if t = Tko.TYPE_NONE orelse (c.types->Kind( u ) <> Tko.TK_UDT) then return false
     dim as Tko.TypeId b = c.types->BaseOf( u )
-    for guard as long = 0 to 63          '' a base chain, so it cannot cycle -- but bound it
+    for guard as int32 = 0 to 63          '' a base chain, so it cannot cycle -- but bound it
         if b = Tko.TYPE_NONE then exit for
         dim as Tko.TypeId bu = c.types->Unqualify( b )
         if c.types->Kind( bu ) = Tko.TK_BUILTIN then return (c.types->BuiltinOf( bu ) = Tko.TY_WSTRING)
@@ -108,7 +108,7 @@ private function UdtOperandBinaryType_ _
       byval lt as Tko.TypeId, byval rt as Tko.TypeId ) as Tko.TypeId
     if TupleEqType_( c, op, lt, rt ) then return c.types->Builtin( Tko.TY_INTEGER )  '' binresult.tiko
     dim as Tko.TypeId lt2 = lt, rt2 = rt
-    for side as long = 0 to 1
+    for side as int32 = 0 to 1
         dim as Tko.TypeId st = iif( side = 0, lt, rt )
         if IsUdtOperand_( c, st ) = false then continue for
         '' '+' BESIDE A STRING TAKES THE STRING CAST: measured, '"<" + n + ">"' over a type casting to
@@ -151,11 +151,11 @@ private function PropertyReadAccessor_ _
 
     dim as Tko.Symbol ptr f0 = c.syms->SymbolAt( fs )
     if f0 = 0 then return fs
-    if f0->kind <> cast( ubyte, Tko.SYM_PROC ) then return fs
+    if f0->kind <> cast( uint8, Tko.SYM_PROC ) then return fs
     dim as Tko.NodeId f0n = cast( Tko.NodeId, f0->payload )
     if f0n = Tko.NODE_NONE then return fs
     if c.ast->Kind( f0n ) <> Tko.N_PROC then return fs
-    if StmtOf( c, f0n )->op <> cast( ushort, Tko.KW_PROPERTY ) then return fs
+    if StmtOf( c, f0n )->op <> cast( uint16, Tko.KW_PROPERTY ) then return fs
 
     '' THE GETTER WITH NO INDEX, from the chain's HEAD: a bare 'o.P' passes no argument, so
     '' 'property P( byval i as long ) as long' declared before 'property P( ) as long' is not
@@ -165,7 +165,7 @@ private function PropertyReadAccessor_ _
     dim as Tko.SymbolId nx = c.syms->LookupLocal( f0->parent, f0->name )
     if nx = Tko.SYMBOL_NONE then nx = fs
     dim as Tko.SymbolId firstRes = Tko.SYMBOL_NONE
-    dim as long pg = 0
+    dim as int32 pg = 0
     while (nx <> Tko.SYMBOL_NONE) andalso (pg < 4096)
         dim as Tko.Symbol ptr ns = c.syms->SymbolAt( nx )
         if ns = 0 then exit while
@@ -245,7 +245,7 @@ private function IsVirtualKeyword_( byref c as Ctx, byval a as Tko.NodeId ) as b
     if a = Tko.NODE_NONE then return false
     if c.ast->Kind( a ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, a )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, a )].data )]
     return (Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) = "virtual")
 end function
 
@@ -317,7 +317,7 @@ end sub
 '' itself, and a UDT with whatever its 'operator cast' converts to. Split out because
 '' INSTR's text is not always slot zero -- see the case below.
 private function ArgBuiltin_ _
-    ( byref c as Ctx, byval cp as Tko.ListPayload ptr, byval i as long ) _
+    ( byref c as Ctx, byval cp as Tko.ListPayload ptr, byval i as int32 ) _
     as Tko.BuiltinType
 
     if (i < 0) orelse (i >= cp->count) then return Tko.TY_NONE
@@ -370,7 +370,7 @@ private function ExprIntrinsicType_ _
             '' overload reached decides the flavour -- 'left( x, 1 )' over [byref as wstring, byref as
             '' zstring] is a WSTRING. A tie keeps the old answer; latesweeps reports it (98).
             if instr( " left right val valint vallng valuint valulng ", " " & nm & " " ) then
-                dim as long ioc, iprm
+                dim as int32 ioc, iprm
                 Tko.Check.IntrStrOvlPick( *c.ast, *c.syms, *c.types, *c.names, a0, (nm = "left") orelse (nm = "right"), ioc, iprm )
                 if ioc = Tko.Check.CP_OK then
                     select case iprm
@@ -467,7 +467,7 @@ private function ExprIntrinsicType_ _
         ''     instr( start, text, pattern )      text is slot ONE
         ''     instr( text, pattern )             text is slot zero
         ''     instrrev( text, pattern[, start] ) text is slot zero, always
-        dim as long textSlot = 0
+        dim as int32 textSlot = 0
         if (nm = "instr") andalso (cp->count = 3) then textSlot = 1
         if textSlot > 0 then
             dim as Tko.BuiltinType tb = ArgBuiltin_( c, cp, textSlot )
@@ -599,7 +599,7 @@ private function ExprIntrinsicType_ _
         '' strptr( ustr ), len( ustr ) )' over two overloads and matched neither.
         '' A CONST VAR-LEN operand gives a CONST pointee: fbc types it 'CONST ZSTRING * 8 CONST
         '' PTR', so a write through it is error 119 (const/strptr.bas). A fixed one does not.
-        dim as ushort spq = iif( cbool( (ab = Tko.TY_STRING) orelse (ab = Tko.TY_USTRING) ) andalso c.types->IsConst( iif( c.types->Kind( a0 ) = Tko.TK_REFERENCE, c.types->Inner( a0 ), a0 ) ), Tko.TF_CONST, 0 )
+        dim as uint16 spq = iif( cbool( (ab = Tko.TY_STRING) orelse (ab = Tko.TY_USTRING) ) andalso c.types->IsConst( iif( c.types->Kind( a0 ) = Tko.TK_REFERENCE, c.types->Inner( a0 ), a0 ) ), Tko.TF_CONST, 0 )
         if ab = Tko.TY_USTRING then return c.types->Pointer_( c.types->Qualify( c.types->Builtin( Tko.TY_USHORT ), spq ) )
         if ab = Tko.TY_WSTRING then return c.types->Pointer_( c.types->Builtin( Tko.TY_WSTRING ) )
         return c.types->Pointer_( c.types->Qualify( c.types->Builtin( Tko.TY_ZSTRING ), spq ) )
@@ -690,7 +690,7 @@ private function ExprIntrinsicType_ _
         if (isNum orelse isStr) = false then
             if UdtStringCastType_( c, a0 ) = Tko.TYPE_NONE then return Tko.TYPE_NONE
         end if
-        dim as long wn = 1
+        dim as int32 wn = 1
         if ab = Tko.TY_WSTRING then
             if c.types->Kind( a0 ) = Tko.TK_ARRAY then wn = c.types->ElemCount( a0 )
         end if
@@ -779,20 +779,20 @@ private sub NoteUntypedName_( byref c as Ctx, byval id as Tko.NodeId )
     dim as Tko.NodeId n = id
     if c.ast->Kind( n ) = Tko.N_CALL then
         dim as Tko.ListPayload ptr cp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
         n = cp->target
     end if
     if n = Tko.NODE_NONE then return
     if c.ast->Kind( n ) = Tko.N_MEMBER then
         dim as Tko.BinaryPayload ptr mb = _
-            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, n )].data )]
+            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, n )].data )]
         n = mb->rhs
     end if
     if n = Tko.NODE_NONE then return
     if c.ast->Kind( n ) <> Tko.N_IDENT then return
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, n )].data )]
-    c.st->argUntypedNames.Push( cast( ulong, ip->name ) )
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+    c.st->argUntypedNames.Push( cast( uint32, ip->name ) )
 end sub
 
 '' The deepest node that is still untyped, following the single path a wrapper takes.
@@ -805,22 +805,22 @@ private function UntypedLeaf_ _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
 
     dim as Tko.NodeId cur = id
-    for guard as long = 0 to 63
+    for guard as int32 = 0 to 63
         select case c.ast->Kind( cur )
         case Tko.N_PAREN
             dim as Tko.ListPayload ptr lp = _
-                @c.ast->lists[cast( long, c.ast->nodes[cast( long, cur )].data )]
+                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, cur )].data )]
             if lp->count <> 1 then return cur
             cur = cast( Tko.NodeId, c.ast->children[lp->first] )
         case Tko.N_UNARY
             dim as Tko.UnaryPayload ptr up = _
-                @c.ast->unaries[cast( long, c.ast->nodes[cast( long, cur )].data )]
+                @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, cur )].data )]
             cur = up->operand
         case Tko.N_BINARY
             '' Whichever side is the untyped one; if both are, the left is reported and
             '' the right will be counted on its own the next time round.
             dim as Tko.BinaryPayload ptr bp = _
-                @c.ast->binaries[cast( long, c.ast->nodes[cast( long, cur )].data )]
+                @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, cur )].data )]
             if TypeOf_( c, bp->lhs ) = Tko.TYPE_NONE then
                 cur = bp->lhs
             elseif TypeOf_( c, bp->rhs ) = Tko.TYPE_NONE then
@@ -861,22 +861,22 @@ private function MemberProcPtr_ _
         dim as Tko.SymbolId bh = c.info->RefOf( fnE )
         dim as Tko.Symbol ptr bhs = c.syms->SymbolAt( bh )
         if bhs = 0 then return Tko.SYMBOL_NONE
-        if bhs->kind <> cast( ubyte, Tko.SYM_PROC ) then return Tko.SYMBOL_NONE
+        if bhs->kind <> cast( uint8, Tko.SYM_PROC ) then return Tko.SYMBOL_NONE
         return ProcPtrPickOverload_( c, bh, lp )
     end if
 
     if c.ast->Kind( fnE ) <> Tko.N_MEMBER then return Tko.SYMBOL_NONE
     dim as Tko.BinaryPayload ptr mp = _
-        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, fnE )].data )]
+        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, fnE )].data )]
     if c.ast->Kind( mp->rhs ) <> Tko.N_IDENT then return Tko.SYMBOL_NONE
     dim as Tko.IdentPayload ptr rip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, mp->rhs )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, mp->rhs )].data )]
     dim as string mname = Tko.Text.LowerAscii( c.names->Spelling( rip->name ) )
 
     '' The TYPE the member belongs to: the left side names it.
     dim as Tko.Symbol ptr ls = c.syms->SymbolAt( c.info->RefOf( mp->lhs ) )
     if ls = 0 then return Tko.SYMBOL_NONE
-    if ls->kind <> cast( ubyte, Tko.SYM_UDT ) then return Tko.SYMBOL_NONE
+    if ls->kind <> cast( uint8, Tko.SYM_UDT ) then return Tko.SYMBOL_NONE
     dim as Tko.TypeId ut = c.types->Unqualify( ls->type_ )
     if ut = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
 
@@ -893,7 +893,7 @@ private function MemberProcPtr_ _
     if head = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
     dim as Tko.Symbol ptr hs = c.syms->SymbolAt( head )
     if hs = 0 then return Tko.SYMBOL_NONE
-    if hs->kind <> cast( ubyte, Tko.SYM_PROC ) then return Tko.SYMBOL_NONE
+    if hs->kind <> cast( uint8, Tko.SYM_PROC ) then return Tko.SYMBOL_NONE
 
     '' NO SIGNATURE WRITTEN: the first overload DECLARED, which is what fbc takes -- not the chain's head (pointers/procptr-member.bas: four 'proc's).
     if lp->count < 2 then return FirstDeclared_( c, head )
@@ -926,13 +926,13 @@ function ProcPtrPickOverload_ _
     '' rather than given a case of its own further down.
     if c.ast->Kind( sigN ) = Tko.N_CALL then
         dim as Tko.ListPayload ptr tlp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, sigN )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, sigN )].data )]
         dim as boolean isTypeof = false
         if (tlp->count = 1) andalso (tlp->target <> Tko.NODE_NONE) then
             if c.ast->Kind( tlp->target ) = Tko.N_IDENT then
                 dim as Tko.IdentPayload ptr tip = _
-                    @c.ast->idents[cast( long, _
-                        c.ast->nodes[cast( long, tlp->target )].data )]
+                    @c.ast->idents[cast( int32, _
+                        c.ast->nodes[cast( int32, tlp->target )].data )]
                 isTypeof = (Tko.Text.LowerAscii( _
                     c.names->Spelling( tip->name ) ) = "typeof")
             end if
@@ -963,7 +963,7 @@ function ProcPtrPickOverload_ _
 
     '' A procedure type's parameters live in the type pool: 'count' of them from
     '' 'first', the same way the mangler and the type printer read one.
-    dim as long want = c.types->types[cast( long, sigT )].count
+    dim as int32 want = c.types->types[cast( int32, sigT )].count
     dim as Tko.SymbolId cur = head
     while cur <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
@@ -974,22 +974,22 @@ function ProcPtrPickOverload_ _
             '' describes a one-argument constructor, whose N_PROC also carries 'this'
             '' nowhere -- the parameters counted here are the declared ones only.
             dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
-            dim as long have = 0
-            for i as long = 0 to pp->count - 1
+            dim as int32 have = 0
+            for i as int32 = 0 to pp->count - 1
                 dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
                 if c.ast->Kind( prm ) = Tko.N_PARAM then have += 1
             next
             if have = want then
                 dim as boolean same = true
-                dim as long seen = 0
-                for i as long = 0 to pp->count - 1
+                dim as int32 seen = 0
+                for i as int32 = 0 to pp->count - 1
                     dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
                     if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
                     dim as Tko.TypeId pt = c.info->TypeOf_( StmtOf( c, prm )->a )
                     dim as Tko.TypeId wt = Tko.TYPE_NONE
                     if seen < want then
                         wt = cast( Tko.TypeId, _
-                            c.types->pool[c.types->types[cast( long, sigT )].first + seen] )
+                            c.types->pool[c.types->types[cast( int32, sigT )].first + seen] )
                     end if
                     if (pt <> Tko.TYPE_NONE) andalso (wt <> Tko.TYPE_NONE) then
                         dim as Tko.TypeId pu = c.types->Unqualify( pt )
@@ -1019,7 +1019,7 @@ private function ProcTypeOfSymbol_ _
     if sid = Tko.SYMBOL_NONE then return Tko.TYPE_NONE
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
     if s = 0 then return Tko.TYPE_NONE
-    if s->kind <> cast( ubyte, Tko.SYM_PROC ) then return Tko.TYPE_NONE
+    if s->kind <> cast( uint8, Tko.SYM_PROC ) then return Tko.TYPE_NONE
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if pn = Tko.NODE_NONE then return Tko.TYPE_NONE
     if c.ast->Kind( pn ) <> Tko.N_PROC then return Tko.TYPE_NONE
@@ -1040,11 +1040,11 @@ private function ProcTypeOfSymbol_ _
     if (pp->extra and Tko.PF_STATIC) = 0 then
         dim as Tko.SymScope ptr osc = c.syms->ScopeAt( s->parent )
         if osc <> 0 then
-            if osc->kind = cast( ubyte, Tko.SCOPEK_TYPE ) then
+            if osc->kind = cast( uint8, Tko.SCOPEK_TYPE ) then
                 dim as Tko.Symbol ptr ow = c.syms->SymbolAt( osc->owner )
                 if ow <> 0 then
                     if ow->type_ <> Tko.TYPE_NONE then
-                        ps.Push( cast( ulong, c.types->Reference( ow->type_ ) ) )
+                        ps.Push( cast( uint32, c.types->Reference( ow->type_ ) ) )
                     end if
                 end if
             end if
@@ -1052,16 +1052,16 @@ private function ProcTypeOfSymbol_ _
     end if
 
     dim as boolean typedVar = false
-    for i as long = 0 to pp->count - 1
+    for i as int32 = 0 to pp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         dim as Tko.StmtPayload ptr sp2 = StmtOf( c, prm )
         dim as Tko.TypeId pt = c.info->TypeOf_( sp2->a )
         if pt = Tko.TYPE_NONE then return Tko.TYPE_NONE
-        dim as ushort pfl = c.ast->nodes[cast( long, prm )].flags  '' an ARRAY parameter, as ProcTypeParamType_
+        dim as uint16 pfl = c.ast->nodes[cast( int32, prm )].flags  '' an ARRAY parameter, as ProcTypeParamType_
         typedVar = ((pfl and Tko.NF_VARIADIC) <> 0)
-        if (pfl and Tko.NF_ARRAY) <> 0 then pt = c.types->Reference( c.types->DynArrayOf( pt, cast( long, sp2->extra ) ) ) else if (pfl and Tko.NF_BYREF) <> 0 then pt = c.types->Reference( pt )
-        ps.Push( cast( ulong, pt ) )
+        if (pfl and Tko.NF_ARRAY) <> 0 then pt = c.types->Reference( c.types->DynArrayOf( pt, cast( int32, sp2->extra ) ) ) else if (pfl and Tko.NF_BYREF) <> 0 then pt = c.types->Reference( pt )
+        ps.Push( cast( uint32, pt ) )
     next
     return c.types->Pointer_( c.types->ProcType( ret, ps, false, (pp->extra and Tko.PF_PASCAL) <> 0, typedVar ) )
 end function
@@ -1073,13 +1073,13 @@ private function IsThisIdent_( byref c as Ctx, byval n as Tko.NodeId ) as boolea
     if n = Tko.NODE_NONE then return false
     if c.ast->Kind( n ) <> Tko.N_IDENT then return false
     dim as Tko.InternId nm = _
-        c.ast->idents[cast( long, c.ast->nodes[cast( long, n )].data )].name
+        c.ast->idents[cast( int32, c.ast->nodes[cast( int32, n )].data )].name
     if c.names->Fold( nm ) <> c.names->Fold( c.names->GetString( "this" ) ) then
         return false
     end if
     dim as Tko.Symbol ptr sy = c.syms->SymbolAt( c.info->RefOf( n ) )
     if sy = 0 then return false
-    return (sy->kind = cast( ubyte, Tko.SYM_PARAMETER ))
+    return (sy->kind = cast( uint8, Tko.SYM_PARAMETER ))
 end function
 
 '' The result type of a conversion intrinsic, or TYPE_NONE when this is not one.
@@ -1103,12 +1103,12 @@ private function PeekTypeArg_ _
     '' answer either way.
     if c.ast->Kind( n ) = Tko.N_CALL then
         dim as Tko.ListPayload ptr tp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
         if tp->count <> 1 then return Tko.TYPE_NONE
         if tp->target = Tko.NODE_NONE then return Tko.TYPE_NONE
         if c.ast->Kind( tp->target ) <> Tko.N_IDENT then return Tko.TYPE_NONE
         dim as Tko.IdentPayload ptr tnp = _
-            @c.ast->idents[cast( long, c.ast->nodes[cast( long, tp->target )].data )]
+            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, tp->target )].data )]
         if Tko.Text.LowerAscii( c.names->Spelling( tnp->name ) ) <> "typeof" then
             return Tko.TYPE_NONE
         end if
@@ -1116,7 +1116,7 @@ private function PeekTypeArg_ _
     end if
     if c.ast->Kind( n ) <> Tko.N_IDENT then return Tko.TYPE_NONE
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, n )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, n )].data )]
     select case Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
     case "byte"     : return c.types->Builtin( Tko.TY_BYTE )
     case "ubyte"    : return c.types->Builtin( Tko.TY_UBYTE )
@@ -1389,7 +1389,7 @@ private function IntrinsicTableType_ _
         '' the honest thing for it to produce; treating the call as having TWO arguments
         '' then sent it down the overload-selection path, where nothing matched and the
         '' whole expression came out untyped. There is one argument here.
-        dim as long ppCount = cp->count
+        dim as int32 ppCount = cp->count
         if ppCount = 2 then
             dim as Tko.NodeId ppSecond = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
             if ppSecond = Tko.NODE_NONE then

@@ -56,7 +56,7 @@ end function
 '' parameters and locals are accepted: 'sub T.m( byval kill as long )' compiles. (A
 '' parameter named like a MEMBER of T is fbc's error 4 too, but that is another rule.)
 private function RtlGlobalChain_ ( byref c as Ctx, byval sc as Tko.ScopeId ) as boolean
-    for guard as long = 0 to 255
+    for guard as int32 = 0 to 255
         if sc = Tko.SCOPE_NONE then return false
         dim as Tko.SymScope ptr ss = c.syms->ScopeAt( sc )
         if ss = 0 then return false
@@ -95,8 +95,8 @@ end function
 '' One report per SOURCE LOCATION: Resolve revisits a declaration whose type was not
 '' ready, and an instantiation re-parses a generic's body into new nodes.
 private sub RtlReport_ ( byref c as Ctx, byval n as Tko.NodeId, byval nm as Tko.InternId )
-    dim as ulong at = cast( ulong, c.ast->Loc( n ) )
-    for i as long = 0 to c.rtlSeen.Count - 1
+    dim as uint32 at = cast( uint32, c.ast->Loc( n ) )
+    for i as int32 = 0 to c.rtlSeen.Count - 1
         if c.rtlSeen[i] = at then return
     next
     c.rtlSeen.Push( at )
@@ -108,8 +108,8 @@ private function RtlNameAt_ _
     if nm = 0 then return false
     '' AN '#undef' ABOVE FREES THE NAME: fbc-int/memory.bi '#undef's allocate, callocate and
     '' deallocate and declares its own -- measured, fbc compiles it; tiko said TKO0813.
-    dim as ulong fnm = cast( ulong, c.names->Fold( nm ) )
-    for i as long = 0 to c.rtlUndef.Count - 1
+    dim as uint32 fnm = cast( uint32, c.names->Fold( nm ) )
+    for i as int32 = 0 to c.rtlUndef.Count - 1
         if c.rtlUndef[i] = fnm then return false
     next
     dim as boolean over
@@ -132,7 +132,7 @@ sub RtlNameClash_ ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.Sc
     select case k
     case Tko.N_VAR, Tko.N_CONST
         if RtlGlobalChain_( c, here ) = false then return
-        for i as long = 0 to sp->count - 1
+        for i as int32 = 0 to sp->count - 1
             dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[sp->first + i] )
             if c.ast->Kind( it ) <> Tko.N_VAR_ITEM then continue for
             '' 'dim shared as integer NS.U.val' DEFINES a static member: qualified, not new.
@@ -152,10 +152,10 @@ sub RtlNameClash_ ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.Sc
         dim as Tko.ScopeId outer = here
         dim as Tko.SymScope ptr hs = c.syms->ScopeAt( here )
         if hs <> 0 then
-            if hs->kind = cast( ubyte, Tko.SCOPEK_PROC ) then outer = hs->parent
+            if hs->kind = cast( uint8, Tko.SCOPEK_PROC ) then outer = hs->parent
         end if
         '' A METHOD DEFINITION 'sub T.Run' is a member and so not this, nor its parameters.
-        if (c.ast->nodes[cast( long, id )].flags and Tko.NF_QUALIFIED) = 0 then
+        if (c.ast->nodes[cast( int32, id )].flags and Tko.NF_QUALIFIED) = 0 then
             select case cast( Tko.TokenKind, sp->op )
             case Tko.KW_SUB, Tko.KW_FUNCTION
                 if RtlGlobalChain_( c, outer ) andalso RtlNameAt_( c, sp->name, true ) then
@@ -165,7 +165,7 @@ sub RtlNameClash_ ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.Sc
         end if
         if isDef = false then return
         if RtlGlobalChain_( c, here ) = false then return
-        for i as long = 0 to sp->count - 1
+        for i as int32 = 0 to sp->count - 1
             dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[sp->first + i] )
             if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
             dim as Tko.InternId pnm = StmtOf( c, prm )->name

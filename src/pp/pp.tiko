@@ -17,13 +17,13 @@ namespace Tko
 
 type PpFrame
     as TokenVec ptr toks
-    as long      pos
+    as int32      pos
     as InternId  hides         '' macro whose expansion this is; 0 for a file
     as FileId    file          '' 0 for an expansion buffer
     as boolean   owned         '' expansion buffers are ours to delete
     '' The position TryTailJoin_ has already looked at and refused, so a peek that
     '' happens ten times over the same token re-lexes the pair once. -1 is "not yet".
-    as long      joinTried
+    as int32      joinTried
     '' WHERE THE MACRO NAME THAT OPENED THIS FRAME WAS WRITTEN. LOC_NONE for a file
     '' frame and for the internal buffers that are not a macro use.
     ''
@@ -70,7 +70,7 @@ const PP_OPTION_STACK_MAX = 32
 
 type PpEngine
     '' How deep PpReadArgs' eager expansion is nested -- see its use in macro.tiko.
-    as long argNest
+    as int32 argNest
     as SourceManager ptr src
     as Interner ptr      names
     as KeywordMap ptr    kw
@@ -94,7 +94,7 @@ type PpEngine
     ''
     '' PeekOnLine's own pop is deliberately NOT floored: a synthesised directive
     '' continuing onto the invoking line depends on crossing exactly that boundary.
-    as long                   frameFloor
+    as int32                   frameFloor
     as containers.Array( of PpCond )  conds
     as MacroVec               macros
     as IdVec                  macroSlot     '' InternId -> macros index + 1
@@ -135,12 +135,12 @@ type PpEngine
     '' a literal, a negated literal, or another const already known -- and a name with
     '' no value keeps the old answer of 0 rather than guessing.
     as IdVec                  constMark
-    as containers.Array( of longint ) constVal
+    as containers.Array( of int64 ) constVal
     '' THE UNDO LOG of local notes -- PpProcEnter: (table, id, old, old2) per entry, and
     '' where each open procedure body's entries begin.
-    as containers.Array( of longint ) localUndo
+    as containers.Array( of int64 ) localUndo
     as StrVec                 constStr, localUndoStr   '' a string const's "=text", and the undo log's old ones
-    as containers.Array( of long )    procMarks
+    as containers.Array( of int32 )    procMarks
     '' WHAT '#if typeof( name )' READS (T61), filled by the parser on the same terms: by
     '' folded InternId, a variable's declared type and a typedef's target as a KEY --
     '' 'K<token kind>' for a builtin or 'N<InternId>' for a named type, then ' ptr' per
@@ -169,8 +169,8 @@ type PpEngine
     '' -- measured, fbc does, after a plain '#include' of it (audit F-54).
     as IdVec                  allIncluded
     as FileId                 rootFile
-    as long                   uniqueCounter
-    as containers.Array( of ulong )   pasteLoc, pasteId, pasteKind : as StrVec pasteText, pasteGap : as SourceLoc apostEolAt   '' ppspell.tiko
+    as int32                   uniqueCounter
+    as containers.Array( of uint32 )   pasteLoc, pasteId, pasteKind : as StrVec pasteText, pasteGap : as SourceLoc apostEolAt   '' ppspell.tiko
     '' '##_' AT THE END OF A MACRO BODY LINE IS A LINE JOIN, and what it joins is the
     '' NEXT END OF LINE -- wherever that comes from. Measured on fbc, three shapes:
     ''
@@ -219,8 +219,8 @@ type PpEngine
     '' opens one. Only SUB, FUNCTION and SCOPE are tracked: they are the forms the
     '' corpus defines macros inside, and counting a form wrongly would undefine
     '' macros EARLY, which is worse than the over-permissiveness it replaces.
-    as long                   blockDepth
-    as ushort                 prevKw        '' the last keyword emitted, for END
+    as int32                   blockDepth
+    as uint16                 prevKw        '' the last keyword emitted, for END
     '' The statement being emitted has had a token that is not PRIVATE or PUBLIC: a SUB,
     '' FUNCTION or SCOPE after one is no definition's head (see PpTrackBlock).
     as boolean                stmtDirty
@@ -229,9 +229,9 @@ type PpEngine
     '' each a boolean reported through a predefined macro; index 0 is private, 1 is
     '' profile. Fixed-size because the pragma is a nesting marker in a header, not a
     '' data structure -- and fbc itself errors on underflow rather than growing.
-    as long                   optionValue( 0 to 1 )
-    as long                   optionDepth( 0 to 1 )
-    as long                   optionStack( 0 to (2 * PP_OPTION_STACK_MAX) - 1 )
+    as int32                   optionValue( 0 to 1 )
+    as int32                   optionDepth( 0 to 1 )
+    as int32                   optionStack( 0 to (2 * PP_OPTION_STACK_MAX) - 1 )
     as PpModState             modst         '' '#module' / '#import' / '#export': ppmodule.tiko
 end type
 
@@ -241,42 +241,42 @@ private function Tk( byref t as Token ) as TokenKind
     return cast( TokenKind, t.kind )
 end function
 
-private function SlotOf( byref e as PpEngine, byval id as InternId ) as long
+private function SlotOf( byref e as PpEngine, byval id as InternId ) as int32
     if id = INTERN_NONE then return 0
-    if cast( long, id ) >= e.macroSlot.Count then return 0
-    return cast( long, e.macroSlot[cast( long, id )] )
+    if cast( int32, id ) >= e.macroSlot.Count then return 0
+    return cast( int32, e.macroSlot[cast( int32, id )] )
 end function
 
-private sub SetSlot( byref e as PpEngine, byval id as InternId, byval slot as long )
-    while e.macroSlot.Count <= cast( long, id )
+private sub SetSlot( byref e as PpEngine, byval id as InternId, byval slot as int32 )
+    while e.macroSlot.Count <= cast( int32, id )
         e.macroSlot.Push( 0 )
     wend
-    e.macroSlot[cast( long, id )] = cast( ulong, slot )
+    e.macroSlot[cast( int32, id )] = cast( uint32, slot )
 end sub
 
 '' DECLARED-NAME MARKS. Kept on the engine, set by the parser through the stream, and
 '' read by 'defined'. The slot array grows on demand exactly as macroSlot's does; an
 '' InternId past the end has simply not been declared.
-private sub MarkDeclared_( byref e as PpEngine, byval id as InternId, byval kind as long = 1 )
+private sub MarkDeclared_( byref e as PpEngine, byval id as InternId, byval kind as int32 = 1 )
     if id = INTERN_NONE then return
-    dim as long ix = cast( long, id )
+    dim as int32 ix = cast( int32, id )
     while e.declaredMark.Count <= ix
         e.declaredMark.Push( 0 )
     wend
-    e.declaredMark[ix] = cast( ulong, iif( kind < 1, 1, kind ) )
+    e.declaredMark[ix] = cast( uint32, iif( kind < 1, 1, kind ) )
 end sub
 
 '' THE KIND a declared name was noted with -- parser/declkind.tiko -- or 0 for none.
-private function DeclaredKind_( byref e as PpEngine, byval id as InternId ) as long
+private function DeclaredKind_( byref e as PpEngine, byval id as InternId ) as int32
     if id = INTERN_NONE then return 0
-    dim as long ix = cast( long, id )
+    dim as int32 ix = cast( int32, id )
     if ix >= e.declaredMark.Count then return 0
-    return cast( long, e.declaredMark[ix] )
+    return cast( int32, e.declaredMark[ix] )
 end function
 
 private function IsDeclared_( byref e as PpEngine, byval id as InternId ) as boolean
     if id = INTERN_NONE then return false
-    dim as long ix = cast( long, id )
+    dim as int32 ix = cast( int32, id )
     if ix >= e.declaredMark.Count then return false
     return (e.declaredMark[ix] <> 0)
 end function
@@ -292,15 +292,15 @@ end function
 '' declared at the top level anywhere, or as a local, is defined as before.
 private function IsDeclaredVisible_( byref e as PpEngine, byval id as InternId ) as boolean
     if IsDeclared_( e, id ) = false then return false
-    dim as long ix = cast( long, e.names->Fold( id ) )
+    dim as int32 ix = cast( int32, e.names->Fold( id ) )
     if (ix < e.topDeclared.Count) andalso (e.topDeclared[ix] = 1) then return true
     if ix >= e.nsMemberOf.Count then return true
     dim as string ofs = e.nsMemberOf[ix]
     if len( ofs ) = 0 then return true
     dim as string cur = Text.LowerAscii( e.curNs )
-    dim as long a = 2
+    dim as int32 a = 2
     while a <= len( ofs )
-        dim as long b = instr( a, ofs, "|" )
+        dim as int32 b = instr( a, ofs, "|" )
         if b = 0 then exit while
         dim as string ns = mid( ofs, a, b - a )
         dim as string nsl = Text.LowerAscii( ns )
@@ -319,10 +319,10 @@ private function IsDefinedBuiltin_( byref e as PpEngine, byval id as InternId ) 
 end function
 
 private sub MarkConst_ _
-    ( byref e as PpEngine, byval id as InternId, byval v as longint )
+    ( byref e as PpEngine, byval id as InternId, byval v as int64 )
 
     if id = INTERN_NONE then return
-    dim as long ix = cast( long, id )
+    dim as int32 ix = cast( int32, id )
     while e.constMark.Count <= ix
         e.constMark.Push( 0 )
         e.constVal.Push( 0 )
@@ -334,8 +334,8 @@ end sub
 '' A declaration in a module's interface: not the importer's name (RFC-0004 §5).
 private function InIfaceFile_( byref e as PpEngine, byval at as SourceLoc ) as boolean
     if (at = LOC_NONE) orelse (e.modst.ifaceFiles.Count = 0) then return false
-    dim as ulong f = cast( ulong, e.src->Decode( at ).file )
-    for each x as ulong in e.modst.ifaceFiles
+    dim as uint32 f = cast( uint32, e.src->Decode( at ).file )
+    for each x as uint32 in e.modst.ifaceFiles
         if x = f then return true
     next
     return false
@@ -344,7 +344,7 @@ end function
 #include once "pp/pplocal.tiko"   '' PpProcEnter, PpProcLeave, the local notes
 
 sub PpNoteConst _
-    ( byref st as PpStream, byval nm as InternId, byval v as longint, _
+    ( byref st as PpStream, byval nm as InternId, byval v as int64, _
       byval at as SourceLoc, byval isLocal as boolean )
     if st.engine = 0 then return
     dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
@@ -356,10 +356,10 @@ end sub
 
 '' The value a '#if' should read for a name, when the parser has recorded one.
 function PpConstValue _
-    ( byref e as PpEngine, byval nm as InternId, byref outv as longint ) as boolean
+    ( byref e as PpEngine, byval nm as InternId, byref outv as int64 ) as boolean
 
     if nm = INTERN_NONE then return false
-    dim as long ix = cast( long, nm )
+    dim as int32 ix = cast( int32, nm )
     if ix >= e.constMark.Count then return false
     if e.constMark[ix] = 0 then return false
     outv = e.constVal[ix]
@@ -369,18 +369,18 @@ end function
 '' Whether a name has a recorded value at all -- the parser asks, so a const built
 '' from another one can copy it.
 function PpNotedConst _
-    ( byref st as PpStream, byval nm as InternId, byref outv as longint ) as boolean
+    ( byref st as PpStream, byval nm as InternId, byref outv as int64 ) as boolean
     if st.engine = 0 then return false
     return PpConstValue( *cast( PpEngine ptr, st.engine ), nm, outv )
 end function
 
 sub PpNoteType _
     ( byref st as PpStream, byval nm as InternId, byref key as string, _
-      byval what as long, byval at as SourceLoc )
+      byval what as int32, byval at as SourceLoc )
     if (st.engine = 0) orelse (nm = INTERN_NONE) then return
     dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
     if InIfaceFile_( *e, at ) then return
-    dim as long ix = cast( long, e->names->Fold( nm ) )
+    dim as int32 ix = cast( int32, e->names->Fold( nm ) )
     select case what
     case PP_TYPE_NAMED
         while e->typeNameMark.Count <= ix
@@ -409,14 +409,14 @@ sub PpNoteType _
 end sub
 
 sub PpNoteDeclared _
-    ( byref st as PpStream, byval nm as InternId, byval at as SourceLoc, byval kind as long, _
+    ( byref st as PpStream, byval nm as InternId, byval at as SourceLoc, byval kind as int32, _
       byval atTop as boolean, byval nsPath as string )
     if st.engine = 0 then return
     dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
     if InIfaceFile_( *e, at ) then return
     MarkDeclared_( *e, nm, kind )
     if nm = INTERN_NONE then return
-    dim as long ix = cast( long, e->names->Fold( nm ) )
+    dim as int32 ix = cast( int32, e->names->Fold( nm ) )
     if (atTop = false) andalso (len( nsPath ) > 0) then
         while e->nsMemberOf.Count <= ix
             e->nsMemberOf.Push( "" )
@@ -450,7 +450,7 @@ end sub
 sub PpNoteTypeNs( byref st as PpStream, byval nm as InternId, byval nsPath as string )
     if (st.engine = 0) orelse (nm = INTERN_NONE) then return
     dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
-    dim as long ix = cast( long, e->names->Fold( nm ) )
+    dim as int32 ix = cast( int32, e->names->Fold( nm ) )
     while e->typeNs.Count <= ix
         e->typeNs.Push( "" )
     wend
@@ -471,7 +471,7 @@ function PpHasDeclared( byref st as PpStream, byval nm as InternId ) as boolean
 end function
 
 private function MacroFor( byref e as PpEngine, byval id as InternId ) as PpMacro ptr
-    dim as long slot = SlotOf( e, id )
+    dim as int32 slot = SlotOf( e, id )
     if slot = 0 then return 0
     dim as PpMacro ptr m = @e.macros[slot - 1]
     if m->isDefined = false then return 0
@@ -553,8 +553,8 @@ end sub
 private function UseSiteLoc_ _
     ( byref e as PpEngine, byref use as Token ) as SourceLoc
 
-    dim as long fileAt = -1
-    for i as long = e.frames.Count - 1 to 0 step -1
+    dim as int32 fileAt = -1
+    for i as int32 = e.frames.Count - 1 to 0 step -1
         if e.frames[i].file <> FILE_NONE then
             fileAt = i
             exit for
@@ -562,7 +562,7 @@ private function UseSiteLoc_ _
     next
     if fileAt < 0 then return use.loc
 
-    for i as long = fileAt + 1 to e.frames.Count - 1
+    for i as int32 = fileAt + 1 to e.frames.Count - 1
         if e.frames[i].useLoc <> LOC_NONE then return e.frames[i].useLoc
     next
     return use.loc
@@ -570,12 +570,12 @@ end function
 
 '' The same walk for __LINE__, which answers with the outermost expansion's LINE site.
 private function LineSiteLoc_( byref e as PpEngine, byref use as Token ) as SourceLoc
-    dim as long fileAt = -1
-    for i as long = e.frames.Count - 1 to 0 step -1
+    dim as int32 fileAt = -1
+    for i as int32 = e.frames.Count - 1 to 0 step -1
         if e.frames[i].file <> FILE_NONE then fileAt = i : exit for
     next
     if fileAt < 0 then return use.loc
-    for i as long = fileAt + 1 to e.frames.Count - 1
+    for i as int32 = fileAt + 1 to e.frames.Count - 1
         if e.frames[i].lineLoc <> LOC_NONE then return e.frames[i].lineLoc
     next
     return use.loc
@@ -602,7 +602,7 @@ private function PeekTok( byref e as PpEngine, byref outTok as Token ) as boolea
         dim as PpFrame ptr f = @e.frames[e.frames.Count - 1]
         '' A file frame's trailing TK_EOF is consumed by the include machinery, not
         '' handed out: only the root's EOF reaches the output.
-        dim as long last = f->toks->Count - 1
+        dim as int32 last = f->toks->Count - 1
         if f->pos > last then
             if e.frames.Count <= e.frameFloor then return false
             PopFrame( e )
@@ -650,12 +650,12 @@ end function
 '' trailing TK_EOF -- and its frameFloor, with 'idx + 1' standing in for the frame
 '' count PeekTok would have had after the pops it is not doing.
 private function PeekTokAhead( byref e as PpEngine, byref outTok as Token ) as boolean
-    dim as long idx = e.frames.Count - 1
+    dim as int32 idx = e.frames.Count - 1
     '' the token we are looking PAST, skipped on the top frame only
-    dim as long skip = 1
+    dim as int32 skip = 1
     while idx >= 0
         dim as PpFrame ptr f = @e.frames[idx]
-        dim as long p = f->pos + skip
+        dim as int32 p = f->pos + skip
         skip = 0
         if p > f->toks->Count - 1 then
             if (idx + 1) <= e.frameFloor then return false
@@ -779,18 +779,18 @@ end sub
 '' See HANDOFF's "The PREPROCESSOR CANNOT SEE DECLARED SYMBOLS".
 private function DereservedId_ _
     ( byref e as PpEngine, byval k as TokenKind ) as InternId
-    if cast( long, k ) >= e.dereserved.Count then return INTERN_NONE
-    return cast( InternId, e.dereserved[cast( long, k )] )
+    if cast( int32, k ) >= e.dereserved.Count then return INTERN_NONE
+    return cast( InternId, e.dereserved[cast( int32, k )] )
 end function
 
 private sub DereserveKw_( byref e as PpEngine, byval k as TokenKind )
     '' The folded spelling is already interned -- InitKeywords interns every keyword
     '' FIRST, so this looks the existing id up rather than making a new one.
     dim as InternId id = e.names->GetString( Text.LowerAscii( TokenKindText( k ) ) )
-    while e.dereserved.Count <= cast( long, k )
+    while e.dereserved.Count <= cast( int32, k )
         e.dereserved.Push( 0 )
     wend
-    e.dereserved[cast( long, k )] = cast( ulong, id )
+    e.dereserved[cast( int32, k )] = cast( uint32, id )
 end sub
 
 '' fbc's warning 44 (TKO0206). The rule implemented here is exactly the one the
@@ -848,7 +848,7 @@ end function
 '' place the preprocessor keeps any.
 private function InAccessReadWrite( byref e as PpEngine, byval k as TokenKind ) as boolean
     if k <> KW_WRITE then return false
-    dim as long n = e.outp->tokens.Count
+    dim as int32 n = e.outp->tokens.Count
     if n < 2 then return false
     if cast( TokenKind, e.outp->tokens[n - 1].kind ) <> KW_READ then return false
     return (cast( TokenKind, e.outp->tokens[n - 2].kind ) = KW_ACCESS)
@@ -911,8 +911,8 @@ private function IdentSuffixSilent_( byref e as PpEngine, byref t as Token ) as 
     if cast( SuffixChar, (t.flags and TF_SUFFIX_MASK) shr TF_SUFFIX_SHIFT ) = SUFC_DOLLAR then
         if IsClassicDollarSpelling( Text.LowerAscii( e.names->Spelling( t.ident ) ) ) then return true
     end if
-    dim as long n = e.outp->tokens.Count
-    dim as long head = n
+    dim as int32 n = e.outp->tokens.Count
+    dim as int32 head = n
     while (head > 0) andalso (cast( TokenKind, e.outp->tokens[head - 1].kind ) <> TK_EOL)
         head -= 1
     wend
@@ -932,7 +932,7 @@ private sub WarnIgnoredSuffix( byref e as PpEngine, byref t as Token )
     end if
     if IsKeywordKind( kind ) = false then return
 
-    dim as ushort sufBits = (t.flags and TF_SUFFIX_MASK) shr TF_SUFFIX_SHIFT
+    dim as uint16 sufBits = (t.flags and TF_SUFFIX_MASK) shr TF_SUFFIX_SHIFT
     if cast( SuffixChar, sufBits ) = SUFC_DOLLAR then
         if IsClassicDollarName( kind ) then return
     end if
@@ -950,8 +950,8 @@ private sub EmitTok( byref e as PpEngine, byref t as Token )
     if IsKeywordKind( Tk( t ) ) then
         dim as InternId id = DereservedId_( e, Tk( t ) )
         if id <> INTERN_NONE then
-            t.kind = cast( ushort, TK_IDENT )
-            t.literal = cast( ulong, id )
+            t.kind = cast( uint16, TK_IDENT )
+            t.literal = cast( uint32, id )
         end if
     end if
 
@@ -994,8 +994,8 @@ end sub
 '' escaped literal collapses them too; a plain or raw payload's backslashes are doubled.
 private function BlockSpelling_( byref payload as string, byval kind as StringKind ) as string
     dim as string r = "!" & chr( 34 )
-    for i as long = 0 to len( payload ) - 1
-        dim as ubyte ch = payload[i]
+    for i as int32 = 0 to len( payload ) - 1
+        dim as uint8 ch = payload[i]
         if ch = 10 then
             r &= chr( 92, 110 )
         elseif (ch = 92) andalso (kind <> STRK_ESCAPED) then
@@ -1078,7 +1078,7 @@ function PpSpell _
     dim as boolean isLit = (k = TK_INT_LIT) orelse (k = TK_FLOAT_LIT) orelse _
                            (k = TK_STRING_LIT)
     if isLit then
-        dim as long li = cast( long, t.literal )
+        dim as int32 li = cast( int32, t.literal )
         if (li >= 0) andalso (li < lits.Count) then
             dim as Literal ptr lp = @lits[li]
             dim as SourceFile ptr lf = src.FileAt( cast( FileId, lp->textFile ) )
@@ -1138,7 +1138,7 @@ end function
 declare function PpEvalCondition _
     ( byref e as PpEngine, byref toks as TokenVec, byref ok as boolean ) as boolean
 declare function PpEvalIntTokens _
-    ( byref e as PpEngine, byref toks as TokenVec, byref ok as boolean ) as longint
+    ( byref e as PpEngine, byref toks as TokenVec, byref ok as boolean ) as int64
 declare function PpExpand _
     ( byref e as PpEngine, byval m as PpMacro ptr, byref use as Token ) as boolean
 declare sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock as boolean )
@@ -1190,7 +1190,7 @@ private sub PpFinish( byref e as PpEngine )
     wend
 
     dim as Token eof
-    eof.kind = cast( ushort, TK_EOF )
+    eof.kind = cast( uint16, TK_EOF )
     eof.flags = TF_AT_LINE_START
     eof.loc = e.src->LocFor( e.rootFile, 0 )
     eof.length = 0
@@ -1256,7 +1256,7 @@ private sub PpTrackBlock( byref e as PpEngine, byref t as Token )
     if closer then
         if e.blockDepth > 0 then e.blockDepth -= 1
         '' Everything defined deeper than the block just closed goes with it.
-        for i as long = 0 to e.macros.Count - 1
+        for i as int32 = 0 to e.macros.Count - 1
             if e.macros[i].isDefined then
                 if e.macros[i].blockDepth > e.blockDepth then
                     e.macros[i].isDefined = false
@@ -1271,7 +1271,7 @@ private sub PpTrackBlock( byref e as PpEngine, byref t as Token )
     '' next line, the END is the END statement, and keeping it turned that 'scope'
     '' into a closer that undefined every macro of the enclosing depth.
     if IsKeywordKind( k ) then
-        e.prevKw = cast( ushort, k )
+        e.prevKw = cast( uint16, k )
     elseif k = TK_EOL then
         e.prevKw = 0
     end if
@@ -1286,7 +1286,7 @@ end sub
 '' Advance the engine until it has emitted at least one token, or input is done.
 '' Returns false when nothing more will ever be produced.
 private function PpStep( byref e as PpEngine ) as boolean
-    dim as long before = e.outp->tokens.Count
+    dim as int32 before = e.outp->tokens.Count
 
     do
         if e.stopped then return false
@@ -1395,7 +1395,7 @@ sub PpOpen _
     PushFrame( *e, rootToks, INTERN_NONE, root, false )
 end sub
 
-function PpEnsure( byref st as PpStream, byval want as long ) as boolean
+function PpEnsure( byref st as PpStream, byval want as int32 ) as boolean
     if st.engine = 0 then return false
     dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
 
@@ -1414,7 +1414,7 @@ sub PpSnapshotMacros( byref st as PpStream, byref outp as MacroInfoVec )
     outp.Clear( )
     if st.engine = 0 then return
     dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
-    for i as long = 0 to e->macros.Count - 1
+    for i as int32 = 0 to e->macros.Count - 1
         dim as PpMacro ptr m = @e->macros[i]
         '' A builtin has no source; one undefined or scoped to a block is not visible
         '' where the editor would offer it.
@@ -1454,7 +1454,7 @@ sub PpRun _
 
     dim as PpStream st
     PpOpen( st, src, root, names, kwmap, diags, cfg, outp )
-    dim as long i = 0
+    dim as int32 i = 0
     while PpEnsure( st, i )
         i += 1
     wend
@@ -1472,7 +1472,7 @@ function PpDump _
             r.includeCount & " includes, " & r.expansionCount & " expansions, " & _
             "depth " & r.maxDepth & chr( 10 )
 
-    dim as long index = 0
+    dim as int32 index = 0
     for each t as Token in r.tokens
         dim as DecodedLoc d = src.Decode( t.loc )
         dim as TokenKind k = cast( TokenKind, t.kind )

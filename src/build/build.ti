@@ -21,6 +21,6 @@ namespace Tko.Build
     declare function IsCommand( byref w as string ) as boolean
 
     '' THE PROCESS'S ENTRY, from main.bas: a subcommand when args[0] is one, else Driver.Run.
-    declare function Entry( byref args as Tko.StrVec ) as long
+    declare function Entry( byref args as Tko.StrVec ) as int32
 
 end namespace

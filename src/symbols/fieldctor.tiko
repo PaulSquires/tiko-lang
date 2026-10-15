@@ -11,9 +11,9 @@
 '' .bas -- Result( of long, NoDefaultCtor ) holds an E by value -- compiled: tiko checked
 '' only a variable. A generic's field is reported in the instance.
 private sub CheckFieldDefaultCtor_( byref c as Ctx )
-    for i as long = 0 to c.syms->symbols.Count - 1
+    for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
-        if s->kind <> cast( ubyte, SYM_FIELD ) then continue for
+        if s->kind <> cast( uint8, SYM_FIELD ) then continue for
         if (s->flags and SYMF_STATIC) <> 0 then continue for
         '' The inheritance BASE is a field too, and its own rule -- fbc's 186 and 188 -- is
         '' CheckBaseHasDefaultCtor_'s: 'extends NeedsArg' is not reported twice.
@@ -31,9 +31,9 @@ private sub CheckFieldDefaultCtor_( byref c as Ctx )
             if ow0 = 0 then continue for
             if instr( c.names->Spelling( ow0->name ), "<" ) = 0 then continue for
         else
-            if cast( long, fn ) > c.ast->Count( ) then continue for
+            if cast( int32, fn ) > c.ast->Count( ) then continue for
             if c.ast->Kind( fn ) <> N_FIELD then continue for
-            if c.ast->stmts[cast( long, c.ast->nodes[cast( long, fn )].data )].c <> NODE_NONE then continue for
+            if c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, fn )].data )].c <> NODE_NONE then continue for
             at = c.ast->Loc( fn )
         end if
         dim as SymScope ptr ps = c.syms->ScopeAt( s->parent )
@@ -44,7 +44,7 @@ private sub CheckFieldDefaultCtor_( byref c as Ctx )
         end if
         dim as TypeId u = c.types->Unqualify( s->type_ )
         dim as boolean isArray = false
-        dim as long guard = 0
+        dim as int32 guard = 0
         while (c.types->Kind( u ) = TK_ARRAY) andalso (guard < 16)
             guard += 1
             isArray = true
@@ -58,13 +58,13 @@ end sub
 
 '' Is this N_VAR_ITEM declared by a REDIM? Its statement is built after it, and names it.
 private function ItemIsRedim_ ( byref c as Ctx, byval item as NodeId ) as boolean
-    for n as long = cast( long, item ) + 1 to c.ast->Count( ) - 1
+    for n as int32 = cast( int32, item ) + 1 to c.ast->Count( ) - 1
         if c.ast->Kind( cast( NodeId, n ) ) <> N_VAR then continue for
-        dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[n].data )]
-        for k as long = 0 to sp->count - 1
-            if cast( NodeId, c.ast->children[sp->first + k] ) = item then return (sp->op = cast( ushort, KW_REDIM ))
+        dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
+        for k as int32 = 0 to sp->count - 1
+            if cast( NodeId, c.ast->children[sp->first + k] ) = item then return (sp->op = cast( uint16, KW_REDIM ))
         next
-        if n > cast( long, item ) + 4096 then exit for
+        if n > cast( int32, item ) + 4096 then exit for
     next
     return false
 end function
@@ -77,5 +77,5 @@ end function
 private function ByrefNeedsInit_ ( byref c as Ctx, byval s as Symbol ptr ) as boolean
     if (s->flags and SYMF_EXTERN) <> 0 then return false
     dim as SymScope ptr sc = c.syms->ScopeAt( s->parent )
-    return (sc = 0) orelse (sc->kind <> cast( ubyte, SCOPEK_TYPE ))
+    return (sc = 0) orelse (sc->kind <> cast( uint8, SCOPEK_TYPE ))
 end function

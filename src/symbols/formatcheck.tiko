@@ -38,15 +38,15 @@ const FE_PRECISION = 10, FE_DYNAMIC_NOT_INT = 11, FE_LOCALE = 13
 
 type FcState_
     '' The literal's value, in UTF-16 code units, and where each unit's text begins in the source.
-    as containers.Array( of ulong ) u
-    as containers.Array( of long )  srcAt
-    as long srcEnd                            '' the closing quote's offset, past the last unit
-    as containers.Array( of long )  kinds     '' FK_*, per packed argument
-    as long mode                              '' 0 not yet known, 1 automatic, 2 manual
-    as long nextAuto
+    as containers.Array( of uint32 ) u
+    as containers.Array( of int32 )  srcAt
+    as int32 srcEnd                            '' the closing quote's offset, past the last unit
+    as containers.Array( of int32 )  kinds     '' FK_*, per packed argument
+    as int32 mode                              '' 0 not yet known, 1 automatic, 2 manual
+    as int32 nextAuto
     '' The first refusal -- the library stops at its first, so this does too.
-    as long code
-    as long offset
+    as int32 code
+    as int32 offset
     as string message
     '' An argument whose kind is not known was met: nothing after it can be judged.
     as boolean unknown
@@ -54,27 +54,27 @@ end type
 
 '' The parsed spec of one replacement field -- formatimpl.tiko's FmtSpec_, less the values.
 type FcSpec_
-    as long align
-    as long sign
+    as int32 align
+    as int32 sign
     as boolean alt
     as boolean zero
-    as long prec = -1
-    as long ty
-    as long at
+    as int32 prec = -1
+    as int32 ty
+    as int32 at
 end type
 
-private function FcFail_( byref s as FcState_, byval code as long, byval offset as long, byref msg as const string ) as boolean
+private function FcFail_( byref s as FcState_, byval code as int32, byval offset as int32, byref msg as const string ) as boolean
     s.code = code
     s.offset = offset
     s.message = msg
     return false
 end function
 
-private function FcDigit_( byval ch as ulong ) as boolean
+private function FcDigit_( byval ch as uint32 ) as boolean
     return (ch >= 48) andalso (ch <= 57)
 end function
 
-private function FcAt_( byref s as FcState_, byval j as long ) as ulong
+private function FcAt_( byref s as FcState_, byval j as int32 ) as uint32
     return s.u[j]
 end function
 
@@ -83,25 +83,25 @@ end function
 private function FcKindOf_ _
     ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
       byref names as Tko.Interner, byref info as Tko.SemanticInfo, _
-      byval ctorFirst as Tko.SymbolId, byval at as Tko.TypeId ) as long
+      byval ctorFirst as Tko.SymbolId, byval at as Tko.TypeId ) as int32
 
     if at = Tko.TYPE_NONE then return FK_UNKNOWN
     at = types.Unqualify( at )
     if types.Kind( at ) = Tko.TK_REFERENCE then at = types.Unqualify( types.Inner( at ) )
-    dim as containers.Array( of ulong ) argT
-    argT.Push( cast( ulong, at ) )
-    dim as long ties = 0
+    dim as containers.Array( of uint32 ) argT
+    argT.Push( cast( uint32, at ) )
+    dim as int32 ties = 0
     dim as Tko.SymbolId pick = PickStructor( ast, syms, types, names, info, ctorFirst, argT, @ties )
     if (pick = Tko.SYMBOL_NONE) orelse (ties > 0) then return FK_UNKNOWN
     dim as Tko.Symbol ptr ps = syms.SymbolAt( pick )
     if ps = 0 then return FK_UNKNOWN
     dim as Tko.NodeId pn = cast( Tko.NodeId, ps->payload )
     if (pn = Tko.NODE_NONE) orelse (ast.Kind( pn ) <> Tko.N_PROC) then return FK_UNKNOWN
-    dim as Tko.StmtPayload ptr pp = @ast.stmts[cast( long, ast.nodes[cast( long, pn )].data )]
-    for k as long = 0 to pp->count - 1
+    dim as Tko.StmtPayload ptr pp = @ast.stmts[cast( int32, ast.nodes[cast( int32, pn )].data )]
+    for k as int32 = 0 to pp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[pp->first + k] )
         if ast.Kind( prm ) <> Tko.N_PARAM then continue for
-        dim as Tko.NodeId ptn = ast.stmts[cast( long, ast.nodes[cast( long, prm )].data )].a
+        dim as Tko.NodeId ptn = ast.stmts[cast( int32, ast.nodes[cast( int32, prm )].data )].a
         if ptn = Tko.NODE_NONE then return FK_UNKNOWN
         dim as Tko.TypeId pt = types.Unqualify( info.TypeOf_( ptn ) )
         if types.Kind( pt ) = Tko.TK_REFERENCE then pt = types.Unqualify( types.Inner( pt ) )
@@ -129,11 +129,11 @@ end function
 '' The parser -- formatimpl.tiko's, over kinds instead of values
 
 '' A dynamic width or precision at u[j] = '{' (DynamicValue_).
-private function FcDynamic_( byref s as FcState_, byref j as long ) as boolean
-    dim as long n = s.u.Count
-    dim as long at = j
+private function FcDynamic_( byref s as FcState_, byref j as int32 ) as boolean
+    dim as int32 n = s.u.Count
+    dim as int32 at = j
     j += 1
-    dim as long idx = 0
+    dim as int32 idx = 0
     if (j < n) andalso FcDigit_( FcAt_( s, j ) ) then
         if (FcAt_( s, j ) = 48) andalso (j + 1 < n) andalso FcDigit_( FcAt_( s, j + 1 ) ) then return FcFail_( s, FE_BAD_ARG_ID, j, "an argument id has no leading zero" )
         while (j < n) andalso FcDigit_( FcAt_( s, j ) )
@@ -151,7 +151,7 @@ private function FcDynamic_( byref s as FcState_, byref j as long ) as boolean
     end if
     if (j >= n) orelse (FcAt_( s, j ) <> 125) then return FcFail_( s, FE_BAD_SPEC, j, "a dynamic width or precision is '{}' or '{n}'" )
     j += 1
-    dim as long count = s.kinds.Count
+    dim as int32 count = s.kinds.Count
     if idx >= count then return FcFail_( s, FE_MISSING_ARG, at, "no argument " & idx & " (" & count & " given)" )
     select case s.kinds[idx]
     case FK_INT, FK_UNKNOWN
@@ -161,9 +161,9 @@ private function FcDynamic_( byref s as FcState_, byref j as long ) as boolean
     return true
 end function
 
-private function FcNumber_( byref s as FcState_, byref j as long ) as boolean
-    dim as long n = s.u.Count
-    dim as long value = 0
+private function FcNumber_( byref s as FcState_, byref j as int32 ) as boolean
+    dim as int32 n = s.u.Count
+    dim as int32 value = 0
     while (j < n) andalso FcDigit_( FcAt_( s, j ) )
         if value > 99999999 then return FcFail_( s, FE_BAD_SPEC, j, "a width or precision is too large" )
         value = value * 10 + (FcAt_( s, j ) - 48)
@@ -173,21 +173,21 @@ private function FcNumber_( byref s as FcState_, byref j as long ) as boolean
 end function
 
 '' The spec from u[j] -- just past ':' -- to its closing '}', which j is left ON (ParseSpec_).
-private function FcSpec_( byref s as FcState_, byref j as long, byref sp as FcSpec_ ) as boolean
-    dim as long n = s.u.Count
+private function FcSpec_( byref s as FcState_, byref j as int32, byref sp as FcSpec_ ) as boolean
+    dim as int32 n = s.u.Count
     sp.at = j
     if j >= n then return FcFail_( s, FE_UNMATCHED_OPEN, j, "'{' has no '}'" )
 
     '' [[fill] align]
-    dim as long units = 1
-    dim as ulong cp = FcAt_( s, j )
+    dim as int32 units = 1
+    dim as uint32 cp = FcAt_( s, j )
     if (cp >= &hD800) andalso (cp <= &hDBFF) andalso (j + 1 < n) then
-        dim as ulong c2 = FcAt_( s, j + 1 )
+        dim as uint32 c2 = FcAt_( s, j + 1 )
         if (c2 >= &hDC00) andalso (c2 <= &hDFFF) then units = 2
     end if
     dim as boolean aligned = false
     if j + units < n then
-        dim as ulong nx = FcAt_( s, j + units )
+        dim as uint32 nx = FcAt_( s, j + units )
         if (nx = 60) orelse (nx = 62) orelse (nx = 94) then
             if (cp = 123) orelse (cp = 125) then return FcFail_( s, FE_BAD_FILL, j, "'{' and '}' cannot be the fill character" )
             sp.align = nx
@@ -196,7 +196,7 @@ private function FcSpec_( byref s as FcState_, byref j as long, byref sp as FcSp
         end if
     end if
     if (aligned = false) andalso (j < n) then
-        dim as ulong a = FcAt_( s, j )
+        dim as uint32 a = FcAt_( s, j )
         if (a = 60) orelse (a = 62) orelse (a = 94) then
             sp.align = a
             j += 1
@@ -204,7 +204,7 @@ private function FcSpec_( byref s as FcState_, byref j as long, byref sp as FcSp
     end if
     '' [sign] ['#'] ['0']
     if j < n then
-        dim as ulong sg = FcAt_( s, j )
+        dim as uint32 sg = FcAt_( s, j )
         if (sg = 43) orelse (sg = 45) orelse (sg = 32) then
             sp.sign = sg
             j += 1
@@ -247,7 +247,7 @@ private function FcSpec_( byref s as FcState_, byref j as long, byref sp as FcSp
     return true
 end function
 
-private function FcTyName_( byval ty as long ) as string
+private function FcTyName_( byval ty as int32 ) as string
     return "'" & chr( ty ) & "'"
 end function
 
@@ -293,7 +293,7 @@ private function FcPointer_( byref s as FcState_, byref sp as const FcSpec_ ) as
 end function
 
 '' FormatOne_'s, by kind.
-private function FcOne_( byref s as FcState_, byval kind as long, byref sp as const FcSpec_ ) as boolean
+private function FcOne_( byref s as FcState_, byval kind as int32, byref sp as const FcSpec_ ) as boolean
     select case kind
     case FK_INT
         return FcInteger_( s, sp )
@@ -322,9 +322,9 @@ end function
 
 '' A Formattable's field, from u[j] -- ':' or '}' -- to its '}' (FormatCustom_): only the nested
 '' '{}' are the library's; the rest of the spec is the type's own.
-private function FcCustom_( byref s as FcState_, byref j as long ) as boolean
-    dim as long n = s.u.Count
-    dim as long at = j
+private function FcCustom_( byref s as FcState_, byref j as int32 ) as boolean
+    dim as int32 n = s.u.Count
+    dim as int32 at = j
     if FcAt_( s, j ) <> 58 then return true
     j += 1
     while j < n
@@ -342,19 +342,19 @@ end function
 '' The whole format string (FormatInto_). False at the first refusal; true when it is accepted
 '' or cannot be judged further.
 private function FcString_( byref s as FcState_ ) as boolean
-    dim as long n = s.u.Count
-    dim as long count = s.kinds.Count
-    dim as long i = 0
+    dim as int32 n = s.u.Count
+    dim as int32 count = s.kinds.Count
+    dim as int32 i = 0
     while i < n
-        dim as ulong ch = FcAt_( s, i )
+        dim as uint32 ch = FcAt_( s, i )
         if ch = 123 then
             if (i + 1 < n) andalso (FcAt_( s, i + 1 ) = 123) then
                 i += 2
                 continue while
             end if
-            dim as long j = i + 1
+            dim as int32 j = i + 1
             if j >= n then return FcFail_( s, FE_UNMATCHED_OPEN, i, "'{' has no '}'" )
-            dim as long idx = 0
+            dim as int32 idx = 0
             if FcDigit_( FcAt_( s, j ) ) then
                 if (FcAt_( s, j ) = 48) andalso (j + 1 < n) andalso FcDigit_( FcAt_( s, j + 1 ) ) then
                     return FcFail_( s, FE_BAD_ARG_ID, j, "an argument id has no leading zero" )
@@ -380,7 +380,7 @@ private function FcString_( byref s as FcState_ ) as boolean
                 return FcFail_( s, FE_BAD_ARG_ID, j, "a replacement field is '{', an argument id, a ':' spec, then '}'" )
             end if
             if idx >= count then return FcFail_( s, FE_MISSING_ARG, i, "no argument " & idx & " (" & count & " given)" )
-            dim as long kind = s.kinds[idx]
+            dim as int32 kind = s.kinds[idx]
             if kind = FK_UNKNOWN then
                 '' A FormatArg as itself: a Formattable's spec, or a standard one -- not known here.
                 s.unknown = true
@@ -424,13 +424,13 @@ private function FcStdStringsType_ _
     if types.Kind( t ) <> Tko.TK_UDT then return false
     if lcase( names.Spelling( types.NameOf( t ) ) ) <> nm then return false
     dim as Tko.ScopeId cur = cast( Tko.ScopeId, types.DeclScopeOf( t ) )
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SCOPE_NONE) andalso (guard < 64)
         guard += 1
         dim as Tko.SymScope ptr sc = syms.ScopeAt( cur )
         if sc = 0 then exit while
-        for k as long = 0 to syms.importNs.Count - 1
-            if syms.importNs[k] = cast( ulong, sc->owner ) then
+        for k as int32 = 0 to syms.importNs.Count - 1
+            if syms.importNs[k] = cast( uint32, sc->owner ) then
                 return lcase( syms.importChains[k] ) = "std.strings"
             end if
         next
@@ -449,9 +449,9 @@ end function
 '' U+FFFD), a short '\u' -- and the string is then not checked.
 private function FcLiteral_ _
     ( byref ast as Tko.AstArena, byref src as Tko.SourceManager, byval lit as Tko.NodeId, _
-      byref s as FcState_, byref file as Tko.FileId, byref base_ as long ) as boolean
+      byref s as FcState_, byref file as Tko.FileId, byref base_ as int32 ) as boolean
 
-    dim as Tko.LiteralPayload ptr lp = @ast.literals[cast( long, ast.nodes[cast( long, lit )].data )]
+    dim as Tko.LiteralPayload ptr lp = @ast.literals[cast( int32, ast.nodes[cast( int32, lit )].data )]
     file = cast( Tko.FileId, lp->strFile )
     base_ = lp->strOffset
     s.srcEnd = lp->strLength
@@ -462,10 +462,10 @@ private function FcLiteral_ _
 
     '' The body with '""' collapsed, and each byte's source offset.
     dim as string body
-    dim as containers.Array( of long ) bodyAt
-    dim as long k = 0
+    dim as containers.Array( of int32 ) bodyAt
+    dim as int32 k = 0
     while k < lp->strLength
-        dim as ubyte ch = f->text[lp->strOffset + k]
+        dim as uint8 ch = f->text[lp->strOffset + k]
         body &= chr( ch )
         bodyAt.Push( k )
         if (ch = 34) andalso (k + 1 < lp->strLength) andalso (f->text[lp->strOffset + k + 1] = 34) then k += 1
@@ -473,12 +473,12 @@ private function FcLiteral_ _
     wend
 
     '' ITEMS: a byte still to be read as UTF-8 (unit -1, the byte in itB), or a finished unit.
-    dim as containers.Array( of long ) itB, itU, itAt
-    dim as boolean escaped = (lp->strKind = cast( ubyte, Tko.STRK_ESCAPED ))
+    dim as containers.Array( of int32 ) itB, itU, itAt
+    dim as boolean escaped = (lp->strKind = cast( uint8, Tko.STRK_ESCAPED ))
     dim as boolean wide = false
     if escaped then
         '' PAIR BY PAIR, so the 'u' after an escaped backslash is text (LitHasUnicodeEscape_).
-        dim as long q = 0
+        dim as int32 q = 0
         while q < len( body ) - 1
             if body[q] = 92 then
                 if (body[q + 1] = 117) orelse (body[q + 1] = 85) then wide = true
@@ -487,24 +487,24 @@ private function FcLiteral_ _
             q += 1
         wend
     end if
-    dim as long p = 1                                 '' 1-based, as EscapeByteAt counts
+    dim as int32 p = 1                                 '' 1-based, as EscapeByteAt counts
     while p <= len( body )
-        dim as long ch = body[p - 1]
+        dim as int32 ch = body[p - 1]
         if (escaped = false) orelse (ch <> 92) then
             itB.Push( ch ) : itU.Push( -1 ) : itAt.Push( bodyAt[p - 1] )
             p += 1
             continue while
         end if
-        dim as long at = bodyAt[p - 1]
-        dim as long nx = 0
+        dim as int32 at = bodyAt[p - 1]
+        dim as int32 nx = 0
         if p < len( body ) then nx = body[p]
         if wide andalso ((nx = 117) orelse (nx = 85)) then
-            dim as long nd = iif( nx = 85, 8, 4 )
+            dim as int32 nd = iif( nx = 85, 8, 4 )
             if p + 1 + nd > len( body ) then return false
-            dim as ulong uv = 0
-            for d as long = 0 to nd - 1
-                dim as long hc = body[p + 1 + d]
-                dim as long dv = -1
+            dim as uint32 uv = 0
+            for d as int32 = 0 to nd - 1
+                dim as int32 hc = body[p + 1 + d]
+                dim as int32 dv = -1
                 if (hc >= 48) andalso (hc <= 57) then dv = hc - 48
                 if (hc >= 97) andalso (hc <= 102) then dv = hc - 87
                 if (hc >= 65) andalso (hc <= 70) then dv = hc - 55
@@ -521,8 +521,8 @@ private function FcLiteral_ _
             p += 2 + nd
             continue while
         end if
-        dim as long bi = p
-        dim as long bv = Tko.Text.EscapeByteAt( body, bi )
+        dim as int32 bi = p
+        dim as int32 bv = Tko.Text.EscapeByteAt( body, bi )
         p = bi
         if bv = 0 then exit while                    '' a NUL ends the literal
         if bv > 0 then
@@ -535,17 +535,17 @@ private function FcLiteral_ _
     wend
 
     '' The bytes read as UTF-8 -- strictly: anything else is not reproduced.
-    dim as long i = 0
+    dim as int32 i = 0
     while i < itB.Count
         if itU[i] >= 0 then
             s.u.Push( itU[i] ) : s.srcAt.Push( itAt[i] )
             i += 1
             continue while
         end if
-        dim as long at = itAt[i]
-        dim as ulong b = itB[i]
-        dim as ulong cp = b
-        dim as long more = 0
+        dim as int32 at = itAt[i]
+        dim as uint32 b = itB[i]
+        dim as uint32 cp = b
+        dim as int32 more = 0
         if b >= &h80 then
             if u8 = false then return false
             if (b >= &hC2) andalso (b <= &hDF) then
@@ -558,11 +558,11 @@ private function FcLiteral_ _
                 return false
             end if
         end if
-        dim as long need = more
+        dim as int32 need = more
         i += 1
         while more > 0
             if (i >= itB.Count) orelse (itU[i] >= 0) then return false
-            dim as ulong cb = itB[i]
+            dim as uint32 cb = itB[i]
             if (cb and &hC0) <> &h80 then return false
             cp = (cp shl 6) or (cb and &h3F)
             i += 1
@@ -582,7 +582,7 @@ end function
 
 private sub FcReport_ _
     ( byref ast as Tko.AstArena, byref src as Tko.SourceManager, byref diags as Tko.DiagnosticEngine, _
-      byval lit as Tko.NodeId, byref s as FcState_, byval file as Tko.FileId, byval base_ as long )
+      byval lit as Tko.NodeId, byref s as FcState_, byval file as Tko.FileId, byval base_ as int32 )
 
     '' The caret on the offending character -- when the literal's text is in the file the node
     '' is (a macro's or a block string's is not, and those point at the literal).
@@ -590,7 +590,7 @@ private sub FcReport_ _
     dim as Tko.FileId nodeFile
     src.LocOffset( at, nodeFile )
     if nodeFile = file then
-        dim as long k = s.offset
+        dim as int32 k = s.offset
         if k >= s.u.Count then
             at = src.LocFor( file, base_ + s.srcEnd )
         elseif k >= 0 then
@@ -623,7 +623,7 @@ private function FcArrayArg_ _
 
     if (e = Tko.NODE_NONE) orelse (ast.Kind( e ) <> Tko.N_CALL) then return false
     if types.IsDynArray( types.Unqualify( info.TypeOf_( e ) ) ) then return true
-    dim as Tko.ListPayload ptr lp = @ast.lists[cast( long, ast.nodes[cast( long, e )].data )]
+    dim as Tko.ListPayload ptr lp = @ast.lists[cast( int32, ast.nodes[cast( int32, e )].data )]
     if (lp->count <> 0) orelse (lp->target = Tko.NODE_NONE) then return false
     dim as Tko.TypeId tt = info.TypeOf_( lp->target )
     if tt = Tko.TYPE_NONE then return false
@@ -637,38 +637,38 @@ sub CheckFormatStrings _
 
     '' Nothing to do in a unit that never imported std/strings.
     dim as boolean imported = false
-    for k as long = 0 to syms.importChains.Count - 1
+    for k as int32 = 0 to syms.importChains.Count - 1
         if lcase( syms.importChains[k] ) = "std.strings" then imported = true
     next
     if imported = false then exit sub
 
-    for i as long = 1 to ast.Count( )
+    for i as int32 = 1 to ast.Count( )
         dim as Tko.NodeId n = cast( Tko.NodeId, i )
         if ast.Kind( n ) <> Tko.N_CALL then continue for
-        dim as Tko.ListPayload ptr cp = @ast.lists[cast( long, ast.nodes[cast( long, n )].data )]
+        dim as Tko.ListPayload ptr cp = @ast.lists[cast( int32, ast.nodes[cast( int32, n )].data )]
         if (cp->target = Tko.NODE_NONE) orelse (cp->count <= 0) then continue for
         dim as Tko.SymbolId callee = info.RefOf( n )
         if callee = Tko.SYMBOL_NONE then callee = info.RefOf( cp->target )
         dim as Tko.Symbol ptr s = syms.SymbolAt( callee )
         if s = 0 then continue for
-        if s->kind <> cast( ubyte, Tko.SYM_PROC ) then continue for
+        if s->kind <> cast( uint8, Tko.SYM_PROC ) then continue for
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         if (pn = Tko.NODE_NONE) orelse (ast.Kind( pn ) <> Tko.N_PROC) then continue for
-        dim as Tko.StmtPayload ptr pp = @ast.stmts[cast( long, ast.nodes[cast( long, pn )].data )]
+        dim as Tko.StmtPayload ptr pp = @ast.stmts[cast( int32, ast.nodes[cast( int32, pn )].data )]
         if (pp->extra and Tko.PF_GENERIC_PROC) <> 0 then continue for
 
         '' The FormatString parameter's argument, and the typed variadic of FormatArg.
         dim as Tko.NodeId lit = Tko.NODE_NONE
-        dim as long varAt = -1
+        dim as int32 varAt = -1
         dim as Tko.TypeId argElem = Tko.TYPE_NONE
-        dim as long ai = 0
-        for k as long = 0 to pp->count - 1
+        dim as int32 ai = 0
+        for k as int32 = 0 to pp->count - 1
             dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[pp->first + k] )
             if ast.Kind( prm ) <> Tko.N_PARAM then continue for
-            dim as Tko.NodeId pta = ast.stmts[cast( long, ast.nodes[cast( long, prm )].data )].a
+            dim as Tko.NodeId pta = ast.stmts[cast( int32, ast.nodes[cast( int32, prm )].data )].a
             dim as Tko.TypeId pt = Tko.TYPE_NONE
             if pta <> Tko.NODE_NONE then pt = info.TypeOf_( pta )
-            if (ast.nodes[cast( long, prm )].flags and Tko.NF_VARIADIC) <> 0 then
+            if (ast.nodes[cast( int32, prm )].flags and Tko.NF_VARIADIC) <> 0 then
                 if FcStdStringsType_( syms, types, names, pt, "formatarg" ) then
                     varAt = ai
                     argElem = types.Unqualify( pt )
@@ -689,14 +689,14 @@ sub CheckFormatStrings _
         dim as Tko.SymbolId ctorFirst = StructorNamed( syms, types, names, argElem, "__ctor" )
         if ctorFirst = Tko.SYMBOL_NONE then continue for
         dim as FcState_ st
-        for v as long = varAt to cp->count - 1
+        for v as int32 = varAt to cp->count - 1
             dim as Tko.NodeId a = cast( Tko.NodeId, ast.children[cp->first + v] )
-            dim as long kind = FK_UNKNOWN
+            dim as int32 kind = FK_UNKNOWN
             if a <> Tko.NODE_NONE then kind = FcKindOf_( ast, syms, types, names, info, ctorFirst, info.TypeOf_( a ) )
             st.kinds.Push( kind )
         next
         dim as Tko.FileId file
-        dim as long base_
+        dim as int32 base_
         if FcLiteral_( ast, src, lit, st, file, base_ ) = false then continue for
         if FcString_( st ) = false then FcReport_( ast, src, diags, lit, st, file, base_ )
     next

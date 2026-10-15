@@ -45,43 +45,43 @@ function LowerClosureAddr_ _
     if ct = Tko.TYPE_NONE then return false
     dim as Tko.TypeId cu = c.types->Unqualify( ct )
     if c.types->Kind( cu ) <> Tko.TK_UDT then return false
-    dim as long sz = SizeOfType( c, cu )
+    dim as int32 sz = SizeOfType( c, cu )
     if sz <= 0 then return false
 
     dim as MirValue base_
     if dstv <> 0 then
         base_ = *dstv
     else
-        dim as long slot = NewTempLocal( c, MT_AGG, sz )
+        dim as int32 slot = NewTempLocal( c, MT_AGG, sz )
         if slot < 0 then return false
-        base_.kind = cast( ubyte, MV_LOCAL )
-        base_.ty = cast( ubyte, MT_PTR )
+        base_.kind = cast( uint8, MV_LOCAL )
+        base_.ty = cast( uint8, MT_PTR )
         base_.id = slot
     end if
 
-    for k as long = 0 to sp->count - 1
+    for k as int32 = 0 to sp->count - 1
         dim as Tko.NodeId cn = cast( Tko.NodeId, c.ast->children[sp->first + k] )
         if c.ast->Kind( cn ) <> Tko.N_IDENT then return false
         dim as Tko.InternId fnm = c.names->Fold( c.names->GetString( _
             "__CAP_" & c.names->Spelling( _
-                c.ast->idents[cast( long, c.ast->nodes[cast( long, cn )].data )].name ) ) )
+                c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cn )].data )].name ) ) )
         dim as boolean found = false
-        dim as long off = c.udts->FieldOffset( cu, fnm, found )
+        dim as int32 off = c.udts->FieldOffset( cu, fnm, found )
         if found = false then return false
 
         dim as MirInst fa
-        fa.op = cast( ushort, M_FIELD_ADDR )
-        fa.ty = cast( ubyte, MT_PTR )
+        fa.op = cast( uint16, M_FIELD_ADDR )
+        fa.ty = cast( uint8, MT_PTR )
         fa.a = base_
         fa.imm = off
         dim as MirValue dst = Emit( c, fa )
 
         dim as MirValue v
-        if (c.ast->nodes[cast( long, cn )].flags and Tko.NF_BYREF) <> 0 then
+        if (c.ast->nodes[cast( int32, cn )].flags and Tko.NF_BYREF) <> 0 then
             '' A BYREF CAPTURE STORES THE ADDRESS TAKEN AT CREATION -- fbc writes
             '' '*(int32**)&TMP = &ACC' and does nothing about lifetime.
             v = LowerAddr( c, cn )
-            if v.kind = cast( ubyte, MV_NONE ) then return false
+            if v.kind = cast( uint8, MV_NONE ) then return false
             v = Coerce( c, v, MT_PTR, false )
         else
             '' ...and a BYVAL capture a COPY made there, which the body then mutates
@@ -95,7 +95,7 @@ function LowerClosureAddr_ _
             '' 'fb_StrAssign( &TMP + 8, -1, &NEEDLE, -1, 0 )' into a zeroed field,
             '' with a generated destructor that fb_StrDeletes it.
             dim as Tko.TypeId cvt = c.info->TypeOf_( cn )
-            dim as longint cvn
+            dim as int64 cvn
             if IsStringType( c, cvt ) andalso (StrSwapKind_( c, cvt, cvn ) = 0) then
                 ZeroStrDescriptor( c, dst )
                 if LowerStringAssignTo( c, dst, Tko.NODE_NONE, cn ) = false then
@@ -116,16 +116,16 @@ function LowerClosureAddr_ _
                     dim as Tko.SymbolId ccc = CopyCtorOf_( c, cvu )
                     if ccc <> Tko.SYMBOL_NONE then
                         dim as MirValue csrc = LowerAddr( c, cn )
-                        if csrc.kind = cast( ubyte, MV_NONE ) then return false
-                        dim as containers.Array( of ulong ) ccargs
-                        ccargs.Push( cast( ulong, csrc.kind ) )
-                        ccargs.Push( cast( ulong, csrc.id ) )
+                        if csrc.kind = cast( uint8, MV_NONE ) then return false
+                        dim as containers.Array( of uint32 ) ccargs
+                        ccargs.Push( cast( uint32, csrc.kind ) )
+                        ccargs.Push( cast( uint32, csrc.id ) )
                         EmitStructorCall( c, ccc, -1, @dst, @ccargs )
                         continue for
                     end if
                     if NeedsLetBody_( c, cvu ) then
                         dim as MirValue csrc2 = LowerAddr( c, cn )
-                        if csrc2.kind = cast( ubyte, MV_NONE ) then return false
+                        if csrc2.kind = cast( uint8, MV_NONE ) then return false
                         if TypeNeedsInit_( c, cvu ) then CallImplicitCtor_( c, cvu, dst )
                         CallImplicitLet_( c, cvu, dst, csrc2 )
                         continue for
@@ -133,11 +133,11 @@ function LowerClosureAddr_ _
                 end if
             end if
             v = LowerExpr( c, cn )
-            if v.kind = cast( ubyte, MV_NONE ) then return false
+            if v.kind = cast( uint8, MV_NONE ) then return false
         end if
 
         dim as MirInst st
-        st.op = cast( ushort, M_STORE )
+        st.op = cast( uint16, M_STORE )
         st.a = dst
         st.b = v
         Emit( c, st )
@@ -154,5 +154,5 @@ function LowerClosure_ _
     dim as MirValue addr
     if LowerClosureAddr_( c, id, addr ) = false then return false
     outv = LowerExprLoad( c, addr, MT_AGG )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function

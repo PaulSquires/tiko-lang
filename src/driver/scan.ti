@@ -53,20 +53,20 @@ namespace Tko.Scan
     const SF_EXPORT     = &h0400    '' an EXPORTed procedure
 
     type ScanSym
-        as long   kind
-        as long   flags
+        as int32   kind
+        as int32   flags
         as string name          '' UTF-8, the spelling as written
         as string typeText      '' "" = none
-        as long   parent        '' index into ScanResult.syms, -1 at top level
-        as long   file          '' index into ScanResult.files, -1 if unknown
-        as long   line          '' 1-based; 0 = unknown
-        as long   col
-        as long   bodyLine      '' a procedure with a body: its header line
-        as long   bodyEndLine   '' ...and the line its END is on; 0 if declare-only
-        as long   reads
-        as long   writes
-        as long   refFile       '' what an exported macro names: its declaration; -1 if none
-        as long   refLine
+        as int32   parent        '' index into ScanResult.syms, -1 at top level
+        as int32   file          '' index into ScanResult.files, -1 if unknown
+        as int32   line          '' 1-based; 0 = unknown
+        as int32   col
+        as int32   bodyLine      '' a procedure with a body: its header line
+        as int32   bodyEndLine   '' ...and the line its END is on; 0 if declare-only
+        as int32   reads
+        as int32   writes
+        as int32   refFile       '' what an exported macro names: its declaration; -1 if none
+        as int32   refLine
         '' ---- bookkeeping, never exported ----
         as string  chain        '' the module a record came from; "" for a root's own
         as boolean isPublic     '' a module-level PUBLIC symbol of that module
@@ -75,9 +75,9 @@ namespace Tko.Scan
     type ScanSymVec as containers.Array( of ScanSym )
 
     type ScanDiag
-        as long   code          '' the TKO number
-        as long   file
-        as long   line
+        as int32   code          '' the TKO number
+        as int32   file
+        as int32   line
         as string text          '' UTF-8
     end type
     type ScanDiagVec as containers.Array( of ScanDiag )
@@ -90,11 +90,11 @@ namespace Tko.Scan
         as boolean     hasRootText
         as string      rootText
         '' ---- bookkeeping: the root's '#import' aliases, as (record, module chain) ----
-        as containers.Array( of long ) aliasRec
+        as containers.Array( of int32 ) aliasRec
         as StrVec      aliasChain
         '' ---- set while the modules a root imports are being scanned ----
         as boolean     importing
-        declare function FileIndex( byref absPath as string ) as long
+        declare function FileIndex( byref absPath as string ) as int32
     end type
 
 end namespace

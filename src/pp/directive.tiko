@@ -35,8 +35,8 @@ end function
 '' Those files are cached per engine instead: correct, and rare enough that the saving
 '' is unaffected.
 private function PpLexFile( byref e as PpEngine, byval file as FileId ) as TokenVec ptr
-    e.outp->filesRead.Push( cast( ulong, file ) )
-    dim as long idx = cast( long, file )
+    e.outp->filesRead.Push( cast( uint32, file ) )
+    dim as int32 idx = cast( int32, file )
     while e.lexp->Count <= idx
         e.lexp->Push( 0 )
     wend
@@ -47,7 +47,7 @@ private function PpLexFile( byref e as PpEngine, byval file as FileId ) as Token
     if (*e.lexp)[idx] <> 0 then return PpLangMeta_( e, (*e.lexp)[idx] )
     if e.lexed[idx] <> 0 then return PpLangMeta_( e, e.lexed[idx] )
 
-    dim as long before = e.diags->ErrorCount( ) + e.diags->WarningCount( )
+    dim as int32 before = e.diags->ErrorCount( ) + e.diags->WarningCount( )
     dim as Lex.Result ptr r = new Lex.Result
     Lex.Run( *e.src, file, *e.names, *e.kw, *e.diags, *r )
     dim as boolean spoke = (e.diags->ErrorCount( ) + e.diags->WarningCount( )) <> before
@@ -72,7 +72,7 @@ private function PpLexFile( byref e as PpEngine, byval file as FileId ) as Token
 end function
 
 private function PpAlreadyOnce( byref e as PpEngine, byval file as FileId ) as boolean
-    for each f as ulong in e.onceFiles
+    for each f as uint32 in e.onceFiles
         if cast( FileId, f ) = file then return true
     next
     return false
@@ -110,8 +110,8 @@ private sub PpInclude( byref e as PpEngine, byval at as SourceLoc, byval once as
     end if
 
     dim as string spelled = SpellOf( e, t )
-    dim as long a = instr( spelled, """" )
-    dim as long b = instrrev( spelled, """" )
+    dim as int32 a = instr( spelled, """" )
+    dim as int32 b = instrrev( spelled, """" )
     dim as string rel = ""
     if (a > 0) andalso (b > a) then rel = mid( spelled, a + 1, b - a - 1 )
     Advance( e )
@@ -128,8 +128,8 @@ private sub PpInclude( byref e as PpEngine, byval at as SourceLoc, byval once as
     dim as DecodedLoc d = e.src->Decode( at )
     dim as string here = e.src->ShownPathOf( d )
     dim as string dir_ = ""
-    for i as long = len( here ) to 1 step -1
-        dim as ubyte c = here[i - 1]
+    for i as int32 = len( here ) to 1 step -1
+        dim as uint8 c = here[i - 1]
         dim as boolean isSep = (c = 47) orelse (c = 92)
         if isSep then
             dir_ = left( here, i )
@@ -182,12 +182,12 @@ private sub PpInclude( byref e as PpEngine, byval at as SourceLoc, byval once as
     PpModNoteHeader( e, d.file, got )
     if PpAlreadyOnce( e, got ) then return
     if isOnce then
-        for each f as ulong in e.allIncluded
+        for each f as uint32 in e.allIncluded
             if cast( FileId, f ) = got then return
         next
-        e.onceFiles.Push( cast( ulong, got ) )
+        e.onceFiles.Push( cast( uint32, got ) )
     end if
-    e.allIncluded.Push( cast( ulong, got ) )
+    e.allIncluded.Push( cast( uint32, got ) )
 
     e.outp->includeCount += 1
     dim as TokenVec ptr toks = PpLexFile( e, got )
@@ -224,8 +224,8 @@ private sub PpCInclude( byref e as PpEngine, byval at as SourceLoc, byref word a
         return
     end if
     dim as string spelled = SpellOf( e, t )
-    dim as long a = instr( spelled, """" )
-    dim as long b = instrrev( spelled, """" )
+    dim as int32 a = instr( spelled, """" )
+    dim as int32 b = instrrev( spelled, """" )
     dim as string header = ""
     if (a > 0) andalso (b > a) then header = mid( spelled, a + 1, b - a - 1 )
     Advance( e )
@@ -243,7 +243,7 @@ private sub PpCInclude( byref e as PpEngine, byval at as SourceLoc, byref word a
     '' a public declaration names something from it, and always after 'public #cinclude'.
     PpModCIncludeHeader( e, at, got )
     if PpAlreadyOnce( e, got ) then return
-    e.onceFiles.Push( cast( ulong, got ) )
+    e.onceFiles.Push( cast( uint32, got ) )
     e.outp->includeCount += 1
     dim as TokenVec ptr toks = PpLexFile( e, got )
     PushFrame( e, toks, INTERN_NONE, got, false )
@@ -284,10 +284,10 @@ private sub PpExpandRestOfLine _
     dim as TokenVec ptr raw = new TokenVec
     CollectLine( e, *raw )
 
-    dim as long baseDepth = e.frames.Count
+    dim as int32 baseDepth = e.frames.Count
     PushFrame( e, raw, INTERN_NONE, FILE_NONE, true )
 
-    dim as long guard = 0
+    dim as int32 guard = 0
     do
         guard += 1
         if guard > 200000 then exit do
@@ -348,8 +348,8 @@ end sub
 '' Blanks around and between words are skipped rather than making empty arguments.
 '' Measured against fbc 1.20.0: '#cmdline "   -d   FOO   "' defines FOO.
 private sub SplitCmdlineWords_( byref s as string, byref outv as StrVec )
-    dim as long n = len( s )
-    dim as long i = 1
+    dim as int32 n = len( s )
+    dim as int32 i = 1
 
     while i <= n
         '' to the start of the next word
@@ -422,9 +422,9 @@ declare sub PpDefineValue _
 '' ...AND '#pragma private' DOES WHAT IT SAYS: the parser makes a procedure written under
 '' it private (PpResult.privateAt). It only redefined the macro, so 'sub Helper' under
 '' 'push( private, true )' stayed public and collided at the link (T59).
-private sub PragmaPrivateAt_( byref e as PpEngine, byval idx as long, byval v as long )
+private sub PragmaPrivateAt_( byref e as PpEngine, byval idx as int32, byval v as int32 )
     if (idx <> 0) orelse (e.outp = 0) then return
-    e.outp->privateAt.Push( cast( ulong, e.outp->tokens.Count ) )
+    e.outp->privateAt.Push( cast( uint32, e.outp->tokens.Count ) )
     e.outp->privateAt.Push( iif( v <> 0, 1ul, 0ul ) )
 end sub
 
@@ -433,7 +433,7 @@ private sub PragmaOption _
       byval isPush as boolean, byval isPop as boolean )
 
     dim as string nm = "__FB_OPTION_" & Text.UpperAscii( which ) & "__"
-    dim as long idx = iif( which = "private", 0, 1 )
+    dim as int32 idx = iif( which = "private", 0, 1 )
 
     if isPop then
         if e.optionDepth( idx ) <= 0 then
@@ -441,7 +441,7 @@ private sub PragmaOption _
             return
         end if
         e.optionDepth( idx ) -= 1
-        dim as long v = e.optionStack( idx * PP_OPTION_STACK_MAX + e.optionDepth( idx ) )
+        dim as int32 v = e.optionStack( idx * PP_OPTION_STACK_MAX + e.optionDepth( idx ) )
         e.optionValue( idx ) = v
         PpDefineValue( e, nm, str( v ) )
         PragmaPrivateAt_( e, idx, v )
@@ -450,7 +450,7 @@ private sub PragmaOption _
 
     '' The VALUE, if one is written: 'private = false', 'push( private, false )'.
     '' Absent means TRUE, which is what the bare form does.
-    dim as long v = -1
+    dim as int32 v = -1
     dim as Token t
     while PeekOnLine( e, t )
         '' 'true' and 'false' are PREDECLARED CONSTANTS, not keywords -- 'dim as
@@ -466,7 +466,7 @@ private sub PragmaOption _
         '' A NUMBER is its VALUE, read from the literal pool -- 't.literal' is the pool INDEX,
         '' which is 0 only for a file's first literal, so 'private = 0' read as true.
         if (k = TK_INT_LIT) andalso (e.lits <> 0) then
-            dim as long li = cast( long, t.literal )
+            dim as int32 li = cast( int32, t.literal )
             if (li >= 0) andalso (li < (*e.lits).Count) then v = iif( (*e.lits)[li].intValue = 0, 0, -1 )
         end if
         Advance( e )
@@ -678,7 +678,7 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
         dim as TokenVec rest
         CollectLine( e, rest, true )
         dim as string msg = ""
-        for i as long = 0 to rest.Count - 1
+        for i as int32 = 0 to rest.Count - 1
             if (rest[i].flags and TF_APOST_TEXT) <> 0 then exit for     '' a comment here too (fbc)
             if i > 0 then msg += " "
             if Tk( rest[i] ) = TK_EOL then
@@ -738,8 +738,8 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
         dim as string mode = ""
         if PeekOnLine( e, t ) then
             dim as string sp = SpellOf( e, t )
-            dim as long a = instr( sp, """" )
-            dim as long b = instrrev( sp, """" )
+            dim as int32 a = instr( sp, """" )
+            dim as int32 b = instrrev( sp, """" )
             if (a > 0) andalso (b > a) then mode = mid( sp, a + 1, b - a - 1 )
         end if
         SkipToEol( e )
@@ -781,7 +781,7 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
             '' '#pragma reserve [ ( asm [, extern] ) ] name'. Only the two options exist;
             '' anything else is fbc's error 7. An empty '( )' and a missing comma are both
             '' tolerated, which was measured.
-            dim as long modes = 0
+            dim as int32 modes = 0
             dim as boolean sawParen = false
             if PeekOnLine( e, t ) then
                 if Tk( t ) = TK_LPAREN then
@@ -820,9 +820,9 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
                 dim as InternId rid = e.names->Fold( e.names->GetString( rname ) )
                 if modes <> 0 then
                     dim as boolean clash = false
-                    for i as long = 0 to e.reserveNames.Count - 1
-                        if e.reserveNames[i] <> cast( ulong, rid ) then continue for
-                        if (cast( long, e.reserveModes[i] ) and modes) <> 0 then
+                    for i as int32 = 0 to e.reserveNames.Count - 1
+                        if e.reserveNames[i] <> cast( uint32, rid ) then continue for
+                        if (cast( int32, e.reserveModes[i] ) and modes) <> 0 then
                             clash = true
                             exit for
                         end if
@@ -830,8 +830,8 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
                     if clash then
                         Report( e, TKO0764, at, rname )
                     else
-                        e.reserveNames.Push( cast( ulong, rid ) )
-                        e.reserveModes.Push( cast( ulong, modes ) )
+                        e.reserveNames.Push( cast( uint32, rid ) )
+                        e.reserveModes.Push( cast( uint32, modes ) )
                         '' ...AND ONTO THE RESULT, which outlives this engine. Only the
                         '' plain form reserves the name for the LANGUAGE: '( asm )' and
                         '' '( extern )' reserve it for the assembler and the linker, and
@@ -839,11 +839,11 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
                         '' then 'dim as integer foo' is error 4, and the parenthesised
                         '' forms are accepted.
                         if ((modes and 2) <> 0) andalso (e.outp <> 0) then
-                            e.outp->asmReserveAt.Push( cast( ulong, at ) )
+                            e.outp->asmReserveAt.Push( cast( uint32, at ) )
                         end if
                         if (modes and 1) <> 0 then
                             if e.outp <> 0 then
-                                e.outp->reservedNames.Push( cast( ulong, rid ) )
+                                e.outp->reservedNames.Push( cast( uint32, rid ) )
                             end if
                         end if
                     end if
@@ -862,7 +862,7 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
                 dim as FileId cf = e.frames[e.frames.Count - 1].file
                 if cf <> FILE_NONE then
                     if PpAlreadyOnce( e, cf ) = false then
-                        e.onceFiles.Push( cast( ulong, cf ) )
+                        e.onceFiles.Push( cast( uint32, cf ) )
                     end if
                 end if
             end if
@@ -904,8 +904,8 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
             return
         end if
         dim as string spelled2 = SpellOf( e, t2 )
-        dim as long qa = instr( spelled2, """" )
-        dim as long qb = instrrev( spelled2, """" )
+        dim as int32 qa = instr( spelled2, """" )
+        dim as int32 qb = instrrev( spelled2, """" )
         dim as string val2 = ""
         if (qa > 0) andalso (qb > qa) then val2 = mid( spelled2, qa + 1, qb - qa - 1 )
         Advance( e )
@@ -965,8 +965,8 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
             Report( e, TKO0333, clToks[1].loc )
         else
             dim as string clSp = SpellOf( e, clToks[0] )
-            dim as long clA = instr( clSp, """" )
-            dim as long clB = instrrev( clSp, """" )
+            dim as int32 clA = instr( clSp, """" )
+            dim as int32 clB = instrrev( clSp, """" )
             if (clA > 0) andalso (clB > clA) then
                 SplitCmdlineWords_( mid( clSp, clA + 1, clB - clA - 1 ), _
                                     e.outp->cmdlineArgs )
@@ -993,13 +993,13 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
             dim as TokenVec one
             one.Push( lnToks[0] )
             dim as boolean lnOk = false
-            dim as longint lnVal = PpEvalIntTokens( e, one, lnOk )
+            dim as int64 lnVal = PpEvalIntTokens( e, one, lnOk )
             if lnOk = false then
                 Report( e, TKO0331, lnToks[0].loc )
             else
                 '' fbc's line counter is 32 bits: '#line 3000000000' makes the next
                 '' line report -1294967295 rather than saturating or erroring.
-                dim as long shownLine = cast( long, lnVal )
+                dim as int32 shownLine = cast( int32, lnVal )
 
                 dim as InternId shownName = INTERN_NONE
                 dim as boolean hasName = false
@@ -1013,8 +1013,8 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
                         lnBad = true
                     else
                         dim as string lnSp = SpellOf( e, lnToks[1] )
-                        dim as long lq = instr( lnSp, """" )
-                        dim as long rq = instrrev( lnSp, """" )
+                        dim as int32 lq = instr( lnSp, """" )
+                        dim as int32 rq = instrrev( lnSp, """" )
                         dim as string nm = ""
                         if (lq > 0) andalso (rq > lq) then nm = mid( lnSp, lq + 1, rq - lq - 1 )
                         shownName = e.names->GetString( nm )
@@ -1089,8 +1089,8 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
                 exit do
             end if
             dim as string sp2 = SpellOf( e, ft )
-            dim as long qa2 = instr( sp2, """" )
-            dim as long qb2 = instrrev( sp2, """" )
+            dim as int32 qa2 = instr( sp2, """" )
+            dim as int32 qb2 = instrrev( sp2, """" )
             dim as string spec = ""
             if (qa2 > 0) andalso (qb2 > qa2) then spec = mid( sp2, qa2 + 1, qb2 - qa2 - 1 )
             Advance( e )
@@ -1128,9 +1128,9 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
             '' identically twice is what an include guard-less header does when two
             '' files pull it in, and that is not a mistake.
             dim as boolean flDup = false
-            for i as long = 0 to e.outp->foreignLibNames.Count - 1
+            for i as int32 = 0 to e.outp->foreignLibNames.Count - 1
                 dim as string ent = e.outp->foreignLibNames[i]
-                dim as long tabAt = instr( ent, chr( 9 ) )
+                dim as int32 tabAt = instr( ent, chr( 9 ) )
                 if left( ent, tabAt - 1 ) = flId then
                     if mid( ent, tabAt + 1 ) <> flSig then Report( e, TKO0330, at, flId )
                     flDup = true
@@ -1181,7 +1181,7 @@ private sub PpDefineFunc1 _
     m->optParens = false
     m->builtin = PPB_NONE
     m->params.Clear( )
-    m->params.Push( cast( ulong, e.names->GetString( "x" ) ) )
+    m->params.Push( cast( uint32, e.names->GetString( "x" ) ) )
     m->body.Clear( )
     RelexInto( e, body, LOC_NONE, m->body )
 end sub
@@ -1194,7 +1194,7 @@ private sub PpDefineBuiltinMacro _
     dim as PpMacro ptr m = PpFindOrAddMacro( e, id )
     m->isDefined = true
     m->isFunc = isFunc
-    m->builtin = cast( ubyte, which )
+    m->builtin = cast( uint8, which )
 end sub
 
 #include once "pp/ppdefines.tiko"
@@ -1379,7 +1379,7 @@ end sub
 
 private sub PpDefineFromCommandLine( byref e as PpEngine )
     for each d as string in *e.cfg->defines
-        dim as long at = instr( d, "=" )
+        dim as int32 at = instr( d, "=" )
         if at > 0 then
             PpDefineValue( e, left( d, at - 1 ), mid( d, at + 1 ) )
         else

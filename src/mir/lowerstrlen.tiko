@@ -18,24 +18,24 @@ private function QualifiedStaticPath_ _
     if id = Tko.NODE_NONE then return false
     dim as Tko.NodeId cur = id
     dim as Tko.NodeId path_(0 to 63)   '' the member nodes, outermost first
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (c.ast->Kind( cur ) = Tko.N_MEMBER) andalso (guard < 64)
         path_(guard) = cur
         guard += 1
-        cur = c.ast->binaries[cast( long, c.ast->nodes[cast( long, cur )].data )].lhs
+        cur = c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, cur )].data )].lhs
     wend
     if cur = id then return false
     if c.ast->Kind( cur ) <> Tko.N_IDENT then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( cur ) )
     if s = 0 then return false
     select case s->kind
-    case cast( ubyte, Tko.SYM_UDT ), cast( ubyte, Tko.SYM_TYPEDEF ) : return true
-    case cast( ubyte, Tko.SYM_NAMESPACE )
-        for k as long = guard - 1 to 0 step -1
+    case cast( uint8, Tko.SYM_UDT ), cast( uint8, Tko.SYM_TYPEDEF ) : return true
+    case cast( uint8, Tko.SYM_NAMESPACE )
+        for k as int32 = guard - 1 to 0 step -1
             dim as Tko.Symbol ptr ms = c.syms->SymbolAt( c.info->RefOf( path_(k) ) )
             if ms = 0 then return true
-            if ms->kind = cast( ubyte, Tko.SYM_NAMESPACE ) then continue for
-            return (ms->kind <> cast( ubyte, Tko.SYM_VARIABLE )) andalso (ms->kind <> cast( ubyte, Tko.SYM_PARAMETER ))
+            if ms->kind = cast( uint8, Tko.SYM_NAMESPACE ) then continue for
+            return (ms->kind <> cast( uint8, Tko.SYM_VARIABLE )) andalso (ms->kind <> cast( uint8, Tko.SYM_PARAMETER ))
         next
         return true
     end select
@@ -76,18 +76,18 @@ function LowerStaticMemberLen_ _
     if (isSizeof = false) andalso IsUStringType( c, c.info->TypeOf_( a ) ) then return false
     dim as string ct
     if ConstStringTextOf_( c, a, ct, 1 ) then
-        dim as longint n = len( ct )
+        dim as int64 n = len( ct )
         if isSizeof then n += 1
         outv = ConstInt( c, n, MT_I64 )
-        return (outv.kind <> cast( ubyte, MV_NONE ))
+        return (outv.kind <> cast( uint8, MV_NONE ))
     end if
 
     dim as Tko.TypeId mt2 = c.info->TypeOf_( a )
     if mt2 = Tko.TYPE_NONE then return false
-    dim as long sz = MeasuredSizeOfType_( c, mt2 )
+    dim as int32 sz = MeasuredSizeOfType_( c, mt2 )
     if sz <= 0 then return false
     outv = ConstInt( c, sz, MT_I64 )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 
 end namespace

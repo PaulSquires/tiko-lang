@@ -48,7 +48,7 @@ end function
 private function PointerCost_ _
     ( byval from_ as Tko.TypeId, byval to_ as Tko.TypeId, _
       byval srcP as boolean, byval dstP as boolean, _
-      byref types as Tko.TypeContext, byval overloaded as boolean ) as long
+      byref types as Tko.TypeContext, byval overloaded as boolean ) as int32
 
     if srcP andalso dstP then
         '' Identical pointer types were already answered CONV_EXACT by the caller, so
@@ -125,7 +125,7 @@ private function PointerCost_ _
         '' A POINTER TO A DERIVED TYPE reaches a pointer to any of its bases, and does
         '' so BEFORE the any-ptr tier: measured, offered { any ptr, T1 ptr } a 'T2 ptr'
         '' argument takes T1 ptr. The same nearest-base order as the value form.
-        dim as long ud = types.BaseDistance( types.Unqualify( si ), types.Unqualify( di ) )
+        dim as int32 ud = types.BaseDistance( types.Unqualify( si ), types.Unqualify( di ) )
         if ud > 0 then
             '' A CONST base pointee from a non-const one is the demoted tier plus the links.
             if types.IsConst( di ) andalso (types.IsConst( si ) = false) then

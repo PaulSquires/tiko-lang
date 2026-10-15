@@ -114,11 +114,11 @@ end function
 '' loses the bitfield/anon flags this needs.
 declare function ThreadUdtFields_ _
     ( byref c as Ctx, byval t as Tko.TypeId, _
-      byref outFlds as containers.Array( of ulong ) ) as boolean
+      byref outFlds as containers.Array( of uint32 ) ) as boolean
 
 private function ThreadUdtFields_ _
     ( byref c as Ctx, byval t as Tko.TypeId, _
-      byref outFlds as containers.Array( of ulong ) ) as boolean
+      byref outFlds as containers.Array( of uint32 ) ) as boolean
 
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( ThreadUdtSym_( c, t ) )
     if s = 0 then return false
@@ -133,10 +133,10 @@ private function ThreadUdtFields_ _
     while cur <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
         if f = 0 then exit while
-        if f->kind = cast( ubyte, Tko.SYM_FIELD ) then
+        if f->kind = cast( uint8, Tko.SYM_FIELD ) then
             '' ANY anonymous group -- see the header.
             if f->anonDepth <> 0 then return false
-            outFlds.Push( cast( ulong, cur ) )
+            outFlds.Push( cast( uint32, cur ) )
         end if
         cur = f->nextInScope
     wend
@@ -147,17 +147,17 @@ end function
 
 declare function ThreadTypeCode_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref ok as boolean, _
-      byval inUdt as boolean = false, byval depth as long = 0 ) as longint
+      byval inUdt as boolean = false, byval depth as int32 = 0 ) as int64
 
 '' One FIELD's code. Separate from the type's because BITFIELD-ness lives on the field
 '' symbol and not on its type, and fbc refuses a bitfield before it reads the type.
 declare function ThreadFieldCode_ _
     ( byref c as Ctx, byval fs as Tko.Symbol ptr, byref ok as boolean, _
-      byval depth as long ) as longint
+      byval depth as int32 ) as int64
 
 private function ThreadFieldCode_ _
     ( byref c as Ctx, byval fs as Tko.Symbol ptr, byref ok as boolean, _
-      byval depth as long ) as longint
+      byval depth as int32 ) as int64
 
     ok = false
     if fs = 0 then return 0
@@ -167,7 +167,7 @@ end function
 
 private function ThreadTypeCode_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref ok as boolean, _
-      byval inUdt as boolean, byval depth as long ) as longint
+      byval inUdt as boolean, byval depth as int32 ) as int64
 
     ok = false
     if t = Tko.TYPE_NONE then return 0
@@ -201,7 +201,7 @@ private function ThreadTypeCode_ _
     case Tko.TK_ENUM
         u = c.types->Builtin( Tko.TY_INTEGER )
     case Tko.TK_UDT
-        dim as containers.Array( of ulong ) flds
+        dim as containers.Array( of uint32 ) flds
         if ThreadUdtFields_( c, u, flds ) = false then return 0
         if flds.Count = 1 then
             '' THE CODE COLLAPSES, THE DESCRIPTOR DOES NOT -- see the header.
@@ -248,29 +248,29 @@ end function
 '' one description per field, recursively. The type expanded is the one whose code was
 '' asked for -- NOT the single field a collapse looked through. See the header.
 declare function PushThreadDesc_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byval code as longint, _
-      byref args as containers.Array( of ulong ), byval depth as long = 0 ) as boolean
+    ( byref c as Ctx, byval t as Tko.TypeId, byval code as int64, _
+      byref args as containers.Array( of uint32 ), byval depth as int32 = 0 ) as boolean
 
 private function PushThreadDesc_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byval code as longint, _
-      byref args as containers.Array( of ulong ), byval depth as long ) as boolean
+    ( byref c as Ctx, byval t as Tko.TypeId, byval code as int64, _
+      byref args as containers.Array( of uint32 ), byval depth as int32 ) as boolean
 
-    args.Push( cast( ulong, MV_CONST_INT ) )
-    args.Push( cast( ulong, cast( long, code ) ) )
+    args.Push( cast( uint32, MV_CONST_INT ) )
+    args.Push( cast( uint32, cast( int32, code ) ) )
     if code <> 12 then return true
     if depth > 64 then return false
 
     dim as Tko.TypeId u = c.types->Unqualify( t )
     if c.types->Kind( u ) = Tko.TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
-    dim as containers.Array( of ulong ) flds
+    dim as containers.Array( of uint32 ) flds
     if ThreadUdtFields_( c, u, flds ) = false then return false
-    args.Push( cast( ulong, MV_CONST_INT ) )
-    args.Push( cast( ulong, flds.Count ) )
-    for i as long = 0 to flds.Count - 1
+    args.Push( cast( uint32, MV_CONST_INT ) )
+    args.Push( cast( uint32, flds.Count ) )
+    for i as int32 = 0 to flds.Count - 1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cast( Tko.SymbolId, flds[i] ) )
         if f = 0 then return false
         dim as boolean fok = false
-        dim as longint fc = ThreadFieldCode_( c, f, fok, depth + 1 )
+        dim as int64 fc = ThreadFieldCode_( c, f, fok, depth + 1 )
         if fok = false then return false
         if PushThreadDesc_( c, f->type_, fc, args, depth + 1 ) = false then return false
     next
@@ -280,19 +280,19 @@ end function
 '' The callee a 'threadcall' names, with its argument list. Both spellings reach here:
 '' 'threadcall f( 1 )' is an N_CALL and 'threadcall f' a bare name.
 declare function ThreadCalleeOf_ _
-    ( byref c as Ctx, byval it as Tko.NodeId, byref outFirst as long, _
-      byref outCount as long ) as Tko.SymbolId
+    ( byref c as Ctx, byval it as Tko.NodeId, byref outFirst as int32, _
+      byref outCount as int32 ) as Tko.SymbolId
 
 private function ThreadCalleeOf_ _
-    ( byref c as Ctx, byval it as Tko.NodeId, byref outFirst as long, _
-      byref outCount as long ) as Tko.SymbolId
+    ( byref c as Ctx, byval it as Tko.NodeId, byref outFirst as int32, _
+      byref outCount as int32 ) as Tko.SymbolId
 
     outFirst = 0
     outCount = 0
     if it = Tko.NODE_NONE then return Tko.SYMBOL_NONE
     if c.ast->Kind( it ) = Tko.N_CALL then
         dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, it )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, it )].data )]
         if lp->target = Tko.NODE_NONE then return Tko.SYMBOL_NONE
         outFirst = lp->first
         outCount = lp->count
@@ -324,12 +324,12 @@ private function ThreadCalleeOf_ _
         if rc <> Tko.SYMBOL_NONE then
             dim as Tko.Symbol ptr rs = c.syms->SymbolAt( rc )
             if rs <> 0 then
-                rcOk = (rs->kind = cast( ubyte, Tko.SYM_PROC ))
+                rcOk = (rs->kind = cast( uint8, Tko.SYM_PROC ))
             end if
         end if
         '' A QUALIFIED CALLEE IS STILL A CALLEE, and the same namespace test applies.
         if c.ast->Kind( lp->target ) = Tko.N_MEMBER then
-            dim as long qf, qc
+            dim as int32 qf, qc
             dim as Tko.SymbolId ms = ThreadCalleeOf_( c, lp->target, qf, qc )
             if ms = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
             if rcOk then return rc
@@ -347,10 +347,10 @@ private function ThreadCalleeOf_ _
     '' receiver.
     if c.ast->Kind( it ) = Tko.N_MEMBER then
         dim as Tko.BinaryPayload ptr mb = _
-            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, it )].data )]
+            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, it )].data )]
         dim as Tko.Symbol ptr bs = c.syms->SymbolAt( c.info->RefOf( mb->lhs ) )
         if bs = 0 then return Tko.SYMBOL_NONE
-        if bs->kind <> cast( ubyte, Tko.SYM_NAMESPACE ) then return Tko.SYMBOL_NONE
+        if bs->kind <> cast( uint8, Tko.SYM_NAMESPACE ) then return Tko.SYMBOL_NONE
         return c.info->RefOf( it )
     end if
     return Tko.SYMBOL_NONE
@@ -364,12 +364,12 @@ function LowerThreadCall_ _
     if sp->count <> 1 then return false
     dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[sp->first] )
 
-    dim as long aFirst, aCount
+    dim as int32 aFirst, aCount
     dim as Tko.SymbolId callee = ThreadCalleeOf_( c, it, aFirst, aCount )
     if callee = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
     if cs = 0 then return false
-    if cs->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    if cs->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
     if pn = Tko.NODE_NONE then return false
     if c.ast->Kind( pn ) <> Tko.N_PROC then return false
@@ -381,14 +381,14 @@ function LowerThreadCall_ _
     if (pp->extra and Tko.PF_PASCAL) <> 0 then return false
 
     dim as MirValue fa = FuncAddrOf( c, callee )
-    if fa.kind = cast( ubyte, MV_NONE ) then return false
+    if fa.kind = cast( uint8, MV_NONE ) then return false
 
     '' EVERY ARGUMENT LOWERED BEFORE ANYTHING IS PUSHED. A thread call that gives up
     '' half way would leave its temporaries and its stores behind and read as lowered.
-    dim as containers.Array( of ulong ) args
-    dim as containers.Array( of ulong ) strTemps
-    dim as containers.Array( of ulong ) strTempTypes
-    args.Push( cast( ulong, fa.kind ) ) : args.Push( cast( ulong, fa.id ) )
+    dim as containers.Array( of uint32 ) args
+    dim as containers.Array( of uint32 ) strTemps
+    dim as containers.Array( of uint32 ) strTempTypes
+    args.Push( cast( uint32, fa.kind ) ) : args.Push( cast( uint32, fa.id ) )
     '' THE CONVENTION IS THE CALLEE'S, RESOLVED -- and FOREIGN IS NOT A CONVENTION.
     '' 'extern "Windows-MS"' carries PF_FOREIGN, so treating that bit as cdecl sent
     '' convention 1 for a stdcall sub: threads/threadcall.bas, where fbc emits
@@ -419,7 +419,7 @@ function LowerThreadCall_ _
     ''     sub s cdecl              1           1       1
     ''     sub s stdcall            0           0       error 288
     ''     plain sub s              0           0       1
-    dim as long conv = 0
+    dim as int32 conv = 0
     select case Tko.CallConvOf( pp->extra )
     case Tko.CC_CDECL
         conv = 1
@@ -430,8 +430,8 @@ function LowerThreadCall_ _
         '' pascal sub was declined above.)
         if c.types->target.isWindows = false then conv = 1
     end select
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, conv ) )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, conv ) )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )
     '' THE COUNT COMES FROM THE CALLEE, not from the call. A DEFAULTED PARAMETER IS
     '' PASSED like any other: measured, 'sub two( byval a as integer, opt as integer
     '' = 13 )' called as 'threadcall two( 5 )' is
@@ -443,15 +443,15 @@ function LowerThreadCall_ _
     '' written count and stopped there, and fb_ThreadCall is VARIADIC, so nothing
     '' complained: the thread read an uninitialised 'opt'. Lowered, verified, and
     '' wrong. The ordinary call path has done this since it was written.
-    dim as long nparams = ParamCountOf( c, callee )
-    dim as long slots = aCount
+    dim as int32 nparams = ParamCountOf( c, callee )
+    dim as int32 slots = aCount
     if (nparams > slots) andalso (IsVariadicProc( c, callee ) = false) then
         slots = nparams
     end if
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, slots ) )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, slots ) )
 
-    dim as long pbytes = c.types->target.pointerBits \ 8
-    for i as long = 0 to slots - 1
+    dim as int32 pbytes = c.types->target.pointerBits \ 8
+    for i as int32 = 0 to slots - 1
         dim as Tko.NodeId ae = Tko.NODE_NONE
         if i < aCount then ae = cast( Tko.NodeId, c.ast->children[aFirst + i] )
         if ae <> Tko.NODE_NONE then
@@ -470,7 +470,7 @@ function LowerThreadCall_ _
         dim as boolean forcedByval = false
         if c.ast->Kind( ae ) = Tko.N_UNARY then
             dim as Tko.UnaryPayload ptr tup = _
-                @c.ast->unaries[cast( long, c.ast->nodes[cast( long, ae )].data )]
+                @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, ae )].data )]
             if cast( Tko.TokenKind, tup->op ) = Tko.KW_BYVAL then
                 forcedByval = true
                 ae = tup->operand
@@ -482,7 +482,7 @@ function LowerThreadCall_ _
         dim as boolean byref_ = ParamIsByref( c, callee, i )
 
         dim as boolean codeOk = false
-        dim as longint code = 0
+        dim as int64 code = 0
         if byref_ orelse ParamIsArray( c, callee, i ) then
             '' EVERY BYREF IS 13, whatever it refers to: the pointee type is erased.
             code = 13
@@ -498,10 +498,10 @@ function LowerThreadCall_ _
             '' a pointer temporary like any other byref.
             dim as MirValue adv
             if ArrayDescArg_( c, ae, true, adv ) = false then return false
-            dim as long aslot = NewTempLocal( c, MT_PTR, pbytes )
+            dim as int32 aslot = NewTempLocal( c, MT_PTR, pbytes )
             if aslot < 0 then return false
-            av.kind = cast( ubyte, MV_LOCAL )
-            av.ty = cast( ubyte, MT_PTR )
+            av.kind = cast( uint8, MV_LOCAL )
+            av.ty = cast( uint8, MT_PTR )
             av.id = aslot
             StoreThrough( c, av, adv )
         elseif byref_ then
@@ -518,11 +518,11 @@ function LowerThreadCall_ _
             else
                 ad = LowerAddr( c, ae )
             end if
-            if ad.kind = cast( ubyte, MV_NONE ) then return false
-            dim as long rslot = NewTempLocal( c, MT_PTR, pbytes )
+            if ad.kind = cast( uint8, MV_NONE ) then return false
+            dim as int32 rslot = NewTempLocal( c, MT_PTR, pbytes )
             if rslot < 0 then return false
-            av.kind = cast( ubyte, MV_LOCAL )
-            av.ty = cast( ubyte, MT_PTR )
+            av.kind = cast( uint8, MV_LOCAL )
+            av.ty = cast( uint8, MT_PTR )
             av.id = rslot
             StoreThrough( c, av, ad )
         elseif IsStringType( c, pt ) then
@@ -531,14 +531,14 @@ function LowerThreadCall_ _
             '' after the fb_ThreadCall -- before any threadwait, which is fbc's own
             '' lifetime and not one invented here.
             dim as MirValue sv
-            dim as long sslot = -1
+            dim as int32 sslot = -1
             if ByvalStrTemp_( c, ae, pt, sv, sslot ) = false then return false
-            strTemps.Push( cast( ulong, sslot ) )
-            strTempTypes.Push( cast( ulong, pt ) )
-            dim as long qslot = NewTempLocal( c, MT_PTR, pbytes )
+            strTemps.Push( cast( uint32, sslot ) )
+            strTempTypes.Push( cast( uint32, pt ) )
+            dim as int32 qslot = NewTempLocal( c, MT_PTR, pbytes )
             if qslot < 0 then return false
-            av.kind = cast( ubyte, MV_LOCAL )
-            av.ty = cast( ubyte, MT_PTR )
+            av.kind = cast( uint8, MV_LOCAL )
+            av.ty = cast( uint8, MT_PTR )
             av.id = qslot
             StoreThrough( c, av, sv )
         elseif c.types->Kind( c.types->Unqualify( pt ) ) = Tko.TK_UDT then
@@ -547,8 +547,8 @@ function LowerThreadCall_ _
             '' takes a VARIABLE's address directly and copies anything else into a
             '' temporary of the argument's type first; ByrefTemp_ is that temporary.
             av = LowerAddr( c, ae )
-            if av.kind = cast( ubyte, MV_NONE ) then av = ByrefTemp_( c, ae, pt )
-            if av.kind = cast( ubyte, MV_NONE ) then return false
+            if av.kind = cast( uint8, MV_NONE ) then av = ByrefTemp_( c, ae, pt )
+            if av.kind = cast( uint8, MV_NONE ) then return false
         else
             '' A BYVAL SCALAR OVER A VARIABLE PASSES THE VARIABLE'S OWN ADDRESS -- fbc
             '' makes no temporary for one -- and an RVALUE gets a temporary of the
@@ -556,30 +556,30 @@ function LowerThreadCall_ _
             dim as MirType pmt = LowerType( pt, *c.types )
             if (pmt = MT_VOID) orelse (pmt = MT_AGG) then return false
             av = LowerAddr( c, ae )
-            if av.kind = cast( ubyte, MV_NONE ) then
+            if av.kind = cast( uint8, MV_NONE ) then
                 dim as MirValue rv = LowerExpr( c, ae )
-                if rv.kind = cast( ubyte, MV_NONE ) then return false
+                if rv.kind = cast( uint8, MV_NONE ) then return false
                 rv = CoerceTy( c, rv, pmt, pt)
-                if rv.kind = cast( ubyte, MV_NONE ) then return false
-                dim as long vslot = NewTempLocal( c, pmt, TyWidthBytes_( pmt ) )
+                if rv.kind = cast( uint8, MV_NONE ) then return false
+                dim as int32 vslot = NewTempLocal( c, pmt, TyWidthBytes_( pmt ) )
                 if vslot < 0 then return false
-                av.kind = cast( ubyte, MV_LOCAL )
-                av.ty = cast( ubyte, MT_PTR )
+                av.kind = cast( uint8, MV_LOCAL )
+                av.ty = cast( uint8, MT_PTR )
                 av.id = vslot
                 StoreThrough( c, av, rv )
             end if
         end if
-        if av.kind = cast( ubyte, MV_NONE ) then return false
+        if av.kind = cast( uint8, MV_NONE ) then return false
 
         '' THE DESCRIPTION IS A RUN, not one value: a composite writes its code, its
         '' field count and one description per field before the address arrives.
         if PushThreadDesc_( c, pt, code, args ) = false then return false
-        args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
+        args.Push( cast( uint32, av.kind ) ) : args.Push( cast( uint32, av.id ) )
     next
 
     outv = EmitRtl( c, RTL_THREAD_CALL, args )
     DeleteStrArgTemps_( c, strTemps, strTempTypes )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 
 '' Every runtime entry point this module calls is DECLARED in it -- EmitRtl adds one
@@ -594,8 +594,8 @@ function UsesThreadRtl _
     wanted(0) = names.GetString( RtlLinkName( RTL_THREAD_CREATE, is32 ) )
     wanted(1) = names.GetString( RtlLinkName( RTL_THREAD_WAIT, is32 ) )
     wanted(2) = names.GetString( RtlLinkName( RTL_THREAD_CALL, is32 ) )
-    for i as long = 0 to m.functions.Count - 1
-        for k as long = 0 to 2
+    for i as int32 = 0 to m.functions.Count - 1
+        for k as int32 = 0 to 2
             if m.functions[i]->name = wanted(k) then return true
         next
     next

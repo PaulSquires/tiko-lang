@@ -32,10 +32,10 @@ private function IsStaticProc_ _
     if sid = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
     if s = 0 then return false
-    if s->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    if s->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     dim as Tko.NodeId n = cast( Tko.NodeId, s->payload )
     if n = Tko.NODE_NONE then return false
-    if cast( long, n ) >= c.ast->nodes.Count then return false
+    if cast( int32, n ) >= c.ast->nodes.Count then return false
     if c.ast->Kind( n ) <> Tko.N_PROC then return false
     dim as Tko.StmtPayload ptr sp = StmtOf( c, n )
     return ((sp->extra and Tko.PF_STATIC) <> 0)
@@ -45,12 +45,12 @@ private function FileScopeOf_ _
     ( byref c as Ctx, byval from_ as Tko.ScopeId ) as Tko.ScopeId
 
     dim as Tko.ScopeId sc = from_
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (sc <> Tko.SCOPE_NONE) andalso (guard < Tko.SCOPE_WALK_MAX)
         guard += 1
         dim as Tko.SymScope ptr s_ = c.syms->ScopeAt( sc )
         if s_ = 0 then exit while
-        if s_->kind = cast( ubyte, Tko.SCOPEK_MODULE ) then return sc
+        if s_->kind = cast( uint8, Tko.SCOPEK_MODULE ) then return sc
         sc = s_->parent
     wend
     return Tko.SCOPE_GLOBAL
@@ -116,7 +116,7 @@ private sub BindThis _
     while cur <> Tko.SCOPE_NONE
         dim as Tko.SymScope ptr s = c.syms->ScopeAt( cur )
         if s = 0 then exit while
-        if s->kind = cast( ubyte, Tko.SCOPEK_TYPE ) then
+        if s->kind = cast( uint8, Tko.SCOPEK_TYPE ) then
             '' A POINTER to the type, not the type: the ABI passes an address, fbc's
             '' own C spells the parameter 'struct $1T*', and every member access
             '' already reaches through a pointer base.
@@ -199,14 +199,14 @@ private function GenericCtorCall_ _
       byval scope_ as Tko.ScopeId ) as boolean
 
     if lp->target = Tko.NODE_NONE then return false
-    dim as long taFirst, taCount
+    dim as int32 taFirst, taCount
     if c.ast->CallTypeArgsOf( id, taFirst, taCount ) = false then return false
     if taCount <= 0 then return false
 
     dim as Tko.SymbolId gsid = c.info->RefOf( lp->target )
     dim as Tko.Symbol ptr gs = c.syms->SymbolAt( gsid )
     if gs = 0 then return false
-    if gs->kind <> cast( ubyte, Tko.SYM_UDT ) then return false
+    if gs->kind <> cast( uint8, Tko.SYM_UDT ) then return false
 
     dim as Tko.StmtPayload gsp
     gsp.name = gs->name
@@ -251,7 +251,7 @@ private sub WalkExpr _
 
     if id = Tko.NODE_NONE then return
     dim as Tko.NodeKind k = c.ast->Kind( id )
-    dim as Tko.AstNode ptr n = @c.ast->nodes[cast( long, id )]
+    dim as Tko.AstNode ptr n = @c.ast->nodes[cast( int32, id )]
 
     select case k
     case Tko.N_CLOSURE
@@ -363,7 +363,7 @@ private sub WalkExpr _
             '' it a symbol would make every later pass read it as a value with
             '' storage.
             c.info->SetType( id, TypeNamedInExpr_( c, nm ) )
-        elseif cast( long, nm ) <= TKO_KEYWORD_COUNT then
+        elseif cast( int32, nm ) <= TKO_KEYWORD_COUNT then
             '' A keyword used in expression position -- LEN, ASC, SIN. It is a
             '' BUILTIN, not an undefined name. This is free to detect because the
             '' keyword spellings are interned FIRST and so occupy ids 1..N
@@ -372,13 +372,13 @@ private sub WalkExpr _
         else
             c.st->undefined_ += 1
             if c.st->unresolvedNames.Count < 200000 then
-                c.st->unresolvedNames.Push( cast( ulong, nm ) )
+                c.st->unresolvedNames.Push( cast( uint32, nm ) )
             end if
             NoteUnbound_( c, id, scope_ )
         end if
 
     case Tko.N_UNARY, Tko.N_ADDROF, Tko.N_DEREF
-        WalkExpr( c, c.ast->unaries[cast( long, n->data )].operand, scope_ )
+        WalkExpr( c, c.ast->unaries[cast( int32, n->data )].operand, scope_ )
 
     case Tko.N_BINARY
         '' BOTH OPERANDS READ BEFORE EITHER IS WALKED. A payload pointer points INTO
@@ -387,7 +387,7 @@ private sub WalkExpr _
         '' whatever occupies the freed block -- a NodeId out of range, indexed
         '' without a bound. Confirmed, not reasoned: reserving every arena so it
         '' cannot reallocate makes the crash disappear.
-        dim as Tko.BinaryPayload ptr bp = @c.ast->binaries[cast( long, n->data )]
+        dim as Tko.BinaryPayload ptr bp = @c.ast->binaries[cast( int32, n->data )]
         dim as Tko.NodeId blhs = bp->lhs
         dim as Tko.NodeId brhs = bp->rhs
         WalkExpr( c, blhs, scope_ )
@@ -402,7 +402,7 @@ private sub WalkExpr _
 
     case Tko.N_MEMBER
         '' Only the base: the member name needs the base's type.
-        dim as Tko.BinaryPayload ptr mb = @c.ast->binaries[cast( long, n->data )]
+        dim as Tko.BinaryPayload ptr mb = @c.ast->binaries[cast( int32, n->data )]
 
         '' '.field' WITH NO BASE is the WITH shorthand, and the base it wants is the
         '' subject of the innermost open WITH. The parser cannot supply it -- it does
@@ -491,14 +491,14 @@ private sub WalkExpr _
         if c.ast->Kind( mlhs ) = Tko.N_IDENT then
             dim as Tko.Symbol ptr bp0 = c.syms->SymbolAt( c.info->RefOf( mlhs ) )
             if bp0 <> 0 then
-                if bp0->kind = cast( ubyte, Tko.SYM_PROC ) then
+                if bp0->kind = cast( uint8, Tko.SYM_PROC ) then
                     if c.ast->Kind( mrhs ) = Tko.N_IDENT then
                         dim as Tko.SymbolId tsid3 = c.syms->LookupTyped( _
                             scope_, IdentNameOf( c, mlhs ), true )
                         dim as Tko.Symbol ptr ty3 = c.syms->SymbolAt( tsid3 )
                         if ty3 <> 0 then
                             dim as boolean isUdt = _
-                                (ty3->kind = cast( ubyte, Tko.SYM_UDT ))
+                                (ty3->kind = cast( uint8, Tko.SYM_UDT ))
                             dim as boolean hasIn = (ty3->inner <> Tko.SCOPE_NONE)
                             if isUdt andalso hasIn then
                                 dim as Tko.SymbolId m3 = c.syms->LookupLocal( _
@@ -516,7 +516,7 @@ private sub WalkExpr _
         dim as Tko.SymbolId bsid = c.info->RefOf( mlhs )
         dim as Tko.Symbol ptr bs = c.syms->SymbolAt( bsid )
         if bs <> 0 then
-            if bs->kind = cast( ubyte, Tko.SYM_NAMESPACE ) then
+            if bs->kind = cast( uint8, Tko.SYM_NAMESPACE ) then
                 if c.ast->Kind( mrhs ) = Tko.N_IDENT then
                     '' IdentNameOf, not StmtOf: an N_IDENT is not a statement payload,
                     '' and reading it as one is the pool mistake this codebase keeps
@@ -535,7 +535,7 @@ private sub WalkExpr _
                         c.info->SetRef( id, msid )
                     end if
                 end if
-            elseif bs->kind = cast( ubyte, Tko.SYM_ENUM ) then
+            elseif bs->kind = cast( uint8, Tko.SYM_ENUM ) then
                 '' 'E.elem' -- AN ENUM MEMBER NAMED THROUGH ITS ENUM, which is the
                 '' only spelling an EXPLICIT enum has. Unbound, the expression was
                 '' untyped and everything built on it declined.
@@ -547,7 +547,7 @@ private sub WalkExpr _
                         c.info->SetRef( id, esid )
                     end if
                 end if
-            elseif bs->kind = cast( ubyte, Tko.SYM_UDT ) then
+            elseif bs->kind = cast( uint8, Tko.SYM_UDT ) then
                 '' 'T.foo( )' where T is the TYPE, not a variable of it: a STATIC
                 '' member, qualified by its type exactly as a namespace member is by
                 '' its namespace. The base being the UDT SYMBOL is what tells this from
@@ -571,7 +571,7 @@ private sub WalkExpr _
                     '' resolving 'Child' itself -- a SYM_UDT, and the diagnostic
                     '' "'child' is a type, not a procedure".
                     dim as Tko.ScopeId bsc = cast( Tko.ScopeId, bs->inner )
-                    dim as long bdepth = 0
+                    dim as int32 bdepth = 0
                     do while (msid = Tko.SYMBOL_NONE) andalso (bdepth < 32)
                         bsc = BaseScopeOf_( c, bsc )
                         if bsc = Tko.SCOPE_NONE then exit do
@@ -616,7 +616,7 @@ private sub WalkExpr _
             dim as Tko.TypeId nt = ResolveTypeRef( c, np->target, scope_ )
             if nt <> Tko.TYPE_NONE then c.info->SetType( np->target, nt )
         end if
-        for i as long = 0 to np->count - 1
+        for i as int32 = 0 to np->count - 1
             WalkExpr( c, cast( Tko.NodeId, c.ast->children[np->first + i] ), scope_ )
         next
         return
@@ -636,7 +636,7 @@ private sub WalkExpr _
         '' did the same OPEN written as a STATEMENT, which is what made it look like an
         '' expression-form gap rather than a missing walk.
         if ip->c <> Tko.NODE_NONE then WalkExpr( c, ip->c, scope_ )
-        for i as long = 0 to ip->count - 1
+        for i as int32 = 0 to ip->count - 1
             dim as Tko.NodeId arg = cast( Tko.NodeId, c.ast->children[ip->first + i] )
             if c.ast->Kind( arg ) <> Tko.N_ELIDED then WalkExpr( c, arg, scope_ )
         next
@@ -663,7 +663,7 @@ private sub WalkExpr _
         '' : p( )' reached lowering with no callee at all and was counted as unbound.
         '' The target is a VARIABLE here, and that is exactly what says the call is
         '' indirect.
-        for i as long = 0 to lp->count - 1
+        for i as int32 = 0 to lp->count - 1
             dim as Tko.NodeId arg = cast( Tko.NodeId, c.ast->children[lp->first + i] )
             '' 'cast( long, x )' and 'cptr( any ptr, x )' put a TYPE in argument
             '' position. WalkExpr has nothing to say about one, and leaving it
@@ -698,7 +698,7 @@ sub WalkStmt _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
 
     if id = Tko.NODE_NONE then return
-    c.syms->usePos = cast( ulong, id )    '' which side of an '#undef': see UndefSym
+    c.syms->usePos = cast( uint32, id )    '' which side of an '#undef': see UndefSym
     dim as Tko.NodeKind k = c.ast->Kind( id )
     dim as Tko.NodeCategory cat = Tko.NodeKindCategory( k )
 
@@ -777,7 +777,7 @@ sub WalkStmt _
         '' '#undef' OF A NAME ONLY A USING REACHES -- fbc's error 123, and the one half of
         '' it Collect cannot see: usings are registered HERE, in source order. 'extra' = 1
         '' is Collect's mark that its own lookup found nothing (UndefKeeps_).
-        dim as Tko.StmtPayload ptr udp = StmtOf( c, id ) : c.rtlUndef.Push( cast( ulong, c.names->Fold( udp->name ) ) )   '' + frees a runtime name (RtlNameAt_)
+        dim as Tko.StmtPayload ptr udp = StmtOf( c, id ) : c.rtlUndef.Push( cast( uint32, c.names->Fold( udp->name ) ) )   '' + frees a runtime name (RtlNameAt_)
         if udp->extra = 1 then
             dim as Tko.Symbol ptr us = c.syms->SymbolAt( c.syms->LookupThroughUsings( here, udp->name ) )
             if us <> 0 then
@@ -804,7 +804,7 @@ sub WalkStmt _
         '' ...AND A COMMA LIST, 'using a, b', keeps each later path as a child N_USING, in
         '' order: the loop takes the statement itself (u = -1), then each child.
         dim as Tko.StmtPayload ptr usp = StmtOf( c, id )
-        for u as long = -1 to usp->count - 1
+        for u as int32 = -1 to usp->count - 1
             dim as Tko.NodeId un = id
             if u >= 0 then un = cast( Tko.NodeId, c.ast->children[usp->first + u] )
             dim as Tko.InternId unm = StmtOf( c, un )->name
@@ -816,10 +816,10 @@ sub WalkStmt _
             '' one declared below, an inner one from outside its parent -- is fbc's error 8
             '' (3 for a bad later component; fbc-modern 1.20, 2026-09-30). It was dropped.
             dim as boolean nsOk = (nss <> 0)
-            if nsOk then nsOk = (nss->kind = cast( ubyte, Tko.SYM_NAMESPACE )) andalso (DeclaredBelow_( c, nsid, un, here ) = false)
+            if nsOk then nsOk = (nss->kind = cast( uint8, Tko.SYM_NAMESPACE )) andalso (DeclaredBelow_( c, nsid, un, here ) = false)
             if nsOk = false then c.diags->Report( Tko.TKO0923, Tko.PointRange( c.ast->Loc( un ) ), c.names->Spelling( unm ) )
             if nsOk = false then continue for
-            c.syms->AddUsing( here, nss->inner, cast( ulong, un ) )
+            c.syms->AddUsing( here, nss->inner, cast( uint32, un ) )
             c.info->SetRef( un, nsid )    '' for CheckUsingAmbiguity_ (declshape.tiko)
         next
         return
@@ -844,7 +844,7 @@ sub WalkStmt _
         '' was written, which makes it a tuple instead.
         while c.ast->Kind( wsp->a ) = Tko.N_PAREN
             dim as Tko.ListPayload ptr pl2 = _
-                @c.ast->lists[cast( long, c.ast->nodes[cast( long, wsp->a )].data )]
+                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, wsp->a )].data )]
             if pl2->count <> 1 then exit while
             wsp->a = cast( Tko.NodeId, c.ast->children[pl2->first] )
         wend
@@ -868,7 +868,7 @@ sub WalkStmt _
                 '' N_TUPLE IS 'with( type<UDT>( 123 ) )' -- a type literal, which has an
                 '' address because a temporary is built for it. The same once-evaluated
                 '' slot serves it.
-                c.withSubject.Push( cast( ulong, wsp->a ) )
+                c.withSubject.Push( cast( uint32, wsp->a ) )
                 pushed = true
             end select
         end if
@@ -915,7 +915,7 @@ sub WalkStmt _
         '' not spellable in source, and a node id is stable across passes.
         dim as Tko.InternId enumName = esp->name
         if enumName = 0 then
-            enumName = c.names->Fold( c.names->GetString( "TMP$" & str( cast( long, id ) ) ) )
+            enumName = c.names->Fold( c.names->GetString( "TMP$" & str( cast( int32, id ) ) ) )
         end if
         '' The scope Collect opened for this enum, when it has one. An ANONYMOUS
         '' enum has no symbol and so no scope, and its members live only outside.
@@ -930,11 +930,11 @@ sub WalkStmt _
             dim as Tko.Symbol ptr eos = _
                 c.syms->SymbolAt( c.syms->LookupLocal( here, esp->name ) )
             if eos <> 0 then
-                if eos->kind = cast( ubyte, Tko.SYM_ENUM ) then escope = eos->inner
+                if eos->kind = cast( uint8, Tko.SYM_ENUM ) then escope = eos->inner
             end if
         end if
-        dim as longint enumNext = 0
-        for i as long = 0 to esp->count - 1
+        dim as int64 enumNext = 0
+        for i as int32 = 0 to esp->count - 1
             dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[esp->first + i] )
             if c.ast->Kind( it ) <> Tko.N_ENUM_ITEM then continue for
             dim as Tko.StmtPayload ptr ip = StmtOf( c, it )
@@ -957,7 +957,7 @@ sub WalkStmt _
             '' TWO symbols may carry one member: the enum's OWN scope always holds
             '' it, and the enclosing scope holds it too when the name was free
             '' there. Both need the value, or 'E.K' and a bare 'K' disagree.
-            for pass_ as long = 0 to 1
+            for pass_ as int32 = 0 to 1
             dim as Tko.ScopeId lsc = here
             if pass_ = 1 then
                 lsc = escope
@@ -967,7 +967,7 @@ sub WalkStmt _
             dim as Tko.Symbol ptr es = c.syms->SymbolAt( esid )
             if (es <> 0) andalso (pass_ = 0) then if es->loc <> c.ast->Loc( it ) then es = 0   '' THIS member's: another enum's (an explicit one's) took the bare name's value (enum-decls.bas)
             if es <> 0 then
-                if es->kind = cast( ubyte, Tko.SYM_ENUMCONST ) then
+                if es->kind = cast( uint8, Tko.SYM_ENUMCONST ) then
                     '' On a SYM_ENUMCONST 'payload' is THE VALUE ITSELF, not a node id.
                     es->payload = enumNext
                     '' And its TYPE is the enum, which is what fbc says: '#print
@@ -976,7 +976,7 @@ sub WalkStmt _
                     '' comparison -- had nothing to work from. An ANONYMOUS enum has no
                     '' name to make one from, so it is given the generated one above.
                     es->type_ = c.types->NamedType( Tko.TK_ENUM, enumName, _
-                                                    cast( ulong, here ) )
+                                                    cast( uint32, here ) )
                 end if
             end if
             next
@@ -990,7 +990,7 @@ sub WalkStmt _
         '' do this -- a type may be declared after the variable that uses it, which
         '' is exactly why type references are resolved in this pass and not that one.
         dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-        if sp->op = cast( ushort, Tko.KW_REDIM ) then
+        if sp->op = cast( uint16, Tko.KW_REDIM ) then
             '' EXCEPT WITH AN 'AS' CLAUSE, which declares the array as well as sizing
             '' it: 'redim foo( 1 to 2 ) as integer' is how a dynamic array is brought
             '' into existence in one line, and the corpus's own redim test writes
@@ -999,7 +999,7 @@ sub WalkStmt _
             '' bounds. A DYNAMIC array type, whatever bounds were written: the whole
             '' point of the form is that they are set at run time.
             dim as boolean declares = false
-            for i as long = 0 to sp->count - 1
+            for i as int32 = 0 to sp->count - 1
                 dim as Tko.NodeId it3 = cast( Tko.NodeId, c.ast->children[sp->first + i] )
                 if c.ast->Kind( it3 ) <> Tko.N_VAR_ITEM then continue for
                 dim as Tko.StmtPayload ptr ip3 = StmtOf( c, it3 )
@@ -1013,11 +1013,11 @@ sub WalkStmt _
                 '' where a written rank gives DIMENSIONS n and FLAGS 16 + n. Forcing a
                 '' minimum of one made it a 72-byte one-dimensional descriptor, so the
                 '' two spellings of the same declaration disagreed about their own size.
-                dim as long ndim = 1
+                dim as int32 ndim = 1
                 if ip3->c <> Tko.NODE_NONE then
                     if c.ast->Kind( ip3->c ) = Tko.N_BLOCK then
-                        ndim = c.ast->lists[cast( long, _
-                            c.ast->nodes[cast( long, ip3->c )].data )].count
+                        ndim = c.ast->lists[cast( int32, _
+                            c.ast->nodes[cast( int32, ip3->c )].data )].count
                     end if
                 end if
                 if ndim < 0 then ndim = 0
@@ -1030,7 +1030,7 @@ sub WalkStmt _
             '' an unbound 'n', so lowering could not produce a value for it and the
             '' whole statement declined. Only a redim to CONSTANT bounds worked, which
             '' is the least interesting kind.
-            for i as long = 0 to sp->count - 1
+            for i as int32 = 0 to sp->count - 1
                 dim as Tko.NodeId item = cast( Tko.NodeId, c.ast->children[sp->first + i] )
                 if c.ast->Kind( item ) <> Tko.N_VAR_ITEM then continue for
                 dim as Tko.StmtPayload ptr rp = StmtOf( c, item )
@@ -1039,7 +1039,7 @@ sub WalkStmt _
                 '' REDIM otherwise leaves empty. It is an ordinary lvalue and has to be
                 '' resolved like one, or lowering has an unbound name to take the
                 '' address of.
-                if rp->extra = cast( ushort, Tko.KW_REDIM ) then
+                if rp->extra = cast( uint16, Tko.KW_REDIM ) then
                     if rp->b <> Tko.NODE_NONE then WalkStmt( c, rp->b, here )
                 elseif rp->a = Tko.NODE_NONE then
                     '' A BARE 'redim a( ... )' names an array that already exists and
@@ -1052,14 +1052,14 @@ sub WalkStmt _
                 if rp->c = Tko.NODE_NONE then continue for
                 if c.ast->Kind( rp->c ) <> Tko.N_BLOCK then continue for
                 dim as Tko.ListPayload ptr rl = _
-                    @c.ast->lists[cast( long, c.ast->nodes[cast( long, rp->c )].data )]
-                for d as long = 0 to rl->count - 1
+                    @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, rp->c )].data )]
+                for d as int32 = 0 to rl->count - 1
                     WalkStmt( c, cast( Tko.NodeId, c.ast->children[rl->first + d] ), here )
                 next
             next
             return
         end if
-        for i as long = 0 to sp->count - 1
+        for i as int32 = 0 to sp->count - 1
             dim as Tko.NodeId item = cast( Tko.NodeId, c.ast->children[sp->first + i] )
             if c.ast->Kind( item ) <> Tko.N_VAR_ITEM then continue for
             dim as Tko.StmtPayload ptr ip = StmtOf( c, item )
@@ -1072,7 +1072,7 @@ sub WalkStmt _
             if c.ast->Kind( id ) = Tko.N_CONST then
                 ConstBoundCheck_( c, item, scope_ )
             end if
-            if (c.ast->nodes[cast( long, item )].flags and Tko.NF_QUALIFIED) <> 0 then
+            if (c.ast->nodes[cast( int32, item )].flags and Tko.NF_QUALIFIED) <> 0 then
                 CheckStaticMemberVar_( c, scope_, item, ip->ownerName, ip->name )
             end if
             '' 'dim BYREF rb as integer = a' ALIASES a. Its type is a REFERENCE, which
@@ -1083,9 +1083,9 @@ sub WalkStmt _
             '' EITHER NODE MAY CARRY IT. A leading 'byref' belongs to the whole
             '' declaration and sits on the N_VAR; one written again after a comma
             '' belongs to that item alone and sits on the item.
-            dim as ushort brf = _
-                (c.ast->nodes[cast( long, id )].flags or _
-                 c.ast->nodes[cast( long, item )].flags)
+            dim as uint16 brf = _
+                (c.ast->nodes[cast( int32, id )].flags or _
+                 c.ast->nodes[cast( int32, item )].flags)
             if (brf and Tko.NF_BYREF) <> 0 then
                 if t <> Tko.TYPE_NONE then t = c.types->Reference( t )
             end if
@@ -1110,8 +1110,8 @@ sub WalkStmt _
                         Tko.PointRange( c.ast->Loc( item ) ), _
                         c.names->Spelling( ip->name ) )
                 end if
-                c.pendingItem.Push( cast( ulong, item ) )
-                c.pendingScope.Push( cast( ulong, here ) )
+                c.pendingItem.Push( cast( uint32, item ) )
+                c.pendingScope.Push( cast( uint32, here ) )
             end if
             '' AFTER the revisit test, not before it: a declaration whose type is not
             '' resolved yet comes through here twice, and reporting on the first pass
@@ -1130,9 +1130,9 @@ sub WalkStmt _
             if ip->c <> Tko.NODE_NONE then
                 if c.ast->Kind( ip->c ) = Tko.N_BLOCK then
                     dim as Tko.ListPayload ptr dl = _
-                        @c.ast->lists[cast( long, _
-                            c.ast->nodes[cast( long, ip->c )].data )]
-                    for d as long = 0 to dl->count - 1
+                        @c.ast->lists[cast( int32, _
+                            c.ast->nodes[cast( int32, ip->c )].data )]
+                    for d as int32 = 0 to dl->count - 1
                         WalkStmt( c, cast( Tko.NodeId, _
                             c.ast->children[dl->first + d] ), here )
                     next
@@ -1148,8 +1148,8 @@ sub WalkStmt _
         dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
         if BindParamType_( c, id, here ) = Tko.TYPE_NONE then
             if sp->a <> Tko.NODE_NONE then
-                c.pendParam.Push( cast( ulong, id ) )
-                c.pendParamScope.Push( cast( ulong, here ) )
+                c.pendParam.Push( cast( uint32, id ) )
+                c.pendParamScope.Push( cast( uint32, here ) )
             end if
         end if
         '' Where the PROCEDURE is declared, not inside it -- see ParamDefaultScope_.
@@ -1172,8 +1172,8 @@ sub WalkStmt _
         '' the ordinary bind is a silent no-op -- which is exactly what it did.
         if PreludeTypedefLost( c, id, here ) then return
         dim as Tko.StmtPayload ptr tsp = StmtOf( c, id )
-        c.typedefNode.Push( cast( ulong, id ) )
-        c.typedefScope.Push( cast( ulong, here ) )
+        c.typedefNode.Push( cast( uint32, id ) )
+        c.typedefScope.Push( cast( uint32, here ) )
         dim as Tko.TypeId aliased = ResolveTypeRef( c, tsp->a, here )
         '' ...OR A FORWARD REFERENCE TO A TYPE NOBODY DEFINES -- and HERE, not in
         '' the backpatch: see ForwardTypedefTarget_.
@@ -1184,11 +1184,11 @@ sub WalkStmt _
             dim as Tko.SymbolId tsid = c.syms->LookupLocalTyped( here, tsp->name, true )
             dim as Tko.Symbol ptr tsym = c.syms->SymbolAt( tsid )
             if tsym <> 0 then
-                if tsym->kind = cast( ubyte, Tko.SYM_TYPEDEF ) then tsym->type_ = aliased
+                if tsym->kind = cast( uint8, Tko.SYM_TYPEDEF ) then tsym->type_ = aliased
             end if
         end if
         '' The extra names of 'type as integer a, b'.
-        for i as long = 0 to tsp->count - 1
+        for i as int32 = 0 to tsp->count - 1
             WalkStmt( c, cast( Tko.NodeId, c.ast->children[tsp->first + i] ), here )
         next
         return
@@ -1214,7 +1214,7 @@ sub WalkStmt _
             end if
         end if
         dim as Tko.TypeId t = ResolveTypeRef( c, sp->a, fhere )
-        if t = Tko.TYPE_NONE then c.pendField.Push( cast( ulong, id ) ) : c.pendFieldScope.Push( cast( ulong, here ) )
+        if t = Tko.TYPE_NONE then c.pendField.Push( cast( uint32, id ) ) : c.pendFieldScope.Push( cast( uint32, here ) )
         '' ...AND IF IT STILL FOUND ITSELF, from one scope further out. A namespace
         '' holds the type being declared as well, so stepping out ONE level is not
         '' enough for 'namespace ns1 : type UDT1 extends UDT1'. Stepping out
@@ -1272,7 +1272,7 @@ sub WalkStmt _
                     *c.ast, sp->b, *c.srcMgr, *c.names, 64, c.syms, here )
                 if wv.known andalso (wv.value > 0) andalso (wv.value <= 64) then
                     fs->flags or= Tko.SYMF_BITFIELD
-                    fs->payload = cast( long, wv.value )
+                    fs->payload = cast( int32, wv.value )
                 end if
             end if
         end if
@@ -1304,12 +1304,12 @@ sub WalkStmt _
             if (sp->a <> Tko.NODE_NONE) andalso _
                (c.ast->Kind( sp->a ) = Tko.N_IDENT) then
                 dim as Tko.IdentPayload ptr ip = _
-                    @c.ast->idents[cast( long, c.ast->nodes[cast( long, sp->a )].data )]
+                    @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, sp->a )].data )]
                 BindDeclType( c, here, ip->name, t, false )
             end if
         end if
         '' The SEQUENCE first, so its type is known before the variable is bound.
-        for i as long = 0 to sp->count - 1
+        for i as int32 = 0 to sp->count - 1
             WalkStmt( c, cast( Tko.NodeId, c.ast->children[sp->first + i] ), here )
         next
 
@@ -1404,12 +1404,12 @@ sub WalkStmt _
         '' 'type LRESULT as LONG_PTR' declared later in the unit came out VOID and
         '' stayed void; see BindParamType_ for the parameter half of the same fact.
         if (ret = Tko.TYPE_NONE) andalso (retRef <> Tko.NODE_NONE) then
-            c.pendResultProc.Push( cast( ulong, id ) )
-            c.pendResultProcScope.Push( cast( ulong, here ) )
+            c.pendResultProc.Push( cast( uint32, id ) )
+            c.pendResultProcScope.Push( cast( uint32, here ) )
         end if
         BindThis( c, here, sp->ownerName )
-        dim as long pCount = sp->count, pFirst = sp->first, pBody = sp->b
-        for i as long = 0 to pCount - 1
+        dim as int32 pCount = sp->count, pFirst = sp->first, pBody = sp->b
+        for i as int32 = 0 to pCount - 1
             WalkStmt( c, cast( Tko.NodeId, c.ast->children[pFirst + i] ), here )
         next
         WalkStmt( c, pBody, here )
@@ -1423,7 +1423,7 @@ sub WalkStmt _
     WalkStmt( c, sp->a, here )
     WalkStmt( c, sp->b, here )
     WalkStmt( c, sp->c, here )
-    for i as long = 0 to sp->count - 1
+    for i as int32 = 0 to sp->count - 1
         WalkStmt( c, cast( Tko.NodeId, c.ast->children[sp->first + i] ), here )
     next
 end sub
@@ -1436,7 +1436,7 @@ sub Run _
       byref names as Tko.Interner, byref diags as Tko.DiagnosticEngine, _
       byref src as Tko.SourceManager, _
       byref info as Tko.SemanticInfo, byref st as Stats, _
-      byval parser as any ptr, byval maxInstDepth as long )
+      byval parser as any ptr, byval maxInstDepth as int32 )
 
     dim as Ctx c
     c.parser = parser

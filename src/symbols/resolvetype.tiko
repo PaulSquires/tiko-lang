@@ -14,7 +14,7 @@
 private function TemplateTypeParam_ _
     ( byref c as Ctx, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId ) as boolean
 
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (scope_ <> Tko.SCOPE_NONE) andalso (guard < Tko.SCOPE_WALK_MAX)
         guard += 1
         dim as Tko.SymScope ptr sc = c.syms->ScopeAt( scope_ )
@@ -23,9 +23,9 @@ private function TemplateTypeParam_ _
         if os <> 0 then
             if (os->flags and Tko.SYMF_GENERIC_INST) <> 0 then return false
             dim as Tko.NodeId dn = cast( Tko.NodeId, os->payload )
-            dim as boolean isNode = (os->kind = cast( ubyte, Tko.SYM_UDT )) orelse _
-                                    (os->kind = cast( ubyte, Tko.SYM_PROC ))
-            if isNode andalso (dn > 0) andalso (cast( long, dn ) <= c.ast->Count( )) then
+            dim as boolean isNode = (os->kind = cast( uint8, Tko.SYM_UDT )) orelse _
+                                    (os->kind = cast( uint8, Tko.SYM_PROC ))
+            if isNode andalso (dn > 0) andalso (cast( int32, dn ) <= c.ast->Count( )) then
                 dim as Tko.NodeId plist = Tko.NODE_NONE
                 select case c.ast->Kind( dn )
                 case Tko.N_TYPE
@@ -38,12 +38,12 @@ private function TemplateTypeParam_ _
                 if plist <> Tko.NODE_NONE then
                     if c.ast->Kind( plist ) = Tko.N_BLOCK then
                         dim as Tko.ListPayload ptr pl = _
-                            @c.ast->lists[cast( long, c.ast->nodes[cast( long, plist )].data )]
-                        for k as long = 0 to pl->count - 1
+                            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, plist )].data )]
+                        for k as int32 = 0 to pl->count - 1
                             dim as Tko.NodeId pn = cast( Tko.NodeId, c.ast->children[pl->first + k] )
                             if c.ast->Kind( pn ) <> Tko.N_IDENT then continue for
                             dim as Tko.IdentPayload ptr pip = _
-                                @c.ast->idents[cast( long, c.ast->nodes[cast( long, pn )].data )]
+                                @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
                             if pip->name = nm then return true
                         next
                     end if
@@ -64,7 +64,7 @@ private function TypeLitTargetType_ _
 
     if e = Tko.NODE_NONE then return false
     if c.ast->Kind( e ) <> Tko.N_TUPLE then return false
-    if (c.ast->nodes[cast( long, e )].flags and Tko.NF_TYPE_LITERAL) = 0 then
+    if (c.ast->nodes[cast( int32, e )].flags and Tko.NF_TYPE_LITERAL) = 0 then
         return false
     end if
     dim as Tko.NodeId tgt = ListOf( c, e )->target
@@ -127,13 +127,13 @@ private function EnumPastValue_ _
         return sid
     end select
     dim as Tko.ScopeId sc = scope_
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (sc <> Tko.SCOPE_NONE) andalso (guard < Tko.SCOPE_WALK_MAX)
         guard += 1
         dim as Tko.SymbolId got = c.syms->LookupLocal( sc, nm )
         dim as Tko.Symbol ptr gs = c.syms->SymbolAt( got )
         if gs <> 0 then
-            if gs->kind = cast( ubyte, Tko.SYM_ENUM ) then return got
+            if gs->kind = cast( uint8, Tko.SYM_ENUM ) then return got
         end if
         dim as Tko.SymScope ptr ss = c.syms->ScopeAt( sc )
         if ss = 0 then exit while
@@ -200,7 +200,7 @@ function ProcTypeParamType_ _
     '' these N_PARAMs belong to a TYPEREF and it never reaches them, so
     '' 'sub( as UDT1 )' came out taking a UDT BY VALUE. Measured -- fbc
     '' mangles it '_Z2G1PFvR4UDT1E', with the R.
-    dim as ushort pfl = c.ast->nodes[cast( long, prm )].flags
+    dim as uint16 pfl = c.ast->nodes[cast( int32, prm )].flags
     dim as boolean pRef = ((pfl and Tko.NF_BYREF) <> 0)
     dim as boolean pWritten = pRef
     if pWritten = false then pWritten = ((pfl and Tko.NF_BYVAL_WRITTEN) <> 0)
@@ -222,7 +222,7 @@ function ProcTypeParamType_ _
             end if
         end if
         if pRef then
-            c.ast->nodes[cast( long, prm )].flags or= Tko.NF_BYREF
+            c.ast->nodes[cast( int32, prm )].flags or= Tko.NF_BYREF
         end if
     end if
     '' AN ARRAY PARAMETER IS A REFERENCE TO THE FBARRAY TEMPLATE, rank and
@@ -235,7 +235,7 @@ function ProcTypeParamType_ _
     '' apart; 0 means 'unspecified', which is its own encoding.
     if ((pfl and Tko.NF_ARRAY) <> 0) andalso (pt <> Tko.TYPE_NONE) then
         pt = c.types->Reference( _
-            c.types->DynArrayOf( pt, cast( long, pp->extra ) ) )
+            c.types->DynArrayOf( pt, cast( int32, pp->extra ) ) )
     elseif pRef then
         pt = c.types->Reference( pt )
     end if
@@ -256,11 +256,11 @@ end function
 '' a 'new' of one dropped its statement. Reported once per reference, since a type
 '' reference can be resolved more than once.
 private sub GenericArgsCheck_ _
-    ( byref c as Ctx, byval id as Tko.NodeId, byval sid as Tko.SymbolId, byval given as long )
+    ( byref c as Ctx, byval id as Tko.NodeId, byval sid as Tko.SymbolId, byval given as int32 )
 
     dim as Tko.Symbol ptr gs = c.syms->SymbolAt( sid )
     if gs = 0 then return
-    if gs->kind <> cast( ubyte, Tko.SYM_UDT ) then return
+    if gs->kind <> cast( uint8, Tko.SYM_UDT ) then return
     if (gs->flags and Tko.SYMF_GENERIC_INST) <> 0 then return
     dim as Tko.NodeId gn = cast( Tko.NodeId, gs->payload )
     if gn = Tko.NODE_NONE then return
@@ -268,11 +268,11 @@ private sub GenericArgsCheck_ _
     dim as Tko.NodeId plist = StmtOf( c, gn )->b
     if plist = Tko.NODE_NONE then return
     if c.ast->Kind( plist ) <> Tko.N_BLOCK then return
-    dim as long want = ListOf( c, plist )->count
+    dim as int32 want = ListOf( c, plist )->count
     if want = given then return
     '' BY SOURCE LOCATION: an instantiation re-parses the template's body into new nodes.
-    dim as ulong at = cast( ulong, c.ast->Loc( id ) )
-    for i as long = 0 to c.genArgSeen.Count - 1
+    dim as uint32 at = cast( uint32, c.ast->Loc( id ) )
+    for i as int32 = 0 to c.genArgSeen.Count - 1
         if c.genArgSeen[i] = at then return
     next
     c.genArgSeen.Push( at )
@@ -290,28 +290,28 @@ end sub
 private function TypeofLitType_( byref c as Ctx, byval e as Tko.NodeId, byref outT as Tko.TypeId ) as boolean
     dim as boolean wide = false
     if c.ast->Kind( e ) = Tko.N_CALL then
-        dim as Tko.ListPayload ptr cl = @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+        dim as Tko.ListPayload ptr cl = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
         if (cl->count <> 1) orelse (cl->target = Tko.NODE_NONE) orelse (c.ast->Kind( cl->target ) <> Tko.N_IDENT) then return false
-        if lcase( c.names->Spelling( c.ast->idents[cast( long, c.ast->nodes[cast( long, cl->target )].data )].name ) ) <> "wstr" then return false
+        if lcase( c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cl->target )].data )].name ) ) <> "wstr" then return false
         e = cast( Tko.NodeId, c.ast->children[cl->first] )
         wide = true
     end if
     if c.ast->Kind( e ) <> Tko.N_STRING_LIT then return false
-    dim as Tko.LiteralPayload ptr lp = @c.ast->literals[cast( long, c.ast->nodes[cast( long, e )].data )]
+    dim as Tko.LiteralPayload ptr lp = @c.ast->literals[cast( int32, c.ast->nodes[cast( int32, e )].data )]
     dim as Tko.SourceFile ptr f = c.srcMgr->FileAt( cast( Tko.FileId, lp->strFile ) )
     if f = 0 then return false
     if (lp->strOffset < 0) orelse (lp->strOffset + lp->strLength > f->text.Count) then return false
     dim as string txt
-    dim as long i = 0
+    dim as int32 i = 0
     while i < lp->strLength
-        dim as ubyte ch = f->text[lp->strOffset + i]
+        dim as uint8 ch = f->text[lp->strOffset + i]
         txt += chr( ch )
         if (ch = 34) andalso (i + 1 < lp->strLength) then
             if f->text[lp->strOffset + i + 1] = 34 then i += 1
         end if
         i += 1
     wend
-    if lp->strKind = cast( ubyte, Tko.STRK_ESCAPED ) then
+    if lp->strKind = cast( uint8, Tko.STRK_ESCAPED ) then
         dim as boolean wasWide = false
         txt = Tko.Text.DecodeEscapedBody( txt, wasWide )
         if wasWide then return false
@@ -327,8 +327,8 @@ declare function ResolveTypeRefAt_ _
 '' that never imported 'util' cannot write 'util.Pair' however the declaration is reached.
 function ResolveTypeRef _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.TypeId
-    dim as ulong saved = c.syms->aliasPos
-    c.syms->aliasPos = cast( ulong, id )
+    dim as uint32 saved = c.syms->aliasPos
+    c.syms->aliasPos = cast( uint32, id )
     dim as Tko.TypeId t = ResolveTypeRefAt_( c, id, scope_ )
     c.syms->aliasPos = saved
     return t
@@ -340,7 +340,7 @@ function ResolveTypeRefAt_ _
     if id = Tko.NODE_NONE then return Tko.TYPE_NONE
     if c.ast->Kind( id ) <> Tko.N_TYPEREF then return Tko.TYPE_NONE
 
-    dim as Tko.AstNode ptr n = @c.ast->nodes[cast( long, id )]
+    dim as Tko.AstNode ptr n = @c.ast->nodes[cast( int32, id )]
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     c.st->typeRefs += 1
 
@@ -377,14 +377,14 @@ function ResolveTypeRefAt_ _
         dim as boolean pVariadic = false
         dim as boolean pTyped = false   '' a typed variadic last parameter -- TF_TYPED_VARIADIC
         dim as boolean pAnyNone = false
-        for i as long = 0 to sp->count - 1
+        for i as int32 = 0 to sp->count - 1
             dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[sp->first + i] )
             if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
             '' THE ELLIPSIS IS AN N_PARAM AND IS NOT A PARAMETER. It carries no type
             '' and contributes no argument, but it IS part of the procedure type:
             '' fbc mangles it 'z' and two overloads differing only in it are two
             '' symbols. Dropped silently, they became one.
-            if StmtOf( c, prm )->op = cast( ushort, Tko.TK_ELLIPSIS ) then
+            if StmtOf( c, prm )->op = cast( uint16, Tko.TK_ELLIPSIS ) then
                 pVariadic = true
                 continue for
             end if
@@ -396,8 +396,8 @@ function ResolveTypeRefAt_ _
             if pp->b <> Tko.NODE_NONE then WalkExpr( c, pp->b, scope_ )
             dim as Tko.TypeId pt = ProcTypeParamType_( c, prm, scope_ )
             if pt = Tko.TYPE_NONE then pAnyNone = true
-            pTyped = ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_VARIADIC) <> 0)
-            ps.Push( cast( ulong, pt ) )
+            pTyped = ((c.ast->nodes[cast( int32, prm )].flags and Tko.NF_VARIADIC) <> 0)
+            ps.Push( cast( uint32, pt ) )
         next
         dim as Tko.TypeId pf = _
             c.types->Pointer_( c.types->ProcType( ret, ps, pVariadic, _
@@ -426,13 +426,13 @@ function ResolveTypeRefAt_ _
         dim as boolean pendIt = (ret = Tko.TYPE_NONE) andalso (sp->a <> Tko.NODE_NONE)
         if pAnyNone then pendIt = true
         if pendIt then
-            c.pendProcType.Push( cast( ulong, id ) )
-            c.pendProcTypeScope.Push( cast( ulong, scope_ ) )
+            c.pendProcType.Push( cast( uint32, id ) )
+            c.pendProcTypeScope.Push( cast( uint32, scope_ ) )
             '' THE TYPE ITSELF, taken now. Re-resolving the node later builds a SECOND,
             '' correct procedure type and overwrites what the node carries -- and the
             '' variable declared in between still holds THIS one, which is the whole
             '' reason the repair has to be in place.
-            c.pendProcTypeId.Push( cast( ulong, c.types->Inner( pf ) ) )
+            c.pendProcTypeId.Push( cast( uint32, c.types->Inner( pf ) ) )
         end if
         if (n->flags and Tko.NF_CONST) <> 0 then
             pf = c.types->Qualify( pf, Tko.TF_CONST )
@@ -454,8 +454,8 @@ function ResolveTypeRefAt_ _
     '' to each other.
     if cast( Tko.TokenKind, sp->op ) = Tko.TK_LPAREN then
         dim as string key = "$tup"
-        dim as containers.Array( of ulong ) elemTypes
-        for i as long = 0 to sp->count - 1
+        dim as containers.Array( of uint32 ) elemTypes
+        for i as int32 = 0 to sp->count - 1
             dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[sp->first + i] )
             dim as Tko.TypeId et = ResolveTypeRef( c, e, scope_ )
             if et = Tko.TYPE_NONE then
@@ -463,8 +463,8 @@ function ResolveTypeRefAt_ _
                 '' one. Every use declines, which is the honest outcome.
                 return Tko.TYPE_NONE
             end if
-            elemTypes.Push( cast( ulong, et ) )
-            key += ":" & str( cast( long, et ) )
+            elemTypes.Push( cast( uint32, et ) )
+            key += ":" & str( cast( int32, et ) )
         next
         '' The builder moved to symbol.tiko so CHECK can name the same type for a tuple
         '' LITERAL. Nothing about it changed in the move; 'key' above is now only the
@@ -589,7 +589,7 @@ function ResolveTypeRefAt_ _
                 '' 'var' over anything else is still unresolved here and still
                 '' declines -- that half is Check's and stays Check's.
                 if ts2->type_ = Tko.TYPE_NONE then
-                    if ts2->kind = cast( ubyte, Tko.SYM_VARIABLE ) then
+                    if ts2->kind = cast( uint8, Tko.SYM_VARIABLE ) then
                         dim as Tko.NodeId vit = cast( Tko.NodeId, ts2->payload )
                         if vit <> Tko.NODE_NONE then
                             if c.ast->Kind( vit ) = Tko.N_VAR_ITEM then
@@ -640,7 +640,7 @@ function ResolveTypeRefAt_ _
         '' A TYPE PARAMETER, inside a generic being instantiated. It shadows anything
         '' of the same spelling, which is what 'typeparam-shadowing' is about: a
         '' variable named 't' anywhere in scope must not capture 'as T'.
-        for gi as long = c.gparamName.Count - 1 to 0 step -1
+        for gi as int32 = c.gparamName.Count - 1 to 0 step -1
             if cast( Tko.InternId, c.gparamName[gi] ) = sp->name then
                 base_ = cast( Tko.TypeId, c.gparamType[gi] )
                 c.info->SetType( id, base_ )
@@ -675,7 +675,7 @@ function ResolveTypeRefAt_ _
             dim as Tko.ScopeId sc = scope_
             dim as boolean first_ = true
             dim as boolean ok = true
-            dim as long at = 0
+            dim as int32 at = 0
             '' AN EMPTY FIRST COMPONENT IS THE '..' PREFIX -- the one spelling a real
             '' identifier can never produce. It means START AT THE FILE SCOPE, and the
             '' component itself is skipped.
@@ -688,8 +688,8 @@ function ResolveTypeRefAt_ _
                 at = len( qpath ) + 1
             end if
             while at <= len( qpath )
-                dim as long dot = instr( at + 1, qpath, "." )
-                dim as long stop_ = dot
+                dim as int32 dot = instr( at + 1, qpath, "." )
+                dim as int32 stop_ = dot
                 if stop_ = 0 then stop_ = len( qpath ) + 1
                 dim as string comp = mid( qpath, at + 1, stop_ - at - 1 )
                 if len( comp ) = 0 then
@@ -710,8 +710,8 @@ function ResolveTypeRefAt_ _
                     exit while
                 end if
                 dim as boolean qualifies = _
-                    (qs->kind = cast( ubyte, Tko.SYM_NAMESPACE )) orelse _
-                    (qs->kind = cast( ubyte, Tko.SYM_UDT ))
+                    (qs->kind = cast( uint8, Tko.SYM_NAMESPACE )) orelse _
+                    (qs->kind = cast( uint8, Tko.SYM_UDT ))
                 if (qualifies = false) orelse (qs->inner = Tko.SCOPE_NONE) then
                     qualExpr = (qualifies = false)
                     ok = false
@@ -774,7 +774,7 @@ function ResolveTypeRefAt_ _
             '' FB::ARRAY::COUNT that was never emitted, and 'for each' over it lowered to nothing.
             '' 'of long' and a program's own earlier typedef worked. The ten prelude typedefs name
             '' builtins, so resolving one here cannot recurse.
-            if (ready = false) andalso (s->kind = cast( ubyte, Tko.SYM_TYPEDEF )) andalso (c.srcMgr <> 0) then
+            if (ready = false) andalso (s->kind = cast( uint8, Tko.SYM_TYPEDEF )) andalso (c.srcMgr <> 0) then
                 if c.srcMgr->IsBuiltin( s->loc ) then
                     dim as Tko.NodeId pta = cast( Tko.NodeId, s->payload )
                     if (pta <> Tko.NODE_NONE) andalso (c.ast->Kind( pta ) = Tko.N_TYPEREF) then
@@ -835,7 +835,7 @@ function ResolveTypeRefAt_ _
                 '' them is N descriptors rather than N characters. Measured -- fbc gives
                 '' 'as ustring * 4' a sizeof of 8 and this gave it 96.
                 if k = Tko.KW_USTRING then base_ = c.types->Builtin( Tko.TY_FIXUSTR )
-                base_ = c.types->ArrayOf( base_, 1, cast( long, lv.value ) )
+                base_ = c.types->ArrayOf( base_, 1, cast( int32, lv.value ) )
             end if
         end select
     end if
@@ -871,14 +871,14 @@ function BindParamType_ _
     '' array, because bounds set by the caller are exactly what a bydesc parameter
     '' does not know.
     if (t <> Tko.TYPE_NONE) andalso _
-       ((c.ast->nodes[cast( long, id )].flags and Tko.NF_ARRAY) <> 0) then
+       ((c.ast->nodes[cast( int32, id )].flags and Tko.NF_ARRAY) <> 0) then
         '' THE RANK THE PARAMETER WAS WRITTEN WITH, which the parser now
         '' records on the N_PARAM's unused 'count'. Hard-coded 1, every
         '' 'a( any, any )' parameter was a ONE-dimensional array and the
         '' two-subscript reads inside the body declined on a rank mismatch.
         '' 'a( )' is rank ZERO -- unspecified -- and the subscript count at
         '' the use decides, which is what fbc does with it.
-        t = c.types->DynArrayOf( t, cast( long, sp->extra ) )
+        t = c.types->DynArrayOf( t, cast( int32, sp->extra ) )
     end if
     '' NEITHER KEYWORD WRITTEN IS NOT BYVAL. Measured from the signatures fbc
     '' emits:
@@ -902,7 +902,7 @@ function BindParamType_ _
     '' An ARRAY parameter is exempt: byval and byref are both ILLEGAL on one, so
     '' the passing mode never enters into it and a descriptor crosses either way.
     if t <> Tko.TYPE_NONE then
-        dim as ushort pflags = c.ast->nodes[cast( long, id )].flags
+        dim as uint16 pflags = c.ast->nodes[cast( int32, id )].flags
         dim as boolean written = ((pflags and Tko.NF_BYREF) <> 0)
         written = written orelse ((pflags and Tko.NF_BYVAL_WRITTEN) <> 0)
         written = written orelse ((pflags and Tko.NF_ARRAY) <> 0)
@@ -919,7 +919,7 @@ function BindParamType_ _
                 end if
             end if
             if wantsRef then
-                c.ast->nodes[cast( long, id )].flags or= Tko.NF_BYREF
+                c.ast->nodes[cast( int32, id )].flags or= Tko.NF_BYREF
             end if
         end if
     end if
@@ -941,14 +941,14 @@ function BindParamType_ _
     '' for the same reason it does there: it may come from a header this build did
     '' not read. The ELLIPSIS is not a parameter and carries no type by design.
     if (t = Tko.TYPE_NONE) andalso (sp->a = Tko.NODE_NONE) andalso _
-       (sp->op <> cast( ushort, Tko.TK_ELLIPSIS )) then
+       (sp->op <> cast( uint16, Tko.TK_ELLIPSIS )) then
         c.diags->Report( Tko.TKO0320, _
             Tko.PointRange( c.ast->Loc( id ) ), _
             c.names->Spelling( sp->name ) )
     end if
 
     if (t <> Tko.TYPE_NONE) andalso _
-       ((c.ast->nodes[cast( long, id )].flags and Tko.NF_BYREF) <> 0) then
+       ((c.ast->nodes[cast( int32, id )].flags and Tko.NF_BYREF) <> 0) then
         t = c.types->Reference( t )
     end if
     BindDeclType( c, here, sp->name, t, false )
@@ -964,7 +964,7 @@ function ProcResultType_ _
 
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     dim as Tko.NodeId retRef = sp->a
-    dim as ulong pfl = sp->extra
+    dim as uint32 pfl = sp->extra
     dim as Tko.TypeId t = ResolveTypeRef( c, retRef, here )
     if (t <> Tko.TYPE_NONE) andalso ((pfl and Tko.PF_ARRAY_RESULT) <> 0) then
         t = c.types->DynArrayOf( t, 0 )

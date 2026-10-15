@@ -267,6 +267,6 @@
     KW( KW___THISCALL,  "__THISCALL",  KWCLASS_KEYWORD )
 #endmacro
 
-const TKO_KEYWORD_COUNT as long = 247
+const TKO_KEYWORD_COUNT as int32 = 247
 
 #endif

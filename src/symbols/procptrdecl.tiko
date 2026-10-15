@@ -23,18 +23,18 @@
 '' The declaration's N_PARAM for parameter 'idx', the ellipsis not counted.
 private function ProcDeclParam_ _
     ( byval ast as Tko.AstArena ptr, byval decl as Tko.NodeId, _
-      byval idx as long ) as Tko.NodeId
+      byval idx as int32 ) as Tko.NodeId
 
     if decl = Tko.NODE_NONE then return Tko.NODE_NONE
     dim as Tko.StmtPayload ptr dp = _
-        @ast->stmts[cast( long, ast->nodes[cast( long, decl )].data )]
-    dim as long seen = 0
-    for i as long = 0 to dp->count - 1
+        @ast->stmts[cast( int32, ast->nodes[cast( int32, decl )].data )]
+    dim as int32 seen = 0
+    for i as int32 = 0 to dp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, ast->children[dp->first + i] )
         if ast->Kind( prm ) <> Tko.N_PARAM then continue for
         dim as Tko.StmtPayload ptr pp = _
-            @ast->stmts[cast( long, ast->nodes[cast( long, prm )].data )]
-        if pp->op = cast( ushort, Tko.TK_ELLIPSIS ) then continue for
+            @ast->stmts[cast( int32, ast->nodes[cast( int32, prm )].data )]
+        if pp->op = cast( uint16, Tko.TK_ELLIPSIS ) then continue for
         if seen = idx then return prm
         seen += 1
     next
@@ -46,12 +46,12 @@ private function ProcPtrDeclOf_ _
     ( byval ast as Tko.AstArena ptr, byval syms as Tko.SymbolTable ptr, _
       byval types as Tko.TypeContext ptr, byval info as Tko.SemanticInfo ptr, _
       byval names as Tko.Interner ptr, byval e as Tko.NodeId, _
-      byval depth as long = 0 ) as Tko.NodeId
+      byval depth as int32 = 0 ) as Tko.NodeId
 
     if e = Tko.NODE_NONE then return Tko.NODE_NONE
     '' A cycle -- 'var p = p' -- or a chain nobody writes.
     if depth > 24 then return Tko.NODE_NONE
-    dim as long dat = cast( long, ast->nodes[cast( long, e )].data )
+    dim as int32 dat = cast( int32, ast->nodes[cast( int32, e )].data )
     dim as Tko.NodeId nx = Tko.NODE_NONE
 
     select case ast->Kind( e )
@@ -59,7 +59,7 @@ private function ProcPtrDeclOf_ _
         return e
 
     case Tko.N_TYPEREF
-        dim as ushort fl = ast->nodes[cast( long, e )].flags
+        dim as uint16 fl = ast->nodes[cast( int32, e )].flags
         if (fl and Tko.NF_PROC_TYPE) <> 0 then return e
         if (fl and Tko.NF_PTR) <> 0 then
             '' 'as FP ptr' -- the pointee's declaration.
@@ -68,7 +68,7 @@ private function ProcPtrDeclOf_ _
             '' A NAME: a typedef's symbol keeps its own type reference.
             dim as Tko.Symbol ptr ts = syms->SymbolAt( info->RefOf( e ) )
             if ts = 0 then return Tko.NODE_NONE
-            if ts->kind <> cast( ubyte, Tko.SYM_TYPEDEF ) then return Tko.NODE_NONE
+            if ts->kind <> cast( uint8, Tko.SYM_TYPEDEF ) then return Tko.NODE_NONE
             nx = cast( Tko.NodeId, ts->payload )
         end if
 
@@ -103,11 +103,11 @@ private function ProcPtrDeclOf_ _
             dim as Tko.NodeKind dk = ast->Kind( dn )
             if (dk <> Tko.N_VAR_ITEM) andalso (dk <> Tko.N_FIELD) then return Tko.NODE_NONE
             dim as Tko.StmtPayload ptr vp = _
-                @ast->stmts[cast( long, ast->nodes[cast( long, dn )].data )]
+                @ast->stmts[cast( int32, ast->nodes[cast( int32, dn )].data )]
             nx = vp->a
             '' 'var pf = procptr( f )' -- no type written, so the initialiser says.
             if (nx = Tko.NODE_NONE) andalso (dk = Tko.N_VAR_ITEM) then
-                if vp->extra <> cast( ushort, Tko.KW_REDIM ) then nx = vp->b
+                if vp->extra <> cast( uint16, Tko.KW_REDIM ) then nx = vp->b
             end if
         case Tko.SYM_PARAMETER
             '' A PARAMETER'S SYMBOL HOLDS NO NODE, so its procedure is asked for the
@@ -120,12 +120,12 @@ private function ProcPtrDeclOf_ _
             if dn = Tko.NODE_NONE then return Tko.NODE_NONE
             if ast->Kind( dn ) <> Tko.N_PROC then return Tko.NODE_NONE
             dim as Tko.StmtPayload ptr opp = _
-                @ast->stmts[cast( long, ast->nodes[cast( long, dn )].data )]
-            for i as long = 0 to opp->count - 1
+                @ast->stmts[cast( int32, ast->nodes[cast( int32, dn )].data )]
+            for i as int32 = 0 to opp->count - 1
                 dim as Tko.NodeId prm = cast( Tko.NodeId, ast->children[opp->first + i] )
                 if ast->Kind( prm ) <> Tko.N_PARAM then continue for
                 dim as Tko.StmtPayload ptr pp = _
-                    @ast->stmts[cast( long, ast->nodes[cast( long, prm )].data )]
+                    @ast->stmts[cast( int32, ast->nodes[cast( int32, prm )].data )]
                 if pp->name = Tko.INTERN_NONE then continue for
                 if names->Fold( pp->name ) = s->name then
                     nx = pp->a
@@ -142,7 +142,7 @@ private function ProcPtrDeclOf_ _
         '' 'procptr( f )' IS the procedure.
         if ast->Kind( tgt ) = Tko.N_IDENT then
             dim as Tko.InternId inm = _
-                ast->idents[cast( long, ast->nodes[cast( long, tgt )].data )].name
+                ast->idents[cast( int32, ast->nodes[cast( int32, tgt )].data )].name
             if Tko.Text.LowerAscii( names->Spelling( inm ) ) = "procptr" then
                 if ast->lists[dat].count < 1 then return Tko.NODE_NONE
                 nx = cast( Tko.NodeId, ast->children[ast->lists[dat].first] )
@@ -164,7 +164,7 @@ private function ProcPtrDeclOf_ _
             '' A CALL'S RESULT has the result type of whatever was called: 'h( 1 )( 2 )'.
             dim as Tko.NodeId cd = ProcPtrDeclOf_( ast, syms, types, info, names, tgt, depth + 1 )
             if cd = Tko.NODE_NONE then return Tko.NODE_NONE
-            nx = ast->stmts[cast( long, ast->nodes[cast( long, cd )].data )].a
+            nx = ast->stmts[cast( int32, ast->nodes[cast( int32, cd )].data )].a
         end if
 
     case else

@@ -31,14 +31,14 @@ private function ArrResultFromList_ _
       byval init as Tko.NodeId ) as boolean
 
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
-    dim as long n = lp->count
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init )].data )]
+    dim as int32 n = lp->count
     EmitEraseDynAt_( c, dst, rt )
     if n = 0 then return true
     if EmitRedimConst_( c, dst, rt, n ) = false then return false
     '' The element base is DATA, already biased by the lower bound -- and the bound is 0.
     dim as MirValue base_ = DynArrayDataPtr( c, dst )
-    if base_.kind = cast( ubyte, MV_NONE ) then return false
+    if base_.kind = cast( uint8, MV_NONE ) then return false
     '' The same element stores 'dim a( 0 to n - 1 ) = { ... }' runs, for every element type
     '' it knows: scalars, strings, ustrings, fixed-length strings and UDTs.
     return LowerArrayInit( c, -1, rt, init, @base_ )
@@ -55,13 +55,13 @@ private function ArrResultFromLocal_ _
     if c.types->IsDynArray( lt ) = false then return false
     dim as MirValue src = LowerAddr( c, nameNode )
     '' A SLOT, and nothing else: only a local array has one to give away.
-    if src.kind <> cast( ubyte, MV_LOCAL ) then return false
+    if src.kind <> cast( uint8, MV_LOCAL ) then return false
     EmitEraseDynAt_( c, dst, rt )
-    dim as containers.Array( of ulong ) ma
-    ma.Push( cast( ulong, dst.kind ) ) : ma.Push( cast( ulong, dst.id ) )
-    ma.Push( cast( ulong, src.kind ) ) : ma.Push( cast( ulong, src.id ) )
-    ma.Push( cast( ulong, MV_CONST_INT ) )
-    ma.Push( cast( ulong, DescBytesFor( c, c.types->DynRank( lt ) ) ) )
+    dim as containers.Array( of uint32 ) ma
+    ma.Push( cast( uint32, dst.kind ) ) : ma.Push( cast( uint32, dst.id ) )
+    ma.Push( cast( uint32, src.kind ) ) : ma.Push( cast( uint32, src.id ) )
+    ma.Push( cast( uint32, MV_CONST_INT ) )
+    ma.Push( cast( uint32, DescBytesFor( c, c.types->DynRank( lt ) ) ) )
     EmitRtl( c, RTL_MEM_COPY, ma )
     InitDynArrayDesc( c, src, lt )
     return true
@@ -73,22 +73,22 @@ private function ArrResultFromCall_ _
     ( byref c as Ctx, byref dst as MirValue, byval rt as Tko.TypeId, _
       byval callE as Tko.NodeId ) as boolean
 
-    dim as long cmark = c.udtTemps.Count
+    dim as int32 cmark = c.udtTemps.Count
     dim as MirValue src = InitSourceAddr_( c, callE )
-    if src.kind <> cast( ubyte, MV_LOCAL ) then return false
+    if src.kind <> cast( uint8, MV_LOCAL ) then return false
     dim as boolean registered = false
-    for k as long = cmark to c.udtTemps.Count - 1
-        if cast( long, c.udtTemps[k] ) = src.id then registered = true
+    for k as int32 = cmark to c.udtTemps.Count - 1
+        if cast( int32, c.udtTemps[k] ) = src.id then registered = true
     next
     if registered = false then return false
     dim as Tko.TypeId ct = c.types->Unqualify( c.info->TypeOf_( callE ) )
     if c.types->IsDynArray( ct ) = false then return false
     EmitEraseDynAt_( c, dst, rt )
-    dim as containers.Array( of ulong ) ma
-    ma.Push( cast( ulong, dst.kind ) ) : ma.Push( cast( ulong, dst.id ) )
-    ma.Push( cast( ulong, src.kind ) ) : ma.Push( cast( ulong, src.id ) )
-    ma.Push( cast( ulong, MV_CONST_INT ) )
-    ma.Push( cast( ulong, DescBytesFor( c, c.types->DynRank( ct ) ) ) )
+    dim as containers.Array( of uint32 ) ma
+    ma.Push( cast( uint32, dst.kind ) ) : ma.Push( cast( uint32, dst.id ) )
+    ma.Push( cast( uint32, src.kind ) ) : ma.Push( cast( uint32, src.id ) )
+    ma.Push( cast( uint32, MV_CONST_INT ) )
+    ma.Push( cast( uint32, DescBytesFor( c, c.types->DynRank( ct ) ) ) )
     EmitRtl( c, RTL_MEM_COPY, ma )
     ForgetUdtTemp_( c, src.id )
     return true
@@ -103,14 +103,14 @@ private function IsArrayResultCall_ _
     outT = c.types->Unqualify( c.info->TypeOf_( e ) )
     if c.types->IsDynArray( outT ) = false then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
     dim as Tko.SymbolId callee = c.info->RefOf( e )
     if (callee = Tko.SYMBOL_NONE) andalso (cp->target <> Tko.NODE_NONE) then
         callee = c.info->RefOf( cp->target )
     end if
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
     if cs = 0 then return false
-    return (cs->kind = cast( ubyte, Tko.SYM_PROC ))
+    return (cs->kind = cast( uint8, Tko.SYM_PROC ))
 end function
 
 '' 'show( f( ) )' OVER A BY-DESCRIPTOR PARAMETER: the call's temporary IS the array, so its
@@ -121,7 +121,7 @@ function ArrayCallArg_ _
     dim as Tko.TypeId vt
     if IsArrayResultCall_( c, argNode, vt ) = false then return false
     outv = InitSourceAddr_( c, argNode )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 
 '' 'a = f( )' OVER A DYNAMIC ARRAY: a MOVE -- a's old elements are erased, the call's descriptor
@@ -139,23 +139,23 @@ function AssignArrayResult_ _
     if c.types->Unqualify( c.types->Inner( tt ) ) <> c.types->Unqualify( c.types->Inner( vt ) ) then return false
 
     dim as MirValue dst = LowerAddr( c, target )
-    if dst.kind = cast( ubyte, MV_NONE ) then return false
-    dim as long cmark = c.udtTemps.Count
+    if dst.kind = cast( uint8, MV_NONE ) then return false
+    dim as int32 cmark = c.udtTemps.Count
     dim as MirValue src = InitSourceAddr_( c, e )
-    if src.kind <> cast( ubyte, MV_LOCAL ) then return false
+    if src.kind <> cast( uint8, MV_LOCAL ) then return false
     dim as boolean registered = false
-    for k as long = cmark to c.udtTemps.Count - 1
-        if cast( long, c.udtTemps[k] ) = src.id then registered = true
+    for k as int32 = cmark to c.udtTemps.Count - 1
+        if cast( int32, c.udtTemps[k] ) = src.id then registered = true
     next
     if registered = false then return false
     EmitEraseDynAt_( c, dst, tt )
     '' THE DESTINATION'S OWN SIZE: a descriptor written with one dimension is 72 bytes and
     '' the result's temporary is the 240 of an unspecified rank.
-    dim as containers.Array( of ulong ) ma
-    ma.Push( cast( ulong, dst.kind ) ) : ma.Push( cast( ulong, dst.id ) )
-    ma.Push( cast( ulong, src.kind ) ) : ma.Push( cast( ulong, src.id ) )
-    ma.Push( cast( ulong, MV_CONST_INT ) )
-    ma.Push( cast( ulong, DescBytesFor( c, c.types->DynRank( tt ) ) ) )
+    dim as containers.Array( of uint32 ) ma
+    ma.Push( cast( uint32, dst.kind ) ) : ma.Push( cast( uint32, dst.id ) )
+    ma.Push( cast( uint32, src.kind ) ) : ma.Push( cast( uint32, src.id ) )
+    ma.Push( cast( uint32, MV_CONST_INT ) )
+    ma.Push( cast( uint32, DescBytesFor( c, c.types->DynRank( tt ) ) ) )
     EmitRtl( c, RTL_MEM_COPY, ma )
     ForgetUdtTemp_( c, src.id )
     return true
@@ -173,24 +173,24 @@ function LowerArrayResult_ _
 
     dim as Tko.NodeId e = Unparen_( c, valueE )
     dim as MirValue sa
-    sa.kind = cast( ubyte, MV_LOCAL )
-    sa.ty = cast( ubyte, MT_PTR )
+    sa.kind = cast( uint8, MV_LOCAL )
+    sa.ty = cast( uint8, MT_PTR )
     sa.id = c.sretParam
 
     select case c.ast->Kind( e )
     case Tko.N_INITIALIZER
         dim as MirValue dst = LowerExprLoad( c, sa, MT_PTR )
-        if dst.kind = cast( ubyte, MV_NONE ) then return false
+        if dst.kind = cast( uint8, MV_NONE ) then return false
         return ArrResultFromList_( c, dst, rt, e )
     case Tko.N_IDENT
         dim as MirValue dst = LowerExprLoad( c, sa, MT_PTR )
-        if dst.kind = cast( ubyte, MV_NONE ) then return false
+        if dst.kind = cast( uint8, MV_NONE ) then return false
         return ArrResultFromLocal_( c, dst, rt, e )
     case Tko.N_CALL
         dim as Tko.ListPayload ptr cp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
         dim as MirValue dst = LowerExprLoad( c, sa, MT_PTR )
-        if dst.kind = cast( ubyte, MV_NONE ) then return false
+        if dst.kind = cast( uint8, MV_NONE ) then return false
         '' 'return a( )' is the array's NAME with an empty subscript, as a call argument spells it.
         dim as boolean nameCall = (cp->count = 0) andalso (cp->target <> Tko.NODE_NONE)
         if nameCall then nameCall = (c.ast->Kind( cp->target ) = Tko.N_IDENT)

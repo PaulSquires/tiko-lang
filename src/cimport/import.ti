@@ -54,18 +54,18 @@ type CImportOptions
     '' WHAT THE MACRO PROBES FOUND, kept for the next round: a refused record changes no
     '' macro's value, and the probes are two more parses of the whole unit. 0 not probed
     '' yet, 1 kept here, -1 the probe failed.
-    as long       macroValState
+    as int32       macroValState
     as Tko.StrVec macroValues
-    as long       macroExpState
+    as int32       macroExpState
     as Tko.StrVec macroExps
-    as long       macroFldState  '' the fields of record-valued macros, the same way
+    as int32       macroFldState  '' the fields of record-valued macros, the same way
     as Tko.StrVec macroFlds
 end type
 
 type CImportResult
     as string     text           '' the binding, LF-only
     as string     manifest       '' "record <name> <size> <align>" / "  field <name> <bit> <width>"
-    as long       rc             '' 0 imported, 1 clang could not parse it, 3 no usable libclang
+    as int32       rc             '' 0 imported, 1 clang could not parse it, 3 no usable libclang
     as string     why            '' the failure in one line
     as Tko.StrVec clangDiags     '' clang's own error lines, at most ten
     as boolean    notFound       '' a header it included was not found: the target's hint
@@ -117,10 +117,10 @@ type CImp
     '' per-USR tables are indexed by the interned id, the claim tables by its FOLDED id,
     '' because FreeBASIC is case-insensitive.
     as Tko.Interner strs
-    as containers.Array( of ubyte ) claimType       '' folded id -> 1 when a type holds that name
-    as containers.Array( of ubyte ) claimValue      '' folded id -> 1 when a value does
-    as containers.Array( of long )  usrName         '' USR id -> index into fbNames plus one
-    as containers.Array( of ubyte ) usrState        '' USR id -> US_* bits
+    as containers.Array( of uint8 ) claimType       '' folded id -> 1 when a type holds that name
+    as containers.Array( of uint8 ) claimValue      '' folded id -> 1 when a value does
+    as containers.Array( of int32 )  usrName         '' USR id -> index into fbNames plus one
+    as containers.Array( of uint8 ) usrState        '' USR id -> US_* bits
     as Tko.StrVec           fbNames
 
     '' THE OUTPUT, in the order it will be written.
@@ -128,13 +128,13 @@ type CImp
     as Tko.StrVec fwdLines                  '' 'type X__ptr as X ptr', hoisted
     as Tko.StrVec fwdUsr                    '' the USR each forward alias stands for
     deferred( any ) as CXCursor             '' typedefs waiting for the record they name;
-    as long       nDeferred                 '' a cursor lives as long as the translation unit
+    as int32       nDeferred                 '' a cursor lives as long as the translation unit
     as boolean    needsCLong                '' crt/long.bi for clong/culong
-    as long       nStatic                   '' static and inline functions: counted, not ledgered
+    as int32       nStatic                   '' static and inline functions: counted, not ledgered
 
     '' THE LEDGERS.
-    as containers.Array( of long ) renKind
-    as containers.Array( of long ) renWhy           '' 0 reserved, 1 case-insensitive collision
+    as containers.Array( of int32 ) renKind
+    as containers.Array( of int32 ) renWhy           '' 0 reserved, 1 case-insensitive collision
     as Tko.StrVec renC
     as Tko.StrVec renFb
     as Tko.StrVec skipKind
@@ -151,10 +151,10 @@ type CImp
     '' MACROS. The object-like candidates in definition order, and what a C name that this
     '' import declared resolves to -- an alias may only name something that arrived.
     as Tko.StrVec macroNames
-    as containers.Array( of ubyte ) macroSeen       '' exact name id -> 1 once a candidate
+    as containers.Array( of uint8 ) macroSeen       '' exact name id -> 1 once a candidate
     as Tko.StrVec aliasNames                '' every '#define NAME target' written
-    as containers.Array( of long ) seedUndefined    '' seeded USR ids the seed never saw defined
-    as containers.Array( of long ) cDeclUsr          '' exact C-name id -> USR id plus one
+    as containers.Array( of int32 ) seedUndefined    '' seeded USR ids the seed never saw defined
+    as containers.Array( of int32 ) cDeclUsr          '' exact C-name id -> USR id plus one
     '' The parse, kept so macros.tiko can parse again with its probes appended.
     as string     unitText
     as Tko.StrVec args
@@ -168,12 +168,12 @@ declare function NameClaim( byref x as CImp, byval ns as CImpNs, byref cname as 
                             byval rk as CImpRenameKind, byval ledger as boolean = true ) as string
 declare function NameField( byref cname as string, byval isArray as boolean ) as string
 declare function NameParam( byref cname as string ) as string
-declare function UsrId( byref x as CImp, byref usr as string ) as long
-declare function UsrState( byref x as CImp, byval id as long ) as ubyte
-declare sub UsrSet( byref x as CImp, byval id as long, byval bits as ubyte )
-declare function UsrFbName( byref x as CImp, byval id as long ) as string
-declare sub UsrSetName( byref x as CImp, byval id as long, byref fb as string )
-declare function RenameLine( byref x as CImp, byval i as long ) as string
+declare function UsrId( byref x as CImp, byref usr as string ) as int32
+declare function UsrState( byref x as CImp, byval id as int32 ) as uint8
+declare sub UsrSet( byref x as CImp, byval id as int32, byval bits as uint8 )
+declare function UsrFbName( byref x as CImp, byval id as int32 ) as string
+declare sub UsrSetName( byref x as CImp, byval id as int32, byref fb as string )
+declare function RenameLine( byref x as CImp, byval i as int32 ) as string
 declare function NameTaken( byref x as CImp, byref n as string ) as boolean
 
 '' ---- types.tiko
@@ -188,7 +188,7 @@ declare function Unwrap( byref x as CImp, byval t as CXType ) as CXType
 declare sub DeclPassNames( byref x as CImp )
 declare sub DeclPassEmit( byref x as CImp )
 declare sub Skip( byref x as CImp, byref kind as string, byref name_ as string, byref why as string )
-declare sub NoteDecl( byref x as CImp, byref cname as string, byval uid as long )
+declare sub NoteDecl( byref x as CImp, byref cname as string, byval uid as int32 )
 
 '' ---- macros.tiko
 declare sub MacroCandidate( byref x as CImp, byval c as CXCursor )

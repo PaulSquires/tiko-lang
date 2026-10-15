@@ -29,14 +29,14 @@ namespace Tko.Check
 '' flag marks -- where 'as zstring ptr' is a pointer (CR_CHARPTR).
 function CastResultClass _
     ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
-      byval sym as Tko.SymbolId ) as long
+      byval sym as Tko.SymbolId ) as int32
 
     dim as Tko.Symbol ptr s = syms.SymbolAt( sym )
     if (s = 0) orelse (s->type_ = Tko.TYPE_NONE) then return CR_NONE
     dim as boolean byrefRes = false
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if (pn <> Tko.NODE_NONE) andalso (ast.Kind( pn ) = Tko.N_PROC) then
-        byrefRes = ((ast.nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0)
+        byrefRes = ((ast.nodes[cast( int32, pn )].flags and Tko.NF_BYREF) <> 0)
     end if
     dim as Tko.TypeId rt = types.Unqualify( s->type_ )
     if types.Kind( rt ) = Tko.TK_REFERENCE then
@@ -80,7 +80,7 @@ function CastResultClass _
 end function
 
 '' THE SCORE of a cast yielding CLS against TARGET (CT_*): higher is better, 0 no match.
-function StrCastScore( byval target as long, byval cls as long ) as long
+function StrCastScore( byval target as int32, byval cls as int32 ) as int32
     select case target
     case CT_STRING
         select case cls
@@ -118,8 +118,8 @@ end function
 '' number won, which converts to no string). WINCLS is the winner's CR_* class.
 function StrCastPick _
     ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
-      byref names as Tko.Interner, byval udt as Tko.TypeId, byval target as long, _
-      byref outcome as long, byref winCls as long ) as Tko.SymbolId
+      byref names as Tko.Interner, byval udt as Tko.TypeId, byval target as int32, _
+      byref outcome as int32, byref winCls as int32 ) as Tko.SymbolId
 
     outcome = CP_NONE
     winCls = CR_NONE
@@ -128,15 +128,15 @@ function StrCastPick _
     if types.Kind( u ) = Tko.TK_REFERENCE then u = types.Unqualify( types.Inner( u ) )
     if types.Kind( u ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
     dim as Tko.SymbolId best = Tko.SYMBOL_NONE
-    dim as long bestScore = 0, nBest = 0, bestCls = CR_NONE
+    dim as int32 bestScore = 0, nBest = 0, bestCls = CR_NONE
     dim as Tko.SymbolId cur = StructorNamed( syms, types, names, u, "cast" )
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
         if cs = 0 then exit while
-        dim as long cls = CastResultClass( ast, syms, types, cur )
-        dim as long sc = StrCastScore( target, cls )
+        dim as int32 cls = CastResultClass( ast, syms, types, cur )
+        dim as int32 sc = StrCastScore( target, cls )
         if sc > bestScore then
             best = cur : bestScore = sc : nBest = 1 : bestCls = cls
         elseif (sc = bestScore) andalso (sc > 0) then
@@ -166,14 +166,14 @@ end function
 '' 58 for an argument.
 function UdtStrCastFit _
     ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
-      byref names as Tko.Interner, byval udt as Tko.TypeId, byval target as long ) as long
+      byref names as Tko.Interner, byval udt as Tko.TypeId, byval target as int32 ) as int32
 
     if udt = Tko.TYPE_NONE then return -1
     dim as Tko.TypeId u = types.Unqualify( udt )
     if types.Kind( u ) = Tko.TK_REFERENCE then u = types.Unqualify( types.Inner( u ) )
     if types.Kind( u ) <> Tko.TK_UDT then return -1
     if StructorNamed( syms, types, names, u, "cast" ) = Tko.SYMBOL_NONE then return -1
-    dim as long oc, cls
+    dim as int32 oc, cls
     StrCastPick( ast, syms, types, names, u, target, oc, cls )
     select case oc
     case CP_OK        : return 0
@@ -198,11 +198,11 @@ const OVL_U = 1000
 const OVL_FULL = 5 * OVL_U, OVL_TYPE = 4 * OVL_U, OVL_HALF = 3 * OVL_U
 const OVL_CAST = 2 * OVL_U, OVL_CONV = OVL_U, OVL_STRUCTCONV = 333
 
-private function OvlIsPtr_( byval k as long ) as boolean
+private function OvlIsPtr_( byval k as int32 ) as boolean
     return (k = CR_CHARPTR) orelse (k = CR_WCHARPTR) orelse (k = CR_OTHERPTR)
 end function
 
-private function OvlClass_( byval k as long ) as long   '' 1 string, 2 float, 0 integer
+private function OvlClass_( byval k as int32 ) as int32   '' 1 string, 2 float, 0 integer
     select case k
     case CR_STRING, CR_USTRING : return 1
     case CR_FLOAT              : return 2
@@ -211,8 +211,8 @@ private function OvlClass_( byval k as long ) as long   '' 1 string, 2 float, 0 
 end function
 
 '' hCalcTypesDiff( param P, arg A ) over cast-result classes, no expression.
-private function OvlDiff_( byval p as long, byval a as long ) as long
-    dim as long cp = OvlClass_( p ), ca = OvlClass_( a )
+private function OvlDiff_( byval p as int32, byval a as int32 ) as int32
+    dim as int32 cp = OvlClass_( p ), ca = OvlClass_( a )
     if cp = 0 then
         if ca = 0 then
             if p = CR_CHAR then return iif( a = CR_CHAR, OVL_FULL, iif( a = CR_WCHAR, OVL_HALF - 3, 0 ) )
@@ -263,7 +263,7 @@ end function
 function IntrStrOvlPick _
     ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
       byref names as Tko.Interner, byval udt as Tko.TypeId, byval withUStr as boolean, _
-      byref outcome as long, byref outParam as long ) as Tko.SymbolId
+      byref outcome as int32, byref outParam as int32 ) as Tko.SymbolId
 
     outcome = CP_NONE
     outParam = 0
@@ -273,22 +273,22 @@ function IntrStrOvlPick _
     if types.Kind( u ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
     dim as Tko.SymbolId head = StructorNamed( syms, types, names, u, "cast" )
     if head = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
-    dim as long bestM = -999999, nBestM = 0, bestP = 0, bestCls = CR_NONE
+    dim as int32 bestM = -999999, nBestM = 0, bestP = 0, bestCls = CR_NONE
     dim as Tko.SymbolId bestSym = Tko.SYMBOL_NONE
     dim as boolean anyP = false
-    for pi as long = 0 to iif( withUStr, 2, 1 )
-        dim as long pcls = CR_STRING, pct = CT_STRING
+    for pi as int32 = 0 to iif( withUStr, 2, 1 )
+        dim as int32 pcls = CR_STRING, pct = CT_STRING
         if pi = 1 then pcls = CR_WCHAR : pct = CT_WSTRING
         if pi = 2 then pcls = CR_USTRING : pct = CT_USTRING
         '' the cast fbc finds for this parameter
         dim as Tko.SymbolId cur = head, win = Tko.SYMBOL_NONE
-        dim as long winSc = 0, nWin = 0, winCls = CR_NONE, guard = 0
+        dim as int32 winSc = 0, nWin = 0, winCls = CR_NONE, guard = 0
         while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
             guard += 1
             dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
             if cs = 0 then exit while
-            dim as long k = CastResultClass( ast, syms, types, cur )
-            dim as long sc
+            dim as int32 k = CastResultClass( ast, syms, types, cur )
+            dim as int32 sc
             if k = pcls then
                 sc = iif( OvlResConst_( syms, types, cur ), OVL_FULL, OVL_TYPE )
             else
@@ -308,7 +308,7 @@ function IntrStrOvlPick _
         end if
         anyP = true
         '' ...and how well it fits the parameter, as hCheckCastOvlEx remaps it
-        dim as long m = OvlDiff_( pcls, winCls )
+        dim as int32 m = OvlDiff_( pcls, winCls )
         if winCls = pcls then m = OVL_FULL
         if m >= OVL_TYPE then
             m = m - OVL_TYPE + OVL_CAST

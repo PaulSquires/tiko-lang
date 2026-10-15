@@ -28,8 +28,8 @@
 
 namespace Tko
 
-    const PP_MAX_FRAMES     as long = 256    '' expansion + include depth
-    const PP_MAX_CONDS      as long = 128    '' #if nesting
+    const PP_MAX_FRAMES     as int32 = 256    '' expansion + include depth
+    const PP_MAX_CONDS      as int32 = 128    '' #if nesting
 
     '' Builtin macros that are more than a value: they manipulate their argument
     '' tokens and cannot be expressed as a #define.
@@ -99,7 +99,7 @@ namespace Tko
         PPB_SELF
     end enum
 
-    type IdVec as containers.Array( of ulong )
+    type IdVec as containers.Array( of uint32 )
 
     type PpMacro
         as InternId  name
@@ -114,8 +114,8 @@ namespace Tko
         '' scoped table, so a '#define' inside a SUB dies with the SUB -- measured:
         '' the same name defined in two subs is two macros, and one defined in a sub
         '' is 'Variable not declared' at module level afterwards.
-        as long      blockDepth
-        as ubyte     builtin         '' PpBuiltin; 0 for an ordinary macro
+        as int32      blockDepth
+        as uint8     builtin         '' PpBuiltin; 0 for an ordinary macro
         as IdVec     params
         as TokenVec  body
         as SourceLoc loc
@@ -214,7 +214,7 @@ namespace Tko
         '' getting it wrong compiles quietly.
         as boolean    threadSafe
         '' -e / -ex / -exx as a level, for __FB_ERR__.
-        as long       errFlags     '' Options.errFlags: what __FB_ERR__ reports
+        as int32       errFlags     '' Options.errFlags: what __FB_ERR__ reports
         '' '-g', for __FB_DEBUG__: fbc's '#print' gives -1 with the flag and 0 without,
         '' and 'assert' is compiled in exactly when it is -1.
         as boolean    debugInfo
@@ -222,11 +222,11 @@ namespace Tko
         '' executable, 1 a DLL, 2 a static library, 3 an object ('-c'). Measured with
         '' fbc's '#print', exactly one of the four is -1 per build; they were fixed at the
         '' EXE values, so a header that branches on building a DLL took the wrong half.
-        as long       outKind
+        as int32       outKind
         '' -s gui, the -O level, and whether this unit's top-level code becomes 'main':
         '' __FB_GUI__, __FB_OPTIMIZE__ and __FB_MAIN__ (T96).
         as boolean    guiSubsystem
-        as long       optLevel
+        as int32       optLevel
         as boolean    isMainModule
         as any ptr    queryCtx       '' passed back to queryFn
         as any ptr    queryFn        '' PpQueryFn; NULL until Phase 5
@@ -244,9 +244,9 @@ namespace Tko
         '' as they enter, because the per-file pools the lexer produced do not survive
         '' preprocessing -- and the parser needs the payloads.
         as LiteralVec literals
-        as long     includeCount
-        as long     expansionCount
-        as long     maxDepth
+        as int32     includeCount
+        as int32     expansionCount
+        as int32     maxDepth
         '' '#inclib' AND '#libpath', IN SOURCE ORDER. They are the source's half of
         '' the link line -- a program says what it needs to link against, rather than
         '' every caller repeating it on the command line -- and until this they were
@@ -366,7 +366,7 @@ namespace Tko
 
     type PpQueryFn as function _
         ( byval ctx as any ptr, byval kind as PpQueryKind, byval name as InternId, _
-          byref answer as longint ) as boolean
+          byref answer as int64 ) as boolean
 
     type PpStream
         as any ptr engine        '' opaque PpEngine, owned
@@ -382,7 +382,7 @@ namespace Tko
 
     '' Produce tokens until buffer index 'want' exists. False when input is exhausted
     '' before that, in which case the buffer ends with its single TK_EOF.
-    declare function PpEnsure( byref st as PpStream, byval want as long ) as boolean
+    declare function PpEnsure( byref st as PpStream, byval want as int32 ) as boolean
 
     '' WHAT THE PARSER HAS DECLARED, told to the preprocessor as it goes, so that
     '' 'defined( X )' can answer for a declared name and not only for a macro. The
@@ -394,7 +394,7 @@ namespace Tko
     '' the last two by name.
     declare sub PpNoteDeclared _
         ( byref st as PpStream, byval nm as InternId, byval at as SourceLoc = LOC_NONE, _
-          byval kind as long = 1, byval atTop as boolean = true, byval nsPath as string = "" )
+          byval kind as int32 = 1, byval atTop as boolean = true, byval nsPath as string = "" )
     '' A MODULE-LEVEL 'using' of the namespace 'path' (folded, dotted): see NoteUsing_ in
     '' parser/decltype.tiko and TakenName_ in macrotaken.tiko.
     declare sub PpNoteUsing( byref st as PpStream, byval path as string )
@@ -414,21 +414,21 @@ namespace Tko
     const PP_TYPE_MEMBER = 3
     declare sub PpNoteType _
         ( byref st as PpStream, byval nm as InternId, byref key as string, _
-          byval what as long, byval at as SourceLoc = LOC_NONE )
+          byval what as int32, byval at as SourceLoc = LOC_NONE )
     '' A CONST'S VALUE, for '#if' to read -- see PpEngine.constMark.
     declare sub PpNoteConst _
-        ( byref st as PpStream, byval nm as InternId, byval v as longint, _
+        ( byref st as PpStream, byval nm as InternId, byval v as int64, _
           byval at as SourceLoc = LOC_NONE, byval isLocal as boolean = false )
     '' A PROCEDURE BODY OPENS AND CLOSES: what was noted 'isLocal' inside it -- a const's
     '' value, a declared name -- is visible to '#if' until the body ends and then undone,
     '' as fbc's own scope is (pp/if.bas: 'const N1' and 'dim i' inside a TEST).
     declare sub PpProcEnter( byref st as PpStream )
     declare sub PpProcLeave( byref st as PpStream )
-    declare sub PpNoteLocalDeclared( byref st as PpStream, byval nm as InternId, byval kind as long )
+    declare sub PpNoteLocalDeclared( byref st as PpStream, byval nm as InternId, byval kind as int32 )
     '' A STRING CONST'S TEXT, for '#if "abc" = S1' (pp/if.bas) -- pplocal.tiko.
     declare sub PpNoteConstStr( byref st as PpStream, byval nm as InternId, byref txt as string, byval isLocal as boolean )
     declare function PpNotedConst _
-        ( byref st as PpStream, byval nm as InternId, byref outv as longint ) as boolean
+        ( byref st as PpStream, byval nm as InternId, byref outv as int64 ) as boolean
     declare function PpHasDeclared( byref st as PpStream, byval nm as InternId ) as boolean
 
     declare sub PpClose( byref st as PpStream )

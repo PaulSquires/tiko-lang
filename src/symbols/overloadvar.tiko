@@ -19,10 +19,10 @@
 private function TypedVariadicParam_ _
     ( byref c as Ctx, byval pp as Tko.StmtPayload ptr ) as Tko.NodeId
 
-    for i as long = pp->count - 1 to 0 step -1
+    for i as int32 = pp->count - 1 to 0 step -1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
-        if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_VARIADIC) <> 0 then return prm
+        if (c.ast->nodes[cast( int32, prm )].flags and Tko.NF_VARIADIC) <> 0 then return prm
         return Tko.NODE_NONE
     next
     return Tko.NODE_NONE
@@ -33,16 +33,16 @@ end function
 '' whole-array form, never one array among others.
 private function PackedArgCost_ _
     ( byref c as Ctx, byval an as Tko.NodeId, byval prm as Tko.NodeId, _
-      byval at as Tko.TypeId, byval pt as Tko.TypeId, byval overloaded as boolean ) as long
+      byval at as Tko.TypeId, byval pt as Tko.TypeId, byval overloaded as boolean ) as int32
 
     if (at = Tko.TYPE_NONE) orelse (pt = Tko.TYPE_NONE) then return CONV_NONE
     if IsArrayArgShape_( c, an ) then return CONV_NONE
     dim as Tko.TypeId costFrom = at
-    dim as long sw = ConstStrArgWidth_( c, an )
+    dim as int32 sw = ConstStrArgWidth_( c, an )
     if ((sw = 1) orelse (sw = 2)) andalso StrFamilyParam_( c, pt ) then
         costFrom = c.types->Builtin( iif( sw = 2, Tko.TY_WSTRING, Tko.TY_ZSTRING ) )
     end if
-    dim as long cost = ConversionCost( costFrom, pt, *c.types, overloaded )
+    dim as int32 cost = ConversionCost( costFrom, pt, *c.types, overloaded )
     if cost >= CONV_NONE then cost = ArgShapeCost_( c, an, prm, at, pt, UserConvCost_( c, at, pt, 0, overloaded ) )
     return cost
 end function
@@ -51,16 +51,16 @@ end function
 '' -- not CONV_NONE, which five user conversions (5 x CONV_USERDEF) already reach. Without
 '' CONV_EXPANDED, which the caller adds. 'bad' receives the first argument that does not, for the one-candidate report.
 private function PackedArgsCost_ _
-    ( byref c as Ctx, byval prm as Tko.NodeId, byval argFirst as long, byval ai as long, _
-      byref argT as containers.Array( of ulong ), byval overloaded as boolean, _
-      byref bad as Tko.NodeId ) as long
+    ( byref c as Ctx, byval prm as Tko.NodeId, byval argFirst as int32, byval ai as int32, _
+      byref argT as containers.Array( of uint32 ), byval overloaded as boolean, _
+      byref bad as Tko.NodeId ) as int32
 
     bad = Tko.NODE_NONE
     dim as Tko.TypeId pt = c.info->TypeOf_( StmtOf( c, prm )->a )
-    dim as long total = 0
-    for k as long = ai to argT.Count - 1
+    dim as int32 total = 0
+    for k as int32 = ai to argT.Count - 1
         dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[argFirst + k] )
-        dim as long cost = PackedArgCost_( c, an, prm, cast( Tko.TypeId, argT[k] ), pt, overloaded )
+        dim as int32 cost = PackedArgCost_( c, an, prm, cast( Tko.TypeId, argT[k] ), pt, overloaded )
         if cost >= CONV_NONE then
             bad = an
             return -1
@@ -72,7 +72,7 @@ end function
 
 '' IS THIS CALL A SPREAD -- exactly one argument for the variadic, and a whole array?
 private function TypedVariadicSpread_ _
-    ( byref c as Ctx, byval nFixed as long, byval argFirst as long, byval argCount as long ) as boolean
+    ( byref c as Ctx, byval nFixed as int32, byval argFirst as int32, byval argCount as int32 ) as boolean
 
     if argCount <> nFixed + 1 then return false
     return IsArrayArgShape_( c, cast( Tko.NodeId, c.ast->children[argFirst + nFixed] ) )

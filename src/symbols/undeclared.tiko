@@ -49,15 +49,15 @@ end function
 
 '' What the pre-pass marks a node with: 1 to leave it alone, SKIP_PROCPTR to report it
 '' as 'procptr''s operand.
-const SKIP_PROCPTR as ubyte = 2
+const SKIP_PROCPTR as uint8 = 2
 
 '' Mark every node in [lo, hi]. A call is built BOTTOM-UP IN SOURCE ORDER -- its target,
 '' then each argument, then the call node -- so an argument's subtree is exactly the ids
 '' after the previous one's root and up to its own.
-private sub MarkRange_( byref skip as containers.Array( of ubyte ), byval lo as long, byval hi as long )
+private sub MarkRange_( byref skip as containers.Array( of uint8 ), byval lo as int32, byval hi as int32 )
     if lo < 1 then lo = 1
     if hi > skip.Count - 1 then hi = skip.Count - 1
-    for i as long = lo to hi
+    for i as int32 = lo to hi
         skip[i] = 1
     next
 end sub
@@ -67,19 +67,19 @@ private function IdentSpelled_ _
     if n = Tko.NODE_NONE then return ""
     if ast.Kind( n ) <> Tko.N_IDENT then return ""
     return Tko.Text.LowerAscii( names.Spelling( _
-        ast.idents[cast( long, ast.nodes[cast( long, n )].data )].name ) )
+        ast.idents[cast( int32, ast.nodes[cast( int32, n )].data )].name ) )
 end function
 
 '' THE IMPORT A NAME WAS MEANT FOR: '#import "std/strings"' binds 'strings' alone, and
 '' 'std.replace' was a bare TKO0743 with nothing to say why. The first import with a path
 '' segment spelled nm (lower-cased) that is not its alias, as an index into
 '' syms.importPaths, or -1.
-private function ImportSegmentOf_( byref syms as Tko.SymbolTable, byref nm as string ) as long
-    for k as long = 0 to syms.importPaths.Count - 1
+private function ImportSegmentOf_( byref syms as Tko.SymbolTable, byref nm as string ) as int32
+    for k as int32 = 0 to syms.importPaths.Count - 1
         dim as string p = Tko.Text.LowerAscii( syms.importPaths[k] ) & "/"
-        dim as long st = 1
+        dim as int32 st = 1
         do
-            dim as long sl = instr( st, p, "/" )
+            dim as int32 sl = instr( st, p, "/" )
             if sl = 0 then exit do
             dim as string seg = mid( p, st, sl - st )
             if (seg = nm) andalso (seg <> syms.importAliases[k]) then return k
@@ -91,18 +91,18 @@ end function
 
 '' AN ALIAS ANOTHER FILE OF THE MODULE IMPORTED (M22): the index of that import in
 '' syms.importAliases, or -1. Only a unit whose aliases are per file has any.
-private function ImportedElsewhere_( byref syms as Tko.SymbolTable, byref nm as string ) as long
+private function ImportedElsewhere_( byref syms as Tko.SymbolTable, byref nm as string ) as int32
     if syms.aliasPairSym.Count = 0 then return -1
-    for k as long = 0 to syms.importAliases.Count - 1
+    for k as int32 = 0 to syms.importAliases.Count - 1
         if syms.importAliases[k] = nm then return k
     next
     return -1
 end function
 
 '' The construct a SPAWN or SELECT qualifier node was built for (ast.tasksQual), or -1.
-private function TasksQualOf_( byref ast as Tko.AstArena, byval id as Tko.NodeId ) as long
-    for k as long = 0 to ast.tasksQual.Count - 2 step 2
-        if ast.tasksQual[k] = cast( ulong, id ) then return cast( long, ast.tasksQual[k + 1] )
+private function TasksQualOf_( byref ast as Tko.AstArena, byval id as Tko.NodeId ) as int32
+    for k as int32 = 0 to ast.tasksQual.Count - 2 step 2
+        if ast.tasksQual[k] = cast( uint32, id ) then return cast( int32, ast.tasksQual[k + 1] )
     next
     return -1
 end function
@@ -111,21 +111,21 @@ sub ReportUndeclared _
     ( byref ast as Tko.AstArena, byref names as Tko.Interner, _
       byref src as Tko.SourceManager, byref diags as Tko.DiagnosticEngine, _
       byref info as Tko.SemanticInfo, byref rst as Tko.Resolve.Stats, _
-      byref reserved as containers.Array( of ulong ), byref syms as Tko.SymbolTable, _
+      byref reserved as containers.Array( of uint32 ), byref syms as Tko.SymbolTable, _
       byval isRtl as RtlNameFn )
 
-    dim as long total = ast.Count( )
-    dim as containers.Array( of ubyte ) skip
-    for i as long = 0 to total
+    dim as int32 total = ast.Count( )
+    dim as containers.Array( of uint8 ) skip
+    for i as int32 = 0 to total
         skip.Push( 0 )
     next
     dim as boolean tasksSaid = false
     '' '#assert' LINES, as file and line pairs.
-    dim as containers.Array( of ulong ) ppAssert
+    dim as containers.Array( of uint32 ) ppAssert
     '' Every generic type's parameters, as file, header line and folded name -- see N_TYPE.
-    dim as containers.Array( of ulong ) genHdr
+    dim as containers.Array( of uint32 ) genHdr
 
-    for i as long = 1 to total
+    for i as int32 = 1 to total
         dim as Tko.NodeId n = cast( Tko.NodeId, i )
         if ast.Kind( n ) = Tko.N_TYPE then
             '' A GENERIC TYPE'S BASE CLAUSE NAMES ITS OWN PARAMETERS -- 'type D( of T ) extends
@@ -133,48 +133,48 @@ sub ReportUndeclared _
             '' says T is a parameter. fb/comptr.bi's ComQIPtr is that line, and every com
             '' suite includes it. By LOCATION, because an instantiation re-parses the type:
             '' the reference reported is a fresh node, but on the same header line.
-            dim as Tko.StmtPayload ptr gtp = @ast.stmts[cast( long, ast.nodes[i].data )]
+            dim as Tko.StmtPayload ptr gtp = @ast.stmts[cast( int32, ast.nodes[i].data )]
             if (gtp->b <> Tko.NODE_NONE) andalso (ast.Kind( gtp->b ) = Tko.N_BLOCK) then
-                dim as Tko.ListPayload ptr gpl = @ast.lists[cast( long, ast.nodes[cast( long, gtp->b )].data )]
+                dim as Tko.ListPayload ptr gpl = @ast.lists[cast( int32, ast.nodes[cast( int32, gtp->b )].data )]
                 dim as Tko.DecodedLoc hl = src.Decode( ast.Loc( n ) )
-                for k as long = 0 to gpl->count - 1
+                for k as int32 = 0 to gpl->count - 1
                     dim as Tko.NodeId pn = cast( Tko.NodeId, ast.children[gpl->first + k] )
                     if ast.Kind( pn ) = Tko.N_IDENT then
-                        genHdr.Push( cast( ulong, hl.file ) ) : genHdr.Push( cast( ulong, hl.physLine ) )
-                        genHdr.Push( cast( ulong, names.Fold( ast.idents[cast( long, ast.nodes[cast( long, pn )].data )].name ) ) )
+                        genHdr.Push( cast( uint32, hl.file ) ) : genHdr.Push( cast( uint32, hl.physLine ) )
+                        genHdr.Push( cast( uint32, names.Fold( ast.idents[cast( int32, ast.nodes[cast( int32, pn )].data )].name ) ) )
                     end if
                 next
             end if
         end if
         select case ast.Kind( n )
         case Tko.N_PARAM
-            dim as Tko.NodeId d = ast.stmts[cast( long, ast.nodes[i].data )].b
-            if (d > 0) andalso (cast( long, d ) <= total) then skip[cast( long, d )] = 1
+            dim as Tko.NodeId d = ast.stmts[cast( int32, ast.nodes[i].data )].b
+            if (d > 0) andalso (cast( int32, d ) <= total) then skip[cast( int32, d )] = 1
         case Tko.N_TYPE, Tko.N_PROC
             '' A generic's parameter list, '( of T, U )': in 'b' on a type, 'c' on a
             '' procedure. Each name DECLARES a parameter.
-            dim as Tko.StmtPayload ptr sp = @ast.stmts[cast( long, ast.nodes[i].data )]
+            dim as Tko.StmtPayload ptr sp = @ast.stmts[cast( int32, ast.nodes[i].data )]
             dim as Tko.NodeId pl = iif( ast.Kind( n ) = Tko.N_TYPE, sp->b, sp->c )
             if pl <> Tko.NODE_NONE then
                 if ast.Kind( pl ) = Tko.N_BLOCK then
-                    dim as Tko.ListPayload ptr lp = @ast.lists[cast( long, ast.nodes[cast( long, pl )].data )]
-                    for k as long = 0 to lp->count - 1
-                        skip[cast( long, ast.children[lp->first + k] )] = 1
+                    dim as Tko.ListPayload ptr lp = @ast.lists[cast( int32, ast.nodes[cast( int32, pl )].data )]
+                    for k as int32 = 0 to lp->count - 1
+                        skip[cast( int32, ast.children[lp->first + k] )] = 1
                     next
                 end if
             end if
         case Tko.N_CALL
-            dim as Tko.ListPayload ptr cp = @ast.lists[cast( long, ast.nodes[i].data )]
+            dim as Tko.ListPayload ptr cp = @ast.lists[cast( int32, ast.nodes[i].data )]
             dim as string cn = IdentSpelled_( ast, names, cp->target )
             if (cn = "assert") orelse (cn = "assertwarn") then
-                MarkRange_( skip, cast( long, cp->target ), i )
+                MarkRange_( skip, cast( int32, cp->target ), i )
             elseif (cn = "offsetof") andalso (cp->count >= 2) then
-                MarkRange_( skip, cast( long, ast.children[cp->first] ) + 1, _
-                            cast( long, ast.children[cp->first + cp->count - 1] ) )
+                MarkRange_( skip, cast( int32, ast.children[cp->first] ) + 1, _
+                            cast( int32, ast.children[cp->first + cp->count - 1] ) )
             elseif (cn = "procptr") andalso (cp->count >= 1) then
                 '' 'procptr( zz )' is fbc's error 8, "Undefined symbol", not 42.
                 dim as Tko.NodeId pa = cast( Tko.NodeId, ast.children[cp->first] )
-                if ast.Kind( pa ) = Tko.N_IDENT then skip[cast( long, pa )] = SKIP_PROCPTR
+                if ast.Kind( pa ) = Tko.N_IDENT then skip[cast( int32, pa )] = SKIP_PROCPTR
                 '' ...AND ONE THAT BINDS HAS TO BIND A PROCEDURE. Measured: 'procptr( v )'
                 '' over a variable, a procedure-pointer variable, a CONST, an enum
                 '' constant, a TYPE or a namespace's variable is fbc's error 24, and over a
@@ -188,7 +188,7 @@ sub ReportUndeclared _
                 case Tko.N_IDENT, Tko.N_MEMBER
                     dim as Tko.Symbol ptr ps = syms.SymbolAt( info.RefOf( pa ) )
                     if ps <> 0 then
-                        if ps->kind <> cast( ubyte, Tko.SYM_PROC ) then
+                        if ps->kind <> cast( uint8, Tko.SYM_PROC ) then
                             diags.Report( Tko.TKO0785, Tko.PointRange( ast.Loc( pa ) ), _
                                           names.Spelling( ps->name ) )
                         end if
@@ -197,11 +197,11 @@ sub ReportUndeclared _
                         '' Only with no second argument -- 'procptr( T.m, virtual )' and a
                         '' signature that selected nothing are Check's to leave unbound.
                         dim as Tko.BinaryPayload ptr mb = _
-                            @ast.binaries[cast( long, ast.nodes[cast( long, pa )].data )]
+                            @ast.binaries[cast( int32, ast.nodes[cast( int32, pa )].data )]
                         dim as Tko.Symbol ptr ts = syms.SymbolAt( info.RefOf( mb->lhs ) )
                         dim as string mn = IdentSpelled_( ast, names, mb->rhs )
                         if (ts <> 0) andalso (len( mn ) > 0) then
-                            if ts->kind = cast( ubyte, Tko.SYM_UDT ) then
+                            if ts->kind = cast( uint8, Tko.SYM_UDT ) then
                                 diags.Report( Tko.TKO0739, Tko.PointRange( ast.Loc( pa ) ), _
                                               names.Spelling( ts->name ), mn )
                             end if
@@ -211,17 +211,17 @@ sub ReportUndeclared _
             end if
         case Tko.N_AMBIGUOUS
             '' The PAREN-LESS call statement, 'assert x = 1': 'a' is the callee.
-            dim as Tko.StmtPayload ptr ap = @ast.stmts[cast( long, ast.nodes[i].data )]
+            dim as Tko.StmtPayload ptr ap = @ast.stmts[cast( int32, ast.nodes[i].data )]
             dim as string an = IdentSpelled_( ast, names, ap->a )
             if (ap->op = 0) andalso ((an = "assert") orelse (an = "assertwarn")) then
-                MarkRange_( skip, cast( long, ap->a ), i )
+                MarkRange_( skip, cast( int32, ap->a ), i )
             end if
         case Tko.N_INTRINSIC
-            dim as Tko.StmtPayload ptr op = @ast.stmts[cast( long, ast.nodes[i].data )]
-            if op->op = cast( ushort, Tko.KW_OPEN ) then
+            dim as Tko.StmtPayload ptr op = @ast.stmts[cast( int32, ast.nodes[i].data )]
+            if op->op = cast( uint16, Tko.KW_OPEN ) then
                 select case IdentSpelled_( ast, names, op->a )
                 case "cons", "err", "scrn", "pipe", "lpt", "com"
-                    skip[cast( long, op->a )] = 1
+                    skip[cast( int32, op->a )] = 1
                 end select
             end if
         case Tko.N_TYPEDEF
@@ -231,39 +231,39 @@ sub ReportUndeclared _
             '' target, 'type X as FB.Foo' or 'as FB.Array( of Cell )', is fbc's error 3.
             '' Measured: in every other position an undeclared name is an error -- a DIM, a
             '' field, a parameter, a result, an EXTERN, a local -- pointer or not.
-            dim as Tko.NodeId ta = ast.stmts[cast( long, ast.nodes[i].data )].a
+            dim as Tko.NodeId ta = ast.stmts[cast( int32, ast.nodes[i].data )].a
             '' ...through its 'ptr' and 'const' wrappers, each a nameless typeref around it.
-            for wd as long = 1 to 16
-                if (ta < 1) orelse (cast( long, ta ) > total) then exit for
+            for wd as int32 = 1 to 16
+                if (ta < 1) orelse (cast( int32, ta ) > total) then exit for
                 if ast.Kind( ta ) <> Tko.N_TYPEREF then exit for
-                if ast.stmts[cast( long, ast.nodes[cast( long, ta )].data )].name <> Tko.INTERN_NONE then exit for
-                ta = ast.stmts[cast( long, ast.nodes[cast( long, ta )].data )].a
+                if ast.stmts[cast( int32, ast.nodes[cast( int32, ta )].data )].name <> Tko.INTERN_NONE then exit for
+                ta = ast.stmts[cast( int32, ast.nodes[cast( int32, ta )].data )].a
             next
-            if (ta > 0) andalso (cast( long, ta ) <= total) then
+            if (ta > 0) andalso (cast( int32, ta ) <= total) then
                 if ast.Kind( ta ) = Tko.N_TYPEREF then
-                    dim as Tko.StmtPayload ptr tap = @ast.stmts[cast( long, ast.nodes[cast( long, ta )].data )]
-                    if (tap->ownerName = Tko.INTERN_NONE) andalso (tap->count = 0) then skip[cast( long, ta )] = 1
+                    dim as Tko.StmtPayload ptr tap = @ast.stmts[cast( int32, ast.nodes[cast( int32, ta )].data )]
+                    if (tap->ownerName = Tko.INTERN_NONE) andalso (tap->count = 0) then skip[cast( int32, ta )] = 1
                 end if
             end if
         case Tko.N_ASSERT
             dim as Tko.DecodedLoc al = src.Decode( ast.Loc( n ) )
-            ppAssert.Push( cast( ulong, al.file ) )
-            ppAssert.Push( cast( ulong, al.physLine ) )
+            ppAssert.Push( cast( uint32, al.file ) )
+            ppAssert.Push( cast( uint32, al.physLine ) )
         end select
     next
 
     '' Every line reported, as file and line pairs -- an instantiation's body is walked
     '' apart from the rest and would otherwise name its line again.
-    dim as containers.Array( of ulong ) done
-    for i as long = 0 to rst.unresolvedIds.Count - 1
+    dim as containers.Array( of uint32 ) done
+    for i as int32 = 0 to rst.unresolvedIds.Count - 1
         dim as Tko.NodeId id = cast( Tko.NodeId, rst.unresolvedIds[i] )
-        if (id < 1) orelse (cast( long, id ) > total) then continue for
-        if skip[cast( long, id )] = 1 then continue for
+        if (id < 1) orelse (cast( int32, id ) > total) then continue for
+        if skip[cast( int32, id )] = 1 then continue for
         if info.RefOf( id ) <> Tko.SYMBOL_NONE then continue for
         if info.TypeOf_( id ) <> Tko.TYPE_NONE then continue for
-        dim as Tko.InternId rawNm = ast.idents[cast( long, ast.nodes[cast( long, id )].data )].name
+        dim as Tko.InternId rawNm = ast.idents[cast( int32, ast.nodes[cast( int32, id )].data )].name
         dim as boolean isReserved = false
-        for k as long = 0 to reserved.Count - 1
+        for k as int32 = 0 to reserved.Count - 1
             if cast( Tko.InternId, reserved[k] ) = rawNm then isReserved = true
         next
         if isReserved then continue for
@@ -282,7 +282,7 @@ sub ReportUndeclared _
         end if
         '' THE 'FB' A SPAWN OR A SELECT WAS GIVEN, unresolved: std/tasks is not imported, and
         '' there is no stand-in FB.Spawn either. TKO0423 says what is missing, once a unit.
-        dim as long tq = TasksQualOf_( ast, id )
+        dim as int32 tq = TasksQualOf_( ast, id )
         if tq >= 0 then
             if tasksSaid = false then
                 tasksSaid = true
@@ -292,19 +292,19 @@ sub ReportUndeclared _
         end if
         dim as Tko.DecodedLoc dl = src.Decode( ast.Loc( id ) )
         dim as boolean seen = false
-        for k as long = 0 to ppAssert.Count - 2 step 2
-            if (ppAssert[k] = cast( ulong, dl.file )) andalso _
-               (ppAssert[k + 1] = cast( ulong, dl.physLine )) then seen = true
+        for k as int32 = 0 to ppAssert.Count - 2 step 2
+            if (ppAssert[k] = cast( uint32, dl.file )) andalso _
+               (ppAssert[k + 1] = cast( uint32, dl.physLine )) then seen = true
         next
-        for k as long = 0 to done.Count - 2 step 2
-            if (done[k] = cast( ulong, dl.file )) andalso _
-               (done[k + 1] = cast( ulong, dl.physLine )) then seen = true
+        for k as int32 = 0 to done.Count - 2 step 2
+            if (done[k] = cast( uint32, dl.file )) andalso _
+               (done[k + 1] = cast( uint32, dl.physLine )) then seen = true
         next
         if seen then continue for
-        done.Push( cast( ulong, dl.file ) )
-        done.Push( cast( ulong, dl.physLine ) )
+        done.Push( cast( uint32, dl.file ) )
+        done.Push( cast( uint32, dl.physLine ) )
         dim as Tko.DiagId d = Tko.TKO0743
-        if skip[cast( long, id )] = SKIP_PROCPTR then d = Tko.TKO0783
+        if skip[cast( int32, id )] = SKIP_PROCPTR then d = Tko.TKO0783
         dim as string modOf = syms.HiddenModuleOf( rawNm )
         if len( modOf ) > 0 then
             diags.Report( Tko.TKO0860, Tko.PointRange( ast.Loc( id ) ), names.Spelling( rawNm ), modOf )
@@ -312,7 +312,7 @@ sub ReportUndeclared _
         end if
         diags.Report( d, Tko.PointRange( ast.Loc( id ) ), names.Spelling( rawNm ) )
         if d = Tko.TKO0743 then
-            dim as long ik = ImportSegmentOf_( syms, nm )
+            dim as int32 ik = ImportSegmentOf_( syms, nm )
             if ik >= 0 then
                 diags.AddNote( Tko.TKO0907, Tko.PointRange( cast( Tko.SourceLoc, syms.importLocs[ik] ) ), _
                                syms.importAliases[ik], syms.importPaths[ik] )
@@ -323,8 +323,8 @@ sub ReportUndeclared _
                                syms.importAliases[ik] )
             end if
             '' 'len( NS.F( ) )': fbc's 42 too, which says nothing of why (2026-10-11).
-            for each dn as ulong in rst.droppedNsIds
-                if dn <> cast( ulong, id ) then continue for
+            for each dn as uint32 in rst.droppedNsIds
+                if dn <> cast( uint32, id ) then continue for
                 diags.AddNote( Tko.TKO0900, Tko.PointRange( ast.Loc( id ) ), _
                     "inside len, sizeof and typeof a qualified name may begin a type, so the " & _
                     "qualifier is dropped from a procedure and '" & nm & "' is looked up unqualified, " & _
@@ -341,22 +341,22 @@ sub ReportUndeclared _
     '' its lookup gives up, outside a template; it is reported only if nothing has typed
     '' it by now, never from the prelude, once per line, and not beside a name already
     '' reported on that line.
-    for i as long = 0 to rst.unresolvedTypes.Count - 1
+    for i as int32 = 0 to rst.unresolvedTypes.Count - 1
         dim as Tko.NodeId id = cast( Tko.NodeId, rst.unresolvedTypes[i] )
-        if (id < 1) orelse (cast( long, id ) > total) then continue for
-        if skip[cast( long, id )] = 1 then continue for
+        if (id < 1) orelse (cast( int32, id ) > total) then continue for
+        if skip[cast( int32, id )] = 1 then continue for
         if ast.Kind( id ) <> Tko.N_TYPEREF then continue for
         if info.TypeOf_( id ) <> Tko.TYPE_NONE then continue for
         if info.RefOf( id ) <> Tko.SYMBOL_NONE then continue for
         if src.IsBuiltin( ast.Loc( id ) ) then continue for
-        dim as Tko.StmtPayload ptr tp = @ast.stmts[cast( long, ast.nodes[cast( long, id )].data )]
+        dim as Tko.StmtPayload ptr tp = @ast.stmts[cast( int32, ast.nodes[cast( int32, id )].data )]
         if tp->name = Tko.INTERN_NONE then continue for
         dim as string tn = names.Spelling( tp->name )
         '' A NAME THE COMPILER MADE is never the user's to have declared: a lambda's closure
         '' type, '__tko_closure_...', is what an unsupported capture leaves behind.
         if left( lcase( tn ), 6 ) = "__tko_" then continue for
         '' ...and nor is a SELECT's context type when std/tasks is not imported: TKO0423.
-        dim as long tqt = TasksQualOf_( ast, id )
+        dim as int32 tqt = TasksQualOf_( ast, id )
         if tqt >= 0 then
             if tasksSaid = false then
                 tasksSaid = true
@@ -368,23 +368,23 @@ sub ReportUndeclared _
         dim as Tko.DecodedLoc dl = src.Decode( ast.Loc( id ) )
         dim as boolean seen = false
         if tp->ownerName = Tko.INTERN_NONE then
-            dim as ulong fnm = cast( ulong, names.Fold( tp->name ) )
-            for k as long = 0 to genHdr.Count - 3 step 3
-                if (genHdr[k] = cast( ulong, dl.file )) andalso (genHdr[k + 1] = cast( ulong, dl.physLine )) _
+            dim as uint32 fnm = cast( uint32, names.Fold( tp->name ) )
+            for k as int32 = 0 to genHdr.Count - 3 step 3
+                if (genHdr[k] = cast( uint32, dl.file )) andalso (genHdr[k + 1] = cast( uint32, dl.physLine )) _
                    andalso (genHdr[k + 2] = fnm) then seen = true
             next
         end if
-        for k as long = 0 to done.Count - 2 step 2
-            if (done[k] = cast( ulong, dl.file )) andalso _
-               (done[k + 1] = cast( ulong, dl.physLine )) then seen = true
+        for k as int32 = 0 to done.Count - 2 step 2
+            if (done[k] = cast( uint32, dl.file )) andalso _
+               (done[k + 1] = cast( uint32, dl.physLine )) then seen = true
         next
         if seen then continue for
-        done.Push( cast( ulong, dl.file ) )
-        done.Push( cast( ulong, dl.physLine ) )
+        done.Push( cast( uint32, dl.file ) )
+        done.Push( cast( uint32, dl.physLine ) )
         diags.Report( Tko.TKO0808, Tko.PointRange( ast.Loc( id ) ), tn )
-        dim as long dot = instr( tn, "." )
+        dim as int32 dot = instr( tn, "." )
         if dot > 1 then
-            dim as long ik = ImportedElsewhere_( syms, Tko.Text.LowerAscii( left( tn, dot - 1 ) ) )
+            dim as int32 ik = ImportedElsewhere_( syms, Tko.Text.LowerAscii( left( tn, dot - 1 ) ) )
             if ik >= 0 then
                 diags.AddNote( Tko.TKO0940, Tko.PointRange( cast( Tko.SourceLoc, syms.importLocs[ik] ) ), _
                                syms.importAliases[ik] )

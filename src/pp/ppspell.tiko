@@ -11,11 +11,11 @@
 '' RelexInto records either against (loc, kind, id); the newest entry wins, so two pastes at one
 '' use site that differ only in case or spacing read the second's -- the one place this is
 '' still wrong. -1 when nothing was recorded.
-private function PasteNoteOf_( byref e as PpEngine, byref t as Token, byval wantGap as boolean ) as long
+private function PasteNoteOf_( byref e as PpEngine, byref t as Token, byval wantGap as boolean ) as int32
     if (t.flags and TF_SYNTHESISED) = 0 then return -1
-    for i as long = e.pasteLoc.Count - 1 to 0 step -1
-        if (e.pasteLoc[i] = cast( ulong, t.loc )) andalso (e.pasteId[i] = cast( ulong, t.literal )) andalso _
-           (e.pasteKind[i] = cast( ulong, t.kind )) then
+    for i as int32 = e.pasteLoc.Count - 1 to 0 step -1
+        if (e.pasteLoc[i] = cast( uint32, t.loc )) andalso (e.pasteId[i] = cast( uint32, t.literal )) andalso _
+           (e.pasteKind[i] = cast( uint32, t.kind )) then
             '' The newest entry that HAS the answer: a speculative join's re-lex ('Y' against
             '' ')', ppjoin.tiko) notes the same token again with no gap of its own.
             if len( iif( wantGap, e.pasteGap[i], e.pasteText[i] ) ) > 0 then return i
@@ -25,7 +25,7 @@ private function PasteNoteOf_( byref e as PpEngine, byref t as Token, byval want
 end function
 
 private function SpellOf( byref e as PpEngine, byref t as Token ) as string
-    dim as long ni = iif( Tk( t ) = TK_IDENT, PasteNoteOf_( e, t, false ), -1 )
+    dim as int32 ni = iif( Tk( t ) = TK_IDENT, PasteNoteOf_( e, t, false ), -1 )
     if (ni >= 0) andalso (len( e.pasteText[ni] ) > 0) then return e.pasteText[ni]
     return PpSpell( *e.src, *e.names, *e.lits, t )
 end function
@@ -36,15 +36,15 @@ end function
 sub MergeLiterals _
     ( byref e as PpEngine, byref toks as TokenVec, byref from as LiteralVec )
 
-    for i as long = 0 to toks.Count - 1
+    for i as int32 = 0 to toks.Count - 1
         dim as TokenKind k = cast( TokenKind, toks[i].kind )
         dim as boolean isLit = (k = TK_INT_LIT) orelse (k = TK_FLOAT_LIT) orelse _
                                (k = TK_STRING_LIT)
         if isLit = false then continue for
-        dim as long idx = cast( long, toks[i].literal )
+        dim as int32 idx = cast( int32, toks[i].literal )
         if idx >= from.Count then continue for
         (*e.lits).Push( from[idx] )
-        toks[i].literal = cast( ulong, (*e.lits).Count - 1 )
+        toks[i].literal = cast( uint32, (*e.lits).Count - 1 )
     next
 end sub
 
@@ -57,7 +57,7 @@ private sub RelexInto _
     dim as Lex.Result r
     Lex.Run( *e.src, vf, *e.names, *e.kw, *e.diags, r )
     MergeLiterals( e, r.tokens, r.literals )
-    for i as long = 0 to r.tokens.Count - 1
+    for i as int32 = 0 to r.tokens.Count - 1
         dim as Token t = r.tokens[i]
         if Tk( t ) = TK_EOF then exit for
         if Tk( t ) = TK_EOL then continue for
@@ -75,12 +75,12 @@ private sub RelexInto _
         '' produced correctly and then read back as whatever byte sat at the use site.
         dim as boolean isNum = (Tk( t ) = TK_INT_LIT) orelse (Tk( t ) = TK_FLOAT_LIT)
         if isNum andalso (t.length > 0) then
-            dim as long li = cast( long, t.literal )
+            dim as int32 li = cast( int32, t.literal )
             if (li >= 0) andalso (li < (*e.lits).Count) then
                 dim as Literal ptr lp = @(*e.lits)[li]
                 if lp->textLength = 0 then
                     dim as DecodedLoc nd = e.src->Decode( t.loc )
-                    lp->textFile = cast( long, nd.file )
+                    lp->textFile = cast( int32, nd.file )
                     lp->textOffset = nd.offset
                     lp->textLength = t.length
                 end if
@@ -101,7 +101,7 @@ private sub RelexInto _
                 if sp = e.names->Spelling( cast( InternId, t.literal ) ) then sp = ""
             end if
             if (idf <> 0) andalso ((t.flags and TF_SPACE_BEFORE) <> 0) then
-                dim as long k = id_.offset
+                dim as int32 k = id_.offset
                 while (k > 0) andalso ((idf->text[k - 1] = 32) orelse (idf->text[k - 1] = 9))
                     k -= 1
                 wend
@@ -111,8 +111,8 @@ private sub RelexInto _
                 end if
             end if
             if (len( sp ) > 0) orelse (len( gp ) > 0) then
-                e.pasteLoc.Push( cast( ulong, at ) ) : e.pasteId.Push( cast( ulong, t.literal ) )
-                e.pasteKind.Push( cast( ulong, t.kind ) ) : e.pasteText.Push( sp ) : e.pasteGap.Push( gp )
+                e.pasteLoc.Push( cast( uint32, at ) ) : e.pasteId.Push( cast( uint32, t.literal ) )
+                e.pasteKind.Push( cast( uint32, t.kind ) ) : e.pasteText.Push( sp ) : e.pasteGap.Push( gp )
             end if
             t.loc = at
         end if
@@ -150,13 +150,13 @@ private function ApostArgText_( byref e as PpEngine ) as boolean
     if (pd.file <> ed.file) orelse (pd.file = FILE_NONE) then return false
     dim as SourceFile ptr sf = e.src->FileAt( ed.file )
     if sf = 0 then return false
-    dim as long k = pd.offset + cast( long, prev.length )
-    dim as long gapAt = k
+    dim as int32 k = pd.offset + cast( int32, prev.length )
+    dim as int32 gapAt = k
     while (k < ed.offset) andalso ((sf->text[k] = 32) orelse (sf->text[k] = 9))
         k += 1
     wend
     if (k >= ed.offset) orelse (sf->text[k] <> 39) then return false
-    dim as long n = ed.offset - k
+    dim as int32 n = ed.offset - k
     if (n > 0) andalso (sf->text[k + n - 1] = 13) then n -= 1
     if n <= 0 then return false
     e.apostEolAt = eol.loc
@@ -167,13 +167,13 @@ private function ApostArgText_( byref e as PpEngine ) as boolean
     Lex.Run( *e.src, vf, *e.names, *e.kw, *e.diags, r, true )
     MergeLiterals( e, r.tokens, r.literals )
     dim as TokenVec ptr tv = new TokenVec
-    for i as long = 0 to r.tokens.Count - 1
+    for i as int32 = 0 to r.tokens.Count - 1
         dim as Token t = r.tokens[i]
         if (Tk( t ) = TK_EOF) orelse (Tk( t ) = TK_EOL) then continue for
         t.flags and= not TF_AT_LINE_START
         '' AT ITS PLACE IN THE REAL LINE -- the text is the same, so a span reads the same, and a
         '' diagnostic names the line that was written rather than the buffer.
-        dim as long vo = e.src->Decode( t.loc ).offset
+        dim as int32 vo = e.src->Decode( t.loc ).offset
         t.loc = e.src->LocFor( ed.file, k + vo )
         '' EVERY "'" -- a comment again once it reaches a statement (EmitTok, pp.tiko)
         if (Tk( t ) = TK_INVALID) andalso (raw[vo] = 39) then t.flags or= TF_APOST_TEXT

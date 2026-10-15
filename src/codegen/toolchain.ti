@@ -60,7 +60,7 @@ namespace Tko.Codegen
         '' '-O<n>': handed to clang when the IR is compiled. It was parsed into DriverOptions
         '' and read by nothing, so '-O2' produced a byte-identical executable to '-O0' --
         '' measured over the whole of tiko-lang. 0 passes no flag at all.
-        as long optLevel
+        as int32 optLevel
         '' Build a DLL rather than an executable, and where to write the import
         '' library that goes with it.
         as boolean buildDll
@@ -85,20 +85,20 @@ namespace Tko.Codegen
     '' reporting rather than a file to ignore.
     declare function CompileRc _
         ( byref t as ToolPaths, byref rcPath as string, _
-          byref resPath as string ) as long
+          byref resPath as string ) as int32
 
     '' OBJECTS TO A STATIC LIBRARY -- fbc's '-lib'. No link runs: an archive is not
     '' linked, it is collected, and every unresolved symbol in it stays unresolved
     '' until something links against it.
     declare function ArchiveLib _
         ( byref t as ToolPaths, byref objs as Tko.StrVec, _
-          byref outPath as string ) as long
+          byref outPath as string ) as int32
 
     '' '.ll' to '.o'. Returns the process exit code; 0 is success.
     declare function CompileIr _
         ( byref t as ToolPaths, byref target as TargetDescription, _
           byref irPath as string, byref objPath as string, _
-          byval keepTemps as boolean ) as long
+          byval keepTemps as boolean ) as int32
     '' CompileIr's command, started and not waited for: the caller waits (Spawn.Wait), then
     '' deletes the '.ll' and checks the object.
     declare function StartCompileIr _
@@ -109,20 +109,20 @@ namespace Tko.Codegen
     declare function CompileIrAsm _
         ( byref t as ToolPaths, byref target as TargetDescription, _
           byref irPath as string, byref asmPath as string, _
-          byval keepTemps as boolean ) as long
+          byval keepTemps as boolean ) as int32
 
     '' ObjectS to an executable -- plural, and it always was in this comment.
     '' It took ONE path until 2026-09-04, which is why a program could never be
     '' built from more than one module.
     declare function LinkExe _
         ( byref t as ToolPaths, byref target as TargetDescription, _
-          byref objs as Tko.StrVec, byref outPath as string ) as long
+          byref objs as Tko.StrVec, byref outPath as string ) as int32
 
     '' An import library 'outLib' from the .def 'defFile', for the DLL the .def names in its
     '' LIBRARY line: llvm-dlltool, x86-64. 0, or the tool's exit code; -1 when there is no
     '' llvm-dlltool beside clang.
     declare function MakeImportLib _
-        ( byref t as ToolPaths, byref defFile as string, byref outLib as string ) as long
+        ( byref t as ToolPaths, byref defFile as string, byref outLib as string ) as int32
 
 end namespace
 

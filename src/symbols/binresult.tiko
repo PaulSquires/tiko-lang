@@ -243,7 +243,7 @@ function IifResult _
                 if (ab = Tko.TY_DOUBLE) orelse (bb = Tko.TY_DOUBLE) then return types.Builtin( Tko.TY_DOUBLE )
                 return types.Builtin( Tko.TY_SINGLE )
             end if
-            dim as long sa = types.Layout( a ).size, sb = types.Layout( b ).size
+            dim as int32 sa = types.Layout( a ).size, sb = types.Layout( b ).size
             if sa > sb then return a
             if sb > sa then return b
             if IsUnsignedInt_( bb ) andalso (IsUnsignedInt_( ab ) = false) then return b

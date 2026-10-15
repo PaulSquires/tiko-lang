@@ -38,7 +38,7 @@ namespace Tko.Mir
 '' of those is bytes rather than a descriptor: zeroing it or handing it to fb_StrDelete
 '' would be releasing something that was never allocated. Kind 0 is the var-length one.
 declare function StrSwapKind_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as int64 ) as int32
 
 private function IsObjectT_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     if t = Tko.TYPE_NONE then return false
@@ -58,7 +58,7 @@ private function ImplBaseOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.Typ
     if bf = Tko.SYMBOL_NONE then return Tko.TYPE_NONE
     dim as Tko.Symbol ptr b = c.syms->SymbolAt( bf )
     if b = 0 then return Tko.TYPE_NONE
-    if b->kind <> cast( ubyte, Tko.SYM_FIELD ) then return Tko.TYPE_NONE
+    if b->kind <> cast( uint8, Tko.SYM_FIELD ) then return Tko.TYPE_NONE
     return b->type_
 end function
 
@@ -121,12 +121,12 @@ function TypeNeedsInit_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
     if sc = 0 then return false
     dim as Tko.SymbolId cur = sc->firstSym
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
         if f = 0 then exit while
-        if f->kind = cast( ubyte, Tko.SYM_FIELD ) then
+        if f->kind = cast( uint8, Tko.SYM_FIELD ) then
             '' A DECLARED '= value' IS ITSELF WORK, whatever the field's type says.
             '' Without this an all-scalar UDT answered "nothing to initialise" and no
             '' constructor was synthesised at all, so there was no prologue for the
@@ -165,12 +165,12 @@ function TypeNeedsDtor_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
     if sc = 0 then return false
     dim as Tko.SymbolId cur = sc->firstSym
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
         if f = 0 then exit while
-        if f->kind = cast( ubyte, Tko.SYM_FIELD ) then
+        if f->kind = cast( uint8, Tko.SYM_FIELD ) then
             if f->type_ <> t then
                 if TypeNeedsDtor_( c, f->type_ ) then return true
             end if
@@ -190,12 +190,12 @@ private function AnyFieldNeeds_ _
     dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
     if sc = 0 then return false
     dim as Tko.SymbolId cur = sc->firstSym
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
         if f = 0 then exit while
-        if (f->kind = cast( ubyte, Tko.SYM_FIELD )) andalso (f->type_ <> t) then
+        if (f->kind = cast( uint8, Tko.SYM_FIELD )) andalso (f->type_ <> t) then
             if forDtor then
                 if TypeNeedsDtor_( c, f->type_ ) then return true
             else
@@ -239,7 +239,7 @@ end function
 
 '' The fields of a UDT, in declaration order, as (symbol, offset) pairs.
 private sub FieldsInOrder_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref outv as containers.Array( of ulong ) )
+    ( byref c as Ctx, byval t as Tko.TypeId, byref outv as containers.Array( of uint32 ) )
 
     dim as Tko.SymbolId ts = UdtSymOf_( c, t )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
@@ -248,7 +248,7 @@ private sub FieldsInOrder_ _
     dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
     if sc = 0 then return
     dim as Tko.SymbolId cur = sc->firstSym
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
@@ -256,8 +256,8 @@ private sub FieldsInOrder_ _
         '' THE BASE IS NOT A FIELD HERE. It is constructed by its own call, before
         '' everything else, and treating it as an ordinary member would run its
         '' initialisation twice.
-        if (f->kind = cast( ubyte, Tko.SYM_FIELD )) andalso (f->name <> c.vts->baseName) then
-            outv.Push( cast( ulong, cur ) )
+        if (f->kind = cast( uint8, Tko.SYM_FIELD )) andalso (f->name <> c.vts->baseName) then
+            outv.Push( cast( uint32, cur ) )
         end if
         cur = f->nextInScope
     wend
@@ -283,7 +283,7 @@ function CtorPrologueWork_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     if IsObjectT_( c, t ) then return false
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
     if ImplBaseOf_( c, t ) <> Tko.TYPE_NONE then return true
-    dim as containers.Array( of ulong ) flds
+    dim as containers.Array( of uint32 ) flds
     FieldsInOrder_( c, t, flds )
     return (flds.Count > 0)
 end function
@@ -294,12 +294,12 @@ private function FieldAddr_ _
       byval nm as Tko.InternId ) as MirValue
 
     dim as boolean found = false
-    dim as long off = c.udts->FieldOffset( t, nm, found )
+    dim as int32 off = c.udts->FieldOffset( t, nm, found )
     dim as MirValue none_
     if found = false then return none_
     dim as MirInst fa
-    fa.op = cast( ushort, M_FIELD_ADDR )
-    fa.ty = cast( ubyte, MT_PTR )
+    fa.op = cast( uint16, M_FIELD_ADDR )
+    fa.ty = cast( uint8, MT_PTR )
     fa.a = thisPtr
     fa.imm = off
     return Emit( c, fa )
@@ -310,11 +310,11 @@ end function
 private sub DestroyMember_ _
     ( byref c as Ctx, byref addr as MirValue, byval ft as Tko.TypeId )
 
-    if addr.kind = cast( ubyte, MV_NONE ) then return
+    if addr.kind = cast( uint8, MV_NONE ) then return
     if IsStringType( c, ft ) then
         if StrSwapKind_( c, ft, 0 ) = 0 then
-            dim as containers.Array( of ulong ) args
-            args.Push( cast( ulong, addr.kind ) ) : args.Push( cast( ulong, addr.id ) )
+            dim as containers.Array( of uint32 ) args
+            args.Push( cast( uint32, addr.kind ) ) : args.Push( cast( uint32, addr.id ) )
             EmitRtl( c, StrRtlFor_( c, ft, RTL_STR_DELETE ), args )
         end if
         return
@@ -369,18 +369,18 @@ private sub DestroyMember_ _
             dim as boolean aeD = (StructorWithArity( c, StructorOf( c, aet, "__dtor" ), 0 ) <> Tko.SYMBOL_NONE)
             if aeD = false then aeD = TypeNeedsDtor_( c, aet )
             if aeD = false then return
-            dim as longint aeN = FixedArrayElems( c, ft )
+            dim as int64 aeN = FixedArrayElems( c, ft )
             if aeN <= 0 then return
-            dim as long aeSz = SizeOfType( c, aet )
+            dim as int32 aeSz = SizeOfType( c, aet )
             if aeSz <= 0 then return
-            for k as longint = aeN - 1 to 0 step -1
+            for k as int64 = aeN - 1 to 0 step -1
                 dim as MirInst afa
-                afa.op = cast( ushort, M_FIELD_ADDR )
-                afa.ty = cast( ubyte, MT_PTR )
+                afa.op = cast( uint16, M_FIELD_ADDR )
+                afa.ty = cast( uint8, MT_PTR )
                 afa.a = addr
-                afa.imm = cast( long, k * aeSz )
+                afa.imm = cast( int32, k * aeSz )
                 dim as MirValue aea = Emit( c, afa )
-                if aea.kind = cast( ubyte, MV_NONE ) then return
+                if aea.kind = cast( uint8, MV_NONE ) then return
                 DestroyMember_( c, aea, aet )
             next
             return
@@ -393,8 +393,8 @@ private sub DestroyMember_ _
         end if
         dim as MirValue adesc
         if SynthFixedArrayDesc( c, addr, ft, adesc ) = false then return
-        dim as containers.Array( of ulong ) aargs
-        aargs.Push( cast( ulong, adesc.kind ) ) : aargs.Push( cast( ulong, adesc.id ) )
+        dim as containers.Array( of uint32 ) aargs
+        aargs.Push( cast( uint32, adesc.kind ) ) : aargs.Push( cast( uint32, adesc.id ) )
         if aeU then
             EmitRtl( c, RTL_ARRAY_DESTRUCT_USTR, aargs )
         else
@@ -407,7 +407,7 @@ private sub DestroyMember_ _
 
     dim as Tko.SymbolId dtor = StructorWithArity( c, StructorOf( c, ft, "__dtor" ), 0 )
     if dtor <> Tko.SYMBOL_NONE then
-        dim as containers.Array( of ulong ) none_
+        dim as containers.Array( of uint32 ) none_
         EmitStructorCall( c, dtor, -1, @addr, @none_ )
         return
     end if
@@ -420,7 +420,7 @@ sub EmitCtorPrologue_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref thisPtr as MirValue, _
       byval skipBase as boolean = false )
 
-    if thisPtr.kind = cast( ubyte, MV_NONE ) then return
+    if thisPtr.kind = cast( uint8, MV_NONE ) then return
 
     '' AN EXPLICIT 'base( ... )' REPLACES THE IMPLICIT DEFAULT BASE CONSTRUCTION.
     '' Measured: fbc's C for a constructor that writes one contains the chosen base
@@ -434,10 +434,10 @@ sub EmitCtorPrologue_ _
         '' taken through field.addr all the same, because fbc's cast says so and a
         '' later change to that offset would otherwise be silent.
         dim as MirValue ba = FieldAddr_( c, thisPtr, t, c.vts->baseName )
-        if ba.kind <> cast( ubyte, MV_NONE ) then
+        if ba.kind <> cast( uint8, MV_NONE ) then
             dim as Tko.SymbolId bc = StructorWithArity( c, StructorOf( c, bt, "__ctor" ), 0 )
             if bc <> Tko.SYMBOL_NONE then
-                dim as containers.Array( of ulong ) none_
+                dim as containers.Array( of uint32 ) none_
                 EmitStructorCall( c, bc, -1, @ba, @none_ )
             elseif TypeNeedsInit_( c, bt ) then
                 CallImplicitCtor_( c, bt, ba )
@@ -447,21 +447,21 @@ sub EmitCtorPrologue_ _
                 '' derived constructor, and tiko-lang emitted NOTHING -- it did not
                 '' decline either, it silently left the base subobject holding whatever
                 '' the allocation held.
-                dim as long bsz2 = SizeOfType( c, bt )
+                dim as int32 bsz2 = SizeOfType( c, bt )
                 if bsz2 > 0 then
-                    dim as containers.Array( of ulong ) bz
-                    bz.Push( cast( ulong, ba.kind ) ) : bz.Push( cast( ulong, ba.id ) )
-                    bz.Push( cast( ulong, MV_CONST_INT ) ) : bz.Push( 0 )
-                    bz.Push( cast( ulong, MV_CONST_INT ) ) : bz.Push( cast( ulong, bsz2 ) )
+                    dim as containers.Array( of uint32 ) bz
+                    bz.Push( cast( uint32, ba.kind ) ) : bz.Push( cast( uint32, ba.id ) )
+                    bz.Push( cast( uint32, MV_CONST_INT ) ) : bz.Push( 0 )
+                    bz.Push( cast( uint32, MV_CONST_INT ) ) : bz.Push( cast( uint32, bsz2 ) )
                     EmitRtl( c, RTL_MEMSET, bz )
                 end if
             end if
         end if
     end if
 
-    dim as containers.Array( of ulong ) flds
+    dim as containers.Array( of uint32 ) flds
     FieldsInOrder_( c, t, flds )
-    for i as long = 0 to flds.Count - 1
+    for i as int32 = 0 to flds.Count - 1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cast( Tko.SymbolId, flds[i] ) )
         if (f = 0) orelse UnionMemberSkip_( c, t, i, thisPtr ) then continue for   '' a UNION: zeroed, then its FIRST member's (lowermember.tiko)
         dim as Tko.NodeId fi = FieldInitOf_( c, f )
@@ -484,14 +484,14 @@ sub EmitCtorPrologue_ _
             '' fbc's own hazard and is copied here rather than second-guessed.
             if c.types->IsDynArray( f->type_ ) then
                 dim as MirValue da = FieldAddr_( c, thisPtr, t, f->name )
-                if da.kind <> cast( ubyte, MV_NONE ) then InitMember_( c, da, f->type_ )
+                if da.kind <> cast( uint8, MV_NONE ) then InitMember_( c, da, f->type_ )
             end if
             continue for
         end if
 
         if BitfieldMemberInit_( c, thisPtr, t, f, fi ) then continue for   '' a bitfield: through its unit (lowerbf.tiko)
         dim as MirValue fa = FieldAddr_( c, thisPtr, t, f->name )
-        if fa.kind = cast( ubyte, MV_NONE ) then continue for
+        if fa.kind = cast( uint8, MV_NONE ) then continue for
         '' A FIELD WITH NOTHING ELSE TO INITIALISE IT IS ZEROED, and this ran off the
         '' end of the loop instead. Measured, and it is a PER-FIELD memset of the
         '' field's own declared size rather than one over the whole object:
@@ -515,12 +515,12 @@ sub EmitCtorPrologue_ _
         '' and the string descriptor's own zeroing is InitMember_'s.
         dim as boolean needsInit = TypeNeedsInit_( c, f->type_ )
         if (needsInit = false) andalso (fi = Tko.NODE_NONE) then
-            dim as long fsz = SizeOfType( c, f->type_ )
+            dim as int32 fsz = SizeOfType( c, f->type_ )
             if fsz > 0 then
-                dim as containers.Array( of ulong ) fz
-                fz.Push( cast( ulong, fa.kind ) ) : fz.Push( cast( ulong, fa.id ) )
-                fz.Push( cast( ulong, MV_CONST_INT ) ) : fz.Push( 0 )
-                fz.Push( cast( ulong, MV_CONST_INT ) ) : fz.Push( cast( ulong, fsz ) )
+                dim as containers.Array( of uint32 ) fz
+                fz.Push( cast( uint32, fa.kind ) ) : fz.Push( cast( uint32, fa.id ) )
+                fz.Push( cast( uint32, MV_CONST_INT ) ) : fz.Push( 0 )
+                fz.Push( cast( uint32, MV_CONST_INT ) ) : fz.Push( cast( uint32, fsz ) )
                 EmitRtl( c, RTL_MEMSET, fz )
             end if
             continue for
@@ -561,11 +561,11 @@ end sub
 sub EmitDtorEpilogue_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref thisPtr as MirValue )
 
-    if thisPtr.kind = cast( ubyte, MV_NONE ) then return
+    if thisPtr.kind = cast( uint8, MV_NONE ) then return
 
-    dim as containers.Array( of ulong ) flds
+    dim as containers.Array( of uint32 ) flds
     FieldsInOrder_( c, t, flds )
-    for i as long = flds.Count - 1 to 0 step -1
+    for i as int32 = flds.Count - 1 to 0 step -1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cast( Tko.SymbolId, flds[i] ) )
         if f = 0 then continue for
         if TypeNeedsDtor_( c, f->type_ ) = false then continue for
@@ -575,10 +575,10 @@ sub EmitDtorEpilogue_ _
     dim as Tko.TypeId bt = ImplBaseOf_( c, t )
     if (bt <> Tko.TYPE_NONE) andalso (bt <> t) then
         dim as MirValue ba = FieldAddr_( c, thisPtr, t, c.vts->baseName )
-        if ba.kind <> cast( ubyte, MV_NONE ) then
+        if ba.kind <> cast( uint8, MV_NONE ) then
             dim as Tko.SymbolId bd = StructorWithArity( c, StructorOf( c, bt, "__dtor" ), 0 )
             if bd <> Tko.SYMBOL_NONE then
-                dim as containers.Array( of ulong ) none_
+                dim as containers.Array( of uint32 ) none_
                 EmitStructorCall( c, bd, -1, @ba, @none_ )
             elseif TypeNeedsDtor_( c, bt ) then
                 CallImplicitDtor_( c, bt, ba )
@@ -620,12 +620,12 @@ function HasDynArrayMember_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
     if sc = 0 then return false
     dim as Tko.SymbolId cur = sc->firstSym
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
         if f = 0 then exit while
-        if (f->kind = cast( ubyte, Tko.SYM_FIELD )) andalso (f->type_ <> t) then
+        if (f->kind = cast( uint8, Tko.SYM_FIELD )) andalso (f->type_ <> t) then
             if HasDynArrayMember_( c, f->type_ ) then return true
         end if
         cur = f->nextInScope
@@ -641,7 +641,7 @@ end function
 '' CallImplByName_ does -- and the body is REQUESTED, or the address would point at a
 '' declaration nothing ever defines.
 function ImplStructorAddr_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byval kind_ as long ) as MirValue
+    ( byref c as Ctx, byval t as Tko.TypeId, byval kind_ as int32 ) as MirValue
 
     dim as MirValue none_
     dim as string nm
@@ -653,8 +653,8 @@ function ImplStructorAddr_ _
     if len( nm ) = 0 then return none_
     WantImplicit_( c, t, kind_ )
     dim as Tko.InternId id = c.names->GetString( nm )
-    dim as long fidx = -1
-    for i as long = 0 to c.m->functions.Count - 1
+    dim as int32 fidx = -1
+    for i as int32 = 0 to c.m->functions.Count - 1
         if c.m->functions[i]->name = id then
             fidx = i
             exit for
@@ -670,9 +670,9 @@ function ImplStructorAddr_ _
         fidx = c.m->functions.Count - 1
     end if
     dim as MirInst fa
-    fa.op = cast( ushort, M_FUNC_ADDR )
-    fa.ty = cast( ubyte, MT_PTR )
-    fa.callee = cast( ulong, fidx )
+    fa.op = cast( uint16, M_FUNC_ADDR )
+    fa.ty = cast( uint8, MT_PTR )
+    fa.callee = cast( uint32, fidx )
     return Emit( c, fa )
 end function
 
@@ -680,11 +680,11 @@ end function
 private sub ImplStoreTo_ _
     ( byref c as Ctx, byref addr as MirValue, byref v as MirValue )
 
-    if (addr.kind = cast( ubyte, MV_NONE )) orelse _
-       (v.kind = cast( ubyte, MV_NONE )) then return
+    if (addr.kind = cast( uint8, MV_NONE )) orelse _
+       (v.kind = cast( uint8, MV_NONE )) then return
     dim as MirInst st
-    st.op = cast( ushort, M_STORE )
-    st.ty = cast( ubyte, MT_VOID )
+    st.op = cast( uint16, M_STORE )
+    st.ty = cast( uint8, MT_VOID )
     st.a = addr
     st.b = v
     Emit( c, st )
@@ -693,17 +693,17 @@ end sub
 '' Advance the pointer held in the slot at 'addr' by 'n' BYTES. M_PTR_ADD takes a byte
 '' offset already, so nothing here scales by an element size a second time.
 private sub ImplBumpPtr_ _
-    ( byref c as Ctx, byref addr as MirValue, byval n as long )
+    ( byref c as Ctx, byref addr as MirValue, byval n as int32 )
 
-    if addr.kind = cast( ubyte, MV_NONE ) then return
+    if addr.kind = cast( uint8, MV_NONE ) then return
     dim as MirValue cur = LowerExprLoad( c, addr, MT_PTR )
-    if cur.kind = cast( ubyte, MV_NONE ) then return
+    if cur.kind = cast( uint8, MV_NONE ) then return
     dim as MirType dit = MT_I64
     if c.types->target.pointerBits = 32 then dit = MT_I32
     dim as MirValue step_ = ConstInt( c, n, dit )
     dim as MirInst pa
-    pa.op = cast( ushort, M_PTR_ADD )
-    pa.ty = cast( ubyte, MT_PTR )
+    pa.op = cast( uint16, M_PTR_ADD )
+    pa.ty = cast( uint8, MT_PTR )
     pa.a = cur
     pa.b = step_
     dim as MirValue nxt = Emit( c, pa )
@@ -711,18 +711,18 @@ private sub ImplBumpPtr_ _
 end sub
 
 private function ImplFieldAt_ _
-    ( byref c as Ctx, byref base_ as MirValue, byval off as long, _
+    ( byref c as Ctx, byref base_ as MirValue, byval off as int32, _
       byval mt as MirType ) as MirValue
 
     dim as MirValue none_
-    if base_.kind = cast( ubyte, MV_NONE ) then return none_
+    if base_.kind = cast( uint8, MV_NONE ) then return none_
     dim as MirInst fa
-    fa.op = cast( ushort, M_FIELD_ADDR )
-    fa.ty = cast( ubyte, MT_PTR )
+    fa.op = cast( uint16, M_FIELD_ADDR )
+    fa.ty = cast( uint8, MT_PTR )
     fa.a = base_
     fa.imm = off
     dim as MirValue a = Emit( c, fa )
-    if a.kind = cast( ubyte, MV_NONE ) then return none_
+    if a.kind = cast( uint8, MV_NONE ) then return none_
     return LowerExprLoad( c, a, mt )
 end function
 
@@ -730,7 +730,7 @@ end function
 private sub CopyMember_ _
     ( byref c as Ctx, byref dst as MirValue, byref src as MirValue, byval ft as Tko.TypeId )
 
-    if (dst.kind = cast( ubyte, MV_NONE )) orelse (src.kind = cast( ubyte, MV_NONE )) then
+    if (dst.kind = cast( uint8, MV_NONE )) orelse (src.kind = cast( uint8, MV_NONE )) then
         return
     end if
 
@@ -773,30 +773,30 @@ private sub CopyMember_ _
     '' has a constructor) is that shape, and every blank cell the tui library made
     '' was empty. It is plain bytes, so it takes the bitwise tail below, as that
     '' tail's own comment always said it did.
-    dim as longint cfsN = 0
+    dim as int64 cfsN = 0
     if cFixedArr then cFixedArr = (StrSwapKind_( c, ft, cfsN ) <= 0)
     if cFixedArr then
         dim as Tko.TypeId cet = c.types->Inner( ft )
         if cet = Tko.TYPE_NONE then return
-        dim as longint ceN = FixedArrayElems( c, ft )
+        dim as int64 ceN = FixedArrayElems( c, ft )
         if ceN <= 0 then return
-        dim as long ceSz = SizeOfType( c, cet )
+        dim as int32 ceSz = SizeOfType( c, cet )
         if ceSz <= 0 then return
-        for k as longint = 0 to ceN - 1
+        for k as int64 = 0 to ceN - 1
             dim as MirInst cda
-            cda.op = cast( ushort, M_FIELD_ADDR )
-            cda.ty = cast( ubyte, MT_PTR )
+            cda.op = cast( uint16, M_FIELD_ADDR )
+            cda.ty = cast( uint8, MT_PTR )
             cda.a = dst
-            cda.imm = cast( long, k * ceSz )
+            cda.imm = cast( int32, k * ceSz )
             dim as MirValue cdv = Emit( c, cda )
-            if cdv.kind = cast( ubyte, MV_NONE ) then return
+            if cdv.kind = cast( uint8, MV_NONE ) then return
             dim as MirInst csa
-            csa.op = cast( ushort, M_FIELD_ADDR )
-            csa.ty = cast( ubyte, MT_PTR )
+            csa.op = cast( uint16, M_FIELD_ADDR )
+            csa.ty = cast( uint8, MT_PTR )
             csa.a = src
-            csa.imm = cast( long, k * ceSz )
+            csa.imm = cast( int32, k * ceSz )
             dim as MirValue csv = Emit( c, csa )
-            if csv.kind = cast( ubyte, MV_NONE ) then return
+            if csv.kind = cast( uint8, MV_NONE ) then return
             CopyMember_( c, cdv, csv, cet )
         next
         return
@@ -814,14 +814,14 @@ private sub CopyMember_ _
     '' ustring' was always right; only the GENERATED member copy was wrong, and
     '' assignment, copy construction, a byval parameter, a result and an array copy
     '' all reach it.
-    dim as longint sn = 0
+    dim as int64 sn = 0
     if IsStringType( c, ft ) andalso (StrSwapKind_( c, ft, sn ) = 0) then
-        dim as containers.Array( of ulong ) args
-        args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, -1 ) )
-        args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, -1 ) )
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, 0 ) )
+        dim as containers.Array( of uint32 ) args
+        args.Push( cast( uint32, dst.kind ) ) : args.Push( cast( uint32, dst.id ) )
+        args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, -1 ) )
+        args.Push( cast( uint32, src.kind ) ) : args.Push( cast( uint32, src.id ) )
+        args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, -1 ) )
+        args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, 0 ) )
         EmitRtl( c, iif( IsUStringType( c, ft ), RTL_USTR_ASSIGN, RTL_STR_ASSIGN ), args )
         return
     end if
@@ -845,7 +845,7 @@ private sub CopyMember_ _
         '' var-length string element is an fb_StrAssign each, and a UDT element
         '' with an assignment of its own is a call each. A byte copy of either
         '' would alias a buffer the same way the descriptor copy did.
-        dim as longint esn = 0
+        dim as int64 esn = 0
         dim as boolean elemVarStr = false
         if IsStringType( c, et ) then
             elemVarStr = (StrSwapKind_( c, et, esn ) = 0)
@@ -888,39 +888,39 @@ private sub CopyMember_ _
         elseif TypeNeedsDtor_( c, et ) andalso (elemVarStr = false) then
             edtor = ImplStructorAddr_( c, et, 0 )
         end if
-        if (ector.kind = cast( ubyte, MV_NONE )) orelse _
-           (edtor.kind = cast( ubyte, MV_NONE )) then
+        if (ector.kind = cast( uint8, MV_NONE )) orelse _
+           (edtor.kind = cast( uint8, MV_NONE )) then
             SkipHere( c )
             return
         end if
-        dim as containers.Array( of ulong ) ra
-        ra.Push( cast( ulong, dst.kind ) ) : ra.Push( cast( ulong, dst.id ) )
-        ra.Push( cast( ulong, src.kind ) ) : ra.Push( cast( ulong, src.id ) )
-        ra.Push( cast( ulong, flag.kind ) ) : ra.Push( cast( ulong, flag.id ) )
-        ra.Push( cast( ulong, ector.kind ) ) : ra.Push( cast( ulong, ector.id ) )
-        ra.Push( cast( ulong, edtor.kind ) ) : ra.Push( cast( ulong, edtor.id ) )
+        dim as containers.Array( of uint32 ) ra
+        ra.Push( cast( uint32, dst.kind ) ) : ra.Push( cast( uint32, dst.id ) )
+        ra.Push( cast( uint32, src.kind ) ) : ra.Push( cast( uint32, src.id ) )
+        ra.Push( cast( uint32, flag.kind ) ) : ra.Push( cast( uint32, flag.id ) )
+        ra.Push( cast( uint32, ector.kind ) ) : ra.Push( cast( uint32, ector.id ) )
+        ra.Push( cast( uint32, edtor.kind ) ) : ra.Push( cast( uint32, edtor.id ) )
         EmitRtl( c, RTL_ARRAY_REDIM_TO, ra )
 
         '' PTR is at one pointer in and SIZE at two -- the descriptor layout in
         '' lowerdesc.tiko, halved on win32 like every other offset there. The copy
         '' reads the SOURCE's byte count, which is what fbc's loop bound is.
-        dim as long pb = c.types->target.pointerBits \ 8
+        dim as int32 pb = c.types->target.pointerBits \ 8
         dim as MirType dit = MT_I64
         if c.types->target.pointerBits = 32 then dit = MT_I32
         dim as MirValue dp = ImplFieldAt_( c, dst, pb, MT_PTR )
         dim as MirValue sp_ = ImplFieldAt_( c, src, pb, MT_PTR )
         dim as MirValue sz = ImplFieldAt_( c, src, pb * 2, dit )
-        if (dp.kind = cast( ubyte, MV_NONE )) orelse _
-           (sp_.kind = cast( ubyte, MV_NONE )) orelse _
-           (sz.kind = cast( ubyte, MV_NONE )) then
+        if (dp.kind = cast( uint8, MV_NONE )) orelse _
+           (sp_.kind = cast( uint8, MV_NONE )) orelse _
+           (sz.kind = cast( uint8, MV_NONE )) then
             SkipHere( c )
             return
         end if
         if perElem = false then
-            dim as containers.Array( of ulong ) ma
-            ma.Push( cast( ulong, dp.kind ) ) : ma.Push( cast( ulong, dp.id ) )
-            ma.Push( cast( ulong, sp_.kind ) ) : ma.Push( cast( ulong, sp_.id ) )
-            ma.Push( cast( ulong, sz.kind ) ) : ma.Push( cast( ulong, sz.id ) )
+            dim as containers.Array( of uint32 ) ma
+            ma.Push( cast( uint32, dp.kind ) ) : ma.Push( cast( uint32, dp.id ) )
+            ma.Push( cast( uint32, sp_.kind ) ) : ma.Push( cast( uint32, sp_.id ) )
+            ma.Push( cast( uint32, sz.kind ) ) : ma.Push( cast( uint32, sz.id ) )
             EmitRtl( c, RTL_MEM_COPY, ma )
             return
         end if
@@ -933,21 +933,21 @@ private sub CopyMember_ _
         '' -- bounded by the SOURCE's byte count and stepped by the element size.
         '' The two cursors are slots because this IR has no phi: a temp would have
         '' to be redefined across the back edge.
-        dim as long elen = SizeOfType( c, et )
+        dim as int32 elen = SizeOfType( c, et )
         if elen <= 0 then
             SkipHere( c )
             return
         end if
-        dim as long dcur = NewTempLocal( c, MT_PTR, pb )
-        dim as long scur = NewTempLocal( c, MT_PTR, pb )
+        dim as int32 dcur = NewTempLocal( c, MT_PTR, pb )
+        dim as int32 scur = NewTempLocal( c, MT_PTR, pb )
         if (dcur < 0) orelse (scur < 0) then
             SkipHere( c )
             return
         end if
         dim as MirValue dcurA, scurA
-        dcurA.kind = cast( ubyte, MV_LOCAL ) : dcurA.ty = cast( ubyte, MT_PTR )
+        dcurA.kind = cast( uint8, MV_LOCAL ) : dcurA.ty = cast( uint8, MT_PTR )
         dcurA.id = dcur
-        scurA.kind = cast( ubyte, MV_LOCAL ) : scurA.ty = cast( ubyte, MT_PTR )
+        scurA.kind = cast( uint8, MV_LOCAL ) : scurA.ty = cast( uint8, MT_PTR )
         scurA.id = scur
         ImplStoreTo_( c, dcurA, dp )
         ImplStoreTo_( c, scurA, sp_ )
@@ -955,23 +955,23 @@ private sub CopyMember_ _
         '' The end pointer is the source base plus its byte count, computed ONCE:
         '' the source is not written through here, so it cannot move.
         dim as MirInst ea
-        ea.op = cast( ushort, M_PTR_ADD )
-        ea.ty = cast( ubyte, MT_PTR )
+        ea.op = cast( uint16, M_PTR_ADD )
+        ea.ty = cast( uint8, MT_PTR )
         ea.a = sp_
         ea.b = sz
         dim as MirValue endp = Emit( c, ea )
 
-        dim as long headB = NewBlock( c, "arrcopy.head" )
-        dim as long bodyB = NewBlock( c, "arrcopy.body" )
-        dim as long doneB = NewBlock( c, "arrcopy.done" )
+        dim as int32 headB = NewBlock( c, "arrcopy.head" )
+        dim as int32 bodyB = NewBlock( c, "arrcopy.body" )
+        dim as int32 doneB = NewBlock( c, "arrcopy.done" )
         dim as MirValue noCond
         Terminate( c, MTERM_BR, headB, -1, noCond )
 
         c.curBlock = headB
         dim as MirValue sNow = LowerExprLoad( c, scurA, MT_PTR )
         dim as MirInst cmp
-        cmp.op = cast( ushort, M_ICMP_ULT )
-        cmp.ty = cast( ubyte, MT_I32 )
+        cmp.op = cast( uint16, M_ICMP_ULT )
+        cmp.ty = cast( uint8, MT_I32 )
         cmp.a = sNow
         cmp.b = endp
         dim as MirValue more = Emit( c, cmp )
@@ -997,12 +997,12 @@ private sub CopyMember_ _
         '' text: tracks' 'result = frmCalendar_Show( ... )' came back with a 3-character
         '' date. No same-type overload falls through to the implicit let or a byte copy,
         '' as it does for a whole assignment.
-        dim as containers.Array( of ulong ) sletT
-        sletT.Push( cast( ulong, ft ) )
+        dim as containers.Array( of uint32 ) sletT
+        sletT.Push( cast( uint32, ft ) )
         dim as Tko.SymbolId lt = PickCtor( c, StructorOf( c, ft, "let" ), sletT )
         if lt <> Tko.SYMBOL_NONE then
-            dim as containers.Array( of ulong ) args
-            args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
+            dim as containers.Array( of uint32 ) args
+            args.Push( cast( uint32, src.kind ) ) : args.Push( cast( uint32, src.id ) )
             EmitStructorCall( c, lt, -1, @dst, @args )
             return
         end if
@@ -1033,23 +1033,23 @@ private sub CopyMember_ _
     '' aggregate one was silently dropped. Nothing declined and nothing verified
     '' wrong -- this is a synthesised 'operator let', so it reaches every UDT that
     '' has a nested aggregate field and no written assignment.
-    dim as longint fsz = 0
-    if mt = MT_AGG then fsz = cast( longint, SizeOfType( c, ft ) )
+    dim as int64 fsz = 0
+    if mt = MT_AGG then fsz = cast( int64, SizeOfType( c, ft ) )
     dim as MirValue v
     if fsz > 0 then
         dim as MirInst ld
-        ld.op = cast( ushort, M_LOAD )
-        ld.ty = cast( ubyte, MT_AGG )
+        ld.op = cast( uint16, M_LOAD )
+        ld.ty = cast( uint8, MT_AGG )
         ld.a = src
         ld.imm = fsz
         v = Emit( c, ld )
     else
         v = LowerExprLoad( c, src, mt )
     end if
-    if v.kind = cast( ubyte, MV_NONE ) then return
+    if v.kind = cast( uint8, MV_NONE ) then return
     dim as MirInst st
-    st.op = cast( ushort, M_STORE )
-    st.ty = cast( ubyte, MT_VOID )
+    st.op = cast( uint16, M_STORE )
+    st.ty = cast( uint8, MT_VOID )
     st.a = dst
     st.b = v
     if fsz > 0 then st.imm = fsz
@@ -1070,9 +1070,9 @@ sub EmitLetBody_ _
         CopyMember_( c, FieldAddr_( c, dst, t, c.vts->baseName ), _
                      FieldAddr_( c, src, t, c.vts->baseName ), bt )
     end if
-    dim as containers.Array( of ulong ) flds
+    dim as containers.Array( of uint32 ) flds
     FieldsInOrder_( c, t, flds )
-    for i as long = 0 to flds.Count - 1
+    for i as int32 = 0 to flds.Count - 1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cast( Tko.SymbolId, flds[i] ) )
         if f = 0 then continue for
         CopyMember_( c, FieldAddr_( c, dst, t, f->name ), _
@@ -1157,10 +1157,10 @@ private sub CallImplByName_ _
     ( byref c as Ctx, byref nm as string, byref selfv as MirValue )
 
     if len( nm ) = 0 then return
-    if selfv.kind = cast( ubyte, MV_NONE ) then return
+    if selfv.kind = cast( uint8, MV_NONE ) then return
     dim as Tko.InternId id = c.names->GetString( nm )
-    dim as long fidx = -1
-    for i as long = 0 to c.m->functions.Count - 1
+    dim as int32 fidx = -1
+    for i as int32 = 0 to c.m->functions.Count - 1
         if c.m->functions[i]->name = id then
             fidx = i
             exit for
@@ -1175,12 +1175,12 @@ private sub CallImplByName_ _
         decl->AddParam( MT_PTR )
         fidx = c.m->functions.Count - 1
     end if
-    dim as long first = c.m->argPool.Count \ 2
-    c.m->argPool.Push( cast( ulong, selfv.kind ) )
-    c.m->argPool.Push( cast( ulong, selfv.id ) )
+    dim as int32 first = c.m->argPool.Count \ 2
+    c.m->argPool.Push( cast( uint32, selfv.kind ) )
+    c.m->argPool.Push( cast( uint32, selfv.id ) )
     dim as MirInst ins
-    ins.op = cast( ushort, M_CALL )
-    ins.ty = cast( ubyte, MT_VOID )
+    ins.op = cast( uint16, M_CALL )
+    ins.ty = cast( uint8, MT_VOID )
     ins.first = first
     ins.count = 1
     ins.callee = fidx
@@ -1189,7 +1189,7 @@ end sub
 
 '' Kind: 0 destructor, 1 constructor, 2 'operator let', 3 copy constructor.
 sub WantImplicit_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byval k as long )
+    ( byref c as Ctx, byval t as Tko.TypeId, byval k as int32 )
 
     '' UNQUALIFIED, because the NAME already is and the two have to agree.
     '' ImplStructorName_ unqualifies before it mangles, so 'const T2' and 'T2' both
@@ -1202,12 +1202,12 @@ sub WantImplicit_ _
     '' bare 'declare's since that golden was written.
     t = c.types->Unqualify( t )
 
-    for i as long = 0 to c.implWantedType.Count - 1
-        if (c.implWantedType[i] = cast( ulong, t )) andalso (c.implWantedKind[i] = k) then
+    for i as int32 = 0 to c.implWantedType.Count - 1
+        if (c.implWantedType[i] = cast( uint32, t )) andalso (c.implWantedKind[i] = k) then
             return
         end if
     next
-    c.implWantedType.Push( cast( ulong, t ) )
+    c.implWantedType.Push( cast( uint32, t ) )
     c.implWantedKind.Push( k )
 end sub
 
@@ -1215,12 +1215,12 @@ private sub CallImplTwo_ _
     ( byref c as Ctx, byref nm as string, byref dst as MirValue, byref src as MirValue )
 
     if len( nm ) = 0 then return
-    if (dst.kind = cast( ubyte, MV_NONE )) orelse (src.kind = cast( ubyte, MV_NONE )) then
+    if (dst.kind = cast( uint8, MV_NONE )) orelse (src.kind = cast( uint8, MV_NONE )) then
         return
     end if
     dim as Tko.InternId id = c.names->GetString( nm )
-    dim as long fidx = -1
-    for i as long = 0 to c.m->functions.Count - 1
+    dim as int32 fidx = -1
+    for i as int32 = 0 to c.m->functions.Count - 1
         if c.m->functions[i]->name = id then
             fidx = i
             exit for
@@ -1236,14 +1236,14 @@ private sub CallImplTwo_ _
         decl->AddParam( MT_PTR )
         fidx = c.m->functions.Count - 1
     end if
-    dim as long first = c.m->argPool.Count \ 2
-    c.m->argPool.Push( cast( ulong, dst.kind ) )
-    c.m->argPool.Push( cast( ulong, dst.id ) )
-    c.m->argPool.Push( cast( ulong, src.kind ) )
-    c.m->argPool.Push( cast( ulong, src.id ) )
+    dim as int32 first = c.m->argPool.Count \ 2
+    c.m->argPool.Push( cast( uint32, dst.kind ) )
+    c.m->argPool.Push( cast( uint32, dst.id ) )
+    c.m->argPool.Push( cast( uint32, src.kind ) )
+    c.m->argPool.Push( cast( uint32, src.id ) )
     dim as MirInst ins
-    ins.op = cast( ushort, M_CALL )
-    ins.ty = cast( ubyte, MT_VOID )
+    ins.op = cast( uint16, M_CALL )
+    ins.ty = cast( uint8, MT_VOID )
     ins.first = first
     ins.count = 2
     ins.callee = fidx
@@ -1279,7 +1279,7 @@ end sub
 '' one in a loop, and 'new T' calls one; giving it a body in one place is what lets all
 '' of those refer to it.
 private sub EmitOneImplicit_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byval kind_ as long )
+    ( byref c as Ctx, byval t as Tko.TypeId, byval kind_ as int32 )
 
     dim as string nm = ""
     select case kind_
@@ -1292,7 +1292,7 @@ private sub EmitOneImplicit_ _
     dim as Tko.InternId id = c.names->GetString( nm )
     '' Down one name's chain rather than over every function: the same name really
     '' can have two entries, a declaration and a definition.
-    dim as long at = c.m->FirstFunctionNamed( id )
+    dim as int32 at = c.m->FirstFunctionNamed( id )
     while at >= 0
         if c.m->functions[at] = 0 then exit while
         if c.m->functions[at]->isDefinition then return
@@ -1312,7 +1312,7 @@ private sub EmitOneImplicit_ _
     if twoArgs then f->AddParam( MT_PTR )
 
     dim as MirFunction ptr savedF = c.f
-    dim as long savedB = c.curBlock
+    dim as int32 savedB = c.curBlock
     c.f = f
     c.st->functions += 1
     c.curBlock = NewBlock( c, "entry" )
@@ -1320,12 +1320,12 @@ private sub EmitOneImplicit_ _
     '' THIS arrives as parameter zero, exactly as it does for a written structor, and
     '' the right-hand side as parameter one.
     dim as MirValue selfv
-    selfv.kind = cast( ubyte, MV_PARAM )
-    selfv.ty = cast( ubyte, MT_PTR )
+    selfv.kind = cast( uint8, MV_PARAM )
+    selfv.ty = cast( uint8, MT_PTR )
     selfv.id = 0
     dim as MirValue rhs
-    rhs.kind = cast( ubyte, MV_PARAM )
-    rhs.ty = cast( ubyte, MT_PTR )
+    rhs.kind = cast( uint8, MV_PARAM )
+    rhs.ty = cast( uint8, MT_PTR )
     rhs.id = 1
 
     select case kind_
@@ -1346,12 +1346,12 @@ private sub EmitOneImplicit_ _
         EmitCtorPrologue_( c, t, selfv )
         '' The same-type let, for the reason CopyMember_ gives: a converting let
         '' declared first would be handed the source object's address.
-        dim as containers.Array( of ulong ) sletT
-        sletT.Push( cast( ulong, t ) )
+        dim as containers.Array( of uint32 ) sletT
+        sletT.Push( cast( uint32, t ) )
         dim as Tko.SymbolId lt = PickCtor( c, StructorOf( c, t, "let" ), sletT )
         if lt <> Tko.SYMBOL_NONE then
-            dim as containers.Array( of ulong ) args
-            args.Push( cast( ulong, rhs.kind ) ) : args.Push( cast( ulong, rhs.id ) )
+            dim as containers.Array( of uint32 ) args
+            args.Push( cast( uint32, rhs.kind ) ) : args.Push( cast( uint32, rhs.id ) )
             EmitStructorCall( c, lt, -1, @selfv, @args )
         else
             CallImplicitLet_( c, t, selfv, rhs )
@@ -1397,43 +1397,43 @@ end function
 '' reaches are small and the instruction count is bounded by the element count, which
 '' is a compile-time constant or this is not a fixed array at all.
 sub EmitArrayElems_ _
-    ( byref c as Ctx, byval slot as long, byval at as Tko.TypeId, byval isCtor as boolean, byval skip as long = 0 )
+    ( byref c as Ctx, byval slot as int32, byval at as Tko.TypeId, byval isCtor as boolean, byval skip as int32 = 0 )
 
     if slot < 0 then return
     dim as MirValue sbase
-    sbase.kind = cast( ubyte, MV_LOCAL )
-    sbase.ty = cast( ubyte, MT_PTR )
+    sbase.kind = cast( uint8, MV_LOCAL )
+    sbase.ty = cast( uint8, MT_PTR )
     sbase.id = slot
     EmitArrayElemsAt_( c, sbase, at, isCtor, skip )
 end sub
 
 '' The same, from an ADDRESS rather than a slot: a module-lifetime array is a global.
 sub EmitArrayElemsAt_ _
-    ( byref c as Ctx, byref base_ as MirValue, byval at as Tko.TypeId, byval isCtor as boolean, byval skip as long = 0 )
+    ( byref c as Ctx, byref base_ as MirValue, byval at as Tko.TypeId, byval isCtor as boolean, byval skip as int32 = 0 )
 
-    if base_.kind = cast( ubyte, MV_NONE ) then return
+    if base_.kind = cast( uint8, MV_NONE ) then return
     if c.types->Kind( at ) <> Tko.TK_ARRAY then return
     if c.types->IsDynArray( at ) then return
     dim as Tko.TypeId el = c.types->Inner( at )
     if c.types->Kind( el ) <> Tko.TK_UDT then return
-    dim as long n = c.types->ElemCount( at )
+    dim as int32 n = c.types->ElemCount( at )
     if (n <= 0) orelse (n > 4096) then return
-    dim as long esz = SizeOfType( c, el )
+    dim as int32 esz = SizeOfType( c, el )
     if esz <= 0 then return
 
-    for k as long = iif( isCtor, skip, 0 ) to n - 1   '' 'skip': built by an initialiser
-        dim as long idx = iif( isCtor, k, n - 1 - k )
+    for k as int32 = iif( isCtor, skip, 0 ) to n - 1   '' 'skip': built by an initialiser
+        dim as int32 idx = iif( isCtor, k, n - 1 - k )
         dim as MirInst fa
-        fa.op = cast( ushort, M_FIELD_ADDR )
-        fa.ty = cast( ubyte, MT_PTR )
+        fa.op = cast( uint16, M_FIELD_ADDR )
+        fa.ty = cast( uint8, MT_PTR )
         fa.a = base_
         fa.imm = idx * esz
         dim as MirValue ea = Emit( c, fa )
-        if ea.kind = cast( ubyte, MV_NONE ) then return
+        if ea.kind = cast( uint8, MV_NONE ) then return
         if isCtor then
             dim as Tko.SymbolId ct = StructorWithArity( c, StructorOf( c, el, "__ctor" ), 0 )
             if ct <> Tko.SYMBOL_NONE then
-                dim as containers.Array( of ulong ) none_
+                dim as containers.Array( of uint32 ) none_
                 EmitStructorCall( c, ct, -1, @ea, @none_ )
             else
                 CallImplicitCtor_( c, el, ea )
@@ -1441,7 +1441,7 @@ sub EmitArrayElemsAt_ _
         else
             dim as Tko.SymbolId dt = StructorWithArity( c, StructorOf( c, el, "__dtor" ), 0 )
             if dt <> Tko.SYMBOL_NONE then
-                dim as containers.Array( of ulong ) none_
+                dim as containers.Array( of uint32 ) none_
                 EmitStructorCall( c, dt, -1, @ea, @none_ )
             else
                 CallImplicitDtor_( c, el, ea )
@@ -1460,12 +1460,12 @@ end sub
 sub EmitImplicitStructors( byref c as Ctx )
     if (c.vts = 0) orelse (c.udts = 0) then return
 
-    WantVirtualImplicitDtors_( c ) : dim as long at = 0   '' lowervtab.tiko
-    dim as long guard = 0
+    WantVirtualImplicitDtors_( c ) : dim as int32 at = 0   '' lowervtab.tiko
+    dim as int32 guard = 0
     while (at < c.implWantedType.Count) andalso (guard < 100000)
         guard += 1
         dim as Tko.TypeId t = cast( Tko.TypeId, c.implWantedType[at] )
-        dim as long kind_ = c.implWantedKind[at]
+        dim as int32 kind_ = c.implWantedKind[at]
         at += 1
         if t = Tko.TYPE_NONE then continue while
         if c.udts->Find( t ) < 0 then continue while
@@ -1484,8 +1484,8 @@ sub EmitImplicitStructors( byref c as Ctx )
             '' 'let( byval d as double )' has none, and they called the synthesised copy --
             '' which this, counting any 'let' as written, never emitted: 'undefined symbol
             '' COLEDATETIMESPAN::operator=(const&)' in fbx/datetime. fbc copies it (42).
-            dim as containers.Array( of ulong ) selfT
-            selfT.Push( cast( ulong, t ) )
+            dim as containers.Array( of uint32 ) selfT
+            selfT.Push( cast( uint32, t ) )
             written = (PickCtor( c, StructorOf( c, t, "let" ), selfT ) <> Tko.SYMBOL_NONE)
         case else
             '' THE WHOLE CHAIN -- see CopyCtorOf_. A type whose copy constructor is

@@ -18,5 +18,5 @@ private function StructorIsField_ _
     if s->inner = SCOPE_NONE then return false
     dim as Symbol ptr f = c.syms->SymbolAt( c.syms->LookupLocal( s->inner, c.names->GetString( nm ) ) )
     if f = 0 then return false
-    return (f->kind = cast( ubyte, SYM_FIELD ))
+    return (f->kind = cast( uint8, SYM_FIELD ))
 end function

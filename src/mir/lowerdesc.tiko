@@ -27,14 +27,14 @@ namespace Tko.Mir
 using Tko
 
 declare function StrSwapKind_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as int64 ) as int32
 declare function EraseOne_( byref c as Ctx, byval it as Tko.NodeId ) as boolean
 declare function RedimOne_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval item as Tko.NodeId, _
       byval presv as boolean ) as boolean
 declare function PushStructorPtr_ _
-    ( byref c as Ctx, byref args as containers.Array( of ulong ), _
-      byval s as Tko.SymbolId, byval t as Tko.TypeId, byval kind_ as long ) as boolean
+    ( byref c as Ctx, byref args as containers.Array( of uint32 ), _
+      byval s as Tko.SymbolId, byval t as Tko.TypeId, byval kind_ as int32 ) as boolean
 
 
 '' The natural integer width of a descriptor field, which is the pointer width.
@@ -46,43 +46,43 @@ end function
 '' One word of DIMTB[k]: 0 = ELEMENTS, 1 = LBOUND, 2 = UBOUND. The table starts after
 '' the six header words, three words to a dimension.
 private function DescDimField_ _
-    ( byref c as Ctx, byref desc as MirValue, byval k as long, byval which as long, _
+    ( byref c as Ctx, byref desc as MirValue, byval k as int32, byval which as int32, _
       byval ty as MirType ) as MirValue
 
-    dim as long pb = iif( c.types->target.pointerBits = 32, 4, 8 )
+    dim as int32 pb = iif( c.types->target.pointerBits = 32, 4, 8 )
     dim as MirInst fa
-    fa.op = cast( ushort, M_FIELD_ADDR )
-    fa.ty = cast( ubyte, MT_PTR )
+    fa.op = cast( uint16, M_FIELD_ADDR )
+    fa.ty = cast( uint8, MT_PTR )
     fa.a = desc
     fa.imm = 6 * pb + k * 3 * pb + which * pb
     return LowerExprLoad( c, Emit( c, fa ), ty )
 end function
 
-private function DescPtrBytes_( byref c as Ctx ) as long
+private function DescPtrBytes_( byref c as Ctx ) as int32
     return c.types->target.pointerBits \ 8
 end function
 
 '' Store 'v' into 'base + off'.
 private sub DescStore_ _
-    ( byref c as Ctx, byref base_ as MirValue, byval off as long, byref v as MirValue )
+    ( byref c as Ctx, byref base_ as MirValue, byval off as int32, byref v as MirValue )
 
     dim as MirInst fa
-    fa.op = cast( ushort, M_FIELD_ADDR )
-    fa.ty = cast( ubyte, MT_PTR )
+    fa.op = cast( uint16, M_FIELD_ADDR )
+    fa.ty = cast( uint8, MT_PTR )
     fa.a = base_
     fa.imm = off
     dim as MirValue a = Emit( c, fa )
 
     dim as MirInst st
-    st.op = cast( ushort, M_STORE )
-    st.ty = cast( ubyte, MT_VOID )
+    st.op = cast( uint16, M_STORE )
+    st.ty = cast( uint8, MT_VOID )
     st.a = a
     st.b = v
     Emit( c, st )
 end sub
 
 private sub DescStoreConst_ _
-    ( byref c as Ctx, byref base_ as MirValue, byval off as long, byval n as longint )
+    ( byref c as Ctx, byref base_ as MirValue, byval off as int32, byval n as int64 )
 
     dim as MirValue v = ConstInt( c, n, DescIntTy_( c ) )
     DescStore_( c, base_, off, v )
@@ -97,16 +97,16 @@ end sub
 '' HOW MANY ELEMENTS A FIXED ARRAY HOLDS, across every dimension. Returns 0 for a
 '' dynamic array or a shape whose bounds do not read, so a caller that unrolls per
 '' element emits nothing rather than guessing a count.
-function FixedArrayElems( byref c as Ctx, byval t as Tko.TypeId ) as longint
+function FixedArrayElems( byref c as Ctx, byval t as Tko.TypeId ) as int64
     if c.types->Kind( t ) <> Tko.TK_ARRAY then return 0
-    dim as long dims = c.types->types[cast( long, t )].dims
+    dim as int32 dims = c.types->types[cast( int32, t )].dims
     if dims < 1 then return 0
-    dim as long first = c.types->types[cast( long, t )].first
-    if c.types->types[cast( long, t )].count < dims * 2 then return 0
-    dim as longint total = 1
-    for d as long = 0 to dims - 1
-        dim as longint l = c.types->boundPool[first + d * 2]
-        dim as longint h = c.types->boundPool[first + d * 2 + 1]
+    dim as int32 first = c.types->types[cast( int32, t )].first
+    if c.types->types[cast( int32, t )].count < dims * 2 then return 0
+    dim as int64 total = 1
+    for d as int32 = 0 to dims - 1
+        dim as int64 l = c.types->boundPool[first + d * 2]
+        dim as int64 h = c.types->boundPool[first + d * 2 + 1]
         if h < l then return 0
         total *= (h - l + 1)
     next
@@ -118,27 +118,27 @@ function SynthFixedArrayDesc _
       byref outv as MirValue ) as boolean
 
     if c.types->Kind( t ) <> Tko.TK_ARRAY then return false
-    dim as long dims = c.types->types[cast( long, t )].dims
+    dim as int32 dims = c.types->types[cast( int32, t )].dims
     if dims < 1 then return false                  '' -1 is dynamic
 
-    dim as Tko.TypeId et = c.types->types[cast( long, t )].inner
+    dim as Tko.TypeId et = c.types->types[cast( int32, t )].inner
     if et = Tko.TYPE_NONE then return false
-    dim as long elemLen = SizeOfType( c, et )
+    dim as int32 elemLen = SizeOfType( c, et )
     if elemLen <= 0 then return false
 
-    dim as long first = c.types->types[cast( long, t )].first
-    if c.types->types[cast( long, t )].count < dims * 2 then return false
+    dim as int32 first = c.types->types[cast( int32, t )].first
+    if c.types->types[cast( int32, t )].count < dims * 2 then return false
 
     '' Per-dimension element counts, and the row-major offset of the LOWEST index
     '' tuple -- which is what DATA is biased by. fbc never subtracts an lbound when
     '' indexing, so the bias has to be baked in here or every access is off by it.
-    dim as containers.Array( of longint ) lo
-    dim as containers.Array( of longint ) hi
-    dim as containers.Array( of longint ) nel
-    dim as longint total = 1
-    for d as long = 0 to dims - 1
-        dim as longint l = c.types->boundPool[first + d * 2]
-        dim as longint h = c.types->boundPool[first + d * 2 + 1]
+    dim as containers.Array( of int64 ) lo
+    dim as containers.Array( of int64 ) hi
+    dim as containers.Array( of int64 ) nel
+    dim as int64 total = 1
+    for d as int32 = 0 to dims - 1
+        dim as int64 l = c.types->boundPool[first + d * 2]
+        dim as int64 h = c.types->boundPool[first + d * 2 + 1]
         if h < l then return false
         lo.Push( l )
         hi.Push( h )
@@ -146,18 +146,18 @@ function SynthFixedArrayDesc _
         total *= (h - l + 1)
     next
 
-    dim as longint bias = 0
-    for d as long = 0 to dims - 1
+    dim as int64 bias = 0
+    for d as int32 = 0 to dims - 1
         if d > 0 then bias *= nel[d]
         bias += lo[d]
     next
 
-    dim as long ptrBytes = DescPtrBytes_( c )
-    dim as long descBytes = 6 * ptrBytes + dims * 3 * ptrBytes
-    dim as long slot = NewTempLocal( c, MT_AGG, descBytes )
+    dim as int32 ptrBytes = DescPtrBytes_( c )
+    dim as int32 descBytes = 6 * ptrBytes + dims * 3 * ptrBytes
+    dim as int32 slot = NewTempLocal( c, MT_AGG, descBytes )
     dim as MirValue desc
-    desc.kind = cast( ubyte, MV_LOCAL )
-    desc.ty = cast( ubyte, MT_PTR )
+    desc.kind = cast( uint8, MV_LOCAL )
+    desc.ty = cast( uint8, MT_PTR )
     desc.id = slot
 
     '' DATA = base - bias * elemLen. A zero bias stores the base unchanged rather than
@@ -165,8 +165,8 @@ function SynthFixedArrayDesc _
     dim as MirValue dataV = arrAddr
     if bias <> 0 then
         dim as MirInst pa
-        pa.op = cast( ushort, M_PTR_ADD )
-        pa.ty = cast( ubyte, MT_PTR )
+        pa.op = cast( uint16, M_PTR_ADD )
+        pa.ty = cast( uint8, MT_PTR )
         pa.a = arrAddr
         pa.b = ConstInt( c, -(bias * elemLen), DescIntTy_( c ) )
         dataV = Emit( c, pa )
@@ -181,8 +181,8 @@ function SynthFixedArrayDesc _
     '' the values fbc writes, reproduced rather than derived.
     DescStoreConst_( c, desc, 5 * ptrBytes, 48 + dims )
 
-    for d as long = 0 to dims - 1
-        dim as long b = 6 * ptrBytes + d * 3 * ptrBytes
+    for d as int32 = 0 to dims - 1
+        dim as int32 b = 6 * ptrBytes + d * 3 * ptrBytes
         DescStoreConst_( c, desc, b, nel[d] )
         DescStoreConst_( c, desc, b + ptrBytes, lo[d] )
         DescStoreConst_( c, desc, b + 2 * ptrBytes, hi[d] )
@@ -245,9 +245,9 @@ function UsesSretReturn( byref c as Ctx, byval t as Tko.TypeId ) as boolean
         if pn <> Tko.NODE_NONE then
             if c.ast->Kind( pn ) = Tko.N_PROC then
                 dim as Tko.StmtPayload ptr psp = StmtOf( c, pn )
-                dim as long np = 0
+                dim as int32 np = 0
                 dim as Tko.TypeId only = Tko.TYPE_NONE
-                for i as long = 0 to psp->count - 1
+                for i as int32 = 0 to psp->count - 1
                     dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[psp->first + i] )
                     if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
                     np += 1
@@ -294,7 +294,7 @@ function LowerErase( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     if sp->count < 1 then return false
 
-    for i as long = 0 to sp->count - 1
+    for i as int32 = 0 to sp->count - 1
         dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[sp->first + i] )
         if EraseOne_( c, it ) = false then return false
     next
@@ -308,23 +308,23 @@ private function EraseOne_( byref c as Ctx, byval it as Tko.NodeId ) as boolean
     '' A DYNAMIC array already has a descriptor; erase it directly.
     if c.types->IsDynArray( t ) then
         dim as MirValue dv = LowerAddr( c, it )
-        if dv.kind = cast( ubyte, MV_NONE ) then return false
+        if dv.kind = cast( uint8, MV_NONE ) then return false
         '' NOT ONLY A LOCAL. 'erase this.items' is a FIELD, so its address is a computed
         '' value; requiring a slot declined every container that clears its own storage,
         '' which is where ERASE actually appears.
         EmitEraseDynAt_( c, dv, t )
         return true
     end if
-    if c.types->types[cast( long, t )].dims < 1 then return false
+    if c.types->types[cast( int32, t )].dims < 1 then return false
 
     dim as MirValue base_ = LowerAddr( c, it )
-    if base_.kind = cast( ubyte, MV_NONE ) then return false
+    if base_.kind = cast( uint8, MV_NONE ) then return false
     dim as MirValue desc
     if SynthFixedArrayDesc( c, base_, t, desc ) = false then return false
 
-    dim as Tko.TypeId et = c.types->types[cast( long, t )].inner
-    dim as containers.Array( of ulong ) args
-    args.Push( cast( ulong, desc.kind ) ) : args.Push( cast( ulong, desc.id ) )
+    dim as Tko.TypeId et = c.types->types[cast( int32, t )].inner
+    dim as containers.Array( of uint32 ) args
+    args.Push( cast( uint32, desc.kind ) ) : args.Push( cast( uint32, desc.id ) )
 
     '' A var-len STRING element is destructed, not cleared: its bytes are a descriptor
     '' the runtime owns.
@@ -373,9 +373,9 @@ private function EraseOne_( byref c as Ctx, byval it as Tko.NodeId ) as boolean
     '' -- so it is the FB flavour alone, and 32 is the pad character. All three
     '' cleared here before, which string/string-fixed-array.bas asserts against
     '' directly: 'erase s1' then CU_ASSERT( s1(0)[0] = 32 ).
-    dim as longint fsn = 0
+    dim as int64 fsn = 0
     if StrSwapKind_( c, et, fsn ) = 3 then
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 32 )
+        args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 32 )
         EmitRtl( c, RTL_ARRAY_FILL, args )
         return true
     end if
@@ -393,8 +393,8 @@ end function
 '' fb_ArrayRedimPresvEx. No element was constructed or destructed. kind_ is 1 for the
 '' constructor and 0 for the destructor.
 private function PushStructorPtr_ _
-    ( byref c as Ctx, byref args as containers.Array( of ulong ), _
-      byval s as Tko.SymbolId, byval t as Tko.TypeId, byval kind_ as long ) as boolean
+    ( byref c as Ctx, byref args as containers.Array( of uint32 ), _
+      byval s as Tko.SymbolId, byval t as Tko.TypeId, byval kind_ as int32 ) as boolean
 
     if s = Tko.SYMBOL_NONE then
         dim as boolean wants = false
@@ -407,17 +407,17 @@ private function PushStructorPtr_ _
         end if
         if wants then
             dim as MirValue ip = ImplStructorAddr_( c, t, kind_ )
-            if ip.kind = cast( ubyte, MV_NONE ) then return false
-            args.Push( cast( ulong, ip.kind ) ) : args.Push( cast( ulong, ip.id ) )
+            if ip.kind = cast( uint8, MV_NONE ) then return false
+            args.Push( cast( uint32, ip.kind ) ) : args.Push( cast( uint32, ip.id ) )
             return true
         end if
-        args.Push( cast( ulong, MV_CONST_INT ) )
+        args.Push( cast( uint32, MV_CONST_INT ) )
         args.Push( 0 )
         return true
     end if
     dim as MirValue fp = FuncAddrOf( c, s, true )
-    if fp.kind = cast( ubyte, MV_NONE ) then return false
-    args.Push( cast( ulong, fp.kind ) ) : args.Push( cast( ulong, fp.id ) )
+    if fp.kind = cast( uint8, MV_NONE ) then return false
+    args.Push( cast( uint32, fp.kind ) ) : args.Push( cast( uint32, fp.id ) )
     return true
 end function
 
@@ -427,16 +427,16 @@ end function
 '' targets are little-endian x86-64; a big-endian target would need this and the
 '' emitter's byte-image path to agree, so it is spelled out rather than assumed.
 private sub DescPoke_ _
-    ( byref img as string, byval off as long, byval v as longint, byval nbytes as long )
-    for i as long = 0 to nbytes - 1
-        img[ off + i ] = cast( ubyte, (v shr (i * 8)) and &hFF )
+    ( byref img as string, byval off as int32, byval v as int64, byval nbytes as int32 )
+    for i as int32 = 0 to nbytes - 1
+        img[ off + i ] = cast( uint8, (v shr (i * 8)) and &hFF )
     next
 end sub
 
 '' The descriptor's byte size for a given RANK. Rank 0 is an unspecified dimension
 '' count, which fbc gives the full eight dimtb slots because it does not know either.
-function DescBytesFor( byref c as Ctx, byval rank as long ) as long
-    dim as long n = rank
+function DescBytesFor( byref c as Ctx, byval rank as int32 ) as int32
+    dim as int32 n = rank
     if n <= 0 then n = 8
     return DescPtrBytes_( c ) * (6 + n * 3)
 end function
@@ -458,12 +458,12 @@ end function
 sub InitDynArrayDesc _
     ( byref c as Ctx, byref desc as MirValue, byval t as Tko.TypeId )
 
-    dim as long rank = c.types->DynRank( t )
-    dim as long slots = rank
+    dim as int32 rank = c.types->DynRank( t )
+    dim as int32 slots = rank
     if slots <= 0 then slots = 8
-    dim as long pb = DescPtrBytes_( c )
-    dim as long elemLen = SizeOfType( c, c.types->Inner( t ) )
-    dim as long flags = 8
+    dim as int32 pb = DescPtrBytes_( c )
+    dim as int32 elemLen = SizeOfType( c, c.types->Inner( t ) )
+    dim as int32 flags = 8
     if rank > 0 then flags = 16 + rank
 
     '' A MODULE-LEVEL descriptor is DATA, not code. Every word above is a compile-time
@@ -473,7 +473,7 @@ sub InitDynArrayDesc _
     '' first and touched the array had its work zeroed out from under it. That is the
     '' fbcunit segfault: ADD_SUITE allocated, then this code nulled DATA back to 0.
     '' Ordering is not the answer -- fbc's answer is that no code runs at all.
-    if desc.kind = cast( ubyte, MV_GLOBAL ) then
+    if desc.kind = cast( uint8, MV_GLOBAL ) then
         if desc.id < c.m->globals.Count then
             dim as MirGlobal ptr gp = @c.m->globals[ desc.id ]
             if gp->isVar then
@@ -495,7 +495,7 @@ sub InitDynArrayDesc _
     DescStoreConst_( c, desc, 4 * pb, rank )
     DescStoreConst_( c, desc, 5 * pb, flags )
 
-    for i as long = 0 to slots * 3 - 1
+    for i as int32 = 0 to slots * 3 - 1
         DescStoreConst_( c, desc, 6 * pb + i * pb, 0 )
     next
 end sub
@@ -505,8 +505,8 @@ end sub
 '' subtracting one here would double-apply the bias the runtime already folded in.
 function DynArrayDataPtr( byref c as Ctx, byref desc as MirValue ) as MirValue
     dim as MirInst ld
-    ld.op = cast( ushort, M_LOAD )
-    ld.ty = cast( ubyte, MT_PTR )
+    ld.op = cast( uint16, M_LOAD )
+    ld.ty = cast( uint8, MT_PTR )
     ld.a = desc
     return Emit( c, ld )
 end function
@@ -523,13 +523,13 @@ end function
 '' A UDT with only IMPLICIT structors falls to fb_ArrayErase here, because tiko-lang does
 '' not synthesise implicit structors yet. That is wrong for such a type -- fbc would
 '' run the destructors -- and is stated rather than hidden.
-sub EmitEraseDynLocal( byref c as Ctx, byval slot as long )
+sub EmitEraseDynLocal( byref c as Ctx, byval slot as int32 )
     if (slot < 0) orelse (slot >= c.f->locals.Count) then return
     dim as Tko.TypeId t = c.f->locals[slot].frontendType
     if c.types->IsDynArray( t ) = false then return
     dim as MirValue d
-    d.kind = cast( ubyte, MV_LOCAL )
-    d.ty = cast( ubyte, MT_PTR )
+    d.kind = cast( uint8, MV_LOCAL )
+    d.ty = cast( uint8, MT_PTR )
     d.id = slot
     EmitEraseDynAt_( c, d, t )
 end sub
@@ -544,8 +544,8 @@ sub EmitEraseDynAt_ _
 
     if c.types->IsDynArray( t ) = false then return
     dim as Tko.TypeId et = c.types->Inner( t )
-    dim as containers.Array( of ulong ) args
-    args.Push( cast( ulong, d.kind ) ) : args.Push( cast( ulong, d.id ) )
+    dim as containers.Array( of uint32 ) args
+    args.Push( cast( uint32, d.kind ) ) : args.Push( cast( uint32, d.id ) )
 
     if IsStringType( c, et ) then
         '' A USTRING ELEMENT HAS ITS OWN, and the narrow call over one frees
@@ -577,8 +577,8 @@ sub EmitEraseDynAt_ _
             end if
             '' A structor whose address could not be taken: fall through to the plain
             '' erase rather than emitting a call with a missing argument.
-            dim as containers.Array( of ulong ) plain
-            plain.Push( cast( ulong, d.kind ) ) : plain.Push( cast( ulong, d.id ) )
+            dim as containers.Array( of uint32 ) plain
+            plain.Push( cast( uint32, d.kind ) ) : plain.Push( cast( uint32, d.id ) )
             EmitRtl( c, RTL_ARRAY_ERASE, plain )
             return
         end if
@@ -612,15 +612,15 @@ function LowerRedim _
       byval sp as Tko.StmtPayload ptr ) as boolean
 
     dim as boolean presv = _
-        ((c.ast->nodes[cast( long, id )].flags and Tko.NF_PRESERVE) <> 0)
+        ((c.ast->nodes[cast( int32, id )].flags and Tko.NF_PRESERVE) <> 0)
 
-    for i as long = 0 to sp->count - 1
+    for i as int32 = 0 to sp->count - 1
         dim as Tko.NodeId item = cast( Tko.NodeId, c.ast->children[sp->first + i] )
         if c.ast->Kind( item ) <> Tko.N_VAR_ITEM then continue for
         '' A REDIM THAT DECLARES A STATIC LOCAL -- 'redim a( 1 to 2 ) as integer' in a 'sub ... static'
         '' -- sizes it on the FIRST pass only; re-run on every call it undid a later REDIM
         '' (dim/static.bas fTestDynamic). See StaticOnceBegin_.
-        dim as long rsk = -1
+        dim as int32 rsk = -1
         if StmtOf( c, item )->a <> Tko.NODE_NONE then
             dim as Tko.SymbolId rsid = c.syms->LookupLocalTyped( c.info->ScopeOf( id ), StmtOf( c, item )->name, false )
             if (rsid <> Tko.SYMBOL_NONE) andalso IsStaticLocal( c, rsid ) andalso (GlobalFor( c, rsid ) >= 0) then rsk = StaticOnceBegin_( c, GlobalFor( c, rsid ), "$redim" )
@@ -665,13 +665,13 @@ private function RedimOne_ _
     '' The parser records the chain rather than only its last name, which is what a
     '' lookup by name could never get right: it declined when nothing of that name was
     '' in scope, and would have re-dimensioned the WRONG ARRAY when something was.
-    dim as boolean viaExpr = (ip->extra = cast( ushort, Tko.KW_REDIM ))
+    dim as boolean viaExpr = (ip->extra = cast( uint16, Tko.KW_REDIM ))
     if viaExpr then
         if ip->b = Tko.NODE_NONE then return false
         aty = c.info->TypeOf_( ip->b )
         if c.types->IsDynArray( aty ) = false then return false
         desc = LowerAddr( c, ip->b )
-        if desc.kind = cast( ubyte, MV_NONE ) then return false
+        if desc.kind = cast( uint8, MV_NONE ) then return false
     end if
 
     dim as Tko.SymbolId sid = Tko.SYMBOL_NONE
@@ -708,12 +708,12 @@ private function RedimOne_ _
                 c.syms->LookupTyped( c.info->ScopeOf( id ), ip->name, false )
             dim as Tko.Symbol ptr us = c.syms->SymbolAt( up )
             if us <> 0 then
-                if us->kind = cast( ubyte, Tko.SYM_VARIABLE ) then sid = up
+                if us->kind = cast( uint8, Tko.SYM_VARIABLE ) then sid = up
                 '' ...OR A PARAMETER. 'srcRows() as integer' is found by the procedure scope's
                 '' own lookup, so a REDIM at that level lowered and one inside an IF -- a scope
                 '' further down -- declined: PsListTree's 'if n > 0 then redim preserve
                 '' srcRows( 0 to n - 1 )' was dropped and the drag source kept every row.
-                if us->kind = cast( ubyte, Tko.SYM_PARAMETER ) then sid = up
+                if us->kind = cast( uint8, Tko.SYM_PARAMETER ) then sid = up
             end if
         end if
     end if
@@ -727,7 +727,7 @@ private function RedimOne_ _
         '' LOCAL and every later use of the name read the global, which nothing had
         '' initialised. It looked right in the dump because both existed.
         desc = AddrOfVar( c, sid )
-        if desc.kind = cast( ubyte, MV_NONE ) then return false
+        if desc.kind = cast( uint8, MV_NONE ) then return false
         aty = vs->type_
 
         '' 'redim as long d( 0 to 2 )' DECLARES d, and a declaring REDIM never went
@@ -759,7 +759,7 @@ private function RedimOne_ _
             '' ...and erased at SCOPE EXIT, which only a LOCAL has. A module-level
             '' array outlives every scope there is and is released the way every other
             '' shared array is.
-            if desc.kind = cast( ubyte, MV_LOCAL ) then
+            if desc.kind = cast( uint8, MV_LOCAL ) then
                 c.cleanupNode.Push( CLEANUP_ERASE_ARRAY )
                 c.cleanupSlot.Push( desc.id )
                 c.cleanupType.Push( 0 )
@@ -778,7 +778,7 @@ private function RedimOne_ _
         if fs = 0 then return false
         if c.types->IsDynArray( fs->type_ ) = false then return false
         desc = AddrOfThisField( c, fsid )
-        if desc.kind = cast( ubyte, MV_NONE ) then return false
+        if desc.kind = cast( uint8, MV_NONE ) then return false
         aty = fs->type_
     end if
 
@@ -801,17 +801,17 @@ end function
 '' MIXTURE is refused by an earlier diagnostic (fbc's 9 and 94); the count is what lets
 '' both callers leave that declaration alone rather than half-lower it.
 function AnyDimCount _
-    ( byref c as Ctx, byval ip as Tko.StmtPayload ptr ) as long
+    ( byref c as Ctx, byval ip as Tko.StmtPayload ptr ) as int32
     if ip->c = Tko.NODE_NONE then return 0
     if c.ast->Kind( ip->c ) <> Tko.N_BLOCK then return 0
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, ip->c )].data )]
-    dim as long n = 0
-    for d as long = 0 to lp->count - 1
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, ip->c )].data )]
+    dim as int32 n = 0
+    for d as int32 = 0 to lp->count - 1
         dim as Tko.NodeId adn = cast( Tko.NodeId, c.ast->children[lp->first + d] )
         if c.ast->Kind( adn ) <> Tko.N_IDENT then continue for
         dim as Tko.IdentPayload ptr aip = _
-            @c.ast->idents[cast( long, c.ast->nodes[cast( long, adn )].data )]
+            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, adn )].data )]
         '' EVERY 'any', not just the leading run: 'dim a( 0 to 0, any )' is the MIXED
         '' form, and counting only from the front called it zero and half-lowered it.
         if Tko.Text.LowerAscii( c.names->Spelling( aip->name ) ) <> "any" then continue for
@@ -825,14 +825,14 @@ end function
 '' which reads its bounds off the AST, so that a redim whose bounds are known without a
 '' declaration -- an array result built from a brace list -- takes the same Ex / Obj decision.
 private function EmitRedimCall_ _
-    ( byref c as Ctx, byref desc as MirValue, byval et as Tko.TypeId, byval dims as long, _
-      byref bk as containers.Array( of ulong ), byref bi as containers.Array( of ulong ), _
+    ( byref c as Ctx, byref desc as MirValue, byval et as Tko.TypeId, byval dims as int32, _
+      byref bk as containers.Array( of uint32 ), byref bi as containers.Array( of uint32 ), _
       byval presv as boolean, byval noCtor as boolean = false ) as boolean
 
-    dim as containers.Array( of ulong ) args
-    args.Push( cast( ulong, desc.kind ) ) : args.Push( cast( ulong, desc.id ) )
-    args.Push( cast( ulong, MV_CONST_INT ) )
-    args.Push( cast( ulong, SizeOfType( c, et ) ) )
+    dim as containers.Array( of uint32 ) args
+    args.Push( cast( uint32, desc.kind ) ) : args.Push( cast( uint32, desc.id ) )
+    args.Push( cast( uint32, MV_CONST_INT ) )
+    args.Push( cast( uint32, SizeOfType( c, et ) ) )
 
     dim as Tko.SymbolId ctor = Tko.SYMBOL_NONE
     dim as Tko.SymbolId dtor = Tko.SYMBOL_NONE
@@ -856,7 +856,7 @@ private function EmitRedimCall_ _
         '' once, from its own initialiser -- and the runtime leaves an element with no
         '' constructor zeroed, which is what that initialiser expects. The destructor stays.
         if noCtor then
-            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+            args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )
         elseif PushStructorPtr_( c, args, ctor, et, 1 ) = false then
             return false
         end if
@@ -878,20 +878,20 @@ private function EmitRedimCall_ _
         '' 'zstring * N' could not be told apart. They can: the type system grew
         '' TY_FIXSTR, and StrSwapKind_ answers 3 for the first and 1 for the second.
         '' fbc-int/array-size.bas is written over every element type there is.
-        dim as longint a3 = -1
-        dim as longint a4 = 0
+        dim as int64 a3 = -1
+        dim as int64 a4 = 0
         if IsStringType( c, et ) then
             a4 = -1
         else
-            dim as longint zn
+            dim as int64 zn
             if StrSwapKind_( c, et, zn ) = 3 then a3 = 32
         end if
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, a3 ) )
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, a4 ) )
+        args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, a3 ) )
+        args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, a4 ) )
     end if
 
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, dims ) )
-    for j as long = 0 to bk.Count - 1
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, dims ) )
+    for j as int32 = 0 to bk.Count - 1
         args.Push( bk[j] ) : args.Push( bi[j] )
     next
 
@@ -912,15 +912,15 @@ end function
 
 '' 'redim desc( 0 to n - 1 )' with a constant n, over a descriptor whose address is in hand.
 function EmitRedimConst_ _
-    ( byref c as Ctx, byref desc as MirValue, byval aty as Tko.TypeId, byval n as longint ) as boolean
+    ( byref c as Ctx, byref desc as MirValue, byval aty as Tko.TypeId, byval n as int64 ) as boolean
 
     dim as MirType zt = DescIntTy_( c )
-    dim as containers.Array( of ulong ) bk
-    dim as containers.Array( of ulong ) bi
+    dim as containers.Array( of uint32 ) bk
+    dim as containers.Array( of uint32 ) bi
     dim as MirValue lv = ConstInt( c, 0, zt )
     dim as MirValue hv = ConstInt( c, n - 1, zt )
-    bk.Push( cast( ulong, lv.kind ) ) : bi.Push( cast( ulong, lv.id ) )
-    bk.Push( cast( ulong, hv.kind ) ) : bi.Push( cast( ulong, hv.id ) )
+    bk.Push( cast( uint32, lv.kind ) ) : bi.Push( cast( uint32, lv.id ) )
+    bk.Push( cast( uint32, hv.kind ) ) : bi.Push( cast( uint32, hv.id ) )
     return EmitRedimCall_( c, desc, c.types->Inner( aty ), 1, bk, bi, false, true )
 end function
 
@@ -932,7 +932,7 @@ function EmitArrayBounds _
     if ip->c = Tko.NODE_NONE then return false
     if c.ast->Kind( ip->c ) <> Tko.N_BLOCK then return false
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, ip->c )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, ip->c )].data )]
 
     '' 'redim z(any) as long' IS A DECLARATION AND NOTHING ELSE. Measured: fbc emits no
     '' runtime call at all for it -- byte for byte the same descriptor setup 'dim z(any)'
@@ -955,7 +955,7 @@ function EmitArrayBounds _
     '' had already been set up above, so the statement declined with its own work
     '' already emitted. Thirty-two corpus statements, four of them in fbcunit's own
     '' framework and so re-counted in every test that includes it.
-    dim as long anyDims = AnyDimCount( c, ip )
+    dim as int32 anyDims = AnyDimCount( c, ip )
     if anyDims = lp->count then
         '' The DECLARING form only. fbc rejects 'any' on a redim of an array that was
         '' already declared (error 147), so there is nothing to model for that one.
@@ -968,9 +968,9 @@ function EmitArrayBounds _
 
     '' Bound VALUES first: they are ordinary expressions and must be evaluated before
     '' anything is emitted that would be wrong to leave behind if one declines.
-    dim as containers.Array( of ulong ) bk
-    dim as containers.Array( of ulong ) bi
-    for d as long = 0 to lp->count - 1
+    dim as containers.Array( of uint32 ) bk
+    dim as containers.Array( of uint32 ) bi
+    for d as int32 = 0 to lp->count - 1
         dim as Tko.NodeId dn = cast( Tko.NodeId, c.ast->children[lp->first + d] )
         dim as Tko.NodeId loN = Tko.NODE_NONE
         dim as Tko.NodeId hiN = dn
@@ -984,16 +984,16 @@ function EmitArrayBounds _
         dim as MirValue lv = ConstInt( c, 0, zt )
         if loN <> Tko.NODE_NONE then
             lv = LowerNumArg_( c, loN, zt )
-            if lv.kind = cast( ubyte, MV_NONE ) then return false
+            if lv.kind = cast( uint8, MV_NONE ) then return false
         end if
         dim as MirValue hv = LowerNumArg_( c, hiN, zt )
-        if hv.kind = cast( ubyte, MV_NONE ) then return false
+        if hv.kind = cast( uint8, MV_NONE ) then return false
 
-        bk.Push( cast( ulong, lv.kind ) ) : bi.Push( cast( ulong, lv.id ) )
-        bk.Push( cast( ulong, hv.kind ) ) : bi.Push( cast( ulong, hv.id ) )
+        bk.Push( cast( uint32, lv.kind ) ) : bi.Push( cast( uint32, lv.id ) )
+        bk.Push( cast( uint32, hv.kind ) ) : bi.Push( cast( uint32, hv.id ) )
     next
 
-    return EmitRedimCall_( c, desc, et, cast( long, lp->count ), bk, bi, presv )
+    return EmitRedimCall_( c, desc, et, cast( int32, lp->count ), bk, bi, presv )
 end function
 
 
@@ -1010,29 +1010,29 @@ function LowerDynArrayIndex _
       byval at as Tko.TypeId ) as MirValue
 
     dim as MirValue none_
-    dim as long rank = c.types->DynRank( at )
+    dim as int32 rank = c.types->DynRank( at )
     '' An UNSPECIFIED rank takes the subscript count as the rank: 'dim a()' followed
     '' by 'redim a(0 to 4)' is one-dimensional, and the subscript is what says so.
     if rank <= 0 then rank = sp->count
     if sp->count <> rank then return none_
 
-    dim as long elemLen = SizeOfType( c, c.types->Inner( at ) )
+    dim as int32 elemLen = SizeOfType( c, c.types->Inner( at ) )
     if elemLen <= 0 then return none_
 
     dim as MirValue desc = LowerAddr( c, sp->target )
-    if desc.kind = cast( ubyte, MV_NONE ) then return none_
+    if desc.kind = cast( uint8, MV_NONE ) then return none_
 
     dim as MirType offTy = DescIntTy_( c )
-    dim as long pb = DescPtrBytes_( c )
+    dim as int32 pb = DescPtrBytes_( c )
 
     '' -exx: dimensioned at all, and with this rank -- before any bound is read (T21).
     if (c.errFlags and 1024) <> 0 then EmitDimensionCheck_( c, id, sp->target, desc, rank )
 
     dim as MirValue acc
-    for k as long = 0 to rank - 1
+    for k as int32 = 0 to rank - 1
         dim as Tko.NodeId ix = cast( Tko.NodeId, c.ast->children[sp->first + k] )
         dim as MirValue iv = LowerExprN_( c, ix )
-        if iv.kind = cast( ubyte, MV_NONE ) then return none_
+        if iv.kind = cast( uint8, MV_NONE ) then return none_
         iv = CoerceTy( c, iv, offTy, NumSrcType_( c, ix ))
 
         '' -exx: CHECKED against this dimension's bounds, read from the descriptor --
@@ -1043,50 +1043,50 @@ function LowerDynArrayIndex _
             EmitBoundsCheckRange_( c, id, sp->target, iv, lov, hiv )
         end if
 
-        if acc.kind = cast( ubyte, MV_NONE ) then
+        if acc.kind = cast( uint8, MV_NONE ) then
             acc = iv
         else
             '' Scale what has accumulated by THIS dimension's element count, read from
             '' DIMTB[k].ELEMENTS, then add this index.
             dim as MirInst fa
-            fa.op = cast( ushort, M_FIELD_ADDR )
-            fa.ty = cast( ubyte, MT_PTR )
+            fa.op = cast( uint16, M_FIELD_ADDR )
+            fa.ty = cast( uint8, MT_PTR )
             fa.a = desc
             fa.imm = 6 * pb + k * 3 * pb
             dim as MirValue ea = Emit( c, fa )
             dim as MirValue nEl = LowerExprLoad( c, ea, offTy )
 
             dim as MirInst mul
-            mul.op = cast( ushort, M_MUL )
-            mul.ty = cast( ubyte, offTy )
+            mul.op = cast( uint16, M_MUL )
+            mul.ty = cast( uint8, offTy )
             mul.a = acc
             mul.b = nEl
             acc = Emit( c, mul )
 
             dim as MirInst add_
-            add_.op = cast( ushort, M_ADD )
-            add_.ty = cast( ubyte, offTy )
+            add_.op = cast( uint16, M_ADD )
+            add_.ty = cast( uint8, offTy )
             add_.a = acc
             add_.b = iv
             acc = Emit( c, add_ )
         end if
     next
-    if acc.kind = cast( ubyte, MV_NONE ) then return none_
+    if acc.kind = cast( uint8, MV_NONE ) then return none_
 
     if elemLen <> 1 then
         dim as MirInst mul
-        mul.op = cast( ushort, M_MUL )
-        mul.ty = cast( ubyte, offTy )
+        mul.op = cast( uint16, M_MUL )
+        mul.ty = cast( uint8, offTy )
         mul.a = acc
         mul.b = ConstInt( c, elemLen, offTy )
         acc = Emit( c, mul )
     end if
 
     dim as MirValue base_ = DynArrayDataPtr( c, desc )
-    if base_.kind = cast( ubyte, MV_NONE ) then return none_
+    if base_.kind = cast( uint8, MV_NONE ) then return none_
     dim as MirInst pa
-    pa.op = cast( ushort, M_PTR_ADD )
-    pa.ty = cast( ubyte, MT_PTR )
+    pa.op = cast( uint16, M_PTR_ADD )
+    pa.ty = cast( uint8, MT_PTR )
     pa.a = base_
     pa.b = acc
     return Emit( c, pa )
@@ -1100,12 +1100,12 @@ function LowerArrayBoundCall _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     if (cp->count < 1) orelse (cp->count > 2) then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
     dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
 
     dim as RtlId r = RTL_NONE
@@ -1131,14 +1131,14 @@ function LowerArrayBoundCall _
     dim as MirValue desc
     if c.types->IsDynArray( at0 ) = false then
         if c.types->Kind( at0 ) <> Tko.TK_ARRAY then return false
-        dim as long dimIx = 0
+        dim as int32 dimIx = 0
         dim as boolean constDim = true
         if cp->count = 2 then
             dim as Tko.NodeId d1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
             dim as Tko.Check.ConstVal dcv = Tko.Check.ConstOf( _
                 *c.ast, d1, *c.srcMgr, *c.names, c.types->target.pointerBits )
             if dcv.known then
-                dimIx = cast( long, dcv.value ) - 1
+                dimIx = cast( int32, dcv.value ) - 1
             else
                 constDim = false
             end if
@@ -1148,21 +1148,21 @@ function LowerArrayBoundCall _
             '' Measured over 'dim a( 1 to 3 )': 'ubound( a, 0 )' and 'lbound( a, 0 )'
             '' are both 1.
             if dimIx < 0 then
-                outv = ConstInt( c, c.types->types[cast( long, at0 )].dims, MT_I64 )
+                outv = ConstInt( c, c.types->types[cast( int32, at0 )].dims, MT_I64 )
                 return true
             end if
             '' A DIMENSION PAST THE ARRAY'S RANK IS AN EMPTY ONE: measured, over the
             '' same array 'ubound( a, 2 )' folds to -1 and 'lbound( a, 2 )' to 0 --
             '' fbc emits the constants, not a runtime call. Declining instead took
             '' the whole PRINT with it.
-            if dimIx >= c.types->types[cast( long, at0 )].dims then
-                dim as longint empty_ = 0
+            if dimIx >= c.types->types[cast( int32, at0 )].dims then
+                dim as int64 empty_ = 0
                 if nm = "ubound" then empty_ = -1
                 outv = ConstInt( c, empty_, MT_I64 )
                 return true
             end if
             dim as boolean known = false
-            dim as longint b = c.types->ArrayBound( at0, dimIx, (nm = "ubound"), known )
+            dim as int64 b = c.types->ArrayBound( at0, dimIx, (nm = "ubound"), known )
             if known = false then return false
             outv = ConstInt( c, b, MT_I64 )
             return true
@@ -1179,30 +1179,30 @@ function LowerArrayBoundCall _
     else
         desc = LowerAddr( c, a0 )
     end if
-    if desc.kind = cast( ubyte, MV_NONE ) then return false
+    if desc.kind = cast( uint8, MV_NONE ) then return false
 
     dim as MirType zt = DescIntTy_( c )
     dim as MirValue dimV = ConstInt( c, 1, zt )
     if cp->count = 2 then
         dim as Tko.NodeId a1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
         dim as MirValue dv = LowerExpr( c, a1 )
-        if dv.kind = cast( ubyte, MV_NONE ) then return false
+        if dv.kind = cast( uint8, MV_NONE ) then return false
         dimV = CoerceTy( c, dv, zt, c.info->TypeOf_( a1 ))
     end if
 
-    dim as containers.Array( of ulong ) args
-    args.Push( cast( ulong, desc.kind ) ) : args.Push( cast( ulong, desc.id ) )
-    args.Push( cast( ulong, dimV.kind ) ) : args.Push( cast( ulong, dimV.id ) )
+    dim as containers.Array( of uint32 ) args
+    args.Push( cast( uint32, desc.kind ) ) : args.Push( cast( uint32, desc.id ) )
+    args.Push( cast( uint32, dimV.kind ) ) : args.Push( cast( uint32, dimV.id ) )
     outv = EmitRtl( c, r, args )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 
 
 '' The low 'n' bits set. Built by shifting rather than written as a literal so a
 '' 64-bit field does not overflow the shift it would need.
-function BitMask_( byval n as long ) as longint
+function BitMask_( byval n as int32 ) as int64
     if n >= 64 then return -1
-    return (cast( longint, 1 ) shl n) - 1
+    return (cast( int64, 1 ) shl n) - 1
 end function
 
 
@@ -1211,7 +1211,7 @@ end function
 '' fb_ArrayRedimEx( THIS + off, 8, -1, 0, 2, 2, 6, 3, 12 ) (fbc-int/array.bas). The N_FIELD keeps
 '' its bounds as flat (lo, hi) children; op KW_REDIM is the parser's mark.
 sub RedimFieldInit_( byref c as Ctx, byref fa as MirValue, byval f as Tko.Symbol ptr )
-    if (f = 0) orelse (fa.kind = cast( ubyte, MV_NONE )) then return
+    if (f = 0) orelse (fa.kind = cast( uint8, MV_NONE )) then return
     if c.types->IsDynArray( f->type_ ) = false then return
     dim as Tko.NodeId fn = cast( Tko.NodeId, f->payload )
     if (fn = Tko.NODE_NONE) orelse (c.ast->Kind( fn ) <> Tko.N_FIELD) then return
@@ -1219,28 +1219,28 @@ sub RedimFieldInit_( byref c as Ctx, byref fa as MirValue, byval f as Tko.Symbol
     '' Any dynamic field with written bounds -- 'redim', or 'dim' over a non-constant bound.
     if sp->count < 2 then return
     '' 'redim g( any )' is declared, not sized: nothing to do.
-    for i as long = 0 to sp->count - 1
+    for i as int32 = 0 to sp->count - 1
         dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[sp->first + i] )
         if c.ast->Kind( an ) = Tko.N_IDENT then
-            if Tko.Text.LowerAscii( c.names->Spelling( c.ast->idents[cast( long, c.ast->nodes[cast( long, an )].data )].name ) ) = "any" then return
+            if Tko.Text.LowerAscii( c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, an )].data )].name ) ) = "any" then return
         end if
     next
     dim as MirType zt = DescIntTy_( c )
-    dim as containers.Array( of ulong ) bk, bi
-    for i as long = 0 to (sp->count \ 2) * 2 - 1
+    dim as containers.Array( of uint32 ) bk, bi
+    for i as int32 = 0 to (sp->count \ 2) * 2 - 1
         dim as Tko.NodeId bn = cast( Tko.NodeId, c.ast->children[sp->first + i] )
         if bn = Tko.NODE_NONE then   '' 'redim f( 3 )': the lower bound is 0
             dim as MirValue zv = ConstInt( c, 0, zt )
-            bk.Push( cast( ulong, zv.kind ) ) : bi.Push( cast( ulong, zv.id ) )
+            bk.Push( cast( uint32, zv.kind ) ) : bi.Push( cast( uint32, zv.id ) )
             continue for
         end if
         dim as MirValue bv = LowerExpr( c, bn )
-        if bv.kind = cast( ubyte, MV_NONE ) then
+        if bv.kind = cast( uint8, MV_NONE ) then
             SkipHere( c )
             return
         end if
         bv = CoerceTy( c, bv, zt, c.info->TypeOf_( bn ) )
-        bk.Push( cast( ulong, bv.kind ) ) : bi.Push( cast( ulong, bv.id ) )
+        bk.Push( cast( uint32, bv.kind ) ) : bi.Push( cast( uint32, bv.id ) )
     next
     if EmitRedimCall_( c, fa, c.types->Inner( f->type_ ), sp->count \ 2, bk, bi, false ) = false then SkipHere( c )
 end sub

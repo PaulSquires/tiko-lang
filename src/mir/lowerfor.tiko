@@ -34,19 +34,19 @@ using Tko
 '' Register one of the FOR protocol's objects for destruction at the end of the
 '' scope that encloses the loop. Same three pushes FOR EACH makes for its element.
 sub RegisterForUdtDtor_ _
-    ( byref c as Ctx, byval ct as Tko.TypeId, byval slot as long )
+    ( byref c as Ctx, byval ct as Tko.TypeId, byval slot as int32 )
 
     if slot < 0 then return
     dim as Tko.SymbolId dt = _
         StructorWithArity( c, StructorOf( c, ct, "__dtor" ), 0 )
     if dt <> Tko.SYMBOL_NONE then
-        c.cleanupNode.Push( cast( ulong, dt ) )
+        c.cleanupNode.Push( cast( uint32, dt ) )
         c.cleanupSlot.Push( slot )
         c.cleanupType.Push( 0 )
     elseif TypeNeedsDtor_( c, ct ) then
         c.cleanupNode.Push( CLEANUP_IMPLICIT_DTOR )
         c.cleanupSlot.Push( slot )
-        c.cleanupType.Push( cast( ulong, ct ) )
+        c.cleanupType.Push( cast( uint32, ct ) )
     end if
 end sub
 
@@ -58,19 +58,19 @@ end sub
 '' Worse, the counter had already been constructed when the LIMIT declined, so the
 '' program was left with one extra construction and no loop.
 private function ForUdtInit_ _
-    ( byref c as Ctx, byval slot as long, byval ct as Tko.TypeId, _
+    ( byref c as Ctx, byval slot as int32, byval ct as Tko.TypeId, _
       byval e as Tko.NodeId, byref dst as MirValue ) as boolean
 
     if LowerCtorInit( c, slot, ct, e ) then return true
     if LowerConvCtorInit_( c, slot, ct, e, 0 ) then return true
     '' A COPY. fbc emits '_ZN1TC1ERS_( &DST, &SRC )' for an lvalue of the type.
     dim as MirValue sv = LowerAddr( c, e )
-    if sv.kind = cast( ubyte, MV_NONE ) then return false
+    if sv.kind = cast( uint8, MV_NONE ) then return false
     dim as Tko.SymbolId cc = CopyCtorOf_( c, ct )
     if cc <> Tko.SYMBOL_NONE then
-        dim as containers.Array( of ulong ) ccargs
-        ccargs.Push( cast( ulong, sv.kind ) )
-        ccargs.Push( cast( ulong, sv.id ) )
+        dim as containers.Array( of uint32 ) ccargs
+        ccargs.Push( cast( uint32, sv.kind ) )
+        ccargs.Push( cast( uint32, sv.id ) )
         EmitStructorCall( c, cc, -1, @dst, @ccargs )
     else
         CallImplicitCopy_( c, ct, dst, sv )
@@ -84,7 +84,7 @@ private function LowerForUdt_ _
       byval stepE as Tko.NodeId ) as boolean
 
     if (fromE = Tko.NODE_NONE) orelse (toE = Tko.NODE_NONE) then return false
-    if addr.kind <> cast( ubyte, MV_LOCAL ) then return false
+    if addr.kind <> cast( uint8, MV_LOCAL ) then return false
 
     dim as Tko.TypeId ct = c.types->Unqualify( c.info->TypeOf_( sp->a ) )
     if ct = Tko.TYPE_NONE then return false
@@ -106,7 +106,7 @@ private function LowerForUdt_ _
     '' whole loop, and declined it SILENTLY: the program linked and printed nothing
     '' where fbc prints '0 1 2 3 4'.
     dim as boolean hasStep = (stepE <> Tko.NODE_NONE)
-    dim as long nArg = iif( hasStep, 1, 0 )
+    dim as int32 nArg = iif( hasStep, 1, 0 )
     dim as Tko.SymbolId forOp = _
         StructorWithArity( c, StructorOf( c, ct, "for" ), nArg )
     dim as Tko.SymbolId stepOp = _
@@ -132,25 +132,25 @@ private function LowerForUdt_ _
 
     '' THE LIMIT, constructed ONCE into a temporary. Once, because 'operator next'
     '' is called on every test and re-evaluating 'T( f( ) )' would call f each time.
-    dim as long lsz = SizeOfType( c, ct )
+    dim as int32 lsz = SizeOfType( c, ct )
     if lsz <= 0 then return false
-    dim as long limSlot = NewTempLocal( c, MT_AGG, lsz )
+    dim as int32 limSlot = NewTempLocal( c, MT_AGG, lsz )
     if limSlot < 0 then return false
     dim as MirValue limAddr
-    limAddr.kind = cast( ubyte, MV_LOCAL )
-    limAddr.ty = cast( ubyte, MT_PTR )
+    limAddr.kind = cast( uint8, MV_LOCAL )
+    limAddr.ty = cast( uint8, MT_PTR )
     limAddr.id = limSlot
     if ForUdtInit_( c, limSlot, ct, toE, limAddr ) = false then return false
 
     '' THE STEP, constructed ONCE into a temporary of its own, for the same reason
     '' the limit is: all three operators read it, on every iteration.
     dim as MirValue stpAddr
-    dim as containers.Array( of ulong ) stpArgs
+    dim as containers.Array( of uint32 ) stpArgs
     if hasStep then
-        dim as long stpSlot = NewTempLocal( c, MT_AGG, lsz )
+        dim as int32 stpSlot = NewTempLocal( c, MT_AGG, lsz )
         if stpSlot < 0 then return false
-        stpAddr.kind = cast( ubyte, MV_LOCAL )
-        stpAddr.ty = cast( ubyte, MT_PTR )
+        stpAddr.kind = cast( uint8, MV_LOCAL )
+        stpAddr.ty = cast( uint8, MT_PTR )
         stpAddr.id = stpSlot
         '' THREE SHAPES, and the corpus writes the third. 'step foo( 1 )' is
         '' LowerCtorInit's; 'step 1' is the converting constructor; and 'step stp'
@@ -159,8 +159,8 @@ private function LowerForUdt_ _
         '' declined silently: compound/for_UDT_counter.bas writes 'step stp' for
         '' every one of its types.
         if ForUdtInit_( c, stpSlot, ct, stepE, stpAddr ) = false then return false
-        stpArgs.Push( cast( ulong, stpAddr.kind ) )
-        stpArgs.Push( cast( ulong, stpAddr.id ) )
+        stpArgs.Push( cast( uint32, stpAddr.kind ) )
+        stpArgs.Push( cast( uint32, stpAddr.id ) )
         EmitMemberCallArgs_( c, forOp, addr, MT_VOID, @stpArgs )
     else
         EmitMemberCall( c, forOp, addr, MT_VOID )
@@ -181,23 +181,23 @@ private function LowerForUdt_ _
     '' A SCOPE answers both: CloseScope emits in reverse registration order, which
     '' is fbc's step-limit-counter, and EmitCleanupsTo is what every non-local exit
     '' already walks.
-    PushScope( c, cast( ulong, sp->a ) or SCOPE_KEY_OPT )
+    PushScope( c, cast( uint32, sp->a ) or SCOPE_KEY_OPT )
     RegisterForUdtDtor_( c, ct, addr.id )
     RegisterForUdtDtor_( c, ct, limSlot )
     if hasStep then RegisterForUdtDtor_( c, ct, stpAddr.id )
 
-    dim as long bodyB = NewBlock( c, "for.body" )
-    dim as long stepB = NewBlock( c, "for.step" )
-    dim as long testB = NewBlock( c, "for.test" )
-    dim as long exitB = NewBlock( c, "for.exit" )
+    dim as int32 bodyB = NewBlock( c, "for.body" )
+    dim as int32 stepB = NewBlock( c, "for.step" )
+    dim as int32 testB = NewBlock( c, "for.test" )
+    dim as int32 exitB = NewBlock( c, "for.exit" )
     Terminate( c, MTERM_BR, testB, -1, NoVal( ) )
 
     c.curBlock = bodyB
     c.breakTo.Push( exitB )
     c.contTo.Push( stepB )
     c.loopScope.Push( c.scopeMark.Count )
-    c.loopKind.Push( cast( long, Tko.KW_FOR ) )
-    PushScope( c, cast( ulong, sp->b ) )
+    c.loopKind.Push( cast( int32, Tko.KW_FOR ) )
+    PushScope( c, cast( uint32, sp->b ) )
     LowerBlock( c, sp->b )
     CloseScope( c )
     c.loopScope.Pop( )
@@ -215,12 +215,12 @@ private function LowerForUdt_ _
     Terminate( c, MTERM_BR, testB, -1, NoVal( ) )
 
     c.curBlock = testB
-    dim as containers.Array( of ulong ) nargs
-    nargs.Push( cast( ulong, limAddr.kind ) )
-    nargs.Push( cast( ulong, limAddr.id ) )
+    dim as containers.Array( of uint32 ) nargs
+    nargs.Push( cast( uint32, limAddr.kind ) )
+    nargs.Push( cast( uint32, limAddr.id ) )
     if hasStep then
-        nargs.Push( cast( ulong, stpAddr.kind ) )
-        nargs.Push( cast( ulong, stpAddr.id ) )
+        nargs.Push( cast( uint32, stpAddr.kind ) )
+        nargs.Push( cast( uint32, stpAddr.id ) )
     end if
     '' A 'next' RETURNING BYREF hands back the ADDRESS of its answer: 'operator next( .. )
     '' byref as integer' (functions/return-byref.bas). Read as the i32 it was called for,
@@ -231,12 +231,12 @@ private function LowerForUdt_ _
     if nxs <> 0 then nxn = cast( Tko.NodeId, nxs->payload )
     if (nxn <> Tko.NODE_NONE) andalso (c.ast->Kind( nxn ) = Tko.N_PROC) then
         nextByref = ((StmtOf( c, nxn )->extra and Tko.PF_BYREF_RESULT) <> 0) orelse _
-                    ((c.ast->nodes[cast( long, nxn )].flags and Tko.NF_BYREF) <> 0)   '' lowerproc.tiko's own test
+                    ((c.ast->nodes[cast( int32, nxn )].flags and Tko.NF_BYREF) <> 0)   '' lowerproc.tiko's own test
     end if
     if (nextByref = false) andalso (nxs <> 0) then nextByref = (c.types->Kind( nxs->type_ ) = Tko.TK_REFERENCE)
     dim as MirValue more = _
         EmitMemberCallArgs_( c, nextOp, addr, iif( nextByref, MT_PTR, MT_I32 ), @nargs )
-    if more.kind = cast( ubyte, MV_NONE ) then
+    if more.kind = cast( uint8, MV_NONE ) then
         CloseScope( c )
         return false
     end if
@@ -247,8 +247,8 @@ private function LowerForUdt_ _
         if (nmt = MT_VOID) orelse (nmt = MT_AGG) then nmt = MT_I64
         dim as MirValue nv = LowerExprLoad( c, more, nmt )
         dim as MirInst nz
-        nz.op = cast( ushort, M_ICMP_NE )
-        nz.ty = cast( ubyte, MT_I32 )
+        nz.op = cast( uint16, M_ICMP_NE )
+        nz.ty = cast( uint8, MT_I32 )
         nz.a = nv
         nz.b = ConstInt( c, 0, nmt )
         more = Emit( c, nz )
@@ -273,7 +273,7 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
     if sp->count >= 3 then stepE = cast( Tko.NodeId, c.ast->children[sp->first + 2] )
 
     dim as MirValue addr = LowerAddr( c, sp->a )
-    if addr.kind = cast( ubyte, MV_NONE ) then
+    if addr.kind = cast( uint8, MV_NONE ) then
         SkipHere( c )
         return
     end if
@@ -290,18 +290,18 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
     '' And in a SUB there is no result slot at all, so 'locals' is empty and tiko-lang
     '' SEGFAULTED. The corpus sweep was not reporting that as anything.
     dim as MirType ity = MT_VOID
-    if addr.kind = cast( ubyte, MV_GLOBAL ) then
+    if addr.kind = cast( uint8, MV_GLOBAL ) then
         if (addr.id < 0) orelse (addr.id >= c.m->globals.Count) then
             SkipHere( c )
             return
         end if
-        ity = cast( MirType, c.m->globals[cast( long, addr.id )].ty )
+        ity = cast( MirType, c.m->globals[cast( int32, addr.id )].ty )
     else
         if (addr.id < 0) orelse (addr.id >= c.f->locals.Count) then
             SkipHere( c )
             return
         end if
-        ity = cast( MirType, c.f->locals[cast( long, addr.id )].ty )
+        ity = cast( MirType, c.f->locals[cast( int32, addr.id )].ty )
     end if
     if ity = MT_VOID then
         SkipHere( c )
@@ -359,12 +359,12 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
     '' Measured, fbc's 'for i = takeR( mkH( 1 ) ) to takeR( mkH( 5 ) ) + cnt( ) step
     '' takeR( mkH( 2 ) ) + cnt( )' destroys 1, then 5, then 2, all before the first
     '' iteration, and the limit and the step each see the destructors before them.
-    dim as long hmark = c.udtTemps.Count
+    dim as int32 hmark = c.udtTemps.Count
     dim as MirValue init_ = LowerNumArg_( c, fromE, ity )
-    if init_.kind <> cast( ubyte, MV_NONE ) then
+    if init_.kind <> cast( uint8, MV_NONE ) then
         dim as MirInst st0
-        st0.op = cast( ushort, M_STORE )
-        st0.ty = cast( ubyte, MT_VOID )
+        st0.op = cast( uint16, M_STORE )
+        st0.ty = cast( uint8, MT_VOID )
         st0.a = addr
         st0.b = init_
         Emit( c, st0 )
@@ -389,7 +389,7 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
     ''
     '' A CONSTANT limit is left where it was. It cannot have a side effect and cannot
     '' be reassigned, so hoisting it would only add a slot and a load.
-    dim as long limSlot = -1
+    dim as int32 limSlot = -1
     dim as MirValue limAddr
     if toE <> Tko.NODE_NONE then
         dim as Tko.Check.ConstVal lv = _
@@ -401,18 +401,18 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
                 SkipHere( c )
                 return
             end if
-            limAddr.kind = cast( ubyte, MV_LOCAL )
-            limAddr.ty = cast( ubyte, MT_PTR )
+            limAddr.kind = cast( uint8, MV_LOCAL )
+            limAddr.ty = cast( uint8, MT_PTR )
             limAddr.id = limSlot
             dim as MirValue lv0 = _
                 LowerNumArg_( c, toE, ity )
-            if lv0.kind = cast( ubyte, MV_NONE ) then
+            if lv0.kind = cast( uint8, MV_NONE ) then
                 SkipHere( c )
                 return
             end if
             dim as MirInst lst
-            lst.op = cast( ushort, M_STORE )
-            lst.ty = cast( ubyte, MT_VOID )
+            lst.op = cast( uint16, M_STORE )
+            lst.ty = cast( uint8, MT_VOID )
             lst.a = limAddr
             lst.b = lv0
             Emit( c, lst )
@@ -426,7 +426,7 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
     dim as boolean haveStep = (stepE <> Tko.NODE_NONE)
     dim as boolean stepConst = false
     dim as boolean negStep = false
-    dim as long stepSlot = -1
+    dim as int32 stepSlot = -1
     dim as MirValue stepAddr
     if haveStep then
         dim as Tko.Check.ConstVal sv = Tko.Check.ConstOf( *c.ast, stepE, *c.srcMgr, *c.names, _
@@ -448,17 +448,17 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
             SkipHere( c )
             return
         end if
-        stepAddr.kind = cast( ubyte, MV_LOCAL )
-        stepAddr.ty = cast( ubyte, MT_PTR )
+        stepAddr.kind = cast( uint8, MV_LOCAL )
+        stepAddr.ty = cast( uint8, MT_PTR )
         stepAddr.id = stepSlot
         dim as MirValue sv0 = LowerNumArg_( c, stepE, ity )
-        if sv0.kind = cast( ubyte, MV_NONE ) then
+        if sv0.kind = cast( uint8, MV_NONE ) then
             SkipHere( c )
             return
         end if
         dim as MirInst sst
-        sst.op = cast( ushort, M_STORE )
-        sst.ty = cast( ubyte, MT_VOID )
+        sst.op = cast( uint16, M_STORE )
+        sst.ty = cast( uint8, MT_VOID )
         sst.a = stepAddr
         sst.b = sv0
         Emit( c, sst )
@@ -468,7 +468,7 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
     '' A RUNTIME STEP needs its SIGN tested once, also before the loop, because the
     '' comparison direction depends on it. fbc computes '-(step >= 0)' into a second
     '' temporary and branches on that at the top of every iteration.
-    dim as long signSlot = -1
+    dim as int32 signSlot = -1
     dim as MirValue signAddr
     if haveStep andalso (stepConst = false) then
         signSlot = NewTempLocal( c, MT_I8, 1 )
@@ -476,34 +476,34 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
             SkipHere( c )
             return
         end if
-        signAddr.kind = cast( ubyte, MV_LOCAL )
-        signAddr.ty = cast( ubyte, MT_PTR )
+        signAddr.kind = cast( uint8, MV_LOCAL )
+        signAddr.ty = cast( uint8, MT_PTR )
         signAddr.id = signSlot
         dim as MirValue sload = LowerExprLoad( c, stepAddr, ity )
         dim as MirInst scmp
         '' AN UNSIGNED STEP IS NEVER NEGATIVE, so its sign is asked unsigned.
         dim as boolean unsStep = (IsFloatTy( ity ) = false) andalso _
                                  IsUnsignedType( c, c.info->TypeOf_( stepE ) )
-        scmp.op = cast( ushort, iif( IsFloatTy( ity ), M_FCMP_GE, _
+        scmp.op = cast( uint16, iif( IsFloatTy( ity ), M_FCMP_GE, _
                                      iif( unsStep, M_ICMP_UGE, M_ICMP_SGE ) ) )
-        scmp.ty = cast( ubyte, MT_I8 )
+        scmp.ty = cast( uint8, MT_I8 )
         scmp.a = sload
         scmp.b = ZeroOf( c, ity )
         dim as MirValue snn = Emit( c, scmp )
         dim as MirInst sst2
-        sst2.op = cast( ushort, M_STORE )
-        sst2.ty = cast( ubyte, MT_VOID )
+        sst2.op = cast( uint16, M_STORE )
+        sst2.ty = cast( uint8, MT_VOID )
         sst2.a = signAddr
         sst2.b = snn
         Emit( c, sst2 )
     end if
 
-    dim as long headB = NewBlock( c, "for.head" )
-    dim as long bodyB = NewBlock( c, "for.body" )
-    dim as long stepB = NewBlock( c, "for.step" )
-    dim as long exitB = NewBlock( c, "for.exit" )
-    dim as long upB = -1
-    dim as long downB = -1
+    dim as int32 headB = NewBlock( c, "for.head" )
+    dim as int32 bodyB = NewBlock( c, "for.body" )
+    dim as int32 stepB = NewBlock( c, "for.step" )
+    dim as int32 exitB = NewBlock( c, "for.exit" )
+    dim as int32 upB = -1
+    dim as int32 downB = -1
     if signSlot >= 0 then
         upB = NewBlock( c, "for.up" )
         downB = NewBlock( c, "for.down" )
@@ -529,28 +529,28 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
 
         c.curBlock = upB
         dim as MirInst cu
-        cu.op = cast( ushort, iif( IsFloatTy( ity ), M_FCMP_LE, _
+        cu.op = cast( uint16, iif( IsFloatTy( ity ), M_FCMP_LE, _
                                    iif( unsCtr, M_ICMP_ULE, M_ICMP_SLE ) ) )
-        cu.ty = cast( ubyte, MT_I8 )
+        cu.ty = cast( uint8, MT_I8 )
         cu.a = cur
         cu.b = lim
         Terminate( c, MTERM_CONDBR, bodyB, exitB, Emit( c, cu ) )
 
         c.curBlock = downB
         dim as MirInst cd
-        cd.op = cast( ushort, iif( IsFloatTy( ity ), M_FCMP_GE, _
+        cd.op = cast( uint16, iif( IsFloatTy( ity ), M_FCMP_GE, _
                                    iif( unsCtr, M_ICMP_UGE, M_ICMP_SGE ) ) )
-        cd.ty = cast( ubyte, MT_I8 )
+        cd.ty = cast( uint8, MT_I8 )
         cd.a = cur
         cd.b = lim
         Terminate( c, MTERM_CONDBR, bodyB, exitB, Emit( c, cd ) )
     else
         dim as MirInst cmp
-        cmp.op = cast( ushort, iif( IsFloatTy( ity ), _
+        cmp.op = cast( uint16, iif( IsFloatTy( ity ), _
                                     iif( negStep, M_FCMP_GE, M_FCMP_LE ), _
                                     iif( negStep, iif( unsCtr, M_ICMP_UGE, M_ICMP_SGE ), _
                                                   iif( unsCtr, M_ICMP_ULE, M_ICMP_SLE ) ) ) )
-        cmp.ty = cast( ubyte, MT_I8 )
+        cmp.ty = cast( uint8, MT_I8 )
         cmp.a = cur
         cmp.b = lim
         dim as MirValue cond = Emit( c, cmp )
@@ -561,8 +561,8 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
     c.breakTo.Push( exitB )
     c.contTo.Push( stepB )
     c.loopScope.Push( c.scopeMark.Count )
-    c.loopKind.Push( cast( long, Tko.KW_FOR ) )
-    PushScope( c, cast( ulong, sp->b ) )
+    c.loopKind.Push( cast( int32, Tko.KW_FOR ) )
+    PushScope( c, cast( uint32, sp->b ) )
     LowerBlock( c, sp->b )
     CloseScope( c )
     c.loopScope.Pop( )
@@ -594,32 +594,32 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
         dim as MirType offT = MT_I64
         if c.types->target.pointerBits = 32 then offT = MT_I32
         dim as MirValue off = Coerce( c, inc, offT, false )
-        dim as long pesz = PtrArithElem_( c, c.info->TypeOf_( sp->a ) )
+        dim as int32 pesz = PtrArithElem_( c, c.info->TypeOf_( sp->a ) )
         if pesz > 1 then
             dim as MirInst sc
-            sc.op = cast( ushort, M_MUL )
-            sc.ty = cast( ubyte, offT )
+            sc.op = cast( uint16, M_MUL )
+            sc.ty = cast( uint8, offT )
             sc.a = off
             sc.b = ConstInt( c, pesz, offT )
             off = Emit( c, sc )
         end if
         dim as MirInst pa
-        pa.op = cast( ushort, M_PTR_ADD )
-        pa.ty = cast( ubyte, MT_PTR )
+        pa.op = cast( uint16, M_PTR_ADD )
+        pa.ty = cast( uint8, MT_PTR )
         pa.a = cur2
         pa.b = off
         nxt = Emit( c, pa )
     else
         dim as MirInst add_
-        add_.op = cast( ushort, M_ADD )
-        add_.ty = cast( ubyte, ity )
+        add_.op = cast( uint16, M_ADD )
+        add_.ty = cast( uint8, ity )
         add_.a = cur2
         add_.b = inc
         nxt = Emit( c, add_ )
     end if
     dim as MirInst st1
-    st1.op = cast( ushort, M_STORE )
-    st1.ty = cast( ubyte, MT_VOID )
+    st1.op = cast( uint16, M_STORE )
+    st1.ty = cast( uint8, MT_VOID )
     st1.a = addr
     st1.b = nxt
     Emit( c, st1 )

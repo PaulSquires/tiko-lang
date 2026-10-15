@@ -22,7 +22,7 @@ end function
 '' were typed, which is the current directory.
 private sub RebasePaths_( byref dir_ as string, byref v as Tko.StrVec )
     Tko.InitOptTable( )
-    dim as long i = 0
+    dim as int32 i = 0
     while i < v.Count
         dim as string w = v[i]
         if left( w, 1 ) <> "-" then
@@ -31,12 +31,12 @@ private sub RebasePaths_( byref dir_ as string, byref v as Tko.StrVec )
             continue while
         end if
         dim as string spell = w, val_ = ""
-        dim as long eq = instr( w, "=" )
+        dim as int32 eq = instr( w, "=" )
         if eq > 0 then
             spell = left( w, eq - 1 )
             val_ = mid( w, eq + 1 )
         end if
-        for k as long = 1 to Tko.OPT_COUNT - 1
+        for k as int32 = 1 to Tko.OPT_COUNT - 1
             dim as Tko.OptInfo ptr info = Tko.OptInfoOf( cast( Tko.OptId, k ) )
             if *info->spelling <> spell then continue for
             if info->kind <> Tko.OPTK_VALUE then exit for
@@ -55,7 +55,7 @@ private sub RebasePaths_( byref dir_ as string, byref v as Tko.StrVec )
 end sub
 
 function BaseName( byref p as string ) as string
-    for i as long = len( p ) to 1 step -1
+    for i as int32 = len( p ) to 1 step -1
         dim as string ch = mid( p, i, 1 )
         if (ch = "/") orelse (ch = "\") then return mid( p, i + 1 )
     next
@@ -64,7 +64,7 @@ end function
 
 '' The path less its extension, the directory kept.
 function Stem( byref p as string ) as string
-    for i as long = len( p ) to 1 step -1
+    for i as int32 = len( p ) to 1 step -1
         dim as string ch = mid( p, i, 1 )
         if (ch = "/") orelse (ch = "\") then exit for
         if ch = "." then return left( p, i - 1 )
@@ -74,7 +74,7 @@ end function
 
 function FindManifestDir( ) as string
     dim as string d = "."
-    for depth as long = 0 to 63
+    for depth as int32 = 0 to 63
         if Tko.Modules.HasManifest( d ) then return d
         dim as string up = iif( d = ".", "..", d & "/.." )
         '' THE ROOT is its own parent.
@@ -86,9 +86,9 @@ end function
 
 '' An array value as the manifest keeps it: elements joined by LF.
 private sub SplitLf_( byref v as string, byref outv as Tko.StrVec )
-    dim as long st = 1
+    dim as int32 st = 1
     while st <= len( v )
-        dim as long e = instr( st, v, chr( 10 ) )
+        dim as int32 e = instr( st, v, chr( 10 ) )
         if e = 0 then e = len( v ) + 1
         dim as string one_ = mid( v, st, e - st )
         if len( one_ ) > 0 then outv.Push( one_ )
@@ -151,7 +151,7 @@ function ProfileFlags _
         next
         chain.Push( cur )
         dim as string parent = ""
-        for k as long = 0 to m.prfName.Count - 1
+        for k as int32 = 0 to m.prfName.Count - 1
             if (m.prfName[k] = cur) andalso (m.prfKey[k] = "inherits") then parent = m.prfVal[k]
         next
         if len( parent ) = 0 then exit do
@@ -163,13 +163,13 @@ function ProfileFlags _
     loop
 
     '' ...APPLIED ANCESTOR FIRST: a built-in's own values, then the manifest's keys for it.
-    dim as long dbg = -1, opt = -1
+    dim as int32 dbg = -1, opt = -1
     dim as string errs = chr( 1 ), opts = chr( 1 )
-    for i as long = chain.Count - 1 to 0 step -1
+    for i as int32 = chain.Count - 1 to 0 step -1
         dim as string pn = chain[i]
         if pn = "debug" then dbg = 1 : errs = "exx" : opt = 0
         if pn = "release" then dbg = 0 : errs = "" : opt = 2
-        for k as long = 0 to m.prfName.Count - 1
+        for k as int32 = 0 to m.prfName.Count - 1
             if m.prfName[k] <> pn then continue for
             select case m.prfKey[k]
             case "debug"   : dbg = iif( m.prfVal[k] = "true", 1, 0 )
@@ -212,7 +212,7 @@ end function
 private function TargetKey_ _
     ( byref m as Tko.Modules.Manifest, byref tname as string, byref key as string ) as string
     dim as string v = ""
-    for k as long = 0 to m.tgtName.Count - 1
+    for k as int32 = 0 to m.tgtName.Count - 1
         if (m.tgtName[k] = tname) andalso (m.tgtKey[k] = key) then v = m.tgtVal[k]
     next
     return v
@@ -256,7 +256,7 @@ end sub
 '' The value of the last '-x' (or '-x=') among the flags, "" when there is none.
 private function ExeOutFlag_( byref flags as Tko.StrVec ) as string
     dim as string r = ""
-    for k as long = 0 to flags.Count - 1
+    for k as int32 = 0 to flags.Count - 1
         if (flags[k] = "-x") andalso (k + 1 < flags.Count) then r = flags[k + 1]
         if left( flags[k], 3 ) = "-x=" then r = mid( flags[k], 4 )
     next
@@ -273,7 +273,7 @@ function PlanTarget _
     p.kind = "exe"
     dim as string main_, subsys
     dim as Tko.StrVec sources, libs, libpaths, topts, copies
-    for k as long = 0 to m.tgtName.Count - 1
+    for k as int32 = 0 to m.tgtName.Count - 1
         if m.tgtName[k] <> tname then continue for
         dim as string v = m.tgtVal[k]
         select case m.tgtKey[k]
@@ -301,7 +301,7 @@ function PlanTarget _
     for each r as string in p.roots
         if CheckInput_( tname, r, diags ) = false then ok = false
     next
-    for i as long = 0 to p.resources.Count - 1
+    for i as int32 = 0 to p.resources.Count - 1
         p.resources[i] = Rel( mdir, p.resources[i] )
         if CheckInput_( tname, p.resources[i], diags ) = false then ok = false
     next

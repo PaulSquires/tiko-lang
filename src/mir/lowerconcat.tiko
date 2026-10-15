@@ -17,20 +17,20 @@ private function NarrowAppendWide_ _
     dim as MirValue src
     if ConcatHasWideTerm_( c, value ) then
         if WideConcatToTemp_( c, value, src ) = false then return false
-    elseif (WideOperand_( c, value, src ) = false) orelse (src.kind = cast( ubyte, MV_NONE )) then
+    elseif (WideOperand_( c, value, src ) = false) orelse (src.kind = cast( uint8, MV_NONE )) then
         if UserCastToWide_( c, value, src ) = false then return false
     end if
-    if src.kind = cast( ubyte, MV_NONE ) then return false
-    dim as containers.Array( of ulong ) args
+    if src.kind = cast( uint8, MV_NONE ) then return false
+    dim as containers.Array( of uint32 ) args
     PushStrArg( args, dst )
-    args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
+    args.Push( cast( uint32, src.kind ) ) : args.Push( cast( uint32, src.id ) )
     dim as MirValue joined
     if WideConcatStep_( c, args, RTL_WSTR_CONCAT_AW, joined ) = false then return false
-    dim as containers.Array( of ulong ) aargs
-    aargs.Push( cast( ulong, dst.kind ) ) : aargs.Push( cast( ulong, dst.id ) )
+    dim as containers.Array( of uint32 ) aargs
+    aargs.Push( cast( uint32, dst.kind ) ) : aargs.Push( cast( uint32, dst.id ) )
     PushStrLen_( c, aargs, -1 )
-    aargs.Push( cast( ulong, joined.kind ) ) : aargs.Push( cast( ulong, joined.id ) )
-    aargs.Push( cast( ulong, MV_CONST_INT ) ) : aargs.Push( 0 )
+    aargs.Push( cast( uint32, joined.kind ) ) : aargs.Push( cast( uint32, joined.id ) )
+    aargs.Push( cast( uint32, MV_CONST_INT ) ) : aargs.Push( 0 )
     EmitRtl( c, RTL_WSTR_ASSIGN_TOA, aargs )
     return true
 end function
@@ -59,7 +59,7 @@ function LowerConcatAssignStmt _
 
     if IsStringType( c, tt ) then
         dim as MirValue dst = LowerAddr( c, target )
-        if dst.kind = cast( ubyte, MV_NONE ) then return false
+        if dst.kind = cast( uint8, MV_NONE ) then return false
         dim as boolean isU = IsUStringType( c, tt )
         '' A CHAIN APPENDED TO A USTRING IS FOLDED, like the three-term self chain it is.
         '' Measured (every ustring row a fold and one assign):
@@ -74,12 +74,12 @@ function LowerConcatAssignStmt _
         '' narrow build followed: 'Tu', NUL -- fbsqlite's DbError.ToString lost everything
         '' after its first line ('text &= " [" & m_operation & "]"').
         if isU then
-            dim as containers.Array( of ulong ) vterms
+            dim as containers.Array( of uint32 ) vterms
             FlattenConcat( c, value, vterms )
             if vterms.Count >= 2 then
-                dim as containers.Array( of ulong ) chain
-                chain.Push( cast( ulong, target ) )
-                for i as long = 0 to vterms.Count - 1
+                dim as containers.Array( of uint32 ) chain
+                chain.Push( cast( uint32, target ) )
+                for i as int32 = 0 to vterms.Count - 1
                     chain.Push( vterms[i] )
                 next
                 return LowerUStrChain( c, dst, true, chain, false )
@@ -91,7 +91,7 @@ function LowerConcatAssignStmt _
         '' 'u &= q' over a narrow source is fb_UStrConcatUA into a TEMPORARY and then
         '' an assign, not one concat-assign -- measured. It is the two-term chain
         '' 'u = u + q', so it goes through the same fold.
-        dim as long vf = StrTermFlavour_( c, value )
+        dim as int32 vf = StrTermFlavour_( c, value )
 
         '' A WIDE SOURCE APPENDED TO A USTRING IS A CONVERSION, not a concat: a
         '' wstring is a bare uint16* and a ustring a DESCRIPTOR, and no entry point
@@ -109,12 +109,12 @@ function LowerConcatAssignStmt _
         '' 'h &= u & wz' held "nU w i". It takes the fold 'h = h & u & wz' already takes.
         '' A UDT that ALSO casts to a narrow string stays narrow -- fbc picks that cast.
         if (isU = false) andalso (vf = STF_WIDE) then
-            dim as containers.Array( of ulong ) wterms
+            dim as containers.Array( of uint32 ) wterms
             FlattenConcat( c, value, wterms )
             dim as boolean touchesU = false
             dim as boolean wideOnly = false
             dim as boolean hasDual = false
-            for i as long = 0 to wterms.Count - 1
+            for i as int32 = 0 to wterms.Count - 1
                 dim as Tko.NodeId wt = cast( Tko.NodeId, wterms[i] )
                 if IsUStringType( c, c.info->TypeOf_( wt ) ) then touchesU = true
                 if TermIsWide_( c, wt ) then
@@ -127,9 +127,9 @@ function LowerConcatAssignStmt _
                 end if
             next
             if touchesU then
-                dim as containers.Array( of ulong ) uchain
-                uchain.Push( cast( ulong, target ) )
-                for i as long = 0 to wterms.Count - 1
+                dim as containers.Array( of uint32 ) uchain
+                uchain.Push( cast( uint32, target ) )
+                for i as int32 = 0 to wterms.Count - 1
                     uchain.Push( wterms[i] )
                 next
                 return LowerUStrChain( c, dst, false, uchain, false )
@@ -150,17 +150,17 @@ function LowerConcatAssignStmt _
             end if
         end if
         if mism then
-            dim as containers.Array( of ulong ) two
-            two.Push( cast( ulong, target ) )
-            two.Push( cast( ulong, value ) )
+            dim as containers.Array( of uint32 ) two
+            two.Push( cast( uint32, target ) )
+            two.Push( cast( uint32, value ) )
             if LowerUStrChain( c, dst, isU, two, false ) then return true
             if isU then return LowerNarrowChainToU_( c, dst, two, false )
             return false
         end if
-        dim as containers.Array( of ulong ) args
+        dim as containers.Array( of uint32 ) args
         PushStrArg( args, dst )
         if EmitStrTerm( c, args, value, isU ) = false then return false
-        args.Push( cast( ulong, MV_CONST_INT ) )
+        args.Push( cast( uint32, MV_CONST_INT ) )
         args.Push( 0 )
         EmitRtl( c, iif( isU, RTL_USTR_CONCAT_ASSIGN, RTL_STR_CONCAT_ASSIGN ), args )
         return true
@@ -180,49 +180,49 @@ function LowerConcatAssignStmt _
     ''                   fb_StrAssign( Z, 30, vr, -1, 0 )
     ''
     '' -- the unsized '*zp' passing length 0, as it does everywhere.
-    dim as longint fxn
-    dim as long fxk = StrSwapKind_( c, tt, fxn )
+    dim as int64 fxn
+    dim as int32 fxk = StrSwapKind_( c, tt, fxn )
     if (fxk <> 1) andalso (fxk <> 3) then return false
     if StrTermFlavour_( c, value ) = STF_UTF16 then return false
     if StrTermFlavour_( c, value ) = STF_WIDE then return false
     dim as MirValue fdst = LowerAddr( c, target )
-    if fdst.kind = cast( ubyte, MV_NONE ) then return false
+    if fdst.kind = cast( uint8, MV_NONE ) then return false
     if fxk = 3 then
-        dim as containers.Array( of ulong ) fa
-        fa.Push( cast( ulong, fdst.kind ) ) : fa.Push( cast( ulong, fdst.id ) )
+        dim as containers.Array( of uint32 ) fa
+        fa.Push( cast( uint32, fdst.kind ) ) : fa.Push( cast( uint32, fdst.id ) )
         PushStrLen_( c, fa, fxn )
         if EmitStrTerm( c, fa, value, false ) = false then return false
-        fa.Push( cast( ulong, MV_CONST_INT ) ) : fa.Push( cast( ulong, -1 ) )
+        fa.Push( cast( uint32, MV_CONST_INT ) ) : fa.Push( cast( uint32, -1 ) )
         EmitRtl( c, RTL_STR_CONCAT_ASSIGN, fa )
         return true
     end if
-    dim as long tslot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+    dim as int32 tslot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
     if tslot < 0 then return false
     dim as MirValue ftmp
-    ftmp.kind = cast( ubyte, MV_LOCAL )
-    ftmp.ty = cast( ubyte, MT_PTR )
+    ftmp.kind = cast( uint8, MV_LOCAL )
+    ftmp.ty = cast( uint8, MT_PTR )
     ftmp.id = tslot
     ZeroStrTempAtEntry_( c, ftmp )
-    dim as containers.Array( of ulong ) ca
-    ca.Push( cast( ulong, ftmp.kind ) ) : ca.Push( cast( ulong, ftmp.id ) )
-    ca.Push( cast( ulong, fdst.kind ) ) : ca.Push( cast( ulong, fdst.id ) )
+    dim as containers.Array( of uint32 ) ca
+    ca.Push( cast( uint32, ftmp.kind ) ) : ca.Push( cast( uint32, ftmp.id ) )
+    ca.Push( cast( uint32, fdst.kind ) ) : ca.Push( cast( uint32, fdst.id ) )
     PushStrLen_( c, ca, fxn )
     if EmitStrTerm( c, ca, value, false ) = false then return false
     dim as MirValue acc = EmitRtl( c, RTL_STR_CONCAT, ca )
-    if acc.kind = cast( ubyte, MV_NONE ) then return false
-    dim as containers.Array( of ulong ) aa
-    aa.Push( cast( ulong, fdst.kind ) ) : aa.Push( cast( ulong, fdst.id ) )
+    if acc.kind = cast( uint8, MV_NONE ) then return false
+    dim as containers.Array( of uint32 ) aa
+    aa.Push( cast( uint32, fdst.kind ) ) : aa.Push( cast( uint32, fdst.id ) )
     PushStrLen_( c, aa, fxn )
-    aa.Push( cast( ulong, acc.kind ) ) : aa.Push( cast( ulong, acc.id ) )
-    aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( cast( ulong, -1 ) )
-    aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( 0 )
+    aa.Push( cast( uint32, acc.kind ) ) : aa.Push( cast( uint32, acc.id ) )
+    aa.Push( cast( uint32, MV_CONST_INT ) ) : aa.Push( cast( uint32, -1 ) )
+    aa.Push( cast( uint32, MV_CONST_INT ) ) : aa.Push( 0 )
     EmitRtl( c, RTL_STR_ASSIGN, aa )
     return true
 end function
 
 '' Flatten a left-leaning '+' chain into its terms, in source order.
 sub FlattenConcat _
-    ( byref c as Ctx, byval id as Tko.NodeId, byref outp as containers.Array( of ulong ) )
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outp as containers.Array( of uint32 ) )
 
     if id = Tko.NODE_NONE then return
     '' A PARENTHESISED STRING CHAIN IS THE SAME CHAIN: 'a & ( b & c )' is 'a & b & c'.
@@ -241,7 +241,7 @@ sub FlattenConcat _
     dim as Tko.NodeId inner = id
     while c.ast->Kind( inner ) = Tko.N_PAREN
         dim as Tko.ListPayload ptr pp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, inner )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, inner )].data )]
         if pp->count <> 1 then exit while
         inner = cast( Tko.NodeId, c.ast->children[pp->first] )
     wend
@@ -250,7 +250,7 @@ sub FlattenConcat _
     parenBin = parenBin andalso (c.ast->Kind( inner ) = Tko.N_BINARY)
     if parenBin andalso builtinOp then
         dim as Tko.BinaryPayload ptr ibp = _
-            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, inner )].data )]
+            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, inner )].data )]
         dim as Tko.TokenKind iop = cast( Tko.TokenKind, ibp->op )
         dim as Tko.TypeId it = c.info->TypeOf_( inner )
         dim as boolean strPlus = IsStringType( c, it ) orelse IsWideString_( c, it )
@@ -263,7 +263,7 @@ sub FlattenConcat _
     end if
     if c.ast->Kind( id ) = Tko.N_BINARY then
         dim as Tko.BinaryPayload ptr bp = _
-            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         '' '&' AND '+' ARE THE SAME OPERATION on strings -- measured: fbc emits
         '' fb_StrAssign followed by fb_StrConcatAssign for both, instruction for
         '' instruction. Only '+' was flattened, so 'b = a & p' declined outright while
@@ -298,11 +298,11 @@ sub FlattenConcat _
             if nulLit then nulLit = ConstStringTextOf_( c, id, nraw, 1 )
             if nulLit then nulLit = (instr( nraw, chr( 0 ) ) > 0)
             if nulLit then
-                dim as containers.Array( of ulong ) sub_
+                dim as containers.Array( of uint32 ) sub_
                 FlattenConcat( c, bp->lhs, sub_ )
                 FlattenConcat( c, bp->rhs, sub_ )
-                dim as long keep = sub_.Count
-                for k as long = 0 to sub_.Count - 1
+                dim as int32 keep = sub_.Count
+                for k as int32 = 0 to sub_.Count - 1
                     dim as string kt
                     if ConstStringTextOf_( c, cast( Tko.NodeId, sub_[k] ), kt, 1 ) andalso (instr( kt, chr( 0 ) ) > 0) then
                         keep = k + 1
@@ -310,7 +310,7 @@ sub FlattenConcat _
                     end if
                 next
                 if keep < 2 then keep = iif( sub_.Count < 2, sub_.Count, 2 )
-                for k as long = 0 to keep - 1
+                for k as int32 = 0 to keep - 1
                     outp.Push( sub_[k] )
                 next
                 return
@@ -320,7 +320,7 @@ sub FlattenConcat _
             return
         end if
     end if
-    outp.Push( cast( ulong, id ) )
+    outp.Push( cast( uint32, id ) )
 end sub
 
 '' Whether two expressions name the same storage. Only the simple cases are needed:
@@ -347,21 +347,21 @@ end function
 '' root in a later term takes the temporary: over-conservative for 'st.a = x & st.b',
 '' which is only slower, never wrong.
 private function LValueRoot_( byref c as Ctx, byval n as Tko.NodeId ) as Tko.NodeId
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (n <> Tko.NODE_NONE) andalso (guard < 64)
         guard += 1
-        dim as ulong d = c.ast->nodes[cast( long, n )].data
+        dim as uint32 d = c.ast->nodes[cast( int32, n )].data
         select case c.ast->Kind( n )
         case Tko.N_IDENT
             return n
         case Tko.N_MEMBER
-            n = c.ast->binaries[cast( long, d )].lhs
+            n = c.ast->binaries[cast( int32, d )].lhs
         case Tko.N_DEREF
-            n = c.ast->unaries[cast( long, d )].operand
+            n = c.ast->unaries[cast( int32, d )].operand
         case Tko.N_INDEX, Tko.N_CALL
-            n = c.ast->lists[cast( long, d )].target
+            n = c.ast->lists[cast( int32, d )].target
         case Tko.N_PAREN
-            dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( long, d )]
+            dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( int32, d )]
             if lp->count <> 1 then return Tko.NODE_NONE
             n = cast( Tko.NodeId, c.ast->children[lp->first] )
         case else
@@ -375,7 +375,7 @@ function TermReadsLValue_ _
     ( byref c as Ctx, byval target as Tko.NodeId, byval e as Tko.NodeId ) as boolean
 
     if (target = Tko.NODE_NONE) orelse (e = Tko.NODE_NONE) then return false
-    dim as ulong d = c.ast->nodes[cast( long, e )].data
+    dim as uint32 d = c.ast->nodes[cast( int32, e )].data
     select case c.ast->Kind( e )
     case Tko.N_IDENT
         if SameLValue( c, target, e ) then return true
@@ -383,14 +383,14 @@ function TermReadsLValue_ _
         if (troot = Tko.NODE_NONE) orelse (troot = target) then return false
         return SameLValue( c, troot, e )
     case Tko.N_UNARY, Tko.N_ADDROF, Tko.N_DEREF
-        return TermReadsLValue_( c, target, c.ast->unaries[cast( long, d )].operand )
+        return TermReadsLValue_( c, target, c.ast->unaries[cast( int32, d )].operand )
     case Tko.N_BINARY, Tko.N_MEMBER
-        if TermReadsLValue_( c, target, c.ast->binaries[cast( long, d )].lhs ) then return true
-        return TermReadsLValue_( c, target, c.ast->binaries[cast( long, d )].rhs )
+        if TermReadsLValue_( c, target, c.ast->binaries[cast( int32, d )].lhs ) then return true
+        return TermReadsLValue_( c, target, c.ast->binaries[cast( int32, d )].rhs )
     case Tko.N_CALL, Tko.N_INDEX, Tko.N_PAREN, Tko.N_TUPLE
-        dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( long, d )]
+        dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( int32, d )]
         if TermReadsLValue_( c, target, lp->target ) then return true
-        for i as long = 0 to lp->count - 1
+        for i as int32 = 0 to lp->count - 1
             if TermReadsLValue_( c, target, cast( Tko.NodeId, c.ast->children[lp->first + i] ) ) then return true
         next
     end select
@@ -402,22 +402,22 @@ end function
 '' built in place, ww went into x first and mid( x, 5 ) read the result. False, emitting
 '' nothing, when no term after the first reads the target.
 function WideAssignViaTemp_ _
-    ( byref c as Ctx, byref dst as MirValue, byval n as long, _
+    ( byref c as Ctx, byref dst as MirValue, byval n as int32, _
       byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
 
-    dim as containers.Array( of ulong ) terms
+    dim as containers.Array( of uint32 ) terms
     FlattenConcat( c, value, terms )
     dim as boolean reads = false
-    for i as long = 1 to terms.Count - 1
+    for i as int32 = 1 to terms.Count - 1
         if TermReadsLValue_( c, target, cast( Tko.NodeId, terms[i] ) ) then reads = true
     next
     if reads = false then return false
     dim as MirValue src
     if WideConcatToTemp_( c, value, src ) = false then return false
-    dim as containers.Array( of ulong ) args
-    args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, n ) )
-    args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
+    dim as containers.Array( of uint32 ) args
+    args.Push( cast( uint32, dst.kind ) ) : args.Push( cast( uint32, dst.id ) )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, n ) )
+    args.Push( cast( uint32, src.kind ) ) : args.Push( cast( uint32, src.id ) )
     EmitRtl( c, RTL_WSTR_ASSIGN, args )
     return true
 end function
@@ -436,12 +436,12 @@ function LowerOffsetOf _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if lp->count <> 2 then return false
     if lp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
     if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "offsetof" then return false
 
     '' THE TYPE. Written as a bare name, so Resolve bound it to the UDT's own symbol
@@ -473,27 +473,27 @@ function LowerOffsetOf _
     '' from the outside in and the names come out reversed, then applied in order,
     '' each one's offset added and its TYPE becoming the next one's container.
     dim as Tko.NodeId fn = cast( Tko.NodeId, c.ast->children[lp->first + 1] )
-    dim as containers.Array( of ulong ) path
+    dim as containers.Array( of uint32 ) path
     while c.ast->Kind( fn ) = Tko.N_MEMBER
         dim as Tko.BinaryPayload ptr mbp = _
-            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, fn )].data )]
+            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, fn )].data )]
         if c.ast->Kind( mbp->rhs ) <> Tko.N_IDENT then return false
-        path.Push( cast( ulong, mbp->rhs ) )
+        path.Push( cast( uint32, mbp->rhs ) )
         fn = mbp->lhs
     wend
     if c.ast->Kind( fn ) <> Tko.N_IDENT then return false
-    path.Push( cast( ulong, fn ) )
+    path.Push( cast( uint32, fn ) )
 
-    dim as long off = 0
+    dim as int32 off = 0
     dim as Tko.TypeId cur = ut
-    for i as long = path.Count - 1 to 0 step -1
+    for i as int32 = path.Count - 1 to 0 step -1
         '' A STEP THAT IS NOT A UDT HAS NO FIELDS, so a path that keeps going past one
         '' names nothing -- declined rather than answered with the offset so far.
         if cur = Tko.TYPE_NONE then return false
         cur = c.types->Unqualify( cur )
         if c.types->Kind( cur ) <> Tko.TK_UDT then return false
         dim as Tko.IdentPayload ptr fip = _
-            @c.ast->idents[cast( long, c.ast->nodes[cast( long, path[i] )].data )]
+            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, path[i] )].data )]
         dim as boolean found = false
         dim as Tko.TypeId ft = Tko.TYPE_NONE
         off += c.udts->FieldOffsetType( cur, fip->name, found, ft )
@@ -516,7 +516,7 @@ end function
 '' fb_WstrToUStr, as a DWSTRING term already did; 'k & wstr( "w" ) & sp' declined (TKO0994).
 private function InPlaceTermNarrow_( byref c as Ctx, byval term as Tko.NodeId ) as boolean
     dim as Tko.NodeId t2 = Unparen_( c, term )
-    dim as long tf = StrTermFlavour_( c, t2 )
+    dim as int32 tf = StrTermFlavour_( c, t2 )
     if tf = STF_NARROW then return true
     if tf <> STF_NEUTRAL then return false
     '' A NEUTRAL term is a literal or a string constant, which follows the destination --
@@ -530,39 +530,39 @@ private function InPlaceTermNarrow_( byref c as Ctx, byval term as Tko.NodeId ) 
 end function
 
 function LowerUStrInPlaceWithNumbers_ _
-    ( byref c as Ctx, byref dst as MirValue, byref terms as containers.Array( of ulong ) ) as boolean
+    ( byref c as Ctx, byref dst as MirValue, byref terms as containers.Array( of uint32 ) ) as boolean
 
-    for i as long = 0 to terms.Count - 1
+    for i as int32 = 0 to terms.Count - 1
         dim as Tko.NodeId term = cast( Tko.NodeId, terms[i] )
-        dim as containers.Array( of ulong ) args
+        dim as containers.Array( of uint32 ) args
         PushStrArg( args, dst )
         if IsRenderedNumberTerm_( c, term ) then
             dim as MirValue nv
             if NumberToStrDesc_( c, term, nv ) = false then return false
             if i = 0 then
                 PushStrArg( args, nv )
-                args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
-                args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+                args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )
+                args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )
                 EmitRtl( c, RTL_USTR_FROM_A, args )
                 continue for
             end if
-            dim as containers.Array( of ulong ) cv
+            dim as containers.Array( of uint32 ) cv
             PushStrArg( cv, nv )
             dim as MirValue uv = EmitRtl( c, RTL_STR_TO_USTR, cv )
-            if uv.kind = cast( ubyte, MV_NONE ) then return false
+            if uv.kind = cast( uint8, MV_NONE ) then return false
             PushStrArg( args, uv )
         elseif InPlaceTermNarrow_( c, term ) then
             if i = 0 then
                 if EmitStrTerm( c, args, term, false ) = false then return false
-                args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
-                args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+                args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )
+                args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )
                 EmitRtl( c, RTL_USTR_FROM_A, args )
                 continue for
             end if
-            dim as containers.Array( of ulong ) ncv
+            dim as containers.Array( of uint32 ) ncv
             if EmitStrTerm( c, ncv, term, false ) = false then return false
             dim as MirValue nuv = EmitRtl( c, RTL_STR_TO_USTR, ncv )
-            if nuv.kind = cast( ubyte, MV_NONE ) then return false
+            if nuv.kind = cast( uint8, MV_NONE ) then return false
             PushStrArg( args, nuv )
         elseif UdtTermWide_( c, c.info->TypeOf_( Unparen_( c, term ) ) ) orelse _
                (StrTermFlavour_( c, term ) = STF_WIDE) then
@@ -575,7 +575,7 @@ function LowerUStrInPlaceWithNumbers_ _
         else
             if EmitStrTerm( c, args, term, true ) = false then return false
         end if
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+        args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )
         EmitRtl( c, iif( i = 0, RTL_USTR_ASSIGN, RTL_USTR_CONCAT_ASSIGN ), args )
     next
     return true

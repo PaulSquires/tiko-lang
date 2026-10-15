@@ -21,16 +21,16 @@ sub RecordCollInit _
     ( byref ast as AstArena, byval item as NodeId, byval braces as NodeId, _
       byval block as NodeId )
     if item = NODE_NONE then return
-    ast.collInit.Push( cast( ulong, item ) )
-    ast.collInit.Push( cast( ulong, braces ) )
-    ast.collInit.Push( cast( ulong, block ) )
+    ast.collInit.Push( cast( uint32, item ) )
+    ast.collInit.Push( cast( uint32, braces ) )
+    ast.collInit.Push( cast( uint32, block ) )
 end sub
 
 '' NODE_NONE when 'item' is not a collection initialiser, which is the normal case. A
 '' declarator with an empty '{ }' IS one, and its block is empty.
 function CollInitOf( byref ast as AstArena, byval item as NodeId ) as NodeId
     if item = NODE_NONE then return NODE_NONE
-    for i as long = ast.collInit.Count - 3 to 0 step -3
+    for i as int32 = ast.collInit.Count - 3 to 0 step -3
         if cast( NodeId, ast.collInit[i] ) = item then return cast( NodeId, ast.collInit[i + 2] )
     next
     return NODE_NONE

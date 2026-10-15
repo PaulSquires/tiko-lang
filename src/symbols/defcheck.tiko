@@ -37,13 +37,13 @@
 '' (SetProcResult), and a name not yet resolved to a type. Those answer 'the same'.
 
 private function DefStmt_ ( byref c as Ctx, byval id as NodeId ) as StmtPayload ptr
-    return @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    return @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
 end function
 
 '' Can a TypeId be compared by IDENTITY? Pointers and references down to a builtin, a
 '' UDT or an enum -- the table interns each of those, so equal means the same type.
 private function DefTypeComparable_ ( byref c as Ctx, byval t as TypeId ) as boolean
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (t <> TYPE_NONE) andalso (guard < 64)
         guard += 1
         select case c.types->Kind( t )
@@ -66,20 +66,20 @@ end function
 private function DefSameSpelling_ _
     ( byref c as Ctx, byval a as NodeId, byval b as NodeId ) as boolean
 
-    dim as long guard = 0
+    dim as int32 guard = 0
     while guard < 64
         guard += 1
         if (a = NODE_NONE) orelse (b = NODE_NONE) then return (a = b)
         if (c.ast->Kind( a ) <> N_TYPEREF) orelse (c.ast->Kind( b ) <> N_TYPEREF) then return false
-        dim as ushort mask = NF_PTR or NF_CONST or NF_PROC_TYPE
-        dim as ushort af = c.ast->nodes[cast( long, a )].flags and mask
-        if af <> (c.ast->nodes[cast( long, b )].flags and mask) then return false
+        dim as uint16 mask = NF_PTR or NF_CONST or NF_PROC_TYPE
+        dim as uint16 af = c.ast->nodes[cast( int32, a )].flags and mask
+        if af <> (c.ast->nodes[cast( int32, b )].flags and mask) then return false
         if (af and NF_PROC_TYPE) <> 0 then return false
         dim as StmtPayload ptr ap = DefStmt_( c, a )
         dim as StmtPayload ptr bp = DefStmt_( c, b )
         if ap->op <> bp->op then return false
         if (ap->count <> 0) orelse (bp->count <> 0) then return false
-        if ap->op = cast( ushort, TK_IDENT ) then
+        if ap->op = cast( uint16, TK_IDENT ) then
             if ap->name <> bp->name then return false
             '' ...AND THE SAME QUALIFIER: 'A.T' and 'B.T' are two types, and comparing only
             '' the last name let 'declare sub f( byref q as A.T )' take a body over B.T --
@@ -110,24 +110,24 @@ end function
 
 '' How many parameters, and whether one of them is '...'.
 private function DefParamCount_ _
-    ( byref c as Ctx, byval sp as StmtPayload ptr, byref variadic as boolean ) as long
+    ( byref c as Ctx, byval sp as StmtPayload ptr, byref variadic as boolean ) as int32
 
     variadic = false
-    dim as long n = 0
-    for i as long = 0 to sp->count - 1
+    dim as int32 n = 0
+    for i as int32 = 0 to sp->count - 1
         dim as NodeId prm = cast( NodeId, c.ast->children[sp->first + i] )
         if c.ast->Kind( prm ) <> N_PARAM then continue for
-        if DefStmt_( c, prm )->op = cast( ushort, TK_ELLIPSIS ) then variadic = true
+        if DefStmt_( c, prm )->op = cast( uint16, TK_ELLIPSIS ) then variadic = true
         n += 1
     next
     return n
 end function
 
 private function DefParamAt_ _
-    ( byref c as Ctx, byval sp as StmtPayload ptr, byval idx as long ) as NodeId
+    ( byref c as Ctx, byval sp as StmtPayload ptr, byval idx as int32 ) as NodeId
 
-    dim as long seen = 0
-    for i as long = 0 to sp->count - 1
+    dim as int32 seen = 0
+    for i as int32 = 0 to sp->count - 1
         dim as NodeId prm = cast( NodeId, c.ast->children[sp->first + i] )
         if c.ast->Kind( prm ) <> N_PARAM then continue for
         if seen = idx then return prm
@@ -140,11 +140,11 @@ end function
 '' the passing MODE does. The mode is read after Resolve, which writes the implicit
 '' BYREF of a UDT or string parameter onto the node (BindParamType_).
 private function DefParamDiffers_ _
-    ( byref c as Ctx, byval a as NodeId, byval b as NodeId ) as long
+    ( byref c as Ctx, byval a as NodeId, byval b as NodeId ) as int32
 
     if (a = NODE_NONE) orelse (b = NODE_NONE) then return 1
-    dim as ushort af = c.ast->nodes[cast( long, a )].flags
-    dim as ushort bf = c.ast->nodes[cast( long, b )].flags
+    dim as uint16 af = c.ast->nodes[cast( int32, a )].flags
+    dim as uint16 bf = c.ast->nodes[cast( int32, b )].flags
     if (af and NF_ARRAY) <> (bf and NF_ARRAY) then return 1
     '' 'byref p as ANY' in the DECLARATION takes any type in the definition -- the corpus's
     '' functions/void_param defines three that way -- but not any MODE: 'byval p as long'
@@ -172,15 +172,15 @@ private function DefSameSignature_ _
       byval byResult as boolean ) as boolean
 
     dim as boolean v1 = false, v2 = false
-    dim as long n = DefParamCount_( c, dp, v1 )
+    dim as int32 n = DefParamCount_( c, dp, v1 )
     if n <> DefParamCount_( c, sp, v2 ) then return false
     if byResult then
         if DefSameType_( c, dp->a, sp->a ) = false then return false
     end if
-    if sp->op = cast( ushort, KW_PROPERTY ) then
+    if sp->op = cast( uint16, KW_PROPERTY ) then
         if (dp->a = NODE_NONE) <> (sp->a = NODE_NONE) then return false
     end if
-    for i as long = 0 to n - 1
+    for i as int32 = 0 to n - 1
         if DefParamDiffers_( c, DefParamAt_( c, dp, i ), DefParamAt_( c, sp, i ) ) = 1 then
             return false
         end if
@@ -203,7 +203,7 @@ end function
 ''     a parameter of any type; the definition has to say which.
 ''   'operator T.cast( ) as T ptr' (or 'as T') -- 140, a cast to the type it is a member of.
 private sub CheckDefinitionShape_ ( byref c as Ctx, byval id as NodeId, byval sp as StmtPayload ptr )
-    for i as long = 0 to sp->count - 1
+    for i as int32 = 0 to sp->count - 1
         dim as NodeId prm = cast( NodeId, c.ast->children[sp->first + i] )
         if c.ast->Kind( prm ) <> N_PARAM then continue for
         dim as NodeId pt = DefStmt_( c, prm )->a
@@ -214,14 +214,14 @@ private sub CheckDefinitionShape_ ( byref c as Ctx, byval id as NodeId, byval sp
         c.diags->Report( TKO0957, PointRange( c.ast->Loc( prm ) ) )
         return
     next
-    if sp->op <> cast( ushort, KW_OPERATOR ) then return
+    if sp->op <> cast( uint16, KW_OPERATOR ) then return
     if Text.LowerAscii( c.names->Spelling( sp->name ) ) <> "cast" then return
     if sp->a = NODE_NONE then return
     dim as Symbol ptr ps = c.syms->SymbolAt( c.info->RefOf( id ) )
     if ps = 0 then return
     dim as SymScope ptr sc = c.syms->ScopeAt( ps->parent )
     if sc = 0 then return
-    if sc->kind <> cast( ubyte, SCOPEK_TYPE ) then return
+    if sc->kind <> cast( uint8, SCOPEK_TYPE ) then return
     dim as Symbol ptr os = c.syms->SymbolAt( sc->owner )
     if os = 0 then return
     dim as TypeId own = c.types->Unqualify( os->type_ )
@@ -238,20 +238,20 @@ private sub CheckDefinitionAgrees_ ( byref c as Ctx, byval id as NodeId )
     dim as SymbolId sid = c.info->RefOf( id )
     dim as Symbol ptr s = c.syms->SymbolAt( sid )
     if s = 0 then return
-    if s->kind <> cast( ubyte, SYM_PROC ) then return
+    if s->kind <> cast( uint8, SYM_PROC ) then return
     dim as boolean variadic = false
-    dim as long nDef = DefParamCount_( c, sp, variadic )
+    dim as int32 nDef = DefParamCount_( c, sp, variadic )
     '' A PROPERTY the parser already refused the shape of (TKO0786, TKO0787).
-    if sp->op = cast( ushort, KW_PROPERTY ) then
+    if sp->op = cast( uint16, KW_PROPERTY ) then
         if (sp->a <> NODE_NONE) andalso (nDef > 1) then return
         if (sp->a = NODE_NONE) andalso ((nDef < 1) orelse (nDef > 2)) then return
     end if
 
     dim as SymScope ptr sc = c.syms->ScopeAt( s->parent )
     dim as boolean isMember = false
-    if sc <> 0 then isMember = (sc->kind = cast( ubyte, SCOPEK_TYPE ))
+    if sc <> 0 then isMember = (sc->kind = cast( uint8, SCOPEK_TYPE ))
     dim as boolean qualified = isMember orelse (sp->ownerName <> 0)
-    dim as boolean isOp = (sp->op = cast( ushort, KW_OPERATOR ))
+    dim as boolean isOp = (sp->op = cast( uint16, KW_OPERATOR ))
     dim as boolean byResult = false
     if isOp then byResult = (Text.LowerAscii( c.names->Spelling( sp->name ) ) = "cast")
     dim as boolean overloadSet = isMember orelse isOp orelse ((sp->extra and PF_OVERLOAD) <> 0)
@@ -260,13 +260,13 @@ private sub CheckDefinitionAgrees_ ( byref c as Ctx, byval id as NodeId )
 
     '' Every DECLARATION of the name in this scope. The newest generation of it, the same
     '' judgement Collect made: a declaration is always the newest thing so far.
-    dim as ulong savePos = c.syms->usePos
+    dim as uint32 savePos = c.syms->usePos
     c.syms->usePos = USEPOS_LATEST
     dim as SymbolId cur = c.syms->LookupLocal( s->parent, s->name )
     c.syms->usePos = savePos
     dim as Symbol ptr hs = c.syms->SymbolAt( cur )
     if hs = 0 then return
-    if hs->kind <> cast( ubyte, SYM_PROC ) then cur = hs->altClass
+    if hs->kind <> cast( uint8, SYM_PROC ) then cur = hs->altClass
 
     '' SOME OVERLOAD MUST OWN THIS BODY -- the one whose scope is this definition's. When
     '' none does, the collector refused it as a second body (TKO0600, fbc's 4) and it has
@@ -274,13 +274,13 @@ private sub CheckDefinitionAgrees_ ( byref c as Ctx, byval id as NodeId )
     '' the chain, whichever overload it defines.
     dim as ScopeId ownScope = c.info->ScopeOf( id )
     dim as boolean owned = (ownScope = SCOPE_NONE)
-    dim as long guard = 0
+    dim as int32 guard = 0
     dim as SymbolId scan = cur
     while (scan <> SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Symbol ptr ss = c.syms->SymbolAt( scan )
         if ss = 0 then exit while
-        if ss->kind <> cast( ubyte, SYM_PROC ) then exit while
+        if ss->kind <> cast( uint8, SYM_PROC ) then exit while
         if (ownScope <> SCOPE_NONE) andalso (ss->inner = ownScope) then
             owned = true
             exit while
@@ -289,7 +289,7 @@ private sub CheckDefinitionAgrees_ ( byref c as Ctx, byval id as NodeId )
     wend
     if owned = false then return
 
-    dim as long nCand = 0
+    dim as int32 nCand = 0
     dim as NodeId first_ = NODE_NONE
     dim as NodeId match_ = NODE_NONE
     guard = 0
@@ -297,7 +297,7 @@ private sub CheckDefinitionAgrees_ ( byref c as Ctx, byval id as NodeId )
         guard += 1
         dim as Symbol ptr cs = c.syms->SymbolAt( cur )
         if cs = 0 then exit while
-        if cs->kind <> cast( ubyte, SYM_PROC ) then exit while
+        if cs->kind <> cast( uint8, SYM_PROC ) then exit while
         dim as NodeId dn = cast( NodeId, cs->payload )
         dim as boolean usable = (cs->diedAt = 0) andalso (cs->parent = s->parent)
         if usable then usable = (dn <> NODE_NONE) andalso (dn <> 0) andalso (dn <> id)
@@ -340,8 +340,8 @@ private sub CheckDefinitionAgrees_ ( byref c as Ctx, byval id as NodeId )
 
     dim as StmtPayload ptr dp = DefStmt_( c, decl )
     '' A BYREF RESULT that differs has its own error (TKO0651); one per statement.
-    dim as ushort rd = c.ast->nodes[cast( long, decl )].flags and NF_BYREF
-    dim as ushort rf = c.ast->nodes[cast( long, id )].flags and NF_BYREF
+    dim as uint16 rd = c.ast->nodes[cast( int32, decl )].flags and NF_BYREF
+    dim as uint16 rf = c.ast->nodes[cast( int32, id )].flags and NF_BYREF
     if rd <> rf then return
     if (DefSameType_( c, dp->a, sp->a ) = false) orelse (((dp->extra xor sp->extra) and PF_ARRAY_RESULT) <> 0) then   '' 'as T( )' on one and not the other
         c.diags->Report( TKO0793, PointRange( c.ast->Loc( id ) ), _
@@ -350,14 +350,14 @@ private sub CheckDefinitionAgrees_ ( byref c as Ctx, byval id as NodeId )
         return
     end if
     dim as boolean dv2 = false
-    dim as long nDecl = DefParamCount_( c, dp, dv2 )
+    dim as int32 nDecl = DefParamCount_( c, dp, dv2 )
     if nDecl <> nDef then
         c.diags->Report( TKO0794, PointRange( c.ast->Loc( id ) ), _
                          DefName_( c, sp ), str( nDecl ) )
         c.diags->AddNote( TKO0901, PointRange( c.ast->Loc( decl ) ) )
         return
     end if
-    for i as long = 0 to nDef - 1
+    for i as int32 = 0 to nDef - 1
         if DefParamDiffers_( c, DefParamAt_( c, dp, i ), DefParamAt_( c, sp, i ) ) <> 0 then
             c.diags->Report( TKO0795, PointRange( c.ast->Loc( id ) ), _
                              str( i + 1 ), DefName_( c, sp ) )
@@ -368,7 +368,7 @@ private sub CheckDefinitionAgrees_ ( byref c as Ctx, byval id as NodeId )
         '' it is (it mangles alike), but a call packs only through the declaration that says so.
         dim as NodeId vpa = DefParamAt_( c, dp, i ), vpb = DefParamAt_( c, sp, i )
         if (vpa <> NODE_NONE) andalso (vpb <> NODE_NONE) then
-            if ((c.ast->nodes[cast( long, vpa )].flags xor c.ast->nodes[cast( long, vpb )].flags) and NF_VARIADIC) <> 0 then
+            if ((c.ast->nodes[cast( int32, vpa )].flags xor c.ast->nodes[cast( int32, vpb )].flags) and NF_VARIADIC) <> 0 then
                 c.diags->Report( TKO0975, PointRange( c.ast->Loc( id ) ), DefName_( c, sp ) )
                 c.diags->AddNote( TKO0901, PointRange( c.ast->Loc( decl ) ) )
                 return

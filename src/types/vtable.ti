@@ -60,13 +60,13 @@ namespace Tko
 
     type VtMismatch
         as NodeId decl     '' the DERIVED declaration, which is where fbc points
-        as ubyte  kind
+        as uint8  kind
     end type
 
     type VtInfo
         as TypeId   type_
-        as long     first          '' into the store's slot pool
-        as long     count
+        as int32     first          '' into the store's slot pool
+        as int32     count
     end type
 
     type VTables
@@ -78,30 +78,30 @@ namespace Tko
         '' promise, and checking it needs the answer the builder already computes and
         '' then throws away -- whether this declaration MATCHED one. Recomputing it
         '' afterwards would mean re-running the whole match; recording it costs a push.
-        as containers.Array( of ulong ) overrode
+        as containers.Array( of uint32 ) overrode
         '' Declarations of a generic template that nothing instantiates -- never checked,
         '' as fbc never checks them. See NotePatternOnly_.
-        as containers.Array( of ulong ) patternOnly
+        as containers.Array( of uint32 ) patternOnly
         '' A match on PARAMETER TYPES is not yet a legal override. Recorded here rather
         '' than reported from the builder, which has no diagnostics engine -- and would
         '' have to be given one on a path the dumps also take.
         as containers.Array( of VtMismatch ) mismatches
 
-        declare function Find( byval t as TypeId ) as long
+        declare function Find( byval t as TypeId ) as int32
         '' Which slot dispatches to this procedure, or -1 if it is not virtual in this
         '' type. This is what a call site needs and the only reason the table exists.
         '' 'decl' is the callee's own declaration node, which is how an ABSTRACT slot
         '' is matched: it carries no procedure symbol.
         declare function SlotOf _
             ( byval t as TypeId, byval p as SymbolId, _
-              byval decl as NodeId = NODE_NONE ) as long
+              byval decl as NodeId = NODE_NONE ) as int32
     end type
 
     '' Build a table for every UDT that extends OBJECT. Runs after Resolve, because
     '' matching an override needs the PARAMETER TYPES and those are Resolve's answer.
     declare function ComputeVTables _
         ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
-          byref info as SemanticInfo, byref store as VTables ) as long
+          byref info as SemanticInfo, byref store as VTables ) as int32
 
     '' An ABSTRACT type cannot be instantiated -- fbc error 274. Runs after the tables
     '' are built, because "abstract" here means "has a slot with no procedure".

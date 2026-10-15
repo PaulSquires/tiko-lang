@@ -145,14 +145,14 @@ function HelpText( byval category as string = "" ) as string
         outp += "  (their options: --profile, --manifest, --options, -j, --message-format, --no-cache)" & chr( 10 ) & chr( 10 )
     end if
 
-    for c as long = Tko.OPTCAT_GENERAL to Tko.OPTCAT_DEVEL
+    for c as int32 = Tko.OPTCAT_GENERAL to Tko.OPTCAT_DEVEL
         dim as string catName = Tko.CategoryName( cast( Tko.OptCategory, c ) )
         dim as boolean skip = filtered andalso _
                               (instr( Tko.Text.LowerAscii( catName ), want ) = 0)
         if skip then continue for
 
         dim as string body = ""
-        for i as long = 1 to Tko.OPT_COUNT - 1
+        for i as int32 = 1 to Tko.OPT_COUNT - 1
             dim as Tko.OptInfo ptr info = Tko.OptInfoOf( cast( Tko.OptId, i ) )
             if info->category <> c then continue for
 
@@ -186,7 +186,7 @@ end function
 private function SplitEq _
     ( byval arg as string, byref lhs as string, byref rhs as string ) as boolean
 
-    dim as long at = instr( arg, "=" )
+    dim as int32 at = instr( arg, "=" )
     if at = 0 then return false
     lhs = left( arg, at - 1 )
     rhs = mid( arg, at + 1 )
@@ -317,7 +317,7 @@ end sub
 
 private function MatchExact( byval arg as string ) as Tko.OptId
     Tko.InitOptTable( )
-    for i as long = 1 to Tko.OPT_COUNT - 1
+    for i as int32 = 1 to Tko.OPT_COUNT - 1
         dim as Tko.OptInfo ptr info = Tko.OptInfoOf( cast( Tko.OptId, i ) )
         if *info->spelling = arg then return cast( Tko.OptId, i )
     next
@@ -330,13 +330,13 @@ private function MatchJoined _
 
     Tko.InitOptTable( )
     dim as Tko.OptId best = Tko.OPT_NONE
-    dim as long bestLen = 0
+    dim as int32 bestLen = 0
 
-    for i as long = 1 to Tko.OPT_COUNT - 1
+    for i as int32 = 1 to Tko.OPT_COUNT - 1
         dim as Tko.OptInfo ptr info = Tko.OptInfoOf( cast( Tko.OptId, i ) )
         if info->kind <> Tko.OPTK_JOINED then continue for
         dim as string spell = *info->spelling
-        dim as long n = len( spell )
+        dim as int32 n = len( spell )
         dim as boolean fits = (len( arg ) > n) andalso (left( arg, n ) = spell)
         if fits andalso (n > bestLen) then
             best = cast( Tko.OptId, i )
@@ -352,7 +352,7 @@ end function
 '' fbc-modern's own output, not its sources. A tiko-only warning (a cache it could not
 '' write, a statement it left out) has no fbc level to compare and '-w' never hides it;
 '' '-Wno-<id>' still does.
-private function FbcWarnLevel_( byval d as Tko.DiagId ) as long
+private function FbcWarnLevel_( byval d as Tko.DiagId ) as int32
     select case d
     case Tko.TKO0830 : return 2      '' warning 4,  suspicious pointer assignment
     case Tko.TKO0968 : return 1      '' warning 5,  implicit conversion (pointer to integer)
@@ -374,8 +374,8 @@ function Parse _
 
     dim as boolean ok = true
     dim as boolean noMoreOptions = false
-    dim as long i = 0
-    dim as long n = args.Count
+    dim as int32 i = 0
+    dim as int32 n = args.Count
 
     while i < n
         dim as string arg = args[i]
@@ -467,9 +467,9 @@ function Parse _
         case Tko.OPT_LIB      : opts.libs.Push( value )
         case Tko.OPT_LINKOPT
             '' fbc splits at commas and drops nothing else; an empty piece passes nothing.
-            dim as long st = 1
+            dim as int32 st = 1
             do
-                dim as long cm = instr( st, value, "," )
+                dim as int32 cm = instr( st, value, "," )
                 dim as string piece = iif( cm = 0, mid( value, st ), mid( value, st, cm - st ) )
                 if len( piece ) > 0 then opts.linkerOpts.Push( piece )
                 if cm = 0 then exit do
@@ -512,7 +512,7 @@ function Parse _
             if (len( value ) = 0) andalso (i + 1 < n) then
                 if (len( args[i + 1] ) = 1) andalso (instr( "0123", args[i + 1] ) > 0) then value = args[i + 1] : i += 1
             end if
-            dim as long lvl = valint( value )
+            dim as int32 lvl = valint( value )
             dim as boolean bad = (len( value ) <> 1) orelse (instr( "0123", value ) = 0)
             if bad then
                 diags.ReportGlobal( Tko.TKO0106, value, "-O" )
@@ -583,7 +583,7 @@ function Parse _
             end select
 
         case Tko.OPT_MAXERR
-            dim as long m = valint( value )
+            dim as int32 m = valint( value )
             if m < 1 then
                 diags.ReportGlobal( Tko.TKO0106, value, "-fmax-errors" )
                 ok = false
@@ -592,7 +592,7 @@ function Parse _
             end if
 
         case Tko.OPT_MAXINSTDEPTH
-            dim as long m = valint( value )
+            dim as int32 m = valint( value )
             if m < 1 then
                 diags.ReportGlobal( Tko.TKO0106, value, "-maxinstdepth" )
                 ok = false
@@ -715,8 +715,8 @@ function Parse _
 
     '' '-w' BECOMES '-Wno-' for each warning it hides, so it rides on the one mechanism
     '' that already reaches every pass -- after the loop, because the last '-w' wins.
-    for d as long = 0 to Tko.DIAG_COUNT - 1
-        dim as long lv = FbcWarnLevel_( cast( Tko.DiagId, d ) )
+    for d as int32 = 0 to Tko.DIAG_COUNT - 1
+        dim as int32 lv = FbcWarnLevel_( cast( Tko.DiagId, d ) )
         if lv < 0 then continue for
         if opts.fbcWarnNone orelse (lv < opts.fbcWarnMin) then
             opts.ignoredDiags.Push( Tko.DiagIdName( cast( Tko.DiagId, d ) ) )

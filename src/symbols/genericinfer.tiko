@@ -34,7 +34,7 @@ private function ProcPtrTypeOfName_ _
     dim as Tko.SymbolId sid = c.syms->Lookup( scope_, nm )
     dim as Tko.Symbol ptr sy = c.syms->SymbolAt( sid )
     if sy = 0 then return Tko.TYPE_NONE
-    if sy->kind <> cast( ubyte, Tko.SYM_PROC ) then return Tko.TYPE_NONE
+    if sy->kind <> cast( uint8, Tko.SYM_PROC ) then return Tko.TYPE_NONE
     if sy->nextOverload <> Tko.SYMBOL_NONE then return Tko.TYPE_NONE
     dim as Tko.NodeId pn = cast( Tko.NodeId, sy->payload )
     if pn = Tko.NODE_NONE then return Tko.TYPE_NONE
@@ -52,15 +52,15 @@ private function ProcPtrTypeOfName_ _
         if ret = Tko.TYPE_NONE then return Tko.TYPE_NONE
     end if
     dim as Tko.TypeIdVec2 ps
-    for i as long = 0 to pp->count - 1
+    for i as int32 = 0 to pp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         dim as Tko.TypeId pt = ResolveTypeRef( c, StmtOf( c, prm )->a, psc )
         if pt = Tko.TYPE_NONE then return Tko.TYPE_NONE
-        if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
+        if (c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0 then
             pt = c.types->Reference( pt )
         end if
-        ps.Push( cast( ulong, pt ) )
+        ps.Push( cast( uint32, pt ) )
     next
     '' A PROCEDURE TYPE IS ALREADY A POINTER in FreeBASIC -- 'sub( ) ptr' is PPFvvE,
     '' one P for the type and one for the written 'ptr' -- so the pointer is built
@@ -91,9 +91,9 @@ private function InferArgType_ _
         '' went out as 'call [0 x i8] @_ZN2FB4SOMEERv' -- a zero-sized aggregate
         '' return, which clang then refused against the 16-byte slot it was stored
         '' into. fb/tuiwidget.bi's TuiFocusRing.Current is that line.
-        dim as boolean okKind = (sy->kind = cast( ubyte, Tko.SYM_VARIABLE ))
-        if okKind = false then okKind = (sy->kind = cast( ubyte, Tko.SYM_PARAMETER ))
-        if okKind = false then okKind = (sy->kind = cast( ubyte, Tko.SYM_FIELD ))
+        dim as boolean okKind = (sy->kind = cast( uint8, Tko.SYM_VARIABLE ))
+        if okKind = false then okKind = (sy->kind = cast( uint8, Tko.SYM_PARAMETER ))
+        if okKind = false then okKind = (sy->kind = cast( uint8, Tko.SYM_FIELD ))
         '' 'true' AND 'false' are builtin BOOLEAN constants: 'Show( true )' inferred nothing
         '' and was refused, where fbc-modern makes T BOOLEAN (audit F-55).
         if okKind = false then okKind = ((sy->flags and Tko.SYMF_BUILTIN) <> 0) andalso (sy->type_ = c.types->Builtin( Tko.TY_BOOLEAN ))
@@ -101,7 +101,7 @@ private function InferArgType_ _
         '' makes T 'any ptr', and 'const NP as zstring ptr = 0' then 'Echo( NP )' a 'zstring
         '' ptr' -- both TKO0809 before (docs/tiko-nullptr RFC §5.4). Only a pointer: what an
         '' integer constant should infer was not measured, and it is not changed here.
-        if (okKind = false) andalso (sy->kind = cast( ubyte, Tko.SYM_CONSTANT )) andalso (sy->type_ <> Tko.TYPE_NONE) then
+        if (okKind = false) andalso (sy->kind = cast( uint8, Tko.SYM_CONSTANT )) andalso (sy->type_ <> Tko.TYPE_NONE) then
             okKind = (c.types->Kind( c.types->Unqualify( sy->type_ ) ) = Tko.TK_POINTER)
         end if
         if okKind = false then return Tko.TYPE_NONE
@@ -114,9 +114,9 @@ private function InferArgType_ _
         '' 'FB::SELECTADDRECV(FB::SELECTCTX&, int, FB::CHANNEL&, void&)'. Outside a
         '' call the statement was dropped with nothing said: 'var c = b : print G( c )'
         '' printed nothing at all.
-        if (t = Tko.TYPE_NONE) andalso (sy->kind = cast( ubyte, Tko.SYM_VARIABLE )) then
+        if (t = Tko.TYPE_NONE) andalso (sy->kind = cast( uint8, Tko.SYM_VARIABLE )) then
             dim as Tko.NodeId vi = cast( Tko.NodeId, sy->payload )
-            static as long varDepth = 0
+            static as int32 varDepth = 0
             if (vi <> Tko.NODE_NONE) andalso (varDepth < 8) then
                 if c.ast->Kind( vi ) = Tko.N_VAR_ITEM then
                     dim as Tko.StmtPayload ptr vp = StmtOf( c, vi )
@@ -140,7 +140,7 @@ private function InferArgType_ _
         '' 'select channel ... case receive v from ch' could not instantiate the
         '' select generics: TKO0809 (T77), where a 'dim' of the same channel worked.
         scope
-            dim as long gtf, gtc
+            dim as int32 gtf, gtc
             if c.ast->CallTypeArgsOf( a, gtf, gtc ) then
                 dim as Tko.TypeId gt = c.info->TypeOf_( a )
                 if gt <> Tko.TYPE_NONE then return gt
@@ -162,7 +162,7 @@ private function InferArgType_ _
         dim as boolean cqual = false
         if c.ast->Kind( ctgt ) = Tko.N_MEMBER then
             dim as Tko.BinaryPayload ptr cqb = _
-                @c.ast->binaries[cast( long, c.ast->nodes[cast( long, ctgt )].data )]
+                @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, ctgt )].data )]
             dim as Tko.Symbol ptr cnss = 0
             if c.ast->Kind( cqb->lhs ) = Tko.N_IDENT then
                 dim as Tko.SymbolId cnsid = c.info->RefOf( cqb->lhs )
@@ -172,7 +172,7 @@ private function InferArgType_ _
                 cnss = c.syms->SymbolAt( cnsid )
             end if
             dim as boolean cisNs = false
-            if cnss <> 0 then cisNs = (cnss->kind = cast( ubyte, Tko.SYM_NAMESPACE ))
+            if cnss <> 0 then cisNs = (cnss->kind = cast( uint8, Tko.SYM_NAMESPACE ))
             '' ...AND A METHOD CALL IS ITS METHOD'S RESULT. 'var c = ctx.Done( )' is
             '' what 'case receive from ctx.Done( )' desugars to (selchan.tiko), and a
             '' 'var' is typed from its initialiser here -- so this answering nothing
@@ -192,18 +192,18 @@ private function InferArgType_ _
                 '' declares only Cancel and inherits Done from Context.
                 dim as string mnm = c.names->Spelling( IdentNameOf( c, cqb->rhs ) )
                 dim as Tko.Symbol ptr mps = c.syms->SymbolAt( TypeMemberNamed_( c, mob, mnm ) )
-                dim as long mdepth = 0
+                dim as int32 mdepth = 0
                 while (mps = 0) andalso (mdepth < 16)
                     mdepth += 1
                     dim as Tko.Symbol ptr mbs = c.syms->SymbolAt( TypeMemberNamed_( c, mob, "base" ) )
                     if mbs = 0 then exit while
-                    if mbs->kind <> cast( ubyte, Tko.SYM_FIELD ) then exit while
+                    if mbs->kind <> cast( uint8, Tko.SYM_FIELD ) then exit while
                     if mbs->type_ = Tko.TYPE_NONE then exit while
                     mob = c.types->Unqualify( mbs->type_ )
                     mps = c.syms->SymbolAt( TypeMemberNamed_( c, mob, mnm ) )
                 wend
                 if mps = 0 then return Tko.TYPE_NONE
-                if mps->kind <> cast( ubyte, Tko.SYM_PROC ) then return Tko.TYPE_NONE
+                if mps->kind <> cast( uint8, Tko.SYM_PROC ) then return Tko.TYPE_NONE
                 if mps->nextOverload <> Tko.SYMBOL_NONE then return Tko.TYPE_NONE
                 dim as Tko.TypeId mrt = mps->type_
                 if mrt = Tko.TYPE_NONE then return Tko.TYPE_NONE
@@ -225,9 +225,9 @@ private function InferArgType_ _
         if cqual = false then
             dim as Tko.Symbol ptr avs = c.syms->SymbolAt( c.syms->Lookup( scope_, cn ) )
             if avs <> 0 then
-                dim as boolean avVar = (avs->kind = cast( ubyte, Tko.SYM_VARIABLE ))
+                dim as boolean avVar = (avs->kind = cast( uint8, Tko.SYM_VARIABLE ))
                 if avVar = false then
-                    avVar = (avs->kind = cast( ubyte, Tko.SYM_PARAMETER ))
+                    avVar = (avs->kind = cast( uint8, Tko.SYM_PARAMETER ))
                 end if
                 if avVar andalso (avs->type_ <> Tko.TYPE_NONE) then
                     dim as Tko.TypeId avu = c.types->Unqualify( avs->type_ )
@@ -291,7 +291,7 @@ private function InferArgType_ _
             end if
             dim as Tko.Symbol ptr psy = c.syms->SymbolAt( psid )
             if psy = 0 then return Tko.TYPE_NONE
-            if psy->kind <> cast( ubyte, Tko.SYM_PROC ) then return Tko.TYPE_NONE
+            if psy->kind <> cast( uint8, Tko.SYM_PROC ) then return Tko.TYPE_NONE
             if psy->nextOverload <> Tko.SYMBOL_NONE then
                 '' AN OVERLOAD SET WITH AN EXACT MATCH IS NOT A GUESS. Where one
                 '' candidate's first parameter is EXACTLY the first argument's type,
@@ -323,7 +323,7 @@ private function InferArgType_ _
                     if (opn <> Tko.NODE_NONE) andalso (c.ast->Kind( opn ) = Tko.N_PROC) then
                         dim as Tko.StmtPayload ptr opp = StmtOf( c, opn )
                         dim as Tko.NodeId p0 = Tko.NODE_NONE
-                        for oi as long = 0 to opp->count - 1
+                        for oi as int32 = 0 to opp->count - 1
                             dim as Tko.NodeId oprm = _
                                 cast( Tko.NodeId, c.ast->children[opp->first + oi] )
                             if c.ast->Kind( oprm ) = Tko.N_PARAM then
@@ -368,7 +368,7 @@ private function InferArgType_ _
         '' 'Some( x \ 2 )' -- inferred nothing and the whole statement declined,
         '' while the same call over a NAME one line up instantiated.
         dim as Tko.BinaryPayload ptr bip = _
-            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, a )].data )]
+            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, a )].data )]
         dim as Tko.TypeId blt = InferArgType_( c, bip->lhs, scope_ )
         if blt = Tko.TYPE_NONE then return Tko.TYPE_NONE
         dim as Tko.TypeId brt = InferArgType_( c, bip->rhs, scope_ )
@@ -417,7 +417,7 @@ private function InferArgType_ _
         '' 'GENTAKE'. tracks sorts every grid through a SortVector's private field, so none of
         '' them was sorted. The base's type, through a reference or a pointer, names the UDT.
         dim as Tko.BinaryPayload ptr mbp = _
-            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, a )].data )]
+            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, a )].data )]
         if c.ast->Kind( mbp->rhs ) <> Tko.N_IDENT then return Tko.TYPE_NONE
         dim as Tko.TypeId mbt = InferArgType_( c, mbp->lhs, scope_ )
         if mbt = Tko.TYPE_NONE then return Tko.TYPE_NONE
@@ -427,7 +427,7 @@ private function InferArgType_ _
         dim as Tko.Symbol ptr mfs = c.syms->SymbolAt( _
             TypeMemberNamed_( c, mbt, c.names->Spelling( IdentNameOf( c, mbp->rhs ) ) ) )
         if mfs = 0 then return Tko.TYPE_NONE
-        if mfs->kind <> cast( ubyte, Tko.SYM_FIELD ) then return Tko.TYPE_NONE
+        if mfs->kind <> cast( uint8, Tko.SYM_FIELD ) then return Tko.TYPE_NONE
         dim as Tko.TypeId mft = mfs->type_
         if mft = Tko.TYPE_NONE then return Tko.TYPE_NONE
         if c.types->Kind( mft ) = Tko.TK_REFERENCE then mft = c.types->Inner( mft )
@@ -435,7 +435,7 @@ private function InferArgType_ _
     case Tko.N_DEREF
         '' '*p' over a POINTER is its target -- the same question one level down.
         dim as Tko.UnaryPayload ptr dup_ = _
-            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, a )].data )]
+            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, a )].data )]
         dim as Tko.TypeId dpt = InferArgType_( c, dup_->operand, scope_ )
         if dpt = Tko.TYPE_NONE then return Tko.TYPE_NONE
         dpt = c.types->Unqualify( dpt )
@@ -457,13 +457,13 @@ private function InferArgType_ _
         '' clang refused the whole module.
         '' ...BY THE LITERAL MODEL, unsuffixed too: 'Show( 3000000000 )' is Show( of uinteger ).
         dim as Tko.LiteralPayload ptr ilp = _
-            @c.ast->literals[cast( long, c.ast->nodes[cast( long, a )].data )]
+            @c.ast->literals[cast( int32, c.ast->nodes[cast( int32, a )].data )]
         return Tko.Check.LitClassBuiltin( *c.types, Tko.LiteralClassOf( ilp->suffix, ilp->radix, ilp->intValue, false, c.types->target.pointerBits = 64 ) )
     case Tko.N_FLOAT_LIT
         '' ...AND FOR A FLOAT: '1.5f' is SINGLE, as Check's LiteralType_ says. 'Show( 1.5f )'
         '' instantiated Show( of double ) where fbc-modern makes T SINGLE (audit F-55).
         dim as Tko.LiteralPayload ptr flp = _
-            @c.ast->literals[cast( long, c.ast->nodes[cast( long, a )].data )]
+            @c.ast->literals[cast( int32, c.ast->nodes[cast( int32, a )].data )]
         return Tko.Check.LitClassBuiltin( *c.types, Tko.LiteralClassOf( flp->suffix, flp->radix, 0, true, true ) )
     case Tko.N_STRING_LIT
         return c.types->Builtin( Tko.TY_STRING )
@@ -490,7 +490,7 @@ private function InferArgType_ _
         '' the integer width unsigned. Neither is BinaryResult over (t,t): 'uq - uq'
         '' is UINTEGER where '-uq' is INTEGER.
         dim as Tko.UnaryPayload ptr uup = _
-            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, a )].data )]
+            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, a )].data )]
         dim as Tko.TokenKind uop = cast( Tko.TokenKind, uup->op )
         dim as boolean isSign = (uop = Tko.TK_MINUS) orelse (uop = Tko.TK_PLUS)
         if (isSign = false) andalso (uop <> Tko.KW_NOT) then return Tko.TYPE_NONE
@@ -533,7 +533,7 @@ private function InferArgType_ _
         '' declares the comparer as a type PARAMETER precisely so any callable
         '' fits.
         dim as Tko.UnaryPayload ptr aup = _
-            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, a )].data )]
+            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, a )].data )]
         dim as Tko.TypeId pp2 = ProcPtrTypeOfName_( c, aup->operand, scope_ )
         if pp2 <> Tko.TYPE_NONE then return pp2
         '' ...AND '@v' OVER A VARIABLE IS A POINTER TO ITS TYPE, which is how every
@@ -550,7 +550,7 @@ private function InferArgType_ _
 end function
 
 declare function InstArgsOf_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref outv as containers.Array( of ulong ) ) as boolean
+    ( byref c as Ctx, byval t as Tko.TypeId, byref outv as containers.Array( of uint32 ) ) as boolean
 declare function SameGeneric_ _
     ( byref c as Ctx, byval argT as Tko.TypeId, byval want as Tko.InternId ) as boolean
 declare function MergeInferred_ _
@@ -563,13 +563,13 @@ declare function MergeInferred_ _
 '' and -1 when it is and the argument cannot match, which fails the candidate.
 private function InferPtrInst_ _
     ( byref c as Ctx, byval tp as Tko.StmtPayload ptr, byval want as Tko.InternId, _
-      byval aNode as Tko.NodeId, byval scope_ as Tko.ScopeId, byref got as Tko.TypeId ) as long
+      byval aNode as Tko.NodeId, byval scope_ as Tko.ScopeId, byref got as Tko.TypeId ) as int32
 
     if tp->a = Tko.NODE_NONE then return 0
     if c.ast->Kind( tp->a ) <> Tko.N_TYPEREF then return 0
     dim as Tko.StmtPayload ptr ip = StmtOf( c, tp->a )
-    dim as long at_ = -1
-    for j as long = 0 to ip->count - 1
+    dim as int32 at_ = -1
+    for j as int32 = 0 to ip->count - 1
         dim as Tko.NodeId an2 = cast( Tko.NodeId, c.ast->children[ip->first + j] )
         if c.ast->Kind( an2 ) <> Tko.N_TYPEREF then continue for
         if StmtOf( c, an2 )->name = want then at_ = j : exit for
@@ -581,7 +581,7 @@ private function InferPtrInst_ _
     if c.types->Kind( aU ) = Tko.TK_REFERENCE then aU = c.types->Unqualify( c.types->Inner( aU ) )
     if c.types->Kind( aU ) <> Tko.TK_POINTER then return -1
     dim as Tko.TypeId el = c.types->Unqualify( c.types->Inner( aU ) )
-    dim as containers.Array( of ulong ) iargs
+    dim as containers.Array( of uint32 ) iargs
     if InstArgsOf_( c, el, iargs ) = false then return -1
     if SameGeneric_( c, el, ip->name ) = false then return -1
     if at_ >= iargs.Count then return -1

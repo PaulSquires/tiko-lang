@@ -26,40 +26,40 @@ function StateExport( byref x as CImp ) as string
     dim as string t = chr( 9 ), nl = chr( 10 )
     dim as Tko.StrVec parts
     parts.Push( STATE_HEADER & nl )
-    for id as long = 0 to x.usrState.Count - 1
-        dim as ubyte st = x.usrState[id] and (not US_SEEDED)
+    for id as int32 = 0 to x.usrState.Count - 1
+        dim as uint8 st = x.usrState[id] and (not US_SEEDED)
         if (st = 0) andalso (x.usrName[id] = 0) then continue for
         parts.Push( "u" & t & st & t & x.strs.Spelling( cast( InternId, id ) ) & t & _
                     UsrFbName( x, id ) & nl )
     next
-    for id as long = 0 to x.cDeclUsr.Count - 1
+    for id as int32 = 0 to x.cDeclUsr.Count - 1
         if x.cDeclUsr[id] = 0 then continue for
         parts.Push( "c" & t & x.strs.Spelling( cast( InternId, id ) ) & t & _
                     x.strs.Spelling( cast( InternId, x.cDeclUsr[id] - 1 ) ) & nl )
     next
-    for f as long = 0 to x.claimType.Count - 1
+    for f as int32 = 0 to x.claimType.Count - 1
         if x.claimType[f] then parts.Push( "t" & t & x.strs.Spelling( cast( InternId, f ) ) & nl )
     next
-    for f as long = 0 to x.claimValue.Count - 1
+    for f as int32 = 0 to x.claimValue.Count - 1
         if x.claimValue[f] then parts.Push( "v" & t & x.strs.Spelling( cast( InternId, f ) ) & nl )
     next
     '' EVERY MACRO CONSIDERED, seeded ones included -- a third #cinclude must not see
     '' the first one's macros as new.
-    for id as long = 0 to x.macroSeen.Count - 1
+    for id as int32 = 0 to x.macroSeen.Count - 1
         if x.macroSeen[id] then parts.Push( "m" & t & x.strs.Spelling( cast( InternId, id ) ) & nl )
     next
-    for i as long = 0 to x.aliasNames.Count - 1
+    for i as int32 = 0 to x.aliasNames.Count - 1
         parts.Push( "a" & t & x.aliasNames[i] & nl )
     next
     return JoinParts( parts )
 end function
 
 '' The fields of one line, split at tabs.
-private sub Fields_( byref ln as string, f() as string, byref n as long )
+private sub Fields_( byref ln as string, f() as string, byref n as int32 )
     n = 0
-    dim as long p = 1
+    dim as int32 p = 1
     do
-        dim as long q = instr( p, ln, chr( 9 ) )
+        dim as int32 q = instr( p, ln, chr( 9 ) )
         if n > ubound( f ) then redim preserve f( n + 3 )
         if q = 0 then
             f( n ) = mid( ln, p )
@@ -75,10 +75,10 @@ end sub
 function StateSeed( byref x as CImp, byref state as string ) as boolean
     if left( state, len( STATE_HEADER ) ) <> STATE_HEADER then return false
     dim as string f( 0 to 3 )
-    dim as long nf
-    dim as long p = len( STATE_HEADER ) + 2
+    dim as int32 nf
+    dim as int32 p = len( STATE_HEADER ) + 2
     while p <= len( state )
-        dim as long e = instr( p, state, chr( 10 ) )
+        dim as int32 e = instr( p, state, chr( 10 ) )
         if e = 0 then e = len( state ) + 1
         dim as string ln = mid( state, p, e - p )
         p = e + 1
@@ -87,8 +87,8 @@ function StateSeed( byref x as CImp, byref state as string ) as boolean
         select case f( 0 )
         case "u"
             if nf < 4 then continue while
-            dim as long id = UsrId( x, f( 2 ) )
-            dim as ubyte bits = cast( ubyte, valint( f( 1 ) ) )
+            dim as int32 id = UsrId( x, f( 2 ) )
+            dim as uint8 bits = cast( uint8, valint( f( 1 ) ) )
             if len( f( 3 ) ) then
                 UsrSetName( x, id, f( 3 ) )
             end if
@@ -117,8 +117,8 @@ end function
 
 '' A record the seed never saw defined that this unit defines. "" when there is none.
 function StateConflict( byref x as CImp ) as string
-    for i as long = 0 to x.seedUndefined.Count - 1
-        dim as long id = x.seedUndefined[i]
+    for i as int32 = 0 to x.seedUndefined.Count - 1
+        dim as int32 id = x.seedUndefined[i]
         if (UsrState( x, id ) and US_DEFINED) <> 0 then
             dim as string nm = UsrFbName( x, id )
             if len( nm ) = 0 then nm = x.strs.Spelling( cast( InternId, id ) )

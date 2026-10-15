@@ -37,13 +37,13 @@ destructor SourceManager( )
     this.files.Clear( )
 end destructor
 
-function SourceManager.Count( ) as long
+function SourceManager.Count( ) as int32
     return this.files.Count
 end function
 
 function SourceManager.FileAt( byval id as FileId ) as SourceFile ptr
     if id = FILE_NONE then return 0
-    dim as long idx = cast( long, id ) - 1
+    dim as int32 idx = cast( int32, id ) - 1
     if idx >= this.files.Count then return 0
     return this.files[idx]
 end function
@@ -73,8 +73,8 @@ function SourceManager.AbsPathOf( byval id as FileId ) as string
     return this.names->Spelling( f->path )
 end function
 
-function SourceManager.TotalBytes( ) as longint
-    dim as longint total = 0
+function SourceManager.TotalBytes( ) as int64
+    dim as int64 total = 0
     for each f as SourceFile ptr in this.files
         total += f->text.Count
     next
@@ -100,8 +100,8 @@ function SourceManager.Find( byref absPath as ustring ) as FileId
     '' BY INDEX (pathIndex, kept by Adopt): the first real file under this path, which is
     '' what a walk of the whole table found -- a walk that also stepped over every virtual
     '' file, and ran once per #include.
-    if cast( long, want ) < this.pathIndex.Count then
-        dim as long hitId = this.pathIndex[cast( long, want )]
+    if cast( int32, want ) < this.pathIndex.Count then
+        dim as int32 hitId = this.pathIndex[cast( int32, want )]
         if hitId > 0 then return cast( FileId, hitId )
     end if
     return FILE_NONE
@@ -111,7 +111,7 @@ private sub BuildLineIndex( byval f as SourceFile ptr )
     '' A LONE CR IS A LINE END, as in a classic Mac file: fbc compiles 'print 1<CR>print 2'
     '' and tiko refused it (audit F-54). Rewritten to LF in place -- one byte for one, so
     '' no offset moves -- before the lines are indexed and anything lexes the text.
-    for k as long = 0 to f->text.Count - 1
+    for k as int32 = 0 to f->text.Count - 1
         if f->text[k] = 13 then
             if (k + 1 >= f->text.Count) orelse (f->text[k + 1] <> 10) then f->text[k] = 10
         end if
@@ -119,8 +119,8 @@ private sub BuildLineIndex( byval f as SourceFile ptr )
     f->lineStarts.Clear( )
     f->lineStarts.Push( 0 )
 
-    dim as long n = f->text.Count
-    dim as long i = 0
+    dim as int32 n = f->text.Count
+    dim as int32 i = 0
     while i < n
         if f->text[i] = 10 then                 '' LF ends a line; a preceding CR
             f->lineStarts.Push( i + 1 )         '' belongs to the line it terminates
@@ -139,8 +139,8 @@ function SourceManager.Adopt _
     f->displayPath = this.names->GetString( Tko.Text.UStringToUtf8( shownPath ) )
     f->isVirtual = isVirt
 
-    dim as long rawCount = raw.Count
-    dim as const ubyte ptr rawPtr = 0
+    dim as int32 rawCount = raw.Count
+    dim as const uint8 ptr rawPtr = 0
     if rawCount > 0 then rawPtr = @raw[0]
 
     f->encoding = Tko.Text.DetectEncoding( rawPtr, rawCount )
@@ -150,7 +150,7 @@ function SourceManager.Adopt _
     end if
     Tko.Text.NormalizeToUtf8( raw, f->text, f->encoding )
 
-    dim as long n = f->text.Count
+    dim as int32 n = f->text.Count
     if n > 0 then
         f->contentHash = HashBytes( @f->text[0], n )
     else
@@ -169,12 +169,12 @@ function SourceManager.Adopt _
     this.files.Push( f )
     '' INDEXED BY PATH for Find -- a real file only, and only the first under its path.
     if isVirt = false then
-        dim as long key = cast( long, f->path )
+        dim as int32 key = cast( int32, f->path )
         #ifdef __FB_WIN32__
-        key = cast( long, this.names->Fold( f->path ) )
+        key = cast( int32, this.names->Fold( f->path ) )
         #endif
         while this.pathIndex.Count <= key
-            dim as long zero = 0
+            dim as int32 zero = 0
             this.pathIndex.Push( zero )
         wend
         if this.pathIndex[key] = 0 then this.pathIndex[key] = this.files.Count
@@ -208,10 +208,10 @@ function SourceManager.AddVirtual _
     ( byref shownName as ustring, byref content as string ) as FileId
 
     dim as ByteBuf raw
-    dim as long n = len( content )
+    dim as int32 n = len( content )
     raw.Reserve( n )
-    for i as long = 0 to n - 1
-        raw.Push( cast( ubyte, content[i] ) )
+    for i as int32 = 0 to n - 1
+        raw.Push( cast( uint8, content[i] ) )
     next
 
     return this.Adopt( shownName, shownName, raw, true )
@@ -227,17 +227,17 @@ function SourceManager.AddBuffer _
     if already <> FILE_NONE then return already
 
     dim as ByteBuf raw
-    dim as long n = len( content )
+    dim as int32 n = len( content )
     raw.Reserve( n )
-    for i as long = 0 to n - 1
-        raw.Push( cast( ubyte, content[i] ) )
+    for i as int32 = 0 to n - 1
+        raw.Push( cast( uint8, content[i] ) )
     next
     return this.Adopt( absPath, path, raw, false )
 end function
 
 '' ------------------------------------------------------------------- locations
 
-function SourceManager.LocFor( byval id as FileId, byval offset as long ) as SourceLoc
+function SourceManager.LocFor( byval id as FileId, byval offset as int32 ) as SourceLoc
     dim as SourceFile ptr f = this.FileAt( id )
     if f = 0 then return LOC_NONE
     if offset < 0 then offset = 0
@@ -245,12 +245,12 @@ function SourceManager.LocFor( byval id as FileId, byval offset as long ) as Sou
     return f->locBase + cast( SourceLoc, offset )
 end function
 
-function SourceManager.LocOffset( byval loc as SourceLoc, byref fileOut as FileId ) as long
+function SourceManager.LocOffset( byval loc as SourceLoc, byref fileOut as FileId ) as int32
     fileOut = FILE_NONE
     if loc = LOC_NONE then return 0
-    dim as long lo = 0, hi = this.files.Count - 1
+    dim as int32 lo = 0, hi = this.files.Count - 1
     while lo <= hi
-        dim as long midIdx = (lo + hi) \ 2
+        dim as int32 midIdx = (lo + hi) \ 2
         dim as SourceFile ptr f = this.files[midIdx]
         if loc < f->locBase then
             hi = midIdx - 1
@@ -258,7 +258,7 @@ function SourceManager.LocOffset( byval loc as SourceLoc, byref fileOut as FileI
             lo = midIdx + 1
         else
             fileOut = cast( FileId, midIdx + 1 )
-            return cast( long, loc - f->locBase )
+            return cast( int32, loc - f->locBase )
         end if
     wend
     return 0
@@ -274,9 +274,9 @@ function SourceManager.Decode( byval loc as SourceLoc ) as DecodedLoc
 
     '' Binary search for the file whose range contains loc. Files are appended in
     '' increasing base order, so the array is already sorted.
-    dim as long lo = 0, hi = this.files.Count - 1, found = -1
+    dim as int32 lo = 0, hi = this.files.Count - 1, found = -1
     while lo <= hi
-        dim as long midIdx = (lo + hi) \ 2
+        dim as int32 midIdx = (lo + hi) \ 2
         dim as SourceFile ptr f = this.files[midIdx]
         dim as SourceLoc last = f->locBase + cast( SourceLoc, f->text.Count )
         if loc < f->locBase then
@@ -291,16 +291,16 @@ function SourceManager.Decode( byval loc as SourceLoc ) as DecodedLoc
     if found < 0 then return d
 
     dim as SourceFile ptr f = this.files[found]
-    dim as long off = cast( long, loc - f->locBase )
+    dim as int32 off = cast( int32, loc - f->locBase )
     d.file = cast( FileId, found + 1 )
     d.offset = off
 
     '' Binary search the line index for the last start <= off.
     lo = 0
     hi = f->lineStarts.Count - 1
-    dim as long lineIdx = 0
+    dim as int32 lineIdx = 0
     while lo <= hi
-        dim as long midIdx = (lo + hi) \ 2
+        dim as int32 midIdx = (lo + hi) \ 2
         if f->lineStarts[midIdx] <= off then
             lineIdx = midIdx
             lo = midIdx + 1
@@ -317,9 +317,9 @@ function SourceManager.Decode( byval loc as SourceLoc ) as DecodedLoc
     '' from there. Binary search, because Decode is on the diagnostic path and a file
     '' machine-generated from a template can carry one mark per line.
     if f->lineMarks.Count > 0 then
-        dim as long mlo = 0, mhi = f->lineMarks.Count - 1, mFound = -1
+        dim as int32 mlo = 0, mhi = f->lineMarks.Count - 1, mFound = -1
         while mlo <= mhi
-            dim as long mmid = (mlo + mhi) \ 2
+            dim as int32 mmid = (mlo + mhi) \ 2
             if f->lineMarks[mmid].physLine <= d.physLine then
                 mFound = mmid
                 mlo = mmid + 1
@@ -334,14 +334,14 @@ function SourceManager.Decode( byval loc as SourceLoc ) as DecodedLoc
         end if
     end if
 
-    dim as const ubyte ptr textBase = 0
+    dim as const uint8 ptr textBase = 0
     if f->text.Count > 0 then textBase = @f->text[0]
     d.column = Tko.Text.ColumnOf( textBase, f->lineStarts[lineIdx], off )
     return d
 end function
 
 sub SourceManager.AddLineMark _
-    ( byval id as FileId, byval physLine as long, byval shownLine as long, _
+    ( byval id as FileId, byval physLine as int32, byval shownLine as int32, _
       byval shownName as InternId, byval hasName as boolean )
 
     dim as SourceFile ptr f = this.FileAt( id )
@@ -353,7 +353,7 @@ sub SourceManager.AddLineMark _
     dim as InternId nm = shownName
     if hasName = false then
         nm = f->displayPath
-        for i as long = f->lineMarks.Count - 1 to 0 step -1
+        for i as int32 = f->lineMarks.Count - 1 to 0 step -1
             if f->lineMarks[i].physLine < physLine then
                 nm = f->lineMarks[i].shownName
                 exit for
@@ -362,7 +362,7 @@ sub SourceManager.AddLineMark _
     end if
 
     '' Scanning a file twice must not stack two marks on one line.
-    for i as long = f->lineMarks.Count - 1 to 0 step -1
+    for i as int32 = f->lineMarks.Count - 1 to 0 step -1
         if f->lineMarks[i].physLine = physLine then
             f->lineMarks[i].shownLine = shownLine
             f->lineMarks[i].shownName = nm
@@ -385,23 +385,23 @@ end function
 
 '' ----------------------------------------------------------------------- lines
 
-function SourceManager.LineCount( byval id as FileId ) as long
+function SourceManager.LineCount( byval id as FileId ) as int32
     dim as SourceFile ptr f = this.FileAt( id )
     if f = 0 then return 0
     return f->lineStarts.Count
 end function
 
-function SourceManager.ContentLineCount( byval id as FileId ) as long
+function SourceManager.ContentLineCount( byval id as FileId ) as int32
     dim as SourceFile ptr f = this.FileAt( id )
     if f = 0 then return 0
-    dim as long n = f->lineStarts.Count
+    dim as int32 n = f->lineStarts.Count
     dim as boolean endsWithEol = (f->text.Count > 0) andalso _
                                  (f->text[f->text.Count - 1] = 10)
     if endsWithEol andalso (n > 1) then n -= 1
     return n
 end function
 
-function SourceManager.LineStart( byval id as FileId, byval lineNo as long ) as long
+function SourceManager.LineStart( byval id as FileId, byval lineNo as int32 ) as int32
     dim as SourceFile ptr f = this.FileAt( id )
     if f = 0 then return 0
     dim as boolean bad = (lineNo < 1) orelse (lineNo > f->lineStarts.Count)
@@ -409,19 +409,19 @@ function SourceManager.LineStart( byval id as FileId, byval lineNo as long ) as 
     return f->lineStarts[lineNo - 1]
 end function
 
-function SourceManager.LineLength( byval id as FileId, byval lineNo as long ) as long
+function SourceManager.LineLength( byval id as FileId, byval lineNo as int32 ) as int32
     dim as SourceFile ptr f = this.FileAt( id )
     if f = 0 then return 0
     dim as boolean bad = (lineNo < 1) orelse (lineNo > f->lineStarts.Count)
     if bad then return 0
 
-    dim as long first = f->lineStarts[lineNo - 1]
-    dim as long stop_ = f->text.Count
+    dim as int32 first = f->lineStarts[lineNo - 1]
+    dim as int32 stop_ = f->text.Count
     if lineNo < f->lineStarts.Count then stop_ = f->lineStarts[lineNo]
 
     '' Trim the terminator so callers get the line, not the line plus its newline.
     while stop_ > first
-        dim as ubyte b = f->text[stop_ - 1]
+        dim as uint8 b = f->text[stop_ - 1]
         dim as boolean isEol = (b = 10) orelse (b = 13)
         if isEol = false then exit while
         stop_ -= 1
@@ -429,11 +429,11 @@ function SourceManager.LineLength( byval id as FileId, byval lineNo as long ) as
     return stop_ - first
 end function
 
-function SourceManager.LineText( byval id as FileId, byval lineNo as long ) as string
+function SourceManager.LineText( byval id as FileId, byval lineNo as int32 ) as string
     dim as SourceFile ptr f = this.FileAt( id )
     if f = 0 then return ""
-    dim as long first = this.LineStart( id, lineNo )
-    dim as long n = this.LineLength( id, lineNo )
+    dim as int32 first = this.LineStart( id, lineNo )
+    dim as int32 n = this.LineLength( id, lineNo )
     if n <= 0 then return ""
 
     dim as string r = space( n )

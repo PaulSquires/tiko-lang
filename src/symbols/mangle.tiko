@@ -10,17 +10,17 @@ namespace Tko.Mangle
 
 '' -------------------------------------------------------------- substitutions
 
-function Substitutions.Find( byref enc as string ) as long
-    for i as long = 0 to items.Count - 1
+function Substitutions.Find( byref enc as string ) as int32
+    for i as int32 = 0 to items.Count - 1
         if items[i] = enc then return i
     next
     return -1
 end function
 
-function Substitutions.FindType( byval t as Tko.TypeId ) as long
+function Substitutions.FindType( byval t as Tko.TypeId ) as int32
     if t = Tko.TYPE_NONE then return -1
-    for i as long = 0 to keys.Count - 1
-        if keys[i] = cast( ulong, t ) then return i
+    for i as int32 = 0 to keys.Count - 1
+        if keys[i] = cast( uint32, t ) then return i
     next
     return -1
 end function
@@ -29,20 +29,20 @@ sub Substitutions.Add( byref enc as string, byval t as Tko.TypeId = 0 )
     if (t = 0) andalso (Find( enc ) >= 0) then return
     if (t <> 0) andalso (FindType( t ) >= 0) then return
     items.Push( enc )
-    keys.Push( cast( ulong, t ) )
+    keys.Push( cast( uint32, t ) )
 end sub
 
 sub Substitutions.AddRaw( byref enc as string, byval t as Tko.TypeId = 0 )
     items.Push( enc )
-    keys.Push( cast( ulong, t ) )
+    keys.Push( cast( uint32, t ) )
 end sub
 
 '' ------------------------------------------------------- generic instantiations
 
-private function FindInst_( byref types as Tko.TypeContext, byval nm as Tko.InternId ) as long
+private function FindInst_( byref types as Tko.TypeContext, byval nm as Tko.InternId ) as int32
     if nm = 0 then return -1
-    for i as long = 0 to types.instName.Count - 1
-        if types.instName[i] = cast( ulong, nm ) then return i
+    for i as int32 = 0 to types.instName.Count - 1
+        if types.instName[i] = cast( uint32, nm ) then return i
     next
     return -1
 end function
@@ -53,14 +53,14 @@ end function
 
 sub RegisterInst _
     ( byref types as Tko.TypeContext, byval nm as Tko.InternId, _
-      byval spell as Tko.InternId, byref args as containers.Array( of ulong ) )
+      byval spell as Tko.InternId, byref args as containers.Array( of uint32 ) )
 
     if FindInst_( types, nm ) >= 0 then return
-    types.instName.Push( cast( ulong, nm ) )
-    types.instSpell.Push( cast( ulong, spell ) )
+    types.instName.Push( cast( uint32, nm ) )
+    types.instSpell.Push( cast( uint32, spell ) )
     types.instArgFirst.Push( types.instArgs.Count )
     types.instArgCount.Push( args.Count )
-    for i as long = 0 to args.Count - 1
+    for i as int32 = 0 to args.Count - 1
         types.instArgs.Push( args[i] )
     next
 end sub
@@ -76,18 +76,18 @@ end sub
 '' The key stays what it was -- it is the interning, not the name.
 sub RegisterTuple _
     ( byref types as Tko.TypeContext, byref names as Tko.Interner, _
-      byval t as Tko.TypeId, byref elemTypes as containers.Array( of ulong ) )
+      byval t as Tko.TypeId, byref elemTypes as containers.Array( of uint32 ) )
 
     if t = Tko.TYPE_NONE then return
     if elemTypes.Count = 0 then return
-    dim as Tko.InternId nm = types.types[cast( long, t )].name
+    dim as Tko.InternId nm = types.types[cast( int32, t )].name
     if nm = 0 then return
     RegisterInst( types, nm, names.GetString( "FBTUPLE" & str( elemTypes.Count ) ), elemTypes )
 end sub
 
 '' S_ is candidate 0, S0_ is candidate 1, S1_ is candidate 2: the number in the
 '' encoding is one LESS than the index, and the first candidate has none at all.
-private function SubRef( byval idx as long ) as string
+private function SubRef( byval idx as int32 ) as string
     if idx = 0 then return "S_"
     return "S" & trim( str( idx - 1 ) ) & "_"
 end function
@@ -98,7 +98,7 @@ end function
 '' come first). 'S_' when 't' is not a candidate at all. See mir/lowerimpl.tiko, whose
 '' implicit 'operator let' and copy constructor take 'const T&'.
 function SelfRef( byref subs as Substitutions, byval t as Tko.TypeId ) as string
-    dim as long ix = subs.FindType( t )
+    dim as int32 ix = subs.FindType( t )
     if ix < 0 then return "S_"
     return SubRef( ix )
 end function
@@ -116,40 +116,40 @@ end function
 '' refers BACK to the 1W already emitted, and keying it by name alone would miss.
 '' A COMPONENT OF THE MODULE CHAIN in outTypes: a namespace component EmitPrefix keeps even
 '' outside a generic instance, which drops every other qualifier (ADR 0017; RFC-0002 §5).
-const CHAIN_QUAL as ulong = &hFFFFFFFFul
+const CHAIN_QUAL as uint32 = &hFFFFFFFFul
 
 '' withChain: the name is a LINK name, and module code's carries the module's chain first --
 '' when the outermost qualifier's symbol, or self_ when there is none, is SYMF_MODSRC.
 private sub QualifierChain _
     ( byref syms as Tko.SymbolTable, byval sc as Tko.ScopeId, _
       byref names as Tko.Interner, byref outp as containers.Array( of string ), _
-      byref outTypes as containers.Array( of ulong ), _
+      byref outTypes as containers.Array( of uint32 ), _
       byval types as Tko.TypeContext ptr = 0, _
       byval withChain as boolean = false, byval self_ as Tko.SymbolId = Tko.SYMBOL_NONE )
 
     dim as containers.Array( of string ) rev
-    dim as containers.Array( of ulong ) revT
+    dim as containers.Array( of uint32 ) revT
     dim as Tko.Symbol ptr outer = 0
     dim as Tko.ScopeId cur = sc
     while cur <> Tko.SCOPE_NONE
         dim as Tko.SymScope ptr s = syms.ScopeAt( cur )
         if s = 0 then exit while
-        if (s->kind = cast( ubyte, Tko.SCOPEK_NAMESPACE )) orelse _
-           (s->kind = cast( ubyte, Tko.SCOPEK_TYPE )) then
+        if (s->kind = cast( uint8, Tko.SCOPEK_NAMESPACE )) orelse _
+           (s->kind = cast( uint8, Tko.SCOPEK_TYPE )) then
             dim as Tko.Symbol ptr owner = syms.SymbolAt( s->owner )
             '' A MODULE'S INTERFACE NAMESPACE is the module's chain, component by component
             '' and kept as a chain is (ADR 0017): _ZN4ACME3NET4HTTP5FETCHEv, as the module
             '' itself named it.
-            dim as long imp_ = -1
+            dim as int32 imp_ = -1
             if (owner <> 0) andalso (syms.importNs.Count > 0) then
-                for k as long = 0 to syms.importNs.Count - 1
-                    if syms.importNs[k] = cast( ulong, s->owner ) then imp_ = k
+                for k as int32 = 0 to syms.importNs.Count - 1
+                    if syms.importNs[k] = cast( uint32, s->owner ) then imp_ = k
                 next
             end if
             if imp_ >= 0 then
                 dim as string ch = syms.importChains[imp_]
-                dim as long e_ = len( ch )
-                for q as long = len( ch ) to 0 step -1
+                dim as int32 e_ = len( ch )
+                for q as int32 = len( ch ) to 0 step -1
                     dim as boolean cut = (q = 0)
                     if cut = false then cut = (ch[q - 1] = asc( "." ))
                     if cut then
@@ -175,21 +175,21 @@ private sub QualifierChain _
                 '' fails on a name that differs from it only in case.
                 if types <> 0 then
                     if owner->type_ <> Tko.TYPE_NONE then
-                        dim as long oi = cast( long, owner->type_ )
+                        dim as int32 oi = cast( int32, owner->type_ )
                         if (oi > 0) andalso (oi < types->types.Count) then
                             dim as Tko.InternId orw = types->types[oi].rawName
                             if orw <> 0 then qual = names.Spelling( orw )
                         end if
                     end if
                 end if
-                if owner->kind = cast( ubyte, Tko.SYM_NAMESPACE ) then
+                if owner->kind = cast( uint8, Tko.SYM_NAMESPACE ) then
                     if owner->payload <> 0 then
                         qual = names.Spelling( cast( Tko.InternId, owner->payload ) )
                     end if
                 end if
                 rev.Push( qual )
-                if s->kind = cast( ubyte, Tko.SCOPEK_TYPE ) then
-                    revT.Push( cast( ulong, owner->type_ ) )
+                if s->kind = cast( uint8, Tko.SCOPEK_TYPE ) then
+                    revT.Push( cast( uint32, owner->type_ ) )
                 else
                     revT.Push( 0 )
                 end if
@@ -203,13 +203,13 @@ private sub QualifierChain _
         dim as boolean chained = (root_ <> 0)
         if chained then chained = ((root_->flags and Tko.SYMF_MODSRC) <> 0)
         if chained then
-            for i as long = 0 to syms.selfChain.Count - 1
+            for i as int32 = 0 to syms.selfChain.Count - 1
                 outp.Push( syms.selfChain[i] )
                 outTypes.Push( CHAIN_QUAL )
             next
         end if
     end if
-    for i as long = rev.Count - 1 to 0 step -1
+    for i as int32 = rev.Count - 1 to 0 step -1
         outp.Push( rev[i] )
         outTypes.Push( revT[i] )
     next
@@ -231,10 +231,10 @@ function SourceQualifiedName _
     dim as Tko.Symbol ptr s = syms.SymbolAt( sid )
     if s = 0 then return ""
     dim as containers.Array( of string ) q
-    dim as containers.Array( of ulong ) qt
+    dim as containers.Array( of uint32 ) qt
     QualifierChain( syms, s->parent, names, q, qt )
     dim as string r = ""
-    for i as long = 0 to q.Count - 1
+    for i as int32 = 0 to q.Count - 1
         r += q[i] & "."
     next
     return r & Tko.Text.UpperAscii( names.Spelling( s->name ) )
@@ -259,7 +259,7 @@ function EnclosingProcName _
     while cur <> Tko.SCOPE_NONE
         dim as Tko.SymScope ptr s = syms.ScopeAt( cur )
         if s = 0 then exit while
-        if s->kind = cast( ubyte, Tko.SCOPEK_PROC ) then
+        if s->kind = cast( uint8, Tko.SCOPEK_PROC ) then
             dim as string r = SourceQualifiedName( syms, s->owner, names )
             if len( r ) > 0 then return r
             exit while
@@ -354,21 +354,21 @@ end function
 '' argument's own, duplicates and all -- then the caller pushes the whole, which is
 '' why the nested Box's parameter is S1_ and Pair's is S0_.
 private function TemplateCode_ _
-    ( byval ix as long, byref types as Tko.TypeContext, _
+    ( byval ix as int32, byref types as Tko.TypeContext, _
       byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
       byref subs as Substitutions ) as string
 
     dim as string nm = SrcName( names.Spelling( cast( Tko.InternId, types.instSpell[ix] ) ) )
     subs.AddRaw( nm )
     dim as string enc = nm & "I"
-    dim as long af = types.instArgFirst[ix]
-    dim as long an = types.instArgCount[ix]
-    for i as long = 0 to an - 1
+    dim as int32 af = types.instArgFirst[ix]
+    dim as int32 an = types.instArgCount[ix]
+    for i as int32 = 0 to an - 1
         '' A FRESH TABLE per argument is what 'never substituted' means; its
         '' candidates are then appended to the real one in the order they were made.
         dim as Substitutions tmp
         enc += TypeCode( cast( Tko.TypeId, types.instArgs[af + i] ), types, syms, names, tmp )
-        for k as long = 0 to tmp.items.Count - 1
+        for k as int32 = 0 to tmp.items.Count - 1
             subs.AddRaw( tmp.items[k], cast( Tko.TypeId, tmp.keys[k] ) )
         next
     next
@@ -380,20 +380,20 @@ end function
 '' been replaced by S_, appending the next component to that abbreviation produces a
 '' key that matches nothing, and every later component gets spelled out in full.
 private function EmitPrefix _
-    ( byref quals as containers.Array( of string ), byref qualTypes as containers.Array( of ulong ), _
+    ( byref quals as containers.Array( of string ), byref qualTypes as containers.Array( of uint32 ), _
       byref subs as Substitutions, byval types as Tko.TypeContext ptr = 0, _
       byval syms as Tko.SymbolTable ptr = 0, byval names as Tko.Interner ptr = 0 ) as string
 
     '' AN INSTANTIATION OWNS NO NAMESPACE (see TemplateCode_): everything outside the
     '' innermost one is dropped, so a member of FB.Array( of T ) starts at the template.
-    dim as long start = 0
-    dim as long instAt = -1
-    dim as long instIx = -1
+    dim as int32 start = 0
+    dim as int32 instAt = -1
+    dim as int32 instIx = -1
     if (types <> 0) andalso (syms <> 0) andalso (names <> 0) then
-        for i as long = quals.Count - 1 to 0 step -1
-            dim as long qi = cast( long, qualTypes[i] )
+        for i as int32 = quals.Count - 1 to 0 step -1
+            dim as int32 qi = cast( int32, qualTypes[i] )
             if (qi > 0) andalso (qi < types->types.Count) then
-                dim as long ix = FindInst_( *types, types->types[qi].name )
+                dim as int32 ix = FindInst_( *types, types->types[qi].name )
                 if ix >= 0 then
                     start = i
                     instAt = i
@@ -406,7 +406,7 @@ private function EmitPrefix _
 
     '' ...EXCEPT THE MODULE CHAIN, which is kept: 'a.Box( of long )' and 'b.Box( of long )'
     '' are two types and would otherwise be one name.
-    dim as long chainLen = 0
+    dim as int32 chainLen = 0
     while chainLen < quals.Count
         if qualTypes[chainLen] <> CHAIN_QUAL then exit while
         chainLen += 1
@@ -414,17 +414,17 @@ private function EmitPrefix _
 
     dim as string full = ""      '' the literal cumulative prefix -- the KEY
     dim as string body = ""      '' what actually gets emitted
-    for i as long = 0 to quals.Count - 1
+    for i as int32 = 0 to quals.Count - 1
         dim as boolean dropped = (i >= chainLen)
         if dropped then dropped = (i < start)
         if dropped then continue for
         dim as Tko.TypeId qt = cast( Tko.TypeId, qualTypes[i] )
         if i < chainLen then qt = Tko.TYPE_NONE
         if i = instAt then
-            dim as long ihit = subs.FindType( qt )
+            dim as int32 ihit = subs.FindType( qt )
             if ihit >= 0 then
                 body = SubRef( ihit )
-                full = "#" & str( cast( long, qt ) )
+                full = "#" & str( cast( int32, qt ) )
             else
                 dim as string tc = TemplateCode_( instIx, *types, *syms, *names, subs )
                 body += tc
@@ -435,7 +435,7 @@ private function EmitPrefix _
         end if
         dim as string comp = SrcName( quals[i] )
         full += comp
-        dim as long hit = -1
+        dim as int32 hit = -1
         if qt <> 0 then
             hit = subs.FindType( qt )
         else
@@ -460,7 +460,7 @@ function TypeCode _
 
     '' Look the TYPE up before encoding it. Doing it afterwards compares an encoding
     '' whose inner components have already been substituted, which never matches.
-    dim as long hit = subs.FindType( t )
+    dim as int32 hit = subs.FindType( t )
     if hit >= 0 then return SubRef( hit )
 
     dim as string enc = ""
@@ -478,7 +478,7 @@ function TypeCode _
     end if
 
     dim as Tko.TypeInfo ptr ti = 0
-    if cast( long, t ) < types.types.Count then ti = @types.types[cast( long, t )]
+    if cast( int32, t ) < types.types.Count then ti = @types.types[cast( int32, t )]
 
     select case types.Kind( t )
     case Tko.TK_POINTER
@@ -488,7 +488,7 @@ function TypeCode _
         enc = "R" & TypeCode( types.Inner( t ), types, syms, names, subs )
 
     case Tko.TK_UDT, Tko.TK_ENUM, Tko.TK_FORWARD, Tko.TK_TYPEDEF
-        dim as long instIx = -1
+        dim as int32 instIx = -1
         if ti <> 0 then instIx = FindInst_( types, ti->name )
         if instIx >= 0 then
             enc = TemplateCode_( instIx, types, syms, names, subs )
@@ -510,7 +510,7 @@ function TypeCode _
         '' prefix is usually a substitution because the procedure's own qualifiers
         '' already emitted it -- 'byref as Vec' in namespace BYVAL_OK is NS2_3VECE.
         dim as containers.Array( of string ) q
-        dim as containers.Array( of ulong ) qt
+        dim as containers.Array( of uint32 ) qt
         if ti <> 0 then
             '' The type's own symbol decides whether a module chain applies at top level.
             dim as Tko.SymbolId tsym = syms.LookupLocalTyped( _
@@ -531,7 +531,7 @@ function TypeCode _
         '' written on a real procedure takes the ArrayParamCode path instead, which
         '' has its own substitution bookkeeping.
         dim as string aanm = "FBARRAY"
-        dim as long arnk = types.DynRank( t )
+        dim as int32 arnk = types.DynRank( t )
         if arnk > 0 then aanm += str( arnk )
         enc = str( len( aanm ) ) & aanm & "I" & _
               TypeCode( types.Inner( t ), types, syms, names, subs ) & "E"
@@ -550,12 +550,12 @@ function TypeCode _
         else
             body = "F" & TypeCode( rt_, types, syms, names, subs )
         end if
-        dim as long n = 0
+        dim as int32 n = 0
         if ti <> 0 then n = ti->count
         if n <= 0 then
             body += "v"
         else
-            for i as long = 0 to n - 1
+            for i as int32 = 0 to n - 1
                 dim as Tko.TypeId pt = cast( Tko.TypeId, types.pool[ti->first + i] )
                 body += TypeCode( pt, types, syms, names, subs )
             next
@@ -588,7 +588,7 @@ end function
 
 private function StmtOf _
     ( byref ast as Tko.AstArena, byval id as Tko.NodeId ) as Tko.StmtPayload ptr
-    return @ast.stmts[cast( long, ast.nodes[cast( long, id )].data )]
+    return @ast.stmts[cast( int32, ast.nodes[cast( int32, id )].data )]
 end function
 
 '' The enclosing NAMESPACE and TYPE names, outermost first. A procedure's own scope
@@ -686,8 +686,8 @@ private function OperatorCode _
         return "cv" & TypeCode( ct, types, syms, names, subs )
     end if
 
-    dim as long arity = 0
-    for i as long = 0 to sp->count - 1
+    dim as int32 arity = 0
+    for i as int32 = 0 to sp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[sp->first + i] )
         if ast.Kind( prm ) = Tko.N_PARAM then arity += 1
     next
@@ -695,7 +695,7 @@ private function OperatorCode _
     '' one declared parameter is v27selfpow -- arity TWO -- while the global 'operator
     '' ^' with two is v23pow. 'this' is not in the parameter list, so it is added here.
     dim as containers.Array( of string ) aq
-    dim as containers.Array( of ulong ) aqt
+    dim as containers.Array( of uint32 ) aqt
     QualifierChain( syms, info.ScopeOf( proc_ ), names, aq, aqt, @types )
     if aqt.Count > 0 then
         '' A MODULE CHAIN COMPONENT IS NO TYPE: in an importer a module's global 'operator
@@ -817,24 +817,24 @@ end function
 private function StdcallBytes _
     ( byref ast as Tko.AstArena, byval proc_ as Tko.NodeId, _
       byref types as Tko.TypeContext, byref info as Tko.SemanticInfo, _
-      byval hasThis as boolean ) as long
+      byval hasThis as boolean ) as int32
 
-    dim as long total = 0
+    dim as int32 total = 0
     if hasThis then total += 4
     dim as Tko.StmtPayload ptr sp = StmtOf( ast, proc_ )
-    for i as long = 0 to sp->count - 1
+    for i as int32 = 0 to sp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[sp->first + i] )
         if ast.Kind( prm ) <> Tko.N_PARAM then continue for
         '' BYREF is a pointer whatever it refers to -- AND SO IS AN ARRAY, which
         '' passes a descriptor pointer. Measured: 'ap2( x( ) as double )' is @8 on
         '' win32, not @12, and 'ap3( x( ) as string )' @8 and not @16.
-        if (ast.nodes[cast( long, prm )].flags and _
+        if (ast.nodes[cast( int32, prm )].flags and _
             (Tko.NF_BYREF or Tko.NF_ARRAY)) <> 0 then
             total += 4
             continue for
         end if
         dim as Tko.StmtPayload ptr pp = StmtOf( ast, prm )
-        dim as long sz = types.Layout( info.TypeOf_( pp->a ) ).size
+        dim as int32 sz = types.Layout( info.TypeOf_( pp->a ) ).size
         if sz < 4 then sz = 4
         total += ((sz + 3) \ 4) * 4
     next
@@ -861,7 +861,7 @@ private function DecorateWin32 _
     '' no parameters at all, while the static 'W.ST( )' is @0 and a namespace's
     '' 'TB.B30( )' is @0 too.
     dim as containers.Array( of string ) q
-    dim as containers.Array( of ulong ) qt
+    dim as containers.Array( of uint32 ) qt
     QualifierChain( syms, info.ScopeOf( proc_ ), names, q, qt, @types )
     dim as boolean hasThis = false
     if qt.Count > 0 then
@@ -872,9 +872,9 @@ private function DecorateWin32 _
         dim as boolean qAlloc = IsAllocOperator_( names, sp->name )
         hasThis = qOwned andalso (qStatic = false) andalso (qAlloc = false)
     end if
-    dim as ushort kw = sp->op
-    if (kw = cast( ushort, Tko.KW_CONSTRUCTOR )) orelse _
-       (kw = cast( ushort, Tko.KW_DESTRUCTOR )) then
+    dim as uint16 kw = sp->op
+    if (kw = cast( uint16, Tko.KW_CONSTRUCTOR )) orelse _
+       (kw = cast( uint16, Tko.KW_DESTRUCTOR )) then
         return "_" & nm
     end if
 
@@ -883,7 +883,7 @@ private function DecorateWin32 _
     dim as Tko.CallConv cc = Tko.CallConvOf( sp->extra )
     dim as Tko.Symbol ptr s = syms.SymbolAt( info.RefOf( proc_ ) )
     if s <> 0 then
-        if s->callConv <> cast( ubyte, Tko.CC_NONE ) then
+        if s->callConv <> cast( uint8, Tko.CC_NONE ) then
             cc = cast( Tko.CallConv, s->callConv )
         end if
     end if
@@ -933,10 +933,10 @@ end function
 private function ArrayParamCode _
     ( byval elem as Tko.TypeId, byref types as Tko.TypeContext, _
       byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
-      byref subs as Substitutions, byval rank as long = 0 ) as string
+      byref subs as Substitutions, byval rank as int32 = 0 ) as string
 
-    for i as long = 0 to subs.arrKeys.Count - 1
-        if subs.arrKeys[i] <> cast( ulong, elem ) then continue for
+    for i as int32 = 0 to subs.arrKeys.Count - 1
+        if subs.arrKeys[i] <> cast( uint32, elem ) then continue for
         if subs.arrRank[i] <> rank then continue for
         return SubRef( subs.arrIdx[i] )
     next
@@ -948,7 +948,7 @@ private function ArrayParamCode _
     subs.keys.Push( 0 )
     subs.items.Push( "R" & tmpl )
     subs.keys.Push( 0 )
-    subs.arrKeys.Push( cast( ulong, elem ) )
+    subs.arrKeys.Push( cast( uint32, elem ) )
     subs.arrRank.Push( rank )
     subs.arrIdx.Push( subs.items.Count - 1 )
     return "R" & tmpl
@@ -994,14 +994,14 @@ private function ProcNameCore _
 
     '' A METHOD -- its scope, or its declare's, sits inside a TYPE's.
     dim as Tko.SymScope ptr msc = syms.ScopeAt( info.ScopeOf( proc_ ) )
-    dim as long mup = 0
+    dim as int32 mup = 0
     while (msc <> 0) andalso (mup < 4)
-        if msc->kind <> cast( ubyte, Tko.SCOPEK_PROC ) then exit while
+        if msc->kind <> cast( uint8, Tko.SCOPEK_PROC ) then exit while
         msc = syms.ScopeAt( msc->parent )
         mup += 1
     wend
     dim as boolean isMethod = false
-    if msc <> 0 then isMethod = (msc->kind = cast( ubyte, Tko.SCOPEK_TYPE ))
+    if msc <> 0 then isMethod = (msc->kind = cast( uint8, Tko.SCOPEK_TYPE ))
 
     '' Rule 3: foreign linkage takes the spelling verbatim and ignores OVERLOAD.
     '' ...EXCEPT A METHOD, which is mangled like an 'extern "C++"' one with the written case
@@ -1065,10 +1065,10 @@ private function ProcNameCore _
     if isCxx = false then
         '' A member's own scope, or a declare's, sits inside the TYPE's -- msc, above.
         if msc <> 0 then
-            if msc->kind = cast( ubyte, Tko.SCOPEK_TYPE ) then
+            if msc->kind = cast( uint8, Tko.SCOPEK_TYPE ) then
                 dim as Tko.Symbol ptr mown = syms.SymbolAt( msc->owner )
                 if mown <> 0 then
-                    dim as long moi = cast( long, mown->type_ )
+                    dim as int32 moi = cast( int32, mown->type_ )
                     if (moi > 0) andalso (moi < types.types.Count) then
                         isCxx = (types.types[moi].rawName <> 0)
                     end if
@@ -1085,12 +1085,12 @@ private function ProcNameCore _
         ident = Tko.Text.UpperAscii( written )
     end if
 
-    dim as ushort kw = sp->op
+    dim as uint16 kw = sp->op
     '' AN ALIASED STRUCTOR IS THE METHOD IT NAMES: 'declare constructor cdecl alias "init"( )' beside
     '' 'declare sub init cdecl alias "init"( )' is fbc's one _ZN3UDT4initEv, the sub's body serving
     '' both -- the constructor has none of its own (structs/ctor_alias.bas).
-    dim as boolean isCtor = (kw = cast( ushort, Tko.KW_CONSTRUCTOR )) andalso (aliased = false)
-    dim as boolean isDtor = (kw = cast( ushort, Tko.KW_DESTRUCTOR )) andalso (aliased = false)
+    dim as boolean isCtor = (kw = cast( uint16, Tko.KW_CONSTRUCTOR )) andalso (aliased = false)
+    dim as boolean isDtor = (kw = cast( uint16, Tko.KW_DESTRUCTOR )) andalso (aliased = false)
     '' ...BUT AN ALIASED PROPERTY TAKES THE ALIAS ALONE. The suffix is what fbc uses
     '' when it has to invent a name; an alias IS the name, and appending to it names
     '' something that does not exist. Measured over structs/obj_property_alias.bas,
@@ -1101,12 +1101,12 @@ private function ProcNameCore _
     ''
     '' fbc emits ONE symbol, '_ZN3UDT4getvEv', and 'x.v' calls it. tiko-lang emitted
     '' 'getv__get__' -- a receiver-less declaration nothing defines, called with one.
-    if (kw = cast( ushort, Tko.KW_PROPERTY )) andalso (aliased = false) then
+    if (kw = cast( uint16, Tko.KW_PROPERTY )) andalso (aliased = false) then
         ident += PropertySuffix( ast, proc_ )
     end if
 
     dim as containers.Array( of string ) quals
-    dim as containers.Array( of ulong ) qualTypes
+    dim as containers.Array( of uint32 ) qualTypes
     '' The symbol that says whether this is module code. A generic instance's re-parsed body
     '' is bound to nothing; its symbol is the one of its own name, which copied the mark.
     dim as Tko.SymbolId selfSym = info.RefOf( proc_ )
@@ -1137,8 +1137,8 @@ private function ProcNameCore _
     '' instantiation is the very key the registry holds. Matched, LinkedList( of long )'s
     '' two structors both came out _Z10LinkedListIiEv, a redefinition clang refused in
     '' every container and ComPtr file; fbc writes _ZN10LinkedListIiEC1Ev and ...D1Ev.
-    dim as long procInst = -1
-    if (aliased = false) andalso cbool( kw <> cast( ushort, Tko.KW_OPERATOR ) ) andalso _
+    dim as int32 procInst = -1
+    if (aliased = false) andalso cbool( kw <> cast( uint16, Tko.KW_OPERATOR ) ) andalso _
        (isCtor = false) andalso (isDtor = false) then
         procInst = FindInst_( types, sp->name )
     end if
@@ -1154,7 +1154,7 @@ private function ProcNameCore _
     '' N...E around it because there is no qualifier. Returning the spelling gave a
     '' function literally named '-', which no linker would accept and no call site
     '' could name.
-    dim as boolean isOp = (kw = cast( ushort, Tko.KW_OPERATOR ))
+    dim as boolean isOp = (kw = cast( uint16, Tko.KW_OPERATOR ))
     '' AN 'extern "C++"' PROCEDURE IS NEVER THAT EITHER: the whole point of the
     '' block is that its members carry the C++ mangling, overloaded or not.
     if (nested = false) andalso (overloaded = false) andalso (isOp = false) andalso _
@@ -1180,7 +1180,7 @@ private function ProcNameCore _
             outp += "C1"
         elseif isDtor then
             outp += "D1"
-        elseif kw = cast( ushort, Tko.KW_OPERATOR ) then
+        elseif kw = cast( uint16, Tko.KW_OPERATOR ) then
             outp += OperatorCode( ast, proc_, types, syms, names, info, subs, ident )
         elseif procInst >= 0 then
             outp += TemplateCode_( procInst, types, syms, names, subs )
@@ -1198,19 +1198,19 @@ private function ProcNameCore _
 
     '' Parameters. A procedure's RETURN type is never encoded; only a function
     '' POINTER's is, and TypeCode handles that.
-    dim as long emitted = 0
-    for i as long = 0 to sp->count - 1
+    dim as int32 emitted = 0
+    for i as int32 = 0 to sp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[sp->first + i] )
         if ast.Kind( prm ) <> Tko.N_PARAM then continue for
         dim as Tko.StmtPayload ptr pp = StmtOf( ast, prm )
         dim as Tko.TypeId pt = info.TypeOf_( pp->a )
-        if (ast.nodes[cast( long, prm )].flags and Tko.NF_ARRAY) <> 0 then
+        if (ast.nodes[cast( int32, prm )].flags and Tko.NF_ARRAY) <> 0 then
             outp += ArrayParamCode( pt, types, syms, names, subs, _
-                                    cast( long, pp->extra ) )
+                                    cast( int32, pp->extra ) )
             emitted += 1
             continue for
         end if
-        if (ast.nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
+        if (ast.nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0 then
             pt = types.Reference( pt )
         else
             '' A BYVAL PARAMETER'S OWN CONST IS NOT PART OF THE NAME. Read out of fbc's
@@ -1254,7 +1254,7 @@ function Dump _
       byref types as Tko.TypeContext, byref info as Tko.SemanticInfo ) as string
 
     dim as IrText outp
-    for i as long = 1 to ast.Count( )
+    for i as int32 = 1 to ast.Count( )
         dim as Tko.NodeId n = cast( Tko.NodeId, i )
         if ast.Kind( n ) <> Tko.N_PROC then continue for
         '' A DECLARE with no body names the same symbol its definition does; emitting
@@ -1286,11 +1286,11 @@ function StaticMemberName _
       byref names as Tko.Interner, byref member as string ) as string
 
     dim as containers.Array( of string ) quals
-    dim as containers.Array( of ulong ) qualTypes
+    dim as containers.Array( of uint32 ) qualTypes
     QualifierChain( syms, sc, names, quals, qualTypes, 0, true )
     if quals.Count = 0 then return ""
     dim as string outp = "_ZN"
-    for i as long = 0 to quals.Count - 1
+    for i as int32 = 0 to quals.Count - 1
         outp += str( len( quals[i] ) ) & quals[i]
     next
     dim as string m = Tko.Text.UpperAscii( member ) & "$"
@@ -1306,11 +1306,11 @@ function CxxVarName _
       byref names as Tko.Interner, byref written as string ) as string
 
     dim as containers.Array( of string ) quals
-    dim as containers.Array( of ulong ) qualTypes
+    dim as containers.Array( of uint32 ) qualTypes
     QualifierChain( syms, sc, names, quals, qualTypes, 0, false )
     if quals.Count = 0 then return "_Z" & SrcName( written )
     dim as string outp = "_ZN"
-    for i as long = 0 to quals.Count - 1
+    for i as int32 = 0 to quals.Count - 1
         outp += SrcName( quals[i] )
     next
     return outp & SrcName( written ) & "E"
@@ -1327,11 +1327,11 @@ function ModuleVarName _
     dim as Tko.Symbol ptr s = syms.SymbolAt( sid )
     if s = 0 then return ""
     dim as containers.Array( of string ) quals
-    dim as containers.Array( of ulong ) qualTypes
+    dim as containers.Array( of uint32 ) qualTypes
     QualifierChain( syms, s->parent, names, quals, qualTypes, 0, true, sid )
     if quals.Count = 0 then return ""
     dim as string outp = "_ZN"
-    for i as long = 0 to quals.Count - 1
+    for i as int32 = 0 to quals.Count - 1
         outp += str( len( quals[i] ) ) & quals[i]
     next
     dim as string m = Tko.Text.UpperAscii( names.Spelling( s->name ) )

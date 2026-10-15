@@ -24,47 +24,47 @@
 namespace Tko
 
     type InternEntry
-        as ubyte ptr bytes
-        as long      length
-        as ulong     hash
+        as uint8 ptr bytes
+        as int32      length
+        as uint32     hash
         as InternId  folded        '' 0 until first requested, then cached
     end type
 
     type EntryVec as containers.Array( of InternEntry )
-    type SlotVec  as containers.Array( of ulong )
+    type SlotVec  as containers.Array( of uint32 )
 
     type Interner
         as ByteArena store
         as EntryVec  entries       '' index = id - 1
         as SlotVec   slots         '' open addressing; 0 = empty, else an id
-        as long      mask
-        as long      occupied
+        as int32      mask
+        as int32      occupied
 
         declare constructor( )
 
-        declare function Get( byval p as const ubyte ptr, byval n as long ) as InternId
+        declare function Get( byval p as const uint8 ptr, byval n as int32 ) as InternId
         declare function GetString( byval s as string ) as InternId
 
         '' Named Spelling, not Text, so it cannot be confused with the Tko.Text
         '' namespace at a call site inside a member body.
         declare function Spelling( byval id as InternId ) as string
-        declare function Bytes( byval id as InternId ) as const ubyte ptr
-        declare function Length( byval id as InternId ) as long
+        declare function Bytes( byval id as InternId ) as const uint8 ptr
+        declare function Length( byval id as InternId ) as int32
 
         '' The id of this id's ASCII-lowercased spelling. Folding a folded id
         '' returns it unchanged, so Fold( ) is idempotent and cheap to call twice.
         declare function Fold( byval id as InternId ) as InternId
 
-        declare function Count( ) as long
-        declare function BytesUsed( ) as longint
+        declare function Count( ) as int32
+        declare function BytesUsed( ) as int64
 
         private:
-        declare sub Rehash( byval newSlots as long )
+        declare sub Rehash( byval newSlots as int32 )
     end type
 
     '' FNV-1a, 32-bit. Fixed by decision: the hash may be replaced only deliberately,
     '' because determinism of anything derived from it is a project requirement.
-    declare function HashBytes( byval p as const ubyte ptr, byval n as long ) as ulong
+    declare function HashBytes( byval p as const uint8 ptr, byval n as int32 ) as uint32
 
 end namespace
 

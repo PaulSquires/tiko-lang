@@ -11,23 +11,23 @@ namespace Tko.Mir
 
 '' Declared in lowerctx.ti now that SWAP needs it too.
 declare function BitfieldStoreParts_ _
-    ( byref c as Ctx, byref addr as MirValue, byval bitOff as long, _
-      byval bitWidth as long, byval unitTy as MirType, byval unitUns as boolean, _
+    ( byref c as Ctx, byref addr as MirValue, byval bitOff as int32, _
+      byval bitWidth as int32, byval unitTy as MirType, byval unitUns as boolean, _
       byref val as MirValue ) as boolean
 
 '' FIELD fi's UNIT: its byte offset, the field's bit offset and width inside it, the unit's
 '' MIR type and signedness. Shared by an access through a member expression (BitfieldParts)
 '' and an initialiser that names fields by position (BitfieldFieldStore_).
 private function BitfieldUnit_ _
-    ( byref c as Ctx, byval fi as long, byval ftype as Tko.TypeId, byref off as long, _
-      byref bitOff as long, byref bitWidth as long, byref unitTy as MirType, _
+    ( byref c as Ctx, byval fi as int32, byval ftype as Tko.TypeId, byref off as int32, _
+      byref bitOff as int32, byref bitWidth as int32, byref unitTy as MirType, _
       byref unitUnsigned as boolean ) as boolean
 
     off = c.udts->fields[fi].offset
     bitOff = c.udts->fields[fi].bitOffset
     bitWidth = c.udts->fields[fi].bitWidth
-    dim as long uOff = c.udts->fields[fi].unitOffset
-    dim as long uLen = c.udts->fields[fi].unitBytes
+    dim as int32 uOff = c.udts->fields[fi].unitOffset
+    dim as int32 uLen = c.udts->fields[fi].unitBytes
     if bitWidth <= 0 then return false
     unitTy = LowerType( ftype, *c.types )
     if (unitTy = MT_VOID) orelse (unitTy = MT_AGG) then return false
@@ -37,7 +37,7 @@ private function BitfieldUnit_ _
     '' THE RUN'S OWN UNIT when the layout recorded one: the field's type at its aligned
     '' byte cannot hold 'b' in 'ulong a:5, ushort b:12', nor 'd' in 'field=1 : ubyte
     '' a:7, ushort d:10' -- 4095 read back 127 and 1023 read 255.
-    dim as long usz = c.types->Layout( ftype ).size
+    dim as int32 usz = c.types->Layout( ftype ).size
     if (uLen = 1) orelse (uLen = 2) orelse (uLen = 4) orelse (uLen = 8) then
         bitOff += (off - uOff) * 8
         off = uOff
@@ -48,7 +48,7 @@ private function BitfieldUnit_ _
         case else : unitTy = MT_I64
         end select
     elseif usz > 0 then
-        dim as long unitStart = (off \ usz) * usz
+        dim as int32 unitStart = (off \ usz) * usz
         bitOff += (off - unitStart) * 8
         off = unitStart
     end if
@@ -63,7 +63,7 @@ end function
 '' type -- which is what sizes the unit, not what sizes the field.
 function BitfieldParts _
     ( byref c as Ctx, byval id as Tko.NodeId, byref addr as MirValue, _
-      byref bitOff as long, byref bitWidth as long, byref unitTy as MirType, _
+      byref bitOff as int32, byref bitWidth as int32, byref unitTy as MirType, _
       byref unitUnsigned as boolean ) as boolean
 
     if c.ast->Kind( id ) <> Tko.N_MEMBER then return false
@@ -73,7 +73,7 @@ function BitfieldParts _
     if (fs->flags and Tko.SYMF_BITFIELD) = 0 then return false
 
     dim as Tko.BinaryPayload ptr mp = _
-        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     dim as Tko.TypeId bt = c.info->TypeOf_( mp->lhs )
     dim as MirValue base_
     if bt <> Tko.TYPE_NONE then
@@ -84,13 +84,13 @@ function BitfieldParts _
             base_ = LowerAddr( c, mp->lhs )
         end if
     end if
-    if base_.kind = cast( ubyte, MV_NONE ) then return false
+    if base_.kind = cast( uint8, MV_NONE ) then return false
 
-    dim as long ui = c.udts->Find( bt )
+    dim as int32 ui = c.udts->Find( bt )
     if ui < 0 then return false
-    dim as long off = 0
-    dim as long fi = -1
-    for i as long = 0 to c.udts->udts[ui].count - 1
+    dim as int32 off = 0
+    dim as int32 fi = -1
+    for i as int32 = 0 to c.udts->udts[ui].count - 1
         if c.udts->fields[c.udts->udts[ui].first + i].name = fs->name then
             fi = c.udts->udts[ui].first + i
             exit for
@@ -99,12 +99,12 @@ function BitfieldParts _
     if fi < 0 then return false
     if BitfieldUnit_( c, fi, fs->type_, off, bitOff, bitWidth, unitTy, unitUnsigned ) = false then return false
     dim as MirInst fa
-    fa.op = cast( ushort, M_FIELD_ADDR )
-    fa.ty = cast( ubyte, MT_PTR )
+    fa.op = cast( uint16, M_FIELD_ADDR )
+    fa.ty = cast( uint8, MT_PTR )
     fa.a = base_
     fa.imm = off
     addr = Emit( c, fa )
-    return (addr.kind <> cast( ubyte, MV_NONE ))
+    return (addr.kind <> cast( uint8, MV_NONE ))
 end function
 
 '' Read a bitfield. Measured from fbc's own C, for a 3-bit field at bit 1:
@@ -115,13 +115,13 @@ end function
 '' even for a signed declared type: fbc reads a 3-bit 'as long' holding all ones as 7,
 '' not as -1. Measured, not assumed; it is the one part of this a C habit gets wrong.
 declare function BitfieldReadParts_ _
-    ( byref c as Ctx, byval id as Tko.NodeId, byref addr as MirValue, byval bitOff as long, byval bitWidth as long, _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref addr as MirValue, byval bitOff as int32, byval bitWidth as int32, _
       byval unitTy as MirType, byval unitUns as boolean, byref outv as MirValue ) as boolean
 function LowerBitfieldRead _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
     dim as MirValue addr
-    dim as long bitOff, bitWidth
+    dim as int32 bitOff, bitWidth
     dim as MirType unitTy
     dim as boolean unitUns
     if BitfieldParts( c, id, addr, bitOff, bitWidth, unitTy, unitUns ) = false then
@@ -132,30 +132,30 @@ end function
 
 '' The read, from parts already lowered -- BitfieldCompound_ reads and writes through ONE address.
 private function BitfieldReadParts_ _
-    ( byref c as Ctx, byval id as Tko.NodeId, byref addr as MirValue, byval bitOff as long, byval bitWidth as long, _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref addr as MirValue, byval bitOff as int32, byval bitWidth as int32, _
       byval unitTy as MirType, byval unitUns as boolean, byref outv as MirValue ) as boolean
 
     dim as MirValue raw = LowerExprLoad( c, addr, unitTy )
-    if raw.kind = cast( ubyte, MV_NONE ) then return false
+    if raw.kind = cast( uint8, MV_NONE ) then return false
     dim as MirValue wide = Coerce( c, raw, MT_I64, unitUns )
 
     if bitOff > 0 then
         dim as MirInst sh
-        sh.op = cast( ushort, M_ASHR )
-        sh.ty = cast( ubyte, MT_I64 )
+        sh.op = cast( uint16, M_ASHR )
+        sh.ty = cast( uint8, MT_I64 )
         sh.a = wide
         sh.b = ConstInt( c, bitOff, MT_I64 )
         wide = Emit( c, sh )
-        if wide.kind = cast( ubyte, MV_NONE ) then return false
+        if wide.kind = cast( uint8, MV_NONE ) then return false
     end if
 
     dim as MirInst an
-    an.op = cast( ushort, M_AND )
-    an.ty = cast( ubyte, MT_I64 )
+    an.op = cast( uint16, M_AND )
+    an.ty = cast( uint8, MT_I64 )
     an.a = wide
     an.b = ConstInt( c, BitMask_( bitWidth ), MT_I64 )
     dim as MirValue masked = Emit( c, an )
-    if masked.kind = cast( ubyte, MV_NONE ) then return false
+    if masked.kind = cast( uint8, MV_NONE ) then return false
 
     '' A BOOLEAN BITFIELD READS AS A BOOLEAN: set, it is -1, not 1. 'a : 1 as boolean' then
     '' 'x.a = true' and 'dim k as integer = x.a' gave 1, '( x.a = true )' gave 0 and 'if
@@ -166,11 +166,11 @@ private function BitfieldReadParts_ _
         if c.types->Kind( bft ) = Tko.TK_BUILTIN then
             if c.types->BuiltinOf( bft ) = Tko.TY_BOOLEAN then
                 dim as MirInst ng
-                ng.op = cast( ushort, M_NEG )
-                ng.ty = cast( ubyte, MT_I64 )
+                ng.op = cast( uint16, M_NEG )
+                ng.ty = cast( uint8, MT_I64 )
                 ng.a = masked
                 masked = Emit( c, ng )
-                if masked.kind = cast( ubyte, MV_NONE ) then return false
+                if masked.kind = cast( uint8, MV_NONE ) then return false
             end if
         end if
     end if
@@ -198,7 +198,7 @@ function BitfieldCompound_ _
       byval bop as Tko.TokenKind ) as boolean
 
     dim as MirValue probe
-    dim as long bo, bw
+    dim as int32 bo, bw
     dim as MirType ut
     dim as boolean uu
     if BitfieldParts( c, target, probe, bo, bw, ut, uu ) = false then return false
@@ -210,7 +210,7 @@ function BitfieldCompound_ _
     dim as MirValue cur
     if BitfieldReadParts_( c, target, probe, bo, bw, ut, uu, cur ) = false then return false
     dim as MirValue rhs = LowerExprN_( c, value )
-    if rhs.kind = cast( ubyte, MV_NONE ) then return false
+    if rhs.kind = cast( uint8, MV_NONE ) then return false
     dim as boolean uns = IsUnsignedType( c, c.info->TypeOf_( target ) )
     cur = Coerce( c, cur, MT_I64, uns )
     rhs = CoerceTy( c, rhs, MT_I64, NumSrcType_( c, value ))
@@ -222,13 +222,13 @@ function BitfieldCompound_ _
         dim as MirOp mop = BinOpFor( bop, MT_I64, uns )
         if mop = M_NONE then return false
         dim as MirInst bi
-        bi.op = cast( ushort, mop )
-        bi.ty = cast( ubyte, MT_I64 )
+        bi.op = cast( uint16, mop )
+        bi.ty = cast( uint8, MT_I64 )
         bi.a = cur
         bi.b = rhs
         res = Emit( c, bi )
     end if
-    if res.kind = cast( ubyte, MV_NONE ) then return false
+    if res.kind = cast( uint8, MV_NONE ) then return false
     return BitfieldStoreParts_( c, probe, bo, bw, ut, uu, res )
 end function
 
@@ -236,7 +236,7 @@ function LowerBitfieldStore _
     ( byref c as Ctx, byval id as Tko.NodeId, byval value as Tko.NodeId ) as boolean
 
     dim as MirValue addr
-    dim as long bitOff, bitWidth
+    dim as int32 bitOff, bitWidth
     dim as MirType unitTy
     dim as boolean unitUns
     if BitfieldParts( c, id, addr, bitOff, bitWidth, unitTy, unitUns ) = false then
@@ -244,7 +244,7 @@ function LowerBitfieldStore _
     end if
 
     dim as MirValue val = LowerNumArg_( c, value, MT_I64 )
-    if val.kind = cast( ubyte, MV_NONE ) then return false
+    if val.kind = cast( uint8, MV_NONE ) then return false
     return BitfieldStoreParts_( c, addr, bitOff, bitWidth, unitTy, unitUns, val )
 end function
 
@@ -254,7 +254,7 @@ function LowerBitfieldStoreValue_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byref val as MirValue ) as boolean
 
     dim as MirValue addr
-    dim as long bitOff, bitWidth
+    dim as int32 bitOff, bitWidth
     dim as MirType unitTy
     dim as boolean unitUns
     if BitfieldParts( c, id, addr, bitOff, bitWidth, unitTy, unitUns ) = false then
@@ -266,72 +266,72 @@ end function
 '' FIELD fi OF THE OBJECT AT base_, a bitfield, from a value already lowered to i64 -- what
 '' an initialiser naming fields by position has (lowerudtlit.tiko BitfieldParenInit_).
 function BitfieldFieldStore_ _
-    ( byref c as Ctx, byref base_ as MirValue, byval fi as long, byref val as MirValue ) as boolean
+    ( byref c as Ctx, byref base_ as MirValue, byval fi as int32, byref val as MirValue ) as boolean
 
-    dim as long off, bitOff, bitWidth
+    dim as int32 off, bitOff, bitWidth
     dim as MirType unitTy
     dim as boolean unitUns
     if BitfieldUnit_( c, fi, c.udts->fields[fi].type_, off, bitOff, bitWidth, unitTy, unitUns ) = false then
         return false
     end if
     dim as MirInst fa
-    fa.op = cast( ushort, M_FIELD_ADDR )
-    fa.ty = cast( ubyte, MT_PTR )
+    fa.op = cast( uint16, M_FIELD_ADDR )
+    fa.ty = cast( uint8, MT_PTR )
     fa.a = base_
     fa.imm = off
     dim as MirValue addr = Emit( c, fa )
-    if addr.kind = cast( ubyte, MV_NONE ) then return false
+    if addr.kind = cast( uint8, MV_NONE ) then return false
     return BitfieldStoreParts_( c, addr, bitOff, bitWidth, unitTy, unitUns, val )
 end function
 
 private function BitfieldStoreParts_ _
-    ( byref c as Ctx, byref addr as MirValue, byval bitOff as long, _
-      byval bitWidth as long, byval unitTy as MirType, byval unitUns as boolean, _
+    ( byref c as Ctx, byref addr as MirValue, byval bitOff as int32, _
+      byval bitWidth as int32, byval unitTy as MirType, byval unitUns as boolean, _
       byref val as MirValue ) as boolean
 
     dim as MirValue raw = LowerExprLoad( c, addr, unitTy )
-    if raw.kind = cast( ubyte, MV_NONE ) then return false
+    if raw.kind = cast( uint8, MV_NONE ) then return false
     dim as MirValue wide = Coerce( c, raw, MT_I64, unitUns )
 
-    dim as longint mask = BitMask_( bitWidth )
+    dim as int64 mask = BitMask_( bitWidth )
 
     dim as MirInst cl
-    cl.op = cast( ushort, M_AND )
-    cl.ty = cast( ubyte, MT_I64 )
+    cl.op = cast( uint16, M_AND )
+    cl.ty = cast( uint8, MT_I64 )
     cl.a = wide
     cl.b = ConstInt( c, not (mask shl bitOff), MT_I64 )
     dim as MirValue cleared = Emit( c, cl )
-    if cleared.kind = cast( ubyte, MV_NONE ) then return false
+    if cleared.kind = cast( uint8, MV_NONE ) then return false
 
     dim as MirInst vm
-    vm.op = cast( ushort, M_AND )
-    vm.ty = cast( ubyte, MT_I64 )
+    vm.op = cast( uint16, M_AND )
+    vm.ty = cast( uint8, MT_I64 )
     vm.a = val
     vm.b = ConstInt( c, mask, MT_I64 )
     dim as MirValue vmasked = Emit( c, vm )
-    if vmasked.kind = cast( ubyte, MV_NONE ) then return false
+    if vmasked.kind = cast( uint8, MV_NONE ) then return false
 
     if bitOff > 0 then
         dim as MirInst sh
-        sh.op = cast( ushort, M_SHL )
-        sh.ty = cast( ubyte, MT_I64 )
+        sh.op = cast( uint16, M_SHL )
+        sh.ty = cast( uint8, MT_I64 )
         sh.a = vmasked
         sh.b = ConstInt( c, bitOff, MT_I64 )
         vmasked = Emit( c, sh )
-        if vmasked.kind = cast( ubyte, MV_NONE ) then return false
+        if vmasked.kind = cast( uint8, MV_NONE ) then return false
     end if
 
     dim as MirInst orr
-    orr.op = cast( ushort, M_OR )
-    orr.ty = cast( ubyte, MT_I64 )
+    orr.op = cast( uint16, M_OR )
+    orr.ty = cast( uint8, MT_I64 )
     orr.a = cleared
     orr.b = vmasked
     dim as MirValue merged = Emit( c, orr )
-    if merged.kind = cast( ubyte, MV_NONE ) then return false
+    if merged.kind = cast( uint8, MV_NONE ) then return false
 
     dim as MirInst st
-    st.op = cast( ushort, M_STORE )
-    st.ty = cast( ubyte, MT_VOID )
+    st.op = cast( uint16, M_STORE )
+    st.ty = cast( uint8, MT_VOID )
     st.a = addr
     st.b = Coerce( c, merged, unitTy )
     Emit( c, st )
@@ -348,16 +348,16 @@ function BitfieldMemberInit_ _
     ( byref c as Ctx, byref thisPtr as MirValue, byval t as Tko.TypeId, _
       byval f as Tko.Symbol ptr, byval init as Tko.NodeId ) as boolean
     if (f = 0) orelse ((f->flags and Tko.SYMF_BITFIELD) = 0) then return false
-    dim as long ui = c.udts->Find( t )
+    dim as int32 ui = c.udts->Find( t )
     if ui < 0 then return false
-    dim as long fi = -1
-    for i as long = 0 to c.udts->udts[ui].count - 1
+    dim as int32 fi = -1
+    for i as int32 = 0 to c.udts->udts[ui].count - 1
         if c.udts->fields[c.udts->udts[ui].first + i].name = f->name then fi = c.udts->udts[ui].first + i : exit for
     next
     if fi < 0 then return false
     dim as MirValue v = ConstInt( c, 0, MT_I64 )
     if init <> Tko.NODE_NONE then v = LowerNumArg_( c, init, MT_I64 )
-    if v.kind = cast( ubyte, MV_NONE ) then return false
+    if v.kind = cast( uint8, MV_NONE ) then return false
     if BitfieldFieldStore_( c, thisPtr, fi, v ) = false then SkipHere( c )
     return true
 end function
@@ -370,7 +370,7 @@ end function
 '' nothing, when neither side is a bitfield.
 function BitfieldSwapOnce_( byref c as Ctx, byval a as Tko.NodeId, byval b as Tko.NodeId ) as boolean
     dim as MirValue aAd, bAd, av, bv
-    dim as long aBo, aBw, bBo, bBw
+    dim as int32 aBo, aBw, bBo, bBw
     dim as MirType aUt, bUt
     dim as boolean aUu, bUu
     dim as boolean aBf = BitfieldParts( c, a, aAd, aBo, aBw, aUt, aUu )
@@ -379,21 +379,21 @@ function BitfieldSwapOnce_( byref c as Ctx, byval a as Tko.NodeId, byval b as Tk
     if bBf then if BitfieldReadParts_( c, b, bAd, bBo, bBw, bUt, bUu, bv ) = false then return false
     if (aBf orelse bBf) = false then return false
     if aBf = false then
-        av = LowerExpr( c, a ) : if av.kind = cast( ubyte, MV_NONE ) then return false
+        av = LowerExpr( c, a ) : if av.kind = cast( uint8, MV_NONE ) then return false
     end if
     if bBf = false then
-        bv = LowerExpr( c, b ) : if bv.kind = cast( ubyte, MV_NONE ) then return false
+        bv = LowerExpr( c, b ) : if bv.kind = cast( uint8, MV_NONE ) then return false
     end if
     if aBf then
         if BitfieldStoreParts_( c, aAd, aBo, aBw, aUt, aUu, Coerce( c, bv, MT_I64, false ) ) = false then return false
     else
-        dim as MirValue aa = LowerAddr( c, a ) : if aa.kind = cast( ubyte, MV_NONE ) then return false
+        dim as MirValue aa = LowerAddr( c, a ) : if aa.kind = cast( uint8, MV_NONE ) then return false
         StoreThrough( c, aa, bv )
     end if
     if bBf then
         if BitfieldStoreParts_( c, bAd, bBo, bBw, bUt, bUu, Coerce( c, av, MT_I64, false ) ) = false then return false
     else
-        dim as MirValue ba = LowerAddr( c, b ) : if ba.kind = cast( ubyte, MV_NONE ) then return false
+        dim as MirValue ba = LowerAddr( c, b ) : if ba.kind = cast( uint8, MV_NONE ) then return false
         StoreThrough( c, ba, av )
     end if
     return true

@@ -27,7 +27,7 @@ function LowerStrCompare _
         return none_
     end select
 
-    dim as containers.Array( of ulong ) args
+    dim as containers.Array( of uint32 ) args
     dim as MirValue cmp
 
     '' A WIDE COMPARISON is a DIFFERENT function with a different shape: two bare
@@ -86,10 +86,10 @@ function LowerStrCompare _
         if WideOperand_( c, bp->rhs, ra ) = false then
             if NarrowToWideTemp_( c, bp->rhs, ra ) = false then return none_
         end if
-        if (la.kind = cast( ubyte, MV_NONE )) orelse _
-           (ra.kind = cast( ubyte, MV_NONE )) then return none_
-        args.Push( cast( ulong, la.kind ) ) : args.Push( cast( ulong, la.id ) )
-        args.Push( cast( ulong, ra.kind ) ) : args.Push( cast( ulong, ra.id ) )
+        if (la.kind = cast( uint8, MV_NONE )) orelse _
+           (ra.kind = cast( uint8, MV_NONE )) then return none_
+        args.Push( cast( uint32, la.kind ) ) : args.Push( cast( uint32, la.id ) )
+        args.Push( cast( uint32, ra.kind ) ) : args.Push( cast( uint32, ra.id ) )
         cmp = EmitRtl( c, RTL_WSTR_COMPARE, args )
     else
         '' EITHER SIDE MAKES IT A USTRING COMPARISON, and the literal on the other
@@ -111,18 +111,18 @@ function LowerStrCompare _
             cmp = EmitRtl( c, RTL_STR_COMPARE, args )
         end if
     end if
-    if cmp.kind = cast( ubyte, MV_NONE ) then return none_
+    if cmp.kind = cast( uint8, MV_NONE ) then return none_
 
     dim as MirValue zero_
-    zero_.kind = cast( ubyte, MV_CONST_INT )
-    zero_.ty = cast( ubyte, MT_I32 )
+    zero_.kind = cast( uint8, MV_CONST_INT )
+    zero_.ty = cast( uint8, MT_I32 )
     zero_.id = 0
     dim as MirInst ins
-    ins.op = cast( ushort, BinOpFor( tk, MT_I32, false ) )
-    ins.ty = cast( ubyte, MT_I8 )
+    ins.op = cast( uint16, BinOpFor( tk, MT_I32, false ) )
+    ins.ty = cast( uint8, MT_I8 )
     ins.a = cmp
     ins.b = zero_
-    if ins.op = cast( ushort, M_NONE ) then return none_
+    if ins.op = cast( uint16, M_NONE ) then return none_
     dim as MirValue res = Emit( c, ins )
 
     '' A STRING COMPARISON IS NEGATED IN VALUE POSITION exactly as a numeric one is:
@@ -130,8 +130,8 @@ function LowerStrCompare _
     '' as a CONDITION, which is a branch and asks only whether it is nonzero.
     if id <> c.rawCmpNode then
         dim as MirInst neg
-        neg.op = cast( ushort, M_NEG )
-        neg.ty = cast( ubyte, MT_I8 )
+        neg.op = cast( uint16, M_NEG )
+        neg.ty = cast( uint8, MT_I8 )
         neg.a = res
         return Emit( c, neg )
     end if

@@ -11,7 +11,7 @@
 '' than chaining beside it -- so the two nodes are both to hand here and nowhere else.
 private sub CheckByrefResultAgrees_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
-        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if sp->b = NODE_NONE then return
     dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
     if s = 0 then return
@@ -19,8 +19,8 @@ private sub CheckByrefResultAgrees_ ( byref c as Ctx, byval id as NodeId )
     if decl = NODE_NONE then return
     if decl = id then return
     if c.ast->Kind( decl ) <> N_PROC then return
-    dim as ushort a2 = cast( ushort, c.ast->nodes[cast( long, decl )].flags and NF_BYREF )
-    dim as ushort b2 = cast( ushort, c.ast->nodes[cast( long, id )].flags and NF_BYREF )
+    dim as uint16 a2 = cast( uint16, c.ast->nodes[cast( int32, decl )].flags and NF_BYREF )
+    dim as uint16 b2 = cast( uint16, c.ast->nodes[cast( int32, id )].flags and NF_BYREF )
     if a2 = b2 then return
     c.diags->Report( TKO0651, PointRange( c.ast->Loc( id ) ), _
                      c.names->Spelling( sp->name ) )
@@ -43,7 +43,7 @@ private sub CheckByrefResultType_ _
     if byrefResult = false then return
     if c.info->AmbiguousOf( id ) <> AMB_RESULT then return
     dim as StmtPayload ptr sp = _
-        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if sp->b = NODE_NONE then return
     '' ONLY WHAT WAS MEASURED: a NAMED variable of a non-string scalar builtin, on both
     '' sides. The corpus scan reported no false rejection, and this suite's own MIR tests
@@ -118,7 +118,7 @@ end sub
 '' or implied by a string, destructor-bearing or dynamic-array field, in an array too -- or
 '' one that extends OBJECT (functions/temp-strings.bas). A plain-data UDT, a scalar or a
 '' pointer is still error 272, and so is a UDT with only a copy constructor or 'let'.
-private function PassedByHiddenRef_ ( byref c as Ctx, byval t as TypeId, byval depth as long = 0 ) as boolean
+private function PassedByHiddenRef_ ( byref c as Ctx, byval t as TypeId, byval depth as int32 = 0 ) as boolean
     if (t = TYPE_NONE) orelse (depth > 16) then return false
     dim as TypeId u = c.types->Unqualify( t )
     if c.types->IsDynArray( u ) then return (depth > 0)
@@ -137,7 +137,7 @@ private function PassedByHiddenRef_ ( byref c as Ctx, byval t as TypeId, byval d
     end select
     if ExtendsObject_( c, u ) then return true
     dim as TypeId b = u
-    for g as long = 0 to 63
+    for g as int32 = 0 to 63
         if b = TYPE_NONE then exit for
         if StructorOf_( c, b, "__dtor" ) <> 0 then return true
         dim as ScopeId ds = cast( ScopeId, c.types->DeclScopeOf( b ) )
@@ -150,7 +150,7 @@ private function PassedByHiddenRef_ ( byref c as Ctx, byval t as TypeId, byval d
             while cur <> SYMBOL_NONE
                 dim as Symbol ptr f = c.syms->SymbolAt( cur )
                 if f = 0 then exit while
-                if (f->kind = cast( ubyte, SYM_FIELD )) andalso ((f->flags and SYMF_STATIC) = 0) andalso (f->type_ <> u) then
+                if (f->kind = cast( uint8, SYM_FIELD )) andalso ((f->flags and SYMF_STATIC) = 0) andalso (f->type_ <> u) then
                     if PassedByHiddenRef_( c, f->type_, depth + 1 ) then return true
                 end if
                 cur = f->nextInScope
@@ -179,7 +179,7 @@ private sub CheckByrefResultValue_ _
     if byrefResult = false then return
     if c.info->AmbiguousOf( id ) <> AMB_RESULT then return
     dim as StmtPayload ptr sp = _
-        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if sp->b = NODE_NONE then return
 
     '' THE VALUE MUST HAVE AN ADDRESS. Measured, in a 'byref as integer' function:
@@ -193,7 +193,7 @@ private sub CheckByrefResultValue_ _
         c.diags->Report( TKO0711, PointRange( c.ast->Loc( sp->b ) ) )
         return
     case N_TUPLE
-        if (c.ast->nodes[cast( long, sp->b )].flags and NF_TYPE_LITERAL) <> 0 then
+        if (c.ast->nodes[cast( int32, sp->b )].flags and NF_TYPE_LITERAL) <> 0 then
             c.diags->Report( TKO0711, PointRange( c.ast->Loc( sp->b ) ) )
             return
         end if
@@ -201,12 +201,12 @@ private sub CheckByrefResultValue_ _
 
     '' Down to the head of the chain.
     dim as NodeId head = sp->b
-    dim as long guard = 0
+    dim as int32 guard = 0
     while guard < 64
         guard += 1
         dim as NodeKind hk = c.ast->Kind( head )
         if hk = N_MEMBER then
-            head = c.ast->binaries[cast( long, c.ast->nodes[cast( long, head )].data )].lhs
+            head = c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, head )].data )].lhs
         elseif hk = N_CALL then
             '' AN ARRAY SUBSCRIPT IS SPELLED LIKE A CALL. 'x.a(0)' over a FIELD array
             '' stopped the walk here: the branch below resolved the target 'x.a' to a
@@ -214,14 +214,14 @@ private sub CheckByrefResultValue_ _
             '' let through. Descending into the target continues to 'x' -- which is the
             '' local the rule is about. A real CALL still stops, and is judged below.
             dim as ListPayload ptr cl = _
-                @c.ast->lists[cast( long, c.ast->nodes[cast( long, head )].data )]
+                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, head )].data )]
             dim as Symbol ptr cts = c.syms->SymbolAt( c.info->RefOf( cl->target ) )
             if cts = 0 then exit while
-            if cts->kind <> cast( ubyte, SYM_FIELD ) then exit while
+            if cts->kind <> cast( uint8, SYM_FIELD ) then exit while
             head = cl->target
         elseif (hk = N_INDEX) orelse (hk = N_PAREN) then
             dim as ListPayload ptr lp = _
-                @c.ast->lists[cast( long, c.ast->nodes[cast( long, head )].data )]
+                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, head )].data )]
             if hk = N_PAREN then
                 if lp->count <> 1 then exit while
                 head = cast( NodeId, c.ast->children[lp->first] )
@@ -238,22 +238,22 @@ private sub CheckByrefResultValue_ _
         '' A CALL's result is a temporary -- unless the callee returns BYREF, in which
         '' case what comes back is already somebody else's storage.
         dim as ListPayload ptr lp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, head )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, head )].data )]
         dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
         if ts = 0 then
             '' 'iif( a, b, c )' IS A TEMPORARY -- error 24 -- and it binds no symbol.
             if c.ast->Kind( lp->target ) = N_IDENT then
                 dim as string tn = c.names->Spelling( _
-                    c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )].name )
+                    c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )].name )
                 if lcase( tn ) = "iif" then
                     c.diags->Report( TKO0711, PointRange( c.ast->Loc( sp->b ) ) )
                 end if
             end if
             return
         end if
-        if ts->kind <> cast( ubyte, SYM_PROC ) then
+        if ts->kind <> cast( uint8, SYM_PROC ) then
             '' An INDEXING expression, not a call: fall through to the variable test.
-            if ts->kind <> cast( ubyte, SYM_VARIABLE ) then return
+            if ts->kind <> cast( uint8, SYM_VARIABLE ) then return
             if (ts->flags and (SYMF_SHARED or SYMF_STATIC or SYMF_EXTERN or _
                                SYMF_COMMON)) <> 0 then return
             c.diags->Report( TKO0650, PointRange( c.ast->Loc( sp->b ) ) )
@@ -261,7 +261,7 @@ private sub CheckByrefResultValue_ _
         end if
         dim as NodeId cd = cast( NodeId, ts->payload )
         if (cd <> NODE_NONE) andalso (c.ast->Kind( cd ) = N_PROC) then
-            if (c.ast->nodes[cast( long, cd )].flags and NF_BYREF) <> 0 then return
+            if (c.ast->nodes[cast( int32, cd )].flags and NF_BYREF) <> 0 then return
         end if
         c.diags->Report( TKO0650, PointRange( c.ast->Loc( sp->b ) ) )
         return
@@ -275,7 +275,7 @@ private sub CheckByrefResultValue_ _
     '' A parameter's symbol carries no node; its TYPE says how it is passed -- Resolve
     '' types a byref one as a REFERENCE and a bydesc one as an ARRAY. 'this' is a
     '' pointer to the caller's object and is exempt.
-    if s->kind = cast( ubyte, SYM_PARAMETER ) then
+    if s->kind = cast( uint8, SYM_PARAMETER ) then
         if IsThisBase_( c, head ) then return
         if s->type_ = TYPE_NONE then return
         if PassedByHiddenRef_( c, s->type_ ) then return
@@ -287,7 +287,7 @@ private sub CheckByrefResultValue_ _
                          c.names->Spelling( s->name ) )
         return
     end if
-    if s->kind <> cast( ubyte, SYM_VARIABLE ) then return
+    if s->kind <> cast( uint8, SYM_VARIABLE ) then return
     if (s->flags and (SYMF_SHARED or SYMF_STATIC or SYMF_EXTERN or _
                       SYMF_COMMON)) <> 0 then return
     c.diags->Report( TKO0650, PointRange( c.ast->Loc( sp->b ) ), _
@@ -308,18 +308,18 @@ end sub
 ''     SlotAt( 0 = 42 )     ( SlotAt( 0 ) ) = 42     NoArg( ) = 42    no warning
 private sub CheckEqParsedAsArg_ ( byref c as Ctx, byval id as NodeId )
     if c.info->AmbiguousOf( id ) <> AMB_CALL then return
-    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if sp->a = NODE_NONE then return
     dim as NodeId callee = sp->a
     dim as NodeId arg = NODE_NONE
     if c.ast->Kind( sp->a ) = N_CALL then
         '' 'f( x ) = v': ReadCallAssignAsCall_ folded the '=' into the last argument and
         '' marked the comparison it built. Exactly one argument was written.
-        dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->a )].data )]
+        dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, sp->a )].data )]
         if lp->count <> 1 then return
         arg = cast( NodeId, c.ast->children[lp->first] )
         if c.ast->Kind( arg ) <> N_BINARY then return
-        if (c.ast->nodes[cast( long, arg )].flags and NF_FOLDED_EQ) = 0 then return
+        if (c.ast->nodes[cast( int32, arg )].flags and NF_FOLDED_EQ) = 0 then return
         callee = lp->target
     else
         '' 'f x = v': a call without parentheses whose one argument is the comparison.
@@ -331,12 +331,12 @@ private sub CheckEqParsedAsArg_ ( byref c as Ctx, byval id as NodeId )
         if sp->count <> 1 then return
         arg = cast( NodeId, c.ast->children[sp->first] )
         if c.ast->Kind( arg ) <> N_BINARY then return
-        if cast( TokenKind, c.ast->binaries[cast( long, c.ast->nodes[cast( long, arg )].data )].op ) <> TK_EQ then return
+        if cast( TokenKind, c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, arg )].data )].op ) <> TK_EQ then return
     end if
     dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
     if (s = 0) andalso (callee <> NODE_NONE) then s = c.syms->SymbolAt( c.info->RefOf( callee ) )
     if s = 0 then return
-    if s->kind <> cast( ubyte, SYM_PROC ) then return
+    if s->kind <> cast( uint8, SYM_PROC ) then return
     '' ANY OVERLOAD OF THE NAME WITH A BYREF RESULT, not the one the call chose: fbc's own
     '' warnings/byref-function-assign-2 has 'f1( 123 ) = 123' warn where the one-argument
     '' f1 returns by value and only 'f1( )' is byref -- measured, warning 34 on all ten of
@@ -344,14 +344,14 @@ private sub CheckEqParsedAsArg_ ( byref c as Ctx, byval id as NodeId )
     dim as boolean anyByref = false
     dim as SymbolId cur = c.syms->LookupLocal( s->parent, s->name )
     if cur = SYMBOL_NONE then cur = c.info->RefOf( sp->a )
-    for guard as long = 0 to 255
+    for guard as int32 = 0 to 255
         dim as Symbol ptr os = c.syms->SymbolAt( cur )
         if os = 0 then exit for
-        if os->kind = cast( ubyte, SYM_PROC ) then
+        if os->kind = cast( uint8, SYM_PROC ) then
             dim as NodeId pn = cast( NodeId, os->payload )
             if pn <> NODE_NONE then
                 if c.ast->Kind( pn ) = N_PROC then
-                    if (c.ast->nodes[cast( long, pn )].flags and NF_BYREF) <> 0 then anyByref = true
+                    if (c.ast->nodes[cast( int32, pn )].flags and NF_BYREF) <> 0 then anyByref = true
                 end if
             end if
         end if
@@ -370,21 +370,21 @@ end sub
 '' A property setter and an array element are assignments, and are not calls to a procedure.
 private sub CheckByvalResultTarget_ ( byref c as Ctx, byval id as NodeId )
     if c.info->AmbiguousOf( id ) <> AMB_ASSIGN then return
-    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if sp->a = NODE_NONE then return
     if c.ast->Kind( sp->a ) <> N_CALL then return
     if c.info->AmbiguousOf( sp->a ) = AMB_PROPERTY_SET then return
     dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
     if s = 0 then
-        dim as NodeId tg = c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->a )].data )].target
+        dim as NodeId tg = c.ast->lists[cast( int32, c.ast->nodes[cast( int32, sp->a )].data )].target
         if tg <> NODE_NONE then s = c.syms->SymbolAt( c.info->RefOf( tg ) )
     end if
     if s = 0 then return
-    if s->kind <> cast( ubyte, SYM_PROC ) then return
+    if s->kind <> cast( uint8, SYM_PROC ) then return
     dim as NodeId pn = cast( NodeId, s->payload )
     if (pn = NODE_NONE) orelse (c.ast->Kind( pn ) <> N_PROC) then return
-    if (c.ast->nodes[cast( long, pn )].flags and NF_BYREF) <> 0 then return
-    dim as StmtPayload ptr pp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, pn )].data )]
+    if (c.ast->nodes[cast( int32, pn )].flags and NF_BYREF) <> 0 then return
+    dim as StmtPayload ptr pp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
     if cast( TokenKind, pp->op ) <> KW_FUNCTION then return
     c.diags->Report( TKO0932, PointRange( c.ast->Loc( sp->a ) ), c.names->Spelling( s->name ) )
 end sub

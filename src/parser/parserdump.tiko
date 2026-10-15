@@ -7,26 +7,26 @@
 
 private sub DumpAny _
     ( byref ast as Tko.AstArena, byref src as Tko.SourceManager, _
-      byref names as Tko.Interner, byval id as Tko.NodeId, byval indent as long, _
+      byref names as Tko.Interner, byval id as Tko.NodeId, byval indent as int32, _
       byref outp as IrText )
 
     if id = Tko.NODE_NONE then return
-    if cast( long, id ) >= ast.nodes.Count then return
+    if cast( int32, id ) >= ast.nodes.Count then return
     '' THE BUILTIN PRELUDE IS NOT WHAT THE USER WROTE. It is real source and is parsed
     '' like everything else, but printing its thirty declarations under every file
     '' would bury the file.
-    if src.IsBuiltin( ast.nodes[cast( long, id )].loc ) then return
+    if src.IsBuiltin( ast.nodes[cast( int32, id )].loc ) then return
 
-    dim as Tko.AstNode ptr n = @ast.nodes[cast( long, id )]
+    dim as Tko.AstNode ptr n = @ast.nodes[cast( int32, id )]
     dim as Tko.NodeKind k = cast( Tko.NodeKind, n->kind )
     dim as Tko.NodeCategory cat = Tko.NodeKindCategory( k )
 
     '' Expressions already have a printer; reuse it so one shape is printed one way.
     if (cat = Tko.NCAT_EXPR) andalso (k <> Tko.N_ERROR) then
         dim as string sub_ = Dump( ast, src, names, id )
-        dim as long start = 1
+        dim as int32 start = 1
         while start <= len( sub_ )
-            dim as long nl = instr( start, sub_, chr( 10 ) )
+            dim as int32 nl = instr( start, sub_, chr( 10 ) )
             if nl = 0 then exit while
             outp += space( indent * 2 ) & mid( sub_, start, nl - start ) & chr( 10 )
             start = nl + 1
@@ -42,10 +42,10 @@ private sub DumpAny _
     dim as boolean isList = (k = Tko.N_BLOCK) orelse (k = Tko.N_MODULE)
 
     if isList then
-        dim as Tko.ListPayload ptr lp = @ast.lists[cast( long, n->data )]
+        dim as Tko.ListPayload ptr lp = @ast.lists[cast( int32, n->data )]
         row += " (" & lp->count & ")"
         outp += row & " <" & d.lineNo & ":" & d.column & ">" & chr( 10 )
-        for i as long = 0 to lp->count - 1
+        for i as int32 = 0 to lp->count - 1
             DumpAny( ast, src, names, cast( Tko.NodeId, ast.children[lp->first + i] ), _
                      indent + 1, outp )
         next
@@ -57,7 +57,7 @@ private sub DumpAny _
         return
     end if
 
-    dim as Tko.StmtPayload ptr sp = @ast.stmts[cast( long, n->data )]
+    dim as Tko.StmtPayload ptr sp = @ast.stmts[cast( int32, n->data )]
     if sp->name <> Tko.INTERN_NONE then row += " '" & names.Spelling( sp->name ) & "'"
     if sp->op <> 0 then
         dim as string ot = Tko.TokenKindText( cast( Tko.TokenKind, sp->op ) )
@@ -98,7 +98,7 @@ private sub DumpAny _
     DumpAny( ast, src, names, sp->a, indent + 1, outp )
     DumpAny( ast, src, names, sp->b, indent + 1, outp )
     DumpAny( ast, src, names, sp->c, indent + 1, outp )
-    for i as long = 0 to sp->count - 1
+    for i as int32 = 0 to sp->count - 1
         DumpAny( ast, src, names, cast( Tko.NodeId, ast.children[sp->first + i] ), _
                  indent + 1, outp )
     next

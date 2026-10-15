@@ -25,7 +25,7 @@ function IsFixedStrArray_ _
     if t = Tko.TYPE_NONE then return false
     if c.types->Kind( t ) <> Tko.TK_ARRAY then return false
     if c.types->IsDynArray( t ) then return false
-    if c.types->types[cast( long, t )].dims < 1 then return false
+    if c.types->types[cast( int32, t )].dims < 1 then return false
     return IsStringType( c, c.types->Inner( t ) )
 end function
 
@@ -76,10 +76,10 @@ end function
 '' the sign bit set -- '"abc"' is &h8000000000000003 -- and the NUL is NOT counted,
 '' unlike the narrow family, where fb_StrInit is passed len+1.
 sub PushUStrLiteralArg _
-    ( byref c as Ctx, byref args as containers.Array( of ulong ), byval gidx as long, _
-      byval nchars as long )
-    args.Push( cast( ulong, MV_GLOBAL ) )
-    args.Push( cast( ulong, gidx ) )
+    ( byref c as Ctx, byref args as containers.Array( of uint32 ), byval gidx as int32, _
+      byval nchars as int32 )
+    args.Push( cast( uint32, MV_GLOBAL ) )
+    args.Push( cast( uint32, gidx ) )
     '' PushStrLen_, NOT a bare push: the tagged length does not fit in the 32-bit
     '' immediate an argument slot carries, and casting it to one truncates the SIGN
     '' BIT away -- '&h8000000000000001' became a plain 1, which is the tag gone and a
@@ -104,8 +104,8 @@ function UStrValOperand_ _
     if IsUStringType( c, v0t ) = false then return false
     dim as MirValue ud
     if StrDescriptorOf_( c, v0, ud ) = false then return false
-    dim as containers.Array( of ulong ) ua
+    dim as containers.Array( of uint32 ) ua
     PushStrArg( ua, ud )
     sd = EmitRtl( c, RTL_USTR_TO_STR, ua )
-    return (sd.kind <> cast( ubyte, MV_NONE ))
+    return (sd.kind <> cast( uint8, MV_NONE ))
 end function

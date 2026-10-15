@@ -24,7 +24,7 @@
 namespace Tko.Spawn
 
     '' A started process; 0 when it could not be started.
-    type Proc as longint
+    type Proc as int64
 
     '' 'exe' and 'args' are UTF-8. 'exe' is quoted here; 'args' must already be. 'quiet'
     '' sends the child's stdout and stderr to NUL (/dev/null): a 'tiko build' child whose
@@ -38,11 +38,11 @@ namespace Tko.Spawn
 
     '' Waits for it and returns its exit code, or -1 when it could not be waited for (or was
     '' never started). Each Proc is waited for exactly once.
-    declare function Wait( byval p as Proc ) as long
+    declare function Wait( byval p as Proc ) as int32
 
     '' How many to run at once: TKO_JOBS when set (1 = one at a time, as before), else the
     '' machine's logical processors.
-    declare function DefaultJobs( ) as long
+    declare function DefaultJobs( ) as int32
 
     '' The split the non-Windows Start makes, exposed for its test.
     declare sub SplitArgs( byref cmdline as string, byref out_ as Tko.StrVec )

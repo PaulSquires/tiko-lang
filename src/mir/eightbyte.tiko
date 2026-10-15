@@ -29,8 +29,8 @@ end function
 '' long }' is passed as i64, not as a double. So a field only leaves an eightbyte SSE
 '' if the eightbyte has seen nothing but floats and doubles.
 private sub FoldField_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byval off as long, _
-      byref cls0 as ulong, byref cls1 as ulong, byref memory as boolean )
+    ( byref c as Ctx, byval t as Tko.TypeId, byval off as int32, _
+      byref cls0 as uint32, byref cls1 as uint32, byref memory as boolean )
 
     if memory then return
     dim as Tko.TypeId b = c.types->Unqualify( t )
@@ -40,14 +40,14 @@ private sub FoldField_ _
     '' opaque block of its own size.
     if c.types->Kind( b ) = Tko.TK_ARRAY then
         dim as Tko.TypeId el = c.types->Inner( b )
-        dim as long esz = SizeOfType( c, el )
+        dim as int32 esz = SizeOfType( c, el )
         if esz <= 0 then
             memory = true
             return
         end if
-        dim as long total = SizeOfType( c, b )
-        dim as long n = total \ esz
-        for i as long = 0 to n - 1
+        dim as int32 total = SizeOfType( c, b )
+        dim as int32 n = total \ esz
+        for i as int32 = 0 to n - 1
             FoldField_( c, el, off + (i * esz), cls0, cls1, memory )
             if memory then return
         next
@@ -55,14 +55,14 @@ private sub FoldField_ _
     end if
 
     if c.types->Kind( b ) = Tko.TK_UDT then
-        dim as long li = c.udts->Find( b )
+        dim as int32 li = c.udts->Find( b )
         if li < 0 then
             memory = true
             return
         end if
-        dim as long first = c.udts->udts[li].first
-        dim as long count = c.udts->udts[li].count
-        for i as long = 0 to count - 1
+        dim as int32 first = c.udts->udts[li].first
+        dim as int32 count = c.udts->udts[li].count
+        for i as int32 = 0 to count - 1
             dim as Tko.UdtField ptr f = @c.udts->fields[first + i]
             FoldField_( c, f->type_, off + f->offset, cls0, cls1, memory )
             if memory then return
@@ -73,16 +73,16 @@ private sub FoldField_ _
     '' A LEAF. Which eightbyte it lands in is decided by its offset; a leaf that
     '' STRADDLES the boundary makes both integer, which cannot happen for any type
     '' FreeBASIC has at natural alignment but costs nothing to be right about.
-    dim as long sz = SizeOfType( c, b )
+    dim as int32 sz = SizeOfType( c, b )
     if sz <= 0 then
         memory = true
         return
     end if
     dim as boolean sse = IsSseLeaf_( c, b )
-    dim as long lo = off \ 8
-    dim as long hi = (off + sz - 1) \ 8
-    for e as long = lo to hi
-        dim as ulong add = TKO_EB_INTEGER
+    dim as int32 lo = off \ 8
+    dim as int32 hi = (off + sz - 1) \ 8
+    for e as int32 = lo to hi
+        dim as uint32 add = TKO_EB_INTEGER
         if sse andalso (lo = hi) then add = TKO_EB_SSE
         select case e
         case 0
@@ -100,16 +100,16 @@ end sub
 '' The packed eightbyte classes of a type, for MirFunction.AddParam. Zero for anything
 '' that is not an aggregate -- a scalar needs no classification.
 function ClassifyEightbytes _
-    ( byref c as Ctx, byval t as Tko.TypeId ) as ulong
+    ( byref c as Ctx, byval t as Tko.TypeId ) as uint32
 
     if t = Tko.TYPE_NONE then return 0
-    dim as long sz = SizeOfType( c, t )
+    dim as int32 sz = SizeOfType( c, t )
     if sz <= 0 then return 0
     '' OVER SIXTEEN BYTES IS MEMORY, before anything is walked.
     if sz > 16 then return TKO_EB_MEMORY
 
-    dim as ulong cls0 = TKO_EB_NONE
-    dim as ulong cls1 = TKO_EB_NONE
+    dim as uint32 cls0 = TKO_EB_NONE
+    dim as uint32 cls1 = TKO_EB_NONE
     dim as boolean memory = false
     FoldField_( c, t, 0, cls0, cls1, memory )
     if memory then return TKO_EB_MEMORY

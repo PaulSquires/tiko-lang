@@ -46,7 +46,7 @@
 ''                  backwards and .CRT$XT* forwards (lib/rt/src/c/msvccrt.c), as
 ''                  mingw walks .ctors and .dtors, so both lists go out as declared.
 private function StructorSection_ _
-    ( byref e as EmitCtx, byval isCtor as boolean, byval prio as long ) as string
+    ( byref e as EmitCtx, byval isCtor as boolean, byval prio as int32 ) as string
     select case e.tgt->id
     case Tko.TARGET_LINUX_X86_64
         return iif( isCtor, ".init_array.", ".fini_array." ) & right( "0000" & str( prio ), 5 )
@@ -137,15 +137,15 @@ end function
 
 '' A MODULE UNIT's init and fini, over the unnumbered structors StructorLists_ set aside.
 private function ModUnitIr_ _
-    ( byref e as EmitCtx, byref m as MirModule, byref ctors as containers.Array( of long ), _
-      byref dtors as containers.Array( of long ) ) as string
+    ( byref e as EmitCtx, byref m as MirModule, byref ctors as containers.Array( of int32 ), _
+      byref dtors as containers.Array( of int32 ) ) as string
     dim as string nl = chr( 10 )
     dim as string done_ = ModSym_( "__tko_modinit_done$", m.modChain )
     dim as string fini = ModSym_( "__tko_modfini$", m.modChain )
     dim as string r = ModStackIr_( ) & ModInitDecls_( m )
     r &= done_ & " = internal global i1 false" & nl
     r &= "define internal void " & fini & "() {" & nl & "entry:" & nl
-    for k as long = 0 to dtors.Count - 1
+    for k as int32 = 0 to dtors.Count - 1
         r &= "  call void " & GlobalName( e, m.functions[dtors[k]]->name ) & "()" & nl
     next
     r &= "  ret void" & nl & "}" & nl
@@ -156,7 +156,7 @@ private function ModUnitIr_ _
     for each ch as string in m.modInits
         r &= "  call void " & ModSym_( "__tko_modinit$", ch ) & "()" & nl
     next
-    for k as long = 0 to ctors.Count - 1
+    for k as int32 = 0 to ctors.Count - 1
         r &= "  call void " & GlobalName( e, m.functions[ctors[k]]->name ) & "()" & nl
     next
     r &= "  call void " & ModSym_( "__tko_modfini_push", "" ) & "(ptr " & fini & ")" & nl
@@ -168,27 +168,27 @@ end function
 '' _GLOBAL__I, the top-level code, then the 'constructor' subs as declared; the
 '' 'destructor' subs reversed, then _GLOBAL__D.
 private sub ModUnitOrder_ _
-    ( byref e as EmitCtx, byref m as MirModule, byref dflt as containers.Array( of long ), _
-      byval isCtor as boolean, byref outv as containers.Array( of long ) )
+    ( byref e as EmitCtx, byref m as MirModule, byref dflt as containers.Array( of int32 ), _
+      byval isCtor as boolean, byref outv as containers.Array( of int32 ) )
     dim as string first_ = iif( isCtor, "_GLOBAL__I", "_GLOBAL__D" )
     if isCtor then
-        for each fi as long in dflt
+        for each fi as int32 in dflt
             if e.names->Spelling( m.functions[fi]->name ) = first_ then outv.Push( fi )
         next
-        for each fi as long in dflt
+        for each fi as int32 in dflt
             if left( e.names->Spelling( m.functions[fi]->name ), 9 ) = "fb_ctor__" then outv.Push( fi )
         next
-        for each fi as long in dflt
+        for each fi as int32 in dflt
             dim as string nm = e.names->Spelling( m.functions[fi]->name )
             dim as boolean other = (nm <> first_)
             if other then other = (left( nm, 9 ) <> "fb_ctor__")
             if other then outv.Push( fi )
         next
     else
-        for k as long = dflt.Count - 1 to 0 step -1
+        for k as int32 = dflt.Count - 1 to 0 step -1
             if e.names->Spelling( m.functions[dflt[k]]->name ) <> first_ then outv.Push( dflt[k] )
         next
-        for each fi as long in dflt
+        for each fi as int32 in dflt
             if e.names->Spelling( m.functions[fi]->name ) = first_ then outv.Push( fi )
         next
     end if
@@ -196,13 +196,13 @@ end sub
 
 private function StructorLists_( byref e as EmitCtx, byref m as MirModule ) as string
     dim as string r, used
-    dim as long nused = 0
+    dim as int32 nused = 0
     dim as boolean modUnit = (len( m.modChain ) > 0)
-    dim as containers.Array( of long ) modCtors, modDtors
-    for pass as long = 0 to 1
+    dim as containers.Array( of int32 ) modCtors, modDtors
+    for pass as int32 = 0 to 1
         dim as boolean isCtor = (pass = 0)
-        dim as containers.Array( of long ) dflt
-        for fi as long = 0 to m.functions.Count - 1
+        dim as containers.Array( of int32 ) dflt
+        for fi as int32 = 0 to m.functions.Count - 1
             dim as MirFunction ptr f = m.functions[fi]
             if f = 0 then continue for
             dim as boolean want = iif( isCtor, f->isModuleCtor, f->isModuleDtor )
@@ -241,10 +241,10 @@ private function StructorLists_( byref e as EmitCtx, byref m as MirModule ) as s
         '' it on Linux -- the walks above, over that order. tiko had it last, so each
         '' platform ran the two the other way round (T60).
         if isCtor then
-            for k as long = 0 to dflt.Count - 1
+            for k as int32 = 0 to dflt.Count - 1
                 if left( e.names->Spelling( m.functions[dflt[k]]->name ), 9 ) <> "fb_ctor__" then continue for
-                dim as long top_ = dflt[k]
-                for j as long = k to 1 step -1
+                dim as int32 top_ = dflt[k]
+                for j as int32 = k to 1 step -1
                     dflt[j] = dflt[j - 1]
                 next
                 dflt[0] = top_
@@ -253,8 +253,8 @@ private function StructorLists_( byref e as EmitCtx, byref m as MirModule ) as s
         end if
         dim as boolean rev = (e.tgt->id = Tko.TARGET_WIN64)
         dim as string items
-        for k as long = 0 to dflt.Count - 1
-            dim as long fi = dflt[iif( rev, dflt.Count - 1 - k, k )]
+        for k as int32 = 0 to dflt.Count - 1
+            dim as int32 fi = dflt[iif( rev, dflt.Count - 1 - k, k )]
             if k > 0 then items += ", "
             items += "{ i32, ptr, ptr } { i32 65535, ptr " & _
                      GlobalName( e, m.functions[fi]->name ) & ", ptr null }"

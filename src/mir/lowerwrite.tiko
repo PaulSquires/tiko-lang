@@ -20,24 +20,24 @@ function LowerWrite( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if sp->extra <> 0 then return false
 
     dim as MirValue chan
-    chan.kind = cast( ubyte, MV_CONST_INT )
-    chan.ty = cast( ubyte, MT_I32 )
+    chan.kind = cast( uint8, MV_CONST_INT )
+    chan.ty = cast( uint8, MT_I32 )
     chan.id = 0
     '' The channel's temporaries and each item's die as that part is written, as PRINT's
     '' do -- see LowerPrint. Measured, fbc's 'write takeR( mkH( 1 ) ), cnt( ),
     '' takeR( mkH( 2 ) ), cnt( )' writes '1,1,2,2'.
-    dim as long wmark = c.udtTemps.Count
+    dim as int32 wmark = c.udtTemps.Count
     if sp->a <> Tko.NODE_NONE then
         dim as MirValue ch = LowerExpr( c, sp->a )
-        if ch.kind = cast( ubyte, MV_NONE ) then return false
+        if ch.kind = cast( uint8, MV_NONE ) then return false
         chan = CoerceTy( c, ch, MT_I32, c.info->TypeOf_( sp->a ))
         ReleaseUdtTemps_( c, wmark )
     end if
 
     '' A bare 'write' is a newline on its own.
     if sp->count = 0 then
-        dim as containers.Array( of ulong ) va
-        va.Push( cast( ulong, chan.kind ) ) : va.Push( cast( ulong, chan.id ) )
+        dim as containers.Array( of uint32 ) va
+        va.Push( cast( uint32, chan.kind ) ) : va.Push( cast( uint32, chan.id ) )
         PushConst( va, 1 )
         EmitRtl( c, RTL_WRITE_VOID, va )
         return true
@@ -47,12 +47,12 @@ function LowerWrite( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     '' fb_WriteVoid( ch, 2 ): measured, fbc writes '1,<TAB>3' where tiko wrote '1,3'
     '' (audit F-73, RT-19). A trailing comma still ends nothing.
     dim as boolean prevSep = true
-    for i as long = 0 to sp->count - 1
+    for i as int32 = 0 to sp->count - 1
         dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[sp->first + i] )
         if c.ast->Kind( it ) = Tko.N_PRINT_SEP then
             if prevSep then
-                dim as containers.Array( of ulong ) ea
-                ea.Push( cast( ulong, chan.kind ) ) : ea.Push( cast( ulong, chan.id ) )
+                dim as containers.Array( of uint32 ) ea
+                ea.Push( cast( uint32, chan.kind ) ) : ea.Push( cast( uint32, chan.id ) )
                 PushConst( ea, 2 )
                 EmitRtl( c, RTL_WRITE_VOID, ea )
             end if
@@ -64,7 +64,7 @@ function LowerWrite( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         '' A comma FOLLOWING this item pads to the next zone; running out of children
         '' ends the line. A trailing comma is still a pad, which is why the 2 stands
         '' whether or not anything comes after it.
-        dim as long mask = 1
+        dim as int32 mask = 1
         if i + 1 < sp->count then
             if c.ast->Kind( cast( Tko.NodeId, c.ast->children[sp->first + i + 1] ) ) = _
                Tko.N_PRINT_SEP then
@@ -79,12 +79,12 @@ function LowerWrite( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 end function
 
 private function WriteOne_ _
-    ( byref c as Ctx, byval it as Tko.NodeId, byval mask as long, _
+    ( byref c as Ctx, byval it as Tko.NodeId, byval mask as int32, _
       byref chan as MirValue ) as boolean
 
     dim as Tko.TypeId t = c.info->TypeOf_( it )
-    dim as containers.Array( of ulong ) args
-    args.Push( cast( ulong, chan.kind ) ) : args.Push( cast( ulong, chan.id ) )
+    dim as containers.Array( of uint32 ) args
+    args.Push( cast( uint32, chan.kind ) ) : args.Push( cast( uint32, chan.id ) )
 
     '' A WIDE ITEM, AND ITS RVALUE SPELLINGS. LowerAddr alone accepted only an
     '' addressable wide variable, so 'write #1, wstr( "World!" )' had nothing to
@@ -95,8 +95,8 @@ private function WriteOne_ _
     if IsWideString_( c, t ) orelse TermIsWide_( c, it ) then
         dim as MirValue wa
         if WideOperand_( c, it, wa ) = false then wa = LowerAddr( c, it )
-        if wa.kind = cast( ubyte, MV_NONE ) then return false
-        args.Push( cast( ulong, wa.kind ) ) : args.Push( cast( ulong, wa.id ) )
+        if wa.kind = cast( uint8, MV_NONE ) then return false
+        args.Push( cast( uint32, wa.kind ) ) : args.Push( cast( uint32, wa.id ) )
         PushConst( args, mask )
         EmitRtl( c, RTL_WRITE_WSTR, args )
         return true
@@ -113,15 +113,15 @@ private function WriteOne_ _
     dim as boolean itIsU = IsUStringType( c, t )
     if itIsU = false then itIsU = UdtCastIsUStr_( c, it )   '' a UDT casting to a ustring (T50)
     if (itIsU = false) andalso (c.ast->Kind( it ) = Tko.N_BINARY) then
-        dim as containers.Array( of ulong ) uts
+        dim as containers.Array( of uint32 ) uts
         FlattenConcat( c, it, uts )
         itIsU = ConcatTermsAreU_( c, uts )
     end if
     if itIsU then
         dim as MirValue uv
-        dim as long uslot = -1
+        dim as int32 uslot = -1
         if UStrOutOperand_( c, it, uv, uslot ) = false then return false
-        args.Push( cast( ulong, uv.kind ) ) : args.Push( cast( ulong, uv.id ) )
+        args.Push( cast( uint32, uv.kind ) ) : args.Push( cast( uint32, uv.id ) )
         PushConst( args, mask )
         EmitRtl( c, RTL_WRITE_USTR, args )
         ReleaseUStrOut_( c, uslot )
@@ -133,7 +133,7 @@ private function WriteOne_ _
     '' catches them and then LowerAddr on a call fails.
     dim as MirValue srv
     if LowerStrRvalue( c, it, srv ) then
-        args.Push( cast( ulong, srv.kind ) ) : args.Push( cast( ulong, srv.id ) )
+        args.Push( cast( uint32, srv.kind ) ) : args.Push( cast( uint32, srv.id ) )
         PushConst( args, mask )
         EmitRtl( c, RTL_WRITE_STRING, args )
         return true
@@ -143,11 +143,11 @@ private function WriteOne_ _
         dim as MirValue desc
         if c.ast->Kind( it ) = Tko.N_STRING_LIT then
             dim as string litText = StringLitText_( c, it )
-            dim as containers.Array( of ulong ) ta
-            ta.Push( cast( ulong, MV_GLOBAL ) )
-            ta.Push( cast( ulong, c.m->AddStringLiteral( litText, *c.names ) ) )
-            ta.Push( cast( ulong, MV_CONST_INT ) )
-            ta.Push( cast( ulong, len( litText ) ) )
+            dim as containers.Array( of uint32 ) ta
+            ta.Push( cast( uint32, MV_GLOBAL ) )
+            ta.Push( cast( uint32, c.m->AddStringLiteral( litText, *c.names ) ) )
+            ta.Push( cast( uint32, MV_CONST_INT ) )
+            ta.Push( cast( uint32, len( litText ) ) )
             desc = EmitRtl( c, RTL_STR_TEMPZ, ta )
         elseif NamesProc_( c, it ) orelse (c.ast->Kind( it ) = Tko.N_CALL) then
             '' A CALL IS A DESCRIPTOR, with parentheses or without. Measured, fbc
@@ -164,10 +164,10 @@ private function WriteOne_ _
         else
             desc = LowerAddr( c, it )
             '' ...and what has no address -- a concatenation -- is a temporary (StrDescriptorOf_).
-            if desc.kind = cast( ubyte, MV_NONE ) then StrDescriptorOf_( c, it, desc )
+            if desc.kind = cast( uint8, MV_NONE ) then StrDescriptorOf_( c, it, desc )
         end if
-        if desc.kind = cast( ubyte, MV_NONE ) then return false
-        args.Push( cast( ulong, desc.kind ) ) : args.Push( cast( ulong, desc.id ) )
+        if desc.kind = cast( uint8, MV_NONE ) then return false
+        args.Push( cast( uint32, desc.kind ) ) : args.Push( cast( uint32, desc.id ) )
         PushConst( args, mask )
         EmitRtl( c, RTL_WRITE_STRING, args )
         return true
@@ -177,12 +177,12 @@ private function WriteOne_ _
     '' descriptor (StrDescriptorOf_, the narrow encoder PRINT uses). Measured: 'write #1, f' over
     '' a string * 8 is 'fb_StrAllocTempDescF( F, <tag> )' then fb_WriteString, a zstring one
     '' fb_StrAllocTempDescZ; tiko declined all three.
-    dim as longint wkn
-    dim as long wk = StrSwapKind_( c, t, wkn )
+    dim as int64 wkn
+    dim as int32 wk = StrSwapKind_( c, t, wkn )
     if (wk = 1) orelse (wk = 3) then
         dim as MirValue wdesc
         if StrDescriptorOf_( c, it, wdesc ) = false then return false
-        args.Push( cast( ulong, wdesc.kind ) ) : args.Push( cast( ulong, wdesc.id ) )
+        args.Push( cast( uint32, wdesc.kind ) ) : args.Push( cast( uint32, wdesc.id ) )
         PushConst( args, mask )
         EmitRtl( c, RTL_WRITE_STRING, args )
         return true
@@ -202,9 +202,9 @@ private function WriteOne_ _
         dim as MirValue ucv
         dim as boolean ucRaw = false
         if UserCastToStr_( c, it, ucv, ucRaw ) then
-            if ucv.kind <> cast( ubyte, MV_NONE ) then
-                args.Push( cast( ulong, ucv.kind ) )
-                args.Push( cast( ulong, ucv.id ) )
+            if ucv.kind <> cast( uint8, MV_NONE ) then
+                args.Push( cast( uint32, ucv.kind ) )
+                args.Push( cast( uint32, ucv.id ) )
                 PushConst( args, mask )
                 EmitRtl( c, RTL_WRITE_STRING, args )
                 return true
@@ -219,10 +219,10 @@ private function WriteOne_ _
                 nt = c.types->Unqualify( c.syms->SymbolAt( nsym )->type_ )
             end if
             dim as RtlId nw = WriteRtlFor_( c, nt )
-            if (nw <> RTL_NONE) andalso (unv.kind <> cast( ubyte, MV_NONE )) then
+            if (nw <> RTL_NONE) andalso (unv.kind <> cast( uint8, MV_NONE )) then
                 unv = Coerce( c, unv, LowerType( nt, *c.types ) )
-                args.Push( cast( ulong, unv.kind ) )
-                args.Push( cast( ulong, unv.id ) )
+                args.Push( cast( uint32, unv.kind ) )
+                args.Push( cast( uint32, unv.id ) )
                 PushConst( args, mask )
                 EmitRtl( c, nw, args )
                 return true
@@ -235,9 +235,9 @@ private function WriteOne_ _
     dim as RtlId which = WriteRtlFor_( c, t )
     if which = RTL_NONE then return false
     dim as MirValue v = LowerExpr( c, it )
-    if v.kind = cast( ubyte, MV_NONE ) then return false
+    if v.kind = cast( uint8, MV_NONE ) then return false
     v = Coerce( c, v, LowerType( t, *c.types ) )
-    args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
+    args.Push( cast( uint32, v.kind ) ) : args.Push( cast( uint32, v.id ) )
     PushConst( args, mask )
     EmitRtl( c, which, args )
     return true

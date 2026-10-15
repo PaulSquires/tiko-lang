@@ -14,13 +14,13 @@ private sub WalkGenericInstances_ ( byref c as Ctx )
     '' c.ast->extraTopLevel is where an instantiation puts its re-parsed body, and the
     '' lambdas hoisted out of it (generic.tiko); the instance's SYMBOL points at the body only
     '' later, so the list is what to walk.
-    for i as long = 0 to c.ast->extraTopLevel.Count - 1
+    for i as int32 = 0 to c.ast->extraTopLevel.Count - 1
         dim as NodeId pn = cast( NodeId, c.ast->extraTopLevel[i] )
         if pn = NODE_NONE then continue for
         if c.ast->Kind( pn ) <> N_PROC then continue for
         '' INSIDE THE INSTANTIATION'S FRAME, so what this reports names the line that asked
         '' for it -- 'a > b' on a type with no '>' is reported here (T16, instframe.tiko).
-        dim as long fr = c.info->InstFrameOf( pn )
+        dim as int32 fr = c.info->InstFrameOf( pn )
         c.diags->EnterInst( fr )
         Walk_( c, pn, TYPE_NONE )
         c.diags->LeaveInst( fr )

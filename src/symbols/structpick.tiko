@@ -12,7 +12,7 @@
 namespace Tko.Check
 
 private function SpStmt_( byref ast as Tko.AstArena, byval n as Tko.NodeId ) as Tko.StmtPayload ptr
-    return @ast.stmts[cast( long, ast.nodes[cast( long, n )].data )]
+    return @ast.stmts[cast( int32, ast.nodes[cast( int32, n )].data )]
 end function
 
 private function SpProcNode_( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byval sid as Tko.SymbolId ) as Tko.NodeId
@@ -24,24 +24,24 @@ private function SpProcNode_( byref ast as Tko.AstArena, byref syms as Tko.Symbo
     return pn
 end function
 
-private function SpParamCount_( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byval sid as Tko.SymbolId ) as long
+private function SpParamCount_( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byval sid as Tko.SymbolId ) as int32
     dim as Tko.NodeId pn = SpProcNode_( ast, syms, sid )
     if pn = Tko.NODE_NONE then return 0
     dim as Tko.StmtPayload ptr pp = SpStmt_( ast, pn )
-    dim as long n = 0
-    for i as long = 0 to pp->count - 1
+    dim as int32 n = 0
+    for i as int32 = 0 to pp->count - 1
         if ast.Kind( cast( Tko.NodeId, ast.children[pp->first + i] ) ) = Tko.N_PARAM then n += 1
     next
     return n
 end function
 
 private function SpParamType_( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
-    byref info as Tko.SemanticInfo, byval sid as Tko.SymbolId, byval idx as long ) as Tko.TypeId
+    byref info as Tko.SemanticInfo, byval sid as Tko.SymbolId, byval idx as int32 ) as Tko.TypeId
     dim as Tko.NodeId pn = SpProcNode_( ast, syms, sid )
     if pn = Tko.NODE_NONE then return Tko.TYPE_NONE
     dim as Tko.StmtPayload ptr pp = SpStmt_( ast, pn )
-    dim as long seen = 0
-    for i as long = 0 to pp->count - 1
+    dim as int32 seen = 0
+    for i as int32 = 0 to pp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[pp->first + i] )
         if ast.Kind( prm ) <> Tko.N_PARAM then continue for
         if seen = idx then return info.TypeOf_( SpStmt_( ast, prm )->a )
@@ -76,15 +76,15 @@ end function
 function StructorUserConvCost _
     ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
       byref names as Tko.Interner, byref info as Tko.SemanticInfo, _
-      byval at as Tko.TypeId, byval pt as Tko.TypeId ) as long
+      byval at as Tko.TypeId, byval pt as Tko.TypeId ) as int32
 
     if (at = Tko.TYPE_NONE) orelse (pt = Tko.TYPE_NONE) then return CONV_NONE
     dim as Tko.TypeId t = types.Unqualify( pt )
     if types.Kind( t ) = Tko.TK_REFERENCE then t = types.Unqualify( types.Inner( t ) )
     if types.Kind( t ) <> Tko.TK_UDT then return CONV_NONE
-    dim as long best = CONV_NONE
+    dim as int32 best = CONV_NONE
     dim as Tko.SymbolId cur = StructorNamed( syms, types, names, t, "__ctor" )
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 1000)
         guard += 1
         dim as Tko.Symbol ptr s = syms.SymbolAt( cur )
@@ -95,7 +95,7 @@ function StructorUserConvCost _
                 dim as Tko.TypeId cu = types.Unqualify( cpt )
                 if types.Kind( cu ) = Tko.TK_REFERENCE then cu = types.Unqualify( types.Inner( cu ) )
                 if cu <> t then
-                    dim as long sc = ConversionCost( at, cpt, types )
+                    dim as int32 sc = ConversionCost( at, cpt, types )
                     if sc < CONV_NONE then
                         if (CONV_USERDEF + sc) < best then best = CONV_USERDEF + sc
                     end if
@@ -108,7 +108,7 @@ function StructorUserConvCost _
 end function
 
 '' 1 a narrow string (string, zstring, ustring), 2 a wstring, 0 anything else.
-private function StrKind_( byref types as Tko.TypeContext, byval t as Tko.TypeId ) as long
+private function StrKind_( byref types as Tko.TypeContext, byval t as Tko.TypeId ) as int32
     if t = Tko.TYPE_NONE then return 0
     if types.Kind( t ) <> Tko.TK_BUILTIN then return 0
     select case types.BuiltinOf( t )
@@ -129,7 +129,7 @@ function UdtHasStrCast _
     if types.Kind( u ) = Tko.TK_REFERENCE then u = types.Unqualify( types.Inner( u ) )
     if types.Kind( u ) <> Tko.TK_UDT then return false
     dim as Tko.SymbolId cur = StructorNamed( syms, types, names, u, "cast" )
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
@@ -160,7 +160,7 @@ end function
 '' ustring one with an EMPTY value when it was declared first, an internal compiler error
 '' (TKO0994) when a boolean one was.
 private function TextCastRank_ _
-    ( byref types as Tko.TypeContext, byval rt as Tko.TypeId, byval p as Tko.TypeId ) as long
+    ( byref types as Tko.TypeContext, byval rt as Tko.TypeId, byval p as Tko.TypeId ) as int32
 
     dim as Tko.BuiltinType a = types.BuiltinOf( rt ), b = types.BuiltinOf( p )
     if a = b then return 0
@@ -182,14 +182,14 @@ end function
 '' pointer, never 'any ptr' -- and CONV_NONE otherwise. See StructorCastCost.
 private function PtrCastCtorCost_ _
     ( byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
-      byref names as Tko.Interner, byval a as Tko.TypeId, byval p as Tko.TypeId ) as long
+      byref names as Tko.Interner, byval a as Tko.TypeId, byval p as Tko.TypeId ) as int32
 
     dim as Tko.TypeId pe = types.Unqualify( types.Inner( p ) )
     if types.Kind( pe ) = Tko.TK_BUILTIN then
         if types.BuiltinOf( pe ) = Tko.TY_ANY then return CONV_NONE
     end if
     dim as Tko.SymbolId cur = StructorNamed( syms, types, names, a, "cast" )
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
@@ -224,7 +224,7 @@ end function
 '' and every converting pointer pair, are 58 (tiko refused them all, TKO0698).
 function StructorCastCost _
     ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
-      byref names as Tko.Interner, byval at as Tko.TypeId, byval pt as Tko.TypeId ) as long
+      byref names as Tko.Interner, byval at as Tko.TypeId, byval pt as Tko.TypeId ) as int32
 
     if (at = Tko.TYPE_NONE) orelse (pt = Tko.TYPE_NONE) then return CONV_NONE
     dim as Tko.TypeId a = types.Unqualify( at )
@@ -237,15 +237,15 @@ function StructorCastCost _
         if NumericCastRank( types, p ) = 0 then return CONV_NONE
         dim as Tko.SymbolId nc = NumericCastPick( syms, types, names, a, p )
         if nc = Tko.SYMBOL_NONE then return CONV_NONE
-        dim as long sc = ConversionCost( types.Unqualify( syms.SymbolAt( nc )->type_ ), p, types )
+        dim as int32 sc = ConversionCost( types.Unqualify( syms.SymbolAt( nc )->type_ ), p, types )
         if sc >= CONV_NONE then return CONV_NONE
         if sc = 0 then return CONV_NONE    '' IDENTICAL types: fbc's refusal, above
         if sc > 0 then sc = CONV_NUMERIC   '' a cast then ANY conversion: one flat score, as fbc ranks it
         return CONV_USERDEF + sc + 2   '' a string cast beats a numeric one, as UserConvCost_ prices them
     end if
-    dim as long best = CONV_NONE
+    dim as int32 best = CONV_NONE
     dim as Tko.SymbolId cur = StructorNamed( syms, types, names, a, "cast" )
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
@@ -254,14 +254,14 @@ function StructorCastCost _
         dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
         dim as boolean byrefRes = false
         if (pn <> Tko.NODE_NONE) andalso (ast.Kind( pn ) = Tko.N_PROC) then
-            byrefRes = ((ast.nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0)
+            byrefRes = ((ast.nodes[cast( int32, pn )].flags and Tko.NF_BYREF) <> 0)
         end if
         if rt <> Tko.TYPE_NONE then
             if types.Kind( rt ) = Tko.TK_REFERENCE then rt = types.Unqualify( types.Inner( rt ) )
             if byrefRes andalso (types.Kind( rt ) = Tko.TK_POINTER) then rt = types.Unqualify( types.Inner( rt ) )
-            dim as long rk = StrKind_( types, rt )
+            dim as int32 rk = StrKind_( types, rt )
             if rk <> 0 then
-                dim as long cost = CONV_USERDEF + TextCastRank_( types, rt, p )
+                dim as int32 cost = CONV_USERDEF + TextCastRank_( types, rt, p )
                 if cost < best then best = cost
             end if
         end if
@@ -277,12 +277,12 @@ end function
 function PickStructor _
     ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
       byref names as Tko.Interner, byref info as Tko.SemanticInfo, _
-      byval first_ as Tko.SymbolId, byref argT as containers.Array( of ulong ), _
-      byval tiesOut as long ptr = 0 ) as Tko.SymbolId
+      byval first_ as Tko.SymbolId, byref argT as containers.Array( of uint32 ), _
+      byval tiesOut as int32 ptr = 0 ) as Tko.SymbolId
 
     dim as Tko.SymbolId best = Tko.SYMBOL_NONE
-    dim as long bestCost = CONV_NONE
-    dim as long ties = 0
+    dim as int32 bestCost = CONV_NONE
+    dim as int32 ties = 0
     dim as Tko.SymbolId cur = first_
     while cur <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr s = syms.SymbolAt( cur )
@@ -290,8 +290,8 @@ function PickStructor _
         dim as Tko.NodeId pn = SpProcNode_( ast, syms, cur )
         if pn <> Tko.NODE_NONE then
             dim as Tko.StmtPayload ptr pp = SpStmt_( ast, pn )
-            dim as long np = 0
-            for i as long = 0 to pp->count - 1
+            dim as int32 np = 0
+            for i as int32 = 0 to pp->count - 1
                 if ast.Kind( cast( Tko.NodeId, ast.children[pp->first + i] ) ) = Tko.N_PARAM then np += 1
             next
             '' A TYPED VARIADIC LAST PARAMETER takes any number of arguments past the fixed
@@ -299,10 +299,10 @@ function PickStructor _
             '' sees TYPES only, so a spread 'T( a( ) )' and a one-element 'T( x )' cost alike
             '' and pick the same constructor; lowering, which has the nodes, tells them apart.
             dim as Tko.NodeId tvp = Tko.NODE_NONE
-            for i as long = pp->count - 1 to 0 step -1
+            for i as int32 = pp->count - 1 to 0 step -1
                 dim as Tko.NodeId lp_ = cast( Tko.NodeId, ast.children[pp->first + i] )
                 if ast.Kind( lp_ ) <> Tko.N_PARAM then continue for
-                if (ast.nodes[cast( long, lp_ )].flags and Tko.NF_VARIADIC) <> 0 then tvp = lp_
+                if (ast.nodes[cast( int32, lp_ )].flags and Tko.NF_VARIADIC) <> 0 then tvp = lp_
                 exit for
             next
             if tvp <> Tko.NODE_NONE then np -= 1
@@ -314,8 +314,8 @@ function PickStructor _
             if (tvp <> Tko.NODE_NONE) andalso (argT.Count >= np) then arityOk = true
             if (arityOk = false) andalso (np > argT.Count) then
                 arityOk = true
-                dim as long sd = 0
-                for i as long = 0 to pp->count - 1
+                dim as int32 sd = 0
+                for i as int32 = 0 to pp->count - 1
                     dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[pp->first + i] )
                     if ast.Kind( prm ) <> Tko.N_PARAM then continue for
                     if prm = tvp then exit for
@@ -329,10 +329,10 @@ function PickStructor _
                 next
             end if
             if arityOk then
-                dim as long total = 0
-                dim as long ai = 0
+                dim as int32 total = 0
+                dim as int32 ai = 0
                 dim as boolean viable = true
-                for i as long = 0 to pp->count - 1
+                for i as int32 = 0 to pp->count - 1
                     dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[pp->first + i] )
                     if ast.Kind( prm ) <> Tko.N_PARAM then continue for
                     if prm = tvp then exit for   '' packed below
@@ -340,10 +340,10 @@ function PickStructor _
                     if ai >= argT.Count then exit for
                     dim as Tko.TypeId at2 = cast( Tko.TypeId, argT[ai] )
                     dim as Tko.TypeId pt2 = info.TypeOf_( SpStmt_( ast, prm )->a )
-                    dim as long cost = 0
+                    dim as int32 cost = 0
                     '' AN ARRAY PARAMETER IS MATCHED BY ITS ELEMENT TYPE: its declared type IS
                     '' the element, the array-ness is the node's flag (structs/udt-array-ops-1).
-                    if (ast.nodes[cast( long, prm )].flags and Tko.NF_ARRAY) <> 0 then
+                    if (ast.nodes[cast( int32, prm )].flags and Tko.NF_ARRAY) <> 0 then
                         dim as Tko.TypeId ae = at2
                         if ae <> Tko.TYPE_NONE then
                             if types.Kind( ae ) = Tko.TK_ARRAY then ae = types.Inner( ae )
@@ -364,12 +364,12 @@ function PickStructor _
                 if viable andalso (tvp <> Tko.NODE_NONE) then
                     dim as Tko.TypeId vpt = info.TypeOf_( SpStmt_( ast, tvp )->a )
                     dim as boolean spread = (argT.Count = ai + 1)
-                    for k as long = ai to argT.Count - 1
+                    for k as int32 = ai to argT.Count - 1
                         dim as Tko.TypeId vat = cast( Tko.TypeId, argT[k] )
                         if vat <> Tko.TYPE_NONE then
                             if types.Kind( vat ) = Tko.TK_ARRAY then vat = types.Inner( vat ) else spread = false
                         end if
-                        dim as long vc = ConversionCost( vat, vpt, types )
+                        dim as int32 vc = ConversionCost( vat, vpt, types )
                         if vc >= CONV_NONE then vc = StructorUserConvCost( ast, syms, types, names, info, vat, vpt )
                         if vc >= CONV_NONE then vc = StructorCastCost( ast, syms, types, names, vat, vpt )
                         if vc >= CONV_NONE then
@@ -441,7 +441,7 @@ function PtrCastPick _
     end if
     dim as Tko.SymbolId first = Tko.SYMBOL_NONE, anyp = Tko.SYMBOL_NONE
     dim as Tko.SymbolId cur = StructorNamed( syms, types, names, u, "cast" )
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
@@ -483,7 +483,7 @@ end function
 
 function PtrCastFit _
     ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
-      byref names as Tko.Interner, byval udt as Tko.TypeId, byval want as Tko.TypeId ) as long
+      byref names as Tko.Interner, byval udt as Tko.TypeId, byval want as Tko.TypeId ) as int32
 
     if (udt = Tko.TYPE_NONE) orelse (want = Tko.TYPE_NONE) then return -1
     dim as Tko.TypeId u = types.Unqualify( udt )
@@ -495,9 +495,9 @@ function PtrCastFit _
     dim as Tko.TypeId wi = types.Unqualify( types.Inner( w ) )
     dim as boolean wantAny = false
     if types.Kind( wi ) = Tko.TK_BUILTIN then wantAny = (types.BuiltinOf( wi ) = Tko.TY_ANY)
-    dim as long nPtr = 0, nFit = 0
+    dim as int32 nPtr = 0, nFit = 0
     dim as Tko.SymbolId cur = StructorNamed( syms, types, names, u, "cast" )
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
@@ -506,7 +506,7 @@ function PtrCastFit _
         dim as boolean byrefRes = false
         dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
         if (pn <> Tko.NODE_NONE) andalso (ast.Kind( pn ) = Tko.N_PROC) then
-            byrefRes = ((ast.nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0)
+            byrefRes = ((ast.nodes[cast( int32, pn )].flags and Tko.NF_BYREF) <> 0)
         end if
         if (rt <> Tko.TYPE_NONE) andalso (byrefRes = false) then
             if types.Kind( rt ) = Tko.TK_POINTER then
@@ -547,7 +547,7 @@ function CharRefCastPick _
     '' byref as wstring] call the wstring one. NARROW holds the first zstring one, for no wstring.
     dim as Tko.SymbolId narrow = Tko.SYMBOL_NONE
     dim as Tko.SymbolId cur = StructorNamed( syms, types, names, u, "cast" )
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
@@ -556,8 +556,8 @@ function CharRefCastPick _
         dim as boolean byRes = false
         dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
         if (pn <> Tko.NODE_NONE) andalso (ast.Kind( pn ) = Tko.N_PROC) then
-            byRes = ((ast.nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0) orelse _
-                    ((ast.stmts[cast( long, ast.nodes[cast( long, pn )].data )].extra and Tko.PF_BYREF_RESULT) <> 0)
+            byRes = ((ast.nodes[cast( int32, pn )].flags and Tko.NF_BYREF) <> 0) orelse _
+                    ((ast.stmts[cast( int32, ast.nodes[cast( int32, pn )].data )].extra and Tko.PF_BYREF_RESULT) <> 0)
         end if
         if rt <> Tko.TYPE_NONE then
             if types.Kind( rt ) = Tko.TK_REFERENCE then rt = types.Unqualify( types.Inner( rt ) ) : byRes = true
@@ -599,15 +599,15 @@ function NumericCastPick _
         if NumericCastRank( types, w ) = 0 then w = Tko.TYPE_NONE
     end if
     dim as Tko.SymbolId best = Tko.SYMBOL_NONE
-    dim as long bestCost = CONV_NONE, bestRank = 0
+    dim as int32 bestCost = CONV_NONE, bestRank = 0
     dim as Tko.SymbolId cur = StructorNamed( syms, types, names, u, "cast" )
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
         if cs = 0 then exit while
         dim as Tko.TypeId rt = types.Unqualify( cs->type_ )
-        dim as long rk = 0
+        dim as int32 rk = 0
         if rt <> Tko.TYPE_NONE then
             if types.Kind( rt ) = Tko.TK_ENUM then rk = NumericCastRank( types, rt )
             if types.Kind( rt ) = Tko.TK_BUILTIN then
@@ -620,7 +620,7 @@ function NumericCastPick _
             end if
         end if
         if rk > 0 then
-            dim as long cost = 0
+            dim as int32 cost = 0
             if w <> Tko.TYPE_NONE then cost = ConversionCost( rt, w, types )
             if (cost < bestCost) orelse ((cost = bestCost) andalso (rk > bestRank)) then
                 best = cur : bestCost = cost : bestRank = rk
@@ -652,7 +652,7 @@ function CopyStructorOf _
     dim as Tko.TypeId u = types.Unqualify( t )
     if types.Kind( u ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
     dim as Tko.SymbolId cur = StructorNamed( syms, types, names, u, "__ctor" )
-    dim as long guard = 0
+    dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 10000)
         guard += 1
         dim as Tko.Symbol ptr s = syms.SymbolAt( cur )
@@ -660,9 +660,9 @@ function CopyStructorOf _
         dim as Tko.NodeId pn = SpProcNode_( ast, syms, cur )
         if pn <> Tko.NODE_NONE then
             dim as Tko.StmtPayload ptr pp = SpStmt_( ast, pn )
-            dim as long seen = 0
+            dim as int32 seen = 0
             dim as boolean ok = false
-            for i as long = 0 to pp->count - 1
+            for i as int32 = 0 to pp->count - 1
                 dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[pp->first + i] )
                 if ast.Kind( prm ) <> Tko.N_PARAM then continue for
                 if seen = 0 then

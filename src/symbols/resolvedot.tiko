@@ -15,7 +15,7 @@ private function LookupDottedNamespace_ _
     dim as string qpath = c.names->Spelling( path )
     dim as Tko.ScopeId sc = scope_
     dim as boolean first_ = true
-    dim as long at = 0
+    dim as int32 at = 0
     '' A LEADING '..' IS THE GLOBAL ROOT. 'using ..outer1' inside a namespace names
     '' the outer1 at file scope, not one relative to here -- fbc accepts it and
     '' prints 7 for the probe. Split on '.', the prefix yields an EMPTY first
@@ -26,7 +26,7 @@ private function LookupDottedNamespace_ _
         '' The MODULE scope, which is where a file-scope namespace is declared:
         '' SCOPE_GLOBAL above it holds the builtins and nothing a program writes.
         dim as Tko.ScopeId root = scope_
-        dim as long rg = 0
+        dim as int32 rg = 0
         while (root <> Tko.SCOPE_NONE) andalso (rg < 1024)
             rg += 1
             dim as Tko.SymScope ptr rs = c.syms->ScopeAt( root )
@@ -38,12 +38,12 @@ private function LookupDottedNamespace_ _
         sc = root
     end if
     dim as Tko.SymbolId found = Tko.SYMBOL_NONE
-    dim as long guard = 0
+    dim as int32 guard = 0
 
     while (at <= len( qpath )) andalso (guard < 64)
         guard += 1
-        dim as long dot = instr( at + 1, qpath, "." )
-        dim as long stop_ = dot
+        dim as int32 dot = instr( at + 1, qpath, "." )
+        dim as int32 stop_ = dot
         if stop_ = 0 then stop_ = len( qpath ) + 1
         dim as string comp = mid( qpath, at + 1, stop_ - at - 1 )
         if len( comp ) = 0 then return Tko.SYMBOL_NONE
@@ -61,7 +61,7 @@ private function LookupDottedNamespace_ _
         first_ = false
 
         if dot = 0 then exit while
-        if sym->kind <> cast( ubyte, Tko.SYM_NAMESPACE ) then return Tko.SYMBOL_NONE
+        if sym->kind <> cast( uint8, Tko.SYM_NAMESPACE ) then return Tko.SYMBOL_NONE
         if sym->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
         sc = cast( Tko.ScopeId, sym->inner )
         at = dot
@@ -104,12 +104,12 @@ private function LookupDottedType_ _
     dim as string qpath = c.names->Spelling( path )
     dim as Tko.ScopeId sc = scope_
     dim as boolean first_ = true
-    dim as long at = 0
+    dim as int32 at = 0
     dim as Tko.SymbolId found = Tko.SYMBOL_NONE
 
     while at <= len( qpath )
-        dim as long dot = instr( at + 1, qpath, "." )
-        dim as long stop_ = dot
+        dim as int32 dot = instr( at + 1, qpath, "." )
+        dim as int32 stop_ = dot
         if stop_ = 0 then stop_ = len( qpath ) + 1
         dim as string comp = mid( qpath, at + 1, stop_ - at - 1 )
         if len( comp ) = 0 then return Tko.SYMBOL_NONE
@@ -128,7 +128,7 @@ private function LookupDottedType_ _
             '' 'Child' itself, and that is a SYM_UDT -- "'child' is a type, not a
             '' procedure".
             dim as Tko.ScopeId bsc = sc
-            dim as long bdepth = 0
+            dim as int32 bdepth = 0
             do while (sid = Tko.SYMBOL_NONE) andalso (bdepth < 32)
                 bsc = BaseScopeOf_( c, bsc )
                 if bsc = Tko.SCOPE_NONE then exit do
@@ -144,8 +144,8 @@ private function LookupDottedType_ _
         if dot = 0 then exit while
         '' Only a NAMESPACE or a UDT opens a scope to descend into.
         dim as boolean opens = _
-            (sym->kind = cast( ubyte, Tko.SYM_NAMESPACE )) orelse _
-            (sym->kind = cast( ubyte, Tko.SYM_UDT ))
+            (sym->kind = cast( uint8, Tko.SYM_NAMESPACE )) orelse _
+            (sym->kind = cast( uint8, Tko.SYM_UDT ))
         if (opens = false) orelse (sym->inner = Tko.SCOPE_NONE) then
             return Tko.SYMBOL_NONE
         end if
@@ -172,14 +172,14 @@ private sub CheckStaticMemberVar_ _
     dim as Tko.SymbolId osid = LookupDottedType_( c, scope_, ownerName )
     dim as Tko.Symbol ptr osym = c.syms->SymbolAt( osid )
     if osym = 0 then return
-    if osym->kind <> cast( ubyte, Tko.SYM_UDT ) then return
+    if osym->kind <> cast( uint8, Tko.SYM_UDT ) then return
     if osym->inner = Tko.SCOPE_NONE then return
 
     '' THE BASES TOO. A static declared on the parent is reachable through the child's
     '' name -- the same walk LookupDottedType_ makes for a static CALL.
     dim as Tko.ScopeId sc = osym->inner
     dim as Tko.SymbolId msid = c.syms->LookupLocalTyped( sc, memberName, true )
-    dim as long bdepth = 0
+    dim as int32 bdepth = 0
     do while (msid = Tko.SYMBOL_NONE) andalso (bdepth < 32)
         sc = BaseScopeOf_( c, sc )
         if sc = Tko.SCOPE_NONE then exit do

@@ -18,12 +18,12 @@ const UNIT_NAME = "tiko-cimport.c"
 type Files_
     as ClangApi ptr api
     as Tko.StrVec names
-    as long visits           '' every callback, the unit and repeats included
+    as int32 visits           '' every callback, the unit and repeats included
 end type
 
 private sub InclusionVisit_ cdecl _
     ( byval included as any ptr, byval stack as CXSourceLocation ptr, _
-      byval depth as ulong, byval client as any ptr )
+      byval depth as uint32, byval client as any ptr )
     dim as Files_ ptr fp = client
     '' THE BANNER'S "C files read" COUNTS EVERY INCLUSION, the unit and repeats included --
     '' fbc-modern's figure: 24 for probe.h on win64, where 20 files are distinct. The
@@ -33,7 +33,7 @@ private sub InclusionVisit_ cdecl _
     '' THE UNIT ITSELF IS NOT A DEPENDENCY: it is text this importer wrote, and its name
     '' is not a file.
     if nm = UNIT_NAME then return
-    for i as long = 0 to fp->names.Count - 1
+    for i as int32 = 0 to fp->names.Count - 1
         if fp->names[i] = nm then return
     next
     fp->names.Push( nm )
@@ -52,13 +52,13 @@ private function NoLocalPath_( byref h as string ) as string
         if h[1] = asc( ":" ) then abs_ = true
     end if
     if abs_ = false then return h
-    for i as long = len( h ) to 1 step -1
+    for i as int32 = len( h ) to 1 step -1
         if (h[i - 1] = asc( "/" )) orelse (h[i - 1] = asc( "\" )) then return mid( h, i + 1 )
     next
     return h
 end function
 
-private function Pad_( byref s as string, byval n as long ) as string
+private function Pad_( byref s as string, byval n as int32 ) as string
     if len( s ) >= n then return s
     return s & space( n - len( s ) )
 end function
@@ -68,24 +68,24 @@ end function
 '' ONE COPY, NOT ONE PER LINE: windows.h's binding is 2.8 MB in 56,000 pieces, and
 '' appending each to a growing string took fourteen seconds.
 function JoinParts( byref parts as Tko.StrVec ) as string
-    dim as long total = 0
-    for i as long = 0 to parts.Count - 1
+    dim as int32 total = 0
+    for i as int32 = 0 to parts.Count - 1
         total += len( parts[i] )
     next
     dim as string o = space( total )
-    dim as long at = 0
-    for i as long = 0 to parts.Count - 1
-        dim as long n = len( parts[i] )
+    dim as int32 at = 0
+    for i as int32 = 0 to parts.Count - 1
+        dim as int32 n = len( parts[i] )
         if n > 0 then memcpy( strptr( o ) + at, strptr( parts[i] ), n )
         at += n
     next
     return o
 end function
 
-private function Assemble_( byref x as CImp, byval nfiles as long ) as string
+private function Assemble_( byref x as CImp, byval nfiles as int32 ) as string
     dim as string nl = chr( 10 )
     dim as string hdrs
-    for i as long = 0 to x.opts->headers.Count - 1
+    for i as int32 = 0 to x.opts->headers.Count - 1
         if i > 0 then hdrs &= ", "
         hdrs &= NoLocalPath_( x.opts->headers[i] )
     next
@@ -104,14 +104,14 @@ private function Assemble_( byref x as CImp, byval nfiles as long ) as string
     if x.renC.Count > 0 then
         parts.Push( "''" & nl )
         parts.Push( "'' " & x.renC.Count & " names were changed:" & nl )
-        for i as long = 0 to x.renC.Count - 1
+        for i as int32 = 0 to x.renC.Count - 1
             parts.Push( "''     " & RenameLine( x, i ) & nl )
         next
     end if
     if x.skipName.Count > 0 then
         parts.Push( "''" & nl )
         parts.Push( "'' " & x.skipName.Count & " declarations were skipped:" & nl )
-        for i as long = 0 to x.skipName.Count - 1
+        for i as int32 = 0 to x.skipName.Count - 1
             parts.Push( "''     " & Pad_( x.skipKind[i], 10 ) & Pad_( x.skipName[i], 28 ) & x.skipWhy[i] & nl )
         next
     end if
@@ -127,10 +127,10 @@ private function Assemble_( byref x as CImp, byval nfiles as long ) as string
     '' PtrToRecord_ in types.tiko); to ANY PTR otherwise.
     if x.fwdLines.Count > 0 then
         parts.Push( "'' forward references" & nl )
-        for i as long = 0 to x.fwdLines.Count - 1
-            dim as long id = UsrId( x, x.fwdUsr[i] )
+        for i as int32 = 0 to x.fwdLines.Count - 1
+            dim as int32 id = UsrId( x, x.fwdUsr[i] )
             dim as string nm = x.fwdLines[i]
-            dim as ubyte st = UsrState( x, id )
+            dim as uint8 st = UsrState( x, id )
             if ((st and US_EMITTED) <> 0) andalso ((st and US_OPAQUE) = 0) then
                 parts.Push( "type " & nm & "__ptr as " & nm & " ptr" & nl )
             elseif (st and US_REFUSED) <> 0 then
@@ -143,7 +143,7 @@ private function Assemble_( byref x as CImp, byval nfiles as long ) as string
         parts.Push( nl )
     end if
 
-    for i as long = 0 to x.decls.Count - 1
+    for i as int32 = 0 to x.decls.Count - 1
         parts.Push( x.decls[i] & nl )
     next
     parts.Push( nl & "end extern" & nl )
@@ -167,25 +167,25 @@ function CImportRun( byref api as ClangApi, byref opts as CImportOptions, _
     av.Push( "--target=" & opts.triple )
     dim as string rdir = ClangResourceDir( api )
     if len( rdir ) then av.Push( "-resource-dir=" & rdir )
-    for i as long = 0 to opts.cincludes.Count - 1
+    for i as int32 = 0 to opts.cincludes.Count - 1
         av.Push( "-I" ) : av.Push( opts.cincludes[i] )
     next
-    for i as long = 0 to opts.cdefines.Count - 1
+    for i as int32 = 0 to opts.cdefines.Count - 1
         av.Push( "-D" ) : av.Push( opts.cdefines[i] )
     next
     if len( opts.csysroot ) then av.Push( "--sysroot=" & opts.csysroot )
-    for i as long = 0 to opts.copts.Count - 1
+    for i as int32 = 0 to opts.copts.Count - 1
         av.Push( opts.copts[i] )
     next
     dim as zstring ptr argv( 0 to av.Count )
-    for i as long = 0 to av.Count - 1
+    for i as int32 = 0 to av.Count - 1
         argv( i ) = strptr( av[i] )
     next
 
     '' ONE IN-MEMORY UNIT holds an #include per header. It is never written to disk. A
     '' header written '<name>' is a system include, as it would be in C.
     dim as string unitText
-    for i as long = 0 to opts.headers.Count - 1
+    for i as int32 = 0 to opts.headers.Count - 1
         dim as string h = opts.headers[i]
         if (len( h ) >= 2) andalso (left( h, 1 ) = "<") andalso (right( h, 1 ) = ">") then
             unitText &= "#include " & h & chr( 10 )
@@ -212,8 +212,8 @@ function CImportRun( byref api as ClangApi, byref opts as CImportOptions, _
     '' ANY ERROR ABORTS THE IMPORT. A header that did not parse gives a translation unit
     '' with holes in it, and importing the rest would produce a binding missing whatever
     '' the error hid -- silently.
-    dim as long nerr = 0
-    for i as long = 0 to api.getNumDiagnostics( tu ) - 1
+    dim as int32 nerr = 0
+    for i as int32 = 0 to api.getNumDiagnostics( tu ) - 1
         dim as any ptr d = api.getDiagnostic( tu, i )
         if api.getDiagnosticSeverity( d ) >= 3 then
             nerr += 1
@@ -238,7 +238,7 @@ function CImportRun( byref api as ClangApi, byref opts as CImportOptions, _
         api.disposeIndex( idx )
         res.rc = 1
         dim as string hs
-        for i as long = 0 to opts.headers.Count - 1
+        for i as int32 = 0 to opts.headers.Count - 1
             if i > 0 then hs &= ", "
             hs &= opts.headers[i]
         next
@@ -249,7 +249,7 @@ function CImportRun( byref api as ClangApi, byref opts as CImportOptions, _
     dim as Files_ fl
     fl.api = @api
     api.getInclusions( tu, @InclusionVisit_, @fl )
-    for i as long = 0 to fl.names.Count - 1
+    for i as int32 = 0 to fl.names.Count - 1
         res.deps.Push( fl.names[i] )
     next
 
@@ -258,7 +258,7 @@ function CImportRun( byref api as ClangApi, byref opts as CImportOptions, _
     x.opts = @opts
     x.tu = tu
     x.unitText = unitText
-    for i as long = 0 to av.Count - 1
+    for i as int32 = 0 to av.Count - 1
         x.args.Push( av[i] )
     next
     if len( opts.seedState ) then
@@ -287,7 +287,7 @@ function CImportRun( byref api as ClangApi, byref opts as CImportOptions, _
     res.state = StateExport( x )
 
     res.text = Assemble_( x, fl.visits )
-    for i as long = 0 to x.manifest.Count - 1
+    for i as int32 = 0 to x.manifest.Count - 1
         res.manifest &= x.manifest[i] & chr( 10 )
     next
 

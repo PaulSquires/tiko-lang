@@ -27,20 +27,20 @@ type CIncludeSession_
     as string      clangExe
     '' This run's bindings, by key.
     as Tko.StrVec  keys
-    as containers.Array( of long ) fileIds
+    as containers.Array( of int32 ) fileIds
     as Tko.StrVec  states          '' what each decided, to seed the next delta
     as Tko.StrVec  texts           '' each binding's own text
     '' The unit being preprocessed.
     as Tko.FileId  unitRoot
     as Tko.StrVec  unitHeaders
-    as containers.Array( of long ) unitFiles
+    as containers.Array( of int32 ) unitFiles
     as Tko.StrVec  unitDirs        '' the folder of each file that wrote a #cinclude
     as string      unitState
     as string      unitText        '' every binding this unit has entered, in order
     '' EVERY #cinclude MET, in order, for --print-cincludes: where it stands, what it named,
     '' and the binding file it got -- "" with the reason when it got none.
     as Tko.StrVec  recFile
-    as containers.Array( of long ) recLine
+    as containers.Array( of int32 ) recLine
     as Tko.StrVec  recHeader
     as Tko.StrVec  recBinding
     as Tko.StrVec  recError
@@ -58,19 +58,19 @@ private function Key_ _
     ( byref ctx as Tko.CompilerContext, byref headers as Tko.StrVec, _
       byref dirs as Tko.StrVec, byval unicode as boolean ) as string
     dim as string k = Tko.TargetName( ctx.options.target ) & chr( 10 ) & unicode & chr( 10 )
-    for i as long = 0 to headers.Count - 1
+    for i as int32 = 0 to headers.Count - 1
         k &= "h " & headers[i] & chr( 10 )
     next
-    for i as long = 0 to dirs.Count - 1
+    for i as int32 = 0 to dirs.Count - 1
         k &= "q " & dirs[i] & chr( 10 )
     next
-    for i as long = 0 to ctx.options.cIncludes.Count - 1
+    for i as int32 = 0 to ctx.options.cIncludes.Count - 1
         k &= "I " & ctx.options.cIncludes[i] & chr( 10 )
     next
-    for i as long = 0 to ctx.options.cDefines.Count - 1
+    for i as int32 = 0 to ctx.options.cDefines.Count - 1
         k &= "D " & ctx.options.cDefines[i] & chr( 10 )
     next
-    for i as long = 0 to ctx.options.cOpts.Count - 1
+    for i as int32 = 0 to ctx.options.cOpts.Count - 1
         k &= "o " & ctx.options.cOpts[i] & chr( 10 )
     next
     k &= "s " & ctx.options.cSysroot & chr( 10 ) & "m " & ctx.options.cNoMacros & chr( 10 ) & _
@@ -81,7 +81,7 @@ end function
 '' The import failed: the importer's words at the directive, clang's own lines under
 '' 'clang:', and the note that fixes the commonest cause.
 private sub ReportFailure_ _
-    ( byref ctx as Tko.CompilerContext, byval irc as long, _
+    ( byref ctx as Tko.CompilerContext, byval irc as int32, _
       byref res as Tko.CImport.CImportResult, byref header as string, byval at as Tko.SourceLoc )
 
     dim as Tko.SourceRange rng = Tko.PointRange( at )
@@ -94,7 +94,7 @@ private sub ReportFailure_ _
         ctx.diags.Report( Tko.TKO0337, rng, header )
     case else
         ctx.diags.Report( Tko.TKO0336, rng, header )
-        for i as long = 0 to res.clangDiags.Count - 1
+        for i as int32 = 0 to res.clangDiags.Count - 1
             ctx.diags.AddNote( Tko.TKO0900, rng, "clang: " & res.clangDiags[i] )
         next
         if res.namedNotFound then
@@ -120,7 +120,7 @@ private function Import_ _
         s->unitText = ""
     end if
     '' The same header again in this unit: its binding, which the once test then skips.
-    for i as long = 0 to s->unitHeaders.Count - 1
+    for i as int32 = 0 to s->unitHeaders.Count - 1
         if s->unitHeaders[i] = header then return cast( Tko.FileId, s->unitFiles[i] )
     next
 
@@ -138,7 +138,7 @@ private function Import_ _
     end if
 
     dim as Tko.StrVec chain
-    for i as long = 0 to s->unitHeaders.Count - 1
+    for i as int32 = 0 to s->unitHeaders.Count - 1
         chain.Push( s->unitHeaders[i] )
     next
     chain.Push( header )
@@ -151,23 +151,23 @@ private function Import_ _
     '' directory, so nothing that resolved before resolves differently; the header stays as
     '' written, because a binding's text holds no absolute path.
     dim as Tko.StrVec dirs
-    for i as long = 0 to s->unitDirs.Count - 1
+    for i as int32 = 0 to s->unitDirs.Count - 1
         dirs.Push( s->unitDirs[i] )
     next
     dim as string srcPath = ctx->sources.AbsPathOf( ctx->sources.Decode( at ).file )
-    dim as long sl = instrrev( srcPath, any "/\" )
+    dim as int32 sl = instrrev( srcPath, any "/\" )
     if sl > 1 then
         dim as string sd = left( srcPath, sl - 1 )
         dim as boolean seen = false
-        for i as long = 0 to dirs.Count - 1
+        for i as int32 = 0 to dirs.Count - 1
             if dirs[i] = sd then seen = true
         next
         if seen = false then dirs.Push( sd )
     end if
     dim as string key = Key_( *ctx, chain, dirs, unicode )
 
-    dim as long hit = -1
-    for i as long = 0 to s->keys.Count - 1
+    dim as int32 hit = -1
+    for i as int32 = 0 to s->keys.Count - 1
         if s->keys[i] = key then hit = i : exit for
     next
     '' THE DISK CACHE, next: an entry made by an earlier build, every file clang read
@@ -185,7 +185,7 @@ private function Import_ _
                 dim as Tko.FileId cfid = ctx->sources.LoadFile( bpath, why )
                 if cfid <> Tko.FILE_NONE then
                     s->keys.Push( key )
-                    s->fileIds.Push( cast( long, cfid ) )
+                    s->fileIds.Push( cast( int32, cfid ) )
                     s->states.Push( bstate )
                     s->texts.Push( btext )
                     hit = s->keys.Count - 1
@@ -195,11 +195,11 @@ private function Import_ _
     end if
     if hit < 0 then
         dim as Tko.CImport.CImportOptions io
-        for i as long = 0 to chain.Count - 1
+        for i as int32 = 0 to chain.Count - 1
             io.headers.Push( chain[i] )
         next
         FillOptions( *ctx, s->clangExe, io )
-        for i as long = 0 to dirs.Count - 1
+        for i as int32 = 0 to dirs.Count - 1
             io.copts.Push( "-iquote" & dirs[i] )
         next
         '' UNICODE ON THE FREEBASIC SIDE IS UNICODE ON THE C SIDE: '#define UNICODE' then
@@ -211,7 +211,7 @@ private function Import_ _
         end if
         io.seedState = s->unitState
         dim as Tko.CImport.CImportResult res
-        dim as long irc = ImportChecked( *ctx, s->api, io, res, s->unitText )
+        dim as int32 irc = ImportChecked( *ctx, s->api, io, res, s->unitText )
         if irc <> 0 then
             ReportFailure_( *ctx, irc, res, header, at )
             s->lastWhy = "unable to import C header " & header
@@ -231,7 +231,7 @@ private function Import_ _
         end if
         if fid = Tko.FILE_NONE then fid = ctx->sources.AddVirtual( header & ".bi", res.text )
         s->keys.Push( key )
-        s->fileIds.Push( cast( long, fid ) )
+        s->fileIds.Push( cast( int32, fid ) )
         s->states.Push( res.state )
         s->texts.Push( res.text )
         hit = s->keys.Count - 1
@@ -239,7 +239,7 @@ private function Import_ _
 
     s->unitHeaders.Push( header )
     s->unitDirs.Clear( )
-    for i as long = 0 to dirs.Count - 1
+    for i as int32 = 0 to dirs.Count - 1
         s->unitDirs.Push( dirs[i] )
     next
     s->unitFiles.Push( s->fileIds[hit] )
@@ -284,7 +284,7 @@ function PrintJson( byref ctx as Tko.CompilerContext ) as string
     dim as string o = "{""format"":1,""cincludes"":["
     dim as CIncludeSession_ ptr s = ctx.cinclude
     if s <> 0 then
-        for i as long = 0 to s->recFile.Count - 1
+        for i as int32 = 0 to s->recFile.Count - 1
             if i > 0 then o &= ","
             o &= "{""file"":" & Tko.Build.JsonStr( s->recFile[i] ) & _
                  ",""line"":" & s->recLine[i] & _

@@ -10,7 +10,7 @@ namespace Tko
 type PpModState
     '' Directives read in the ROOT file so far, '#lang' excepted. '#module' has to be
     '' the first, so the count it sees must be exactly one: itself.
-    as long      directives
+    as int32      directives
     '' A token that is not an end of line has been emitted, anywhere.
     as boolean   sawToken
     '' THE HEADER HAS ENDED: '#import' is no longer allowed. Set by the first token, and
@@ -31,7 +31,7 @@ type PpModState
     '' A MODULE UNIT'S FILES, one after another (PpConfig.moduleFiles): the index of the
     '' file being read, and the undo journal of the macros it defined or undefined itself
     '' -- the slot and the macro as it was before, replayed backwards at the file's end.
-    as long      fileIndex
+    as int32      fileIndex
     '' The last root file's end has been handled: PeekTok meets its EOF more than once.
     as boolean   rootEnded
     as IdVec     journalSlot

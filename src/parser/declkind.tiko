@@ -34,9 +34,9 @@ private sub BareMacroDecl_( byref p as Tko.ParserState )
 end sub
 
 '' The FIRST word, not any word: 'dim as sub( ) pf' is a variable.
-private function DeclKindHere_( byref p as Tko.ParserState ) as long
-    dim as long i = p.pos - 1
-    dim as long first_ = -1
+private function DeclKindHere_( byref p as Tko.ParserState ) as int32
+    dim as int32 i = p.pos - 1
+    dim as int32 first_ = -1
     while i >= 0
         if cast( Tko.TokenKind, p.toks->At( i ).kind ) = Tko.TK_EOL then exit while
         first_ = i

@@ -196,7 +196,7 @@ namespace Tko
         '' HOW MANY OF includePaths THE USER GAVE with -i; the default include directory
         '' is appended after them. The -i paths are also package search roots (ADR 0017)
         '' and the bundled header directory is not.
-        as long    userIncludeCount
+        as int32    userIncludeCount
         '' --print-graph: resolve the imports, print the build order, stop.
         as boolean printGraph
         '' --print-cincludes: preprocess, import each #cinclude, print its binding's path.
@@ -248,7 +248,7 @@ namespace Tko
         '' -m32 / -m64, held until the whole line is read. Applied as it is SEEN, the
         '' answer would depend on the order: '-m32 -target linux-x86_64' would quietly
         '' end up on Linux, while the reverse order errors.
-        as long    widthOverride
+        as int32    widthOverride
         '' WHICH MODULE OWNS main. fbc's -m, and it names a MODULE, not a file:
         '' measured, the name is matched against the OBJECT's basename, so
         '' '-o b.o -m b' makes that module main whatever the source was called.
@@ -268,13 +268,13 @@ namespace Tko
         ''   32 assert   64 debug info   128 __FB_DEBUG__   256 error location
         ''   512 unwind   1024 array dimensions
         '' -e is 513, -ex 515, -exx 1823 and -g 224; each -e<part> option sets one bit.
-        as long    errFlags
+        as int32    errFlags
         as Tko.OutputKind outKind
         as boolean compileOnly
         as boolean debugInfo
         as boolean threadSafe
         as boolean guiSubsystem  '' -s gui; console (false) is fbc's default too
-        as long    optLevel
+        as int32    optLevel
 
         as boolean showHelp
         as string  helpCategory
@@ -282,15 +282,15 @@ namespace Tko
         as boolean verbose
 
         as boolean warningsAsErrors
-        as long    fbcWarnMin        '' -w <n>: fbc's warnings below level n are hidden; 0 hides none
+        as int32    fbcWarnMin        '' -w <n>: fbc's warnings below level n are hidden; 0 hides none
         as boolean fbcWarnNone       '' -w none: every warning fbc also has is hidden
         as boolean pic               '' -pic: clang -fPIC on an ELF target
-        as long    maxErrors
-        as long    maxInstDepth      '' -maxinstdepth, fbc's; 64 by default
+        as int32    maxErrors
+        as int32    maxInstDepth      '' -maxinstdepth, fbc's; 64 by default
         as DiagColorMode     colorMode
         as DiagOutputFormat  diagFormat
         as string  diagFile          '' --diagnostics-file; "" = none
-        as long    buildOnlyUnit     '' --build-only-unit: a 'tiko build' child's one root; 0 = all
+        as int32    buildOnlyUnit     '' --build-only-unit: a 'tiko build' child's one root; 0 = all
         as boolean frontendOnly      '' --frontend-only: 'tiko check' -- every unit to the end of lowering, no code
         as string  pkgDir            '' --pkg-dir; "" = TKO_PKG, else beside the executable
         as StrVec  ignoredDiags

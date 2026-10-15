@@ -12,7 +12,7 @@ namespace Tko.Machine
 '' reader with its backslashes single.
 private function Clean_( byref s as string ) as string
     dim as string r = s
-    for i as long = 0 to len( r ) - 1
+    for i as int32 = 0 to len( r ) - 1
         if r[i] < 32 then r[i] = 32
     next
     return r
@@ -24,13 +24,13 @@ end function
 '' A file that is not valid UTF-8 was kept verbatim (ENC_BYTES) and counts bytes, which is
 '' what an editor showing it in a single-byte code page counts too.
 private function CharCol_ _
-    ( byval f as Tko.SourceFile ptr, byval lineStart as long, byval off as long ) as long
+    ( byval f as Tko.SourceFile ptr, byval lineStart as int32, byval off as int32 ) as int32
 
     if off <= lineStart then return 1
     if off > f->text.Count then off = f->text.Count
     if f->encoding = Tko.Text.ENC_BYTES then return off - lineStart + 1
-    dim as long n = 1
-    for i as long = lineStart to off - 1
+    dim as int32 n = 1
+    for i as int32 = lineStart to off - 1
         if (f->text[i] and &hC0) <> &h80 then n += 1
     next
     return n
@@ -43,7 +43,7 @@ private function Fields_ _
 
     dim as string T = chr( 9 )
     dim as string path_ = ""
-    dim as long l1 = 0, c1 = 0, l2 = 0, c2 = 0
+    dim as int32 l1 = 0, c1 = 0, l2 = 0, c2 = 0
 
     dim as boolean located = hasLoc andalso (rng.first <> Tko.LOC_NONE)
     if located then
@@ -97,7 +97,7 @@ function Records _
 end function
 
 function EndRecord _
-    ( byval errors as long, byval warnings as long, byval exitCode as long ) as string
+    ( byval errors as int32, byval warnings as int32, byval exitCode as int32 ) as string
 
     dim as string T = chr( 9 )
     return "end" & T & str( errors ) & T & str( warnings ) & T & str( exitCode ) & chr( 10 )

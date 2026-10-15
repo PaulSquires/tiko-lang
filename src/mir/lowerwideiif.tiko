@@ -33,19 +33,19 @@ function LowerWideIif_ _
       byval elseE as Tko.NodeId, byref outv as MirValue ) as boolean
 
     dim as MirValue cond = LowerCondition( c, condE )
-    if cond.kind = cast( ubyte, MV_NONE ) then return false
+    if cond.kind = cast( uint8, MV_NONE ) then return false
 
     '' A POINTER slot, not an aggregate one: what the arms produce is an allocation.
-    dim as long slot = NewTempLocal( c, MT_PTR, c.types->target.pointerBits \ 8 )
+    dim as int32 slot = NewTempLocal( c, MT_PTR, c.types->target.pointerBits \ 8 )
     if slot < 0 then return false
     dim as MirValue taddr
-    taddr.kind = cast( ubyte, MV_LOCAL )
-    taddr.ty = cast( ubyte, MT_PTR )
+    taddr.kind = cast( uint8, MV_LOCAL )
+    taddr.ty = cast( uint8, MT_PTR )
     taddr.id = slot
 
-    dim as long thenB = NewBlock( c, "wiif.then" )
-    dim as long elseB = NewBlock( c, "wiif.else" )
-    dim as long joinB = NewBlock( c, "wiif.join" )
+    dim as int32 thenB = NewBlock( c, "wiif.then" )
+    dim as int32 elseB = NewBlock( c, "wiif.else" )
+    dim as int32 joinB = NewBlock( c, "wiif.join" )
     Terminate( c, MTERM_CONDBR, thenB, elseB, cond )
 
     '' EACH ARM'S TEMPORARIES DIE IN THAT ARM, which is what fbc does and what the
@@ -58,9 +58,9 @@ function LowerWideIif_ _
     '' whose then-arm builds a DWSTRING temporary and an FBSTRING beside it: taking the
     '' ELSE arm ran '~DWSTRING' and 'fb_StrDelete' over stack garbage and segfaulted.
     '' fbc emits both releases before its 'goto' out of the arm, and so does this.
-    dim as long tUdt = c.udtTemps.Count
-    dim as long tStr = c.strTemps.Count
-    dim as long tWstr = c.wstrTemps.Count
+    dim as int32 tUdt = c.udtTemps.Count
+    dim as int32 tStr = c.strTemps.Count
+    dim as int32 tWstr = c.wstrTemps.Count
 
     c.curBlock = thenB
     if WideIifArm_( c, taddr, thenE ) = false then return false
@@ -77,9 +77,9 @@ function LowerWideIif_ _
     Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
 
     c.curBlock = joinB
-    c.wstrTemps.Push( cast( ulong, slot ) )
+    c.wstrTemps.Push( cast( uint32, slot ) )
     outv = LowerExprLoad( c, taddr, MT_PTR )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 
 '' One arm: measure, allocate, assign. The slot holds the allocation's ADDRESS, so the
@@ -90,19 +90,19 @@ private function WideIifArm_ _
     dim as MirValue src
     if WideOperand_( c, e, src ) = false then return false
 
-    dim as containers.Array( of ulong ) la
-    la.Push( cast( ulong, src.kind ) ) : la.Push( cast( ulong, src.id ) )
+    dim as containers.Array( of uint32 ) la
+    la.Push( cast( uint32, src.kind ) ) : la.Push( cast( uint32, src.id ) )
     dim as MirValue n = EmitRtl( c, RTL_WSTR_LEN, la )
-    if n.kind = cast( ubyte, MV_NONE ) then return false
+    if n.kind = cast( uint8, MV_NONE ) then return false
 
-    dim as containers.Array( of ulong ) aa
-    aa.Push( cast( ulong, n.kind ) ) : aa.Push( cast( ulong, n.id ) )
+    dim as containers.Array( of uint32 ) aa
+    aa.Push( cast( uint32, n.kind ) ) : aa.Push( cast( uint32, n.id ) )
     dim as MirValue buf = EmitRtl( c, RTL_WSTR_ALLOC, aa )
-    if buf.kind = cast( ubyte, MV_NONE ) then return false
+    if buf.kind = cast( uint8, MV_NONE ) then return false
 
     dim as MirInst st
-    st.op = cast( ushort, M_STORE )
-    st.ty = cast( ubyte, MT_VOID )
+    st.op = cast( uint16, M_STORE )
+    st.ty = cast( uint8, MT_VOID )
     st.a = slotAddr
     st.b = buf
     Emit( c, st )
@@ -110,11 +110,11 @@ private function WideIifArm_ _
     '' THE DESTINATION LENGTH IS 0 here, not -1 and not a count: the target was just
     '' allocated to fit, and fbc passes 0 to say so.
     dim as MirValue dst = LowerExprLoad( c, slotAddr, MT_PTR )
-    if dst.kind = cast( ubyte, MV_NONE ) then return false
-    dim as containers.Array( of ulong ) wa
-    wa.Push( cast( ulong, dst.kind ) ) : wa.Push( cast( ulong, dst.id ) )
-    wa.Push( cast( ulong, MV_CONST_INT ) ) : wa.Push( 0 )
-    wa.Push( cast( ulong, src.kind ) ) : wa.Push( cast( ulong, src.id ) )
+    if dst.kind = cast( uint8, MV_NONE ) then return false
+    dim as containers.Array( of uint32 ) wa
+    wa.Push( cast( uint32, dst.kind ) ) : wa.Push( cast( uint32, dst.id ) )
+    wa.Push( cast( uint32, MV_CONST_INT ) ) : wa.Push( 0 )
+    wa.Push( cast( uint32, src.kind ) ) : wa.Push( cast( uint32, src.id ) )
     EmitRtl( c, RTL_WSTR_ASSIGN, wa )
     return true
 end function

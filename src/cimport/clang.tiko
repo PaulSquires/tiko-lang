@@ -14,7 +14,7 @@ namespace Tko.CImport
 
 private function FileExists_( byref p as string ) as boolean
     if len( p ) = 0 then return false
-    dim as long f = freefile( )
+    dim as int32 f = freefile( )
     if open( p for binary access read as #f ) <> 0 then return false
     close #f
     return true
@@ -22,8 +22,8 @@ end function
 
 '' The directory part, WITH its trailing separator, or "" when there is none.
 private function DirOf_( byref p as string ) as string
-    for i as long = len( p ) to 1 step -1
-        dim as long ch = p[i - 1]
+    for i as int32 = len( p ) to 1 step -1
+        dim as int32 ch = p[i - 1]
         if (ch = asc( "/" )) orelse (ch = asc( "\" )) then return left( p, i )
     next
     return ""
@@ -45,7 +45,7 @@ end function
 '' an answer to report, not a reason to go and find a different library. Then beside the
 '' clang tiko compiles with, because a libclang from the same install matches its headers;
 '' then the places a distribution puts one.
-private sub Candidates_( byref clangExe as string, cand() as string, byref n as long )
+private sub Candidates_( byref clangExe as string, cand() as string, byref n as int32 )
     n = 0
     dim as string env_ = environ( "TKO_LIBCLANG" )
     if len( env_ ) then
@@ -65,7 +65,7 @@ private sub Candidates_( byref clangExe as string, cand() as string, byref n as 
         cand( n ) = cdir & "../lib/libclang.so.1" : n += 1
         cand( n ) = cdir & "../lib/libclang.so" : n += 1
     end if
-    for v as long = 21 to CLANG_MIN_MAJOR step -1
+    for v as int32 = 21 to CLANG_MIN_MAJOR step -1
         cand( n ) = "/usr/lib/llvm-" & v & "/lib/libclang.so.1" : n += 1
         cand( n ) = "/usr/lib/x86_64-linux-gnu/libclang-" & v & ".so.1" : n += 1
     next
@@ -83,11 +83,11 @@ end sub
 
 '' "clang version 21.1.0 (...)", or "Ubuntu clang version 18.1.3 (1ubuntu1)": the major is
 '' the digits after "version ".
-private function MajorOf_( byref v as string ) as long
-    dim as long at = instr( v, "version " )
+private function MajorOf_( byref v as string ) as int32
+    dim as int32 at = instr( v, "version " )
     if at = 0 then return 0
     at += 8
-    dim as long m = 0
+    dim as int32 m = 0
     while (at <= len( v )) andalso (v[at - 1] >= asc( "0" )) andalso (v[at - 1] <= asc( "9" ))
         m = m * 10 + (v[at - 1] - asc( "0" ))
         at += 1
@@ -119,9 +119,9 @@ function ClangLoad( byref api as ClangApi, byref clangExe as string ) as boolean
         return false
     end if
 #ifdef __FB_WIN32__
-    dim as long wantLen = 4
+    dim as int32 wantLen = 4
 #else
-    dim as long wantLen = 8
+    dim as int32 wantLen = 8
 #endif
     if (offsetof( CXUnsavedFile, Length ) <> 16) orelse (sizeof( uf.Length ) <> wantLen) then
         api.why = "internal: CXUnsavedFile.Length is declared with the wrong width"
@@ -129,10 +129,10 @@ function ClangLoad( byref api as ClangApi, byref clangExe as string ) as boolean
     end if
 
     dim as string cand( 0 to 31 )
-    dim as long n = 0
+    dim as int32 n = 0
     Candidates_( clangExe, cand(), n )
     dim as string tried_
-    for i as long = 0 to n - 1
+    for i as int32 = 0 to n - 1
         if FileExists_( cand( i ) ) then
             api.handle = dylibload( cand( i ) )
             if api.handle <> 0 then
@@ -192,7 +192,7 @@ function ClangResourceDir( byref api as ClangApi ) as string
     cand( 1 ) = ldir & "../lib/clang/" & api.major
     cand( 2 ) = "/usr/lib/llvm-" & api.major & "/lib/clang/" & api.major
     cand( 3 ) = "/usr/lib/clang/" & api.major
-    for i as long = 0 to 3
+    for i as int32 = 0 to 3
         if FileExists_( cand( i ) & "/include/stddef.h" ) then return cand( i )
     next
     return ""

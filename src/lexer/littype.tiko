@@ -22,8 +22,8 @@
 namespace Tko
 
 function LiteralClassOf _
-    ( byval suffix as ubyte, byval radix as long, byval value as ulongint, _
-      byval isFloat as boolean, byval is64 as boolean ) as long
+    ( byval suffix as uint8, byval radix as int32, byval value as uint64, _
+      byval isFloat as boolean, byval is64 as boolean ) as int32
 
     select case cast( NumSuffix, suffix )
     case NSUF_SINGLE   : return LC_SINGLE
@@ -49,7 +49,7 @@ function LiteralClassOf _
 end function
 
 '' The class's width in bits, INTEGER being the target's ('intBits'); 0 for a float.
-function LiteralClassBits( byval lc as long, byval intBits as long ) as long
+function LiteralClassBits( byval lc as int32, byval intBits as int32 ) as int32
     select case lc
     case LC_LONG, LC_ULONG         : return 32
     case LC_LONGINT, LC_ULONGINT   : return 64
@@ -58,7 +58,7 @@ function LiteralClassBits( byval lc as long, byval intBits as long ) as long
     return 0
 end function
 
-function LiteralClassUnsigned( byval lc as long ) as boolean
+function LiteralClassUnsigned( byval lc as int32 ) as boolean
     return (lc = LC_UINTEGER) orelse (lc = LC_ULONG) orelse (lc = LC_ULONGINT)
 end function
 

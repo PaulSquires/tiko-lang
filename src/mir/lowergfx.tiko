@@ -23,30 +23,30 @@
 namespace Tko.Mir
 
 '' fbc's own flag bits, which are NOT the parser's -- see parser/gfx.tiko for those.
-const GFXF_STEP2   as long = &h00000001
-const GFXF_STEP1   as long = &h00000002
-const GFXF_BASE1   as long = &h00000004   '' the one-point family's constant base
-const GFXF_NOBORDER as long = &h40000000
-const GFXF_NOCOLOUR as long = &h80000000
+const GFXF_STEP2   as int32 = &h00000001
+const GFXF_STEP1   as int32 = &h00000002
+const GFXF_BASE1   as int32 = &h00000004   '' the one-point family's constant base
+const GFXF_NOBORDER as int32 = &h40000000
+const GFXF_NOCOLOUR as int32 = &h80000000
 
 '' The parser's bits, repeated here rather than shared: the parser and the lowering are
 '' separate layers and a shared constant would tie the tree's spelling to the runtime's.
-const PGFX_STEP2     as ushort = &h0004
-const PGFX_STEP1     as ushort = &h0008
-const PGFX_BOX       as ushort = &h0010
-const PGFX_BOXFILL   as ushort = &h0020
-const PGFX_FILL      as ushort = &h0040
-const PGFX_SCREEN    as ushort = &h0080
-const PGFX_NOSTART   as ushort = &h0100
-const PGFX_HASTARGET as ushort = &h0200
-const PGFX_PAL_GET   as ushort = &h0400
-const PGFX_PAL_USING as ushort = &h0800
-const PGFX_DRAWSTR   as ushort = &h1000
-const PGFX_VIEWPRINT as ushort = &h2000
+const PGFX_STEP2     as uint16 = &h0004
+const PGFX_STEP1     as uint16 = &h0008
+const PGFX_BOX       as uint16 = &h0010
+const PGFX_BOXFILL   as uint16 = &h0020
+const PGFX_FILL      as uint16 = &h0040
+const PGFX_SCREEN    as uint16 = &h0080
+const PGFX_NOSTART   as uint16 = &h0100
+const PGFX_HASTARGET as uint16 = &h0200
+const PGFX_PAL_GET   as uint16 = &h0400
+const PGFX_PAL_USING as uint16 = &h0800
+const PGFX_DRAWSTR   as uint16 = &h1000
+const PGFX_VIEWPRINT as uint16 = &h2000
 
 '' The n'th child of a graphics statement, or NOTHING when it was elided.
 private function GfxArg _
-    ( byref c as Ctx, byval sp as Tko.StmtPayload ptr, byval i as long ) as Tko.NodeId
+    ( byref c as Ctx, byval sp as Tko.StmtPayload ptr, byval i as int32 ) as Tko.NodeId
 
     if (i < 0) orelse (i >= sp->count) then return Tko.NODE_NONE
     dim as Tko.NodeId n = cast( Tko.NodeId, c.ast->children[sp->first + i] )
@@ -58,13 +58,13 @@ end function
 '' One coordinate, as the SINGLE fbc passes. An omitted one is 0.0f, which is what fbc
 '' writes for 'line -(x,y)' and for a reset 'window'.
 private function GfxCoord _
-    ( byref c as Ctx, byval sp as Tko.StmtPayload ptr, byval i as long, _
+    ( byref c as Ctx, byval sp as Tko.StmtPayload ptr, byval i as int32, _
       byref ok as boolean ) as MirValue
 
     dim as Tko.NodeId n = GfxArg( c, sp, i )
     if n = Tko.NODE_NONE then return ConstFloat( c, 0.0, MT_F32 )
     dim as MirValue v = LowerExpr( c, n )
-    if v.kind = cast( ubyte, MV_NONE ) then
+    if v.kind = cast( uint8, MV_NONE ) then
         ok = false
         return v
     end if
@@ -74,14 +74,14 @@ end function
 '' One INTEGER option -- a colour, a style, a mode. Returns the default when it was not
 '' written, and says so, because an omitted colour also sets a flag bit.
 private function GfxInt _
-    ( byref c as Ctx, byval sp as Tko.StmtPayload ptr, byval i as long, _
-      byval dflt as longint, byref written as boolean, byref ok as boolean ) as MirValue
+    ( byref c as Ctx, byval sp as Tko.StmtPayload ptr, byval i as int32, _
+      byval dflt as int64, byref written as boolean, byref ok as boolean ) as MirValue
 
     dim as Tko.NodeId n = GfxArg( c, sp, i )
     written = (n <> Tko.NODE_NONE)
     if written = false then return ConstInt( c, dflt, MT_I32 )
     dim as MirValue v = LowerExpr( c, n )
-    if v.kind = cast( ubyte, MV_NONE ) then
+    if v.kind = cast( uint8, MV_NONE ) then
         ok = false
         return v
     end if
@@ -103,14 +103,14 @@ private function GfxTargetVal _
     dim as Tko.TypeId gtt = c.types->Unqualify( c.info->TypeOf_( sp->a ) )
     if (gtt <> Tko.TYPE_NONE) andalso (c.types->Kind( gtt ) = Tko.TK_ARRAY) then
         dim as MirValue ga = LowerAddr( c, sp->a )
-        if ga.kind = cast( ubyte, MV_NONE ) then
+        if ga.kind = cast( uint8, MV_NONE ) then
             ok = false
             return ga
         end if
         if c.types->IsDynArray( gtt ) then
             dim as MirInst gf
-            gf.op = cast( ushort, M_FIELD_ADDR )
-            gf.ty = cast( ubyte, MT_PTR )
+            gf.op = cast( uint16, M_FIELD_ADDR )
+            gf.ty = cast( uint8, MT_PTR )
             gf.a = ga
             gf.imm = c.types->target.pointerBits \ 8
             ga = LowerExprLoad( c, Emit( c, gf ), MT_PTR )
@@ -122,7 +122,7 @@ private function GfxTargetVal _
     '' passed it as the image pointer -- an access violation (gfx/image-expr.bas).
     if (gtt <> Tko.TYPE_NONE) andalso IsArrayIndex( c, sp->a ) andalso (c.types->Kind( gtt ) <> Tko.TK_POINTER) andalso (c.types->Kind( gtt ) <> Tko.TK_UDT) then
         dim as MirValue gea = LowerAddr( c, sp->a )
-        if gea.kind = cast( ubyte, MV_NONE ) then
+        if gea.kind = cast( uint8, MV_NONE ) then
             ok = false
         end if
         return gea
@@ -139,21 +139,21 @@ private function GfxTargetVal _
         return Coerce( c, gu, MT_PTR )
     end if
     dim as MirValue v = LowerExpr( c, sp->a )
-    if v.kind = cast( ubyte, MV_NONE ) then
+    if v.kind = cast( uint8, MV_NONE ) then
         ok = false
         return v
     end if
     return Coerce( c, v, MT_PTR )
 end function
 
-private sub PushV( byref args as containers.Array( of ulong ), byref v as MirValue )
-    args.Push( cast( ulong, v.kind ) )
-    args.Push( cast( ulong, v.id ) )
+private sub PushV( byref args as containers.Array( of uint32 ), byref v as MirValue )
+    args.Push( cast( uint32, v.kind ) )
+    args.Push( cast( uint32, v.id ) )
 end sub
 
 '' The two-point coordinate flags: LINE, GET and PUT.
-private function GfxFlags2( byval extra as ushort ) as long
-    dim as long f = 0
+private function GfxFlags2( byval extra as uint16 ) as int32
+    dim as int32 f = 0
     if (extra and PGFX_STEP2) <> 0 then f or= GFXF_STEP2
     if (extra and PGFX_STEP1) <> 0 then f or= GFXF_STEP1
     '' 'line -(x,y)' means "from where we are", which fbc spells as the first point
@@ -164,8 +164,8 @@ end function
 
 '' ...and the one-point flags: PSET, PRESET, CIRCLE, PAINT. The base of 4 is on every
 '' one of them and no source form clears it; its meaning was not determined.
-private function GfxFlags1( byval extra as ushort ) as long
-    dim as long f = GFXF_BASE1
+private function GfxFlags1( byval extra as uint16 ) as int32
+    dim as int32 f = GFXF_BASE1
     if (extra and PGFX_STEP1) <> 0 then f or= GFXF_STEP2
     return f
 end function
@@ -188,21 +188,21 @@ function LowerGfxLine( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if ok = false then return false
 
     '' B and BF are a SEPARATE INTEGER, not a bitmask: 0 plain, 1 B, 2 BF.
-    dim as long box = 0
+    dim as int32 box = 0
     if (sp->extra and PGFX_BOX) <> 0 then box = 1
     if (sp->extra and PGFX_BOXFILL) <> 0 then box = 2
 
-    dim as long flags = GfxFlags2( sp->extra )
+    dim as int32 flags = GfxFlags2( sp->extra )
     if hasCol = false then flags or= GFXF_NOCOLOUR
 
-    dim as containers.Array( of ulong ) args
+    dim as containers.Array( of uint32 ) args
     PushV( args, tgt )
     PushV( args, x1 ) : PushV( args, y1 )
     PushV( args, x2 ) : PushV( args, y2 )
     PushV( args, col )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, box ) )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, box ) )
     PushV( args, sty )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, flags ) )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, flags ) )
     EmitRtl( c, RTL_GFX_LINE, args )
     return true
 end function
@@ -220,16 +220,16 @@ function LowerGfxPset _
     dim as MirValue col = GfxInt( c, sp, 2, 0, hasCol, ok )
     if ok = false then return false
 
-    dim as long flags = GfxFlags1( sp->extra )
+    dim as int32 flags = GfxFlags1( sp->extra )
     if hasCol = false then flags or= GFXF_NOCOLOUR
 
-    dim as containers.Array( of ulong ) args
+    dim as containers.Array( of uint32 ) args
     PushV( args, tgt )
     PushV( args, x ) : PushV( args, y )
     PushV( args, col )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, flags ) )
-    args.Push( cast( ulong, MV_CONST_INT ) )
-    args.Push( cast( ulong, iif( isPreset, -1, 0 ) ) )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, flags ) )
+    args.Push( cast( uint32, MV_CONST_INT ) )
+    args.Push( cast( uint32, iif( isPreset, -1, 0 ) ) )
     EmitRtl( c, RTL_GFX_PSET, args )
     return true
 end function
@@ -266,17 +266,17 @@ function LowerGfxCircle( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as MirValue asp = GfxCoord( c, sp, 6, ok )
     if ok = false then return false
 
-    dim as long flags = GfxFlags1( sp->extra )
+    dim as int32 flags = GfxFlags1( sp->extra )
     if hasCol = false then flags or= GFXF_NOCOLOUR
-    dim as long fill = iif( (sp->extra and PGFX_FILL) <> 0, -1, 0 )
+    dim as int32 fill = iif( (sp->extra and PGFX_FILL) <> 0, -1, 0 )
 
-    dim as containers.Array( of ulong ) args
+    dim as containers.Array( of uint32 ) args
     PushV( args, tgt )
     PushV( args, x ) : PushV( args, y ) : PushV( args, r )
     PushV( args, col )
     PushV( args, asp ) : PushV( args, st ) : PushV( args, ev )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, fill ) )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, flags ) )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, fill ) )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, flags ) )
     EmitRtl( c, RTL_GFX_ELLIPSE, args )
     return true
 end function
@@ -316,31 +316,31 @@ function LowerGfxPaint( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     else
         col = GfxInt( c, sp, 2, 0, hasCol, ok )
         '' The empty temporary descriptor fbc passes when there is no pattern.
-        dim as containers.Array( of ulong ) ta
-        ta.Push( cast( ulong, MV_GLOBAL ) )
-        ta.Push( cast( ulong, c.m->AddStringLiteral( "", *c.names ) ) )
-        ta.Push( cast( ulong, MV_CONST_INT ) )
+        dim as containers.Array( of uint32 ) ta
+        ta.Push( cast( uint32, MV_GLOBAL ) )
+        ta.Push( cast( uint32, c.m->AddStringLiteral( "", *c.names ) ) )
+        ta.Push( cast( uint32, MV_CONST_INT ) )
         ta.Push( 0 )
         pat = EmitRtl( c, RTL_STR_TEMPZ, ta )
-        if pat.kind = cast( ubyte, MV_NONE ) then return false
+        if pat.kind = cast( uint8, MV_NONE ) then return false
     end if
 
     dim as boolean hasBorder = false
     dim as MirValue bord = GfxInt( c, sp, 3, 0, hasBorder, ok )
     if ok = false then return false
 
-    dim as long flags = GfxFlags1( sp->extra )
+    dim as int32 flags = GfxFlags1( sp->extra )
     if hasCol = false then flags or= GFXF_NOCOLOUR
     if hasBorder = false then flags or= GFXF_NOBORDER
 
-    dim as containers.Array( of ulong ) args
+    dim as containers.Array( of uint32 ) args
     PushV( args, tgt )
     PushV( args, x ) : PushV( args, y )
     PushV( args, col ) : PushV( args, bord )
     PushV( args, pat )
-    args.Push( cast( ulong, MV_CONST_INT ) )
-    args.Push( cast( ulong, iif( isPattern, 1, 0 ) ) )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, flags ) )
+    args.Push( cast( uint32, MV_CONST_INT ) )
+    args.Push( cast( uint32, iif( isPattern, 1, 0 ) ) )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, flags ) )
     EmitRtl( c, RTL_GFX_PAINT, args )
     return true
 end function
@@ -360,7 +360,7 @@ function LowerGfxView( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         dim as MirValue vtop = GfxInt( c, sp, 0, 0, w, ok )
         dim as MirValue vbot = GfxInt( c, sp, 1, 0, w, ok )
         if ok = false then return false
-        dim as containers.Array( of ulong ) va
+        dim as containers.Array( of uint32 ) va
         PushV( va, vtop ) : PushV( va, vbot )
         EmitRtl( c, RTL_CONSOLE_VIEW, va )
         return true
@@ -375,15 +375,15 @@ function LowerGfxView( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as MirValue bord = GfxInt( c, sp, 5, 0, hasBorder, ok )
     if ok = false then return false
 
-    dim as long flags = 0
+    dim as int32 flags = 0
     if (sp->extra and PGFX_SCREEN) <> 0 then flags or= 1
     if hasCol = false then flags or= GFXF_NOCOLOUR
     if hasBorder = false then flags or= GFXF_NOBORDER
 
-    dim as containers.Array( of ulong ) args
+    dim as containers.Array( of uint32 ) args
     PushV( args, x1 ) : PushV( args, y1 ) : PushV( args, x2 ) : PushV( args, y2 )
     PushV( args, col ) : PushV( args, bord )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, flags ) )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, flags ) )
     EmitRtl( c, RTL_GFX_VIEW, args )
     return true
 end function
@@ -397,11 +397,11 @@ function LowerGfxWindow( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as MirValue x2 = GfxCoord( c, sp, 2, ok )
     dim as MirValue y2 = GfxCoord( c, sp, 3, ok )
     if ok = false then return false
-    dim as long flags = iif( (sp->extra and PGFX_SCREEN) <> 0, 1, 0 )
+    dim as int32 flags = iif( (sp->extra and PGFX_SCREEN) <> 0, 1, 0 )
 
-    dim as containers.Array( of ulong ) args
+    dim as containers.Array( of uint32 ) args
     PushV( args, x1 ) : PushV( args, y1 ) : PushV( args, x2 ) : PushV( args, y2 )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, flags ) )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, flags ) )
     EmitRtl( c, RTL_GFX_WINDOW, args )
     return true
 end function
@@ -433,7 +433,7 @@ end function
 ''   draw string (1,2), "G", 7, , custom, @cb, @k    mode 8, ..., &CB, &K
 ''
 '' ALPHA with a value is mode 9, as it is for PUT.
-const PGFX_DSMODE_SHIFT as long = 16
+const PGFX_DSMODE_SHIFT as int32 = 16
 function LowerGfxDrawString_ _
     ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 
@@ -458,12 +458,12 @@ function LowerGfxDrawString_ _
     dim as Tko.NodeId fn = GfxArg( c, sp, 4 )
     if fn <> Tko.NODE_NONE then return false
 
-    dim as long flags = GfxFlags1( sp->extra )
+    dim as int32 flags = GfxFlags1( sp->extra )
     if hasCol = false then flags or= GFXF_NOCOLOUR
 
     '' The method: m+1 in four bits, 0 when none was written -- see the header.
-    dim as long mode = 0
-    dim as long mbits = cast( long, (sp->extra shr PGFX_DSMODE_SHIFT) and &hF )
+    dim as int32 mode = 0
+    dim as int32 mbits = cast( int32, (sp->extra shr PGFX_DSMODE_SHIFT) and &hF )
     if mbits <> 0 then mode = mbits - 1
     dim as Tko.NodeId valN = GfxArg( c, sp, 5 )
     dim as Tko.NodeId parN = GfxArg( c, sp, 6 )
@@ -473,13 +473,13 @@ function LowerGfxDrawString_ _
     if mode = 8 then
         if valN <> Tko.NODE_NONE then
             blender = LowerExpr( c, valN )
-            if blender.kind = cast( ubyte, MV_NONE ) then return false
+            if blender.kind = cast( uint8, MV_NONE ) then return false
             blender = Coerce( c, blender, MT_PTR )
             hasBl = true
         end if
         if parN <> Tko.NODE_NONE then
             cparam = LowerExpr( c, parN )
-            if cparam.kind = cast( ubyte, MV_NONE ) then return false
+            if cparam.kind = cast( uint8, MV_NONE ) then return false
             cparam = Coerce( c, cparam, MT_PTR )
             hasPar = true
         end if
@@ -488,7 +488,7 @@ function LowerGfxDrawString_ _
     elseif (mode = 6) orelse (mode = 7) then
         if valN <> Tko.NODE_NONE then
             dim as MirValue av = LowerExpr( c, valN )
-            if av.kind = cast( ubyte, MV_NONE ) then return false
+            if av.kind = cast( uint8, MV_NONE ) then return false
             col = Coerce( c, av, MT_I32 )
             if mode = 6 then mode = 9
         elseif mode = 7 then
@@ -498,24 +498,24 @@ function LowerGfxDrawString_ _
         return false   '' a value for a method that takes none
     end if
 
-    dim as containers.Array( of ulong ) args
+    dim as containers.Array( of uint32 ) args
     PushV( args, tgt )
     PushV( args, x ) : PushV( args, y )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, flags ) )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, flags ) )
     PushV( args, sv )
     PushV( args, col )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )             '' font
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, mode ) )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )             '' always null
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )             '' font
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, mode ) )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )             '' always null
     if hasBl then
         PushV( args, blender )
     else
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+        args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )
     end if
     if hasPar then
         PushV( args, cparam )
     else
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+        args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )
     end if
     EmitRtl( c, RTL_GFX_DRAW_STRING, args )
     return true
@@ -531,7 +531,7 @@ function LowerGfxDraw( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as MirValue sv
     if NarrowOperandAny_( c, sn, sv ) = false then return false   '' a ustring or wide text too
 
-    dim as containers.Array( of ulong ) args
+    dim as containers.Array( of uint32 ) args
     PushV( args, tgt )
     PushV( args, sv )
     EmitRtl( c, RTL_GFX_DRAW, args )
@@ -569,7 +569,7 @@ private function GfxUdtPtrOperand_ _
     dim as MirValue self_
     if UdtSelfAddr_( c, n, self_ ) = false then return false
     v = EmitMemberCall( c, cs, self_, MT_PTR )
-    if v.kind = cast( ubyte, MV_NONE ) then return false
+    if v.kind = cast( uint8, MV_NONE ) then return false
     rt = c.syms->SymbolAt( cs )->type_
     return true
 end function
@@ -584,15 +584,15 @@ private function GfxBufferOperand_( byref c as Ctx, byval n as Tko.NodeId ) as M
         v = LowerExpr( c, n )
     else
         v = LowerAddr( c, n )
-        if v.kind = cast( ubyte, MV_NONE ) then v = LowerExpr( c, n )
+        if v.kind = cast( uint8, MV_NONE ) then v = LowerExpr( c, n )
         '' A DYNAMIC ARRAY NAMED BARE IS ITS DATA, not its descriptor -- GfxTargetVal's rule: fbc
         '' passes the buffer start out of the descriptor. GET wrote the image over the
         '' descriptor itself and the frame with it (gfx/image-expr.bas).
         dim as boolean vDyn = false   '' hoisted: warning 38
-        if (t <> Tko.TYPE_NONE) andalso (v.kind <> cast( ubyte, MV_NONE )) then vDyn = c.types->IsDynArray( t )
+        if (t <> Tko.TYPE_NONE) andalso (v.kind <> cast( uint8, MV_NONE )) then vDyn = c.types->IsDynArray( t )
         if vDyn then
             dim as MirInst df
-            df.op = cast( ushort, M_FIELD_ADDR ) : df.ty = cast( ubyte, MT_PTR ) : df.a = v
+            df.op = cast( uint16, M_FIELD_ADDR ) : df.ty = cast( uint8, MT_PTR ) : df.a = v
             df.imm = c.types->target.pointerBits \ 8
             v = LowerExprLoad( c, Emit( c, df ), MT_PTR )
         end if
@@ -619,16 +619,16 @@ function LowerGfxGet( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.NodeId dn = GfxArg( c, sp, 4 )
     if dn = Tko.NODE_NONE then return false
     dim as MirValue dst = GfxBufferOperand_( c, dn )
-    if dst.kind = cast( ubyte, MV_NONE ) then return false
+    if dst.kind = cast( uint8, MV_NONE ) then return false
     dst = Coerce( c, dst, MT_PTR )
 
-    dim as containers.Array( of ulong ) args
+    dim as containers.Array( of uint32 ) args
     PushV( args, tgt )
     PushV( args, x1 ) : PushV( args, y1 ) : PushV( args, x2 ) : PushV( args, y2 )
     PushV( args, dst )
-    args.Push( cast( ulong, MV_CONST_INT ) )
-    args.Push( cast( ulong, GfxFlags2( sp->extra ) ) )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    args.Push( cast( uint32, MV_CONST_INT ) )
+    args.Push( cast( uint32, GfxFlags2( sp->extra ) ) )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )
     EmitRtl( c, RTL_GFX_GET, args )
     return true
 end function
@@ -636,7 +636,7 @@ end function
 '' The blender each PUT mode carries. Measured: every mode has one, and ALPHA WITH A
 '' VALUE is a different mode from ALPHA without -- 9 rather than 6 -- with a different
 '' blender again.
-private function PutBlender( byval mode as long ) as RtlId
+private function PutBlender( byval mode as int32 ) as RtlId
     select case mode
     case 0 : return RTL_GFX_PUT_TRANS
     case 1 : return RTL_GFX_PUT_PSET
@@ -670,13 +670,13 @@ function LowerGfxPut( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.NodeId sn = GfxArg( c, sp, 2 )
     if sn = Tko.NODE_NONE then return false
     dim as MirValue src = GfxBufferOperand_( c, sn )
-    if src.kind = cast( ubyte, MV_NONE ) then return false
+    if src.kind = cast( uint8, MV_NONE ) then return false
     src = Coerce( c, src, MT_PTR )
 
     '' THE MODE IS m+1 IN FOUR BITS and 0 means none was written -- see
     '' GfxPutMode. The default is XOR.
-    dim as long mode = 5
-    dim as long mbits = cast( long, (sp->extra shr 12) and &hF )
+    dim as int32 mode = 5
+    dim as int32 mbits = cast( int32, (sp->extra shr 12) and &hF )
     if mbits <> 0 then mode = mbits - 1
 
     '' ALPHA with a level is mode 9; CUSTOM takes a procedure pointer instead. They
@@ -687,11 +687,11 @@ function LowerGfxPut( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if extraN <> Tko.NODE_NONE then
         if mode = 8 then
             dim as MirValue cv = LowerExpr( c, extraN )
-            if cv.kind = cast( ubyte, MV_NONE ) then return false
+            if cv.kind = cast( uint8, MV_NONE ) then return false
             custom = Coerce( c, cv, MT_PTR )
         else
             dim as MirValue av = LowerExpr( c, extraN )
-            if av.kind = cast( ubyte, MV_NONE ) then return false
+            if av.kind = cast( uint8, MV_NONE ) then return false
             alpha = Coerce( c, av, MT_I32 )
             if mode = 6 then mode = 9
         end if
@@ -704,13 +704,13 @@ function LowerGfxPut( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as MirValue cparam
     if parN <> Tko.NODE_NONE then
         cparam = LowerExpr( c, parN )
-        if cparam.kind = cast( ubyte, MV_NONE ) then return false
+        if cparam.kind = cast( uint8, MV_NONE ) then return false
         cparam = Coerce( c, cparam, MT_PTR )
     end if
     dim as boolean hasArea = (GfxArg( c, sp, 5 ) <> Tko.NODE_NONE)
     dim as MirValue area(0 to 3)
     if hasArea then
-        for i as long = 0 to 3
+        for i as int32 = 0 to 3
             dim as boolean aw = false
             area(i) = GfxInt( c, sp, 5 + i, -65536, aw, ok )
         next
@@ -718,29 +718,29 @@ function LowerGfxPut( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     end if
 
     dim as MirValue bl = FuncAddrOfRtl( c, PutBlender( mode ) )
-    if bl.kind = cast( ubyte, MV_NONE ) then return false
+    if bl.kind = cast( uint8, MV_NONE ) then return false
 
-    dim as containers.Array( of ulong ) args
+    dim as containers.Array( of uint32 ) args
     PushV( args, tgt )
     PushV( args, x ) : PushV( args, y )
     PushV( args, src )
-    for i as long = 0 to 3
+    for i as int32 = 0 to 3
         if hasArea then
             PushV( args, area(i) )
         else
-            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, -65536 ) )
+            args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, -65536 ) )
         end if
     next
-    args.Push( cast( ulong, MV_CONST_INT ) )
-    args.Push( cast( ulong, GfxFlags2( sp->extra ) ) )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, mode ) )
+    args.Push( cast( uint32, MV_CONST_INT ) )
+    args.Push( cast( uint32, GfxFlags2( sp->extra ) ) )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, mode ) )
     PushV( args, bl )
     PushV( args, alpha )
     PushV( args, custom )
     if parN <> Tko.NODE_NONE then
         PushV( args, cparam )
     else
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+        args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )
     end if
     EmitRtl( c, RTL_GFX_PUT, args )
     return true
@@ -780,7 +780,7 @@ private function PaletteUsingIs64_( byref c as Ctx, byval t as Tko.TypeId ) as b
     case Tko.TK_ARRAY, Tko.TK_POINTER
         t = c.types->Inner( t )
     end select
-    dim as long sz = 0
+    dim as int32 sz = 0
     if t <> Tko.TYPE_NONE then sz = SizeOfType( c, c.types->Unqualify( t ) )
     if (sz <> 4) andalso (sz <> 8) then sz = c.types->target.pointerBits \ 8
     return (sz = 8)
@@ -807,10 +807,10 @@ function LowerGfxPalette( byref c as Ctx, byval id as Tko.NodeId ) as boolean
             av = LowerExpr( c, an )
         else
             av = LowerAddr( c, an )
-            if av.kind = cast( ubyte, MV_NONE ) then av = LowerExpr( c, an )
+            if av.kind = cast( uint8, MV_NONE ) then av = LowerExpr( c, an )
         end if
-        if av.kind = cast( ubyte, MV_NONE ) then return false
-        dim as containers.Array( of ulong ) ua
+        if av.kind = cast( uint8, MV_NONE ) then return false
+        dim as containers.Array( of uint32 ) ua
         PushV( ua, Coerce( c, av, MT_PTR ) )
         '' 'PALETTE GET USING' IS A FOURTH FORM with its own entry point -- reading it
         '' as a GET meant the array was taken for GET's colour index.
@@ -827,15 +827,15 @@ function LowerGfxPalette( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         dim as boolean w = false
         dim as MirValue n = GfxInt( c, sp, 0, 0, w, ok )
         if ok = false then return false
-        dim as containers.Array( of ulong ) ga
+        dim as containers.Array( of uint32 ) ga
         PushV( ga, n )
-        for i as long = 1 to 3
+        for i as int32 = 1 to 3
             dim as Tko.NodeId on_ = GfxArg( c, sp, i )
             if on_ = Tko.NODE_NONE then
-                ga.Push( cast( ulong, MV_CONST_INT ) ) : ga.Push( 0 )
+                ga.Push( cast( uint32, MV_CONST_INT ) ) : ga.Push( 0 )
             else
                 dim as MirValue oa = LowerAddr( c, on_ )
-                if oa.kind = cast( ubyte, MV_NONE ) then return false
+                if oa.kind = cast( uint8, MV_NONE ) then return false
                 PushV( ga, oa )
             end if
         next
@@ -844,8 +844,8 @@ function LowerGfxPalette( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         return true
     end if
 
-    dim as containers.Array( of ulong ) pa
-    for i as long = 0 to 3
+    dim as containers.Array( of uint32 ) pa
+    for i as int32 = 0 to 3
         dim as boolean w = false
         dim as MirValue v = GfxInt( c, sp, i, -1, w, ok )
         if ok = false then return false
@@ -889,10 +889,10 @@ end function
 function LowerGfxScreen( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     dim as boolean ok = true
-    dim as containers.Array( of ulong ) args
-    for i as long = 0 to 4
+    dim as containers.Array( of uint32 ) args
+    for i as int32 = 0 to 4
         dim as boolean w = false
-        dim as longint dflt = 0
+        dim as int64 dflt = 0
         if i = 1 then dflt = 8
         dim as MirValue v = GfxInt( c, sp, i, dflt, w, ok )
         if ok = false then return false
@@ -924,11 +924,11 @@ function LowerGfxExprCall_ _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
     dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
 
     dim as Tko.StmtPayload lp
@@ -938,8 +938,8 @@ function LowerGfxExprCall_ _
 
     if nm = "imagecreate" then
         if (cp->count < 2) orelse (cp->count > 4) then return false
-        dim as containers.Array( of ulong ) args
-        for i as long = 0 to 1
+        dim as containers.Array( of uint32 ) args
+        for i as int32 = 0 to 1
             dim as boolean w = false
             dim as MirValue v = GfxInt( c, @lp, i, 0, w, ok )
             if ok = false then return false
@@ -953,11 +953,11 @@ function LowerGfxExprCall_ _
         dim as MirValue dep = GfxInt( c, @lp, 3, 0, w3, ok )
         if ok = false then return false
         PushV( args, dep )
-        dim as longint flags = 0
+        dim as int64 flags = 0
         if hasCol = false then flags = &h80000000
         PushV( args, ConstInt( c, flags, MT_I32 ) )
         outv = EmitRtl( c, RTL_GFX_IMAGECREATE, args )
-        return (outv.kind <> cast( ubyte, MV_NONE ))
+        return (outv.kind <> cast( uint8, MV_NONE ))
     end if
 
     if nm = "point" then
@@ -965,7 +965,7 @@ function LowerGfxExprCall_ _
         dim as MirValue tgt = ConstInt( c, 0, MT_PTR )
         if cp->count = 3 then
             dim as MirValue tv = LowerExpr( c, cast( Tko.NodeId, c.ast->children[cp->first + 2] ) )
-            if tv.kind = cast( ubyte, MV_NONE ) then return false
+            if tv.kind = cast( uint8, MV_NONE ) then return false
             tgt = Coerce( c, tv, MT_PTR )
         end if
         dim as MirValue x = GfxCoord( c, @lp, 0, ok )
@@ -978,12 +978,12 @@ function LowerGfxExprCall_ _
             '' The sentinel that says "this is the one-argument form".
             y = ConstFloat( c, -8388607.0, MT_F32 )
         end if
-        dim as containers.Array( of ulong ) args
+        dim as containers.Array( of uint32 ) args
         PushV( args, tgt )
         PushV( args, x )
         PushV( args, y )
         outv = EmitRtl( c, RTL_GFX_POINT, args )
-        return (outv.kind <> cast( ubyte, MV_NONE ))
+        return (outv.kind <> cast( uint8, MV_NONE ))
     end if
     return false
 end function

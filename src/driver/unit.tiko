@@ -52,11 +52,11 @@ end function
 private function UnitSpellsSized_ _
     ( byref ctx as Tko.CompilerContext, byref ast as Tko.AstArena, byval rootId as Tko.FileId, _
       byref modFiles as Tko.IdVec ) as boolean
-    dim as long sized = 0, legacy = 0
-    for n as long = 1 to ast.Count( ) - 1
+    dim as int32 sized = 0, legacy = 0
+    for n as int32 = 1 to ast.Count( ) - 1
         if ast.Kind( cast( Tko.NodeId, n ) ) <> Tko.N_TYPEREF then continue for
-        dim as Tko.StmtPayload ptr tp = @ast.stmts[cast( long, ast.nodes[n].data )]
-        dim as long vote = 0
+        dim as Tko.StmtPayload ptr tp = @ast.stmts[cast( int32, ast.nodes[n].data )]
+        dim as int32 vote = 0
         select case cast( Tko.TokenKind, tp->op )
         case Tko.TK_IDENT
             select case lcase( ctx.names.Spelling( tp->name ) )
@@ -71,7 +71,7 @@ private function UnitSpellsSized_ _
         dim as Tko.FileId f = ctx.sources.Decode( ast.Loc( cast( Tko.NodeId, n ) ) ).file
         dim as boolean own = (f = rootId)
         if own = false then
-            for k as long = 0 to modFiles.Count - 1
+            for k as int32 = 0 to modFiles.Count - 1
                 if cast( Tko.FileId, modFiles[k] ) = f then own = true : exit for
             next
         end if
@@ -84,7 +84,7 @@ end function
 '' DOES UNIT i's TOP-LEVEL CODE BECOME 'main'? Decided once and asked twice: by the
 '' preprocessor, for __FB_MAIN__ (T96), and by the lowering. The rules are below.
 function IsMainUnit_ _
-    ( byref ctx as Tko.CompilerContext, byval id as Tko.FileId, byval i as long ) as boolean
+    ( byref ctx as Tko.CompilerContext, byval id as Tko.FileId, byval i as int32 ) as boolean
     dim as string modName = ModuleStem( ctx.sources.PathOf( id ) )
     if ctx.modFileCount > 0 then modName = ctx.modName
     dim as boolean isMain = false
@@ -119,12 +119,12 @@ function IsMainUnit_ _
 end function
 
 private function ObjectFor_ _
-    ( byref ctx as Tko.CompilerContext, byval id as Tko.FileId, byval i as long, _
-      byval srcCount as long ) as string
+    ( byref ctx as Tko.CompilerContext, byval id as Tko.FileId, byval i as int32, _
+      byval srcCount as int32 ) as string
     dim as string src = ctx.sources.PathOf( id )
     dim as string srcAbs = Tko.Modules.AbsPath( src )
     dim as string lone = ""
-    for k as long = 0 to ctx.options.outputFor.Count - 2 step 2
+    for k as int32 = 0 to ctx.options.outputFor.Count - 2 step 2
         if len( ctx.options.outputFor[k] ) = 0 then
             lone = ctx.options.outputFor[k + 1]
         elseif Tko.Modules.AbsPath( ctx.options.outputFor[k] ) = srcAbs then
@@ -136,10 +136,10 @@ private function ObjectFor_ _
 end function
 
 function CompileUnit _
-    ( byref ctx as Tko.CompilerContext, byval i as long, byval srcCount as long, _
-      byval restartDepth as long, byval wantsOutput as boolean, _
+    ( byref ctx as Tko.CompilerContext, byval i as int32, byval srcCount as int32, _
+      byval restartDepth as int32, byval wantsOutput as boolean, _
       byref linkObjs as Tko.StrVec, byref tempObjs as Tko.StrVec, _
-      byref toolExit as long, byref restartArgs as Tko.StrVec ) as boolean
+      byref toolExit as int32, byref restartArgs as Tko.StrVec ) as boolean
 
     dim as Tko.FileId id = cast( Tko.FileId, i )
     dim as Tko.PpResult pr
@@ -151,7 +151,7 @@ function CompileUnit _
     dim as Tko.StrVec noDefines
     if ctx.modFileCount > 0 then Tko.Modules.ModuleUnitConfig( ctx, cfg, modFiles, noDefines )
     if ctx.importsBuilt then Tko.Modules.InstallImports( ctx, cfg )
-    dim as double tPh = timer
+    dim as float64 tPh = timer
     dim as Tko.PpStream st
     Tko.PpOpen( st, ctx.sources, id, ctx.names, ctx.keywords, ctx.diags, cfg, pr )
 
@@ -199,7 +199,7 @@ function CompileUnit _
     if restarting then
         '' THE RESTART ITSELF IS Run's: it is a fresh Run( ) over the command line, which
         '' only Run has. The arguments go back to it, and nothing else of this pass runs.
-        for k as long = 0 to pr.cmdlineArgs.Count - 1
+        for k as int32 = 0 to pr.cmdlineArgs.Count - 1
             restartArgs.Push( pr.cmdlineArgs[k] )
         next
         return true
@@ -220,7 +220,7 @@ function CompileUnit _
     '' Duplicates are not filtered. Naming a library twice is harmless to
     '' the linker, and filtering would have to decide whether two spellings
     '' of a name are one library -- which is the linker's question.
-    for k as long = 0 to pr.incLibs.Count - 1
+    for k as int32 = 0 to pr.incLibs.Count - 1
         ctx.options.pragmaLibs.Push( pr.incLibs[k] )
     next
     '' ...AND WHAT A 'declare ... lib "name"' ASKED FOR, which is the same
@@ -228,19 +228,19 @@ function CompileUnit _
     '' discarded, so 'declare function SHCreateItemFromParsingName lib
     '' "shell32"' left an undefined symbol with shell32 sitting unused in
     '' the toolchain.
-    for k as long = 0 to p.declLibs.Count - 1
+    for k as int32 = 0 to p.declLibs.Count - 1
         ctx.options.pragmaLibs.Push( _
             ctx.names.Spelling( cast( Tko.InternId, p.declLibs[k] ) ) )
     next
-    for k as long = 0 to pr.libPaths.Count - 1
+    for k as int32 = 0 to pr.libPaths.Count - 1
         ctx.options.pragmaLibPaths.Push( pr.libPaths[k] )
     next
-    for k as long = 0 to pr.foreignLibFiles.Count - 1
+    for k as int32 = 0 to pr.foreignLibFiles.Count - 1
         ctx.options.pragmaLibFiles.Push( pr.foreignLibFiles[k] )
     next
     '' What a module's cache entry depends on (modcache.tiko).
     ctx.unitFilesRead.Clear( )
-    for each f as ulong in pr.filesRead
+    for each f as uint32 in pr.filesRead
         ctx.unitFilesRead.Push( f )
     next
     ctx.unitProbesMissed.Clear( )
@@ -286,31 +286,31 @@ function CompileUnit _
     '' asks. The names go on the table too, for the lowering that answers.
     dim as Tko.IdVec queried
     syms.reservedNames.Clear( )
-    for each r as ulong in pr.reservedNames
+    for each r as uint32 in pr.reservedNames
         syms.reservedNames.Push( r )
     next
     if pr.reservedNames.Count > 0 then
-        for n as long = 1 to ast.Count( )
+        for n as int32 = 1 to ast.Count( )
             if ast.Kind( cast( Tko.NodeId, n ) ) <> Tko.N_CALL then continue for
-            dim as Tko.ListPayload ptr cp = @ast.lists[cast( long, ast.nodes[n].data )]
+            dim as Tko.ListPayload ptr cp = @ast.lists[cast( int32, ast.nodes[n].data )]
             if (cp->count <> 2) orelse (cp->target = Tko.NODE_NONE) then continue for
             if ast.Kind( cp->target ) <> Tko.N_IDENT then continue for
-            dim as Tko.InternId cn = ast.idents[cast( long, ast.nodes[cast( long, cp->target )].data )].name
+            dim as Tko.InternId cn = ast.idents[cast( int32, ast.nodes[cast( int32, cp->target )].data )].name
             if Tko.Text.LowerAscii( ctx.names.Spelling( cn ) ) <> "__fb_query_symbol__" then continue for
             queried.Push( ast.children[cp->first + 1] )
         next
     end if
-    for n as long = 1 to ast.Count( )
+    for n as int32 = 1 to ast.Count( )
         dim as Tko.NodeId un = cast( Tko.NodeId, n )
         if ast.Kind( un ) <> Tko.N_IDENT then continue for
         dim as boolean asked = false
-        for each q as ulong in queried
-            if q = cast( ulong, n ) then asked = true
+        for each q as uint32 in queried
+            if q = cast( uint32, n ) then asked = true
         next
         if asked then continue for
         dim as Tko.IdentPayload ptr uip = _
-            @ast.idents[cast( long, ast.nodes[cast( long, un )].data )]
-        for k as long = 0 to pr.reservedNames.Count - 1
+            @ast.idents[cast( int32, ast.nodes[cast( int32, un )].data )]
+        for k as int32 = 0 to pr.reservedNames.Count - 1
             if uip->name <> cast( Tko.InternId, pr.reservedNames[k] ) then
                 continue for
             end if
@@ -320,9 +320,9 @@ function CompileUnit _
         next
     next
 
-    for k as long = 0 to pr.reservedNames.Count - 1
+    for k as int32 = 0 to pr.reservedNames.Count - 1
         dim as Tko.InternId rnm = cast( Tko.InternId, pr.reservedNames[k] )
-        for si as long = 1 to syms.Count( )
+        for si as int32 = 1 to syms.Count( )
             dim as Tko.Symbol ptr rsym = syms.SymbolAt( cast( Tko.SymbolId, si ) )
             if rsym = 0 then continue for
             if rsym->name <> rnm then continue for
@@ -426,7 +426,7 @@ function CompileUnit _
         tPh = timer
         Tko.Mir.Lower( ast, root, syms, ctx.types, ctx.names, info, _
                        ctx.sources, udts, vts, mm, lst, isMain, modName, _
-                       ctx.options.errFlags, @ctx.diags, cast( long, id ) )
+                       ctx.options.errFlags, @ctx.diags, cast( int32, id ) )
         ctx.timing.Add( Tko.PH_LOWER, tPh )
         '' THE THREAD-SAFE RUNTIME IS CHOSEN HERE, not on the command line
         '' alone -- see Tko.Mir.UsesThreadRtl for what fbc does and how it
@@ -493,7 +493,7 @@ function CompileUnit _
         ctx.timing.Add( Tko.PH_VERIFY, tPh )
         if doCodegen then
             if vr.failures > 0 then
-                dim as long vnl = instr( vr.report, chr( 10 ) )
+                dim as int32 vnl = instr( vr.report, chr( 10 ) )
                 dim as string vfirst = iif( vnl > 0, left( vr.report, vnl - 1 ), vr.report )
                 toolExit = ToolFail_( ctx, Tko.EXIT_ICE, Tko.TKO0993, _
                     "the MIR verifier found " & str( vr.failures ) & " fault(s): " & vfirst )
@@ -509,13 +509,13 @@ function CompileUnit _
                 '' declines are fixed. -Werror still stops it.
                 dim as Tko.DiagId sid = Tko.TKO0994
                 if ctx.options.allowUnlowered then sid = Tko.TKO0995
-                dim as long sbefore = ctx.diags.ErrorCount( )
-                for k as long = 0 to lst.skipLocs.Count - 1
+                dim as int32 sbefore = ctx.diags.ErrorCount( )
+                for k as int32 = 0 to lst.skipLocs.Count - 1
                     ctx.diags.Report( sid, _
                         Tko.PointRange( cast( Tko.SourceLoc, lst.skipLocs[k] ) ), str( lst.skipped ) )
                 next
                 if lst.skipLocs.Count = 0 then ctx.diags.ReportGlobal( sid, str( lst.skipped ) )
-                dim as long sadded = ctx.diags.ErrorCount( ) - sbefore
+                dim as int32 sadded = ctx.diags.ErrorCount( ) - sbefore
                 ctx.diags.Flush( )
                 if sadded > 0 then
                     ctx.toolErrors += sadded
@@ -546,7 +546,7 @@ function CompileUnit _
                 '' empty, and this gate sent a '-c' run down the print-to-
                 '' stdout arm -- object never written, exit code 0.
                 if ctx.options.emitIr orelse ctx.options.emitAsm then
-                    dim as long ex = EmitStopFile_( ctx, er.text, td, id, i, srcCount )
+                    dim as int32 ex = EmitStopFile_( ctx, er.text, td, id, i, srcCount )
                     if (ex <> Tko.EXIT_OK) andalso (toolExit = Tko.EXIT_OK) then toolExit = ex
                 elseif wantsOutput then
                     '' The result IS the exit code. BuildFromIr reports its
@@ -615,7 +615,7 @@ function CompileUnit _
                     '' THE FIRST FAILURE STAYS. Assigned straight to toolExit,
                     '' module 2 compiling cleanly reset module 1's clang failure
                     '' to OK -- and the link then ran without its object.
-                    dim as long bx = BuildFromIr( ctx, er.text, td, objPath )
+                    dim as int32 bx = BuildFromIr( ctx, er.text, td, objPath )
                     if bx = Tko.EXIT_OK then
                         linkObjs.Push( objPath )
                     elseif toolExit = Tko.EXIT_OK then
@@ -649,7 +649,7 @@ function CompileUnit _
             '' this is not a diagnostic, it is the compiler reporting that it
             '' built something malformed, and it must not land in the .ll.
             if vr.failures > 0 then
-                dim as long eh = freefile
+                dim as int32 eh = freefile
                 open err for output as #eh
                 print #eh, "verify: " & str( vr.failures ) & " FAILURES"
                 print #eh, vr.report;

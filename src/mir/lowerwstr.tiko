@@ -15,13 +15,13 @@
 namespace Tko.Mir
 
 declare function WideConcatStep_ _
-    ( byref c as Ctx, byref args as containers.Array( of ulong ), byval r as RtlId, _
+    ( byref c as Ctx, byref args as containers.Array( of uint32 ), byval r as RtlId, _
       byref acc as MirValue ) as boolean
 
 '' Defined in lowerstr.tiko; the narrow classifier the wide code needs for a mixed
 '' operand.
 declare function StrSwapKind_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as int64 ) as int32
 
 '' A WIDE STRING, and how many elements it holds. Returns 0 when the type is not one.
 ''
@@ -49,7 +49,7 @@ function IsWideString_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
 end function
 
 
-function WideStringElems( byref c as Ctx, byval t as Tko.TypeId ) as long
+function WideStringElems( byref c as Ctx, byval t as Tko.TypeId ) as int32
     if t = Tko.TYPE_NONE then return 0
     '' CONST IS NOT A DIFFERENT STRING -- see StrSwapKind_. 'dim cw as const wstring *
     '' 10' is the same uint16 array as a mutable one, and the qualified type is a
@@ -61,7 +61,7 @@ function WideStringElems( byref c as Ctx, byval t as Tko.TypeId ) as long
     if el = Tko.TYPE_NONE then return 0
     if c.types->Kind( el ) <> Tko.TK_BUILTIN then return 0
     if c.types->BuiltinOf( el ) <> Tko.TY_WSTRING then return 0
-    dim as long n = c.types->ElemCount( t )
+    dim as int32 n = c.types->ElemCount( t )
     if n <= 0 then return 0
     return n
 end function
@@ -82,8 +82,8 @@ end function
 '' Defined in lowerwstru.tiko: a ustring anywhere in a concatenation, and the '&=' of one.
 declare function ChainTouchesU_( byref c as Ctx, byval value as Tko.NodeId ) as boolean
 declare function WideConcatAssignUStr_ _
-    ( byref c as Ctx, byref dst as MirValue, byval n as long, _
-      byval value as Tko.NodeId ) as long
+    ( byref c as Ctx, byref dst as MirValue, byval n as int32, _
+      byval value as Tko.NodeId ) as int32
 
 function LowerWideAssign _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
@@ -99,10 +99,10 @@ function LowerWideAssign _
     '' passes for one -- 'fb_WstrAssign( C$1, 0ll, ... )'. Reading 0 as "not a wide
     '' string" is what made every operation on a byref wstring parameter decline.
     if IsWideString_( c, c.info->TypeOf_( target ) ) = false then return false
-    dim as long n = WideStringElems( c, c.info->TypeOf_( target ) )
+    dim as int32 n = WideStringElems( c, c.info->TypeOf_( target ) )
 
     dim as MirValue dst = LowerAddr( c, target )
-    if dst.kind = cast( ubyte, MV_NONE ) then return false
+    if dst.kind = cast( uint8, MV_NONE ) then return false
     if WideAssignViaTemp_( c, dst, n, target, value ) then return true   '' see lowerconcat.tiko
     return LowerWideAssignTo( c, dst, n, value )
 end function
@@ -112,12 +112,12 @@ end function
 '' 'dim rt as wstring * 50 = trim( t )' was otherwise declining in a corpus file that
 '' does it 814 times.
 function LowerWideAssignTo_ _
-    ( byref c as Ctx, byref dst as MirValue, byval n as long, _
+    ( byref c as Ctx, byref dst as MirValue, byval n as int32, _
       byval value as Tko.NodeId ) as boolean
 
-    dim as containers.Array( of ulong ) args
-    args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, n ) )
+    dim as containers.Array( of uint32 ) args
+    args.Push( cast( uint32, dst.kind ) ) : args.Push( cast( uint32, dst.id ) )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, n ) )
 
     '' 'w = w1 & w2' INTO A FIXED WSTRING is not one call: fbc assigns the first term
     '' and CONCAT-ASSIGNS the rest, because the destination already has storage.
@@ -141,13 +141,13 @@ function LowerWideAssignTo_ _
     if wnl andalso (c.ast->Kind( value ) = Tko.N_BINARY) then wnl = ConstStringTextOf_( c, value, wnr, 1 ) else wnl = false
     if wnl then wnl = (instr( wnr, chr( 0 ) ) > 0)
     if wnl then
-        wnr = left( wnr, instr( wnr, chr( 0 ) ) - 1 ) : dim as containers.Array( of ulong ) wnu
-        for k as long = 0 to len( wnr ) - 1 : wnu.Push( cast( ulong, wnr[k] ) ) : next
-        args.Push( cast( ulong, MV_GLOBAL ) ) : args.Push( cast( ulong, c.m->AddWideStringUnits( wnr, wnu, *c.names ) ) ) : EmitRtl( c, RTL_WSTR_ASSIGN, args ) : return true
+        wnr = left( wnr, instr( wnr, chr( 0 ) ) - 1 ) : dim as containers.Array( of uint32 ) wnu
+        for k as int32 = 0 to len( wnr ) - 1 : wnu.Push( cast( uint32, wnr[k] ) ) : next
+        args.Push( cast( uint32, MV_GLOBAL ) ) : args.Push( cast( uint32, c.m->AddWideStringUnits( wnr, wnu, *c.names ) ) ) : EmitRtl( c, RTL_WSTR_ASSIGN, args ) : return true
     end if
     if (c.ast->Kind( value ) = Tko.N_BINARY) andalso (uchain = false) andalso (n > 0) then
         dim as Tko.BinaryPayload ptr vb = _
-            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, value )].data )]
+            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, value )].data )]
         dim as Tko.TokenKind vop = cast( Tko.TokenKind, vb->op )
         if (vop = Tko.TK_AMP) orelse (vop = Tko.TK_PLUS) then
             if LowerWideAssignTo( c, dst, n, vb->lhs ) then
@@ -185,11 +185,11 @@ function LowerWideAssignTo_ _
     '' covers a property, an intrinsic and a 'ustring * N' (a buffer, not a descriptor).
     if uchain then
         dim as MirValue usrc
-        dim as long uslot = -1
+        dim as int32 uslot = -1
         if UStrOutOperand_( c, value, usrc, uslot ) = false then return false
-        args.Push( cast( ulong, usrc.kind ) ) : args.Push( cast( ulong, usrc.id ) )
-        args.Push( cast( ulong, MV_CONST_INT ) )
-        args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+        args.Push( cast( uint32, usrc.kind ) ) : args.Push( cast( uint32, usrc.id ) )
+        args.Push( cast( uint32, MV_CONST_INT ) )
+        args.Push( cast( uint32, cast( uint64, -1 ) ) )
         EmitRtl( c, RTL_USTR_TO_W, args )
         ReleaseUStrOut_( c, uslot )
         return true
@@ -197,7 +197,7 @@ function LowerWideAssignTo_ _
 
     dim as MirValue rv
     if WideOperand_( c, value, rv ) then
-        args.Push( cast( ulong, rv.kind ) ) : args.Push( cast( ulong, rv.id ) )
+        args.Push( cast( uint32, rv.kind ) ) : args.Push( cast( uint32, rv.id ) )
         EmitRtl( c, RTL_WSTR_ASSIGN, args )
         return true
     end if
@@ -214,11 +214,11 @@ function LowerWideAssignTo_ _
         isLit = StrCatText_( c, value, lit )
     end if
     if isLit then
-        args.Push( cast( ulong, MV_GLOBAL ) )
-        args.Push( cast( ulong, c.m->AddStringLiteral( lit, *c.names ) ) )
+        args.Push( cast( uint32, MV_GLOBAL ) )
+        args.Push( cast( uint32, c.m->AddStringLiteral( lit, *c.names ) ) )
         '' The literal's byte length INCLUDING its NUL, which is what fbc passes.
-        args.Push( cast( ulong, MV_CONST_INT ) )
-        args.Push( cast( ulong, len( lit ) + 1 ) )
+        args.Push( cast( uint32, MV_CONST_INT ) )
+        args.Push( cast( uint32, len( lit ) + 1 ) )
         EmitRtl( c, RTL_WSTR_ASSIGN_FROMA, args )
         return true
     end if
@@ -234,22 +234,22 @@ function LowerWideAssignTo_ _
     '' six other paths make for the same reason.
     if IsStringType( c, st ) andalso (NamesProc_( c, value ) = false) then
         dim as MirValue src = LowerAddr( c, value )
-        if src.kind <> cast( ubyte, MV_NONE ) then
-            args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
-            args.Push( cast( ulong, MV_CONST_INT ) )
-            args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+        if src.kind <> cast( uint8, MV_NONE ) then
+            args.Push( cast( uint32, src.kind ) ) : args.Push( cast( uint32, src.id ) )
+            args.Push( cast( uint32, MV_CONST_INT ) )
+            args.Push( cast( uint32, cast( uint64, -1 ) ) )
             EmitRtl( c, RTL_WSTR_ASSIGN_FROMA, args )
             return true
         end if
     end if
 
     '' A ZSTRING * N source passes its own element count rather than -1.
-    dim as longint zn
+    dim as int64 zn
     if StrSwapKind_( c, st, zn ) = 1 then
         dim as MirValue src = LowerAddr( c, value )
-        if src.kind = cast( ubyte, MV_NONE ) then return false
-        args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, zn ) )
+        if src.kind = cast( uint8, MV_NONE ) then return false
+        args.Push( cast( uint32, src.kind ) ) : args.Push( cast( uint32, src.id ) )
+        args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, zn ) )
         EmitRtl( c, RTL_WSTR_ASSIGN_FROMA, args )
         return true
     end if
@@ -260,9 +260,9 @@ function LowerWideAssignTo_ _
     '' its length exactly as an addressable string does.
     dim as MirValue dsc
     if StrDescriptorOf_( c, value, dsc ) then
-        args.Push( cast( ulong, dsc.kind ) ) : args.Push( cast( ulong, dsc.id ) )
-        args.Push( cast( ulong, MV_CONST_INT ) )
-        args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+        args.Push( cast( uint32, dsc.kind ) ) : args.Push( cast( uint32, dsc.id ) )
+        args.Push( cast( uint32, MV_CONST_INT ) )
+        args.Push( cast( uint32, cast( uint64, -1 ) ) )
         EmitRtl( c, RTL_WSTR_ASSIGN_FROMA, args )
         return true
     end if
@@ -278,17 +278,17 @@ end function
 ''
 '' Only the WIDE source is lowered here; a narrow one needs the temporary's lifetime.
 function LowerWideConcatAssign _
-    ( byref c as Ctx, byval target as Tko.NodeId, byval n as long, _
+    ( byref c as Ctx, byval target as Tko.NodeId, byval n as int32, _
       byval value as Tko.NodeId ) as boolean
 
     dim as MirValue dst = LowerAddr( c, target )
-    if dst.kind = cast( ubyte, MV_NONE ) then return false
+    if dst.kind = cast( uint8, MV_NONE ) then return false
     return LowerWideConcatAssignTo( c, dst, n, value )
 end function
 
 '' As above, addressed by destination.
 function LowerWideConcatAssignTo _
-    ( byref c as Ctx, byref dst as MirValue, byval n as long, _
+    ( byref c as Ctx, byref dst as MirValue, byval n as int32, _
       byval value as Tko.NodeId ) as boolean
 
     '' A SOURCE THAT IS NOT A STRING AT ALL is rendered wide first. Measured:
@@ -321,7 +321,7 @@ function LowerWideConcatAssignTo _
         '' -- measured, and it is not fb_WstrConcatAssign with the narrow bytes: the
         '' append happens into a temporary and the result is assigned back.
         dim as Tko.TypeId svt = c.info->TypeOf_( value )
-        dim as longint zln
+        dim as int64 zln
         dim as boolean narrowSrc = IsStringType( c, svt ) andalso _
                                    (IsUStringType( c, svt ) = false)
         if narrowSrc = false then
@@ -331,27 +331,27 @@ function LowerWideConcatAssignTo _
             narrowSrc = (c.ast->Kind( Unparen_( c, value ) ) = Tko.N_STRING_LIT)
         end if
         if narrowSrc then
-            dim as containers.Array( of ulong ) wargs
-            wargs.Push( cast( ulong, dst.kind ) ) : wargs.Push( cast( ulong, dst.id ) )
+            dim as containers.Array( of uint32 ) wargs
+            wargs.Push( cast( uint32, dst.kind ) ) : wargs.Push( cast( uint32, dst.id ) )
             if EmitStrTerm( c, wargs, value ) = false then return false
             dim as MirValue acc
             if WideConcatStep_( c, wargs, RTL_WSTR_CONCAT_WA, acc ) = false then
                 return false
             end if
-            dim as containers.Array( of ulong ) aargs
-            aargs.Push( cast( ulong, dst.kind ) ) : aargs.Push( cast( ulong, dst.id ) )
-            aargs.Push( cast( ulong, MV_CONST_INT ) ) : aargs.Push( cast( ulong, n ) )
-            aargs.Push( cast( ulong, acc.kind ) ) : aargs.Push( cast( ulong, acc.id ) )
+            dim as containers.Array( of uint32 ) aargs
+            aargs.Push( cast( uint32, dst.kind ) ) : aargs.Push( cast( uint32, dst.id ) )
+            aargs.Push( cast( uint32, MV_CONST_INT ) ) : aargs.Push( cast( uint32, n ) )
+            aargs.Push( cast( uint32, acc.kind ) ) : aargs.Push( cast( uint32, acc.id ) )
             EmitRtl( c, RTL_WSTR_ASSIGN, aargs )
             return true
         end if
 
         dim as MirValue nv
         if NumberToWideTemp_( c, value, nv ) = false then return false
-        dim as containers.Array( of ulong ) nargs
-        nargs.Push( cast( ulong, dst.kind ) ) : nargs.Push( cast( ulong, dst.id ) )
-        nargs.Push( cast( ulong, MV_CONST_INT ) ) : nargs.Push( cast( ulong, n ) )
-        nargs.Push( cast( ulong, nv.kind ) ) : nargs.Push( cast( ulong, nv.id ) )
+        dim as containers.Array( of uint32 ) nargs
+        nargs.Push( cast( uint32, dst.kind ) ) : nargs.Push( cast( uint32, dst.id ) )
+        nargs.Push( cast( uint32, MV_CONST_INT ) ) : nargs.Push( cast( uint32, n ) )
+        nargs.Push( cast( uint32, nv.kind ) ) : nargs.Push( cast( uint32, nv.id ) )
         EmitRtl( c, RTL_WSTR_CONCAT_ASSIGN, nargs )
         return true
     end if
@@ -362,11 +362,11 @@ function LowerWideConcatAssignTo _
     '' a literal, a variable, a call and a concatenation.
     dim as MirValue src
     if WideOperand_( c, value, src ) = false then return false
-    if src.kind = cast( ubyte, MV_NONE ) then return false
-    dim as containers.Array( of ulong ) args
-    args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, n ) )
-    args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
+    if src.kind = cast( uint8, MV_NONE ) then return false
+    dim as containers.Array( of uint32 ) args
+    args.Push( cast( uint32, dst.kind ) ) : args.Push( cast( uint32, dst.id ) )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, n ) )
+    args.Push( cast( uint32, src.kind ) ) : args.Push( cast( uint32, src.id ) )
     EmitRtl( c, RTL_WSTR_CONCAT_ASSIGN, args )
     return true
 end function
@@ -380,8 +380,8 @@ end function
 declare function NarrowDestWideSource_ _
     ( byref c as Ctx, byval value as Tko.NodeId, byref src as MirValue ) as boolean
 declare sub EmitWideToNarrow_ _
-    ( byref c as Ctx, byref dst as MirValue, byval dn as longint, byref src as MirValue, _
-      byval isInit as boolean = false, byval pad as longint = 0 )
+    ( byref c as Ctx, byref dst as MirValue, byval dn as int64, byref src as MirValue, _
+      byval isInit as boolean = false, byval pad as int64 = 0 )
 
 function LowerWideToNarrow _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
@@ -396,8 +396,8 @@ function LowerWideToNarrow _
     dim as Tko.TypeId dt = c.info->TypeOf_( target )
     if IsUStringType( c, dt ) then return false
     if ChainTouchesU_( c, value ) then return false
-    dim as longint dn = -1
-    dim as longint pad = 0
+    dim as int64 dn = -1
+    dim as int64 pad = 0
     if IsStringType( c, dt ) = false then
         '' KIND 3 -- 'string * N' -- BELONGS HERE TOO, and refusing it sent 'f = *pw'
         '' down the narrow path, which found no narrow source and declined. Its dn is
@@ -407,7 +407,7 @@ function LowerWideToNarrow _
         ''     fb_WstrAssignToA( (void*)F$0, -9223372036854775777ll, (uint16*)PW$0, -1 )
         ''
         '' and run, f holds "123" space-padded to its full 31 columns.
-        dim as long dk0 = StrSwapKind_( c, dt, dn )
+        dim as int32 dk0 = StrSwapKind_( c, dt, dn )
         if (dk0 <> 1) andalso (dk0 <> 3) then return false
         if dk0 = 3 then pad = -1
     end if
@@ -422,12 +422,12 @@ function LowerWideToNarrow _
     end if
 
     dim as MirValue dst = LowerAddr( c, target )
-    if dst.kind = cast( ubyte, MV_NONE ) then return false
+    if dst.kind = cast( uint8, MV_NONE ) then return false
     if wideSrc then src = LowerAddr( c, value )
-    if src.kind = cast( ubyte, MV_NONE ) then
+    if src.kind = cast( uint8, MV_NONE ) then
         if NarrowDestWideSource_( c, value, src ) = false then return false
     end if
-    if src.kind = cast( ubyte, MV_NONE ) then return false
+    if src.kind = cast( uint8, MV_NONE ) then return false
 
     EmitWideToNarrow_( c, dst, dn, src, false, pad )
     return true
@@ -461,25 +461,25 @@ private function NarrowDestWideSource_ _
     '' data.
     if TermIsWide_( c, value ) then
         if WideOperand_( c, value, src ) then
-            if src.kind <> cast( ubyte, MV_NONE ) then return true
+            if src.kind <> cast( uint8, MV_NONE ) then return true
         end if
     end if
     if IsUdtValue_( c, value ) andalso (not UdtTermWide_( c, c.info->TypeOf_( value ) )) then return false else return UserCastToWide_( c, value, src )   '' a UDT goes wide only by fbc's pick
 end function
 
 private sub EmitWideToNarrow_ _
-    ( byref c as Ctx, byref dst as MirValue, byval dn as longint, byref src as MirValue, _
-      byval isInit as boolean, byval pad as longint )
+    ( byref c as Ctx, byref dst as MirValue, byval dn as int64, byref src as MirValue, _
+      byval isInit as boolean, byval pad as int64 )
 
-    dim as containers.Array( of ulong ) args
-    args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
+    dim as containers.Array( of uint32 ) args
+    args.Push( cast( uint32, dst.kind ) ) : args.Push( cast( uint32, dst.id ) )
     '' PushStrLen_, NOT an inline MV_CONST_INT: that payload is 32 BITS and a
     '' 'string * N' length is '&h8000000000000000 or N', which truncates to plain N
     '' and silently turns the fixed-length tag into an ordinary zstring count. The
     '' destination was a zstring here until kind 3 could reach this sub, so nothing
     '' had ever passed a tagged length through it.
     PushStrLen_( c, args, dn )
-    args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
+    args.Push( cast( uint32, src.kind ) ) : args.Push( cast( uint32, src.id ) )
     '' THE LAST ARGUMENT IS NOT ALWAYS ZERO. It is -1 for a 'string * N'
     '' destination, which is the one narrow kind that PADS, and 0 for the other two.
     '' Measured, and in both entry points:
@@ -487,10 +487,10 @@ private sub EmitWideToNarrow_ _
     ''     dim as string  * 9 f = *pw   fb_WstrAssignToA_Init( F, <encoded>, PW, -1ll )
     ''     dim as zstring * 9 z = *pw   fb_WstrAssignToA_Init( Z, 9ll,       PW,  0ll )
     ''     f = *pw                      fb_WstrAssignToA     ( F, <encoded>, PW, -1 )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, pad ) )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, pad ) )
     '' THE DECLARATION FORM IS A DIFFERENT FUNCTION, not a flag: fb_WstrAssignToA_Init
     '' where a later store takes fb_WstrAssignToA. Measured.
-    dim as long which = RTL_WSTR_ASSIGN_TOA
+    dim as int32 which = RTL_WSTR_ASSIGN_TOA
     if isInit then which = RTL_WSTR_TOA_INIT
     EmitRtl( c, which, args )
 end sub
@@ -502,15 +502,15 @@ end sub
 '' UDT FIELD has no frame slot, so 'k as string = wstr( "fOoBaR" )' had nowhere to
 '' write and declined.
 function LowerWideToNarrowSlot _
-    ( byref c as Ctx, byval slot as long, byval dt as Tko.TypeId, _
+    ( byref c as Ctx, byval slot as int32, byval dt as Tko.TypeId, _
       byval value as Tko.NodeId, byval isInit as boolean = false, _
       byval selfv as MirValue ptr = 0 ) as boolean
 
     if (slot < 0) andalso (selfv = 0) then return false
     if IsUStringType( c, dt ) then return false
     if ChainTouchesU_( c, value ) then return false
-    dim as longint dn = -1
-    dim as longint pad = 0
+    dim as int64 dn = -1
+    dim as int64 pad = 0
     if IsStringType( c, dt ) = false then
         '' A FIXED-LENGTH NARROW DESTINATION TAKES ITS OWN ELEMENT COUNT where a
         '' var-length one takes -1. Measured:
@@ -520,7 +520,7 @@ function LowerWideToNarrowSlot _
         ''
         '' Refusing anything but kind 1 left 'zstring * N' out, so the narrow
         '' fixed-string path took it, found no narrow source, and declined.
-        dim as long dk = StrSwapKind_( c, dt, dn )
+        dim as int32 dk = StrSwapKind_( c, dt, dn )
         if (dk <> 1) andalso (dk <> 3) then return false
         if dk = 3 then pad = -1
     end if
@@ -530,17 +530,17 @@ function LowerWideToNarrowSlot _
     '' The address is TRIED, and anything without one falls through to the temporary.
     dim as MirValue src
     if IsWideString_( c, c.info->TypeOf_( value ) ) then src = LowerAddr( c, value )
-    if src.kind = cast( ubyte, MV_NONE ) then
+    if src.kind = cast( uint8, MV_NONE ) then
         if NarrowDestWideSource_( c, value, src ) = false then return false
     end if
-    if src.kind = cast( ubyte, MV_NONE ) then return false
+    if src.kind = cast( uint8, MV_NONE ) then return false
 
     dim as MirValue dst
     if selfv <> 0 then
         dst = *selfv
     else
-        dst.kind = cast( ubyte, MV_LOCAL )
-        dst.ty = cast( ubyte, MT_PTR )
+        dst.kind = cast( uint8, MV_LOCAL )
+        dst.ty = cast( uint8, MT_PTR )
         dst.id = slot
     end if
     EmitWideToNarrow_( c, dst, dn, src, isInit, pad )
@@ -583,23 +583,23 @@ function LitHasUnicodeEscape_( byref c as Ctx, byval e as Tko.NodeId ) as boolea
     '' 's = W' stored the characters of the spelling (wstring/len.bas). WideLitUnits_'s rule.
     if (c.ast->Kind( e ) = Tko.N_IDENT) orelse (c.ast->Kind( e ) = Tko.N_MEMBER) then
         dim as Tko.Symbol ptr ucs = c.syms->SymbolAt( c.info->RefOf( e ) )
-        if (ucs = 0) orelse (ucs->kind <> cast( ubyte, Tko.SYM_CONSTANT )) orelse ((ucs->flags and Tko.SYMF_BUILTIN) <> 0) orelse (ucs->payload = 0) then return false
+        if (ucs = 0) orelse (ucs->kind <> cast( uint8, Tko.SYM_CONSTANT )) orelse ((ucs->flags and Tko.SYMF_BUILTIN) <> 0) orelse (ucs->payload = 0) then return false
         if c.ast->Kind( cast( Tko.NodeId, ucs->payload ) ) <> Tko.N_VAR_ITEM then return false
         return LitHasUnicodeEscape_( c, StmtOf( c, cast( Tko.NodeId, ucs->payload ) )->b )
     end if
     if c.ast->Kind( e ) <> Tko.N_STRING_LIT then return false
     dim as Tko.LiteralPayload ptr lp = _
-        @c.ast->literals[cast( long, c.ast->nodes[cast( long, e )].data )]
-    if lp->strKind <> cast( ubyte, Tko.STRK_ESCAPED ) then return false
+        @c.ast->literals[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+    if lp->strKind <> cast( uint8, Tko.STRK_ESCAPED ) then return false
     if lp->strLength < 2 then return false
     dim as Tko.SourceFile ptr f = c.srcMgr->FileAt( cast( Tko.FileId, lp->strFile ) )
     if f = 0 then return false
     if (lp->strOffset + lp->strLength) > f->text.Count then return false
     '' PAIR BY PAIR, so the 'u' after an escaped backslash is text -- see lowerstr.tiko.
-    dim as long k = 0
+    dim as int32 k = 0
     while k < lp->strLength - 1
         if f->text[lp->strOffset + k] = 92 then
-            dim as ubyte nx = f->text[lp->strOffset + k + 1]
+            dim as uint8 nx = f->text[lp->strOffset + k + 1]
             if (nx = asc( "u" )) orelse (nx = asc( "U" )) then return true
             k += 1
         end if
@@ -661,7 +661,7 @@ function ConcatHasWideTerm_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     '' (tests/mir/src/zstring-deref-arith.bas) already says the narrow case was
     '' fixed and its wide twin was not.
     dim as Tko.BinaryPayload ptr cbp = _
-        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, e )].data )]
+        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, e )].data )]
     if cast( Tko.TokenKind, cbp->op ) = Tko.TK_PLUS then
         '' A '+' CHECK TYPED AS A NUMBER is arithmetic: 'w + 1' over a 'byref as wstring' cast is its
         '' first character plus one (structpick.tiko CharRefCastPick), not a concatenation.
@@ -682,9 +682,9 @@ function ConcatHasWideTerm_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
         if (IsUdtValue_( c, cbp->lhs ) andalso rNum) orelse (IsUdtValue_( c, cbp->rhs ) andalso lNum) then arith = true
         if arith then return false
     end if
-    dim as containers.Array( of ulong ) vt
+    dim as containers.Array( of uint32 ) vt
     FlattenConcat( c, e, vt )
-    for k as long = 0 to vt.Count - 1
+    for k as int32 = 0 to vt.Count - 1
         if TermIsWide_( c, cast( Tko.NodeId, vt[k] ) ) orelse Utf8WideLit_( c, cast( Tko.NodeId, vt[k] ) ) then return true   '' a UTF-8 literal too
     next
     return false
@@ -703,12 +703,12 @@ function IntrinOverWideConcat_( byref c as Ctx, byval e as Tko.NodeId ) as boole
     if c.ast->Kind( e ) <> Tko.N_CALL then return false
     if CallsUserProcNamedLikeBuiltin( c, e ) then return false
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
     if lp->count < 1 then return false
     if lp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
     select case Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
     case "ucase", "lcase", "trim", "ltrim", "rtrim", "left", "right", "mid"
     case else
@@ -726,7 +726,7 @@ function IsWideChain_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     if IsUStringType( c, c.info->TypeOf_( e ) ) then return false
     if c.ast->Kind( e ) = Tko.N_CALL then return IntrinOverWideConcat_( c, e )
     if c.ast->Kind( e ) <> Tko.N_BINARY then return false
-    dim as containers.Array( of ulong ) at
+    dim as containers.Array( of uint32 ) at
     FlattenConcat( c, e, at )
     if (at.Count > 1) andalso ConcatTermsAreU_( c, at ) then return false
     return ConcatHasWideTerm_( c, e )
@@ -736,26 +736,26 @@ end function
 '' slot for deletion. Every result is an allocation the CALLER owns -- fbc emits an
 '' fb_WstrDelete for each -- so the slot goes on the statement-temporary list.
 function WideConcatStep_ _
-    ( byref c as Ctx, byref args as containers.Array( of ulong ), byval r as RtlId, _
+    ( byref c as Ctx, byref args as containers.Array( of uint32 ), byval r as RtlId, _
       byref acc as MirValue ) as boolean
 
     dim as MirValue got = EmitRtl( c, r, args )
-    if got.kind = cast( ubyte, MV_NONE ) then return false
-    dim as long slot = NewTempLocal( c, MT_PTR, c.types->target.pointerBits \ 8 )
+    if got.kind = cast( uint8, MV_NONE ) then return false
+    dim as int32 slot = NewTempLocal( c, MT_PTR, c.types->target.pointerBits \ 8 )
     if slot < 0 then return false
     dim as MirValue saddr
-    saddr.kind = cast( ubyte, MV_LOCAL )
-    saddr.ty = cast( ubyte, MT_PTR )
+    saddr.kind = cast( uint8, MV_LOCAL )
+    saddr.ty = cast( uint8, MT_PTR )
     saddr.id = slot
     dim as MirInst st
-    st.op = cast( ushort, M_STORE )
-    st.ty = cast( ubyte, MT_VOID )
+    st.op = cast( uint16, M_STORE )
+    st.ty = cast( uint8, MT_VOID )
     st.a = saddr
     st.b = got
     Emit( c, st )
-    c.wstrTemps.Push( cast( ulong, slot ) )
+    c.wstrTemps.Push( cast( uint32, slot ) )
     acc = LowerExprLoad( c, saddr, MT_PTR )
-    return (acc.kind <> cast( ubyte, MV_NONE ))
+    return (acc.kind <> cast( uint8, MV_NONE ))
 end function
 
 '' And the other way: a WIDE value as a NARROW descriptor, in a temporary of its own.
@@ -770,23 +770,23 @@ function WideToNarrowTemp_ _
 
     dim as MirValue src
     if WideOperand_( c, e, src ) = false then return false
-    dim as long slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+    dim as int32 slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
     if slot < 0 then return false
     dim as MirValue tmp
-    tmp.kind = cast( ubyte, MV_LOCAL )
-    tmp.ty = cast( ubyte, MT_PTR )
+    tmp.kind = cast( uint8, MV_LOCAL )
+    tmp.ty = cast( uint8, MT_PTR )
     tmp.id = slot
     ZeroStrDescriptor( c, tmp )
 
-    dim as containers.Array( of ulong ) args
-    args.Push( cast( ulong, tmp.kind ) ) : args.Push( cast( ulong, tmp.id ) )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, cast( ulongint, -1 ) ) )
-    args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    dim as containers.Array( of uint32 ) args
+    args.Push( cast( uint32, tmp.kind ) ) : args.Push( cast( uint32, tmp.id ) )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, cast( uint64, -1 ) ) )
+    args.Push( cast( uint32, src.kind ) ) : args.Push( cast( uint32, src.id ) )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )
     EmitRtl( c, RTL_WSTR_ASSIGN_TOA, args )
     '' fbc DOES delete this one -- unlike the concat temporary, which it leaves to the
     '' runtime -- so it goes on the statement's narrow temporary list.
-    c.strTemps.Push( cast( ulong, slot ) )
+    c.strTemps.Push( cast( uint32, slot ) )
     outv = tmp
     return true
 end function
@@ -842,10 +842,10 @@ function NumberToWideTemp_ _
     end if
 
     dim as MirValue av = LowerExpr( c, e )
-    if av.kind = cast( ubyte, MV_NONE ) then return false
+    if av.kind = cast( uint8, MV_NONE ) then return false
     av = CoerceTy( c, av, want, at)
-    dim as containers.Array( of ulong ) args
-    args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
+    dim as containers.Array( of uint32 ) args
+    args.Push( cast( uint32, av.kind ) ) : args.Push( cast( uint32, av.id ) )
     return WideConcatStep_( c, args, r, outv )
 end function
 
@@ -853,12 +853,12 @@ function NarrowToWideTemp_ _
     ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
 
     if UStrDataArg_( c, e, outv ) then return true   '' already UTF-16 -- see UStrDataArg_
-    dim as longint fzn
+    dim as int64 fzn
     if StrSwapKind_( c, c.info->TypeOf_( e ), fzn ) = 3 then return FixStrWideTemp_( c, e, fzn, outv )   '' 'string * N'
     dim as MirValue dp
     if ZstrDataOf_( c, e, dp ) = false then return false
-    dim as containers.Array( of ulong ) args
-    args.Push( cast( ulong, dp.kind ) ) : args.Push( cast( ulong, dp.id ) )
+    dim as containers.Array( of uint32 ) args
+    args.Push( cast( uint32, dp.kind ) ) : args.Push( cast( uint32, dp.id ) )
     return WideConcatStep_( c, args, RTL_STR_TO_WSTR, outv )
 end function
 
@@ -867,7 +867,7 @@ function WideConcatToTemp_ _
 
     if e = Tko.NODE_NONE then return false
     if c.ast->Kind( e ) <> Tko.N_BINARY then return false
-    dim as containers.Array( of ulong ) terms
+    dim as containers.Array( of uint32 ) terms
     FlattenConcat( c, e, terms )
     if terms.Count < 2 then return false
 
@@ -886,8 +886,8 @@ function WideConcatToTemp_ _
     '' NARROW entry point, not a wide literal. Nor is a NUMBER -- 'x & ", " & w' folds
     '' the narrow prefix with fb_IntToStr and fb_StrConcat first and only then goes
     '' wide, which is what makes the wstring PRINT files what they are.
-    dim as long wi = -1
-    for k as long = 0 to terms.Count - 1
+    dim as int32 wi = -1
+    for k as int32 = 0 to terms.Count - 1
         if TermIsWide_( c, cast( Tko.NodeId, terms[k] ) ) orelse Utf8WideLit_( c, cast( Tko.NodeId, terms[k] ) ) then   '' a UTF-8 literal is wide
             wi = k
             exit for
@@ -896,16 +896,16 @@ function WideConcatToTemp_ _
     if wi < 0 then return false
 
     dim as MirValue acc
-    dim as long start_ = 1
+    dim as int32 start_ = 1
     if wi > 0 then
         '' The narrow prefix, as one (pointer, length) pair: a single term goes
         '' straight in, several fold into a temporary descriptor first.
-        dim as containers.Array( of ulong ) args
+        dim as containers.Array( of uint32 ) args
         if wi = 1 then
             if EmitStrTerm( c, args, cast( Tko.NodeId, terms[0] ) ) = false then return false
         else
-            dim as containers.Array( of ulong ) pre
-            for k as long = 0 to wi - 1
+            dim as containers.Array( of uint32 ) pre
+            for k as int32 = 0 to wi - 1
                 pre.Push( terms[k] )
             next
             dim as MirValue pd
@@ -914,21 +914,21 @@ function WideConcatToTemp_ _
         end if
         dim as MirValue r
         if WideOperand_( c, cast( Tko.NodeId, terms[wi] ), r ) = false then return false
-        args.Push( cast( ulong, r.kind ) ) : args.Push( cast( ulong, r.id ) )
+        args.Push( cast( uint32, r.kind ) ) : args.Push( cast( uint32, r.id ) )
         if WideConcatStep_( c, args, RTL_WSTR_CONCAT_AW, acc ) = false then return false
         start_ = wi + 1
     else
         if WideOperand_( c, cast( Tko.NodeId, terms[0] ), acc ) = false then return false
     end if
 
-    for k as long = start_ to terms.Count - 1
-        dim as containers.Array( of ulong ) args
-        args.Push( cast( ulong, acc.kind ) ) : args.Push( cast( ulong, acc.id ) )
+    for k as int32 = start_ to terms.Count - 1
+        dim as containers.Array( of uint32 ) args
+        args.Push( cast( uint32, acc.kind ) ) : args.Push( cast( uint32, acc.id ) )
         dim as RtlId which = RTL_WSTR_CONCAT
         if TermIsWide_( c, cast( Tko.NodeId, terms[k] ) ) orelse Utf8WideLit_( c, cast( Tko.NodeId, terms[k] ) ) then
             dim as MirValue r
             if WideOperand_( c, cast( Tko.NodeId, terms[k] ), r ) = false then return false
-            args.Push( cast( ulong, r.kind ) ) : args.Push( cast( ulong, r.id ) )
+            args.Push( cast( uint32, r.kind ) ) : args.Push( cast( uint32, r.id ) )
         else
             if EmitStrTerm( c, args, cast( Tko.NodeId, terms[k] ) ) = false then return false
             which = RTL_WSTR_CONCAT_WA
@@ -937,7 +937,7 @@ function WideConcatToTemp_ _
     next
 
     outv = acc
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 
 
@@ -958,7 +958,7 @@ end function
 '' own wide literal for '!"A\n"' is L"A\\x000A".
 declare function WideLitUnits_ _
     ( byref c as Ctx, byval id as Tko.NodeId, _
-      byref outText as string, byref outUnits as containers.Array( of ulong ), byval keepNul as boolean = false ) as boolean
+      byref outText as string, byref outUnits as containers.Array( of uint32 ), byval keepNul as boolean = false ) as boolean
 
 '' A SOURCE LITERAL AS A WIDE GLOBAL, with its escapes decoded, and the CHARACTER
 '' COUNT that goes with it. Every site that turns an N_STRING_LIT into a wide
@@ -967,37 +967,37 @@ declare function WideLitUnits_ _
 ''
 '' Returns -1 when the node is not a literal this can read.
 function WideLitGlobal_ _
-    ( byref c as Ctx, byval id as Tko.NodeId, byref outChars as long ) as long
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outChars as int32 ) as int32
 
     outChars = 0
     dim as string wtext
-    dim as containers.Array( of ulong ) wunits
+    dim as containers.Array( of uint32 ) wunits
     if WideLitUnits_( c, id, wtext, wunits ) = false then return -1
-    outChars = cast( long, wunits.Count )
+    outChars = cast( int32, wunits.Count )
     return c.m->AddWideStringUnits( wtext, wunits, *c.names )
 end function
 
 '' THE CHARACTER COUNT of a literal (or a named constant over one) read as wide, without
 '' emitting a global: 'len( !"bcd\u0065" )' is 4 to fbc. -1 when it is not one.
-function WideLitChars_( byref c as Ctx, byval id as Tko.NodeId ) as long
+function WideLitChars_( byref c as Ctx, byval id as Tko.NodeId ) as int32
     dim as string wtext
-    dim as containers.Array( of ulong ) wunits
+    dim as containers.Array( of uint32 ) wunits
     if WideLitUnits_( c, id, wtext, wunits ) = false then return -1
-    return cast( long, wunits.Count )
+    return cast( int32, wunits.Count )
 end function
 
 '' ONE CODE UNIT of such a literal, 1-based as 'asc' counts, or 0 outside it.
-function WideLitUnitAt_( byref c as Ctx, byval id as Tko.NodeId, byval k as longint ) as long
+function WideLitUnitAt_( byref c as Ctx, byval id as Tko.NodeId, byval k as int64 ) as int32
     dim as string wtext
-    dim as containers.Array( of ulong ) wunits
+    dim as containers.Array( of uint32 ) wunits
     if WideLitUnits_( c, id, wtext, wunits, true ) = false then return 0
     if (k < 1) orelse (k > wunits.Count) then return 0
-    return cast( long, wunits[k - 1] )
+    return cast( int32, wunits[k - 1] )
 end function
 
 private function WideLitUnits_ _
     ( byref c as Ctx, byval id as Tko.NodeId, _
-      byref outText as string, byref outUnits as containers.Array( of ulong ), byval keepNul as boolean = false ) as boolean
+      byref outText as string, byref outUnits as containers.Array( of uint32 ), byval keepNul as boolean = false ) as boolean
 
     '' A NAMED CONSTANT IS ITS INITIALISER. 'const TV = wchr( 256, 257 )' then
     '' 'dim as wstring * 32 s = TV' -- only an N_STRING_LIT was read here, so the
@@ -1007,7 +1007,7 @@ private function WideLitUnits_ _
     if (c.ast->Kind( id ) = Tko.N_IDENT) orelse (c.ast->Kind( id ) = Tko.N_MEMBER) then
         dim as Tko.Symbol ptr wcs = c.syms->SymbolAt( c.info->RefOf( id ) )
         if wcs = 0 then return false
-        if wcs->kind <> cast( ubyte, Tko.SYM_CONSTANT ) then return false
+        if wcs->kind <> cast( uint8, Tko.SYM_CONSTANT ) then return false
         if (wcs->flags and Tko.SYMF_BUILTIN) <> 0 then return false
         if wcs->payload = 0 then return false
         dim as Tko.NodeId witem = cast( Tko.NodeId, wcs->payload )
@@ -1021,17 +1021,17 @@ private function WideLitUnits_ _
     '' it. wstring/wchr.bas is two of those.
     if c.ast->Kind( id ) = Tko.N_CALL then
         dim as Tko.ListPayload ptr wcp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         if wcp->target = Tko.NODE_NONE then return false
         if c.ast->Kind( wcp->target ) <> Tko.N_IDENT then return false
         dim as Tko.IdentPayload ptr wip = _
-            @c.ast->idents[cast( long, c.ast->nodes[cast( long, wcp->target )].data )]
+            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, wcp->target )].data )]
         if Tko.Text.LowerAscii( c.names->Spelling( wip->name ) ) <> "wchr" then
             return false
         end if
         if wcp->count < 1 then return false
         dim as string wkey = ""
-        for i as long = 0 to wcp->count - 1
+        for i as int32 = 0 to wcp->count - 1
             dim as Tko.NodeId wa = cast( Tko.NodeId, c.ast->children[wcp->first + i] )
             dim as Tko.Check.ConstVal wv = Tko.Check.ConstOf( _
                 *c.ast, wa, *c.srcMgr, *c.names, c.types->target.pointerBits, c.syms, iif( c.info->ScopeOf( id ) <> Tko.SCOPE_NONE, c.info->ScopeOf( id ), Tko.SCOPE_GLOBAL ) )
@@ -1040,14 +1040,14 @@ private function WideLitUnits_ _
             '' ABOVE THE BMP, A SURROGATE PAIR where wchar is two bytes: fbc folds 'wchr( &h10FFFF )' to
             '' &hDBFF &hDFFF (string/wchr-surrogate.bas); the runtime call truncated it to &hFFFF.
             if (wv.value > 65535) andalso (c.types->target.wcharBytes = 2) then
-                outUnits.Push( cast( ulong, &hD800 + ((wv.value - &h10000) shr 10) ) )
-                outUnits.Push( cast( ulong, &hDC00 + ((wv.value - &h10000) and &h3FF) ) )
+                outUnits.Push( cast( uint32, &hD800 + ((wv.value - &h10000) shr 10) ) )
+                outUnits.Push( cast( uint32, &hDC00 + ((wv.value - &h10000) and &h3FF) ) )
             else
-                outUnits.Push( cast( ulong, wv.value ) )
+                outUnits.Push( cast( uint32, wv.value ) )
             end if
             '' The MERGE KEY, and it has to separate two literals with different
             '' units -- AddWideStringUnits dedups on this text, not on the units.
-            wkey += "\u" & hex( cast( long, wv.value ), 4 )
+            wkey += "\u" & hex( cast( int32, wv.value ), 4 )
         next
         outText = wkey
         return true
@@ -1055,7 +1055,7 @@ private function WideLitUnits_ _
 
     if c.ast->Kind( id ) <> Tko.N_STRING_LIT then return false
     dim as Tko.LiteralPayload ptr lp = _
-        @c.ast->literals[cast( long, c.ast->nodes[cast( long, id )].data )]
+        @c.ast->literals[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if lp->strLength < 0 then return false
     dim as Tko.SourceFile ptr f = c.srcMgr->FileAt( cast( Tko.FileId, lp->strFile ) )
     if f = 0 then return false
@@ -1066,9 +1066,9 @@ private function WideLitUnits_ _
     '' The RAW body, with '""' collapsed to one quote -- the same first step the
     '' narrow reader takes, and for the same reason: the span is source.
     dim as string body = ""
-    dim as long k = 0
+    dim as int32 k = 0
     while k < lp->strLength
-        dim as ubyte ch = f->text[lp->strOffset + k]
+        dim as uint8 ch = f->text[lp->strOffset + k]
         body += chr( ch )
         if (ch = 34) andalso (k + 1 < lp->strLength) then
             if f->text[lp->strOffset + k + 1] = 34 then k += 1
@@ -1077,36 +1077,36 @@ private function WideLitUnits_ _
     wend
     outText = body
 
-    if lp->strKind <> cast( ubyte, Tko.STRK_ESCAPED ) then
+    if lp->strKind <> cast( uint8, Tko.STRK_ESCAPED ) then
         '' Not an escaped literal: every source CHARACTER is its own unit (or pair).
-        dim as long bi = 0
+        dim as int32 bi = 0
         while bi < len( body )
             PushSourceUnit_( c, u8, body, bi, outUnits )
         wend
         return true
     end if
 
-    dim as long p2 = 1
+    dim as int32 p2 = 1
     while p2 <= len( body )
         if asc( mid( body, p2, 1 ) ) <> 92 then
-            dim as long ci = p2 - 1
+            dim as int32 ci = p2 - 1
             PushSourceUnit_( c, u8, body, ci, outUnits )
             p2 = ci + 1
             continue while
         end if
-        dim as long nx = 0
+        dim as int32 nx = 0
         if p2 + 1 <= len( body ) then nx = asc( mid( body, p2 + 1, 1 ) )
         if (nx = asc( "u" )) orelse (nx = asc( "U" )) then
             '' EXACTLY FOUR HEX DIGITS. Fewer is not this escape, and reading a
             '' greedy run would swallow the text after it.
             '' ...OR EIGHT FOR '\U' -- 'U0001F0A1' -- which above the BMP is a SURROGATE PAIR where
             '' wchar is two bytes: fbc gives &hD83C &hDCA1 (wstring/unc.bas); tiko read four digits.
-            dim as long nd = iif( nx = asc( "U" ), 8, 4 )
+            dim as int32 nd = iif( nx = asc( "U" ), 8, 4 )
             if p2 + 1 + nd > len( body ) then return false
-            dim as long uv = 0
-            for d as long = 0 to nd - 1
-                dim as long hc = asc( mid( body, p2 + 2 + d, 1 ) )
-                dim as long dv = -1
+            dim as int32 uv = 0
+            for d as int32 = 0 to nd - 1
+                dim as int32 hc = asc( mid( body, p2 + 2 + d, 1 ) )
+                dim as int32 dv = -1
                 if (hc >= 48) andalso (hc <= 57) then dv = hc - 48
                 if (hc >= 97) andalso (hc <= 102) then dv = hc - 87
                 if (hc >= 65) andalso (hc <= 70) then dv = hc - 55
@@ -1114,30 +1114,30 @@ private function WideLitUnits_ _
                 uv = uv * 16 + dv
             next
             if (uv > 65535) andalso (c.types->target.wcharBytes = 2) then
-                outUnits.Push( cast( ulong, &hD800 + ((uv - &h10000) shr 10) ) ) : outUnits.Push( cast( ulong, &hDC00 + ((uv - &h10000) and &h3FF) ) )
+                outUnits.Push( cast( uint32, &hD800 + ((uv - &h10000) shr 10) ) ) : outUnits.Push( cast( uint32, &hDC00 + ((uv - &h10000) and &h3FF) ) )
             else
-                outUnits.Push( cast( ulong, uv ) )
+                outUnits.Push( cast( uint32, uv ) )
             end if
             p2 += 2 + nd
             continue while
         end if
-        dim as long bi = p2
-        dim as long bv = Tko.Text.EscapeByteAt( body, bi )
+        dim as int32 bi = p2
+        dim as int32 bv = Tko.Text.EscapeByteAt( body, bi )
         p2 = bi
         '' A NUL FROM A NUMERIC ESCAPE ENDS THE LITERAL, exactly as it does in the
         '' narrow reader -- measured there by running fbc's own output.
         if (bv = 0) andalso (keepNul = false) then exit while   '' ...except to fold 'asc', which reads past it
         if (bv = 0) andalso keepNul then outUnits.Push( 0 )
-        if bv > 0 then outUnits.Push( cast( ulong, bv ) )
+        if bv > 0 then outUnits.Push( cast( uint32, bv ) )
     wend
     return true
 end function
 
 '' A WIDE CONSTANT'S CODE-UNIT COUNT -- a literal, a constant, 'wstr( "cd" )' -- or -1 when
 '' the operand has no constant text. PUT of a wide rvalue passes it, plus one (lowergetput).
-function WideConstUnitCount_( byref c as Ctx, byval id as Tko.NodeId ) as long
+function WideConstUnitCount_( byref c as Ctx, byval id as Tko.NodeId ) as int32
     dim as string wt
-    dim as containers.Array( of ulong ) wu
+    dim as containers.Array( of uint32 ) wu
     if WideLitUnits_( c, Unparen_( c, id ), wt, wu ) then return wu.Count
     '' 'wstr( "cd" )' folds to its operand's text (ConstStringTextOf_), one unit per character.
     dim as string nt
@@ -1159,7 +1159,7 @@ function WideOperand_ _
         if (wip->extra and 8) <> 0 then
             if cast( Tko.TokenKind, wip->op ) = Tko.KW_WINPUT then
                 dim as MirValue wiv = LowerExpr( c, id )
-                if wiv.kind <> cast( ubyte, MV_NONE ) then
+                if wiv.kind <> cast( uint8, MV_NONE ) then
                     outv = wiv
                     return true
                 end if
@@ -1173,10 +1173,10 @@ function WideOperand_ _
     '' runtime -- so it takes the wide literal pool the DATA statement already uses.
     if c.ast->Kind( id ) = Tko.N_STRING_LIT then
         dim as string wtext
-        dim as containers.Array( of ulong ) wunits
+        dim as containers.Array( of uint32 ) wunits
         if WideLitUnits_( c, id, wtext, wunits ) = false then return false
-        outv.kind = cast( ubyte, MV_GLOBAL )
-        outv.ty = cast( ubyte, MT_PTR )
+        outv.kind = cast( uint8, MV_GLOBAL )
+        outv.ty = cast( uint8, MT_PTR )
         outv.id = c.m->AddWideStringUnits( wtext, wunits, *c.names )
         return true
     end if
@@ -1192,18 +1192,18 @@ function WideOperand_ _
             '' declined there, taking the assignment with it. WideLitUnits_ reads
             '' the constant's initialiser and hands back real code units.
             dim as string wut
-            dim as containers.Array( of ulong ) wuu
+            dim as containers.Array( of uint32 ) wuu
             if WideLitUnits_( c, id, wut, wuu ) then
-                outv.kind = cast( ubyte, MV_GLOBAL )
-                outv.ty = cast( ubyte, MT_PTR )
+                outv.kind = cast( uint8, MV_GLOBAL )
+                outv.ty = cast( uint8, MT_PTR )
                 outv.id = c.m->AddWideStringUnits( wut, wuu, *c.names )
                 return true
             end if
             dim as string wct
             if ConstStringTextOf_( c, id, wct ) then
-                outv.kind = cast( ubyte, MV_GLOBAL )
-                outv.ty = cast( ubyte, MT_PTR )
-                dim as long wcc = 0
+                outv.kind = cast( uint8, MV_GLOBAL )
+                outv.ty = cast( uint8, MT_PTR )
+                dim as int32 wcc = 0
                 outv.id = WideFoldedText_( c, id, wct, wcc )
                 return true
             end if
@@ -1217,7 +1217,7 @@ function WideOperand_ _
 
     if IsWideString_( c, c.info->TypeOf_( id ) ) then
         outv = LowerAddr( c, id )
-        if outv.kind <> cast( ubyte, MV_NONE ) then return true
+        if outv.kind <> cast( uint8, MV_NONE ) then return true
     end if
     if (CallsUserProcNamedLikeBuiltin( c, id ) = false) andalso LowerWstrOf( c, id, outv ) then return true
     '' 'whex( x )', 'woct', 'wbin' -- the WIDE half of the radix family, whose result is
@@ -1258,7 +1258,7 @@ function WideOperand_ _
     '' above never saw it -- it asks about the call's own type.
     if IsStrCall_( c, id ) then
         dim as Tko.ListPayload ptr sclp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         if sclp->count = 1 then
             dim as Tko.NodeId sca = cast( Tko.NodeId, c.ast->children[sclp->first] )
             if UserCastToWide_( c, sca, outv ) then return true
@@ -1292,11 +1292,11 @@ function LowerWideRvalueB_ _
 
     if c.ast->Kind( value ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, value )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, value )].data )]
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
     dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
     if cp->count < 1 then return false
 
@@ -1313,22 +1313,22 @@ function LowerWideRvalueB_ _
         '' global.
         '' THE FOLD IS WideLitUnits_'s, surrogate pairs above the BMP included (string/wchr-surrogate.bas).
         dim as string wtx
-        dim as containers.Array( of ulong ) wus
+        dim as containers.Array( of uint32 ) wus
         if WideLitUnits_( c, value, wtx, wus ) then
-            outv.kind = cast( ubyte, MV_GLOBAL ) : outv.ty = cast( ubyte, MT_PTR )
+            outv.kind = cast( uint8, MV_GLOBAL ) : outv.ty = cast( uint8, MT_PTR )
             outv.id = c.m->AddWideStringUnits( wtx, wus, *c.names )
             return true
         end if
-        dim as containers.Array( of ulong ) wca
-        wca.Push( cast( ulong, MV_CONST_INT ) ) : wca.Push( cast( ulong, cp->count ) )
-        for i as long = 0 to cp->count - 1
+        dim as containers.Array( of uint32 ) wca
+        wca.Push( cast( uint32, MV_CONST_INT ) ) : wca.Push( cast( uint32, cp->count ) )
+        for i as int32 = 0 to cp->count - 1
             dim as Tko.NodeId ai = cast( Tko.NodeId, c.ast->children[cp->first + i] )
             dim as MirValue av = LowerNumArg_( c, ai, MT_I64 )
-            if av.kind = cast( ubyte, MV_NONE ) then return false
-            wca.Push( cast( ulong, av.kind ) ) : wca.Push( cast( ulong, av.id ) )
+            if av.kind = cast( uint8, MV_NONE ) then return false
+            wca.Push( cast( uint32, av.kind ) ) : wca.Push( cast( uint32, av.id ) )
         next
         outv = EmitRtl( c, RTL_WSTR_CHR, wca )
-        return (outv.kind <> cast( ubyte, MV_NONE ))
+        return (outv.kind <> cast( uint8, MV_NONE ))
     end if
 
     '' 'wspace( n )' -- THE WIDE TWIN OF SPACE. fb_WstrSpace was in the runtime table
@@ -1343,9 +1343,9 @@ function LowerWideRvalueB_ _
         if cp->count <> 1 then return false
         dim as Tko.NodeId sn = cast( Tko.NodeId, c.ast->children[cp->first] )
         dim as MirValue nv = LowerNumArg_( c, sn, MT_I64 )   '' a UDT through its numeric cast
-        if nv.kind = cast( ubyte, MV_NONE ) then return false
-        dim as containers.Array( of ulong ) sa
-        sa.Push( cast( ulong, nv.kind ) ) : sa.Push( cast( ulong, nv.id ) )
+        if nv.kind = cast( uint8, MV_NONE ) then return false
+        dim as containers.Array( of uint32 ) sa
+        sa.Push( cast( uint32, nv.kind ) ) : sa.Push( cast( uint32, nv.id ) )
         return WideConcatStep_( c, sa, RTL_WSTR_SPACE, outv )
     end if
 
@@ -1367,7 +1367,7 @@ function LowerWideRvalueB_ _
         a1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
         if c.ast->Kind( a1 ) = Tko.N_UNARY then
             dim as Tko.UnaryPayload ptr up = _
-                @c.ast->unaries[cast( long, c.ast->nodes[cast( long, a1 )].data )]
+                @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, a1 )].data )]
             if cast( Tko.TokenKind, up->op ) = Tko.KW_ANY then
                 isAny = true
                 a1 = up->operand
@@ -1430,8 +1430,8 @@ function LowerWideRvalueB_ _
     end select
     if isAny andalso (secondIsWide = false) then return false
 
-    dim as containers.Array( of ulong ) args
-    args.Push( cast( ulong, s0.kind ) ) : args.Push( cast( ulong, s0.id ) )
+    dim as containers.Array( of uint32 ) args
+    args.Push( cast( uint32, s0.kind ) ) : args.Push( cast( uint32, s0.id ) )
 
     if a1 <> Tko.NODE_NONE then
         if secondIsWide then
@@ -1439,17 +1439,17 @@ function LowerWideRvalueB_ _
             if WideOperand_( c, a1, s1 ) = false then   '' a NARROW trim set -- 'rtrim( dws, chr( 32 ) )' -- is fb_StrToWstr'd, measured
                 if NarrowToWideTemp_( c, a1, s1 ) = false then return false
             end if
-            args.Push( cast( ulong, s1.kind ) ) : args.Push( cast( ulong, s1.id ) )
+            args.Push( cast( uint32, s1.kind ) ) : args.Push( cast( uint32, s1.id ) )
         else
             '' left/right/mid take a 64-bit COUNT; the source expression is whatever
             '' integer width the program used, so it is widened here. The case mode
             '' is an int32 instead, which is the width fbc declares.
             dim as MirValue n1 = LowerExprN_( c, a1 )
-            if n1.kind = cast( ubyte, MV_NONE ) then return false
+            if n1.kind = cast( uint8, MV_NONE ) then return false
             dim as MirType nw = MT_I64
             if secondIsMode then nw = MT_I32
             n1 = CoerceTy( c, n1, nw, NumSrcType_( c, a1 ))
-            args.Push( cast( ulong, n1.kind ) ) : args.Push( cast( ulong, n1.id ) )
+            args.Push( cast( uint32, n1.kind ) ) : args.Push( cast( uint32, n1.id ) )
         end if
     end if
 
@@ -1459,15 +1459,15 @@ function LowerWideRvalueB_ _
         if cp->count = 3 then
             dim as Tko.NodeId a2 = cast( Tko.NodeId, c.ast->children[cp->first + 2] )
             dim as MirValue n2 = LowerNumArg_( c, a2, MT_I64 )
-            if n2.kind = cast( ubyte, MV_NONE ) then return false
-            args.Push( cast( ulong, n2.kind ) ) : args.Push( cast( ulong, n2.id ) )
+            if n2.kind = cast( uint8, MV_NONE ) then return false
+            args.Push( cast( uint32, n2.kind ) ) : args.Push( cast( uint32, n2.id ) )
         else
-            args.Push( cast( ulong, MV_CONST_INT ) )
-            args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+            args.Push( cast( uint32, MV_CONST_INT ) )
+            args.Push( cast( uint32, cast( uint64, -1 ) ) )
         end if
     elseif secondIsMode andalso (a1 = Tko.NODE_NONE) then
         '' The trailing int32 is the case mode, 0 when the call omits it.
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+        args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )
     end if
 
     '' THROUGH WideConcatStep_, WHICH REGISTERS THE RESULT FOR ITS fb_WstrDelete.

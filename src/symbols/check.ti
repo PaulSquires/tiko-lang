@@ -34,19 +34,19 @@
 namespace Tko.Check
 
     type Stats
-        as long typed          '' expressions given a type
-        as long untyped        '' reached, but no type could be determined
-        as long badOperands    '' operand combinations fbc would reject
-        as long callsResolved  '' calls bound to one overload
-        as long callsAmbiguous '' calls with no single best candidate
+        as int32 typed          '' expressions given a type
+        as int32 untyped        '' reached, but no type could be determined
+        as int32 badOperands    '' operand combinations fbc would reject
+        as int32 callsResolved  '' calls bound to one overload
+        as int32 callsAmbiguous '' calls with no single best candidate
         '' ONE UNTYPED ARGUMENT DECLINES THE WHOLE STATEMENT: the call is undecidable,
         '' so the callee never binds, so lowering has nothing to emit. Counting the
         '' argument's node KIND turns "some expression is missing" into a list of
         '' expression forms to implement, which is how PROCPTR was found.
-        as containers.Array( of long ) argUntypedKind
+        as containers.Array( of int32 ) argUntypedKind
         '' ... and the NAME at that leaf, when it has one. A kind says which shape is
         '' missing; the name says which one to write.
-        as containers.Array( of ulong ) argUntypedNames
+        as containers.Array( of uint32 ) argUntypedNames
     end type
 
     '' What one argument costs to pass to one parameter. Lower is better; CONV_NONE
@@ -60,12 +60,12 @@ namespace Tko.Check
     '' the ORDER is absolute: staying in the class beats changing it, widening beats
     '' narrowing, and only then does width distance decide. Each of those was forced
     '' by a measured row that a gentler separation got wrong.
-    const CONV_EXACT    as long = 0
-    const CONV_WIDEN    as long = 100      '' same class, no loss
-    const CONV_NARROW   as long = 1000     '' same class, lossy -- always dearer than
+    const CONV_EXACT    as int32 = 0
+    const CONV_WIDEN    as int32 = 100      '' same class, no loss
+    const CONV_NARROW   as int32 = 1000     '' same class, lossy -- always dearer than
                                            '' any widening, however far
-    const CONV_CLASS    as long = 5000     '' integer <-> float
-    const CONV_BOOL     as long = 20000    '' anything <-> boolean
+    const CONV_CLASS    as int32 = 5000     '' integer <-> float
+    const CONV_BOOL     as int32 = 20000    '' anything <-> boolean
     '' EVERY NUMERIC CONVERSION ALSO PAYS CONV_NUMERIC, and it matters only once there is
     '' more than one argument. fbc scores an argument FULL when it matches exactly and
     '' HALF less a closeness rank when it converts, and the gap between the two is wider
@@ -75,18 +75,18 @@ namespace Tko.Check
     '' -- '-5L' is an INTEGER -- chose the LONGINT overload of fb/mathint.bi where fbc
     '' chose LONG. Added uniformly, it changes no single-argument order: every numeric
     '' conversion stays below CONV_BOOL, CONV_PTR_CLASS and CONV_USERDEF.
-    const CONV_NUMERIC  as long = 10000
+    const CONV_NUMERIC  as int32 = 10000
     '' A USER-DEFINED CONVERSION -- a conversion constructor on the destination, or an
     '' 'operator cast' on the source. Above every standard conversion and below
     '' CONV_NONE, and the standard conversion that follows it is ADDED rather than
     '' swallowed: measured, offered 'h( integer )' and 'h( double )' against a UDT that
     '' casts to integer, fbc picks the DOUBLE overload, so the second step still ranks.
-    const CONV_USERDEF  as long = 200000
-    const CONV_NONE     as long = 999999
+    const CONV_USERDEF  as int32 = 200000
+    const CONV_NONE     as int32 = 999999
     '' A TYPED VARIADIC'S EXPANSION, added once to a candidate that PACKS its arguments, so one
     '' that matches without packing always wins (docs/tiko-params/RFC-0001). Above CONV_NONE on
     '' purpose: it is added to a viable total, never compared with a single conversion.
-    const CONV_EXPANDED as long = 5000000
+    const CONV_EXPANDED as int32 = 5000000
 
     '' The POINTER tiers, measured in tests/types/expected/fbc-ptr.txt.
     ''
@@ -104,9 +104,9 @@ namespace Tko.Check
     '' non-const T and must LOSE to an exact non-const overload when there is one:
     '' measured, offered { const T1, T1 } a non-const argument takes T1 and a CONST
     '' argument takes const T1, while offered only { const T1 } both take it.
-    const CONV_CONST_ADD as long = 1
-    const CONV_UDT_BASE  as long = 100
-    const CONV_UDT_LINK  as long = 2
+    const CONV_CONST_ADD as int32 = 1
+    const CONV_UDT_BASE  as int32 = 100
+    const CONV_UDT_LINK  as int32 = 2
     '' ...BUT A UDT WHOSE CONST IS ADDED IS ONE TIER DOWN, as fbc scores any same-type
     '' match whose CONST differs: below EVERY derived-to-base conversion, whatever the
     '' depth (CONV_UDT_BASE + 30 links is 160), and above 'any ptr'. Measured: a T2
@@ -116,17 +116,17 @@ namespace Tko.Check
     '' tier plus one per link, so { const T2, const T1 } still takes const T2. For a
     '' non-UDT the step stays CONV_CONST_ADD: every numeric conversion is below fbc's
     '' demoted tier anyway, and a string has its own (CONV_STR_CONST_COPY).
-    const CONV_UDT_CONST_ADD as long = 165
-    const CONV_PTR_ANY   as long = 200
-    const CONV_PTR_NEAR  as long = 250
-    const CONV_PTR_OTHER as long = 400
+    const CONV_UDT_CONST_ADD as int32 = 165
+    const CONV_PTR_ANY   as int32 = 200
+    const CONV_PTR_NEAR  as int32 = 250
+    const CONV_PTR_OTHER as int32 = 400
 
     '' A string converts to a pointer of its OWN string kind more cheaply than to
     '' 'string' itself, and to the other kind more dearly: a literal (which is
     '' ZSTRING * n) offered 'zstring ptr' and 'string' takes the pointer, while a
     '' STRING variable offered the same pair takes string.
-    const CONV_STRPTR_SAME  as long = 50
-    const CONV_STRPTR_OTHER as long = 150
+    const CONV_STRPTR_SAME  as int32 = 50
+    const CONV_STRPTR_OTHER as int32 = 150
 
     '' fbc's TIERS, for a var-len STRING argument, where they matter. From its tables
     '' (symb-proc.bas) and measured pair by pair: 'string' exact, then 'zstring' and
@@ -137,15 +137,15 @@ namespace Tko.Check
     '' offered { byref const string, zstring ptr } takes zstring ptr, offered { byref
     '' const string, ustring } takes const string, and offered { ustring, zstring ptr }
     '' takes zstring ptr.
-    const CONV_STR_CONST_COPY  as long = CONV_STRPTR_OTHER + 5
-    const CONV_STR_TO_USTR     as long = CONV_STRPTR_OTHER + 6
-    const CONV_STR_TO_WSTR     as long = CONV_STRPTR_OTHER + 7
+    const CONV_STR_CONST_COPY  as int32 = CONV_STRPTR_OTHER + 5
+    const CONV_STR_TO_USTR     as int32 = CONV_STRPTR_OTHER + 6
+    const CONV_STR_TO_WSTR     as int32 = CONV_STRPTR_OTHER + 7
 
     '' pointer <-> a pointer-sized integer. Dearer than the BOOLEAN tier because it
     '' loses to it: an INTEGER argument offered 'any ptr' and 'boolean' takes boolean,
     '' and a pointer argument offered 'any ptr' and 'integer' takes any ptr. Staying
     '' in the class wins on both sides.
-    const CONV_PTR_CLASS as long = 50000
+    const CONV_PTR_CLASS as int32 = 50000
 
     '' 'overloaded' says whether more than one candidate is in play, because fbc asks
     '' two DIFFERENT questions and the answers differ. Called on its own, a procedure
@@ -169,7 +169,7 @@ namespace Tko.Check
         ( byref ast as Tko.AstArena, byref names as Tko.Interner, _
           byref src as Tko.SourceManager, byref diags as Tko.DiagnosticEngine, _
           byref info as Tko.SemanticInfo, byref rst as Tko.Resolve.Stats, _
-          byref reserved as containers.Array( of ulong ), byref syms as Tko.SymbolTable, _
+          byref reserved as containers.Array( of uint32 ), byref syms as Tko.SymbolTable, _
           byval isRtl as RtlNameFn )
 
     '' The global 'operator ->' for a UDT and what it hands back. Both layers need
@@ -178,7 +178,7 @@ namespace Tko.Check
     '' How good a numeric 'operator cast' is, for choosing among several. See the
     '' definition -- the ordering is measured and is not width.
     declare function NumericCastRank _
-        ( byref types as Tko.TypeContext, byval t as Tko.TypeId ) as long
+        ( byref types as Tko.TypeContext, byval t as Tko.TypeId ) as int32
     declare function ArrowOperatorFor _
         ( byref types as Tko.TypeContext, byref syms as Tko.SymbolTable, _
           byref names as Tko.Interner, byref ast as Tko.AstArena, _
@@ -189,7 +189,7 @@ namespace Tko.Check
     declare function ConversionCost _
         ( byval from_ as Tko.TypeId, byval to_ as Tko.TypeId, _
           byref types as Tko.TypeContext, _
-          byval overloaded as boolean = false ) as long
+          byval overloaded as boolean = false ) as int32
 
     '' WHICH CONSTRUCTOR OR 'let' -- one resolver for Check and lowering (structpick.tiko).
     declare function StructorNamed _
@@ -198,7 +198,7 @@ namespace Tko.Check
     declare function StructorUserConvCost _
         ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
           byref names as Tko.Interner, byref info as Tko.SemanticInfo, _
-          byval at as Tko.TypeId, byval pt as Tko.TypeId ) as long
+          byval at as Tko.TypeId, byval pt as Tko.TypeId ) as int32
     declare function StringSameWidth _
         ( byref types as Tko.TypeContext, byval a as Tko.TypeId, byval b as Tko.TypeId ) as boolean
     declare function CopyStructorOf _
@@ -208,7 +208,7 @@ namespace Tko.Check
     declare function PtrCastReaches( byref types as Tko.TypeContext, byval res as Tko.TypeId, byval dst as Tko.TypeId ) as boolean
     declare function StructorCastCost _
         ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
-          byref names as Tko.Interner, byval at as Tko.TypeId, byval pt as Tko.TypeId ) as long
+          byref names as Tko.Interner, byval at as Tko.TypeId, byval pt as Tko.TypeId ) as int32
     declare function UdtHasStrCast _
         ( byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
           byref names as Tko.Interner, byval udt as Tko.TypeId ) as boolean
@@ -217,7 +217,7 @@ namespace Tko.Check
           byref names as Tko.Interner, byval udt as Tko.TypeId, byref charType as Tko.TypeId ) as Tko.SymbolId
     declare function PtrCastFit _
         ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
-          byref names as Tko.Interner, byval udt as Tko.TypeId, byval want as Tko.TypeId ) as long
+          byref names as Tko.Interner, byval udt as Tko.TypeId, byval want as Tko.TypeId ) as int32
     declare function PtrCastPick _
         ( byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, byref names as Tko.Interner, _
           byval udt as Tko.TypeId, byval want as Tko.TypeId ) as Tko.SymbolId
@@ -227,8 +227,8 @@ namespace Tko.Check
     declare function PickStructor _
         ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
           byref names as Tko.Interner, byref info as Tko.SemanticInfo, _
-          byval first_ as Tko.SymbolId, byref argT as containers.Array( of ulong ), _
-          byval tiesOut as long ptr = 0 ) as Tko.SymbolId
+          byval first_ as Tko.SymbolId, byref argT as containers.Array( of uint32 ), _
+          byval tiesOut as int32 ptr = 0 ) as Tko.SymbolId
 
     '' WHICH 'operator cast' A STRING CONTEXT CALLS -- one rule, scored as fbc scores it
     '' (castpick.tiko). CR_*: what a cast yields; CT_*: the target a context asks with;
@@ -239,20 +239,20 @@ namespace Tko.Check
     const CP_OK = 0, CP_NONE = 1, CP_AMBIGUOUS = 2, CP_NOCONV = 3
     declare function CastResultClass _
         ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
-          byval sym as Tko.SymbolId ) as long
-    declare function StrCastScore( byval target as long, byval cls as long ) as long
+          byval sym as Tko.SymbolId ) as int32
+    declare function StrCastScore( byval target as int32, byval cls as int32 ) as int32
     declare function UdtStrCastFit _
         ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
-          byref names as Tko.Interner, byval udt as Tko.TypeId, byval target as long ) as long
-    declare function LitClassBuiltin( byref types as Tko.TypeContext, byval lc as long ) as Tko.TypeId   '' check.tiko, over lexer/littype.tiko
+          byref names as Tko.Interner, byval udt as Tko.TypeId, byval target as int32 ) as int32
+    declare function LitClassBuiltin( byref types as Tko.TypeContext, byval lc as int32 ) as Tko.TypeId   '' check.tiko, over lexer/littype.tiko
     declare function IntrStrOvlPick _
         ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
           byref names as Tko.Interner, byval udt as Tko.TypeId, byval withUStr as boolean, _
-          byref outcome as long, byref outParam as long ) as Tko.SymbolId
+          byref outcome as int32, byref outParam as int32 ) as Tko.SymbolId
     declare function StrCastPick _
         ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
-          byref names as Tko.Interner, byval udt as Tko.TypeId, byval target as long, _
-          byref outcome as long, byref winCls as long ) as Tko.SymbolId
+          byref names as Tko.Interner, byval udt as Tko.TypeId, byval target as int32, _
+          byref outcome as int32, byref winCls as int32 ) as Tko.SymbolId
 
     '' Whether 'target = source' is allowed, and whether fbc warns about it.
     '' Assignment legality is a DIFFERENT question from binary promotion and does not
@@ -269,12 +269,12 @@ namespace Tko.Check
     '' which is not an error, only an absence.
     type ConstVal
         as boolean  known
-        as longint  value
+        as int64  value
         '' The WIDTH the value was folded at, 32 or 64. Not decoration: on win32
         '' 'integer' is four bytes, so '1 shl 31' is -2147483648 there and 2147483648
         '' here, and '&hFFFFFFFF' is -1 rather than 4294967295. Carried per sub-
         '' expression because a binary operator folds at the WIDER of its operands.
-        as long     bits
+        as int32     bits
         '' UNSIGNED, from a 'u', 'ul' or 'ull' suffix and inherited by any operator
         '' with an unsigned operand. It changes COMPARISONS and nothing else: without
         '' it '&hFFFFFFFFFFFFFFFFull > 0' folded as -1 > 0 and came out FALSE, which
@@ -289,13 +289,13 @@ namespace Tko.Check
     '' 255 to fbc and was -1 here. Pointers and proc types are returned unchanged.
     declare function ClampConstToTypeRef _
         ( byref ast as Tko.AstArena, byval tref as Tko.NodeId, _
-          byref v as ConstVal, byval intBits as long ) as ConstVal
+          byref v as ConstVal, byval intBits as int32 ) as ConstVal
 
     '' 'names' is OPTIONAL and enables one thing: folding an exact INTRINSIC over a
     '' constant ('abs( 42.3 )'), whose name has to be spelled to be recognised.
     declare function ConstFloatOf _
-        ( byref ast as Tko.AstArena, byval id as Tko.NodeId, byref outd as double, _
-          byval depth as long = 0, byval syms as Tko.SymbolTable ptr = 0, _
+        ( byref ast as Tko.AstArena, byval id as Tko.NodeId, byref outd as float64, _
+          byval depth as int32 = 0, byval syms as Tko.SymbolTable ptr = 0, _
           byval scope_ as Tko.ScopeId = 0, byval names as Tko.Interner ptr = 0 ) as boolean
 
     '' Fold an expression to an integer constant, matching fbc bit for bit. The
@@ -319,8 +319,8 @@ namespace Tko.Check
     declare function ConstOf _
         ( byref ast as Tko.AstArena, byval id as Tko.NodeId, _
           byref src as Tko.SourceManager, byref names as Tko.Interner, _
-          byval intBits as long = 64, byval syms as Tko.SymbolTable ptr = 0, _
-          byval scope_ as Tko.ScopeId = 0, byval depth as long = 0, _
+          byval intBits as int32 = 64, byval syms as Tko.SymbolTable ptr = 0, _
+          byval scope_ as Tko.ScopeId = 0, byval depth as int32 = 0, _
           byval types as Tko.TypeContext ptr = 0, _
           byval info as Tko.SemanticInfo ptr = 0 ) as ConstVal
 
@@ -337,7 +337,7 @@ namespace Tko.Check
         ( byref ast as Tko.AstArena, byval root as Tko.NodeId, _
           byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
           byref names as Tko.Interner, byref diags as Tko.DiagnosticEngine, _
-          byref info as Tko.SemanticInfo, byref st as Stats ) as long
+          byref info as Tko.SemanticInfo, byref st as Stats ) as int32
 
     '' A LITERAL FORMAT STRING passed to std/strings' Format -- or any procedure taking a
     '' strings.FormatString and a typed variadic of strings.FormatArg -- checked against its

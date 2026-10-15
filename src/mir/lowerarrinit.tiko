@@ -7,8 +7,8 @@
 
 namespace Tko.Mir
 declare function ArrayStrides _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref strides as containers.Array( of longint ), _
-      byref bias as longint ) as boolean
+    ( byref c as Ctx, byval t as Tko.TypeId, byref strides as containers.Array( of int64 ), _
+      byref bias as int64 ) as boolean
 
 '' A BRACE INITIALISER over a fixed-size array: 'dim a(0 to 2) as integer = { 1, 2, 3 }'.
 '' Returns false when this is not one, so the caller falls back to an ordinary store.
@@ -21,20 +21,20 @@ declare function ArrayStrides _
 '' A brace list SHORTER than the array leaves the rest alone, which is what fbc's own
 '' output does; a longer one stops at the array's length rather than writing past it.
 declare function StrSwapKind_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as int64 ) as int32
 
 declare function LowerFixStrArrayInit_ _
-    ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
-      byval init as Tko.NodeId, byval n as longint, byval isU as boolean, _
+    ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
+      byval init as Tko.NodeId, byval n as int64, byval isU as boolean, _
       byval selfv as MirValue ptr = 0, byval isW as boolean = false ) as boolean
 
 declare sub FlattenInitLeaves_ _
     ( byref c as Ctx, byval init as Tko.NodeId, _
-      byref outv as containers.Array( of ulong ) )
+      byref outv as containers.Array( of uint32 ) )
 
 
 declare function LowerStrArrayInit_ _
-    ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+    ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
       byval init as Tko.NodeId, byval selfv as MirValue ptr = 0, _
       byval isU as boolean = false ) as boolean
 
@@ -43,16 +43,16 @@ declare function LowerStrArrayInit_ _
 '' '{ {1,2,3}, {4,5,6} }' six integers laid out end to end.
 sub FlattenInitLeaves_ _
     ( byref c as Ctx, byval init as Tko.NodeId, _
-      byref outv as containers.Array( of ulong ) )
+      byref outv as containers.Array( of uint32 ) )
 
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
-    for i as long = 0 to lp->count - 1
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init )].data )]
+    for i as int32 = 0 to lp->count - 1
         dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[lp->first + i] )
         if c.ast->Kind( e ) = Tko.N_INITIALIZER then
             FlattenInitLeaves_( c, e, outv )
         else
-            outv.Push( cast( ulong, e ) )
+            outv.Push( cast( uint32, e ) )
         end if
     next
 end sub
@@ -60,18 +60,18 @@ end sub
 '' ONE NESTING LEVEL OF A MULTI-DIMENSIONAL INITIALISER: each child's ELEMENT INDEX, from the
 '' dimension's stride -- a row shorter than its dimension leaves the rest of the row alone.
 private function ArrayLeafWalk_ _
-    ( byref c as Ctx, byval lst as Tko.NodeId, byval d as long, byval rank as long, _
-      byval ext as long ptr, byval strd as long ptr, byval base_ as long, _
-      byref leaves as containers.Array( of ulong ), byref idx as containers.Array( of ulong ) ) as boolean
+    ( byref c as Ctx, byval lst as Tko.NodeId, byval d as int32, byval rank as int32, _
+      byval ext as int32 ptr, byval strd as int32 ptr, byval base_ as int32, _
+      byref leaves as containers.Array( of uint32 ), byref idx as containers.Array( of uint32 ) ) as boolean
     if c.ast->Kind( lst ) <> Tko.N_INITIALIZER then return false
-    dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, lst )].data )]
+    dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, lst )].data )]
     if lp->count > ext[d] then return false
-    for j as long = 0 to lp->count - 1
+    for j as int32 = 0 to lp->count - 1
         dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[lp->first + j] )
         if d < rank - 1 then
             if ArrayLeafWalk_( c, e, d + 1, rank, ext, strd, base_ + j * strd[d], leaves, idx ) = false then return false
         else
-            leaves.Push( cast( ulong, e ) ) : idx.Push( cast( ulong, base_ + j ) )
+            leaves.Push( cast( uint32, e ) ) : idx.Push( cast( uint32, base_ + j ) )
         end if
     next
     return true
@@ -83,24 +83,24 @@ end function
 '' dimension, unknown bounds or a flat list: positional, as before.
 sub ArrayInitLeaves_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId, _
-      byref leaves as containers.Array( of ulong ), byref idx as containers.Array( of ulong ) )
-    dim as long rank = 0
-    if c.types->Kind( t ) = Tko.TK_ARRAY then rank = c.types->types[cast( long, t )].dims
-    dim as long ext( 0 to 7 ), strd( 0 to 7 )
+      byref leaves as containers.Array( of uint32 ), byref idx as containers.Array( of uint32 ) )
+    dim as int32 rank = 0
+    if c.types->Kind( t ) = Tko.TK_ARRAY then rank = c.types->types[cast( int32, t )].dims
+    dim as int32 ext( 0 to 7 ), strd( 0 to 7 )
     dim as boolean ok = (rank > 1) andalso (rank <= 8)
     if ok then ok = (c.types->IsDynArray( t ) = false)
     if ok then
-        for d as long = 0 to rank - 1
+        for d as int32 = 0 to rank - 1
             dim as boolean k1 = false, k2 = false
-            dim as longint lo = c.types->ArrayBound( t, d, false, k1 )
-            dim as longint hi = c.types->ArrayBound( t, d, true, k2 )
+            dim as int64 lo = c.types->ArrayBound( t, d, false, k1 )
+            dim as int64 hi = c.types->ArrayBound( t, d, true, k2 )
             if (k1 = false) orelse (k2 = false) orelse (hi < lo) then ok = false : exit for
-            ext( d ) = cast( long, hi - lo + 1 )
+            ext( d ) = cast( int32, hi - lo + 1 )
         next
     end if
     if ok then
         strd( rank - 1 ) = 1
-        for d as long = rank - 2 to 0 step -1
+        for d as int32 = rank - 2 to 0 step -1
             strd( d ) = strd( d + 1 ) * ext( d + 1 )
         next
         ok = ArrayLeafWalk_( c, init, 0, rank, @ext( 0 ), @strd( 0 ), 0, leaves, idx )
@@ -110,13 +110,13 @@ sub ArrayInitLeaves_ _
     if rank > 1 then
         FlattenInitLeaves_( c, init, leaves )
     else
-        dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
-        for i as long = 0 to lp->count - 1
+        dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init )].data )]
+        for i as int32 = 0 to lp->count - 1
             leaves.Push( c.ast->children[lp->first + i] )
         next
     end if
-    for i as long = 0 to leaves.Count - 1
-        idx.Push( cast( ulong, i ) )
+    for i as int32 = 0 to leaves.Count - 1
+        idx.Push( cast( uint32, i ) )
     next
 end sub
 
@@ -124,19 +124,19 @@ end sub
 '' STATIC local and a UDT FIELD are both storage without a frame slot.
 '' HOW MANY ELEMENTS A FLAT BRACE INITIALISER NAMES -- 0 for anything else, nested lists
 '' included, whose rows are not elements.
-function FlatInitCount_( byref c as Ctx, byval init as Tko.NodeId ) as long
+function FlatInitCount_( byref c as Ctx, byval init as Tko.NodeId ) as int32
     if init = Tko.NODE_NONE then return 0
     if c.ast->Kind( init ) <> Tko.N_INITIALIZER then return 0
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
-    for i as long = 0 to lp->count - 1
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init )].data )]
+    for i as int32 = 0 to lp->count - 1
         if c.ast->Kind( cast( Tko.NodeId, c.ast->children[lp->first + i] ) ) = Tko.N_INITIALIZER then return 0
     next
     return lp->count
 end function
 
 function LowerArrayInit _
-    ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+    ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
       byval init as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
 
     if init = Tko.NODE_NONE then return false
@@ -167,8 +167,8 @@ function LowerArrayInit _
     ''
     '' -- which is exactly what the SCALAR declaration of one already emits, so each
     '' element goes through the same routine with its own address as the destination.
-    dim as longint fen
-    dim as long fek = StrSwapKind_( c, el, fen )
+    dim as int64 fen
+    dim as int32 fek = StrSwapKind_( c, el, fen )
     '' KIND 2 IS 'wstring * N' and belongs here with the other three. It was omitted, so
     '' a wide fixed-string array fell through to the aggregate test below, was not a UDT,
     '' and declined -- while the narrow twin one line away lowered.
@@ -186,10 +186,10 @@ function LowerArrayInit _
         return LowerUdtArrayInit_( c, slot, t, init, selfv )
     end if
     if emt = MT_VOID then return false
-    dim as long esz = c.types->Layout( el ).size
+    dim as int32 esz = c.types->Layout( el ).size
     if esz <= 0 then return false
 
-    dim as long total = c.types->ElemCount( t )
+    dim as int32 total = c.types->ElemCount( t )
 
     '' A MULTI-DIMENSIONAL INITIALISER IS WRITTEN IN ROWS -- 'dim c(0 to 1, 0 to 2) as
     '' integer = { {1,2,3}, {4,5,6} }' -- and the storage is one flat run in row-major
@@ -200,50 +200,50 @@ function LowerArrayInit _
     '' Only where the array HAS more than one dimension. Over a one-dimensional array
     '' a nested brace list means something else -- the fields of an element -- and
     '' flattening it would spread one element's fields across several elements.
-    dim as containers.Array( of ulong ) leaves, lidx
+    dim as containers.Array( of uint32 ) leaves, lidx
     ArrayInitLeaves_( c, t, init, leaves, lidx )
 
     dim as MirValue base_
     if selfv <> 0 then
         base_ = *selfv
     else
-        base_.kind = cast( ubyte, MV_LOCAL )
-        base_.ty = cast( ubyte, MT_PTR )
+        base_.kind = cast( uint8, MV_LOCAL )
+        base_.ty = cast( uint8, MT_PTR )
         base_.id = slot
     end if
 
     '' A PADDED ROW LEAVES GAPS, which hold whatever the frame held: zeroed first, as fbc does.
     dim as boolean sparse = false
-    for i as long = 0 to leaves.Count - 1
-        if cast( long, lidx[i] ) <> i then sparse = true
+    for i as int32 = 0 to leaves.Count - 1
+        if cast( int32, lidx[i] ) <> i then sparse = true
     next
     if sparse andalso (total > 0) then
-        dim as containers.Array( of ulong ) sz0
-        sz0.Push( cast( ulong, base_.kind ) ) : sz0.Push( cast( ulong, base_.id ) )
-        sz0.Push( cast( ulong, MV_CONST_INT ) ) : sz0.Push( 0 )
-        sz0.Push( cast( ulong, MV_CONST_INT ) ) : sz0.Push( cast( ulong, total * esz ) )
+        dim as containers.Array( of uint32 ) sz0
+        sz0.Push( cast( uint32, base_.kind ) ) : sz0.Push( cast( uint32, base_.id ) )
+        sz0.Push( cast( uint32, MV_CONST_INT ) ) : sz0.Push( 0 )
+        sz0.Push( cast( uint32, MV_CONST_INT ) ) : sz0.Push( cast( uint32, total * esz ) )
         EmitRtl( c, RTL_MEMSET, sz0 )
     end if
-    for i as long = 0 to leaves.Count - 1
-        if (total > 0) andalso (cast( long, lidx[i] ) >= total) then exit for
+    for i as int32 = 0 to leaves.Count - 1
+        if (total > 0) andalso (cast( int32, lidx[i] ) >= total) then exit for
         dim as Tko.NodeId e = cast( Tko.NodeId, leaves[i] )
         '' A UDT ELEMENT runs its numeric cast -- '{ m, m }' into a long array is fbc's 3 and 3.
         dim as boolean udtNum = IsUdtValue_( c, e ) andalso (emt <> MT_AGG) andalso (emt <> MT_PTR) andalso (emt <> MT_VOID)
         dim as MirValue ev
         if udtNum then ev = LowerNumArg_( c, e, emt ) else ev = LowerExpr( c, e )
-        if ev.kind = cast( ubyte, MV_NONE ) then return false
+        if ev.kind = cast( uint8, MV_NONE ) then return false
 
         dim as MirInst fa
-        fa.op = cast( ushort, M_FIELD_ADDR )
-        fa.ty = cast( ubyte, MT_PTR )
+        fa.op = cast( uint16, M_FIELD_ADDR )
+        fa.ty = cast( uint8, MT_PTR )
         fa.a = base_
-        fa.imm = cast( long, lidx[i] ) * esz
+        fa.imm = cast( int32, lidx[i] ) * esz
         dim as MirValue ea = Emit( c, fa )
-        if ea.kind = cast( ubyte, MV_NONE ) then return false
+        if ea.kind = cast( uint8, MV_NONE ) then return false
 
         dim as MirInst st
-        st.op = cast( ushort, M_STORE )
-        st.ty = cast( ubyte, MT_VOID )
+        st.op = cast( uint16, M_STORE )
+        st.ty = cast( uint8, MT_VOID )
         st.a = ea
         '' THE ELEMENT TYPE AS THE DESTINATION: '{ <single 3e9> }' into a ULONG array
         '' is fbc's '(uint32)fb_F2L( s )', and without it a signed i32 conversion.
@@ -254,12 +254,12 @@ function LowerArrayInit _
     '' a( 9 ) zero under fbc (dim/udt-init.bas padding1); here they held what the frame held.
     if (sparse = false) andalso (total > leaves.Count) then
         dim as MirInst tz
-        tz.op = cast( ushort, M_FIELD_ADDR ) : tz.ty = cast( ubyte, MT_PTR ) : tz.a = base_ : tz.imm = leaves.Count * esz
+        tz.op = cast( uint16, M_FIELD_ADDR ) : tz.ty = cast( uint8, MT_PTR ) : tz.a = base_ : tz.imm = leaves.Count * esz
         dim as MirValue tza = Emit( c, tz )
-        dim as containers.Array( of ulong ) tzz
-        tzz.Push( cast( ulong, tza.kind ) ) : tzz.Push( cast( ulong, tza.id ) )
-        tzz.Push( cast( ulong, MV_CONST_INT ) ) : tzz.Push( 0 )
-        tzz.Push( cast( ulong, MV_CONST_INT ) ) : tzz.Push( cast( ulong, (total - leaves.Count) * esz ) )
+        dim as containers.Array( of uint32 ) tzz
+        tzz.Push( cast( uint32, tza.kind ) ) : tzz.Push( cast( uint32, tza.id ) )
+        tzz.Push( cast( uint32, MV_CONST_INT ) ) : tzz.Push( 0 )
+        tzz.Push( cast( uint32, MV_CONST_INT ) ) : tzz.Push( cast( uint32, (total - leaves.Count) * esz ) )
         EmitRtl( c, RTL_MEMSET, tzz )
     end if
     return true
@@ -271,54 +271,54 @@ end function
 '' same argument the scalar declaration of one passes -- so the work is the scalar
 '' routine, called once per element with that element's address.
 private function LowerFixStrArrayInit_ _
-    ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
-      byval init as Tko.NodeId, byval n as longint, byval isU as boolean, _
+    ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
+      byval init as Tko.NodeId, byval n as int64, byval isU as boolean, _
       byval selfv as MirValue ptr = 0, byval isW as boolean = false ) as boolean
 
     dim as Tko.TypeId el = c.types->Inner( t )
-    dim as long esz = SizeOfType( c, el )
+    dim as int32 esz = SizeOfType( c, el )
     if esz <= 0 then return false
-    dim as long total = c.types->ElemCount( t )
+    dim as int32 total = c.types->ElemCount( t )
     '' A MULTI-DIMENSIONAL INITIALISER IS WRITTEN IN ROWS and the storage is one flat
     '' run in row-major order -- the same rule the scalar path follows. This walked only
     '' the TOP-LEVEL children, so every row arrived as a nested N_INITIALIZER that the
     '' element assignment had nothing to make of, and the whole declaration declined.
-    dim as containers.Array( of ulong ) leaves, lidx
+    dim as containers.Array( of uint32 ) leaves, lidx
     ArrayInitLeaves_( c, t, init, leaves, lidx )   '' a short row pads -- see ArrayInitLeaves_
 
     dim as MirValue base_
     if selfv <> 0 then
         base_ = *selfv
     else
-        base_.kind = cast( ubyte, MV_LOCAL )
-        base_.ty = cast( ubyte, MT_PTR )
+        base_.kind = cast( uint8, MV_LOCAL )
+        base_.ty = cast( uint8, MT_PTR )
         base_.id = slot
     end if
 
     '' A PADDED ROW LEAVES GAPS, not just a tail: the whole array is zeroed first, as fbc zeroes
     '' each row's rest, and no tail is left to clear afterwards.
     dim as boolean sparse = false
-    for i as long = 0 to cast( long, leaves.Count ) - 1
-        if cast( long, lidx[i] ) <> i then sparse = true
+    for i as int32 = 0 to cast( int32, leaves.Count ) - 1
+        if cast( int32, lidx[i] ) <> i then sparse = true
     next
     if sparse andalso (total > 0) then
-        dim as containers.Array( of ulong ) sz0
-        sz0.Push( cast( ulong, base_.kind ) ) : sz0.Push( cast( ulong, base_.id ) )
-        sz0.Push( cast( ulong, MV_CONST_INT ) ) : sz0.Push( 0 )
-        sz0.Push( cast( ulong, MV_CONST_INT ) ) : sz0.Push( cast( ulong, total * esz ) )
+        dim as containers.Array( of uint32 ) sz0
+        sz0.Push( cast( uint32, base_.kind ) ) : sz0.Push( cast( uint32, base_.id ) )
+        sz0.Push( cast( uint32, MV_CONST_INT ) ) : sz0.Push( 0 )
+        sz0.Push( cast( uint32, MV_CONST_INT ) ) : sz0.Push( cast( uint32, total * esz ) )
         EmitRtl( c, RTL_MEMSET, sz0 )
     end if
-    dim as long written = 0
-    for i as long = 0 to cast( long, leaves.Count ) - 1
-        if (total > 0) andalso (cast( long, lidx[i] ) >= total) then exit for
+    dim as int32 written = 0
+    for i as int32 = 0 to cast( int32, leaves.Count ) - 1
+        if (total > 0) andalso (cast( int32, lidx[i] ) >= total) then exit for
         dim as Tko.NodeId e = cast( Tko.NodeId, leaves[i] )
         dim as MirInst fa
-        fa.op = cast( ushort, M_FIELD_ADDR )
-        fa.ty = cast( ubyte, MT_PTR )
+        fa.op = cast( uint16, M_FIELD_ADDR )
+        fa.ty = cast( uint8, MT_PTR )
         fa.a = base_
-        fa.imm = cast( long, lidx[i] ) * esz
+        fa.imm = cast( int32, lidx[i] ) * esz
         dim as MirValue ea = Emit( c, fa )
-        if ea.kind = cast( ubyte, MV_NONE ) then return false
+        if ea.kind = cast( uint8, MV_NONE ) then return false
         '' A WIDE ELEMENT TAKES THE WIDE ASSIGN. LowerZstrAssignTo is a two-way
         '' switch -- narrow or USTRING -- and a 'wstring * N' element has no arm
         '' in it, so every one went out through fb_StrAssign with a NARROW
@@ -332,7 +332,7 @@ private function LowerFixStrArrayInit_ _
         '' held. Measured, fbc: 'fb_WstrAssignToA_Init( A, 10ll, TMP, 0ll )' per element.
         dim as boolean eWide = TermIsWide_( c, e ) orelse IsWideChain_( c, e )
         if isW then
-            if LowerWideAssignTo( c, ea, cast( long, n ), e ) = false then return false
+            if LowerWideAssignTo( c, ea, cast( int32, n ), e ) = false then return false
         elseif eWide andalso (not isU) then
             if LowerWideToNarrowSlot( c, -1, el, e, true, @ea ) = false then return false
         else
@@ -348,17 +348,17 @@ private function LowerFixStrArrayInit_ _
     if sparse then written = total
     if (total > 0) andalso (written < total) then
         dim as MirInst ta
-        ta.op = cast( ushort, M_FIELD_ADDR )
-        ta.ty = cast( ubyte, MT_PTR )
+        ta.op = cast( uint16, M_FIELD_ADDR )
+        ta.ty = cast( uint8, MT_PTR )
         ta.a = base_
         ta.imm = written * esz
         dim as MirValue taddr = Emit( c, ta )
-        if taddr.kind = cast( ubyte, MV_NONE ) then return false
-        dim as containers.Array( of ulong ) za
-        za.Push( cast( ulong, taddr.kind ) ) : za.Push( cast( ulong, taddr.id ) )
-        za.Push( cast( ulong, MV_CONST_INT ) ) : za.Push( 0 )
-        za.Push( cast( ulong, MV_CONST_INT ) )
-        za.Push( cast( ulong, (total - written) * esz ) )
+        if taddr.kind = cast( uint8, MV_NONE ) then return false
+        dim as containers.Array( of uint32 ) za
+        za.Push( cast( uint32, taddr.kind ) ) : za.Push( cast( uint32, taddr.id ) )
+        za.Push( cast( uint32, MV_CONST_INT ) ) : za.Push( 0 )
+        za.Push( cast( uint32, MV_CONST_INT ) )
+        za.Push( cast( uint32, (total - written) * esz ) )
         EmitRtl( c, RTL_MEMSET, za )
     end if
     return true
@@ -374,7 +374,7 @@ end function
 private function UStrElemInit_ _
     ( byref c as Ctx, byref dst as MirValue, byval e as Tko.NodeId ) as boolean
 
-    dim as containers.Array( of ulong ) terms
+    dim as containers.Array( of uint32 ) terms
     FlattenConcat( c, e, terms )
     if terms.Count <> 1 then
         ZeroStrDescriptor( c, dst )
@@ -384,19 +384,19 @@ private function UStrElemInit_ _
         return LowerNarrowChainToU_( c, dst, terms, true )
     end if
     dim as Tko.NodeId t0 = cast( Tko.NodeId, terms[0] )
-    dim as long tf0 = StrTermFlavour_( c, t0 )
+    dim as int32 tf0 = StrTermFlavour_( c, t0 )
     if (tf0 <> STF_NEUTRAL) andalso (tf0 <> STF_UTF16) then
         if LowerStrConvertTerm( c, dst, true, t0, true ) then return true
         ZeroStrDescriptor( c, dst )
         return false
     end if
-    dim as containers.Array( of ulong ) args
+    dim as containers.Array( of uint32 ) args
     PushStrArg( args, dst )
     if EmitStrTerm( c, args, t0, true ) = false then
         ZeroStrDescriptor( c, dst )
         return false
     end if
-    args.Push( cast( ulong, MV_CONST_INT ) )
+    args.Push( cast( uint32, MV_CONST_INT ) )
     args.Push( 0 )
     EmitRtl( c, RTL_USTR_INIT, args )
     return true
@@ -406,36 +406,36 @@ end function
 '' zeroed at the declaration. An element the initialiser does not name keeps that
 '' zeroed descriptor, which is the empty string -- fbc leaves it alone too.
 private function LowerStrArrayInit_ _
-    ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+    ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
       byval init as Tko.NodeId, byval selfv as MirValue ptr = 0, _
       byval isU as boolean = false ) as boolean
 
     dim as Tko.TypeId el = c.types->Inner( t )
-    dim as long esz = c.types->Layout( el ).size
+    dim as int32 esz = c.types->Layout( el ).size
     if esz <= 0 then return false
-    dim as long total = c.types->ElemCount( t )
+    dim as int32 total = c.types->ElemCount( t )
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init )].data )]
 
     dim as MirValue base_
     if selfv <> 0 then
         base_ = *selfv
     else
-        base_.kind = cast( ubyte, MV_LOCAL )
-        base_.ty = cast( ubyte, MT_PTR )
+        base_.kind = cast( uint8, MV_LOCAL )
+        base_.ty = cast( uint8, MT_PTR )
         base_.id = slot
     end if
 
-    for i as long = 0 to lp->count - 1
+    for i as int32 = 0 to lp->count - 1
         if (total > 0) andalso (i >= total) then exit for
         dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[lp->first + i] )
         dim as MirInst fa
-        fa.op = cast( ushort, M_FIELD_ADDR )
-        fa.ty = cast( ubyte, MT_PTR )
+        fa.op = cast( uint16, M_FIELD_ADDR )
+        fa.ty = cast( uint8, MT_PTR )
         fa.a = base_
         fa.imm = i * esz
         dim as MirValue ea = Emit( c, fa )
-        if ea.kind = cast( ubyte, MV_NONE ) then return false
+        if ea.kind = cast( uint8, MV_NONE ) then return false
         '' THE ANSWER IS READ. An element that will not build is the whole
         '' initialiser declining, not a silently empty slot in the middle of it.
         if isU then
@@ -454,25 +454,25 @@ end function
 '' fixed-length string element is not taken: the caller declines.
 function PackedElemsInit_ _
     ( byref c as Ctx, byref base_ as MirValue, byval el as Tko.TypeId, _
-      byval first as long, byval n as long ) as boolean
+      byval first as int32, byval n as int32 ) as boolean
 
     el = c.types->Unqualify( el )
-    dim as long esz = SizeOfType( c, el )   '' a UDT's layout is not the TypeContext's
+    dim as int32 esz = SizeOfType( c, el )   '' a UDT's layout is not the TypeContext's
     if esz <= 0 then return false
-    dim as longint fen
-    dim as long fek = StrSwapKind_( c, el, fen )
+    dim as int64 fen
+    dim as int32 fek = StrSwapKind_( c, el, fen )
     if (fek >= 1) andalso (fek <= 4) then return false
     dim as boolean isStr = IsStringType( c, el )
     dim as MirType emt = LowerType( el, *c.types )
     if (isStr = false) andalso (emt = MT_AGG) andalso (c.types->Kind( el ) <> Tko.TK_UDT) then return false
     if emt = MT_VOID then return false
-    for k as long = 0 to n - 1
+    for k as int32 = 0 to n - 1
         dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[first + k] )
         dim as MirInst fa
-        fa.op = cast( ushort, M_FIELD_ADDR ) : fa.ty = cast( ubyte, MT_PTR )
+        fa.op = cast( uint16, M_FIELD_ADDR ) : fa.ty = cast( uint8, MT_PTR )
         fa.a = base_ : fa.imm = k * esz
         dim as MirValue ea = Emit( c, fa )
-        if ea.kind = cast( ubyte, MV_NONE ) then return false
+        if ea.kind = cast( uint8, MV_NONE ) then return false
         if isStr then
             if IsUStringType( c, el ) then
                 if UStrElemInit_( c, ea, e ) = false then return false
@@ -485,9 +485,9 @@ function PackedElemsInit_ _
             dim as boolean udtNum = IsUdtValue_( c, e ) andalso (emt <> MT_PTR)
             dim as MirValue ev
             if udtNum then ev = LowerNumArg_( c, e, emt ) else ev = LowerExpr( c, e )
-            if ev.kind = cast( ubyte, MV_NONE ) then return false
+            if ev.kind = cast( uint8, MV_NONE ) then return false
             dim as MirInst st
-            st.op = cast( ushort, M_STORE ) : st.ty = cast( ubyte, MT_VOID ) : st.a = ea
+            st.op = cast( uint16, M_STORE ) : st.ty = cast( uint8, MT_VOID ) : st.a = ea
             if udtNum then st.b = ev else st.b = CoerceTy( c, ev, emt, c.info->TypeOf_( e ), el )
             Emit( c, st )
         end if
@@ -522,11 +522,11 @@ function LowerUdtElemInit_ _
         dim as Tko.SymbolId ucp = CopyCtorOf_( c, et )
         if (ucp <> Tko.SYMBOL_NONE) orelse NeedsLetBody_( c, et ) then
             dim as MirValue src = LowerAddr( c, e )
-            if src.kind = cast( ubyte, MV_NONE ) then return false
+            if src.kind = cast( uint8, MV_NONE ) then return false
             if ucp <> Tko.SYMBOL_NONE then
-                dim as containers.Array( of ulong ) cargs
-                cargs.Push( cast( ulong, src.kind ) )
-                cargs.Push( cast( ulong, src.id ) )
+                dim as containers.Array( of uint32 ) cargs
+                cargs.Push( cast( uint32, src.kind ) )
+                cargs.Push( cast( uint32, src.id ) )
                 EmitStructorCall( c, ucp, -1, @dst, @cargs )
             else
                 CallImplicitCopy_( c, et, dst, src )
@@ -573,7 +573,7 @@ function LowerUdtElemInit_ _
     end if
     '' ...and a POD element is the plain aggregate copy fbc emits for one.
     dim as MirValue ev = LowerExpr( c, e )
-    if ev.kind = cast( ubyte, MV_NONE ) then return false
+    if ev.kind = cast( uint8, MV_NONE ) then return false
     StoreThrough( c, dst, ev )
     return true
 end function
@@ -584,38 +584,38 @@ end function
 '' The destination is a SLOT or, for a STATIC LOCAL, an ADDRESS -- selfv. A static's
 '' storage is a GLOBAL and has no slot.
 function LowerUdtArrayInit_ _
-    ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+    ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
       byval init as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
 
     dim as Tko.TypeId el = c.types->Inner( t )
     '' THE ELEMENT'S SIZE, through SizeOfType rather than Layout( ).size: a UDT's
     '' layout record is not what carries its size here, and reading it gave 0 --
     '' which this rejected as 'no size', declining every UDT array initialiser.
-    dim as long esz = SizeOfType( c, el )
+    dim as int32 esz = SizeOfType( c, el )
     if esz <= 0 then return false
-    dim as long total = c.types->ElemCount( t )
+    dim as int32 total = c.types->ElemCount( t )
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init )].data )]
 
     dim as MirValue base_
     if selfv <> 0 then
         base_ = *selfv
     else
-        base_.kind = cast( ubyte, MV_LOCAL )
-        base_.ty = cast( ubyte, MT_PTR )
+        base_.kind = cast( uint8, MV_LOCAL )
+        base_.ty = cast( uint8, MT_PTR )
         base_.id = slot
     end if
 
-    for i as long = 0 to lp->count - 1
+    for i as int32 = 0 to lp->count - 1
         if (total > 0) andalso (i >= total) then exit for
         dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[lp->first + i] )
         dim as MirInst fa
-        fa.op = cast( ushort, M_FIELD_ADDR )
-        fa.ty = cast( ubyte, MT_PTR )
+        fa.op = cast( uint16, M_FIELD_ADDR )
+        fa.ty = cast( uint8, MT_PTR )
         fa.a = base_
         fa.imm = i * esz
         dim as MirValue ea = Emit( c, fa )
-        if ea.kind = cast( ubyte, MV_NONE ) then return false
+        if ea.kind = cast( uint8, MV_NONE ) then return false
         '' THE ANSWER IS READ. An element that will not build declines the whole
         '' initialiser rather than leaving a hole in the middle of it.
         if LowerUdtElemInit_( c, ea, el, e ) = false then return false
@@ -625,12 +625,12 @@ function LowerUdtArrayInit_ _
     '' that needs construction got it from the declaration already.
     if (total > lp->count) andalso (TypeNeedsInit_( c, el ) = false) andalso (StructorOf( c, el, "__ctor" ) = Tko.SYMBOL_NONE) then
         dim as MirInst tz
-        tz.op = cast( ushort, M_FIELD_ADDR ) : tz.ty = cast( ubyte, MT_PTR ) : tz.a = base_ : tz.imm = lp->count * esz
+        tz.op = cast( uint16, M_FIELD_ADDR ) : tz.ty = cast( uint8, MT_PTR ) : tz.a = base_ : tz.imm = lp->count * esz
         dim as MirValue tza = Emit( c, tz )
-        dim as containers.Array( of ulong ) tzz
-        tzz.Push( cast( ulong, tza.kind ) ) : tzz.Push( cast( ulong, tza.id ) )
-        tzz.Push( cast( ulong, MV_CONST_INT ) ) : tzz.Push( 0 )
-        tzz.Push( cast( ulong, MV_CONST_INT ) ) : tzz.Push( cast( ulong, (total - lp->count) * esz ) )
+        dim as containers.Array( of uint32 ) tzz
+        tzz.Push( cast( uint32, tza.kind ) ) : tzz.Push( cast( uint32, tza.id ) )
+        tzz.Push( cast( uint32, MV_CONST_INT ) ) : tzz.Push( 0 )
+        tzz.Push( cast( uint32, MV_CONST_INT ) ) : tzz.Push( cast( uint32, (total - lp->count) * esz ) )
         EmitRtl( c, RTL_MEMSET, tzz )
     end if
     return true

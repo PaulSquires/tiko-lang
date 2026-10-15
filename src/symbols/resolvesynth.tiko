@@ -60,15 +60,15 @@ private function SpawnByrefParam_ _
     if cnm = 0 then return false
     dim as Tko.Symbol ptr hs = c.syms->SymbolAt( c.syms->Lookup( scope_, cnm ) )
     if hs = 0 then return false
-    if hs->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    if hs->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, hs->payload )
     if pn = Tko.NODE_NONE then return false
     if c.ast->Kind( pn ) <> Tko.N_PROC then return false
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
-    for i as long = 0 to pp->count - 1
+    for i as int32 = 0 to pp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
-        if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) = 0 then continue for
+        if (c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) = 0 then continue for
         c.diags->Report( Tko.TKO0812, Tko.PointRange( c.ast->Loc( id ) ), _
                          c.names->Spelling( hs->name ), _
                          c.names->Spelling( StmtOf( c, prm )->name ) )
@@ -91,7 +91,7 @@ private function SpawnNotAProc_ _
     dim as Tko.SymbolId sid = c.syms->Lookup( scope_, sp->aliasName )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
     if s = 0 then return false
-    if s->kind = cast( ubyte, Tko.SYM_PROC ) then return false
+    if s->kind = cast( uint8, Tko.SYM_PROC ) then return false
     c.diags->Report( Tko.TKO0943, Tko.PointRange( c.ast->Loc( id ) ), _
                      c.names->Spelling( s->name ) )
     if sp->c <> Tko.NODE_NONE then c.info->SetRef( sp->c, sid )
@@ -112,22 +112,22 @@ private sub BuildSpawnFrame_ _
 
     '' THE OVERLOAD OF MATCHING ARITY, uniquely or not at all.
     dim as Tko.SymbolId pick = Tko.SYMBOL_NONE
-    dim as long hits = 0
+    dim as int32 hits = 0
     dim as Tko.SymbolId cur = c.syms->Lookup( scope_, sp->aliasName )
     while cur <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
         if cs = 0 then exit while
-        if cs->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
+        if cs->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
         dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
         if pn <> Tko.NODE_NONE then
             if c.ast->Kind( pn ) = Tko.N_PROC then
                 dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
-                dim as long np = 0
-                for i as long = 0 to pp->count - 1
+                dim as int32 np = 0
+                for i as int32 = 0 to pp->count - 1
                     dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
                     if c.ast->Kind( prm ) = Tko.N_PARAM then np += 1
                 next
-                if np = cast( long, sp->extra ) then
+                if np = cast( int32, sp->extra ) then
                     pick = cur
                     hits += 1
                 end if
@@ -140,20 +140,20 @@ private sub BuildSpawnFrame_ _
     dim as Tko.Symbol ptr ps = c.syms->SymbolAt( pick )
     dim as Tko.NodeId pnode = cast( Tko.NodeId, ps->payload )
     dim as Tko.StmtPayload ptr pp2 = StmtOf( c, pnode )
-    dim as containers.Array( of ulong ) fTy
-    for i as long = 0 to pp2->count - 1
+    dim as containers.Array( of uint32 ) fTy
+    for i as int32 = 0 to pp2->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp2->first + i] )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         '' A BYREF PARAMETER WOULD MAKE THE FRAME HOLD AN ADDRESS into a stack
         '' frame the goroutine outlives. fbc has no such case in the corpus and
         '' inventing one here would be inventing a lifetime.
-        if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then return
+        if (c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0 then return
         dim as Tko.TypeId pt = c.info->TypeOf_( StmtOf( c, prm )->a )
         if pt = Tko.TYPE_NONE then return
         if c.types->Kind( pt ) = Tko.TK_REFERENCE then return
-        fTy.Push( cast( ulong, pt ) )
+        fTy.Push( cast( uint32, pt ) )
     next
-    if fTy.Count <> cast( long, sp->extra ) then return
+    if fTy.Count <> cast( int32, sp->extra ) then return
 
     dim as boolean dup = false
     dim as Tko.SourceLoc at = c.ast->Loc( id )
@@ -164,8 +164,8 @@ private sub BuildSpawnFrame_ _
     dim as Tko.ScopeId tin = c.syms->OpenScope( _
         Tko.SCOPEK_TYPE, Tko.SCOPE_GLOBAL, tsid )
     ts->inner = tin
-    ts->type_ = c.types->NamedType( Tko.TK_UDT, sp->name, cast( ulong, Tko.SCOPE_GLOBAL ) )
-    for k as long = 0 to fTy.Count - 1
+    ts->type_ = c.types->NamedType( Tko.TK_UDT, sp->name, cast( uint32, Tko.SCOPE_GLOBAL ) )
+    for k as int32 = 0 to fTy.Count - 1
         dim as Tko.InternId fnm = c.names->Fold( c.names->GetString( _
             "__ARG_" & trim( str( k ) ) ) )
         dim as boolean fdup = false
@@ -193,8 +193,8 @@ private sub BuildClosureType_ _
     '' CompleteClosureFields_, before its walk and long before the layout pass. Without
     '' that the type was never built, the invoke procedure's receiver was 'void', and
     '' clang refused the module.
-    dim as containers.Array( of ulong ) fTy
-    for k as long = 0 to sp->count - 1
+    dim as containers.Array( of uint32 ) fTy
+    for k as int32 = 0 to sp->count - 1
         dim as Tko.NodeId cn = cast( Tko.NodeId, c.ast->children[sp->first + k] )
         if c.ast->Kind( cn ) <> Tko.N_IDENT then return
         dim as Tko.SymbolId csid = c.syms->LookupTyped( scope_, IdentNameOf( c, cn ), false )
@@ -210,16 +210,16 @@ private sub BuildClosureType_ _
         dim as Tko.TypeId ct = cs->type_
         c.info->SetRef( cn, csid )
         if ct = Tko.TYPE_NONE then
-            if cs->kind <> cast( ubyte, Tko.SYM_VARIABLE ) then return
-            fTy.Push( cast( ulong, Tko.TYPE_NONE ) )
+            if cs->kind <> cast( uint8, Tko.SYM_VARIABLE ) then return
+            fTy.Push( cast( uint32, Tko.TYPE_NONE ) )
             continue for
         end if
         if c.types->Kind( ct ) = Tko.TK_REFERENCE then ct = c.types->Inner( ct )
         c.info->SetType( cn, ct )
-        if (c.ast->nodes[cast( long, cn )].flags and Tko.NF_BYREF) <> 0 then
+        if (c.ast->nodes[cast( int32, cn )].flags and Tko.NF_BYREF) <> 0 then
             ct = c.types->Pointer_( ct )
         end if
-        fTy.Push( cast( ulong, ct ) )
+        fTy.Push( cast( uint32, ct ) )
     next
 
     dim as boolean dup = false
@@ -231,8 +231,8 @@ private sub BuildClosureType_ _
     dim as Tko.ScopeId tin = c.syms->OpenScope( _
         Tko.SCOPEK_TYPE, Tko.SCOPE_GLOBAL, tsid )
     ts->inner = tin
-    ts->type_ = c.types->NamedType( Tko.TK_UDT, sp->name, cast( ulong, Tko.SCOPE_GLOBAL ) )
-    for k as long = 0 to sp->count - 1
+    ts->type_ = c.types->NamedType( Tko.TK_UDT, sp->name, cast( uint32, Tko.SCOPE_GLOBAL ) )
+    for k as int32 = 0 to sp->count - 1
         dim as Tko.NodeId cn = cast( Tko.NodeId, c.ast->children[sp->first + k] )
         dim as Tko.InternId fnm = c.names->Fold( c.names->GetString( _
             "__CAP_" & c.names->Spelling( IdentNameOf( c, cn ) ) ) )
@@ -256,7 +256,7 @@ private sub BuildClosureType_ _
         '' because the lambda site's scope chain reaches the module and a later
         '' pass's does not.
         if isy <> 0 then
-            isy->payload = cast( ulong, c.syms->Lookup( _
+            isy->payload = cast( uint32, c.syms->Lookup( _
                 scope_, StmtOf( c, sp->a )->name ) )
         end if
     end if

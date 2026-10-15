@@ -7,19 +7,19 @@
 '' the P-C matrix (tka-probes/phase4/pc): print is error 24, an initialiser 24, an assignment
 '' 181, '&' 20, a tie 98. tiko converted the pointer as if it were text.
 
-private function StrCtxFit_( byref c as Ctx, byval t as TypeId, byval target as long ) as long
+private function StrCtxFit_( byref c as Ctx, byval t as TypeId, byval target as int32 ) as int32
     return Tko.Check.UdtStrCastFit( *c.ast, *c.syms, *c.types, *c.names, t, target )
 end function
 
 '' PRINT of a UDT that prints through a cast (PrintsViaCast_ -- Unprintable_ reports the rest).
 sub CheckPrintStrCast_ ( byref c as Ctx, byval id as NodeId )
-    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if cast( TokenKind, sp->op ) <> KW_PRINT then return
     if sp->extra <> 0 then return   '' PRINT USING has its own grammar
-    for i as long = 0 to sp->count - 1
+    for i as int32 = 0 to sp->count - 1
         dim as NodeId it = cast( NodeId, c.ast->children[sp->first + i] )
         if c.ast->Kind( it ) = N_PRINT_SEP then
-            if c.ast->stmts[cast( long, c.ast->nodes[cast( long, it )].data )].op = cast( ushort, KW_USING ) then return
+            if c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, it )].data )].op = cast( uint16, KW_USING ) then return
             continue for
         end if
         dim as TypeId u = ValueType_( c, c.info->TypeOf_( it ) )
@@ -41,7 +41,7 @@ end sub
 function JudgeStrCast_ _
     ( byref c as Ctx, byval at as NodeId, byval udt as TypeId, byval dst as TypeId ) as boolean
 
-    dim as long target = 0
+    dim as int32 target = 0
     if c.types->Kind( dst ) = TK_BUILTIN then
         select case c.types->BuiltinOf( dst )
         case TY_STRING  : target = Tko.Check.CT_STRING
@@ -67,7 +67,7 @@ end function
 '' only half its bytes -- a defect, not a format -- so tiko refuses it plainly (TKO0992) instead of
 '' copying it or failing as an unlowered statement. Convert to 'string' (or use 'wstring * N').
 sub CheckGetPutUStr_ ( byref c as Ctx, byval id as NodeId )
-    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     select case cast( TokenKind, sp->op )
     case KW_GET, KW_PUT
     case else : return
