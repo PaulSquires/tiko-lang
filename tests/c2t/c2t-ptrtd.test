@@ -1,0 +1,10 @@
+'' tiko c2t: a typedef of a pointer to a record named in the same declaration keeps its ptr: never defined (X ptr), defined later (X__fwd ptr), a second declarator (X__fwd ptr ptr).
+'' Everything after the clang line is asserted byte for byte; the tiko and clang versions
+'' in the banner depend on the host, so only the lines around them are.
+'' TEST: cli
+'' CLEAN: build/.c2t/ptrtd
+'' ARGS: c2t tests/c2t/src/ptrtd.h --verify -o build/.c2t/ptrtd/ptrtd.ti
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE-HAS: build/.c2t/ptrtd/ptrtd.ti :: '' ptrtd.ti -- tiko header translated by c2t (tiko 
+'' EXPECT-FILE-HAS: build/.c2t/ptrtd/ptrtd.ti :: ) from the C header "ptrtd.h"\n''   source sha256 : 449136bb2ee42dad7b9d975218f91654b6e2447de83105356158d29b804ddb33\n''   clang         : 
+'' EXPECT-FILE-HAS: build/.c2t/ptrtd/ptrtd.ti :: ''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu\n''   options       : --verify\n''\n'' Generated from C. Search for C2T-TODO and translate those parts by hand.\n''\n'' Nothing needs manual translation.\n'' =============================================================================\n\n/' ptrtd.h -- typedefs of a pointer to a record named in the same declaration (SDL_iconv_t). '/\n#pragma once\n\ntype pt_iconv_data__fwd as pt_iconv_data      /' never defined: an opaque handle '/\ntype pt_iconv_t as pt_iconv_data ptr\ntype pt_known__fwd as pt_known                /' defined just below '/\ntype pt_known_p as pt_known__fwd ptr\nextern "C"\n\ntype pt_known\n    a as int32\nend type\ntype pt_later__fwd as pt_later\ntype pt_later_p as pt_later__fwd ptr\ntype pt_later_pp as pt_later__fwd ptr ptr\ndeclare function pt_use( byval cd as pt_iconv_t, byval l as pt_later_p, byval ll as pt_later_pp ) as int32\ntype pt_later\n    b as int32\nend type\n\nend extern\n

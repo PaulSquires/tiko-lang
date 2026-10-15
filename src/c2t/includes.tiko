@@ -60,14 +60,21 @@ type IncCtx_
     files as Tko.StrVec
     offs as C2tIntVec
     sys as C2tIntVec
+    allFiles as Tko.StrVec      '' every file the unit opened, at any depth
+    allSys as C2tIntVec
 end type
 
 private sub IncVisit_ cdecl _
     ( byval included as any ptr, byval stack as Tko.CImport.CXSourceLocation ptr, _
       byval depth as uint32, byval client as any ptr )
+    dim as IncCtx_ ptr x = client
+    if depth >= 1 then
+        x->allFiles.Push( Tko.CImport.ClangText( *x->api, x->api->getFileName( included ) ) )
+        dim as Tko.CImport.CXSourceLocation a0 = x->api->getLocationForOffset( x->tu, included, 0 )
+        x->allSys.Push( iif( x->api->Location_isInSystemHeader( a0 ) <> 0, 1, 0 ) )
+    end if
     '' ONLY WHAT THE HEADER ITSELF INCLUDES: depth 1, whose one stack entry is the directive.
     if depth <> 1 then return
-    dim as IncCtx_ ptr x = client
     dim as uint32 o = 0
     x->api->getExpansionLocation( stack[0], nullptr, nullptr, nullptr, @o )
     x->files.Push( Tko.CImport.ClangText( *x->api, x->api->getFileName( included ) ) )
@@ -300,6 +307,37 @@ private function DecorOnly_( byref e as C2tEmit, byref p as C2tPass, byref path_
     return true
 end function
 
+'' ---------------------------------------------------------------- re-included headers
+
+private function InSkipped_( byref p as C2tPass, byval ofs as int32 ) as boolean
+    for i as int32 = 0 to p.skipped.Count - 2 step 2
+        if (ofs >= p.skipped[i]) andalso (ofs < p.skipped[i + 1]) then return true
+    next
+    return false
+end function
+
+'' The file the unit opened whose path ends with the written one ('SDL3/SDL_properties.h'),
+'' at a '/' -- Windows paths without regard to case. -1 when none, or more than one does.
+private function SeenBefore_( byref x as IncCtx_, byref written as string ) as int32
+    dim as string w = "/" & Slashes_( written )
+    dim as int32 found = -1
+    for i as int32 = 0 to x.allFiles.Count - 1
+        dim as string f = "/" & Slashes_( x.allFiles[i] )
+        if len( f ) < len( w ) then continue for
+        dim as string tl = right( f, len( w ) )
+        dim as boolean same
+        #ifdef __FB_WIN32__
+            same = (lcase( tl ) = lcase( w ))
+        #else
+            same = (tl = w)
+        #endif
+        if same = false then continue for
+        if (found >= 0) andalso (Slashes_( x.allFiles[found] ) <> Slashes_( x.allFiles[i] )) then return -1
+        found = i
+    next
+    return found
+end function
+
 '' ---------------------------------------------------------------- the directives
 
 sub IncludeDirectives( byref e as C2tEmit, byref p as C2tPass, byref dirs as C2tDirVec )
@@ -326,11 +364,24 @@ sub IncludeDirectives( byref e as C2tEmit, byref p as C2tPass, byref dirs as C2t
                 exit for
             end if
         next
-        '' NOT INCLUDED IN THIS PASS: inside a branch it does not take (emitmacro.tiko judges it).
-        if hit < 0 then continue for
         dim as string written = d.name_
         if len( written ) >= 2 then written = mid( written, 2, len( written ) - 2 )
-        if x.sys[hit] then
+        dim as string file_
+        dim as boolean isSys
+        if hit >= 0 then
+            file_ = x.files[hit]
+            isSys = (x.sys[hit] <> 0)
+        else
+            '' NOT INCLUDED IN THIS PASS: inside a branch it does not take (emitmacro.tiko
+            '' judges that) -- or a guarded header the unit already entered elsewhere, which
+            '' clang does not enter again and so does not list: the file it opened before.
+            if InSkipped_( p, a ) then continue for
+            dim as int32 f = SeenBefore_( x, written )
+            if f < 0 then continue for
+            file_ = x.allFiles[f]
+            isSys = (x.allSys[f] <> 0)
+        end if
+        if isSys then
             dim as string key = lcase( Slashes_( written ) )
             dim as string tikoInc, names
             if SysHeader_( key, tikoInc, names ) = false then
@@ -358,11 +409,11 @@ sub IncludeDirectives( byref e as C2tEmit, byref p as C2tPass, byref dirs as C2t
                     end if
                 next
             end if
-        elseif DecorOnly_( e, p, x.files[hit] ) then
+        elseif DecorOnly_( e, p, file_ ) then
             e.incText[k] = "'' c2t: " & d.name_ & " holds only decoration macros (stripped where used)"
             e.incState[k] = 1
         else
-            dim as string rel = RelPath_( mainDir, Tko.Modules.AbsPath( x.files[hit] ) )
+            dim as string rel = RelPath_( mainDir, Tko.Modules.AbsPath( file_ ) )
             e.incText[k] = "#include once " & chr( 34 ) & TiName_( rel ) & chr( 34 )
             e.incState[k] = 1
         end if

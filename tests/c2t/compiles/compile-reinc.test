@@ -1,0 +1,8 @@
+'' The translation of tests/c2t/src/reinc.h compiles, for each target in TARGETS.
+'' TEST: cli
+'' CLEAN: build/.c2t/compile-reinc
+'' STEP: c2t tests/c2t/src/reinc/sub/g.h --verify -o build/.c2t/compile-reinc/sub/g.ti
+'' STEP: c2t tests/c2t/src/reinc/sub/a.h --verify -o build/.c2t/compile-reinc/sub/a.ti
+'' STEP: c2t tests/c2t/src/reinc/reinc.h --verify -o build/.c2t/compile-reinc/reinc.ti
+'' ARGS: -c build/.c2t/compile-reinc/reinc.ti -o build/.c2t/compile-reinc/reinc.o
+'' EXPECT-EXIT: 0

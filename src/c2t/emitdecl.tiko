@@ -649,6 +649,30 @@ end function
 
 '' ---------------------------------------------------------------- the span
 
+'' The typedefs of a record declaration that do not name the record itself -- 'typedef struct
+'' X *Y' -- each 'type Y as <its type>' after the record (or its hidden alias) is written, so
+'' the pointer is 'X__fwd ptr' or 'X ptr' as D18 says.
+private function PtrTypedefs_( byref e as C2tEmit, byref p as C2tPass, byref ptrTd as C2tIntVec, _
+                               byref ind as string, byref text as string, _
+                               byref reason as string, byref why as string ) as boolean
+    for i as int32 = 0 to ptrTd.Count - 1
+        dim as Tko.CImport.CXCursor c = p.segs[ptrTd[i]].cur
+        dim as string tn = FbName_( e, c )
+        Ren_( e, "type", Tko.CImport.CursorName( *e.x, c ), tn )
+        dim as string w
+        dim as string ty = Tko.CImport.TypeText( *e.x, e.api->getTypedefDeclUnderlyingType( c ), w )
+        if len( ty ) = 0 then
+            reason = "refused-type"
+            why = "typedef '" & tn & "': " & w
+            return false
+        end if
+        if len( text ) then text &= chr( 10 )
+        text &= ind & "type " & tn & " as " & ty
+        Written_( e, c )
+    next
+    return true
+end function
+
 sub EmitInit( byref e as C2tEmit, byref api as Tko.CImport.ClangApi, byref x as Tko.CImport.CImp, _
               byref io as Tko.CImport.CImportOptions, byref src as C2tSource, byref p as C2tPass )
     e.api = @api
@@ -779,15 +803,28 @@ private function Translate_( byref e as C2tEmit, byref p as C2tPass, byref segId
         dim as string dcn = Tko.CImport.CursorName( *e.x, d )
         if len( dcn ) then Ren_( e, "type", dcn, nm )
         dim as string tail
+        dim as C2tIntVec ptrTd                 '' 'typedef struct X *Y': after the record
         for i as int32 = 0 to segIdx.Count - 1
             dim as C2tSegment s = p.segs[segIdx[i]]
             if s.kind = CK_TYPEDEF then
+                '' A TYPEDEF OF THE RECORD ITSELF names it; one of a pointer to it (or anything
+                '' else built on it) is spelled like any typedef, once the record is written.
+                dim as Tko.CImport.CXType uu = Tko.CImport.Unwrap( *e.x, api->getTypedefDeclUnderlyingType( s.cur ) )
+                if (uu.kind <> TK_RECORD) andalso (uu.kind <> TK_ENUM) then
+                    ptrTd.Push( segIdx[i] )
+                    continue for
+                end if
                 dim as string tn = FbName_( e, s.cur )
                 if len( nm ) = 0 then nm = tn
                 if tn <> nm then tail &= chr( 10 ) & ind & "type " & tn & " as " & nm
                 Written_( e, s.cur )
             end if
         next
+        if (len( nm ) = 0) andalso (ptrTd.Count > 0) then
+            reason = "refused-type"
+            why = "typedef '" & FbName_( e, p.segs[ptrTd[0]].cur ) & "' points to a record with no name"
+            return false
+        end if
         if def_ = false then
             '' 'struct X;' -- a forward declaration: the hidden alias (D18).
             if (nRec > 0) andalso (AliasDone_( e, nm ) = false) then
@@ -797,17 +834,20 @@ private function Translate_( byref e as C2tEmit, byref p as C2tPass, byref segId
                 text = ""
             end if
             if len( tail ) then text &= tail
+            if PtrTypedefs_( e, p, ptrTd, ind, text, reason, why ) = false then return false
             return true
         end if
         if nRec > 0 then
             ok = Record_( e, d, l1, l2, nm, "", text, reason, why )
             if ok andalso len( tail ) then text &= tail
+            if ok then ok = PtrTypedefs_( e, p, ptrTd, ind, text, reason, why )
             '' A RECORD LEFT AS A TODO IS NOT DECLARED: a pointer to it later is 'Name ptr'
             '' behind the hidden alias, as for an opaque one (types.tiko, C2tPtrToRecord_).
             if ok = false then Tko.CImport.UsrSet( *e.x, Usr_( e, d ), Tko.CImport.US_REFUSED )
         else
             ok = Enum_( e, d, l1, l2, nm, text, reason, why )
             if ok andalso len( tail ) then text &= tail
+            if ok then ok = PtrTypedefs_( e, p, ptrTd, ind, text, reason, why )
         end if
     elseif nFn > 0 then
         if segIdx.Count > 1 then
