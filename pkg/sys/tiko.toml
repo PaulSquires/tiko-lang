@@ -1,6 +1,0 @@
-# The system package (ADR 0017 §19). Shipped in the toolchain's pkg/ beside std, and found by
-# '#import "sys/..."' from anywhere. Unlike std it is not reserved: a project's own package
-# named sys, found first, is the one it gets.
-[package]
-name = "sys"
-version = "0.1.0"

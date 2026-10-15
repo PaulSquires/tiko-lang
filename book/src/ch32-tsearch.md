@@ -177,11 +177,11 @@ an ANSI escape sequence, `ESC [35m` to start and `ESC [0m` to stop.
 
 A Linux terminal draws those sequences as they arrive. A Windows console draws them only once it
 has been asked to, and the runtime does not ask on the program's behalf, so `ColourWanted` does:
-it switches on the console's virtual-terminal mode through **`sys/windows`**, the Windows API as a
-module, and gives up colour if the console refuses. `windows.bi` does not name the
-`ENABLE_VIRTUAL_TERMINAL_PROCESSING` flag, so the listing defines it. The `#import` sits above
-`#include once "fbio.bi"`, because an import must come before any code and the header brings some:
-below it, the import fails with `TKO0362: '#import' must come before any code, in the compiled
+it switches on the console's virtual-terminal mode through **`windows.bi`**, the Windows API
+header, and gives up colour if the console refuses. `windows.bi` does not name the
+`ENABLE_VIRTUAL_TERMINAL_PROCESSING` flag, so the listing defines it. Both `#include` lines sit
+below the `#import` lines, because an import must come before any code and a header brings some:
+above them, an import fails with `TKO0362: '#import' must come before any code, in the compiled
 file`.
 
 Every failure is counted, and reported where it happens, without stopping the search: one

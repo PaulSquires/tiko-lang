@@ -91,3 +91,7 @@ tests/vendor/**/*.o
 # Engineering notes and design docs stay local; they are not published.
 /docs/
 /HANDOFF.md
+
+# Local-only notes kept beside the sources they describe; not published.
+/book/STYLE.md
+/inc/PROVENANCE.md

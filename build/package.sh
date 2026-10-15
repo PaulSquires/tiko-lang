@@ -351,7 +351,6 @@ rm -rf "$OUT/pkg"
 cp -r "$ROOT/pkg" "$OUT/pkg"
 [ -f "$OUT/pkg/std/tiko.toml" ] || die "packaged pkg/ has no std/tiko.toml -- '#import \"std/...\"' would find nothing"
 [ -f "$OUT/pkg/std/strings/string.tiko" ] || die "packaged pkg/ has no std/strings"
-[ -f "$OUT/pkg/sys/windows/windows.bas" ] || die "packaged pkg/ has no sys/windows"
 [ -f "$OUT/pkg/tkl/tkGui/CWindow.tiko" ] || die "packaged pkg/ has no tkl/tkGui"
 note "packages -> pkg/ ($( ls "$OUT/pkg" | tr '\n' ' '))"
 
@@ -765,32 +764,6 @@ verify_std( ) {
     verify_std_run "$1" tasks "$STD_TASKS" "-mt"
 }
 
-# SYS/WINDOWS (ADR 0017 §19), on a Windows target only: a program with no UNICODE imports the
-# facade and calls through it. 16 is SE_DEBUG_NAME's length and 2 win.TCHAR's size, both W;
-# the call links user32. A header that renamed or dropped a name the facade exports fails
-# the build here.
-verify_sys( ) {
-    _t=$1
-    case "$_t" in win*) ;; *) return ;; esac
-    _tmp="$OUT/.verifysys.$_t"
-    rm -rf "$_tmp"; mkdir -p "$_tmp"
-    printf '#import "sys/windows" as win
-print len( win.SE_DEBUG_NAME ); sizeof( win.TCHAR ); win.IsWindow( 0 )
-' > "$_tmp/sys.tiko"
-    ( cd "$OUT" && TKO_MODCACHE=".verifysys.$_t/cache" "./${BINSUB}tiko$EXT" -target "$_t" \
-        ".verifysys.$_t/sys.tiko" -o ".verifysys.$_t/sys$EXT" ) >"$_tmp/log" 2>&1 || true
-    if [ -f "$_tmp/sys$EXT" ] && [ "$( "$_tmp/sys$EXT" 2>/dev/null | tr -d '\r' )" = " 16 2 0" ]; then
-        VERIFY_LINES="$VERIFY_LINES
-  $_t  sys/windows PASS -- imported, compiled, linked and ran"
-    else
-        _why=$( grep -m1 -iE 'error|undefined' "$_tmp/log" | cut -c1-160 )
-        [ -n "$_why" ] || _why="built, but did not print ' 16 2 0'"
-        VERIFY_LINES="$VERIFY_LINES
-  $_t  sys/windows FAIL -- $_why"
-    fi
-    rm -rf "$_tmp"
-}
-
 # TKL, on a Windows target only: tkCore, gdiplus and tkGui imported from the packaged
 # pkg/tkl -- the tkGui import builds the largest module, and imports the other two -- and
 # a string helper, a GDI+ colour and a CWindow used.
@@ -825,7 +798,6 @@ if [ "$DO_VERIFY" = "1" ]; then
         verify_fbcunit "$t"
         verify_fbsqlite "$t"
         verify_std "$t"
-        verify_sys "$t"
         verify_tkl "$t"
     done
 else

@@ -5,10 +5,10 @@
 '' Exit code: 0 if anything matched, 1 if nothing did, 2 on an error.
 #import "./search"
 #import "std/containers"
-#ifdef __FB_WIN32__
-#import "sys/windows" as win
-#endif
 #include once "fbio.bi"
+#ifdef __FB_WIN32__
+#include once "windows.bi"
+#endif
 
 const EXIT_FOUND = 0, EXIT_NONE = 1, EXIT_ERROR = 2
 
@@ -27,10 +27,10 @@ function ColourWanted( ) as boolean
     #ifdef __FB_WIN32__
     '' ENABLE_VIRTUAL_TERMINAL_PROCESSING, which windows.bi lacks
     const VT_PROCESSING = &h0004
-    var h = win.GetStdHandle( win.STD_OUTPUT_HANDLE )
+    var h = GetStdHandle( STD_OUTPUT_HANDLE )
     dim as ulong mode
-    if win.GetConsoleMode( h, @mode ) = 0 then return false
-    return win.SetConsoleMode( h, mode or VT_PROCESSING ) <> 0
+    if GetConsoleMode( h, @mode ) = 0 then return false
+    return SetConsoleMode( h, mode or VT_PROCESSING ) <> 0
     #else
     return true
     #endif
