@@ -158,6 +158,17 @@ type CImp
     '' The parse, kept so macros.tiko can parse again with its probes appended.
     as string     unitText
     as Tko.StrVec args
+
+    '' 'tiko c2t' (src/c2t) DRIVES THE SAME MAPPING for a header people will read, and these
+    '' are the only places it differs. False for #cinclude and -cimport, whose output does
+    '' not move: fixed-width spellings (int32, not long); a record defined later is reached
+    '' as 'Name__fwd ptr' and an opaque one as 'Name ptr', each needing the alias 'type
+    '' Name__fwd as Name' that c2t writes in place (c2tFwd lists the names asked for); and
+    '' a system header's typedef is its c2t spelling (c2tTdName/c2tTdText) or refused.
+    as boolean    c2t
+    as Tko.StrVec c2tFwd
+    as Tko.StrVec c2tTdName
+    as Tko.StrVec c2tTdText
 end type
 
 '' ---- names.tiko

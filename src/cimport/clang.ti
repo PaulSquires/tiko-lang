@@ -245,6 +245,7 @@ type CXInclusionVisitor as sub cdecl _
     FN( getSkippedRanges, "clang_getSkippedRanges", ( byval tu as any ptr, byval f as any ptr ), CXSourceRangeList ptr )  '' Index.h:550
     SB( disposeSourceRangeList, "clang_disposeSourceRangeList", ( byval ranges as CXSourceRangeList ptr ) )  '' CXSourceLocation.h:288
     FN( Location_isFromMainFile, "clang_Location_isFromMainFile", ( byval loc as CXSourceLocation ), int32 )  '' CXSourceLocation.h:96
+    FN( Location_isInSystemHeader, "clang_Location_isInSystemHeader", ( byval loc as CXSourceLocation ), int32 )  '' CXSourceLocation.h:90
 #endmacro
 
 '' ---------------------------------------------------------------- the loaded library

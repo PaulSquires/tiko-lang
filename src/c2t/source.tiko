@@ -254,7 +254,7 @@ end function
 
 '' One C comment in tiko's spelling: '//' becomes '''' (a '///' doc comment ''''''), and
 '' '/* .. */' becomes '/'' .. ''/'. A spliced '//' comment's later lines get their own ''''.
-private function ConvertOne_( byref t as string ) as string
+function ConvertComment( byref t as string ) as string
     dim as string s = t
     s = Replace_( s, chr( 13 ), "" )
     if left( s, 2 ) = "//" then
@@ -275,13 +275,17 @@ function ConvertComments( byref src as C2tSource, byval n1 as int32, byval n2 as
     dim as int32 a = src.lineStart[n1 - 1]
     dim as int32 b = len( src.bytes )
     if n2 < src.lineStart.Count then b = src.lineStart[n2] - 1
+    return ConvertRange( src, a, b )
+end function
+
+function ConvertRange( byref src as C2tSource, byval a as int32, byval b as int32 ) as string
     dim as string r
     dim as int32 at = a
     dim as int32 ti = TokAt( src, a )
     while (ti < src.toks.Count) andalso (src.toks[ti].ofs < b)
         dim as C2tTok t = src.toks[ti]
         r &= mid( src.bytes, at + 1, t.ofs - at )
-        r &= ConvertOne_( TokText( src, ti ) )
+        r &= ConvertComment( TokText( src, ti ) )
         at = t.ofs + t.len_
         ti += 1
     wend

@@ -19,7 +19,7 @@
 #pragma once
 
 #include once "tko.ti"
-#include once "cimport/clang.ti"
+#include once "cimport/import.ti"
 
 namespace Tko.C2t
 
@@ -90,6 +90,7 @@ type C2tDirVec as containers.Array( of C2tDirective )
 type C2tBlock
     as int32 line1, line2
     as boolean isTodo
+    as boolean isDecl              '' a translated declaration (extern "C" opens before the first)
     as string text             '' an idiom's replacement, LF-separated, "" for none
     as string reason           '' a TODO's reason, from the fixed vocabulary
     as string what             '' a TODO's subject, for the banner: names, a macro, a path
@@ -102,6 +103,8 @@ type C2tSegment
     as int32 ofs1, ofs2
     as int32 kind
     as string name_
+    as Tko.CImport.CXCursor cur    '' valid while the pass's translation unit is open
+    as boolean viaMacro            '' made by a macro invocation (P0 item 3)
 end type
 type C2tSegVec as containers.Array( of C2tSegment )
 
@@ -109,6 +112,8 @@ type C2tSegVec as containers.Array( of C2tSegment )
 
 type C2tPass
     as string triple
+    as any ptr idx                 '' kept open until ClosePass: the emitter reads cursors
+    as any ptr tu
     segs as C2tSegVec
     skipped as C2tIntVec       '' pairs: start offset, end offset of each inactive region
     as boolean guarded         '' clang_isFileMultipleIncludeGuarded
@@ -138,6 +143,8 @@ declare function LineText( byref src as C2tSource, byval n as int32 ) as string
 '' Lines n1..n2 with every comment converted to tiko's spelling and nothing else changed.
 '' The lines must hold only comments and white space.
 declare function ConvertComments( byref src as C2tSource, byval n1 as int32, byval n2 as int32 ) as string
+'' Bytes a..b-1 the same way: comments converted, nothing else changed, no trailing blanks.
+declare function ConvertRange( byref src as C2tSource, byval a as int32, byval b as int32 ) as string
 declare function TokText( byref src as C2tSource, byval i as int32 ) as string
 '' The index of the first token at or after byte offset 'ofs'; toks.Count if none.
 declare function TokAt( byref src as C2tSource, byval ofs as int32 ) as int32
@@ -154,13 +161,41 @@ declare sub IdiomBlocks( byref src as C2tSource, byref dirs as C2tDirVec, _
 declare function RunPass( byref api as Tko.CImport.ClangApi, byref src as C2tSource, _
                           byref opts as C2tOptions, byref triple as string, _
                           byref p as C2tPass ) as boolean
+declare sub ClosePass( byref api as Tko.CImport.ClangApi, byref p as C2tPass )
+'' A cursor's extent as expansion offsets.
+declare sub CursorSpan( byref api as Tko.CImport.ClangApi, byval c as Tko.CImport.CXCursor, _
+                        byref ofs1 as int32, byref ofs2 as int32 )
+
+'' emitdecl.tiko -- the declarations of one TODO-free span, translated. c2t's view of the
+'' importer's state: the names pass 1 gave, what is written, which aliases exist.
+type C2tEmit
+    as Tko.CImport.ClangApi ptr api
+    as Tko.CImport.CImp ptr x
+    as C2tSource ptr src
+    aliasDone as Tko.StrVec        '' 'type X__fwd as X' already written, by X
+    as string indOverride          '' see emitdecl.tiko, BaseIndent_
+    as boolean useOverride
+    as int32 decls                 '' declarations written
+end type
+'' Set up the importer state for one pass: names, the c2t spellings, what other files declare.
+declare sub EmitInit( byref e as C2tEmit, byref api as Tko.CImport.ClangApi, byref x as Tko.CImport.CImp, _
+                      byref io as Tko.CImport.CImportOptions, byref src as C2tSource, byref p as C2tPass )
+'' The span's text, or false with reason and why for its TODO.
+declare function TranslateSpan( byref e as C2tEmit, byref p as C2tPass, byref segIdx as C2tIntVec, _
+                                byval l1 as int32, byval l2 as int32, byref text as string, _
+                                byref reason as string, byref why as string ) as boolean
+'' A C comment in tiko's spelling (source.tiko).
+declare function ConvertComment( byref t as string ) as string
 
 '' output.tiko -- the TODO blocks, then the whole file.
 declare sub TodoBlocks( byref src as C2tSource, byref dirs as C2tDirVec, byref p as C2tPass, _
-                        byref blocks as C2tBlockVec )
+                        byref e as C2tEmit, byref blocks as C2tBlockVec )
+'' 'preamble' goes after '#pragma once' (or first); 'externC' opens before the first
+'' translated declaration and closes at the end, when no __cplusplus block placed it.
 declare function Assemble( byref src as C2tSource, byref blocks as C2tBlockVec, _
                            byref outName as string, byref clangVersion as string, _
                            byref passes as Tko.StrVec, byref optText as string, _
+                           byref preamble as string, byval externC as boolean, _
                            byref todoCount as int32 ) as string
 
 '' c2t.tiko -- 'tiko c2t ...'. args[0] is "c2t". The process exit code: 0 translated with

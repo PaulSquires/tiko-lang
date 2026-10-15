@@ -1,0 +1,7 @@
+'' The translation of tests/c2t/src/decor.h compiles, for each target in TARGETS.
+'' TEST: cli
+'' CLEAN: build/.c2t/compile-decor
+'' STEP-EXIT: 2
+'' STEP: c2t tests/c2t/src/decor.h -o build/.c2t/compile-decor/decor.ti
+'' ARGS: -c build/.c2t/compile-decor/decor.ti -o build/.c2t/compile-decor/decor.o
+'' EXPECT-EXIT: 0

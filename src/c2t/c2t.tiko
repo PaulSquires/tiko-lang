@@ -135,7 +135,28 @@ private function Run_( byref args as Tko.StrVec, byref ctx as Tko.CompilerContex
     dim as C2tBlockVec blocks
     dim as Tko.StrVec decor
     IdiomBlocks( src, dirs, p.guarded, blocks, decor )
-    TodoBlocks( src, dirs, p, blocks )
+
+    '' THE IMPORTER'S STATE for this pass: pass 1's names, the c2t spellings (EmitInit).
+    dim as Tko.CImport.CImportOptions io
+    io.triple = triple
+    io.targetName = Tko.TargetName( Tko.TARGET_WINDOWS_X86_64 )
+    io.isWindows = true
+    io.clangExe = clangExe
+    dim as Tko.CImport.CImp x
+    dim as C2tEmit e
+    EmitInit( e, api, x, io, src, p )
+    TodoBlocks( src, dirs, p, e, blocks )
+    ClosePass( api, p )
+
+    '' clong/culong live in crt/long.bi; extern "C" is placed here unless the header's own
+    '' __cplusplus block said where.
+    dim as string preamble
+    if x.needsCLong then preamble = "#include once " & chr( 34 ) & "crt/long.bi" & chr( 34 )
+    dim as string externLine = "extern " & chr( 34 ) & "C" & chr( 34 )
+    dim as boolean externC = true
+    for i as int32 = 0 to blocks.Count - 1
+        if (blocks[i].isTodo = false) andalso (blocks[i].text = externLine) then externC = false
+    next
 
     dim as string outPath = o.output_
     if len( outPath ) = 0 then outPath = DefaultOut_( o.input_ )
@@ -143,7 +164,8 @@ private function Run_( byref args as Tko.StrVec, byref ctx as Tko.CompilerContex
     dim as Tko.StrVec passes
     passes.Push( triple )
     dim as int32 todos = 0
-    dim as string text = Assemble( src, blocks, outName, api.version, passes, optText, todos )
+    dim as string text = Assemble( src, blocks, outName, api.version, passes, optText, _
+                                   preamble, externC, todos )
 
     if WriteBytes_( outPath, text ) = false then
         ctx.diags.ReportGlobal( Tko.TKO0121, outPath )

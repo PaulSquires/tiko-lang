@@ -1,0 +1,6 @@
+'' The translation of tests/c2t/src/comments.h compiles, for each target in TARGETS.
+'' TEST: cli
+'' CLEAN: build/.c2t/compile-comments
+'' STEP: c2t tests/c2t/src/comments.h -o build/.c2t/compile-comments/comments.ti
+'' ARGS: -c build/.c2t/compile-comments/comments.ti -o build/.c2t/compile-comments/comments.o
+'' EXPECT-EXIT: 0

@@ -37,6 +37,7 @@
 ''     '' COPY: src => dst         copy a file, or a directory tree
 ''     '' WRITE: path :: text      write the file; \t \n \r \\ in text as in FILE-HAS
 ''     '' STEP: args               run tiko-lang with these, as ARGS is; it must exit 0
+''     '' STEP-EXIT: n             ...or exit n: the status the NEXT STEP must have
 ''     '' STEP-OUT: text           required substring of that STEP's output (repeatable)
 ''     '' STEP-NOT: text           forbidden substring of it (repeatable)
 ''
@@ -406,6 +407,8 @@ function ParseTest( byval path as string, byref tc as TestCase ) as boolean
             tc.steps.Push( "COPY" & chr( 9 ) & Trim_( mid( ln, 6 ) ) )
         elseif StartsWith( ln, "WRITE:" ) then
             tc.steps.Push( "WRITE" & chr( 9 ) & Trim_( mid( ln, 7 ) ) )
+        elseif StartsWith( ln, "STEP-EXIT:" ) then
+            tc.steps.Push( "STEP-EXIT" & chr( 9 ) & Trim_( mid( ln, 11 ) ) )
         elseif StartsWith( ln, "STEP-OUT:" ) then
             tc.steps.Push( "STEP-OUT" & chr( 9 ) & Trim_( mid( ln, 10 ) ) )
         elseif StartsWith( ln, "STEP-NOT:" ) then
@@ -721,6 +724,9 @@ function RunSteps_ _
 
     dim as string outText = ""
     dim as int32 n = 0
+    '' A STEP's required exit status, 0 unless a STEP-EXIT just before it said otherwise:
+    '' 'tiko c2t' exits 2 for a translation with TODOs, and a test compiles that output next.
+    dim as int32 stepWant = 0
     for each st as string in tc.steps
         dim as int32 tb = instr( st, chr( 9 ) )
         dim as string kind = left( st, tb - 1 )
@@ -759,13 +765,16 @@ function RunSteps_ _
                 return false
             end if
             WriteTextFile( Trim_( left( rest, sp - 1 ) ), Unescape_( Trim_( mid( rest, sp + 2 ) ) ) )
+        case "STEP-EXIT"
+            stepWant = valint( rest )
         case "STEP"
             n += 1
             dim as int32 rc = RunTko( opts.tikoPath, WithTarget_( tgt, rest ), outText, slotId )
-            if rc <> 0 then
-                why = "STEP " & n & " exited " & rc & ", expected 0:" & chr( 10 ) & outText
+            if rc <> stepWant then
+                why = "STEP " & n & " exited " & rc & ", expected " & stepWant & ":" & chr( 10 ) & outText
                 return false
             end if
+            stepWant = 0
         case "STEP-OUT"
             if instr( outText, rest ) = 0 then
                 why = "STEP " & n & " output does not contain: " & rest & chr( 10 ) & outText
