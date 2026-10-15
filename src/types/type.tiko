@@ -637,6 +637,16 @@ sub TypeContext.SetPacking( byval t as TypeId, byval n as int32 )
     this.types[cast( int32, t )].packing = n
 end sub
 
+function TypeContext.IsCLayout( byval t as TypeId ) as boolean
+    if (t = TYPE_NONE) orelse (cast( int32, t ) >= this.types.Count) then return false
+    return (this.types[cast( int32, t )].flags and TF_C_LAYOUT) <> 0
+end function
+
+sub TypeContext.SetCLayout( byval t as TypeId )
+    if (t = TYPE_NONE) orelse (cast( int32, t ) >= this.types.Count) then return
+    this.types[cast( int32, t )].flags or= TF_C_LAYOUT
+end sub
+
 function TypeContext.ElemCount( byval t as TypeId ) as int32
     if (t = TYPE_NONE) orelse (cast( int32, t ) >= this.types.Count) then return 0
     return this.types[cast( int32, t )].elems

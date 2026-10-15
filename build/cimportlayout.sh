@@ -34,7 +34,7 @@ triple() {
     esac
 }
 
-HEADERS="tests/cimport/src/probe.h tests/cimport/src/shapes.h tests/cimport/src/layout.h tests/cimport/src/msext.h tests/cimport/src/ci/a.h"
+HEADERS="tests/cimport/src/probe.h tests/cimport/src/shapes.h tests/cimport/src/layout.h tests/cimport/src/bitfields.h tests/cimport/src/msext.h tests/cimport/src/ci/a.h"
 [ -n "$EXE" ] && HEADERS="$HEADERS windows.h"
 
 nrun=0; nok=0; nbad=0

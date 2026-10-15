@@ -1,0 +1,13 @@
+' A TYPE's 'extern' clause names the C layout, and "c" is the only language that has one.
+type A extern "c++"
+    x as long
+end type
+union B extern "Windows"
+    x as long
+end union
+type C field = 1 extern "fb"
+    x as long
+end type
+type D extern "C"
+    x as long
+end type

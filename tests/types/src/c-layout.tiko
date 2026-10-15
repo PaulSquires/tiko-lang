@@ -1,0 +1,37 @@
+' 'extern "c"' on either side of 'field = N', and the C rule against fbc's for the same
+' members: the record's alignment is capped by the packing, and a bit-field opens a new unit
+' when the declared size changes (windows-x86_64) or shares a byte with an ordinary member
+' (linux-x86_64).
+type FbPacked field = 1
+    a as byte
+    b as long
+end type
+type CPackedBefore extern "c" field = 1
+    a as byte
+    b as long
+end type
+type CPackedAfter field = 2 extern "c"
+    a as byte
+    b as long
+end type
+type FbMixed
+    a : 3 as byte
+    b : 5 as long
+end type
+type CMixed extern "c"
+    a : 3 as byte
+    b : 5 as long
+end type
+type FbTail
+    x : 3 as ulong
+    c as ubyte
+end type
+type CTail extern "c"
+    x : 3 as ulong
+    c as ubyte
+end type
+type CHolds extern "c"
+    c as byte
+    p as CPackedBefore
+    m as CMixed
+end type

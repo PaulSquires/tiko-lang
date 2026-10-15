@@ -1,9 +1,10 @@
 '' -cnoverify skips the layout check: the binding is what the importer wrote, a record
-'' whose layout tiko does not reproduce included. For comparing with fbc-modern's
-'' -cimport-out, which writes the same text before its own check fails.
+'' whose layout tiko does not reproduce included -- lay_member_aligned, whose member C
+'' over-aligns by an attribute FreeBASIC cannot spell.
 '' TEST: cli
 '' ARGS: -cnoverify -cimport tests/cimport/src/layout.h -cimport-out -
 '' EXPECT-EXIT: 0
-'' EXPECT-OUT: type lay_holds_packed4 field = 4
-'' EXPECT-OUT: type lay_bits field = 4
+'' EXPECT-OUT: type lay_member_aligned extern "c"
+'' EXPECT-OUT: type lay_holds_aligned extern "c"
+'' EXPECT-OUT: type lay_bits extern "c"
 '' EXPECT-NOT: tiko lays it out

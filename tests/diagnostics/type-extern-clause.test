@@ -1,0 +1,9 @@
+'' 'type T extern "c"' takes "c" and nothing else (TKO0976) -- in either case, on a type or a
+'' union, before or after 'field = N'. D, spelled "C", is well formed.
+'' TEST: cli
+'' ARGS: --dump-udt tests/diagnostics/src/type-extern-clause.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: type-extern-clause.tiko(2,15): error TKO0976: a TYPE's 'extern' clause takes "c", not "c++"
+'' EXPECT-OUT: type-extern-clause.tiko(5,16): error TKO0976: a TYPE's 'extern' clause takes "c", not "Windows"
+'' EXPECT-OUT: type-extern-clause.tiko(8,25): error TKO0976: a TYPE's 'extern' clause takes "c", not "fb"
+'' EXPECT-MAX-DIAG: 3

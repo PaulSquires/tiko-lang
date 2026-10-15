@@ -406,6 +406,202 @@ private sub PlaceGroup _
     outAlign = grpAlign
 end sub
 
+'' THE C RULE, for a type declared 'extern "c"' (TF_C_LAYOUT). fbc's bit-field rule above
+'' matches neither C ABI, so a record shared with C code is laid out by the target's C
+'' compiler instead. Measured with clang 21 ('-Xclang -fdump-record-layouts-simple') over
+'' eighteen shapes on x86_64-pc-windows-msvc, x86_64-w64-mingw32 and x86_64-linux-gnu;
+'' MinGW agrees with MSVC on every one, so the rule follows isWindows, not the C library.
+''
+'' MSVC (clang's MicrosoftRecordLayoutBuilder::layoutBitField):
+''   - a bit-field JOINS the open unit only when the previous member was a bit-field, its
+''     declared type has the SAME SIZE as the unit's, and it still fits. Otherwise it opens
+''     a new unit as wide as its type, at the next offset aligned to the type (capped by
+''     'field = N'), and the type's alignment counts. 'char a:3; int b:5' is 8 bytes, b at
+''     bit 32 -- fbc says 1 byte.
+''   - an ordinary member closes the unit, and is placed after it.
+''   - in a UNION a bit-field occupies its type's size and contributes NO alignment:
+''     'union { char a:3; int b:5; }' is 4 bytes aligned to 1.
+'' SysV (clang's ItaniumRecordLayoutBuilder::LayoutBitField):
+''   - a bit-field goes at the next free BIT, unless it would then cross a boundary of an
+''     aligned unit of its type, when it moves to the next boundary. Under 'field = N' it
+''     never moves. It may share a byte with an ordinary member either side: 'unsigned
+''     x:3, y:5; char c' puts c at byte 1 -- fbc and MSVC say 4.
+''   - its type's alignment counts, capped by 'field = N'.
+'' BOTH: a member's alignment is capped by 'field = N' and so is the RECORD's -- '#pragma
+'' pack(1)' makes a C struct 1-aligned, where fbc keeps the type's natural alignment.
+''
+'' The UNIT recorded for each bit-field is what lowerbf.tiko loads and stores. MSVC's is the
+'' allocation itself. SysV's is the aligned unit of the field's type that holds it, or --
+'' under 'field = N', where the field may straddle that unit -- the smallest power of two
+'' that covers it, moved back inside the record by FitCUnits_ once the size is known.
+private sub PlaceGroupC _
+    ( byref flds as containers.Array( of uint32 ), byref idx as int32, byval depth as int32, _
+      byval isUnion as boolean, byval pack as int32, byval baseOff as int32, _
+      byval emit as boolean, byref syms as SymbolTable, byref types as TypeContext, _
+      byref store as UdtLayouts, byref u as UdtInfo, _
+      byref outSize as int32, byref outAlign as int32 )
+
+    dim as boolean ms = types.target.isWindows
+    '' Bytes used so far: MSVC's 'Size', SysV's data size.
+    dim as int32 size = 0
+    dim as int32 grpAlign = 1
+    dim as boolean first = true
+    '' MSVC's open unit: its type's size (0 when the last member was not a bit-field), where
+    '' it starts, and the bits still free in it.
+    dim as int32 msUnit = 0, msStart = 0, msLeft = 0
+    '' SysV: the bits at the end of the last byte that a following bit-field may still use.
+    dim as int32 unfilled = 0
+
+    while idx < flds.Count
+        dim as SymbolId sid = cast( SymbolId, flds[idx] )
+        dim as Symbol ptr f = syms.SymbolAt( sid )
+        if f = nullptr then exit while
+        dim as int32 fd = cast( int32, f->anonDepth )
+        if fd < depth then exit while
+        '' The group boundary, exactly as PlaceGroup reads it.
+        if (first = false) andalso (depth > 0) then
+            dim as int32 opensAt = fd - cast( int32, f->anonOpen ) + 1
+            if (f->anonOpen > 0) andalso (opensAt <= depth) then exit while
+        end if
+
+        if fd > depth then
+            '' A nested anonymous group: measured, placed as ONE member, walked again.
+            dim as int32 probe = idx
+            dim as int32 gs = 0, ga = 1
+            dim as boolean nestedIsUnion = false
+            if depth < 16 then
+                nestedIsUnion = ((f->anonUnionMask and cast( uint16, 1 shl depth )) <> 0)
+            end if
+            dim as int32 npack = pack
+            if (f->anonPack > 0) andalso (cast( int32, f->anonPackLevel ) = depth + 1) then npack = f->anonPack
+            PlaceGroupC( flds, probe, depth + 1, nestedIsUnion, npack, 0, false, _
+                         syms, types, store, u, gs, ga )
+            dim as int32 ea = ga
+            if (pack > 0) andalso (ea > pack) then ea = pack
+            dim as int32 at = 0
+            if isUnion then
+                if gs > size then size = gs
+            else
+                at = AlignUp( size, ea )
+                size = at + gs
+            end if
+            if ea > grpAlign then grpAlign = ea
+            msUnit = 0
+            unfilled = 0
+            PlaceGroupC( flds, idx, depth + 1, nestedIsUnion, npack, baseOff + at, emit, _
+                         syms, types, store, u, gs, ga )
+            first = false
+            continue while
+        end if
+
+        dim as int32 fa = MemberAlign( f->type_, types, store )
+        if (pack > 0) andalso (fa > pack) then fa = pack
+        dim as int32 fs = MemberSize( f->type_, types, store )
+        dim as int32 bw = 0
+        if (f->flags and SYMF_BITFIELD) <> 0 then bw = f->payload
+
+        dim as int32 at2 = 0, bitAt = 0, unitAt = 0, unitLen = 0
+        if bw > 0 then
+            dim as int32 pos_ = 0
+            if ms then
+                if (isUnion = false) andalso (msUnit = fs) andalso (bw <= msLeft) then
+                    pos_ = size * 8 - msLeft
+                    msLeft -= bw
+                else
+                    msUnit = fs
+                    if isUnion then
+                        '' MSVC ignores a bit-field's alignment in a union.
+                        msStart = 0
+                        if fs > size then size = fs
+                    else
+                        msStart = AlignUp( size, fa )
+                        size = msStart + fs
+                        if fa > grpAlign then grpAlign = fa
+                        msLeft = fs * 8 - bw
+                    end if
+                    pos_ = msStart * 8
+                end if
+                unitAt = msStart
+                unitLen = fs
+            else
+                dim as int32 faBits = fa * 8
+                if isUnion = false then pos_ = size * 8 - unfilled
+                if (pack = 0) andalso (((pos_ mod faBits) + bw) > fs * 8) then
+                    pos_ = AlignUp( pos_, faBits )
+                end if
+                if isUnion then
+                    if ((bw + 7) \ 8) > size then size = (bw + 7) \ 8
+                else
+                    size = (pos_ + bw + 7) \ 8
+                    unfilled = size * 8 - (pos_ + bw)
+                end if
+                if fa > grpAlign then grpAlign = fa
+                if pack = 0 then
+                    unitAt = ((pos_ \ 8) \ fs) * fs
+                    unitLen = fs
+                else
+                    dim as int32 span = ((pos_ mod 8) + bw + 7) \ 8
+                    unitLen = 1
+                    while unitLen < span
+                        unitLen *= 2
+                    wend
+                    unitAt = pos_ \ 8
+                end if
+            end if
+            at2 = pos_ \ 8
+            bitAt = pos_ mod 8
+        else
+            msUnit = 0
+            unfilled = 0
+            if fa > grpAlign then grpAlign = fa
+            if isUnion then
+                if fs > size then size = fs
+            else
+                at2 = AlignUp( size, fa )
+                size = at2 + fs
+            end if
+        end if
+
+        if emit then
+            dim as UdtField uf
+            uf.name = f->name
+            uf.type_ = f->type_
+            uf.offset = baseOff + at2
+            uf.bitOffset = bitAt
+            uf.bitWidth = bw
+            if bw > 0 then
+                uf.unitOffset = baseOff + unitAt
+                uf.unitBytes = unitLen
+            end if
+            store.fields.Push( uf )
+            u.count += 1
+        end if
+        first = false
+        idx += 1
+    wend
+
+    '' A nested group is padded to its own alignment, already capped by 'field = N'.
+    if depth > 0 then size = AlignUp( size, grpAlign )
+    outSize = size
+    outAlign = grpAlign
+end sub
+
+'' A SysV unit under 'field = N' is placed where the field starts, and the power of two that
+'' covers the field may then run past the record: 'field = 1 : p as byte : a : 20 as long'
+'' is 4 bytes and a's 4-byte unit starts at byte 1. Once the size is known, such a unit is
+'' moved back so it ends at the record's end -- it still covers the field, which ends there
+'' at the latest. A record smaller than the unit cannot be helped; that needs a load narrower
+'' than a power of two.
+private sub FitCUnits_( byref store as UdtLayouts, byref u as UdtInfo )
+    for i as int32 = 0 to u.count - 1
+        dim as UdtField ptr f = @store.fields[u.first + i]
+        if f->bitWidth <= 0 then continue for
+        if f->unitOffset + f->unitBytes <= u.size then continue for
+        f->unitOffset = u.size - f->unitBytes
+        if f->unitOffset < 0 then f->unitOffset = 0
+    next
+end sub
+
 '' One UDT, given its scope. Returns false when a member's type is not yet known, so
 '' the caller can try again after the types it depends on have been laid out.
 private function LayOutOne _
@@ -470,6 +666,18 @@ private function LayOutOne _
     dim as int32 idx = 0
     dim as int32 maxAlign = 1
     dim as int32 total = 0
+    if types.IsCLayout( s->type_ ) then
+        '' 'extern "c"': the target's C rule, whose alignment is already capped by the
+        '' packing -- see PlaceGroupC.
+        PlaceGroupC( flds, idx, 0, ((s->flags and SYMF_UNION_KIND) <> 0), pack, 0, true, _
+                     syms, types, store, u, total, maxAlign )
+        u.align = maxAlign
+        u.size = AlignUp( total, maxAlign )
+        if u.size = 0 then u.size = 1
+        FitCUnits_( store, u )
+        store.udts.Push( u )
+        return true
+    end if
     PlaceGroup( flds, idx, 0, ((s->flags and SYMF_UNION_KIND) <> 0), pack, 0, true, _
                 syms, types, store, u, total, maxAlign )
     dim as int32 offset = total

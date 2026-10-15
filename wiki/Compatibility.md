@@ -6,7 +6,7 @@ The reference is the official **fbc 1.20.0**, built from FreeBASIC's master bran
 
 The **diagnostic text** is tiko's own. Every message has a stable `TKOnnnn` id. fbc's error numbers survive only where a program can see them, through `ERR`.
 
-**What fbc 1.20 does not have is not a compatibility difference.** Generics, tuples, collection initializers, `defer`, lambdas, `ustring`, the fixed-width type names, `nullptr`, typed variadic parameters (`xs() as const long ...`, fbc error 7), `spawn` and channels, `#cinclude` and `#import` are tiko's own. Code that uses them does not compile under fbc 1.20. `dim a as int8` is fbc error 14, and `defer x` is error 42. The [Feature Index](Feature-Index) lists them. This page is about the code that both compilers accept, or one of them should.
+**What fbc 1.20 does not have is not a compatibility difference.** Generics, tuples, collection initializers, `defer`, lambdas, `ustring`, the fixed-width type names, `nullptr`, typed variadic parameters (`xs() as const long ...`, fbc error 7), the C layout of `type T extern "c"` (fbc error 17), `spawn` and channels, `#cinclude` and `#import` are tiko's own. Code that uses them does not compile under fbc 1.20. `dim a as int8` is fbc error 14, and `defer x` is error 42. The [Feature Index](Feature-Index) lists them. This page is about the code that both compilers accept, or one of them should.
 
 ## What does not compile under tiko
 
@@ -62,6 +62,8 @@ The constructor case is the one form fbc leaves out. Both compilers accept the s
 Across the vendored fbc suite, every line tiko gives `TKO0968` (22) or `TKO0970` (24) is one where fbc gives warning 5 or warning 2.
 
 **Graphics links on `windows-x86_64` only.** libtkogfx is built for that ABI alone.
+
+**`#pragma msbitfields` is accepted and does nothing.** In fbc 1.20 it stops a bitfield from sharing a unit with the ordinary field before it: `short s : 4, byte c, long i : 7` is 8 bytes with `i` at bit 32, where both compilers say 4 bytes and bit 24 without it. tiko keeps the 4-byte layout under the pragma. It is not MSVC's rule either -- fbc still packs `byte a : 3, long b : 5` into one byte, where MSVC uses 8 -- and `type T extern "c"` is how tiko lays a type out as C does.
 
 ## What is the same
 

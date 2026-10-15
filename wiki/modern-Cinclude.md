@@ -140,7 +140,7 @@ Every option is part of the cache key, so one header imported with different opt
 
 | | |
 |---|---|
-| structs, unions | layout checked; bit-fields included; an anonymous union member stays anonymous; a member whose struct type has no name gets a generated type name, such as `Outer_pos_t` |
+| structs, unions | written `extern "c"`, so laid out by the target's C rules, and the layout checked; bit-fields included; an anonymous union member stays anonymous; a member whose struct type has no name gets a generated type name, such as `Outer_pos_t` |
 | enums | a 32-bit integer type named after the enum, plus its values in an anonymous `enum` block |
 | typedefs | kept by name, so `LPCWSTR` stays `LPCWSTR` |
 | functions | including variadic ones, with the calling convention the header states for the target |

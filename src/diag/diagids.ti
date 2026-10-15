@@ -847,6 +847,9 @@
     DIAG( TKO0973, SEV_ERROR,   "a typed variadic parameter ('...') must be the last parameter" )
     DIAG( TKO0974, SEV_ERROR,   "a typed variadic parameter ('...') takes no default value" )
     DIAG( TKO0975, SEV_ERROR,   "'%0' is declared with a typed variadic last parameter ('...') in one place and without it in another" )
+    '' 'type T extern "c"' (tiko-only): the record is laid out as the target's C compiler lays it
+    '' out. "c" is the only language with a layout of its own. parser/decltype.tiko.
+    DIAG( TKO0976, SEV_ERROR,   "a TYPE's 'extern' clause takes ""c"", not ""%0""" )
     DIAG( TKO0965, SEV_ERROR,   "'%0' has a field with a constructor, which an initializer list cannot fill" )
     DIAG( TKO0955, SEV_ERROR,   "'end %0' closes no '%0' block" )
     DIAG( TKO0956, SEV_ERROR,   "a second 'case else' -- a select has one, and it comes last" )

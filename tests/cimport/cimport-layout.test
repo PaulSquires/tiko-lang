@@ -2,23 +2,28 @@
 '' differs is refused with the difference in the ledger, and whatever holds it by value
 '' goes with it -- the rest of the binding is still written. See src/layout.h.
 ''
-'' SysV packs 'tail' into the bit-fields' storage unit, which FreeBASIC cannot say, so
-'' lay_bits is refused on linux-x86_64 only; a pointer to it survives everywhere. A packed
-'' record in one that is not packed sits at C's offset 1 and FreeBASIC's 4, on every
-'' target. An over-aligned record is kept: its size is padded to C's.
+'' Every record is written 'extern "c"', so tiko lays it out by the target's C rule: the
+'' bit-fields of lay_bits share a unit with 'tail' on linux-x86_64 and not on Windows, and a
+'' packed record embeds at C's offset 1 -- both kept everywhere. An over-aligned record is
+'' kept, its size padded to C's. A member over-aligned by an attribute has no FreeBASIC
+'' spelling and is refused on every target; a '#pragma pack' that changes no alignment is
+'' invisible to the importer and refused where it moved a bit-field -- linux-x86_64 only.
 '' TEST: cli
 '' ARGS: -cimport tests/cimport/src/layout.h -cimport-out -
 '' EXPECT-EXIT: 0
-'' EXPECT-OUT: struct    lay_holds_packed4           tiko lays it out in 16 bytes aligned to 4, clang in 12 aligned to 4; member 'p' is at bit 32 in tiko's layout and bit 8 in clang's
-'' EXPECT-OUT: type lay_points_bits
+'' EXPECT-OUT: struct    lay_member_aligned          tiko lays it out in 20 bytes aligned to 4, clang in 32 aligned to 16; member 'x' is at bit 32 in tiko's layout and bit 128 in clang's
+'' EXPECT-OUT: struct    lay_holds_aligned           field 'm': uses 'lay_member_aligned', which was skipped
+'' EXPECT-OUT: type lay_bits extern "c"
+'' EXPECT-OUT: type lay_holds_bits extern "c"
+'' EXPECT-OUT: type lay_points_bits extern "c"
 '' EXPECT-OUT: b as lay_bits ptr
-'' EXPECT-OUT: type lay_holds_packed field = 1
+'' EXPECT-OUT: type lay_packed field = 1 extern "c"
+'' EXPECT-OUT: type lay_holds_packed extern "c"
+'' EXPECT-OUT: type lay_holds_packed4 extern "c"
 '' EXPECT-OUT: __cimport_pad(0 to 7) as ubyte
-'' EXPECT-OUT: type lay_plain
-'' EXPECT-NOT: type lay_holds_packed4
-'' EXPECT-OUT[linux-x86_64]: struct    lay_bits                    tiko lays it out in 8 bytes aligned to 4, clang in 4 aligned to 4; member 'tail' is at bit 32 in tiko's layout and bit 8 in clang's
-'' EXPECT-OUT[linux-x86_64]: struct    lay_holds_bits              field 'b': uses 'lay_bits', which was skipped
-'' EXPECT-OUT[win64]: type lay_bits field = 4
-'' EXPECT-OUT[win64]: type lay_holds_bits field = 4
-'' EXPECT-OUT[windows-x86_64]: type lay_bits field = 4
-'' EXPECT-OUT[windows-x86_64]: type lay_holds_bits field = 4
+'' EXPECT-OUT: type lay_plain extern "c"
+'' EXPECT-NOT: type lay_member_aligned
+'' EXPECT-NOT: type lay_holds_aligned
+'' EXPECT-OUT[linux-x86_64]: struct    lay_pack8_bits              member 'b' is at bit 32 in tiko's layout and bit 30 in clang's
+'' EXPECT-OUT[win64]: type lay_pack8_bits extern "c"
+'' EXPECT-OUT[windows-x86_64]: type lay_pack8_bits extern "c"

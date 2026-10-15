@@ -42,7 +42,7 @@ That is the whole binding. No `.bi` file, no `Declare`, no struct copied out by 
 
 The importer does **not** write Clang's offsets into the compiler's symbols. It emits tiko **text** and lets the compiler compute every size, alignment and member offset itself, so there are two independent answers to compare.
 
-> **A disagreement does not stop the build.** A record whose size, alignment or any member's bit offset disagrees is refused — left out of the binding, with the difference in the skip ledger — and the header is imported again without it; whatever holds it by value goes with it, and a pointer to it survives. Only a use of the refused record fails. For a `#pragma pack(1)` record held by one that is not packed, tiko's ledger reads `tiko lays it out in 16 bytes aligned to 4, clang in 12 aligned to 4; member 'p' is at bit 32 in tiko's layout and bit 8 in clang's` and `dim as lay_holds_packed4 h` is `TKO0808: the type 'lay_holds_packed4' is not declared`.
+> **A disagreement does not stop the build.** A record whose size, alignment or any member's bit offset disagrees is refused — left out of the binding, with the difference in the skip ledger — and the header is imported again without it; whatever holds it by value goes with it, and a pointer to it survives. Only a use of the refused record fails. For a record whose member C over-aligns with `__attribute__((aligned(16)))`, which tiko cannot spell, tiko's ledger reads `tiko lays it out in 20 bytes aligned to 4, clang in 32 aligned to 16; member 'x' is at bit 32 in tiko's layout and bit 128 in clang's`, and `dim as lay_holds_aligned h` -- a record holding it by value -- is `TKO0808: the type 'lay_holds_aligned' is not declared`.
 
 `-cnoverify` turns the check off. There is no good reason to use it.
 
@@ -108,7 +108,7 @@ A tool with its own parser — the [tiko language server](https://github.com/Pau
 
 | | |
 | --- | --- |
-| structs, unions | layout verified, bit-fields included, anonymous members flattened or nested as tiko requires |
+| structs, unions | written `type T extern "c"`, so laid out by the target's C rules -- MSVC's bit-fields on Windows, System V's on Linux, `#pragma pack` as `field = n`; layout verified, bit-fields included, anonymous members flattened or nested as tiko requires |
 | enums | as `type Color as uint32` plus a plain `Enum` block — never as a tiko `Enum`, which is 8 bytes where C says 4 |
 | typedefs | kept by name, so `LPCWSTR` stays `LPCWSTR` |
 | functions | including variadics, and the calling convention the header states **for the target being built** — see [Calling conventions](#calling-conventions) |

@@ -355,6 +355,11 @@ namespace Tko
     '' Measured, fbc's 'dim n' there counts 1 2 3 over three calls; tiko swallowed the word
     '' with the other trailing modifiers and the locals started over on every call.
     const PF_STATIC_LOCALS  as uint32 = &h01000000
+    '' N_TYPE: 'type T extern "c"' -- A TIKO EXTENSION. The record is laid out by the TARGET'S C
+    '' RULE (MSVC on windows-x86_64, SysV on linux-x86_64) instead of fbc's, which differs for
+    '' bit-fields and for a packed record's alignment. #cinclude and c2t write it on every
+    '' record they emit. A high bit, clear of the packing that shares 'extra'.
+    const PF_C_LAYOUT       as uint32 = &h02000000
     '' N_VAR's OWN 'extra' (its items carry KW_REDIM in theirs): 'extern import' -- a variable
     '' a DLL exports, reached through its import pointer (T85). See llvmglobal.tiko.
     const VF_DLLIMPORT      as uint32 = &h00000001

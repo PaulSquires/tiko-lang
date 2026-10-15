@@ -1,0 +1,33 @@
+'' 'type T extern "c"' lays T out by the target's C rule -- here linux-x86_64's -- and leaves fbc's
+'' rule to every other type: the packed record is aligned to its packing, not its members;
+'' 'byte a:3, long b:5' shares one unit (SysV); 'ulong x:3, ubyte c' puts c
+'' in the unit's second byte. The clause reads on either side of 'field = N'. Every C number matches
+'' clang's for the same struct. See src/c-layout.tiko.
+'' TEST: cli
+'' ARGS: -target linux-x86_64 --dump-udt tests/types/src/c-layout.tiko
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: fbpacked size 5 align 4
+'' EXPECT-OUT:   fbpacked off a 0
+'' EXPECT-OUT:   fbpacked off b 1
+'' EXPECT-OUT: cpackedbefore size 5 align 1
+'' EXPECT-OUT:   cpackedbefore off a 0
+'' EXPECT-OUT:   cpackedbefore off b 1
+'' EXPECT-OUT: cpackedafter size 6 align 2
+'' EXPECT-OUT:   cpackedafter off a 0
+'' EXPECT-OUT:   cpackedafter off b 2
+'' EXPECT-OUT: fbmixed size 1 align 1
+'' EXPECT-OUT:   fbmixed off a 0
+'' EXPECT-OUT:   fbmixed off b 0
+'' EXPECT-OUT: cmixed size 4 align 4
+'' EXPECT-OUT:   cmixed off a 0
+'' EXPECT-OUT:   cmixed off b 0
+'' EXPECT-OUT: fbtail size 8 align 4
+'' EXPECT-OUT:   fbtail off x 0
+'' EXPECT-OUT:   fbtail off c 4
+'' EXPECT-OUT: ctail size 4 align 4
+'' EXPECT-OUT:   ctail off x 0
+'' EXPECT-OUT:   ctail off c 1
+'' EXPECT-OUT: cholds size 12 align 4
+'' EXPECT-OUT:   cholds off c 0
+'' EXPECT-OUT:   cholds off p 1
+'' EXPECT-OUT:   cholds off m 8

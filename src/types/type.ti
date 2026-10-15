@@ -142,6 +142,9 @@ namespace Tko
     '' nothing about the call but how its arguments are written: a call through the
     '' pointer packs them, as a direct call does.
     const TF_TYPED_VARIADIC as uint16 = &h0010
+    '' A UDT DECLARED 'extern "c"' -- laid out by the target's C rule, not fbc's. See
+    '' PF_C_LAYOUT and PlaceGroupC in types/udtlayout.tiko.
+    const TF_C_LAYOUT as uint16 = &h0020
 
     type TypeInfo
         as uint8    kind
@@ -334,6 +337,9 @@ namespace Tko
         declare function BaseDistance _
             ( byval from_ as TypeId, byval to_ as TypeId ) as int32
         declare sub SetPacking( byval t as TypeId, byval n as int32 )
+        '' 'type T extern "c"' -- see TF_C_LAYOUT.
+        declare function IsCLayout( byval t as TypeId ) as boolean
+        declare sub SetCLayout( byval t as TypeId )
         '' THE RESULT OF A PROCEDURE TYPE, set AFTER the fact. A procedure type whose
         '' result names a typedef declared later in the unit is built with no result at
         '' all, and everything already bound to it keeps that TypeId -- so the repair

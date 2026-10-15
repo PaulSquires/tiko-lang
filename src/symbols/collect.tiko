@@ -628,8 +628,9 @@ sub WalkNode _
             '' nothing.
             w.info->SetRef( id, sid )
             '' 'field = N' SHARES 'extra' WITH AN EXTERN BLOCK'S PF_FOREIGN/PF_CXX (packing 33 in commctrl.bi).
-            dim as uint32 pk = sp->extra and not cast( uint32, Tko.PF_FOREIGN or Tko.PF_CXX or Tko.PF_VIS_PUBLIC or Tko.PF_VIS_PRIVATE )
+            dim as uint32 pk = sp->extra and not cast( uint32, Tko.PF_FOREIGN or Tko.PF_CXX or Tko.PF_VIS_PUBLIC or Tko.PF_VIS_PRIVATE or Tko.PF_C_LAYOUT )
             if pk > 0 then w.types->SetPacking( s->type_, cast( int32, pk ) )
+            if (sp->extra and Tko.PF_C_LAYOUT) <> 0 then w.types->SetCLayout( s->type_ )
         end if
         w.info->SetScope( id, inner )
 

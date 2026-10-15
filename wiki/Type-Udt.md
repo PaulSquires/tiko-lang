@@ -13,7 +13,7 @@ fieldname2 As DataType
 As DataType fieldname3, fieldname4
 ...
 End Type
-Type typename [Alias "alternatename"] [Extends base_typename] [Field = alignment]
+Type typename [Alias "alternatename"] [Extends base_typename] [Field = alignment] [Extern "c"]
 [Private:|Public:|Protected:]
 ```
 
@@ -58,6 +58,14 @@ The main structure (Type/Union) must be always named, the other (nested) structu
  Only integer data-types (up to 32-bit for 32-bit development or 64-bit for 64-bit development) are valid. The sizes of the declared data-types, large enough to contain the bit patterns, affect how the bitfields are placed in memory.  
  Bitfield members in a type are packed together, unless the next member is a non-bitfield (nested union is considered a non-bitfield).  
  A bitfield does not have any address (one cannot get a pointer to it and its offset inside the structure).
+
+ *Note on `Extern "c"`*
+ `Extern "c"` lays the type out as the target's C compiler lays out the same struct or union: by MSVC's rules on `windows-x86_64` and `win64`, by the System V rules on `linux-x86_64`. Write it on a type that C code also reads or writes. It decides two things:
+
+ - **Bitfields.** On Windows a bitfield opens a new unit whenever its declared type's size changes, and each unit is aligned to its type: `a : 3 As Byte` then `b : 5 As Long` is 8 bytes, with `b` in the second four. In a union, a bitfield takes its type's size and adds no alignment. On Linux a bitfield goes at the next free bit unless it would then cross a boundary of its type, and it may share a byte with an ordinary field: `x : 3 As ULong` then `c As UByte` puts `c` at offset 1, in a type 4 bytes long.
+ - **`Field = alignment`** also caps the type's own alignment, as `#pragma pack` does in C: a `Field = 1` type holding a `Byte` and a `Long` is 5 bytes aligned to 1, and another type holds it at offset 1. On Linux, a bitfield in a `Field` type never moves to its type's next boundary.
+
+ The clause may stand before or after `Field = alignment`, and `"c"` is the only language it takes (`TKO0976`). [`#cinclude`](modern-Cinclude) writes it on every struct and union it imports.
 
 ## Remarks
 

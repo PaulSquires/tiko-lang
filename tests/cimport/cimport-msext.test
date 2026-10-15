@@ -12,7 +12,7 @@
 '' EXPECT-NOT: ms_inline
 '' EXPECT-NOT: tiko lays it out
 '' EXPECT-NOT: in tiko's layout
-'' EXPECT-OUT[windows-x86_64]: type ms_by_typedef field = 4
+'' EXPECT-OUT[windows-x86_64]: type ms_by_typedef extern "c"
 '' EXPECT-OUT[windows-x86_64]: a as long
 '' EXPECT-OUT[windows-x86_64]: extra as culong
 '' EXPECT-OUT[windows-x86_64]: x as long

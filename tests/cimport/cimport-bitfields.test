@@ -1,0 +1,24 @@
+'' Bit-field records whose layout fbc's rule, MSVC's and SysV's disagree on: mixed declared
+'' sizes, a bit-field sharing a byte with an ordinary member, signed and unsigned, _Bool,
+'' an unnamed bit-field, an enum, a union, anonymous and nested records, and '#pragma pack'
+'' 1 and 2. Every record is written 'extern "c"' and laid out by the target's C rule, and
+'' --verify -- which compares every member's BIT offset with clang's -- refuses none.
+'' tiko with fbc's rule refused fourteen of them on Windows and eight on linux-x86_64.
+'' See src/bitfields.h.
+'' TEST: cli
+'' ARGS: -cimport tests/cimport/src/bitfields.h -cimport-out -
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: tiko lays it out
+'' EXPECT-NOT: in tiko's layout
+'' EXPECT-NOT: was skipped
+'' EXPECT-OUT: type bf_mixed extern "c"
+'' EXPECT-OUT: type bf_tail extern "c"
+'' EXPECT-OUT: __cimport_bits2 : 5 as long
+'' EXPECT-OUT: type bf_nested extern "c"
+'' EXPECT-OUT: type bf_pack1 field = 1 extern "c"
+'' EXPECT-OUT: type bf_pack1_span field = 1 extern "c"
+'' EXPECT-OUT: type bf_pack1_end field = 1 extern "c"
+'' EXPECT-OUT: type bf_pack2 field = 2 extern "c"
+'' EXPECT-OUT[win64]: union bf_union field = 1 extern "c"
+'' EXPECT-OUT[windows-x86_64]: union bf_union field = 1 extern "c"
+'' EXPECT-OUT[linux-x86_64]: union bf_union extern "c"

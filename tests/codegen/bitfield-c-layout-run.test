@@ -1,0 +1,111 @@
+'' RUN: 'type T extern "c"' records lay out by MSVC's bit-field rule on windows-x86_64 --
+'' a new unit whenever the declared type's size changes, '#pragma pack' capping the record's
+'' alignment -- and every read and write goes through the right unit. Output identical to a
+'' clang-compiled C twin of the same records (x86_64-pc-windows-msvc).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/bitfield-c-layout.bas -o tests/codegen/bitfieldclayout.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/bitfieldclayout.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: bf_mixed 8
+'' EXPECT-RUN-OUT: bf_mixed a 0500000000000000 5
+'' EXPECT-RUN-OUT: bf_mixed b 0000000016000000 22
+'' EXPECT-RUN-OUT: bf_mixed all fefffffffbffffff
+'' EXPECT-RUN-OUT: bf_mixed all.a 6
+'' EXPECT-RUN-OUT: bf_mixed all.b 27
+'' EXPECT-RUN-OUT: bf_short_gap 8
+'' EXPECT-RUN-OUT: bf_short_gap s 0d00000000000000 13
+'' EXPECT-RUN-OUT: bf_short_gap c 0000b60000000000 182
+'' EXPECT-RUN-OUT: bf_short_gap i 000000005b000000 91
+'' EXPECT-RUN-OUT: bf_short_gap all f6ffdbffedffffff
+'' EXPECT-RUN-OUT: bf_short_gap all.s 6
+'' EXPECT-RUN-OUT: bf_short_gap all.c 219
+'' EXPECT-RUN-OUT: bf_short_gap all.i 109
+'' EXPECT-RUN-OUT: bf_wide 16
+'' EXPECT-RUN-OUT: bf_wide q 6ddbb66ddb0000000000000000000000 942438538093
+'' EXPECT-RUN-OUT: bf_wide r 0000000000000000b601000000000000 438
+'' EXPECT-RUN-OUT: bf_wide all b66ddbb66dffffffdbfeffffffffffff
+'' EXPECT-RUN-OUT: bf_wide all.q 471219269046
+'' EXPECT-RUN-OUT: bf_wide all.r 731
+'' EXPECT-RUN-OUT: bf_after_char 16
+'' EXPECT-RUN-OUT: bf_after_char c 6d000000000000000000000000000000 109
+'' EXPECT-RUN-OUT: bf_after_char q 00000000000000000600000000000000 6
+'' EXPECT-RUN-OUT: bf_after_char all b6fffffffffffffffbffffffffffffff
+'' EXPECT-RUN-OUT: bf_after_char all.c 182
+'' EXPECT-RUN-OUT: bf_after_char all.q 3
+'' EXPECT-RUN-OUT: bf_tail 8
+'' EXPECT-RUN-OUT: bf_tail x 0500000000000000 5
+'' EXPECT-RUN-OUT: bf_tail y b000000000000000 22
+'' EXPECT-RUN-OUT: bf_tail c 00000000db000000 219
+'' EXPECT-RUN-OUT: bf_tail all deffffff6dffffff
+'' EXPECT-RUN-OUT: bf_tail all.x 6
+'' EXPECT-RUN-OUT: bf_tail all.y 27
+'' EXPECT-RUN-OUT: bf_tail all.c 109
+'' EXPECT-RUN-OUT: bf_overflow 8
+'' EXPECT-RUN-OUT: bf_overflow a 6ddbb62d00000000 766958445
+'' EXPECT-RUN-OUT: bf_overflow b 0000000016000000 22
+'' EXPECT-RUN-OUT: bf_overflow all b66ddbf6fbffffff
+'' EXPECT-RUN-OUT: bf_overflow all.a 920350134
+'' EXPECT-RUN-OUT: bf_overflow all.b 27
+'' EXPECT-RUN-OUT: bf_sizes 6
+'' EXPECT-RUN-OUT: bf_sizes a 050000000000 5
+'' EXPECT-RUN-OUT: bf_sizes b 000006000000 6
+'' EXPECT-RUN-OUT: bf_sizes c 000000000300 3
+'' EXPECT-RUN-OUT: bf_sizes all fefffbfffdff
+'' EXPECT-RUN-OUT: bf_sizes all.a 6
+'' EXPECT-RUN-OUT: bf_sizes all.b 3
+'' EXPECT-RUN-OUT: bf_sizes all.c 5
+'' EXPECT-RUN-OUT: bf_into_char 8
+'' EXPECT-RUN-OUT: bf_into_char x 6d00000000000000 109
+'' EXPECT-RUN-OUT: bf_into_char a 0000000006000000 6
+'' EXPECT-RUN-OUT: bf_into_char all b6fffffffbffffff
+'' EXPECT-RUN-OUT: bf_into_char all.x 182
+'' EXPECT-RUN-OUT: bf_into_char all.a 3
+'' EXPECT-RUN-OUT: bf_ll_middle 24
+'' EXPECT-RUN-OUT: bf_ll_middle a 050000000000000000000000000000000000000000000000 5
+'' EXPECT-RUN-OUT: bf_ll_middle b 000000000000000006000000000000000000000000000000 6
+'' EXPECT-RUN-OUT: bf_ll_middle c 000000000000000000000000000000000300000000000000 3
+'' EXPECT-RUN-OUT: bf_ll_middle all fefffffffffffffffbfffffffffffffffdffffffffffffff
+'' EXPECT-RUN-OUT: bf_ll_middle all.a 6
+'' EXPECT-RUN-OUT: bf_ll_middle all.b 3
+'' EXPECT-RUN-OUT: bf_ll_middle all.c 5
+'' EXPECT-RUN-OUT: bf_ull 24
+'' EXPECT-RUN-OUT: bf_ull a 6ddbb66ddbb66d0b00000000000000000000000000000000 823515360433462125
+'' EXPECT-RUN-OUT: bf_ull b 0000000000000000b66ddb36000000000000000000000000 920350134
+'' EXPECT-RUN-OUT: bf_ull c 00000000000000000000000000000000dbb66ddb00000000 3681400539
+'' EXPECT-RUN-OUT: bf_ull all b66ddbb66ddbb6fddbb66ddbffffffff6ddbb66dffffffff
+'' EXPECT-RUN-OUT: bf_ull all.a 988218432520154550
+'' EXPECT-RUN-OUT: bf_ull all.b 1533916891
+'' EXPECT-RUN-OUT: bf_ull all.c 6135667565
+'' EXPECT-RUN-OUT: bf_union 4
+'' EXPECT-RUN-OUT: bf_union a 05000000 5
+'' EXPECT-RUN-OUT: bf_union b 16000000 22
+'' EXPECT-RUN-OUT: bf_pack1 5
+'' EXPECT-RUN-OUT: bf_pack1 a 0500000000 5
+'' EXPECT-RUN-OUT: bf_pack1 b 0016000000 22
+'' EXPECT-RUN-OUT: bf_pack1 all fefbffffff
+'' EXPECT-RUN-OUT: bf_pack1 all.a 6
+'' EXPECT-RUN-OUT: bf_pack1 all.b 27
+'' EXPECT-RUN-OUT: bf_pack1_span 7
+'' EXPECT-RUN-OUT: bf_pack1_span p 6d000000000000 109
+'' EXPECT-RUN-OUT: bf_pack1_span a 00b66d0b000000 748982
+'' EXPECT-RUN-OUT: bf_pack1_span b 0000000000db36 14043
+'' EXPECT-RUN-OUT: bf_pack1_span all b6dbb6fdff6ddb
+'' EXPECT-RUN-OUT: bf_pack1_span all.p 182
+'' EXPECT-RUN-OUT: bf_pack1_span all.a 898779
+'' EXPECT-RUN-OUT: bf_pack1_span all.b 7021
+'' EXPECT-RUN-OUT: bf_pack1_end 5
+'' EXPECT-RUN-OUT: bf_pack1_end a 0d00000000 13
+'' EXPECT-RUN-OUT: bf_pack1_end b 00b66d0b00 748982
+'' EXPECT-RUN-OUT: bf_pack1_end all f6dbb6fdff
+'' EXPECT-RUN-OUT: bf_pack1_end all.a 6
+'' EXPECT-RUN-OUT: bf_pack1_end all.b 898779
+'' EXPECT-RUN-OUT: bf_pack2 8
+'' EXPECT-RUN-OUT: bf_pack2 a 0500000000000000 5
+'' EXPECT-RUN-OUT: bf_pack2 b 0000160000000000 22
+'' EXPECT-RUN-OUT: bf_pack2 c 000000000000db00 219
+'' EXPECT-RUN-OUT: bf_pack2 all fefffbffffff6dff
+'' EXPECT-RUN-OUT: bf_pack2 all.a 6
+'' EXPECT-RUN-OUT: bf_pack2 all.b 27
+'' EXPECT-RUN-OUT: bf_pack2 all.c 109

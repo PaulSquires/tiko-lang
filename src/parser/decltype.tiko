@@ -17,6 +17,29 @@ private sub TypedefKeywordTarget_( byref p as Tko.ParserState, byval n as Tko.No
     p.diags->Report( Tko.TKO0893, Tko.PointRange( p.ast->Loc( n ) ), lcase( mid( Tko.TokenKindName( k ), 4 ) ) )  '' 'KW_DIM' -> 'dim'
 end sub
 
+'' 'type T extern "c"' -- A TIKO EXTENSION: lay T out by the target's C rule (PF_C_LAYOUT).
+'' Read on either side of a 'field = N' clause. fbc's rule for bit-fields matches neither
+'' MSVC's nor SysV's, so a record shared with C code has to say which one it follows; the
+'' string is the language an 'extern' block names, and only "c" has a layout of its own.
+private sub ParseCLayoutClause_( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
+    if Peek( p ) <> Tko.KW_EXTERN then return
+    if HasTok( p, p.pos + 1 ) = false then return
+    if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) <> Tko.TK_STRING_LIT then return
+    Advance( p )
+    dim as Tko.Token lt = Cur( p )
+    dim as Tko.InternId lang = StringLitText( p )
+    Advance( p )
+    dim as string lgl = ""
+    if lang <> 0 then lgl = Tko.Text.LowerAscii( p.names->Spelling( lang ) )
+    if lgl = "c" then
+        sp.extra or= Tko.PF_C_LAYOUT
+    elseif p.silent = false then
+        dim as string shown = ""
+        if lang <> 0 then shown = p.names->Spelling( lang )
+        p.diags->Report( Tko.TKO0976, Tko.PointRange( lt.loc ), shown )
+    end if
+end sub
+
 private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.Token t = Cur( p )
     dim as int32 typeTok0 = p.pos
@@ -167,7 +190,9 @@ private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
             Expect( p, Tko.TK_RPAREN, ")" )
         end if
     end if
+    ParseCLayoutClause_( p, sp )
     ParseFieldClause( p, sp )
+    ParseCLayoutClause_( p, sp )
 
     '' 'type UDT alias ""' -- fbc's error 304 -- the same empty-alias test the other
     '' sites make; a non-empty one is accepted and, as a mangling control, otherwise
