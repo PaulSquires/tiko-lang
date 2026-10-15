@@ -22,7 +22,7 @@
 extern "c"   '' NON-FBCALL: fb_ustring.h declares all ten without FBCALL.
 
 function tkort_hUStrLen alias "fb_hUStrLen" ( byval s as FB_UCHAR ptr ) as integer
-	if( s = 0 ) then return 0
+	if( s = nullptr ) then return 0
 	dim as FB_UCHAR ptr p = s
 	while( *p <> 0 )
 		p += 1
@@ -44,12 +44,12 @@ function tkort_hUStrCompare alias "fb_hUStrCompare" _
 
 	'' NULL is not "empty": a NULL against a non-empty operand orders below it,
 	'' and against an empty one -- or another NULL -- compares equal.
-	if( s1 = 0 ) then
-		if( s2 = 0 ) then return 0
+	if( s1 = nullptr ) then
+		if( s2 = nullptr ) then return 0
 		if( len2 = 0 ) then return 0
 		return -1
 	end if
-	if( s2 = 0 ) then
+	if( s2 = nullptr ) then
 		if( len1 = 0 ) then return 0
 		return 1
 	end if
@@ -77,7 +77,7 @@ end function
 '' terminator at d[0], not at d[n].
 sub tkort_hUStrCopy alias "fb_hUStrCopy" _
 	( byval dst as FB_UCHAR ptr, byval src as FB_UCHAR ptr, byval units as integer )
-	if( (src <> 0) andalso (units > 0) ) then
+	if( (src <> nullptr) andalso (units > 0) ) then
 		memcpy( dst, src, units * sizeof( FB_UCHAR ) )
 		dst += units
 	end if
@@ -88,7 +88,7 @@ end sub
 '' between this and hUStrCopy is one byte and it is the whole contract.
 sub tkort_hUStrCopyN alias "fb_hUStrCopyN" _
 	( byval dst as FB_UCHAR ptr, byval src as FB_UCHAR ptr, byval units as integer )
-	if( (src <> 0) andalso (units > 0) ) then
+	if( (src <> nullptr) andalso (units > 0) ) then
 		memcpy( dst, src, units * sizeof( FB_UCHAR ) )
 	end if
 end sub
@@ -96,7 +96,7 @@ end sub
 '' Overlap-safe, for the in-place shifts MID and LTRIM perform.
 sub tkort_hUStrMove alias "fb_hUStrMove" _
 	( byval dst as FB_UCHAR ptr, byval src as FB_UCHAR ptr, byval units as integer )
-	if( (src <> 0) andalso (units > 0) ) then
+	if( (src <> nullptr) andalso (units > 0) ) then
 		memmove( dst, src, units * sizeof( FB_UCHAR ) )
 	end if
 end sub
@@ -108,7 +108,7 @@ end sub
 sub tkort_hUStrFill alias "fb_hUStrFill" _
 	( byval dst as FB_UCHAR ptr, byval c as FB_UCHAR, byval units as integer )
 
-	if( dst = 0 ) then exit sub
+	if( dst = nullptr ) then exit sub
 
 	if( (c and &hFF) = ((c shr 8) and &hFF) ) then
 		if( units > 0 ) then memset( dst, c and &hFF, units * sizeof( FB_UCHAR ) )
@@ -125,7 +125,7 @@ end sub
 '' position: the callers add the 1 themselves.
 function tkort_hUStrChr alias "fb_hUStrChr" _
 	( byval s as FB_UCHAR ptr, byval length as integer, byval c as FB_UCHAR ) as integer
-	if( s = 0 ) then return -1
+	if( s = nullptr ) then return -1
 	for i as integer = 0 to length - 1
 		if( s[i] = c ) then return i
 	next
@@ -141,8 +141,8 @@ function tkort_hUStrStr alias "fb_hUStrStr" _
 	( byval hay as FB_UCHAR ptr, byval haylen as integer, _
 	  byval needle as FB_UCHAR ptr, byval needlelen as integer ) as integer
 
-	if( hay = 0 ) then return -1
-	if( needle = 0 ) then return -1
+	if( hay = nullptr ) then return -1
+	if( needle = nullptr ) then return -1
 	if( needlelen <= 0 ) then return 0
 	if( needlelen > haylen ) then return -1
 
@@ -167,7 +167,7 @@ end function
 '' narrow rule, where STRING * N is space-padded.
 function tkort_hUStrSkipChar alias "fb_hUStrSkipChar" _
 	( byval s as FB_UCHAR ptr, byval length as integer, byval c as FB_UCHAR ) as FB_UCHAR ptr
-	if( s = 0 ) then return 0
+	if( s = nullptr ) then return nullptr
 	dim as FB_UCHAR ptr p = s
 	while( (length > 0) andalso (*p = c) )
 		p += 1
@@ -180,7 +180,7 @@ end function
 '' so the kept length is (result - s).
 function tkort_hUStrSkipCharRev alias "fb_hUStrSkipCharRev" _
 	( byval s as FB_UCHAR ptr, byval length as integer, byval c as FB_UCHAR ) as FB_UCHAR ptr
-	if( s = 0 ) then return 0
+	if( s = nullptr ) then return nullptr
 	dim as FB_UCHAR ptr p = s + length
 	while( (p > s) andalso (p[-1] = c) )
 		p -= 1

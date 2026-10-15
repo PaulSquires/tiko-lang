@@ -229,9 +229,9 @@ private function hToUTF8( byval src as any ptr, byval chars as integer, _
                           byval dst as uint8 ptr, byval bytes as integer ptr ) as uint8 ptr
 
 	if( chars > 0 ) then
-		if( dst = 0 ) then
+		if( dst = nullptr ) then
 			dst = cptr( uint8 ptr, malloc( chars * 4 ) )
-			if( dst = 0 ) then return 0
+			if( dst = nullptr ) then return nullptr
 		end if
 	end if
 
@@ -253,9 +253,9 @@ private function hToUTF16( byval src as any ptr, byval chars as integer, _
 	*bytes = chars * 2
 
 	if( chars > 0 ) then
-		if( dst = 0 ) then
+		if( dst = nullptr ) then
 			dst = cptr( uint8 ptr, malloc( chars * 2 ) )
-			if( dst = 0 ) then return 0
+			if( dst = nullptr ) then return nullptr
 		end if
 	end if
 
@@ -276,9 +276,9 @@ private function hToUTF32( byval src as any ptr, byval chars as integer, _
 	*bytes = chars * 4
 
 	if( chars > 0 ) then
-		if( dst = 0 ) then
+		if( dst = nullptr ) then
 			dst = cptr( uint8 ptr, malloc( chars * 4 ) )
-			if( dst = 0 ) then return 0
+			if( dst = nullptr ) then return nullptr
 		end if
 	end if
 
@@ -308,7 +308,7 @@ function tkort_WCharToUTF alias "fb_WCharToUTF" _
 
 	'' AN UNKNOWN ENCODING IS NULL AND LEAVES `bytes` UNTOUCHED -- unlike the
 	'' three above, which all write it before they can fail.
-	return 0
+	return nullptr
 end function
 
 end extern

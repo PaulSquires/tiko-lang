@@ -87,7 +87,7 @@ private function hWcharToUnits _
 		'' Already UTF-16, surrogate pairs included.
 		dim as uint16 ptr s = cptr( uint16 ptr, src )
 		dim as integer n = src_chars
-		if( dst <> 0 ) then
+		if( dst <> nullptr ) then
 			dim as integer lim = iif( n < dst_units, n, dst_units )
 			for i as integer = 0 to lim - 1
 				dst[i] = s[i]
@@ -107,19 +107,19 @@ private function hWcharToUnits _
 			'' CAN, and is passed through -- see the header.
 			if( cp > FB_UCHAR_MAX_CP ) then cp = FB_UCHAR_REPLACEMENT
 			if( cp < &h10000 ) then
-				if( (dst <> 0) andalso (n < dst_units) ) then dst[n] = cast( FB_UCHAR, cp )
+				if( (dst <> nullptr) andalso (n < dst_units) ) then dst[n] = cast( FB_UCHAR, cp )
 				n += 1
 			else
 				dim as uint32 v = cp - &h10000
-				if( (dst <> 0) andalso (n < dst_units) ) then _
+				if( (dst <> nullptr) andalso (n < dst_units) ) then _
 					dst[n] = cast( FB_UCHAR, &hD800 + (v shr 10) )
 				n += 1
-				if( (dst <> 0) andalso (n < dst_units) ) then _
+				if( (dst <> nullptr) andalso (n < dst_units) ) then _
 					dst[n] = cast( FB_UCHAR, &hDC00 + (v and &h3FF) )
 				n += 1
 			end if
 		next
-		if( dst <> 0 ) then dst[iif( n < dst_units, n, dst_units )] = 0
+		if( dst <> nullptr ) then dst[iif( n < dst_units, n, dst_units )] = 0
 		return n
 	end if
 
@@ -133,7 +133,7 @@ private function hUnitsToWchar _
 	if( sizeof( wstring ) = 2 ) then
 		dim as uint16 ptr d = cptr( uint16 ptr, dst )
 		dim as integer n = src_units
-		if( dst <> 0 ) then
+		if( dst <> nullptr ) then
 			dim as integer lim = iif( n < dst_chars, n, dst_chars )
 			for i as integer = 0 to lim - 1
 				d[i] = src[i]
@@ -149,11 +149,11 @@ private function hUnitsToWchar _
 		while( i < src_units )
 			dim as integer used = any
 			dim as uint32 cp = tkrt_CodepointAt( src, src_units, i, @used )
-			if( (dst <> 0) andalso (n < dst_chars) ) then d[n] = cp
+			if( (dst <> nullptr) andalso (n < dst_chars) ) then d[n] = cp
 			n += 1
 			i += used
 		wend
-		if( dst <> 0 ) then d[iif( n < dst_chars, n, dst_chars )] = 0
+		if( dst <> nullptr ) then d[iif( n < dst_chars, n, dst_chars )] = 0
 		return n
 	end if
 
@@ -170,14 +170,14 @@ function tkort_UStrAssignFromW alias "fb_UStrAssignFromW" _
 	( byval dst as any ptr, byval dst_size as integer, _
 	  byval src as wstring ptr, byval fill_rem as int32, byval is_init as int32 ) as any ptr
 
-	if( dst = 0 ) then return dst
+	if( dst = nullptr ) then return dst
 
 	dim as integer src_chars = 0
-	if( src <> 0 ) then src_chars = cast( integer, wcslen( src ) )
+	if( src <> nullptr ) then src_chars = cast( integer, wcslen( src ) )
 
-	dim as integer units = hWcharToUnits( src, src_chars, 0, 0 )
+	dim as integer units = hWcharToUnits( src, src_chars, nullptr, 0 )
 	dim as FB_UCHAR ptr tmp = cptr( FB_UCHAR ptr, allocate( (units + 1) * sizeof( FB_UCHAR ) ) )
-	if( tmp = 0 ) then return dst
+	if( tmp = nullptr ) then return dst
 
 	hWcharToUnits( src, src_chars, tmp, units )
 
@@ -200,7 +200,7 @@ function tkort_UStrAssignToW alias "fb_UStrAssignToW" _
 	dim as integer src_len = any
 	FB_USTRSETUP( src, src_size, src_ptr, src_len )
 
-	if( dst <> 0 ) then
+	if( dst <> nullptr ) then
 		'' dst_chars is the DECLARED capacity INCLUDING the terminator, which is
 		'' how the compiler passes a WSTRING * N length. A non-positive value
 		'' means "no declared capacity" and the source length is used, so a raw
@@ -226,13 +226,13 @@ function tkort_WstrToUStr alias "fb_WstrToUStr" ( byval src as wstring ptr ) as 
 	STRLOCK()
 
 	dim as integer src_chars = 0
-	if( src <> 0 ) then src_chars = cast( integer, wcslen( src ) )
+	if( src <> nullptr ) then src_chars = cast( integer, wcslen( src ) )
 
-	dim as integer units = hWcharToUnits( src, src_chars, 0, 0 )
+	dim as integer units = hWcharToUnits( src, src_chars, nullptr, 0 )
 
-	dim as FBUSTRING ptr dst = tkrt_UAllocTempNoLock( 0, units )
-	if( dst <> 0 ) then
-		if( dst->data <> 0 ) then hWcharToUnits( src, src_chars, dst->data, units )
+	dim as FBUSTRING ptr dst = tkrt_UAllocTempNoLock( nullptr, units )
+	if( dst <> nullptr ) then
+		if( dst->data <> nullptr ) then hWcharToUnits( src, src_chars, dst->data, units )
 	else
 		'' The shared empty descriptor, not NULL: fbc's codegen dereferences the
 		'' result unconditionally.
@@ -259,10 +259,10 @@ function tkort_UStrToWstr alias "fb_UStrToWstr" _
 	dim as integer src_len = any
 	FB_USTRSETUP( src, src_size, src_ptr, src_len )
 
-	dim as integer chars = hUnitsToWchar( src_ptr, src_len, 0, 0 )
+	dim as integer chars = hUnitsToWchar( src_ptr, src_len, nullptr, 0 )
 
 	dim as wstring ptr dst = cptr( wstring ptr, allocate( (chars + 1) * sizeof( wstring ) ) )
-	if( dst <> 0 ) then hUnitsToWchar( src_ptr, src_len, dst, chars )
+	if( dst <> nullptr ) then hUnitsToWchar( src_ptr, src_len, dst, chars )
 
 	if( src_size = FB_USTRSIZEVARLEN ) then
 		tkrt_UDelTempNoLock( cptr( FBUSTRING ptr, src ) )

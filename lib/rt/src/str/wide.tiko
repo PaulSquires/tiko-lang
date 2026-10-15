@@ -30,7 +30,7 @@
 extern "rtlib"
 
 function tkort_WstrLen alias "fb_WstrLen" ( byval s as wstring ptr ) as integer
-	if( s = 0 ) then return 0
+	if( s = nullptr ) then return 0
 	return FB_WSTR_LEN( s )
 end function
 
@@ -50,11 +50,11 @@ function tkort_WstrCompare alias "fb_WstrCompare" _
 	'' `w = *pw` must be TRUE for an empty w. Returning -1 for a null operand
 	'' failed 8 assertions there and contributed to 147 across five suites.
 	if( s1 = s2 ) then return 0
-	if( s1 = 0 ) then
+	if( s1 = nullptr ) then
 		if( s2[0] = 0 ) then return 0
 		return -1
 	end if
-	if( s2 = 0 ) then
+	if( s2 = nullptr ) then
 		if( s1[0] = 0 ) then return 0
 		return 1
 	end if
@@ -80,7 +80,7 @@ private function hTrim _
 		byval s as wstring ptr, byval doLeft as integer, byval doRight as integer _
 	) as wstring ptr
 
-	if( s = 0 ) then return 0
+	if( s = nullptr ) then return nullptr
 
 	dim as integer n = FB_WSTR_LEN( s )
 	dim as integer lo = 0
@@ -107,10 +107,10 @@ private function hTrim _
 	'' the obvious implementation returns a zero-length buffer. Nothing in the
 	'' signature says so and it is the kind of difference that surfaces later as
 	'' a null dereference in someone else's program.
-	if( outn <= 0 ) then return 0
+	if( outn <= 0 ) then return nullptr
 
 	dim as wstring ptr r = FB_WSTR_ALLOCTEMP( outn )
-	if( r = 0 ) then return 0
+	if( r = nullptr ) then return nullptr
 
 	FB_WSTR_COPY( r, @s[lo], outn )
 	return r

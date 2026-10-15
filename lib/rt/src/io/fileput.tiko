@@ -89,13 +89,13 @@ function tkort_FilePutDataEx alias "fb_FilePutDataEx" _
 
 	if( res = FB_RTERROR_OK ) then
 		if( is_unicode = 0 ) then
-			if( h->hooks->pfnWrite <> 0 ) then
+			if( h->hooks->pfnWrite <> nullptr ) then
 				res = h->hooks->pfnWrite( h, data_, length )
 			else
 				res = tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 			end if
 		else
-			if( h->hooks->pfnWriteWstr <> 0 ) then
+			if( h->hooks->pfnWriteWstr <> nullptr ) then
 				res = h->hooks->pfnWriteWstr( h, cptr( wstring ptr, data_ ), length )
 			else
 				res = tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
@@ -109,7 +109,7 @@ function tkort_FilePutDataEx alias "fb_FilePutDataEx" _
 	if( res <> FB_RTERROR_OK ) then do_skip = 0
 	if( adjust_rec_pos = 0 ) then do_skip = 0
 	if( h->reclen = 0 ) then do_skip = 0
-	if( h->hooks->pfnSeek = 0 ) then do_skip = 0
+	if( h->hooks->pfnSeek = nullptr ) then do_skip = 0
 
 	if( do_skip ) then
 		'' A RANDOM WRITE MUST BE EXACTLY ONE RECORD. A short one sets FILEIO --

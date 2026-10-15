@@ -91,19 +91,19 @@ private function hFromBytes _
 			tkrt_UDelete( dst )
 		else
 			'' NOT UStrDelete: there is nothing valid to free.
-			dst->data = 0
+			dst->data = nullptr
 			dst->len  = 0
 			dst->size = 0
 		end if
 		return dst
 	end if
 
-	dim as integer units = tkrt_Utf8ToUtf16( src, src_bytes, 0, 0 )
+	dim as integer units = tkrt_Utf8ToUtf16( src, src_bytes, nullptr, 0 )
 
 	if( is_init = 0 ) then
-		if( tkrt_URealloc( dst, units, 0 ) = 0 ) then return 0
+		if( tkrt_URealloc( dst, units, 0 ) = nullptr ) then return nullptr
 	else
-		if( tkrt_UAlloc( dst, units ) = 0 ) then return 0
+		if( tkrt_UAlloc( dst, units ) = nullptr ) then return nullptr
 	end if
 
 	tkrt_Utf8ToUtf16( src, src_bytes, dst->data, units )
@@ -124,7 +124,7 @@ function tkort_UStrAssignFromA alias "fb_UStrAssignFromA" _
 
 	'' A NULL destination still has to CONSUME the source. `u = a + b` with a
 	'' discarded result would otherwise leak the concatenation's temporary.
-	if( dst = 0 ) then
+	if( dst = nullptr ) then
 		if( src_size = FB_STRSIZEVARLEN ) then
 			tkrt_DelTempNoLock( cptr( FBSTRING ptr, src ) )
 		end if
@@ -145,11 +145,11 @@ function tkort_UStrAssignFromA alias "fb_UStrAssignFromA" _
 		'' Fixed-length or raw-pointer destination: decode into scratch and hand
 		'' it to the ordinary assign, so clamping, padding and the terminator are
 		'' decided in exactly ONE place rather than re-derived here.
-		dim as integer units = tkrt_Utf8ToUtf16( cptr( uint8 ptr, src_ptr ), src_len, 0, 0 )
+		dim as integer units = tkrt_Utf8ToUtf16( cptr( uint8 ptr, src_ptr ), src_len, nullptr, 0 )
 		dim as FB_UCHAR ptr tmp = _
 			cptr( FB_UCHAR ptr, allocate( (units + 1) * sizeof( FB_UCHAR ) ) )
 
-		if( tmp <> 0 ) then
+		if( tmp <> nullptr ) then
 			tkrt_Utf8ToUtf16( cptr( uint8 ptr, src_ptr ), src_len, tmp, units )
 			STRUNLOCK()
 			tkrt_UStrAssignEx( dst, dst_size, tmp, units or FB_STRISFIXED, fill_rem, is_init )
@@ -176,7 +176,7 @@ function tkort_UStrAssignToA alias "fb_UStrAssignToA" _
 
 	STRLOCK()
 
-	if( dst = 0 ) then
+	if( dst = nullptr ) then
 		if( src_size = FB_USTRSIZEVARLEN ) then
 			tkrt_UDelTempNoLock( cptr( FBUSTRING ptr, src ) )
 		end if
@@ -188,13 +188,13 @@ function tkort_UStrAssignToA alias "fb_UStrAssignToA" _
 	dim as integer src_len = any
 	FB_USTRSETUP( src, src_size, src_ptr, src_len )
 
-	dim as integer nbytes = tkrt_Utf16ToUtf8( src_ptr, src_len, 0, 0 )
+	dim as integer nbytes = tkrt_Utf16ToUtf8( src_ptr, src_len, nullptr, 0 )
 	dim as uint8 ptr tmp = cptr( uint8 ptr, allocate( nbytes + 1 ) )
 
 	'' ALWAYS through the narrow assign, never a copy written here: STRING * N
 	'' space-padding, ZSTRING * N clamping and the temp-stealing rules all live
 	'' in fb_StrAssignEx and there is no second implementation of them.
-	if( tmp <> 0 ) then
+	if( tmp <> nullptr ) then
 		tkrt_Utf16ToUtf8( src_ptr, src_len, tmp, nbytes )
 		STRUNLOCK()
 		tkrt_StrAssignEx( dst, dst_size, tmp, nbytes or FB_STRISFIXED, fill_rem, is_init )
@@ -229,14 +229,14 @@ function tkort_StrToUStr alias "fb_StrToUStr" _
 	dim as integer src_len = any
 	FB_STRSETUP_FIX( src, src_size, src_ptr, src_len )
 
-	dim as integer units = tkrt_Utf8ToUtf16( cptr( uint8 ptr, src_ptr ), src_len, 0, 0 )
+	dim as integer units = tkrt_Utf8ToUtf16( cptr( uint8 ptr, src_ptr ), src_len, nullptr, 0 )
 
-	dim as FBUSTRING ptr dst = tkrt_UAllocTempNoLock( 0, units )
-	if( dst <> 0 ) then
+	dim as FBUSTRING ptr dst = tkrt_UAllocTempNoLock( nullptr, units )
+	if( dst <> nullptr ) then
 		'' The data pointer is checked SEPARATELY from the descriptor: a
 		'' zero-length temporary is a valid descriptor, and the codec must not
 		'' be handed a NULL destination with a non-zero count.
-		if( dst->data <> 0 ) then
+		if( dst->data <> nullptr ) then
 			tkrt_Utf8ToUtf16( cptr( uint8 ptr, src_ptr ), src_len, dst->data, units )
 		end if
 	else
@@ -261,11 +261,11 @@ function tkort_UStrToStr alias "fb_UStrToStr" _
 	dim as integer src_len = any
 	FB_USTRSETUP( src, src_size, src_ptr, src_len )
 
-	dim as integer nbytes = tkrt_Utf16ToUtf8( src_ptr, src_len, 0, 0 )
+	dim as integer nbytes = tkrt_Utf16ToUtf8( src_ptr, src_len, nullptr, 0 )
 
-	dim as FBSTRING ptr dst = tkrt_AllocTempNoLock( 0, nbytes )
-	if( dst <> 0 ) then
-		if( dst->data <> 0 ) then
+	dim as FBSTRING ptr dst = tkrt_AllocTempNoLock( nullptr, nbytes )
+	if( dst <> nullptr ) then
+		if( dst->data <> nullptr ) then
 			tkrt_Utf16ToUtf8( src_ptr, src_len, cptr( uint8 ptr, dst->data ), nbytes )
 		end if
 	else
@@ -300,12 +300,12 @@ function tkort_UStrConcatAU alias "fb_UStrConcatAU" _
 	FB_STRSETUP_FIX( str1, str1_size, a_ptr, a_len )
 	FB_USTRSETUP( str2, str2_size, u_ptr, u_len )
 
-	dim as integer a_units = tkrt_Utf8ToUtf16( cptr( uint8 ptr, a_ptr ), a_len, 0, 0 )
+	dim as integer a_units = tkrt_Utf8ToUtf16( cptr( uint8 ptr, a_ptr ), a_len, nullptr, 0 )
 
 	dst = tkrt_UAllocTempNoLock( dst, a_units + u_len )
 
-	if( dst <> 0 ) then
-		if( dst->data <> 0 ) then
+	if( dst <> nullptr ) then
+		if( dst->data <> nullptr ) then
 			tkrt_Utf8ToUtf16( cptr( uint8 ptr, a_ptr ), a_len, dst->data, a_units )
 			'' hUStrCopy, the TERMINATING form -- this is the tail, so the
 			'' terminator it writes is the string's. The UA case below is the
@@ -341,12 +341,12 @@ function tkort_UStrConcatUA alias "fb_UStrConcatUA" _
 	FB_USTRSETUP( str1, str1_size, u_ptr, u_len )
 	FB_STRSETUP_FIX( str2, str2_size, a_ptr, a_len )
 
-	dim as integer a_units = tkrt_Utf8ToUtf16( cptr( uint8 ptr, a_ptr ), a_len, 0, 0 )
+	dim as integer a_units = tkrt_Utf8ToUtf16( cptr( uint8 ptr, a_ptr ), a_len, nullptr, 0 )
 
 	dst = tkrt_UAllocTempNoLock( dst, u_len + a_units )
 
-	if( dst <> 0 ) then
-		if( dst->data <> 0 ) then
+	if( dst <> nullptr ) then
+		if( dst->data <> nullptr ) then
 			tkrt_UStrCopyN( dst->data, u_ptr, u_len )
 			tkrt_Utf8ToUtf16( cptr( uint8 ptr, a_ptr ), a_len, dst->data + u_len, a_units )
 			dst->data[u_len + a_units] = 0

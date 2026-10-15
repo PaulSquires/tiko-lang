@@ -39,7 +39,7 @@ extern "rtlib"
 
 function tkort_ThreadSelf alias "fb_ThreadSelf" ( ) as FBTHREAD ptr
 	dim as FB_FBTHREADCTX ptr ctx = TKORT_TLSGET_FBTHREAD()
-	if( ctx = 0 ) then return 0
+	if( ctx = nullptr ) then return nullptr
 	return ctx->self_
 end function
 
@@ -51,9 +51,9 @@ sub tkort_AllocateMainFBThread alias "fb_AllocateMainFBThread" ( )
 	'' ONE ALLOCATION FOR TWO OBJECTS -- see the file header. The length asked
 	'' for is the context PLUS an FBTHREAD, and self_ points at the tail.
 	dim as FB_FBTHREADCTX ptr ctx = cptr( FB_FBTHREADCTX ptr, _
-		fb_TlsGetCtx( FB_TLSKEY_FBTHREAD, sizeof( FB_FBTHREADCTX ) + sizeof( FBTHREAD ), 0 ) )
+		fb_TlsGetCtx( FB_TLSKEY_FBTHREAD, sizeof( FB_FBTHREADCTX ) + sizeof( FBTHREAD ), nullptr ) )
 
-	if( ctx <> 0 ) then
+	if( ctx <> nullptr ) then
 		ctx->self_ = cptr( FBTHREAD ptr, ctx + 1 )
 		memset( ctx->self_, 0, sizeof( FBTHREAD ) )
 		ctx->self_->flags = FBTHREAD_MAIN
@@ -67,7 +67,7 @@ end sub
 #ifdef ENABLE_MT
 sub tkort_CloseAtomicFBThreadFlagMutex alias "fb_CloseAtomicFBThreadFlagMutex" ( )
 	fb_MutexDestroy( tkort_threadFlagMutex )
-	tkort_threadFlagMutex = 0
+	tkort_threadFlagMutex = nullptr
 end sub
 #endif
 

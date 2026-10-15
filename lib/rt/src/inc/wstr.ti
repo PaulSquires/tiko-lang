@@ -72,7 +72,7 @@
 #macro FB_WSTR_COPY( dst, src, chars )
 	scope
 		dim as wstring ptr __wc_d = (dst)
-		if( ((src) <> 0) andalso ((chars) > 0) ) then
+		if( ((src) <> nullptr) andalso ((chars) > 0) ) then
 			memcpy( __wc_d, (src), (chars) * TKORT_WCHAR_SIZE )
 			__wc_d += (chars)
 		end if

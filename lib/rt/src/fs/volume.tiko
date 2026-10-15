@@ -46,9 +46,9 @@ end extern
 
 private sub hUArg( byval s as FBUSTRING ptr, byval ptr_ as FB_UCHAR ptr ptr, byval len_ as integer ptr )
 	static as FB_UCHAR empty_(0 to 0) = { 0 }
-	if( s = 0 ) then
+	if( s = nullptr ) then
 		*ptr_ = @empty_(0) : *len_ = 0
-	elseif( s->data = 0 ) then
+	elseif( s->data = nullptr ) then
 		*ptr_ = @empty_(0) : *len_ = 0
 	else
 		*ptr_ = s->data
@@ -111,7 +111,7 @@ private function hFsWide( byval p as FBUSTRING ptr ) as wstring ptr
 
 	hUArg( p, @s, @len_ )
 	w = malloc( (len_ + 1) * sizeof( FB_UCHAR ) )
-	if( w = 0 ) then return 0
+	if( w = nullptr ) then return nullptr
 	if( len_ > 0 ) then memcpy( w, s, len_ * sizeof( FB_UCHAR ) )
 	w[len_] = 0
 	return cptr( wstring ptr, w )
@@ -138,7 +138,7 @@ private function hPushErrorMode( ) as uint32
 end function
 
 private sub hPopErrorMode( byval old as uint32 )
-	w_SetThreadErrorMode( old, 0 )
+	w_SetThreadErrorMode( old, nullptr )
 end sub
 
 private sub hCopyField( byval src as FB_UCHAR ptr, byval dst as FB_UCHAR ptr, _
@@ -172,7 +172,7 @@ private function hVolumeInfoWide( byval w as wstring ptr, byval out_ as FB_FSVOL
 	fstype(0) = 0
 
 	if( w_GetVolumeInformationW( cptr( wstring ptr, @root(0) ), _
-	        cptr( wstring ptr, @name_(0) ), MAX_PATH_ + 1, 0, _
+	        cptr( wstring ptr, @name_(0) ), MAX_PATH_ + 1, nullptr, _
 	        @maxcomp, @flags, cptr( wstring ptr, @fstype(0) ), MAX_PATH_ + 1 ) = 0 ) then
 		return tkrt_FsMapOsError( )
 	end if
@@ -200,7 +200,7 @@ private function hVolumeInfoWide( byval w as wstring ptr, byval out_ as FB_FSVOL
 	'' behaviour on those systems.
 	hd = w_CreateFileW( cptr( wstring ptr, @root(0) ), FILE_READ_ATTRIBUTES_, _
 		FILE_SHARE_READ_ or FILE_SHARE_WRITE_ or FILE_SHARE_DELETE_, _
-		0, OPEN_EXISTING_, FILE_FLAG_BACKUP_SEMANTICS_, 0 )
+		nullptr, OPEN_EXISTING_, FILE_FLAG_BACKUP_SEMANTICS_, nullptr )
 
 	if( cast( integer, hd ) <> INVALID_HANDLE_VALUE_ ) then
 		csi = 0
@@ -229,7 +229,7 @@ function tkort_UStrFsDiskSpace alias "fb_UStrFsDiskSpace" _
 	memset( out_, 0, sizeof( FB_FSSPACE ) )
 
 	w = hFsWide( p )
-	if( w = 0 ) then return FB_FS_UNKNOWN
+	if( w = nullptr ) then return FB_FS_UNKNOWN
 
 	old = hPushErrorMode( )
 
@@ -258,7 +258,7 @@ function tkort_UStrFsVolumeInfo alias "fb_UStrFsVolumeInfo" _
 	dim as int32 r = any
 
 	w = hFsWide( p )
-	if( w = 0 ) then return FB_FS_UNKNOWN
+	if( w = nullptr ) then return FB_FS_UNKNOWN
 
 	old = hPushErrorMode( )
 	r = hVolumeInfoWide( w, out_ )
@@ -358,7 +358,7 @@ private function hFsNarrow( byval p as FBUSTRING ptr ) as zstring ptr
 	hUArg( p, @s, @len_ )
 	cap = len_ * 3 + 1
 	b = malloc( cap )
-	if( b = 0 ) then return 0
+	if( b = nullptr ) then return nullptr
 	n = u_utf16to8( s, len_, b, cap - 1 )
 	if( n < 0 ) then n = 0
 	b[n] = 0
@@ -369,7 +369,7 @@ end function
 private function hSetField( byval src as zstring ptr, byval dst as FB_UCHAR ptr, byval cap as int32 ) as int32
 	dim as integer n = any
 
-	if( src = 0 ) then return 0
+	if( src = nullptr ) then return 0
 	if( src[0] = 0 ) then return 0
 
 	n = u_utf8to16( src, cast( integer, u_strlen( src ) ), dst, cap - 1 )
@@ -389,9 +389,9 @@ private function hParseMountInfo( byval ln as zstring ptr, byval mountpoint as z
 	dim as zstring ptr p = ln, tok = any
 	dim as int32 fld = 0
 
-	*mountpoint = 0
-	*fstype = 0
-	*source = 0
+	*mountpoint = nullptr
+	*fstype = nullptr
+	*source = nullptr
 
 	do
 		while( *p = 32 )
@@ -444,15 +444,15 @@ private function hParseMountInfo( byval ln as zstring ptr, byval mountpoint as z
 		end if
 	loop
 
-	if( *mountpoint = 0 ) then return 0
-	if( *fstype = 0 ) then return 0
-	if( *source = 0 ) then return 0
+	if( *mountpoint = nullptr ) then return 0
+	if( *fstype = nullptr ) then return 0
+	if( *source = nullptr ) then return 0
 	return 1
 end function
 
 '' Is this a real block-device-backed filesystem, or a pseudo one?
 private function hIsRealMount( byval source as zstring ptr ) as int32
-	if( source = 0 ) then return 0
+	if( source = nullptr ) then return 0
 	return iif( source[0] = 47, 1, 0 )
 end function
 
@@ -507,7 +507,7 @@ function tkort_UStrFsDiskSpace alias "fb_UStrFsDiskSpace" _
 	memset( out_, 0, sizeof( FB_FSSPACE ) )
 
 	path_ = hFsNarrow( p )
-	if( path_ = 0 ) then return FB_FS_UNKNOWN
+	if( path_ = nullptr ) then return FB_FS_UNKNOWN
 
 	if( u_statvfs( path_, @st ) <> 0 ) then
 		r = tkrt_FsMapOsError( )
@@ -546,12 +546,12 @@ function tkort_UStrFsVolumeInfo alias "fb_UStrFsVolumeInfo" _
 	memset( out_, 0, sizeof( FB_FSVOLUME ) )
 
 	path_ = hFsNarrow( p )
-	if( path_ = 0 ) then return FB_FS_UNKNOWN
+	if( path_ = nullptr ) then return FB_FS_UNKNOWN
 
 	'' resolve first, so a path reached through a symlink is attributed to the
 	'' volume it really lives on
-	res = u_realpath( path_, 0 )
-	if( res = 0 ) then
+	res = u_realpath( path_, nullptr )
+	if( res = nullptr ) then
 		e = tkrt_FsMapOsError( )
 		free( path_ )
 		return e
@@ -560,12 +560,12 @@ function tkort_UStrFsVolumeInfo alias "fb_UStrFsVolumeInfo" _
 	free( path_ )
 
 	f = u_fopen( @"/proc/self/mountinfo", @"r" )
-	if( f = 0 ) then
+	if( f = nullptr ) then
 		free( res )
 		return FB_FS_UNSUPPORTED
 	end if
 
-	while( u_fgets( @ln, MOUNTINFO_LINE, f ) <> 0 )
+	while( u_fgets( @ln, MOUNTINFO_LINE, f ) <> nullptr )
 		if( hParseMountInfo( @ln, @mp, @fs, @src ) = 0 ) then continue while
 
 		mplen = u_strlen( mp )
@@ -604,9 +604,9 @@ function tkort_FsVolumeEnum alias "fb_FsVolumeEnum" _
 	dim as int32 seen = 0, r = FB_FS_EXHAUSTED
 
 	f = u_fopen( @"/proc/self/mountinfo", @"r" )
-	if( f = 0 ) then return FB_FS_UNSUPPORTED
+	if( f = nullptr ) then return FB_FS_UNSUPPORTED
 
-	while( u_fgets( @ln, MOUNTINFO_LINE, f ) <> 0 )
+	while( u_fgets( @ln, MOUNTINFO_LINE, f ) <> nullptr )
 		if( hParseMountInfo( @ln, @mp, @fs, @src ) = 0 ) then continue while
 
 		'' the pseudo-filesystem filter

@@ -24,7 +24,7 @@ extern "rtlib"
 sub tkort_ThreadDetach alias "fb_ThreadDetach" ( byval thread as FBTHREAD ptr )
 	dim as int32 flags = any
 
-	if( thread = 0 ) then exit sub
+	if( thread = nullptr ) then exit sub
 	if( (thread->flags and FBTHREAD_MAIN) <> 0 ) then exit sub
 
 	flags = fb_AtomicSetThreadFlags( @thread->flags, FBTHREAD_DETACHED )

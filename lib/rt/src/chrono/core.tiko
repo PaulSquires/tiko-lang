@@ -104,9 +104,9 @@ sub tkort_DtCivilFromDays alias "fb_DtCivilFromDays" _
 	if( mp < 10 ) then m = mp + 3 else m = mp - 9             '' 1 .. 12
 	if( m <= 2 ) then y += 1
 
-	if( year  <> 0 ) then *year  = y
-	if( month <> 0 ) then *month = m
-	if( day_  <> 0 ) then *day_  = d
+	if( year  <> nullptr ) then *year  = y
+	if( month <> nullptr ) then *month = m
+	if( day_  <> nullptr ) then *day_  = d
 end sub
 
 '' 1 = Monday .. 7 = Sunday. Day 0 is 0001-01-01, a MONDAY -- so this numbering
@@ -171,7 +171,7 @@ function tkort_DtIsoWeek alias "fb_DtIsoWeek" _
 		week = 1
 	end if
 
-	if( out_iso_year <> 0 ) then *out_iso_year = iso_year
+	if( out_iso_year <> nullptr ) then *out_iso_year = iso_year
 	return week
 end function
 
@@ -208,12 +208,12 @@ function tkort_DtFromCivil alias "fb_DtFromCivil" _
 	  byval hour as int32, byval minute as int32, byval second as int32, _
 	  byval subsecond_ticks as int64, byval out_ticks as int64 ptr ) as int32
 
-	if( out_ticks <> 0 ) then *out_ticks = FB_DT_INVALID_TICKS
+	if( out_ticks <> nullptr ) then *out_ticks = FB_DT_INVALID_TICKS
 
 	if( tkort_DtIsValidDate( year, month, day_ ) = 0 ) then return 1
 	if( tkort_DtIsValidTime( hour, minute, second, subsecond_ticks ) = 0 ) then return 1
 
-	if( out_ticks <> 0 ) then
+	if( out_ticks <> nullptr ) then
 		*out_ticks = cast( int64, tkort_DtDaysFromCivil( year, month, day_ ) ) * FB_DT_TICKS_PER_DAY _
 		           + cast( int64, hour ) * FB_DT_TICKS_PER_HOUR _
 		           + cast( int64, minute ) * FB_DT_TICKS_PER_MINUTE _
@@ -242,10 +242,10 @@ sub tkort_DtToCivil alias "fb_DtToCivil" _
 
 	tkort_DtCivilFromDays( days, year, month, day_ )
 
-	if( hour   <> 0 ) then *hour   = cast( int32, tod \ FB_DT_TICKS_PER_HOUR )
-	if( minute <> 0 ) then *minute = cast( int32, tod \ FB_DT_TICKS_PER_MINUTE mod 60 )
-	if( second <> 0 ) then *second = cast( int32, tod \ FB_DT_TICKS_PER_SECOND mod 60 )
-	if( subsecond_ticks <> 0 ) then *subsecond_ticks = tod mod FB_DT_TICKS_PER_SECOND
+	if( hour   <> nullptr ) then *hour   = cast( int32, tod \ FB_DT_TICKS_PER_HOUR )
+	if( minute <> nullptr ) then *minute = cast( int32, tod \ FB_DT_TICKS_PER_MINUTE mod 60 )
+	if( second <> nullptr ) then *second = cast( int32, tod \ FB_DT_TICKS_PER_SECOND mod 60 )
+	if( subsecond_ticks <> nullptr ) then *subsecond_ticks = tod mod FB_DT_TICKS_PER_SECOND
 end sub
 
 '' counts * 10^7 / freq, without overflowing.

@@ -128,7 +128,7 @@ end type
 
 '' TRUE when the DEVICE does the encoding, so this file must not do it too.
 private function hIsEncoded( byval h as FB_FILE ptr ) as int32
-	if( h = 0 ) then return 0
+	if( h = nullptr ) then return 0
 	return iif( h->encod <> FB_FILE_ENCOD_ASCII, 1, 0 )
 end function
 
@@ -204,7 +204,7 @@ function tkort_FileLineInputUStr alias "fb_FileLineInputUStr" _
 		'' A plain file is bytes, and a ustring file is UTF-8 -- so the narrow
 		'' reader plus a UTF-8 decode is exactly right and nothing else runs.
 		dim as FBSTRING tmp
-		tmp.data = 0
+		tmp.data = nullptr
 		tmp.len = 0
 		tmp.size = 0
 
@@ -219,7 +219,7 @@ function tkort_FileLineInputUStr alias "fb_FileLineInputUStr" _
 	'' fb_FileLineInputWstr is not used.
 	dim as integer cap = LINEBUF_INIT, n = 0
 	dim as wstring ptr buf = cast( wstring ptr, malloc( (cap + 1) * sizeof( wstring ) ) )
-	if( buf = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
+	if( buf = nullptr ) then return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
 
 	res = FB_RTERROR_OK
 
@@ -244,7 +244,7 @@ function tkort_FileLineInputUStr alias "fb_FileLineInputUStr" _
 		if( n >= cap ) then
 			cap *= 2
 			dim as any ptr bigger = realloc( buf, (cap + 1) * sizeof( wstring ) )
-			if( bigger = 0 ) then
+			if( bigger = nullptr ) then
 				free( buf )
 				return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
 			end if
@@ -283,7 +283,7 @@ function tkort_InputUStr alias "fb_InputUStr" ( byval dst as FBUSTRING ptr ) as 
 		tkrt_UStrAssignFromW( dst, FB_USTRSIZEVARLEN, @buffer, 0, 0 )
 	else
 		dim as FBSTRING tmp
-		tmp.data = 0
+		tmp.data = nullptr
 		tmp.len = 0
 		tmp.size = 0
 

@@ -47,7 +47,7 @@ extern "c"   '' NON-FBCALL: fb_unicode.h declares fb_wstr_ConvFromA without it.
 function tkort_wstr_ConvFromA alias "fb_wstr_ConvFromA" _
 	( byval dst as wstring ptr, byval dst_chars as integer, byval src as zstring ptr ) as integer
 
-	if( src = 0 ) then
+	if( src = nullptr ) then
 		dst[0] = 0
 		return 0
 	end if
@@ -84,26 +84,26 @@ extern "rtlib"
 '' source. Both are the caller's problem to distinguish, and fbc's codegen does.
 function tkort_StrToWstr alias "fb_StrToWstr" ( byval src as zstring ptr ) as wstring ptr
 
-	if( src = 0 ) then return 0
+	if( src = nullptr ) then return nullptr
 
 	'' Measure first. A negative result means the bytes are not valid in this
 	'' locale at all, and then the length is taken as bytes and the ASCII
 	'' fallback is used directly -- calling ConvFromA would only reach the same
 	'' fallback after failing a second time.
-	dim as integer chars = cast( integer, mbstowcs( 0, src, 0 ) )
+	dim as integer chars = cast( integer, mbstowcs( nullptr, src, 0 ) )
 
 	if( chars < 0 ) then
 		chars = cast( integer, strlen( src ) )
 		dim as wstring ptr d = cptr( wstring ptr, allocate( (chars + 1) * sizeof( wstring ) ) )
-		if( d = 0 ) then return 0
+		if( d = nullptr ) then return nullptr
 		hNoMultibyte( d, chars, src )
 		return d
 	end if
 
-	if( chars = 0 ) then return 0
+	if( chars = 0 ) then return nullptr
 
 	dim as wstring ptr dst = cptr( wstring ptr, allocate( (chars + 1) * sizeof( wstring ) ) )
-	if( dst = 0 ) then return 0
+	if( dst = nullptr ) then return nullptr
 
 	tkort_wstr_ConvFromA( dst, chars, src )
 	return dst

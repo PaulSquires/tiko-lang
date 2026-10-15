@@ -23,10 +23,10 @@ extern "c"   '' NON-FBCALL: a TLS destructor, reached through a pointer.
 sub tkort_PARKERCTX_Destructor alias "fb_PARKERCTX_Destructor" ( byval tlsData as any ptr )
 	dim as FB_PARKERCTX ptr ctx = tlsData
 
-	if( ctx <> 0 ) then
-		if( ctx->parker <> 0 ) then
+	if( ctx <> nullptr ) then
+		if( ctx->parker <> nullptr ) then
 			fb_ParkerDestroy( ctx->parker )
-			ctx->parker = 0
+			ctx->parker = nullptr
 		end if
 	end if
 end sub
@@ -39,9 +39,9 @@ function tkort_ParkerSelf alias "fb_ParkerSelf" ( ) as any ptr
 	dim as FB_PARKERCTX ptr ctx = cptr( FB_PARKERCTX ptr, _
 		fb_TlsGetCtx( FB_TLSKEY_PARKER, sizeof( FB_PARKERCTX ), @tkort_PARKERCTX_Destructor ) )
 
-	if( ctx = 0 ) then return 0
+	if( ctx = nullptr ) then return nullptr
 
-	if( ctx->parker = 0 ) then ctx->parker = fb_ParkerCreate( )
+	if( ctx->parker = nullptr ) then ctx->parker = fb_ParkerCreate( )
 
 	return ctx->parker
 end function

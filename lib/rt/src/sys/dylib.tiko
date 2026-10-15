@@ -58,10 +58,10 @@ end extern
 extern "rtlib"
 
 function tkort_DylibLoad alias "fb_DylibLoad" ( byval library as FBSTRING ptr ) as any ptr
-	dim as any ptr res = 0
+	dim as any ptr res = nullptr
 
-	if( library <> 0 ) then
-		if( library->data <> 0 ) then res = w_LoadLibraryA( library->data )
+	if( library <> nullptr ) then
+		if( library->data <> nullptr ) then res = w_LoadLibraryA( library->data )
 	end if
 
 	'' del if temp
@@ -73,25 +73,25 @@ end function
 function tkort_DylibSymbol alias "fb_DylibSymbol" _
 	( byval library as any ptr, byval symbol as FBSTRING ptr ) as any ptr
 
-	dim as any ptr proc_ = 0
+	dim as any ptr proc_ = nullptr
 	dim as zstring * TKORT_PROCNAME_MAX procname = any
 	dim as int32 i = any
 
 	'' A NULL library means THIS executable, which is what makes
 	'' DYLIBSYMBOL( 0, "name" ) resolve a symbol the program itself exports.
-	if( library = 0 ) then library = w_GetModuleHandleA( 0 )
+	if( library = nullptr ) then library = w_GetModuleHandleA( nullptr )
 
-	if( symbol <> 0 ) then
-		if( symbol->data <> 0 ) then
+	if( symbol <> nullptr ) then
+		if( symbol->data <> nullptr ) then
 			proc_ = w_GetProcAddress( library, symbol->data )
 
 			'' The stdcall retry -- see the file header. Skipped when the caller
 			'' wrote an '@' of their own.
-			if( (proc_ = 0) andalso (c_strchr( symbol->data, 64 ) = 0) ) then
+			if( (proc_ = nullptr) andalso (c_strchr( symbol->data, 64 ) = nullptr) ) then
 				for i = 0 to 252 step 4
 					c_snprintf( @procname, TKORT_PROCNAME_MAX - 1, @"%s@%d", symbol->data, i )
 					proc_ = w_GetProcAddress( library, @procname )
-					if( proc_ <> 0 ) then exit for
+					if( proc_ <> nullptr ) then exit for
 				next
 			end if
 		end if
@@ -106,7 +106,7 @@ end function
 function tkort_DylibSymbolByOrd alias "fb_DylibSymbolByOrd" _
 	( byval library as any ptr, byval symbol as int16 ) as any ptr
 
-	if( library = 0 ) then library = w_GetModuleHandleA( 0 )
+	if( library = nullptr ) then library = w_GetModuleHandleA( nullptr )
 
 	'' MAKEINTRESOURCE: an ordinal is passed to GetProcAddress as a POINTER
 	'' whose high bits are zero, not as a string. Casting the number straight to
@@ -133,15 +133,15 @@ function tkort_hDynLoad alias "fb_hDynLoad" _
 	dim as integer i = any
 
 	hlib = w_LoadLibraryA( libname )
-	if( hlib = 0 ) then return 0
+	if( hlib = nullptr ) then return nullptr
 
 	'' ALL OR NOTHING -- see the file header.
 	i = 0
-	while( funcname[i] <> 0 )
+	while( funcname[i] <> nullptr )
 		funcptr[i] = w_GetProcAddress( hlib, funcname[i] )
-		if( funcptr[i] = 0 ) then
+		if( funcptr[i] = nullptr ) then
 			w_FreeLibrary( hlib )
-			return 0
+			return nullptr
 		end if
 		i += 1
 	wend
@@ -157,16 +157,16 @@ function tkort_hDynLoadAlso alias "fb_hDynLoadAlso" _
 
 	for i = 0 to count - 1
 		funcptr[i] = w_GetProcAddress( hlib, funcname[i] )
-		if( funcptr[i] = 0 ) then return -1
+		if( funcptr[i] = nullptr ) then return -1
 	next
 
 	return 0
 end function
 
 sub tkort_hDynUnload alias "fb_hDynUnload" ( byval hlib as any ptr ptr )
-	if( *hlib <> 0 ) then
+	if( *hlib <> nullptr ) then
 		w_FreeLibrary( *hlib )
-		*hlib = 0
+		*hlib = nullptr
 	end if
 end sub
 
@@ -199,7 +199,7 @@ dim shared as zstring ptr tkort_libfmt( 0 to 6 ) = { _
 extern "rtlib"
 
 function tkort_DylibLoad alias "fb_DylibLoad" ( byval library as FBSTRING ptr ) as any ptr
-	dim as any ptr res = 0
+	dim as any ptr res = nullptr
 	dim as zstring * TKORT_MAX_PATH libname = any
 	dim as integer i = any
 
@@ -208,14 +208,14 @@ function tkort_DylibLoad alias "fb_DylibLoad" ( byval library as FBSTRING ptr ) 
 	tkrt_hExitConsole( )
 	TKORT_IOUNLOCK()
 
-	if( library <> 0 ) then
-		if( library->data <> 0 ) then
+	if( library <> nullptr ) then
+		if( library->data <> nullptr ) then
 			i = 0
-			while( tkort_libfmt(i) <> 0 )
+			while( tkort_libfmt(i) <> nullptr )
 				c_snprintf( @libname, TKORT_MAX_PATH - 1, tkort_libfmt(i), library->data )
 				tkrt_hConvertPath( @libname )
 				res = u_dlopen( @libname, RTLD_LAZY_ )
-				if( res <> 0 ) then exit while
+				if( res <> nullptr ) then exit while
 				i += 1
 			wend
 		end if
@@ -234,14 +234,14 @@ end function
 function tkort_DylibSymbol alias "fb_DylibSymbol" _
 	( byval library as any ptr, byval symbol as FBSTRING ptr ) as any ptr
 
-	dim as any ptr proc_ = 0
+	dim as any ptr proc_ = nullptr
 
 	'' dlopen( NULL ) is the running executable, which is how
 	'' DYLIBSYMBOL( 0, "name" ) reaches a symbol the program itself exports.
-	if( library = 0 ) then library = u_dlopen( 0, RTLD_LAZY_ )
+	if( library = nullptr ) then library = u_dlopen( nullptr, RTLD_LAZY_ )
 
-	if( symbol <> 0 ) then
-		if( symbol->data <> 0 ) then proc_ = u_dlsym( library, symbol->data )
+	if( symbol <> nullptr ) then
+		if( symbol->data <> nullptr ) then proc_ = u_dlsym( library, symbol->data )
 	end if
 
 	'' del if temp
@@ -255,7 +255,7 @@ end function
 function tkort_DylibSymbolByOrd alias "fb_DylibSymbolByOrd" _
 	( byval library as any ptr, byval symbol as int16 ) as any ptr
 	scope : dim as any ptr unused_l = library : dim as int16 unused_s = symbol : end scope
-	return 0
+	return nullptr
 end function
 
 sub tkort_DylibFree alias "fb_DylibFree" ( byval library as any ptr )
@@ -289,22 +289,22 @@ function tkort_hDynLoad alias "fb_hDynLoad" _
 	'' library wins over a shared one. The FIRST name in the table is the probe:
 	'' if the running image does not have it, the image handle is dropped and the
 	'' named library is opened instead.
-	hlib = u_dlopen( 0, RTLD_LAZY_ )
-	if( hlib = 0 ) then return 0
+	hlib = u_dlopen( nullptr, RTLD_LAZY_ )
+	if( hlib = nullptr ) then return nullptr
 
-	if( u_dlsym( hlib, funcname[0] ) = 0 ) then
+	if( u_dlsym( hlib, funcname[0] ) = nullptr ) then
 		u_dlclose( hlib )
 		hlib = u_dlopen( libname, RTLD_LAZY_ )
-		if( hlib = 0 ) then return 0
+		if( hlib = nullptr ) then return nullptr
 	end if
 
 	'' ALL OR NOTHING -- see the file header.
 	i = 0
-	while( funcname[i] <> 0 )
+	while( funcname[i] <> nullptr )
 		funcptr[i] = u_dlsym( hlib, funcname[i] )
-		if( funcptr[i] = 0 ) then
+		if( funcptr[i] = nullptr ) then
 			u_dlclose( hlib )
-			return 0
+			return nullptr
 		end if
 		i += 1
 	wend
@@ -320,16 +320,16 @@ function tkort_hDynLoadAlso alias "fb_hDynLoadAlso" _
 
 	for i = 0 to count - 1
 		funcptr[i] = u_dlsym( hlib, funcname[i] )
-		if( funcptr[i] = 0 ) then return -1
+		if( funcptr[i] = nullptr ) then return -1
 	next
 
 	return 0
 end function
 
 sub tkort_hDynUnload alias "fb_hDynUnload" ( byval hlib as any ptr ptr )
-	if( *hlib <> 0 ) then
+	if( *hlib <> nullptr ) then
 		u_dlclose( *hlib )
-		*hlib = 0
+		*hlib = nullptr
 	end if
 end sub
 

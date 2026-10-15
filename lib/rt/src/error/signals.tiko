@@ -142,8 +142,8 @@ private sub tkort_gen_handler cdecl ( byval sig as int32 )
 	end if
 
 	'' The user's ON ERROR handler, if the program installed one.
-	dim as FB_ERRHANDLER handler = tkrt_ErrorThrowEx( tkort_sigTb(sig).errnum, -1, 0, 0, 0 )
-	if( handler <> 0 ) then handler( )
+	dim as FB_ERRHANDLER handler = tkrt_ErrorThrowEx( tkort_sigTb(sig).errnum, -1, nullptr, nullptr, nullptr )
+	if( handler <> nullptr ) then handler( )
 
 	'' IF IT RETURNED, EXIT. There is nothing to resume to -- the faulting
 	'' instruction would simply run again.

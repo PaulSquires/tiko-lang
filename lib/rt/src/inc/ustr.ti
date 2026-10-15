@@ -44,8 +44,8 @@ end extern
 '' straight from the size. Writers are unaffected either way: they are handed the
 '' capacity as an argument rather than reading it back.
 #macro FB_USTRSETUP( s, sz, ptr_, len_ )
-	if( (s) = 0 ) then
-		ptr_ = 0 : len_ = 0
+	if( (s) = nullptr ) then
+		ptr_ = nullptr : len_ = 0
 	elseif( (sz) = FB_USTRSIZEVARLEN ) then
 		ptr_ = cptr( FBUSTRING ptr, s )->data : len_ = FB_USTRSIZE( s )
 	else

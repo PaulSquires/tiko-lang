@@ -405,18 +405,18 @@ end function
 function tkort_DevFileOpenEncod alias "fb_DevFileOpenEncod" _
 	( byval h as FB_FILE ptr, byval filename as zstring ptr, byval fname_len as uinteger ) as int32
 
-	dim as FILE ptr fp = 0
-	dim as zstring ptr openmask = 0
+	dim as FILE ptr fp = nullptr
+	dim as zstring ptr openmask = nullptr
 	dim as zstring * (STAGE) stage_ = any
 	dim as zstring ptr fname = @stage_
-	dim as any ptr heap_ = 0
+	dim as any ptr heap_ = nullptr
 	dim as int32 effective_mode = any
 
 	TKORT_IOLOCK()
 
 	if( fname_len >= STAGE ) then
 		heap_ = malloc( fname_len + 1 )
-		if( heap_ = 0 ) then
+		if( heap_ = nullptr ) then
 			TKORT_IOUNLOCK()
 			return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
 		end if
@@ -440,7 +440,7 @@ function tkort_DevFileOpenEncod alias "fb_DevFileOpenEncod" _
 	case else
 		'' BINARY and RANDOM have no encoding: PUT# would emit raw bytes into a
 		'' text file.
-		if( heap_ <> 0 ) then free( heap_ )
+		if( heap_ <> nullptr ) then free( heap_ )
 		TKORT_IOUNLOCK()
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end select
@@ -448,7 +448,7 @@ function tkort_DevFileOpenEncod alias "fb_DevFileOpenEncod" _
 	fp = fopen( fname, openmask )
 
 	if( h->mode = FB_FILE_MODE_APPEND ) then
-		if( fp = 0 ) then
+		if( fp = nullptr ) then
 			'' No such file: APPEND becomes OUTPUT and a fresh mark is written
 			'' below.
 			effective_mode = FB_FILE_MODE_OUTPUT
@@ -458,7 +458,7 @@ function tkort_DevFileOpenEncod alias "fb_DevFileOpenEncod" _
 			tkrt_SetFileBufSize( fp )
 			if( hCheckBOM( fp, h->encod ) = 0 ) then
 				fclose( fp )
-				if( heap_ <> 0 ) then free( heap_ )
+				if( heap_ <> nullptr ) then free( heap_ )
 				TKORT_IOUNLOCK()
 				return tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
 			else
@@ -468,8 +468,8 @@ function tkort_DevFileOpenEncod alias "fb_DevFileOpenEncod" _
 		end if
 	end if
 
-	if( fp = 0 ) then
-		if( heap_ <> 0 ) then free( heap_ )
+	if( fp = nullptr ) then
+		if( heap_ <> nullptr ) then free( heap_ )
 		TKORT_IOUNLOCK()
 		return tkrt_ErrorSetNum( FB_RTERROR_FILENOTFOUND )
 	end if
@@ -484,7 +484,7 @@ function tkort_DevFileOpenEncod alias "fb_DevFileOpenEncod" _
 	case FB_FILE_MODE_INPUT
 		if( hCheckBOM( fp, h->encod ) = 0 ) then
 			fclose( fp )
-			if( heap_ <> 0 ) then free( heap_ )
+			if( heap_ <> nullptr ) then free( heap_ )
 			TKORT_IOUNLOCK()
 			return tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
 		end if
@@ -494,7 +494,7 @@ function tkort_DevFileOpenEncod alias "fb_DevFileOpenEncod" _
 		'' distinction is visible to a program that tests ERR.
 		if( hWriteBOM( fp, h->encod ) = 0 ) then
 			fclose( fp )
-			if( heap_ <> 0 ) then free( heap_ )
+			if( heap_ <> nullptr ) then free( heap_ )
 			TKORT_IOUNLOCK()
 			return tkrt_ErrorSetNum( FB_RTERROR_FILENOTFOUND )
 		end if
@@ -505,12 +505,12 @@ function tkort_DevFileOpenEncod alias "fb_DevFileOpenEncod" _
 	h->size = tkrt_DevFileGetSize( fp, h->mode, h->encod, 1 )
 	if( h->size = -1 ) then
 		fclose( fp )
-		if( heap_ <> 0 ) then free( heap_ )
+		if( heap_ <> nullptr ) then free( heap_ )
 		TKORT_IOUNLOCK()
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
 
-	if( heap_ <> 0 ) then free( heap_ )
+	if( heap_ <> nullptr ) then free( heap_ )
 
 	TKORT_IOUNLOCK()
 
@@ -532,7 +532,7 @@ function tkort_DevFileReadEncod alias "fb_DevFileReadEncod" _
 
 	dim as uinteger want = *max_chars
 	dim as FILE ptr fp = hReadStream( h )
-	if( fp = 0 ) then
+	if( fp = nullptr ) then
 		TKORT_IOUNLOCK()
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
@@ -556,7 +556,7 @@ function tkort_DevFileReadEncodWstr alias "fb_DevFileReadEncodWstr" _
 
 	dim as uinteger want = *max_chars
 	dim as FILE ptr fp = hReadStream( h )
-	if( fp = 0 ) then
+	if( fp = nullptr ) then
 		TKORT_IOUNLOCK()
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
@@ -590,7 +590,7 @@ function tkort_DevFileReadLineEncod alias "fb_DevFileReadLineEncod" _
 	TKORT_IOLOCK()
 
 	dim as FILE ptr fp = hReadStream( h )
-	if( fp = 0 ) then
+	if( fp = nullptr ) then
 		TKORT_IOUNLOCK()
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
@@ -634,7 +634,7 @@ function tkort_DevFileReadLineEncodWstr alias "fb_DevFileReadLineEncodWstr" _
 	TKORT_IOLOCK()
 
 	dim as FILE ptr fp = hReadStream( h )
-	if( fp = 0 ) then
+	if( fp = nullptr ) then
 		TKORT_IOUNLOCK()
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
@@ -677,16 +677,16 @@ function tkort_DevFileWriteEncod alias "fb_DevFileWriteEncod" _
 	TKORT_IOLOCK()
 
 	dim as FILE ptr fp = cast( FILE ptr, h->opaque )
-	if( fp = 0 ) then
+	if( fp = nullptr ) then
 		TKORT_IOUNLOCK()
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
 
 	dim as integer bytes_ = any
 	dim as uint8 ptr encod_buffer = tkrt_CharToUTF( h->encod, cast( uint8 ptr, buffer ), _
-	                                                chars, 0, @bytes_ )
+	                                                chars, nullptr, @bytes_ )
 
-	if( encod_buffer <> 0 ) then
+	if( encod_buffer <> nullptr ) then
 		if( fwrite( encod_buffer, 1, bytes_, fp ) <> bytes_ ) then
 			'' NOT FREED ON THIS PATH -- fbc returns without releasing the
 			'' buffer, and the leak is reproduced rather than fixed, because
@@ -708,15 +708,15 @@ function tkort_DevFileWriteEncodWstr alias "fb_DevFileWriteEncodWstr" _
 	TKORT_IOLOCK()
 
 	dim as FILE ptr fp = cast( FILE ptr, h->opaque )
-	if( fp = 0 ) then
+	if( fp = nullptr ) then
 		TKORT_IOUNLOCK()
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
 
 	dim as integer bytes_ = any
-	dim as uint8 ptr encod_buffer = tkrt_WCharToUTF( h->encod, buffer, chars, 0, @bytes_ )
+	dim as uint8 ptr encod_buffer = tkrt_WCharToUTF( h->encod, buffer, chars, nullptr, @bytes_ )
 
-	if( encod_buffer <> 0 ) then
+	if( encod_buffer <> nullptr ) then
 		if( fwrite( encod_buffer, 1, bytes_, fp ) <> bytes_ ) then
 			TKORT_IOUNLOCK()
 			return tkrt_ErrorSetNum( FB_RTERROR_FILEIO )

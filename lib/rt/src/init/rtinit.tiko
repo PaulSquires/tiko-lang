@@ -190,7 +190,7 @@ sub tkort_hRtExit alias "fb_hRtExit" ( )
 	'' LAST, AND TO stderr. A message printed before the console clean-up above
 	'' would be wiped by a gfx backend that clears the screen on exit.
 	dim as any ptr msg = TKORT_CTX_ERRMSG()
-	if( msg <> 0 ) then
+	if( msg <> nullptr ) then
 		crt_fputs( cptr( zstring ptr, msg ), stderr )
 	end if
 
@@ -222,7 +222,7 @@ sub tkort_End alias "fb_End" ( byval errlevel as int32 )
 	'' unless gfxlib2 was linked, which is what makes this a feature switch
 	'' rather than a dependency.
 	dim as sub( ) exitgfx = TKORT_CTX_EXITGFX()
-	if( exitgfx <> 0 ) then exitgfx( )
+	if( exitgfx <> nullptr ) then exitgfx( )
 
 	crt_exit( errlevel )
 

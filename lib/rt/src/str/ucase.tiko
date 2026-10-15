@@ -44,19 +44,19 @@ extern "rtlib"
 function tkort_StrUcase2 alias "fb_StrUcase2" _
 	( byval src as FBSTRING ptr, byval mode as int32 ) as FBSTRING ptr
 
-	if( src = 0 ) then return TKORT_NULLSTR( )
+	if( src = nullptr ) then return TKORT_NULLSTR( )
 
 	STRLOCK()
 
-	dim as FBSTRING ptr dst = 0
+	dim as FBSTRING ptr dst = nullptr
 	dim as integer length = 0
 
-	if( src->data <> 0 ) then
+	if( src->data <> nullptr ) then
 		length = FB_STRSIZE( src )
-		dst = fb_hStrAllocTemp_NoLock( 0, length )
+		dst = fb_hStrAllocTemp_NoLock( nullptr, length )
 	end if
 
-	if( dst <> 0 ) then
+	if( dst <> nullptr ) then
 		'' SIGNED. fbc walks the source with `char *s` and does `c = *s++`, and
 		'' char is SIGNED on x86 -- so a byte of 200 reaches islower/toupper as
 		'' -56, not 200. Reading through a `ubyte ptr` here gave different

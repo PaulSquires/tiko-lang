@@ -60,7 +60,7 @@ function tkort_StrConcat alias "fb_StrConcat" _
 		tkrt_StrDelete( dst )
 	else
 		dst = fb_hStrAllocTemp( dst, n1 + n2 )
-		if( dst <> 0 ) then
+		if( dst <> nullptr ) then
 			'' Two copies and one terminator, written straight out. fbc's helper
 			'' is `static __inline__` and does exactly this.
 			if( n1 > 0 ) then memcpy( dst->data, p1, n1 )

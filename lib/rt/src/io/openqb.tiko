@@ -149,7 +149,7 @@ function tkort_FileOpenQB alias "fb_FileOpenQB" _
 
 	dim as integer str_len = FB_STRSIZE( str_ )
 
-	if( (str_len = 0) orelse (str_->data = 0) ) then
+	if( (str_len = 0) orelse (str_->data = nullptr) ) then
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
 

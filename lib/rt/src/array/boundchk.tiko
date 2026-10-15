@@ -49,7 +49,7 @@ private function hThrowError( byval errnum as int32, byval idx as int64, _
 
 	pos_ += tkrt_snprintf( @msg + pos_, FB_ERRMSG_SIZE - pos_, @!"\n" )
 
-	if( variablename <> 0 ) then
+	if( variablename <> nullptr ) then
 		pos_ += tkrt_snprintf( @msg + pos_, FB_ERRMSG_SIZE - pos_, @"'%s' ", variablename )
 	else
 		pos_ += tkrt_snprintf( @msg + pos_, FB_ERRMSG_SIZE - pos_, @"array " )
@@ -72,7 +72,7 @@ private function hThrowError( byval errnum as int32, byval idx as int64, _
 
 	msg[FB_ERRMSG_SIZE - 1] = 0
 
-	return cast( any ptr, tkrt_ErrorThrowMsg( errnum, linenum, filename, @msg, 0, 0 ) )
+	return cast( any ptr, tkrt_ErrorThrowMsg( errnum, linenum, filename, @msg, nullptr, nullptr ) )
 end function
 
 extern "rtlib"
@@ -84,10 +84,10 @@ function tkort_ArrayDimensionChk alias "fb_ArrayDimensionChk" _
 	( byval dimensions as integer, byval array_ as FBARRAY ptr, byval linenum as int32, _
 	  byval filename as zstring ptr, byval variablename as zstring ptr ) as any ptr
 
-	if( array_ = 0 ) then
+	if( array_ = nullptr ) then
 		return hThrowError( FB_RTERROR_NOTDIMENSIONED, 0, 0, 0, linenum, filename, variablename )
 	end if
-	if( array_->index_ptr = 0 ) then
+	if( array_->index_ptr = nullptr ) then
 		return hThrowError( FB_RTERROR_NOTDIMENSIONED, 0, 0, 0, linenum, filename, variablename )
 	end if
 
@@ -96,7 +96,7 @@ function tkort_ArrayDimensionChk alias "fb_ArrayDimensionChk" _
 		                    array_->dimensions, linenum, filename, variablename )
 	end if
 
-	return 0
+	return nullptr
 end function
 
 function tkort_ArrayBoundChkEx alias "fb_ArrayBoundChkEx" _
@@ -108,7 +108,7 @@ function tkort_ArrayBoundChkEx alias "fb_ArrayBoundChkEx" _
 		return hThrowError( FB_RTERROR_OUTOFBOUNDS, idx, lbound_, ubound_, _
 		                    linenum, filename, variablename )
 	end if
-	return 0
+	return nullptr
 end function
 
 '' UNSIGNED idx and ubound -- see the header. One comparison catches both ends.
@@ -122,7 +122,7 @@ function tkort_ArraySngBoundChkEx alias "fb_ArraySngBoundChkEx" _
 		return hThrowError( FB_RTERROR_OUTOFBOUNDS, cast( integer, idx ), 0, _
 		                    cast( integer, ubound_ ), linenum, filename, variablename )
 	end if
-	return 0
+	return nullptr
 end function
 
 '' Legacy, pre-1.20.0: no variable name. Kept so an older fbc can build a debug
@@ -130,13 +130,13 @@ end function
 function tkort_ArrayBoundChk alias "fb_ArrayBoundChk" _
 	( byval idx as integer, byval lbound_ as integer, byval ubound_ as integer, _
 	  byval linenum as int32, byval filename as zstring ptr ) as any ptr
-	return tkort_ArrayBoundChkEx( idx, lbound_, ubound_, linenum, filename, 0 )
+	return tkort_ArrayBoundChkEx( idx, lbound_, ubound_, linenum, filename, nullptr )
 end function
 
 function tkort_ArraySngBoundChk alias "fb_ArraySngBoundChk" _
 	( byval idx as uinteger, byval ubound_ as uinteger, byval linenum as int32, _
 	  byval filename as zstring ptr ) as any ptr
-	return tkort_ArraySngBoundChkEx( idx, ubound_, linenum, filename, 0 )
+	return tkort_ArraySngBoundChkEx( idx, ubound_, linenum, filename, nullptr )
 end function
 
 end extern

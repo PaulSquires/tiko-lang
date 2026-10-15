@@ -146,7 +146,7 @@ extern "c"   '' NON-FBCALL, as declared above.
 '' reference to it is dropped -- see the file header.
 function tkort_DevStdIoClose alias "fb_DevStdIoClose" ( byval h as FB_FILE ptr ) as int32
 	TKORT_IOLOCK()
-	h->opaque = 0
+	h->opaque = nullptr
 	TKORT_IOUNLOCK()
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )
 end function
@@ -156,8 +156,8 @@ end function
 function tkort_DevPipeClose alias "fb_DevPipeClose" ( byval h as FB_FILE ptr ) as int32
 	TKORT_IOLOCK()
 	dim as FILE ptr fp = cast( FILE ptr, h->opaque )
-	if( fp <> 0 ) then crt_pclose( fp )
-	h->opaque = 0
+	if( fp <> nullptr ) then crt_pclose( fp )
+	h->opaque = nullptr
 	TKORT_IOUNLOCK()
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )
 end function
@@ -231,7 +231,7 @@ function tkort_DevPipeOpen alias "fb_DevPipeOpen" _
 	( byval h as FB_FILE ptr, byval filename as zstring ptr, byval filename_len as uinteger ) as int32
 
 	dim as int32 res = tkrt_ErrorSetNum( FB_RTERROR_OK )
-	dim as FILE ptr fp = 0
+	dim as FILE ptr fp = nullptr
 	dim as zstring * 16 openmask = any
 
 	TKORT_IOLOCK()
@@ -263,7 +263,7 @@ function tkort_DevPipeOpen alias "fb_DevPipeOpen" _
 
 	if( res = FB_RTERROR_OK ) then
 		fp = crt_popen( filename, @openmask )
-		if( fp = 0 ) then res = tkrt_ErrorSetNum( FB_RTERROR_FILENOTFOUND )
+		if( fp = nullptr ) then res = tkrt_ErrorSetNum( FB_RTERROR_FILENOTFOUND )
 		'' opaque IS SET EVEN WHEN popen FAILED, to NULL -- which is what every
 		'' hook then tests for.
 		h->opaque = fp
@@ -286,10 +286,10 @@ extern "rtlib"
 function tkort_NullPtrChk alias "fb_NullPtrChk" _
 	( byval p as any ptr, byval linenum as int32, byval fname as zstring ptr ) as any ptr
 
-	if( p = 0 ) then
-		return tkrt_ErrorThrowEx( FB_RTERROR_NULLPTR, linenum, fname, 0, 0 )
+	if( p = nullptr ) then
+		return tkrt_ErrorThrowEx( FB_RTERROR_NULLPTR, linenum, fname, nullptr, nullptr )
 	end if
-	return 0
+	return nullptr
 end function
 
 end extern

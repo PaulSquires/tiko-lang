@@ -131,9 +131,9 @@ private function tkort_lpt_find_by_name( byval iPort as int32, byval filename as
 	for i as integer = 0 to FB_MAX_FILES - 1
 		dim as FB_FILE ptr handle = TKORT_FILETB() + i
 		if( handle->type_ = FB_FILE_TYPE_PRINTER ) then
-			if( (no_redir = 0) orelse (handle->redirection_to = 0) ) then
+			if( (no_redir = 0) orelse (handle->redirection_to = nullptr) ) then
 				dim as DEV_LPT_INFO ptr devInfo = cptr( DEV_LPT_INFO ptr, handle->opaque )
-				if( devInfo <> 0 ) then
+				if( devInfo <> nullptr ) then
 					if( (iPort = 0) orelse (iPort = devInfo->iPort) ) then
 						if( strcmp( devInfo->pszDevice, filename ) = 0 ) then
 							return handle
@@ -144,14 +144,14 @@ private function tkort_lpt_find_by_name( byval iPort as int32, byval filename as
 		end if
 	next
 
-	return 0
+	return nullptr
 end function
 
 '' "proto" + ":" + "name", into a fresh allocation the caller frees. The + 3 is
 '' fbc's: one for the colon, one for the terminator, and one spare.
 private function tkort_lpt_make_device_name( byval lpt_proto as DEV_LPT_PROTOCOL ptr ) as zstring ptr
 
-	if( lpt_proto = 0 ) then return 0
+	if( lpt_proto = nullptr ) then return nullptr
 
 	dim as zstring ptr p = cast( zstring ptr, _
 		calloc( strlen( lpt_proto->proto ) + strlen( lpt_proto->name_ ) + 3, 1 ) )
@@ -168,15 +168,15 @@ function tkort_DevLptOpen alias "fb_DevLptOpen" _
 	( byval handle as FB_FILE ptr, byval filename as zstring ptr, _
 	  byval filename_len as uinteger ) as int32
 
-	dim as DEV_LPT_PROTOCOL ptr lpt_proto = 0
+	dim as DEV_LPT_PROTOCOL ptr lpt_proto = nullptr
 	dim as DEV_LPT_INFO ptr devInfo = any
-	dim as FB_FILE ptr redir_handle = 0, tmp_handle = 0
+	dim as FB_FILE ptr redir_handle = nullptr, tmp_handle = nullptr
 	dim as int32 res = any
 
 	'' A FAILED PARSE STILL MAY HAVE ALLOCATED -- the parser writes the pointer
 	'' before it decides the string is bad, so the free is not dead code.
 	if( tkrt_DevLptParseProtocol( @lpt_proto, filename, filename_len, 1 ) = 0 ) then
-		if( lpt_proto <> 0 ) then free( lpt_proto )
+		if( lpt_proto <> nullptr ) then free( lpt_proto )
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
 
@@ -186,7 +186,7 @@ function tkort_DevLptOpen alias "fb_DevLptOpen" _
 	devInfo->uiRefCount = 1
 	devInfo->iPort = lpt_proto->iPort
 	devInfo->pszDevice = tkort_lpt_make_device_name( lpt_proto )
-	devInfo->driver_opaque = 0
+	devInfo->driver_opaque = nullptr
 
 	'' ALREADY OPEN? Share it. The freshly built devInfo is thrown away -- and
 	'' note that fbc frees the STRUCT but NOT devInfo->pszDevice, which it has
@@ -194,14 +194,14 @@ function tkort_DevLptOpen alias "fb_DevLptOpen" _
 	'' open, and it is reproduced: a program that opens the same printer in a
 	'' loop leaks in fbc too, and fixing it here would be a rewrite dividend.
 	tmp_handle = tkort_lpt_find_by_name( devInfo->iPort, devInfo->pszDevice, 0 )
-	if( tmp_handle <> 0 ) then
+	if( tmp_handle <> nullptr ) then
 		free( devInfo )
 		redir_handle = tmp_handle
 		devInfo = cptr( DEV_LPT_INFO ptr, tmp_handle->opaque )
 		devInfo->uiRefCount += 1
 	end if
 
-	if( devInfo->driver_opaque = 0 ) then
+	if( devInfo->driver_opaque = nullptr ) then
 		'' NOT OPEN YET: ask the platform driver.
 		res = tkrt_PrinterOpen( devInfo, devInfo->iPort, filename )
 	else
@@ -226,11 +226,11 @@ function tkort_DevLptOpen alias "fb_DevLptOpen" _
 		handle->opaque = devInfo
 		handle->type_ = FB_FILE_TYPE_PRINTER
 	else
-		if( devInfo->pszDevice <> 0 ) then free( devInfo->pszDevice )
+		if( devInfo->pszDevice <> nullptr ) then free( devInfo->pszDevice )
 		free( devInfo )
 	end if
 
-	if( lpt_proto <> 0 ) then free( lpt_proto )
+	if( lpt_proto <> nullptr ) then free( lpt_proto )
 
 	TKORT_IOUNLOCK()
 
@@ -242,13 +242,13 @@ end function
 function tkort_DevPrinterSetWidth alias "fb_DevPrinterSetWidth" _
 	( byval pszDevice as zstring ptr, byval width_ as int32, byval default_width as int32 ) as int32
 
-	dim as FB_FILE ptr tmp_handle = 0
+	dim as FB_FILE ptr tmp_handle = nullptr
 	dim as int32 cur = iif( default_width = -1, 80, default_width )
 	dim as zstring ptr pszDev = any
-	dim as DEV_LPT_PROTOCOL ptr lpt_proto = 0
+	dim as DEV_LPT_PROTOCOL ptr lpt_proto = nullptr
 
 	if( tkrt_DevLptParseProtocol( @lpt_proto, pszDevice, strlen( pszDevice ), 1 ) = 0 ) then
-		if( lpt_proto <> 0 ) then free( lpt_proto )
+		if( lpt_proto <> nullptr ) then free( lpt_proto )
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
 
@@ -256,12 +256,12 @@ function tkort_DevPrinterSetWidth alias "fb_DevPrinterSetWidth" _
 
 	'' no_redir TRUE: a handle that is itself redirected is not the real one.
 	tmp_handle = tkort_lpt_find_by_name( lpt_proto->iPort, pszDev, 1 )
-	if( tmp_handle <> 0 ) then
+	if( tmp_handle <> nullptr ) then
 		if( width_ <> -1 ) then tmp_handle->width = width_
 		cur = tmp_handle->width
 	end if
 
-	if( lpt_proto <> 0 ) then free( lpt_proto )
+	if( lpt_proto <> nullptr ) then free( lpt_proto )
 	free( pszDev )
 
 	return cur
@@ -274,22 +274,22 @@ end function
 function tkort_DevPrinterGetOffset alias "fb_DevPrinterGetOffset" _
 	( byval pszDevice as zstring ptr ) as int32
 
-	dim as FB_FILE ptr tmp_handle = 0
+	dim as FB_FILE ptr tmp_handle = nullptr
 	dim as int32 cur = 0
 	dim as zstring ptr pszDev = any
-	dim as DEV_LPT_PROTOCOL ptr lpt_proto = 0
+	dim as DEV_LPT_PROTOCOL ptr lpt_proto = nullptr
 
 	if( tkrt_DevLptParseProtocol( @lpt_proto, pszDevice, strlen( pszDevice ), 1 ) = 0 ) then
-		if( lpt_proto <> 0 ) then free( lpt_proto )
+		if( lpt_proto <> nullptr ) then free( lpt_proto )
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
 
 	pszDev = tkort_lpt_make_device_name( lpt_proto )
 
 	tmp_handle = tkort_lpt_find_by_name( lpt_proto->iPort, pszDev, 1 )
-	if( tmp_handle <> 0 ) then cur = tmp_handle->line_length
+	if( tmp_handle <> nullptr ) then cur = tmp_handle->line_length
 
-	if( lpt_proto <> 0 ) then free( lpt_proto )
+	if( lpt_proto <> nullptr ) then free( lpt_proto )
 	free( pszDev )
 
 	return cur

@@ -70,11 +70,11 @@ function tkort_FileEofEx alias "fb_FileEofEx" ( byval h as FB_FILE ptr ) as int3
 
 	IOLOCK()
 
-	if( h->hooks = 0 ) then
+	if( h->hooks = nullptr ) then
 		IOUNLOCK()
 		return FB_TRUE
 	end if
-	if( h->hooks->pfnEof = 0 ) then
+	if( h->hooks->pfnEof = nullptr ) then
 		IOUNLOCK()
 		return FB_TRUE
 	end if
@@ -234,7 +234,7 @@ function tkort_FileFree alias "fb_FileFree" ( ) as int32
 	IOLOCK()
 	for i as int32 = 1 to (FB_MAX_FILES - FB_RESERVED_FILES)
 		dim as FB_FILE ptr h = TKORT_FILE_TO_HANDLE( i )
-		if( h->hooks = 0 ) then
+		if( h->hooks = nullptr ) then
 			IOUNLOCK()
 			return i
 		end if
@@ -257,7 +257,7 @@ extern "c"   '' NON-FBCALL: fb_file.h declares it plainly.
 function tkort_FileLenEx alias "fb_FileLenEx" ( byval filename as zstring ptr ) as int64
 
 	dim as FILE ptr fp = fopen( filename, "rb" )
-	if( fp <> 0 ) then
+	if( fp <> nullptr ) then
 		if( tkrt_fseeko( fp, 0, 2 ) = 0 ) then          '' SEEK_END
 			dim as int64 length = tkrt_ftello( fp )
 			if( length <> -1 ) then

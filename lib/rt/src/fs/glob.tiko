@@ -40,9 +40,9 @@ end extern
 
 private sub hUArg( byval s as FBUSTRING ptr, byval ptr_ as FB_UCHAR ptr ptr, byval len_ as integer ptr )
 	static as FB_UCHAR empty_(0 to 0) = { 0 }
-	if( s = 0 ) then
+	if( s = nullptr ) then
 		*ptr_ = @empty_(0) : *len_ = 0
-	elseif( s->data = 0 ) then
+	elseif( s->data = nullptr ) then
 		*ptr_ = @empty_(0) : *len_ = 0
 	else
 		*ptr_ = s->data

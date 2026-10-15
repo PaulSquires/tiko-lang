@@ -125,7 +125,7 @@ end extern
 
 '' The calls profiler's own global, distinct from profile/core.tiko's
 '' fb_profiler -- two files, two statics, and the C has the same shadowing.
-dim shared as FB_PROFILER_CALLS ptr calls_profiler = 0
+dim shared as FB_PROFILER_CALLS ptr calls_profiler = nullptr
 
 '' Forward-declared because hCtx() passes its address to fb_TlsGetCtx and is
 '' defined well above it. NON-FBCALL: fb_profile.h declares it plain.
@@ -149,7 +149,7 @@ end function
 
 private sub hProcTbDestructor( byval tb as FB_PROCINFO_TB_ ptr )
 	dim as FB_PROCINFO_TB_ ptr nxt = any
-	while( tb <> 0 )
+	while( tb <> nullptr )
 		nxt = tb->nxt
 		free( tb )
 		tb = nxt
@@ -164,13 +164,13 @@ private function hProcTbAllocProc( byval proc_tb as FB_PROCINFO_TB_ ptr ptr ) as
 	dim as FB_PROCINFO_TB_ ptr tb = any
 	dim as FB_PROCINFO_ ptr proc = any
 
-	if( (*proc_tb = 0) orelse ((*proc_tb)->next_free >= PROC_INFO_TB_SIZE) ) then
+	if( (*proc_tb = nullptr) orelse ((*proc_tb)->next_free >= PROC_INFO_TB_SIZE) ) then
 		tb = calloc( 1, sizeof( FB_PROCINFO_TB_ ) )
 		'' Not checked for NULL here -- fbc does not either, and the very
 		'' next line would fault. Reproduced rather than hardened, because
 		'' adding a check changes what happens under exhaustion.
 		tb->nxt = *proc_tb
-		if( *proc_tb <> 0 ) then
+		if( *proc_tb <> nullptr ) then
 			tb->proc_tb_id = (*proc_tb)->proc_tb_id + 1
 		else
 			tb->proc_tb_id = 1
@@ -191,7 +191,7 @@ end function
 
 private sub hArrCtor( byval lst as FB_PROCARRAY ptr, byval strings_hash as STRING_HASH_TABLE_ ptr, _
                       byval ignores as STRING_HASH_TABLE_ ptr )
-	lst->arr = 0
+	lst->arr = nullptr
 	lst->cap_ = 0
 	lst->nused = 0
 	STRING_HASH_constructor( @lst->hash_, strings_hash )
@@ -201,16 +201,16 @@ end sub
 private sub hArrDtor( byval lst as FB_PROCARRAY ptr )
 	STRING_HASH_destructor( @lst->hash_ )
 	free( lst->arr )
-	lst->arr = 0
+	lst->arr = nullptr
 	lst->cap_ = 0
 	lst->nused = 0
-	lst->ignores = 0
+	lst->ignores = nullptr
 end sub
 
 '' Grows 16, then doubling. Adding also records the name in the array's own
 '' hash, which is what makes find_unique_procs able to skip duplicates.
 private sub hArrAdd( byval lst as FB_PROCARRAY ptr, byval proc as FB_PROCINFO_ ptr )
-	dim as FB_PROCINFO_ ptr ptr new_array = 0
+	dim as FB_PROCINFO_ ptr ptr new_array = nullptr
 	dim as int32 s = lst->cap_
 
 	if( s = 0 ) then
@@ -223,7 +223,7 @@ private sub hArrAdd( byval lst as FB_PROCARRAY ptr, byval proc as FB_PROCINFO_ p
 		new_array = lst->arr
 	end if
 
-	if( new_array <> 0 ) then
+	if( new_array <> nullptr ) then
 		new_array[lst->nused] = proc
 		lst->arr = new_array
 		lst->cap_ = s
@@ -239,11 +239,11 @@ private function hNameSorter cdecl( byval e1 as any ptr, byval e2 as any ptr ) a
 	dim as FB_PROCINFO_ ptr p1 = *cptr( FB_PROCINFO_ ptr ptr, e1 )
 	dim as FB_PROCINFO_ ptr p2 = *cptr( FB_PROCINFO_ ptr ptr, e2 )
 
-	if( (p1->parent <> 0) andalso (p2->parent <> 0) ) then
+	if( (p1->parent <> nullptr) andalso (p2->parent <> nullptr) ) then
 		return strcmp( p1->name, p2->name )
-	elseif( (p1->parent = 0) andalso (p2->parent <> 0) ) then
+	elseif( (p1->parent = nullptr) andalso (p2->parent <> nullptr) ) then
 		return -1
-	elseif( (p1->parent <> 0) andalso (p2->parent = 0) ) then
+	elseif( (p1->parent <> nullptr) andalso (p2->parent = nullptr) ) then
 		return 1
 	end if
 	return 0
@@ -270,10 +270,10 @@ private sub hFindAllProcs( byval lst as FB_PROCARRAY ptr, byval proc_tb as FB_PR
 	dim as FB_PROCINFO_TB_ ptr tb = proc_tb
 	dim as FB_PROCINFO_ ptr proc = any
 	dim as int32 i = any
-	while( tb <> 0 )
+	while( tb <> nullptr )
 		for i = 0 to tb->next_free - 1
 			proc = @tb->procinfo(i)
-			if( STRING_HASH_TABLE_find( lst->ignores, proc->name, proc->hashkey ) = 0 ) then
+			if( STRING_HASH_TABLE_find( lst->ignores, proc->name, proc->hashkey ) = nullptr ) then
 				hArrAdd( lst, proc )
 			end if
 		next
@@ -287,11 +287,11 @@ private sub hFindUniqueProcs( byval lst as FB_PROCARRAY ptr, byval proc_tb as FB
 	dim as FB_PROCINFO_TB_ ptr tb = proc_tb
 	dim as FB_PROCINFO_ ptr proc = any
 	dim as int32 i = any
-	while( tb <> 0 )
+	while( tb <> nullptr )
 		for i = 0 to tb->next_free - 1
 			proc = @tb->procinfo(i)
-			if( STRING_HASH_TABLE_find( lst->ignores, proc->name, proc->hashkey ) = 0 ) then
-				if( STRING_HASH_find( @lst->hash_, proc->name, proc->hashkey ) = 0 ) then
+			if( STRING_HASH_TABLE_find( lst->ignores, proc->name, proc->hashkey ) = nullptr ) then
+				if( STRING_HASH_find( @lst->hash_, proc->name, proc->hashkey ) = nullptr ) then
 					hArrAdd( lst, proc )
 				end if
 			end if
@@ -303,18 +303,18 @@ end sub
 '' ------------------------------------------------ thread context lifecycle
 
 private sub hThreadCtor( byval ctx as FB_PROFILER_THREAD_ ptr )
-	if( ctx = 0 ) then exit sub
-	ctx->thread_entry = 0
-	ctx->thread_proc = 0
+	if( ctx = nullptr ) then exit sub
+	ctx->thread_entry = nullptr
+	ctx->thread_proc = nullptr
 	STRING_TABLE_constructor( @ctx->strings )
 	STRING_HASH_TABLE_constructor( @ctx->strings_hash, @ctx->strings )
-	ctx->proc_tb = 0
-	ctx->nxt = 0
+	ctx->proc_tb = nullptr
+	ctx->nxt = nullptr
 	ctx->last_proc_id = 0
 end sub
 
 private sub hProfileCtxCtor( byval tls as FB_PROFILECTX ptr )
-	if( tls->ctx <> 0 ) then exit sub
+	if( tls->ctx <> nullptr ) then exit sub
 	tls->ctx = calloc( 1, sizeof( FB_PROFILER_THREAD_ ) )
 	hThreadCtor( tls->ctx )
 end sub
@@ -330,19 +330,19 @@ sub tkort_PROFILECTX_Destructor alias "fb_PROFILECTX_Destructor" ( byval data_ a
 	dim as FB_PROFILER_THREAD_ ptr ctx = any
 	dim as FB_PROCINFO_ ptr lastproc = any
 
-	if( tls = 0 ) then exit sub
+	if( tls = nullptr ) then exit sub
 	ctx = tls->ctx
-	if( ctx = 0 ) then exit sub
+	if( ctx = nullptr ) then exit sub
 
 	'' Walk UP the stack so a thread that ends inside a call still gets a
 	'' time for every frame it was in.
 	lastproc = ctx->thread_proc
-	while( lastproc <> 0 )
+	while( lastproc <> nullptr )
 		lastproc->local_time = tkrt_Timer( ) - lastproc->start_time
 		lastproc = lastproc->parent
 	wend
 
-	if( calls_profiler <> 0 ) then
+	if( calls_profiler <> nullptr ) then
 		TKORT_PROFLOCK()
 		ctx->nxt = calls_profiler->threads
 		calls_profiler->threads = ctx
@@ -358,16 +358,16 @@ private sub hMetricsProcs( byval metrics as FB_PROFILER_METRICS ptr, _
                            byval proc_tb as FB_PROCINFO_TB_ ptr )
 	dim as FB_PROCINFO_TB_ ptr tb = any
 	dim as int32 i = any
-	if( metrics = 0 ) then exit sub
-	if( proc_tb = 0 ) then exit sub
+	if( metrics = nullptr ) then exit sub
+	if( proc_tb = nullptr ) then exit sub
 	tb = proc_tb
-	while( tb <> 0 )
+	while( tb <> nullptr )
 		metrics->procs_bytes_allocated += sizeof( FB_PROCINFO_TB_ )
 		metrics->procs_count_blocks += 1
 		'' Counts EVERY slot in the block, not just the used ones -- an
 		'' occupancy figure, which is what the debug report prints.
 		for i = 0 to PROC_INFO_TB_SIZE - 1
-			if( tb->procinfo(i).name <> 0 ) then metrics->procs_count_items += 1
+			if( tb->procinfo(i).name <> nullptr ) then metrics->procs_count_items += 1
 			metrics->procs_count_slots += 1
 		next
 		tb = tb->nxt
@@ -376,8 +376,8 @@ end sub
 
 private sub hMetricsThreads( byval metrics as FB_PROFILER_METRICS ptr, _
                              byval ctx as FB_PROFILER_THREAD_ ptr )
-	if( metrics = 0 ) then exit sub
-	if( ctx = 0 ) then exit sub
+	if( metrics = nullptr ) then exit sub
+	if( ctx = nullptr ) then exit sub
 	metrics->nthreads += 1
 	fb_hPROFILER_METRICS_Strings( metrics, @ctx->strings )
 	fb_hPROFILER_METRICS_HashTable( metrics, @ctx->strings_hash )
@@ -387,15 +387,15 @@ end sub
 private sub hMetricsCallsProfiler( byval metrics as FB_PROFILER_METRICS ptr, _
                                    byval prof as FB_PROFILER_CALLS ptr )
 	dim as FB_PROFILER_THREAD_ ptr ctx = any
-	if( prof = 0 ) then exit sub
-	if( metrics = 0 ) then exit sub
+	if( prof = nullptr ) then exit sub
+	if( metrics = nullptr ) then exit sub
 
 	fb_hPROFILER_METRICS_Clear( metrics )
 	fb_hPROFILER_METRICS_Global( metrics, prof->global_ )
 	hMetricsThreads( metrics, prof->main_thread )
 
 	ctx = prof->threads
-	while( ctx <> 0 )
+	while( ctx <> nullptr )
 		hMetricsThreads( metrics, ctx )
 		ctx = ctx->nxt
 	wend
@@ -405,17 +405,17 @@ end sub
 
 private function hCallsCreate( ) as FB_PROFILER_CALLS ptr
 	dim as FB_PROFILER_CALLS ptr prof = any
-	if( calls_profiler <> 0 ) then return calls_profiler
+	if( calls_profiler <> nullptr ) then return calls_profiler
 
 	prof = calloc( 1, sizeof( FB_PROFILER_CALLS ) )
-	if( prof = 0 ) then return calls_profiler
+	if( prof = nullptr ) then return calls_profiler
 
 	prof->global_ = PROFILER_GLOBAL_create( )
-	if( prof->global_ <> 0 ) then
+	if( prof->global_ <> nullptr ) then
 		'' The two profilers point at each other: the global holds an opaque
 		'' back-pointer so a report can find the calls profiler from it.
 		prof->global_->profiler_ctx = prof
-		prof->calltree_leader.data = 0
+		prof->calltree_leader.data = nullptr
 		prof->calltree_leader.size = 0
 		prof->calltree_leader.len = 0
 		calls_profiler = prof
@@ -427,13 +427,13 @@ end function
 
 private sub hCallsDestroy( )
 	dim as FB_PROFILER_THREAD_ ptr nxt_ctx = any
-	if( calls_profiler = 0 ) then exit sub
+	if( calls_profiler = nullptr ) then exit sub
 
 	free( calls_profiler->calltree_leader.data )
 
 	'' Only the LINKED threads are freed here; the main thread's context
 	'' belongs to TLS and is released with it.
-	while( calls_profiler->threads <> 0 )
+	while( calls_profiler->threads <> nullptr )
 		hProcTbDestructor( calls_profiler->threads->proc_tb )
 		STRING_HASH_TABLE_destructor( @calls_profiler->threads->strings_hash )
 		STRING_TABLE_destructor( @calls_profiler->threads->strings )
@@ -444,7 +444,7 @@ private sub hCallsDestroy( )
 
 	PROFILER_GLOBAL_destroy( )
 	free( calls_profiler )
-	calls_profiler = 0
+	calls_profiler = nullptr
 end sub
 
 private function hNewProcId( byval ctx as FB_PROFILER_THREAD_ ptr ) as int32
@@ -483,9 +483,9 @@ end sub
 
 private function hProcIsRecursive( byval proc as FB_PROCINFO_ ptr ) as int32
 	dim as FB_PROCINFO_ ptr p = proc
-	if( p = 0 ) then return 0
+	if( p = nullptr ) then return 0
 	p = p->parent
-	while( p <> 0 )
+	while( p <> nullptr )
 		if( (p->hashkey = proc->hashkey) andalso (strcmp( p->name, proc->name ) = 0) ) then
 			return -1
 		end if
@@ -507,11 +507,11 @@ private sub hReportCallsProc( byval prof as FB_PROFILER_CALLS ptr, _
 
 	'' Children live in the node AND in every overflow node chained off it.
 	proc = parent_proc
-	while( proc <> 0 )
+	while( proc <> nullptr )
 		for j = 0 to PROC_MAX_CHILDREN - 1
-			if( proc->child(j) <> 0 ) then
+			if( proc->child(j) <> nullptr ) then
 				if( STRING_HASH_TABLE_find( proc_list.ignores, proc->child(j)->name, _
-				                            proc->child(j)->hashkey ) = 0 ) then
+				                            proc->child(j)->hashkey ) = nullptr ) then
 					hArrAdd( @proc_list, proc->child(j) )
 				end if
 			end if
@@ -625,9 +625,9 @@ end sub
 '' only the time is dropped.
 private sub hReportCallsGlobals( byval prof as FB_PROFILER_CALLS ptr, _
                                  byval ctx as FB_PROFILER_THREAD_ ptr, byval f as FILE ptr )
-	dim as FB_PROCINFO_TB_ ptr tb = 0
+	dim as FB_PROCINFO_TB_ ptr tb = nullptr
 	dim as FB_PROCARRAY list_all = any, lst = any
-	dim as FB_PROCINFO_ ptr last_p = 0, p = any, q = any, proc = any
+	dim as FB_PROCINFO_ ptr last_p = nullptr, p = any, q = any, proc = any
 	dim as int32 i = any, length_ = any
 	dim as int32 max_len = STRING_TABLE_max_len( @ctx->strings )
 	dim as int32 col = any
@@ -650,10 +650,10 @@ private sub hReportCallsGlobals( byval prof as FB_PROFILER_CALLS ptr, _
 	'' pass -- the merge target is a THROWAWAY block chain freed below.
 	for i = 0 to list_all.nused - 1
 		q = list_all.arr[i]
-		if( (last_p = 0) orelse (last_p->hashkey <> q->hashkey) orelse _
+		if( (last_p = nullptr) orelse (last_p->hashkey <> q->hashkey) orelse _
 		    (strcmp( last_p->name, q->name ) <> 0) ) then
 			p = hProcTbAllocProc( @tb )
-			if( p <> 0 ) then
+			if( p <> nullptr ) then
 				p->name = q->name
 				p->hashkey = q->hashkey
 				if( hProcIsRecursive( q ) = 0 ) then
@@ -709,7 +709,7 @@ private sub hPushLeader( byval prof as FB_PROFILER_CALLS ptr, byval ch as int32 
 	dim as integer newsize = any
 	dim as zstring ptr newbuffer = any
 
-	if( (prof->calltree_leader.data = 0) orelse _
+	if( (prof->calltree_leader.data = nullptr) orelse _
 	    (prof->calltree_leader.len + 4 > prof->calltree_leader.size) ) then
 		if( prof->calltree_leader.size <> 0 ) then
 			newsize = prof->calltree_leader.size * 2
@@ -717,7 +717,7 @@ private sub hPushLeader( byval prof as FB_PROFILER_CALLS ptr, byval ch as int32 
 			newsize = 64
 		end if
 		newbuffer = realloc( prof->calltree_leader.data, newsize )
-		if( newbuffer = 0 ) then exit sub
+		if( newbuffer = nullptr ) then exit sub
 		prof->calltree_leader.data = newbuffer
 		prof->calltree_leader.size = newsize
 	end if
@@ -732,7 +732,7 @@ private sub hPushLeader( byval prof as FB_PROFILER_CALLS ptr, byval ch as int32 
 end sub
 
 private sub hPopLeader( byval prof as FB_PROFILER_CALLS ptr )
-	if( prof->calltree_leader.data <> 0 ) then
+	if( prof->calltree_leader.data <> nullptr ) then
 		if( prof->calltree_leader.len >= 3 ) then
 			prof->calltree_leader.len -= 3
 		end if
@@ -770,9 +770,9 @@ private sub hReportCallTreeProc( byval prof as FB_PROFILER_CALLS ptr, _
 	end if
 
 	p = proc
-	while( p <> 0 )
+	while( p <> nullptr )
 		for j = 0 to PROC_MAX_CHILDREN - 1
-			if( p->child(j) <> 0 ) then children += 1
+			if( p->child(j) <> nullptr ) then children += 1
 		next
 		p = p->nxt
 	wend
@@ -792,11 +792,11 @@ private sub hReportCallTreeProc( byval prof as FB_PROFILER_CALLS ptr, _
 	hArrCtor( @lst, @prof->global_->strings_hash, @prof->global_->ignores_hash )
 
 	p = proc
-	while( p <> 0 )
+	while( p <> nullptr )
 		for j = 0 to PROC_MAX_CHILDREN - 1
-			if( p->child(j) <> 0 ) then
+			if( p->child(j) <> nullptr ) then
 				if( STRING_HASH_TB_find( lst.ignores->tb, p->child(j)->name, _
-				                         p->child(j)->hashkey ) = 0 ) then
+				                         p->child(j)->hashkey ) = nullptr ) then
 					hArrAdd( @lst, p->child(j) )
 				end if
 			end if
@@ -853,11 +853,11 @@ private sub hReportRawList( byval prof as FB_PROFILER_CALLS ptr, _
 	end if
 
 	tb = ctx->proc_tb
-	while( tb <> 0 )
+	while( tb <> nullptr )
 		for i = 0 to tb->next_free - 1
 			proc = @tb->procinfo(i)
 
-			if( proc->parent = 0 ) then
+			if( proc->parent = nullptr ) then
 				fprintf( f, @"%6d  ", 0 )
 				ncol = col - fprintf( f, @"(root)" )
 			else
@@ -905,7 +905,7 @@ private sub hReportRawDataProc( byval prof as FB_PROFILER_CALLS ptr, _
 		fprintf( f, @"%5d * ", level )
 	end if
 
-	if( proc->parent = 0 ) then
+	if( proc->parent = nullptr ) then
 		fprintf( f, @"%6d  ", 0 )
 		ncol = col - fprintf( f, @"(root)" )
 	else
@@ -932,7 +932,7 @@ private sub hReportRawDataProc( byval prof as FB_PROFILER_CALLS ptr, _
 
 	if( recursion > 0 ) then
 		for j = 0 to PROC_MAX_CHILDREN - 1
-			if( proc->child(j) <> 0 ) then
+			if( proc->child(j) <> nullptr ) then
 				hReportRawDataProc( prof, ctx, f, proc->child(j), level + 1, max_len, recursion - 1 )
 			end if
 		next
@@ -965,7 +965,7 @@ private sub hReportRawData( byval prof as FB_PROFILER_CALLS ptr, _
 	end if
 
 	tb = ctx->proc_tb
-	while( tb <> 0 )
+	while( tb <> nullptr )
 		for i = 0 to tb->next_free - 1
 			proc = @tb->procinfo(i)
 			'' recursion = 1: each node prints itself and ONE level of
@@ -991,7 +991,7 @@ private sub hReportRawStrings( byval prof as FB_PROFILER_CALLS ptr, _
 		fprintf( f, @!" size length  hash      string\n\n" )
 	end if
 
-	while( tb <> 0 )
+	while( tb <> nullptr )
 		index_ = 0
 		while( index_ < tb->bytes_used )
 			info = cptr( STRING_INFO ptr, @tb->data(index_) )
@@ -1088,7 +1088,7 @@ private sub hWriteReport( byval prof as FB_PROFILER_CALLS ptr )
 	dim as FB_PROFILER_THREAD_ ptr thread_ = any
 	dim as FILE ptr f = any
 
-	if( prof = 0 ) then exit sub
+	if( prof = nullptr ) then exit sub
 
 	tkrt_ProfileGetFileName( @filename, PROFILER_MAX_PATH )
 	f = fopen( @filename, @"w" )
@@ -1109,7 +1109,7 @@ private sub hWriteReport( byval prof as FB_PROFILER_CALLS ptr )
 	hReportThread( prof, prof->main_thread, f )
 
 	thread_ = prof->threads
-	while( thread_ <> 0 )
+	while( thread_ <> nullptr )
 		hReportThread( prof, thread_, f )
 		thread_ = thread_->nxt
 	wend
@@ -1129,7 +1129,7 @@ private sub hInitCall( byval ctx as FB_PROFILER_THREAD_ ptr, byval proc as FB_PR
 	proc->start_time = tkrt_Timer( )
 	proc->local_time = 0.0
 	proc->local_count = 0
-	proc->parent = 0
+	proc->parent = nullptr
 	'' A "{fbfp}" prefix marks a CALL THROUGH A POINTER, which is the one
 	'' case BeginProc has to treat as a call site rather than a procedure.
 	if( strncmp( proc->name, @"{fbfp}", 6 ) = 0 ) then
@@ -1165,7 +1165,7 @@ private function hPushCall( byval ctx as FB_PROFILER_THREAD_ ptr, _
 	do
 		for j = 0 to PROC_MAX_CHILDREN - 1
 			proc = parent_proc->child(hash_index)
-			if( proc <> 0 ) then
+			if( proc <> nullptr ) then
 				if( (proc->hashkey = hashkey) andalso (strcmp( proc->name, procname ) = 0) ) then
 					found = 1
 					exit do
@@ -1177,7 +1177,7 @@ private function hPushCall( byval ctx as FB_PROFILER_THREAD_ ptr, _
 			end if
 		next
 
-		if( parent_proc->nxt = 0 ) then
+		if( parent_proc->nxt = nullptr ) then
 			parent_proc->nxt = hThreadAllocProc( ctx )
 			proc = parent_proc->nxt
 			exit do
@@ -1218,13 +1218,13 @@ function tkort_ProfileBeginProc alias "fb_ProfileBeginProc" ( byval procname as 
 	dim as FB_PROFILER_THREAD_ ptr ctx = any
 	dim as FB_PROCINFO_ ptr proc = any
 
-	if( tls->ctx = 0 ) then hProfileCtxCtor( tls )
+	if( tls->ctx = nullptr ) then hProfileCtxCtor( tls )
 	ctx = tls->ctx
 	proc = ctx->thread_proc
 
 	'' A newly spawned thread has no current proc: synthesise its entry.
-	if( proc = 0 ) then
-		if( procname = 0 ) then
+	if( proc = nullptr ) then
+		if( procname = nullptr ) then
 			procname = @THREAD_PROC_NAME
 		elseif( procname[0] = 0 ) then
 			procname = @THREAD_PROC_NAME
@@ -1236,7 +1236,7 @@ function tkort_ProfileBeginProc alias "fb_ProfileBeginProc" ( byval procname as 
 		proc->local_count += 1
 	end if
 
-	if( procname = 0 ) then
+	if( procname = nullptr ) then
 		procname = @UNNAMED_PROC_NAME
 	elseif( procname[0] = 0 ) then
 		procname = @UNNAMED_PROC_NAME
@@ -1259,11 +1259,11 @@ sub tkort_ProfileEndProc alias "fb_ProfileEndProc" ( byval callid as any ptr )
 	dim as FB_PROFILER_THREAD_ ptr ctx = any
 	dim as FB_PROCINFO_ ptr proc = any
 
-	if( callid = 0 ) then exit sub
+	if( callid = nullptr ) then exit sub
 	tls = hCtx( )
 	ctx = tls->ctx
 	proc = ctx->thread_proc
-	if( proc->parent <> 0 ) then
+	if( proc->parent <> nullptr ) then
 		if( (proc->parent->flags and PROCINFO_FLAGS_CALLPTR) <> 0 ) then
 			hPopCall( ctx, proc )
 		end if
@@ -1275,15 +1275,15 @@ function tkort_ProfileBeginCall alias "fb_ProfileBeginCall" ( byval procname as 
 	dim as FB_PROFILER_THREAD_ ptr ctx = any
 	dim as FB_PROCINFO_ ptr parent_proc = any
 
-	if( tls->ctx = 0 ) then hProfileCtxCtor( tls )
+	if( tls->ctx = nullptr ) then hProfileCtxCtor( tls )
 	ctx = tls->ctx
 	parent_proc = ctx->thread_proc
 
-	if( parent_proc = 0 ) then
+	if( parent_proc = nullptr ) then
 		'' Note the asymmetry with BeginProc: procname is normalised first
 		'' and then THREAD_PROC_NAME is passed anyway, so a named first call
 		'' on a new thread still shows as "(thread)".
-		if( procname = 0 ) then
+		if( procname = nullptr ) then
 			procname = @THREAD_PROC_NAME
 		elseif( procname[0] = 0 ) then
 			procname = @THREAD_PROC_NAME
@@ -1293,7 +1293,7 @@ function tkort_ProfileBeginCall alias "fb_ProfileBeginCall" ( byval procname as 
 		parent_proc->flags or= PROCINFO_FLAGS_THREAD
 	end if
 
-	if( procname = 0 ) then
+	if( procname = nullptr ) then
 		procname = @UNNAMED_PROC_NAME
 	elseif( procname[0] = 0 ) then
 		procname = @UNNAMED_PROC_NAME
@@ -1304,7 +1304,7 @@ end function
 
 sub tkort_ProfileEndCall alias "fb_ProfileEndCall" ( byval callid as any ptr )
 	dim as FB_PROFILECTX ptr tls = any
-	if( callid = 0 ) then exit sub
+	if( callid = nullptr ) then exit sub
 	tls = hCtx( )
 	hPopCall( tls->ctx, cptr( FB_PROCINFO_ ptr, callid ) )
 end sub
@@ -1313,7 +1313,7 @@ sub tkort_InitProfile alias "fb_InitProfile" ( )
 	dim as FB_PROFILECTX ptr tls = hCtx( )
 	dim as FB_PROFILER_THREAD_ ptr ctx = any
 
-	if( calls_profiler <> 0 ) then exit sub
+	if( calls_profiler <> nullptr ) then exit sub
 	calls_profiler = hCallsCreate( )
 	hProfileCtxCtor( tls )
 	ctx = tls->ctx
@@ -1337,7 +1337,7 @@ function tkort_EndProfile alias "fb_EndProfile" ( byval errorlevel as int32 ) as
 
 	'' Close every still-open frame, exactly as the thread destructor does.
 	lastproc = ctx->thread_proc
-	while( lastproc <> 0 )
+	while( lastproc <> nullptr )
 		lastproc->local_time = tkrt_Timer( ) - lastproc->start_time
 		lastproc = lastproc->parent
 	wend
@@ -1349,7 +1349,7 @@ end function
 
 sub tkort_ProfileGetCallsMetrics alias "fb_ProfileGetCallsMetrics" ( byval metrics as FB_PROFILER_METRICS ptr )
 	TKORT_PROFLOCK()
-	if( (calls_profiler <> 0) andalso (metrics <> 0) ) then
+	if( (calls_profiler <> nullptr) andalso (metrics <> nullptr) ) then
 		hMetricsCallsProfiler( metrics, calls_profiler )
 	end if
 	TKORT_PROFUNLOCK()

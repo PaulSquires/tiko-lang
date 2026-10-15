@@ -202,10 +202,10 @@ end function
 
 function tkort_VALQB alias "fb_VALQB" ( byval s as FBSTRING ptr ) as float64
 
-	if( s = 0 ) then return 0.0
+	if( s = nullptr ) then return 0.0
 
 	dim as float64 v = 0.0
-	if( s->data <> 0 ) then
+	if( s->data <> nullptr ) then
 		if( FB_STRSIZE( s ) <> 0 ) then
 			v = tkort_hStr2DoubleQB( s->data, FB_STRSIZE( s ) )
 		end if

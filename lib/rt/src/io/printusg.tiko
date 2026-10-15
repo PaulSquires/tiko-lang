@@ -117,7 +117,7 @@ end extern
 '' fb_PrintUsingEnd, not by thread teardown.
 private function hCtx( ) as FB_PRINTUSGCTX ptr
 	return cptr( FB_PRINTUSGCTX ptr, _
-		fb_TlsGetCtx( FB_TLSKEY_PRINTUSG, sizeof( FB_PRINTUSGCTX ), 0 ) )
+		fb_TlsGetCtx( FB_TLSKEY_PRINTUSG, sizeof( FB_PRINTUSGCTX ), nullptr ) )
 end function
 
 '' Powers of ten by squaring. n is 0..19; 10^19 still fits an unsigned 64.
@@ -200,7 +200,7 @@ private function hFmtStr( byval fnum as int32 ) as int32
 	dim as zstring * BUFFERLEN + 1 buffer = any
 	dim as int32 c = any, nc = any, nnc = any, length = 0, doexit = any
 
-	if( ctx->ptr_ = 0 ) then ctx->chars = 0
+	if( ctx->ptr_ = nullptr ) then ctx->chars = 0
 
 	while( (ctx->chars > 0) andalso (length < BUFFERLEN) )
 		c = ctx->ptr_[0]
@@ -263,7 +263,7 @@ function tkort_PrintUsingEnd alias "fb_PrintUsingEnd" ( byval fnum as int32 ) as
 	TKORT_IOLOCK()
 	ctx = hCtx( )
 	tkrt_StrDelete( @ctx->fmtstr )
-	ctx->ptr_ = 0
+	ctx->ptr_ = nullptr
 	ctx->chars = 0
 	TKORT_IOUNLOCK()
 
@@ -306,7 +306,7 @@ function tkort_PrintUsingStr alias "fb_PrintUsingStr" _
 
 	strchars = -1
 
-	if( ctx->ptr_ = 0 ) then ctx->chars = 0
+	if( ctx->ptr_ = nullptr ) then ctx->chars = 0
 
 	while( ctx->chars > 0 )
 		c = ctx->ptr_[0]
@@ -415,7 +415,7 @@ function tkort_PrintUsingWstr alias "fb_PrintUsingWstr" _
 	strchars = -1
 	length = FB_WSTR_LEN( s )
 
-	if( ctx->ptr_ = 0 ) then ctx->chars = 0
+	if( ctx->ptr_ = nullptr ) then ctx->chars = 0
 
 	while( ctx->chars > 0 )
 		c = ctx->ptr_[0]
@@ -545,16 +545,16 @@ function tkort_PrintUsingUStr alias "fb_PrintUsingUStr" _
 
 	strchars = -1
 
-	if( s = 0 ) then
-		sptr = 0 : length = 0
-	elseif( s->data = 0 ) then
-		sptr = 0 : length = 0
+	if( s = nullptr ) then
+		sptr = nullptr : length = 0
+	elseif( s->data = nullptr ) then
+		sptr = nullptr : length = 0
 	else
 		sptr = s->data
 		length = FB_USTRSIZE( s )
 	end if
 
-	if( ctx->ptr_ = 0 ) then ctx->chars = 0
+	if( ctx->ptr_ = nullptr ) then ctx->chars = 0
 
 	while( ctx->chars > 0 )
 		c = ctx->ptr_[0]
@@ -695,7 +695,7 @@ private function hPrintNumber( byval fnum as int32, byval val_ as uint64, _
 	isamp       = 0
 	lc = -1
 
-	if( ctx->ptr_ = 0 ) then ctx->chars = 0
+	if( ctx->ptr_ = nullptr ) then ctx->chars = 0
 
 	'' ---- parse the numeric field ----
 	while( ctx->chars > 0 )

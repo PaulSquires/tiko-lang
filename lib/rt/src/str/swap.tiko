@@ -47,8 +47,8 @@ sub tkort_StrSwap alias "fb_StrSwap" _
 		byval str2 as any ptr, byval size2 as integer, byval fillrem2 as int32 _
 	)
 
-	if( str1 = 0 ) then exit sub
-	if( str2 = 0 ) then exit sub
+	if( str1 = nullptr ) then exit sub
+	if( str2 = nullptr ) then exit sub
 
 	'' 1. Both var-len: swap the descriptors whole, temp bits included.
 	if( (size1 = FB_STRSIZEVARLEN) andalso (size2 = FB_STRSIZEVARLEN) ) then
@@ -81,7 +81,7 @@ sub tkort_StrSwap alias "fb_StrSwap" _
 	'' 3. One side var-len and the lengths differ: let fb_StrAssign resize.
 	if( (size1 = FB_STRSIZEVARLEN) orelse (size2 = FB_STRSIZEVARLEN) ) then
 		dim as FBSTRING td
-		td.data = 0 : td.len = 0 : td.size = 0
+		td.data = nullptr : td.len = 0 : td.size = 0
 
 		tkrt_StrAssign( @td, FB_STRSIZEVARLEN, str1, size1, 0 )
 		tkrt_StrAssign( str1, size1, str2, size2, fillrem1 )

@@ -82,9 +82,9 @@ end extern
 
 '' Follow the redirection chain, then ask whether that is the screen handle.
 private function hIsScreen( byval h as FB_FILE ptr ) as int32
-	if( h = 0 ) then return 0
+	if( h = nullptr ) then return 0
 	dim as FB_FILE ptr d = h
-	while( d->redirection_to <> 0 )
+	while( d->redirection_to <> nullptr )
 		d = d->redirection_to
 	wend
 	if( d = TKORT_HANDLE_SCREEN() ) then return 1
@@ -101,20 +101,20 @@ sub tkort_PrintTab alias "fb_PrintTab" ( byval fnum as int32, byval newcol as in
 	TKORT_IOLOCK()
 
 	handle = TKORT_FILE_TO_HANDLE( fnum )
-	if( handle = 0 ) then
+	if( handle = nullptr ) then
 		TKORT_IOUNLOCK()
 		exit sub
 	end if
 
 	if( hIsScreen( handle ) orelse (handle->type_ = FB_FILE_TYPE_CONSOLE) ) then
 		if( handle->type_ = FB_FILE_TYPE_CONSOLE ) then
-			if( handle->hooks <> 0 ) then
-				if( handle->hooks->pfnFlush <> 0 ) then handle->hooks->pfnFlush( handle )
+			if( handle->hooks <> nullptr ) then
+				if( handle->hooks->pfnFlush <> nullptr ) then handle->hooks->pfnFlush( handle )
 			end if
 		end if
 
 		'' See the header: without this the column can be stale.
-		tkrt_PrintBufferEx( 0, 0, FB_PRINT_FORCE_ADJUST )
+		tkrt_PrintBufferEx( nullptr, 0, FB_PRINT_FORCE_ADJUST )
 		tkrt_GetXY( @col, @row )
 		tkrt_GetSize( @cols, @rows )
 
@@ -172,19 +172,19 @@ sub tkort_PrintSPC alias "fb_PrintSPC" ( byval fnum as int32, byval n as integer
 	TKORT_IOLOCK()
 
 	handle = TKORT_FILE_TO_HANDLE( fnum )
-	if( handle = 0 ) then
+	if( handle = nullptr ) then
 		TKORT_IOUNLOCK()
 		exit sub
 	end if
 
 	if( hIsScreen( handle ) orelse (handle->type_ = FB_FILE_TYPE_CONSOLE) ) then
 		if( handle->type_ = FB_FILE_TYPE_CONSOLE ) then
-			if( handle->hooks <> 0 ) then
-				if( handle->hooks->pfnFlush <> 0 ) then handle->hooks->pfnFlush( handle )
+			if( handle->hooks <> nullptr ) then
+				if( handle->hooks->pfnFlush <> nullptr ) then handle->hooks->pfnFlush( handle )
 			end if
 		end if
 
-		tkrt_PrintBufferEx( 0, 0, FB_PRINT_FORCE_ADJUST )
+		tkrt_PrintBufferEx( nullptr, 0, FB_PRINT_FORCE_ADJUST )
 		tkrt_GetXY( @col, @row )
 		tkrt_GetSize( @cols, @rows )
 
@@ -234,8 +234,8 @@ function tkort_WidthFile alias "fb_WidthFile" _
 	TKORT_IOLOCK()
 
 	handle = TKORT_FILE_TO_HANDLE( fnum )
-	if( handle <> 0 ) then
-		while( handle->redirection_to <> 0 )
+	if( handle <> nullptr ) then
+		while( handle->redirection_to <> nullptr )
 			handle = handle->redirection_to
 		wend
 	end if
@@ -247,7 +247,7 @@ function tkort_WidthFile alias "fb_WidthFile" _
 
 	'' A second, redundant-looking hooks test in fbc. Kept: the deref above
 	'' can land on a different handle than the one just checked.
-	if( handle->hooks = 0 ) then
+	if( handle->hooks = nullptr ) then
 		TKORT_IOUNLOCK()
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
@@ -258,7 +258,7 @@ function tkort_WidthFile alias "fb_WidthFile" _
 	else
 		if( wid <> -1 ) then
 			handle->width = wid
-			if( handle->hooks->pfnSetWidth <> 0 ) then
+			if( handle->hooks->pfnSetWidth <> nullptr ) then
 				handle->hooks->pfnSetWidth( handle, wid )
 			end if
 		end if

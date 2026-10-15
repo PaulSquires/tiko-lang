@@ -97,11 +97,11 @@ end extern
 				if( buffer[0] = asc( "&" ) ) then
 					*dst = cast( ty, tkrt_Str2Longint( @buffer, length ) )
 				else
-					*dst = cast( ty, strtofn( @buffer, 0 ) )
+					*dst = cast( ty, strtofn( @buffer, nullptr ) )
 				end if
 			end if
 		else
-			*dst = cast( ty, strtofn( @buffer, 0 ) )
+			*dst = cast( ty, strtofn( @buffer, nullptr ) )
 		end if
 	end scope
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )
@@ -294,11 +294,11 @@ end function
 				if( buffer[0] = asc( "&" ) ) then
 					*dst = cast( ty, tkrt_Str2LongintQB( @buffer, length ) )
 				else
-					*dst = cast( ty, strtofn( @buffer, 0 ) )
+					*dst = cast( ty, strtofn( @buffer, nullptr ) )
 				end if
 			end if
 		else
-			*dst = cast( ty, strtofn( @buffer, 0 ) )
+			*dst = cast( ty, strtofn( @buffer, nullptr ) )
 		end if
 	end scope
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )

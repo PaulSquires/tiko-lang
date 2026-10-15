@@ -41,9 +41,9 @@ end extern
 
 private sub hUArg( byval s as FBUSTRING ptr, byval ptr_ as FB_UCHAR ptr ptr, byval len_ as integer ptr )
 	static as FB_UCHAR empty_(0 to 0) = { 0 }
-	if( s = 0 ) then
+	if( s = nullptr ) then
 		*ptr_ = @empty_(0) : *len_ = 0
-	elseif( s->data = 0 ) then
+	elseif( s->data = nullptr ) then
 		*ptr_ = @empty_(0) : *len_ = 0
 	else
 		*ptr_ = s->data
@@ -95,7 +95,7 @@ private function hFsWide( byval p as FBUSTRING ptr ) as wstring ptr
 
 	hUArg( p, @s, @len_ )
 	w = malloc( (len_ + 1) * sizeof( FB_UCHAR ) )
-	if( w = 0 ) then return 0
+	if( w = nullptr ) then return nullptr
 	if( len_ > 0 ) then memcpy( w, s, len_ * sizeof( FB_UCHAR ) )
 	w[len_] = 0
 	return cptr( wstring ptr, w )
@@ -114,10 +114,10 @@ function tkort_UStrFsLockAcquire alias "fb_UStrFsLockAcquire" _
 	dim as uint32 flags = LOCKFILE_FAIL_IMMEDIATELY_, e = any
 	dim as int32 waited = 0, r = any
 
-	*out_ = 0
+	*out_ = nullptr
 
 	w = hFsWide( p )
-	if( w = 0 ) then return FB_FS_UNKNOWN
+	if( w = nullptr ) then return FB_FS_UNKNOWN
 
 	'' OPEN_ALWAYS: the lockfile is created if it is not there, which is the
 	'' normal case for a lock that guards a directory rather than a document.
@@ -126,7 +126,7 @@ function tkort_UStrFsLockAcquire alias "fb_UStrFsLockAcquire" _
 	'' OPEN rather than fail to LOCK, losing the timeout behaviour.
 	h = w_CreateFileW( w, GENERIC_READ_ or GENERIC_WRITE_, _
 		FILE_SHARE_READ_ or FILE_SHARE_WRITE_ or FILE_SHARE_DELETE_, _
-		0, OPEN_ALWAYS_, FILE_ATTRIBUTE_NORMAL_, 0 )
+		nullptr, OPEN_ALWAYS_, FILE_ATTRIBUTE_NORMAL_, nullptr )
 	free( w )
 
 	if( cast( integer, h ) = INVALID_HANDLE_VALUE_ ) then return tkrt_FsMapOsError( )
@@ -166,7 +166,7 @@ function tkort_UStrFsLockAcquire alias "fb_UStrFsLockAcquire" _
 	loop
 
 	l = calloc( 1, sizeof( FB_FSLOCK ) )
-	if( l = 0 ) then
+	if( l = nullptr ) then
 		w_CloseHandle( h )
 		return FB_FS_UNKNOWN
 	end if
@@ -177,7 +177,7 @@ function tkort_UStrFsLockAcquire alias "fb_UStrFsLockAcquire" _
 end function
 
 sub tkort_FsLockRelease alias "fb_FsLockRelease" ( byval l as FB_FSLOCK ptr )
-	if( l = 0 ) then exit sub
+	if( l = nullptr ) then exit sub
 	if( cast( integer, l->h ) <> INVALID_HANDLE_VALUE_ ) then w_CloseHandle( l->h )
 	free( l )
 end sub
@@ -222,7 +222,7 @@ private function hFsNarrow( byval p as FBUSTRING ptr ) as zstring ptr
 	hUArg( p, @s, @len_ )
 	cap = len_ * 3 + 1
 	b = malloc( cap )
-	if( b = 0 ) then return 0
+	if( b = nullptr ) then return nullptr
 	n = u_utf16to8( s, len_, b, cap - 1 )
 	if( n < 0 ) then n = 0
 	b[n] = 0
@@ -239,10 +239,10 @@ function tkort_UStrFsLockAcquire alias "fb_UStrFsLockAcquire" _
 	dim as FB_FSLOCK ptr l = any
 	dim as int32 fd = any, op = any, waited = 0, r = any, e = any
 
-	*out_ = 0
+	*out_ = nullptr
 
 	path_ = hFsNarrow( p )
-	if( path_ = 0 ) then return FB_FS_UNKNOWN
+	if( path_ = nullptr ) then return FB_FS_UNKNOWN
 
 	'' Created if absent -- the normal case for a lock guarding a directory
 	'' rather than a document. 0666 so a lock shared between users works; the
@@ -281,7 +281,7 @@ function tkort_UStrFsLockAcquire alias "fb_UStrFsLockAcquire" _
 	loop
 
 	l = calloc( 1, sizeof( FB_FSLOCK ) )
-	if( l = 0 ) then
+	if( l = nullptr ) then
 		u_close( fd )
 		return FB_FS_UNKNOWN
 	end if
@@ -292,7 +292,7 @@ function tkort_UStrFsLockAcquire alias "fb_UStrFsLockAcquire" _
 end function
 
 sub tkort_FsLockRelease alias "fb_FsLockRelease" ( byval l as FB_FSLOCK ptr )
-	if( l = 0 ) then exit sub
+	if( l = nullptr ) then exit sub
 	if( l->fd >= 0 ) then u_close( l->fd )
 	free( l )
 end sub

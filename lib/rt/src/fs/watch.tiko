@@ -48,9 +48,9 @@ end extern
 
 private sub hUArg( byval s as FBUSTRING ptr, byval ptr_ as FB_UCHAR ptr ptr, byval len_ as integer ptr )
 	static as FB_UCHAR empty_(0 to 0) = { 0 }
-	if( s = 0 ) then
+	if( s = nullptr ) then
 		*ptr_ = @empty_(0) : *len_ = 0
-	elseif( s->data = 0 ) then
+	elseif( s->data = nullptr ) then
 		*ptr_ = @empty_(0) : *len_ = 0
 	else
 		*ptr_ = s->data
@@ -144,7 +144,7 @@ private function hFsWide( byval p as FBUSTRING ptr ) as wstring ptr
 
 	hUArg( p, @s, @len_ )
 	w = malloc( (len_ + 1) * sizeof( FB_UCHAR ) )
-	if( w = 0 ) then return 0
+	if( w = nullptr ) then return nullptr
 	if( len_ > 0 ) then memcpy( w, s, len_ * sizeof( FB_UCHAR ) )
 	w[len_] = 0
 	return cptr( wstring ptr, w )
@@ -161,7 +161,7 @@ private function hIssueRead( byval w as FB_FSWATCH ptr ) as int32
 	        iif( w->recursive <> 0, 1, 0 ), _
 	        FILE_NOTIFY_CHANGE_FILE_NAME_ or FILE_NOTIFY_CHANGE_DIR_NAME_ or _
 	        FILE_NOTIFY_CHANGE_LAST_WRITE_ or FILE_NOTIFY_CHANGE_SIZE_, _
-	        @got, @w->ov(0), 0 ) = 0 ) then
+	        @got, @w->ov(0), nullptr ) = 0 ) then
 		if( w_GetLastError( ) <> ERROR_IO_PENDING_ ) then return tkrt_FsMapOsError( )
 	end if
 
@@ -212,7 +212,7 @@ private sub hParseBuffer( byval w as FB_FSWATCH ptr, byval bytes as uint32 )
 	'' A zero-byte completion is the kernel reporting that the buffer overran
 	'' and events were DROPPED.
 	if( bytes = 0 ) then
-		hPushChange( w, FB_FSCHANGE_OVERFLOW, 0, 0 )
+		hPushChange( w, FB_FSCHANGE_OVERFLOW, nullptr, 0 )
 		exit sub
 	end if
 
@@ -254,17 +254,17 @@ function tkort_UStrFsWatchStart alias "fb_UStrFsWatchStart" _
 	dim as FB_FSWATCH ptr h = any
 	dim as int32 r = any, i = any
 
-	*out_ = 0
+	*out_ = nullptr
 
 	hUArg( p, @s, @len_ )
 
 	if( len_ > FB_FS_MAXPATH - 1 ) then return FB_FS_NAME_TOO_LONG
 
 	w = hFsWide( p )
-	if( w = 0 ) then return FB_FS_UNKNOWN
+	if( w = nullptr ) then return FB_FS_UNKNOWN
 
 	h = calloc( 1, sizeof( FB_FSWATCH ) )
-	if( h = 0 ) then
+	if( h = nullptr ) then
 		free( w )
 		return FB_FS_UNKNOWN
 	end if
@@ -274,7 +274,7 @@ function tkort_UStrFsWatchStart alias "fb_UStrFsWatchStart" _
 	'' OVERLAPPED is required by hIssueRead.
 	h->hdir = w_CreateFileW( w, FILE_LIST_DIRECTORY_, _
 		FILE_SHARE_READ_ or FILE_SHARE_WRITE_ or FILE_SHARE_DELETE_, _
-		0, OPEN_EXISTING_, FILE_FLAG_BACKUP_SEMANTICS_ or FILE_FLAG_OVERLAPPED_, 0 )
+		nullptr, OPEN_EXISTING_, FILE_FLAG_BACKUP_SEMANTICS_ or FILE_FLAG_OVERLAPPED_, nullptr )
 	free( w )
 
 	if( cast( integer, h->hdir ) = INVALID_HANDLE_VALUE_ ) then
@@ -283,8 +283,8 @@ function tkort_UStrFsWatchStart alias "fb_UStrFsWatchStart" _
 		return r
 	end if
 
-	h->hev = w_CreateEventW( 0, 1, 0, 0 )
-	if( h->hev = 0 ) then
+	h->hev = w_CreateEventW( nullptr, 1, 0, nullptr )
+	if( h->hev = nullptr ) then
 		r = tkrt_FsMapOsError( )
 		w_CloseHandle( h->hdir )
 		free( h )
@@ -315,7 +315,7 @@ function tkort_FsWatchPoll alias "fb_FsWatchPoll" _
 	dim as uint32 wait_ = any, bytes = 0
 	dim as int32 r = any
 
-	if( w = 0 ) then return FB_FS_UNKNOWN
+	if( w = nullptr ) then return FB_FS_UNKNOWN
 
 	'' anything already drained-but-unread is reported without waiting
 	if( w->nread < w->nitems ) then return FB_FS_OK
@@ -348,7 +348,7 @@ end function
 function tkort_FsWatchNext alias "fb_FsWatchNext" _
 	( byval w as FB_FSWATCH ptr, byval out_ as FB_FSCHANGE ptr ) as int32
 
-	if( w = 0 ) then return FB_FS_EXHAUSTED
+	if( w = nullptr ) then return FB_FS_EXHAUSTED
 	if( w->nread >= w->nitems ) then return FB_FS_EXHAUSTED
 
 	*out_ = w->items(w->nread)
@@ -357,7 +357,7 @@ function tkort_FsWatchNext alias "fb_FsWatchNext" _
 end function
 
 sub tkort_FsWatchStop alias "fb_FsWatchStop" ( byval w as FB_FSWATCH ptr )
-	if( w = 0 ) then exit sub
+	if( w = nullptr ) then exit sub
 
 	'' CancelIo BEFORE closing, so the outstanding overlapped read is not
 	'' completing into a buffer that is about to be freed.
@@ -366,7 +366,7 @@ sub tkort_FsWatchStop alias "fb_FsWatchStop" ( byval w as FB_FSWATCH ptr )
 		w_CloseHandle( w->hdir )
 	end if
 
-	if( w->hev <> 0 ) then w_CloseHandle( w->hev )
+	if( w->hev <> nullptr ) then w_CloseHandle( w->hev )
 
 	free( w )
 end sub
@@ -469,7 +469,7 @@ private function hFsNarrow( byval p as FBUSTRING ptr ) as zstring ptr
 	hUArg( p, @s, @len_ )
 	cap = len_ * 3 + 1
 	b = malloc( cap )
-	if( b = 0 ) then return 0
+	if( b = nullptr ) then return nullptr
 	n = u_utf16to8( s, len_, b, cap - 1 )
 	if( n < 0 ) then n = 0
 	b[n] = 0
@@ -488,7 +488,7 @@ private sub hJoin( byval dst as zstring ptr, byval cap as int32, _
 		dst[n] = a[i] : n += 1 : i += 1
 	wend
 
-	if( b <> 0 ) then
+	if( b <> nullptr ) then
 		if( (n > 0) andalso (n < cap - 1) andalso (dst[n - 1] <> 47) ) then
 			dst[n] = 47 : n += 1
 		end if
@@ -510,7 +510,7 @@ private function hAddWatch( byval w as FB_FSWATCH ptr, byval path_ as zstring pt
 	if( wd < 0 ) then return -1
 
 	w->dirs(w->ndirs).wd = wd
-	hJoin( @w->dirs(w->ndirs).path_, FB_FSWATCH_PATHMAX, path_, 0 )
+	hJoin( @w->dirs(w->ndirs).path_, FB_FSWATCH_PATHMAX, path_, nullptr )
 	w->ndirs += 1
 
 	return wd
@@ -521,7 +521,7 @@ private function hPathForWd( byval w as FB_FSWATCH ptr, byval wd as int32 ) as z
 	for i = 0 to w->ndirs - 1
 		if( w->dirs(i).wd = wd ) then return @w->dirs(i).path_
 	next
-	return 0
+	return nullptr
 end function
 
 '' Walk the tree at Start, one watch per directory. Symbolic links are NOT
@@ -540,11 +540,11 @@ private sub hAddTree( byval w as FB_FSWATCH ptr, byval path_ as zstring ptr, byv
 	if( w->recursive = 0 ) then exit sub
 
 	d = u_opendir( path_ )
-	if( d = 0 ) then exit sub
+	if( d = nullptr ) then exit sub
 
 	do
 		e = u_readdir( d )
-		if( e = 0 ) then exit do
+		if( e = nullptr ) then exit do
 
 		nm = cptr( zstring ptr, e + DIRENT_NAME_ )
 
@@ -571,7 +571,7 @@ private sub hPushChange( byval w as FB_FSWATCH ptr, byval kind as int32, byval f
 
 	if( w->nitems >= FB_FSWATCH_MAXITEMS ) then exit sub
 
-	if( full = 0 ) then
+	if( full = nullptr ) then
 		w->items(w->nitems).pathlen = 0
 		w->items(w->nitems).path(0) = 0
 	else
@@ -595,7 +595,7 @@ private sub hHandleEvent( byval w as FB_FSWATCH ptr, byval e as uint8 ptr )
 	dim as int32 kind = any
 
 	if( (mask and IN_Q_OVERFLOW_) <> 0 ) then
-		hPushChange( w, FB_FSCHANGE_OVERFLOW, 0 )
+		hPushChange( w, FB_FSCHANGE_OVERFLOW, nullptr )
 		exit sub
 	end if
 
@@ -603,12 +603,12 @@ private sub hHandleEvent( byval w as FB_FSWATCH ptr, byval e as uint8 ptr )
 	if( (mask and IN_IGNORED_) <> 0 ) then exit sub
 
 	dir_ = hPathForWd( w, wd )
-	if( dir_ = 0 ) then exit sub
+	if( dir_ = nullptr ) then exit sub
 
 	if( elen > 0 ) then
 		hJoin( @full, FB_FSWATCH_PATHMAX, dir_, cptr( zstring ptr, e + INEV_NAME_ ) )
 	else
-		hJoin( @full, FB_FSWATCH_PATHMAX, dir_, 0 )
+		hJoin( @full, FB_FSWATCH_PATHMAX, dir_, nullptr )
 	end if
 
 	if( (mask and IN_CREATE_) <> 0 ) then
@@ -643,13 +643,13 @@ function tkort_UStrFsWatchStart alias "fb_UStrFsWatchStart" _
 	dim as FB_FSWATCH ptr w = any
 	dim as int32 r = any
 
-	*out_ = 0
+	*out_ = nullptr
 
 	path_ = hFsNarrow( p )
-	if( path_ = 0 ) then return FB_FS_UNKNOWN
+	if( path_ = nullptr ) then return FB_FS_UNKNOWN
 
 	w = calloc( 1, sizeof( FB_FSWATCH ) )
-	if( w = 0 ) then
+	if( w = nullptr ) then
 		free( path_ )
 		return FB_FS_UNKNOWN
 	end if
@@ -688,7 +688,7 @@ function tkort_FsWatchPoll alias "fb_FsWatchPoll" _
 	dim as uint8 ptr at_ = any, stop_ = any
 	dim as uint32 elen = any
 
-	if( w = 0 ) then return FB_FS_UNKNOWN
+	if( w = nullptr ) then return FB_FS_UNKNOWN
 	if( w->nread < w->nitems ) then return FB_FS_OK
 
 	do
@@ -729,7 +729,7 @@ end function
 function tkort_FsWatchNext alias "fb_FsWatchNext" _
 	( byval w as FB_FSWATCH ptr, byval out_ as FB_FSCHANGE ptr ) as int32
 
-	if( w = 0 ) then return FB_FS_EXHAUSTED
+	if( w = nullptr ) then return FB_FS_EXHAUSTED
 	if( w->nread >= w->nitems ) then return FB_FS_EXHAUSTED
 
 	*out_ = w->items(w->nread)
@@ -738,7 +738,7 @@ function tkort_FsWatchNext alias "fb_FsWatchNext" _
 end function
 
 sub tkort_FsWatchStop alias "fb_FsWatchStop" ( byval w as FB_FSWATCH ptr )
-	if( w = 0 ) then exit sub
+	if( w = nullptr ) then exit sub
 	'' closing the inotify fd drops every watch it holds
 	if( w->fd >= 0 ) then u_close( w->fd )
 	free( w )

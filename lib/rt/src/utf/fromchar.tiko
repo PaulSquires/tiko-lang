@@ -29,10 +29,10 @@ declare sub tkrt_CharToUTF8 alias "fb_hCharToUTF8" _
 private function hToUTF8( byval src as uint8 ptr, byval chars as integer, _
                           byval dst as uint8 ptr, byval bytes_ as integer ptr ) as uint8 ptr
 	if( chars > 0 ) then
-		if( dst = 0 ) then
+		if( dst = nullptr ) then
 			'' chars * 2: the worst case for a single byte, exactly.
 			dst = malloc( chars * 2 )
-			if( dst = 0 ) then return 0
+			if( dst = nullptr ) then return nullptr
 		end if
 		tkrt_CharToUTF8( src, chars, dst, bytes_ )
 	else
@@ -52,9 +52,9 @@ private function hToUTF16( byval src as uint8 ptr, byval chars as integer, _
 	*bytes_ = chars * sizeof( uint16 )
 
 	if( chars > 0 ) then
-		if( dst = 0 ) then
+		if( dst = nullptr ) then
 			dst = malloc( chars * sizeof( uint16 ) )
-			if( dst = 0 ) then return 0
+			if( dst = nullptr ) then return nullptr
 		end if
 	end if
 
@@ -76,9 +76,9 @@ private function hToUTF32( byval src as uint8 ptr, byval chars as integer, _
 	*bytes_ = chars * sizeof( uint32 )
 
 	if( chars > 0 ) then
-		if( dst = 0 ) then
+		if( dst = nullptr ) then
 			dst = malloc( chars * sizeof( uint32 ) )
-			if( dst = 0 ) then return 0
+			if( dst = nullptr ) then return nullptr
 		end if
 	end if
 
@@ -106,7 +106,7 @@ function tkort_CharToUTF alias "fb_CharToUTF" _
 	case FB_FILE_ENCOD_UTF32
 		return hToUTF32( src, chars, dst, bytes_ )
 	end select
-	return 0
+	return nullptr
 end function
 
 end extern

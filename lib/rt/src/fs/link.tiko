@@ -50,9 +50,9 @@ end extern
 '' flag lives in the sign bit.
 private sub hUArg( byval s as FBUSTRING ptr, byval ptr_ as FB_UCHAR ptr ptr, byval len_ as integer ptr )
 	static as FB_UCHAR empty_(0 to 0) = { 0 }
-	if( s = 0 ) then
+	if( s = nullptr ) then
 		*ptr_ = @empty_(0) : *len_ = 0
-	elseif( s->data = 0 ) then
+	elseif( s->data = nullptr ) then
 		*ptr_ = @empty_(0) : *len_ = 0
 	else
 		*ptr_ = s->data
@@ -65,10 +65,10 @@ end sub
 private function hTemp( byval src as FB_UCHAR ptr, byval units as integer ) as FBUSTRING ptr
 	dim as FBUSTRING ptr dst = any
 	if( units <= 0 ) then return TKORT_UNULL_DESC()
-	dst = tkrt_UStrAllocTemp( 0, units )
-	if( dst = 0 ) then return TKORT_UNULL_DESC()
-	if( dst->data <> 0 ) then
-		if( src <> 0 ) then tkrt_UStrCopy2( dst->data, src, units )
+	dst = tkrt_UStrAllocTemp( nullptr, units )
+	if( dst = nullptr ) then return TKORT_UNULL_DESC()
+	if( dst->data <> nullptr ) then
+		if( src <> nullptr ) then tkrt_UStrCopy2( dst->data, src, units )
 		dst->data[units] = 0
 	end if
 	return dst
@@ -142,7 +142,7 @@ private function hFsWide( byval p as FBUSTRING ptr ) as wstring ptr
 
 	hUArg( p, @s, @len_ )
 	w = malloc( (len_ + 1) * sizeof( FB_UCHAR ) )
-	if( w = 0 ) then return 0
+	if( w = nullptr ) then return nullptr
 	if( len_ > 0 ) then memcpy( w, s, len_ * sizeof( FB_UCHAR ) )
 	w[len_] = 0
 	return cptr( wstring ptr, w )
@@ -161,7 +161,7 @@ function tkort_UStrFsCreateSymlink alias "fb_UStrFsCreateSymlink" _
 	wt = hFsWide( target )
 	wl = hFsWide( lnk )
 
-	if( (wt = 0) orelse (wl = 0) ) then
+	if( (wt = nullptr) orelse (wl = nullptr) ) then
 		free( wt ) : free( wl )
 		return FB_FS_UNKNOWN
 	end if
@@ -198,12 +198,12 @@ function tkort_UStrFsCreateHardLink alias "fb_UStrFsCreateHardLink" _
 	wt = hFsWide( target )
 	wl = hFsWide( lnk )
 
-	if( (wt = 0) orelse (wl = 0) ) then
+	if( (wt = nullptr) orelse (wl = nullptr) ) then
 		free( wt ) : free( wl )
 		return FB_FS_UNKNOWN
 	end if
 
-	if( w_CreateHardLinkW( wl, wt, 0 ) = 0 ) then r = tkrt_FsMapOsError( )
+	if( w_CreateHardLinkW( wl, wt, nullptr ) = 0 ) then r = tkrt_FsMapOsError( )
 
 	free( wt ) : free( wl )
 	return r
@@ -225,41 +225,41 @@ function tkort_UStrFsReadLink alias "fb_UStrFsReadLink" _
 	dim as integer sublen = any
 	dim as FBUSTRING ptr res = any
 
-	if( status <> 0 ) then *status = FB_FS_OK
+	if( status <> nullptr ) then *status = FB_FS_OK
 
 	wl = hFsWide( lnk )
-	if( wl = 0 ) then
-		if( status <> 0 ) then *status = FB_FS_UNKNOWN
+	if( wl = nullptr ) then
+		if( status <> nullptr ) then *status = FB_FS_UNKNOWN
 		return TKORT_UNULL_DESC()
 	end if
 
 	h = w_CreateFileW( wl, 0, _
 		FILE_SHARE_READ_ or FILE_SHARE_WRITE_ or FILE_SHARE_DELETE_, _
-		0, OPEN_EXISTING_, _
-		FILE_FLAG_BACKUP_SEMANTICS_ or FILE_FLAG_OPEN_REPARSE_POINT_, 0 )
+		nullptr, OPEN_EXISTING_, _
+		FILE_FLAG_BACKUP_SEMANTICS_ or FILE_FLAG_OPEN_REPARSE_POINT_, nullptr )
 	free( wl )
 
 	if( cast( integer, h ) = INVALID_HANDLE_VALUE_ ) then
-		if( status <> 0 ) then *status = tkrt_FsMapOsError( )
+		if( status <> nullptr ) then *status = tkrt_FsMapOsError( )
 		return TKORT_UNULL_DESC()
 	end if
 
 	buf = malloc( MAX_REPARSE_SIZE_ )
-	if( buf = 0 ) then
+	if( buf = nullptr ) then
 		w_CloseHandle( h )
-		if( status <> 0 ) then *status = FB_FS_UNKNOWN
+		if( status <> nullptr ) then *status = FB_FS_UNKNOWN
 		return TKORT_UNULL_DESC()
 	end if
 
-	if( w_DeviceIoControl( h, FSCTL_GET_REPARSE_POINT_, 0, 0, _
-	                       buf, MAX_REPARSE_SIZE_, @got, 0 ) = 0 ) then
+	if( w_DeviceIoControl( h, FSCTL_GET_REPARSE_POINT_, nullptr, 0, _
+	                       buf, MAX_REPARSE_SIZE_, @got, nullptr ) = 0 ) then
 		'' Not a reparse point at all. Reported as FS_INVALID_PATH, matching
 		'' the POSIX side's EINVAL, so "this is not a link" is one code on both.
 		ec = tkrt_FsMapOsError( )
 		if( w_GetLastError( ) = ERROR_NOT_A_REPARSE_POINT_ ) then ec = FB_FS_INVALID_PATH
 		free( buf )
 		w_CloseHandle( h )
-		if( status <> 0 ) then *status = ec
+		if( status <> nullptr ) then *status = ec
 		return TKORT_UNULL_DESC()
 	end if
 
@@ -275,7 +275,7 @@ function tkort_UStrFsReadLink alias "fb_UStrFsReadLink" _
 		'' dedup, cloud placeholders and the rest: a reparse point, but not a
 		'' name surrogate, so there is no target to report
 		free( buf )
-		if( status <> 0 ) then *status = FB_FS_INVALID_PATH
+		if( status <> nullptr ) then *status = FB_FS_INVALID_PATH
 		return TKORT_UNULL_DESC()
 	end if
 
@@ -323,11 +323,11 @@ function tkort_UStrFsLinkCount alias "fb_UStrFsLinkCount" _
 	*out_ = 0
 
 	w = hFsWide( p )
-	if( w = 0 ) then return FB_FS_UNKNOWN
+	if( w = nullptr ) then return FB_FS_UNKNOWN
 
 	h = w_CreateFileW( w, 0, _
 		FILE_SHARE_READ_ or FILE_SHARE_WRITE_ or FILE_SHARE_DELETE_, _
-		0, OPEN_EXISTING_, FILE_FLAG_BACKUP_SEMANTICS_, 0 )
+		nullptr, OPEN_EXISTING_, FILE_FLAG_BACKUP_SEMANTICS_, nullptr )
 	free( w )
 
 	if( cast( integer, h ) = INVALID_HANDLE_VALUE_ ) then return tkrt_FsMapOsError( )
@@ -357,7 +357,7 @@ function tkort_UStrFsGetPerm alias "fb_UStrFsGetPerm" _
 	dim as uint32 attrs = any
 
 	*out_ = 0
-	if( w = 0 ) then return FB_FS_UNKNOWN
+	if( w = nullptr ) then return FB_FS_UNKNOWN
 
 	attrs = w_GetFileAttributesW( w )
 	free( w )
@@ -374,7 +374,7 @@ function tkort_UStrFsSetPerm alias "fb_UStrFsSetPerm" _
 	dim as wstring ptr w = hFsWide( p )
 	dim as int32 r = FB_FS_OK
 
-	if( w = 0 ) then return FB_FS_UNKNOWN
+	if( w = nullptr ) then return FB_FS_UNKNOWN
 	if( w_SetFileAttributesW( w, v ) = 0 ) then r = tkrt_FsMapOsError( )
 	free( w )
 	return r
@@ -387,7 +387,7 @@ function tkort_UStrFsSetHidden alias "fb_UStrFsSetHidden" _
 	dim as uint32 attrs = any
 	dim as int32 r = FB_FS_OK
 
-	if( w = 0 ) then return FB_FS_UNKNOWN
+	if( w = nullptr ) then return FB_FS_UNKNOWN
 
 	attrs = w_GetFileAttributesW( w )
 	if( attrs = INVALID_FILE_ATTRIBUTES_ ) then
@@ -449,7 +449,7 @@ private function hFsNarrow( byval p as FBUSTRING ptr ) as zstring ptr
 	hUArg( p, @s, @len_ )
 	cap = len_ * 3 + 1
 	b = malloc( cap )
-	if( b = 0 ) then return 0
+	if( b = nullptr ) then return nullptr
 	n = u_utf16to8( s, len_, b, cap - 1 )
 	if( n < 0 ) then n = 0
 	b[n] = 0
@@ -468,7 +468,7 @@ private function hFsFromNarrow( byval b as zstring ptr, byval bytes as integer )
 
 	cap = bytes + 1
 	tmp = malloc( cap * sizeof( FB_UCHAR ) )
-	if( tmp = 0 ) then return TKORT_UNULL_DESC()
+	if( tmp = nullptr ) then return TKORT_UNULL_DESC()
 
 	n = u_utf8to16( b, bytes, tmp, cap )
 	if( n < 0 ) then n = 0
@@ -493,7 +493,7 @@ function tkort_UStrFsCreateSymlink alias "fb_UStrFsCreateSymlink" _
 	tp = hFsNarrow( target )
 	lp = hFsNarrow( lnk )
 
-	if( (tp = 0) orelse (lp = 0) ) then
+	if( (tp = nullptr) orelse (lp = nullptr) ) then
 		free( tp ) : free( lp )
 		return FB_FS_UNKNOWN
 	end if
@@ -513,7 +513,7 @@ function tkort_UStrFsCreateHardLink alias "fb_UStrFsCreateHardLink" _
 	tp = hFsNarrow( target )
 	lp = hFsNarrow( lnk )
 
-	if( (tp = 0) orelse (lp = 0) ) then
+	if( (tp = nullptr) orelse (lp = nullptr) ) then
 		free( tp ) : free( lp )
 		return FB_FS_UNKNOWN
 	end if
@@ -536,19 +536,19 @@ function tkort_UStrFsReadLink alias "fb_UStrFsReadLink" _
 	dim as int32 ec = any
 	dim as FBUSTRING ptr res = any
 
-	if( status <> 0 ) then *status = FB_FS_OK
+	if( status <> nullptr ) then *status = FB_FS_OK
 
 	lp = hFsNarrow( lnk )
-	if( lp = 0 ) then
-		if( status <> 0 ) then *status = FB_FS_UNKNOWN
+	if( lp = nullptr ) then
+		if( status <> nullptr ) then *status = FB_FS_UNKNOWN
 		return TKORT_UNULL_DESC()
 	end if
 
 	do
 		buf = malloc( cap )
-		if( buf = 0 ) then
+		if( buf = nullptr ) then
 			free( lp )
-			if( status <> 0 ) then *status = FB_FS_NO_SPACE
+			if( status <> nullptr ) then *status = FB_FS_NO_SPACE
 			return TKORT_UNULL_DESC()
 		end if
 
@@ -560,7 +560,7 @@ function tkort_UStrFsReadLink alias "fb_UStrFsReadLink" _
 			'' one code for "this is not a link" on both.
 			ec = tkrt_FsMapOsError( )
 			free( buf ) : free( lp )
-			if( status <> 0 ) then *status = ec
+			if( status <> nullptr ) then *status = ec
 			return TKORT_UNULL_DESC()
 		end if
 
@@ -576,7 +576,7 @@ function tkort_UStrFsReadLink alias "fb_UStrFsReadLink" _
 
 		if( cap > (1 shl 20) ) then
 			free( lp )
-			if( status <> 0 ) then *status = FB_FS_NAME_TOO_LONG
+			if( status <> nullptr ) then *status = FB_FS_NAME_TOO_LONG
 			return TKORT_UNULL_DESC()
 		end if
 	loop
@@ -590,7 +590,7 @@ function tkort_UStrFsLinkCount alias "fb_UStrFsLinkCount" _
 	dim as int32 r = FB_FS_OK
 
 	*out_ = 0
-	if( path_ = 0 ) then return FB_FS_UNKNOWN
+	if( path_ = nullptr ) then return FB_FS_UNKNOWN
 
 	if( u_lstat( path_, @st ) <> 0 ) then
 		r = tkrt_FsMapOsError( )
@@ -615,7 +615,7 @@ function tkort_UStrFsGetPerm alias "fb_UStrFsGetPerm" _
 	dim as int32 r = FB_FS_OK
 
 	*out_ = 0
-	if( path_ = 0 ) then return FB_FS_UNKNOWN
+	if( path_ = nullptr ) then return FB_FS_UNKNOWN
 
 	if( u_stat( path_, @st ) <> 0 ) then
 		r = tkrt_FsMapOsError( )
@@ -633,7 +633,7 @@ function tkort_UStrFsSetPerm alias "fb_UStrFsSetPerm" _
 	dim as zstring ptr path_ = hFsNarrow( p )
 	dim as int32 r = FB_FS_OK
 
-	if( path_ = 0 ) then return FB_FS_UNKNOWN
+	if( path_ = nullptr ) then return FB_FS_UNKNOWN
 	if( u_chmod( path_, v and PERM_MASK ) <> 0 ) then r = tkrt_FsMapOsError( )
 	free( path_ )
 	return r

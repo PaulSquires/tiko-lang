@@ -67,10 +67,10 @@ private function hCase _
 
 	if( src_len <= 0 ) then return TKORT_UNULLSTR()
 
-	dim as FBUSTRING ptr dst = tkrt_UAllocTempNoLock( 0, src_len )
-	if( dst = 0 ) then return TKORT_UNULLSTR()
+	dim as FBUSTRING ptr dst = tkrt_UAllocTempNoLock( nullptr, src_len )
+	if( dst = nullptr ) then return TKORT_UNULLSTR()
 
-	if( dst->data <> 0 ) then
+	if( dst->data <> nullptr ) then
 		if( toupper_ <> 0 ) then
 			for i as integer = 0 to src_len - 1
 				dst->data[i] = tkrt_UToUpper( src_ptr[i] )

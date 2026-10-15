@@ -74,8 +74,8 @@ end function
 '' initialised FB_LIST always has a non-null fhead, so the two tests below can
 '' only both hold before the first call. Callers hold the string lock.
 private sub hPoolEnsure( )
-	if( tkort_utmpList.fhead = 0 ) then
-		if( tkort_utmpList.head = 0 ) then
+	if( tkort_utmpList.fhead = nullptr ) then
+		if( tkort_utmpList.head = nullptr ) then
 			fb_hListInit( @tkort_utmpList, @tkort_utmpTable(0), _
 			              sizeof( FB_USTR_TMPDESC ), FB_STR_TMPDESCRIPTORS )
 		end if
@@ -87,11 +87,11 @@ end sub
 '' the narrow pool, where the compare is on descriptor addresses and the bound
 '' has to be the end of the table.
 private function hElem( byval s as FBUSTRING ptr ) as FB_USTR_TMPDESC ptr
-	if( s = 0 ) then return 0
+	if( s = nullptr ) then return nullptr
 	dim as uint8 ptr p = cptr( uint8 ptr, s ) - offsetof( FB_USTR_TMPDESC, desc )
 	dim as FB_USTR_TMPDESC ptr e = cptr( FB_USTR_TMPDESC ptr, p )
-	if( e < @tkort_utmpTable(0) ) then return 0
-	if( e > @tkort_utmpTable(FB_STR_TMPDESCRIPTORS - 1) ) then return 0
+	if( e < @tkort_utmpTable(0) ) then return nullptr
+	if( e > @tkort_utmpTable(FB_STR_TMPDESCRIPTORS - 1) ) then return nullptr
 	return e
 end function
 
@@ -104,10 +104,10 @@ function tkort_hUStrAllocTempDesc alias "fb_hUStrAllocTempDesc" ( ) as FBUSTRING
 	hPoolEnsure( )
 
 	dim as FB_LISTELEM ptr e = fb_hListAllocElem( @tkort_utmpList )
-	if( e = 0 ) then return 0          '' pool exhausted -- 256 is the cap
+	if( e = nullptr ) then return nullptr          '' pool exhausted -- 256 is the cap
 
 	dim as FB_USTR_TMPDESC ptr t = cptr( FB_USTR_TMPDESC ptr, e )
-	t->desc.data = 0
+	t->desc.data = nullptr
 	t->desc.len  = 0
 	t->desc.size = 0
 	return @t->desc
@@ -125,11 +125,11 @@ function tkort_hUStrDelTempDesc alias "fb_hUStrDelTempDesc" _
 	( byval s as FBUSTRING ptr ) as int32
 
 	dim as FB_USTR_TMPDESC ptr e = hElem( s )
-	if( e = 0 ) then return -1
+	if( e = nullptr ) then return -1
 
 	fb_hListFreeElem( @tkort_utmpList, @e->elem )
 
-	e->desc.data = 0
+	e->desc.data = nullptr
 	e->desc.len  = 0
 	e->desc.size = 0
 	return 0
@@ -137,9 +137,9 @@ function tkort_hUStrDelTempDesc alias "fb_hUStrDelTempDesc" _
 end function
 
 sub tkort_UStrDelete alias "fb_UStrDelete" ( byval s as FBUSTRING ptr )
-	if( s = 0 ) then exit sub
-	if( s->data <> 0 ) then deallocate( s->data )
-	s->data = 0
+	if( s = nullptr ) then exit sub
+	if( s->data <> nullptr ) then deallocate( s->data )
+	s->data = nullptr
 	'' Raw, not FB_USTRSETLEN: a deleted descriptor is not a temporary any more,
 	'' so the temp bit goes with the data it described.
 	s->len  = 0
@@ -158,13 +158,13 @@ end sub
 function tkort_hUStrAlloc alias "fb_hUStrAlloc" _
 	( byval s as FBUSTRING ptr, byval units as integer ) as FBUSTRING ptr
 
-	if( s = 0 ) then return 0
+	if( s = nullptr ) then return nullptr
 
 	if( hTooBig( units ) ) then
-		s->data = 0
+		s->data = nullptr
 		s->len  = 0
 		s->size = 0
-		return 0
+		return nullptr
 	end if
 
 	dim as integer newsize = hRoundUnits( units )
@@ -175,12 +175,12 @@ function tkort_hUStrAlloc alias "fb_hUStrAlloc" _
 	'' Reproduced rather than simplified: it changes the reported `size`, which
 	'' the descriptor differential reads, and under memory pressure it is the
 	'' difference between a short allocation and none.
-	if( s->data = 0 ) then
+	if( s->data = nullptr ) then
 		s->data = cptr( FB_UCHAR ptr, allocate( (units + 1) * sizeof( FB_UCHAR ) ) )
-		if( s->data = 0 ) then
+		if( s->data = nullptr ) then
 			s->len  = 0
 			s->size = 0
-			return 0
+			return nullptr
 		end if
 		newsize = units
 	end if
@@ -220,14 +220,14 @@ function tkort_hUStrRealloc alias "fb_hUStrRealloc" _
 	'' `keepdata`, not `preserve`: PRESERVE is a FreeBASIC keyword (REDIM
 	'' PRESERVE) and is error 59 as a parameter name.
 
-	if( s = 0 ) then return 0
-	if( hTooBig( units ) ) then return 0
+	if( s = nullptr ) then return nullptr
+	if( hTooBig( units ) ) then return nullptr
 
 	dim as integer newsize = hRoundUnits( units )
 	newsize += (newsize shr 3)
 
 	dim as integer resize = 0
-	if( s->data = 0 ) then
+	if( s->data = nullptr ) then
 		resize = -1
 	elseif( units > s->size ) then
 		resize = -1
@@ -243,27 +243,27 @@ function tkort_hUStrRealloc alias "fb_hUStrRealloc" _
 			'' correct, because fb_hUStrAllocTemp_NoLock sets it AFTER the call.
 			tkort_UStrDelete( s )
 			s->data = cptr( FB_UCHAR ptr, allocate( (newsize + 1) * sizeof( FB_UCHAR ) ) )
-			if( s->data = 0 ) then
+			if( s->data = nullptr ) then
 				s->data = cptr( FB_UCHAR ptr, allocate( (units + 1) * sizeof( FB_UCHAR ) ) )
 				newsize = units
 			end if
 		else
 			dim as any ptr p = reallocate( s->data, (newsize + 1) * sizeof( FB_UCHAR ) )
-			if( p = 0 ) then
+			if( p = nullptr ) then
 				'' Retry at exactly the requested size before giving up. The
 				'' ORIGINAL pointer is passed again, which is only sound because
 				'' a failed realloc leaves it valid.
 				newsize = units
 				p = reallocate( s->data, (newsize + 1) * sizeof( FB_UCHAR ) )
-				if( p = 0 ) then return 0
+				if( p = nullptr ) then return nullptr
 			end if
 			s->data = cptr( FB_UCHAR ptr, p )
 		end if
 
-		if( s->data = 0 ) then
+		if( s->data = nullptr ) then
 			s->len  = 0
 			s->size = 0
-			return 0
+			return nullptr
 		end if
 
 		s->size = newsize
@@ -281,16 +281,16 @@ end function
 function tkort_hUStrAllocTemp_NoLock alias "fb_hUStrAllocTemp_NoLock" _
 	( byval s as FBUSTRING ptr, byval units as integer ) as FBUSTRING ptr
 
-	dim as integer owned = (s = 0)
+	dim as integer owned = (s = nullptr)
 
 	if( owned ) then
 		s = tkort_hUStrAllocTempDesc( )
-		if( s = 0 ) then return 0
+		if( s = nullptr ) then return nullptr
 	end if
 
-	if( tkort_hUStrRealloc( s, units, 0 ) = 0 ) then
+	if( tkort_hUStrRealloc( s, units, 0 ) = nullptr ) then
 		if( owned ) then tkort_hUStrDelTempDesc( s )
-		return 0
+		return nullptr
 	end if
 
 	s->len or= FB_TEMPSTRBIT
@@ -322,7 +322,7 @@ end function
 function tkort_hUStrDelTemp_NoLock alias "fb_hUStrDelTemp_NoLock" _
 	( byval s as FBUSTRING ptr ) as int32
 
-	if( s = 0 ) then return -1
+	if( s = nullptr ) then return -1
 
 	if( FB_UISTEMP( s ) ) then tkort_UStrDelete( s )
 

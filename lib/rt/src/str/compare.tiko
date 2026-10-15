@@ -81,10 +81,10 @@ function tkort_StrCompare alias "fb_StrCompare" _
 	'' call DelTemp UNCONDITIONALLY rather than pre-filtering on FB_ISTEMP. It
 	'' already decides all three ownership cases, and a caller that re-implements
 	'' the guard will eventually disagree with it (see basic.tiko).
-	if( (str1 <> 0) andalso (str1_size = FB_STRSIZEVARLEN) ) then
+	if( (str1 <> nullptr) andalso (str1_size = FB_STRSIZEVARLEN) ) then
 		tkrt_DelTemp( cptr( FBSTRING ptr, str1 ) )
 	end if
-	if( (str2 <> 0) andalso (str2_size = FB_STRSIZEVARLEN) ) then
+	if( (str2 <> nullptr) andalso (str2_size = FB_STRSIZEVARLEN) ) then
 		tkrt_DelTemp( cptr( FBSTRING ptr, str2 ) )
 	end if
 

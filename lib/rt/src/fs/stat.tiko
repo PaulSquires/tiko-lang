@@ -50,9 +50,9 @@ end extern
 '' lives in the sign bit.
 private sub hUArg( byval s as FBUSTRING ptr, byval ptr_ as FB_UCHAR ptr ptr, byval len_ as integer ptr )
 	static as FB_UCHAR empty_(0 to 0) = { 0 }
-	if( s = 0 ) then
+	if( s = nullptr ) then
 		*ptr_ = @empty_(0) : *len_ = 0
-	elseif( s->data = 0 ) then
+	elseif( s->data = nullptr ) then
 		*ptr_ = @empty_(0) : *len_ = 0
 	else
 		*ptr_ = s->data
@@ -63,10 +63,10 @@ end sub
 private function hTemp( byval src as FB_UCHAR ptr, byval units as integer ) as FBUSTRING ptr
 	dim as FBUSTRING ptr dst = any
 	if( units <= 0 ) then return TKORT_UNULL_DESC()
-	dst = tkrt_UStrAllocTemp( 0, units )
-	if( dst = 0 ) then return TKORT_UNULL_DESC()
-	if( dst->data <> 0 ) then
-		if( src <> 0 ) then tkrt_UStrCopy2( dst->data, src, units )
+	dst = tkrt_UStrAllocTemp( nullptr, units )
+	if( dst = nullptr ) then return TKORT_UNULL_DESC()
+	if( dst->data <> nullptr ) then
+		if( src <> nullptr ) then tkrt_UStrCopy2( dst->data, src, units )
 		dst->data[units] = 0
 	end if
 	return dst
@@ -156,7 +156,7 @@ private function hFsWide( byval p as FBUSTRING ptr ) as wstring ptr
 
 	hUArg( p, @s, @len_ )
 	w = malloc( (len_ + 1) * sizeof( FB_UCHAR ) )
-	if( w = 0 ) then return 0
+	if( w = nullptr ) then return nullptr
 	if( len_ > 0 ) then memcpy( w, s, len_ * sizeof( FB_UCHAR ) )
 	w[len_] = 0
 	return cptr( wstring ptr, w )
@@ -230,7 +230,7 @@ private function hStatWide( byval w as wstring ptr, byval follow as int32, byval
 
 		h = w_CreateFileW( w, 0, _
 			FILE_SHARE_READ_ or FILE_SHARE_WRITE_ or FILE_SHARE_DELETE_, _
-			0, OPEN_EXISTING_, FILE_FLAG_BACKUP_SEMANTICS_, 0 )
+			nullptr, OPEN_EXISTING_, FILE_FLAG_BACKUP_SEMANTICS_, nullptr )
 
 		if( cast( integer, h ) = INVALID_HANDLE_VALUE_ ) then return tkrt_FsMapOsError( )
 
@@ -284,7 +284,7 @@ function tkort_UStrFsStat alias "fb_UStrFsStat" _
 	dim as wstring ptr w = hFsWide( p )
 	dim as int32 r = any
 
-	if( w = 0 ) then return FB_FS_UNKNOWN
+	if( w = nullptr ) then return FB_FS_UNKNOWN
 	r = hStatWide( w, follow, out_ )
 	free( w )
 	return r
@@ -297,31 +297,31 @@ function tkort_UStrFsAbsolutePath alias "fb_UStrFsAbsolutePath" _
 	dim as uint32 n = any
 	dim as FBUSTRING ptr res = any
 
-	if( status <> 0 ) then *status = FB_FS_OK
+	if( status <> nullptr ) then *status = FB_FS_OK
 
 	w = hFsWide( p )
-	if( w = 0 ) then
-		if( status <> 0 ) then *status = FB_FS_UNKNOWN
+	if( w = nullptr ) then
+		if( status <> nullptr ) then *status = FB_FS_UNKNOWN
 		return TKORT_UNULL_DESC()
 	end if
 
-	n = w_GetFullPathNameW( w, 0, 0, 0 )
+	n = w_GetFullPathNameW( w, 0, nullptr, nullptr )
 	if( n = 0 ) then
-		if( status <> 0 ) then *status = tkrt_FsMapOsError( )
+		if( status <> nullptr ) then *status = tkrt_FsMapOsError( )
 		free( w )
 		return TKORT_UNULL_DESC()
 	end if
 
 	buf = malloc( n * sizeof( FB_UCHAR ) )
-	if( buf = 0 ) then
-		if( status <> 0 ) then *status = FB_FS_UNKNOWN
+	if( buf = nullptr ) then
+		if( status <> nullptr ) then *status = FB_FS_UNKNOWN
 		free( w )
 		return TKORT_UNULL_DESC()
 	end if
 
-	n = w_GetFullPathNameW( w, n, buf, 0 )
+	n = w_GetFullPathNameW( w, n, buf, nullptr )
 	if( n = 0 ) then
-		if( status <> 0 ) then *status = tkrt_FsMapOsError( )
+		if( status <> nullptr ) then *status = tkrt_FsMapOsError( )
 		res = TKORT_UNULL_DESC()
 	else
 		res = hTemp( cptr( FB_UCHAR ptr, buf ), n )
@@ -352,34 +352,34 @@ function tkort_UStrFsCanonicalPath alias "fb_UStrFsCanonicalPath" _
 	dim as integer outlen = any
 	dim as FBUSTRING ptr res = any
 
-	if( status <> 0 ) then *status = FB_FS_OK
+	if( status <> nullptr ) then *status = FB_FS_OK
 
 	w = hFsWide( p )
-	if( w = 0 ) then
-		if( status <> 0 ) then *status = FB_FS_UNKNOWN
+	if( w = nullptr ) then
+		if( status <> nullptr ) then *status = FB_FS_UNKNOWN
 		return TKORT_UNULL_DESC()
 	end if
 
 	h = w_CreateFileW( w, 0, _
 		FILE_SHARE_READ_ or FILE_SHARE_WRITE_ or FILE_SHARE_DELETE_, _
-		0, OPEN_EXISTING_, FILE_FLAG_BACKUP_SEMANTICS_, 0 )
+		nullptr, OPEN_EXISTING_, FILE_FLAG_BACKUP_SEMANTICS_, nullptr )
 	free( w )
 
 	if( cast( integer, h ) = INVALID_HANDLE_VALUE_ ) then
-		if( status <> 0 ) then *status = tkrt_FsMapOsError( )
+		if( status <> nullptr ) then *status = tkrt_FsMapOsError( )
 		return TKORT_UNULL_DESC()
 	end if
 
-	n = w_GetFinalPathNameByHandleW( h, 0, 0, VOLUME_NAME_DOS_ )
+	n = w_GetFinalPathNameByHandleW( h, nullptr, 0, VOLUME_NAME_DOS_ )
 	if( n = 0 ) then
-		if( status <> 0 ) then *status = tkrt_FsMapOsError( )
+		if( status <> nullptr ) then *status = tkrt_FsMapOsError( )
 		w_CloseHandle( h )
 		return TKORT_UNULL_DESC()
 	end if
 
 	buf = malloc( (n + 1) * sizeof( FB_UCHAR ) )
-	if( buf = 0 ) then
-		if( status <> 0 ) then *status = FB_FS_UNKNOWN
+	if( buf = nullptr ) then
+		if( status <> nullptr ) then *status = FB_FS_UNKNOWN
 		w_CloseHandle( h )
 		return TKORT_UNULL_DESC()
 	end if
@@ -388,7 +388,7 @@ function tkort_UStrFsCanonicalPath alias "fb_UStrFsCanonicalPath" _
 	w_CloseHandle( h )
 
 	if( n = 0 ) then
-		if( status <> 0 ) then *status = tkrt_FsMapOsError( )
+		if( status <> nullptr ) then *status = tkrt_FsMapOsError( )
 		free( buf )
 		return TKORT_UNULL_DESC()
 	end if
@@ -429,23 +429,23 @@ function tkort_UStrFsCurrentDir alias "fb_UStrFsCurrentDir" ( byval status as in
 	dim as uint32 n = any
 	dim as FBUSTRING ptr res = any
 
-	if( status <> 0 ) then *status = FB_FS_OK
+	if( status <> nullptr ) then *status = FB_FS_OK
 
-	n = w_GetCurrentDirectoryW( 0, 0 )
+	n = w_GetCurrentDirectoryW( 0, nullptr )
 	if( n = 0 ) then
-		if( status <> 0 ) then *status = tkrt_FsMapOsError( )
+		if( status <> nullptr ) then *status = tkrt_FsMapOsError( )
 		return TKORT_UNULL_DESC()
 	end if
 
 	buf = malloc( n * sizeof( FB_UCHAR ) )
-	if( buf = 0 ) then
-		if( status <> 0 ) then *status = FB_FS_UNKNOWN
+	if( buf = nullptr ) then
+		if( status <> nullptr ) then *status = FB_FS_UNKNOWN
 		return TKORT_UNULL_DESC()
 	end if
 
 	n = w_GetCurrentDirectoryW( n, buf )
 	if( n = 0 ) then
-		if( status <> 0 ) then *status = tkrt_FsMapOsError( )
+		if( status <> nullptr ) then *status = tkrt_FsMapOsError( )
 		res = TKORT_UNULL_DESC()
 	else
 		res = hTemp( cptr( FB_UCHAR ptr, buf ), n )
@@ -459,7 +459,7 @@ function tkort_UStrFsSetCurrentDir alias "fb_UStrFsSetCurrentDir" ( byval p as F
 	dim as wstring ptr w = hFsWide( p )
 	dim as int32 r = FB_FS_OK
 
-	if( w = 0 ) then return FB_FS_UNKNOWN
+	if( w = nullptr ) then return FB_FS_UNKNOWN
 	if( w_SetCurrentDirectoryW( w ) = 0 ) then r = tkrt_FsMapOsError( )
 	free( w )
 	return r
@@ -482,11 +482,11 @@ function tkort_UStrFsIdentity alias "fb_UStrFsIdentity" _
 	*id = 0
 
 	w = hFsWide( p )
-	if( w = 0 ) then return FB_FS_UNKNOWN
+	if( w = nullptr ) then return FB_FS_UNKNOWN
 
 	h = w_CreateFileW( w, 0, _
 		FILE_SHARE_READ_ or FILE_SHARE_WRITE_ or FILE_SHARE_DELETE_, _
-		0, OPEN_EXISTING_, FILE_FLAG_BACKUP_SEMANTICS_, 0 )
+		nullptr, OPEN_EXISTING_, FILE_FLAG_BACKUP_SEMANTICS_, nullptr )
 	free( w )
 
 	if( cast( integer, h ) = INVALID_HANDLE_VALUE_ ) then return tkrt_FsMapOsError( )
@@ -513,15 +513,15 @@ function tkort_UStrFsSetTimes alias "fb_UStrFsSetTimes" _
 	dim as wstring ptr w = any
 	dim as any ptr h = any
 	dim as uint8 ftm( 0 to 7 ) = any, fta( 0 to 7 ) = any
-	dim as any ptr pm = 0, pa = 0
+	dim as any ptr pm = nullptr, pa = nullptr
 	dim as int32 r = FB_FS_OK
 
 	w = hFsWide( p )
-	if( w = 0 ) then return FB_FS_UNKNOWN
+	if( w = nullptr ) then return FB_FS_UNKNOWN
 
 	h = w_CreateFileW( w, FILE_WRITE_ATTRIBUTES_, _
 		FILE_SHARE_READ_ or FILE_SHARE_WRITE_ or FILE_SHARE_DELETE_, _
-		0, OPEN_EXISTING_, FILE_FLAG_BACKUP_SEMANTICS_, 0 )
+		nullptr, OPEN_EXISTING_, FILE_FLAG_BACKUP_SEMANTICS_, nullptr )
 	free( w )
 
 	if( cast( integer, h ) = INVALID_HANDLE_VALUE_ ) then return tkrt_FsMapOsError( )
@@ -536,7 +536,7 @@ function tkort_UStrFsSetTimes alias "fb_UStrFsSetTimes" _
 		pa = @fta(0)
 	end if
 
-	if( w_SetFileTime( h, 0, pa, pm ) = 0 ) then r = tkrt_FsMapOsError( )
+	if( w_SetFileTime( h, nullptr, pa, pm ) = 0 ) then r = tkrt_FsMapOsError( )
 
 	w_CloseHandle( h )
 	return r
@@ -619,7 +619,7 @@ private function hFsNarrow( byval p as FBUSTRING ptr ) as zstring ptr
 	hUArg( p, @s, @len_ )
 	cap = len_ * 3 + 1
 	b = malloc( cap )
-	if( b = 0 ) then return 0
+	if( b = nullptr ) then return nullptr
 	n = u_utf16to8( s, len_, b, cap - 1 )
 	if( n < 0 ) then n = 0
 	b[n] = 0
@@ -638,7 +638,7 @@ private function hFsFromNarrow( byval b as zstring ptr, byval bytes as integer )
 
 	cap = nb + 1
 	tmp = malloc( cap * sizeof( FB_UCHAR ) )
-	if( tmp = 0 ) then return TKORT_UNULL_DESC()
+	if( tmp = nullptr ) then return TKORT_UNULL_DESC()
 
 	n = u_utf8to16( b, nb, tmp, cap )
 	if( n < 0 ) then n = 0
@@ -710,7 +710,7 @@ function tkort_UStrFsStat alias "fb_UStrFsStat" _
 	dim as stat_ st = any
 	dim as int32 r = any
 
-	if( path_ = 0 ) then return FB_FS_UNKNOWN
+	if( path_ = nullptr ) then return FB_FS_UNKNOWN
 
 	r = iif( follow <> 0, u_stat( path_, @st ), u_lstat( path_, @st ) )
 
@@ -731,10 +731,10 @@ end function
 function tkort_UStrFsCurrentDir alias "fb_UStrFsCurrentDir" ( byval status as int32 ptr ) as FBUSTRING ptr
 	dim as zstring * 4097 buf = any
 
-	if( status <> 0 ) then *status = FB_FS_OK
+	if( status <> nullptr ) then *status = FB_FS_OK
 
-	if( u_getcwd( @buf, 4097 ) = 0 ) then
-		if( status <> 0 ) then *status = tkrt_FsMapOsError( )
+	if( u_getcwd( @buf, 4097 ) = nullptr ) then
+		if( status <> nullptr ) then *status = tkrt_FsMapOsError( )
 		return TKORT_UNULL_DESC()
 	end if
 
@@ -747,7 +747,7 @@ function tkort_UStrFsAbsolutePath alias "fb_UStrFsAbsolutePath" _
 	dim as FB_UCHAR ptr s = any
 	dim as integer len_ = any
 
-	if( status <> 0 ) then *status = FB_FS_OK
+	if( status <> nullptr ) then *status = FB_FS_OK
 
 	hUArg( p, @s, @len_ )
 
@@ -769,20 +769,20 @@ function tkort_UStrFsCanonicalPath alias "fb_UStrFsCanonicalPath" _
 	dim as zstring ptr path_ = any, res = any
 	dim as FBUSTRING ptr out_ = any
 
-	if( status <> 0 ) then *status = FB_FS_OK
+	if( status <> nullptr ) then *status = FB_FS_OK
 
 	path_ = hFsNarrow( p )
-	if( path_ = 0 ) then
-		if( status <> 0 ) then *status = FB_FS_UNKNOWN
+	if( path_ = nullptr ) then
+		if( status <> nullptr ) then *status = FB_FS_UNKNOWN
 		return TKORT_UNULL_DESC()
 	end if
 
 	'' NULL lets realpath allocate, which avoids the PATH_MAX overflow the
 	'' two-argument form is notorious for.
-	res = u_realpath( path_, 0 )
+	res = u_realpath( path_, nullptr )
 
-	if( res = 0 ) then
-		if( status <> 0 ) then *status = tkrt_FsMapOsError( )
+	if( res = nullptr ) then
+		if( status <> nullptr ) then *status = tkrt_FsMapOsError( )
 		out_ = TKORT_UNULL_DESC()
 	else
 		out_ = hFsFromNarrow( res, -1 )
@@ -797,7 +797,7 @@ function tkort_UStrFsSetCurrentDir alias "fb_UStrFsSetCurrentDir" ( byval p as F
 	dim as zstring ptr path_ = hFsNarrow( p )
 	dim as int32 r = FB_FS_OK
 
-	if( path_ = 0 ) then return FB_FS_UNKNOWN
+	if( path_ = nullptr ) then return FB_FS_UNKNOWN
 	if( u_chdir( path_ ) <> 0 ) then r = tkrt_FsMapOsError( )
 	free( path_ )
 	return r
@@ -814,7 +814,7 @@ function tkort_UStrFsSetTimes alias "fb_UStrFsSetTimes" _
 	dim as int32 r = FB_FS_OK
 	dim as int64 v = any
 
-	if( path_ = 0 ) then return FB_FS_UNKNOWN
+	if( path_ = nullptr ) then return FB_FS_UNKNOWN
 
 	'' ts(0) is access, ts(1) is modification
 	if( atime > 0 ) then

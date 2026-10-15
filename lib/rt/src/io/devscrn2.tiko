@@ -91,7 +91,7 @@ end extern
 '' OPEN "SCRN:" builds a handle whose redirection_to points at the real one, and
 '' the DEV_SCRN_INFO the reads use hangs off whichever handle was passed in.
 private function hDeref( byval h as FB_FILE ptr ) as FB_FILE ptr
-	if( h = 0 ) then return TKORT_HANDLE_SCREEN()
+	if( h = nullptr ) then return TKORT_HANDLE_SCREEN()
 	return h
 end function
 
@@ -174,8 +174,8 @@ function tkort_DevScrnOpen alias "fb_DevScrnOpen" _
 		'' share the terminal.
 		srcinfo = cptr( DEV_SCRN_INFO ptr, TKORT_HANDLE_SCREEN()->opaque )
 		info = malloc( sizeof( DEV_SCRN_INFO ) )
-		if( info <> 0 ) then
-			if( srcinfo <> 0 ) then
+		if( info <> nullptr ) then
+			if( srcinfo <> nullptr ) then
 				memcpy( info, srcinfo, sizeof( DEV_SCRN_INFO ) )
 			else
 				memset( info, 0, sizeof( DEV_SCRN_INFO ) )
@@ -189,7 +189,7 @@ function tkort_DevScrnOpen alias "fb_DevScrnOpen" _
 	elseif( handle->hooks <> @tkort_hooks_dev_scrn ) then
 		'' A NULL table means the screen handle has never been set up, so the
 		'' device's own init runs first -- and only then is the table attached.
-		if( handle->hooks = 0 ) then tkrt_DevScrnInit_Screen( )
+		if( handle->hooks = nullptr ) then tkrt_DevScrnInit_Screen( )
 		handle->hooks = @tkort_hooks_dev_scrn
 		handle->type_ = FB_FILE_TYPE_CONSOLE
 	end if
@@ -203,7 +203,7 @@ sub tkort_DevScrnInit alias "fb_DevScrnInit" ( )
 	TKORT_IOLOCK()
 	hFillTable( )
 
-	if( TKORT_HANDLE_SCREEN()->hooks = 0 ) then
+	if( TKORT_HANDLE_SCREEN()->hooks = nullptr ) then
 		memset( TKORT_HANDLE_SCREEN(), 0, sizeof( FB_FILE ) )
 
 		TKORT_HANDLE_SCREEN()->mode   = FB_FILE_MODE_APPEND
@@ -213,7 +213,7 @@ sub tkort_DevScrnInit alias "fb_DevScrnInit" ( )
 		TKORT_HANDLE_SCREEN()->type_  = FB_FILE_TYPE_VFS
 		TKORT_HANDLE_SCREEN()->access = FB_FILE_ACCESS_READWRITE_
 
-		tkort_DevScrnOpen( TKORT_HANDLE_SCREEN(), 0, 0 )
+		tkort_DevScrnOpen( TKORT_HANDLE_SCREEN(), nullptr, 0 )
 	elseif( TKORT_HANDLE_SCREEN()->hooks <> @tkort_hooks_dev_scrn ) then
 		TKORT_HANDLE_SCREEN()->hooks = @tkort_hooks_dev_scrn
 	end if
@@ -242,9 +242,9 @@ sub tkort_DevScrnFillInput alias "fb_DevScrnFillInput" ( byval info as DEV_SCRN_
 	dim as integer len_ = 0
 
 	s = tkrt_Inkey( )
-	if( s <> 0 ) then
+	if( s <> nullptr ) then
 		len_ = FB_STRSIZE( s )
-		if( (s->data <> 0) andalso (len_ > 0) ) then
+		if( (s->data <> nullptr) andalso (len_ > 0) ) then
 			'' the NUL goes too, so the buffer is usable as a C string
 			if( len_ < TKORT_SCRN_BUFSIZE ) then
 				memcpy( @info->buffer(0), s->data, len_ + 1 )
@@ -290,7 +290,7 @@ end function
 sub tkort_DevScrnInit_Write alias "fb_DevScrnInit_Write" ( )
 	tkrt_DevScrnInit_NoOpen( )
 	TKORT_IOLOCK()
-	if( TKORT_HANDLE_SCREEN()->hooks->pfnWrite = 0 ) then
+	if( TKORT_HANDLE_SCREEN()->hooks->pfnWrite = nullptr ) then
 		TKORT_HANDLE_SCREEN()->hooks->pfnWrite = @tkort_DevScrnWrite
 	end if
 	TKORT_IOUNLOCK()
@@ -305,7 +305,7 @@ end function
 sub tkort_DevScrnInit_WriteWstr alias "fb_DevScrnInit_WriteWstr" ( )
 	tkrt_DevScrnInit_NoOpen( )
 	TKORT_IOLOCK()
-	if( TKORT_HANDLE_SCREEN()->hooks->pfnWriteWstr = 0 ) then
+	if( TKORT_HANDLE_SCREEN()->hooks->pfnWriteWstr = nullptr ) then
 		TKORT_HANDLE_SCREEN()->hooks->pfnWriteWstr = @tkort_DevScrnWriteWstr
 	end if
 	TKORT_IOUNLOCK()
@@ -370,12 +370,12 @@ end extern
 '' redirected. Private, and it exists only to be a function POINTER.
 private function hReadFromStdin cdecl _
 	( byval handle as FB_FILE ptr, byval dst as any ptr, byval plen as uinteger ptr ) as int32
-	return tkrt_DevFileRead( 0, dst, plen )
+	return tkrt_DevFileRead( nullptr, dst, plen )
 end function
 
 private function hReadFromStdinWstr cdecl _
 	( byval handle as FB_FILE ptr, byval dst as wstring ptr, byval pchars as uinteger ptr ) as int32
-	return tkrt_DevFileReadWstr( 0, dst, pchars )
+	return tkrt_DevFileReadWstr( nullptr, dst, pchars )
 end function
 
 extern "c"   '' NON-FBCALL: undecorated in fbc's win32 archive.
@@ -386,7 +386,7 @@ extern "c"   '' NON-FBCALL: undecorated in fbc's win32 archive.
 sub tkort_DevScrnInit_Read alias "fb_DevScrnInit_Read" ( )
 	tkrt_DevScrnInit_NoOpen( )
 	TKORT_IOLOCK()
-	if( TKORT_HANDLE_SCREEN()->hooks->pfnRead = 0 ) then
+	if( TKORT_HANDLE_SCREEN()->hooks->pfnRead = nullptr ) then
 		if( tkrt_IsRedirected( 1 ) <> 0 ) then
 			TKORT_HANDLE_SCREEN()->hooks->pfnRead = cast( FnFileRead, @hReadFromStdin )
 		else
@@ -450,7 +450,7 @@ end function
 sub tkort_DevScrnInit_ReadWstr alias "fb_DevScrnInit_ReadWstr" ( )
 	tkrt_DevScrnInit_NoOpen( )
 	TKORT_IOLOCK()
-	if( TKORT_HANDLE_SCREEN()->hooks->pfnReadWstr = 0 ) then
+	if( TKORT_HANDLE_SCREEN()->hooks->pfnReadWstr = nullptr ) then
 		if( tkrt_IsRedirected( 1 ) <> 0 ) then
 			TKORT_HANDLE_SCREEN()->hooks->pfnReadWstr = cast( FnFileReadWstr, @hReadFromStdinWstr )
 		else
@@ -469,13 +469,13 @@ end sub
 function tkort_DevScrnReadLine alias "fb_DevScrnReadLine" _
 	( byval handle as FB_FILE ptr, byval dst as FBSTRING ptr ) as int32
 	'' -1 length, no fill, no question mark, but DO add the newline.
-	return tkrt_LineInput( 0, dst, -1, 0, 0, 1 )
+	return tkrt_LineInput( nullptr, dst, -1, 0, 0, 1 )
 end function
 
 sub tkort_DevScrnInit_ReadLine alias "fb_DevScrnInit_ReadLine" ( )
 	tkrt_DevScrnInit_NoOpen( )
 	TKORT_IOLOCK()
-	if( TKORT_HANDLE_SCREEN()->hooks->pfnReadLine = 0 ) then
+	if( TKORT_HANDLE_SCREEN()->hooks->pfnReadLine = nullptr ) then
 		TKORT_HANDLE_SCREEN()->hooks->pfnReadLine = @tkort_DevScrnReadLine
 	end if
 	TKORT_IOUNLOCK()
@@ -487,7 +487,7 @@ function tkort_DevScrnReadLineWstr alias "fb_DevScrnReadLineWstr" _
 	dim as int32 res = any
 	dim as FBSTRING temp_ = ( 0, 0, 0 )
 
-	res = tkrt_LineInput( 0, @temp_, -1, 0, 0, 1 )
+	res = tkrt_LineInput( nullptr, @temp_, -1, 0, 0, 1 )
 
 	if( res = FB_RTERROR_OK ) then
 		tkrt_WstrAssignFromA( dst, dst_chars, @temp_, -1 )
@@ -503,7 +503,7 @@ end function
 sub tkort_DevScrnInit_ReadLineWstr alias "fb_DevScrnInit_ReadLineWstr" ( )
 	tkrt_DevScrnInit_NoOpen( )
 	TKORT_IOLOCK()
-	if( TKORT_HANDLE_SCREEN()->hooks->pfnReadLineWstr = 0 ) then
+	if( TKORT_HANDLE_SCREEN()->hooks->pfnReadLineWstr = nullptr ) then
 		TKORT_HANDLE_SCREEN()->hooks->pfnReadLineWstr = @tkort_DevScrnReadLineWstr
 	end if
 	TKORT_IOUNLOCK()

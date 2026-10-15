@@ -134,18 +134,18 @@ function tkort_ArrayAlloc alias "fb_hArrayAlloc" _
 
 	'' Three allocation shapes for doclear's three states, and none of them
 	'' clears when a ctor will run.
-	if( (doclear = DOCLEAR_SPACE) andalso (ctor = 0) ) then
+	if( (doclear = DOCLEAR_SPACE) andalso (ctor = nullptr) ) then
 		a->base_ptr = malloc( size_ )
 		memset( a->base_ptr, DOCLEAR_SPACE, size_ )
-	elseif( (doclear <> 0) andalso (ctor = 0) ) then
+	elseif( (doclear <> 0) andalso (ctor = nullptr) ) then
 		a->base_ptr = calloc( size_, 1 )
 	else
 		a->base_ptr = malloc( size_ )
 	end if
 
-	if( a->base_ptr = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
+	if( a->base_ptr = nullptr ) then return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
 
-	if( ctor <> 0 ) then
+	if( ctor <> nullptr ) then
 		dim as uint8 ptr this_ = cast( uint8 ptr, a->base_ptr )
 		while( elements > 0 )
 			ctor( this_ )
@@ -206,14 +206,14 @@ function tkort_ArrayRealloc alias "fb_hArrayRealloc" _
 
 	'' SHRINKING: destroy what is about to be freed, BEFORE the realloc. The
 	'' comparison is in ELEMENTS, not bytes, because keep_idx is an index.
-	if( dtor_mult <> 0 ) then
+	if( dtor_mult <> nullptr ) then
 		if( elements < tkrt_ArrayLen( a ) ) then
 			dtor_mult( a, dtor, elements )
 		end if
 	end if
 
 	reallocTemp = realloc( a->base_ptr, size_ )
-	if( reallocTemp = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
+	if( reallocTemp = nullptr ) then return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
 
 	a->base_ptr = reallocTemp
 
@@ -221,7 +221,7 @@ function tkort_ArrayRealloc alias "fb_hArrayRealloc" _
 	'' which is the entire point of REDIM PRESERVE.
 	if( size_ > a->size ) then
 		this_ = cast( uint8 ptr, a->base_ptr ) + a->size
-		if( ctor <> 0 ) then
+		if( ctor <> nullptr ) then
 			dim as uinteger objects = (size_ - a->size) \ element_len
 			while( objects > 0 )
 				ctor( this_ )
@@ -272,7 +272,7 @@ function tkort_ArrayRedimEx alias "fb_ArrayRedimEx" _
 		tkrt_ArrayErase( a )
 	end if
 
-	res = tkort_ArrayAlloc( a, element_len, doclear, 0, dimensions, ap )
+	res = tkort_ArrayAlloc( a, element_len, doclear, nullptr, dimensions, ap )
 
 	cva_end( ap )
 
@@ -288,7 +288,7 @@ function tkort_ArrayRedimObj alias "fb_ArrayRedimObj" _
 	dim as cva_list ap = any
 	dim as int32 res = any
 
-	if( dtor <> 0 ) then tkrt_ArrayDestructObj( a, dtor )
+	if( dtor <> nullptr ) then tkrt_ArrayDestructObj( a, dtor )
 	tkrt_ArrayErase( a )
 
 	cva_start( ap, dimensions )
@@ -312,14 +312,14 @@ function tkort_ArrayRedimPresvEx alias "fb_ArrayRedimPresvEx" _
 
 	'' Never allocated? Then there is nothing to preserve, and this is a plain
 	'' REDIM -- which also keeps realloc(NULL) off the path entirely.
-	if( a->base_ptr = 0 ) then
-		res = tkort_ArrayAlloc( a, element_len, doclear, 0, dimensions, ap )
+	if( a->base_ptr = nullptr ) then
+		res = tkort_ArrayAlloc( a, element_len, doclear, nullptr, dimensions, ap )
 	else
 		'' A shrinking var-len string array must have its tail elements
 		'' deleted; a plain one has nothing to destroy.
 		dtor_mult = iif( isvarlen <> 0, cast( FB_DTORMULT, @tkrt_ArrayDtorStr ), _
 		                                cast( FB_DTORMULT, 0 ) )
-		res = tkort_ArrayRealloc( a, element_len, doclear, 0, dtor_mult, 0, dimensions, ap )
+		res = tkort_ArrayRealloc( a, element_len, doclear, nullptr, dtor_mult, nullptr, dimensions, ap )
 	end if
 
 	cva_end( ap )
@@ -337,10 +337,10 @@ function tkort_ArrayRedimPresvObj alias "fb_ArrayRedimPresvObj" _
 
 	cva_start( ap, dimensions )
 
-	if( a->base_ptr = 0 ) then
+	if( a->base_ptr = nullptr ) then
 		res = tkort_ArrayAlloc( a, element_len, FB_TRUE, ctor, dimensions, ap )
 	else
-		dtor_mult = iif( dtor <> 0, cast( FB_DTORMULT, @tkrt_ArrayDtorObj ), _
+		dtor_mult = iif( dtor <> nullptr, cast( FB_DTORMULT, @tkrt_ArrayDtorObj ), _
 		                            cast( FB_DTORMULT, 0 ) )
 		res = tkort_ArrayRealloc( a, element_len, FB_TRUE, ctor, dtor_mult, dtor, dimensions, ap )
 	end if
@@ -383,7 +383,7 @@ function tkort_ArrayRedimTo alias "fb_ArrayRedimTo" _
 		diff = cast( integer, cast( uinteger, source->index_ptr ) - cast( uinteger, source->base_ptr ) )
 	end if
 
-	if( dtor <> 0 ) then tkrt_ArrayDestructObj( dest, dtor )
+	if( dtor <> nullptr ) then tkrt_ArrayDestructObj( dest, dtor )
 
 	if( isvarlen <> 0 ) then
 		tkrt_ArrayStrErase( dest )
@@ -400,24 +400,24 @@ function tkort_ArrayRedimTo alias "fb_ArrayRedimTo" _
 	'' calloc(0,1) may return a non-NULL pointer, and the descriptor would then
 	'' claim storage it has no size for.
 	if( dest->size = 0 ) then
-		dest->base_ptr = 0
-		dest->index_ptr = 0
+		dest->base_ptr = nullptr
+		dest->index_ptr = nullptr
 		return tkrt_ErrorSetNum( FB_RTERROR_OK )
 	end if
 
-	if( ctor = 0 ) then
+	if( ctor = nullptr ) then
 		dest->base_ptr = calloc( dest->size, 1 )
 	else
 		dest->base_ptr = malloc( dest->size )
 	end if
-	if( dest->base_ptr = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
+	if( dest->base_ptr = nullptr ) then return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
 
 	dest->index_ptr = cast( uint8 ptr, dest->base_ptr ) + diff
 
 	'' THE LIMIT IS COMPUTED FROM size, NOT FROM AN ELEMENT COUNT -- so a
 	'' descriptor whose size is not a whole multiple of element_len constructs
 	'' the same number of objects fbc does rather than one more or one fewer.
-	if( ctor <> 0 ) then
+	if( ctor <> nullptr ) then
 		this_ = cast( uint8 ptr, dest->base_ptr )
 		limit_ = this_ + dest->size
 		while( this_ < limit_ )

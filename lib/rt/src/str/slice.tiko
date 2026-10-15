@@ -51,28 +51,28 @@ private function hSlice _
 	'' contracts right. It never asked what they do to their OPERAND, which is
 	'' why this one still got through.
 
-	if( (s = 0) orelse (chars <= 0) ) then
-		if( s <> 0 ) then tkrt_DelTemp( s )
+	if( (s = nullptr) orelse (chars <= 0) ) then
+		if( s <> nullptr ) then tkrt_DelTemp( s )
 		return TKORT_NULLSTR( )
 	end if
 
 	dim as zstring ptr p = s->data
-	if( p = 0 ) then
-		if( s <> 0 ) then tkrt_DelTemp( s )
+	if( p = nullptr ) then
+		if( s <> nullptr ) then tkrt_DelTemp( s )
 		return TKORT_NULLSTR( )
 	end if
 
 	dim as integer n = FB_STRSIZE( s )
 	if( n <= 0 ) then
-		if( s <> 0 ) then tkrt_DelTemp( s )
+		if( s <> nullptr ) then tkrt_DelTemp( s )
 		return TKORT_NULLSTR( )
 	end if
 
 	if( chars > n ) then chars = n
 
-	dim as FBSTRING ptr r = fb_hStrAllocTemp( 0, chars )
-	if( r = 0 ) then
-		if( s <> 0 ) then tkrt_DelTemp( s )
+	dim as FBSTRING ptr r = fb_hStrAllocTemp( nullptr, chars )
+	if( r = nullptr ) then
+		if( s <> nullptr ) then tkrt_DelTemp( s )
 		return TKORT_NULLSTR( )
 	end if
 
@@ -83,7 +83,7 @@ private function hSlice _
 	end if
 
 	'' After the copy, never before.
-	if( s <> 0 ) then tkrt_DelTemp( s )
+	if( s <> nullptr ) then tkrt_DelTemp( s )
 
 	return r
 

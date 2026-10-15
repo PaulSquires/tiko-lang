@@ -179,8 +179,8 @@ end type
 '' only place that records it: do not choose by taste.
 
 #macro FB_STRSETUP_FIX( s, sz, ptr_, len_ )
-	if( (s) = 0 ) then
-		ptr_ = 0 : len_ = 0
+	if( (s) = nullptr ) then
+		ptr_ = nullptr : len_ = 0
 	elseif( (sz) = FB_STRSIZEVARLEN ) then
 		ptr_ = cptr( FBSTRING ptr, s )->data : len_ = FB_STRSIZE( s )
 	elseif( ((sz) and FB_STRISFIXED) <> 0 ) then
@@ -193,8 +193,8 @@ end type
 #endmacro
 
 #macro FB_STRSETUP_DYN( s, sz, ptr_, len_ )
-	if( (s) = 0 ) then
-		ptr_ = 0 : len_ = 0
+	if( (s) = nullptr ) then
+		ptr_ = nullptr : len_ = 0
 	elseif( (sz) = FB_STRSIZEVARLEN ) then
 		ptr_ = cptr( FBSTRING ptr, s )->data : len_ = FB_STRSIZE( s )
 	elseif( ((sz) and FB_STRISFIXED) <> 0 ) then

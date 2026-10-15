@@ -65,7 +65,7 @@ dim shared as FB_DATADESC ptr tkort_data_ptr
 
 '' Skip links until an item or the end. A LOOP, not a test -- see the header.
 private sub hSkipLink( )
-	while( tkort_data_ptr <> 0 )
+	while( tkort_data_ptr <> nullptr )
 		if( tkort_data_ptr->length <> FB_DATATYPE_LINK ) then exit while
 		tkort_data_ptr = cptr( FB_DATADESC ptr, tkort_data_ptr->item )
 	wend
@@ -87,7 +87,7 @@ end extern
 extern "c"   '' NON-FBCALL: fb_data.h declares fb_DataNext without the macro.
 
 sub tkort_DataNext alias "fb_DataNext" ( )
-	if( tkort_data_ptr <> 0 ) then
+	if( tkort_data_ptr <> nullptr ) then
 		tkort_data_ptr += 1
 		hSkipLink( )
 	end if

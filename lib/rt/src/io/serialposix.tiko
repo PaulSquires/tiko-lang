@@ -507,7 +507,7 @@ function tkort_SerialGetRemaining alias "fb_SerialGetRemaining" _
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
 
-	if( pLength <> 0 ) then *pLength = rBytes
+	if( pLength <> nullptr ) then *pLength = rBytes
 
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )
 end function
@@ -554,7 +554,7 @@ function tkort_SerialRead alias "fb_SerialRead" _
 	tmout.tv_usec = SREAD_TIMEOUT_ * 1000
 
 	'' THE RETURN OF select IS IGNORED; only the descriptor set is consulted.
-	c_select( pInfo->sfd + 1, @rfds, 0, 0, @tmout )
+	c_select( pInfo->sfd + 1, @rfds, nullptr, nullptr, @tmout )
 	if( TKORT_FD_ISSET( pInfo->sfd, rfds ) ) then
 		count_ = c_read( pInfo->sfd, data_, *pLength )
 		if( count_ < 0 ) then

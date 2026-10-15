@@ -73,7 +73,7 @@ end function
 
 function tkort_ConsoleGetX alias "fb_ConsoleGetX" ( ) as int32
 	dim as int32 x = tkort_ConsoleGetRawX( )
-	tkrt_hConvertFromConsole( @x, 0, 0, 0 )
+	tkrt_hConvertFromConsole( @x, nullptr, nullptr, nullptr )
 	return x
 end function
 
@@ -89,7 +89,7 @@ end function
 
 function tkort_ConsoleGetY alias "fb_ConsoleGetY" ( ) as int32
 	dim as int32 y = tkort_ConsoleGetRawY( )
-	tkrt_hConvertFromConsole( 0, @y, 0, 0 )
+	tkrt_hConvertFromConsole( nullptr, @y, nullptr, nullptr )
 	return y
 end function
 
@@ -105,11 +105,11 @@ sub tkort_ConsoleGetRawXYEx alias "fb_ConsoleGetRawXYEx" _
 	dim as uint8 info( 0 to CSBI_SIZE_ - 1 )
 
 	if( w_GetConsoleScreenBufferInfo( h, @info(0) ) <> 0 ) then
-		if( col <> 0 ) then *col = -1
-		if( row <> 0 ) then *row = -1
+		if( col <> nullptr ) then *col = -1
+		if( row <> nullptr ) then *row = -1
 	else
-		if( col <> 0 ) then *col = *cptr( int16 ptr, @info(CSBI_CURSOR_X_) )
-		if( row <> 0 ) then *row = *cptr( int16 ptr, @info(CSBI_CURSOR_Y_) )
+		if( col <> nullptr ) then *col = *cptr( int16 ptr, @info(CSBI_CURSOR_X_) )
+		if( row <> nullptr ) then *row = *cptr( int16 ptr, @info(CSBI_CURSOR_Y_) )
 	end if
 end sub
 
@@ -127,12 +127,12 @@ sub tkort_ConsoleGetXY alias "fb_ConsoleGetXY" ( byval col as int32 ptr, byval r
 	dim as uint8 info( 0 to CSBI_SIZE_ - 1 ) = any
 
 	if( w_GetConsoleScreenBufferInfo( TKORT_OUT_HANDLE(), @info(0) ) = 0 ) then
-		if( col <> 0 ) then *col = 0
-		if( row <> 0 ) then *row = 0
+		if( col <> nullptr ) then *col = 0
+		if( row <> nullptr ) then *row = 0
 	else
-		if( col <> 0 ) then *col = *cptr( int16 ptr, @info(CSBI_CURSOR_X_) )
-		if( row <> 0 ) then *row = *cptr( int16 ptr, @info(CSBI_CURSOR_Y_) )
-		tkrt_hConvertFromConsole( col, row, 0, 0 )
+		if( col <> nullptr ) then *col = *cptr( int16 ptr, @info(CSBI_CURSOR_X_) )
+		if( row <> nullptr ) then *row = *cptr( int16 ptr, @info(CSBI_CURSOR_Y_) )
+		tkrt_hConvertFromConsole( col, row, nullptr, nullptr )
 	end if
 end sub
 
@@ -148,11 +148,11 @@ sub tkort_ConsoleGetScreenSizeEx alias "fb_ConsoleGetScreenSizeEx" _
 	dim as uint8 info( 0 to CSBI_SIZE_ - 1 ) = any
 
 	if( w_GetConsoleScreenBufferInfo( h, @info(0) ) = 0 ) then
-		if( cols <> 0 ) then *cols = FB_SCRN_DEFAULT_WIDTH
-		if( rows <> 0 ) then *rows = FB_SCRN_DEFAULT_HEIGHT
+		if( cols <> nullptr ) then *cols = FB_SCRN_DEFAULT_WIDTH
+		if( rows <> nullptr ) then *rows = FB_SCRN_DEFAULT_HEIGHT
 	else
-		if( cols <> 0 ) then *cols = *cptr( int16 ptr, @info(CSBI_DWSIZE_X_) )
-		if( rows <> 0 ) then *rows = *cptr( int16 ptr, @info(CSBI_DWSIZE_Y_) )
+		if( cols <> nullptr ) then *cols = *cptr( int16 ptr, @info(CSBI_DWSIZE_X_) )
+		if( rows <> nullptr ) then *rows = *cptr( int16 ptr, @info(CSBI_DWSIZE_Y_) )
 	end if
 end sub
 
@@ -177,11 +177,11 @@ sub tkort_ConsoleGetSize alias "fb_ConsoleGetSize" ( byval cols as int32 ptr, by
 		ncols = FB_SCRN_DEFAULT_WIDTH
 		nrows = FB_SCRN_DEFAULT_HEIGHT
 	else
-		tkrt_hConsoleGetWindow( 0, 0, @ncols, @nrows )
+		tkrt_hConsoleGetWindow( nullptr, nullptr, @ncols, @nrows )
 	end if
 
-	if( cols <> 0 ) then *cols = ncols
-	if( rows <> 0 ) then *rows = nrows
+	if( cols <> nullptr ) then *cols = ncols
+	if( rows <> nullptr ) then *rows = nrows
 end sub
 
 end extern
@@ -217,7 +217,7 @@ function tkort_ConsoleReadXY alias "fb_ConsoleReadXY" _
 	dim as uint32 got = 0
 	dim as int32 c = col, r = row
 
-	tkrt_hConvertToConsole( @c, @r, 0, 0 )
+	tkrt_hConvertToConsole( @c, @r, nullptr, nullptr )
 
 	if( colorflag <> 0 ) then
 		w_ReadConsoleOutputAttribute( TKORT_OUT_HANDLE(), @attribute, 1, TKORT_COORD( c, r ), @got )
@@ -277,8 +277,8 @@ sub tkort_ConsoleGetXY alias "fb_ConsoleGetXY" ( byval col as int32 ptr, byval r
 		y = 1
 	end if
 
-	if( col <> 0 ) then *col = x
-	if( row <> 0 ) then *row = y
+	if( col <> nullptr ) then *col = x
+	if( row <> nullptr ) then *row = y
 end sub
 
 end extern
@@ -287,13 +287,13 @@ extern "c"   '' NON-FBCALL: undecorated in fbc's win32 archive.
 
 function tkort_ConsoleGetX alias "fb_ConsoleGetX" ( ) as int32
 	dim as int32 x = any
-	tkort_ConsoleGetXY( @x, 0 )
+	tkort_ConsoleGetXY( @x, nullptr )
 	return x
 end function
 
 function tkort_ConsoleGetY alias "fb_ConsoleGetY" ( ) as int32
 	dim as int32 y = any
-	tkort_ConsoleGetXY( 0, @y )
+	tkort_ConsoleGetXY( nullptr, @y )
 	return y
 end function
 
@@ -305,8 +305,8 @@ sub tkort_ConsoleGetSize alias "fb_ConsoleGetSize" ( byval cols as int32 ptr, by
 	if( TKORT_CON_L( TKORT_CON_INITED ) = 0 ) then
 		'' 80x24, NOT 80x25: the POSIX default is one row shorter than the
 		'' Windows one, and both are reproduced as they stand.
-		if( cols <> 0 ) then *cols = 80
-		if( rows <> 0 ) then *rows = 24
+		if( cols <> nullptr ) then *cols = 80
+		if( rows <> nullptr ) then *rows = 24
 		exit sub
 	end if
 
@@ -314,8 +314,8 @@ sub tkort_ConsoleGetSize alias "fb_ConsoleGetSize" ( byval cols as int32 ptr, by
 	tkrt_hRecheckConsoleSize( 1 )
 	tkrt_BgUnlock( )
 
-	if( cols <> 0 ) then *cols = TKORT_CON_L( TKORT_CON_W )
-	if( rows <> 0 ) then *rows = TKORT_CON_L( TKORT_CON_H )
+	if( cols <> nullptr ) then *cols = TKORT_CON_L( TKORT_CON_W )
+	if( rows <> nullptr ) then *rows = TKORT_CON_L( TKORT_CON_H )
 end sub
 
 end extern
@@ -362,7 +362,7 @@ function tkort_ConsoleReadXY alias "fb_ConsoleReadXY" _
 		buffer = TKORT_CON_P( TKORT_CON_CHARBUF )
 	end if
 
-	if( buffer = 0 ) then return 0
+	if( buffer = nullptr ) then return 0
 
 	return cast( uint32, buffer[((y - 1) * w) + x - 1] )
 end function

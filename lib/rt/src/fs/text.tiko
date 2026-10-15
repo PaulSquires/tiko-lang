@@ -48,9 +48,9 @@ end extern
 
 private sub hUArg( byval s as FBUSTRING ptr, byval ptr_ as FB_UCHAR ptr ptr, byval len_ as integer ptr )
 	static as FB_UCHAR empty_(0 to 0) = { 0 }
-	if( s = 0 ) then
+	if( s = nullptr ) then
 		*ptr_ = @empty_(0) : *len_ = 0
-	elseif( s->data = 0 ) then
+	elseif( s->data = nullptr ) then
 		*ptr_ = @empty_(0) : *len_ = 0
 	else
 		*ptr_ = s->data
@@ -61,10 +61,10 @@ end sub
 private function hTemp( byval src as FB_UCHAR ptr, byval units as integer ) as FBUSTRING ptr
 	dim as FBUSTRING ptr dst = any
 	if( units <= 0 ) then return TKORT_UNULL_DESC()
-	dst = tkrt_UStrAllocTemp( 0, units )
-	if( dst = 0 ) then return TKORT_UNULL_DESC()
-	if( dst->data <> 0 ) then
-		if( src <> 0 ) then tkrt_UStrCopy2( dst->data, src, units )
+	dst = tkrt_UStrAllocTemp( nullptr, units )
+	if( dst = nullptr ) then return TKORT_UNULL_DESC()
+	if( dst->data <> nullptr ) then
+		if( src <> nullptr ) then tkrt_UStrCopy2( dst->data, src, units )
 		dst->data[units] = 0
 	end if
 	return dst
@@ -75,7 +75,7 @@ extern "rtlib"
 function tkort_UStrFsReadAllText alias "fb_UStrFsReadAllText" _
 	( byval p as FBUSTRING ptr, byval status as int32 ptr ) as FBUSTRING ptr
 
-	dim as uint8 ptr buf = 0
+	dim as uint8 ptr buf = nullptr
 	dim as int64 len_ = 0
 	dim as int32 r = any
 	dim as FBUSTRING ptr res = any
@@ -83,11 +83,11 @@ function tkort_UStrFsReadAllText alias "fb_UStrFsReadAllText" _
 	dim as FB_UCHAR ptr tmp = any
 	dim as uint8 ptr start = any
 
-	if( status <> 0 ) then *status = FB_FS_OK
+	if( status <> nullptr ) then *status = FB_FS_OK
 
 	r = tkrt_FsReadWhole( p, @buf, @len_ )
 	if( r <> FB_FS_OK ) then
-		if( status <> 0 ) then *status = r
+		if( status <> nullptr ) then *status = r
 		return TKORT_UNULL_DESC()
 	end if
 
@@ -116,9 +116,9 @@ function tkort_UStrFsReadAllText alias "fb_UStrFsReadAllText" _
 			end if
 
 			tmp = malloc( (units + 1) * sizeof( FB_UCHAR ) )
-			if( tmp = 0 ) then
+			if( tmp = nullptr ) then
 				tkrt_FsFreeBuf( buf )
-				if( status <> 0 ) then *status = FB_FS_NO_SPACE
+				if( status <> nullptr ) then *status = FB_FS_NO_SPACE
 				return TKORT_UNULL_DESC()
 			end if
 
@@ -156,9 +156,9 @@ function tkort_UStrFsReadAllText alias "fb_UStrFsReadAllText" _
 	'' produces at most two units from at least four bytes.
 	cap = bytes + 1
 	tmp = malloc( cap * sizeof( FB_UCHAR ) )
-	if( tmp = 0 ) then
+	if( tmp = nullptr ) then
 		tkrt_FsFreeBuf( buf )
-		if( status <> 0 ) then *status = FB_FS_NO_SPACE
+		if( status <> nullptr ) then *status = FB_FS_NO_SPACE
 		return TKORT_UNULL_DESC()
 	end if
 
@@ -191,7 +191,7 @@ function tkort_UStrFsWriteAllText alias "fb_UStrFsWriteAllText" _
 	cap = len_ * 3 + 1
 
 	tmp = malloc( cap )
-	if( tmp = 0 ) then return FB_FS_NO_SPACE
+	if( tmp = nullptr ) then return FB_FS_NO_SPACE
 
 	n = tkrt_Utf16ToUtf8( src, len_, tmp, cap - 1 )
 	if( n < 0 ) then n = 0

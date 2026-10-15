@@ -201,7 +201,7 @@ extern "c"   '' NON-FBCALL, as declared above.
 sub tkort_hSetFileBufSize alias "fb_hSetFileBufSize" ( byval fp as FILE ptr )
 	'' setvbuf is only legal before any I/O on the stream, which is why every
 	'' caller below does it immediately after fopen/freopen and nowhere else.
-	setvbuf( fp, 0, IOFBF_, FB_FILE_BUFSIZE )
+	setvbuf( fp, nullptr, IOFBF_, FB_FILE_BUFSIZE )
 end sub
 
 '' SKIP THE BYTE ORDER MARK, and only that. In ASCII the function is a no-op
@@ -253,17 +253,17 @@ end function
 function tkort_DevFileOpen alias "fb_DevFileOpen" _
 	( byval h as FB_FILE ptr, byval filename as zstring ptr, byval fname_len as uinteger ) as int32
 
-	dim as FILE ptr fp = 0
-	dim as zstring ptr openmask = 0
+	dim as FILE ptr fp = nullptr
+	dim as zstring ptr openmask = nullptr
 	dim as zstring * (STAGE) local_ = any
 	dim as zstring ptr fname = @local_
-	dim as any ptr heap_ = 0
+	dim as any ptr heap_ = nullptr
 
 	TKORT_IOLOCK()
 
 	if( fname_len >= STAGE ) then
 		heap_ = malloc( fname_len + 1 )
-		if( heap_ = 0 ) then
+		if( heap_ = nullptr ) then
 			TKORT_IOUNLOCK()
 			return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
 		end if
@@ -300,8 +300,8 @@ function tkort_DevFileOpen alias "fb_DevFileOpen" _
 		end select
 	end select
 
-	if( openmask = 0 ) then
-		if( heap_ <> 0 ) then free( heap_ )
+	if( openmask = nullptr ) then
+		if( heap_ <> nullptr ) then free( heap_ )
 		TKORT_IOUNLOCK()
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
@@ -311,7 +311,7 @@ function tkort_DevFileOpen alias "fb_DevFileOpen" _
 	select case h->mode
 	case FB_FILE_MODE_BINARY, FB_FILE_MODE_RANDOM
 		fp = fopen( fname, openmask )
-		if( fp = 0 ) then
+		if( fp = nullptr ) then
 			'' r+b failed, so the file is missing. In ANY or READWRITE the
 			'' open CREATES it -- which is why `OPEN "new" FOR BINARY AS #1`
 			'' works on a file that does not exist yet.
@@ -321,13 +321,13 @@ function tkort_DevFileOpen alias "fb_DevFileOpen" _
 				'' falls back to read-only and REWRITES access to match, so
 				'' that a later write reports the right error rather than
 				'' succeeding into nothing.
-				if( (fp = 0) andalso (h->access = FB_FILE_ACCESS_ANY) ) then
+				if( (fp = nullptr) andalso (h->access = FB_FILE_ACCESS_ANY) ) then
 					fp = fopen( fname, @"rb" )
-					if( fp <> 0 ) then h->access = FB_FILE_ACCESS_READ
+					if( fp <> nullptr ) then h->access = FB_FILE_ACCESS_READ
 				end if
 			end if
-			if( fp = 0 ) then
-				if( heap_ <> 0 ) then free( heap_ )
+			if( fp = nullptr ) then
+				if( heap_ <> nullptr ) then free( heap_ )
 				TKORT_IOUNLOCK()
 				return tkrt_ErrorSetNum( FB_RTERROR_FILENOTFOUND )
 			end if
@@ -337,8 +337,8 @@ function tkort_DevFileOpen alias "fb_DevFileOpen" _
 	case FB_FILE_MODE_INPUT
 		'' Twice: binary to measure, text to read. See the file header.
 		fp = fopen( fname, @"rb" )
-		if( fp = 0 ) then
-			if( heap_ <> 0 ) then free( heap_ )
+		if( fp = nullptr ) then
+			if( heap_ <> nullptr ) then free( heap_ )
 			TKORT_IOUNLOCK()
 			return tkrt_ErrorSetNum( FB_RTERROR_FILENOTFOUND )
 		end if
@@ -347,14 +347,14 @@ function tkort_DevFileOpen alias "fb_DevFileOpen" _
 		h->size = tkort_DevFileGetSize( fp, FB_FILE_MODE_INPUT, h->encod, 0 )
 		if( h->size = -1 ) then
 			fclose( fp )
-			if( heap_ <> 0 ) then free( heap_ )
+			if( heap_ <> nullptr ) then free( heap_ )
 			TKORT_IOUNLOCK()
 			return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 		end if
 
 		fp = freopen( fname, openmask, fp )
-		if( fp = 0 ) then
-			if( heap_ <> 0 ) then free( heap_ )
+		if( fp = nullptr ) then
+			if( heap_ <> nullptr ) then free( heap_ )
 			TKORT_IOUNLOCK()
 			return tkrt_ErrorSetNum( FB_RTERROR_FILENOTFOUND )
 		end if
@@ -364,8 +364,8 @@ function tkort_DevFileOpen alias "fb_DevFileOpen" _
 
 	case else
 		fp = fopen( fname, openmask )
-		if( fp = 0 ) then
-			if( heap_ <> 0 ) then free( heap_ )
+		if( fp = nullptr ) then
+			if( heap_ <> nullptr ) then free( heap_ )
 			TKORT_IOUNLOCK()
 			return tkrt_ErrorSetNum( FB_RTERROR_FILENOTFOUND )
 		end if
@@ -376,7 +376,7 @@ function tkort_DevFileOpen alias "fb_DevFileOpen" _
 		h->size = tkort_DevFileGetSize( fp, h->mode, h->encod, 1 )
 		if( h->size = -1 ) then
 			fclose( fp )
-			if( heap_ <> 0 ) then free( heap_ )
+			if( heap_ <> nullptr ) then free( heap_ )
 			TKORT_IOUNLOCK()
 			return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 		end if
@@ -389,7 +389,7 @@ function tkort_DevFileOpen alias "fb_DevFileOpen" _
 	'' the type is recorded so PRINT's column tracking knows the width matters.
 	if( hEqualsCON( fname ) <> 0 ) then h->type_ = FB_FILE_TYPE_CONSOLE
 
-	if( heap_ <> 0 ) then free( heap_ )
+	if( heap_ <> nullptr ) then free( heap_ )
 
 	TKORT_IOUNLOCK()
 
@@ -403,8 +403,8 @@ end function
 function tkort_DevFileClose alias "fb_DevFileClose" ( byval h as FB_FILE ptr ) as int32
 	TKORT_IOLOCK()
 	dim as FILE ptr fp = cast( FILE ptr, h->opaque )
-	if( fp <> 0 ) then fclose( fp )
-	h->opaque = 0
+	if( fp <> nullptr ) then fclose( fp )
+	h->opaque = nullptr
 	TKORT_IOUNLOCK()
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )
 end function
@@ -418,7 +418,7 @@ function tkort_DevFileEof alias "fb_DevFileEof" ( byval h as FB_FILE ptr ) as in
 	TKORT_IOLOCK()
 
 	dim as FILE ptr fp = cast( FILE ptr, h->opaque )
-	if( fp = 0 ) then
+	if( fp = nullptr ) then
 		TKORT_IOUNLOCK()
 		return FB_TRUE
 	end if
@@ -452,7 +452,7 @@ function tkort_DevFileSeek alias "fb_DevFileSeek" _
 
 	TKORT_IOLOCK()
 	dim as FILE ptr fp = cast( FILE ptr, h->opaque )
-	if( fp = 0 ) then
+	if( fp = nullptr ) then
 		TKORT_IOUNLOCK()
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
@@ -467,7 +467,7 @@ function tkort_DevFileTell alias "fb_DevFileTell" _
 
 	TKORT_IOLOCK()
 	dim as FILE ptr fp = cast( FILE ptr, h->opaque )
-	if( fp = 0 ) then
+	if( fp = nullptr ) then
 		TKORT_IOUNLOCK()
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
@@ -487,7 +487,7 @@ function tkort_DevFileLock alias "fb_DevFileLock" _
 
 	TKORT_IOLOCK()
 	dim as FILE ptr fp = cast( FILE ptr, h->opaque )
-	if( fp = 0 ) then
+	if( fp = nullptr ) then
 		TKORT_IOUNLOCK()
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
@@ -503,7 +503,7 @@ function tkort_DevFileUnlock alias "fb_DevFileUnlock" _
 
 	TKORT_IOLOCK()
 	dim as FILE ptr fp = cast( FILE ptr, h->opaque )
-	if( fp = 0 ) then
+	if( fp = nullptr ) then
 		TKORT_IOUNLOCK()
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
@@ -517,7 +517,7 @@ end function
 function tkort_DevFileFlush alias "fb_DevFileFlush" ( byval h as FB_FILE ptr ) as int32
 	TKORT_IOLOCK()
 	dim as FILE ptr fp = cast( FILE ptr, h->opaque )
-	if( fp = 0 ) then
+	if( fp = nullptr ) then
 		TKORT_IOUNLOCK()
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
@@ -569,7 +569,7 @@ end function
 '' SCREEN device's reader when input is redirected, and it arrives with the
 '' screen handle -- whose opaque is the output stream.
 private function hReadStream( byval h as FB_FILE ptr ) as FILE ptr
-	if( h = 0 ) then return stdin
+	if( h = nullptr ) then return stdin
 	dim as FILE ptr fp = cast( FILE ptr, h->opaque )
 	if( (fp = stdout) orelse (fp = stderr) ) then return stdin
 	return fp
@@ -582,7 +582,7 @@ function tkort_DevFileRead alias "fb_DevFileRead" _
 
 	dim as uinteger length_ = *pLength
 	dim as FILE ptr fp = hReadStream( h )
-	if( fp = 0 ) then
+	if( fp = nullptr ) then
 		TKORT_IOUNLOCK()
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
@@ -606,7 +606,7 @@ function tkort_DevFileWrite alias "fb_DevFileWrite" _
 
 	TKORT_IOLOCK()
 	dim as FILE ptr fp = cast( FILE ptr, h->opaque )
-	if( fp = 0 ) then
+	if( fp = nullptr ) then
 		TKORT_IOUNLOCK()
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
@@ -624,7 +624,7 @@ function tkort_DevFileReadWstr alias "fb_DevFileReadWstr" _
 	TKORT_IOLOCK()
 
 	dim as FILE ptr fp = hReadStream( h )
-	if( fp = 0 ) then
+	if( fp = nullptr ) then
 		TKORT_IOUNLOCK()
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
@@ -632,11 +632,11 @@ function tkort_DevFileReadWstr alias "fb_DevFileReadWstr" _
 	dim as uinteger want = *pchars
 	dim as zstring * (STAGE) local_ = any
 	dim as zstring ptr buf = @local_
-	dim as any ptr heap_ = 0
+	dim as any ptr heap_ = nullptr
 
 	if( want >= STAGE ) then
 		heap_ = malloc( want + 1 )
-		if( heap_ = 0 ) then
+		if( heap_ = nullptr ) then
 			TKORT_IOUNLOCK()
 			return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
 		end if
@@ -652,7 +652,7 @@ function tkort_DevFileReadWstr alias "fb_DevFileReadWstr" _
 	'' fb_DevFileReadEncodWstr instead.
 	tkrt_ConvFromA( dst, chars, buf )
 
-	if( heap_ <> 0 ) then free( heap_ )
+	if( heap_ <> nullptr ) then free( heap_ )
 
 	if( chars <> want ) then
 		memset( cast( uint8 ptr, dst ) + chars * sizeof( wstring ), 0, _
@@ -671,18 +671,18 @@ function tkort_DevFileWriteWstr alias "fb_DevFileWriteWstr" _
 	TKORT_IOLOCK()
 
 	dim as FILE ptr fp = cast( FILE ptr, h->opaque )
-	if( fp = 0 ) then
+	if( fp = nullptr ) then
 		TKORT_IOUNLOCK()
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
 
 	dim as zstring * (STAGE) local_ = any
 	dim as zstring ptr buf = @local_
-	dim as any ptr heap_ = 0
+	dim as any ptr heap_ = nullptr
 
 	if( chars >= STAGE ) then
 		heap_ = malloc( chars + 1 )
-		if( heap_ = 0 ) then
+		if( heap_ = nullptr ) then
 			TKORT_IOUNLOCK()
 			return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
 		end if
@@ -693,7 +693,7 @@ function tkort_DevFileWriteWstr alias "fb_DevFileWriteWstr" _
 
 	dim as int32 ok = iif( fwrite( buf, 1, chars, fp ) = chars, 1, 0 )
 
-	if( heap_ <> 0 ) then free( heap_ )
+	if( heap_ <> nullptr ) then free( heap_ )
 
 	TKORT_IOUNLOCK()
 	return tkrt_ErrorSetNum( iif( ok <> 0, FB_RTERROR_OK, FB_RTERROR_FILEIO ) )
@@ -741,13 +741,13 @@ function tkort_DevFileReadLineDumb alias "fb_DevFileReadLineDumb" _
 	while( found = 0 )
 		memset( @buffer, 0, buffer_len )
 
-		if( pfnReadString = 0 ) then
+		if( pfnReadString = nullptr ) then
 			got = fgets( @buffer, 512, fp )
 		else
 			got = pfnReadString( @buffer, 512, fp )
 		end if
 
-		if( got = 0 ) then
+		if( got = nullptr ) then
 			'' End of file is NOT an error here -- it is a distinct return
 			'' the caller has to see, because LINE INPUT must stop.
 			res = FB_RTERROR_ENDOFFILE
@@ -806,11 +806,11 @@ function tkort_DevFileReadLine alias "fb_DevFileReadLine" _
 
 	TKORT_IOLOCK()
 	dim as FILE ptr fp = hReadStream( h )
-	if( fp = 0 ) then
+	if( fp = nullptr ) then
 		TKORT_IOUNLOCK()
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
-	dim as int32 res = tkort_DevFileReadLineDumb( fp, dst, 0 )
+	dim as int32 res = tkort_DevFileReadLineDumb( fp, dst, nullptr )
 	TKORT_IOUNLOCK()
 	return res
 end function
@@ -825,16 +825,16 @@ function tkort_DevFileReadLineWstr alias "fb_DevFileReadLineWstr" _
 	TKORT_IOLOCK()
 
 	dim as FILE ptr fp = hReadStream( h )
-	if( fp = 0 ) then
+	if( fp = nullptr ) then
 		TKORT_IOUNLOCK()
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
 
-	temp.data = 0
+	temp.data = nullptr
 	temp.len = 0
 	temp.size = 0
 
-	dim as int32 res = tkort_DevFileReadLineDumb( fp, @temp, 0 )
+	dim as int32 res = tkort_DevFileReadLineDumb( fp, @temp, nullptr )
 
 	if( (res = FB_RTERROR_OK) orelse (res = FB_RTERROR_ENDOFFILE) ) then
 		tkrt_WstrAssignFromA( dst, dst_chars, @temp, -1 )

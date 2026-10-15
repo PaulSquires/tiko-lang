@@ -173,7 +173,7 @@ sub tkort_hRestoreConsoleWindow alias "fb_hRestoreConsoleWindow" ( )
 		'' EVERY PAGE, not just the active one -- each is its own screen buffer
 		'' with its own window position.
 		for i as integer = 0 to FB_CONSOLE_MAXPAGES_ - 1
-			if( TKORT_CON_PAGE_( i ) <> 0 ) then
+			if( TKORT_CON_PAGE_( i ) <> nullptr ) then
 				w_SetConsoleWindowInfo( TKORT_CON_PAGE_( i ), -1, @tkort_srRealConsoleWindow )
 			end if
 		next
@@ -194,12 +194,12 @@ sub tkort_hConvertToConsole alias "fb_hConvertToConsole" _
 
 	if( TKORT_CON_WINDOW_EMPTY() ) then exit sub
 
-	tkort_hConsoleGetWindow( @win_left, @win_top, 0, 0 )
+	tkort_hConsoleGetWindow( @win_left, @win_top, nullptr, nullptr )
 
-	if( left_ <> 0 )   then *left_   += win_left - 1
-	if( top_ <> 0 )    then *top_    += win_top - 1
-	if( right_ <> 0 )  then *right_  += win_left - 1
-	if( bottom_ <> 0 ) then *bottom_ += win_top - 1
+	if( left_ <> nullptr )   then *left_   += win_left - 1
+	if( top_ <> nullptr )    then *top_    += win_top - 1
+	if( right_ <> nullptr )  then *right_  += win_left - 1
+	if( bottom_ <> nullptr ) then *bottom_ += win_top - 1
 
 end sub
 
@@ -214,12 +214,12 @@ sub tkort_hConvertFromConsole alias "fb_hConvertFromConsole" _
 
 	if( TKORT_CON_WINDOW_EMPTY() ) then exit sub
 
-	tkort_hConsoleGetWindow( @win_left, @win_top, 0, 0 )
+	tkort_hConsoleGetWindow( @win_left, @win_top, nullptr, nullptr )
 
-	if( left_ <> 0 )   then *left_   -= win_left - 1
-	if( top_ <> 0 )    then *top_    -= win_top - 1
-	if( right_ <> 0 )  then *right_  -= win_left - 1
-	if( bottom_ <> 0 ) then *bottom_ -= win_top - 1
+	if( left_ <> nullptr )   then *left_   -= win_left - 1
+	if( top_ <> nullptr )    then *top_    -= win_top - 1
+	if( right_ <> nullptr )  then *right_  -= win_left - 1
+	if( bottom_ <> nullptr ) then *bottom_ -= win_top - 1
 
 end sub
 
@@ -255,8 +255,8 @@ sub tkort_ConsoleGetMaxWindowSize alias "fb_ConsoleGetMaxWindowSize" _
 	dim as int16 maxX = cast( int16, packed and &hFFFF )
 	dim as int16 maxY = cast( int16, (packed shr 16) and &hFFFF )
 
-	if( cols <> 0 ) then *cols = iif( maxX = 0, FB_SCRN_DEFAULT_WIDTH_, maxX )
-	if( rows <> 0 ) then *rows = iif( maxY = 0, FB_SCRN_DEFAULT_HEIGHT_, maxY )
+	if( cols <> nullptr ) then *cols = iif( maxX = 0, FB_SCRN_DEFAULT_WIDTH_, maxX )
+	if( rows <> nullptr ) then *rows = iif( maxY = 0, FB_SCRN_DEFAULT_HEIGHT_, maxY )
 
 end sub
 
@@ -269,16 +269,16 @@ sub tkort_hConsoleGetWindow alias "fb_hConsoleGetWindow" _
 	tkort_InitConsoleWindow( )
 
 	if( TKORT_CON_WINDOW_EMPTY() ) then
-		if( left_ <> 0 ) then *left_ = 0
-		if( top_ <> 0 )  then *top_ = 0
-		if( cols <> 0 )  then *cols = 0
-		if( rows <> 0 )  then *rows = 0
+		if( left_ <> nullptr ) then *left_ = 0
+		if( top_ <> nullptr )  then *top_ = 0
+		if( cols <> nullptr )  then *cols = 0
+		if( rows <> nullptr )  then *rows = 0
 	else
-		if( left_ <> 0 ) then *left_ = TKORT_CON_WINDOW_LEFT()
-		if( top_ <> 0 )  then *top_ = TKORT_CON_WINDOW_TOP()
+		if( left_ <> nullptr ) then *left_ = TKORT_CON_WINDOW_LEFT()
+		if( top_ <> nullptr )  then *top_ = TKORT_CON_WINDOW_TOP()
 		'' INCLUSIVE BOUNDS, so the count is right minus left PLUS ONE.
-		if( cols <> 0 )  then *cols = TKORT_CON_WINDOW_RIGHT() - TKORT_CON_WINDOW_LEFT() + 1
-		if( rows <> 0 )  then *rows = TKORT_CON_WINDOW_BOTTOM() - TKORT_CON_WINDOW_TOP() + 1
+		if( cols <> nullptr )  then *cols = TKORT_CON_WINDOW_RIGHT() - TKORT_CON_WINDOW_LEFT() + 1
+		if( rows <> nullptr )  then *rows = TKORT_CON_WINDOW_BOTTOM() - TKORT_CON_WINDOW_TOP() + 1
 	end if
 
 end sub

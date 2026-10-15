@@ -48,7 +48,7 @@ end extern
 
 private function hCtx( ) as FB_ERRORCTX ptr
 	return cptr( FB_ERRORCTX ptr, _
-		fb_TlsGetCtx( FB_TLSKEY_ERROR, sizeof( FB_ERRORCTX ), 0 ) )
+		fb_TlsGetCtx( FB_TLSKEY_ERROR, sizeof( FB_ERRORCTX ), nullptr ) )
 end function
 
 '' Indexed by FB_RTERROR. NOTE fbc's trailing comments here are misaligned --
@@ -111,9 +111,9 @@ private sub hDie( byval err_num as int32, byval line_num as int32, _
 		                       @" at line %d", line_num )
 	end if
 
-	if( mod_name <> 0 ) then
+	if( mod_name <> nullptr ) then
 		if( line_num > 0 ) then prep = @"of" else prep = @"in"
-		if( fun_name <> 0 ) then
+		if( fun_name <> nullptr ) then
 			pos_ += tkrt_snprintf( em + pos_, FB_ERRMSG_SIZE - pos_, _
 			                       @" %s %s::%s()", prep, mod_name, fun_name )
 		else
@@ -122,7 +122,7 @@ private sub hDie( byval err_num as int32, byval line_num as int32, _
 		end if
 	end if
 
-	if( msg <> 0 ) then
+	if( msg <> nullptr ) then
 		pos_ += tkrt_snprintf( em + pos_, FB_ERRMSG_SIZE - pos_, @", %s", msg )
 	end if
 
@@ -149,13 +149,13 @@ function tkort_ErrorThrowMsg alias "fb_ErrorThrowMsg" _
 
 	dim as FB_ERRORCTX ptr ctx = hCtx( )
 
-	if( ctx->handler <> 0 ) then
+	if( ctx->handler <> nullptr ) then
 		ctx->err_num = err_num
 		ctx->line_num = line_num
 		'' The module name is kept only when one is GIVEN: a NULL leaves the
 		'' previous name in place rather than clearing it, so a throw from a
 		'' module without a name still reports the last one known.
-		if( mod_name <> 0 ) then ctx->mod_name = mod_name
+		if( mod_name <> nullptr ) then ctx->mod_name = mod_name
 		ctx->res_lbl = res_label
 		ctx->resnxt_lbl = resnext_label
 
@@ -178,15 +178,15 @@ function tkort_ErrorThrowMsg alias "fb_ErrorThrowMsg" _
 
 	'' No handler: die. The module name falls back to the context's.
 	dim as zstring ptr mn = mod_name
-	if( mn = 0 ) then mn = ctx->mod_name
+	if( mn = nullptr ) then mn = ctx->mod_name
 	hDie( err_num, line_num, mn, ctx->fun_name, msg )
-	return 0
+	return nullptr
 end function
 
 function tkort_ErrorThrowEx alias "fb_ErrorThrowEx" _
 	( byval err_num as int32, byval line_num as int32, byval mod_name as zstring ptr, _
 	  byval res_label as any ptr, byval resnext_label as any ptr ) as FB_ERRHANDLER
-	return tkort_ErrorThrowMsg( err_num, line_num, mod_name, 0, res_label, resnext_label )
+	return tkort_ErrorThrowMsg( err_num, line_num, mod_name, nullptr, res_label, resnext_label )
 end function
 
 '' Rethrows whatever error number is already in the context -- ERROR with no
@@ -202,22 +202,22 @@ end function
 function tkort_ErrorResume alias "fb_ErrorResume" ( ) as any ptr
 	dim as FB_ERRORCTX ptr ctx = hCtx( )
 	dim as any ptr label_ = ctx->res_lbl
-	if( label_ = 0 ) then
-		hDie( FB_RTERROR_ILLEGALRESUME, -1, ctx->mod_name, ctx->fun_name, 0 )
+	if( label_ = nullptr ) then
+		hDie( FB_RTERROR_ILLEGALRESUME, -1, ctx->mod_name, ctx->fun_name, nullptr )
 	end if
-	ctx->res_lbl = 0
-	ctx->resnxt_lbl = 0
+	ctx->res_lbl = nullptr
+	ctx->resnxt_lbl = nullptr
 	return label_
 end function
 
 function tkort_ErrorResumeNext alias "fb_ErrorResumeNext" ( ) as any ptr
 	dim as FB_ERRORCTX ptr ctx = hCtx( )
 	dim as any ptr label_ = ctx->resnxt_lbl
-	if( label_ = 0 ) then
-		hDie( FB_RTERROR_ILLEGALRESUME, -1, ctx->mod_name, ctx->fun_name, 0 )
+	if( label_ = nullptr ) then
+		hDie( FB_RTERROR_ILLEGALRESUME, -1, ctx->mod_name, ctx->fun_name, nullptr )
 	end if
-	ctx->res_lbl = 0
-	ctx->resnxt_lbl = 0
+	ctx->res_lbl = nullptr
+	ctx->resnxt_lbl = nullptr
 	return label_
 end function
 
@@ -276,7 +276,7 @@ function tkort_ErrorSetHandler alias "fb_ErrorSetHandler" _
 	'' 'ON ERROR GOTO 0' clears the handler and emits no setjmp, so the buffer
 	'' the last ON ERROR armed must stop being a jump target with it -- its
 	'' frame may be long gone.
-	if( newhandler = 0 ) then fb_ErrorJmpDisarm( )
+	if( newhandler = nullptr ) then fb_ErrorJmpDisarm( )
 	return oldhandler
 end function
 

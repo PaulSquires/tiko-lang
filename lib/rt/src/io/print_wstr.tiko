@@ -56,7 +56,7 @@ end sub
 
 sub tkort_PrintWstrEx alias "fb_PrintWstrEx" _
 	( byval h as FB_FILE ptr, byval s as wstring ptr, byval mask as int32 )
-	if( s = 0 ) then
+	if( s = nullptr ) then
 		tkort_PrintVoidWstrEx( h, mask )
 	else
 		hPrintWstrEx( h, s, FB_WSTR_LEN( s ), mask )
@@ -98,7 +98,7 @@ sub tkort_PrintPadWstrEx alias "fb_PrintPadWstrEx" _
 	tkrt_DevScrnInitWriteWstr( )
 
 	dim as FB_FILE ptr t = tkort_HandleDeref( h )
-	if( t = 0 ) then exit sub
+	if( t = nullptr ) then exit sub
 
 	dim as int32 old_x = cast( int32, t->line_length ) + 1
 	dim as int32 new_x = old_x + FB_TAB_WIDTH - 1

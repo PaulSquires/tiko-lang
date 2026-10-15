@@ -93,7 +93,7 @@ private function hChr( byval s as uint8 ptr, byval c as uint8 ) as uint8 ptr
 	dim as integer i = 0
 	do
 		if( s[i] = c ) then return s + i
-		if( s[i] = 0 ) then return 0
+		if( s[i] = 0 ) then return nullptr
 		i += 1
 	loop
 end function
@@ -104,15 +104,15 @@ function tkort_DevLptParseProtocol alias "fb_DevLptParseProtocol" _
 	( byval lpt_proto_out as DEV_LPT_PROTOCOL ptr ptr, byval proto_raw as zstring ptr, _
 	  byval proto_raw_len as uinteger, byval subst_prn as int32 ) as int32
 
-	if( proto_raw = 0 ) then return 0
-	if( lpt_proto_out = 0 ) then return 0
+	if( proto_raw = nullptr ) then return 0
+	if( lpt_proto_out = nullptr ) then return 0
 
 	'' + 2, not + 1: one for this string's terminator and one to spare, because
 	'' "PRN:" may be rewritten to the one-byte-longer "LPT1:".
 	*lpt_proto_out = cast( DEV_LPT_PROTOCOL ptr, _
 	                       calloc( sizeof( DEV_LPT_PROTOCOL ) + proto_raw_len + 2, 1 ) )
 	dim as DEV_LPT_PROTOCOL ptr lpt_proto = *lpt_proto_out
-	if( lpt_proto = 0 ) then return 0
+	if( lpt_proto = nullptr ) then return 0
 
 	dim as uint8 ptr raw_ = TKORT_LPT_RAW( lpt_proto )
 	strncpy( cast( zstring ptr, raw_ ), proto_raw, proto_raw_len )
@@ -141,7 +141,7 @@ function tkort_DevLptParseProtocol alias "fb_DevLptParseProtocol" _
 	if( hEqualsCIN( p, @"LPT", 3 ) = 0 ) then return 0
 
 	dim as uint8 ptr pc = hChr( p, 58 )                 '' ':'
-	if( pc = 0 ) then return 0
+	if( pc = nullptr ) then return 0
 
 	lpt_proto->proto = cast( zstring ptr, p )
 	p = pc + 1
@@ -167,9 +167,9 @@ function tkort_DevLptParseProtocol alias "fb_DevLptParseProtocol" _
 
 			'' AN '=' BEYOND THE NEXT ',' BELONGS TO A LATER FIELD, so this one
 			'' has no value and is the name.
-			if( (pc <> 0) andalso (pe > pc) ) then pe = 0
+			if( (pc <> nullptr) andalso (pe > pc) ) then pe = nullptr
 
-			if( pe = 0 ) then
+			if( pe = nullptr ) then
 				lpt_proto->name_ = cast( zstring ptr, p )
 			else
 				'' Spaces before '=' become NULs, backwards.
@@ -196,14 +196,14 @@ function tkort_DevLptParseProtocol alias "fb_DevLptParseProtocol" _
 			end if
 
 			'' Spaces before the ',' -- or before the end -- become NULs.
-			pt = iif( pc <> 0, pc, ptail )
+			pt = iif( pc <> nullptr, pc, ptail )
 			pt -= 1
 			while( TKORT_ISSPACE( *pt ) )
 				*pt = 0
 				pt -= 1
 			wend
 
-			if( pc <> 0 ) then
+			if( pc <> nullptr ) then
 				p = pc + 1
 				*pc = 0
 			else
@@ -229,7 +229,7 @@ function tkort_DevLptTestProtocol alias "fb_DevLptTestProtocol" _
 	dim as int32 ret = tkort_DevLptParseProtocol( @lpt_proto, filename, filename_len, 0 )
 	'' FREED EVEN WHEN THE PARSE FAILED -- the allocation happens before any of
 	'' the failure returns, so a rejected string still has a block to release.
-	if( lpt_proto <> 0 ) then free( lpt_proto )
+	if( lpt_proto <> nullptr ) then free( lpt_proto )
 	return ret
 end function
 

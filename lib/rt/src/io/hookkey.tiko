@@ -76,7 +76,7 @@ function tkort_Inkey alias "fb_Inkey" ( ) as FBSTRING ptr
 	IOLOCK()
 	dim as FBSTRING ptr res = any
 	dim as FB_INKEYPROC p = TKORT_HOOK_INKEYPROC()
-	if( p <> 0 ) then
+	if( p <> nullptr ) then
 		res = p( )
 	else
 		res = tkrt_ConsoleInkey( )
@@ -90,7 +90,7 @@ function tkort_Getkey alias "fb_Getkey" ( ) as int32
 	dim as FB_GETKEYPROC getkeyproc = any
 	IOLOCK()
 	getkeyproc = TKORT_HOOK_GETKEYPROC()
-	if( getkeyproc = 0 ) then getkeyproc = @tkrt_ConsoleGetkey
+	if( getkeyproc = nullptr ) then getkeyproc = @tkrt_ConsoleGetkey
 	IOUNLOCK()
 	return getkeyproc( )
 end function
@@ -99,7 +99,7 @@ function tkort_KeyHit alias "fb_KeyHit" ( ) as int32
 	IOLOCK()
 	dim as int32 res = any
 	dim as FB_KEYHITPROC p = TKORT_HOOK_KEYHITPROC()
-	if( p <> 0 ) then
+	if( p <> nullptr ) then
 		res = p( )
 	else
 		res = tkrt_ConsoleKeyHit( )
@@ -114,7 +114,7 @@ function tkort_In alias "fb_In" ( byval port as uint16 ) as int32
 	dim as int32 res = -1
 	IOLOCK()
 	dim as FB_INPROC p = TKORT_HOOK_INPROC()
-	if( p <> 0 ) then res = p( port )
+	if( p <> nullptr ) then res = p( port )
 	if( res < 0 ) then res = tkrt_hIn( port )
 	IOUNLOCK()
 	return res
@@ -125,7 +125,7 @@ function tkort_Out alias "fb_Out" _
 	dim as int32 res = -1
 	IOLOCK()
 	dim as FB_OUTPROC p = TKORT_HOOK_OUTPROC()
-	if( p <> 0 ) then res = p( port, value )
+	if( p <> nullptr ) then res = p( port, value )
 	if( res < 0 ) then res = tkrt_hOut( port, value )
 	IOUNLOCK()
 	return res

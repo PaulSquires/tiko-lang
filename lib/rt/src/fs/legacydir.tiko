@@ -312,7 +312,7 @@ private function hMatchSpec( byval namez as zstring ptr ) as int32
 
 	dim as FB_DIRCTX_ ptr ctx = TKORT_TLSGET_DIR( )
 	dim as uint8 ptr name_ = cptr( uint8 ptr, namez )
-	dim as uint8 ptr any_ = 0
+	dim as uint8 ptr any_ = nullptr
 	dim as uint8 ptr spec = cptr( uint8 ptr, @ctx->filespec )
 
 	while( (spec[0] <> 0) orelse (name_[0] <> 0) )
@@ -333,7 +333,7 @@ private function hMatchSpec( byval namez as zstring ptr ) as int32
 			if( spec[0] <> name_[0] ) then
 				'' BACKTRACK TO THE LAST '*' if there was one and there is
 				'' still input; otherwise the match has failed.
-				if( (any_ <> 0) andalso (name_[0] <> 0) ) then
+				if( (any_ <> nullptr) andalso (name_[0] <> 0) ) then
 					spec = any_
 				else
 					return 0
@@ -355,13 +355,13 @@ end function
 private function hFindNext( byval attrib as int32 ptr ) as zstring ptr
 
 	dim as FB_DIRCTX_ ptr ctx = TKORT_TLSGET_DIR( )
-	dim as zstring ptr name_ = 0
+	dim as zstring ptr name_ = nullptr
 
 	#ifdef __FB_WIN32__
 		do
 			if( crt_findnext( ctx->handle, @ctx->d_attrib ) <> 0 ) then
 				hCloseDir( )
-				return 0
+				return nullptr
 			end if
 			name_ = @ctx->d_name
 		loop while( (ctx->d_attrib and (not ctx->attrib)) <> 0 )
@@ -376,9 +376,9 @@ private function hFindNext( byval attrib as int32 ptr ) as zstring ptr
 
 		do
 			dim as any ptr entry = u_readdir( ctx->dir_ )
-			if( entry = 0 ) then
+			if( entry = nullptr ) then
 				hCloseDir( )
-				return 0
+				return nullptr
 			end if
 			name_ = cptr( zstring ptr, cptr( uint8 ptr, entry ) + DIRENT_NAME_ )
 
@@ -415,11 +415,11 @@ function tkort_Dir alias "fb_Dir" _
 	dim as FBSTRING ptr res = any
 	dim as integer l = any
 	dim as int32 tmp_attrib = any
-	dim as zstring ptr name_ = 0
+	dim as zstring ptr name_ = nullptr
 
 	'' out_attrib IS OPTIONAL and is redirected at a local rather than tested
 	'' at every write -- so everything below can assume it.
-	if( out_attrib = 0 ) then out_attrib = @tmp_attrib
+	if( out_attrib = nullptr ) then out_attrib = @tmp_attrib
 
 	l = FB_STRSIZE( filespec )
 
@@ -452,16 +452,16 @@ function tkort_Dir alias "fb_Dir" _
 					*out_attrib = ctx->d_attrib and (not &hFFFFFF00)
 				end if
 
-				if( name_ <> 0 ) then ctx->in_use = 1
+				if( name_ <> nullptr ) then ctx->in_use = 1
 			end if
 		#else
 			'' TWO ENTIRELY DIFFERENT PATHS, chosen by whether the spec has a
 			'' wildcard in it: opendir for a pattern, a single stat for a name.
-			if( (strchr( filespec->data, 42 ) <> 0) orelse _
-			    (strchr( filespec->data, 63 ) <> 0) ) then
+			if( (strchr( filespec->data, 42 ) <> nullptr) orelse _
+			    (strchr( filespec->data, 63 ) <> nullptr) ) then
 
 				dim as zstring ptr p = strrchr( filespec->data, 47 )     '' '/'
-				if( p <> 0 ) then
+				if( p <> nullptr ) then
 					strncpy( @ctx->filespec, p + 1, TKORT_DIR_MAX_PATH )
 					ctx->filespec[TKORT_DIR_MAX_PATH - 1] = 0
 					l = cast( integer, p - filespec->data ) + 1
@@ -489,9 +489,9 @@ function tkort_Dir alias "fb_Dir" _
 				ctx->attrib = attrib
 
 				ctx->dir_ = u_opendir( @ctx->dirname )
-				if( ctx->dir_ <> 0 ) then
+				if( ctx->dir_ <> nullptr ) then
 					name_ = hFindNext( out_attrib )
-					if( name_ <> 0 ) then ctx->in_use = 1
+					if( name_ <> nullptr ) then ctx->in_use = 1
 				end if
 			else
 				'' NO WILDCARD: one stat, no scan opened, and in_use stays
@@ -502,7 +502,7 @@ function tkort_Dir alias "fb_Dir" _
 					tmp_attrib = hGetAttrib( filespec->data, @info )
 					if( (tmp_attrib and (not attrib)) = 0 ) then
 						name_ = strrchr( filespec->data, 47 )
-						if( name_ = 0 ) then
+						if( name_ = nullptr ) then
 							name_ = filespec->data
 						else
 							name_ += 1
@@ -519,10 +519,10 @@ function tkort_Dir alias "fb_Dir" _
 
 	STRLOCK()
 
-	if( name_ <> 0 ) then
+	if( name_ <> nullptr ) then
 		l = strlen( name_ )
-		res = tkrt_hStrAllocTemp_NoLock( 0, l )
-		if( res <> 0 ) then
+		res = tkrt_hStrAllocTemp_NoLock( nullptr, l )
+		if( res <> nullptr ) then
 			tkrt_hStrCopy( res->data, name_, l )
 		else
 			'' AN ALLOCATION FAILURE IS THE NULL DESCRIPTOR, not NULL -- every

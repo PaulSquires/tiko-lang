@@ -30,8 +30,8 @@ private function hRadix _
 
 	if( digits <= 0 ) then digits = hs_hDigits( num, shift )
 
-	dim as FBSTRING ptr s = tkrt_AllocTemp( 0, digits )
-	if( s = 0 ) then return TKORT_NULLSTR()
+	dim as FBSTRING ptr s = tkrt_AllocTemp( nullptr, digits )
+	if( s = nullptr ) then return TKORT_NULLSTR()
 
 	hs_hFill( cptr( uint8 ptr, s->data ), num, digits, shift, mask, ishex )
 

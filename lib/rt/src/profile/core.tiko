@@ -55,7 +55,7 @@ private sub tkort_hStampLaunchTime( byval prof as FB_PROFILER_GLOBAL ptr )
 
 	time_( @rawtime )
 	ptm = localtime( @rawtime )
-	if( ptm = 0 ) then exit sub
+	if( ptm = nullptr ) then exit sub
 
 	tkrt_snprintf( @prof->launch_time, 32, @"%02d-%02d-%04d, %02d:%02d:%02d", _
 		cast( int32, (1 + ptm->tm_mon) mod 100 ), _
@@ -69,7 +69,7 @@ end sub
 
 '' The one global. NOT in __fb_ctx: the profiler is optional and its context is
 '' created on first use, so it is a file-scope pointer exactly as in fbc.
-dim shared as FB_PROFILER_GLOBAL ptr fb_profiler = 0
+dim shared as FB_PROFILER_GLOBAL ptr fb_profiler = nullptr
 
 '' NON-FBCALL: every one of these is declared plain in fb_profile.h -- the
 '' non-fb_ names have no FBCALL marker either, and win32 must not decorate them.
@@ -115,11 +115,11 @@ function tkort_STRING_TABLE_alloc alias "STRING_TABLE_alloc" _
 	'' Rounded up to a multiple of 4 -- see the header.
 	entsize = sizeof( STRING_INFO ) + ((length_ + 3) and (not 3))
 
-	if( entsize > STRING_INFO_TB_SIZE ) then return 0
+	if( entsize > STRING_INFO_TB_SIZE ) then return nullptr
 
 	if( entsize > (STRING_INFO_TB_SIZE - strings->tb->bytes_used) ) then
 		tb = calloc( 1, sizeof( STRING_INFO_TB_ ) )
-		if( tb = 0 ) then return 0
+		if( tb = nullptr ) then return nullptr
 		tb->bytes_used = 0
 		'' Blocks are numbered from the head DOWN, and the newest block is
 		'' pushed on the front -- so ids increase as the chain is walked
@@ -137,12 +137,12 @@ end function
 
 sub tkort_STRING_TABLE_constructor alias "STRING_TABLE_constructor" ( byval strings as STRING_TABLE ptr )
 	dim as STRING_INFO_TB_ ptr tb = any
-	if( strings = 0 ) then exit sub
+	if( strings = nullptr ) then exit sub
 	tb = calloc( 1, sizeof( STRING_INFO_TB_ ) )
-	if( tb <> 0 ) then
+	if( tb <> nullptr ) then
 		tb->bytes_used = 0
 		tb->string_tb_id = 1
-		tb->nxt = 0
+		tb->nxt = nullptr
 	end if
 	'' Assigned even when the allocation failed, so the field is NULL rather
 	'' than uninitialised -- every caller tests it.
@@ -151,9 +151,9 @@ end sub
 
 sub tkort_STRING_TABLE_destructor alias "STRING_TABLE_destructor" ( byval strings as STRING_TABLE ptr )
 	dim as STRING_INFO_TB_ ptr tb = any, tb_next = any
-	if( strings = 0 ) then exit sub
+	if( strings = nullptr ) then exit sub
 	tb = strings->tb
-	while( tb <> 0 )
+	while( tb <> nullptr )
 		tb_next = tb->nxt
 		free( tb )
 		tb = tb_next
@@ -170,7 +170,7 @@ function tkort_STRING_TABLE_add alias "STRING_TABLE_add" _
 	dim as int32 nbytes = cast( int32, strlen( src ) ) + 1
 
 	info = tkort_STRING_TABLE_alloc( strings, nbytes )
-	if( info <> 0 ) then
+	if( info <> nullptr ) then
 		info->strbytes = nbytes
 		info->hashkey = hashkey
 		'' info + 1 IS the string -- see the header.
@@ -186,9 +186,9 @@ function tkort_STRING_TABLE_max_len alias "STRING_TABLE_max_len" _
 	dim as STRING_INFO ptr info = any
 	dim as int32 max_len = 0 : dim as integer index_ = any
 
-	if( strings = 0 ) then return 0
+	if( strings = nullptr ) then return 0
 	tb = strings->tb
-	while( tb <> 0 )
+	while( tb <> nullptr )
 		index_ = 0
 		while( index_ < tb->bytes_used )
 			info = cptr( STRING_INFO ptr, @tb->data(index_) )
@@ -213,9 +213,9 @@ function tkort_STRING_HASH_TB_find alias "STRING_HASH_TB_find" _
 	dim as STRING_INFO ptr info = any
 	dim as int32 hash_index = cast( int32, hashkey mod STRING_HASH_TB_SIZE )
 
-	while( tb <> 0 )
+	while( tb <> nullptr )
 		info = tb->items(hash_index)
-		if( info <> 0 ) then
+		if( info <> nullptr ) then
 			if( (info->hashkey = hashkey) andalso _
 			    (strcmp( cptr( zstring ptr, info + 1 ), src ) = 0) ) then
 				return info
@@ -228,7 +228,7 @@ function tkort_STRING_HASH_TB_find alias "STRING_HASH_TB_find" _
 		end if
 		tb = tb->nxt
 	wend
-	return 0
+	return nullptr
 end function
 
 function tkort_STRING_HASH_TABLE_find alias "STRING_HASH_TABLE_find" _
@@ -239,25 +239,25 @@ end function
 
 sub tkort_STRING_HASH_TABLE_constructor alias "STRING_HASH_TABLE_constructor" _
 	( byval hash_ as STRING_HASH_TABLE_ ptr, byval strings as STRING_TABLE ptr )
-	if( hash_ = 0 ) then exit sub
+	if( hash_ = nullptr ) then exit sub
 	'' The first block is allocated LAZILY, on the first add.
-	hash_->tb = 0
+	hash_->tb = nullptr
 	hash_->strings = strings
 end sub
 
 sub tkort_STRING_HASH_TABLE_destructor alias "STRING_HASH_TABLE_destructor" _
 	( byval hash_ as STRING_HASH_TABLE_ ptr )
 	dim as STRING_HASH_TB_ ptr tb = any, tb_next = any
-	if( hash_ = 0 ) then exit sub
+	if( hash_ = nullptr ) then exit sub
 	tb = hash_->tb
-	while( tb <> 0 )
+	while( tb <> nullptr )
 		tb_next = tb->nxt
 		free( tb )
 		tb = tb_next
 	wend
 	'' Cleared, unlike STRING_TABLE_destructor which leaves its head dangling
 	'' -- the two are not symmetric and the difference is fbc's.
-	hash_->tb = 0
+	hash_->tb = nullptr
 end sub
 
 '' Find-or-insert. The string is copied into the arena on insert, so the
@@ -270,14 +270,14 @@ function tkort_STRING_HASH_TABLE_add alias "STRING_HASH_TABLE_add" _
 	dim as STRING_INFO ptr info = any
 	dim as int32 hash_index = cast( int32, hashkey mod STRING_HASH_TB_SIZE )
 
-	if( tb = 0 ) then
+	if( tb = nullptr ) then
 		tb = calloc( 1, sizeof( STRING_HASH_TB_ ) )
 		hash_->tb = tb
 	end if
 
-	while( tb <> 0 )
+	while( tb <> nullptr )
 		info = tb->items(hash_index)
-		if( info <> 0 ) then
+		if( info <> nullptr ) then
 			if( (info->hashkey = hashkey) andalso _
 			    (strcmp( cptr( zstring ptr, info + 1 ), src ) = 0) ) then
 				return info
@@ -287,12 +287,12 @@ function tkort_STRING_HASH_TABLE_add alias "STRING_HASH_TABLE_add" _
 			tb->items(hash_index) = info
 			return info
 		end if
-		if( tb->nxt = 0 ) then
+		if( tb->nxt = nullptr ) then
 			tb->nxt = calloc( 1, sizeof( STRING_HASH_TB_ ) )
 		end if
 		tb = tb->nxt
 	wend
-	return 0
+	return nullptr
 end function
 
 '' Insert an EXISTING entry into a second table without copying it. That is how
@@ -304,14 +304,14 @@ function tkort_STRING_HASH_TABLE_add_info alias "STRING_HASH_TABLE_add_info" _
 	dim as STRING_INFO ptr info = any
 	dim as int32 hash_index = cast( int32, new_info->hashkey mod STRING_HASH_TB_SIZE )
 
-	if( tb = 0 ) then
+	if( tb = nullptr ) then
 		tb = calloc( 1, sizeof( STRING_HASH_TB_ ) )
 		hash_->tb = tb
 	end if
 
-	while( tb <> 0 )
+	while( tb <> nullptr )
 		info = tb->items(hash_index)
-		if( info <> 0 ) then
+		if( info <> nullptr ) then
 			'' Compared by POINTER, not by content: both tables point into
 			'' the same arena, so identity is the right test and a strcmp
 			'' would be slower and no more correct.
@@ -320,33 +320,33 @@ function tkort_STRING_HASH_TABLE_add_info alias "STRING_HASH_TABLE_add_info" _
 			tb->items(hash_index) = new_info
 			return new_info
 		end if
-		if( tb->nxt = 0 ) then
+		if( tb->nxt = nullptr ) then
 			tb->nxt = calloc( 1, sizeof( STRING_HASH_TB_ ) )
 		end if
 		tb = tb->nxt
 	wend
-	return 0
+	return nullptr
 end function
 
 sub tkort_STRING_HASH_constructor alias "STRING_HASH_constructor" _
 	( byval hash_ as STRING_HASH_ ptr, byval strings_hash as STRING_HASH_TABLE_ ptr )
-	if( hash_ = 0 ) then exit sub
+	if( hash_ = nullptr ) then exit sub
 	'' The inner table borrows the OUTER one's arena, not its own.
 	tkort_STRING_HASH_TABLE_constructor( @hash_->hash_, strings_hash->strings )
 	hash_->strings_hash = strings_hash
 end sub
 
 sub tkort_STRING_HASH_destructor alias "STRING_HASH_destructor" ( byval hash_ as STRING_HASH_ ptr )
-	if( hash_ = 0 ) then exit sub
+	if( hash_ = nullptr ) then exit sub
 	tkort_STRING_HASH_TABLE_destructor( @hash_->hash_ )
-	hash_->strings_hash = 0
+	hash_->strings_hash = nullptr
 end sub
 
 '' Adds to the SHARED table first, then records the same entry locally.
 sub tkort_STRING_HASH_add alias "STRING_HASH_add" _
 	( byval hash_ as STRING_HASH_ ptr, byval src as zstring ptr, byval hashkey as uint32 )
 	dim as STRING_INFO ptr info = tkort_STRING_HASH_TABLE_add( hash_->strings_hash, src, hashkey )
-	if( info <> 0 ) then tkort_STRING_HASH_TABLE_add_info( @hash_->hash_, info )
+	if( info <> nullptr ) then tkort_STRING_HASH_TABLE_add_info( @hash_->hash_, info )
 end sub
 
 function tkort_STRING_HASH_find alias "STRING_HASH_find" _
@@ -374,7 +374,7 @@ extern "c"   '' NON-FBCALL: the metrics helpers, declared plain.
 '' fb_hPROFILER_METRICS_Strings only ever raises it.
 sub tkort_METRICS_Clear alias "fb_hPROFILER_METRICS_Clear" _
 	( byval metrics as FB_PROFILER_METRICS ptr )
-	if( metrics = 0 ) then exit sub
+	if( metrics = nullptr ) then exit sub
 	metrics->nthreads = 0
 	metrics->string_bytes_allocated = 0
 	metrics->string_bytes_used = 0
@@ -398,11 +398,11 @@ sub tkort_METRICS_Strings alias "fb_hPROFILER_METRICS_Strings" _
 	dim as STRING_INFO ptr info = any
 	dim as integer index_ = any
 
-	if( metrics = 0 ) then exit sub
-	if( strings = 0 ) then exit sub
+	if( metrics = nullptr ) then exit sub
+	if( strings = nullptr ) then exit sub
 
 	tb = strings->tb
-	while( tb <> 0 )
+	while( tb <> nullptr )
 		metrics->string_bytes_allocated += sizeof( STRING_INFO_TB_ )
 		metrics->string_bytes_used += tb->bytes_used
 		'' "free" is measured against the WHOLE struct, header included, so
@@ -428,15 +428,15 @@ sub tkort_METRICS_HashTable alias "fb_hPROFILER_METRICS_HashTable" _
 	dim as STRING_HASH_TB_ ptr tb = any
 	dim as int32 i = any
 
-	if( metrics = 0 ) then exit sub
-	if( hash_ = 0 ) then exit sub
+	if( metrics = nullptr ) then exit sub
+	if( hash_ = nullptr ) then exit sub
 
 	tb = hash_->tb
-	while( tb <> 0 )
+	while( tb <> nullptr )
 		metrics->hash_bytes_allocated += sizeof( STRING_HASH_TB_ )
 		metrics->hash_count_blocks += 1
 		for i = 0 to STRING_HASH_TB_SIZE - 1
-			if( tb->items(i) <> 0 ) then metrics->hash_count_items += 1
+			if( tb->items(i) <> nullptr ) then metrics->hash_count_items += 1
 			metrics->hash_count_slots += 1
 		next
 		tb = tb->nxt
@@ -454,10 +454,10 @@ end sub
 '' IDEMPOTENT: a second call returns the existing context rather than leaking
 '' the first. Both profilers call this, and either may run first.
 function tkort_PROFILER_GLOBAL_create alias "PROFILER_GLOBAL_create" ( ) as FB_PROFILER_GLOBAL ptr
-	if( fb_profiler <> 0 ) then return fb_profiler
+	if( fb_profiler <> nullptr ) then return fb_profiler
 
 	fb_profiler = calloc( 1, sizeof( FB_PROFILER_GLOBAL ) )
-	if( fb_profiler <> 0 ) then
+	if( fb_profiler <> nullptr ) then
 		tkort_STRING_TABLE_constructor( @fb_profiler->strings )
 		tkort_STRING_HASH_TABLE_constructor( @fb_profiler->strings_hash, @fb_profiler->strings )
 		tkort_STRING_HASH_TABLE_constructor( @fb_profiler->ignores_hash, @fb_profiler->strings )
@@ -469,12 +469,12 @@ function tkort_PROFILER_GLOBAL_create alias "PROFILER_GLOBAL_create" ( ) as FB_P
 end function
 
 sub tkort_PROFILER_GLOBAL_destroy alias "PROFILER_GLOBAL_destroy" ( )
-	if( fb_profiler = 0 ) then exit sub
+	if( fb_profiler = nullptr ) then exit sub
 	tkort_STRING_HASH_TABLE_destructor( @fb_profiler->strings_hash )
 	tkort_STRING_HASH_TABLE_destructor( @fb_profiler->ignores_hash )
 	tkort_STRING_TABLE_destructor( @fb_profiler->strings )
 	free( fb_profiler )
-	fb_profiler = 0
+	fb_profiler = nullptr
 end sub
 
 end extern
@@ -495,9 +495,9 @@ private function hProfileCopyFilename( byval dst as zstring ptr, byval src as zs
                                        byval length_ as int32 ) as int32
 	dim as integer len_ = any
 
-	if( fb_profiler = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
-	if( dst = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
-	if( src = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	if( fb_profiler = nullptr ) then return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	if( dst = nullptr ) then return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	if( src = nullptr ) then return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 
 	len_ = cast( integer, strlen( src ) )
 	'' Measured against PROFILER_MAX_PATH, NOT against `length` -- the check
@@ -518,7 +518,7 @@ function tkort_ProfileSetFileName alias "fb_ProfileSetFileName" _
 	( byval filename as zstring ptr ) as int32
 	dim as int32 ret = any
 	TKORT_PROFLOCK()
-	if( (fb_profiler <> 0) andalso (filename <> 0) ) then
+	if( (fb_profiler <> nullptr) andalso (filename <> nullptr) ) then
 		ret = hProfileCopyFilename( @fb_profiler->filename, filename, PROFILER_MAX_PATH )
 	else
 		ret = tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
@@ -536,12 +536,12 @@ function tkort_ProfileGetFileName alias "fb_ProfileGetFileName" _
 	dim as zstring ptr fname = any
 
 	TKORT_PROFLOCK()
-	if( (fb_profiler <> 0) andalso (filename <> 0) andalso (length_ > 0) ) then
+	if( (fb_profiler <> nullptr) andalso (filename <> nullptr) andalso (length_ > 0) ) then
 		if( fb_profiler->filename[0] <> 0 ) then
 			fname = @fb_profiler->filename
 		else
 			fname = tkrt_GetExeName( @buffer, PROFILER_MAX_PATH - 1 )
-			if( fname <> 0 ) then
+			if( fname <> nullptr ) then
 				strcat( @buffer, DEFAULT_PROFILE_EXT )
 				fname = @buffer
 			else
@@ -561,7 +561,7 @@ end function
 function tkort_ProfileGetOptions alias "fb_ProfileGetOptions" ( ) as int32
 	dim as int32 options = 0
 	TKORT_PROFLOCK()
-	if( fb_profiler <> 0 ) then options = fb_profiler->options
+	if( fb_profiler <> nullptr ) then options = fb_profiler->options
 	TKORT_PROFUNLOCK()
 	return options
 end function
@@ -570,7 +570,7 @@ end function
 function tkort_ProfileSetOptions alias "fb_ProfileSetOptions" ( byval options as int32 ) as int32
 	dim as int32 previous_options = 0
 	TKORT_PROFLOCK()
-	if( fb_profiler <> 0 ) then
+	if( fb_profiler <> nullptr ) then
 		previous_options = fb_profiler->options
 		fb_profiler->options = options
 	end if
@@ -581,7 +581,7 @@ end function
 sub tkort_ProfileIgnore alias "fb_ProfileIgnore" ( byval procname as zstring ptr )
 	dim as uint32 hashkey = any
 	TKORT_PROFLOCK()
-	if( (fb_profiler <> 0) andalso (procname <> 0) ) then
+	if( (fb_profiler <> nullptr) andalso (procname <> nullptr) ) then
 		hashkey = tkort_ProfileHashName( procname )
 		tkort_PROFILER_add_ignore( fb_profiler, procname, hashkey )
 	end if

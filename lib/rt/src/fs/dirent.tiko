@@ -38,10 +38,10 @@ end extern
 private function hTemp( byval src as FB_UCHAR ptr, byval units as integer ) as FBUSTRING ptr
 	dim as FBUSTRING ptr dst = any
 	if( units <= 0 ) then return TKORT_UNULL_DESC()
-	dst = tkrt_UStrAllocTemp( 0, units )
-	if( dst = 0 ) then return TKORT_UNULL_DESC()
-	if( dst->data <> 0 ) then
-		if( src <> 0 ) then tkrt_UStrCopy2( dst->data, src, units )
+	dst = tkrt_UStrAllocTemp( nullptr, units )
+	if( dst = nullptr ) then return TKORT_UNULL_DESC()
+	if( dst->data <> nullptr ) then
+		if( src <> nullptr ) then tkrt_UStrCopy2( dst->data, src, units )
 		dst->data[units] = 0
 	end if
 	return dst
@@ -62,31 +62,31 @@ extern "rtlib"
 
 function tkort_UStrFsDirEntName alias "fb_UStrFsDirEntName" _
 	( byval e as FB_FSDIRENT ptr ) as FBUSTRING ptr
-	if( e = 0 ) then return TKORT_UNULL_DESC()
+	if( e = nullptr ) then return TKORT_UNULL_DESC()
 	return hField( @e->name(0), e->namelen, FB_FS_MAXNAME )
 end function
 
 function tkort_UStrFsVolumeRoot alias "fb_UStrFsVolumeRoot" _
 	( byval v as FB_FSVOLUME ptr ) as FBUSTRING ptr
-	if( v = 0 ) then return TKORT_UNULL_DESC()
+	if( v = nullptr ) then return TKORT_UNULL_DESC()
 	return hField( @v->root(0), v->rootlen, FB_FS_MAXPATH )
 end function
 
 function tkort_UStrFsVolumeName alias "fb_UStrFsVolumeName" _
 	( byval v as FB_FSVOLUME ptr ) as FBUSTRING ptr
-	if( v = 0 ) then return TKORT_UNULL_DESC()
+	if( v = nullptr ) then return TKORT_UNULL_DESC()
 	return hField( @v->name(0), v->namelen, FB_FS_MAXNAME )
 end function
 
 function tkort_UStrFsVolumeFsType alias "fb_UStrFsVolumeFsType" _
 	( byval v as FB_FSVOLUME ptr ) as FBUSTRING ptr
-	if( v = 0 ) then return TKORT_UNULL_DESC()
+	if( v = nullptr ) then return TKORT_UNULL_DESC()
 	return hField( @v->fstype(0), v->fstypelen, FB_FS_MAXNAME )
 end function
 
 function tkort_UStrFsChangePath alias "fb_UStrFsChangePath" _
 	( byval c as FB_FSCHANGE ptr ) as FBUSTRING ptr
-	if( c = 0 ) then return TKORT_UNULL_DESC()
+	if( c = nullptr ) then return TKORT_UNULL_DESC()
 	return hField( @c->path(0), c->pathlen, FB_FS_MAXPATH )
 end function
 

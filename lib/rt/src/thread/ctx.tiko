@@ -43,7 +43,7 @@ dim shared as TKORT_TLSENTRY tkort_tls_ctxtb( 0 to FB_TLSKEYS - 1 )
 	#define TKORT_TLSSET( k, v )    w_TlsSetValue( k, v )
 	#define TKORT_TLSGET( k )       w_TlsGetValue( k )
 #elseif defined( ENABLE_MT )
-	#define TKORT_TLSALLOC( k )     u_pthread_key_create( @(k), 0 )
+	#define TKORT_TLSALLOC( k )     u_pthread_key_create( @(k), nullptr )
 	#define TKORT_TLSFREE( k )      u_pthread_key_delete( k )
 	#define TKORT_TLSSET( k, v )    u_pthread_setspecific( k, v )
 	#define TKORT_TLSGET( k )       u_pthread_getspecific( k )
@@ -65,9 +65,9 @@ function tkort_TlsGetCtx alias "fb_TlsGetCtx" _
 	dim as any ptr ctx = TKORT_TLSGET( tkort_tls_ctxtb(index_) )
 	dim as FB_TLS_CTX_HEADER ptr hdr = any
 
-	if( ctx = 0 ) then
+	if( ctx = nullptr ) then
 		hdr = calloc( 1, len_ + sizeof( FB_TLS_CTX_HEADER ) )
-		if( hdr <> 0 ) then
+		if( hdr <> nullptr ) then
 			hdr->dtor = dtor
 			ctx = cptr( any ptr, hdr + 1 )
 			TKORT_TLSSET( tkort_tls_ctxtb(index_), ctx )
@@ -81,11 +81,11 @@ sub tkort_TlsDelCtx alias "fb_TlsDelCtx" ( byval index_ as int32 )
 	dim as any ptr ctx = TKORT_TLSGET( tkort_tls_ctxtb(index_) )
 	dim as FB_TLS_CTX_HEADER ptr hdr = any
 
-	if( ctx <> 0 ) then
+	if( ctx <> nullptr ) then
 		hdr = cptr( FB_TLS_CTX_HEADER ptr, ctx ) - 1
-		if( hdr->dtor <> 0 ) then hdr->dtor( ctx )
+		if( hdr->dtor <> nullptr ) then hdr->dtor( ctx )
 		free( hdr )
-		TKORT_TLSSET( tkort_tls_ctxtb(index_), cast( any ptr, 0 ) )
+		TKORT_TLSSET( tkort_tls_ctxtb(index_), nullptr )
 	end if
 end sub
 

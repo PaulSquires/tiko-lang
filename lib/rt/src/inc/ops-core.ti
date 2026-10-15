@@ -868,7 +868,7 @@ private function SOP(hEscapeFill) _
 	dim as SOP_UNIT c = any
 
 	#macro EMIT( u )
-		if( dst <> 0 ) then dst[w] = cast( SOP_UNIT, u )
+		if( dst <> nullptr ) then dst[w] = cast( SOP_UNIT, u )
 		w += 1
 	#endmacro
 
@@ -1103,7 +1103,7 @@ private function SOP(hSplitSpans) _
 	if( slen < 0 ) then slen = 0
 
 	if( patlen <= 0 ) then
-		if( (spans <> 0) andalso (maxpairs >= 1) ) then
+		if( (spans <> nullptr) andalso (maxpairs >= 1) ) then
 			spans[0] = 0
 			spans[1] = slen
 		end if
@@ -1116,7 +1116,7 @@ private function SOP(hSplitSpans) _
 		at = SOP(hFind)( s, slen, pat, patlen, i, ic )
 		if( at < 0 ) then exit do
 
-		if( (spans <> 0) andalso (n < maxpairs) ) then
+		if( (spans <> nullptr) andalso (n < maxpairs) ) then
 			spans[n * 2] = i
 			spans[n * 2 + 1] = at - i
 		end if
@@ -1126,7 +1126,7 @@ private function SOP(hSplitSpans) _
 	loop
 
 	'' The tail after the last delimiter -- always a field, even when empty.
-	if( (spans <> 0) andalso (n < maxpairs) ) then
+	if( (spans <> nullptr) andalso (n < maxpairs) ) then
 		spans[n * 2] = i
 		spans[n * 2 + 1] = slen - i
 	end if
@@ -1147,7 +1147,7 @@ private function SOP(hSplitCharsSpans) _
 	if( slen < 0 ) then slen = 0
 
 	if( setlen <= 0 ) then
-		if( (spans <> 0) andalso (maxpairs >= 1) ) then
+		if( (spans <> nullptr) andalso (maxpairs >= 1) ) then
 			spans[0] = 0
 			spans[1] = slen
 		end if
@@ -1160,7 +1160,7 @@ private function SOP(hSplitCharsSpans) _
 		at = SOP(hFindAny)( s, slen, st, setlen, i, ic )
 		if( at < 0 ) then exit do
 
-		if( (spans <> 0) andalso (n < maxpairs) ) then
+		if( (spans <> nullptr) andalso (n < maxpairs) ) then
 			spans[n * 2] = i
 			spans[n * 2 + 1] = at - i
 		end if
@@ -1169,7 +1169,7 @@ private function SOP(hSplitCharsSpans) _
 		i = at + 1
 	loop
 
-	if( (spans <> 0) andalso (n < maxpairs) ) then
+	if( (spans <> nullptr) andalso (n < maxpairs) ) then
 		spans[n * 2] = i
 		spans[n * 2 + 1] = slen - i
 	end if

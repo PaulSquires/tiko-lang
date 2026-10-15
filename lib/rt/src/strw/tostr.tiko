@@ -39,7 +39,7 @@ private function hWidenTemp( byval src as zstring ptr ) as wstring ptr
 	dim as integer n = cast( integer, strlen( src ) )
 
 	dim as wstring ptr dst = FB_WSTR_ALLOCTEMP( n )
-	if( dst = 0 ) then return 0
+	if( dst = nullptr ) then return nullptr
 
 	dim as TKORT_WTS_UNIT ptr d = cptr( TKORT_WTS_UNIT ptr, dst )
 	for i as integer = 0 to n - 1

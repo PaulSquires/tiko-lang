@@ -197,7 +197,7 @@ private sub tkort_HookConScroll cdecl _
 		FillChar.attr = pInfo->wAttributes
 		FillChar.ch = 32
 
-		w_ScrollConsoleScreenBufferA( hnd, @srScroll, 0, _
+		w_ScrollConsoleScreenBufferA( hnd, @srScroll, nullptr, _
 		                              TKORT_COORD( destX, destY ), @FillChar )
 	end if
 
@@ -235,7 +235,7 @@ private function tkort_HookConWrite cdecl _
 	'' that fbc does not have.
 	dim as TKORT_CHARINFO ptr lpBuffer = _
 		cast( TKORT_CHARINFO ptr, malloc( sizeof( TKORT_CHARINFO ) * length_ ) )
-	if( lpBuffer = 0 ) then return 0
+	if( lpBuffer = nullptr ) then return 0
 
 	srWriteRegion.Left_ = cast( int16, handle->Coord_.X_ )
 	srWriteRegion.Top_ = cast( int16, handle->Coord_.Y_ )
@@ -289,7 +289,7 @@ sub tkort_ConsolePrintBufferEx alias "fb_ConsolePrintBufferEx" _
 	if( TKORT_CON_WINDOW_EMPTY() ) then
 		dim as uint32 dwBytesWritten = any
 		while( (len_ <> 0) andalso _
-		       (w_WriteFile( TKORT_OUT_HANDLE(), pachText, len_, @dwBytesWritten, 0 ) <> 0) )
+		       (w_WriteFile( TKORT_OUT_HANDLE(), pachText, len_, @dwBytesWritten, nullptr ) <> 0) )
 			pachText += dwBytesWritten
 			len_ -= dwBytesWritten
 		wend
@@ -298,16 +298,16 @@ sub tkort_ConsolePrintBufferEx alias "fb_ConsolePrintBufferEx" _
 	end if
 
 	'' PATH 2: THE UTF-16 STREAM. See the file header.
-	if( (buffer <> 0) andalso (len_ <> 0) ) then
+	if( (buffer <> nullptr) andalso (len_ <> 0) ) then
 		dim as uint32 cp = w_GetConsoleOutputCP( )
 		dim as uint32 flags = iif( cp = CP_UTF8_, MB_ERR_INVALID_CHARS_, 0 )
-		dim as int32 wlen = w_MultiByteToWideChar( cp, flags, pachText, cast( int32, len_ ), 0, 0 )
+		dim as int32 wlen = w_MultiByteToWideChar( cp, flags, pachText, cast( int32, len_ ), nullptr, 0 )
 
 		if( wlen > 0 ) then
 			'' sizeof( FB_WCHAR ) is 2 on Windows -- the whole reason this path
 			'' is Windows-only.
 			dim as wstring ptr wbuf = cast( wstring ptr, malloc( wlen * 2 ) )
-			if( wbuf <> 0 ) then
+			if( wbuf <> nullptr ) then
 				dim as int32 done_ = 0
 				if( w_MultiByteToWideChar( cp, flags, pachText, cast( int32, len_ ), _
 				                           wbuf, wlen ) = wlen ) then

@@ -74,9 +74,9 @@ function tkort_UStrFsErrorMessage alias "fb_UStrFsErrorMessage" ( byval fs_code 
 		len_ += 1
 	wend
 
-	dst = tkrt_UStrAllocTemp( 0, len_ )
-	if( dst = 0 ) then return TKORT_UNULL_DESC()
-	if( dst->data = 0 ) then return TKORT_UNULL_DESC()
+	dst = tkrt_UStrAllocTemp( nullptr, len_ )
+	if( dst = nullptr ) then return TKORT_UNULL_DESC()
+	if( dst->data = nullptr ) then return TKORT_UNULL_DESC()
 
 	'' ASCII only, by construction -- a widening copy is exact and needs no
 	'' encoder.

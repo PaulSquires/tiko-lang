@@ -46,9 +46,9 @@ sub tkort_StrLset alias "fb_StrLset" _
 	( byval dst as FBSTRING ptr, byval src as FBSTRING ptr )
 
 	dim as integer ok = 0
-	if( dst <> 0 ) then
-		if( dst->data <> 0 ) then
-			if( src <> 0 ) then ok = 1
+	if( dst <> nullptr ) then
+		if( dst->data <> nullptr ) then
+			if( src <> nullptr ) then ok = 1
 		end if
 	end if
 
@@ -79,7 +79,7 @@ end sub
 sub tkort_StrLsetANA alias "fb_StrLsetANA" _
 	( byval dst as any ptr, byval dst_size as integer, byval src as FBSTRING ptr )
 
-	if( (dst <> 0) andalso (src <> 0) ) then
+	if( (dst <> nullptr) andalso (src <> nullptr) ) then
 		dim as integer slen = FB_STRSIZE( src )
 		dim as integer dlen = dst_size and FB_STRSIZEMSK
 
@@ -105,9 +105,9 @@ sub tkort_StrRset alias "fb_StrRset" _
 	( byval dst as FBSTRING ptr, byval src as FBSTRING ptr )
 
 	dim as integer ok = 0
-	if( dst <> 0 ) then
-		if( dst->data <> 0 ) then
-			if( src <> 0 ) then ok = 1
+	if( dst <> nullptr ) then
+		if( dst->data <> nullptr ) then
+			if( src <> nullptr ) then ok = 1
 		end if
 	end if
 
@@ -139,7 +139,7 @@ end sub
 sub tkort_StrRsetANA alias "fb_StrRsetANA" _
 	( byval dst as any ptr, byval dst_size as integer, byval src as FBSTRING ptr )
 
-	if( (dst <> 0) andalso (src <> 0) ) then
+	if( (dst <> nullptr) andalso (src <> nullptr) ) then
 		dim as integer slen = FB_STRSIZE( src )
 		dim as integer dlen = dst_size and FB_STRSIZEMSK
 

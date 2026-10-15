@@ -190,7 +190,7 @@ sub tkort_WriteString alias "fb_WriteString" _
 
 	dim as FB_FILE ptr handle = TKORT_FILE_TO_HANDLE( fnum )
 
-	if( (s <> 0) andalso (s->data <> 0) ) then
+	if( (s <> nullptr) andalso (s->data <> nullptr) ) then
 		hWriteStrEx( handle, s->data, FB_STRSIZE( s ), mask )
 	else
 		hWriteEmpty( handle, mask )
@@ -209,7 +209,7 @@ sub tkort_WriteFixString alias "fb_WriteFixString" _
 	'' is a bare pointer, so only NULL takes the empty path -- a zero-length
 	'' one still goes through hWriteStrEx and produces the same bytes by a
 	'' different number of writes.
-	if( s <> 0 ) then
+	if( s <> nullptr ) then
 		hWriteStrEx( handle, s, strlen( s ), mask )
 	else
 		hWriteEmpty( handle, mask )
@@ -228,7 +228,7 @@ extern "rtlib"
 '' this file would emit CRLF. Folding this into hSep() would "fix" that and
 '' diverge on exactly one target.
 sub tkort_WriteVoid alias "fb_WriteVoid" ( byval fnum as int32, byval mask as int32 )
-	dim as zstring ptr buffer = 0
+	dim as zstring ptr buffer = nullptr
 
 	if( (mask and FB_PRINT_NEWLINE) <> 0 ) then
 		buffer = @TKORT_NEWLINE
@@ -237,7 +237,7 @@ sub tkort_WriteVoid alias "fb_WriteVoid" ( byval fnum as int32, byval mask as in
 	end if
 
 	'' No separator at all when neither bit is set -- not even a comma.
-	if( buffer <> 0 ) then
+	if( buffer <> nullptr ) then
 		tkrt_PrintBufferEx( TKORT_FILE_TO_HANDLE( fnum ), buffer, strlen( buffer ) )
 	end if
 end sub
@@ -286,7 +286,7 @@ sub tkort_WriteWstr alias "fb_WriteWstr" _
 	dim as wstring * 4 openq = any
 	dim as integer bufflen = any, length = any
 
-	if( s = 0 ) then
+	if( s = nullptr ) then
 		'' Two quotes plus the separator, in a SINGLE write.
 		bufflen = hWTail( @buff, mask, 2 )
 		tkrt_PrintBufferWstrEx( handle, @buff, bufflen )

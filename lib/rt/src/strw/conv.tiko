@@ -78,7 +78,7 @@ extern "c"   '' NON-FBCALL: fb_unicode.h declares fb_wstr_ConvToA without it.
 function tkort_wstr_ConvToA alias "fb_wstr_ConvToA" _
 	( byval dst as zstring ptr, byval dst_chars as integer, byval src as wstring ptr ) as integer
 
-	if( src = 0 ) then
+	if( src = nullptr ) then
 		dst[0] = 0
 		return 0
 	end if
@@ -117,14 +117,14 @@ extern "rtlib"
 '' fb_wstr_ConvToA's own fallback writes '?' for what cannot be spelt.
 function tkort_WstrToStr alias "fb_WstrToStr" ( byval src as wstring ptr ) as FBSTRING ptr
 
-	if( src = 0 ) then return TKORT_NULLSTR()
+	if( src = nullptr ) then return TKORT_NULLSTR()
 
-	dim as integer chars = cast( integer, wcstombs( 0, src, 0 ) )
+	dim as integer chars = cast( integer, wcstombs( nullptr, src, 0 ) )
 	if( chars < 0 ) then chars = FB_WSTR_LEN( src )
 	if( chars = 0 ) then return TKORT_NULLSTR()
 
-	dim as FBSTRING ptr dst = tkrt_AllocTemp( 0, chars )
-	if( dst = 0 ) then return TKORT_NULLSTR()
+	dim as FBSTRING ptr dst = tkrt_AllocTemp( nullptr, chars )
+	if( dst = nullptr ) then return TKORT_NULLSTR()
 
 	tkort_wstr_ConvToA( dst->data, chars, src )
 	return dst
@@ -136,7 +136,7 @@ function tkort_WstrAssignFromA alias "fb_WstrAssignFromA" _
 	( byval dst as wstring ptr, byval dst_chars as integer, _
 	  byval src as any ptr, byval src_size as integer ) as wstring ptr
 
-	if( dst <> 0 ) then
+	if( dst <> nullptr ) then
 		dim as zstring ptr src_ptr = any
 		dim as integer src_chars = any
 		FB_STRSETUP_FIX( src, src_size, src_ptr, src_chars )
@@ -164,10 +164,10 @@ function tkort_WstrAssignToAEx alias "fb_WstrAssignToAEx" _
 	( byval dst as any ptr, byval dst_chars as integer, byval src as wstring ptr, _
 	  byval fill_rem as int32, byval is_init as int32 ) as any ptr
 
-	if( dst = 0 ) then return dst
+	if( dst = nullptr ) then return dst
 
 	dim as integer src_chars = 0
-	if( src <> 0 ) then src_chars = FB_WSTR_LEN( src )
+	if( src <> nullptr ) then src_chars = FB_WSTR_LEN( src )
 
 	if( dst_chars = FB_STRSIZEVARLEN ) then
 
@@ -179,7 +179,7 @@ function tkort_WstrAssignToAEx alias "fb_WstrAssignToAEx" _
 			if( is_init = 0 ) then
 				tkrt_StrDelete( dstr )
 			else
-				dstr->data = 0
+				dstr->data = nullptr
 				dstr->len  = 0
 				dstr->size = 0
 			end if
@@ -282,17 +282,17 @@ function tkort_WstrConcatWA alias "fb_WstrConcatWA" _
 	( byval str1 as wstring ptr, byval str2 as any ptr, byval str2_size as integer ) as wstring ptr
 
 	dim as integer str1_len = 0
-	if( str1 <> 0 ) then str1_len = FB_WSTR_LEN( str1 )
+	if( str1 <> nullptr ) then str1_len = FB_WSTR_LEN( str1 )
 
 	dim as zstring ptr str2_ptr = any
 	dim as integer str2_len = any
 	FB_STRSETUP_FIX( str2, str2_size, str2_ptr, str2_len )
 
-	dim as wstring ptr dst = 0
+	dim as wstring ptr dst = nullptr
 
 	if( (str1_len + str2_len) <> 0 ) then
 		dst = FB_WSTR_ALLOCTEMP( str1_len + str2_len )
-		if( dst <> 0 ) then
+		if( dst <> nullptr ) then
 			FB_WSTR_MOVE( dst, str1, str1_len )
 			tkrt_ConvFromA( @dst[str1_len], str2_len, str2_ptr )
 		end if
@@ -312,13 +312,13 @@ function tkort_WstrConcatAW alias "fb_WstrConcatAW" _
 	FB_STRSETUP_FIX( str1, str1_size, str1_ptr, str1_len )
 
 	dim as integer str2_len = 0
-	if( str2 <> 0 ) then str2_len = FB_WSTR_LEN( str2 )
+	if( str2 <> nullptr ) then str2_len = FB_WSTR_LEN( str2 )
 
-	dim as wstring ptr dst = 0
+	dim as wstring ptr dst = nullptr
 
 	if( (str1_len + str2_len) <> 0 ) then
 		dst = FB_WSTR_ALLOCTEMP( str1_len + str2_len )
-		if( dst <> 0 ) then
+		if( dst <> nullptr ) then
 			'' The RETURN VALUE, not str1_len: the conversion decides where the
 			'' wide half starts.
 			str1_len = tkrt_ConvFromA( dst, str1_len, str1_ptr )

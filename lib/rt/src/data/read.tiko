@@ -83,7 +83,7 @@ end extern
 '' The three arms, once. `wfn` takes the MASKED length; `zfn` takes it raw.
 #macro DATA_READ_NUM( dst, ty, zfn, wfn, zero )
 	IOLOCK()
-	if( __fb_data_ptr <> 0 ) then
+	if( __fb_data_ptr <> nullptr ) then
 		dim as int16 ln = __fb_data_ptr->length
 		if( ln = FB_DATATYPE_OFS ) then
 			*dst = cast( ty, cast( uinteger, __fb_data_ptr->item ) )
@@ -152,7 +152,7 @@ extern "rtlib"
 sub tkort_DataReadStr alias "fb_DataReadStr" _
 	( byval dst as any ptr, byval dst_size as integer, byval fillrem as int32 )
 	IOLOCK()
-	if( __fb_data_ptr <> 0 ) then
+	if( __fb_data_ptr <> nullptr ) then
 		dim as int16 ln = __fb_data_ptr->length
 		if( ln = FB_DATATYPE_OFS ) then
 			'' !!!WRITEME!!! -- fbc's, left as fbc leaves it.
@@ -173,7 +173,7 @@ end sub
 sub tkort_DataReadWstr alias "fb_DataReadWstr" _
 	( byval dst as wstring ptr, byval dst_size as integer )
 	IOLOCK()
-	if( __fb_data_ptr <> 0 ) then
+	if( __fb_data_ptr <> nullptr ) then
 		dim as int16 ln = __fb_data_ptr->length
 		if( ln = FB_DATATYPE_OFS ) then
 			'' !!!WRITEME!!! -- fbc's.

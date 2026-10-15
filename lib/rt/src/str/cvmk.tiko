@@ -38,9 +38,9 @@ end extern
 '' temporary either way.
 private sub hCV( byval s as FBSTRING ptr, byval length as integer, byval num as any ptr )
 
-	if( s = 0 ) then exit sub
+	if( s = nullptr ) then exit sub
 
-	if( s->data <> 0 ) then
+	if( s->data <> nullptr ) then
 		if( FB_STRSIZE( s ) >= length ) then
 			memcpy( num, s->data, length )
 		end if
@@ -52,8 +52,8 @@ end sub
 
 private function hMK( byval length as integer, byval num as any ptr ) as FBSTRING ptr
 
-	dim as FBSTRING ptr dst = tkrt_AllocTemp( 0, length )
-	if( dst = 0 ) then return TKORT_NULLSTR()
+	dim as FBSTRING ptr dst = tkrt_AllocTemp( nullptr, length )
+	if( dst = nullptr ) then return TKORT_NULLSTR()
 
 	memcpy( dst->data, num, length )
 	dst->data[length] = 0

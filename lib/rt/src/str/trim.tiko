@@ -51,12 +51,12 @@ private function hTrim _
 		byval s as FBSTRING ptr, byval doLeft as integer, byval doRight as integer _
 	) as FBSTRING ptr
 
-	if( s = 0 ) then return TKORT_NULLSTR( )
+	if( s = nullptr ) then return TKORT_NULLSTR( )
 
 	dim as zstring ptr p = s->data
 	dim as integer n = FB_STRSIZE( s )
 
-	if( (p = 0) orelse (n <= 0) ) then
+	if( (p = nullptr) orelse (n <= 0) ) then
 		tkrt_DelTemp( s )
 		return TKORT_NULLSTR( )
 	end if
@@ -108,8 +108,8 @@ private function hTrim _
 		return TKORT_NULLSTR( )
 	end if
 
-	dim as FBSTRING ptr r = fb_hStrAllocTemp( 0, outn )
-	if( r = 0 ) then
+	dim as FBSTRING ptr r = fb_hStrAllocTemp( nullptr, outn )
+	if( r = nullptr ) then
 		'' The pool is dry. Release the operand anyway: refusing to would turn
 		'' one exhausted pool into a permanently exhausted one.
 		tkrt_DelTemp( s )

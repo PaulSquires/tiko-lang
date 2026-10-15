@@ -349,8 +349,8 @@ private sub tkort_keyboard_console_handler cdecl ( )
 					if( (pressed <> 0) andalso (c_ioctl3( tkort_key_fd, VT_GETSTATE_, @vt_state ) >= 0) ) then
 						dim as int32 orig_vt = vt_state.v_active
 						if( vt <> orig_vt ) then
-							if( TKORT_CON_P( TKORT_CON_GFXEXIT ) <> 0 ) then
-								if( tkort_gfx_save <> 0 ) then
+							if( TKORT_CON_P( TKORT_CON_GFXEXIT ) <> nullptr ) then
+								if( tkort_gfx_save <> nullptr ) then
 									dim as sub cdecl ( ) fs = cast( sub cdecl ( ), tkort_gfx_save )
 									fs( )
 								end if
@@ -362,9 +362,9 @@ private sub tkort_keyboard_console_handler cdecl ( )
 							while( c_ioctl3( tkort_key_fd, VT_WAITACTIVE_, orig_vt ) < 0 )
 								c_usleep3( 50000 )
 							wend
-							if( TKORT_CON_P( TKORT_CON_GFXEXIT ) <> 0 ) then
+							if( TKORT_CON_P( TKORT_CON_GFXEXIT ) <> nullptr ) then
 								c_ioctl3( tkort_key_fd, KDSETMODE_, KD_GRAPHICS_ )
-								if( tkort_gfx_restore <> 0 ) then
+								if( tkort_gfx_restore <> nullptr ) then
 									dim as sub cdecl ( ) fr = cast( sub cdecl ( ), tkort_gfx_restore )
 									fr( )
 								end if
@@ -397,7 +397,7 @@ private sub tkort_keyboard_console_handler cdecl ( )
 				tkort_mk_tail = (tkort_mk_tail + 1) and (KEY_BUFFER_SIZE_ - 1)
 			end if
 
-			if( tkort_gfx_key_handler <> 0 ) then
+			if( tkort_gfx_key_handler <> nullptr ) then
 				dim as sub cdecl ( byval a as int32, byval b as int32, byval c as int32, byval d as int32 ) kh = _
 					cast( sub cdecl ( byval a as int32, byval b as int32, byval c as int32, byval d as int32 ), _
 					      tkort_gfx_key_handler )
@@ -455,8 +455,8 @@ private sub tkort_keyboard_exit cdecl ( )
 	end if
 
 	TKORT_CON_P( TKORT_CON_KBGETCH ) = cast( uint8 ptr, tkort_old_getch )
-	TKORT_CON_P( TKORT_CON_KBHANDLER ) = 0
-	TKORT_CON_P( TKORT_CON_KBEXIT ) = 0
+	TKORT_CON_P( TKORT_CON_KBHANDLER ) = nullptr
+	TKORT_CON_P( TKORT_CON_KBEXIT ) = nullptr
 end sub
 
 private function tkort_keyboard_init cdecl ( ) as int32
@@ -501,16 +501,16 @@ private function tkort_keyboard_init cdecl ( ) as int32
 		for i as integer = 0 to 5
 			tkort_mk_names(i) = @tkort_mk_n(i)
 		next
-		tkort_mk_names(6) = 0
+		tkort_mk_names(6) = nullptr
 
 		tkort_mk_xlib = tkrt_hDynLoad4( @"libX11.so", @tkort_mk_names(0), _
 		                                cptr( any ptr ptr, @tkort_mk_X ) )
-		if( tkort_mk_xlib = 0 ) then return -1
+		if( tkort_mk_xlib = nullptr ) then return -1
 
 		dim as function cdecl ( byval n as zstring ptr ) as any ptr od = _
 			cast( function cdecl ( byval n as zstring ptr ) as any ptr, tkort_mk_X.OpenDisplay )
 		tkort_mk_display = od( 0 )
-		if( tkort_mk_display = 0 ) then return -1
+		if( tkort_mk_display = nullptr ) then return -1
 
 		tkrt_hInitX11KeycodeToScancodeTb( tkort_mk_display, tkort_mk_X.DisplayKeycodes, _
 		                                  tkort_mk_X.GetKeyboardMapping, tkort_mk_X.Free_ )
@@ -535,7 +535,7 @@ function tkort_ConsoleMultikey alias "fb_ConsoleMultikey" ( byval scancode as in
 	tkrt_hStartBgThread4( )
 
 	'' THE 50 ms IS SO THE HANDLER HAS RUN AT LEAST ONCE -- see the header.
-	if( (TKORT_CON_P( TKORT_CON_KBHANDLER ) = 0) andalso (tkort_keyboard_init( ) = 0) ) then
+	if( (TKORT_CON_P( TKORT_CON_KBHANDLER ) = nullptr) andalso (tkort_keyboard_init( ) = 0) ) then
 		tkrt_BgUnlock5( )
 		c_usleep3( 50000 )
 		tkrt_BgLock5( )
@@ -559,16 +559,16 @@ function tkort_hConsoleGfxMode alias "fb_hConsoleGfxMode" _
 
 	TKORT_CON_P( TKORT_CON_GFXEXIT ) = cast( uint8 ptr, gfx_exit )
 
-	if( gfx_exit <> 0 ) then
+	if( gfx_exit <> nullptr ) then
 		'' FIVE CONSOLE HOOKS ARE CLEARED so INKEY, GETKEY, KEYHIT, MULTIKEY and
 		'' SLEEP stop going through the console driver -- see the file header on
 		'' how the offsets are pinned.
 		TKORT_IOLOCK()
-		*cptr( any ptr ptr, cptr( uint8 ptr, @__fb_ctx ) + TKORT_HOOK_MULTIKEY ) = 0
-		*cptr( any ptr ptr, cptr( uint8 ptr, @__fb_ctx ) + TKORT_HOOK_INKEY ) = 0
-		*cptr( any ptr ptr, cptr( uint8 ptr, @__fb_ctx ) + TKORT_HOOK_GETKEY ) = 0
-		*cptr( any ptr ptr, cptr( uint8 ptr, @__fb_ctx ) + TKORT_HOOK_KEYHIT ) = 0
-		*cptr( any ptr ptr, cptr( uint8 ptr, @__fb_ctx ) + TKORT_HOOK_SLEEP ) = 0
+		*cptr( any ptr ptr, cptr( uint8 ptr, @__fb_ctx ) + TKORT_HOOK_MULTIKEY ) = nullptr
+		*cptr( any ptr ptr, cptr( uint8 ptr, @__fb_ctx ) + TKORT_HOOK_INKEY ) = nullptr
+		*cptr( any ptr ptr, cptr( uint8 ptr, @__fb_ctx ) + TKORT_HOOK_GETKEY ) = nullptr
+		*cptr( any ptr ptr, cptr( uint8 ptr, @__fb_ctx ) + TKORT_HOOK_KEYHIT ) = nullptr
+		*cptr( any ptr ptr, cptr( uint8 ptr, @__fb_ctx ) + TKORT_HOOK_SLEEP ) = nullptr
 		TKORT_IOUNLOCK()
 
 		tkort_gfx_save = save_

@@ -42,7 +42,7 @@ function tkort_StrConcatAssign alias "fb_StrConcatAssign" _
 		byval src as any ptr, byval src_size as integer, byval fillrem as int32 _
 	) as any ptr
 
-	if( dst = 0 ) then
+	if( dst = nullptr ) then
 		if( src_size = FB_STRSIZEVARLEN ) then
 			tkrt_DelTemp( cptr( FBSTRING ptr, src ) )
 		end if

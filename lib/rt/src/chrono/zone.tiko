@@ -120,10 +120,10 @@ end extern
 '' UTF-16 -> UTF-8 at the boundary; everything above this layer is UTF-8.
 private function hW2U( byval w as wstring ptr, byval buf as zstring ptr, byval buflen as int32 ) as int32
 	dim as int32 n = any
-	if( w = 0 ) then return 0
-	if( buf = 0 ) then return 0
+	if( w = nullptr ) then return 0
+	if( buf = nullptr ) then return 0
 	if( buflen < 2 ) then return 0
-	n = w_WideCharToMultiByte( CP_UTF8, 0, w, -1, buf, buflen - 1, 0, 0 )
+	n = w_WideCharToMultiByte( CP_UTF8, 0, w, -1, buf, buflen - 1, nullptr, nullptr )
 	if( n <= 0 ) then
 		buf[0] = 0
 		return 0
@@ -134,14 +134,14 @@ private function hW2U( byval w as wstring ptr, byval buf as zstring ptr, byval b
 	return n - 1
 end function
 
-dim shared as FB_TZFORYEARPROC hTzForYear = 0
+dim shared as FB_TZFORYEARPROC hTzForYear = nullptr
 dim shared as int32 hTzForYearChecked = 0
 
 private function hGetTzForYearProc( ) as FB_TZFORYEARPROC
 	dim as any ptr k32 = any
 	if( hTzForYearChecked = 0 ) then
 		k32 = w_GetModuleHandleA( @"kernel32.dll" )
-		if( k32 <> 0 ) then
+		if( k32 <> nullptr ) then
 			hTzForYear = cast( FB_TZFORYEARPROC, _
 				w_GetProcAddress( k32, @"GetTimeZoneInformationForYear" ) )
 		end if
@@ -155,7 +155,7 @@ private function hTziForYear( byval utc as SYSTEMTIME_ ptr, byval tzi as TIME_ZO
 	dim as DYNAMIC_TIME_ZONE_INFORMATION_ dtzi = any
 	dim as FB_TZFORYEARPROC forYear = hGetTzForYearProc( )
 
-	if( forYear <> 0 ) then
+	if( forYear <> nullptr ) then
 		if( w_GetDynamicTimeZoneInformation( @dtzi ) <> TIME_ZONE_ID_INVALID ) then
 			if( forYear( utc->wYear, @dtzi, tzi ) <> 0 ) then return 0
 		end if
@@ -218,7 +218,7 @@ end function
 
 function tkort_DtZoneStandardName alias "fb_DtZoneStandardName" ( byval buf as zstring ptr, byval buflen as int32 ) as int32
 	dim as TIME_ZONE_INFORMATION_ tzi = any
-	if( buf = 0 ) then return 0
+	if( buf = nullptr ) then return 0
 	if( buflen < 2 ) then return 0
 	buf[0] = 0
 	if( w_GetTimeZoneInformation( @tzi ) = TIME_ZONE_ID_INVALID ) then return 0
@@ -227,7 +227,7 @@ end function
 
 function tkort_DtZoneDaylightName alias "fb_DtZoneDaylightName" ( byval buf as zstring ptr, byval buflen as int32 ) as int32
 	dim as TIME_ZONE_INFORMATION_ tzi = any
-	if( buf = 0 ) then return 0
+	if( buf = nullptr ) then return 0
 	if( buflen < 2 ) then return 0
 	buf[0] = 0
 	if( w_GetTimeZoneInformation( @tzi ) = TIME_ZONE_ID_INVALID ) then return 0
@@ -263,14 +263,14 @@ function tkort_DtLocaleDateString alias "fb_DtLocaleDateString" _
 	dim as wstring * 256 wbuf
 	dim as uint32 flags = any
 
-	if( buf = 0 ) then return 0
+	if( buf = nullptr ) then return 0
 	if( buflen < 2 ) then return 0
 	buf[0] = 0
 	if( tkrt_DtIsValidTicks( ticks ) = 0 ) then return 0
 
 	hFillSystemTime( ticks, @st, 1 )
 	flags = iif( style = DT_ZONE_STYLE_SHORT, DATE_SHORTDATE, DATE_LONGDATE )
-	if( w_GetDateFormatEx( 0, flags, @st, 0, @wbuf, 256, 0 ) <= 0 ) then return 0
+	if( w_GetDateFormatEx( nullptr, flags, @st, nullptr, @wbuf, 256, nullptr ) <= 0 ) then return 0
 	return hW2U( @wbuf, buf, buflen )
 end function
 
@@ -280,7 +280,7 @@ function tkort_DtLocaleTimeString alias "fb_DtLocaleTimeString" _
 	dim as wstring * 256 wbuf
 	dim as uint32 flags = any
 
-	if( buf = 0 ) then return 0
+	if( buf = nullptr ) then return 0
 	if( buflen < 2 ) then return 0
 	buf[0] = 0
 	if( tkrt_DtIsValidTicks( ticks ) = 0 ) then return 0
@@ -288,7 +288,7 @@ function tkort_DtLocaleTimeString alias "fb_DtLocaleTimeString" _
 	'' No weekday here: the time formatter does not read it.
 	hFillSystemTime( ticks, @st, 0 )
 	flags = iif( style = DT_ZONE_STYLE_SHORT, TIME_NOSECONDS, 0 )
-	if( w_GetTimeFormatEx( 0, flags, @st, 0, @wbuf, 256 ) <= 0 ) then return 0
+	if( w_GetTimeFormatEx( nullptr, flags, @st, nullptr, @wbuf, 256 ) <= 0 ) then return 0
 	return hW2U( @wbuf, buf, buflen )
 end function
 
@@ -299,13 +299,13 @@ function tkort_DtLocaleMonthName alias "fb_DtLocaleMonthName" _
 	dim as wstring * 128 wbuf
 	dim as uint32 t = any
 
-	if( buf = 0 ) then return 0
+	if( buf = nullptr ) then return 0
 	if( buflen < 2 ) then return 0
 	buf[0] = 0
 	if( (mo < 1) orelse (mo > 12) ) then return 0
 
 	t = iif( abbreviated <> 0, LOCALE_SABBREVMONTHNAME1, LOCALE_SMONTHNAME1 ) + (mo - 1)
-	if( w_GetLocaleInfoEx( 0, t, @wbuf, 128 ) <= 0 ) then return 0
+	if( w_GetLocaleInfoEx( nullptr, t, @wbuf, 128 ) <= 0 ) then return 0
 	return hW2U( @wbuf, buf, buflen )
 end function
 
@@ -317,13 +317,13 @@ function tkort_DtLocaleWeekdayName alias "fb_DtLocaleWeekdayName" _
 	dim as wstring * 128 wbuf
 	dim as uint32 t = any
 
-	if( buf = 0 ) then return 0
+	if( buf = nullptr ) then return 0
 	if( buflen < 2 ) then return 0
 	buf[0] = 0
 	if( (dow < 1) orelse (dow > 7) ) then return 0
 
 	t = iif( abbreviated <> 0, LOCALE_SABBREVDAYNAME1, LOCALE_SDAYNAME1 ) + (dow - 1)
-	if( w_GetLocaleInfoEx( 0, t, @wbuf, 128 ) <= 0 ) then return 0
+	if( w_GetLocaleInfoEx( nullptr, t, @wbuf, 128 ) <= 0 ) then return 0
 	return hW2U( @wbuf, buf, buflen )
 end function
 
@@ -367,9 +367,9 @@ end function
 
 private function hCopyStr( byval s as zstring ptr, byval buf as zstring ptr, byval buflen as int32 ) as int32
 	dim as int32 n = 0
-	if( buf = 0 ) then return 0
+	if( buf = nullptr ) then return 0
 	if( buflen < 2 ) then return 0
-	if( s = 0 ) then
+	if( s = nullptr ) then
 		buf[0] = 0
 		return 0
 	end if
@@ -392,7 +392,7 @@ function tkort_DtZoneOffsetAt alias "fb_DtZoneOffsetAt" ( byval utcTicks as int6
 	if( tkrt_DtIsValidTicks( utcTicks ) = 0 ) then return 0
 	t = hTicksToTimeT( utcTicks )
 	'' localtime_r, NEVER localtime -- this has to be thread-safe.
-	if( u_localtime_r( @t, @tmv ) = 0 ) then return 0
+	if( u_localtime_r( @t, @tmv ) = nullptr ) then return 0
 	return cast( int32, tmv.tm_gmtoff \ 60 )
 end function
 
@@ -404,7 +404,7 @@ function tkort_DtZoneIsDst alias "fb_DtZoneIsDst" ( byval utcTicks as int64 ) as
 
 	if( tkrt_DtIsValidTicks( utcTicks ) = 0 ) then return 0
 	t = hTicksToTimeT( utcTicks )
-	if( u_localtime_r( @t, @tmv ) = 0 ) then return 0
+	if( u_localtime_r( @t, @tmv ) = nullptr ) then return 0
 	if( tmv.tm_isdst > 0 ) then return 1
 	return 0
 end function
@@ -418,8 +418,8 @@ function tkort_DtZoneSupportsDst alias "fb_DtZoneSupportsDst" ( ) as int32
 	dim as int32 janOff = any, julOff = any, year_ = any
 	dim as int64 jan = any, jul = any
 
-	now_ = u_time( 0 )
-	if( u_localtime_r( @now_, @tmv ) = 0 ) then return 0
+	now_ = u_time( nullptr )
+	if( u_localtime_r( @now_, @tmv ) = nullptr ) then return 0
 	year_ = tmv.tm_year + 1900
 	if( (year_ < FB_DT_MIN_YEAR) orelse (year_ > FB_DT_MAX_YEAR) ) then return 0
 
@@ -459,7 +459,7 @@ private sub hFillTm( byval ticks as int64, byval tmv as tm_ ptr )
 	'' -1, not 0: "unknown", so strftime does not assert a DST state.
 	tmv->tm_isdst = -1
 	tmv->tm_gmtoff = 0
-	tmv->tm_zone = 0
+	tmv->tm_zone = nullptr
 end sub
 
 '' strftime with "%x"/"%X" rather than nl_langinfo: the langinfo path needs
@@ -468,7 +468,7 @@ end sub
 function tkort_DtLocaleDateString alias "fb_DtLocaleDateString" _
 	( byval ticks as int64, byval style as int32, byval buf as zstring ptr, byval buflen as int32 ) as int32
 	dim as tm_ tmv = any
-	if( buf = 0 ) then return 0
+	if( buf = nullptr ) then return 0
 	if( buflen < 2 ) then return 0
 	buf[0] = 0
 	if( tkrt_DtIsValidTicks( ticks ) = 0 ) then return 0
@@ -482,7 +482,7 @@ end function
 function tkort_DtLocaleTimeString alias "fb_DtLocaleTimeString" _
 	( byval ticks as int64, byval style as int32, byval buf as zstring ptr, byval buflen as int32 ) as int32
 	dim as tm_ tmv = any
-	if( buf = 0 ) then return 0
+	if( buf = nullptr ) then return 0
 	if( buflen < 2 ) then return 0
 	buf[0] = 0
 	if( tkrt_DtIsValidTicks( ticks ) = 0 ) then return 0
@@ -498,7 +498,7 @@ end function
 function tkort_DtLocaleMonthName alias "fb_DtLocaleMonthName" _
 	( byval mo as int32, byval abbreviated as int32, byval buf as zstring ptr, byval buflen as int32 ) as int32
 	dim as tm_ tmv = any
-	if( buf = 0 ) then return 0
+	if( buf = nullptr ) then return 0
 	if( buflen < 2 ) then return 0
 	buf[0] = 0
 	if( (mo < 1) orelse (mo > 12) ) then return 0
@@ -516,7 +516,7 @@ end function
 function tkort_DtLocaleWeekdayName alias "fb_DtLocaleWeekdayName" _
 	( byval dow as int32, byval abbreviated as int32, byval buf as zstring ptr, byval buflen as int32 ) as int32
 	dim as tm_ tmv = any
-	if( buf = 0 ) then return 0
+	if( buf = nullptr ) then return 0
 	if( buflen < 2 ) then return 0
 	buf[0] = 0
 	if( (dow < 1) orelse (dow > 7) ) then return 0

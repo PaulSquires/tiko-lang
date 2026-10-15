@@ -33,11 +33,11 @@ extern "rtlib"
 
 sub tkort_StrDelete alias "fb_StrDelete" ( byval s as FBSTRING ptr )
 
-	if( s = 0 ) then exit sub
+	if( s = nullptr ) then exit sub
 
-	if( s->data <> 0 ) then
+	if( s->data <> nullptr ) then
 		deallocate( s->data )
-		s->data = 0
+		s->data = nullptr
 	end if
 
 	'' Written raw, NOT through FB_STRSETLEN: that macro preserves the temp bit,

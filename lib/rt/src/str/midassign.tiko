@@ -46,8 +46,8 @@ sub tkort_StrAssignMid alias "fb_StrAssignMid" _
 	STRLOCK()
 
 	dim as integer dst_ok = 0
-	if( dst <> 0 ) then
-		if( dst->data <> 0 ) then
+	if( dst <> nullptr ) then
+		if( dst->data <> nullptr ) then
 			if( FB_STRSIZE( dst ) <> 0 ) then dst_ok = 1
 		end if
 	end if
@@ -60,8 +60,8 @@ sub tkort_StrAssignMid alias "fb_StrAssignMid" _
 	end if
 
 	dim as integer src_ok = 0
-	if( src <> 0 ) then
-		if( src->data <> 0 ) then
+	if( src <> nullptr ) then
+		if( src->data <> nullptr ) then
 			if( FB_STRSIZE( src ) <> 0 ) then src_ok = 1
 		end if
 	end if

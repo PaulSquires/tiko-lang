@@ -137,24 +137,24 @@ function tkort_DatePart alias "fb_DatePart" _
 
 	select case interval_type
 	case FB_TIME_INTERVAL_YEAR
-		tkrt_DateDecodeSerial( serial, @year, 0, 0 )
+		tkrt_DateDecodeSerial( serial, @year, nullptr, nullptr )
 		result = year
 	case FB_TIME_INTERVAL_QUARTER
-		tkrt_DateDecodeSerial( serial, 0, @month, 0 )
+		tkrt_DateDecodeSerial( serial, nullptr, @month, nullptr )
 		result = ((month - 1) \ 3) + 1
 	case FB_TIME_INTERVAL_MONTH
-		tkrt_DateDecodeSerial( serial, 0, @month, 0 )
+		tkrt_DateDecodeSerial( serial, nullptr, @month, nullptr )
 		result = month
 	case FB_TIME_INTERVAL_DAY_OF_YEAR
 		tkrt_DateDecodeSerial( serial, @year, @month, @day_ )
 		result = tkrt_GetDayOfYearEx( year, month, day_ )
 	case FB_TIME_INTERVAL_DAY
-		tkrt_DateDecodeSerial( serial, 0, 0, @day_ )
+		tkrt_DateDecodeSerial( serial, nullptr, nullptr, @day_ )
 		result = day_
 	case FB_TIME_INTERVAL_WEEKDAY
 		result = tkrt_Weekday( serial, first_day_of_week )
 	case FB_TIME_INTERVAL_WEEK_OF_YEAR
-		tkrt_DateDecodeSerial( serial, @year, 0, 0 )
+		tkrt_DateDecodeSerial( serial, @year, nullptr, nullptr )
 		result = tkrt_GetWeekOfYear( year, serial, first_day_of_year, first_day_of_week )
 		'' Early January can belong to the previous year's last week; the
 		'' first answer then comes out negative and is RE-ASKED, not clamped.
@@ -162,13 +162,13 @@ function tkort_DatePart alias "fb_DatePart" _
 			result = tkrt_GetWeekOfYear( year - 1, serial, first_day_of_year, first_day_of_week )
 		end if
 	case FB_TIME_INTERVAL_HOUR
-		tkrt_TimeDecodeSerial( serial, @hour, 0, 0, 0 )
+		tkrt_TimeDecodeSerial( serial, @hour, nullptr, nullptr, 0 )
 		result = hour
 	case FB_TIME_INTERVAL_MINUTE
-		tkrt_TimeDecodeSerial( serial, 0, @minute, 0, 0 )
+		tkrt_TimeDecodeSerial( serial, nullptr, @minute, nullptr, 0 )
 		result = minute
 	case FB_TIME_INTERVAL_SECOND
-		tkrt_TimeDecodeSerial( serial, 0, 0, @second, 0 )
+		tkrt_TimeDecodeSerial( serial, nullptr, nullptr, @second, 0 )
 		result = second
 	case else
 		tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
@@ -192,13 +192,13 @@ function tkort_DateDiff alias "fb_DateDiff" _
 
 	select case interval_type
 	case FB_TIME_INTERVAL_YEAR
-		tkrt_DateDecodeSerial( serial1, @year1, 0, 0 )
-		tkrt_DateDecodeSerial( serial2, @year2, 0, 0 )
+		tkrt_DateDecodeSerial( serial1, @year1, nullptr, nullptr )
+		tkrt_DateDecodeSerial( serial2, @year2, nullptr, nullptr )
 		result = year2 - year1
 
 	case FB_TIME_INTERVAL_QUARTER, FB_TIME_INTERVAL_MONTH
-		tkrt_DateDecodeSerial( serial1, @year1, @month1, 0 )
-		tkrt_DateDecodeSerial( serial2, @year2, @month2, 0 )
+		tkrt_DateDecodeSerial( serial1, @year1, @month1, nullptr )
+		tkrt_DateDecodeSerial( serial2, @year2, @month2, nullptr )
 		result = (month2 - month1) + (year2 - year1) * 12
 		'' Quarters are months divided by three, truncating toward zero --
 		'' so five months apart is one quarter, in either direction.
@@ -212,7 +212,7 @@ function tkort_DateDiff alias "fb_DateDiff" _
 	case FB_TIME_INTERVAL_WEEKDAY, FB_TIME_INTERVAL_WEEK_OF_YEAR
 		'' Both week numbers are taken against serial1's year, so the
 		'' difference stays meaningful across a year boundary.
-		tkrt_DateDecodeSerial( serial1, @year1, 0, 0 )
+		tkrt_DateDecodeSerial( serial1, @year1, nullptr, nullptr )
 		week = tkrt_GetWeekOfYear( year1, serial1, first_day_of_year, first_day_of_week )
 		result = tkrt_GetWeekOfYear( year1, serial2, first_day_of_year, first_day_of_week )
 		'' Decrement each side only when positive. Week numbers skip zero
@@ -240,12 +240,12 @@ function tkort_DateDiff alias "fb_DateDiff" _
 
 	case FB_TIME_INTERVAL_HOUR
 		serial = serial2 - serial1
-		tkrt_TimeDecodeSerial( serial, @hour, 0, 0, 0 )
+		tkrt_TimeDecodeSerial( serial, @hour, nullptr, nullptr, 0 )
 		result = clngint( fix( hour + floor( serial ) * 24.0 ) )
 
 	case FB_TIME_INTERVAL_MINUTE
 		serial = serial2 - serial1
-		tkrt_TimeDecodeSerial( serial, @hour, @minute, 0, 0 )
+		tkrt_TimeDecodeSerial( serial, @hour, @minute, nullptr, 0 )
 		result = clngint( fix( minute + (hour + floor( serial ) * 24.0) * 60.0 ) )
 
 	case FB_TIME_INTERVAL_SECOND

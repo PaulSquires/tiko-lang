@@ -20,16 +20,16 @@ extern "rtlib"
 function tkort_WstrLeft alias "fb_WstrLeft" _
 	( byval src as wstring ptr, byval chars as integer ) as wstring ptr
 
-	if( src = 0 ) then return 0
+	if( src = nullptr ) then return nullptr
 
 	dim as integer length = FB_WSTR_LEN( src )
-	if( chars <= 0 ) then return 0
-	if( length = 0 ) then return 0
+	if( chars <= 0 ) then return nullptr
+	if( length = 0 ) then return nullptr
 
 	if( chars < length ) then length = chars
 
 	dim as wstring ptr dst = FB_WSTR_ALLOCTEMP( length )
-	if( dst <> 0 ) then
+	if( dst <> nullptr ) then
 		FB_WSTR_COPY( dst, src, length )
 	end if
 	return dst
@@ -39,17 +39,17 @@ end function
 function tkort_WstrRight alias "fb_WstrRight" _
 	( byval src as wstring ptr, byval chars as integer ) as wstring ptr
 
-	if( src = 0 ) then return 0
+	if( src = nullptr ) then return nullptr
 
 	dim as integer src_len = FB_WSTR_LEN( src )
-	if( chars <= 0 ) then return 0
-	if( src_len = 0 ) then return 0
+	if( chars <= 0 ) then return nullptr
+	if( src_len = 0 ) then return nullptr
 
 	dim as integer length = chars
 	if( chars > src_len ) then length = src_len
 
 	dim as wstring ptr dst = FB_WSTR_ALLOCTEMP( length )
-	if( dst <> 0 ) then
+	if( dst <> nullptr ) then
 		FB_WSTR_COPY( dst, @src[src_len - length], length )
 	end if
 	return dst
@@ -62,20 +62,20 @@ end function
 function tkort_WstrMid alias "fb_WstrMid" _
 	( byval src as wstring ptr, byval start_ as integer, byval length as integer ) as wstring ptr
 
-	if( src = 0 ) then return 0
+	if( src = nullptr ) then return nullptr
 
 	dim as integer src_len = FB_WSTR_LEN( src )
-	if( src_len = 0 ) then return 0
-	if( start_ <= 0 ) then return 0
-	if( start_ > src_len ) then return 0
-	if( length = 0 ) then return 0
+	if( src_len = 0 ) then return nullptr
+	if( start_ <= 0 ) then return nullptr
+	if( start_ > src_len ) then return nullptr
+	if( length = 0 ) then return nullptr
 
 	start_ -= 1
 	if( length < 0 ) then length = src_len
 	if( (start_ + length) > src_len ) then length = src_len - start_
 
 	dim as wstring ptr dst = FB_WSTR_ALLOCTEMP( length )
-	if( dst <> 0 ) then
+	if( dst <> nullptr ) then
 		FB_WSTR_COPY( dst, @src[start_], length )
 	end if
 	return dst
@@ -93,8 +93,8 @@ sub tkort_WstrAssignMid alias "fb_WstrAssignMid" _
 	( byval dst as wstring ptr, byval dst_len as integer, _
 	  byval start_ as integer, byval length as integer, byval src as wstring ptr )
 
-	if( dst = 0 ) then exit sub
-	if( src = 0 ) then exit sub
+	if( dst = nullptr ) then exit sub
+	if( src = nullptr ) then exit sub
 
 	dim as integer src_len = FB_WSTR_LEN( src )
 	if( src_len = 0 ) then exit sub
@@ -116,9 +116,9 @@ sub tkort_WstrAssignMid alias "fb_WstrAssignMid" _
 end sub
 
 function tkort_WstrSpace alias "fb_WstrSpace" ( byval chars as integer ) as wstring ptr
-	if( chars <= 0 ) then return 0
+	if( chars <= 0 ) then return nullptr
 	dim as wstring ptr dst = FB_WSTR_ALLOCTEMP( chars )
-	if( dst <> 0 ) then
+	if( dst <> nullptr ) then
 		FB_WSTR_FILL( dst, 32, chars )
 	end if
 	return dst
@@ -126,9 +126,9 @@ end function
 
 function tkort_WstrFill1 alias "fb_WstrFill1" _
 	( byval chars as integer, byval c as int32 ) as wstring ptr
-	if( chars <= 0 ) then return 0
+	if( chars <= 0 ) then return nullptr
 	dim as wstring ptr dst = FB_WSTR_ALLOCTEMP( chars )
-	if( dst <> 0 ) then
+	if( dst <> nullptr ) then
 		FB_WSTR_FILL( dst, c, chars )
 	end if
 	return dst
@@ -137,9 +137,9 @@ end function
 '' STRINGW( n, s ) repeats the FIRST character of s.
 function tkort_WstrFill2 alias "fb_WstrFill2" _
 	( byval chars as integer, byval src as wstring ptr ) as wstring ptr
-	if( chars <= 0 ) then return 0
-	if( src = 0 ) then return 0
-	if( FB_WSTR_LEN( src ) <= 0 ) then return 0
+	if( chars <= 0 ) then return nullptr
+	if( src = nullptr ) then return nullptr
+	if( FB_WSTR_LEN( src ) <= 0 ) then return nullptr
 
 	'' THE CHARACTER IS READ THROUGH A LOCAL, AND THAT IS NOT STYLE.
 	''
@@ -164,7 +164,7 @@ end function
 function tkort_WstrAsc alias "fb_WstrAsc" _
 	( byval src as wstring ptr, byval pos_ as integer ) as uint32
 
-	if( src = 0 ) then return 0
+	if( src = nullptr ) then return 0
 
 	dim as integer length = FB_WSTR_LEN( src )
 	if( length = 0 ) then return 0
@@ -179,8 +179,8 @@ end function
 '' length is the field width.
 sub tkort_WstrLset alias "fb_WstrLset" ( byval dst as wstring ptr, byval src as wstring ptr )
 
-	if( dst = 0 ) then exit sub
-	if( src = 0 ) then exit sub
+	if( dst = nullptr ) then exit sub
+	if( src = nullptr ) then exit sub
 
 	dim as integer slen = FB_WSTR_LEN( src )
 	dim as integer dlen = FB_WSTR_LEN( dst )
@@ -203,8 +203,8 @@ end sub
 
 sub tkort_WstrRset alias "fb_WstrRset" ( byval dst as wstring ptr, byval src as wstring ptr )
 
-	if( dst = 0 ) then exit sub
-	if( src = 0 ) then exit sub
+	if( dst = nullptr ) then exit sub
+	if( src = nullptr ) then exit sub
 
 	dim as integer slen = FB_WSTR_LEN( src )
 	dim as integer dlen = FB_WSTR_LEN( dst )
@@ -240,10 +240,10 @@ extern "c"   '' NON-FBCALL: fb_unicode.h declares fb_WstrChr without it.
 
 function tkort_WstrChr cdecl alias "fb_WstrChr" ( byval args as int32, ... ) as wstring ptr
 
-	if( args <= 0 ) then return 0
+	if( args <= 0 ) then return nullptr
 
 	dim as wstring ptr dst = FB_WSTR_ALLOCTEMP( args )
-	if( dst = 0 ) then return 0
+	if( dst = nullptr ) then return nullptr
 
 	dim as cva_list ap = any
 	cva_start( ap, args )

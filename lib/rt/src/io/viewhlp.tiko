@@ -39,7 +39,7 @@ end function
 function tkort_ConsoleGetBotRow alias "fb_ConsoleGetBotRow" ( ) as int32
 	if( view_botrow = -1 ) then
 		'' Asked for the ROW COUNT and converted to a 0-based last row.
-		tkrt_GetSize( 0, @view_botrow )
+		tkrt_GetSize( nullptr, @view_botrow )
 		if( view_botrow <> 0 ) then
 			view_botrow -= 1
 		else

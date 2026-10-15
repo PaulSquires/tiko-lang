@@ -36,7 +36,7 @@ private function hRadixW _
 	if( digits <= 0 ) then digits = hw_hDigits( num, shift )
 
 	dim as wstring ptr s = FB_WSTR_ALLOCTEMP( digits )
-	if( s = 0 ) then return 0
+	if( s = nullptr ) then return nullptr
 
 	hw_hFill( cptr( TKORT_WRDX_UNIT ptr, s ), num, digits, shift, mask, ishex )
 	cptr( TKORT_WRDX_UNIT ptr, s )[digits] = 0

@@ -68,7 +68,7 @@ end extern
 '' function compiles and archives cleanly and then fails to link -- the trap it
 '' sprang once already.
 private function tkort_wlen( byval s as wstring ptr ) as uinteger
-	if( s = 0 ) then return 0
+	if( s = nullptr ) then return 0
 	dim as uinteger n = 0
 	while( s[n] <> 0 )
 		n += 1
@@ -202,7 +202,7 @@ private sub tkort_HookConScrollW cdecl _
 		FillChar.attr = pInfo->wAttributes
 		FillChar.ch = 32
 
-		w_ScrollConsoleScreenBufferW( hnd, @srScroll, 0, _
+		w_ScrollConsoleScreenBufferW( hnd, @srScroll, nullptr, _
 		                              TKORT_COORD( destX, destY ), @FillChar )
 	end if
 
@@ -239,7 +239,7 @@ private function tkort_HookConWriteW cdecl _
 	'' malloc, NOT alloca -- see the file header.
 	dim as TKORT_CHARINFOW ptr lpBuffer = _
 		cast( TKORT_CHARINFOW ptr, malloc( sizeof( TKORT_CHARINFOW ) * length_ ) )
-	if( lpBuffer = 0 ) then return 0
+	if( lpBuffer = nullptr ) then return 0
 
 	srWriteRegion.Left_ = cast( int16, handle->Coord_.X_ )
 	srWriteRegion.Top_ = cast( int16, handle->Coord_.Y_ )
@@ -283,7 +283,7 @@ function tkort_hConsoleStreamOutW alias "fb_hConsoleStreamOutW" _
 	dim as uinteger remaining_ = chars
 	dim as wstring ptr p = text
 
-	if( (text = 0) orelse (chars = 0) ) then return 0
+	if( (text = nullptr) orelse (chars = 0) ) then return 0
 
 	if( w_GetConsoleScreenBufferInfo( hnd, @sbi(0) ) = 0 ) then return 0
 
@@ -301,11 +301,11 @@ function tkort_hConsoleStreamOutW alias "fb_hConsoleStreamOutW" _
 	'' SETTLE THE DEFERRED SCROLL before handing the cursor over. This is
 	'' FB_CON_CORRECT_POSITION, spelled out.
 	if( TKORT_CON_SCROLLOFF() <> 0 ) then
-		tkrt_ConsolePrintBufferEx( 0, 0, FB_PRINT_FORCE_ADJUST )
+		tkrt_ConsolePrintBufferEx( nullptr, 0, FB_PRINT_FORCE_ADJUST )
 	end if
 
 	while( remaining_ <> 0 )
-		if( w_WriteConsoleW( hnd, p, remaining_, @written, 0 ) = 0 ) then exit while
+		if( w_WriteConsoleW( hnd, p, remaining_, @written, nullptr ) = 0 ) then exit while
 		'' A successful call that wrote nothing would loop forever.
 		if( written = 0 ) then exit while
 		p += written
@@ -343,7 +343,7 @@ sub tkort_ConsolePrintBufferWstrEx alias "fb_ConsolePrintBufferWstrEx" _
 		dim as uint8 ptr pb = cast( uint8 ptr, pachText )
 
 		while( bytes_ <> 0 )
-			if( w_WriteFile( TKORT_OUT_HANDLE(), pb, bytes_, @dwBytesWritten, 0 ) = 0 ) then
+			if( w_WriteFile( TKORT_OUT_HANDLE(), pb, bytes_, @dwBytesWritten, nullptr ) = 0 ) then
 				exit while
 			end if
 			'' fbc advances the WIDE pointer by a BYTE count here, which
@@ -486,7 +486,7 @@ sub tkort_ConsolePrintBufferWstrEx alias "fb_ConsolePrintBufferWstrEx" _
 	'' malloc rather than alloca -- see the file header, including the failure
 	'' branch below, which fbc cannot reach.
 	temp = cast( zstring ptr, malloc( chars * 4 + 1 ) )
-	if( temp = 0 ) then
+	if( temp = nullptr ) then
 		fwrite( buffer, sizeof( wstring ), chars, stdout )
 		fflush( stdout )
 		exit sub

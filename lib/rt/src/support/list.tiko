@@ -51,26 +51,26 @@ sub tkort_hListInit alias "fb_hListInit" _
 		byval elem_size as uinteger, byval size as uinteger _
 	)
 
-	if( lst = 0 ) then exit sub
+	if( lst = nullptr ) then exit sub
 
 	lst->cnt   = 0
-	lst->head  = 0
-	lst->tail  = 0
-	lst->fhead = 0
+	lst->head  = nullptr
+	lst->tail  = nullptr
+	lst->fhead = nullptr
 
-	if( (table_ = 0) orelse (elem_size = 0) orelse (size = 0) ) then exit sub
+	if( (table_ = nullptr) orelse (elem_size = 0) orelse (size = 0) ) then exit sub
 
 	'' Threaded backwards so that fhead ends up pointing at element 0 and the
 	'' pool is handed out in ascending order. Nothing depends on that; it just
 	'' makes a dump of the pool readable when something goes wrong.
 	dim as uint8 ptr p = cptr( uint8 ptr, table_ )
 	dim as FB_LISTELEM ptr e = any
-	dim as FB_LISTELEM ptr nxt = 0
+	dim as FB_LISTELEM ptr nxt = nullptr
 	dim as integer i = any
 
 	for i = cast( integer, size ) - 1 to 0 step -1
 		e = cptr( FB_LISTELEM ptr, p + (cast( integer, elem_size ) * i) )
-		e->prev = 0
+		e->prev = nullptr
 		e->next = nxt
 		nxt = e
 	next
@@ -84,17 +84,17 @@ end sub
 function tkort_hListAllocElem alias "fb_hListAllocElem" _
 	( byval lst as FB_LIST ptr ) as FB_LISTELEM ptr
 
-	if( lst = 0 ) then return 0
+	if( lst = nullptr ) then return nullptr
 
 	dim as FB_LISTELEM ptr e = lst->fhead
-	if( e = 0 ) then return 0
+	if( e = nullptr ) then return nullptr
 
 	lst->fhead = e->next
 
 	'' Append at the tail, in order.
-	e->next = 0
+	e->next = nullptr
 	e->prev = lst->tail
-	if( lst->tail <> 0 ) then
+	if( lst->tail <> nullptr ) then
 		lst->tail->next = e
 	else
 		lst->head = e
@@ -110,21 +110,21 @@ end function
 sub tkort_hListFreeElem alias "fb_hListFreeElem" _
 	( byval lst as FB_LIST ptr, byval e as FB_LISTELEM ptr )
 
-	if( (lst = 0) orelse (e = 0) ) then exit sub
+	if( (lst = nullptr) orelse (e = nullptr) ) then exit sub
 
-	if( e->prev <> 0 ) then
+	if( e->prev <> nullptr ) then
 		e->prev->next = e->next
 	else
 		lst->head = e->next
 	end if
 
-	if( e->next <> 0 ) then
+	if( e->next <> nullptr ) then
 		e->next->prev = e->prev
 	else
 		lst->tail = e->prev
 	end if
 
-	e->prev = 0
+	e->prev = nullptr
 	e->next = lst->fhead
 	lst->fhead = e
 
@@ -136,23 +136,23 @@ end sub
 '' caller, so there is no free list to maintain.
 sub tkort_hListDynInit alias "fb_hListDynInit" ( byval lst as FB_LIST ptr )
 
-	if( lst = 0 ) then exit sub
+	if( lst = nullptr ) then exit sub
 
 	lst->cnt   = 0
-	lst->head  = 0
-	lst->tail  = 0
-	lst->fhead = 0
+	lst->head  = nullptr
+	lst->tail  = nullptr
+	lst->fhead = nullptr
 
 end sub
 
 sub tkort_hListDynElemAdd alias "fb_hListDynElemAdd" _
 	( byval lst as FB_LIST ptr, byval e as FB_LISTELEM ptr )
 
-	if( (lst = 0) orelse (e = 0) ) then exit sub
+	if( (lst = nullptr) orelse (e = nullptr) ) then exit sub
 
-	e->next = 0
+	e->next = nullptr
 	e->prev = lst->tail
-	if( lst->tail <> 0 ) then
+	if( lst->tail <> nullptr ) then
 		lst->tail->next = e
 	else
 		lst->head = e
@@ -166,23 +166,23 @@ end sub
 sub tkort_hListDynElemRemove alias "fb_hListDynElemRemove" _
 	( byval lst as FB_LIST ptr, byval e as FB_LISTELEM ptr )
 
-	if( (lst = 0) orelse (e = 0) ) then exit sub
+	if( (lst = nullptr) orelse (e = nullptr) ) then exit sub
 
-	if( e->prev <> 0 ) then
+	if( e->prev <> nullptr ) then
 		e->prev->next = e->next
 	else
 		lst->head = e->next
 	end if
 
-	if( e->next <> 0 ) then
+	if( e->next <> nullptr ) then
 		e->next->prev = e->prev
 	else
 		lst->tail = e->prev
 	end if
 
 	'' The element is the caller's; do NOT put it on a free list.
-	e->prev = 0
-	e->next = 0
+	e->prev = nullptr
+	e->next = nullptr
 
 	lst->cnt -= 1
 

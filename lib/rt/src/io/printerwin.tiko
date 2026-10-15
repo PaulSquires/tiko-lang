@@ -389,10 +389,10 @@ end extern
 '' strdup / strcasecmp / strncasecmp / isspace, written out -- MinGW spells the
 '' first three with a leading underscore. Same reason as src/io/devcomopen.tiko.
 private function hStrDup( byval s as zstring ptr ) as zstring ptr
-	if( s = 0 ) then return 0
+	if( s = nullptr ) then return nullptr
 	dim as uinteger n = strlen( s )
 	dim as zstring ptr p = cast( zstring ptr, malloc( n + 1 ) )
-	if( p = 0 ) then return 0
+	if( p = nullptr ) then return nullptr
 	memcpy( p, s, n + 1 )
 	return p
 end function
@@ -429,7 +429,7 @@ private function hListDevElemAlloc _
 
 	dim as DEV_PRINTER_DEVICE ptr node = _
 		cast( DEV_PRINTER_DEVICE ptr, calloc( 1, sizeof( DEV_PRINTER_DEVICE ) ) )
-	if( node = 0 ) then return 0
+	if( node = nullptr ) then return nullptr
 	node->device = hStrDup( device )
 	node->printer_name = hStrDup( printer_name )
 	fb_hListDynElemAdd( lst, @node->elem )
@@ -447,7 +447,7 @@ end sub
 '' so the list head can be cast straight to a node -- the intrusive-list trick
 '' fbc relies on throughout, and the reason `elem` must stay first.
 private sub hListDevClear( byval lst as FB_LIST ptr )
-	while( lst->head <> 0 )
+	while( lst->head <> nullptr )
 		hListDevElemFree( lst, cast( DEV_PRINTER_DEVICE ptr, lst->head ) )
 	wend
 end sub
@@ -456,22 +456,22 @@ private function hListDevFindDevice _
 	( byval lst as FB_LIST ptr, byval pszDevice as zstring ptr ) as DEV_PRINTER_DEVICE ptr
 
 	dim as DEV_PRINTER_DEVICE ptr node = cast( DEV_PRINTER_DEVICE ptr, lst->head )
-	while( node <> 0 )
+	while( node <> nullptr )
 		if( HCASEEQ( pszDevice, node->device ) ) then return node
 		node = cast( DEV_PRINTER_DEVICE ptr, node->elem.next )
 	wend
-	return 0
+	return nullptr
 end function
 
 private function hListDevFindName _
 	( byval lst as FB_LIST ptr, byval pszPrinterName as zstring ptr ) as DEV_PRINTER_DEVICE ptr
 
 	dim as DEV_PRINTER_DEVICE ptr node = cast( DEV_PRINTER_DEVICE ptr, lst->head )
-	while( node <> 0 )
+	while( node <> nullptr )
 		if( HCASEEQ( pszPrinterName, node->printer_name ) ) then return node
 		node = cast( DEV_PRINTER_DEVICE ptr, node->elem.next )
 	wend
-	return 0
+	return nullptr
 end function
 
 '' ------------------------------------------------------------- enumeration
@@ -484,24 +484,24 @@ end function
 private function hGetDefaultPrinters( byval pCount as int32 ptr ) as PRINTER_INFO_5A_ ptr
 
 	dim as uint32 dwNeeded = 0, dwReturned = 0
-	dim as PRINTER_INFO_5A_ ptr result_ = 0
+	dim as PRINTER_INFO_5A_ ptr result_ = nullptr
 	dim as uint32 dwFlags = PRINTER_ENUM_DEFAULT_
 
 	*pCount = 0
 
-	dim as int32 fResult = w_EnumPrintersA( dwFlags, 0, 5, 0, 0, @dwNeeded, @dwReturned )
+	dim as int32 fResult = w_EnumPrintersA( dwFlags, nullptr, 5, nullptr, 0, @dwNeeded, @dwReturned )
 
 	while( fResult = 0 )
 		if( w_GetLastError( ) <> ERROR_INSUFFICIENT_BUFFER_ ) then exit while
 
 		dim as PRINTER_INFO_5A_ ptr oldResult = result_
 		result_ = cast( PRINTER_INFO_5A_ ptr, realloc( result_, dwNeeded ) )
-		if( result_ = 0 ) then
+		if( result_ = nullptr ) then
 			free( oldResult )
 			exit while
 		end if
 
-		fResult = w_EnumPrintersA( dwFlags, 0, 5, result_, dwNeeded, @dwNeeded, @dwReturned )
+		fResult = w_EnumPrintersA( dwFlags, nullptr, 5, result_, dwNeeded, @dwNeeded, @dwReturned )
 	wend
 
 	*pCount = cast( int32, dwReturned )
@@ -511,24 +511,24 @@ end function
 private function hGetPrinters( byval pCount as int32 ptr ) as PRINTER_INFO_2A_ ptr
 
 	dim as uint32 dwNeeded = 0, dwReturned = 0
-	dim as PRINTER_INFO_2A_ ptr result_ = 0
+	dim as PRINTER_INFO_2A_ ptr result_ = nullptr
 	dim as uint32 dwFlags = PRINTER_ENUM_LOCAL_ or PRINTER_ENUM_CONNECTIONS_
 
 	*pCount = 0
 
-	dim as int32 fResult = w_EnumPrintersA( dwFlags, 0, 2, 0, 0, @dwNeeded, @dwReturned )
+	dim as int32 fResult = w_EnumPrintersA( dwFlags, nullptr, 2, nullptr, 0, @dwNeeded, @dwReturned )
 
 	while( fResult = 0 )
 		if( w_GetLastError( ) <> ERROR_INSUFFICIENT_BUFFER_ ) then exit while
 
 		dim as PRINTER_INFO_2A_ ptr oldResult = result_
 		result_ = cast( PRINTER_INFO_2A_ ptr, realloc( result_, dwNeeded ) )
-		if( result_ = 0 ) then
+		if( result_ = nullptr ) then
 			free( oldResult )
 			exit while
 		end if
 
-		fResult = w_EnumPrintersA( dwFlags, 0, 2, result_, dwNeeded, @dwNeeded, @dwReturned )
+		fResult = w_EnumPrintersA( dwFlags, nullptr, 2, result_, dwNeeded, @dwNeeded, @dwReturned )
 	wend
 
 	*pCount = cast( int32, dwReturned )
@@ -539,17 +539,17 @@ end function
 '' see the file header, including the leak on the realloc-failure branch.
 private function hGetDefaultPrinterName( ) as zstring ptr
 
-	dim as zstring ptr result_ = 0
+	dim as zstring ptr result_ = nullptr
 	dim as int32 nprint = any
 	dim as PRINTER_INFO_5A_ ptr printers = hGetDefaultPrinters( @nprint )
 
 	if( nprint = 0 ) then
 		dim as any ptr hMod = w_LoadLibraryA( @"winspool.drv" )
-		if( hMod <> 0 ) then
+		if( hMod <> nullptr ) then
 			dim as FnGetDefaultPrinter pfn = _
 				cast( FnGetDefaultPrinter, w_GetProcAddress( hMod, @"GetDefaultPrinterA" ) )
-			if( pfn <> 0 ) then
-				dim as zstring ptr buffer_ = 0
+			if( pfn <> nullptr ) then
+				dim as zstring ptr buffer_ = nullptr
 				dim as uint32 dwSize = 0
 				dim as int32 fResult = pfn( 0, @dwSize )
 				while( fResult = 0 )
@@ -560,7 +560,7 @@ private function hGetDefaultPrinterName( ) as zstring ptr
 					'' NO `exit while` AFTER THE FREE -- fbc has none either, so
 					'' a failed realloc calls through the freed pointer on the
 					'' next iteration. Unreachable unless the allocation fails.
-					if( buffer_ = 0 ) then free( oldBuffer )
+					if( buffer_ = nullptr ) then free( oldBuffer )
 					fResult = pfn( buffer_, @dwSize )
 				wend
 				'' > 1 rather than <> 0: a size of exactly 1 is the empty string.
@@ -584,19 +584,19 @@ private sub hPrinterBuildListLocal( byval lst as FB_LIST ptr )
 
 	dim as int32 nprint = any
 	dim as PRINTER_INFO_2A_ ptr printers = hGetPrinters( @nprint )
-	if( printers = 0 ) then exit sub
+	if( printers = nullptr ) then exit sub
 
 	for i as int32 = 0 to nprint - 1
 		dim as PRINTER_INFO_2A_ ptr printer = printers + i
 		'' A NULL pServerName IS WHAT "LOCAL" MEANS here.
-		if( printer->pServerName = 0 ) then
+		if( printer->pServerName = nullptr ) then
 			dim as zstring ptr pPortName = printer->pPortName
 			dim as zstring ptr pFoundPos = strchr( pPortName, 44 )      '' ','
-			while( pFoundPos <> 0 )
+			while( pFoundPos <> nullptr )
 				pFoundPos[0] = 0
 
 				if( HCASEEQN( pPortName, @"LPT", 3 ) ) then
-					if( hListDevFindDevice( lst, pPortName ) = 0 ) then
+					if( hListDevFindDevice( lst, pPortName ) = nullptr ) then
 						hListDevElemAlloc( lst, pPortName, printer->pPrinterName )
 					end if
 				end if
@@ -610,7 +610,7 @@ private sub hPrinterBuildListLocal( byval lst as FB_LIST ptr )
 
 			'' The last (or only) entry, after the final comma.
 			if( HCASEEQN( pPortName, @"LPT", 3 ) ) then
-				if( hListDevFindDevice( lst, pPortName ) = 0 ) then
+				if( hListDevFindDevice( lst, pPortName ) = nullptr ) then
 					hListDevElemAlloc( lst, pPortName, printer->pPrinterName )
 				end if
 			end if
@@ -628,14 +628,14 @@ private function hPrinterBuildListDefault _
 	dim as int32 iPort = iStartPort - 1
 	dim as zstring ptr printer_name = hGetDefaultPrinterName( )
 
-	if( printer_name <> 0 ) then
-		if( hListDevFindName( lst, printer_name ) = 0 ) then
+	if( printer_name <> nullptr ) then
+		if( hListDevFindName( lst, printer_name ) = nullptr ) then
 			dim as DEV_PRINTER_DEVICE ptr node = any
 			do
 				iPort += 1
 				sprintf( @Buffer_, @"LPT%d", iPort )
 				node = hListDevFindDevice( lst, @Buffer_ )
-			loop while( node <> 0 )
+			loop while( node <> nullptr )
 
 			hListDevElemAlloc( lst, @Buffer_, printer_name )
 		end if
@@ -652,17 +652,17 @@ private function hPrinterBuildListOther _
 	dim as zstring * 32 Buffer_
 	dim as int32 nprint = any, iPort = iStartPort - 1
 	dim as PRINTER_INFO_2A_ ptr printers = hGetPrinters( @nprint )
-	if( printers = 0 ) then return iPort + 1
+	if( printers = nullptr ) then return iPort + 1
 
 	for i as int32 = 0 to nprint - 1
 		dim as PRINTER_INFO_2A_ ptr printer = printers + i
-		if( hListDevFindName( lst, printer->pPrinterName ) = 0 ) then
+		if( hListDevFindName( lst, printer->pPrinterName ) = nullptr ) then
 			dim as DEV_PRINTER_DEVICE ptr node = any
 			do
 				iPort += 1
 				sprintf( @Buffer_, @"LPT%d", iPort )
 				node = hListDevFindDevice( lst, @Buffer_ )
-			loop while( node <> 0 )
+			loop while( node <> nullptr )
 
 			hListDevElemAlloc( lst, @Buffer_, printer->pPrinterName )
 		end if
@@ -902,18 +902,18 @@ function tkort_PrinterOpen alias "fb_PrinterOpen" _
 	  byval pszDevice as zstring ptr ) as int32
 
 	dim as int32 result_ = tkrt_ErrorSetNum( FB_RTERROR_OK )
-	dim as FnEmuPrint pFoundEmu = 0
+	dim as FnEmuPrint pFoundEmu = nullptr
 	dim as int32 foundEmu = 0
 	dim as uint32 dwJob = 0
 	dim as int32 fResult = any
-	dim as any ptr hPrinter = 0
-	dim as any ptr hDc = 0
-	dim as zstring ptr printer_name = 0
-	dim as zstring ptr doc_title = 0
-	dim as DEV_LPT_PROTOCOL ptr lpt_proto = 0
+	dim as any ptr hPrinter = nullptr
+	dim as any ptr hDc = nullptr
+	dim as zstring ptr printer_name = nullptr
+	dim as zstring ptr doc_title = nullptr
+	dim as DEV_LPT_PROTOCOL ptr lpt_proto = nullptr
 
 	if( tkrt_DevLptParseProtocol( @lpt_proto, pszDevice, strlen( pszDevice ), 1 ) = 0 ) then
-		if( lpt_proto <> 0 ) then free( lpt_proto )
+		if( lpt_proto <> nullptr ) then free( lpt_proto )
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
 
@@ -945,20 +945,20 @@ function tkort_PrinterOpen alias "fb_PrinterOpen" _
 
 		dim as DEV_PRINTER_DEVICE ptr node = _
 			hListDevFindDevice( @dev_printer_devs, lpt_proto->proto )
-		if( node <> 0 ) then printer_name = hStrDup( node->printer_name )
+		if( node <> nullptr ) then printer_name = hStrDup( node->printer_name )
 
 		hListDevClear( @dev_printer_devs )
 	end if
 
-	if( printer_name = 0 ) then
+	if( printer_name = nullptr ) then
 		result_ = tkrt_ErrorSetNum( FB_RTERROR_FILENOTFOUND )
 	else
 		if( cptr( uint8 ptr, lpt_proto->emu )[0] <> 0 ) then
 			'' EMULATION NEEDS A DEVICE CONTEXT, not the printer handle.
-			hDc = w_CreateDCA( @"WINSPOOL", printer_name, 0, 0 )
-			fResult = iif( hDc <> 0, -1, 0 )
+			hDc = w_CreateDCA( @"WINSPOOL", printer_name, nullptr, nullptr )
+			fResult = iif( hDc <> nullptr, -1, 0 )
 		else
-			fResult = w_OpenPrinterA( printer_name, @hPrinter, 0 )
+			fResult = w_OpenPrinterA( printer_name, @hPrinter, nullptr )
 		end if
 		if( fResult = 0 ) then
 			result_ = tkrt_ErrorSetNum( FB_RTERROR_FILENOTFOUND )
@@ -967,7 +967,7 @@ function tkort_PrinterOpen alias "fb_PrinterOpen" _
 
 	'' THE TITLE IS ALLOCATED EVEN WHEN THE OPEN ALREADY FAILED, and freed at
 	'' the bottom. fbc's ordering, kept.
-	if( (lpt_proto->title_ <> 0) andalso (cptr( uint8 ptr, lpt_proto->title_ )[0] <> 0) ) then
+	if( (lpt_proto->title_ <> nullptr) andalso (cptr( uint8 ptr, lpt_proto->title_ )[0] <> 0) ) then
 		doc_title = hStrDup( lpt_proto->title_ )
 	else
 		doc_title = hStrDup( @"FreeBASIC document" )
@@ -989,7 +989,7 @@ function tkort_PrinterOpen alias "fb_PrinterOpen" _
 			'' DATATYPE "RAW" -- the bytes reach the printer unrendered.
 			dim as DOC_INFO_1A_ DocInfo
 			DocInfo.pDocName = doc_title
-			DocInfo.pOutputFile = 0
+			DocInfo.pOutputFile = nullptr
 			DocInfo.pDatatype = @"RAW"
 
 			dwJob = w_StartDocPrinterA( hPrinter, 1, @DocInfo )
@@ -1000,14 +1000,14 @@ function tkort_PrinterOpen alias "fb_PrinterOpen" _
 	if( result_ = FB_RTERROR_OK ) then
 		dim as W32_PRINTER_INFO ptr pInfo = _
 			cast( W32_PRINTER_INFO ptr, calloc( 1, sizeof( W32_PRINTER_INFO ) ) )
-		if( pInfo = 0 ) then
+		if( pInfo = nullptr ) then
 			result_ = tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
 		else
 			devInfo->driver_opaque = pInfo
 			pInfo->hPrinter = hPrinter
 			pInfo->dwJob = dwJob
 			pInfo->hDc = hDc
-			if( hDc <> 0 ) then
+			if( hDc <> nullptr ) then
 				dim as LOGFONTA_ lf
 
 				pInfo->Emu.dwFullSizeX = w_GetDeviceCaps( hDc, PHYSICALWIDTH_ )
@@ -1051,13 +1051,13 @@ function tkort_PrinterOpen alias "fb_PrinterOpen" _
 				w_EndDocPrinter( hPrinter )
 			end if
 		end if
-		if( hPrinter <> 0 ) then w_ClosePrinter( hPrinter )
-		if( hDc <> 0 ) then w_DeleteDC( hDc )
+		if( hPrinter <> nullptr ) then w_ClosePrinter( hPrinter )
+		if( hDc <> nullptr ) then w_DeleteDC( hDc )
 	end if
 
-	if( printer_name <> 0 ) then free( printer_name )
-	if( doc_title <> 0 ) then free( doc_title )
-	if( lpt_proto <> 0 ) then free( lpt_proto )
+	if( printer_name <> nullptr ) then free( printer_name )
+	if( doc_title <> nullptr ) then free( doc_title )
+	if( lpt_proto <> nullptr ) then free( lpt_proto )
 
 	return result_
 end function
@@ -1069,7 +1069,7 @@ function tkort_PrinterWrite alias "fb_PrinterWrite" _
 	dim as W32_PRINTER_INFO ptr pInfo = cast( W32_PRINTER_INFO ptr, devInfo->driver_opaque )
 	dim as uint32 dwWritten = any
 
-	if( pInfo->hPrinter = 0 ) then
+	if( pInfo->hPrinter = nullptr ) then
 		dim as FnEmuPrint fn_ = cast( FnEmuPrint, pInfo->Emu.pfnPrint )
 		fn_( pInfo, data_, length_, 0 )
 	elseif( w_WritePrinter( pInfo->hPrinter, data_, cast( uint32, length_ ), @dwWritten ) = 0 ) then
@@ -1090,7 +1090,7 @@ function tkort_PrinterWriteWstr alias "fb_PrinterWriteWstr" _
 	dim as uint32 dwWritten = any
 	dim as uinteger bytes_ = length_ * sizeof( wstring )
 
-	if( pInfo->hPrinter = 0 ) then
+	if( pInfo->hPrinter = nullptr ) then
 		dim as FnEmuPrint fn_ = cast( FnEmuPrint, pInfo->Emu.pfnPrint )
 		fn_( pInfo, data_, length_, -1 )
 	elseif( w_WritePrinter( pInfo->hPrinter, data_, cast( uint32, bytes_ ), @dwWritten ) = 0 ) then
@@ -1113,7 +1113,7 @@ function tkort_PrinterClose alias "fb_PrinterClose" _
 
 	dim as W32_PRINTER_INFO ptr pInfo = cast( W32_PRINTER_INFO ptr, devInfo->driver_opaque )
 
-	if( pInfo->hDc <> 0 ) then
+	if( pInfo->hDc <> nullptr ) then
 		if( pInfo->Emu.iPageStarted <> 0 ) then w_EndPage( pInfo->hDc )
 		w_EndDoc( pInfo->hDc )
 		w_DeleteDC( pInfo->hDc )
@@ -1122,8 +1122,8 @@ function tkort_PrinterClose alias "fb_PrinterClose" _
 		w_ClosePrinter( pInfo->hPrinter )
 	end if
 
-	if( devInfo->driver_opaque <> 0 ) then free( devInfo->driver_opaque )
-	devInfo->driver_opaque = 0
+	if( devInfo->driver_opaque <> nullptr ) then free( devInfo->driver_opaque )
+	devInfo->driver_opaque = nullptr
 
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )
 end function

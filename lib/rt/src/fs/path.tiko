@@ -53,9 +53,9 @@ end extern
 private sub hArg( byval s as FBUSTRING ptr, byval ptr_ as FB_UCHAR ptr ptr, _
                   byval len_ as integer ptr )
 	static as FB_UCHAR empty_(0 to 0) = { 0 }
-	if( s = 0 ) then
+	if( s = nullptr ) then
 		*ptr_ = @empty_(0) : *len_ = 0
-	elseif( s->data = 0 ) then
+	elseif( s->data = nullptr ) then
 		*ptr_ = @empty_(0) : *len_ = 0
 	else
 		*ptr_ = s->data
@@ -68,10 +68,10 @@ end sub
 private function hTemp( byval src as FB_UCHAR ptr, byval units as integer ) as FBUSTRING ptr
 	dim as FBUSTRING ptr dst = any
 	if( units <= 0 ) then return TKORT_UNULL_DESC()
-	dst = tkrt_UStrAllocTemp( 0, units )
-	if( dst = 0 ) then return TKORT_UNULL_DESC()
-	if( dst->data <> 0 ) then
-		if( src <> 0 ) then tkrt_UStrCopy2( dst->data, src, units )
+	dst = tkrt_UStrAllocTemp( nullptr, units )
+	if( dst = nullptr ) then return TKORT_UNULL_DESC()
+	if( dst->data <> nullptr ) then
+		if( src <> nullptr ) then tkrt_UStrCopy2( dst->data, src, units )
 		dst->data[units] = 0
 	end if
 	return dst
@@ -512,9 +512,9 @@ function tkort_UStrPathNormalize alias "fb_UStrPathNormalize" _
 
 	'' len + 2: normalisation never grows a path, but "" becomes "." and the
 	'' terminator needs a slot.
-	dst = tkrt_UStrAllocTemp( 0, len_ + 2 )
-	if( dst = 0 ) then return TKORT_UNULL_DESC()
-	if( dst->data = 0 ) then return TKORT_UNULL_DESC()
+	dst = tkrt_UStrAllocTemp( nullptr, len_ + 2 )
+	if( dst = nullptr ) then return TKORT_UNULL_DESC()
+	if( dst->data = nullptr ) then return TKORT_UNULL_DESC()
 
 	n = hNormalize( s, len_, gram, dst->data )
 
@@ -537,9 +537,9 @@ function tkort_UStrPathToNative alias "fb_UStrPathToNative" _
 
 	if( hIsDevicePath( s, len_, gram ) ) then return hTemp( s, len_ )
 
-	dst = tkrt_UStrAllocTemp( 0, len_ + 1 )
-	if( dst = 0 ) then return TKORT_UNULL_DESC()
-	if( dst->data = 0 ) then return TKORT_UNULL_DESC()
+	dst = tkrt_UStrAllocTemp( nullptr, len_ + 1 )
+	if( dst = nullptr ) then return TKORT_UNULL_DESC()
+	if( dst->data = nullptr ) then return TKORT_UNULL_DESC()
 
 	rootlen = hRootLen( s, len_, gram )
 
@@ -585,9 +585,9 @@ function tkort_UStrPathJoin2 alias "fb_UStrPathJoin2" _
 
 	if( hRootLen( sb, lb, gram ) > 0 ) then return hTemp( sb, lb )
 
-	dst = tkrt_UStrAllocTemp( 0, la + lb + 1 )
-	if( dst = 0 ) then return TKORT_UNULL_DESC()
-	if( dst->data = 0 ) then return TKORT_UNULL_DESC()
+	dst = tkrt_UStrAllocTemp( nullptr, la + lb + 1 )
+	if( dst = nullptr ) then return TKORT_UNULL_DESC()
+	if( dst->data = nullptr ) then return TKORT_UNULL_DESC()
 
 	tkrt_UStrCopy2( dst->data, sa, la )
 	o = la
@@ -628,9 +628,9 @@ function tkort_UStrPathChangeExt alias "fb_UStrPathChangeExt" _
 
 	if( e[0] <> 46 ) then needdot = 1 else needdot = 0
 
-	dst = tkrt_UStrAllocTemp( 0, base_ + elen + 1 )
-	if( dst = 0 ) then return TKORT_UNULL_DESC()
-	if( dst->data = 0 ) then return TKORT_UNULL_DESC()
+	dst = tkrt_UStrAllocTemp( nullptr, base_ + elen + 1 )
+	if( dst = nullptr ) then return TKORT_UNULL_DESC()
+	if( dst->data = nullptr ) then return TKORT_UNULL_DESC()
 
 	tkrt_UStrCopy2( dst->data, s, base_ )
 	o = base_
@@ -662,7 +662,7 @@ function tkort_UStrPathEquals alias "fb_UStrPathEquals" _
 
 	ba = malloc( (la + 2) * sizeof( FB_UCHAR ) )
 	bb = malloc( (lb + 2) * sizeof( FB_UCHAR ) )
-	if( (ba = 0) orelse (bb = 0) ) then
+	if( (ba = nullptr) orelse (bb = nullptr) ) then
 		free( ba ) : free( bb )
 		return 0
 	end if
@@ -690,7 +690,7 @@ function tkort_UStrPathStartsWith alias "fb_UStrPathStartsWith" _
 
 	bp = malloc( (lp + 2) * sizeof( FB_UCHAR ) )
 	bpre = malloc( (lpre + 2) * sizeof( FB_UCHAR ) )
-	if( (bp = 0) orelse (bpre = 0) ) then
+	if( (bp = nullptr) orelse (bpre = nullptr) ) then
 		free( bp ) : free( bpre )
 		return 0
 	end if
@@ -736,16 +736,16 @@ function tkort_UStrPathRelative alias "fb_UStrPathRelative" _
 	dim as FBUSTRING ptr dst = TKORT_UNULL_DESC()
 	dim as FB_UCHAR sep = hNativeSep( gram )
 
-	if( status <> 0 ) then *status = FB_FS_OK
+	if( status <> nullptr ) then *status = FB_FS_OK
 
 	hArg( p, @sp, @lp )
 	hArg( base_, @sb, @lb )
 
 	bp = malloc( (lp + 2) * sizeof( FB_UCHAR ) )
 	bb = malloc( (lb + 2) * sizeof( FB_UCHAR ) )
-	if( (bp = 0) orelse (bb = 0) ) then
+	if( (bp = nullptr) orelse (bb = nullptr) ) then
 		free( bp ) : free( bb )
-		if( status <> 0 ) then *status = FB_FS_UNKNOWN
+		if( status <> nullptr ) then *status = FB_FS_UNKNOWN
 		return dst
 	end if
 
@@ -757,7 +757,7 @@ function tkort_UStrPathRelative alias "fb_UStrPathRelative" _
 
 	if( (rp <> rb) orelse (hNormEquals( bp, rp, bb, rb, gram ) = 0) ) then
 		free( bp ) : free( bb )
-		if( status <> 0 ) then *status = FB_FS_INVALID_PATH
+		if( status <> nullptr ) then *status = FB_FS_INVALID_PATH
 		return dst
 	end if
 
@@ -782,15 +782,15 @@ function tkort_UStrPathRelative alias "fb_UStrPathRelative" _
 		upcount += 1
 	loop
 
-	dst = tkrt_UStrAllocTemp( 0, (upcount * 3) + (np - ip) + 2 )
-	if( dst = 0 ) then
+	dst = tkrt_UStrAllocTemp( nullptr, (upcount * 3) + (np - ip) + 2 )
+	if( dst = nullptr ) then
 		free( bp ) : free( bb )
-		if( status <> 0 ) then *status = FB_FS_UNKNOWN
+		if( status <> nullptr ) then *status = FB_FS_UNKNOWN
 		return TKORT_UNULL_DESC()
 	end if
-	if( dst->data = 0 ) then
+	if( dst->data = nullptr ) then
 		free( bp ) : free( bb )
-		if( status <> 0 ) then *status = FB_FS_UNKNOWN
+		if( status <> nullptr ) then *status = FB_FS_UNKNOWN
 		return TKORT_UNULL_DESC()
 	end if
 
@@ -846,7 +846,7 @@ function tkort_UStrPathNextComp alias "fb_UStrPathNextComp" _
 
 	start_ = hNextComp( s, len_, gram, from_, @clen )
 
-	if( out_len <> 0 ) then
+	if( out_len <> nullptr ) then
 		if( start_ < 0 ) then *out_len = 0 else *out_len = clen
 	end if
 

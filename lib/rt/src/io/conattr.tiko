@@ -208,7 +208,7 @@ function tkort_ConsoleLocate alias "fb_ConsoleLocate" _
 	          iif( *cptr( int32 ptr, @info(CCI_VISIBLE_) ) <> 0, &h10000, 0 )
 
 	c = col : r = row
-	tkrt_hConvertToConsole( @c, @r, 0, 0 )
+	tkrt_hConvertToConsole( @c, @r, nullptr, nullptr )
 
 	tkort_ConsoleLocateRawEx( TKORT_OUT_HANDLE(), r, c, cursor )
 
@@ -259,7 +259,7 @@ sub tkort_ConsoleClear alias "fb_ConsoleClear" ( byval mode_ as int32 )
 	'' &hFFFF0000 is gfxlib's DEFAULT_COLOR arriving where a mode was expected.
 	if( (mode_ = 2) orelse (mode_ = cast( int32, &hFFFF0000ul )) ) then
 		tkrt_ConsoleGetView( @view_top, @view_bottom )
-		tkrt_hConvertToConsole( 0, @view_top, 0, @view_bottom )
+		tkrt_hConvertToConsole( nullptr, @view_top, nullptr, @view_bottom )
 		view_left = win_left
 		view_right = win_right
 	else
@@ -300,7 +300,7 @@ private sub hConsoleScrollRawEx( byval h as any ptr, byval x1 as int32, byval y1
 	cinf(1) = 0
 	*cptr( uint16 ptr, @cinf(2) ) = cast( uint16, tkort_ConsoleGetColorAttEx( h ) )
 
-	w_ScrollConsoleScreenBufferA( h, @srec(0), 0, TKORT_COORD( x1, y1 ), @cinf(0) )
+	w_ScrollConsoleScreenBufferA( h, @srec(0), nullptr, TKORT_COORD( x1, y1 ), @cinf(0) )
 end sub
 
 '' On Windows the VIEW PRINT region is not a terminal scroll region -- there is
@@ -315,7 +315,7 @@ sub tkort_ConsoleScroll alias "fb_ConsoleScroll" ( byval nrows as int32 )
 
 	if( nrows <= 0 ) then exit sub
 
-	tkrt_ConsoleGetSize( @right_, 0 )
+	tkrt_ConsoleGetSize( @right_, nullptr )
 	tkrt_ConsoleGetView( @toprow, @botrow )
 	tkrt_hConvertToConsole( @left_, @toprow, @right_, @botrow )
 
@@ -470,8 +470,8 @@ sub tkort_ConsoleClear alias "fb_ConsoleClear" ( byval mode_ as int32 )
 	'' without clearing them would leave SCREEN( ) reporting the old characters
 	'' for the rest of the program's life.
 	for i = start_ to end_
-		if( cbuf <> 0 ) then memset( cbuf + ((i - 1) * w), 32, w )
-		if( abuf <> 0 ) then memset( abuf + ((i - 1) * w), attr, w )
+		if( cbuf <> nullptr ) then memset( cbuf + ((i - 1) * w), 32, w )
+		if( abuf <> nullptr ) then memset( abuf + ((i - 1) * w), attr, w )
 		tkrt_hTermOut( SEQ_LOCATE_, 0, i - 1 )
 		tkrt_hTermOut( SEQ_CLEOL_, 0, 0 )
 	next
@@ -526,7 +526,7 @@ function tkort_ConsoleViewEx alias "fb_ConsoleViewEx" _
 	dim as int32 do_update = 0
 	dim as int32 maxrow = any, minrow = 1
 
-	tkrt_GetSize( 0, @maxrow )
+	tkrt_GetSize( nullptr, @maxrow )
 	if( maxrow = 0 ) then maxrow = FB_SCRN_DEFAULT_HEIGHT
 
 	if( toprow > 0 ) then

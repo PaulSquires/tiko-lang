@@ -163,7 +163,7 @@ sub tkort_hInitX11KeycodeToScancodeTb alias "fb_hInitX11KeycodeToScancodeTb" _
 		dim as uint64 ptr keysyms = GetKeyboardMapping( display_, cast( uint8, i ), 1, _
 		                                                  @keysyms_per_keycode_return )
 
-		if( keysyms <> 0 ) then
+		if( keysyms <> nullptr ) then
 			dim as uint64 keysym = keysyms[0]
 
 			'' NoSymbol LEAVES THE SLOT ALONE rather than writing zero -- so a

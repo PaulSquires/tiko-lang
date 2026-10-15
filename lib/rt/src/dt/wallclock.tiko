@@ -123,17 +123,17 @@ function tkort_Date alias "fb_Date" ( ) as FBSTRING ptr
 	'' result points into a shared static -- so the lock covers the READ too.
 	TKORT_IOLOCK()
 
-	rawtime = time_( 0 )
+	rawtime = time_( nullptr )
 	ptm = localtime( @rawtime )
 
 	'' The allocation is LAST so that a NULL ptm cannot leak it.
-	if( ptm <> 0 ) then
-		dst = tkrt_hStrAllocTemp( 0, 2 + 1 + 2 + 1 + 4 )
+	if( ptm <> nullptr ) then
+		dst = tkrt_hStrAllocTemp( nullptr, 2 + 1 + 2 + 1 + 4 )
 	else
-		dst = 0
+		dst = nullptr
 	end if
 
-	if( dst <> 0 ) then
+	if( dst <> nullptr ) then
 		sprintf( dst->data, @"%02d-%02d-%04d", 1 + ptm->tm_mon, ptm->tm_mday, 1900 + ptm->tm_year )
 	else
 		dst = TKORT_NULLSTR()
@@ -155,16 +155,16 @@ function tkort_Time alias "fb_Time" ( ) as FBSTRING ptr
 
 	TKORT_IOLOCK()
 
-	rawtime = time_( 0 )
+	rawtime = time_( nullptr )
 	ptm = localtime( @rawtime )
 
-	if( ptm <> 0 ) then
-		dst = tkrt_hStrAllocTemp( 0, 2 + 1 + 2 + 1 + 2 )
+	if( ptm <> nullptr ) then
+		dst = tkrt_hStrAllocTemp( nullptr, 2 + 1 + 2 + 1 + 2 )
 	else
-		dst = 0
+		dst = nullptr
 	end if
 
-	if( dst <> 0 ) then
+	if( dst <> nullptr ) then
 		sprintf( dst->data, @"%02d:%02d:%02d", ptm->tm_hour, ptm->tm_min, ptm->tm_sec )
 	else
 		dst = TKORT_NULLSTR()
@@ -189,7 +189,7 @@ function tkort_Now alias "fb_Now" ( ) as float64
 
 	time_( @rawtime )
 	ptm = localtime( @rawtime )
-	if( ptm = 0 ) then return 0.0
+	if( ptm = nullptr ) then return 0.0
 
 	dim as float64 dblDate = tkrt_DateSerial( 1900 + ptm->tm_year, 1 + ptm->tm_mon, ptm->tm_mday )
 	dim as float64 dblTime = tkrt_TimeSerial( ptm->tm_hour, ptm->tm_min, ptm->tm_sec )
@@ -265,7 +265,7 @@ function tkort_MonthName alias "fb_MonthName" _
 	tkrt_ErrorSetNum( FB_RTERROR_OK )
 
 	dim as FBSTRING ptr res = tkrt_IntlGetMonthName( month_, abbreviation, 0 )
-	if( res = 0 ) then
+	if( res = nullptr ) then
 		'' The OK set above is OVERWRITTEN here, so a locale that has no name
 		'' for a valid month reports error 1 -- the same code as an
 		'' out-of-range month, from a different cause.
@@ -300,7 +300,7 @@ function tkort_WeekdayName alias "fb_WeekdayName" _
 	if( weekday_ > 7 ) then weekday_ -= 7
 
 	dim as FBSTRING ptr res = tkrt_IntlGetWeekdayName( weekday_, abbreviation, 0 )
-	if( res = 0 ) then
+	if( res = nullptr ) then
 		tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 		res = TKORT_NULLSTR()
 	end if
@@ -372,7 +372,7 @@ extern "rtlib"
 '' one: "1-1-25" is 1925, never 2025.
 function tkort_SetDate alias "fb_SetDate" ( byval dstr as FBSTRING ptr ) as int32
 
-	if( (dstr <> 0) andalso (dstr->data <> 0) ) then
+	if( (dstr <> nullptr) andalso (dstr->data <> nullptr) ) then
 
 		dim as uint8 ptr t = cast( uint8 ptr, dstr->data )
 		dim as uint8 c = any, sep = any
@@ -437,7 +437,7 @@ end function
 '' clash, after access_ and EOF_.
 function tkort_SetTime alias "fb_SetTime" ( byval tstr as FBSTRING ptr ) as int32
 
-	if( (tstr <> 0) andalso (tstr->data <> 0) ) then
+	if( (tstr <> nullptr) andalso (tstr->data <> nullptr) ) then
 
 		dim as uint8 ptr t = cast( uint8 ptr, tstr->data )
 		dim as uint8 c = any

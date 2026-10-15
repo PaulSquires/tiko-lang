@@ -76,10 +76,10 @@ const FB_TAB_WIDTH = 14
 '' all of the padding logic -- has to deref first. Writing goes to the original
 '' handle; only the geometry comes from the target.
 private function tkort_HandleDeref( byval h as FB_FILE ptr ) as FB_FILE ptr
-	if( h = 0 ) then return 0
+	if( h = nullptr ) then return nullptr
 	'' The chain is walked under the lock in fbc. Nothing here mutates it, and
 	'' the callers below already hold the lock where it matters.
-	while( h->redirection_to <> 0 )
+	while( h->redirection_to <> nullptr )
 		h = h->redirection_to
 	wend
 	return h

@@ -53,7 +53,7 @@ extern "c"   '' NON-FBCALL: fb_file.h declares the *Ex forms plainly.
 function tkort_FilePutWstrEx alias "fb_FilePutWstrEx" _
 	( byval h as FB_FILE ptr, byval pos_ as int64, byval str_ as wstring ptr, _
 	  byval length as integer ) as int32
-	if( (str_ <> 0) andalso (length > 0) ) then
+	if( (str_ <> nullptr) andalso (length > 0) ) then
 		return tkrt_PutDataEx( h, pos_, str_, length, -1, -1, -1 )
 	end if
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )
@@ -63,12 +63,12 @@ function tkort_FileGetWstrEx alias "fb_FileGetWstrEx" _
 	( byval h as FB_FILE ptr, byval pos_ as int64, byval dst as wstring ptr, _
 	  byval dst_chars as integer, byval bytesread as uinteger ptr ) as int32
 
-	if( bytesread <> 0 ) then *bytesread = 0
+	if( bytesread <> nullptr ) then *bytesread = 0
 
 	if( TKORT_HANDLE_USED( h ) = 0 ) then
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
-	if( dst = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	if( dst = nullptr ) then return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	if( dst_chars < 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 
 	if( dst_chars = 0 ) then dst_chars = FB_WSTR_LEN( dst ) + 1
@@ -80,7 +80,7 @@ function tkort_FileGetWstrEx alias "fb_FileGetWstrEx" _
 	                                  @rawbytesread, -1, 0 )
 	if( res <> FB_RTERROR_OK ) then return res
 
-	if( bytesread <> 0 ) then *bytesread = rawbytesread
+	if( bytesread <> nullptr ) then *bytesread = rawbytesread
 
 	dim as integer extra = rawbytesread mod sizeof( wstring )
 	if( extra > 0 ) then rawbytesread += sizeof( wstring ) - extra
@@ -115,13 +115,13 @@ end function
 function tkort_FileGetWstr alias "fb_FileGetWstr" _
 	( byval fnum as int32, byval pos_ as int32, byval dst as wstring ptr, _
 	  byval dst_chars as integer ) as int32
-	return tkort_FileGetWstrEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst, dst_chars, 0 )
+	return tkort_FileGetWstrEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst, dst_chars, nullptr )
 end function
 
 function tkort_FileGetWstrLarge alias "fb_FileGetWstrLarge" _
 	( byval fnum as int32, byval pos_ as int64, byval dst as wstring ptr, _
 	  byval dst_chars as integer ) as int32
-	return tkort_FileGetWstrEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst, dst_chars, 0 )
+	return tkort_FileGetWstrEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst, dst_chars, nullptr )
 end function
 
 function tkort_FileGetWstrIOB alias "fb_FileGetWstrIOB" _
@@ -146,12 +146,12 @@ end function
 
 function tkort_FileGetArray alias "fb_FileGetArray" _
 	( byval fnum as int32, byval pos_ as int32, byval dst as FBARRAY ptr ) as int32
-	return tkrt_GetDataEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst->base_ptr, dst->size, 0, -1, 0 )
+	return tkrt_GetDataEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst->base_ptr, dst->size, nullptr, -1, 0 )
 end function
 
 function tkort_FileGetArrayLarge alias "fb_FileGetArrayLarge" _
 	( byval fnum as int32, byval pos_ as int64, byval dst as FBARRAY ptr ) as int32
-	return tkrt_GetDataEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst->base_ptr, dst->size, 0, -1, 0 )
+	return tkrt_GetDataEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst->base_ptr, dst->size, nullptr, -1, 0 )
 end function
 
 function tkort_FileGetArrayIOB alias "fb_FileGetArrayIOB" _

@@ -308,7 +308,7 @@ function tkort_hFileResetEx alias "fb_hFileResetEx" ( byval streamno as int32 ) 
 		end if
 	#endif
 
-	return iif( f <> 0, 1, 0 )
+	return iif( f <> nullptr, 1, 0 )
 end function
 
 '' ------------------------------------------------------- the INKEY string

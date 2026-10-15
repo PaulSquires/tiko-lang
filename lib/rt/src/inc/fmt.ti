@@ -117,7 +117,7 @@
 
 		dim as cva_list ap = any
 		cva_start( ap, fmt )
-		dim as int32 r = tkrt_ucrt_vsnprintf( TKORT_UCRT_SNPRINTF_OPTS, s, n, fmt, 0, ap )
+		dim as int32 r = tkrt_ucrt_vsnprintf( TKORT_UCRT_SNPRINTF_OPTS, s, n, fmt, nullptr, ap )
 		cva_end( ap )
 		return r
 

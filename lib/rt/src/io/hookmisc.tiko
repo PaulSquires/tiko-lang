@@ -106,7 +106,7 @@ function tkort_LocateEx alias "fb_LocateEx" _
 	dim as int32 start_y = any, end_y = any, con_width = any
 
 	tkrt_ConsoleGetView( @start_y, @end_y )
-	tkrt_GetSize( @con_width, 0 )
+	tkrt_GetSize( @con_width, nullptr )
 
 	if( (row <> 0) andalso ((row < start_y) orelse (row > end_y)) ) then
 		res = tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
@@ -118,7 +118,7 @@ function tkort_LocateEx alias "fb_LocateEx" _
 		TKORT_IOLOCK()
 
 		dim as FB_LOCATEPROC p = TKORT_HOOKPTR( FB_LOCATEPROC, TKORT_HK_LOCATE )
-		if( p <> 0 ) then
+		if( p <> nullptr ) then
 			tmp_current_pos = p( row, col, cursor )
 		else
 			tmp_current_pos = tkrt_ConsoleLocate( row, col, cursor )
@@ -134,7 +134,7 @@ function tkort_LocateEx alias "fb_LocateEx" _
 	'' WRITTEN EVEN ON THE ERROR PATH, where it is the zero initialised above --
 	'' so a rejected LOCATE reports position zero rather than leaving the
 	'' caller's variable alone.
-	if( current_pos <> 0 ) then *current_pos = tmp_current_pos
+	if( current_pos <> nullptr ) then *current_pos = tmp_current_pos
 
 	return res
 end function
@@ -152,7 +152,7 @@ function tkort_LineInput alias "fb_LineInput" _
 	dim as FB_LINEINPUTPROC p = TKORT_HOOKPTR( FB_LINEINPUTPROC, TKORT_HK_LINEINPUT )
 	TKORT_IOUNLOCK()
 
-	if( p <> 0 ) then
+	if( p <> nullptr ) then
 		return p( text_, dst, dst_len, fillrem, addquestion, addnewline )
 	end if
 	return tkrt_ConsoleLineInput( text_, dst, dst_len, fillrem, addquestion, addnewline )
@@ -166,7 +166,7 @@ function tkort_LineInputWstr alias "fb_LineInputWstr" _
 	dim as FB_LINEINPUTWPROC p = TKORT_HOOKPTR( FB_LINEINPUTWPROC, TKORT_HK_LINEINPUTW )
 	TKORT_IOUNLOCK()
 
-	if( p <> 0 ) then
+	if( p <> nullptr ) then
 		return p( text_, dst, max_chars, addquestion, addnewline )
 	end if
 	return tkrt_ConsoleLineInputWstr( text_, dst, max_chars, addquestion, addnewline )
@@ -185,7 +185,7 @@ function tkort_GetMouse alias "fb_GetMouse" _
 	TKORT_IOLOCK()
 
 	dim as FB_GETMOUSEPROC p = TKORT_HOOKPTR( FB_GETMOUSEPROC, TKORT_HK_GETMOUSE )
-	if( p <> 0 ) then
+	if( p <> nullptr ) then
 		res = p( x, y, z, buttons, clip )
 	else
 		res = tkrt_ConsoleGetMouse( x, y, z, buttons, clip )
@@ -207,11 +207,11 @@ function tkort_GetMouse64 alias "fb_GetMouse64" _
 
 	dim as int32 res = tkort_GetMouse( @ix, @iy, @iz, @ibuttons, @iclip )
 
-	if( x <> 0 )       then *x = ix
-	if( y <> 0 )       then *y = iy
-	if( z <> 0 )       then *z = iz
-	if( buttons <> 0 ) then *buttons = ibuttons
-	if( clip <> 0 )    then *clip = iclip
+	if( x <> nullptr )       then *x = ix
+	if( y <> nullptr )       then *y = iy
+	if( z <> nullptr )       then *z = iz
+	if( buttons <> nullptr ) then *buttons = ibuttons
+	if( clip <> nullptr )    then *clip = iclip
 
 	return res
 end function
@@ -235,7 +235,7 @@ function tkort_ReadString alias "fb_ReadString" _
 	else
 		TKORT_IOLOCK()
 		dim as FB_READSTRPROC p = TKORT_HOOKPTR( FB_READSTRPROC, TKORT_HK_READSTR )
-		if( p <> 0 ) then
+		if( p <> nullptr ) then
 			result_ = p( buffer, length_ )
 		else
 			result_ = tkrt_ConsoleReadStr( buffer, length_ )

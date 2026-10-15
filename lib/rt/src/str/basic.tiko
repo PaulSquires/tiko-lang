@@ -56,7 +56,7 @@ function tkort_StrLen alias "fb_StrLen" _
 	'' descriptor whose data points at the literal and whose temp bit is CLEAR
 	'' (PROBE-17). Skipping the release strands that slot, and the 256-entry pool
 	'' runs dry -- 1,384 assertion failures across UDT_ZSTRING, nowhere near here.
-	if( (s <> 0) andalso (strsize = FB_STRSIZEVARLEN) ) then
+	if( (s <> nullptr) andalso (strsize = FB_STRSIZEVARLEN) ) then
 		tkrt_DelTemp( cptr( FBSTRING ptr, s ) )
 	end if
 
@@ -74,7 +74,7 @@ function tkort_ASC alias "fb_ASC" _
 	'' EVERY exit path, including the ones that answer 0 -- an early `return 0`
 	'' for an out-of-range position would leak the descriptor just as surely as
 	'' forgetting the release entirely.
-	if( s = 0 ) then return 0
+	if( s = nullptr ) then return 0
 
 	dim as uint32 result = 0
 
@@ -90,7 +90,7 @@ function tkort_ASC alias "fb_ASC" _
 	'' `cast( ulong, p[i] )` converts that string numerically and answers 0 for
 	'' every letter. The symptom was fb_ASC returning 0 for every valid position
 	'' while fb_LEFT and fb_RIGHT -- using the same pointer -- were correct.
-	if( (p <> 0) andalso (idx >= 1) andalso (idx <= n) ) then
+	if( (p <> nullptr) andalso (idx >= 1) andalso (idx <= n) ) then
 		result = cast( uint32, cptr( uint8 ptr, p )[idx - 1] )
 	end if
 

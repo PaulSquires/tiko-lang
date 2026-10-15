@@ -97,17 +97,17 @@ function tkort_hXTermInitFocus alias "fb_hXTermInitFocus" ( ) as int32
 	tkort_xf_names(0) = @tkort_xf_n0
 	tkort_xf_names(1) = @tkort_xf_n1
 	tkort_xf_names(2) = @tkort_xf_n2
-	tkort_xf_names(3) = 0
+	tkort_xf_names(3) = nullptr
 
 	'' THE ORDER OF THESE NAMES IS THE ORDER OF X_FUNCS' FIELDS -- fb_hDynLoad
 	'' walks both in lockstep and never checks that they correspond.
 	tkort_xf_xlib = tkrt_hDynLoad( @"libX11.so", @tkort_xf_names(0), _
 	                               cptr( any ptr ptr, @tkort_xf_X ) )
-	if( tkort_xf_xlib = 0 ) then return -1
+	if( tkort_xf_xlib = nullptr ) then return -1
 
 	'' NULL asks for the display named by $DISPLAY.
 	tkort_xf_display = tkort_xf_X.OpenDisplay( 0 )
-	if( tkort_xf_display = 0 ) then return -1
+	if( tkort_xf_display = nullptr ) then return -1
 
 	'' THE WINDOW THAT HAS FOCUS RIGHT NOW is taken to be the terminal's, on the
 	'' assumption that the program was just launched from it. That is the whole

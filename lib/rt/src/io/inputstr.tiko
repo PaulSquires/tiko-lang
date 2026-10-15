@@ -72,7 +72,7 @@ end extern
 '' The screen test is a DEREFERENCED compare, so a handle redirected to SCRN:
 '' still counts as the screen.
 private function hIsScreen( byval h as FB_FILE ptr ) as integer
-	if( h = 0 ) then return 0
+	if( h = nullptr ) then return 0
 	if( tkort_HandleDeref( h ) = TKORT_FILETB() ) then return -1
 	return 0
 end function
@@ -114,9 +114,9 @@ function tkort_FileStrInput alias "fb_FileStrInput" _
 	end if
 
 	dim as int32 res = FB_RTERROR_OK
-	dim as FBSTRING ptr dst = tkrt_AllocTemp( 0, bytes )
+	dim as FBSTRING ptr dst = tkrt_AllocTemp( nullptr, bytes )
 
-	if( dst <> 0 ) then
+	if( dst <> nullptr ) then
 		dim as integer read_count = 0
 		dim as uinteger length = any
 
@@ -145,7 +145,7 @@ function tkort_FileStrInput alias "fb_FileStrInput" _
 	end if
 
 	if( res <> FB_RTERROR_OK ) then
-		if( dst <> 0 ) then tkrt_DelTemp( dst )
+		if( dst <> nullptr ) then tkrt_DelTemp( dst )
 		dst = TKORT_NULLSTR()
 	end if
 
@@ -181,13 +181,13 @@ function tkort_FileWstrInput alias "fb_FileWstrInput" _
 	dim as FB_FILE ptr h = TKORT_FILE_TO_HANDLE( fnum )
 	if( TKORT_HANDLE_USED( h ) = 0 ) then
 		IOUNLOCK()
-		return 0
+		return nullptr
 	end if
 
 	dim as int32 res = FB_RTERROR_OK
 	dim as wstring ptr dst = FB_WSTR_ALLOCTEMP( chars )
 
-	if( dst <> 0 ) then
+	if( dst <> nullptr ) then
 		dim as integer read_chars = 0
 		dim as uinteger length = any
 		dim as uint8 ptr b = cptr( uint8 ptr, dst )
@@ -212,7 +212,7 @@ function tkort_FileWstrInput alias "fb_FileWstrInput" _
 			next
 		else
 			FB_WSTR_DEL( dst )
-			dst = 0
+			dst = nullptr
 		end if
 	else
 		res = FB_RTERROR_OUTOFMEM

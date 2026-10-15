@@ -119,14 +119,14 @@ function tkort_FileGetDataEx alias "fb_FileGetDataEx" _
 
 	if( (res = FB_RTERROR_OK) andalso (chars <> 0) ) then
 		if( is_unicode = 0 ) then
-			if( h->hooks->pfnRead = 0 ) then
+			if( h->hooks->pfnRead = nullptr ) then
 				res = tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 			else
 				res = h->hooks->pfnRead( h, pachData, @chars )
 				read_chars += chars
 			end if
 		else
-			if( h->hooks->pfnReadWstr = 0 ) then
+			if( h->hooks->pfnReadWstr = nullptr ) then
 				res = tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 			else
 				res = h->hooks->pfnReadWstr( h, cptr( wstring ptr, pachData ), @chars )
@@ -140,7 +140,7 @@ function tkort_FileGetDataEx alias "fb_FileGetDataEx" _
 	if( res <> FB_RTERROR_OK ) then do_skip = 0
 	if( adjust_rec_pos = 0 ) then do_skip = 0
 	if( h->reclen = 0 ) then do_skip = 0
-	if( h->hooks->pfnSeek = 0 ) then do_skip = 0
+	if( h->hooks->pfnSeek = nullptr ) then do_skip = 0
 
 	if( do_skip ) then
 		'' A RANDOM read must be exactly one record. A short one sets FILEIO and
@@ -165,7 +165,7 @@ function tkort_FileGetDataEx alias "fb_FileGetDataEx" _
 		if( skip_size <> 0 ) then h->hooks->pfnSeek( h, skip_size, TKORT_SEEK_CUR )
 	end if
 
-	if( bytesread <> 0 ) then *bytesread = read_chars
+	if( bytesread <> nullptr ) then *bytesread = read_chars
 
 	IOUNLOCK()
 
@@ -178,7 +178,7 @@ function tkort_FileGetData alias "fb_FileGetData" _
 	( byval fnum as int32, byval pos_ as int64, byval dst as any ptr, _
 	  byval chars as uinteger, byval adjust_rec_pos as int32 ) as int32
 	return tkort_FileGetDataEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst, chars, _
-	                            0, adjust_rec_pos, 0 )
+	                            nullptr, adjust_rec_pos, 0 )
 end function
 
 end extern
@@ -188,13 +188,13 @@ extern "rtlib"
 function tkort_FileGet alias "fb_FileGet" _
 	( byval fnum as int32, byval pos_ as int32, byval dst as any ptr, _
 	  byval chars as uinteger ) as int32
-	return tkort_FileGetDataEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst, chars, 0, -1, 0 )
+	return tkort_FileGetDataEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst, chars, nullptr, -1, 0 )
 end function
 
 function tkort_FileGetLarge alias "fb_FileGetLarge" _
 	( byval fnum as int32, byval pos_ as int64, byval dst as any ptr, _
 	  byval chars as uinteger ) as int32
-	return tkort_FileGetDataEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst, chars, 0, -1, 0 )
+	return tkort_FileGetDataEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst, chars, nullptr, -1, 0 )
 end function
 
 '' The IOB forms differ only in REPORTING how much was actually read -- which is

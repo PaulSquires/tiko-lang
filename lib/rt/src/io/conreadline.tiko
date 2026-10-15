@@ -161,7 +161,7 @@ function tkort_ConReadLine alias "fb_ConReadLine" ( byval soft_cursor as int32 )
 	'' A LOCAL DESCRIPTOR, built in place and handed over at the end -- see the
 	'' file header on why the return is not @result.
 	dim as FBSTRING result_
-	result_.data = 0
+	result_.data = nullptr
 	result_.len = 0
 	result_.size = 0
 
@@ -183,7 +183,7 @@ function tkort_ConReadLine alias "fb_ConReadLine" ( byval soft_cursor as int32 )
 	len_ = 0
 	'' A ZERO-LENGTH PRINT, which settles any deferred scroll before the editor
 	'' starts reading the cursor position.
-	tkrt_PrintBufferEx( 0, 0, 0 )
+	tkrt_PrintBufferEx( nullptr, 0, 0 )
 
 	'' The cursor is visible during INPUT unless the caller is drawing its own.
 	tkrt_Locate( 0, 0, iif( soft_cursor = 0, -1, 0 ), 0, 0 )
@@ -211,7 +211,7 @@ function tkort_ConReadLine alias "fb_ConReadLine" ( byval soft_cursor as int32 )
 		wend
 
 		s = tkrt_Inkey( )
-		if( s->data <> 0 ) then
+		if( s->data <> nullptr ) then
 			'' TWO BYTES MEANS AN EXTENDED KEY, and it is the SECOND that
 			'' identifies it -- see the file header on the byte order.
 			if( FB_STRSIZE( s ) = 2 ) then
@@ -230,7 +230,7 @@ function tkort_ConReadLine alias "fb_ConReadLine" ( byval soft_cursor as int32 )
 			'' NULL check matters: at the first keystroke the descriptor is
 			'' still empty.
 			dim as zstring * 2 mask_
-			if( (result_.data <> 0) andalso (pos_ < len_) ) then
+			if( (result_.data <> nullptr) andalso (pos_ < len_) ) then
 				mask_[0] = cptr( uint8 ptr, result_.data )[pos_]
 			else
 				mask_[0] = 32

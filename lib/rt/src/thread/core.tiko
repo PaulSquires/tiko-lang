@@ -54,7 +54,7 @@ private function hThreadProc stdcall ( byval param as any ptr ) as uint32
 	dim as int32 flags = any
 
 	ctx = TKORT_TLSGET_FBTHREAD()
-	if( ctx <> 0 ) then ctx->self_ = thread
+	if( ctx <> nullptr ) then ctx->self_ = thread
 
 	info->proc_( info->param )
 	free( info )
@@ -79,12 +79,12 @@ function tkort_ThreadCreate alias "fb_ThreadCreate" _
 	dim as uint32 thrdaddr = any
 
 	thread = malloc( sizeof( FBTHREAD ) )
-	if( thread = 0 ) then return 0
+	if( thread = nullptr ) then return nullptr
 
 	info = malloc( sizeof( FBTHREADINFO ) )
-	if( info = 0 ) then
+	if( info = nullptr ) then
 		free( thread )
-		return 0
+		return nullptr
 	end if
 
 	info->proc_ = proc_
@@ -94,13 +94,13 @@ function tkort_ThreadCreate alias "fb_ThreadCreate" _
 
 	'' The last argument cannot be NULL or the call fails on Windows 9x, which
 	'' is why fbc passes a scratch variable it never reads.
-	thread->id = cast( any ptr, c_beginthreadex( 0, cast( uint32, stack_size ), _
+	thread->id = cast( any ptr, c_beginthreadex( nullptr, cast( uint32, stack_size ), _
 		cast( any ptr, @hThreadProc ), info, 0, @thrdaddr ) )
 
-	if( thread->id = 0 ) then
+	if( thread->id = nullptr ) then
 		free( thread )
 		free( info )
-		return 0
+		return nullptr
 	end if
 
 	return thread
@@ -109,11 +109,11 @@ end function
 sub tkort_ThreadWait alias "fb_ThreadWait" ( byval thread as FBTHREAD ptr )
 	dim as FB_FBTHREADCTX ptr ctx = any
 
-	if( thread = 0 ) then exit sub
+	if( thread = nullptr ) then exit sub
 	if( (thread->flags and (FBTHREAD_MAIN or FBTHREAD_DETACHED)) <> 0 ) then exit sub
 
 	ctx = TKORT_TLSGET_FBTHREAD()
-	if( ctx <> 0 ) then
+	if( ctx <> nullptr ) then
 		if( thread = ctx->self_ ) then exit sub
 	end if
 
@@ -138,7 +138,7 @@ private function hThreadProc cdecl ( byval param as any ptr ) as any ptr
 	dim as int32 flags = any
 
 	ctx = TKORT_TLSGET_FBTHREAD()
-	if( ctx <> 0 ) then ctx->self_ = thread
+	if( ctx <> nullptr ) then ctx->self_ = thread
 
 	info->proc_( info->param )
 	free( info )
@@ -166,12 +166,12 @@ function tkort_ThreadCreate alias "fb_ThreadCreate" _
 	dim as uinteger want = cast( uinteger, stack_size )
 
 	thread = malloc( sizeof( FBTHREAD ) )
-	if( thread = 0 ) then return 0
+	if( thread = nullptr ) then return nullptr
 
 	info = malloc( sizeof( FBTHREADINFO ) )
-	if( info = 0 ) then
+	if( info = nullptr ) then
 		free( thread )
-		return 0
+		return nullptr
 	end if
 
 	info->proc_ = proc_
@@ -182,7 +182,7 @@ function tkort_ThreadCreate alias "fb_ThreadCreate" _
 	if( u_pthread_attr_init( @attr(0) ) <> 0 ) then
 		free( thread )
 		free( info )
-		return 0
+		return nullptr
 	end if
 
 	'' CLAMPED UP, NOT PASSED THROUGH. Callers routinely ask for less than
@@ -195,7 +195,7 @@ function tkort_ThreadCreate alias "fb_ThreadCreate" _
 	if( u_pthread_create( @thread->id, @attr(0), cast( any ptr, @hThreadProc ), info ) <> 0 ) then
 		free( thread )
 		free( info )
-		thread = 0
+		thread = nullptr
 	end if
 
 	u_pthread_attr_destroy( @attr(0) )
@@ -205,15 +205,15 @@ end function
 sub tkort_ThreadWait alias "fb_ThreadWait" ( byval thread as FBTHREAD ptr )
 	dim as FB_FBTHREADCTX ptr ctx = any
 
-	if( thread = 0 ) then exit sub
+	if( thread = nullptr ) then exit sub
 	if( (thread->flags and (FBTHREAD_MAIN or FBTHREAD_DETACHED)) <> 0 ) then exit sub
 
 	ctx = TKORT_TLSGET_FBTHREAD()
-	if( ctx <> 0 ) then
+	if( ctx <> nullptr ) then
 		if( thread = ctx->self_ ) then exit sub
 	end if
 
-	u_pthread_join( thread->id, 0 )
+	u_pthread_join( thread->id, nullptr )
 
 	free( thread )
 end sub

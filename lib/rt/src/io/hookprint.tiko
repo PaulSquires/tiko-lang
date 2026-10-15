@@ -48,7 +48,7 @@ sub tkort_PrintBufferEx alias "fb_PrintBufferEx" _
 	IOLOCK()
 
 	dim as FB_PRINTBUFFPROC p = TKORT_HOOK_PRINTBUFFPROC()
-	if( p <> 0 ) then
+	if( p <> nullptr ) then
 		p( buffer, length, mask )
 	else
 		tkrt_ConsolePrintBufferEx( buffer, length, mask )
@@ -71,7 +71,7 @@ sub tkort_PrintBufferWstrEx alias "fb_PrintBufferWstrEx" _
 	IOLOCK()
 
 	dim as FB_PRINTBUFFWPROC p = TKORT_HOOK_PRINTBUFFWPROC()
-	if( p <> 0 ) then
+	if( p <> nullptr ) then
 		p( buffer, length, mask )
 	else
 		tkrt_ConsolePrintBufferWstrEx( buffer, length, mask )

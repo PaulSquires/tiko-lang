@@ -44,7 +44,7 @@ extern "c"   '' NON-FBCALL: fb_device.h declares all five plain.
 
 sub tkort_DevScrnUpdateWidth alias "fb_DevScrnUpdateWidth" ( )
 	dim as int32 cols = any
-	tkrt_GetSize( @cols, 0 )
+	tkrt_GetSize( @cols, nullptr )
 	'' The COLUMN, minus one -- not the width. See the header.
 	TKORT_HANDLE_SCREEN()->line_length = tkrt_GetX( ) - 1
 	TKORT_HANDLE_SCREEN()->width = cols
@@ -53,7 +53,7 @@ end sub
 '' Only if the screen was already initialised: otherwise there is nothing to
 '' update and asking would open a console.
 sub tkort_DevScrnMaybeUpdateWidth alias "fb_DevScrnMaybeUpdateWidth" ( )
-	if( TKORT_HANDLE_SCREEN()->hooks <> 0 ) then
+	if( TKORT_HANDLE_SCREEN()->hooks <> nullptr ) then
 		tkort_DevScrnUpdateWidth( )
 	end if
 end sub
@@ -64,9 +64,9 @@ sub tkort_DevScrnInit_Screen alias "fb_DevScrnInit_Screen" ( )
 end sub
 
 sub tkort_DevScrnEnd alias "fb_DevScrnEnd" ( byval handle as FB_FILE ptr )
-	if( handle->opaque <> 0 ) then
+	if( handle->opaque <> nullptr ) then
 		free( handle->opaque )
-		handle->opaque = 0
+		handle->opaque = nullptr
 	end if
 end sub
 
@@ -75,7 +75,7 @@ end sub
 '' reopened screen carrying the previous run's line_length.
 sub tkort_DevScrnInit_NoOpen alias "fb_DevScrnInit_NoOpen" ( )
 	TKORT_IOLOCK()
-	if( TKORT_HANDLE_SCREEN()->hooks = 0 ) then
+	if( TKORT_HANDLE_SCREEN()->hooks = nullptr ) then
 		memset( TKORT_HANDLE_SCREEN(), 0, sizeof( FB_FILE ) )
 
 		TKORT_HANDLE_SCREEN()->mode = FB_FILE_MODE_APPEND

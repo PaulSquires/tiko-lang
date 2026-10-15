@@ -79,16 +79,16 @@ function tkort_hStr2Longint alias "fb_hStr2Longint" _
 	end if
 
 	'' strtoull, not strtoll: out of range WRAPS instead of saturating.
-	return cast( int64, strtoull( p, 0, radix ) )
+	return cast( int64, strtoull( p, nullptr, radix ) )
 
 end function
 
 function tkort_VALLNG alias "fb_VALLNG" ( byval s as FBSTRING ptr ) as int64
 
-	if( s = 0 ) then return 0
+	if( s = nullptr ) then return 0
 
 	dim as int64 v = 0
-	if( s->data <> 0 ) then
+	if( s->data <> nullptr ) then
 		if( FB_STRSIZE( s ) <> 0 ) then
 			v = tkort_hStr2Longint( s->data, FB_STRSIZE( s ) )
 		end if
@@ -126,16 +126,16 @@ function tkort_hStr2ULongint alias "fb_hStr2ULongint" _
 		end if
 	end if
 
-	return strtoull( p, 0, radix )
+	return strtoull( p, nullptr, radix )
 
 end function
 
 function tkort_VALULNG alias "fb_VALULNG" ( byval s as FBSTRING ptr ) as uint64
 
-	if( s = 0 ) then return 0
+	if( s = nullptr ) then return 0
 
 	dim as uint64 v = 0
-	if( s->data <> 0 ) then
+	if( s->data <> nullptr ) then
 		if( FB_STRSIZE( s ) <> 0 ) then
 			v = tkort_hStr2ULongint( s->data, FB_STRSIZE( s ) )
 		end if

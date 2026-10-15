@@ -71,10 +71,10 @@ end function
 
 function tkort_VALBOOL alias "fb_VALBOOL" ( byval s as FBSTRING ptr ) as int8
 
-	if( s = 0 ) then return 0
+	if( s = nullptr ) then return 0
 
 	dim as int32 v = 0
-	if( s->data <> 0 ) then
+	if( s->data <> nullptr ) then
 		if( FB_STRSIZE( s ) <> 0 ) then
 			v = tkort_hStr2Bool( s->data, FB_STRSIZE( s ) )
 		end if

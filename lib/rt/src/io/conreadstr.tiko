@@ -72,7 +72,7 @@ function tkort_ConsoleReadStr alias "fb_ConsoleReadStr" _
 	'' FB_CON_CORRECT_POSITION(): flush a pending end-of-line adjustment so the
 	'' prompt is where the user can see it.
 	if( TKORT_CON_SCROLLOFF() <> 0 ) then
-		tkrt_ConsolePrintBufferEx( 0, 0, FB_PRINT_FORCE_ADJUST )
+		tkrt_ConsolePrintBufferEx( nullptr, 0, FB_PRINT_FORCE_ADJUST )
 	end if
 
 	'' Anything the console layer stashed goes back to the CRT before fgets
@@ -122,7 +122,7 @@ function tkort_ConsoleReadStr alias "fb_ConsoleReadStr" _
 		return fgets( buffer, cast( int32, len_ ), stdin )
 	end if
 
-	tkrt_ConsoleGetSize( @cols, 0 )
+	tkrt_ConsoleGetSize( @cols, nullptr )
 
 	do
 		'' SPINS PAST -1 (nothing waiting) AND PAST EXTENDED KEYS (> 0xFF), so

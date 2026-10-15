@@ -39,8 +39,8 @@ end extern
 private function hFloatTo _
 	( byval num as float64, byval cap as integer, byval fmt as zstring ptr ) as FBSTRING ptr
 
-	dim as FBSTRING ptr dst = tkrt_AllocTemp( 0, cap )
-	if( dst = 0 ) then return TKORT_NULLSTR()
+	dim as FBSTRING ptr dst = tkrt_AllocTemp( nullptr, cap )
+	if( dst = nullptr ) then return TKORT_NULLSTR()
 
 #ifdef TKORT_MSVC
 	'' A NaN LOSES ITS SIGN AND ITS PAYLOAD HERE, because fbc's sprintf is MinGW's
@@ -89,8 +89,8 @@ end function
 private function hIntTo _
 	( byval fmt as zstring ptr, byval cap as integer, byval num as int64 ) as FBSTRING ptr
 
-	dim as FBSTRING ptr dst = tkrt_AllocTemp( 0, cap )
-	if( dst = 0 ) then return TKORT_NULLSTR()
+	dim as FBSTRING ptr dst = tkrt_AllocTemp( nullptr, cap )
+	if( dst = nullptr ) then return TKORT_NULLSTR()
 
 	tkrt_sprintf( dst->data, fmt, num )
 	FB_STRSETLEN( dst, cast( integer, strlen( dst->data ) ) )
@@ -144,8 +144,8 @@ function tkort_hBoolToStr alias "fb_hBoolToStr" ( byval num as int8 ) as zstring
 end function
 
 function tkort_BoolToStr alias "fb_BoolToStr" ( byval num as int8 ) as FBSTRING ptr
-	dim as FBSTRING ptr dst = tkrt_AllocTemp( 0, 8 )
-	if( dst = 0 ) then return TKORT_NULLSTR()
+	dim as FBSTRING ptr dst = tkrt_AllocTemp( nullptr, 8 )
+	if( dst = nullptr ) then return TKORT_NULLSTR()
 	dim as zstring ptr src = tkort_hBoolToStr( num )
 	dim as integer n = cast( integer, strlen( src ) )
 	memcpy( dst->data, src, n )
@@ -238,7 +238,7 @@ function tkort_hFloat2Str alias "fb_hFloat2Str" _
 
 	if( (n <= 0) orelse (n >= maxlen) ) then
 		buffer[0] = 0
-		return 0
+		return nullptr
 	end if
 
 	if( p[n - 1] = asc( "." ) ) then p[n - 1] = 0

@@ -36,7 +36,7 @@ extern "rtlib"
 function tkort_WstrUcase2 alias "fb_WstrUcase2" _
 	( byval src as wstring ptr, byval mode as int32 ) as wstring ptr
 
-	if( src = 0 ) then return 0
+	if( src = nullptr ) then return nullptr
 
 	dim as integer chars = FB_WSTR_LEN( src )
 
@@ -44,7 +44,7 @@ function tkort_WstrUcase2 alias "fb_WstrUcase2" _
 	'' else in this family -- fbc allocates before testing the length, so
 	'' UCASEW("") returns a real empty wstring rather than NULL.
 	dim as wstring ptr dst = FB_WSTR_ALLOCTEMP( chars )
-	if( dst = 0 ) then return 0
+	if( dst = nullptr ) then return nullptr
 
 	if( mode = 1 ) then
 		for i as integer = 0 to chars - 1
@@ -68,12 +68,12 @@ end function
 function tkort_WstrLcase2 alias "fb_WstrLcase2" _
 	( byval src as wstring ptr, byval mode as int32 ) as wstring ptr
 
-	if( src = 0 ) then return 0
+	if( src = nullptr ) then return nullptr
 
 	dim as integer chars = FB_WSTR_LEN( src )
 
 	dim as wstring ptr dst = FB_WSTR_ALLOCTEMP( chars )
-	if( dst = 0 ) then return 0
+	if( dst = nullptr ) then return nullptr
 
 	if( mode = 1 ) then
 		for i as integer = 0 to chars - 1

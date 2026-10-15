@@ -302,17 +302,17 @@ function tkort_ConsoleGetMouse alias "fb_ConsoleGetMouse" _
 			TKORT_CON_MOUSEHOOK() = cast( any ptr, @tkort_ProcessMouseEvent )
 			tkort_last_x = 1
 			tkort_last_y = 1
-			tkrt_hConvertToConsole( @tkort_last_x, @tkort_last_y, 0, 0 )
+			tkrt_hConvertToConsole( @tkort_last_x, @tkort_last_y, nullptr, nullptr )
 		end if
 	end if
 
 	'' NO MOUSE: every out-parameter is -1 and the call is an error.
 	if( tkort_mouse_inited = 0 ) then
-		if( x <> 0 ) then *x = -1
-		if( y <> 0 ) then *y = -1
-		if( z <> 0 ) then *z = -1
-		if( buttons <> 0 ) then *buttons = -1
-		if( clip <> 0 ) then *clip = -1
+		if( x <> nullptr ) then *x = -1
+		if( y <> nullptr ) then *y = -1
+		if( z <> nullptr ) then *z = -1
+		if( buttons <> nullptr ) then *buttons = -1
+		if( clip <> nullptr ) then *clip = -1
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
 
@@ -333,13 +333,13 @@ function tkort_ConsoleGetMouse alias "fb_ConsoleGetMouse" _
 
 	'' MINUS ONE UNDOES THE PLUS ONE fb_hConvertToConsole applied when the
 	'' position was seeded.
-	if( x <> 0 ) then *x = tkort_last_x - 1
-	if( y <> 0 ) then *y = tkort_last_y - 1
-	if( z <> 0 ) then *z = tkort_last_z
-	if( buttons <> 0 ) then *buttons = tkort_last_buttons
-	if( clip <> 0 ) then *clip = 0
+	if( x <> nullptr ) then *x = tkort_last_x - 1
+	if( y <> nullptr ) then *y = tkort_last_y - 1
+	if( z <> nullptr ) then *z = tkort_last_z
+	if( buttons <> nullptr ) then *buttons = tkort_last_buttons
+	if( clip <> nullptr ) then *clip = 0
 
-	tkrt_hConvertFromConsole( x, y, 0, 0 )
+	tkrt_hConvertFromConsole( x, y, nullptr, nullptr )
 
 	return FB_RTERROR_OK
 end function

@@ -24,12 +24,12 @@ extern "rtlib"
 '' Room for `chars` characters plus the terminator. A non-positive count yields
 '' NULL rather than an empty allocation -- callers test the pointer.
 function tkort_WstrAlloc alias "fb_WstrAlloc" ( byval chars as integer ) as wstring ptr
-	if( chars <= 0 ) then return 0
+	if( chars <= 0 ) then return nullptr
 	return FB_WSTR_ALLOCTEMP( chars )
 end function
 
 sub tkort_WstrDelete alias "fb_WstrDelete" ( byval s as wstring ptr )
-	if( s = 0 ) then exit sub
+	if( s = nullptr ) then exit sub
 	FB_WSTR_DEL( s )
 end sub
 
@@ -40,10 +40,10 @@ end sub
 function tkort_WstrAssign alias "fb_WstrAssign" _
 	( byval dst as wstring ptr, byval dst_chars as integer, byval src as wstring ptr ) as wstring ptr
 
-	if( dst = 0 ) then return dst
+	if( dst = nullptr ) then return dst
 
 	dim as integer src_chars = 0
-	if( src <> 0 ) then src_chars = FB_WSTR_LEN( src )
+	if( src <> nullptr ) then src_chars = FB_WSTR_LEN( src )
 
 	if( src_chars = 0 ) then
 		'' An empty source CLEARS the destination rather than leaving it alone.
@@ -70,13 +70,13 @@ function tkort_WstrConcat alias "fb_WstrConcat" _
 	( byval str1 as wstring ptr, byval str2 as wstring ptr ) as wstring ptr
 
 	dim as integer l1 = 0, l2 = 0
-	if( str1 <> 0 ) then l1 = FB_WSTR_LEN( str1 )
-	if( str2 <> 0 ) then l2 = FB_WSTR_LEN( str2 )
+	if( str1 <> nullptr ) then l1 = FB_WSTR_LEN( str1 )
+	if( str2 <> nullptr ) then l2 = FB_WSTR_LEN( str2 )
 
-	if( (l1 + l2) = 0 ) then return 0
+	if( (l1 + l2) = 0 ) then return nullptr
 
 	dim as wstring ptr dst = FB_WSTR_ALLOCTEMP( l1 + l2 )
-	if( dst = 0 ) then return 0
+	if( dst = nullptr ) then return nullptr
 
 	'' The non-terminating form for both halves, then one terminator at the end:
 	'' terminating after the first half would put a NUL in the middle.
@@ -92,8 +92,8 @@ end function
 function tkort_WstrConcatAssign alias "fb_WstrConcatAssign" _
 	( byval dst as wstring ptr, byval dst_chars as integer, byval src as wstring ptr ) as wstring ptr
 
-	if( dst = 0 ) then return dst
-	if( src = 0 ) then return dst
+	if( dst = nullptr ) then return dst
+	if( src = nullptr ) then return dst
 
 	dim as integer src_len = FB_WSTR_LEN( src )
 	if( src_len = 0 ) then return dst

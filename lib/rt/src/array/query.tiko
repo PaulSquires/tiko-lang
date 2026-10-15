@@ -85,14 +85,14 @@ extern "rtlib"
 
 '' Elements, from the ALLOCATION, not the dimension table -- see the header.
 function tkort_ArrayLen alias "fb_ArrayLen" ( byval array_ as FBARRAY ptr ) as uinteger
-	if( array_ = 0 ) then return 0
-	if( array_->base_ptr = 0 ) then return 0
+	if( array_ = nullptr ) then return 0
+	if( array_->base_ptr = nullptr ) then return 0
 	return array_->size \ array_->element_len
 end function
 
 function tkort_ArraySize alias "fb_ArraySize" ( byval array_ as FBARRAY ptr ) as uinteger
-	if( array_ = 0 ) then return 0
-	if( array_->base_ptr = 0 ) then return 0
+	if( array_ = nullptr ) then return 0
+	if( array_->base_ptr = nullptr ) then return 0
 	return array_->size
 end function
 
@@ -114,7 +114,7 @@ function tkort_ArrayLBound alias "fb_ArrayLBound" _
 	if( dimension = -1 ) then return 1
 
 	'' 0, not -1, and deliberately different from UBOUND -- see the header.
-	if( array_->index_ptr = 0 ) then return 0
+	if( array_->index_ptr = nullptr ) then return 0
 	if( dimension < 0 ) then return 0
 	if( cuint( dimension ) >= array_->dimensions ) then return 0
 
@@ -130,11 +130,11 @@ function tkort_ArrayUBound alias "fb_ArrayUBound" _
 		'' The dimension count IS known for an unallocated array, but
 		'' fbc reports 0 there anyway, which is what puts it below
 		'' LBOUND's constant 1 and marks the array unallocated.
-		if( array_->index_ptr <> 0 ) then return cast( integer, array_->dimensions )
+		if( array_->index_ptr <> nullptr ) then return cast( integer, array_->dimensions )
 		return 0
 	end if
 
-	if( array_->index_ptr = 0 ) then return -1
+	if( array_->index_ptr = nullptr ) then return -1
 	if( dimension < 0 ) then return -1
 	if( cuint( dimension ) >= array_->dimensions ) then return -1
 
@@ -144,8 +144,8 @@ end function
 '' Scope-entry reset for a dynamic local array. element_len and dimensions
 '' SURVIVE, and flags is masked down to the three compile-time bits.
 sub tkort_ArrayResetDesc alias "fb_ArrayResetDesc" ( byval array_ as FBARRAY ptr )
-	array_->index_ptr = 0
-	array_->base_ptr = 0
+	array_->index_ptr = nullptr
+	array_->base_ptr = nullptr
 	array_->size = 0
 	'' element_len and dimensions are NOT cleared -- fbc leaves both
 	'' assignments commented out, and they are the descriptor's shape.

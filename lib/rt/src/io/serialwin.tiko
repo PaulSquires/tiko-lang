@@ -339,7 +339,7 @@ function tkort_SerialOpen alias "fb_SerialOpen" _
 
 	'' + 5 leaves room for the "\\.\" prefix and the terminator.
 	pszDev = cast( zstring ptr, calloc( strlen( pszDevice ) + 5, 1 ) )
-	if( pszDev = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
+	if( pszDev = nullptr ) then return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
 
 	if( iPort = 0 ) then
 		'' PORT 0 BECOMES COM1 rather than failing -- see the file header.
@@ -356,11 +356,11 @@ function tkort_SerialOpen alias "fb_SerialOpen" _
 		strcat( pszDev, pszDevice )
 		'' EVERYTHING FROM THE COLON ON IS CUT, options included.
 		p = strchr( pszDev, 58 )
-		if( p <> 0 ) then p[0] = 0
+		if( p <> nullptr ) then p[0] = 0
 	end if
 
 	'' EXCLUSIVE ACCESS: share mode must be zero for a COM port.
-	hDevice = w_CreateFileA( pszDev, dwDesiredAccess, 0, 0, OPEN_EXISTING_, 0, 0 )
+	hDevice = w_CreateFileA( pszDev, dwDesiredAccess, 0, nullptr, OPEN_EXISTING_, 0, nullptr )
 
 	free( pszDev )
 
@@ -508,7 +508,7 @@ function tkort_SerialGetRemaining alias "fb_SerialGetRemaining" _
 	if( w_ClearCommError( pInfo->hDevice, @dwErrors, @Status_ ) = 0 ) then
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
-	if( pLength <> 0 ) then *pLength = cast( int32, Status_.cbInQue )
+	if( pLength <> nullptr ) then *pLength = cast( int32, Status_.cbInQue )
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )
 end function
 
@@ -526,7 +526,7 @@ function tkort_SerialWrite alias "fb_SerialWrite" _
 		return tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
 	end if
 
-	if( w_WriteFile( pInfo->hDevice, data_, cast( uint32, length_ ), @dwWriteCount, 0 ) = 0 ) then
+	if( w_WriteFile( pInfo->hDevice, data_, cast( uint32, length_ ), @dwWriteCount, nullptr ) = 0 ) then
 		return tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
 	end if
 
@@ -550,7 +550,7 @@ function tkort_SerialRead alias "fb_SerialRead" _
 		return tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
 	end if
 
-	if( w_ReadFile( pInfo->hDevice, data_, cast( uint32, *pLength ), @dwReadCount, 0 ) = 0 ) then
+	if( w_ReadFile( pInfo->hDevice, data_, cast( uint32, *pLength ), @dwReadCount, nullptr ) = 0 ) then
 		return tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
 	end if
 

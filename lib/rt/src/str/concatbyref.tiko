@@ -72,7 +72,7 @@ function tkort_StrConcatByref alias "fb_StrConcatByref" _
 
 		STRLOCK()
 
-		if( fb_hStrRealloc( s, dst_len + dst_len, 1 ) <> 0 ) then
+		if( fb_hStrRealloc( s, dst_len + dst_len, 1 ) <> nullptr ) then
 			'' Re-read: the block may have moved.
 			FB_STRSETUP_FIX( s, dst_size, dst_ptr, dst_len )
 

@@ -173,14 +173,14 @@ end sub
 dim shared as int32 tkort_key_buffer( 0 to KEY_BUFFER_LEN_ - 1 )
 dim shared as int32 tkort_key_head = 0, tkort_key_tail = 0
 dim shared as int32 tkort_key_buffer_changed = 0
-dim shared as TKORT_KEYNODE ptr tkort_root_node = 0
+dim shared as TKORT_KEYNODE ptr tkort_root_node = nullptr
 
 '' Inserts one sequence, one character per level. Recursive, as fbc's is.
 private sub tkort_add_key _
 	( byval node as TKORT_KEYNODE ptr ptr, byval key_ as zstring ptr, byval code_ as int16 )
 
 	dim as TKORT_KEYNODE ptr n = *node
-	while( n <> 0 )
+	while( n <> nullptr )
 		if( n->key_ = cptr( uint8 ptr, key_ )[0] ) then
 			tkort_add_key( @n->child_, cast( zstring ptr, cptr( uint8 ptr, key_ ) + 1 ), code_ )
 			exit sub
@@ -189,8 +189,8 @@ private sub tkort_add_key _
 	wend
 
 	n = cast( TKORT_KEYNODE ptr, malloc( sizeof( TKORT_KEYNODE ) ) )
-	if( n = 0 ) then exit sub
-	n->child_ = 0
+	if( n = nullptr ) then exit sub
+	n->child_ = nullptr
 	n->next_ = *node
 	n->key_ = cptr( uint8 ptr, key_ )[0]
 	n->code_ = 0
@@ -211,10 +211,10 @@ private sub tkort_init_keys( )
 	tkort_init_key_data( )
 
 	for i as integer = 0 to 23
-		dim as zstring ptr key_ = c_tgetstr2( @tkort_key_data(i).cap, 0 )
+		dim as zstring ptr key_ = c_tgetstr2( @tkort_key_data(i).cap, nullptr )
 		'' A TERMINAL THAT DOES NOT DEFINE A KEY simply has no entry -- the
 		'' NULL is skipped rather than treated as an error.
-		if( key_ <> 0 ) then
+		if( key_ <> nullptr ) then
 			'' + 1 DROPS THE LEADING ESC -- see the file header.
 			tkort_add_key( @tkort_root_node, _
 			               cast( zstring ptr, cptr( uint8 ptr, key_ ) + 1 ), _
@@ -231,7 +231,7 @@ end sub
 private function tkort_get_input( ) as int32
 
 	dim as any ptr g = TKORT_CON_P( TKORT_CON_KBGETCH )
-	if( g = 0 ) then return -1
+	if( g = nullptr ) then return -1
 	dim as function cdecl ( ) as int32 getch_ = cast( function cdecl ( ) as int32, g )
 
 	dim as int32 k = getch_( )
@@ -241,10 +241,10 @@ private function tkort_get_input( ) as int32
 		'' a truncated sequence.
 		if( k = -1 ) then return 27
 
-		if( tkort_root_node = 0 ) then tkort_init_keys( )
+		if( tkort_root_node = nullptr ) then tkort_init_keys( )
 
 		dim as TKORT_KEYNODE ptr node = tkort_root_node
-		while( node <> 0 )
+		while( node <> nullptr )
 			if( k = node->key_ ) then
 				if( node->code_ <> 0 ) then
 					if( node->code_ = KEY_MOUSE_ ) then
@@ -253,7 +253,7 @@ private function tkort_get_input( ) as int32
 						dim as int32 cx = getch_( )
 						dim as int32 cy = getch_( )
 						dim as any ptr mu = TKORT_CON_P( TKORT_CON_MOUSEUPDATE )
-						if( mu <> 0 ) then
+						if( mu <> nullptr ) then
 							dim as sub cdecl ( byval a as int32, byval b as int32, byval c as int32 ) fn_ = _
 								cast( sub cdecl ( byval a as int32, byval b as int32, byval c as int32 ), mu )
 							fn_( cb, cx, cy )

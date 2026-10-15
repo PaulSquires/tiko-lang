@@ -262,7 +262,7 @@ private function hPatFormatCore( byval ticks as int64, byval offMin as int32, _
 
 		case 119                                '' 'w' -- ISO week
 			if( nrun > 2 ) then return DT_PAT_ERR
-			n += hPatNum( buf + n, tkrt_DtIsoWeek( y, mo, d, 0 ), nrun )
+			n += hPatNum( buf + n, tkrt_DtIsoWeek( y, mo, d, nullptr ), nrun )
 
 		case 89                                 '' 'Y' -- ISO WEEK-YEAR
 			'' Not the calendar year: 2021-01-01 is week 53 of 2020, so "Y"
@@ -391,12 +391,12 @@ function tkort_DtPatFormat alias "fb_DtPatFormat" _
 	  byval patlen as int32, byval buf as uint8 ptr, byval buflen as int32 ) as int32
 
 	dim as int32 n = any, L = any
-	dim as zstring ptr expand = 0
+	dim as zstring ptr expand = nullptr
 
-	if( buf = 0 ) then return DT_PAT_ERR
+	if( buf = nullptr ) then return DT_PAT_ERR
 	if( buflen < 8 ) then return DT_PAT_ERR
 	buf[0] = 0
-	if( pat = 0 ) then return DT_PAT_ERR
+	if( pat = nullptr ) then return DT_PAT_ERR
 	if( patlen < 0 ) then return DT_PAT_ERR
 	if( tkrt_DtIsValidTicks( ticks ) = 0 ) then return DT_PAT_ERR
 
@@ -424,7 +424,7 @@ function tkort_DtPatFormat alias "fb_DtPatFormat" _
 			expand = @"ddd, dd MMM yyyy HH:mm:ss 'GMT'"
 		end select
 
-		if( expand <> 0 ) then
+		if( expand <> nullptr ) then
 			L = 0
 			while( expand[L] <> 0 )
 				L += 1
@@ -572,10 +572,10 @@ function tkort_DtPatParse alias "fb_DtPatParse" _
 
 	hInitNames( )
 
-	if( out_ticks <> 0 ) then *out_ticks = FB_DT_INVALID_TICKS
-	if( out_off <> 0 ) then *out_off = DT_PAT_OFFSET_UNSPECIFIED
-	if( s = 0 ) then return 1
-	if( pat = 0 ) then return 1
+	if( out_ticks <> nullptr ) then *out_ticks = FB_DT_INVALID_TICKS
+	if( out_off <> nullptr ) then *out_off = DT_PAT_OFFSET_UNSPECIFIED
+	if( s = nullptr ) then return 1
+	if( pat = nullptr ) then return 1
 	if( slen < 0 ) then return 1
 	if( patlen <= 0 ) then return 1
 
@@ -852,8 +852,8 @@ function tkort_DtPatParse alias "fb_DtPatParse" _
 		end if
 	end if
 
-	if( out_ticks <> 0 ) then *out_ticks = ticks
-	if( out_off <> 0 ) then *out_off = pt.off
+	if( out_ticks <> nullptr ) then *out_ticks = ticks
+	if( out_off <> nullptr ) then *out_off = pt.off
 	return 0
 end function
 

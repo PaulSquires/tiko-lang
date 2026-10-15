@@ -161,7 +161,7 @@ sub tkort_FileReset alias "fb_FileReset" ( )
 
 	for i as integer = 1 to (FB_MAX_FILES - FB_RESERVED_FILES)
 		dim as FB_FILE ptr h = TKORT_FILE_TO_HANDLE_VALID( i )
-		if( h->hooks <> 0 ) then h->hooks->pfnClose( h )
+		if( h->hooks <> nullptr ) then h->hooks->pfnClose( h )
 	next
 
 	memset( TKORT_FILE_TO_HANDLE_VALID( 1 ), 0, _
@@ -325,9 +325,9 @@ private function hFileLineInputEx _
 
 	TKORT_IOLOCK()
 
-	if( h->hooks->pfnReadLine <> 0 ) then
+	if( h->hooks->pfnReadLine <> nullptr ) then
 		mode_ = eIM_ReadLine
-	elseif( (h->hooks->pfnRead <> 0) andalso (h->hooks->pfnEof <> 0) ) then
+	elseif( (h->hooks->pfnRead <> nullptr) andalso (h->hooks->pfnEof <> nullptr) ) then
 		mode_ = eIM_Read
 	end if
 
@@ -408,7 +408,7 @@ private function hFileLineInputEx _
 			'' fill-remainder rule is applied by fb_StrAssign rather than by
 			'' the device.
 			dim as FBSTRING str_result
-			str_result.data = 0
+			str_result.data = nullptr
 			str_result.len = 0
 			str_result.size = 0
 
@@ -446,7 +446,7 @@ function tkort_FileLineInputWstr alias "fb_FileLineInputWstr" _
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
 
-	if( h->hooks->pfnReadLineWstr = 0 ) then
+	if( h->hooks->pfnReadLineWstr = nullptr ) then
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
 

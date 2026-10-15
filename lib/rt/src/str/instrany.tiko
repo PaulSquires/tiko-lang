@@ -48,10 +48,10 @@ function tkort_StrInstrAny alias "fb_StrInstrAny" _
 	dim as integer r = 0
 	dim as integer ok = 0
 
-	if( src <> 0 ) then
-		if( src->data <> 0 ) then
-			if( patt <> 0 ) then
-				if( patt->data <> 0 ) then ok = 1
+	if( src <> nullptr ) then
+		if( src->data <> nullptr ) then
+			if( patt <> nullptr ) then
+				if( patt->data <> nullptr ) then ok = 1
 			end if
 		end if
 	end if
@@ -74,7 +74,7 @@ function tkort_StrInstrAny alias "fb_StrInstrAny" _
 			r = search_len
 			for i as integer = 0 to size_patt - 1
 				dim as any ptr hit = memchr( text_, pd[i], r )
-				if( hit <> 0 ) then
+				if( hit <> nullptr ) then
 					dim as integer found = cast( integer, cast( uint8 ptr, hit ) - text_ )
 					if( found < r ) then r = found
 				end if
@@ -117,10 +117,10 @@ function tkort_StrInstrRevAny alias "fb_StrInstrRevAny" _
 	dim as integer r = 0
 	dim as integer ok = 0
 
-	if( src <> 0 ) then
-		if( src->data <> 0 ) then
-			if( patt <> 0 ) then
-				if( patt->data <> 0 ) then ok = 1
+	if( src <> nullptr ) then
+		if( src->data <> nullptr ) then
+			if( patt <> nullptr ) then
+				if( patt->data <> nullptr ) then ok = 1
 			end if
 		end if
 	end if

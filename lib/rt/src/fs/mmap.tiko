@@ -38,9 +38,9 @@ end extern
 '' flag lives in the sign bit.
 private sub hUArg( byval s as FBUSTRING ptr, byval ptr_ as FB_UCHAR ptr ptr, byval len_ as integer ptr )
 	static as FB_UCHAR empty_(0 to 0) = { 0 }
-	if( s = 0 ) then
+	if( s = nullptr ) then
 		*ptr_ = @empty_(0) : *len_ = 0
-	elseif( s->data = 0 ) then
+	elseif( s->data = nullptr ) then
 		*ptr_ = @empty_(0) : *len_ = 0
 	else
 		*ptr_ = s->data
@@ -98,7 +98,7 @@ private function hFsWide( byval p as FBUSTRING ptr ) as wstring ptr
 
 	hUArg( p, @s, @len_ )
 	w = malloc( (len_ + 1) * sizeof( FB_UCHAR ) )
-	if( w = 0 ) then return 0
+	if( w = nullptr ) then return nullptr
 	if( len_ > 0 ) then memcpy( w, s, len_ * sizeof( FB_UCHAR ) )
 	w[len_] = 0
 	return cptr( wstring ptr, w )
@@ -115,17 +115,17 @@ function tkort_UStrFsMmapOpen alias "fb_UStrFsMmapOpen" _
 	dim as int64 sz = any
 	dim as int32 r = any
 
-	*out_ = 0
+	*out_ = nullptr
 
 	w = hFsWide( p )
-	if( w = 0 ) then return FB_FS_UNKNOWN
+	if( w = nullptr ) then return FB_FS_UNKNOWN
 
 	'' A read-only mapping still SHARES WRITE, so another process may modify
 	'' the file underneath; a writable one does not.
 	hf = w_CreateFileW( w, _
 		iif( writable <> 0, GENERIC_READ_ or GENERIC_WRITE_, GENERIC_READ_ ), _
 		FILE_SHARE_READ_ or iif( writable <> 0, 0, FILE_SHARE_WRITE_ ), _
-		0, OPEN_EXISTING_, FILE_ATTRIBUTE_NORMAL_, 0 )
+		nullptr, OPEN_EXISTING_, FILE_ATTRIBUTE_NORMAL_, nullptr )
 	free( w )
 
 	if( cast( integer, hf ) = INVALID_HANDLE_VALUE_ ) then return tkrt_FsMapOsError( )
@@ -141,15 +141,15 @@ function tkort_UStrFsMmapOpen alias "fb_UStrFsMmapOpen" _
 		return FB_FS_INVALID_PATH
 	end if
 
-	hm = w_CreateFileMappingW( hf, 0, iif( writable <> 0, PAGE_READWRITE_, PAGE_READONLY_ ), 0, 0, 0 )
-	if( hm = 0 ) then
+	hm = w_CreateFileMappingW( hf, nullptr, iif( writable <> 0, PAGE_READWRITE_, PAGE_READONLY_ ), 0, 0, nullptr )
+	if( hm = nullptr ) then
 		r = tkrt_FsMapOsError( )
 		w_CloseHandle( hf )
 		return r
 	end if
 
 	vw = w_MapViewOfFile( hm, iif( writable <> 0, FILE_MAP_WRITE_, FILE_MAP_READ_ ), 0, 0, 0 )
-	if( vw = 0 ) then
+	if( vw = nullptr ) then
 		r = tkrt_FsMapOsError( )
 		w_CloseHandle( hm )
 		w_CloseHandle( hf )
@@ -157,7 +157,7 @@ function tkort_UStrFsMmapOpen alias "fb_UStrFsMmapOpen" _
 	end if
 
 	m = calloc( 1, sizeof( FB_FSMAP ) )
-	if( m = 0 ) then
+	if( m = nullptr ) then
 		w_UnmapViewOfFile( vw )
 		w_CloseHandle( hm )
 		w_CloseHandle( hf )
@@ -175,21 +175,21 @@ function tkort_UStrFsMmapOpen alias "fb_UStrFsMmapOpen" _
 end function
 
 sub tkort_FsMmapClose alias "fb_FsMmapClose" ( byval m as FB_FSMAP ptr )
-	if( m = 0 ) then exit sub
+	if( m = nullptr ) then exit sub
 	'' Reverse of creation -- see the header.
-	if( m->data_ <> 0 ) then w_UnmapViewOfFile( m->data_ )
-	if( m->hmap <> 0 ) then w_CloseHandle( m->hmap )
+	if( m->data_ <> nullptr ) then w_UnmapViewOfFile( m->data_ )
+	if( m->hmap <> nullptr ) then w_CloseHandle( m->hmap )
 	if( cast( integer, m->hfile ) <> INVALID_HANDLE_VALUE_ ) then w_CloseHandle( m->hfile )
 	free( m )
 end sub
 
 function tkort_FsMmapData alias "fb_FsMmapData" ( byval m as FB_FSMAP ptr ) as uint8 ptr
-	if( m = 0 ) then return 0
+	if( m = nullptr ) then return nullptr
 	return m->data_
 end function
 
 function tkort_FsMmapSize alias "fb_FsMmapSize" ( byval m as FB_FSMAP ptr ) as uint64
-	if( m = 0 ) then return 0
+	if( m = nullptr ) then return 0
 	return m->size_
 end function
 
@@ -197,7 +197,7 @@ end function
 '' file system cache; FlushFileBuffers is what reaches the disk. One without
 '' the other makes the call mean less than the caller thinks.
 function tkort_FsMmapFlush alias "fb_FsMmapFlush" ( byval m as FB_FSMAP ptr ) as int32
-	if( m = 0 ) then return FB_FS_UNKNOWN
+	if( m = nullptr ) then return FB_FS_UNKNOWN
 	'' A read-only mapping has nothing to write back, and says so rather
 	'' than failing.
 	if( m->writable = 0 ) then return FB_FS_OK
@@ -262,7 +262,7 @@ private function hFsNarrow( byval p as FBUSTRING ptr ) as zstring ptr
 	hUArg( p, @s, @len_ )
 	cap = len_ * 3 + 1
 	b = malloc( cap )
-	if( b = 0 ) then return 0
+	if( b = nullptr ) then return nullptr
 	n = u_utf16to8( s, len_, b, cap - 1 )
 	if( n < 0 ) then n = 0
 	b[n] = 0
@@ -282,10 +282,10 @@ function tkort_UStrFsMmapOpen alias "fb_UStrFsMmapOpen" _
 	dim as uint32 mode_ = any
 	dim as int64 size_ = any
 
-	*out_ = 0
+	*out_ = nullptr
 
 	path_ = hFsNarrow( p )
-	if( path_ = 0 ) then return FB_FS_UNKNOWN
+	if( path_ = nullptr ) then return FB_FS_UNKNOWN
 
 	fd = u_open( path_, iif( writable <> 0, O_RDWR_, O_RDONLY_ ) )
 	free( path_ )
@@ -313,7 +313,7 @@ function tkort_UStrFsMmapOpen alias "fb_UStrFsMmapOpen" _
 		return FB_FS_INVALID_PATH
 	end if
 
-	addr = u_mmap( 0, cast( uinteger, size_ ), _
+	addr = u_mmap( nullptr, cast( uinteger, size_ ), _
 		iif( writable <> 0, PROT_READ_ or PROT_WRITE_, PROT_READ_ ), _
 		MAP_SHARED_, fd, 0 )
 
@@ -326,7 +326,7 @@ function tkort_UStrFsMmapOpen alias "fb_UStrFsMmapOpen" _
 	end if
 
 	m = calloc( 1, sizeof( FB_FSMAP ) )
-	if( m = 0 ) then
+	if( m = nullptr ) then
 		u_munmap( addr, cast( uinteger, size_ ) )
 		u_close( fd )
 		return FB_FS_UNKNOWN
@@ -342,26 +342,26 @@ function tkort_UStrFsMmapOpen alias "fb_UStrFsMmapOpen" _
 end function
 
 sub tkort_FsMmapClose alias "fb_FsMmapClose" ( byval m as FB_FSMAP ptr )
-	if( m = 0 ) then exit sub
-	if( m->data_ <> 0 ) then u_munmap( m->data_, cast( uinteger, m->size_ ) )
+	if( m = nullptr ) then exit sub
+	if( m->data_ <> nullptr ) then u_munmap( m->data_, cast( uinteger, m->size_ ) )
 	if( m->fd >= 0 ) then u_close( m->fd )
 	free( m )
 end sub
 
 function tkort_FsMmapData alias "fb_FsMmapData" ( byval m as FB_FSMAP ptr ) as uint8 ptr
-	if( m = 0 ) then return 0
+	if( m = nullptr ) then return nullptr
 	return m->data_
 end function
 
 function tkort_FsMmapSize alias "fb_FsMmapSize" ( byval m as FB_FSMAP ptr ) as uint64
-	if( m = 0 ) then return 0
+	if( m = nullptr ) then return 0
 	return m->size_
 end function
 
 '' MS_SYNC, NOT MS_ASYNC: the caller asked to flush, and returning before the
 '' data is durable would make the call a suggestion.
 function tkort_FsMmapFlush alias "fb_FsMmapFlush" ( byval m as FB_FSMAP ptr ) as int32
-	if( m = 0 ) then return FB_FS_UNKNOWN
+	if( m = nullptr ) then return FB_FS_UNKNOWN
 	if( m->writable = 0 ) then return FB_FS_OK
 	if( u_msync( m->data_, cast( uinteger, m->size_ ), MS_SYNC_ ) <> 0 ) then return tkrt_FsMapOsError( )
 	return FB_FS_OK

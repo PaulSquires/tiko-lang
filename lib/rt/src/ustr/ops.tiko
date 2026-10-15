@@ -106,11 +106,11 @@ dim shared as FB_UCHAR tkort_uEmpty(0 to 0) = { 0 }
 private sub hUStrArg _
 	( byval s as FBUSTRING ptr, byval ptr_ as FB_UCHAR ptr ptr, byval length as integer ptr )
 
-	if( s = 0 ) then
+	if( s = nullptr ) then
 		*ptr_ = @tkort_uEmpty(0) : *length = 0
 		exit sub
 	end if
-	if( s->data = 0 ) then
+	if( s->data = nullptr ) then
 		*ptr_ = @tkort_uEmpty(0) : *length = 0
 		exit sub
 	end if
@@ -133,9 +133,9 @@ private sub hWstrArg _
 		byval length as integer ptr, byval tok as HWSTRARG ptr _
 	)
 
-	tok->tmp = 0
+	tok->tmp = nullptr
 
-	if( w = 0 ) then
+	if( w = nullptr ) then
 		*ptr_ = @tkort_uEmpty(0) : *length = 0
 		exit sub
 	end if
@@ -155,11 +155,11 @@ private sub hWstrArg _
 end sub
 
 private sub hWstrRel( byval tok as HWSTRARG ptr )
-	if( tok->tmp <> 0 ) then
+	if( tok->tmp <> nullptr ) then
 		STRLOCK()
 		tkrt_UDelTempNoLock( tok->tmp )
 		STRUNLOCK()
-		tok->tmp = 0
+		tok->tmp = nullptr
 	end if
 end sub
 
@@ -170,10 +170,10 @@ private function hUTempFrom _
 
 	if( n <= 0 ) then return TKORT_UNULLSTR( )
 
-	dim as FBUSTRING ptr dst = fb_hUStrAllocTemp( 0, n )
-	if( dst = 0 ) then return TKORT_UNULLSTR( )
+	dim as FBUSTRING ptr dst = fb_hUStrAllocTemp( nullptr, n )
+	if( dst = nullptr ) then return TKORT_UNULLSTR( )
 
-	if( dst->data <> 0 ) then
+	if( dst->data <> nullptr ) then
 		fb_hUStrCopy( dst->data, src, n )
 		dst->data[n] = 0
 	end if
@@ -191,10 +191,10 @@ private function hUTempFrom2 _
 	dim as integer n = alen + blen
 	if( n <= 0 ) then return TKORT_UNULLSTR( )
 
-	dim as FBUSTRING ptr dst = fb_hUStrAllocTemp( 0, n )
-	if( dst = 0 ) then return TKORT_UNULLSTR( )
+	dim as FBUSTRING ptr dst = fb_hUStrAllocTemp( nullptr, n )
+	if( dst = nullptr ) then return TKORT_UNULLSTR( )
 
-	if( dst->data <> 0 ) then
+	if( dst->data <> nullptr ) then
 		if( alen > 0 ) then fb_hUStrCopy( dst->data, a, alen )
 		if( blen > 0 ) then fb_hUStrCopy( @dst->data[alen], b, blen )
 		dst->data[n] = 0
@@ -207,11 +207,11 @@ end function
 private function hUTempAlloc _
 	( byval n as integer, byval outbuf as FB_UCHAR ptr ptr ) as FBUSTRING ptr
 
-	*outbuf = 0
+	*outbuf = nullptr
 	if( n <= 0 ) then return TKORT_UNULLSTR( )
 
-	dim as FBUSTRING ptr dst = fb_hUStrAllocTemp( 0, n )
-	if( dst = 0 ) then return TKORT_UNULLSTR( )
+	dim as FBUSTRING ptr dst = fb_hUStrAllocTemp( nullptr, n )
+	if( dst = nullptr ) then return TKORT_UNULLSTR( )
 
 	*outbuf = dst->data
 	return dst
@@ -220,7 +220,7 @@ end function
 
 '' FB_USTRSETLEN preserves the temp bit that fb_hUStrAllocTemp just set.
 private sub hUTempTrim( byval dst as FBUSTRING ptr, byval written as integer )
-	if( dst->data = 0 ) then exit sub
+	if( dst->data = nullptr ) then exit sub
 	FB_USTRSETLEN( dst, written )
 	dst->data[written] = 0
 end sub
@@ -423,9 +423,9 @@ function tkort_UStrInsertAt alias "fb_UStrInsertAt" _
 	hUStrArg( ins, @ip, @il )
 	dim as integer n = sl + il
 	if( n <= 0 ) then return TKORT_UNULLSTR( )
-	dim as FBUSTRING ptr dst = fb_hUStrAllocTemp( 0, n )
-	if( dst = 0 ) then return TKORT_UNULLSTR( )
-	if( dst->data <> 0 ) then
+	dim as FBUSTRING ptr dst = fb_hUStrAllocTemp( nullptr, n )
+	if( dst = nullptr ) then return TKORT_UNULLSTR( )
+	if( dst->data <> nullptr ) then
 		if( at > 0 ) then fb_hUStrCopy( dst->data, sp, at )
 		if( il > 0 ) then fb_hUStrCopy( @dst->data[at], ip, il )
 		if( sl - at > 0 ) then fb_hUStrCopy( @dst->data[at + il], sp + at, sl - at )
@@ -444,7 +444,7 @@ function tkort_UStrReplace alias "fb_UStrReplace" _
 	dim as integer count = hu_hTally( sp, sl, pp, pl, ic )
 	dim as integer n = sl + count * (rl - pl)
 	dim as FBUSTRING ptr dst = hUTempAlloc( n, @outbuf )
-	if( outbuf <> 0 ) then hUTempTrim( dst, hu_hReplaceFill( outbuf, sp, sl, pp, pl, rp, rl, ic ) )
+	if( outbuf <> nullptr ) then hUTempTrim( dst, hu_hReplaceFill( outbuf, sp, sl, pp, pl, rp, rl, ic ) )
 	return dst
 end function
 
@@ -455,7 +455,7 @@ function tkort_UStrRemove alias "fb_UStrRemove" _
 	hUStrArg( s, @sp, @sl ) : hUStrArg( pat, @pp, @pl )
 	dim as integer count = hu_hTally( sp, sl, pp, pl, ic )
 	dim as FBUSTRING ptr dst = hUTempAlloc( sl - count * pl, @outbuf )
-	if( outbuf <> 0 ) then hUTempTrim( dst, hu_hReplaceFill( outbuf, sp, sl, pp, pl, 0, 0, ic ) )
+	if( outbuf <> nullptr ) then hUTempTrim( dst, hu_hReplaceFill( outbuf, sp, sl, pp, pl, nullptr, 0, ic ) )
 	return dst
 end function
 
@@ -465,7 +465,7 @@ function tkort_UStrRemoveChars alias "fb_UStrRemoveChars" _
 	dim as integer sl = any, tl = any
 	hUStrArg( s, @sp, @sl ) : hUStrArg( st, @tp, @tl )
 	dim as FBUSTRING ptr dst = hUTempAlloc( sl, @outbuf )
-	if( outbuf <> 0 ) then hUTempTrim( dst, hu_hRemoveCharsFill( outbuf, sp, sl, tp, tl, ic ) )
+	if( outbuf <> nullptr ) then hUTempTrim( dst, hu_hRemoveCharsFill( outbuf, sp, sl, tp, tl, ic ) )
 	return dst
 end function
 
@@ -475,7 +475,7 @@ function tkort_UStrRetainChars alias "fb_UStrRetainChars" _
 	dim as integer sl = any, tl = any
 	hUStrArg( s, @sp, @sl ) : hUStrArg( st, @tp, @tl )
 	dim as FBUSTRING ptr dst = hUTempAlloc( sl, @outbuf )
-	if( outbuf <> 0 ) then hUTempTrim( dst, hu_hRetainCharsFill( outbuf, sp, sl, tp, tl, ic ) )
+	if( outbuf <> nullptr ) then hUTempTrim( dst, hu_hRetainCharsFill( outbuf, sp, sl, tp, tl, ic ) )
 	return dst
 end function
 
@@ -487,7 +487,7 @@ function tkort_UStrReplaceChars alias "fb_UStrReplaceChars" _
 	dim as integer sl = any, tl = any, wl = any
 	hUStrArg( s, @sp, @sl ) : hUStrArg( st, @tp, @tl ) : hUStrArg( wth, @wp, @wl )
 	dim as FBUSTRING ptr dst = hUTempAlloc( sl, @outbuf )
-	if( outbuf <> 0 ) then
+	if( outbuf <> nullptr ) then
 		if( wl <> 1 ) then
 			if( sl > 0 ) then memcpy( outbuf, sp, sl * sizeof( FB_UCHAR ) )
 			hUTempTrim( dst, sl )
@@ -504,7 +504,7 @@ function tkort_UStrReverse alias "fb_UStrReverse" ( byval s as FBUSTRING ptr ) a
 	dim as integer sl = any
 	hUStrArg( s, @sp, @sl )
 	dim as FBUSTRING ptr dst = hUTempAlloc( sl, @outbuf )
-	if( outbuf <> 0 ) then
+	if( outbuf <> nullptr ) then
 		hu_hReverseFill( outbuf, sp, sl )
 		hUTempTrim( dst, sl )
 	end if
@@ -520,7 +520,7 @@ function tkort_UStrRepeat alias "fb_UStrRepeat" _
 	if( sl <= 0 ) then return TKORT_UNULLSTR( )
 	dim as integer n = count * sl
 	dim as FBUSTRING ptr dst = hUTempAlloc( n, @outbuf )
-	if( outbuf <> 0 ) then
+	if( outbuf <> nullptr ) then
 		for i as integer = 0 to count - 1
 			memcpy( outbuf + i * sl, sp, sl * sizeof( FB_UCHAR ) )
 		next
@@ -535,7 +535,7 @@ function tkort_UStrShrink alias "fb_UStrShrink" _
 	dim as integer sl = any, ml = any
 	hUStrArg( s, @sp, @sl ) : hUStrArg( mask, @mp, @ml )
 	dim as FBUSTRING ptr dst = hUTempAlloc( sl, @outbuf )
-	if( outbuf <> 0 ) then hUTempTrim( dst, hu_hShrinkFill( outbuf, sp, sl, mp, ml ) )
+	if( outbuf <> nullptr ) then hUTempTrim( dst, hu_hShrinkFill( outbuf, sp, sl, mp, ml ) )
 	return dst
 end function
 
@@ -544,7 +544,7 @@ function tkort_UStrMCase alias "fb_UStrMCase" ( byval s as FBUSTRING ptr ) as FB
 	dim as integer sl = any
 	hUStrArg( s, @sp, @sl )
 	dim as FBUSTRING ptr dst = hUTempAlloc( sl, @outbuf )
-	if( outbuf <> 0 ) then
+	if( outbuf <> nullptr ) then
 		hu_hMCaseFill( outbuf, sp, sl )
 		hUTempTrim( dst, sl )
 	end if
@@ -560,7 +560,7 @@ function tkort_UStrRemoveBetween alias "fb_UStrRemoveBetween" _
 	if( start < 1 ) then return hUTempFrom( sp, sl )
 	hUStrArg( d1, @ap, @al ) : hUStrArg( d2, @bp, @blen2 )
 	dim as FBUSTRING ptr dst = hUTempAlloc( sl, @outbuf )
-	if( outbuf <> 0 ) then
+	if( outbuf <> nullptr ) then
 		hUTempTrim( dst, hu_hRemoveBetweenFill( outbuf, sp, sl, ap, al, bp, blen2, removeAll, start - 1, ic ) )
 	end if
 	return dst
@@ -572,7 +572,7 @@ private function hUPad _
 	dim as integer sl = any, pl = any
 	hUStrArg( s, @sp, @sl ) : hUStrArg( pad, @pp, @pl )
 	dim as FBUSTRING ptr dst = hUTempAlloc( fieldw, @outbuf )
-	if( outbuf <> 0 ) then
+	if( outbuf <> nullptr ) then
 		hUTempTrim( dst, hu_hPadFill( outbuf, sp, sl, fieldw, hUPadUnit( pp, pl ), mode ) )
 	end if
 	return dst
@@ -608,7 +608,7 @@ function tkort_UStrWrap alias "fb_UStrWrap" _
 	end if
 	dim as integer n = al + sl + cll
 	dim as FBUSTRING ptr dst = hUTempAlloc( n, @outbuf )
-	if( outbuf <> 0 ) then
+	if( outbuf <> nullptr ) then
 		if( al > 0 ) then memcpy( outbuf, ap, al * sizeof( FB_UCHAR ) )
 		if( sl > 0 ) then memcpy( outbuf + al, sp, sl * sizeof( FB_UCHAR ) )
 		if( cll > 0 ) then memcpy( outbuf + al + sl, clp, cll * sizeof( FB_UCHAR ) )
@@ -638,9 +638,9 @@ function tkort_UStrEscape alias "fb_UStrEscape" ( byval s as FBUSTRING ptr ) as 
 	dim as FB_UCHAR ptr sp = any, outbuf = any
 	dim as integer sl = any
 	hUStrArg( s, @sp, @sl )
-	dim as integer n = hu_hEscapeFill( 0, sp, sl )
+	dim as integer n = hu_hEscapeFill( nullptr, sp, sl )
 	dim as FBUSTRING ptr dst = hUTempAlloc( n, @outbuf )
-	if( outbuf <> 0 ) then
+	if( outbuf <> nullptr ) then
 		hu_hEscapeFill( outbuf, sp, sl )
 		hUTempTrim( dst, n )
 	end if
@@ -652,7 +652,7 @@ function tkort_UStrUnescape alias "fb_UStrUnescape" ( byval s as FBUSTRING ptr )
 	dim as integer sl = any
 	hUStrArg( s, @sp, @sl )
 	dim as FBUSTRING ptr dst = hUTempAlloc( sl, @outbuf )
-	if( outbuf <> 0 ) then hUTempTrim( dst, hu_hUnescapeFill( outbuf, sp, sl ) )
+	if( outbuf <> nullptr ) then hUTempTrim( dst, hu_hUnescapeFill( outbuf, sp, sl ) )
 	return dst
 end function
 
@@ -907,7 +907,7 @@ function tkort_WStrReverse alias "fb_WStrReverse" _
 	hWstrArg( s, @sp, @sl, @t1 )
 	dim as FB_UCHAR ptr ob = any
 	dim as FBUSTRING ptr d2 = hUTempAlloc( sl, @ob )
-	if( ob <> 0 ) then hu_hReverseFill( ob, sp, sl ) : hUTempTrim( d2, sl )
+	if( ob <> nullptr ) then hu_hReverseFill( ob, sp, sl ) : hUTempTrim( d2, sl )
 	dim as FBUSTRING ptr r = d2
 	hWstrRel( @t1 )
 	return r
@@ -921,7 +921,7 @@ function tkort_WStrMCase alias "fb_WStrMCase" _
 	hWstrArg( s, @sp, @sl, @t1 )
 	dim as FB_UCHAR ptr ob = any
 	dim as FBUSTRING ptr d2 = hUTempAlloc( sl, @ob )
-	if( ob <> 0 ) then hu_hMCaseFill( ob, sp, sl ) : hUTempTrim( d2, sl )
+	if( ob <> nullptr ) then hu_hMCaseFill( ob, sp, sl ) : hUTempTrim( d2, sl )
 	dim as FBUSTRING ptr r = d2
 	hWstrRel( @t1 )
 	return r
@@ -935,7 +935,7 @@ function tkort_WStrUnescape alias "fb_WStrUnescape" _
 	hWstrArg( s, @sp, @sl, @t1 )
 	dim as FB_UCHAR ptr ob = any
 	dim as FBUSTRING ptr d2 = hUTempAlloc( sl, @ob )
-	if( ob <> 0 ) then hUTempTrim( d2, hu_hUnescapeFill( ob, sp, sl ) )
+	if( ob <> nullptr ) then hUTempTrim( d2, hu_hUnescapeFill( ob, sp, sl ) )
 	dim as FBUSTRING ptr r = d2
 	hWstrRel( @t1 )
 	return r
@@ -948,9 +948,9 @@ function tkort_WStrEscape alias "fb_WStrEscape" _
 	dim as HWSTRARG t1
 	hWstrArg( s, @sp, @sl, @t1 )
 	dim as FB_UCHAR ptr ob = any
-	dim as integer n = hu_hEscapeFill( 0, sp, sl )
+	dim as integer n = hu_hEscapeFill( nullptr, sp, sl )
 	dim as FBUSTRING ptr d2 = hUTempAlloc( n, @ob )
-	if( ob <> 0 ) then hu_hEscapeFill( ob, sp, sl ) : hUTempTrim( d2, n )
+	if( ob <> nullptr ) then hu_hEscapeFill( ob, sp, sl ) : hUTempTrim( d2, n )
 	dim as FBUSTRING ptr r = d2
 	hWstrRel( @t1 )
 	return r
@@ -1002,7 +1002,7 @@ function tkort_WStrReplace alias "fb_WStrReplace" _
 	dim as FB_UCHAR ptr ob = any
 	dim as integer count = hu_hTally( sp, sl, pp, pl, ic )
 	dim as FBUSTRING ptr r = hUTempAlloc( sl + count * (rl - pl), @ob )
-	if( ob <> 0 ) then hUTempTrim( r, hu_hReplaceFill( ob, sp, sl, pp, pl, rp, rl, ic ) )
+	if( ob <> nullptr ) then hUTempTrim( r, hu_hReplaceFill( ob, sp, sl, pp, pl, rp, rl, ic ) )
 	hWstrRel( @t1 )
 	return r
 end function
@@ -1017,7 +1017,7 @@ function tkort_WStrRemove alias "fb_WStrRemove" _
 	dim as FB_UCHAR ptr ob = any
 	dim as integer count = hu_hTally( sp, sl, pp, pl, ic )
 	dim as FBUSTRING ptr r = hUTempAlloc( sl - count * pl, @ob )
-	if( ob <> 0 ) then hUTempTrim( r, hu_hReplaceFill( ob, sp, sl, pp, pl, 0, 0, ic ) )
+	if( ob <> nullptr ) then hUTempTrim( r, hu_hReplaceFill( ob, sp, sl, pp, pl, nullptr, 0, ic ) )
 	hWstrRel( @t1 )
 	return r
 end function
@@ -1031,7 +1031,7 @@ function tkort_WStrRemoveChars alias "fb_WStrRemoveChars" _
 	hUStrArg( st, @tp, @tl )
 	dim as FB_UCHAR ptr ob = any
 	dim as FBUSTRING ptr r = hUTempAlloc( sl, @ob )
-	if( ob <> 0 ) then hUTempTrim( r, hu_hRemoveCharsFill( ob, sp, sl, tp, tl, ic ) )
+	if( ob <> nullptr ) then hUTempTrim( r, hu_hRemoveCharsFill( ob, sp, sl, tp, tl, ic ) )
 	hWstrRel( @t1 )
 	return r
 end function
@@ -1045,7 +1045,7 @@ function tkort_WStrRetainChars alias "fb_WStrRetainChars" _
 	hUStrArg( st, @tp, @tl )
 	dim as FB_UCHAR ptr ob = any
 	dim as FBUSTRING ptr r = hUTempAlloc( sl, @ob )
-	if( ob <> 0 ) then hUTempTrim( r, hu_hRetainCharsFill( ob, sp, sl, tp, tl, ic ) )
+	if( ob <> nullptr ) then hUTempTrim( r, hu_hRetainCharsFill( ob, sp, sl, tp, tl, ic ) )
 	hWstrRel( @t1 )
 	return r
 end function
@@ -1059,7 +1059,7 @@ function tkort_WStrShrink alias "fb_WStrShrink" _
 	hUStrArg( mask, @mp, @ml )
 	dim as FB_UCHAR ptr ob = any
 	dim as FBUSTRING ptr r = hUTempAlloc( sl, @ob )
-	if( ob <> 0 ) then hUTempTrim( r, hu_hShrinkFill( ob, sp, sl, mp, ml ) )
+	if( ob <> nullptr ) then hUTempTrim( r, hu_hShrinkFill( ob, sp, sl, mp, ml ) )
 	hWstrRel( @t1 )
 	return r
 end function
@@ -1077,7 +1077,7 @@ function tkort_WStrRepeat alias "fb_WStrRepeat" _
 	else
 		dim as integer n = count * sl
 		r = hUTempAlloc( n, @ob )
-		if( ob <> 0 ) then
+		if( ob <> nullptr ) then
 			for i as integer = 0 to count - 1
 				memcpy( ob + i * sl, sp, sl * sizeof( FB_UCHAR ) )
 			next
@@ -1107,10 +1107,10 @@ function tkort_WStrInsertAt alias "fb_WStrInsertAt" _
 		r = TKORT_UNULLSTR( )
 	else
 		dim as integer n = sl + il
-		r = fb_hUStrAllocTemp( 0, n )
-		if( r = 0 ) then
+		r = fb_hUStrAllocTemp( nullptr, n )
+		if( r = nullptr ) then
 			r = TKORT_UNULLSTR( )
-		elseif( r->data <> 0 ) then
+		elseif( r->data <> nullptr ) then
 			if( at > 0 ) then fb_hUStrCopy( r->data, sp, at )
 			if( il > 0 ) then fb_hUStrCopy( @r->data[at], ip, il )
 			if( sl - at > 0 ) then fb_hUStrCopy( @r->data[at + il], sp + at, sl - at )
@@ -1131,7 +1131,7 @@ function tkort_WStrReplaceChars alias "fb_WStrReplaceChars" _
 	hUStrArg( wth, @wp, @wl )
 	dim as FB_UCHAR ptr ob = any
 	dim as FBUSTRING ptr r = hUTempAlloc( sl, @ob )
-	if( ob <> 0 ) then
+	if( ob <> nullptr ) then
 		if( wl <> 1 ) then
 			if( sl > 0 ) then memcpy( ob, sp, sl * sizeof( FB_UCHAR ) )
 		else
@@ -1157,7 +1157,7 @@ function tkort_WStrRemoveBetween alias "fb_WStrRemoveBetween" _
 		r = hUTempFrom( sp, sl )
 	else
 		r = hUTempAlloc( sl, @ob )
-		if( ob <> 0 ) then hUTempTrim( r, hu_hRemoveBetweenFill( ob, sp, sl, ap, al, bp, bl2, removeAll, start - 1, ic ) )
+		if( ob <> nullptr ) then hUTempTrim( r, hu_hRemoveBetweenFill( ob, sp, sl, ap, al, bp, bl2, removeAll, start - 1, ic ) )
 	end if
 	hWstrRel( @t1 )
 	return r
@@ -1172,7 +1172,7 @@ function tkort_WStrPadRight alias "fb_WStrPadRight" _
 	hUStrArg( pad, @pp, @pl )
 	dim as FB_UCHAR ptr ob = any
 	dim as FBUSTRING ptr r = hUTempAlloc( w, @ob )
-	if( ob <> 0 ) then hUTempTrim( r, hu_hPadFill( ob, sp, sl, w, hUPadUnit( pp, pl ), 0 ) )
+	if( ob <> nullptr ) then hUTempTrim( r, hu_hPadFill( ob, sp, sl, w, hUPadUnit( pp, pl ), 0 ) )
 	hWstrRel( @t1 )
 	return r
 end function
@@ -1186,7 +1186,7 @@ function tkort_WStrPadLeft alias "fb_WStrPadLeft" _
 	hUStrArg( pad, @pp, @pl )
 	dim as FB_UCHAR ptr ob = any
 	dim as FBUSTRING ptr r = hUTempAlloc( w, @ob )
-	if( ob <> 0 ) then hUTempTrim( r, hu_hPadFill( ob, sp, sl, w, hUPadUnit( pp, pl ), 1 ) )
+	if( ob <> nullptr ) then hUTempTrim( r, hu_hPadFill( ob, sp, sl, w, hUPadUnit( pp, pl ), 1 ) )
 	hWstrRel( @t1 )
 	return r
 end function
@@ -1200,7 +1200,7 @@ function tkort_WStrPadCenter alias "fb_WStrPadCenter" _
 	hUStrArg( pad, @pp, @pl )
 	dim as FB_UCHAR ptr ob = any
 	dim as FBUSTRING ptr r = hUTempAlloc( w, @ob )
-	if( ob <> 0 ) then hUTempTrim( r, hu_hPadFill( ob, sp, sl, w, hUPadUnit( pp, pl ), 2 ) )
+	if( ob <> nullptr ) then hUTempTrim( r, hu_hPadFill( ob, sp, sl, w, hUPadUnit( pp, pl ), 2 ) )
 	hWstrRel( @t1 )
 	return r
 end function
@@ -1222,7 +1222,7 @@ function tkort_WStrWrap alias "fb_WStrWrap" _
 	end if
 	dim as integer n = al + sl + cll
 	dim as FBUSTRING ptr r = hUTempAlloc( n, @ob )
-	if( ob <> 0 ) then
+	if( ob <> nullptr ) then
 		if( al > 0 ) then memcpy( ob, ap, al * sizeof( FB_UCHAR ) )
 		if( sl > 0 ) then memcpy( ob + al, sp, sl * sizeof( FB_UCHAR ) )
 		if( cll > 0 ) then memcpy( ob + al + sl, clp, cll * sizeof( FB_UCHAR ) )

@@ -69,7 +69,7 @@ declare sub tkort_ArrayDestructStr alias "fb_ArrayDestructStr" ( byval a as FBAR
 '' A NULL base_ptr IS NOT AN ERROR. A global dynamic array that was never
 '' allocated still gets erased at program exit.
 function tkort_ArrayClear alias "fb_ArrayClear" ( byval a as FBARRAY ptr ) as int32
-	if( a->base_ptr <> 0 ) then memset( a->base_ptr, 0, a->size )
+	if( a->base_ptr <> nullptr ) then memset( a->base_ptr, 0, a->size )
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )
 end function
 
@@ -77,7 +77,7 @@ end function
 function tkort_ArrayFill alias "fb_ArrayFill" _
 	( byval a as FBARRAY ptr, byval fillchar as int32 ) as int32
 
-	if( a->base_ptr <> 0 ) then memset( a->base_ptr, fillchar, a->size )
+	if( a->base_ptr <> nullptr ) then memset( a->base_ptr, fillchar, a->size )
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )
 end function
 
@@ -95,7 +95,7 @@ extern "c"   '' NON-FBCALL: fb_array.h declares the h-prefixed helpers plainly,
 sub tkort_ArrayCtorObj alias "fb_hArrayCtorObj" _
 	( byval a as FBARRAY ptr, byval ctor as FB_DEFCTOR )
 
-	if( a->base_ptr = 0 ) then exit sub
+	if( a->base_ptr = nullptr ) then exit sub
 
 	dim as uinteger elements = tkrt_ArrayLen( a )
 	dim as uinteger element_len = a->element_len
@@ -112,7 +112,7 @@ end sub
 sub tkort_ArrayDtorObj alias "fb_hArrayDtorObj" _
 	( byval a as FBARRAY ptr, byval dtor as FB_DEFCTOR, byval keep_idx as uinteger )
 
-	if( a->base_ptr = 0 ) then exit sub
+	if( a->base_ptr = nullptr ) then exit sub
 
 	dim as uinteger elements = tkrt_ArrayLen( a )
 	dim as uinteger element_len = a->element_len
@@ -135,13 +135,13 @@ end sub
 sub tkort_ArrayDtorStr alias "fb_hArrayDtorStr" _
 	( byval a as FBARRAY ptr, byval dtor as FB_DEFCTOR, byval keep_idx as uinteger )
 
-	if( a->base_ptr = 0 ) then exit sub
+	if( a->base_ptr = nullptr ) then exit sub
 
 	dim as uinteger elements = tkrt_ArrayLen( a )
 	dim as FBSTRING ptr this_ = cast( FBSTRING ptr, a->base_ptr ) + (elements - 1)
 
 	while( elements > keep_idx )
-		if( this_->data <> 0 ) then tkrt_StrDelete( this_ )
+		if( this_->data <> nullptr ) then tkrt_StrDelete( this_ )
 		this_ -= 1
 		elements -= 1
 	wend
@@ -160,7 +160,7 @@ sub tkort_ArrayDestructObj alias "fb_ArrayDestructObj" _
 end sub
 
 sub tkort_ArrayDestructStr alias "fb_ArrayDestructStr" ( byval a as FBARRAY ptr )
-	tkort_ArrayDtorStr( a, 0, 0 )
+	tkort_ArrayDtorStr( a, nullptr, 0 )
 end sub
 
 '' ------------------------------------------------------------------ erase
@@ -172,7 +172,7 @@ function tkort_ArrayErase alias "fb_ArrayErase" ( byval a as FBARRAY ptr ) as in
 
 	'' NULL is legal: a global dynamic array that was never allocated is still
 	'' destroyed at exit.
-	if( a->base_ptr <> 0 ) then
+	if( a->base_ptr <> nullptr ) then
 		if( (a->flags and FBARRAY_FLAGS_FIXED_LEN) <> 0 ) then
 			tkort_ArrayClear( a )
 		else
@@ -191,9 +191,9 @@ end function
 function tkort_ArrayClearObj alias "fb_ArrayClearObj" _
 	( byval a as FBARRAY ptr, byval ctor as FB_DEFCTOR, byval dtor as FB_DEFCTOR ) as int32
 
-	if( dtor <> 0 ) then tkort_ArrayDestructObj( a, dtor )
+	if( dtor <> nullptr ) then tkort_ArrayDestructObj( a, dtor )
 
-	if( ctor <> 0 ) then
+	if( ctor <> nullptr ) then
 		tkort_ArrayCtorObj( a, ctor )
 	else
 		tkort_ArrayClear( a )
@@ -209,7 +209,7 @@ function tkort_ArrayEraseObj alias "fb_ArrayEraseObj" _
 	if( (a->flags and FBARRAY_FLAGS_FIXED_LEN) <> 0 ) then
 		tkort_ArrayClearObj( a, ctor, dtor )
 	else
-		if( dtor <> 0 ) then tkort_ArrayDestructObj( a, dtor )
+		if( dtor <> nullptr ) then tkort_ArrayDestructObj( a, dtor )
 		tkort_ArrayErase( a )
 	end if
 
@@ -225,7 +225,7 @@ sub tkort_ArrayStrErase alias "fb_ArrayStrErase" ( byval a as FBARRAY ptr )
 
 	tkort_ArrayDestructStr( a )
 
-	if( (a <> 0) andalso ((a->flags and FBARRAY_FLAGS_FIXED_LEN) = 0) ) then
+	if( (a <> nullptr) andalso ((a->flags and FBARRAY_FLAGS_FIXED_LEN) = 0) ) then
 		tkort_ArrayErase( a )
 	end if
 end sub

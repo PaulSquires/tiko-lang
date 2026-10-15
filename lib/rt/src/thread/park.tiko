@@ -63,12 +63,12 @@ end function
 
 function tkort_ParkerCreate alias "fb_ParkerCreate" ( ) as FBPARKER ptr
 	dim as FBPARKER ptr p = malloc( sizeof( FBPARKER ) )
-	if( p = 0 ) then return 0
+	if( p = nullptr ) then return nullptr
 
-	p->event_ = w_CreateEventA( 0, 0, 0, 0 )
-	if( p->event_ = 0 ) then
+	p->event_ = w_CreateEventA( nullptr, 0, 0, nullptr )
+	if( p->event_ = nullptr ) then
 		free( p )
-		return 0
+		return nullptr
 	end if
 
 	w_InitializeCriticalSection( @p->lock_(0) )
@@ -78,14 +78,14 @@ function tkort_ParkerCreate alias "fb_ParkerCreate" ( ) as FBPARKER ptr
 end function
 
 sub tkort_ParkerDestroy alias "fb_ParkerDestroy" ( byval p as FBPARKER ptr )
-	if( p = 0 ) then exit sub
+	if( p = nullptr ) then exit sub
 	w_CloseHandle( p->event_ )
 	w_DeleteCriticalSection( @p->lock_(0) )
 	free( p )
 end sub
 
 sub tkort_Park alias "fb_Park" ( byval p as FBPARKER ptr )
-	if( p = 0 ) then exit sub
+	if( p = nullptr ) then exit sub
 
 	'' Loops rather than returning after one wait -- see the file header.
 	while( hTakePermit( p ) = 0 )
@@ -96,7 +96,7 @@ end sub
 function tkort_ParkTimed alias "fb_ParkTimed" ( byval p as FBPARKER ptr, byval ms as uint32 ) as int32
 	dim as uint32 start_ = any, elapsed = any
 
-	if( p = 0 ) then return 0
+	if( p = nullptr ) then return 0
 
 	start_ = w_GetTickCount( )
 
@@ -115,7 +115,7 @@ function tkort_ParkTimed alias "fb_ParkTimed" ( byval p as FBPARKER ptr, byval m
 end function
 
 sub tkort_Unpark alias "fb_Unpark" ( byval p as FBPARKER ptr )
-	if( p = 0 ) then exit sub
+	if( p = nullptr ) then exit sub
 
 	w_EnterCriticalSection( @p->lock_(0) )
 	if( p->permit = 0 ) then
@@ -158,12 +158,12 @@ function tkort_ParkerCreate alias "fb_ParkerCreate" ( ) as FBPARKER ptr
 	dim as FBPARKER ptr p = malloc( sizeof( FBPARKER ) )
 	dim as uint8 attr( 0 to TKORT_CONDATTR_SIZE - 1 ) = any
 
-	if( p = 0 ) then return 0
+	if( p = nullptr ) then return nullptr
 
 	p->permit = 0
 	p->monotonic = 0
 
-	u_pthread_mutex_init( @p->lock_(0), 0 )
+	u_pthread_mutex_init( @p->lock_(0), nullptr )
 
 	u_pthread_condattr_init( @attr(0) )
 	'' Where the platform refuses, we fall back to the realtime clock and
@@ -176,7 +176,7 @@ function tkort_ParkerCreate alias "fb_ParkerCreate" ( ) as FBPARKER ptr
 end function
 
 sub tkort_ParkerDestroy alias "fb_ParkerDestroy" ( byval p as FBPARKER ptr )
-	if( p = 0 ) then exit sub
+	if( p = nullptr ) then exit sub
 	u_pthread_cond_destroy( @p->cond_(0) )
 	u_pthread_mutex_destroy( @p->lock_(0) )
 	free( p )
@@ -198,7 +198,7 @@ private sub hDeadline( byval p as FBPARKER ptr, byval ms as uint32, byval ts as 
 end sub
 
 sub tkort_Park alias "fb_Park" ( byval p as FBPARKER ptr )
-	if( p = 0 ) then exit sub
+	if( p = nullptr ) then exit sub
 
 	u_pthread_mutex_lock( @p->lock_(0) )
 	'' A loop, not an if: pthread_cond_wait may return spuriously, and the
@@ -214,7 +214,7 @@ function tkort_ParkTimed alias "fb_ParkTimed" ( byval p as FBPARKER ptr, byval m
 	dim as timespec_ ts = any
 	dim as int32 got = any
 
-	if( p = 0 ) then return 0
+	if( p = nullptr ) then return 0
 
 	u_pthread_mutex_lock( @p->lock_(0) )
 
@@ -245,7 +245,7 @@ function tkort_ParkTimed alias "fb_ParkTimed" ( byval p as FBPARKER ptr, byval m
 end function
 
 sub tkort_Unpark alias "fb_Unpark" ( byval p as FBPARKER ptr )
-	if( p = 0 ) then exit sub
+	if( p = nullptr ) then exit sub
 
 	u_pthread_mutex_lock( @p->lock_(0) )
 	if( p->permit = 0 ) then

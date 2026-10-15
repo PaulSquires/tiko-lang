@@ -44,7 +44,7 @@ extern "rtlib"
 '' stack-overflow waiting for a big UDT.
 sub tkort_MemSwap alias "fb_MemSwap" ( byval dst as uint8 ptr, byval src as uint8 ptr, byval bytes as integer )
 
-	if( (dst = 0) orelse (src = 0) orelse (bytes <= 0) ) then
+	if( (dst = nullptr) orelse (src = nullptr) orelse (bytes <= 0) ) then
 		exit sub
 	end if
 
@@ -77,11 +77,11 @@ sub tkort_MemCopyClear alias "fb_MemCopyClear" _
 		byval src as uint8 ptr, byval srclen as uinteger _
 	)
 
-	if( (dst = 0) orelse (dstlen = 0) ) then
+	if( (dst = nullptr) orelse (dstlen = 0) ) then
 		exit sub
 	end if
 
-	if( (src = 0) orelse (srclen = 0) ) then
+	if( (src = nullptr) orelse (srclen = 0) ) then
 		'' Nothing to copy is not nothing to do: the whole destination clears.
 		memset( dst, 0, dstlen )
 		exit sub

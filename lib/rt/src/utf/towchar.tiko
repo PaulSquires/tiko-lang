@@ -118,7 +118,7 @@ private function hUTF8ToUTF16( byval src as uint8 ptr, byval dst as uint16 ptr, 
 	dim as integer charsleft = any
 	dim as uint16 ptr buffer = dst
 
-	if( dst = 0 ) then
+	if( dst = nullptr ) then
 		dim as integer dst_size = 0
 		charsleft = 0
 		do
@@ -132,9 +132,9 @@ private function hUTF8ToUTF16( byval src as uint8 ptr, byval dst as uint16 ptr, 
 				charsleft = TKORT_UTF_GROW
 				dst_size += charsleft
 				dim as uint16 ptr nb = cptr( uint16 ptr, realloc( buffer, dst_size * 2 ) )
-				if( nb = 0 ) then
+				if( nb = nullptr ) then
 					free( buffer )
-					return 0
+					return nullptr
 				end if
 				buffer = nb
 				dst = buffer + dst_size - charsleft
@@ -189,12 +189,12 @@ private function hUTF16ToUTF16( byval src as uint16 ptr, byval dst as uint16 ptr
 
 	dim as integer l = 0
 
-	if( dst = 0 ) then
+	if( dst = nullptr ) then
 		while( src[l] <> 0 )
 			l += 1
 		wend
 		dst = cptr( uint16 ptr, malloc( (l + 1) * 2 ) )
-		if( dst = 0 ) then return 0
+		if( dst = nullptr ) then return nullptr
 		memcpy( dst, src, (l + 1) * 2 )
 	else
 		while( (src[l] <> 0) andalso (l < *chars) )
@@ -218,7 +218,7 @@ private function hUTF32ToUTF16( byval src as uint32 ptr, byval dst as uint16 ptr
 	dim as integer charsleft = any
 	dim as uint16 ptr buffer = dst
 
-	if( dst = 0 ) then
+	if( dst = nullptr ) then
 		dim as integer dst_size = 0
 		charsleft = 0
 		do
@@ -229,9 +229,9 @@ private function hUTF32ToUTF16( byval src as uint32 ptr, byval dst as uint16 ptr
 				charsleft = TKORT_UTF_GROW
 				dst_size += charsleft
 				dim as uint16 ptr nb = cptr( uint16 ptr, realloc( buffer, dst_size * 2 ) )
-				if( nb = 0 ) then
+				if( nb = nullptr ) then
 					free( buffer )
-					return 0
+					return nullptr
 				end if
 				buffer = nb
 				dst = buffer + dst_size - charsleft
@@ -446,7 +446,7 @@ function tkort_UTFToWChar alias "fb_UTFToWChar" _
 		end select
 	#endif
 
-	return 0
+	return nullptr
 end function
 
 end extern

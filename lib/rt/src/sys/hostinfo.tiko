@@ -109,10 +109,10 @@ function tkort_hGetExePath alias "fb_hGetExePath" _
 	( byval dst as zstring ptr, byval maxlen as integer ) as zstring ptr
 
 	#ifdef __FB_WIN32__
-		w_GetModuleFileNameA( w_GetModuleHandleA( 0 ), dst, cast( uint32, maxlen ) )
+		w_GetModuleFileNameA( w_GetModuleHandleA( nullptr ), dst, cast( uint32, maxlen ) )
 
 		dim as zstring ptr p = strrchr( dst, 92 )      '' '\'
-		if( p <> 0 ) then
+		if( p <> nullptr ) then
 			p[0] = 0
 		else
 			dst[0] = 0
@@ -135,14 +135,14 @@ function tkort_hGetExePath alias "fb_hGetExePath" _
 		'' syscall changes no observable answer. The readlink's own failure is
 		'' the test.
 		dim as integer l = u_readlink( @"/proc/self/exe", dst, maxlen - 1 )
-		if( l < 0 ) then return 0
+		if( l < 0 ) then return nullptr
 
 		dst[l] = 0
 		dim as zstring ptr p = strrchr( dst, 47 )     '' '/'
 		if( p = dst ) then
 			'' THE ROOT SLASH IS KEPT -- "/" and not "".
 			p[1] = 0
-		elseif( p <> 0 ) then
+		elseif( p <> nullptr ) then
 			p[0] = 0
 		else
 			dst[0] = 0
@@ -156,10 +156,10 @@ function tkort_hGetExeName alias "fb_hGetExeName" _
 	( byval dst as zstring ptr, byval maxlen as integer ) as zstring ptr
 
 	#ifdef __FB_WIN32__
-		w_GetModuleFileNameA( w_GetModuleHandleA( 0 ), dst, cast( uint32, maxlen ) )
+		w_GetModuleFileNameA( w_GetModuleHandleA( nullptr ), dst, cast( uint32, maxlen ) )
 
 		dim as zstring ptr p = strrchr( dst, 92 )
-		if( p <> 0 ) then
+		if( p <> nullptr ) then
 			'' ONE PAST THE SEPARATOR, and the separator is LEFT IN PLACE --
 			'' unlike fb_hGetExePath, which overwrites it. So dst still holds
 			'' the whole path here.
@@ -178,11 +178,11 @@ function tkort_hGetExeName alias "fb_hGetExeName" _
 		u_snprintf( @linkname, 1024, @"/proc/%d/exe", u_getpid( ) )
 
 		dim as integer l = u_readlink( @linkname, dst, maxlen - 1 )
-		if( l < 0 ) then return 0
+		if( l < 0 ) then return nullptr
 
 		dst[l] = 0
 		dim as zstring ptr p = strrchr( dst, 47 )
-		if( p <> 0 ) then
+		if( p <> nullptr ) then
 			p += 1
 		else
 			p = dst
@@ -205,7 +205,7 @@ function tkort_hGetCurrentDir alias "fb_hGetCurrentDir" _
 		'' distinguished here, because fbc does not distinguish it either.
 		return cast( integer, w_GetCurrentDirectoryA( cast( uint32, maxlen ), dst ) )
 	#else
-		if( u_getcwd( dst, cast( uinteger, maxlen ) ) <> 0 ) then
+		if( u_getcwd( dst, cast( uinteger, maxlen ) ) <> nullptr ) then
 			return strlen( dst )
 		end if
 		return 0
@@ -247,7 +247,7 @@ sub tkort_Delay alias "fb_Delay" ( byval msecs as int32 )
 		dim as TIMEVAL_ tv = any
 		tv.tv_sec = msecs \ 1000
 		tv.tv_usec = (msecs mod 1000) * 1000
-		u_select( 0, 0, 0, 0, @tv )
+		u_select( 0, nullptr, nullptr, nullptr, @tv )
 	#endif
 end sub
 

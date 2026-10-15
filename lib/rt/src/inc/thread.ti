@@ -232,4 +232,4 @@ end extern
 '' macro token-pasting cannot build the three names the C macro does from one
 '' argument, and two named macros are clearer than one clever one.
 #define TKORT_TLSGET_FBTHREAD() _
-	cptr( FB_FBTHREADCTX ptr, fb_TlsGetCtx( FB_TLSKEY_FBTHREAD, sizeof( FB_FBTHREADCTX ), 0 ) )
+	cptr( FB_FBTHREADCTX ptr, fb_TlsGetCtx( FB_TLSKEY_FBTHREAD, sizeof( FB_FBTHREADCTX ), nullptr ) )

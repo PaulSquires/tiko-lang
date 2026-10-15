@@ -65,11 +65,11 @@ private function hFindBM _
 	dim as integer bytes_ = (len_patt + 1) * sizeof( integer )
 	dim as integer ptr bm_gc = allocate( bytes_ )
 	dim as integer ptr suffixes = allocate( bytes_ )
-	if( bm_gc = 0 ) then
-		if( suffixes <> 0 ) then deallocate( suffixes )
+	if( bm_gc = nullptr ) then
+		if( suffixes <> nullptr ) then deallocate( suffixes )
 		return 0
 	end if
-	if( suffixes = 0 ) then
+	if( suffixes = nullptr ) then
 		deallocate( bm_gc )
 		return 0
 	end if
@@ -140,10 +140,10 @@ function tkort_StrInstr alias "fb_StrInstr" _
 	dim as integer r = 0
 	dim as integer ok = 0
 
-	if( src <> 0 ) then
-		if( src->data <> 0 ) then
-			if( patt <> 0 ) then
-				if( patt->data <> 0 ) then ok = 1
+	if( src <> nullptr ) then
+		if( src->data <> nullptr ) then
+			if( patt <> nullptr ) then
+				if( patt->data <> nullptr ) then ok = 1
 			end if
 		end if
 	end if
@@ -163,7 +163,7 @@ function tkort_StrInstr alias "fb_StrInstr" _
 			dim as any ptr hit = memchr( src->data + start - 1, _
 			                             cptr( uint8 ptr, patt->data )[0], _
 			                             size_src - start + 1 )
-			if( hit = 0 ) then
+			if( hit = nullptr ) then
 				r = 0
 			else
 				r = cast( integer, cast( uint8 ptr, hit ) - cptr( uint8 ptr, src->data ) ) + 1

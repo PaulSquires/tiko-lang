@@ -55,7 +55,7 @@ function tkort_FilePutStrEx alias "fb_FilePutStrEx" _
 	FB_STRSETUP_DYN( str_, str_len, data_, length )
 
 	dim as int32 res = any
-	if( (data_ <> 0) andalso (length > 0) ) then
+	if( (data_ <> nullptr) andalso (length > 0) ) then
 		'' checknewline TRUE: writing a string through PUT keeps PRINT's comma
 		'' padding correct, which is the whole reason that flag exists.
 		res = tkrt_PutDataEx( h, pos_, data_, length, -1, -1, 0 )
@@ -74,7 +74,7 @@ function tkort_FileGetStrEx alias "fb_FileGetStrEx" _
 	( byval h as FB_FILE ptr, byval pos_ as int64, byval str_ as any ptr, _
 	  byval str_len as integer, byval bytesread as uinteger ptr ) as int32
 
-	if( bytesread <> 0 ) then *bytesread = 0
+	if( bytesread <> nullptr ) then *bytesread = 0
 
 	if( TKORT_HANDLE_USED( h ) = 0 ) then
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
@@ -87,7 +87,7 @@ function tkort_FileGetStrEx alias "fb_FileGetStrEx" _
 	dim as int32 res = any
 	dim as uinteger got = length
 
-	if( (data_ <> 0) andalso (length > 0) ) then
+	if( (data_ <> nullptr) andalso (length > 0) ) then
 		res = tkrt_GetDataEx( h, pos_, data_, got, @got, -1, 0 )
 		'' The terminator goes at what was ACTUALLY read, not at the capacity.
 		data_[got] = 0
@@ -98,7 +98,7 @@ function tkort_FileGetStrEx alias "fb_FileGetStrEx" _
 		got = 0
 	end if
 
-	if( bytesread <> 0 ) then *bytesread = got
+	if( bytesread <> nullptr ) then *bytesread = got
 
 	'' Releasing a fix-len argument frees the temp DESCRIPTOR fbc built for it.
 	if( str_len = -1 ) then tkrt_DelTemp( cptr( FBSTRING ptr, str_ ) )
@@ -126,13 +126,13 @@ end function
 function tkort_FileGetStr alias "fb_FileGetStr" _
 	( byval fnum as int32, byval pos_ as int32, byval str_ as any ptr, _
 	  byval str_len as integer ) as int32
-	return tkort_FileGetStrEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, str_, str_len, 0 )
+	return tkort_FileGetStrEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, str_, str_len, nullptr )
 end function
 
 function tkort_FileGetStrLarge alias "fb_FileGetStrLarge" _
 	( byval fnum as int32, byval pos_ as int64, byval str_ as any ptr, _
 	  byval str_len as integer ) as int32
-	return tkort_FileGetStrEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, str_, str_len, 0 )
+	return tkort_FileGetStrEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, str_, str_len, nullptr )
 end function
 
 function tkort_FileGetStrIOB alias "fb_FileGetStrIOB" _

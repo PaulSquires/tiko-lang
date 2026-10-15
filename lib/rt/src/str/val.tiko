@@ -73,7 +73,7 @@ function tkort_hStr2Double alias "fb_hStr2Double" _
 	'' The d/D -> e/E rewrite, in a temporary buffer. The allocation is part of
 	'' the observable traffic, so it stays.
 	dim as uint8 ptr q = allocate( length + 1 )
-	if( q = 0 ) then return 0.0
+	if( q = nullptr ) then return 0.0
 
 	dim as uint8 c = any
 	for i as integer = 0 to length - 1
@@ -84,7 +84,7 @@ function tkort_hStr2Double alias "fb_hStr2Double" _
 	next
 	q[length] = 0
 
-	dim as float64 ret = strtod( cptr( zstring ptr, q ), 0 )
+	dim as float64 ret = strtod( cptr( zstring ptr, q ), nullptr )
 	deallocate( q )
 
 	return ret
@@ -93,10 +93,10 @@ end function
 
 function tkort_VAL alias "fb_VAL" ( byval s as FBSTRING ptr ) as float64
 
-	if( s = 0 ) then return 0.0
+	if( s = nullptr ) then return 0.0
 
 	dim as float64 v = 0.0
-	if( s->data <> 0 ) then
+	if( s->data <> nullptr ) then
 		if( FB_STRSIZE( s ) <> 0 ) then
 			v = tkort_hStr2Double( s->data, FB_STRSIZE( s ) )
 		end if

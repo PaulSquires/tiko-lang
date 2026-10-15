@@ -38,7 +38,7 @@ function tkort_StrAllocTempDescV alias "fb_StrAllocTempDescV" _
 	dim as FBSTRING ptr dsc = fb_hStrAllocTempDesc( )
 	STRUNLOCK()
 
-	if( dsc = 0 ) then return TKORT_NULLSTR( )
+	if( dsc = nullptr ) then return TKORT_NULLSTR( )
 
 	dsc->data = s->data
 	'' FB_STRSIZE, so the source's temp bit is NOT inherited.

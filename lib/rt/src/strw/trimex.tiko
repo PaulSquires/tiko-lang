@@ -55,9 +55,9 @@
 '' Result-building, shared by all six: a positive length allocates and copies,
 '' anything else is NULL. "Empty" and "absent" are the same value on this family.
 private function hResult( byval src as wstring ptr, byval length as integer ) as wstring ptr
-	if( length <= 0 ) then return 0
+	if( length <= 0 ) then return nullptr
 	dim as wstring ptr dst = FB_WSTR_ALLOCTEMP( length )
-	if( dst = 0 ) then return 0
+	if( dst = nullptr ) then return nullptr
 	FB_WSTR_COPY( dst, src, length )
 	return dst
 end function
@@ -69,7 +69,7 @@ extern "rtlib"
 function tkort_WstrLTrimAny alias "fb_WstrLTrimAny" _
 	( byval src as wstring ptr, byval pattern_ as wstring ptr ) as wstring ptr
 
-	if( src = 0 ) then return 0
+	if( src = nullptr ) then return nullptr
 
 	dim as integer length = FB_WSTR_LEN( src )
 	dim as integer plen = FB_WSTR_LEN( pattern_ )
@@ -78,7 +78,7 @@ function tkort_WstrLTrimAny alias "fb_WstrLTrimAny" _
 	if( plen <> 0 ) then
 		while( length <> 0 )
 			dim as uint32 __c = p[0]
-			if( wcschr( pattern_, __c ) = 0 ) then exit while
+			if( wcschr( pattern_, __c ) = nullptr ) then exit while
 			length -= 1
 			p += 1
 		wend
@@ -91,7 +91,7 @@ end function
 function tkort_WstrRTrimAny alias "fb_WstrRTrimAny" _
 	( byval src as wstring ptr, byval pattern_ as wstring ptr ) as wstring ptr
 
-	if( src = 0 ) then return 0
+	if( src = nullptr ) then return nullptr
 
 	dim as integer length = FB_WSTR_LEN( src )
 	dim as integer plen = FB_WSTR_LEN( pattern_ )
@@ -100,7 +100,7 @@ function tkort_WstrRTrimAny alias "fb_WstrRTrimAny" _
 		while( length <> 0 )
 			length -= 1
 			dim as uint32 __c = src[length]
-			if( wcschr( pattern_, __c ) = 0 ) then
+			if( wcschr( pattern_, __c ) = nullptr ) then
 				length += 1
 				exit while
 			end if
@@ -114,7 +114,7 @@ end function
 function tkort_WstrTrimAny alias "fb_WstrTrimAny" _
 	( byval src as wstring ptr, byval pattern_ as wstring ptr ) as wstring ptr
 
-	if( src = 0 ) then return 0
+	if( src = nullptr ) then return nullptr
 
 	dim as integer length = FB_WSTR_LEN( src )
 	dim as integer plen = FB_WSTR_LEN( pattern_ )
@@ -123,14 +123,14 @@ function tkort_WstrTrimAny alias "fb_WstrTrimAny" _
 	if( plen <> 0 ) then
 		while( length <> 0 )
 			dim as uint32 __c = p[0]
-			if( wcschr( pattern_, __c ) = 0 ) then exit while
+			if( wcschr( pattern_, __c ) = nullptr ) then exit while
 			length -= 1
 			p += 1
 		wend
 		while( length <> 0 )
 			length -= 1
 			dim as uint32 __c = p[length]
-			if( wcschr( pattern_, __c ) = 0 ) then
+			if( wcschr( pattern_, __c ) = nullptr ) then
 				length += 1
 				exit while
 			end if
@@ -203,7 +203,7 @@ end function
 function tkort_WstrLTrimEx alias "fb_WstrLTrimEx" _
 	( byval src as wstring ptr, byval pattern_ as wstring ptr ) as wstring ptr
 
-	if( src = 0 ) then return 0
+	if( src = nullptr ) then return nullptr
 
 	dim as integer plen = FB_WSTR_LEN( pattern_ )
 	dim as integer length = FB_WSTR_LEN( src )
@@ -218,7 +218,7 @@ end function
 function tkort_WstrRTrimEx alias "fb_WstrRTrimEx" _
 	( byval src as wstring ptr, byval pattern_ as wstring ptr ) as wstring ptr
 
-	if( src = 0 ) then return 0
+	if( src = nullptr ) then return nullptr
 
 	dim as integer plen = FB_WSTR_LEN( pattern_ )
 	dim as integer length = FB_WSTR_LEN( src )
@@ -234,7 +234,7 @@ end function
 function tkort_WstrTrimEx alias "fb_WstrTrimEx" _
 	( byval src as wstring ptr, byval pattern_ as wstring ptr ) as wstring ptr
 
-	if( src = 0 ) then return 0
+	if( src = nullptr ) then return nullptr
 
 	dim as integer plen = FB_WSTR_LEN( pattern_ )
 	dim as integer length = FB_WSTR_LEN( src )

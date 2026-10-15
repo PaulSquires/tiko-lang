@@ -564,7 +564,7 @@ function tkort_ConsoleProcessEvents alias "fb_ConsoleProcessEvents" ( ) as int32
 
 			case MOUSE_EVENT_
 				dim as any ptr hook = TKORT_CON_MOUSEHOOK2()
-				if( hook <> 0 ) then
+				if( hook <> nullptr ) then
 					dim as FnProcessMouseEvent f = cast( FnProcessMouseEvent, hook )
 					f( @ir(IR_EVENT_) )
 					got_event = 1

@@ -65,8 +65,8 @@ function tkort_UStrConcat alias "fb_UStrConcat" _
 
 	dst = tkrt_UAllocTempNoLock( dst, l1 + l2 )
 
-	if( dst <> 0 ) then
-		if( dst->data <> 0 ) then
+	if( dst <> nullptr ) then
+		if( dst->data <> nullptr ) then
 			tkrt_UStrCopyN( dst->data, p1, l1 )
 			'' NOT CopyN for the tail: this one terminates the result.
 			tkrt_UStrCopy( dst->data + l1, p2, l2 )
@@ -90,7 +90,7 @@ function tkort_UStrConcatAssign alias "fb_UStrConcatAssign" _
 	STRLOCK()
 
 	'' A NULL destination still CONSUMES the source.
-	if( dst = 0 ) then
+	if( dst = nullptr ) then
 		hRelTemp( src, src_size )
 		STRUNLOCK()
 		return dst
@@ -107,7 +107,7 @@ function tkort_UStrConcatAssign alias "fb_UStrConcatAssign" _
 
 			'' keepdata TRUE -- the existing text has to survive the grow, and
 			'' the mode also chooses the ALLOCATOR (src/ustr/core.tiko).
-			if( tkrt_URealloc( dstr, dst_len + src_len, 1 ) <> 0 ) then
+			if( tkrt_URealloc( dstr, dst_len + src_len, 1 ) <> nullptr ) then
 				tkrt_UStrCopy( dstr->data + dst_len, src_ptr, src_len )
 			end if
 		else

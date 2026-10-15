@@ -144,8 +144,8 @@ end sub
 function tkort_TimeGetIntervalType alias "fb_hTimeGetIntervalType" _
 	( byval interval as FBSTRING ptr ) as int32
 
-	if( interval = 0 ) then return FB_TIME_INTERVAL_INVALID
-	if( interval->data = 0 ) then return FB_TIME_INTERVAL_INVALID
+	if( interval = nullptr ) then return FB_TIME_INTERVAL_INVALID
+	if( interval->data = nullptr ) then return FB_TIME_INTERVAL_INVALID
 
 	dim as zstring ptr s = interval->data
 	if( strcmp( s, @"yyyy" ) = 0 ) then return FB_TIME_INTERVAL_YEAR
@@ -236,7 +236,7 @@ sub tkort_DateDecodeSerial alias "fb_hDateDecodeSerial" _
 		tmp_days = TKORT_DAYSINYEAR( cur_year )
 	wend
 
-	if( (pMonth <> 0) orelse (pDay <> 0) ) then
+	if( (pMonth <> nullptr) orelse (pDay <> nullptr) ) then
 		tmp_days = tkrt_TimeDaysInMonth( cur_month, cur_year )
 		while( serial >= tmp_days )
 			serial -= tmp_days
@@ -247,26 +247,26 @@ sub tkort_DateDecodeSerial alias "fb_hDateDecodeSerial" _
 
 	cur_day += clng( fix( serial ) )
 
-	if( pYear  <> 0 ) then *pYear  = cur_year
-	if( pMonth <> 0 ) then *pMonth = cur_month
-	if( pDay   <> 0 ) then *pDay   = cur_day
+	if( pYear  <> nullptr ) then *pYear  = cur_year
+	if( pMonth <> nullptr ) then *pMonth = cur_month
+	if( pDay   <> nullptr ) then *pDay   = cur_day
 end sub
 
 function tkort_Year alias "fb_Year" ( byval serial as float64 ) as int32
 	dim as int32 year = any
-	tkrt_DateDecodeSerial( serial, @year, 0, 0 )
+	tkrt_DateDecodeSerial( serial, @year, nullptr, nullptr )
 	return year
 end function
 
 function tkort_Month alias "fb_Month" ( byval serial as float64 ) as int32
 	dim as int32 month = any
-	tkrt_DateDecodeSerial( serial, 0, @month, 0 )
+	tkrt_DateDecodeSerial( serial, nullptr, @month, nullptr )
 	return month
 end function
 
 function tkort_Day alias "fb_Day" ( byval serial as float64 ) as int32
 	dim as int32 day_ = any
-	tkrt_DateDecodeSerial( serial, 0, 0, @day_ )
+	tkrt_DateDecodeSerial( serial, nullptr, nullptr, @day_ )
 	return day_
 end function
 
@@ -334,26 +334,26 @@ sub tkort_TimeDecodeSerial alias "fb_hTimeDecodeSerial" _
 	serial *= 60.0
 	second = clng( fix( serial ) )
 
-	if( pHour   <> 0 ) then *pHour   = hour
-	if( pMinute <> 0 ) then *pMinute = minute
-	if( pSecond <> 0 ) then *pSecond = second
+	if( pHour   <> nullptr ) then *pHour   = hour
+	if( pMinute <> nullptr ) then *pMinute = minute
+	if( pSecond <> nullptr ) then *pSecond = second
 end sub
 
 function tkort_Hour alias "fb_Hour" ( byval serial as float64 ) as int32
 	dim as int32 hour = any
-	tkrt_TimeDecodeSerial( serial, @hour, 0, 0, 1 )
+	tkrt_TimeDecodeSerial( serial, @hour, nullptr, nullptr, 1 )
 	return hour
 end function
 
 function tkort_Minute alias "fb_Minute" ( byval serial as float64 ) as int32
 	dim as int32 minute = any
-	tkrt_TimeDecodeSerial( serial, 0, @minute, 0, 1 )
+	tkrt_TimeDecodeSerial( serial, nullptr, @minute, nullptr, 1 )
 	return minute
 end function
 
 function tkort_Second alias "fb_Second" ( byval serial as float64 ) as int32
 	dim as int32 second = any
-	tkrt_TimeDecodeSerial( serial, 0, 0, @second, 1 )
+	tkrt_TimeDecodeSerial( serial, nullptr, nullptr, @second, 1 )
 	return second
 end function
 
@@ -447,7 +447,7 @@ function tkort_GetWeekOfYear alias "fb_hGetWeekOfYear" _
 
 	'' Decoded but unused -- fbc computes it and then ignores it. Kept so
 	'' the call sequence matches; it costs one decode and hides nothing.
-	tkrt_DateDecodeSerial( serial, @year, 0, 0 )
+	tkrt_DateDecodeSerial( serial, @year, nullptr, nullptr )
 
 	serial_first_week = tkrt_GetFirstWeekOfYear( ref_year, first_day_of_year, first_day_of_week )
 

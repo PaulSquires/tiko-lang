@@ -120,9 +120,9 @@ private function tkort_exec_lp_cmd( byval cmd as zstring ptr, byval test_default
 	dim as int32 result_ = -1
 
 	dim as FILE ptr fp = crt_popen( cmd, @"r" )
-	if( fp <> 0 ) then
+	if( fp <> nullptr ) then
 		while( feof( fp ) = 0 )
-			if( fgets( @tkort_lp_buf, 256, fp ) = 0 ) then
+			if( fgets( @tkort_lp_buf, 256, fp ) = nullptr ) then
 				'' READS THE **PREVIOUS** LINE. fbc's, kept -- see the header.
 				if( (test_default <> 0) andalso (have_default <> 0) andalso _
 				    (strlen( @tkort_lp_buf ) > 2) ) then
@@ -151,12 +151,12 @@ function tkort_PrinterOpen alias "fb_PrinterOpen" _
 	  byval pszDeviceRaw as zstring ptr ) as int32
 
 	dim as int32 result_ = any
-	dim as zstring ptr filename = 0
+	dim as zstring ptr filename = nullptr
 	dim as FILE ptr fp = any
-	dim as DEV_LPT_PROTOCOL ptr lpt_proto = 0
+	dim as DEV_LPT_PROTOCOL ptr lpt_proto = nullptr
 
 	if( tkrt_DevLptParseProtocol( @lpt_proto, pszDeviceRaw, strlen( pszDeviceRaw ), 1 ) = 0 ) then
-		if( lpt_proto <> 0 ) then free( lpt_proto )
+		if( lpt_proto <> nullptr ) then free( lpt_proto )
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
 
@@ -167,12 +167,12 @@ function tkort_PrinterOpen alias "fb_PrinterOpen" _
 
 		'' malloc, not alloca -- and unlike fbc's, this can fail.
 		filename = cast( zstring ptr, malloc( strlen( pszDeviceRaw ) + 64 ) )
-		if( filename = 0 ) then
-			if( lpt_proto <> 0 ) then free( lpt_proto )
+		if( filename = nullptr ) then
+			if( lpt_proto <> nullptr ) then free( lpt_proto )
 			return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
 		end if
 
-		if( (lpt_proto->name_ <> 0) andalso (cptr( uint8 ptr, lpt_proto->name_ )[0] <> 0) ) then
+		if( (lpt_proto->name_ <> nullptr) andalso (cptr( uint8 ptr, lpt_proto->name_ )[0] <> 0) ) then
 			'' A NAMED PRINTER MUST EXIST FIRST. `lpstat -v "name"` is asked
 			'' before anything is built, and a non-zero status is reported as
 			'' FILE NOT FOUND rather than as a printer error.
@@ -181,7 +181,7 @@ function tkort_PrinterOpen alias "fb_PrinterOpen" _
 			strcat( filename, @""" 2>&1 " )
 			if( tkort_exec_lp_cmd( filename, 0 ) <> 0 ) then
 				free( filename )
-				if( lpt_proto <> 0 ) then free( lpt_proto )
+				if( lpt_proto <> nullptr ) then free( lpt_proto )
 				return tkrt_ErrorSetNum( FB_RTERROR_FILENOTFOUND )
 			end if
 
@@ -195,7 +195,7 @@ function tkort_PrinterOpen alias "fb_PrinterOpen" _
 			strcpy( filename, @"lpstat -d 2>&1" )
 			if( tkort_exec_lp_cmd( filename, 1 ) <> 0 ) then
 				free( filename )
-				if( lpt_proto <> 0 ) then free( lpt_proto )
+				if( lpt_proto <> nullptr ) then free( lpt_proto )
 				return tkrt_ErrorSetNum( FB_RTERROR_FILENOTFOUND )
 			end if
 			strcpy( filename, @"lp " )
@@ -217,7 +217,7 @@ function tkort_PrinterOpen alias "fb_PrinterOpen" _
 		'' that ordering matters and what it does and does not buy.
 		scope
 			dim as uint8 ptr ptr_ = cast( uint8 ptr, strpbrk( filename, @"`&;|>^$\" ) )
-			while( ptr_ <> 0 )
+			while( ptr_ <> nullptr )
 				*ptr_ = 95                                   '' '_'
 				ptr_ = cast( uint8 ptr, strpbrk( cast( zstring ptr, ptr_ ), @"`&;|>^$\" ) )
 			wend
@@ -229,8 +229,8 @@ function tkort_PrinterOpen alias "fb_PrinterOpen" _
 		strcat( filename, @" &> /dev/null" )
 
 		fp = crt_popen( filename, @"w" )
-		if( fp = 0 ) then
-			devInfo->driver_opaque = 0
+		if( fp = nullptr ) then
+			devInfo->driver_opaque = nullptr
 			result_ = tkrt_ErrorSetNum( FB_RTERROR_FILENOTFOUND )
 		else
 			devInfo->driver_opaque = fp
@@ -243,16 +243,16 @@ function tkort_PrinterOpen alias "fb_PrinterOpen" _
 		''
 		'' /dev/lp0 IS LPT1 -- the port number is one-based and the node is not.
 		filename = cast( zstring ptr, malloc( 7 + 11 + 1 ) )
-		if( filename = 0 ) then
-			if( lpt_proto <> 0 ) then free( lpt_proto )
+		if( filename = nullptr ) then
+			if( lpt_proto <> nullptr ) then free( lpt_proto )
 			return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
 		end if
 
 		sprintf( filename, @"/dev/lp%d", devInfo->iPort - 1 )
 		fp = fopen( filename, @"wb" )
 
-		if( fp = 0 ) then
-			devInfo->driver_opaque = 0
+		if( fp = nullptr ) then
+			devInfo->driver_opaque = nullptr
 			result_ = tkrt_ErrorSetNum( FB_RTERROR_FILENOTFOUND )
 		else
 			devInfo->driver_opaque = fp
@@ -262,7 +262,7 @@ function tkort_PrinterOpen alias "fb_PrinterOpen" _
 		free( filename )
 	end if
 
-	if( lpt_proto <> 0 ) then free( lpt_proto )
+	if( lpt_proto <> nullptr ) then free( lpt_proto )
 
 	return result_
 end function
@@ -291,7 +291,7 @@ function tkort_PrinterWriteWstr alias "fb_PrinterWriteWstr" _
 
 	'' Four bytes per code unit is the most UTF-8 can need, plus the terminator.
 	dim as zstring ptr temp = cast( zstring ptr, malloc( chars * 4 + 1 ) )
-	if( temp = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
+	if( temp = nullptr ) then return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
 
 	tkrt_WCharToUTF( FB_FILE_ENCOD_UTF8, buffer, cast( integer, chars ), temp, @bytes_ )
 	temp[bytes_] = 0
@@ -313,11 +313,11 @@ function tkort_PrinterClose alias "fb_PrinterClose" _
 
 	if( devInfo->iPort = 0 ) then
 		dim as int32 result_ = crt_pclose( cast( FILE ptr, devInfo->driver_opaque ) ) shr 8
-		devInfo->driver_opaque = 0
+		devInfo->driver_opaque = nullptr
 		if( result_ <> 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
 	else
 		fclose( cast( FILE ptr, devInfo->driver_opaque ) )
-		devInfo->driver_opaque = 0
+		devInfo->driver_opaque = nullptr
 	end if
 
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )

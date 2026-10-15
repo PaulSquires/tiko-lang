@@ -172,7 +172,7 @@ function tkort_ConsoleInput alias "fb_ConsoleInput" _
 	'' ZEROING THE HANDLE is what makes the tokeniser read ctx->str rather than
 	'' a channel -- see io/fileinput.tiko's hReadChar.
 	tkrt_StrDelete( @ctx->str_ )
-	ctx->handle = 0
+	ctx->handle = nullptr
 	ctx->status = 0
 	ctx->cursor = 0
 
@@ -197,10 +197,10 @@ function tkort_ConsoleLineInput alias "fb_ConsoleLineInput" _
 
 	'' FORCE_ADJUST with a NULL buffer and zero length is not a print: it is
 	'' how the cursor position is brought up to date before anything is drawn.
-	tkrt_PrintBufferEx( 0, 0, FB_PRINT_FORCE_ADJUST )
+	tkrt_PrintBufferEx( nullptr, 0, FB_PRINT_FORCE_ADJUST )
 
-	if( text_ <> 0 ) then
-		if( text_->data <> 0 ) then
+	if( text_ <> nullptr ) then
+		if( text_->data <> nullptr ) then
 			tkrt_PrintString( 0, text_, 0 )
 		else
 			'' An EMPTY prompt is still a temp descriptor that has to go.
@@ -223,7 +223,7 @@ function tkort_ConsoleLineInput alias "fb_ConsoleLineInput" _
 
 	if( addnewline <> 0 ) then tkrt_PrintVoid( 0, FB_PRINT_NEWLINE )
 
-	if( tmp_result <> 0 ) then
+	if( tmp_result <> nullptr ) then
 		tkrt_StrAssign( dst, dst_len, tmp_result, -1, fillrem )
 		return tkrt_ErrorSetNum( FB_RTERROR_OK )
 	end if
@@ -237,9 +237,9 @@ function tkort_ConsoleLineInputWstr alias "fb_ConsoleLineInputWstr" _
 
 	TKORT_IOLOCK()
 
-	tkrt_PrintBufferEx( 0, 0, FB_PRINT_FORCE_ADJUST )
+	tkrt_PrintBufferEx( nullptr, 0, FB_PRINT_FORCE_ADJUST )
 
-	if( text_ <> 0 ) then
+	if( text_ <> nullptr ) then
 		tkrt_PrintWstr( 0, text_, 0 )
 		if( addquestion <> FB_FALSE ) then
 			tkrt_PrintFixString( 0, @pszDefaultQuestion, 0 )
@@ -252,7 +252,7 @@ function tkort_ConsoleLineInputWstr alias "fb_ConsoleLineInputWstr" _
 
 	if( addnewline <> 0 ) then tkrt_PrintVoid( 0, FB_PRINT_NEWLINE )
 
-	if( tmp_result = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
+	if( tmp_result = nullptr ) then return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
 
 	'' BYTES, WIDENED. fbc's own comment: "no support for unicode input".
 	tkrt_WstrAssignFromA( dst, max_chars, tmp_result, -1 )
@@ -281,13 +281,13 @@ function tkort_ConsoleLineInput alias "fb_ConsoleLineInput" _
 	'' BEFORE the prompt is printed -- the arithmetic below needs where the
 	'' input STARTED, which is after the prompt, so old_x is re-read later on
 	'' the Windows side and here it is not. That asymmetry is fbc's.
-	tkrt_PrintBufferEx( 0, 0, FB_PRINT_FORCE_ADJUST )
+	tkrt_PrintBufferEx( nullptr, 0, FB_PRINT_FORCE_ADJUST )
 	tkrt_GetXY( @old_x, @old_y )
 
 	TKORT_IOLOCK()
 
-	if( text_ <> 0 ) then
-		if( text_->data <> 0 ) then
+	if( text_ <> nullptr ) then
+		if( text_->data <> nullptr ) then
 			tkrt_PrintString( 0, text_, 0 )
 		else
 			tkrt_DelTemp( text_ )
@@ -299,7 +299,7 @@ function tkort_ConsoleLineInput alias "fb_ConsoleLineInput" _
 	end if
 
 	dim as FBSTRING str_result
-	str_result.data = 0
+	str_result.data = nullptr
 	str_result.len = 0
 	str_result.size = 0
 
@@ -313,7 +313,7 @@ function tkort_ConsoleLineInput alias "fb_ConsoleLineInput" _
 		'' cursor, and the TAB bug is part of the contract.
 		dim as int32 cols = any, rows = any, cur_y = any
 		tkrt_GetSize( @cols, @rows )
-		tkrt_GetXY( 0, @cur_y )
+		tkrt_GetXY( nullptr, @cur_y )
 
 		'' One-based columns, which is why the -1 and the +1 straddle the
 		'' modulo; and cur_y is the row AFTER the echoed newline.
@@ -340,12 +340,12 @@ function tkort_ConsoleLineInputWstr alias "fb_ConsoleLineInputWstr" _
 	dim as int32 res = any, old_x = any, old_y = any
 	dim as uinteger length_ = any
 
-	tkrt_PrintBufferEx( 0, 0, FB_PRINT_FORCE_ADJUST )
+	tkrt_PrintBufferEx( nullptr, 0, FB_PRINT_FORCE_ADJUST )
 	tkrt_GetXY( @old_x, @old_y )
 
 	TKORT_IOLOCK()
 
-	if( text_ <> 0 ) then
+	if( text_ <> nullptr ) then
 		tkrt_PrintWstr( 0, text_, 0 )
 		if( addquestion <> FB_FALSE ) then
 			tkrt_PrintFixString( 0, @pszDefaultQuestion, 0 )
@@ -353,7 +353,7 @@ function tkort_ConsoleLineInputWstr alias "fb_ConsoleLineInputWstr" _
 	end if
 
 	dim as FBSTRING str_result
-	str_result.data = 0
+	str_result.data = nullptr
 	str_result.len = 0
 	str_result.size = 0
 
@@ -364,7 +364,7 @@ function tkort_ConsoleLineInputWstr alias "fb_ConsoleLineInputWstr" _
 	if( addnewline = 0 ) then
 		dim as int32 cols = any, rows = any, cur_y = any
 		tkrt_GetSize( @cols, @rows )
-		tkrt_GetXY( 0, @cur_y )
+		tkrt_GetXY( nullptr, @cur_y )
 
 		old_x += length_ - 1
 		old_x mod= cols

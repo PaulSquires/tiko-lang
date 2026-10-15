@@ -34,8 +34,8 @@ sub tkort_WstrSwap alias "fb_WstrSwap" _
 	( byval str1 as wstring ptr, byval size1 as integer, _
 	  byval str2 as wstring ptr, byval size2 as integer )
 
-	if( str1 = 0 ) then exit sub
-	if( str2 = 0 ) then exit sub
+	if( str1 = nullptr ) then exit sub
+	if( str2 = nullptr ) then exit sub
 
 	'' A non-positive size means "walk it"; a positive one is a declared
 	'' capacity INCLUDING the terminator.

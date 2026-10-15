@@ -62,7 +62,7 @@ function tkort_StrAllocTempDescZEx alias "fb_StrAllocTempDescZEx" _
 	dim as FBSTRING ptr dsc = fb_hStrAllocTempDesc( )
 	STRUNLOCK()
 
-	if( dsc = 0 ) then return TKORT_NULLSTR( )
+	if( dsc = nullptr ) then return TKORT_NULLSTR( )
 
 	dsc->data = s
 	'' RAW, not FB_STRSETLEN: the temp bit stays CLEAR. See the note above.
@@ -77,7 +77,7 @@ function tkort_StrAllocTempDescZ alias "fb_StrAllocTempDescZ" _
 	( byval s as zstring ptr ) as FBSTRING ptr
 
 	dim as integer length = 0
-	if( s <> 0 ) then length = strlen( s )
+	if( s <> nullptr ) then length = strlen( s )
 
 	return tkort_StrAllocTempDescZEx( s, length )
 
@@ -90,7 +90,7 @@ function tkort_StrAllocTempDescF alias "fb_StrAllocTempDescF" _
 	dim as FBSTRING ptr dsc = fb_hStrAllocTempDesc( )
 	STRUNLOCK()
 
-	if( dsc = 0 ) then return TKORT_NULLSTR( )
+	if( dsc = nullptr ) then return TKORT_NULLSTR( )
 
 	dsc->data = s
 
@@ -102,7 +102,7 @@ function tkort_StrAllocTempDescF alias "fb_StrAllocTempDescF" _
 		'' bit, so such a size is negative and fails the test above.
 		dsc->len = str_size and FB_STRSIZEMSK
 	else
-		if( s <> 0 ) then
+		if( s <> nullptr ) then
 			dsc->len = strlen( s )
 		else
 			dsc->len = 0

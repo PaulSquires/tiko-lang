@@ -173,7 +173,7 @@ function tkort_WstrToDouble alias "fb_WstrToDouble" _
 	'' bumped by one, which lands exactly on 'e' or 'E'. Reproduced including
 	'' the copy, because the allocation is observable in an allocation count.
 	dim as wstring ptr q = FB_WSTR_ALLOCTEMP( length )
-	if( q = 0 ) then return 0.0
+	if( q = nullptr ) then return 0.0
 
 	for i as integer = 0 to length - 1
 		dim as uint32 c = p[i]
@@ -182,14 +182,14 @@ function tkort_WstrToDouble alias "fb_WstrToDouble" _
 	next
 	q[length] = 0
 
-	dim as float64 ret = tkrt_wcstod( q, 0 )
+	dim as float64 ret = tkrt_wcstod( q, nullptr )
 	FB_WSTR_DEL( q )
 	return ret
 
 end function
 
 function tkort_WstrVal alias "fb_WstrVal" ( byval s as wstring ptr ) as float64
-	if( s = 0 ) then return 0.0
+	if( s = nullptr ) then return 0.0
 	dim as integer n = FB_WSTR_LEN( s )
 	if( n = 0 ) then return 0.0
 	return tkort_WstrToDouble( s, n )
@@ -213,11 +213,11 @@ function tkort_WstrToInt alias "fb_WstrToInt" _
 	WVAL_PROLOGUE( src, length, p, radix, 0 )
 	if( radix <> 10 ) then p = __r
 	'' wcstoul, not wcstol: the signed one SATURATES.
-	return cast( int32, tkrt_wcstoul( p, 0, radix ) )
+	return cast( int32, tkrt_wcstoul( p, nullptr, radix ) )
 end function
 
 function tkort_WstrValInt alias "fb_WstrValInt" ( byval s as wstring ptr ) as int32
-	if( s = 0 ) then return 0
+	if( s = nullptr ) then return 0
 	dim as integer n = FB_WSTR_LEN( s )
 	if( n = 0 ) then return 0
 	return tkort_WstrToInt( s, n )
@@ -227,11 +227,11 @@ function tkort_WstrToUInt alias "fb_WstrToUInt" _
 	( byval src as wstring ptr, byval _length as integer ) as uint32
 	WVAL_PROLOGUE( src, length, p, radix, 0 )
 	if( radix <> 10 ) then p = __r
-	return tkrt_wcstoul( p, 0, radix )
+	return tkrt_wcstoul( p, nullptr, radix )
 end function
 
 function tkort_WstrValUInt alias "fb_WstrValUInt" ( byval s as wstring ptr ) as uint32
-	if( s = 0 ) then return 0
+	if( s = nullptr ) then return 0
 	dim as integer n = FB_WSTR_LEN( s )
 	if( n = 0 ) then return 0
 	return tkort_WstrToUInt( s, n )
@@ -248,11 +248,11 @@ function tkort_WstrToLongint alias "fb_WstrToLongint" _
 		#endif
 	end if
 	'' wcstoull, not wcstoll: the signed one SATURATES.
-	return cast( int64, tkrt_wcstoull( p, 0, radix ) )
+	return cast( int64, tkrt_wcstoull( p, nullptr, radix ) )
 end function
 
 function tkort_WstrValLng alias "fb_WstrValLng" ( byval s as wstring ptr ) as int64
-	if( s = 0 ) then return 0
+	if( s = nullptr ) then return 0
 	dim as integer n = FB_WSTR_LEN( s )
 	if( n = 0 ) then return 0
 	return tkort_WstrToLongint( s, n )
@@ -268,11 +268,11 @@ function tkort_WstrToULongint alias "fb_WstrToULongint" _
 			p = __r
 		#endif
 	end if
-	return tkrt_wcstoull( p, 0, radix )
+	return tkrt_wcstoull( p, nullptr, radix )
 end function
 
 function tkort_WstrValULng alias "fb_WstrValULng" ( byval s as wstring ptr ) as uint64
-	if( s = 0 ) then return 0
+	if( s = nullptr ) then return 0
 	dim as integer n = FB_WSTR_LEN( s )
 	if( n = 0 ) then return 0
 	return tkort_WstrToULongint( s, n )
@@ -302,7 +302,7 @@ end function
 
 function tkort_BoolToWstr alias "fb_BoolToWstr" ( byval num as int8 ) as wstring ptr
 	dim as wstring ptr dst = FB_WSTR_ALLOCTEMP( 5 )
-	if( dst <> 0 ) then
+	if( dst <> nullptr ) then
 		dim as wstring ptr src = tkort_hBoolToWstr( num )
 		FB_WSTR_COPY( dst, src, FB_WSTR_LEN( src ) )
 	end if
@@ -344,7 +344,7 @@ function tkort_WstrToBool alias "fb_WstrToBool" _
 end function
 
 function tkort_WstrValBool alias "fb_WstrValBool" ( byval s as wstring ptr ) as int8
-	if( s = 0 ) then return 0
+	if( s = nullptr ) then return 0
 	dim as integer n = FB_WSTR_LEN( s )
 	if( n = 0 ) then return 0
 	return tkort_WstrToBool( s, n )

@@ -53,10 +53,10 @@ private function hTempFrom _
 
 	if( units <= 0 ) then return TKORT_UNULLSTR()
 
-	dim as FBUSTRING ptr dst = tkrt_UAllocTempNoLock( 0, units )
-	if( dst = 0 ) then return TKORT_UNULLSTR()
+	dim as FBUSTRING ptr dst = tkrt_UAllocTempNoLock( nullptr, units )
+	if( dst = nullptr ) then return TKORT_UNULLSTR()
 
-	if( dst->data <> 0 ) then tkrt_UStrCopy( dst->data, src, units )
+	if( dst->data <> nullptr ) then tkrt_UStrCopy( dst->data, src, units )
 	return dst
 
 end function
@@ -91,7 +91,7 @@ private function hTrim _
 	if( (mode and 1) <> 0 ) then
 		while( first_ < last_ )
 			dim as FB_UCHAR c = src_ptr[first_]
-			if( st <> 0 ) then
+			if( st <> nullptr ) then
 				if( hInSet( c, st, setlen ) = 0 ) then exit while
 			else
 				if( (c <> 32) andalso (c <> 0) ) then exit while
@@ -103,7 +103,7 @@ private function hTrim _
 	if( (mode and 2) <> 0 ) then
 		while( last_ > first_ )
 			dim as FB_UCHAR c = src_ptr[last_ - 1]
-			if( st <> 0 ) then
+			if( st <> nullptr ) then
 				if( hInSet( c, st, setlen ) = 0 ) then exit while
 			else
 				if( (c <> 32) andalso (c <> 0) ) then exit while
@@ -173,7 +173,7 @@ extern "rtlib"
 function tkort_UStrTrim alias "fb_UStrTrim" _
 	( byval src as any ptr, byval src_size as integer ) as FBUSTRING ptr
 	STRLOCK()
-	dim as FBUSTRING ptr dst = hTrim( src, src_size, 0, 0, 3 )
+	dim as FBUSTRING ptr dst = hTrim( src, src_size, nullptr, 0, 3 )
 	hRelTemp( src, src_size )
 	STRUNLOCK()
 	return dst
@@ -182,7 +182,7 @@ end function
 function tkort_UStrLTrim alias "fb_UStrLTrim" _
 	( byval src as any ptr, byval src_size as integer ) as FBUSTRING ptr
 	STRLOCK()
-	dim as FBUSTRING ptr dst = hTrim( src, src_size, 0, 0, 1 )
+	dim as FBUSTRING ptr dst = hTrim( src, src_size, nullptr, 0, 1 )
 	hRelTemp( src, src_size )
 	STRUNLOCK()
 	return dst
@@ -191,7 +191,7 @@ end function
 function tkort_UStrRTrim alias "fb_UStrRTrim" _
 	( byval src as any ptr, byval src_size as integer ) as FBUSTRING ptr
 	STRLOCK()
-	dim as FBUSTRING ptr dst = hTrim( src, src_size, 0, 0, 2 )
+	dim as FBUSTRING ptr dst = hTrim( src, src_size, nullptr, 0, 2 )
 	hRelTemp( src, src_size )
 	STRUNLOCK()
 	return dst

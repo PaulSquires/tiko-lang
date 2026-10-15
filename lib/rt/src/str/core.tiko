@@ -130,7 +130,7 @@ end sub
 '' must never be pushed onto its free list. Range check over the table, which is
 '' contiguous by construction.
 private function hFromPool( byval s as FBSTRING ptr ) as integer
-	if( s = 0 ) then return 0
+	if( s = nullptr ) then return 0
 	'' The upper bound is the END of the table, not the address of the last
 	'' element: a descriptor lives at elem + offsetof(desc), so the last
 	'' element's descriptor is PAST @tkort_tmpTable(255) and a naive
@@ -145,9 +145,9 @@ end function
 private function hPoolAlloc( ) as FBSTRING ptr
 	hPoolEnsure( )
 	dim as FB_LISTELEM ptr e = fb_hListAllocElem( @tkort_tmpList )
-	if( e = 0 ) then return 0              '' pool exhausted -- see the header
+	if( e = nullptr ) then return nullptr              '' pool exhausted -- see the header
 	dim as FB_STR_TMPDESC ptr t = cptr( FB_STR_TMPDESC ptr, e )
-	t->desc.data = 0
+	t->desc.data = nullptr
 	t->desc.len  = 0
 	t->desc.size = 0
 	return @t->desc
@@ -213,7 +213,7 @@ end function
 function tkort_hStrAlloc alias "fb_hStrAlloc" _
 	( byval s as FBSTRING ptr, byval length as integer ) as FBSTRING ptr
 
-	if( s = 0 ) then return 0
+	if( s = nullptr ) then return nullptr
 
 	dim as integer want = hAllocSize( length )
 
@@ -234,10 +234,10 @@ function tkort_hStrAlloc alias "fb_hStrAlloc" _
 	'' `size` still reports 0, which is what the growth-law differential measures
 	'' and what fbc reports; only the pointer is real.
 	s->data = cptr( zstring ptr, allocate( want + 1 ) )
-	if( s->data = 0 ) then
+	if( s->data = nullptr ) then
 		s->size = 0
 		s->len  = 0
-		return 0
+		return nullptr
 	end if
 
 	s->size = want
@@ -259,7 +259,7 @@ function tkort_hStrRealloc alias "fb_hStrRealloc" _
 	'' NOTE: the parameter is `keepdata`, not `preserve` -- PRESERVE is a
 	'' FreeBASIC keyword (REDIM PRESERVE) and is error 59 as a parameter name.
 
-	if( s = 0 ) then return 0
+	if( s = nullptr ) then return nullptr
 
 	dim as integer want = hReallocSize( length )
 
@@ -287,16 +287,16 @@ function tkort_hStrRealloc alias "fb_hStrRealloc" _
 	'' The fix is structural rather than a barrier: the keepdata mode reaches
 	'' ONE realloc call site below, with a pointer the optimiser cannot prove is
 	'' null, and the empty case is folded into the ordinary grow rule.
-	if( (s->data = 0) andalso (keepdata = 0) ) then
+	if( (s->data = nullptr) andalso (keepdata = 0) ) then
 		'' No zero-length shortcut here: length 0 still gets a real one-byte
 		'' block, exactly as fb_hStrAlloc does. Measured -- fbc's
 		'' fb_hStrRealloc( fresh, 0, either mode ) returns size 0 and a NON-NULL
 		'' pointer, and its callers write the terminator regardless.
 		s->data = cptr( zstring ptr, allocate( want + 1 ) )
-		if( s->data = 0 ) then
+		if( s->data = nullptr ) then
 			s->size = 0
 			FB_STRSETLEN( s, 0 )
-			return 0
+			return nullptr
 		end if
 		s->size = want
 		FB_STRSETLEN( s, length )
@@ -369,7 +369,7 @@ function tkort_hStrRealloc alias "fb_hStrRealloc" _
 		'' own -- see the note above on the realloc(null) fold. A fresh
 		'' descriptor has size 0, so this is only reached for length 0, where
 		'' the block still has to exist for the terminator.
-		resize = ((length > s->size) orelse (s->data = 0))
+		resize = ((length > s->size) orelse (s->data = nullptr))
 	else
 		dim as integer grow_ = (length > s->size)
 		dim as integer shrink_ = (want < (s->size - (s->size shr 3)))
@@ -379,15 +379,15 @@ function tkort_hStrRealloc alias "fb_hStrRealloc" _
 	if( resize ) then
 		if( keepdata <> 0 ) then
 			dim as any ptr p = reallocate( s->data, want + 1 )
-			if( p = 0 ) then return 0
+			if( p = nullptr ) then return nullptr
 			s->data = cptr( zstring ptr, p )
 		else
 			deallocate( s->data )
 			s->data = cptr( zstring ptr, allocate( want + 1 ) )
-			if( s->data = 0 ) then
+			if( s->data = nullptr ) then
 				s->size = 0
 				FB_STRSETLEN( s, 0 )
-				return 0
+				return nullptr
 			end if
 		end if
 		s->size = want
@@ -407,9 +407,9 @@ function tkort_hStrAllocTemp_NoLock alias "fb_hStrAllocTemp_NoLock" _
 
 	dim as integer owned = 0
 
-	if( s = 0 ) then
+	if( s = nullptr ) then
 		s = hPoolAlloc( )
-		if( s = 0 ) then return 0
+		if( s = nullptr ) then return nullptr
 		owned = 1
 	end if
 
@@ -422,9 +422,9 @@ function tkort_hStrAllocTemp_NoLock alias "fb_hStrAllocTemp_NoLock" _
 	'' temporary's buffer rather than copying it, that wrong size then becomes
 	'' the size of an ordinary variable -- which is how a mistake in a temp
 	'' allocator shows up as a wrong growth law for `s = string(n,"a")`.
-	if( tkort_hStrRealloc( s, length, 0 ) = 0 ) then
+	if( tkort_hStrRealloc( s, length, 0 ) = nullptr ) then
 		if( owned ) then hPoolFree( s )
-		return 0
+		return nullptr
 	end if
 
 	'' Set the flag AFTER the allocation: hStrAlloc goes through FB_STRSETLEN,
@@ -462,7 +462,7 @@ end function
 function tkort_hStrDelTemp_NoLock alias "fb_hStrDelTemp_NoLock" _
 	( byval s as FBSTRING ptr ) as int32
 
-	if( s = 0 ) then return -1
+	if( s = nullptr ) then return -1
 
 	'' NOT A TEMPORARY -> NOT OURS TO TOUCH. Leave it entirely alone.
 	''
@@ -503,8 +503,8 @@ function tkort_hStrDelTemp_NoLock alias "fb_hStrDelTemp_NoLock" _
 	end if
 
 	if( FB_ISTEMP( s ) ) then
-		if( s->data <> 0 ) then deallocate( s->data )
-		s->data = 0
+		if( s->data <> nullptr ) then deallocate( s->data )
+		s->data = nullptr
 		s->len  = 0
 		s->size = 0
 	end if
@@ -526,14 +526,14 @@ end function
 '' stops at a NUL in the source.
 sub tkort_hStrCopy alias "fb_hStrCopy" _
 	( byval dst as zstring ptr, byval src as zstring ptr, byval bytes as integer )
-	if( (dst = 0) orelse (bytes < 0) ) then exit sub
-	if( (src <> 0) andalso (bytes > 0) ) then memcpy( dst, src, bytes )
+	if( (dst = nullptr) orelse (bytes < 0) ) then exit sub
+	if( (src <> nullptr) andalso (bytes > 0) ) then memcpy( dst, src, bytes )
 	dst[bytes] = 0
 end sub
 
 sub tkort_hStrCopyN alias "fb_hStrCopyN" _
 	( byval dst as zstring ptr, byval src as zstring ptr, byval bytes as integer )
-	if( (dst = 0) orelse (src = 0) orelse (bytes <= 0) ) then exit sub
+	if( (dst = nullptr) orelse (src = nullptr) orelse (bytes <= 0) ) then exit sub
 	memcpy( dst, src, bytes )
 end sub
 

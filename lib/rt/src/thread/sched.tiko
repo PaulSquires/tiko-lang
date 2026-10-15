@@ -242,15 +242,15 @@ private sub tkort_hWorkerProc cdecl ( byval param as any ptr )
 	self_->parker = tkrt_ParkerSelf( )
 
 	do
-		dim as FBWORKITEM_ ptr item = 0
+		dim as FBWORKITEM_ ptr item = nullptr
 
 		tkrt_MutexLock( sched_.lock_ )
 
 		do
-			if( sched_.qhead <> 0 ) then
+			if( sched_.qhead <> nullptr ) then
 				item = sched_.qhead
 				sched_.qhead = item->next_
-				if( sched_.qhead = 0 ) then sched_.qtail = 0
+				if( sched_.qhead = nullptr ) then sched_.qtail = nullptr
 				sched_.qlen -= 1
 				sched_.busy += 1
 				exit do
@@ -300,10 +300,10 @@ private sub tkort_hAddWorker( )
 	if( sched_.workers >= FB_SCHED_MAX_WORKERS_ ) then exit sub
 
 	dim as FBWORKER_ ptr w = cast( FBWORKER_ ptr, calloc( 1, sizeof( FBWORKER_ ) ) )
-	if( w = 0 ) then exit sub
+	if( w = nullptr ) then exit sub
 
 	dim as FBTHREAD ptr t = tkrt_ThreadCreate( @tkort_hWorkerProc, w, 0 )
-	if( t = 0 ) then
+	if( t = nullptr ) then
 		free( w )
 		exit sub
 	end if
@@ -360,7 +360,7 @@ private function tkort_hInit( ) as int32
 
 	if( sched_.inited = 0 ) then
 		sched_.lock_ = tkrt_MutexCreate( )
-		if( sched_.lock_ = 0 ) then
+		if( sched_.lock_ = nullptr ) then
 			sched_.inited = -1
 			tkort_hUnlockOnce( )
 			return 0
@@ -373,8 +373,8 @@ private function tkort_hInit( ) as int32
 		next
 
 		if( sched_.workers > 0 ) then
-			dim as FBTHREAD ptr t = tkrt_ThreadCreate( @tkort_hMonitorProc, 0, 0 )
-			if( t <> 0 ) then tkrt_ThreadDetach( t )
+			dim as FBTHREAD ptr t = tkrt_ThreadCreate( @tkort_hMonitorProc, nullptr, 0 )
+			if( t <> nullptr ) then tkrt_ThreadDetach( t )
 		end if
 
 		'' NO WORKERS MEANS PERMANENT FAILURE, not "try again next time".
@@ -396,9 +396,9 @@ extern "rtlib"   '' FBCALL: fb_thread.h declares fb_Spawn, fb_GoroutineCount and
 sub tkort_Spawn alias "fb_Spawn" ( byval proc_ as FB_SPAWNPROC, byval ctx as any ptr )
 
 	dim as FBWORKITEM_ ptr item = any
-	dim as FBWORKER_ ptr w = 0
+	dim as FBWORKER_ ptr w = nullptr
 
-	if( proc_ = 0 ) then exit sub
+	if( proc_ = nullptr ) then exit sub
 
 	if( tkort_hInit( ) = 0 ) then
 		proc_( ctx )
@@ -406,14 +406,14 @@ sub tkort_Spawn alias "fb_Spawn" ( byval proc_ as FB_SPAWNPROC, byval ctx as any
 	end if
 
 	item = cast( FBWORKITEM_ ptr, malloc( sizeof( FBWORKITEM_ ) ) )
-	if( item = 0 ) then
+	if( item = nullptr ) then
 		'' Same fallback for a failed allocation.
 		proc_( ctx )
 		exit sub
 	end if
 	item->proc_ = proc_
 	item->ctx = ctx
-	item->next_ = 0
+	item->next_ = nullptr
 
 	tkrt_MutexLock( sched_.lock_ )
 
@@ -425,7 +425,7 @@ sub tkort_Spawn alias "fb_Spawn" ( byval proc_ as FB_SPAWNPROC, byval ctx as any
 	end if
 
 	'' UNBOUNDED, AND THIS NEVER BLOCKS -- see the file header.
-	if( sched_.qtail <> 0 ) then
+	if( sched_.qtail <> nullptr ) then
 		sched_.qtail->next_ = item
 	else
 		sched_.qhead = item
@@ -433,10 +433,10 @@ sub tkort_Spawn alias "fb_Spawn" ( byval proc_ as FB_SPAWNPROC, byval ctx as any
 	sched_.qtail = item
 	sched_.qlen += 1
 
-	if( sched_.idle <> 0 ) then
+	if( sched_.idle <> nullptr ) then
 		w = sched_.idle
 		sched_.idle = w->nextidle
-		w->nextidle = 0
+		w->nextidle = nullptr
 		w->parked = 0
 		sched_.idlecount -= 1
 	end if
@@ -445,7 +445,7 @@ sub tkort_Spawn alias "fb_Spawn" ( byval proc_ as FB_SPAWNPROC, byval ctx as any
 
 	'' OUTSIDE THE LOCK: waking inside it would have the woken worker block
 	'' immediately on the lock we still hold.
-	if( w <> 0 ) then tkrt_Unpark( w->parker )
+	if( w <> nullptr ) then tkrt_Unpark( w->parker )
 end sub
 
 '' A SNAPSHOT: queued plus running, stale the instant it returns.
@@ -453,7 +453,7 @@ function tkort_GoroutineCount alias "fb_GoroutineCount" ( ) as int32
 
 	dim as int32 n = any
 
-	if( (sched_.inited = 0) orelse (sched_.lock_ = 0) ) then return 0
+	if( (sched_.inited = 0) orelse (sched_.lock_ = nullptr) ) then return 0
 
 	tkrt_MutexLock( sched_.lock_ )
 	n = sched_.qlen + sched_.busy
@@ -466,7 +466,7 @@ function tkort_SchedWorkerCount alias "fb_SchedWorkerCount" ( ) as int32
 
 	dim as int32 n = any
 
-	if( (sched_.inited = 0) orelse (sched_.lock_ = 0) ) then return 0
+	if( (sched_.inited = 0) orelse (sched_.lock_ = nullptr) ) then return 0
 
 	tkrt_MutexLock( sched_.lock_ )
 	n = sched_.workers
@@ -485,18 +485,18 @@ sub tkort_SchedShutdown alias "fb_SchedShutdown" ( )
 
 	dim as FBWORKER_ ptr w = any
 
-	if( (sched_.inited = 0) orelse (sched_.lock_ = 0) ) then exit sub
+	if( (sched_.inited = 0) orelse (sched_.lock_ = nullptr) ) then exit sub
 
 	tkrt_MutexLock( sched_.lock_ )
 	sched_.shutdown_ = -1
 	'' The whole idle list is taken under the lock and walked outside it.
 	w = sched_.idle
-	sched_.idle = 0
+	sched_.idle = nullptr
 	sched_.idlecount = 0
 	tkrt_MutexUnlock( sched_.lock_ )
 
 	'' DOES NOT JOIN -- see the file header on the loader-lock deadlock.
-	while( w <> 0 )
+	while( w <> nullptr )
 		dim as FBWORKER_ ptr next_ = w->nextidle
 		w->parked = 0
 		tkrt_Unpark( w->parker )

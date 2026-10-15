@@ -86,7 +86,7 @@ private sub hSet _
 	FB_USTRSETUP( dst, dst_size, dst_ptr, dst_len )
 	FB_USTRSETUP( src, src_size, src_ptr, src_len )
 
-	if( (dst_ptr <> 0) andalso (dst_len > 0) ) then
+	if( (dst_ptr <> nullptr) andalso (dst_len > 0) ) then
 		if( src_len > dst_len ) then src_len = dst_len
 
 		if( is_rset <> 0 ) then
@@ -145,7 +145,7 @@ sub tkort_UStrSwap alias "fb_UStrSwap" _
 	if( both_var ) then
 		dim as FBUSTRING ptr a = cptr( FBUSTRING ptr, str1 )
 		dim as FBUSTRING ptr b = cptr( FBUSTRING ptr, str2 )
-		if( (a <> 0) andalso (b <> 0) ) then
+		if( (a <> nullptr) andalso (b <> nullptr) ) then
 			dim as FBUSTRING t = *a
 			*a = *b
 			*b = t

@@ -86,7 +86,7 @@ function tkort_StrAssignEx alias "fb_StrAssignEx" _
 	STRLOCK()
 
 	'' A NULL destination still consumes the source.
-	if( dst = 0 ) then
+	if( dst = nullptr ) then
 		if( src_size = FB_STRSIZEVARLEN ) then
 			tkrt_DelTempNoLock( cptr( FBSTRING ptr, src ) )
 		end if
@@ -105,7 +105,7 @@ function tkort_StrAssignEx alias "fb_StrAssignEx" _
 			else
 				'' At init there is no old value to free -- the fields hold
 				'' whatever the stack left behind.
-				dstr->data = 0
+				dstr->data = nullptr
 				dstr->len = 0
 				dstr->size = 0
 			end if
@@ -126,7 +126,7 @@ function tkort_StrAssignEx alias "fb_StrAssignEx" _
 				dstr->len = src_len
 				dstr->size = s->size
 
-				s->data = 0
+				s->data = nullptr
 				s->len = 0
 				s->size = 0
 

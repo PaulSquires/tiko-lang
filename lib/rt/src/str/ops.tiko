@@ -101,12 +101,12 @@ end extern
 private sub hStrArg _
 	( byval s as FBSTRING ptr, byval ptr_ as uint8 ptr ptr, byval length as integer ptr )
 
-	if( s = 0 ) then
-		*ptr_ = 0 : *length = 0
+	if( s = nullptr ) then
+		*ptr_ = nullptr : *length = 0
 		exit sub
 	end if
-	if( s->data = 0 ) then
-		*ptr_ = 0 : *length = 0
+	if( s->data = nullptr ) then
+		*ptr_ = nullptr : *length = 0
 		exit sub
 	end if
 
@@ -143,18 +143,18 @@ end type
 
 private sub hPatArg( byval pat as FBUSTRING ptr, byval p as HPAT ptr )
 
-	p->heap = 0
-	p->ptr_ = 0
+	p->heap = nullptr
+	p->ptr_ = nullptr
 	p->length = 0
 
-	if( pat = 0 ) then exit sub
-	if( pat->data = 0 ) then exit sub
+	if( pat = nullptr ) then exit sub
+	if( pat->data = nullptr ) then exit sub
 	if( FB_USTRSIZE( pat ) <= 0 ) then exit sub
 
 	dim as uint16 ptr up = pat->data
 	dim as integer ulen = FB_USTRSIZE( pat )
 
-	dim as integer nbytes = tkrt_Utf16ToUtf8( up, ulen, 0, 0 )
+	dim as integer nbytes = tkrt_Utf16ToUtf8( up, ulen, nullptr, 0 )
 	if( nbytes <= 0 ) then exit sub
 
 	if( nbytes < HPAT_STACK ) then
@@ -163,7 +163,7 @@ private sub hPatArg( byval pat as FBUSTRING ptr, byval p as HPAT ptr )
 		p->length = nbytes
 	else
 		p->heap = allocate( nbytes + 1 )
-		if( p->heap = 0 ) then exit sub
+		if( p->heap = nullptr ) then exit sub
 
 		tkrt_Utf16ToUtf8( up, ulen, p->heap, nbytes )
 		p->ptr_ = p->heap
@@ -173,9 +173,9 @@ private sub hPatArg( byval pat as FBUSTRING ptr, byval p as HPAT ptr )
 end sub
 
 private sub hPatRel( byval p as HPAT ptr )
-	if( p->heap <> 0 ) then
+	if( p->heap <> nullptr ) then
 		deallocate( p->heap )
-		p->heap = 0
+		p->heap = nullptr
 	end if
 end sub
 
@@ -185,10 +185,10 @@ private function hStrTempFrom _
 
 	if( n <= 0 ) then return TKORT_NULLSTR( )
 
-	dim as FBSTRING ptr dst = fb_hStrAllocTemp( 0, n )
-	if( dst = 0 ) then return TKORT_NULLSTR( )
+	dim as FBSTRING ptr dst = fb_hStrAllocTemp( nullptr, n )
+	if( dst = nullptr ) then return TKORT_NULLSTR( )
 
-	if( dst->data <> 0 ) then
+	if( dst->data <> nullptr ) then
 		fb_hStrCopy( dst->data, cptr( zstring ptr, src ), n )
 		dst->data[n] = 0
 	end if
@@ -207,10 +207,10 @@ private function hStrTempFrom2 _
 	dim as integer n = alen + blen
 	if( n <= 0 ) then return TKORT_NULLSTR( )
 
-	dim as FBSTRING ptr dst = fb_hStrAllocTemp( 0, n )
-	if( dst = 0 ) then return TKORT_NULLSTR( )
+	dim as FBSTRING ptr dst = fb_hStrAllocTemp( nullptr, n )
+	if( dst = nullptr ) then return TKORT_NULLSTR( )
 
-	if( dst->data <> 0 ) then
+	if( dst->data <> nullptr ) then
 		if( alen > 0 ) then fb_hStrCopy( dst->data, cptr( zstring ptr, a ), alen )
 		if( blen > 0 ) then fb_hStrCopy( @dst->data[alen], cptr( zstring ptr, b ), blen )
 		dst->data[n] = 0
@@ -593,13 +593,13 @@ function tkort_StrInsertAt alias "fb_StrInsertAt" _
 		return TKORT_NULLSTR( )
 	end if
 
-	dim as FBSTRING ptr dst = fb_hStrAllocTemp( 0, n )
-	if( dst = 0 ) then
+	dim as FBSTRING ptr dst = fb_hStrAllocTemp( nullptr, n )
+	if( dst = nullptr ) then
 		hPatRel( @p )
 		return TKORT_NULLSTR( )
 	end if
 
-	if( dst->data <> 0 ) then
+	if( dst->data <> nullptr ) then
 		if( at > 0 ) then fb_hStrCopy( dst->data, cptr( zstring ptr, sp ), at )
 		if( p.length > 0 ) then fb_hStrCopy( @dst->data[at], cptr( zstring ptr, p.ptr_ ), p.length )
 		if( sl - at > 0 ) then fb_hStrCopy( @dst->data[at + p.length], cptr( zstring ptr, sp + at ), sl - at )
@@ -623,12 +623,12 @@ end extern
 private function hStrTempAlloc _
 	( byval n as integer, byval outbuf as uint8 ptr ptr ) as FBSTRING ptr
 
-	*outbuf = 0
+	*outbuf = nullptr
 
 	if( n <= 0 ) then return TKORT_NULLSTR( )
 
-	dim as FBSTRING ptr dst = fb_hStrAllocTemp( 0, n )
-	if( dst = 0 ) then return TKORT_NULLSTR( )
+	dim as FBSTRING ptr dst = fb_hStrAllocTemp( nullptr, n )
+	if( dst = nullptr ) then return TKORT_NULLSTR( )
 
 	*outbuf = cptr( uint8 ptr, dst->data )
 	return dst
@@ -639,7 +639,7 @@ end function
 '' owns the block either way, so this only corrects the length -- and it uses
 '' FB_STRSETLEN, which PRESERVES the temp bit that fb_hStrAllocTemp just set.
 private sub hStrTempTrim( byval dst as FBSTRING ptr, byval written as integer )
-	if( dst->data = 0 ) then exit sub
+	if( dst->data = nullptr ) then exit sub
 	FB_STRSETLEN( dst, written )
 	dst->data[written] = 0
 end sub
@@ -663,7 +663,7 @@ function tkort_StrReplace alias "fb_StrReplace" _
 	dim as integer n = sl + count * (r.length - p.length)
 
 	dim as FBSTRING ptr dst = hStrTempAlloc( n, @outbuf )
-	if( outbuf <> 0 ) then
+	if( outbuf <> nullptr ) then
 		dim as integer w = SOP(hReplaceFill)( outbuf, sp, sl, p.ptr_, p.length, r.ptr_, r.length, ic )
 		hStrTempTrim( dst, w )
 	end if
@@ -690,8 +690,8 @@ function tkort_StrRemove alias "fb_StrRemove" _
 	dim as integer n = sl - count * p.length
 
 	dim as FBSTRING ptr dst = hStrTempAlloc( n, @outbuf )
-	if( outbuf <> 0 ) then
-		dim as integer w = SOP(hReplaceFill)( outbuf, sp, sl, p.ptr_, p.length, 0, 0, ic )
+	if( outbuf <> nullptr ) then
+		dim as integer w = SOP(hReplaceFill)( outbuf, sp, sl, p.ptr_, p.length, nullptr, 0, ic )
 		hStrTempTrim( dst, w )
 	end if
 
@@ -711,7 +711,7 @@ function tkort_StrRemoveChars alias "fb_StrRemoveChars" _
 	hPatArg( st, @p )
 
 	dim as FBSTRING ptr dst = hStrTempAlloc( sl, @outbuf )
-	if( outbuf <> 0 ) then
+	if( outbuf <> nullptr ) then
 		dim as integer w = SOP(hRemoveCharsFill)( outbuf, sp, sl, p.ptr_, p.length, ic )
 		hStrTempTrim( dst, w )
 	end if
@@ -732,7 +732,7 @@ function tkort_StrRetainChars alias "fb_StrRetainChars" _
 	hPatArg( st, @p )
 
 	dim as FBSTRING ptr dst = hStrTempAlloc( sl, @outbuf )
-	if( outbuf <> 0 ) then
+	if( outbuf <> nullptr ) then
 		dim as integer w = SOP(hRetainCharsFill)( outbuf, sp, sl, p.ptr_, p.length, ic )
 		hStrTempTrim( dst, w )
 	end if
@@ -762,7 +762,7 @@ function tkort_StrReplaceChars alias "fb_StrReplaceChars" _
 	hPatArg( wth, @r )
 
 	dim as FBSTRING ptr dst = hStrTempAlloc( sl, @outbuf )
-	if( outbuf <> 0 ) then
+	if( outbuf <> nullptr ) then
 		if( r.length <> 1 ) then
 			if( sl > 0 ) then memcpy( outbuf, sp, sl )
 			hStrTempTrim( dst, sl )
@@ -786,7 +786,7 @@ function tkort_StrReverse alias "fb_StrReverse" ( byval s as FBSTRING ptr ) as F
 	hStrArg( s, @sp, @sl )
 
 	dim as FBSTRING ptr dst = hStrTempAlloc( sl, @outbuf )
-	if( outbuf <> 0 ) then
+	if( outbuf <> nullptr ) then
 		SOP(hReverseFill)( outbuf, sp, sl )
 		hStrTempTrim( dst, sl )
 	end if
@@ -808,7 +808,7 @@ function tkort_StrRepeat alias "fb_StrRepeat" _
 
 	dim as integer n = count * sl
 	dim as FBSTRING ptr dst = hStrTempAlloc( n, @outbuf )
-	if( outbuf <> 0 ) then
+	if( outbuf <> nullptr ) then
 		for i as integer = 0 to count - 1
 			memcpy( outbuf + i * sl, sp, sl )
 		next
@@ -830,7 +830,7 @@ function tkort_StrShrink alias "fb_StrShrink" _
 	hPatArg( mask, @p )
 
 	dim as FBSTRING ptr dst = hStrTempAlloc( sl, @outbuf )
-	if( outbuf <> 0 ) then
+	if( outbuf <> nullptr ) then
 		dim as integer w = SOP(hShrinkFill)( outbuf, sp, sl, p.ptr_, p.length )
 		hStrTempTrim( dst, w )
 	end if
@@ -848,7 +848,7 @@ function tkort_StrMCase alias "fb_StrMCase" ( byval s as FBSTRING ptr ) as FBSTR
 	hStrArg( s, @sp, @sl )
 
 	dim as FBSTRING ptr dst = hStrTempAlloc( sl, @outbuf )
-	if( outbuf <> 0 ) then
+	if( outbuf <> nullptr ) then
 		SOP(hMCaseFill)( outbuf, sp, sl )
 		hStrTempTrim( dst, sl )
 	end if
@@ -876,7 +876,7 @@ function tkort_StrRemoveBetween alias "fb_StrRemoveBetween" _
 	hPatArg( d2, @p2 )
 
 	dim as FBSTRING ptr dst = hStrTempAlloc( sl, @outbuf )
-	if( outbuf <> 0 ) then
+	if( outbuf <> nullptr ) then
 		dim as integer w = SOP(hRemoveBetweenFill)( outbuf, sp, sl, p1.ptr_, p1.length, _
 		                                       p2.ptr_, p2.length, removeAll, start - 1, ic )
 		hStrTempTrim( dst, w )
@@ -912,7 +912,7 @@ private function hStrPad _
 	hPatArg( pad, @p )
 
 	dim as FBSTRING ptr dst = hStrTempAlloc( fieldw, @outbuf )
-	if( outbuf <> 0 ) then
+	if( outbuf <> nullptr ) then
 		dim as integer w = SOP(hPadFill)( outbuf, sp, sl, fieldw, hStrPadUnit( @p ), mode )
 		hStrTempTrim( dst, w )
 	end if
@@ -963,7 +963,7 @@ function tkort_StrWrap alias "fb_StrWrap" _
 
 	dim as integer n = a.length + sl + cll
 	dim as FBSTRING ptr dst = hStrTempAlloc( n, @outbuf )
-	if( outbuf <> 0 ) then
+	if( outbuf <> nullptr ) then
 		if( a.length > 0 ) then memcpy( outbuf, a.ptr_, a.length )
 		if( sl > 0 ) then memcpy( outbuf + a.length, sp, sl )
 		if( cll > 0 ) then memcpy( outbuf + a.length + sl, clp, cll )
@@ -1013,9 +1013,9 @@ function tkort_StrEscape alias "fb_StrEscape" ( byval s as FBSTRING ptr ) as FBS
 
 	hStrArg( s, @sp, @sl )
 
-	dim as integer n = SOP(hEscapeFill)( 0, sp, sl )
+	dim as integer n = SOP(hEscapeFill)( nullptr, sp, sl )
 	dim as FBSTRING ptr dst = hStrTempAlloc( n, @outbuf )
-	if( outbuf <> 0 ) then
+	if( outbuf <> nullptr ) then
 		SOP(hEscapeFill)( outbuf, sp, sl )
 		hStrTempTrim( dst, n )
 	end if
@@ -1032,7 +1032,7 @@ function tkort_StrUnescape alias "fb_StrUnescape" ( byval s as FBSTRING ptr ) as
 	hStrArg( s, @sp, @sl )
 
 	dim as FBSTRING ptr dst = hStrTempAlloc( sl, @outbuf )
-	if( outbuf <> 0 ) then
+	if( outbuf <> nullptr ) then
 		dim as integer w = SOP(hUnescapeFill)( outbuf, sp, sl )
 		hStrTempTrim( dst, w )
 	end if

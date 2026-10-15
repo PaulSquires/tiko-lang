@@ -389,11 +389,11 @@ private function tkort_bg_thread_proc cdecl ( byval arg as any ptr ) as any ptr
 
 	while( __fb_con.inited <> 0 )
 		c_pthread_mutex_lock3( @tkort_bg_mutex )
-		if( __fb_con.keyboard_handler <> 0 ) then
+		if( __fb_con.keyboard_handler <> nullptr ) then
 			dim as FNVOID fn_ = cast( FNVOID, __fb_con.keyboard_handler )
 			fn_( )
 		end if
-		if( __fb_con.mouse_handler <> 0 ) then
+		if( __fb_con.mouse_handler <> nullptr ) then
 			dim as FNVOID fn_ = cast( FNVOID, __fb_con.mouse_handler )
 			fn_( )
 		end if
@@ -402,7 +402,7 @@ private function tkort_bg_thread_proc cdecl ( byval arg as any ptr ) as any ptr
 		c_usleep( 30000 )
 	wend
 
-	return 0
+	return nullptr
 end function
 
 private function tkort_default_getch cdecl ( ) as int32
@@ -564,7 +564,7 @@ sub tkort_hRecheckConsoleSize alias "fb_hRecheckConsoleSize" ( byval requery_cur
 	dim as uint8 ptr char_buffer = cast( uint8 ptr, calloc( 1, win.ws_row * win.ws_col * 2 ) )
 	dim as uint8 ptr attr_buffer = char_buffer + (win.ws_row * win.ws_col)
 
-	if( __fb_con.char_buffer <> 0 ) then
+	if( __fb_con.char_buffer <> nullptr ) then
 		dim as int32 h_ = iif( __fb_con.h < win.ws_row, __fb_con.h, win.ws_row )
 		dim as int32 w_ = iif( __fb_con.w < win.ws_col, __fb_con.w, win.ws_col )
 		for r as int32 = 0 to h_ - 1
@@ -606,9 +606,9 @@ function tkort_hTermOut alias "fb_hTermOut" _
 			if( c_fputs2( @tkort_extra_seq( code_ - SEQ_EXTRA_ ), stdout ) = -1 ) then return 0
 		end if
 	else
-		if( __fb_con.seq( code_ ) = 0 ) then return 0
+		if( __fb_con.seq( code_ ) = nullptr ) then return 0
 		dim as zstring ptr str_ = c_tgoto( __fb_con.seq( code_ ), param1, param2 )
-		if( str_ = 0 ) then return 0
+		if( str_ = nullptr ) then return 0
 		c_tputs( str_, 1, cast( any ptr, @c_putchar2 ) )
 	end if
 
@@ -630,11 +630,11 @@ function tkort_hInitConsole alias "fb_hInitConsole" ( ) as int32
 		return -1
 	end if
 
-	if( __fb_con.f_in = 0 ) then
+	if( __fb_con.f_in = nullptr ) then
 		'' /dev/tty, NOT stdin: input must come from the controlling terminal
 		'' even when stdin has been redirected.
 		__fb_con.f_in = c_fopen2( @"/dev/tty", @"r+b" )
-		if( __fb_con.f_in = 0 ) then return -1
+		if( __fb_con.f_in = nullptr ) then return -1
 		__fb_con.h_in = c_fileno( __fb_con.f_in )
 	end if
 
@@ -675,11 +675,11 @@ function tkort_hInitConsole alias "fb_hInitConsole" ( ) as int32
 	tkort_hTermOut( 15, 0, 0 )                 '' SEQ_INIT_KEYPAD
 
 	c_pthread_mutex_lock3( @tkort_bg_mutex )
-	if( __fb_con.keyboard_init <> 0 ) then
+	if( __fb_con.keyboard_init <> nullptr ) then
 		dim as FNINT fn_ = cast( FNINT, __fb_con.keyboard_init )
 		fn_( )
 	end if
-	if( __fb_con.mouse_init <> 0 ) then
+	if( __fb_con.mouse_init <> nullptr ) then
 		dim as FNINT fn_ = cast( FNINT, __fb_con.mouse_init )
 		fn_( )
 	end if
@@ -696,17 +696,17 @@ sub tkort_hExitConsole alias "fb_hExitConsole" ( )
 	'' immediately afterwards rather than left ignored.
 	dim as any ptr old_sigttou = c_signal2( SIGTTOU_, cast( any ptr, SIG_IGN_ ) )
 
-	if( __fb_con.gfx_exit <> 0 ) then
+	if( __fb_con.gfx_exit <> nullptr ) then
 		dim as FNVOID fn_ = cast( FNVOID, __fb_con.gfx_exit )
 		fn_( )
 	end if
 
 	c_pthread_mutex_lock3( @tkort_bg_mutex )
-	if( __fb_con.keyboard_exit <> 0 ) then
+	if( __fb_con.keyboard_exit <> nullptr ) then
 		dim as FNVOID fn_ = cast( FNVOID, __fb_con.keyboard_exit )
 		fn_( )
 	end if
-	if( __fb_con.mouse_exit <> 0 ) then
+	if( __fb_con.mouse_exit <> nullptr ) then
 		dim as FNVOID fn_ = cast( FNVOID, __fb_con.mouse_exit )
 		fn_( )
 	end if
@@ -744,9 +744,9 @@ sub tkort_hExitConsole alias "fb_hExitConsole" ( )
 	end if
 
 	'' The FILE* IS closed though, or it leaks across repeated SHELL calls.
-	if( __fb_con.f_in <> 0 ) then
+	if( __fb_con.f_in <> nullptr ) then
 		c_fclose2( __fb_con.f_in )
-		__fb_con.f_in = 0
+		__fb_con.f_in = nullptr
 	end if
 
 	c_signal2( SIGTTOU_, old_sigttou )
@@ -773,15 +773,15 @@ private sub tkort_hInitInner( )
 	'' __fb_con.inited at 0, which is what makes every console entry point fall
 	'' back to plain stdout.
 	term = c_getenv( @"TERM" )
-	if( (term = 0) orelse (c_tgetent( @buffer_, term ) <= 0) ) then exit sub
+	if( (term = nullptr) orelse (c_tgetent( @buffer_, term ) <= 0) ) then exit sub
 
 	'' BC, UP, PC AND ospeed ARE TERMCAP'S OWN GLOBALS and tputs reads them --
 	'' see the file header. PC is the pad character; a missing "pc" capability
 	'' means NUL.
-	BC = 0
-	UP = 0
-	dim as zstring ptr p = c_tgetstr( @"pc", 0 )
-	PC = iif( p <> 0, cptr( int8 ptr, p )[0], 0 )
+	BC = nullptr
+	UP = nullptr
+	dim as zstring ptr p = c_tgetstr( @"pc", nullptr )
+	PC = iif( p <> nullptr, cptr( int8 ptr, p )[0], 0 )
 
 	if( c_tcgetattr2( 1, @tty ) <> 0 ) then exit sub
 	ospeed = cast( int16, c_cfgetospeed( @tty ) )
@@ -791,7 +791,7 @@ private sub tkort_hInitInner( )
 	if( c_tgetflag( @"am" ) = 0 ) then exit sub
 
 	for i as int32 = 0 to SEQ_MAX_ - 1
-		__fb_con.seq( i ) = c_tgetstr( @tkort_seqname( i ), 0 )
+		__fb_con.seq( i ) = c_tgetstr( @tkort_seqname( i ), nullptr )
 	next
 
 	'' "console" or "linux*" is a real Linux console; everything else is
@@ -825,7 +825,7 @@ private sub tkort_hInitInner( )
 			c_signal2( sigs(i), cast( any ptr, @tkort_signal_handler ) )
 	next
 
-	__fb_con.char_buffer = 0
+	__fb_con.char_buffer = nullptr
 	__fb_con.fg_color = 7
 	__fb_con.bg_color = 0
 
@@ -872,7 +872,7 @@ end sub
 
 sub tkort_hStartBgThread alias "fb_hStartBgThread" ( )
 	if( tkort_bgthread_inited = 0 ) then
-		c_pthread_create( @tkort_bg_thread, 0, cast( any ptr, @tkort_bg_thread_proc ), 0 )
+		c_pthread_create( @tkort_bg_thread, nullptr, cast( any ptr, @tkort_bg_thread_proc ), nullptr )
 		tkort_bgthread_inited = -1
 	end if
 end sub
@@ -886,17 +886,17 @@ sub tkort_hEnd alias "fb_hEnd" ( byval unused as int32 )
 	__fb_con.inited = 0
 
 	if( tkort_bgthread_inited <> 0 ) then
-		c_pthread_join( tkort_bg_thread, 0 )
+		c_pthread_join( tkort_bg_thread, nullptr )
 		tkort_bgthread_inited = 0
 	end if
 	c_pthread_mutex_destroy( @tkort_bg_mutex )
 
 	'' ONE BLOCK, TWO SHADOWS -- attr_buffer points inside char_buffer's
 	'' allocation and must not be freed.
-	if( __fb_con.char_buffer <> 0 ) then
+	if( __fb_con.char_buffer <> nullptr ) then
 		free( __fb_con.char_buffer )
-		__fb_con.char_buffer = 0
-		__fb_con.attr_buffer = 0
+		__fb_con.char_buffer = nullptr
+		__fb_con.attr_buffer = nullptr
 	end if
 
 	#ifdef ENABLE_MT

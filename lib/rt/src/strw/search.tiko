@@ -27,8 +27,8 @@ extern "rtlib"
 function tkort_WstrInstr alias "fb_WstrInstr" _
 	( byval start_ as integer, byval src as wstring ptr, byval patt as wstring ptr ) as integer
 
-	if( src = 0 ) then return 0
-	if( patt = 0 ) then return 0
+	if( src = nullptr ) then return 0
+	if( patt = nullptr ) then return 0
 
 	dim as integer res = 0
 
@@ -39,7 +39,7 @@ function tkort_WstrInstr alias "fb_WstrInstr" _
 
 	if( ok ) then
 		dim as wstring ptr p = wcsstr( @src[start_ - 1], patt )
-		if( p <> 0 ) then res = FB_WSTR_CALCDIFF( src, p ) + 1
+		if( p <> nullptr ) then res = FB_WSTR_CALCDIFF( src, p ) + 1
 	end if
 
 	return res
@@ -56,8 +56,8 @@ end function
 function tkort_WstrInstrAny alias "fb_WstrInstrAny" _
 	( byval start_ as integer, byval src as wstring ptr, byval patt as wstring ptr ) as integer
 
-	if( src = 0 ) then return 0
-	if( patt = 0 ) then return 0
+	if( src = nullptr ) then return 0
+	if( patt = nullptr ) then return 0
 
 	dim as integer res = 0
 	dim as integer size_src = FB_WSTR_LEN( src )
@@ -78,8 +78,8 @@ end function
 function tkort_WstrInstrRev alias "fb_WstrInstrRev" _
 	( byval src as wstring ptr, byval patt as wstring ptr, byval start_ as integer ) as integer
 
-	if( src = 0 ) then return 0
-	if( patt = 0 ) then return 0
+	if( src = nullptr ) then return 0
+	if( patt = nullptr ) then return 0
 
 	dim as integer size_src = FB_WSTR_LEN( src )
 	dim as integer size_patt = FB_WSTR_LEN( patt )
@@ -131,8 +131,8 @@ end function
 function tkort_WstrInstrRevAny alias "fb_WstrInstrRevAny" _
 	( byval src as wstring ptr, byval patt as wstring ptr, byval start_ as integer ) as integer
 
-	if( src = 0 ) then return 0
-	if( patt = 0 ) then return 0
+	if( src = nullptr ) then return 0
+	if( patt = nullptr ) then return 0
 
 	dim as integer size_src = FB_WSTR_LEN( src )
 	dim as integer size_patt = FB_WSTR_LEN( patt )

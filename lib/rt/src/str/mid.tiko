@@ -49,7 +49,7 @@ function tkort_StrMid alias "fb_StrMid" _
 		byval s as FBSTRING ptr, byval start as integer, byval length as integer _
 	) as FBSTRING ptr
 
-	if( s = 0 ) then return TKORT_NULLSTR( )
+	if( s = nullptr ) then return TKORT_NULLSTR( )
 
 	dim as zstring ptr p = s->data
 	dim as integer n = FB_STRSIZE( s )
@@ -58,7 +58,7 @@ function tkort_StrMid alias "fb_StrMid" _
 	'' empty. An early `return TKORT_NULLSTR( )` that skipped the release would
 	'' strand a pool slot per call -- the exact shape of bugs 12 through 15,
 	'' which surfaced as a segfault three subsystems away.
-	if( (p = 0) orelse (n <= 0) orelse (start < 1) orelse (start > n) orelse (length = 0) ) then
+	if( (p = nullptr) orelse (n <= 0) orelse (start < 1) orelse (start > n) orelse (length = 0) ) then
 		tkrt_DelTemp( s )
 		return TKORT_NULLSTR( )
 	end if
@@ -70,8 +70,8 @@ function tkort_StrMid alias "fb_StrMid" _
 	dim as integer take = length
 	if( (take < 0) orelse (take > avail) ) then take = avail
 
-	dim as FBSTRING ptr r = fb_hStrAllocTemp( 0, take )
-	if( r = 0 ) then
+	dim as FBSTRING ptr r = fb_hStrAllocTemp( nullptr, take )
+	if( r = nullptr ) then
 		tkrt_DelTemp( s )
 		return TKORT_NULLSTR( )
 	end if

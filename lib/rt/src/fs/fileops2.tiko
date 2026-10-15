@@ -142,7 +142,7 @@ function tkort_FileAttr alias "fb_FileAttr" _
 	dim as int32 err_ = 0
 	dim as FB_FILE ptr file_ = TKORT_FILE_TO_HANDLE( handle )
 
-	if( file_ = 0 ) then
+	if( file_ = nullptr ) then
 		ret = 0
 		err_ = FB_RTERROR_ILLEGALFUNCTIONCALL
 	else
@@ -170,10 +170,10 @@ function tkort_FileAttr alias "fb_FileAttr" _
 				'' DEV_LPT_INFO.driver_opaque, then on Windows
 				'' W32_PRINTER_INFO.hPrinter -- both at offset zero.
 				dim as any ptr lptinfo = file_->opaque
-				if( lptinfo <> 0 ) then
+				if( lptinfo <> nullptr ) then
 					dim as any ptr driver_ = TKORT_FIRST_PTR( lptinfo )
 					#ifdef __FB_WIN32__
-						if( driver_ <> 0 ) then
+						if( driver_ <> nullptr ) then
 							ret = cast( integer, TKORT_FIRST_PTR( driver_ ) )
 							err_ = FB_RTERROR_OK
 						end if
@@ -189,9 +189,9 @@ function tkort_FileAttr alias "fb_FileAttr" _
 				'' DEV_COM_INFO.hSerial, then the platform's own struct --
 				'' a HANDLE on Windows, an int file DESCRIPTOR on Linux.
 				dim as any ptr cominfo = file_->opaque
-				if( cominfo <> 0 ) then
+				if( cominfo <> nullptr ) then
 					dim as any ptr serialinfo = TKORT_FIRST_PTR( cominfo )
-					if( serialinfo <> 0 ) then
+					if( serialinfo <> nullptr ) then
 						#ifdef __FB_WIN32__
 							ret = cast( integer, TKORT_FIRST_PTR( serialinfo ) )
 						#else
@@ -229,7 +229,7 @@ end function
 function tkort_FileExists alias "fb_FileExists" ( byval filename as zstring ptr ) as int32
 
 	dim as FILE ptr fp = fopen( filename, @"r" )
-	if( fp <> 0 ) then
+	if( fp <> nullptr ) then
 		fclose( fp )
 		return FB_TRUE
 	end if
@@ -253,7 +253,7 @@ function tkort_FileDateTime alias "fb_FileDateTime" ( byval filename as zstring 
 	dim as int64 t = *cptr( int64 ptr, @buf.raw(STAT_MTIME_) )
 
 	dim as TKORT_TM ptr ptm = crt_localtime( @t )
-	if( ptm = 0 ) then return 0.0
+	if( ptm = nullptr ) then return 0.0
 
 	return tkrt_DateSerial( 1900 + ptm->tm_year, 1 + ptm->tm_mon, ptm->tm_mday ) + _
 	       tkrt_TimeSerial( ptm->tm_hour, ptm->tm_min, ptm->tm_sec )
@@ -267,7 +267,7 @@ function tkort_FileKill alias "fb_FileKill" ( byval str_ as FBSTRING ptr ) as in
 
 	dim as int32 res = 0, err_ = 0
 
-	if( str_->data <> 0 ) then
+	if( str_->data <> nullptr ) then
 		res = crt_remove( str_->data )
 		err_ = errno
 	end if
@@ -305,17 +305,17 @@ extern "rtlib"
 function tkort_CrtFileCopy alias "fb_CrtFileCopy" _
 	( byval source as zstring ptr, byval destination as zstring ptr ) as int32
 
-	dim as FILE ptr src = 0, dst = 0
+	dim as FILE ptr src = nullptr, dst = nullptr
 	dim as uint8 buffer( 0 to COPY_BUFFER_SIZE - 1 ) = any
 	dim as uinteger bytesread = any
 	dim as int32 copyfail = 0
 
 	src = fopen( source, @"rb" )
-	if( src = 0 ) then
+	if( src = nullptr ) then
 		copyfail = 1
 	else
 		dst = fopen( destination, @"wb" )
-		if( dst = 0 ) then
+		if( dst = nullptr ) then
 			copyfail = 1
 		else
 			do
@@ -331,8 +331,8 @@ function tkort_CrtFileCopy alias "fb_CrtFileCopy" _
 		end if
 	end if
 
-	if( src <> 0 ) then fclose( src )
-	if( dst <> 0 ) then fclose( dst )
+	if( src <> nullptr ) then fclose( src )
+	if( dst <> nullptr ) then fclose( dst )
 
 	if( copyfail <> 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )

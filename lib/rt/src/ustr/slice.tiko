@@ -46,9 +46,9 @@ end extern
 private function hTempFrom _
 	( byval src as FB_UCHAR ptr, byval units as integer ) as FBUSTRING ptr
 	if( units <= 0 ) then return TKORT_UNULLSTR()
-	dim as FBUSTRING ptr dst = tkrt_UAllocTempNoLock( 0, units )
-	if( dst = 0 ) then return TKORT_UNULLSTR()
-	if( dst->data <> 0 ) then tkrt_UStrCopy( dst->data, src, units )
+	dim as FBUSTRING ptr dst = tkrt_UAllocTempNoLock( nullptr, units )
+	if( dst = nullptr ) then return TKORT_UNULLSTR()
+	if( dst->data <> nullptr ) then tkrt_UStrCopy( dst->data, src, units )
 	return dst
 end function
 
@@ -63,9 +63,9 @@ end sub
 '' fb_hUStrFill does not write one, and the wide allocator does not either.
 private function hFilled( byval units as integer, byval c as FB_UCHAR ) as FBUSTRING ptr
 	if( units <= 0 ) then return TKORT_UNULLSTR()
-	dim as FBUSTRING ptr dst = tkrt_UAllocTempNoLock( 0, units )
-	if( dst = 0 ) then return TKORT_UNULLSTR()
-	if( dst->data <> 0 ) then
+	dim as FBUSTRING ptr dst = tkrt_UAllocTempNoLock( nullptr, units )
+	if( dst = nullptr ) then return TKORT_UNULLSTR()
+	if( dst->data <> nullptr ) then
 		tkrt_UStrFill( dst->data, c, units )
 		dst->data[units] = 0
 	end if
@@ -171,7 +171,7 @@ sub tkort_UStrAssignMid alias "fb_UStrAssignMid" _
 	FB_USTRSETUP( src, src_size, src_ptr, src_len )
 
 	dim as integer ok = -1
-	if( dst_ptr = 0 ) then ok = 0
+	if( dst_ptr = nullptr ) then ok = 0
 	if( start_ <= 0 ) then ok = 0
 	if( start_ > dst_len ) then ok = 0
 

@@ -91,7 +91,7 @@ function tkort_DtIsoFormatDate alias "fb_DtIsoFormatDate" _
 	dim as int32 y = any, mo = any, d = any, n = 0
 
 	'' Too short: nothing is written, not even a terminator.
-	if( buf = 0 ) then return 0
+	if( buf = nullptr ) then return 0
 	if( buflen < 11 ) then return 0
 	'' Out of range: a terminator IS written. See the header.
 	if( (days < FB_DT_MIN_DAYS) orelse (days > FB_DT_MAX_DAYS) ) then
@@ -115,7 +115,7 @@ function tkort_DtIsoFormatTime alias "fb_DtIsoFormatTime" _
 	dim as int64 sub_ = any
 	dim as int32 n = 0
 
-	if( buf = 0 ) then return 0
+	if( buf = nullptr ) then return 0
 	if( buflen < 17 ) then return 0
 	if( (tod < 0) orelse (tod >= FB_DT_TICKS_PER_DAY) ) then
 		buf[0] = 0
@@ -144,7 +144,7 @@ function tkort_DtIsoFormat alias "fb_DtIsoFormat" _
 
 	dim as int32 n = any
 
-	if( buf = 0 ) then return 0
+	if( buf = nullptr ) then return 0
 	if( buflen < 34 ) then return 0
 	if( tkrt_DtIsValidTicks( ticks ) = 0 ) then
 		buf[0] = 0
@@ -173,7 +173,7 @@ function tkort_DtIsoFormatDuration alias "fb_DtIsoFormatDuration" _
 	dim as uint8 fracv(0 to 7)
 	dim as uint8 tmp(0 to 23)
 
-	if( buf = 0 ) then return 0
+	if( buf = nullptr ) then return 0
 	if( buflen < 40 ) then return 0
 	'' The sentinel is rejected; every other value, including negatives, is a
 	'' duration.
@@ -591,9 +591,9 @@ function tkort_DtIsoParse alias "fb_DtIsoParse" _
 	dim as int64 tod = 0, ticks = any
 	dim as uint32 c = any
 
-	if( out_ticks <> 0 ) then *out_ticks = FB_DT_INVALID_TICKS
-	if( out_off <> 0 ) then *out_off = DT_ISO_OFFSET_UNSPECIFIED
-	if( s = 0 ) then return 1
+	if( out_ticks <> nullptr ) then *out_ticks = FB_DT_INVALID_TICKS
+	if( out_off <> nullptr ) then *out_off = DT_ISO_OFFSET_UNSPECIFIED
+	if( s = nullptr ) then return 1
 	if( length <= 0 ) then return 1
 
 	sc.p = s
@@ -625,8 +625,8 @@ function tkort_DtIsoParse alias "fb_DtIsoParse" _
 	ticks = cast( int64, days ) * FB_DT_TICKS_PER_DAY + tod
 	if( tkrt_DtIsValidTicks( ticks ) = 0 ) then return 1
 
-	if( out_ticks <> 0 ) then *out_ticks = ticks
-	if( out_off <> 0 ) then *out_off = off
+	if( out_ticks <> nullptr ) then *out_ticks = ticks
+	if( out_off <> nullptr ) then *out_off = off
 	return 0
 end function
 
@@ -638,8 +638,8 @@ function tkort_DtIsoParseDate alias "fb_DtIsoParseDate" _
 	dim as FB_DTSCAN sc = any
 	dim as int32 days = 0
 
-	if( out_days <> 0 ) then *out_days = -1
-	if( s = 0 ) then return 1
+	if( out_days <> nullptr ) then *out_days = -1
+	if( s = nullptr ) then return 1
 	if( length <= 0 ) then return 1
 
 	sc.p = s
@@ -649,7 +649,7 @@ function tkort_DtIsoParseDate alias "fb_DtIsoParseDate" _
 	if( hScanDate( @sc, @days ) ) then return 1
 	if( hRemaining( @sc ) <> 0 ) then return 1
 
-	if( out_days <> 0 ) then *out_days = days
+	if( out_days <> nullptr ) then *out_days = days
 	return 0
 end function
 
@@ -659,8 +659,8 @@ function tkort_DtIsoParseTime alias "fb_DtIsoParseTime" _
 	dim as FB_DTSCAN sc = any
 	dim as int64 tod = 0
 
-	if( out_tod <> 0 ) then *out_tod = FB_DT_INVALID_TICKS
-	if( s = 0 ) then return 1
+	if( out_tod <> nullptr ) then *out_tod = FB_DT_INVALID_TICKS
+	if( s = nullptr ) then return 1
 	if( length <= 0 ) then return 1
 
 	sc.p = s
@@ -672,7 +672,7 @@ function tkort_DtIsoParseTime alias "fb_DtIsoParseTime" _
 	'' is trailing garbage and fails.
 	if( hRemaining( @sc ) <> 0 ) then return 1
 
-	if( out_tod <> 0 ) then *out_tod = tod
+	if( out_tod <> nullptr ) then *out_tod = tod
 	return 0
 end function
 
@@ -698,8 +698,8 @@ function tkort_DtIsoParseDuration alias "fb_DtIsoParseDuration" _
 	dim as int32 neg = 0, inTime = 0, sawAny = 0, nd = any, hasFrac = any, i = any
 	dim as uint32 c = any, unit = any
 
-	if( out_ticks <> 0 ) then *out_ticks = FB_DT_INVALID_TICKS
-	if( s = 0 ) then return 1
+	if( out_ticks <> nullptr ) then *out_ticks = FB_DT_INVALID_TICKS
+	if( s = nullptr ) then return 1
 	if( length <= 0 ) then return 1
 
 	sc.p = s
@@ -801,7 +801,7 @@ function tkort_DtIsoParseDuration alias "fb_DtIsoParseDuration" _
 	'' A bare "P" is an error, unlike on the emit side where zero becomes PT0S.
 	if( sawAny = 0 ) then return 1
 
-	if( out_ticks <> 0 ) then
+	if( out_ticks <> nullptr ) then
 		if( neg <> 0 ) then *out_ticks = -total else *out_ticks = total
 	end if
 	return 0

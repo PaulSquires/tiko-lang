@@ -45,9 +45,9 @@ end extern
 
 private sub hUArg( byval s as FBUSTRING ptr, byval ptr_ as FB_UCHAR ptr ptr, byval len_ as integer ptr )
 	static as FB_UCHAR empty_(0 to 0) = { 0 }
-	if( s = 0 ) then
+	if( s = nullptr ) then
 		*ptr_ = @empty_(0) : *len_ = 0
-	elseif( s->data = 0 ) then
+	elseif( s->data = nullptr ) then
 		*ptr_ = @empty_(0) : *len_ = 0
 	else
 		*ptr_ = s->data
@@ -58,10 +58,10 @@ end sub
 private function hTemp( byval src as FB_UCHAR ptr, byval units as integer ) as FBUSTRING ptr
 	dim as FBUSTRING ptr dst = any
 	if( units <= 0 ) then return TKORT_UNULL_DESC()
-	dst = tkrt_UStrAllocTemp( 0, units )
-	if( dst = 0 ) then return TKORT_UNULL_DESC()
-	if( dst->data <> 0 ) then
-		if( src <> 0 ) then tkrt_UStrCopy2( dst->data, src, units )
+	dst = tkrt_UStrAllocTemp( nullptr, units )
+	if( dst = nullptr ) then return TKORT_UNULL_DESC()
+	if( dst->data <> nullptr ) then
+		if( src <> nullptr ) then tkrt_UStrCopy2( dst->data, src, units )
 		dst->data[units] = 0
 	end if
 	return dst
@@ -140,7 +140,7 @@ private function hFsWide( byval p as FBUSTRING ptr ) as wstring ptr
 
 	hUArg( p, @s, @len_ )
 	w = malloc( (len_ + 1) * sizeof( FB_UCHAR ) )
-	if( w = 0 ) then return 0
+	if( w = nullptr ) then return nullptr
 	if( len_ > 0 ) then memcpy( w, s, len_ * sizeof( FB_UCHAR ) )
 	w[len_] = 0
 	return cptr( wstring ptr, w )
@@ -179,11 +179,11 @@ function tkort_UStrFsReadWhole alias "fb_UStrFsReadWhole" _
 	dim as uint32 attrs = any, chunk = any, red = any
 	dim as int32 e = any
 
-	*out_ = 0
+	*out_ = nullptr
 	*outlen = 0
 
 	w = hFsWide( p )
-	if( w = 0 ) then return FB_FS_UNKNOWN
+	if( w = nullptr ) then return FB_FS_UNKNOWN
 
 	'' Checked BEFORE opening so a directory reports FS_IS_A_DIRECTORY. Windows
 	'' has no such code natively and would say "access denied".
@@ -194,7 +194,7 @@ function tkort_UStrFsReadWhole alias "fb_UStrFsReadWhole" _
 	end if
 
 	h = w_CreateFileW( w, GENERIC_READ_, FILE_SHARE_READ_ or FILE_SHARE_WRITE_, _
-		0, OPEN_EXISTING_, FILE_ATTRIBUTE_NORMAL_, 0 )
+		nullptr, OPEN_EXISTING_, FILE_ATTRIBUTE_NORMAL_, nullptr )
 	free( w )
 
 	if( cast( integer, h ) = INVALID_HANDLE_VALUE_ ) then return tkrt_FsMapOsError( )
@@ -217,7 +217,7 @@ function tkort_UStrFsReadWhole alias "fb_UStrFsReadWhole" _
 	end if
 
 	buf = malloc( cast( uinteger, sz ) + 1 )
-	if( buf = 0 ) then
+	if( buf = nullptr ) then
 		w_CloseHandle( h )
 		return FB_FS_NO_SPACE
 	end if
@@ -227,7 +227,7 @@ function tkort_UStrFsReadWhole alias "fb_UStrFsReadWhole" _
 		chunk = iif( left_ > IO_CHUNK_, cast( uint32, IO_CHUNK_ ), cast( uint32, left_ ) )
 		red = 0
 
-		if( w_ReadFile( h, buf + got, chunk, @red, 0 ) = 0 ) then
+		if( w_ReadFile( h, buf + got, chunk, @red, nullptr ) = 0 ) then
 			e = tkrt_FsMapOsError( )
 			free( buf )
 			w_CloseHandle( h )
@@ -258,23 +258,23 @@ function tkort_UStrFsWriteWhole alias "fb_UStrFsWriteWhole" _
 	dim as int32 e = any
 
 	w = hFsWide( p )
-	if( w = 0 ) then return FB_FS_UNKNOWN
+	if( w = nullptr ) then return FB_FS_UNKNOWN
 
 	h = w_CreateFileW( w, iif( append_ <> 0, FILE_APPEND_DATA_, GENERIC_WRITE_ ), _
-		FILE_SHARE_READ_, 0, iif( append_ <> 0, OPEN_ALWAYS_, CREATE_ALWAYS_ ), _
-		FILE_ATTRIBUTE_NORMAL_, 0 )
+		FILE_SHARE_READ_, nullptr, iif( append_ <> 0, OPEN_ALWAYS_, CREATE_ALWAYS_ ), _
+		FILE_ATTRIBUTE_NORMAL_, nullptr )
 	free( w )
 
 	if( cast( integer, h ) = INVALID_HANDLE_VALUE_ ) then return tkrt_FsMapOsError( )
 
-	if( append_ <> 0 ) then w_SetFilePointer( h, 0, 0, FILE_END_ )
+	if( append_ <> 0 ) then w_SetFilePointer( h, 0, nullptr, FILE_END_ )
 
 	while( done < len_ )
 		dim as int64 left_ = len_ - done
 		chunk = iif( left_ > IO_CHUNK_, cast( uint32, IO_CHUNK_ ), cast( uint32, left_ ) )
 		wrote = 0
 
-		if( w_WriteFile( h, data_ + done, chunk, @wrote, 0 ) = 0 ) then
+		if( w_WriteFile( h, data_ + done, chunk, @wrote, nullptr ) = 0 ) then
 			e = tkrt_FsMapOsError( )
 			w_CloseHandle( h )
 			return e
@@ -291,8 +291,8 @@ function tkort_UStrFsCreateDir alias "fb_UStrFsCreateDir" ( byval p as FBUSTRING
 	dim as wstring ptr w = hFsWide( p )
 	dim as int32 r = FB_FS_OK
 
-	if( w = 0 ) then return FB_FS_UNKNOWN
-	if( w_CreateDirectoryW( w, 0 ) = 0 ) then r = tkrt_FsMapOsError( )
+	if( w = nullptr ) then return FB_FS_UNKNOWN
+	if( w_CreateDirectoryW( w, nullptr ) = 0 ) then r = tkrt_FsMapOsError( )
 	free( w )
 	return r
 end function
@@ -301,7 +301,7 @@ function tkort_UStrFsRemoveDir alias "fb_UStrFsRemoveDir" ( byval p as FBUSTRING
 	dim as wstring ptr w = hFsWide( p )
 	dim as int32 r = FB_FS_OK
 
-	if( w = 0 ) then return FB_FS_UNKNOWN
+	if( w = nullptr ) then return FB_FS_UNKNOWN
 	if( w_RemoveDirectoryW( w ) = 0 ) then r = tkrt_FsMapOsError( )
 	free( w )
 	return r
@@ -316,7 +316,7 @@ function tkort_UStrFsRemoveFile alias "fb_UStrFsRemoveFile" ( byval p as FBUSTRI
 	dim as uint32 attrs = any
 	dim as int32 r = FB_FS_OK
 
-	if( w = 0 ) then return FB_FS_UNKNOWN
+	if( w = nullptr ) then return FB_FS_UNKNOWN
 
 	attrs = w_GetFileAttributesW( w )
 
@@ -346,7 +346,7 @@ function tkort_UStrFsCopyFile alias "fb_UStrFsCopyFile" _
 	ws = hFsWide( s )
 	wd = hFsWide( d )
 
-	if( (ws = 0) orelse (wd = 0) ) then
+	if( (ws = nullptr) orelse (wd = nullptr) ) then
 		free( ws ) : free( wd )
 		return FB_FS_UNKNOWN
 	end if
@@ -371,7 +371,7 @@ function tkort_UStrFsMoveFile alias "fb_UStrFsMoveFile" _
 	ws = hFsWide( s )
 	wd = hFsWide( d )
 
-	if( (ws = 0) orelse (wd = 0) ) then
+	if( (ws = nullptr) orelse (wd = nullptr) ) then
 		free( ws ) : free( wd )
 		return FB_FS_UNKNOWN
 	end if
@@ -397,12 +397,12 @@ function tkort_UStrFsReplaceFile alias "fb_UStrFsReplaceFile" _
 	wt = hFsWide( target )
 	wr = hFsWide( replacement )
 
-	if( (wt = 0) orelse (wr = 0) ) then
+	if( (wt = nullptr) orelse (wr = nullptr) ) then
 		free( wt ) : free( wr )
 		return FB_FS_UNKNOWN
 	end if
 
-	if( w_ReplaceFileW( wt, wr, 0, REPLACEFILE_IGNORE_MERGE_ERRORS_, 0, 0 ) = 0 ) then
+	if( w_ReplaceFileW( wt, wr, nullptr, REPLACEFILE_IGNORE_MERGE_ERRORS_, nullptr, nullptr ) = 0 ) then
 		'' ReplaceFileW requires the target to exist. For a first write it does
 		'' not, and a plain replacing rename is then both correct and equally
 		'' atomic.
@@ -418,16 +418,16 @@ end function
 '' GetProcAddress so a Windows build without it degrades rather than fails to
 '' link.
 function tkort_FsRandomBytes alias "fb_FsRandomBytes" ( byval buf as uint8 ptr, byval len_ as int32 ) as int32
-	static as RTLGENRANDOM pRtlGenRandom = 0
+	static as RTLGENRANDOM pRtlGenRandom = nullptr
 	static as int32 tried = 0
 
 	if( tried = 0 ) then
 		dim as any ptr h = w_LoadLibraryW( wstr( "advapi32.dll" ) )
-		if( h <> 0 ) then pRtlGenRandom = cast( RTLGENRANDOM, w_GetProcAddress( h, @"SystemFunction036" ) )
+		if( h <> nullptr ) then pRtlGenRandom = cast( RTLGENRANDOM, w_GetProcAddress( h, @"SystemFunction036" ) )
 		tried = 1
 	end if
 
-	if( pRtlGenRandom <> 0 ) then
+	if( pRtlGenRandom <> nullptr ) then
 		if( pRtlGenRandom( buf, cast( uint32, len_ ) ) <> 0 ) then return FB_FS_OK
 	end if
 
@@ -438,11 +438,11 @@ function tkort_UStrFsTempDir alias "fb_UStrFsTempDir" ( byval status as int32 pt
 	dim as FB_UCHAR buf( 0 to MAX_PATH_ + 1 ) = any
 	dim as int32 n = any
 
-	if( status <> 0 ) then *status = FB_FS_OK
+	if( status <> nullptr ) then *status = FB_FS_OK
 
 	n = hTempDirWide( @buf(0), MAX_PATH_ + 1 )
 	if( n = 0 ) then
-		if( status <> 0 ) then *status = tkrt_FsMapOsError( )
+		if( status <> nullptr ) then *status = tkrt_FsMapOsError( )
 		return TKORT_UNULL_DESC()
 	end if
 
@@ -461,12 +461,12 @@ private function hCreateTemp( byval prefix as FBUSTRING ptr, byval wantdir as in
 	dim as uint8 rb( 0 to 7 ) = any
 	dim as any ptr h = any
 
-	if( status <> 0 ) then *status = FB_FS_OK
+	if( status <> nullptr ) then *status = FB_FS_OK
 
 	'' NO DESCRIPTOR ALLOCATED HERE -- see the file header.
 	dirlen = hTempDirWide( @dirbuf(0), MAX_PATH_ + 1 )
 	if( dirlen = 0 ) then
-		if( status <> 0 ) then *status = tkrt_FsMapOsError( )
+		if( status <> nullptr ) then *status = tkrt_FsMapOsError( )
 		return TKORT_UNULL_DESC()
 	end if
 
@@ -474,13 +474,13 @@ private function hCreateTemp( byval prefix as FBUSTRING ptr, byval wantdir as in
 
 	for attempt = 0 to 63
 		if( tkort_FsRandomBytes( @rb(0), 8 ) <> FB_FS_OK ) then
-			if( status <> 0 ) then *status = FB_FS_UNSUPPORTED
+			if( status <> nullptr ) then *status = FB_FS_UNSUPPORTED
 			return TKORT_UNULL_DESC()
 		end if
 
 		w = malloc( (dirlen + 1 + prelen + 16 + 1) * sizeof( FB_UCHAR ) )
-		if( w = 0 ) then
-			if( status <> 0 ) then *status = FB_FS_UNKNOWN
+		if( w = nullptr ) then
+			if( status <> nullptr ) then *status = FB_FS_UNKNOWN
 			return TKORT_UNULL_DESC()
 		end if
 
@@ -502,12 +502,12 @@ private function hCreateTemp( byval prefix as FBUSTRING ptr, byval wantdir as in
 		made = 0
 
 		if( wantdir <> 0 ) then
-			made = iif( w_CreateDirectoryW( cptr( wstring ptr, w ), 0 ) <> 0, 1, 0 )
+			made = iif( w_CreateDirectoryW( cptr( wstring ptr, w ), nullptr ) <> 0, 1, 0 )
 		else
 			'' CREATE_NEW is the atomic part: it fails if the name exists, so
 			'' there is no window between choosing and creating.
-			h = w_CreateFileW( cptr( wstring ptr, w ), GENERIC_WRITE_, 0, 0, CREATE_NEW_, _
-				FILE_ATTRIBUTE_NORMAL_, 0 )
+			h = w_CreateFileW( cptr( wstring ptr, w ), GENERIC_WRITE_, 0, nullptr, CREATE_NEW_, _
+				FILE_ATTRIBUTE_NORMAL_, nullptr )
 			if( cast( integer, h ) <> INVALID_HANDLE_VALUE_ ) then
 				w_CloseHandle( h )
 				made = 1
@@ -525,12 +525,12 @@ private function hCreateTemp( byval prefix as FBUSTRING ptr, byval wantdir as in
 
 		'' only a name collision is worth retrying
 		if( e <> FB_FS_ALREADY_EXISTS ) then
-			if( status <> 0 ) then *status = e
+			if( status <> nullptr ) then *status = e
 			return TKORT_UNULL_DESC()
 		end if
 	next
 
-	if( status <> 0 ) then *status = FB_FS_ALREADY_EXISTS
+	if( status <> nullptr ) then *status = FB_FS_ALREADY_EXISTS
 	return TKORT_UNULL_DESC()
 end function
 
@@ -554,7 +554,7 @@ function tkort_UStrFsSetReadOnly alias "fb_UStrFsSetReadOnly" _
 	dim as uint32 attrs = any
 	dim as int32 r = FB_FS_OK
 
-	if( w = 0 ) then return FB_FS_UNKNOWN
+	if( w = nullptr ) then return FB_FS_UNKNOWN
 
 	attrs = w_GetFileAttributesW( w )
 	if( attrs = INVALID_FILE_ATTRIBUTES_ ) then
@@ -644,7 +644,7 @@ private function hFsNarrow( byval p as FBUSTRING ptr ) as zstring ptr
 	hUArg( p, @s, @len_ )
 	cap = len_ * 3 + 1
 	b = malloc( cap )
-	if( b = 0 ) then return 0
+	if( b = nullptr ) then return nullptr
 	n = u_utf16to8( s, len_, b, cap - 1 )
 	if( n < 0 ) then n = 0
 	b[n] = 0
@@ -661,7 +661,7 @@ private function hFsFromNarrow( byval b as zstring ptr, byval bytes as integer )
 
 	cap = nb + 1
 	tmp = malloc( cap * sizeof( FB_UCHAR ) )
-	if( tmp = 0 ) then return TKORT_UNULL_DESC()
+	if( tmp = nullptr ) then return TKORT_UNULL_DESC()
 
 	n = u_utf8to16( b, nb, tmp, cap )
 	if( n < 0 ) then n = 0
@@ -675,7 +675,7 @@ end function
 '' file header.
 private function hTempDirNarrow( ) as zstring ptr
 	dim as zstring ptr t = u_getenv( @"TMPDIR" )
-	if( t = 0 ) then return @"/tmp"
+	if( t = nullptr ) then return @"/tmp"
 	if( t[0] = 0 ) then return @"/tmp"
 	return t
 end function
@@ -696,11 +696,11 @@ function tkort_UStrFsReadWhole alias "fb_UStrFsReadWhole" _
 	dim as int32 fd = any, e = any
 	dim as integer n = any
 
-	*out_ = 0
+	*out_ = nullptr
 	*outlen = 0
 
 	path_ = hFsNarrow( p )
-	if( path_ = 0 ) then return FB_FS_UNKNOWN
+	if( path_ = nullptr ) then return FB_FS_UNKNOWN
 
 	fd = u_open( path_, O_RDONLY_ )
 	if( fd < 0 ) then
@@ -733,7 +733,7 @@ function tkort_UStrFsReadWhole alias "fb_UStrFsReadWhole" _
 	end if
 
 	buf = malloc( cast( uinteger, sz ) + 1 )
-	if( buf = 0 ) then
+	if( buf = nullptr ) then
 		u_close( fd )
 		return FB_FS_NO_SPACE
 	end if
@@ -774,7 +774,7 @@ function tkort_UStrFsWriteWhole alias "fb_UStrFsWriteWhole" _
 	dim as integer n = any
 
 	path_ = hFsNarrow( p )
-	if( path_ = 0 ) then return FB_FS_UNKNOWN
+	if( path_ = nullptr ) then return FB_FS_UNKNOWN
 
 	flags = O_WRONLY_ or O_CREAT_ or iif( append_ <> 0, O_APPEND_, O_TRUNC_ )
 
@@ -806,7 +806,7 @@ function tkort_UStrFsCreateDir alias "fb_UStrFsCreateDir" ( byval p as FBUSTRING
 	dim as zstring ptr path_ = hFsNarrow( p )
 	dim as int32 r = FB_FS_OK
 
-	if( path_ = 0 ) then return FB_FS_UNKNOWN
+	if( path_ = nullptr ) then return FB_FS_UNKNOWN
 	if( u_mkdir( path_, &o777 ) <> 0 ) then r = tkrt_FsMapOsError( )
 	free( path_ )
 	return r
@@ -816,7 +816,7 @@ function tkort_UStrFsRemoveDir alias "fb_UStrFsRemoveDir" ( byval p as FBUSTRING
 	dim as zstring ptr path_ = hFsNarrow( p )
 	dim as int32 r = FB_FS_OK
 
-	if( path_ = 0 ) then return FB_FS_UNKNOWN
+	if( path_ = nullptr ) then return FB_FS_UNKNOWN
 
 	if( u_rmdir( path_ ) <> 0 ) then
 		r = tkrt_FsMapOsError( )
@@ -837,7 +837,7 @@ function tkort_UStrFsRemoveFile alias "fb_UStrFsRemoveFile" ( byval p as FBUSTRI
 	dim as stat_ st = any
 	dim as int32 r = FB_FS_OK
 
-	if( path_ = 0 ) then return FB_FS_UNKNOWN
+	if( path_ = nullptr ) then return FB_FS_UNKNOWN
 
 	'' Matches the Windows behaviour: a directory is FS_IS_A_DIRECTORY, not
 	'' whatever unlink happens to report (EPERM on some systems, EISDIR on
@@ -871,7 +871,7 @@ function tkort_UStrFsCopyFile alias "fb_UStrFsCopyFile" _
 	sp = hFsNarrow( s )
 	dp = hFsNarrow( d )
 
-	if( (sp = 0) orelse (dp = 0) ) then
+	if( (sp = nullptr) orelse (dp = nullptr) ) then
 		free( sp ) : free( dp )
 		return FB_FS_UNKNOWN
 	end if
@@ -942,7 +942,7 @@ function tkort_UStrFsMoveFile alias "fb_UStrFsMoveFile" _
 	sp = hFsNarrow( s )
 	dp = hFsNarrow( d )
 
-	if( (sp = 0) orelse (dp = 0) ) then
+	if( (sp = nullptr) orelse (dp = nullptr) ) then
 		free( sp ) : free( dp )
 		return FB_FS_UNKNOWN
 	end if
@@ -988,7 +988,7 @@ function tkort_UStrFsIdentity alias "fb_UStrFsIdentity" _
 	*id = 0
 
 	path_ = hFsNarrow( p )
-	if( path_ = 0 ) then return FB_FS_UNKNOWN
+	if( path_ = nullptr ) then return FB_FS_UNKNOWN
 
 	if( u_stat( path_, @st ) <> 0 ) then
 		e = tkrt_FsMapOsError( )
@@ -1042,7 +1042,7 @@ function tkort_FsRandomBytes alias "fb_FsRandomBytes" ( byval buf as uint8 ptr, 
 end function
 
 function tkort_UStrFsTempDir alias "fb_UStrFsTempDir" ( byval status as int32 ptr ) as FBUSTRING ptr
-	if( status <> 0 ) then *status = FB_FS_OK
+	if( status <> nullptr ) then *status = FB_FS_OK
 	return hFsFromNarrow( hTempDirNarrow( ), -1 )
 end function
 
@@ -1052,29 +1052,29 @@ private function hCreateTemp( byval prefix as FBUSTRING ptr, byval wantdir as in
 	dim as int32 attempt = any, i = any, made = any, e = any, fd = any
 	dim as uinteger n = any, at = any
 
-	if( status <> 0 ) then *status = FB_FS_OK
+	if( status <> nullptr ) then *status = FB_FS_OK
 
 	'' NO DESCRIPTOR ALLOCATED HERE -- see the file header.
 	dir_ = hTempDirNarrow( )
 	pre = hFsNarrow( prefix )
 
-	if( pre = 0 ) then
-		if( status <> 0 ) then *status = FB_FS_UNKNOWN
+	if( pre = nullptr ) then
+		if( status <> nullptr ) then *status = FB_FS_UNKNOWN
 		return TKORT_UNULL_DESC()
 	end if
 
 	for attempt = 0 to 63
 		if( tkort_FsRandomBytes( @rb(0), 8 ) <> FB_FS_OK ) then
 			free( pre )
-			if( status <> 0 ) then *status = FB_FS_UNSUPPORTED
+			if( status <> nullptr ) then *status = FB_FS_UNSUPPORTED
 			return TKORT_UNULL_DESC()
 		end if
 
 		n = u_strlen( dir_ ) + 1 + u_strlen( pre ) + 16 + 1
 		full = malloc( n )
-		if( full = 0 ) then
+		if( full = nullptr ) then
 			free( pre )
-			if( status <> 0 ) then *status = FB_FS_UNKNOWN
+			if( status <> nullptr ) then *status = FB_FS_UNKNOWN
 			return TKORT_UNULL_DESC()
 		end if
 
@@ -1120,14 +1120,14 @@ private function hCreateTemp( byval prefix as FBUSTRING ptr, byval wantdir as in
 
 		if( e <> FB_FS_ALREADY_EXISTS ) then
 			free( pre )
-			if( status <> 0 ) then *status = e
+			if( status <> nullptr ) then *status = e
 			return TKORT_UNULL_DESC()
 		end if
 	next
 
 	free( pre )
 
-	if( status <> 0 ) then *status = FB_FS_ALREADY_EXISTS
+	if( status <> nullptr ) then *status = FB_FS_ALREADY_EXISTS
 	return TKORT_UNULL_DESC()
 end function
 
@@ -1152,7 +1152,7 @@ function tkort_UStrFsSetReadOnly alias "fb_UStrFsSetReadOnly" _
 	dim as uint32 m = any, mask = any
 	dim as int32 r = FB_FS_OK
 
-	if( path_ = 0 ) then return FB_FS_UNKNOWN
+	if( path_ = nullptr ) then return FB_FS_UNKNOWN
 
 	if( u_stat( path_, @st ) <> 0 ) then
 		r = tkrt_FsMapOsError( )

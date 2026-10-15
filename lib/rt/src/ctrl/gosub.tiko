@@ -54,8 +54,8 @@ end function
 '' Discards the top return address without jumping -- RETURN's bookkeeping when
 '' the jump is not wanted.
 function tkort_GosubPop alias "fb_GosubPop" ( byval ctx as GOSUBCTX ptr ) as int32
-	if( ctx <> 0 ) then
-		if( ctx->top <> 0 ) then
+	if( ctx <> nullptr ) then
+		if( ctx->top <> nullptr ) then
 			dim as GOSUBNODE ptr node = ctx->top->nxt
 			free( ctx->top )
 			ctx->top = node
@@ -67,8 +67,8 @@ end function
 
 '' Pops and jumps. DOES NOT RETURN on success.
 function tkort_GosubReturn alias "fb_GosubReturn" ( byval ctx as GOSUBCTX ptr ) as int32
-	if( ctx <> 0 ) then
-		if( ctx->top <> 0 ) then
+	if( ctx <> nullptr ) then
+		if( ctx->top <> nullptr ) then
 			dim as GOSUBNODE ptr node = ctx->top->nxt
 			'' The copy is load-bearing: longjmp reads the buffer, and the
 			'' node is freed first, so jumping out of the node itself would
@@ -116,8 +116,8 @@ end function
 '' Scope exit: drop every pending return address. A GOSUB whose RETURN never
 '' ran leaves nodes behind, and this is the only thing that frees them.
 sub tkort_GosubExit alias "fb_GosubExit" ( byval ctx as GOSUBCTX ptr )
-	if( ctx <> 0 ) then
-		while( ctx->top <> 0 )
+	if( ctx <> nullptr ) then
+		while( ctx->top <> nullptr )
 			dim as GOSUBNODE ptr node = ctx->top->nxt
 			free( ctx->top )
 			ctx->top = node

@@ -43,34 +43,34 @@ end extern
 
 private function hCtx( ) as FB_ERRORCTX ptr
 	return cptr( FB_ERRORCTX ptr, _
-		fb_TlsGetCtx( FB_TLSKEY_ERROR, sizeof( FB_ERRORCTX ), 0 ) )
+		fb_TlsGetCtx( FB_TLSKEY_ERROR, sizeof( FB_ERRORCTX ), nullptr ) )
 end function
 
 extern "rtlib"
 
 function tkort_ErrorGetNum alias "fb_ErrorGetNum" ( ) as int32
 	dim as FB_ERRORCTX ptr c = hCtx( )
-	if( c = 0 ) then return 0
+	if( c = nullptr ) then return 0
 	return c->err_num
 end function
 
 '' Returns the NEW value -- unlike the name setters below.
 function tkort_ErrorSetNum alias "fb_ErrorSetNum" ( byval errnum as int32 ) as int32
 	dim as FB_ERRORCTX ptr c = hCtx( )
-	if( c = 0 ) then return errnum
+	if( c = nullptr ) then return errnum
 	c->err_num = errnum
 	return errnum
 end function
 
 function tkort_ErrorGetLineNum alias "fb_ErrorGetLineNum" ( ) as int32
 	dim as FB_ERRORCTX ptr c = hCtx( )
-	if( c = 0 ) then return 0
+	if( c = nullptr ) then return 0
 	return c->line_num
 end function
 
 function tkort_ErrorGetModName alias "fb_ErrorGetModName" ( ) as zstring ptr
 	dim as FB_ERRORCTX ptr c = hCtx( )
-	if( c = 0 ) then return 0
+	if( c = nullptr ) then return nullptr
 	return c->mod_name
 end function
 
@@ -78,7 +78,7 @@ end function
 function tkort_ErrorSetModName alias "fb_ErrorSetModName" _
 	( byval modname as zstring ptr ) as zstring ptr
 	dim as FB_ERRORCTX ptr c = hCtx( )
-	if( c = 0 ) then return 0
+	if( c = nullptr ) then return nullptr
 	dim as zstring ptr old = c->mod_name
 	c->mod_name = modname
 	return old
@@ -86,7 +86,7 @@ end function
 
 function tkort_ErrorGetFuncName alias "fb_ErrorGetFuncName" ( ) as zstring ptr
 	dim as FB_ERRORCTX ptr c = hCtx( )
-	if( c = 0 ) then return 0
+	if( c = nullptr ) then return nullptr
 	return c->fun_name
 end function
 
@@ -94,7 +94,7 @@ end function
 function tkort_ErrorSetFuncName alias "fb_ErrorSetFuncName" _
 	( byval funcname as zstring ptr ) as zstring ptr
 	dim as FB_ERRORCTX ptr c = hCtx( )
-	if( c = 0 ) then return 0
+	if( c = nullptr ) then return nullptr
 	dim as zstring ptr old = c->fun_name
 	c->fun_name = funcname
 	return old

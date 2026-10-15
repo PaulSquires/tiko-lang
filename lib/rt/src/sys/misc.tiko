@@ -153,7 +153,7 @@ function tkort_hConsoleGetHandle alias "fb_hConsoleGetHandle" ( byval is_input a
 		TKORT_CON_IN() = w_GetStdHandle( STD_INPUT_HANDLE_ )
 		TKORT_CON_OUT() = w_GetStdHandle( STD_OUTPUT_HANDLE_ )
 
-		if( TKORT_CON_IN() <> 0 ) then
+		if( TKORT_CON_IN() <> nullptr ) then
 			'' PROCESSED INPUT IS TURNED ON AS A SIDE EFFECT, which is what
 			'' makes Ctrl-C a console control event rather than a keystroke.
 			dim as uint32 dwMode = any
@@ -194,7 +194,7 @@ extern "c"   '' NON-FBCALL: fb_hGetShortPath and fb_hShell are internal helpers
 function tkort_hGetShortPath alias "fb_hGetShortPath" _
 	( byval src as zstring ptr, byval dst as zstring ptr, byval maxlen as integer ) as zstring ptr
 
-	if( strchr( src, 32 ) = 0 ) then
+	if( strchr( src, 32 ) = nullptr ) then
 		'' strncpy DOES NOT TERMINATE when the source fills the buffer, which is
 		'' why the byte is written back explicitly.
 		strncpy( dst, src, maxlen )
@@ -263,7 +263,7 @@ function tkort_InkeyQB alias "fb_InkeyQB" ( ) as FBSTRING ptr
 
 	'' ALL THREE CONDITIONS MATTER: a length of exactly two, and a first byte of
 	'' 255. A one-byte string is an ordinary character and must not be touched.
-	if( (res <> 0) andalso (res->data <> 0) ) then
+	if( (res <> nullptr) andalso (res->data <> nullptr) ) then
 		if( (FB_STRSIZE( res ) = 2) andalso _
 		    (cast( uint8, res->data[0] ) = FB_EXT_CHAR_) ) then
 			res->data[0] = 0

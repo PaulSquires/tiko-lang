@@ -210,7 +210,7 @@ const FB_FILE_MODE_INPUT  = 2
 const FB_FILE_MODE_OUTPUT = 3
 const FB_FILE_MODE_APPEND = 4
 
-#define TKORT_HANDLE_USED( h ) ( ((h) <> 0) andalso ((h)->hooks <> 0) )
+#define TKORT_HANDLE_USED( h ) ( ((h) <> nullptr) andalso ((h)->hooks <> nullptr) )
 
 '' FB_FILE_TYPE, in fb_file.h's order.
 const FB_FILE_TYPE_NONE    = 0

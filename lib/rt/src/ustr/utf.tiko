@@ -146,7 +146,7 @@ function tkort_hUtf8ToUtf16 alias "fb_hUtf8ToUtf16" _
 	'' identical: measure mode still counts, fill mode still truncates at
 	'' dst_units.
 	dim as integer cap = 0
-	if( dst <> 0 ) then cap = dst_units
+	if( dst <> nullptr ) then cap = dst_units
 	dim as integer used = 0
 	dim as uint32 cp = 0
 	dim as uint8 lead = any, b = any, lo = any, hi = any, lo2 = any, hi2 = any
@@ -269,7 +269,7 @@ function tkort_hUtf8ToUtf16 alias "fb_hUtf8ToUtf16" _
 
 	'' The terminator goes ONE PAST the data, at min(need, capacity) -- outside
 	'' the stated capacity, so the caller's buffer must be capacity + 1.
-	if( dst <> 0 ) then
+	if( dst <> nullptr ) then
 		if( n < dst_units ) then dst[n] = 0 else dst[dst_units] = 0
 	end if
 
@@ -328,14 +328,14 @@ function tkort_hUtf16ToUtf8 alias "fb_hUtf16ToUtf8" _
 		end if
 
 		if( cp < &h80 ) then
-			if( dst <> 0 ) then
+			if( dst <> nullptr ) then
 				if( n < dst_bytes ) then dst[n] = cast( uint8, cp )
 			end if
 			n += 1
 		elseif( cp < &h800 ) then
 			e0 = cast( uint8, &hC0 or (cp shr 6) )
 			e1 = cast( uint8, &h80 or (cp and &h3F) )
-			if( dst <> 0 ) then
+			if( dst <> nullptr ) then
 				if( n     < dst_bytes ) then dst[n]     = e0
 				if( n + 1 < dst_bytes ) then dst[n + 1] = e1
 			end if
@@ -344,7 +344,7 @@ function tkort_hUtf16ToUtf8 alias "fb_hUtf16ToUtf8" _
 			e0 = cast( uint8, &hE0 or (cp shr 12) )
 			e1 = cast( uint8, &h80 or ((cp shr 6) and &h3F) )
 			e2 = cast( uint8, &h80 or (cp and &h3F) )
-			if( dst <> 0 ) then
+			if( dst <> nullptr ) then
 				if( n     < dst_bytes ) then dst[n]     = e0
 				if( n + 1 < dst_bytes ) then dst[n + 1] = e1
 				if( n + 2 < dst_bytes ) then dst[n + 2] = e2
@@ -355,7 +355,7 @@ function tkort_hUtf16ToUtf8 alias "fb_hUtf16ToUtf8" _
 			e1 = cast( uint8, &h80 or ((cp shr 12) and &h3F) )
 			e2 = cast( uint8, &h80 or ((cp shr 6) and &h3F) )
 			e3 = cast( uint8, &h80 or (cp and &h3F) )
-			if( dst <> 0 ) then
+			if( dst <> nullptr ) then
 				if( n     < dst_bytes ) then dst[n]     = e0
 				if( n + 1 < dst_bytes ) then dst[n + 1] = e1
 				if( n + 2 < dst_bytes ) then dst[n + 2] = e2
@@ -365,7 +365,7 @@ function tkort_hUtf16ToUtf8 alias "fb_hUtf16ToUtf8" _
 		end if
 	loop
 
-	if( dst <> 0 ) then
+	if( dst <> nullptr ) then
 		if( n < dst_bytes ) then dst[n] = 0 else dst[dst_bytes] = 0
 	end if
 
@@ -397,24 +397,24 @@ function tkort_hUtf32ToUtf16 alias "fb_hUtf32ToUtf16" _
 		end if
 
 		if( cp < &h10000 ) then
-			if( dst <> 0 ) then
+			if( dst <> nullptr ) then
 				if( n < dst_units ) then dst[n] = cast( uint16, cp )
 			end if
 			n += 1
 		else
 			cp -= &h10000
-			if( dst <> 0 ) then
+			if( dst <> nullptr ) then
 				if( n < dst_units ) then dst[n] = cast( uint16, &hD800 + (cp shr 10) )
 			end if
 			n += 1
-			if( dst <> 0 ) then
+			if( dst <> nullptr ) then
 				if( n < dst_units ) then dst[n] = cast( uint16, &hDC00 + (cp and &h3FF) )
 			end if
 			n += 1
 		end if
 	loop
 
-	if( dst <> 0 ) then
+	if( dst <> nullptr ) then
 		if( n < dst_units ) then dst[n] = 0 else dst[dst_units] = 0
 	end if
 
@@ -455,13 +455,13 @@ function tkort_hUtf16ToUtf32 alias "fb_hUtf16ToUtf32" _
 			cp = u : i += 1
 		end if
 
-		if( dst <> 0 ) then
+		if( dst <> nullptr ) then
 			if( n < dst_units ) then dst[n] = cp
 		end if
 		n += 1
 	loop
 
-	if( dst <> 0 ) then
+	if( dst <> nullptr ) then
 		if( n < dst_units ) then dst[n] = 0 else dst[dst_units] = 0
 	end if
 
@@ -481,9 +481,9 @@ function tkort_hUStrCodepointAt alias "fb_hUStrCodepointAt" _
 		byval units_used as integer ptr _
 	) as uint32
 
-	if( units_used <> 0 ) then *units_used = 1
+	if( units_used <> nullptr ) then *units_used = 1
 
-	if( src = 0 ) then return 0
+	if( src = nullptr ) then return 0
 	if( i < 0 ) then return 0
 	if( i >= ln ) then return 0
 
@@ -492,7 +492,7 @@ function tkort_hUStrCodepointAt alias "fb_hUStrCodepointAt" _
 	if( TKORT_IS_HIGH_SURROGATE( u ) ) then
 		if( i + 1 < ln ) then
 			if( TKORT_IS_LOW_SURROGATE( src[i + 1] ) ) then
-				if( units_used <> 0 ) then *units_used = 2
+				if( units_used <> nullptr ) then *units_used = 2
 				return &h10000 + ((cast( uint32, u ) - &hD800) shl 10) _
 				                + (cast( uint32, src[i + 1] ) - &hDC00)
 			end if

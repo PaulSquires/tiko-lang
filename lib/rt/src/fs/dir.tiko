@@ -31,9 +31,9 @@ end extern
 
 private sub hUArg( byval s as FBUSTRING ptr, byval ptr_ as FB_UCHAR ptr ptr, byval len_ as integer ptr )
 	static as FB_UCHAR empty_(0 to 0) = { 0 }
-	if( s = 0 ) then
+	if( s = nullptr ) then
 		*ptr_ = @empty_(0) : *len_ = 0
-	elseif( s->data = 0 ) then
+	elseif( s->data = nullptr ) then
 		*ptr_ = @empty_(0) : *len_ = 0
 	else
 		*ptr_ = s->data
@@ -130,13 +130,13 @@ function tkort_UStrFsDirOpen alias "fb_UStrFsDirOpen" _
 	dim as FB_FSDIR ptr d = any
 	dim as int32 e = any
 
-	*out_ = 0
+	*out_ = nullptr
 
 	hUArg( p, @s, @len_ )
 
 	'' pattern = path + "\*", with the separator only if one is needed
 	pat = malloc( (len_ + 3) * sizeof( FB_UCHAR ) )
-	if( pat = 0 ) then return FB_FS_UNKNOWN
+	if( pat = nullptr ) then return FB_FS_UNKNOWN
 
 	if( len_ > 0 ) then memcpy( pat, s, len_ * sizeof( FB_UCHAR ) )
 	n = len_
@@ -150,7 +150,7 @@ function tkort_UStrFsDirOpen alias "fb_UStrFsDirOpen" _
 	pat[n] = 0
 
 	d = calloc( 1, sizeof( FB_FSDIR ) )
-	if( d = 0 ) then
+	if( d = nullptr ) then
 		free( pat )
 		return FB_FS_UNKNOWN
 	end if
@@ -181,7 +181,7 @@ function tkort_FsDirRead alias "fb_FsDirRead" _
 	dim as FB_UCHAR ptr nm = any
 	dim as uint32 attrs = any
 
-	if( d = 0 ) then return FB_FS_EXHAUSTED
+	if( d = nullptr ) then return FB_FS_EXHAUSTED
 	if( d->have = 0 ) then return FB_FS_EXHAUSTED
 
 	nm = hName( d )
@@ -226,7 +226,7 @@ function tkort_FsDirRead alias "fb_FsDirRead" _
 end function
 
 sub tkort_FsDirClose alias "fb_FsDirClose" ( byval d as FB_FSDIR ptr )
-	if( d = 0 ) then exit sub
+	if( d = nullptr ) then exit sub
 	if( cast( integer, d->h ) <> INVALID_HANDLE_VALUE_ ) then w_FindClose( d->h )
 	free( d )
 end sub
@@ -289,7 +289,7 @@ private function hFsNarrow( byval p as FBUSTRING ptr ) as zstring ptr
 	hUArg( p, @s, @len_ )
 	cap = len_ * 3 + 1
 	b = malloc( cap )
-	if( b = 0 ) then return 0
+	if( b = nullptr ) then return nullptr
 	n = u_utf16to8( s, len_, b, cap - 1 )
 	if( n < 0 ) then n = 0
 	b[n] = 0
@@ -314,7 +314,7 @@ private function hKindByLStat( byval d as FB_FSDIR ptr, byval name_ as zstring p
 	n = d->pathlen + 1 + cast( integer, u_strlen( name_ ) ) + 1
 
 	full = malloc( n )
-	if( full = 0 ) then return FB_FSKIND_OTHER
+	if( full = nullptr ) then return FB_FSKIND_OTHER
 
 	at = 0
 	for i = 0 to d->pathlen - 1
@@ -351,19 +351,19 @@ function tkort_UStrFsDirOpen alias "fb_UStrFsDirOpen" _
 	dim as zstring ptr path_ = any
 	dim as int32 e = any
 
-	*out_ = 0
+	*out_ = nullptr
 
 	path_ = hFsNarrow( p )
-	if( path_ = 0 ) then return FB_FS_UNKNOWN
+	if( path_ = nullptr ) then return FB_FS_UNKNOWN
 
 	h = calloc( 1, sizeof( FB_FSDIR ) )
-	if( h = 0 ) then
+	if( h = nullptr ) then
 		free( path_ )
 		return FB_FS_UNKNOWN
 	end if
 
 	h->d = u_opendir( path_ )
-	if( h->d = 0 ) then
+	if( h->d = nullptr ) then
 		e = tkrt_FsMapOsError( )
 		free( path_ )
 		free( h )
@@ -385,8 +385,8 @@ function tkort_FsDirRead alias "fb_FsDirRead" _
 	dim as uint8 dtype = any
 	dim as integer n = any
 
-	if( d = 0 ) then return FB_FS_EXHAUSTED
-	if( d->d = 0 ) then return FB_FS_EXHAUSTED
+	if( d = nullptr ) then return FB_FS_EXHAUSTED
+	if( d->d = nullptr ) then return FB_FS_EXHAUSTED
 
 	do
 		'' readdir returns NULL for both end-of-stream and error; errno is the
@@ -394,7 +394,7 @@ function tkort_FsDirRead alias "fb_FsDirRead" _
 		TKORT_ERRNO = 0
 		e = u_readdir( d->d )
 
-		if( e = 0 ) then
+		if( e = nullptr ) then
 			if( TKORT_ERRNO <> 0 ) then return tkrt_FsMapOsError( )
 			return FB_FS_EXHAUSTED
 		end if
@@ -430,8 +430,8 @@ function tkort_FsDirRead alias "fb_FsDirRead" _
 end function
 
 sub tkort_FsDirClose alias "fb_FsDirClose" ( byval d as FB_FSDIR ptr )
-	if( d = 0 ) then exit sub
-	if( d->d <> 0 ) then u_closedir( d->d )
+	if( d = nullptr ) then exit sub
+	if( d->d <> nullptr ) then u_closedir( d->d )
 	free( d->path_ )
 	free( d )
 end sub

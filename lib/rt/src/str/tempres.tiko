@@ -41,7 +41,7 @@ function tkort_StrAllocTempResult alias "fb_StrAllocTempResult" _
 	STRLOCK()
 
 	dim as FBSTRING ptr dsc = fb_hStrAllocTempDesc( )
-	if( dsc = 0 ) then
+	if( dsc = nullptr ) then
 		STRUNLOCK()
 		return TKORT_NULLSTR( )
 	end if
@@ -52,7 +52,7 @@ function tkort_StrAllocTempResult alias "fb_StrAllocTempResult" _
 	dsc->size = src->size
 
 	'' The move half: the source must not free what the result now owns.
-	src->data = 0
+	src->data = nullptr
 	src->len = 0
 	src->size = 0
 

@@ -69,11 +69,11 @@ sub tkort_hArrayDtorUStr alias "fb_hArrayDtorUStr" _
 	'' signature is shared with the object and string versions.
 	scope : dim as any ptr unused_ = dtor : end scope
 
-	if( a = 0 ) then exit sub
+	if( a = nullptr ) then exit sub
 	'' `base_ptr` is fb_array.h's `ptr`: the LOWEST-BOUND address, which is what
 	'' the element walk must start from. `index_ptr` is the biased pointer the
 	'' generated code indexes through and is NOT the allocation.
-	if( a->base_ptr = 0 ) then exit sub
+	if( a->base_ptr = nullptr ) then exit sub
 
 	elements = tkrt_ArrayLen( a )
 
@@ -81,7 +81,7 @@ sub tkort_hArrayDtorUStr alias "fb_hArrayDtorUStr" _
 	this_ = cptr( FBUSTRING ptr, a->base_ptr ) + (elements - 1)
 
 	while( elements > keep_idx )
-		if( this_->data <> 0 ) then tkrt_UStrDelete( this_ )
+		if( this_->data <> nullptr ) then tkrt_UStrDelete( this_ )
 		this_ -= 1
 		elements -= 1
 	wend
@@ -92,14 +92,14 @@ end extern
 extern "rtlib"
 
 sub tkort_ArrayDestructUStr alias "fb_ArrayDestructUStr" ( byval a as FBARRAY ptr )
-	tkort_hArrayDtorUStr( a, 0, 0 )
+	tkort_hArrayDtorUStr( a, nullptr, 0 )
 end sub
 
 sub tkort_ArrayUStrErase alias "fb_ArrayUStrErase" ( byval a as FBARRAY ptr )
 	tkort_ArrayDestructUStr( a )
 
 	'' only free the memory if it is not a fixed-length array
-	if( a <> 0 ) then
+	if( a <> nullptr ) then
 		if( (a->flags and FBARRAY_FLAGS_FIXED_LEN) = 0 ) then tkrt_ArrayErase( a )
 	end if
 end sub
@@ -140,24 +140,24 @@ extern "rtlib"
 
 function tkort_GetEnviron alias "fb_GetEnviron" ( byval varname as FBSTRING ptr ) as FBSTRING ptr
 	dim as FBSTRING ptr dst = any
-	dim as zstring ptr tmp = 0
+	dim as zstring ptr tmp = nullptr
 	dim as integer len_ = any
 
-	if( varname <> 0 ) then
-		if( varname->data <> 0 ) then tmp = c_getenv( varname->data )
+	if( varname <> nullptr ) then
+		if( varname->data <> nullptr ) then tmp = c_getenv( varname->data )
 	end if
 
 	STRLOCK()
 
-	if( tmp <> 0 ) then
+	if( tmp <> nullptr ) then
 		'' strlen, NOT a hand-rolled loop over tmp[i]: indexing a `zstring ptr`
 		'' yields a one-character STRING EXPRESSION, and the comparison that
 		'' looks like a byte test is a string conversion. The same mistake in
 		'' fs/errmsg.tiko produced a correct LENGTH and NUL contents.
 		len_ = cast( integer, c_strlen( tmp ) )
 
-		dst = tkrt_StrAllocTempNoLock( 0, len_ )
-		if( dst <> 0 ) then
+		dst = tkrt_StrAllocTempNoLock( nullptr, len_ )
+		if( dst <> nullptr ) then
 			tkrt_StrCopy( dst->data, tmp, len_ )
 		else
 			dst = TKORT_NULLSTR()
@@ -179,8 +179,8 @@ end function
 function tkort_SetEnviron alias "fb_SetEnviron" ( byval s as FBSTRING ptr ) as int32
 	dim as int32 res = 0
 
-	if( s <> 0 ) then
-		if( s->data <> 0 ) then res = c_putenv( s->data )
+	if( s <> nullptr ) then
+		if( s->data <> nullptr ) then res = c_putenv( s->data )
 	end if
 
 	tkrt_StrDelTemp( s )
@@ -232,12 +232,12 @@ function tkort_DateTimeParse alias "fb_DateTimeParse" _
 	dim as uinteger text_len = any, length_ = any
 	dim as int32 result = 0
 
-	if( s = 0 ) then return 0
+	if( s = nullptr ) then return 0
 
 	text = cptr( uint8 ptr, s->data )
 	text_len = FB_STRSIZE( s )
 
-	if( text = 0 ) then return 0
+	if( text = nullptr ) then return 0
 
 	if( tkrt_hDateParse( cptr( zstring ptr, text ), text_len, pDay, pMonth, pYear, @length_ ) <> 0 ) then
 		text += length_
@@ -294,12 +294,12 @@ end function
 
 function tkort_DateParse alias "fb_DateParse" _
 	( byval s as FBSTRING ptr, byval pDay as int32 ptr, byval pMonth as int32 ptr, byval pYear as int32 ptr ) as int32
-	return tkort_DateTimeParse( s, pDay, pMonth, pYear, 0, 0, 0, 1, 0 )
+	return tkort_DateTimeParse( s, pDay, pMonth, pYear, nullptr, nullptr, nullptr, 1, 0 )
 end function
 
 function tkort_TimeParse alias "fb_TimeParse" _
 	( byval s as FBSTRING ptr, byval pHour as int32 ptr, byval pMinute as int32 ptr, byval pSecond as int32 ptr ) as int32
-	return tkort_DateTimeParse( s, 0, 0, 0, pHour, pMinute, pSecond, 0, 1 )
+	return tkort_DateTimeParse( s, nullptr, nullptr, nullptr, pHour, pMinute, pSecond, 0, 1 )
 end function
 
 end extern

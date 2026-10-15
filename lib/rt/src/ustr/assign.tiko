@@ -67,7 +67,7 @@ function tkort_UStrAssignEx alias "fb_UStrAssignEx" _
 	STRLOCK()
 
 	'' A NULL destination still CONSUMES the source.
-	if( dst = 0 ) then
+	if( dst = nullptr ) then
 		hRelTemp( src, src_size )
 		STRUNLOCK()
 		return dst
@@ -91,7 +91,7 @@ function tkort_UStrAssignEx alias "fb_UStrAssignEx" _
 			if( is_init = 0 ) then
 				tkrt_UDelete( dstr )
 			else
-				dstr->data = 0
+				dstr->data = nullptr
 				dstr->len  = 0
 				dstr->size = 0
 			end if
@@ -110,7 +110,7 @@ function tkort_UStrAssignEx alias "fb_UStrAssignEx" _
 				dstr->size = cptr( FBUSTRING ptr, src )->size
 
 				'' Ownership has moved; leave nothing that could be freed twice.
-				cptr( FBUSTRING ptr, src )->data = 0
+				cptr( FBUSTRING ptr, src )->data = nullptr
 				cptr( FBUSTRING ptr, src )->len  = 0
 				cptr( FBUSTRING ptr, src )->size = 0
 
@@ -133,7 +133,7 @@ function tkort_UStrAssignEx alias "fb_UStrAssignEx" _
 				tkrt_UAlloc( dstr, src_len )
 			end if
 
-			if( dstr->data <> 0 ) then tkrt_UStrCopy( dstr->data, src_ptr, src_len )
+			if( dstr->data <> nullptr ) then tkrt_UStrCopy( dstr->data, src_ptr, src_len )
 		end if
 
 	elseif( (dst_size and FB_STRISFIXED) <> 0 ) then

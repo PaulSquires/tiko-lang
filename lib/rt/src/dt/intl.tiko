@@ -90,7 +90,7 @@ function tkort_IntlGet alias "fb_IntlGet" _
 
 	if( (tkrt_I18nGet( ) <> 0) andalso (disallow_localized = 0) ) then
 		dim as zstring ptr pszResult = tkrt_DrvIntlGet( index_ )
-		if( pszResult <> 0 ) then return pszResult
+		if( pszResult <> nullptr ) then return pszResult
 	end if
 
 	select case index_
@@ -100,7 +100,7 @@ function tkort_IntlGet alias "fb_IntlGet" _
 	case eFIL_NumThousandsSeparator : return @","
 	end select
 
-	return 0
+	return nullptr
 end function
 
 '' ------------------------------------------------------------- the formats
@@ -146,11 +146,11 @@ function tkort_IntlGetMonthName alias "fb_IntlGetMonthName" _
 
 	dim as FBSTRING ptr res = any
 
-	if( (month_ < 1) orelse (month_ > 12) ) then return 0
+	if( (month_ < 1) orelse (month_ > 12) ) then return nullptr
 
 	if( (tkrt_I18nGet( ) <> 0) andalso (disallow_localized = 0) ) then
 		res = tkrt_DrvIntlGetMonthName( month_, short_names )
-		if( res <> 0 ) then return res
+		if( res <> nullptr ) then return res
 	end if
 
 	if( short_names <> 0 ) then
@@ -161,7 +161,7 @@ function tkort_IntlGetMonthName alias "fb_IntlGetMonthName" _
 
 	'' THE NULL DESCRIPTOR IS THE ALLOCATION FAILURE, and the caller has to be
 	'' able to tell it from a real name -- so it is reported as NULL.
-	if( res = TKORT_NULLSTR() ) then return 0
+	if( res = TKORT_NULLSTR() ) then return nullptr
 	return res
 end function
 
@@ -171,11 +171,11 @@ function tkort_IntlGetWeekdayName alias "fb_IntlGetWeekdayName" _
 
 	dim as FBSTRING ptr res = any
 
-	if( (weekday_ < 1) orelse (weekday_ > 7) ) then return 0
+	if( (weekday_ < 1) orelse (weekday_ > 7) ) then return nullptr
 
 	if( (tkrt_I18nGet( ) <> 0) andalso (disallow_localized = 0) ) then
 		res = tkrt_DrvIntlGetWeekdayName( weekday_, short_names )
-		if( res <> 0 ) then return res
+		if( res <> nullptr ) then return res
 	end if
 
 	if( short_names <> 0 ) then
@@ -184,7 +184,7 @@ function tkort_IntlGetWeekdayName alias "fb_IntlGetWeekdayName" _
 		res = tkrt_StrAllocTempDescZ( pszWeekdayNamesLong(weekday_ - 1) )
 	end if
 
-	if( res = TKORT_NULLSTR() ) then return 0
+	if( res = TKORT_NULLSTR() ) then return nullptr
 	return res
 end function
 

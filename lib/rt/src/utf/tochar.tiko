@@ -54,7 +54,7 @@ function tkort_UTF8ToChar alias "fb_hUTF8ToChar" _
 	dim as uint8 ptr buffer = dst
 	dim as uint8 ptr newbuffer = any
 
-	if( dst = 0 ) then
+	if( dst = nullptr ) then
 		dst_size = 0
 		charsleft = 0
 		do
@@ -76,9 +76,9 @@ function tkort_UTF8ToChar alias "fb_hUTF8ToChar" _
 				charsleft = TKORT_UTF_GROW
 				dst_size += charsleft
 				newbuffer = realloc( buffer, dst_size )
-				if( newbuffer = 0 ) then
+				if( newbuffer = nullptr ) then
 					free( buffer )
-					return 0
+					return nullptr
 				end if
 				buffer = newbuffer
 				dst = buffer + dst_size - charsleft
@@ -127,7 +127,7 @@ function tkort_UTF16ToChar alias "fb_hUTF16ToChar" _
 	dim as uint8 ptr buffer = dst
 	dim as uint8 ptr newbuffer = any
 
-	if( dst = 0 ) then
+	if( dst = nullptr ) then
 		dst_size = 0
 		charsleft = 0
 		do
@@ -143,9 +143,9 @@ function tkort_UTF16ToChar alias "fb_hUTF16ToChar" _
 				charsleft = TKORT_UTF_GROW
 				dst_size += charsleft
 				newbuffer = realloc( buffer, dst_size )
-				if( newbuffer = 0 ) then
+				if( newbuffer = nullptr ) then
 					free( buffer )
-					return 0
+					return nullptr
 				end if
 				buffer = newbuffer
 				dst = buffer + dst_size - charsleft
@@ -185,7 +185,7 @@ function tkort_UTF32ToChar alias "fb_hUTF32ToChar" _
 	dim as uint8 ptr buffer = dst
 	dim as uint8 ptr newbuffer = any
 
-	if( dst = 0 ) then
+	if( dst = nullptr ) then
 		dst_size = 0
 		charsleft = 0
 		do
@@ -196,9 +196,9 @@ function tkort_UTF32ToChar alias "fb_hUTF32ToChar" _
 				charsleft = TKORT_UTF_GROW
 				dst_size += charsleft
 				newbuffer = realloc( buffer, dst_size )
-				if( newbuffer = 0 ) then
+				if( newbuffer = nullptr ) then
 					free( buffer )
-					return 0
+					return nullptr
 				end if
 				buffer = newbuffer
 				dst = buffer + dst_size - charsleft
@@ -239,7 +239,7 @@ function tkort_UTFToChar alias "fb_UTFToChar" _
 	case FB_FILE_ENCOD_UTF32
 		return tkort_UTF32ToChar( src, dst, chars )
 	end select
-	return 0
+	return nullptr
 end function
 
 end extern

@@ -234,7 +234,7 @@ end extern
 private function hStrDup( byval s as zstring ptr ) as zstring ptr
 	dim as uinteger n = strlen( s )
 	dim as zstring ptr p = cast( zstring ptr, malloc( n + 1 ) )
-	if( p = 0 ) then return 0
+	if( p = nullptr ) then return nullptr
 	memcpy( p, s, n + 1 )
 	return p
 end function
@@ -320,9 +320,9 @@ private sub hGetNumberParts _
 		len_fix = sprintf( pachFixPart, @"%llu", ullFix )
 	end if
 
-	if( pcchLenFix <> 0 ) then *pcchLenFix = len_fix
-	if( pcchLenFrac <> 0 ) then *pcchLenFrac = len_frac
-	if( pchSign <> 0 ) then *pchSign = chSign
+	if( pcchLenFix <> nullptr ) then *pcchLenFix = len_fix
+	if( pcchLenFrac <> nullptr ) then *pcchLenFrac = len_frac
+	if( pchSign <> nullptr ) then *pchSign = chSign
 end sub
 
 '' ---------------------------------------------------------- fb_hBuildDouble
@@ -347,8 +347,8 @@ private function hBuildDouble _
 	LenDecPoint = iif( LenFrac <> 0, 1, 0 )
 	LenTotal = LenSign + LenFix + LenDecPoint + LenFrac
 
-	dst = tkrt_hStrAllocTemp( 0, LenTotal )
-	if( dst <> 0 ) then
+	dst = tkrt_hStrAllocTemp( nullptr, LenTotal )
+	if( dst <> nullptr ) then
 		if( LenSign <> 0 ) then dst->data[0] = chSign
 		memcpy( dst->data + LenSign, @FixPart, LenFix )
 		if( LenDecPoint <> 0 ) then dst->data[LenSign + LenFix] = decimal_point
@@ -436,7 +436,7 @@ private function hProcessMask _
 	dim as int32 do_skip = 0, do_exp = 0, do_string = 0
 	dim as int32 did_sign = 0, did_exp = 0, did_hour = 0, did_thousandsep = 0
 	dim as int32 do_num_frac = 0, last_was_comma = 0, was_k_div = 0
-	dim as int32 do_output = iif( dst <> 0, 1, 0 )
+	dim as int32 do_output = iif( dst <> nullptr, 1, 0 )
 	dim as int32 do_add = 0
 	dim as integer LenOut = any
 	dim as uint8 ptr pszOut = any
@@ -445,7 +445,7 @@ private function hProcessMask _
 
 	if( do_output = 0 ) then
 		memset( pInfo, 0, sizeof( FormatMaskInfo ) )
-		pszOut = 0
+		pszOut = nullptr
 		LenOut = 0
 	else
 		if( pInfo->mask_type = eMT_Number_ ) then
@@ -565,7 +565,7 @@ private function hProcessMask _
 	i = 0
 	while( i <> mask_length )
 		dim as uint8 ptr pszAdd = pmask + i
-		dim as zstring ptr pszAddFree = 0
+		dim as zstring ptr pszAddFree = nullptr
 		dim as integer LenAdd = 1
 		dim as uint8 chCurrent = pszAdd[0]
 
@@ -1220,12 +1220,12 @@ private function hProcessMask _
 
 		if( do_add <> 0 ) then
 			do_add = 0
-			if( pszAddFree <> 0 ) then pszAdd = cast( uint8 ptr, pszAddFree )
+			if( pszAddFree <> nullptr ) then pszAdd = cast( uint8 ptr, pszAddFree )
 			if( LenAdd = 0 ) then LenAdd = strlen( cast( zstring ptr, pszAdd ) )
 			memcpy( pszOut, pszAdd, LenAdd )
 			pszOut += LenAdd
 			LenOut -= LenAdd
-			if( pszAddFree <> 0 ) then free( pszAddFree )
+			if( pszAddFree <> nullptr ) then free( pszAddFree )
 		end if
 
 		i += 1
@@ -1289,28 +1289,28 @@ function tkort_hStrFormat alias "fb_hStrFormat" _
 	'' trap made all six trims in src/str/trimex.tiko differ at once -- there it
 	'' COMPILED, and silently turned every character into 0.
 	pszIntlResult = tkrt_IntlGet( eFIL_NumDecimalPoint_, 0 )
-	if( pszIntlResult = 0 ) then
+	if( pszIntlResult = nullptr ) then
 		chDecimalPoint = 46
 	else
 		chDecimalPoint = cptr( uint8 ptr, pszIntlResult )[0]
 	end if
 
 	pszIntlResult = tkrt_IntlGet( eFIL_NumThousandsSeparator_, 0 )
-	if( pszIntlResult = 0 ) then
+	if( pszIntlResult = nullptr ) then
 		chThousandsSep = 44
 	else
 		chThousandsSep = cptr( uint8 ptr, pszIntlResult )[0]
 	end if
 
 	pszIntlResult = tkrt_IntlGet( eFIL_DateDivider_, 0 )
-	if( pszIntlResult = 0 ) then
+	if( pszIntlResult = nullptr ) then
 		chDateSep = 47
 	else
 		chDateSep = cptr( uint8 ptr, pszIntlResult )[0]
 	end if
 
 	pszIntlResult = tkrt_IntlGet( eFIL_TimeDivider_, 0 )
-	if( pszIntlResult = 0 ) then
+	if( pszIntlResult = nullptr ) then
 		chTimeSep = 58
 	else
 		chTimeSep = cptr( uint8 ptr, pszIntlResult )[0]
@@ -1324,17 +1324,17 @@ function tkort_hStrFormat alias "fb_hStrFormat" _
 	if( chDecimalPoint = 0 ) then chDecimalPoint = 46
 	if( chThousandsSep = 0 ) then chThousandsSep = 44
 
-	if( (mask = 0) orelse (mask_length = 0) ) then
+	if( (mask = nullptr) orelse (mask_length = 0) ) then
 		'' NO MASK IS A DIFFERENT FUNCTION -- see the file header.
 		dst = hBuildDouble( value, chDecimalPoint, 0 )
 	else
 		dim as FormatMaskInfo info
 
 		'' PASS ONE: measure.
-		if( hProcessMask( 0, mask, cast( integer, mask_length ), value, @info, _
+		if( hProcessMask( nullptr, mask, cast( integer, mask_length ), value, @info, _
 		                  chThousandsSep, chDecimalPoint, chDateSep, chTimeSep ) <> 0 ) then
-			dst = tkrt_hStrAllocTemp( 0, info.length_min + info.length_opt )
-			if( dst = 0 ) then
+			dst = tkrt_hStrAllocTemp( nullptr, info.length_min + info.length_opt )
+			if( dst = nullptr ) then
 				tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
 				dst = TKORT_NULLSTR()
 			else

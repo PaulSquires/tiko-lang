@@ -126,7 +126,7 @@ private function hCheckAMPM( byval text_ as uint8 ptr, byval pLength as uinteger
 		while( TKORT_ISSPACE( *text_ ) )
 			text_ += 1
 		wend
-		if( pLength <> 0 ) then *pLength = cast( uinteger, text_ - text_start )
+		if( pLength <> nullptr ) then *pLength = cast( uinteger, text_ - text_start )
 	end if
 
 	return result_
@@ -225,10 +225,10 @@ function tkort_hTimeParse alias "fb_hTimeParse" _
 	'' held, which is why fb_TimeValue initialises nothing and relies on the
 	'' return.
 	if( result_ <> FALSE_ ) then
-		if( pHour <> 0 )   then *pHour = hour_
-		if( pMinute <> 0 ) then *pMinute = minute_
-		if( pSecond <> 0 ) then *pSecond = second_
-		if( pLength <> 0 ) then *pLength = length_
+		if( pHour <> nullptr )   then *pHour = hour_
+		if( pMinute <> nullptr ) then *pMinute = minute_
+		if( pSecond <> nullptr ) then *pSecond = second_
+		if( pLength <> nullptr ) then *pLength = length_
 	end if
 
 	return result_
@@ -252,7 +252,7 @@ private function hIsMonth( byval text_ as uint8 ptr, byval text_len as uinteger,
 	for month_ = 1 to 12
 		dim as FBSTRING ptr sMonthName = tkrt_IntlGetMonthName( month_, short_name, _
 		                                                        iif( localized <> 0, 0, 1 ) )
-		if( sMonthName = 0 ) then continue for
+		if( sMonthName = nullptr ) then continue for
 
 		dim as uinteger month_len = FB_STRSIZE( sMonthName )
 		dim as uinteger len_ = iif( text_len < month_len, text_len, month_len )
@@ -283,7 +283,7 @@ private function hIsMonth( byval text_ as uint8 ptr, byval text_len as uinteger,
 		month_ = 0
 	end if
 
-	if( end_text <> 0 ) then *end_text = txt_end
+	if( end_text <> nullptr ) then *end_text = txt_end
 
 	return month_
 end function
@@ -347,9 +347,9 @@ private function hDateOrder( byval pOrderDay as int32 ptr, byval pOrderMonth as 
 	    (order_month = order_year) ) then return FALSE_
 	if( (order_day > 2) orelse (order_month > 2) orelse (order_year > 2) ) then return FALSE_
 
-	if( pOrderDay <> 0 )   then *pOrderDay = order_day
-	if( pOrderMonth <> 0 ) then *pOrderMonth = order_month
-	if( pOrderYear <> 0 )  then *pOrderYear = order_year
+	if( pOrderDay <> nullptr )   then *pOrderDay = order_day
+	if( pOrderMonth <> nullptr ) then *pOrderMonth = order_month
+	if( pOrderYear <> nullptr )  then *pOrderYear = order_year
 
 	return TRUE_
 end function
@@ -521,10 +521,10 @@ function tkort_hDateParse alias "fb_hDateParse" _
 	if( result_ <> FALSE_ ) then
 		length_ = cast( uinteger, t - text_start )
 
-		if( pDay <> 0 )    then *pDay = day_
-		if( pMonth <> 0 )  then *pMonth = month_
-		if( pYear <> 0 )   then *pYear = year_
-		if( pLength <> 0 ) then *pLength = length_
+		if( pDay <> nullptr )    then *pDay = day_
+		if( pMonth <> nullptr )  then *pMonth = month_
+		if( pYear <> nullptr )   then *pYear = year_
+		if( pLength <> nullptr ) then *pLength = length_
 	end if
 
 	return result_

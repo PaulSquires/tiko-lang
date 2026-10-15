@@ -121,7 +121,7 @@ end extern
 #define TKORT_BYTE( p, i ) (cptr( uint8 ptr, p )[i])
 
 #define TKORT_PATLEN( pattern ) _
-	iif( ((pattern) <> 0) andalso ((pattern)->data <> 0), FB_STRSIZE( pattern ), 0 )
+	iif( ((pattern) <> nullptr) andalso ((pattern)->data <> nullptr), FB_STRSIZE( pattern ), 0 )
 
 extern "rtlib"   '' FBCALL: every entry point below is decorated in fb_string.h,
                  '' EXCEPT fb_CHR, which is variadic -- see the file header and
@@ -133,12 +133,12 @@ extern "rtlib"   '' FBCALL: every entry point below is decorated in fb_string.h,
 function tkort_TrimAny alias "fb_TrimAny" _
 	( byval src as FBSTRING ptr, byval pattern as FBSTRING ptr ) as FBSTRING ptr
 
-	dim as zstring ptr pachText = 0
+	dim as zstring ptr pachText = nullptr
 	dim as FBSTRING ptr dst = any
 	dim as integer l = any
 
 	'' BEFORE THE LOCK, so this is the LOCKING delete -- see the file header.
-	if( src = 0 ) then
+	if( src = nullptr ) then
 		tkrt_hStrDelTemp( pattern )
 		return TKORT_NULLSTR()
 	end if
@@ -146,7 +146,7 @@ function tkort_TrimAny alias "fb_TrimAny" _
 	STRLOCK()
 
 	l = 0
-	if( src->data <> 0 ) then
+	if( src->data <> nullptr ) then
 		dim as integer len_pattern = TKORT_PATLEN( pattern )
 		pachText = src->data
 		l = FB_STRSIZE( src )
@@ -154,7 +154,7 @@ function tkort_TrimAny alias "fb_TrimAny" _
 		if( len_pattern <> 0 ) then
 			'' FROM THE FRONT: advance while the character is in the set.
 			while( l <> 0 )
-				if( memchr( pattern->data, cast( int32, cptr( uint8 ptr, pachText )[0] ), len_pattern ) = 0 ) then exit while
+				if( memchr( pattern->data, cast( int32, cptr( uint8 ptr, pachText )[0] ), len_pattern ) = nullptr ) then exit while
 				l -= 1
 				pachText += 1
 			wend
@@ -164,7 +164,7 @@ function tkort_TrimAny alias "fb_TrimAny" _
 			'' rather than one past it.
 			while( l <> 0 )
 				l -= 1
-				if( memchr( pattern->data, cast( int32, cptr( uint8 ptr, pachText )[l] ), len_pattern ) = 0 ) then
+				if( memchr( pattern->data, cast( int32, cptr( uint8 ptr, pachText )[l] ), len_pattern ) = nullptr ) then
 					l += 1
 					exit while
 				end if
@@ -173,8 +173,8 @@ function tkort_TrimAny alias "fb_TrimAny" _
 	end if
 
 	if( l > 0 ) then
-		dst = tkrt_hStrAllocTemp_NoLock( 0, l )
-		if( dst <> 0 ) then
+		dst = tkrt_hStrAllocTemp_NoLock( nullptr, l )
+		if( dst <> nullptr ) then
 			tkrt_hStrCopy( dst->data, pachText, l )
 		else
 			dst = TKORT_NULLSTR()
@@ -194,11 +194,11 @@ end function
 function tkort_LTrimAny alias "fb_LTrimAny" _
 	( byval src as FBSTRING ptr, byval pattern as FBSTRING ptr ) as FBSTRING ptr
 
-	dim as zstring ptr pachText = 0
+	dim as zstring ptr pachText = nullptr
 	dim as FBSTRING ptr dst = any
 	dim as integer l = any
 
-	if( src = 0 ) then
+	if( src = nullptr ) then
 		tkrt_hStrDelTemp( pattern )
 		return TKORT_NULLSTR()
 	end if
@@ -206,14 +206,14 @@ function tkort_LTrimAny alias "fb_LTrimAny" _
 	STRLOCK()
 
 	l = 0
-	if( src->data <> 0 ) then
+	if( src->data <> nullptr ) then
 		dim as integer len_pattern = TKORT_PATLEN( pattern )
 		pachText = src->data
 		l = FB_STRSIZE( src )
 
 		if( len_pattern <> 0 ) then
 			while( l <> 0 )
-				if( memchr( pattern->data, cast( int32, cptr( uint8 ptr, pachText )[0] ), len_pattern ) = 0 ) then exit while
+				if( memchr( pattern->data, cast( int32, cptr( uint8 ptr, pachText )[0] ), len_pattern ) = nullptr ) then exit while
 				l -= 1
 				pachText += 1
 			wend
@@ -221,8 +221,8 @@ function tkort_LTrimAny alias "fb_LTrimAny" _
 	end if
 
 	if( l > 0 ) then
-		dst = tkrt_hStrAllocTemp_NoLock( 0, l )
-		if( dst <> 0 ) then
+		dst = tkrt_hStrAllocTemp_NoLock( nullptr, l )
+		if( dst <> nullptr ) then
 			tkrt_hStrCopy( dst->data, pachText, l )
 		else
 			dst = TKORT_NULLSTR()
@@ -244,11 +244,11 @@ end function
 function tkort_RTrimAny alias "fb_RTrimAny" _
 	( byval src as FBSTRING ptr, byval pattern as FBSTRING ptr ) as FBSTRING ptr
 
-	dim as zstring ptr pachText = 0
+	dim as zstring ptr pachText = nullptr
 	dim as FBSTRING ptr dst = any
 	dim as integer l = any
 
-	if( src = 0 ) then
+	if( src = nullptr ) then
 		tkrt_hStrDelTemp( pattern )
 		return TKORT_NULLSTR()
 	end if
@@ -256,7 +256,7 @@ function tkort_RTrimAny alias "fb_RTrimAny" _
 	STRLOCK()
 
 	l = 0
-	if( src->data <> 0 ) then
+	if( src->data <> nullptr ) then
 		dim as integer len_pattern = TKORT_PATLEN( pattern )
 		pachText = src->data
 		l = FB_STRSIZE( src )
@@ -264,7 +264,7 @@ function tkort_RTrimAny alias "fb_RTrimAny" _
 		if( len_pattern <> 0 ) then
 			while( l <> 0 )
 				l -= 1
-				if( memchr( pattern->data, cast( int32, cptr( uint8 ptr, pachText )[l] ), len_pattern ) = 0 ) then
+				if( memchr( pattern->data, cast( int32, cptr( uint8 ptr, pachText )[l] ), len_pattern ) = nullptr ) then
 					l += 1
 					exit while
 				end if
@@ -273,8 +273,8 @@ function tkort_RTrimAny alias "fb_RTrimAny" _
 	end if
 
 	if( l > 0 ) then
-		dst = tkrt_hStrAllocTemp_NoLock( 0, l )
-		if( dst <> 0 ) then
+		dst = tkrt_hStrAllocTemp_NoLock( nullptr, l )
+		if( dst <> nullptr ) then
 			tkrt_hStrCopy( dst->data, pachText, l )
 		else
 			dst = TKORT_NULLSTR()
@@ -301,16 +301,16 @@ function tkort_TrimEx alias "fb_TrimEx" _
 
 	dim as FBSTRING ptr dst = any
 	dim as integer l = any
-	dim as zstring ptr src_ptr = 0
+	dim as zstring ptr src_ptr = nullptr
 
-	if( src = 0 ) then
+	if( src = nullptr ) then
 		tkrt_hStrDelTemp( pattern )
 		return TKORT_NULLSTR()
 	end if
 
 	STRLOCK()
 
-	if( src->data <> 0 ) then
+	if( src->data <> nullptr ) then
 		dim as integer len_pattern = TKORT_PATLEN( pattern )
 		l = FB_STRSIZE( src )
 		src_ptr = src->data
@@ -358,8 +358,8 @@ function tkort_TrimEx alias "fb_TrimEx" _
 	end if
 
 	if( l > 0 ) then
-		dst = tkrt_hStrAllocTemp_NoLock( 0, l )
-		if( dst <> 0 ) then
+		dst = tkrt_hStrAllocTemp_NoLock( nullptr, l )
+		if( dst <> nullptr ) then
 			tkrt_hStrCopy( dst->data, src_ptr, l )
 		else
 			dst = TKORT_NULLSTR()
@@ -381,16 +381,16 @@ function tkort_LTrimEx alias "fb_LTrimEx" _
 
 	dim as FBSTRING ptr dst = any
 	dim as integer l = any
-	dim as zstring ptr src_ptr = 0
+	dim as zstring ptr src_ptr = nullptr
 
-	if( src = 0 ) then
+	if( src = nullptr ) then
 		tkrt_hStrDelTemp( pattern )
 		return TKORT_NULLSTR()
 	end if
 
 	STRLOCK()
 
-	if( src->data <> 0 ) then
+	if( src->data <> nullptr ) then
 		dim as integer len_pattern = TKORT_PATLEN( pattern )
 		l = FB_STRSIZE( src )
 		src_ptr = src->data
@@ -412,8 +412,8 @@ function tkort_LTrimEx alias "fb_LTrimEx" _
 	end if
 
 	if( l > 0 ) then
-		dst = tkrt_hStrAllocTemp_NoLock( 0, l )
-		if( dst <> 0 ) then
+		dst = tkrt_hStrAllocTemp_NoLock( nullptr, l )
+		if( dst <> nullptr ) then
 			tkrt_hStrCopy( dst->data, src_ptr, l )
 		else
 			dst = TKORT_NULLSTR()
@@ -437,14 +437,14 @@ function tkort_RTrimEx alias "fb_RTrimEx" _
 	dim as FBSTRING ptr dst = any
 	dim as integer l = any
 
-	if( src = 0 ) then
+	if( src = nullptr ) then
 		tkrt_hStrDelTemp( pattern )
 		return TKORT_NULLSTR()
 	end if
 
 	STRLOCK()
 
-	if( src->data <> 0 ) then
+	if( src->data <> nullptr ) then
 		dim as integer len_pattern = TKORT_PATLEN( pattern )
 		l = FB_STRSIZE( src )
 
@@ -468,8 +468,8 @@ function tkort_RTrimEx alias "fb_RTrimEx" _
 	end if
 
 	if( l > 0 ) then
-		dst = tkrt_hStrAllocTemp_NoLock( 0, l )
-		if( dst <> 0 ) then
+		dst = tkrt_hStrAllocTemp_NoLock( nullptr, l )
+		if( dst <> nullptr ) then
 			tkrt_hStrCopy( dst->data, src->data, l )
 		else
 			dst = TKORT_NULLSTR()
@@ -495,8 +495,8 @@ function tkort_SPACE alias "fb_SPACE" ( byval l as integer ) as FBSTRING ptr
 	dim as FBSTRING ptr dst = any
 
 	if( l > 0 ) then
-		dst = tkrt_hStrAllocTemp( 0, l )
-		if( dst <> 0 ) then
+		dst = tkrt_hStrAllocTemp( nullptr, l )
+		if( dst <> nullptr ) then
 			memset( dst->data, 32, l )
 			dst->data[l] = 0
 		else
@@ -515,13 +515,13 @@ end function
 '' See the file header on why fbc never emits a call to this.
 sub tkort_LEFTSELF alias "fb_LEFTSELF" ( byval src as FBSTRING ptr, byval chars as integer )
 
-	if( src = 0 ) then exit sub
+	if( src = nullptr ) then exit sub
 
 	STRLOCK()
 
 	dim as integer src_len = FB_STRSIZE( src )
 
-	if( (src->data <> 0) andalso (chars >= 0) andalso (src_len >= 0) ) then
+	if( (src->data <> nullptr) andalso (chars >= 0) andalso (src_len >= 0) ) then
 		if( chars > src_len ) then
 			'' SETS THE LENGTH IT ALREADY HAD -- the branch exists to refuse to
 			'' grow, not to do anything here.
@@ -576,8 +576,8 @@ function tkort_CHR alias "fb_CHR" ( byval args as int32, ... ) as FBSTRING ptr
 
 	cva_start( ap, args )
 
-	dst = tkrt_hStrAllocTemp( 0, args )
-	if( dst <> 0 ) then
+	dst = tkrt_hStrAllocTemp( nullptr, args )
+	if( dst <> nullptr ) then
 		for i as integer = 0 to args - 1
 			'' READ AS `unsigned int` -- the default promotion for every
 			'' integer type narrower than int, which is what the caller's

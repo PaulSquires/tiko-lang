@@ -78,9 +78,9 @@ sub tkort_PrintStringEx alias "fb_PrintStringEx" _
 
 	'' A NULL descriptor and a NULL data pointer are both "nothing to print",
 	'' and both still emit the newline -- which is what makes PRINT "" work.
-	if( s = 0 ) then
+	if( s = nullptr ) then
 		tkort_PrintVoidEx( h, mask )
-	elseif( s->data = 0 ) then
+	elseif( s->data = nullptr ) then
 		tkort_PrintVoidEx( h, mask )
 	else
 		hPrintStrEx( h, s->data, FB_STRSIZE( s ), mask )
@@ -96,7 +96,7 @@ end sub
 '' to release because a fixed-length string is not one.
 sub tkort_PrintFixStringEx alias "fb_PrintFixStringEx" _
 	( byval h as FB_FILE ptr, byval s as zstring ptr, byval mask as int32 )
-	if( s = 0 ) then
+	if( s = nullptr ) then
 		tkort_PrintVoidEx( h, mask )
 	else
 		hPrintStrEx( h, s, strlen( s ), mask )
@@ -152,7 +152,7 @@ sub tkort_PrintPadEx alias "fb_PrintPadEx" ( byval h as FB_FILE ptr, byval mask 
 	'' GEOMETRY COMES FROM THE DEREFERENCED HANDLE, writing goes to the original
 	'' -- OPEN "SCRN:" makes those two different objects.
 	dim as FB_FILE ptr t = tkort_HandleDeref( h )
-	if( t = 0 ) then exit sub
+	if( t = nullptr ) then exit sub
 
 	dim as int32 old_x = cast( int32, t->line_length ) + 1
 	dim as int32 new_x = old_x + FB_TAB_WIDTH - 1

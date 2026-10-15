@@ -103,7 +103,7 @@ private sub hEnsureCtx( )
 	ctx_.rndproc = @hRnd_Startup
 	ctx_.rndproc32 = @hRnd_Startup32
 	ctx_.iseed64 = 0
-	ctx_.index32 = 0
+	ctx_.index32 = nullptr
 	ctx_inited = 1
 end sub
 
@@ -133,7 +133,7 @@ end function
 private sub hRndCtxInitCRT32( byval seed as uint32 )
 	ctx_.algorithm = FB_RND_CRT
 	ctx_.length_ = 0
-	ctx_.index32 = 0
+	ctx_.index32 = nullptr
 	ctx_.rndproc = @hRnd_CRT
 	ctx_.rndproc32 = @hRnd_CRT32
 	srand( seed )
@@ -156,7 +156,7 @@ end function
 private sub hRndCtxInitFAST32( byval seed as uint32 )
 	ctx_.algorithm = FB_RND_FAST
 	ctx_.length_ = 0
-	ctx_.index32 = 0
+	ctx_.index32 = nullptr
 	TKORT_ISEED32( ctx_ ) = seed
 	ctx_.rndproc = @hRnd_FAST
 	ctx_.rndproc32 = @hRnd_FAST32
@@ -174,7 +174,7 @@ private function hRnd_MTWIST32 cdecl ( ) as uint32
 	dim as uint32 i = any, v = any
 	static as uint32 xor_mask(0 to 1) = { 0, &h9908B0DF }
 
-	if( ctx_.index32 = 0 ) then
+	if( ctx_.index32 = nullptr ) then
 		hRndCtxInitMTWIST32( INITIAL_SEED )
 	end if
 
@@ -246,7 +246,7 @@ end function
 private sub hRndCtxInitQB32( byval seed as uint32 )
 	ctx_.algorithm = FB_RND_QB
 	ctx_.length_ = 0
-	ctx_.index32 = 0
+	ctx_.index32 = nullptr
 	TKORT_ISEED32( ctx_ ) = seed
 	ctx_.rndproc = @hRnd_QB
 	ctx_.rndproc32 = @hRnd_QB32
@@ -297,8 +297,8 @@ private function hRefillRealRndNumber( ) as int32
 	dim as int32 success = 0
 
 	#if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
-		dim as any ptr provider = 0
-		if( CryptAcquireContextA( @provider, 0, 0, PROV_RSA_FULL, 0 ) <> 0 ) then
+		dim as any ptr provider = nullptr
+		if( CryptAcquireContextA( @provider, nullptr, nullptr, PROV_RSA_FULL, 0 ) <> 0 ) then
 			success = CryptGenRandom( provider, MAX_STATE * 4, cptr( uint8 ptr, @ctx_.state32(0) ) )
 			CryptReleaseContext( provider, 0 )
 		end if

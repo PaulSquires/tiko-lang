@@ -157,11 +157,11 @@ private sub tkort_mouse_exit cdecl ( )
 	if( TKORT_CON_L( TKORT_CON_INITED ) <> INIT_CONSOLE3_ ) then
 		tkrt_hTermOut3( SEQ_EXIT_XMOUSE_, 0, 0 )
 		tkrt_hXTermExitFocus3( )
-		TKORT_CON_P( TKORT_CON_MOUSEUPDATE ) = 0
+		TKORT_CON_P( TKORT_CON_MOUSEUPDATE ) = nullptr
 	end if
 
-	TKORT_CON_P( TKORT_CON_MOUSEHANDLER ) = 0
-	TKORT_CON_P( TKORT_CON_MOUSEEXIT ) = 0
+	TKORT_CON_P( TKORT_CON_MOUSEHANDLER ) = nullptr
+	TKORT_CON_P( TKORT_CON_MOUSEEXIT ) = nullptr
 end sub
 
 extern "c"   '' NON-FBCALL: fb_private_console.h declares both plainly.
@@ -173,11 +173,11 @@ function tkort_ConsoleGetMouse alias "fb_ConsoleGetMouse" _
 	  byval buttons as int32 ptr, byval clip as int32 ptr ) as int32
 
 	if( TKORT_CON_L( TKORT_CON_INITED ) = 0 ) then
-		if( x <> 0 ) then *x = -1
-		if( y <> 0 ) then *y = -1
-		if( z <> 0 ) then *z = -1
-		if( buttons <> 0 ) then *buttons = -1
-		if( clip <> 0 ) then *clip = -1
+		if( x <> nullptr ) then *x = -1
+		if( y <> nullptr ) then *y = -1
+		if( z <> nullptr ) then *z = -1
+		if( buttons <> nullptr ) then *buttons = -1
+		if( clip <> nullptr ) then *clip = -1
 		return tkrt_ErrorSetNum3( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
 
@@ -185,17 +185,17 @@ function tkort_ConsoleGetMouse alias "fb_ConsoleGetMouse" _
 
 	tkrt_hStartBgThread3( )
 
-	if( TKORT_CON_P( TKORT_CON_MOUSEHANDLER ) = 0 ) then
+	if( TKORT_CON_P( TKORT_CON_MOUSEHANDLER ) = nullptr ) then
 		if( tkort_mouse_init( ) = 0 ) then
 			TKORT_CON_P( TKORT_CON_MOUSEINIT ) = cast( uint8 ptr, @tkort_mouse_init )
 			TKORT_CON_P( TKORT_CON_MOUSEEXIT ) = cast( uint8 ptr, @tkort_mouse_exit )
 			TKORT_CON_P( TKORT_CON_MOUSEHANDLER ) = cast( uint8 ptr, @tkort_mouse_handler )
 		else
-			if( x <> 0 ) then *x = -1
-			if( y <> 0 ) then *y = -1
-			if( z <> 0 ) then *z = -1
-			if( buttons <> 0 ) then *buttons = -1
-			if( clip <> 0 ) then *clip = -1
+			if( x <> nullptr ) then *x = -1
+			if( y <> nullptr ) then *y = -1
+			if( z <> nullptr ) then *z = -1
+			if( buttons <> nullptr ) then *buttons = -1
+			if( clip <> nullptr ) then *clip = -1
 			tkrt_BgUnlock3( )
 			return tkrt_ErrorSetNum3( FB_RTERROR_ILLEGALFUNCTIONCALL )
 		end if
@@ -208,12 +208,12 @@ function tkort_ConsoleGetMouse alias "fb_ConsoleGetMouse" _
 		tkrt_hGetCh3( 0 )
 	end if
 
-	if( x <> 0 ) then *x = tkort_mouse_x
-	if( y <> 0 ) then *y = tkort_mouse_y
-	if( z <> 0 ) then *z = tkort_mouse_z
-	if( buttons <> 0 ) then *buttons = tkort_mouse_buttons
+	if( x <> nullptr ) then *x = tkort_mouse_x
+	if( y <> nullptr ) then *y = tkort_mouse_y
+	if( z <> nullptr ) then *z = tkort_mouse_z
+	if( buttons <> nullptr ) then *buttons = tkort_mouse_buttons
 	'' CLIP IS ALWAYS ZERO -- a terminal has no clipping region.
-	if( clip <> 0 ) then *clip = 0
+	if( clip <> nullptr ) then *clip = 0
 
 	tkrt_BgUnlock3( )
 

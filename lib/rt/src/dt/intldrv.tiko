@@ -160,11 +160,11 @@ function tkort_hGetLocaleInfo alias "fb_hGetLocaleInfo" _
 
 	if( uiSize = 0 ) then
 		uiSize = 64
-		pszBuffer = 0
+		pszBuffer = nullptr
 		do
 			uiSize shl= 1
 			dim as zstring ptr nb = cptr( zstring ptr, realloc( pszBuffer, uiSize ) )
-			if( nb = 0 ) then
+			if( nb = nullptr ) then
 				free( pszBuffer )
 				exit do
 			end if
@@ -180,7 +180,7 @@ function tkort_hGetLocaleInfo alias "fb_hGetLocaleInfo" _
 			'' so an invalid LCTYPE does not loop until it exhausts memory.
 			if( w_GetLastError( ) <> ERROR_INSUFFICIENT_BUFFER_ ) then
 				free( pszBuffer )
-				pszBuffer = 0
+				pszBuffer = nullptr
 				exit do
 			end if
 		loop
@@ -192,7 +192,7 @@ function tkort_hGetLocaleInfo alias "fb_hGetLocaleInfo" _
 		end if
 	end if
 
-	return 0
+	return nullptr
 end function
 
 '' ANSI -> UTF-16 -> the target code page, because Windows has no direct
@@ -208,12 +208,12 @@ private function hIntlConvertToWC( byval source as FBSTRING ptr, byval source_cp
 	'' A NULL destination ASKS FOR THE LENGTH; the same call with a buffer then
 	'' does the work.
 	dim as int32 CharsRequired = w_MultiByteToWideChar( source_cp, 0, source->data, _
-	                                                   FB_STRSIZE( source ), 0, 0 )
+	                                                   FB_STRSIZE( source ), nullptr, 0 )
 
 	'' THE SIZE IS IN BYTES AND CARRIES ITS OWN TERMINATOR: (n+1) wide characters
 	'' minus one byte, because fb_hStrAllocTemp adds the byte back.
-	res = tkrt_hStrAllocTemp_NoLock( 0, (CharsRequired + 1) * 2 - 1 )
-	if( res <> 0 ) then
+	res = tkrt_hStrAllocTemp_NoLock( nullptr, (CharsRequired + 1) * 2 - 1 )
+	if( res <> nullptr ) then
 		dim as integer idx = CharsRequired * 2
 		w_MultiByteToWideChar( source_cp, 0, source->data, FB_STRSIZE( source ), _
 		                       res->data, CharsRequired )
@@ -240,12 +240,12 @@ private function hIntlConvertFromWC( byval source as FBSTRING ptr, byval dest_cp
 	'' THE SOURCE LENGTH IS IN CHARACTERS HERE, so the byte length is halved --
 	'' the one place the descriptor's byte count and the API's unit count differ.
 	dim as int32 CharsRequired = w_WideCharToMultiByte( dest_cp, 0, source->data, _
-	                                                   FB_STRSIZE( source ) \ 2, 0, 0, 0, 0 )
+	                                                   FB_STRSIZE( source ) \ 2, nullptr, 0, nullptr, nullptr )
 
-	res = tkrt_hStrAllocTemp_NoLock( 0, CharsRequired )
-	if( res <> 0 ) then
+	res = tkrt_hStrAllocTemp_NoLock( nullptr, CharsRequired )
+	if( res <> nullptr ) then
 		w_WideCharToMultiByte( dest_cp, 0, source->data, FB_STRSIZE( source ) \ 2, _
-		                       res->data, CharsRequired, 0, 0 )
+		                       res->data, CharsRequired, nullptr, nullptr )
 		res->data[CharsRequired] = 0
 	else
 		res = TKORT_NULLSTR()
@@ -270,13 +270,13 @@ end function
 private function hLocaleName( byval lctype as uint32 ) as FBSTRING ptr
 
 	'' uiSize = 0, so this ALLOCATES and the buffer is ours to free.
-	dim as zstring ptr pszName = tkort_hGetLocaleInfo( LOCALE_USER_DEFAULT_, lctype, 0, 0 )
-	if( pszName = 0 ) then return 0
+	dim as zstring ptr pszName = tkort_hGetLocaleInfo( LOCALE_USER_DEFAULT_, lctype, nullptr, 0 )
+	if( pszName = nullptr ) then return nullptr
 
 	dim as integer name_len = strlen( pszName )
-	dim as FBSTRING ptr result = tkrt_hStrAllocTemp( 0, name_len )
+	dim as FBSTRING ptr result = tkrt_hStrAllocTemp( nullptr, name_len )
 
-	if( result <> 0 ) then
+	if( result <> nullptr ) then
 		'' GetConsoleCP RETURNS 0 WITH NO CONSOLE, and fbc tests for -1 rather
 		'' than 0 -- so a console-less process converts to code page 0, which is
 		'' CP_ACP, which is where the name already was. Harmless, and
@@ -316,13 +316,13 @@ function tkort_DrvIntlGet alias "fb_DrvIntlGet" ( byval index_ as int32 ) as zst
 		case eFIL_TimeDivider           : lctype = LOCALE_STIME_
 		case eFIL_NumDecimalPoint       : lctype = LOCALE_SDECIMAL_
 		case eFIL_NumThousandsSeparator : lctype = LOCALE_STHOUSAND_
-		case else                       : return 0
+		case else                       : return nullptr
 		end select
 
-		if( tkort_hGetLocaleInfo( LOCALE_USER_DEFAULT_, lctype, @buf, 127 ) <> 0 ) then
+		if( tkort_hGetLocaleInfo( LOCALE_USER_DEFAULT_, lctype, @buf, 127 ) <> nullptr ) then
 			return @buf
 		end if
-		return 0
+		return nullptr
 	#else
 		select case index_
 		case eFIL_DateDivider           : return @"/"
@@ -330,7 +330,7 @@ function tkort_DrvIntlGet alias "fb_DrvIntlGet" ( byval index_ as int32 ) as zst
 		case eFIL_NumDecimalPoint       : return u_nl_langinfo( NL_RADIXCHAR )
 		case eFIL_NumThousandsSeparator : return u_nl_langinfo( NL_THOUSEP )
 		end select
-		return 0
+		return nullptr
 	#endif
 end function
 
@@ -341,7 +341,7 @@ end function
 function tkort_DrvIntlGetMonthName alias "fb_DrvIntlGetMonthName" _
 	( byval month_ as int32, byval short_names as int32 ) as FBSTRING ptr
 
-	if( (month_ < 1) orelse (month_ > 12) ) then return 0
+	if( (month_ < 1) orelse (month_ > 12) ) then return nullptr
 
 	#ifdef __FB_WIN32__
 		dim as uint32 lctype = any
@@ -360,13 +360,13 @@ function tkort_DrvIntlGetMonthName alias "fb_DrvIntlGetMonthName" _
 		end if
 
 		dim as zstring ptr pszName = u_nl_langinfo( item )
-		if( pszName = 0 ) then return 0
+		if( pszName = nullptr ) then return nullptr
 
 		'' NO CODE-PAGE CONVERSION ON POSIX -- nl_langinfo already answers in the
 		'' locale's encoding, which is what the terminal expects.
 		dim as integer name_len = strlen( pszName )
-		dim as FBSTRING ptr result = tkrt_hStrAllocTemp( 0, name_len )
-		if( result <> 0 ) then memcpy( result->data, pszName, name_len + 1 )
+		dim as FBSTRING ptr result = tkrt_hStrAllocTemp( nullptr, name_len )
+		if( result <> nullptr ) then memcpy( result->data, pszName, name_len + 1 )
 		return result
 	#endif
 end function
@@ -378,7 +378,7 @@ end function
 function tkort_DrvIntlGetWeekdayName alias "fb_DrvIntlGetWeekdayName" _
 	( byval weekday_ as int32, byval short_names as int32 ) as FBSTRING ptr
 
-	if( (weekday_ < 1) orelse (weekday_ > 7) ) then return 0
+	if( (weekday_ < 1) orelse (weekday_ > 7) ) then return nullptr
 
 	#ifdef __FB_WIN32__
 		'' SUNDAY WRAPS TO THE END of Windows' Monday-first table.
@@ -400,11 +400,11 @@ function tkort_DrvIntlGetWeekdayName alias "fb_DrvIntlGetWeekdayName" _
 		end if
 
 		dim as zstring ptr pszName = u_nl_langinfo( item )
-		if( pszName = 0 ) then return 0
+		if( pszName = nullptr ) then return nullptr
 
 		dim as integer name_len = strlen( pszName )
-		dim as FBSTRING ptr result = tkrt_hStrAllocTemp( 0, name_len )
-		if( result <> 0 ) then memcpy( result->data, pszName, name_len + 1 )
+		dim as FBSTRING ptr result = tkrt_hStrAllocTemp( nullptr, name_len )
+		if( result <> nullptr ) then memcpy( result->data, pszName, name_len + 1 )
 		return result
 	#endif
 end function
@@ -470,7 +470,7 @@ function tkort_DrvIntlGetDateFormat alias "fb_DrvIntlGetDateFormat" _
 		dim as zstring ptr pszName = tkort_hGetLocaleInfo( LOCALE_USER_DEFAULT_, _
 		                                                   LOCALE_SSHORTDATE_, _
 		                                                   @achFormat, 89 )
-		if( pszName <> 0 ) then
+		if( pszName <> nullptr ) then
 			'' STRICTLY LESS THAN, so a format exactly filling the buffer is
 			'' REFUSED rather than truncated.
 			if( cast( uinteger, strlen( pszName ) ) < len_ ) then
@@ -486,7 +486,7 @@ function tkort_DrvIntlGetDateFormat alias "fb_DrvIntlGetDateFormat" _
 		dim as zstring ptr pszMonZero = tkort_hGetLocaleInfo( LOCALE_USER_DEFAULT_, LOCALE_IMONLZERO_, @achMonZero, 2 )
 		dim as zstring ptr pszDate = tkort_hGetLocaleInfo( LOCALE_USER_DEFAULT_, LOCALE_IDATE_, @achDate, 2 )
 
-		if( (pszDate <> 0) andalso (pszDayZero <> 0) andalso (pszMonZero <> 0) ) then
+		if( (pszDate <> nullptr) andalso (pszDayZero <> nullptr) andalso (pszMonZero <> nullptr) ) then
 			dim as zstring * 4 achOrder = any
 			achOrder[0] = 0 : achOrder[1] = 0 : achOrder[2] = 0 : achOrder[3] = 0
 
@@ -502,7 +502,7 @@ function tkort_DrvIntlGetDateFormat alias "fb_DrvIntlGetDateFormat" _
 				dim as int32 mon_lead_zero = ( atoi( pszMonZero ) <> 0 )
 
 				for i as integer = 0 to 2
-					dim as zstring ptr pszAdd = 0
+					dim as zstring ptr pszAdd = nullptr
 					select case cast( int32, achOrder[i] )
 					case 109 : pszAdd = iif( mon_lead_zero, @"MM", @"M" )    '' 'm'
 					case 100 : pszAdd = iif( day_lead_zero, @"dd", @"d" )    '' 'd'
@@ -538,7 +538,7 @@ function tkort_DrvIntlGetDateFormat alias "fb_DrvIntlGetDateFormat" _
 
 		while( pszCurrent[0] <> 0 )
 			dim as uint8 ch = pszCurrent[0]
-			dim as zstring ptr pszAdd = 0
+			dim as zstring ptr pszAdd = nullptr
 			dim as integer add_len = 0
 
 			if( x.do_esc <> 0 ) then
@@ -598,7 +598,7 @@ function tkort_DrvIntlGetTimeFormat alias "fb_DrvIntlGetTimeFormat" _
 		dim as zstring ptr pszFormat = tkort_hGetLocaleInfo( LOCALE_USER_DEFAULT_, _
 		                                                     LOCALE_STIMEFORMAT_, _
 		                                                     @achFormat, 89 )
-		if( pszFormat <> 0 ) then
+		if( pszFormat <> nullptr ) then
 			if( cast( uinteger, strlen( pszFormat ) ) < len_ ) then
 				strcpy( buffer, pszFormat )
 				return 1
@@ -613,8 +613,8 @@ function tkort_DrvIntlGetTimeFormat alias "fb_DrvIntlGetTimeFormat" _
 		dim as zstring ptr pszHourZero = tkort_hGetLocaleInfo( LOCALE_USER_DEFAULT_, LOCALE_ITLZERO_, @achHourZero, 8 )
 
 		dim as integer i = 0
-		dim as int32 use_timemark = ( (pszTimeMark <> 0) andalso (atoi( pszTimeMark ) = 1) )
-		dim as int32 timemark_prefix = ( (pszTimeMarkPos <> 0) andalso (atoi( pszTimeMarkPos ) = 1) )
+		dim as int32 use_timemark = ( (pszTimeMark <> nullptr) andalso (atoi( pszTimeMark ) = 1) )
+		dim as int32 timemark_prefix = ( (pszTimeMarkPos <> nullptr) andalso (atoi( pszTimeMarkPos ) = 1) )
 
 		if( use_timemark andalso timemark_prefix ) then
 			strcpy( @achFormat + i, @"AM/PM " )
@@ -624,7 +624,7 @@ function tkort_DrvIntlGetTimeFormat alias "fb_DrvIntlGetTimeFormat" _
 		'' THE HOUR IS ONLY EMITTED WHEN LEADING ZEROES ARE ON. With ITLZERO
 		'' clear the format begins at "mm:ss" and has NO HOUR AT ALL -- which
 		'' looks like a bug and is fbc's, faithfully.
-		if( (pszHourZero <> 0) andalso (atoi( pszHourZero ) = 1) ) then
+		if( (pszHourZero <> nullptr) andalso (atoi( pszHourZero ) = 1) ) then
 			if( use_timemark = 0 ) then
 				strcpy( @achFormat + i, @"HH:" )
 			else
@@ -655,7 +655,7 @@ function tkort_DrvIntlGetTimeFormat alias "fb_DrvIntlGetTimeFormat" _
 
 		while( pszCurrent[0] <> 0 )
 			dim as uint8 ch = pszCurrent[0]
-			dim as zstring ptr pszAdd = 0
+			dim as zstring ptr pszAdd = nullptr
 			dim as integer add_len = 0
 
 			if( x.do_esc <> 0 ) then

@@ -36,8 +36,8 @@ private function hFill _
 
 	if( cnt <= 0 ) then return TKORT_NULLSTR( )
 
-	dim as FBSTRING ptr r = fb_hStrAllocTemp( 0, cnt )
-	if( r = 0 ) then return TKORT_NULLSTR( )
+	dim as FBSTRING ptr r = fb_hStrAllocTemp( nullptr, cnt )
+	if( r = nullptr ) then return TKORT_NULLSTR( )
 
 	memset( r->data, ch, cnt )
 	return r
@@ -59,8 +59,8 @@ function tkort_StrFill2 alias "fb_StrFill2" _
 	dim as int32 ch = 0
 	dim as integer usable = 0
 
-	if( src <> 0 ) then
-		if( src->data <> 0 ) then
+	if( src <> nullptr ) then
+		if( src->data <> nullptr ) then
 			if( FB_STRSIZE( src ) > 0 ) then
 				ch = cast( int32, cptr( uint8 ptr, src->data )[0] )
 				usable = 1
@@ -75,7 +75,7 @@ function tkort_StrFill2 alias "fb_StrFill2" _
 		r = hFill( cnt, ch )
 	end if
 
-	if( src <> 0 ) then tkrt_DelTemp( src )
+	if( src <> nullptr ) then tkrt_DelTemp( src )
 
 	return r
 

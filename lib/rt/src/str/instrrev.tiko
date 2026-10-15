@@ -75,10 +75,10 @@ function tkort_StrInstrRev alias "fb_StrInstrRev" _
 	dim as integer r = 0
 	dim as integer ok = 0
 
-	if( src <> 0 ) then
-		if( src->data <> 0 ) then
-			if( patt <> 0 ) then
-				if( patt->data <> 0 ) then ok = 1
+	if( src <> nullptr ) then
+		if( src->data <> nullptr ) then
+			if( patt <> nullptr ) then
+				if( patt->data <> nullptr ) then ok = 1
 			end if
 		end if
 	end if

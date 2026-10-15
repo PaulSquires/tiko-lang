@@ -178,7 +178,7 @@ extern "c"   '' NON-FBCALL, as declared above.
 function tkort_hFileStrToEncoding alias "fb_hFileStrToEncoding" _
 	( byval encod_ as zstring ptr ) as int32
 
-	if( encod_ = 0 ) then return FB_FILE_ENCOD_DEFAULT
+	if( encod_ = nullptr ) then return FB_FILE_ENCOD_DEFAULT
 
 	dim as uint8 ptr p = cast( uint8 ptr, encod_ )
 
@@ -207,7 +207,7 @@ private function hFileGetSize( byval h as FB_FILE ptr ) as int64
 
 	dim as int64 sz = 0
 
-	if( (h->hooks->pfnSeek = 0) orelse (h->hooks->pfnTell = 0) ) then return sz
+	if( (h->hooks->pfnSeek = nullptr) orelse (h->hooks->pfnTell = nullptr) ) then return sz
 
 	select case h->mode
 	case FB_FILE_MODE_BINARY, FB_FILE_MODE_RANDOM, FB_FILE_MODE_INPUT
@@ -232,7 +232,7 @@ function tkort_FileOpenVfsRawEx alias "fb_FileOpenVfsRawEx" _
 	TKORT_IOLOCK()
 
 	'' ALREADY OPEN. The test is on hooks, which is what fb_FileClose clears.
-	if( h->hooks <> 0 ) then
+	if( h->hooks <> nullptr ) then
 		TKORT_IOUNLOCK()
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
@@ -261,7 +261,7 @@ function tkort_FileOpenVfsRawEx alias "fb_FileOpenVfsRawEx" _
 		h->reclen = 0
 	end select
 
-	if( pfnOpen = 0 ) then
+	if( pfnOpen = nullptr ) then
 		'' An OPEN whose protocol prefix matched nothing. The handle keeps the
 		'' fields set above but has no hooks, so it is still a free slot.
 		TKORT_IOUNLOCK()
@@ -296,11 +296,11 @@ function tkort_FileOpenVfsEx alias "fb_FileOpenVfsEx" _
 	dim as uinteger filename_length = FB_STRSIZE( str_filename )
 	dim as zstring * (STAGE) local_ = any
 	dim as zstring ptr filename = @local_
-	dim as any ptr heap_ = 0
+	dim as any ptr heap_ = nullptr
 
 	if( filename_length >= STAGE ) then
 		heap_ = malloc( filename_length + 1 )
-		if( heap_ = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
+		if( heap_ = nullptr ) then return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
 		filename = cast( zstring ptr, heap_ )
 	end if
 
@@ -312,7 +312,7 @@ function tkort_FileOpenVfsEx alias "fb_FileOpenVfsEx" _
 	dim as int32 res = tkort_FileOpenVfsRawEx( h, filename, filename_length, _
 	                                          mode, acc, lock_, reclen, encod_, pfnOpen )
 
-	if( heap_ <> 0 ) then free( heap_ )
+	if( heap_ <> nullptr ) then free( heap_ )
 
 	return res
 end function
@@ -339,13 +339,13 @@ end function
 '' atexit, not fb_End: the printer handle is opened lazily by the first LPRINT,
 '' so nothing in the normal shutdown path knows it exists.
 private sub hClosePrinterHandle cdecl ( )
-	if( TKORT_HANDLE_PRINTER()->hooks = 0 ) then exit sub
+	if( TKORT_HANDLE_PRINTER()->hooks = nullptr ) then exit sub
 	TKORT_HANDLE_PRINTER()->hooks->pfnClose( TKORT_HANDLE_PRINTER() )
 end sub
 
 function tkort_LPrintInit alias "fb_LPrintInit" ( ) as int32
 
-	if( TKORT_HANDLE_PRINTER()->hooks = 0 ) then
+	if( TKORT_HANDLE_PRINTER()->hooks = nullptr ) then
 		dim as int32 res = tkort_FileOpenVfsRawEx( TKORT_HANDLE_PRINTER(), _
 		                                          @pszPrinterDev, len( pszPrinterDev ), _
 		                                          FB_FILE_MODE_APPEND, FB_FILE_ACCESS_WRITE, _

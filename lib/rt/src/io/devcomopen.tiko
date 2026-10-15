@@ -166,7 +166,7 @@ end function
 private function hStrDup( byval s as zstring ptr ) as zstring ptr
 	dim as uinteger n = strlen( s )
 	dim as zstring ptr p = cast( zstring ptr, malloc( n + 1 ) )
-	if( p = 0 ) then return 0
+	if( p = nullptr ) then return nullptr
 	memcpy( p, s, n + 1 )
 	return p
 end function
@@ -358,7 +358,7 @@ function tkort_DevComOpen alias "fb_DevComOpen" _
 		end if
 
 		pchPosNext = cast( uint8 ptr, strchr( cast( zstring ptr, pchPos ), 44 ) )
-		if( pchPosNext = 0 ) then
+		if( pchPosNext = nullptr ) then
 			pchPosNext = cast( uint8 ptr, filename ) + filename_len
 			pchPosEnd = pchPosNext - 1
 		else
@@ -506,7 +506,7 @@ function tkort_DevComOpen alias "fb_DevComOpen" _
 		handle->opaque = info
 		handle->type_ = FB_FILE_TYPE_SERIAL
 	else
-		if( info->pszDevice <> 0 ) then free( info->pszDevice )
+		if( info->pszDevice <> nullptr ) then free( info->pszDevice )
 		free( info )
 	end if
 
@@ -530,7 +530,7 @@ function tkort_DevSerialSetWidth alias "fb_DevSerialSetWidth" _
 	dim as uinteger i = any, port = any
 	dim as zstring * 128 achDev
 
-	if( tkrt_DevComTestProtocolEx( 0, pszDevice, strlen( pszDevice ), @port ) = 0 ) then
+	if( tkrt_DevComTestProtocolEx( nullptr, pszDevice, strlen( pszDevice ), @port ) = 0 ) then
 		return 0
 	end if
 
@@ -543,7 +543,7 @@ function tkort_DevSerialSetWidth alias "fb_DevSerialSetWidth" _
 	for j as integer = 0 to FB_MAX_FILES - 1
 		dim as FB_FILE ptr tmp_handle = TKORT_FILETB() + j
 		if( (tmp_handle->hooks = @tkort_hooks_dev_com) andalso _
-		    (tmp_handle->redirection_to = 0) ) then
+		    (tmp_handle->redirection_to = nullptr) ) then
 			dim as DEV_COM_INFO ptr tmp_info = cptr( DEV_COM_INFO ptr, tmp_handle->opaque )
 			if( strcmp( tmp_info->pszDevice, @achDev ) = 0 ) then
 				if( width_ <> -1 ) then tmp_handle->width = width_

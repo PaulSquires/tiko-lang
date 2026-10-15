@@ -74,13 +74,13 @@ private sub hCondInit( )
 	end if
 
 	h = w_GetModuleHandleA( @"KERNEL32" )
-	if( h <> 0 ) then
+	if( h <> nullptr ) then
 		tkort_pSignalObjectAndWait = cast( SIGNALOBJECTANDWAIT, _
 			w_GetProcAddress( h, @"SignalObjectAndWait" ) )
 	end if
 
 	tkort_condUseNT = 0
-	if( tkort_pSignalObjectAndWait <> 0 ) then
+	if( tkort_pSignalObjectAndWait <> nullptr ) then
 		if( tkort_pSignalObjectAndWait( 0, 0, 0, 0 ) = WAIT_FAILED_ ) then tkort_condUseNT = 1
 	end if
 
@@ -97,29 +97,29 @@ function tkort_CondCreate alias "fb_CondCreate" ( ) as FBCOND ptr
 	hCondInit( )
 
 	c = malloc( sizeof( FBCOND ) )
-	if( c = 0 ) then return 0
+	if( c = nullptr ) then return nullptr
 
 	c->waiters_count = 0
 	w_InitializeCriticalSection( @c->waiters_count_lock(0) )
 
 	if( tkort_condUseNT <> 0 ) then
 		c->was_broadcast = 0
-		c->sema = w_CreateSemaphoreA( 0, 0, &h7FFFFFFF, 0 )
-		c->waiters_done = w_CreateEventA( 0, 0, 0, 0 )
-		c->event_(0) = 0
-		c->event_(1) = 0
+		c->sema = w_CreateSemaphoreA( nullptr, 0, &h7FFFFFFF, nullptr )
+		c->waiters_done = w_CreateEventA( nullptr, 0, 0, nullptr )
+		c->event_(0) = nullptr
+		c->event_(1) = nullptr
 	else
-		c->event_(TKORT_COND_SIGNAL)    = w_CreateEventA( 0, 0, 0, 0 )
-		c->event_(TKORT_COND_BROADCAST) = w_CreateEventA( 0, 1, 0, 0 )
-		c->sema = 0
-		c->waiters_done = 0
+		c->event_(TKORT_COND_SIGNAL)    = w_CreateEventA( nullptr, 0, 0, nullptr )
+		c->event_(TKORT_COND_BROADCAST) = w_CreateEventA( nullptr, 1, 0, nullptr )
+		c->sema = nullptr
+		c->waiters_done = nullptr
 	end if
 
 	return c
 end function
 
 sub tkort_CondDestroy alias "fb_CondDestroy" ( byval c as FBCOND ptr )
-	if( c = 0 ) then exit sub
+	if( c = nullptr ) then exit sub
 
 	w_DeleteCriticalSection( @c->waiters_count_lock(0) )
 
@@ -137,7 +137,7 @@ end sub
 sub tkort_CondSignal alias "fb_CondSignal" ( byval c as FBCOND ptr )
 	dim as int32 has_waiters = any
 
-	if( c = 0 ) then exit sub
+	if( c = nullptr ) then exit sub
 
 	w_EnterCriticalSection( @c->waiters_count_lock(0) )
 	has_waiters = iif( c->waiters_count > 0, 1, 0 )
@@ -146,7 +146,7 @@ sub tkort_CondSignal alias "fb_CondSignal" ( byval c as FBCOND ptr )
 	if( has_waiters = 0 ) then exit sub
 
 	if( tkort_condUseNT <> 0 ) then
-		w_ReleaseSemaphore( c->sema, 1, 0 )
+		w_ReleaseSemaphore( c->sema, 1, nullptr )
 	else
 		w_SetEvent( c->event_(TKORT_COND_SIGNAL) )
 	end if
@@ -155,14 +155,14 @@ end sub
 sub tkort_CondBroadcast alias "fb_CondBroadcast" ( byval c as FBCOND ptr )
 	dim as int32 has_waiters = any
 
-	if( c = 0 ) then exit sub
+	if( c = nullptr ) then exit sub
 
 	if( tkort_condUseNT <> 0 ) then
 		w_EnterCriticalSection( @c->waiters_count_lock(0) )
 
 		if( c->waiters_count > 0 ) then
 			c->was_broadcast = 1
-			w_ReleaseSemaphore( c->sema, c->waiters_count, 0 )
+			w_ReleaseSemaphore( c->sema, c->waiters_count, nullptr )
 			w_LeaveCriticalSection( @c->waiters_count_lock(0) )
 
 			'' Waits for the LAST waiter to say it has left, so the semaphore
@@ -185,8 +185,8 @@ sub tkort_CondWait alias "fb_CondWait" ( byval c as FBCOND ptr, byval m as FBMUT
 	dim as int32 last_waiter = any
 	dim as uint32 result = any
 
-	if( c = 0 ) then exit sub
-	if( m = 0 ) then exit sub
+	if( c = nullptr ) then exit sub
+	if( m = nullptr ) then exit sub
 
 	w_EnterCriticalSection( @c->waiters_count_lock(0) )
 	c->waiters_count += 1
@@ -208,7 +208,7 @@ sub tkort_CondWait alias "fb_CondWait" ( byval c as FBCOND ptr, byval m as FBMUT
 		end if
 	else
 		'' NOT ATOMIC WITH THE WAIT, and that is the 9x path's known defect.
-		w_ReleaseSemaphore( m->id, 1, 0 )
+		w_ReleaseSemaphore( m->id, 1, nullptr )
 
 		result = w_WaitForMultipleObjects( 2, @c->event_(0), 0, INFINITE_ )
 
@@ -242,30 +242,30 @@ extern "rtlib"
 
 function tkort_CondCreate alias "fb_CondCreate" ( ) as FBCOND ptr
 	dim as FBCOND ptr c = malloc( sizeof( FBCOND ) )
-	if( c = 0 ) then return 0
-	u_pthread_cond_init( @c->id(0), 0 )
+	if( c = nullptr ) then return nullptr
+	u_pthread_cond_init( @c->id(0), nullptr )
 	return c
 end function
 
 sub tkort_CondDestroy alias "fb_CondDestroy" ( byval c as FBCOND ptr )
-	if( c = 0 ) then exit sub
+	if( c = nullptr ) then exit sub
 	u_pthread_cond_destroy( @c->id(0) )
 	free( c )
 end sub
 
 sub tkort_CondSignal alias "fb_CondSignal" ( byval c as FBCOND ptr )
-	if( c = 0 ) then exit sub
+	if( c = nullptr ) then exit sub
 	u_pthread_cond_signal( @c->id(0) )
 end sub
 
 sub tkort_CondBroadcast alias "fb_CondBroadcast" ( byval c as FBCOND ptr )
-	if( c = 0 ) then exit sub
+	if( c = nullptr ) then exit sub
 	u_pthread_cond_broadcast( @c->id(0) )
 end sub
 
 sub tkort_CondWait alias "fb_CondWait" ( byval c as FBCOND ptr, byval m as FBMUTEX ptr )
-	if( c = 0 ) then exit sub
-	if( m = 0 ) then exit sub
+	if( c = nullptr ) then exit sub
+	if( m = nullptr ) then exit sub
 	u_pthread_cond_wait( @c->id(0), @m->id(0) )
 end sub
 

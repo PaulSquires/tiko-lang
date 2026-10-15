@@ -105,8 +105,8 @@ function tkort_CurDir alias "fb_CurDir" ( ) as FBSTRING ptr
 	dim as integer length_ = tkrt_hGetCurrentDir( @tmp, MAX_PATH_ )
 
 	if( length_ > 0 ) then
-		dst = tkrt_hStrAllocTemp( 0, length_ )
-		if( dst <> 0 ) then
+		dst = tkrt_hStrAllocTemp( nullptr, length_ )
+		if( dst <> nullptr ) then
 			memcpy( dst->data, @tmp, length_ + 1 )
 		else
 			dst = TKORT_NULLSTR()
@@ -137,12 +137,12 @@ function tkort_ExePath alias "fb_ExePath" ( ) as FBSTRING ptr
 
 	dim as zstring ptr p = tkrt_hGetExePath( @tmp, MAX_PATH_ )
 
-	if( p <> 0 ) then
+	if( p <> nullptr ) then
 		'' strlen of the BUFFER, not of the returned pointer: the helper may
 		'' return its argument or a pointer into it, and fbc measures tmp.
 		dim as integer length_ = strlen( @tmp )
-		dst = tkrt_hStrAllocTemp( 0, length_ )
-		if( dst <> 0 ) then
+		dst = tkrt_hStrAllocTemp( nullptr, length_ )
+		if( dst <> nullptr ) then
 			tkrt_StrCopy( dst->data, @tmp, length_ )
 		else
 			dst = TKORT_NULLSTR()
@@ -174,8 +174,8 @@ function tkort_Command alias "fb_Command" ( byval arg as int32 ) as FBSTRING ptr
 			length_ += strlen( __fb_ctx.argv[i] )
 		next
 
-		dst = tkrt_hStrAllocTemp( 0, length_ + __fb_ctx.argc - 2 )
-		if( dst = 0 ) then return TKORT_NULLSTR()
+		dst = tkrt_hStrAllocTemp( nullptr, length_ + __fb_ctx.argc - 2 )
+		if( dst = nullptr ) then return TKORT_NULLSTR()
 
 		'' strcat from an empty start, exactly as fbc does -- quadratic in the
 		'' argument count and irrelevant at any realistic one.
@@ -191,8 +191,8 @@ function tkort_Command alias "fb_Command" ( byval arg as int32 ) as FBSTRING ptr
 	if( arg >= __fb_ctx.argc ) then return TKORT_NULLSTR()
 
 	length_ = strlen( __fb_ctx.argv[arg] )
-	dst = tkrt_hStrAllocTemp( 0, length_ )
-	if( dst = 0 ) then return TKORT_NULLSTR()
+	dst = tkrt_hStrAllocTemp( nullptr, length_ )
+	if( dst = nullptr ) then return TKORT_NULLSTR()
 
 	strcpy( dst->data, __fb_ctx.argv[arg] )
 
@@ -246,7 +246,7 @@ function tkort_Run alias "fb_Run" _
 end function
 
 function tkort_Chain alias "fb_Chain" ( byval program as FBSTRING ptr ) as int32
-	return tkrt_ExecEx( program, 0, FB_TRUE )
+	return tkrt_ExecEx( program, nullptr, FB_TRUE )
 end function
 
 '' A NULL OR UNASSIGNED PROGRAM STRING IS -1 WITHOUT A SHELL, and this is the
@@ -256,7 +256,7 @@ function tkort_Shell alias "fb_Shell" ( byval program as FBSTRING ptr ) as int32
 
 	dim as int32 errcode = -1
 
-	if( (program <> 0) andalso (program->data <> 0) ) then
+	if( (program <> nullptr) andalso (program->data <> nullptr) ) then
 		errcode = tkrt_hShell( program->data )
 	end if
 
@@ -296,7 +296,7 @@ function tkort_hParseArgs alias "fb_hParseArgs" _
 	dim as uint8 ptr s = cast( uint8 ptr, src )
 	dim as uint8 ptr p = cast( uint8 ptr, dst )
 
-	if( (src = 0) orelse (dst = 0) orelse (length_ < 0) ) then return -1
+	if( (src = nullptr) orelse (dst = nullptr) orelse (length_ < 0) ) then return -1
 
 	'' Leading whitespace, which is not an argument.
 	while( (i < length_) andalso ((*s = 32) orelse (*s = 0)) )
