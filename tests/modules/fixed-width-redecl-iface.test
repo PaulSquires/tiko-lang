@@ -1,0 +1,15 @@
+'' A MODULE WHOSE INTERFACE WRITES int32, imported by a program that then includes
+'' windows.bi: basetsd.bi's 'type INT32 as long' replaces the prelude's int32 for the whole
+'' program, so the interface's int32 -- read at the '#import', above it -- named a type
+'' declared below and was TKO0784. It is the type tiko gives the name, so nothing changes
+'' meaning and nothing is said (symbols/resolveunbound.tiko SameFixedWidth_).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc -i tests/modules/src/fwredecl/libs tests/modules/src/fwredecl/app/main.tiko -o tests/modules/fwredecl.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0784
+'' EXPECT-FILE: tests/modules/fwredecl.exe
+'' RUN: tests/modules/fwredecl.exe
+'' EXPECT-RUN-OUT:  42
+'' EXPECT-RUN-OUT: 65535
+'' EXPECT-RUN-OUT:  8

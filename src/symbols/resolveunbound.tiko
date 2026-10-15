@@ -266,6 +266,41 @@ private function VisibleAbove_ _
     return t
 end function
 
+'' A PROGRAM'S OWN DECLARATION OF A FIXED-WIDTH NAME AS THE TYPE TIKO GIVES IT. The ten names
+'' are the prelude's typedefs, and a program's declaration of one replaces tiko's for the
+'' whole program (wiki: Category-Fixed-Width-Types) -- so a use ABOVE that declaration binds
+'' to it. win/basetsd.bi declares 'type INT32 as long' and the rest of the family, GdiPlus.bi
+'' INT16 and UINT16, X11/Xmd.bi INT32 on 64-bit: every one the type tiko already gives the
+'' name. 'dim as int32 n' above '#include "windows.bi"' was TKO0784, and so was every module
+'' whose interface writes int32, in a program that imports it and then includes windows.bi
+'' (the '#import' has to come first). Nothing changes meaning, so nothing is said. A
+'' DIFFERENT type -- 'type uint8 as integer' below a 'dim as uint8' -- is still TKO0784:
+'' the code above would change meaning silently, a module's interface included.
+private function SameFixedWidth_ ( byref c as Ctx, byval s as Tko.Symbol ptr ) as boolean
+    if s->kind <> cast( uint8, Tko.SYM_TYPEDEF ) then return false
+    dim as Tko.BuiltinType b
+    select case lcase( c.names->Spelling( s->name ) )
+    case "int8"    : b = Tko.TY_BYTE
+    case "uint8"   : b = Tko.TY_UBYTE
+    case "int16"   : b = Tko.TY_SHORT
+    case "uint16"  : b = Tko.TY_USHORT
+    case "int32"   : b = Tko.TY_LONG
+    case "uint32"  : b = Tko.TY_ULONG
+    case "int64"   : b = Tko.TY_LONGINT
+    case "uint64"  : b = Tko.TY_ULONGINT
+    case "float32" : b = Tko.TY_SINGLE
+    case "float64" : b = Tko.TY_DOUBLE
+    case else      : return false
+    end select
+    '' Collect's placeholder until the walk reaches the declaration: chase it now, as a
+    '' typedef of a typedef is (ChaseTypedef_).
+    dim as boolean ready = (s->type_ <> Tko.TYPE_NONE)
+    if ready then ready = (c.types->Kind( s->type_ ) <> Tko.TK_TYPEDEF)
+    if ready = false then ready = ChaseTypedef_( c, s )
+    if ready = false then return false
+    return (c.types->Unqualify( s->type_ ) = c.types->Builtin( b ))
+end function
+
 '' A TYPE NAMED ABOVE ITS DECLARATION -- 'dim as TL t' before 'type TL'. fbc refuses
 '' every one, measured 2026-09-19 on 1.20 and 1.10.1: error 14 in a DIM, a field, a
 '' result, over a typedef and over an enum, 59 in a parameter, 17 in a CAST -- behind a
@@ -296,6 +331,7 @@ private sub ForwardTypeRef_ _
         wend
     next
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+    if SameFixedWidth_( c, s ) then exit sub
     c.diags->Report( Tko.TKO0784, Tko.PointRange( c.ast->Loc( id ) ), c.names->Spelling( s->name ) )
     c.diags->AddNote( Tko.TKO0901, Tko.PointRange( s->loc ) )
 end sub

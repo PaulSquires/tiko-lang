@@ -1,0 +1,10 @@
+#module "fwm"
+
+public type Pt
+    x as int32
+    w as uint16
+end type
+
+public function Twice( byval n as int32 ) as int32
+    return n * 2
+end function

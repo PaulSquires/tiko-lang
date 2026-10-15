@@ -1,0 +1,23 @@
+'' The ten fixed-width names used ABOVE a program's own declaration of each as the type
+'' tiko gives it -- what win/basetsd.bi, GdiPlus.bi and X11/Xmd.bi declare. No diagnostic.
+dim as int8 a = -1
+dim as uint8 b = 255
+dim as int16 c = -2
+dim as uint16 d = 65535
+dim as int32 e = -3
+dim as uint32 f = 4294967295
+dim as int64 g = -4
+dim as uint64 h = 5
+dim as float32 i = 1.5
+dim as float64 j = 2.5
+type INT8 as byte
+type UINT8 as ubyte
+type INT16 as short
+type UINT16 as ushort
+type INT32 as long
+type UINT32 as ulong
+type INT64 as longint
+type UINT64 as ulongint
+type FLOAT32 as single
+type FLOAT64 as double
+print sizeof( a ) + sizeof( b ) + sizeof( c ) + sizeof( d ) + sizeof( e ) + sizeof( f ) + sizeof( g ) + sizeof( h ) + sizeof( i ) + sizeof( j )

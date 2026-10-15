@@ -1,0 +1,4 @@
+'' A fixed-width name used ABOVE a program's declaration of it as a DIFFERENT type is
+'' still TKO0784: the code above would otherwise change meaning silently.
+dim as uint8 x = 200
+type uint8 as integer

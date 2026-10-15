@@ -1,0 +1,6 @@
+'' A fixed-width name used above a program's declaration of it as a DIFFERENT type keeps its
+'' diagnostic: the code above would otherwise change meaning silently.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/fixed-width-redecl-other.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: fixed-width-redecl-other.tiko(3,8): error TKO0784: the type 'uint8' is used above its declaration

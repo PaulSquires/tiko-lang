@@ -1,0 +1,9 @@
+#import "fwm"
+#include once "windows.bi"
+
+dim as fwm.Pt p
+p.x = fwm.Twice( 21 )
+p.w = 65535
+print p.x
+print p.w
+print sizeof( fwm.Pt )
