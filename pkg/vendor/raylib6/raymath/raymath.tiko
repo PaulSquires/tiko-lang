@@ -6,8 +6,8 @@
 '' MatrixRotateY, QuaternionSlerp -- unqualified, as raylib documents them. The header is
 '' raymath.ti beside this file, translated from raymath.h by 'tiko c2t'. raymath's functions are
 '' inline in C; raylib's libraries export every one of them, so here each is an ordinary call
-'' into the library. Its C2T-TODOs are the C++-only operators, and MatrixToFloat and
-'' Vector3ToFloat, which this file writes by hand.
+'' into the library. Its C2T-TODOs are the C++-only operators and an SSE header; MatrixToFloat
+'' and Vector3ToFloat are the field of the returned value -- 'MatrixToFloat( m )(12)'.
 ''
 '' It brings vendor/raylib6 with it -- raylib's names, and its library. The link mode is chosen
 '' there, on the module that links: '#import "vendor/raylib6" link static' beside this import.
@@ -16,8 +16,3 @@
 #import "vendor/raylib6" public
 
 public #include once "raymath.ti"
-
-'' raymath.h:108 and :113, function-like macros over the functions that return a float16 or a
-'' float3 by value.
-#define MatrixToFloat( mat ) (MatrixToFloatV( mat ).v)
-#define Vector3ToFloat( vec ) (Vector3ToFloatV( vec ).v)

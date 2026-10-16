@@ -1,0 +1,11 @@
+'' tiko c2t: a macro may read a struct's field -- '.', '->', a field of a field, the field of a
+'' returned value (raymath.h's 'MatrixToFloatV(mat).v') -- written as C wrote it, which tiko spells
+'' the same. A subscript, and a field named by a tiko word, are still TODOs that say why.
+'' TEST: cli
+'' CLEAN: build/.c2t/members
+'' ARGS: c2t tests/c2t/src/members.h --verify -o build/.c2t/members/members.ti
+'' EXPECT-EXIT: 2
+'' EXPECT-FILE-HAS: build/.c2t/members/members.ti :: '' 2 items need manual translation:\n''   line 34  members.h:11  C2T-TODO(function-like-macro)  AT\n''   line 36  members.h:12  C2T-TODO(function-like-macro)  TYPE_OF\n
+'' EXPECT-FILE-HAS: build/.c2t/members/members.ti :: #define VX(v) (v).x\n#define PX(p) (p)->x\n#define BOX_MAXZ(b) (b).max.z\n#define MAKE_Y(a) make((a)).y\n
+'' EXPECT-FILE-HAS: build/.c2t/members/members.ti :: '' C2T-TODO(function-like-macro) members.h:11 -- subscripts and increments\n
+'' EXPECT-FILE-HAS: build/.c2t/members/members.ti :: '' C2T-TODO(function-like-macro) members.h:12 -- field 'type' is a tiko word, which the record's translation renames\n

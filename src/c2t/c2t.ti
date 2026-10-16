@@ -255,6 +255,8 @@ declare function TrailComments( byref e as C2tEmit, byref code as string, byval 
 const CXV_INT = 1, CXV_FLOAT = 2, CXV_STR = 3, CXV_TYPE = 4, CXV_NAME = 5, CXV_NONE = 6, CXV_PARAM = 7
 const NK_INT = 1, NK_FLOAT = 2, NK_STR = 3, NK_IDENT = 4, NK_UNARY = 5, NK_BINARY = 6
 const NK_TERNARY = 7, NK_CALL = 8, NK_CAST = 9, NK_DEFINED = 10
+'' 'a.field' or 'a->field': a the operand, text the field, op "." or "->".
+const NK_MEMBER = 11
 
 type CxNode
     as int32 kind
