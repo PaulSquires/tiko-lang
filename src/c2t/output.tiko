@@ -386,9 +386,21 @@ private sub PushLines_( byref v as Tko.StrVec, byref text as string )
     next
 end sub
 
+'' THE IMPORTER'S REASONS NAME FreeBASIC -- they are fbc-modern's ledger text, word for word, and
+'' build/cimportdiff.py compares them -- but a translation is read by a tiko programmer.
+private function TikoWords_( byref s as string ) as string
+    dim as string r = s
+    dim as int32 at = instr( r, "FreeBASIC" )
+    while at > 0
+        r = left( r, at - 1 ) & "tiko" & mid( r, at + 9 )
+        at = instr( at + 4, r, "FreeBASIC" )
+    wend
+    return r
+end function
+
 function TodoText( byref src as C2tSource, byref b as C2tBlock ) as string
     dim as string t = Indent_( LineText( src, b.line1 ) ) & "'' C2T-TODO(" & b.reason & ") " & _
-                      src.name_ & ":" & b.line1 & " -- " & b.why
+                      src.name_ & ":" & b.line1 & " -- " & TikoWords_( b.why )
     for k as int32 = b.line1 to b.line2
         t &= chr( 10 ) & rtrim( "'' " & LineText( src, k ) )
     next

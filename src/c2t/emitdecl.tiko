@@ -25,6 +25,7 @@ const CK_FUNCTION = 8, CK_VAR = 9, CK_TYPEDEF = 20, CK_DLLIMPORT = 419, CK_STATI
 const TK_VOID = 2, TK_CHAR_U = 4, TK_UCHAR = 5, TK_USHORT = 8, TK_UINT = 9, TK_ULONG = 10
 const TK_ULONGLONG = 11, TK_CHAR_S = 13, TK_RECORD = 105, TK_ENUM = 106, TK_TYPEDEF = 107
 const TK_FNNOPROTO = 110, TK_FNPROTO = 111, TK_CONSTARRAY = 112, TK_ELABORATED = 119
+const TK_INCOMPLETEARRAY = 114
 const SC_STATIC = 3
 const CK_FIRSTATTR = 400, CK_LASTATTR = 439
 
@@ -370,6 +371,39 @@ private function Var_( byref e as C2tEmit, byval c as Tko.CImport.CXCursor, byre
         return false
     end if
     dim as Tko.CImport.CXType t = Tko.CImport.Unwrap( *e.x, api->getCursorType( c ) )
+    '' AN ARRAY OF NO STATED SIZE -- 'const char sqlite3_version[]'. A char one is a string, and
+    '' 'zstring * 1' names the same symbol and reads it to its NUL: measured on fbc-modern and
+    '' tiko against a C array, the same address, the whole string, len 6. Only sizeof is the
+    '' nominal 1, which C cannot give for it either. A bare 'zstring' is no type for a variable
+    '' (fbc's error 28, tiko's TKO0996). Any other element type is refused.
+    dim as string note
+    if t.kind = TK_INCOMPLETEARRAY then
+        dim as Tko.CImport.CXType raw = api->getElementType( t )
+        dim as Tko.CImport.CXType el = Tko.CImport.Unwrap( *e.x, raw )
+        select case el.kind
+        case 4, 5, 13, 14       '' Char_U, UChar, Char_S, SChar
+        case else
+            reason = "refused-type"
+            why = "'" & cname & "': an array of no stated size; only a char one has a tiko spelling (zstring * 1)"
+            return false
+        end select
+        dim as boolean isConst = (api->isConstQualifiedType( raw ) <> 0) orelse (api->isConstQualifiedType( el ) <> 0)
+        dim as int32 o1, o2
+        CursorSpan( *api, c, o1, o2 )
+        dim as int32 ln = e.src->toks[TokAt( *e.src, o1 )].line_
+        note = "'' C2T-NOTE(unsized-array) " & e.src->name_ & ":" & ln & " -- '" & cname & _
+               "[]' has no size in C: '* 1' is nominal, the string reads to its NUL" & chr( 10 ) & BaseIndent_( e, ln )
+        dim as CurVec_ kids0
+        dim as boolean dll0
+        Kids_( e, c, kids0, dll0 )
+        dim as string nm0 = FbName_( e, c )
+        Ren_( e, "variable", cname, nm0 )
+        text = note & "extern " & iif( dll0, "import ", "" ) & nm0
+        if nm0 <> cname then text &= " alias """ & cname & """"
+        text &= " as " & iif( isConst, "const ", "" ) & "zstring * 1"
+        Written_( e, c )
+        return true
+    end if
     dim as string dims
     while t.kind = TK_CONSTARRAY
         if len( dims ) then dims &= ", "

@@ -61,4 +61,9 @@ void use_packed(Packed *p);                    /* a record left as a TODO: Packe
 
 _Static_assert(sizeof(u32) == 4, "u32");
 
+/* Arrays of no stated size: a char one is a string (zstring * 1); any other is refused. */
+extern const char dc_version[];
+extern char dc_buffer[];
+extern const int dc_table[];
+
 #endif /* DECLS_H */
