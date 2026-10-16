@@ -99,3 +99,8 @@ tests/vendor/**/*.o
 
 # vendor package binaries: fetched or built by build/vendorfetch.sh, never committed
 /pkg/vendor/*/lib/
+
+# a program built inside examples/: the vendor libraries copied beside it
+/examples/**/*.dll
+/examples/**/*.so
+/examples/**/*.so.*

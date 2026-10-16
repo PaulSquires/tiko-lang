@@ -1,0 +1,116 @@
+'' This example creates an SDL window and renderer, and then draws a scene
+'' to it every frame, while sliding around a clipping rectangle.
+''
+'' This code is public domain. Feel free to use it for any purpose!
+''
+'' Ported to tiko from the sdl3-freebasic port of SDL's own examples.
+
+#import "vendor/SDL3"
+
+const as long WINDOW_WIDTH = 640
+const as long WINDOW_HEIGHT = 480
+const as long CLIPRECT_SIZE = 250
+const as long CLIPRECT_SPEED = 200  '' pixels per second
+
+'' We will use this renderer to draw into this window every frame.
+dim as SDL_Window ptr win
+dim as SDL_Renderer ptr renderer
+dim as boolean quit
+dim as SDL_Event e
+
+dim as SDL_Texture ptr texture
+dim as SDL_FPoint cliprectPosition
+dim as SDL_FPoint cliprectDirection
+dim as SDL_Rect cliprect
+dim as Uint64 lastTime
+
+if not SDL_Init(SDL_INIT_VIDEO) then
+    SDL_Log("Couldn't initialize SDL: %s", SDL_GetError())
+    quit = true
+elseif not SDL_CreateWindowAndRenderer("Example Renderer Clipping Rectangle", WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE, @win, @renderer) then
+    SDL_Log("Couldn't create window/renderer: %s", SDL_GetError())
+    quit = true
+else
+    dim as SDL_Surface ptr surface
+
+    '' Textures are pixel data that we upload to the video hardware for fast drawing. Lots of 2D
+    '' engines refer to these as "sprites." We'll do a static texture (upload once, draw many
+    '' times) with data from a bitmap file.
+
+    '' SDL_Surface is pixel data the CPU can access. SDL_Texture is pixel data the GPU can access.
+    '' Load a .png into a surface, move it to a texture from there.
+    surface = SDL_LoadPNG(*SDL_GetBasePath( ) & "../../Data/sample.png")
+    if surface = 0 then
+        SDL_Log("Couldn't load bitmap: %s", SDL_GetError())
+        quit = true
+    else
+        texture = SDL_CreateTextureFromSurface(renderer, surface)
+        SDL_DestroySurface(surface) '' done with this, the texture has a copy of the pixels now.
+        if texture = 0 then
+            SDL_Log("Couldn't create static texture: %s", SDL_GetError())
+            quit = true
+        end if
+    end if
+
+    cliprectDirection.x = 1.0f
+    cliprectDirection.y = 1.0f
+
+    cliprect.w = CLIPRECT_SIZE
+    cliprect.h = CLIPRECT_SIZE
+
+    lastTime = SDL_GetTicks()
+end if
+
+while not quit
+    while SDL_PollEvent(@e)
+        if e.type = SDL_EVENT_QUIT then
+            quit = true
+        end if
+    wend
+
+    cliprect.x = clng(SDL_roundf(cliprectPosition.x))
+    cliprect.y = clng(SDL_roundf(cliprectPosition.y))
+
+    dim as Uint64 now = SDL_GetTicks()
+    dim as single elapsed = csng(now - lastTime) / 1000.0f   '' seconds since last iteration
+    dim as single distance = elapsed * CLIPRECT_SPEED
+
+    '' Set a new clipping rectangle position
+    cliprectPosition.x += distance * cliprectDirection.x
+    if cliprectPosition.x < -CLIPRECT_SIZE then
+        cliprectPosition.x = -CLIPRECT_SIZE
+        cliprectDirection.x = 1.0f
+    elseif cliprectPosition.x >= WINDOW_WIDTH then
+        cliprectPosition.x = WINDOW_WIDTH - 1
+        cliprectDirection.x = -1.0f
+    end if
+
+    cliprectPosition.y += distance * cliprectDirection.y
+    if cliprectPosition.y < -CLIPRECT_SIZE then
+        cliprectPosition.y = -CLIPRECT_SIZE
+        cliprectDirection.y = 1.0f
+    elseif cliprectPosition.y >= WINDOW_HEIGHT then
+        cliprectPosition.y = WINDOW_HEIGHT - 1
+        cliprectDirection.y = -1.0f
+    end if
+    SDL_SetRenderClipRect(renderer, @cliprect)
+
+    lastTime = now
+
+    '' okay, now draw!
+
+    '' Note that SDL_RenderClear is _not_ affected by the clipping rectangle!
+    SDL_SetRenderDrawColor(renderer, 33, 33, 33, SDL_ALPHA_OPAQUE) '' grey, full alpha
+    SDL_RenderClear(renderer)   '' start with a blank canvas.
+
+    '' stretch the texture across the entire window. Only the piece in the
+    '' clipping rectangle will actually render, though!
+    SDL_RenderTexture(renderer, texture, 0, 0)
+
+    SDL_RenderPresent(renderer) '' put it all on the screen!
+wend
+
+SDL_DestroyTexture(texture)
+SDL_DestroyRenderer(renderer)
+SDL_DestroyWindow(win)
+SDL_Quit()

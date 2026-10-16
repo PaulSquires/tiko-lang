@@ -1,0 +1,72 @@
+'' This example creates an SDL window and renderer, and then draws some lines
+'' to it every frame.
+''
+'' This code is public domain. Feel free to use it for any purpose!
+''
+'' Ported to tiko from the sdl3-freebasic port of SDL's own examples.
+
+#import "vendor/SDL3"
+
+'' We will use this renderer to draw into this window every frame.
+dim as SDL_Window ptr win
+dim as SDL_Renderer ptr renderer
+dim as SDL_Event e
+dim as boolean quit
+
+'' Lines (line segments, really) are drawn in terms of points: a set of
+'' X and Y coordinates, one set for each end of the line.
+'' (0, 0) is the top left of the window, and larger numbers go down
+'' and to the right. This isn't how geometry works, but this is pretty
+'' standard in 2D graphics.
+dim as SDL_FPoint linePoints(0 to 8) = { _
+    type(100, 354), type(220, 230), type(140, 230), type(320, 100), type(500, 230), _
+    type(420, 230), type(540, 354), type(400, 354), type(100, 354)}
+
+dim as single size = 30.0f
+dim as single x = 320.0f
+dim as single y =  95.0f - (size / 2.0f)
+
+if not SDL_Init(SDL_INIT_VIDEO) then
+    SDL_Log("Couldn't initialize SDL: %s", SDL_GetError())
+    quit = true
+elseif not SDL_CreateWindowAndRenderer("Example Renderer Lines", 640, 480, SDL_WINDOW_RESIZABLE, @win, @renderer) then
+    SDL_Log("Couldn't create window/renderer: %s", SDL_GetError())
+    quit = true
+end if
+
+while not quit
+    while SDL_PollEvent(@e)
+        if e.type = SDL_EVENT_QUIT then
+            quit = true
+        end if
+    wend
+
+    '' as you can see from this, rendering draws over whatever was drawn before it.
+    SDL_SetRenderDrawColor(renderer, 100, 100, 100, SDL_ALPHA_OPAQUE) '' grey, full alpha
+    SDL_RenderClear(renderer)   '' start with a blank canvas.
+
+    '' You can draw lines, one at a time, like these brown ones...
+    SDL_SetRenderDrawColor(renderer, 127, 49, 32, SDL_ALPHA_OPAQUE)
+    SDL_RenderLine(renderer, 240, 450, 400, 450)
+    SDL_RenderLine(renderer, 240, 356, 400, 356)
+    SDL_RenderLine(renderer, 240, 356, 240, 450)
+    SDL_RenderLine(renderer, 400, 356, 400, 450)
+
+    '' You can also draw a series of connected lines in a single batch...
+    SDL_SetRenderDrawColor(renderer, 0, 255, 0, SDL_ALPHA_OPAQUE)
+    SDL_RenderLines(renderer, @linePoints(0), ubound(linePoints) + 1)
+
+    '' here's a bunch of lines drawn out from a center point in a circle.
+    '' we randomize the color of each line, so it functions as animation.
+    for i as long = 0 to 360
+        dim as single r = csng(i * (SDL_PI_F / 180.0f))
+        SDL_SetRenderDrawColor(renderer, SDL_rand(256), SDL_rand(256), SDL_rand(256), SDL_ALPHA_OPAQUE)
+        SDL_RenderLine(renderer, x, y, x + SDL_cosf(r) * size, y + SDL_sinf(r) * size)
+    next i
+
+    SDL_RenderPresent(renderer) '' put it all on the screen!
+wend
+
+SDL_DestroyRenderer(renderer)
+SDL_DestroyWindow(win)
+SDL_Quit()
