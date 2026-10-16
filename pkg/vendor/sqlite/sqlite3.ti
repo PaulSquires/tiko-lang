@@ -13,108 +13,24 @@
 ''   parameter  sqlite3_win32_set_directory.type -> sqlite3_win32_set_directory.type_   (tiko reserved word)
 ''   parameter  sqlite3_win32_set_directory8.type -> sqlite3_win32_set_directory8.type_   (tiko reserved word)
 ''   parameter  sqlite3_win32_set_directory16.type -> sqlite3_win32_set_directory16.type_   (tiko reserved word)
+''   constant   double -> double_   (tiko reserved word)
 ''
-'' 100 items need manual translation:
-''   line 227  sqlite3.h:113  C2T-TODO(unreached-branch)  SQLITE_VERSION
-''   line 231  sqlite3.h:116  C2T-TODO(unreached-branch)  SQLITE_VERSION_NUMBER
-''   line 304  sqlite3.h:188  C2T-TODO(refused-type)  sqlite3_version
-''   line 336  sqlite3.h:219  C2T-TODO(unreached-branch)  sqlite3_compileoption_used
-''   line 338  sqlite3.h:220  C2T-TODO(unreached-branch)  sqlite3_compileoption_get
-''   line 412  sqlite3.h:293  C2T-TODO(conditional)  SQLITE_INT64_TYPE
-''   line 414  sqlite3.h:294  C2T-TODO(unreached-branch)
-''   line 416  sqlite3.h:295  C2T-TODO(unreached-branch)  SQLITE_UINT64_TYPE
-''   line 418  sqlite3.h:296  C2T-TODO(unreached-branch)
-''   line 420  sqlite3.h:297  C2T-TODO(unreached-branch)  #else
-''   line 422  sqlite3.h:298  C2T-TODO(unreached-branch)
-''   line 424  sqlite3.h:299  C2T-TODO(unreached-branch)  #endif
-''   line 426  sqlite3.h:300  C2T-TODO(conditional)  #elif
-''   line 434  sqlite3.h:303  C2T-TODO(conditional)  #else
-''   line 442  sqlite3.h:306  C2T-TODO(conditional)  #endif
-''   line 452  sqlite3.h:315  C2T-TODO(unreached-branch)  double
-''   line 4856  sqlite3.h:4733  C2T-TODO(unreached-branch)
-''   line 5534  sqlite3.h:5410  C2T-TODO(unreached-branch)  SQLITE_TEXT
-''   line 6599  sqlite3.h:6478  C2T-TODO(macro)  SQLITE_STATIC
-''   line 6601  sqlite3.h:6479  C2T-TODO(macro)  SQLITE_TRANSIENT
-''   line 6953  sqlite3.h:6835  C2T-TODO(unreached-branch)
-''   line 11092  sqlite3.h:10987  C2T-TODO(unreached-branch)
-''   line 11549  sqlite3.h:11450  C2T-TODO(unreached-branch)  double
-''   line 11554  sqlite3.h:11454  C2T-TODO(unreached-branch)  SQLITE_WASI
-''   line 11556  sqlite3.h:11455  C2T-TODO(unreached-branch)  SQLITE_WASI
-''   line 11558  sqlite3.h:11456  C2T-TODO(unreached-branch)  SQLITE_OMIT_LOAD_EXTENSION
-''   line 11560  sqlite3.h:11457  C2T-TODO(unreached-branch)  SQLITE_OMIT_LOAD_EXTENSION
-''   line 11562  sqlite3.h:11458  C2T-TODO(unreached-branch)  #endif
-''   line 11564  sqlite3.h:11459  C2T-TODO(unreached-branch)  SQLITE_THREADSAFE
-''   line 11566  sqlite3.h:11460  C2T-TODO(unreached-branch)  SQLITE_THREADSAFE
-''   line 11568  sqlite3.h:11461  C2T-TODO(unreached-branch)  #endif
-''   line 11602  sqlite3.h:11498  C2T-TODO(unreached-branch)
-''   line 11692  sqlite3.h:11591  C2T-TODO(unreached-branch)  __SQLITESESSION_H_
-''   line 11707  sqlite3.h:11607  C2T-TODO(unreached-branch)
-''   line 11716  sqlite3.h:11615  C2T-TODO(unreached-branch)
-''   line 11750  sqlite3.h:11648  C2T-TODO(unreached-branch)
-''   line 11770  sqlite3.h:11667  C2T-TODO(unreached-branch)
-''   line 11782  sqlite3.h:11678  C2T-TODO(unreached-branch)
-''   line 11817  sqlite3.h:11712  C2T-TODO(unreached-branch)  SQLITE_SESSION_OBJCONFIG_SIZE
-''   line 11819  sqlite3.h:11713  C2T-TODO(unreached-branch)  SQLITE_SESSION_OBJCONFIG_ROWID
-''   line 11840  sqlite3.h:11733  C2T-TODO(unreached-branch)
-''   line 11871  sqlite3.h:11763  C2T-TODO(unreached-branch)
-''   line 11932  sqlite3.h:11823  C2T-TODO(unreached-branch)
-''   line 11948  sqlite3.h:11838  C2T-TODO(unreached-branch)
-''   line 12064  sqlite3.h:11953  C2T-TODO(unreached-branch)
-''   line 12085  sqlite3.h:11973  C2T-TODO(unreached-branch)
-''   line 12146  sqlite3.h:12033  C2T-TODO(unreached-branch)
-''   line 12184  sqlite3.h:12070  C2T-TODO(unreached-branch)
-''   line 12206  sqlite3.h:12091  C2T-TODO(unreached-branch)
-''   line 12215  sqlite3.h:12099  C2T-TODO(unreached-branch)
-''   line 12259  sqlite3.h:12142  C2T-TODO(unreached-branch)
-''   line 12283  sqlite3.h:12165  C2T-TODO(unreached-branch)  SQLITE_CHANGESETSTART_INVERT
-''   line 12310  sqlite3.h:12191  C2T-TODO(unreached-branch)
-''   line 12345  sqlite3.h:12225  C2T-TODO(unreached-branch)
-''   line 12380  sqlite3.h:12259  C2T-TODO(unreached-branch)
-''   line 12412  sqlite3.h:12290  C2T-TODO(unreached-branch)
-''   line 12447  sqlite3.h:12324  C2T-TODO(unreached-branch)
-''   line 12476  sqlite3.h:12352  C2T-TODO(unreached-branch)
-''   line 12494  sqlite3.h:12369  C2T-TODO(unreached-branch)
-''   line 12531  sqlite3.h:12405  C2T-TODO(unreached-branch)
-''   line 12562  sqlite3.h:12435  C2T-TODO(unreached-branch)
-''   line 12594  sqlite3.h:12466  C2T-TODO(unreached-branch)
-''   line 12610  sqlite3.h:12481  C2T-TODO(unreached-branch)
-''   line 12649  sqlite3.h:12519  C2T-TODO(unreached-branch)
-''   line 12682  sqlite3.h:12551  C2T-TODO(unreached-branch)
-''   line 12766  sqlite3.h:12634  C2T-TODO(unreached-branch)
-''   line 12786  sqlite3.h:12653  C2T-TODO(unreached-branch)
-''   line 12819  sqlite3.h:12685  C2T-TODO(unreached-branch)
-''   line 12830  sqlite3.h:12695  C2T-TODO(unreached-branch)
-''   line 13003  sqlite3.h:12867  C2T-TODO(unreached-branch)
-''   line 13105  sqlite3.h:12968  C2T-TODO(unreached-branch)  SQLITE_CHANGESETAPPLY_NOSAVEPOINT
-''   line 13107  sqlite3.h:12969  C2T-TODO(unreached-branch)  SQLITE_CHANGESETAPPLY_INVERT
-''   line 13109  sqlite3.h:12970  C2T-TODO(unreached-branch)  SQLITE_CHANGESETAPPLY_IGNORENOOP
-''   line 13111  sqlite3.h:12971  C2T-TODO(unreached-branch)  SQLITE_CHANGESETAPPLY_FKNOACTION
-''   line 13113  sqlite3.h:12972  C2T-TODO(unreached-branch)  SQLITE_CHANGESETAPPLY_NOUPDATELOOP
-''   line 13171  sqlite3.h:13029  C2T-TODO(unreached-branch)  SQLITE_CHANGESET_DATA
-''   line 13173  sqlite3.h:13030  C2T-TODO(unreached-branch)  SQLITE_CHANGESET_NOTFOUND
-''   line 13175  sqlite3.h:13031  C2T-TODO(unreached-branch)  SQLITE_CHANGESET_CONFLICT
-''   line 13177  sqlite3.h:13032  C2T-TODO(unreached-branch)  SQLITE_CHANGESET_CONSTRAINT
-''   line 13179  sqlite3.h:13033  C2T-TODO(unreached-branch)  SQLITE_CHANGESET_FOREIGN_KEY
-''   line 13213  sqlite3.h:13066  C2T-TODO(unreached-branch)  SQLITE_CHANGESET_OMIT
-''   line 13215  sqlite3.h:13067  C2T-TODO(unreached-branch)  SQLITE_CHANGESET_REPLACE
-''   line 13217  sqlite3.h:13068  C2T-TODO(unreached-branch)  SQLITE_CHANGESET_ABORT
-''   line 13318  sqlite3.h:13168  C2T-TODO(unreached-branch)
-''   line 13330  sqlite3.h:13179  C2T-TODO(unreached-branch)
-''   line 13342  sqlite3.h:13190  C2T-TODO(unreached-branch)
-''   line 13362  sqlite3.h:13209  C2T-TODO(unreached-branch)
-''   line 13377  sqlite3.h:13223  C2T-TODO(unreached-branch)
-''   line 13470  sqlite3.h:13315  C2T-TODO(unreached-branch)
-''   line 13604  sqlite3.h:13448  C2T-TODO(unreached-branch)
-''   line 13610  sqlite3.h:13453  C2T-TODO(unreached-branch)  SQLITE_SESSION_CONFIG_STRMSIZE
-''   line 13620  sqlite3.h:13462  C2T-TODO(unreached-branch)
-''   line 13648  sqlite3.h:13489  C2T-TODO(unreached-branch)  SQLITE_CHANGEGROUP_CONFIG_PATCHSET
-''   line 13696  sqlite3.h:13536  C2T-TODO(unreached-branch)
-''   line 13736  sqlite3.h:13575  C2T-TODO(unreached-branch)
-''   line 13751  sqlite3.h:13589  C2T-TODO(unreached-branch)
-''   line 13761  sqlite3.h:13598  C2T-TODO(unreached-branch)
-''   line 13774  sqlite3.h:13610  C2T-TODO(unreached-branch)
-''   line 13787  sqlite3.h:13622  C2T-TODO(unreached-branch)
-''   line 13841  sqlite3.h:13675  C2T-TODO(unreached-branch)
+'' 15 items need manual translation:
+''   line 218  sqlite3.h:188  C2T-TODO(refused-type)  sqlite3_version
+''   line 251  sqlite3.h:220  C2T-TODO(function-like-macro)  sqlite3_compileoption_get
+''   line 325  sqlite3.h:293  C2T-TODO(conditional)  SQLITE_INT64_TYPE
+''   line 327  sqlite3.h:294  C2T-TODO(conditional)
+''   line 329  sqlite3.h:295  C2T-TODO(conditional)  SQLITE_UINT64_TYPE
+''   line 331  sqlite3.h:296  C2T-TODO(conditional)
+''   line 333  sqlite3.h:297  C2T-TODO(conditional)  #else
+''   line 335  sqlite3.h:298  C2T-TODO(conditional)
+''   line 337  sqlite3.h:299  C2T-TODO(conditional)  #endif
+''   line 339  sqlite3.h:300  C2T-TODO(conditional)  #elif
+''   line 347  sqlite3.h:303  C2T-TODO(conditional)  #else
+''   line 355  sqlite3.h:306  C2T-TODO(conditional)  #endif
+''   line 6509  sqlite3.h:6478  C2T-TODO(macro)  SQLITE_STATIC
+''   line 6511  sqlite3.h:6479  C2T-TODO(macro)  SQLITE_TRANSIENT
+''   line 11454  sqlite3.h:11450  C2T-TODO(macro)  double
 '' =============================================================================
 
 /'
@@ -224,12 +140,10 @@ extern "C"
 ** Ensure these symbols were not defined by some previous header file.
 '/
 #ifdef SQLITE_VERSION
-'' C2T-TODO(unreached-branch) sqlite3.h:113 -- inside a branch this pass does not take
-'' # undef SQLITE_VERSION
+# undef SQLITE_VERSION
 #endif
 #ifdef SQLITE_VERSION_NUMBER
-'' C2T-TODO(unreached-branch) sqlite3.h:116 -- inside a branch this pass does not take
-'' # undef SQLITE_VERSION_NUMBER
+# undef SQLITE_VERSION_NUMBER
 #endif
 
 /'
@@ -333,9 +247,8 @@ declare function sqlite3_libversion_number( ) as int32
 declare function sqlite3_compileoption_used( byval zOptName as const zstring ptr ) as int32
 declare function sqlite3_compileoption_get( byval N as int32 ) as const zstring ptr
 #else
-'' C2T-TODO(unreached-branch) sqlite3.h:219 -- inside a branch this pass does not take
-'' # define sqlite3_compileoption_used(X) 0
-'' C2T-TODO(unreached-branch) sqlite3.h:220 -- inside a branch this pass does not take
+# define sqlite3_compileoption_used(X) 0
+'' C2T-TODO(function-like-macro) sqlite3.h:220 -- a pointer cast
 '' # define sqlite3_compileoption_get(X)  ((void*)0)
 #endif
 
@@ -411,17 +324,17 @@ type sqlite3__fwd as sqlite3
 '/
 '' C2T-TODO(conditional) sqlite3.h:293 -- '_MSC_VER' has no tiko equivalent
 '' #ifdef SQLITE_INT64_TYPE
-  '' C2T-TODO(unreached-branch) sqlite3.h:294 -- inactive for this pass; c2t sees no declarations in it
+  '' C2T-TODO(conditional) sqlite3.h:294 -- inside a conditional that stays a TODO
 ''   typedef SQLITE_INT64_TYPE sqlite_int64;
-'' C2T-TODO(unreached-branch) sqlite3.h:295 -- inside a branch this pass does not take
+'' C2T-TODO(conditional) sqlite3.h:295 -- inside a conditional that stays a TODO
 '' # ifdef SQLITE_UINT64_TYPE
-    '' C2T-TODO(unreached-branch) sqlite3.h:296 -- inactive for this pass; c2t sees no declarations in it
+    '' C2T-TODO(conditional) sqlite3.h:296 -- inside a conditional that stays a TODO
 ''     typedef SQLITE_UINT64_TYPE sqlite_uint64;
-'' C2T-TODO(unreached-branch) sqlite3.h:297 -- inside a branch this pass does not take
+'' C2T-TODO(conditional) sqlite3.h:297 -- inside a conditional that stays a TODO
 '' # else
-    '' C2T-TODO(unreached-branch) sqlite3.h:298 -- inactive for this pass; c2t sees no declarations in it
+    '' C2T-TODO(conditional) sqlite3.h:298 -- inside a conditional that stays a TODO
 ''     typedef unsigned SQLITE_INT64_TYPE sqlite_uint64;
-'' C2T-TODO(unreached-branch) sqlite3.h:299 -- inside a branch this pass does not take
+'' C2T-TODO(conditional) sqlite3.h:299 -- inside a conditional that stays a TODO
 '' # endif
 '' C2T-TODO(conditional) sqlite3.h:300 -- '_MSC_VER' has no tiko equivalent
 '' #elif defined(_MSC_VER) || defined(__BORLANDC__)
@@ -449,8 +362,7 @@ type sqlite3_uint64 as sqlite_uint64
 ** substitute integer for floating-point.
 '/
 #ifdef SQLITE_OMIT_FLOATING_POINT
-'' C2T-TODO(unreached-branch) sqlite3.h:315 -- inside a branch this pass does not take
-'' # define double sqlite3_int64
+# define double_ sqlite3_int64
 #endif
 
 /'
@@ -4853,8 +4765,7 @@ declare function sqlite3_prepare16_v3( byval db as sqlite3 ptr, _
 declare function sqlite3_sql( byval pStmt as sqlite3_stmt ptr ) as const zstring ptr
 declare function sqlite3_expanded_sql( byval pStmt as sqlite3_stmt ptr ) as zstring ptr
 #ifdef SQLITE_ENABLE_NORMALIZE
-'' C2T-TODO(unreached-branch) sqlite3.h:4733 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API const char *sqlite3_normalized_sql(sqlite3_stmt *pStmt);
+declare function sqlite3_normalized_sql( byval pStmt as sqlite3_stmt ptr ) as const zstring ptr
 #endif
 
 /'
@@ -5531,8 +5442,7 @@ declare function sqlite3_data_count( byval pStmt as sqlite3_stmt ptr ) as int32
 #define SQLITE_BLOB 4
 #define SQLITE_NULL 5
 #ifdef SQLITE_TEXT
-'' C2T-TODO(unreached-branch) sqlite3.h:5410 -- inside a branch this pass does not take
-'' # undef SQLITE_TEXT
+# undef SQLITE_TEXT
 #else
 # define SQLITE_TEXT 3
 #endif
@@ -6950,10 +6860,7 @@ declare function sqlite3_collation_needed16( byval as sqlite3 ptr, _
 ** Specify the activation key for a CEROD database.  Unless
 ** activated, none of the CEROD routines will work.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:6835 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API void sqlite3_activate_cerod(
-''   const char *zPassPhrase        /* Activation phrase */
-'' );
+declare sub sqlite3_activate_cerod( byval zPassPhrase as const zstring ptr )
 #endif
 
 /'
@@ -11089,25 +10996,23 @@ declare function sqlite3_db_cacheflush( byval as sqlite3 ptr ) as int32
 ** See also:  [sqlite3_update_hook()]
 '/
 #if defined(SQLITE_ENABLE_PREUPDATE_HOOK)
-'' C2T-TODO(unreached-branch) sqlite3.h:10987 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API void *sqlite3_preupdate_hook(
-''   sqlite3 *db,
-''   void(*xPreUpdate)(
-''     void *pCtx,                   /* Copy of third arg to preupdate_hook() */
-''     sqlite3 *db,                  /* Database handle */
-''     int op,                       /* SQLITE_UPDATE, DELETE or INSERT */
-''     char const *zDb,              /* Database name */
-''     char const *zName,            /* Table name */
-''     sqlite3_int64 iKey1,          /* Rowid of row about to be deleted/updated */
-''     sqlite3_int64 iKey2           /* New rowid value (for a rowid UPDATE) */
-''   ),
-''   void*
-'' );
-'' SQLITE_API int sqlite3_preupdate_old(sqlite3 *, int, sqlite3_value **);
-'' SQLITE_API int sqlite3_preupdate_count(sqlite3 *);
-'' SQLITE_API int sqlite3_preupdate_depth(sqlite3 *);
-'' SQLITE_API int sqlite3_preupdate_new(sqlite3 *, int, sqlite3_value **);
-'' SQLITE_API int sqlite3_preupdate_blobwrite(sqlite3 *);
+declare function sqlite3_preupdate_hook( byval db as sqlite3 ptr, _
+  _
+  byval xPreUpdate as sub cdecl( byval as any ptr, byval as sqlite3 ptr, byval as int32, byval as const zstring ptr, byval as const zstring ptr, byval as sqlite3_int64, byval as sqlite3_int64 ), _
+    _
+    _
+    _
+    _
+    _
+    _
+    _
+  _
+  byval as any ptr ) as any ptr
+declare function sqlite3_preupdate_old( byval as sqlite3 ptr, byval as int32, byval as sqlite3_value ptr ptr ) as int32
+declare function sqlite3_preupdate_count( byval as sqlite3 ptr ) as int32
+declare function sqlite3_preupdate_depth( byval as sqlite3 ptr ) as int32
+declare function sqlite3_preupdate_new( byval as sqlite3 ptr, byval as int32, byval as sqlite3_value ptr ptr ) as int32
+declare function sqlite3_preupdate_blobwrite( byval as sqlite3 ptr ) as int32
 #endif
 
 /'
@@ -11546,27 +11451,19 @@ declare function sqlite3_carray_bind( byval pStmt as sqlite3_stmt ptr, _
 ** builds on processors without floating point support.
 '/
 #ifdef SQLITE_OMIT_FLOATING_POINT
-'' C2T-TODO(unreached-branch) sqlite3.h:11450 -- inside a branch this pass does not take
+'' C2T-TODO(macro) sqlite3.h:11450 -- 'double' is a tiko keyword: #undef would remove it
 '' # undef double
 #endif
 
 #if defined(__wasi__)
-'' C2T-TODO(unreached-branch) sqlite3.h:11454 -- inside a branch this pass does not take
-'' # undef SQLITE_WASI
-'' C2T-TODO(unreached-branch) sqlite3.h:11455 -- inside a branch this pass does not take
-'' # define SQLITE_WASI 1
-'' C2T-TODO(unreached-branch) sqlite3.h:11456 -- inside a branch this pass does not take
-'' # ifndef SQLITE_OMIT_LOAD_EXTENSION
-'' C2T-TODO(unreached-branch) sqlite3.h:11457 -- inside a branch this pass does not take
-'' #  define SQLITE_OMIT_LOAD_EXTENSION
-'' C2T-TODO(unreached-branch) sqlite3.h:11458 -- inside a branch this pass does not take
-'' # endif
-'' C2T-TODO(unreached-branch) sqlite3.h:11459 -- inside a branch this pass does not take
-'' # ifndef SQLITE_THREADSAFE
-'' C2T-TODO(unreached-branch) sqlite3.h:11460 -- inside a branch this pass does not take
-'' #  define SQLITE_THREADSAFE 0
-'' C2T-TODO(unreached-branch) sqlite3.h:11461 -- inside a branch this pass does not take
-'' # endif
+# undef SQLITE_WASI
+# define SQLITE_WASI 1
+# ifndef SQLITE_OMIT_LOAD_EXTENSION
+#  define SQLITE_OMIT_LOAD_EXTENSION
+# endif
+# ifndef SQLITE_THREADSAFE
+#  define SQLITE_THREADSAFE 0
+# endif
 #endif
 
 end extern
@@ -11599,8 +11496,7 @@ type sqlite3_rtree_query_info__fwd as sqlite3_rtree_query_info
 ** SQLITE_RTREE_INT_ONLY compile-time option.
 '/
 #ifdef SQLITE_RTREE_INT_ONLY
-  '' C2T-TODO(unreached-branch) sqlite3.h:11498 -- inactive for this pass; c2t sees no declarations in it
-''   typedef sqlite3_int64 sqlite3_rtree_dbl;
+  type sqlite3_rtree_dbl as sqlite3_int64
 #else
   type sqlite3_rtree_dbl as float64
 #endif
@@ -11689,8 +11585,7 @@ end extern
 /'******* Begin file sqlite3session.h ********'/
 
 #if (((defined(__SQLITESESSION_H_)) = 0) andalso defined(SQLITE_ENABLE_SESSION))
-'' C2T-TODO(unreached-branch) sqlite3.h:11591 -- inside a branch this pass does not take
-'' #define __SQLITESESSION_H_ 1
+#define __SQLITESESSION_H_ 1
 
 /'
 ** Make sure we can call this stuff from C++.
@@ -11704,8 +11599,7 @@ extern "C"
 ** An instance of this object is a [session] that can be used to
 ** record changes to a database.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:11607 -- inactive for this pass; c2t sees no declarations in it
-'' typedef struct sqlite3_session sqlite3_session;
+type sqlite3_session__fwd as sqlite3_session
 
 /'
 ** CAPI3REF: Changeset Iterator Handle
@@ -11713,8 +11607,7 @@ extern "C"
 ** An instance of this object acts as a cursor for iterating
 ** over the elements of a [changeset] or [patchset].
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:11615 -- inactive for this pass; c2t sees no declarations in it
-'' typedef struct sqlite3_changeset_iter sqlite3_changeset_iter;
+type sqlite3_changeset_iter__fwd as sqlite3_changeset_iter
 
 /'
 ** CAPI3REF: Create A New Session Object
@@ -11747,12 +11640,10 @@ extern "C"
 ** attached database. It is not an error if database zDb is not attached
 ** to the database when the session object is created.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:11648 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3session_create(
-''   sqlite3 *db,                    /* Database handle */
-''   const char *zDb,                /* Name of db (e.g. "main") */
-''   sqlite3_session **ppSession     /* OUT: New session object */
-'' );
+declare function sqlite3session_create( byval db as sqlite3 ptr, _
+  _
+  byval zDb as const zstring ptr, _                /' Name of db (e.g. "main") '/
+  byval ppSession as sqlite3_session ptr ptr ) as int32
 
 /'
 ** CAPI3REF: Delete A Session Object
@@ -11767,8 +11658,7 @@ extern "C"
 ** are attached is closed. Refer to the documentation for
 ** [sqlite3session_create()] for details.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:11667 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API void sqlite3session_delete(sqlite3_session *pSession);
+declare sub sqlite3session_delete( byval pSession as sqlite3_session ptr )
 
 /'
 ** CAPI3REF: Configure a Session Object
@@ -11779,8 +11669,7 @@ extern "C"
 ** [SQLITE_SESSION_OBJCONFIG_SIZE] and [SQLITE_SESSION_OBJCONFIG_ROWID].
 **
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:11678 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3session_object_config(sqlite3_session*, int op, void *pArg);
+declare function sqlite3session_object_config( byval as sqlite3_session ptr, byval op as int32, byval pArg as any ptr ) as int32
 
 /'
 ** CAPI3REF: Options for sqlite3session_object_config
@@ -11814,10 +11703,8 @@ extern "C"
 **   It is an error (SQLITE_MISUSE) to attempt to modify this setting after
 **   the first table has been attached to the session object.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:11712 -- inside a branch this pass does not take
-'' #define SQLITE_SESSION_OBJCONFIG_SIZE  1
-'' C2T-TODO(unreached-branch) sqlite3.h:11713 -- inside a branch this pass does not take
-'' #define SQLITE_SESSION_OBJCONFIG_ROWID 2
+#define SQLITE_SESSION_OBJCONFIG_SIZE 1
+#define SQLITE_SESSION_OBJCONFIG_ROWID 2
 
 /'
 ** CAPI3REF: Enable Or Disable A Session Object
@@ -11837,8 +11724,7 @@ extern "C"
 ** The return value indicates the final state of the session object: 0 if
 ** the session is disabled, or 1 if it is enabled.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:11733 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3session_enable(sqlite3_session *pSession, int bEnable);
+declare function sqlite3session_enable( byval pSession as sqlite3_session ptr, byval bEnable as int32 ) as int32
 
 /'
 ** CAPI3REF: Set Or Clear the Indirect Change Flag
@@ -11868,8 +11754,7 @@ extern "C"
 ** The return value indicates the final state of the indirect flag: 0 if
 ** it is clear, or 1 if it is set.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:11763 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3session_indirect(sqlite3_session *pSession, int bIndirect);
+declare function sqlite3session_indirect( byval pSession as sqlite3_session ptr, byval bIndirect as int32 ) as int32
 
 /'
 ** CAPI3REF: Attach A Table To A Session Object
@@ -11929,11 +11814,9 @@ extern "C"
 ** sqlite3changeset_apply() function silently ignore any modifications to the
 ** sqlite_stat1 table that are part of a changeset or patchset.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:11823 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3session_attach(
-''   sqlite3_session *pSession,      /* Session object */
-''   const char *zTab                /* Table name */
-'' );
+declare function sqlite3session_attach( byval pSession as sqlite3_session ptr, _
+  _
+  byval zTab as const zstring ptr ) as int32
 
 /'
 ** CAPI3REF: Set a table filter on a Session Object.
@@ -11945,15 +11828,13 @@ extern "C"
 ** If xFilter returns 0, changes are not tracked. Note that once a table is
 ** attached, xFilter will not be called again.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:11838 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API void sqlite3session_table_filter(
-''   sqlite3_session *pSession,      /* Session object */
-''   int(*xFilter)(
-''     void *pCtx,                   /* Copy of third arg to _filter_table() */
-''     const char *zTab              /* Table name */
-''   ),
-''   void *pCtx                      /* First argument passed to xFilter */
-'' );
+declare sub sqlite3session_table_filter( byval pSession as sqlite3_session ptr, _
+  _
+  byval xFilter as function cdecl( byval as any ptr, byval as const zstring ptr ) as int32, _
+    _
+    _
+  _
+  byval pCtx as any ptr )
 
 /'
 ** CAPI3REF: Generate A Changeset From A Session Object
@@ -12061,12 +11942,10 @@ extern "C"
 ** the resulting changeset will contain an UPDATE change that updates both
 ** fields.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:11953 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3session_changeset(
-''   sqlite3_session *pSession,      /* Session object */
-''   int *pnChangeset,               /* OUT: Size of buffer at *ppChangeset */
-''   void **ppChangeset              /* OUT: Buffer containing changeset */
-'' );
+declare function sqlite3session_changeset( byval pSession as sqlite3_session ptr, _
+  _
+  byval pnChangeset as int32 ptr, _               /' OUT: Size of buffer at *ppChangeset '/
+  byval ppChangeset as any ptr ptr ) as int32
 
 /'
 ** CAPI3REF: Return An Upper-limit For The Size Of The Changeset
@@ -12082,8 +11961,7 @@ extern "C"
 ** called. The final changeset size might be equal to or smaller than the
 ** size in bytes returned by this function.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:11973 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API sqlite3_int64 sqlite3session_changeset_size(sqlite3_session *pSession);
+declare function sqlite3session_changeset_size( byval pSession as sqlite3_session ptr ) as sqlite3_int64
 
 /'
 ** CAPI3REF: Load The Difference Between Tables Into A Session
@@ -12143,13 +12021,11 @@ extern "C"
 ** message. It is the responsibility of the caller to free this buffer using
 ** sqlite3_free().
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:12033 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3session_diff(
-''   sqlite3_session *pSession,
-''   const char *zFromDb,
-''   const char *zTbl,
-''   char **pzErrMsg
-'' );
+declare function sqlite3session_diff( byval pSession as sqlite3_session ptr, _
+  _
+  byval zFromDb as const zstring ptr, _
+  byval zTbl as const zstring ptr, _
+  byval pzErrMsg as zstring ptr ptr ) as int32
 
 
 /'
@@ -12181,12 +12057,10 @@ extern "C"
 ** a single table are grouped together, tables appear in the order in which
 ** they were attached to the session object).
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:12070 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3session_patchset(
-''   sqlite3_session *pSession,      /* Session object */
-''   int *pnPatchset,                /* OUT: Size of buffer at *ppPatchset */
-''   void **ppPatchset               /* OUT: Buffer containing patchset */
-'' );
+declare function sqlite3session_patchset( byval pSession as sqlite3_session ptr, _
+  _
+  byval pnPatchset as int32 ptr, _                /' OUT: Size of buffer at *ppPatchset '/
+  byval ppPatchset as any ptr ptr ) as int32
 
 /'
 ** CAPI3REF: Test if a changeset has recorded any changes.
@@ -12203,8 +12077,7 @@ extern "C"
 ** guaranteed that a call to sqlite3session_changeset() will return a
 ** changeset containing zero changes.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:12091 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3session_isempty(sqlite3_session *pSession);
+declare function sqlite3session_isempty( byval pSession as sqlite3_session ptr ) as int32
 
 /'
 ** CAPI3REF: Query for the amount of heap memory used by a session object.
@@ -12212,8 +12085,7 @@ extern "C"
 ** This API returns the total amount of heap memory in bytes currently
 ** used by the session object passed as the only argument.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:12099 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API sqlite3_int64 sqlite3session_memory_used(sqlite3_session *pSession);
+declare function sqlite3session_memory_used( byval pSession as sqlite3_session ptr ) as sqlite3_int64
 
 /'
 ** CAPI3REF: Create An Iterator To Traverse A Changeset
@@ -12256,18 +12128,15 @@ extern "C"
 ** Note that the sqlite3changeset_start_v2() API is still <b>experimental</b>
 ** and therefore subject to change.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:12142 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3changeset_start(
-''   sqlite3_changeset_iter **pp,    /* OUT: New changeset iterator handle */
-''   int nChangeset,                 /* Size of changeset blob in bytes */
-''   void *pChangeset                /* Pointer to blob containing changeset */
-'' );
-'' SQLITE_API int sqlite3changeset_start_v2(
-''   sqlite3_changeset_iter **pp,    /* OUT: New changeset iterator handle */
-''   int nChangeset,                 /* Size of changeset blob in bytes */
-''   void *pChangeset,               /* Pointer to blob containing changeset */
-''   int flags                       /* SESSION_CHANGESETSTART_* flags */
-'' );
+declare function sqlite3changeset_start( byval pp as sqlite3_changeset_iter ptr ptr, _
+  _
+  byval nChangeset as int32, _    /' Size of changeset blob in bytes '/
+  byval pChangeset as any ptr ) as int32
+declare function sqlite3changeset_start_v2( byval pp as sqlite3_changeset_iter ptr ptr, _
+  _
+  byval nChangeset as int32, _    /' Size of changeset blob in bytes '/
+  byval pChangeset as any ptr, _  /' Pointer to blob containing changeset '/
+  byval flags as int32 ) as int32
 
 /'
 ** CAPI3REF: Flags for sqlite3changeset_start_v2
@@ -12280,8 +12149,7 @@ extern "C"
 **   inverting a changeset using sqlite3changeset_invert() before applying it.
 **   It is an error to specify this flag with a patchset.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:12165 -- inside a branch this pass does not take
-'' #define SQLITE_CHANGESETSTART_INVERT        0x0002
+#define SQLITE_CHANGESETSTART_INVERT &h0002
 
 
 /'
@@ -12307,8 +12175,7 @@ extern "C"
 ** codes include SQLITE_CORRUPT (if the changeset buffer is corrupt) or
 ** SQLITE_NOMEM.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:12191 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3changeset_next(sqlite3_changeset_iter *pIter);
+declare function sqlite3changeset_next( byval pIter as sqlite3_changeset_iter ptr ) as int32
 
 /'
 ** CAPI3REF: Obtain The Current Operation From A Changeset Iterator
@@ -12342,14 +12209,12 @@ extern "C"
 ** SQLite error code is returned. The values of the output variables may not
 ** be trusted in this case.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:12225 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3changeset_op(
-''   sqlite3_changeset_iter *pIter,  /* Iterator object */
-''   const char **pzTab,             /* OUT: Pointer to table name */
-''   int *pnCol,                     /* OUT: Number of columns in table */
-''   int *pOp,                       /* OUT: SQLITE_INSERT, DELETE or UPDATE */
-''   int *pbIndirect                 /* OUT: True for an 'indirect' change */
-'' );
+declare function sqlite3changeset_op( byval pIter as sqlite3_changeset_iter ptr, _
+  _
+  byval pzTab as const zstring ptr ptr, _             /' OUT: Pointer to table name '/
+  byval pnCol as int32 ptr, _     /' OUT: Number of columns in table '/
+  byval pOp as int32 ptr, _       /' OUT: SQLITE_INSERT, DELETE or UPDATE '/
+  byval pbIndirect as int32 ptr ) as int32
 
 /'
 ** CAPI3REF: Obtain The Primary Key Definition Of A Table
@@ -12377,12 +12242,10 @@ extern "C"
 ** SQLITE_OK is returned and the output variables populated as described
 ** above.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:12259 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3changeset_pk(
-''   sqlite3_changeset_iter *pIter,  /* Iterator object */
-''   unsigned char **pabPK,          /* OUT: Array of boolean - true for PK cols */
-''   int *pnCol                      /* OUT: Number of entries in output array */
-'' );
+declare function sqlite3changeset_pk( byval pIter as sqlite3_changeset_iter ptr, _
+  _
+  byval pabPK as uint8 ptr ptr, _ /' OUT: Array of boolean - true for PK cols '/
+  byval pnCol as int32 ptr ) as int32
 
 /'
 ** CAPI3REF: Obtain old.* Values From A Changeset Iterator
@@ -12409,12 +12272,10 @@ extern "C"
 ** If some other error occurs (e.g. an OOM condition), an SQLite error code
 ** is returned and *ppValue is set to NULL.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:12290 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3changeset_old(
-''   sqlite3_changeset_iter *pIter,  /* Changeset iterator */
-''   int iVal,                       /* Column number */
-''   sqlite3_value **ppValue         /* OUT: Old value (or NULL pointer) */
-'' );
+declare function sqlite3changeset_old( byval pIter as sqlite3_changeset_iter ptr, _
+  _
+  byval iVal as int32, _          /' Column number '/
+  byval ppValue as sqlite3_value ptr ptr ) as int32
 
 /'
 ** CAPI3REF: Obtain new.* Values From A Changeset Iterator
@@ -12444,12 +12305,10 @@ extern "C"
 ** If some other error occurs (e.g. an OOM condition), an SQLite error code
 ** is returned and *ppValue is set to NULL.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:12324 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3changeset_new(
-''   sqlite3_changeset_iter *pIter,  /* Changeset iterator */
-''   int iVal,                       /* Column number */
-''   sqlite3_value **ppValue         /* OUT: New value (or NULL pointer) */
-'' );
+declare function sqlite3changeset_new( byval pIter as sqlite3_changeset_iter ptr, _
+  _
+  byval iVal as int32, _          /' Column number '/
+  byval ppValue as sqlite3_value ptr ptr ) as int32
 
 /'
 ** CAPI3REF: Obtain Conflicting Row Values From A Changeset Iterator
@@ -12473,12 +12332,10 @@ extern "C"
 ** If some other error occurs (e.g. an OOM condition), an SQLite error code
 ** is returned and *ppValue is set to NULL.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:12352 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3changeset_conflict(
-''   sqlite3_changeset_iter *pIter,  /* Changeset iterator */
-''   int iVal,                       /* Column number */
-''   sqlite3_value **ppValue         /* OUT: Value from conflicting row */
-'' );
+declare function sqlite3changeset_conflict( byval pIter as sqlite3_changeset_iter ptr, _
+  _
+  byval iVal as int32, _          /' Column number '/
+  byval ppValue as sqlite3_value ptr ptr ) as int32
 
 /'
 ** CAPI3REF: Determine The Number Of Foreign Key Constraint Violations
@@ -12491,11 +12348,9 @@ extern "C"
 **
 ** In all other cases this function returns SQLITE_MISUSE.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:12369 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3changeset_fk_conflicts(
-''   sqlite3_changeset_iter *pIter,  /* Changeset iterator */
-''   int *pnOut                      /* OUT: Number of FK violations */
-'' );
+declare function sqlite3changeset_fk_conflicts( byval pIter as sqlite3_changeset_iter ptr, _
+  _
+  byval pnOut as int32 ptr ) as int32
 
 
 /'
@@ -12528,8 +12383,7 @@ extern "C"
 **   }
 ** </pre>
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:12405 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3changeset_finalize(sqlite3_changeset_iter *pIter);
+declare function sqlite3changeset_finalize( byval pIter as sqlite3_changeset_iter ptr ) as int32
 
 /'
 ** CAPI3REF: Invert A Changeset
@@ -12559,11 +12413,9 @@ extern "C"
 ** WARNING/TODO: This function currently assumes that the input is a valid
 ** changeset. If it is not, the results are undefined.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:12435 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3changeset_invert(
-''   int nIn, const void *pIn,       /* Input changeset */
-''   int *pnOut, void **ppOut        /* OUT: Inverse of input */
-'' );
+declare function sqlite3changeset_invert( byval nIn as int32, byval pIn as const any ptr, _
+  _
+  byval pnOut as int32 ptr, byval ppOut as any ptr ptr ) as int32
 
 /'
 ** CAPI3REF: Concatenate Two Changeset Objects
@@ -12591,15 +12443,13 @@ extern "C"
 **
 ** Refer to the sqlite3_changegroup documentation below for details.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:12466 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3changeset_concat(
-''   int nA,                         /* Number of bytes in buffer pA */
-''   void *pA,                       /* Pointer to buffer containing changeset A */
-''   int nB,                         /* Number of bytes in buffer pB */
-''   void *pB,                       /* Pointer to buffer containing changeset B */
-''   int *pnOut,                     /* OUT: Number of bytes in output changeset */
-''   void **ppOut                    /* OUT: Buffer containing output changeset */
-'' );
+declare function sqlite3changeset_concat( byval nA as int32, _
+  _
+  byval pA as any ptr, _          /' Pointer to buffer containing changeset A '/
+  byval nB as int32, _            /' Number of bytes in buffer pB '/
+  byval pB as any ptr, _          /' Pointer to buffer containing changeset B '/
+  byval pnOut as int32 ptr, _     /' OUT: Number of bytes in output changeset '/
+  byval ppOut as any ptr ptr ) as int32
 
 /'
 ** CAPI3REF: Changegroup Handle
@@ -12607,8 +12457,7 @@ extern "C"
 ** A changegroup is an object used to combine two or more
 ** [changesets] or [patchsets]
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:12481 -- inactive for this pass; c2t sees no declarations in it
-'' typedef struct sqlite3_changegroup sqlite3_changegroup;
+type sqlite3_changegroup__fwd as sqlite3_changegroup
 
 /'
 ** CAPI3REF: Create A New Changegroup Object
@@ -12646,8 +12495,7 @@ extern "C"
 ** sqlite3changegroup_output() functions, also available are the streaming
 ** versions sqlite3changegroup_add_strm() and sqlite3changegroup_output_strm().
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:12519 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3changegroup_new(sqlite3_changegroup **pp);
+declare function sqlite3changegroup_new( byval pp as sqlite3_changegroup ptr ptr ) as int32
 
 /'
 ** CAPI3REF: Add a Schema to a Changegroup
@@ -12679,8 +12527,7 @@ extern "C"
 ** changesets that have different numbers of columns for a single table
 ** within a changegroup, provided that they are otherwise compatible.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:12551 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3changegroup_schema(sqlite3_changegroup*, sqlite3*, const char *zDb);
+declare function sqlite3changegroup_schema( byval as sqlite3_changegroup ptr, byval as sqlite3 ptr, byval zDb as const zstring ptr ) as int32
 
 /'
 ** CAPI3REF: Add A Changeset To A Changegroup
@@ -12763,8 +12610,7 @@ extern "C"
 ** In all cases, if an error occurs the state of the final contents of the
 ** changegroup is undefined. If no error occurs, SQLITE_OK is returned.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:12634 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3changegroup_add(sqlite3_changegroup*, int nData, void *pData);
+declare function sqlite3changegroup_add( byval as sqlite3_changegroup ptr, byval nData as int32, byval pData as any ptr ) as int32
 
 /'
 ** CAPI3REF: Add A Single Change To A Changegroup
@@ -12783,11 +12629,9 @@ extern "C"
 ** the SQLITE_CHANGESETAPPLY_INVERT flag. In this case SQLITE_ERROR is also
 ** returned.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:12653 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3changegroup_add_change(
-''   sqlite3_changegroup*,
-''   sqlite3_changeset_iter*
-'' );
+declare function sqlite3changegroup_add_change( byval as sqlite3_changegroup ptr, _
+  _
+  byval as sqlite3_changeset_iter ptr ) as int32
 
 
 
@@ -12816,19 +12660,16 @@ extern "C"
 ** responsibility of the caller to eventually free the buffer using a
 ** call to sqlite3_free().
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:12685 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3changegroup_output(
-''   sqlite3_changegroup*,
-''   int *pnData,                    /* OUT: Size of output buffer in bytes */
-''   void **ppData                   /* OUT: Pointer to output buffer */
-'' );
+declare function sqlite3changegroup_output( byval as sqlite3_changegroup ptr, _
+  _
+  byval pnData as int32 ptr, _    /' OUT: Size of output buffer in bytes '/
+  byval ppData as any ptr ptr ) as int32
 
 /'
 ** CAPI3REF: Delete A Changegroup Object
 ** DESTRUCTOR: sqlite3_changegroup
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:12695 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API void sqlite3changegroup_delete(sqlite3_changegroup*);
+declare sub sqlite3changegroup_delete( byval as sqlite3_changegroup ptr )
 
 /'
 ** CAPI3REF: Apply A Changeset To A Database
@@ -13000,56 +12841,52 @@ extern "C"
 ** Note that the sqlite3changeset_apply_v2() API is still <b>experimental</b>
 ** and therefore subject to change.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:12867 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3changeset_apply(
-''   sqlite3 *db,                    /* Apply change to "main" db of this handle */
-''   int nChangeset,                 /* Size of changeset in bytes */
-''   void *pChangeset,               /* Changeset blob */
-''   int(*xFilter)(
-''     void *pCtx,                   /* Copy of sixth arg to _apply() */
-''     const char *zTab              /* Table name */
-''   ),
-''   int(*xConflict)(
-''     void *pCtx,                   /* Copy of sixth arg to _apply() */
-''     int eConflict,                /* DATA, MISSING, CONFLICT, CONSTRAINT */
-''     sqlite3_changeset_iter *p     /* Handle describing change and conflict */
-''   ),
-''   void *pCtx                      /* First argument passed to xConflict */
-'' );
-'' SQLITE_API int sqlite3changeset_apply_v2(
-''   sqlite3 *db,                    /* Apply change to "main" db of this handle */
-''   int nChangeset,                 /* Size of changeset in bytes */
-''   void *pChangeset,               /* Changeset blob */
-''   int(*xFilter)(
-''     void *pCtx,                   /* Copy of sixth arg to _apply() */
-''     const char *zTab              /* Table name */
-''   ),
-''   int(*xConflict)(
-''     void *pCtx,                   /* Copy of sixth arg to _apply() */
-''     int eConflict,                /* DATA, MISSING, CONFLICT, CONSTRAINT */
-''     sqlite3_changeset_iter *p     /* Handle describing change and conflict */
-''   ),
-''   void *pCtx,                     /* First argument passed to xConflict */
-''   void **ppRebase, int *pnRebase, /* OUT: Rebase data */
-''   int flags                       /* SESSION_CHANGESETAPPLY_* flags */
-'' );
-'' SQLITE_API int sqlite3changeset_apply_v3(
-''   sqlite3 *db,                    /* Apply change to "main" db of this handle */
-''   int nChangeset,                 /* Size of changeset in bytes */
-''   void *pChangeset,               /* Changeset blob */
-''   int(*xFilter)(
-''     void *pCtx,                   /* Copy of sixth arg to _apply() */
-''     sqlite3_changeset_iter *p     /* Handle describing change */
-''   ),
-''   int(*xConflict)(
-''     void *pCtx,                   /* Copy of sixth arg to _apply() */
-''     int eConflict,                /* DATA, MISSING, CONFLICT, CONSTRAINT */
-''     sqlite3_changeset_iter *p     /* Handle describing change and conflict */
-''   ),
-''   void *pCtx,                     /* First argument passed to xConflict */
-''   void **ppRebase, int *pnRebase, /* OUT: Rebase data */
-''   int flags                       /* SESSION_CHANGESETAPPLY_* flags */
-'' );
+declare function sqlite3changeset_apply( byval db as sqlite3 ptr, _
+  _
+  byval nChangeset as int32, _    /' Size of changeset in bytes '/
+  byval pChangeset as any ptr, _  /' Changeset blob '/
+  byval xFilter as function cdecl( byval as any ptr, byval as const zstring ptr ) as int32, _
+    _
+    _
+  _
+  byval xConflict as function cdecl( byval as any ptr, byval as int32, byval as sqlite3_changeset_iter ptr ) as int32, _
+    _
+    _
+    _
+  _
+  byval pCtx as any ptr ) as int32
+declare function sqlite3changeset_apply_v2( byval db as sqlite3 ptr, _
+  _
+  byval nChangeset as int32, _    /' Size of changeset in bytes '/
+  byval pChangeset as any ptr, _  /' Changeset blob '/
+  byval xFilter as function cdecl( byval as any ptr, byval as const zstring ptr ) as int32, _
+    _
+    _
+  _
+  byval xConflict as function cdecl( byval as any ptr, byval as int32, byval as sqlite3_changeset_iter ptr ) as int32, _
+    _
+    _
+    _
+  _
+  byval pCtx as any ptr, _        /' First argument passed to xConflict '/
+  byval ppRebase as any ptr ptr, byval pnRebase as int32 ptr, _ /' OUT: Rebase data '/
+  byval flags as int32 ) as int32
+declare function sqlite3changeset_apply_v3( byval db as sqlite3 ptr, _
+  _
+  byval nChangeset as int32, _    /' Size of changeset in bytes '/
+  byval pChangeset as any ptr, _  /' Changeset blob '/
+  byval xFilter as function cdecl( byval as any ptr, byval as sqlite3_changeset_iter ptr ) as int32, _
+    _
+    _
+  _
+  byval xConflict as function cdecl( byval as any ptr, byval as int32, byval as sqlite3_changeset_iter ptr ) as int32, _
+    _
+    _
+    _
+  _
+  byval pCtx as any ptr, _        /' First argument passed to xConflict '/
+  byval ppRebase as any ptr ptr, byval pnRebase as int32 ptr, _ /' OUT: Rebase data '/
+  byval flags as int32 ) as int32
 
 /'
 ** CAPI3REF: Flags for sqlite3changeset_apply_v2
@@ -13102,16 +12939,11 @@ extern "C"
 **   to find a way to apply such a changeset. However, if this flag is set,
 **   then all such updates are considered CONSTRAINT conflicts.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:12968 -- inside a branch this pass does not take
-'' #define SQLITE_CHANGESETAPPLY_NOSAVEPOINT   0x0001
-'' C2T-TODO(unreached-branch) sqlite3.h:12969 -- inside a branch this pass does not take
-'' #define SQLITE_CHANGESETAPPLY_INVERT        0x0002
-'' C2T-TODO(unreached-branch) sqlite3.h:12970 -- inside a branch this pass does not take
-'' #define SQLITE_CHANGESETAPPLY_IGNORENOOP    0x0004
-'' C2T-TODO(unreached-branch) sqlite3.h:12971 -- inside a branch this pass does not take
-'' #define SQLITE_CHANGESETAPPLY_FKNOACTION    0x0008
-'' C2T-TODO(unreached-branch) sqlite3.h:12972 -- inside a branch this pass does not take
-'' #define SQLITE_CHANGESETAPPLY_NOUPDATELOOP  0x0010
+#define SQLITE_CHANGESETAPPLY_NOSAVEPOINT &h0001
+#define SQLITE_CHANGESETAPPLY_INVERT &h0002
+#define SQLITE_CHANGESETAPPLY_IGNORENOOP &h0004
+#define SQLITE_CHANGESETAPPLY_FKNOACTION &h0008
+#define SQLITE_CHANGESETAPPLY_NOUPDATELOOP &h0010
 
 /'
 ** CAPI3REF: Constants Passed To The Conflict Handler
@@ -13168,16 +13000,11 @@ extern "C"
 **
 ** </dl>
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:13029 -- inside a branch this pass does not take
-'' #define SQLITE_CHANGESET_DATA        1
-'' C2T-TODO(unreached-branch) sqlite3.h:13030 -- inside a branch this pass does not take
-'' #define SQLITE_CHANGESET_NOTFOUND    2
-'' C2T-TODO(unreached-branch) sqlite3.h:13031 -- inside a branch this pass does not take
-'' #define SQLITE_CHANGESET_CONFLICT    3
-'' C2T-TODO(unreached-branch) sqlite3.h:13032 -- inside a branch this pass does not take
-'' #define SQLITE_CHANGESET_CONSTRAINT  4
-'' C2T-TODO(unreached-branch) sqlite3.h:13033 -- inside a branch this pass does not take
-'' #define SQLITE_CHANGESET_FOREIGN_KEY 5
+#define SQLITE_CHANGESET_DATA 1
+#define SQLITE_CHANGESET_NOTFOUND 2
+#define SQLITE_CHANGESET_CONFLICT 3
+#define SQLITE_CHANGESET_CONSTRAINT 4
+#define SQLITE_CHANGESET_FOREIGN_KEY 5
 
 /'
 ** CAPI3REF: Constants Returned By The Conflict Handler
@@ -13210,12 +13037,9 @@ extern "C"
 **   and the call to sqlite3changeset_apply() returns SQLITE_ABORT.
 ** </dl>
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:13066 -- inside a branch this pass does not take
-'' #define SQLITE_CHANGESET_OMIT       0
-'' C2T-TODO(unreached-branch) sqlite3.h:13067 -- inside a branch this pass does not take
-'' #define SQLITE_CHANGESET_REPLACE    1
-'' C2T-TODO(unreached-branch) sqlite3.h:13068 -- inside a branch this pass does not take
-'' #define SQLITE_CHANGESET_ABORT      2
+#define SQLITE_CHANGESET_OMIT 0
+#define SQLITE_CHANGESET_REPLACE 1
+#define SQLITE_CHANGESET_ABORT 2
 
 /'
 ** CAPI3REF: Rebasing changesets
@@ -13315,8 +13139,7 @@ extern "C"
 **        sqlite3rebaser_delete().
 ** </ol>
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:13168 -- inactive for this pass; c2t sees no declarations in it
-'' typedef struct sqlite3_rebaser sqlite3_rebaser;
+type sqlite3_rebaser__fwd as sqlite3_rebaser
 
 /'
 ** CAPI3REF: Create a changeset rebaser object.
@@ -13327,8 +13150,7 @@ extern "C"
 ** occurs, return an SQLite error code (e.g. SQLITE_NOMEM) and set (*ppNew)
 ** to NULL.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:13179 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3rebaser_create(sqlite3_rebaser **ppNew);
+declare function sqlite3rebaser_create( byval ppNew as sqlite3_rebaser ptr ptr ) as int32
 
 /'
 ** CAPI3REF: Configure a changeset rebaser object.
@@ -13339,11 +13161,9 @@ extern "C"
 ** bytes), which must have been obtained from a previous call to
 ** sqlite3changeset_apply_v2().
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:13190 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3rebaser_configure(
-''   sqlite3_rebaser*,
-''   int nRebase, const void *pRebase
-'' );
+declare function sqlite3rebaser_configure( byval as sqlite3_rebaser ptr, _
+  _
+  byval nRebase as int32, byval pRebase as const any ptr ) as int32
 
 /'
 ** CAPI3REF: Rebase a changeset
@@ -13359,12 +13179,10 @@ extern "C"
 ** sqlite3_free(). Otherwise, if an error occurs, (*ppOut) and (*pnOut)
 ** are set to zero and an SQLite error code returned.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:13209 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3rebaser_rebase(
-''   sqlite3_rebaser*,
-''   int nIn, const void *pIn,
-''   int *pnOut, void **ppOut
-'' );
+declare function sqlite3rebaser_rebase( byval as sqlite3_rebaser ptr, _
+  _
+  byval nIn as int32, byval pIn as const any ptr, _
+  byval pnOut as int32 ptr, byval ppOut as any ptr ptr ) as int32
 
 /'
 ** CAPI3REF: Delete a changeset rebaser object.
@@ -13374,8 +13192,7 @@ extern "C"
 ** should be one call to this function for each successful invocation
 ** of sqlite3rebaser_create().
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:13223 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API void sqlite3rebaser_delete(sqlite3_rebaser *p);
+declare sub sqlite3rebaser_delete( byval p as sqlite3_rebaser ptr )
 
 /'
 ** CAPI3REF: Streaming Versions of API functions.
@@ -13467,106 +13284,93 @@ extern "C"
 ** parameter set to a value less than or equal to zero. Other than this,
 ** no guarantees are made as to the size of the chunks of data returned.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:13315 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3changeset_apply_strm(
-''   sqlite3 *db,                    /* Apply change to "main" db of this handle */
-''   int (*xInput)(void *pIn, void *pData, int *pnData), /* Input function */
-''   void *pIn,                                          /* First arg for xInput */
-''   int(*xFilter)(
-''     void *pCtx,                   /* Copy of sixth arg to _apply() */
-''     const char *zTab              /* Table name */
-''   ),
-''   int(*xConflict)(
-''     void *pCtx,                   /* Copy of sixth arg to _apply() */
-''     int eConflict,                /* DATA, MISSING, CONFLICT, CONSTRAINT */
-''     sqlite3_changeset_iter *p     /* Handle describing change and conflict */
-''   ),
-''   void *pCtx                      /* First argument passed to xConflict */
-'' );
-'' SQLITE_API int sqlite3changeset_apply_v2_strm(
-''   sqlite3 *db,                    /* Apply change to "main" db of this handle */
-''   int (*xInput)(void *pIn, void *pData, int *pnData), /* Input function */
-''   void *pIn,                                          /* First arg for xInput */
-''   int(*xFilter)(
-''     void *pCtx,                   /* Copy of sixth arg to _apply() */
-''     const char *zTab              /* Table name */
-''   ),
-''   int(*xConflict)(
-''     void *pCtx,                   /* Copy of sixth arg to _apply() */
-''     int eConflict,                /* DATA, MISSING, CONFLICT, CONSTRAINT */
-''     sqlite3_changeset_iter *p     /* Handle describing change and conflict */
-''   ),
-''   void *pCtx,                     /* First argument passed to xConflict */
-''   void **ppRebase, int *pnRebase,
-''   int flags
-'' );
-'' SQLITE_API int sqlite3changeset_apply_v3_strm(
-''   sqlite3 *db,                    /* Apply change to "main" db of this handle */
-''   int (*xInput)(void *pIn, void *pData, int *pnData), /* Input function */
-''   void *pIn,                                          /* First arg for xInput */
-''   int(*xFilter)(
-''     void *pCtx,                   /* Copy of sixth arg to _apply() */
-''     sqlite3_changeset_iter *p
-''   ),
-''   int(*xConflict)(
-''     void *pCtx,                   /* Copy of sixth arg to _apply() */
-''     int eConflict,                /* DATA, MISSING, CONFLICT, CONSTRAINT */
-''     sqlite3_changeset_iter *p     /* Handle describing change and conflict */
-''   ),
-''   void *pCtx,                     /* First argument passed to xConflict */
-''   void **ppRebase, int *pnRebase,
-''   int flags
-'' );
-'' SQLITE_API int sqlite3changeset_concat_strm(
-''   int (*xInputA)(void *pIn, void *pData, int *pnData),
-''   void *pInA,
-''   int (*xInputB)(void *pIn, void *pData, int *pnData),
-''   void *pInB,
-''   int (*xOutput)(void *pOut, const void *pData, int nData),
-''   void *pOut
-'' );
-'' SQLITE_API int sqlite3changeset_invert_strm(
-''   int (*xInput)(void *pIn, void *pData, int *pnData),
-''   void *pIn,
-''   int (*xOutput)(void *pOut, const void *pData, int nData),
-''   void *pOut
-'' );
-'' SQLITE_API int sqlite3changeset_start_strm(
-''   sqlite3_changeset_iter **pp,
-''   int (*xInput)(void *pIn, void *pData, int *pnData),
-''   void *pIn
-'' );
-'' SQLITE_API int sqlite3changeset_start_v2_strm(
-''   sqlite3_changeset_iter **pp,
-''   int (*xInput)(void *pIn, void *pData, int *pnData),
-''   void *pIn,
-''   int flags
-'' );
-'' SQLITE_API int sqlite3session_changeset_strm(
-''   sqlite3_session *pSession,
-''   int (*xOutput)(void *pOut, const void *pData, int nData),
-''   void *pOut
-'' );
-'' SQLITE_API int sqlite3session_patchset_strm(
-''   sqlite3_session *pSession,
-''   int (*xOutput)(void *pOut, const void *pData, int nData),
-''   void *pOut
-'' );
-'' SQLITE_API int sqlite3changegroup_add_strm(sqlite3_changegroup*,
-''     int (*xInput)(void *pIn, void *pData, int *pnData),
-''     void *pIn
-'' );
-'' SQLITE_API int sqlite3changegroup_output_strm(sqlite3_changegroup*,
-''     int (*xOutput)(void *pOut, const void *pData, int nData),
-''     void *pOut
-'' );
-'' SQLITE_API int sqlite3rebaser_rebase_strm(
-''   sqlite3_rebaser *pRebaser,
-''   int (*xInput)(void *pIn, void *pData, int *pnData),
-''   void *pIn,
-''   int (*xOutput)(void *pOut, const void *pData, int nData),
-''   void *pOut
-'' );
+declare function sqlite3changeset_apply_strm( byval db as sqlite3 ptr, _
+  _
+  byval xInput as function cdecl( byval as any ptr, byval as any ptr, byval as int32 ptr ) as int32, _ /' Input function '/
+  byval pIn as any ptr, _                             /' First arg for xInput '/
+  byval xFilter as function cdecl( byval as any ptr, byval as const zstring ptr ) as int32, _
+    _
+    _
+  _
+  byval xConflict as function cdecl( byval as any ptr, byval as int32, byval as sqlite3_changeset_iter ptr ) as int32, _
+    _
+    _
+    _
+  _
+  byval pCtx as any ptr ) as int32
+declare function sqlite3changeset_apply_v2_strm( byval db as sqlite3 ptr, _
+  _
+  byval xInput as function cdecl( byval as any ptr, byval as any ptr, byval as int32 ptr ) as int32, _ /' Input function '/
+  byval pIn as any ptr, _                             /' First arg for xInput '/
+  byval xFilter as function cdecl( byval as any ptr, byval as const zstring ptr ) as int32, _
+    _
+    _
+  _
+  byval xConflict as function cdecl( byval as any ptr, byval as int32, byval as sqlite3_changeset_iter ptr ) as int32, _
+    _
+    _
+    _
+  _
+  byval pCtx as any ptr, _        /' First argument passed to xConflict '/
+  byval ppRebase as any ptr ptr, byval pnRebase as int32 ptr, _
+  byval flags as int32 ) as int32
+declare function sqlite3changeset_apply_v3_strm( byval db as sqlite3 ptr, _
+  _
+  byval xInput as function cdecl( byval as any ptr, byval as any ptr, byval as int32 ptr ) as int32, _ /' Input function '/
+  byval pIn as any ptr, _                             /' First arg for xInput '/
+  byval xFilter as function cdecl( byval as any ptr, byval as sqlite3_changeset_iter ptr ) as int32, _
+    _
+    _
+  _
+  byval xConflict as function cdecl( byval as any ptr, byval as int32, byval as sqlite3_changeset_iter ptr ) as int32, _
+    _
+    _
+    _
+  _
+  byval pCtx as any ptr, _        /' First argument passed to xConflict '/
+  byval ppRebase as any ptr ptr, byval pnRebase as int32 ptr, _
+  byval flags as int32 ) as int32
+declare function sqlite3changeset_concat_strm( byval xInputA as function cdecl( byval as any ptr, byval as any ptr, byval as int32 ptr ) as int32, _
+  _
+  byval pInA as any ptr, _
+  byval xInputB as function cdecl( byval as any ptr, byval as any ptr, byval as int32 ptr ) as int32, _
+  byval pInB as any ptr, _
+  byval xOutput as function cdecl( byval as any ptr, byval as const any ptr, byval as int32 ) as int32, _
+  byval pOut as any ptr ) as int32
+declare function sqlite3changeset_invert_strm( byval xInput as function cdecl( byval as any ptr, byval as any ptr, byval as int32 ptr ) as int32, _
+  _
+  byval pIn as any ptr, _
+  byval xOutput as function cdecl( byval as any ptr, byval as const any ptr, byval as int32 ) as int32, _
+  byval pOut as any ptr ) as int32
+declare function sqlite3changeset_start_strm( byval pp as sqlite3_changeset_iter ptr ptr, _
+  _
+  byval xInput as function cdecl( byval as any ptr, byval as any ptr, byval as int32 ptr ) as int32, _
+  byval pIn as any ptr ) as int32
+declare function sqlite3changeset_start_v2_strm( byval pp as sqlite3_changeset_iter ptr ptr, _
+  _
+  byval xInput as function cdecl( byval as any ptr, byval as any ptr, byval as int32 ptr ) as int32, _
+  byval pIn as any ptr, _
+  byval flags as int32 ) as int32
+declare function sqlite3session_changeset_strm( byval pSession as sqlite3_session ptr, _
+  _
+  byval xOutput as function cdecl( byval as any ptr, byval as const any ptr, byval as int32 ) as int32, _
+  byval pOut as any ptr ) as int32
+declare function sqlite3session_patchset_strm( byval pSession as sqlite3_session ptr, _
+  _
+  byval xOutput as function cdecl( byval as any ptr, byval as const any ptr, byval as int32 ) as int32, _
+  byval pOut as any ptr ) as int32
+declare function sqlite3changegroup_add_strm( byval as sqlite3_changegroup ptr, _
+    byval xInput as function cdecl( byval as any ptr, byval as any ptr, byval as int32 ptr ) as int32, _
+    byval pIn as any ptr ) as int32
+declare function sqlite3changegroup_output_strm( byval as sqlite3_changegroup ptr, _
+    byval xOutput as function cdecl( byval as any ptr, byval as const any ptr, byval as int32 ) as int32, _
+    byval pOut as any ptr ) as int32
+declare function sqlite3rebaser_rebase_strm( byval pRebaser as sqlite3_rebaser ptr, _
+  _
+  byval xInput as function cdecl( byval as any ptr, byval as any ptr, byval as int32 ptr ) as int32, _
+  byval pIn as any ptr, _
+  byval xOutput as function cdecl( byval as any ptr, byval as const any ptr, byval as int32 ) as int32, _
+  byval pOut as any ptr ) as int32
 
 /'
 ** CAPI3REF: Configure global parameters
@@ -13601,14 +13405,12 @@ extern "C"
 ** This function returns SQLITE_OK if successful, or an SQLite error code
 ** otherwise.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:13448 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3session_config(int op, void *pArg);
+declare function sqlite3session_config( byval op as int32, byval pArg as any ptr ) as int32
 
 /'
 ** CAPI3REF: Values for sqlite3session_config().
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:13453 -- inside a branch this pass does not take
-'' #define SQLITE_SESSION_CONFIG_STRMSIZE 1
+#define SQLITE_SESSION_CONFIG_STRMSIZE 1
 
 /'
 ** CAPI3REF: Configure a changegroup object
@@ -13617,8 +13419,7 @@ extern "C"
 ** At present the only valid value for the second parameter is
 ** [SQLITE_CHANGEGROUP_CONFIG_PATCHSET].
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:13462 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3changegroup_config(sqlite3_changegroup*, int, void *pArg);
+declare function sqlite3changegroup_config( byval as sqlite3_changegroup ptr, byval as int32, byval pArg as any ptr ) as int32
 
 /'
 ** CAPI3REF: Options for sqlite3changegroup_config().
@@ -13645,8 +13446,7 @@ extern "C"
 **   configured to generate a changeset, or 1 if it is configured to generate
 **   a patchset.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:13489 -- inside a branch this pass does not take
-'' #define SQLITE_CHANGEGROUP_CONFIG_PATCHSET 1
+#define SQLITE_CHANGEGROUP_CONFIG_PATCHSET 1
 
 
 /'
@@ -13693,14 +13493,12 @@ extern "C"
 ** nul-terminated, English language error message. It is the responsibility
 ** of the caller to eventually free this buffer using sqlite3_free().
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:13536 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3changegroup_change_begin(
-''   sqlite3_changegroup*,
-''   int eOp,
-''   const char *zTab,
-''   int bIndirect,
-''   char **pzErr
-'' );
+declare function sqlite3changegroup_change_begin( byval as sqlite3_changegroup ptr, _
+  _
+  byval eOp as int32, _
+  byval zTab as const zstring ptr, _
+  byval bIndirect as int32, _
+  byval pzErr as zstring ptr ptr ) as int32
 
 /'
 ** CAPI3REF: Add a 64-bit integer to a changegroup
@@ -13733,13 +13531,11 @@ extern "C"
 ** If this call is successful, SQLITE_OK is returned. Otherwise, if an
 ** error occurs, an SQLite error code is returned.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:13575 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3changegroup_change_int64(
-''   sqlite3_changegroup*,
-''   int bNew,
-''   int iCol,
-''   sqlite3_int64 iVal
-'' );
+declare function sqlite3changegroup_change_int64( byval as sqlite3_changegroup ptr, _
+  _
+  byval bNew as int32, _
+  byval iCol as int32, _
+  byval iVal as sqlite3_int64 ) as int32
 
 /'
 ** CAPI3REF: Add a NULL to a changegroup
@@ -13748,8 +13544,7 @@ extern "C"
 ** it configures the change currently under construction with a NULL value
 ** instead of a 64-bit integer.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:13589 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3changegroup_change_null(sqlite3_changegroup*, int, int);
+declare function sqlite3changegroup_change_null( byval as sqlite3_changegroup ptr, byval as int32, byval as int32 ) as int32
 
 /'
 ** CAPI3REF: Add an double to a changegroup
@@ -13758,8 +13553,7 @@ extern "C"
 ** it configures the change currently being constructed with a real value
 ** instead of a 64-bit integer.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:13598 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3changegroup_change_double(sqlite3_changegroup*, int, int, double);
+declare function sqlite3changegroup_change_double( byval as sqlite3_changegroup ptr, byval as int32, byval as int32, byval as float64 ) as int32
 
 /'
 ** CAPI3REF: Add a text value to a changegroup
@@ -13771,10 +13565,7 @@ extern "C"
 ** else a negative value, in which case the buffer pVal points to is assumed to
 ** be nul-terminated.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:13610 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3changegroup_change_text(
-''   sqlite3_changegroup*, int, int, const char *pVal, int nVal
-'' );
+declare function sqlite3changegroup_change_text( byval as sqlite3_changegroup ptr, byval as int32, byval as int32, byval pVal as const zstring ptr, byval nVal as int32 ) as int32
 
 /'
 ** CAPI3REF: Add a blob to a changegroup
@@ -13784,10 +13575,7 @@ extern "C"
 ** integer. Parameter pVal points to a buffer containing the blob. Parameter
 ** nVal is the size of the blob in bytes.
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:13622 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3changegroup_change_blob(
-''     sqlite3_changegroup*, int, int, const void *pVal, int nVal
-'' );
+declare function sqlite3changegroup_change_blob( byval as sqlite3_changegroup ptr, byval as int32, byval as int32, byval pVal as const any ptr, byval nVal as int32 ) as int32
 
 /'
 ** CAPI3REF: Finish adding one-at-at-time changes to a changegroup
@@ -13838,12 +13626,10 @@ extern "C"
 ** It is the responsibility of the caller to eventually free any such error
 ** message buffer using sqlite3_free().
 '/
-'' C2T-TODO(unreached-branch) sqlite3.h:13675 -- inactive for this pass; c2t sees no declarations in it
-'' SQLITE_API int sqlite3changegroup_change_finish(
-''   sqlite3_changegroup*,
-''   int bDiscard,
-''   char **pzErr
-'' );
+declare function sqlite3changegroup_change_finish( byval as sqlite3_changegroup ptr, _
+  _
+  byval bDiscard as int32, _
+  byval pzErr as zstring ptr ptr ) as int32
 
 /'
 ** Make sure we can call this stuff from C++.

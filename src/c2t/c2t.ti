@@ -93,6 +93,7 @@ type C2tBlock
     as boolean isDecl              '' a translated declaration (extern "C" opens before the first)
     as int32 dirNo                 '' the directive it holds alone, index + 1; 0 for none
     as boolean unreached           '' C text this pass does not see: an inactive branch, '#if 0'
+    as boolean forced              '' translated by a branch pass: a branch no pass takes
     '' TODOs INSIDE a translated block's text -- a guarded merge (merge.tiko) can hold one:
     '' each 'line-offset TAB reason TAB what TAB C-line', for the banner and the exit status.
     marks as Tko.StrVec
@@ -125,6 +126,9 @@ type C2tPass
     skipped as C2tIntVec       '' pairs: start offset, end offset of each inactive region
     as boolean guarded         '' clang_isFileMultipleIncludeGuarded
     clangDiags as Tko.StrVec   '' clang's errors, when the header did not parse
+    '' A BRANCH PASS's header text: one untaken branch forced on, the same length as the
+    '' file's (force.tiko). clang parses it in place of the file; "" for an ordinary pass.
+    as string forcedText
 end type
 
 '' ---------------------------------------------------------------- one pass's result
@@ -198,7 +202,7 @@ declare sub IdiomBlocks( byref src as C2tSource, byref dirs as C2tDirVec, _
 '' pass.tiko -- one clang parse of the header for one target.
 declare function RunPass( byref api as Tko.CImport.ClangApi, byref src as C2tSource, _
                           byref opts as C2tOptions, byref triple as string, _
-                          byref p as C2tPass ) as boolean
+                          byref p as C2tPass, byref forcedText as string = "" ) as boolean
 declare sub ClosePass( byref api as Tko.CImport.ClangApi, byref p as C2tPass )
 '' A cursor's extent as expansion offsets.
 declare sub CursorSpan( byref api as Tko.CImport.ClangApi, byval c as Tko.CImport.CXCursor, _
@@ -330,6 +334,24 @@ declare sub TodoBlocks( byref src as C2tSource, byref dirs as C2tDirVec, byref p
 '' translated declaration and closes at the end, when no __cplusplus block placed it.
 '' merge.tiko -- the passes' blocks as one file's: identical text once, differing text under a
 '' synthesised guard, C text no pass sees as one TODO.
+'' force.tiko -- branch passes: the branches no pass takes, each forced on in a pass of its own.
+'' Branch directive k's body, lines l1..l2; false when it has none.
+declare function BranchBody( byref dirs as C2tDirVec, byval k as int32, byref l1 as int32, _
+                             byref l2 as int32 ) as boolean
+'' The branch directives in lines l1..l2 whose body holds C that no pass in 'outs' takes, while
+'' one of them reaches the directive. Idiom lines and '#if 0' are not branches to translate.
+declare sub UnreachedBranches( byref src as C2tSource, byref dirs as C2tDirVec, byref outs as C2tPassOutVec, _
+                               byref idiomLine as C2tIntVec, byval l1 as int32, byval l2 as int32, _
+                               byref found as C2tIntVec )
+'' The header's text with each branch in 'forced' taken and each directive in 'blankDirs' gone,
+'' same length, same lines; "" when a directive leaves no room to rewrite.
+declare function ForceText( byref src as C2tSource, byref dirs as C2tDirVec, byref forced as C2tIntVec, _
+                            byref blankDirs as C2tIntVec ) as string
+'' What 'shadow' made of lines r1..r2 replaces what 'into' had there, its blocks marked forced;
+'' false, nothing changed, when a block of either crosses r1 or r2.
+declare function Splice( byref into as C2tPassOut, byref shadow as C2tPassOut, byref dirs as C2tDirVec, _
+                         byval r1 as int32, byval r2 as int32 ) as boolean
+
 declare sub MergePasses( byref src as C2tSource, byref dirs as C2tDirVec, byref outs as C2tPassOutVec, _
                          byref merged as C2tBlockVec )
 '' A TODO block's text: its header line and the C quoted beneath (output.tiko).

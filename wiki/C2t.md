@@ -22,6 +22,8 @@ tiko c2t raylib.h -o raylib.ti
 
 The header is parsed by Clang twice, once for **windows-x86_64** and once for **linux-x86_64**, and the two translations are merged into one file. Text that is the same on both targets is written once; text that differs is written under a guard the translation synthesises (`#if defined(TIKO_OS_WINDOWS)` … `#elseif defined(TIKO_OS_LINUX)` … `#endif`). The header's own `#if` lines are kept and translated, with C's platform macros spelled as tiko's own (`_WIN32` → `TIKO_OS_WINDOWS`, `__linux__` → `TIKO_OS_LINUX`, `__x86_64__` → `TIKO_ARCH_X86_64`).
 
+A branch neither target takes -- `#ifdef SQLITE_ENABLE_SESSION`, an `#elif` for another platform -- is translated as well: the header is parsed once more per target with that branch switched on, and what it holds is written inside the translated `#if`, so defining the macro in tiko gives the same API C would. A header the branch includes that this machine does not have is left out of that parse, and its `#include` translated by name. `#error` is kept as tiko's `#error`.
+
 A small header, before and after. The C:
 
 ```c
@@ -120,11 +122,11 @@ A **TODO** is API that is missing until someone translates it by hand. A **NOTE*
 
 | TODO reason | |
 | --- | --- |
-| `macro` | An object-like macro whose value tiko cannot spell: a record value (a compound literal), infinity or NaN, or a name tiko does not declare |
+| `macro` | An object-like macro whose value tiko cannot spell: a record value (a compound literal), infinity or NaN, or a name tiko does not declare. Also an `#undef` of a tiko keyword (`#undef double`), which would take the keyword away |
 | `function-like-macro` | A function-like macro tiko cannot write as one expression: variadic, `#` or `##`, a statement, a cast to a type it does not know |
 | `static-inline` | A `static` or `static inline` function. There is no symbol to link; the body is quoted for porting |
-| `conditional` | An `#if` group tiko cannot state: a compiler's identity (`_MSC_VER`, `__GNUC__`), or a branch tiko would choose differently from Clang |
-| `unreached-branch` | C that neither target reaches: a branch of an `#if` no pass takes |
+| `conditional` | An `#if` group tiko cannot state: a compiler's identity (`_MSC_VER`, `__GNUC__`), or a branch tiko would choose differently from Clang. A branch inside such a group that no target takes stays C too: written out, it would hold unconditionally |
+| `branch-unparsed` | A branch no target takes that Clang cannot parse even when it is switched on -- C++ inside `#ifdef __cplusplus`, or types from a header the branch expects but never includes. The why quotes Clang |
 | `system-header` | An `#include <x.h>` with no tiko counterpart |
 | `refused-type` | A declaration that names a type tiko cannot spell, or a system type no mapped header declares |
 | `no-prototype` | `int f();` — C allows any arguments |

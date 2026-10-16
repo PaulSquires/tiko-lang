@@ -63,8 +63,9 @@ end function
 
 function RunPass( byref api as Tko.CImport.ClangApi, byref src as C2tSource, _
                   byref opts as C2tOptions, byref triple as string, _
-                  byref p as C2tPass ) as boolean
+                  byref p as C2tPass, byref forcedText as string ) as boolean
     p.triple = triple
+    p.forcedText = forcedText
     p.sharedMacro = opts.sharedMacro
 
     '' THE ARGUMENTS OUTLIVE THE PARSE: argv holds pointers into these strings.
@@ -98,7 +99,20 @@ function RunPass( byref api as Tko.CImport.ClangApi, byref src as C2tSource, _
     dim as any ptr idx = api.createIndex( 0, 0 )
     '' DETAILED PREPROCESSING RECORD: without it clang reports no skipped ranges at all (P0
     '' item 2). Bodies are skipped; c2t quotes a static inline body from the text.
-    dim as any ptr tu = api.parseTranslationUnit( idx, strptr( path_ ), @argv( 0 ), av.Count, nullptr, 0, _
+    '' A BRANCH PASS hands clang the forced text under the file's own name: every offset and
+    '' line is the file's, so the text walk needs to know nothing of it.
+    dim as Tko.CImport.CXUnsavedFile uf
+    dim as Tko.CImport.CXUnsavedFile ptr ufp = nullptr
+    dim as uint32 nuf = 0
+    if len( forcedText ) then
+        uf.Filename = strptr( path_ )
+        uf.Contents = strptr( p.forcedText )
+        uf.Length = len( p.forcedText )
+        ufp = @uf
+        nuf = 1
+    end if
+    dim as any ptr tu = api.parseTranslationUnit( idx, strptr( path_ ), @argv( 0 ), av.Count, _
+        ufp, nuf, _
         Tko.CImport.CXTranslationUnit_DetailedPreprocessingRecord or Tko.CImport.CXTranslationUnit_SkipFunctionBodies )
     if tu = nullptr then
         api.disposeIndex( idx )

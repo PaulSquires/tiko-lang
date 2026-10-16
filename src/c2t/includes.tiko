@@ -377,9 +377,21 @@ sub IncludeDirectives( byref e as C2tEmit, byref p as C2tPass, byref dirs as C2t
             '' clang does not enter again and so does not list: the file it opened before.
             if InSkipped_( p, a ) then continue for
             dim as int32 f = SeenBefore_( x, written )
-            if f < 0 then continue for
-            file_ = x.allFiles[f]
-            isSys = (x.allSys[f] <> 0)
+            if f >= 0 then
+                file_ = x.allFiles[f]
+                isSys = (x.allSys[f] <> 0)
+            elseif (len( p.forcedText ) > 0) andalso (p.forcedText[a] = 32) then
+                '' LEFT OUT OF A BRANCH PASS (c2t.tiko): a header this host does not have. Its
+                '' name is all there is -- '<x>' goes through the table, '"x"' is the .ti beside.
+                if left( d.name_, 1 ) <> "<" then
+                    e.incText[k] = "#include once " & chr( 34 ) & TiName_( Slashes_( written ) ) & chr( 34 )
+                    e.incState[k] = 1
+                    continue for
+                end if
+                isSys = true
+            else
+                continue for
+            end if
         end if
         if isSys then
             dim as string key = lcase( Slashes_( written ) )

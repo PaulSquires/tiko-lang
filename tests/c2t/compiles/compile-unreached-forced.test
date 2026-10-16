@@ -1,0 +1,7 @@
+'' The translation of tests/c2t/src/unreached.h compiles with its untaken branches switched on, for each target in TARGETS.
+'' TEST: cli
+'' CLEAN: build/.c2t/compile-unreached-forced
+'' STEP-EXIT: 2
+'' STEP: c2t tests/c2t/src/unreached.h --verify -o build/.c2t/compile-unreached-forced/unreached.ti
+'' ARGS: -d UR_WITH_EXTRA -d UR_WITH_OUTER -d UR_WITH_INNER -c build/.c2t/compile-unreached-forced/unreached.ti -o build/.c2t/compile-unreached-forced/unreached.o
+'' EXPECT-EXIT: 0

@@ -288,6 +288,24 @@ sub MergePasses( byref src as C2tSource, byref dirs as C2tDirVec, byref outs as 
         next
     next
 
+    '' ---- A BRANCH NO PASS TAKES (force.tiko) under a conditional left a TODO: tiko has no #if
+    '' to skip it with, so written it would hold unconditionally -- '#define double
+    '' sqlite3_int64'. It stays C, a TODO for the condition's sake, which no pass sees.
+    for p as int32 = 0 to np - 1
+        for b as int32 = 0 to outs[p].blocks.Count - 1
+            if outs[p].blocks[b].forced = false then continue for
+            for l as int32 = outs[p].blocks[b].line1 to outs[p].blocks[b].line2
+                if underTodo[l] <> 0 then
+                    outs[p].blocks[b].isTodo = true
+                    outs[p].blocks[b].unreached = true
+                    outs[p].blocks[b].reason = "conditional"
+                    outs[p].blocks[b].why = "inside a conditional that stays a TODO"
+                    exit for
+                end if
+            next
+        next
+    next
+
     '' ---- which block of each pass covers each line.
     dim as containers.Array( of C2tIntVec ) cover
     for p as int32 = 0 to np - 1
@@ -341,6 +359,11 @@ sub MergePasses( byref src as C2tSource, byref dirs as C2tDirVec, byref outs as 
                     exit for
                 end if
             next
+            '' UNDER A CONDITIONAL LEFT A TODO, the condition is the reason, not reachability.
+            if b.unreached andalso (b.reason = "unreached-branch") andalso (underTodo[b.line1] <> 0) then
+                b.reason = "conditional"
+                b.why = "inside a conditional that stays a TODO"
+            end if
             merged.Push( b )
             l = b.line2 + 1
             continue while

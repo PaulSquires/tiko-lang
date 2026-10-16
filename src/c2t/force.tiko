@@ -1,0 +1,227 @@
+'' force.tiko -- the branches no pass takes, translated by branch passes. See c2t.ti.
+''
+'' clang sees nothing of a branch it skips, so no ordinary pass can translate one. A BRANCH
+'' PASS is an ordinary pass over the header with one such branch forced on: clang parses a
+'' copy of the text, the same length and the same lines, in which only that group's
+'' directives are rewritten ('#ifdef X' -> '#if 1    ', the branches before it '#if 0').
+'' Every offset and line is the file's, so c2t's own text walk, which reads the ORIGINAL
+'' text, needs to know nothing of it. What the branch pass made of the branch's lines is
+'' spliced into the ordinary pass of its target, which then sees them; the merge does the
+'' rest as for any other line. A branch inside a forced branch that is still not taken gets
+'' a branch pass of its own, with both forced.
+
+#import "std/containers"
+#include once "c2t/c2t.ti"
+
+namespace Tko.C2t
+
+private function IsBranch_( byval kind as int32 ) as boolean
+    select case kind
+    case DK_IF, DK_IFDEF, DK_IFNDEF, DK_ELIF, DK_ELSE : return true
+    end select
+    return false
+end function
+
+private function IfOf_( byref dirs as C2tDirVec, byval k as int32 ) as int32
+    if (dirs[k].kind = DK_ELIF) orelse (dirs[k].kind = DK_ELSE) then return dirs[k].cond
+    return k
+end function
+
+'' The directive that closes branch k: its group's next #elif, #else or #endif; -1 if none.
+private function BranchEnd_( byref dirs as C2tDirVec, byval k as int32 ) as int32
+    dim as int32 g = IfOf_( dirs, k )
+    for j as int32 = k + 1 to dirs.Count - 1
+        if dirs[j].cond = g then
+            select case dirs[j].kind
+            case DK_ELIF, DK_ELSE, DK_ENDIF : return j
+            end select
+        end if
+    next
+    return -1
+end function
+
+function BranchBody( byref dirs as C2tDirVec, byval k as int32, byref l1 as int32, byref l2 as int32 ) as boolean
+    dim as int32 j = BranchEnd_( dirs, k )
+    if j < 0 then return false
+    l1 = dirs[k].line2 + 1
+    l2 = dirs[j].line1 - 1
+    return l1 <= l2
+end function
+
+'' '#if 0' is a comment in C already (D12): what it holds is a NOTE, never translated.
+private function IsIfZero_( byref src as C2tSource, byref d as C2tDirective ) as boolean
+    if d.kind <> DK_IF then return false
+    dim as int32 n = 0
+    dim as string t
+    for i as int32 = d.tok1 + 2 to d.tok2
+        if src.toks[i].kind = CT_COMMENT then continue for
+        n += 1
+        t = TokText( src, i )
+    next
+    return (n = 1) andalso (t = "0")
+end function
+
+'' Bytes a..b-1 inside one of a pass's inactive ranges.
+private function Skipped_( byref sk as C2tIntVec, byval a as int32, byval b as int32 ) as boolean
+    for i as int32 = 0 to sk.Count - 2 step 2
+        if (sk[i] <= a) andalso (b <= sk[i + 1]) then return true
+    next
+    return false
+end function
+
+'' The directive at 'o' lies inside an inactive range -- not merely opens one, as an untaken
+'' branch's own directive does (the range starts at its '#').
+private function Inside_( byref sk as C2tIntVec, byval o as int32 ) as boolean
+    for i as int32 = 0 to sk.Count - 2 step 2
+        if (sk[i] < o) andalso (o < sk[i + 1]) then return true
+    next
+    return false
+end function
+
+sub UnreachedBranches( byref src as C2tSource, byref dirs as C2tDirVec, byref outs as C2tPassOutVec, _
+                       byref idiomLine as C2tIntVec, byval l1 as int32, byval l2 as int32, _
+                       byref found as C2tIntVec )
+    found.Clear( )
+    for k as int32 = 0 to dirs.Count - 1
+        dim as C2tDirective d = dirs[k]
+        if (IsBranch_( d.kind ) = false) orelse (d.line1 < l1) orelse (d.line1 > l2) then continue for
+        if (idiomLine[d.line1] <> 0) orelse IsIfZero_( src, dirs[IfOf_( dirs, k )] ) then continue for
+        dim as int32 b1, b2
+        if BranchBody( dirs, k, b1, b2 ) = false then continue for
+        if b2 > l2 then continue for
+        '' ONLY A BODY WITH C IN IT: comments and blank lines are carried over as they are.
+        dim as int32 a = src.lineStart[b1 - 1]
+        dim as int32 b = src.toks[dirs[BranchEnd_( dirs, k )].tok1].ofs
+        dim as boolean code = false
+        for t as int32 = TokAt( src, a ) to src.toks.Count - 1
+            if src.toks[t].ofs >= b then exit for
+            if src.toks[t].kind <> CT_COMMENT then
+                code = true
+                exit for
+            end if
+        next
+        if code = false then continue for
+        '' NO PASS TAKES THE BRANCH, and at least one reaches its group -- a branch inside
+        '' another nobody takes is that one's branch pass's to find. The group's #if decides:
+        '' after a taken branch clang skips every #elif and #else to #endif as one range.
+        dim as boolean taken = false, reached = false
+        dim as int32 o = src.toks[dirs[IfOf_( dirs, k )].tok1].ofs
+        for p as int32 = 0 to outs.Count - 1
+            if Skipped_( outs[p].skipped, a, b ) = false then taken = true
+            if Inside_( outs[p].skipped, o ) = false then reached = true
+        next
+        if (taken = false) andalso reached then found.Push( k )
+    next
+end sub
+
+'' Bytes a..b-1 of t to spaces, line ends and line continuations kept: the lines stay lines.
+private sub Blank_( byref t as string, byval a as int32, byval b as int32 )
+    for i as int32 = a to b - 1
+        dim as ubyte c = t[i]
+        if (c = 10) orelse (c = 13) then continue for
+        if (c = 92) andalso (i + 1 < len( t )) then
+            if (t[i + 1] = 10) orelse (t[i + 1] = 13) then continue for
+        end if
+        t[i] = 32
+    next
+end sub
+
+'' Directive d's word and condition replaced by 'word' -- false when the first line has no
+'' room for it ('#if\' continued at once).
+private function Rewrite_( byref t as string, byref src as C2tSource, byref d as C2tDirective, _
+                           byref word as string ) as boolean
+    dim as int32 a = src.toks[d.tok1 + 1].ofs
+    dim as int32 b = src.toks[d.tok2].ofs + src.toks[d.tok2].len_
+    if a + len( word ) > b then return false
+    for i as int32 = a to a + len( word ) - 1
+        if (t[i] = 10) orelse (t[i] = 13) orelse (t[i] = 92) then return false
+    next
+    Blank_( t, a, b )
+    for i as int32 = 0 to len( word ) - 1
+        t[a + i] = word[i]
+    next
+    return true
+end function
+
+function ForceText( byref src as C2tSource, byref dirs as C2tDirVec, byref forced as C2tIntVec, _
+                    byref blankDirs as C2tIntVec ) as string
+    dim as string t = src.bytes
+    '' DIRECTIVES THE CALLER DROPS: an #include of a header this host does not have.
+    for i as int32 = 0 to blankDirs.Count - 1
+        dim as C2tDirective d = dirs[blankDirs[i]]
+        Blank_( t, src.toks[d.tok1].ofs, src.toks[d.tok2].ofs + src.toks[d.tok2].len_ )
+    next
+    for f as int32 = 0 to forced.Count - 1
+        dim as int32 k = forced[f]
+        dim as int32 g = IfOf_( dirs, k )
+        '' THE GROUP'S BRANCHES UP TO k: those before it false, k itself true. An #else needs
+        '' nothing of its own; the branches after k clang skips once k is taken.
+        for j as int32 = g to k
+            dim as boolean sib = (j = g) orelse (j = k) orelse ((dirs[j].cond = g) andalso (dirs[j].kind = DK_ELIF))
+            if sib = false then continue for
+            dim as string w
+            if j = k then
+                if dirs[j].kind <> DK_ELSE then w = iif( j = g, "if 1", "elif 1" )
+            else
+                w = iif( j = g, "if 0", "elif 0" )
+            end if
+            if len( w ) then
+                if Rewrite_( t, src, dirs[j], w ) = false then return ""
+            end if
+        next
+        '' AN #error IN THE BODY is a branch's usual way of saying 'not here': gone from the
+        '' forced text, so the parse goes on (the output keeps the C, translated or not).
+        dim as int32 e = BranchEnd_( dirs, k )
+        for j as int32 = k + 1 to e - 1
+            if (dirs[j].kind = DK_OTHER) andalso (dirs[j].word = "error") then
+                Blank_( t, src.toks[dirs[j].tok1].ofs, src.toks[dirs[j].tok2].ofs + src.toks[dirs[j].tok2].len_ )
+            end if
+        next
+    next
+    return t
+end function
+
+function Splice( byref into as C2tPassOut, byref shadow as C2tPassOut, byref dirs as C2tDirVec, _
+                 byval r1 as int32, byval r2 as int32 ) as boolean
+    '' A BLOCK ACROSS THE BODY'S EDGE in either pass: the two cannot be cut at the same line.
+    for b as int32 = 0 to into.blocks.Count - 1
+        dim as C2tBlock x = into.blocks[b]
+        if (x.line1 < r1) andalso (x.line2 >= r1) then return false
+        if (x.line1 <= r2) andalso (x.line2 > r2) then return false
+    next
+    for b as int32 = 0 to shadow.blocks.Count - 1
+        dim as C2tBlock x = shadow.blocks[b]
+        if (x.line1 < r1) andalso (x.line2 >= r1) then return false
+        if (x.line1 <= r2) andalso (x.line2 > r2) then return false
+    next
+    dim as C2tBlockVec nb
+    for b as int32 = 0 to into.blocks.Count - 1
+        if (into.blocks[b].line1 >= r1) andalso (into.blocks[b].line2 <= r2) then continue for
+        nb.Push( into.blocks[b] )
+    next
+    for b as int32 = 0 to shadow.blocks.Count - 1
+        dim as C2tBlock x = shadow.blocks[b]
+        if (x.line1 < r1) orelse (x.line2 > r2) then continue for
+        x.forced = true
+        nb.Push( x )
+    next
+    into.blocks = nb
+    for k as int32 = 0 to dirs.Count - 1
+        if (dirs[k].line1 < r1) orelse (dirs[k].line2 > r2) then continue for
+        into.dirState[k] = shadow.dirState[k]
+        into.dirText[k] = shadow.dirText[k]
+        into.dirReason[k] = shadow.dirReason[k]
+        into.dirWhy[k] = shadow.dirWhy[k]
+    next
+    for i as int32 = 0 to shadow.renames.Count - 1
+        dim as boolean have = false
+        for j as int32 = 0 to into.renames.Count - 1
+            if into.renames[j] = shadow.renames[i] then have = true
+        next
+        if have = false then into.renames.Push( shadow.renames[i] )
+    next
+    if shadow.needsCLong then into.needsCLong = true
+    return true
+end function
+
+end namespace

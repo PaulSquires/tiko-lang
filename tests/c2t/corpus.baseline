@@ -1,24 +1,24 @@
 # c2t acceptance corpus: header, c2t exit, TODOs, windows -c, linux -c.
 # Written by 'bash build/c2tcorpus.sh --accept'; a row may only get better.
-raylib/raylib.h                          2    40 ok   ok  
-raylib/raymath.h                         2    72 ok   ok  
-sqlite/sqlite3.h                         2    96 ok   ok  
-glfw/GLFW/glfw3.h                        2    59 ok   ok  
-sdl3/SDL3/SDL_platform_defines.h         2    82 ok   ok  
-sdl3/SDL3/SDL_begin_code.h               2   151 ok   ok  
+raylib/raylib.h                          2    39 ok   ok  
+raylib/raymath.h                         2    68 ok   ok  
+sqlite/sqlite3.h                         2    15 ok   ok  
+glfw/GLFW/glfw3.h                        2    30 ok   ok  
+sdl3/SDL3/SDL_platform_defines.h         2    19 ok   ok  
+sdl3/SDL3/SDL_begin_code.h               2   146 ok   ok  
 sdl3/SDL3/SDL_close_code.h               1     0 fail fail
-sdl3/SDL3/SDL_stdinc.h                   2   325 ok   ok  
-sdl3/SDL3/SDL_assert.h                   2    89 ok   ok  
+sdl3/SDL3/SDL_stdinc.h                   2   248 ok   ok  
+sdl3/SDL3/SDL_assert.h                   2    88 ok   ok  
 sdl3/SDL3/SDL_asyncio.h                  0     0 ok   ok  
 sdl3/SDL3/SDL_atomic.h                   2    87 ok   ok  
-sdl3/SDL3/SDL_endian.h                   2   143 ok   ok  
+sdl3/SDL3/SDL_endian.h                   2   134 ok   ok  
 sdl3/SDL3/SDL_error.h                    2     1 ok   ok  
 sdl3/SDL3/SDL_properties.h               0     0 ok   ok  
-sdl3/SDL3/SDL_thread.h                   2    19 ok   ok  
+sdl3/SDL3/SDL_thread.h                   2    13 ok   ok  
 sdl3/SDL3/SDL_mutex.h                    2    26 ok   ok  
 sdl3/SDL3/SDL_iostream.h                 2     1 ok   ok  
 sdl3/SDL3/SDL_audio.h                    2     5 ok   ok  
-sdl3/SDL3/SDL_bits.h                     2     4 ok   ok  
+sdl3/SDL3/SDL_bits.h                     2     3 ok   ok  
 sdl3/SDL3/SDL_blendmode.h                0     0 ok   ok  
 sdl3/SDL3/SDL_pixels.h                   2    21 ok   ok  
 sdl3/SDL3/SDL_rect.h                     2     8 ok   ok  
@@ -32,7 +32,7 @@ sdl3/SDL3/SDL_dlopennote.h               2    34 ok   ok
 sdl3/SDL3/SDL_guid.h                     0     0 ok   ok  
 sdl3/SDL3/SDL_power.h                    0     0 ok   ok  
 sdl3/SDL3/SDL_sensor.h                   0     0 ok   ok  
-sdl3/SDL3/SDL_joystick.h                 2     2 ok   ok  
+sdl3/SDL3/SDL_joystick.h                 2     1 ok   ok  
 sdl3/SDL3/SDL_gamepad.h                  2     5 ok   ok  
 sdl3/SDL3/SDL_scancode.h                 0     0 ok   ok  
 sdl3/SDL3/SDL_keycode.h                  0     0 ok   ok  
@@ -42,7 +42,7 @@ sdl3/SDL3/SDL_touch.h                    0     0 ok   ok
 sdl3/SDL3/SDL_pen.h                      0     0 ok   ok  
 sdl3/SDL3/SDL_events.h                   2     1 ok   ok  
 sdl3/SDL3/SDL_filesystem.h               0     0 ok   ok  
-sdl3/SDL3/SDL_gpu.h                      2     2 ok   ok  
+sdl3/SDL3/SDL_gpu.h                      0     0 ok   ok  
 sdl3/SDL3/SDL_haptic.h                   0     0 ok   ok  
 sdl3/SDL3/SDL_hidapi.h                   0     0 ok   ok  
 sdl3/SDL3/SDL_hints.h                    0     0 ok   ok  
@@ -57,7 +57,7 @@ sdl3/SDL3/SDL_platform.h                 0     0 ok   ok
 sdl3/SDL3/SDL_process.h                  0     0 ok   ok  
 sdl3/SDL3/SDL_render.h                   0     0 ok   ok  
 sdl3/SDL3/SDL_storage.h                  2     1 ok   ok  
-sdl3/SDL3/SDL_system.h                   2    29 ok   ok  
+sdl3/SDL3/SDL_system.h                   2     6 ok   ok  
 sdl3/SDL3/SDL_time.h                     0     0 ok   ok  
 sdl3/SDL3/SDL_timer.h                    2     3 ok   ok  
 sdl3/SDL3/SDL_tray.h                     0     0 ok   ok  
