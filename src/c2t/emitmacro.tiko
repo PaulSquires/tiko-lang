@@ -288,6 +288,19 @@ private sub EnvFromClang_( byref env as CxEnv, byref cname as string, byref tiko
     end if
 end sub
 
+'' An #undef's tiko name: the one its translated #define took, else its own -- "" with why set
+'' for a tiko keyword, which '#undef' would remove from the language (sqlite3.h's '# undef
+'' double', measured: TKO0808 on the next 'as double').
+private function UndefName_( byref env as CxEnv, byref d as C2tDirective, byref why as string ) as string
+    dim as int32 f = CxEnvFind( env, d.name_ )
+    if f >= 0 then return env.tiko[f]
+    if Tko.CImport.NameReservedValue( d.name_ ) then
+        why = "'" & d.name_ & "' is a tiko keyword: #undef would remove it"
+        return ""
+    end if
+    return d.name_
+end function
+
 private sub Define_( byref e as C2tEmit, byref env as CxEnv, byref dirs as C2tDirVec, byval k as int32, _
                      byref clangV as string )
     dim as C2tDirective d = dirs[k]
@@ -539,7 +552,15 @@ sub MacroDirectives( byref e as C2tEmit, byref p as C2tPass, byref dirs as C2tDi
         dim as C2tDirective d = dirs[k]
         if idiomLine[d.line1] then continue for
         if Inactive_( e, p, dirs, d ) then
-            Set_( e, k, 2, "", "unreached-branch", "inside a branch this pass does not take" )
+            '' AN #undef NEEDS NOTHING FROM CLANG: its text rides along with the TODO, and the
+            '' merge writes it when every #if around it is translated (sqlite3.h's guard undefs).
+            dim as string ut
+            if (d.kind = DK_UNDEF) andalso (len( d.name_ ) > 0) then
+                dim as string why
+                dim as string tn = UndefName_( env, d, why )
+                if len( tn ) then ut = TrailComments( e, Hash_( e, d ) & "undef " & tn, d.line2 )
+            end if
+            Set_( e, k, 2, ut, "unreached-branch", "inside a branch this pass does not take" )
             continue for
         end if
         select case d.kind
@@ -624,10 +645,11 @@ sub MacroDirectives( byref e as C2tEmit, byref p as C2tPass, byref dirs as C2tDi
                 Set_( e, k, 2, "", e.incReason[k], e.incWhy[k] )
             end if
         case DK_UNDEF
-            dim as int32 f = CxEnvFind( env, d.name_ )
-            dim as string tn = d.name_
-            if f >= 0 then tn = env.tiko[f]
-            if len( tn ) then
+            dim as string why
+            dim as string tn = UndefName_( env, d, why )
+            if len( why ) then
+                Set_( e, k, 2, "", "macro", why )
+            elseif len( tn ) then
                 CxEnvAdd( env, d.name_, tn, CXV_NONE, false )
                 Set_( e, k, 1, TrailComments( e, Hash_( e, d ) & "undef " & tn, d.line2 ), "", "" )
             end if

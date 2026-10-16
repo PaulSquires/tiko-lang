@@ -50,13 +50,17 @@ end function
 private sub Verdicts_( byref dirs as C2tDirVec, byref outs as C2tPassOutVec, byref fs as C2tIntVec, _
                        byref ft as Tko.StrVec, byref fr as Tko.StrVec, byref fw as Tko.StrVec )
     dim as int32 n = dirs.Count
+    '' AN #undef NO PASS REACHES keeps the text emitmacro.tiko gave it, for the end.
+    dim as Tko.StrVec ut
     for k as int32 = 0 to n - 1
         dim as int32 st = 0
-        dim as string tx, rs, wy
-        dim as boolean anyUnreached = false, anyLive = false, bad = false, seen = false
+        dim as string tx, rs, wy, un
+        dim as boolean anyUnreached = false, anyLive = false, bad = false, seen = false, unSame = true
         for p as int32 = 0 to outs.Count - 1
             dim as int32 s = outs[p].dirState[k]
             if (s = 2) andalso (outs[p].dirReason[k] = "unreached-branch") then
+                if anyUnreached andalso (un <> outs[p].dirText[k]) then unSame = false
+                un = outs[p].dirText[k]
                 anyUnreached = true
                 continue for
             end if
@@ -90,6 +94,7 @@ private sub Verdicts_( byref dirs as C2tDirVec, byref outs as C2tPassOutVec, byr
             wy = "inside a branch no pass takes"
         end if
         fs.Push( st ) : ft.Push( tx ) : fr.Push( rs ) : fw.Push( wy )
+        ut.Push( iif( (st = 2) andalso (rs = "unreached-branch") andalso unSame, un, "" ) )
     next
 
     '' A GROUP IS TRANSLATED WHOLE, and only inside translated groups -- to a fixed point.
@@ -135,6 +140,27 @@ private sub Verdicts_( byref dirs as C2tDirVec, byref outs as C2tPassOutVec, byr
             next
         next
     wend
+
+    '' ...AND IS WRITTEN when every #if around it is translated: tiko then skips it exactly
+    '' where clang did. One left a TODO, or none translated (an idiom's), keeps the TODO.
+    for k as int32 = 0 to n - 1
+        if len( ut[k] ) = 0 then continue for
+        dim as boolean ok = false
+        for h as int32 = 0 to n - 1
+            if (GroupOf_( dirs, h ) <> h) orelse (dirs[h].endif_ < 0) then continue for
+            if (dirs[h].line1 < dirs[k].line1) andalso (dirs[dirs[h].endif_].line1 > dirs[k].line1) then
+                if fs[h] = 2 then
+                    ok = false
+                    exit for
+                end if
+                if fs[h] = 1 then ok = true
+            end if
+        next
+        '' ("unreached-undef" tells the blocks below to take it in the passes that skip it.)
+        if ok then
+            fs[k] = 1 : ft[k] = ut[k] : fr[k] = "unreached-undef" : fw[k] = ""
+        end if
+    next
 end sub
 
 '' ---------------------------------------------------------------- guards
@@ -231,7 +257,8 @@ sub MergePasses( byref src as C2tSource, byref dirs as C2tDirVec, byref outs as 
             if (k < 0) orelse (fs[k] = 0) then continue for
             '' A PASS THAT DOES NOT SEE THE DIRECTIVE keeps it unreached: the merge must know
             '' which passes write it, to guard it when no translated #if around it does.
-            if (outs[p].dirState[k] = 2) andalso (outs[p].dirReason[k] = "unreached-branch") then continue for
+            if (outs[p].dirState[k] = 2) andalso (outs[p].dirReason[k] = "unreached-branch") andalso _
+               (fr[k] <> "unreached-undef") then continue for
             if fs[k] = 1 then
                 outs[p].blocks[b].isTodo = false
                 outs[p].blocks[b].text = ft[k]
