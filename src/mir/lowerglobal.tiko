@@ -126,7 +126,20 @@ function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as int32
     '' so the later one is suffixed rather than silently sharing.
     if linksByName = false then nm = UniqueGlobalName( c, nm )
 
-    dim as int32 g = c.m->AddVarGlobal( nm, LowerType( s->type_, *c.types ), s->type_, sz )
+    '' A BARE zstring OR wstring is no variable type as written (TKO0996) but is one through an
+    '' alias -- 'type Z as zstring : extern x as Z'. fbc gives it the storage of 'zstring * 1',
+    '' 'extern char x[1]', sizeof 1 (measured, fbc-modern 1.20); LowerType has no storage
+    '' for the bare builtin, and the global went out as 'external global void'.
+    dim as MirType gmt = LowerType( s->type_, *c.types )
+    if gmt = MT_VOID then
+        dim as Tko.TypeId ut = c.types->Unqualify( s->type_ )
+        if c.types->Kind( ut ) = Tko.TK_BUILTIN then
+            select case c.types->BuiltinOf( ut )
+            case Tko.TY_ZSTRING, Tko.TY_WSTRING : gmt = MT_AGG
+            end select
+        end if
+    end if
+    dim as int32 g = c.m->AddVarGlobal( nm, gmt, s->type_, sz )
     c.m->globals[g].sym = cast( uint32, sid )
     '' AND WHO MAY SEE IT. Everything here went out with external linkage, so two modules
     '' that each wrote 'dim shared e' -- or each held a 'private sub P' with a 'static sl'

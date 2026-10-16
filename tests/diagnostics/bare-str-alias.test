@@ -1,0 +1,11 @@
+'' A bare zstring or wstring through an ALIAS is a variable type to fbc (its keyword check is on
+'' the word as written, TKO0996 here): 'type Z as zstring : extern x as Z' is 'extern char
+'' x[1]', sizeof 1 (fbc-modern 1.20). tiko lowered the global to 'external global void' and
+'' clang refused it (TKO0113). Now it is one element's storage, as fbc's.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/bare-str-alias.tiko
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: global var agg alias_ver size 1
+'' EXPECT-OUT: global var agg s size 1
+'' EXPECT-OUT: verify: ok
+'' EXPECT-NOT: TKO0113

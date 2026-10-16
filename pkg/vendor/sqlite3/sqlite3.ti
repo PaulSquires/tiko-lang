@@ -15,9 +15,8 @@
 ''   parameter  sqlite3_win32_set_directory16.type -> sqlite3_win32_set_directory16.type_   (tiko reserved word)
 ''   constant   double -> double_   (tiko reserved word)
 ''
-'' 2 items need manual translation:
-''   line 205  sqlite3.h:188  C2T-TODO(refused-type)  sqlite3_version
-''   line 11423  sqlite3.h:11450  C2T-TODO(macro)  double
+'' 1 item needs manual translation:
+''   line 11427  sqlite3.h:11450  C2T-TODO(macro)  double
 '' =============================================================================
 
 /'
@@ -202,8 +201,13 @@ extern "C"
 **
 ** See also: [sqlite_version()] and [sqlite_source_id()].
 '/
-'' C2T-TODO(refused-type) sqlite3.h:188 -- 'sqlite3_version': FreeBASIC has no array typedef; declare the array at its use
-'' SQLITE_API SQLITE_EXTERN const char sqlite3_version[];
+#if not ((defined(TIKO_OS_WINDOWS) andalso defined(TIKO_LINK_DYNAMIC)))
+'' C2T-NOTE(unsized-array) sqlite3.h:188 -- 'sqlite3_version[]' has no size in C: '* 1' is nominal, the string reads to its NUL
+extern sqlite3_version as const zstring * 1
+#elseif (defined(TIKO_OS_WINDOWS) andalso defined(TIKO_LINK_DYNAMIC))
+'' C2T-NOTE(unsized-array) sqlite3.h:188 -- 'sqlite3_version[]' has no size in C: '* 1' is nominal, the string reads to its NUL
+extern import sqlite3_version as const zstring * 1
+#endif
 declare function sqlite3_libversion( ) as const zstring ptr
 declare function sqlite3_sourceid( ) as const zstring ptr
 declare function sqlite3_libversion_number( ) as int32

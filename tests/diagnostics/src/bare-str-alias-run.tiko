@@ -1,0 +1,6 @@
+type Z as zstring
+type W as wstring
+dim shared s as Z
+static shared ww as W
+s = ""
+print len( s ), sizeof( s ), sizeof( ww )
