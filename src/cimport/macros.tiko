@@ -430,8 +430,9 @@ end function
 
 '' tiko c2t (src/c2t/emitmacro.tiko): clang's value for each macro in 'names', by the same
 '' probe parse, as MacroPass's text -- "123", "123ull", a float, a quoted string, "" for
-'' none, "!nonfinite", or a "!record " shape. x.unitText and x.args are c2t's: one #include
-'' of the header and the pass's clang arguments.
+'' none, "!nonfinite" -- or, for a STRUCT value, "!recordv type<Name>(v, ...)" from the same
+'' field probes MacroPass makes, or "!norecord <why>". x.unitText and x.args are c2t's: one
+'' #include of the header and the pass's clang arguments.
 sub MacroValuesFor( byref x as CImp, byref names as Tko.StrVec, byref values as Tko.StrVec )
     dim as int32 n = names.Count
     values.Clear( )
@@ -448,7 +449,47 @@ sub MacroValuesFor( byref x as CImp, byref names as Tko.StrVec, byref values as 
             vals( i ) = ""
         next
     end if
+    '' THE FIELDS OF THE RECORD-VALUED ONES, one probe each, as MacroPass asks for them: clang
+    '' folds each field -- designators, omitted fields, arithmetic -- so nothing reads braces.
+    dim as Tko.StrVec flines
+    dim as int32 fidx( 0 to n - 1 )
     for i as int32 = 0 to n - 1
+        fidx( i ) = flines.Count
+        if left( vals( i ), len( RECORD_ ) ) <> RECORD_ then continue for
+        dim as string f = vals( i ) & chr( 9 )
+        dim as int32 st = instr( f, chr( 9 ) )
+        do
+            dim as int32 en = instr( st + 1, f, chr( 9 ) )
+            if en = 0 then exit do
+            flines.Push( "__auto_type __tko_field_" & flines.Count & " = (" & names[i] & _
+                         ")." & mid( f, st + 1, en - st - 1 ) & ";" )
+            st = en
+        loop
+    next
+    dim as int32 nf = flines.Count
+    dim as string fvals( 0 to iif( nf > 0, nf - 1, 0 ) )
+    dim as boolean fieldsOk = false
+    if nf > 0 then
+        dim as string fl( 0 to nf - 1 )
+        dim as boolean flive( 0 to nf - 1 )
+        for k as int32 = 0 to nf - 1
+            fl( k ) = flines[k]
+            flive( k ) = true
+        next
+        fieldsOk = ProbeParse_( x, fl(), flive(), nf, chr( 10 ), "__tko_field_", PM_FIELD, fvals() )
+    end if
+    for i as int32 = 0 to n - 1
+        if left( vals( i ), len( RECORD_ ) ) = RECORD_ then
+            dim as string why
+            dim as string v
+            if fieldsOk then v = RecordValue_( x, vals( i ), fvals(), fidx( i ), why )
+            if len( v ) > 0 then
+                vals( i ) = "!recordv " & v
+            else
+                if len( why ) = 0 then why = "clang gives its fields no values"
+                vals( i ) = NORECORD_ & why
+            end if
+        end if
         values.Push( vals( i ) )
     next
 end sub

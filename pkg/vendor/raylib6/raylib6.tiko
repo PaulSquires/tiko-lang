@@ -5,7 +5,10 @@
 '' Every routine, type and constant of raylib.h is then callable as raylib documents it,
 '' unqualified -- InitWindow, DrawText, RAYWHITE. The header is raylib.ti, translated from
 '' raylib.h by 'tiko c2t' and committed; its banner names the C header and its SHA-256.
-'' raylib-residue.ti holds by hand what the translation could not carry: the colours.
+'' The colours -- C compound literals, 'CLITERAL(Color){ 200, 200, 200, 255 }' -- are there as
+'' 'type<Color>(200, 200, 200, 255)'. Its five C2T-TODOs are RL_MALLOC, RL_CALLOC, RL_REALLOC,
+'' RL_FREE, which choose the allocator raylib itself is BUILT with, and RLAPI's __declspec:
+'' none of them is for a program.
 ''
 '' raymath.h and rlgl.h are modules of their own, as they are headers of their own in C:
 '' '#import "vendor/raylib6/raymath"' (Vector2Add, MatrixRotate, ...) and
@@ -18,7 +21,6 @@
 #module "raylib6"
 
 public #include once "raylib.ti"
-public #include once "raylib-residue.ti"
 
 #ifdef TIKO_LINK_STATIC
     #ifdef TIKO_OS_WINDOWS

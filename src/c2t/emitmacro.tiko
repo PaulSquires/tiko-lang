@@ -426,6 +426,19 @@ private sub Define_( byref e as C2tEmit, byref env as CxEnv, byref dirs as C2tDi
         Set_( e, k, 2, "", "macro", "'" & cname & "' is infinity or NaN, which tiko has no literal for" )
         return
     end if
+    '' A STRUCT VALUE -- raylib's 'CLITERAL(Color){ 200, 200, 200, 255 }', a C compound literal
+    '' -- as tiko spells a record constant, 'type<Color>(200, 200, 200, 255)'. Each field is
+    '' clang's own value for it, asked for one at a time, so the braces' designators, omitted
+    '' fields and arithmetic are clang's to fold, and the type is the name this file gave it.
+    if left( clangV, 9 ) = "!recordv " then
+        CxEnvAdd( env, cname, nm, CXV_NAME, true )
+        Set_( e, k, 1, TrailComments( e, hash & "define " & nm & " " & mid( clangV, 10 ), d.line2 ), "", "" )
+        return
+    end if
+    if left( clangV, 10 ) = "!norecord " then
+        Set_( e, k, 2, "", "macro", "'" & cname & "' is a record value c2t cannot spell: " & mid( clangV, 11 ) )
+        return
+    end if
     if left( clangV, 1 ) = "!" then
         Set_( e, k, 2, "", "macro", "'" & cname & "' is a record value (a compound literal), which c2t does not translate" )
         return

@@ -1,0 +1,5 @@
+'' The record constants c2t made from reclit.h, used: each is a Color or Vec2 value.
+#include once "../../../build/.c2t/reclit-run/reclit.ti"
+dim as Color c = LIGHTGRAY
+dim as Vec2 h = HALF
+print clng( c.r ); clng( c.g ); clng( c.b ); clng( c.a ); h.x; h.y; SUM.x; SUM.y

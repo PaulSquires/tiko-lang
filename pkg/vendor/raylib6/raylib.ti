@@ -183,38 +183,12 @@
 ''   constant   false -> false_   (tiko reserved word)
 ''   constant   true -> true_   (tiko reserved word)
 ''
-'' 31 items need manual translation:
-''   line 319  raylib.h:99  C2T-TODO(function-like-macro)  __declspec
-''   line 347  raylib.h:132  C2T-TODO(function-like-macro)  RL_MALLOC
-''   line 351  raylib.h:135  C2T-TODO(function-like-macro)  RL_CALLOC
-''   line 355  raylib.h:138  C2T-TODO(function-like-macro)  RL_REALLOC
-''   line 359  raylib.h:141  C2T-TODO(function-like-macro)  RL_FREE
-''   line 393  raylib.h:174  C2T-TODO(macro)  LIGHTGRAY
-''   line 395  raylib.h:175  C2T-TODO(macro)  GRAY
-''   line 397  raylib.h:176  C2T-TODO(macro)  DARKGRAY
-''   line 399  raylib.h:177  C2T-TODO(macro)  YELLOW
-''   line 401  raylib.h:178  C2T-TODO(macro)  GOLD
-''   line 403  raylib.h:179  C2T-TODO(macro)  ORANGE
-''   line 405  raylib.h:180  C2T-TODO(macro)  PINK
-''   line 407  raylib.h:181  C2T-TODO(macro)  RED
-''   line 409  raylib.h:182  C2T-TODO(macro)  MAROON
-''   line 411  raylib.h:183  C2T-TODO(macro)  GREEN
-''   line 413  raylib.h:184  C2T-TODO(macro)  LIME
-''   line 415  raylib.h:185  C2T-TODO(macro)  DARKGREEN
-''   line 417  raylib.h:186  C2T-TODO(macro)  SKYBLUE
-''   line 419  raylib.h:187  C2T-TODO(macro)  BLUE
-''   line 421  raylib.h:188  C2T-TODO(macro)  DARKBLUE
-''   line 423  raylib.h:189  C2T-TODO(macro)  PURPLE
-''   line 425  raylib.h:190  C2T-TODO(macro)  VIOLET
-''   line 427  raylib.h:191  C2T-TODO(macro)  DARKPURPLE
-''   line 429  raylib.h:192  C2T-TODO(macro)  BEIGE
-''   line 431  raylib.h:193  C2T-TODO(macro)  BROWN
-''   line 433  raylib.h:194  C2T-TODO(macro)  DARKBROWN
-''   line 436  raylib.h:196  C2T-TODO(macro)  WHITE
-''   line 438  raylib.h:197  C2T-TODO(macro)  BLACK
-''   line 440  raylib.h:198  C2T-TODO(macro)  BLANK
-''   line 442  raylib.h:199  C2T-TODO(macro)  MAGENTA
-''   line 444  raylib.h:200  C2T-TODO(macro)  RAYWHITE
+'' 5 items need manual translation:
+''   line 293  raylib.h:99  C2T-TODO(function-like-macro)  __declspec
+''   line 321  raylib.h:132  C2T-TODO(function-like-macro)  RL_MALLOC
+''   line 325  raylib.h:135  C2T-TODO(function-like-macro)  RL_CALLOC
+''   line 329  raylib.h:138  C2T-TODO(function-like-macro)  RL_REALLOC
+''   line 333  raylib.h:141  C2T-TODO(function-like-macro)  RL_FREE
 '' =============================================================================
 
 /'*********************************************************************************************
@@ -390,59 +364,33 @@
 
 '' Some Basic Colors
 '' NOTE: Custom raylib color palette for amazing visuals on WHITE background
-'' C2T-TODO(macro) raylib.h:174 -- 'LIGHTGRAY' is a record value (a compound literal), which c2t does not translate
-'' #define LIGHTGRAY  CLITERAL(Color){ 200, 200, 200, 255 }   // Light Gray
-'' C2T-TODO(macro) raylib.h:175 -- 'GRAY' is a record value (a compound literal), which c2t does not translate
-'' #define GRAY       CLITERAL(Color){ 130, 130, 130, 255 }   // Gray
-'' C2T-TODO(macro) raylib.h:176 -- 'DARKGRAY' is a record value (a compound literal), which c2t does not translate
-'' #define DARKGRAY   CLITERAL(Color){ 80, 80, 80, 255 }      // Dark Gray
-'' C2T-TODO(macro) raylib.h:177 -- 'YELLOW' is a record value (a compound literal), which c2t does not translate
-'' #define YELLOW     CLITERAL(Color){ 253, 249, 0, 255 }     // Yellow
-'' C2T-TODO(macro) raylib.h:178 -- 'GOLD' is a record value (a compound literal), which c2t does not translate
-'' #define GOLD       CLITERAL(Color){ 255, 203, 0, 255 }     // Gold
-'' C2T-TODO(macro) raylib.h:179 -- 'ORANGE' is a record value (a compound literal), which c2t does not translate
-'' #define ORANGE     CLITERAL(Color){ 255, 161, 0, 255 }     // Orange
-'' C2T-TODO(macro) raylib.h:180 -- 'PINK' is a record value (a compound literal), which c2t does not translate
-'' #define PINK       CLITERAL(Color){ 255, 109, 194, 255 }   // Pink
-'' C2T-TODO(macro) raylib.h:181 -- 'RED' is a record value (a compound literal), which c2t does not translate
-'' #define RED        CLITERAL(Color){ 230, 41, 55, 255 }     // Red
-'' C2T-TODO(macro) raylib.h:182 -- 'MAROON' is a record value (a compound literal), which c2t does not translate
-'' #define MAROON     CLITERAL(Color){ 190, 33, 55, 255 }     // Maroon
-'' C2T-TODO(macro) raylib.h:183 -- 'GREEN' is a record value (a compound literal), which c2t does not translate
-'' #define GREEN      CLITERAL(Color){ 0, 228, 48, 255 }      // Green
-'' C2T-TODO(macro) raylib.h:184 -- 'LIME' is a record value (a compound literal), which c2t does not translate
-'' #define LIME       CLITERAL(Color){ 0, 158, 47, 255 }      // Lime
-'' C2T-TODO(macro) raylib.h:185 -- 'DARKGREEN' is a record value (a compound literal), which c2t does not translate
-'' #define DARKGREEN  CLITERAL(Color){ 0, 117, 44, 255 }      // Dark Green
-'' C2T-TODO(macro) raylib.h:186 -- 'SKYBLUE' is a record value (a compound literal), which c2t does not translate
-'' #define SKYBLUE    CLITERAL(Color){ 102, 191, 255, 255 }   // Sky Blue
-'' C2T-TODO(macro) raylib.h:187 -- 'BLUE' is a record value (a compound literal), which c2t does not translate
-'' #define BLUE       CLITERAL(Color){ 0, 121, 241, 255 }     // Blue
-'' C2T-TODO(macro) raylib.h:188 -- 'DARKBLUE' is a record value (a compound literal), which c2t does not translate
-'' #define DARKBLUE   CLITERAL(Color){ 0, 82, 172, 255 }      // Dark Blue
-'' C2T-TODO(macro) raylib.h:189 -- 'PURPLE' is a record value (a compound literal), which c2t does not translate
-'' #define PURPLE     CLITERAL(Color){ 200, 122, 255, 255 }   // Purple
-'' C2T-TODO(macro) raylib.h:190 -- 'VIOLET' is a record value (a compound literal), which c2t does not translate
-'' #define VIOLET     CLITERAL(Color){ 135, 60, 190, 255 }    // Violet
-'' C2T-TODO(macro) raylib.h:191 -- 'DARKPURPLE' is a record value (a compound literal), which c2t does not translate
-'' #define DARKPURPLE CLITERAL(Color){ 112, 31, 126, 255 }    // Dark Purple
-'' C2T-TODO(macro) raylib.h:192 -- 'BEIGE' is a record value (a compound literal), which c2t does not translate
-'' #define BEIGE      CLITERAL(Color){ 211, 176, 131, 255 }   // Beige
-'' C2T-TODO(macro) raylib.h:193 -- 'BROWN' is a record value (a compound literal), which c2t does not translate
-'' #define BROWN      CLITERAL(Color){ 127, 106, 79, 255 }    // Brown
-'' C2T-TODO(macro) raylib.h:194 -- 'DARKBROWN' is a record value (a compound literal), which c2t does not translate
-'' #define DARKBROWN  CLITERAL(Color){ 76, 63, 47, 255 }      // Dark Brown
+#define LIGHTGRAY type<Color>(200, 200, 200, 255)          '' Light Gray
+#define GRAY type<Color>(130, 130, 130, 255)               '' Gray
+#define DARKGRAY type<Color>(80, 80, 80, 255)              '' Dark Gray
+#define YELLOW type<Color>(253, 249, 0, 255)               '' Yellow
+#define GOLD type<Color>(255, 203, 0, 255)                 '' Gold
+#define ORANGE type<Color>(255, 161, 0, 255)               '' Orange
+#define PINK type<Color>(255, 109, 194, 255)               '' Pink
+#define RED type<Color>(230, 41, 55, 255)                  '' Red
+#define MAROON type<Color>(190, 33, 55, 255)               '' Maroon
+#define GREEN type<Color>(0, 228, 48, 255)                 '' Green
+#define LIME type<Color>(0, 158, 47, 255)                  '' Lime
+#define DARKGREEN type<Color>(0, 117, 44, 255)             '' Dark Green
+#define SKYBLUE type<Color>(102, 191, 255, 255)            '' Sky Blue
+#define BLUE type<Color>(0, 121, 241, 255)                 '' Blue
+#define DARKBLUE type<Color>(0, 82, 172, 255)              '' Dark Blue
+#define PURPLE type<Color>(200, 122, 255, 255)             '' Purple
+#define VIOLET type<Color>(135, 60, 190, 255)              '' Violet
+#define DARKPURPLE type<Color>(112, 31, 126, 255)          '' Dark Purple
+#define BEIGE type<Color>(211, 176, 131, 255)              '' Beige
+#define BROWN type<Color>(127, 106, 79, 255)               '' Brown
+#define DARKBROWN type<Color>(76, 63, 47, 255)             '' Dark Brown
 
-'' C2T-TODO(macro) raylib.h:196 -- 'WHITE' is a record value (a compound literal), which c2t does not translate
-'' #define WHITE      CLITERAL(Color){ 255, 255, 255, 255 }   // White
-'' C2T-TODO(macro) raylib.h:197 -- 'BLACK' is a record value (a compound literal), which c2t does not translate
-'' #define BLACK      CLITERAL(Color){ 0, 0, 0, 255 }         // Black
-'' C2T-TODO(macro) raylib.h:198 -- 'BLANK' is a record value (a compound literal), which c2t does not translate
-'' #define BLANK      CLITERAL(Color){ 0, 0, 0, 0 }           // Blank (Transparent)
-'' C2T-TODO(macro) raylib.h:199 -- 'MAGENTA' is a record value (a compound literal), which c2t does not translate
-'' #define MAGENTA    CLITERAL(Color){ 255, 0, 255, 255 }     // Magenta
-'' C2T-TODO(macro) raylib.h:200 -- 'RAYWHITE' is a record value (a compound literal), which c2t does not translate
-'' #define RAYWHITE   CLITERAL(Color){ 245, 245, 245, 255 }   // My own White (raylib logo)
+#define WHITE type<Color>(255, 255, 255, 255)              '' White
+#define BLACK type<Color>(0, 0, 0, 255)                    '' Black
+#define BLANK type<Color>(0, 0, 0, 0)                      '' Blank (Transparent)
+#define MAGENTA type<Color>(255, 0, 255, 255)              '' Magenta
+#define RAYWHITE type<Color>(245, 245, 245, 255)           '' My own White (raylib logo)
 
 ''----------------------------------------------------------------------------------
 '' Types and Structures Definition
