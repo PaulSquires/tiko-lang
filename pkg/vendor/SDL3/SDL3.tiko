@@ -16,7 +16,7 @@
 
 public #include once "SDL.ti"
 
-#ifdef __FB_LINUX__
+#ifdef TIKO_OS_LINUX
     #foreignlib SDL3 dynamic "system:SDL3"
 #else
     #foreignlib SDL3 dynamic "lib/SDL3"
