@@ -41,6 +41,47 @@ private function LookupType_( byval owner as any ptr, byref cname as string ) as
     return LookupDecl_( owner, cname )
 end function
 
+'' A BODY THAT IS ONLY DECORATION -- a calling convention, '__declspec( ... )',
+'' '__attribute__(( ... ))' -- as rlgl.h's '#define APIENTRY __stdcall' and
+'' '#define WINGDIAPI __declspec(dllimport)'. 'first' is its first word.
+private function DecorationOnly_( byref e as C2tEmit, byval t1 as int32, byval t2 as int32, _
+                                  byref first as string ) as boolean
+    first = ""
+    dim as int32 t = t1
+    dim as boolean any_ = false
+    while t <= t2
+        if e.src->toks[t].kind = CT_COMMENT then
+            t += 1
+            continue while
+        end if
+        dim as string w = TokText( *e.src, t )
+        select case w
+        case "__stdcall", "_stdcall", "__cdecl", "_cdecl", "__fastcall", "__vectorcall", "__thiscall"
+            t += 1
+        case "__declspec", "__attribute__", "__attribute"
+            '' ...and its whole parenthesised group.
+            t += 1
+            while (t <= t2) andalso (e.src->toks[t].kind = CT_COMMENT)
+                t += 1
+            wend
+            if (t > t2) orelse (TokText( *e.src, t ) <> "(") then return false
+            dim as int32 depth = 0
+            do
+                dim as string b = TokText( *e.src, t )
+                if b = "(" then depth += 1
+                if b = ")" then depth -= 1
+                t += 1
+            loop while (t <= t2) andalso (depth > 0)
+            if depth <> 0 then return false
+        case else
+            return false
+        end select
+        if any_ = false then first = w
+        any_ = true
+    wend
+    return any_
+end function
+
 '' A macro's tiko name: as C wrote it, '_' after a tiko word, '_2'... after a name anything
 '' holds -- a #define rewrites a name wherever it stands, so it may share it with nothing
 '' (TKO0371, P3's measurement).
@@ -372,6 +413,17 @@ private sub Define_( byref e as C2tEmit, byref env as CxEnv, byref dirs as C2tDi
 
     '' AN OBJECT-LIKE MACRO.
     dim as string nm = MacroName_( e, cname )
+    '' ...THAT IS DECORATION: x86-64 has one calling convention, and c2t strips '__declspec' and
+    '' '__attribute__' wherever a declaration carries them, so the macro means nothing to tiko --
+    '' but a header tests it ('#if !defined(APIENTRY)'), so it is defined, empty.
+    dim as string dword
+    if DecorationOnly_( e, bt, d.tok2, dword ) then
+        CxEnvAdd( env, cname, nm, CXV_NONE, true )
+        dim as string dnote = IndentOf_( LineText( *e.src, d.line1 ) ) & "'' C2T-NOTE(decoration) " & e.src->name_ & _
+                              ":" & d.line1 & " -- '" & dword & "' means nothing to tiko: defined, empty"
+        Set_( e, k, 1, dnote & chr( 10 ) & TrailComments( e, hash & "define " & nm, d.line2 ), "", "" )
+        return
+    end if
     dim as CExpr c
     c.env = @env
     c.checked = true

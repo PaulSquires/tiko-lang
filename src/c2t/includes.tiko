@@ -46,6 +46,13 @@ private function SysHeader_( byref key as string, byref tikoInc as string, byref
     case "setjmp.h" : tikoInc = "crt/setjmp.bi" : names = "jmp_buf"
     case "windows.h", "windef.h", "winbase.h", "winuser.h", "wingdi.h", "wtypes.h", "minwindef.h"
         tikoInc = "windows.bi" : names = "*"
+    '' OPENGL: tiko's GL/gl.bi and GL/glext.bi (Windows' or Mesa's, chosen by target) declare the
+    '' API and its types -- GLenum, GLsizei, PFNGL...PROC -- as spelled. macOS's <OpenGL/...>
+    '' spelling of the same headers maps to them too.
+    case "gl/gl.h", "opengl/gl.h"
+        tikoInc = "GL/gl.bi" : names = "*"
+    case "gl/glext.h", "opengl/glext.h"
+        tikoInc = "GL/glext.bi" : names = "*"
     case else
         return false
     end select
