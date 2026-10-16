@@ -1,0 +1,21 @@
+'' vendor/SDL3_ttf -- SDL3_ttf 3.2.2, SDL 3's TrueType font library (TTF_*), as one import:
+''
+''     #import "vendor/SDL3_ttf" link dynamic        (or neither)
+''
+'' It brings vendor/SDL3 with it: SDL's own names come across too, and SDL3 is linked.
+'' The header is SDL_ttf.ti, the sdl3-freebasic binding (GaBurdis, MIT), committed.
+''
+'' THE LIBRARY: as vendor/SDL3's -- 'link dynamic' alone; on Windows lib/SDL3_ttf.dll, copied
+'' beside the program; on Linux the system's, '-lSDL3_ttf' from the distribution's development
+'' package.
+#module "SDL3_ttf"
+
+#import "vendor/SDL3" public
+
+public #include once "SDL_ttf.ti"
+
+#ifdef TIKO_OS_LINUX
+    #foreignlib SDL3_ttf dynamic "system:SDL3_ttf"
+#else
+    #foreignlib SDL3_ttf dynamic "lib/SDL3_ttf"
+#endif

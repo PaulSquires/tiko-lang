@@ -1,0 +1,7 @@
+'' THE COMMITTED vendor/SDL3_image, SDL3_ttf AND SDL3_mixer HEADERS -- the sdl3-freebasic bindings,
+'' adapted and fixed so they compile -- compile together for windows-x86_64 as an importer reads
+'' them. Included directly, so no lib/ is needed (vendor-sdl3-ext-linux imports the modules).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -c tests/modules/src/vsdl3/hdrext.tiko -o build/.vsdl3x-windows.o
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: build/.vsdl3x-windows.o

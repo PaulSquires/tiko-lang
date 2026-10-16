@@ -1,0 +1,21 @@
+'' vendor/SDL3_mixer -- SDL3_mixer 3.2.4, SDL 3's audio mixer library (MIX_*), as one import:
+''
+''     #import "vendor/SDL3_mixer" link dynamic        (or neither)
+''
+'' It brings vendor/SDL3 with it: SDL's own names come across too, and SDL3 is linked.
+'' The header is SDL_mixer.ti, the sdl3-freebasic binding (GaBurdis, MIT), committed.
+''
+'' THE LIBRARY: as vendor/SDL3's -- 'link dynamic' alone; on Windows lib/SDL3_mixer.dll, copied
+'' beside the program; on Linux the system's, '-lSDL3_mixer' from the distribution's development
+'' package.
+#module "SDL3_mixer"
+
+#import "vendor/SDL3" public
+
+public #include once "SDL_mixer.ti"
+
+#ifdef TIKO_OS_LINUX
+    #foreignlib SDL3_mixer dynamic "system:SDL3_mixer"
+#else
+    #foreignlib SDL3_mixer dynamic "lib/SDL3_mixer"
+#endif
