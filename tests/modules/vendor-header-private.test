@@ -1,0 +1,8 @@
+'' A module's 'public #include' header reaches the module's importers, not theirs: wrap
+'' imports vq/shape without 'public' and names nothing of it in its interface, so a program
+'' that imports only wrap does not see the header's names.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i tests/modules/src/vleak/libs tests/modules/src/vleak/app/leak.tiko -o tests/modules/vleak.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: tests/modules/src/vleak/app/leak.tiko(4,7): error TKO0743: 'vq_name' is not declared

@@ -1,0 +1,8 @@
+'' Imports vq/shape without 'public' and names nothing of it in its interface: the
+'' header's names are this module's business.
+#module "wrap"
+#import "vq/shape"
+
+public function Sides( ) as long
+    return VQ_SIDES
+end function

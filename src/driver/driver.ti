@@ -78,6 +78,9 @@ namespace Tko
         as boolean                unitThreadRtl
         as boolean                unitUsesClock      '' expanded __DATE__ / __TIME__: never stored
         as FileIdVec              ifaceFiles
+        '' ...and its public headers apart, '<chain>.pub.tki', or FILE_NONE: read only where
+        '' the import, a 'public' re-export or another interface's '' uses wants them.
+        as FileIdVec              ifacePubFiles
         '' '-c' OF A PROGRAM THAT IMPORTS (RFC-0005 §6): each module's object, written as
         '' <chain>.o beside the output, absolute -- what the roots' '.fbctinf' records name.
         as StrVec                 modObjPaths

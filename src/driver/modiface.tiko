@@ -54,15 +54,60 @@ end function
 '' Module n's interface, after every one it depends on.
 private sub Closure_ _
     ( byref ctx as Tko.CompilerContext, byval n as int32, byref seen as containers.Array( of uint8 ), _
-      byref files as Tko.FileIdVec )
+      byref order as containers.Array( of int32 ) )
     if seen[n] <> 0 then return
     seen[n] = 1
     for e as int32 = 0 to ctx.ifaceEdgeFrom.Count - 1
         if cast( int32, ctx.ifaceEdgeFrom[e] ) = n then
-            Closure_( ctx, cast( int32, ctx.ifaceEdgeTo[e] ), seen, files )
+            Closure_( ctx, cast( int32, ctx.ifaceEdgeTo[e] ), seen, order )
         end if
     next
-    if ctx.ifaceFiles[n] <> cast( uint32, Tko.FILE_NONE ) then files.Push( ctx.ifaceFiles[n] )
+    order.Push( n )
+end sub
+
+'' The chains module n's interface names on its '' <tag> lines -- the last word of each.
+private sub Tagged_( byref ctx as Tko.CompilerContext, byval n as int32, byref tag as string, _
+                     byref outv as containers.Array( of int32 ) )
+    dim as string t = ctx.ifaceTexts[n]
+    dim as string lead = "'' " & tag & " "
+    dim as int32 p = 1
+    while p <= len( t )
+        dim as int32 e = instr( p, t, chr( 10 ) )
+        if e = 0 then e = len( t ) + 1
+        dim as string ln = mid( t, p, e - p )
+        p = e + 1
+        if left( ln, 2 ) <> "''" then exit while
+        if left( ln, len( lead ) ) <> lead then continue while
+        dim as string ch = mid( ln, instrrev( ln, " " ) + 1 )
+        for i as int32 = 0 to ctx.ifaceChains.Count - 1
+            if ctx.ifaceChains[i] = ch then outv.Push( i )
+        next
+    wend
+end sub
+
+'' WHOSE PUBLIC HEADERS AN IMPORT READS: the module imported, what it re-exports through
+'' 'public' (and they in turn), and every module an interface of the closure uses. The other
+'' modules of the closure are read for their declarations alone, so a C header one of them
+'' carries publicly does not reach a program that never asked for it.
+private sub Wanted_ _
+    ( byref ctx as Tko.CompilerContext, byval n as int32, byref order as containers.Array( of int32 ), _
+      byref want as containers.Array( of uint8 ) )
+    dim as containers.Array( of int32 ) work
+    work.Push( n )
+    while work.Count > 0
+        dim as int32 m = work[work.Count - 1]
+        work.Pop( )
+        if want[m] <> 0 then continue while
+        want[m] = 1
+        Tagged_( ctx, m, "reexport", work )
+    wend
+    for each m as int32 in order
+        dim as containers.Array( of int32 ) used
+        Tagged_( ctx, m, "uses", used )
+        for each u as int32 in used
+            want[u] = 1
+        next
+    next
 end sub
 
 private function Hook_ _
@@ -72,11 +117,22 @@ private function Hook_ _
     dim as int32 n = ImportIndex( *ctx, rec )
     if n < 0 then return false
     chain = ctx->ifaceChains[n]
-    dim as containers.Array( of uint8 ) seen
+    dim as containers.Array( of uint8 ) seen, want
     for i as int32 = 0 to ctx->ifaceChains.Count - 1
         seen.Push( 0 )
+        want.Push( 0 )
     next
-    Closure_( *ctx, n, seen, files )
+    dim as containers.Array( of int32 ) order
+    Closure_( *ctx, n, seen, order )
+    Wanted_( *ctx, n, order, want )
+    '' Each interface, and after it its public headers where they are wanted: before any
+    '' interface that uses them, because that one comes later in the order.
+    for each m as int32 in order
+        if ctx->ifaceFiles[m] <> cast( uint32, Tko.FILE_NONE ) then files.Push( ctx->ifaceFiles[m] )
+        if (want[m] <> 0) andalso (ctx->ifacePubFiles[m] <> cast( uint32, Tko.FILE_NONE )) then
+            files.Push( ctx->ifacePubFiles[m] )
+        end if
+    next
     return true
 end function
 
@@ -300,9 +356,37 @@ sub PublishInterface _
         dim as int32 l2 = instr( instr( text_, chr( 10 ) ) + 1, text_, chr( 10 ) )
         text_ = left( text_, l2 ) & rx & mid( text_, l2 + 1 )
     end if
-    dim as Tko.FileId id = ctx.sources.AddVirtual( ctx.modChain & ".tki", text_ )
-    ctx.ifaceFiles[self_] = cast( uint32, id )
-    ctx.ifaceTexts[self_] = text_
+    SetInterface( ctx, self_, text_ )
+end sub
+
+sub SetInterface( byref ctx as Tko.CompilerContext, byval n as int32, byref text_ as string )
+    ctx.ifaceTexts[n] = text_
+    dim as string main_ = "", pub_ = ""
+    dim as boolean inPub = false
+    dim as int32 p = 1
+    while p <= len( text_ )
+        dim as int32 e = instr( p, text_, chr( 10 ) )
+        if e = 0 then e = len( text_ )
+        dim as string ln = mid( text_, p, e - p + 1 )
+        p = e + 1
+        if left( ln, 10 ) = "'' tki-pub" then
+            inPub = (mid( ln, 11, 4 ) <> "-end")
+            '' The marker's line stays, as a blank: the lines below keep their numbers.
+            main_ &= chr( 10 )
+            continue while
+        end if
+        if inPub then
+            pub_ &= ln
+            main_ &= chr( 10 )
+        else
+            main_ &= ln
+        end if
+    wend
+    ctx.ifaceFiles[n] = cast( uint32, ctx.sources.AddVirtual( ctx.ifaceChains[n] & ".tki", main_ ) )
+    ctx.ifacePubFiles[n] = cast( uint32, Tko.FILE_NONE )
+    if len( pub_ ) > 0 then
+        ctx.ifacePubFiles[n] = cast( uint32, ctx.sources.AddVirtual( ctx.ifaceChains[n] & ".pub.tki", pub_ ) )
+    end if
 end sub
 
 end namespace

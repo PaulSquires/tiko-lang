@@ -78,6 +78,7 @@ public #include once "sqlite3-residue.ti"
 ```
 
 - **`public #include`** carries a header with the module's interface, whole: an importer reads it as if it had included it itself, names and macros unqualified. Outside a module file it is `TKO0369`.
+  It reaches the module's own importers, not theirs: a module of yours that imports `vendor/sqlite3` keeps SQLite's names to itself, unless it imports it with `public`, or its public declarations name the header's types (a field of type `sqlite3 ptr`), when they go along to the programs that import it.
 - **`TIKO_LINK_STATIC`** or **`TIKO_LINK_DYNAMIC`** (each `1`) is defined in the module when an importer wrote `link`; with no `link` anywhere, neither is, and the module's `#else` decides. The mode is part of the module's cache entry, so changing it rebuilds the module.
 - **`sqlite3.ti`** is the C header translated by `tiko c2t ... --shared-macro "SQLITE_API=__attribute__((dllimport))"`: a variable the library exports is written twice, `extern import` for a dynamic link on Windows and plain `extern` otherwise.
 - **`sqlite3-residue.ti`** is written by hand: what the translation could not carry (`SQLITE_STATIC` and `SQLITE_TRANSIENT`, which are pointers), each with the reason.

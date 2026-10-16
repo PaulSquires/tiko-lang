@@ -35,4 +35,8 @@ declare sub PublishInterface _
       byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
       byref info as Tko.SemanticInfo )
 
+'' MODULE n's INTERFACE TEXT, compiled or from the cache, made the files an importer reads:
+'' the interface, and apart from it the public headers it marks ('' tki-pub).
+declare sub SetInterface( byref ctx as Tko.CompilerContext, byval n as int32, byref text_ as string )
+
 end namespace

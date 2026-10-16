@@ -1,0 +1,5 @@
+'' Re-exports vq/shape: its header's names travel to kit's importers.
+#module "kit"
+#import "vq/shape" public
+
+public const KIT_VERSION = 1

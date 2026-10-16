@@ -65,6 +65,9 @@ type TkiWriter_
     '' 2026-10-10). Per token: the next with its location, or -1; per slot, the last so far.
     as containers.Array( of int32 )     locNext
     as containers.Array( of int32 )     hlast
+    '' The '' uses <chain> lines RequiredHeaders_ found: imported modules whose public
+    '' headers the written tokens name something from.
+    as string                  uses
 end type
 
 function InterfaceNamespace( byref chain as string ) as string
@@ -760,6 +763,55 @@ private sub Qualify_( byref w as TkiWriter_ )
     next
 end sub
 
+private sub AddUse_( byref used as Tko.StrVec, byref c as string )
+    for each u as string in used
+        if u = c then return
+    next
+    used.Push( c )
+end sub
+
+private sub PubUseOf_( byref w as TkiWriter_, byref pr as Tko.PpResult, _
+                       byval q as Tko.Symbol ptr, byref used as Tko.StrVec )
+    if q = nullptr then return
+    dim as uint32 qf = cast( uint32, w.ctx->sources.Decode( q->loc ).file )
+    for k as int32 = 0 to pr.pubHdrFile.Count - 1
+        if pr.pubHdrFile[k] = qf then
+            AddUse_( used, pr.pubHdrChain[k] )
+            return
+        end if
+    next
+end sub
+
+'' WHICH IMPORTED MODULE'S PUBLIC HEADER a written name comes from, if any: added to used.
+'' The symbol the name resolved to says, by its file; for a type reference, so does the name
+'' looked up as a type -- a vendor module's alias is often its type's name too ('sqlite3',
+'' 'cJSON'), and is found first. A type reference that resolves to nothing is an opaque one: c2t's
+'' 'type sqlite3__fwd as sqlite3' declares nothing while the import's alias holds the name
+'' (ForwardTypedefTarget_), so nothing says whose it is, and every such header is used.
+private sub PubUses_ _
+    ( byref w as TkiWriter_, byref pr as Tko.PpResult, byval nd as Tko.NodeId, _
+      byval nm as Tko.InternId, byval s as Tko.Symbol ptr, byref used as Tko.StrVec )
+    if pr.pubHdrFile.Count = 0 then return
+    PubUseOf_( w, pr, s, used )
+    if w.ast->Kind( nd ) <> Tko.N_TYPEREF then return
+    if nm = Tko.INTERN_NONE then return
+    dim as Tko.ScopeId tl = w.info->ScopeOf( nd )
+    if tl = Tko.SCOPE_NONE then tl = Tko.ModSym.ModuleScope( *w.syms )
+    dim as Tko.Symbol ptr ts = w.syms->SymbolAt( w.syms->LookupTyped( tl, w.ctx->names.Fold( nm ), true ) )
+    if ts <> nullptr then
+        select case ts->kind
+        case cast( uint8, Tko.SYM_UDT ), cast( uint8, Tko.SYM_TYPEDEF ), cast( uint8, Tko.SYM_ENUM )
+            PubUseOf_( w, pr, ts, used )
+            return
+        end select
+    end if
+    '' A builtin -- 'long' -- has no symbol either, but has a type.
+    if w.info->TypeOf_( nd ) <> Tko.TYPE_NONE then return
+    for each c as string in pr.pubHdrChain
+        AddUse_( used, c )
+    next
+end sub
+
 '' THE HEADERS THE INTERFACE NEEDS (RFC-0004 §3): those a written token names a symbol from,
 '' where a symbol belongs to the header the module reached its file through. Every header
 '' the module included used to travel, needed or not -- and a header-only library meant for
@@ -768,12 +820,22 @@ end sub
 private function RequiredHeaders_ _
     ( byref w as TkiWriter_, byref headers as Tko.StrVec, byval pr as Tko.PpResult ptr, _
       byval allOf as boolean ) as string
-    dim as containers.Array( of uint8 ) need
+    dim as containers.Array( of uint8 ) need, byName
     dim as boolean every = allOf orelse (pr = nullptr)
     dim as uint8 seed = iif( every, 1, 0 )
     for k as int32 = 0 to headers.Count - 1
         need.Push( seed )
+        byName.Push( seed )
     next
+    '' AN IMPORTED MODULE'S PUBLIC HEADERS this interface names something from: an importer
+    '' must read them too, though it did not import that module itself. An exported macro
+    '' can name anything, so with one, every such module is used.
+    dim as Tko.StrVec used
+    if (pr <> nullptr) andalso allOf then
+        for each c as string in pr->pubHdrChain
+            AddUse_( used, c )
+        next
+    end if
     '' 'public #cinclude' (T101): those travel whatever the interface names.
     if pr <> nullptr then
         for each r as uint32 in pr->modHdrPublic
@@ -804,20 +866,33 @@ private function RequiredHeaders_ _
                 sid = w.syms->Lookup( look, w.ctx->names.Fold( nm ) )
             end if
             dim as Tko.Symbol ptr s = w.syms->SymbolAt( sid )
+            PubUses_( w, *pr, nd, nm, s, used )
             if s = nullptr then continue for
             dim as uint32 f = cast( uint32, w.ctx->sources.Decode( s->loc ).file )
             for k as int32 = 0 to pr->modHdrFile.Count - 1
                 if pr->modHdrFile[k] = f then
                     dim as int32 r = cast( int32, pr->modHdrRoot[k] )
-                    if (r >= 0) andalso (r < need.Count) then need[r] = 1
+                    if (r >= 0) andalso (r < need.Count) then
+                        need[r] = 1
+                        byName[r] = 1
+                    end if
                     exit for
                 end if
             next
         next
     end if
+    w.uses = ""
+    for each c as string in used
+        w.uses &= "'' uses " & c & !"\n"
+    next
     dim as string res = ""
     for k as int32 = 0 to headers.Count - 1
         if need[k] = 0 then continue for
+        '' A PUBLIC HEADER THE INTERFACE ITSELF NAMES NOTHING FROM is marked: an importer reads
+        '' it only for a module it imported, or reached through 'public', or one an interface
+        '' it reads uses (modiface.tiko). Otherwise its names would reach every program above.
+        dim as boolean pubOnly = (byName[k] = 0)
+        if pubOnly then res &= "'' tki-pub" & !"\n"
         '' A PUBLIC HEADER'S CONSULTED MACROS go round it, for the importer to hold its own
         '' against (src/pp/ppmodhdr.tiko; RFC-0002 V12).
         dim as string req = ""
@@ -836,6 +911,7 @@ private function RequiredHeaders_ _
         end if
         res &= "#include once """ & headers[k] & """" & !"\n"
         if len( req ) > 0 then res &= "#tki end" & !"\n"
+        if pubOnly then res &= "'' tki-pub-end" & !"\n"
     next
     return res
 end function
@@ -924,8 +1000,9 @@ function WriteInterface _
     dim as int32 i = 0
     Level_( w, i, Tko.ModSym.ModuleScope( syms ), 0 )
     w.text &= "end namespace" & !"\n"
+    dim as string req = RequiredHeaders_( w, headers, pr, len( macros ) > 0 )
     return "'' tiko-interface 1" & !"\n" & "'' module " & ctx.modChain & !"\n" & _
-           RequiredHeaders_( w, headers, pr, len( macros ) > 0 ) & macros & w.text
+           w.uses & req & macros & w.text
 end function
 
 end namespace

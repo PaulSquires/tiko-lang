@@ -91,6 +91,29 @@ end sub
 '' declares -- HWND, RECT.
 sub PpModNoteHeader( byref e as PpEngine, byval from as FileId, byval got as FileId )
     if e.cfg->moduleFiles = nullptr then return
+    '' REACHED THROUGH AN IMPORTED MODULE'S PUBLIC HEADERS: that module's, not this one's.
+    dim as string pc = ""
+    dim as SourceFile ptr sf = e.src->FileAt( from )
+    if (sf <> nullptr) andalso sf->isVirtual then
+        dim as string fp = e.src->PathOf( from )
+        if right( fp, 8 ) = ".pub.tki" then pc = left( fp, len( fp ) - 8 )
+    end if
+    if len( pc ) = 0 then
+        for k as int32 = 0 to e.outp->pubHdrFile.Count - 1
+            if e.outp->pubHdrFile[k] = cast( uint32, from ) then
+                pc = e.outp->pubHdrChain[k]
+                exit for
+            end if
+        next
+    end if
+    if len( pc ) > 0 then
+        for each f as uint32 in e.outp->pubHdrFile
+            if f = cast( uint32, got ) then return
+        next
+        e.outp->pubHdrFile.Push( cast( uint32, got ) )
+        e.outp->pubHdrChain.Push( pc )
+        return
+    end if
     dim as boolean own = false
     for each m as uint32 in *e.cfg->moduleFiles
         if m = cast( uint32, from ) then own = true

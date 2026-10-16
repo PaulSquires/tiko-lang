@@ -1,0 +1,4 @@
+# A package whose modules carry headers publicly (tests/modules/vendor-header-*): what an
+# importer of an importer may see of them.
+[package]
+name = "vq"

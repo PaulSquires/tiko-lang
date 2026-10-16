@@ -1,0 +1,10 @@
+'' An interface that names a public header's types -- a field of vq/shape's type, and a
+'' pointer to vq/blob's opaque type, whose name is also the module's alias -- says it uses
+'' those modules, and a program that imports it reads their headers though it did not import
+'' them itself.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i tests/modules/src/vleak/libs tests/modules/src/vleak/app/uses.tiko -o tests/modules/vleakuses.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/vleakuses.exe
+'' EXPECT-RUN-OUT:  4 9
