@@ -1,0 +1,10 @@
+'' tiko c2t: <GL/gl.h> is tiko's GL/gl.bi, whose types (GLenum, GLsizei) a translation may then
+'' name; a macro that is only decoration -- a calling convention, '__declspec( ... )',
+'' '__attribute__(( ... ))', as rlgl.h's APIENTRY and WINGDIAPI -- is defined, empty, under
+'' C2T-NOTE(decoration), so a header's '#if !defined( ... )' still sees it.
+'' TEST: cli
+'' CLEAN: build/.c2t/glinc
+'' ARGS: c2t tests/c2t/src/glinc.h --verify -o build/.c2t/glinc/glinc.ti
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE-HAS: build/.c2t/glinc/glinc.ti :: #ifdef TIKO_OS_WINDOWS\n#include once "windows.bi"\n#include once "GL/gl.bi"         /' tiko's GL/gl.bi: GLenum, GLsizei may now be named '/\ndeclare function glinc_error( byval n as GLsizei ) as GLenum\n#endif\n
+'' EXPECT-FILE-HAS: build/.c2t/glinc/glinc.ti :: '' C2T-NOTE(decoration) glinc.h:8 -- '__stdcall' means nothing to tiko: defined, empty\n#define GLINC_APIENTRY\n'' C2T-NOTE(decoration) glinc.h:9 -- '__declspec' means nothing to tiko: defined, empty\n#define GLINC_IMPORT\n'' C2T-NOTE(decoration) glinc.h:10 -- '__attribute__' means nothing to tiko: defined, empty\n#define GLINC_VISIBLE\n

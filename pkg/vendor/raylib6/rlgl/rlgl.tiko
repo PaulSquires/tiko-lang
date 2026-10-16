@@ -4,8 +4,10 @@
 ''
 '' raylib's immediate-mode layer over OpenGL -- rlPushMatrix, rlTranslatef, rlBegin, rlVertex3f
 '' -- unqualified, for drawing raylib's own functions do not cover. The header is rlgl.ti beside
-'' this file, translated from rlgl.h by 'tiko c2t'. Its C2T-TODOs past rlgl.h's API are in
-'' RLGL_IMPLEMENTATION, the code that builds raylib itself, which a program never defines.
+'' this file, translated from rlgl.h by 'tiko c2t'; its OpenGL includes are tiko's GL/gl.bi and
+'' GL/glext.bi. In rlgl.h's API its one C2T-TODO is TRACELOG, a variadic logging macro for
+'' raylib's own use; the rest are in RLGL_IMPLEMENTATION, the code that builds raylib itself,
+'' which a program never defines, and its OpenGL ES branches, which tiko has no headers for.
 ''
 '' It brings vendor/raylib6 with it -- raylib's names, and its library. The link mode is chosen
 '' there, on the module that links: '#import "vendor/raylib6" link static' beside this import.
