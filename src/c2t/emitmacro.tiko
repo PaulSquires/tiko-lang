@@ -87,12 +87,9 @@ private sub Platform_( byref env as CxEnv, byval isWindows as boolean )
     CxEnvAdd( env, "__STDC__", "1", CXV_INT, true, 1 )
     CxEnvAdd( env, "__STDC_HOSTED__", "1", CXV_INT, true, 1 )
     CxEnvAdd( env, "__STDC_VERSION__", "201112", CXV_INT, true, 201112 )
-    '' A COMPILER'S IDENTITY has no tiko meaning: a condition on one is a TODO.
-    dim as string cc( 0 to 5 ) = { "_MSC_VER", "_MSC_FULL_VER", "__GNUC__", "__GNUC_MINOR__", _
-        "__clang__", "__clang_major__" }
-    for i as int32 = 0 to 5
-        CxEnvAdd( env, cc( i ), "", CXV_NONE, true )
-    next
+    '' A COMPILER'S IDENTITY (_MSC_VER, __GNUC__) is not in here: it stays as written, a name
+    '' the application may define, and its group's branches are each translated for every
+    '' target (IsCompilerName, force.tiko).
 end sub
 
 '' ---------------------------------------------------------------- where a directive is
@@ -485,6 +482,7 @@ type Group_
     as boolean ok
     as string why
     as boolean tikoTook        '' some earlier branch was taken, as tiko sees it
+    as boolean byCompiler      '' it tests a compiler's identity: tiko's choice is the program's
 end type
 type GroupVec_ as containers.Array( of Group_ )
 
@@ -579,6 +577,7 @@ sub MacroDirectives( byref e as C2tEmit, byref p as C2tPass, byref dirs as C2tDi
                 dim as Group_ g
                 g.ifIdx = k
                 g.ok = true
+                g.byCompiler = GroupTestsCompiler( *e.src, dirs, k )
                 groups.Push( g )
             end if
             if groups.Count = 0 then continue for
@@ -593,8 +592,10 @@ sub MacroDirectives( byref e as C2tEmit, byref p as C2tPass, byref dirs as C2tDi
             else
                 text = "else"
             end if
-            '' TIKO MUST TAKE THE BRANCH CLANG TOOK.
-            if groups[gi].ok then
+            '' TIKO MUST TAKE THE BRANCH CLANG TOOK -- unless the group tests the compiler, which
+            '' tiko leaves to the program that includes the file: then every branch is written,
+            '' each translated for every target (c2t.tiko's branch passes).
+            if groups[gi].ok andalso (groups[gi].byCompiler = false) then
                 dim as boolean tikoTakes = (groups[gi].tikoTook = false) andalso truth
                 dim as int32 ct = ClangTook_( e, p, dirs, k )
                 if ct < 0 then
@@ -640,7 +641,19 @@ sub MacroDirectives( byref e as C2tEmit, byref p as C2tPass, byref dirs as C2tDi
         case DK_DEFINE
             dim as string cv
             if nameOf[k] >= 0 then cv = values[nameOf[k]]
+            dim as int32 na = e.asserts.Count
             Define_( e, env, dirs, k, cv )
+            '' INSIDE A GROUP THAT TESTS THE COMPILER tiko may take another branch than clang
+            '' did, so clang's value is no check on it: no #assert.
+            dim as boolean byCc = false
+            for gi as int32 = 0 to groups.Count - 1
+                if groups[gi].byCompiler then byCc = true
+            next
+            if byCc then
+                while e.asserts.Count > na
+                    e.asserts.Pop( )
+                wend
+            end if
         case DK_INCLUDE
             '' includes.tiko DECIDED IT; here it takes the line's '#' spacing and comments.
             if (k < e.incState.Count) andalso (e.incState[k] = 1) then

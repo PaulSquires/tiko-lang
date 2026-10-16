@@ -15,19 +15,15 @@
 ''   parameter  sqlite3_win32_set_directory16.type -> sqlite3_win32_set_directory16.type_   (tiko reserved word)
 ''   constant   double -> double_   (tiko reserved word)
 ''
-'' 12 items need manual translation:
-''   line 215  sqlite3.h:188  C2T-TODO(refused-type)  sqlite3_version
-''   line 321  sqlite3.h:293  C2T-TODO(conditional)  SQLITE_INT64_TYPE
-''   line 323  sqlite3.h:294  C2T-TODO(conditional)
-''   line 325  sqlite3.h:295  C2T-TODO(conditional)  SQLITE_UINT64_TYPE
-''   line 327  sqlite3.h:296  C2T-TODO(conditional)
-''   line 329  sqlite3.h:297  C2T-TODO(conditional)  #else
-''   line 331  sqlite3.h:298  C2T-TODO(conditional)
-''   line 333  sqlite3.h:299  C2T-TODO(conditional)  #endif
-''   line 335  sqlite3.h:300  C2T-TODO(conditional)  #elif
-''   line 343  sqlite3.h:303  C2T-TODO(conditional)  #else
-''   line 351  sqlite3.h:306  C2T-TODO(conditional)  #endif
-''   line 11450  sqlite3.h:11450  C2T-TODO(macro)  double
+'' 8 items need manual translation:
+''   line 211  sqlite3.h:188  C2T-TODO(refused-type)  sqlite3_version
+''   line 318  sqlite3.h:294  C2T-TODO(branch-unparsed)
+''   line 320  sqlite3.h:295  C2T-TODO(branch-unparsed)  SQLITE_UINT64_TYPE
+''   line 322  sqlite3.h:296  C2T-TODO(branch-unparsed)
+''   line 324  sqlite3.h:297  C2T-TODO(branch-unparsed)  #else
+''   line 326  sqlite3.h:298  C2T-TODO(branch-unparsed)
+''   line 328  sqlite3.h:299  C2T-TODO(branch-unparsed)  #endif
+''   line 11434  sqlite3.h:11450  C2T-TODO(macro)  double
 '' =============================================================================
 
 /'
@@ -318,38 +314,26 @@ type sqlite3__fwd as sqlite3
 ** sqlite3_uint64 and sqlite_uint64 types can store integer values
 ** between 0 and +18446744073709551615 inclusive.
 '/
-'' C2T-TODO(conditional) sqlite3.h:293 -- '_MSC_VER' has no tiko equivalent
-'' #ifdef SQLITE_INT64_TYPE
-  '' C2T-TODO(conditional) sqlite3.h:294 -- inside a conditional that stays a TODO
+#ifdef SQLITE_INT64_TYPE
+  '' C2T-TODO(branch-unparsed) sqlite3.h:294 -- clang cannot parse the branch: unknown type name 'SQLITE_INT64_TYPE'
 ''   typedef SQLITE_INT64_TYPE sqlite_int64;
-'' C2T-TODO(conditional) sqlite3.h:295 -- inside a conditional that stays a TODO
+'' C2T-TODO(branch-unparsed) sqlite3.h:295 -- clang cannot parse the branch: unknown type name 'SQLITE_INT64_TYPE'
 '' # ifdef SQLITE_UINT64_TYPE
-    '' C2T-TODO(conditional) sqlite3.h:296 -- inside a conditional that stays a TODO
+    '' C2T-TODO(branch-unparsed) sqlite3.h:296 -- clang cannot parse the branch: unknown type name 'SQLITE_INT64_TYPE'
 ''     typedef SQLITE_UINT64_TYPE sqlite_uint64;
-'' C2T-TODO(conditional) sqlite3.h:297 -- inside a conditional that stays a TODO
+'' C2T-TODO(branch-unparsed) sqlite3.h:297 -- clang cannot parse the branch: unknown type name 'SQLITE_INT64_TYPE'
 '' # else
-    '' C2T-TODO(conditional) sqlite3.h:298 -- inside a conditional that stays a TODO
+    '' C2T-TODO(branch-unparsed) sqlite3.h:298 -- clang cannot parse the branch: unknown type name 'SQLITE_INT64_TYPE'
 ''     typedef unsigned SQLITE_INT64_TYPE sqlite_uint64;
-'' C2T-TODO(conditional) sqlite3.h:299 -- inside a conditional that stays a TODO
+'' C2T-TODO(branch-unparsed) sqlite3.h:299 -- clang cannot parse the branch: unknown type name 'SQLITE_INT64_TYPE'
 '' # endif
-'' C2T-TODO(conditional) sqlite3.h:300 -- '_MSC_VER' has no tiko equivalent
-'' #elif defined(_MSC_VER) || defined(__BORLANDC__)
-  #if defined(TIKO_OS_WINDOWS)
+#elseif (defined(_MSC_VER) orelse defined(__BORLANDC__))
   type sqlite_int64 as int64
-  #endif
-  #if defined(TIKO_OS_WINDOWS)
   type sqlite_uint64 as uint64
-  #endif
-'' C2T-TODO(conditional) sqlite3.h:303 -- '_MSC_VER' has no tiko equivalent
-'' #else
-  #if defined(TIKO_OS_LINUX)
+#else
   type sqlite_int64 as int64
-  #endif
-  #if defined(TIKO_OS_LINUX)
   type sqlite_uint64 as uint64
-  #endif
-'' C2T-TODO(conditional) sqlite3.h:306 -- '_MSC_VER' has no tiko equivalent
-'' #endif
+#endif
 type sqlite3_int64 as sqlite_int64
 type sqlite3_uint64 as sqlite_uint64
 

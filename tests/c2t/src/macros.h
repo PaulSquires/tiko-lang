@@ -65,7 +65,7 @@ typedef void (*lib_dtor)(void *);
 #define SHL_OK 1
 #endif
 
-#ifdef _MSC_VER                     /* a compiler's identity: the group is a TODO */
+#ifdef _MSC_VER                     /* a compiler's identity: kept as written */
 #define BY_MSVC 1
 #endif
 

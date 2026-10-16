@@ -78,13 +78,37 @@ private function Inside_( byref sk as C2tIntVec, byval o as int32 ) as boolean
     return false
 end function
 
+function IsCompilerName( byref n as string ) as boolean
+    select case n
+    case "_MSC_VER", "_MSC_FULL_VER", "_MSC_BUILD", "__GNUC__", "__GNUC_MINOR__", "__GNUC_PATCHLEVEL__", _
+         "__clang__", "__clang_major__", "__clang_minor__", "__clang_patchlevel__", _
+         "__INTEL_COMPILER", "__INTEL_LLVM_COMPILER", "__BORLANDC__", "__WATCOMC__", "__TINYC__"
+        return true
+    end select
+    return false
+end function
+
+function GroupTestsCompiler( byref src as C2tSource, byref dirs as C2tDirVec, byval g as int32 ) as boolean
+    for k as int32 = g to dirs.Count - 1
+        if (k <> g) andalso (dirs[k].cond <> g) then continue for
+        for t as int32 = dirs[k].tok1 to dirs[k].tok2
+            if src.toks[t].kind = CT_IDENT then
+                if IsCompilerName( TokText( src, t ) ) then return true
+            end if
+        next
+        if dirs[k].kind = DK_ENDIF then exit for
+    next
+    return false
+end function
+
 sub UnreachedBranches( byref src as C2tSource, byref dirs as C2tDirVec, byref outs as C2tPassOutVec, _
                        byref idiomLine as C2tIntVec, byval l1 as int32, byval l2 as int32, _
-                       byref found as C2tIntVec )
+                       byref found as C2tIntVec, byval compilerOnly as boolean )
     found.Clear( )
     for k as int32 = 0 to dirs.Count - 1
         dim as C2tDirective d = dirs[k]
         if (IsBranch_( d.kind ) = false) orelse (d.line1 < l1) orelse (d.line1 > l2) then continue for
+        if compilerOnly andalso (GroupTestsCompiler( src, dirs, IfOf_( dirs, k ) ) = false) then continue for
         if (idiomLine[d.line1] <> 0) orelse IsIfZero_( src, dirs[IfOf_( dirs, k )] ) then continue for
         dim as int32 b1, b2
         if BranchBody( dirs, k, b1, b2 ) = false then continue for

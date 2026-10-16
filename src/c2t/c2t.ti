@@ -340,9 +340,14 @@ declare function BranchBody( byref dirs as C2tDirVec, byval k as int32, byref l1
                              byref l2 as int32 ) as boolean
 '' The branch directives in lines l1..l2 whose body holds C that no pass in 'outs' takes, while
 '' one of them reaches the directive. Idiom lines and '#if 0' are not branches to translate.
+'' 'compilerOnly': only the branches of groups that test a compiler's identity.
 declare sub UnreachedBranches( byref src as C2tSource, byref dirs as C2tDirVec, byref outs as C2tPassOutVec, _
                                byref idiomLine as C2tIntVec, byval l1 as int32, byval l2 as int32, _
-                               byref found as C2tIntVec )
+                               byref found as C2tIntVec, byval compilerOnly as boolean = false )
+'' A compiler's identity macro: _MSC_VER, __GNUC__, __clang__... tiko defines none of them.
+declare function IsCompilerName( byref n as string ) as boolean
+'' The #if group opened by directive g tests one, in any of its branches.
+declare function GroupTestsCompiler( byref src as C2tSource, byref dirs as C2tDirVec, byval g as int32 ) as boolean
 '' The header's text with each branch in 'forced' taken and each directive in 'blankDirs' gone,
 '' same length, same lines; "" when a directive leaves no room to rewrite.
 declare function ForceText( byref src as C2tSource, byref dirs as C2tDirVec, byref forced as C2tIntVec, _
