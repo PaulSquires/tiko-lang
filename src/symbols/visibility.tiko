@@ -24,6 +24,7 @@
 '' Declarations only; check.tiko is its own compilation unit.
 #include once "symbols/check.ti"
 #include once "symbols/modsym.ti"
+#include once "types/udtlayout.ti"
 
 namespace Tko.Vis
 

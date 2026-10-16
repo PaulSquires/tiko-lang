@@ -1,0 +1,3 @@
+'' A header's alias of int32, included above windows.bi -- the shape c2t translates.
+type base_id as int32
+declare function twice( byval id as base_id ) as base_id

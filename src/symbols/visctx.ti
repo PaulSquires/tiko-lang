@@ -36,4 +36,8 @@ type Ctx
     as NodeId                root
     '' THE SYMBOL TABLE BY FOLDED NAME, for the owner-path sweeps -- see OwnerIndex.
     as OwnerIndex            owners
+    '' EVERY UDT'S LAYOUT, for '#assert sizeof( T )' and 'offsetof' -- built on first use by
+    '' AssertLayouts_ (assertlayout.tiko), since the layout pass proper runs after this one.
+    as UdtLayouts            udts
+    as boolean               udtsBuilt
 end type

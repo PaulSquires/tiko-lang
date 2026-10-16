@@ -426,8 +426,8 @@ end sub
 '' and sizeof is the layout. Judged here, after Check, and ONLY when the condition asks one
 '' of those questions: a plain one is Resolve's, and asking it again would report it twice.
 '' A leaf this cannot read leaves the condition unknown, and unknown is silent: a named
-'' constant, a string's len, and a UDT's size, which TypeContext.Layout does not know yet --
-'' so '#assert sizeof( T ) = 8' over a 12-byte T still passes.
+'' constant, or a string's len. A UDT's size and a field's offset come from the layouts
+'' (assertlayout.tiko), which TypeContext.Layout does not hold yet.
 private function AssertOperandType_ ( byref c as Ctx, byval n as NodeId ) as TypeId
     n = Unparen3_( c, n )
     if n = NODE_NONE then return TYPE_NONE
@@ -476,6 +476,8 @@ private function AssertIntrinsic_ _
     return (ot <> TYPE_NONE)
 end function
 
+#include once "symbols/assertlayout.tiko"
+
 '' The SIZE sizeof or len answers at compile time, or -1. A string's len is its contents, and
 '' an array's size is not asked; a fixed-length string is its buffer.
 private function AssertSize_ _
@@ -493,6 +495,7 @@ private function AssertSize_ _
         end if
         if (isType = false) andalso (c.types->Kind( u ) = TK_UDT) then return -1
     end if
+    if c.types->Kind( u ) = TK_UDT then return AssertUdtSize_( c, u )
     dim as int32 sz = c.types->Layout( u ).size
     if sz <= 0 then return -1
     return sz
@@ -542,6 +545,7 @@ private function AssertEval_ _
         v = c.ast->literals[cast( int32, c.ast->nodes[cast( int32, n )].data )].intValue
         return true
     case N_CALL
+        if AssertOffsetOf_( c, n, v ) then typed = true : return true
         if AssertIntrinsic_( c, n, nm, ot, isType ) = false then return false
         if nm = "typeof" then return false
         v = AssertSize_( c, nm, ot, isType )
@@ -1284,7 +1288,15 @@ private function CompletedBelow4_ ( byref c as Ctx, byval use as NodeId, byval a
             '' FWD as integer' -- fbc's 71 for 'dim x as T', a 'byval' parameter, 'function f( )
             '' byref as T' with a body, and a call to it (fbc-modern 1.20, 2026-09-29;
             '' functions/return-byref-fwdref and -body). The walk stopped at the builtin.
+            '' Not a program's own same-type declaration of a fixed-width name, though:
+            '' 'type base_id as int32', a use, then win/basetsd.bi's 'type INT32 as long'.
+            '' int32 was complete above it -- the prelude's -- and still means long, as
+            '' resolveunbound.tiko's SameFixedWidth_ has it for a use of int32 itself.
             if viaTypedef andalso (sy->declAt <> 0) andalso (upos < sy->declAt) then
+                dim as BuiltinType fw = FixedWidthBuiltin( c.names->Spelling( sy->name ) )
+                if (fw <> TY_NONE) andalso (sy->type_ <> TYPE_NONE) then
+                    if c.types->Unqualify( sy->type_ ) = c.types->Builtin( fw ) then return ""
+                end if
                 if Tko.ModSym.OrderFree( *c.syms, sid ) = false then return c.names->Spelling( sy->name )
             end if
             '' A TYPEDEF SYMBOL'S PAYLOAD IS ITS TARGET TYPEREF, not the N_TYPEDEF node --

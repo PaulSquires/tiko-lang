@@ -1,0 +1,11 @@
+'' A header declares 'type base_id as int32' and a function taking one BYVAL; windows.bi,
+'' included after it, declares 'type INT32 as long' (win/basetsd.bi). base_id is int32 is
+'' long throughout.
+#include once "fixed-width-alias-base.ti"
+#include once "windows.bi"
+function twice( byval id as base_id ) as base_id
+    return id * 2
+end function
+dim as base_id n = 21
+dim as INT32 m = twice( n )
+print sizeof( base_id ); sizeof( n ); twice( n ); m

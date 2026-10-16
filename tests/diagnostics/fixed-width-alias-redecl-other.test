@@ -1,0 +1,7 @@
+'' An alias of a fixed-width name used above a program's declaration of the name as a
+'' DIFFERENT type keeps its TKO0811: the alias's meaning would change below the use.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/fixed-width-alias-redecl-other.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: fixed-width-alias-redecl-other.tiko(3,8): error TKO0811: 'uint8' is still incomplete here
+'' EXPECT-MAX-DIAG: 1
