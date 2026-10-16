@@ -30,6 +30,10 @@ namespace Tko.Build
         as string     searchJson
         as string     includesJson
         as string     definesJson
+        '' THE LIBRARIES THE PROGRAM LOADS AT RUN TIME, beside it: a vendor package's .dll / .so
+        '' that the link step put there (tiko-vendor RFC-0002 V13). copy_to copies them with the
+        '' artefact, or a program copied to dist/ would not start. Each path once, per target.
+        as Tko.StrVec runtimeLibs
     end type
 
     '' 'kind' is "module" or "root"; 'status' is "hit", "miss" or "compiled" (B1 caches no
@@ -41,6 +45,8 @@ namespace Tko.Build
     declare sub OnPlan( byval obs as any ptr, byval units as int32 )
     '' 'kind' is "exe", "dll", "lib" or "obj"; the path as the link wrote it.
     declare sub OnArtifact( byval obs as any ptr, byref kind as string, byref path_ as string )
+    '' A library the artefact loads at run time, now beside it: {"event":"runtime-lib","path":P}.
+    declare sub OnRuntimeLib( byval obs as any ptr, byref path_ as string )
     '' The run's totals, from DiagOut.Finish -- once per run, the '#cmdline' restart included.
     declare sub OnFinish _
         ( byval obs as any ptr, byval errors as int32, byval warnings as int32, byval rc as int32 )

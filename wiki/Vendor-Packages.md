@@ -40,7 +40,7 @@ Every routine, type and constant of the library's C header is callable as the li
 ## `link static` and `link dynamic`
 
 - **`link static`** links the library's archive into the program. Nothing else is needed at run time.
-- **`link dynamic`** links the shared library (`sqlite3.dll`, `sqlite3_linux_x86_64.so`) and **copies it beside the program**, under the name the program will load it by. A copy already there with the same size and no older is left alone. `-nocopylibs` turns the copy off.
+- **`link dynamic`** links the shared library (`sqlite3.dll`, `sqlite3_linux_x86_64.so`) and **copies it beside the program**, under the name the program will load it by. A copy already there with the same size and no older is left alone, and one that was deleted is put back by the next build. [`tiko build`](Category-Tiko-Build)'s `copy_to` copies the library along with the program. `-nocopylibs` turns the copy off.
 - **No `link`** leaves the choice to the package: each one names its default. `vendor/sqlite`'s is dynamic.
 
 One program links a library one way. Two imports asking for different modes are `TKO0157`, with a note at the other import; an import without `link` goes along with one that has it. A mode the package does not ship is `TKO0156`, and `link` on a package that ships no library -- any source-only package -- is `TKO0155`.

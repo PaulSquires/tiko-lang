@@ -1,0 +1,19 @@
+'' copy_to AND A VENDOR PACKAGE (tiko-vendor RFC-0002 V13): 'tiko build' copies the program into
+'' dist/ and, with it, the DLL the link step put beside the artefact -- reported as a
+'' runtime-lib event -- so the copy in dist/ starts.
+'' TEST: cli
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_PKG=build/.vct/pkg
+'' ENV: TKO_MODCACHE=build/.vct/mc
+'' CLEAN: build/.vct
+'' COPY: tests/modules/src/vlink/pkg => build/.vct/pkg
+'' STEP: -target windows-x86_64 -dll tests/modules/src/vlink/libsrc/alpha_dynamic.tiko -o build/.vct/pkg/vendor/alpha/lib/alpha_windows_x86_64.dll
+'' COPY: tests/modules/src/vlink/proj => build/.vct/proj
+'' ARGS: build -target windows-x86_64 --manifest build/.vct/proj --message-format json
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: {"event":"runtime-lib","path":"build/.vct/proj/out/debug/alpha_windows_x86_64.dll"}
+'' EXPECT-OUT: {"event":"copy","target":"app","from":"build/.vct/proj/out/debug/alpha_windows_x86_64.dll","path":"build/.vct/proj/dist/alpha_windows_x86_64.dll","copied":true}
+'' EXPECT-FILE: build/.vct/proj/dist/app.exe
+'' EXPECT-FILE: build/.vct/proj/dist/alpha_windows_x86_64.dll
+'' RUN: build/.vct/proj/dist/app.exe
+'' EXPECT-RUN-OUT:  2             alpha header: dynamic
