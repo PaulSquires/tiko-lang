@@ -1,0 +1,16 @@
+'' A NAMED CONSTANT AS A BOUND makes a FIXED array, which may be initialised: 'dim a( N ) =
+'' { ... }' with 'const N', 'const as long', an enum constant, 'L to N' and a local const.
+'' It was TKO0612, read as var-len. fbc-modern 1.20 prints the same five lines, 2026-10-16.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/diagnostics/src/const-bound-array-init.bas -o tests/diagnostics/constboundinit.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: error
+'' EXPECT-FILE: tests/diagnostics/constboundinit.exe
+'' RUN: tests/diagnostics/constboundinit.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  4 3 4
+'' EXPECT-RUN-OUT:  7 2
+'' EXPECT-RUN-OUT:  9 2
+'' EXPECT-RUN-OUT:  3 1 3
+'' EXPECT-RUN-OUT:  11 1
