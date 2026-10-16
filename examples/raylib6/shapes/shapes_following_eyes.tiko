@@ -1,0 +1,95 @@
+'' raylib [shapes] example - following eyes
+''
+'' Example complexity rating: [★★☆☆] 2/4
+''
+'' Example originally created with raylib 2.5, last time updated with raylib 2.5
+''
+'' Example licensed under an unmodified zlib/libpng license, which is an OSI-certified,
+'' BSD-like license that allows static linking with closed source software
+''
+'' Copyright (c) 2013-2025 Ramon Santamaria (@raysan5)
+''
+'' Ported to tiko from raylib 6.2's examples/shapes/shapes_following_eyes.c.
+'' Build it with 'tiko shapes_following_eyes.tiko'.
+'' A number on its command line closes it after that many frames.
+
+'' raylib linked DYNAMICALLY: raylib.dll is copied beside the program (on Linux,
+'' libraylib.so.620). Write 'link static' instead to build raylib into the program.
+#import "vendor/raylib6" link dynamic
+
+dim as long maxFrames = valint( command( 1 ) )   '' a frame count closes it unattended
+dim as long frameCount = 0
+
+const screenWidth = 800
+const screenHeight = 450
+
+InitWindow( screenWidth, screenHeight, "raylib [shapes] example - following eyes" )
+
+dim as Vector2 scleraLeftPosition = ( GetScreenWidth( ) / 2.0 - 100.0, GetScreenHeight( ) / 2.0 )
+dim as Vector2 scleraRightPosition = ( GetScreenWidth( ) / 2.0 + 100.0, GetScreenHeight( ) / 2.0 )
+dim as single scleraRadius = 80
+
+dim as Vector2 irisLeftPosition = ( GetScreenWidth( ) / 2.0 - 100.0, GetScreenHeight( ) / 2.0 )
+dim as Vector2 irisRightPosition = ( GetScreenWidth( ) / 2.0 + 100.0, GetScreenHeight( ) / 2.0 )
+dim as single irisRadius = 24
+
+dim as single angle = 0.0
+dim as single dx = 0.0, dy = 0.0, dxx = 0.0, dyy = 0.0
+
+SetTargetFPS( 60 )              '' Set our game to run at 60 frames-per-second
+
+'' Main game loop
+do while not WindowShouldClose( )    '' Detect window close button or ESC key
+    '' Update
+    irisLeftPosition = GetMousePosition( )
+    irisRightPosition = GetMousePosition( )
+
+    '' Check not inside the left eye sclera
+    if not CheckCollisionPointCircle( irisLeftPosition, scleraLeftPosition, scleraRadius - irisRadius ) then
+        dx = irisLeftPosition.x - scleraLeftPosition.x
+        dy = irisLeftPosition.y - scleraLeftPosition.y
+
+        angle = atan2( dy, dx )
+
+        dxx = (scleraRadius - irisRadius) * cos( angle )
+        dyy = (scleraRadius - irisRadius) * sin( angle )
+
+        irisLeftPosition.x = scleraLeftPosition.x + dxx
+        irisLeftPosition.y = scleraLeftPosition.y + dyy
+    end if
+
+    '' Check not inside the right eye sclera
+    if not CheckCollisionPointCircle( irisRightPosition, scleraRightPosition, scleraRadius - irisRadius ) then
+        dx = irisRightPosition.x - scleraRightPosition.x
+        dy = irisRightPosition.y - scleraRightPosition.y
+
+        angle = atan2( dy, dx )
+
+        dxx = (scleraRadius - irisRadius) * cos( angle )
+        dyy = (scleraRadius - irisRadius) * sin( angle )
+
+        irisRightPosition.x = scleraRightPosition.x + dxx
+        irisRightPosition.y = scleraRightPosition.y + dyy
+    end if
+
+    '' Draw
+    BeginDrawing( )
+
+        ClearBackground( RAYWHITE )
+
+        DrawCircleV( scleraLeftPosition, scleraRadius, LIGHTGRAY )
+        DrawCircleV( irisLeftPosition, irisRadius, BROWN )
+        DrawCircleV( irisLeftPosition, 10, BLACK )
+
+        DrawCircleV( scleraRightPosition, scleraRadius, LIGHTGRAY )
+        DrawCircleV( irisRightPosition, irisRadius, DARKGREEN )
+        DrawCircleV( irisRightPosition, 10, BLACK )
+
+        DrawFPS( 10, 10 )
+
+    EndDrawing( )
+    frameCount += 1
+    if frameCount = maxFrames then exit do
+loop
+
+CloseWindow( )        '' Close window and OpenGL context

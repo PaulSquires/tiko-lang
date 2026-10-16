@@ -1,5 +1,5 @@
 # vendor/SDL3's binaries, for build/vendorfetch.sh. Read by that script alone and never
-# shipped; the entry format is described in ../sqlite/fetch.toml.
+# shipped; the entry format is described in ../sqlite3/fetch.toml.
 #
 # THE NAME is what '#foreignlib SDL3 dynamic "lib/SDL3"' probes: on Windows the DLL keeps its
 # own name, SDL3.dll -- the name inside it, which a program's import names; image/, ttf/ and

@@ -1,0 +1,148 @@
+'' raylib [models] example - rlgl solar system
+''
+'' Example complexity rating: [★★★★] 4/4
+''
+'' NOTE: This example uses [rlgl] module functionality (pseudo-OpenGL 1.1 style coding)
+''
+'' Example originally created with raylib 2.5, last time updated with raylib 4.0
+''
+'' Example licensed under an unmodified zlib/libpng license, which is an OSI-certified,
+'' BSD-like license that allows static linking with closed source software
+''
+'' Copyright (c) 2018-2025 Ramon Santamaria (@raysan5)
+''
+'' Ported to tiko from raylib 6.2's examples/models/models_rlgl_solar_system.c.
+'' Build it with 'tiko models_rlgl_solar_system.tiko'.
+'' A number on its command line closes it after that many frames.
+
+'' raylib linked DYNAMICALLY: raylib.dll is copied beside the program (on Linux,
+'' libraylib.so.620). Write 'link static' instead to build raylib into the program.
+#import "vendor/raylib6" link dynamic
+#import "vendor/raylib6/rlgl"
+
+dim as long maxFrames = valint( command( 1 ) )   '' a frame count closes it unattended
+dim as long frameCount = 0
+
+declare sub DrawSphereBasic( byval col as Color )      '' Draw sphere without any matrix transformation
+
+const screenWidth = 800
+const screenHeight = 450
+
+const sunRadius = 4.0
+const earthRadius = 0.6
+const earthOrbitRadius = 8.0
+const moonRadius = 0.16
+const moonOrbitRadius = 1.5
+
+InitWindow( screenWidth, screenHeight, "raylib [models] example - rlgl solar system" )
+
+'' Define the camera to look into our 3d world
+dim as Camera cam
+cam.position = type<Vector3>( 16.0, 16.0, 16.0 )  '' Camera position
+cam.target = type<Vector3>( 0.0, 0.0, 0.0 )       '' Camera looking at point
+cam.up = type<Vector3>( 0.0, 1.0, 0.0 )           '' Camera up vector (rotation towards target)
+cam.fovy = 45.0                                   '' Camera field-of-view Y
+cam.projection = CAMERA_PERSPECTIVE               '' Camera projection type
+
+dim as single rotationSpeed = 0.2         '' General system rotation speed
+
+dim as single earthRotation = 0.0         '' Rotation of earth around itself (days) in degrees
+dim as single earthOrbitRotation = 0.0    '' Rotation of earth around the Sun (years) in degrees
+dim as single moonRotation = 0.0          '' Rotation of moon around itself
+dim as single moonOrbitRotation = 0.0     '' Rotation of moon around earth in degrees
+
+SetTargetFPS( 60 )                   '' Set our game to run at 60 frames-per-second
+
+'' Main game loop
+do while not WindowShouldClose( )        '' Detect window close button or ESC key
+    '' Update
+    earthRotation += (5.0 * rotationSpeed)
+    earthOrbitRotation += (365 / 360.0 * (5.0 * rotationSpeed) * rotationSpeed)
+    moonRotation += (2.0 * rotationSpeed)
+    moonOrbitRotation += (8.0 * rotationSpeed)
+
+    '' Draw
+    BeginDrawing( )
+
+        ClearBackground( RAYWHITE )
+
+        BeginMode3D( cam )
+
+            rlPushMatrix( )
+                rlScalef( sunRadius, sunRadius, sunRadius )          '' Scale Sun
+                DrawSphereBasic( GOLD )                              '' Draw the Sun
+            rlPopMatrix( )
+
+            rlPushMatrix( )
+                rlRotatef( earthOrbitRotation, 0.0, 1.0, 0.0 )    '' Rotation for Earth orbit around Sun
+                rlTranslatef( earthOrbitRadius, 0.0, 0.0 )         '' Translation for Earth orbit
+
+                rlPushMatrix( )
+                    rlRotatef( earthRotation, 0.25, 1.0, 0.0 )       '' Rotation for Earth itself
+                    rlScalef( earthRadius, earthRadius, earthRadius ) '' Scale Earth
+
+                    DrawSphereBasic( BLUE )                          '' Draw the Earth
+                rlPopMatrix( )
+
+                rlRotatef( moonOrbitRotation, 0.0, 1.0, 0.0 )     '' Rotation for Moon orbit around Earth
+                rlTranslatef( moonOrbitRadius, 0.0, 0.0 )          '' Translation for Moon orbit
+                rlRotatef( moonRotation, 0.0, 1.0, 0.0 )          '' Rotation for Moon itself
+                rlScalef( moonRadius, moonRadius, moonRadius )       '' Scale Moon
+
+                DrawSphereBasic( LIGHTGRAY )                         '' Draw the Moon
+            rlPopMatrix( )
+
+            '' Some reference elements (not affected by previous matrix transformations)
+            DrawCircle3D( type<Vector3>( 0.0, 0.0, 0.0 ), earthOrbitRadius, type<Vector3>( 1, 0, 0 ), 90.0, Fade( RED, 0.5 ) )
+            DrawGrid( 20, 1.0 )
+
+        EndMode3D( )
+
+        DrawText( "EARTH ORBITING AROUND THE SUN!", 400, 10, 20, MAROON )
+        DrawFPS( 10, 10 )
+
+    EndDrawing( )
+    frameCount += 1
+    if frameCount = maxFrames then exit do
+loop
+
+CloseWindow( )        '' Close window and OpenGL context
+
+'' Draw sphere without any matrix transformation
+'' NOTE: Sphere is drawn in world position ( 0, 0, 0 ) with radius 1.0
+sub DrawSphereBasic( byval col as Color )
+    dim as long rings = 16
+    dim as long slices = 16
+
+    '' Make sure there is enough space in the internal render batch
+    '' buffer to store all required vertex, batch is reseted if required
+    rlCheckRenderBatchLimit( (rings + 2) * slices * 6 )
+
+    rlBegin( RL_TRIANGLES )
+        rlColor4ub( col.r, col.g, col.b, col.a )
+
+        for i as long = 0 to (rings + 2) - 1
+            for j as long = 0 to slices - 1
+                rlVertex3f( cos( DEG2RAD * (270 + (180.0 / (rings + 1)) * i) ) * sin( DEG2RAD * (j * 360.0 / slices) ), _
+                            sin( DEG2RAD * (270 + (180.0 / (rings + 1)) * i) ), _
+                            cos( DEG2RAD * (270 + (180.0 / (rings + 1)) * i) ) * cos( DEG2RAD * (j * 360.0 / slices) ) )
+                rlVertex3f( cos( DEG2RAD * (270 + (180.0 / (rings + 1)) * (i + 1)) ) * sin( DEG2RAD * ((j + 1) * 360.0 / slices) ), _
+                            sin( DEG2RAD * (270 + (180.0 / (rings + 1)) * (i + 1)) ), _
+                            cos( DEG2RAD * (270 + (180.0 / (rings + 1)) * (i + 1)) ) * cos( DEG2RAD * ((j + 1) * 360.0 / slices) ) )
+                rlVertex3f( cos( DEG2RAD * (270 + (180.0 / (rings + 1)) * (i + 1)) ) * sin( DEG2RAD * (j * 360.0 / slices) ), _
+                            sin( DEG2RAD * (270 + (180.0 / (rings + 1)) * (i + 1)) ), _
+                            cos( DEG2RAD * (270 + (180.0 / (rings + 1)) * (i + 1)) ) * cos( DEG2RAD * (j * 360.0 / slices) ) )
+
+                rlVertex3f( cos( DEG2RAD * (270 + (180.0 / (rings + 1)) * i) ) * sin( DEG2RAD * (j * 360.0 / slices) ), _
+                            sin( DEG2RAD * (270 + (180.0 / (rings + 1)) * i) ), _
+                            cos( DEG2RAD * (270 + (180.0 / (rings + 1)) * i) ) * cos( DEG2RAD * (j * 360.0 / slices) ) )
+                rlVertex3f( cos( DEG2RAD * (270 + (180.0 / (rings + 1)) * i) ) * sin( DEG2RAD * ((j + 1) * 360.0 / slices) ), _
+                            sin( DEG2RAD * (270 + (180.0 / (rings + 1)) * i) ), _
+                            cos( DEG2RAD * (270 + (180.0 / (rings + 1)) * i) ) * cos( DEG2RAD * ((j + 1) * 360.0 / slices) ) )
+                rlVertex3f( cos( DEG2RAD * (270 + (180.0 / (rings + 1)) * (i + 1)) ) * sin( DEG2RAD * ((j + 1) * 360.0 / slices) ), _
+                            sin( DEG2RAD * (270 + (180.0 / (rings + 1)) * (i + 1)) ), _
+                            cos( DEG2RAD * (270 + (180.0 / (rings + 1)) * (i + 1)) ) * cos( DEG2RAD * ((j + 1) * 360.0 / slices) ) )
+            next
+        next
+    rlEnd( )
+end sub

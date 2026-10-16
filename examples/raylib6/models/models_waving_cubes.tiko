@@ -1,0 +1,102 @@
+'' raylib [models] example - waving cubes
+''
+'' Example complexity rating: [★★★☆] 3/4
+''
+'' Example originally created with raylib 2.5, last time updated with raylib 3.7
+''
+'' Example contributed by Codecat (@codecat) and reviewed by Ramon Santamaria (@raysan5)
+''
+'' Example licensed under an unmodified zlib/libpng license, which is an OSI-certified,
+'' BSD-like license that allows static linking with closed source software
+''
+'' Copyright (c) 2019-2025 Codecat (@codecat) and Ramon Santamaria (@raysan5)
+''
+'' Ported to tiko from raylib 6.2's examples/models/models_waving_cubes.c.
+'' Build it with 'tiko models_waving_cubes.tiko'.
+'' A number on its command line closes it after that many frames.
+
+'' raylib linked DYNAMICALLY: raylib.dll is copied beside the program (on Linux,
+'' libraylib.so.620). Write 'link static' instead to build raylib into the program.
+#import "vendor/raylib6" link dynamic
+
+dim as long maxFrames = valint( command( 1 ) )   '' a frame count closes it unattended
+dim as long frameCount = 0
+
+const screenWidth = 800
+const screenHeight = 450
+
+InitWindow( screenWidth, screenHeight, "raylib [models] example - waving cubes" )
+
+'' Initialize the camera
+dim as Camera3D cam
+cam.position = type<Vector3>( 30.0, 20.0, 30.0 )  '' Camera position
+cam.target = type<Vector3>( 0.0, 0.0, 0.0 )       '' Camera looking at point
+cam.up = type<Vector3>( 0.0, 1.0, 0.0 )           '' Camera up vector (rotation towards target)
+cam.fovy = 70.0                                   '' Camera field-of-view Y
+cam.projection = CAMERA_PERSPECTIVE               '' Camera projection type
+
+'' Specify the amount of blocks in each direction
+const numBlocks = 15
+
+SetTargetFPS( 60 )
+
+'' Main game loop
+do while not WindowShouldClose( )    '' Detect window close button or ESC key
+    '' Update
+    dim as double elapsed = GetTime( )
+
+    '' Calculate time scale for cube position and size
+    dim as single scale = (2.0 + sin( elapsed )) * 0.7
+
+    '' Move camera around the scene
+    dim as double cameraTime = elapsed * 0.3
+    cam.position.x = cos( cameraTime ) * 40.0
+    cam.position.z = sin( cameraTime ) * 40.0
+
+    '' Draw
+    BeginDrawing( )
+
+        ClearBackground( RAYWHITE )
+
+        BeginMode3D( cam )
+
+            DrawGrid( 10, 5.0 )
+
+            for x as long = 0 to numBlocks - 1
+                for y as long = 0 to numBlocks - 1
+                    for z as long = 0 to numBlocks - 1
+                        '' Scale of the blocks depends on x/y/z positions
+                        dim as single blockScale = (x + y + z) / 30.0
+
+                        '' Scatter makes the waving effect by adding blockScale over time
+                        dim as single scatter = sin( blockScale * 20.0 + elapsed * 4.0 )
+
+                        '' Calculate the cube position
+                        dim as Vector3 cubePos = ( _
+                            (x - numBlocks / 2) * (scale * 3.0) + scatter, _
+                            (y - numBlocks / 2) * (scale * 2.0) + scatter, _
+                            (z - numBlocks / 2) * (scale * 3.0) + scatter )
+
+                        '' Pick a color with a hue depending on cube position for the rainbow color effect
+                        '' NOTE: This function is quite costly to be done per cube and frame,
+                        '' pre-catching the results into a separate array could improve performance
+                        dim as Color cubeColor = ColorFromHSV( ((x + y + z) * 18) mod 360, 0.75, 0.9 )
+
+                        '' Calculate cube size
+                        dim as single cubeSize = (2.4 - scale) * blockScale
+
+                        '' And finally, draw the cube!
+                        DrawCube( cubePos, cubeSize, cubeSize, cubeSize, cubeColor )
+                    next
+                next
+            next
+
+        EndMode3D( )
+
+        DrawFPS( 10, 10 )
+    EndDrawing( )
+    frameCount += 1
+    if frameCount = maxFrames then exit do
+loop
+
+CloseWindow( )        '' Close window and OpenGL context

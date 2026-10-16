@@ -1,0 +1,38 @@
+# vendor/raylib6's binaries, for build/vendorfetch.sh. Read by that script alone and never
+# shipped; the entry format is described in ../sqlite3/fetch.toml.
+#
+# THE NAMES are what '#foreignlib RAYLIB ... "lib/raylib"' probes: raylib_<os>_x86_64.a for
+# static -- on Windows that is raylib.lib, an MSVC archive, which the linker reads whatever its
+# name -- and for dynamic raylib.dll on Windows and raylib_linux_x86_64.so on Linux. The .so is
+# raylib's release libraylib.so.6.2.0, which names itself libraylib.so.620: tiko copies it
+# beside a program under that name, the one the program loads. Both raymath and rlgl are in
+# these libraries.
+version = "6.2"
+
+[windows.1]
+kind = "copy"
+url = "https://github.com/raysan5/raylib/releases/download/6.2/raylib-6.2_win64_msvc16.zip"
+sha256 = "8467b5dd6db4d7ab942f3148a3d30d93be6ed9b2fab88069d177e59604268ebd"
+from = "lib/raylib.dll"
+to = "lib/raylib.dll"
+
+[windows.2]
+kind = "copy"
+url = "https://github.com/raysan5/raylib/releases/download/6.2/raylib-6.2_win64_msvc16.zip"
+sha256 = "8467b5dd6db4d7ab942f3148a3d30d93be6ed9b2fab88069d177e59604268ebd"
+from = "lib/raylib.lib"
+to = "lib/raylib_windows_x86_64.a"
+
+[linux.1]
+kind = "copy"
+url = "https://github.com/raysan5/raylib/releases/download/6.2/raylib-6.2_linux_amd64.tar.gz"
+sha256 = "586bbc32f3596d439382b1c5dbc6c1c573eb7e1d00fe92be7d4deb116883720d"
+from = "lib/libraylib.so.6.2.0"
+to = "lib/raylib_linux_x86_64.so"
+
+[linux.2]
+kind = "copy"
+url = "https://github.com/raysan5/raylib/releases/download/6.2/raylib-6.2_linux_amd64.tar.gz"
+sha256 = "586bbc32f3596d439382b1c5dbc6c1c573eb7e1d00fe92be7d4deb116883720d"
+from = "lib/libraylib.a"
+to = "lib/raylib_linux_x86_64.a"

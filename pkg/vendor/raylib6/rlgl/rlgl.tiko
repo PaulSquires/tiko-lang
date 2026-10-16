@@ -1,0 +1,17 @@
+'' vendor/raylib6/rlgl -- raylib 6.2's OpenGL abstraction layer, rlgl.h, as one import:
+''
+''     #import "vendor/raylib6/rlgl"
+''
+'' raylib's immediate-mode layer over OpenGL -- rlPushMatrix, rlTranslatef, rlBegin, rlVertex3f
+'' -- unqualified, for drawing raylib's own functions do not cover. The header is rlgl.ti beside
+'' this file, translated from rlgl.h by 'tiko c2t'. Its C2T-TODOs past rlgl.h's API are in
+'' RLGL_IMPLEMENTATION, the code that builds raylib itself, which a program never defines.
+''
+'' It brings vendor/raylib6 with it -- raylib's names, and its library. The link mode is chosen
+'' there, on the module that links: '#import "vendor/raylib6" link static' beside this import.
+'' raylib's libraries export rlgl's functions.
+#module "rlgl"
+
+#import "vendor/raylib6" public
+
+public #include once "rlgl.ti"

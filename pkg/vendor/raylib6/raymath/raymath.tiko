@@ -1,0 +1,23 @@
+'' vendor/raylib6/raymath -- raylib 6.2's math library, raymath.h, as one import:
+''
+''     #import "vendor/raylib6/raymath"
+''
+'' Vector2, Vector3, Matrix and Quaternion arithmetic -- Vector2Add, Vector3Normalize,
+'' MatrixRotateY, QuaternionSlerp -- unqualified, as raylib documents them. The header is
+'' raymath.ti beside this file, translated from raymath.h by 'tiko c2t'. raymath's functions are
+'' inline in C; raylib's libraries export every one of them, so here each is an ordinary call
+'' into the library. Its C2T-TODOs are the C++-only operators, and MatrixToFloat and
+'' Vector3ToFloat, which this file writes by hand.
+''
+'' It brings vendor/raylib6 with it -- raylib's names, and its library. The link mode is chosen
+'' there, on the module that links: '#import "vendor/raylib6" link static' beside this import.
+#module "raymath"
+
+#import "vendor/raylib6" public
+
+public #include once "raymath.ti"
+
+'' raymath.h:108 and :113, function-like macros over the functions that return a float16 or a
+'' float3 by value.
+#define MatrixToFloat( mat ) (MatrixToFloatV( mat ).v)
+#define Vector3ToFloat( vec ) (Vector3ToFloatV( vec ).v)

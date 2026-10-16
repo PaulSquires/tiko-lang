@@ -1,0 +1,7 @@
+'' THE COMMITTED vendor/raylib6 HEADERS: raylib.ti, raylib-residue.ti, raymath/raymath.ti and
+'' rlgl/rlgl.ti, translated by 'tiko c2t' from raylib 6.2's headers, compile for windows-x86_64 as
+'' an importer reads them. The library is not needed: nothing is linked.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -c tests/modules/src/vraylib/hdr.tiko -o build/.vrlh-windows-x86_64.o
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: build/.vrlh-windows-x86_64.o

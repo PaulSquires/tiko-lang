@@ -1,0 +1,140 @@
+'' raylib [core] example - 2d camera
+''
+'' Example complexity rating: [★★☆☆] 2/4
+''
+'' Example originally created with raylib 1.5, last time updated with raylib 3.0
+''
+'' Example licensed under an unmodified zlib/libpng license, which is an OSI-certified,
+'' BSD-like license that allows static linking with closed source software
+''
+'' Copyright (c) 2016-2025 Ramon Santamaria (@raysan5)
+''
+'' Ported to tiko from raylib 6.2's examples/core/core_2d_camera.c.
+'' Build it with 'tiko core_2d_camera.tiko'.
+'' A number on its command line closes it after that many frames.
+
+'' raylib linked DYNAMICALLY: raylib.dll is copied beside the program (on Linux,
+'' libraylib.so.620). Write 'link static' instead to build raylib into the program.
+#import "vendor/raylib6" link dynamic
+
+dim as long maxFrames = valint( command( 1 ) )   '' a frame count closes it unattended
+dim as long frameCount = 0
+
+const MAX_BUILDINGS = 100
+
+const screenWidth = 800
+const screenHeight = 450
+
+InitWindow( screenWidth, screenHeight, "raylib [core] example - 2d camera" )
+
+dim as Rectangle player = ( 400, 280, 40, 40 )
+dim as Rectangle buildings(0 to MAX_BUILDINGS - 1)
+dim as Color buildColors(0 to MAX_BUILDINGS - 1)
+
+dim as long spacing = 0
+
+for i as long = 0 to MAX_BUILDINGS - 1
+    buildings(i).width = GetRandomValue( 50, 200 )
+    buildings(i).height = GetRandomValue( 100, 800 )
+    buildings(i).y = screenHeight - 130.0 - buildings(i).height
+    buildings(i).x = -6000.0 + spacing
+
+    spacing += fix( buildings(i).width )
+
+    buildColors(i) = type<Color>( GetRandomValue( 200, 240 ), GetRandomValue( 200, 240 ), GetRandomValue( 200, 250 ), 255 )
+next
+
+dim as Camera2D cam
+cam.target = type<Vector2>( player.x + 20.0, player.y + 20.0 )
+cam.offset = type<Vector2>( GetRenderWidth( ) / 2.0, GetRenderHeight( ) / 2.0 )
+cam.rotation = 0.0
+cam.zoom = 1.0
+
+SetTargetFPS( 60 )                  '' Set our game to run at 60 frames-per-second
+
+'' Main game loop
+do while not WindowShouldClose( )        '' Detect window close button or ESC key
+    '' Update
+
+    '' Player movement
+    if IsKeyDown( KEY_RIGHT ) then
+        player.x += 2
+    elseif IsKeyDown( KEY_LEFT ) then
+        player.x -= 2
+    end if
+
+    '' Camera target follows player
+    cam.target = type<Vector2>( player.x + 20, player.y + 20 )
+
+    '' Camera rotation controls
+    if IsKeyDown( KEY_A ) then
+        cam.rotation -= 1
+    elseif IsKeyDown( KEY_S ) then
+        cam.rotation += 1
+    end if
+
+    '' Limit camera rotation to 80 degrees (-40 to 40)
+    if cam.rotation > 40 then
+        cam.rotation = 40
+    elseif cam.rotation < -40 then
+        cam.rotation = -40
+    end if
+
+    '' Camera zoom controls
+    '' Uses log scaling to provide consistent zoom speed
+    cam.zoom = exp( log( cam.zoom ) + GetMouseWheelMove( ) * 0.1 )
+
+    if cam.zoom > 3.0 then
+        cam.zoom = 3.0
+    elseif cam.zoom < 0.1 then
+        cam.zoom = 0.1
+    end if
+
+    '' Camera reset (zoom and rotation)
+    if IsKeyPressed( KEY_R ) then
+        cam.zoom = 1.0
+        cam.rotation = 0.0
+    end if
+
+    '' Draw
+    BeginDrawing( )
+
+        ClearBackground( RAYWHITE )
+
+        BeginMode2D( cam )
+
+            DrawRectangle( -6000, 320, 13000, 8000, DARKGRAY )
+
+            for i as long = 0 to MAX_BUILDINGS - 1
+                DrawRectangleRec( buildings(i), buildColors(i) )
+            next
+
+            DrawRectangleRec( player, RED )
+
+            DrawLine( fix( cam.target.x ), -screenHeight * 10, fix( cam.target.x ), screenHeight * 10, GREEN )
+            DrawLine( -screenWidth * 10, fix( cam.target.y ), screenWidth * 10, fix( cam.target.y ), GREEN )
+
+        EndMode2D( )
+
+        DrawText( "SCREEN AREA", 640, 10, 20, RED )
+
+        DrawRectangle( 0, 0, screenWidth, 5, RED )
+        DrawRectangle( 0, 5, 5, screenHeight - 10, RED )
+        DrawRectangle( screenWidth - 5, 5, 5, screenHeight - 10, RED )
+        DrawRectangle( 0, screenHeight - 5, screenWidth, 5, RED )
+
+        DrawRectangle( 10, 10, 250, 113, Fade( SKYBLUE, 0.5 ) )
+        DrawRectangleLines( 10, 10, 250, 113, BLUE )
+
+        DrawText( "Free 2D camera controls:", 20, 20, 10, BLACK )
+        DrawText( "- Right/Left to move player", 40, 40, 10, DARKGRAY )
+        DrawText( "- Mouse Wheel to Zoom in-out", 40, 60, 10, DARKGRAY )
+        DrawText( "- A / S to Rotate", 40, 80, 10, DARKGRAY )
+        DrawText( "- R to reset Zoom and Rotation", 40, 100, 10, DARKGRAY )
+
+    EndDrawing( )
+    frameCount += 1
+    if frameCount = maxFrames then exit do
+loop
+
+CloseWindow( )        '' Close window and OpenGL context

@@ -40,6 +40,9 @@ Every routine, type and constant of the library's C header is callable as the li
 | `vendor/SDL3/image` | SDL3_image 3.4.4 (brings `vendor/SDL3`) | `dynamic` (the default) |
 | `vendor/SDL3/ttf` | SDL3_ttf 3.2.2 (brings `vendor/SDL3`) | `dynamic` (the default) |
 | `vendor/SDL3/mixer` | SDL3_mixer 3.2.4 (brings `vendor/SDL3`) | `dynamic` (the default) |
+| `vendor/raylib6` | raylib 6.2 | `static`, `dynamic` (the default) |
+| `vendor/raylib6/raymath` | raylib's raymath (brings `vendor/raylib6`) | chosen on `vendor/raylib6` |
+| `vendor/raylib6/rlgl` | raylib's rlgl (brings `vendor/raylib6`) | chosen on `vendor/raylib6` |
 
 **The SDL packages on linux-x86_64 link the system's libraries.** SDL publishes no Linux binaries, so the toolchain ships none: a program is linked with `-lSDL3` (and `-lSDL3_image`, `-lSDL3_ttf`, `-lSDL3_mixer` for those packages) and loads `libSDL3.so.0` and the others from the system's library folders, like any library the distribution installs. Install the distribution's development packages (`libsdl3-dev`, `libsdl3-image-dev`, `libsdl3-ttf-dev`, `libsdl3-mixer-dev` on Debian and Ubuntu; `SDL3-devel` and the like on Fedora) to build; without one the link fails with `cannot find -lSDL3`. Nothing is copied beside the program.
 
@@ -48,7 +51,7 @@ Every routine, type and constant of the library's C header is callable as the li
 ## `link static` and `link dynamic`
 
 - **`link static`** links the library's archive into the program. Nothing else is needed at run time.
-- **`link dynamic`** links the shared library (`sqlite3.dll`, `sqlite3_linux_x86_64.so`) and **copies it beside the program**, under the name the program will load it by. A copy already there with the same size and no older is left alone, and one that was deleted is put back by the next build. [`tiko build`](Category-Tiko-Build)'s `copy_to` copies the library along with the program. `-nocopylibs` turns the copy off.
+- **`link dynamic`** links the shared library (`sqlite3.dll`, `sqlite3_linux_x86_64.so`) and **copies it beside the program**, under the name the program will load it by: a DLL's own name, and an ELF library's soname (`libraylib.so.620`). A copy already there with the same size and no older is left alone, and one that was deleted is put back by the next build. [`tiko build`](Category-Tiko-Build)'s `copy_to` copies the library along with the program. `-nocopylibs` turns the copy off.
 - **No `link`** leaves the choice to the package: each one names its default. `vendor/sqlite3`'s is dynamic.
 
 One program links a library one way. Two imports asking for different modes are `TKO0157`, with a note at the other import; an import without `link` goes along with one that has it. A mode the package does not ship is `TKO0156`, and `link` on a package that ships no library -- any source-only package -- is `TKO0155`.

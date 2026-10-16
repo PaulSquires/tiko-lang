@@ -16,6 +16,11 @@ private function U32_( byref b as string, byval at_ as int64 ) as int64
            (clngint( b[at_ + 2] ) shl 16) or (clngint( b[at_ + 3] ) shl 24)
 end function
 
+private function U64_( byref b as string, byval at_ as int64 ) as int64
+    if (at_ < 0) orelse (at_ + 8 > len( b )) then return 0
+    return U32_( b, at_ ) or (U32_( b, at_ + 4 ) shl 32)
+end function
+
 '' The NUL-terminated text at file offset 'at_', or "" when it runs off the end.
 private function CStr_( byref b as string, byval at_ as int64 ) as string
     if (at_ < 0) orelse (at_ >= len( b )) then return ""
@@ -141,6 +146,55 @@ function DllDefText( byref dll as string, byref why as string ) as string
         def_ &= "  " & sym & iif( isData, " DATA", "" ) & nl
     next
     return def_
+end function
+
+'' ELF64, little-endian. The DYNAMIC segment's entries give DT_SONAME, an offset into the string
+'' table, and DT_STRTAB, that table's ADDRESS -- which the LOAD segment holding it turns into a
+'' file offset.
+function ElfSoname( byref so as string ) as string
+    dim as string b
+    dim as int32 fh = freefile
+    if open( so for binary access read as #fh ) <> 0 then return ""
+    if lof( fh ) > 0 then
+        b = space( lof( fh ) )
+        get #fh, , b
+    end if
+    close #fh
+    if (len( b ) < 64) orelse (U32_( b, 0 ) <> &h464C457F) then return ""   '' 7F 'E' 'L' 'F'
+    if (b[4] <> 2) orelse (b[5] <> 1) then return ""                        '' ELFCLASS64, little-endian
+    dim as int64 phoff = U64_( b, &h20 )
+    dim as int64 phentsize = U16_( b, &h36 )
+    dim as int64 phnum = U16_( b, &h38 )
+    dim as int64 dynOff = -1
+    dim as int64 dynSize = 0
+    for i as int64 = 0 to phnum - 1
+        dim as int64 h = phoff + i * phentsize
+        if U32_( b, h ) = 2 then                                             '' PT_DYNAMIC
+            dynOff = U64_( b, h + 8 )
+            dynSize = U64_( b, h + 32 )
+        end if
+    next
+    if dynOff < 0 then return ""
+    dim as int64 strtab = -1
+    dim as int64 soname = -1
+    dim as int64 e = dynOff
+    do while e + 16 <= dynOff + dynSize
+        dim as int64 tag = U64_( b, e )
+        if tag = 0 then exit do                                              '' DT_NULL
+        if tag = 5 then strtab = U64_( b, e + 8 )                            '' DT_STRTAB
+        if tag = 14 then soname = U64_( b, e + 8 )                           '' DT_SONAME
+        e += 16
+    loop
+    if (strtab < 0) orelse (soname < 0) then return ""
+    for i as int64 = 0 to phnum - 1
+        dim as int64 h = phoff + i * phentsize
+        if U32_( b, h ) <> 1 then continue for                               '' PT_LOAD
+        dim as int64 va = U64_( b, h + 16 )
+        if (strtab >= va) andalso (strtab < va + U64_( b, h + 32 )) then
+            return CStr_( b, U64_( b, h + 8 ) + (strtab - va) + soname )
+        end if
+    next
+    return ""
 end function
 
 end namespace

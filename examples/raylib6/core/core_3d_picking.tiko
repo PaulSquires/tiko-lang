@@ -1,0 +1,103 @@
+'' raylib [core] example - 3d picking
+''
+'' Example complexity rating: [★★☆☆] 2/4
+''
+'' Example originally created with raylib 1.3, last time updated with raylib 4.0
+''
+'' Example licensed under an unmodified zlib/libpng license, which is an OSI-certified,
+'' BSD-like license that allows static linking with closed source software
+''
+'' Copyright (c) 2015-2025 Ramon Santamaria (@raysan5)
+''
+'' Ported to tiko from raylib 6.2's examples/core/core_3d_picking.c.
+'' Build it with 'tiko core_3d_picking.tiko'.
+'' A number on its command line closes it after that many frames.
+
+'' raylib linked DYNAMICALLY: raylib.dll is copied beside the program (on Linux,
+'' libraylib.so.620). Write 'link static' instead to build raylib into the program.
+#import "vendor/raylib6" link dynamic
+
+dim as long maxFrames = valint( command( 1 ) )   '' a frame count closes it unattended
+dim as long frameCount = 0
+
+const screenWidth = 800
+const screenHeight = 450
+
+InitWindow( screenWidth, screenHeight, "raylib [core] example - 3d picking" )
+
+'' Define the camera to look into our 3d world
+dim as Camera cam
+cam.position = type<Vector3>( 10.0, 10.0, 10.0 )  '' Camera position
+cam.target = type<Vector3>( 0.0, 0.0, 0.0 )       '' Camera looking at point
+cam.up = type<Vector3>( 0.0, 1.0, 0.0 )           '' Camera up vector (rotation towards target)
+cam.fovy = 45.0                                   '' Camera field-of-view Y
+cam.projection = CAMERA_PERSPECTIVE               '' Camera projection type
+
+dim as Vector3 cubePosition = ( 0.0, 1.0, 0.0 )
+dim as Vector3 cubeSize = ( 2.0, 2.0, 2.0 )
+
+dim as Ray pickRay                  '' Picking line ray
+dim as RayCollision collision       '' Ray collision hit info
+
+SetTargetFPS( 60 )                  '' Set our game to run at 60 frames-per-second
+
+'' Main game loop
+do while not WindowShouldClose( )        '' Detect window close button or ESC key
+    '' Update
+    if IsCursorHidden( ) then UpdateCamera( @cam, CAMERA_FIRST_PERSON )
+
+    '' Toggle camera controls
+    if IsMouseButtonPressed( MOUSE_BUTTON_RIGHT ) then
+        if IsCursorHidden( ) then EnableCursor( ) else DisableCursor( )
+    end if
+
+    if IsMouseButtonPressed( MOUSE_BUTTON_LEFT ) then
+        if not collision.hit then
+            pickRay = GetScreenToWorldRay( GetMousePosition( ), cam )
+
+            '' Check collision between ray and box
+            collision = GetRayCollisionBox( pickRay, _
+                type<BoundingBox>( _
+                    type<Vector3>( cubePosition.x - cubeSize.x / 2, cubePosition.y - cubeSize.y / 2, cubePosition.z - cubeSize.z / 2 ), _
+                    type<Vector3>( cubePosition.x + cubeSize.x / 2, cubePosition.y + cubeSize.y / 2, cubePosition.z + cubeSize.z / 2 ) ) )
+        else
+            collision.hit = false
+        end if
+    end if
+
+    '' Draw
+    BeginDrawing( )
+
+        ClearBackground( RAYWHITE )
+
+        BeginMode3D( cam )
+
+            if collision.hit then
+                DrawCube( cubePosition, cubeSize.x, cubeSize.y, cubeSize.z, RED )
+                DrawCubeWires( cubePosition, cubeSize.x, cubeSize.y, cubeSize.z, MAROON )
+
+                DrawCubeWires( cubePosition, cubeSize.x + 0.2, cubeSize.y + 0.2, cubeSize.z + 0.2, GREEN )
+            else
+                DrawCube( cubePosition, cubeSize.x, cubeSize.y, cubeSize.z, GRAY )
+                DrawCubeWires( cubePosition, cubeSize.x, cubeSize.y, cubeSize.z, DARKGRAY )
+            end if
+
+            DrawRay( pickRay, MAROON )
+            DrawGrid( 10, 1.0 )
+
+        EndMode3D( )
+
+        DrawText( "Try clicking on the box with your mouse!", 240, 10, 20, DARKGRAY )
+
+        if collision.hit then DrawText( "BOX SELECTED", (screenWidth - MeasureText( "BOX SELECTED", 30 )) \ 2, fix( screenHeight * 0.1 ), 30, GREEN )
+
+        DrawText( "Right click mouse to toggle camera controls", 10, 430, 10, GRAY )
+
+        DrawFPS( 10, 10 )
+
+    EndDrawing( )
+    frameCount += 1
+    if frameCount = maxFrames then exit do
+loop
+
+CloseWindow( )        '' Close window and OpenGL context
