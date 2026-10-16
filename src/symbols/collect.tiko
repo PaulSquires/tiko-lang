@@ -115,8 +115,13 @@ declare function SameConstValue_ _
 '' written 'any'. 'dim a( )' and 'dim a( any, any )' are dynamic and 'dim a( 0 to 3 )'
 '' is fixed -- which is the difference fbc reports as error 4 when a re-declaring
 '' REDIM names the second.
+''
+'' ...AND A BOUND THAT IS A NAMED CONSTANT IS A BOUND. 'const N = 3 : dim a( N ) = { 1, 2, 3, 4 }'
+'' is a FIXED array of four (fbc-modern 1.20, measured, for 'const N' and 'const as long N' alike),
+'' as Resolve's ArrayFromBounds makes it; read as dynamic here it was TKO0612. Only a constant
+'' this walk has already collected is seen -- one declared below reads as a variable, as before.
 private function IsDynArrayItem_ _
-    ( byref w as Walker, byval item as Tko.NodeId ) as boolean
+    ( byref w as Walker, byval item as Tko.NodeId, byval scope_ as Tko.ScopeId ) as boolean
 
     if item = Tko.NODE_NONE then return false
     if cast( int32, item ) >= w.ast->nodes.Count then return false
@@ -130,6 +135,11 @@ private function IsDynArrayItem_ _
     for i as int32 = 0 to lp->count - 1
         dim as Tko.NodeId d = cast( Tko.NodeId, w.ast->children[lp->first + i] )
         if w.ast->Kind( d ) <> Tko.N_IDENT then return false
+        dim as Tko.InternId dn = w.ast->idents[cast( int32, w.ast->nodes[cast( int32, d )].data )].name
+        dim as Tko.Symbol ptr ds = w.syms->SymbolAt( w.syms->LookupTyped( scope_, dn, false ) )
+        if ds <> nullptr then
+            if (ds->kind = cast( uint8, Tko.SYM_CONSTANT )) orelse (ds->kind = cast( uint8, Tko.SYM_ENUMCONST )) then return false
+        end if
     next
     return true
 end function
@@ -339,7 +349,7 @@ sub WalkNode _
             '' said nothing -- each half fires on its own. It is the andalso trap
             '' this codebase already has a rule about, and here it did not warn.
             dim as boolean itemDyn = (sp->op = cast( uint16, Tko.KW_REDIM ))
-            if itemDyn = false then itemDyn = IsDynArrayItem_( w, item )
+            if itemDyn = false then itemDyn = IsDynArrayItem_( w, item, scope_ )
             dim as boolean itemHasInit = (ip->b <> Tko.NODE_NONE)
             '' ...AND A REDIM TARGET IS NOT ONE. 'redim x.a(0 to 1) as integer' and
             '' 'redim (e)(0 to 0) as integer' keep the target in 'b', marked by 'extra'.
@@ -398,7 +408,7 @@ sub WalkNode _
                         '' after 'common array( )' re-declares it -- fbc's error 4, measured on
                         '' fbc-modern 1.20, 2026-09-29 (dim/dupdef-dim-common-dynamic), as
                         '' 'dim shared array( )' is -- while 'dim array( 0 to 1 )' sizes it.
-                        if redimLike andalso itemIsArray andalso IsDynArrayItem_( w, item ) then redimLike = false
+                        if redimLike andalso itemIsArray andalso IsDynArrayItem_( w, item, scope_ ) then redimLike = false
                         if redimLike andalso itemIsArray then
                             sp->op = cast( uint16, Tko.KW_REDIM )
                         end if
@@ -432,7 +442,7 @@ sub WalkNode _
                         '' second collided.
                         dim as boolean prevRedim = _
                             ((prs->flags and Tko.SYMF_REDIM) <> 0)
-                        if IsDynArrayItem_( w, prevIt ) orelse prevRedim then
+                        if IsDynArrayItem_( w, prevIt, scope_ ) orelse prevRedim then
                             dim as Tko.StmtPayload ptr pip = StmtOf( w, prevIt )
                             '' A MODULE-LEVEL REDIM OF AN 'extern a( )' DEFINES IT, as a 'dim' does: fbc writes
                             '' the descriptor beside the 'extern' (dim/extern-array-1.bas). Inside a procedure it
