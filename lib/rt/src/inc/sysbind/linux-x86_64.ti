@@ -52,7 +52,7 @@ declare function strrchr cdecl alias "strrchr" ( byval __s as const zstring ptr,
 declare function strpbrk cdecl alias "strpbrk" ( byval __s as const zstring ptr, byval __accept as const zstring ptr ) as zstring ptr
 declare function strlen cdecl alias "strlen" ( byval __s as const zstring ptr ) as culong
 type _IO_lock_t as any
-type _IO_FILE
+type _IO_FILE extern "c"
 	_flags as long
 	_IO_read_ptr as zstring ptr
 	_IO_read_end as zstring ptr
@@ -109,7 +109,7 @@ declare function islower cdecl alias "islower" ( byval as long ) as long
 declare function isupper cdecl alias "isupper" ( byval as long ) as long
 declare function tolower cdecl alias "tolower" ( byval __c as long ) as long
 declare function toupper cdecl alias "toupper" ( byval __c as long ) as long
-type tm
+type tm extern "c"
 	tm_sec as long
 	tm_min as long
 	tm_hour as long

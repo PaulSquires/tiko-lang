@@ -47,7 +47,7 @@ def items(text):
             continue
         if not inside or not ln.strip():
             continue
-        m = re.match(r"^(type|union) (\w+)( field = \d+)?$", ln)
+        m = re.match(r"^(type|union) (\w+)( field = \d+)?( extern \"c\")?$", ln)
         if m:
             body = [ln]
             close = "end " + m.group(1)

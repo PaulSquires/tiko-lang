@@ -52,7 +52,7 @@ declare function wcscspn cdecl alias "wcscspn" ( byval _Str as const wstring ptr
 declare function wcslen cdecl alias "wcslen" ( byval _Str as const wstring ptr ) as ulongint
 declare function wcsncmp cdecl alias "wcsncmp" ( byval _Str1 as const wstring ptr, byval _Str2 as const wstring ptr, byval _MaxCount as size_t ) as long
 declare function wcsstr cdecl alias "wcsstr" ( byval _Str as const wstring ptr, byval _SubStr as const wstring ptr ) as wstring ptr
-type _iobuf
+type _iobuf extern "c"
 	_ptr as zstring ptr
 	_cnt as long
 	_base as zstring ptr
@@ -80,7 +80,7 @@ declare function getc cdecl alias "getc" ( byval _File as FILE ptr ) as long
 declare function putc cdecl alias "putc" ( byval _Ch as long, byval _File as FILE ptr ) as long
 declare function setvbuf cdecl alias "setvbuf" ( byval _File as FILE ptr, byval _Buf as zstring ptr, byval _Mode as long, byval _Size as size_t ) as long
 declare function ungetc cdecl alias "ungetc" ( byval _Ch as long, byval _File as FILE ptr ) as long
-type tm field = 4
+type tm extern "c"
 	tm_sec as long
 	tm_min as long
 	tm_hour as long
