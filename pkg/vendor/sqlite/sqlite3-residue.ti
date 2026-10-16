@@ -1,5 +1,5 @@
-'' sqlite3-residue.ti -- what sqlite3.ti could not carry, written by hand (tiko-vendor RFC-0001
-'' D6). Against SQLite 3.54.0's sqlite3.h, the header sqlite3.ti's banner names by SHA-256.
+'' sqlite3-residue.ti -- what sqlite3.ti could not carry, written by hand. Against
+'' SQLite 3.54.0's sqlite3.h, the header sqlite3.ti's banner names by SHA-256.
 '' Each item is a C2T-TODO of that translation that loses API; the other TODOs there are
 '' branches no build of this library takes (SQLITE_ENABLE_SESSION, SQLITE_OMIT_*, WASI) or
 '' conditions on the C compiler that the translation already settled per target.
