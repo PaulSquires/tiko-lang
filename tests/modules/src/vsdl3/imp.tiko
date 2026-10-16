@@ -1,0 +1,3 @@
+'' vendor/SDL3 imported for linux-x86_64: the module links the system's SDL3, so it needs no lib/.
+#import "vendor/SDL3"
+print SDL_GetVersion( ), SDL_INIT_VIDEO

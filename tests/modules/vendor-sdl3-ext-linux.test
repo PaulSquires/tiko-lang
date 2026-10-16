@@ -1,0 +1,9 @@
+'' vendor/SDL3/image, vendor/SDL3/ttf AND vendor/SDL3/mixer -- the sdl3-freebasic bindings, adapted
+'' and fixed so they compile -- import together for linux-x86_64, each bringing vendor/SDL3.
+'' Nothing is linked, so no library is needed.
+'' TEST: cli
+'' ENV: TKO_PKG=pkg
+'' ENV: TKO_MODCACHE=build/.vsdl3x-linux/mc
+'' ARGS: -target linux-x86_64 -c tests/modules/src/vsdl3/ext.tiko -o build/.vsdl3x-linux/ext.o
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: build/.vsdl3x-linux/ext.o

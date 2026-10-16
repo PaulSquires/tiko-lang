@@ -1,0 +1,19 @@
+'' The committed vendor/SDL3 headers, as an importer reads them: no library needed.
+#include once "../../../../pkg/vendor/SDL3/SDL.ti"
+dim as SDL_Window ptr win
+dim as SDL_Renderer ptr renderer
+dim as SDL_Event e
+if SDL_Init( SDL_INIT_VIDEO ) then
+    if SDL_CreateWindowAndRenderer( "t", 64, 64, SDL_WINDOW_HIDDEN, @win, @renderer ) then
+        SDL_SetRenderDrawColor( renderer, 66, 66, 66, SDL_ALPHA_OPAQUE )
+        while SDL_PollEvent( @e )
+            if e.type = SDL_EVENT_QUIT then exit while
+        wend
+        SDL_RenderClear( renderer )
+        SDL_RenderPresent( renderer )
+        SDL_DestroyRenderer( renderer )
+        SDL_DestroyWindow( win )
+    end if
+    SDL_Quit( )
+end if
+print SDL_GetVersion( ), SDL_BYTEORDER = SDL_LIL_ENDIAN

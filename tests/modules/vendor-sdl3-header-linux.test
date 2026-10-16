@@ -1,0 +1,7 @@
+'' THE COMMITTED vendor/SDL3 HEADERS: SDL.ti and the SDL_*.ti it includes -- the sdl3-freebasic
+'' binding, adapted -- compile for linux-x86_64 as an importer reads them. Its library is not
+'' needed: nothing is linked.
+'' TEST: cli
+'' ARGS: -target linux-x86_64 -c tests/modules/src/vsdl3/hdr.tiko -o build/.vsdl3h-linux-x86_64.o
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: build/.vsdl3h-linux-x86_64.o

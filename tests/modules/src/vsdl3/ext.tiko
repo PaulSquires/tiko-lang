@@ -1,0 +1,18 @@
+'' vendor/SDL3/image, ttf and mixer imported together: each brings vendor/SDL3.
+#import "vendor/SDL3/image"
+#import "vendor/SDL3/ttf"
+#import "vendor/SDL3/mixer"
+dim as SDL_AudioSpec spec = ( SDL_AUDIO_F32, 2, 48000 )
+dim as SDL_Surface ptr png = IMG_Load( "x.png" )
+if png then SDL_DestroySurface( png )
+if TTF_Init( ) then
+    dim as TTF_Font ptr f = TTF_OpenFont( "x.ttf", 24 )
+    if f then TTF_CloseFont( f )
+    TTF_Quit( )
+end if
+if MIX_Init( ) then
+    dim as MIX_Mixer ptr mx = MIX_CreateMixer( @spec )
+    if mx then MIX_DestroyMixer( mx )
+    MIX_Quit( )
+end if
+print SDL_GetVersion( ), IMG_Version( ), TTF_Version( ), MIX_Version( )
