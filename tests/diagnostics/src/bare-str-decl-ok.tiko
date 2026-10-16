@@ -1,0 +1,16 @@
+extern "C"
+extern ver as const zstring * 1
+extern pver as zstring ptr
+end extern
+type Z as zstring
+dim a as Z ptr
+dim p as zstring ptr
+dim byref r as zstring = *p
+type T
+    f as zstring ptr
+    g as zstring * 8
+end type
+sub s( byref q as zstring, w as wstring )
+end sub
+dim x as T
+print len( ver ), x.g
