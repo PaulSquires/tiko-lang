@@ -1,0 +1,89 @@
+'' raylib [shapes] example - colors palette
+''
+'' Example complexity rating: [★★☆☆] 2/4
+''
+'' Example originally created with raylib 1.0, last time updated with raylib 2.5
+''
+'' Example licensed under an unmodified zlib/libpng license, which is an OSI-certified,
+'' BSD-like license that allows static linking with closed source software
+''
+'' Copyright (c) 2014-2025 Ramon Santamaria (@raysan5)
+''
+'' Ported to tiko from raylib 6.2's examples/shapes/shapes_colors_palette.c.
+'' Build it with 'tiko shapes_colors_palette.tiko'.
+'' A number on its command line closes it after that many frames.
+
+'' raylib linked DYNAMICALLY: raylib.dll is copied beside the program (on Linux,
+'' libraylib.so.620). Write 'link static' instead to build raylib into the program.
+#import "vendor/raylib" link dynamic
+
+dim as long maxFrames = valint( command( 1 ) )   '' a frame count closes it unattended
+dim as long frameCount = 0
+
+const MAX_COLORS_COUNT = 21          '' Number of colors available
+
+const screenWidth = 800
+const screenHeight = 450
+
+InitWindow( screenWidth, screenHeight, "raylib [shapes] example - colors palette" )
+
+dim as Color colors(0 to MAX_COLORS_COUNT - 1) = { _
+    DARKGRAY, MAROON, ORANGE, DARKGREEN, DARKBLUE, DARKPURPLE, DARKBROWN, _
+    GRAY, RED, GOLD, LIME, BLUE, VIOLET, BROWN, LIGHTGRAY, PINK, YELLOW, _
+    GREEN, SKYBLUE, PURPLE, BEIGE }
+
+dim as ustring colorNames(0 to MAX_COLORS_COUNT - 1) = { _
+    "DARKGRAY", "MAROON", "ORANGE", "DARKGREEN", "DARKBLUE", "DARKPURPLE", _
+    "DARKBROWN", "GRAY", "RED", "GOLD", "LIME", "BLUE", "VIOLET", "BROWN", _
+    "LIGHTGRAY", "PINK", "YELLOW", "GREEN", "SKYBLUE", "PURPLE", "BEIGE" }
+
+dim as Rectangle colorsRecs(0 to MAX_COLORS_COUNT - 1)     '' Rectangles array
+
+'' Fills colorsRecs data (for every rectangle)
+for i as long = 0 to MAX_COLORS_COUNT - 1
+    colorsRecs(i).x = 20.0 + 100.0 * (i mod 7) + 10.0 * (i mod 7)
+    colorsRecs(i).y = 80.0 + 100.0 * (i \ 7) + 10.0 * (i / 7)
+    colorsRecs(i).width = 100.0
+    colorsRecs(i).height = 100.0
+next
+
+dim as long colorState(0 to MAX_COLORS_COUNT - 1)           '' Color state: 0-DEFAULT, 1-MOUSE_HOVER
+
+dim as Vector2 mousePoint = ( 0.0, 0.0 )
+
+SetTargetFPS( 60 )              '' Set our game to run at 60 frames-per-second
+
+'' Main game loop
+do while not WindowShouldClose( )    '' Detect window close button or ESC key
+    '' Update
+    mousePoint = GetMousePosition( )
+
+    for i as long = 0 to MAX_COLORS_COUNT - 1
+        if CheckCollisionPointRec( mousePoint, colorsRecs(i) ) then colorState(i) = 1 else colorState(i) = 0
+    next
+
+    '' Draw
+    BeginDrawing( )
+
+        ClearBackground( RAYWHITE )
+
+        DrawText( "raylib colors palette", 28, 42, 20, BLACK )
+        DrawText( "press SPACE to see all colors", GetScreenWidth( ) - 180, GetScreenHeight( ) - 40, 10, GRAY )
+
+        for i as long = 0 to MAX_COLORS_COUNT - 1    '' Draw all rectangles
+            DrawRectangleRec( colorsRecs(i), Fade( colors(i), iif( colorState(i) <> 0, 0.6, 1.0 ) ) )
+
+            if IsKeyDown( KEY_SPACE ) orelse (colorState(i) <> 0) then
+                DrawRectangle( fix( colorsRecs(i).x ), fix( colorsRecs(i).y + colorsRecs(i).height - 26 ), fix( colorsRecs(i).width ), 20, BLACK )
+                DrawRectangleLinesEx( colorsRecs(i), 6, Fade( BLACK, 0.3 ) )
+                DrawText( colorNames(i), fix( colorsRecs(i).x + colorsRecs(i).width - MeasureText( colorNames(i), 10 ) - 12 ), _
+                    fix( colorsRecs(i).y + colorsRecs(i).height - 20 ), 10, colors(i) )
+            end if
+        next
+
+    EndDrawing( )
+    frameCount += 1
+    if frameCount = maxFrames then exit do
+loop
+
+CloseWindow( )                '' Close window and OpenGL context

@@ -1,0 +1,1409 @@
+'' =============================================================================
+'' raymath.ti -- tiko header translated by c2t (tiko 0.1.0-dev) from the C header "raymath.h"
+''   source sha256 : 9c20e288d578328804c7f360817eb0bff6dd54902a394cb452b0865b640affb6
+''   clang         : clang version 21.1.0
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu
+''   options       : --sysroot //wsl.localhost/Ubuntu --verify
+''
+'' Generated from C. Search for C2T-TODO and translate those parts by hand.
+''
+'' Renamed:
+''   parameter  Lerp.end -> Lerp.end_   (tiko reserved word)
+''   parameter  Normalize.end -> Normalize.end_   (tiko reserved word)
+''   parameter  Vector2SubtractValue.sub -> Vector2SubtractValue.sub_   (tiko reserved word)
+''   parameter  Vector2LineAngle.end -> Vector2LineAngle.end_   (tiko reserved word)
+''   parameter  Vector3SubtractValue.sub -> Vector3SubtractValue.sub_   (tiko reserved word)
+''   parameter  Vector3Unproject.view -> Vector3Unproject.view_   (tiko reserved word)
+''   parameter  MatrixAdd.left -> MatrixAdd.left_   (tiko reserved word)
+''   parameter  MatrixAdd.right -> MatrixAdd.right_   (tiko reserved word)
+''   parameter  MatrixSubtract.left -> MatrixSubtract.left_   (tiko reserved word)
+''   parameter  MatrixSubtract.right -> MatrixSubtract.right_   (tiko reserved word)
+''   parameter  MatrixMultiply.left -> MatrixMultiply.left_   (tiko reserved word)
+''   parameter  MatrixMultiply.right -> MatrixMultiply.right_   (tiko reserved word)
+''   parameter  MatrixMultiplyValue.left -> MatrixMultiplyValue.left_   (tiko reserved word)
+''   parameter  MatrixFrustum.left -> MatrixFrustum.left_   (tiko reserved word)
+''   parameter  MatrixFrustum.right -> MatrixFrustum.right_   (tiko reserved word)
+''   parameter  MatrixOrtho.left -> MatrixOrtho.left_   (tiko reserved word)
+''   parameter  MatrixOrtho.right -> MatrixOrtho.right_   (tiko reserved word)
+''   parameter  QuaternionSubtractValue.sub -> QuaternionSubtractValue.sub_   (tiko reserved word)
+''   parameter  QuaternionFromVector3ToVector3.to -> QuaternionFromVector3ToVector3.to_   (tiko reserved word)
+''
+'' 71 items need manual translation:
+''   line 197  raymath.h:108  C2T-TODO(function-like-macro)  MatrixToFloat
+''   line 203  raymath.h:113  C2T-TODO(function-like-macro)  Vector3ToFloat
+''   line 310  raymath.h:207  C2T-TODO(system-header)  <xmmintrin.h>
+''   line 965  raymath.h:2820  C2T-TODO(branch-unparsed)
+''   line 971  raymath.h:2825  C2T-TODO(branch-unparsed)
+''   line 977  raymath.h:2830  C2T-TODO(branch-unparsed)
+''   line 984  raymath.h:2836  C2T-TODO(branch-unparsed)
+''   line 990  raymath.h:2841  C2T-TODO(branch-unparsed)
+''   line 997  raymath.h:2847  C2T-TODO(branch-unparsed)
+''   line 1003  raymath.h:2852  C2T-TODO(branch-unparsed)
+''   line 1009  raymath.h:2857  C2T-TODO(branch-unparsed)
+''   line 1016  raymath.h:2863  C2T-TODO(branch-unparsed)
+''   line 1022  raymath.h:2868  C2T-TODO(branch-unparsed)
+''   line 1029  raymath.h:2874  C2T-TODO(branch-unparsed)
+''   line 1035  raymath.h:2879  C2T-TODO(branch-unparsed)
+''   line 1042  raymath.h:2885  C2T-TODO(branch-unparsed)
+''   line 1048  raymath.h:2890  C2T-TODO(branch-unparsed)
+''   line 1055  raymath.h:2896  C2T-TODO(branch-unparsed)
+''   line 1061  raymath.h:2901  C2T-TODO(branch-unparsed)
+''   line 1068  raymath.h:2907  C2T-TODO(branch-unparsed)
+''   line 1074  raymath.h:2912  C2T-TODO(branch-unparsed)
+''   line 1081  raymath.h:2918  C2T-TODO(branch-unparsed)
+''   line 1088  raymath.h:2924  C2T-TODO(branch-unparsed)
+''   line 1094  raymath.h:2929  C2T-TODO(branch-unparsed)
+''   line 1101  raymath.h:2935  C2T-TODO(branch-unparsed)
+''   line 1107  raymath.h:2940  C2T-TODO(branch-unparsed)
+''   line 1114  raymath.h:2946  C2T-TODO(branch-unparsed)
+''   line 1120  raymath.h:2951  C2T-TODO(branch-unparsed)
+''   line 1126  raymath.h:2956  C2T-TODO(branch-unparsed)
+''   line 1133  raymath.h:2962  C2T-TODO(branch-unparsed)
+''   line 1139  raymath.h:2967  C2T-TODO(branch-unparsed)
+''   line 1146  raymath.h:2973  C2T-TODO(branch-unparsed)
+''   line 1152  raymath.h:2978  C2T-TODO(branch-unparsed)
+''   line 1159  raymath.h:2984  C2T-TODO(branch-unparsed)
+''   line 1165  raymath.h:2989  C2T-TODO(branch-unparsed)
+''   line 1172  raymath.h:2995  C2T-TODO(branch-unparsed)
+''   line 1178  raymath.h:3000  C2T-TODO(branch-unparsed)
+''   line 1185  raymath.h:3006  C2T-TODO(branch-unparsed)
+''   line 1191  raymath.h:3011  C2T-TODO(branch-unparsed)
+''   line 1198  raymath.h:3017  C2T-TODO(branch-unparsed)
+''   line 1206  raymath.h:3024  C2T-TODO(branch-unparsed)
+''   line 1212  raymath.h:3029  C2T-TODO(branch-unparsed)
+''   line 1219  raymath.h:3035  C2T-TODO(branch-unparsed)
+''   line 1225  raymath.h:3040  C2T-TODO(branch-unparsed)
+''   line 1232  raymath.h:3046  C2T-TODO(branch-unparsed)
+''   line 1238  raymath.h:3051  C2T-TODO(branch-unparsed)
+''   line 1244  raymath.h:3056  C2T-TODO(branch-unparsed)
+''   line 1251  raymath.h:3062  C2T-TODO(branch-unparsed)
+''   line 1257  raymath.h:3067  C2T-TODO(branch-unparsed)
+''   line 1264  raymath.h:3073  C2T-TODO(branch-unparsed)
+''   line 1270  raymath.h:3078  C2T-TODO(branch-unparsed)
+''   line 1277  raymath.h:3084  C2T-TODO(branch-unparsed)
+''   line 1283  raymath.h:3089  C2T-TODO(branch-unparsed)
+''   line 1290  raymath.h:3095  C2T-TODO(branch-unparsed)
+''   line 1296  raymath.h:3100  C2T-TODO(branch-unparsed)
+''   line 1303  raymath.h:3106  C2T-TODO(branch-unparsed)
+''   line 1308  raymath.h:3110  C2T-TODO(branch-unparsed)
+''   line 1314  raymath.h:3115  C2T-TODO(branch-unparsed)
+''   line 1321  raymath.h:3121  C2T-TODO(branch-unparsed)
+''   line 1327  raymath.h:3126  C2T-TODO(branch-unparsed)
+''   line 1334  raymath.h:3132  C2T-TODO(branch-unparsed)
+''   line 1340  raymath.h:3137  C2T-TODO(branch-unparsed)
+''   line 1348  raymath.h:3144  C2T-TODO(branch-unparsed)
+''   line 1354  raymath.h:3149  C2T-TODO(branch-unparsed)
+''   line 1360  raymath.h:3154  C2T-TODO(branch-unparsed)
+''   line 1367  raymath.h:3160  C2T-TODO(branch-unparsed)
+''   line 1373  raymath.h:3165  C2T-TODO(branch-unparsed)
+''   line 1380  raymath.h:3171  C2T-TODO(branch-unparsed)
+''   line 1386  raymath.h:3176  C2T-TODO(branch-unparsed)
+''   line 1393  raymath.h:3182  C2T-TODO(branch-unparsed)
+''   line 1399  raymath.h:3187  C2T-TODO(branch-unparsed)
+'' =============================================================================
+
+/'*********************************************************************************************
+*
+*   raymath v2.0 - Math functions to work with Vector2, Vector3, Vector4, Matrix and Quaternions
+*
+*   CONVENTIONS:
+*     - Matrix structure is defined as row-major (memory layout) but parameters naming AND all
+*       math operations performed by the library consider the structure as it was column-major
+*       It is like transposed versions of the matrices are used for all the maths
+*       It benefits some functions making them cache-friendly and also avoids matrix
+*       transpositions sometimes required by OpenGL
+*       Example: In memory order, row0 is [m0 m4 m8 m12] but in semantic math row0 is [m0 m1 m2 m3]
+*     - Functions are always self-contained, no function use another raymath function inside,
+*       required code is directly re-implemented inside
+*     - Functions input parameters are always received by value (2 unavoidable exceptions)
+*     - Functions use always a "result" variable for return (except C++ operators)
+*     - Functions are always defined inline
+*     - Angles are always in radians (DEG2RAD/RAD2DEG macros provided for convenience)
+*     - No compound literals used to make sure the library is compatible with C++
+*
+*   CONFIGURATION:
+*       #define RAYMATH_IMPLEMENTATION
+*           Generates the implementation of the library into the included file
+*           If not defined, the library is in header only mode and can be included in other headers
+*           or source files without problems. But only ONE file should hold the implementation
+*
+*       #define RAYMATH_STATIC_INLINE
+*           Define static inline functions code, so #include header suffices for use
+*           This may use up lots of memory
+*
+*       #define RAYMATH_DISABLE_CPP_OPERATORS
+*           Disables C++ operator overloads for raymath types.
+*
+*       #define RAYMATH_USE_SIMD_INTRINSICS   1
+*           Try to enable SIMD intrinsics for MatrixMultiply()
+*           Note that users enabling it must be aware of the target platform where application will
+*           run to support the selected SIMD intrinsic, for now, only SSE is supported
+*
+*   LICENSE: zlib/libpng
+*
+*   Copyright (c) 2015-2026 Ramon Santamaria (@raysan5)
+*
+*   This software is provided "as-is", without any express or implied warranty. In no event
+*   will the authors be held liable for any damages arising from the use of this software.
+*
+*   Permission is granted to anyone to use this software for any purpose, including commercial
+*   applications, and to alter it and redistribute it freely, subject to the following restrictions:
+*
+*     1. The origin of this software must not be misrepresented; you must not claim that you
+*     wrote the original software. If you use this software in a product, an acknowledgment
+*     in the product documentation would be appreciated but is not required.
+*
+*     2. Altered source versions must be plainly marked as such, and must not be misrepresented
+*     as being the original software.
+*
+*     3. This notice may not be removed or altered from any source distribution.
+*
+*********************************************************************************************'/
+
+#pragma once
+
+extern "C"
+
+#if (defined(RAYMATH_IMPLEMENTATION) andalso defined(RAYMATH_STATIC_INLINE))
+    #error "Specifying both RAYMATH_IMPLEMENTATION and RAYMATH_STATIC_INLINE is contradictory"
+#endif
+
+'' Function specifiers definition
+'' c2t: export macro RMAPI (decoration, stripped where used)
+
+''----------------------------------------------------------------------------------
+'' Defines and Macros
+''----------------------------------------------------------------------------------
+#ifndef PI
+    #define PI 3.14159265358979323846f
+#endif
+
+#ifndef EPSILON
+    #define EPSILON 0.000001f
+#endif
+
+#ifndef DEG2RAD
+    '' C2T-NOTE(value) raymath.h:99 -- clang's value; '(PI / 180.0f)' is 0.01745329300562541 in tiko
+    #define DEG2RAD 0.01745329238474369
+#endif
+
+#ifndef RAD2DEG
+    '' C2T-NOTE(value) raymath.h:103 -- clang's value; '(180.0f / PI)' is 57.29577791868205 in tiko
+    #define RAD2DEG 57.2957763671875
+#endif
+
+'' Get float vector for Matrix
+#ifndef MatrixToFloat
+    '' C2T-TODO(function-like-macro) raymath.h:108 -- member access, subscripts and increments
+''     #define MatrixToFloat(mat) (MatrixToFloatV(mat).v)
+#endif
+
+'' Get float vector for Vector3
+#ifndef Vector3ToFloat
+    '' C2T-TODO(function-like-macro) raymath.h:113 -- member access, subscripts and increments
+''     #define Vector3ToFloat(vec) (Vector3ToFloatV(vec).v)
+#endif
+
+''----------------------------------------------------------------------------------
+'' Types and Structures Definition
+''----------------------------------------------------------------------------------
+#if ((defined(RL_VECTOR2_TYPE)) = 0)
+'' Vector2 type
+type Vector2
+    x as float32
+    y as float32
+end type
+#define RL_VECTOR2_TYPE
+#endif
+
+#if ((defined(RL_VECTOR3_TYPE)) = 0)
+'' Vector3 type
+type Vector3
+    x as float32
+    y as float32
+    z as float32
+end type
+#define RL_VECTOR3_TYPE
+#endif
+
+#if ((defined(RL_VECTOR4_TYPE)) = 0)
+'' Vector4 type
+type Vector4
+    x as float32
+    y as float32
+    z as float32
+    w as float32
+end type
+#define RL_VECTOR4_TYPE
+#endif
+
+#if ((defined(RL_QUATERNION_TYPE)) = 0)
+'' Quaternion type
+type Quaternion as Vector4
+#define RL_QUATERNION_TYPE
+#endif
+
+#if ((defined(RL_MATRIX_TYPE)) = 0)
+'' Matrix type (OpenGL style 4x4 - right handed, column major)
+type Matrix
+    m0 as float32
+    m4 as float32
+    m8 as float32
+    m12 as float32              '' Matrix first row (4 components)
+    m1 as float32
+    m5 as float32
+    m9 as float32
+    m13 as float32              '' Matrix second row (4 components)
+    m2 as float32
+    m6 as float32
+    m10 as float32
+    m14 as float32              '' Matrix third row (4 components)
+    m3 as float32
+    m7 as float32
+    m11 as float32
+    m15 as float32              '' Matrix fourth row (4 components)
+end type
+#define RL_MATRIX_TYPE
+#endif
+
+'' NOTE: Helper types to be used instead of array return types for *ToFloat functions
+#if ((defined(RL_FLOAT3_TYPE)) = 0)
+type float3
+    v(0 to 2) as float32
+end type
+#define RL_FLOAT3_TYPE
+#endif
+
+#if ((defined(RL_FLOAT16_TYPE)) = 0)
+type float16
+    v(0 to 15) as float32
+end type
+#define RL_FLOAT16_TYPE
+#endif
+
+#include once "crt/math.bi"       '' Required for: sinf(), cosf(), tan(), atan2f(), sqrtf(), floor(), fminf(), fmaxf(), fabsf()
+
+#if RAYMATH_USE_SIMD_INTRINSICS
+    '' SIMD is used on the most costly raymath function MatrixMultiply()
+    '' NOTE: Only SSE intrinsics support implemented
+    '' TODO: Consider support for other SIMD intrinsics:
+    ''  - SSEx, AVX, AVX2, FMA, NEON, RVV
+    /'
+    #if defined(__SSE4_2__)
+        #include <nmmintrin.h>
+        #define RAYMATH_SSE42_ENABLED
+    #elif defined(__SSE4_1__)
+        #include <smmintrin.h>
+        #define RAYMATH_SSE41_ENABLED
+    #elif defined(__SSSE3__)
+        #include <tmmintrin.h>
+        #define RAYMATH_SSSE3_ENABLED
+    #elif defined(__SSE3__)
+        #include <pmmintrin.h>
+        #define RAYMATH_SSE3_ENABLED
+    #elif defined(__SSE2__) || (defined(_M_AMD64) || defined(_M_X64)) // SSE2 x64
+        #include <emmintrin.h>
+        #define RAYMATH_SSE2_ENABLED
+    #endif
+    '/
+    #if ((defined(__SSE__) orelse defined(TIKO_ARCH_X86_64)) orelse (defined(_M_IX86_FP) andalso (_M_IX86_FP >= 1)))
+        '' C2T-TODO(system-header) raymath.h:207 -- <xmmintrin.h> has no tiko counterpart in c2t's table
+''         #include <xmmintrin.h>
+        #define RAYMATH_SSE_ENABLED
+    #endif
+#endif
+
+''----------------------------------------------------------------------------------
+'' Module Functions Definition - Utils math
+''----------------------------------------------------------------------------------
+
+'' Clamp float value
+'' C2T-NOTE(inline) raymath.h:217 -- inline: links only if the library exports 'Clamp'
+declare function Clamp( byval value as float32, byval min as float32, byval max as float32 ) as float32
+
+'' Calculate linear interpolation between two floats
+'' C2T-NOTE(inline) raymath.h:227 -- inline: links only if the library exports 'Lerp'
+declare function Lerp( byval start as float32, byval end_ as float32, byval amount as float32 ) as float32
+
+'' Normalize input value within input range
+'' C2T-NOTE(inline) raymath.h:235 -- inline: links only if the library exports 'Normalize'
+declare function Normalize( byval value as float32, byval start as float32, byval end_ as float32 ) as float32
+
+'' Remap input value within input range to output range
+'' C2T-NOTE(inline) raymath.h:243 -- inline: links only if the library exports 'Remap'
+declare function Remap( byval value as float32, byval inputStart as float32, byval inputEnd as float32, byval outputStart as float32, byval outputEnd as float32 ) as float32
+
+'' Wrap input value from min to max
+'' C2T-NOTE(inline) raymath.h:251 -- inline: links only if the library exports 'Wrap'
+declare function Wrap( byval value as float32, byval min as float32, byval max as float32 ) as float32
+
+'' Check whether two given floats are almost equal
+'' C2T-NOTE(inline) raymath.h:259 -- inline: links only if the library exports 'FloatEquals'
+declare function FloatEquals( byval x as float32, byval y as float32 ) as int32
+
+''----------------------------------------------------------------------------------
+'' Module Functions Definition - Vector2 math
+''----------------------------------------------------------------------------------
+
+'' Vector with components value 0.0f
+'' C2T-NOTE(inline) raymath.h:275 -- inline: links only if the library exports 'Vector2Zero'
+declare function Vector2Zero( ) as Vector2
+
+'' Vector with components value 1.0f
+'' C2T-NOTE(inline) raymath.h:283 -- inline: links only if the library exports 'Vector2One'
+declare function Vector2One( ) as Vector2
+
+'' Add two vectors (v1 + v2)
+'' C2T-NOTE(inline) raymath.h:291 -- inline: links only if the library exports 'Vector2Add'
+declare function Vector2Add( byval v1 as Vector2, byval v2 as Vector2 ) as Vector2
+
+'' Add vector and float value
+'' C2T-NOTE(inline) raymath.h:299 -- inline: links only if the library exports 'Vector2AddValue'
+declare function Vector2AddValue( byval v as Vector2, byval add as float32 ) as Vector2
+
+'' Subtract two vectors (v1 - v2)
+'' C2T-NOTE(inline) raymath.h:307 -- inline: links only if the library exports 'Vector2Subtract'
+declare function Vector2Subtract( byval v1 as Vector2, byval v2 as Vector2 ) as Vector2
+
+'' Subtract vector by float value
+'' C2T-NOTE(inline) raymath.h:315 -- inline: links only if the library exports 'Vector2SubtractValue'
+declare function Vector2SubtractValue( byval v as Vector2, byval sub_ as float32 ) as Vector2
+
+'' Calculate vector length
+'' C2T-NOTE(inline) raymath.h:323 -- inline: links only if the library exports 'Vector2Length'
+declare function Vector2Length( byval v as Vector2 ) as float32
+
+'' Calculate vector square length
+'' C2T-NOTE(inline) raymath.h:331 -- inline: links only if the library exports 'Vector2LengthSqr'
+declare function Vector2LengthSqr( byval v as Vector2 ) as float32
+
+'' Calculate two vectors dot product
+'' C2T-NOTE(inline) raymath.h:339 -- inline: links only if the library exports 'Vector2DotProduct'
+declare function Vector2DotProduct( byval v1 as Vector2, byval v2 as Vector2 ) as float32
+
+'' Calculate two vectors cross product
+'' C2T-NOTE(inline) raymath.h:347 -- inline: links only if the library exports 'Vector2CrossProduct'
+declare function Vector2CrossProduct( byval v1 as Vector2, byval v2 as Vector2 ) as float32
+
+'' Calculate distance between two vectors
+'' C2T-NOTE(inline) raymath.h:355 -- inline: links only if the library exports 'Vector2Distance'
+declare function Vector2Distance( byval v1 as Vector2, byval v2 as Vector2 ) as float32
+
+'' Calculate square distance between two vectors
+'' C2T-NOTE(inline) raymath.h:363 -- inline: links only if the library exports 'Vector2DistanceSqr'
+declare function Vector2DistanceSqr( byval v1 as Vector2, byval v2 as Vector2 ) as float32
+
+'' Calculate the signed angle from v1 to v2, relative to the origin (0, 0)
+'' NOTE: Coordinate system convention: positive X right, positive Y down
+'' positive angles appear clockwise, and negative angles appear counterclockwise
+'' C2T-NOTE(inline) raymath.h:373 -- inline: links only if the library exports 'Vector2Angle'
+declare function Vector2Angle( byval v1 as Vector2, byval v2 as Vector2 ) as float32
+
+'' Calculate angle defined by a two vectors line
+'' NOTE: Parameters need to be normalized
+'' Current implementation should be aligned with glm::angle
+'' C2T-NOTE(inline) raymath.h:388 -- inline: links only if the library exports 'Vector2LineAngle'
+declare function Vector2LineAngle( byval start as Vector2, byval end_ as Vector2 ) as float32
+
+'' Scale vector (multiply by value)
+'' C2T-NOTE(inline) raymath.h:398 -- inline: links only if the library exports 'Vector2Scale'
+declare function Vector2Scale( byval v as Vector2, byval scale as float32 ) as Vector2
+
+'' Multiply vector by vector
+'' C2T-NOTE(inline) raymath.h:406 -- inline: links only if the library exports 'Vector2Multiply'
+declare function Vector2Multiply( byval v1 as Vector2, byval v2 as Vector2 ) as Vector2
+
+'' Negate vector
+'' C2T-NOTE(inline) raymath.h:414 -- inline: links only if the library exports 'Vector2Negate'
+declare function Vector2Negate( byval v as Vector2 ) as Vector2
+
+'' Divide vector by vector
+'' C2T-NOTE(inline) raymath.h:422 -- inline: links only if the library exports 'Vector2Divide'
+declare function Vector2Divide( byval v1 as Vector2, byval v2 as Vector2 ) as Vector2
+
+'' Normalize provided vector
+'' C2T-NOTE(inline) raymath.h:430 -- inline: links only if the library exports 'Vector2Normalize'
+declare function Vector2Normalize( byval v as Vector2 ) as Vector2
+
+'' Transforms a Vector2 by a given Matrix
+'' C2T-NOTE(inline) raymath.h:446 -- inline: links only if the library exports 'Vector2Transform'
+declare function Vector2Transform( byval v as Vector2, byval mat as Matrix ) as Vector2
+
+'' Calculate linear interpolation between two vectors
+'' C2T-NOTE(inline) raymath.h:461 -- inline: links only if the library exports 'Vector2Lerp'
+declare function Vector2Lerp( byval v1 as Vector2, byval v2 as Vector2, byval amount as float32 ) as Vector2
+
+'' Calculate reflected vector to normal
+'' C2T-NOTE(inline) raymath.h:472 -- inline: links only if the library exports 'Vector2Reflect'
+declare function Vector2Reflect( byval v as Vector2, byval normal as Vector2 ) as Vector2
+
+'' Get min value for each pair of components
+'' C2T-NOTE(inline) raymath.h:485 -- inline: links only if the library exports 'Vector2Min'
+declare function Vector2Min( byval v1 as Vector2, byval v2 as Vector2 ) as Vector2
+
+'' Get max value for each pair of components
+'' C2T-NOTE(inline) raymath.h:496 -- inline: links only if the library exports 'Vector2Max'
+declare function Vector2Max( byval v1 as Vector2, byval v2 as Vector2 ) as Vector2
+
+'' Rotate vector by angle
+'' C2T-NOTE(inline) raymath.h:507 -- inline: links only if the library exports 'Vector2Rotate'
+declare function Vector2Rotate( byval v as Vector2, byval angle as float32 ) as Vector2
+
+'' Move Vector towards target
+'' C2T-NOTE(inline) raymath.h:521 -- inline: links only if the library exports 'Vector2MoveTowards'
+declare function Vector2MoveTowards( byval v as Vector2, byval target as Vector2, byval maxDistance as float32 ) as Vector2
+
+'' Invert the given vector
+'' C2T-NOTE(inline) raymath.h:540 -- inline: links only if the library exports 'Vector2Invert'
+declare function Vector2Invert( byval v as Vector2 ) as Vector2
+
+'' Clamp the components of the vector between
+'' min and max values specified by the given vectors
+'' C2T-NOTE(inline) raymath.h:549 -- inline: links only if the library exports 'Vector2Clamp'
+declare function Vector2Clamp( byval v as Vector2, byval min as Vector2, byval max as Vector2 ) as Vector2
+
+'' Clamp the magnitude of the vector between two min and max values
+'' C2T-NOTE(inline) raymath.h:560 -- inline: links only if the library exports 'Vector2ClampValue'
+declare function Vector2ClampValue( byval v as Vector2, byval min as float32, byval max as float32 ) as Vector2
+
+'' Check whether two given vectors are almost equal
+'' C2T-NOTE(inline) raymath.h:581 -- inline: links only if the library exports 'Vector2Equals'
+declare function Vector2Equals( byval p as Vector2, byval q as Vector2 ) as int32
+
+'' Compute the direction of a refracted ray
+'' v: normalized direction of the incoming ray
+'' n: normalized normal vector of the interface of two optical media
+'' r: ratio of the refractive index of the medium from where the ray comes
+'' to the refractive index of the medium on the other side of the surface
+'' C2T-NOTE(inline) raymath.h:598 -- inline: links only if the library exports 'Vector2Refract'
+declare function Vector2Refract( byval v as Vector2, byval n as Vector2, byval r as float32 ) as Vector2
+
+
+''----------------------------------------------------------------------------------
+'' Module Functions Definition - Vector3 math
+''----------------------------------------------------------------------------------
+
+'' Vector with components value 0.0f
+'' C2T-NOTE(inline) raymath.h:623 -- inline: links only if the library exports 'Vector3Zero'
+declare function Vector3Zero( ) as Vector3
+
+'' Vector with components value 1.0f
+'' C2T-NOTE(inline) raymath.h:631 -- inline: links only if the library exports 'Vector3One'
+declare function Vector3One( ) as Vector3
+
+'' Add two vectors
+'' C2T-NOTE(inline) raymath.h:639 -- inline: links only if the library exports 'Vector3Add'
+declare function Vector3Add( byval v1 as Vector3, byval v2 as Vector3 ) as Vector3
+
+'' Add vector and float value
+'' C2T-NOTE(inline) raymath.h:647 -- inline: links only if the library exports 'Vector3AddValue'
+declare function Vector3AddValue( byval v as Vector3, byval add as float32 ) as Vector3
+
+'' Subtract two vectors
+'' C2T-NOTE(inline) raymath.h:655 -- inline: links only if the library exports 'Vector3Subtract'
+declare function Vector3Subtract( byval v1 as Vector3, byval v2 as Vector3 ) as Vector3
+
+'' Subtract vector by float value
+'' C2T-NOTE(inline) raymath.h:663 -- inline: links only if the library exports 'Vector3SubtractValue'
+declare function Vector3SubtractValue( byval v as Vector3, byval sub_ as float32 ) as Vector3
+
+'' Multiply vector by scalar
+'' C2T-NOTE(inline) raymath.h:671 -- inline: links only if the library exports 'Vector3Scale'
+declare function Vector3Scale( byval v as Vector3, byval scalar as float32 ) as Vector3
+
+'' Multiply vector by vector
+'' C2T-NOTE(inline) raymath.h:679 -- inline: links only if the library exports 'Vector3Multiply'
+declare function Vector3Multiply( byval v1 as Vector3, byval v2 as Vector3 ) as Vector3
+
+'' Calculate two vectors cross product
+'' C2T-NOTE(inline) raymath.h:687 -- inline: links only if the library exports 'Vector3CrossProduct'
+declare function Vector3CrossProduct( byval v1 as Vector3, byval v2 as Vector3 ) as Vector3
+
+'' Calculate one vector perpendicular vector
+'' C2T-NOTE(inline) raymath.h:695 -- inline: links only if the library exports 'Vector3Perpendicular'
+declare function Vector3Perpendicular( byval v as Vector3 ) as Vector3
+
+'' Calculate vector length
+'' C2T-NOTE(inline) raymath.h:724 -- inline: links only if the library exports 'Vector3Length'
+declare function Vector3Length( byval v as Vector3 ) as float32
+
+'' Calculate vector square length
+'' C2T-NOTE(inline) raymath.h:732 -- inline: links only if the library exports 'Vector3LengthSqr'
+declare function Vector3LengthSqr( byval v as Vector3 ) as float32
+
+'' Calculate two vectors dot product
+'' C2T-NOTE(inline) raymath.h:740 -- inline: links only if the library exports 'Vector3DotProduct'
+declare function Vector3DotProduct( byval v1 as Vector3, byval v2 as Vector3 ) as float32
+
+'' Calculate distance between two vectors
+'' C2T-NOTE(inline) raymath.h:748 -- inline: links only if the library exports 'Vector3Distance'
+declare function Vector3Distance( byval v1 as Vector3, byval v2 as Vector3 ) as float32
+
+'' Calculate square distance between two vectors
+'' C2T-NOTE(inline) raymath.h:761 -- inline: links only if the library exports 'Vector3DistanceSqr'
+declare function Vector3DistanceSqr( byval v1 as Vector3, byval v2 as Vector3 ) as float32
+
+'' Calculate angle between two vectors
+'' C2T-NOTE(inline) raymath.h:774 -- inline: links only if the library exports 'Vector3Angle'
+declare function Vector3Angle( byval v1 as Vector3, byval v2 as Vector3 ) as float32
+
+'' Negate provided vector (invert direction)
+'' C2T-NOTE(inline) raymath.h:787 -- inline: links only if the library exports 'Vector3Negate'
+declare function Vector3Negate( byval v as Vector3 ) as Vector3
+
+'' Divide vector by vector
+'' C2T-NOTE(inline) raymath.h:795 -- inline: links only if the library exports 'Vector3Divide'
+declare function Vector3Divide( byval v1 as Vector3, byval v2 as Vector3 ) as Vector3
+
+'' Normalize provided vector
+'' C2T-NOTE(inline) raymath.h:803 -- inline: links only if the library exports 'Vector3Normalize'
+declare function Vector3Normalize( byval v as Vector3 ) as Vector3
+
+''Calculate the projection of the vector v1 on to v2
+'' C2T-NOTE(inline) raymath.h:821 -- inline: links only if the library exports 'Vector3Project'
+declare function Vector3Project( byval v1 as Vector3, byval v2 as Vector3 ) as Vector3
+
+''Calculate the rejection of the vector v1 on to v2
+'' C2T-NOTE(inline) raymath.h:838 -- inline: links only if the library exports 'Vector3Reject'
+declare function Vector3Reject( byval v1 as Vector3, byval v2 as Vector3 ) as Vector3
+
+'' Orthonormalize provided vectors
+'' Makes vectors normalized and orthogonal to each other
+'' Gram-Schmidt function implementation
+'' C2T-NOTE(inline) raymath.h:857 -- inline: links only if the library exports 'Vector3OrthoNormalize'
+declare sub Vector3OrthoNormalize( byval v1 as Vector3 ptr, byval v2 as Vector3 ptr )
+
+'' Transforms a Vector3 by a given Matrix
+'' C2T-NOTE(inline) raymath.h:890 -- inline: links only if the library exports 'Vector3Transform'
+declare function Vector3Transform( byval v as Vector3, byval mat as Matrix ) as Vector3
+
+'' Transform a vector by quaternion rotation
+'' C2T-NOTE(inline) raymath.h:906 -- inline: links only if the library exports 'Vector3RotateByQuaternion'
+declare function Vector3RotateByQuaternion( byval v as Vector3, byval q as Quaternion ) as Vector3
+
+'' Rotates a vector around an axis
+'' C2T-NOTE(inline) raymath.h:918 -- inline: links only if the library exports 'Vector3RotateByAxisAngle'
+declare function Vector3RotateByAxisAngle( byval v as Vector3, byval axis as Vector3, byval angle as float32 ) as Vector3
+
+'' Move Vector towards target
+'' C2T-NOTE(inline) raymath.h:970 -- inline: links only if the library exports 'Vector3MoveTowards'
+declare function Vector3MoveTowards( byval v as Vector3, byval target as Vector3, byval maxDistance as float32 ) as Vector3
+
+'' Calculate linear interpolation between two vectors
+'' C2T-NOTE(inline) raymath.h:991 -- inline: links only if the library exports 'Vector3Lerp'
+declare function Vector3Lerp( byval v1 as Vector3, byval v2 as Vector3, byval amount as float32 ) as Vector3
+
+'' Calculate cubic hermite interpolation between two vectors and their tangents
+'' as described in the GLTF 2.0 specification: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#interpolation-cubic
+'' C2T-NOTE(inline) raymath.h:1004 -- inline: links only if the library exports 'Vector3CubicHermite'
+declare function Vector3CubicHermite( byval v1 as Vector3, byval tangent1 as Vector3, byval v2 as Vector3, byval tangent2 as Vector3, byval amount as float32 ) as Vector3
+
+'' Calculate reflected vector to normal
+'' C2T-NOTE(inline) raymath.h:1019 -- inline: links only if the library exports 'Vector3Reflect'
+declare function Vector3Reflect( byval v as Vector3, byval normal as Vector3 ) as Vector3
+
+'' Get min value for each pair of components
+'' C2T-NOTE(inline) raymath.h:1037 -- inline: links only if the library exports 'Vector3Min'
+declare function Vector3Min( byval v1 as Vector3, byval v2 as Vector3 ) as Vector3
+
+'' Get max value for each pair of components
+'' C2T-NOTE(inline) raymath.h:1049 -- inline: links only if the library exports 'Vector3Max'
+declare function Vector3Max( byval v1 as Vector3, byval v2 as Vector3 ) as Vector3
+
+'' Compute barycenter coordinates (u, v, w) for point p with respect to triangle (a, b, c)
+'' NOTE: Assumes P is on the plane of the triangle
+'' C2T-NOTE(inline) raymath.h:1062 -- inline: links only if the library exports 'Vector3Barycenter'
+declare function Vector3Barycenter( byval p as Vector3, byval a as Vector3, byval b as Vector3, byval c as Vector3 ) as Vector3
+
+'' Projects a Vector3 from screen space into object space
+'' NOTE: Self-contained function, no other raymath functions are called
+'' C2T-NOTE(inline) raymath.h:1086 -- inline: links only if the library exports 'Vector3Unproject'
+declare function Vector3Unproject( byval source as Vector3, byval projection as Matrix, byval view_ as Matrix ) as Vector3
+
+'' Get Vector3 as float array
+'' C2T-NOTE(inline) raymath.h:1169 -- inline: links only if the library exports 'Vector3ToFloatV'
+declare function Vector3ToFloatV( byval v as Vector3 ) as float3
+
+'' Invert the given vector
+'' C2T-NOTE(inline) raymath.h:1181 -- inline: links only if the library exports 'Vector3Invert'
+declare function Vector3Invert( byval v as Vector3 ) as Vector3
+
+'' Clamp the components of the vector between
+'' min and max values specified by the given vectors
+'' C2T-NOTE(inline) raymath.h:1190 -- inline: links only if the library exports 'Vector3Clamp'
+declare function Vector3Clamp( byval v as Vector3, byval min as Vector3, byval max as Vector3 ) as Vector3
+
+'' Clamp the magnitude of the vector between two values
+'' C2T-NOTE(inline) raymath.h:1202 -- inline: links only if the library exports 'Vector3ClampValue'
+declare function Vector3ClampValue( byval v as Vector3, byval min as float32, byval max as float32 ) as Vector3
+
+'' Check whether two given vectors are almost equal
+'' C2T-NOTE(inline) raymath.h:1224 -- inline: links only if the library exports 'Vector3Equals'
+declare function Vector3Equals( byval p as Vector3, byval q as Vector3 ) as int32
+
+'' Compute the direction of a refracted ray
+'' v: normalized direction of the incoming ray
+'' n: normalized normal vector of the interface of two optical media
+'' r: ratio of the refractive index of the medium from where the ray comes
+'' to the refractive index of the medium on the other side of the surface
+'' C2T-NOTE(inline) raymath.h:1242 -- inline: links only if the library exports 'Vector3Refract'
+declare function Vector3Refract( byval v as Vector3, byval n as Vector3, byval r as float32 ) as Vector3
+
+
+''----------------------------------------------------------------------------------
+'' Module Functions Definition - Vector4 math
+''----------------------------------------------------------------------------------
+'' Get  vector zero
+'' C2T-NOTE(inline) raymath.h:1267 -- inline: links only if the library exports 'Vector4Zero'
+declare function Vector4Zero( ) as Vector4
+
+'' Get vector one
+'' C2T-NOTE(inline) raymath.h:1274 -- inline: links only if the library exports 'Vector4One'
+declare function Vector4One( ) as Vector4
+
+'' Add two vectors
+'' C2T-NOTE(inline) raymath.h:1281 -- inline: links only if the library exports 'Vector4Add'
+declare function Vector4Add( byval v1 as Vector4, byval v2 as Vector4 ) as Vector4
+
+'' Add value to vector components
+'' C2T-NOTE(inline) raymath.h:1293 -- inline: links only if the library exports 'Vector4AddValue'
+declare function Vector4AddValue( byval v as Vector4, byval add as float32 ) as Vector4
+
+'' Substract vectors
+'' C2T-NOTE(inline) raymath.h:1305 -- inline: links only if the library exports 'Vector4Subtract'
+declare function Vector4Subtract( byval v1 as Vector4, byval v2 as Vector4 ) as Vector4
+
+'' Substract value from vector components
+'' C2T-NOTE(inline) raymath.h:1317 -- inline: links only if the library exports 'Vector4SubtractValue'
+declare function Vector4SubtractValue( byval v as Vector4, byval add as float32 ) as Vector4
+
+'' Vector length
+'' C2T-NOTE(inline) raymath.h:1329 -- inline: links only if the library exports 'Vector4Length'
+declare function Vector4Length( byval v as Vector4 ) as float32
+
+'' Vector square length
+'' C2T-NOTE(inline) raymath.h:1336 -- inline: links only if the library exports 'Vector4LengthSqr'
+declare function Vector4LengthSqr( byval v as Vector4 ) as float32
+
+'' Vectors dot product
+'' C2T-NOTE(inline) raymath.h:1343 -- inline: links only if the library exports 'Vector4DotProduct'
+declare function Vector4DotProduct( byval v1 as Vector4, byval v2 as Vector4 ) as float32
+
+'' Calculate distance between two vectors
+'' C2T-NOTE(inline) raymath.h:1350 -- inline: links only if the library exports 'Vector4Distance'
+declare function Vector4Distance( byval v1 as Vector4, byval v2 as Vector4 ) as float32
+
+'' Calculate square distance between two vectors
+'' C2T-NOTE(inline) raymath.h:1359 -- inline: links only if the library exports 'Vector4DistanceSqr'
+declare function Vector4DistanceSqr( byval v1 as Vector4, byval v2 as Vector4 ) as float32
+
+'' Scale vector components by value (multiply)
+'' C2T-NOTE(inline) raymath.h:1369 -- inline: links only if the library exports 'Vector4Scale'
+declare function Vector4Scale( byval v as Vector4, byval scale as float32 ) as Vector4
+
+'' Multiply vector by vector
+'' C2T-NOTE(inline) raymath.h:1376 -- inline: links only if the library exports 'Vector4Multiply'
+declare function Vector4Multiply( byval v1 as Vector4, byval v2 as Vector4 ) as Vector4
+
+'' Negate vector
+'' C2T-NOTE(inline) raymath.h:1383 -- inline: links only if the library exports 'Vector4Negate'
+declare function Vector4Negate( byval v as Vector4 ) as Vector4
+
+'' Divide vector by vector
+'' C2T-NOTE(inline) raymath.h:1390 -- inline: links only if the library exports 'Vector4Divide'
+declare function Vector4Divide( byval v1 as Vector4, byval v2 as Vector4 ) as Vector4
+
+'' Normalize provided vector
+'' C2T-NOTE(inline) raymath.h:1397 -- inline: links only if the library exports 'Vector4Normalize'
+declare function Vector4Normalize( byval v as Vector4 ) as Vector4
+
+'' Get min value for each pair of components
+'' C2T-NOTE(inline) raymath.h:1415 -- inline: links only if the library exports 'Vector4Min'
+declare function Vector4Min( byval v1 as Vector4, byval v2 as Vector4 ) as Vector4
+
+'' Get max value for each pair of components
+'' C2T-NOTE(inline) raymath.h:1428 -- inline: links only if the library exports 'Vector4Max'
+declare function Vector4Max( byval v1 as Vector4, byval v2 as Vector4 ) as Vector4
+
+'' Calculate linear interpolation between two vectors
+'' C2T-NOTE(inline) raymath.h:1441 -- inline: links only if the library exports 'Vector4Lerp'
+declare function Vector4Lerp( byval v1 as Vector4, byval v2 as Vector4, byval amount as float32 ) as Vector4
+
+'' Move Vector towards target
+'' C2T-NOTE(inline) raymath.h:1454 -- inline: links only if the library exports 'Vector4MoveTowards'
+declare function Vector4MoveTowards( byval v as Vector4, byval target as Vector4, byval maxDistance as float32 ) as Vector4
+
+'' Invert the given vector
+'' C2T-NOTE(inline) raymath.h:1477 -- inline: links only if the library exports 'Vector4Invert'
+declare function Vector4Invert( byval v as Vector4 ) as Vector4
+
+'' Check whether two given vectors are almost equal
+'' C2T-NOTE(inline) raymath.h:1484 -- inline: links only if the library exports 'Vector4Equals'
+declare function Vector4Equals( byval p as Vector4, byval q as Vector4 ) as int32
+
+
+''----------------------------------------------------------------------------------
+'' Module Functions Definition - Matrix math
+''----------------------------------------------------------------------------------
+
+'' Compute matrix determinant
+'' C2T-NOTE(inline) raymath.h:1503 -- inline: links only if the library exports 'MatrixDeterminant'
+declare function MatrixDeterminant( byval mat as Matrix ) as float32
+
+'' Get the trace of the matrix (sum of the values along the diagonal)
+'' C2T-NOTE(inline) raymath.h:1540 -- inline: links only if the library exports 'MatrixTrace'
+declare function MatrixTrace( byval mat as Matrix ) as float32
+
+'' Transposes provided matrix
+'' C2T-NOTE(inline) raymath.h:1548 -- inline: links only if the library exports 'MatrixTranspose'
+declare function MatrixTranspose( byval mat as Matrix ) as Matrix
+
+'' Invert provided matrix
+'' C2T-NOTE(inline) raymath.h:1573 -- inline: links only if the library exports 'MatrixInvert'
+declare function MatrixInvert( byval mat as Matrix ) as Matrix
+
+'' Get identity matrix
+'' C2T-NOTE(inline) raymath.h:1620 -- inline: links only if the library exports 'MatrixIdentity'
+declare function MatrixIdentity( ) as Matrix
+
+'' Add two matrices
+'' C2T-NOTE(inline) raymath.h:1631 -- inline: links only if the library exports 'MatrixAdd'
+declare function MatrixAdd( byval left_ as Matrix, byval right_ as Matrix ) as Matrix
+
+'' Subtract two matrices (left - right)
+'' C2T-NOTE(inline) raymath.h:1656 -- inline: links only if the library exports 'MatrixSubtract'
+declare function MatrixSubtract( byval left_ as Matrix, byval right_ as Matrix ) as Matrix
+
+'' Get two matrix multiplication
+'' NOTE: When multiplying matrices... the order matters!
+'' C2T-NOTE(inline) raymath.h:1682 -- inline: links only if the library exports 'MatrixMultiply'
+declare function MatrixMultiply( byval left_ as Matrix, byval right_ as Matrix ) as Matrix
+
+'' Multiply matrix components by value
+'' C2T-NOTE(inline) raymath.h:1765 -- inline: links only if the library exports 'MatrixMultiplyValue'
+declare function MatrixMultiplyValue( byval left_ as Matrix, byval value as float32 ) as Matrix
+
+'' Get translation matrix
+'' C2T-NOTE(inline) raymath.h:1778 -- inline: links only if the library exports 'MatrixTranslate'
+declare function MatrixTranslate( byval x as float32, byval y as float32, byval z as float32 ) as Matrix
+
+'' Create rotation matrix from axis and angle
+'' NOTE: Angle should be provided in radians
+'' C2T-NOTE(inline) raymath.h:1790 -- inline: links only if the library exports 'MatrixRotate'
+declare function MatrixRotate( byval axis as Vector3, byval angle as float32 ) as Matrix
+
+'' Get x-rotation matrix
+'' NOTE: Angle must be provided in radians
+'' C2T-NOTE(inline) raymath.h:1835 -- inline: links only if the library exports 'MatrixRotateX'
+declare function MatrixRotateX( byval angle as float32 ) as Matrix
+
+'' Get y-rotation matrix
+'' NOTE: Angle must be provided in radians
+'' C2T-NOTE(inline) raymath.h:1855 -- inline: links only if the library exports 'MatrixRotateY'
+declare function MatrixRotateY( byval angle as float32 ) as Matrix
+
+'' Get z-rotation matrix
+'' NOTE: Angle must be provided in radians
+'' C2T-NOTE(inline) raymath.h:1875 -- inline: links only if the library exports 'MatrixRotateZ'
+declare function MatrixRotateZ( byval angle as float32 ) as Matrix
+
+
+'' Get xyz-rotation matrix
+'' NOTE: Angle must be provided in radians
+'' C2T-NOTE(inline) raymath.h:1896 -- inline: links only if the library exports 'MatrixRotateXYZ'
+declare function MatrixRotateXYZ( byval angle as Vector3 ) as Matrix
+
+'' Get zyx-rotation matrix
+'' NOTE: Angle must be provided in radians
+'' C2T-NOTE(inline) raymath.h:1927 -- inline: links only if the library exports 'MatrixRotateZYX'
+declare function MatrixRotateZYX( byval angle as Vector3 ) as Matrix
+
+'' Get scaling matrix
+'' C2T-NOTE(inline) raymath.h:1962 -- inline: links only if the library exports 'MatrixScale'
+declare function MatrixScale( byval x as float32, byval y as float32, byval z as float32 ) as Matrix
+
+'' Get perspective projection matrix
+'' C2T-NOTE(inline) raymath.h:1973 -- inline: links only if the library exports 'MatrixFrustum'
+declare function MatrixFrustum( byval left_ as float64, byval right_ as float64, byval bottom as float64, byval top as float64, byval nearPlane as float64, byval farPlane as float64 ) as Matrix
+
+'' Get perspective projection matrix
+'' NOTE: Fovy angle must be provided in radians
+'' C2T-NOTE(inline) raymath.h:2006 -- inline: links only if the library exports 'MatrixPerspective'
+declare function MatrixPerspective( byval fovY as float64, byval aspect as float64, byval nearPlane as float64, byval farPlane as float64 ) as Matrix
+
+'' Get orthographic projection matrix
+'' C2T-NOTE(inline) raymath.h:2032 -- inline: links only if the library exports 'MatrixOrtho'
+declare function MatrixOrtho( byval left_ as float64, byval right_ as float64, byval bottom as float64, byval top as float64, byval nearPlane as float64, byval farPlane as float64 ) as Matrix
+
+'' Get camera look-at matrix (view matrix)
+'' C2T-NOTE(inline) raymath.h:2061 -- inline: links only if the library exports 'MatrixLookAt'
+declare function MatrixLookAt( byval eye as Vector3, byval target as Vector3, byval up as Vector3 ) as Matrix
+
+'' Get float array of matrix data
+'' C2T-NOTE(inline) raymath.h:2116 -- inline: links only if the library exports 'MatrixToFloatV'
+declare function MatrixToFloatV( byval mat as Matrix ) as float16
+
+''----------------------------------------------------------------------------------
+'' Module Functions Definition - Quaternion math
+''----------------------------------------------------------------------------------
+
+'' Add two quaternions
+'' C2T-NOTE(inline) raymath.h:2145 -- inline: links only if the library exports 'QuaternionAdd'
+declare function QuaternionAdd( byval q1 as Quaternion, byval q2 as Quaternion ) as Quaternion
+
+'' Add quaternion and float value
+'' C2T-NOTE(inline) raymath.h:2153 -- inline: links only if the library exports 'QuaternionAddValue'
+declare function QuaternionAddValue( byval q as Quaternion, byval add as float32 ) as Quaternion
+
+'' Subtract two quaternions
+'' C2T-NOTE(inline) raymath.h:2161 -- inline: links only if the library exports 'QuaternionSubtract'
+declare function QuaternionSubtract( byval q1 as Quaternion, byval q2 as Quaternion ) as Quaternion
+
+'' Subtract quaternion and float value
+'' C2T-NOTE(inline) raymath.h:2169 -- inline: links only if the library exports 'QuaternionSubtractValue'
+declare function QuaternionSubtractValue( byval q as Quaternion, byval sub_ as float32 ) as Quaternion
+
+'' Get identity quaternion
+'' C2T-NOTE(inline) raymath.h:2177 -- inline: links only if the library exports 'QuaternionIdentity'
+declare function QuaternionIdentity( ) as Quaternion
+
+'' Computes the length of a quaternion
+'' C2T-NOTE(inline) raymath.h:2185 -- inline: links only if the library exports 'QuaternionLength'
+declare function QuaternionLength( byval q as Quaternion ) as float32
+
+'' Normalize provided quaternion
+'' C2T-NOTE(inline) raymath.h:2193 -- inline: links only if the library exports 'QuaternionNormalize'
+declare function QuaternionNormalize( byval q as Quaternion ) as Quaternion
+
+'' Invert provided quaternion
+'' C2T-NOTE(inline) raymath.h:2210 -- inline: links only if the library exports 'QuaternionInvert'
+declare function QuaternionInvert( byval q as Quaternion ) as Quaternion
+
+'' Calculate two quaternion multiplication
+'' C2T-NOTE(inline) raymath.h:2230 -- inline: links only if the library exports 'QuaternionMultiply'
+declare function QuaternionMultiply( byval q1 as Quaternion, byval q2 as Quaternion ) as Quaternion
+
+'' Scale quaternion by float value
+'' C2T-NOTE(inline) raymath.h:2246 -- inline: links only if the library exports 'QuaternionScale'
+declare function QuaternionScale( byval q as Quaternion, byval mul as float32 ) as Quaternion
+
+'' Divide two quaternions
+'' C2T-NOTE(inline) raymath.h:2259 -- inline: links only if the library exports 'QuaternionDivide'
+declare function QuaternionDivide( byval q1 as Quaternion, byval q2 as Quaternion ) as Quaternion
+
+'' Calculate linear interpolation between two quaternions
+'' C2T-NOTE(inline) raymath.h:2267 -- inline: links only if the library exports 'QuaternionLerp'
+declare function QuaternionLerp( byval q1 as Quaternion, byval q2 as Quaternion, byval amount as float32 ) as Quaternion
+
+'' Calculate slerp-optimized interpolation between two quaternions
+'' C2T-NOTE(inline) raymath.h:2280 -- inline: links only if the library exports 'QuaternionNlerp'
+declare function QuaternionNlerp( byval q1 as Quaternion, byval q2 as Quaternion, byval amount as float32 ) as Quaternion
+
+'' Calculates spherical linear interpolation between two quaternions
+'' C2T-NOTE(inline) raymath.h:2305 -- inline: links only if the library exports 'QuaternionSlerp'
+declare function QuaternionSlerp( byval q1 as Quaternion, byval q2 as Quaternion, byval amount as float32 ) as Quaternion
+
+'' Calculate quaternion cubic spline interpolation using Cubic Hermite Spline algorithm
+'' as described in the GLTF 2.0 specification: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#interpolation-cubic
+'' C2T-NOTE(inline) raymath.h:2352 -- inline: links only if the library exports 'QuaternionCubicHermiteSpline'
+declare function QuaternionCubicHermiteSpline( byval q1 as Quaternion, byval outTangent1 as Quaternion, byval q2 as Quaternion, byval inTangent2 as Quaternion, byval t as float32 ) as Quaternion
+
+'' Calculate quaternion based on the rotation from one vector to another
+'' C2T-NOTE(inline) raymath.h:2377 -- inline: links only if the library exports 'QuaternionFromVector3ToVector3'
+declare function QuaternionFromVector3ToVector3( byval from as Vector3, byval to_ as Vector3 ) as Quaternion
+
+'' Get a quaternion for a given rotation matrix
+'' C2T-NOTE(inline) raymath.h:2426 -- inline: links only if the library exports 'QuaternionFromMatrix'
+declare function QuaternionFromMatrix( byval mat as Matrix ) as Quaternion
+
+'' Get a matrix for a given quaternion
+'' C2T-NOTE(inline) raymath.h:2490 -- inline: links only if the library exports 'QuaternionToMatrix'
+declare function QuaternionToMatrix( byval q as Quaternion ) as Matrix
+
+'' Get rotation quaternion for an angle and axis
+'' NOTE: Angle must be provided in radians
+'' C2T-NOTE(inline) raymath.h:2524 -- inline: links only if the library exports 'QuaternionFromAxisAngle'
+declare function QuaternionFromAxisAngle( byval axis as Vector3, byval angle as float32 ) as Quaternion
+
+'' Get the rotation angle and axis for a given quaternion
+'' C2T-NOTE(inline) raymath.h:2563 -- inline: links only if the library exports 'QuaternionToAxisAngle'
+declare sub QuaternionToAxisAngle( byval q as Quaternion, byval outAxis as Vector3 ptr, byval outAngle as float32 ptr )
+
+'' Get the quaternion equivalent to Euler angles
+'' NOTE: Rotation order is ZYX
+'' C2T-NOTE(inline) raymath.h:2601 -- inline: links only if the library exports 'QuaternionFromEuler'
+declare function QuaternionFromEuler( byval pitch as float32, byval yaw as float32, byval roll as float32 ) as Quaternion
+
+'' Get the Euler angles equivalent to quaternion (roll, pitch, yaw)
+'' NOTE: Angles are returned in a Vector3 struct in radians
+'' C2T-NOTE(inline) raymath.h:2622 -- inline: links only if the library exports 'QuaternionToEuler'
+declare function QuaternionToEuler( byval q as Quaternion ) as Vector3
+
+'' Transform a quaternion given a transformation matrix
+'' C2T-NOTE(inline) raymath.h:2646 -- inline: links only if the library exports 'QuaternionTransform'
+declare function QuaternionTransform( byval q as Quaternion, byval mat as Matrix ) as Quaternion
+
+'' Check whether two given quaternions are almost equal
+'' C2T-NOTE(inline) raymath.h:2659 -- inline: links only if the library exports 'QuaternionEquals'
+declare function QuaternionEquals( byval p as Quaternion, byval q as Quaternion ) as int32
+
+'' Compose a transformation matrix from rotational, translational and scaling components
+'' C2T-NOTE(inline) raymath.h:2678 -- inline: links only if the library exports 'MatrixCompose'
+declare function MatrixCompose( byval translation as Vector3, byval rotation as Quaternion, byval scale as Vector3 ) as Matrix
+
+'' Decompose a transformation matrix into its rotational, translational and scaling components and remove shear
+'' TODO: WARNING: Following raymath convention and make the function self-contained
+'' C2T-NOTE(inline) raymath.h:2731 -- inline: links only if the library exports 'MatrixDecompose'
+declare sub MatrixDecompose( byval mat as Matrix, byval translation as Vector3 ptr, byval rotation as Quaternion ptr, byval scale as Vector3 ptr )
+
+#if (0 andalso ((defined(RAYMATH_DISABLE_CPP_OPERATORS)) = 0))
+
+'' Optional C++ math operators
+''-------------------------------------------------------------------------------
+
+'' Vector2 operators
+'' C2T-TODO(branch-unparsed) raymath.h:2820 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' static constexpr Vector2 Vector2Zeros = { 0, 0 };
+'' static constexpr Vector2 Vector2Ones = { 1, 1 };
+'' static constexpr Vector2 Vector2UnitX = { 1, 0 };
+'' static constexpr Vector2 Vector2UnitY = { 0, 1 };
+
+'' C2T-TODO(branch-unparsed) raymath.h:2825 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Vector2 operator + (const Vector2& lhs, const Vector2& rhs)
+'' {
+''     return Vector2Add(lhs, rhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2830 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline const Vector2& operator += (Vector2& lhs, const Vector2& rhs)
+'' {
+''     lhs = Vector2Add(lhs, rhs);
+''     return lhs;
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2836 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Vector2 operator - (const Vector2& lhs, const Vector2& rhs)
+'' {
+''     return Vector2Subtract(lhs, rhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2841 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline const Vector2& operator -= (Vector2& lhs, const Vector2& rhs)
+'' {
+''     lhs = Vector2Subtract(lhs, rhs);
+''     return lhs;
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2847 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Vector2 operator * (const float& lhs, const Vector2& rhs)
+'' {
+''     return Vector2Scale(rhs, lhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2852 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Vector2 operator * (const Vector2& lhs, const float& rhs)
+'' {
+''     return Vector2Scale(lhs, rhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2857 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline const Vector2& operator *= (Vector2& lhs, const float& rhs)
+'' {
+''     lhs = Vector2Scale(lhs, rhs);
+''     return lhs;
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2863 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Vector2 operator * (const Vector2& lhs, const Vector2& rhs)
+'' {
+''     return Vector2Multiply(lhs, rhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2868 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline const Vector2& operator *= (Vector2& lhs, const Vector2& rhs)
+'' {
+''     lhs = Vector2Multiply(lhs, rhs);
+''     return lhs;
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2874 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Vector2 operator * (const Vector2& lhs, const Matrix& rhs)
+'' {
+''     return Vector2Transform(lhs, rhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2879 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline const Vector2& operator *= (Vector2& lhs, const Matrix& rhs)
+'' {
+''     lhs = Vector2Transform(lhs, rhs);
+''     return lhs;
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2885 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Vector2 operator / (const Vector2& lhs, const float& rhs)
+'' {
+''     return Vector2Scale(lhs, 1.0f/rhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2890 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline const Vector2& operator /= (Vector2& lhs, const float& rhs)
+'' {
+''     lhs = Vector2Scale(lhs, 1.0f/rhs);
+''     return lhs;
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2896 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Vector2 operator / (const Vector2& lhs, const Vector2& rhs)
+'' {
+''     return Vector2Divide(lhs, rhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2901 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline const Vector2& operator /= (Vector2& lhs, const Vector2& rhs)
+'' {
+''     lhs = Vector2Divide(lhs, rhs);
+''     return lhs;
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2907 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline bool operator == (const Vector2& lhs, const Vector2& rhs)
+'' {
+''     return FloatEquals(lhs.x, rhs.x) && FloatEquals(lhs.y, rhs.y);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2912 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline bool operator != (const Vector2& lhs, const Vector2& rhs)
+'' {
+''     return !FloatEquals(lhs.x, rhs.x) || !FloatEquals(lhs.y, rhs.y);
+'' }
+
+'' Vector3 operators
+'' C2T-TODO(branch-unparsed) raymath.h:2918 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' static constexpr Vector3 Vector3Zeros = { 0, 0, 0 };
+'' static constexpr Vector3 Vector3Ones = { 1, 1, 1 };
+'' static constexpr Vector3 Vector3UnitX = { 1, 0, 0 };
+'' static constexpr Vector3 Vector3UnitY = { 0, 1, 0 };
+'' static constexpr Vector3 Vector3UnitZ = { 0, 0, 1 };
+
+'' C2T-TODO(branch-unparsed) raymath.h:2924 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Vector3 operator + (const Vector3& lhs, const Vector3& rhs)
+'' {
+''     return Vector3Add(lhs, rhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2929 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline const Vector3& operator += (Vector3& lhs, const Vector3& rhs)
+'' {
+''     lhs = Vector3Add(lhs, rhs);
+''     return lhs;
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2935 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Vector3 operator - (const Vector3& lhs, const Vector3& rhs)
+'' {
+''     return Vector3Subtract(lhs, rhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2940 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline const Vector3& operator -= (Vector3& lhs, const Vector3& rhs)
+'' {
+''     lhs = Vector3Subtract(lhs, rhs);
+''     return lhs;
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2946 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Vector3 operator * (const float& lhs, const Vector3& rhs)
+'' {
+''     return Vector3Scale(rhs, lhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2951 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Vector3 operator * (const Vector3& lhs, const float& rhs)
+'' {
+''     return Vector3Scale(lhs, rhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2956 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline const Vector3& operator *= (Vector3& lhs, const float& rhs)
+'' {
+''     lhs = Vector3Scale(lhs, rhs);
+''     return lhs;
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2962 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Vector3 operator * (const Vector3& lhs, const Vector3& rhs)
+'' {
+''     return Vector3Multiply(lhs, rhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2967 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline const Vector3& operator *= (Vector3& lhs, const Vector3& rhs)
+'' {
+''     lhs = Vector3Multiply(lhs, rhs);
+''     return lhs;
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2973 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Vector3 operator * (const Vector3& lhs, const Matrix& rhs)
+'' {
+''     return Vector3Transform(lhs, rhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2978 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline const Vector3& operator *= (Vector3& lhs, const Matrix& rhs)
+'' {
+''     lhs = Vector3Transform(lhs, rhs);
+''     return lhs;
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2984 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Vector3 operator / (const Vector3& lhs, const float& rhs)
+'' {
+''     return Vector3Scale(lhs, 1.0f/rhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2989 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline const Vector3& operator /= (Vector3& lhs, const float& rhs)
+'' {
+''     lhs = Vector3Scale(lhs, 1.0f/rhs);
+''     return lhs;
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:2995 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Vector3 operator / (const Vector3& lhs, const Vector3& rhs)
+'' {
+''     return Vector3Divide(lhs, rhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3000 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline const Vector3& operator /= (Vector3& lhs, const Vector3& rhs)
+'' {
+''     lhs = Vector3Divide(lhs, rhs);
+''     return lhs;
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3006 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline bool operator == (const Vector3& lhs, const Vector3& rhs)
+'' {
+''     return FloatEquals(lhs.x, rhs.x) && FloatEquals(lhs.y, rhs.y) && FloatEquals(lhs.z, rhs.z);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3011 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline bool operator != (const Vector3& lhs, const Vector3& rhs)
+'' {
+''     return !FloatEquals(lhs.x, rhs.x) || !FloatEquals(lhs.y, rhs.y) || !FloatEquals(lhs.z, rhs.z);
+'' }
+
+'' Vector4 operators
+'' C2T-TODO(branch-unparsed) raymath.h:3017 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' static constexpr Vector4 Vector4Zeros = { 0, 0, 0, 0 };
+'' static constexpr Vector4 Vector4Ones = { 1, 1, 1, 1 };
+'' static constexpr Vector4 Vector4UnitX = { 1, 0, 0, 0 };
+'' static constexpr Vector4 Vector4UnitY = { 0, 1, 0, 0 };
+'' static constexpr Vector4 Vector4UnitZ = { 0, 0, 1, 0 };
+'' static constexpr Vector4 Vector4UnitW = { 0, 0, 0, 1 };
+
+'' C2T-TODO(branch-unparsed) raymath.h:3024 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Vector4 operator + (const Vector4& lhs, const Vector4& rhs)
+'' {
+''     return Vector4Add(lhs, rhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3029 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline const Vector4& operator += (Vector4& lhs, const Vector4& rhs)
+'' {
+''     lhs = Vector4Add(lhs, rhs);
+''     return lhs;
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3035 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Vector4 operator - (const Vector4& lhs, const Vector4& rhs)
+'' {
+''     return Vector4Subtract(lhs, rhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3040 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline const Vector4& operator -= (Vector4& lhs, const Vector4& rhs)
+'' {
+''     lhs = Vector4Subtract(lhs, rhs);
+''     return lhs;
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3046 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Vector4 operator * (const float& lhs, const Vector4& rhs)
+'' {
+''     return Vector4Scale(rhs, lhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3051 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Vector4 operator * (const Vector4& lhs, const float& rhs)
+'' {
+''     return Vector4Scale(lhs, rhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3056 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline const Vector4& operator *= (Vector4& lhs, const float& rhs)
+'' {
+''     lhs = Vector4Scale(lhs, rhs);
+''     return lhs;
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3062 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Vector4 operator * (const Vector4& lhs, const Vector4& rhs)
+'' {
+''     return Vector4Multiply(lhs, rhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3067 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline const Vector4& operator *= (Vector4& lhs, const Vector4& rhs)
+'' {
+''     lhs = Vector4Multiply(lhs, rhs);
+''     return lhs;
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3073 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Vector4 operator / (const Vector4& lhs, const float& rhs)
+'' {
+''     return Vector4Scale(lhs, 1.0f/rhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3078 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline const Vector4& operator /= (Vector4& lhs, const float& rhs)
+'' {
+''     lhs = Vector4Scale(lhs, 1.0f/rhs);
+''     return lhs;
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3084 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Vector4 operator / (const Vector4& lhs, const Vector4& rhs)
+'' {
+''     return Vector4Divide(lhs, rhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3089 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline const Vector4& operator /= (Vector4& lhs, const Vector4& rhs)
+'' {
+''     lhs = Vector4Divide(lhs, rhs);
+''     return lhs;
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3095 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline bool operator == (const Vector4& lhs, const Vector4& rhs)
+'' {
+''     return FloatEquals(lhs.x, rhs.x) && FloatEquals(lhs.y, rhs.y) && FloatEquals(lhs.z, rhs.z) && FloatEquals(lhs.w, rhs.w);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3100 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline bool operator != (const Vector4& lhs, const Vector4& rhs)
+'' {
+''     return !FloatEquals(lhs.x, rhs.x) || !FloatEquals(lhs.y, rhs.y) || !FloatEquals(lhs.z, rhs.z) || !FloatEquals(lhs.w, rhs.w);
+'' }
+
+'' Quaternion operators
+'' C2T-TODO(branch-unparsed) raymath.h:3106 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' static constexpr Quaternion QuaternionZeros = { 0, 0, 0, 0 };
+'' static constexpr Quaternion QuaternionOnes = { 1, 1, 1, 1 };
+'' static constexpr Quaternion QuaternionUnitX = { 0, 0, 0, 1 };
+
+'' C2T-TODO(branch-unparsed) raymath.h:3110 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Quaternion operator + (const Quaternion& lhs, const float& rhs)
+'' {
+''     return QuaternionAddValue(lhs, rhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3115 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline const Quaternion& operator += (Quaternion& lhs, const float& rhs)
+'' {
+''     lhs = QuaternionAddValue(lhs, rhs);
+''     return lhs;
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3121 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Quaternion operator - (const Quaternion& lhs, const float& rhs)
+'' {
+''     return QuaternionSubtractValue(lhs, rhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3126 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline const Quaternion& operator -= (Quaternion& lhs, const float& rhs)
+'' {
+''     lhs = QuaternionSubtractValue(lhs, rhs);
+''     return lhs;
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3132 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Quaternion operator * (const Quaternion& lhs, const Matrix& rhs)
+'' {
+''     return QuaternionTransform(lhs, rhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3137 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline const Quaternion& operator *= (Quaternion& lhs, const Matrix& rhs)
+'' {
+''     lhs = QuaternionTransform(lhs, rhs);
+''     return lhs;
+'' }
+
+'' Matrix operators
+'' C2T-TODO(branch-unparsed) raymath.h:3144 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' static constexpr Matrix MatrixUnit = { 1, 0, 0, 0,
+''                                        0, 1, 0, 0,
+''                                        0, 0, 1, 0,
+''                                        0, 0, 0, 1 };
+
+'' C2T-TODO(branch-unparsed) raymath.h:3149 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Matrix operator + (const Matrix& lhs, const Matrix& rhs)
+'' {
+''     return MatrixAdd(lhs, rhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3154 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline const Matrix& operator += (Matrix& lhs, const Matrix& rhs)
+'' {
+''     lhs = MatrixAdd(lhs, rhs);
+''     return lhs;
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3160 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Matrix operator - (const Matrix& lhs, const Matrix& rhs)
+'' {
+''     return MatrixSubtract(lhs, rhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3165 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline const Matrix& operator -= (Matrix& lhs, const Matrix& rhs)
+'' {
+''     lhs = MatrixSubtract(lhs, rhs);
+''     return lhs;
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3171 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Matrix operator * (const Matrix& lhs, const Matrix& rhs)
+'' {
+''     return MatrixMultiply(lhs, rhs);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3176 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline const Matrix& operator *= (Matrix& lhs, const Matrix& rhs)
+'' {
+''     lhs = MatrixMultiply(lhs, rhs);
+''     return lhs;
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3182 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline Matrix operator * (const Matrix& lhs, const float value)
+'' {
+''     return MatrixMultiplyValue(lhs, value);
+'' }
+
+'' C2T-TODO(branch-unparsed) raymath.h:3187 -- clang cannot parse the branch: unknown type name 'constexpr'
+'' inline const Matrix& operator *= (Matrix& lhs, const float value)
+'' {
+''     lhs = MatrixMultiplyValue(lhs, value);
+''     return lhs;
+'' }
+
+''-------------------------------------------------------------------------------
+#endif '' C++ operators
+
+end extern

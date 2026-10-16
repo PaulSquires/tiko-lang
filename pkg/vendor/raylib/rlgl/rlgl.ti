@@ -1,0 +1,2649 @@
+'' =============================================================================
+'' rlgl.ti -- tiko header translated by c2t (tiko 0.1.0-dev) from the C header "rlgl.h"
+''   source sha256 : d708ce2511b42e4f46f745ff8bdb97fab8e8452abae7c34a3224c7ec7d90366a
+''   clang         : clang version 21.1.0
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu
+''   options       : --sysroot //wsl.localhost/Ubuntu --verify
+''
+'' Generated from C. Search for C2T-TODO and translate those parts by hand.
+''
+'' Renamed:
+''   parameter  rlFrustum.left -> rlFrustum.left_   (tiko reserved word)
+''   parameter  rlFrustum.right -> rlFrustum.right_   (tiko reserved word)
+''   parameter  rlOrtho.left -> rlOrtho.left_   (tiko reserved word)
+''   parameter  rlOrtho.right -> rlOrtho.right_   (tiko reserved word)
+''   parameter  rlViewport.width -> rlViewport.width_   (tiko reserved word)
+''   parameter  rlScissor.width -> rlScissor.width_   (tiko reserved word)
+''   parameter  rlSetLineWidth.width -> rlSetLineWidth.width_   (tiko reserved word)
+''   parameter  rlglInit.width -> rlglInit.width_   (tiko reserved word)
+''   parameter  rlSetFramebufferWidth.width -> rlSetFramebufferWidth.width_   (tiko reserved word)
+''   parameter  rlLoadVertexBuffer.dynamic -> rlLoadVertexBuffer.dynamic_   (tiko reserved word)
+''   parameter  rlLoadVertexBufferElement.dynamic -> rlLoadVertexBufferElement.dynamic_   (tiko reserved word)
+''   parameter  rlUpdateVertexBuffer.data -> rlUpdateVertexBuffer.data_   (tiko reserved word)
+''   parameter  rlUpdateVertexBufferElements.data -> rlUpdateVertexBufferElements.data_   (tiko reserved word)
+''   parameter  rlSetVertexAttribute.type -> rlSetVertexAttribute.type_   (tiko reserved word)
+''   parameter  rlLoadTexture.data -> rlLoadTexture.data_   (tiko reserved word)
+''   parameter  rlLoadTexture.width -> rlLoadTexture.width_   (tiko reserved word)
+''   parameter  rlLoadTextureDepth.width -> rlLoadTextureDepth.width_   (tiko reserved word)
+''   parameter  rlLoadTextureCubemap.data -> rlLoadTextureCubemap.data_   (tiko reserved word)
+''   parameter  rlUpdateTexture.width -> rlUpdateTexture.width_   (tiko reserved word)
+''   parameter  rlUpdateTexture.data -> rlUpdateTexture.data_   (tiko reserved word)
+''   parameter  rlGenTextureMipmaps.width -> rlGenTextureMipmaps.width_   (tiko reserved word)
+''   parameter  rlReadTexturePixels.width -> rlReadTexturePixels.width_   (tiko reserved word)
+''   parameter  rlReadScreenPixels.width -> rlReadScreenPixels.width_   (tiko reserved word)
+''   parameter  rlCopyFramebuffer.width -> rlCopyFramebuffer.width_   (tiko reserved word)
+''   parameter  rlResizeFramebuffer.width -> rlResizeFramebuffer.width_   (tiko reserved word)
+''   parameter  rlLoadShader.type -> rlLoadShader.type_   (tiko reserved word)
+''   parameter  rlLoadShaderBuffer.data -> rlLoadShaderBuffer.data_   (tiko reserved word)
+''   parameter  rlUpdateShaderBuffer.data -> rlUpdateShaderBuffer.data_   (tiko reserved word)
+''   parameter  rlSetMatrixModelview.view -> rlSetMatrixModelview.view_   (tiko reserved word)
+''   parameter  rlSetMatrixProjectionStereo.right -> rlSetMatrixProjectionStereo.right_   (tiko reserved word)
+''   parameter  rlSetMatrixProjectionStereo.left -> rlSetMatrixProjectionStereo.left_   (tiko reserved word)
+''   parameter  rlSetMatrixViewOffsetStereo.right -> rlSetMatrixViewOffsetStereo.right_   (tiko reserved word)
+''   parameter  rlSetMatrixViewOffsetStereo.left -> rlSetMatrixViewOffsetStereo.left_   (tiko reserved word)
+''   constant   GRAPHICS_API_OPENGL_33 -> GRAPHICS_API_OPENGL_33_2   (case-insensitive collision)
+''   constant   RL_DEFAULT_BATCH_BUFFER_ELEMENTS -> RL_DEFAULT_BATCH_BUFFER_ELEMENTS_2   (case-insensitive collision)
+''   constant   false -> false_   (tiko reserved word)
+''   constant   true -> true_   (tiko reserved word)
+''
+'' 61 items need manual translation:
+''   line 237  rlgl.h:133  C2T-TODO(function-like-macro)  TRACELOG
+''   line 243  rlgl.h:138  C2T-TODO(function-like-macro)  RL_MALLOC
+''   line 247  rlgl.h:141  C2T-TODO(function-like-macro)  RL_CALLOC
+''   line 251  rlgl.h:144  C2T-TODO(function-like-macro)  RL_REALLOC
+''   line 255  rlgl.h:147  C2T-TODO(function-like-macro)  RL_FREE
+''   line 298  rlgl.h:195  C2T-TODO(branch-unparsed)  GRAPHICS_API_OPENGL_ES2
+''   line 1160  rlgl.h:847  C2T-TODO(function-like-macro)  SW_CALLOC
+''   line 1162  rlgl.h:848  C2T-TODO(function-like-macro)  SW_REALLOC
+''   line 1168  rlgl.h:853  C2T-TODO(system-header)  <OpenGL/gl.h>
+''   line 1170  rlgl.h:854  C2T-TODO(system-header)  <OpenGL/glext.h>
+''   line 1176  rlgl.h:859  C2T-TODO(macro)  APIENTRY
+''   line 1184  rlgl.h:866  C2T-TODO(macro)  WINGDIAPI
+''   line 1188  rlgl.h:869  C2T-TODO(system-header)  <GL/gl.h>
+''   line 1203  rlgl.h:883  C2T-TODO(system-header)  <GLES3/gl3.h>
+''   line 1206  rlgl.h:885  C2T-TODO(system-header)  <GLES2/gl2ext.h>
+''   line 1218  rlgl.h:896  C2T-TODO(system-header)  <GLES2/gl2.h>
+''   line 1220  rlgl.h:897  C2T-TODO(system-header)  <GLES2/gl2ext.h>
+''   line 1228  rlgl.h:904  C2T-TODO(refused-type)  PFNGLDRAWARRAYSINSTANCEDEXTPROC
+''   line 1230  rlgl.h:905  C2T-TODO(refused-type)  PFNGLDRAWELEMENTSINSTANCEDEXTPROC
+''   line 1232  rlgl.h:906  C2T-TODO(refused-type)  PFNGLVERTEXATTRIBDIVISOREXTPROC
+''   line 1319  rlgl.h:993  C2T-TODO(macro)  glClearDepth
+''   line 1322  rlgl.h:995  C2T-TODO(macro)  GL_READ_FRAMEBUFFER
+''   line 1324  rlgl.h:996  C2T-TODO(macro)  GL_DRAW_FRAMEBUFFER
+''   line 1326  rlgl.h:997  C2T-TODO(macro)  GL_DRAW_FRAMEBUFFER_BINDING
+''   line 1451  rlgl.h:1113  C2T-TODO(refused-type)  isGpuReady
+''   line 1453  rlgl.h:1114  C2T-TODO(refused-type)  rlCullDistanceNear
+''   line 1455  rlgl.h:1115  C2T-TODO(refused-type)  rlCullDistanceFar
+''   line 1459  rlgl.h:1118  C2T-TODO(refused-type)  RLGL
+''   line 1466  rlgl.h:1124  C2T-TODO(branch-unparsed)
+''   line 1473  rlgl.h:1130  C2T-TODO(branch-unparsed)
+''   line 1483  rlgl.h:1139  C2T-TODO(static-inline)  rlLoadShaderDefault
+''   line 1485  rlgl.h:1140  C2T-TODO(static-inline)  rlUnloadShaderDefault
+''   line 1488  rlgl.h:1142  C2T-TODO(static-inline)  rlGetCompressedFormatName
+''   line 1493  rlgl.h:1146  C2T-TODO(static-inline)  rlGetPixelDataSize
+''   line 1496  rlgl.h:1148  C2T-TODO(static-inline)  rlMatrixIdentity
+''   line 1503  rlgl.h:1152  C2T-TODO(static-inline)  rlMatrixToFloatV
+''   line 1505  rlgl.h:1153  C2T-TODO(function-like-macro)  rlMatrixToFloat
+''   line 1507  rlgl.h:1154  C2T-TODO(static-inline)  rlMatrixMultiply
+''   line 1509  rlgl.h:1155  C2T-TODO(static-inline)  rlMatrixTranspose
+''   line 1511  rlgl.h:1156  C2T-TODO(static-inline)  rlMatrixInvert
+''   line 1522  rlgl.h:1166  C2T-TODO(branch-unparsed)
+''   line 1534  rlgl.h:1177  C2T-TODO(branch-unparsed)
+''   line 1540  rlgl.h:1182  C2T-TODO(branch-unparsed)
+''   line 1546  rlgl.h:1187  C2T-TODO(branch-unparsed)
+''   line 1606  rlgl.h:1429  C2T-TODO(branch-unparsed)
+''   line 1618  rlgl.h:1440  C2T-TODO(branch-unparsed)
+''   line 1822  rlgl.h:2197  C2T-TODO(branch-unparsed)
+''   line 1833  rlgl.h:2207  C2T-TODO(branch-unparsed)
+''   line 1836  rlgl.h:2209  C2T-TODO(branch-unparsed)
+''   line 1849  rlgl.h:2221  C2T-TODO(branch-unparsed)
+''   line 1865  rlgl.h:2236  C2T-TODO(branch-unparsed)
+''   line 1876  rlgl.h:2246  C2T-TODO(branch-unparsed)
+''   line 2197  rlgl.h:4989  C2T-TODO(conditional)  rlLoadShaderDefault
+''   line 2337  rlgl.h:5128  C2T-TODO(static-inline)  rlUnloadShaderDefault
+''   line 2356  rlgl.h:5146  C2T-TODO(static-inline)  rlGetCompressedFormatName
+''   line 2435  rlgl.h:5224  C2T-TODO(static-inline)  rlGetPixelDataSize
+''   line 2508  rlgl.h:5296  C2T-TODO(static-inline)  rlMatrixIdentity
+''   line 2522  rlgl.h:5309  C2T-TODO(static-inline)  rlMatrixToFloatV
+''   line 2549  rlgl.h:5335  C2T-TODO(static-inline)  rlMatrixMultiply
+''   line 2575  rlgl.h:5360  C2T-TODO(static-inline)  rlMatrixTranspose
+''   line 2601  rlgl.h:5385  C2T-TODO(static-inline)  rlMatrixInvert
+'' =============================================================================
+
+/'*********************************************************************************************
+*
+*   rlgl v6.0 - A multi-OpenGL abstraction layer with an immediate-mode style API
+*
+*   DESCRIPTION:
+*       An abstraction layer for multiple OpenGL versions (1.1, 2.1, 3.3 Core, 4.3 Core, ES 2.0, ES 3.0)
+*       that provides a pseudo-OpenGL 1.1 immediate-mode style API (rlVertex, rlTranslate, rlRotate...)
+*
+*   ADDITIONAL NOTES:
+*       When choosing an OpenGL backend different than OpenGL 1.1, some internal buffers are
+*       initialized on rlglInit() to accumulate vertex data
+*
+*       When an internal state change is required all the stored vertex data is rendered in a batch,
+*       additionally, rlDrawRenderBatchActive() could be called to force flushing of the batch
+*
+*       Some resources are also loaded for convenience, here the complete list:
+*          - Default batch (RLGL.defaultBatch): RenderBatch system to accumulate vertex data
+*          - Default texture (RLGL.defaultTextureId): 1x1 white pixel R8G8B8A8
+*          - Default shader (RLGL.State.defaultShaderId, RLGL.State.defaultShaderLocs)
+*
+*       Internal buffer (and resources) must be manually unloaded calling rlglClose()
+*
+*   CONFIGURATION:
+*       #define GRAPHICS_API_OPENGL_SOFTWARE
+*       #define GRAPHICS_API_OPENGL_11
+*       #define GRAPHICS_API_OPENGL_21
+*       #define GRAPHICS_API_OPENGL_33
+*       #define GRAPHICS_API_OPENGL_43
+*       #define GRAPHICS_API_OPENGL_ES2
+*       #define GRAPHICS_API_OPENGL_ES3
+*           Use selected OpenGL graphics backend, should be supported by platform
+*           Those preprocessor defines are only used on the rlgl module, if OpenGL version is
+*           required by any other module, use rlGetVersion() to check it
+*
+*       #define RLGL_IMPLEMENTATION
+*           Generates the implementation of the library into the included file
+*           If not defined, the library is in header only mode and can be included in other headers
+*           or source files without problems. But only ONE file should hold the implementation
+*
+*       #if RLGL_SHOW_GL_DETAILS_INFO
+*           Show OpenGL extensions and capabilities detailed logs on init
+*
+*       #if RLGL_ENABLE_OPENGL_DEBUG_CONTEXT
+*           Enable debug context (only available on OpenGL 4.3)
+*
+*       rlgl capabilities could be customized defining some internal
+*       values before library inclusion (default values listed):
+*
+*       #define RL_DEFAULT_BATCH_BUFFER_ELEMENTS   8192    // Default internal render batch elements limits
+*       #define RL_DEFAULT_BATCH_BUFFERS              1    // Default number of batch buffers (multi-buffering)
+*       #define RL_DEFAULT_BATCH_DRAWCALLS          256    // Default number of batch draw calls (by state changes: mode, texture)
+*       #define RL_DEFAULT_BATCH_MAX_TEXTURE_UNITS    4    // Maximum number of texture units that can be activated on batch drawing (SetShaderValueTexture())
+*
+*       #define RL_MAX_MATRIX_STACK_SIZE             32    // Maximum size of internal Matrix stack
+*       #define RL_MAX_SHADER_LOCATIONS              32    // Maximum number of shader locations supported
+*       #define RL_CULL_DISTANCE_NEAR              0.05    // Default projection matrix near cull distance
+*       #define RL_CULL_DISTANCE_FAR             4000.0    // Default projection matrix far cull distance
+*
+*       When loading a shader, the following vertex attributes and uniform location names are tried to be set automatically:
+*       WARNING: Pre-defined names can not be changed, they are used by default shaders and all raylib examples shaders, they are just listed here for reference
+*
+*       #define RL_DEFAULT_SHADER_ATTRIB_NAME_POSITION     "vertexPosition"    // Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION
+*       #define RL_DEFAULT_SHADER_ATTRIB_NAME_TEXCOORD     "vertexTexCoord"    // Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD
+*       #define RL_DEFAULT_SHADER_ATTRIB_NAME_NORMAL       "vertexNormal"      // Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_LOCATION_NORMAL
+*       #define RL_DEFAULT_SHADER_ATTRIB_NAME_COLOR        "vertexColor"       // Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_LOCATION_COLOR
+*       #define RL_DEFAULT_SHADER_ATTRIB_NAME_TANGENT      "vertexTangent"     // Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_LOCATION_TANGENT
+*       #define RL_DEFAULT_SHADER_ATTRIB_NAME_TEXCOORD2    "vertexTexCoord2"   // Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD2
+*       #define RL_DEFAULT_SHADER_ATTRIB_NAME_BONEINDICES  "vertexBoneIndices" // Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_LOCATION_BONEINDICES
+*       #define RL_DEFAULT_SHADER_ATTRIB_NAME_BONEWEIGHTS  "vertexBoneWeights" // Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_LOCATION_BONEWEIGHTS
+*       #define RL_DEFAULT_SHADER_ATTRIB_NAME_INSTANCETRANSFORM "instanceTransform" // Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_LOCATION_INSTANCETRANSFORM
+*
+*       #define RL_DEFAULT_SHADER_UNIFORM_NAME_MVP         "mvp"               // model-view-projection matrix
+*       #define RL_DEFAULT_SHADER_UNIFORM_NAME_VIEW        "matView"           // view matrix
+*       #define RL_DEFAULT_SHADER_UNIFORM_NAME_PROJECTION  "matProjection"     // projection matrix
+*       #define RL_DEFAULT_SHADER_UNIFORM_NAME_MODEL       "matModel"          // model matrix
+*       #define RL_DEFAULT_SHADER_UNIFORM_NAME_NORMAL      "matNormal"         // normal matrix (transpose(inverse(matModelView)))
+*       #define RL_DEFAULT_SHADER_UNIFORM_NAME_COLOR       "colDiffuse"        // color diffuse (base tint color, multiplied by texture color)
+*       #define RL_DEFAULT_SHADER_UNIFORM_NAME_BONEMATRICES "boneMatrices"     // bone matrices
+*
+*       #define RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE0  "texture0"          // texture0 (texture slot active 0)
+*       #define RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE1  "texture1"          // texture1 (texture slot active 1)
+*       #define RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE2  "texture2"          // texture2 (texture slot active 2)
+*
+*   DEPENDENCIES:
+*      - OpenGL libraries (depending on platform and OpenGL version selected)
+*      - GLAD OpenGL extensions loading library (only for OpenGL 3.3 Core, 4.3 Core)
+*
+*
+*   LICENSE: zlib/libpng
+*
+*   Copyright (c) 2014-2026 Ramon Santamaria (@raysan5)
+*
+*   This software is provided "as-is", without any express or implied warranty. In no event
+*   will the authors be held liable for any damages arising from the use of this software.
+*
+*   Permission is granted to anyone to use this software for any purpose, including commercial
+*   applications, and to alter it and redistribute it freely, subject to the following restrictions:
+*
+*     1. The origin of this software must not be misrepresented; you must not claim that you
+*     wrote the original software. If you use this software in a product, an acknowledgment
+*     in the product documentation would be appreciated but is not required.
+*
+*     2. Altered source versions must be plainly marked as such, and must not be misrepresented
+*     as being the original software.
+*
+*     3. This notice may not be removed or altered from any source distribution.
+*
+*********************************************************************************************'/
+
+#ifndef RLGL_H
+#define RLGL_H
+
+#define RLGL_VERSION "6.0"
+
+'' Function specifiers in case library is build/used as a shared library
+'' NOTE: Microsoft specifiers to tell compiler that symbols are imported/exported from a .dll
+'' NOTE: visibility(default) attribute makes symbols "visible" when compiled with -fvisibility=hidden
+'' c2t: export macro RLAPI (decoration, stripped where used)
+
+'' Function specifiers definition
+'' c2t: export macro RLAPI (decoration, stripped where used)
+
+'' Support TRACELOG macros
+#ifndef TRACELOG
+    '' C2T-TODO(function-like-macro) rlgl.h:133 -- variadic: tiko has no __VA_ARGS__
+''     #define TRACELOG(level, ...) (void)0
+#endif
+
+'' Allow custom memory allocators
+#ifndef RL_MALLOC
+    '' C2T-TODO(function-like-macro) rlgl.h:138 -- 'malloc()' is nothing tiko declares
+''     #define RL_MALLOC(sz)     malloc(sz)
+#endif
+#ifndef RL_CALLOC
+    '' C2T-TODO(function-like-macro) rlgl.h:141 -- an assignment or a comma expression
+''     #define RL_CALLOC(n,sz)   calloc(n,sz)
+#endif
+#ifndef RL_REALLOC
+    '' C2T-TODO(function-like-macro) rlgl.h:144 -- an assignment or a comma expression
+''     #define RL_REALLOC(n,sz)  realloc(n,sz)
+#endif
+#ifndef RL_FREE
+    '' C2T-TODO(function-like-macro) rlgl.h:147 -- 'free()' is nothing tiko declares
+''     #define RL_FREE(p)        free(p)
+#endif
+
+'' Security check in case no GRAPHICS_API_OPENGL_* defined
+#if ((((((((defined(GRAPHICS_API_OPENGL_SOFTWARE)) = 0) andalso ((defined(GRAPHICS_API_OPENGL_11)) = 0)) andalso ((defined(GRAPHICS_API_OPENGL_21)) = 0)) andalso ((defined(GRAPHICS_API_OPENGL_33)) = 0)) andalso ((defined(GRAPHICS_API_OPENGL_43)) = 0)) andalso ((defined(GRAPHICS_API_OPENGL_ES2)) = 0)) andalso ((defined(GRAPHICS_API_OPENGL_ES3)) = 0))
+        #define GRAPHICS_API_OPENGL_33
+#endif
+
+'' Security check in case multiple GRAPHICS_API_OPENGL_* defined
+#if (defined(GRAPHICS_API_OPENGL_11) orelse defined(GRAPHICS_API_OPENGL_SOFTWARE))
+    #if defined(GRAPHICS_API_OPENGL_21)
+        #undef GRAPHICS_API_OPENGL_21
+    #endif
+    #if defined(GRAPHICS_API_OPENGL_33)
+        #undef GRAPHICS_API_OPENGL_33
+    #endif
+    #if defined(GRAPHICS_API_OPENGL_43)
+        #undef GRAPHICS_API_OPENGL_43
+    #endif
+    #if defined(GRAPHICS_API_OPENGL_ES2)
+        #undef GRAPHICS_API_OPENGL_ES2
+    #endif
+#endif
+
+'' Software implementation uses OpenGL 1.1 functionality
+#if defined(GRAPHICS_API_OPENGL_SOFTWARE)
+    #define GRAPHICS_API_OPENGL_11
+#endif
+
+'' OpenGL 2.1 uses most of OpenGL 3.3 Core functionality
+'' WARNING: Specific parts are checked with #if defines
+#if defined(GRAPHICS_API_OPENGL_21)
+    #define GRAPHICS_API_OPENGL_33_2
+#endif
+
+'' OpenGL 4.3 uses OpenGL 3.3 Core functionality
+#if defined(GRAPHICS_API_OPENGL_43)
+    #define GRAPHICS_API_OPENGL_33_2
+#endif
+
+'' OpenGL ES 3.0 uses OpenGL ES 2.0 functionality (and more)
+#if defined(GRAPHICS_API_OPENGL_ES3)
+    '' C2T-TODO(branch-unparsed) rlgl.h:195 -- clang cannot parse the branch: duplicate member 'indices'
+''     #define GRAPHICS_API_OPENGL_ES2
+#endif
+
+''----------------------------------------------------------------------------------
+'' Defines and Macros
+''----------------------------------------------------------------------------------
+
+'' Default internal render batch elements limits
+#ifndef RL_DEFAULT_BATCH_BUFFER_ELEMENTS
+    #if (defined(GRAPHICS_API_OPENGL_11) orelse defined(GRAPHICS_API_OPENGL_33))
+        '' This is the maximum amount of elements (quads) per batch
+        '' NOTE: Be careful with text, every letter maps to a quad
+        #define RL_DEFAULT_BATCH_BUFFER_ELEMENTS 8192
+    #endif
+    #if defined(GRAPHICS_API_OPENGL_ES2)
+        '' Reducing memory sizes for embedded systems (RPI and HTML5)
+        '' NOTE: On HTML5 (emscripten) this is allocated on heap,
+        '' by default heap is only 16MB!...just take care...
+        #define RL_DEFAULT_BATCH_BUFFER_ELEMENTS_2 2048
+    #endif
+#endif
+#ifndef RL_DEFAULT_BATCH_BUFFERS
+    #define RL_DEFAULT_BATCH_BUFFERS 1                      '' Default number of batch buffers (multi-buffering)
+#endif
+#ifndef RL_DEFAULT_BATCH_DRAWCALLS
+    #define RL_DEFAULT_BATCH_DRAWCALLS 256                  '' Default number of batch draw calls (by state changes: mode, texture)
+#endif
+#ifndef RL_DEFAULT_BATCH_MAX_TEXTURE_UNITS
+    #define RL_DEFAULT_BATCH_MAX_TEXTURE_UNITS 4            '' Maximum number of textures units that can be activated on batch drawing (SetShaderValueTexture())
+#endif
+
+'' Internal Matrix stack
+#ifndef RL_MAX_MATRIX_STACK_SIZE
+    #define RL_MAX_MATRIX_STACK_SIZE 32                     '' Maximum size of Matrix stack
+#endif
+
+'' Shader limits
+#ifndef RL_MAX_SHADER_LOCATIONS
+    #define RL_MAX_SHADER_LOCATIONS 32                      '' Maximum number of shader locations supported
+#endif
+
+'' Projection matrix culling
+#ifndef RL_CULL_DISTANCE_NEAR
+    #define RL_CULL_DISTANCE_NEAR 0.05                      '' Default near cull distance
+#endif
+#ifndef RL_CULL_DISTANCE_FAR
+    #define RL_CULL_DISTANCE_FAR 4000.0                     '' Default far cull distance
+#endif
+
+'' Texture parameters (equivalent to OpenGL defines)
+#define RL_TEXTURE_WRAP_S &h2802                            '' GL_TEXTURE_WRAP_S
+#define RL_TEXTURE_WRAP_T &h2803                            '' GL_TEXTURE_WRAP_T
+#define RL_TEXTURE_MAG_FILTER &h2800                        '' GL_TEXTURE_MAG_FILTER
+#define RL_TEXTURE_MIN_FILTER &h2801                        '' GL_TEXTURE_MIN_FILTER
+
+#define RL_TEXTURE_FILTER_NEAREST &h2600                    '' GL_NEAREST
+#define RL_TEXTURE_FILTER_LINEAR &h2601                     '' GL_LINEAR
+#define RL_TEXTURE_FILTER_MIP_NEAREST &h2700                '' GL_NEAREST_MIPMAP_NEAREST
+#define RL_TEXTURE_FILTER_NEAREST_MIP_LINEAR &h2702         '' GL_NEAREST_MIPMAP_LINEAR
+#define RL_TEXTURE_FILTER_LINEAR_MIP_NEAREST &h2701         '' GL_LINEAR_MIPMAP_NEAREST
+#define RL_TEXTURE_FILTER_MIP_LINEAR &h2703                 '' GL_LINEAR_MIPMAP_LINEAR
+#define RL_TEXTURE_FILTER_ANISOTROPIC &h3000                '' Anisotropic filter (custom identifier)
+#define RL_TEXTURE_MIPMAP_BIAS_RATIO &h4000                 '' Texture mipmap bias, percentage ratio (custom identifier)
+
+#define RL_TEXTURE_WRAP_REPEAT &h2901                       '' GL_REPEAT
+#define RL_TEXTURE_WRAP_CLAMP &h812F                        '' GL_CLAMP_TO_EDGE
+#define RL_TEXTURE_WRAP_MIRROR_REPEAT &h8370                '' GL_MIRRORED_REPEAT
+#define RL_TEXTURE_WRAP_MIRROR_CLAMP &h8742                 '' GL_MIRROR_CLAMP_EXT
+
+'' Matrix modes (equivalent to OpenGL)
+#define RL_MODELVIEW &h1700                                 '' GL_MODELVIEW
+#define RL_PROJECTION &h1701                                '' GL_PROJECTION
+#define RL_TEXTURE &h1702                                   '' GL_TEXTURE
+
+'' Primitive assembly draw modes
+#define RL_LINES &h0001                                     '' GL_LINES
+#define RL_TRIANGLES &h0004                                 '' GL_TRIANGLES
+#define RL_QUADS &h0007                                     '' GL_QUADS
+
+'' GL equivalent data types
+#define RL_UNSIGNED_BYTE &h1401                             '' GL_UNSIGNED_BYTE
+#define RL_FLOAT &h1406                                     '' GL_FLOAT
+
+'' GL buffer usage hint
+#define RL_STREAM_DRAW &h88E0                               '' GL_STREAM_DRAW
+#define RL_STREAM_READ &h88E1                               '' GL_STREAM_READ
+#define RL_STREAM_COPY &h88E2                               '' GL_STREAM_COPY
+#define RL_STATIC_DRAW &h88E4                               '' GL_STATIC_DRAW
+#define RL_STATIC_READ &h88E5                               '' GL_STATIC_READ
+#define RL_STATIC_COPY &h88E6                               '' GL_STATIC_COPY
+#define RL_DYNAMIC_DRAW &h88E8                              '' GL_DYNAMIC_DRAW
+#define RL_DYNAMIC_READ &h88E9                              '' GL_DYNAMIC_READ
+#define RL_DYNAMIC_COPY &h88EA                              '' GL_DYNAMIC_COPY
+
+'' GL Shader type
+#define RL_FRAGMENT_SHADER &h8B30                           '' GL_FRAGMENT_SHADER
+#define RL_VERTEX_SHADER &h8B31                             '' GL_VERTEX_SHADER
+#define RL_COMPUTE_SHADER &h91B9                            '' GL_COMPUTE_SHADER
+
+'' GL blending factors
+#define RL_ZERO 0                                           '' GL_ZERO
+#define RL_ONE 1                                            '' GL_ONE
+#define RL_SRC_COLOR &h0300                                 '' GL_SRC_COLOR
+#define RL_ONE_MINUS_SRC_COLOR &h0301                       '' GL_ONE_MINUS_SRC_COLOR
+#define RL_SRC_ALPHA &h0302                                 '' GL_SRC_ALPHA
+#define RL_ONE_MINUS_SRC_ALPHA &h0303                       '' GL_ONE_MINUS_SRC_ALPHA
+#define RL_DST_ALPHA &h0304                                 '' GL_DST_ALPHA
+#define RL_ONE_MINUS_DST_ALPHA &h0305                       '' GL_ONE_MINUS_DST_ALPHA
+#define RL_DST_COLOR &h0306                                 '' GL_DST_COLOR
+#define RL_ONE_MINUS_DST_COLOR &h0307                       '' GL_ONE_MINUS_DST_COLOR
+#define RL_SRC_ALPHA_SATURATE &h0308                        '' GL_SRC_ALPHA_SATURATE
+#define RL_CONSTANT_COLOR &h8001                            '' GL_CONSTANT_COLOR
+#define RL_ONE_MINUS_CONSTANT_COLOR &h8002                  '' GL_ONE_MINUS_CONSTANT_COLOR
+#define RL_CONSTANT_ALPHA &h8003                            '' GL_CONSTANT_ALPHA
+#define RL_ONE_MINUS_CONSTANT_ALPHA &h8004                  '' GL_ONE_MINUS_CONSTANT_ALPHA
+
+'' GL blending functions/equations
+#define RL_FUNC_ADD &h8006                                  '' GL_FUNC_ADD
+#define RL_MIN &h8007                                       '' GL_MIN
+#define RL_MAX &h8008                                       '' GL_MAX
+#define RL_FUNC_SUBTRACT &h800A                             '' GL_FUNC_SUBTRACT
+#define RL_FUNC_REVERSE_SUBTRACT &h800B                     '' GL_FUNC_REVERSE_SUBTRACT
+#define RL_BLEND_EQUATION &h8009                            '' GL_BLEND_EQUATION
+#define RL_BLEND_EQUATION_RGB &h8009                        '' GL_BLEND_EQUATION_RGB   // (Same as BLEND_EQUATION)
+#define RL_BLEND_EQUATION_ALPHA &h883D                      '' GL_BLEND_EQUATION_ALPHA
+#define RL_BLEND_DST_RGB &h80C8                             '' GL_BLEND_DST_RGB
+#define RL_BLEND_SRC_RGB &h80C9                             '' GL_BLEND_SRC_RGB
+#define RL_BLEND_DST_ALPHA &h80CA                           '' GL_BLEND_DST_ALPHA
+#define RL_BLEND_SRC_ALPHA &h80CB                           '' GL_BLEND_SRC_ALPHA
+#define RL_BLEND_COLOR &h8005                               '' GL_BLEND_COLOR
+
+#define RL_READ_FRAMEBUFFER &h8CA8                          '' GL_READ_FRAMEBUFFER
+#define RL_DRAW_FRAMEBUFFER &h8CA9                          '' GL_DRAW_FRAMEBUFFER
+
+'' Default shader vertex attribute locations
+'' NOTE: Locations can be redefined by user if required
+#ifndef RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION
+    #define RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION 0
+#endif
+#ifndef RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD
+    #define RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD 1
+#endif
+#ifndef RL_DEFAULT_SHADER_ATTRIB_LOCATION_NORMAL
+    #define RL_DEFAULT_SHADER_ATTRIB_LOCATION_NORMAL 2
+#endif
+#ifndef RL_DEFAULT_SHADER_ATTRIB_LOCATION_COLOR
+    #define RL_DEFAULT_SHADER_ATTRIB_LOCATION_COLOR 3
+#endif
+    #ifndef RL_DEFAULT_SHADER_ATTRIB_LOCATION_TANGENT
+#define RL_DEFAULT_SHADER_ATTRIB_LOCATION_TANGENT 4
+#endif
+#ifndef RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD2
+    #define RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD2 5
+#endif
+#ifndef RL_DEFAULT_SHADER_ATTRIB_LOCATION_INDICES
+    #define RL_DEFAULT_SHADER_ATTRIB_LOCATION_INDICES 6
+#endif
+#ifndef RL_DEFAULT_SHADER_ATTRIB_LOCATION_BONEINDICES
+    #define RL_DEFAULT_SHADER_ATTRIB_LOCATION_BONEINDICES 7
+#endif
+#ifndef RL_DEFAULT_SHADER_ATTRIB_LOCATION_BONEWEIGHTS
+    #define RL_DEFAULT_SHADER_ATTRIB_LOCATION_BONEWEIGHTS 8
+#endif
+#ifndef RL_DEFAULT_SHADER_ATTRIB_LOCATION_INSTANCETRANSFORM
+    #define RL_DEFAULT_SHADER_ATTRIB_LOCATION_INSTANCETRANSFORM 9
+#endif
+
+''----------------------------------------------------------------------------------
+'' Types and Structures Definition
+''----------------------------------------------------------------------------------
+#if ((0) = 0)
+#if ((1 andalso (201112 >= 199901)) orelse (defined(_MSC_VER) andalso (_MSC_VER >= 1800)))
+    '' <stdbool.h>: built into tiko
+#elseif ((defined(bool)) = 0)
+    #if defined(TIKO_OS_WINDOWS)
+    type bool as int32
+    enum
+        false_ = 0
+        true_ = 1
+    end enum
+    #elseif defined(TIKO_OS_LINUX)
+    type bool as uint32
+    enum
+        false_ = 0
+        true_ = 1
+    end enum
+    #endif
+    #define RL_BOOL_TYPE
+#endif
+#endif
+
+#if ((defined(RL_MATRIX_TYPE)) = 0)
+'' Matrix, 4x4 components, column major, OpenGL style, right handed
+type Matrix
+    m0 as float32
+    m4 as float32
+    m8 as float32
+    m12 as float32              '' Matrix first row (4 components)
+    m1 as float32
+    m5 as float32
+    m9 as float32
+    m13 as float32              '' Matrix second row (4 components)
+    m2 as float32
+    m6 as float32
+    m10 as float32
+    m14 as float32              '' Matrix third row (4 components)
+    m3 as float32
+    m7 as float32
+    m11 as float32
+    m15 as float32              '' Matrix fourth row (4 components)
+end type
+#define RL_MATRIX_TYPE
+#endif
+
+'' Dynamic vertex buffers (position + texcoords + colors + indices arrays)
+'' C2T-NOTE(branch) rlgl.h:386 -- an #if inside: the members are the ones this target's preprocessor keeps
+type rlVertexBuffer
+    elementCount as int32       '' Number of elements in the buffer (QUADS)
+
+    vertices as float32 ptr     '' Vertex position (XYZ - 3 components per vertex) (shader-location = 0)
+    texcoords as float32 ptr    '' Vertex texture coordinates (UV - 2 components per vertex) (shader-location = 1)
+    normals as float32 ptr      '' Vertex normal (XYZ - 3 components per vertex) (shader-location = 2)
+    colors as uint8 ptr         '' Vertex colors (RGBA - 4 components per vertex) (shader-location = 3)
+    indices as uint32 ptr       '' Vertex indices (in case vertex data comes indexed) (6 indices per quad)
+    vaoId as uint32             '' OpenGL Vertex Array Object id
+    vboId(0 to 4) as uint32     '' OpenGL Vertex Buffer Objects id (5 types of vertex data)
+end type
+
+'' Draw call type
+'' NOTE: Only texture changes register a new draw, other state-change-related elements are not
+'' used at this moment (vaoId, shaderId, matrices), raylib forces a batch draw call if any
+'' of those state-change happens (this is done in core module)
+type rlDrawCall
+    mode as int32               '' Drawing mode: LINES, TRIANGLES, QUADS
+    vertexCount as int32        '' Number of vertex of the draw
+    vertexAlignment as int32    '' Number of vertex required for index alignment (LINES, TRIANGLES)
+    ''unsigned int vaoId;       // Vertex array id to be used on the draw -> Using RLGL.currentBatch->vertexBuffer.vaoId
+    ''unsigned int shaderId;    // Shader id to be used on the draw -> Using RLGL.currentShaderId
+    textureId as uint32         '' Texture id to be used on the draw -> Use to create new draw call if changes
+
+    ''Matrix projection;        // Projection matrix for this draw -> Using RLGL.projection by default
+    ''Matrix modelview;         // Modelview matrix for this draw -> Using RLGL.modelview by default
+end type
+
+'' rlRenderBatch type
+type rlRenderBatch
+    bufferCount as int32        '' Number of vertex buffers (multi-buffering support)
+    currentBuffer as int32      '' Current buffer tracking in case of multi-buffering
+    vertexBuffer as rlVertexBuffer ptr '' Dynamic buffer(s) for vertex data
+
+    draws as rlDrawCall ptr     '' Draw calls array, depends on textureId
+    drawCounter as int32        '' Draw calls counter
+    currentDepth as float32     '' Current depth value for next draw
+end type
+
+'' OpenGL version
+#if defined(TIKO_OS_WINDOWS)
+type rlGlVersion as int32
+enum
+    RL_OPENGL_SOFTWARE = 0   '' Software rendering
+    RL_OPENGL_11                '' OpenGL 1.1
+    RL_OPENGL_21                '' OpenGL 2.1 (GLSL 120)
+    RL_OPENGL_33                '' OpenGL 3.3 (GLSL 330)
+    RL_OPENGL_43                '' OpenGL 4.3 (using GLSL 330)
+    RL_OPENGL_ES_20             '' OpenGL ES 2.0 (GLSL 100)
+    RL_OPENGL_ES_30             '' OpenGL ES 3.0 (GLSL 300 es)
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type rlGlVersion as uint32
+enum
+    RL_OPENGL_SOFTWARE = 0   '' Software rendering
+    RL_OPENGL_11                '' OpenGL 1.1
+    RL_OPENGL_21                '' OpenGL 2.1 (GLSL 120)
+    RL_OPENGL_33                '' OpenGL 3.3 (GLSL 330)
+    RL_OPENGL_43                '' OpenGL 4.3 (using GLSL 330)
+    RL_OPENGL_ES_20             '' OpenGL ES 2.0 (GLSL 100)
+    RL_OPENGL_ES_30             '' OpenGL ES 3.0 (GLSL 300 es)
+end enum
+#endif
+
+'' Trace log level
+'' NOTE: Organized by priority level
+#if defined(TIKO_OS_WINDOWS)
+type rlTraceLogLevel as int32
+enum
+    RL_LOG_ALL = 0              '' Display all logs
+    RL_LOG_TRACE                '' Trace logging, intended for internal use only
+    RL_LOG_DEBUG                '' Debug logging, used for internal debugging, it should be disabled on release builds
+    RL_LOG_INFO                 '' Info logging, used for program execution info
+    RL_LOG_WARNING              '' Warning logging, used on recoverable failures
+    RL_LOG_ERROR                '' Error logging, used on unrecoverable failures
+    RL_LOG_FATAL                '' Fatal logging, used to abort program: exit(EXIT_FAILURE)
+    RL_LOG_NONE                 '' Disable logging
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type rlTraceLogLevel as uint32
+enum
+    RL_LOG_ALL = 0              '' Display all logs
+    RL_LOG_TRACE                '' Trace logging, intended for internal use only
+    RL_LOG_DEBUG                '' Debug logging, used for internal debugging, it should be disabled on release builds
+    RL_LOG_INFO                 '' Info logging, used for program execution info
+    RL_LOG_WARNING              '' Warning logging, used on recoverable failures
+    RL_LOG_ERROR                '' Error logging, used on unrecoverable failures
+    RL_LOG_FATAL                '' Fatal logging, used to abort program: exit(EXIT_FAILURE)
+    RL_LOG_NONE                 '' Disable logging
+end enum
+#endif
+
+'' Texture pixel formats
+'' NOTE: Support depends on OpenGL version
+#if defined(TIKO_OS_WINDOWS)
+type rlPixelFormat as int32
+enum
+    RL_PIXELFORMAT_UNCOMPRESSED_GRAYSCALE = 1      '' 8 bit per pixel (no alpha)
+    RL_PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA         '' 8*2 bpp (2 channels)
+    RL_PIXELFORMAT_UNCOMPRESSED_R5G6B5             '' 16 bpp
+    RL_PIXELFORMAT_UNCOMPRESSED_R8G8B8             '' 24 bpp
+    RL_PIXELFORMAT_UNCOMPRESSED_R5G5B5A1           '' 16 bpp (1 bit alpha)
+    RL_PIXELFORMAT_UNCOMPRESSED_R4G4B4A4           '' 16 bpp (4 bit alpha)
+    RL_PIXELFORMAT_UNCOMPRESSED_R8G8B8A8           '' 32 bpp
+    RL_PIXELFORMAT_UNCOMPRESSED_R32                '' 32 bpp (1 channel - float)
+    RL_PIXELFORMAT_UNCOMPRESSED_R32G32B32          '' 32*3 bpp (3 channels - float)
+    RL_PIXELFORMAT_UNCOMPRESSED_R32G32B32A32       '' 32*4 bpp (4 channels - float)
+    RL_PIXELFORMAT_UNCOMPRESSED_R16                '' 16 bpp (1 channel - half float)
+    RL_PIXELFORMAT_UNCOMPRESSED_R16G16B16          '' 16*3 bpp (3 channels - half float)
+    RL_PIXELFORMAT_UNCOMPRESSED_R16G16B16A16       '' 16*4 bpp (4 channels - half float)
+    RL_PIXELFORMAT_COMPRESSED_DXT1_RGB             '' 4 bpp (no alpha)
+    RL_PIXELFORMAT_COMPRESSED_DXT1_RGBA            '' 4 bpp (1 bit alpha)
+    RL_PIXELFORMAT_COMPRESSED_DXT3_RGBA            '' 8 bpp
+    RL_PIXELFORMAT_COMPRESSED_DXT5_RGBA            '' 8 bpp
+    RL_PIXELFORMAT_COMPRESSED_ETC1_RGB             '' 4 bpp
+    RL_PIXELFORMAT_COMPRESSED_ETC2_RGB             '' 4 bpp
+    RL_PIXELFORMAT_COMPRESSED_ETC2_EAC_RGBA        '' 8 bpp
+    RL_PIXELFORMAT_COMPRESSED_PVRT_RGB             '' 4 bpp
+    RL_PIXELFORMAT_COMPRESSED_PVRT_RGBA            '' 4 bpp
+    RL_PIXELFORMAT_COMPRESSED_ASTC_4x4_RGBA        '' 8 bpp
+    RL_PIXELFORMAT_COMPRESSED_ASTC_8x8_RGBA        '' 2 bpp
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type rlPixelFormat as uint32
+enum
+    RL_PIXELFORMAT_UNCOMPRESSED_GRAYSCALE = 1      '' 8 bit per pixel (no alpha)
+    RL_PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA         '' 8*2 bpp (2 channels)
+    RL_PIXELFORMAT_UNCOMPRESSED_R5G6B5             '' 16 bpp
+    RL_PIXELFORMAT_UNCOMPRESSED_R8G8B8             '' 24 bpp
+    RL_PIXELFORMAT_UNCOMPRESSED_R5G5B5A1           '' 16 bpp (1 bit alpha)
+    RL_PIXELFORMAT_UNCOMPRESSED_R4G4B4A4           '' 16 bpp (4 bit alpha)
+    RL_PIXELFORMAT_UNCOMPRESSED_R8G8B8A8           '' 32 bpp
+    RL_PIXELFORMAT_UNCOMPRESSED_R32                '' 32 bpp (1 channel - float)
+    RL_PIXELFORMAT_UNCOMPRESSED_R32G32B32          '' 32*3 bpp (3 channels - float)
+    RL_PIXELFORMAT_UNCOMPRESSED_R32G32B32A32       '' 32*4 bpp (4 channels - float)
+    RL_PIXELFORMAT_UNCOMPRESSED_R16                '' 16 bpp (1 channel - half float)
+    RL_PIXELFORMAT_UNCOMPRESSED_R16G16B16          '' 16*3 bpp (3 channels - half float)
+    RL_PIXELFORMAT_UNCOMPRESSED_R16G16B16A16       '' 16*4 bpp (4 channels - half float)
+    RL_PIXELFORMAT_COMPRESSED_DXT1_RGB             '' 4 bpp (no alpha)
+    RL_PIXELFORMAT_COMPRESSED_DXT1_RGBA            '' 4 bpp (1 bit alpha)
+    RL_PIXELFORMAT_COMPRESSED_DXT3_RGBA            '' 8 bpp
+    RL_PIXELFORMAT_COMPRESSED_DXT5_RGBA            '' 8 bpp
+    RL_PIXELFORMAT_COMPRESSED_ETC1_RGB             '' 4 bpp
+    RL_PIXELFORMAT_COMPRESSED_ETC2_RGB             '' 4 bpp
+    RL_PIXELFORMAT_COMPRESSED_ETC2_EAC_RGBA        '' 8 bpp
+    RL_PIXELFORMAT_COMPRESSED_PVRT_RGB             '' 4 bpp
+    RL_PIXELFORMAT_COMPRESSED_PVRT_RGBA            '' 4 bpp
+    RL_PIXELFORMAT_COMPRESSED_ASTC_4x4_RGBA        '' 8 bpp
+    RL_PIXELFORMAT_COMPRESSED_ASTC_8x8_RGBA        '' 2 bpp
+end enum
+#endif
+
+'' Texture parameters: filter mode
+'' NOTE 1: Filtering considers mipmaps if available in the texture
+'' NOTE 2: Filter is accordingly set for minification and magnification
+#if defined(TIKO_OS_WINDOWS)
+type rlTextureFilter as int32
+enum
+    RL_TEXTURE_FILTER_POINT = 0         '' No filter, pixel approximation
+    RL_TEXTURE_FILTER_BILINEAR          '' Linear filtering
+    RL_TEXTURE_FILTER_TRILINEAR         '' Trilinear filtering (linear with mipmaps)
+    RL_TEXTURE_FILTER_ANISOTROPIC_4X    '' Anisotropic filtering 4x
+    RL_TEXTURE_FILTER_ANISOTROPIC_8X    '' Anisotropic filtering 8x
+    RL_TEXTURE_FILTER_ANISOTROPIC_16X   '' Anisotropic filtering 16x
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type rlTextureFilter as uint32
+enum
+    RL_TEXTURE_FILTER_POINT = 0         '' No filter, pixel approximation
+    RL_TEXTURE_FILTER_BILINEAR          '' Linear filtering
+    RL_TEXTURE_FILTER_TRILINEAR         '' Trilinear filtering (linear with mipmaps)
+    RL_TEXTURE_FILTER_ANISOTROPIC_4X    '' Anisotropic filtering 4x
+    RL_TEXTURE_FILTER_ANISOTROPIC_8X    '' Anisotropic filtering 8x
+    RL_TEXTURE_FILTER_ANISOTROPIC_16X   '' Anisotropic filtering 16x
+end enum
+#endif
+
+'' Color blending modes (pre-defined)
+#if defined(TIKO_OS_WINDOWS)
+type rlBlendMode as int32
+enum
+    RL_BLEND_ALPHA = 0                  '' Blend textures considering alpha (default)
+    RL_BLEND_ADDITIVE                   '' Blend textures adding colors
+    RL_BLEND_MULTIPLIED                 '' Blend textures multiplying colors
+    RL_BLEND_ADD_COLORS                 '' Blend textures adding colors (alternative)
+    RL_BLEND_SUBTRACT_COLORS            '' Blend textures subtracting colors (alternative)
+    RL_BLEND_ALPHA_PREMULTIPLY          '' Blend premultiplied textures considering alpha
+    RL_BLEND_CUSTOM                     '' Blend textures using custom src/dst factors (use rlSetBlendFactors())
+    RL_BLEND_CUSTOM_SEPARATE            '' Blend textures using custom src/dst factors (use rlSetBlendFactorsSeparate())
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type rlBlendMode as uint32
+enum
+    RL_BLEND_ALPHA = 0                  '' Blend textures considering alpha (default)
+    RL_BLEND_ADDITIVE                   '' Blend textures adding colors
+    RL_BLEND_MULTIPLIED                 '' Blend textures multiplying colors
+    RL_BLEND_ADD_COLORS                 '' Blend textures adding colors (alternative)
+    RL_BLEND_SUBTRACT_COLORS            '' Blend textures subtracting colors (alternative)
+    RL_BLEND_ALPHA_PREMULTIPLY          '' Blend premultiplied textures considering alpha
+    RL_BLEND_CUSTOM                     '' Blend textures using custom src/dst factors (use rlSetBlendFactors())
+    RL_BLEND_CUSTOM_SEPARATE            '' Blend textures using custom src/dst factors (use rlSetBlendFactorsSeparate())
+end enum
+#endif
+
+'' Shader location point type
+#if defined(TIKO_OS_WINDOWS)
+type rlShaderLocationIndex as int32
+enum
+    RL_SHADER_LOC_VERTEX_POSITION = 0   '' Shader location: vertex attribute: position
+    RL_SHADER_LOC_VERTEX_TEXCOORD01     '' Shader location: vertex attribute: texcoord01
+    RL_SHADER_LOC_VERTEX_TEXCOORD02     '' Shader location: vertex attribute: texcoord02
+    RL_SHADER_LOC_VERTEX_NORMAL         '' Shader location: vertex attribute: normal
+    RL_SHADER_LOC_VERTEX_TANGENT        '' Shader location: vertex attribute: tangent
+    RL_SHADER_LOC_VERTEX_COLOR          '' Shader location: vertex attribute: color
+    RL_SHADER_LOC_MATRIX_MVP            '' Shader location: matrix uniform: model-view-projection
+    RL_SHADER_LOC_MATRIX_VIEW           '' Shader location: matrix uniform: view (camera transform)
+    RL_SHADER_LOC_MATRIX_PROJECTION     '' Shader location: matrix uniform: projection
+    RL_SHADER_LOC_MATRIX_MODEL          '' Shader location: matrix uniform: model (transform)
+    RL_SHADER_LOC_MATRIX_NORMAL         '' Shader location: matrix uniform: normal
+    RL_SHADER_LOC_VECTOR_VIEW           '' Shader location: vector uniform: view
+    RL_SHADER_LOC_COLOR_DIFFUSE         '' Shader location: vector uniform: diffuse color
+    RL_SHADER_LOC_COLOR_SPECULAR        '' Shader location: vector uniform: specular color
+    RL_SHADER_LOC_COLOR_AMBIENT         '' Shader location: vector uniform: ambient color
+    RL_SHADER_LOC_MAP_ALBEDO            '' Shader location: sampler2d texture: albedo (same as: RL_SHADER_LOC_MAP_DIFFUSE)
+    RL_SHADER_LOC_MAP_METALNESS         '' Shader location: sampler2d texture: metalness (same as: RL_SHADER_LOC_MAP_SPECULAR)
+    RL_SHADER_LOC_MAP_NORMAL            '' Shader location: sampler2d texture: normal
+    RL_SHADER_LOC_MAP_ROUGHNESS         '' Shader location: sampler2d texture: roughness
+    RL_SHADER_LOC_MAP_OCCLUSION         '' Shader location: sampler2d texture: occlusion
+    RL_SHADER_LOC_MAP_EMISSION          '' Shader location: sampler2d texture: emission
+    RL_SHADER_LOC_MAP_HEIGHT            '' Shader location: sampler2d texture: height
+    RL_SHADER_LOC_MAP_CUBEMAP           '' Shader location: samplerCube texture: cubemap
+    RL_SHADER_LOC_MAP_IRRADIANCE        '' Shader location: samplerCube texture: irradiance
+    RL_SHADER_LOC_MAP_PREFILTER         '' Shader location: samplerCube texture: prefilter
+    RL_SHADER_LOC_MAP_BRDF              '' Shader location: sampler2d texture: brdf
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type rlShaderLocationIndex as uint32
+enum
+    RL_SHADER_LOC_VERTEX_POSITION = 0   '' Shader location: vertex attribute: position
+    RL_SHADER_LOC_VERTEX_TEXCOORD01     '' Shader location: vertex attribute: texcoord01
+    RL_SHADER_LOC_VERTEX_TEXCOORD02     '' Shader location: vertex attribute: texcoord02
+    RL_SHADER_LOC_VERTEX_NORMAL         '' Shader location: vertex attribute: normal
+    RL_SHADER_LOC_VERTEX_TANGENT        '' Shader location: vertex attribute: tangent
+    RL_SHADER_LOC_VERTEX_COLOR          '' Shader location: vertex attribute: color
+    RL_SHADER_LOC_MATRIX_MVP            '' Shader location: matrix uniform: model-view-projection
+    RL_SHADER_LOC_MATRIX_VIEW           '' Shader location: matrix uniform: view (camera transform)
+    RL_SHADER_LOC_MATRIX_PROJECTION     '' Shader location: matrix uniform: projection
+    RL_SHADER_LOC_MATRIX_MODEL          '' Shader location: matrix uniform: model (transform)
+    RL_SHADER_LOC_MATRIX_NORMAL         '' Shader location: matrix uniform: normal
+    RL_SHADER_LOC_VECTOR_VIEW           '' Shader location: vector uniform: view
+    RL_SHADER_LOC_COLOR_DIFFUSE         '' Shader location: vector uniform: diffuse color
+    RL_SHADER_LOC_COLOR_SPECULAR        '' Shader location: vector uniform: specular color
+    RL_SHADER_LOC_COLOR_AMBIENT         '' Shader location: vector uniform: ambient color
+    RL_SHADER_LOC_MAP_ALBEDO            '' Shader location: sampler2d texture: albedo (same as: RL_SHADER_LOC_MAP_DIFFUSE)
+    RL_SHADER_LOC_MAP_METALNESS         '' Shader location: sampler2d texture: metalness (same as: RL_SHADER_LOC_MAP_SPECULAR)
+    RL_SHADER_LOC_MAP_NORMAL            '' Shader location: sampler2d texture: normal
+    RL_SHADER_LOC_MAP_ROUGHNESS         '' Shader location: sampler2d texture: roughness
+    RL_SHADER_LOC_MAP_OCCLUSION         '' Shader location: sampler2d texture: occlusion
+    RL_SHADER_LOC_MAP_EMISSION          '' Shader location: sampler2d texture: emission
+    RL_SHADER_LOC_MAP_HEIGHT            '' Shader location: sampler2d texture: height
+    RL_SHADER_LOC_MAP_CUBEMAP           '' Shader location: samplerCube texture: cubemap
+    RL_SHADER_LOC_MAP_IRRADIANCE        '' Shader location: samplerCube texture: irradiance
+    RL_SHADER_LOC_MAP_PREFILTER         '' Shader location: samplerCube texture: prefilter
+    RL_SHADER_LOC_MAP_BRDF              '' Shader location: sampler2d texture: brdf
+end enum
+#endif
+
+#define RL_SHADER_LOC_MAP_DIFFUSE RL_SHADER_LOC_MAP_ALBEDO
+#define RL_SHADER_LOC_MAP_SPECULAR RL_SHADER_LOC_MAP_METALNESS
+
+'' Shader uniform data type
+#if defined(TIKO_OS_WINDOWS)
+type rlShaderUniformDataType as int32
+enum
+    RL_SHADER_UNIFORM_FLOAT = 0         '' Shader uniform type: float
+    RL_SHADER_UNIFORM_VEC2              '' Shader uniform type: vec2 (2 float)
+    RL_SHADER_UNIFORM_VEC3              '' Shader uniform type: vec3 (3 float)
+    RL_SHADER_UNIFORM_VEC4              '' Shader uniform type: vec4 (4 float)
+    RL_SHADER_UNIFORM_INT               '' Shader uniform type: int
+    RL_SHADER_UNIFORM_IVEC2             '' Shader uniform type: ivec2 (2 int)
+    RL_SHADER_UNIFORM_IVEC3             '' Shader uniform type: ivec3 (3 int)
+    RL_SHADER_UNIFORM_IVEC4             '' Shader uniform type: ivec4 (4 int)
+    RL_SHADER_UNIFORM_UINT              '' Shader uniform type: unsigned int
+    RL_SHADER_UNIFORM_UIVEC2            '' Shader uniform type: uivec2 (2 unsigned int)
+    RL_SHADER_UNIFORM_UIVEC3            '' Shader uniform type: uivec3 (3 unsigned int)
+    RL_SHADER_UNIFORM_UIVEC4            '' Shader uniform type: uivec4 (4 unsigned int)
+    RL_SHADER_UNIFORM_SAMPLER2D         '' Shader uniform type: sampler2d
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type rlShaderUniformDataType as uint32
+enum
+    RL_SHADER_UNIFORM_FLOAT = 0         '' Shader uniform type: float
+    RL_SHADER_UNIFORM_VEC2              '' Shader uniform type: vec2 (2 float)
+    RL_SHADER_UNIFORM_VEC3              '' Shader uniform type: vec3 (3 float)
+    RL_SHADER_UNIFORM_VEC4              '' Shader uniform type: vec4 (4 float)
+    RL_SHADER_UNIFORM_INT               '' Shader uniform type: int
+    RL_SHADER_UNIFORM_IVEC2             '' Shader uniform type: ivec2 (2 int)
+    RL_SHADER_UNIFORM_IVEC3             '' Shader uniform type: ivec3 (3 int)
+    RL_SHADER_UNIFORM_IVEC4             '' Shader uniform type: ivec4 (4 int)
+    RL_SHADER_UNIFORM_UINT              '' Shader uniform type: unsigned int
+    RL_SHADER_UNIFORM_UIVEC2            '' Shader uniform type: uivec2 (2 unsigned int)
+    RL_SHADER_UNIFORM_UIVEC3            '' Shader uniform type: uivec3 (3 unsigned int)
+    RL_SHADER_UNIFORM_UIVEC4            '' Shader uniform type: uivec4 (4 unsigned int)
+    RL_SHADER_UNIFORM_SAMPLER2D         '' Shader uniform type: sampler2d
+end enum
+#endif
+
+'' Shader attribute data types
+#if defined(TIKO_OS_WINDOWS)
+type rlShaderAttributeDataType as int32
+enum
+    RL_SHADER_ATTRIB_FLOAT = 0          '' Shader attribute type: float
+    RL_SHADER_ATTRIB_VEC2               '' Shader attribute type: vec2 (2 float)
+    RL_SHADER_ATTRIB_VEC3               '' Shader attribute type: vec3 (3 float)
+    RL_SHADER_ATTRIB_VEC4               '' Shader attribute type: vec4 (4 float)
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type rlShaderAttributeDataType as uint32
+enum
+    RL_SHADER_ATTRIB_FLOAT = 0          '' Shader attribute type: float
+    RL_SHADER_ATTRIB_VEC2               '' Shader attribute type: vec2 (2 float)
+    RL_SHADER_ATTRIB_VEC3               '' Shader attribute type: vec3 (3 float)
+    RL_SHADER_ATTRIB_VEC4               '' Shader attribute type: vec4 (4 float)
+end enum
+#endif
+
+'' Framebuffer attachment type
+'' NOTE: By default up to 8 color channels defined, but it can be more
+#if defined(TIKO_OS_WINDOWS)
+type rlFramebufferAttachType as int32
+enum
+    RL_ATTACHMENT_COLOR_CHANNEL0 = 0        '' Framebuffer attachment type: color 0
+    RL_ATTACHMENT_COLOR_CHANNEL1 = 1        '' Framebuffer attachment type: color 1
+    RL_ATTACHMENT_COLOR_CHANNEL2 = 2        '' Framebuffer attachment type: color 2
+    RL_ATTACHMENT_COLOR_CHANNEL3 = 3        '' Framebuffer attachment type: color 3
+    RL_ATTACHMENT_COLOR_CHANNEL4 = 4        '' Framebuffer attachment type: color 4
+    RL_ATTACHMENT_COLOR_CHANNEL5 = 5        '' Framebuffer attachment type: color 5
+    RL_ATTACHMENT_COLOR_CHANNEL6 = 6        '' Framebuffer attachment type: color 6
+    RL_ATTACHMENT_COLOR_CHANNEL7 = 7        '' Framebuffer attachment type: color 7
+    RL_ATTACHMENT_DEPTH = 100               '' Framebuffer attachment type: depth
+    RL_ATTACHMENT_STENCIL = 200             '' Framebuffer attachment type: stencil
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type rlFramebufferAttachType as uint32
+enum
+    RL_ATTACHMENT_COLOR_CHANNEL0 = 0        '' Framebuffer attachment type: color 0
+    RL_ATTACHMENT_COLOR_CHANNEL1 = 1        '' Framebuffer attachment type: color 1
+    RL_ATTACHMENT_COLOR_CHANNEL2 = 2        '' Framebuffer attachment type: color 2
+    RL_ATTACHMENT_COLOR_CHANNEL3 = 3        '' Framebuffer attachment type: color 3
+    RL_ATTACHMENT_COLOR_CHANNEL4 = 4        '' Framebuffer attachment type: color 4
+    RL_ATTACHMENT_COLOR_CHANNEL5 = 5        '' Framebuffer attachment type: color 5
+    RL_ATTACHMENT_COLOR_CHANNEL6 = 6        '' Framebuffer attachment type: color 6
+    RL_ATTACHMENT_COLOR_CHANNEL7 = 7        '' Framebuffer attachment type: color 7
+    RL_ATTACHMENT_DEPTH = 100               '' Framebuffer attachment type: depth
+    RL_ATTACHMENT_STENCIL = 200             '' Framebuffer attachment type: stencil
+end enum
+#endif
+
+'' Framebuffer texture attachment type
+#if defined(TIKO_OS_WINDOWS)
+type rlFramebufferAttachTextureType as int32
+enum
+    RL_ATTACHMENT_CUBEMAP_POSITIVE_X = 0    '' Framebuffer texture attachment type: cubemap, +X side
+    RL_ATTACHMENT_CUBEMAP_NEGATIVE_X = 1    '' Framebuffer texture attachment type: cubemap, -X side
+    RL_ATTACHMENT_CUBEMAP_POSITIVE_Y = 2    '' Framebuffer texture attachment type: cubemap, +Y side
+    RL_ATTACHMENT_CUBEMAP_NEGATIVE_Y = 3    '' Framebuffer texture attachment type: cubemap, -Y side
+    RL_ATTACHMENT_CUBEMAP_POSITIVE_Z = 4    '' Framebuffer texture attachment type: cubemap, +Z side
+    RL_ATTACHMENT_CUBEMAP_NEGATIVE_Z = 5    '' Framebuffer texture attachment type: cubemap, -Z side
+    RL_ATTACHMENT_TEXTURE2D = 100           '' Framebuffer texture attachment type: texture2d
+    RL_ATTACHMENT_RENDERBUFFER = 200        '' Framebuffer texture attachment type: renderbuffer
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type rlFramebufferAttachTextureType as uint32
+enum
+    RL_ATTACHMENT_CUBEMAP_POSITIVE_X = 0    '' Framebuffer texture attachment type: cubemap, +X side
+    RL_ATTACHMENT_CUBEMAP_NEGATIVE_X = 1    '' Framebuffer texture attachment type: cubemap, -X side
+    RL_ATTACHMENT_CUBEMAP_POSITIVE_Y = 2    '' Framebuffer texture attachment type: cubemap, +Y side
+    RL_ATTACHMENT_CUBEMAP_NEGATIVE_Y = 3    '' Framebuffer texture attachment type: cubemap, -Y side
+    RL_ATTACHMENT_CUBEMAP_POSITIVE_Z = 4    '' Framebuffer texture attachment type: cubemap, +Z side
+    RL_ATTACHMENT_CUBEMAP_NEGATIVE_Z = 5    '' Framebuffer texture attachment type: cubemap, -Z side
+    RL_ATTACHMENT_TEXTURE2D = 100           '' Framebuffer texture attachment type: texture2d
+    RL_ATTACHMENT_RENDERBUFFER = 200        '' Framebuffer texture attachment type: renderbuffer
+end enum
+#endif
+
+'' Face culling mode
+#if defined(TIKO_OS_WINDOWS)
+type rlCullMode as int32
+enum
+    RL_CULL_FACE_FRONT = 0
+    RL_CULL_FACE_BACK
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type rlCullMode as uint32
+enum
+    RL_CULL_FACE_FRONT = 0
+    RL_CULL_FACE_BACK
+end enum
+#endif
+
+''------------------------------------------------------------------------------------
+'' Functions Declaration - Matrix operations
+''------------------------------------------------------------------------------------
+
+extern "C"
+
+declare sub rlMatrixMode( byval mode as int32 )         '' Choose the current matrix to be transformed
+declare sub rlPushMatrix( )                             '' Push the current matrix to stack
+declare sub rlPopMatrix( )                              '' Pop latest inserted matrix from stack
+declare sub rlLoadIdentity( )                           '' Reset current matrix to identity matrix
+declare sub rlTranslatef( byval x as float32, byval y as float32, byval z as float32 )     '' Multiply the current matrix by a translation matrix
+declare sub rlRotatef( byval angle as float32, byval x as float32, byval y as float32, byval z as float32 ) '' Multiply the current matrix by a rotation matrix
+declare sub rlScalef( byval x as float32, byval y as float32, byval z as float32 )         '' Multiply the current matrix by a scaling matrix
+declare sub rlMultMatrixf( byval matf as const float32 ptr )            '' Multiply the current matrix by another matrix
+declare sub rlFrustum( byval left_ as float64, byval right_ as float64, byval bottom as float64, byval top as float64, byval znear as float64, byval zfar as float64 )
+declare sub rlOrtho( byval left_ as float64, byval right_ as float64, byval bottom as float64, byval top as float64, byval znear as float64, byval zfar as float64 )
+declare sub rlViewport( byval x as int32, byval y as int32, byval width_ as int32, byval height as int32 ) '' Set the viewport area
+declare sub rlSetClipPlanes( byval nearPlane as float64, byval farPlane as float64 )    '' Set clip planes distances
+declare function rlGetCullDistanceNear( ) as float64    '' Get cull plane distance near
+declare function rlGetCullDistanceFar( ) as float64     '' Get cull plane distance far
+
+''------------------------------------------------------------------------------------
+'' Functions Declaration - Vertex level operations
+''------------------------------------------------------------------------------------
+declare sub rlBegin( byval mode as int32 )              '' Initialize drawing mode (how to organize vertex)
+declare sub rlEnd( )                                    '' Finish vertex providing
+declare sub rlVertex2i( byval x as int32, byval y as int32 )                    '' Define one vertex (position) - 2 int
+declare sub rlVertex2f( byval x as float32, byval y as float32 )                '' Define one vertex (position) - 2 float
+declare sub rlVertex3f( byval x as float32, byval y as float32, byval z as float32 )       '' Define one vertex (position) - 3 float
+declare sub rlTexCoord2f( byval x as float32, byval y as float32 )              '' Define one vertex (texture coordinate) - 2 float
+declare sub rlNormal3f( byval x as float32, byval y as float32, byval z as float32 )       '' Define one vertex (normal) - 3 float
+declare sub rlColor4ub( byval r as uint8, byval g as uint8, byval b as uint8, byval a as uint8 ) '' Define one vertex (color) - 4 byte
+declare sub rlColor3f( byval x as float32, byval y as float32, byval z as float32 )        '' Define one vertex (color) - 3 float
+declare sub rlColor4f( byval x as float32, byval y as float32, byval z as float32, byval w as float32 ) '' Define one vertex (color) - 4 float
+
+''------------------------------------------------------------------------------------
+'' Functions Declaration - OpenGL style functions (common to 1.1, 3.3+, ES2)
+'' NOTE: This functions are used to completely abstract raylib code from OpenGL layer,
+'' some of them are direct wrappers over OpenGL calls, some others are custom
+''------------------------------------------------------------------------------------
+
+'' Vertex buffers state
+declare function rlEnableVertexArray( byval vaoId as uint32 ) as boolean     '' Enable vertex array (VAO, if supported)
+declare sub rlDisableVertexArray( )                     '' Disable vertex array (VAO, if supported)
+declare sub rlEnableVertexBuffer( byval id as uint32 )  '' Enable vertex buffer (VBO)
+declare sub rlDisableVertexBuffer( )                    '' Disable vertex buffer (VBO)
+declare sub rlEnableVertexBufferElement( byval id as uint32 ) '' Enable vertex buffer element (VBO element)
+declare sub rlDisableVertexBufferElement( )             '' Disable vertex buffer element (VBO element)
+declare sub rlEnableVertexAttribute( byval index as uint32 ) '' Enable vertex attribute index
+declare sub rlDisableVertexAttribute( byval index as uint32 ) '' Disable vertex attribute index
+declare sub rlEnableStatePointer( byval vertexAttribType as int32, byval buffer as any ptr ) '' Enable attribute state pointer
+declare sub rlDisableStatePointer( byval vertexAttribType as int32 ) '' Disable attribute state pointer
+
+'' Textures state
+declare sub rlActiveTextureSlot( byval slot as int32 )  '' Select and active a texture slot
+declare sub rlEnableTexture( byval id as uint32 )       '' Enable texture
+declare sub rlDisableTexture( )                         '' Disable texture
+declare sub rlEnableTextureCubemap( byval id as uint32 )     '' Enable texture cubemap
+declare sub rlDisableTextureCubemap( )                  '' Disable texture cubemap
+declare sub rlTextureParameters( byval id as uint32, byval param as int32, byval value as int32 ) '' Set texture parameters (filter, wrap)
+declare sub rlCubemapParameters( byval id as uint32, byval param as int32, byval value as int32 ) '' Set cubemap parameters (filter, wrap)
+
+'' Shader state
+declare sub rlEnableShader( byval id as uint32 )        '' Enable shader program
+declare sub rlDisableShader( )                          '' Disable shader program
+
+'' Framebuffer state
+declare sub rlEnableFramebuffer( byval id as uint32 )   '' Enable render texture (fbo)
+declare sub rlDisableFramebuffer( )                     '' Disable render texture (fbo), return to default framebuffer
+declare function rlGetActiveFramebuffer( ) as uint32    '' Get the currently active render texture (fbo), 0 for default framebuffer
+declare sub rlActiveDrawBuffers( byval count as int32 ) '' Activate multiple draw color buffers
+declare sub rlBlitFramebuffer( byval srcX as int32, byval srcY as int32, byval srcWidth as int32, byval srcHeight as int32, byval dstX as int32, byval dstY as int32, byval dstWidth as int32, byval dstHeight as int32, byval bufferMask as int32 ) '' Blit active framebuffer to main framebuffer
+declare sub rlBindFramebuffer( byval target as uint32, byval framebuffer as uint32 ) '' Bind framebuffer (FBO)
+
+'' General render state
+declare sub rlEnableColorBlend( )                       '' Enable color blending
+declare sub rlDisableColorBlend( )                      '' Disable color blending
+declare sub rlEnableDepthTest( )                        '' Enable depth test
+declare sub rlDisableDepthTest( )                       '' Disable depth test
+declare sub rlEnableDepthMask( )                        '' Enable depth write
+declare sub rlDisableDepthMask( )                       '' Disable depth write
+declare sub rlEnableBackfaceCulling( )                  '' Enable backface culling
+declare sub rlDisableBackfaceCulling( )                 '' Disable backface culling
+declare sub rlColorMask( byval r as boolean, byval g as boolean, byval b as boolean, byval a as boolean ) '' Color mask control
+declare sub rlSetCullFace( byval mode as int32 )        '' Set face culling mode
+declare sub rlEnableScissorTest( )                      '' Enable scissor test
+declare sub rlDisableScissorTest( )                     '' Disable scissor test
+declare sub rlScissor( byval x as int32, byval y as int32, byval width_ as int32, byval height as int32 ) '' Scissor test
+declare sub rlEnablePointMode( )                        '' Enable point mode
+declare sub rlDisablePointMode( )                       '' Disable point mode
+declare sub rlSetPointSize( byval size as float32 )     '' Set the point drawing size
+declare function rlGetPointSize( ) as float32           '' Get the point drawing size
+declare sub rlEnableWireMode( )                         '' Enable wire mode
+declare sub rlDisableWireMode( )                        '' Disable wire mode
+declare sub rlSetLineWidth( byval width_ as float32 )   '' Set the line drawing width
+declare function rlGetLineWidth( ) as float32           '' Get the line drawing width
+declare sub rlEnableSmoothLines( )                      '' Enable line aliasing
+declare sub rlDisableSmoothLines( )                     '' Disable line aliasing
+declare sub rlEnableStereoRender( )                     '' Enable stereo rendering
+declare sub rlDisableStereoRender( )                    '' Disable stereo rendering
+declare function rlIsStereoRenderEnabled( ) as boolean  '' Check if stereo render is enabled
+
+declare sub rlClearColor( byval r as uint8, byval g as uint8, byval b as uint8, byval a as uint8 ) '' Clear color buffer with color
+declare sub rlClearScreenBuffers( )                     '' Clear used screen buffers (color and depth)
+declare sub rlCheckErrors( )                            '' Check and log OpenGL error codes
+declare sub rlSetBlendMode( byval mode as int32 )       '' Set blending mode
+declare sub rlSetBlendFactors( byval glSrcFactor as int32, byval glDstFactor as int32, byval glEquation as int32 ) '' Set blending mode factor and equation (using OpenGL factors)
+declare sub rlSetBlendFactorsSeparate( byval glSrcRGB as int32, byval glDstRGB as int32, byval glSrcAlpha as int32, byval glDstAlpha as int32, byval glEqRGB as int32, byval glEqAlpha as int32 ) '' Set blending mode factors and equations separately (using OpenGL factors)
+
+''------------------------------------------------------------------------------------
+'' Functions Declaration - rlgl functionality
+''------------------------------------------------------------------------------------
+'' rlgl initialization functions
+declare sub rlglInit( byval width_ as int32, byval height as int32 )             '' Initialize rlgl (buffers, shaders, textures, states)
+declare sub rlglClose( )                                '' De-initialize rlgl (buffers, shaders, textures)
+declare sub rlLoadExtensions( byval loader as any ptr ) '' Load OpenGL extensions (loader function required)
+declare function rlGetProcAddress( byval procName as const zstring ptr ) as any ptr     '' Get OpenGL procedure address
+declare function rlGetVersion( ) as int32               '' Get current OpenGL version
+declare sub rlSetFramebufferWidth( byval width_ as int32 )            '' Set current framebuffer width
+declare function rlGetFramebufferWidth( ) as int32      '' Get default framebuffer width
+declare sub rlSetFramebufferHeight( byval height as int32 )          '' Set current framebuffer height
+declare function rlGetFramebufferHeight( ) as int32     '' Get default framebuffer height
+
+declare function rlGetTextureIdDefault( ) as uint32     '' Get default texture id
+declare function rlGetShaderIdDefault( ) as uint32      '' Get default shader id
+declare function rlGetShaderLocsDefault( ) as int32 ptr '' Get default shader locations
+
+'' Render batch management
+'' NOTE: rlgl provides a default render batch to behave like OpenGL 1.1 immediate mode
+'' but this render batch API is exposed in case of custom batches are required
+declare function rlLoadRenderBatch( byval numBuffers as int32, byval bufferElements as int32 ) as rlRenderBatch '' Load a render batch system
+declare sub rlUnloadRenderBatch( byval batch as rlRenderBatch )    '' Unload render batch system
+declare sub rlDrawRenderBatch( byval batch as rlRenderBatch ptr )     '' Draw render batch data (Update->Draw->Reset)
+declare sub rlSetRenderBatchActive( byval batch as rlRenderBatch ptr ) '' Set the active render batch for rlgl (NULL for default internal)
+declare sub rlDrawRenderBatchActive( )                  '' Update and draw internal render batch
+declare function rlCheckRenderBatchLimit( byval vCount as int32 ) as boolean         '' Check internal buffer overflow for a given number of vertex
+
+declare sub rlSetTexture( byval id as uint32 )          '' Set current texture for render batch and check buffers limits
+
+''------------------------------------------------------------------------------------------------------------------------
+
+'' Vertex buffers management
+declare function rlLoadVertexArray( ) as uint32         '' Load vertex array (vao) if supported
+declare function rlLoadVertexBuffer( byval buffer as const any ptr, byval size as int32, byval dynamic_ as boolean ) as uint32 '' Load a vertex buffer object
+declare function rlLoadVertexBufferElement( byval buffer as const any ptr, byval size as int32, byval dynamic_ as boolean ) as uint32 '' Load vertex buffer elements object
+declare sub rlUpdateVertexBuffer( byval bufferId as uint32, byval data_ as const any ptr, byval dataSize as int32, byval offset as int32 ) '' Update vertex buffer object data on GPU buffer
+declare sub rlUpdateVertexBufferElements( byval id as uint32, byval data_ as const any ptr, byval dataSize as int32, byval offset as int32 ) '' Update vertex buffer elements data on GPU buffer
+declare sub rlUnloadVertexArray( byval vaoId as uint32 )     '' Unload vertex array (vao)
+declare sub rlUnloadVertexBuffer( byval vboId as uint32 )    '' Unload vertex buffer object
+declare sub rlSetVertexAttribute( byval index as uint32, byval compSize as int32, byval type_ as int32, byval normalized as boolean, byval stride as int32, byval offset as int32 ) '' Set vertex attribute data configuration
+declare sub rlSetVertexAttributeDivisor( byval index as uint32, byval divisor as int32 ) '' Set vertex attribute data divisor
+declare sub rlSetVertexAttributeDefault( byval locIndex as int32, byval value as const any ptr, byval attribType as int32, byval count as int32 ) '' Set vertex attribute default value, when attribute to provided
+declare sub rlDrawVertexArray( byval offset as int32, byval count as int32 )    '' Draw vertex array (currently active vao)
+declare sub rlDrawVertexArrayElements( byval offset as int32, byval count as int32, byval buffer as const any ptr ) '' Draw vertex array elements
+declare sub rlDrawVertexArrayInstanced( byval offset as int32, byval count as int32, byval instances as int32 ) '' Draw vertex array (currently active vao) with instancing
+declare sub rlDrawVertexArrayElementsInstanced( byval offset as int32, byval count as int32, byval buffer as const any ptr, byval instances as int32 ) '' Draw vertex array elements with instancing
+
+'' Textures management
+declare function rlLoadTexture( byval data_ as const any ptr, byval width_ as int32, byval height as int32, byval format as int32, byval mipmapCount as int32 ) as uint32 '' Load texture data
+declare function rlLoadTextureDepth( byval width_ as int32, byval height as int32, byval useRenderBuffer as boolean ) as uint32 '' Load depth texture/renderbuffer (to be attached to fbo)
+declare function rlLoadTextureCubemap( byval data_ as const any ptr, byval size as int32, byval format as int32, byval mipmapCount as int32 ) as uint32 '' Load texture cubemap data
+declare sub rlUpdateTexture( byval id as uint32, byval offsetX as int32, byval offsetY as int32, byval width_ as int32, byval height as int32, byval format as int32, byval data_ as const any ptr ) '' Update texture with new data on GPU
+declare sub rlGetGlTextureFormats( byval format as int32, byval glInternalFormat as uint32 ptr, byval glFormat as uint32 ptr, byval glType as uint32 ptr ) '' Get OpenGL internal formats
+declare function rlGetPixelFormatName( byval format as uint32 ) as const zstring ptr              '' Get name string for pixel format
+declare sub rlUnloadTexture( byval id as uint32 )                         '' Unload texture from GPU memory
+declare sub rlGenTextureMipmaps( byval id as uint32, byval width_ as int32, byval height as int32, byval format as int32, byval mipmaps as int32 ptr ) '' Generate mipmap data for selected texture
+declare function rlReadTexturePixels( byval id as uint32, byval width_ as int32, byval height as int32, byval format as int32 ) as any ptr '' Read texture pixel data
+declare function rlReadScreenPixels( byval width_ as int32, byval height as int32 ) as uint8 ptr           '' Read screen pixel data (color buffer)
+
+'' Framebuffer management (fbo)
+declare function rlLoadFramebuffer( ) as uint32                           '' Load an empty framebuffer
+declare sub rlFramebufferAttach( byval id as uint32, byval texId as uint32, byval attachType as int32, byval texType as int32, byval mipLevel as int32 ) '' Attach texture/renderbuffer to a framebuffer
+declare function rlFramebufferComplete( byval id as uint32 ) as boolean   '' Verify framebuffer is complete
+declare sub rlUnloadFramebuffer( byval id as uint32 )                     '' Delete framebuffer from GPU
+'' WARNING: Copy and resize framebuffer functionality only defined for software backend
+declare sub rlCopyFramebuffer( byval x as int32, byval y as int32, byval width_ as int32, byval height as int32, byval format as int32, byval pixels as any ptr ) '' Copy framebuffer pixel data to internal buffer
+declare sub rlResizeFramebuffer( byval width_ as int32, byval height as int32 )                    '' Resize internal framebuffer
+
+'' Shaders management
+declare function rlLoadShader( byval code as const zstring ptr, byval type_ as int32 ) as uint32                    '' Load (compile) shader and return shader id (type: RL_VERTEX_SHADER, RL_FRAGMENT_SHADER, RL_COMPUTE_SHADER)
+declare function rlLoadShaderProgram( byval vsCode as const zstring ptr, byval fsCode as const zstring ptr ) as uint32 '' Load shader from code strings
+declare function rlLoadShaderProgramEx( byval vsId as uint32, byval fsId as uint32 ) as uint32 '' Load shader program, using already loaded shader ids
+declare function rlLoadShaderProgramCompute( byval csId as uint32 ) as uint32   '' Load compute shader program
+declare sub rlUnloadShader( byval id as uint32 )                                '' Unload shader, loaded with rlLoadShader()
+declare sub rlUnloadShaderProgram( byval id as uint32 )                         '' Unload shader program
+declare function rlGetLocationUniform( byval id as uint32, byval uniformName as const zstring ptr ) as int32       '' Get shader location uniform, requires shader program id
+declare function rlGetLocationAttrib( byval id as uint32, byval attribName as const zstring ptr ) as int32         '' Get shader location attribute, requires shader program id
+declare sub rlSetUniform( byval locIndex as int32, byval value as const any ptr, byval uniformType as int32, byval count as int32 ) '' Set shader value uniform
+declare sub rlSetUniformMatrix( byval locIndex as int32, byval mat as Matrix )  '' Set shader value matrix
+declare sub rlSetUniformMatrices( byval locIndex as int32, byval mat as const Matrix ptr, byval count as int32 )    '' Set shader value matrices
+declare sub rlSetUniformSampler( byval locIndex as int32, byval textureId as uint32 )           '' Set shader value sampler
+declare sub rlSetShader( byval id as uint32, byval locs as int32 ptr )          '' Set shader currently active (id and locations)
+
+'' Compute shader management
+declare sub rlComputeShaderDispatch( byval groupX as uint32, byval groupY as uint32, byval groupZ as uint32 ) '' Dispatch compute shader (equivalent to *draw* for graphics pipeline)
+
+'' Shader buffer storage object management (ssbo)
+declare function rlLoadShaderBuffer( byval size as uint32, byval data_ as const any ptr, byval usageHint as int32 ) as uint32 '' Load shader storage buffer object (SSBO)
+declare sub rlUnloadShaderBuffer( byval ssboId as uint32 )                      '' Unload shader storage buffer object (SSBO)
+declare sub rlUpdateShaderBuffer( byval id as uint32, byval data_ as const any ptr, byval dataSize as uint32, byval offset as uint32 ) '' Update SSBO buffer data
+declare sub rlBindShaderBuffer( byval id as uint32, byval index as uint32 )     '' Bind SSBO buffer
+declare sub rlReadShaderBuffer( byval id as uint32, byval dest as any ptr, byval count as uint32, byval offset as uint32 ) '' Read SSBO buffer data (GPU->CPU)
+declare sub rlCopyShaderBuffer( byval destId as uint32, byval srcId as uint32, byval destOffset as uint32, byval srcOffset as uint32, byval count as uint32 ) '' Copy SSBO data between buffers
+declare function rlGetShaderBufferSize( byval id as uint32 ) as uint32          '' Get SSBO buffer size
+
+'' Buffer management
+declare sub rlBindImageTexture( byval id as uint32, byval index as uint32, byval format as int32, byval readonly as boolean )  '' Bind image texture
+
+'' Matrix state management
+declare function rlGetMatrixModelview( ) as Matrix                        '' Get internal modelview matrix
+declare function rlGetMatrixProjection( ) as Matrix                       '' Get internal projection matrix
+declare function rlGetMatrixTransform( ) as Matrix                        '' Get internal accumulated transform matrix
+declare function rlGetMatrixProjectionStereo( byval eye as int32 ) as Matrix                        '' Get internal projection matrix for stereo render (selected eye)
+declare function rlGetMatrixViewOffsetStereo( byval eye as int32 ) as Matrix                        '' Get internal view offset matrix for stereo render (selected eye)
+declare sub rlSetMatrixProjection( byval proj as Matrix )                 '' Set a custom projection matrix (replaces internal projection matrix)
+declare sub rlSetMatrixModelview( byval view_ as Matrix )                 '' Set a custom modelview matrix (replaces internal modelview matrix)
+declare sub rlSetMatrixProjectionStereo( byval right_ as Matrix, byval left_ as Matrix )        '' Set eyes projection matrices for stereo rendering
+declare sub rlSetMatrixViewOffsetStereo( byval right_ as Matrix, byval left_ as Matrix )        '' Set eyes view offsets matrices for stereo rendering
+
+'' Quick and dirty cube/quad buffers load->draw->unload
+declare sub rlLoadDrawCube( )        '' Load and draw a cube
+declare sub rlLoadDrawQuad( )        '' Load and draw a quad
+
+end extern
+
+#endif '' RLGL_H
+
+/'**********************************************************************************
+*
+*   RLGL IMPLEMENTATION
+*
+***********************************************************************************'/
+
+#if defined(RLGL_IMPLEMENTATION)
+
+'' Expose OpenGL functions from glad in raylib
+#if defined(BUILD_LIBTYPE_SHARED)
+    #define GLAD_API_CALL_EXPORT
+    #define GLAD_API_CALL_EXPORT_BUILD
+#endif
+
+#if defined(GRAPHICS_API_OPENGL_11)
+    #if defined(GRAPHICS_API_OPENGL_SOFTWARE)
+        #define RLSW_IMPLEMENTATION
+        #define SW_MALLOC(sz) RL_MALLOC((sz))
+        '' C2T-TODO(function-like-macro) rlgl.h:847 -- an assignment or a comma expression
+''         #define SW_CALLOC(n,sz) RL_CALLOC(n, sz)
+        '' C2T-TODO(function-like-macro) rlgl.h:848 -- an assignment or a comma expression
+''         #define SW_REALLOC(ptr, newSz) RL_REALLOC(ptr, newSz)
+        #define SW_FREE(ptr) RL_FREE((ptr))
+        #include once "external/rlsw.ti"      '' OpenGL 1.1 software implementation
+    #else
+        #if 0
+            '' C2T-TODO(system-header) rlgl.h:853 -- <OpenGL/gl.h> has no tiko counterpart in c2t's table
+''             #include <OpenGL/gl.h>      // OpenGL 1.1 library for OSX
+            '' C2T-TODO(system-header) rlgl.h:854 -- <OpenGL/glext.h> has no tiko counterpart in c2t's table
+''             #include <OpenGL/glext.h>   // OpenGL extensions library
+        #else
+            '' APIENTRY for OpenGL function pointer declarations is required
+            #if ((defined(APIENTRY)) = 0)
+                #if defined(TIKO_OS_WINDOWS)
+                    '' C2T-TODO(macro) rlgl.h:859 -- 'APIENTRY': '__stdcall' is nothing tiko declares
+''                     #define APIENTRY __stdcall
+                #else
+                    #define APIENTRY
+                #endif
+            #endif
+            '' WINGDIAPI definition. Some Windows OpenGL headers need it
+            #if (((defined(WINGDIAPI)) = 0) andalso defined(TIKO_OS_WINDOWS))
+                '' C2T-TODO(macro) rlgl.h:866 -- 'WINGDIAPI': '__declspec()' is nothing tiko declares
+''                 #define WINGDIAPI __declspec(dllimport)
+            #endif
+
+            '' C2T-TODO(system-header) rlgl.h:869 -- <GL/gl.h> has no tiko counterpart in c2t's table
+''             #include <GL/gl.h>          // OpenGL 1.1 library
+        #endif
+    #endif
+#endif
+
+#if defined(GRAPHICS_API_OPENGL_33)
+    #define GLAD_MALLOC RL_MALLOC
+    #define GLAD_FREE RL_FREE
+
+    #define GLAD_GL_IMPLEMENTATION
+    #include once "external/glad.ti"    '' GLAD extensions loading library, includes OpenGL headers
+#endif
+
+#if defined(GRAPHICS_API_OPENGL_ES3)
+    '' C2T-TODO(system-header) rlgl.h:883 -- <GLES3/gl3.h> has no tiko counterpart in c2t's table
+''     #include <GLES3/gl3.h>              // OpenGL ES 3.0 library
+    #define GL_GLEXT_PROTOTYPES
+    '' C2T-TODO(system-header) rlgl.h:885 -- <GLES2/gl2ext.h> has no tiko counterpart in c2t's table
+''     #include <GLES2/gl2ext.h>           // OpenGL ES 2.0 extensions library
+#elseif defined(GRAPHICS_API_OPENGL_ES2)
+    '' NOTE: OpenGL ES 2.0 can be enabled on Desktop platforms,
+    '' in that case, functions are loaded from a custom glad for OpenGL ES 2.0
+    '' TODO: rlgl OpenGL ES 2.0 selection shouldn't depend on raylib platform macros, a specific GLAD shouldn't be neither required
+    #if (defined(PLATFORM_DESKTOP_GLFW) orelse defined(PLATFORM_DESKTOP_SDL))
+        #define GLAD_GLES2_IMPLEMENTATION
+        #include once "external/glad_gles2.ti"
+    #else
+        #define GL_GLEXT_PROTOTYPES
+        ''#include <EGL/egl.h>          // EGL library -> not required, platform layer
+        '' C2T-TODO(system-header) rlgl.h:896 -- <GLES2/gl2.h> has no tiko counterpart in c2t's table
+''         #include <GLES2/gl2.h>          // OpenGL ES 2.0 library
+        '' C2T-TODO(system-header) rlgl.h:897 -- <GLES2/gl2ext.h> has no tiko counterpart in c2t's table
+''         #include <GLES2/gl2ext.h>       // OpenGL ES 2.0 extensions library
+    #endif
+
+    '' It seems OpenGL ES 2.0 instancing entry points are not defined on Raspberry Pi
+    '' provided headers (despite being defined in official Khronos GLES2 headers)
+    '' TODO: Avoid raylib platform-dependent code on rlgl, it should be a completely portable library
+    #if defined(PLATFORM_DRM)           '' Use CONFIG_DRM?
+    '' C2T-TODO(refused-type) rlgl.h:904 -- typedef 'PFNGLDRAWARRAYSINSTANCEDEXTPROC_2': 'GLenum' is a system header's type
+''     typedef void (GL_APIENTRYP PFNGLDRAWARRAYSINSTANCEDEXTPROC) (GLenum mode, GLint start, GLsizei count, GLsizei primcount);
+    '' C2T-TODO(refused-type) rlgl.h:905 -- typedef 'PFNGLDRAWELEMENTSINSTANCEDEXTPROC_2': 'GLenum' is a system header's type
+''     typedef void (GL_APIENTRYP PFNGLDRAWELEMENTSINSTANCEDEXTPROC) (GLenum mode, GLsizei count, GLenum type, const void *indices, GLsizei primcount);
+    '' C2T-TODO(refused-type) rlgl.h:906 -- typedef 'PFNGLVERTEXATTRIBDIVISOREXTPROC_2': 'GLuint' is a system header's type
+''     typedef void (GL_APIENTRYP PFNGLVERTEXATTRIBDIVISOREXTPROC) (GLuint index, GLuint divisor);
+    #endif
+#endif
+
+#include once "crt/stdlib.bi"   '' Required for: calloc(), free()
+#include once "crt/string.bi"   '' Required for: strcmp(), strlen() [Used in rlglInit(), on extensions loading]
+#include once "crt/math.bi"     '' Required for: sqrtf(), sinf(), cosf(), floor(), log()
+'' <limits.h>: built into tiko  '' Required for: INT_MAX
+
+''----------------------------------------------------------------------------------
+'' Defines and Macros
+''----------------------------------------------------------------------------------
+#ifndef PI
+    #define PI 3.14159265358979323846f
+#endif
+'' c2t: export macro DEG2RAD (decoration, stripped where used)
+#ifndef RAD2DEG
+    '' C2T-NOTE(value) rlgl.h:925 -- clang's value; '(180.0f / PI)' is 57.29577791868205 in tiko
+    #define RAD2DEG 57.2957763671875
+#endif
+
+#ifndef GL_SHADING_LANGUAGE_VERSION
+    #define GL_SHADING_LANGUAGE_VERSION &h8B8C
+#endif
+
+#ifndef GL_COMPRESSED_RGB_S3TC_DXT1_EXT
+    #define GL_COMPRESSED_RGB_S3TC_DXT1_EXT &h83F0
+#endif
+#ifndef GL_COMPRESSED_RGBA_S3TC_DXT1_EXT
+    #define GL_COMPRESSED_RGBA_S3TC_DXT1_EXT &h83F1
+#endif
+#ifndef GL_COMPRESSED_RGBA_S3TC_DXT3_EXT
+    #define GL_COMPRESSED_RGBA_S3TC_DXT3_EXT &h83F2
+#endif
+#ifndef GL_COMPRESSED_RGBA_S3TC_DXT5_EXT
+    #define GL_COMPRESSED_RGBA_S3TC_DXT5_EXT &h83F3
+#endif
+#ifndef GL_ETC1_RGB8_OES
+    #define GL_ETC1_RGB8_OES &h8D64
+#endif
+#ifndef GL_COMPRESSED_RGB8_ETC2
+    #define GL_COMPRESSED_RGB8_ETC2 &h9274
+#endif
+#ifndef GL_COMPRESSED_RGBA8_ETC2_EAC
+    #define GL_COMPRESSED_RGBA8_ETC2_EAC &h9278
+#endif
+#ifndef GL_COMPRESSED_RGB_PVRTC_4BPPV1_IMG
+    #define GL_COMPRESSED_RGB_PVRTC_4BPPV1_IMG &h8C00
+#endif
+#ifndef GL_COMPRESSED_RGBA_PVRTC_4BPPV1_IMG
+    #define GL_COMPRESSED_RGBA_PVRTC_4BPPV1_IMG &h8C02
+#endif
+#ifndef GL_COMPRESSED_RGBA_ASTC_4x4_KHR
+    #define GL_COMPRESSED_RGBA_ASTC_4x4_KHR &h93B0
+#endif
+#ifndef GL_COMPRESSED_RGBA_ASTC_8x8_KHR
+    #define GL_COMPRESSED_RGBA_ASTC_8x8_KHR &h93B7
+#endif
+
+#ifndef GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT
+    #define GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT &h84FF
+#endif
+#ifndef GL_TEXTURE_MAX_ANISOTROPY_EXT
+    #define GL_TEXTURE_MAX_ANISOTROPY_EXT &h84FE
+#endif
+
+#ifndef GL_PROGRAM_POINT_SIZE
+    #define GL_PROGRAM_POINT_SIZE &h8642
+#endif
+
+#ifndef GL_LINE_WIDTH
+    #define GL_LINE_WIDTH &h0B21
+#endif
+
+#if defined(GRAPHICS_API_OPENGL_11)
+    #define GL_UNSIGNED_SHORT_5_6_5 &h8363
+    #define GL_UNSIGNED_SHORT_5_5_5_1 &h8034
+    #define GL_UNSIGNED_SHORT_4_4_4_4 &h8033
+#endif
+
+#if defined(GRAPHICS_API_OPENGL_21)
+    #define GL_LUMINANCE &h1909
+    #define GL_LUMINANCE_ALPHA &h190A
+#endif
+
+#if defined(GRAPHICS_API_OPENGL_ES2)
+    '' C2T-TODO(macro) rlgl.h:993 -- 'glClearDepth': 'glClearDepthf' is nothing tiko declares
+''     #define glClearDepth                 glClearDepthf
+    #if ((defined(GRAPHICS_API_OPENGL_ES3)) = 0)
+        '' C2T-TODO(macro) rlgl.h:995 -- 'GL_READ_FRAMEBUFFER': 'GL_FRAMEBUFFER' is nothing tiko declares
+''         #define GL_READ_FRAMEBUFFER         GL_FRAMEBUFFER
+        '' C2T-TODO(macro) rlgl.h:996 -- 'GL_DRAW_FRAMEBUFFER': 'GL_FRAMEBUFFER' is nothing tiko declares
+''         #define GL_DRAW_FRAMEBUFFER         GL_FRAMEBUFFER
+        '' C2T-TODO(macro) rlgl.h:997 -- 'GL_DRAW_FRAMEBUFFER_BINDING': 'GL_FRAMEBUFFER_BINDING' is nothing tiko declares
+''         #define GL_DRAW_FRAMEBUFFER_BINDING GL_FRAMEBUFFER_BINDING
+    #endif
+#endif
+
+'' Default shader vertex attribute names to set location points
+'' WARNING: Pre-defined names can not be changed, they are used by default shaders and all raylib examples shaders, they are just listed here for reference
+#define RL_DEFAULT_SHADER_ATTRIB_NAME_POSITION "vertexPosition"             '' Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION
+#define RL_DEFAULT_SHADER_ATTRIB_NAME_TEXCOORD "vertexTexCoord"             '' Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD
+#define RL_DEFAULT_SHADER_ATTRIB_NAME_NORMAL "vertexNormal"                 '' Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_LOCATION_NORMAL
+#define RL_DEFAULT_SHADER_ATTRIB_NAME_COLOR "vertexColor"                   '' Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_LOCATION_COLOR
+#define RL_DEFAULT_SHADER_ATTRIB_NAME_TANGENT "vertexTangent"               '' Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_LOCATION_TANGENT
+#define RL_DEFAULT_SHADER_ATTRIB_NAME_TEXCOORD2 "vertexTexCoord2"           '' Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD2
+#define RL_DEFAULT_SHADER_ATTRIB_NAME_BONEINDICES "vertexBoneIndices"       '' Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_LOCATION_BONEINDICES
+#define RL_DEFAULT_SHADER_ATTRIB_NAME_BONEWEIGHTS "vertexBoneWeights"       '' Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_LOCATION_BONEWEIGHTS
+#define RL_DEFAULT_SHADER_ATTRIB_NAME_INSTANCETRANSFORM "instanceTransform" '' Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_LOCATION_INSTANCETRANSFORM
+
+#define RL_DEFAULT_SHADER_UNIFORM_NAME_MVP "mvp"                            '' model-view-projection matrix
+#define RL_DEFAULT_SHADER_UNIFORM_NAME_VIEW "matView"                       '' view matrix
+#define RL_DEFAULT_SHADER_UNIFORM_NAME_PROJECTION "matProjection"           '' projection matrix
+#define RL_DEFAULT_SHADER_UNIFORM_NAME_MODEL "matModel"                     '' model matrix
+#define RL_DEFAULT_SHADER_UNIFORM_NAME_NORMAL "matNormal"                   '' normal matrix (transpose(inverse(matModelView))
+#define RL_DEFAULT_SHADER_UNIFORM_NAME_COLOR "colDiffuse"                   '' color diffuse (base tint color, multiplied by texture color)
+#define RL_DEFAULT_SHADER_UNIFORM_NAME_BONEMATRICES "boneMatrices"          '' bone matrices (required for GPU skinning)
+
+#define RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE0 "texture0"                '' texture0 (texture slot active 0)
+#define RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE1 "texture1"                '' texture1 (texture slot active 1)
+#define RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE2 "texture2"                '' texture2 (texture slot active 2)
+
+''----------------------------------------------------------------------------------
+'' Module Types and Structures Definition
+''----------------------------------------------------------------------------------
+#if (defined(GRAPHICS_API_OPENGL_33) orelse defined(GRAPHICS_API_OPENGL_ES2))
+
+type rlglLoadProc as function cdecl( byval as const zstring ptr ) as any ptr   '' OpenGL extension functions loader signature (same as GLADloadproc)
+
+type rlglData_State_t
+    vertexCounter as int32
+    texcoordx as float32
+    texcoordy as float32
+    normalx as float32
+    normaly as float32
+    normalz as float32
+    colorr as uint8
+    colorg as uint8
+    colorb as uint8
+    colora as uint8
+    currentMatrixMode as int32
+    currentMatrix as Matrix ptr
+    modelview as Matrix
+    projection as Matrix
+    transform as Matrix
+    transformRequired as boolean
+    stack(0 to 31) as Matrix
+    stackCounter as int32
+    currentTextureId as uint32
+    defaultTextureId as uint32
+    activeTextureId(0 to 3) as uint32
+    defaultVShaderId as uint32
+    defaultFShaderId as uint32
+    defaultShaderId as uint32
+    defaultShaderLocs as int32 ptr
+    currentShaderId as uint32
+    currentShaderLocs as int32 ptr
+    stereoRender as boolean
+    projectionStereo(0 to 1) as Matrix
+    viewOffsetStereo(0 to 1) as Matrix
+    currentBlendMode as int32
+    glBlendSrcFactor as int32
+    glBlendDstFactor as int32
+    glBlendEquation as int32
+    glBlendSrcFactorRGB as int32
+    glBlendDestFactorRGB as int32
+    glBlendSrcFactorAlpha as int32
+    glBlendDestFactorAlpha as int32
+    glBlendEquationRGB as int32
+    glBlendEquationAlpha as int32
+    glCustomBlendModeModified as boolean
+    framebufferWidth as int32
+    framebufferHeight as int32
+end type
+type rlglData_ExtSupported_t
+    vao as boolean
+    instancing as boolean
+    texNPOT as boolean
+    texDepth as boolean
+    texDepthWebGL as boolean
+    texFloat32 as boolean
+    texFloat16 as boolean
+    texCompDXT as boolean
+    texCompETC1 as boolean
+    texCompETC2 as boolean
+    texCompPVRT as boolean
+    texCompASTC as boolean
+    texMirrorClamp as boolean
+    texAnisoFilter as boolean
+    computeShader as boolean
+    ssbo as boolean
+    maxAnisotropyLevel as float32
+    maxDepthBits as int32
+end type
+type rlglData
+    currentBatch as rlRenderBatch ptr       '' Current render batch
+    defaultBatch as rlRenderBatch           '' Default internal render batch
+
+    loader as rlglLoadProc                  '' OpenGL function loader
+
+    State as rlglData_State_t '' Current active render batch vertex counter (generic, used for all batches) '' Current active texture coordinate (added on glVertex*()) '' Current active normal (added on glVertex*()) '' Current active color (added on glVertex*())
+ '' Current matrix mode '' Current matrix pointer '' Default modelview matrix '' Default projection matrix '' Transform matrix to be used with rlTranslate, rlRotate, rlScale '' Require transform matrix application to current draw-call vertex (if required) '' Matrix stack for push/pop '' Matrix stack counter
+ '' Current texture id to be used on glBegin '' Default texture used on shapes/poly drawing (required by shader) '' Active texture ids to be enabled on batch drawing (0 active by default) '' Default vertex shader id (used by default shader program) '' Default fragment shader id (used by default shader program) '' Default shader program id, supports vertex color and diffuse texture '' Default shader locations pointer to be used on rendering '' Current shader id to be used on rendering (by default, defaultShaderId) '' Current shader locations pointer to be used on rendering (by default, defaultShaderLocs)
+ '' Stereo rendering flag '' VR stereo rendering eyes projection matrices '' VR stereo rendering eyes view offset matrices
+
+        '' Blending variables '' Blending mode active '' Blending source factor '' Blending destination factor '' Blending equation '' Blending source RGB factor '' Blending destination RGB factor '' Blending source alpha factor '' Blending destination alpha factor '' Blending equation for RGB '' Blending equation for alpha '' Custom blending factor and equation modification status
+ '' Current framebuffer width '' Current framebuffer height
+ '' Renderer state
+    ExtSupported as rlglData_ExtSupported_t '' VAO support (OpenGL ES2 could not support VAO extension) (GL_ARB_vertex_array_object) '' Instancing supported (GL_ANGLE_instanced_arrays, GL_EXT_draw_instanced + GL_EXT_instanced_arrays) '' NPOT textures full support (GL_ARB_texture_non_power_of_two, GL_OES_texture_npot) '' Depth textures supported (GL_ARB_depth_texture, GL_OES_depth_texture) '' Depth textures supported WebGL specific (GL_WEBGL_depth_texture) '' float textures support (32 bit per channel) (GL_OES_texture_float) '' half float textures support (16 bit per channel) (GL_OES_texture_half_float) '' DDS texture compression support (GL_EXT_texture_compression_s3tc, GL_WEBGL_compressed_texture_s3tc, GL_WEBKIT_WEBGL_compressed_texture_s3tc) '' ETC1 texture compression support (GL_OES_compressed_ETC1_RGB8_texture, GL_WEBGL_compressed_texture_etc1) '' ETC2/EAC texture compression support (GL_ARB_ES3_compatibility) '' PVR texture compression support (GL_IMG_texture_compression_pvrtc) '' ASTC texture compression support (GL_KHR_texture_compression_astc_hdr, GL_KHR_texture_compression_astc_ldr) '' Clamp mirror wrap mode supported (GL_EXT_texture_mirror_clamp) '' Anisotropic texture filtering support (GL_EXT_texture_filter_anisotropic) '' Compute shaders support (GL_ARB_compute_shader) '' Shader storage buffer object support (GL_ARB_shader_storage_buffer_object)
+ '' Maximum anisotropy level supported (minimum is 2.0f) '' Maximum bits for depth component
+ '' Extensions supported flags
+end type
+
+#endif '' GRAPHICS_API_OPENGL_33 || GRAPHICS_API_OPENGL_ES2
+
+''----------------------------------------------------------------------------------
+'' Global Variables Definition
+''----------------------------------------------------------------------------------
+'' C2T-TODO(refused-type) rlgl.h:1113 -- static variable 'isGpuReady': no symbol to link against
+'' static bool isGpuReady = false;
+'' C2T-TODO(refused-type) rlgl.h:1114 -- static variable 'rlCullDistanceNear': no symbol to link against
+'' static double rlCullDistanceNear = RL_CULL_DISTANCE_NEAR;
+'' C2T-TODO(refused-type) rlgl.h:1115 -- static variable 'rlCullDistanceFar': no symbol to link against
+'' static double rlCullDistanceFar = RL_CULL_DISTANCE_FAR;
+
+#if (defined(GRAPHICS_API_OPENGL_33) orelse defined(GRAPHICS_API_OPENGL_ES2))
+'' C2T-TODO(refused-type) rlgl.h:1118 -- static variable 'RLGL': no symbol to link against
+'' static rlglData RLGL = { 0 };
+#endif
+
+#if (defined(GRAPHICS_API_OPENGL_ES2) andalso ((defined(GRAPHICS_API_OPENGL_ES3)) = 0))
+'' VAO functions entry points
+'' NOTE: VAO functionality is exposed through extensions (OES)
+'' C2T-TODO(branch-unparsed) rlgl.h:1124 -- clang cannot parse the branch: unknown type name 'PFNGLGENVERTEXARRAYSOESPROC'
+'' static PFNGLGENVERTEXARRAYSOESPROC glGenVertexArrays = NULL;
+'' static PFNGLBINDVERTEXARRAYOESPROC glBindVertexArray = NULL;
+'' static PFNGLDELETEVERTEXARRAYSOESPROC glDeleteVertexArrays = NULL;
+
+'' Instancing functionality entry points
+'' NOTE: Instancing functionality could be available through extensions
+'' C2T-TODO(branch-unparsed) rlgl.h:1130 -- clang cannot parse the branch: unknown type name 'PFNGLGENVERTEXARRAYSOESPROC'
+'' static PFNGLDRAWARRAYSINSTANCEDEXTPROC glDrawArraysInstanced = NULL;
+'' static PFNGLDRAWELEMENTSINSTANCEDEXTPROC glDrawElementsInstanced = NULL;
+'' static PFNGLVERTEXATTRIBDIVISOREXTPROC glVertexAttribDivisor = NULL;
+#endif
+
+''----------------------------------------------------------------------------------
+'' Module Functions Declaration
+''----------------------------------------------------------------------------------
+#if (defined(GRAPHICS_API_OPENGL_33) orelse defined(GRAPHICS_API_OPENGL_ES2))
+'' C2T-TODO(static-inline) rlgl.h:1139 -- static function 'rlLoadShaderDefault': no symbol to link against; port the body by hand
+'' static void rlLoadShaderDefault(void);      // Load default shader
+'' C2T-TODO(static-inline) rlgl.h:1140 -- static function 'rlUnloadShaderDefault': no symbol to link against; port the body by hand
+'' static void rlUnloadShaderDefault(void);    // Unload default shader
+#if RLGL_SHOW_GL_DETAILS_INFO
+'' C2T-TODO(static-inline) rlgl.h:1142 -- static function 'rlGetCompressedFormatName': no symbol to link against; port the body by hand
+'' static const char *rlGetCompressedFormatName(int format); // Get compressed format official GL identifier name
+#endif
+#endif
+
+'' C2T-TODO(static-inline) rlgl.h:1146 -- static function 'rlGetPixelDataSize': no symbol to link against; port the body by hand
+'' static int rlGetPixelDataSize(int width, int height, int format);   // Get pixel data size in bytes (image or texture)
+
+'' C2T-TODO(static-inline) rlgl.h:1148 -- static function 'rlMatrixIdentity': no symbol to link against; port the body by hand
+'' static Matrix rlMatrixIdentity(void);                       // Get identity matrix
+#if (defined(GRAPHICS_API_OPENGL_33) orelse defined(GRAPHICS_API_OPENGL_ES2))
+'' Auxiliar matrix math functions
+type rl_float16
+    v(0 to 15) as float32
+end type
+'' C2T-TODO(static-inline) rlgl.h:1152 -- static function 'rlMatrixToFloatV': no symbol to link against; port the body by hand
+'' static rl_float16 rlMatrixToFloatV(Matrix mat);             // Get float array of matrix data
+'' C2T-TODO(function-like-macro) rlgl.h:1153 -- member access, subscripts and increments
+'' #define rlMatrixToFloat(mat) (rlMatrixToFloatV(mat).v)      // Get float vector for Matrix
+'' C2T-TODO(static-inline) rlgl.h:1154 -- static function 'rlMatrixMultiply': no symbol to link against; port the body by hand
+'' static Matrix rlMatrixMultiply(Matrix left, Matrix right);  // Multiply two matrices
+'' C2T-TODO(static-inline) rlgl.h:1155 -- static function 'rlMatrixTranspose': no symbol to link against; port the body by hand
+'' static Matrix rlMatrixTranspose(Matrix mat);                // Transposes provided matrix
+'' C2T-TODO(static-inline) rlgl.h:1156 -- static function 'rlMatrixInvert': no symbol to link against; port the body by hand
+'' static Matrix rlMatrixInvert(Matrix mat);                   // Invert provided matrix
+#endif
+
+''----------------------------------------------------------------------------------
+'' Module Functions Definition - Matrix operations
+''----------------------------------------------------------------------------------
+
+#if defined(GRAPHICS_API_OPENGL_11)
+'' Fallback to OpenGL 1.1 function calls
+''---------------------------------------
+'' C2T-TODO(branch-unparsed) rlgl.h:1166 -- clang cannot parse the branch: redefinition of 'rlMatrixMode'
+'' void rlMatrixMode(int mode)
+'' {
+''     switch (mode)
+''     {
+''         case RL_PROJECTION: glMatrixMode(GL_PROJECTION); break;
+''         case RL_MODELVIEW: glMatrixMode(GL_MODELVIEW); break;
+''         case RL_TEXTURE: glMatrixMode(GL_TEXTURE); break;
+''         default: break;
+''     }
+'' }
+
+'' C2T-TODO(branch-unparsed) rlgl.h:1177 -- clang cannot parse the branch: redefinition of 'rlMatrixMode'
+'' void rlFrustum(double left, double right, double bottom, double top, double znear, double zfar)
+'' {
+''     glFrustum(left, right, bottom, top, znear, zfar);
+'' }
+
+'' C2T-TODO(branch-unparsed) rlgl.h:1182 -- clang cannot parse the branch: redefinition of 'rlMatrixMode'
+'' void rlOrtho(double left, double right, double bottom, double top, double znear, double zfar)
+'' {
+''     glOrtho(left, right, bottom, top, znear, zfar);
+'' }
+
+'' C2T-TODO(branch-unparsed) rlgl.h:1187 -- clang cannot parse the branch: redefinition of 'rlMatrixMode'
+'' void rlPushMatrix(void) { glPushMatrix(); }
+'' void rlPopMatrix(void) { glPopMatrix(); }
+'' void rlLoadIdentity(void) { glLoadIdentity(); }
+'' void rlTranslatef(float x, float y, float z) { glTranslatef(x, y, z); }
+'' void rlRotatef(float angle, float x, float y, float z) { glRotatef(angle, x, y, z); }
+'' void rlScalef(float x, float y, float z) { glScalef(x, y, z); }
+'' void rlMultMatrixf(const float *matf) { glMultMatrixf(matf); }
+#endif
+#if (defined(GRAPHICS_API_OPENGL_33) orelse defined(GRAPHICS_API_OPENGL_ES2))
+'' Choose the current matrix to be transformed
+declare sub rlMatrixMode( byval mode as int32 )
+
+'' Push the current matrix into RLGL.State.stack
+declare sub rlPushMatrix( )
+
+'' Pop latest inserted matrix from RLGL.State.stack
+declare sub rlPopMatrix( )
+
+'' Reset current matrix to identity matrix
+declare sub rlLoadIdentity( )
+
+'' Multiply the current matrix by a translation matrix
+declare sub rlTranslatef( byval x as float32, byval y as float32, byval z as float32 )
+
+'' Multiply the current matrix by a rotation matrix
+'' NOTE: The provided angle must be in degrees
+declare sub rlRotatef( byval angle as float32, byval x as float32, byval y as float32, byval z as float32 )
+
+'' Multiply the current matrix by a scaling matrix
+declare sub rlScalef( byval x as float32, byval y as float32, byval z as float32 )
+
+'' Multiply the current matrix by another matrix
+declare sub rlMultMatrixf( byval matf as const float32 ptr )
+
+'' Multiply the current matrix by a perspective matrix generated by parameters
+declare sub rlFrustum( byval left_ as float64, byval right_ as float64, byval bottom as float64, byval top as float64, byval znear as float64, byval zfar as float64 )
+
+'' Multiply the current matrix by an orthographic matrix generated by parameters
+declare sub rlOrtho( byval left_ as float64, byval right_ as float64, byval bottom as float64, byval top as float64, byval znear as float64, byval zfar as float64 )
+#endif
+
+'' Set the viewport area (transformation from normalized device coordinates to window coordinates)
+declare sub rlViewport( byval x as int32, byval y as int32, byval width_ as int32, byval height as int32 )
+
+'' Set clip planes distances
+declare sub rlSetClipPlanes( byval nearPlane as float64, byval farPlane as float64 )
+
+'' Get cull plane distance near
+declare function rlGetCullDistanceNear( ) as float64
+
+'' Get cull plane distance far
+declare function rlGetCullDistanceFar( ) as float64
+
+''----------------------------------------------------------------------------------
+'' Module Functions Definition - Vertex level operations
+''----------------------------------------------------------------------------------
+#if defined(GRAPHICS_API_OPENGL_11)
+'' Fallback to OpenGL 1.1 function calls
+''---------------------------------------
+'' C2T-TODO(branch-unparsed) rlgl.h:1429 -- clang cannot parse the branch: redefinition of 'rlBegin'
+'' void rlBegin(int mode)
+'' {
+''     switch (mode)
+''     {
+''         case RL_LINES: glBegin(GL_LINES); break;
+''         case RL_TRIANGLES: glBegin(GL_TRIANGLES); break;
+''         case RL_QUADS: glBegin(GL_QUADS); break;
+''         default: break;
+''     }
+'' }
+
+'' C2T-TODO(branch-unparsed) rlgl.h:1440 -- clang cannot parse the branch: redefinition of 'rlBegin'
+'' void rlEnd(void) { glEnd(); }
+'' void rlVertex2i(int x, int y) { glVertex2i(x, y); }
+'' void rlVertex2f(float x, float y) { glVertex2f(x, y); }
+'' void rlVertex3f(float x, float y, float z) { glVertex3f(x, y, z); }
+'' void rlTexCoord2f(float x, float y) { glTexCoord2f(x, y); }
+'' void rlNormal3f(float x, float y, float z) { glNormal3f(x, y, z); }
+'' void rlColor4ub(unsigned char r, unsigned char g, unsigned char b, unsigned char a) { glColor4ub(r, g, b, a); }
+'' void rlColor3f(float x, float y, float z) { glColor3f(x, y, z); }
+'' void rlColor4f(float x, float y, float z, float w) { glColor4f(x, y, z, w); }
+#endif
+#if (defined(GRAPHICS_API_OPENGL_33) orelse defined(GRAPHICS_API_OPENGL_ES2))
+'' Initialize drawing mode (how to organize vertex)
+declare sub rlBegin( byval mode as int32 )
+
+'' Finish vertex providing
+declare sub rlEnd( )
+
+'' Define one vertex (position)
+'' NOTE: Vertex position data is the basic information required for drawing
+declare sub rlVertex3f( byval x as float32, byval y as float32, byval z as float32 )
+
+'' Define one vertex (position)
+declare sub rlVertex2f( byval x as float32, byval y as float32 )
+
+'' Define one vertex (position)
+declare sub rlVertex2i( byval x as int32, byval y as int32 )
+
+'' Define one vertex (texture coordinate)
+'' NOTE: Texture coordinates are limited to QUADS only
+declare sub rlTexCoord2f( byval x as float32, byval y as float32 )
+
+'' Define one vertex (normal)
+'' NOTE: Normals limited to TRIANGLES only?
+declare sub rlNormal3f( byval x as float32, byval y as float32, byval z as float32 )
+
+'' Define one vertex (color)
+declare sub rlColor4ub( byval x as uint8, byval y as uint8, byval z as uint8, byval w as uint8 )
+
+'' Define one vertex (color)
+declare sub rlColor4f( byval r as float32, byval g as float32, byval b as float32, byval a as float32 )
+
+'' Define one vertex (color)
+declare sub rlColor3f( byval x as float32, byval y as float32, byval z as float32 )
+
+#endif
+
+''--------------------------------------------------------------------------------------
+'' Module Functions Definition - OpenGL style functions (common to 1.1, 3.3+, ES2)
+''--------------------------------------------------------------------------------------
+
+'' Set current texture to use
+declare sub rlSetTexture( byval id as uint32 )
+
+'' Select and active a texture slot
+declare sub rlActiveTextureSlot( byval slot as int32 )
+
+'' Enable texture
+declare sub rlEnableTexture( byval id as uint32 )
+
+'' Disable texture
+declare sub rlDisableTexture( )
+
+'' Enable texture cubemap
+declare sub rlEnableTextureCubemap( byval id as uint32 )
+
+'' Disable texture cubemap
+declare sub rlDisableTextureCubemap( )
+
+'' Set texture parameters (wrap mode/filter mode)
+declare sub rlTextureParameters( byval id as uint32, byval param as int32, byval value as int32 )
+
+'' Set cubemap parameters (wrap mode/filter mode)
+declare sub rlCubemapParameters( byval id as uint32, byval param as int32, byval value as int32 )
+
+'' Enable shader program
+declare sub rlEnableShader( byval id as uint32 )
+
+'' Disable shader program
+declare sub rlDisableShader( )
+
+'' Enable rendering to texture (fbo)
+declare sub rlEnableFramebuffer( byval id as uint32 )
+
+'' return the active render texture (fbo)
+declare function rlGetActiveFramebuffer( ) as uint32
+
+'' Disable rendering to texture
+declare sub rlDisableFramebuffer( )
+
+'' Blit active framebuffer to main framebuffer
+declare sub rlBlitFramebuffer( byval srcX as int32, byval srcY as int32, byval srcWidth as int32, byval srcHeight as int32, byval dstX as int32, byval dstY as int32, byval dstWidth as int32, byval dstHeight as int32, byval bufferMask as int32 )
+
+'' Bind framebuffer object (fbo)
+declare sub rlBindFramebuffer( byval target as uint32, byval framebuffer as uint32 )
+
+'' Activate multiple draw color buffers
+'' NOTE: One color buffer is always active by default
+declare sub rlActiveDrawBuffers( byval count as int32 )
+
+''----------------------------------------------------------------------------------
+'' General render state configuration
+''----------------------------------------------------------------------------------
+
+'' Enable color blending
+declare sub rlEnableColorBlend( )
+
+'' Disable color blending
+declare sub rlDisableColorBlend( )
+
+'' Enable depth test
+declare sub rlEnableDepthTest( )
+
+'' Disable depth test
+declare sub rlDisableDepthTest( )
+
+'' Enable depth write
+declare sub rlEnableDepthMask( )
+
+'' Disable depth write
+declare sub rlDisableDepthMask( )
+
+'' Enable backface culling
+declare sub rlEnableBackfaceCulling( )
+
+'' Disable backface culling
+declare sub rlDisableBackfaceCulling( )
+
+'' Set color mask active for screen read/draw
+declare sub rlColorMask( byval r as boolean, byval g as boolean, byval b as boolean, byval a as boolean )
+
+'' Set face culling mode
+declare sub rlSetCullFace( byval mode as int32 )
+
+'' Enable scissor test
+declare sub rlEnableScissorTest( )
+
+'' Disable scissor test
+declare sub rlDisableScissorTest( )
+
+'' Scissor test
+declare sub rlScissor( byval x as int32, byval y as int32, byval width_ as int32, byval height as int32 )
+
+'' Enable wire mode
+declare sub rlEnableWireMode( )
+
+'' Disable wire mode
+declare sub rlDisableWireMode( )
+
+'' Enable point mode
+declare sub rlEnablePointMode( )
+
+'' Disable point mode
+declare sub rlDisablePointMode( )
+
+'' Set the line drawing width
+declare sub rlSetLineWidth( byval width_ as float32 )
+
+'' Get the line drawing width
+declare function rlGetLineWidth( ) as float32
+
+'' Set the point drawing size
+declare sub rlSetPointSize( byval size as float32 )
+
+'' Get the point drawing size
+declare function rlGetPointSize( ) as float32
+
+'' Enable line aliasing
+declare sub rlEnableSmoothLines( )
+
+'' Disable line aliasing
+declare sub rlDisableSmoothLines( )
+
+'' Enable stereo rendering
+declare sub rlEnableStereoRender( )
+
+'' Disable stereo rendering
+declare sub rlDisableStereoRender( )
+
+'' Check if stereo render is enabled
+declare function rlIsStereoRenderEnabled( ) as boolean
+
+'' Clear color buffer with color
+declare sub rlClearColor( byval r as uint8, byval g as uint8, byval b as uint8, byval a as uint8 )
+
+'' Clear used screen buffers (color and depth)
+declare sub rlClearScreenBuffers( )
+
+'' Check and log OpenGL error codes
+declare sub rlCheckErrors( )
+
+'' Set blend mode
+declare sub rlSetBlendMode( byval mode as int32 )
+
+'' Set blending mode factor and equation
+declare sub rlSetBlendFactors( byval glSrcFactor as int32, byval glDstFactor as int32, byval glEquation as int32 )
+
+'' Set blending mode factor and equation separately for RGB and alpha
+declare sub rlSetBlendFactorsSeparate( byval glSrcRGB as int32, byval glDstRGB as int32, byval glSrcAlpha as int32, byval glDstAlpha as int32, byval glEqRGB as int32, byval glEqAlpha as int32 )
+
+''----------------------------------------------------------------------------------
+'' Module Functions Definition - OpenGL Debug
+''----------------------------------------------------------------------------------
+#if (defined(GRAPHICS_API_OPENGL_43) andalso RLGL_ENABLE_OPENGL_DEBUG_CONTEXT)
+'' C2T-TODO(branch-unparsed) rlgl.h:2197 -- clang cannot parse the branch: variable has incomplete type 'void'
+'' static void GLAPIENTRY rlDebugMessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam)
+'' {
+    '' Ignore non-significant error/warning codes (NVidia drivers)
+    '' NOTE: Here there are the details with a sample output:
+    '' - #131169 - Framebuffer detailed info: The driver allocated storage for renderbuffer 2. (severity: low)
+    '' - #131185 - Buffer detailed info: Buffer object 1 (bound to GL_ELEMENT_ARRAY_BUFFER_ARB, usage hint is GL_ENUM_88e4)
+    ''             will use VIDEO memory as the source for buffer object operations. (severity: low)
+    '' - #131218 - Program/shader state performance warning: Vertex shader in program 7 is being recompiled based on GL state. (severity: medium)
+    '' - #131204 - Texture state usage warning: The texture object (0) bound to texture image unit 0 does not have
+    ''             a defined base level and cannot be used for texture mapping. (severity: low)
+    '' C2T-TODO(branch-unparsed) rlgl.h:2207 -- clang cannot parse the branch: variable has incomplete type 'void'
+''     if ((id == 131169) || (id == 131185) || (id == 131218) || (id == 131204)) return;
+
+    '' C2T-TODO(branch-unparsed) rlgl.h:2209 -- clang cannot parse the branch: variable has incomplete type 'void'
+''     const char *msgSource = NULL;
+''     switch (source)
+''     {
+''         case GL_DEBUG_SOURCE_API: msgSource = "API"; break;
+''         case GL_DEBUG_SOURCE_WINDOW_SYSTEM: msgSource = "WINDOW_SYSTEM"; break;
+''         case GL_DEBUG_SOURCE_SHADER_COMPILER: msgSource = "SHADER_COMPILER"; break;
+''         case GL_DEBUG_SOURCE_THIRD_PARTY: msgSource = "THIRD_PARTY"; break;
+''         case GL_DEBUG_SOURCE_APPLICATION: msgSource = "APPLICATION"; break;
+''         case GL_DEBUG_SOURCE_OTHER: msgSource = "OTHER"; break;
+''         default: break;
+''     }
+
+    '' C2T-TODO(branch-unparsed) rlgl.h:2221 -- clang cannot parse the branch: variable has incomplete type 'void'
+''     const char *msgType = NULL;
+''     switch (type)
+''     {
+''         case GL_DEBUG_TYPE_ERROR: msgType = "ERROR"; break;
+''         case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: msgType = "DEPRECATED_BEHAVIOR"; break;
+''         case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR: msgType = "UNDEFINED_BEHAVIOR"; break;
+''         case GL_DEBUG_TYPE_PORTABILITY: msgType = "PORTABILITY"; break;
+''         case GL_DEBUG_TYPE_PERFORMANCE: msgType = "PERFORMANCE"; break;
+''         case GL_DEBUG_TYPE_MARKER: msgType = "MARKER"; break;
+''         case GL_DEBUG_TYPE_PUSH_GROUP: msgType = "PUSH_GROUP"; break;
+''         case GL_DEBUG_TYPE_POP_GROUP: msgType = "POP_GROUP"; break;
+''         case GL_DEBUG_TYPE_OTHER: msgType = "OTHER"; break;
+''         default: break;
+''     }
+
+    '' C2T-TODO(branch-unparsed) rlgl.h:2236 -- clang cannot parse the branch: variable has incomplete type 'void'
+''     const char *msgSeverity = "DEFAULT";
+''     switch (severity)
+''     {
+''         case GL_DEBUG_SEVERITY_LOW: msgSeverity = "LOW"; break;
+''         case GL_DEBUG_SEVERITY_MEDIUM: msgSeverity = "MEDIUM"; break;
+''         case GL_DEBUG_SEVERITY_HIGH: msgSeverity = "HIGH"; break;
+''         case GL_DEBUG_SEVERITY_NOTIFICATION: msgSeverity = "NOTIFICATION"; break;
+''         default: break;
+''     }
+
+    '' C2T-TODO(branch-unparsed) rlgl.h:2246 -- clang cannot parse the branch: variable has incomplete type 'void'
+''     TRACELOG(RL_LOG_WARNING, "GL: OpenGL debug message: %s", message);
+''     TRACELOG(RL_LOG_WARNING, "    > Type: %s", msgType);
+''     TRACELOG(RL_LOG_WARNING, "    > Source = %s", msgSource);
+''     TRACELOG(RL_LOG_WARNING, "    > Severity = %s", msgSeverity);
+'' }
+#endif
+
+''----------------------------------------------------------------------------------
+'' Module Functions Definition - rlgl functionality
+''----------------------------------------------------------------------------------
+
+'' Initialize rlgl: OpenGL extensions, default buffers/shaders/textures, OpenGL states
+declare sub rlglInit( byval width_ as int32, byval height as int32 )
+
+'' Vertex Buffer Object deinitialization (memory free)
+declare sub rlglClose( )
+
+'' Load OpenGL extensions
+'' NOTE: External loader function must be provided
+declare sub rlLoadExtensions( byval loader as any ptr )
+
+'' Get OpenGL procedure address
+declare function rlGetProcAddress( byval procName as const zstring ptr ) as any ptr
+
+'' Get current OpenGL version
+declare function rlGetVersion( ) as int32
+
+'' Set current framebuffer width
+declare sub rlSetFramebufferWidth( byval width_ as int32 )
+
+'' Set current framebuffer height
+declare sub rlSetFramebufferHeight( byval height as int32 )
+
+'' Get default framebuffer width
+declare function rlGetFramebufferWidth( ) as int32
+
+'' Get default framebuffer height
+declare function rlGetFramebufferHeight( ) as int32
+
+'' Get default internal texture (white texture)
+'' NOTE: Default texture is a 1x1 pixel UNCOMPRESSED_R8G8B8A8
+declare function rlGetTextureIdDefault( ) as uint32
+
+'' Get default shader id
+declare function rlGetShaderIdDefault( ) as uint32
+
+'' Get default shader locs
+declare function rlGetShaderLocsDefault( ) as int32 ptr
+
+'' Render batch management
+''------------------------------------------------------------------------------------------------
+'' Load render batch
+declare function rlLoadRenderBatch( byval numBuffers as int32, byval bufferElements as int32 ) as rlRenderBatch
+
+'' Unload default internal buffers vertex data from CPU and GPU
+declare sub rlUnloadRenderBatch( byval batch as rlRenderBatch )
+
+'' Draw render batch
+'' NOTE: Batch is reseted and current buffer is updated (for multi-buffer config)
+declare sub rlDrawRenderBatch( byval batch as rlRenderBatch ptr )
+
+'' Set the active render batch for rlgl
+declare sub rlSetRenderBatchActive( byval batch as rlRenderBatch ptr )
+
+'' Update and draw internal render batch
+declare sub rlDrawRenderBatchActive( )
+
+'' Check internal buffer overflow for a given number of vertex
+'' and force a rlRenderBatch draw call if required
+declare function rlCheckRenderBatchLimit( byval vCount as int32 ) as boolean
+
+'' Textures data management
+''-----------------------------------------------------------------------------------------
+'' Convert image data to OpenGL texture (returns OpenGL valid Id)
+declare function rlLoadTexture( byval data_ as const any ptr, byval width_ as int32, byval height as int32, byval format as int32, byval mipmapCount as int32 ) as uint32
+
+'' Load depth texture/renderbuffer (to be attached to fbo)
+'' WARNING: OpenGL ES 2.0 requires GL_OES_depth_texture and WebGL requires WEBGL_depth_texture extensions
+declare function rlLoadTextureDepth( byval width_ as int32, byval height as int32, byval useRenderBuffer as boolean ) as uint32
+
+'' Load texture cubemap
+'' NOTE: Cubemap data is expected to be 6 images in a single data array (one after the other),
+'' expected the following convention: +X, -X, +Y, -Y, +Z, -Z
+declare function rlLoadTextureCubemap( byval data_ as const any ptr, byval size as int32, byval format as int32, byval mipmapCount as int32 ) as uint32
+
+'' Update already loaded texture in GPU with new data
+'' WARNING: Not possible to know safely if internal texture format is the expected one...
+declare sub rlUpdateTexture( byval id as uint32, byval offsetX as int32, byval offsetY as int32, byval width_ as int32, byval height as int32, byval format as int32, byval data_ as const any ptr )
+
+'' Get OpenGL internal formats and data type from raylib PixelFormat
+declare sub rlGetGlTextureFormats( byval format as int32, byval glInternalFormat as uint32 ptr, byval glFormat as uint32 ptr, byval glType as uint32 ptr )
+
+'' Unload texture from GPU memory
+declare sub rlUnloadTexture( byval id as uint32 )
+
+'' Generate mipmap data for selected texture
+'' NOTE: Only supports GPU mipmap generation
+declare sub rlGenTextureMipmaps( byval id as uint32, byval width_ as int32, byval height as int32, byval format as int32, byval mipmaps as int32 ptr )
+
+'' Read texture pixel data
+declare function rlReadTexturePixels( byval id as uint32, byval width_ as int32, byval height as int32, byval format as int32 ) as any ptr
+
+'' Copy framebuffer pixel data to internal buffer
+declare sub rlCopyFramebuffer( byval x as int32, byval y as int32, byval width_ as int32, byval height as int32, byval format as int32, byval pixels as any ptr )
+
+'' Resize internal framebuffer
+declare sub rlResizeFramebuffer( byval width_ as int32, byval height as int32 )
+
+'' Read screen pixel data (color buffer)
+declare function rlReadScreenPixels( byval width_ as int32, byval height as int32 ) as uint8 ptr
+
+'' Framebuffer management (fbo)
+''-----------------------------------------------------------------------------------------
+'' Load a framebuffer to be used for rendering
+'' NOTE: No textures attached
+declare function rlLoadFramebuffer( ) as uint32
+
+'' Attach color buffer texture to a framebuffer object (unloads previous attachment)
+'' NOTE: Attach type: 0-Color, 1-Depth renderbuffer, 2-Depth texture
+declare sub rlFramebufferAttach( byval id as uint32, byval texId as uint32, byval attachType as int32, byval texType as int32, byval mipLevel as int32 )
+
+'' Verify render texture is complete
+declare function rlFramebufferComplete( byval id as uint32 ) as boolean
+
+'' Unload framebuffer from GPU memory
+'' NOTE: All attached textures/cubemaps/renderbuffers are also deleted
+declare sub rlUnloadFramebuffer( byval id as uint32 )
+
+'' Vertex data management
+''-----------------------------------------------------------------------------------------
+'' Load a new attributes buffer
+declare function rlLoadVertexBuffer( byval buffer as const any ptr, byval size as int32, byval dynamic_ as boolean ) as uint32
+
+'' Load a new attributes element buffer
+declare function rlLoadVertexBufferElement( byval buffer as const any ptr, byval size as int32, byval dynamic_ as boolean ) as uint32
+
+'' Enable vertex buffer (VBO)
+declare sub rlEnableVertexBuffer( byval id as uint32 )
+
+'' Disable vertex buffer (VBO)
+declare sub rlDisableVertexBuffer( )
+
+'' Enable vertex buffer element (VBO element)
+declare sub rlEnableVertexBufferElement( byval id as uint32 )
+
+'' Disable vertex buffer element (VBO element)
+declare sub rlDisableVertexBufferElement( )
+
+'' Update vertex buffer with new data
+'' NOTE: dataSize and offset must be provided in bytes
+declare sub rlUpdateVertexBuffer( byval id as uint32, byval data_ as const any ptr, byval dataSize as int32, byval offset as int32 )
+
+'' Update vertex buffer elements with new data
+'' NOTE: dataSize and offset must be provided in bytes
+declare sub rlUpdateVertexBufferElements( byval id as uint32, byval data_ as const any ptr, byval dataSize as int32, byval offset as int32 )
+
+'' Enable vertex array object (VAO)
+declare function rlEnableVertexArray( byval vaoId as uint32 ) as boolean
+
+'' Disable vertex array object (VAO)
+declare sub rlDisableVertexArray( )
+
+'' Enable vertex attribute index
+declare sub rlEnableVertexAttribute( byval index as uint32 )
+
+'' Disable vertex attribute index
+declare sub rlDisableVertexAttribute( byval index as uint32 )
+
+'' Draw vertex array
+declare sub rlDrawVertexArray( byval offset as int32, byval count as int32 )
+
+'' Draw vertex array elements
+declare sub rlDrawVertexArrayElements( byval offset as int32, byval count as int32, byval buffer as const any ptr )
+
+'' Draw vertex array instanced
+declare sub rlDrawVertexArrayInstanced( byval offset as int32, byval count as int32, byval instances as int32 )
+
+'' Draw vertex array elements instanced
+declare sub rlDrawVertexArrayElementsInstanced( byval offset as int32, byval count as int32, byval buffer as const any ptr, byval instances as int32 )
+
+'' Enable vertex state pointer
+declare sub rlEnableStatePointer( byval vertexAttribType as int32, byval buffer as any ptr )
+
+'' Disable vertex state pointer
+declare sub rlDisableStatePointer( byval vertexAttribType as int32 )
+
+'' Load vertex array object (VAO)
+declare function rlLoadVertexArray( ) as uint32
+
+'' Set vertex attribute
+declare sub rlSetVertexAttribute( byval index as uint32, byval compSize as int32, byval type_ as int32, byval normalized as boolean, byval stride as int32, byval offset as int32 )
+
+'' Set vertex attribute divisor
+declare sub rlSetVertexAttributeDivisor( byval index as uint32, byval divisor as int32 )
+
+'' Unload vertex array object (VAO)
+declare sub rlUnloadVertexArray( byval vaoId as uint32 )
+
+'' Unload vertex buffer (VBO)
+declare sub rlUnloadVertexBuffer( byval vboId as uint32 )
+
+'' Shaders management
+''-----------------------------------------------------------------------------------------------
+'' Load (compile) shader and return shader id
+declare function rlLoadShader( byval code as const zstring ptr, byval type_ as int32 ) as uint32
+
+'' Load shader program from code strings
+'' NOTE: If shader string is NULL, using default vertex/fragment shaders
+declare function rlLoadShaderProgram( byval vsCode as const zstring ptr, byval fsCode as const zstring ptr ) as uint32
+
+'' Load shader program from already loaded shader ids
+declare function rlLoadShaderProgramEx( byval vsId as uint32, byval fsId as uint32 ) as uint32
+
+'' Load compute shader program
+declare function rlLoadShaderProgramCompute( byval csId as uint32 ) as uint32
+
+'' Delete shader
+declare sub rlUnloadShader( byval id as uint32 )
+
+'' Unload shader program
+declare sub rlUnloadShaderProgram( byval id as uint32 )
+
+'' Get shader location uniform
+'' NOTE: First parameter refers to shader program id
+declare function rlGetLocationUniform( byval id as uint32, byval uniformName as const zstring ptr ) as int32
+
+'' Get shader location attribute
+'' NOTE: First parameter refers to shader program id
+declare function rlGetLocationAttrib( byval id as uint32, byval attribName as const zstring ptr ) as int32
+
+'' Set shader value uniform
+declare sub rlSetUniform( byval locIndex as int32, byval value as const any ptr, byval uniformType as int32, byval count as int32 )
+
+'' Set shader value attribute
+declare sub rlSetVertexAttributeDefault( byval locIndex as int32, byval value as const any ptr, byval attribType as int32, byval count as int32 )
+
+'' Set shader value uniform matrix
+declare sub rlSetUniformMatrix( byval locIndex as int32, byval mat as Matrix )
+
+'' Set shader value uniform matrix
+declare sub rlSetUniformMatrices( byval locIndex as int32, byval matrices as const Matrix ptr, byval count as int32 )
+
+'' Set shader value uniform sampler
+declare sub rlSetUniformSampler( byval locIndex as int32, byval textureId as uint32 )
+
+'' Set shader currently active (id and locations)
+declare sub rlSetShader( byval id as uint32, byval locs as int32 ptr )
+
+'' Dispatch compute shader (equivalent to *draw* for graphics pilepine)
+declare sub rlComputeShaderDispatch( byval groupX as uint32, byval groupY as uint32, byval groupZ as uint32 )
+
+'' Load shader storage buffer object (SSBO)
+declare function rlLoadShaderBuffer( byval size as uint32, byval data_ as const any ptr, byval usageHint as int32 ) as uint32
+
+'' Unload shader storage buffer object (SSBO)
+declare sub rlUnloadShaderBuffer( byval ssboId as uint32 )
+
+'' Update SSBO buffer data
+declare sub rlUpdateShaderBuffer( byval id as uint32, byval data_ as const any ptr, byval dataSize as uint32, byval offset as uint32 )
+
+'' Get SSBO buffer size
+declare function rlGetShaderBufferSize( byval id as uint32 ) as uint32
+
+'' Read SSBO buffer data (GPU->CPU)
+declare sub rlReadShaderBuffer( byval id as uint32, byval dest as any ptr, byval count as uint32, byval offset as uint32 )
+
+'' Bind SSBO buffer
+declare sub rlBindShaderBuffer( byval id as uint32, byval index as uint32 )
+
+'' Copy SSBO buffer data
+declare sub rlCopyShaderBuffer( byval destId as uint32, byval srcId as uint32, byval destOffset as uint32, byval srcOffset as uint32, byval count as uint32 )
+
+'' Bind image texture
+declare sub rlBindImageTexture( byval id as uint32, byval index as uint32, byval format as int32, byval readonly as boolean )
+
+'' Matrix state management
+''-----------------------------------------------------------------------------------------
+'' Get internal modelview matrix
+declare function rlGetMatrixModelview( ) as Matrix
+
+'' Get internal projection matrix
+declare function rlGetMatrixProjection( ) as Matrix
+
+'' Get internal accumulated transform matrix
+declare function rlGetMatrixTransform( ) as Matrix
+
+'' Get internal projection matrix for stereo render (selected eye)
+declare function rlGetMatrixProjectionStereo( byval eye as int32 ) as Matrix
+
+'' Get internal view offset matrix for stereo render (selected eye)
+declare function rlGetMatrixViewOffsetStereo( byval eye as int32 ) as Matrix
+
+'' Set a custom modelview matrix (replaces internal modelview matrix)
+declare sub rlSetMatrixModelview( byval view_ as Matrix )
+
+'' Set a custom projection matrix (replaces internal projection matrix)
+declare sub rlSetMatrixProjection( byval projection as Matrix )
+
+'' Set eyes projection matrices for stereo rendering
+declare sub rlSetMatrixProjectionStereo( byval right_ as Matrix, byval left_ as Matrix )
+
+'' Set eyes view offsets matrices for stereo rendering
+declare sub rlSetMatrixViewOffsetStereo( byval right_ as Matrix, byval left_ as Matrix )
+
+'' Load and draw a quad in NDC
+declare sub rlLoadDrawQuad( )
+
+'' Load and draw a cube in NDC
+declare sub rlLoadDrawCube( )
+
+'' Get name string for pixel format
+declare function rlGetPixelFormatName( byval format as uint32 ) as const zstring ptr
+
+''----------------------------------------------------------------------------------
+'' Module Functions Definition
+''----------------------------------------------------------------------------------
+#if (defined(GRAPHICS_API_OPENGL_33) orelse defined(GRAPHICS_API_OPENGL_ES2))
+'' Load default shader (just vertex positioning and texture coloring)
+'' NOTE: This shader program is used for internal buffers
+'' NOTE: Loaded: RLGL.State.defaultShaderId, RLGL.State.defaultShaderLocs
+'' C2T-TODO(conditional) rlgl.h:4989 -- inside a conditional that stays a TODO
+'' static void rlLoadShaderDefault(void)
+'' {
+''     RLGL.State.defaultShaderLocs = (int *)RL_CALLOC(RL_MAX_SHADER_LOCATIONS, sizeof(int));
+''
+''     // NOTE: All locations must be reseted to -1 (no location)
+''     for (int i = 0; i < RL_MAX_SHADER_LOCATIONS; i++) RLGL.State.defaultShaderLocs[i] = -1;
+''
+''     // Vertex shader directly defined, no external file required
+''     const char *defaultVShaderCode =
+'' #if defined(GRAPHICS_API_OPENGL_21)
+''     "#version 120                       \n"
+''     "attribute vec3 vertexPosition;     \n"
+''     "attribute vec2 vertexTexCoord;     \n"
+''     "attribute vec4 vertexColor;        \n"
+''     "varying vec2 fragTexCoord;         \n"
+''     "varying vec4 fragColor;            \n"
+'' #elif defined(GRAPHICS_API_OPENGL_33)
+''     "#version 330                       \n"
+''     "in vec3 vertexPosition;            \n"
+''     "in vec2 vertexTexCoord;            \n"
+''     "in vec4 vertexColor;               \n"
+''     "out vec2 fragTexCoord;             \n"
+''     "out vec4 fragColor;                \n"
+'' #endif
+''
+'' #if defined(GRAPHICS_API_OPENGL_ES3)
+''     "#version 300 es                    \n"
+''     "precision highp float;             \n"     // Precision highp is mandatory in vertex shaders, mediump may run as fp16 and misplace vertices
+''     "in vec3 vertexPosition;            \n"
+''     "in vec2 vertexTexCoord;            \n"
+''     "in vec4 vertexColor;               \n"
+''     "out vec2 fragTexCoord;             \n"
+''     "out vec4 fragColor;                \n"
+'' #elif defined(GRAPHICS_API_OPENGL_ES2)
+''     "#version 100                       \n"
+''     "precision highp float;             \n"     // Precision highp is mandatory in vertex shaders, mediump may run as fp16 and misplace vertices
+''     "attribute vec3 vertexPosition;     \n"
+''     "attribute vec2 vertexTexCoord;     \n"
+''     "attribute vec4 vertexColor;        \n"
+''     "varying vec2 fragTexCoord;         \n"
+''     "varying vec4 fragColor;            \n"
+'' #endif
+''
+''     "uniform mat4 mvp;                  \n"
+''     "void main()                        \n"
+''     "{                                  \n"
+''     "    fragTexCoord = vertexTexCoord; \n"
+''     "    fragColor = vertexColor;       \n"
+''     "    gl_Position = mvp*vec4(vertexPosition, 1.0); \n"
+''     "}                                  \n";
+''
+''     // Fragment shader directly defined, no external file required
+''     const char *defaultFShaderCode =
+'' #if defined(GRAPHICS_API_OPENGL_21)
+''     "#version 120                       \n"
+''     "varying vec2 fragTexCoord;         \n"
+''     "varying vec4 fragColor;            \n"
+''     "uniform sampler2D texture0;        \n"
+''     "uniform vec4 colDiffuse;           \n"
+''     "void main()                        \n"
+''     "{                                  \n"
+''     "    vec4 texelColor = texture2D(texture0, fragTexCoord); \n"
+''     "    gl_FragColor = texelColor*colDiffuse*fragColor;      \n"
+''     "}                                  \n";
+'' #elif defined(GRAPHICS_API_OPENGL_33)
+''     "#version 330       \n"
+''     "in vec2 fragTexCoord;              \n"
+''     "in vec4 fragColor;                 \n"
+''     "out vec4 finalColor;               \n"
+''     "uniform sampler2D texture0;        \n"
+''     "uniform vec4 colDiffuse;           \n"
+''     "void main()                        \n"
+''     "{                                  \n"
+''     "    vec4 texelColor = texture(texture0, fragTexCoord);   \n"
+''     "    finalColor = texelColor*colDiffuse*fragColor;        \n"
+''     "}                                  \n";
+'' #endif
+''
+'' #if defined(GRAPHICS_API_OPENGL_ES3)
+''     "#version 300 es                    \n"
+''     "#ifdef GL_FRAGMENT_PRECISION_HIGH  \n"
+''     "precision highp float;             \n"
+''     "#else                              \n"
+''     "precision mediump float;           \n"
+''     "#endif                             \n"
+''     "in vec2 fragTexCoord;              \n"
+''     "in vec4 fragColor;                 \n"
+''     "out vec4 finalColor;               \n"
+''     "uniform sampler2D texture0;        \n"
+''     "uniform vec4 colDiffuse;           \n"
+''     "void main()                        \n"
+''     "{                                  \n"
+''     "    vec4 texelColor = texture(texture0, fragTexCoord);   \n"
+''     "    finalColor = texelColor*colDiffuse*fragColor;        \n"
+''     "}                                  \n";
+'' #elif defined(GRAPHICS_API_OPENGL_ES2)
+''     "#version 100                       \n"
+''     "#ifdef GL_FRAGMENT_PRECISION_HIGH  \n"
+''     "precision highp float;             \n"
+''     "#else                              \n"
+''     "precision mediump float;           \n"
+''     "#endif                             \n"
+''     "varying vec2 fragTexCoord;         \n"
+''     "varying vec4 fragColor;            \n"
+''     "uniform sampler2D texture0;        \n"
+''     "uniform vec4 colDiffuse;           \n"
+''     "void main()                        \n"
+''     "{                                  \n"
+''     "    vec4 texelColor = texture2D(texture0, fragTexCoord); \n"
+''     "    gl_FragColor = texelColor*colDiffuse*fragColor;      \n"
+''     "}                                  \n";
+'' #endif
+''
+''     // NOTE: Compiled vertex/fragment shaders are not deleted,
+''     // they are kept for re-use as default shaders in case some shader loading fails
+''     RLGL.State.defaultVShaderId = rlLoadShader(defaultVShaderCode, GL_VERTEX_SHADER);     // Compile default vertex shader
+''     RLGL.State.defaultFShaderId = rlLoadShader(defaultFShaderCode, GL_FRAGMENT_SHADER);   // Compile default fragment shader
+''
+''     RLGL.State.defaultShaderId = rlLoadShaderProgramEx(RLGL.State.defaultVShaderId, RLGL.State.defaultFShaderId);
+''
+''     if (RLGL.State.defaultShaderId > 0)
+''     {
+''         TRACELOG(RL_LOG_INFO, "SHADER: [ID %i] Default shader loaded successfully", RLGL.State.defaultShaderId);
+''
+''         // Set default shader locations: attributes locations
+''         RLGL.State.defaultShaderLocs[RL_SHADER_LOC_VERTEX_POSITION] = glGetAttribLocation(RLGL.State.defaultShaderId, RL_DEFAULT_SHADER_ATTRIB_NAME_POSITION);
+''         RLGL.State.defaultShaderLocs[RL_SHADER_LOC_VERTEX_TEXCOORD01] = glGetAttribLocation(RLGL.State.defaultShaderId, RL_DEFAULT_SHADER_ATTRIB_NAME_TEXCOORD);
+''         RLGL.State.defaultShaderLocs[RL_SHADER_LOC_VERTEX_COLOR] = glGetAttribLocation(RLGL.State.defaultShaderId, RL_DEFAULT_SHADER_ATTRIB_NAME_COLOR);
+''
+''         // Set default shader locations: uniform locations
+''         RLGL.State.defaultShaderLocs[RL_SHADER_LOC_MATRIX_MVP] = glGetUniformLocation(RLGL.State.defaultShaderId, RL_DEFAULT_SHADER_UNIFORM_NAME_MVP);
+''         RLGL.State.defaultShaderLocs[RL_SHADER_LOC_COLOR_DIFFUSE] = glGetUniformLocation(RLGL.State.defaultShaderId, RL_DEFAULT_SHADER_UNIFORM_NAME_COLOR);
+''         RLGL.State.defaultShaderLocs[RL_SHADER_LOC_MAP_DIFFUSE] = glGetUniformLocation(RLGL.State.defaultShaderId, RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE0);
+''     }
+''     else TRACELOG(RL_LOG_WARNING, "SHADER: [ID %i] Failed to load default shader", RLGL.State.defaultShaderId);
+'' }
+
+'' Unload default shader
+'' NOTE: Unloads: RLGL.State.defaultShaderId, RLGL.State.defaultShaderLocs
+'' C2T-TODO(static-inline) rlgl.h:5128 -- static function 'rlUnloadShaderDefault': no symbol to link against; port the body by hand
+'' static void rlUnloadShaderDefault(void)
+'' {
+''     glUseProgram(0);
+''
+''     glDetachShader(RLGL.State.defaultShaderId, RLGL.State.defaultVShaderId);
+''     glDetachShader(RLGL.State.defaultShaderId, RLGL.State.defaultFShaderId);
+''     glDeleteShader(RLGL.State.defaultVShaderId);
+''     glDeleteShader(RLGL.State.defaultFShaderId);
+''
+''     glDeleteProgram(RLGL.State.defaultShaderId);
+''
+''     RL_FREE(RLGL.State.defaultShaderLocs);
+''
+''     TRACELOG(RL_LOG_INFO, "SHADER: [ID %i] Default shader unloaded successfully", RLGL.State.defaultShaderId);
+'' }
+
+#if RLGL_SHOW_GL_DETAILS_INFO
+'' Get compressed format official GL identifier name
+'' C2T-TODO(static-inline) rlgl.h:5146 -- static function 'rlGetCompressedFormatName': no symbol to link against; port the body by hand
+'' static const char *rlGetCompressedFormatName(int format)
+'' {
+''     switch (format)
+''     {
+''         // GL_EXT_texture_compression_s3tc
+''         case 0x83F0: return "GL_COMPRESSED_RGB_S3TC_DXT1_EXT"; break;
+''         case 0x83F1: return "GL_COMPRESSED_RGBA_S3TC_DXT1_EXT"; break;
+''         case 0x83F2: return "GL_COMPRESSED_RGBA_S3TC_DXT3_EXT"; break;
+''         case 0x83F3: return "GL_COMPRESSED_RGBA_S3TC_DXT5_EXT"; break;
+''         // GL_3DFX_texture_compression_FXT1
+''         case 0x86B0: return "GL_COMPRESSED_RGB_FXT1_3DFX"; break;
+''         case 0x86B1: return "GL_COMPRESSED_RGBA_FXT1_3DFX"; break;
+''         // GL_IMG_texture_compression_pvrtc
+''         case 0x8C00: return "GL_COMPRESSED_RGB_PVRTC_4BPPV1_IMG"; break;
+''         case 0x8C01: return "GL_COMPRESSED_RGB_PVRTC_2BPPV1_IMG"; break;
+''         case 0x8C02: return "GL_COMPRESSED_RGBA_PVRTC_4BPPV1_IMG"; break;
+''         case 0x8C03: return "GL_COMPRESSED_RGBA_PVRTC_2BPPV1_IMG"; break;
+''         // GL_OES_compressed_ETC1_RGB8_texture
+''         case 0x8D64: return "GL_ETC1_RGB8_OES"; break;
+''         // GL_ARB_texture_compression_rgtc
+''         case 0x8DBB: return "GL_COMPRESSED_RED_RGTC1"; break;
+''         case 0x8DBC: return "GL_COMPRESSED_SIGNED_RED_RGTC1"; break;
+''         case 0x8DBD: return "GL_COMPRESSED_RG_RGTC2"; break;
+''         case 0x8DBE: return "GL_COMPRESSED_SIGNED_RG_RGTC2"; break;
+''         // GL_ARB_texture_compression_bptc
+''         case 0x8E8C: return "GL_COMPRESSED_RGBA_BPTC_UNORM_ARB"; break;
+''         case 0x8E8D: return "GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM_ARB"; break;
+''         case 0x8E8E: return "GL_COMPRESSED_RGB_BPTC_SIGNED_FLOAT_ARB"; break;
+''         case 0x8E8F: return "GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT_ARB"; break;
+''         // GL_ARB_ES3_compatibility
+''         case 0x9274: return "GL_COMPRESSED_RGB8_ETC2"; break;
+''         case 0x9275: return "GL_COMPRESSED_SRGB8_ETC2"; break;
+''         case 0x9276: return "GL_COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2"; break;
+''         case 0x9277: return "GL_COMPRESSED_SRGB8_PUNCHTHROUGH_ALPHA1_ETC2"; break;
+''         case 0x9278: return "GL_COMPRESSED_RGBA8_ETC2_EAC"; break;
+''         case 0x9279: return "GL_COMPRESSED_SRGB8_ALPHA8_ETC2_EAC"; break;
+''         case 0x9270: return "GL_COMPRESSED_R11_EAC"; break;
+''         case 0x9271: return "GL_COMPRESSED_SIGNED_R11_EAC"; break;
+''         case 0x9272: return "GL_COMPRESSED_RG11_EAC"; break;
+''         case 0x9273: return "GL_COMPRESSED_SIGNED_RG11_EAC"; break;
+''         // GL_KHR_texture_compression_astc_hdr
+''         case 0x93B0: return "GL_COMPRESSED_RGBA_ASTC_4x4_KHR"; break;
+''         case 0x93B1: return "GL_COMPRESSED_RGBA_ASTC_5x4_KHR"; break;
+''         case 0x93B2: return "GL_COMPRESSED_RGBA_ASTC_5x5_KHR"; break;
+''         case 0x93B3: return "GL_COMPRESSED_RGBA_ASTC_6x5_KHR"; break;
+''         case 0x93B4: return "GL_COMPRESSED_RGBA_ASTC_6x6_KHR"; break;
+''         case 0x93B5: return "GL_COMPRESSED_RGBA_ASTC_8x5_KHR"; break;
+''         case 0x93B6: return "GL_COMPRESSED_RGBA_ASTC_8x6_KHR"; break;
+''         case 0x93B7: return "GL_COMPRESSED_RGBA_ASTC_8x8_KHR"; break;
+''         case 0x93B8: return "GL_COMPRESSED_RGBA_ASTC_10x5_KHR"; break;
+''         case 0x93B9: return "GL_COMPRESSED_RGBA_ASTC_10x6_KHR"; break;
+''         case 0x93BA: return "GL_COMPRESSED_RGBA_ASTC_10x8_KHR"; break;
+''         case 0x93BB: return "GL_COMPRESSED_RGBA_ASTC_10x10_KHR"; break;
+''         case 0x93BC: return "GL_COMPRESSED_RGBA_ASTC_12x10_KHR"; break;
+''         case 0x93BD: return "GL_COMPRESSED_RGBA_ASTC_12x12_KHR"; break;
+''         case 0x93D0: return "GL_COMPRESSED_SRGB8_ALPHA8_ASTC_4x4_KHR"; break;
+''         case 0x93D1: return "GL_COMPRESSED_SRGB8_ALPHA8_ASTC_5x4_KHR"; break;
+''         case 0x93D2: return "GL_COMPRESSED_SRGB8_ALPHA8_ASTC_5x5_KHR"; break;
+''         case 0x93D3: return "GL_COMPRESSED_SRGB8_ALPHA8_ASTC_6x5_KHR"; break;
+''         case 0x93D4: return "GL_COMPRESSED_SRGB8_ALPHA8_ASTC_6x6_KHR"; break;
+''         case 0x93D5: return "GL_COMPRESSED_SRGB8_ALPHA8_ASTC_8x5_KHR"; break;
+''         case 0x93D6: return "GL_COMPRESSED_SRGB8_ALPHA8_ASTC_8x6_KHR"; break;
+''         case 0x93D7: return "GL_COMPRESSED_SRGB8_ALPHA8_ASTC_8x8_KHR"; break;
+''         case 0x93D8: return "GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x5_KHR"; break;
+''         case 0x93D9: return "GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x6_KHR"; break;
+''         case 0x93DA: return "GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x8_KHR"; break;
+''         case 0x93DB: return "GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x10_KHR"; break;
+''         case 0x93DC: return "GL_COMPRESSED_SRGB8_ALPHA8_ASTC_12x10_KHR"; break;
+''         case 0x93DD: return "GL_COMPRESSED_SRGB8_ALPHA8_ASTC_12x12_KHR"; break;
+''         default: return "GL_COMPRESSED_UNKNOWN"; break;
+''     }
+'' }
+#endif
+
+#endif '' GRAPHICS_API_OPENGL_33 || GRAPHICS_API_OPENGL_ES2
+
+'' Get pixel data size in bytes (image or texture)
+'' NOTE: Size depends on pixel format
+'' C2T-TODO(static-inline) rlgl.h:5224 -- static function 'rlGetPixelDataSize': no symbol to link against; port the body by hand
+'' static int rlGetPixelDataSize(int width, int height, int format)
+'' {
+''     int dataSize = 0;       // Size in bytes
+''     int bpp = 0;            // Bits per pixel
+''
+''     if ((width <= 0) || (height <= 0)) return dataSize;
+''
+''     switch (format)
+''     {
+''         case RL_PIXELFORMAT_UNCOMPRESSED_GRAYSCALE: bpp = 8; break;
+''         case RL_PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA:
+''         case RL_PIXELFORMAT_UNCOMPRESSED_R5G6B5:
+''         case RL_PIXELFORMAT_UNCOMPRESSED_R5G5B5A1:
+''         case RL_PIXELFORMAT_UNCOMPRESSED_R4G4B4A4: bpp = 16; break;
+''         case RL_PIXELFORMAT_UNCOMPRESSED_R8G8B8A8: bpp = 32; break;
+''         case RL_PIXELFORMAT_UNCOMPRESSED_R8G8B8: bpp = 24; break;
+''         case RL_PIXELFORMAT_UNCOMPRESSED_R32: bpp = 32; break;
+''         case RL_PIXELFORMAT_UNCOMPRESSED_R32G32B32: bpp = 32*3; break;
+''         case RL_PIXELFORMAT_UNCOMPRESSED_R32G32B32A32: bpp = 32*4; break;
+''         case RL_PIXELFORMAT_UNCOMPRESSED_R16: bpp = 16; break;
+''         case RL_PIXELFORMAT_UNCOMPRESSED_R16G16B16: bpp = 16*3; break;
+''         case RL_PIXELFORMAT_UNCOMPRESSED_R16G16B16A16: bpp = 16*4; break;
+''         case RL_PIXELFORMAT_COMPRESSED_DXT1_RGB:
+''         case RL_PIXELFORMAT_COMPRESSED_DXT1_RGBA:
+''         case RL_PIXELFORMAT_COMPRESSED_ETC1_RGB:
+''         case RL_PIXELFORMAT_COMPRESSED_ETC2_RGB:
+''         case RL_PIXELFORMAT_COMPRESSED_PVRT_RGB:
+''         case RL_PIXELFORMAT_COMPRESSED_PVRT_RGBA: // 8 bytes per each 4x4 block
+''         {
+''             int blockWidth = (width + 3)/4;
+''             int blockHeight = (height + 3)/4;
+''             unsigned long long dataSizeBytes = (unsigned long long)blockWidth*blockHeight*8;
+''             if (dataSizeBytes < INT_MAX) dataSize = (int)dataSizeBytes;
+''
+''         } break;
+''         case RL_PIXELFORMAT_COMPRESSED_DXT3_RGBA:
+''         case RL_PIXELFORMAT_COMPRESSED_DXT5_RGBA:
+''         case RL_PIXELFORMAT_COMPRESSED_ETC2_EAC_RGBA:
+''         case RL_PIXELFORMAT_COMPRESSED_ASTC_4x4_RGBA: // 16 bytes per each 4x4 block
+''         {
+''             int blockWidth = (width + 3)/4;
+''             int blockHeight = (height + 3)/4;
+''             unsigned long long dataSizeBytes = (unsigned long long)blockWidth*blockHeight*16;
+''             if (dataSizeBytes < INT_MAX) dataSize = (int)dataSizeBytes;
+''
+''         } break;
+''         case RL_PIXELFORMAT_COMPRESSED_ASTC_8x8_RGBA: // 4 bytes per each 4x4 block
+''         {
+''             int blockWidth = (width + 3)/4;
+''             int blockHeight = (height + 3)/4;
+''             unsigned long long dataSizeBytes = (unsigned long long)blockWidth*blockHeight*4;
+''             if (dataSizeBytes < INT_MAX) dataSize = (int)dataSizeBytes;
+''
+''         } break;
+''         default: break;
+''     }
+''
+''     // Compute dataSize for uncompressed texture data (no blocks)
+''     if ((format >= RL_PIXELFORMAT_UNCOMPRESSED_GRAYSCALE) &&
+''         (format <= RL_PIXELFORMAT_UNCOMPRESSED_R16G16B16A16))
+''     {
+''         unsigned long long dataSizeBytes = ((unsigned long long)width*height*bpp) >> 3;  // Get size in bytes (dividing by 8)
+''         if (dataSizeBytes < INT_MAX) dataSize = (int)dataSizeBytes;
+''         else TRACELOG(LOG_WARNING, "Requested image size is larger than 2GB, it can not be allocated");
+''     }
+''
+''     return dataSize;
+'' }
+
+'' Auxiliar math functions
+''-------------------------------------------------------------------------------
+'' Get identity matrix
+'' C2T-TODO(static-inline) rlgl.h:5296 -- static function 'rlMatrixIdentity': no symbol to link against; port the body by hand
+'' static Matrix rlMatrixIdentity(void)
+'' {
+''     Matrix matIdentity = { 0 };
+''     matIdentity.m0 = 1.0f;
+''     matIdentity.m5 = 1.0f;
+''     matIdentity.m10 = 1.0f;
+''     matIdentity.m15 = 1.0f;
+''
+''     return matIdentity;
+'' }
+#if (defined(GRAPHICS_API_OPENGL_33) orelse defined(GRAPHICS_API_OPENGL_ES2))
+'' Get float array of matrix data
+'' Explicit conversion to column-major memory layout
+'' C2T-TODO(static-inline) rlgl.h:5309 -- static function 'rlMatrixToFloatV': no symbol to link against; port the body by hand
+'' static rl_float16 rlMatrixToFloatV(Matrix mat)
+'' {
+''     rl_float16 result = { 0 };
+''
+''     result.v[0] = mat.m0;
+''     result.v[1] = mat.m1;
+''     result.v[2] = mat.m2;
+''     result.v[3] = mat.m3;
+''     result.v[4] = mat.m4;
+''     result.v[5] = mat.m5;
+''     result.v[6] = mat.m6;
+''     result.v[7] = mat.m7;
+''     result.v[8] = mat.m8;
+''     result.v[9] = mat.m9;
+''     result.v[10] = mat.m10;
+''     result.v[11] = mat.m11;
+''     result.v[12] = mat.m12;
+''     result.v[13] = mat.m13;
+''     result.v[14] = mat.m14;
+''     result.v[15] = mat.m15;
+''
+''     return result;
+'' }
+
+'' Get two matrix multiplication
+'' NOTE: When multiplying matrices... the order matters!
+'' C2T-TODO(static-inline) rlgl.h:5335 -- static function 'rlMatrixMultiply': no symbol to link against; port the body by hand
+'' static Matrix rlMatrixMultiply(Matrix left, Matrix right)
+'' {
+''     Matrix result = { 0 };
+''
+''     result.m0 = left.m0*right.m0 + left.m1*right.m4 + left.m2*right.m8 + left.m3*right.m12;
+''     result.m1 = left.m0*right.m1 + left.m1*right.m5 + left.m2*right.m9 + left.m3*right.m13;
+''     result.m2 = left.m0*right.m2 + left.m1*right.m6 + left.m2*right.m10 + left.m3*right.m14;
+''     result.m3 = left.m0*right.m3 + left.m1*right.m7 + left.m2*right.m11 + left.m3*right.m15;
+''     result.m4 = left.m4*right.m0 + left.m5*right.m4 + left.m6*right.m8 + left.m7*right.m12;
+''     result.m5 = left.m4*right.m1 + left.m5*right.m5 + left.m6*right.m9 + left.m7*right.m13;
+''     result.m6 = left.m4*right.m2 + left.m5*right.m6 + left.m6*right.m10 + left.m7*right.m14;
+''     result.m7 = left.m4*right.m3 + left.m5*right.m7 + left.m6*right.m11 + left.m7*right.m15;
+''     result.m8 = left.m8*right.m0 + left.m9*right.m4 + left.m10*right.m8 + left.m11*right.m12;
+''     result.m9 = left.m8*right.m1 + left.m9*right.m5 + left.m10*right.m9 + left.m11*right.m13;
+''     result.m10 = left.m8*right.m2 + left.m9*right.m6 + left.m10*right.m10 + left.m11*right.m14;
+''     result.m11 = left.m8*right.m3 + left.m9*right.m7 + left.m10*right.m11 + left.m11*right.m15;
+''     result.m12 = left.m12*right.m0 + left.m13*right.m4 + left.m14*right.m8 + left.m15*right.m12;
+''     result.m13 = left.m12*right.m1 + left.m13*right.m5 + left.m14*right.m9 + left.m15*right.m13;
+''     result.m14 = left.m12*right.m2 + left.m13*right.m6 + left.m14*right.m10 + left.m15*right.m14;
+''     result.m15 = left.m12*right.m3 + left.m13*right.m7 + left.m14*right.m11 + left.m15*right.m15;
+''
+''     return result;
+'' }
+
+'' Transposes provided matrix
+'' C2T-TODO(static-inline) rlgl.h:5360 -- static function 'rlMatrixTranspose': no symbol to link against; port the body by hand
+'' static Matrix rlMatrixTranspose(Matrix mat)
+'' {
+''     Matrix result = { 0 };
+''
+''     result.m0 = mat.m0;
+''     result.m1 = mat.m4;
+''     result.m2 = mat.m8;
+''     result.m3 = mat.m12;
+''     result.m4 = mat.m1;
+''     result.m5 = mat.m5;
+''     result.m6 = mat.m9;
+''     result.m7 = mat.m13;
+''     result.m8 = mat.m2;
+''     result.m9 = mat.m6;
+''     result.m10 = mat.m10;
+''     result.m11 = mat.m14;
+''     result.m12 = mat.m3;
+''     result.m13 = mat.m7;
+''     result.m14 = mat.m11;
+''     result.m15 = mat.m15;
+''
+''     return result;
+'' }
+
+'' Invert provided matrix
+'' C2T-TODO(static-inline) rlgl.h:5385 -- static function 'rlMatrixInvert': no symbol to link against; port the body by hand
+'' static Matrix rlMatrixInvert(Matrix mat)
+'' {
+''     Matrix result = { 0 };
+''
+''     // Cache the matrix values (speed optimization)
+''     float a00 = mat.m0, a01 = mat.m1, a02 = mat.m2, a03 = mat.m3;
+''     float a10 = mat.m4, a11 = mat.m5, a12 = mat.m6, a13 = mat.m7;
+''     float a20 = mat.m8, a21 = mat.m9, a22 = mat.m10, a23 = mat.m11;
+''     float a30 = mat.m12, a31 = mat.m13, a32 = mat.m14, a33 = mat.m15;
+''
+''     float b00 = a00*a11 - a01*a10;
+''     float b01 = a00*a12 - a02*a10;
+''     float b02 = a00*a13 - a03*a10;
+''     float b03 = a01*a12 - a02*a11;
+''     float b04 = a01*a13 - a03*a11;
+''     float b05 = a02*a13 - a03*a12;
+''     float b06 = a20*a31 - a21*a30;
+''     float b07 = a20*a32 - a22*a30;
+''     float b08 = a20*a33 - a23*a30;
+''     float b09 = a21*a32 - a22*a31;
+''     float b10 = a21*a33 - a23*a31;
+''     float b11 = a22*a33 - a23*a32;
+''
+''     // Calculate the invert determinant (inlined to avoid double-caching)
+''     float invDet = 1.0f/(b00*b11 - b01*b10 + b02*b09 + b03*b08 - b04*b07 + b05*b06);
+''
+''     result.m0 = (a11*b11 - a12*b10 + a13*b09)*invDet;
+''     result.m1 = (-a01*b11 + a02*b10 - a03*b09)*invDet;
+''     result.m2 = (a31*b05 - a32*b04 + a33*b03)*invDet;
+''     result.m3 = (-a21*b05 + a22*b04 - a23*b03)*invDet;
+''     result.m4 = (-a10*b11 + a12*b08 - a13*b07)*invDet;
+''     result.m5 = (a00*b11 - a02*b08 + a03*b07)*invDet;
+''     result.m6 = (-a30*b05 + a32*b02 - a33*b01)*invDet;
+''     result.m7 = (a20*b05 - a22*b02 + a23*b01)*invDet;
+''     result.m8 = (a10*b10 - a11*b08 + a13*b06)*invDet;
+''     result.m9 = (-a00*b10 + a01*b08 - a03*b06)*invDet;
+''     result.m10 = (a30*b04 - a31*b02 + a33*b00)*invDet;
+''     result.m11 = (-a20*b04 + a21*b02 - a23*b00)*invDet;
+''     result.m12 = (-a10*b09 + a11*b07 - a12*b06)*invDet;
+''     result.m13 = (a00*b09 - a01*b07 + a02*b06)*invDet;
+''     result.m14 = (-a30*b03 + a31*b01 - a32*b00)*invDet;
+''     result.m15 = (a20*b03 - a21*b01 + a22*b00)*invDet;
+''
+''     return result;
+'' }
+#endif
+
+#endif '' RLGL_IMPLEMENTATION

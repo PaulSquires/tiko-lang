@@ -1,0 +1,78 @@
+'' raylib [models] example - geometric shapes
+''
+'' Example complexity rating: [★☆☆☆] 1/4
+''
+'' Example originally created with raylib 1.0, last time updated with raylib 3.5
+''
+'' Example licensed under an unmodified zlib/libpng license, which is an OSI-certified,
+'' BSD-like license that allows static linking with closed source software
+''
+'' Copyright (c) 2014-2025 Ramon Santamaria (@raysan5)
+''
+'' Ported to tiko from raylib 6.2's examples/models/models_geometric_shapes.c.
+'' Build it with 'tiko models_geometric_shapes.tiko'.
+'' A number on its command line closes it after that many frames.
+
+'' raylib linked DYNAMICALLY: raylib.dll is copied beside the program (on Linux,
+'' libraylib.so.620). Write 'link static' instead to build raylib into the program.
+#import "vendor/raylib" link dynamic
+
+dim as long maxFrames = valint( command( 1 ) )   '' a frame count closes it unattended
+dim as long frameCount = 0
+
+const screenWidth = 800
+const screenHeight = 450
+
+InitWindow( screenWidth, screenHeight, "raylib [models] example - geometric shapes" )
+
+'' Define the camera to look into our 3d world
+dim as Camera cam
+cam.position = type<Vector3>( 0.0, 10.0, 10.0 )
+cam.target = type<Vector3>( 0.0, 0.0, 0.0 )
+cam.up = type<Vector3>( 0.0, 1.0, 0.0 )
+cam.fovy = 45.0
+cam.projection = CAMERA_PERSPECTIVE
+
+SetTargetFPS( 60 )              '' Set our game to run at 60 frames-per-second
+
+'' Main game loop
+do while not WindowShouldClose( )    '' Detect window close button or ESC key
+    '' Update
+    '' TODO: Update your variables here
+
+    '' Draw
+    BeginDrawing( )
+
+        ClearBackground( RAYWHITE )
+
+        BeginMode3D( cam )
+
+            DrawCube( type<Vector3>( -4.0, 0.0, 2.0 ), 2.0, 5.0, 2.0, RED )
+            DrawCubeWires( type<Vector3>( -4.0, 0.0, 2.0 ), 2.0, 5.0, 2.0, GOLD )
+            DrawCubeWires( type<Vector3>( -4.0, 0.0, -2.0 ), 3.0, 6.0, 2.0, MAROON )
+
+            DrawSphere( type<Vector3>( -1.0, 0.0, -2.0 ), 1.0, GREEN )
+            DrawSphereWires( type<Vector3>( 1.0, 0.0, 2.0 ), 2.0, 16, 16, LIME )
+
+            DrawCylinder( type<Vector3>( 4.0, 0.0, -2.0 ), 1.0, 2.0, 3.0, 4, SKYBLUE )
+            DrawCylinderWires( type<Vector3>( 4.0, 0.0, -2.0 ), 1.0, 2.0, 3.0, 4, DARKBLUE )
+            DrawCylinderWires( type<Vector3>( 4.5, -1.0, 2.0 ), 1.0, 1.0, 2.0, 6, BROWN )
+
+            DrawCylinder( type<Vector3>( 1.0, 0.0, -4.0 ), 0.0, 1.5, 3.0, 8, GOLD )
+            DrawCylinderWires( type<Vector3>( 1.0, 0.0, -4.0 ), 0.0, 1.5, 3.0, 8, PINK )
+
+            DrawCapsule( type<Vector3>( -3.0, 1.5, -4.0 ), type<Vector3>( -4.0, -1.0, -4.0 ), 1.2, 8, 8, VIOLET )
+            DrawCapsuleWires( type<Vector3>( -3.0, 1.5, -4.0 ), type<Vector3>( -4.0, -1.0, -4.0 ), 1.2, 8, 8, PURPLE )
+
+            DrawGrid( 10, 1.0 )        '' Draw a grid
+
+        EndMode3D( )
+
+        DrawFPS( 10, 10 )
+
+    EndDrawing( )
+    frameCount += 1
+    if frameCount = maxFrames then exit do
+loop
+
+CloseWindow( )        '' Close window and OpenGL context

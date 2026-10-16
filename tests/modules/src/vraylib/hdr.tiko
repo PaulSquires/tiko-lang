@@ -1,0 +1,18 @@
+'' The committed vendor/raylib headers -- raylib.ti and its residue, raymath.ti, rlgl.ti -- as an
+'' importer reads them: no library needed.
+#include once "../../../../pkg/vendor/raylib/raylib.ti"
+#include once "../../../../pkg/vendor/raylib/raylib-residue.ti"
+#include once "../../../../pkg/vendor/raylib/raymath/raymath.ti"
+#include once "../../../../pkg/vendor/raylib/rlgl/rlgl.ti"
+dim as Color c = RAYWHITE
+dim as Vector2 v = Vector2Add( type<Vector2>( 1, 2 ), type<Vector2>( 3, 4 ) )
+dim as Matrix m = MatrixIdentity( )
+InitWindow( 800, 450, "t" )
+BeginDrawing( )
+ClearBackground( c )
+rlPushMatrix( )
+DrawText( TextFormat( "%i", 1 ), 0, 0, 20, LIGHTGRAY )
+rlPopMatrix( )
+EndDrawing( )
+CloseWindow( )
+print v.x, m.m0, DEG2RAD, sizeof( Color ), sizeof( Camera3D )
