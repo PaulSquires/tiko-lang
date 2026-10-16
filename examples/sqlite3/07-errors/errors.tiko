@@ -1,0 +1,59 @@
+'' errors -- what SQLite says when something goes wrong. Every call returns a result code; the
+'' connection keeps the last one, its EXTENDED code -- which says which constraint failed, or why
+'' a file would not open -- and an English message, until the next call replaces them.
+'' (https://sqlite.org/rescode.html lists them all.)
+''
+'' Build it with 'tiko errors.tiko'.
+''
+'' Public domain, as SQLite is.
+
+'' SQLite linked DYNAMICALLY: sqlite3.dll is copied beside the program (on Linux the program
+'' gets libsqlite3 beside it). Write 'link static' instead to build SQLite into the program.
+#import "vendor/sqlite" link dynamic
+
+'' Runs sql and reports what SQLite made of it.
+sub Try( byval db as sqlite3 ptr, byval sql as ustring )
+    dim as zstring ptr errmsg
+    dim as long rc = sqlite3_exec( db, sql, nullptr, nullptr, @errmsg )
+    print sql
+    if rc = SQLITE_OK then
+        print "    ok"
+    else
+        print "    result"; rc; " -- primary"; rc and 255; " ("; *sqlite3_errstr( rc ); "), extended"; sqlite3_extended_errcode( db )
+        print "    message: "; *errmsg
+        sqlite3_free( errmsg )
+    end if
+end sub
+
+dim as sqlite3 ptr db
+sqlite3_open( ":memory:", @db )
+'' Extended codes are returned by the calls themselves too, not only by sqlite3_extended_errcode.
+sqlite3_extended_result_codes( db, 1 )
+
+Try( db, "create table account( id integer primary key, email text unique not null, balance integer check( balance >= 0 ) )" )
+Try( db, "insert into account( email, balance ) values( 'ada@example.com', 100 )" )
+
+'' Constraint failures: the extended code names the constraint.
+Try( db, "insert into account( email, balance ) values( 'ada@example.com', 5 )" )    '' UNIQUE
+Try( db, "insert into account( email, balance ) values( null, 5 )" )                 '' NOT NULL
+Try( db, "update account set balance = balance - 500" )                              '' CHECK
+Try( db, "insert into account( id, email, balance ) values( 1, 'x@example.com', 0 )" ) '' PRIMARY KEY
+
+'' Mistakes in the SQL itself.
+Try( db, "select * from no_such_table" )
+Try( db, "selec 1" )
+
+'' A statement that fails to prepare gives a null statement, and the message says why.
+dim as sqlite3_stmt ptr st
+dim as long rc = sqlite3_prepare_v2( db, "select missing_column from account", -1, @st, nullptr )
+print "prepare: result"; rc; ", statement is "; iif( st = nullptr, "null", "not null" ); ", message: "; *sqlite3_errmsg( db )
+sqlite3_close( db )
+
+'' Opening a file that is not there, read-only so that SQLite will not create it. The connection
+'' still exists, to hold the message, and must still be closed.
+rc = sqlite3_open_v2( "no-such-dir/no-such-file.db", @db, SQLITE_OPEN_READONLY, nullptr )
+print "open: result"; rc; " ("; *sqlite3_errstr( rc ); "), message: "; *sqlite3_errmsg( db )
+sqlite3_close( db )
+
+'' The library itself.
+print "SQLite "; *sqlite3_libversion( ); ", thread-safe:"; sqlite3_threadsafe( )

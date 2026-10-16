@@ -1,0 +1,91 @@
+'' prepared-statements -- the core of SQLite's C interface, as https://sqlite.org/cintro.html lays
+'' it out: prepare a statement once, bind values to its parameters, step through its rows,
+'' read each column, finalize. Values are bound, never pasted into the SQL text, so a name with a
+'' quote in it ("O'Brien") needs no escaping and cannot inject SQL.
+''
+'' Build it with 'tiko prepared-statements.tiko'.
+''
+'' Public domain, as SQLite is.
+
+'' SQLite linked DYNAMICALLY: sqlite3.dll is copied beside the program (on Linux the program
+'' gets libsqlite3 beside it). Write 'link static' instead to build SQLite into the program.
+#import "vendor/sqlite" link dynamic
+
+'' The name of the storage class sqlite3_column_type reports for a value.
+function TypeName( byval t as long ) as ustring
+    select case t
+    case SQLITE_INTEGER : return "integer"
+    case SQLITE_FLOAT   : return "float"
+    case SQLITE_TEXT    : return "text"
+    case SQLITE_BLOB    : return "blob"
+    case else           : return "null"
+    end select
+end function
+
+'' Stops the program with SQLite's message for the connection's last error.
+sub Check( byval rc as long, byval db as sqlite3 ptr, byval what as ustring )
+    if (rc <> SQLITE_OK) andalso (rc <> SQLITE_DONE) andalso (rc <> SQLITE_ROW) then
+        print what; " failed: "; *sqlite3_errmsg( db )
+        sqlite3_close( db )
+        end 1
+    end if
+end sub
+
+dim as sqlite3 ptr db
+dim as sqlite3_stmt ptr st
+
+Check( sqlite3_open( ":memory:", @db ), db, "open" )
+Check( sqlite3_exec( db, "create table person( id integer primary key, name text, age integer, height real )", _
+                     nullptr, nullptr, nullptr ), db, "create table" )
+
+'' One INSERT, prepared once and run four times: bind, step, reset.
+Check( sqlite3_prepare_v2( db, "insert into person( name, age, height ) values( ?1, ?2, ?3 )", -1, @st, nullptr ), _
+       db, "prepare insert" )
+
+dim as ustring names(0 to 3)   = { "Ada", "Grace", "O'Brien", "Linus" }
+dim as long    ages(0 to 3)    = { 36, 45, 29, 0 }
+dim as double  heights(0 to 3) = { 1.65, 1.60, 1.80, 0 }
+
+for i as long = 0 to 3
+    '' A text parameter: -1 means "up to the terminating NUL", and SQLITE_TRANSIENT makes
+    '' SQLite take its own copy, since the string passed here is a temporary.
+    sqlite3_bind_text( st, 1, names(i), -1, SQLITE_TRANSIENT )
+    if i < 3 then
+        sqlite3_bind_int( st, 2, ages(i) )
+        sqlite3_bind_double( st, 3, heights(i) )
+    else
+        '' Linus's age and height are unknown: NULL, not zero.
+        sqlite3_bind_null( st, 2 )
+        sqlite3_bind_null( st, 3 )
+    end if
+    Check( sqlite3_step( st ), db, "insert" )
+    print "inserted "; names(i); " as row"; sqlite3_last_insert_rowid( db )
+    sqlite3_reset( st )
+next
+sqlite3_finalize( st )
+print
+
+'' A SELECT with a parameter, its columns read by number with their names and types.
+Check( sqlite3_prepare_v2( db, "select id, name, age, height from person where age is null or age > ?1 order by name", _
+                           -1, @st, nullptr ), db, "prepare select" )
+sqlite3_bind_int( st, 1, 30 )
+
+dim as long cols = sqlite3_column_count( st )
+while sqlite3_step( st ) = SQLITE_ROW
+    dim as ustring row
+    for c as long = 0 to cols - 1
+        dim as ustring v = "NULL"
+        if sqlite3_column_type( st, c ) <> SQLITE_NULL then v = *cast( zstring ptr, sqlite3_column_text( st, c ) )
+        if c > 0 then row &= ", "
+        row &= *sqlite3_column_name( st, c ) & " = " & v & " (" & TypeName( sqlite3_column_type( st, c ) ) & ")"
+    next
+    print row
+wend
+sqlite3_finalize( st )
+
+'' A single value: sqlite3_column_int64 of the only row.
+Check( sqlite3_prepare_v2( db, "select count(*) from person", -1, @st, nullptr ), db, "prepare count" )
+if sqlite3_step( st ) = SQLITE_ROW then print "people:"; sqlite3_column_int64( st, 0 )
+sqlite3_finalize( st )
+
+sqlite3_close( db )

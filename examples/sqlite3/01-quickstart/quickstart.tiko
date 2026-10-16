@@ -1,0 +1,57 @@
+'' quickstart -- SQLite's own first program, from https://sqlite.org/quickstart.html, in tiko.
+'' It opens a database, runs one SQL statement against it, and prints every row the statement
+'' returns, one "column = value" line each, through the callback sqlite3_exec calls per row.
+''
+''     quickstart DATABASE SQL-STATEMENT
+''     quickstart :memory: "select 1 as one, 'two' as two, null as three"
+''
+'' Build it with 'tiko quickstart.tiko'.
+''
+'' The C original is public domain, as SQLite is; so is this.
+
+'' SQLite linked DYNAMICALLY: sqlite3.dll is copied beside the program (on Linux the program
+'' gets libsqlite3 beside it). Write 'link static' instead to build SQLite into the program.
+#import "vendor/sqlite" link dynamic
+
+'' sqlite3_exec calls this once for each row: argc columns, their values in argv (a NULL
+'' column is a null pointer) and their names in azColName. Returning non-zero would stop it.
+function Callback cdecl ( byval notUsed as any ptr, byval argc as long, _
+                          byval argv as zstring ptr ptr, byval azColName as zstring ptr ptr ) as long
+    for i as long = 0 to argc - 1
+        if argv[i] then
+            print *azColName[i]; " = "; *argv[i]
+        else
+            print *azColName[i]; " = NULL"
+        end if
+    next
+    print
+    return 0
+end function
+
+'' What the C program sends to stderr.
+sub PrintError( byval message as ustring )
+    dim as long f = freefile
+    open err for output as #f
+    print #f, message
+    close #f
+end sub
+
+if __FB_ARGC__ <> 3 then
+    PrintError( "Usage: " & command( 0 ) & " DATABASE SQL-STATEMENT" )
+    end 1
+end if
+
+dim as sqlite3 ptr db
+dim as zstring ptr zErrMsg
+
+if sqlite3_open( command( 1 ), @db ) <> SQLITE_OK then
+    PrintError( "Can't open database: " & *sqlite3_errmsg( db ) )
+    sqlite3_close( db )
+    end 1
+end if
+
+if sqlite3_exec( db, command( 2 ), @Callback, nullptr, @zErrMsg ) <> SQLITE_OK then
+    PrintError( "SQL error: " & *zErrMsg )
+    sqlite3_free( zErrMsg )
+end if
+sqlite3_close( db )

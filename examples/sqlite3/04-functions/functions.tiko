@@ -1,0 +1,101 @@
+'' functions -- SQL functions written in tiko, from https://sqlite.org/appfunc.html. SQLite calls
+'' an application-defined function as it would one of its own: a SCALAR function once per row,
+'' an AGGREGATE through a step function per row and a final one per group.
+''
+'' noop( X ) and mycount( X ) are appfunc.html's own two examples -- a function that returns its
+'' argument, and count( ) written again -- and title( X ) is one that does real work.
+''
+'' Build it with 'tiko functions.tiko'.
+''
+'' Public domain, as SQLite is.
+
+'' SQLite linked DYNAMICALLY: sqlite3.dll is copied beside the program (on Linux the program
+'' gets libsqlite3 beside it). Write 'link static' instead to build SQLite into the program.
+#import "vendor/sqlite" link dynamic
+
+'' noop( X ): returns X, whatever its type -- appfunc.html's simplest function.
+sub NoopFunc cdecl ( byval context as sqlite3_context ptr, byval argc as long, byval argv as sqlite3_value ptr ptr )
+    sqlite3_result_value( context, argv[0] )
+end sub
+
+'' mycount( X ): count( X ) again. The aggregate context is per group: SQLite allocates it,
+'' zeroed, on the first call that asks, and frees it after the final call.
+type CountCtx
+    as longint n
+end type
+
+sub CountStep cdecl ( byval context as sqlite3_context ptr, byval argc as long, byval argv as sqlite3_value ptr ptr )
+    dim as CountCtx ptr p = sqlite3_aggregate_context( context, sizeof( CountCtx ) )
+    if p <> nullptr then
+        if (argc = 0) orelse (sqlite3_value_type( argv[0] ) <> SQLITE_NULL) then p->n += 1
+    end if
+end sub
+
+sub CountFinalize cdecl ( byval context as sqlite3_context ptr )
+    '' Asking for 0 bytes does not allocate: a group no row reached gets a null pointer.
+    dim as CountCtx ptr p = sqlite3_aggregate_context( context, 0 )
+    sqlite3_result_int64( context, iif( p <> nullptr, p->n, 0 ) )
+end sub
+
+'' title( X ): X with the first letter of each word upper case and the rest lower -- ASCII only,
+'' as SQLite's own upper( ) and lower( ) are.
+sub TitleFunc cdecl ( byval context as sqlite3_context ptr, byval argc as long, byval argv as sqlite3_value ptr ptr )
+    if sqlite3_value_type( argv[0] ) = SQLITE_NULL then
+        sqlite3_result_null( context )
+        exit sub
+    end if
+    dim as ustring s = lcase( *cast( zstring ptr, sqlite3_value_text( argv[0] ) ) )
+    dim as boolean startOfWord = true
+    for i as long = 1 to len( s )
+        dim as ustring c = mid( s, i, 1 )
+        if c = " " then
+            startOfWord = true
+        elseif startOfWord then
+            mid( s, i, 1 ) = ucase( c )
+            startOfWord = false
+        end if
+    next
+    sqlite3_result_text( context, s, -1, SQLITE_TRANSIENT )
+end sub
+
+sub Show( byval db as sqlite3 ptr, byval sql as ustring )
+    dim as sqlite3_stmt ptr st
+    if sqlite3_prepare_v2( db, sql, -1, @st, nullptr ) <> SQLITE_OK then
+        print sql; ": "; *sqlite3_errmsg( db )
+        exit sub
+    end if
+    print sql
+    while sqlite3_step( st ) = SQLITE_ROW
+        print "   ";
+        for c as long = 0 to sqlite3_column_count( st ) - 1
+            if sqlite3_column_type( st, c ) = SQLITE_NULL then
+                print " NULL";
+            else
+                print " "; *cast( zstring ptr, sqlite3_column_text( st, c ) );
+            end if
+        next
+        print
+    wend
+    sqlite3_finalize( st )
+end sub
+
+dim as sqlite3 ptr db
+sqlite3_open( ":memory:", @db )
+
+'' DETERMINISTIC tells the planner the same arguments always give the same result.
+const FLAGS = SQLITE_UTF8 or SQLITE_DETERMINISTIC
+sqlite3_create_function( db, "noop", 1, FLAGS, nullptr, @NoopFunc, nullptr, nullptr )
+sqlite3_create_function( db, "mycount", 1, FLAGS, nullptr, nullptr, @CountStep, @CountFinalize )
+sqlite3_create_function( db, "title", 1, FLAGS, nullptr, @TitleFunc, nullptr, nullptr )
+
+sqlite3_exec( db, "create table book( title text, shelf integer ); " & _
+                  "insert into book values ( 'the art of computer programming', 1 ), " & _
+                  "( 'structure and interpretation', 1 ), ( null, 2 ), ( 'the c programming language', 2 )", _
+              nullptr, nullptr, nullptr )
+
+Show( db, "select noop( 42 ), noop( 'text' ), noop( 1.5 ), typeof( noop( null ) )" )
+Show( db, "select shelf, mycount( title ), count( title ), count( * ) from book group by shelf" )
+Show( db, "select mycount( title ) from book where shelf = 99" )
+Show( db, "select title( title ) from book where title is not null order by 1" )
+
+sqlite3_close( db )
