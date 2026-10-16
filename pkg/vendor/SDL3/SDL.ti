@@ -1,0 +1,89 @@
+'' FreeBASIC binding for SDL3-3.4.4
+''
+'' based on the C header files:
+''   Simple DirectMedia Layer
+''   Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
+''
+''   This software is provided 'as-is', without any express or implied
+''   warranty.  In no event will the authors be held liable for any damages
+''   arising from the use of this software.
+''
+''   Permission is granted to anyone to use this software for any purpose,
+''   including commercial applications, and to alter it and redistribute it
+''   freely, subject to the following restrictions:
+''
+''   1. The origin of this software must not be misrepresented; you must not
+''      claim that you wrote the original software. If you use this software
+''      in a product, an acknowledgment in the product documentation would be
+''      appreciated but is not required.
+''   2. Altered source versions must be plainly marked as such, and must not be
+''      misrepresented as being the original software.
+''   3. This notice may not be removed or altered from any source distribution.
+
+'' Altered for tiko's vendor/SDL3: each SDL3/SDL_*.bi is SDL_*.ti beside this file, the
+'' includes below say so, the '#inclib "SDL3"' is SDL3.tiko's '#foreignlib', and on Linux
+'' SDL_endian.ti says little-endian itself rather than including endian.bi.
+
+'' SDL_events.bi  (195) mod => mod_
+'' SDL_stdinc.bi (526) SDL_log() => SDL_loga()
+
+#pragma once
+
+'' (the library: SDL3.tiko's #foreignlib)
+
+#include once "SDL_platform_defines.ti"
+#include once "SDL_stdinc.ti"
+#include once "SDL_error.ti"
+#include once "SDL_properties.ti"
+#include once "SDL_iostream.ti"
+#include once "SDL_audio.ti"
+#include once "SDL_blendmode.ti"
+#include once "SDL_pixels.ti"
+#include once "SDL_rect.ti"
+#include once "SDL_surface.ti"
+#include once "SDL_camera.ti"
+#include once "SDL_guid.ti"
+#include once "SDL_power.ti"
+#include once "SDL_sensor.ti"
+#include once "SDL_joystick.ti"
+#include once "SDL_keycode.ti"
+#include once "SDL_scancode.ti"
+#include once "SDL_video.ti"
+#include once "SDL_keyboard.ti"
+#include once "SDL_pen.ti"
+#include once "SDL_mouse.ti"
+#include once "SDL_touch.ti"
+#include once "SDL_events.ti"
+#include once "SDL_init.ti"
+#include once "SDL_log.ti"
+#include once "SDL_gpu.ti"
+#include once "SDL_render.ti"
+#include once "SDL_timer.ti"
+#include once "SDL_filesystem.ti"
+
+'#include once "SDL_assert.ti"
+#include once "SDL_asyncio.ti"
+#include once "SDL_atomic.ti"
+#include once "SDL_bits.ti"
+#include once "SDL_clipboard.ti"
+#include once "SDL_cpuinfo.ti"
+#include once "SDL_dialog.ti"
+#include once "SDL_endian.ti"
+#include once "SDL_gamepad.ti"
+#include once "SDL_haptic.ti"
+#include once "SDL_hidapi.ti"
+#include once "SDL_hints.ti"
+#include once "SDL_loadso.ti"
+#include once "SDL_locale.ti"
+#include once "SDL_messagebox.ti"
+#include once "SDL_metal.ti"
+#include once "SDL_misc.ti"
+#include once "SDL_thread.ti"
+#include once "SDL_mutex.ti"
+#include once "SDL_platform.ti"
+#include once "SDL_process.ti"
+#include once "SDL_storage.ti"
+#include once "SDL_system.ti"
+#include once "SDL_time.ti"
+#include once "SDL_tray.ti"
+#include once "SDL_version.ti"

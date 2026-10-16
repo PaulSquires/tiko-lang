@@ -1,0 +1,16 @@
+'' vendor/SDL3 -- SDL 3 (Simple DirectMedia Layer), the C library, as one import:
+''
+''     #import "vendor/SDL3" link dynamic        (or neither)
+''
+'' Every routine, type and constant of SDL3's headers is then callable as SDL documents it,
+'' unqualified -- SDL_Init, SDL_INIT_VIDEO. The headers are SDL.ti and the SDL_*.ti it
+'' includes: the sdl3-freebasic binding (GaBurdis, MIT) for SDL 3.4.4, committed, with its
+'' include paths made the package's own and its '#inclib' replaced by the #foreignlib below.
+''
+'' THE LIBRARY: SDL publishes no static library, so this package ships 'link dynamic' alone --
+'' also its default when no '#import' says. SDL3.dll is copied beside the program.
+#module "SDL3"
+
+public #include once "SDL.ti"
+
+#foreignlib SDL3 dynamic "lib/SDL3"

@@ -36,6 +36,7 @@ Every routine, type and constant of the library's C header is callable as the li
 | Package | Library | Link modes |
 | --- | --- | --- |
 | `vendor/sqlite` | SQLite 3.54.0 | `static`, `dynamic` (the default) |
+| `vendor/SDL3` | SDL 3.4.4 | `dynamic` (the default); windows-x86_64 only -- SDL publishes no Linux binary, so the toolchain for linux-x86_64 ships the headers with no library |
 
 ## `link static` and `link dynamic`
 
