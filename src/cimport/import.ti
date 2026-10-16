@@ -158,6 +158,10 @@ type CImp
     '' The parse, kept so macros.tiko can parse again with its probes appended.
     as string     unitText
     as Tko.StrVec args
+    '' A FILE THE PARSE SEES IN PLACE OF THE DISK'S, by path: c2t's branch passes give clang
+    '' the header with one untaken branch forced on. "" for none (#cinclude never sets it).
+    as string     unsavedName
+    as string     unsavedText
 
     '' 'tiko c2t' (src/c2t) DRIVES THE SAME MAPPING for a header people will read, and these
     '' are the only places it differs. False for #cinclude and -cimport, whose output does

@@ -1,12 +1,12 @@
-# The vendor package (tiko-vendor RFC-0002): C libraries the toolchain ships, each a module
+# The vendor package: C libraries the toolchain ships, each a module
 # '#import "vendor/<module>" [link static|dynamic]' reaches with nothing on the command line.
 # Reserved like std: found in the toolchain's pkg/ alone. Each module's translated headers
 # are committed; its binaries are not -- build/vendorfetch.sh fetches or builds them, pinned,
-# into <module>/lib when the toolchain is packaged (V9), from <module>/fetch.toml (V11).
+# into <module>/lib when the toolchain is packaged, from <module>/fetch.toml.
 [package]
 name = "vendor"
 version = "0.1.0"
 
-# The link modes each module ships (V7, V10): what '#import ... link' may ask for.
+# The link modes each module ships: what '#import ... link' may ask for.
 [vendor.sqlite]
 links = ["static", "dynamic"]

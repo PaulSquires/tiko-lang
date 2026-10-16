@@ -644,6 +644,17 @@ sub MacroDirectives( byref e as C2tEmit, byref p as C2tPass, byref dirs as C2tDi
             elseif (k < e.incState.Count) andalso (e.incState[k] = 2) then
                 Set_( e, k, 2, "", e.incReason[k], e.incWhy[k] )
             end if
+        case DK_OTHER
+            '' #error IS tiko's too, with the same message: a one-line one is copied over.
+            if (d.word = "error") andalso (d.line1 = d.line2) then
+                dim as int32 last = d.tok2
+                while (last > d.tok1 + 1) andalso (e.src->toks[last].kind = CT_COMMENT)
+                    last -= 1
+                wend
+                dim as int32 a = e.src->toks[d.tok1 + 1].ofs + e.src->toks[d.tok1 + 1].len_
+                dim as int32 b = e.src->toks[last].ofs + e.src->toks[last].len_
+                Set_( e, k, 1, TrailComments( e, Hash_( e, d ) & "error" & mid( e.src->bytes, a + 1, b - a ), d.line2 ), "", "" )
+            end if
         case DK_UNDEF
             dim as string why
             dim as string tn = UndefName_( env, d, why )

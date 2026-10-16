@@ -1,4 +1,4 @@
-'' tiko c2t: branches this pass does not take are unreached-branch TODOs; directives are TODOs until P5.
+'' tiko c2t: a branch one pass takes and the other does not is written under a guard on the target; '#if 0' stays a NOTE.
 '' Everything after the clang line is asserted byte for byte; the tiko and clang versions
 '' in the banner depend on the host, so only the lines around them are.
 '' TEST: cli

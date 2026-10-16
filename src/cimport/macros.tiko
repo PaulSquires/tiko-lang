@@ -324,13 +324,20 @@ private function ProbeParse_( byref x as CImp, lines() as string, live() as bool
             if live( i ) then text &= lines( i )
             text &= chr( 10 )
         next
-        dim as CXUnsavedFile uf
-        uf.Filename = strptr( unitName )
-        uf.Contents = strptr( text )
-        uf.Length = len( text )
+        dim as CXUnsavedFile uf( 0 to 1 )
+        uf( 0 ).Filename = strptr( unitName )
+        uf( 0 ).Contents = strptr( text )
+        uf( 0 ).Length = len( text )
+        dim as uint32 nuf = 1
+        if len( x.unsavedName ) then
+            uf( 1 ).Filename = strptr( x.unsavedName )
+            uf( 1 ).Contents = strptr( x.unsavedText )
+            uf( 1 ).Length = len( x.unsavedText )
+            nuf = 2
+        end if
         dim as any ptr idx = x.api->createIndex( 0, 0 )
         dim as any ptr tu = x.api->parseTranslationUnit( idx, strptr( unitName ), @argv( 0 ), _
-            av.Count, @uf, 1, CXTranslationUnit_DetailedPreprocessingRecord or _
+            av.Count, @uf( 0 ), nuf, CXTranslationUnit_DetailedPreprocessingRecord or _
             CXTranslationUnit_SkipFunctionBodies or CXTranslationUnit_KeepGoing )
         if tu = nullptr then
             x.api->disposeIndex( idx )

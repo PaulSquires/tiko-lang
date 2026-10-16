@@ -119,9 +119,17 @@ end function
 '' False, with the diagnostics reported, when clang could not parse the header.
 private function TranslatePass_( byref ctx as Tko.CompilerContext, byref api as Tko.CImport.ClangApi, _
                                  byref src as C2tSource, byref po_ as C2tOptions, _
-                                 byref io as Tko.CImport.CImportOptions, byref po as C2tPassOut ) as boolean
+                                 byref io as Tko.CImport.CImportOptions, byref po as C2tPassOut, _
+                                 byref forcedText as string, byref failWhy as string ) as boolean
     dim as C2tPass p
-    if RunPass( api, src, po_, io.triple, p ) = false then
+    if RunPass( api, src, po_, io.triple, p, forcedText ) = false then
+        '' A BRANCH PASS THAT FAILS is no error: the branch keeps its TODO, with clang's word on
+        '' why -- the message alone, without a location that names this host's paths.
+        if len( forcedText ) then
+            failWhy = ""
+            if p.clangDiags.Count > 0 then failWhy = p.clangDiags[0]
+            return false
+        end if
         ctx.diags.ReportGlobal( Tko.TKO0120, po_.input_ & " (" & io.triple & ")" )
         dim as Tko.SourceRange none_
         dim as boolean missing = false
@@ -173,6 +181,165 @@ private function TranslatePass_( byref ctx as Tko.CompilerContext, byref api as 
     return true
 end function
 
+private function IsIdent_( byval c as ubyte ) as boolean
+    return ((c >= 48) andalso (c <= 57)) orelse ((c >= 65) andalso (c <= 90)) orelse _
+           ((c >= 97) andalso (c <= 122)) orelse (c = 95)
+end function
+
+'' 'w' in 's' as a whole word, case folded as tiko folds names.
+private function HasWord_( byref s as string, byref w as string ) as boolean
+    if len( w ) = 0 then return true
+    dim as string ls = lcase( s ), lw = lcase( w )
+    dim as int32 at = instr( ls, lw )
+    while at > 0
+        dim as boolean l = (at = 1) orelse (IsIdent_( ls[at - 2] ) = false)
+        dim as boolean r = (at + len( lw ) > len( ls )) orelse (IsIdent_( ls[at + len( lw ) - 1] ) = false)
+        if l andalso r then return true
+        at = instr( at + 1, ls, lw )
+    wend
+    return false
+end function
+
+const NO_SPLICE = "a declaration of the branch crosses its #if, #else or #endif"
+
+private sub IoFor_( byval tg as Tko.TargetId, byref clangExe as string, byref refuseName as Tko.StrVec, _
+                    byref refuseWhy as Tko.StrVec, byref io as Tko.CImport.CImportOptions )
+    io.triple = Tko.Codegen.TargetFor( tg ).triple
+    io.targetName = Tko.TargetName( tg )
+    io.isWindows = Tko.TargetIsWindows( tg )
+    io.clangExe = clangExe
+    for i as int32 = 0 to refuseName.Count - 1
+        io.refuseName.Push( refuseName[i] )
+        io.refuseWhy.Push( refuseWhy[i] )
+    next
+end sub
+
+'' The lines the header idioms claim (the include guard, the __cplusplus block): no branch of
+'' theirs is one to force.
+private sub IdiomLines_( byref src as C2tSource, byref dirs as C2tDirVec, byval guarded as boolean, _
+                         byref idiomLine as C2tIntVec )
+    dim as C2tBlockVec blocks
+    dim as Tko.StrVec decor
+    IdiomBlocks( src, dirs, guarded, blocks, decor )
+    for l as int32 = 0 to LineCount( src )
+        idiomLine.Push( 0 )
+    next
+    for b as int32 = 0 to blocks.Count - 1
+        if (blocks[b].isTodo = false) andalso (blocks[b].dirNo = 0) then
+            for l as int32 = blocks[b].line1 to blocks[b].line2
+                idiomLine[l] = 1
+            next
+        end if
+    next
+end sub
+
+'' The #include in lines r1..r2 whose header clang's 'file not found' names; -1 for none.
+'' clang's message is 'path:line:col: fatal error: 'name' file not found'.
+'' The same header can be included twice (an #ifndef and its #else): the one on clang's line
+'' wins, else the first not already left out.
+private function MissingInclude_( byref src as C2tSource, byref dirs as C2tDirVec, byref raw as string, _
+                                  byval r1 as int32, byval r2 as int32, byref blankDirs as C2tIntVec ) as int32
+    dim as int32 at = instr( raw, "' file not found" )
+    if at = 0 then return -1
+    dim as int32 q = instrrev( raw, "'", at - 1 )
+    if q = 0 then return -1
+    dim as string nm = mid( raw, q + 1, at - q - 1 )
+    dim as int32 ln = -1
+    dim as int32 e = instr( raw, ": fatal error: " )
+    if e = 0 then e = instr( raw, ": error: " )
+    if e > 0 then
+        dim as int32 c2 = instrrev( raw, ":", e - 1 )
+        if c2 > 0 then
+            dim as int32 c1 = instrrev( raw, ":", c2 - 1 )
+            if c1 > 0 then ln = valint( mid( raw, c1 + 1, c2 - c1 - 1 ) )
+        end if
+    end if
+    dim as int32 first = -1
+    for k as int32 = 0 to dirs.Count - 1
+        if (dirs[k].kind <> DK_INCLUDE) orelse (dirs[k].line1 < r1) orelse (dirs[k].line2 > r2) then continue for
+        dim as boolean gone = false
+        for i as int32 = 0 to blankDirs.Count - 1
+            if blankDirs[i] = k then gone = true
+        next
+        if gone then continue for
+        '' (the name as written: '"x.h"' or '<x.h>')
+        dim as string w = dirs[k].name_
+        if len( w ) >= 2 then w = mid( w, 2, len( w ) - 2 )
+        if w <> nm then continue for
+        if dirs[k].line1 = ln then return k
+        if first < 0 then first = k
+    next
+    return first
+end function
+
+'' ONE BRANCH PASS: the header with every branch in 'forced' taken, translated whole; then each
+'' branch inside the last one that is still not taken, by a branch pass of its own spliced in.
+'' False, with 'why', when clang cannot parse the forced text. Branches it could not do go to
+'' fail*, as Translate_'s own.
+private function BranchPass_( byref ctx as Tko.CompilerContext, byref api as Tko.CImport.ClangApi, _
+                              byref src as C2tSource, byref po_ as C2tOptions, _
+                              byref io as Tko.CImport.CImportOptions, byref dirs as C2tDirVec, _
+                              byref idiomLine as C2tIntVec, byref forced as C2tIntVec, _
+                              byref sh as C2tPassOut, byref why as string, byref failL1 as C2tIntVec, _
+                              byref failL2 as C2tIntVec, byref failWhy as Tko.StrVec, _
+                              byval blankDirs as C2tIntVec ) as boolean
+    dim as int32 r1, r2
+    BranchBody( dirs, forced[forced.Count - 1], r1, r2 )
+    '' A HEADER THIS HOST DOES NOT HAVE -- an Apple or Solaris one, a GPU API's -- is left out
+    '' and the parse tried again: its #include stays a TODO, the rest of the branch need not.
+    '' It may sit in any forced branch, the outermost holding them all; a nested branch pass
+    '' starts from what its outer one left out ('blankDirs').
+    dim as int32 o1, o2
+    BranchBody( dirs, forced[0], o1, o2 )
+    dim as boolean ok = false
+    for attempt as int32 = 1 to 16
+        dim as string ft = ForceText( src, dirs, forced, blankDirs )
+        if len( ft ) = 0 then
+            why = "a directive of the conditional leaves no room to force the branch"
+            return false
+        end if
+        dim as string raw
+        if TranslatePass_( ctx, api, src, po_, io, sh, ft, raw ) then
+            ok = true
+            exit for
+        end if
+        dim as int32 k = MissingInclude_( src, dirs, raw, o1, o2, blankDirs )
+        if k < 0 then
+            why = "clang cannot parse the branch"
+            dim as int32 at = instr( raw, "error: " )
+            if at > 0 then raw = mid( raw, at + 7 )
+            if len( raw ) then why &= ": " & raw
+            return false
+        end if
+        blankDirs.Push( k )
+    next
+    if ok = false then
+        why = "clang cannot parse the branch: too many headers missing"
+        return false
+    end if
+    '' NESTING IS BOUNDED: deeper than this, a branch keeps its TODO.
+    if forced.Count >= 8 then return true
+    dim as C2tPassOutVec one
+    one.Push( sh )
+    dim as C2tIntVec inner
+    UnreachedBranches( src, dirs, one, idiomLine, r1, r2, inner )
+    for i as int32 = 0 to inner.Count - 1
+        dim as int32 c1, c2
+        BranchBody( dirs, inner[i], c1, c2 )
+        dim as C2tIntVec f2 = forced
+        f2.Push( inner[i] )
+        dim as C2tPassOut sub_
+        dim as string w
+        if BranchPass_( ctx, api, src, po_, io, dirs, idiomLine, f2, sub_, w, failL1, failL2, failWhy, blankDirs ) then
+            if Splice( sh, sub_, dirs, c1, c2 ) = false then w = NO_SPLICE
+        end if
+        if len( w ) then
+            failL1.Push( c1 ) : failL2.Push( c2 ) : failWhy.Push( w )
+        end if
+    next
+    return true
+end function
+
 '' THE PASSES (D5): each target, Windows then Linux, plain and then once per --pass. Their
 '' outputs merged into one file (merge.tiko); text 'todos' as Assemble counts them.
 private function Translate_( byref ctx as Tko.CompilerContext, byref api as Tko.CImport.ClangApi, _
@@ -188,16 +355,10 @@ private function Translate_( byref ctx as Tko.CompilerContext, byref api as Tko.
             po_.passArgs.Clear( )
             if extraNo > 0 then po_.passArgs.Push( o.passArgs[extraNo - 1] )
             dim as Tko.CImport.CImportOptions io
-            io.triple = Tko.Codegen.TargetFor( tg( ti ) ).triple
-            io.targetName = Tko.TargetName( tg( ti ) )
-            io.isWindows = Tko.TargetIsWindows( tg( ti ) )
-            io.clangExe = clangExe
-            for i as int32 = 0 to refuseName( ti ).Count - 1
-                io.refuseName.Push( refuseName( ti )[i] )
-                io.refuseWhy.Push( refuseWhy( ti )[i] )
-            next
+            IoFor_( tg( ti ), clangExe, refuseName( ti ), refuseWhy( ti ), io )
             dim as C2tPassOut po
-            if TranslatePass_( ctx, api, src, po_, io, po ) = false then return false
+            dim as string noWhy
+            if TranslatePass_( ctx, api, src, po_, io, po, "", noWhy ) = false then return false
             po.extraNo = extraNo
             if extraNo > 0 then po.extra = o.passArgs[extraNo - 1]
             if (extraNo > 0) andalso (len( o.sharedMacro ) > 0) then
@@ -209,11 +370,61 @@ private function Translate_( byref ctx as Tko.CompilerContext, byref api as Tko.
 
     dim as C2tDirVec dirs
     ScanDirectives( src, dirs )
+
+    '' THE BRANCHES NO PASS TAKES are translated too (the author, 2026-10-16), each by a branch
+    '' pass per target that forces it on (force.tiko), spliced into that target's base pass.
+    '' A --pass gets none: it does not see those lines, and the merge leaves it out of them.
+    dim as C2tIntVec idiomLine
+    IdiomLines_( src, dirs, outs[0].guarded, idiomLine )
+    dim as C2tIntVec top, failL1, failL2
+    dim as Tko.StrVec failWhy
+    UnreachedBranches( src, dirs, outs, idiomLine, 1, LineCount( src ), top )
+    for i as int32 = 0 to top.Count - 1
+        dim as int32 r1, r2
+        BranchBody( dirs, top[i], r1, r2 )
+        for p as int32 = 0 to outs.Count - 1
+            if outs[p].extraNo <> 0 then continue for
+            dim as int32 ti = iif( outs[p].isWindows, 0, 1 )
+            dim as C2tOptions po_ = o
+            po_.passArgs.Clear( )
+            dim as Tko.CImport.CImportOptions io
+            IoFor_( tg( ti ), clangExe, refuseName( ti ), refuseWhy( ti ), io )
+            dim as C2tIntVec forced
+            forced.Push( top[i] )
+            dim as C2tPassOut sh
+            dim as string why
+            dim as C2tIntVec noBlank
+            if BranchPass_( ctx, api, src, po_, io, dirs, idiomLine, forced, sh, why, failL1, failL2, failWhy, noBlank ) then
+                if Splice( outs[p], sh, dirs, r1, r2 ) = false then why = NO_SPLICE
+            end if
+            if len( why ) then
+                failL1.Push( r1 ) : failL2.Push( r2 ) : failWhy.Push( why )
+            end if
+        next
+    next
+
     dim as C2tBlockVec merged
     MergePasses( src, dirs, outs, merged )
+    '' WHAT NO BRANCH PASS COULD TRANSLATE keeps its TODO, saying why.
+    for b as int32 = 0 to merged.Count - 1
+        if (merged[b].isTodo = false) orelse (merged[b].reason <> "unreached-branch") then continue for
+        for f as int32 = 0 to failL1.Count - 1
+            if (merged[b].line1 >= failL1[f]) andalso (merged[b].line2 <= failL2[f]) then
+                merged[b].reason = "branch-unparsed"
+                merged[b].why = failWhy[f]
+                exit for
+            end if
+        next
+    next
 
     '' WHAT THE PASSES SHARE: renames once each, crt/long.bi when any pass needed clong, and
     '' extern "C" placed here unless the header's own __cplusplus block said where.
+    '' A RENAME IS LISTED ONLY WHEN THE NAME IS WRITTEN: a branch pass's rename can belong to
+    '' C that stayed a TODO ('#define double long' under a conditional c2t cannot translate).
+    dim as string written = chr( 10 )
+    for i as int32 = 0 to merged.Count - 1
+        if merged[i].isTodo = false then written &= merged[i].text & chr( 10 )
+    next
     dim as Tko.StrVec renames
     dim as boolean needsCLong = false
     for p as int32 = 0 to outs.Count - 1
@@ -223,6 +434,11 @@ private function Translate_( byref ctx as Tko.CompilerContext, byref api as Tko.
             for j as int32 = 0 to renames.Count - 1
                 if renames[j] = outs[p].renames[i] then have = true
             next
+            dim as int32 ar = instr( outs[p].renames[i], " -> " )
+            '' (a parameter or field is 'proc.name_': its own name is what is written)
+            dim as string fp = mid( outs[p].renames[i], ar + 4 )
+            if instrrev( fp, "." ) > 0 then fp = mid( fp, instrrev( fp, "." ) + 1 )
+            if (ar > 0) andalso (HasWord_( written, fp ) = false) then have = true
             if have = false then renames.Push( outs[p].renames[i] )
         next
     next
