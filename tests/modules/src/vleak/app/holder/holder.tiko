@@ -1,0 +1,17 @@
+'' Imports vq/shape and vq/blob without 'public', but its public type holds their types:
+'' its interface uses both, so an importer reads their headers too.
+#module "holder"
+#import "vq/shape"
+#import "vq/blob"
+
+public type Bag
+    declare function Area( ) as long
+private:
+    sq as VqSquare
+    b as blob ptr
+end type
+
+function Bag.Area( ) as long
+    sq.side = 3
+    return sq.side * sq.side
+end function

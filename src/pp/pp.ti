@@ -320,6 +320,12 @@ namespace Tko
         as IdVec       modConsRoot
         as StrVec      modConsName
         as StrVec      modConsText
+        '' THE FILES THE UNIT READ THROUGH AN IMPORTED MODULE'S PUBLIC HEADERS -- its
+        '' '<chain>.pub.tki' and what that includes -- each beside the module's chain. A name
+        '' the interface spells from one makes it say '' uses <chain>, so an importer reads
+        '' those headers too (modiface.tiko).
+        as IdVec       pubHdrFile
+        as StrVec      pubHdrChain
         '' EVERY FILE THE UNIT LEXED, in first-read order, repeats allowed: what a module's
         '' cache entry depends on besides its sources (RFC-0005 §4).
         as FileIdVec   filesRead

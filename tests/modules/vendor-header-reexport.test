@@ -1,0 +1,8 @@
+'' '#import ... public' passes a module's public header on: kit re-exports vq/shape, so a
+'' program that imports kit sees the header's names.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i tests/modules/src/vleak/libs tests/modules/src/vleak/app/reexport.tiko -o tests/modules/vleakrx.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/vleakrx.exe
+'' EXPECT-RUN-OUT:  4 square 1

@@ -1,0 +1,3 @@
+'' A module that is only a public header, whose opaque type shares the module's name.
+#module "blob"
+public #include once "blob.ti"

@@ -1,0 +1,3 @@
+'' blob.ti -- an opaque type named as its module is, the way c2t writes sqlite3's.
+#pragma once
+type blob__fwd as blob

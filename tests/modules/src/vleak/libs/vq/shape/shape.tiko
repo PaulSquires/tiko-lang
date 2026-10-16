@@ -1,0 +1,3 @@
+'' A module that is only a public header, as a vendor package is.
+#module "shape"
+public #include once "shape.ti"

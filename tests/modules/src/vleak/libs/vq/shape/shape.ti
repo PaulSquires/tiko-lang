@@ -1,0 +1,7 @@
+'' shape.ti -- a header the module 'vq/shape' carries publicly.
+#pragma once
+type VqSquare
+    as long side
+end type
+#define VQ_SIDES 4
+const VQ_NAME = "square"

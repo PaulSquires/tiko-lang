@@ -1,0 +1,6 @@
+'' holder's public type holds vq/shape's and vq/blob's types, so their headers are read
+'' here, though this program imports neither.
+#import "./wrap"
+#import "./holder"
+dim as holder.Bag h
+print wrap.Sides( ); h.Area( )

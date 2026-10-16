@@ -1,0 +1,5 @@
+'' kit re-exports vq/shape with 'public': its header's names reach this program.
+#import "./kit"
+dim as VqSquare q
+q.side = VQ_SIDES
+print q.side; " "; VQ_NAME; kit.KIT_VERSION

@@ -22,6 +22,7 @@
 #include once "driver/unit.ti"
 #include once "driver/modresolve.ti"
 #include once "driver/modcache.ti"
+#include once "driver/modiface.ti"
 #include once "build/events.ti"
 
 namespace Tko.Modules
@@ -123,11 +124,13 @@ function BuildImports _
     ctx.ifaceDirs.Clear( )
     ctx.ifaceTexts.Clear( )
     ctx.ifaceFiles.Clear( )
+    ctx.ifacePubFiles.Clear( )
     for i as int32 = 0 to g.chains.Count - 1
         ctx.ifaceChains.Push( g.chains[i] )
         ctx.ifaceDirs.Push( NormPath( g.dirs[i] ) )
         ctx.ifaceTexts.Push( "" )
         ctx.ifaceFiles.Push( cast( uint32, Tko.FILE_NONE ) )
+        ctx.ifacePubFiles.Push( cast( uint32, Tko.FILE_NONE ) )
     next
     ctx.ifaceOrder.Clear( )
     for each o as uint32 in g.order
@@ -193,8 +196,7 @@ function BuildImports _
                 hitObj = mp
             end if
             linkObjs.Push( hitObj )
-            ctx.ifaceTexts[n] = hitIface
-            ctx.ifaceFiles[n] = cast( uint32, ctx.sources.AddVirtual( ctx.modChain & ".tki", hitIface ) )
+            SetInterface( ctx, n, hitIface )
             ReplayLibs( ctx, hitLibs )
             continue for
         end if

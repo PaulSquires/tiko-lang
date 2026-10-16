@@ -1,0 +1,4 @@
+'' wrap imports vq/shape without 'public': the header's names do not reach this program.
+#import "./wrap"
+print wrap.Sides( )
+print VQ_NAME
