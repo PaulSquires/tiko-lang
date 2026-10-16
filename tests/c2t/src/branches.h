@@ -34,3 +34,17 @@ static inline int br_twice(int x)
     return x * 2;
 #endif
 }
+
+/* sqlite3.h's shape: an #undef no pass reaches is written when the #if around it is, and
+   stays a TODO under one that is not. */
+#ifdef BR_VERSION
+# undef BR_VERSION
+#endif
+#if defined(_MSC_VER) && defined(BR_NEVER)
+# undef BR_NEVER
+#endif
+/* ...and never one of a tiko keyword, reached or not: it would remove the keyword. */
+#ifdef BR_OMIT_FLOAT
+# undef double
+#endif
+#undef integer
