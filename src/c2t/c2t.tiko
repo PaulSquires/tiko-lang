@@ -154,7 +154,6 @@ private function TranslatePass_( byref ctx as Tko.CompilerContext, byref api as 
     po.skipped = p.skipped
     po.renames = e.renames
     po.needsCLong = x.needsCLong
-    po.windowsBi = x.c2tSysAll
     po.guarded = p.guarded
     po.manifest = ""
     for i as int32 = 0 to x.manifest.Count - 1
@@ -206,10 +205,9 @@ private function Translate_( byref ctx as Tko.CompilerContext, byref api as Tko.
     '' WHAT THE PASSES SHARE: renames once each, crt/long.bi when any pass needed clong, and
     '' extern "C" placed here unless the header's own __cplusplus block said where.
     dim as Tko.StrVec renames
-    dim as boolean needsCLong = false, windowsBi = false
+    dim as boolean needsCLong = false
     for p as int32 = 0 to outs.Count - 1
         if outs[p].needsCLong then needsCLong = true
-        if outs[p].windowsBi then windowsBi = true
         for i as int32 = 0 to outs[p].renames.Count - 1
             dim as boolean have = false
             for j as int32 = 0 to renames.Count - 1
@@ -220,15 +218,6 @@ private function Translate_( byref ctx as Tko.CompilerContext, byref api as Tko.
     next
     dim as string preamble
     if needsCLong then preamble = "#include once " & chr( 34 ) & "crt/long.bi" & chr( 34 )
-    '' windows.bi FIRST, before any use of int32: it declares 'type INT32 as long', and tiko
-    '' binds an alias of int32 used above that declaration to it, then refuses the use as
-    '' incomplete (TKO0811; a compiler issue, P6). Where the C includes <windows.h> it is then
-    '' a no-op.
-    if windowsBi then
-        if len( preamble ) then preamble &= chr( 10 )
-        preamble &= "#ifdef TIKO_OS_WINDOWS" & chr( 10 ) & "#include once " & chr( 34 ) & "windows.bi" & _
-                    chr( 34 ) & chr( 10 ) & "#endif"
-    end if
     '' A GLOBAL -D IS THE CONFIGURATION TRANSLATED FOR: the file defines it too, so its own
     '' conditionals select what was translated. A --pass's define is the user's to set.
     for i as int32 = 0 to o.defines.Count - 1

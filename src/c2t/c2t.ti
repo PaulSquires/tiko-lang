@@ -145,7 +145,6 @@ type C2tPassOut
     renames as Tko.StrVec
     as boolean needsCLong
     as boolean guarded
-    as boolean windowsBi           '' the header includes <windows.h>, mapped to windows.bi
 end type
 type C2tPassOutVec as containers.Array( of C2tPassOut )
 
