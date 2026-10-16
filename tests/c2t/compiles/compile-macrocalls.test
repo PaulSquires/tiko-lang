@@ -1,0 +1,7 @@
+'' The translation of tests/c2t/src/macrocalls.h compiles, for each target in TARGETS.
+'' TEST: cli
+'' CLEAN: build/.c2t/compile-macrocalls
+'' STEP-EXIT: 2
+'' STEP: c2t tests/c2t/src/macrocalls.h --verify -o build/.c2t/compile-macrocalls/macrocalls.ti
+'' ARGS: -c build/.c2t/compile-macrocalls/macrocalls.ti -o build/.c2t/compile-macrocalls/macrocalls.o
+'' EXPECT-EXIT: 0

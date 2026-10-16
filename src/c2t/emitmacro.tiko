@@ -338,6 +338,7 @@ private sub Define_( byref e as C2tEmit, byref env as CxEnv, byref dirs as C2tDi
         dim as string body
         dim as CExpr c
         c.env = @fenv
+        c.template_ = true
         CxLoad( c, *e.src, t + 1, d.tok2 )
         if c.tx.Count > 0 then
             if CxParse( c ) >= 0 then body = CxPrint( c, false )
@@ -353,7 +354,19 @@ private sub Define_( byref e as C2tEmit, byref env as CxEnv, byref dirs as C2tDi
             pl &= ps[i]
         next
         CxEnvAdd( env, cname, nm, CXV_NAME, true )
-        Set_( e, k, 1, TrailComments( e, rtrim( hash & "define " & nm & "(" & pl & ") " & body ), d.line2 ), "", "" )
+        dim as string fnote
+        if len( c.unchecked ) > 0 then
+            dim as string called = "'"
+            for i as int32 = 1 to len( c.unchecked )
+                dim as string ch = mid( c.unchecked, i, 1 )
+                called &= iif( ch = ",", "', '", ch )
+            next
+            called &= "'"
+            fnote = IndentOf_( LineText( *e.src, d.line1 ) ) & "'' C2T-NOTE(unchecked) " & e.src->name_ & ":" & _
+                    d.line1 & " -- " & called & " not declared here: a program using the macro declares " & _
+                    iif( instr( c.unchecked, "," ) > 0, "them", "it" ) & chr( 10 )
+        end if
+        Set_( e, k, 1, fnote & TrailComments( e, rtrim( hash & "define " & nm & "(" & pl & ") " & body ), d.line2 ), "", "" )
         return
     end if
 

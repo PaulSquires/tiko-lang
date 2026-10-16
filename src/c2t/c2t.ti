@@ -306,6 +306,11 @@ type CExpr
     as string why                  '' why it was refused; "" while it is translatable
     as boolean cond                '' an #if: 'defined' is an operator; an unknown name is 0
     as boolean checked             '' the value is compared with clang's afterwards
+    '' A FUNCTION-LIKE MACRO'S BODY: a template expanded where it is used, so a call to a
+    '' function the header never declares -- malloc, __attribute__ -- is written as C names it,
+    '' and listed in 'unchecked' for a C2T-NOTE.
+    as boolean template_
+    as string unchecked
     as CxEnv ptr env
 end type
 

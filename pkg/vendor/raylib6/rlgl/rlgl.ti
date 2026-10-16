@@ -46,68 +46,62 @@
 ''   constant   false -> false_   (tiko reserved word)
 ''   constant   true -> true_   (tiko reserved word)
 ''
-'' 61 items need manual translation:
-''   line 237  rlgl.h:133  C2T-TODO(function-like-macro)  TRACELOG
-''   line 243  rlgl.h:138  C2T-TODO(function-like-macro)  RL_MALLOC
-''   line 247  rlgl.h:141  C2T-TODO(function-like-macro)  RL_CALLOC
-''   line 251  rlgl.h:144  C2T-TODO(function-like-macro)  RL_REALLOC
-''   line 255  rlgl.h:147  C2T-TODO(function-like-macro)  RL_FREE
-''   line 298  rlgl.h:195  C2T-TODO(branch-unparsed)  GRAPHICS_API_OPENGL_ES2
-''   line 1160  rlgl.h:847  C2T-TODO(function-like-macro)  SW_CALLOC
-''   line 1162  rlgl.h:848  C2T-TODO(function-like-macro)  SW_REALLOC
-''   line 1168  rlgl.h:853  C2T-TODO(system-header)  <OpenGL/gl.h>
-''   line 1170  rlgl.h:854  C2T-TODO(system-header)  <OpenGL/glext.h>
-''   line 1176  rlgl.h:859  C2T-TODO(macro)  APIENTRY
-''   line 1184  rlgl.h:866  C2T-TODO(macro)  WINGDIAPI
-''   line 1188  rlgl.h:869  C2T-TODO(system-header)  <GL/gl.h>
-''   line 1203  rlgl.h:883  C2T-TODO(system-header)  <GLES3/gl3.h>
-''   line 1206  rlgl.h:885  C2T-TODO(system-header)  <GLES2/gl2ext.h>
-''   line 1218  rlgl.h:896  C2T-TODO(system-header)  <GLES2/gl2.h>
-''   line 1220  rlgl.h:897  C2T-TODO(system-header)  <GLES2/gl2ext.h>
-''   line 1228  rlgl.h:904  C2T-TODO(refused-type)  PFNGLDRAWARRAYSINSTANCEDEXTPROC
-''   line 1230  rlgl.h:905  C2T-TODO(refused-type)  PFNGLDRAWELEMENTSINSTANCEDEXTPROC
-''   line 1232  rlgl.h:906  C2T-TODO(refused-type)  PFNGLVERTEXATTRIBDIVISOREXTPROC
-''   line 1319  rlgl.h:993  C2T-TODO(macro)  glClearDepth
-''   line 1322  rlgl.h:995  C2T-TODO(macro)  GL_READ_FRAMEBUFFER
-''   line 1324  rlgl.h:996  C2T-TODO(macro)  GL_DRAW_FRAMEBUFFER
-''   line 1326  rlgl.h:997  C2T-TODO(macro)  GL_DRAW_FRAMEBUFFER_BINDING
-''   line 1451  rlgl.h:1113  C2T-TODO(refused-type)  isGpuReady
-''   line 1453  rlgl.h:1114  C2T-TODO(refused-type)  rlCullDistanceNear
-''   line 1455  rlgl.h:1115  C2T-TODO(refused-type)  rlCullDistanceFar
-''   line 1459  rlgl.h:1118  C2T-TODO(refused-type)  RLGL
-''   line 1466  rlgl.h:1124  C2T-TODO(branch-unparsed)
-''   line 1473  rlgl.h:1130  C2T-TODO(branch-unparsed)
-''   line 1483  rlgl.h:1139  C2T-TODO(static-inline)  rlLoadShaderDefault
-''   line 1485  rlgl.h:1140  C2T-TODO(static-inline)  rlUnloadShaderDefault
-''   line 1488  rlgl.h:1142  C2T-TODO(static-inline)  rlGetCompressedFormatName
-''   line 1493  rlgl.h:1146  C2T-TODO(static-inline)  rlGetPixelDataSize
-''   line 1496  rlgl.h:1148  C2T-TODO(static-inline)  rlMatrixIdentity
-''   line 1503  rlgl.h:1152  C2T-TODO(static-inline)  rlMatrixToFloatV
-''   line 1505  rlgl.h:1153  C2T-TODO(function-like-macro)  rlMatrixToFloat
-''   line 1507  rlgl.h:1154  C2T-TODO(static-inline)  rlMatrixMultiply
-''   line 1509  rlgl.h:1155  C2T-TODO(static-inline)  rlMatrixTranspose
-''   line 1511  rlgl.h:1156  C2T-TODO(static-inline)  rlMatrixInvert
-''   line 1522  rlgl.h:1166  C2T-TODO(branch-unparsed)
-''   line 1534  rlgl.h:1177  C2T-TODO(branch-unparsed)
-''   line 1540  rlgl.h:1182  C2T-TODO(branch-unparsed)
-''   line 1546  rlgl.h:1187  C2T-TODO(branch-unparsed)
-''   line 1606  rlgl.h:1429  C2T-TODO(branch-unparsed)
-''   line 1618  rlgl.h:1440  C2T-TODO(branch-unparsed)
-''   line 1822  rlgl.h:2197  C2T-TODO(branch-unparsed)
-''   line 1833  rlgl.h:2207  C2T-TODO(branch-unparsed)
-''   line 1836  rlgl.h:2209  C2T-TODO(branch-unparsed)
-''   line 1849  rlgl.h:2221  C2T-TODO(branch-unparsed)
-''   line 1865  rlgl.h:2236  C2T-TODO(branch-unparsed)
-''   line 1876  rlgl.h:2246  C2T-TODO(branch-unparsed)
-''   line 2197  rlgl.h:4989  C2T-TODO(conditional)  rlLoadShaderDefault
-''   line 2337  rlgl.h:5128  C2T-TODO(static-inline)  rlUnloadShaderDefault
-''   line 2356  rlgl.h:5146  C2T-TODO(static-inline)  rlGetCompressedFormatName
-''   line 2435  rlgl.h:5224  C2T-TODO(static-inline)  rlGetPixelDataSize
-''   line 2508  rlgl.h:5296  C2T-TODO(static-inline)  rlMatrixIdentity
-''   line 2522  rlgl.h:5309  C2T-TODO(static-inline)  rlMatrixToFloatV
-''   line 2549  rlgl.h:5335  C2T-TODO(static-inline)  rlMatrixMultiply
-''   line 2575  rlgl.h:5360  C2T-TODO(static-inline)  rlMatrixTranspose
-''   line 2601  rlgl.h:5385  C2T-TODO(static-inline)  rlMatrixInvert
+'' 55 items need manual translation:
+''   line 231  rlgl.h:133  C2T-TODO(function-like-macro)  TRACELOG
+''   line 292  rlgl.h:195  C2T-TODO(branch-unparsed)  GRAPHICS_API_OPENGL_ES2
+''   line 1160  rlgl.h:853  C2T-TODO(system-header)  <OpenGL/gl.h>
+''   line 1162  rlgl.h:854  C2T-TODO(system-header)  <OpenGL/glext.h>
+''   line 1168  rlgl.h:859  C2T-TODO(macro)  APIENTRY
+''   line 1176  rlgl.h:866  C2T-TODO(macro)  WINGDIAPI
+''   line 1180  rlgl.h:869  C2T-TODO(system-header)  <GL/gl.h>
+''   line 1195  rlgl.h:883  C2T-TODO(system-header)  <GLES3/gl3.h>
+''   line 1198  rlgl.h:885  C2T-TODO(system-header)  <GLES2/gl2ext.h>
+''   line 1210  rlgl.h:896  C2T-TODO(system-header)  <GLES2/gl2.h>
+''   line 1212  rlgl.h:897  C2T-TODO(system-header)  <GLES2/gl2ext.h>
+''   line 1220  rlgl.h:904  C2T-TODO(refused-type)  PFNGLDRAWARRAYSINSTANCEDEXTPROC
+''   line 1222  rlgl.h:905  C2T-TODO(refused-type)  PFNGLDRAWELEMENTSINSTANCEDEXTPROC
+''   line 1224  rlgl.h:906  C2T-TODO(refused-type)  PFNGLVERTEXATTRIBDIVISOREXTPROC
+''   line 1311  rlgl.h:993  C2T-TODO(macro)  glClearDepth
+''   line 1314  rlgl.h:995  C2T-TODO(macro)  GL_READ_FRAMEBUFFER
+''   line 1316  rlgl.h:996  C2T-TODO(macro)  GL_DRAW_FRAMEBUFFER
+''   line 1318  rlgl.h:997  C2T-TODO(macro)  GL_DRAW_FRAMEBUFFER_BINDING
+''   line 1443  rlgl.h:1113  C2T-TODO(refused-type)  isGpuReady
+''   line 1445  rlgl.h:1114  C2T-TODO(refused-type)  rlCullDistanceNear
+''   line 1447  rlgl.h:1115  C2T-TODO(refused-type)  rlCullDistanceFar
+''   line 1451  rlgl.h:1118  C2T-TODO(refused-type)  RLGL
+''   line 1458  rlgl.h:1124  C2T-TODO(branch-unparsed)
+''   line 1465  rlgl.h:1130  C2T-TODO(branch-unparsed)
+''   line 1475  rlgl.h:1139  C2T-TODO(static-inline)  rlLoadShaderDefault
+''   line 1477  rlgl.h:1140  C2T-TODO(static-inline)  rlUnloadShaderDefault
+''   line 1480  rlgl.h:1142  C2T-TODO(static-inline)  rlGetCompressedFormatName
+''   line 1485  rlgl.h:1146  C2T-TODO(static-inline)  rlGetPixelDataSize
+''   line 1488  rlgl.h:1148  C2T-TODO(static-inline)  rlMatrixIdentity
+''   line 1495  rlgl.h:1152  C2T-TODO(static-inline)  rlMatrixToFloatV
+''   line 1497  rlgl.h:1153  C2T-TODO(function-like-macro)  rlMatrixToFloat
+''   line 1499  rlgl.h:1154  C2T-TODO(static-inline)  rlMatrixMultiply
+''   line 1501  rlgl.h:1155  C2T-TODO(static-inline)  rlMatrixTranspose
+''   line 1503  rlgl.h:1156  C2T-TODO(static-inline)  rlMatrixInvert
+''   line 1514  rlgl.h:1166  C2T-TODO(branch-unparsed)
+''   line 1526  rlgl.h:1177  C2T-TODO(branch-unparsed)
+''   line 1532  rlgl.h:1182  C2T-TODO(branch-unparsed)
+''   line 1538  rlgl.h:1187  C2T-TODO(branch-unparsed)
+''   line 1598  rlgl.h:1429  C2T-TODO(branch-unparsed)
+''   line 1610  rlgl.h:1440  C2T-TODO(branch-unparsed)
+''   line 1814  rlgl.h:2197  C2T-TODO(branch-unparsed)
+''   line 1825  rlgl.h:2207  C2T-TODO(branch-unparsed)
+''   line 1828  rlgl.h:2209  C2T-TODO(branch-unparsed)
+''   line 1841  rlgl.h:2221  C2T-TODO(branch-unparsed)
+''   line 1857  rlgl.h:2236  C2T-TODO(branch-unparsed)
+''   line 1868  rlgl.h:2246  C2T-TODO(branch-unparsed)
+''   line 2189  rlgl.h:4989  C2T-TODO(conditional)  rlLoadShaderDefault
+''   line 2329  rlgl.h:5128  C2T-TODO(static-inline)  rlUnloadShaderDefault
+''   line 2348  rlgl.h:5146  C2T-TODO(static-inline)  rlGetCompressedFormatName
+''   line 2427  rlgl.h:5224  C2T-TODO(static-inline)  rlGetPixelDataSize
+''   line 2500  rlgl.h:5296  C2T-TODO(static-inline)  rlMatrixIdentity
+''   line 2514  rlgl.h:5309  C2T-TODO(static-inline)  rlMatrixToFloatV
+''   line 2541  rlgl.h:5335  C2T-TODO(static-inline)  rlMatrixMultiply
+''   line 2567  rlgl.h:5360  C2T-TODO(static-inline)  rlMatrixTranspose
+''   line 2593  rlgl.h:5385  C2T-TODO(static-inline)  rlMatrixInvert
 '' =============================================================================
 
 /'*********************************************************************************************
@@ -240,20 +234,20 @@
 
 '' Allow custom memory allocators
 #ifndef RL_MALLOC
-    '' C2T-TODO(function-like-macro) rlgl.h:138 -- 'malloc()' is nothing tiko declares
-''     #define RL_MALLOC(sz)     malloc(sz)
+    '' C2T-NOTE(unchecked) rlgl.h:138 -- 'malloc' not declared here: a program using the macro declares it
+    #define RL_MALLOC(sz) malloc((sz))
 #endif
 #ifndef RL_CALLOC
-    '' C2T-TODO(function-like-macro) rlgl.h:141 -- an assignment or a comma expression
-''     #define RL_CALLOC(n,sz)   calloc(n,sz)
+    '' C2T-NOTE(unchecked) rlgl.h:141 -- 'calloc' not declared here: a program using the macro declares it
+    #define RL_CALLOC(n, sz) calloc((n), (sz))
 #endif
 #ifndef RL_REALLOC
-    '' C2T-TODO(function-like-macro) rlgl.h:144 -- an assignment or a comma expression
-''     #define RL_REALLOC(n,sz)  realloc(n,sz)
+    '' C2T-NOTE(unchecked) rlgl.h:144 -- 'realloc' not declared here: a program using the macro declares it
+    #define RL_REALLOC(n, sz) realloc((n), (sz))
 #endif
 #ifndef RL_FREE
-    '' C2T-TODO(function-like-macro) rlgl.h:147 -- 'free()' is nothing tiko declares
-''     #define RL_FREE(p)        free(p)
+    '' C2T-NOTE(unchecked) rlgl.h:147 -- 'free' not declared here: a program using the macro declares it
+    #define RL_FREE(p) free((p))
 #endif
 
 '' Security check in case no GRAPHICS_API_OPENGL_* defined
@@ -1157,10 +1151,8 @@ end extern
     #if defined(GRAPHICS_API_OPENGL_SOFTWARE)
         #define RLSW_IMPLEMENTATION
         #define SW_MALLOC(sz) RL_MALLOC((sz))
-        '' C2T-TODO(function-like-macro) rlgl.h:847 -- an assignment or a comma expression
-''         #define SW_CALLOC(n,sz) RL_CALLOC(n, sz)
-        '' C2T-TODO(function-like-macro) rlgl.h:848 -- an assignment or a comma expression
-''         #define SW_REALLOC(ptr, newSz) RL_REALLOC(ptr, newSz)
+        #define SW_CALLOC(n, sz) RL_CALLOC((n), (sz))
+        #define SW_REALLOC(ptr, newSz) RL_REALLOC((ptr), (newSz))
         #define SW_FREE(ptr) RL_FREE((ptr))
         #include once "external/rlsw.ti"      '' OpenGL 1.1 software implementation
     #else

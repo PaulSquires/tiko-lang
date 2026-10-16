@@ -531,9 +531,11 @@ private function BinOp_( byref c as CExpr, byref width_ as int32 ) as string
     select case a
     case "*", "/", "%", "+", "-", "<", ">", "&", "^", "|"
         return a
-    case "=", ","
-        Fail_( c, "an assignment or a comma expression" )
+    case "="
+        Fail_( c, "an assignment" )
     end select
+    '' A COMMA ENDS THE OPERAND: between a call's arguments that is the argument list's to
+    '' read, and at the top it is a comma expression, which CxParse refuses.
     return ""
 end function
 
@@ -581,7 +583,11 @@ function CxParse( byref c as CExpr ) as int32
     dim as int32 r = Expr_( c )
     if r < 0 then return -1
     if c.pos < c.tx.Count then
-        Fail_( c, "'" & c.tx[c.pos] & "' after the expression" )
+        if c.tx[c.pos] = "," then
+            Fail_( c, "a comma expression" )
+        else
+            Fail_( c, "'" & c.tx[c.pos] & "' after the expression" )
+        end if
         return -1
     end if
     c.root = r
@@ -707,8 +713,22 @@ private function Print_( byref c as CExpr, byval n as int32, byval cond as boole
         return "iif(" & Print_( c, x.a, true ) & ", " & Print_( c, x.b, cond ) & ", " & Print_( c, x.c, cond ) & ")"
     case NK_CALL
         dim as string nm = CxEnvName( *c.env, x.text )
+        '' IN A MACRO BODY, A FUNCTION THE HEADER DOES NOT DECLARE is called as C names it --
+        '' raylib.h's 'RL_MALLOC(sz) malloc(sz)': nothing is called until the macro is used, and
+        '' then by the name the program declares. A tiko word cannot be such a name.
+        if (len( nm ) = 0) andalso c.template_ andalso (CxEnvFind( *c.env, x.text ) < 0) andalso _
+           (Tko.CImport.NameReservedValue( x.text ) = false) then
+            nm = x.text
+            if instr( "," & c.unchecked & ",", "," & x.text & "," ) = 0 then
+                c.unchecked &= iif( len( c.unchecked ) > 0, ",", "" ) & x.text
+            end if
+        end if
         if len( nm ) = 0 then
-            Fail_( c, "'" & x.text & "()' is nothing tiko declares" )
+            if c.template_ andalso Tko.CImport.NameReservedValue( x.text ) then
+                Fail_( c, "'" & x.text & "' is a tiko word, so tiko cannot call a C function by that name" )
+            else
+                Fail_( c, "'" & x.text & "()' is nothing tiko declares" )
+            end if
             return ""
         end if
         dim as string r = nm & "("

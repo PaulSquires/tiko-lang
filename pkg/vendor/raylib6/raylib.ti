@@ -183,12 +183,7 @@
 ''   constant   false -> false_   (tiko reserved word)
 ''   constant   true -> true_   (tiko reserved word)
 ''
-'' 5 items need manual translation:
-''   line 293  raylib.h:99  C2T-TODO(function-like-macro)  __declspec
-''   line 321  raylib.h:132  C2T-TODO(function-like-macro)  RL_MALLOC
-''   line 325  raylib.h:135  C2T-TODO(function-like-macro)  RL_CALLOC
-''   line 329  raylib.h:138  C2T-TODO(function-like-macro)  RL_REALLOC
-''   line 333  raylib.h:141  C2T-TODO(function-like-macro)  RL_FREE
+'' Nothing needs manual translation.
 '' =============================================================================
 
 /'*********************************************************************************************
@@ -290,8 +285,8 @@
 '' NOTE: visibility("default") attribute makes symbols "visible" when compiled with -fvisibility=hidden
 #if defined(TIKO_OS_WINDOWS)
     #if defined(__TINYC__)
-        '' C2T-TODO(function-like-macro) raylib.h:99 -- '__attribute__()' is nothing tiko declares
-''         #define __declspec(x) __attribute__((x))
+        '' C2T-NOTE(unchecked) raylib.h:99 -- '__attribute__' not declared here: a program using the macro declares it
+        #define __declspec(x) __attribute__((x))
     #endif
 '' c2t: export macro RLAPI (decoration, stripped where used)
 #else
@@ -318,20 +313,20 @@
 '' Allow custom memory allocators
 '' NOTE: Require recompiling raylib sources
 #ifndef RL_MALLOC
-    '' C2T-TODO(function-like-macro) raylib.h:132 -- 'malloc()' is nothing tiko declares
-''     #define RL_MALLOC(sz)       malloc(sz)
+    '' C2T-NOTE(unchecked) raylib.h:132 -- 'malloc' not declared here: a program using the macro declares it
+    #define RL_MALLOC(sz) malloc((sz))
 #endif
 #ifndef RL_CALLOC
-    '' C2T-TODO(function-like-macro) raylib.h:135 -- an assignment or a comma expression
-''     #define RL_CALLOC(n,sz)     calloc(n,sz)
+    '' C2T-NOTE(unchecked) raylib.h:135 -- 'calloc' not declared here: a program using the macro declares it
+    #define RL_CALLOC(n, sz) calloc((n), (sz))
 #endif
 #ifndef RL_REALLOC
-    '' C2T-TODO(function-like-macro) raylib.h:138 -- an assignment or a comma expression
-''     #define RL_REALLOC(ptr,sz)  realloc(ptr,sz)
+    '' C2T-NOTE(unchecked) raylib.h:138 -- 'realloc' not declared here: a program using the macro declares it
+    #define RL_REALLOC(ptr, sz) realloc((ptr), (sz))
 #endif
 #ifndef RL_FREE
-    '' C2T-TODO(function-like-macro) raylib.h:141 -- 'free()' is nothing tiko declares
-''     #define RL_FREE(ptr)        free(ptr)
+    '' C2T-NOTE(unchecked) raylib.h:141 -- 'free' not declared here: a program using the macro declares it
+    #define RL_FREE(ptr) free((ptr))
 #endif
 
 '' NOTE: MSVC C++ compiler does not support compound literals (C99 feature)
