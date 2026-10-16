@@ -20,15 +20,15 @@
 ''     misrepresented as being the original software.
 ''  3. This notice may not be removed or altered from any source distribution.
 
-'' Altered for tiko's vendor/SDL3_ttf: SDL3's headers are vendor/SDL3's SDL.ti, and the
-'' '#inclib "SDL3_ttf"' is SDL3_ttf.tiko's '#foreignlib'. Added, so the header compiles: the
+'' Altered for tiko's vendor/SDL3/ttf: SDL3's headers are vendor/SDL3's SDL.ti, and the
+'' '#inclib "SDL3_ttf"' is ttf.tiko's '#foreignlib'. Added, so the header compiles: the
 '' opaque TTF_TextEngine and TTF_TextData, which it used without declaring (SDL_textengine.h's).
 
 #pragma once
 
 '' (the library: SDL3_ttf.tiko's #foreignlib)
 
-#include once "../SDL3/SDL.ti"
+#include once "../SDL.ti"
 
 extern "C"
 

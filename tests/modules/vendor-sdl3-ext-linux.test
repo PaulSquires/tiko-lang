@@ -1,4 +1,4 @@
-'' vendor/SDL3_image, vendor/SDL3_ttf AND vendor/SDL3_mixer -- the sdl3-freebasic bindings, adapted
+'' vendor/SDL3/image, vendor/SDL3/ttf AND vendor/SDL3/mixer -- the sdl3-freebasic bindings, adapted
 '' and fixed so they compile -- import together for linux-x86_64, each bringing vendor/SDL3.
 '' Nothing is linked, so no library is needed.
 '' TEST: cli

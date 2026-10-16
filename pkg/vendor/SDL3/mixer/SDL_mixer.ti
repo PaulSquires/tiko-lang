@@ -20,8 +20,8 @@
 ''     misrepresented as being the original software.
 ''  3. This notice may not be removed or altered from any source distribution.
 
-'' Altered for tiko's vendor/SDL3_mixer: SDL3's headers are vendor/SDL3's SDL.ti, and the
-'' '#inclib "SDL3_mixer"' is SDL3_mixer.tiko's '#foreignlib'. Fixed, so the header compiles:
+'' Altered for tiko's vendor/SDL3/mixer: SDL3's headers are vendor/SDL3's SDL.ti, and the
+'' '#inclib "SDL3_mixer"' is mixer.tiko's '#foreignlib'. Fixed, so the header compiles:
 '' 'void ptr' is 'any ptr' (10 places), and MIX_TrackMixCallback's track is 'MIX_Track ptr',
 '' as SDL_mixer.h has it, where the binding had 'MIX_Track tr'; MIX_GetTaggedTracks returns
 '' 'MIX_Track ptr ptr' (C 'MIX_Track **'), where it had 'MIX_Track'.
@@ -30,7 +30,7 @@
 
 '' (the library: SDL3_mixer.tiko's #foreignlib)
 
-#include once "../SDL3/SDL.ti"
+#include once "../SDL.ti"
 
 extern "C"
 

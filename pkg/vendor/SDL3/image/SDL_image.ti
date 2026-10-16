@@ -19,14 +19,14 @@
 ''     misrepresented as being the original software.
 ''  3. This notice may not be removed or altered from any source distribution.
 
-'' Altered for tiko's vendor/SDL3_image: SDL3's headers are vendor/SDL3's SDL.ti, and the
-'' '#inclib "SDL3_image"' is SDL3_image.tiko's '#foreignlib'.
+'' Altered for tiko's vendor/SDL3/image: SDL3's headers are vendor/SDL3's SDL.ti, and the
+'' '#inclib "SDL3_image"' is image.tiko's '#foreignlib'.
 
 #pragma once
 
 '' (the library: SDL3_image.tiko's #foreignlib)
 
-#include once "../SDL3/SDL.ti"
+#include once "../SDL.ti"
 
 extern "C"
 

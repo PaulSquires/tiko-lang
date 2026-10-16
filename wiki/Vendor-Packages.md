@@ -37,13 +37,13 @@ Every routine, type and constant of the library's C header is callable as the li
 | --- | --- | --- |
 | `vendor/sqlite` | SQLite 3.54.0 | `static`, `dynamic` (the default) |
 | `vendor/SDL3` | SDL 3.4.4 | `dynamic` (the default) |
-| `vendor/SDL3_image` | SDL3_image 3.4.4 (brings `vendor/SDL3`) | `dynamic` (the default) |
-| `vendor/SDL3_ttf` | SDL3_ttf 3.2.2 (brings `vendor/SDL3`) | `dynamic` (the default) |
-| `vendor/SDL3_mixer` | SDL3_mixer 3.2.4 (brings `vendor/SDL3`) | `dynamic` (the default) |
+| `vendor/SDL3/image` | SDL3_image 3.4.4 (brings `vendor/SDL3`) | `dynamic` (the default) |
+| `vendor/SDL3/ttf` | SDL3_ttf 3.2.2 (brings `vendor/SDL3`) | `dynamic` (the default) |
+| `vendor/SDL3/mixer` | SDL3_mixer 3.2.4 (brings `vendor/SDL3`) | `dynamic` (the default) |
 
 **The SDL packages on linux-x86_64 link the system's libraries.** SDL publishes no Linux binaries, so the toolchain ships none: a program is linked with `-lSDL3` (and `-lSDL3_image`, `-lSDL3_ttf`, `-lSDL3_mixer` for those packages) and loads `libSDL3.so.0` and the others from the system's library folders, like any library the distribution installs. Install the distribution's development packages (`libsdl3-dev`, `libsdl3-image-dev`, `libsdl3-ttf-dev`, `libsdl3-mixer-dev` on Debian and Ubuntu; `SDL3-devel` and the like on Fedora) to build; without one the link fails with `cannot find -lSDL3`. Nothing is copied beside the program.
 
-`vendor/SDL3_image`, `vendor/SDL3_ttf` and `vendor/SDL3_mixer` each import `vendor/SDL3` publicly: one `#import` brings SDL's own names too, and links SDL3 as well.
+`vendor/SDL3/image`, `vendor/SDL3/ttf` and `vendor/SDL3/mixer` -- modules inside `vendor/SDL3`, their libraries in its `lib/` -- each import `vendor/SDL3` publicly: one `#import` brings SDL's own names too, and links SDL3 as well.
 
 ## `link static` and `link dynamic`
 

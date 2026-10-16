@@ -1,7 +1,9 @@
 vendor/SDL3 carries two licences.
 
-SDL 3 -- the library downloaded into lib/ (SDL3.dll), and the C headers the .ti files are
-translated from -- is under the zlib licence:
+SDL 3 and its satellite libraries SDL3_image, SDL3_ttf and SDL3_mixer -- the libraries
+downloaded into lib/ (SDL3.dll, SDL3_image.dll, SDL3_ttf.dll, SDL3_mixer.dll), and the C
+headers the .ti files here and in image/, ttf/ and mixer/ are translated from -- are under
+the zlib licence, each with the notice below (SDL3_ttf 3.2.2's reads 1997-2025):
 
     Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
 
@@ -21,8 +23,8 @@ translated from -- is under the zlib licence:
        misrepresented as being the original software.
     3. This notice may not be removed or altered from any source distribution.
 
-The .ti headers are the sdl3-freebasic binding, under the MIT licence; vendor/SDL3 altered
-them -- include paths, file extensions, its #inclib -- as SDL.ti notes:
+The .ti headers, here and in image/, ttf/ and mixer/, are the sdl3-freebasic binding, under the MIT licence; vendor/SDL3 altered
+them -- include paths, file extensions, #inclib, and fixes so they compile -- as each notes:
 
     MIT License
 
