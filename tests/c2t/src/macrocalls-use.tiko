@@ -1,0 +1,10 @@
+'' macrocalls.h's ALLOC and ZALLOC, translated by c2t, used: the program declares malloc and
+'' calloc (crt/stdlib.bi), so the macros call them.
+#include once "crt/stdlib.bi"
+#include once "../../../build/.c2t/macrocalls-run/macrocalls.ti"
+dim as long ptr p = ALLOC( 4 * sizeof( long ) )
+dim as long ptr z = ZALLOC( 4, sizeof( long ) )
+p[3] = 42
+print p[3]; z[0]; z[3]
+free( p )
+free( z )

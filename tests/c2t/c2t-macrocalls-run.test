@@ -1,0 +1,11 @@
+'' The macros c2t writes for macrocalls.h's undeclared callees work once the program declares
+'' them: ALLOC and ZALLOC call crt's malloc and calloc.
+'' TEST: cli
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' CLEAN: build/.c2t/macrocalls-run
+'' STEP-EXIT: 2
+'' STEP: c2t tests/c2t/src/macrocalls.h -o build/.c2t/macrocalls-run/macrocalls.ti
+'' ARGS: -target windows-x86_64 tests/c2t/src/macrocalls-use.tiko -o build/.c2t/macrocalls-run/use.exe
+'' EXPECT-EXIT: 0
+'' RUN: build/.c2t/macrocalls-run/use.exe
+'' EXPECT-RUN-OUT:  42 0 0

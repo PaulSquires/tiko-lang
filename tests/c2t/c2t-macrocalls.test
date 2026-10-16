@@ -1,0 +1,13 @@
+'' tiko c2t: a function-like macro's body may call a function the header never declares --
+'' raylib.h's 'RL_MALLOC(sz) malloc(sz)' -- since nothing is called until the macro is used,
+'' and then by the program's name for it: written as C names it, under C2T-NOTE(unchecked).
+'' Arguments are separated by their commas, so a two-argument call translates. A comma
+'' expression, and a call by a name that is a tiko word, are still TODOs that say why.
+'' TEST: cli
+'' CLEAN: build/.c2t/macrocalls
+'' ARGS: c2t tests/c2t/src/macrocalls.h --verify -o build/.c2t/macrocalls/macrocalls.ti
+'' EXPECT-EXIT: 2
+'' EXPECT-FILE-HAS: build/.c2t/macrocalls/macrocalls.ti :: '' 2 items need manual translation:\n''   line 26  macrocalls.h:8  C2T-TODO(function-like-macro)  TWO_FREES\n''   line 28  macrocalls.h:9  C2T-TODO(function-like-macro)  LENGTH\n
+'' EXPECT-FILE-HAS: build/.c2t/macrocalls/macrocalls.ti :: '' C2T-NOTE(unchecked) macrocalls.h:5 -- 'malloc' not declared here: a program using the macro declares it\n#define ALLOC(sz) malloc((sz))\n'' C2T-NOTE(unchecked) macrocalls.h:6 -- 'calloc' not declared here: a program using the macro declares it\n#define ZALLOC(n, sz) calloc((n), (sz))\n#define BOTH(a, b) pair(twice((a)), ((b) + 1))\n
+'' EXPECT-FILE-HAS: build/.c2t/macrocalls/macrocalls.ti :: '' C2T-TODO(function-like-macro) macrocalls.h:8 -- a comma expression\n
+'' EXPECT-FILE-HAS: build/.c2t/macrocalls/macrocalls.ti :: '' C2T-TODO(function-like-macro) macrocalls.h:9 -- 'len' is a tiko word, so tiko cannot call a C function by that name\n
