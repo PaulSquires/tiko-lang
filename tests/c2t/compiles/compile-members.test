@@ -1,0 +1,7 @@
+'' The translation of tests/c2t/src/members.h compiles, for each target in TARGETS.
+'' TEST: cli
+'' CLEAN: build/.c2t/compile-members
+'' STEP-EXIT: 2
+'' STEP: c2t tests/c2t/src/members.h --verify -o build/.c2t/compile-members/members.ti
+'' ARGS: -c build/.c2t/compile-members/members.ti -o build/.c2t/compile-members/members.o
+'' EXPECT-EXIT: 0

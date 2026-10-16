@@ -1,0 +1,7 @@
+'' members.h's field-reading macros, translated by c2t, used on a Vec3 and a Box.
+#include once "../../../build/.c2t/members-run/members.ti"
+dim as Vec3 v = ( 1, 2, 3 )
+dim as Vec3 ptr pv = @v
+dim as Box b
+b.max.z = 9
+print VX( v ); PX( pv ); BOX_MAXZ( b )

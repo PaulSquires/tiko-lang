@@ -464,20 +464,45 @@ end function
 private function Postfix_( byref c as CExpr ) as int32
     dim as int32 a = Primary_( c )
     if a < 0 then return -1
-    dim as string t = Peek_( c )
-    dim as boolean bad = (t = ".") orelse (t = "[")
-    '' '->', '++' and '--' arrive as two one-character tokens.
-    if (bad = false) andalso ((t = "-") orelse (t = "+")) andalso (c.pos + 1 < c.ofs.Count) then
-        if c.ofs[c.pos] + 1 = c.ofs[c.pos + 1] then
-            dim as string t2 = Peek_( c, 1 )
-            bad = (t2 = ">") orelse (t2 = t)
+    do
+        dim as string t = Peek_( c )
+        '' '->', '++' and '--' arrive as two one-character tokens.
+        dim as string t2
+        if (c.pos + 1 < c.ofs.Count) then
+            if c.ofs[c.pos] + 1 = c.ofs[c.pos + 1] then t2 = Peek_( c, 1 )
         end if
-    end if
-    if bad then
-        Fail_( c, "member access, subscripts and increments" )
-        return -1
-    end if
-    return a
+        dim as string op
+        if t = "." then
+            op = "."
+        elseif (t = "-") andalso (t2 = ">") then
+            op = "->"
+        end if
+        if len( op ) = 0 then
+            if (t = "[") orelse (((t = "-") orelse (t = "+")) andalso (t2 = t)) then
+                Fail_( c, "subscripts and increments" )
+                return -1
+            end if
+            return a
+        end if
+        '' MEMBER ACCESS, written as C wrote it -- raymath.h's 'MatrixToFloatV(mat).v'. tiko
+        '' spells both '.' and '->' as C does; a field named by a tiko word is one the record's
+        '' translation renamed, which c2t cannot tell from here.
+        c.pos += len( op )
+        dim as string f = Peek_( c )
+        if (c.pos >= c.tx.Count) orelse (c.tk[c.pos] <> CT_IDENT) then
+            Fail_( c, "'" & op & "' without a field name" )
+            return -1
+        end if
+        if Tko.CImport.NameReservedValue( f ) then
+            Fail_( c, "field '" & f & "' is a tiko word, which the record's translation renames" )
+            return -1
+        end if
+        c.pos += 1
+        dim as int32 n = Node_( c, NK_MEMBER, op )
+        c.nodes[n].a = a
+        c.nodes[n].text = f
+        a = n
+    loop
 end function
 
 function Unary_( byref c as CExpr ) as int32
@@ -709,6 +734,8 @@ private function Print_( byref c as CExpr, byval n as int32, byval cond as boole
         case else : op = x.op
         end select
         return "(" & Print_( c, x.a, sub_ ) & " " & op & " " & Print_( c, x.b, sub_ ) & ")"
+    case NK_MEMBER
+        return Print_( c, x.a, false ) & x.op & x.text
     case NK_TERNARY
         return "iif(" & Print_( c, x.a, true ) & ", " & Print_( c, x.b, cond ) & ", " & Print_( c, x.c, cond ) & ")"
     case NK_CALL
