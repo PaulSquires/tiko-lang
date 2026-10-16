@@ -1,0 +1,106 @@
+'' This example code loads two .wav files, puts them an audio streams and
+'' binds them for playback, repeating both sounds on loop. This shows several
+'' streams mixing into a single playback device.
+''
+'' This code is public domain. Feel free to use it for any purpose!
+''
+'' Ported to tiko from the sdl3-freebasic port of SDL's own examples.
+
+#import "vendor/SDL3"
+
+'' We will use this renderer to draw into this window every frame.
+dim as SDL_Window ptr win
+dim as SDL_Renderer ptr renderer
+dim as SDL_Event e
+dim as boolean quit
+
+dim shared as SDL_AudioDeviceID audioDevice
+
+type Sound
+    wavData as Uint8 ptr
+    wavDataLen as Uint32
+    stream as SDL_AudioStream ptr
+end type
+
+dim as Sound sounds(0 to 1)
+
+function InitSound(byval fname as const zstring ptr, byval snd as Sound ptr) as boolean
+    dim as boolean retval
+    dim as SDL_AudioSpec spec
+
+    '' Load the .wav files from wherever the app is being run from.
+    if not SDL_LoadWAV(*SDL_GetBasePath( ) & "../../Data/" & *fname, @spec, @snd->wavData, @snd->wavDataLen) then
+        SDL_Log("Couldn't load .wav file: %s", SDL_GetError())
+        return false
+    end if
+
+    '' Create an audio stream. Set the source format to the wav's format (what
+    '' we'll input), leave the dest format NULL here (it'll change to what the
+    '' device wants once we bind it).
+    snd->stream = SDL_CreateAudioStream(@spec, 0)
+    if  snd->stream = 0 then
+        SDL_Log("Couldn't create audio stream: %s", SDL_GetError())
+    elseif not SDL_BindAudioStream(audioDevice, snd->stream) then  '' once bound, it'll start playing when there is data available!
+        SDL_Log("Failed to bind '%s' stream to device: %s", fname, SDL_GetError())
+    else
+        retval = true
+    end if
+
+    return retval
+end function
+
+if not SDL_Init(SDL_INIT_VIDEO or SDL_INIT_AUDIO) then
+    SDL_Log("Couldn't initialize SDL: %s", SDL_GetError())
+    quit = true
+elseif not SDL_CreateWindowAndRenderer("Example Audio Multiple Streams", 640, 480, SDL_WINDOW_RESIZABLE, @win, @renderer) then
+    SDL_Log("Couldn't create window/renderer: %s", SDL_GetError())
+    quit = true
+else
+    '' open the default audio device in whatever format it prefers; our audio streams will adjust to it.
+    audioDevice = SDL_OpenAudioDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, 0)
+    if audioDevice = 0 then
+        SDL_Log("Couldn't open audio device: %s", SDL_GetError())
+        quit = true
+    end if
+
+    if not InitSound("sample.wav", @sounds(0)) then
+        quit = true
+    elseif not InitSound("sword.wav", @sounds(1)) then
+        quit = true
+    end if
+end if
+
+while not quit
+    while SDL_PollEvent(@e)
+        if e.type = SDL_EVENT_QUIT then
+            quit = true
+        end if
+    wend
+
+    for i as long = 0 to ubound(sounds)
+        '' If less than a full copy of the audio is queued for playback, put another copy in there.
+        '' This is overkill, but easy when lots of RAM is cheap. One could be more careful and
+        '' queue less at a time, as long as the stream doesn't run dry.
+        if SDL_GetAudioStreamQueued(sounds(i).stream) < clng(sounds(i).wavDataLen) then
+            SDL_PutAudioStreamData(sounds(i).stream, sounds(i).wavData, clng(sounds(i).wavDataLen))
+        end if
+    next i
+
+    '' just blank the screen.
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255)
+    SDL_RenderClear(renderer)
+    SDL_RenderPresent(renderer)
+wend
+
+SDL_CloseAudioDevice(audioDevice)
+
+for i as long = 0 to ubound(sounds)
+    if sounds(i).stream then
+        SDL_DestroyAudioStream(sounds(i).stream)
+    end if
+    SDL_free(sounds(i).wavData)
+next i
+
+SDL_DestroyRenderer(renderer)
+SDL_DestroyWindow(win)
+SDL_Quit()

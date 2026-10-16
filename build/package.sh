@@ -258,14 +258,18 @@ fi
 mkdir -p "$OUT"
 [ -z "$BINSUB" ] || mkdir -p "$OUT/$BINSUB"
 
-# NO examples/ IN A TOOLCHAIN (the author's order, 2026-10-10). Nothing here ever wrote one:
-# 2,098 fbx examples were placed in toolchains/tiko-windows by hand on 2026-09-29, and since
-# packaging replaces only what it writes, they rode along in every package -- and in its
-# MANIFEST file count -- until a release recipe excluded them. A toolchain no longer has it.
-if [ -e "$OUT/examples" ]; then
-    note "removing examples/ -- a toolchain does not ship one"
-    rm -rf "$OUT/examples"
-fi
+# THE EXAMPLES: the tree's examples/, shipped whole as pkg/ is (the author's order, 2026-10-16,
+# replacing 2026-10-10's "no examples/ in a toolchain"). A toolchain's examples/ is this copy
+# and nothing else -- whatever was there before, such as the 2,098 fbx examples once placed in
+# toolchains/tiko-windows by hand, is removed first -- and a program built inside the tree's
+# copy leaves nothing behind in the package: no binary, no library beside it, and no Linux
+# executable, which is the one file there without an extension.
+rm -rf "$OUT/examples"
+cp -r "$ROOT/examples" "$OUT/examples"
+find "$OUT/examples" -type f \( -name '*.exe' -o -name '*.dll' -o -name '*.so' -o -name '*.o' \
+    -o -name '*.pdb' -o -name '*.a' -o ! -name '*.*' \) -delete
+[ -f "$OUT/examples/SDL3/renderer/01-clear/clear.tiko" ] || die "packaged examples/ has no SDL3/"
+note "examples -> examples/ ($( ls "$OUT/examples" | tr '\n' ' '))"
 
 note "compiler -> ${BINSUB}tiko$EXT"
 cp -f "$TIKO" "$OUT/${BINSUB}tiko$EXT"

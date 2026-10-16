@@ -1,0 +1,98 @@
+'' This example code loads a bitmap with asynchronous i/o and renders it.
+''
+'' This code is public domain. Feel free to use it for any purpose!
+''
+'' Ported to tiko from the sdl3-freebasic port of SDL's own examples.
+
+#import "vendor/SDL3"
+
+'' We will use this renderer to draw into this window every frame.
+dim as SDL_Window ptr win
+dim as SDL_Renderer ptr renderer
+dim as SDL_Event e
+dim as boolean quit
+
+dim as SDL_AsyncIOQueue ptr queue
+
+const as long TOTAL_TEXTURES = 4
+dim as ustring pngs(0 to TOTAL_TEXTURES - 1) = {"sample.png", "gamepad_front.png", "speaker.png", "icon2x.png"}
+dim as SDL_Texture ptr textures(0 to TOTAL_TEXTURES - 1)
+dim as SDL_FRect textureRects(0 to TOTAL_TEXTURES - 1) = { _
+    type(116, 156, 408, 167), _
+    type( 20, 200,  96,  60), _
+    type(525, 180,  96,  96), _
+    type(288, 375,  64,  64)}
+
+if not SDL_Init(SDL_INIT_VIDEO) then
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Couldn't initialize SDL!", SDL_GetError(), 0)
+    quit = true
+elseif not SDL_CreateWindowAndRenderer("SDL3 AsyncIO load-bitmaps", 640, 480, SDL_WINDOW_RESIZABLE, @win, @renderer) then
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Couldn't create window/renderer!", SDL_GetError(), 0)
+    quit = true
+else
+    queue = SDL_CreateAsyncIOQueue()
+    if queue = 0 then
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Couldn't create async i/o queue!", SDL_GetError(), 0)
+        quit = true
+    end if
+
+    '' Load some .bmp files asynchronously from wherever the app is being run from, put them in the same queue.
+    for i as long = 0 to ubound(pngs)
+        SDL_LoadFileAsync(*SDL_GetBasePath( ) & "../../Data/" & pngs(i), queue,  @pngs(i))   '' attach the filename as app-specific data, so we can see it later.
+    next i
+end if
+
+while not quit
+    while SDL_PollEvent(@e)
+        if e.type = SDL_EVENT_QUIT then
+            quit = true
+        end if
+    wend
+
+    dim as SDL_AsyncIOOutcome outcome
+    dim as long i
+
+    if SDL_GetAsyncIOResult(queue, @outcome) then   '' a .png file load has finished?
+        if outcome.result = SDL_ASYNCIO_COMPLETE then
+            '' this might be _any_ of the pngs; they might finish loading in any order.
+            for i = 0 to ubound(pngs)
+                '' this doesn't need a strcmp because we gave the pointer from this array to SDL_LoadFileAsync
+                if outcome.userdata = @pngs(i) then
+                    exit for
+                end if
+            next i
+
+            if i <= ubound(pngs) then    '' (just in case.)
+                dim as SDL_Surface ptr surface = SDL_LoadPNG_IO(SDL_IOFromConstMem(outcome.buffer, cuint(outcome.bytes_transferred)), true)
+                if surface <> 0 then '' the renderer is not multithreaded, so create the texture here once the data loads.
+                    textures(i) = SDL_CreateTextureFromSurface(renderer, surface)
+                    if textures(i) = 0 then
+                        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Couldn't create texture!", SDL_GetError(), 0)
+                        quit = true
+                    end if
+                    SDL_DestroySurface(surface)
+                end if
+            end if
+        end if
+        SDL_free(outcome.buffer)
+    end if
+
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255)
+    SDL_RenderClear(renderer)
+
+    for i = 0 to ubound(textures)
+        SDL_RenderTexture(renderer, textures(i), 0, @textureRects(i))
+    next i
+
+    SDL_RenderPresent(renderer)
+wend
+
+SDL_DestroyAsyncIOQueue(queue)
+
+for i as long = 0 to ubound(textures)
+    SDL_DestroyTexture(textures(i))
+next i
+
+SDL_DestroyRenderer(renderer)
+SDL_DestroyWindow(win)
+SDL_Quit()

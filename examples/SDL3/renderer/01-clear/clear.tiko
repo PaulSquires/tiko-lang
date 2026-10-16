@@ -1,0 +1,48 @@
+'' This example code creates an SDL window and renderer, and then clears the
+'' window to a different color every frame, so you'll effectively get a window
+'' that's smoothly fading between colors.
+''
+'' This code is public domain. Feel free to use it for any purpose!
+''
+'' Ported to tiko from the sdl3-freebasic port of SDL's own examples.
+
+#import "vendor/SDL3"
+
+'' We will use this renderer to draw into this window every frame.
+dim as SDL_Window ptr win
+dim as SDL_Renderer ptr renderer
+dim as SDL_Event e
+dim as boolean quit
+
+if not SDL_Init(SDL_INIT_VIDEO) then
+    SDL_Log("Couldn't initialize SDL: %s", SDL_GetError())
+    quit = true
+elseif not SDL_CreateWindowAndRenderer("Example Renderer Clear", 640, 480, SDL_WINDOW_RESIZABLE, @win, @renderer) then
+    SDL_Log("Couldn't create window/renderer: %s", SDL_GetError())
+    quit = true
+end if
+
+while not quit
+    while SDL_PollEvent(@e)
+        if e.type = SDL_EVENT_QUIT then
+            quit = true
+        end if
+    wend
+
+    dim as double now = cdbl(SDL_GetTicks()) / 1000.0 '' convert from milliseconds to seconds.
+    '' choose the color for the frame we will draw. The sine wave trick makes it fade between colors smoothly.
+    dim as single red   = csng(0.5 + 0.5 * SDL_sin(now))
+    dim as single green = csng(0.5 + 0.5 * SDL_sin(now + SDL_PI_D * 2 / 3))
+    dim as single blue  = csng(0.5 + 0.5 * SDL_sin(now + SDL_PI_D * 4 / 3))
+    SDL_SetRenderDrawColorFloat(renderer, red, green, blue, SDL_ALPHA_OPAQUE_FLOAT) '' new color, full alpha.
+    
+    '' clear the window to the draw color.
+    SDL_RenderClear(renderer)
+    
+    '' put the newly-cleared rendering on the screen.
+    SDL_RenderPresent(renderer)
+wend
+
+SDL_DestroyRenderer(renderer)
+SDL_DestroyWindow(win)
+SDL_Quit()
