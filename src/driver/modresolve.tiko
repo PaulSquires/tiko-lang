@@ -187,18 +187,24 @@ function CopyVendorLibs _
             run_ = left( src, len( src ) - 4 ) & ".dll"
         end if
         if (len( run_ ) = 0) orelse (fs.IsFile( run_ ) = false) then continue for
-        '' A DLL GOES BY THE NAME IT GIVES ITSELF -- its export directory's, which is what the
-        '' import library names and the loader looks for -- not by its file's: SQLite's
+        '' A LIBRARY GOES BY THE NAME IT GIVES ITSELF, not by its file's. A DLL's is its export
+        '' directory's, which is what the import library names and the loader looks for: SQLite's
         '' sqlite3.dll stored as sqlite3_windows_x86_64.dll is still loaded as sqlite3.dll. An ELF
-        '' library is looked for by its soname, which a vendor package's build makes its file name.
+        '' library's is its soname, which the program records as NEEDED: raylib's release .so,
+        '' stored as raylib_linux_x86_64.so, is looked for as libraylib.so.620. (A library a
+        '' vendor package builds itself gets its file name as its soname, so it keeps that.)
         dim as string nm = mid( run_, instrrev( run_, "/" ) + 1 )
-        if right( Tko.Text.LowerAscii( run_ ), 4 ) = ".dll" then
+        dim as string lrun = Tko.Text.LowerAscii( run_ )
+        if right( lrun, 4 ) = ".dll" then
             dim as string why
             dim as string def_ = Tko.Codegen.DllDefText( run_, why )
             if left( def_, 9 ) = "LIBRARY " & chr( 34 ) then
                 dim as int32 q = instr( 10, def_, chr( 34 ) )
                 if q > 10 then nm = mid( def_, 10, q - 10 )
             end if
+        elseif (right( lrun, 3 ) = ".so") orelse (instr( lrun, ".so." ) > 0) then
+            dim as string son = Tko.Codegen.ElfSoname( run_ )
+            if len( son ) > 0 then nm = son
         end if
         dim as string dst = JoinPath( outDir, nm )
         if SamePath_( dst, run_ ) then
