@@ -16,6 +16,10 @@ type ModGraph
     as Tko.StrVec pkgNames
     as Tko.StrVec pkgRoots
     as Tko.IdVec  firstLoc      '' where the module was first imported, for TKO0147
+    '' THE LINK MODE THE PROGRAM CHOSE for each module (tiko-vendor RFC-0002 V4-V5): 0 when
+    '' no import wrote 'link', else Tko.PP_LINK_*, and the import that chose it.
+    as Tko.IdVec  linkMode
+    as Tko.IdVec  linkLoc
     '' Each module's files, as FileIds: fileIds[fileFirst[n] .. + fileCount[n] - 1].
     as Tko.IdVec  fileFirst
     as Tko.IdVec  fileCount

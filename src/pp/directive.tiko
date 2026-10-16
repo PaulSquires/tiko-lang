@@ -80,6 +80,12 @@ end function
 
 #include once "pp/ppforeignlib.tiko"
 
+'' A module's public headers (ppmodhdr.tiko, included by ppmodule.tiko after this file).
+declare sub PpModMarkPublic _
+    ( byref e as PpEngine, byval at as SourceLoc, byval got as FileId, byref what as string )
+declare sub PpModConsult( byref e as PpEngine, byval id as InternId )
+declare sub PpModTki( byref e as PpEngine, byval at as SourceLoc )
+
 '' Resolution order: the INCLUDING file's directory, then the working directory, then
 '' the -i paths and the toolchain's inc/ -- fbc's order, measured (T97). The first is
 '' what makes a library's internal includes work wherever it is used from.
@@ -180,6 +186,7 @@ private sub PpInclude( byref e as PpEngine, byval at as SourceLoc, byval once as
     next
 
     PpModNoteHeader( e, d.file, got )
+    if e.modst.cincPublic then PpModMarkPublic( e, at, got, "'public #include'" )
     if PpAlreadyOnce( e, got ) then return
     if isOnce then
         for each f as uint32 in e.allIncluded
@@ -314,6 +321,7 @@ private sub PpExpandRestOfLine _
                 end if
             end if
             if PeekTok( e, t ) andalso (e.frames.Count > baseDepth) then
+                if Tk( t ) = TK_IDENT then PpModConsult( e, cast( InternId, t.literal ) )
                 expanded.Push( t )
                 Advance( e )
             end if
@@ -322,6 +330,7 @@ private sub PpExpandRestOfLine _
 
         if Tk( t ) = TK_IDENT then
             dim as InternId id = cast( InternId, t.literal )
+            PpModConsult( e, id )
             dim as PpMacro ptr m = MacroFor( e, id )
             dim as boolean expandable = (m <> nullptr) andalso (IsHidden( e, id ) = false)
             if expandable then
@@ -544,6 +553,7 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
         if PeekOnLine( e, t ) then
             if Tk( t ) = TK_IDENT then
                 dim as InternId wantId = cast( InternId, t.literal )
+                PpModConsult( e, wantId )
                 defined_ = (MacroFor( e, wantId ) <> nullptr) orelse IsDefinedBuiltin_( e, wantId )
             '' A KEYWORD IS DEFINED, as 'defined( K )' already answers (ppexpr.tiko). Measured,
             '' fbc takes the true branch of '#ifdef K' for all 246 keywords that are tokens, and
@@ -588,6 +598,7 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
                     '' ...and the same pair here, so '#elseifndef' agrees with
                     '' '#ifndef' about what counts as defined.
                     dim as InternId wantId2 = cast( InternId, t.literal )
+                    PpModConsult( e, wantId2 )
                     d = (MacroFor( e, wantId2 ) <> nullptr) orelse IsDefinedBuiltin_( e, wantId2 )
                 elseif IsKeywordKind( Tk( t ) ) then
                     d = true
@@ -620,6 +631,9 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
     select case word
     case "module", "import", "export"
         PpModDirective( e, word, at )
+
+    case "tki"
+        PpModTki( e, at )
 
     case "include"
         PpInclude( e, at, false )

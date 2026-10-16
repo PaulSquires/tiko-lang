@@ -1,0 +1,11 @@
+'' 'public #include' (tiko-vendor RFC-0002 V1, V12): the module vp/geo is nothing but a
+'' header it carries publicly, and the importer names its type, macro and const bare. The
+'' header tests VP_MODE, which only the module has (its package's [defines]): the
+'' interface defines it around the header for the importer, then undefines it again.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i tests/modules/src/vpub/libs tests/modules/src/vpub/app/main.tiko -o tests/modules/vendorpub.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/vendorpub.exe
+'' EXPECT-RUN-OUT:  7              42            7
+'' EXPECT-RUN-OUT: VP_MODE scoped

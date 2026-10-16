@@ -145,6 +145,7 @@ function C         ( byval x as int32 ) as int32 : return x : end function
 - **`NULL`.** Dropped deliberately — the crt headers define it, and emitting it too would be a duplicate definition. Write `0`.
 - **C++.** C headers only.
 - **`int32 float64`**, and **infinity/NaN** as constant values. tiko has no spelling for either; both are skipped, with the reason in the ledger.
+- **An `inline` function of a system header.** A C99 `inline` function in the library's own header -- found beside the source, through `-cinclude` or by a quoted name -- is declared like any other, because the library is expected to export it: raylib exports every one of raymath's. In a **system** header (the Windows SDK, the Universal CRT, `/usr/include`) it is not: such functions have no symbol a program links (`PtrToUlong`, `_snprintf_l`), so they are left out and a call is `TKO0743`. A `static` function is left out wherever it is. Each one left out is listed in the binding's header comment, `function  PtrToUlong  inline, no symbol` or `static`.
 - **On windows-x86_64, the Universal CRT's inline functions.** The UCRT's `stdio.h` defines `printf` and its family in the header as inline functions (`_CRT_STDIO_INLINE`), with no symbol. The fourteen of the `printf` and `scanf` families (`printf`, `fprintf`, `sprintf`, `snprintf`, `scanf`, `fscanf`, `sscanf` and their `v` forms) come across all the same, because tiko's runtime defines each one; any other inline function in a UCRT header does not, and a call to it is `TKO0743: '...' is not declared`. `snprintf` and `vsnprintf` into a buffer too small return the length that was wanted (C99).
 
 ## Working with `#foreignlib`
@@ -230,6 +231,8 @@ public #cinclude once "../../vendor/raylib/raylib.h"
 InitWindow( 800, 450, "raylib" )
 ```
 
+`public #include "x.ti"` does the same for a tiko header -- the form a [vendor package](Vendor-Packages) uses for a header translated once by [`tiko c2t`](C2t).
+
 The module's `#foreignlib` links the library into every program that imports it. A plain `#cinclude`'s binding also travels when one of the module's public declarations names one of its types. `public #cinclude` outside a module file is `TKO0369`; with `-cnocache`, which leaves the binding in memory rather than in a file an importer can include, it is `TKO0340`. A module cannot use `#cmdline` (`TKO0366`), so a header that needs `-cinclude` is better kept in a binding header. See [Using C Libraries](Using-C-Libraries-Tutorial).
 
 ## Names
@@ -283,7 +286,7 @@ The example builds with tiko on windows-x86_64 with `-cinclude vendor`. Its libr
 
 ## Pages in this category
 
-[#cinclude](modern-Cinclude) · [#cinclude Tutorial](modern-Cinclude-tutorial) · [tiko c2t](C2t)
+[#cinclude](modern-Cinclude) · [#cinclude Tutorial](modern-Cinclude-tutorial) · [tiko c2t](C2t) · [Vendor Packages](Vendor-Packages)
 
 ---
 

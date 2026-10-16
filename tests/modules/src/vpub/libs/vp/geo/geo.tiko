@@ -1,0 +1,3 @@
+'' A module that is only a public header: what it carries is the importer's.
+#module "geo"
+public #include once "geo.ti"

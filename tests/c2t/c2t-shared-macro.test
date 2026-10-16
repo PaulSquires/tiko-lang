@@ -1,0 +1,10 @@
+'' tiko c2t --shared-macro (RFC-0001 D25; tiko-vendor RFC-0002 §4): one more pass with the
+'' library's shared-build macro defined, and what it changes -- the variable becomes 'extern
+'' import' on Windows -- guarded by TIKO_LINK_DYNAMIC, the macro '#import ... link dynamic'
+'' defines. The function is the same in every pass and is written once.
+'' TEST: cli
+'' CLEAN: build/.c2t/sharedmacro
+'' ARGS: c2t tests/c2t/src/sharedmacro.h --verify --shared-macro MYLIB_SHARED -o build/.c2t/sharedmacro/sharedmacro.ti
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE-HAS: build/.c2t/sharedmacro/sharedmacro.ti :: x86_64-pc-windows-msvc -DMYLIB_SHARED, x86_64-pc-linux-gnu -DMYLIB_SHARED\n''   options       : --verify --shared-macro MYLIB_SHARED
+'' EXPECT-FILE-HAS: build/.c2t/sharedmacro/sharedmacro.ti :: #if not ((defined(TIKO_OS_WINDOWS) andalso defined(TIKO_LINK_DYNAMIC)))\nextern mylib_count as int32\n#elseif (defined(TIKO_OS_WINDOWS) andalso defined(TIKO_LINK_DYNAMIC))\nextern import mylib_count as int32\n#endif\ndeclare function mylib_get( ) as int32\n

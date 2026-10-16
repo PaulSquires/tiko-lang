@@ -255,9 +255,9 @@ function ModuleKey( byref ctx as Tko.CompilerContext, byval n as int32 ) as stri
     k &= "tiko " & Tko.DiskCache.CompilerStamp( ) & nl
     k &= "triple " & Tko.Codegen.TargetFor( o->target ).triple & nl
     k &= OptionLines_( ctx )
-    '' The package's [defines], which the module is compiled with.
+    '' The package's [defines], which the module is compiled with, and its link mode.
     dim as Tko.StrVec pdefs
-    PackageDefines( ctx, ctx.modPkgName, pdefs )
+    ModuleDefines( ctx, pdefs )
     for each d as string in pdefs
         k &= "define " & d & nl
     next

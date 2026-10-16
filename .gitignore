@@ -96,3 +96,6 @@ tests/vendor/**/*.o
 /book/README.md
 /book/STYLE.md
 /inc/PROVENANCE.md
+
+# vendor package binaries: fetched or built by build/vendorfetch.sh, never committed
+/pkg/vendor/*/lib/

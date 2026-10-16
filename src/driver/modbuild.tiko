@@ -153,6 +153,7 @@ function BuildImports _
         ctx.modChain = g.chains[n]
         ctx.modPkgName = g.pkgNames[n]
         ctx.modPkgRoot = g.pkgRoots[n]
+        ctx.modLinkMode = cast( int32, g.linkMode[n] )
         ctx.modName = mid( ctx.modChain, instrrev( ctx.modChain, "." ) + 1 )
         ctx.modFiles.Clear( )
         for k as int32 = 0 to g.fileCount[n] - 1
@@ -243,6 +244,7 @@ function BuildImports _
     end if
     ctx.modChain = ""
     ctx.modName = ""
+    ctx.modLinkMode = 0
     ctx.modFiles.Clear( )
     ctx.modFileCount = 0
     if len( privDir ) > 0 then

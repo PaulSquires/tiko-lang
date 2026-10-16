@@ -1,0 +1,11 @@
+#pragma once
+extern "C"
+declare function beta_id( ) as long
+end extern
+#ifdef TIKO_LINK_DYNAMIC
+const BETA_HDR = "beta header: dynamic"
+#elseif defined( TIKO_LINK_STATIC )
+const BETA_HDR = "beta header: static"
+#else
+const BETA_HDR = "beta header: no mode"
+#endif

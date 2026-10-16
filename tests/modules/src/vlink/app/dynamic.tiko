@@ -1,0 +1,2 @@
+#import "vendor/alpha" link dynamic
+print alpha_id( ), ALPHA_HDR

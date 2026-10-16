@@ -130,7 +130,7 @@ type CImp
     deferred( any ) as CXCursor             '' typedefs waiting for the record they name;
     as int32       nDeferred                 '' a cursor lives as long as the translation unit
     as boolean    needsCLong                '' crt/long.bi for clong/culong
-    as int32       nStatic                   '' static and inline functions: counted, not ledgered
+    as int32       nStatic                   '' static and system-inline functions (ledgered too)
 
     '' THE LEDGERS.
     as containers.Array( of int32 ) renKind

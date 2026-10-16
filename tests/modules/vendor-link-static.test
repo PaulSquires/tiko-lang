@@ -1,0 +1,17 @@
+'' '#import "vendor/alpha" link static' (tiko-vendor RFC-0002 V4-V7): the module's unit has
+'' TIKO_LINK_STATIC, so its static '#foreignlib' branch links alpha's archive (alpha_id 1),
+'' and the header it carries reads the same macro in the importer (V12). Nothing is copied.
+'' TEST: cli
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_PKG=build/.vls/pkg
+'' ENV: TKO_MODCACHE=build/.vls/mc
+'' CLEAN: build/.vls
+'' COPY: tests/modules/src/vlink/pkg => build/.vls/pkg
+'' STEP: -target windows-x86_64 -lib tests/modules/src/vlink/libsrc/alpha_static.tiko -o build/.vls/pkg/vendor/alpha/lib/alpha_windows_x86_64.a
+'' STEP: -target windows-x86_64 -dll tests/modules/src/vlink/libsrc/alpha_dynamic.tiko -o build/.vls/pkg/vendor/alpha/lib/alpha_windows_x86_64.dll
+'' STEP: -target windows-x86_64 -lib tests/modules/src/vlink/libsrc/beta_static.tiko -o build/.vls/pkg/vendor/beta/lib/beta_windows_x86_64.a
+'' ARGS: -target windows-x86_64 tests/modules/src/vlink/app/static.tiko -o build/.vls/static.exe
+'' EXPECT-EXIT: 0
+'' EXPECT-NO-FILE: build/.vls/alpha_windows_x86_64.dll
+'' RUN: build/.vls/static.exe
+'' EXPECT-RUN-OUT:  1             alpha header: static

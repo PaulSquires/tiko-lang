@@ -1,0 +1,5 @@
+'' 'public #include' is a module's (TKO0369), as 'public #cinclude' is.
+'' TEST: cli
+'' ARGS: --pp-only tests/modules/src/vpub/notmod.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: notmod.tiko(1,8): error TKO0369: 'public #include' is allowed only in a module file

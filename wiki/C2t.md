@@ -8,7 +8,8 @@
 
 ```
 tiko c2t <in.h> [-o <out.ti>|-] [-I <dir>] [-D <name>[=<value>]] [-U <name>]
-                [--pass "<clang args>"] [--sysroot <dir>] [--verify]
+                [--pass "<clang args>"] [--shared-macro <name>[=<value>]]
+                [--sysroot <dir>] [--verify]
 ```
 
 ## Description
@@ -97,6 +98,7 @@ The include guard became `#pragma once`, the export macro was recognised and str
 | `-o <out.ti>` | Where the translation goes. `-` is standard output. Without `-o`, beside the header, as `<name>.ti`. The directory is made when missing |
 | `-I <dir>` | A C include directory, for every pass |
 | `-D <name>[=<value>]`, `-U <name>` | A C macro, for every pass. A `-D` is written into the translation as a `#define`, so the header reads the same in tiko |
+| `--shared-macro <name>[=<value>]` | The library's shared-build switch -- raylib's `USE_LIBTYPE_SHARED`, or `"SQLITE_API=__attribute__((dllimport))"` for a library with none. One more pass per target with it defined; what it changes, an exported variable that becomes `extern import`, is guarded by `defined(TIKO_LINK_DYNAMIC)`, the macro a [vendor package](Vendor-Packages) imported with `link dynamic` has |
 | `--pass "<clang args>"` | One more pass per target, parsed with these arguments as well (`--pass "-DWITH_EXTRAS"`). Text only that pass sees is guarded by `defined(WITH_EXTRAS)` |
 | `--sysroot <dir>` | The Linux pass's system headers. On Windows the Linux pass of a header that includes `<stdio.h>` needs one; the WSL root works: `--sysroot //wsl.localhost/Ubuntu` |
 | `--verify` | Compile the translation for both targets in-process and check every record's size, alignment and member offsets, and every integer macro's value, against Clang's. A record that differs is refused and marked; nothing is executed |

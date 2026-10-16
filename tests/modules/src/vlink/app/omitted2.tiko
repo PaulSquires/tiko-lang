@@ -1,0 +1,4 @@
+#import "vendor/alpha"
+sub Second( )
+    print "second", ALPHA_HDR
+end sub

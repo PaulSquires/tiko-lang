@@ -1,0 +1,4 @@
+extern "C"
+declare function alpha_id( ) as long
+end extern
+const ALPHA_HDR = "SHADOWED"

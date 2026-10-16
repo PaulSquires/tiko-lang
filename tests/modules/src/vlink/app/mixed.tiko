@@ -1,0 +1,4 @@
+#import "vendor/alpha" link dynamic
+#import "vendor/beta" link static
+print alpha_id( ), ALPHA_HDR
+print beta_id( ), BETA_HDR

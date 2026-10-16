@@ -221,9 +221,11 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 - [Compiler Option: -map](Compiler-Option-Map) — *Using the FreeBASIC compiler*
 - [Compiler Option: -maxerr](Compiler-Option-Maxerr) — *Using the FreeBASIC compiler*
 - [Compiler Option: -mt](Compiler-Option-Mt) — *Using the FreeBASIC compiler*
+- [Compiler Option: -nocopylibs](Compiler-Option-Nocopylibs) — *Using the tiko compiler*
 - [Compiler Option: -nodeflibs](Compiler-Option-Nodeflibs) — *Using the FreeBASIC compiler*
 - [Compiler Option: -noerrline](Compiler-Option-Noerrline) — *Using the FreeBASIC compiler*
 - [Compiler Option: -nolib](Compiler-Option-Nolib) — *Using the FreeBASIC compiler*
+- [Compiler Option: -norpath](Compiler-Option-Norpath) — *Using the tiko compiler*
 - [Compiler Option: -noobjinfo](Compiler-Option-Noobjinfo) — *Using the FreeBASIC compiler*
 - [Compiler Option: -nostrip](Compiler-Option-Nostrip) — *Using the FreeBASIC compiler*
 - [Compiler Option: -O](Compiler-Option-O-2) — *Using the FreeBASIC compiler*

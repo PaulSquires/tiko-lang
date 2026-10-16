@@ -1,0 +1,15 @@
+'' A C99 'inline' FUNCTION OF A LIBRARY'S OWN HEADER IS DECLARED (tiko-vendor RFC-0001 D4): the
+'' library is expected to export it, and this one does -- vin_add links and runs. vin_static
+'' cannot be, and the binding's header ledgers it (D5).
+'' TEST: cli
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' CLEAN: build/.cinl
+'' STEP: -target windows-x86_64 -lib tests/cimport/src/inline/vinlib.tiko -o build/.cinl/vin_windows_x86_64.a
+'' STEP: -target windows-x86_64 -cimport tests/cimport/src/inline/vin.h -cimport-out build/.cinl/vin.bi
+'' ARGS: -target windows-x86_64 -cnocache tests/cimport/src/inline/app.tiko -o build/.cinl/app.exe
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE-HAS: build/.cinl/vin.bi :: declare function vin_add cdecl
+'' EXPECT-FILE-HAS: build/.cinl/vin.bi :: function  vin_static                  static
+'' EXPECT-FILE-NOT-HAS: build/.cinl/vin.bi :: declare function vin_static
+'' RUN: build/.cinl/app.exe
+'' EXPECT-RUN-OUT:  103            8

@@ -11,6 +11,8 @@
 ''     [dependencies]             x = { path = "..." }, or a [dependencies.x] table
 ''     [defines]                  NAME = "value": the package's modules see NAME
 ''     [dependencies.x.defines]   the root's say over dependency x's defines
+''     [vendor.<module>]          links = ["static", "dynamic"]: the link modes the module
+''                                ships, for '#import ... link' (tiko-vendor RFC-0002 V7, V10)
 
 #import "std/containers"
 #import "std/fs"
@@ -392,6 +394,18 @@ function LoadManifest _
                     c.p = q + 1
                     if AtEnd_( c ) = false then why = "text after a table header"
                     dim as boolean known = (table_ = "package") orelse (table_ = "dependencies") orelse (table_ = "defines")
+                    if (known = false) andalso (left( table_, 7 ) = "vendor.") then
+                        known = true
+                        dim as string vm = mid( table_, 8 )
+                        dim as boolean okName = (len( vm ) > 0)
+                        for q as int32 = 0 to len( vm ) - 1
+                            dim as uint8 ch = vm[q]
+                            dim as boolean wordCh = ((ch >= 97) andalso (ch <= 122)) orelse ((ch >= 48) andalso (ch <= 57)) orelse _
+                                                    (ch = 95) orelse (ch = 46)
+                            if wordCh = false then okName = false
+                        next
+                        if okName = false then why = "'" & vm & "' in [vendor.<module>] is not a module path"
+                    end if
                     if known = false then
                         dim as boolean depT = (left( table_, 13 ) = "dependencies.")
                         if depT = false then why = BuildTable_( m, table_ )
@@ -438,6 +452,32 @@ function LoadManifest _
                 case "defines"
                     if kind <> "s" then why = "a define's value is a string" else m.defines.Push( k & "=" & v )
                 case else
+                    if left( table_, 7 ) = "vendor." then
+                        if k <> "links" then
+                            why = "unknown key '" & k & "' in [" & table_ & "]"
+                        elseif kind <> "a" then
+                            why = "'links' in [" & table_ & "] is an array of strings"
+                        else
+                            dim as string modes = "|"
+                            dim as int32 st = 1
+                            while st <= len( v )
+                                dim as int32 nl_ = instr( st, v, chr( 10 ) )
+                                if nl_ = 0 then nl_ = len( v ) + 1
+                                dim as string one = mid( v, st, nl_ - st )
+                                st = nl_ + 1
+                                if (one <> "static") andalso (one <> "dynamic") then
+                                    why = "'links' in [" & table_ & "] holds ""static"" and ""dynamic"", not '" & one & "'"
+                                end if
+                                modes &= one & "|"
+                            wend
+                            if modes = "|" then why = "'links' in [" & table_ & "] is empty"
+                            if len( why ) = 0 then
+                                m.vendorMods.Push( mid( table_, 8 ) )
+                                m.vendorLinks.Push( modes )
+                            end if
+                        end if
+                        exit select
+                    end if
                     if (left( table_, 7 ) = "target.") orelse (left( table_, 8 ) = "profile.") then
                         why = BuildKey_( m, table_, k, v, kind )
                         exit select

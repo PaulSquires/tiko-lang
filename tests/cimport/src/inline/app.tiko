@@ -1,0 +1,3 @@
+#cinclude once "vin.h"
+#foreignlib VIN static "../../../../build/.cinl/vin"
+print vin_add( 1, 2 ), vin_plain( 4 )

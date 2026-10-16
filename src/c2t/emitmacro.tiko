@@ -511,7 +511,10 @@ sub MacroDirectives( byref e as C2tEmit, byref p as C2tPass, byref dirs as C2tDi
         dim as int32 eq = instr( d, "=" )
         dim as string nm = iif( eq > 0, left( d, eq - 1 ), d )
         dim as string v = iif( eq > 0, mid( d, eq + 1 ), "1" )
-        CxEnvAdd( env, nm, nm, CXV_INT, true, vallng( v ) )
+        '' ...EXCEPT THE SHARED-BUILD MACRO (D25), which a tiko program says as its link mode.
+        dim as string shown = nm
+        if (len( p.sharedMacro ) > 0) andalso (nm = p.sharedMacro) then shown = "TIKO_LINK_DYNAMIC"
+        CxEnvAdd( env, nm, shown, CXV_INT, true, vallng( v ) )
     next
 
     '' CLANG'S VALUES, in one probe parse: every object-like macro with a body.

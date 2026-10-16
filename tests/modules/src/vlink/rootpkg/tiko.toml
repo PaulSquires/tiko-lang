@@ -1,0 +1,3 @@
+# A project that calls itself 'vendor': refused, the name is the toolchain's (TKO0148).
+[package]
+name = "vendor"

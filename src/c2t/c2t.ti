@@ -118,6 +118,7 @@ type C2tSegVec as containers.Array( of C2tSegment )
 type C2tPass
     as string triple
     args as Tko.StrVec             '' the clang arguments the pass parsed with (macro probes)
+    as string sharedMacro          '' --shared-macro: the name printed as TIKO_LINK_DYNAMIC
     as any ptr idx                 '' kept open until ClosePass: the emitter reads cursors
     as any ptr tu
     segs as C2tSegVec
@@ -134,6 +135,9 @@ type C2tPassOut
     as boolean isWindows
     as int32 extraNo               '' 0 the base pass; k for the k-th --pass
     as string extra                '' that --pass's clang arguments
+    '' The name a guard over this pass says, when it is not the --pass's own define: the
+    '' --shared-macro pass is TIKO_LINK_DYNAMIC (D25).
+    as string guardName
     blocks as C2tBlockVec
     dirState as C2tIntVec
     dirText as Tko.StrVec
@@ -158,6 +162,11 @@ type C2tOptions
     undefs as Tko.StrVec       '' -U
     passArgs as Tko.StrVec     '' --pass, each one string of clang arguments
     as string sysroot          '' --sysroot: the Linux passes' system headers, from a Windows host
+    '' --shared-macro NAME (D25): the library's shared-build macro, USE_LIBTYPE_SHARED. A pass
+    '' is made with it defined, and whatever it changes -- an 'extern import' variable -- is
+    '' guarded by TIKO_LINK_DYNAMIC, the link mode an '#import ... link dynamic' defines.
+    as string sharedMacro
+    as string sharedPass       '' ...and the --pass it made, "-DNAME[=value]"
     as boolean verify
 end type
 

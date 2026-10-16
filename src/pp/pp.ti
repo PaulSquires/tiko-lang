@@ -131,9 +131,14 @@ namespace Tko
         as string    path        '' as written: '/'-separated, maybe './' or '../'
         as string    alias_      '' the name it binds: 'as NAME', else the last segment
         as boolean   isPublic    '' '#import ... public': re-exported (module files only)
+        '' '#import ... link static|dynamic' (tiko-vendor RFC-0002 V4-V7): 0 not written, else
+        '' PP_LINK_STATIC or PP_LINK_DYNAMIC. Which packages accept it is the driver's question.
+        as int32      link_
         as SourceLoc loc         '' the '#', for diagnostics that point at the import
     end type
     type PpImportVec as containers.Array( of PpImport )
+    const PP_LINK_STATIC = 1
+    const PP_LINK_DYNAMIC = 2
 
     '' THE INTERFACES AN '#import' READS IN (ADR 0017; RFC-0004 §4-5): the module's, and
     '' before it every one it depends on, dependencies first, as FileIds. The driver
@@ -308,6 +313,13 @@ namespace Tko
         '' THE HEADERS A 'public #cinclude' NAMED, as indices into modHeaders: they travel
         '' with the interface always, which is what 'public' asks for (T101).
         as IdVec       modHdrPublic
+        '' ...AND WHAT THEIR CONDITIONALS CONSULTED (RFC-0002 V12): the header, as an index into
+        '' modHeaders, a macro its subtree's '#if' / '#ifdef' / 'defined( )' read before
+        '' defining it, and the macro then -- "" undefined, else its '#define' text after the
+        '' word. An importer re-reads the header in its own macros; these must agree (TKO0370).
+        as IdVec       modConsRoot
+        as StrVec      modConsName
+        as StrVec      modConsText
         '' EVERY FILE THE UNIT LEXED, in first-read order, repeats allowed: what a module's
         '' cache entry depends on besides its sources (RFC-0005 §4).
         as FileIdVec   filesRead

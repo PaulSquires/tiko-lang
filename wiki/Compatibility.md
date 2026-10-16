@@ -61,6 +61,8 @@ The constructor case is the one form fbc leaves out. Both compilers accept the s
 
 Across the vendored fbc suite, every line tiko gives `TKO0968` (22) or `TKO0970` (24) is one where fbc gives warning 5 or warning 2.
 
+**A linux-x86_64 program that links a shared library from `#foreignlib` gets a run path of `$ORIGIN`.** fbc writes none, so its program finds a `.so` beside it only through `LD_LIBRARY_PATH`; tiko's finds it there, and `LD_LIBRARY_PATH` still wins. A program that links no shared library from `#foreignlib` is linked exactly as before, and `-norpath` turns the run path off. See [Vendor Packages](Vendor-Packages).
+
 **Graphics links on `windows-x86_64` only.** libtkogfx is built for that ABI alone.
 
 **`#pragma msbitfields` is accepted and does nothing.** In fbc 1.20 it stops a bitfield from sharing a unit with the ordinary field before it: `short s : 4, byte c, long i : 7` is 8 bytes with `i` at bit 32, where both compilers say 4 bytes and bit 24 without it. tiko keeps the 4-byte layout under the pragma. It is not MSVC's rule either -- fbc still packs `byte a : 3, long b : 5` into one byte, where MSVC uses 8 -- and `type T extern "c"` is how tiko lays a type out as C does.

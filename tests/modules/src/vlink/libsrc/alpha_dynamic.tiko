@@ -1,0 +1,5 @@
+extern "C"
+function alpha_id( ) as long export
+    return 2
+end function
+end extern

@@ -1,0 +1,13 @@
+'' A MODE THE PACKAGE DOES NOT SHIP (RFC-0002 V7): beta lists only "static".
+'' TEST: cli
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_PKG=build/.vlu/pkg
+'' ENV: TKO_MODCACHE=build/.vlu/mc
+'' CLEAN: build/.vlu
+'' COPY: tests/modules/src/vlink/pkg => build/.vlu/pkg
+'' STEP: -target windows-x86_64 -lib tests/modules/src/vlink/libsrc/alpha_static.tiko -o build/.vlu/pkg/vendor/alpha/lib/alpha_windows_x86_64.a
+'' STEP: -target windows-x86_64 -dll tests/modules/src/vlink/libsrc/alpha_dynamic.tiko -o build/.vlu/pkg/vendor/alpha/lib/alpha_windows_x86_64.dll
+'' STEP: -target windows-x86_64 -lib tests/modules/src/vlink/libsrc/beta_static.tiko -o build/.vlu/pkg/vendor/beta/lib/beta_windows_x86_64.a
+'' ARGS: -target windows-x86_64 tests/modules/src/vlink/app/betadyn.tiko -o build/.vlu/b.exe
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: betadyn.tiko(1,1): error TKO0156: 'link dynamic': package 'vendor' ships no dynamic link of module 'vendor.beta'

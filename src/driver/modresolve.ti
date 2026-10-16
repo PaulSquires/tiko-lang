@@ -60,6 +60,15 @@ declare function RootPackage _
 '' A PACKAGE'S [defines], as NAME=value, with the root manifest's [dependencies.x.defines]
 '' over them: what every module of the package is compiled with.
 declare sub PackageDefines( byref ctx as Tko.CompilerContext, byref name_ as string, byref outv as Tko.StrVec )
+'' A module's [vendor.<module>] links, "|static|dynamic|", or "" (RFC-0002 V7).
+declare function LinkModesOf( byref ctx as Tko.CompilerContext, byref name_ as string, byref chain as string ) as string
+'' PackageDefines of ctx.modPkgName, and the TIKO_LINK_* of ctx.modLinkMode (RFC-0002 V6).
+declare sub ModuleDefines( byref ctx as Tko.CompilerContext, byref outv as Tko.StrVec )
+'' The linked vendor packages' .dll / .so copied beside 'outPath' (RFC-0002 V13); false, with
+'' the pair that failed, when a copy did.
+declare function CopyVendorLibs _
+    ( byref ctx as Tko.CompilerContext, byref outPath as string, _
+      byref failSrc as string, byref failDst as string ) as boolean
 
 declare function ResolveImport _
     ( byref ctx as Tko.CompilerContext, byref rec as Tko.PpImport, _

@@ -1,0 +1,9 @@
+'' A vendor package's module: its header, carried publicly, and its library, static or
+'' dynamic as the program's '#import ... link' chose -- dynamic when it chose nothing.
+#module "alpha"
+public #include once "alpha.ti"
+#ifdef TIKO_LINK_STATIC
+    #foreignlib ALPHA static "lib/alpha"
+#else
+    #foreignlib ALPHA dynamic "lib/alpha"
+#endif
