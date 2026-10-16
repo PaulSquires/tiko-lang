@@ -36,7 +36,9 @@ Every routine, type and constant of the library's C header is callable as the li
 | Package | Library | Link modes |
 | --- | --- | --- |
 | `vendor/sqlite` | SQLite 3.54.0 | `static`, `dynamic` (the default) |
-| `vendor/SDL3` | SDL 3.4.4 | `dynamic` (the default); windows-x86_64 only -- SDL publishes no Linux binary, so the toolchain for linux-x86_64 ships the headers with no library |
+| `vendor/SDL3` | SDL 3.4.4 | `dynamic` (the default) |
+
+**`vendor/SDL3` on linux-x86_64 links the system's SDL3.** SDL publishes no Linux binary, so the toolchain ships none: the program is linked with `-lSDL3` and loads `libSDL3.so.0` from the system's library folders, like any library the distribution installs. Install the distribution's SDL3 development package (`libsdl3-dev` on Debian and Ubuntu, `SDL3-devel` on Fedora) to build; without it the link fails with `cannot find -lSDL3`. Nothing is copied beside the program.
 
 ## `link static` and `link dynamic`
 

@@ -8,9 +8,16 @@
 '' include paths made the package's own and its '#inclib' replaced by the #foreignlib below.
 ''
 '' THE LIBRARY: SDL publishes no static library, so this package ships 'link dynamic' alone --
-'' also its default when no '#import' says. SDL3.dll is copied beside the program.
+'' also its default when no '#import' says. On Windows it is lib/SDL3.dll, copied beside the
+'' program. SDL publishes no Linux binary, so there the toolchain ships none and the program
+'' links the system's -- '-lSDL3', which the distribution's SDL3 development package (e.g.
+'' libsdl3-dev) provides -- and loads it from the system's library folders as any other.
 #module "SDL3"
 
 public #include once "SDL.ti"
 
-#foreignlib SDL3 dynamic "lib/SDL3"
+#ifdef __FB_LINUX__
+    #foreignlib SDL3 dynamic "system:SDL3"
+#else
+    #foreignlib SDL3 dynamic "lib/SDL3"
+#endif

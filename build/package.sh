@@ -359,7 +359,7 @@ note "packages -> pkg/ ($( ls "$OUT/pkg" | tr '\n' ' '))"
 # this host's, pinned and SHA-256-checked, straight into the output -- and fetch.toml is
 # that script's alone. Each module must end with binaries and its library's licence --
 # binaries only where its fetch.toml has entries for this host: vendor/SDL3 has none on Linux,
-# where SDL publishes no binary, and its '#foreignlib' says so to an importer.
+# where SDL publishes no binary and its module links the system's libSDL3 instead.
 rm -rf "$OUT"/pkg/vendor/*/lib
 rm -f "$OUT"/pkg/vendor/*/fetch.toml
 sh "$ROOT/build/vendorfetch.sh" --out "$OUT/pkg" || die "vendorfetch.sh failed: the vendor packages have no binaries"
