@@ -230,11 +230,14 @@ The last argument of `sqlite3_bind_text` says how long SQLite may keep the text.
 will not change while the statement uses it, and saves the copy. The `-1` before it means "the
 text ends at its zero byte".
 
-**Text crosses as UTF-8 bytes.** SQLite's `_text` functions take and return C's `char *`, so the
-listings keep their values in `string`, tiko's byte string, rather than `ustring`. A `string`
-passed where the C function wants a `const char *` passes a pointer to its bytes. The other way,
-`sqlite3_column_text` returns a pointer to bytes SQLite owns, valid until the next step, and
-`*cast( zstring ptr, … )` copies them into a string before then.
+**Text crosses as UTF-8.** SQLite's `_text` functions take and return C's `char *`, holding
+UTF-8. A `ustring` passed where the C function wants a `const char *` is converted to UTF-8 for
+the call; a `string`, tiko's byte string, passes its bytes as they are. These listings keep their
+values in `string` because they are bytes that go to SQLite and come back unchanged. The other
+way, `sqlite3_column_text` returns a pointer to bytes SQLite owns, valid until the next step, and
+`*cast( zstring ptr, … )` copies them into a string before then; a `string` holding UTF-8, assigned
+to a `ustring`, is read as UTF-8. Chapter 34's ledger keeps its text in `ustring` and works this
+way.
 
 **A transaction** groups statements: `begin`, then `commit` to keep everything or `rollback` to
 undo everything, as the listing does with its `delete`. They are SQL like any other, run with
