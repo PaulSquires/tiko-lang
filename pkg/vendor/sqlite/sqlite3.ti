@@ -15,15 +15,9 @@
 ''   parameter  sqlite3_win32_set_directory16.type -> sqlite3_win32_set_directory16.type_   (tiko reserved word)
 ''   constant   double -> double_   (tiko reserved word)
 ''
-'' 8 items need manual translation:
-''   line 211  sqlite3.h:188  C2T-TODO(refused-type)  sqlite3_version
-''   line 318  sqlite3.h:294  C2T-TODO(branch-unparsed)
-''   line 320  sqlite3.h:295  C2T-TODO(branch-unparsed)  SQLITE_UINT64_TYPE
-''   line 322  sqlite3.h:296  C2T-TODO(branch-unparsed)
-''   line 324  sqlite3.h:297  C2T-TODO(branch-unparsed)  #else
-''   line 326  sqlite3.h:298  C2T-TODO(branch-unparsed)
-''   line 328  sqlite3.h:299  C2T-TODO(branch-unparsed)  #endif
-''   line 11434  sqlite3.h:11450  C2T-TODO(macro)  double
+'' 2 items need manual translation:
+''   line 205  sqlite3.h:188  C2T-TODO(refused-type)  sqlite3_version
+''   line 11423  sqlite3.h:11450  C2T-TODO(macro)  double
 '' =============================================================================
 
 /'
@@ -315,18 +309,13 @@ type sqlite3__fwd as sqlite3
 ** between 0 and +18446744073709551615 inclusive.
 '/
 #ifdef SQLITE_INT64_TYPE
-  '' C2T-TODO(branch-unparsed) sqlite3.h:294 -- clang cannot parse the branch: unknown type name 'SQLITE_INT64_TYPE'
-''   typedef SQLITE_INT64_TYPE sqlite_int64;
-'' C2T-TODO(branch-unparsed) sqlite3.h:295 -- clang cannot parse the branch: unknown type name 'SQLITE_INT64_TYPE'
-'' # ifdef SQLITE_UINT64_TYPE
-    '' C2T-TODO(branch-unparsed) sqlite3.h:296 -- clang cannot parse the branch: unknown type name 'SQLITE_INT64_TYPE'
-''     typedef SQLITE_UINT64_TYPE sqlite_uint64;
-'' C2T-TODO(branch-unparsed) sqlite3.h:297 -- clang cannot parse the branch: unknown type name 'SQLITE_INT64_TYPE'
-'' # else
-    '' C2T-TODO(branch-unparsed) sqlite3.h:298 -- clang cannot parse the branch: unknown type name 'SQLITE_INT64_TYPE'
-''     typedef unsigned SQLITE_INT64_TYPE sqlite_uint64;
-'' C2T-TODO(branch-unparsed) sqlite3.h:299 -- clang cannot parse the branch: unknown type name 'SQLITE_INT64_TYPE'
-'' # endif
+  type sqlite_int64 as SQLITE_INT64_TYPE
+# ifdef SQLITE_UINT64_TYPE
+    type sqlite_uint64 as SQLITE_UINT64_TYPE
+# else
+    '' C2T-NOTE(type-macro) sqlite3.h:298 -- 'SQLITE_INT64_TYPE' is the program's own type; long long stands in for it here
+    type sqlite_uint64 as uint64
+# endif
 #elseif (defined(_MSC_VER) orelse defined(__BORLANDC__))
   type sqlite_int64 as int64
   type sqlite_uint64 as uint64

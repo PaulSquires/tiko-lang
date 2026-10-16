@@ -172,6 +172,10 @@ type C2tOptions
     as string sharedMacro
     as string sharedPass       '' ...and the --pass it made, "-DNAME[=value]"
     as boolean verify
+    '' A BRANCH PASS's type macros: names a forced branch uses as a type that the header never
+    '' defines -- the program's own, sqlite3.h's SQLITE_INT64_TYPE. Each is parsed as
+    '' 'long long'; a typedef written as just the name keeps the name (emitdecl.tiko).
+    typeMacros as Tko.StrVec
 end type
 
 '' sha256.tiko
@@ -234,6 +238,7 @@ type C2tEmit
     '' tiko's own preprocessor checks what cexpr's folder concluded (D17).
     asserts as Tko.StrVec
     as int32 decls                 '' declarations written
+    typeMacros as Tko.StrVec       '' C2tOptions.typeMacros, for the pass being emitted
 end type
 '' Set up the importer state for one pass: names, the c2t spellings, what other files declare.
 declare sub EmitInit( byref e as C2tEmit, byref api as Tko.CImport.ClangApi, byref x as Tko.CImport.CImp, _

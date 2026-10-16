@@ -138,6 +138,7 @@ A **TODO** is API that is missing until someone translates it by hand. A **NOTE*
 | --- | --- |
 | `inline` | A non-static `inline` function, declared: it links only if the library exports it |
 | `value` | A macro written as Clang's value instead of its expression, with the reason: a cast, or a value tiko's reading of the expression would not match |
+| `type-macro` | A branch that uses a type the program supplies with the macro it tests (`#ifdef SQLITE_INT64_TYPE` … `typedef SQLITE_INT64_TYPE sqlite_int64;`). A plain use keeps the name, `type sqlite_int64 as SQLITE_INT64_TYPE`, so the program's own `#define` decides; one tiko cannot spell, `unsigned SQLITE_INT64_TYPE`, is written with `long long` standing in |
 | `pointer` | A macro whose value is a pointer cast from a number -- `((void*)0)`, `((callback_t)-1)` -- written as `cast(...)`. Clang gives no value for a pointer, so nothing checked it |
 | `if-0` | `#if 0` text, kept as a comment |
 | `branch` | A struct or enum with an `#if` inside its body: the members are the ones each target's preprocessor keeps; the other branch's are not translated |

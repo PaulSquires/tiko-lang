@@ -1,0 +1,7 @@
+'' The translation of tests/c2t/src/unreached.h compiles with the program's own type macro defined, for each target in TARGETS.
+'' TEST: cli
+'' CLEAN: build/.c2t/compile-unreached-typemacro
+'' STEP-EXIT: 2
+'' STEP: c2t tests/c2t/src/unreached.h --verify -o build/.c2t/compile-unreached-typemacro/unreached.ti
+'' ARGS: -d UR_INT_TYPE=long -c build/.c2t/compile-unreached-typemacro/unreached.ti -o build/.c2t/compile-unreached-typemacro/unreached.o
+'' EXPECT-EXIT: 0

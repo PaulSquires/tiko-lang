@@ -1,8 +1,7 @@
 '' sqlite3-residue.ti -- what sqlite3.ti could not carry, written by hand. Against
 '' SQLite 3.54.0's sqlite3.h, the header sqlite3.ti's banner names by SHA-256.
-'' Each item is a C2T-TODO of that translation that loses API; the other TODOs there are
-'' the SQLITE_INT64_TYPE branch, whose type a program supplies when it defines that macro,
-'' and SQLITE_OMIT_FLOATING_POINT's '#undef double', which would take tiko's double away.
+'' Each item is a C2T-TODO of that translation that loses API; the other TODO there is
+'' SQLITE_OMIT_FLOATING_POINT's '#undef double', which would take tiko's double away.
 #pragma once
 
 '' sqlite3_version (sqlite3.h:188), 'const char sqlite3_version[]': an array of no stated
