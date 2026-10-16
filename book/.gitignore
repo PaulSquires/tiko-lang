@@ -16,8 +16,11 @@ out/
 !examples/ch28/geom/*.lib
 # Chapter 29's libraries are downloaded and built by examples/ch29/fetch-libs.sh,
 # never committed: vendor/, and the runtime libraries it copies beside the listings.
-examples/ch29/vendor/*/
-examples/ch29/vendor/.downloads/
+# The tiko headers translate.sh makes from their C headers ARE committed: they are
+# source, as a project using a C library keeps them.
+examples/ch29/vendor/**
+!examples/ch29/vendor/**/
+!examples/ch29/vendor/**/*.ti
 examples/ch29/*.so.*
 examples/ch29/raylib-rpath
 # Chapter 31's chain listing builds its Linux child beside it (prebuild:).

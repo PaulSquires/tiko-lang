@@ -2,7 +2,7 @@
 '' Windows, libraylib.so.600 on Linux.
 '' ANCHOR: all
 '' ANCHOR: link
-#cinclude once "vendor/raylib/raylib.h"
+#include once "vendor/raylib/raylib.ti"
 #foreignlib RAYLIB dynamic "vendor/raylib/raylibdll"
 '' ANCHOR_END: link
 

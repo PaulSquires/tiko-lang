@@ -1,7 +1,7 @@
 '' raylib's example core_input_keys: move a ball with the arrow keys.
 '' A number on the command line stops it after that many frames.
 '' ANCHOR: all
-#include once "raylib.ti"
+#include once "raylib-binding.ti"
 
 const ScreenWidth = 800
 const ScreenHeight = 450

@@ -3,7 +3,7 @@
 '' it after that many frames instead.
 '' ANCHOR: all
 '' ANCHOR: link
-#cinclude once "vendor/raylib/raylib.h"
+#include once "vendor/raylib/raylib.ti"
 #ifdef __FB_WIN32__
     #foreignlib RAYLIB static "vendor/raylib/raylib", _
         "system:winmm", "system:gdi32", "system:user32", _

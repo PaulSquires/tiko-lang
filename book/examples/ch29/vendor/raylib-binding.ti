@@ -1,10 +1,11 @@
-'' raylib.ti -- raylib 6.0 for tiko: its header, and the library to
-'' link, in one file a program includes. Both paths are relative to
-'' this file, so the folder it sits in can live anywhere: inside one
-'' project, or in a single place that every program shares.
+'' raylib-binding.ti -- raylib 6.0 for tiko: its translated header,
+'' and the library to link, in one file a program includes. Both paths
+'' are relative to this file, so the folder it sits in can live
+'' anywhere: inside one project, or in a single place that every
+'' program shares.
 #pragma once
 
-#cinclude once "raylib/raylib.h"
+#include once "raylib/raylib.ti"
 
 #ifdef __FB_WIN32__
     #foreignlib RAYLIB static "raylib/raylib", _

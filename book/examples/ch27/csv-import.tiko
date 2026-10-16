@@ -1,24 +1,53 @@
-'' The CSV companion: real CSV, with quoted fields and empty values.
-#import "db/sqlite"
+'' Loading a CSV file: std/strings parses it, SQLite stores it.
+#import "vendor/sqlite3"
+#import "std/strings"
 
-dim db as sqlite.Database
-db.OpenMemory( )
+'' The file's bytes, as they are: UTF-8, which is what SQLite takes.
+dim as string text
+dim f as int32 = freefile
+open "people.csv" for binary access read as #f
+text = space( lof( f ) )
+get #f, , text
+close #f
+var rows = strings.SplitCsv( text )
 
-'' The header row names the columns, and the table is created from it.
-var loaded = sqlite.ImportCsv( db, "people", "people.csv" )
-if loaded.IsOk( ) = false then
-    print "import failed: "; loaded.Failure( ).Message( )
-    end 1
-end if
-print loaded.Value( ); " rows imported"
+dim db as sqlite3 ptr
+sqlite3_open( ":memory:", @db )
+sqlite3_exec( db, "create table people( name text, city text, " & _
+    "phone text )", nullptr, nullptr, nullptr )
 
-var rows = db.Query( "select name, city, phone from people " & _
-                     "order by name" )
-for each r in rows.Value( )
-    dim as ustring phone = "(none)"
-    if r[ "phone" ].IsNull( ) = false then
-        phone = r[ "phone" ].AsText( )
-    end if
-    print r[ "name" ].AsText( ); " | "; r[ "city" ].AsText( ); _
-          " | "; phone
+'' Row 0 is the header. Every other row goes in, in one transaction.
+dim ins as sqlite3_stmt ptr
+sqlite3_prepare_v2( db, "insert into people values( ?, ?, ? )", _
+    -1, @ins, nullptr )
+sqlite3_exec( db, "begin", nullptr, nullptr, nullptr )
+for r as int32 = 1 to rows.Count( ) - 1
+    for c as int32 = 0 to 2
+        dim as string value = rows[ r ].fields[ c ]
+        if len( value ) = 0 then
+            sqlite3_bind_null( ins, c + 1 )   '' an empty field is NULL
+        else
+            sqlite3_bind_text( ins, c + 1, value, -1, SQLITE_TRANSIENT )
+        end if
+    next
+    sqlite3_step( ins )
+    sqlite3_reset( ins )
 next
+sqlite3_exec( db, "commit", nullptr, nullptr, nullptr )
+sqlite3_finalize( ins )
+print rows.Count( ) - 1; " rows imported"
+
+dim sel as sqlite3_stmt ptr
+sqlite3_prepare_v2( db, "select name, city, phone from people " & _
+    "order by name", -1, @sel, nullptr )
+do while sqlite3_step( sel ) = SQLITE_ROW
+    dim as string phone = "(none)"
+    if sqlite3_column_type( sel, 2 ) <> SQLITE_NULL then
+        phone = *cast( zstring ptr, sqlite3_column_text( sel, 2 ) )
+    end if
+    print *cast( zstring ptr, sqlite3_column_text( sel, 0 ) ); " | "; _
+          *cast( zstring ptr, sqlite3_column_text( sel, 1 ) ); " | "; _
+          phone
+loop
+sqlite3_finalize( sel )
+sqlite3_close( db )

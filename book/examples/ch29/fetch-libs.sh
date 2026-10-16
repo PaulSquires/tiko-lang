@@ -5,9 +5,11 @@
 #                               on Linux:              the linux-x86_64 files
 #
 # Run it once on each platform you build for; both can share one tree, because
-# every library file carries its target in its name. Nothing here is committed:
-# vendor/ and the runtime libraries beside the listings are rebuilt from the
-# pinned downloads below, each checked against its SHA-256.
+# every library file carries its target in its name. Nothing it writes is
+# committed: vendor/ and the runtime libraries beside the listings are rebuilt
+# from the pinned downloads below, each checked against its SHA-256. The tiko
+# headers translate.sh made from the C headers (vendor/**/*.ti) are committed,
+# and this script leaves them where they are.
 #
 # Windows needs LLVM (which tiko needs anyway), CMake and the Visual Studio
 # Build Tools with the Windows SDK. Linux needs gcc, make, cmake and the X11 and
@@ -84,7 +86,7 @@ windows() {
   a="$(unpack "$(fetch https://github.com/glfw/glfw/releases/download/$GLFW_VER/glfw-$GLFW_VER.bin.WIN64.zip \
       34c6766043e09ad9c6e88b5636a5f34d1f2857aae828768c5bf2016dc8821a93)")"
   s="$a/glfw-$GLFW_VER.bin.WIN64"
-  rm -rf vendor/glfw/include; cp -r "$s/include" vendor/glfw/
+  mkdir -p vendor/glfw/include; cp -r "$s/include/." vendor/glfw/include/
   # lib-vc2022/glfw3.lib is built for the DLL C runtime, which tiko links.
   cp "$s/lib-vc2022/glfw3.lib"    vendor/glfw/glfw3_$target.lib
   cp "$s/lib-vc2022/glfw3dll.lib" vendor/glfw/glfw3dll_$target.lib
@@ -94,7 +96,7 @@ windows() {
   a="$(unpack "$(fetch https://github.com/libsdl-org/SDL/releases/download/release-$SDL_VER/SDL3-devel-$SDL_VER-VC.zip \
       78d84602ae616cfe26b33a73b7d3b9b6b56e8a6650e53d92c9c6ca938f747acd)")"
   s="$a/SDL3-$SDL_VER"
-  rm -rf vendor/sdl3/include; cp -r "$s/include" vendor/sdl3/
+  mkdir -p vendor/sdl3/include; cp -r "$s/include/." vendor/sdl3/include/
   cp "$s/lib/x64/SDL3.lib" vendor/sdl3/SDL3_$target.lib
   cp "$s/lib/x64/SDL3.dll" .
   # SDL ships no static library for Visual C++: build one from the source.
@@ -148,7 +150,7 @@ linux() {
         -DCMAKE_BUILD_TYPE=Release ${GLFW_CMAKE_ARGS:-} > "$b/glfw-$kind.log"
     cmake --build "$b/glfw-$kind" -j 8 >> "$b/glfw-$kind.log"
   done
-  rm -rf vendor/glfw/include; cp -r "$s/include" vendor/glfw/
+  mkdir -p vendor/glfw/include; cp -r "$s/include/." vendor/glfw/include/
   cp "$b/glfw-static/src/libglfw3.a" vendor/glfw/glfw3_$target.a
   cp -L "$b/glfw-shared/src/libglfw.so.3" vendor/glfw/glfw3dll_$target.so
   cp -L "$b/glfw-shared/src/libglfw.so.3" libglfw.so.3
@@ -161,7 +163,7 @@ linux() {
   cmake -S "$s" -B "$b/sdl" -DSDL_STATIC=ON -DSDL_SHARED=ON -DSDL_TESTS=OFF \
       -DSDL_EXAMPLES=OFF -DCMAKE_BUILD_TYPE=Release ${SDL_CMAKE_ARGS:-} > "$b/sdl.log"
   cmake --build "$b/sdl" -j 8 >> "$b/sdl.log"
-  rm -rf vendor/sdl3/include; cp -r "$s/include" vendor/sdl3/
+  mkdir -p vendor/sdl3/include; cp -r "$s/include/." vendor/sdl3/include/
   cp "$b/sdl/libSDL3.a" vendor/sdl3/SDL3-static_$target.a
   cp -L "$b/sdl/libSDL3.so.0" vendor/sdl3/SDL3_$target.so
   cp -L "$b/sdl/libSDL3.so.0" libSDL3.so.0

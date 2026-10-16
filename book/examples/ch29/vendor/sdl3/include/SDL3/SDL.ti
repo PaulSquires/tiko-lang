@@ -1,0 +1,104 @@
+'' =============================================================================
+'' SDL.ti -- tiko header translated by c2t (tiko 0.1.0-dev) from the C header "SDL.h"
+''   source sha256 : 3b02825b3ae3f1482661ed76a7a28486fa1b8ec9e32d23e9c7ded0c79780448b
+''   clang         : clang version 21.1.0
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu
+''   options       : -I vendor/sdl3/include --sysroot //wsl.localhost/Ubuntu --verify
+''
+'' Generated from C. Search for C2T-TODO and translate those parts by hand.
+''
+'' Nothing needs manual translation.
+'' =============================================================================
+
+/'
+  Simple DirectMedia Layer
+  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
+
+  This software is provided 'as-is', without any express or implied
+  warranty.  In no event will the authors be held liable for any damages
+  arising from the use of this software.
+
+  Permission is granted to anyone to use this software for any purpose,
+  including commercial applications, and to alter it and redistribute it
+  freely, subject to the following restrictions:
+
+  1. The origin of this software must not be misrepresented; you must not
+     claim that you wrote the original software. If you use this software
+     in a product, an acknowledgment in the product documentation would be
+     appreciated but is not required.
+  2. Altered source versions must be plainly marked as such, and must not be
+     misrepresented as being the original software.
+  3. This notice may not be removed or altered from any source distribution.
+'/
+
+/'*
+ * Main include header for the SDL library, version 3.4.18
+ *
+ * It is almost always best to include just this one header instead of
+ * picking out individual headers included here. There are exceptions to
+ * this rule--SDL_main.h is special and not included here--but usually
+ * letting SDL.h include the kitchen sink for you is the correct approach.
+ '/
+
+#pragma once
+
+extern "C"
+
+#include once "SDL_stdinc.ti"
+#include once "SDL_assert.ti"
+#include once "SDL_asyncio.ti"
+#include once "SDL_atomic.ti"
+#include once "SDL_audio.ti"
+#include once "SDL_bits.ti"
+#include once "SDL_blendmode.ti"
+#include once "SDL_camera.ti"
+#include once "SDL_clipboard.ti"
+#include once "SDL_cpuinfo.ti"
+#include once "SDL_dialog.ti"
+#include once "SDL_dlopennote.ti"
+#include once "SDL_endian.ti"
+#include once "SDL_error.ti"
+#include once "SDL_events.ti"
+#include once "SDL_filesystem.ti"
+#include once "SDL_gamepad.ti"
+#include once "SDL_gpu.ti"
+#include once "SDL_guid.ti"
+#include once "SDL_haptic.ti"
+#include once "SDL_hidapi.ti"
+#include once "SDL_hints.ti"
+#include once "SDL_init.ti"
+#include once "SDL_iostream.ti"
+#include once "SDL_joystick.ti"
+#include once "SDL_keyboard.ti"
+#include once "SDL_keycode.ti"
+#include once "SDL_loadso.ti"
+#include once "SDL_locale.ti"
+#include once "SDL_log.ti"
+#include once "SDL_messagebox.ti"
+#include once "SDL_metal.ti"
+#include once "SDL_misc.ti"
+#include once "SDL_mouse.ti"
+#include once "SDL_mutex.ti"
+#include once "SDL_pen.ti"
+#include once "SDL_pixels.ti"
+#include once "SDL_platform.ti"
+#include once "SDL_power.ti"
+#include once "SDL_process.ti"
+#include once "SDL_properties.ti"
+#include once "SDL_rect.ti"
+#include once "SDL_render.ti"
+#include once "SDL_scancode.ti"
+#include once "SDL_sensor.ti"
+#include once "SDL_storage.ti"
+#include once "SDL_surface.ti"
+#include once "SDL_system.ti"
+#include once "SDL_thread.ti"
+#include once "SDL_time.ti"
+#include once "SDL_timer.ti"
+#include once "SDL_tray.ti"
+#include once "SDL_touch.ti"
+#include once "SDL_version.ti"
+#include once "SDL_video.ti"
+#include once "SDL_oldnames.ti"
+
+end extern
