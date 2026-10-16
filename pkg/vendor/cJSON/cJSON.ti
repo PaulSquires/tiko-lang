@@ -1,0 +1,431 @@
+'' =============================================================================
+'' cJSON.ti -- tiko header translated by c2t (tiko 0.1.0-dev) from the C header "cJSON.h"
+''   source sha256 : 25b0145150d500498e4d209cec69c18c42cf818bffcc54690be3b895a2a16dee
+''   clang         : clang version 21.1.0
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu
+''   options       : --verify
+''
+'' Generated from C. Search for C2T-TODO and translate those parts by hand.
+''
+'' Renamed:
+''   parameter  cJSON_GetObjectItem.object -> cJSON_GetObjectItem.object_   (tiko reserved word)
+''   parameter  cJSON_GetObjectItem.string -> cJSON_GetObjectItem.string_   (tiko reserved word)
+''   parameter  cJSON_GetObjectItemCaseSensitive.object -> cJSON_GetObjectItemCaseSensitive.object_   (tiko reserved word)
+''   parameter  cJSON_GetObjectItemCaseSensitive.string -> cJSON_GetObjectItemCaseSensitive.string_   (tiko reserved word)
+''   parameter  cJSON_HasObjectItem.object -> cJSON_HasObjectItem.object_   (tiko reserved word)
+''   parameter  cJSON_HasObjectItem.string -> cJSON_HasObjectItem.string_   (tiko reserved word)
+''   parameter  cJSON_CreateBool.boolean -> cJSON_CreateBool.boolean_   (tiko reserved word)
+''   parameter  cJSON_CreateString.string -> cJSON_CreateString.string_   (tiko reserved word)
+''   parameter  cJSON_CreateStringReference.string -> cJSON_CreateStringReference.string_   (tiko reserved word)
+''   parameter  cJSON_AddItemToObject.object -> cJSON_AddItemToObject.object_   (tiko reserved word)
+''   parameter  cJSON_AddItemToObject.string -> cJSON_AddItemToObject.string_   (tiko reserved word)
+''   parameter  cJSON_AddItemToObjectCS.object -> cJSON_AddItemToObjectCS.object_   (tiko reserved word)
+''   parameter  cJSON_AddItemToObjectCS.string -> cJSON_AddItemToObjectCS.string_   (tiko reserved word)
+''   parameter  cJSON_AddItemReferenceToObject.object -> cJSON_AddItemReferenceToObject.object_   (tiko reserved word)
+''   parameter  cJSON_AddItemReferenceToObject.string -> cJSON_AddItemReferenceToObject.string_   (tiko reserved word)
+''   parameter  cJSON_DetachItemFromObject.object -> cJSON_DetachItemFromObject.object_   (tiko reserved word)
+''   parameter  cJSON_DetachItemFromObject.string -> cJSON_DetachItemFromObject.string_   (tiko reserved word)
+''   parameter  cJSON_DetachItemFromObjectCaseSensitive.object -> cJSON_DetachItemFromObjectCaseSensitive.object_   (tiko reserved word)
+''   parameter  cJSON_DetachItemFromObjectCaseSensitive.string -> cJSON_DetachItemFromObjectCaseSensitive.string_   (tiko reserved word)
+''   parameter  cJSON_DeleteItemFromObject.object -> cJSON_DeleteItemFromObject.object_   (tiko reserved word)
+''   parameter  cJSON_DeleteItemFromObject.string -> cJSON_DeleteItemFromObject.string_   (tiko reserved word)
+''   parameter  cJSON_DeleteItemFromObjectCaseSensitive.object -> cJSON_DeleteItemFromObjectCaseSensitive.object_   (tiko reserved word)
+''   parameter  cJSON_DeleteItemFromObjectCaseSensitive.string -> cJSON_DeleteItemFromObjectCaseSensitive.string_   (tiko reserved word)
+''   parameter  cJSON_ReplaceItemInObject.object -> cJSON_ReplaceItemInObject.object_   (tiko reserved word)
+''   parameter  cJSON_ReplaceItemInObject.string -> cJSON_ReplaceItemInObject.string_   (tiko reserved word)
+''   parameter  cJSON_ReplaceItemInObjectCaseSensitive.object -> cJSON_ReplaceItemInObjectCaseSensitive.object_   (tiko reserved word)
+''   parameter  cJSON_ReplaceItemInObjectCaseSensitive.string -> cJSON_ReplaceItemInObjectCaseSensitive.string_   (tiko reserved word)
+''   parameter  cJSON_AddNullToObject.object -> cJSON_AddNullToObject.object_   (tiko reserved word)
+''   parameter  cJSON_AddNullToObject.name -> cJSON_AddNullToObject.name_   (tiko reserved word)
+''   parameter  cJSON_AddTrueToObject.object -> cJSON_AddTrueToObject.object_   (tiko reserved word)
+''   parameter  cJSON_AddTrueToObject.name -> cJSON_AddTrueToObject.name_   (tiko reserved word)
+''   parameter  cJSON_AddFalseToObject.object -> cJSON_AddFalseToObject.object_   (tiko reserved word)
+''   parameter  cJSON_AddFalseToObject.name -> cJSON_AddFalseToObject.name_   (tiko reserved word)
+''   parameter  cJSON_AddBoolToObject.object -> cJSON_AddBoolToObject.object_   (tiko reserved word)
+''   parameter  cJSON_AddBoolToObject.name -> cJSON_AddBoolToObject.name_   (tiko reserved word)
+''   parameter  cJSON_AddBoolToObject.boolean -> cJSON_AddBoolToObject.boolean_   (tiko reserved word)
+''   parameter  cJSON_AddNumberToObject.object -> cJSON_AddNumberToObject.object_   (tiko reserved word)
+''   parameter  cJSON_AddNumberToObject.name -> cJSON_AddNumberToObject.name_   (tiko reserved word)
+''   parameter  cJSON_AddStringToObject.object -> cJSON_AddStringToObject.object_   (tiko reserved word)
+''   parameter  cJSON_AddStringToObject.name -> cJSON_AddStringToObject.name_   (tiko reserved word)
+''   parameter  cJSON_AddStringToObject.string -> cJSON_AddStringToObject.string_   (tiko reserved word)
+''   parameter  cJSON_AddRawToObject.object -> cJSON_AddRawToObject.object_   (tiko reserved word)
+''   parameter  cJSON_AddRawToObject.name -> cJSON_AddRawToObject.name_   (tiko reserved word)
+''   parameter  cJSON_AddObjectToObject.object -> cJSON_AddObjectToObject.object_   (tiko reserved word)
+''   parameter  cJSON_AddObjectToObject.name -> cJSON_AddObjectToObject.name_   (tiko reserved word)
+''   parameter  cJSON_AddArrayToObject.object -> cJSON_AddArrayToObject.object_   (tiko reserved word)
+''   parameter  cJSON_AddArrayToObject.name -> cJSON_AddArrayToObject.name_   (tiko reserved word)
+''   parameter  cJSON_SetNumberHelper.object -> cJSON_SetNumberHelper.object_   (tiko reserved word)
+''   parameter  cJSON_SetValuestring.object -> cJSON_SetValuestring.object_   (tiko reserved word)
+''   parameter  cJSON_free.object -> cJSON_free.object_   (tiko reserved word)
+''
+'' 21 items need manual translation:
+''   line 116  cJSON.h:35  C2T-TODO(conditional)  __WINDOWS__
+''   line 139  cJSON.h:56  C2T-TODO(macro)  CJSON_STDCALL
+''   line 145  cJSON.h:59  C2T-TODO(conditional)  #if
+''   line 152  cJSON.h:61  C2T-TODO(conditional)  #endif
+''   line 157  cJSON.h:63  C2T-TODO(conditional)  #if
+''   line 160  cJSON.h:64  C2T-TODO(conditional)  CJSON_PUBLIC
+''   line 163  cJSON.h:65  C2T-TODO(conditional)  #elif
+''   line 167  cJSON.h:66  C2T-TODO(function-like-macro)  CJSON_PUBLIC
+''   line 171  cJSON.h:67  C2T-TODO(conditional)  #elif
+''   line 174  cJSON.h:68  C2T-TODO(conditional)  CJSON_PUBLIC
+''   line 177  cJSON.h:69  C2T-TODO(conditional)  #endif
+''   line 180  cJSON.h:70  C2T-TODO(conditional)  #else
+''   line 188  cJSON.h:74  C2T-TODO(conditional)  #if
+''   line 191  cJSON.h:75  C2T-TODO(conditional)  CJSON_PUBLIC
+''   line 194  cJSON.h:76  C2T-TODO(conditional)  #else
+''   line 201  cJSON.h:78  C2T-TODO(conditional)  #endif
+''   line 204  cJSON.h:79  C2T-TODO(conditional)  #endif
+''   line 405  cJSON.h:281  C2T-TODO(function-like-macro)  cJSON_SetIntValue
+''   line 409  cJSON.h:284  C2T-TODO(function-like-macro)  cJSON_SetNumberValue
+''   line 415  cJSON.h:289  C2T-TODO(function-like-macro)  cJSON_SetBoolValue
+''   line 423  cJSON.h:296  C2T-TODO(function-like-macro)  cJSON_ArrayForEach
+'' =============================================================================
+
+/'
+  Copyright (c) 2009-2017 Dave Gamble and cJSON contributors
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in
+  all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+  THE SOFTWARE.
+'/
+
+#pragma once
+
+extern "C"
+
+#if (((defined(TIKO_OS_WINDOWS)) = 0) andalso (((defined(TIKO_OS_WINDOWS) orelse defined(WIN64)) orelse defined(_MSC_VER)) orelse defined(TIKO_OS_WINDOWS)))
+#define __WINDOWS__
+#endif
+
+'' C2T-TODO(conditional) cJSON.h:35 -- the passes translate it differently
+'' #ifdef __WINDOWS__
+
+/' When compiling for windows, we specify a specific calling convention to avoid issues where we are being called from a project with a different default calling convention.  For windows you have 3 define options:
+
+CJSON_HIDE_SYMBOLS - Define this in the case where you don't want to ever dllexport symbols
+CJSON_EXPORT_SYMBOLS - Define this on library build when you want to dllexport symbols (default)
+CJSON_IMPORT_SYMBOLS - Define this if you want to dllimport symbol
+
+For *nix builds that support visibility attribute, you can define similar behavior by
+
+setting default visibility to hidden by adding
+-fvisibility=hidden (for gcc)
+or
+-xldscope=hidden (for sun cc)
+to CFLAGS
+
+then using the CJSON_API_VISIBILITY flag to "export" the same symbols the way CJSON_EXPORT_SYMBOLS does
+
+'/
+
+'' c2t: export macro CJSON_CDECL (decoration, stripped where used)
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-TODO(macro) cJSON.h:56 -- 'CJSON_STDCALL': '__stdcall' is nothing tiko declares
+'' #define CJSON_STDCALL __stdcall
+#endif
+
+/' export symbols by default, this is necessary for copy pasting the C and header file '/
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-TODO(conditional) cJSON.h:59 -- inside a conditional that stays a TODO
+'' #if !defined(CJSON_HIDE_SYMBOLS) && !defined(CJSON_IMPORT_SYMBOLS) && !defined(CJSON_EXPORT_SYMBOLS)
+#endif
+#if defined(TIKO_OS_WINDOWS)
+#define CJSON_EXPORT_SYMBOLS
+#endif
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-TODO(conditional) cJSON.h:61 -- inside a conditional that stays a TODO
+'' #endif
+#endif
+
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-TODO(conditional) cJSON.h:63 -- inside a conditional that stays a TODO
+'' #if defined(CJSON_HIDE_SYMBOLS)
+#endif
+'' C2T-TODO(conditional) cJSON.h:64 -- inside a conditional that stays a TODO
+'' #define CJSON_PUBLIC(type)   type CJSON_STDCALL
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-TODO(conditional) cJSON.h:65 -- inside a conditional that stays a TODO
+'' #elif defined(CJSON_EXPORT_SYMBOLS)
+#endif
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-TODO(function-like-macro) cJSON.h:66 -- 'type' after the expression
+'' #define CJSON_PUBLIC(type)   __declspec(dllexport) type CJSON_STDCALL
+#endif
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-TODO(conditional) cJSON.h:67 -- inside a conditional that stays a TODO
+'' #elif defined(CJSON_IMPORT_SYMBOLS)
+#endif
+'' C2T-TODO(conditional) cJSON.h:68 -- inside a conditional that stays a TODO
+'' #define CJSON_PUBLIC(type)   __declspec(dllimport) type CJSON_STDCALL
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-TODO(conditional) cJSON.h:69 -- inside a conditional that stays a TODO
+'' #endif
+#endif
+'' C2T-TODO(conditional) cJSON.h:70 -- the passes translate it differently
+'' #else /* !__WINDOWS__ */
+'' c2t: export macro CJSON_CDECL (decoration, stripped where used)
+#if defined(TIKO_OS_LINUX)
+#define CJSON_STDCALL
+#endif
+
+#if defined(TIKO_OS_LINUX)
+'' C2T-TODO(conditional) cJSON.h:74 -- inside a conditional that stays a TODO
+'' #if (defined(__GNUC__) || defined(__SUNPRO_CC) || defined (__SUNPRO_C)) && defined(CJSON_API_VISIBILITY)
+#endif
+'' C2T-TODO(conditional) cJSON.h:75 -- inside a conditional that stays a TODO
+'' #define CJSON_PUBLIC(type)   __attribute__((visibility("default"))) type
+#if defined(TIKO_OS_LINUX)
+'' C2T-TODO(conditional) cJSON.h:76 -- inside a conditional that stays a TODO
+'' #else
+#endif
+#if defined(TIKO_OS_LINUX)
+#define CJSON_PUBLIC(type) (type)
+#endif
+#if defined(TIKO_OS_LINUX)
+'' C2T-TODO(conditional) cJSON.h:78 -- inside a conditional that stays a TODO
+'' #endif
+#endif
+'' C2T-TODO(conditional) cJSON.h:79 -- the passes translate it differently
+'' #endif
+
+/' project version '/
+#define CJSON_VERSION_MAJOR 1
+#define CJSON_VERSION_MINOR 7
+#define CJSON_VERSION_PATCH 19
+
+'' <stddef.h>: built into tiko
+
+/' cJSON Types: '/
+#define cJSON_Invalid 0
+#define cJSON_False (1 shl 0)
+#define cJSON_True (1 shl 1)
+#define cJSON_NULL (1 shl 2)
+#define cJSON_Number (1 shl 3)
+#define cJSON_String (1 shl 4)
+#define cJSON_Array (1 shl 5)
+#define cJSON_Object (1 shl 6)
+#define cJSON_Raw (1 shl 7)   /' raw json '/
+
+#define cJSON_IsReference 256
+#define cJSON_StringIsConst 512
+
+/' The cJSON structure: '/
+type cJSON
+    /' next/prev allow you to walk array/object chains. Alternatively, use GetArraySize/GetArrayItem/GetObjectItem '/
+    next as cJSON ptr
+    prev as cJSON ptr
+    /' An array or object item will have a child pointer pointing to a chain of the items in the array/object. '/
+    child as cJSON ptr
+
+    /' The type of the item, as above. '/
+    type as int32
+
+    /' The item's string, if type==cJSON_String  and type == cJSON_Raw '/
+    valuestring as zstring ptr
+    /' writing to valueint is DEPRECATED, use cJSON_SetNumberValue instead '/
+    valueint as int32
+    /' The item's number, if type==cJSON_Number '/
+    valuedouble as float64
+
+    /' The item's name string, if this item is the child of, or is in the list of subitems of an object. '/
+    string as zstring ptr
+end type
+
+type cJSON_Hooks
+      /' malloc/free are CDECL on Windows regardless of the default calling convention of the compiler, so ensure the hooks allow passing those functions directly. '/
+      malloc_fn as function cdecl( byval as uinteger ) as any ptr
+      free_fn as sub cdecl( byval as any ptr )
+end type
+
+type cJSON_bool as int32
+
+/' Limits how deeply nested arrays/objects can be before cJSON rejects to parse them.
+ * This is to prevent stack overflows. '/
+#ifndef CJSON_NESTING_LIMIT
+#define CJSON_NESTING_LIMIT 1000
+#endif
+
+/' Limits the length of circular references can be before cJSON rejects to parse them.
+ * This is to prevent stack overflows. '/
+#ifndef CJSON_CIRCULAR_LIMIT
+#define CJSON_CIRCULAR_LIMIT 10000
+#endif
+
+/' returns the version of cJSON as a string '/
+declare function cJSON_Version( ) as const zstring ptr
+
+/' Supply malloc, realloc and free functions to cJSON '/
+declare sub cJSON_InitHooks( byval hooks as cJSON_Hooks ptr )
+
+/' Memory Management: the caller is always responsible to free the results from all variants of cJSON_Parse (with cJSON_Delete) and cJSON_Print (with stdlib free, cJSON_Hooks.free_fn, or cJSON_free as appropriate). The exception is cJSON_PrintPreallocated, where the caller has full responsibility of the buffer. '/
+/' Supply a block of JSON, and this returns a cJSON object you can interrogate. '/
+declare function cJSON_Parse( byval value as const zstring ptr ) as cJSON ptr
+declare function cJSON_ParseWithLength( byval value as const zstring ptr, byval buffer_length as uinteger ) as cJSON ptr
+/' ParseWithOpts allows you to require (and check) that the JSON is null terminated, and to retrieve the pointer to the final byte parsed. '/
+/' If you supply a ptr in return_parse_end and parsing fails, then return_parse_end will contain a pointer to the error so will match cJSON_GetErrorPtr(). '/
+declare function cJSON_ParseWithOpts( byval value as const zstring ptr, byval return_parse_end as const zstring ptr ptr, byval require_null_terminated as cJSON_bool ) as cJSON ptr
+declare function cJSON_ParseWithLengthOpts( byval value as const zstring ptr, byval buffer_length as uinteger, byval return_parse_end as const zstring ptr ptr, byval require_null_terminated as cJSON_bool ) as cJSON ptr
+
+/' Render a cJSON entity to text for transfer/storage. '/
+declare function cJSON_Print( byval item as const cJSON ptr ) as zstring ptr
+/' Render a cJSON entity to text for transfer/storage without any formatting. '/
+declare function cJSON_PrintUnformatted( byval item as const cJSON ptr ) as zstring ptr
+/' Render a cJSON entity to text using a buffered strategy. prebuffer is a guess at the final size. guessing well reduces reallocation. fmt=0 gives unformatted, =1 gives formatted '/
+declare function cJSON_PrintBuffered( byval item as const cJSON ptr, byval prebuffer as int32, byval fmt as cJSON_bool ) as zstring ptr
+/' Render a cJSON entity to text using a buffer already allocated in memory with given length. Returns 1 on success and 0 on failure. '/
+/' NOTE: cJSON is not always 100% accurate in estimating how much memory it will use, so to be safe allocate 5 bytes more than you actually need '/
+declare function cJSON_PrintPreallocated( byval item as cJSON ptr, byval buffer as zstring ptr, byval length as int32, byval format as cJSON_bool ) as cJSON_bool
+/' Delete a cJSON entity and all subentities. '/
+declare sub cJSON_Delete( byval item as cJSON ptr )
+
+/' Returns the number of items in an array (or object). '/
+declare function cJSON_GetArraySize( byval array as const cJSON ptr ) as int32
+/' Retrieve item number "index" from array "array". Returns NULL if unsuccessful. '/
+declare function cJSON_GetArrayItem( byval array as const cJSON ptr, byval index as int32 ) as cJSON ptr
+/' Get item "string" from object. Case insensitive. '/
+declare function cJSON_GetObjectItem( byval object_ as const cJSON ptr, byval string_ as const zstring ptr ) as cJSON ptr
+declare function cJSON_GetObjectItemCaseSensitive( byval object_ as const cJSON ptr, byval string_ as const zstring ptr ) as cJSON ptr
+declare function cJSON_HasObjectItem( byval object_ as const cJSON ptr, byval string_ as const zstring ptr ) as cJSON_bool
+/' For analysing failed parses. This returns a pointer to the parse error. You'll probably need to look a few chars back to make sense of it. Defined when cJSON_Parse() returns 0. 0 when cJSON_Parse() succeeds. '/
+declare function cJSON_GetErrorPtr( ) as const zstring ptr
+
+/' Check item type and return its value '/
+declare function cJSON_GetStringValue( byval item as const cJSON ptr ) as zstring ptr
+declare function cJSON_GetNumberValue( byval item as const cJSON ptr ) as float64
+
+/' These functions check the type of an item '/
+declare function cJSON_IsInvalid( byval item as const cJSON ptr ) as cJSON_bool
+declare function cJSON_IsFalse( byval item as const cJSON ptr ) as cJSON_bool
+declare function cJSON_IsTrue( byval item as const cJSON ptr ) as cJSON_bool
+declare function cJSON_IsBool( byval item as const cJSON ptr ) as cJSON_bool
+declare function cJSON_IsNull( byval item as const cJSON ptr ) as cJSON_bool
+declare function cJSON_IsNumber( byval item as const cJSON ptr ) as cJSON_bool
+declare function cJSON_IsString( byval item as const cJSON ptr ) as cJSON_bool
+declare function cJSON_IsArray( byval item as const cJSON ptr ) as cJSON_bool
+declare function cJSON_IsObject( byval item as const cJSON ptr ) as cJSON_bool
+declare function cJSON_IsRaw( byval item as const cJSON ptr ) as cJSON_bool
+
+/' These calls create a cJSON item of the appropriate type. '/
+declare function cJSON_CreateNull( ) as cJSON ptr
+declare function cJSON_CreateTrue( ) as cJSON ptr
+declare function cJSON_CreateFalse( ) as cJSON ptr
+declare function cJSON_CreateBool( byval boolean_ as cJSON_bool ) as cJSON ptr
+declare function cJSON_CreateNumber( byval num as float64 ) as cJSON ptr
+declare function cJSON_CreateString( byval string_ as const zstring ptr ) as cJSON ptr
+/' raw json '/
+declare function cJSON_CreateRaw( byval raw as const zstring ptr ) as cJSON ptr
+declare function cJSON_CreateArray( ) as cJSON ptr
+declare function cJSON_CreateObject( ) as cJSON ptr
+
+/' Create a string where valuestring references a string so
+ * it will not be freed by cJSON_Delete '/
+declare function cJSON_CreateStringReference( byval string_ as const zstring ptr ) as cJSON ptr
+/' Create an object/array that only references it's elements so
+ * they will not be freed by cJSON_Delete '/
+declare function cJSON_CreateObjectReference( byval child as const cJSON ptr ) as cJSON ptr
+declare function cJSON_CreateArrayReference( byval child as const cJSON ptr ) as cJSON ptr
+
+/' These utilities create an Array of count items.
+ * The parameter count cannot be greater than the number of elements in the number array, otherwise array access will be out of bounds.'/
+declare function cJSON_CreateIntArray( byval numbers as const int32 ptr, byval count as int32 ) as cJSON ptr
+declare function cJSON_CreateFloatArray( byval numbers as const float32 ptr, byval count as int32 ) as cJSON ptr
+declare function cJSON_CreateDoubleArray( byval numbers as const float64 ptr, byval count as int32 ) as cJSON ptr
+declare function cJSON_CreateStringArray( byval strings as const zstring const ptr ptr, byval count as int32 ) as cJSON ptr
+
+/' Append item to the specified array/object. '/
+declare function cJSON_AddItemToArray( byval array as cJSON ptr, byval item as cJSON ptr ) as cJSON_bool
+declare function cJSON_AddItemToObject( byval object_ as cJSON ptr, byval string_ as const zstring ptr, byval item as cJSON ptr ) as cJSON_bool
+/' Use this when string is definitely const (i.e. a literal, or as good as), and will definitely survive the cJSON object.
+ * WARNING: When this function was used, make sure to always check that (item->type & cJSON_StringIsConst) is zero before
+ * writing to `item->string` '/
+declare function cJSON_AddItemToObjectCS( byval object_ as cJSON ptr, byval string_ as const zstring ptr, byval item as cJSON ptr ) as cJSON_bool
+/' Append reference to item to the specified array/object. Use this when you want to add an existing cJSON to a new cJSON, but don't want to corrupt your existing cJSON. '/
+declare function cJSON_AddItemReferenceToArray( byval array as cJSON ptr, byval item as cJSON ptr ) as cJSON_bool
+declare function cJSON_AddItemReferenceToObject( byval object_ as cJSON ptr, byval string_ as const zstring ptr, byval item as cJSON ptr ) as cJSON_bool
+
+/' Remove/Detach items from Arrays/Objects. '/
+declare function cJSON_DetachItemViaPointer( byval parent as cJSON ptr, byval item as cJSON ptr ) as cJSON ptr
+declare function cJSON_DetachItemFromArray( byval array as cJSON ptr, byval which as int32 ) as cJSON ptr
+declare sub cJSON_DeleteItemFromArray( byval array as cJSON ptr, byval which as int32 )
+declare function cJSON_DetachItemFromObject( byval object_ as cJSON ptr, byval string_ as const zstring ptr ) as cJSON ptr
+declare function cJSON_DetachItemFromObjectCaseSensitive( byval object_ as cJSON ptr, byval string_ as const zstring ptr ) as cJSON ptr
+declare sub cJSON_DeleteItemFromObject( byval object_ as cJSON ptr, byval string_ as const zstring ptr )
+declare sub cJSON_DeleteItemFromObjectCaseSensitive( byval object_ as cJSON ptr, byval string_ as const zstring ptr )
+
+/' Update array items. '/
+declare function cJSON_InsertItemInArray( byval array as cJSON ptr, byval which as int32, byval newitem as cJSON ptr ) as cJSON_bool /' Shifts pre-existing items to the right. '/
+declare function cJSON_ReplaceItemViaPointer( byval parent as cJSON ptr, byval item as cJSON ptr, byval replacement as cJSON ptr ) as cJSON_bool
+declare function cJSON_ReplaceItemInArray( byval array as cJSON ptr, byval which as int32, byval newitem as cJSON ptr ) as cJSON_bool
+declare function cJSON_ReplaceItemInObject( byval object_ as cJSON ptr, byval string_ as const zstring ptr, byval newitem as cJSON ptr ) as cJSON_bool
+declare function cJSON_ReplaceItemInObjectCaseSensitive( byval object_ as cJSON ptr, byval string_ as const zstring ptr, byval newitem as cJSON ptr ) as cJSON_bool
+
+/' Duplicate a cJSON item '/
+declare function cJSON_Duplicate( byval item as const cJSON ptr, byval recurse as cJSON_bool ) as cJSON ptr
+/' Duplicate will create a new, identical cJSON item to the one you pass, in new memory that will
+ * need to be released. With recurse!=0, it will duplicate any children connected to the item.
+ * The item->next and ->prev pointers are always zero on return from Duplicate. '/
+/' Recursively compare two cJSON items for equality. If either a or b is NULL or invalid, they will be considered unequal.
+ * case_sensitive determines if object keys are treated case sensitive (1) or case insensitive (0) '/
+declare function cJSON_Compare( byval a as const cJSON ptr, byval b as const cJSON ptr, byval case_sensitive as cJSON_bool ) as cJSON_bool
+
+/' Minify a strings, remove blank characters(such as ' ', '\t', '\r', '\n') from strings.
+ * The input pointer json cannot point to a read-only address area, such as a string constant,
+ * but should point to a readable and writable address area. '/
+declare sub cJSON_Minify( byval json as zstring ptr )
+
+/' Helper functions for creating and adding items to an object at the same time.
+ * They return the added item or NULL on failure. '/
+declare function cJSON_AddNullToObject( byval object_ as cJSON ptr, byval name_ as const zstring ptr ) as cJSON ptr
+declare function cJSON_AddTrueToObject( byval object_ as cJSON ptr, byval name_ as const zstring ptr ) as cJSON ptr
+declare function cJSON_AddFalseToObject( byval object_ as cJSON ptr, byval name_ as const zstring ptr ) as cJSON ptr
+declare function cJSON_AddBoolToObject( byval object_ as cJSON ptr, byval name_ as const zstring ptr, byval boolean_ as cJSON_bool ) as cJSON ptr
+declare function cJSON_AddNumberToObject( byval object_ as cJSON ptr, byval name_ as const zstring ptr, byval number as float64 ) as cJSON ptr
+declare function cJSON_AddStringToObject( byval object_ as cJSON ptr, byval name_ as const zstring ptr, byval string_ as const zstring ptr ) as cJSON ptr
+declare function cJSON_AddRawToObject( byval object_ as cJSON ptr, byval name_ as const zstring ptr, byval raw as const zstring ptr ) as cJSON ptr
+declare function cJSON_AddObjectToObject( byval object_ as cJSON ptr, byval name_ as const zstring ptr ) as cJSON ptr
+declare function cJSON_AddArrayToObject( byval object_ as cJSON ptr, byval name_ as const zstring ptr ) as cJSON ptr
+
+/' When assigning an integer value, it needs to be propagated to valuedouble too. '/
+'' C2T-TODO(function-like-macro) cJSON.h:281 -- an assignment
+'' #define cJSON_SetIntValue(object, number) ((object) ? (object)->valueint = (object)->valuedouble = (number) : (number))
+/' helper for the cJSON_SetNumberValue macro '/
+declare function cJSON_SetNumberHelper( byval object_ as cJSON ptr, byval number as float64 ) as float64
+'' C2T-TODO(function-like-macro) cJSON.h:284 -- 'NULL' is nothing tiko declares
+'' #define cJSON_SetNumberValue(object, number) ((object != NULL) ? cJSON_SetNumberHelper(object, (double)number) : (number))
+/' Change the valuestring of a cJSON_String object, only takes effect when type of object is cJSON_String '/
+declare function cJSON_SetValuestring( byval object_ as cJSON ptr, byval valuestring as const zstring ptr ) as zstring ptr
+
+/' If the object is not a boolean type this does nothing and returns cJSON_Invalid else it returns the new type'/
+'' C2T-TODO(function-like-macro) cJSON.h:289 -- field 'type' is a tiko word, which the record's translation renames
+'' #define cJSON_SetBoolValue(object, boolValue) ( \
+''     (object != NULL && ((object)->type & (cJSON_False|cJSON_True))) ? \
+''     (object)->type=((object)->type &(~(cJSON_False|cJSON_True)))|((boolValue)?cJSON_True:cJSON_False) : \
+''     cJSON_Invalid\
+'' )
+
+/' Macro for iterating over an array or object '/
+'' C2T-TODO(function-like-macro) cJSON.h:296 -- an assignment
+'' #define cJSON_ArrayForEach(element, array) for(element = (array != NULL) ? (array)->child : NULL; element != NULL; element = element->next)
+
+/' malloc/free objects using the malloc/free functions that have been set with cJSON_InitHooks '/
+declare function cJSON_malloc( byval size as uinteger ) as any ptr
+declare sub cJSON_free( byval object_ as any ptr )
+
+end extern
+

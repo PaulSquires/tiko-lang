@@ -1,0 +1,108 @@
+'' =============================================================================
+'' cJSON_Utils.ti -- tiko header translated by c2t (tiko 0.1.0-dev) from the C header "cJSON_Utils.h"
+''   source sha256 : 1050a7cce8ffe352c509e0c1faad505b9b8a09cac3a1c45c544447868e05f3b5
+''   clang         : clang version 21.1.0
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu
+''   options       : --verify
+''
+'' Generated from C. Search for C2T-TODO and translate those parts by hand.
+''
+'' Renamed:
+''   parameter  cJSONUtils_GetPointer.object -> cJSONUtils_GetPointer.object_   (tiko reserved word)
+''   parameter  cJSONUtils_GetPointer.pointer -> cJSONUtils_GetPointer.pointer_   (tiko reserved word)
+''   parameter  cJSONUtils_GetPointerCaseSensitive.object -> cJSONUtils_GetPointerCaseSensitive.object_   (tiko reserved word)
+''   parameter  cJSONUtils_GetPointerCaseSensitive.pointer -> cJSONUtils_GetPointerCaseSensitive.pointer_   (tiko reserved word)
+''   parameter  cJSONUtils_GeneratePatches.to -> cJSONUtils_GeneratePatches.to_   (tiko reserved word)
+''   parameter  cJSONUtils_GeneratePatchesCaseSensitive.to -> cJSONUtils_GeneratePatchesCaseSensitive.to_   (tiko reserved word)
+''   parameter  cJSONUtils_ApplyPatches.object -> cJSONUtils_ApplyPatches.object_   (tiko reserved word)
+''   parameter  cJSONUtils_ApplyPatchesCaseSensitive.object -> cJSONUtils_ApplyPatchesCaseSensitive.object_   (tiko reserved word)
+''   parameter  cJSONUtils_GenerateMergePatch.to -> cJSONUtils_GenerateMergePatch.to_   (tiko reserved word)
+''   parameter  cJSONUtils_GenerateMergePatchCaseSensitive.to -> cJSONUtils_GenerateMergePatchCaseSensitive.to_   (tiko reserved word)
+''   parameter  cJSONUtils_FindPointerFromObjectTo.object -> cJSONUtils_FindPointerFromObjectTo.object_   (tiko reserved word)
+''   parameter  cJSONUtils_SortObject.object -> cJSONUtils_SortObject.object_   (tiko reserved word)
+''   parameter  cJSONUtils_SortObjectCaseSensitive.object -> cJSONUtils_SortObjectCaseSensitive.object_   (tiko reserved word)
+''
+'' Nothing needs manual translation.
+'' =============================================================================
+
+/'
+  Copyright (c) 2009-2017 Dave Gamble and cJSON contributors
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in
+  all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+  THE SOFTWARE.
+'/
+
+#pragma once
+
+extern "C"
+
+#include once "cJSON.ti"
+
+/' Implement RFC6901 (https://tools.ietf.org/html/rfc6901) JSON Pointer spec. '/
+declare function cJSONUtils_GetPointer( byval object_ as cJSON ptr, byval pointer_ as const zstring ptr ) as cJSON ptr
+declare function cJSONUtils_GetPointerCaseSensitive( byval object_ as cJSON ptr, byval pointer_ as const zstring ptr ) as cJSON ptr
+
+/' Implement RFC6902 (https://tools.ietf.org/html/rfc6902) JSON Patch spec. '/
+/' NOTE: This modifies objects in 'from' and 'to' by sorting the elements by their key '/
+declare function cJSONUtils_GeneratePatches( byval from as cJSON ptr, byval to_ as cJSON ptr ) as cJSON ptr
+declare function cJSONUtils_GeneratePatchesCaseSensitive( byval from as cJSON ptr, byval to_ as cJSON ptr ) as cJSON ptr
+/' Utility for generating patch array entries. '/
+declare sub cJSONUtils_AddPatchToArray( byval array as cJSON ptr, byval operation as const zstring ptr, byval path as const zstring ptr, byval value as const cJSON ptr )
+/' Returns 0 for success. '/
+declare function cJSONUtils_ApplyPatches( byval object_ as cJSON ptr, byval patches as const cJSON ptr ) as int32
+declare function cJSONUtils_ApplyPatchesCaseSensitive( byval object_ as cJSON ptr, byval patches as const cJSON ptr ) as int32
+
+/'
+// Note that ApplyPatches is NOT atomic on failure. To implement an atomic ApplyPatches, use:
+//int cJSONUtils_AtomicApplyPatches(cJSON **object, cJSON *patches)
+//{
+//    cJSON *modme = cJSON_Duplicate(*object, 1);
+//    int error = cJSONUtils_ApplyPatches(modme, patches);
+//    if (!error)
+//    {
+//        cJSON_Delete(*object);
+//        *object = modme;
+//    }
+//    else
+//    {
+//        cJSON_Delete(modme);
+//    }
+//
+//    return error;
+//}
+// Code not added to library since this strategy is a LOT slower.
+'/
+
+/' Implement RFC7386 (https://tools.ietf.org/html/rfc7396) JSON Merge Patch spec. '/
+/' target will be modified by patch. return value is new ptr for target. '/
+declare function cJSONUtils_MergePatch( byval target as cJSON ptr, byval patch as const cJSON ptr ) as cJSON ptr
+declare function cJSONUtils_MergePatchCaseSensitive( byval target as cJSON ptr, byval patch as const cJSON ptr ) as cJSON ptr
+/' generates a patch to move from -> to '/
+/' NOTE: This modifies objects in 'from' and 'to' by sorting the elements by their key '/
+declare function cJSONUtils_GenerateMergePatch( byval from as cJSON ptr, byval to_ as cJSON ptr ) as cJSON ptr
+declare function cJSONUtils_GenerateMergePatchCaseSensitive( byval from as cJSON ptr, byval to_ as cJSON ptr ) as cJSON ptr
+
+/' Given a root object and a target object, construct a pointer from one to the other. '/
+declare function cJSONUtils_FindPointerFromObjectTo( byval object_ as const cJSON ptr, byval target as const cJSON ptr ) as zstring ptr
+
+/' Sorts the members of the object into alphabetical order. '/
+declare sub cJSONUtils_SortObject( byval object_ as cJSON ptr )
+declare sub cJSONUtils_SortObjectCaseSensitive( byval object_ as cJSON ptr )
+
+end extern
+

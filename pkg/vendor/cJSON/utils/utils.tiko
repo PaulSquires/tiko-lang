@@ -1,0 +1,17 @@
+'' vendor/cJSON/utils -- cJSON 1.7.19's cJSON_Utils.h, as one import:
+''
+''     #import "vendor/cJSON/utils"
+''
+'' JSON Pointer (RFC 6901), JSON Patch (RFC 6902) and JSON Merge Patch (RFC 7386) over cJSON's
+'' trees -- cJSONUtils_GetPointer, cJSONUtils_GeneratePatches, cJSONUtils_ApplyPatches,
+'' cJSONUtils_MergePatch, cJSONUtils_SortObject -- unqualified, as cJSON documents them. The
+'' header is cJSON_Utils.ti beside vendor/cJSON's, translated from cJSON_Utils.h by 'tiko c2t'.
+'' cJSON_Utils.c is in cJSON's library, so this module links nothing of its own.
+''
+'' It brings vendor/cJSON with it -- cJSON's names, and its library. The link mode is chosen
+'' there, on the module that links: '#import "vendor/cJSON" link static' beside this import.
+#module "utils"
+
+#import "vendor/cJSON" public
+
+public #include once "../cJSON_Utils.ti"

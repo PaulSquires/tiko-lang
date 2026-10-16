@@ -131,13 +131,24 @@ entry( ) {
             note "$_mod [$_tab]: $_st"
         fi
         if [ -n "$_sh" ]; then
-            [ "$HOST" = linux ] || die "$_mod [$_tab]: 'shared' is built on Linux only"
             mkdir -p "$(dirname "$_mdir/$_sh")"
-            # THE SONAME IS THE FILE'S OWN NAME: a program records it as NEEDED, and the copy
-            # tiko puts beside the program (RFC-0002 V13) is found by it through $ORIGIN.
-            # shellcheck disable=SC2086
-            "$CLANG" --target=$TRIPLE -shared -Wl,-soname,"$(basename "$_sh")" -o "$_mdir/$_sh" \
-                $_objs $(_get libs) || die "$_mod: linking $_sh failed"
+            if [ "$HOST" = windows ]; then
+                # A DLL, with lld. Its import library and .exp stay in the unpack directory:
+                # beside the DLL, '#foreignlib ... dynamic' would find the .lib first. The
+                # sources must dllexport what the DLL exports -- their cflags say how.
+                # -implib:, not /implib: -- MSYS would rewrite a leading slash as a path.
+                _imp="$(cygpath -m "$_x" 2>/dev/null || printf '%s' "$_x")/$(basename "$_sh" .dll).lib"
+                # shellcheck disable=SC2086
+                "$CLANG" --target=$TRIPLE -shared -fuse-ld=lld -o "$_mdir/$_sh" \
+                    -Wl,-implib:"$_imp" \
+                    $_objs $(_get libs) || die "$_mod: linking $_sh failed"
+            else
+                # THE SONAME IS THE FILE'S OWN NAME: a program records it as NEEDED, and the
+                # copy tiko puts beside the program (RFC-0002 V13) is found by it through $ORIGIN.
+                # shellcheck disable=SC2086
+                "$CLANG" --target=$TRIPLE -shared -Wl,-soname,"$(basename "$_sh")" -o "$_mdir/$_sh" \
+                    $_objs $(_get libs) || die "$_mod: linking $_sh failed"
+            fi
             note "$_mod [$_tab]: $_sh"
         fi
         ;;

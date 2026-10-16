@@ -1,0 +1,2 @@
+#import "vendor/cJSON/utils" link static
+print cJSONUtils_GetPointer( cJSON_CreateObject( ), "/x" ) = 0

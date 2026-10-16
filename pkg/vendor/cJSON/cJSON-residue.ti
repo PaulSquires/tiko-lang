@@ -1,0 +1,33 @@
+'' cJSON-residue.ti -- what cJSON.ti could not carry, written by hand. Against cJSON 1.7.19's
+'' cJSON.h, the header cJSON.ti's banner names by SHA-256.
+''
+'' Three of cJSON.h's function-like macros assign inside an expression, which tiko's macros
+'' cannot; each is a function here, with the macro's name, arguments and value. The fourth,
+'' cJSON_ArrayForEach, opens a C 'for' loop and has no tiko form: walk 'item->child' and
+'' 'item->next' with a while loop instead (vendor/cJSON's banner shows it).
+#pragma once
+
+'' cJSON_SetIntValue(object, number): sets valueint and valuedouble alike; the number either way.
+private function cJSON_SetIntValue( byval object_ as cJSON ptr, byval number as int32 ) as int32
+    if object_ then
+        object_->valuedouble = number
+        object_->valueint = number
+    end if
+    return number
+end function
+
+'' cJSON_SetNumberValue(object, number): through cJSON_SetNumberHelper, which clamps valueint.
+private function cJSON_SetNumberValue( byval object_ as cJSON ptr, byval number as float64 ) as float64
+    if object_ then return cJSON_SetNumberHelper( object_, number )
+    return number
+end function
+
+'' cJSON_SetBoolValue(object, boolValue): the item's new type, or cJSON_Invalid -- and nothing
+'' changed -- when it is not a boolean.
+private function cJSON_SetBoolValue( byval object_ as cJSON ptr, byval boolValue as cJSON_bool ) as int32
+    if object_ = 0 then return cJSON_Invalid
+    if (object_->type and (cJSON_False or cJSON_True)) = 0 then return cJSON_Invalid
+    object_->type = (object_->type and (not (cJSON_False or cJSON_True))) or _
+                    iif( boolValue <> 0, cJSON_True, cJSON_False )
+    return object_->type
+end function

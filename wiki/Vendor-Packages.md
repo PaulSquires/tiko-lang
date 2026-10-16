@@ -43,6 +43,8 @@ Every routine, type and constant of the library's C header is callable as the li
 | `vendor/raylib6` | raylib 6.2 | `static`, `dynamic` (the default) |
 | `vendor/raylib6/raymath` | raylib's raymath (brings `vendor/raylib6`) | chosen on `vendor/raylib6` |
 | `vendor/raylib6/rlgl` | raylib's rlgl (brings `vendor/raylib6`) | chosen on `vendor/raylib6` |
+| `vendor/cJSON` | cJSON 1.7.19 | `static`, `dynamic` (the default) |
+| `vendor/cJSON/utils` | cJSON_Utils: JSON Pointer, Patch, Merge Patch (brings `vendor/cJSON`) | chosen on `vendor/cJSON` |
 
 **The SDL packages on linux-x86_64 link the system's libraries.** SDL publishes no Linux binaries, so the toolchain ships none: a program is linked with `-lSDL3` (and `-lSDL3_image`, `-lSDL3_ttf`, `-lSDL3_mixer` for those packages) and loads `libSDL3.so.0` and the others from the system's library folders, like any library the distribution installs. Install the distribution's development packages (`libsdl3-dev`, `libsdl3-image-dev`, `libsdl3-ttf-dev`, `libsdl3-mixer-dev` on Debian and Ubuntu; `SDL3-devel` and the like on Fedora) to build; without one the link fails with `cannot find -lSDL3`. Nothing is copied beside the program.
 

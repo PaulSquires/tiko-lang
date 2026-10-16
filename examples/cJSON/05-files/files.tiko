@@ -1,0 +1,124 @@
+'' files -- JSON on disk and JSON in streams: save a settings file, load it back, change it and
+'' save it again; read a stream of documents one after another; and the four ways cJSON prints.
+''
+''     files                 settings.json, written and read in the current directory
+''
+'' Build it with 'tiko files.tiko'.
+''
+'' cJSON is MIT-licensed (pkg/vendor/cJSON/LICENSE); so is this.
+
+'' cJSON linked DYNAMICALLY: cJSON.dll is copied beside the program (on Linux the program gets
+'' cJSON_linux_x86_64.so beside it). Write 'link static' instead to build cJSON into the program.
+#import "vendor/cJSON" link dynamic
+
+'' A file's bytes, whole -- JSON is UTF-8, so they are read as bytes, not as text.
+function LoadFile( byval fileName as ustring, byref text as string ) as boolean
+    dim as long f = freefile
+    if open( fileName for binary access read as #f ) <> 0 then return false
+    text = space( lof( f ) )
+    if len( text ) then get #f, , text
+    close #f
+    return true
+end function
+
+'' A document, printed with formatting, saved as a file. False if either step fails.
+function SaveJson( byval fileName as ustring, byval item as const cJSON ptr ) as boolean
+    dim as zstring ptr text = cJSON_Print( item )
+    if text = nullptr then return false
+    dim as string bytes = *text
+    cJSON_free( text )
+    dim as long f = freefile
+    if open( fileName for binary access write as #f ) <> 0 then return false
+    put #f, , bytes
+    close #f
+    return true
+end function
+
+function LoadJson( byval fileName as ustring ) as cJSON ptr
+    dim as string text
+    if LoadFile( fileName, text ) = false then return nullptr
+    return cJSON_ParseWithLength( strptr( text ), len( text ) )
+end function
+
+'' SAVE, LOAD, CHANGE, SAVE.
+const SETTINGS_FILE = "settings.json"
+kill SETTINGS_FILE
+
+dim as cJSON ptr settings = cJSON_CreateObject( )
+cJSON_AddStringToObject( settings, "theme", "dark" )
+cJSON_AddNumberToObject( settings, "fontSize", 12 )
+dim as cJSON ptr recent = cJSON_AddArrayToObject( settings, "recentFiles" )
+cJSON_AddItemToArray( recent, cJSON_CreateString( "main.tiko" ) )
+print "saved:  " & iif( SaveJson( SETTINGS_FILE, settings ), "yes", "no" )
+cJSON_Delete( settings )
+
+settings = LoadJson( SETTINGS_FILE )
+if settings = nullptr then
+    print "cannot load " & SETTINGS_FILE
+    end 1
+end if
+dim as cJSON ptr fontSize = cJSON_GetObjectItemCaseSensitive( settings, "fontSize" )
+print "loaded: theme " & *cJSON_GetStringValue( cJSON_GetObjectItemCaseSensitive( settings, "theme" ) ) & _
+      ", font size " & fontSize->valueint
+cJSON_SetNumberValue( fontSize, fontSize->valuedouble + 2 )
+cJSON_InsertItemInArray( cJSON_GetObjectItemCaseSensitive( settings, "recentFiles" ), 0, _
+                         cJSON_CreateString( "README.md" ) )
+SaveJson( SETTINGS_FILE, settings )
+cJSON_Delete( settings )
+
+dim as string onDisk
+LoadFile( SETTINGS_FILE, onDisk )
+print "settings.json now holds:"
+print onDisk
+kill SETTINGS_FILE
+
+'' A STREAM OF DOCUMENTS, one per line (JSON Lines). cJSON_ParseWithOpts gives back where
+'' each document ended; the next one is parsed from there. 'require_null_terminated' 0 lets a
+'' document be followed by more text -- with 1, anything after it is an error.
+print
+print "a stream of documents:"
+dim as string stream_ = "{""id"":1,""ok"":true}" & chr( 10 ) & "{""id"":2,""ok"":false}" & chr( 10 ) & _
+                        "[3, 4]" & chr( 10 ) & """five""" & chr( 10 )
+dim as const zstring ptr at = strptr( stream_ )
+dim as const zstring ptr streamEnd = at + len( stream_ )
+while at < streamEnd
+    dim as const zstring ptr after = nullptr
+    dim as cJSON ptr item = cJSON_ParseWithOpts( at, @after, 0 )
+    if item = nullptr then exit while
+    dim as zstring ptr text = cJSON_PrintUnformatted( item )
+    print "  " & *text
+    cJSON_free( text )
+    cJSON_Delete( item )
+    at = after
+    '' Past the line break -- cJSON skips the whitespace before a document, not after it.
+    while (at < streamEnd) andalso (at[0] = 10)
+        at += 1
+    wend
+wend
+
+dim as cJSON ptr strict = cJSON_ParseWithOpts( "{""a"":1} trailing", nullptr, 1 )
+print "with trailing text, null-terminated required: " & iif( strict = nullptr, "refused", "parsed" )
+cJSON_Delete( strict )
+
+'' FOUR WAYS TO PRINT. Print and PrintUnformatted allocate what they need; PrintBuffered starts
+'' from a guess at the size; PrintPreallocated writes into a buffer of the program's own --
+'' cJSON's header asks for 5 bytes more than the text needs.
+print
+dim as cJSON ptr point_ = cJSON_Parse( "{ ""x"": 1.5, ""y"": -2 }" )
+dim as zstring ptr t1 = cJSON_Print( point_ )
+dim as zstring ptr t2 = cJSON_PrintUnformatted( point_ )
+dim as zstring ptr t3 = cJSON_PrintBuffered( point_, 16, 0 )
+print "Print:             " & len( *t1 ) & " bytes"
+print "PrintUnformatted:  " & *t2
+print "PrintBuffered:     " & *t3
+dim as string buffer = string( len( *t2 ) + 5, 0 )
+if cJSON_PrintPreallocated( point_, strptr( buffer ), len( buffer ), 0 ) then
+    print "PrintPreallocated: " & *cast( zstring ptr, strptr( buffer ) )
+end if
+dim as string tooSmall = string( 4, 0 )
+print "into 4 bytes:      " & iif( cJSON_PrintPreallocated( point_, strptr( tooSmall ), 4, 0 ) <> 0, _
+                                   "fits", "does not fit" )
+cJSON_free( t1 )
+cJSON_free( t2 )
+cJSON_free( t3 )
+cJSON_Delete( point_ )

@@ -1,0 +1,41 @@
+# vendor/cJSON's binaries, for build/vendorfetch.sh. Read by that script alone and never
+# shipped; the entry format is described in ../sqlite3/fetch.toml.
+#
+# cJSON publishes no binaries, so every host builds both C files -- cJSON.c and cJSON_Utils.c,
+# one library, which vendor/cJSON and vendor/cJSON/utils both use -- from the release tag's
+# source archive. On Windows the DLL is built with CJSON_EXPORT_SYMBOLS (cJSON.h's own default)
+# and the archive with CJSON_HIDE_SYMBOLS, so a static program exports nothing of cJSON's.
+#
+# THE NAMES are what '#foreignlib CJSON ... "lib/cJSON"' probes: cJSON_<os>_x86_64.a for
+# static; for dynamic cJSON.dll on Windows -- the name inside it, which a program's import
+# names -- and cJSON_linux_x86_64.so on Linux.
+version = "1.7.19"
+
+[windows.1]
+kind = "cbuild"
+url = "https://github.com/DaveGamble/cJSON/archive/refs/tags/v1.7.19.tar.gz"
+sha256 = "7fa616e3046edfa7a28a32d5f9eacfd23f92900fe1f8ccd988c1662f30454562"
+dir = "cJSON-1.7.19"
+sources = "cJSON.c cJSON_Utils.c"
+cflags = "-O2 -D_CRT_SECURE_NO_WARNINGS -DCJSON_EXPORT_SYMBOLS"
+shared = "lib/cJSON.dll"
+
+[windows.2]
+kind = "cbuild"
+url = "https://github.com/DaveGamble/cJSON/archive/refs/tags/v1.7.19.tar.gz"
+sha256 = "7fa616e3046edfa7a28a32d5f9eacfd23f92900fe1f8ccd988c1662f30454562"
+dir = "cJSON-1.7.19"
+sources = "cJSON.c cJSON_Utils.c"
+cflags = "-O2 -D_CRT_SECURE_NO_WARNINGS -DCJSON_HIDE_SYMBOLS"
+static = "lib/cJSON_windows_x86_64.a"
+
+[linux.1]
+kind = "cbuild"
+url = "https://github.com/DaveGamble/cJSON/archive/refs/tags/v1.7.19.tar.gz"
+sha256 = "7fa616e3046edfa7a28a32d5f9eacfd23f92900fe1f8ccd988c1662f30454562"
+dir = "cJSON-1.7.19"
+sources = "cJSON.c cJSON_Utils.c"
+cflags = "-O2 -fPIC"
+static = "lib/cJSON_linux_x86_64.a"
+shared = "lib/cJSON_linux_x86_64.so"
+libs = "-lm"

@@ -27,3 +27,8 @@ links = ["dynamic"]
 # links raylib -- so the link mode is chosen on vendor/raylib6.
 [vendor.raylib6]
 links = ["static", "dynamic"]
+
+# cJSON/utils links nothing of its own -- cJSON_Utils.c is in cJSON's library -- so the link
+# mode is chosen on vendor/cJSON.
+[vendor.cJSON]
+links = ["static", "dynamic"]

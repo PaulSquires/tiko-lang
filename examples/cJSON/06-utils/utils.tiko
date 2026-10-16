@@ -1,0 +1,104 @@
+'' utils -- cJSON_Utils: JSON Pointer (RFC 6901) to find a value by its path, JSON Patch
+'' (RFC 6902) to compute and apply the difference between two documents, JSON Merge Patch
+'' (RFC 7386), and sorting an object's members.
+''
+'' Build it with 'tiko utils.tiko'.
+''
+'' cJSON is MIT-licensed (pkg/vendor/cJSON/LICENSE); so is this.
+
+'' vendor/cJSON/utils brings vendor/cJSON with it; the link mode is chosen on vendor/cJSON.
+'' cJSON linked DYNAMICALLY: cJSON.dll is copied beside the program (on Linux the program gets
+'' cJSON_linux_x86_64.so beside it). Write 'link static' instead to build cJSON into the program.
+#import "vendor/cJSON/utils"
+#import "vendor/cJSON" link dynamic
+
+function ToText( byval item as const cJSON ptr ) as ustring
+    if item = nullptr then return "(nothing)"
+    dim as zstring ptr text = cJSON_PrintUnformatted( item )
+    if text = nullptr then return "(cJSON could not print it)"
+    dim as ustring result = *text
+    cJSON_free( text )
+    return result
+end function
+
+'' JSON POINTER, with RFC 6901's own example document. '~1' is a '/' in a name, '~0' a '~'.
+print "JSON Pointer:"
+dim as cJSON ptr rfc6901 = cJSON_Parse( _
+    "{ ""foo"": [""bar"", ""baz""], """": 0, ""a/b"": 1, ""c%d"": 2, ""e^f"": 3, ""g|h"": 4, " & _
+    """i\\j"": 5, ""k\""l"": 6, "" "": 7, ""m~n"": 8 }" )
+dim as zstring ptr pointers( 0 to 7 ) = { @"/foo", @"/foo/0", @"/", @"/a~1b", @"/i\j", @"/k""l", @"/m~0n", @"/foo/2" }
+for i as long = 0 to 7
+    print "  " & left( *pointers( i ) & space( 10 ), 10 ) & ToText( cJSONUtils_GetPointerCaseSensitive( rfc6901, pointers( i ) ) )
+next
+'' ...and the way back: the pointer to an item, which is cJSON's to free.
+dim as cJSON ptr baz = cJSONUtils_GetPointer( rfc6901, "/foo/1" )
+dim as zstring ptr found = cJSONUtils_FindPointerFromObjectTo( rfc6901, baz )
+print "  ""baz"" is at " & *found
+cJSON_free( found )
+cJSON_Delete( rfc6901 )
+
+'' JSON PATCH: the operations that turn 'before' into 'after', applied to a copy of 'before'.
+'' Generating a patch sorts both documents' members, so it is given copies.
+print
+print "JSON Patch:"
+dim as cJSON ptr before = cJSON_Parse( "{ ""name"": ""tiko"", ""version"": 1, ""tags"": [""fast""], ""old"": true }" )
+dim as cJSON ptr after = cJSON_Parse( "{ ""name"": ""tiko"", ""version"": 2, ""tags"": [""fast"", ""small""], ""new"": null }" )
+dim as cJSON ptr from_ = cJSON_Duplicate( before, 1 )
+dim as cJSON ptr to_ = cJSON_Duplicate( after, 1 )
+dim as cJSON ptr patches = cJSONUtils_GeneratePatchesCaseSensitive( from_, to_ )
+cJSON_Delete( from_ )
+cJSON_Delete( to_ )
+dim as cJSON ptr op = patches->child
+while op
+    print "  " & ToText( op )
+    op = op->next
+wend
+dim as cJSON ptr patched = cJSON_Duplicate( before, 1 )
+print "  applied: " & iif( cJSONUtils_ApplyPatchesCaseSensitive( patched, patches ) = 0, "yes", "no" )
+print "  result equals 'after': " & iif( cJSON_Compare( patched, after, 1 ) <> 0, "yes", "no" )
+cJSON_Delete( patches )
+
+'' A patch written by hand; one whose 'test' fails changes nothing and returns non-zero.
+dim as cJSON ptr manual = cJSON_CreateArray( )
+dim as cJSON ptr two = cJSON_CreateNumber( 2 )
+dim as cJSON ptr value3 = cJSON_CreateNumber( 3 )
+cJSONUtils_AddPatchToArray( manual, "test", "/version", two )
+cJSONUtils_AddPatchToArray( manual, "replace", "/version", value3 )
+cJSONUtils_AddPatchToArray( manual, "move", "/new", nullptr )
+cJSON_Delete( two )
+cJSON_Delete( value3 )
+'' 'move' needs a "from"; a patch is plain JSON, so it can be added afterwards.
+cJSON_AddStringToObject( cJSON_GetArrayItem( manual, 2 ), "from", "/name" )
+print "  by hand: " & ToText( manual )
+print "  applied: " & iif( cJSONUtils_ApplyPatchesCaseSensitive( patched, manual ) = 0, "yes", "no" ) & _
+      " -> " & ToText( patched )
+print "  again (version is no longer 2): " & _
+      iif( cJSONUtils_ApplyPatchesCaseSensitive( patched, manual ) = 0, "applied", "refused" ) & _
+      " -> " & ToText( patched )
+cJSON_Delete( manual )
+cJSON_Delete( patched )
+cJSON_Delete( before )
+cJSON_Delete( after )
+
+'' JSON MERGE PATCH: a partial document -- null removes a member. MergePatch takes the target
+'' and returns the merged document, which may be a different item, so keep what it returns.
+print
+print "JSON Merge Patch:"
+dim as cJSON ptr target = cJSON_Parse( "{ ""title"": ""Goodbye!"", ""author"": { ""givenName"": ""John"", " & _
+                                       """familyName"": ""Doe"" }, ""tags"": [""example"", ""sample""], ""content"": ""This will be unchanged"" }" )
+dim as cJSON ptr mergeDoc = cJSON_Parse( "{ ""title"": ""Hello!"", ""phoneNumber"": ""+01-123-456-7890"", " & _
+                                         """author"": { ""familyName"": null }, ""tags"": [""example""] }" )
+dim as cJSON ptr original = cJSON_Duplicate( target, 1 )
+target = cJSONUtils_MergePatchCaseSensitive( target, mergeDoc )
+print "  merged:  " & ToText( target )
+'' The way back: the merge patch that turns the original into the merged document.
+dim as cJSON ptr generated = cJSONUtils_GenerateMergePatchCaseSensitive( original, target )
+print "  diff:    " & ToText( generated )
+cJSON_Delete( generated )
+cJSON_Delete( original )
+cJSON_Delete( mergeDoc )
+
+'' SORTING an object's members by name, as GeneratePatches does.
+cJSONUtils_SortObjectCaseSensitive( target )
+print "  sorted:  " & ToText( target )
+cJSON_Delete( target )
