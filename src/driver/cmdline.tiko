@@ -677,6 +677,8 @@ function Parse _
         case Tko.OPT_CNOMACROS : opts.cNoMacros = true
         case Tko.OPT_CNOVERIFY : opts.cNoVerify = true
         case Tko.OPT_CNOCACHE  : opts.cNoCache = true
+        case Tko.OPT_NORPATH   : opts.noRpath = true
+        case Tko.OPT_NOCOPYLIBS : opts.noCopyLibs = true
         case Tko.OPT_VTABLE    : opts.dumpVtable = true
         case Tko.OPT_RTL       : opts.dumpRtl = true
         case Tko.OPT_DUMPIR    : opts.dumpIr = true

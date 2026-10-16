@@ -1,0 +1,11 @@
+SQLite is in the public domain.
+
+The SQLite source code, including the sqlite3.h header that sqlite3.ti is translated from
+and the library built or downloaded into lib/, carries no copyright: its authors dedicated it
+to the public domain. See https://sqlite.org/copyright.html.
+
+The header comment of sqlite3.h reads, in place of a legal notice:
+
+    May you do good and not evil.
+    May you find forgiveness for yourself and forgive others.
+    May you share freely, never taking more than you give.

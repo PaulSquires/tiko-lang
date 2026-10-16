@@ -1,0 +1,7 @@
+'' THE COMMITTED vendor/sqlite HEADER (tiko-vendor RFC-0002 P5): sqlite3.ti, translated by
+'' 'tiko c2t' from sqlite3.h, and the hand-written sqlite3-residue.ti compile for windows-x86_64 as
+'' a 'link static' importer reads them. Its library is not needed: nothing is linked.
+'' TEST: cli
+'' ARGS: -target windows-x86_64  -c tests/modules/src/vsqlite/hdr.tiko -o build/.vsqh-windows-x86_64-static.o
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: build/.vsqh-windows-x86_64-static.o

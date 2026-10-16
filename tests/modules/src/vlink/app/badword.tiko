@@ -1,0 +1,2 @@
+#import "vendor/alpha" link shared
+print 1

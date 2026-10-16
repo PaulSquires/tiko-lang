@@ -2,14 +2,16 @@
 '' of a typedef of one, is one only under MS extensions -- windows-x86_64 -- where clang gives
 '' it an implicit field that the record's children never show; its members are the
 '' record's own. An unnamed bit-field is padding and takes a synthetic name. A dllimport
-'' variable is 'extern import', and a static inline function has no symbol to bind.
+'' variable is 'extern import', and a static inline function has no symbol to bind: not declared, and named in
+'' the header's ledger (tiko-vendor RFC-0001 D5).
 '' Every record is laid out by tiko and checked against clang, so a lost member is a
 '' refusal here rather than a short record. See src/msext.h.
 '' TEST: cli
 '' ARGS: -cimport tests/cimport/src/msext.h -cimport-out -
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: __cimport_bits2 : 7 as long
-'' EXPECT-NOT: ms_inline
+'' EXPECT-NOT: declare function ms_inline
+'' EXPECT-OUT: function  ms_inline                   static
 '' EXPECT-NOT: tiko lays it out
 '' EXPECT-NOT: in tiko's layout
 '' EXPECT-OUT[windows-x86_64]: type ms_by_typedef extern "c"

@@ -171,15 +171,16 @@ private function Guard_( byref outs as C2tPassOutVec, byval mask as uint32 ) as 
     dim as boolean allNamed = true
     dim as string baseExpr
     for k as int32 = 1 to maxExtra
-        dim as string nm, ex
+        dim as string nm, ex, gn
         dim as uint32 m = 0
         for p as int32 = 0 to n - 1
             if outs[p].extraNo = k then
                 m or= (1u shl p)
                 ex = outs[p].extra
+                gn = outs[p].guardName
             end if
         next
-        nm = OneDefine_( ex )
+        nm = iif( len( gn ) > 0, gn, OneDefine_( ex ) )
         if len( nm ) = 0 then
             allNamed = false
             continue for
@@ -202,6 +203,12 @@ private function Guard_( byref outs as C2tPassOutVec, byval mask as uint32 ) as 
     next
     for i as int32 = 0 to expr.Count - 1
         if em[i] = mask then return expr[i]
+    next
+    '' ...AND EACH ONE'S NEGATION: an 'extern import' variable is one pass of four under
+    '' --shared-macro (Windows and dynamic, D25), and what the other three write is the rest.
+    dim as uint32 full = (1u shl n) - 1
+    for i as int32 = 0 to expr.Count - 1
+        if (full xor em[i]) = mask then return "not (" & expr[i] & ")"
     next
     return ""
 end function

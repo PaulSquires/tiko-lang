@@ -751,6 +751,24 @@ function LinkExe _
         '' are the ordinary companions of a runtime that does arithmetic and threads.
         cmd += " -lm -lpthread -ltinfo"
     end if
+    '' $ORIGIN, ON AN ELF LINK THAT TAKES A SHARED OBJECT (tiko-vendor RFC-0001 D1, option B):
+    '' measured, a program linked against a '.so' beside it exits 127 -- ld.so looks in its
+    '' own path, never beside the program -- and fbc's links do the same. With RUNPATH $ORIGIN
+    '' it runs, and LD_LIBRARY_PATH still wins. Only a '#foreignlib' FILE that is a shared
+    '' object asks for it: 'system:' and '-l' libraries are ld.so's to find, and every other
+    '' program's bytes stay as they were. An '-rpath' the program passes through '-Wl' stands,
+    '' and '-norpath' turns this off. fbc never writes one: a difference (Compatibility.md).
+    if (target.objFormat = OBJ_ELF) andalso (t.noRpath = false) then
+        dim as boolean shared_ = false
+        for i as int32 = 0 to t.libFiles.Count - 1
+            dim as string lf = lcase( t.libFiles[i] )
+            if (right( lf, 3 ) = ".so") orelse (instr( lf, ".so." ) > 0) then shared_ = true
+        next
+        for i as int32 = 0 to t.linkerOpts.Count - 1
+            if instr( lcase( t.linkerOpts[i] ), "rpath" ) > 0 then shared_ = false
+        next
+        if shared_ then cmd += " -Xlinker -rpath -Xlinker " & Q( "$ORIGIN" )
+    end if
     '' '-Wl' LAST, where fbc puts it: after the runtime and the system libraries, so an
     '' option that applies to what follows it (as GNU ld's --as-needed does) has nothing
     '' after it, exactly as with fbc. One -Xlinker per piece: the piece is one argument.

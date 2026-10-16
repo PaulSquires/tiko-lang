@@ -1,0 +1,10 @@
+'' The library vin.h describes: it exports vin_add, which the header defines inline, and
+'' vin_plain.
+extern "C"
+function vin_add( byval a as long, byval b as long ) as long export
+    return a + b + 100
+end function
+function vin_plain( byval a as long ) as long export
+    return a * 2
+end function
+end extern

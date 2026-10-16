@@ -1,0 +1,2 @@
+#import "vendor/alpha" link static
+print alpha_id( ), ALPHA_HDR

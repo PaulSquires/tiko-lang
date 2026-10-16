@@ -1,0 +1,2 @@
+#import "vendor/beta" link dynamic
+print beta_id( )

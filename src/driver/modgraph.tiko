@@ -34,8 +34,42 @@ private function NodeFor_( byref g as ModGraph, byref w as ModWhere, byval loc a
     g.pkgNames.Push( w.pkgName )
     g.pkgRoots.Push( w.pkgRoot )
     g.firstLoc.Push( cast( uint32, loc ) )
+    g.linkMode.Push( 0 )
+    g.linkLoc.Push( 0 )
     return g.chains.Count - 1
 end function
+
+private function LinkWord_( byval mode as int32 ) as string
+    return iif( mode = Tko.PP_LINK_STATIC, "static", "dynamic" )
+end function
+
+'' '#import ... link MODE' (tiko-vendor RFC-0002 V4-V7). Only a module whose package's
+'' manifest lists the modes it ships takes one (TKO0155), only a listed mode (TKO0156), and
+'' a program links each module one way: two different modes are TKO0157. An import without
+'' 'link' leaves the choice to the others, or, with none, to the module's own source (V5).
+private sub NoteLink_ _
+    ( byref ctx as Tko.CompilerContext, byref g as ModGraph, byref rec as Tko.PpImport, _
+      byref w as ModWhere, byval m as int32 )
+    if rec.link_ = 0 then return
+    dim as Tko.SourceRange at = Tko.PointRange( rec.loc )
+    dim as string word = LinkWord_( rec.link_ )
+    dim as string modes = LinkModesOf( ctx, w.pkgName, w.chain )
+    if len( modes ) = 0 then
+        ctx.diags.Report( Tko.TKO0155, at, word, rec.path, w.pkgName )
+        return
+    end if
+    if instr( modes, "|" & word & "|" ) = 0 then
+        ctx.diags.Report( Tko.TKO0156, at, word, w.pkgName, w.chain )
+        return
+    end if
+    if g.linkMode[m] = 0 then
+        g.linkMode[m] = cast( uint32, rec.link_ )
+        g.linkLoc[m] = cast( uint32, rec.loc )
+    elseif g.linkMode[m] <> cast( uint32, rec.link_ ) then
+        ctx.diags.Report( Tko.TKO0157, at, w.chain, word, LinkWord_( cast( int32, g.linkMode[m] ) ) )
+        ctx.diags.AddNote( Tko.TKO0906, Tko.PointRange( cast( Tko.SourceLoc, g.linkLoc[m] ) ) )
+    end if
+end sub
 
 '' THE HEADER OF ONE FILE. isRoot: scanned with the command line's defines.
 private sub ScanFile_ _
@@ -71,6 +105,7 @@ private sub AddImports_ _
             continue for
         end if
         dim as int32 m = NodeFor_( g, w, pr.imports[k].loc )
+        NoteLink_( ctx, g, pr.imports[k], w, m )
         if from < 0 then continue for
         g.edgeFrom.Push( cast( uint32, from ) )
         g.edgeTo.Push( cast( uint32, m ) )

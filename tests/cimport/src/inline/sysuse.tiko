@@ -1,0 +1,2 @@
+#cinclude once "sys.h"
+print PtrToUlong( 0 )

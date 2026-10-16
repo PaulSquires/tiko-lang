@@ -817,7 +817,25 @@ private function RequiredHeaders_ _
     end if
     dim as string res = ""
     for k as int32 = 0 to headers.Count - 1
-        if need[k] then res &= "#include once """ & headers[k] & """" & !"\n"
+        if need[k] = 0 then continue for
+        '' A PUBLIC HEADER'S CONSULTED MACROS go round it, for the importer to hold its own
+        '' against (src/pp/ppmodhdr.tiko; RFC-0002 V12).
+        dim as string req = ""
+        if pr <> nullptr then
+            for c as int32 = 0 to pr->modConsRoot.Count - 1
+                if cast( int32, pr->modConsRoot[c] ) <> k then continue for
+                if len( pr->modConsText[c] ) = 0 then
+                    req &= "#tki undef " & pr->modConsName[c] & !"\n"
+                else
+                    req &= "#tki define " & pr->modConsText[c] & !"\n"
+                end if
+            next
+        end if
+        if len( req ) > 0 then
+            res &= "#tki require """ & w.ctx->modChain & """ """ & headers[k] & """" & !"\n" & req
+        end if
+        res &= "#include once """ & headers[k] & """" & !"\n"
+        if len( req ) > 0 then res &= "#tki end" & !"\n"
     next
     return res
 end function

@@ -354,6 +354,19 @@ cp -r "$ROOT/pkg" "$OUT/pkg"
 [ -f "$OUT/pkg/tkl/tkGui/CWindow.tiko" ] || die "packaged pkg/ has no tkl/tkGui"
 note "packages -> pkg/ ($( ls "$OUT/pkg" | tr '\n' ' '))"
 
+# THE VENDOR PACKAGES (tiko-vendor RFC-0002 V9, V11): their translated headers came with
+# pkg/; their binaries are never copied from the tree -- vendorfetch.sh downloads or builds
+# this host's, pinned and SHA-256-checked, straight into the output -- and fetch.toml is
+# that script's alone. Each module must end with binaries and its library's licence.
+rm -rf "$OUT"/pkg/vendor/*/lib
+rm -f "$OUT"/pkg/vendor/*/fetch.toml
+sh "$ROOT/build/vendorfetch.sh" --out "$OUT/pkg" || die "vendorfetch.sh failed: the vendor packages have no binaries"
+for _vm in "$OUT"/pkg/vendor/*/; do
+    [ -n "$( ls "$_vm/lib" 2>/dev/null )" ] || die "packaged $_vm has no lib/ -- '#import \"vendor/...\"' would not link"
+    [ -f "$_vm/LICENSE" ] || die "packaged $_vm has no LICENSE"
+done
+note "vendor packages -> pkg/vendor ($( cd "$OUT/pkg/vendor" && ls -d */ | tr -d '/' | tr '\n' ' '))"
+
 # The libraries: lib/<target>/, ours alone -- tiko-rt, its startup object on a gnu
 # target, libtkogfx where there is one. No target has a second, -fb, directory since
 # 2026-10-10: linux-x86_64's held nothing the driver names, and win64's MinGW runtime
@@ -791,6 +804,39 @@ print tkCore.tkUcase( "tiko" ); " "; hex( gdiplus.GDIP_ARGB( &hFF, 1, 2, 3 ) )
     rm -rf "$_tmp"
 }
 
+# THE VENDOR PACKAGES, the RFC's own program (tiko-vendor RFC-0002 §1): vendor/sqlite
+# imported 'link static' and 'link dynamic', from the packaged pkg/ alone, built and RUN --
+# the dynamic one from beside the DLL / .so the compiler copied there (V13).
+verify_vendor( ) {
+    _t=$1
+    for _mode in static dynamic; do
+        _tmp="$OUT/.verifyvendor.$_t.$_mode"
+        rm -rf "$_tmp"; mkdir -p "$_tmp"
+        printf '#import "vendor/sqlite" link %s
+dim as sqlite3 ptr db
+if sqlite3_open( ":memory:", @db ) <> SQLITE_OK then print "open failed"
+dim as sqlite3_stmt ptr st
+sqlite3_prepare_v2( db, "select ? || %s", -1, @st, 0 )
+sqlite3_bind_text( st, 1, "sqlite", -1, SQLITE_TRANSIENT )
+if sqlite3_step( st ) = SQLITE_ROW then print *cast( zstring ptr, sqlite3_column_text( st, 0 ) )
+sqlite3_finalize( st )
+sqlite3_close( db )
+' "$_mode" "'ok'" > "$_tmp/v.tiko"
+        ( cd "$OUT" && TKO_MODCACHE=".verifyvendor.$_t.$_mode/cache" "./${BINSUB}tiko$EXT" -target "$_t" \
+            ".verifyvendor.$_t.$_mode/v.tiko" -o ".verifyvendor.$_t.$_mode/v$EXT" ) >"$_tmp/log" 2>&1 || true
+        if [ -f "$_tmp/v$EXT" ] && [ "$( "$_tmp/v$EXT" 2>/dev/null | tr -d '\r' )" = "sqliteok" ]; then
+            VERIFY_LINES="$VERIFY_LINES
+  $_t  vendor/sqlite link $_mode PASS -- imported, compiled, linked and ran"
+        else
+            _why=$( grep -m1 -iE 'error|undefined|cannot' "$_tmp/log" | cut -c1-160 )
+            [ -n "$_why" ] || _why="built, but did not print 'sqliteok'"
+            VERIFY_LINES="$VERIFY_LINES
+  $_t  vendor/sqlite link $_mode FAIL -- $_why"
+        fi
+        rm -rf "$_tmp"
+    done
+}
+
 if [ "$DO_VERIFY" = "1" ]; then
     for t in $TARGETS; do
         note "verifying $t: compile, link and run"
@@ -799,6 +845,7 @@ if [ "$DO_VERIFY" = "1" ]; then
         verify_fbsqlite "$t"
         verify_std "$t"
         verify_tkl "$t"
+        verify_vendor "$t"
     done
 else
     VERIFY_LINES="

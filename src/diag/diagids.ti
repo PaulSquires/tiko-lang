@@ -89,6 +89,11 @@
     DIAG( TKO0149, SEV_ERROR,   "two packages named '%0': %1 and %2" )
     DIAG( TKO0150, SEV_WARNING, "module cache disabled: %0" )
     DIAG( TKO0154, SEV_ERROR,   "'%0' cannot be used with '%1'" )
+    '' '#import ... link' (tiko-vendor RFC-0002 V4-V7): only a module whose package lists the
+    '' modes it ships ([vendor.<module>] links), only a listed mode, one mode per program.
+    DIAG( TKO0155, SEV_ERROR,   "'link %0' on '#import ""%1""': package '%2' links nothing" )
+    DIAG( TKO0156, SEV_ERROR,   "'link %0': package '%1' ships no %0 link of module '%2'" )
+    DIAG( TKO0157, SEV_ERROR,   "module '%0' is imported with 'link %1' here and 'link %2' elsewhere; a program links it one way" )
     DIAG( TKO0160, SEV_ERROR,   "no target named '%0' (targets: %1)" )
     DIAG( TKO0161, SEV_ERROR,   "target '%0': '%1' is a module directory; modules are reached through #import, not listed" )
     DIAG( TKO0162, SEV_ERROR,   "target '%0': '%1' not found" )
@@ -205,6 +210,9 @@
     '' (T62): a reserved word, a module-level declaration above, a predeclared procedure.
     DIAG( TKO0371, SEV_ERROR,   "'%0' cannot be defined as a macro: it is %1" )
     DIAG( TKO0369, SEV_ERROR,   "%0 is allowed only in a module file" )
+    '' A MODULE'S PUBLIC HEADER, re-read by its importer with a macro its conditionals consulted
+    '' set otherwise than in the module (tiko-vendor RFC-0002 V12; src/pp/ppmodhdr.tiko).
+    DIAG( TKO0370, SEV_ERROR,   "%0 here, but %1" )
 
     '' -------------------------------------------------------------------- parser
     DIAG( TKO0400, SEV_ERROR,   "expected an expression" )

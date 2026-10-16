@@ -1,0 +1,16 @@
+'' geo.ti -- a header the module 'vp/geo' carries publicly. Its conditionals consult an
+'' include guard (its own), VP_MODE (the package's [defines]) and UNICODE (nobody's).
+#pragma once
+#ifndef GEO_TI_GUARD
+#define GEO_TI_GUARD
+#endif
+type GeoPoint
+    as long x, y
+end type
+#define GEO_MAGIC 42
+#if VP_MODE = 7
+const GEO_SEVEN = 7
+#endif
+#ifdef UNICODE
+const GEO_WIDE = 1
+#endif

@@ -7,6 +7,7 @@
 #include once "driver/diagout.ti"
 #include once "build/events.ti"
 #include once "driver/unitcache.ti"
+#include once "driver/modresolve.ti"
 #include once "support/text.ti"
 #include once "pp/pp.ti"
 #include once "parser/expr.ti"
@@ -725,9 +726,17 @@ private function LinkAll _
         tools.implibPath = left( stem, cut ) & "lib" & mid( stem, cut + 1 ) & ".dll.a"
     end if
 
+    tools.noRpath = ctx.options.noRpath
     dim as int32 rc = Tko.Codegen.LinkExe( tools, td, objs, ctx.options.outputPath )
     if rc <> 0 then
         return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0116, str( rc ) )
+    end if
+    '' A vendor package's .dll / .so, beside the program (tiko-vendor RFC-0002 V13).
+    dim as string cpSrc, cpDst
+    if ctx.options.noCopyLibs = false then
+        if Tko.Modules.CopyVendorLibs( ctx, ctx.options.outputPath, cpSrc, cpDst ) = false then
+            return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0171, cpSrc, cpDst )
+        end if
     end if
 
     '' ONLY WHAT THIS BUILD MADE. An object the user named on the command line is

@@ -1,0 +1,40 @@
+# vendor/sqlite's binaries, for build/vendorfetch.sh (tiko-vendor RFC-0002 V9, V11). Read by
+# that script alone and never shipped. Each [<os>.<n>] entry is one pinned download, checked
+# against its SHA-256, and what is made from it into lib/:
+#
+#   kind = "copy"    'from' (a path inside the archive) copied to 'to'
+#   kind = "cbuild"  the C 'sources' under 'dir' compiled with clang and 'cflags', archived
+#                    to 'static' and/or linked to 'shared' (an ELF one gets its own file
+#                    name as its soname, so the copy beside a program is the one it loads)
+#
+# THE NAMES are what '#foreignlib SQLITE ... "lib/sqlite3"' probes: sqlite3_<os>_x86_64.a
+# for static; on Windows the DLL keeps its own name, sqlite3.dll -- the name inside it, which
+# a program's import names -- and on Linux the shared object is sqlite3_linux_x86_64.so.
+version = "3.54.0"
+
+[windows.1]
+kind = "copy"
+url = "https://sqlite.org/2026/sqlite-dll-win-x64-3540000.zip"
+sha256 = "a548a9b5d8f695e669f71bcc4669fdc8b3e1eb79995761c81a9128262126f71c"
+from = "sqlite3.dll"
+to = "lib/sqlite3.dll"
+
+[windows.2]
+kind = "cbuild"
+url = "https://sqlite.org/2026/sqlite-amalgamation-3540000.zip"
+sha256 = "68e913b0fe8ec6b4e5f391c594a28872884e80d6cd042a1e50c957be46b5aa4d"
+dir = "sqlite-amalgamation-3540000"
+sources = "sqlite3.c"
+cflags = "-O2"
+static = "lib/sqlite3_windows_x86_64.a"
+
+[linux.1]
+kind = "cbuild"
+url = "https://sqlite.org/2026/sqlite-autoconf-3540000.tar.gz"
+sha256 = "134ec0802dda5795816e25d25872d20b312cb3973438c49b30bc40b7705ea9ed"
+dir = "sqlite-autoconf-3540000"
+sources = "sqlite3.c"
+cflags = "-O2 -fPIC"
+static = "lib/sqlite3_linux_x86_64.a"
+shared = "lib/sqlite3_linux_x86_64.so"
+libs = "-lm"

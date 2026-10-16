@@ -1,0 +1,12 @@
+'' alpha.ti -- the library's header. Which mode it was read under is what it reports.
+#pragma once
+extern "C"
+declare function alpha_id( ) as long
+end extern
+#ifdef TIKO_LINK_DYNAMIC
+const ALPHA_HDR = "alpha header: dynamic"
+#elseif defined( TIKO_LINK_STATIC )
+const ALPHA_HDR = "alpha header: static"
+#else
+const ALPHA_HDR = "alpha header: no mode"
+#endif

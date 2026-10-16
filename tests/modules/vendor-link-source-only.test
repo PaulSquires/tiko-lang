@@ -1,0 +1,6 @@
+'' 'link' ON A PACKAGE THAT SHIPS NO LIBRARY (RFC-0002 V7): vp lists no [vendor.<module>]
+'' links, so 'link static' on its geo is TKO0155.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i tests/modules/src/vpub/libs tests/modules/src/vlink/app/sourceonly.tiko -o build/.vlsrc.exe
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: sourceonly.tiko(1,1): error TKO0155: 'link static' on '#import "vp/geo"': package 'vp' links nothing

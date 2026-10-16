@@ -41,6 +41,8 @@ function PrepareModuleUnit _
     ctx.modFileCount = files.Count
     ctx.modPkgName = w.pkgName
     ctx.modPkgRoot = w.pkgRoot
+    '' 'tiko -c <dir>' has no importer to choose a link mode: the module's source decides (V5).
+    ctx.modLinkMode = 0
     return true
 end function
 
@@ -56,7 +58,7 @@ sub ModuleUnitConfig _
     cfg.moduleChain = ctx.modChain
     '' No -d: a module never sees its importer's macros. Its PACKAGE's [defines] it does
     '' see (RFC-0007 §2).
-    PackageDefines( ctx, ctx.modPkgName, noDefines )
+    ModuleDefines( ctx, noDefines )
     cfg.defines = @noDefines
     cfg.outKind = 3
     cfg.cmdlineIgnored = true

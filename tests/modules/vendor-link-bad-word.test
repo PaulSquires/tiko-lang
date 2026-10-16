@@ -1,0 +1,6 @@
+'' 'link' TAKES 'static' OR 'dynamic' (RFC-0002 §3.3), nothing else.
+'' TEST: cli
+'' ARGS: --pp-only tests/modules/src/vlink/app/badword.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: badword.tiko(1,1): error TKO0364:
+'' EXPECT-OUT: 'link' must be followed by 'static' or 'dynamic'

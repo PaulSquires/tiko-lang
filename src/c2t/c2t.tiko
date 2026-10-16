@@ -1,5 +1,5 @@
 '' c2t.tiko -- 'tiko c2t <in.h> [-o <out.ti> | -o -] [-I dir] [-D x] [-U x] [--pass "args"]
-'' [--verify]'.
+'' [--shared-macro NAME] [--verify]'.
 '' See c2t.ti.
 ''
 '' A VERB OF THE COMPILER, dispatched beside build/run/check/clean/metadata by
@@ -57,7 +57,7 @@ private function ParseArgs_( byref args as Tko.StrVec, byref o as C2tOptions, by
     while i < args.Count
         dim as string w = args[i]
         select case w
-        case "-o", "-I", "-D", "-U", "--pass", "--sysroot"
+        case "-o", "-I", "-D", "-U", "--pass", "--sysroot", "--shared-macro"
             if i + 1 >= args.Count then
                 ctx.diags.ReportGlobal( Tko.TKO0101, w )
                 return false
@@ -70,6 +70,13 @@ private function ParseArgs_( byref args as Tko.StrVec, byref o as C2tOptions, by
             case "-U"     : o.undefs.Push( v )
             case "--pass" : o.passArgs.Push( v )
             case "--sysroot" : o.sysroot = v
+            '' D25: one more pass, with the library's shared-build macro defined.
+            '' NAME or NAME=value: SQLite has no shared-build switch of its own, but its
+            '' SQLITE_API may be defined as __declspec(dllimport).
+            case "--shared-macro"
+                o.sharedMacro = iif( instr( v, "=" ) > 0, left( v, instr( v, "=" ) - 1 ), v )
+                o.sharedPass = "-D" & v
+                o.passArgs.Push( o.sharedPass )
             end select
             if w <> "-o" then
                 if len( optText ) then optText &= " "
@@ -193,6 +200,9 @@ private function Translate_( byref ctx as Tko.CompilerContext, byref api as Tko.
             if TranslatePass_( ctx, api, src, po_, io, po ) = false then return false
             po.extraNo = extraNo
             if extraNo > 0 then po.extra = o.passArgs[extraNo - 1]
+            if (extraNo > 0) andalso (len( o.sharedMacro ) > 0) then
+                if po.extra = o.sharedPass then po.guardName = "TIKO_LINK_DYNAMIC"
+            end if
             outs.Push( po )
         next
     next

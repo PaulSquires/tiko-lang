@@ -1,0 +1,17 @@
+'' THE CACHE KEYS THE MODE (RFC-0002 V6): alpha built 'link static', then the same program
+'' 'link dynamic' over the same module cache -- a miss naming the new define, not a hit.
+'' TEST: cli
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_PKG=build/.vlk/pkg
+'' ENV: TKO_MODCACHE=build/.vlk/mc
+'' CLEAN: build/.vlk
+'' COPY: tests/modules/src/vlink/pkg => build/.vlk/pkg
+'' STEP: -target windows-x86_64 -lib tests/modules/src/vlink/libsrc/alpha_static.tiko -o build/.vlk/pkg/vendor/alpha/lib/alpha_windows_x86_64.a
+'' STEP: -target windows-x86_64 -dll tests/modules/src/vlink/libsrc/alpha_dynamic.tiko -o build/.vlk/pkg/vendor/alpha/lib/alpha_windows_x86_64.dll
+'' STEP: -target windows-x86_64 -lib tests/modules/src/vlink/libsrc/beta_static.tiko -o build/.vlk/pkg/vendor/beta/lib/beta_windows_x86_64.a
+'' STEP: -target windows-x86_64 tests/modules/src/vlink/app/static.tiko -o build/.vlk/static.exe
+'' ARGS: -target windows-x86_64 -v tests/modules/src/vlink/app/dynamic.tiko -o build/.vlk/dynamic.exe
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: module vendor.alpha: miss (define TIKO_LINK_DYNAMIC=1)
+'' RUN: build/.vlk/dynamic.exe
+'' EXPECT-RUN-OUT:  2             alpha header: dynamic

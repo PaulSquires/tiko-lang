@@ -1,0 +1,15 @@
+'' ONE PROGRAM, ONE LINK MODE PER MODULE (RFC-0002 V4): two roots ask for alpha static and
+'' dynamic -- TKO0157 at the second, with a note at the first.
+'' TEST: cli
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_PKG=build/.vlc/pkg
+'' ENV: TKO_MODCACHE=build/.vlc/mc
+'' CLEAN: build/.vlc
+'' COPY: tests/modules/src/vlink/pkg => build/.vlc/pkg
+'' STEP: -target windows-x86_64 -lib tests/modules/src/vlink/libsrc/alpha_static.tiko -o build/.vlc/pkg/vendor/alpha/lib/alpha_windows_x86_64.a
+'' STEP: -target windows-x86_64 -dll tests/modules/src/vlink/libsrc/alpha_dynamic.tiko -o build/.vlc/pkg/vendor/alpha/lib/alpha_windows_x86_64.dll
+'' STEP: -target windows-x86_64 -lib tests/modules/src/vlink/libsrc/beta_static.tiko -o build/.vlc/pkg/vendor/beta/lib/beta_windows_x86_64.a
+'' ARGS: -target windows-x86_64 tests/modules/src/vlink/app/static.tiko tests/modules/src/vlink/app/dynamic.tiko -o build/.vlc/both.exe
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: dynamic.tiko(1,1): error TKO0157: module 'vendor.alpha' is imported with 'link dynamic' here and 'link static' elsewhere; a program links it one way
+'' EXPECT-OUT: static.tiko(1,1): note: imported here

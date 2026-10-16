@@ -12,6 +12,8 @@
 '' conditionals. It is what makes a file's imports readable by running the engine only
 '' until it ends, which is the whole of the build graph's scan (PpConfig.scanHeader).
 
+#include once "pp/ppmodhdr.tiko"   '' public headers: consulted macros, '#tki', TKO0370
+
 namespace Tko
 
 '' Is the directive being read in the ROOT file itself -- not in a header it included, and
@@ -121,16 +123,18 @@ sub PpModNoteHeader( byref e as PpEngine, byval from as FileId, byval got as Fil
     e.outp->modHdrRoot.Push( cast( uint32, root ) )
 end sub
 
-'' 'public #cinclude "x.h"' AT THE START OF A LINE (book work item T101): 'public' is consumed
-'' and the directive runs with cincPublic set. False, touching nothing, for anything else --
-'' 'public' starting an ordinary declaration included.
+'' 'public #cinclude "x.h"' AT THE START OF A LINE (book work item T101), and 'public #include
+'' "x.ti"' (tiko-vendor RFC-0002 V1): 'public' is consumed and the directive runs with
+'' cincPublic set. False, touching nothing, for anything else -- 'public' starting an
+'' ordinary declaration included.
 function PpModPublicCInclude( byref e as PpEngine, byref t as Token ) as boolean
     if Tk( t ) <> KW_PUBLIC then return false
     dim as PpFrame ptr f = @e.frames[e.frames.Count - 1]
     if f->pos + 2 > f->toks->Count - 1 then return false
     if Tk( f->toks->At( f->pos + 1 ) ) <> TK_HASH then return false
     dim as Token w = f->toks->At( f->pos + 2 )
-    if Text.LowerAscii( SpellOf( e, w ) ) <> "cinclude" then return false
+    dim as string word = Text.LowerAscii( SpellOf( e, w ) )
+    if (word <> "cinclude") andalso (word <> "include") then return false
     Advance( e )
     dim as Token h
     PeekTok( e, h )
@@ -150,22 +154,11 @@ sub PpModCIncludeHeader( byref e as PpEngine, byval at as SourceLoc, byval got a
     PpModNoteHeader( e, d.file, got )
     if e.modst.cincPublic = false then return
     dim as string p = e.src->AbsPathOf( got )
-    dim as int32 k = -1
-    for i as int32 = 0 to e.outp->modHeaders.Count - 1
-        if e.outp->modHeaders[i] = p then k = i
-    next
-    if (e.modst.isModuleFile = false) orelse (k < 0) then
-        Report( e, TKO0369, at, "'public #cinclude'" )
-        return
-    end if
-    if fs.IsFile( p ) = false then
+    if e.modst.isModuleFile andalso (fs.IsFile( p ) = false) then
         Report( e, TKO0340, at, p )
         return
     end if
-    for each r as uint32 in e.outp->modHdrPublic
-        if r = cast( uint32, k ) then return
-    next
-    e.outp->modHdrPublic.Push( cast( uint32, k ) )
+    PpModMarkPublic( e, at, got, "'public #cinclude'" )
 end sub
 
 '' Reading for an '#import': a module's interface, or a header it includes (RFC-0004 §5).
@@ -403,6 +396,7 @@ private sub PpModImport_( byref e as PpEngine, byval at as SourceLoc )
     rec.path = path_
     rec.alias_ = PpModLastSegment_( path_ )
     rec.isPublic = false
+    rec.link_ = 0
     rec.loc = at
 
     dim as Token t
@@ -431,6 +425,24 @@ private sub PpModImport_( byref e as PpEngine, byval at as SourceLoc )
         rec.isPublic = true
         more = PeekOnLine( e, t )
     end if
+    '' 'link static' / 'link dynamic' (tiko-vendor RFC-0002 V4): words, not keywords --
+    '' 'static' is one, so each is read by its spelling.
+    if more andalso (Text.LowerAscii( SpellOf( e, t ) ) = "link") then
+        Advance( e )
+        dim as Token lm
+        dim as string mode = ""
+        if PeekOnLine( e, lm ) then mode = Text.LowerAscii( SpellOf( e, lm ) )
+        select case mode
+        case "static"  : rec.link_ = PP_LINK_STATIC
+        case "dynamic" : rec.link_ = PP_LINK_DYNAMIC
+        case else
+            Report( e, TKO0364, at, "#import", "'link' must be followed by 'static' or 'dynamic'" )
+            SkipToEol( e )
+            return
+        end select
+        Advance( e )
+        more = PeekOnLine( e, t )
+    end if
     if more then
         Report( e, TKO0364, at, "#import", "unexpected '" & SpellOf( e, t ) & "' after the path" )
         SkipToEol( e )
@@ -447,6 +459,7 @@ private sub PpModImport_( byref e as PpEngine, byval at as SourceLoc )
     '' THE INTERFACES, read next and dependencies first: pushed last-first, so the first
     '' is on top. One already read -- a diamond -- is not read again.
     dim as FileIdVec got
+    e.modst.importLoc = at
     dim as PpImportFn fn = e.cfg->importFn
     dim as string chain_
     if fn( e.cfg->importCtx, rec, got, chain_ ) = false then return
@@ -587,7 +600,7 @@ end function
 '' A DEFINITION OR UNDEFINITION IS ABOUT TO CHANGE m. Recorded, with m as it is now, when
 '' the directive stands in the module file itself -- the innermost file frame is the root
 '' -- and not in a header it included.
-sub PpModJournal( byref e as PpEngine, byval m as PpMacro ptr )
+private sub PpModJournalOwn_( byref e as PpEngine, byval m as PpMacro ptr )
     if e.cfg->moduleFiles = nullptr then return
     for k as int32 = e.frames.Count - 1 to 0 step -1
         if e.frames[k].file = FILE_NONE then continue for
@@ -596,6 +609,13 @@ sub PpModJournal( byref e as PpEngine, byval m as PpMacro ptr )
     next
     e.modst.journalSlot.Push( cast( uint32, SlotOf( e, m->name ) ) )
     e.modst.journalMac.Push( *m )
+end sub
+
+'' A DEFINITION OR UNDEFINITION IS ABOUT TO CHANGE m, anywhere: the module file's own are
+'' journaled for its end, and a public header's make the name the header's (ppmodhdr.tiko).
+sub PpModJournal( byref e as PpEngine, byval m as PpMacro ptr )
+    PpModNoteOwn( e, m->name )
+    PpModJournalOwn_( e, m )
 end sub
 
 '' The end of one file of a module unit, whether or not another follows.

@@ -1,0 +1,13 @@
+'' AN 'inline' FUNCTION OF A SYSTEM HEADER IS NOT DECLARED (tiko-vendor RFC-0001 D4): the UCRT
+'' exports none of windows.h's and stdio.h's, PtrToUlong is header-only by design, and libclang
+'' says the SDK is a system header. So it stays TKO0743, and the ledger names it (D5).
+'' TEST: cli
+'' CLEAN: build/.cins
+'' STEP: -target windows-x86_64 -cimport tests/cimport/src/inline/sys.h -cimport-out build/.cins/sys.bi
+'' ARGS: -target windows-x86_64 -cnocache --dump-ir tests/cimport/src/inline/sysuse.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0743: 'ptrtoulong' is not declared
+'' EXPECT-FILE-HAS: build/.cins/sys.bi :: function  PtrToUlong                  inline, no symbol
+'' EXPECT-FILE-HAS: build/.cins/sys.bi :: function  _snprintf_l                 inline, no symbol
+'' EXPECT-FILE-NOT-HAS: build/.cins/sys.bi :: declare function PtrToUlong
+'' EXPECT-FILE-NOT-HAS: build/.cins/sys.bi :: declare function _snprintf_l

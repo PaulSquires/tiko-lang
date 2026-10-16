@@ -1,0 +1,5 @@
+extern "C"
+function beta_id( ) as long export
+    return 10
+end function
+end extern

@@ -1,0 +1,10 @@
+# A stand-in for the toolchain's pkg/vendor (TKO_PKG points here): alpha ships both link
+# modes, beta only a static one.
+[package]
+name = "vendor"
+
+[vendor.alpha]
+links = ["static", "dynamic"]
+
+[vendor.beta]
+links = ["static"]

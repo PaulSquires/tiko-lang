@@ -60,6 +60,10 @@ namespace Tko
         '' ...and its PACKAGE: the name, and the root its relative imports stay inside.
         as string                 modPkgName
         as string                 modPkgRoot
+        '' ...and the link mode the program's '#import ... link' chose for it (RFC-0002 V4-V6):
+        '' 0 none, else Tko.PP_LINK_STATIC / PP_LINK_DYNAMIC -- TIKO_LINK_STATIC or
+        '' TIKO_LINK_DYNAMIC in its unit, and a line of its cache key.
+        as int32                  modLinkMode
         '' THE MODULES OF THE BUILD (src/driver/modiface.tiko), by graph node: each one's
         '' chain, its interface once it has been compiled (FILE_NONE until then), and the
         '' import edges between them; and the roots' package root, where a root's import is
@@ -90,6 +94,11 @@ namespace Tko
         as StrVec                 pkgDefText
         as StrVec                 pkgDdDep
         as StrVec                 pkgDdText
+        '' ...and each manifest's [vendor.<module>] links (tiko-vendor RFC-0002 V7, V10): the
+        '' package's index, the module's path below it, its modes as "|static|dynamic|".
+        as StrVec                 pkgLinkOwner
+        as StrVec                 pkgLinkMod
+        as StrVec                 pkgLinkModes
         as boolean                pkgRootKnown
         as string                 pkgRootName
         as string                 pkgRootDir

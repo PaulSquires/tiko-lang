@@ -1,0 +1,2 @@
+#module "alpha"
+public #include once "alpha.ti"

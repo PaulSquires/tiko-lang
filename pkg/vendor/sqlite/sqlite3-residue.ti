@@ -1,0 +1,17 @@
+'' sqlite3-residue.ti -- what sqlite3.ti could not carry, written by hand (tiko-vendor RFC-0001
+'' D6). Against SQLite 3.54.0's sqlite3.h, the header sqlite3.ti's banner names by SHA-256.
+'' Each item is a C2T-TODO of that translation that loses API; the other TODOs there are
+'' branches no build of this library takes (SQLITE_ENABLE_SESSION, SQLITE_OMIT_*, WASI) or
+'' conditions on the C compiler that the translation already settled per target.
+#pragma once
+
+'' SQLITE_STATIC, SQLITE_TRANSIENT (sqlite3.h:6478-6479): pointer-valued macros, '((type)0)'
+'' and '((type)-1)', which have no integer value for c2t to keep. The destructor argument
+'' of sqlite3_bind_text, sqlite3_result_text and the rest: 'the caller keeps the text' and
+'' 'make a private copy'.
+#define SQLITE_STATIC    cast( sqlite3_destructor_type, 0 )
+#define SQLITE_TRANSIENT cast( sqlite3_destructor_type, cast( any ptr, -1 ) )
+
+'' sqlite3_version (sqlite3.h:188), 'const char sqlite3_version[]': an array of no stated
+'' size, which a tiko declaration cannot spell. Not declared: sqlite3_libversion( ) returns
+'' the same string, and SQLITE_VERSION is the header's.

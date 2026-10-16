@@ -1,0 +1,8 @@
+#import "vp/geo"
+dim as GeoPoint p = ( 3, 4 )
+print p.x + p.y, GEO_MAGIC, GEO_SEVEN
+#ifdef VP_MODE
+print "VP_MODE leaked"
+#else
+print "VP_MODE scoped"
+#endif

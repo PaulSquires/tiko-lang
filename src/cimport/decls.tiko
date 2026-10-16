@@ -27,11 +27,22 @@ sub Skip( byref x as CImp, byref kind as string, byref name_ as string, byref wh
     x.skipWhy.Push( why )
 end sub
 
-'' A function with no symbol to link against: static, or inline. Counted, not ledgered --
-'' fbc-modern's choice, and a sensible one: a static function is not part of an interface.
+'' A function with no symbol to link against: static, or inline IN A SYSTEM HEADER. Each is
+'' ledgered in the binding's header comment (tiko-vendor RFC-0001 D5), so whoever writes the
+'' hand supplement can see what was lost.
+''
+'' A C99 'inline' FUNCTION OF A LIBRARY'S OWN HEADER IS DECLARED (RFC-0001 D4): the library
+'' is expected to export it, as raylib exports all 146 of raymath's RMAPI functions --
+'' measured with llvm-nm, and dropping them made raymath unusable without a word. In a SYSTEM
+'' header the expectation is the other way round: of windows.h + stdio.h's 200 plain inline
+'' functions, none is exported by the UCRT a windows-x86_64 program links (PtrToUlong is
+'' header-only by design), so declaring them would trade a compile error for a link error.
+'' 'System' is libclang's own answer: the SDK, the UCRT and /usr/include are; a header found
+'' beside the source, through '-cinclude' or a quoted name is not.
 private function NoSymbol_( byref x as CImp, byval c as CXCursor ) as boolean
     if x.api->Cursor_getStorageClass( c ) = CX_SC_Static then return true
     if x.api->Cursor_isFunctionInlined( c ) = 0 then return false
+    if x.api->Location_isInSystemHeader( x.api->getCursorLocation( c ) ) = 0 then return false
     '' ...EXCEPT THE stdio FUNCTIONS THE UCRT DEFINES INLINE AND tiko-rt PROVIDES. On
     '' windows-x86_64 'printf' after '#cinclude once "stdio.h"' was TKO0743, not declared: the
     '' SDK's stdio.h defines the whole family in the header, over __stdio_common_*, with no
@@ -364,6 +375,8 @@ private sub EmitFunction_( byref x as CImp, byval c as CXCursor )
         if (UsrState( x, sid ) and US_REFUSED) = 0 then
             x.nStatic += 1
             UsrSet( x, sid, US_REFUSED )
+            Skip( x, "function", CursorName( x, c ), _
+                  iif( x.api->Cursor_getStorageClass( c ) = CX_SC_Static, "static", "inline, no symbol" ) )
         end if
         return
     end if

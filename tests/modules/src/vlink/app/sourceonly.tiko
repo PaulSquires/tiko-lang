@@ -1,0 +1,2 @@
+#import "vp/geo" link static
+print GEO_MAGIC

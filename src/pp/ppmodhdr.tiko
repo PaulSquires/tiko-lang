@@ -1,0 +1,287 @@
+'' ppmodhdr.tiko -- a module's PUBLIC HEADERS: 'public #include' and 'public #cinclude', the
+'' macros their conditionals consulted, and the importer's check of them (tiko-vendor
+'' RFC-0002 V1, V12; TKO0370 of ADR 0017). #included by ppmodule.tiko.
+''
+'' A PUBLIC HEADER TRAVELS WHOLE. The importer re-reads it in ITS OWN macro environment, so
+'' what the header declares there depends on what the importer has defined -- 'UNICODE'
+'' picks the W half of windows.bi -- and on what only the MODULE had: its package's
+'' [defines], and the TIKO_LINK_STATIC / TIKO_LINK_DYNAMIC the program's '#import ... link'
+'' chose for it. So while the module unit reads the header, every macro a conditional of
+'' the header's subtree consults is recorded once, as it was at that first reading, unless
+'' the subtree defined or undefined it itself first (an include guard is consulted
+'' undefined, then is the header's own). The interface carries the list (tkiemit.tiko):
+''
+''     #tki require "<module chain>" "<header path>"
+''     #tki define NAME body...        the module had it, like this
+''     #tki undef NAME                 the module did not have it
+''     #include once "<header path>"
+''     #tki end
+''
+'' and the importer, reading the interface, holds its own macros against it:
+''
+''     both the same, or both undefined     nothing
+''     the module had it, the importer not  defined for the header, undefined at '#tki end'
+''     anything else                        TKO0370, at the '#import'
+''
+'' The middle row is V12: a header testing TIKO_LINK_DYNAMIC sees its own package's mode
+'' even when another package of the same program is linked statically. A '#macro' block
+'' (a body with line ends) and the predefined macros are not recorded: the predefined ones
+'' are the target's, the same on both sides, or the unit's own (__FB_OUT_EXE__), which
+'' differ by design.
+
+namespace Tko
+
+'' The innermost FILE being read -- a macro expansion's frame names none.
+private function PpModHdrFile_( byref e as PpEngine ) as FileId
+    for k as int32 = e.frames.Count - 1 to 0 step -1
+        if e.frames[k].file <> FILE_NONE then return e.frames[k].file
+    next
+    return FILE_NONE
+end function
+
+'' The public slot of the header whose subtree the innermost file is in, or -1.
+private function PpModHdrSlot_( byref e as PpEngine ) as int32
+    if e.cfg->moduleFiles = nullptr then return -1
+    if e.modst.pubRoots.Count = 0 then return -1
+    dim as uint32 f = cast( uint32, PpModHdrFile_( e ) )
+    dim as int32 root = -1
+    for k as int32 = 0 to e.outp->modHdrFile.Count - 1
+        if e.outp->modHdrFile[k] = f then
+            root = cast( int32, e.outp->modHdrRoot[k] )
+            exit for
+        end if
+    next
+    if root < 0 then return -1
+    for s as int32 = 0 to e.modst.pubRoots.Count - 1
+        if cast( int32, e.modst.pubRoots[s] ) = root then return s
+    next
+    return -1
+end function
+
+private sub PpModGrowMarks_( byref e as PpEngine, byval i as int32 )
+    while e.modst.consMark.Count <= i
+        e.modst.consMark.Push( 0 )
+        e.modst.ownMark.Push( 0 )
+    wend
+end sub
+
+'' 'public #include' / 'public #cinclude' (V1; T101): the header 'got' travels with the
+'' interface whatever the interface names from it. 'what' names the form for TKO0369.
+sub PpModMarkPublic _
+    ( byref e as PpEngine, byval at as SourceLoc, byval got as FileId, byref what as string )
+    dim as string p = e.src->AbsPathOf( got )
+    dim as int32 k = -1
+    for i as int32 = 0 to e.outp->modHeaders.Count - 1
+        if e.outp->modHeaders[i] = p then k = i
+    next
+    if (e.modst.isModuleFile = false) orelse (k < 0) then
+        Report( e, TKO0369, at, what )
+        return
+    end if
+    for each r as uint32 in e.outp->modHdrPublic
+        if r = cast( uint32, k ) then return
+    next
+    e.outp->modHdrPublic.Push( cast( uint32, k ) )
+    '' Thirty-two public headers is a module's whole bit mask; one past it travels unchecked.
+    if e.modst.pubRoots.Count < 32 then e.modst.pubRoots.Push( cast( uint32, k ) )
+end sub
+
+'' A MACRO AS ITS '#define' LINE READS AFTER THE WORD -- 'name(a, b...) body' -- spaced as
+'' the source had it, so '#x' and 'a##b' stay whole. "" for a '#macro' block: its body has
+'' line ends, which one line cannot carry.
+function PpModMacroText( byref e as PpEngine, byval m as PpMacro ptr ) as string
+    dim as string s = e.names->Spelling( m->name )
+    if m->optParens then s &= "?"
+    if m->isFunc then
+        s &= "("
+        for i as int32 = 0 to m->params.Count - 1
+            if i > 0 then s &= ", "
+            s &= e.names->Spelling( cast( InternId, m->params[i] ) )
+            if m->isVariadic andalso (i = m->params.Count - 1) then s &= "..."
+        next
+        s &= ")"
+    end if
+    dim as int32 prev = -1
+    for i as int32 = 0 to m->body.Count - 1
+        dim as Token t = m->body[i]
+        if Tk( t ) = TK_EOL then
+            if (t.flags and TF_COLON) = 0 then return ""
+            s &= " :"
+            prev = -1
+            continue for
+        end if
+        dim as boolean tight = false
+        if (prev >= 0) andalso ((t.flags and TF_SPACE_BEFORE) = 0) then
+            dim as DecodedLoc a = e.src->Decode( m->body[prev].loc )
+            dim as DecodedLoc b = e.src->Decode( t.loc )
+            tight = (a.file = b.file) andalso (a.offset + cast( int32, m->body[prev].length ) = b.offset)
+        end if
+        if tight = false then s &= " "
+        s &= SpellOf( e, t )
+        prev = i
+    next
+    return s
+end function
+
+'' TWO DEFINITIONS OF ONE NAME, the same? Parameters and body token by token, literals by
+'' value (SameLiteral_, macro.tiko): '#define A 1' read from the interface and from the
+'' importer's own header are two pool entries of one value.
+private function PpModSameMacro_ _
+    ( byref e as PpEngine, byref a as PpMacro, byref b as PpMacro ) as boolean
+    if (a.isFunc <> b.isFunc) orelse (a.isVariadic <> b.isVariadic) then return false
+    if a.params.Count <> b.params.Count then return false
+    for i as int32 = 0 to a.params.Count - 1
+        if a.params[i] <> b.params[i] then return false
+    next
+    if a.body.Count <> b.body.Count then return false
+    for i as int32 = 0 to a.body.Count - 1
+        if a.body[i].kind <> b.body[i].kind then return false
+        dim as TokenKind k = cast( TokenKind, a.body[i].kind )
+        if (k = TK_INT_LIT) orelse (k = TK_FLOAT_LIT) orelse (k = TK_STRING_LIT) then
+            if SameLiteral_( e, a.body[i].literal, b.body[i].literal ) = false then return false
+        elseif k = TK_EOL then
+            if (a.body[i].flags and TF_COLON) <> (b.body[i].flags and TF_COLON) then return false
+        elseif a.body[i].literal <> b.body[i].literal then
+            return false
+        end if
+    next
+    return true
+end function
+
+'' A CONDITIONAL READ THE NAME 'id'. Recorded for the public header whose subtree is being
+'' read, the first time only, and not once the header has made the name its own.
+sub PpModConsult( byref e as PpEngine, byval id as InternId )
+    dim as int32 slot = PpModHdrSlot_( e )
+    if slot < 0 then return
+    dim as int32 i = cast( int32, id )
+    if i <= 0 then return
+    PpModGrowMarks_( e, i )
+    dim as uint32 bit_ = 1ul shl slot
+    if ((e.modst.consMark[i] or e.modst.ownMark[i]) and bit_) <> 0 then return
+    e.modst.consMark[i] or= bit_
+    if i < e.modst.predefMark.Count then
+        if e.modst.predefMark[i] <> 0 then return
+    end if
+    dim as string nm = e.names->Spelling( id )
+    if nm = "defined" then return
+    dim as string text_ = ""
+    dim as PpMacro ptr m = MacroFor( e, id )
+    if m <> nullptr then
+        if m->builtin <> PPB_NONE then return
+        text_ = PpModMacroText( e, m )
+        if len( text_ ) = 0 then return
+    end if
+    e.outp->modConsRoot.Push( e.modst.pubRoots[slot] )
+    e.outp->modConsName.Push( nm )
+    e.outp->modConsText.Push( text_ )
+end sub
+
+'' A '#define' or '#undef' of 'id' read in a public header's subtree: the name is the
+'' header's own from here on, and a later conditional over it consults nothing.
+sub PpModNoteOwn( byref e as PpEngine, byval id as InternId )
+    dim as int32 slot = PpModHdrSlot_( e )
+    if slot < 0 then return
+    dim as int32 i = cast( int32, id )
+    if i <= 0 then return
+    PpModGrowMarks_( e, i )
+    e.modst.ownMark[i] or= (1ul shl slot)
+end sub
+
+'' TKO0370 at the '#import' being read: 'here' is the importer's macro, 'there' the module's.
+private sub PpModTkiDiffers_ _
+    ( byref e as PpEngine, byref nm as string, byref here as string, byref there as string )
+    Report( e, TKO0370, e.modst.importLoc, "'" & nm & "' is " & here, _
+            "module '" & e.modst.tkiChain & "' read '" & e.modst.tkiHeader & "' with it " & there )
+end sub
+
+private function PpModTkiState_( byref e as PpEngine, byval m as PpMacro ptr ) as string
+    if m = nullptr then return "undefined"
+    dim as string t = PpModMacroText( e, m )
+    dim as int32 sp = instr( t, " " )
+    if sp = 0 then return "defined empty"
+    return "defined as '" & mid( t, sp + 1 ) & "'"
+end function
+
+'' The next quoted string on the line, without its quotes; "" when there is none.
+private function PpModTkiString_( byref e as PpEngine ) as string
+    dim as Token t
+    if PeekOnLine( e, t ) = false then return ""
+    if Tk( t ) <> TK_STRING_LIT then return ""
+    dim as string s = SpellOf( e, t )
+    Advance( e )
+    dim as int32 a = instr( s, """" )
+    dim as int32 b = instrrev( s, """" )
+    if (a = 0) orelse (b <= a) then return ""
+    return mid( s, a + 1, b - a - 1 )
+end function
+
+'' '#tki ...', which only an interface writes. Anywhere else it is an unknown directive.
+sub PpModTki( byref e as PpEngine, byval at as SourceLoc )
+    dim as boolean inIface = (e.frames.Count > 0)
+    if inIface then inIface = e.frames[e.frames.Count - 1].iface
+    dim as Token w
+    dim as string verb = ""
+    if PeekOnLine( e, w ) then
+        if Tk( w ) = TK_IDENT then verb = e.names->Spelling( cast( InternId, w.literal ) )
+        if Tk( w ) = KW_END then verb = "end"
+    end if
+    if inIface = false then
+        Report( e, TKO0300, at, "tki" )
+        SkipToEol( e )
+        return
+    end if
+    Advance( e )
+    select case verb
+    case "require"
+        e.modst.tkiChain = PpModTkiString_( e )
+        e.modst.tkiHeader = PpModTkiString_( e )
+        e.modst.tkiRestore.Clear( )
+    case "undef"
+        dim as Token t
+        if PeekOnLine( e, t ) andalso (Tk( t ) = TK_IDENT) then
+            dim as PpMacro ptr m = MacroFor( e, cast( InternId, t.literal ) )
+            if m <> nullptr then
+                PpModTkiDiffers_( e, e.names->Spelling( cast( InternId, t.literal ) ), _
+                                  PpModTkiState_( e, m ), "undefined" )
+            end if
+        end if
+    case "define"
+        dim as Token t
+        if (PeekOnLine( e, t ) = false) orelse (Tk( t ) <> TK_IDENT) then exit select
+        dim as InternId id = cast( InternId, t.literal )
+        dim as PpMacro ptr m = MacroFor( e, id )
+        if m = nullptr then
+            PpDefine( e, at, false )
+            e.modst.tkiRestore.Push( cast( uint32, id ) )
+            return
+        end if
+        '' The importer has it: read the module's definition into the slot, compare, and put
+        '' the importer's back -- it is the one that stays.
+        dim as PpMacro saved = *m
+        m->isDefined = false
+        PpDefine( e, at, false )
+        dim as PpMacro ptr theirs = MacroFor( e, id )
+        dim as boolean same = false
+        dim as string there = "undefined"
+        if theirs <> nullptr then
+            same = PpModSameMacro_( e, saved, *theirs )
+            there = PpModTkiState_( e, theirs )
+        end if
+        dim as int32 slot = SlotOf( e, id )
+        e.macros[slot - 1] = saved
+        if same = false then
+            PpModTkiDiffers_( e, e.names->Spelling( id ), PpModTkiState_( e, @e.macros[slot - 1] ), there )
+        end if
+        return
+    case "end"
+        for each r as uint32 in e.modst.tkiRestore
+            dim as PpMacro ptr m = MacroFor( e, cast( InternId, r ) )
+            if m <> nullptr then m->isDefined = false
+            FreeTakenName_( e, cast( InternId, r ) )
+        next
+        e.modst.tkiRestore.Clear( )
+    end select
+    SkipToEol( e )
+end sub
+
+end namespace

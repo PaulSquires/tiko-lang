@@ -1,0 +1,6 @@
+# A package whose module carries a header publicly (tests/modules/vendor-public-include*).
+[package]
+name = "vp"
+
+[defines]
+VP_MODE = "7"

@@ -1,0 +1,22 @@
+'' vendor/sqlite -- SQLite 3, the C library, as one import (tiko-vendor RFC-0002 §1):
+''
+''     #import "vendor/sqlite" link dynamic        (or 'link static', or neither)
+''
+'' Every routine, type and constant of sqlite3.h is then callable as SQLite documents it,
+'' unqualified -- sqlite3_open, SQLITE_OK. The header is sqlite3.ti, translated from
+'' sqlite3.h by 'tiko c2t' and committed; its banner names the C header and its SHA-256.
+'' sqlite3-residue.ti holds by hand what the translation could not carry (RFC-0001 D6).
+''
+'' THE LIBRARY: with 'link static' the archive is linked into the program; with 'link dynamic'
+'' -- and when no '#import' says, which is this package's default -- the shared library, which
+'' tiko copies beside the program. Nothing on the command line either way.
+#module "sqlite"
+
+public #include once "sqlite3.ti"
+public #include once "sqlite3-residue.ti"
+
+#ifdef TIKO_LINK_STATIC
+    #foreignlib SQLITE static "lib/sqlite3"
+#else
+    #foreignlib SQLITE dynamic "lib/sqlite3"
+#endif

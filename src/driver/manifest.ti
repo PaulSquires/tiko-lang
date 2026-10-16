@@ -30,6 +30,11 @@ type Manifest
     as StrVec  prfName
     as StrVec  prfKey
     as StrVec  prfVal
+    '' [vendor.<module>] links = ["static", "dynamic"] (tiko-vendor RFC-0002 V7, V10): the
+    '' link modes a module of this package ships, which '#import ... link' may ask for. The
+    '' module's path below the package, dotted, and its modes as "|static|dynamic|".
+    as StrVec  vendorMods
+    as StrVec  vendorLinks
 end type
 
 '' READ dir_/tiko.toml. False with the reason reported (TKO0144) when it is not the subset

@@ -42,6 +42,19 @@ type PpModState
     as IdVec     aliasIds
     as StrVec    aliasChains
     as MacroVec  journalMac
+    '' A PUBLIC HEADER'S CONSULTED MACROS (RFC-0002 V12, TKO0370; ppmodhdr.tiko). Each public
+    '' header has a slot, pubRoots[slot] its index into PpResult.modHeaders; per InternId, a
+    '' bit per slot once the name's first consultation there is recorded, and one once the
+    '' header's own subtree defined or undefined it -- after that it is the header's macro.
+    as IdVec     pubRoots
+    as IdVec     consMark
+    as IdVec     ownMark
+    '' THE IMPORTER'S SIDE: the '#import' whose interface is being read, the module and header
+    '' its '#tki require' named, and the macros its '#tki define's added, undone at '#tki end'.
+    as SourceLoc importLoc
+    as string    tkiChain
+    as string    tkiHeader
+    as IdVec     tkiRestore
 end type
 
 end namespace
