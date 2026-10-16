@@ -23,7 +23,7 @@ typedef int native_handle;
 int posix_only_fn(native_handle fd);
 #endif
 
-/* A compiler's identity: the group stays a TODO, and what it holds is guarded by target. */
+/* A compiler's identity: kept as written -- the program that includes it decides. */
 #if defined(_MSC_VER)
 int msvc_only_fn(void);
 #endif

@@ -20,7 +20,7 @@ tiko c2t <in.h> [-o <out.ti>|-] [-I <dir>] [-D <name>[=<value>]] [-U <name>]
 tiko c2t raylib.h -o raylib.ti
 ```
 
-The header is parsed by Clang twice, once for **windows-x86_64** and once for **linux-x86_64**, and the two translations are merged into one file. Text that is the same on both targets is written once; text that differs is written under a guard the translation synthesises (`#if defined(TIKO_OS_WINDOWS)` … `#elseif defined(TIKO_OS_LINUX)` … `#endif`). The header's own `#if` lines are kept and translated, with C's platform macros spelled as tiko's own (`_WIN32` → `TIKO_OS_WINDOWS`, `__linux__` → `TIKO_OS_LINUX`, `__x86_64__` → `TIKO_ARCH_X86_64`).
+The header is parsed by Clang twice, once for **windows-x86_64** and once for **linux-x86_64**, and the two translations are merged into one file. Text that is the same on both targets is written once; text that differs is written under a guard the translation synthesises (`#if defined(TIKO_OS_WINDOWS)` … `#elseif defined(TIKO_OS_LINUX)` … `#endif`). The header's own `#if` lines are kept and translated, with C's platform macros spelled as tiko's own (`_WIN32` → `TIKO_OS_WINDOWS`, `__linux__` → `TIKO_OS_LINUX`, `__x86_64__` → `TIKO_ARCH_X86_64`). A test of the compiler (`_MSC_VER`, `__GNUC__`, `__clang__`) is kept as written -- tiko defines none of them, so the program including the file decides -- and every branch of such a group is translated for both targets.
 
 A branch neither target takes -- `#ifdef SQLITE_ENABLE_SESSION`, an `#elif` for another platform -- is translated as well: the header is parsed once more per target with that branch switched on, and what it holds is written inside the translated `#if`, so defining the macro in tiko gives the same API C would. A header the branch includes that this machine does not have is left out of that parse, and its `#include` translated by name. `#error` is kept as tiko's `#error`.
 
@@ -125,7 +125,7 @@ A **TODO** is API that is missing until someone translates it by hand. A **NOTE*
 | `macro` | An object-like macro whose value tiko cannot spell: a record value (a compound literal), infinity or NaN, or a name tiko does not declare. Also an `#undef` of a tiko keyword (`#undef double`), which would take the keyword away |
 | `function-like-macro` | A function-like macro tiko cannot write as one expression: variadic, `#` or `##`, a statement, a cast to a type it does not know |
 | `static-inline` | A `static` or `static inline` function. There is no symbol to link; the body is quoted for porting |
-| `conditional` | An `#if` group tiko cannot state: a compiler's identity (`_MSC_VER`, `__GNUC__`), or a branch tiko would choose differently from Clang. A branch inside such a group that no target takes stays C too: written out, it would hold unconditionally |
+| `conditional` | An `#if` group tiko cannot state, or a branch tiko would choose differently from Clang. A branch inside such a group that no target takes stays C too: written out, it would hold unconditionally |
 | `branch-unparsed` | A branch no target takes that Clang cannot parse even when it is switched on -- C++ inside `#ifdef __cplusplus`, or types from a header the branch expects but never includes. The why quotes Clang |
 | `system-header` | An `#include <x.h>` with no tiko counterpart |
 | `refused-type` | A declaration that names a type tiko cannot spell, or a system type no mapped header declares |
@@ -138,6 +138,7 @@ A **TODO** is API that is missing until someone translates it by hand. A **NOTE*
 | --- | --- |
 | `inline` | A non-static `inline` function, declared: it links only if the library exports it |
 | `value` | A macro written as Clang's value instead of its expression, with the reason: a cast, or a value tiko's reading of the expression would not match |
+| `pointer` | A macro whose value is a pointer cast from a number -- `((void*)0)`, `((callback_t)-1)` -- written as `cast(...)`. Clang gives no value for a pointer, so nothing checked it |
 | `if-0` | `#if 0` text, kept as a comment |
 | `branch` | A struct or enum with an `#if` inside its body: the members are the ones each target's preprocessor keeps; the other branch's are not translated |
 | `static-assert` | A C `_Static_assert`: a compile-time check, with nothing to declare |

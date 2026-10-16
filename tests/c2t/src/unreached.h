@@ -41,8 +41,23 @@ int ur_outer(int x);
 int ur_strict(void);
 #endif
 
+/* A test of the compiler is the program's to answer: kept as written, every branch
+   translated for each target. */
+#if defined(_MSC_VER)
+typedef unsigned __int64 ur_u64;
+#elif defined(__GNUC__) && __GNUC__ >= 4
+typedef unsigned long long ur_u64;
+#else
+typedef unsigned long ur_u64;
+#endif
+#ifdef __clang__
+#define UR_CC 1
+#else
+#define UR_CC 2
+#endif
+
 /* Under a conditional c2t cannot translate, an untaken branch stays C. */
-#if defined(_MSC_VER) && defined(UR_NEVER)
+#if defined(UR_UNSTATABLE) && (UR_UNSTATABLE / 0)
 #define double long
 #endif
 

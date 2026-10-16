@@ -40,7 +40,7 @@ static inline int br_twice(int x)
 #ifdef BR_VERSION
 # undef BR_VERSION
 #endif
-#if defined(_MSC_VER) && defined(BR_NEVER)
+#if defined(BR_NEVER) && (BR_NEVER / 0)
 # undef BR_NEVER
 #endif
 /* ...and never one of a tiko keyword, reached or not: it would remove the keyword. */
