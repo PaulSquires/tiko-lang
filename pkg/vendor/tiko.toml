@@ -23,7 +23,7 @@ links = ["dynamic"]
 [vendor.SDL3.mixer]
 links = ["dynamic"]
 
-# raylib/raymath and raylib/rlgl link nothing of their own -- each brings vendor/raylib, which
-# links raylib -- so the link mode is chosen on vendor/raylib.
-[vendor.raylib]
+# raylib6/raymath and raylib6/rlgl link nothing of their own -- each brings vendor/raylib6, which
+# links raylib -- so the link mode is chosen on vendor/raylib6.
+[vendor.raylib6]
 links = ["static", "dynamic"]

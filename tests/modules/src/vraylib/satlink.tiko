@@ -1,2 +1,2 @@
-#import "vendor/raylib/raymath" link static
+#import "vendor/raylib6/raymath" link static
 print Vector2Length( type<Vector2>( 3, 4 ) )

@@ -17,8 +17,8 @@
 
 '' raylib linked DYNAMICALLY: raylib.dll is copied beside the program (on Linux,
 '' libraylib.so.620). Write 'link static' instead to build raylib into the program.
-#import "vendor/raylib" link dynamic
-#import "vendor/raylib/rlgl"
+#import "vendor/raylib6" link dynamic
+#import "vendor/raylib6/rlgl"
 
 dim as long maxFrames = valint( command( 1 ) )   '' a frame count closes it unattended
 dim as long frameCount = 0

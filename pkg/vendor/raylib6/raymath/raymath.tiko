@@ -1,6 +1,6 @@
-'' vendor/raylib/raymath -- raylib 6.2's math library, raymath.h, as one import:
+'' vendor/raylib6/raymath -- raylib 6.2's math library, raymath.h, as one import:
 ''
-''     #import "vendor/raylib/raymath"
+''     #import "vendor/raylib6/raymath"
 ''
 '' Vector2, Vector3, Matrix and Quaternion arithmetic -- Vector2Add, Vector3Normalize,
 '' MatrixRotateY, QuaternionSlerp -- unqualified, as raylib documents them. The header is
@@ -9,11 +9,11 @@
 '' into the library. Its C2T-TODOs are the C++-only operators, and MatrixToFloat and
 '' Vector3ToFloat, which this file writes by hand.
 ''
-'' It brings vendor/raylib with it -- raylib's names, and its library. The link mode is chosen
-'' there, on the module that links: '#import "vendor/raylib" link static' beside this import.
+'' It brings vendor/raylib6 with it -- raylib's names, and its library. The link mode is chosen
+'' there, on the module that links: '#import "vendor/raylib6" link static' beside this import.
 #module "raymath"
 
-#import "vendor/raylib" public
+#import "vendor/raylib6" public
 
 public #include once "raymath.ti"
 

@@ -1,4 +1,4 @@
-# vendor/raylib's binaries, for build/vendorfetch.sh. Read by that script alone and never
+# vendor/raylib6's binaries, for build/vendorfetch.sh. Read by that script alone and never
 # shipped; the entry format is described in ../sqlite/fetch.toml.
 #
 # THE NAMES are what '#foreignlib RAYLIB ... "lib/raylib"' probes: raylib_<os>_x86_64.a for

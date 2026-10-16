@@ -1,6 +1,6 @@
-'' vendor/raylib -- raylib 6.2, the C library for games and graphics, as one import:
+'' vendor/raylib6 -- raylib 6.2, the C library for games and graphics, as one import:
 ''
-''     #import "vendor/raylib" link dynamic        (or 'link static', or neither)
+''     #import "vendor/raylib6" link dynamic        (or 'link static', or neither)
 ''
 '' Every routine, type and constant of raylib.h is then callable as raylib documents it,
 '' unqualified -- InitWindow, DrawText, RAYWHITE. The header is raylib.ti, translated from
@@ -8,14 +8,14 @@
 '' raylib-residue.ti holds by hand what the translation could not carry: the colours.
 ''
 '' raymath.h and rlgl.h are modules of their own, as they are headers of their own in C:
-'' '#import "vendor/raylib/raymath"' (Vector2Add, MatrixRotate, ...) and
-'' '#import "vendor/raylib/rlgl"' (rlPushMatrix, ...). Each brings this one with it.
+'' '#import "vendor/raylib6/raymath"' (Vector2Add, MatrixRotate, ...) and
+'' '#import "vendor/raylib6/rlgl"' (rlPushMatrix, ...). Each brings this one with it.
 ''
 '' THE LIBRARY: with 'link static' raylib is linked into the program, with the system
 '' libraries it needs; with 'link dynamic' -- and when no '#import' says, which is this
 '' package's default -- the shared library, which tiko copies beside the program: raylib.dll,
 '' or libraylib.so.620 on Linux.
-#module "raylib"
+#module "raylib6"
 
 public #include once "raylib.ti"
 public #include once "raylib-residue.ti"

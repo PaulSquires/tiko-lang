@@ -1,4 +1,4 @@
-vendor/raylib carries raylib's licence, the zlib licence, for the libraries downloaded into lib/
+vendor/raylib6 carries raylib's licence, the zlib licence, for the libraries downloaded into lib/
 (raylib.dll, raylib.lib; libraylib.so, libraylib.a) and the C headers raylib.ti, raymath/raymath.ti
 and rlgl/rlgl.ti are translated from:
 

@@ -1,5 +1,5 @@
-'' vendor/raylib/raymath LINKS NOTHING ITSELF -- it brings vendor/raylib, which links raylib -- so
-'' it declares no link modes, and 'link' on it is TKO0155: the mode is chosen on vendor/raylib.
+'' vendor/raylib6/raymath LINKS NOTHING ITSELF -- it brings vendor/raylib6, which links raylib -- so
+'' it declares no link modes, and 'link' on it is TKO0155: the mode is chosen on vendor/raylib6.
 '' TEST: cli
 '' ENV: TKO_PKG=pkg
 '' ENV: TKO_MODCACHE=build/.vrls/mc
