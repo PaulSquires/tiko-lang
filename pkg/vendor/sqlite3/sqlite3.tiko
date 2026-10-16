@@ -1,6 +1,6 @@
-'' vendor/sqlite -- SQLite 3, the C library, as one import:
+'' vendor/sqlite3 -- SQLite 3, the C library, as one import:
 ''
-''     #import "vendor/sqlite" link dynamic        (or 'link static', or neither)
+''     #import "vendor/sqlite3" link dynamic        (or 'link static', or neither)
 ''
 '' Every routine, type and constant of sqlite3.h is then callable as SQLite documents it,
 '' unqualified -- sqlite3_open, SQLITE_OK. The header is sqlite3.ti, translated from
@@ -10,7 +10,7 @@
 '' THE LIBRARY: with 'link static' the archive is linked into the program; with 'link dynamic'
 '' -- and when no '#import' says, which is this package's default -- the shared library, which
 '' tiko copies beside the program. Nothing on the command line either way.
-#module "sqlite"
+#module "sqlite3"
 
 public #include once "sqlite3.ti"
 public #include once "sqlite3-residue.ti"

@@ -1,9 +1,9 @@
-'' The committed vendor/sqlite header and residue, as an importer reads them: no library needed.
+'' The committed vendor/sqlite3 header and residue, as an importer reads them: no library needed.
 #ifdef HDR_DYNAMIC
 #define TIKO_LINK_DYNAMIC 1
 #endif
-#include once "../../../../pkg/vendor/sqlite/sqlite3.ti"
-#include once "../../../../pkg/vendor/sqlite/sqlite3-residue.ti"
+#include once "../../../../pkg/vendor/sqlite3/sqlite3.ti"
+#include once "../../../../pkg/vendor/sqlite3/sqlite3-residue.ti"
 dim as sqlite3_destructor_type d = SQLITE_TRANSIENT
 dim as sqlite3 ptr db
 if sqlite3_open( ":memory:", @db ) = SQLITE_OK then sqlite3_close( db )

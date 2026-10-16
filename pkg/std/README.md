@@ -54,7 +54,7 @@ when unset); a module never sees its importer's `-d`, so it is set in a `tiko.to
 | `FB_LOG_MIN_LEVEL` | `LOG_MIN_LEVEL`, std/logs' setting |
 | LogEvent's `.Str( )`, `.Int_( )`, `.UInt( )`, `.Dbl( )`, `.Bool( )`, `.Ptr_( )`, `.Time( )`, `.Span( )`, `.Val( )`, `.Err( )` | `.AddText( )`, `.AddInt( )`, `.AddUInt( )`, `.AddFloat( )`, `.AddBool( )`, `.AddPtr( )`, `.AddTime( )`, `.AddSpan( )`, `.AddValue( )`, `.AddError( )` |
 | `#include once "fb/sharedptr.bi"` | `#import "std/memory"` |
-| `#include once "fbsqlite.bi"` + `using SQLite` | `#import "db/sqlite"` + `using sqlite` |
+| `#include once "fbsqlite.bi"` + `using SQLite` | `#import "vendor/sqlite3"`: no wrapper, SQLite's own C API |
 | ComPtr (`fb/comptr.bi`) | no longer supported |
 
 ## The tests

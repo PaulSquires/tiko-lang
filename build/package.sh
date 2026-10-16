@@ -553,47 +553,6 @@ mkdir -p "$OUT/src/fbcunit"
 cp -r "$FBCU/src" "$FBCU/inc" "$OUT/src/fbcunit/"
 cp -f "$FBCU/readme.txt" "$FBCU/license.txt" "$FBCU/lgpl-2.1.txt" "$OUT/src/fbcunit/"
 
-# ------------------------------------------------------------------- fbsqlite
-#
-# THE DATABASE LIBRARY SHIPS ON EVERY TARGET, not only the one fbc-modern's tree
-# happens to cover (T11). fbsqlite is the SQLite wrapper the book's Chapter 27 and
-# its ledger capstone use: three headers, and '#inclib "sqlite3"'. Until this step,
-# windows-x86_64 -- the default target -- failed to link it ('could not open
-# sqlite3.lib'), and tiko-linux had neither the headers nor a library, because
-# fbc-modern-linux carries neither.
-#
-# THE LIBRARY IS BUILT HERE, per target, from the amalgamation fbsqlite vendors --
-# build/mksqlite.sh has the reasons for each flag. The headers are copied from the same
-# fbsqlite checkout, on both hosts, so they always match the library beside them.
-#
-# The source is TKO_SQLITE, else the fbsqlite repository beside this one. NOT FATAL,
-# like fbcunit: a toolchain without a database library has lost a library, not the
-# compiler. The manifest records each target either way.
-SQLITE_SRC=${TKO_SQLITE:-$ROOT/../sqlite}
-SQLITE_SRC=$( cd "$SQLITE_SRC" 2>/dev/null && pwd || printf '%s' "$SQLITE_SRC" )
-SQLITE_STATE=""
-for t in $TARGETS; do
-    _sq=$( TKO_SQLITE="$SQLITE_SRC" sh "$ROOT/build/mksqlite.sh" "$t" "$OUT/lib/$t" 2>&1 ) || true
-    _sqline=$( printf '%s\n' "$_sq" | sed -n 's/^mksqlite: //p' | tail -1 )
-    [ -n "$_sqline" ] || _sqline="$t FAILED -- $( printf '%s\n' "$_sq" | tail -1 | cut -c1-120 )"
-    note "fbsqlite: $_sqline"
-    SQLITE_STATE="$SQLITE_STATE
-  $_sqline"
-done
-# THE WRAPPER IS A MODULE, pkg/db/sqlite (2026-10-10): fbsqlite.bi and fbsqlite_csv.bi
-# include fb/ library headers, which are the std modules now, so tiko ships its own port
-# ('#import "db/sqlite"') and only the C binding beside it, sqlite3api.bi, from fbsqlite.
-if [ -d "$OUT/inc" ] && [ -f "$SQLITE_SRC/inc/sqlite3api.bi" ]; then
-    cp -f "$SQLITE_SRC/inc/sqlite3api.bi" "$OUT/inc/sqlite3api.bi"
-    rm -f "$OUT/inc/fbsqlite.bi" "$OUT/inc/fbsqlite_csv.bi"
-    SQLITE_STATE="$SQLITE_STATE
-  headers  sqlite3api.bi from $SQLITE_SRC/inc; the wrapper is pkg/db/sqlite"
-else
-    note "WARNING: sqlite3api.bi not packaged -- no inc/ or no $SQLITE_SRC/inc/sqlite3api.bi"
-    SQLITE_STATE="$SQLITE_STATE
-  headers  NOT packaged"
-fi
-
 # ----------------------------------------------------------------- the notices
 #
 # lib/rt is LGPL-2.1-or-later and a derivative of libfb; lib/gfx is
@@ -676,35 +635,6 @@ print "ok"
 # FBCUNIT IS VERIFIED THE SAME WAY: a program that includes the shipped header,
 # resolves its #inclib out of lib/<target>/ and RUNS. An archive that is present
 # but was built for the wrong ABI links nothing, and only a link says so.
-# fbsqlite IS VERIFIED BY A QUERY, not by a link: an in-memory database, a table, a row
-# and a count read back. A library that links but was built without its options, or
-# against the wrong runtime, fails here and not in a reader's program.
-verify_fbsqlite( ) {
-    _t=$1
-    _tmp="$OUT/.verifysq.$_t"
-    rm -rf "$_tmp"; mkdir -p "$_tmp"
-    printf '#import "db/sqlite"
-using sqlite
-dim db as Database
-if db.OpenMemory( ).IsOk( ) = false then end 1
-db.Execute( "create virtual table t using fts5( word )" )
-db.Execute( "insert into t values( ?1 )", Args( "tiko" ) )
-dim n as MaybeValueResult = db.QueryScalar( "select count(*) from t where t match ?1", Args( "tiko" ) )
-if n.IsOk( ) andalso n.Value( ).Value( ).AsInt64( ) = 1 then print "ok"
-' > "$_tmp/sq.tiko"
-    ( cd "$OUT" && "./${BINSUB}tiko$EXT" -target "$_t" ".verifysq.$_t/sq.tiko" -o ".verifysq.$_t/sq$EXT" ) >"$_tmp/log" 2>&1 || true
-    if [ -f "$_tmp/sq$EXT" ] && [ "$( "$_tmp/sq$EXT" 2>/dev/null )" = "ok" ]; then
-        VERIFY_LINES="$VERIFY_LINES
-  $_t  fbsqlite PASS -- compiled, linked and ran an FTS5 query"
-    else
-        _why=$( grep -m1 -iE 'error|undefined|could not open' "$_tmp/log" | cut -c1-160 )
-        [ -n "$_why" ] || _why="built, but the query did not print ok"
-        VERIFY_LINES="$VERIFY_LINES
-  $_t  fbsqlite FAIL -- $_why"
-    fi
-    rm -rf "$_tmp"
-}
-
 verify_fbcunit( ) {
     _t=$1
     _tmp="$OUT/.verifycu.$_t"
@@ -815,7 +745,7 @@ print tkCore.tkUcase( "tiko" ); " "; hex( gdiplus.GDIP_ARGB( &hFF, 1, 2, 3 ) )
     rm -rf "$_tmp"
 }
 
-# THE VENDOR PACKAGES, the RFC's own program (tiko-vendor RFC-0002 §1): vendor/sqlite
+# THE VENDOR PACKAGES, the RFC's own program (tiko-vendor RFC-0002 §1): vendor/sqlite3
 # imported 'link static' and 'link dynamic', from the packaged pkg/ alone, built and RUN --
 # the dynamic one from beside the DLL / .so the compiler copied there (V13).
 verify_vendor( ) {
@@ -823,7 +753,7 @@ verify_vendor( ) {
     for _mode in static dynamic; do
         _tmp="$OUT/.verifyvendor.$_t.$_mode"
         rm -rf "$_tmp"; mkdir -p "$_tmp"
-        printf '#import "vendor/sqlite" link %s
+        printf '#import "vendor/sqlite3" link %s
 dim as sqlite3 ptr db
 if sqlite3_open( ":memory:", @db ) <> SQLITE_OK then print "open failed"
 dim as sqlite3_stmt ptr st
@@ -837,12 +767,12 @@ sqlite3_close( db )
             ".verifyvendor.$_t.$_mode/v.tiko" -o ".verifyvendor.$_t.$_mode/v$EXT" ) >"$_tmp/log" 2>&1 || true
         if [ -f "$_tmp/v$EXT" ] && [ "$( "$_tmp/v$EXT" 2>/dev/null | tr -d '\r' )" = "sqliteok" ]; then
             VERIFY_LINES="$VERIFY_LINES
-  $_t  vendor/sqlite link $_mode PASS -- imported, compiled, linked and ran"
+  $_t  vendor/sqlite3 link $_mode PASS -- imported, compiled, linked and ran"
         else
             _why=$( grep -m1 -iE 'error|undefined|cannot' "$_tmp/log" | cut -c1-160 )
             [ -n "$_why" ] || _why="built, but did not print 'sqliteok'"
             VERIFY_LINES="$VERIFY_LINES
-  $_t  vendor/sqlite link $_mode FAIL -- $_why"
+  $_t  vendor/sqlite3 link $_mode FAIL -- $_why"
         fi
         rm -rf "$_tmp"
     done
@@ -853,7 +783,6 @@ if [ "$DO_VERIFY" = "1" ]; then
         note "verifying $t: compile, link and run"
         verify_target "$t"
         verify_fbcunit "$t"
-        verify_fbsqlite "$t"
         verify_std "$t"
         verify_tkl "$t"
         verify_vendor "$t"
@@ -941,8 +870,6 @@ SIZE=$( du -sh "$OUT" | cut -f1 )
     say "graphics:$GFX_STATE"
     say
     say "fbcunit (the unit-test library; source in src/fbcunit):$FBCU_STATE"
-    say
-    say "fbsqlite (SQLite 3, public domain; built by build/mksqlite.sh):$SQLITE_STATE"
     say
     say "-- verification --------------------------------------------------------"
     say "Each target below was checked by compiling AND RUNNING a program with"

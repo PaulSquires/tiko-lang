@@ -2,7 +2,7 @@
 
 # Vendor Packages
 
-> **In tiko.** A C library the toolchain ships, reached with one `#import` and nothing on the command line: `#import "vendor/sqlite" link dynamic`. Its header comes across whole and unqualified, its library is linked, and a dynamic library is copied beside the program so the program starts. Measured on windows-x86_64 and linux-x86_64.
+> **In tiko.** A C library the toolchain ships, reached with one `#import` and nothing on the command line: `#import "vendor/sqlite3" link dynamic`. Its header comes across whole and unqualified, its library is linked, and a dynamic library is copied beside the program so the program starts. Measured on windows-x86_64 and linux-x86_64.
 
 ## Syntax
 
@@ -13,7 +13,7 @@
 ## Description
 
 ```freebasic
-#import "vendor/sqlite" link dynamic
+#import "vendor/sqlite3" link dynamic
 
 dim as sqlite3 ptr db
 if sqlite3_open( ":memory:", @db ) <> SQLITE_OK then print "open failed"
@@ -29,13 +29,13 @@ sqlite3_close( db )
 hi!
 ```
 
-Every routine, type and constant of the library's C header is callable as the library documents it: `sqlite3_open`, `SQLITE_OK`, not `sqlite.sqlite3_open`. No `#cinclude`, no `#foreignlib`, no `-i`, `-l` or `-p`, and no Clang at your end: the header was translated once, by [`tiko c2t`](C2t), and ships translated.
+Every routine, type and constant of the library's C header is callable as the library documents it: `sqlite3_open`, `SQLITE_OK`, not `sqlite3.sqlite3_open`. No `#cinclude`, no `#foreignlib`, no `-i`, `-l` or `-p`, and no Clang at your end: the header was translated once, by [`tiko c2t`](C2t), and ships translated.
 
 `vendor/` is the toolchain's, as `std/` is. It is looked for in the toolchain's `pkg/` directory alone: a project directory, an `-i` directory, a `TKO_PATH` entry or a dependency called `vendor` cannot stand in for it, and a project whose `tiko.toml` names itself `vendor` is `TKO0148`.
 
 | Package | Library | Link modes |
 | --- | --- | --- |
-| `vendor/sqlite` | SQLite 3.54.0 | `static`, `dynamic` (the default) |
+| `vendor/sqlite3` | SQLite 3.54.0 | `static`, `dynamic` (the default) |
 | `vendor/SDL3` | SDL 3.4.4 | `dynamic` (the default) |
 | `vendor/SDL3/image` | SDL3_image 3.4.4 (brings `vendor/SDL3`) | `dynamic` (the default) |
 | `vendor/SDL3/ttf` | SDL3_ttf 3.2.2 (brings `vendor/SDL3`) | `dynamic` (the default) |
@@ -49,7 +49,7 @@ Every routine, type and constant of the library's C header is callable as the li
 
 - **`link static`** links the library's archive into the program. Nothing else is needed at run time.
 - **`link dynamic`** links the shared library (`sqlite3.dll`, `sqlite3_linux_x86_64.so`) and **copies it beside the program**, under the name the program will load it by. A copy already there with the same size and no older is left alone, and one that was deleted is put back by the next build. [`tiko build`](Category-Tiko-Build)'s `copy_to` copies the library along with the program. `-nocopylibs` turns the copy off.
-- **No `link`** leaves the choice to the package: each one names its default. `vendor/sqlite`'s is dynamic.
+- **No `link`** leaves the choice to the package: each one names its default. `vendor/sqlite3`'s is dynamic.
 
 One program links a library one way. Two imports asking for different modes are `TKO0157`, with a note at the other import; an import without `link` goes along with one that has it. A mode the package does not ship is `TKO0156`, and `link` on a package that ships no library -- any source-only package -- is `TKO0155`.
 
@@ -57,10 +57,10 @@ On linux-x86_64 a program that links a shared library from `#foreignlib` gets a 
 
 ## Inside a vendor package
 
-A vendor package is an ordinary module. `vendor/sqlite` is one file:
+A vendor package is an ordinary module. `vendor/sqlite3` is one file:
 
 ```freebasic
-#module "sqlite"
+#module "sqlite3"
 
 public #include once "sqlite3.ti"
 public #include once "sqlite3-residue.ti"
@@ -76,7 +76,7 @@ public #include once "sqlite3-residue.ti"
 - **`TIKO_LINK_STATIC`** or **`TIKO_LINK_DYNAMIC`** (each `1`) is defined in the module when an importer wrote `link`; with no `link` anywhere, neither is, and the module's `#else` decides. The mode is part of the module's cache entry, so changing it rebuilds the module.
 - **`sqlite3.ti`** is the C header translated by `tiko c2t ... --shared-macro "SQLITE_API=__attribute__((dllimport))"`: a variable the library exports is written twice, `extern import` for a dynamic link on Windows and plain `extern` otherwise.
 - **`sqlite3-residue.ti`** is written by hand: what the translation could not carry (`SQLITE_STATIC` and `SQLITE_TRANSIENT`, which are pointers), each with the reason.
-- **`tiko.toml`** says what the package ships: `[vendor.sqlite] links = ["static", "dynamic"]`.
+- **`tiko.toml`** says what the package ships: `[vendor.sqlite3] links = ["static", "dynamic"]`.
 - **`lib/`** holds the library files. They are not part of the source: `build/vendorfetch.sh` downloads them, or builds them from the library's source where no binary is published, each archive pinned by version and SHA-256, from the module's `fetch.toml`.
 
 ### A header read in two places

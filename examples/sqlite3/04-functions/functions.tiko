@@ -11,7 +11,7 @@
 
 '' SQLite linked DYNAMICALLY: sqlite3.dll is copied beside the program (on Linux the program
 '' gets libsqlite3 beside it). Write 'link static' instead to build SQLite into the program.
-#import "vendor/sqlite" link dynamic
+#import "vendor/sqlite3" link dynamic
 
 '' noop( X ): returns X, whatever its type -- appfunc.html's simplest function.
 sub NoopFunc cdecl ( byval context as sqlite3_context ptr, byval argc as long, byval argv as sqlite3_value ptr ptr )

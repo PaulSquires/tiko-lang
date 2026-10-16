@@ -8,7 +8,7 @@ name = "vendor"
 version = "0.1.0"
 
 # The link modes each module ships: what '#import ... link' may ask for.
-[vendor.sqlite]
+[vendor.sqlite3]
 links = ["static", "dynamic"]
 
 [vendor.SDL3]

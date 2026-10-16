@@ -3,7 +3,7 @@
 #
 #   sh build/vendorfetch.sh                    into the tree's own pkg/vendor/*/lib
 #   sh build/vendorfetch.sh --out DIR          into DIR/vendor/*/lib (package.sh: $OUT/pkg)
-#   sh build/vendorfetch.sh --module sqlite    one module only
+#   sh build/vendorfetch.sh --module sqlite3   one module only
 #
 # A vendor package commits its translated headers and a fetch.toml; its binaries are never
 # committed. This reads each pkg/vendor/<module>/fetch.toml and, for THIS host's [<os>.<n>]

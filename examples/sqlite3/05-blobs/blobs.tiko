@@ -9,7 +9,7 @@
 
 '' SQLite linked DYNAMICALLY: sqlite3.dll is copied beside the program (on Linux the program
 '' gets libsqlite3 beside it). Write 'link static' instead to build SQLite into the program.
-#import "vendor/sqlite" link dynamic
+#import "vendor/sqlite3" link dynamic
 
 const BIG = 1024 * 1024      '' one megabyte
 const CHUNK = 64 * 1024      '' written and read 64 KB at a time

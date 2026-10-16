@@ -1,6 +1,6 @@
 # SQLite examples
 
-SQLite's C interface from tiko, through `vendor/sqlite`, which comes with the toolchain. Each
+SQLite's C interface from tiko, through `vendor/sqlite3`, which comes with the toolchain. Each
 example is one `.tiko` program, built on its own with `tiko <name>.tiko`.
 
 | Folder | Shows |
@@ -24,7 +24,7 @@ quickstart :memory: "select 1 as one, 'two' as two, null as three"
 Every example imports SQLite with
 
 ```
-#import "vendor/sqlite" link dynamic
+#import "vendor/sqlite3" link dynamic
 ```
 
 which links the shared library and copies it beside the program -- `sqlite3.dll` on Windows,

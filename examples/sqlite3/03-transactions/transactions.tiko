@@ -12,7 +12,7 @@
 
 '' SQLite linked DYNAMICALLY: sqlite3.dll is copied beside the program (on Linux the program
 '' gets libsqlite3 beside it). Write 'link static' instead to build SQLite into the program.
-#import "vendor/sqlite" link dynamic
+#import "vendor/sqlite3" link dynamic
 
 const ROWS = 10000
 const DB_FILE = "transactions-example.db"

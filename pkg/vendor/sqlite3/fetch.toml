@@ -1,4 +1,4 @@
-# vendor/sqlite's binaries, for build/vendorfetch.sh. Read by
+# vendor/sqlite3's binaries, for build/vendorfetch.sh. Read by
 # that script alone and never shipped. Each [<os>.<n>] entry is one pinned download, checked
 # against its SHA-256, and what is made from it into lib/:
 #

@@ -11,7 +11,7 @@
 
 '' SQLite linked DYNAMICALLY: sqlite3.dll is copied beside the program (on Linux the program
 '' gets libsqlite3 beside it). Write 'link static' instead to build SQLite into the program.
-#import "vendor/sqlite" link dynamic
+#import "vendor/sqlite3" link dynamic
 
 '' sqlite3_exec calls this once for each row: argc columns, their values in argv (a NULL
 '' column is a null pointer) and their names in azColName. Returning non-zero would stop it.

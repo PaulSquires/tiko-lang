@@ -6,7 +6,7 @@
 #
 # The author's list, 2026-10-10: third-party library bindings tiko does not carry. Kept
 # although on the list, because shipped headers include them: string.bi and utf_conv.bi
-# (vbcompat.bi; AfxNova's DWSTRING.bi and CPowerTime.inc), sqlite3api.bi (fbsqlite.bi),
+# (vbcompat.bi; AfxNova's DWSTRING.bi and CPowerTime.inc),
 # GL (AfxNova's OpenGL classes, examples and templates). Added: libexslt, which includes
 # libxml and libxslt and would not compile without them.
 #
@@ -149,7 +149,8 @@ libart_lgpl
 # longer a supported feature.
 fb
 containers.bi
-# fbsqlite's wrapper headers include fb/ ones; tiko ships its own port, pkg/db/sqlite, and
-# keeps only the C binding, sqlite3api.bi (2026-10-10).
+# fbsqlite's wrapper headers include fb/ ones, and its C binding is superseded: SQLite
+# ships as the vendor package pkg/vendor/sqlite3 ('#import "vendor/sqlite3"').
 fbsqlite.bi
 fbsqlite_csv.bi
+sqlite3api.bi

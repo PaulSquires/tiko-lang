@@ -9,7 +9,7 @@
 
 '' SQLite linked DYNAMICALLY: sqlite3.dll is copied beside the program (on Linux the program
 '' gets libsqlite3 beside it). Write 'link static' instead to build SQLite into the program.
-#import "vendor/sqlite" link dynamic
+#import "vendor/sqlite3" link dynamic
 
 '' The name of the storage class sqlite3_column_type reports for a value.
 function TypeName( byval t as long ) as ustring

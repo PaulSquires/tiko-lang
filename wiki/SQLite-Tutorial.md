@@ -8,7 +8,7 @@
 
 [SQLite](https://sqlite.org) is a complete SQL database in a library. There is no server, and a database is one ordinary file. This tutorial uses SQLite's own C interface from tiko, linked dynamically and statically, kept inside a project or installed for the whole machine.
 
-> ℹ️ **tiko already ships SQLite.** `#import "db/sqlite"` gives you a tiko-style wrapper over a copy linked into your program (see the book's Chapter 27). Use this tutorial when you need a different SQLite version, SQLite's own C API, or your own compile options.
+> ℹ️ **tiko already ships SQLite.** `#import "vendor/sqlite3"` gives you SQLite's own C API with nothing on the command line (see [Vendor Packages](Vendor-Packages)). Use this tutorial when you need a different SQLite version or your own compile options.
 
 ---
 
