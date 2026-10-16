@@ -6,7 +6,7 @@ into a monthly report. It joins the parts of the book that deal with real data:
 
 - `Decimal` for money that must be exact (Chapter 26);
 - `LocalDate` for days (Chapter 25);
-- SQLite through `db/sqlite`, and CSV through the same module (Chapter 27);
+- SQLite through `vendor/sqlite3` (Chapter 27), and CSV through `strings.SplitCsv` (Chapter 8);
 - an `OrderedMap` for the report (Chapter 23);
 - the TUI library for the screens (Chapter 27);
 - modules and a package to hold it together (Chapter 14).
@@ -47,9 +47,9 @@ ch34/
 ```
 
 The split follows the rule from Chapter 32, with one more reason behind it. **`ledger` is the
-only file that imports `db/sqlite`, and nothing from SQLite is public**: the rest of the program
-sees transactions and totals, never a `Database` or a `Row`. Swapping SQLite for something else
-would change one file.
+only file that imports `vendor/sqlite3`, and nothing from SQLite is public**: the rest of the
+program sees transactions and totals, never a `sqlite3 ptr` or a statement. Swapping SQLite for
+something else would change one file.
 
 ## The model
 
@@ -88,17 +88,31 @@ the text had. Categories are folded to lower case, so `Food` and `food` are one 
 {{#include ../examples/ch34/ledger/ledger.tiko:open}}
 ```
 
-The module keeps **one database for the whole program**, in a module variable:
+The module keeps **one database for the whole program**, a connection in a module variable,
+and four small procedures that every other part of the module goes through:
 
 ```tiko
-private dim shared as sqlite.Database db
+{{#include ../examples/ch34/ledger/ledger.tiko:conn}}
 ```
 
-It is `private` for a reason that goes beyond tidiness. A module's interface describes its
-module-level variables to the files that import it, so that a generic's body can use them. A
-variable that is not `private` would put `sqlite.Database` into that description, and SQLite
-would reach every importer. That is exactly what the module exists to prevent. `private` keeps the
+The variable is `private` for a reason that goes beyond tidiness. A module's interface describes
+its module-level variables to the files that import it, so that a generic's body can use them. A
+variable that is not `private` would put `sqlite3 ptr` into that description, and SQLite would
+reach every importer. That is exactly what the module exists to prevent. `private` keeps the
 variable, and its type, inside the module.
+
+The four procedures turn SQLite's C conventions into the module's own. SQLite reports a failure
+as a result code and keeps the reason on the connection; every procedure here returns `""` or
+that reason, as text, so the callers read like the rest of the program. **`RunSql`** runs SQL that
+returns no rows, **`Prepare`** compiles a statement, **`LastError`** fetches the reason, and
+**`ColText`** reads a column back as a `ustring`. (`Exec` and `Field` would have been shorter
+names, and both are taken: tiko predeclares `field` and `exec`, and declaring either as these
+procedures are is an error, `TKO0600` and `TKO0793`.)
+
+Text crosses in UTF-8 both ways. A `ustring` passed where SQLite's C wants `const char *` is
+converted to UTF-8 for the call, so `RunSql` hands its `ustring` straight to `sqlite3_exec`.
+Coming back, `sqlite3_column_text` points at UTF-8 bytes SQLite owns; `ColText` copies them into a
+`string`, and a `string` assigned to a `ustring` is read as UTF-8.
 
 ### The schema, and migrations
 
@@ -117,16 +131,16 @@ rolls back with its version number, so the file is always at a version that comp
 whose version is above the program's is refused: it was written by a newer `tledger`, and this
 one cannot know what the newer steps did.
 
-Reading the version is also the first time SQLite looks inside the file. `Open` succeeds on any
-file, because SQLite reads nothing until it must, so a ledger path that names a text file fails
+Reading the version is also the first time SQLite looks inside the file. `sqlite3_open` succeeds
+on any file, because SQLite reads nothing until it must, so a ledger path that names a text file fails
 here, and `Migrate` returns SQLite's own reason: `tledger notes.txt` prints
 `tledger: notes.txt: file is not a database` and exits with 2. `SchemaVersion`, the public
 question, says -1 for the same file.
 
-Every call in a step is checked, `Begin` and `Commit` included. A `Transaction` that goes out of
-scope uncommitted rolls back, which is how a failed step undoes itself. `COMMIT` can fail too — a
-file locked by another program refuses it — and `Commit` counts the transaction finished either
-way, so its result is the only place that failure shows.
+Every statement in a step is checked, `begin` and `commit` included: they are SQL like the step
+itself, run by `RunSql`. On any failure the step runs `rollback`, which undoes whatever it had
+done. `commit` can fail too — a file locked by another program refuses it — and then the
+transaction is still open, which is why the `rollback` follows a failed `commit` as well.
 
 The rule that makes this work is in the comment: **a step that has shipped is never edited.**
 Version 2 here added an index. Adding a column next year is a version 3 that says
@@ -157,7 +171,10 @@ Two storage decisions are deliberate:
   program, in Decimal.
 
 Every value travels as a `?` parameter (Chapter 27), so a payee called `O'Brien` is just text.
-Nothing is pasted into SQL.
+Nothing is pasted into SQL. Each statement is finalized by a `defer` written straight after it is
+prepared (Chapter 21), so every `return` below it, the early ones included, frees it.
+`ListTxns` keeps `sqlite3_step`'s last result: a loop that stops at anything but `SQLITE_ROW`
+would otherwise treat a failure halfway through as the end of the rows.
 
 ## Importing a bank's CSV
 
@@ -165,24 +182,24 @@ Nothing is pasted into SQL.
 {{#include ../examples/ch34/ledger/ledger.tiko:import}}
 ```
 
-`sqlite.ImportCsv` (Chapter 27) does the reading: quoted fields such as `"Smith, Jones & Co"`,
-either kind of line ending, and a table made from the header row. It loads into a **staging table**,
-`import_raw`, which is not the ledger. `AddStaged` then sends every staged row through `ParseTxn`
-and inserts the good ones, all inside one **transaction**. If any record was refused, the
-transaction rolls back, and the ledger is exactly as it was.
+`ImportCsv` reads the file's bytes whole, and **`strings.SplitCsv`** (Chapter 8) does the
+parsing: quoted fields such as `"Smith, Jones & Co"`, doubled quotes, either kind of line ending.
+The header row says which column is which, so a bank that puts `amount` first still loads.
+`AddRecords` then sends every record through `ParseTxn` and inserts the good ones, all inside one
+**transaction**. If any record was refused, it runs `rollback`, and the ledger is exactly as it
+was.
 
 Three cases are easy to miss:
 
-- **A blank line**, most often the last one, is staged as a record whose fields are all empty.
-  It is not a mistake, so it is skipped rather than refused as `'' is not a date`.
-- **A file with no records** stages nothing. A header alone makes an empty table, and an empty
-  file does not make the table at all, so `ImportCsv` asks `AddStaged` for nothing and reports
-  `imported 0 transactions` either way. Without that test, the empty file would reach the rest of
-  the program as SQLite's `no such table: import_raw`.
-- **The number in a message** is the record's: `rowid` numbers the staged rows from 1, and the
-  header was record 1, so it is the `rowid` plus 1. That is the line number for every file a bank
-  exports. A quoted field may hold a line break, though, and then every record after it sits
-  further down the file than its number says.
+- **A blank line**, most often the last one, is a record whose fields are all empty. It is not
+  a mistake, so it is skipped rather than refused as `'' is not a date`.
+- **A file with no records** — a header alone, or an empty file — gives `SplitCsv` fewer than two
+  rows, and `ImportCsv` returns before starting a transaction, so the program reports
+  `imported 0 transactions` either way.
+- **The number in a message** is the record's: row 0 is the header, record 1 of the file, so row
+  `r` is record `r + 1`. That is the line number for every file a bank exports. A quoted field may
+  hold a line break, though, and then every record after it sits further down the file than its
+  number says.
 
 ```text
 {{#include ../examples/ch34/bank.csv}}
@@ -364,14 +381,17 @@ screens on it.
 
 ## Shipping
 
-`db/sqlite` links **SQLite itself** into the program. `sqlite3api.bi` says `#inclib "sqlite3"`, and
-the toolchain ships `libsqlite3.a` for both windows-x86_64 and linux-x86_64. `tledger` is one
-executable with no database server and no shared library to install. Copy it, and it runs. The
-ledger is one ordinary file, which can be backed up by copying it while the program is not
-running, or at any time with `BackupTo`.
+`ledger` imports SQLite with **`link static`**, so SQLite's code is linked into the program:
+on Windows, `tledger.exe` imports nothing but `KERNEL32.dll` and the C runtime, `ucrtbase.dll`.
+`tledger` is one executable with no database server and no shared library to install. Copy it,
+and it runs. Without `link static`, `vendor/sqlite3` links SQLite's shared library and copies it
+beside the program, and the two would have to travel together. The ledger is one ordinary file,
+which can be backed up by copying it while the program is not running, or at any time with SQL's
+`vacuum into 'copy.db'`.
 
-`#foreignlib` (Chapter 28) is for the other case: a library the **project** ships, beside its
-sources, one file per platform. SQLite does not need it, because the toolchain already carries it.
+`#foreignlib` (Chapter 29) is for the other case: a library the **project** ships, beside its
+sources, one file per platform. SQLite does not need it, because the toolchain's vendor package
+already carries it.
 
 ## What it costs
 
@@ -387,16 +407,17 @@ sources, one file per platform. SQLite does not need it, because the toolchain a
 
 ## Summary
 
-- Keep a library you may want to replace, such as `db/sqlite`, in **one module**. Make nothing
-  from it public, and make module variables of its types `private`, so that it stays out of the
-  interface.
+- Keep a library you may want to replace, such as SQLite, in **one module**. Make nothing from
+  it public, and make module variables of its types `private`, so that it stays out of the
+  interface. A few procedures that turn its C conventions — result codes, UTF-8 text — into the
+  module's own keep the rest of the module readable.
 - Hold money in `Decimal` and days in `LocalDate`. Store them as text that sorts and round-trips
   exactly, and do the arithmetic in the program.
 - Migrate with `pragma user_version`: one step per version, one transaction per step, and never
   edit a step that has shipped.
 - Import through a staging table and one transaction, validate every row with the same function
   the form uses, and roll back on any error. Skip blank records, treat a file with none as
-  empty, and check the result of `Begin` and `Commit` as well as of each statement.
+  empty, and check the result of `begin` and `commit` as well as of each statement.
 - An `OrderedMap` keyed `YYYY-MM` gives a monthly report in calendar order. `MoneyFormat` with
   every field set prints money the same way everywhere, and its `Grouping` must end in `;0` to
   repeat.

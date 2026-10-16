@@ -1,0 +1,72 @@
+'' =============================================================================
+'' SDL_platform.ti -- tiko header translated by c2t (tiko 0.1.0-dev) from the C header "SDL_platform.h"
+''   source sha256 : 9a95a10a7f3c3d8f4958ebaded5c5e3b154f75c7351b1002e32429bc7dd28501
+''   clang         : clang version 21.1.0
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu
+''   options       : -I vendor/sdl3/include --sysroot //wsl.localhost/Ubuntu --verify
+''
+'' Generated from C. Search for C2T-TODO and translate those parts by hand.
+''
+'' Nothing needs manual translation.
+'' =============================================================================
+
+/'
+  Simple DirectMedia Layer
+  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
+
+  This software is provided 'as-is', without any express or implied
+  warranty.  In no event will the authors be held liable for any damages
+  arising from the use of this software.
+
+  Permission is granted to anyone to use this software for any purpose,
+  including commercial applications, and to alter it and redistribute it
+  freely, subject to the following restrictions:
+
+  1. The origin of this software must not be misrepresented; you must not
+     claim that you wrote the original software. If you use this software
+     in a product, an acknowledgment in the product documentation would be
+     appreciated but is not required.
+  2. Altered source versions must be plainly marked as such, and must not be
+     misrepresented as being the original software.
+  3. This notice may not be removed or altered from any source distribution.
+'/
+
+/'*
+ * # CategoryPlatform
+ *
+ * SDL provides a means to identify the app's platform, both at compile time
+ * and runtime.
+ '/
+
+#pragma once
+
+#include once "SDL_platform_defines.ti"
+
+'' c2t: <SDL3/SDL_begin_code.h> holds only decoration macros (stripped where used)
+/' Set up for C function definitions, even when using C++ '/
+extern "C"
+
+/'*
+ * Get the name of the platform.
+ *
+ * Here are the names returned for some (but not all) supported platforms:
+ *
+ * - "Windows"
+ * - "macOS"
+ * - "Linux"
+ * - "iOS"
+ * - "Android"
+ *
+ * \returns the name of the platform. If the correct platform name is not
+ *          available, returns a string beginning with the text "Unknown".
+ *
+ * \threadsafety It is safe to call this function from any thread.
+ *
+ * \since This function is available since SDL 3.2.0.
+ '/
+declare function SDL_GetPlatform( ) as const zstring ptr
+
+/' Ends C function definitions when using C++ '/
+end extern
+'' c2t: <SDL3/SDL_close_code.h> holds only decoration macros (stripped where used)
+

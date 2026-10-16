@@ -1,2 +1,1 @@
-cwd: listing
 env: XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir EGL_LOG_LEVEL=fatal GALLIUM_DRIVER=d3d12

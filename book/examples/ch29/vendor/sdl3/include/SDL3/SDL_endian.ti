@@ -1,0 +1,918 @@
+'' =============================================================================
+'' SDL_endian.ti -- tiko header translated by c2t (tiko 0.1.0-dev) from the C header "SDL_endian.h"
+''   source sha256 : 19405eb59c29e5a4eb69afdcf3c38bd678fcf5660a529ec0b8015a82ba602d91
+''   clang         : clang version 21.1.0
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu
+''   options       : -I vendor/sdl3/include --sysroot //wsl.localhost/Ubuntu --verify
+''
+'' Generated from C. Search for C2T-TODO and translate those parts by hand.
+''
+'' 84 items need manual translation:
+''   line 144  SDL_endian.h:49  C2T-TODO(conditional)  #if
+''   line 146  SDL_endian.h:50  C2T-TODO(conditional)  __PRFCHWINTRIN_H
+''   line 148  SDL_endian.h:51  C2T-TODO(conditional)  __PRFCHWINTRIN_H
+''   line 150  SDL_endian.h:52  C2T-TODO(conditional)
+''   line 156  SDL_endian.h:57  C2T-TODO(conditional)  #endif
+''   line 158  SDL_endian.h:58  C2T-TODO(conditional)  #endif
+''   line 161  SDL_endian.h:60  C2T-TODO(system-header)  <intrin.h>
+''   line 212  SDL_endian.h:110  C2T-TODO(conditional)  SDL_WIKI_DOCUMENTATION_SECTION
+''   line 233  SDL_endian.h:130  C2T-TODO(conditional)  SDL_BYTEORDER
+''   line 235  SDL_endian.h:131  C2T-TODO(conditional)  #elif
+''   line 238  SDL_endian.h:132  C2T-TODO(system-header)  <endian.h>
+''   line 245  SDL_endian.h:134  C2T-TODO(conditional)  #elif
+''   line 247  SDL_endian.h:135  C2T-TODO(conditional)  <sys/byteorder.h>
+''   line 249  SDL_endian.h:136  C2T-TODO(conditional)  #if
+''   line 251  SDL_endian.h:137  C2T-TODO(conditional)  SDL_BYTEORDER
+''   line 253  SDL_endian.h:138  C2T-TODO(conditional)  #elif
+''   line 255  SDL_endian.h:139  C2T-TODO(conditional)  SDL_BYTEORDER
+''   line 257  SDL_endian.h:140  C2T-TODO(conditional)  #else
+''   line 259  SDL_endian.h:141  C2T-TODO(conditional)  #error
+''   line 261  SDL_endian.h:142  C2T-TODO(conditional)  #endif
+''   line 263  SDL_endian.h:143  C2T-TODO(conditional)  #elif
+''   line 265  SDL_endian.h:144  C2T-TODO(conditional)  <endian.h>
+''   line 267  SDL_endian.h:145  C2T-TODO(conditional)  SDL_BYTEORDER
+''   line 269  SDL_endian.h:146  C2T-TODO(conditional)  #elif
+''   line 271  SDL_endian.h:147  C2T-TODO(conditional)  <sys/endian.h>
+''   line 273  SDL_endian.h:148  C2T-TODO(conditional)  SDL_BYTEORDER
+''   line 276  SDL_endian.h:150  C2T-TODO(conditional)  #elif
+''   line 279  SDL_endian.h:151  C2T-TODO(conditional)  #if
+''   line 286  SDL_endian.h:153  C2T-TODO(conditional)  #elif
+''   line 289  SDL_endian.h:154  C2T-TODO(conditional)  SDL_BYTEORDER
+''   line 292  SDL_endian.h:155  C2T-TODO(conditional)  #else
+''   line 295  SDL_endian.h:156  C2T-TODO(conditional)  #error
+''   line 298  SDL_endian.h:157  C2T-TODO(conditional)  #endif
+''   line 301  SDL_endian.h:158  C2T-TODO(conditional)  #else
+''   line 303  SDL_endian.h:159  C2T-TODO(conditional)  #if
+''   line 309  SDL_endian.h:164  C2T-TODO(conditional)  SDL_BYTEORDER
+''   line 311  SDL_endian.h:165  C2T-TODO(conditional)  #else
+''   line 313  SDL_endian.h:166  C2T-TODO(conditional)  SDL_BYTEORDER
+''   line 315  SDL_endian.h:167  C2T-TODO(conditional)  #endif
+''   line 317  SDL_endian.h:168  C2T-TODO(conditional)  #endif
+''   line 342  SDL_endian.h:192  C2T-TODO(macro)  SDL_FLOATWORDORDER
+''   line 346  SDL_endian.h:195  C2T-TODO(conditional)  #if
+''   line 348  SDL_endian.h:196  C2T-TODO(conditional)  SDL_FLOATWORDORDER
+''   line 350  SDL_endian.h:197  C2T-TODO(conditional)  #elif
+''   line 352  SDL_endian.h:198  C2T-TODO(conditional)  SDL_FLOATWORDORDER
+''   line 354  SDL_endian.h:199  C2T-TODO(conditional)  #else
+''   line 356  SDL_endian.h:200  C2T-TODO(conditional)  #error
+''   line 358  SDL_endian.h:201  C2T-TODO(conditional)  #endif
+''   line 379  SDL_endian.h:223  C2T-TODO(macro)  HAS_BUILTIN_BSWAP16
+''   line 382  SDL_endian.h:225  C2T-TODO(macro)  HAS_BUILTIN_BSWAP32
+''   line 385  SDL_endian.h:227  C2T-TODO(macro)  HAS_BUILTIN_BSWAP64
+''   line 390  SDL_endian.h:231  C2T-TODO(macro)  HAS_BROKEN_BSWAP
+''   line 393  SDL_endian.h:233  C2T-TODO(macro)  HAS_BUILTIN_BSWAP16
+''   line 395  SDL_endian.h:234  C2T-TODO(macro)  HAS_BUILTIN_BSWAP32
+''   line 397  SDL_endian.h:235  C2T-TODO(macro)  HAS_BUILTIN_BSWAP64
+''   line 399  SDL_endian.h:236  C2T-TODO(macro)  HAS_BROKEN_BSWAP
+''   line 409  SDL_endian.h:244  C2T-TODO(unsupported)  #pragma
+''   line 411  SDL_endian.h:245  C2T-TODO(conditional)  SDL_Swap16
+''   line 418  SDL_endian.h:247  C2T-TODO(static-inline)  SDL_Swap16
+''   line 430  SDL_endian.h:253  C2T-TODO(static-inline)  SDL_Swap16
+''   line 442  SDL_endian.h:259  C2T-TODO(static-inline)  SDL_Swap16
+''   line 456  SDL_endian.h:267  C2T-TODO(static-inline)  SDL_Swap16
+''   line 466  SDL_endian.h:274  C2T-TODO(unsupported)  #pragma
+''   line 476  SDL_endian.h:279  C2T-TODO(static-inline)  SDL_Swap16
+''   line 491  SDL_endian.h:291  C2T-TODO(unsupported)  #pragma
+''   line 493  SDL_endian.h:292  C2T-TODO(conditional)  SDL_Swap32
+''   line 500  SDL_endian.h:294  C2T-TODO(static-inline)  SDL_Swap32
+''   line 512  SDL_endian.h:300  C2T-TODO(static-inline)  SDL_Swap32
+''   line 524  SDL_endian.h:306  C2T-TODO(static-inline)  SDL_Swap32
+''   line 540  SDL_endian.h:316  C2T-TODO(static-inline)  SDL_Swap32
+''   line 550  SDL_endian.h:323  C2T-TODO(unsupported)  #pragma
+''   line 560  SDL_endian.h:328  C2T-TODO(static-inline)  SDL_Swap32
+''   line 576  SDL_endian.h:341  C2T-TODO(unsupported)  #pragma
+''   line 578  SDL_endian.h:342  C2T-TODO(conditional)  SDL_Swap64
+''   line 585  SDL_endian.h:344  C2T-TODO(static-inline)  SDL_Swap64
+''   line 606  SDL_endian.h:359  C2T-TODO(static-inline)  SDL_Swap64
+''   line 616  SDL_endian.h:366  C2T-TODO(unsupported)  #pragma
+''   line 628  SDL_endian.h:373  C2T-TODO(static-inline)  SDL_Swap64
+''   line 669  SDL_endian.h:408  C2T-TODO(static-inline)  SDL_SwapFloat
+''   line 710  SDL_endian.h:447  C2T-TODO(unsupported)  __builtin_bswap16
+''   line 732  SDL_endian.h:468  C2T-TODO(unsupported)  __builtin_bswap32
+''   line 754  SDL_endian.h:489  C2T-TODO(unsupported)  __builtin_bswap64
+''   line 901  SDL_endian.h:627  C2T-TODO(conditional)  SDL_SwapFloatBE
+''   line 907  SDL_endian.h:632  C2T-TODO(conditional)  SDL_SwapFloatLE
+'' =============================================================================
+
+/'
+  Simple DirectMedia Layer
+  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
+
+  This software is provided 'as-is', without any express or implied
+  warranty.  In no event will the authors be held liable for any damages
+  arising from the use of this software.
+
+  Permission is granted to anyone to use this software for any purpose,
+  including commercial applications, and to alter it and redistribute it
+  freely, subject to the following restrictions:
+
+  1. The origin of this software must not be misrepresented; you must not
+     claim that you wrote the original software. If you use this software
+     in a product, an acknowledgment in the product documentation would be
+     appreciated but is not required.
+  2. Altered source versions must be plainly marked as such, and must not be
+     misrepresented as being the original software.
+  3. This notice may not be removed or altered from any source distribution.
+'/
+
+/'*
+ * # CategoryEndian
+ *
+ * Functions converting endian-specific values to different byte orders.
+ *
+ * These functions either unconditionally swap byte order (SDL_Swap16,
+ * SDL_Swap32, SDL_Swap64, SDL_SwapFloat), or they swap to/from the system's
+ * native byte order (SDL_Swap16LE, SDL_Swap16BE, SDL_Swap32LE, SDL_Swap32BE,
+ * SDL_Swap32LE, SDL_Swap32BE, SDL_SwapFloatLE, SDL_SwapFloatBE). In the
+ * latter case, the functionality is provided by macros that become no-ops if
+ * a swap isn't necessary: on an x86 (littleendian) processor, SDL_Swap32LE
+ * does nothing, but SDL_Swap32BE reverses the bytes of the data. On a PowerPC
+ * processor (bigendian), the macros behavior is reversed.
+ *
+ * The swap routines are inline functions, and attempt to use compiler
+ * intrinsics, inline assembly, and other magic to make byteswapping
+ * efficient.
+ '/
+
+#pragma once
+
+#include once "SDL_stdinc.ti"
+
+#if (defined(_MSC_VER) andalso (_MSC_VER >= 1400))
+/' As of Clang 11, '_m_prefetchw' is conflicting with the winnt.h's version,
+   so we define the needed '_m_prefetch' here as a pseudo-header, until the issue is fixed. '/
+'' C2T-TODO(conditional) SDL_endian.h:49 -- 'SDL_HAS_BUILTIN()' is nothing tiko declares
+'' #if defined(__clang__) && !SDL_HAS_BUILTIN(_m_prefetch)
+'' C2T-TODO(conditional) SDL_endian.h:50 -- inside a conditional that stays a TODO
+'' #ifndef __PRFCHWINTRIN_H
+'' C2T-TODO(conditional) SDL_endian.h:51 -- inside a conditional that stays a TODO
+'' #define __PRFCHWINTRIN_H
+'' C2T-TODO(conditional) SDL_endian.h:52 -- inside a conditional that stays a TODO
+'' static __inline__ void __attribute__((__always_inline__, __nodebug__))
+'' _m_prefetch(void *__P)
+'' {
+''   __builtin_prefetch(__P, 0, 3 /* _MM_HINT_T0 */);
+'' }
+'' C2T-TODO(conditional) SDL_endian.h:57 -- inside a conditional that stays a TODO
+'' #endif /* __PRFCHWINTRIN_H */
+'' C2T-TODO(conditional) SDL_endian.h:58 -- 'SDL_HAS_BUILTIN()' is nothing tiko declares
+'' #endif /* __clang__ */
+
+'' C2T-TODO(system-header) SDL_endian.h:60 -- <intrin.h> has no tiko counterpart in c2t's table
+'' #include <intrin.h>
+#endif
+
+/'*
+ *  \name The two types of endianness
+ '/
+/' @{ '/
+
+
+/'*
+ * A value to represent littleendian byteorder.
+ *
+ * This is used with the preprocessor macro SDL_BYTEORDER, to determine a
+ * platform's byte ordering:
+ *
+ * ```c
+ * #if SDL_BYTEORDER == SDL_LIL_ENDIAN
+ * SDL_Log("This system is littleendian.");
+ * #endif
+ * ```
+ *
+ * \since This macro is available since SDL 3.2.0.
+ *
+ * \sa SDL_BYTEORDER
+ * \sa SDL_BIG_ENDIAN
+ '/
+#define SDL_LIL_ENDIAN 1234
+
+/'*
+ * A value to represent bigendian byteorder.
+ *
+ * This is used with the preprocessor macro SDL_BYTEORDER, to determine a
+ * platform's byte ordering:
+ *
+ * ```c
+ * #if SDL_BYTEORDER == SDL_BIG_ENDIAN
+ * SDL_Log("This system is bigendian.");
+ * #endif
+ * ```
+ *
+ * \since This macro is available since SDL 3.2.0.
+ *
+ * \sa SDL_BYTEORDER
+ * \sa SDL_LIL_ENDIAN
+ '/
+#define SDL_BIG_ENDIAN 4321
+
+/' @} '/
+
+#ifndef SDL_BYTEORDER
+'' C2T-TODO(conditional) SDL_endian.h:110 -- tiko would take another branch where clang does not
+'' #ifdef SDL_WIKI_DOCUMENTATION_SECTION
+
+/'*
+ * A macro that reports the target system's byte order.
+ *
+ * This is set to either SDL_LIL_ENDIAN or SDL_BIG_ENDIAN (and maybe other
+ * values in the future, if something else becomes popular). This can be
+ * tested with the preprocessor, so decisions can be made at compile time.
+ *
+ * ```c
+ * #if SDL_BYTEORDER == SDL_BIG_ENDIAN
+ * SDL_Log("This system is bigendian.");
+ * #endif
+ * ```
+ *
+ * \since This macro is available since SDL 3.2.0.
+ *
+ * \sa SDL_LIL_ENDIAN
+ * \sa SDL_BIG_ENDIAN
+ '/
+'' C2T-TODO(conditional) SDL_endian.h:130 -- inside a conditional that stays a TODO
+'' #define SDL_BYTEORDER   SDL_LIL_ENDIAN___or_maybe___SDL_BIG_ENDIAN
+'' C2T-TODO(conditional) SDL_endian.h:131 -- tiko would take another branch where clang does not
+'' #elif defined(SDL_PLATFORM_LINUX) || defined(__GLIBC__)
+#if defined(TIKO_OS_LINUX)
+'' C2T-TODO(system-header) SDL_endian.h:132 -- <endian.h> has no tiko counterpart in c2t's table
+'' #include <endian.h>
+#endif
+#if defined(TIKO_OS_LINUX)
+'' C2T-NOTE(value) SDL_endian.h:133 -- clang's value; '__BYTE_ORDER' is nothing tiko declares
+#define SDL_BYTEORDER 1234
+#endif
+'' C2T-TODO(conditional) SDL_endian.h:134 -- tiko would take another branch where clang does not
+'' #elif defined(SDL_PLATFORM_SOLARIS)
+'' C2T-TODO(conditional) SDL_endian.h:135 -- inside a conditional that stays a TODO
+'' #include <sys/byteorder.h>
+'' C2T-TODO(conditional) SDL_endian.h:136 -- inside a conditional that stays a TODO
+'' #if defined(_LITTLE_ENDIAN)
+'' C2T-TODO(conditional) SDL_endian.h:137 -- inside a conditional that stays a TODO
+'' #define SDL_BYTEORDER   SDL_LIL_ENDIAN
+'' C2T-TODO(conditional) SDL_endian.h:138 -- inside a conditional that stays a TODO
+'' #elif defined(_BIG_ENDIAN)
+'' C2T-TODO(conditional) SDL_endian.h:139 -- inside a conditional that stays a TODO
+'' #define SDL_BYTEORDER   SDL_BIG_ENDIAN
+'' C2T-TODO(conditional) SDL_endian.h:140 -- inside a conditional that stays a TODO
+'' #else
+'' C2T-TODO(conditional) SDL_endian.h:141 -- inside a conditional that stays a TODO
+'' #error Unsupported endianness
+'' C2T-TODO(conditional) SDL_endian.h:142 -- inside a conditional that stays a TODO
+'' #endif
+'' C2T-TODO(conditional) SDL_endian.h:143 -- tiko would take another branch where clang does not
+'' #elif defined(SDL_PLATFORM_OPENBSD) || defined(__DragonFly__)
+'' C2T-TODO(conditional) SDL_endian.h:144 -- inside a conditional that stays a TODO
+'' #include <endian.h>
+'' C2T-TODO(conditional) SDL_endian.h:145 -- inside a conditional that stays a TODO
+'' #define SDL_BYTEORDER  BYTE_ORDER
+'' C2T-TODO(conditional) SDL_endian.h:146 -- tiko would take another branch where clang does not
+'' #elif defined(SDL_PLATFORM_FREEBSD) || defined(SDL_PLATFORM_NETBSD)
+'' C2T-TODO(conditional) SDL_endian.h:147 -- inside a conditional that stays a TODO
+'' #include <sys/endian.h>
+'' C2T-TODO(conditional) SDL_endian.h:148 -- inside a conditional that stays a TODO
+'' #define SDL_BYTEORDER  BYTE_ORDER
+/' predefs from newer gcc and clang versions: '/
+'' C2T-TODO(conditional) SDL_endian.h:150 -- tiko would take another branch where clang does not
+'' #elif defined(__ORDER_LITTLE_ENDIAN__) && defined(__ORDER_BIG_ENDIAN__) && defined(__BYTE_ORDER__)
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-TODO(conditional) SDL_endian.h:151 -- inside a conditional that stays a TODO
+'' #if (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+#endif
+#if defined(TIKO_OS_WINDOWS)
+#define SDL_BYTEORDER SDL_LIL_ENDIAN
+#endif
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-TODO(conditional) SDL_endian.h:153 -- inside a conditional that stays a TODO
+'' #elif (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+#endif
+'' C2T-TODO(conditional) SDL_endian.h:154 -- inside a conditional that stays a TODO
+'' #define SDL_BYTEORDER   SDL_BIG_ENDIAN
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-TODO(conditional) SDL_endian.h:155 -- inside a conditional that stays a TODO
+'' #else
+#endif
+'' C2T-TODO(conditional) SDL_endian.h:156 -- inside a conditional that stays a TODO
+'' #error Unsupported endianness
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-TODO(conditional) SDL_endian.h:157 -- inside a conditional that stays a TODO
+'' #endif /**/
+#endif
+'' C2T-TODO(conditional) SDL_endian.h:158 -- tiko would take another branch where clang does not
+'' #else
+'' C2T-TODO(conditional) SDL_endian.h:159 -- inside a conditional that stays a TODO
+'' #if defined(__hppa__) || \
+''     defined(__m68k__) || defined(mc68000) || defined(_M_M68K) || \
+''     (defined(__MIPS__) && defined(__MIPSEB__)) || \
+''     defined(__ppc__) || defined(__POWERPC__) || defined(__powerpc__) || defined(__PPC__) || \
+''     defined(__sparc__) || defined(__sparc)
+'' C2T-TODO(conditional) SDL_endian.h:164 -- inside a conditional that stays a TODO
+'' #define SDL_BYTEORDER   SDL_BIG_ENDIAN
+'' C2T-TODO(conditional) SDL_endian.h:165 -- inside a conditional that stays a TODO
+'' #else
+'' C2T-TODO(conditional) SDL_endian.h:166 -- inside a conditional that stays a TODO
+'' #define SDL_BYTEORDER   SDL_LIL_ENDIAN
+'' C2T-TODO(conditional) SDL_endian.h:167 -- inside a conditional that stays a TODO
+'' #endif
+'' C2T-TODO(conditional) SDL_endian.h:168 -- tiko would take another branch where clang does not
+'' #endif /* SDL_PLATFORM_LINUX */
+#endif /' !SDL_BYTEORDER '/
+
+#ifndef SDL_FLOATWORDORDER
+#ifdef SDL_WIKI_DOCUMENTATION_SECTION
+
+/'*
+ * A macro that reports the target system's floating point word order.
+ *
+ * This is set to either SDL_LIL_ENDIAN or SDL_BIG_ENDIAN (and maybe other
+ * values in the future, if something else becomes popular). This can be
+ * tested with the preprocessor, so decisions can be made at compile time.
+ *
+ * ```c
+ * #if SDL_FLOATWORDORDER == SDL_BIG_ENDIAN
+ * SDL_Log("This system's floats are bigendian.");
+ * #endif
+ * ```
+ *
+ * \since This macro is available since SDL 3.2.0.
+ *
+ * \sa SDL_LIL_ENDIAN
+ * \sa SDL_BIG_ENDIAN
+ '/
+'' C2T-TODO(macro) SDL_endian.h:192 -- 'SDL_FLOATWORDORDER': 'SDL_LIL_ENDIAN___or_maybe___SDL_BIG_ENDIAN' is nothing tiko declares
+'' #define SDL_FLOATWORDORDER   SDL_LIL_ENDIAN___or_maybe___SDL_BIG_ENDIAN
+/' predefs from newer gcc versions: '/
+#elseif ((defined(__ORDER_LITTLE_ENDIAN__) andalso defined(__ORDER_BIG_ENDIAN__)) andalso defined(__FLOAT_WORD_ORDER__))
+'' C2T-TODO(conditional) SDL_endian.h:195 -- tiko would take this branch where clang does not
+'' #if (__FLOAT_WORD_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+'' C2T-TODO(conditional) SDL_endian.h:196 -- inside a conditional that stays a TODO
+'' #define SDL_FLOATWORDORDER   SDL_LIL_ENDIAN
+'' C2T-TODO(conditional) SDL_endian.h:197 -- inside a conditional that stays a TODO
+'' #elif (__FLOAT_WORD_ORDER__ == __ORDER_BIG_ENDIAN__)
+'' C2T-TODO(conditional) SDL_endian.h:198 -- inside a conditional that stays a TODO
+'' #define SDL_FLOATWORDORDER   SDL_BIG_ENDIAN
+'' C2T-TODO(conditional) SDL_endian.h:199 -- inside a conditional that stays a TODO
+'' #else
+'' C2T-TODO(conditional) SDL_endian.h:200 -- inside a conditional that stays a TODO
+'' #error Unsupported endianness
+'' C2T-TODO(conditional) SDL_endian.h:201 -- tiko would take this branch where clang does not
+'' #endif /**/
+#elseif defined(__MAVERICK__)
+/' For Maverick, float words are always little-endian. '/
+#define SDL_FLOATWORDORDER SDL_LIL_ENDIAN
+#elseif (((0 orelse defined(__thumb__)) andalso ((defined(__VFP_FP__)) = 0)) andalso ((defined(__ARM_EABI__)) = 0))
+/' For FPA, float words are always big-endian. '/
+#define SDL_FLOATWORDORDER SDL_BIG_ENDIAN
+#else
+/' By default, assume that floats words follow the memory system mode. '/
+#define SDL_FLOATWORDORDER SDL_BYTEORDER
+#endif /' SDL_WIKI_DOCUMENTATION_SECTION '/
+#endif /' !SDL_FLOATWORDORDER '/
+
+
+'' c2t: <SDL3/SDL_begin_code.h> holds only decoration macros (stripped where used)
+/' Set up for C function definitions, even when using C++ '/
+extern "C"
+
+/' various modern compilers may have builtin swap '/
+#if (defined(__GNUC__) orelse defined(__clang__))
+'' C2T-TODO(macro) SDL_endian.h:223 -- 'HAS_BUILTIN_BSWAP16': 'SDL_HAS_BUILTIN()' is nothing tiko declares
+'' #   define HAS_BUILTIN_BSWAP16 (SDL_HAS_BUILTIN(__builtin_bswap16)) || \
+''         (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8))
+'' C2T-TODO(macro) SDL_endian.h:225 -- 'HAS_BUILTIN_BSWAP32': 'SDL_HAS_BUILTIN()' is nothing tiko declares
+'' #   define HAS_BUILTIN_BSWAP32 (SDL_HAS_BUILTIN(__builtin_bswap32)) || \
+''         (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3))
+'' C2T-TODO(macro) SDL_endian.h:227 -- 'HAS_BUILTIN_BSWAP64': 'SDL_HAS_BUILTIN()' is nothing tiko declares
+'' #   define HAS_BUILTIN_BSWAP64 (SDL_HAS_BUILTIN(__builtin_bswap64)) || \
+''         (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3))
+
+    /' this one is broken '/
+'' C2T-TODO(macro) SDL_endian.h:231 -- 'HAS_BROKEN_BSWAP': '__GNUC__' is nothing tiko declares
+'' #   define HAS_BROKEN_BSWAP (__GNUC__ == 2 && __GNUC_MINOR__ <= 95)
+#else
+'' C2T-TODO(macro) SDL_endian.h:233 -- 'HAS_BUILTIN_BSWAP16': clang finds no value for it (a pointer, or not an expression)
+'' #   define HAS_BUILTIN_BSWAP16 0
+'' C2T-TODO(macro) SDL_endian.h:234 -- 'HAS_BUILTIN_BSWAP32': clang finds no value for it (a pointer, or not an expression)
+'' #   define HAS_BUILTIN_BSWAP32 0
+'' C2T-TODO(macro) SDL_endian.h:235 -- 'HAS_BUILTIN_BSWAP64': clang finds no value for it (a pointer, or not an expression)
+'' #   define HAS_BUILTIN_BSWAP64 0
+'' C2T-TODO(macro) SDL_endian.h:236 -- 'HAS_BROKEN_BSWAP': clang finds no value for it (a pointer, or not an expression)
+'' #   define HAS_BROKEN_BSWAP 0
+#endif
+
+/' Byte swap 16-bit integer. '/
+#ifndef SDL_WIKI_DOCUMENTATION_SECTION
+#if HAS_BUILTIN_BSWAP16
+'' C2T-NOTE(unchecked) SDL_endian.h:242 -- '__builtin_bswap16' not declared here: a program using the macro declares it
+#define SDL_Swap16(x) __builtin_bswap16((x))
+#elseif ((defined(_MSC_VER) andalso (_MSC_VER >= 1400)) andalso ((defined(__ICL)) = 0))
+'' C2T-TODO(unsupported) SDL_endian.h:244 -- #pragma has no tiko translation
+'' #pragma intrinsic(_byteswap_ushort)
+'' C2T-TODO(conditional) SDL_endian.h:245 -- the passes translate it differently
+'' #define SDL_Swap16(x) _byteswap_ushort(x)
+#elseif (0 andalso ((HAS_BROKEN_BSWAP) = 0))
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-NOTE(inline) SDL_endian.h:247 -- inline: links only if the library exports 'SDL_Swap16'
+declare function SDL_Swap16( byval x as Uint16 ) as Uint16
+#elseif defined(TIKO_OS_LINUX)
+'' C2T-TODO(static-inline) SDL_endian.h:247 -- static inline function 'SDL_Swap16': no symbol to link against; port the body by hand
+'' SDL_FORCE_INLINE Uint16 SDL_Swap16(Uint16 x)
+'' {
+''   __asm__("xchgb %b0,%h0": "=q"(x):"0"(x));
+''     return x;
+'' }
+#endif
+#elseif defined(TIKO_ARCH_X86_64)
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-NOTE(inline) SDL_endian.h:253 -- inline: links only if the library exports 'SDL_Swap16'
+declare function SDL_Swap16( byval x as Uint16 ) as Uint16
+#elseif defined(TIKO_OS_LINUX)
+'' C2T-TODO(static-inline) SDL_endian.h:253 -- static inline function 'SDL_Swap16': no symbol to link against; port the body by hand
+'' SDL_FORCE_INLINE Uint16 SDL_Swap16(Uint16 x)
+'' {
+''   __asm__("xchgb %b0,%h0": "=abcd"(x):"0"(x));
+''     return x;
+'' }
+#endif
+#elseif (defined(__powerpc__) orelse defined(__ppc__))
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-NOTE(inline) SDL_endian.h:259 -- inline: links only if the library exports 'SDL_Swap16'
+declare function SDL_Swap16( byval x as Uint16 ) as Uint16
+#elseif defined(TIKO_OS_LINUX)
+'' C2T-TODO(static-inline) SDL_endian.h:259 -- static inline function 'SDL_Swap16': no symbol to link against; port the body by hand
+'' SDL_FORCE_INLINE Uint16 SDL_Swap16(Uint16 x)
+'' {
+''     int result;
+''
+''   __asm__("rlwimi %0,%2,8,16,23": "=&r"(result):"0"(x >> 8), "r"(x));
+''     return (Uint16)result;
+'' }
+#endif
+#elseif (defined(__m68k__) andalso ((defined(__mcoldfire__)) = 0))
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-NOTE(inline) SDL_endian.h:267 -- inline: links only if the library exports 'SDL_Swap16'
+declare function SDL_Swap16( byval x as Uint16 ) as Uint16
+#elseif defined(TIKO_OS_LINUX)
+'' C2T-TODO(static-inline) SDL_endian.h:267 -- static inline function 'SDL_Swap16': no symbol to link against; port the body by hand
+'' SDL_FORCE_INLINE Uint16 SDL_Swap16(Uint16 x)
+'' {
+''   __asm__("rorw #8,%0": "=d"(x): "0"(x):"cc");
+''     return x;
+'' }
+#endif
+#elseif (defined(__WATCOMC__) andalso defined(__386__))
+'' C2T-NOTE(inline) SDL_endian.h:273 -- inline: links only if the library exports 'SDL_Swap16'
+declare function SDL_Swap16( byval as Uint16 ) as Uint16
+'' C2T-TODO(unsupported) SDL_endian.h:274 -- #pragma has no tiko translation
+'' #pragma aux SDL_Swap16 = \
+''   "xchg al, ah" \
+''   parm   [ax]   \
+''   modify [ax];
+#else
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-NOTE(inline) SDL_endian.h:279 -- inline: links only if the library exports 'SDL_Swap16'
+declare function SDL_Swap16( byval x as Uint16 ) as Uint16
+#elseif defined(TIKO_OS_LINUX)
+'' C2T-TODO(static-inline) SDL_endian.h:279 -- static inline function 'SDL_Swap16': no symbol to link against; port the body by hand
+'' SDL_FORCE_INLINE Uint16 SDL_Swap16(Uint16 x)
+'' {
+''     return SDL_static_cast(Uint16, ((x << 8) | (x >> 8)));
+'' }
+#endif
+#endif
+#endif
+
+/' Byte swap 32-bit integer. '/
+#ifndef SDL_WIKI_DOCUMENTATION_SECTION
+#if HAS_BUILTIN_BSWAP32
+'' C2T-NOTE(unchecked) SDL_endian.h:289 -- '__builtin_bswap32' not declared here: a program using the macro declares it
+#define SDL_Swap32(x) __builtin_bswap32((x))
+#elseif ((defined(_MSC_VER) andalso (_MSC_VER >= 1400)) andalso ((defined(__ICL)) = 0))
+'' C2T-TODO(unsupported) SDL_endian.h:291 -- #pragma has no tiko translation
+'' #pragma intrinsic(_byteswap_ulong)
+'' C2T-TODO(conditional) SDL_endian.h:292 -- the passes translate it differently
+'' #define SDL_Swap32(x) _byteswap_ulong(x)
+#elseif (0 andalso ((HAS_BROKEN_BSWAP) = 0))
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-NOTE(inline) SDL_endian.h:294 -- inline: links only if the library exports 'SDL_Swap32'
+declare function SDL_Swap32( byval x as Uint32 ) as Uint32
+#elseif defined(TIKO_OS_LINUX)
+'' C2T-TODO(static-inline) SDL_endian.h:294 -- static inline function 'SDL_Swap32': no symbol to link against; port the body by hand
+'' SDL_FORCE_INLINE Uint32 SDL_Swap32(Uint32 x)
+'' {
+''   __asm__("bswap %0": "=r"(x):"0"(x));
+''     return x;
+'' }
+#endif
+#elseif defined(TIKO_ARCH_X86_64)
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-NOTE(inline) SDL_endian.h:300 -- inline: links only if the library exports 'SDL_Swap32'
+declare function SDL_Swap32( byval x as Uint32 ) as Uint32
+#elseif defined(TIKO_OS_LINUX)
+'' C2T-TODO(static-inline) SDL_endian.h:300 -- static inline function 'SDL_Swap32': no symbol to link against; port the body by hand
+'' SDL_FORCE_INLINE Uint32 SDL_Swap32(Uint32 x)
+'' {
+''   __asm__("bswapl %0": "=r"(x):"0"(x));
+''     return x;
+'' }
+#endif
+#elseif (defined(__powerpc__) orelse defined(__ppc__))
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-NOTE(inline) SDL_endian.h:306 -- inline: links only if the library exports 'SDL_Swap32'
+declare function SDL_Swap32( byval x as Uint32 ) as Uint32
+#elseif defined(TIKO_OS_LINUX)
+'' C2T-TODO(static-inline) SDL_endian.h:306 -- static inline function 'SDL_Swap32': no symbol to link against; port the body by hand
+'' SDL_FORCE_INLINE Uint32 SDL_Swap32(Uint32 x)
+'' {
+''     Uint32 result;
+''
+''   __asm__("rlwimi %0,%2,24,16,23": "=&r"(result): "0" (x>>24),  "r"(x));
+''   __asm__("rlwimi %0,%2,8,8,15"  : "=&r"(result): "0" (result), "r"(x));
+''   __asm__("rlwimi %0,%2,24,0,7"  : "=&r"(result): "0" (result), "r"(x));
+''     return result;
+'' }
+#endif
+#elseif (defined(__m68k__) andalso ((defined(__mcoldfire__)) = 0))
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-NOTE(inline) SDL_endian.h:316 -- inline: links only if the library exports 'SDL_Swap32'
+declare function SDL_Swap32( byval x as Uint32 ) as Uint32
+#elseif defined(TIKO_OS_LINUX)
+'' C2T-TODO(static-inline) SDL_endian.h:316 -- static inline function 'SDL_Swap32': no symbol to link against; port the body by hand
+'' SDL_FORCE_INLINE Uint32 SDL_Swap32(Uint32 x)
+'' {
+''   __asm__("rorw #8,%0\n\tswap %0\n\trorw #8,%0": "=d"(x): "0"(x):"cc");
+''     return x;
+'' }
+#endif
+#elseif (defined(__WATCOMC__) andalso defined(__386__))
+'' C2T-NOTE(inline) SDL_endian.h:322 -- inline: links only if the library exports 'SDL_Swap32'
+declare function SDL_Swap32( byval as Uint32 ) as Uint32
+'' C2T-TODO(unsupported) SDL_endian.h:323 -- #pragma has no tiko translation
+'' #pragma aux SDL_Swap32 = \
+''   "bswap eax"  \
+''   parm   [eax] \
+''   modify [eax];
+#else
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-NOTE(inline) SDL_endian.h:328 -- inline: links only if the library exports 'SDL_Swap32'
+declare function SDL_Swap32( byval x as Uint32 ) as Uint32
+#elseif defined(TIKO_OS_LINUX)
+'' C2T-TODO(static-inline) SDL_endian.h:328 -- static inline function 'SDL_Swap32': no symbol to link against; port the body by hand
+'' SDL_FORCE_INLINE Uint32 SDL_Swap32(Uint32 x)
+'' {
+''     return SDL_static_cast(Uint32, ((x << 24) | ((x << 8) & 0x00FF0000) |
+''                                     ((x >> 8) & 0x0000FF00) | (x >> 24)));
+'' }
+#endif
+#endif
+#endif
+
+/' Byte swap 64-bit integer. '/
+#ifndef SDL_WIKI_DOCUMENTATION_SECTION
+#if HAS_BUILTIN_BSWAP64
+'' C2T-NOTE(unchecked) SDL_endian.h:339 -- '__builtin_bswap64' not declared here: a program using the macro declares it
+#define SDL_Swap64(x) __builtin_bswap64((x))
+#elseif ((defined(_MSC_VER) andalso (_MSC_VER >= 1400)) andalso ((defined(__ICL)) = 0))
+'' C2T-TODO(unsupported) SDL_endian.h:341 -- #pragma has no tiko translation
+'' #pragma intrinsic(_byteswap_uint64)
+'' C2T-TODO(conditional) SDL_endian.h:342 -- the passes translate it differently
+'' #define SDL_Swap64(x) _byteswap_uint64(x)
+#elseif (0 andalso ((HAS_BROKEN_BSWAP) = 0))
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-NOTE(inline) SDL_endian.h:344 -- inline: links only if the library exports 'SDL_Swap64'
+declare function SDL_Swap64( byval x as Uint64 ) as Uint64
+#elseif defined(TIKO_OS_LINUX)
+'' C2T-TODO(static-inline) SDL_endian.h:344 -- static inline function 'SDL_Swap64': no symbol to link against; port the body by hand
+'' SDL_FORCE_INLINE Uint64 SDL_Swap64(Uint64 x)
+'' {
+''     union {
+''         struct {
+''             Uint32 a, b;
+''         } s;
+''         Uint64 u;
+''     } v;
+''     v.u = x;
+''   __asm__("bswapl %0 ; bswapl %1 ; xchgl %0,%1"
+''           : "=r"(v.s.a), "=r"(v.s.b)
+''           : "0" (v.s.a),  "1"(v.s.b));
+''     return v.u;
+'' }
+#endif
+#elseif defined(TIKO_ARCH_X86_64)
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-NOTE(inline) SDL_endian.h:359 -- inline: links only if the library exports 'SDL_Swap64'
+declare function SDL_Swap64( byval x as Uint64 ) as Uint64
+#elseif defined(TIKO_OS_LINUX)
+'' C2T-TODO(static-inline) SDL_endian.h:359 -- static inline function 'SDL_Swap64': no symbol to link against; port the body by hand
+'' SDL_FORCE_INLINE Uint64 SDL_Swap64(Uint64 x)
+'' {
+''   __asm__("bswapq %0": "=r"(x):"0"(x));
+''     return x;
+'' }
+#endif
+#elseif (defined(__WATCOMC__) andalso defined(__386__))
+'' C2T-NOTE(inline) SDL_endian.h:365 -- inline: links only if the library exports 'SDL_Swap64'
+declare function SDL_Swap64( byval as Uint64 ) as Uint64
+'' C2T-TODO(unsupported) SDL_endian.h:366 -- #pragma has no tiko translation
+'' #pragma aux SDL_Swap64 = \
+''   "bswap eax"     \
+''   "bswap edx"     \
+''   "xchg eax,edx"  \
+''   parm [eax edx]  \
+''   modify [eax edx];
+#else
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-NOTE(inline) SDL_endian.h:373 -- inline: links only if the library exports 'SDL_Swap64'
+declare function SDL_Swap64( byval x as Uint64 ) as Uint64
+#elseif defined(TIKO_OS_LINUX)
+'' C2T-TODO(static-inline) SDL_endian.h:373 -- static inline function 'SDL_Swap64': no symbol to link against; port the body by hand
+'' SDL_FORCE_INLINE Uint64 SDL_Swap64(Uint64 x)
+'' {
+''     Uint32 hi, lo;
+''
+''     /* Separate into high and low 32-bit values and swap them */
+''     lo = SDL_static_cast(Uint32, x & 0xFFFFFFFF);
+''     x >>= 32;
+''     hi = SDL_static_cast(Uint32, x & 0xFFFFFFFF);
+''     x = SDL_Swap32(lo);
+''     x <<= 32;
+''     x |= SDL_Swap32(hi);
+''     return (x);
+'' }
+#endif
+#endif
+#endif
+
+/'*
+ * Byte-swap a floating point number.
+ *
+ * This will always byte-swap the value, whether it's currently in the native
+ * byteorder of the system or not. You should use SDL_SwapFloatLE or
+ * SDL_SwapFloatBE instead, in most cases.
+ *
+ * Note that this is a forced-inline function in a header, and not a public
+ * API function available in the SDL library (which is to say, the code is
+ * embedded in the calling program and the linker and dynamic loader will not
+ * be able to find this function inside SDL itself).
+ *
+ * \param x the value to byte-swap.
+ * \returns x, with its bytes in the opposite endian order.
+ *
+ * \threadsafety It is safe to call this function from any thread.
+ *
+ * \since This function is available since SDL 3.2.0.
+ '/
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-NOTE(inline) SDL_endian.h:408 -- inline: links only if the library exports 'SDL_SwapFloat'
+declare function SDL_SwapFloat( byval x as float32 ) as float32
+#elseif defined(TIKO_OS_LINUX)
+'' C2T-TODO(static-inline) SDL_endian.h:408 -- static inline function 'SDL_SwapFloat': no symbol to link against; port the body by hand
+'' SDL_FORCE_INLINE float SDL_SwapFloat(float x)
+'' {
+''     union {
+''         float f;
+''         Uint32 ui32;
+''     } swapper;
+''     swapper.f = x;
+''     swapper.ui32 = SDL_Swap32(swapper.ui32);
+''     return swapper.f;
+'' }
+#endif
+
+/' remove extra macros '/
+#undef HAS_BROKEN_BSWAP
+#undef HAS_BUILTIN_BSWAP16
+#undef HAS_BUILTIN_BSWAP32
+#undef HAS_BUILTIN_BSWAP64
+
+
+#ifdef SDL_WIKI_DOCUMENTATION_SECTION
+
+/'*
+ * Byte-swap an unsigned 16-bit number.
+ *
+ * This will always byte-swap the value, whether it's currently in the native
+ * byteorder of the system or not. You should use SDL_Swap16LE or SDL_Swap16BE
+ * instead, in most cases.
+ *
+ * Note that this is a forced-inline function in a header, and not a public
+ * API function available in the SDL library (which is to say, the code is
+ * embedded in the calling program and the linker and dynamic loader will not
+ * be able to find this function inside SDL itself).
+ *
+ * \param x the value to byte-swap.
+ * \returns `x`, with its bytes in the opposite endian order.
+ *
+ * \threadsafety It is safe to call this function from any thread.
+ *
+ * \since This function is available since SDL 3.2.0.
+ '/
+'' C2T-TODO(unsupported) SDL_endian.h:447 -- a declaration made by a macro invocation
+'' SDL_FORCE_INLINE Uint16 SDL_Swap16(Uint16 x) { return x_but_byteswapped; }
+
+/'*
+ * Byte-swap an unsigned 32-bit number.
+ *
+ * This will always byte-swap the value, whether it's currently in the native
+ * byteorder of the system or not. You should use SDL_Swap32LE or SDL_Swap32BE
+ * instead, in most cases.
+ *
+ * Note that this is a forced-inline function in a header, and not a public
+ * API function available in the SDL library (which is to say, the code is
+ * embedded in the calling program and the linker and dynamic loader will not
+ * be able to find this function inside SDL itself).
+ *
+ * \param x the value to byte-swap.
+ * \returns `x`, with its bytes in the opposite endian order.
+ *
+ * \threadsafety It is safe to call this function from any thread.
+ *
+ * \since This function is available since SDL 3.2.0.
+ '/
+'' C2T-TODO(unsupported) SDL_endian.h:468 -- a declaration made by a macro invocation
+'' SDL_FORCE_INLINE Uint32 SDL_Swap32(Uint32 x) { return x_but_byteswapped; }
+
+/'*
+ * Byte-swap an unsigned 64-bit number.
+ *
+ * This will always byte-swap the value, whether it's currently in the native
+ * byteorder of the system or not. You should use SDL_Swap64LE or SDL_Swap64BE
+ * instead, in most cases.
+ *
+ * Note that this is a forced-inline function in a header, and not a public
+ * API function available in the SDL library (which is to say, the code is
+ * embedded in the calling program and the linker and dynamic loader will not
+ * be able to find this function inside SDL itself).
+ *
+ * \param x the value to byte-swap.
+ * \returns `x`, with its bytes in the opposite endian order.
+ *
+ * \threadsafety It is safe to call this function from any thread.
+ *
+ * \since This function is available since SDL 3.2.0.
+ '/
+'' C2T-TODO(unsupported) SDL_endian.h:489 -- a declaration made by a macro invocation
+'' SDL_FORCE_INLINE Uint64 SDL_Swap64(Uint64 x) { return x_but_byteswapped; }
+
+/'*
+ * Swap a 16-bit value from littleendian to native byte order.
+ *
+ * If this is running on a littleendian system, `x` is returned unchanged.
+ *
+ * This macro never references `x` more than once, avoiding side effects.
+ *
+ * \param x the value to swap, in littleendian byte order.
+ * \returns `x` in native byte order.
+ *
+ * \threadsafety It is safe to call this macro from any thread.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+'' C2T-NOTE(unchecked) SDL_endian.h:505 -- 'SwapOnlyIfNecessary' not declared here: a program using the macro declares it
+#define SDL_Swap16LE(x) SwapOnlyIfNecessary((x))
+
+/'*
+ * Swap a 32-bit value from littleendian to native byte order.
+ *
+ * If this is running on a littleendian system, `x` is returned unchanged.
+ *
+ * This macro never references `x` more than once, avoiding side effects.
+ *
+ * \param x the value to swap, in littleendian byte order.
+ * \returns `x` in native byte order.
+ *
+ * \threadsafety It is safe to call this macro from any thread.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+'' C2T-NOTE(unchecked) SDL_endian.h:521 -- 'SwapOnlyIfNecessary' not declared here: a program using the macro declares it
+#define SDL_Swap32LE(x) SwapOnlyIfNecessary((x))
+
+/'*
+ * Swap a 64-bit value from littleendian to native byte order.
+ *
+ * If this is running on a littleendian system, `x` is returned unchanged.
+ *
+ * This macro never references `x` more than once, avoiding side effects.
+ *
+ * \param x the value to swap, in littleendian byte order.
+ * \returns `x` in native byte order.
+ *
+ * \threadsafety It is safe to call this macro from any thread.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+'' C2T-NOTE(unchecked) SDL_endian.h:537 -- 'SwapOnlyIfNecessary' not declared here: a program using the macro declares it
+#define SDL_Swap64LE(x) SwapOnlyIfNecessary((x))
+
+/'*
+ * Swap a floating point value from littleendian to native byte order.
+ *
+ * If this is running on a littleendian system, `x` is returned unchanged.
+ *
+ * This macro never references `x` more than once, avoiding side effects.
+ *
+ * \param x the value to swap, in littleendian byte order.
+ * \returns `x` in native byte order.
+ *
+ * \threadsafety It is safe to call this macro from any thread.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+'' C2T-NOTE(unchecked) SDL_endian.h:553 -- 'SwapOnlyIfNecessary' not declared here: a program using the macro declares it
+#define SDL_SwapFloatLE(x) SwapOnlyIfNecessary((x))
+
+/'*
+ * Swap a 16-bit value from bigendian to native byte order.
+ *
+ * If this is running on a bigendian system, `x` is returned unchanged.
+ *
+ * This macro never references `x` more than once, avoiding side effects.
+ *
+ * \param x the value to swap, in bigendian byte order.
+ * \returns `x` in native byte order.
+ *
+ * \threadsafety It is safe to call this macro from any thread.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+'' C2T-NOTE(unchecked) SDL_endian.h:569 -- 'SwapOnlyIfNecessary' not declared here: a program using the macro declares it
+#define SDL_Swap16BE(x) SwapOnlyIfNecessary((x))
+
+/'*
+ * Swap a 32-bit value from bigendian to native byte order.
+ *
+ * If this is running on a bigendian system, `x` is returned unchanged.
+ *
+ * This macro never references `x` more than once, avoiding side effects.
+ *
+ * \param x the value to swap, in bigendian byte order.
+ * \returns `x` in native byte order.
+ *
+ * \threadsafety It is safe to call this macro from any thread.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+'' C2T-NOTE(unchecked) SDL_endian.h:585 -- 'SwapOnlyIfNecessary' not declared here: a program using the macro declares it
+#define SDL_Swap32BE(x) SwapOnlyIfNecessary((x))
+
+/'*
+ * Swap a 64-bit value from bigendian to native byte order.
+ *
+ * If this is running on a bigendian system, `x` is returned unchanged.
+ *
+ * This macro never references `x` more than once, avoiding side effects.
+ *
+ * \param x the value to swap, in bigendian byte order.
+ * \returns `x` in native byte order.
+ *
+ * \threadsafety It is safe to call this macro from any thread.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+'' C2T-NOTE(unchecked) SDL_endian.h:601 -- 'SwapOnlyIfNecessary' not declared here: a program using the macro declares it
+#define SDL_Swap64BE(x) SwapOnlyIfNecessary((x))
+
+/'*
+ * Swap a floating point value from bigendian to native byte order.
+ *
+ * If this is running on a bigendian system, `x` is returned unchanged.
+ *
+ * This macro never references `x` more than once, avoiding side effects.
+ *
+ * \param x the value to swap, in bigendian byte order.
+ * \returns `x` in native byte order.
+ *
+ * \threadsafety It is safe to call this macro from any thread.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+'' C2T-NOTE(unchecked) SDL_endian.h:617 -- 'SwapOnlyIfNecessary' not declared here: a program using the macro declares it
+#define SDL_SwapFloatBE(x) SwapOnlyIfNecessary((x))
+
+#elseif (SDL_BYTEORDER = SDL_LIL_ENDIAN)
+#define SDL_Swap16LE(x) (x)
+#define SDL_Swap32LE(x) (x)
+#define SDL_Swap64LE(x) (x)
+#define SDL_SwapFloatLE(x) (x)
+#define SDL_Swap16BE(x) SDL_Swap16((x))
+#define SDL_Swap32BE(x) SDL_Swap32((x))
+#define SDL_Swap64BE(x) SDL_Swap64((x))
+'' C2T-TODO(conditional) SDL_endian.h:627 -- the passes translate it differently
+'' #define SDL_SwapFloatBE(x)  SDL_SwapFloat(x)
+#else
+#define SDL_Swap16LE(x) SDL_Swap16((x))
+#define SDL_Swap32LE(x) SDL_Swap32((x))
+#define SDL_Swap64LE(x) SDL_Swap64((x))
+'' C2T-TODO(conditional) SDL_endian.h:632 -- the passes translate it differently
+'' #define SDL_SwapFloatLE(x)  SDL_SwapFloat(x)
+#define SDL_Swap16BE(x) (x)
+#define SDL_Swap32BE(x) (x)
+#define SDL_Swap64BE(x) (x)
+#define SDL_SwapFloatBE(x) (x)
+#endif
+
+/' Ends C function definitions when using C++ '/
+end extern
+'' c2t: <SDL3/SDL_close_code.h> holds only decoration macros (stripped where used)
+

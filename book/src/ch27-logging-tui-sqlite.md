@@ -5,8 +5,8 @@ of time needs to say what it did, and **`std/logs`** writes that record properly
 typed fields, more than one destination and no lines torn apart by threads. A tool that a person
 drives from a terminal can do better than `print` and `input`, and **`std/tui`** builds full-screen
 interfaces from a grid of cells, a layout solver and some thirty widgets. A program that keeps data
-between runs usually wants a database rather than files of its own invention, and **`db/sqlite`**
-puts SQLite, the most widely deployed database there is, an `#import` away.
+between runs usually wants a database rather than files of its own invention, and
+**`vendor/sqlite3`** puts SQLite, the most widely deployed database there is, an `#import` away.
 
 The chapter ends with a map of the finance library, the rest of the `std/money` module from
 Chapter 26.
@@ -176,8 +176,11 @@ navigated. Make every widget that takes the focus a field of the app, as the sta
 ## SQLite
 
 SQLite is a database in a library: no server, one file per database (or none, in memory), and
-the SQL language. The **`db/sqlite`** module wraps it: `#import "db/sqlite"`, and its names are
-written `sqlite.Database` and so on (or bare, after `using sqlite`).
+the SQL language. tiko ships it as **`vendor/sqlite3`**, one of the toolchain's **vendor
+packages**: a C library with its header already translated into tiko and its compiled code beside
+it, reached with one `#import`. What you call is SQLite's own C interface, so every function is
+written the way SQLite's documentation writes it: `sqlite3_open`, not `sqlite3.sqlite3_open`.
+Chapter 29 shows how a package like this is made, for any C library.
 
 ```tiko
 {{#include ../examples/ch27/contacts-db.tiko}}
@@ -187,30 +190,59 @@ written `sqlite.Database` and so on (or bare, after `using sqlite`).
 {{#include ../examples/ch27/contacts-db.out}}
 ```
 
-A **`Database`** opens a file with `Open( path )` or a private in-memory database with
-`OpenMemory( )`. **`Execute`** runs a statement that returns no rows; **`Query`** runs one that does,
-and **`QueryFirst`** and **`QueryScalar`** return just the first row or the first value. Each
-returns a `Result` (Chapter 17), and a failure carries SQLite's message: the last line of the
-listing is a `not null` constraint refusing a row.
+A connection is a **`sqlite3 ptr`**. `sqlite3` is a type SQLite declares but never defines, so a
+program can only hold a pointer to one, and `sqlite3_open` fills it in through its address,
+`@db`. The name `:memory:` opens a private database that lives as long as the connection; any
+other name is a file, created when it does not exist. `sqlite3_close` closes it.
+
+Almost every function returns a **result code**: `SQLITE_OK` for success, anything else for a
+failure, and then `sqlite3_errmsg( db )` says what went wrong. Nothing raises a runtime error, so
+a code that is ignored is a failure that is ignored. The listing's `Check` turns every failure
+into a message and a stop, which is enough for a short program; a larger one decides call by call.
+
+**`sqlite3_exec`** runs SQL that returns no rows. Its last three arguments are a callback that
+would receive rows, an argument for that callback, and the address of an error message. Given
+that address, as the last statement gives it, SQLite stores its message there, and the program
+frees it with `sqlite3_free`. That is how the last line of output arrives: a `not null`
+constraint refusing a row.
+
+### Prepared statements
+
+Everything else goes through a **statement**, in four steps:
+
+1. **`sqlite3_prepare_v2`** compiles the SQL once, into a `sqlite3_stmt ptr`.
+2. **`sqlite3_bind_text`**, `sqlite3_bind_int64`, `sqlite3_bind_null` and their siblings give a
+   value to each `?`, counting from 1.
+3. **`sqlite3_step`** runs it: `SQLITE_ROW` for each row of a result, `SQLITE_DONE` at the end.
+   On a row, `sqlite3_column_text`, `sqlite3_column_int64` and the others read its columns,
+   counting from 0. **`sqlite3_reset`** makes the statement ready to run again with new values.
+4. **`sqlite3_finalize`** frees it.
 
 ```admonish danger title="Pitfall"
 **Never build SQL by pasting values into the text.** `"... where name = '" & name & "'"` breaks on
 the first name with an apostrophe in it, and lets anyone who controls the value rewrite the query.
-Write `?` where each value goes and pass the values with `sqlite.Args( … )`: they travel
-separately from the SQL and cannot change what it means.
+Write `?` where each value goes and bind the values: they travel separately from the SQL and
+cannot change what it means.
 ```
 
-A row is read by column name — `r[ "email" ]` — or by position, and each value converts with
-`AsText( )`, `AsInt64( )`, `AsDouble( )` or `AsBlob( )`; `IsNull( )` tells a missing value from an
-empty one. Text is `ustring` throughout, stored as UTF-8.
+The last argument of `sqlite3_bind_text` says how long SQLite may keep the text.
+`SQLITE_TRANSIENT` asks it to take a copy, which is always safe; `SQLITE_STATIC` promises the text
+will not change while the statement uses it, and saves the copy. The `-1` before it means "the
+text ends at its zero byte".
 
-**A `Transaction`** groups statements: `Begin`, then `Commit` to keep everything or `Rollback` to
-undo everything, as the listing does with its `delete`. A transaction is also how many inserts
-become fast: each statement outside one is its own transaction, written to disk separately.
+**Text crosses as UTF-8.** SQLite's `_text` functions take and return C's `char *`, holding
+UTF-8. A `ustring` passed where the C function wants a `const char *` is converted to UTF-8 for
+the call; a `string`, tiko's byte string, passes its bytes as they are. These listings keep their
+values in `string` because they are bytes that go to SQLite and come back unchanged. The other
+way, `sqlite3_column_text` returns a pointer to bytes SQLite owns, valid until the next step, and
+`*cast( zstring ptr, … )` copies them into a string before then; a `string` holding UTF-8, assigned
+to a `ustring`, is read as UTF-8. Chapter 34's ledger keeps its text in `ustring` and works this
+way.
 
-A `Database`, `Statement` and `Transaction` are **handles**: they cannot be copied (Chapter 21), so
-they are passed `byref`. For a statement run many times, `db.Prepare( stmt, sql )` compiles it once
-and `Bind` gives it new values each time.
+**A transaction** groups statements: `begin`, then `commit` to keep everything or `rollback` to
+undo everything, as the listing does with its `delete`. They are SQL like any other, run with
+`sqlite3_exec`. A transaction is also how many inserts become fast: each statement outside one
+is its own transaction, written to disk separately.
 
 ### Importing CSV
 
@@ -226,11 +258,26 @@ and `Bind` gives it new values each time.
 {{#include ../examples/ch27/csv-import.out}}
 ```
 
-The same module has **`ImportCsv( db, table, path )`**, which reads real CSV
-— quoted fields, commas and doubled quotes inside them, line breaks inside quotes, either kind of
-line ending — creates the table from the header row, and loads every line in one transaction. An
-empty field arrives as NULL. `ImportCsvWith` takes a `CsvOptions` for another delimiter or a file
-without a header, and **`ExportCsv( db, sql, path )`** writes a query's result back out.
+Reading CSV properly is Chapter 8's **`strings.SplitCsv`**: quoted fields, commas and doubled
+quotes inside them, line breaks inside quotes. Given a `string`, it returns rows whose fields are
+`string`s as well, the same UTF-8 bytes the file holds, so they are bound with no conversion. The
+listing reads the whole file as bytes, takes row 0 as the header, binds an empty field as SQL's
+`NULL` with `sqlite3_bind_null`, and loads every row inside one transaction.
+`sqlite3_column_type` tells a `NULL` from text when it is read back.
+
+### Static or dynamic
+
+`#import "vendor/sqlite3"` links SQLite **dynamically**: the program calls into SQLite's shared
+library, `sqlite3.dll` on Windows, and **tiko copies that library beside the program** when it
+builds it, so the program starts wherever the two travel together. To have SQLite's code linked
+into the program instead, which is then one file, say so on the import:
+
+```tiko
+#import "vendor/sqlite3" link static
+```
+
+Nothing else in the program changes. A program links a library one way only: two imports asking
+for different modes are an error, `TKO0157`.
 
 ## The finance library
 
@@ -261,8 +308,9 @@ every function, and all of them are reached as `money.`.
   unchanged frame writes nothing, and an idle interface uses no processor time.
 - **Each SQL statement outside a transaction is a separate write to disk.** Thousands of inserts
   belong in one transaction; a prepared statement saves compiling the SQL each time.
-- **`db/sqlite` links SQLite itself into the program**, from a static library of about 2 MB that
-  ships with tiko; nothing needs installing on the machine that runs it.
+- **`vendor/sqlite3` costs a second file or a larger program.** Linked dynamically, SQLite's
+  shared library, 3.5 MB on Windows, travels beside the program; linked statically, the program
+  grows by about 1.1 MB. Either way nothing needs installing on the machine that runs it.
 
 ## Summary
 
@@ -275,8 +323,12 @@ every function, and all of them are reached as `money.`.
 - `#import "std/tui"`: a `TuiApp` with `Init`, `Update` and `View`; `TuiRun` drives it, and
   `TuiRenderOnce` draws a frame with no terminal. Layout with constraints, widgets as values, state
   in the app.
-- `#import "db/sqlite"`: `Database`, `Execute`, `Query`, parameters with `?` and `Args`,
-  `Transaction`; every call returns a `Result`. `ImportCsv` and `ExportCsv` move CSV.
+- `#import "vendor/sqlite3"`: SQLite's own C interface, unqualified: `sqlite3_open`,
+  `sqlite3_exec`; statements with `sqlite3_prepare_v2`, `?` and `sqlite3_bind_*`, then
+  `sqlite3_step`, `sqlite3_column_*` and `sqlite3_finalize`. Every call returns a result code,
+  and `sqlite3_errmsg` explains a failure. Text is UTF-8, so values travel as `string`.
+- `link static` or `link dynamic` on the import chooses how SQLite is linked; dynamic, the
+  default, copies the shared library beside the program. `strings.SplitCsv` reads CSV to load.
 - `std/money` also carries rates, the time value of money, loans, cash flows, depreciation and
   portfolio measures.
 
@@ -290,5 +342,6 @@ every function, and all of them are reached as `money.`.
    happens to the file if the program is run twice?
 4. Make `tui-widgets.tiko` respond to the Down key by moving the list's selection, and check it the
    way `tui-hello.tiko` checks its key press.
-5. Import a CSV file of your own, then use a `Transaction` to delete the rows that fail a check and
-   roll back if more than half of them would go.
+5. Import a CSV file of your own, then, inside a transaction, delete the rows that fail a check,
+   and roll back if more than half of them would go. `sqlite3_changes( db )` says how many rows
+   the last statement changed.

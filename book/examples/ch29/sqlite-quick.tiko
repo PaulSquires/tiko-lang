@@ -2,7 +2,7 @@
 '' against a database and print each row the callback is given.
 '' ANCHOR: all
 '' ANCHOR: link
-#cinclude once "vendor/sqlite/sqlite3.h"
+#include once "vendor/sqlite/sqlite3.ti"
 #foreignlib SQLITE dynamic "vendor/sqlite/sqlite3"
 '' ANCHOR_END: link
 

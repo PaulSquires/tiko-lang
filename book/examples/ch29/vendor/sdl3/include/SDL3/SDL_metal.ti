@@ -1,0 +1,124 @@
+'' =============================================================================
+'' SDL_metal.ti -- tiko header translated by c2t (tiko 0.1.0-dev) from the C header "SDL_metal.h"
+''   source sha256 : 0689f189d73dc0b9b314013f77505cbeca10d96b23556a057ee8d676b46d8983
+''   clang         : clang version 21.1.0
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu
+''   options       : -I vendor/sdl3/include --sysroot //wsl.localhost/Ubuntu --verify
+''
+'' Generated from C. Search for C2T-TODO and translate those parts by hand.
+''
+'' Renamed:
+''   parameter  SDL_Metal_CreateView.window -> SDL_Metal_CreateView.window_   (tiko reserved word)
+''   parameter  SDL_Metal_DestroyView.view -> SDL_Metal_DestroyView.view_   (tiko reserved word)
+''   parameter  SDL_Metal_GetLayer.view -> SDL_Metal_GetLayer.view_   (tiko reserved word)
+''
+'' Nothing needs manual translation.
+'' =============================================================================
+
+/'
+  Simple DirectMedia Layer
+  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
+
+  This software is provided 'as-is', without any express or implied
+  warranty.  In no event will the authors be held liable for any damages
+  arising from the use of this software.
+
+  Permission is granted to anyone to use this software for any purpose,
+  including commercial applications, and to alter it and redistribute it
+  freely, subject to the following restrictions:
+
+  1. The origin of this software must not be misrepresented; you must not
+     claim that you wrote the original software. If you use this software
+     in a product, an acknowledgment in the product documentation would be
+     appreciated but is not required.
+  2. Altered source versions must be plainly marked as such, and must not be
+     misrepresented as being the original software.
+  3. This notice may not be removed or altered from any source distribution.
+'/
+
+/'*
+ * # CategoryMetal
+ *
+ * Functions to creating Metal layers and views on SDL windows.
+ *
+ * This provides some platform-specific glue for Apple platforms. Most macOS
+ * and iOS apps can use SDL without these functions, but this API they can be
+ * useful for specific OS-level integration tasks.
+ '/
+
+#pragma once
+
+#include once "SDL_video.ti"
+
+'' c2t: <SDL3/SDL_begin_code.h> holds only decoration macros (stripped where used)
+/' Set up for C function definitions, even when using C++ '/
+extern "C"
+
+/'*
+ * A handle to a CAMetalLayer-backed NSView (macOS) or UIView (iOS/tvOS).
+ *
+ * \since This datatype is available since SDL 3.2.0.
+ '/
+type SDL_MetalView as any ptr
+
+/'*
+ *  \name Metal support functions
+ '/
+/' @{ '/
+
+/'*
+ * Create a CAMetalLayer-backed NSView/UIView and attach it to the specified
+ * window.
+ *
+ * On macOS, this does *not* associate a MTLDevice with the CAMetalLayer on
+ * its own. It is up to user code to do that.
+ *
+ * The returned handle can be casted directly to a NSView or UIView. To access
+ * the backing CAMetalLayer, call SDL_Metal_GetLayer().
+ *
+ * \param window the window.
+ * \returns handle NSView or UIView.
+ *
+ * \threadsafety This function should only be called on the main thread.
+ *
+ * \since This function is available since SDL 3.2.0.
+ *
+ * \sa SDL_Metal_DestroyView
+ * \sa SDL_Metal_GetLayer
+ '/
+declare function SDL_Metal_CreateView( byval window_ as SDL_Window ptr ) as SDL_MetalView
+
+/'*
+ * Destroy an existing SDL_MetalView object.
+ *
+ * This should be called before SDL_DestroyWindow, if SDL_Metal_CreateView was
+ * called after SDL_CreateWindow.
+ *
+ * \param view the SDL_MetalView object.
+ *
+ * \threadsafety This function should only be called on the main thread.
+ *
+ * \since This function is available since SDL 3.2.0.
+ *
+ * \sa SDL_Metal_CreateView
+ '/
+declare sub SDL_Metal_DestroyView( byval view_ as SDL_MetalView )
+
+/'*
+ * Get a pointer to the backing CAMetalLayer for the given view.
+ *
+ * \param view the SDL_MetalView object.
+ * \returns a pointer.
+ *
+ * \threadsafety This function should only be called on the main thread.
+ *
+ * \since This function is available since SDL 3.2.0.
+ '/
+declare function SDL_Metal_GetLayer( byval view_ as SDL_MetalView ) as any ptr
+
+/' @} '//' Metal support functions '/
+
+/' Ends C function definitions when using C++ '/
+end extern
+'' c2t: <SDL3/SDL_close_code.h> holds only decoration macros (stripped where used)
+

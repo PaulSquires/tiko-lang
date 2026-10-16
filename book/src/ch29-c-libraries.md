@@ -1,16 +1,25 @@
 # Using C libraries
 
-Chapter 28 showed how tiko talks to C: `#cinclude` reads a header, `#foreignlib` links a
-library, and a C function is then called like any other. It did that with `geom`, a four-function
-library written for the chapter, whose files were already laid out the way tiko wanted them.
+Chapter 27 used SQLite through `vendor/sqlite3`, one of the toolchain's vendor packages: a C
+library that arrives ready to `#import`. The toolchain ships a handful of those. Every other C
+library — and there are thousands, for databases, compression, graphics, sound, networking —
+you connect yourself.
 
-Real libraries do not arrive that way. They come as an archive from a project's website, with the
-files arranged the way their authors chose, built for compilers you may not have, in several
-variants whose differences the archive does not explain. Before the first line of your program
-compiles you have to choose a package, unpack it, decide which file to link, and make sure the
-program can find the library again when it runs, on your machine and on someone else's.
+Real libraries arrive as an archive from a project's website, with the files arranged the way
+their authors chose, built for compilers you may not have, in several variants whose differences
+the archive does not explain. Before the first line of your program compiles you have to choose
+a package, unpack it, give tiko the library's declarations, decide which file to link, and make
+sure the program can find the library again when it runs, on your machine and on someone else's.
 
-This chapter does all of that for four of the most widely used C libraries:
+tiko does it in two steps, and they are the steps every vendor package was made with:
+
+1. **`tiko c2t`** translates the library's C header, once, into a tiko header: a `.ti` file that
+   reads like the C it came from, which you look over, finish where it says so, and keep with
+   your code.
+2. **`#foreignlib`** links the library's compiled code, statically or dynamically, choosing the
+   right file for each platform.
+
+This chapter takes four of the most widely used C libraries through both steps:
 
 | Library | Version | What it is for | Licence |
 |---|---|---|---|
@@ -30,25 +39,29 @@ versions in the table.
 
 ## Before you start
 
-You need tiko and LLVM, as Chapter 1 set up. Three more tools are used in this chapter:
+Building a program that uses a translated header needs nothing more than tiko and LLVM, as
+Chapter 1 set up. **Translating** a header needs more, because `tiko c2t` hands the header to
+Clang and Clang has to read every header it includes:
 
-- **On Windows, the Visual Studio Build Tools with the Windows SDK.** `#cinclude` hands each
-  header to clang, and on Windows clang reads the C runtime's and the Windows SDK's headers from
-  that installation. Without it, a library header that includes `<stdio.h>` cannot be imported,
-  and tiko says so:
+- **libclang**, Clang as a library, which the LLVM installation provides.
+- **The Windows headers, on Windows.** c2t reads a header once for each of tiko's targets. For
+  the Windows pass Clang reads the C runtime's and the Windows SDK's headers from the **Visual
+  Studio Build Tools**: install them, free, with *Desktop development with C++*.
+- **The Linux headers, for the Linux pass.** On Linux they are already there, with the `-dev`
+  package of any library a header includes. On Windows, the headers of a Linux installation in
+  WSL serve, named with `--sysroot`.
 
-  ```text
-  note: windows-x86_64 imports against the installed MSVC and Windows SDK
-  headers; install Visual Studio Build Tools with the Windows SDK, or name
-  the directory with -cinclude
-  ```
+All of that is needed **only by whoever translates**. The `.ti` it writes is an ordinary tiko
+file: anyone who builds the program afterwards, on either platform, needs no Clang, no Visual
+Studio and no C headers. This chapter translates on Windows, with Ubuntu in WSL for the Linux
+pass. On Linux, c2t translates a header that includes nothing beyond C's freestanding headers
+(`stddef.h`, `stdint.h`, `stdbool.h`, `stdarg.h`), as `sqlite3.h` and `raylib.h` do; one that
+includes `<GL/gl.h>` or `<stdio.h>` fails its Windows pass there, for want of the Windows
+headers.
 
-  tiko itself does not need Visual Studio; `#cinclude` does. Install the free Build Tools and
-  select *Desktop development with C++*. The same installation is what compiles C code on
-  Windows, with clang or with Visual C++, which this chapter does twice.
-- **CMake**, from `cmake.org` or your package manager, to build GLFW and SDL from their source.
-- **On Linux, a C compiler and the development packages** a library lists. They are named in each
-  library's section.
+Two more tools are used to build libraries from their source: **CMake**, from `cmake.org` or your
+package manager, and on Linux **a C compiler and the development packages** a library lists,
+named in each library's section.
 
 The shell commands in this chapter are written for **bash**, and the same commands work on both
 platforms: on Windows, run them in Git Bash, which comes with Git for Windows. The LLVM tools they
@@ -61,7 +74,7 @@ Open any C library's download and you find the same few kinds of file, under dif
 
 | File | Windows | Linux | What it is for |
 |---|---|---|---|
-| header | `.h` | `.h` | the declarations: what `#cinclude` reads |
+| header | `.h` | `.h` | the declarations: what `tiko c2t` translates |
 | static library | `.lib` | `.a` | the library's compiled code, copied into your program when it links |
 | shared library | `.dll` | `.so`, `.so.6`, `.so.6.0.0` | the compiled code as a separate file, loaded when your program starts |
 | import library | `.lib` | none | Windows only: a small file that tells the linker which DLL holds each function |
@@ -87,6 +100,200 @@ Libraries publish several builds of the same version. Two choices matter for tik
   and are not the ones this chapter uses.
 
 On Linux the choice is simpler: a library built by your distribution's compiler, for x86-64.
+
+## Translating a header
+
+Chapter 28's `#cinclude` reads a C header at every build and keeps what it learns in a cache
+for the compiler alone. **`tiko c2t`** reads the header once and writes a tiko header that a
+person can read:
+
+```bash
+tiko c2t vendor/sqlite/sqlite3.h --verify
+```
+
+It writes `vendor/sqlite/sqlite3.ti`, beside the header, in about three seconds. Here is a piece
+of `sqlite3.h`, the type every connection is and two of its result codes:
+
+```c
+typedef struct sqlite3 sqlite3;
+SQLITE_API int sqlite3_close(sqlite3*);
+#define SQLITE_ROW         100  /* sqlite3_step() has another row ready */
+#define SQLITE_DONE        101  /* sqlite3_step() has finished executing */
+```
+
+and the same lines in `sqlite3.ti`:
+
+```tiko
+type sqlite3__fwd as sqlite3
+declare function sqlite3_close( byval as sqlite3 ptr ) as int32
+#define SQLITE_ROW 100          /' sqlite3_step() has another row ready '/
+#define SQLITE_DONE 101         /' sqlite3_step() has finished executing '/
+```
+
+Every declaration is where the C put it, with its comments, its blank lines and SQLite's
+documentation around it, so the `.ti` reads alongside the library's manual. C's types become
+tiko's fixed-width ones — `int` is `int32`, `const char *` is `const zstring ptr` — the same on
+both targets. `SQLITE_API`, the macro SQLite puts before every function, is recognised as
+decoration and dropped. A struct the header declares but never defines, like `sqlite3`, is an
+**opaque** type: a program can hold a pointer to one and nothing else.
+
+### Two platforms in one file
+
+c2t parses the header twice, once as Clang would compile it for **windows-x86_64** and once for
+**linux-x86_64**, and merges the two. What is the same on both is written once. What differs is
+written under a guard the translation makes, `#if defined(TIKO_OS_WINDOWS)` … `#endif`, and the
+header's own `#if` lines are kept, with C's platform tests spelled as tiko's: `_WIN32` becomes
+`TIKO_OS_WINDOWS`, `__linux__` becomes `TIKO_OS_LINUX`. One `.ti` serves both platforms, which is
+why it can be committed and shared.
+
+A branch neither platform takes — an `#ifdef SQLITE_ENABLE_SESSION` for an optional feature, an
+`#elif` for macOS — is translated as well, inside its `#if`. Define the macro before including
+the `.ti`, and the program sees what a C program that defined it would see.
+
+### The banner
+
+Every translation opens with a banner, which is the first thing to read:
+
+```text
+'' sqlite3.ti -- tiko header translated by c2t (tiko 0.1.0-dev)
+''   from the C header "sqlite3.h"
+''   source sha256 : cd20a2877bc82b94...c581aac6e240925535cbd90166
+''   clang         : clang version 21.1.0
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu
+''   options       : --verify
+''
+'' Generated from C. Search for C2T-TODO and translate those parts by
+'' hand.
+''
+'' Renamed:
+''   parameter  sqlite3_bind_text64.encoding
+''              -> sqlite3_bind_text64.encoding_   (tiko reserved word)
+''   ...
+''   constant   double -> double_   (tiko reserved word)
+''
+'' 1 item needs manual translation:
+''   line 11414  sqlite3.h:11450  C2T-TODO(macro)  double
+```
+
+(Wrapped here to fit the page, with the hash shortened and five renames left out; and this is the banner of a plain
+`--verify` run, before the `--shared-macro` pass that *Variables a DLL exports* adds.) The SHA-256
+names the exact header that was translated, so the `.ti` says which version of the library it
+belongs to. There is no date in it: translating the same header again gives the same bytes, and
+after an upgrade, a diff of the `.ti` shows exactly what the library changed.
+
+**Renamed** lists every C name that is a tiko word. `encoding` and `type` are keywords in tiko,
+so a parameter called that gets an underscore. Parameter names do not affect a call, so these
+renames cost nothing; a renamed function or type would be called by its new name.
+
+**Items that need manual translation** are the parts c2t could not carry. Each is marked where it
+stands, the C quoted underneath:
+
+```tiko
+#ifdef SQLITE_OMIT_FLOATING_POINT
+'' C2T-TODO(macro) sqlite3.h:11450 -- 'double' is a tiko keyword:
+'' #undef would remove it
+'' # undef double
+#endif
+```
+
+(The TODO's first line is one line in the file.)
+
+The exit status says how it went: **0**, clean; **2**, translated, with TODOs to read; **1**,
+nothing written. A TODO is API that is missing until someone writes it by hand, and the reason in
+brackets says why. Most fall into three kinds:
+
+- **A C feature tiko cannot express**: a variadic macro (`__VA_ARGS__`), a macro that pastes
+  tokens with `##`, a `static inline` function, whose body c2t quotes for porting because there
+  is no symbol in the library to link against.
+- **A system header with no tiko counterpart.** c2t knows C's standard headers (`<stdio.h>`
+  becomes `crt/stdio.bi`), Windows' (`<windows.h>` becomes `windows.bi`) and OpenGL's; anything
+  else is a TODO.
+- **A branch Clang cannot parse** even when it is switched on: C++ under `#ifdef __cplusplus`,
+  or a Vulkan type in a header that expects Vulkan's own to have been included first.
+
+Read the list and decide, item by item, whether your program needs it. SQLite's one TODO sits in
+a branch that only a build without floating point would take, and nothing a program calls is
+missing. GLFW, below, has twenty-two, and none of them is on its way.
+
+A **NOTE** is information rather than a gap: the translation is complete, and something deserves a
+look. SQLite's `SQLITE_TRANSIENT` is a C macro that casts `-1` to a function pointer; c2t
+translates it, `cast(sqlite3_destructor_type, (-1))`, and notes that Clang gives no value for a
+pointer to check it against.
+
+**`--verify`** compiles the translation for both targets inside c2t and compares every struct's
+size, alignment and member offsets, and every integer macro's value, with Clang's. A struct that
+differs is refused and marked, never written wrong. It costs almost nothing — `sqlite3.h` takes
+three seconds with it and without — so use it every time.
+
+```admonish danger title="Pitfall"
+**A translation describes one version of the library.** Link `sqlite3.ti`, made from 3.54.0's
+header, with an older SQLite, and a function the old library lacks is a link error, which is
+noticed. A struct that changed shape between versions is not: the program compiles, links and
+runs, and reads the wrong bytes. Translate the header that came in the same package as the
+library you link, and translate again whenever you upgrade either. The banner's SHA-256 says
+which header a `.ti` was made from.
+```
+
+### Finishing a translation
+
+When a TODO is something your program needs, write it by hand — but **not in the generated
+file**, where the next translation would overwrite it. Put it in a file of its own beside it,
+`sqlite3-residue.ti` say, included after the translation, with a line saying why each item is
+there. The vendor packages do exactly this: `vendor/sqlite3` is the translated `sqlite3.ti`, a
+`sqlite3-residue.ti`, and the line that links the library.
+
+### Variables a DLL exports
+
+Most C libraries export only functions, and a translated header calls them the same way however
+the library is linked. A **variable** the library exports is different on Windows: a program
+linked to the DLL must reach it through the import table, which tiko writes `extern import`, and a
+program linked statically must not. SQLite has three, among them `sqlite3_version`. Without help,
+a dynamic program that reads one fails to link:
+
+```text
+lld-link: error: undefined symbol: sqlite3_version
+```
+
+c2t solves it with one more pass, given the library's **shared-build switch**: the macro that
+makes the header declare things for a DLL. raylib's is `USE_LIBTYPE_SHARED`. SQLite has none of
+its own, so the switch is its export macro defined the way a DLL build would define it:
+
+```bash
+tiko c2t vendor/sqlite/sqlite3.h --verify \
+    --shared-macro "SQLITE_API=__attribute__((dllimport))"
+```
+
+Each exported variable is then written both ways, the import form under
+`defined(TIKO_LINK_DYNAMIC)`. A program linked to the DLL defines that before it includes the
+translation:
+
+```tiko
+#define TIKO_LINK_DYNAMIC 1
+#include once "vendor/sqlite/sqlite3.ti"
+#foreignlib SQLITE dynamic "vendor/sqlite/sqlite3"
+```
+
+and `print sqlite3_version` prints `3.54.0`. A vendor package defines it for you, from the
+`link` on its `#import`.
+
+### Headers that include each other
+
+c2t translates **one header per run**. An `#include` of another of the library's headers becomes
+`#include once` of that header's `.ti`, at the same relative path, so translating each header
+into the same tree gives a tree of `.ti` files that include one another as the `.h` files did.
+`--verify` compiles each translation, so the headers a header includes must be translated first.
+For a library with many headers, a script walks them in that order; SDL's section shows one.
+
+Because the includes are relative, a translated library needs no include directory on the
+command line, wherever it is kept. Its `.ti` files find each other as they found each other in C.
+
+### When to use c2t
+
+`#cinclude` and `tiko c2t` share tiko's C importer, so a type comes across the same way in both.
+Use `#cinclude` for a quick experiment, or a header you never want to look at. Use `tiko c2t` for
+a library your program depends on: the translation is a file you can read, search, review in a
+pull request and diff on an upgrade; it builds on machines that have no Clang; and the parts that
+did not translate are written down where they are, rather than discovered at a call.
 
 ## Static or dynamic
 
@@ -117,6 +324,16 @@ in only what is called.
 All four licences allow either way. That is not true of every library: under the LGPL, for
 instance, linking statically brings obligations that linking dynamically does not. Read a
 library's licence before you decide.
+
+`#foreignlib` says which, after the name it gives the library:
+
+```tiko
+#foreignlib SQLITE dynamic "vendor/sqlite/sqlite3"
+#foreignlib SQLITE static "vendor/sqlite/sqlite3-static"
+```
+
+The path is relative to **the file the directive is in**, and names the library without its
+platform's prefix or extension. The rest of this section is about what happens after the link.
 
 ### Where a program finds its shared libraries
 
@@ -152,7 +369,7 @@ The lasting one is an **rpath**: a directory recorded inside the program, which 
 before the system's own directories. The usual value is `$ORIGIN`, which the loader reads as "the
 directory this program is in", so a program and its `.so` files can be copied anywhere together.
 It is given to the linker, through tiko's **`-Wl`** option, which passes its value to the linker
-unchanged, split at commas, as fbc's `-Wl` does:
+unchanged, split at commas:
 
 ```tiko
 {{#include ../examples/ch29/raylib-rpath.tiko:link}}
@@ -226,18 +443,19 @@ C libraries, so you make one.
 
 ### A vendored library
 
-`#foreignlib` and `#cinclude` were built for vendoring. `#foreignlib` resolves its path relative
-to the file that contains the directive, so a program finds its libraries wherever it is built
-from. `#cinclude` finds a quoted header under the working directory or beside the file that names
-it, as Chapter 28 described.
+A translated header and `#foreignlib` were both made for vendoring. `#include` finds a quoted name
+beside the file that includes it first, and `#foreignlib` resolves its path relative to the file
+that contains the directive, so a program finds the library's declarations and its files wherever
+it is built from.
 
 `#foreignlib` also chooses the file **for the target**. Given `"vendor/raylib/raylib"`, it tries
 `raylib_windows_x86_64`, `raylib_windows`, `raylib_x86_64` and plain `raylib`, each with the
 target's extensions. So both platforms' files can sit side by side, and one directive serves
-both:
+both — as one `.ti` does:
 
 ```text
-vendor/raylib/raylib.h
+vendor/raylib/raylib.h                        the C header
+vendor/raylib/raylib.ti                       its translation, committed
 vendor/raylib/raylib_windows_x86_64.lib       static, for Windows
 vendor/raylib/raylib_linux_x86_64.a           static, for Linux
 vendor/raylib/raylibdll_windows_x86_64.lib    import lib for raylib.dll
@@ -255,30 +473,37 @@ give them their target tags. You never rename the files the program loads when i
 DLL keeps the name its import library records (`raylib.dll`) and the `.so` keeps its soname
 (`libraylib.so.600`), because those are the names the program will ask for.
 
-This chapter's listings use a vendored copy of each library. The script
-`examples/ch29/fetch-libs.sh` builds that `vendor/` directory: it downloads each package, checks
-it against a SHA-256 checksum, and copies and renames the files, building the ones that have no
-download. Run it once on each platform:
+Of all those files, only the `.ti` is source. The libraries are built artefacts, recreated from the
+download, and the C header is only an input to c2t. A project commits its translations and fetches
+the rest; this chapter's examples do exactly that. The script `examples/ch29/fetch-libs.sh` builds
+the `vendor/` directory: it downloads each package, checks it against a SHA-256 checksum, and
+copies and renames the files, building the ones that have no download. Run it once on each
+platform:
 
 ```bash
 bash fetch-libs.sh
 ```
 
-It is also the exact record of every step in this chapter, in order. When the prose says "copy
-this file there", the script is where to look to see it done.
+The script `examples/ch29/translate.sh` then holds the c2t commands for all four libraries, the
+ones this chapter shows. Between them, the two scripts are the exact record of every step in the
+chapter, in order. When the prose says "copy this file there", the scripts are where to look to
+see it done.
 
 ### An installed library
 
 On **Linux**, the package manager installs a library's header into `/usr/include` and the library
 into `/usr/lib/x86_64-linux-gnu`. A library you build yourself and install with
-`sudo cmake --install build` goes to `/usr/local/include` and `/usr/local/lib`. All four
-directories are searched by default, both by `#cinclude`'s clang and by the linker, so a program
-names neither:
+`sudo cmake --install build` goes to `/usr/local/include` and `/usr/local/lib`. The linker
+searches all of them by default, so a program links an installed library by name alone:
 
 ```tiko
-#cinclude once "sqlite3.h"
+#include once "sqlite3.ti"
 #foreignlib SQLITE dynamic "system:sqlite3"
 ```
+
+The header still needs translating, once: `tiko c2t /usr/include/sqlite3.h -o sqlite3.ti`, and
+the `.ti` lives with the project. It describes the version the machine had when it was made, so
+retranslate when the distribution upgrades the library.
 
 `"system:sqlite3"` hands `sqlite3` to the linker the way `#inclib "sqlite3"` would, and the
 linker finds `libsqlite3.so`. Two things to know about it: the `static` or `dynamic` before a
@@ -287,8 +512,8 @@ linker finds `libsqlite3.so`. Two things to know about it: the `static` or `dyna
 yourself, run `sudo ldconfig` once, so that programs can find it when they start.
 
 On **Windows** you choose a folder, such as `C:\tiko-libs`, and put each library in it the same
-way as `vendor/`. A program then needs to be told where that folder is, which is the job of a
-**binding header**, at the end of this chapter.
+way as `vendor/`, its translation beside it. A program then needs to be told where that folder is,
+which is the job of a **binding header**, at the end of this chapter.
 
 ## SQLite
 
@@ -297,10 +522,10 @@ database is one ordinary file. Its authors describe it as the most widely deploy
 engine in the world, and it is inside many of the programs you already use.
 
 ```admonish note
-tiko already ships SQLite. The toolchain's `db/sqlite` module wraps a copy that is linked into
-the program, and Chapter 27 uses it. This section is for the cases that module does not cover:
-a newer SQLite than the toolchain's, SQLite's own C interface rather than tiko's, or SQLite built
-with options of your own.
+tiko already ships SQLite, as `vendor/sqlite3`, and Chapter 27 uses it. This section makes the
+same library from its download, which is what you do for a newer SQLite than the toolchain's, or
+SQLite built with options of your own — and it is the pattern for every library that has no
+vendor package.
 ```
 
 ### Downloading
@@ -317,6 +542,20 @@ The number in each name is the version: 3.54.0 is `3540000`.
 
 SQLite is unusual in shipping its source as one file. It is meant to be compiled into your
 program directly, which makes a static library easy to build yourself.
+
+### The header
+
+`sqlite3.h` goes to `vendor/sqlite/`, and is translated there, with the shared-build pass from
+*Variables a DLL exports*:
+
+```bash
+tiko c2t vendor/sqlite/sqlite3.h --verify \
+    --shared-macro "SQLITE_API=__attribute__((dllimport))"
+```
+
+`sqlite3.h` includes nothing but `<stdarg.h>`, which tiko has built in, so it needs no
+`--sysroot`, and c2t translates it on Linux as well. Exit status 2, and the one TODO from *The
+banner*.
 
 ### Windows: the dynamic library
 
@@ -394,7 +633,8 @@ The same two libraries, from the autoconf archive's `sqlite3.c`:
 ```bash
 gcc -O2 -fPIC -c -o sqlite3.o sqlite3.c
 ar rcs vendor/sqlite/sqlite3-static_linux_x86_64.a sqlite3.o
-gcc -shared -Wl,-soname,libsqlite3.so.0 \n    -o vendor/sqlite/sqlite3_linux_x86_64.so sqlite3.o -lm
+gcc -shared -Wl,-soname,libsqlite3.so.0 \
+    -o vendor/sqlite/sqlite3_linux_x86_64.so sqlite3.o -lm
 cp vendor/sqlite/sqlite3_linux_x86_64.so libsqlite3.so.0
 ```
 
@@ -435,8 +675,9 @@ several lines:
 {{#include ../examples/ch29/sqlite-quick.out}}
 ```
 
-The two directives at the top are the whole connection to SQLite. Everything else is the C
-program, line for line, and it shows the parts of Chapter 28 that a real library uses most:
+The two directives at the top are the whole connection to SQLite: the translation for the
+declarations, `#foreignlib` for the code. Everything else is the C program, line for line, and it
+shows the parts of Chapter 28 that a real library uses most:
 
 - **Opaque handles.** `sqlite3` is a struct the header declares but never defines, so a program
   can hold only a pointer to one. `sqlite3_open` fills `db` through its address, `@db`, the way
@@ -446,9 +687,8 @@ program, line for line, and it shows the parts of Chapter 28 that a real library
 - **Strings out of C.** `sqlite3_errmsg` returns `const char *`, and `*sqlite3_errmsg( db )` copies
   the text into a tiko string.
 - **A callback.** `sqlite3_exec` calls `Callback` once per row, so `Callback` is `cdecl` and takes
-  exactly the parameters the header's function pointer type says: `void *`, `int`, and two
-  `char **`, which are `zstring ptr ptr`. `argv[i]` is the `i`th column's text, or a null
-  pointer for SQL's `NULL`.
+  exactly the parameters the translated declaration says: `any ptr`, `int32`, and two
+  `zstring ptr ptr`. `argv[i]` is the `i`th column's text, or a null pointer for SQL's `NULL`.
 - **Memory C allocated.** On failure, `sqlite3_exec` points `errMsg` at a message SQLite
   allocated; SQLite's documentation says to free it with `sqlite3_free`, so the program does.
 
@@ -473,23 +713,14 @@ Only the `#foreignlib` line differs from the dynamic program:
 ```
 
 `static` instead of `dynamic`, and the static library's base name. The program now needs no DLL:
-copied to another machine, it runs.
+copied to another machine, it runs. The translation is the same file: it does not care how the
+library is linked.
 
-A few things in it come from SQLite's interface rather than from tiko:
-
-- `sqlite3_prepare_v2` compiles the SQL once; `sqlite3_bind_text` and `sqlite3_bind_int` fill
-  the `?`s, counting from 1; `sqlite3_step` runs it, returning `SQLITE_ROW` for each row and
-  `SQLITE_DONE` at the end; `sqlite3_reset` makes it ready to run again; and
-  `sqlite3_finalize` frees it.
-- The last argument of `sqlite3_bind_text` says whether SQLite must copy the text.
-  `SQLITE_STATIC`, which is a null pointer, promises the string will outlive the statement's use
-  of it, which `names( i )` does. `SQLITE_TRANSIENT` asks SQLite to copy. Both are C macros that
-  **cast** a number to a function pointer, and the importer does not bring such macros across;
-  write `nullptr` for the first and `cast( sqlite3_destructor_type, -1 )` for the second.
-- `sqlite3_column_text` returns `const unsigned char *`, so tiko sees a `const ubyte ptr`. Cast it
-  to a `zstring ptr` to read it as text.
-- `names` is an array of `string`, tiko's byte string, because SQLite's `_text` functions take
-  UTF-8 bytes.
+Chapter 27 covered SQLite's interface itself — preparing, binding, stepping, finalizing. Two
+points belong to the translation. `SQLITE_STATIC`, which promises SQLite the string outlives the
+statement's use of it, is one of the pointer macros c2t translated with a NOTE,
+`cast(sqlite3_destructor_type, 0)`. And `sqlite3_column_text` returns `const unsigned char *`, so the
+translation declares it `const uint8 ptr`; cast it to a `zstring ptr` to read it as text.
 
 ## raylib
 
@@ -531,7 +762,14 @@ From the Linux package:
 | `lib/libraylib.so.6.0.0` | `libraylib.so.600`, beside the program |
 
 The dynamic base name is `raylibdll` on both platforms, after the Windows import library, so that
-one `#foreignlib` line finds the right file on each.
+one `#foreignlib` line finds the right file on each. Then translate the header:
+
+```bash
+tiko c2t vendor/raylib/raylib.h --verify
+```
+
+Exit status 0: all of raylib's 600 functions, its structs, enums and colours, with nothing left
+to finish. raylib exports no variables, so it needs no `--shared-macro`.
 
 ### Installing it for every program
 
@@ -544,8 +782,8 @@ sudo cp -P lib/libraylib.* /usr/local/lib/
 sudo ldconfig
 ```
 
-`cp -P` copies the two links as links. A program then writes `#cinclude once "raylib.h"` and
-`#foreignlib RAYLIB dynamic "system:raylib"`.
+`cp -P` copies the two links as links. A program then includes its translation of `raylib.h` and
+writes `#foreignlib RAYLIB dynamic "system:raylib"`.
 
 On **Windows**, see *A binding header* below.
 
@@ -576,11 +814,21 @@ Everything after the directives is raylib's example as it is written in C. A few
   command line, so this book's checks can run it. Started with no argument, it runs until you
   close the window, as raylib's example does.
 
-Two things come through `#cinclude` that look like more than declarations. `RAYWHITE` and
-`LIGHTGRAY` are C macros that build a struct, `CLITERAL(Color){ 245, 245, 245, 255 }`; the
-importer turns each into a tiko `#define` that builds the same `Color`. And `DrawText` takes
-that `Color` **by value**, a four-byte struct passed the way C passes it, as Chapter 28
-described for `geom_point`.
+Two things in the translation are more than declarations. `RAYWHITE` and `LIGHTGRAY` are C macros
+that build a struct with a C compound literal:
+
+```c
+#define RAYWHITE   CLITERAL(Color){ 245, 245, 245, 255 }
+```
+
+c2t asks Clang for each field's value and writes the tiko equivalent:
+
+```tiko
+#define RAYWHITE type<Color>(245, 245, 245, 255)
+```
+
+And `DrawText` takes that `Color` **by value**, a four-byte struct passed the way C passes it, as
+Chapter 28 described for `geom_point`.
 
 ### Linked dynamically
 
@@ -630,7 +878,8 @@ the end of a line continues the command on the next):
 ```bash
 cmake -S glfw-3.5.1 -B build-static -DCMAKE_BUILD_TYPE=Release
 cmake --build build-static
-cmake -S glfw-3.5.1 -B build-shared -DCMAKE_BUILD_TYPE=Release \n    -DBUILD_SHARED_LIBS=ON
+cmake -S glfw-3.5.1 -B build-shared -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_SHARED_LIBS=ON
 cmake --build build-shared
 ```
 
@@ -642,6 +891,42 @@ the program, `libglfw.so.3`. To build for Wayland alone, without the X11 package
 To install GLFW for every program on Linux, `sudo apt install libglfw3-dev` gives the
 distribution's version, which on Ubuntu 24.04 is 3.3.10; or run `sudo cmake --install
 build-shared` after the build above.
+
+### The header
+
+The package's `include/` goes to `vendor/glfw/include/`. `glfw3.h` includes OpenGL's header,
+`<GL/gl.h>`, and the Linux pass has to read it, so on Windows it needs the Linux headers:
+
+```bash
+tiko c2t vendor/glfw/include/GLFW/glfw3.h \
+    --sysroot //wsl.localhost/Ubuntu --verify
+```
+
+`//wsl.localhost/Ubuntu` is the root of the Ubuntu installation in WSL, as Windows sees it, and
+`GL/gl.h` comes from its Mesa development package (`sudo apt install libgl-dev`). Without
+`--sysroot`, c2t stops and says what it needs:
+
+```text
+tiko-lang: error TKO0120: unable to import C header
+vendor/glfw/include/GLFW/glfw3.h (x86_64-pc-linux-gnu)
+  note: clang: vendor/glfw/include/GLFW/glfw3.h:241:12: fatal error:
+  'GL/gl.h' file not found
+  note: the Linux pass needs Linux's system headers: give --sysroot
+  (on Windows, the WSL root, e.g. //wsl.localhost/Ubuntu)
+```
+
+(Three lines on the screen.)
+
+Reading the Linux headers through WSL is slow, so the translation takes about twenty seconds.
+OpenGL itself is not translated: c2t maps `<GL/gl.h>` to tiko's own `GL/gl.bi`, which the
+toolchain ships.
+
+Exit status 2, with twenty-two TODOs, and none of them is in this program's way. Sixteen are
+headers c2t has no counterpart for — Vulkan's, OpenGL ES's, macOS's and GLU's — each under the
+`#if` that asks for it; four are functions whose parameters are Vulkan types, which Clang cannot
+parse without Vulkan's header; and two are the lines around a `GLAPIENTRY` definition that other
+OpenGL headers use. A program that uses GLFW with Vulkan would translate Vulkan's header first.
+This one draws with OpenGL, and loses nothing.
 
 ### A window and an OpenGL context
 
@@ -656,11 +941,10 @@ clears the window until it is closed.
 {{#include ../examples/ch29/glfw-window.out}}
 ```
 
-`glClear` and `GL_COLOR_BUFFER_BIT` are not GLFW's. They are OpenGL's, declared in `GL/gl.h`,
-which `glfw3.h` includes for you, so `#cinclude` imports them along with GLFW's own declarations.
-But the code behind them is OpenGL's, in `opengl32.dll` on Windows and `libGL.so` on Linux, so
-the program links OpenGL itself: `"system:opengl32"` and `"system:GL"`. A program that called
-only GLFW would not need them.
+`glClear` and `GL_COLOR_BUFFER_BIT` are not GLFW's. They are OpenGL's, declared in `GL/gl.bi`,
+which `glfw3.ti` includes as `glfw3.h` includes `GL/gl.h`. But the code behind them is OpenGL's,
+in `opengl32.dll` on Windows and `libGL.so` on Linux, so the program links OpenGL itself:
+`"system:opengl32"` and `"system:GL"`. A program that called only GLFW would not need them.
 
 `OnError` is a **callback** GLFW calls whenever something fails, with an error code and a
 description. `glfwSetErrorCallback( @OnError )` installs it before `glfwInit`, so that even a
@@ -704,7 +988,8 @@ its source for both. Into the project go `include/` as `vendor/sdl3/include/`, `
 finds, so more packages give more features. Then:
 
 ```bash
-cmake -S SDL3-3.4.18 -B build -DCMAKE_BUILD_TYPE=Release \n    -DSDL_STATIC=ON -DSDL_SHARED=ON
+cmake -S SDL3-3.4.18 -B build -DCMAKE_BUILD_TYPE=Release \
+    -DSDL_STATIC=ON -DSDL_SHARED=ON
 cmake --build build
 ```
 
@@ -713,26 +998,54 @@ cmake --build build
 every program, `sudo cmake --install build`; distributions newer than Ubuntu 24.04 package it as
 `libsdl3-dev`.
 
-### Headers that include each other
+### A library of headers
 
-SDL's headers include one another the way C programs include them:
+SDL's interface is not one header but dozens. `SDL.h` brings in fifty-seven others, and they
+include one another the way C programs include them:
 
 ```c
 #include <SDL3/SDL_stdinc.h>
 ```
 
-The angle brackets mean "search the include directories", and clang finds nothing beside the file
-for those. So SDL needs its `include` directory named with `-cinclude`, and a program then
-writes `#cinclude once "SDL3/SDL.h"`, as a C program writes `#include <SDL3/SDL.h>`. The listing
-sets it with `#cmdline`, where the directory is relative to the directory the compiler runs in;
-in a project, put it in `tiko.toml` instead, where it is relative to `tiko.toml`:
+c2t translates one header per run, so SDL is translated by a loop: start at `SDL.h`, visit each
+header it includes before the header itself, and translate them in that order, so that every
+header's includes are already translated when `--verify` compiles it. `-I` names SDL's `include`
+directory, where Clang finds `<SDL3/...>`:
 
-```toml
-[target.game]
-main    = "main.tiko"
-options = ["-cinclude", "vendor/sdl3/include",
-           "-cdefine", "SDL_MAIN_HANDLED"]
+```bash
+tiko c2t vendor/sdl3/include/SDL3/SDL_stdinc.h -I vendor/sdl3/include \
+    --sysroot //wsl.localhost/Ubuntu --verify
 ```
+
+is one step of it; `translate.sh` has the whole loop. Two of SDL's headers are left out:
+`SDL_begin_code.h` and `SDL_close_code.h` only wrap the others in compiler decorations, which c2t
+recognises and strips where they are used, and neither can be parsed on its own.
+
+`SDL_main.h` is not among `SDL.h`'s includes, and a program that uses SDL's main callbacks needs
+it. That makes fifty-nine translations in all, in under five minutes. In C it supplies the program's `main` function; a tiko program has its own beginning, so it is
+translated with SDL's macro for that case, `SDL_MAIN_HANDLED`, defined:
+
+```bash
+tiko c2t vendor/sdl3/include/SDL3/SDL_main.h -I vendor/sdl3/include \
+    --sysroot //wsl.localhost/Ubuntu -D SDL_MAIN_HANDLED --verify
+```
+
+A `-D` is written into the translation as a `#define`, so `SDL_main.ti` reads the macro exactly as
+Clang did.
+
+Twenty-six of the fifty-nine end with exit status 2, and their banners list 1,704 TODOs between
+them. The number looks worse than it is. 1,175 are in `SDL_oldnames.h`, a table of SDL2's names
+kept to help port SDL2 programs: in C it turns each old name into a compile error that names its
+replacement, and without it an old name is still an error in tiko, an undeclared one. Most of the
+rest are in `SDL_stdinc.h` and its neighbours, SDL's portable C library — `#if` tests on what the
+C compiler predefines, `printf` format macros, `alloca` — the plumbing SDL is built from rather
+than the interface a program calls. The TODOs that are API are a short list: twenty-eight `static
+inline` functions, among them `SDL_rect.h`'s rectangle tests such as `SDL_PointInRect`, quoted for
+porting. A program that needs one writes it in a residue file of its own.
+
+Each `SDL3/X.h` gets an `SDL3/X.ti` beside it, and `#include <SDL3/SDL_stdinc.h>` became `#include
+once "SDL_stdinc.ti"`, relative to the header that includes it. So a program includes SDL by its
+path in the project and needs no include directory at all.
 
 ### The main callbacks
 
@@ -750,21 +1063,16 @@ example `renderer/01-clear` is written that way; here it is in tiko:
 {{#include ../examples/ch29/sdl-clear.out}}
 ```
 
-
 The connection to SDL comes first:
 
 ```tiko
 {{#include ../examples/ch29/sdl-clear.tiko:link}}
 ```
 
-- `-cinclude` names SDL's `include` directory, as above.
-- `-cdefine SDL_MAIN_HANDLED` defines a C macro before the headers are read. In a C program
-  that uses the callbacks, `SDL_main.h` supplies the program's `main` function, which hands the
-  four callbacks to SDL. A tiko program has its own beginning, so the macro tells `SDL_main.h`
-  to declare things only.
-- `SDL_main.h` is where `SDL_EnterAppMainCallbacks` is declared, the function that runs the
-  callbacks. It is what `SDL_main.h`'s `main` would have called, and the program calls it at the
-  end, passing the four procedures by address.
+- `SDL.ti` brings the whole of SDL's interface, through the `.ti` files it includes.
+- `SDL_main.ti` declares `SDL_EnterAppMainCallbacks`, the function that runs the callbacks. It is
+  what `SDL_main.h`'s `main` would have called, and the program calls it at the end, passing the
+  four procedures by address.
 
 The four callbacks are `cdecl` and take exactly the parameters SDL's header gives their types,
 `SDL_AppInit_func` and the rest. Get one wrong, say `int32 ptr` where SDL passes `void *`, and
@@ -777,11 +1085,12 @@ keep them in global variables, as SDL's example does. SDL offers a better place:
 the address of a pointer, `appstate`, and whatever it stores there is passed to every later
 callback. The listing creates one `AppState` with `new`, stores it, and `AppQuit` deletes it.
 
-**`bool` results.** SDL3's functions return C's `bool`, and the listing compares them with
-`false`: `if SDL_Init( SDL_INIT_VIDEO ) = false then`.
+**`bool` results.** SDL3's functions return C's `bool`, which the translation declares
+`boolean`, and the listing compares them with `false`: `if SDL_Init( SDL_INIT_VIDEO ) = false
+then`.
 
 **Constants.** `SDL_PI_D` and `SDL_ALPHA_OPAQUE_FLOAT` are `#define`s in SDL's headers with
-number values, so `#cinclude` imports them as constants.
+number values, and they are `#define`s in the translation, with the same values.
 
 ```admonish tip
 SDL reads the environment variable `SDL_VIDEO_DRIVER` to choose its video system, and the value
@@ -820,13 +1129,13 @@ where the files are. Move those lines into a header of their own, a **binding he
 program needs one line:
 
 ```tiko
-{{#include ../examples/ch29/vendor/raylib.ti}}
+{{#include ../examples/ch29/vendor/raylib-binding.ti}}
 ```
 
-Both paths in `raylib.ti` are relative to `raylib.ti` itself: `#foreignlib` always resolves that
-way, and `#cinclude` looks beside the file that names the header. So the folder holding
-`raylib.ti` and `raylib/` can be anywhere: inside one project, or in one place that every program
-on the machine shares.
+Both paths in `raylib-binding.ti` are relative to the binding header itself: `#include` looks
+beside the file that includes, and `#foreignlib` always resolves that way. So the folder holding
+`raylib-binding.ti` and `raylib/` can be anywhere: inside one project, or in one place that every
+program on the machine shares.
 
 A program includes it by name, and the project says where the folder is with `-i`, which adds a
 directory to the ones `#include` searches:
@@ -853,22 +1162,23 @@ That is the Windows answer to "install once for every program". Put each library
 its binding header in one place, say `C:\tiko-libs`:
 
 ```text
-C:\tiko-libs\raylib.ti
-C:\tiko-libs\raylib\raylib.h
+C:\tiko-libs\raylib-binding.ti
+C:\tiko-libs\raylib\raylib.ti
 C:\tiko-libs\raylib\raylib_windows_x86_64.lib
 ```
 
-Then every project that uses raylib writes `#include once "raylib.ti"` and adds
+Then every project that uses raylib writes `#include once "raylib-binding.ti"` and adds
 `options = ["-i", "C:/tiko-libs"]` to its `tiko.toml`, or `-i C:\tiko-libs` on the command
-line. For a library linked dynamically, its DLL still has to be found when the program runs:
-copy it beside each program, or add its folder to `PATH`.
+line. Notice what is not there: the C header. Once translated, it is no longer needed to build.
+For a library linked dynamically, its DLL still has to be found when the program runs: copy it
+beside each program, or add its folder to `PATH`.
 
 ### A binding module
 
 A binding can also be a **module**, which Chapter 14 introduced: a directory a program `#import`s.
-A module's names are its own unless it marks them `public`, and that is true of a `#cinclude`
-inside one too. Written as **`public #cinclude`**, the header's names travel with the module, and
-every program that imports it sees them exactly as if it had read the header itself:
+A module's names are its own unless it marks them `public`, and that is true of an `#include`
+inside one too. Written as **`public #include`**, the header travels with the module, whole, and
+every program that imports it sees its names exactly as if it had included the header itself:
 
 ```tiko
 {{#include ../examples/ch29/modules/raylib/raylib.tiko}}
@@ -890,19 +1200,24 @@ every program that imports it sees them exactly as if it had read the header its
 
 The program writes `#import "raylib"` and nothing else: `InitWindow`, the `LOG_WARNING` constant
 and the `RAYWHITE` macro come from the module, and the module's `#foreignlib` links the library
-into the program. The names are bare, as a `#cinclude` would make them, not `raylib.InitWindow`,
+into the program. The names are bare, as an `#include` would make them, not `raylib.InitWindow`,
 because a C header's `#define`s and struct macros are preprocessor names, which no namespace can
 hold.
 
-A plain `#cinclude` in a module stays private: the module can use a C library to do its work
-without handing the whole C interface to everyone who imports it. `public #cinclude` outside a
-module file is `TKO0369`, and with `-cnocache`, which keeps the binding in memory rather than in a
-file an importer could read, it is `TKO0340`.
+This is exactly the shape of the toolchain's vendor packages. `vendor/sqlite3` is a module whose
+file holds a `public #include` of its translated `sqlite3.ti`, another of its hand-written
+`sqlite3-residue.ti`, and a `#foreignlib` for each link mode, chosen by the `link` its importer
+wrote. Chapter 27's one line, `#import "vendor/sqlite3"`, is this section's binding module, made
+by the people who ship tiko.
+
+A plain `#include` in a module stays private: the module can use a C library to do its work
+without handing the whole C interface to everyone who imports it. `public #include` outside a
+module file is `TKO0369`.
 
 To install a binding module for every program, put its folder in one directory and name that
 directory in **`TKO_PATH`**, the list of directories `#import` searches, separated by `;` on
-Windows and `:` on Linux. A module's `#cmdline` is refused (`TKO0366`), so a library whose
-headers need `-cinclude`, as SDL's do, is still best kept as a binding header.
+Windows and `:` on Linux. Because a translated library's headers include one another by relative
+path, any library can be a module this way, SDL's fifty-nine headers included.
 
 ## When something goes wrong
 
@@ -910,55 +1225,62 @@ Every failure in this table happened while this chapter was being written.
 
 | What you see | What it means | What to do |
 |---|---|---|
-| `TKO0336: unable to import C header`, and a clang note `file not found` | clang cannot find the header, or a header it includes | check the path; for `#include <…>` inside the header, add `-cinclude` |
-| the same, with a note about the Windows SDK | the Visual Studio Build Tools are missing | install them, with the Windows SDK |
+| c2t: `TKO0120: unable to import C header`, `fatal error: 'X.h' file not found` | Clang cannot find a header the header includes | for one of the library's own, add `-I`; for a system header in the Linux pass on Windows, `--sysroot` |
+| c2t exits with status 2 | the translation has TODOs | read the banner's list; finish what you need in a file of its own |
+| c2t: `TKO0120` on a header that `included without matching` another | the header cannot stand alone | leave it out: it is meant only to be included |
 | `TKO0329: #foreignlib found no matching library file`, with a list of names tried | no file has any of the names in the list | rename the library to one of them, usually with its target tag |
 | `TKO0172: cannot make an import library for '…': it is not a 64-bit x86-64 DLL` | the DLL is the 32-bit build | download the 64-bit package |
 | `undefined symbol: …` when linking statically | a system library the static library needs is not linked | add it as `"system:name"`; see *A static library brings its dependencies with it* |
+| `undefined symbol:` a variable, when linking to a DLL | the program reads a variable the DLL exports | translate with `--shared-macro`; define `TIKO_LINK_DYNAMIC` before the include |
 | the program exits at once, code `-1073741515` (`0xC0000135`) | Windows cannot find a DLL, or the import library names none | put the DLL beside the program; check the import library has the DLL's name |
-| `error while loading shared libraries: libX.so.N` and exit 127 | Linux cannot find the `.so` | `LD_LIBRARY_PATH=.`, or install the library |
-| the program runs but reports an older version of the library | Linux found the system's copy, not yours | `LD_LIBRARY_PATH=.`; ask the library its version |
+| `error while loading shared libraries: libX.so.N` and exit 127 | Linux cannot find the `.so` | `LD_LIBRARY_PATH=.`, an rpath, or install the library |
+| the program runs but reports an older version of the library | Linux found the system's copy, not yours | `LD_LIBRARY_PATH=.` or an rpath; ask the library its version |
 | a C library prints pages of messages | many libraries log to standard output | look for a log level in the library: raylib's is `SetTraceLogLevel` |
-| `warning TKO0833: passing different pointer types` where a callback is passed | the callback's parameters differ from the C type | make them match the header exactly |
+| `warning TKO0833: passing different pointer types` where a callback is passed | the callback's parameters differ from the C type | make them match the translated declaration exactly |
 
 ## What it costs
 
 - **Calling a C library costs what calling C costs**, as in Chapter 28: no wrapper, no conversion
   beyond what the C function itself would need.
+- **Translating costs seconds, once.** `sqlite3.h` took three seconds, `glfw3.h` twenty, through
+  WSL; SDL's fifty-nine headers, run by the loop, under five minutes. A build after that reads a
+  `.ti` like any tiko header and runs no Clang.
+- **A translation costs upkeep**: it belongs to one version of the library, and an upgrade means
+  translating again and reading the diff.
 - **Static linking costs size**: the table in *Static or dynamic* shows from 200 KB to 2.7 MB
   added to each program. **Dynamic linking costs a second file** that must be shipped and found.
 - **A vendored library costs space in every project** that uses it, and keeping it current is
   your job. **An installed library costs reproducibility**: the program is built and run with
   whatever version the machine has.
-- **The first `#cinclude` of a large header costs time**: compiling `sdl-clear` took 1.3 seconds
-  the first time and 0.23 seconds once its binding was in the cache.
 
 ## Summary
 
 - A C library comes as a header, a static library, a shared library and, on Windows, an import
   library. On Windows take the 64-bit Visual C++ package.
-- Linked **statically**, the library's code is copied into the program, which then needs nothing
-  else, but links the system libraries the static library calls, each as `"system:name"`.
-- Linked **dynamically**, the program is small and the library file must be found when it starts:
-  beside the `.exe` on Windows; on Linux, in the system's directories, on `LD_LIBRARY_PATH`, or
-  in an rpath: `-Wl -rpath,$ORIGIN` records "beside the program".
-- A Linux program asks for a library by its **soname**; a missing library may silently be
-  replaced by the system's own copy.
-- A **vendored** library lives in the project. Name its link-time files with target tags,
-  `name_windows_x86_64.lib` and `name_linux_x86_64.a`, and one `#foreignlib` line serves both
-  platforms. Never rename the runtime files.
-- An **installed** library on Linux needs no paths: `#cinclude once "x.h"` and `"system:x"`. On
-  Windows, make a shared folder and point at it with `-i`.
-- **SQLite**: compile the amalgamation for a static library. Its DLL needs no import library:
-  `#foreignlib` makes one from a `.dll`, naming the DLL as the DLL names itself.
-- **raylib**: prebuilt for both platforms; quiet it with `SetTraceLogLevel`.
-- **GLFW**: `lib-vc2022/glfw3.lib` on Windows, built from source on Linux; a program that calls
-  OpenGL links OpenGL itself.
-- **SDL3**: its `include` directory goes to `-cinclude`; `SDL_MAIN_HANDLED` and
-  `SDL_EnterAppMainCallbacks` run the main callbacks; `appstate` replaces globals.
-- A **binding header** holds a library's `#cinclude` and `#foreignlib` lines, relative to itself,
-  so programs include one file and need not know where the library is. A **binding module** does
-  the same with `public #cinclude`, and is installed for every program through `TKO_PATH`.
+- **`tiko c2t x.h --verify`** translates a header once into `x.ti`, for both targets in one file,
+  laid out like the C, with layouts checked against Clang's. Only the person translating needs
+  Clang, the Visual Studio Build Tools and, on Windows, a Linux sysroot through `--sysroot`.
+- The **banner** names the header by SHA-256 and lists every rename and every **TODO**. Exit 2
+  means TODOs: read them, and write what you need in a file of its own, never in the `.ti`.
+- One header per run; includes become relative `#include once "x.ti"`, so a library's
+  translations find each other with no include directory. `-I` and `-D` pass C's options;
+  `--shared-macro` writes a DLL's variables for `TIKO_LINK_DYNAMIC`.
+- **`#foreignlib NAME static|dynamic "path"`** links the code, relative to its own file, choosing
+  `name_windows_x86_64.lib` or `name_linux_x86_64.a` by target. A static link also needs the
+  system libraries the library calls, each as `"system:name"`.
+- Linked **dynamically**, the library must be found when the program starts: beside the `.exe` on
+  Windows; on Linux, in the system's directories, on `LD_LIBRARY_PATH`, or in an rpath:
+  `-Wl -rpath,$ORIGIN` records "beside the program". A Linux program asks for its library by
+  **soname**, and a missing one may silently be replaced by the system's own copy.
+- A **vendored** library lives in the project: commit the `.ti`, fetch the binaries. An
+  **installed** library on Linux is linked with `"system:x"`; its header still gets translated.
+- **SQLite**: compile the amalgamation for a static library; its DLL needs no import library.
+  **raylib**: prebuilt, translates clean. **GLFW**: needs the Linux headers to translate; its
+  TODOs are Vulkan's and GLES's. **SDL3**: fifty-nine headers, translated by a loop in include
+  order.
+- A **binding header** holds a library's `#include` and `#foreignlib`, relative to itself. A
+  **binding module** does the same with `public #include`, and is installed through `TKO_PATH` —
+  which is exactly what a vendor package is.
 
 ## Exercises
 
@@ -968,13 +1290,15 @@ Every failure in this table happened while this chapter was being written.
 2. Link `sqlite-quick` statically and compare its size and its start-up with the dynamic version.
    On Linux, run both without `LD_LIBRARY_PATH` and explain the difference in what they print
    with a `select sqlite_version()`.
-3. In `raylib-window.tiko`, draw the frame number in the window with raylib's `TextFormat`, which
+3. Translate `raymath.h`, which is in `vendor/raylib/` beside `raylib.h`, and read its TODOs.
+   Which kind of C is most of them, and which of raymath's functions can a program still call?
+4. In `raylib-window.tiko`, draw the frame number in the window with raylib's `TextFormat`, which
    is variadic like C's `printf`. What type must the argument have for `%i`?
-4. Add a key callback to `glfw-window.tiko` with `glfwSetKeyCallback`, so that Escape closes the
+5. Add a key callback to `glfw-window.tiko` with `glfwSetKeyCallback`, so that Escape closes the
    window by calling `glfwSetWindowShouldClose`.
-5. Make `sdl-clear.tiko`'s `AppEvent` return `SDL_APP_SUCCESS` when Escape is pressed: an event
+6. Make `sdl-clear.tiko`'s `AppEvent` return `SDL_APP_SUCCESS` when Escape is pressed: an event
    whose `type` is `SDL_EVENT_KEY_DOWN` carries the key in `event->key.key`, to compare with
    `SDLK_ESCAPE`.
-6. Write a binding header `sdl3.ti` for SDL, the way `raylib.ti` is written, and a `tiko build`
-   project that uses it. Which option must the project still give, and why can the binding
-   header not give it for the project?
+7. Make SDL a binding module, the way `modules/raylib` makes raylib one, and a `tiko build`
+   project that uses it to run `sdl-clear`. Which `-i` does the project need, and why does it
+   need nothing for SDL's fifty-nine headers?

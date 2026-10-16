@@ -2,7 +2,7 @@
 '' parameters, never as text pasted into the SQL. Linked statically.
 '' ANCHOR: all
 '' ANCHOR: link
-#cinclude once "vendor/sqlite/sqlite3.h"
+#include once "vendor/sqlite/sqlite3.ti"
 #foreignlib SQLITE static "vendor/sqlite/sqlite3-static"
 '' ANCHOR_END: link
 
@@ -29,9 +29,10 @@ dim ins as sqlite3_stmt ptr
 Check( sqlite3_prepare_v2( db, "insert into city values( ?, ? )", _
     -1, @ins, nullptr ), db )
 for i as int32 = 0 to 2
-    '' -1: the text ends at its zero byte. nullptr (SQLITE_STATIC):
-    '' the string outlives the statement's use of it.
-    Check( sqlite3_bind_text( ins, 1, names( i ), -1, nullptr ), db )
+    '' -1: the text ends at its zero byte. SQLITE_STATIC: the string
+    '' outlives the statement's use of it, so SQLite need not copy it.
+    Check( sqlite3_bind_text( ins, 1, names( i ), -1, SQLITE_STATIC ), _
+        db )
     Check( sqlite3_bind_int( ins, 2, pops( i ) ), db )
     Check( sqlite3_step( ins ), db )
     sqlite3_reset( ins )

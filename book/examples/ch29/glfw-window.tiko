@@ -3,7 +3,7 @@
 '' command line stops it after that many frames instead.
 '' ANCHOR: all
 '' ANCHOR: link
-#cinclude once "vendor/glfw/include/GLFW/glfw3.h"
+#include once "vendor/glfw/include/GLFW/glfw3.ti"
 #ifdef __FB_WIN32__
     #foreignlib GLFW static "vendor/glfw/glfw3", "system:opengl32", _
         "system:gdi32", "system:user32", "system:shell32"

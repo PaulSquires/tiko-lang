@@ -1,0 +1,588 @@
+'' =============================================================================
+'' SDL_rect.ti -- tiko header translated by c2t (tiko 0.1.0-dev) from the C header "SDL_rect.h"
+''   source sha256 : f5a5c39fbffd41eadbeb50e2ddfa4ffe655ff14241a23e4f20de4cce48e82d6e
+''   clang         : clang version 21.1.0
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu
+''   options       : -I vendor/sdl3/include --sysroot //wsl.localhost/Ubuntu --verify
+''
+'' Generated from C. Search for C2T-TODO and translate those parts by hand.
+''
+'' 8 items need manual translation:
+''   line 148  SDL_rect.h:129  C2T-TODO(static-inline)  SDL_RectToFRect
+''   line 183  SDL_rect.h:158  C2T-TODO(static-inline)  SDL_PointInRect
+''   line 213  SDL_rect.h:182  C2T-TODO(static-inline)  SDL_RectEmpty
+''   line 243  SDL_rect.h:206  C2T-TODO(static-inline)  SDL_RectsEqual
+''   line 374  SDL_rect.h:331  C2T-TODO(static-inline)  SDL_PointInRectFloat
+''   line 404  SDL_rect.h:355  C2T-TODO(static-inline)  SDL_RectEmptyFloat
+''   line 440  SDL_rect.h:385  C2T-TODO(static-inline)  SDL_RectsEqualEpsilon
+''   line 481  SDL_rect.h:420  C2T-TODO(static-inline)  SDL_RectsEqualFloat
+'' =============================================================================
+
+/'
+  Simple DirectMedia Layer
+  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
+
+  This software is provided 'as-is', without any express or implied
+  warranty.  In no event will the authors be held liable for any damages
+  arising from the use of this software.
+
+  Permission is granted to anyone to use this software for any purpose,
+  including commercial applications, and to alter it and redistribute it
+  freely, subject to the following restrictions:
+
+  1. The origin of this software must not be misrepresented; you must not
+     claim that you wrote the original software. If you use this software
+     in a product, an acknowledgment in the product documentation would be
+     appreciated but is not required.
+  2. Altered source versions must be plainly marked as such, and must not be
+     misrepresented as being the original software.
+  3. This notice may not be removed or altered from any source distribution.
+'/
+
+/'*
+ * # CategoryRect
+ *
+ * Some helper functions for managing rectangles and 2D points, in both
+ * integer and floating point versions.
+ '/
+
+#pragma once
+
+#include once "SDL_stdinc.ti"
+#include once "SDL_error.ti"
+
+'' c2t: <SDL3/SDL_begin_code.h> holds only decoration macros (stripped where used)
+/' Set up for C function definitions, even when using C++ '/
+extern "C"
+
+/'*
+ * The structure that defines a point (using integers).
+ *
+ * \since This struct is available since SDL 3.2.0.
+ *
+ * \sa SDL_GetRectEnclosingPoints
+ * \sa SDL_PointInRect
+ '/
+type SDL_Point
+    x as int32
+    y as int32
+end type
+
+/'*
+ * The structure that defines a point (using floating point values).
+ *
+ * \since This struct is available since SDL 3.2.0.
+ *
+ * \sa SDL_GetRectEnclosingPointsFloat
+ * \sa SDL_PointInRectFloat
+ '/
+type SDL_FPoint
+    x as float32
+    y as float32
+end type
+
+
+/'*
+ * A rectangle, with the origin at the upper left (using integers).
+ *
+ * \since This struct is available since SDL 3.2.0.
+ *
+ * \sa SDL_RectEmpty
+ * \sa SDL_RectsEqual
+ * \sa SDL_HasRectIntersection
+ * \sa SDL_GetRectIntersection
+ * \sa SDL_GetRectAndLineIntersection
+ * \sa SDL_GetRectUnion
+ * \sa SDL_GetRectEnclosingPoints
+ '/
+type SDL_Rect
+    x as int32
+    y as int32
+    w as int32
+    h as int32
+end type
+
+
+/'*
+ * A rectangle stored using floating point values.
+ *
+ * The origin of the coordinate space is in the top-left, with increasing
+ * values moving down and right. The properties `x` and `y` represent the
+ * coordinates of the top-left corner of the rectangle.
+ *
+ * \since This struct is available since SDL 3.2.0.
+ *
+ * \sa SDL_RectEmptyFloat
+ * \sa SDL_RectsEqualFloat
+ * \sa SDL_RectsEqualEpsilon
+ * \sa SDL_HasRectIntersectionFloat
+ * \sa SDL_GetRectIntersectionFloat
+ * \sa SDL_GetRectAndLineIntersectionFloat
+ * \sa SDL_GetRectUnionFloat
+ * \sa SDL_GetRectEnclosingPointsFloat
+ * \sa SDL_PointInRectFloat
+ '/
+type SDL_FRect
+    x as float32
+    y as float32
+    w as float32
+    h as float32
+end type
+
+
+/'*
+ * Convert an SDL_Rect to SDL_FRect
+ *
+ * \param rect a pointer to an SDL_Rect.
+ * \param frect a pointer filled in with the floating point representation of
+ *              `rect`.
+ *
+ * \threadsafety It is safe to call this function from any thread.
+ *
+ * \since This function is available since SDL 3.2.0.
+ '/
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-NOTE(inline) SDL_rect.h:129 -- inline: links only if the library exports 'SDL_RectToFRect'
+declare sub SDL_RectToFRect( byval rect as const SDL_Rect ptr, byval frect as SDL_FRect ptr )
+#elseif defined(TIKO_OS_LINUX)
+'' C2T-TODO(static-inline) SDL_rect.h:129 -- static inline function 'SDL_RectToFRect': no symbol to link against; port the body by hand
+'' SDL_FORCE_INLINE void SDL_RectToFRect(const SDL_Rect *rect, SDL_FRect *frect)
+'' {
+''     frect->x = SDL_static_cast(float, rect->x);
+''     frect->y = SDL_static_cast(float, rect->y);
+''     frect->w = SDL_static_cast(float, rect->w);
+''     frect->h = SDL_static_cast(float, rect->h);
+'' }
+#endif
+
+/'*
+ * Determine whether a point resides inside a rectangle.
+ *
+ * A point is considered part of a rectangle if both `p` and `r` are not NULL,
+ * and `p`'s x and y coordinates are >= to the rectangle's top left corner,
+ * and < the rectangle's x+w and y+h. So a 1x1 rectangle considers point (0,0)
+ * as "inside" and (0,1) as not.
+ *
+ * Note that this is a forced-inline function in a header, and not a public
+ * API function available in the SDL library (which is to say, the code is
+ * embedded in the calling program and the linker and dynamic loader will not
+ * be able to find this function inside SDL itself).
+ *
+ * \param p the point to test.
+ * \param r the rectangle to test.
+ * \returns true if `p` is contained by `r`, false otherwise.
+ *
+ * \threadsafety It is safe to call this function from any thread.
+ *
+ * \since This function is available since SDL 3.2.0.
+ '/
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-NOTE(inline) SDL_rect.h:158 -- inline: links only if the library exports 'SDL_PointInRect'
+declare function SDL_PointInRect( byval p as const SDL_Point ptr, byval r as const SDL_Rect ptr ) as boolean
+#elseif defined(TIKO_OS_LINUX)
+'' C2T-TODO(static-inline) SDL_rect.h:158 -- static inline function 'SDL_PointInRect': no symbol to link against; port the body by hand
+'' SDL_FORCE_INLINE bool SDL_PointInRect(const SDL_Point *p, const SDL_Rect *r)
+'' {
+''     return ( p && r && (p->x >= r->x) && (p->x < (r->x + r->w)) &&
+''              (p->y >= r->y) && (p->y < (r->y + r->h)) ) ? true : false;
+'' }
+#endif
+
+/'*
+ * Determine whether a rectangle has no area.
+ *
+ * A rectangle is considered "empty" for this function if `r` is NULL, or if
+ * `r`'s width and/or height are <= 0.
+ *
+ * Note that this is a forced-inline function in a header, and not a public
+ * API function available in the SDL library (which is to say, the code is
+ * embedded in the calling program and the linker and dynamic loader will not
+ * be able to find this function inside SDL itself).
+ *
+ * \param r the rectangle to test.
+ * \returns true if the rectangle is "empty", false otherwise.
+ *
+ * \threadsafety It is safe to call this function from any thread.
+ *
+ * \since This function is available since SDL 3.2.0.
+ '/
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-NOTE(inline) SDL_rect.h:182 -- inline: links only if the library exports 'SDL_RectEmpty'
+declare function SDL_RectEmpty( byval r as const SDL_Rect ptr ) as boolean
+#elseif defined(TIKO_OS_LINUX)
+'' C2T-TODO(static-inline) SDL_rect.h:182 -- static inline function 'SDL_RectEmpty': no symbol to link against; port the body by hand
+'' SDL_FORCE_INLINE bool SDL_RectEmpty(const SDL_Rect *r)
+'' {
+''     return ((!r) || (r->w <= 0) || (r->h <= 0)) ? true : false;
+'' }
+#endif
+
+/'*
+ * Determine whether two rectangles are equal.
+ *
+ * Rectangles are considered equal if both are not NULL and each of their x,
+ * y, width and height match.
+ *
+ * Note that this is a forced-inline function in a header, and not a public
+ * API function available in the SDL library (which is to say, the code is
+ * embedded in the calling program and the linker and dynamic loader will not
+ * be able to find this function inside SDL itself).
+ *
+ * \param a the first rectangle to test.
+ * \param b the second rectangle to test.
+ * \returns true if the rectangles are equal, false otherwise.
+ *
+ * \threadsafety It is safe to call this function from any thread.
+ *
+ * \since This function is available since SDL 3.2.0.
+ '/
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-NOTE(inline) SDL_rect.h:206 -- inline: links only if the library exports 'SDL_RectsEqual'
+declare function SDL_RectsEqual( byval a as const SDL_Rect ptr, byval b as const SDL_Rect ptr ) as boolean
+#elseif defined(TIKO_OS_LINUX)
+'' C2T-TODO(static-inline) SDL_rect.h:206 -- static inline function 'SDL_RectsEqual': no symbol to link against; port the body by hand
+'' SDL_FORCE_INLINE bool SDL_RectsEqual(const SDL_Rect *a, const SDL_Rect *b)
+'' {
+''     return (a && b && (a->x == b->x) && (a->y == b->y) &&
+''             (a->w == b->w) && (a->h == b->h)) ? true : false;
+'' }
+#endif
+
+/'*
+ * Determine whether two rectangles intersect.
+ *
+ * If either pointer is NULL the function will return false.
+ *
+ * \param A an SDL_Rect structure representing the first rectangle.
+ * \param B an SDL_Rect structure representing the second rectangle.
+ * \returns true if there is an intersection, false otherwise.
+ *
+ * \threadsafety It is safe to call this function from any thread.
+ *
+ * \since This function is available since SDL 3.2.0.
+ *
+ * \sa SDL_GetRectIntersection
+ '/
+declare function SDL_HasRectIntersection( byval A as const SDL_Rect ptr, byval B as const SDL_Rect ptr ) as boolean
+
+/'*
+ * Calculate the intersection of two rectangles.
+ *
+ * If `result` is NULL then this function will return false.
+ *
+ * \param A an SDL_Rect structure representing the first rectangle.
+ * \param B an SDL_Rect structure representing the second rectangle.
+ * \param result an SDL_Rect structure filled in with the intersection of
+ *               rectangles `A` and `B`.
+ * \returns true if there is an intersection, false otherwise.
+ *
+ * \threadsafety It is safe to call this function from any thread.
+ *
+ * \since This function is available since SDL 3.2.0.
+ *
+ * \sa SDL_HasRectIntersection
+ '/
+declare function SDL_GetRectIntersection( byval A as const SDL_Rect ptr, byval B as const SDL_Rect ptr, byval result as SDL_Rect ptr ) as boolean
+
+/'*
+ * Calculate the union of two rectangles.
+ *
+ * \param A an SDL_Rect structure representing the first rectangle.
+ * \param B an SDL_Rect structure representing the second rectangle.
+ * \param result an SDL_Rect structure filled in with the union of rectangles
+ *               `A` and `B`.
+ * \returns true on success or false on failure; call SDL_GetError() for more
+ *          information.
+ *
+ * \threadsafety It is safe to call this function from any thread.
+ *
+ * \since This function is available since SDL 3.2.0.
+ '/
+declare function SDL_GetRectUnion( byval A as const SDL_Rect ptr, byval B as const SDL_Rect ptr, byval result as SDL_Rect ptr ) as boolean
+
+/'*
+ * Calculate a minimal rectangle enclosing a set of points.
+ *
+ * If `clip` is not NULL then only points inside of the clipping rectangle are
+ * considered.
+ *
+ * \param points an array of SDL_Point structures representing points to be
+ *               enclosed.
+ * \param count the number of structures in the `points` array.
+ * \param clip an SDL_Rect used for clipping or NULL to enclose all points.
+ * \param result an SDL_Rect structure filled in with the minimal enclosing
+ *               rectangle.
+ * \returns true if any points were enclosed or false if all the points were
+ *          outside of the clipping rectangle.
+ *
+ * \threadsafety It is safe to call this function from any thread.
+ *
+ * \since This function is available since SDL 3.2.0.
+ '/
+declare function SDL_GetRectEnclosingPoints( byval points as const SDL_Point ptr, byval count as int32, byval clip as const SDL_Rect ptr, byval result as SDL_Rect ptr ) as boolean
+
+/'*
+ * Calculate the intersection of a rectangle and line segment.
+ *
+ * This function is used to clip a line segment to a rectangle. A line segment
+ * contained entirely within the rectangle or that does not intersect will
+ * remain unchanged. A line segment that crosses the rectangle at either or
+ * both ends will be clipped to the boundary of the rectangle and the new
+ * coordinates saved in `X1`, `Y1`, `X2`, and/or `Y2` as necessary.
+ *
+ * \param rect an SDL_Rect structure representing the rectangle to intersect.
+ * \param X1 a pointer to the starting X-coordinate of the line.
+ * \param Y1 a pointer to the starting Y-coordinate of the line.
+ * \param X2 a pointer to the ending X-coordinate of the line.
+ * \param Y2 a pointer to the ending Y-coordinate of the line.
+ * \returns true if there is an intersection, false otherwise.
+ *
+ * \threadsafety It is safe to call this function from any thread.
+ *
+ * \since This function is available since SDL 3.2.0.
+ '/
+declare function SDL_GetRectAndLineIntersection( byval rect as const SDL_Rect ptr, byval X1 as int32 ptr, byval Y1 as int32 ptr, byval X2 as int32 ptr, byval Y2 as int32 ptr ) as boolean
+
+
+/' SDL_FRect versions... '/
+
+/'*
+ * Determine whether a point resides inside a floating point rectangle.
+ *
+ * A point is considered part of a rectangle if both `p` and `r` are not NULL,
+ * and `p`'s x and y coordinates are >= to the rectangle's top left corner,
+ * and <= the rectangle's x+w and y+h. So a 1x1 rectangle considers point
+ * (0,0) and (0,1) as "inside" and (0,2) as not.
+ *
+ * Note that this is a forced-inline function in a header, and not a public
+ * API function available in the SDL library (which is to say, the code is
+ * embedded in the calling program and the linker and dynamic loader will not
+ * be able to find this function inside SDL itself).
+ *
+ * \param p the point to test.
+ * \param r the rectangle to test.
+ * \returns true if `p` is contained by `r`, false otherwise.
+ *
+ * \threadsafety It is safe to call this function from any thread.
+ *
+ * \since This function is available since SDL 3.2.0.
+ '/
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-NOTE(inline) SDL_rect.h:331 -- inline: links only if the library exports 'SDL_PointInRectFloat'
+declare function SDL_PointInRectFloat( byval p as const SDL_FPoint ptr, byval r as const SDL_FRect ptr ) as boolean
+#elseif defined(TIKO_OS_LINUX)
+'' C2T-TODO(static-inline) SDL_rect.h:331 -- static inline function 'SDL_PointInRectFloat': no symbol to link against; port the body by hand
+'' SDL_FORCE_INLINE bool SDL_PointInRectFloat(const SDL_FPoint *p, const SDL_FRect *r)
+'' {
+''     return ( p && r && (p->x >= r->x) && (p->x <= (r->x + r->w)) &&
+''              (p->y >= r->y) && (p->y <= (r->y + r->h)) ) ? true : false;
+'' }
+#endif
+
+/'*
+ * Determine whether a floating point rectangle takes no space.
+ *
+ * A rectangle is considered "empty" for this function if `r` is NULL, or if
+ * `r`'s width and/or height are < 0.0f.
+ *
+ * Note that this is a forced-inline function in a header, and not a public
+ * API function available in the SDL library (which is to say, the code is
+ * embedded in the calling program and the linker and dynamic loader will not
+ * be able to find this function inside SDL itself).
+ *
+ * \param r the rectangle to test.
+ * \returns true if the rectangle is "empty", false otherwise.
+ *
+ * \threadsafety It is safe to call this function from any thread.
+ *
+ * \since This function is available since SDL 3.2.0.
+ '/
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-NOTE(inline) SDL_rect.h:355 -- inline: links only if the library exports 'SDL_RectEmptyFloat'
+declare function SDL_RectEmptyFloat( byval r as const SDL_FRect ptr ) as boolean
+#elseif defined(TIKO_OS_LINUX)
+'' C2T-TODO(static-inline) SDL_rect.h:355 -- static inline function 'SDL_RectEmptyFloat': no symbol to link against; port the body by hand
+'' SDL_FORCE_INLINE bool SDL_RectEmptyFloat(const SDL_FRect *r)
+'' {
+''     return ((!r) || (r->w < 0.0f) || (r->h < 0.0f)) ? true : false;
+'' }
+#endif
+
+/'*
+ * Determine whether two floating point rectangles are equal, within some
+ * given epsilon.
+ *
+ * Rectangles are considered equal if both are not NULL and each of their x,
+ * y, width and height are within `epsilon` of each other. If you don't know
+ * what value to use for `epsilon`, you should call the SDL_RectsEqualFloat
+ * function instead.
+ *
+ * Note that this is a forced-inline function in a header, and not a public
+ * API function available in the SDL library (which is to say, the code is
+ * embedded in the calling program and the linker and dynamic loader will not
+ * be able to find this function inside SDL itself).
+ *
+ * \param a the first rectangle to test.
+ * \param b the second rectangle to test.
+ * \param epsilon the epsilon value for comparison.
+ * \returns true if the rectangles are equal, false otherwise.
+ *
+ * \threadsafety It is safe to call this function from any thread.
+ *
+ * \since This function is available since SDL 3.2.0.
+ *
+ * \sa SDL_RectsEqualFloat
+ '/
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-NOTE(inline) SDL_rect.h:385 -- inline: links only if the library exports 'SDL_RectsEqualEpsilon'
+declare function SDL_RectsEqualEpsilon( byval a as const SDL_FRect ptr, byval b as const SDL_FRect ptr, byval epsilon as float32 ) as boolean
+#elseif defined(TIKO_OS_LINUX)
+'' C2T-TODO(static-inline) SDL_rect.h:385 -- static inline function 'SDL_RectsEqualEpsilon': no symbol to link against; port the body by hand
+'' SDL_FORCE_INLINE bool SDL_RectsEqualEpsilon(const SDL_FRect *a, const SDL_FRect *b, float epsilon)
+'' {
+''     return (a && b && ((a == b) ||
+''             ((SDL_fabsf(a->x - b->x) <= epsilon) &&
+''             (SDL_fabsf(a->y - b->y) <= epsilon) &&
+''             (SDL_fabsf(a->w - b->w) <= epsilon) &&
+''             (SDL_fabsf(a->h - b->h) <= epsilon))))
+''             ? true : false;
+'' }
+#endif
+
+/'*
+ * Determine whether two floating point rectangles are equal, within a default
+ * epsilon.
+ *
+ * Rectangles are considered equal if both are not NULL and each of their x,
+ * y, width and height are within SDL_FLT_EPSILON of each other. This is often
+ * a reasonable way to compare two floating point rectangles and deal with the
+ * slight precision variations in floating point calculations that tend to pop
+ * up.
+ *
+ * Note that this is a forced-inline function in a header, and not a public
+ * API function available in the SDL library (which is to say, the code is
+ * embedded in the calling program and the linker and dynamic loader will not
+ * be able to find this function inside SDL itself).
+ *
+ * \param a the first rectangle to test.
+ * \param b the second rectangle to test.
+ * \returns true if the rectangles are equal, false otherwise.
+ *
+ * \threadsafety It is safe to call this function from any thread.
+ *
+ * \since This function is available since SDL 3.2.0.
+ *
+ * \sa SDL_RectsEqualEpsilon
+ '/
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-NOTE(inline) SDL_rect.h:420 -- inline: links only if the library exports 'SDL_RectsEqualFloat'
+declare function SDL_RectsEqualFloat( byval a as const SDL_FRect ptr, byval b as const SDL_FRect ptr ) as boolean
+#elseif defined(TIKO_OS_LINUX)
+'' C2T-TODO(static-inline) SDL_rect.h:420 -- static inline function 'SDL_RectsEqualFloat': no symbol to link against; port the body by hand
+'' SDL_FORCE_INLINE bool SDL_RectsEqualFloat(const SDL_FRect *a, const SDL_FRect *b)
+'' {
+''     return SDL_RectsEqualEpsilon(a, b, SDL_FLT_EPSILON);
+'' }
+#endif
+
+/'*
+ * Determine whether two rectangles intersect with float precision.
+ *
+ * If either pointer is NULL the function will return false.
+ *
+ * \param A an SDL_FRect structure representing the first rectangle.
+ * \param B an SDL_FRect structure representing the second rectangle.
+ * \returns true if there is an intersection, false otherwise.
+ *
+ * \threadsafety It is safe to call this function from any thread.
+ *
+ * \since This function is available since SDL 3.2.0.
+ *
+ * \sa SDL_GetRectIntersectionFloat
+ '/
+declare function SDL_HasRectIntersectionFloat( byval A as const SDL_FRect ptr, byval B as const SDL_FRect ptr ) as boolean
+
+/'*
+ * Calculate the intersection of two rectangles with float precision.
+ *
+ * If `result` is NULL then this function will return false.
+ *
+ * \param A an SDL_FRect structure representing the first rectangle.
+ * \param B an SDL_FRect structure representing the second rectangle.
+ * \param result an SDL_FRect structure filled in with the intersection of
+ *               rectangles `A` and `B`.
+ * \returns true if there is an intersection, false otherwise.
+ *
+ * \threadsafety It is safe to call this function from any thread.
+ *
+ * \since This function is available since SDL 3.2.0.
+ *
+ * \sa SDL_HasRectIntersectionFloat
+ '/
+declare function SDL_GetRectIntersectionFloat( byval A as const SDL_FRect ptr, byval B as const SDL_FRect ptr, byval result as SDL_FRect ptr ) as boolean
+
+/'*
+ * Calculate the union of two rectangles with float precision.
+ *
+ * \param A an SDL_FRect structure representing the first rectangle.
+ * \param B an SDL_FRect structure representing the second rectangle.
+ * \param result an SDL_FRect structure filled in with the union of rectangles
+ *               `A` and `B`.
+ * \returns true on success or false on failure; call SDL_GetError() for more
+ *          information.
+ *
+ * \threadsafety It is safe to call this function from any thread.
+ *
+ * \since This function is available since SDL 3.2.0.
+ '/
+declare function SDL_GetRectUnionFloat( byval A as const SDL_FRect ptr, byval B as const SDL_FRect ptr, byval result as SDL_FRect ptr ) as boolean
+
+/'*
+ * Calculate a minimal rectangle enclosing a set of points with float
+ * precision.
+ *
+ * If `clip` is not NULL then only points inside of the clipping rectangle are
+ * considered.
+ *
+ * \param points an array of SDL_FPoint structures representing points to be
+ *               enclosed.
+ * \param count the number of structures in the `points` array.
+ * \param clip an SDL_FRect used for clipping or NULL to enclose all points.
+ * \param result an SDL_FRect structure filled in with the minimal enclosing
+ *               rectangle.
+ * \returns true if any points were enclosed or false if all the points were
+ *          outside of the clipping rectangle.
+ *
+ * \threadsafety It is safe to call this function from any thread.
+ *
+ * \since This function is available since SDL 3.2.0.
+ '/
+declare function SDL_GetRectEnclosingPointsFloat( byval points as const SDL_FPoint ptr, byval count as int32, byval clip as const SDL_FRect ptr, byval result as SDL_FRect ptr ) as boolean
+
+/'*
+ * Calculate the intersection of a rectangle and line segment with float
+ * precision.
+ *
+ * This function is used to clip a line segment to a rectangle. A line segment
+ * contained entirely within the rectangle or that does not intersect will
+ * remain unchanged. A line segment that crosses the rectangle at either or
+ * both ends will be clipped to the boundary of the rectangle and the new
+ * coordinates saved in `X1`, `Y1`, `X2`, and/or `Y2` as necessary.
+ *
+ * \param rect an SDL_FRect structure representing the rectangle to intersect.
+ * \param X1 a pointer to the starting X-coordinate of the line.
+ * \param Y1 a pointer to the starting Y-coordinate of the line.
+ * \param X2 a pointer to the ending X-coordinate of the line.
+ * \param Y2 a pointer to the ending Y-coordinate of the line.
+ * \returns true if there is an intersection, false otherwise.
+ *
+ * \threadsafety It is safe to call this function from any thread.
+ *
+ * \since This function is available since SDL 3.2.0.
+ '/
+declare function SDL_GetRectAndLineIntersectionFloat( byval rect as const SDL_FRect ptr, byval X1 as float32 ptr, byval Y1 as float32 ptr, byval X2 as float32 ptr, byval Y2 as float32 ptr ) as boolean
+
+/' Ends C function definitions when using C++ '/
+end extern
+'' c2t: <SDL3/SDL_close_code.h> holds only decoration macros (stripped where used)
+

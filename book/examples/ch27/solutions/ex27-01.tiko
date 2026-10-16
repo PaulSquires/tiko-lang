@@ -1,22 +1,35 @@
 '' Total sales per region, largest first, from an in-memory table.
-#import "db/sqlite"
+#import "vendor/sqlite3"
 
-dim db as sqlite.Database
-db.OpenMemory( )
-db.Execute( "create table sale( region text, amount integer )" )
+dim db as sqlite3 ptr
+sqlite3_open( ":memory:", @db )
+sqlite3_exec( db, "create table sale( region text, amount integer )", _
+    nullptr, nullptr, nullptr )
 
-dim as ustring regions( ... ) = { "north", "south", "north", "east", _
-                                  "south", "north" }
+dim as string regions( ... ) = { "north", "south", "north", "east", _
+                                 "south", "north" }
 dim as int64 amounts( ... ) = { 120, 80, 45, 200, 30, 15 }
+dim ins as sqlite3_stmt ptr
+sqlite3_prepare_v2( db, "insert into sale values( ?, ? )", -1, @ins, _
+    nullptr )
 for i as int32 = 0 to ubound( regions )
-    db.Execute( "insert into sale values( ?, ? )", _
-                sqlite.Args( regions( i ), amounts( i ) ) )
+    sqlite3_bind_text( ins, 1, regions( i ), -1, SQLITE_TRANSIENT )
+    sqlite3_bind_int64( ins, 2, amounts( i ) )
+    sqlite3_step( ins )
+    sqlite3_reset( ins )
 next
+sqlite3_finalize( ins )
 
-var rows = db.Query( "select region, sum( amount ) as total, " & _
-                     "count(*) as n from sale group by region " & _
-                     "order by total desc" )
-for each r in rows.Value( )
-    print left( r[ "region" ].AsText( ) & space( 8 ), 8 ); _
-          r[ "total" ].AsInt64( ); " in"; r[ "n" ].AsInt64( ); " sales"
-next
+dim sel as sqlite3_stmt ptr
+sqlite3_prepare_v2( db, "select region, sum( amount ) as total, " & _
+    "count(*) as n from sale group by region order by total desc", _
+    -1, @sel, nullptr )
+do while sqlite3_step( sel ) = SQLITE_ROW
+    dim as string region = _
+        *cast( zstring ptr, sqlite3_column_text( sel, 0 ) )
+    print left( region & space( 8 ), 8 ); _
+          sqlite3_column_int64( sel, 1 ); _
+          " in"; sqlite3_column_int64( sel, 2 ); " sales"
+loop
+sqlite3_finalize( sel )
+sqlite3_close( db )

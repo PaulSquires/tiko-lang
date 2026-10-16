@@ -3,9 +3,8 @@
 '' after that many frames instead of when the window is closed.
 '' ANCHOR: all
 '' ANCHOR: link
-#cmdline "-cinclude vendor/sdl3/include -cdefine SDL_MAIN_HANDLED"
-#cinclude once "SDL3/SDL.h"
-#cinclude once "SDL3/SDL_main.h"
+#include once "vendor/sdl3/include/SDL3/SDL.ti"
+#include once "vendor/sdl3/include/SDL3/SDL_main.ti"
 #foreignlib SDL3 dynamic "vendor/sdl3/SDL3"
 '' ANCHOR_END: link
 

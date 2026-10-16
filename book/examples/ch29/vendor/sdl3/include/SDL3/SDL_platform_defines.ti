@@ -1,0 +1,543 @@
+'' =============================================================================
+'' SDL_platform_defines.ti -- tiko header translated by c2t (tiko 0.1.0-dev) from the C header "SDL_platform_defines.h"
+''   source sha256 : ab5692c00d4aca81466688a6c9abe7f5154070b6118f48a67490d81dff6ad36e
+''   clang         : clang version 21.1.0
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu
+''   options       : -I vendor/sdl3/include --sysroot //wsl.localhost/Ubuntu --verify
+''
+'' Generated from C. Search for C2T-TODO and translate those parts by hand.
+''
+'' 13 items need manual translation:
+''   line 172  SDL_platform_defines.h:146  C2T-TODO(system-header)  <AvailabilityMacros.h>
+''   line 174  SDL_platform_defines.h:147  C2T-TODO(conditional)  __has_extension
+''   line 176  SDL_platform_defines.h:148  C2T-TODO(conditional)  __has_extension
+''   line 178  SDL_platform_defines.h:149  C2T-TODO(conditional)  <TargetConditionals.h>
+''   line 180  SDL_platform_defines.h:150  C2T-TODO(conditional)  __has_extension
+''   line 182  SDL_platform_defines.h:151  C2T-TODO(conditional)  #else
+''   line 184  SDL_platform_defines.h:152  C2T-TODO(conditional)  <TargetConditionals.h>
+''   line 186  SDL_platform_defines.h:153  C2T-TODO(conditional)  #endif
+''   line 374  SDL_platform_defines.h:340  C2T-TODO(conditional)  #if
+''   line 380  SDL_platform_defines.h:342  C2T-TODO(conditional)  #else
+''   line 383  SDL_platform_defines.h:343  C2T-TODO(conditional)  HAVE_WINAPIFAMILY_H
+''   line 385  SDL_platform_defines.h:344  C2T-TODO(conditional)  #endif
+''   line 396  SDL_platform_defines.h:354  C2T-TODO(system-header)  <winapifamily.h>
+'' =============================================================================
+
+/'
+  Simple DirectMedia Layer
+  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
+
+  This software is provided 'as-is', without any express or implied
+  warranty.  In no event will the authors be held liable for any damages
+  arising from the use of this software.
+
+  Permission is granted to anyone to use this software for any purpose,
+  including commercial applications, and to alter it and redistribute it
+  freely, subject to the following restrictions:
+
+  1. The origin of this software must not be misrepresented; you must not
+     claim that you wrote the original software. If you use this software
+     in a product, an acknowledgment in the product documentation would be
+     appreciated but is not required.
+  2. Altered source versions must be plainly marked as such, and must not be
+     misrepresented as being the original software.
+  3. This notice may not be removed or altered from any source distribution.
+'/
+
+/' WIKI CATEGORY: Platform '/
+
+/'
+ * SDL_platform_defines.h tries to get a standard set of platform defines.
+ '/
+
+#pragma once
+
+extern "C"
+
+#ifdef _AIX
+
+/'*
+ * A preprocessor macro that is only defined if compiling for AIX.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+#define SDL_PLATFORM_AIX 1
+#endif
+
+#if 0
+
+/'*
+ * A preprocessor macro that is only defined if compiling for Haiku OS.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+#define SDL_PLATFORM_HAIKU 1
+#endif
+
+#if ((defined(bsdi) orelse defined(__bsdi)) orelse defined(__bsdi__))
+
+/'*
+ * A preprocessor macro that is only defined if compiling for BSDi
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+#define SDL_PLATFORM_BSDI 1
+#endif
+
+#if ((0 orelse defined(__FreeBSD_kernel__)) orelse 0)
+
+/'*
+ * A preprocessor macro that is only defined if compiling for FreeBSD.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+#define SDL_PLATFORM_FREEBSD 1
+#endif
+
+#if ((defined(hpux) orelse defined(__hpux)) orelse defined(__hpux__))
+
+/'*
+ * A preprocessor macro that is only defined if compiling for HP-UX.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+#define SDL_PLATFORM_HPUX 1
+#endif
+
+#if (((defined(sgi) orelse defined(__sgi)) orelse defined(__sgi__)) orelse defined(_SGI_SOURCE))
+
+/'*
+ * A preprocessor macro that is only defined if compiling for IRIX.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+#define SDL_PLATFORM_IRIX 1
+#endif
+
+#if ((defined(TIKO_OS_LINUX) orelse defined(TIKO_OS_LINUX)) orelse defined(TIKO_OS_LINUX))
+
+/'*
+ * A preprocessor macro that is only defined if compiling for Linux.
+ *
+ * Note that Android, although ostensibly a Linux-based system, will not
+ * define this. It defines SDL_PLATFORM_ANDROID instead.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+#define SDL_PLATFORM_LINUX 1
+#endif
+
+#if (defined(ANDROID) orelse 0)
+
+/'*
+ * A preprocessor macro that is only defined if compiling for Android.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+#define SDL_PLATFORM_ANDROID 1
+#undef SDL_PLATFORM_LINUX
+#endif
+
+#if ((defined(TIKO_OS_LINUX) orelse defined(TIKO_OS_LINUX)) orelse defined(unix))
+
+/'*
+ * A preprocessor macro that is only defined if compiling for a Unix-like
+ * system.
+ *
+ * Other platforms, like Linux, might define this in addition to their primary
+ * define.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+#define SDL_PLATFORM_UNIX 1
+#endif
+
+#if 0
+
+/'*
+ * A preprocessor macro that is only defined if compiling for Apple platforms.
+ *
+ * iOS, macOS, etc will additionally define a more specific platform macro.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ *
+ * \sa SDL_PLATFORM_MACOS
+ * \sa SDL_PLATFORM_IOS
+ * \sa SDL_PLATFORM_TVOS
+ * \sa SDL_PLATFORM_VISIONOS
+ '/
+#define SDL_PLATFORM_APPLE 1
+
+/' lets us know what version of macOS we're compiling on '/
+'' C2T-TODO(system-header) SDL_platform_defines.h:146 -- <AvailabilityMacros.h> has no tiko counterpart in c2t's table
+'' #include <AvailabilityMacros.h>
+'' C2T-TODO(conditional) SDL_platform_defines.h:147 -- tiko would take this branch where clang does not
+'' #ifndef __has_extension /* Older compilers don't support this */
+    '' C2T-TODO(conditional) SDL_platform_defines.h:148 -- inside a conditional that stays a TODO
+''     #define __has_extension(x) 0
+    '' C2T-TODO(conditional) SDL_platform_defines.h:149 -- inside a conditional that stays a TODO
+''     #include <TargetConditionals.h>
+    '' C2T-TODO(conditional) SDL_platform_defines.h:150 -- inside a conditional that stays a TODO
+''     #undef __has_extension
+'' C2T-TODO(conditional) SDL_platform_defines.h:151 -- inside a conditional that stays a TODO
+'' #else
+    '' C2T-TODO(conditional) SDL_platform_defines.h:152 -- inside a conditional that stays a TODO
+''     #include <TargetConditionals.h>
+'' C2T-TODO(conditional) SDL_platform_defines.h:153 -- tiko would take this branch where clang does not
+'' #endif
+
+/' Fix building with older SDKs that don't define these
+    See this for more information:
+    https://stackoverflow.com/questions/12132933/preprocessor-macro-for-os-x-targets
+'/
+#ifndef TARGET_OS_MACCATALYST
+    #define TARGET_OS_MACCATALYST 0
+#endif
+#ifndef TARGET_OS_IOS
+    #define TARGET_OS_IOS 0
+#endif
+#ifndef TARGET_OS_IPHONE
+    #define TARGET_OS_IPHONE 0
+#endif
+#ifndef TARGET_OS_TV
+    #define TARGET_OS_TV 0
+#endif
+#ifndef TARGET_OS_SIMULATOR
+    #define TARGET_OS_SIMULATOR 0
+#endif
+#ifndef TARGET_OS_VISION
+    #define TARGET_OS_VISION 0
+#endif
+
+#if TARGET_OS_TV
+
+/'*
+ * A preprocessor macro that is only defined if compiling for tvOS.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ *
+ * \sa SDL_PLATFORM_APPLE
+ '/
+#define SDL_PLATFORM_TVOS 1
+#endif
+
+#if TARGET_OS_VISION
+
+/'*
+ * A preprocessor macro that is only defined if compiling for visionOS.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ *
+ * \sa SDL_PLATFORM_APPLE
+ '/
+#define SDL_PLATFORM_VISIONOS 1
+#endif
+
+#if TARGET_OS_IPHONE
+
+/'*
+ * A preprocessor macro that is only defined if compiling for iOS or visionOS.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ *
+ * \sa SDL_PLATFORM_APPLE
+ '/
+#define SDL_PLATFORM_IOS 1
+
+#else
+
+/'*
+ * A preprocessor macro that is only defined if compiling for macOS.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ *
+ * \sa SDL_PLATFORM_APPLE
+ '/
+#define SDL_PLATFORM_MACOS 1
+
+#if (MAC_OS_X_VERSION_MIN_REQUIRED < 1070)
+    #error SDL for macOS only supports deploying on 10.7 and above.
+#endif /' MAC_OS_X_VERSION_MIN_REQUIRED < 1070 '/
+#endif /' TARGET_OS_IPHONE '/
+#endif /' defined(__APPLE__) '/
+
+#if 0
+
+/'*
+ * A preprocessor macro that is only defined if compiling for Emscripten.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+#define SDL_PLATFORM_EMSCRIPTEN 1
+#endif
+
+#if 0
+
+/'*
+ * A preprocessor macro that is only defined if compiling for NetBSD.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+#define SDL_PLATFORM_NETBSD 1
+#endif
+
+#if 0
+
+/'*
+ * A preprocessor macro that is only defined if compiling for OpenBSD.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+#define SDL_PLATFORM_OPENBSD 1
+#endif
+
+#if (defined(__OS2__) orelse defined(__EMX__))
+
+/'*
+ * A preprocessor macro that is only defined if compiling for OS/2.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+#define SDL_PLATFORM_OS2 1
+#endif
+
+#if (((defined(osf) orelse defined(__osf)) orelse defined(__osf__)) orelse defined(_OSF_SOURCE))
+
+/'*
+ * A preprocessor macro that is only defined if compiling for Tru64 (OSF/1).
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+#define SDL_PLATFORM_OSF 1
+#endif
+
+#ifdef __QNXNTO__
+
+/'*
+ * A preprocessor macro that is only defined if compiling for QNX Neutrino.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+#define SDL_PLATFORM_QNXNTO 1
+#endif
+
+#if ((defined(riscos) orelse defined(__riscos)) orelse defined(__riscos__))
+
+/'*
+ * A preprocessor macro that is only defined if compiling for RISC OS.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+#define SDL_PLATFORM_RISCOS 1
+#endif
+
+#if (0 andalso defined(__SVR4))
+
+/'*
+ * A preprocessor macro that is only defined if compiling for SunOS/Solaris.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+#define SDL_PLATFORM_SOLARIS 1
+#endif
+
+#if 0
+
+/'*
+ * A preprocessor macro that is only defined if compiling for Cygwin.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+#define SDL_PLATFORM_CYGWIN 1
+#endif
+
+#if ((defined(TIKO_OS_WINDOWS) orelse defined(SDL_PLATFORM_CYGWIN)) andalso ((defined(__NGAGE__)) = 0))
+
+/'*
+ * A preprocessor macro that is only defined if compiling for Windows.
+ *
+ * This also covers several other platforms, like Microsoft GDK, Xbox, WinRT,
+ * etc. Each will have their own more-specific platform macros, too.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ *
+ * \sa SDL_PLATFORM_WIN32
+ * \sa SDL_PLATFORM_XBOXONE
+ * \sa SDL_PLATFORM_XBOXSERIES
+ * \sa SDL_PLATFORM_WINGDK
+ * \sa SDL_PLATFORM_GDK
+ '/
+#define SDL_PLATFORM_WINDOWS 1
+
+/' Try to find out if we're compiling for WinRT, GDK or non-WinRT/GDK '/
+#if (defined(_MSC_VER) andalso defined(__has_include))
+    '' C2T-TODO(conditional) SDL_platform_defines.h:340 -- '<' cannot start an expression
+''     #if __has_include(<winapifamily.h>)
+        #if defined(TIKO_OS_WINDOWS)
+        #define HAVE_WINAPIFAMILY_H 1
+        #endif
+    #if defined(TIKO_OS_WINDOWS)
+    '' C2T-TODO(conditional) SDL_platform_defines.h:342 -- '<' cannot start an expression
+''     #else
+    #endif
+        '' C2T-TODO(conditional) SDL_platform_defines.h:343 -- inside a conditional that stays a TODO
+''         #define HAVE_WINAPIFAMILY_H 0
+    '' C2T-TODO(conditional) SDL_platform_defines.h:344 -- '<' cannot start an expression
+''     #endif
+
+    /' If _USING_V110_SDK71_ is defined it means we are using the Windows XP toolset. '/
+#elseif (defined(_MSC_VER) andalso ((_MSC_VER >= 1700) andalso ((_USING_V110_SDK71_) = 0)))    /' _MSC_VER == 1700 for Visual Studio 2012 '/
+    #define HAVE_WINAPIFAMILY_H 1
+#else
+    #define HAVE_WINAPIFAMILY_H 0
+#endif
+
+#if HAVE_WINAPIFAMILY_H
+    '' C2T-TODO(system-header) SDL_platform_defines.h:354 -- <winapifamily.h> has no tiko counterpart in c2t's table
+''     #include <winapifamily.h>
+    '' C2T-NOTE(value) SDL_platform_defines.h:355 -- clang's value; 'WINAPI_FAMILY_PARTITION()' is nothing tiko declares
+    #define WINAPI_FAMILY_WINRT 0
+#else
+    #define WINAPI_FAMILY_WINRT 0
+#endif /' HAVE_WINAPIFAMILY_H '/
+
+#ifdef SDL_WIKI_DOCUMENTATION_SECTION
+
+/'*
+ * A preprocessor macro that defined to 1 if compiling for Windows Phone.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+'' C2T-NOTE(value) SDL_platform_defines.h:367 -- clang's value; 'WINAPI_FAMILY' is nothing tiko declares
+#define SDL_WINAPI_FAMILY_PHONE 0
+
+#elseif (defined(HAVE_WINAPIFAMILY_H) andalso HAVE_WINAPIFAMILY_H)
+    '' C2T-NOTE(value) SDL_platform_defines.h:370 -- clang's value; 'WINAPI_FAMILY' is nothing tiko declares
+    #define SDL_WINAPI_FAMILY_PHONE 0
+#else
+    #define SDL_WINAPI_FAMILY_PHONE 0
+#endif
+
+#if WINAPI_FAMILY_WINRT
+#error Windows RT/UWP is no longer supported in SDL
+
+#elseif defined(_GAMING_DESKTOP) /' GDK project configuration always defines _GAMING_XXX '/
+
+/'*
+ * A preprocessor macro that is only defined if compiling for Microsoft GDK
+ * for Windows.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+#define SDL_PLATFORM_WINGDK 1
+
+#elseif defined(_GAMING_XBOX_XBOXONE)
+
+/'*
+ * A preprocessor macro that is only defined if compiling for Xbox One.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+#define SDL_PLATFORM_XBOXONE 1
+
+#elseif defined(_GAMING_XBOX_SCARLETT)
+
+/'*
+ * A preprocessor macro that is only defined if compiling for Xbox Series.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+#define SDL_PLATFORM_XBOXSERIES 1
+
+#else
+
+/'*
+ * A preprocessor macro that is only defined if compiling for desktop Windows.
+ *
+ * Despite the "32", this also covers 64-bit Windows; as an informal
+ * convention, its system layer tends to still be referred to as "the Win32
+ * API."
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+#define SDL_PLATFORM_WIN32 1
+
+#endif
+#endif /' defined(_WIN32) || defined(SDL_PLATFORM_CYGWIN) '/
+
+
+/' This is to support generic "any GDK" separate from a platform-specific GDK '/
+#if ((defined(SDL_PLATFORM_WINGDK) orelse defined(SDL_PLATFORM_XBOXONE)) orelse defined(SDL_PLATFORM_XBOXSERIES))
+
+/'*
+ * A preprocessor macro that is only defined if compiling for Microsoft GDK on
+ * any platform.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+#define SDL_PLATFORM_GDK 1
+#endif
+
+#if (defined(__PSP__) orelse defined(__psp__))
+
+/'*
+ * A preprocessor macro that is only defined if compiling for Sony PSP.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+#define SDL_PLATFORM_PSP 1
+#endif
+
+#if (defined(__PS2__) orelse defined(PS2))
+
+/'*
+ * A preprocessor macro that is only defined if compiling for Sony PlayStation
+ * 2.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+#define SDL_PLATFORM_PS2 1
+#endif
+
+#if (defined(__vita__) orelse defined(__psp2__))
+
+/'*
+ * A preprocessor macro that is only defined if compiling for Sony Vita.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+#define SDL_PLATFORM_VITA 1
+#endif
+
+#ifdef __3DS__
+
+/'*
+ * A preprocessor macro that is only defined if compiling for Nintendo 3DS.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ '/
+#define SDL_PLATFORM_3DS 1
+#endif
+
+#ifdef __NGAGE__
+
+/'*
+ * A preprocessor macro that is only defined if compiling for the Nokia
+ * N-Gage.
+ *
+ * \since This macro is available since SDL 3.4.0.
+ '/
+#define SDL_PLATFORM_NGAGE 1
+#endif
+
+#ifdef __GNU__
+
+/'*
+ * A preprocessor macro that is only defined if compiling for GNU/Hurd.
+ *
+ * \since This macro is available since SDL 3.4.0.
+ '/
+#define SDL_PLATFORM_HURD 1
+#endif
+
+end extern

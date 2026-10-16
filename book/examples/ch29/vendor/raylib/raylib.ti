@@ -1,0 +1,2396 @@
+'' =============================================================================
+'' raylib.ti -- tiko header translated by c2t (tiko 0.1.0-dev) from the C header "raylib.h"
+''   source sha256 : 047e7255f93f8c34039cab906ad76136706b5c7b4c5b5b065d84141963ee9b6b
+''   clang         : clang version 21.1.0
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu
+''   options       : --verify
+''
+'' Generated from C. Search for C2T-TODO and translate those parts by hand.
+''
+'' Renamed:
+''   parameter  InitWindow.width -> InitWindow.width_   (tiko reserved word)
+''   parameter  SetWindowMinSize.width -> SetWindowMinSize.width_   (tiko reserved word)
+''   parameter  SetWindowMaxSize.width -> SetWindowMaxSize.width_   (tiko reserved word)
+''   parameter  SetWindowSize.width -> SetWindowSize.width_   (tiko reserved word)
+''   parameter  ClearBackground.color -> ClearBackground.color_   (tiko reserved word)
+''   parameter  BeginScissorMode.width -> BeginScissorMode.width_   (tiko reserved word)
+''   parameter  GetScreenToWorldRayEx.width -> GetScreenToWorldRayEx.width_   (tiko reserved word)
+''   parameter  GetWorldToScreenEx.width -> GetWorldToScreenEx.width_   (tiko reserved word)
+''   parameter  MemRealloc.ptr -> MemRealloc.ptr_   (tiko reserved word)
+''   parameter  MemFree.ptr -> MemFree.ptr_   (tiko reserved word)
+''   parameter  UnloadFileData.data -> UnloadFileData.data_   (tiko reserved word)
+''   parameter  SaveFileData.data -> SaveFileData.data_   (tiko reserved word)
+''   parameter  ExportDataAsCode.data -> ExportDataAsCode.data_   (tiko reserved word)
+''   parameter  CompressData.data -> CompressData.data_   (tiko reserved word)
+''   parameter  EncodeDataBase64.data -> EncodeDataBase64.data_   (tiko reserved word)
+''   parameter  ComputeCRC32.data -> ComputeCRC32.data_   (tiko reserved word)
+''   parameter  ComputeMD5.data -> ComputeMD5.data_   (tiko reserved word)
+''   parameter  ComputeSHA1.data -> ComputeSHA1.data_   (tiko reserved word)
+''   parameter  ComputeSHA256.data -> ComputeSHA256.data_   (tiko reserved word)
+''   parameter  DrawPixel.color -> DrawPixel.color_   (tiko reserved word)
+''   parameter  DrawPixelV.color -> DrawPixelV.color_   (tiko reserved word)
+''   parameter  DrawLine.color -> DrawLine.color_   (tiko reserved word)
+''   parameter  DrawLineV.color -> DrawLineV.color_   (tiko reserved word)
+''   parameter  DrawLineEx.color -> DrawLineEx.color_   (tiko reserved word)
+''   parameter  DrawLineStrip.color -> DrawLineStrip.color_   (tiko reserved word)
+''   parameter  DrawLineBezier.color -> DrawLineBezier.color_   (tiko reserved word)
+''   parameter  DrawLineDashed.color -> DrawLineDashed.color_   (tiko reserved word)
+''   parameter  DrawCircle.color -> DrawCircle.color_   (tiko reserved word)
+''   parameter  DrawCircleV.color -> DrawCircleV.color_   (tiko reserved word)
+''   parameter  DrawCircleSector.color -> DrawCircleSector.color_   (tiko reserved word)
+''   parameter  DrawCircleSectorLines.color -> DrawCircleSectorLines.color_   (tiko reserved word)
+''   parameter  DrawCircleLines.color -> DrawCircleLines.color_   (tiko reserved word)
+''   parameter  DrawCircleLinesV.color -> DrawCircleLinesV.color_   (tiko reserved word)
+''   parameter  DrawEllipse.color -> DrawEllipse.color_   (tiko reserved word)
+''   parameter  DrawEllipseV.color -> DrawEllipseV.color_   (tiko reserved word)
+''   parameter  DrawEllipseLines.color -> DrawEllipseLines.color_   (tiko reserved word)
+''   parameter  DrawEllipseLinesV.color -> DrawEllipseLinesV.color_   (tiko reserved word)
+''   parameter  DrawRing.color -> DrawRing.color_   (tiko reserved word)
+''   parameter  DrawRingLines.color -> DrawRingLines.color_   (tiko reserved word)
+''   parameter  DrawRectangle.width -> DrawRectangle.width_   (tiko reserved word)
+''   parameter  DrawRectangle.color -> DrawRectangle.color_   (tiko reserved word)
+''   parameter  DrawRectangleV.color -> DrawRectangleV.color_   (tiko reserved word)
+''   parameter  DrawRectangleRec.color -> DrawRectangleRec.color_   (tiko reserved word)
+''   parameter  DrawRectanglePro.color -> DrawRectanglePro.color_   (tiko reserved word)
+''   parameter  DrawRectangleGradientV.width -> DrawRectangleGradientV.width_   (tiko reserved word)
+''   parameter  DrawRectangleGradientH.width -> DrawRectangleGradientH.width_   (tiko reserved word)
+''   parameter  DrawRectangleGradientH.left -> DrawRectangleGradientH.left_   (tiko reserved word)
+''   parameter  DrawRectangleGradientH.right -> DrawRectangleGradientH.right_   (tiko reserved word)
+''   parameter  DrawRectangleLines.width -> DrawRectangleLines.width_   (tiko reserved word)
+''   parameter  DrawRectangleLines.color -> DrawRectangleLines.color_   (tiko reserved word)
+''   parameter  DrawRectangleLinesEx.color -> DrawRectangleLinesEx.color_   (tiko reserved word)
+''   parameter  DrawRectangleRounded.color -> DrawRectangleRounded.color_   (tiko reserved word)
+''   parameter  DrawRectangleRoundedLines.color -> DrawRectangleRoundedLines.color_   (tiko reserved word)
+''   parameter  DrawRectangleRoundedLinesEx.color -> DrawRectangleRoundedLinesEx.color_   (tiko reserved word)
+''   parameter  DrawTriangle.color -> DrawTriangle.color_   (tiko reserved word)
+''   parameter  DrawTriangleLines.color -> DrawTriangleLines.color_   (tiko reserved word)
+''   parameter  DrawTriangleFan.color -> DrawTriangleFan.color_   (tiko reserved word)
+''   parameter  DrawTriangleStrip.color -> DrawTriangleStrip.color_   (tiko reserved word)
+''   parameter  DrawPoly.color -> DrawPoly.color_   (tiko reserved word)
+''   parameter  DrawPolyLines.color -> DrawPolyLines.color_   (tiko reserved word)
+''   parameter  DrawPolyLinesEx.color -> DrawPolyLinesEx.color_   (tiko reserved word)
+''   parameter  DrawSplineLinear.color -> DrawSplineLinear.color_   (tiko reserved word)
+''   parameter  DrawSplineBasis.color -> DrawSplineBasis.color_   (tiko reserved word)
+''   parameter  DrawSplineCatmullRom.color -> DrawSplineCatmullRom.color_   (tiko reserved word)
+''   parameter  DrawSplineBezierQuadratic.color -> DrawSplineBezierQuadratic.color_   (tiko reserved word)
+''   parameter  DrawSplineBezierCubic.color -> DrawSplineBezierCubic.color_   (tiko reserved word)
+''   parameter  DrawSplineSegmentLinear.color -> DrawSplineSegmentLinear.color_   (tiko reserved word)
+''   parameter  DrawSplineSegmentBasis.color -> DrawSplineSegmentBasis.color_   (tiko reserved word)
+''   parameter  DrawSplineSegmentCatmullRom.color -> DrawSplineSegmentCatmullRom.color_   (tiko reserved word)
+''   parameter  DrawSplineSegmentBezierQuadratic.color -> DrawSplineSegmentBezierQuadratic.color_   (tiko reserved word)
+''   parameter  DrawSplineSegmentBezierCubic.color -> DrawSplineSegmentBezierCubic.color_   (tiko reserved word)
+''   parameter  CheckCollisionPointRec.point -> CheckCollisionPointRec.point_   (tiko reserved word)
+''   parameter  CheckCollisionPointCircle.point -> CheckCollisionPointCircle.point_   (tiko reserved word)
+''   parameter  CheckCollisionPointTriangle.point -> CheckCollisionPointTriangle.point_   (tiko reserved word)
+''   parameter  CheckCollisionPointLine.point -> CheckCollisionPointLine.point_   (tiko reserved word)
+''   parameter  CheckCollisionPointPoly.point -> CheckCollisionPointPoly.point_   (tiko reserved word)
+''   parameter  LoadImageRaw.width -> LoadImageRaw.width_   (tiko reserved word)
+''   parameter  GenImageColor.width -> GenImageColor.width_   (tiko reserved word)
+''   parameter  GenImageColor.color -> GenImageColor.color_   (tiko reserved word)
+''   parameter  GenImageGradientLinear.width -> GenImageGradientLinear.width_   (tiko reserved word)
+''   parameter  GenImageGradientLinear.end -> GenImageGradientLinear.end_   (tiko reserved word)
+''   parameter  GenImageGradientRadial.width -> GenImageGradientRadial.width_   (tiko reserved word)
+''   parameter  GenImageGradientSquare.width -> GenImageGradientSquare.width_   (tiko reserved word)
+''   parameter  GenImageChecked.width -> GenImageChecked.width_   (tiko reserved word)
+''   parameter  GenImageWhiteNoise.width -> GenImageWhiteNoise.width_   (tiko reserved word)
+''   parameter  GenImagePerlinNoise.width -> GenImagePerlinNoise.width_   (tiko reserved word)
+''   parameter  GenImageCellular.width -> GenImageCellular.width_   (tiko reserved word)
+''   parameter  GenImageText.width -> GenImageText.width_   (tiko reserved word)
+''   parameter  ImageText.color -> ImageText.color_   (tiko reserved word)
+''   parameter  ImageAlphaClear.color -> ImageAlphaClear.color_   (tiko reserved word)
+''   parameter  ImageColorTint.color -> ImageColorTint.color_   (tiko reserved word)
+''   parameter  ImageColorReplace.color -> ImageColorReplace.color_   (tiko reserved word)
+''   parameter  ImageClearBackground.color -> ImageClearBackground.color_   (tiko reserved word)
+''   parameter  ImageDrawPixel.color -> ImageDrawPixel.color_   (tiko reserved word)
+''   parameter  ImageDrawPixelV.color -> ImageDrawPixelV.color_   (tiko reserved word)
+''   parameter  ImageDrawLine.color -> ImageDrawLine.color_   (tiko reserved word)
+''   parameter  ImageDrawLineV.end -> ImageDrawLineV.end_   (tiko reserved word)
+''   parameter  ImageDrawLineV.color -> ImageDrawLineV.color_   (tiko reserved word)
+''   parameter  ImageDrawLineEx.end -> ImageDrawLineEx.end_   (tiko reserved word)
+''   parameter  ImageDrawLineEx.color -> ImageDrawLineEx.color_   (tiko reserved word)
+''   parameter  ImageDrawCircle.color -> ImageDrawCircle.color_   (tiko reserved word)
+''   parameter  ImageDrawCircleV.color -> ImageDrawCircleV.color_   (tiko reserved word)
+''   parameter  ImageDrawCircleLines.color -> ImageDrawCircleLines.color_   (tiko reserved word)
+''   parameter  ImageDrawCircleLinesV.color -> ImageDrawCircleLinesV.color_   (tiko reserved word)
+''   parameter  ImageDrawRectangle.width -> ImageDrawRectangle.width_   (tiko reserved word)
+''   parameter  ImageDrawRectangle.color -> ImageDrawRectangle.color_   (tiko reserved word)
+''   parameter  ImageDrawRectangleV.color -> ImageDrawRectangleV.color_   (tiko reserved word)
+''   parameter  ImageDrawRectangleRec.color -> ImageDrawRectangleRec.color_   (tiko reserved word)
+''   parameter  ImageDrawRectangleLines.color -> ImageDrawRectangleLines.color_   (tiko reserved word)
+''   parameter  ImageDrawTriangle.color -> ImageDrawTriangle.color_   (tiko reserved word)
+''   parameter  ImageDrawTriangleLines.color -> ImageDrawTriangleLines.color_   (tiko reserved word)
+''   parameter  ImageDrawTriangleFan.color -> ImageDrawTriangleFan.color_   (tiko reserved word)
+''   parameter  ImageDrawTriangleStrip.color -> ImageDrawTriangleStrip.color_   (tiko reserved word)
+''   parameter  ImageDrawText.color -> ImageDrawText.color_   (tiko reserved word)
+''   parameter  LoadRenderTexture.width -> LoadRenderTexture.width_   (tiko reserved word)
+''   parameter  Fade.color -> Fade.color_   (tiko reserved word)
+''   parameter  ColorToInt.color -> ColorToInt.color_   (tiko reserved word)
+''   parameter  ColorNormalize.color -> ColorNormalize.color_   (tiko reserved word)
+''   parameter  ColorToHSV.color -> ColorToHSV.color_   (tiko reserved word)
+''   parameter  ColorTint.color -> ColorTint.color_   (tiko reserved word)
+''   parameter  ColorBrightness.color -> ColorBrightness.color_   (tiko reserved word)
+''   parameter  ColorContrast.color -> ColorContrast.color_   (tiko reserved word)
+''   parameter  ColorAlpha.color -> ColorAlpha.color_   (tiko reserved word)
+''   parameter  SetPixelColor.color -> SetPixelColor.color_   (tiko reserved word)
+''   parameter  GetPixelDataSize.width -> GetPixelDataSize.width_   (tiko reserved word)
+''   parameter  LoadFontData.type -> LoadFontData.type_   (tiko reserved word)
+''   parameter  DrawText.color -> DrawText.color_   (tiko reserved word)
+''   parameter  GetTextBetween.end -> GetTextBetween.end_   (tiko reserved word)
+''   parameter  TextReplaceBetween.end -> TextReplaceBetween.end_   (tiko reserved word)
+''   parameter  TextReplaceBetweenAlloc.end -> TextReplaceBetweenAlloc.end_   (tiko reserved word)
+''   parameter  TextAppend.append -> TextAppend.append_   (tiko reserved word)
+''   parameter  DrawLine3D.color -> DrawLine3D.color_   (tiko reserved word)
+''   parameter  DrawPoint3D.color -> DrawPoint3D.color_   (tiko reserved word)
+''   parameter  DrawCircle3D.color -> DrawCircle3D.color_   (tiko reserved word)
+''   parameter  DrawTriangle3D.color -> DrawTriangle3D.color_   (tiko reserved word)
+''   parameter  DrawTriangleStrip3D.color -> DrawTriangleStrip3D.color_   (tiko reserved word)
+''   parameter  DrawCube.width -> DrawCube.width_   (tiko reserved word)
+''   parameter  DrawCube.color -> DrawCube.color_   (tiko reserved word)
+''   parameter  DrawCubeV.color -> DrawCubeV.color_   (tiko reserved word)
+''   parameter  DrawCubeWires.width -> DrawCubeWires.width_   (tiko reserved word)
+''   parameter  DrawCubeWires.color -> DrawCubeWires.color_   (tiko reserved word)
+''   parameter  DrawCubeWiresV.color -> DrawCubeWiresV.color_   (tiko reserved word)
+''   parameter  DrawSphere.color -> DrawSphere.color_   (tiko reserved word)
+''   parameter  DrawSphereEx.color -> DrawSphereEx.color_   (tiko reserved word)
+''   parameter  DrawSphereWires.color -> DrawSphereWires.color_   (tiko reserved word)
+''   parameter  DrawCylinder.color -> DrawCylinder.color_   (tiko reserved word)
+''   parameter  DrawCylinderEx.color -> DrawCylinderEx.color_   (tiko reserved word)
+''   parameter  DrawCylinderWires.color -> DrawCylinderWires.color_   (tiko reserved word)
+''   parameter  DrawCylinderWiresEx.color -> DrawCylinderWiresEx.color_   (tiko reserved word)
+''   parameter  DrawCapsule.color -> DrawCapsule.color_   (tiko reserved word)
+''   parameter  DrawCapsuleWires.color -> DrawCapsuleWires.color_   (tiko reserved word)
+''   parameter  DrawPlane.color -> DrawPlane.color_   (tiko reserved word)
+''   parameter  DrawRay.color -> DrawRay.color_   (tiko reserved word)
+''   parameter  DrawBoundingBox.color -> DrawBoundingBox.color_   (tiko reserved word)
+''   parameter  UploadMesh.dynamic -> UploadMesh.dynamic_   (tiko reserved word)
+''   parameter  UpdateMeshBuffer.data -> UpdateMeshBuffer.data_   (tiko reserved word)
+''   parameter  GenMeshPlane.width -> GenMeshPlane.width_   (tiko reserved word)
+''   parameter  GenMeshCube.width -> GenMeshCube.width_   (tiko reserved word)
+''   parameter  UpdateSound.data -> UpdateSound.data_   (tiko reserved word)
+''   parameter  UnloadSoundAlias.alias -> UnloadSoundAlias.alias_   (tiko reserved word)
+''   parameter  LoadMusicStreamFromMemory.data -> LoadMusicStreamFromMemory.data_   (tiko reserved word)
+''   parameter  UpdateAudioStream.data -> UpdateAudioStream.data_   (tiko reserved word)
+''   constant   false -> false_   (tiko reserved word)
+''   constant   true -> true_   (tiko reserved word)
+''
+'' Nothing needs manual translation.
+'' =============================================================================
+
+/'*********************************************************************************************
+*
+*   raylib v6.0 - A simple and easy-to-use library to enjoy videogames programming (www.raylib.com)
+*
+*   FEATURES:
+*       - NO external dependencies, all required libraries included with raylib
+*       - Multiplatform: Windows, Linux, macOS, FreeBSD, Web, Android, Raspberry Pi, DRM native...
+*       - Written in plain C code (C99) in PascalCase/camelCase notation
+*       - Hardware accelerated with OpenGL (1.1, 2.1, 3.3, 4.3, ES2, ES3 - choose at compile)
+*       - Software renderer optional, for systems with no GPU: [rlsw]
+*       - Custom OpenGL abstraction layer (usable as standalone module): [rlgl]
+*       - Multiple Fonts formats supported (TTF, OTF, FNT, BDF, Sprite fonts)
+*       - Many texture formats supported, including compressed formats (DXT, ETC, ASTC)
+*       - Full 3d support for 3d Shapes, Models, Billboards, Heightmaps and more!
+*       - Flexible Materials system, supporting classic maps and PBR maps
+*       - Animated 3D models supported (skeletal bones animation) (IQM, M3D, GLTF)
+*       - Shaders support, including Model shaders and Postprocessing shaders
+*       - Powerful math module for Vector, Matrix and Quaternion operations: [raymath]
+*       - Audio loading and playing with streaming support (WAV, OGG, MP3, FLAC, QOA, XM, MOD)
+*       - VR stereo rendering with configurable HMD device parameters
+*       - Bindings to multiple programming languages available!
+*
+*   NOTES:
+*       - One default Font is loaded on InitWindow()->LoadFontDefault() [core, text]
+*       - One default Texture2D is loaded on rlglInit(), 1x1 white pixel R8G8B8A8 [rlgl] (OpenGL 3.3 or ES2)
+*       - One default Shader is loaded on rlglInit()->rlLoadShaderDefault() [rlgl] (OpenGL 3.3 or ES2)
+*       - One default RenderBatch is loaded on rlglInit()->rlLoadRenderBatch() [rlgl] (OpenGL 3.3 or ES2)
+*
+*   DEPENDENCIES:
+*       [rcore] Depends on the selected platform backend, check rcore.c header for details
+*       [rlgl] glad/glad_gles2 (David Herberth - github.com/Dav1dde/glad) for OpenGL extensions loading
+*       [raudio] miniaudio (David Reid - github.com/mackron/miniaudio) for audio device/context management
+*
+*   OPTIONAL DEPENDENCIES (included):
+*       [rcore] sinfl (Micha Mettke) for DEFLATE decompression algorithm
+*       [rcore] sdefl (Micha Mettke) for DEFLATE compression algorithm
+*       [rcore] rprand (Ramon Santamaria) for pseudo-random numbers generation
+*       [rtextures] qoi (Dominic Szablewski - https://phoboslab.org) for QOI image management
+*       [rtextures] stb_image (Sean Barrett) for images loading (BMP, TGA, PNG, JPEG, HDR...)
+*       [rtextures] stb_image_write (Sean Barrett) for image writing (BMP, TGA, PNG, JPG)
+*       [rtextures] stb_image_resize2 (Sean Barrett) for image resizing algorithms
+*       [rtextures] stb_perlin (Sean Barrett) for Perlin Noise image generation
+*       [rtextures] rltexgpu (Ramon Santamaria) for GPU-compressed texture formats
+*       [rtext] stb_truetype (Sean Barrett) for ttf fonts loading
+*       [rtext] stb_rect_pack (Sean Barrett) for rectangles packing
+*       [rmodels] par_shapes (Philip Rideout) for parametric 3d shapes generation
+*       [rmodels] tinyobj_loader_c (Syoyo Fujita) for models loading (OBJ, MTL)
+*       [rmodels] cgltf (Johannes Kuhlmann) for models loading (glTF)
+*       [rmodels] m3d (bzt) for models loading (M3D, https://bztsrc.gitlab.io/model3d)
+*       [rmodels] vox_loader (Johann Nadalutti) for models loading (VOX)
+*       [raudio] dr_wav (David Reid) for WAV audio file loading
+*       [raudio] dr_flac (David Reid) for FLAC audio file loading
+*       [raudio] dr_mp3 (David Reid) for MP3 audio file loading
+*       [raudio] stb_vorbis (Sean Barrett) for OGG audio loading
+*       [raudio] jar_xm (Joshua Reisenauer) for XM audio module loading
+*       [raudio] jar_mod (Joshua Reisenauer) for MOD audio module loading
+*       [raudio] qoa (Dominic Szablewski - https://phoboslab.org) for QOA audio management
+*
+*
+*   LICENSE: zlib/libpng
+*
+*   raylib is licensed under an unmodified zlib/libpng license, which is an OSI-certified,
+*   BSD-like license that allows static linking with closed source software:
+*
+*   Copyright (c) 2013-2026 Ramon Santamaria (@raysan5)
+*
+*   This software is provided "as-is", without any express or implied warranty. In no event
+*   will the authors be held liable for any damages arising from the use of this software.
+*
+*   Permission is granted to anyone to use this software for any purpose, including commercial
+*   applications, and to alter it and redistribute it freely, subject to the following restrictions:
+*
+*     1. The origin of this software must not be misrepresented; you must not claim that you
+*     wrote the original software. If you use this software in a product, an acknowledgment
+*     in the product documentation would be appreciated but is not required.
+*
+*     2. Altered source versions must be plainly marked as such, and must not be misrepresented
+*     as being the original software.
+*
+*     3. This notice may not be removed or altered from any source distribution.
+*
+*********************************************************************************************'/
+
+#pragma once
+
+#include once "crt/long.bi"
+
+'' <stdarg.h>: built into tiko     '' Required for: va_list - Only used by TraceLogCallback
+
+#define RAYLIB_VERSION_MAJOR 6
+#define RAYLIB_VERSION_MINOR 0
+#define RAYLIB_VERSION_PATCH 0
+#define RAYLIB_VERSION "6.0"
+
+'' Function specifiers in case library is build/used as a shared library
+'' NOTE: Microsoft specifiers to tell compiler that symbols are imported/exported from a .dll
+'' NOTE: visibility("default") attribute makes symbols "visible" when compiled with -fvisibility=hidden
+#if defined(TIKO_OS_WINDOWS)
+    #if defined(__TINYC__)
+        '' C2T-NOTE(unchecked) raylib.h:99 -- '__attribute__' not declared here: a program using the macro declares it
+        #define __declspec(x) __attribute__((x))
+    #endif
+'' c2t: export macro RLAPI (decoration, stripped where used)
+#else
+'' c2t: export macro RLAPI (decoration, stripped where used)
+#endif
+
+'' c2t: export macro RLAPI (decoration, stripped where used)
+
+''----------------------------------------------------------------------------------
+'' Defines and Macros
+''----------------------------------------------------------------------------------
+#ifndef PI
+    #define PI 3.14159265358979323846f
+#endif
+#ifndef DEG2RAD
+    '' C2T-NOTE(value) raylib.h:123 -- clang's value; '(PI / 180.0f)' is 0.01745329300562541 in tiko
+    #define DEG2RAD 0.01745329238474369
+#endif
+#ifndef RAD2DEG
+    '' C2T-NOTE(value) raylib.h:126 -- clang's value; '(180.0f / PI)' is 57.29577791868205 in tiko
+    #define RAD2DEG 57.2957763671875
+#endif
+
+'' Allow custom memory allocators
+'' NOTE: Require recompiling raylib sources
+#ifndef RL_MALLOC
+    '' C2T-NOTE(unchecked) raylib.h:132 -- 'malloc' not declared here: a program using the macro declares it
+    #define RL_MALLOC(sz) malloc((sz))
+#endif
+#ifndef RL_CALLOC
+    '' C2T-NOTE(unchecked) raylib.h:135 -- 'calloc' not declared here: a program using the macro declares it
+    #define RL_CALLOC(n, sz) calloc((n), (sz))
+#endif
+#ifndef RL_REALLOC
+    '' C2T-NOTE(unchecked) raylib.h:138 -- 'realloc' not declared here: a program using the macro declares it
+    #define RL_REALLOC(ptr, sz) realloc((ptr), (sz))
+#endif
+#ifndef RL_FREE
+    '' C2T-NOTE(unchecked) raylib.h:141 -- 'free' not declared here: a program using the macro declares it
+    #define RL_FREE(ptr) free((ptr))
+#endif
+
+'' NOTE: MSVC C++ compiler does not support compound literals (C99 feature)
+'' Plain structures in C++ (without constructors) can be initialized with { }
+'' This is called aggregate initialization (C++11 feature)
+#if 0
+    #define CLITERAL(type) (type)
+#else
+    #define CLITERAL(type) (type)
+#endif
+
+'' Some compilers (mostly macos clang) default to C++98,
+'' where aggregate initialization can't be used
+'' So, give a more clear error stating how to fix this
+#if (((defined(_MSC_VER)) = 0) andalso (0 andalso (0 < 201103)))
+    #error "C++11 or later is required. Add -std=c++11"
+#endif
+
+'' NOTE: Set some defines with some data types declared by raylib
+'' Other modules (raymath, rlgl) also require some of those types, so,
+'' to be able to use those other modules as standalone (not depending on raylib)
+'' this defines are useful for internal check and avoid type (re)definitions
+#define RL_COLOR_TYPE
+#define RL_RECTANGLE_TYPE
+#define RL_VECTOR2_TYPE
+#define RL_VECTOR3_TYPE
+#define RL_VECTOR4_TYPE
+#define RL_QUATERNION_TYPE
+#define RL_MATRIX_TYPE
+
+'' Some Basic Colors
+'' NOTE: Custom raylib color palette for amazing visuals on WHITE background
+#define LIGHTGRAY type<Color>(200, 200, 200, 255)          '' Light Gray
+#define GRAY type<Color>(130, 130, 130, 255)               '' Gray
+#define DARKGRAY type<Color>(80, 80, 80, 255)              '' Dark Gray
+#define YELLOW type<Color>(253, 249, 0, 255)               '' Yellow
+#define GOLD type<Color>(255, 203, 0, 255)                 '' Gold
+#define ORANGE type<Color>(255, 161, 0, 255)               '' Orange
+#define PINK type<Color>(255, 109, 194, 255)               '' Pink
+#define RED type<Color>(230, 41, 55, 255)                  '' Red
+#define MAROON type<Color>(190, 33, 55, 255)               '' Maroon
+#define GREEN type<Color>(0, 228, 48, 255)                 '' Green
+#define LIME type<Color>(0, 158, 47, 255)                  '' Lime
+#define DARKGREEN type<Color>(0, 117, 44, 255)             '' Dark Green
+#define SKYBLUE type<Color>(102, 191, 255, 255)            '' Sky Blue
+#define BLUE type<Color>(0, 121, 241, 255)                 '' Blue
+#define DARKBLUE type<Color>(0, 82, 172, 255)              '' Dark Blue
+#define PURPLE type<Color>(200, 122, 255, 255)             '' Purple
+#define VIOLET type<Color>(135, 60, 190, 255)              '' Violet
+#define DARKPURPLE type<Color>(112, 31, 126, 255)          '' Dark Purple
+#define BEIGE type<Color>(211, 176, 131, 255)              '' Beige
+#define BROWN type<Color>(127, 106, 79, 255)               '' Brown
+#define DARKBROWN type<Color>(76, 63, 47, 255)             '' Dark Brown
+
+#define WHITE type<Color>(255, 255, 255, 255)              '' White
+#define BLACK type<Color>(0, 0, 0, 255)                    '' Black
+#define BLANK type<Color>(0, 0, 0, 0)                      '' Blank (Transparent)
+#define MAGENTA type<Color>(255, 0, 255, 255)              '' Magenta
+#define RAYWHITE type<Color>(245, 245, 245, 255)           '' My own White (raylib logo)
+
+''----------------------------------------------------------------------------------
+'' Types and Structures Definition
+''----------------------------------------------------------------------------------
+'' Boolean type
+#if ((1 andalso (201112 >= 199901)) orelse (defined(_MSC_VER) andalso (_MSC_VER >= 1800)))
+    '' <stdbool.h>: built into tiko
+#elseif (((0) = 0) andalso ((defined(bool)) = 0))
+    #if defined(TIKO_OS_WINDOWS)
+    type bool as int32
+    enum
+        false_ = 0
+        true_ = 1
+    end enum
+    #elseif defined(TIKO_OS_LINUX)
+    type bool as uint32
+    enum
+        false_ = 0
+        true_ = 1
+    end enum
+    #endif
+    #define RL_BOOL_TYPE
+#endif
+
+'' Vector2, 2 components
+type Vector2
+    x as float32            '' Vector x component
+    y as float32            '' Vector y component
+end type
+
+'' Vector3, 3 components
+type Vector3
+    x as float32            '' Vector x component
+    y as float32            '' Vector y component
+    z as float32            '' Vector z component
+end type
+
+'' Vector4, 4 components
+type Vector4
+    x as float32            '' Vector x component
+    y as float32            '' Vector y component
+    z as float32            '' Vector z component
+    w as float32            '' Vector w component
+end type
+
+'' Quaternion, 4 components (Vector4 alias)
+type Quaternion as Vector4
+
+'' Matrix, 4x4 components, column major, OpenGL style, right-handed
+type Matrix
+    m0 as float32
+    m4 as float32
+    m8 as float32
+    m12 as float32          '' Matrix first row (4 components)
+    m1 as float32
+    m5 as float32
+    m9 as float32
+    m13 as float32          '' Matrix second row (4 components)
+    m2 as float32
+    m6 as float32
+    m10 as float32
+    m14 as float32          '' Matrix third row (4 components)
+    m3 as float32
+    m7 as float32
+    m11 as float32
+    m15 as float32          '' Matrix fourth row (4 components)
+end type
+
+'' Color, 4 components, R8G8B8A8 (32bit)
+type Color
+    r as uint8              '' Color red value
+    g as uint8              '' Color green value
+    b as uint8              '' Color blue value
+    a as uint8              '' Color alpha value
+end type
+
+'' Rectangle, 4 components
+type Rectangle
+    x as float32            '' Rectangle top-left corner position x
+    y as float32            '' Rectangle top-left corner position y
+    width as float32        '' Rectangle width
+    height as float32       '' Rectangle height
+end type
+
+'' Image, pixel data stored in CPU memory (RAM)
+type Image
+    data as any ptr         '' Image raw data
+    width as int32          '' Image base width
+    height as int32         '' Image base height
+    mipmaps as int32        '' Mipmap levels, 1 by default
+    format as int32         '' Data format (PixelFormat type)
+end type
+
+'' Texture, tex data stored in GPU memory (VRAM)
+type Texture
+    id as uint32            '' OpenGL texture id
+    width as int32          '' Texture base width
+    height as int32         '' Texture base height
+    mipmaps as int32        '' Mipmap levels, 1 by default
+    format as int32         '' Data format (PixelFormat type)
+end type
+
+'' Texture2D, same as Texture
+type Texture2D as Texture
+
+'' TextureCubemap, same as Texture
+type TextureCubemap as Texture
+
+'' RenderTexture, fbo for texture rendering
+type RenderTexture
+    id as uint32            '' OpenGL framebuffer object id
+    texture as Texture      '' Color buffer attachment texture
+    depth as Texture        '' Depth buffer attachment texture
+end type
+
+'' RenderTexture2D, same as RenderTexture
+type RenderTexture2D as RenderTexture
+
+'' NPatchInfo, n-patch layout info
+type NPatchInfo
+    source as Rectangle     '' Texture source rectangle
+    left as int32           '' Left border offset
+    top as int32            '' Top border offset
+    right as int32          '' Right border offset
+    bottom as int32         '' Bottom border offset
+    layout as int32         '' Layout of the n-patch: 3x3, 1x3 or 3x1
+end type
+
+'' GlyphInfo, font characters glyphs info
+type GlyphInfo
+    value as int32          '' Character value (Unicode)
+    offsetX as int32        '' Character offset X when drawing
+    offsetY as int32        '' Character offset Y when drawing
+    advanceX as int32       '' Character advance position X
+    image as Image          '' Character image data
+end type
+
+'' Font, font texture and GlyphInfo array data
+type Font
+    baseSize as int32       '' Base size (default chars height)
+    glyphCount as int32     '' Number of glyph characters
+    glyphPadding as int32   '' Padding around the glyph characters
+    texture as Texture2D    '' Texture atlas containing the glyphs
+    recs as Rectangle ptr   '' Rectangles in texture for the glyphs
+    glyphs as GlyphInfo ptr '' Glyphs info data
+end type
+
+'' Camera, defines position/orientation in 3d space
+type Camera3D
+    position as Vector3     '' Camera position
+    target as Vector3       '' Camera target it looks-at
+    up as Vector3           '' Camera up vector (rotation over its axis)
+    fovy as float32         '' Camera field-of-view aperture in Y (degrees) in perspective, used as near plane height in world units in orthographic
+    projection as int32     '' Camera projection: CAMERA_PERSPECTIVE or CAMERA_ORTHOGRAPHIC
+end type
+
+type Camera as Camera3D     '' Camera type fallback, defaults to Camera3D
+
+'' Camera2D, defines position/orientation in 2d space
+type Camera2D
+    offset as Vector2       '' Camera offset (screen space offset from window origin)
+    target as Vector2       '' Camera target (world space target point that is mapped to screen space offset)
+    rotation as float32     '' Camera rotation in degrees (pivots around target)
+    zoom as float32         '' Camera zoom (scaling around target), must not be set to 0, set to 1.0f for no scale
+end type
+
+'' Mesh, vertex data and vao/vbo
+type Mesh
+    vertexCount as int32    '' Number of vertices stored in arrays
+    triangleCount as int32  '' Number of triangles stored (indexed or not)
+
+    '' Vertex attributes data
+    vertices as float32 ptr '' Vertex position (XYZ - 3 components per vertex) (shader-location = 0)
+    texcoords as float32 ptr       '' Vertex texture coordinates (UV - 2 components per vertex) (shader-location = 1)
+    texcoords2 as float32 ptr      '' Vertex texture second coordinates (UV - 2 components per vertex) (shader-location = 5)
+    normals as float32 ptr  '' Vertex normals (XYZ - 3 components per vertex) (shader-location = 2)
+    tangents as float32 ptr '' Vertex tangents (XYZW - 4 components per vertex) (shader-location = 4)
+    colors as uint8 ptr     '' Vertex colors (RGBA - 4 components per vertex) (shader-location = 3)
+    indices as uint16 ptr    '' Vertex indices (in case vertex data comes indexed)
+
+    '' Skin data for animation
+    boneCount as int32      '' Number of bones (MAX: 256 bones)
+    boneIndices as uint8 ptr    '' Vertex bone indices, up to 4 bones influence by vertex (skinning) (shader-location = 6)
+    boneWeights as float32 ptr     '' Vertex bone weight, up to 4 bones influence by vertex (skinning) (shader-location = 7)
+
+    '' Runtime animation vertex data (CPU skinning)
+    '' NOTE: In case of GPU skinning, not used, pointers are NULL
+    animVertices as float32 ptr    '' Animated vertex positions (after bones transformations)
+    animNormals as float32 ptr     '' Animated normals (after bones transformations)
+
+    '' OpenGL identifiers
+    vaoId as uint32         '' OpenGL Vertex Array Object id
+    vboId as uint32 ptr     '' OpenGL Vertex Buffer Objects id (default vertex data)
+end type
+
+'' Shader
+type Shader
+    id as uint32            '' Shader program id
+    locs as int32 ptr       '' Shader locations array (RL_MAX_SHADER_LOCATIONS)
+end type
+
+'' MaterialMap
+type MaterialMap
+    texture as Texture2D    '' Material map texture
+    color as Color          '' Material map color
+    value as float32        '' Material map value
+end type
+
+'' Material, includes shader and maps
+type Material
+    shader as Shader        '' Material shader
+    maps as MaterialMap ptr '' Material maps array (MAX_MATERIAL_MAPS)
+    params(0 to 3) as float32        '' Material generic parameters (if required)
+end type
+
+'' Transform, vertex transformation data
+type Transform
+    translation as Vector3  '' Translation
+    rotation as Quaternion  '' Rotation
+    scale as Vector3        '' Scale
+end type
+
+'' Anim pose, an array of Transform[]
+type ModelAnimPose as Transform ptr
+
+'' Bone, skeletal animation bone
+type BoneInfo
+    name as zstring * 32    '' Bone name
+    parent as int32         '' Bone parent
+end type
+
+'' Skeleton, animation bones hierarchy
+type ModelSkeleton
+    boneCount as int32      '' Number of bones
+    bones as BoneInfo ptr   '' Bones information (skeleton)
+    bindPose as ModelAnimPose '' Bones base transformation (Transform[])
+end type
+
+'' Model, meshes, materials and animation data
+type Model
+    transform as Matrix     '' Local transform matrix
+
+    meshCount as int32      '' Number of meshes
+    materialCount as int32  '' Number of materials
+    meshes as Mesh ptr      '' Meshes array
+    materials as Material ptr    '' Materials array
+    meshMaterial as int32 ptr      '' Mesh material number
+
+    '' Animation data
+    skeleton as ModelSkeleton '' Skeleton for animation
+
+    '' Runtime animation data (CPU/GPU skinning)
+    currentPose as ModelAnimPose '' Current animation pose (Transform[])
+    boneMatrices as Matrix ptr   '' Bones animated transformation matrices
+end type
+
+'' ModelAnimation, contains a full animation sequence
+type ModelAnimation
+    name as zstring * 32    '' Animation name
+
+    boneCount as int32      '' Number of bones (per pose)
+    keyframeCount as int32  '' Number of animation key frames
+    keyframePoses as ModelAnimPose ptr '' Animation sequence keyframe poses [keyframe][pose]
+end type
+
+'' Ray, ray for raycasting
+type Ray
+    position as Vector3     '' Ray position (origin)
+    direction as Vector3    '' Ray direction (normalized)
+end type
+
+'' RayCollision, ray hit information
+type RayCollision
+    hit as boolean          '' Did the ray hit something?
+    distance as float32     '' Distance to the nearest hit
+    point as Vector3        '' Point of the nearest hit
+    normal as Vector3       '' Surface normal of hit
+end type
+
+'' BoundingBox
+type BoundingBox
+    min as Vector3          '' Minimum vertex box-corner
+    max as Vector3          '' Maximum vertex box-corner
+end type
+
+'' Wave, audio wave data
+type Wave
+    frameCount as uint32        '' Total number of frames (considering channels)
+    sampleRate as uint32        '' Frequency (samples per second)
+    sampleSize as uint32        '' Bit depth (bits per sample): 8, 16, 32 (24 not supported)
+    channels as uint32          '' Number of channels (1-mono, 2-stereo, ...)
+    data as any ptr             '' Buffer data pointer
+end type
+
+'' Opaque structs declaration
+'' NOTE: Actual structs are defined internally in raudio module
+type rAudioBuffer__fwd as rAudioBuffer
+type rAudioProcessor__fwd as rAudioProcessor
+
+'' AudioStream, custom audio stream
+type AudioStream
+    buffer as rAudioBuffer ptr  '' Pointer to internal data used by the audio system
+    processor as rAudioProcessor ptr '' Pointer to internal data processor, useful for audio effects
+
+    sampleRate as uint32        '' Frequency (samples per second)
+    sampleSize as uint32        '' Bit depth (bits per sample): 8, 16, 32 (24 not supported)
+    channels as uint32          '' Number of channels (1-mono, 2-stereo, ...)
+end type
+
+'' Sound
+type Sound
+    stream as AudioStream       '' Audio stream
+    frameCount as uint32        '' Total number of frames (considering channels)
+end type
+
+'' Music, audio stream, anything longer than ~10 seconds should be streamed
+type Music
+    stream as AudioStream       '' Audio stream
+    frameCount as uint32        '' Total number of frames (considering channels)
+    looping as boolean          '' Music looping enable
+
+    ctxType as int32            '' Type of music context (audio filetype)
+    ctxData as any ptr          '' Audio context data, depends on type
+end type
+
+'' VrDeviceInfo, Head-Mounted-Display device parameters
+type VrDeviceInfo
+    hResolution as int32            '' Horizontal resolution in pixels
+    vResolution as int32            '' Vertical resolution in pixels
+    hScreenSize as float32          '' Horizontal size in meters
+    vScreenSize as float32          '' Vertical size in meters
+    eyeToScreenDistance as float32  '' Distance between eye and display in meters
+    lensSeparationDistance as float32   '' Lens separation distance in meters
+    interpupillaryDistance as float32   '' IPD (distance between pupils) in meters
+    lensDistortionValues(0 to 3) as float32  '' Lens distortion constant parameters
+    chromaAbCorrection(0 to 3) as float32    '' Chromatic aberration correction parameters
+end type
+
+'' VrStereoConfig, VR stereo rendering configuration for simulator
+type VrStereoConfig
+    projection(0 to 1) as Matrix    '' VR projection matrices (per eye)
+    viewOffset(0 to 1) as Matrix    '' VR view offset matrices (per eye)
+    leftLensCenter(0 to 1) as float32        '' VR left lens center
+    rightLensCenter(0 to 1) as float32       '' VR right lens center
+    leftScreenCenter(0 to 1) as float32      '' VR left screen center
+    rightScreenCenter(0 to 1) as float32     '' VR right screen center
+    scale(0 to 1) as float32        '' VR distortion scale
+    scaleIn(0 to 1) as float32      '' VR distortion scale in
+end type
+
+'' File path list
+type FilePathList
+    count as uint32                 '' Filepaths entries count
+    paths as zstring ptr ptr        '' Filepaths entries
+end type
+
+'' Automation event
+type AutomationEvent
+    frame as uint32                 '' Event frame
+    type as uint32                  '' Event type (AutomationEventType)
+    params(0 to 3) as int32         '' Event parameters (if required)
+end type
+
+'' Automation event list
+type AutomationEventList
+    capacity as uint32              '' Events max entries (MAX_AUTOMATION_EVENTS)
+    count as uint32                 '' Events entries count
+    events as AutomationEvent ptr   '' Events entries
+end type
+
+''----------------------------------------------------------------------------------
+'' Enumerators Definition
+''----------------------------------------------------------------------------------
+'' System/Window config flags
+'' NOTE: Every bit registers one state (use it with bit masks)
+'' By default all flags are set to 0
+#if defined(TIKO_OS_WINDOWS)
+type ConfigFlags as int32
+enum
+    FLAG_VSYNC_HINT = 64                    '' Set to try enabling V-Sync on GPU
+    FLAG_FULLSCREEN_MODE = 2                '' Set to run program in fullscreen
+    FLAG_WINDOW_RESIZABLE = 4               '' Set to allow resizable window
+    FLAG_WINDOW_UNDECORATED = 8             '' Set to disable window decoration (frame and buttons)
+    FLAG_WINDOW_HIDDEN = 128                '' Set to hide window
+    FLAG_WINDOW_MINIMIZED = 512             '' Set to minimize window (iconify)
+    FLAG_WINDOW_MAXIMIZED = 1024            '' Set to maximize window (expanded to monitor)
+    FLAG_WINDOW_UNFOCUSED = 2048            '' Set to window non focused
+    FLAG_WINDOW_TOPMOST = 4096              '' Set to window always on top
+    FLAG_WINDOW_ALWAYS_RUN = 256            '' Set to allow windows running while minimized
+    FLAG_WINDOW_TRANSPARENT = 16            '' Set to allow transparent framebuffer
+    FLAG_WINDOW_HIGHDPI = 8192              '' Set to support HighDPI
+    FLAG_WINDOW_MOUSE_PASSTHROUGH = 16384       '' Set to support mouse passthrough, only supported when FLAG_WINDOW_UNDECORATED
+    FLAG_BORDERLESS_WINDOWED_MODE = 32768       '' Set to run program in borderless windowed mode
+    FLAG_MSAA_4X_HINT = 32                  '' Set to try enabling MSAA 4X
+    FLAG_INTERLACED_HINT = 65536            '' Set to try enabling interlaced video format (for V3D)
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type ConfigFlags as uint32
+enum
+    FLAG_VSYNC_HINT = 64                    '' Set to try enabling V-Sync on GPU
+    FLAG_FULLSCREEN_MODE = 2                '' Set to run program in fullscreen
+    FLAG_WINDOW_RESIZABLE = 4               '' Set to allow resizable window
+    FLAG_WINDOW_UNDECORATED = 8             '' Set to disable window decoration (frame and buttons)
+    FLAG_WINDOW_HIDDEN = 128                '' Set to hide window
+    FLAG_WINDOW_MINIMIZED = 512             '' Set to minimize window (iconify)
+    FLAG_WINDOW_MAXIMIZED = 1024            '' Set to maximize window (expanded to monitor)
+    FLAG_WINDOW_UNFOCUSED = 2048            '' Set to window non focused
+    FLAG_WINDOW_TOPMOST = 4096              '' Set to window always on top
+    FLAG_WINDOW_ALWAYS_RUN = 256            '' Set to allow windows running while minimized
+    FLAG_WINDOW_TRANSPARENT = 16            '' Set to allow transparent framebuffer
+    FLAG_WINDOW_HIGHDPI = 8192              '' Set to support HighDPI
+    FLAG_WINDOW_MOUSE_PASSTHROUGH = 16384       '' Set to support mouse passthrough, only supported when FLAG_WINDOW_UNDECORATED
+    FLAG_BORDERLESS_WINDOWED_MODE = 32768       '' Set to run program in borderless windowed mode
+    FLAG_MSAA_4X_HINT = 32                  '' Set to try enabling MSAA 4X
+    FLAG_INTERLACED_HINT = 65536            '' Set to try enabling interlaced video format (for V3D)
+end enum
+#endif
+
+'' Trace log level
+'' NOTE: Organized by priority level
+#if defined(TIKO_OS_WINDOWS)
+type TraceLogLevel as int32
+enum
+    LOG_ALL = 0         '' Display all logs
+    LOG_TRACE           '' Trace logging, intended for internal use only
+    LOG_DEBUG           '' Debug logging, used for internal debugging, it should be disabled on release builds
+    LOG_INFO            '' Info logging, used for program execution info
+    LOG_WARNING         '' Warning logging, used on recoverable failures
+    LOG_ERROR           '' Error logging, used on unrecoverable failures
+    LOG_FATAL           '' Fatal logging, used to abort program: exit(EXIT_FAILURE)
+    LOG_NONE            '' Disable logging
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type TraceLogLevel as uint32
+enum
+    LOG_ALL = 0         '' Display all logs
+    LOG_TRACE           '' Trace logging, intended for internal use only
+    LOG_DEBUG           '' Debug logging, used for internal debugging, it should be disabled on release builds
+    LOG_INFO            '' Info logging, used for program execution info
+    LOG_WARNING         '' Warning logging, used on recoverable failures
+    LOG_ERROR           '' Error logging, used on unrecoverable failures
+    LOG_FATAL           '' Fatal logging, used to abort program: exit(EXIT_FAILURE)
+    LOG_NONE            '' Disable logging
+end enum
+#endif
+
+'' Keyboard keys (US keyboard layout)
+'' NOTE: Use GetKeyPressed() to allow redefining required keys for alternative layouts
+#if defined(TIKO_OS_WINDOWS)
+type KeyboardKey as int32
+enum
+    KEY_NULL = 0                    '' Key: NULL, used for no key pressed
+    '' Alphanumeric keys
+    KEY_APOSTROPHE = 39             '' Key: '
+    KEY_COMMA = 44                  '' Key: ,
+    KEY_MINUS = 45                  '' Key: -
+    KEY_PERIOD = 46                 '' Key: .
+    KEY_SLASH = 47                  '' Key: /
+    KEY_ZERO = 48                   '' Key: 0
+    KEY_ONE = 49                    '' Key: 1
+    KEY_TWO = 50                    '' Key: 2
+    KEY_THREE = 51                  '' Key: 3
+    KEY_FOUR = 52                   '' Key: 4
+    KEY_FIVE = 53                   '' Key: 5
+    KEY_SIX = 54                    '' Key: 6
+    KEY_SEVEN = 55                  '' Key: 7
+    KEY_EIGHT = 56                  '' Key: 8
+    KEY_NINE = 57                   '' Key: 9
+    KEY_SEMICOLON = 59              '' Key: ;
+    KEY_EQUAL = 61                  '' Key: =
+    KEY_A = 65                      '' Key: A | a
+    KEY_B = 66                      '' Key: B | b
+    KEY_C = 67                      '' Key: C | c
+    KEY_D = 68                      '' Key: D | d
+    KEY_E = 69                      '' Key: E | e
+    KEY_F = 70                      '' Key: F | f
+    KEY_G = 71                      '' Key: G | g
+    KEY_H = 72                      '' Key: H | h
+    KEY_I = 73                      '' Key: I | i
+    KEY_J = 74                      '' Key: J | j
+    KEY_K = 75                      '' Key: K | k
+    KEY_L = 76                      '' Key: L | l
+    KEY_M = 77                      '' Key: M | m
+    KEY_N = 78                      '' Key: N | n
+    KEY_O = 79                      '' Key: O | o
+    KEY_P = 80                      '' Key: P | p
+    KEY_Q = 81                      '' Key: Q | q
+    KEY_R = 82                      '' Key: R | r
+    KEY_S = 83                      '' Key: S | s
+    KEY_T = 84                      '' Key: T | t
+    KEY_U = 85                      '' Key: U | u
+    KEY_V = 86                      '' Key: V | v
+    KEY_W = 87                      '' Key: W | w
+    KEY_X = 88                      '' Key: X | x
+    KEY_Y = 89                      '' Key: Y | y
+    KEY_Z = 90                      '' Key: Z | z
+    KEY_LEFT_BRACKET = 91           '' Key: [
+    KEY_BACKSLASH = 92              '' Key: '\'
+    KEY_RIGHT_BRACKET = 93          '' Key: ]
+    KEY_GRAVE = 96                  '' Key: `
+    '' Function keys
+    KEY_SPACE = 32                  '' Key: Space
+    KEY_ESCAPE = 256                '' Key: Esc
+    KEY_ENTER = 257                 '' Key: Enter
+    KEY_TAB = 258                   '' Key: Tab
+    KEY_BACKSPACE = 259             '' Key: Backspace
+    KEY_INSERT = 260                '' Key: Ins
+    KEY_DELETE = 261                '' Key: Del
+    KEY_RIGHT = 262                 '' Key: Cursor right
+    KEY_LEFT = 263                  '' Key: Cursor left
+    KEY_DOWN = 264                  '' Key: Cursor down
+    KEY_UP = 265                    '' Key: Cursor up
+    KEY_PAGE_UP = 266               '' Key: Page up
+    KEY_PAGE_DOWN = 267             '' Key: Page down
+    KEY_HOME = 268                  '' Key: Home
+    KEY_END = 269                   '' Key: End
+    KEY_CAPS_LOCK = 280             '' Key: Caps lock
+    KEY_SCROLL_LOCK = 281           '' Key: Scroll down
+    KEY_NUM_LOCK = 282              '' Key: Num lock
+    KEY_PRINT_SCREEN = 283          '' Key: Print screen
+    KEY_PAUSE = 284                 '' Key: Pause
+    KEY_F1 = 290                    '' Key: F1
+    KEY_F2 = 291                    '' Key: F2
+    KEY_F3 = 292                    '' Key: F3
+    KEY_F4 = 293                    '' Key: F4
+    KEY_F5 = 294                    '' Key: F5
+    KEY_F6 = 295                    '' Key: F6
+    KEY_F7 = 296                    '' Key: F7
+    KEY_F8 = 297                    '' Key: F8
+    KEY_F9 = 298                    '' Key: F9
+    KEY_F10 = 299                   '' Key: F10
+    KEY_F11 = 300                   '' Key: F11
+    KEY_F12 = 301                   '' Key: F12
+    KEY_LEFT_SHIFT = 340            '' Key: Shift left
+    KEY_LEFT_CONTROL = 341          '' Key: Control left
+    KEY_LEFT_ALT = 342              '' Key: Alt left
+    KEY_LEFT_SUPER = 343            '' Key: Super left
+    KEY_RIGHT_SHIFT = 344           '' Key: Shift right
+    KEY_RIGHT_CONTROL = 345         '' Key: Control right
+    KEY_RIGHT_ALT = 346             '' Key: Alt right
+    KEY_RIGHT_SUPER = 347           '' Key: Super right
+    KEY_KB_MENU = 348               '' Key: KB menu
+    '' Keypad keys
+    KEY_KP_0 = 320                  '' Key: Keypad 0
+    KEY_KP_1 = 321                  '' Key: Keypad 1
+    KEY_KP_2 = 322                  '' Key: Keypad 2
+    KEY_KP_3 = 323                  '' Key: Keypad 3
+    KEY_KP_4 = 324                  '' Key: Keypad 4
+    KEY_KP_5 = 325                  '' Key: Keypad 5
+    KEY_KP_6 = 326                  '' Key: Keypad 6
+    KEY_KP_7 = 327                  '' Key: Keypad 7
+    KEY_KP_8 = 328                  '' Key: Keypad 8
+    KEY_KP_9 = 329                  '' Key: Keypad 9
+    KEY_KP_DECIMAL = 330            '' Key: Keypad .
+    KEY_KP_DIVIDE = 331             '' Key: Keypad /
+    KEY_KP_MULTIPLY = 332           '' Key: Keypad *
+    KEY_KP_SUBTRACT = 333           '' Key: Keypad -
+    KEY_KP_ADD = 334                '' Key: Keypad +
+    KEY_KP_ENTER = 335              '' Key: Keypad Enter
+    KEY_KP_EQUAL = 336              '' Key: Keypad =
+    '' Android key buttons
+    KEY_BACK = 4                    '' Key: Android back button
+    KEY_MENU = 5                    '' Key: Android menu button
+    KEY_VOLUME_UP = 24              '' Key: Android volume up button
+    KEY_VOLUME_DOWN = 25            '' Key: Android volume down button
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type KeyboardKey as uint32
+enum
+    KEY_NULL = 0                    '' Key: NULL, used for no key pressed
+    '' Alphanumeric keys
+    KEY_APOSTROPHE = 39             '' Key: '
+    KEY_COMMA = 44                  '' Key: ,
+    KEY_MINUS = 45                  '' Key: -
+    KEY_PERIOD = 46                 '' Key: .
+    KEY_SLASH = 47                  '' Key: /
+    KEY_ZERO = 48                   '' Key: 0
+    KEY_ONE = 49                    '' Key: 1
+    KEY_TWO = 50                    '' Key: 2
+    KEY_THREE = 51                  '' Key: 3
+    KEY_FOUR = 52                   '' Key: 4
+    KEY_FIVE = 53                   '' Key: 5
+    KEY_SIX = 54                    '' Key: 6
+    KEY_SEVEN = 55                  '' Key: 7
+    KEY_EIGHT = 56                  '' Key: 8
+    KEY_NINE = 57                   '' Key: 9
+    KEY_SEMICOLON = 59              '' Key: ;
+    KEY_EQUAL = 61                  '' Key: =
+    KEY_A = 65                      '' Key: A | a
+    KEY_B = 66                      '' Key: B | b
+    KEY_C = 67                      '' Key: C | c
+    KEY_D = 68                      '' Key: D | d
+    KEY_E = 69                      '' Key: E | e
+    KEY_F = 70                      '' Key: F | f
+    KEY_G = 71                      '' Key: G | g
+    KEY_H = 72                      '' Key: H | h
+    KEY_I = 73                      '' Key: I | i
+    KEY_J = 74                      '' Key: J | j
+    KEY_K = 75                      '' Key: K | k
+    KEY_L = 76                      '' Key: L | l
+    KEY_M = 77                      '' Key: M | m
+    KEY_N = 78                      '' Key: N | n
+    KEY_O = 79                      '' Key: O | o
+    KEY_P = 80                      '' Key: P | p
+    KEY_Q = 81                      '' Key: Q | q
+    KEY_R = 82                      '' Key: R | r
+    KEY_S = 83                      '' Key: S | s
+    KEY_T = 84                      '' Key: T | t
+    KEY_U = 85                      '' Key: U | u
+    KEY_V = 86                      '' Key: V | v
+    KEY_W = 87                      '' Key: W | w
+    KEY_X = 88                      '' Key: X | x
+    KEY_Y = 89                      '' Key: Y | y
+    KEY_Z = 90                      '' Key: Z | z
+    KEY_LEFT_BRACKET = 91           '' Key: [
+    KEY_BACKSLASH = 92              '' Key: '\'
+    KEY_RIGHT_BRACKET = 93          '' Key: ]
+    KEY_GRAVE = 96                  '' Key: `
+    '' Function keys
+    KEY_SPACE = 32                  '' Key: Space
+    KEY_ESCAPE = 256                '' Key: Esc
+    KEY_ENTER = 257                 '' Key: Enter
+    KEY_TAB = 258                   '' Key: Tab
+    KEY_BACKSPACE = 259             '' Key: Backspace
+    KEY_INSERT = 260                '' Key: Ins
+    KEY_DELETE = 261                '' Key: Del
+    KEY_RIGHT = 262                 '' Key: Cursor right
+    KEY_LEFT = 263                  '' Key: Cursor left
+    KEY_DOWN = 264                  '' Key: Cursor down
+    KEY_UP = 265                    '' Key: Cursor up
+    KEY_PAGE_UP = 266               '' Key: Page up
+    KEY_PAGE_DOWN = 267             '' Key: Page down
+    KEY_HOME = 268                  '' Key: Home
+    KEY_END = 269                   '' Key: End
+    KEY_CAPS_LOCK = 280             '' Key: Caps lock
+    KEY_SCROLL_LOCK = 281           '' Key: Scroll down
+    KEY_NUM_LOCK = 282              '' Key: Num lock
+    KEY_PRINT_SCREEN = 283          '' Key: Print screen
+    KEY_PAUSE = 284                 '' Key: Pause
+    KEY_F1 = 290                    '' Key: F1
+    KEY_F2 = 291                    '' Key: F2
+    KEY_F3 = 292                    '' Key: F3
+    KEY_F4 = 293                    '' Key: F4
+    KEY_F5 = 294                    '' Key: F5
+    KEY_F6 = 295                    '' Key: F6
+    KEY_F7 = 296                    '' Key: F7
+    KEY_F8 = 297                    '' Key: F8
+    KEY_F9 = 298                    '' Key: F9
+    KEY_F10 = 299                   '' Key: F10
+    KEY_F11 = 300                   '' Key: F11
+    KEY_F12 = 301                   '' Key: F12
+    KEY_LEFT_SHIFT = 340            '' Key: Shift left
+    KEY_LEFT_CONTROL = 341          '' Key: Control left
+    KEY_LEFT_ALT = 342              '' Key: Alt left
+    KEY_LEFT_SUPER = 343            '' Key: Super left
+    KEY_RIGHT_SHIFT = 344           '' Key: Shift right
+    KEY_RIGHT_CONTROL = 345         '' Key: Control right
+    KEY_RIGHT_ALT = 346             '' Key: Alt right
+    KEY_RIGHT_SUPER = 347           '' Key: Super right
+    KEY_KB_MENU = 348               '' Key: KB menu
+    '' Keypad keys
+    KEY_KP_0 = 320                  '' Key: Keypad 0
+    KEY_KP_1 = 321                  '' Key: Keypad 1
+    KEY_KP_2 = 322                  '' Key: Keypad 2
+    KEY_KP_3 = 323                  '' Key: Keypad 3
+    KEY_KP_4 = 324                  '' Key: Keypad 4
+    KEY_KP_5 = 325                  '' Key: Keypad 5
+    KEY_KP_6 = 326                  '' Key: Keypad 6
+    KEY_KP_7 = 327                  '' Key: Keypad 7
+    KEY_KP_8 = 328                  '' Key: Keypad 8
+    KEY_KP_9 = 329                  '' Key: Keypad 9
+    KEY_KP_DECIMAL = 330            '' Key: Keypad .
+    KEY_KP_DIVIDE = 331             '' Key: Keypad /
+    KEY_KP_MULTIPLY = 332           '' Key: Keypad *
+    KEY_KP_SUBTRACT = 333           '' Key: Keypad -
+    KEY_KP_ADD = 334                '' Key: Keypad +
+    KEY_KP_ENTER = 335              '' Key: Keypad Enter
+    KEY_KP_EQUAL = 336              '' Key: Keypad =
+    '' Android key buttons
+    KEY_BACK = 4                    '' Key: Android back button
+    KEY_MENU = 5                    '' Key: Android menu button
+    KEY_VOLUME_UP = 24              '' Key: Android volume up button
+    KEY_VOLUME_DOWN = 25            '' Key: Android volume down button
+end enum
+#endif
+
+'' Add backwards compatibility support for deprecated names
+#define MOUSE_LEFT_BUTTON MOUSE_BUTTON_LEFT
+#define MOUSE_RIGHT_BUTTON MOUSE_BUTTON_RIGHT
+#define MOUSE_MIDDLE_BUTTON MOUSE_BUTTON_MIDDLE
+
+'' Mouse buttons
+#if defined(TIKO_OS_WINDOWS)
+type MouseButton as int32
+enum
+    MOUSE_BUTTON_LEFT = 0           '' Mouse button left
+    MOUSE_BUTTON_RIGHT = 1          '' Mouse button right
+    MOUSE_BUTTON_MIDDLE = 2         '' Mouse button middle (pressed wheel)
+    MOUSE_BUTTON_SIDE = 3           '' Mouse button side (advanced mouse device)
+    MOUSE_BUTTON_EXTRA = 4          '' Mouse button extra (advanced mouse device)
+    MOUSE_BUTTON_FORWARD = 5        '' Mouse button forward (advanced mouse device)
+    MOUSE_BUTTON_BACK = 6           '' Mouse button back (advanced mouse device)
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type MouseButton as uint32
+enum
+    MOUSE_BUTTON_LEFT = 0           '' Mouse button left
+    MOUSE_BUTTON_RIGHT = 1          '' Mouse button right
+    MOUSE_BUTTON_MIDDLE = 2         '' Mouse button middle (pressed wheel)
+    MOUSE_BUTTON_SIDE = 3           '' Mouse button side (advanced mouse device)
+    MOUSE_BUTTON_EXTRA = 4          '' Mouse button extra (advanced mouse device)
+    MOUSE_BUTTON_FORWARD = 5        '' Mouse button forward (advanced mouse device)
+    MOUSE_BUTTON_BACK = 6           '' Mouse button back (advanced mouse device)
+end enum
+#endif
+
+'' Mouse cursor
+#if defined(TIKO_OS_WINDOWS)
+type MouseCursor as int32
+enum
+    MOUSE_CURSOR_DEFAULT = 0            '' Default pointer shape
+    MOUSE_CURSOR_ARROW = 1              '' Arrow shape
+    MOUSE_CURSOR_IBEAM = 2              '' Text writing cursor shape
+    MOUSE_CURSOR_CROSSHAIR = 3          '' Cross shape
+    MOUSE_CURSOR_POINTING_HAND = 4      '' Pointing hand cursor
+    MOUSE_CURSOR_RESIZE_EW = 5          '' Horizontal resize/move arrow shape
+    MOUSE_CURSOR_RESIZE_NS = 6          '' Vertical resize/move arrow shape
+    MOUSE_CURSOR_RESIZE_NWSE = 7        '' Top-left to bottom-right diagonal resize/move arrow shape
+    MOUSE_CURSOR_RESIZE_NESW = 8        '' The top-right to bottom-left diagonal resize/move arrow shape
+    MOUSE_CURSOR_RESIZE_ALL = 9         '' The omnidirectional resize/move cursor shape
+    MOUSE_CURSOR_NOT_ALLOWED = 10       '' The operation-not-allowed shape
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type MouseCursor as uint32
+enum
+    MOUSE_CURSOR_DEFAULT = 0            '' Default pointer shape
+    MOUSE_CURSOR_ARROW = 1              '' Arrow shape
+    MOUSE_CURSOR_IBEAM = 2              '' Text writing cursor shape
+    MOUSE_CURSOR_CROSSHAIR = 3          '' Cross shape
+    MOUSE_CURSOR_POINTING_HAND = 4      '' Pointing hand cursor
+    MOUSE_CURSOR_RESIZE_EW = 5          '' Horizontal resize/move arrow shape
+    MOUSE_CURSOR_RESIZE_NS = 6          '' Vertical resize/move arrow shape
+    MOUSE_CURSOR_RESIZE_NWSE = 7        '' Top-left to bottom-right diagonal resize/move arrow shape
+    MOUSE_CURSOR_RESIZE_NESW = 8        '' The top-right to bottom-left diagonal resize/move arrow shape
+    MOUSE_CURSOR_RESIZE_ALL = 9         '' The omnidirectional resize/move cursor shape
+    MOUSE_CURSOR_NOT_ALLOWED = 10       '' The operation-not-allowed shape
+end enum
+#endif
+
+'' Gamepad buttons
+#if defined(TIKO_OS_WINDOWS)
+type GamepadButton as int32
+enum
+    GAMEPAD_BUTTON_UNKNOWN = 0          '' Unknown button, for error checking
+    GAMEPAD_BUTTON_LEFT_FACE_UP         '' Gamepad left DPAD up button
+    GAMEPAD_BUTTON_LEFT_FACE_RIGHT      '' Gamepad left DPAD right button
+    GAMEPAD_BUTTON_LEFT_FACE_DOWN       '' Gamepad left DPAD down button
+    GAMEPAD_BUTTON_LEFT_FACE_LEFT       '' Gamepad left DPAD left button
+    GAMEPAD_BUTTON_RIGHT_FACE_UP        '' Gamepad right button up (i.e. PS3: Triangle, Xbox: Y)
+    GAMEPAD_BUTTON_RIGHT_FACE_RIGHT     '' Gamepad right button right (i.e. PS3: Circle, Xbox: B)
+    GAMEPAD_BUTTON_RIGHT_FACE_DOWN      '' Gamepad right button down (i.e. PS3: Cross, Xbox: A)
+    GAMEPAD_BUTTON_RIGHT_FACE_LEFT      '' Gamepad right button left (i.e. PS3: Square, Xbox: X)
+    GAMEPAD_BUTTON_LEFT_TRIGGER_1       '' Gamepad top/back trigger left (first), it could be a trailing button
+    GAMEPAD_BUTTON_LEFT_TRIGGER_2       '' Gamepad top/back trigger left (second), it could be a trailing button
+    GAMEPAD_BUTTON_RIGHT_TRIGGER_1      '' Gamepad top/back trigger right (first), it could be a trailing button
+    GAMEPAD_BUTTON_RIGHT_TRIGGER_2      '' Gamepad top/back trigger right (second), it could be a trailing button
+    GAMEPAD_BUTTON_MIDDLE_LEFT          '' Gamepad center buttons, left one (i.e. PS3: Select)
+    GAMEPAD_BUTTON_MIDDLE               '' Gamepad center buttons, middle one (i.e. PS3: PS, Xbox: XBOX)
+    GAMEPAD_BUTTON_MIDDLE_RIGHT         '' Gamepad center buttons, right one (i.e. PS3: Start)
+    GAMEPAD_BUTTON_LEFT_THUMB           '' Gamepad joystick pressed button left
+    GAMEPAD_BUTTON_RIGHT_THUMB          '' Gamepad joystick pressed button right
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type GamepadButton as uint32
+enum
+    GAMEPAD_BUTTON_UNKNOWN = 0          '' Unknown button, for error checking
+    GAMEPAD_BUTTON_LEFT_FACE_UP         '' Gamepad left DPAD up button
+    GAMEPAD_BUTTON_LEFT_FACE_RIGHT      '' Gamepad left DPAD right button
+    GAMEPAD_BUTTON_LEFT_FACE_DOWN       '' Gamepad left DPAD down button
+    GAMEPAD_BUTTON_LEFT_FACE_LEFT       '' Gamepad left DPAD left button
+    GAMEPAD_BUTTON_RIGHT_FACE_UP        '' Gamepad right button up (i.e. PS3: Triangle, Xbox: Y)
+    GAMEPAD_BUTTON_RIGHT_FACE_RIGHT     '' Gamepad right button right (i.e. PS3: Circle, Xbox: B)
+    GAMEPAD_BUTTON_RIGHT_FACE_DOWN      '' Gamepad right button down (i.e. PS3: Cross, Xbox: A)
+    GAMEPAD_BUTTON_RIGHT_FACE_LEFT      '' Gamepad right button left (i.e. PS3: Square, Xbox: X)
+    GAMEPAD_BUTTON_LEFT_TRIGGER_1       '' Gamepad top/back trigger left (first), it could be a trailing button
+    GAMEPAD_BUTTON_LEFT_TRIGGER_2       '' Gamepad top/back trigger left (second), it could be a trailing button
+    GAMEPAD_BUTTON_RIGHT_TRIGGER_1      '' Gamepad top/back trigger right (first), it could be a trailing button
+    GAMEPAD_BUTTON_RIGHT_TRIGGER_2      '' Gamepad top/back trigger right (second), it could be a trailing button
+    GAMEPAD_BUTTON_MIDDLE_LEFT          '' Gamepad center buttons, left one (i.e. PS3: Select)
+    GAMEPAD_BUTTON_MIDDLE               '' Gamepad center buttons, middle one (i.e. PS3: PS, Xbox: XBOX)
+    GAMEPAD_BUTTON_MIDDLE_RIGHT         '' Gamepad center buttons, right one (i.e. PS3: Start)
+    GAMEPAD_BUTTON_LEFT_THUMB           '' Gamepad joystick pressed button left
+    GAMEPAD_BUTTON_RIGHT_THUMB          '' Gamepad joystick pressed button right
+end enum
+#endif
+
+'' Gamepad axes
+#if defined(TIKO_OS_WINDOWS)
+type GamepadAxis as int32
+enum
+    GAMEPAD_AXIS_LEFT_X = 0             '' Gamepad left stick X axis
+    GAMEPAD_AXIS_LEFT_Y = 1             '' Gamepad left stick Y axis
+    GAMEPAD_AXIS_RIGHT_X = 2            '' Gamepad right stick X axis
+    GAMEPAD_AXIS_RIGHT_Y = 3            '' Gamepad right stick Y axis
+    GAMEPAD_AXIS_LEFT_TRIGGER = 4       '' Gamepad back trigger left, pressure level: [1..-1]
+    GAMEPAD_AXIS_RIGHT_TRIGGER = 5      '' Gamepad back trigger right, pressure level: [1..-1]
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type GamepadAxis as uint32
+enum
+    GAMEPAD_AXIS_LEFT_X = 0             '' Gamepad left stick X axis
+    GAMEPAD_AXIS_LEFT_Y = 1             '' Gamepad left stick Y axis
+    GAMEPAD_AXIS_RIGHT_X = 2            '' Gamepad right stick X axis
+    GAMEPAD_AXIS_RIGHT_Y = 3            '' Gamepad right stick Y axis
+    GAMEPAD_AXIS_LEFT_TRIGGER = 4       '' Gamepad back trigger left, pressure level: [1..-1]
+    GAMEPAD_AXIS_RIGHT_TRIGGER = 5      '' Gamepad back trigger right, pressure level: [1..-1]
+end enum
+#endif
+
+'' Material map index
+#if defined(TIKO_OS_WINDOWS)
+type MaterialMapIndex as int32
+enum
+    MATERIAL_MAP_ALBEDO = 0         '' Albedo material (same as: MATERIAL_MAP_DIFFUSE)
+    MATERIAL_MAP_METALNESS          '' Metalness material (same as: MATERIAL_MAP_SPECULAR)
+    MATERIAL_MAP_NORMAL             '' Normal material
+    MATERIAL_MAP_ROUGHNESS          '' Roughness material
+    MATERIAL_MAP_OCCLUSION          '' Ambient occlusion material
+    MATERIAL_MAP_EMISSION           '' Emission material
+    MATERIAL_MAP_HEIGHT             '' Heightmap material
+    MATERIAL_MAP_CUBEMAP            '' Cubemap material (NOTE: Uses GL_TEXTURE_CUBE_MAP)
+    MATERIAL_MAP_IRRADIANCE         '' Irradiance material (NOTE: Uses GL_TEXTURE_CUBE_MAP)
+    MATERIAL_MAP_PREFILTER          '' Prefilter material (NOTE: Uses GL_TEXTURE_CUBE_MAP)
+    MATERIAL_MAP_BRDF               '' Brdf material
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type MaterialMapIndex as uint32
+enum
+    MATERIAL_MAP_ALBEDO = 0         '' Albedo material (same as: MATERIAL_MAP_DIFFUSE)
+    MATERIAL_MAP_METALNESS          '' Metalness material (same as: MATERIAL_MAP_SPECULAR)
+    MATERIAL_MAP_NORMAL             '' Normal material
+    MATERIAL_MAP_ROUGHNESS          '' Roughness material
+    MATERIAL_MAP_OCCLUSION          '' Ambient occlusion material
+    MATERIAL_MAP_EMISSION           '' Emission material
+    MATERIAL_MAP_HEIGHT             '' Heightmap material
+    MATERIAL_MAP_CUBEMAP            '' Cubemap material (NOTE: Uses GL_TEXTURE_CUBE_MAP)
+    MATERIAL_MAP_IRRADIANCE         '' Irradiance material (NOTE: Uses GL_TEXTURE_CUBE_MAP)
+    MATERIAL_MAP_PREFILTER          '' Prefilter material (NOTE: Uses GL_TEXTURE_CUBE_MAP)
+    MATERIAL_MAP_BRDF               '' Brdf material
+end enum
+#endif
+
+#define MATERIAL_MAP_DIFFUSE MATERIAL_MAP_ALBEDO
+#define MATERIAL_MAP_SPECULAR MATERIAL_MAP_METALNESS
+
+'' Shader location index
+'' NOTE: Some locations are tried to be set automatically on shader loading,
+'' but only if default attributes/uniforms names are found, check config.h for names
+#if defined(TIKO_OS_WINDOWS)
+type ShaderLocationIndex as int32
+enum
+    SHADER_LOC_VERTEX_POSITION = 0  '' Shader location: vertex attribute: position
+    SHADER_LOC_VERTEX_TEXCOORD01    '' Shader location: vertex attribute: texcoord01
+    SHADER_LOC_VERTEX_TEXCOORD02    '' Shader location: vertex attribute: texcoord02
+    SHADER_LOC_VERTEX_NORMAL        '' Shader location: vertex attribute: normal
+    SHADER_LOC_VERTEX_TANGENT       '' Shader location: vertex attribute: tangent
+    SHADER_LOC_VERTEX_COLOR         '' Shader location: vertex attribute: color
+    SHADER_LOC_MATRIX_MVP           '' Shader location: matrix uniform: model-view-projection
+    SHADER_LOC_MATRIX_VIEW          '' Shader location: matrix uniform: view (camera transform)
+    SHADER_LOC_MATRIX_PROJECTION    '' Shader location: matrix uniform: projection
+    SHADER_LOC_MATRIX_MODEL         '' Shader location: matrix uniform: model (transform)
+    SHADER_LOC_MATRIX_NORMAL        '' Shader location: matrix uniform: normal
+    SHADER_LOC_VECTOR_VIEW          '' Shader location: vector uniform: view
+    SHADER_LOC_COLOR_DIFFUSE        '' Shader location: vector uniform: diffuse color
+    SHADER_LOC_COLOR_SPECULAR       '' Shader location: vector uniform: specular color
+    SHADER_LOC_COLOR_AMBIENT        '' Shader location: vector uniform: ambient color
+    SHADER_LOC_MAP_ALBEDO           '' Shader location: sampler2d texture: albedo (same as: SHADER_LOC_MAP_DIFFUSE)
+    SHADER_LOC_MAP_METALNESS        '' Shader location: sampler2d texture: metalness (same as: SHADER_LOC_MAP_SPECULAR)
+    SHADER_LOC_MAP_NORMAL           '' Shader location: sampler2d texture: normal
+    SHADER_LOC_MAP_ROUGHNESS        '' Shader location: sampler2d texture: roughness
+    SHADER_LOC_MAP_OCCLUSION        '' Shader location: sampler2d texture: occlusion
+    SHADER_LOC_MAP_EMISSION         '' Shader location: sampler2d texture: emission
+    SHADER_LOC_MAP_HEIGHT           '' Shader location: sampler2d texture: heightmap
+    SHADER_LOC_MAP_CUBEMAP          '' Shader location: samplerCube texture: cubemap
+    SHADER_LOC_MAP_IRRADIANCE       '' Shader location: samplerCube texture: irradiance
+    SHADER_LOC_MAP_PREFILTER        '' Shader location: samplerCube texture: prefilter
+    SHADER_LOC_MAP_BRDF             '' Shader location: sampler2d texture: brdf
+    SHADER_LOC_VERTEX_BONEIDS       '' Shader location: vertex attribute: bone indices
+    SHADER_LOC_VERTEX_BONEWEIGHTS   '' Shader location: vertex attribute: bone weights
+    SHADER_LOC_MATRIX_BONETRANSFORMS  '' Shader location: matrix attribute: bone transforms (animation)
+    SHADER_LOC_VERTEX_INSTANCETRANSFORM '' Shader location: vertex attribute: instance transforms
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type ShaderLocationIndex as uint32
+enum
+    SHADER_LOC_VERTEX_POSITION = 0  '' Shader location: vertex attribute: position
+    SHADER_LOC_VERTEX_TEXCOORD01    '' Shader location: vertex attribute: texcoord01
+    SHADER_LOC_VERTEX_TEXCOORD02    '' Shader location: vertex attribute: texcoord02
+    SHADER_LOC_VERTEX_NORMAL        '' Shader location: vertex attribute: normal
+    SHADER_LOC_VERTEX_TANGENT       '' Shader location: vertex attribute: tangent
+    SHADER_LOC_VERTEX_COLOR         '' Shader location: vertex attribute: color
+    SHADER_LOC_MATRIX_MVP           '' Shader location: matrix uniform: model-view-projection
+    SHADER_LOC_MATRIX_VIEW          '' Shader location: matrix uniform: view (camera transform)
+    SHADER_LOC_MATRIX_PROJECTION    '' Shader location: matrix uniform: projection
+    SHADER_LOC_MATRIX_MODEL         '' Shader location: matrix uniform: model (transform)
+    SHADER_LOC_MATRIX_NORMAL        '' Shader location: matrix uniform: normal
+    SHADER_LOC_VECTOR_VIEW          '' Shader location: vector uniform: view
+    SHADER_LOC_COLOR_DIFFUSE        '' Shader location: vector uniform: diffuse color
+    SHADER_LOC_COLOR_SPECULAR       '' Shader location: vector uniform: specular color
+    SHADER_LOC_COLOR_AMBIENT        '' Shader location: vector uniform: ambient color
+    SHADER_LOC_MAP_ALBEDO           '' Shader location: sampler2d texture: albedo (same as: SHADER_LOC_MAP_DIFFUSE)
+    SHADER_LOC_MAP_METALNESS        '' Shader location: sampler2d texture: metalness (same as: SHADER_LOC_MAP_SPECULAR)
+    SHADER_LOC_MAP_NORMAL           '' Shader location: sampler2d texture: normal
+    SHADER_LOC_MAP_ROUGHNESS        '' Shader location: sampler2d texture: roughness
+    SHADER_LOC_MAP_OCCLUSION        '' Shader location: sampler2d texture: occlusion
+    SHADER_LOC_MAP_EMISSION         '' Shader location: sampler2d texture: emission
+    SHADER_LOC_MAP_HEIGHT           '' Shader location: sampler2d texture: heightmap
+    SHADER_LOC_MAP_CUBEMAP          '' Shader location: samplerCube texture: cubemap
+    SHADER_LOC_MAP_IRRADIANCE       '' Shader location: samplerCube texture: irradiance
+    SHADER_LOC_MAP_PREFILTER        '' Shader location: samplerCube texture: prefilter
+    SHADER_LOC_MAP_BRDF             '' Shader location: sampler2d texture: brdf
+    SHADER_LOC_VERTEX_BONEIDS       '' Shader location: vertex attribute: bone indices
+    SHADER_LOC_VERTEX_BONEWEIGHTS   '' Shader location: vertex attribute: bone weights
+    SHADER_LOC_MATRIX_BONETRANSFORMS  '' Shader location: matrix attribute: bone transforms (animation)
+    SHADER_LOC_VERTEX_INSTANCETRANSFORM '' Shader location: vertex attribute: instance transforms
+end enum
+#endif
+
+#define SHADER_LOC_MAP_DIFFUSE SHADER_LOC_MAP_ALBEDO
+#define SHADER_LOC_MAP_SPECULAR SHADER_LOC_MAP_METALNESS
+
+'' Shader uniform data type
+#if defined(TIKO_OS_WINDOWS)
+type ShaderUniformDataType as int32
+enum
+    SHADER_UNIFORM_FLOAT = 0        '' Shader uniform type: float
+    SHADER_UNIFORM_VEC2             '' Shader uniform type: vec2 (2 float)
+    SHADER_UNIFORM_VEC3             '' Shader uniform type: vec3 (3 float)
+    SHADER_UNIFORM_VEC4             '' Shader uniform type: vec4 (4 float)
+    SHADER_UNIFORM_INT              '' Shader uniform type: int
+    SHADER_UNIFORM_IVEC2            '' Shader uniform type: ivec2 (2 int)
+    SHADER_UNIFORM_IVEC3            '' Shader uniform type: ivec3 (3 int)
+    SHADER_UNIFORM_IVEC4            '' Shader uniform type: ivec4 (4 int)
+    SHADER_UNIFORM_UINT             '' Shader uniform type: unsigned int
+    SHADER_UNIFORM_UIVEC2           '' Shader uniform type: uivec2 (2 unsigned int)
+    SHADER_UNIFORM_UIVEC3           '' Shader uniform type: uivec3 (3 unsigned int)
+    SHADER_UNIFORM_UIVEC4           '' Shader uniform type: uivec4 (4 unsigned int)
+    SHADER_UNIFORM_SAMPLER2D        '' Shader uniform type: sampler2d
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type ShaderUniformDataType as uint32
+enum
+    SHADER_UNIFORM_FLOAT = 0        '' Shader uniform type: float
+    SHADER_UNIFORM_VEC2             '' Shader uniform type: vec2 (2 float)
+    SHADER_UNIFORM_VEC3             '' Shader uniform type: vec3 (3 float)
+    SHADER_UNIFORM_VEC4             '' Shader uniform type: vec4 (4 float)
+    SHADER_UNIFORM_INT              '' Shader uniform type: int
+    SHADER_UNIFORM_IVEC2            '' Shader uniform type: ivec2 (2 int)
+    SHADER_UNIFORM_IVEC3            '' Shader uniform type: ivec3 (3 int)
+    SHADER_UNIFORM_IVEC4            '' Shader uniform type: ivec4 (4 int)
+    SHADER_UNIFORM_UINT             '' Shader uniform type: unsigned int
+    SHADER_UNIFORM_UIVEC2           '' Shader uniform type: uivec2 (2 unsigned int)
+    SHADER_UNIFORM_UIVEC3           '' Shader uniform type: uivec3 (3 unsigned int)
+    SHADER_UNIFORM_UIVEC4           '' Shader uniform type: uivec4 (4 unsigned int)
+    SHADER_UNIFORM_SAMPLER2D        '' Shader uniform type: sampler2d
+end enum
+#endif
+
+'' Shader attribute data types
+#if defined(TIKO_OS_WINDOWS)
+type ShaderAttributeDataType as int32
+enum
+    SHADER_ATTRIB_FLOAT = 0         '' Shader attribute type: float
+    SHADER_ATTRIB_VEC2              '' Shader attribute type: vec2 (2 float)
+    SHADER_ATTRIB_VEC3              '' Shader attribute type: vec3 (3 float)
+    SHADER_ATTRIB_VEC4              '' Shader attribute type: vec4 (4 float)
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type ShaderAttributeDataType as uint32
+enum
+    SHADER_ATTRIB_FLOAT = 0         '' Shader attribute type: float
+    SHADER_ATTRIB_VEC2              '' Shader attribute type: vec2 (2 float)
+    SHADER_ATTRIB_VEC3              '' Shader attribute type: vec3 (3 float)
+    SHADER_ATTRIB_VEC4              '' Shader attribute type: vec4 (4 float)
+end enum
+#endif
+
+'' Pixel formats
+'' NOTE: Support depends on OpenGL version and platform
+#if defined(TIKO_OS_WINDOWS)
+type PixelFormat as int32
+enum
+    PIXELFORMAT_UNCOMPRESSED_GRAYSCALE = 1  '' 8 bit per pixel (no alpha)
+    PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA     '' 8*2 bpp (2 channels)
+    PIXELFORMAT_UNCOMPRESSED_R5G6B5         '' 16 bpp
+    PIXELFORMAT_UNCOMPRESSED_R8G8B8         '' 24 bpp
+    PIXELFORMAT_UNCOMPRESSED_R5G5B5A1       '' 16 bpp (1 bit alpha)
+    PIXELFORMAT_UNCOMPRESSED_R4G4B4A4       '' 16 bpp (4 bit alpha)
+    PIXELFORMAT_UNCOMPRESSED_R8G8B8A8       '' 32 bpp
+    PIXELFORMAT_UNCOMPRESSED_R32            '' 32 bpp (1 channel - float)
+    PIXELFORMAT_UNCOMPRESSED_R32G32B32      '' 32*3 bpp (3 channels - float)
+    PIXELFORMAT_UNCOMPRESSED_R32G32B32A32   '' 32*4 bpp (4 channels - float)
+    PIXELFORMAT_UNCOMPRESSED_R16            '' 16 bpp (1 channel - half float)
+    PIXELFORMAT_UNCOMPRESSED_R16G16B16      '' 16*3 bpp (3 channels - half float)
+    PIXELFORMAT_UNCOMPRESSED_R16G16B16A16   '' 16*4 bpp (4 channels - half float)
+    PIXELFORMAT_COMPRESSED_DXT1_RGB         '' 4 bpp (no alpha)
+    PIXELFORMAT_COMPRESSED_DXT1_RGBA        '' 4 bpp (1 bit alpha)
+    PIXELFORMAT_COMPRESSED_DXT3_RGBA        '' 8 bpp
+    PIXELFORMAT_COMPRESSED_DXT5_RGBA        '' 8 bpp
+    PIXELFORMAT_COMPRESSED_ETC1_RGB         '' 4 bpp
+    PIXELFORMAT_COMPRESSED_ETC2_RGB         '' 4 bpp
+    PIXELFORMAT_COMPRESSED_ETC2_EAC_RGBA    '' 8 bpp
+    PIXELFORMAT_COMPRESSED_PVRT_RGB         '' 4 bpp
+    PIXELFORMAT_COMPRESSED_PVRT_RGBA        '' 4 bpp
+    PIXELFORMAT_COMPRESSED_ASTC_4x4_RGBA    '' 8 bpp
+    PIXELFORMAT_COMPRESSED_ASTC_8x8_RGBA    '' 2 bpp
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type PixelFormat as uint32
+enum
+    PIXELFORMAT_UNCOMPRESSED_GRAYSCALE = 1  '' 8 bit per pixel (no alpha)
+    PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA     '' 8*2 bpp (2 channels)
+    PIXELFORMAT_UNCOMPRESSED_R5G6B5         '' 16 bpp
+    PIXELFORMAT_UNCOMPRESSED_R8G8B8         '' 24 bpp
+    PIXELFORMAT_UNCOMPRESSED_R5G5B5A1       '' 16 bpp (1 bit alpha)
+    PIXELFORMAT_UNCOMPRESSED_R4G4B4A4       '' 16 bpp (4 bit alpha)
+    PIXELFORMAT_UNCOMPRESSED_R8G8B8A8       '' 32 bpp
+    PIXELFORMAT_UNCOMPRESSED_R32            '' 32 bpp (1 channel - float)
+    PIXELFORMAT_UNCOMPRESSED_R32G32B32      '' 32*3 bpp (3 channels - float)
+    PIXELFORMAT_UNCOMPRESSED_R32G32B32A32   '' 32*4 bpp (4 channels - float)
+    PIXELFORMAT_UNCOMPRESSED_R16            '' 16 bpp (1 channel - half float)
+    PIXELFORMAT_UNCOMPRESSED_R16G16B16      '' 16*3 bpp (3 channels - half float)
+    PIXELFORMAT_UNCOMPRESSED_R16G16B16A16   '' 16*4 bpp (4 channels - half float)
+    PIXELFORMAT_COMPRESSED_DXT1_RGB         '' 4 bpp (no alpha)
+    PIXELFORMAT_COMPRESSED_DXT1_RGBA        '' 4 bpp (1 bit alpha)
+    PIXELFORMAT_COMPRESSED_DXT3_RGBA        '' 8 bpp
+    PIXELFORMAT_COMPRESSED_DXT5_RGBA        '' 8 bpp
+    PIXELFORMAT_COMPRESSED_ETC1_RGB         '' 4 bpp
+    PIXELFORMAT_COMPRESSED_ETC2_RGB         '' 4 bpp
+    PIXELFORMAT_COMPRESSED_ETC2_EAC_RGBA    '' 8 bpp
+    PIXELFORMAT_COMPRESSED_PVRT_RGB         '' 4 bpp
+    PIXELFORMAT_COMPRESSED_PVRT_RGBA        '' 4 bpp
+    PIXELFORMAT_COMPRESSED_ASTC_4x4_RGBA    '' 8 bpp
+    PIXELFORMAT_COMPRESSED_ASTC_8x8_RGBA    '' 2 bpp
+end enum
+#endif
+
+'' Texture parameters: filter mode
+'' NOTE 1: Filtering considers mipmaps if available in the texture
+'' NOTE 2: Filter is accordingly set for minification and magnification
+#if defined(TIKO_OS_WINDOWS)
+type TextureFilter as int32
+enum
+    TEXTURE_FILTER_POINT = 0                '' No filter, pixel approximation
+    TEXTURE_FILTER_BILINEAR                 '' Linear filtering
+    TEXTURE_FILTER_TRILINEAR                '' Trilinear filtering (linear with mipmaps)
+    TEXTURE_FILTER_ANISOTROPIC_4X           '' Anisotropic filtering 4x
+    TEXTURE_FILTER_ANISOTROPIC_8X           '' Anisotropic filtering 8x
+    TEXTURE_FILTER_ANISOTROPIC_16X          '' Anisotropic filtering 16x
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type TextureFilter as uint32
+enum
+    TEXTURE_FILTER_POINT = 0                '' No filter, pixel approximation
+    TEXTURE_FILTER_BILINEAR                 '' Linear filtering
+    TEXTURE_FILTER_TRILINEAR                '' Trilinear filtering (linear with mipmaps)
+    TEXTURE_FILTER_ANISOTROPIC_4X           '' Anisotropic filtering 4x
+    TEXTURE_FILTER_ANISOTROPIC_8X           '' Anisotropic filtering 8x
+    TEXTURE_FILTER_ANISOTROPIC_16X          '' Anisotropic filtering 16x
+end enum
+#endif
+
+'' Texture parameters: wrap mode
+#if defined(TIKO_OS_WINDOWS)
+type TextureWrap as int32
+enum
+    TEXTURE_WRAP_REPEAT = 0                 '' Repeats texture in tiled mode
+    TEXTURE_WRAP_CLAMP                      '' Clamps texture to edge pixel in tiled mode
+    TEXTURE_WRAP_MIRROR_REPEAT              '' Mirrors and repeats the texture in tiled mode
+    TEXTURE_WRAP_MIRROR_CLAMP               '' Mirrors and clamps to border the texture in tiled mode
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type TextureWrap as uint32
+enum
+    TEXTURE_WRAP_REPEAT = 0                 '' Repeats texture in tiled mode
+    TEXTURE_WRAP_CLAMP                      '' Clamps texture to edge pixel in tiled mode
+    TEXTURE_WRAP_MIRROR_REPEAT              '' Mirrors and repeats the texture in tiled mode
+    TEXTURE_WRAP_MIRROR_CLAMP               '' Mirrors and clamps to border the texture in tiled mode
+end enum
+#endif
+
+'' Cubemap layouts
+#if defined(TIKO_OS_WINDOWS)
+type CubemapLayout as int32
+enum
+    CUBEMAP_LAYOUT_AUTO_DETECT = 0          '' Automatically detect layout type
+    CUBEMAP_LAYOUT_LINE_VERTICAL            '' Layout is defined by a vertical line with faces
+    CUBEMAP_LAYOUT_LINE_HORIZONTAL          '' Layout is defined by a horizontal line with faces
+    CUBEMAP_LAYOUT_CROSS_THREE_BY_FOUR      '' Layout is defined by a 3x4 cross with cubemap faces
+    CUBEMAP_LAYOUT_CROSS_FOUR_BY_THREE     '' Layout is defined by a 4x3 cross with cubemap faces
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type CubemapLayout as uint32
+enum
+    CUBEMAP_LAYOUT_AUTO_DETECT = 0          '' Automatically detect layout type
+    CUBEMAP_LAYOUT_LINE_VERTICAL            '' Layout is defined by a vertical line with faces
+    CUBEMAP_LAYOUT_LINE_HORIZONTAL          '' Layout is defined by a horizontal line with faces
+    CUBEMAP_LAYOUT_CROSS_THREE_BY_FOUR      '' Layout is defined by a 3x4 cross with cubemap faces
+    CUBEMAP_LAYOUT_CROSS_FOUR_BY_THREE     '' Layout is defined by a 4x3 cross with cubemap faces
+end enum
+#endif
+
+'' Font type, defines generation method
+#if defined(TIKO_OS_WINDOWS)
+type FontType as int32
+enum
+    FONT_DEFAULT = 0                '' Default font generation, anti-aliased
+    FONT_BITMAP                     '' Bitmap font generation, no anti-aliasing
+    FONT_SDF                        '' SDF font generation, requires external shader
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type FontType as uint32
+enum
+    FONT_DEFAULT = 0                '' Default font generation, anti-aliased
+    FONT_BITMAP                     '' Bitmap font generation, no anti-aliasing
+    FONT_SDF                        '' SDF font generation, requires external shader
+end enum
+#endif
+
+'' Color blending modes (pre-defined)
+#if defined(TIKO_OS_WINDOWS)
+type BlendMode as int32
+enum
+    BLEND_ALPHA = 0                 '' Blend textures considering alpha (default)
+    BLEND_ADDITIVE                  '' Blend textures adding colors
+    BLEND_MULTIPLIED                '' Blend textures multiplying colors
+    BLEND_ADD_COLORS                '' Blend textures adding colors (alternative)
+    BLEND_SUBTRACT_COLORS           '' Blend textures subtracting colors (alternative)
+    BLEND_ALPHA_PREMULTIPLY         '' Blend premultiplied textures considering alpha
+    BLEND_CUSTOM                    '' Blend textures using custom src/dst factors (use rlSetBlendFactors())
+    BLEND_CUSTOM_SEPARATE           '' Blend textures using custom rgb/alpha separate src/dst factors (use rlSetBlendFactorsSeparate())
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type BlendMode as uint32
+enum
+    BLEND_ALPHA = 0                 '' Blend textures considering alpha (default)
+    BLEND_ADDITIVE                  '' Blend textures adding colors
+    BLEND_MULTIPLIED                '' Blend textures multiplying colors
+    BLEND_ADD_COLORS                '' Blend textures adding colors (alternative)
+    BLEND_SUBTRACT_COLORS           '' Blend textures subtracting colors (alternative)
+    BLEND_ALPHA_PREMULTIPLY         '' Blend premultiplied textures considering alpha
+    BLEND_CUSTOM                    '' Blend textures using custom src/dst factors (use rlSetBlendFactors())
+    BLEND_CUSTOM_SEPARATE           '' Blend textures using custom rgb/alpha separate src/dst factors (use rlSetBlendFactorsSeparate())
+end enum
+#endif
+
+'' Gesture
+'' NOTE: Provided as bit-wise flags to enable only desired gestures
+#if defined(TIKO_OS_WINDOWS)
+type Gesture as int32
+enum
+    GESTURE_NONE = 0                '' No gesture
+    GESTURE_TAP = 1                 '' Tap gesture
+    GESTURE_DOUBLETAP = 2           '' Double tap gesture
+    GESTURE_HOLD = 4                '' Hold gesture
+    GESTURE_DRAG = 8                '' Drag gesture
+    GESTURE_SWIPE_RIGHT = 16        '' Swipe right gesture
+    GESTURE_SWIPE_LEFT = 32         '' Swipe left gesture
+    GESTURE_SWIPE_UP = 64           '' Swipe up gesture
+    GESTURE_SWIPE_DOWN = 128        '' Swipe down gesture
+    GESTURE_PINCH_IN = 256          '' Pinch in gesture
+    GESTURE_PINCH_OUT = 512         '' Pinch out gesture
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type Gesture as uint32
+enum
+    GESTURE_NONE = 0                '' No gesture
+    GESTURE_TAP = 1                 '' Tap gesture
+    GESTURE_DOUBLETAP = 2           '' Double tap gesture
+    GESTURE_HOLD = 4                '' Hold gesture
+    GESTURE_DRAG = 8                '' Drag gesture
+    GESTURE_SWIPE_RIGHT = 16        '' Swipe right gesture
+    GESTURE_SWIPE_LEFT = 32         '' Swipe left gesture
+    GESTURE_SWIPE_UP = 64           '' Swipe up gesture
+    GESTURE_SWIPE_DOWN = 128        '' Swipe down gesture
+    GESTURE_PINCH_IN = 256          '' Pinch in gesture
+    GESTURE_PINCH_OUT = 512         '' Pinch out gesture
+end enum
+#endif
+
+'' Camera system modes
+#if defined(TIKO_OS_WINDOWS)
+type CameraMode as int32
+enum
+    CAMERA_CUSTOM = 0               '' Camera custom, controlled by user (UpdateCamera() does nothing)
+    CAMERA_FREE                     '' Camera free mode
+    CAMERA_ORBITAL                  '' Camera orbital, around target, zoom supported
+    CAMERA_FIRST_PERSON             '' Camera first person
+    CAMERA_THIRD_PERSON             '' Camera third person
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type CameraMode as uint32
+enum
+    CAMERA_CUSTOM = 0               '' Camera custom, controlled by user (UpdateCamera() does nothing)
+    CAMERA_FREE                     '' Camera free mode
+    CAMERA_ORBITAL                  '' Camera orbital, around target, zoom supported
+    CAMERA_FIRST_PERSON             '' Camera first person
+    CAMERA_THIRD_PERSON             '' Camera third person
+end enum
+#endif
+
+'' Camera projection
+#if defined(TIKO_OS_WINDOWS)
+type CameraProjection as int32
+enum
+    CAMERA_PERSPECTIVE = 0          '' Perspective projection
+    CAMERA_ORTHOGRAPHIC             '' Orthographic projection
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type CameraProjection as uint32
+enum
+    CAMERA_PERSPECTIVE = 0          '' Perspective projection
+    CAMERA_ORTHOGRAPHIC             '' Orthographic projection
+end enum
+#endif
+
+'' N-patch layout
+#if defined(TIKO_OS_WINDOWS)
+type NPatchLayout as int32
+enum
+    NPATCH_NINE_PATCH = 0           '' Npatch layout: 3x3 tiles
+    NPATCH_THREE_PATCH_VERTICAL     '' Npatch layout: 1x3 tiles
+    NPATCH_THREE_PATCH_HORIZONTAL   '' Npatch layout: 3x1 tiles
+end enum
+#elseif defined(TIKO_OS_LINUX)
+type NPatchLayout as uint32
+enum
+    NPATCH_NINE_PATCH = 0           '' Npatch layout: 3x3 tiles
+    NPATCH_THREE_PATCH_VERTICAL     '' Npatch layout: 1x3 tiles
+    NPATCH_THREE_PATCH_HORIZONTAL   '' Npatch layout: 3x1 tiles
+end enum
+#endif
+
+'' Callbacks to hook some internal functions
+'' WARNING: These callbacks are intended for advanced users
+type TraceLogCallback as sub cdecl( byval as int32, byval as const zstring ptr, byval as cva_list )  '' Logging: Redirect trace log messages
+type LoadFileDataCallback as function cdecl( byval as const zstring ptr, byval as int32 ptr ) as uint8 ptr    '' FileIO: Load binary data
+type SaveFileDataCallback as function cdecl( byval as const zstring ptr, byval as any ptr, byval as int32 ) as boolean   '' FileIO: Save binary data
+type LoadFileTextCallback as function cdecl( byval as const zstring ptr ) as zstring ptr            '' FileIO: Load text data
+type SaveFileTextCallback as function cdecl( byval as const zstring ptr, byval as const zstring ptr ) as boolean '' FileIO: Save text data
+
+''------------------------------------------------------------------------------------
+'' Global Variables Definition
+''------------------------------------------------------------------------------------
+'' It's lonely here...
+
+''------------------------------------------------------------------------------------
+'' Window and Graphics Device Functions (Module: core)
+''------------------------------------------------------------------------------------
+
+extern "C"
+
+'' Window-related functions
+declare sub InitWindow( byval width_ as int32, byval height as int32, byval title as const zstring ptr )  '' Initialize window and OpenGL context
+declare sub CloseWindow( )                                        '' Close window and unload OpenGL context
+declare function WindowShouldClose( ) as boolean                  '' Check if application should close (KEY_ESCAPE pressed or windows close icon clicked)
+declare function IsWindowReady( ) as boolean                      '' Check if window has been initialized successfully
+declare function IsWindowFullscreen( ) as boolean                 '' Check if window is currently fullscreen
+declare function IsWindowHidden( ) as boolean                     '' Check if window is currently hidden
+declare function IsWindowMinimized( ) as boolean                  '' Check if window is currently minimized
+declare function IsWindowMaximized( ) as boolean                  '' Check if window is currently maximized
+declare function IsWindowFocused( ) as boolean                    '' Check if window is currently focused
+declare function IsWindowResized( ) as boolean                    '' Check if window has been resized last frame
+declare function IsWindowState( byval flag as uint32 ) as boolean '' Check if one specific window flag is enabled
+declare sub SetWindowState( byval flags as uint32 )               '' Set window configuration state using flags
+declare sub ClearWindowState( byval flags as uint32 )             '' Clear window configuration state flags
+declare sub ToggleFullscreen( )                                   '' Toggle window state: fullscreen/windowed, resizes monitor to match window resolution
+declare sub ToggleBorderlessWindowed( )                           '' Toggle window state: borderless windowed, resizes window to match monitor resolution
+declare sub MaximizeWindow( )                                     '' Set window state: maximized, if resizable
+declare sub MinimizeWindow( )                                     '' Set window state: minimized, if resizable
+declare sub RestoreWindow( )                                      '' Restore window from being minimized/maximized
+declare sub SetWindowIcon( byval image as Image )                 '' Set icon for window (single image, RGBA 32bit)
+declare sub SetWindowIcons( byval images as Image ptr, byval count as int32 )              '' Set icon for window (multiple images, RGBA 32bit)
+declare sub SetWindowTitle( byval title as const zstring ptr )    '' Set title for window
+declare sub SetWindowPosition( byval x as int32, byval y as int32 )                       '' Set window position on screen
+declare sub SetWindowMonitor( byval monitor as int32 )            '' Set monitor for the current window
+declare sub SetWindowMinSize( byval width_ as int32, byval height as int32 )               '' Set window minimum dimensions (for FLAG_WINDOW_RESIZABLE)
+declare sub SetWindowMaxSize( byval width_ as int32, byval height as int32 )               '' Set window maximum dimensions (for FLAG_WINDOW_RESIZABLE)
+declare sub SetWindowSize( byval width_ as int32, byval height as int32 )                  '' Set window dimensions
+declare sub SetWindowOpacity( byval opacity as float32 )          '' Set window opacity [0.0f..1.0f]
+declare sub SetWindowFocused( )                                   '' Set window focused
+declare function GetWindowHandle( ) as any ptr                    '' Get native window handle
+declare function GetScreenWidth( ) as int32                       '' Get current screen width
+declare function GetScreenHeight( ) as int32                      '' Get current screen height
+declare function GetRenderWidth( ) as int32                       '' Get current render width (it considers HiDPI)
+declare function GetRenderHeight( ) as int32                      '' Get current render height (it considers HiDPI)
+declare function GetMonitorCount( ) as int32                      '' Get number of connected monitors
+declare function GetCurrentMonitor( ) as int32                    '' Get current monitor where window is placed
+declare function GetMonitorPosition( byval monitor as int32 ) as Vector2                    '' Get specified monitor position
+declare function GetMonitorWidth( byval monitor as int32 ) as int32                           '' Get specified monitor width (current video mode used by monitor)
+declare function GetMonitorHeight( byval monitor as int32 ) as int32                          '' Get specified monitor height (current video mode used by monitor)
+declare function GetMonitorPhysicalWidth( byval monitor as int32 ) as int32                   '' Get specified monitor physical width in millimetres
+declare function GetMonitorPhysicalHeight( byval monitor as int32 ) as int32                  '' Get specified monitor physical height in millimetres
+declare function GetMonitorRefreshRate( byval monitor as int32 ) as int32                     '' Get specified monitor refresh rate
+declare function GetWindowPosition( ) as Vector2                  '' Get window position XY on monitor
+declare function GetWindowScaleDPI( ) as Vector2                  '' Get window scale DPI factor
+declare function GetMonitorName( byval monitor as int32 ) as const zstring ptr                    '' Get the human-readable, UTF-8 encoded name of the specified monitor
+declare sub SetClipboardText( byval text as const zstring ptr )   '' Set clipboard text content
+declare function GetClipboardText( ) as const zstring ptr         '' Get clipboard text content
+declare function GetClipboardImage( ) as Image                    '' Get clipboard image content
+declare sub EnableEventWaiting( )                                 '' Enable waiting for events on EndDrawing(), no automatic event polling
+declare sub DisableEventWaiting( )                                '' Disable waiting for events on EndDrawing(), automatic events polling
+
+'' Cursor-related functions
+declare sub ShowCursor( )                                         '' Shows cursor
+declare sub HideCursor( )                                         '' Hides cursor
+declare function IsCursorHidden( ) as boolean                     '' Check if cursor is not visible
+declare sub EnableCursor( )                                       '' Enables cursor (unlock cursor)
+declare sub DisableCursor( )                                      '' Disables cursor (lock cursor)
+declare function IsCursorOnScreen( ) as boolean                   '' Check if cursor is on the screen
+
+'' Drawing-related functions
+declare sub ClearBackground( byval color_ as Color )              '' Set background color (framebuffer clear color)
+declare sub BeginDrawing( )                                       '' Setup canvas (framebuffer) to start drawing
+declare sub EndDrawing( )                                         '' End canvas drawing and swap buffers (double buffering)
+declare sub BeginMode2D( byval camera as Camera2D )               '' Begin 2D mode with custom camera (2D)
+declare sub EndMode2D( )                                          '' Ends 2D mode with custom camera
+declare sub BeginMode3D( byval camera as Camera3D )               '' Begin 3D mode with custom camera (3D)
+declare sub EndMode3D( )                                          '' Ends 3D mode and returns to default 2D orthographic mode
+declare sub BeginTextureMode( byval target as RenderTexture2D )   '' Begin drawing to render texture
+declare sub EndTextureMode( )                                     '' Ends drawing to render texture
+declare sub BeginShaderMode( byval shader as Shader )             '' Begin custom shader drawing
+declare sub EndShaderMode( )                                      '' End custom shader drawing (use default shader)
+declare sub BeginBlendMode( byval mode as int32 )                 '' Begin blending mode (alpha, additive, multiplied, subtract, custom)
+declare sub EndBlendMode( )                                       '' End blending mode (reset to default: alpha blending)
+declare sub BeginScissorMode( byval x as int32, byval y as int32, byval width_ as int32, byval height as int32 ) '' Begin scissor mode (define screen area for following drawing)
+declare sub EndScissorMode( )                                     '' End scissor mode
+declare sub BeginVrStereoMode( byval config as VrStereoConfig )   '' Begin stereo rendering (requires VR simulator)
+declare sub EndVrStereoMode( )                                    '' End stereo rendering (requires VR simulator)
+
+'' VR stereo config functions for VR simulator
+declare function LoadVrStereoConfig( byval device as VrDeviceInfo ) as VrStereoConfig     '' Load VR stereo config for VR simulator device parameters
+declare sub UnloadVrStereoConfig( byval config as VrStereoConfig )           '' Unload VR stereo config
+
+'' Shader management functions
+'' NOTE: Shader functionality is not available on OpenGL 1.1
+declare function LoadShader( byval vsFileName as const zstring ptr, byval fsFileName as const zstring ptr ) as Shader   '' Load shader from files and bind default locations
+declare function LoadShaderFromMemory( byval vsCode as const zstring ptr, byval fsCode as const zstring ptr ) as Shader '' Load shader from code strings and bind default locations
+declare function IsShaderValid( byval shader as Shader ) as boolean        '' Check if a shader is valid (loaded on GPU)
+declare function GetShaderLocation( byval shader as Shader, byval uniformName as const zstring ptr ) as int32       '' Get shader uniform location
+declare function GetShaderLocationAttrib( byval shader as Shader, byval attribName as const zstring ptr ) as int32  '' Get shader attribute location
+declare sub SetShaderValue( byval shader as Shader, byval locIndex as int32, byval value as const any ptr, byval uniformType as int32 ) '' Set shader uniform value
+declare sub SetShaderValueV( byval shader as Shader, byval locIndex as int32, byval value as const any ptr, byval uniformType as int32, byval count as int32 ) '' Set shader uniform value vector
+declare sub SetShaderValueMatrix( byval shader as Shader, byval locIndex as int32, byval mat as Matrix )  '' Set shader uniform value (matrix 4x4)
+declare sub SetShaderValueTexture( byval shader as Shader, byval locIndex as int32, byval texture as Texture2D ) '' Set shader uniform value and bind the texture (sampler2d)
+declare sub UnloadShader( byval shader as Shader )                         '' Unload shader from GPU memory (VRAM)
+
+'' Screen-space-related functions
+#define GetMouseRay GetScreenToWorldRay     '' Compatibility hack for previous raylib versions
+declare function GetScreenToWorldRay( byval position as Vector2, byval camera as Camera ) as Ray         '' Get a ray trace from screen position (i.e mouse)
+declare function GetScreenToWorldRayEx( byval position as Vector2, byval camera as Camera, byval width_ as int32, byval height as int32 ) as Ray '' Get a ray trace from screen position (i.e mouse) in a viewport
+declare function GetWorldToScreen( byval position as Vector3, byval camera as Camera ) as Vector2        '' Get the screen space position for a 3d world space position
+declare function GetWorldToScreenEx( byval position as Vector3, byval camera as Camera, byval width_ as int32, byval height as int32 ) as Vector2 '' Get size position for a 3d world space position
+declare function GetWorldToScreen2D( byval position as Vector2, byval camera as Camera2D ) as Vector2    '' Get the screen space position for a 2d camera world space position
+declare function GetScreenToWorld2D( byval position as Vector2, byval camera as Camera2D ) as Vector2    '' Get the world space position for a 2d camera screen space position
+declare function GetCameraMatrix( byval camera as Camera ) as Matrix    '' Get camera transform matrix (view matrix)
+declare function GetCameraMatrix2D( byval camera as Camera2D ) as Matrix                        '' Get camera 2d transform matrix
+
+'' Timing-related functions
+declare sub SetTargetFPS( byval fps as int32 )          '' Set target FPS (maximum)
+declare function GetFrameTime( ) as float32             '' Get time in seconds for last frame drawn (delta time)
+declare function GetTime( ) as float64                  '' Get elapsed time in seconds since InitWindow()
+declare function GetFPS( ) as int32                     '' Get current FPS
+
+'' Custom frame control functions
+'' NOTE: Those functions are intended for advanced users that want full control over the frame processing
+'' By default EndDrawing() does this job: draws everything + SwapScreenBuffer() + manage frame timing + PollInputEvents()
+'' To avoid that behaviour and control frame processes manually, enable in config.h: SUPPORT_CUSTOM_FRAME_CONTROL
+declare sub SwapScreenBuffer( )                         '' Swap back buffer with front buffer (screen drawing)
+declare sub PollInputEvents( )                          '' Register all input events
+declare sub WaitTime( byval seconds as float64 )        '' Wait for some time (halt program execution)
+
+'' Random values generation functions
+declare sub SetRandomSeed( byval seed as uint32 )       '' Set the seed for the random number generator
+declare function GetRandomValue( byval min as int32, byval max as int32 ) as int32             '' Get a random value between min and max (both included)
+declare function LoadRandomSequence( byval count as uint32, byval min as int32, byval max as int32 ) as int32 ptr '' Load random values sequence, no values repeated
+declare sub UnloadRandomSequence( byval sequence as int32 ptr )         '' Unload random values sequence
+
+'' Misc. functions
+declare sub TakeScreenshot( byval fileName as const zstring ptr )                '' Takes a screenshot of current screen (filename extension defines format)
+declare sub SetConfigFlags( byval flags as uint32 )             '' Setup init configuration flags (view FLAGS)
+declare sub OpenURL( byval url as const zstring ptr )           '' Open URL with default system browser (if available)
+
+'' Logging system
+declare sub SetTraceLogLevel( byval logLevel as int32 )         '' Set the current threshold (minimum) log level
+declare sub TraceLog( byval logLevel as int32, byval text as const zstring ptr, ... )       '' Show trace log messages (LOG_DEBUG, LOG_INFO, LOG_WARNING, LOG_ERROR...)
+declare sub SetTraceLogCallback( byval callback as TraceLogCallback )      '' Set custom trace log
+
+'' Memory management, using internal allocators
+declare function MemAlloc( byval size as uint32 ) as any ptr    '' Internal memory allocator
+declare function MemRealloc( byval ptr_ as any ptr, byval size as uint32 ) as any ptr           '' Internal memory reallocator
+declare sub MemFree( byval ptr_ as any ptr )                    '' Internal memory free
+
+'' File system management functions
+declare function LoadFileData( byval fileName as const zstring ptr, byval dataSize as int32 ptr ) as uint8 ptr '' Load file data as byte array (read)
+declare sub UnloadFileData( byval data_ as uint8 ptr )              '' Unload file data allocated by LoadFileData()
+declare function SaveFileData( byval fileName as const zstring ptr, byval data_ as any ptr, byval dataSize as int32 ) as boolean '' Save data to file from byte array (write), returns true on success
+declare function ExportDataAsCode( byval data_ as const uint8 ptr, byval dataSize as int32, byval fileName as const zstring ptr ) as boolean '' Export data to code (.h), returns true on success
+declare function LoadFileText( byval fileName as const zstring ptr ) as zstring ptr                     '' Load text data from file (read), returns a '\0' terminated string
+declare sub UnloadFileText( byval text as zstring ptr )             '' Unload file text data allocated by LoadFileText()
+declare function SaveFileText( byval fileName as const zstring ptr, byval text as const zstring ptr ) as boolean    '' Save text data to file (write), string must be '\0' terminated, returns true on success
+
+'' File access custom callbacks
+'' WARNING: Callbacks setup is intended for advanced users
+declare sub SetLoadFileDataCallback( byval callback as LoadFileDataCallback )  '' Set custom file binary data loader
+declare sub SetSaveFileDataCallback( byval callback as SaveFileDataCallback )  '' Set custom file binary data saver
+declare sub SetLoadFileTextCallback( byval callback as LoadFileTextCallback )  '' Set custom file text data loader
+declare sub SetSaveFileTextCallback( byval callback as SaveFileTextCallback )  '' Set custom file text data saver
+
+declare function FileRename( byval fileName as const zstring ptr, byval fileRename as const zstring ptr ) as int32 '' Rename file (if exists)
+declare function FileRemove( byval fileName as const zstring ptr ) as int32                         '' Remove file (if exists)
+declare function FileCopy( byval srcPath as const zstring ptr, byval dstPath as const zstring ptr ) as int32       '' Copy file from one path to another, dstPath created if it doesn't exist
+declare function FileMove( byval srcPath as const zstring ptr, byval dstPath as const zstring ptr ) as int32       '' Move file from one directory to another, dstPath created if it doesn't exist
+declare function FileTextReplace( byval fileName as const zstring ptr, byval search as const zstring ptr, byval replacement as const zstring ptr ) as int32 '' Replace text in an existing file
+declare function FileTextFindIndex( byval fileName as const zstring ptr, byval search as const zstring ptr ) as int32 '' Find text in existing file
+declare function FileExists( byval fileName as const zstring ptr ) as boolean                        '' Check if file exists
+declare function DirectoryExists( byval dirPath as const zstring ptr ) as boolean                    '' Check if a directory path exists
+declare function IsFileExtension( byval fileName as const zstring ptr, byval ext as const zstring ptr ) as boolean  '' Check file extension (recommended include point: .png, .wav)
+declare function GetFileLength( byval fileName as const zstring ptr ) as int32                      '' Get file length in bytes (NOTE: GetFileSize() conflicts with windows.h)
+declare function GetFileModTime( byval fileName as const zstring ptr ) as clong                    '' Get file modification time (last write time)
+declare function GetFileExtension( byval fileName as const zstring ptr ) as const zstring ptr           '' Get pointer to extension for a filename string (includes dot: '.png')
+declare function GetFileName( byval filePath as const zstring ptr ) as const zstring ptr                '' Get pointer to filename for a path string
+declare function GetFileNameWithoutExt( byval filePath as const zstring ptr ) as const zstring ptr      '' Get filename string without extension (uses static string)
+declare function GetDirectoryPath( byval filePath as const zstring ptr ) as const zstring ptr           '' Get full path for a given fileName with path (uses static string)
+declare function GetPrevDirectoryPath( byval dirPath as const zstring ptr ) as const zstring ptr        '' Get previous directory path for a given path (uses static string)
+declare function GetWorkingDirectory( ) as const zstring ptr        '' Get current working directory (uses static string)
+declare function GetApplicationDirectory( ) as const zstring ptr    '' Get the directory of the running application (uses static string)
+declare function MakeDirectory( byval dirPath as const zstring ptr ) as int32                       '' Create directories (including full path requested), returns 0 on success
+declare function ChangeDirectory( byval dirPath as const zstring ptr ) as boolean                    '' Change working directory, return true on success
+declare function IsPathFile( byval path as const zstring ptr ) as boolean                            '' Check if a given path is a file or a directory
+declare function IsFileNameValid( byval fileName as const zstring ptr ) as boolean                   '' Check if fileName is valid for the platform/OS
+declare function LoadDirectoryFiles( byval dirPath as const zstring ptr ) as FilePathList         '' Load directory filepaths, files and directories, no subdirs scan
+declare function LoadDirectoryFilesEx( byval basePath as const zstring ptr, byval filter as const zstring ptr, byval scanSubdirs as boolean ) as FilePathList '' Load directory filepaths with extension filtering and subdir scan; some filters available: "*.*", "FILES*", "DIRS*"
+declare sub UnloadDirectoryFiles( byval files as FilePathList )     '' Unload filepaths
+declare function IsFileDropped( ) as boolean                        '' Check if a file has been dropped into window
+declare function LoadDroppedFiles( ) as FilePathList                '' Load dropped filepaths
+declare sub UnloadDroppedFiles( byval files as FilePathList )       '' Unload dropped filepaths
+declare function GetDirectoryFileCount( byval dirPath as const zstring ptr ) as uint32      '' Get the file count in a directory
+declare function GetDirectoryFileCountEx( byval basePath as const zstring ptr, byval filter as const zstring ptr, byval scanSubdirs as boolean ) as uint32 '' Get the file count in a directory with extension filtering and recursive directory scan. Use 'DIR' in the filter string to include directories in the result
+
+'' Compression/Encoding functionality
+declare function CompressData( byval data_ as const uint8 ptr, byval dataSize as int32, byval compDataSize as int32 ptr ) as uint8 ptr        '' Compress data (DEFLATE algorithm), memory must be MemFree()
+declare function DecompressData( byval compData as const uint8 ptr, byval compDataSize as int32, byval dataSize as int32 ptr ) as uint8 ptr  '' Decompress data (DEFLATE algorithm), memory must be MemFree()
+declare function EncodeDataBase64( byval data_ as const uint8 ptr, byval dataSize as int32, byval outputSize as int32 ptr ) as zstring ptr               '' Encode data to Base64 string (includes NULL terminator), memory must be MemFree()
+declare function DecodeDataBase64( byval text as const zstring ptr, byval outputSize as int32 ptr ) as uint8 ptr                             '' Decode Base64 string (expected NULL terminated), memory must be MemFree()
+declare function ComputeCRC32( byval data_ as uint8 ptr, byval dataSize as int32 ) as uint32 '' Compute CRC32 hash code
+declare function ComputeMD5( byval data_ as uint8 ptr, byval dataSize as int32 ) as uint32 ptr  '' Compute MD5 hash code, returns static int[4] (16 bytes)
+declare function ComputeSHA1( byval data_ as uint8 ptr, byval dataSize as int32 ) as uint32 ptr '' Compute SHA1 hash code, returns static int[5] (20 bytes)
+declare function ComputeSHA256( byval data_ as uint8 ptr, byval dataSize as int32 ) as uint32 ptr '' Compute SHA256 hash code, returns static int[8] (32 bytes)
+
+'' Automation events functionality
+declare function LoadAutomationEventList( byval fileName as const zstring ptr ) as AutomationEventList '' Load automation events list from file, NULL for empty list, capacity = MAX_AUTOMATION_EVENTS
+declare sub UnloadAutomationEventList( byval list as AutomationEventList )   '' Unload automation events list from file
+declare function ExportAutomationEventList( byval list as AutomationEventList, byval fileName as const zstring ptr ) as boolean '' Export automation events list as text file
+declare sub SetAutomationEventList( byval list as AutomationEventList ptr )     '' Set automation event list to record to
+declare sub SetAutomationEventBaseFrame( byval frame as int32 )   '' Set automation event internal base frame to start recording
+declare sub StartAutomationEventRecording( )                      '' Start recording automation events (AutomationEventList must be set)
+declare sub StopAutomationEventRecording( )                       '' Stop recording automation events
+declare sub PlayAutomationEvent( byval event as AutomationEvent ) '' Play a recorded automation event
+
+''------------------------------------------------------------------------------------
+'' Input Handling Functions (Module: core)
+''------------------------------------------------------------------------------------
+
+'' Input-related functions: keyboard
+declare function IsKeyPressed( byval key as int32 ) as boolean                             '' Check if a key has been pressed once
+declare function IsKeyPressedRepeat( byval key as int32 ) as boolean                       '' Check if a key has been pressed again
+declare function IsKeyDown( byval key as int32 ) as boolean   '' Check if a key is being pressed
+declare function IsKeyReleased( byval key as int32 ) as boolean                            '' Check if a key has been released once
+declare function IsKeyUp( byval key as int32 ) as boolean     '' Check if a key is NOT being pressed
+declare function GetKeyPressed( ) as int32                    '' Get key pressed (keycode), call it multiple times for keys queued, returns 0 when the queue is empty
+declare function GetCharPressed( ) as int32                   '' Get char pressed (unicode), call it multiple times for chars queued, returns 0 when the queue is empty
+declare function GetKeyName( byval key as int32 ) as const zstring ptr                        '' Get name of a QWERTY key on the current keyboard layout (eg returns string 'q' for KEY_A on an AZERTY keyboard)
+declare sub SetExitKey( byval key as int32 )                  '' Set a custom key to exit program (default is ESC)
+
+'' Input-related functions: gamepads
+declare function IsGamepadAvailable( byval gamepad as int32 ) as boolean                   '' Check if a gamepad is available
+declare function GetGamepadName( byval gamepad as int32 ) as const zstring ptr                '' Get gamepad internal name id
+declare function IsGamepadButtonPressed( byval gamepad as int32, byval button as int32 ) as boolean   '' Check if a gamepad button has been pressed once
+declare function IsGamepadButtonDown( byval gamepad as int32, byval button as int32 ) as boolean      '' Check if a gamepad button is being pressed
+declare function IsGamepadButtonReleased( byval gamepad as int32, byval button as int32 ) as boolean  '' Check if a gamepad button has been released once
+declare function IsGamepadButtonUp( byval gamepad as int32, byval button as int32 ) as boolean        '' Check if a gamepad button is NOT being pressed
+declare function GetGamepadButtonPressed( ) as int32          '' Get the last gamepad button pressed
+declare function GetGamepadAxisCount( byval gamepad as int32 ) as int32                   '' Get axis count for a gamepad
+declare function GetGamepadAxisMovement( byval gamepad as int32, byval axis as int32 ) as float32    '' Get movement value for a gamepad axis
+declare function SetGamepadMappings( byval mappings as const zstring ptr ) as int32           '' Set internal gamepad mappings (SDL_GameControllerDB)
+declare sub SetGamepadVibration( byval gamepad as int32, byval leftMotor as float32, byval rightMotor as float32, byval duration as float32 ) '' Set gamepad vibration for both motors (duration in seconds)
+
+'' Input-related functions: mouse
+declare function IsMouseButtonPressed( byval button as int32 ) as boolean                  '' Check if a mouse button has been pressed once
+declare function IsMouseButtonDown( byval button as int32 ) as boolean                     '' Check if a mouse button is being pressed
+declare function IsMouseButtonReleased( byval button as int32 ) as boolean                 '' Check if a mouse button has been released once
+declare function IsMouseButtonUp( byval button as int32 ) as boolean                       '' Check if a mouse button is NOT being pressed
+declare function GetMouseX( ) as int32                        '' Get mouse position X
+declare function GetMouseY( ) as int32                        '' Get mouse position Y
+declare function GetMousePosition( ) as Vector2               '' Get mouse position XY
+declare function GetMouseDelta( ) as Vector2                  '' Get mouse delta between frames
+declare sub SetMousePosition( byval x as int32, byval y as int32 )                    '' Set mouse position XY
+declare sub SetMouseOffset( byval offsetX as int32, byval offsetY as int32 )          '' Set mouse offset
+declare sub SetMouseScale( byval scaleX as float32, byval scaleY as float32 )         '' Set mouse scaling
+declare function GetMouseWheelMove( ) as float32              '' Get mouse wheel movement for X or Y, whichever is larger
+declare function GetMouseWheelMoveV( ) as Vector2             '' Get mouse wheel movement for both X and Y
+declare sub SetMouseCursor( byval cursor as int32 )           '' Set mouse cursor
+
+'' Input-related functions: touch
+declare function GetTouchX( ) as int32                        '' Get touch position X for touch point 0 (relative to screen size)
+declare function GetTouchY( ) as int32                        '' Get touch position Y for touch point 0 (relative to screen size)
+declare function GetTouchPosition( byval index as int32 ) as Vector2                    '' Get touch position XY for a touch point index (relative to screen size)
+declare function GetTouchPointId( byval index as int32 ) as int32                         '' Get touch point identifier for given index
+declare function GetTouchPointCount( ) as int32               '' Get number of touch points
+
+''------------------------------------------------------------------------------------
+'' Gestures and Touch Handling Functions (Module: rgestures)
+''------------------------------------------------------------------------------------
+declare sub SetGesturesEnabled( byval flags as uint32 )       '' Enable a set of gestures using flags
+declare function IsGestureDetected( byval gesture as uint32 ) as boolean           '' Check if a gesture have been detected
+declare function GetGestureDetected( ) as int32               '' Get latest detected gesture
+declare function GetGestureHoldDuration( ) as float32         '' Get gesture hold time in seconds
+declare function GetGestureDragVector( ) as Vector2           '' Get gesture drag vector
+declare function GetGestureDragAngle( ) as float32            '' Get gesture drag angle
+declare function GetGesturePinchVector( ) as Vector2          '' Get gesture pinch delta
+declare function GetGesturePinchAngle( ) as float32           '' Get gesture pinch angle
+
+''------------------------------------------------------------------------------------
+'' Camera System Functions (Module: rcamera)
+''------------------------------------------------------------------------------------
+declare sub UpdateCamera( byval camera as Camera ptr, byval mode as int32 )            '' Update camera position for selected mode
+declare sub UpdateCameraPro( byval camera as Camera ptr, byval movement as Vector3, byval rotation as Vector3, byval zoom as float32 ) '' Update camera movement/rotation
+
+''------------------------------------------------------------------------------------
+'' Basic Shapes Drawing Functions (Module: shapes)
+''------------------------------------------------------------------------------------
+'' Set texture and rectangle to be used on shapes drawing
+'' NOTE: It can be useful when using basic shapes and one single font,
+'' defining a font char white rectangle would allow drawing everything in a single draw call
+declare sub SetShapesTexture( byval texture as Texture2D, byval source as Rectangle ) '' Set texture and rectangle to be used on shapes drawing
+declare function GetShapesTexture( ) as Texture2D       '' Get texture that is used for shapes drawing
+declare function GetShapesTextureRectangle( ) as Rectangle        '' Get texture source rectangle that is used for shapes drawing
+
+'' Basic shapes drawing functions
+declare sub DrawPixel( byval posX as int32, byval posY as int32, byval color_ as Color )                 '' Draw a pixel using geometry [Can be slow, use with care]
+declare sub DrawPixelV( byval position as Vector2, byval color_ as Color )                               '' Draw a pixel using geometry (Vector version) [Can be slow, use with care]
+declare sub DrawLine( byval startPosX as int32, byval startPosY as int32, byval endPosX as int32, byval endPosY as int32, byval color_ as Color )                '' Draw a line
+declare sub DrawLineV( byval startPos as Vector2, byval endPos as Vector2, byval color_ as Color )       '' Draw a line (using gl lines)
+declare sub DrawLineEx( byval startPos as Vector2, byval endPos as Vector2, byval thick as float32, byval color_ as Color )                       '' Draw a line (using triangles/quads)
+declare sub DrawLineStrip( byval points as const Vector2 ptr, byval pointCount as int32, byval color_ as Color )                            '' Draw lines sequence (using gl lines)
+declare sub DrawLineBezier( byval startPos as Vector2, byval endPos as Vector2, byval thick as float32, byval color_ as Color )                   '' Draw line segment cubic-bezier in-out interpolation
+declare sub DrawLineDashed( byval startPos as Vector2, byval endPos as Vector2, byval dashSize as int32, byval spaceSize as int32, byval color_ as Color )   '' Draw a dashed line
+declare sub DrawCircle( byval centerX as int32, byval centerY as int32, byval radius as float32, byval color_ as Color )                              '' Draw a color-filled circle
+declare sub DrawCircleV( byval center as Vector2, byval radius as float32, byval color_ as Color )       '' Draw a color-filled circle (Vector version)
+declare sub DrawCircleGradient( byval center as Vector2, byval radius as float32, byval inner as Color, byval outer as Color )                   '' Draw a gradient-filled circle
+declare sub DrawCircleSector( byval center as Vector2, byval radius as float32, byval startAngle as float32, byval endAngle as float32, byval segments as int32, byval color_ as Color ) '' Draw a piece of a circle
+declare sub DrawCircleSectorLines( byval center as Vector2, byval radius as float32, byval startAngle as float32, byval endAngle as float32, byval segments as int32, byval color_ as Color ) '' Draw circle sector outline
+declare sub DrawCircleLines( byval centerX as int32, byval centerY as int32, byval radius as float32, byval color_ as Color )                         '' Draw circle outline
+declare sub DrawCircleLinesV( byval center as Vector2, byval radius as float32, byval color_ as Color )  '' Draw circle outline (Vector version)
+declare sub DrawEllipse( byval centerX as int32, byval centerY as int32, byval radiusH as float32, byval radiusV as float32, byval color_ as Color )             '' Draw ellipse
+declare sub DrawEllipseV( byval center as Vector2, byval radiusH as float32, byval radiusV as float32, byval color_ as Color )                      '' Draw ellipse (Vector version)
+declare sub DrawEllipseLines( byval centerX as int32, byval centerY as int32, byval radiusH as float32, byval radiusV as float32, byval color_ as Color )        '' Draw ellipse outline
+declare sub DrawEllipseLinesV( byval center as Vector2, byval radiusH as float32, byval radiusV as float32, byval color_ as Color )                 '' Draw ellipse outline (Vector version)
+declare sub DrawRing( byval center as Vector2, byval innerRadius as float32, byval outerRadius as float32, byval startAngle as float32, byval endAngle as float32, byval segments as int32, byval color_ as Color ) '' Draw ring
+declare sub DrawRingLines( byval center as Vector2, byval innerRadius as float32, byval outerRadius as float32, byval startAngle as float32, byval endAngle as float32, byval segments as int32, byval color_ as Color ) '' Draw ring outline
+declare sub DrawRectangle( byval posX as int32, byval posY as int32, byval width_ as int32, byval height as int32, byval color_ as Color )                        '' Draw a color-filled rectangle
+declare sub DrawRectangleV( byval position as Vector2, byval size as Vector2, byval color_ as Color )    '' Draw a color-filled rectangle (Vector version)
+declare sub DrawRectangleRec( byval rec as Rectangle, byval color_ as Color )                            '' Draw a color-filled rectangle
+declare sub DrawRectanglePro( byval rec as Rectangle, byval origin as Vector2, byval rotation as float32, byval color_ as Color )                 '' Draw a color-filled rectangle with pro parameters
+declare sub DrawRectangleGradientV( byval posX as int32, byval posY as int32, byval width_ as int32, byval height as int32, byval top as Color, byval bottom as Color )   '' Draw a vertical-gradient-filled rectangle
+declare sub DrawRectangleGradientH( byval posX as int32, byval posY as int32, byval width_ as int32, byval height as int32, byval left_ as Color, byval right_ as Color )   '' Draw a horizontal-gradient-filled rectangle
+declare sub DrawRectangleGradientEx( byval rec as Rectangle, byval topLeft as Color, byval bottomLeft as Color, byval bottomRight as Color, byval topRight as Color ) '' Draw a gradient-filled rectangle with custom vertex colors
+declare sub DrawRectangleLines( byval posX as int32, byval posY as int32, byval width_ as int32, byval height as int32, byval color_ as Color )                   '' Draw rectangle outline
+declare sub DrawRectangleLinesEx( byval rec as Rectangle, byval lineThick as float32, byval color_ as Color )                            '' Draw rectangle outline with extended parameters
+declare sub DrawRectangleRounded( byval rec as Rectangle, byval roundness as float32, byval segments as int32, byval color_ as Color )              '' Draw rectangle with rounded edges
+declare sub DrawRectangleRoundedLines( byval rec as Rectangle, byval roundness as float32, byval segments as int32, byval color_ as Color )         '' Draw rectangle lines with rounded edges
+declare sub DrawRectangleRoundedLinesEx( byval rec as Rectangle, byval roundness as float32, byval segments as int32, byval lineThick as float32, byval color_ as Color ) '' Draw rectangle with rounded edges outline
+declare sub DrawTriangle( byval v1 as Vector2, byval v2 as Vector2, byval v3 as Vector2, byval color_ as Color )                                '' Draw a color-filled triangle (vertex in counter-clockwise order!)
+declare sub DrawTriangleLines( byval v1 as Vector2, byval v2 as Vector2, byval v3 as Vector2, byval color_ as Color )                           '' Draw triangle outline (vertex in counter-clockwise order!)
+declare sub DrawTriangleFan( byval points as const Vector2 ptr, byval pointCount as int32, byval color_ as Color )                          '' Draw a triangle fan defined by points (first vertex is the center)
+declare sub DrawTriangleStrip( byval points as const Vector2 ptr, byval pointCount as int32, byval color_ as Color )                        '' Draw a triangle strip defined by points
+declare sub DrawPoly( byval center as Vector2, byval sides as int32, byval radius as float32, byval rotation as float32, byval color_ as Color )               '' Draw a regular polygon (Vector version)
+declare sub DrawPolyLines( byval center as Vector2, byval sides as int32, byval radius as float32, byval rotation as float32, byval color_ as Color )          '' Draw a polygon outline of n sides
+declare sub DrawPolyLinesEx( byval center as Vector2, byval sides as int32, byval radius as float32, byval rotation as float32, byval lineThick as float32, byval color_ as Color ) '' Draw a polygon outline of n sides with extended parameters
+
+'' Splines drawing functions
+declare sub DrawSplineLinear( byval points as const Vector2 ptr, byval pointCount as int32, byval thick as float32, byval color_ as Color )            '' Draw spline: Linear, minimum 2 points
+declare sub DrawSplineBasis( byval points as const Vector2 ptr, byval pointCount as int32, byval thick as float32, byval color_ as Color )             '' Draw spline: B-Spline, minimum 4 points
+declare sub DrawSplineCatmullRom( byval points as const Vector2 ptr, byval pointCount as int32, byval thick as float32, byval color_ as Color )        '' Draw spline: Catmull-Rom, minimum 4 points
+declare sub DrawSplineBezierQuadratic( byval points as const Vector2 ptr, byval pointCount as int32, byval thick as float32, byval color_ as Color )   '' Draw spline: Quadratic Bezier, minimum 3 points (1 control point): [p1, c2, p3, c4...]
+declare sub DrawSplineBezierCubic( byval points as const Vector2 ptr, byval pointCount as int32, byval thick as float32, byval color_ as Color )       '' Draw spline: Cubic Bezier, minimum 4 points (2 control points): [p1, c2, c3, p4, c5, c6...]
+declare sub DrawSplineSegmentLinear( byval p1 as Vector2, byval p2 as Vector2, byval thick as float32, byval color_ as Color )                    '' Draw spline segment: Linear, 2 points
+declare sub DrawSplineSegmentBasis( byval p1 as Vector2, byval p2 as Vector2, byval p3 as Vector2, byval p4 as Vector2, byval thick as float32, byval color_ as Color ) '' Draw spline segment: B-Spline, 4 points
+declare sub DrawSplineSegmentCatmullRom( byval p1 as Vector2, byval p2 as Vector2, byval p3 as Vector2, byval p4 as Vector2, byval thick as float32, byval color_ as Color ) '' Draw spline segment: Catmull-Rom, 4 points
+declare sub DrawSplineSegmentBezierQuadratic( byval p1 as Vector2, byval c2 as Vector2, byval p3 as Vector2, byval thick as float32, byval color_ as Color ) '' Draw spline segment: Quadratic Bezier, 2 points, 1 control point
+declare sub DrawSplineSegmentBezierCubic( byval p1 as Vector2, byval c2 as Vector2, byval c3 as Vector2, byval p4 as Vector2, byval thick as float32, byval color_ as Color ) '' Draw spline segment: Cubic Bezier, 2 points, 2 control points
+
+'' Spline segment point evaluation functions, for a given t [0.0f .. 1.0f]
+declare function GetSplinePointLinear( byval startPos as Vector2, byval endPos as Vector2, byval t as float32 ) as Vector2                           '' Get (evaluate) spline point: Linear
+declare function GetSplinePointBasis( byval p1 as Vector2, byval p2 as Vector2, byval p3 as Vector2, byval p4 as Vector2, byval t as float32 ) as Vector2              '' Get (evaluate) spline point: B-Spline
+declare function GetSplinePointCatmullRom( byval p1 as Vector2, byval p2 as Vector2, byval p3 as Vector2, byval p4 as Vector2, byval t as float32 ) as Vector2         '' Get (evaluate) spline point: Catmull-Rom
+declare function GetSplinePointBezierQuad( byval p1 as Vector2, byval c2 as Vector2, byval p3 as Vector2, byval t as float32 ) as Vector2                     '' Get (evaluate) spline point: Quadratic Bezier
+declare function GetSplinePointBezierCubic( byval p1 as Vector2, byval c2 as Vector2, byval c3 as Vector2, byval p4 as Vector2, byval t as float32 ) as Vector2        '' Get (evaluate) spline point: Cubic Bezier
+
+'' Basic shapes collision detection functions
+declare function CheckCollisionRecs( byval rec1 as Rectangle, byval rec2 as Rectangle ) as boolean       '' Check collision between two rectangles
+declare function CheckCollisionCircles( byval center1 as Vector2, byval radius1 as float32, byval center2 as Vector2, byval radius2 as float32 ) as boolean        '' Check collision between two circles
+declare function CheckCollisionCircleRec( byval center as Vector2, byval radius as float32, byval rec as Rectangle ) as boolean                         '' Check collision between circle and rectangle
+declare function CheckCollisionCircleLine( byval center as Vector2, byval radius as float32, byval p1 as Vector2, byval p2 as Vector2 ) as boolean               '' Check if circle collides with a line created betweeen two points [p1] and [p2]
+declare function CheckCollisionPointRec( byval point_ as Vector2, byval rec as Rectangle ) as boolean    '' Check if point is inside rectangle
+declare function CheckCollisionPointCircle( byval point_ as Vector2, byval center as Vector2, byval radius as float32 ) as boolean                       '' Check if point is inside circle
+declare function CheckCollisionPointTriangle( byval point_ as Vector2, byval p1 as Vector2, byval p2 as Vector2, byval p3 as Vector2 ) as boolean               '' Check if point is inside a triangle
+declare function CheckCollisionPointLine( byval point_ as Vector2, byval p1 as Vector2, byval p2 as Vector2, byval threshold as int32 ) as boolean                '' Check if point belongs to line created between two points [p1] and [p2] with defined margin in pixels [threshold]
+declare function CheckCollisionPointPoly( byval point_ as Vector2, byval points as const Vector2 ptr, byval pointCount as int32 ) as boolean                '' Check if point is within a polygon described by array of vertices
+declare function CheckCollisionLines( byval startPos1 as Vector2, byval endPos1 as Vector2, byval startPos2 as Vector2, byval endPos2 as Vector2, byval collisionPoint as Vector2 ptr ) as boolean '' Check the collision between two lines defined by two points each, returns collision point by reference
+declare function GetCollisionRec( byval rec1 as Rectangle, byval rec2 as Rectangle ) as Rectangle        '' Get collision rectangle for two rectangles collision
+
+''------------------------------------------------------------------------------------
+'' Texture Loading and Drawing Functions (Module: textures)
+''------------------------------------------------------------------------------------
+
+'' Image loading functions
+'' NOTE: These functions do not require GPU access
+declare function LoadImage( byval fileName as const zstring ptr ) as Image                               '' Load image from file into CPU memory (RAM)
+declare function LoadImageRaw( byval fileName as const zstring ptr, byval width_ as int32, byval height as int32, byval format as int32, byval headerSize as int32 ) as Image       '' Load image from RAW file data
+declare function LoadImageAnim( byval fileName as const zstring ptr, byval frames as int32 ptr ) as Image                                            '' Load image sequence from file (frames appended to image.data)
+declare function LoadImageAnimFromMemory( byval fileType as const zstring ptr, byval fileData as const uint8 ptr, byval dataSize as int32, byval frames as int32 ptr ) as Image '' Load image sequence from memory buffer
+declare function LoadImageFromMemory( byval fileType as const zstring ptr, byval fileData as const uint8 ptr, byval dataSize as int32 ) as Image      '' Load image from memory buffer, fileType refers to extension: i.e. '.png'
+declare function LoadImageFromTexture( byval texture as Texture2D ) as Image                             '' Load image from GPU texture data
+declare function LoadImageFromScreen( ) as Image                                                         '' Load image from screen buffer and (screenshot)
+declare function IsImageValid( byval image as Image ) as boolean                                         '' Check if an image is valid (data and parameters)
+declare sub UnloadImage( byval image as Image )                                                          '' Unload image from CPU memory (RAM)
+declare function ExportImage( byval image as Image, byval fileName as const zstring ptr ) as boolean     '' Export image data to file, returns true on success
+declare function ExportImageToMemory( byval image as Image, byval fileType as const zstring ptr, byval fileSize as int32 ptr ) as uint8 ptr              '' Export image to memory buffer, memory must be MemFree()
+declare function ExportImageAsCode( byval image as Image, byval fileName as const zstring ptr ) as boolean                                         '' Export image as code file defining an array of bytes, returns true on success
+
+'' Image generation functions
+declare function GenImageColor( byval width_ as int32, byval height as int32, byval color_ as Color ) as Image                                           '' Generate image: plain color
+declare function GenImageGradientLinear( byval width_ as int32, byval height as int32, byval direction as int32, byval start as Color, byval end_ as Color ) as Image        '' Generate image: linear gradient, direction in degrees [0..360], 0=Vertical gradient
+declare function GenImageGradientRadial( byval width_ as int32, byval height as int32, byval density as float32, byval inner as Color, byval outer as Color ) as Image      '' Generate image: radial gradient
+declare function GenImageGradientSquare( byval width_ as int32, byval height as int32, byval density as float32, byval inner as Color, byval outer as Color ) as Image      '' Generate image: square gradient
+declare function GenImageChecked( byval width_ as int32, byval height as int32, byval checksX as int32, byval checksY as int32, byval col1 as Color, byval col2 as Color ) as Image    '' Generate image: checked
+declare function GenImageWhiteNoise( byval width_ as int32, byval height as int32, byval factor as float32 ) as Image                                     '' Generate image: white noise
+declare function GenImagePerlinNoise( byval width_ as int32, byval height as int32, byval offsetX as int32, byval offsetY as int32, byval scale as float32 ) as Image           '' Generate image: perlin noise
+declare function GenImageCellular( byval width_ as int32, byval height as int32, byval tileSize as int32 ) as Image                                       '' Generate image: cellular algorithm, bigger tileSize means bigger cells
+declare function GenImageText( byval width_ as int32, byval height as int32, byval text as const zstring ptr ) as Image                                       '' Generate image: grayscale image from text data
+
+'' Image manipulation functions
+declare function ImageCopy( byval image as Image ) as Image                                              '' Create an image duplicate (useful for transformations)
+declare function ImageFromImage( byval image as Image, byval rec as Rectangle ) as Image                 '' Create an image from another image piece
+declare function ImageFromChannel( byval image as Image, byval selectedChannel as int32 ) as Image       '' Create an image from a selected channel of another image (GRAYSCALE)
+declare function ImageText( byval text as const zstring ptr, byval fontSize as int32, byval color_ as Color ) as Image                                      '' Create an image from text (default font)
+declare function ImageTextEx( byval font as Font, byval text as const zstring ptr, byval fontSize as float32, byval spacing as float32, byval tint as Color ) as Image         '' Create an image from text (custom sprite font)
+declare sub ImageFormat( byval image as Image ptr, byval newFormat as int32 )                            '' Convert image data to desired format
+declare sub ImageToPOT( byval image as Image ptr, byval fill as Color )                                  '' Convert image to POT (power-of-two)
+declare sub ImageCrop( byval image as Image ptr, byval crop as Rectangle )                               '' Crop an image to a defined rectangle
+declare sub ImageAlphaCrop( byval image as Image ptr, byval threshold as float32 )                       '' Crop image depending on alpha value
+declare sub ImageAlphaClear( byval image as Image ptr, byval color_ as Color, byval threshold as float32 )                                  '' Clear alpha channel to desired color
+declare sub ImageAlphaMask( byval image as Image ptr, byval alphaMask as Image )                         '' Apply alpha mask to image
+declare sub ImageAlphaPremultiply( byval image as Image ptr )                                            '' Premultiply alpha channel
+declare sub ImageBlurGaussian( byval image as Image ptr, byval blurSize as int32 )                       '' Apply Gaussian blur using a box blur approximation
+declare sub ImageKernelConvolution( byval image as Image ptr, byval kernel as const float32 ptr, byval kernelSize as int32 )                    '' Apply custom square convolution kernel to image
+declare sub ImageResize( byval image as Image ptr, byval newWidth as int32, byval newHeight as int32 )   '' Resize image (Bicubic scaling algorithm)
+declare sub ImageResizeNN( byval image as Image ptr, byval newWidth as int32, byval newHeight as int32 ) '' Resize image (Nearest-Neighbor scaling algorithm)
+declare sub ImageResizeCanvas( byval image as Image ptr, byval newWidth as int32, byval newHeight as int32, byval offsetX as int32, byval offsetY as int32, byval fill as Color ) '' Resize canvas and fill with color
+declare sub ImageMipmaps( byval image as Image ptr )                                                     '' Compute all mipmap levels for a provided image
+declare sub ImageDither( byval image as Image ptr, byval rBpp as int32, byval gBpp as int32, byval bBpp as int32, byval aBpp as int32 )                            '' Dither image data to 16bpp or lower (Floyd-Steinberg dithering)
+declare sub ImageFlipVertical( byval image as Image ptr )                                                '' Flip image vertically
+declare sub ImageFlipHorizontal( byval image as Image ptr )                                              '' Flip image horizontally
+declare sub ImageRotate( byval image as Image ptr, byval degrees as int32 )                              '' Rotate image by input angle in degrees (-359 to 359)
+declare sub ImageRotateCW( byval image as Image ptr )                                                    '' Rotate image clockwise 90deg
+declare sub ImageRotateCCW( byval image as Image ptr )                                                   '' Rotate image counter-clockwise 90deg
+declare sub ImageColorTint( byval image as Image ptr, byval color_ as Color )                            '' Modify image color: tint
+declare sub ImageColorInvert( byval image as Image ptr )                                                 '' Modify image color: invert
+declare sub ImageColorGrayscale( byval image as Image ptr )                                              '' Modify image color: grayscale
+declare sub ImageColorContrast( byval image as Image ptr, byval contrast as float32 )                    '' Modify image color: contrast (-100 to 100)
+declare sub ImageColorBrightness( byval image as Image ptr, byval brightness as int32 )                  '' Modify image color: brightness (-255 to 255)
+declare sub ImageColorReplace( byval image as Image ptr, byval color_ as Color, byval replace as Color ) '' Modify image color: replace color
+declare function LoadImageColors( byval image as Image ) as Color ptr                                    '' Load color data from image as a Color array (RGBA - 32bit)
+declare function LoadImagePalette( byval image as Image, byval maxPaletteSize as int32, byval colorCount as int32 ptr ) as Color ptr                         '' Load colors palette from image as a Color array (RGBA - 32bit)
+declare sub UnloadImageColors( byval colors as Color ptr )                                               '' Unload color data loaded with LoadImageColors()
+declare sub UnloadImagePalette( byval colors as Color ptr )                                              '' Unload colors palette loaded with LoadImagePalette()
+declare function GetImageAlphaBorder( byval image as Image, byval threshold as float32 ) as Rectangle    '' Get image alpha border rectangle
+declare function GetImageColor( byval image as Image, byval x as int32, byval y as int32 ) as Color      '' Get image pixel color at (x, y) position
+
+'' Image drawing functions
+'' NOTE: Image software-rendering functions (CPU)
+declare sub ImageClearBackground( byval dst as Image ptr, byval color_ as Color )                        '' Clear image background with given color
+declare sub ImageDrawPixel( byval dst as Image ptr, byval posX as int32, byval posY as int32, byval color_ as Color )                                  '' Draw pixel within an image
+declare sub ImageDrawPixelV( byval dst as Image ptr, byval position as Vector2, byval color_ as Color )  '' Draw pixel within an image (Vector version)
+declare sub ImageDrawLine( byval dst as Image ptr, byval startPosX as int32, byval startPosY as int32, byval endPosX as int32, byval endPosY as int32, byval color_ as Color ) '' Draw line within an image
+declare sub ImageDrawLineV( byval dst as Image ptr, byval start as Vector2, byval end_ as Vector2, byval color_ as Color )                          '' Draw line within an image (Vector version)
+declare sub ImageDrawLineEx( byval dst as Image ptr, byval start as Vector2, byval end_ as Vector2, byval thick as int32, byval color_ as Color )              '' Draw a line defining thickness within an image
+declare sub ImageDrawCircle( byval dst as Image ptr, byval centerX as int32, byval centerY as int32, byval radius as int32, byval color_ as Color )               '' Draw a filled circle within an image
+declare sub ImageDrawCircleV( byval dst as Image ptr, byval center as Vector2, byval radius as int32, byval color_ as Color )                        '' Draw a filled circle within an image (Vector version)
+declare sub ImageDrawCircleLines( byval dst as Image ptr, byval centerX as int32, byval centerY as int32, byval radius as int32, byval color_ as Color )          '' Draw circle outline within an image
+declare sub ImageDrawCircleLinesV( byval dst as Image ptr, byval center as Vector2, byval radius as int32, byval color_ as Color )                   '' Draw circle outline within an image (Vector version)
+declare sub ImageDrawRectangle( byval dst as Image ptr, byval posX as int32, byval posY as int32, byval width_ as int32, byval height as int32, byval color_ as Color )       '' Draw rectangle within an image
+declare sub ImageDrawRectangleV( byval dst as Image ptr, byval position as Vector2, byval size as Vector2, byval color_ as Color )                 '' Draw rectangle within an image (Vector version)
+declare sub ImageDrawRectangleRec( byval dst as Image ptr, byval rec as Rectangle, byval color_ as Color )                                '' Draw rectangle within an image
+declare sub ImageDrawRectangleLines( byval dst as Image ptr, byval rec as Rectangle, byval thick as int32, byval color_ as Color )                   '' Draw rectangle lines within an image
+declare sub ImageDrawTriangle( byval dst as Image ptr, byval v1 as Vector2, byval v2 as Vector2, byval v3 as Vector2, byval color_ as Color )               '' Draw triangle within an image
+declare sub ImageDrawTriangleEx( byval dst as Image ptr, byval v1 as Vector2, byval v2 as Vector2, byval v3 as Vector2, byval c1 as Color, byval c2 as Color, byval c3 as Color ) '' Draw triangle with interpolated colors within an image
+declare sub ImageDrawTriangleLines( byval dst as Image ptr, byval v1 as Vector2, byval v2 as Vector2, byval v3 as Vector2, byval color_ as Color )          '' Draw triangle outline within an image
+declare sub ImageDrawTriangleFan( byval dst as Image ptr, byval points as const Vector2 ptr, byval pointCount as int32, byval color_ as Color )         '' Draw a triangle fan defined by points within an image (first vertex is the center)
+declare sub ImageDrawTriangleStrip( byval dst as Image ptr, byval points as const Vector2 ptr, byval pointCount as int32, byval color_ as Color )       '' Draw a triangle strip defined by points within an image
+declare sub ImageDraw( byval dst as Image ptr, byval src as Image, byval srcRec as Rectangle, byval dstRec as Rectangle, byval tint as Color )             '' Draw a source image within a destination image (tint applied to source)
+declare sub ImageDrawText( byval dst as Image ptr, byval text as const zstring ptr, byval posX as int32, byval posY as int32, byval fontSize as int32, byval color_ as Color )   '' Draw text (using default font) within an image (destination)
+declare sub ImageDrawTextEx( byval dst as Image ptr, byval font as Font, byval text as const zstring ptr, byval position as Vector2, byval fontSize as float32, byval spacing as float32, byval tint as Color ) '' Draw text (custom sprite font) within an image (destination)
+
+'' Texture loading functions
+'' NOTE: These functions require GPU access
+declare function LoadTexture( byval fileName as const zstring ptr ) as Texture2D                         '' Load texture from file into GPU memory (VRAM)
+declare function LoadTextureFromImage( byval image as Image ) as Texture2D                               '' Load texture from image data
+declare function LoadTextureCubemap( byval image as Image, byval layout as int32 ) as TextureCubemap     '' Load cubemap from image, multiple image cubemap layouts supported
+declare function LoadRenderTexture( byval width_ as int32, byval height as int32 ) as RenderTexture2D    '' Load texture for rendering (framebuffer)
+declare function IsTextureValid( byval texture as Texture2D ) as boolean                                 '' Check if a texture is valid (loaded in GPU)
+declare sub UnloadTexture( byval texture as Texture2D )                                                  '' Unload texture from GPU memory (VRAM)
+declare function IsRenderTextureValid( byval target as RenderTexture2D ) as boolean                      '' Check if a render texture is valid (loaded in GPU)
+declare sub UnloadRenderTexture( byval target as RenderTexture2D )                                       '' Unload render texture from GPU memory (VRAM)
+declare sub UpdateTexture( byval texture as Texture2D, byval pixels as const any ptr )                   '' Update GPU texture with new data (pixels should be able to fill texture)
+declare sub UpdateTextureRec( byval texture as Texture2D, byval rec as Rectangle, byval pixels as const any ptr )                       '' Update GPU texture rectangle with new data (pixels and rec should fit in texture)
+
+'' Texture configuration functions
+declare sub GenTextureMipmaps( byval texture as Texture2D ptr )                                          '' Generate GPU mipmaps for a texture
+declare sub SetTextureFilter( byval texture as Texture2D, byval filter as int32 )                        '' Set texture scaling filter mode
+declare sub SetTextureWrap( byval texture as Texture2D, byval wrap as int32 )                            '' Set texture wrapping mode
+
+'' Texture drawing functions
+declare sub DrawTexture( byval texture as Texture2D, byval posX as int32, byval posY as int32, byval tint as Color )                               '' Draw a Texture2D
+declare sub DrawTextureV( byval texture as Texture2D, byval position as Vector2, byval tint as Color )   '' Draw a Texture2D with position defined as Vector2
+declare sub DrawTextureEx( byval texture as Texture2D, byval position as Vector2, byval rotation as float32, byval scale as float32, byval tint as Color )  '' Draw a Texture2D with extended parameters
+declare sub DrawTextureRec( byval texture as Texture2D, byval source as Rectangle, byval position as Vector2, byval tint as Color )            '' Draw a part of a texture defined by a rectangle
+declare sub DrawTexturePro( byval texture as Texture2D, byval source as Rectangle, byval dest as Rectangle, byval origin as Vector2, byval rotation as float32, byval tint as Color ) '' Draw a part of a texture defined by a rectangle with 'pro' parameters
+declare sub DrawTextureNPatch( byval texture as Texture2D, byval nPatchInfo as NPatchInfo, byval dest as Rectangle, byval origin as Vector2, byval rotation as float32, byval tint as Color ) '' Draws a texture (or part of it) that stretches or shrinks nicely
+
+'' Color/pixel related functions
+declare function ColorIsEqual( byval col1 as Color, byval col2 as Color ) as boolean                            '' Check if two colors are equal
+declare function Fade( byval color_ as Color, byval alpha as float32 ) as Color                                 '' Get color with alpha applied, alpha goes from 0.0f to 1.0f
+declare function ColorToInt( byval color_ as Color ) as int32               '' Get hexadecimal value for a Color (0xRRGGBBAA)
+declare function ColorNormalize( byval color_ as Color ) as Vector4         '' Get Color normalized as float [0..1]
+declare function ColorFromNormalized( byval normalized as Vector4 ) as Color                        '' Get Color from normalized values [0..1]
+declare function ColorToHSV( byval color_ as Color ) as Vector3             '' Get HSV values for a Color, hue [0..360], saturation/value [0..1]
+declare function ColorFromHSV( byval hue as float32, byval saturation as float32, byval value as float32 ) as Color         '' Get a Color from HSV values, hue [0..360], saturation/value [0..1]
+declare function ColorTint( byval color_ as Color, byval tint as Color ) as Color                             '' Get color multiplied with another color
+declare function ColorBrightness( byval color_ as Color, byval factor as float32 ) as Color                     '' Get color with brightness correction, brightness factor goes from -1.0f to 1.0f
+declare function ColorContrast( byval color_ as Color, byval contrast as float32 ) as Color                     '' Get color with contrast correction, contrast values between -1.0f and 1.0f
+declare function ColorAlpha( byval color_ as Color, byval alpha as float32 ) as Color                           '' Get color with alpha applied, alpha goes from 0.0f to 1.0f
+declare function ColorAlphaBlend( byval dst as Color, byval src as Color, byval tint as Color ) as Color              '' Get src alpha-blended into dst color with tint
+declare function ColorLerp( byval color1 as Color, byval color2 as Color, byval factor as float32 ) as Color            '' Get color lerp interpolation between two colors, factor [0.0f..1.0f]
+declare function GetColor( byval hexValue as uint32 ) as Color              '' Get Color structure from hexadecimal value
+declare function GetPixelColor( byval srcPtr as any ptr, byval format as int32 ) as Color                        '' Get Color from a source pixel pointer of certain format
+declare sub SetPixelColor( byval dstPtr as any ptr, byval color_ as Color, byval format as int32 )            '' Set color formatted into destination pixel pointer
+declare function GetPixelDataSize( byval width_ as int32, byval height as int32, byval format as int32 ) as int32              '' Get pixel data size in bytes for certain format
+
+''------------------------------------------------------------------------------------
+'' Font Loading and Text Drawing Functions (Module: text)
+''------------------------------------------------------------------------------------
+
+'' Font loading/unloading functions
+declare function GetFontDefault( ) as Font                                                  '' Get the default Font
+declare function LoadFont( byval fileName as const zstring ptr ) as Font                    '' Load font from file into GPU memory (VRAM)
+declare function LoadFontEx( byval fileName as const zstring ptr, byval fontSize as int32, byval codepoints as const int32 ptr, byval codepointCount as int32 ) as Font '' Load font from file with extended parameters, use NULL for codepoints and 0 for codepointCount to load the default character set, font size is provided in pixels height
+declare function LoadFontFromImage( byval image as Image, byval key as Color, byval firstChar as int32 ) as Font                        '' Load font from Image (XNA style)
+declare function LoadFontFromMemory( byval fileType as const zstring ptr, byval fileData as const uint8 ptr, byval dataSize as int32, byval fontSize as int32, byval codepoints as const int32 ptr, byval codepointCount as int32 ) as Font '' Load font from memory buffer, fileType refers to extension: i.e. '.ttf'
+declare function IsFontValid( byval font as Font ) as boolean                               '' Check if a font is valid (font data loaded, WARNING: GPU texture not checked)
+declare function LoadFontData( byval fileData as const uint8 ptr, byval dataSize as int32, byval fontSize as int32, byval codepoints as const int32 ptr, byval codepointCount as int32, byval type_ as int32, byval glyphCount as int32 ptr ) as GlyphInfo ptr '' Load font data for further use
+declare function GenImageFontAtlas( byval glyphs as const GlyphInfo ptr, byval glyphRecs as Rectangle ptr ptr, byval glyphCount as int32, byval fontSize as int32, byval padding as int32, byval packMethod as int32 ) as Image '' Generate image font atlas using chars info
+declare sub UnloadFontData( byval glyphs as GlyphInfo ptr, byval glyphCount as int32 )      '' Unload font chars info data (RAM)
+declare sub UnloadFont( byval font as Font )                                                '' Unload font from GPU memory (VRAM)
+declare function ExportFontAsCode( byval font as Font, byval fileName as const zstring ptr ) as boolean                               '' Export font as code file, returns true on success
+
+'' Text drawing functions
+declare sub DrawFPS( byval posX as int32, byval posY as int32 )                             '' Draw current FPS
+declare sub DrawText( byval text as const zstring ptr, byval posX as int32, byval posY as int32, byval fontSize as int32, byval color_ as Color )       '' Draw text (using default font)
+declare sub DrawTextEx( byval font as Font, byval text as const zstring ptr, byval position as Vector2, byval fontSize as float32, byval spacing as float32, byval tint as Color ) '' Draw text using font and additional parameters
+declare sub DrawTextPro( byval font as Font, byval text as const zstring ptr, byval position as Vector2, byval origin as Vector2, byval rotation as float32, byval fontSize as float32, byval spacing as float32, byval tint as Color ) '' Draw text using Font and pro parameters (rotation)
+declare sub DrawTextCodepoint( byval font as Font, byval codepoint as int32, byval position as Vector2, byval fontSize as float32, byval tint as Color ) '' Draw one character (codepoint)
+declare sub DrawTextCodepoints( byval font as Font, byval codepoints as const int32 ptr, byval codepointCount as int32, byval position as Vector2, byval fontSize as float32, byval spacing as float32, byval tint as Color ) '' Draw multiple character (codepoint)
+
+'' Text font info functions
+declare sub SetTextLineSpacing( byval spacing as int32 )                                    '' Set vertical line spacing when drawing with line-breaks
+declare function MeasureText( byval text as const zstring ptr, byval fontSize as int32 ) as int32                                      '' Measure string width for default font
+declare function MeasureTextEx( byval font as Font, byval text as const zstring ptr, byval fontSize as float32, byval spacing as float32 ) as Vector2    '' Measure string size for Font
+declare function MeasureTextCodepoints( byval font as Font, byval codepoints as const int32 ptr, byval length as int32, byval fontSize as float32, byval spacing as float32 ) as Vector2 '' Measure string size for an existing array of codepoints for Font
+declare function GetGlyphIndex( byval font as Font, byval codepoint as int32 ) as int32     '' Get glyph index position in font for a codepoint (unicode character), fallback to '?' if not found
+declare function GetGlyphInfo( byval font as Font, byval codepoint as int32 ) as GlyphInfo  '' Get glyph font info data for a codepoint (unicode character), fallback to '?' if not found
+declare function GetGlyphAtlasRec( byval font as Font, byval codepoint as int32 ) as Rectangle                                 '' Get glyph rectangle in font atlas for a codepoint (unicode character), fallback to '?' if not found
+
+'' Text codepoints management functions (unicode characters)
+declare function LoadUTF8( byval codepoints as const int32 ptr, byval length as int32 ) as zstring ptr                                    '' Load UTF-8 text encoded from codepoints array
+declare sub UnloadUTF8( byval text as zstring ptr )                                         '' Unload UTF-8 text encoded from codepoints array
+declare function LoadCodepoints( byval text as const zstring ptr, byval count as int32 ptr ) as int32 ptr                                    '' Load all codepoints from a UTF-8 text string, codepoints count returned by parameter
+declare sub UnloadCodepoints( byval codepoints as int32 ptr )                               '' Unload codepoints data from memory
+declare function GetCodepointCount( byval text as const zstring ptr ) as int32              '' Get total number of codepoints in a UTF-8 encoded string
+declare function GetCodepoint( byval text as const zstring ptr, byval codepointSize as int32 ptr ) as int32                               '' Get next codepoint in a UTF-8 encoded string, 0x3f('?') is returned on failure
+declare function GetCodepointNext( byval text as const zstring ptr, byval codepointSize as int32 ptr ) as int32                           '' Get next codepoint in a UTF-8 encoded string, 0x3f('?') is returned on failure
+declare function GetCodepointPrevious( byval text as const zstring ptr, byval codepointSize as int32 ptr ) as int32                       '' Get previous codepoint in a UTF-8 encoded string, 0x3f('?') is returned on failure
+declare function CodepointToUTF8( byval codepoint as int32, byval utf8Size as int32 ptr ) as const zstring ptr                            '' Encode one codepoint into UTF-8 byte array (array length returned as parameter)
+
+'' Text strings management functions (no UTF-8 strings, only byte chars)
+'' WARNING 1: Most of these functions use internal static buffers[], it's recommended to store returned data on user-side for re-use
+'' WARNING 2: Some functions allocate memory internally for the returned strings, those strings must be freed by user using MemFree()
+declare function LoadTextLines( byval text as const zstring ptr, byval count as int32 ptr ) as zstring ptr ptr                                   '' Load text as separate lines ('\n')
+declare sub UnloadTextLines( byval text as zstring ptr ptr, byval lineCount as int32 )      '' Unload text lines
+declare function TextCopy( byval dst as zstring ptr, byval src as const zstring ptr ) as int32                                             '' Copy one string to another, returns bytes copied
+declare function TextIsEqual( byval text1 as const zstring ptr, byval text2 as const zstring ptr ) as boolean                               '' Check if two text string are equal
+declare function TextLength( byval text as const zstring ptr ) as uint32                    '' Get text length, checks for '\0' ending
+declare function TextFormat( byval text as const zstring ptr, ... ) as const zstring ptr    '' Text formatting with variables (sprintf() style)
+declare function TextSubtext( byval text as const zstring ptr, byval position as int32, byval length as int32 ) as const zstring ptr                  '' Get a piece of a text string
+declare function TextRemoveSpaces( byval text as const zstring ptr ) as const zstring ptr   '' Remove text spaces, concat words
+declare function GetTextBetween( byval text as const zstring ptr, byval begin as const zstring ptr, byval end_ as const zstring ptr ) as zstring ptr           '' Get text between two strings
+declare function TextReplace( byval text as const zstring ptr, byval search as const zstring ptr, byval replacement as const zstring ptr ) as zstring ptr     '' Replace text string with new string
+declare function TextReplaceAlloc( byval text as const zstring ptr, byval search as const zstring ptr, byval replacement as const zstring ptr ) as zstring ptr '' Replace text string with new string, memory must be MemFree()
+declare function TextReplaceBetween( byval text as const zstring ptr, byval begin as const zstring ptr, byval end_ as const zstring ptr, byval replacement as const zstring ptr ) as zstring ptr '' Replace text between two specific strings
+declare function TextReplaceBetweenAlloc( byval text as const zstring ptr, byval begin as const zstring ptr, byval end_ as const zstring ptr, byval replacement as const zstring ptr ) as zstring ptr '' Replace text between two specific strings, memory must be MemFree()
+declare function TextInsert( byval text as const zstring ptr, byval insert as const zstring ptr, byval position as int32 ) as zstring ptr                 '' Insert text in a defined byte position
+declare function TextInsertAlloc( byval text as const zstring ptr, byval insert as const zstring ptr, byval position as int32 ) as zstring ptr            '' Insert text in a defined byte position, memory must be MemFree()
+declare function TextJoin( byval textList as zstring ptr ptr, byval count as int32, byval delimiter as const zstring ptr ) as zstring ptr                    '' Join text strings with delimiter
+declare function TextSplit( byval text as const zstring ptr, byval delimiter as byte, byval count as int32 ptr ) as zstring ptr ptr                       '' Split text into multiple strings, using MAX_TEXTSPLIT_COUNT static strings
+declare sub TextAppend( byval text as zstring ptr, byval append_ as const zstring ptr, byval position as int32 ptr )                       '' Append text at specific position and move cursor
+declare function TextFindIndex( byval text as const zstring ptr, byval search as const zstring ptr ) as int32                              '' Find first text occurrence within a string, -1 if not found
+declare function TextToUpper( byval text as const zstring ptr ) as zstring ptr              '' Get upper case version of provided string
+declare function TextToLower( byval text as const zstring ptr ) as zstring ptr              '' Get lower case version of provided string
+declare function TextToPascal( byval text as const zstring ptr ) as zstring ptr             '' Get Pascal case notation version of provided string
+declare function TextToSnake( byval text as const zstring ptr ) as zstring ptr              '' Get Snake case notation version of provided string
+declare function TextToCamel( byval text as const zstring ptr ) as zstring ptr              '' Get Camel case notation version of provided string
+declare function TextToInteger( byval text as const zstring ptr ) as int32                  '' Get integer value from text
+declare function TextToFloat( byval text as const zstring ptr ) as float32                  '' Get float value from text
+
+''------------------------------------------------------------------------------------
+'' Basic 3d Shapes Drawing Functions (Module: models)
+''------------------------------------------------------------------------------------
+
+'' Basic geometric 3D shapes drawing functions
+declare sub DrawLine3D( byval startPos as Vector3, byval endPos as Vector3, byval color_ as Color )      '' Draw a line in 3D world space
+declare sub DrawPoint3D( byval position as Vector3, byval color_ as Color )                              '' Draw a point in 3D space, actually a small line
+declare sub DrawCircle3D( byval center as Vector3, byval radius as float32, byval rotationAxis as Vector3, byval rotationAngle as float32, byval color_ as Color ) '' Draw a circle in 3D world space
+declare sub DrawTriangle3D( byval v1 as Vector3, byval v2 as Vector3, byval v3 as Vector3, byval color_ as Color )                              '' Draw a color-filled triangle (vertex in counter-clockwise order!)
+declare sub DrawTriangleStrip3D( byval points as const Vector3 ptr, byval pointCount as int32, byval color_ as Color )                      '' Draw a triangle strip defined by points
+declare sub DrawCube( byval position as Vector3, byval width_ as float32, byval height as float32, byval length as float32, byval color_ as Color )             '' Draw cube
+declare sub DrawCubeV( byval position as Vector3, byval size as Vector3, byval color_ as Color )         '' Draw cube (Vector version)
+declare sub DrawCubeWires( byval position as Vector3, byval width_ as float32, byval height as float32, byval length as float32, byval color_ as Color )        '' Draw cube wires
+declare sub DrawCubeWiresV( byval position as Vector3, byval size as Vector3, byval color_ as Color )    '' Draw cube wires (Vector version)
+declare sub DrawSphere( byval centerPos as Vector3, byval radius as float32, byval color_ as Color )     '' Draw sphere
+declare sub DrawSphereEx( byval centerPos as Vector3, byval radius as float32, byval rings as int32, byval slices as int32, byval color_ as Color )            '' Draw sphere with extended parameters
+declare sub DrawSphereWires( byval centerPos as Vector3, byval radius as float32, byval rings as int32, byval slices as int32, byval color_ as Color )         '' Draw sphere wires
+declare sub DrawCylinder( byval position as Vector3, byval radiusTop as float32, byval radiusBottom as float32, byval height as float32, byval slices as int32, byval color_ as Color ) '' Draw a cylinder/cone
+declare sub DrawCylinderEx( byval startPos as Vector3, byval endPos as Vector3, byval startRadius as float32, byval endRadius as float32, byval sides as int32, byval color_ as Color ) '' Draw a cylinder with base at startPos and top at endPos
+declare sub DrawCylinderWires( byval position as Vector3, byval radiusTop as float32, byval radiusBottom as float32, byval height as float32, byval slices as int32, byval color_ as Color ) '' Draw a cylinder/cone wires
+declare sub DrawCylinderWiresEx( byval startPos as Vector3, byval endPos as Vector3, byval startRadius as float32, byval endRadius as float32, byval sides as int32, byval color_ as Color ) '' Draw a cylinder wires with base at startPos and top at endPos
+declare sub DrawCapsule( byval startPos as Vector3, byval endPos as Vector3, byval radius as float32, byval slices as int32, byval rings as int32, byval color_ as Color ) '' Draw a capsule with the center of its sphere caps at startPos and endPos
+declare sub DrawCapsuleWires( byval startPos as Vector3, byval endPos as Vector3, byval radius as float32, byval slices as int32, byval rings as int32, byval color_ as Color ) '' Draw capsule wireframe with the center of its sphere caps at startPos and endPos
+declare sub DrawPlane( byval centerPos as Vector3, byval size as Vector2, byval color_ as Color )        '' Draw a plane XZ
+declare sub DrawRay( byval ray as Ray, byval color_ as Color )                                           '' Draw a ray line
+declare sub DrawGrid( byval slices as int32, byval spacing as float32 )                                  '' Draw a grid (centered at (0, 0, 0))
+
+''------------------------------------------------------------------------------------
+'' Model 3d Loading and Drawing Functions (Module: models)
+''------------------------------------------------------------------------------------
+
+'' Model management functions
+declare function LoadModel( byval fileName as const zstring ptr ) as Model                  '' Load model from files (meshes and materials)
+declare function LoadModelFromMesh( byval mesh as Mesh ) as Model                           '' Load model from generated mesh (default material)
+declare function IsModelValid( byval model as Model ) as boolean                            '' Check if a model is valid (loaded in GPU, VAO/VBOs)
+declare sub UnloadModel( byval model as Model )                                             '' Unload model (including meshes) from memory (RAM and/or VRAM)
+declare function GetModelBoundingBox( byval model as Model ) as BoundingBox                 '' Compute model bounding box limits (considers all meshes)
+
+'' Model drawing functions
+declare sub DrawModel( byval model as Model, byval position as Vector3, byval scale as float32, byval tint as Color )               '' Draw a model (with texture if set)
+declare sub DrawModelEx( byval model as Model, byval position as Vector3, byval rotationAxis as Vector3, byval rotationAngle as float32, byval scale as Vector3, byval tint as Color ) '' Draw a model with extended parameters
+declare sub DrawModelWires( byval model as Model, byval position as Vector3, byval scale as float32, byval tint as Color )          '' Draw a model wires (with texture if set)
+declare sub DrawModelWiresEx( byval model as Model, byval position as Vector3, byval rotationAxis as Vector3, byval rotationAngle as float32, byval scale as Vector3, byval tint as Color ) '' Draw a model wires (with texture if set) with extended parameters
+declare sub DrawBoundingBox( byval box as BoundingBox, byval color_ as Color )              '' Draw bounding box (wires)
+declare sub DrawBillboard( byval camera as Camera, byval texture as Texture2D, byval position as Vector3, byval scale as float32, byval tint as Color ) '' Draw a billboard texture
+declare sub DrawBillboardRec( byval camera as Camera, byval texture as Texture2D, byval source as Rectangle, byval position as Vector3, byval size as Vector2, byval tint as Color ) '' Draw a billboard texture defined by source
+declare sub DrawBillboardPro( byval camera as Camera, byval texture as Texture2D, byval source as Rectangle, byval position as Vector3, byval up as Vector3, byval size as Vector2, byval origin as Vector2, byval rotation as float32, byval tint as Color ) '' Draw a billboard texture defined by source and rotation
+
+'' Mesh management functions
+declare sub UploadMesh( byval mesh as Mesh ptr, byval dynamic_ as boolean )                 '' Upload mesh vertex data in GPU and provide VAO/VBO ids
+declare sub UpdateMeshBuffer( byval mesh as Mesh, byval index as int32, byval data_ as const any ptr, byval dataSize as int32, byval offset as int32 ) '' Update mesh vertex data in GPU for a specific buffer index
+declare sub UnloadMesh( byval mesh as Mesh )                                                '' Unload mesh data from CPU and GPU
+declare sub DrawMesh( byval mesh as Mesh, byval material as Material, byval transform as Matrix )                        '' Draw a 3d mesh with material and transform
+declare sub DrawMeshInstanced( byval mesh as Mesh, byval material as Material, byval transforms as const Matrix ptr, byval instances as int32 ) '' Draw multiple mesh instances with material and different transforms
+declare function GetMeshBoundingBox( byval mesh as Mesh ) as BoundingBox                    '' Compute mesh bounding box limits
+declare sub GenMeshTangents( byval mesh as Mesh ptr )                                       '' Compute mesh tangents
+declare function ExportMesh( byval mesh as Mesh, byval fileName as const zstring ptr ) as boolean                                     '' Export mesh data to file, returns true on success
+declare function ExportMeshAsCode( byval mesh as Mesh, byval fileName as const zstring ptr ) as boolean                               '' Export mesh as code file (.h) defining multiple arrays of vertex attributes
+
+'' Mesh generation functions
+declare function GenMeshPoly( byval sides as int32, byval radius as float32 ) as Mesh       '' Generate polygonal mesh
+declare function GenMeshPlane( byval width_ as float32, byval length as float32, byval resX as int32, byval resZ as int32 ) as Mesh                     '' Generate plane mesh (with subdivisions)
+declare function GenMeshCube( byval width_ as float32, byval height as float32, byval length as float32 ) as Mesh                            '' Generate cuboid mesh
+declare function GenMeshSphere( byval radius as float32, byval rings as int32, byval slices as int32 ) as Mesh                              '' Generate sphere mesh (standard sphere)
+declare function GenMeshHemiSphere( byval radius as float32, byval rings as int32, byval slices as int32 ) as Mesh                          '' Generate half-sphere mesh (no bottom cap)
+declare function GenMeshCylinder( byval radius as float32, byval height as float32, byval slices as int32 ) as Mesh                         '' Generate cylinder mesh
+declare function GenMeshCone( byval radius as float32, byval height as float32, byval slices as int32 ) as Mesh                             '' Generate cone/pyramid mesh
+declare function GenMeshTorus( byval radius as float32, byval size as float32, byval radSeg as int32, byval sides as int32 ) as Mesh                   '' Generate torus mesh
+declare function GenMeshKnot( byval radius as float32, byval size as float32, byval radSeg as int32, byval sides as int32 ) as Mesh                    '' Generate trefoil knot mesh
+declare function GenMeshHeightmap( byval heightmap as Image, byval size as Vector3 ) as Mesh                                 '' Generate heightmap mesh from image data
+declare function GenMeshCubicmap( byval cubicmap as Image, byval cubeSize as Vector3 ) as Mesh                               '' Generate cubes-based map mesh from image data
+
+'' Material loading/unloading functions
+declare function LoadMaterials( byval fileName as const zstring ptr, byval materialCount as int32 ptr ) as Material ptr                    '' Load materials from model file
+declare function LoadMaterialDefault( ) as Material                                         '' Load default material (Supports: DIFFUSE, SPECULAR, NORMAL maps)
+declare function IsMaterialValid( byval material as Material ) as boolean                   '' Check if a material is valid (shader assigned, map textures loaded in GPU)
+declare sub UnloadMaterial( byval material as Material )                                    '' Unload material from GPU memory (VRAM)
+declare sub SetMaterialTexture( byval material as Material ptr, byval mapType as int32, byval texture as Texture2D )          '' Set texture for a material map type (MATERIAL_MAP_DIFFUSE, MATERIAL_MAP_SPECULAR...)
+declare sub SetModelMeshMaterial( byval model as Model ptr, byval meshId as int32, byval materialId as int32 )                  '' Set material for a mesh
+
+'' Model animations loading/unloading functions
+declare function LoadModelAnimations( byval fileName as const zstring ptr, byval animCount as int32 ptr ) as ModelAnimation ptr            '' Load model animations from file
+declare sub UpdateModelAnimation( byval model as Model, byval anim as ModelAnimation, byval frame as float32 )             '' Update model animation pose (vertex buffers and bone matrices)
+declare sub UpdateModelAnimationEx( byval model as Model, byval animA as ModelAnimation, byval frameA as float32, byval animB as ModelAnimation, byval frameB as float32, byval blend as float32 ) '' Update model animation pose, blending two animations
+declare sub UnloadModelAnimations( byval animations as ModelAnimation ptr, byval animCount as int32 )                '' Unload animation array data
+declare function IsModelAnimationValid( byval model as Model, byval anim as ModelAnimation ) as boolean                         '' Check model animation skeleton match
+
+'' Collision detection functions
+declare function CheckCollisionSpheres( byval center1 as Vector3, byval radius1 as float32, byval center2 as Vector3, byval radius2 as float32 ) as boolean '' Check collision between two spheres
+declare function CheckCollisionBoxes( byval box1 as BoundingBox, byval box2 as BoundingBox ) as boolean                         '' Check collision between two bounding boxes
+declare function CheckCollisionBoxSphere( byval box as BoundingBox, byval center as Vector3, byval radius as float32 ) as boolean          '' Check collision between box and sphere
+declare function GetRayCollisionSphere( byval ray as Ray, byval center as Vector3, byval radius as float32 ) as RayCollision            '' Get collision info between ray and sphere
+declare function GetRayCollisionBox( byval ray as Ray, byval box as BoundingBox ) as RayCollision                            '' Get collision info between ray and box
+declare function GetRayCollisionMesh( byval ray as Ray, byval mesh as Mesh, byval transform as Matrix ) as RayCollision               '' Get collision info between ray and mesh
+declare function GetRayCollisionTriangle( byval ray as Ray, byval p1 as Vector3, byval p2 as Vector3, byval p3 as Vector3 ) as RayCollision    '' Get collision info between ray and triangle
+declare function GetRayCollisionQuad( byval ray as Ray, byval p1 as Vector3, byval p2 as Vector3, byval p3 as Vector3, byval p4 as Vector3 ) as RayCollision '' Get collision info between ray and quad
+
+''------------------------------------------------------------------------------------
+'' Audio Loading and Playing Functions (Module: audio)
+''------------------------------------------------------------------------------------
+type AudioCallback as sub cdecl( byval as any ptr, byval as uint32 )
+
+'' Audio device management functions
+declare sub InitAudioDevice( )                                        '' Initialize audio device and context
+declare sub CloseAudioDevice( )                                       '' Close the audio device and context
+declare function IsAudioDeviceReady( ) as boolean                     '' Check if audio device has been initialized successfully
+declare sub SetMasterVolume( byval volume as float32 )                '' Set master volume (listener)
+declare function GetMasterVolume( ) as float32                        '' Get master volume (listener)
+
+'' Wave/Sound loading/unloading functions
+declare function LoadWave( byval fileName as const zstring ptr ) as Wave                            '' Load wave data from file
+declare function LoadWaveFromMemory( byval fileType as const zstring ptr, byval fileData as const uint8 ptr, byval dataSize as int32 ) as Wave '' Load wave from memory buffer, fileType refers to extension: i.e. '.wav'
+declare function IsWaveValid( byval wave as Wave ) as boolean         '' Checks if wave data is valid (data loaded and parameters)
+declare function LoadSound( byval fileName as const zstring ptr ) as Sound                          '' Load sound from file
+declare function LoadSoundFromWave( byval wave as Wave ) as Sound     '' Load sound from wave data
+declare function LoadSoundAlias( byval source as Sound ) as Sound     '' Create a new sound that shares the same sample data as the source sound, does not own the sound data
+declare function IsSoundValid( byval sound as Sound ) as boolean      '' Checks if a sound is valid (data loaded and buffers initialized)
+declare sub UpdateSound( byval sound as Sound, byval data_ as const any ptr, byval sampleCount as int32 ) '' Update sound buffer with new data (default data format: 32 bit float, stereo)
+declare sub UnloadWave( byval wave as Wave )                          '' Unload wave data
+declare sub UnloadSound( byval sound as Sound )                       '' Unload sound
+declare sub UnloadSoundAlias( byval alias_ as Sound )                 '' Unload a sound alias (does not deallocate sample data)
+declare function ExportWave( byval wave as Wave, byval fileName as const zstring ptr ) as boolean               '' Export wave data to file, returns true on success
+declare function ExportWaveAsCode( byval wave as Wave, byval fileName as const zstring ptr ) as boolean         '' Export wave sample data to code (.h), returns true on success
+
+'' Wave/Sound management functions
+declare sub PlaySound( byval sound as Sound )                         '' Play a sound
+declare sub StopSound( byval sound as Sound )                         '' Stop playing a sound
+declare sub PauseSound( byval sound as Sound )                        '' Pause a sound
+declare sub ResumeSound( byval sound as Sound )                       '' Resume a paused sound
+declare function IsSoundPlaying( byval sound as Sound ) as boolean    '' Check if a sound is currently playing
+declare sub SetSoundVolume( byval sound as Sound, byval volume as float32 )                 '' Set volume for a sound (1.0 is max level)
+declare sub SetSoundPitch( byval sound as Sound, byval pitch as float32 )                   '' Set pitch for a sound (1.0 is base level)
+declare sub SetSoundPan( byval sound as Sound, byval pan as float32 ) '' Set pan for a sound (-1.0 left, 0.0 center, 1.0 right)
+declare function WaveCopy( byval wave as Wave ) as Wave               '' Copy a wave to a new wave
+declare sub WaveCrop( byval wave as Wave ptr, byval initFrame as int32, byval finalFrame as int32 )       '' Crop a wave to defined frames range
+declare sub WaveFormat( byval wave as Wave ptr, byval sampleRate as int32, byval sampleSize as int32, byval channels as int32 ) '' Convert wave data to desired format
+declare function LoadWaveSamples( byval wave as Wave ) as float32 ptr '' Load samples data from wave as a 32bit float data array
+declare sub UnloadWaveSamples( byval samples as float32 ptr )         '' Unload samples data loaded with LoadWaveSamples()
+
+'' Music management functions
+declare function LoadMusicStream( byval fileName as const zstring ptr ) as Music                    '' Load music stream from file
+declare function LoadMusicStreamFromMemory( byval fileType as const zstring ptr, byval data_ as const uint8 ptr, byval dataSize as int32 ) as Music '' Load music stream from data
+declare function IsMusicValid( byval music as Music ) as boolean      '' Checks if a music stream is valid (context and buffers initialized)
+declare sub UnloadMusicStream( byval music as Music )                 '' Unload music stream
+declare sub PlayMusicStream( byval music as Music )                   '' Start music playing
+declare function IsMusicStreamPlaying( byval music as Music ) as boolean                         '' Check if music is playing
+declare sub UpdateMusicStream( byval music as Music )                 '' Updates buffers for music streaming
+declare sub StopMusicStream( byval music as Music )                   '' Stop music playing
+declare sub PauseMusicStream( byval music as Music )                  '' Pause music playing
+declare sub ResumeMusicStream( byval music as Music )                 '' Resume playing paused music
+declare sub SeekMusicStream( byval music as Music, byval position as float32 )              '' Seek music to a position (in seconds)
+declare sub SetMusicVolume( byval music as Music, byval volume as float32 )                 '' Set volume for music (1.0 is max level)
+declare sub SetMusicPitch( byval music as Music, byval pitch as float32 )                   '' Set pitch for a music (1.0 is base level)
+declare sub SetMusicPan( byval music as Music, byval pan as float32 ) '' Set pan for a music (-1.0 left, 0.0 center, 1.0 right)
+declare function GetMusicTimeLength( byval music as Music ) as float32                          '' Get music time length (in seconds)
+declare function GetMusicTimePlayed( byval music as Music ) as float32                          '' Get current music time played (in seconds)
+
+'' AudioStream management functions
+declare function LoadAudioStream( byval sampleRate as uint32, byval sampleSize as uint32, byval channels as uint32 ) as AudioStream '' Load audio stream (to stream raw audio pcm data)
+declare function IsAudioStreamValid( byval stream as AudioStream ) as boolean                    '' Checks if an audio stream is valid (buffers initialized)
+declare sub UnloadAudioStream( byval stream as AudioStream )          '' Unload audio stream and free memory
+declare sub UpdateAudioStream( byval stream as AudioStream, byval data_ as const any ptr, byval frameCount as int32 ) '' Update audio stream buffers with data
+declare function IsAudioStreamProcessed( byval stream as AudioStream ) as boolean                '' Check if any audio stream buffers requires refill
+declare sub PlayAudioStream( byval stream as AudioStream )            '' Play audio stream
+declare sub PauseAudioStream( byval stream as AudioStream )           '' Pause audio stream
+declare sub ResumeAudioStream( byval stream as AudioStream )          '' Resume audio stream
+declare function IsAudioStreamPlaying( byval stream as AudioStream ) as boolean                  '' Check if audio stream is playing
+declare sub StopAudioStream( byval stream as AudioStream )            '' Stop audio stream
+declare sub SetAudioStreamVolume( byval stream as AudioStream, byval volume as float32 )    '' Set volume for audio stream (1.0 is max level)
+declare sub SetAudioStreamPitch( byval stream as AudioStream, byval pitch as float32 )      '' Set pitch for audio stream (1.0 is base level)
+declare sub SetAudioStreamPan( byval stream as AudioStream, byval pan as float32 )          '' Set pan for audio stream (-1.0 to 1.0 range, 0.0 is centered)
+declare sub SetAudioStreamBufferSizeDefault( byval size as int32 )    '' Default size for new audio streams
+declare sub SetAudioStreamCallback( byval stream as AudioStream, byval callback as AudioCallback ) '' Audio thread callback to request new data
+
+declare sub AttachAudioStreamProcessor( byval stream as AudioStream, byval processor as AudioCallback ) '' Attach audio stream processor to stream, receives frames x 2 samples as 'float' (stereo)
+declare sub DetachAudioStreamProcessor( byval stream as AudioStream, byval processor as AudioCallback ) '' Detach audio stream processor from stream
+
+declare sub AttachAudioMixedProcessor( byval processor as AudioCallback ) '' Attach audio stream processor to the entire audio pipeline, receives frames x 2 samples as 'float' (stereo)
+declare sub DetachAudioMixedProcessor( byval processor as AudioCallback ) '' Detach audio stream processor from the entire audio pipeline
+
+end extern
+

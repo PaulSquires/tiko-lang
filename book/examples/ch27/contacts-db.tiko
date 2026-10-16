@@ -1,40 +1,64 @@
-'' The SQLite wrapper is a module of its own, in the db package.
-#import "db/sqlite"
+'' SQLite's own C interface, from the toolchain's vendor package.
+#import "vendor/sqlite3"
 
-dim db as sqlite.Database
-db.OpenMemory( )
-db.Execute( "create table contact( id integer primary key, " & _
-            "name text not null, email text )" )
+'' SQLite reports failure as a result code; this turns one into a stop.
+sub Check( byval rc as int32, byval db as sqlite3 ptr )
+    if rc <> SQLITE_OK andalso rc <> SQLITE_DONE then
+        print "SQLite error"; rc; ": "; *sqlite3_errmsg( db )
+        end 1
+    end if
+end sub
+
+dim db as sqlite3 ptr
+Check( sqlite3_open( ":memory:", @db ), db )
+Check( sqlite3_exec( db, "create table contact( " & _
+    "id integer primary key, name text not null, email text )", _
+    nullptr, nullptr, nullptr ), db )
 
 '' Values go in as parameters, never pasted into the SQL text.
-dim as ustring names( ... ) = { "Grace", "Ada", "Edsger" }
-dim as ustring emails( ... ) = { "grace@example.org", _
-                                 "ada@example.org", "" }
+dim as string names( ... ) = { "Grace", "Ada", "Edsger" }
+dim as string emails( ... ) = { "grace@example.org", _
+                                "ada@example.org", "" }
+dim ins as sqlite3_stmt ptr
+Check( sqlite3_prepare_v2( db, _
+    "insert into contact( name, email ) values( ?, ? )", _
+    -1, @ins, nullptr ), db )
 for i as int32 = 0 to ubound( names )
-    db.Execute( "insert into contact( name, email ) values( ?, ? )", _
-                sqlite.Args( names( i ), emails( i ) ) )
+    sqlite3_bind_text( ins, 1, names( i ), -1, SQLITE_TRANSIENT )
+    sqlite3_bind_text( ins, 2, emails( i ), -1, SQLITE_TRANSIENT )
+    Check( sqlite3_step( ins ), db )
+    sqlite3_reset( ins )
 next
-print "last id:"; db.LastInsertRowId( )
+sqlite3_finalize( ins )
+print "last id:"; sqlite3_last_insert_rowid( db )
 
-'' A query returns a Result holding rows; each column is read by name.
-var rows = db.Query( "select id, name, email from contact " & _
-                     "where email <> '' order by name" )
-if rows.IsOk( ) then
-    for each r in rows.Value( )
-        print r[ "id" ].AsInt64( ); "  "; r[ "name" ].AsText( ); _
-              "  "; r[ "email" ].AsText( )
-    next
-end if
+'' A query is stepped through one row at a time.
+dim sel as sqlite3_stmt ptr
+Check( sqlite3_prepare_v2( db, "select id, name, email from " & _
+    "contact where email <> '' order by name", -1, @sel, nullptr ), db )
+do while sqlite3_step( sel ) = SQLITE_ROW
+    print sqlite3_column_int64( sel, 0 ); "  "; _
+          *cast( zstring ptr, sqlite3_column_text( sel, 1 ) ); "  "; _
+          *cast( zstring ptr, sqlite3_column_text( sel, 2 ) )
+loop
+sqlite3_finalize( sel )
 
 '' A transaction: everything in it happens, or nothing does.
-dim t as sqlite.Transaction
-t.Begin( db )
-db.Execute( "delete from contact" )
-t.Rollback( )
-var count_ = db.QueryScalar( "select count(*) from contact" )
-print "after the rollback:"; count_.Value( ).Value( ).AsInt64( ); _
-      " contacts"
+Check( sqlite3_exec( db, "begin", nullptr, nullptr, nullptr ), db )
+Check( sqlite3_exec( db, "delete from contact", _
+    nullptr, nullptr, nullptr ), db )
+Check( sqlite3_exec( db, "rollback", nullptr, nullptr, nullptr ), db )
+Check( sqlite3_prepare_v2( db, "select count(*) from contact", _
+    -1, @sel, nullptr ), db )
+sqlite3_step( sel )
+print "after the rollback:"; sqlite3_column_int( sel, 0 ); " contacts"
+sqlite3_finalize( sel )
 
-'' A failure is a value with a message, not a runtime error.
-var bad = db.Execute( "insert into contact( email ) values( 'x' )" )
-if bad.IsOk( ) = false then print "refused: "; bad.Failure( ).Message( )
+'' A failure is a result code, and the connection keeps the message.
+dim errMsg as zstring ptr
+if sqlite3_exec( db, "insert into contact( email ) values( 'x' )", _
+        nullptr, nullptr, @errMsg ) <> SQLITE_OK then
+    print "refused: "; *errMsg
+    sqlite3_free( errMsg )
+end if
+sqlite3_close( db )

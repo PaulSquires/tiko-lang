@@ -3,9 +3,10 @@
 #import "std/chrono"
 #import "std/money"
 #import "std/containers"
+#import "std/strings"
 '' This module is the only place that imports SQLite, and nothing
-'' from it is public.
-#import "db/sqlite"
+'' from it is public. Linked statically, it is inside the program.
+#import "vendor/sqlite3" link static
 '' ANCHOR_END: head
 
 '' ANCHOR: model
@@ -28,8 +29,41 @@ end type
 public type MonthMap as containers.OrderedMap( of ustring, MonthTotals )
 '' ANCHOR_END: model
 
-'' The program's one database. Open and Close bracket its use.
-private dim shared as sqlite.Database db
+'' ANCHOR: conn
+'' The program's one database. OpenLedger and CloseLedger bracket it.
+private dim shared as sqlite3 ptr db
+
+'' What SQLite says went wrong with the last call on the connection.
+function LastError( ) as ustring
+    dim as string msg = *sqlite3_errmsg( db )
+    return msg
+end function
+
+'' Run SQL that returns no rows: "" or SQLite's reason.
+function RunSql( byref sql as ustring ) as ustring
+    if sqlite3_exec( db, sql, nullptr, nullptr, nullptr ) <> SQLITE_OK _
+            then return LastError( )
+    return ""
+end function
+
+'' Compile SQL into st: "" or SQLite's reason.
+function Prepare( byref sql as ustring, _
+                  byref st as sqlite3_stmt ptr ) as ustring
+    if sqlite3_prepare_v2( db, sql, -1, @st, nullptr ) <> SQLITE_OK _
+            then return LastError( )
+    return ""
+end function
+
+'' A column of the current row as text. SQLite's text is UTF-8, and a
+'' string holding UTF-8 converts to a ustring correctly.
+function ColText( byval st as sqlite3_stmt ptr, _
+                  byval col as int32 ) as ustring
+    dim as string bytes
+    var p = sqlite3_column_text( st, col )
+    if p <> nullptr then bytes = *cast( zstring ptr, p )
+    return bytes
+end function
+'' ANCHOR_END: conn
 
 '' ANCHOR: parse
 '' Check four fields of text and build a Txn from them: "" if they make
@@ -88,9 +122,12 @@ end function
 '' The version the file is at, in v: "" or why it cannot be read --
 '' "file is not a database", for a file that is something else.
 function ReadVersion( byref v as int32 ) as ustring
-    var r = db.QueryScalar( "pragma user_version" )
-    if r.IsOk( ) = false then return r.Failure( ).Message( )
-    v = r.Value( ).Value( ).AsInt64( )
+    dim st as sqlite3_stmt ptr
+    var why = Prepare( "pragma user_version", st )
+    if len( why ) > 0 then return why
+    defer sqlite3_finalize( st )
+    if sqlite3_step( st ) <> SQLITE_ROW then return LastError( )
+    v = sqlite3_column_int( st, 0 )
     return ""
 end function
 
@@ -111,15 +148,15 @@ function Migrate( ) as ustring
                str( current ) & ")"
     end if
     for v as int32 = current + 1 to LATEST_SCHEMA
-        '' A Transaction that is left without a Commit rolls back.
-        dim t as sqlite.Transaction
-        var r = t.Begin( db )
-        if r.IsOk( ) then r = db.Execute( SchemaStep( v ) )
-        if r.IsOk( ) then r = db.Execute( "pragma user_version = " & v )
-        if r.IsOk( ) then r = t.Commit( )
-        if r.IsOk( ) = false then
-            return "schema step " & str( v ) & ": " & _
-                   r.Failure( ).Message( )
+        why = RunSql( "begin" )
+        if len( why ) = 0 then why = RunSql( SchemaStep( v ) )
+        if len( why ) = 0 then
+            why = RunSql( "pragma user_version = " & v )
+        end if
+        if len( why ) = 0 then why = RunSql( "commit" )
+        if len( why ) > 0 then
+            RunSql( "rollback" )        '' undo whatever the step did
+            return "schema step " & str( v ) & ": " & why
         end if
     next
     return ""
@@ -127,17 +164,21 @@ end function
 '' ANCHOR_END: schema
 
 '' ANCHOR: open
+public sub CloseLedger( )
+    sqlite3_close( db )             '' closing a null connection is fine
+    db = nullptr
+end sub
+
 '' Open (or create) a ledger file, or ":memory:" for one that is gone
 '' when the program ends. Returns "" or why it could not.
 public function OpenLedger( byref path as ustring ) as ustring
-    var r = iif( path = ":memory:", db.OpenMemory( ), db.Open( path ) )
-    if r.IsOk( ) = false then return r.Failure( ).Message( )
+    if sqlite3_open( path, @db ) <> SQLITE_OK then
+        var why = LastError( )
+        CloseLedger( )
+        return why
+    end if
     return Migrate( )
 end function
-
-public sub CloseLedger( )
-    db.Close( )
-end sub
 '' ANCHOR_END: open
 
 '' ANCHOR: store
@@ -145,13 +186,19 @@ end sub
 '' the Decimal's own text, which is exact. SQL never does arithmetic on
 '' them: sum( ) would turn them into binary floating point.
 function Insert( byref t as Txn ) as ustring
-    var r = db.Execute( "insert into txn( day, payee, category, " & _
-                        "amount ) values( ?, ?, ?, ? )", _
-                        sqlite.Args( t.day.ToIsoUString( ), _
-                                     t.payee, t.category, _
-                                     t.amount.ToString( ) ) )
-    if r.IsOk( ) = false then return r.Failure( ).Message( )
-    t.id = db.LastInsertRowId( )
+    dim st as sqlite3_stmt ptr
+    var why = Prepare( "insert into txn( day, payee, category, " & _
+                       "amount ) values( ?, ?, ?, ? )", st )
+    if len( why ) > 0 then return why
+    defer sqlite3_finalize( st )
+    sqlite3_bind_text( st, 1, t.day.ToIsoUString( ), -1, _
+                       SQLITE_TRANSIENT )
+    sqlite3_bind_text( st, 2, t.payee, -1, SQLITE_TRANSIENT )
+    sqlite3_bind_text( st, 3, t.category, -1, SQLITE_TRANSIENT )
+    sqlite3_bind_text( st, 4, t.amount.ToString( ), -1, _
+                       SQLITE_TRANSIENT )
+    if sqlite3_step( st ) <> SQLITE_DONE then return LastError( )
+    t.id = sqlite3_last_insert_rowid( db )
     return ""
 end function
 
@@ -162,67 +209,88 @@ end function
 '' Every transaction, oldest first.
 public function ListTxns( byref txns as containers.Array( of Txn ) ) _
                           as ustring
-    var rows = db.Query( "select id, day, payee, category, amount " & _
-                         "from txn order by day, id" )
-    if rows.IsOk( ) = false then return rows.Failure( ).Message( )
-    for each r in rows.Value( )
+    dim st as sqlite3_stmt ptr
+    var why = Prepare( "select id, day, payee, category, amount " & _
+                       "from txn order by day, id", st )
+    if len( why ) > 0 then return why
+    defer sqlite3_finalize( st )
+    var rc = sqlite3_step( st )
+    do while rc = SQLITE_ROW
         dim t as Txn
-        t.id = r[ "id" ].AsInt64( )
-        t.day = chrono.LocalDate.ParseIso( r[ "day" ].AsText( ) )
-        t.payee = r[ "payee" ].AsText( )
-        t.category = r[ "category" ].AsText( )
-        var amount = money.DecimalParse( r[ "amount" ].AsText( ) )
+        t.id = sqlite3_column_int64( st, 0 )
+        t.day = chrono.LocalDate.ParseIso( ColText( st, 1 ) )
+        t.payee = ColText( st, 2 )
+        t.category = ColText( st, 3 )
+        var amount = money.DecimalParse( ColText( st, 4 ) )
         t.amount = amount.Value( )
         txns.Push( t )
-    next
+        rc = sqlite3_step( st )
+    loop
+    if rc <> SQLITE_DONE then return LastError( )
     return ""
 end function
 '' ANCHOR_END: store
 
 '' ANCHOR: import
-'' Check every staged row and insert the good ones, in one transaction
-'' that is committed only if every row was good.
-function AddStaged _
+'' Field i of a CSV record, or "" when the record is shorter.
+function FieldAt( byref rec as strings.CsvRow, byval i as int32 ) _
+                as ustring
+    if i < 0 orelse i >= rec.fields.Count( ) then return ""
+    return rec.fields[ i ]
+end function
+
+'' Check every record and insert the good ones, in one transaction
+'' that is committed only if every record was good.
+function AddRecords _
     ( byref path as ustring, _
+      byref rows as containers.Array( of strings.CsvRow ), _
       byref problems as containers.Array( of ustring ) ) as int32
-    var rows = db.Query( "select rowid, * from import_raw " & _
-                         "order by rowid" )
-    if rows.IsOk( ) = false then
-        problems.Push( path & ": " & rows.Failure( ).Message( ) )
+    '' Row 0 is the header: it says which column holds what.
+    dim as int32 cDate = -1, cPayee = -1, cCategory = -1, cAmount = -1
+    for c as int32 = 0 to rows[ 0 ].fields.Count( ) - 1
+        select case lcase( trim( FieldAt( rows[ 0 ], c ) ) )
+        case "date": cDate = c
+        case "payee": cPayee = c
+        case "category": cCategory = c
+        case "amount": cAmount = c
+        end select
+    next
+    if cDate < 0 orelse cPayee < 0 orelse cAmount < 0 then
+        problems.Push( path & ": the header needs date, payee " & _
+                       "and amount" )
         return 0
     end if
 
-    dim as int32 added = 0
-    dim tr as sqlite.Transaction
-    var begun = tr.Begin( db )
-    if begun.IsOk( ) = false then
-        problems.Push( path & ": " & begun.Failure( ).Message( ) )
+    var why = RunSql( "begin" )
+    if len( why ) > 0 then
+        problems.Push( path & ": " & why )
         return 0
     end if
-    for each r in rows.Value( )
-        var day = r[ "date" ].AsText( )
-        var payee = r[ "payee" ].AsText( )
-        var category = r[ "category" ].AsText( )
-        var amount = r[ "amount" ].AsText( )
+    dim as int32 added = 0
+    for r as int32 = 1 to rows.Count( ) - 1
+        var day = FieldAt( rows[ r ], cDate )
+        var payee = FieldAt( rows[ r ], cPayee )
+        var category = FieldAt( rows[ r ], cCategory )
+        var amount = FieldAt( rows[ r ], cAmount )
         '' A blank line -- most often the last one -- is a record with
         '' every field empty. It is not a mistake, and adds nothing.
         if len( day & payee & category & amount ) = 0 then continue for
         dim t as Txn
-        var why = ParseTxn( day, payee, category, amount, t )
+        why = ParseTxn( day, payee, category, amount, t )
         if len( why ) = 0 then why = Insert( t )
         if len( why ) > 0 then
-            '' rowid 1 is the record after the header, so the record's
-            '' number in the file is its rowid plus 1.
-            dim as longint recNo = r[ "rowid" ].AsInt64( ) + 1
-            problems.Push( path & ":" & str( recNo ) & ": " & why )
+            '' Row r is record r + 1 of the file: the header was 1.
+            problems.Push( path & ":" & str( r + 1 ) & ": " & why )
         else
             added += 1
         end if
     next
-    if problems.Count( ) > 0 then return 0     '' tr rolls back
-    var done = tr.Commit( )
-    if done.IsOk( ) = false then
-        problems.Push( path & ": " & done.Failure( ).Message( ) )
+    if problems.Count( ) = 0 then
+        why = RunSql( "commit" )
+        if len( why ) > 0 then problems.Push( path & ": " & why )
+    end if
+    if problems.Count( ) > 0 then
+        RunSql( "rollback" )            '' keep none of the file
         return 0
     end if
     return added
@@ -235,18 +303,22 @@ end function
 public function ImportCsv _
     ( byref path as ustring, _
       byref problems as containers.Array( of ustring ) ) as int32
-    db.Execute( "drop table if exists import_raw" )
-    dim as int32 added = 0
-    var loaded = sqlite.ImportCsv( db, "import_raw", path )
-    if loaded.IsOk( ) = false then
-        problems.Push( path & ": " & loaded.Failure( ).Message( ) )
-    elseif loaded.Value( ) > 0 then
-        added = AddStaged( path, problems )
+    '' The file's bytes, as they are: UTF-8, which SplitCsv reads.
+    dim as string text
+    dim f as int32 = freefile
+    if open( path for binary access read as #f ) <> 0 then
+        problems.Push( path & ": cannot be read" )
+        return 0
     end if
+    text = space( lof( f ) )
+    get #f, , text
+    close #f
+
+    var rows = strings.SplitCsv( text )
     '' A file with no records -- a header alone, or nothing at all --
-    '' adds nothing. An empty one does not even make the table.
-    db.Execute( "drop table if exists import_raw" )
-    return added
+    '' adds nothing, and is not a mistake.
+    if rows.Count( ) < 2 then return 0
+    return AddRecords( path, rows, problems )
 end function
 '' ANCHOR_END: import
 
