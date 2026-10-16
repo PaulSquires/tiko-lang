@@ -88,6 +88,17 @@ sub OnArtifact( byval obs as any ptr, byref kind as string, byref path_ as strin
     EmitLine( *o, """event"":""artifact"",""kind"":" & JsonStr( kind ) & ",""path"":" & JsonStr( path_ ) )
 end sub
 
+sub OnRuntimeLib( byval obs as any ptr, byref path_ as string )
+    if obs = nullptr then return
+    dim as Observer ptr o = obs
+    '' A '#cmdline' restart runs the link step again: once each.
+    for each r as string in o->runtimeLibs
+        if r = path_ then return
+    next
+    o->runtimeLibs.Push( path_ )
+    EmitLine( *o, """event"":""runtime-lib"",""path"":" & JsonStr( path_ ) )
+end sub
+
 sub OnFinish _
     ( byval obs as any ptr, byval errors as int32, byval warnings as int32, byval rc as int32 )
 

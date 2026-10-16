@@ -731,13 +731,6 @@ private function LinkAll _
     if rc <> 0 then
         return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0116, str( rc ) )
     end if
-    '' A vendor package's .dll / .so, beside the program (tiko-vendor RFC-0002 V13).
-    dim as string cpSrc, cpDst
-    if ctx.options.noCopyLibs = false then
-        if Tko.Modules.CopyVendorLibs( ctx, ctx.options.outputPath, cpSrc, cpDst ) = false then
-            return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0171, cpSrc, cpDst )
-        end if
-    end if
 
     '' ONLY WHAT THIS BUILD MADE. An object the user named on the command line is
     '' theirs and is not deleted, however temporary it looks.
@@ -1300,6 +1293,14 @@ function Run _
                         Tko.UnitCache.LinkRecord( ctx, lsig, toolExit = Tko.EXIT_OK )
                     end if
                     ctx.timing.Add( Tko.PH_LINK, tLink )
+                end if
+                '' A vendor package's .dll / .so beside the program (tiko-vendor RFC-0002 V13) --
+                '' after the link step, not in it, so an up-to-date link still puts back one deleted.
+                dim as string cpSrc, cpDst
+                dim as boolean wantLibs = (toolExit = Tko.EXIT_OK) andalso (ctx.options.noCopyLibs = false)
+                if wantLibs then wantLibs = (ctx.options.outKind <> Tko.OUT_STATICLIB)
+                if wantLibs andalso (Tko.Modules.CopyVendorLibs( ctx, ctx.options.outputPath, cpSrc, cpDst ) = false) then
+                    toolExit = ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0171, cpSrc, cpDst )
                 end if
                 if toolExit = Tko.EXIT_OK then
                     Tko.Build.OnArtifact( ctx.build, iif( ctx.options.outKind = Tko.OUT_STATICLIB, "lib", _

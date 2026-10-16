@@ -212,38 +212,52 @@ private function CopyPath_( byref dir_ as string, byref artifact as string ) as 
     return d & "/" & BaseName( artifact )
 end function
 
+'' ONE FILE INTO ONE copy_to DIRECTORY, unless a copy already there has the same size and is
+'' no older. False, with TKO0171 reported, when the copy failed.
+private function CopyOne_ _
+    ( byref p as TargetPlan, byref obs as Observer, byval wordy as boolean, _
+      byref diags as Tko.DiagnosticEngine, byref src as string, byref dir_ as string ) as boolean
+    dim as string dst = CopyPath_( dir_, src )
+    if Tko.Modules.AbsPath( dst ) = Tko.Modules.AbsPath( src ) then return true
+    if fs.IsDir( dir_ ) = false then fs.CreateDirAll( dir_ )
+    dim as boolean same = false
+    dim as fs.FsResultInfo rs = fs.Stat( src )
+    dim as fs.FsResultInfo rd = fs.Stat( dst )
+    if rs.IsOk( ) andalso rd.IsOk( ) then
+        dim as fs.FileInfo fsrc = rs.Value( )
+        dim as fs.FileInfo fdst = rd.Value( )
+        same = (fsrc.Size( ) = fdst.Size( )) andalso (fsrc.ModifiedUtc( ) <= fdst.ModifiedUtc( ))
+    end if
+    if same = false then
+        dim as fs.FsResultBool r = fs.CopyFile( src, dst, true )
+        if r.IsOk( ) = false then
+            diags.ReportGlobal( Tko.TKO0171, src, dst )
+            return false
+        end if
+        if wordy then print "copy: " & src & " -> " & dst
+    end if
+    EmitLine( obs, """event"":""copy"",""target"":" & JsonStr( p.name ) & ",""from"":" & _
+                   JsonStr( src ) & ",""path"":" & JsonStr( dst ) & ",""copied"":" & _
+                   iif( same, "false", "true" ) )
+    return true
+end function
+
 '' copy_to (tiko.toml): after a build that succeeded, the artefact copied into each directory --
 '' made when missing -- so the program runs beside the DLLs and data files it needs, while
 '' out/<profile>/ keeps the original the link check reads. A copy already there with the same
 '' size and no older is left alone, so an unchanged build writes nothing. A DLL goes alone:
 '' its import library is for the linker, not the program. A failure is TKO0171, exit 5.
+'' ...AND THE LIBRARIES IT LOADS AT RUN TIME go with it: a vendor package's .dll / .so the link
+'' step put beside the artefact (tiko-vendor RFC-0002 V13; the observer's runtimeLibs).
 private function CopyTo_ _
     ( byref p as TargetPlan, byref obs as Observer, byval wordy as boolean, _
       byref diags as Tko.DiagnosticEngine ) as int32
 
     for each dir_ as string in p.copyTo
-        dim as string dst = CopyPath_( dir_, p.artifact )
-        if Tko.Modules.AbsPath( dst ) = Tko.Modules.AbsPath( p.artifact ) then continue for
-        if fs.IsDir( dir_ ) = false then fs.CreateDirAll( dir_ )
-        dim as boolean same = false
-        dim as fs.FsResultInfo rs = fs.Stat( p.artifact )
-        dim as fs.FsResultInfo rd = fs.Stat( dst )
-        if rs.IsOk( ) andalso rd.IsOk( ) then
-            dim as fs.FileInfo fsrc = rs.Value( )
-            dim as fs.FileInfo fdst = rd.Value( )
-            same = (fsrc.Size( ) = fdst.Size( )) andalso (fsrc.ModifiedUtc( ) <= fdst.ModifiedUtc( ))
-        end if
-        if same = false then
-            dim as fs.FsResultBool r = fs.CopyFile( p.artifact, dst, true )
-            if r.IsOk( ) = false then
-                diags.ReportGlobal( Tko.TKO0171, p.artifact, dst )
-                return Tko.EXIT_TOOL_FAILED
-            end if
-            if wordy then print "copy: " & p.artifact & " -> " & dst
-        end if
-        EmitLine( obs, """event"":""copy"",""target"":" & JsonStr( p.name ) & ",""from"":" & _
-                       JsonStr( p.artifact ) & ",""path"":" & JsonStr( dst ) & ",""copied"":" & _
-                       iif( same, "false", "true" ) )
+        if CopyOne_( p, obs, wordy, diags, p.artifact, dir_ ) = false then return Tko.EXIT_TOOL_FAILED
+        for each lib_ as string in obs.runtimeLibs
+            if CopyOne_( p, obs, wordy, diags, lib_, dir_ ) = false then return Tko.EXIT_TOOL_FAILED
+        next
     next
     return Tko.EXIT_OK
 end function
@@ -325,6 +339,7 @@ private function Build_ _
             end if
         end if
         obs.finished = false
+        obs.runtimeLibs.Clear( )
         BuildStart_( obs, p )
         rc = Tko.Driver.Run( p.dargs, 0, nullptr, @obs )
         if (rc = Tko.EXIT_OK) andalso (checkOnly = false) then

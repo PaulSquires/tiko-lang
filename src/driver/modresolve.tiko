@@ -7,6 +7,7 @@
 #include once "driver/manifest.ti"
 #include once "support/text.ti"
 #include once "codegen/dllimplib.ti"
+#include once "build/events.ti"
 
 namespace Tko.Modules
 
@@ -171,6 +172,8 @@ function CopyVendorLibs _
     if len( pk ) = 0 then return true
     dim as string vdir = NormPath( AbsPath( JoinPath( pk, "vendor" ) ) ) & "/"
     dim as string outDir = DirOfFile( AbsPath( outPath ) )
+    '' ...and as the output is spelled, for what the build observer is told.
+    dim as string outSpelled = DirOfFile( outPath )
     for each lf as string in ctx.options.pragmaLibFiles
         dim as string src = NormPath( AbsPath( lf ) )
         if SamePath_( left( src, len( vdir ) ), vdir ) = false then continue for
@@ -198,13 +201,19 @@ function CopyVendorLibs _
             end if
         end if
         dim as string dst = JoinPath( outDir, nm )
-        if SamePath_( dst, run_ ) then continue for
+        if SamePath_( dst, run_ ) then
+            Tko.Build.OnRuntimeLib( ctx.build, JoinPath( outSpelled, nm ) )
+            continue for
+        end if
         dim as fs.FsResultInfo rs = fs.Stat( run_ )
         dim as fs.FsResultInfo rd = fs.Stat( dst )
         if rs.IsOk( ) andalso rd.IsOk( ) then
             dim as fs.FileInfo fsrc = rs.Value( )
             dim as fs.FileInfo fdst = rd.Value( )
-            if (fsrc.Size( ) = fdst.Size( )) andalso (fsrc.ModifiedUtc( ) <= fdst.ModifiedUtc( )) then continue for
+            if (fsrc.Size( ) = fdst.Size( )) andalso (fsrc.ModifiedUtc( ) <= fdst.ModifiedUtc( )) then
+                Tko.Build.OnRuntimeLib( ctx.build, JoinPath( outSpelled, nm ) )
+                continue for
+            end if
         end if
         dim as fs.FsResultBool r = fs.CopyFile( run_, dst, true )
         if r.IsOk( ) = false then
@@ -212,6 +221,7 @@ function CopyVendorLibs _
             failDst = dst
             return false
         end if
+        Tko.Build.OnRuntimeLib( ctx.build, JoinPath( outSpelled, nm ) )
     next
     return true
 end function

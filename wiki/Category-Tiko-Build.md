@@ -97,7 +97,7 @@ options  = ["-mt"]
 
 A `-x` in `options` names the artefact as `-x` does ([Compiler Option: -x](Compiler-Option-X)), relative to `tiko.toml`, and wins over `output`.
 
-**`copy_to`** puts the program beside the DLLs and data files it needs. After a build that succeeds, the artefact is copied into each directory, which is made when missing; `out/<profile>/` keeps the original, which the link check reads. A copy that is already there with the same size and no older is left alone, so an unchanged build writes nothing. A DLL is copied alone, without its import library. `tiko clean` removes the copies too, and nothing else in those directories. A copy that cannot be written is `TKO0171`, exit 5.
+**`copy_to`** puts the program beside the DLLs and data files it needs. After a build that succeeds, the artefact is copied into each directory, which is made when missing; `out/<profile>/` keeps the original, which the link check reads. A copy that is already there with the same size and no older is left alone, so an unchanged build writes nothing. A DLL is copied alone, without its import library. A program that imports a [vendor package](Vendor-Packages) with `link dynamic` takes that package's DLL or `.so` with it: the link step puts the library beside the artefact, and each `copy_to` directory gets it too. `tiko clean` removes the copies of the artefact, and nothing else in those directories. A copy that cannot be written is `TKO0171`, exit 5.
 
 ```toml
 [target.app]
@@ -170,6 +170,7 @@ end	<errors>	<warnings>	<exitcode>
 | `build-start` | `format`, `target`, `profile` (`""` when none), `roots` | each target, before anything is compiled |
 | `plan` | `units` | the number of files and modules this build will report |
 | `unit` | `kind` (`module`, `root`), `unit` (a module chain or a file), `status` | each, in build order |
+| `runtime-lib` | `path` | a library the program loads at run time -- a [vendor package](Vendor-Packages)'s DLL or `.so` -- now beside the artefact; `copy_to` copies it too |
 | `artifact` | `kind` (`exe`, `dll`, `lib`), `path` | a file the build wrote |
 | `build-end` | `target`, `errors`, `warnings`, `exit`, `ms` | each target, last. With no `target` when the command failed before any target was built |
 | `run` | `path` (absolute: the first `copy_to` copy, else the artefact), `args` | `tiko run`, before the program starts. Until `run-end`, standard output is the program's own |
