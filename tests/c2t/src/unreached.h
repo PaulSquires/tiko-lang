@@ -41,6 +41,13 @@ int ur_outer(int x);
 int ur_strict(void);
 #endif
 
+/* A type the program supplies with its switch: kept by name; 'unsigned' on it cannot be,
+   so long long stands in there (sqlite3.h's SQLITE_INT64_TYPE). */
+#ifdef UR_INT_TYPE
+typedef UR_INT_TYPE ur_int;
+typedef unsigned UR_INT_TYPE ur_uint;
+#endif
+
 /* A test of the compiler is the program's to answer: kept as written, every branch
    translated for each target. */
 #if defined(_MSC_VER)

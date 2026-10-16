@@ -83,6 +83,9 @@ function RunPass( byref api as Tko.CImport.ClangApi, byref src as C2tSource, _
     for i as int32 = 0 to opts.undefs.Count - 1
         av.Push( "-U" ) : av.Push( opts.undefs[i] )
     next
+    for i as int32 = 0 to opts.typeMacros.Count - 1
+        av.Push( "-D" ) : av.Push( opts.typeMacros[i] & "=long long" )
+    next
     for i as int32 = 0 to opts.passArgs.Count - 1
         Tko.Spawn.SplitArgs( opts.passArgs[i], av )
     next

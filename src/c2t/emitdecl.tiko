@@ -622,6 +622,24 @@ end function
 
 '' ---------------------------------------------------------------- typedefs
 
+'' The typedef's type is written as exactly one of e.typeMacros: that name; else "".
+private function OnlyTypeMacro_( byref e as C2tEmit, byval c as Tko.CImport.CXCursor ) as string
+    if e.typeMacros.Count = 0 then return ""
+    dim as int32 o1, o2
+    CursorSpan( *e.api, c, o1, o2 )
+    dim as Tko.StrVec w
+    for t as int32 = TokAt( *e.src, o1 ) to e.src->toks.Count - 1
+        if e.src->toks[t].ofs >= o2 then exit for
+        if e.src->toks[t].kind <> CT_COMMENT then w.Push( TokText( *e.src, t ) )
+    next
+    '' 'typedef' X name
+    if (w.Count <> 3) orelse (w[0] <> "typedef") then return ""
+    for i as int32 = 0 to e.typeMacros.Count - 1
+        if w[1] = e.typeMacros[i] then return w[1]
+    next
+    return ""
+end function
+
 private function Typedef_( byref e as C2tEmit, byval c as Tko.CImport.CXCursor, byref text as string, _
                            byref reason as string, byref why as string ) as boolean
     dim as Tko.CImport.ClangApi ptr api = e.api
@@ -656,6 +674,10 @@ private function Typedef_( byref e as C2tEmit, byval c as Tko.CImport.CXCursor, 
         return false
     case else
         dim as string ty = Tko.CImport.TypeText( *e.x, api->getTypedefDeclUnderlyingType( c ), why )
+        '' 'typedef SQLITE_INT64_TYPE sqlite_int64;' -- the type written as one of the branch's
+        '' type macros and nothing else: the program's type, so the program's name.
+        dim as string tm = OnlyTypeMacro_( e, c )
+        if len( tm ) then ty = tm
         if len( ty ) = 0 then
             reason = "refused-type"
             why = "typedef '" & nm & "': " & why
@@ -936,6 +958,23 @@ function TranslateSpan( byref e as C2tEmit, byref p as C2tPass, byref segIdx as 
     e.useOverride = false
     dim as boolean ok = Translate_( e, p, segIdx, l1, l2, text, reason, why )
     e.useOverride = false
+    '' A TYPE MACRO THE TRANSLATION COULD NOT KEEP BY NAME -- 'unsigned SQLITE_INT64_TYPE' --
+    '' was translated as its 'long long' stand-in: said so above it.
+    if ok andalso (e.typeMacros.Count > 0) then
+        for i as int32 = 0 to e.typeMacros.Count - 1
+            dim as string m = e.typeMacros[i]
+            dim as boolean inC = false
+            for t as int32 = TokAt( *e.src, e.src->lineStart[l1 - 1] ) to e.src->toks.Count - 1
+                if e.src->toks[t].line_ > l2 then exit for
+                if (e.src->toks[t].kind = CT_IDENT) andalso (TokText( *e.src, t ) = m) then inC = true
+            next
+            if inC andalso (instr( text, m ) = 0) then
+                text = BaseIndent_( e, l1 ) & "'' C2T-NOTE(type-macro) " & e.src->name_ & ":" & l1 & _
+                       " -- '" & m & "' is the program's own type; long long stands in for it here" & _
+                       chr( 10 ) & text
+            end if
+        next
+    end if
     return ok
 end function
 

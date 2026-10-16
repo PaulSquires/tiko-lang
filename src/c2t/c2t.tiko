@@ -154,6 +154,7 @@ private function TranslatePass_( byref ctx as Tko.CompilerContext, byref api as 
     dim as Tko.CImport.CImp x
     dim as C2tEmit e
     EmitInit( e, api, x, io, src, p )
+    e.typeMacros = po_.typeMacros
     IncludeDirectives( e, p, dirs )
     TodoBlocks( src, dirs, p, e, blocks )
     MacroDirectives( e, p, dirs, blocks )
@@ -233,6 +234,37 @@ private sub IdiomLines_( byref src as C2tSource, byref dirs as C2tDirVec, byval 
     next
 end sub
 
+'' The name clang's "unknown type name 'X'" gives, when the header never #defines X, it is not a
+'' stand-in already, and a forced branch's own conditional tests it ('#ifdef SQLITE_INT64_TYPE':
+'' the program's switch and its type at once) -- not '__int64', an MSVC word on Linux; "" else.
+private function TypeMacro_( byref src as C2tSource, byref dirs as C2tDirVec, byref forced as C2tIntVec, _
+                             byref raw as string, byref have as Tko.StrVec ) as string
+    dim as int32 at = instr( raw, "unknown type name '" )
+    if at = 0 then return ""
+    dim as int32 a = at + len( "unknown type name '" )
+    dim as int32 q = instr( a, raw, "'" )
+    if q = 0 then return ""
+    dim as string nm = mid( raw, a, q - a )
+    for k as int32 = 0 to dirs.Count - 1
+        if (dirs[k].kind = DK_DEFINE) andalso (dirs[k].name_ = nm) then return ""
+    next
+    for i as int32 = 0 to have.Count - 1
+        if have[i] = nm then return ""
+    next
+    for f as int32 = 0 to forced.Count - 1
+        dim as int32 g = forced[f]
+        if (dirs[g].kind = DK_ELIF) orelse (dirs[g].kind = DK_ELSE) then g = dirs[g].cond
+        for j as int32 = g to dirs.Count - 1
+            if (j <> g) andalso (dirs[j].cond <> g) then continue for
+            for t as int32 = dirs[j].tok1 to dirs[j].tok2
+                if (src.toks[t].kind = CT_IDENT) andalso (TokText( src, t ) = nm) then return nm
+            next
+            if dirs[j].kind = DK_ENDIF then exit for
+        next
+    next
+    return ""
+end function
+
 '' The #include in lines r1..r2 whose header clang's 'file not found' names; -1 for none.
 '' clang's message is 'path:line:col: fatal error: 'name' file not found'.
 '' The same header can be included twice (an #ifndef and its #else): the one on clang's line
@@ -291,6 +323,10 @@ private function BranchPass_( byref ctx as Tko.CompilerContext, byref api as Tko
     '' starts from what its outer one left out ('blankDirs').
     dim as int32 o1, o2
     BranchBody( dirs, forced[0], o1, o2 )
+    '' A TYPE THE PROGRAM SUPPLIES -- '#ifdef SQLITE_INT64_TYPE / typedef SQLITE_INT64_TYPE
+    '' sqlite_int64;', a name the header never defines -- stands in as 'long long' and the
+    '' parse is tried again (the author, 2026-10-16). Nested passes keep the stand-ins.
+    dim as C2tOptions pox = po_
     dim as boolean ok = false
     for attempt as int32 = 1 to 16
         dim as string ft = ForceText( src, dirs, forced, blankDirs )
@@ -299,9 +335,14 @@ private function BranchPass_( byref ctx as Tko.CompilerContext, byref api as Tko
             return false
         end if
         dim as string raw
-        if TranslatePass_( ctx, api, src, po_, io, sh, ft, raw ) then
+        if TranslatePass_( ctx, api, src, pox, io, sh, ft, raw ) then
             ok = true
             exit for
+        end if
+        dim as string tm = TypeMacro_( src, dirs, forced, raw, pox.typeMacros )
+        if len( tm ) then
+            pox.typeMacros.Push( tm )
+            continue for
         end if
         dim as int32 k = MissingInclude_( src, dirs, raw, o1, o2, blankDirs )
         if k < 0 then
@@ -330,7 +371,7 @@ private function BranchPass_( byref ctx as Tko.CompilerContext, byref api as Tko
         f2.Push( inner[i] )
         dim as C2tPassOut sub_
         dim as string w
-        if BranchPass_( ctx, api, src, po_, io, dirs, idiomLine, f2, sub_, w, failL1, failL2, failWhy, blankDirs ) then
+        if BranchPass_( ctx, api, src, pox, io, dirs, idiomLine, f2, sub_, w, failL1, failL2, failWhy, blankDirs ) then
             if Splice( sh, sub_, dirs, c1, c2 ) = false then w = NO_SPLICE
         end if
         if len( w ) then
