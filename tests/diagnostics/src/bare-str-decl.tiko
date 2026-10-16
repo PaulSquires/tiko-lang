@@ -1,0 +1,19 @@
+extern "C"
+extern ver as const zstring
+extern wver as wstring
+extern arr(0 to 3) as zstring
+end extern
+dim a as zstring
+dim shared b as zstring
+common c as zstring
+dim d() as zstring
+dim as wstring e
+static shared f as wstring
+type T
+    g as zstring
+    h(0 to 3) as zstring
+end type
+sub s( )
+    static i as zstring
+    redim j(3) as zstring
+end sub

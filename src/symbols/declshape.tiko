@@ -64,6 +64,31 @@ private function IsAnyNode_ ( byref c as Ctx, byval n as NodeId ) as boolean
     return lcase( SpellOf_( c, n ) ) = "any"
 end function
 
+'' A BARE 'zstring' OR 'wstring' AS A VARIABLE'S OR A FIELD'S TYPE -- fbc's error 28, "Expected
+'' pointer", for every way to declare one, measured on fbc-modern 1.20, 2026-10-16:
+''
+''     extern / dim / dim shared / static / common / redim  x as zstring      error 28
+''     dim x() as zstring, extern x(0 to 3) as wstring, 'dim as zstring x'   error 28
+''     type T : f as zstring : end type, f(0 to 3) as zstring                 error 28
+''     x as zstring * 4, x as zstring ptr, dim byref r as zstring = *p        fine
+''     type Z as zstring : dim x as Z                                         fine
+''
+'' fbc judges the keyword AS WRITTEN, so an alias passes. tiko took every refused line and
+'' gave the variable no storage: an extern lowered to 'external global void', which clang
+'' refused (TKO0113) -- c2t's 'const char sqlite3_version[]' read as 'as const zstring'.
+'' 'n' is the item's type reference; the keyword, or "" when it is not a bare one.
+private function BareStrWord_ ( byref c as Ctx, byval n as NodeId ) as string
+    if (n = NODE_NONE) orelse (c.ast->Kind( n ) <> N_TYPEREF) then return ""
+    if (c.ast->nodes[cast( int32, n )].flags and (NF_PTR or NF_PROC_TYPE)) <> 0 then return ""
+    dim as StmtPayload ptr tp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+    if tp->c <> NODE_NONE then return ""
+    select case cast( TokenKind, tp->op )
+    case KW_ZSTRING : return "zstring"
+    case KW_WSTRING : return "wstring"
+    end select
+    return ""
+end function
+
 private sub CheckDeclShape_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     dim as TokenKind op = cast( TokenKind, sp->op )
@@ -72,6 +97,14 @@ private sub CheckDeclShape_ ( byref c as Ctx, byval id as NodeId )
         if (item = NODE_NONE) orelse (c.ast->Kind( item ) <> N_VAR_ITEM) then continue for
         dim as StmtPayload ptr ip = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, item )].data )]
         dim as string nm = c.names->Spelling( ip->name )
+        '' A BARE zstring/wstring (see BareStrWord_) -- a 'dim byref' reference is fine.
+        if ((c.ast->nodes[cast( int32, item )].flags or c.ast->nodes[cast( int32, id )].flags) and NF_BYREF) = 0 then
+            dim as string bw = BareStrWord_( c, ip->a )
+            if len( bw ) then
+                c.diags->Report( TKO0996, PointRange( c.ast->Loc( item ) ), nm, bw )
+                continue for
+            end if
+        end if
         '' 'redim shared' INSIDE A SCOPE OR A PROCEDURE over an array declared elsewhere --
         '' 'common array( )' above it, say -- is fbc's 96 (61 in a procedure), as a new one
         '' is (dim/redim-shared-in-a-scope-with-a-common-above). CheckSharedInBlock_ judges
@@ -175,6 +208,13 @@ end sub
 '' 'tiko c2t --verify' reported it as "tiko did not lay it out".
 private sub CheckFieldShape_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr fp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as string bw = BareStrWord_( c, fp->a )
+    '' ('type B extends wstring' makes a field 'base' of that type -- the parser's, which no
+    '' user field can be: BASE is a keyword. fbc accepts the extends.)
+    if len( bw ) andalso (lcase( c.names->Spelling( fp->name ) ) <> "base") then
+        c.diags->Report( TKO0996, PointRange( c.ast->Loc( id ) ), c.names->Spelling( fp->name ), bw )
+        exit sub
+    end if
     if (fp->a = NODE_NONE) orelse (c.ast->Kind( fp->a ) <> N_TYPEREF) then exit sub
     if (c.ast->nodes[cast( int32, fp->a )].flags and (NF_PTR or NF_PROC_TYPE)) <> 0 then exit sub
     if TypedefCycles_( c, fp->a, c.info->ScopeOf( id ) ) = false then exit sub

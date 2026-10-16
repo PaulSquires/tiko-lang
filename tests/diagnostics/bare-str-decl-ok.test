@@ -1,0 +1,6 @@
+'' ...and what fbc accepts beside them compiles: 'zstring * N' (an extern's N is nominal: the
+'' read stops at the NUL), a pointer, a 'dim byref' reference, a typedef of zstring used as a
+'' pointer, byref and default parameters.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/bare-str-decl-ok.tiko -o tests/diagnostics/src/bare-str-decl-ok.o
+'' EXPECT-EXIT: 0

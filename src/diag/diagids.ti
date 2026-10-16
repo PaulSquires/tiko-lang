@@ -965,6 +965,8 @@
     DIAG( TKO0994, SEV_ERROR,   "internal compiler error: this statement was not compiled (%0 in this module); the build stops rather than leave it out" )
     '' ...and the same under '--allow-unlowered', which builds the program without it.
     DIAG( TKO0995, SEV_WARNING, "internal compiler error: this statement was not compiled (%0 in this module) and is left out of the build" )
+    '' fbc's 28 -- symbols/declshape.tiko CheckBareStrDecl_.
+    DIAG( TKO0996, SEV_ERROR,   "'%0' is a bare %1, which has no length; write '%1 * N' or '%1 ptr'" )
 
 #endmacro
 

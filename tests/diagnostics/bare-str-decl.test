@@ -1,0 +1,21 @@
+'' A bare zstring or wstring as a variable's or a field's type is fbc's error 28, "Expected
+'' pointer", however it is declared (extern, dim, shared, common, static, redim, an array, a
+'' field). tiko gave it no storage: an extern lowered to 'external global void' (TKO0113).
+'' The same 13 lines are fbc-modern 1.20's 13 errors.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/bare-str-decl.tiko -o tests/diagnostics/src/bare-str-decl.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: bare-str-decl.tiko(2,8): error TKO0996
+'' EXPECT-OUT: bare-str-decl.tiko(3,8): error TKO0996
+'' EXPECT-OUT: bare-str-decl.tiko(4,8): error TKO0996
+'' EXPECT-OUT: bare-str-decl.tiko(6,5): error TKO0996
+'' EXPECT-OUT: bare-str-decl.tiko(7,12): error TKO0996
+'' EXPECT-OUT: bare-str-decl.tiko(8,8): error TKO0996
+'' EXPECT-OUT: bare-str-decl.tiko(9,5): error TKO0996
+'' EXPECT-OUT: bare-str-decl.tiko(10,16): error TKO0996
+'' EXPECT-OUT: bare-str-decl.tiko(11,15): error TKO0996
+'' EXPECT-OUT: bare-str-decl.tiko(13,5): error TKO0996
+'' EXPECT-OUT: bare-str-decl.tiko(14,5): error TKO0996
+'' EXPECT-OUT: bare-str-decl.tiko(17,12): error TKO0996
+'' EXPECT-OUT: bare-str-decl.tiko(18,11): error TKO0996
+'' EXPECT-NOT: TKO0113
