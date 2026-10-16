@@ -720,7 +720,7 @@
     DIAG( TKO0897, SEV_ERROR,   "'%0' is const, so it needs a value: '= any' leaves it unset" )
     '' fbc's error 24: 'dim x as any' -- declshape.tiko.
     DIAG( TKO0898, SEV_ERROR,   "'%0' cannot be of type ANY: only a pointer to it can" )
-    '' fbc's errors 24 and 71: 'type t as t' then a variable of it -- declshape.tiko.
+    '' fbc's errors 24 and 71: 'type t as t' then a variable or a field of it -- declshape.tiko.
     DIAG( TKO0899, SEV_ERROR,   "'%0' is a typedef defined in terms of itself" )
     '' fbc's error 169: 'constructor( ... )' after the first statement -- declshape.tiko.
     DIAG( TKO0908, SEV_ERROR,   "a constructor( ) chain call must be the first statement of the constructor" )

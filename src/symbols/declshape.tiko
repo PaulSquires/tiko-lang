@@ -1,5 +1,5 @@
 '' declshape.tiko -- WHAT AN ARRAY OR CONST DECLARATION MAY NOT SAY, beyond CheckArrayDeclShapes_
-'' (latesweeps.tiko): CheckDeclShape_, asked of every N_VAR.
+'' (latesweeps.tiko): CheckDeclShape_, asked of every N_VAR, and CheckFieldShape_, of every N_FIELD.
 ''
 '' Included from latesweeps2.tiko, below staticdef.tiko, in the same namespace and over the same Ctx.
 ''
@@ -158,6 +158,28 @@ private sub CheckDeclShape_ ( byref c as Ctx, byval id as NodeId )
             end if
         end if
     next
+end sub
+
+'' A FIELD WHOSE TYPEDEF IS ITSELF is the same mistake in a TYPE, measured the same way on
+'' fbc-modern 1.20, 2026-10-15:
+''
+''     type t as t : type G : a as t : end type                error 24
+''     type Uint8 as uint8 : type G : d(0 to 3) as Uint8 ...   error 24
+''     type t as t : type G : p as t ptr : end type            fine
+''
+'' The second is the one that matters. A program's own declaration of a fixed-width name
+'' replaces the prelude's for the whole program (resolveunbound.tiko's SameFixedWidth_), so
+'' 'type Uint8 as uint8' -- what a C 'typedef uint8_t Uint8;' reads as -- names itself, as it
+'' does to fbc, which has no uint8 at all. tiko gave the field no type and said nothing:
+'' ComputeUdtLayouts then refused the whole record, every use of it was TKO0994, and
+'' 'tiko c2t --verify' reported it as "tiko did not lay it out".
+private sub CheckFieldShape_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr fp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    if (fp->a = NODE_NONE) orelse (c.ast->Kind( fp->a ) <> N_TYPEREF) then exit sub
+    if (c.ast->nodes[cast( int32, fp->a )].flags and (NF_PTR or NF_PROC_TYPE)) <> 0 then exit sub
+    if TypedefCycles_( c, fp->a, c.info->ScopeOf( id ) ) = false then exit sub
+    c.diags->Report( TKO0899, PointRange( c.ast->Loc( id ) ), _
+                     c.names->Spelling( c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, fp->a )].data )].name ) )
 end sub
 
 '' TWO THINGS A PROCEDURE MAY NOT SAY, measured on fbc-modern 1.20, 2026-09-29:

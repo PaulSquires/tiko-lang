@@ -1,0 +1,8 @@
+'' A field of an alias of a fixed-width name under another name is laid out by the
+'' Collect + Resolve pipeline that 'c2t --verify' uses (--dump-udt), unlike a self-alias
+'' (field-typedef-self).
+'' TEST: cli
+'' ARGS: --dump-udt tests/diagnostics/src/field-fixed-width-alias.tiko
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: g size 18 align 2
+'' EXPECT-NOT: TKO
