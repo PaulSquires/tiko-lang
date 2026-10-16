@@ -15,22 +15,19 @@
 ''   parameter  sqlite3_win32_set_directory16.type -> sqlite3_win32_set_directory16.type_   (tiko reserved word)
 ''   constant   double -> double_   (tiko reserved word)
 ''
-'' 15 items need manual translation:
-''   line 218  sqlite3.h:188  C2T-TODO(refused-type)  sqlite3_version
-''   line 251  sqlite3.h:220  C2T-TODO(function-like-macro)  sqlite3_compileoption_get
-''   line 325  sqlite3.h:293  C2T-TODO(conditional)  SQLITE_INT64_TYPE
-''   line 327  sqlite3.h:294  C2T-TODO(conditional)
-''   line 329  sqlite3.h:295  C2T-TODO(conditional)  SQLITE_UINT64_TYPE
-''   line 331  sqlite3.h:296  C2T-TODO(conditional)
-''   line 333  sqlite3.h:297  C2T-TODO(conditional)  #else
-''   line 335  sqlite3.h:298  C2T-TODO(conditional)
-''   line 337  sqlite3.h:299  C2T-TODO(conditional)  #endif
-''   line 339  sqlite3.h:300  C2T-TODO(conditional)  #elif
-''   line 347  sqlite3.h:303  C2T-TODO(conditional)  #else
-''   line 355  sqlite3.h:306  C2T-TODO(conditional)  #endif
-''   line 6509  sqlite3.h:6478  C2T-TODO(macro)  SQLITE_STATIC
-''   line 6511  sqlite3.h:6479  C2T-TODO(macro)  SQLITE_TRANSIENT
-''   line 11454  sqlite3.h:11450  C2T-TODO(macro)  double
+'' 12 items need manual translation:
+''   line 215  sqlite3.h:188  C2T-TODO(refused-type)  sqlite3_version
+''   line 321  sqlite3.h:293  C2T-TODO(conditional)  SQLITE_INT64_TYPE
+''   line 323  sqlite3.h:294  C2T-TODO(conditional)
+''   line 325  sqlite3.h:295  C2T-TODO(conditional)  SQLITE_UINT64_TYPE
+''   line 327  sqlite3.h:296  C2T-TODO(conditional)
+''   line 329  sqlite3.h:297  C2T-TODO(conditional)  #else
+''   line 331  sqlite3.h:298  C2T-TODO(conditional)
+''   line 333  sqlite3.h:299  C2T-TODO(conditional)  #endif
+''   line 335  sqlite3.h:300  C2T-TODO(conditional)  #elif
+''   line 343  sqlite3.h:303  C2T-TODO(conditional)  #else
+''   line 351  sqlite3.h:306  C2T-TODO(conditional)  #endif
+''   line 11450  sqlite3.h:11450  C2T-TODO(macro)  double
 '' =============================================================================
 
 /'
@@ -248,8 +245,7 @@ declare function sqlite3_compileoption_used( byval zOptName as const zstring ptr
 declare function sqlite3_compileoption_get( byval N as int32 ) as const zstring ptr
 #else
 # define sqlite3_compileoption_used(X) 0
-'' C2T-TODO(function-like-macro) sqlite3.h:220 -- a pointer cast
-'' # define sqlite3_compileoption_get(X)  ((void*)0)
+# define sqlite3_compileoption_get(X) cast(any ptr, 0)
 #endif
 
 /'
@@ -6506,10 +6502,10 @@ declare function sqlite3_set_clientdata( byval as sqlite3 ptr, byval as const zs
 ** C++ compilers.
 '/
 type sqlite3_destructor_type as sub cdecl( byval as any ptr )
-'' C2T-TODO(macro) sqlite3.h:6478 -- 'SQLITE_STATIC': clang finds no value for it (a pointer, or not an expression)
-'' #define SQLITE_STATIC      ((sqlite3_destructor_type)0)
-'' C2T-TODO(macro) sqlite3.h:6479 -- 'SQLITE_TRANSIENT': clang finds no value for it (a pointer, or not an expression)
-'' #define SQLITE_TRANSIENT   ((sqlite3_destructor_type)-1)
+'' C2T-NOTE(pointer) sqlite3.h:6478 -- a pointer value, translated but not checked against clang
+#define SQLITE_STATIC cast(sqlite3_destructor_type, 0)
+'' C2T-NOTE(pointer) sqlite3.h:6479 -- a pointer value, translated but not checked against clang
+#define SQLITE_TRANSIENT cast(sqlite3_destructor_type, (-1))
 
 /'
 ** CAPI3REF: Setting The Result Of An SQL Function

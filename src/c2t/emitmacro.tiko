@@ -409,6 +409,16 @@ private sub Define_( byref e as C2tEmit, byref env as CxEnv, byref dirs as C2tDi
         Set_( e, k, 1, TrailComments( e, hash & "define " & nm & " " & printed, d.line2 ), "", "" )
         return
     end if
+    '' A POINTER, CAST FROM AN INTEGER -- '((void*)0)', sqlite3.h's '((sqlite3_destructor_type)-1)':
+    '' clang's probe gives no value for one and tiko's preprocessor cannot fold one, so the
+    '' expression is written as translated, with a NOTE that nothing checked it.
+    if (len( clangV ) = 0) andalso hasCast andalso (len( printed ) > 0) then
+        CxEnvAdd( env, cname, nm, CXV_NAME, true )
+        dim as string note = IndentOf_( LineText( *e.src, d.line1 ) ) & "'' C2T-NOTE(pointer) " & e.src->name_ & ":" & _
+                             d.line1 & " -- a pointer value, translated but not checked against clang"
+        Set_( e, k, 1, note & chr( 10 ) & TrailComments( e, hash & "define " & nm & " " & printed, d.line2 ), "", "" )
+        return
+    end if
     if len( clangV ) = 0 then
         dim as string w = c.why
         if len( w ) = 0 then w = "clang finds no value for it (a pointer, or not an expression)"

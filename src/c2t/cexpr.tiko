@@ -343,10 +343,8 @@ private function Primary_( byref c as CExpr ) as int32
             if (nxt = CT_IDENT) orelse (nxt = CT_NUMBER) orelse (nxt = CT_CHAR) orelse (nxt = CT_STRING) orelse _
                (ns = "(") orelse (ns = "-") orelse (ns = "+") orelse (ns = "~") orelse (ns = "!") then
                 c.pos += used
-                if right( tt, 4 ) = " ptr" then
-                    Fail_( c, "a pointer cast" )
-                    return -1
-                end if
+                '' A POINTER CAST is written as one -- 'cast(any ptr, 0)' -- and never folded: it
+                '' has no value tiko's preprocessor or clang's probe could check.
                 dim as int32 a = Unary_( c )
                 if a < 0 then return -1
                 dim as int32 n = Node_( c, NK_CAST, "", a )
@@ -610,7 +608,7 @@ private function IsInt_( byref c as CExpr, byval n as int32 ) as boolean
     dim as CxNode x = c.nodes[n]
     select case x.kind
     case NK_INT : return true
-    case NK_CAST : return (left( x.text, 5 ) <> "float")
+    case NK_CAST : return (left( x.text, 5 ) <> "float") andalso (right( x.text, 4 ) <> " ptr")
     case NK_UNARY : return IsInt_( c, x.a )
     case NK_BINARY
         if IsTruth_( c, n ) then return true
@@ -772,6 +770,7 @@ private function Fold_( byref c as CExpr, byval n as int32, byref v as CxValue )
         v.s = c.env->svals[k]
         return (v.kind = CXV_INT) orelse (v.kind = CXV_FLOAT) orelse (v.kind = CXV_STR)
     case NK_CAST
+        if right( x.text, 4 ) = " ptr" then return false
         dim as CxValue a
         if Fold_( c, x.a, a ) = false then return false
         dim as float64 fv = iif( a.kind = CXV_FLOAT, a.f, cast( float64, a.i ) )

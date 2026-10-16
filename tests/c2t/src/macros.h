@@ -18,7 +18,7 @@
 #define M_FDIV    (7.0 / 2)
 #define M_TERN    (1 ? 10 : 20)
 #define M_CAST    ((unsigned char)300)
-#define M_NULLP   ((void*)0)        /* a pointer: a TODO */
+#define M_NULLP   ((void*)0)        /* a pointer: written, with a NOTE */
 #define M_HEX     0x1Fu
 #define M_OCT     017
 #define M_BIN     0b101
@@ -38,6 +38,8 @@
 #define M_ALIAS   lib_function
 
 int lib_function(int x);
+typedef void (*lib_dtor)(void *);
+#define M_DTOR    ((lib_dtor)-1)    /* a function pointer from an integer, as sqlite3.h's */
 
 /* function-like */
 #define F_MAX(a, b)   ((a) > (b) ? (a) : (b))
@@ -48,6 +50,7 @@ int lib_function(int x);
 #define F_STR(x)      #x                         /* stringify: a TODO */
 #define F_CAT(a, b)   a##b                       /* paste: a TODO */
 #define F_LOG(...)    lib_function(0)            /* variadic: a TODO */
+#define F_NULL(x)     ((void*)0)                 /* a pointer cast */
 
 /* conditions */
 #if defined(_WIN32) && !defined(__APPLE__)
