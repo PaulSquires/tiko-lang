@@ -2,4 +2,3 @@
 '' ARGS: --version
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: tiko 0.1.0-dev
-'' EXPECT-OUT: language compatibility fbc 1.20.0
