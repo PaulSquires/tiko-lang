@@ -1,0 +1,21 @@
+'' vendor/SDL3_image -- SDL3_image 3.4.4, SDL 3's image-loading library (IMG_*), as one import:
+''
+''     #import "vendor/SDL3_image" link dynamic        (or neither)
+''
+'' It brings vendor/SDL3 with it: SDL's own names come across too, and SDL3 is linked.
+'' The header is SDL_image.ti, the sdl3-freebasic binding (GaBurdis, MIT), committed.
+''
+'' THE LIBRARY: as vendor/SDL3's -- 'link dynamic' alone; on Windows lib/SDL3_image.dll, copied
+'' beside the program; on Linux the system's, '-lSDL3_image' from the distribution's development
+'' package.
+#module "SDL3_image"
+
+#import "vendor/SDL3" public
+
+public #include once "SDL_image.ti"
+
+#ifdef TIKO_OS_LINUX
+    #foreignlib SDL3_image dynamic "system:SDL3_image"
+#else
+    #foreignlib SDL3_image dynamic "lib/SDL3_image"
+#endif
