@@ -357,12 +357,19 @@ note "packages -> pkg/ ($( ls "$OUT/pkg" | tr '\n' ' '))"
 # THE VENDOR PACKAGES (tiko-vendor RFC-0002 V9, V11): their translated headers came with
 # pkg/; their binaries are never copied from the tree -- vendorfetch.sh downloads or builds
 # this host's, pinned and SHA-256-checked, straight into the output -- and fetch.toml is
-# that script's alone. Each module must end with binaries and its library's licence.
+# that script's alone. Each module must end with binaries and its library's licence --
+# binaries only where its fetch.toml has entries for this host: vendor/SDL3 has none on Linux,
+# where SDL publishes no binary, and its '#foreignlib' says so to an importer.
 rm -rf "$OUT"/pkg/vendor/*/lib
 rm -f "$OUT"/pkg/vendor/*/fetch.toml
 sh "$ROOT/build/vendorfetch.sh" --out "$OUT/pkg" || die "vendorfetch.sh failed: the vendor packages have no binaries"
 for _vm in "$OUT"/pkg/vendor/*/; do
-    [ -n "$( ls "$_vm/lib" 2>/dev/null )" ] || die "packaged $_vm has no lib/ -- '#import \"vendor/...\"' would not link"
+    _vft="$ROOT/pkg/vendor/$( basename "$_vm" )/fetch.toml"
+    if grep -q "^\[$HOST\." "$_vft" 2>/dev/null; then
+        [ -n "$( ls "$_vm/lib" 2>/dev/null )" ] || die "packaged $_vm has no lib/ -- '#import \"vendor/...\"' would not link"
+    else
+        note "packaged $_vm has no $HOST binaries: its fetch.toml has no [$HOST.<n>] entry"
+    fi
     [ -f "$_vm/LICENSE" ] || die "packaged $_vm has no LICENSE"
 done
 note "vendor packages -> pkg/vendor ($( cd "$OUT/pkg/vendor" && ls -d */ | tr -d '/' | tr '\n' ' '))"
