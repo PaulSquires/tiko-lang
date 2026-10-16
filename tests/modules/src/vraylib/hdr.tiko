@@ -1,7 +1,6 @@
-'' The committed vendor/raylib6 headers -- raylib.ti and its residue, raymath.ti, rlgl.ti -- as an
+'' The committed vendor/raylib6 headers -- raylib.ti, raymath.ti, rlgl.ti -- as an
 '' importer reads them: no library needed.
 #include once "../../../../pkg/vendor/raylib6/raylib.ti"
-#include once "../../../../pkg/vendor/raylib6/raylib-residue.ti"
 #include once "../../../../pkg/vendor/raylib6/raymath/raymath.ti"
 #include once "../../../../pkg/vendor/raylib6/rlgl/rlgl.ti"
 dim as Color c = RAYWHITE

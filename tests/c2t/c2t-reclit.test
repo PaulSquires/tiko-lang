@@ -1,0 +1,12 @@
+'' tiko c2t: a STRUCT VALUE -- a C compound literal, as raylib.h writes its colours -- becomes
+'' type<T>( ... ), each field clang's own value: through a CLITERAL-style macro, with a designator
+'' and an omitted field, and with arithmetic. A union value and a struct with a pointer field are
+'' TODOs that say why.
+'' TEST: cli
+'' CLEAN: build/.c2t/reclit
+'' ARGS: c2t tests/c2t/src/reclit.h --verify -o build/.c2t/reclit/reclit.ti
+'' EXPECT-EXIT: 2
+'' EXPECT-FILE-HAS: build/.c2t/reclit/reclit.ti :: '' 2 items need manual translation:\n''   line 42  reclit.h:12  C2T-TODO(macro)  ONE_OF\n''   line 44  reclit.h:13  C2T-TODO(macro)  NAMED\n
+'' EXPECT-FILE-HAS: build/.c2t/reclit/reclit.ti :: #define LIGHTGRAY type<Color>(200, 200, 200, 255)         '' Light Gray\n#define HALF type<Vec2>(0, 0.5)                           '' x omitted: 0\n#define SUM type<Vec2>(3, 12)\n
+'' EXPECT-FILE-HAS: build/.c2t/reclit/reclit.ti :: '' C2T-TODO(macro) reclit.h:12 -- 'ONE_OF' is a record value c2t cannot spell: a union value\n
+'' EXPECT-FILE-HAS: build/.c2t/reclit/reclit.ti :: '' C2T-TODO(macro) reclit.h:13 -- 'NAMED' is a record value c2t cannot spell: a struct value whose field 'name' is not a number\n
