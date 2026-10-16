@@ -1,0 +1,86 @@
+'' blobs -- binary data in a column, two ways. A small BLOB is bound and read whole, like any
+'' other value; a large one can be written and read in pieces through a BLOB handle -- SQLite's
+'' incremental I/O (https://sqlite.org/c3ref/blob_open.html) -- so that it never has to be in
+'' memory at once.
+''
+'' Build it with 'tiko blobs.tiko'.
+''
+'' Public domain, as SQLite is.
+
+'' SQLite linked DYNAMICALLY: sqlite3.dll is copied beside the program (on Linux the program
+'' gets libsqlite3 beside it). Write 'link static' instead to build SQLite into the program.
+#import "vendor/sqlite" link dynamic
+
+const BIG = 1024 * 1024      '' one megabyte
+const CHUNK = 64 * 1024      '' written and read 64 KB at a time
+
+'' A checksum to compare what went in with what came out.
+function Sum( byval p as const ubyte ptr, byval n as long, byval acc as ulong ) as ulong
+    for i as long = 0 to n - 1
+        acc = (acc * 31 + p[i]) and &hFFFFFFFF
+    next
+    return acc
+end function
+
+dim as sqlite3 ptr db
+dim as sqlite3_stmt ptr st
+sqlite3_open( ":memory:", @db )
+sqlite3_exec( db, "create table file( id integer primary key, name text, data blob )", nullptr, nullptr, nullptr )
+
+'' 1. A SMALL BLOB, bound whole: sixteen bytes, 0 to 15.
+dim as ubyte small(0 to 15)
+for i as long = 0 to 15 : small(i) = i : next
+sqlite3_prepare_v2( db, "insert into file( name, data ) values( 'small', ? )", -1, @st, nullptr )
+sqlite3_bind_blob( st, 1, @small(0), 16, SQLITE_STATIC )
+sqlite3_step( st )
+sqlite3_finalize( st )
+
+sqlite3_prepare_v2( db, "select data, length( data ), hex( data ) from file where name = 'small'", -1, @st, nullptr )
+if sqlite3_step( st ) = SQLITE_ROW then
+    dim as const ubyte ptr p = sqlite3_column_blob( st, 0 )
+    print "small:"; sqlite3_column_bytes( st, 0 ); " bytes, last byte "; p[15]; ", hex "; *cast( zstring ptr, sqlite3_column_text( st, 2 ) )
+end if
+sqlite3_finalize( st )
+
+'' 2. A LARGE BLOB, in pieces. zeroblob( N ) reserves N bytes without building them in memory;
+'' the BLOB handle then writes into that space, chunk by chunk.
+sqlite3_prepare_v2( db, "insert into file( name, data ) values( 'big', zeroblob( ? ) )", -1, @st, nullptr )
+sqlite3_bind_int( st, 1, BIG )
+sqlite3_step( st )
+sqlite3_finalize( st )
+dim as sqlite3_int64 rowid = sqlite3_last_insert_rowid( db )
+
+dim as ubyte buf(0 to CHUNK - 1)
+dim as sqlite3_blob ptr blob
+dim as ulong written = 0
+if sqlite3_blob_open( db, "main", "file", "data", rowid, 1, @blob ) <> SQLITE_OK then   '' 1: read-write
+    print "blob_open: "; *sqlite3_errmsg( db )
+    end 1
+end if
+print "big: a"; sqlite3_blob_bytes( blob ); "-byte blob, written in"; BIG \ CHUNK; " chunks"
+for offset as long = 0 to BIG - CHUNK step CHUNK
+    for i as long = 0 to CHUNK - 1 : buf(i) = ((offset + i) * 7) and 255 : next
+    written = Sum( @buf(0), CHUNK, written )
+    sqlite3_blob_write( blob, @buf(0), CHUNK, offset )
+next
+sqlite3_blob_close( blob )
+
+'' ...and read back the same way, read-only this time.
+dim as ulong readBack = 0
+sqlite3_blob_open( db, "main", "file", "data", rowid, 0, @blob )
+for offset as long = 0 to BIG - CHUNK step CHUNK
+    sqlite3_blob_read( blob, @buf(0), CHUNK, offset )
+    readBack = Sum( @buf(0), CHUNK, readBack )
+next
+sqlite3_blob_close( blob )
+print "checksum written "; hex( written ); ", read "; hex( readBack ); iif( written = readBack, " -- the same", " -- DIFFERENT" )
+
+'' SQL sees the same bytes: the 1000th, through substr( ).
+sqlite3_prepare_v2( db, "select hex( substr( data, 1000, 1 ) ), length( data ) from file where id = ?", -1, @st, nullptr )
+sqlite3_bind_int64( st, 1, rowid )
+if sqlite3_step( st ) = SQLITE_ROW then
+    print "byte 1000 is 0x"; *cast( zstring ptr, sqlite3_column_text( st, 0 ) ); " (expected 0x"; hex( (999 * 7) and 255, 2 ); "), length"; sqlite3_column_int( st, 1 )
+end if
+sqlite3_finalize( st )
+
+sqlite3_close( db )

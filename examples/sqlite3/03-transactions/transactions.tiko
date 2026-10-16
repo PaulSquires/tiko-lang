@@ -1,0 +1,83 @@
+'' transactions -- many changes as one. Every statement outside a transaction is a transaction
+'' of its own, with its own trip to the disk; between BEGIN and COMMIT they are one, so a bulk
+'' insert is many times faster, and either all of it happens or, after a ROLLBACK, none of it.
+''
+'' It inserts 10,000 rows into a file database twice -- one statement at a time, then inside one
+'' transaction, reusing one prepared statement through sqlite3_reset -- and times both; then it
+'' deletes everything inside a transaction and rolls the deletion back.
+''
+'' Build it with 'tiko transactions.tiko'.
+''
+'' Public domain, as SQLite is.
+
+'' SQLite linked DYNAMICALLY: sqlite3.dll is copied beside the program (on Linux the program
+'' gets libsqlite3 beside it). Write 'link static' instead to build SQLite into the program.
+#import "vendor/sqlite" link dynamic
+
+const ROWS = 10000
+const DB_FILE = "transactions-example.db"
+
+sub RunSql( byval db as sqlite3 ptr, byval sql as ustring )
+    dim as zstring ptr errmsg
+    if sqlite3_exec( db, sql, nullptr, nullptr, @errmsg ) <> SQLITE_OK then
+        print sql; ": "; *errmsg
+        sqlite3_free( errmsg )
+        sqlite3_close( db )
+        end 1
+    end if
+end sub
+
+function CountRows( byval db as sqlite3 ptr ) as longint
+    dim as sqlite3_stmt ptr st
+    dim as longint n = -1
+    sqlite3_prepare_v2( db, "select count(*) from item", -1, @st, nullptr )
+    if sqlite3_step( st ) = SQLITE_ROW then n = sqlite3_column_int64( st, 0 )
+    sqlite3_finalize( st )
+    return n
+end function
+
+'' Inserts 'count' rows through one prepared statement: bind, step, reset.
+sub InsertRows( byval db as sqlite3 ptr, byval count as long )
+    dim as sqlite3_stmt ptr st
+    sqlite3_prepare_v2( db, "insert into item( name, price ) values( ?, ? )", -1, @st, nullptr )
+    for i as long = 1 to count
+        sqlite3_bind_text( st, 1, "item " & i, -1, SQLITE_TRANSIENT )
+        sqlite3_bind_double( st, 2, i * 0.25 )
+        if sqlite3_step( st ) <> SQLITE_DONE then print "insert: "; *sqlite3_errmsg( db ) : exit for
+        sqlite3_reset( st )
+    next
+    sqlite3_finalize( st )
+end sub
+
+kill DB_FILE
+dim as sqlite3 ptr db
+if sqlite3_open( DB_FILE, @db ) <> SQLITE_OK then print "open: "; *sqlite3_errmsg( db ) : end 1
+RunSql( db, "create table item( id integer primary key, name text, price real )" )
+
+'' One transaction per row: each INSERT is committed, and synced, on its own. A tenth of the
+'' rows is enough to show the difference.
+dim as double t0 = timer
+InsertRows( db, ROWS \ 10 )
+dim as double alone = timer - t0
+print "without a transaction:"; ROWS \ 10; " rows in"; fix( alone * 1000 ); " ms"
+
+'' The same work, ten times the rows, inside one transaction.
+RunSql( db, "delete from item" )
+t0 = timer
+RunSql( db, "begin" )
+InsertRows( db, ROWS )
+RunSql( db, "commit" )
+dim as double together = timer - t0
+print "in one transaction:   "; ROWS; " rows in"; fix( together * 1000 ); " ms"
+print "rows now:"; CountRows( db )
+print
+
+'' A transaction that is rolled back leaves nothing behind.
+RunSql( db, "begin" )
+RunSql( db, "delete from item where price > 100" )
+print "deleted"; sqlite3_changes( db ); " rows inside the transaction; rows now:"; CountRows( db )
+RunSql( db, "rollback" )
+print "after rollback, rows:"; CountRows( db )
+
+sqlite3_close( db )
+kill DB_FILE

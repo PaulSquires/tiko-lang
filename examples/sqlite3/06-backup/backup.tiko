@@ -1,0 +1,110 @@
+'' backup -- SQLite's online backup API, with the two examples from https://sqlite.org/backup.html
+'' in tiko. LoadOrSaveDb copies a whole database in one step, which is how an in-memory database
+'' is saved to a file and loaded back; BackupDb copies a live one a few pages at a time,
+'' reporting progress and letting other connections in between steps.
+''
+'' Build it with 'tiko backup.tiko'. It writes two database files in the current directory and
+'' deletes them before it ends.
+''
+'' The C originals are public domain, as SQLite is; so is this.
+
+'' SQLite linked DYNAMICALLY: sqlite3.dll is copied beside the program (on Linux the program
+'' gets libsqlite3 beside it). Write 'link static' instead to build SQLite into the program.
+#import "vendor/sqlite" link dynamic
+
+const SAVED_FILE = "backup-example-saved.db"
+const BACKUP_FILE = "backup-example-online.db"
+
+'' Example 1. Loads the database file zFilename into the "main" database of pInMemory, or, when
+'' isSave is true, saves pInMemory's "main" database into that file, replacing what it held.
+'' Returns SQLITE_OK, or the error code the copy left in the destination connection.
+function LoadOrSaveDb( byval pInMemory as sqlite3 ptr, byval zFilename as const zstring ptr, _
+                       byval isSave as boolean ) as long
+    dim as sqlite3 ptr pFile
+    dim as long rc = sqlite3_open( zFilename, @pFile )
+    if rc = SQLITE_OK then
+        '' Copy from the file to memory for a load, from memory to the file for a save.
+        dim as sqlite3 ptr pFrom = iif( isSave, pInMemory, pFile )
+        dim as sqlite3 ptr pTo = iif( isSave, pFile, pInMemory )
+        '' A null pBackup leaves its error in pTo, which is what is returned either way.
+        dim as sqlite3_backup ptr pBackup = sqlite3_backup_init( pTo, "main", pFrom, "main" )
+        if pBackup then
+            sqlite3_backup_step( pBackup, -1 )      '' -1: every page in one step
+            sqlite3_backup_finish( pBackup )
+        end if
+        rc = sqlite3_errcode( pTo )
+    end if
+    sqlite3_close( pFile )
+    return rc
+end function
+
+'' Example 2. Backs pDb up into the file zFilename five pages at a time, sleeping 250 ms between
+'' steps so that other connections can use pDb meanwhile, and calling xProgress after each step
+'' with the pages still to copy and the total.
+function BackupDb( byval pDb as sqlite3 ptr, byval zFilename as const zstring ptr, _
+                   byval xProgress as sub( byval remaining as long, byval total as long ) ) as long
+    dim as sqlite3 ptr pFile
+    dim as long rc = sqlite3_open( zFilename, @pFile )
+    if rc = SQLITE_OK then
+        dim as sqlite3_backup ptr pBackup = sqlite3_backup_init( pFile, "main", pDb, "main" )
+        if pBackup then
+            do
+                rc = sqlite3_backup_step( pBackup, 5 )
+                xProgress( sqlite3_backup_remaining( pBackup ), sqlite3_backup_pagecount( pBackup ) )
+                if (rc = SQLITE_OK) orelse (rc = SQLITE_BUSY) orelse (rc = SQLITE_LOCKED) then sqlite3_sleep( 250 )
+            loop while (rc = SQLITE_OK) orelse (rc = SQLITE_BUSY) orelse (rc = SQLITE_LOCKED)
+            sqlite3_backup_finish( pBackup )
+        end if
+        rc = sqlite3_errcode( pFile )
+    end if
+    sqlite3_close( pFile )
+    return rc
+end function
+
+sub ShowProgress( byval remaining as long, byval total as long )
+    print "    copied"; total - remaining; " of"; total; " pages"
+end sub
+
+function CountRows( byval db as sqlite3 ptr ) as longint
+    dim as sqlite3_stmt ptr st
+    dim as longint n = -1
+    if sqlite3_prepare_v2( db, "select count(*), sum( length( note ) ) from log", -1, @st, nullptr ) = SQLITE_OK then
+        if sqlite3_step( st ) = SQLITE_ROW then n = sqlite3_column_int64( st, 0 )
+    end if
+    sqlite3_finalize( st )
+    return n
+end function
+
+kill SAVED_FILE
+kill BACKUP_FILE
+
+'' An in-memory database with something in it: 2,000 rows of about 100 bytes, some 60 pages.
+dim as sqlite3 ptr mem
+sqlite3_open( ":memory:", @mem )
+sqlite3_exec( mem, "create table log( id integer primary key, note text ); " & _
+                   "with recursive n( i ) as ( select 1 union all select i + 1 from n where i < 2000 ) " & _
+                   "insert into log( note ) select printf( 'entry %05d %s', i, hex( randomblob( 44 ) ) ) from n", _
+              nullptr, nullptr, nullptr )
+print "in memory:"; CountRows( mem ); " rows"
+
+'' Save it to a file, then load the file into a second, empty in-memory database.
+print "save to "; SAVED_FILE; ": "; *sqlite3_errstr( LoadOrSaveDb( mem, SAVED_FILE, true ) )
+dim as sqlite3 ptr mem2
+sqlite3_open( ":memory:", @mem2 )
+print "load from "; SAVED_FILE; ": "; *sqlite3_errstr( LoadOrSaveDb( mem2, SAVED_FILE, false ) )
+print "loaded:"; CountRows( mem2 ); " rows"
+sqlite3_close( mem2 )
+
+'' An online backup of the first database, five pages at a time.
+print "online backup to "; BACKUP_FILE; ":"
+dim as long rc = BackupDb( mem, BACKUP_FILE, @ShowProgress )
+print "  "; *sqlite3_errstr( rc )
+
+dim as sqlite3 ptr check
+sqlite3_open_v2( BACKUP_FILE, @check, SQLITE_OPEN_READONLY, nullptr )
+print "the backup holds"; CountRows( check ); " rows"
+sqlite3_close( check )
+
+sqlite3_close( mem )
+kill SAVED_FILE
+kill BACKUP_FILE
