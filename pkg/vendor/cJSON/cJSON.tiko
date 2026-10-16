@@ -1,0 +1,35 @@
+'' vendor/cJSON -- cJSON 1.7.19, Dave Gamble's ultralightweight JSON parser in C, as one import:
+''
+''     #import "vendor/cJSON" link dynamic        (or 'link static', or neither)
+''
+'' Every routine, type and constant of cJSON.h is then callable as cJSON documents it,
+'' unqualified -- cJSON_Parse, cJSON_GetObjectItemCaseSensitive, cJSON_Print, cJSON_Delete.
+'' The header is cJSON.ti, translated from cJSON.h by 'tiko c2t' and committed; its banner names
+'' the C header and its SHA-256. cJSON-residue.ti holds by hand what the translation could not
+'' carry: cJSON_SetIntValue, cJSON_SetNumberValue and cJSON_SetBoolValue, which are macros in C.
+'' cJSON_ArrayForEach has no tiko form -- a loop header is not a macro -- so walk the children:
+''
+''     dim as cJSON ptr item = arr->child
+''     while item
+''         ...
+''         item = item->next
+''     wend
+''
+'' What cJSON_Print and its kin return is cJSON's to free: cJSON_free( text ).
+''
+'' cJSON_Utils.h -- JSON Pointer, JSON Patch, merge patches -- is a module of its own, as it is a
+'' header of its own in C: '#import "vendor/cJSON/utils"'. It brings this one with it.
+''
+'' THE LIBRARY: with 'link static' cJSON is linked into the program; with 'link dynamic' -- and
+'' when no '#import' says, which is this package's default -- the shared library, which tiko
+'' copies beside the program: cJSON.dll, or cJSON_linux_x86_64.so on Linux.
+#module "cJSON"
+
+public #include once "cJSON.ti"
+public #include once "cJSON-residue.ti"
+
+#ifdef TIKO_LINK_STATIC
+    #foreignlib CJSON static "lib/cJSON"
+#else
+    #foreignlib CJSON dynamic "lib/cJSON"
+#endif

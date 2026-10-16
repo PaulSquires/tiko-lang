@@ -5,7 +5,9 @@
 #   kind = "copy"    'from' (a path inside the archive) copied to 'to'
 #   kind = "cbuild"  the C 'sources' under 'dir' compiled with clang and 'cflags', archived
 #                    to 'static' and/or linked to 'shared' (an ELF one gets its own file
-#                    name as its soname, so the copy beside a program is the one it loads)
+#                    name as its soname, so the copy beside a program is the one it loads;
+#                    a Windows one is a DLL linked with lld, exporting what its sources
+#                    dllexport)
 #
 # THE NAMES are what '#foreignlib SQLITE ... "lib/sqlite3"' probes: sqlite3_<os>_x86_64.a
 # for static; on Windows the DLL keeps its own name, sqlite3.dll -- the name inside it, which

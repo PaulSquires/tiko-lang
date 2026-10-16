@@ -1,0 +1,66 @@
+'' hooks -- cJSON's memory through the program's own allocator: cJSON_InitHooks hands cJSON a
+'' malloc and a free written in tiko, which count every block, so a leak shows as a count that
+'' does not come back to zero.
+''
+'' Build it with 'tiko hooks.tiko'.
+''
+'' cJSON is MIT-licensed (pkg/vendor/cJSON/LICENSE); so is this.
+
+'' cJSON linked DYNAMICALLY: cJSON.dll is copied beside the program (on Linux the program gets
+'' cJSON_linux_x86_64.so beside it). Write 'link static' instead to build cJSON into the program.
+#import "vendor/cJSON" link dynamic
+
+dim shared as long liveBlocks, totalBlocks
+
+'' The hooks are called from C, so they are cdecl, as cJSON_Hooks declares them.
+function CountingMalloc cdecl ( byval size as uinteger ) as any ptr
+    dim as any ptr p = allocate( size )
+    if p then
+        liveBlocks += 1
+        totalBlocks += 1
+    end if
+    return p
+end function
+
+sub CountingFree cdecl ( byval p as any ptr )
+    if p then liveBlocks -= 1
+    deallocate( p )
+end sub
+
+sub Report( byval what as ustring )
+    print left( what & space( 40 ), 40 ) & "live " & liveBlocks & ", allocated so far " & totalBlocks
+end sub
+
+'' With hooks of its own, cJSON allocates through them alone: it uses realloc only when the hooks
+'' are C's own malloc and free, and here they are not.
+dim as cJSON_Hooks hooks
+hooks.malloc_fn = @CountingMalloc
+hooks.free_fn = @CountingFree
+cJSON_InitHooks( @hooks )
+Report( "hooks installed" )
+
+dim as cJSON ptr doc = cJSON_Parse( "{ ""numbers"": [1, 2, 3], ""name"": ""counted"" }" )
+Report( "parsed" )
+
+'' Printed text comes from the hooks too, so it goes back through cJSON_free -- which calls
+'' the free hook.
+dim as zstring ptr text = cJSON_PrintUnformatted( doc )
+Report( "printed, " & len( *text ) & " bytes" )
+cJSON_free( text )
+Report( "text freed" )
+
+cJSON_Delete( doc )
+Report( "document deleted" )
+
+'' A LEAK: a detached item belongs to nobody, and nothing frees it but the program.
+doc = cJSON_Parse( "{ ""keep"": { ""a"": 1 }, ""drop"": [true] }" )
+dim as cJSON ptr kept = cJSON_DetachItemFromObjectCaseSensitive( doc, "keep" )
+cJSON_Delete( doc )
+Report( "deleted, with one item detached" )
+cJSON_Delete( kept )
+Report( "detached item deleted too" )
+
+'' cJSON_InitHooks( nullptr ) puts C's malloc and free back. Nothing may still be held that the
+'' old hooks allocated: cJSON would free it with the new ones.
+cJSON_InitHooks( nullptr )
+print "every block given back: " & iif( liveBlocks = 0, "yes", "no" )

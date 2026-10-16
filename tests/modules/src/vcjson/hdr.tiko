@@ -1,0 +1,12 @@
+'' The committed vendor/cJSON headers -- cJSON.ti, cJSON-residue.ti, cJSON_Utils.ti -- as an
+'' importer reads them: no library needed.
+#include once "../../../../pkg/vendor/cJSON/cJSON.ti"
+#include once "../../../../pkg/vendor/cJSON/cJSON-residue.ti"
+#include once "../../../../pkg/vendor/cJSON/cJSON_Utils.ti"
+dim as cJSON ptr doc = cJSON_Parse( "{""a"":1}" )
+dim as cJSON ptr a = cJSON_GetObjectItemCaseSensitive( doc, "a" )
+cJSON_SetIntValue( a, 2 )
+cJSON_SetNumberValue( a, 2.5 )
+print cJSON_SetBoolValue( a, 1 ), a->type, *a->string, a->child = 0
+print *cJSONUtils_GetPointer( doc, "/a" )->string, sizeof( cJSON ), sizeof( cJSON_Hooks ), CJSON_VERSION_MINOR
+cJSON_Delete( doc )

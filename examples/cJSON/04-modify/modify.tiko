@@ -1,0 +1,96 @@
+'' modify -- changing a parsed document in place: set values, replace, insert, detach and
+'' delete items, move one between documents; then duplicate, compare and minify.
+''
+'' Build it with 'tiko modify.tiko'.
+''
+'' cJSON is MIT-licensed (pkg/vendor/cJSON/LICENSE); so is this.
+
+'' cJSON linked DYNAMICALLY: cJSON.dll is copied beside the program (on Linux the program gets
+'' cJSON_linux_x86_64.so beside it). Write 'link static' instead to build cJSON into the program.
+#import "vendor/cJSON" link dynamic
+
+function ToText( byval item as const cJSON ptr ) as ustring
+    dim as zstring ptr text = cJSON_PrintUnformatted( item )
+    if text = nullptr then return "(cJSON could not print it)"
+    dim as ustring result = *text
+    cJSON_free( text )
+    return result
+end function
+
+function YesNo( byval b as boolean ) as ustring
+    return iif( b, "yes", "no" )
+end function
+
+'' The video document of cJSON's tests.
+dim as cJSON ptr doc = cJSON_Parse( _
+    "{ ""name"": ""Jack (\""Bee\"") Nimble"", ""format"": { ""type"": ""rect"", " & _
+    """width"": 1920, ""height"": 1080, ""interlace"": false, ""frame rate"": 24 } }" )
+print "parsed:    " & ToText( doc )
+
+dim as cJSON ptr fmt = cJSON_GetObjectItemCaseSensitive( doc, "format" )
+
+'' SETTING VALUES. A string through cJSON_SetValuestring, which copies it; a number through
+'' cJSON_SetNumberValue or cJSON_SetIntValue, which keep valueint and valuedouble together (never
+'' assign valueint yourself); a boolean through cJSON_SetBoolValue, which changes the type.
+cJSON_SetValuestring( cJSON_GetObjectItemCaseSensitive( doc, "name" ), "Jack Nimble" )
+cJSON_SetNumberValue( cJSON_GetObjectItemCaseSensitive( fmt, "frame rate" ), 29.97 )
+cJSON_SetIntValue( cJSON_GetObjectItemCaseSensitive( fmt, "width" ), 3840 )
+cJSON_SetBoolValue( cJSON_GetObjectItemCaseSensitive( fmt, "interlace" ), 1 )
+print "set:       " & ToText( doc )
+
+'' REPLACING AND DELETING. The replaced item and the deleted one are freed by cJSON.
+cJSON_ReplaceItemInObjectCaseSensitive( fmt, "type", cJSON_CreateString( "wide" ) )
+cJSON_DeleteItemFromObjectCaseSensitive( fmt, "height" )
+print "replaced:  " & ToText( doc )
+
+'' ARRAYS: append, insert before an index, replace at one, delete at one.
+dim as cJSON ptr tags = cJSON_AddArrayToObject( doc, "tags" )
+cJSON_AddItemToArray( tags, cJSON_CreateString( "b" ) )
+cJSON_AddItemToArray( tags, cJSON_CreateString( "d" ) )
+cJSON_InsertItemInArray( tags, 0, cJSON_CreateString( "a" ) )
+cJSON_InsertItemInArray( tags, 2, cJSON_CreateString( "c" ) )
+cJSON_ReplaceItemInArray( tags, 3, cJSON_CreateString( "D" ) )
+cJSON_AddItemToArray( tags, cJSON_CreateString( "gone" ) )
+cJSON_DeleteItemFromArray( tags, 4 )
+print "tags:      " & ToText( tags )
+
+'' MOVING: a detached item belongs to nobody -- here it is added to a second document, which
+'' then owns it. A detached item kept by itself is the program's to cJSON_Delete.
+dim as cJSON ptr other = cJSON_CreateObject( )
+cJSON_AddItemToObject( other, "format", cJSON_DetachItemFromObjectCaseSensitive( doc, "format" ) )
+print "moved out: " & ToText( doc )
+print "into:      " & ToText( other )
+cJSON_AddItemToObject( doc, "format", cJSON_DetachItemFromObjectCaseSensitive( other, "format" ) )
+cJSON_Delete( other )
+
+'' DUPLICATE AND COMPARE. A recursive duplicate is a new tree, equal to the old one until
+'' either changes; cJSON_Compare says so, with or without regard to the case of names.
+dim as cJSON ptr copy = cJSON_Duplicate( doc, 1 )
+print "copy equal:                  " & YesNo( cJSON_Compare( doc, copy, 1 ) <> 0 )
+cJSON_AddItemToArray( cJSON_GetObjectItemCaseSensitive( copy, "tags" ), cJSON_CreateString( "e" ) )
+print "copy equal after a change:   " & YesNo( cJSON_Compare( doc, copy, 1 ) <> 0 )
+cJSON_Delete( copy )
+
+dim as cJSON ptr upper = cJSON_Parse( "{ ""A"": 1 }" )
+dim as cJSON ptr lower = cJSON_Parse( "{ ""a"": 1 }" )
+print "{A:1} = {a:1}, by case:      " & YesNo( cJSON_Compare( upper, lower, 1 ) <> 0 )
+print "{A:1} = {a:1}, ignoring it:  " & YesNo( cJSON_Compare( upper, lower, 0 ) <> 0 )
+cJSON_Delete( upper )
+cJSON_Delete( lower )
+
+'' REFERENCES: an item added by reference is shared, not copied, and not freed with its new
+'' parent -- deleting 'refs' leaves doc's "tags" whole.
+dim as cJSON ptr refs = cJSON_CreateArray( )
+cJSON_AddItemReferenceToArray( refs, tags )
+print "by reference: " & ToText( refs )
+cJSON_Delete( refs )
+print "tags still:   " & ToText( tags )
+
+print "final:     " & ToText( doc )
+cJSON_Delete( doc )
+
+'' MINIFY rewrites JSON text in its own buffer, so it needs one it can write: a string.
+dim as string spaced = "{" & chr( 10 ) & "   ""a"" : [ 1, 2 ],   /* a comment */" & chr( 10 ) & _
+                       "   ""b"" : ""keeps its spaces"" // and another" & chr( 10 ) & "}"
+cJSON_Minify( strptr( spaced ) )
+print "minified:  " & *cast( zstring ptr, strptr( spaced ) )

@@ -1,0 +1,97 @@
+'' create -- building JSON with cJSON and printing it. The monitor document of cJSON's README,
+'' built twice: item by item (create, then add), and with the Add...ToObject helpers that do
+'' both. Then the array makers and the remaining kinds of value.
+''
+'' Build it with 'tiko create.tiko'.
+''
+'' cJSON is MIT-licensed (pkg/vendor/cJSON/LICENSE); so is this.
+
+'' cJSON linked DYNAMICALLY: cJSON.dll is copied beside the program (on Linux the program gets
+'' cJSON_linux_x86_64.so beside it). Write 'link static' instead to build cJSON into the program.
+#import "vendor/cJSON" link dynamic
+
+'' cJSON_Print's text is cJSON's memory: copied into a ustring, then given back with cJSON_free.
+function ToText( byval item as const cJSON ptr, byval formatted as boolean = true ) as ustring
+    dim as zstring ptr text = iif( formatted, cJSON_Print( item ), cJSON_PrintUnformatted( item ) )
+    if text = nullptr then return "(cJSON could not print it)"
+    dim as ustring result = *text
+    cJSON_free( text )
+    return result
+end function
+
+dim shared as long resolutionNumbers( 0 to 2, 0 to 1 ) = { { 1280, 720 }, { 1920, 1080 }, { 3840, 2160 } }
+
+'' ITEM BY ITEM: every value is created, then added to its parent, which owns it from then on --
+'' so only the root is ever deleted.
+function CreateMonitor( ) as ustring
+    dim as cJSON ptr monitor = cJSON_CreateObject( )
+    if monitor = nullptr then return ""
+
+    cJSON_AddItemToObject( monitor, "name", cJSON_CreateString( "Awesome 4K" ) )
+
+    dim as cJSON ptr resolutions = cJSON_CreateArray( )
+    cJSON_AddItemToObject( monitor, "resolutions", resolutions )
+    for i as long = 0 to 2
+        dim as cJSON ptr resolution = cJSON_CreateObject( )
+        cJSON_AddItemToArray( resolutions, resolution )
+        cJSON_AddItemToObject( resolution, "width", cJSON_CreateNumber( resolutionNumbers( i, 0 ) ) )
+        cJSON_AddItemToObject( resolution, "height", cJSON_CreateNumber( resolutionNumbers( i, 1 ) ) )
+    next
+
+    dim as ustring result = ToText( monitor )
+    cJSON_Delete( monitor )
+    return result
+end function
+
+'' WITH THE HELPERS: cJSON_AddStringToObject and its kin create the value, add it and return
+'' it -- or a null pointer, which is the one check each needs.
+function CreateMonitorWithHelpers( ) as ustring
+    dim as cJSON ptr monitor = cJSON_CreateObject( )
+    dim as ustring result = ""
+    if cJSON_AddStringToObject( monitor, "name", "Awesome 4K" ) then
+        dim as cJSON ptr resolutions = cJSON_AddArrayToObject( monitor, "resolutions" )
+        if resolutions then
+            for i as long = 0 to 2
+                dim as cJSON ptr resolution = cJSON_CreateObject( )
+                cJSON_AddNumberToObject( resolution, "width", resolutionNumbers( i, 0 ) )
+                cJSON_AddNumberToObject( resolution, "height", resolutionNumbers( i, 1 ) )
+                cJSON_AddItemToArray( resolutions, resolution )
+            next
+            result = ToText( monitor )
+        end if
+    end if
+    cJSON_Delete( monitor )
+    return result
+end function
+
+print "Item by item:"
+print CreateMonitor( )
+print
+print "With the helpers, the same document: "; iif( CreateMonitor( ) = CreateMonitorWithHelpers( ), "yes", "no" )
+print
+
+'' EVERY KIND OF VALUE, and the arrays made whole from tiko arrays.
+dim as long primes( 0 to 5 ) = { 2, 3, 5, 7, 11, 13 }
+dim as double weights( 0 to 2 ) = { 0.25, 0.5, 1.75 }
+dim as zstring ptr colours( 0 to 2 ) = { @"red", @"green", @"blue" }
+
+dim as cJSON ptr values = cJSON_CreateObject( )
+cJSON_AddNullToObject( values, "nothing" )
+cJSON_AddTrueToObject( values, "yes" )
+cJSON_AddFalseToObject( values, "no" )
+cJSON_AddBoolToObject( values, "computed", 2 + 2 = 4 )
+cJSON_AddNumberToObject( values, "pi", 3.14159 )
+cJSON_AddStringToObject( values, "greeting", "Grüße, 世界" )
+'' Raw JSON goes into the document as it is written, unchecked.
+cJSON_AddRawToObject( values, "raw", "{""already"":""json""}" )
+cJSON_AddItemToObject( values, "primes", cJSON_CreateIntArray( @primes( 0 ), 6 ) )
+cJSON_AddItemToObject( values, "weights", cJSON_CreateDoubleArray( @weights( 0 ), 3 ) )
+cJSON_AddItemToObject( values, "colours", cJSON_CreateStringArray( @colours( 0 ), 3 ) )
+cJSON_AddObjectToObject( values, "empty" )
+
+print "Every kind of value:"
+print ToText( values )
+print
+print "Unformatted:"
+print ToText( values, false )
+cJSON_Delete( values )

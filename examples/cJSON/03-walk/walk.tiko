@@ -1,0 +1,129 @@
+'' walk -- every value of a JSON document, visited: a recursive walk of cJSON's tree that prints
+'' each value with its type, its name and its place, as a JSON Pointer.
+''
+''     walk                  the document below
+''     walk FILE.json        a file of your own
+''
+'' Build it with 'tiko walk.tiko'.
+''
+'' cJSON is MIT-licensed (pkg/vendor/cJSON/LICENSE); so is this.
+
+'' cJSON linked DYNAMICALLY: cJSON.dll is copied beside the program (on Linux the program gets
+'' cJSON_linux_x86_64.so beside it). Write 'link static' instead to build cJSON into the program.
+#import "vendor/cJSON" link dynamic
+
+'' An item's type is one of cJSON_False ... cJSON_Raw in its low byte; cJSON_IsReference and
+'' cJSON_StringIsConst are flags above it.
+function TypeName( byval item as const cJSON ptr ) as ustring
+    select case item->type and &hFF
+    case cJSON_False, cJSON_True : return "boolean"
+    case cJSON_NULL   : return "null"
+    case cJSON_Number : return "number"
+    case cJSON_String : return "string"
+    case cJSON_Array  : return "array"
+    case cJSON_Object : return "object"
+    case cJSON_Raw    : return "raw"
+    end select
+    return "invalid"
+end function
+
+'' A member's name as a JSON Pointer token: '~' is written '~0' and '/' is written '~1'.
+function PointerToken( byval key as ustring ) as ustring
+    dim as ustring result = ""
+    for i as long = 1 to len( key )
+        dim as ustring c = mid( key, i, 1 )
+        select case c
+        case "~" : result &= "~0"
+        case "/" : result &= "~1"
+        case else : result &= c
+        end select
+    next
+    return result
+end function
+
+'' A value as JSON writes it -- cJSON_PrintUnformatted on any item, not only the root, so a
+'' number is cJSON's shortest exact form and a string is quoted and escaped.
+function Scalar( byval item as const cJSON ptr ) as ustring
+    dim as zstring ptr text = cJSON_PrintUnformatted( item )
+    if text = nullptr then return ""
+    dim as ustring result = *text
+    cJSON_free( text )
+    return result
+end function
+
+'' THE WALK. An array's or an object's members are its 'child' and that child's 'next' chain --
+'' what C's cJSON_ArrayForEach loops over. An object's members carry their names in 'string'.
+dim shared as long counts( 0 to 7 )
+
+sub Walk( byval item as const cJSON ptr, byval path_ as ustring, byval depth as long )
+    dim as ustring here = path_
+    if len( here ) = 0 then here = "(root)"
+    dim as ustring line_ = space( depth * 2 ) & TypeName( item )
+    dim as long kind = item->type and &hFF
+    if (kind = cJSON_Array) orelse (kind = cJSON_Object) then
+        line_ &= " of " & cJSON_GetArraySize( item )
+    else
+        line_ &= " " & Scalar( item )
+    end if
+    print left( line_ & space( 44 ), 44 ); here
+
+    for b as long = 0 to 7
+        if kind = (1 shl b) then counts( b ) += 1
+    next
+
+    dim as cJSON ptr child = item->child
+    dim as long index = 0
+    while child
+        if kind = cJSON_Object then
+            Walk( child, path_ & "/" & PointerToken( *child->string ), depth + 1 )
+        else
+            Walk( child, path_ & "/" & index, depth + 1 )
+        end if
+        index += 1
+        child = child->next
+    wend
+end sub
+
+function LoadFile( byval fileName as ustring, byref text as string ) as boolean
+    dim as long f = freefile
+    if open( fileName for binary access read as #f ) <> 0 then return false
+    text = space( lof( f ) )
+    if len( text ) then get #f, , text
+    close #f
+    return true
+end function
+
+dim as string text
+if __FB_ARGC__ > 1 then
+    if LoadFile( command( 1 ), text ) = false then
+        print "cannot read " & command( 1 )
+        end 1
+    end if
+else
+    text = _
+        "{" & _
+        " ""store"": ""Corner Books""," & _
+        " ""open"": true," & _
+        " ""rating"": 4.5," & _
+        " ""manager"": null," & _
+        " ""books"": [" & _
+        "   { ""title"": ""Sayings of the Century"", ""price"": 8.95, ""tags"": [ ""classic"" ] }," & _
+        "   { ""title"": ""Moby Dick"", ""price"": 8.99, ""tags"": [ ""sea"", ""whales"" ] }" & _
+        " ]," & _
+        " ""a/b"": ""a member whose name has a slash""" & _
+        "}"
+end if
+
+'' ParseWithLength reads exactly len( text ) bytes -- a file need not end in a NUL.
+dim as cJSON ptr doc = cJSON_ParseWithLength( strptr( text ), len( text ) )
+if doc = nullptr then
+    print "not JSON; the error is before: " & left( *cJSON_GetErrorPtr( ), 40 )
+    end 1
+end if
+
+Walk( doc, "", 0 )
+cJSON_Delete( doc )
+
+print
+print "objects " & counts( 6 ) & ", arrays " & counts( 5 ) & ", strings " & counts( 4 ) & _
+      ", numbers " & counts( 3 ) & ", booleans " & (counts( 0 ) + counts( 1 )) & ", nulls " & counts( 2 )

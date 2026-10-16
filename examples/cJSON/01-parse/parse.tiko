@@ -1,0 +1,95 @@
+'' parse -- reading JSON with cJSON: parse a document, look members up by name, check their
+'' types, walk an array, and say where a broken document stops parsing. After the
+'' supports_full_hd example in cJSON's README.
+''
+'' Build it with 'tiko parse.tiko'.
+''
+'' cJSON is MIT-licensed (pkg/vendor/cJSON/LICENSE); so is this.
+
+'' cJSON linked DYNAMICALLY: cJSON.dll is copied beside the program (on Linux the program gets
+'' cJSON_linux_x86_64.so beside it). Write 'link static' instead to build cJSON into the program.
+#import "vendor/cJSON" link dynamic
+
+'' True when the monitor 'monitor' describes has a 1920x1080 resolution. Everything cJSON_Parse
+'' returns is one tree, freed once by cJSON_Delete, whatever was found in it.
+function SupportsFullHd( byval monitor as ustring ) as boolean
+    dim as cJSON ptr monitorJson = cJSON_Parse( monitor )
+    if monitorJson = nullptr then
+        '' cJSON_GetErrorPtr points INTO the text that was parsed, at the first byte it refused.
+        dim as const zstring ptr errorPtr = cJSON_GetErrorPtr( )
+        if errorPtr then print "  error before: "; *errorPtr
+        return false
+    end if
+
+    dim as boolean found = false
+    dim as cJSON ptr monitorName = cJSON_GetObjectItemCaseSensitive( monitorJson, "name" )
+    if (cJSON_IsString( monitorName ) <> 0) andalso (monitorName->valuestring <> nullptr) then
+        print "  checking monitor """; *monitorName->valuestring; """"
+    end if
+
+    '' An array's items are its child and the child's 'next' chain -- what C's
+    '' cJSON_ArrayForEach walks. A missing member is a null pointer, and so is its child.
+    dim as cJSON ptr resolutions = cJSON_GetObjectItemCaseSensitive( monitorJson, "resolutions" )
+    dim as cJSON ptr resolution = nullptr
+    if resolutions then resolution = resolutions->child
+    while resolution
+        dim as cJSON ptr w = cJSON_GetObjectItemCaseSensitive( resolution, "width" )
+        dim as cJSON ptr h = cJSON_GetObjectItemCaseSensitive( resolution, "height" )
+        if (cJSON_IsNumber( w ) = 0) orelse (cJSON_IsNumber( h ) = 0) then exit while
+        print "  " & w->valueint & " x " & h->valueint
+        if (w->valuedouble = 1920) andalso (h->valuedouble = 1080) then
+            found = true
+            exit while
+        end if
+        resolution = resolution->next
+    wend
+
+    cJSON_Delete( monitorJson )
+    return found
+end function
+
+function YesNo( byval b as boolean ) as ustring
+    return iif( b, "yes", "no" )
+end function
+
+dim as ustring monitor4k = _
+    "{" & _
+    " ""name"": ""Awesome 4K""," & _
+    " ""resolutions"": [" & _
+    "   { ""width"": 1280, ""height"": 720 }," & _
+    "   { ""width"": 1920, ""height"": 1080 }," & _
+    "   { ""width"": 3840, ""height"": 2160 }" & _
+    " ]" & _
+    "}"
+
+dim as ustring monitorHd = _
+    "{ ""name"": ""Office 720p"", ""resolutions"": [ { ""width"": 1280, ""height"": 720 } ] }"
+
+'' A height with no value.
+dim as ustring broken = "{ ""name"": ""Broken"", ""resolutions"": [ { ""width"": 1280, ""height"": } ] }"
+
+print "Awesome 4K:"
+print "  full HD: " & YesNo( SupportsFullHd( monitor4k ) )
+print "Office 720p:"
+print "  full HD: " & YesNo( SupportsFullHd( monitorHd ) )
+print "Broken:"
+print "  full HD: " & YesNo( SupportsFullHd( broken ) )
+
+'' The values themselves: cJSON_GetStringValue and cJSON_GetNumberValue check the type, and
+'' give a null pointer or NaN for the wrong one.
+print
+dim as cJSON ptr doc = cJSON_Parse( "{ ""pi"": 3.14159, ""answer"": 42, ""ok"": true, " & _
+                                    """nothing"": null, ""city"": ""Montréal"" }" )
+dim as cJSON ptr pi_ = cJSON_GetObjectItem( doc, "pi" )
+print "pi       = " & cJSON_GetNumberValue( pi_ )
+print "answer   = " & cJSON_GetObjectItem( doc, "answer" )->valueint
+print "ok       = " & YesNo( cJSON_IsTrue( cJSON_GetObjectItem( doc, "ok" ) ) <> 0 )
+print "nothing  is null: " & YesNo( cJSON_IsNull( cJSON_GetObjectItem( doc, "nothing" ) ) <> 0 )
+'' Strings are UTF-8, as a ustring is.
+dim as ustring city = *cJSON_GetStringValue( cJSON_GetObjectItem( doc, "city" ) )
+print "city     = " & city & " (" & len( city ) & " characters)"
+'' GetObjectItem ignores case; GetObjectItemCaseSensitive does not.
+print "has PI   : " & YesNo( cJSON_HasObjectItem( doc, "PI" ) <> 0 )
+print "PI exact : " & YesNo( cJSON_GetObjectItemCaseSensitive( doc, "PI" ) <> nullptr )
+print "members  : " & cJSON_GetArraySize( doc )
+cJSON_Delete( doc )
