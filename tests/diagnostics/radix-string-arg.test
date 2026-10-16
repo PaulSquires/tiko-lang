@@ -1,0 +1,19 @@
+'' TKO0928 FOR hex/oct/bin OVER A STRING. Measured on fbc-modern: a string, a literal, a
+'' zstring, a wstring, 'zstring * 4' and 'string * 4' are each refused (error 99 for a string
+'' or fixed string, 58 for a zstring or wstring), with or without a width, for all six names.
+'' tiko typed the call as nothing and dropped the statement -- TKO0994, an internal error --
+'' as 'hex( z[0] )' over a zstring ptr did in examples/cJSON. The last line is accepted by
+'' both. Lines identical to fbc-modern's errors. See CheckUdtRadixChr_ in symbols/staticdef.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/radix-string-arg.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: radix-string-arg.bas(7,10): error TKO0928
+'' EXPECT-OUT: radix-string-arg.bas(8,10): error TKO0928
+'' EXPECT-OUT: radix-string-arg.bas(9,11): error TKO0928
+'' EXPECT-OUT: radix-string-arg.bas(10,11): error TKO0928
+'' EXPECT-OUT: radix-string-arg.bas(11,11): error TKO0928
+'' EXPECT-OUT: radix-string-arg.bas(12,10): error TKO0928
+'' EXPECT-OUT: radix-string-arg.bas(13,10): error TKO0928
+'' EXPECT-OUT: radix-string-arg.bas(14,10): error TKO0928
+'' EXPECT-OUT: radix-string-arg.bas(15,10): error TKO0928
+'' EXPECT-MAX-DIAG: 9

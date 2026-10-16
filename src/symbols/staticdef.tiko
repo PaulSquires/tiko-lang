@@ -238,6 +238,23 @@ private sub CheckUdtRadixChr_ _
     if at = TYPE_NONE then return
     at = c.types->Unqualify( at )
     if c.types->Kind( at ) = TK_REFERENCE then at = c.types->Unqualify( c.types->Inner( at ) )
+    '' ...AND OVER A STRING, TKO0928. Measured on fbc-modern: 'hex( s )', 'hex( "ab" )', 'whex( s )'
+    '' and 'woct( zstring * 4 )' are 99, 'hex( *z )', 'bin( z[0] )' and 'hex( *w )' over a zstring
+    '' or wstring are 58 -- with a width too. tiko typed the call as nothing and dropped the
+    '' statement, TKO0994.
+    if right( nm, 3 ) <> "chr" then
+        dim as boolean strArg = (Tko.Check.FixedStringElem( at, *c.types ) <> TYPE_NONE)
+        if c.types->Kind( at ) = TK_BUILTIN then
+            select case c.types->BuiltinOf( at )
+            case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR
+                strArg = true
+            end select
+        end if
+        if strArg then
+            c.diags->Report( TKO0928, PointRange( c.ast->Loc( id ) ), nm, c.types->Name( at ) )
+            return
+        end if
+    end if
     if c.types->Kind( at ) <> TK_UDT then return
     dim as InternId un = c.types->NameOf( at )
     if un = 0 then return
