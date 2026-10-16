@@ -1,0 +1,9 @@
+type Z as zstring
+type W as wstring
+extern "C"
+extern alias_ver as const Z
+end extern
+dim shared s as Z
+static shared w as W
+s = ""
+print len( s ), sizeof( s ), sizeof( w )
