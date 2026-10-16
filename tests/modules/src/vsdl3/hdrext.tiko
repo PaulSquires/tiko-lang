@@ -1,7 +1,7 @@
-'' The committed SDL3_image, SDL3_ttf and SDL3_mixer headers, as an importer reads them: no library.
-#include once "../../../../pkg/vendor/SDL3_image/SDL_image.ti"
-#include once "../../../../pkg/vendor/SDL3_ttf/SDL_ttf.ti"
-#include once "../../../../pkg/vendor/SDL3_mixer/SDL_mixer.ti"
+'' The committed SDL3/image, ttf and mixer headers, as an importer reads them: no library.
+#include once "../../../../pkg/vendor/SDL3/image/SDL_image.ti"
+#include once "../../../../pkg/vendor/SDL3/ttf/SDL_ttf.ti"
+#include once "../../../../pkg/vendor/SDL3/mixer/SDL_mixer.ti"
 dim as SDL_AudioSpec spec = ( SDL_AUDIO_F32, 2, 48000 )
 dim as SDL_Surface ptr png = IMG_Load( "x.png" )
 if png then SDL_DestroySurface( png )

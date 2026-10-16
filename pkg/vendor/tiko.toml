@@ -14,11 +14,11 @@ links = ["static", "dynamic"]
 [vendor.SDL3]
 links = ["dynamic"]
 
-[vendor.SDL3_image]
+[vendor.SDL3.image]
 links = ["dynamic"]
 
-[vendor.SDL3_ttf]
+[vendor.SDL3.ttf]
 links = ["dynamic"]
 
-[vendor.SDL3_mixer]
+[vendor.SDL3.mixer]
 links = ["dynamic"]

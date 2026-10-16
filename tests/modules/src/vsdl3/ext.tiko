@@ -1,7 +1,7 @@
-'' vendor/SDL3_image, SDL3_ttf and SDL3_mixer imported together: each brings vendor/SDL3.
-#import "vendor/SDL3_image"
-#import "vendor/SDL3_ttf"
-#import "vendor/SDL3_mixer"
+'' vendor/SDL3/image, ttf and mixer imported together: each brings vendor/SDL3.
+#import "vendor/SDL3/image"
+#import "vendor/SDL3/ttf"
+#import "vendor/SDL3/mixer"
 dim as SDL_AudioSpec spec = ( SDL_AUDIO_F32, 2, 48000 )
 dim as SDL_Surface ptr png = IMG_Load( "x.png" )
 if png then SDL_DestroySurface( png )

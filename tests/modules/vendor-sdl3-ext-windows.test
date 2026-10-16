@@ -1,4 +1,4 @@
-'' THE COMMITTED vendor/SDL3_image, SDL3_ttf AND SDL3_mixer HEADERS -- the sdl3-freebasic bindings,
+'' THE COMMITTED vendor/SDL3/image, ttf AND mixer HEADERS -- the sdl3-freebasic bindings,
 '' adapted and fixed so they compile -- compile together for windows-x86_64 as an importer reads
 '' them. Included directly, so no lib/ is needed (vendor-sdl3-ext-linux imports the modules).
 '' TEST: cli
