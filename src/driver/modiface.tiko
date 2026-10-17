@@ -196,6 +196,53 @@ private sub BindReexports_ _
     next
 end sub
 
+'' A MODULE'S OVERLOADS OF A HEADER'S NAMES (RFC-0001 F4), from its interface's '' joins
+'' <name> lines: 'public function GetWindowText overload( byval hWin as HWND ) as ustring'
+'' joined windows.bi's GetWindowText in the module, and joins it here too. Each public
+'' member of that name in the module's namespace gets a twin in this unit's own set for the
+'' name (SymbolTable.JoinTwin), so a bare call chooses among the header's declarations and
+'' the module's by signature, and links to what the module defined; 'qo.GetWindowText' still
+'' reaches the namespace alone. Only a module this unit imports itself: one it reads for
+'' another's sake lends its types, not its names.
+private sub JoinOverloads_ _
+    ( byref ctx as Tko.CompilerContext, byref syms as Tko.SymbolTable, _
+      byval n as int32, byval nsSid as uint32, byval modScope as Tko.ScopeId )
+    dim as Tko.Symbol ptr ns = syms.SymbolAt( cast( Tko.SymbolId, nsSid ) )
+    if ns = nullptr then return
+    dim as Tko.ScopeId inner = ns->inner
+    if inner = Tko.SCOPE_NONE then return
+    dim as string t = ctx.ifaceTexts[n]
+    dim as int32 p = 1
+    while p <= len( t )
+        dim as int32 e = instr( p, t, chr( 10 ) )
+        if e = 0 then e = len( t ) + 1
+        dim as string ln = mid( t, p, e - p )
+        p = e + 1
+        if left( ln, 2 ) <> "''" then exit while
+        if left( ln, 9 ) <> "'' joins " then continue while
+        dim as Tko.InternId nm = Folded_( ctx, trim( mid( ln, 10 ) ) )
+        '' The members first: each twin is a new symbol, and the table may move.
+        dim as containers.Array( of uint32 ) members
+        dim as Tko.SymbolId cur = syms.LookupLocal( inner, nm )
+        dim as Tko.Symbol ptr hs = syms.SymbolAt( cur )
+        if hs = nullptr then continue while
+        if hs->kind <> cast( uint8, Tko.SYM_PROC ) then cur = hs->altClass
+        dim as int32 guard = 0
+        while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
+            guard += 1
+            dim as Tko.Symbol ptr ms = syms.SymbolAt( cur )
+            if ms = nullptr then exit while
+            if ms->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
+            if (ms->parent = inner) andalso (ms->diedAt = 0) andalso _
+               ((ms->flags and Tko.SYMF_PUBLIC) <> 0) then members.Push( cast( uint32, cur ) )
+            cur = ms->nextOverload
+        wend
+        for each m as uint32 in members
+            syms.JoinTwin( modScope, cast( Tko.SymbolId, m ) )
+        next
+    wend
+end sub
+
 '' WHICH FILE OF A MODULE UNIT 'loc' is in, 1-based, or 0 for a header's or nothing's.
 private function UnitFileOf_ _
     ( byref ctx as Tko.CompilerContext, byval loc as Tko.SourceLoc, _
@@ -299,6 +346,16 @@ sub BindImports _
         aliasRec.Push( cast( uint32, k ) )
     next
     if syms.aliasPairSym.Count > 0 then MapNodeFiles_( ctx, ast, syms, lo, hi )
+    '' Each module imported here once, however many aliases name it.
+    for q as int32 = 0 to aliasMod.Count - 1
+        dim as boolean first_ = true
+        for r as int32 = 0 to q - 1
+            if aliasMod[r] = aliasMod[q] then first_ = false
+        next
+        if first_ then
+            JoinOverloads_( ctx, syms, cast( int32, aliasMod[q] ), nsOf[aliasMod[q]], modScope )
+        end if
+    next
 end sub
 
 sub InitOrder( byref ctx as Tko.CompilerContext, byref outv as Tko.StrVec )

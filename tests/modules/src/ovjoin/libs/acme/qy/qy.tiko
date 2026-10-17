@@ -1,0 +1,8 @@
+'' windows.bi's own parameters exactly: no call could choose, so it is not an overload --
+'' and not, silently, a definition of user32's GetDesktopWindow either.
+#module "qy"
+#include once "windows.bi"
+
+public function GetDesktopWindow overload ( ) as HWND
+    return cast( HWND, 7 )
+end function

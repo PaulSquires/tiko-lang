@@ -179,6 +179,10 @@ namespace Tko
     const SYMF_IMPORTED       as uint32 = &h04000000
     '' 'extern import': a DLL's variable, loaded through '__imp_<name>' on COFF (T85).
     const SYMF_DLLIMPORT      as uint32 = &h08000000
+    '' SYM_PROC: the declaration that made this symbol WROTE 'overload' itself. The keyword
+    '' spreads to every declaration of the name once one has it (it decides the mangling),
+    '' so the node no longer says who wrote it; RFC-0001 F4's join rule needs to know.
+    const SYMF_OVL_WRITTEN    as uint32 = &h10000000
 
     type Symbol
         as uint8     kind
@@ -346,6 +350,11 @@ namespace Tko
         '' writes it (M22), so its 'using' does too: in a unit of several files, a sibling
         '' that did not write it must not see the module's names bare. See UsingHere.
         as containers.Array( of uint32 ) usingFile
+        '' AN IMPORTED MODULE'S OVERLOAD OF A HEADER'S NAME (RFC-0001 F4), as pairs: the
+        '' symbol in the module's interface namespace, and its twin in this unit's chain
+        '' for the name (JoinTwin). Resolve gives each twin its original's result type.
+        as containers.Array( of uint32 ) joinOrig
+        as containers.Array( of uint32 ) joinCopy
 
         declare constructor( )
         declare sub Attach( byval it as Interner ptr )
@@ -368,6 +377,13 @@ namespace Tko
         '' same id is never chained twice.
         declare sub ChainOverload _
             ( byval scope_ as ScopeId, byval nm as InternId, byval id as SymbolId )
+
+        '' A TWIN of procedure 'of_' in scope_'s overload set for its name -- the set's last
+        '' member, or the whole set when there is none. The twin keeps of_'s PARENT, so it
+        '' mangles as of_ does and a call through either links to one definition; it is not
+        '' in of_'s own chain, which stays as it was. SYMBOL_NONE when the name is taken by
+        '' something that is not a procedure.
+        declare function JoinTwin( byval scope_ as ScopeId, byval of_ as SymbolId ) as SymbolId
 
         '' Innermost-first through the enclosing scope chain.
         declare function Lookup _

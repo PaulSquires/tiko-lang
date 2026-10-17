@@ -2,7 +2,9 @@
 '' name already declared or defined there, whatever differs -- and on a second body.
 '' Overload sets, members and operators take a new signature, never the same one.
 '' Every line asserted below is a line fbc-modern 1.20 and 1.10.1 report, and none else:
-'' measured 2026-09-18, 19 errors from each. MAX-DIAG is what proves nothing is reported
+'' measured 2026-09-18, 19 errors from each -- line 33's TKO0677 is tiko's own: a later
+'' OVERLOAD joins a set (RFC-0001 F4), and fbc's error 4 there stands only because these
+'' parameters cannot be told apart. MAX-DIAG is what proves nothing is reported
 '' twice or cascades. Line 73 is the unknown rank, judged by Collect since 2026-09-18;
 '' line 76, an array element's CONST, by the late sweep.
 '' TEST: cli
@@ -16,7 +18,7 @@
 '' EXPECT-OUT: duplicate-declare.bas(20,9): error TKO0600: 'dupalias'
 '' EXPECT-OUT: duplicate-declare.bas(25,9): error TKO0600: 'dupafterdef'
 '' EXPECT-OUT: duplicate-declare.bas(28,1): error TKO0600: 'duptwobodies'
-'' EXPECT-OUT: duplicate-declare.bas(33,9): error TKO0600: 'duplatekw'
+'' EXPECT-OUT: duplicate-declare.bas(33,9): error TKO0677: 'duplatekw'
 '' EXPECT-OUT: duplicate-declare.bas(38,9): error TKO0677: 'dupoverload'
 '' EXPECT-OUT: duplicate-declare.bas(40,9): error TKO0677: 'dupmode'
 '' EXPECT-OUT: duplicate-declare.bas(47,13): error TKO0600: 'inner'

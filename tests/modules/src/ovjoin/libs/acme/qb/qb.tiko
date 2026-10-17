@@ -1,0 +1,7 @@
+'' A module importing qo reaches its overloads bare as well.
+#module "qb"
+#import "acme/qo"
+
+public function Twice( byval h as HWND ) as ustring
+    return GetWindowText( h ) & "+" & qo.GetWindowText( h )
+end function

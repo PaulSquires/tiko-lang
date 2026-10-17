@@ -28,9 +28,9 @@ end sub
 sub dupTwoBodies( )
 end sub
 
-'' OVERLOAD has to be on the FIRST declaration.
+'' A later OVERLOAD joins the set (tiko diverges, RFC-0001 F4), but not with these parameters.
 declare function dupLateKw( byval a as long ) as long
-declare function dupLateKw overload( byval a as double ) as long
+declare function dupLateKw overload( byval b as long ) as double
 
 '' An overload set takes a new signature, not the same one -- and the passing mode
 '' does not make one new.

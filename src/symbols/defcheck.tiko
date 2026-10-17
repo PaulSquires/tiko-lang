@@ -306,6 +306,11 @@ private sub CheckDefinitionAgrees_ ( byref c as Ctx, byval id as NodeId )
         '' branch of Collect sets it on a declaration too, and a second body never gets
         '' this far (above).
         if usable then usable = (DefStmt_( c, dn )->b = NODE_NONE)
+        '' A MODULE'S OWN PROCEDURE is never the body of a header's (RFC-0001 F4): Collect
+        '' kept it apart, and one that matches the header's parameters is TKO0677 already.
+        if usable andalso ((s->flags and SYMF_MODSRC) <> 0) then
+            usable = ((cs->flags and SYMF_MODSRC) <> 0)
+        end if
         if usable then
             dim as StmtPayload ptr dp = DefStmt_( c, dn )
             if (dp->extra and PF_GENERIC_PROC) <> 0 then return

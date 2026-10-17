@@ -1,0 +1,12 @@
+'' After 'using qo' a bare name is still the one merged set (RFC-0001 F4): qo's overloads and
+'' windows.bi's, chosen by signature.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i tests/modules/src/ovjoin/libs tests/modules/src/ovjoin/app/using.tiko -o tests/modules/ovjoin-using.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/ovjoin-using.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: qo:text0
+'' EXPECT-RUN-OUT: -7
+'' EXPECT-RUN-OUT:  0

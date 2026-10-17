@@ -916,6 +916,53 @@ private function RequiredHeaders_ _
     return res
 end function
 
+'' A PUBLIC OVERLOAD THAT JOINED A HEADER'S NAME (RFC-0001 F4): 'public function
+'' GetWindowText overload( byval hWin as HWND ) as ustring' beside windows.bi's
+'' three-argument one. At the module's top level the two are one set, and an importer has
+'' to see one set too, so it reaches the module's member bare as well as qualified. One
+'' '' joins <name>' line per such name, which BindImports reads. A set holding nothing
+'' declared outside the module joined nothing; the prelude's names are left alone.
+private function Joins_( byref w as TkiWriter_ ) as string
+    dim as string r = ""
+    dim as Tko.ScopeId ms = Tko.ModSym.ModuleScope( *w.syms )
+    if ms = Tko.SCOPE_NONE then return r
+    dim as containers.Array( of uint32 ) done_
+    for si as int32 = 1 to w.syms->Count( )
+        dim as Tko.Symbol ptr ps = w.syms->SymbolAt( cast( Tko.SymbolId, si ) )
+        if ps = nullptr then continue for
+        if ps->kind <> cast( uint8, Tko.SYM_PROC ) then continue for
+        if (ps->parent <> ms) orelse (ps->diedAt <> 0) then continue for
+        if (ps->flags and Tko.SYMF_MODSRC) = 0 then continue for
+        if (ps->flags and Tko.SYMF_PUBLIC) = 0 then continue for
+        if (ps->flags and Tko.SYMF_OVERLOAD) = 0 then continue for
+        dim as boolean seen = false
+        for each d as uint32 in done_
+            if d = cast( uint32, ps->name ) then seen = true
+        next
+        if seen then continue for
+        dim as Tko.SymbolId cur = w.syms->LookupLocal( ms, ps->name )
+        dim as Tko.Symbol ptr hs = w.syms->SymbolAt( cur )
+        if hs = nullptr then continue for
+        if hs->kind <> cast( uint8, Tko.SYM_PROC ) then cur = hs->altClass
+        dim as boolean joined = false
+        dim as int32 guard = 0
+        while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
+            guard += 1
+            dim as Tko.Symbol ptr os = w.syms->SymbolAt( cur )
+            if os = nullptr then exit while
+            if os->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
+            if ((os->flags and Tko.SYMF_MODSRC) = 0) andalso (os->diedAt = 0) then
+                if w.ctx->sources.IsBuiltin( os->loc ) = false then joined = true
+            end if
+            cur = os->nextOverload
+        wend
+        if joined = false then continue for
+        done_.Push( cast( uint32, ps->name ) )
+        r &= "'' joins " & w.ctx->names.Spelling( ps->name ) & !"\n"
+    next
+    return r
+end function
+
 function WriteInterface _
     ( byref ctx as Tko.CompilerContext, byref toks as Tko.TokenVec, _
       byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
@@ -964,8 +1011,12 @@ function WriteInterface _
             guard += 1
             dim as Tko.Symbol ptr os = syms.SymbolAt( oid )
             if os = nullptr then exit while
+            '' ...the MODULE'S OWN declaration: a header's one of the same result type --
+            '' windows.bi's 'GetWindowRect', a LONG, beside the module's overload of it --
+            '' is another procedure, and taking it for this one left the overload out.
             if (oid <> cast( Tko.SymbolId, si )) andalso (os->kind = cast( uint8, Tko.SYM_PROC )) _
-               andalso (os->parent = ps->parent) andalso (os->type_ = ps->type_) then
+               andalso (os->parent = ps->parent) andalso (os->type_ = ps->type_) _
+               andalso ((os->flags and Tko.SYMF_MODSRC) <> 0) then
                 dim as int32 on_ = cast( int32, os->payload )
                 if (on_ > 0) andalso (on_ <= ast.Count( )) then
                     if ast.Kind( cast( Tko.NodeId, on_ ) ) = Tko.N_PROC then
@@ -1002,7 +1053,7 @@ function WriteInterface _
     w.text &= "end namespace" & !"\n"
     dim as string req = RequiredHeaders_( w, headers, pr, len( macros ) > 0 )
     return "'' tiko-interface 1" & !"\n" & "'' module " & ctx.modChain & !"\n" & _
-           w.uses & req & macros & w.text
+           w.uses & Joins_( w ) & req & macros & w.text
 end function
 
 end namespace

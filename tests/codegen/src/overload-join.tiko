@@ -1,0 +1,62 @@
+'' OVERLOAD joins a name whose first declaration did not write it (RFC-0001 F4).
+#include once "windows.bi"
+
+'' A later DECLARE.
+declare function F( byval x as long ) as long
+declare function F overload ( byref s as string ) as string
+declare function F overload ( byval d as double, byval e as double ) as double
+
+'' A definition after a plain declare, and after an ALIAS declare.
+declare function P( byval x as long ) as long
+declare function Q alias "QQ" ( byval x as long ) as long
+function P overload ( byref s as string ) as string
+    return "P:" & s
+end function
+function Q overload ( byref s as string ) as string
+    return "Q:" & s
+end function
+
+'' A body written BEFORE the keyword arrived.
+function R( byval x as long ) as long
+    return x + 3
+end function
+function R overload ( byref s as string ) as string
+    return "R:" & s
+end function
+
+'' windows.bi's GetWindowText (an ALIAS declare) and GetWindowRect (a plain one), and one
+'' with GetWindowText's own arity.
+function GetWindowText overload ( byval hWin as HWND ) as ustring
+    return "t" & GetWindowTextLengthW( hWin )
+end function
+function GetWindowRect overload ( byval hWin as HWND ) as long
+    return -7
+end function
+function GetWindowText overload ( byval hWin as HWND, byref s as ustring, byval n as long ) as long
+    s = "into"
+    return n
+end function
+
+function F( byval x as long ) as long
+    return x * 2
+end function
+function F( byref s as string ) as string
+    return "F:" & s
+end function
+function F( byval d as double, byval e as double ) as double
+    return d + e
+end function
+function P( byval x as long ) as long
+    return x + 1
+end function
+function Q( byval x as long ) as long
+    return x + 2
+end function
+
+dim as RECT rc
+dim as zstring * 8 b
+dim as ustring u
+print F( 21 ); " "; F( "x" ); F( 1.5, 2.0 )
+print P( 1 ); " "; P( "a" ); Q( 1 ); " "; Q( "b" ); R( 1 ); " "; R( "c" )
+print GetWindowText( 0 ); GetWindowText( 0, @b, 8 ); GetWindowText( 0, u, 5 ); " "; u
+print GetWindowRect( 0 ); GetWindowRect( 0, @rc )

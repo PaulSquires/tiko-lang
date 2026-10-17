@@ -866,7 +866,7 @@ sub WalkNode _
             '' and went unnoticed because the corpus's procedures are declared in a
             '' header and defined in a library it never compiles.
             if sp->b <> Tko.NODE_NONE then
-                sid = UndefinedProcWithArity( w, scope_, declName, sp )
+                sid = UndefinedProcWithArity( w, scope_, declName, sp, w.ast->Loc( id ) )
             end if
             if sid = Tko.SYMBOL_NONE then
                 '' ONLY A REAL SUB OR FUNCTION -- what was measured. An operator, a property and
@@ -894,6 +894,9 @@ sub WalkNode _
                     else
                         sid = Declare_( w, scope_, declName, Tko.SYM_PROC, w.ast->Loc( id ) )
                         NoteDeclAt_( w, sid, id )
+                        if ((sp->extra and Tko.PF_OVERLOAD) <> 0) andalso (w.syms->SymbolAt( sid ) <> nullptr) then
+                            w.syms->SymbolAt( sid )->flags or= Tko.SYMF_OVL_WRITTEN
+                        end if
                     end if
                 end if
             end if

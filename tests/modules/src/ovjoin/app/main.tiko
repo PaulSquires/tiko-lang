@@ -1,0 +1,19 @@
+'' Bare and qualified, each chosen by signature beside windows.bi's own declarations.
+#import "acme/qo"
+#import "acme/qb"
+#include once "windows.bi"
+
+dim as HWND h = 0
+dim as zstring * 8 b
+dim as RECT r
+dim as ustring u
+print qo.SelfTest( )
+print qo.GetWindowText( h )
+print GetWindowText( h )
+print qo.GetWindowRect( h )
+print GetWindowRect( h )
+print GetWindowText( h, @b, 8 )
+print GetWindowRect( h, @r )
+print GetWindowText( h, u, 5 ); " "; u
+print qo.GetWindowText( h, u, 6 ); " "; u
+print qb.Twice( h )

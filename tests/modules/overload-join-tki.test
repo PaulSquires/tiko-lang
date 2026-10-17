@@ -1,0 +1,13 @@
+'' The interface names the header names qo's public overloads joined (RFC-0001 F4), and
+'' writes all three overloads -- GetWindowRect's was left out once, taken for the module's
+'' own declaration because windows.bi's has the same result type.
+'' TEST: cli
+'' ARGS: --emit-tki -i tests/modules/src/ovjoin/libs tests/modules/src/ovjoin/libs/acme/qo
+'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: '' joins getwindowtext
+'' EXPECT-OUT: '' joins getwindowrect
+'' EXPECT-OUT: public declare function GetWindowText overload ( byval hWin as HWND ) as ustring
+'' EXPECT-OUT: public declare function GetWindowRect overload ( byval hWin as HWND ) as long
+'' EXPECT-OUT: public declare function GetWindowText overload ( byval hWin as HWND, byref s as ustring, byval n as long ) as long
+'' EXPECT-NOT: joins selftest

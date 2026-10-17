@@ -26,7 +26,9 @@ private sub SpreadOverloadFlag_ _
       byval id as Tko.NodeId )
 
     if nm = 0 then return
-    dim as boolean any_ = ((StmtOf( w, id )->extra and Tko.PF_OVERLOAD) <> 0)
+    dim as boolean mine = ((StmtOf( w, id )->extra and Tko.PF_OVERLOAD) <> 0)
+    dim as boolean had = false
+    dim as boolean anyBody = false
     dim as Tko.SymbolId cur = w.syms->LookupLocal( scope_, nm )
     dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
@@ -35,14 +37,46 @@ private sub SpreadOverloadFlag_ _
         if s = nullptr then exit while
         if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
-        if (pn <> Tko.NODE_NONE) andalso (pn <> 0) then
+        if (pn <> Tko.NODE_NONE) andalso (pn <> 0) andalso (pn <> id) then
             if w.ast->Kind( pn ) = Tko.N_PROC then
-                if (StmtOf( w, pn )->extra and Tko.PF_OVERLOAD) <> 0 then any_ = true
+                if (StmtOf( w, pn )->extra and Tko.PF_OVERLOAD) <> 0 then had = true
             end if
         end if
+        if (pn <> id) andalso (s->inner <> Tko.SCOPE_NONE) then anyBody = true
         cur = s->nextOverload
     wend
+    dim as boolean any_ = mine orelse had
     if any_ = false then return
+
+    '' ...AND A BODY WRITTEN BEFORE THE KEYWORD ARRIVED. fbc wants OVERLOAD on the first
+    '' declaration, so a set always had it before any body; tiko lets a later one bring it
+    '' (RFC-0001 F4, collectproc.tiko), and 'function P( byval x as long )' written above
+    '' 'function P overload( byref s as string )' kept the plain name 'P' while every call
+    '' to it named _Z1Pl. Each such body is found by the scope it opens. Only when this
+    '' declaration is the one that brought the keyword: rare, so the walk is affordable.
+    if mine andalso (had = false) andalso anyBody andalso (w.info <> nullptr) then
+        dim as containers.Array( of uint32 ) inners
+        cur = w.syms->LookupLocal( scope_, nm )
+        guard = 0
+        while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
+            guard += 1
+            dim as Tko.Symbol ptr s = w.syms->SymbolAt( cur )
+            if s = nullptr then exit while
+            if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
+            if s->inner <> Tko.SCOPE_NONE then inners.Push( cast( uint32, s->inner ) )
+            cur = s->nextOverload
+        wend
+        for n as int32 = 1 to w.ast->Count( )
+            dim as Tko.NodeId dn = cast( Tko.NodeId, n )
+            if (dn = id) orelse (w.ast->Kind( dn ) <> Tko.N_PROC) then continue for
+            dim as Tko.StmtPayload ptr dp = StmtOf( w, dn )
+            if (dp->name <> nm) orelse (dp->b = Tko.NODE_NONE) then continue for
+            dim as uint32 ds = cast( uint32, w.info->ScopeOf( dn ) )
+            for each iv as uint32 in inners
+                if iv = ds then dp->extra or= Tko.PF_OVERLOAD
+            next
+        next
+    end if
 
     StmtOf( w, id )->extra or= Tko.PF_OVERLOAD
     cur = w.syms->LookupLocal( scope_, nm )
@@ -116,13 +150,33 @@ end function
 '' there fbc takes the definition as a NEW overload. 'declare sub g overload( byval a as
 '' long )' then 'sub g( byval a as double )' runs under fbc; joined, the body took g(long)'s
 '' name and the call to g( 1.5 ) linked to a G(int) nothing defined.
+private function InModFile_( byref w as Walker, byval loc as Tko.SourceLoc ) as boolean
+    if (w.src = nullptr) orelse (loc = Tko.LOC_NONE) then return false
+    dim as uint32 f = cast( uint32, w.src->Decode( loc ).file )
+    for each m as uint32 in w.syms->modFiles
+        if m = f then return true
+    next
+    return false
+end function
+
 private function UndefinedProcWithArity _
     ( byref w as Walker, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
-      byval sp as Tko.StmtPayload ptr ) as Tko.SymbolId
+      byval sp as Tko.StmtPayload ptr, byval loc as Tko.SourceLoc = Tko.LOC_NONE ) as Tko.SymbolId
 
     dim as int32 want = ProcArity( w, sp )
     dim as boolean ovl = ((sp->extra and Tko.PF_OVERLOAD) <> 0) orelse _
                          (sp->op = cast( uint16, Tko.KW_OPERATOR ))
+    '' A MODULE'S OWN OVERLOAD IS NOT A HEADER'S BODY (RFC-0001 F4). 'public function
+    '' GetWindowText overload( byval h as HWND, byref s as ustring, byval n as long )' in a
+    '' module has windows.bi's arity, and joined its GetWindowText as the body -- a
+    '' definition of user32's procedure under a classic name, gone from the interface. In a
+    '' module's file, a body that writes OVERLOAD joins only a declaration that wrote it too
+    '' or is the module's own; one that cannot be told apart from the header's is TKO0677
+    '' after Resolve (ModuleJoinsAfter_), when there are types to compare.
+    dim as boolean modOverload = false
+    if ((sp->extra and Tko.PF_OVERLOAD) <> 0) andalso (w.syms->modFileCount > 0) then
+        modOverload = InModFile_( w, loc )
+    end if
     dim as Tko.SymbolId found = Tko.SYMBOL_NONE
     dim as int32 hits = 0
     dim as Tko.SymbolId cur = w.syms->LookupLocal( scope_, nm )
@@ -133,6 +187,30 @@ private function UndefinedProcWithArity _
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         dim as boolean isProc = (pn <> Tko.NODE_NONE) andalso (pn <> 0)
         if isProc then isProc = (w.ast->Kind( pn ) = Tko.N_PROC)
+        '' ...AND ANYWHERE, a body that writes OVERLOAD joins a declaration that did not
+        '' only with the same parameters as written: fbc takes 'declare function F( byval x
+        '' as long )' then 'function F overload( byval x as long )' as one procedure, but
+        '' 'function GetWindowText overload( byval h as HWND, byref s as ustring, byval n as
+        '' long )' was joined to windows.bi's by arity and emitted as GetWindowTextA.
+        if isProc andalso ((sp->extra and Tko.PF_OVERLOAD) <> 0) then
+            dim as Tko.StmtPayload ptr dp0 = StmtOf( w, pn )
+            if (s->flags and Tko.SYMF_OVL_WRITTEN) = 0 then
+                if modOverload then
+                    if InModFile_( w, w.ast->Loc( pn ) ) = false then isProc = false
+                end if
+                if isProc andalso (dp0->count = sp->count) then
+                    for pi as int32 = 0 to sp->count - 1
+                        dim as Tko.NodeId an = cast( Tko.NodeId, w.ast->children[dp0->first + pi] )
+                        dim as Tko.NodeId bn = cast( Tko.NodeId, w.ast->children[sp->first + pi] )
+                        if (w.ast->Kind( an ) <> Tko.N_PARAM) orelse (w.ast->Kind( bn ) <> Tko.N_PARAM) then continue for
+                        if SameWrittenType_( w, StmtOf( w, an )->a, StmtOf( w, bn )->a, scope_ ) = false then
+                            isProc = false
+                            exit for
+                        end if
+                    next
+                end if
+            end if
+        end if
         if isProc then
             if (StmtOf( w, pn )->extra and Tko.PF_OVERLOAD) <> 0 then ovl = true
             if (s->flags and Tko.SYMF_DEFINED) = 0 then

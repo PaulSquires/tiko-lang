@@ -1,4 +1,5 @@
-'' resolvemodalias.tiko -- a module's type aliases, resolved ahead of everything else.
+'' resolvemodalias.tiko -- a module's type aliases, resolved ahead of everything else; and
+'' an imported module's overloads of a header's names, settled after it.
 ''
 '' Split out of resolve.tiko at the 1500-line cap and included from it, inside namespace
 '' Tko.Resolve, just ahead of Run, its one caller.
@@ -41,5 +42,122 @@ private sub ModuleTypedefsFirst_( byref c as Ctx )
             progress = true
         next
         if progress = false then exit for
+    next
+end sub
+
+'' The written parameter types of procedure symbol sid, or false when one is not known.
+private function ParamTypes_ _
+    ( byref c as Ctx, byval sid as Tko.SymbolId, byref outv as containers.Array( of uint32 ) ) as boolean
+    outv.Clear( )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = nullptr then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+    if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then return false
+    dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+    for i as int32 = 0 to pp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        dim as Tko.StmtPayload ptr ps = StmtOf( c, prm )
+        if ps->op = cast( uint16, Tko.TK_ELLIPSIS ) then return false
+        dim as Tko.TypeId t = c.info->TypeOf_( ps->a )
+        if t = Tko.TYPE_NONE then return false
+        outv.Push( cast( uint32, t ) )
+    next
+    return true
+end function
+
+'' AN IMPORTED MODULE'S OVERLOAD OF A HEADER'S NAME (RFC-0001 F4), AFTER THE WALK: each twin
+'' JoinTwin made takes the result type the walk gave its original, which is the symbol
+'' its declaration's node names. And one the set cannot tell apart from a member declared
+'' before it -- the same parameter types, written or reached -- is TKO0677, as it would be
+'' in one source file: a bare call could choose neither.
+private sub JoinTwinsAfter_( byref c as Ctx )
+    dim as Tko.ScopeId ms = Tko.ModSym.ModuleScope( *c.syms )
+    for q as int32 = 0 to c.syms->joinCopy.Count - 1
+        dim as Tko.SymbolId tw = cast( Tko.SymbolId, c.syms->joinCopy[q] )
+        dim as Tko.Symbol ptr ts = c.syms->SymbolAt( tw )
+        dim as Tko.Symbol ptr os = c.syms->SymbolAt( cast( Tko.SymbolId, c.syms->joinOrig[q] ) )
+        if (ts = nullptr) orelse (os = nullptr) then continue for
+        if ts->type_ = Tko.TYPE_NONE then ts->type_ = os->type_
+        dim as containers.Array( of uint32 ) mine, theirs
+        if ParamTypes_( c, tw, mine ) = false then continue for
+        dim as Tko.SymbolId cur = c.syms->LookupLocal( ms, ts->name )
+        dim as Tko.Symbol ptr hs = c.syms->SymbolAt( cur )
+        if hs = nullptr then continue for
+        if hs->kind <> cast( uint8, Tko.SYM_PROC ) then cur = hs->altClass
+        dim as int32 guard = 0
+        while (cur <> Tko.SYMBOL_NONE) andalso (cur <> tw) andalso (guard < 100000)
+            guard += 1
+            dim as Tko.Symbol ptr xs = c.syms->SymbolAt( cur )
+            if xs = nullptr then exit while
+            if xs->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
+            dim as boolean same = (xs->diedAt = 0) andalso (xs->payload <> ts->payload)
+            if same then same = ParamTypes_( c, cur, theirs )
+            if same then same = (theirs.Count = mine.Count)
+            if same then
+                for k as int32 = 0 to mine.Count - 1
+                    if theirs[k] <> mine[k] then same = false
+                next
+            end if
+            if same then
+                c.diags->Report( Tko.TKO0677, Tko.PointRange( ts->loc ), c.names->Spelling( ts->name ) )
+                c.diags->AddNote( Tko.TKO0901, Tko.PointRange( xs->loc ) )
+                exit while
+            end if
+            cur = xs->nextOverload
+        wend
+    next
+end sub
+
+'' A MODULE'S OWN OVERLOAD OF A HEADER'S NAME (RFC-0001 F4), AFTER THE WALK: 'public
+'' function GetDesktopWindow overload( ) as HWND' has windows.bi's parameters exactly, so no
+'' call could choose between them. Collect no longer takes it for the header's body
+'' (UndefinedProcWithArity), which made it a definition of user32's procedure with nothing
+'' to say so; it is TKO0677 here, where the parameter types are known.
+private sub ModuleJoinsAfter_( byref c as Ctx )
+    dim as Tko.ScopeId ms = Tko.ModSym.ModuleScope( *c.syms )
+    if ms = Tko.SCOPE_NONE then return
+    dim as int32 total = c.syms->Count( )
+    for si as int32 = 1 to total
+        dim as Tko.SymbolId sid = cast( Tko.SymbolId, si )
+        dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+        if s = nullptr then continue for
+        if s->kind <> cast( uint8, Tko.SYM_PROC ) then continue for
+        if (s->parent <> ms) orelse (s->diedAt <> 0) then continue for
+        if (s->flags and Tko.SYMF_MODSRC) = 0 then continue for
+        dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+        if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then continue for
+        if (StmtOf( c, pn )->extra and Tko.PF_OVERLOAD) = 0 then continue for
+        dim as containers.Array( of uint32 ) mine, theirs
+        if ParamTypes_( c, sid, mine ) = false then continue for
+        dim as Tko.SymbolId cur = c.syms->LookupLocal( ms, s->name )
+        dim as Tko.Symbol ptr hs = c.syms->SymbolAt( cur )
+        if hs = nullptr then continue for
+        if hs->kind <> cast( uint8, Tko.SYM_PROC ) then cur = hs->altClass
+        dim as int32 guard = 0
+        while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
+            guard += 1
+            dim as Tko.Symbol ptr xs = c.syms->SymbolAt( cur )
+            if xs = nullptr then exit while
+            if xs->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
+            '' A header's: not the module's, not an import's twin (JoinTwinsAfter_ has
+            '' those), not the prelude's.
+            dim as boolean same = (xs->diedAt = 0) andalso _
+                ((xs->flags and (Tko.SYMF_MODSRC or Tko.SYMF_IMPORTED)) = 0)
+            if same then same = (c.srcMgr->IsBuiltin( xs->loc ) = false)
+            if same then same = ParamTypes_( c, cur, theirs )
+            if same then same = (theirs.Count = mine.Count)
+            if same then
+                for k as int32 = 0 to mine.Count - 1
+                    if theirs[k] <> mine[k] then same = false
+                next
+            end if
+            if same then
+                c.diags->Report( Tko.TKO0677, Tko.PointRange( s->loc ), c.names->Spelling( s->name ) )
+                c.diags->AddNote( Tko.TKO0901, Tko.PointRange( xs->loc ) )
+                exit while
+            end if
+            cur = xs->nextOverload
+        wend
     next
 end sub

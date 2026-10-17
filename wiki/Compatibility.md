@@ -44,8 +44,12 @@ Each of these is a diagnostic, not a silent difference:
 | --- | --- | --- |
 | `#define run 5` -- a name fbc's runtime predeclares | `error 4: Duplicated definition` | accepted: `print run` prints 5 |
 | `F( 5 )` where `F` is overloaded, one overload takes `byref w as const W`, and `W` has `constructor( byval n as long )` | `error 99: No matching overloaded function` | accepted: the constructor builds a temporary `W` and that overload runs |
+| `declare function F( byval x as long ) as long` then `declare function F overload( byref s as string ) as string` -- `OVERLOAD` on a later declaration only | `error 4: Duplicated definition` | accepted: both are one overload set, and each call picks by signature |
+| the same with `function F overload( ... )`, a definition, after the plain `declare` -- or after `windows.bi`'s `GetWindowText`, `GetWindowRect` | `error 40: Return type here does not match DECLARE prototype` | accepted, as above |
 
 The constructor case is the one form fbc leaves out. Both compilers accept the same call when the overload takes `byval w as W` or `byref w as W`, and when `F` is not overloaded at all. tiko applies the conversion to `byref ... as const` too.
+
+**`OVERLOAD` may join a name whose first declaration did not write it.** fbc wants the keyword on the first declaration of a name; tiko lets any later declaration or definition that writes it add an overload, which is how a library offers `GetWindowText( hWin ) as ustring` beside the three-argument Windows function. Two overloads whose parameter types are the same are still refused (`TKO0677`). A [module](Packages-and-Modules-Tutorial)'s public overload of a name a header declares belongs to the same set in every program that imports the module: `GetWindowText( h )` and `win.GetWindowText( h )` both reach it, and `GetWindowText( h, buf, n )` still reaches Windows'.
 
 **A virtual call's object is evaluated once.** fbc evaluates the object expression of a VIRTUAL method call TWICE: `getP( )->VM( )` calls `getP` twice (probed: 2 calls). tiko evaluates it once (1 call). A program whose object expression has a side effect prints differently.
 

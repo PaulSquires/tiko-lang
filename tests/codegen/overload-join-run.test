@@ -1,0 +1,15 @@
+'' RUN: OVERLOAD JOINS A NAME WHOSE FIRST DECLARATION DID NOT WRITE IT -- tiko's divergence
+'' (RFC-0001 F4): a later 'declare ... overload', a definition after a plain or an ALIAS
+'' declare, one after a body written without the keyword (which must mangle as an overload
+'' too), and overloads of windows.bi's GetWindowText and GetWindowRect, one of them with
+'' the API's own arity. Each call picks by signature; Windows' own still answer theirs.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/codegen/src/overload-join.tiko -o tests/codegen/overload-join.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/overload-join.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  42 F:x 3.5
+'' EXPECT-RUN-OUT:  2 P:a 3 Q:b 4 R:c
+'' EXPECT-RUN-OUT: t0 0 5 into
+'' EXPECT-RUN-OUT: -7 0

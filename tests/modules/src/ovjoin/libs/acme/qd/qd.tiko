@@ -1,0 +1,8 @@
+'' The same parameters as qo's GetWindowText( hWin ): importing both makes one set that
+'' cannot tell the two apart.
+#module "qd"
+#include once "windows.bi"
+
+public function GetWindowText overload ( byval hWin as HWND ) as ustring
+    return "qd"
+end function

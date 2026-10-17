@@ -1,0 +1,11 @@
+'' A module's OVERLOAD with windows.bi's own parameters, 'GetDesktopWindow overload( ) as HWND',
+'' is TKO0677 (RFC-0001 F4). It was taken for the body of user32's declaration -- a
+'' definition of GetDesktopWindow under its Windows name, out of the interface, silently.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i tests/modules/src/ovjoin/libs tests/modules/src/ovjoin/app/header.tiko -o tests/modules/ovjoin-header.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' EXPECT-EXIT: 1
+'' EXPECT-MAX-DIAG: 1
+'' EXPECT-OUT: qy.tiko(6,8): error TKO0677: 'getdesktopwindow' is already declared with these parameter types
+'' EXPECT-OUT: winuser.bi(4589,9): note: declared here

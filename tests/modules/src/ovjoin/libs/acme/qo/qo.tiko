@@ -1,0 +1,26 @@
+'' Overloads of three Windows API names, one per shape of windows.bi's declaration (RFC-0001
+'' F4): GetWindowText is declared with an ALIAS, GetWindowRect plainly, and the third has
+'' GetWindowText's own arity with other parameter types.
+#module "qo"
+#include once "windows.bi"
+
+public function GetWindowText overload ( byval hWin as HWND ) as ustring
+    return "qo:text" & GetWindowTextLengthW( hWin )
+end function
+
+public function GetWindowRect overload ( byval hWin as HWND ) as long
+    dim as RECT r
+    if GetWindowRect( hWin, @r ) = 0 then return -7
+    return r.right - r.left
+end function
+
+public function GetWindowText overload ( byval hWin as HWND, byref s as ustring, byval n as long ) as long
+    s = "qo:into"
+    return n
+end function
+
+'' Inside the module, the set is one set too.
+public function SelfTest( ) as ustring
+    dim as zstring * 8 b
+    return GetWindowText( 0 ) & " " & GetWindowRect( 0 ) & " " & GetWindowText( 0, @b, 8 )
+end function

@@ -824,6 +824,36 @@ sub SymbolTable.ChainOverload _
     this.symbols[cast( int32, id )].flags or= SYMF_OVERLOAD
 end sub
 
+'' See symbol.ti. Declared through DeclareSym, which chains it after the set or opens the
+'' name, then made a copy of of_ in everything but its links.
+function SymbolTable.JoinTwin( byval scope_ as ScopeId, byval of_ as SymbolId ) as SymbolId
+    if (of_ = SYMBOL_NONE) orelse (cast( int32, of_ ) >= this.symbols.Count) then return SYMBOL_NONE
+    dim as Symbol orig = this.symbols[cast( int32, of_ )]
+    dim as boolean dup = false
+    dim as uint32 savePos = this.usePos
+    this.usePos = USEPOS_LATEST
+    dim as SymbolId id = this.DeclareSym( scope_, orig.name, SYM_PROC, orig.loc, dup )
+    this.usePos = savePos
+    if dup orelse (id = SYMBOL_NONE) orelse (id = of_) then return SYMBOL_NONE
+    dim as Symbol ptr t = @this.symbols[cast( int32, id )]
+    dim as SymbolId nx = t->nextOverload
+    dim as SymbolId nis = t->nextInScope
+    dim as SymbolId alt = t->altClass
+    dim as uint32 fl = t->flags
+    dim as SymbolId og = t->olderGen
+    dim as uint32 ba = t->bornAt
+    *t = orig
+    t->olderGen = og
+    t->bornAt = ba
+    t->nextOverload = nx
+    t->nextInScope = nis
+    t->altClass = alt
+    t->flags = orig.flags or (fl and SYMF_OVERLOAD)
+    this.joinOrig.Push( cast( uint32, of_ ) )
+    this.joinCopy.Push( cast( uint32, id ) )
+    return id
+end function
+
 '' The synthetic UDT a tuple desugars into. See symbol.ti for why it is shared.
 ''
 '' Measured: fbc's own name for the type of '(1, 2)' is FBTUPLE2Iu7INTEGERu7INTEGERE and

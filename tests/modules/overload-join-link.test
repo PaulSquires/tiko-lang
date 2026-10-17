@@ -1,0 +1,19 @@
+'' A MODULE'S OVERLOAD OF A HEADER'S NAME IS IN THE IMPORTER'S SET (RFC-0001 F4): qo overloads
+'' windows.bi's GetWindowText (declared with an ALIAS), GetWindowRect (declared plainly) and
+'' GetWindowText again at the API's own arity. main reaches each bare and as 'qo.', and
+'' Windows' own declarations still answer their calls; qb, a module importing qo, reaches
+'' them bare too. Linked and run: the importer names the symbols qo defined.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i tests/modules/src/ovjoin/libs tests/modules/src/ovjoin/app/main.tiko -o tests/modules/ovjoin-main.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/ovjoin-main.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: qo:text0 -7 0
+'' EXPECT-RUN-OUT: qo:text0
+'' EXPECT-RUN-OUT: -7
+'' EXPECT-RUN-OUT:  0
+'' EXPECT-RUN-OUT:  5 qo:into
+'' EXPECT-RUN-OUT:  6 qo:into
+'' EXPECT-RUN-OUT: qo:text0+qo:text0

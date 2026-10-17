@@ -1,0 +1,8 @@
+'' With 'using qo' the bare name is still the one merged set.
+#import "acme/qo"
+using qo
+
+dim as RECT r
+print GetWindowText( 0 )
+print GetWindowRect( 0 )
+print GetWindowRect( 0, @r )

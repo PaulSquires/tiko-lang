@@ -1464,6 +1464,8 @@ sub Run _
     '' AFTER the walk: a type declared inside a procedure may not have methods, and
     '' deciding that needs every field's type resolved.
     CheckNoMethodsInProc_( c )
+    if c.syms->joinCopy.Count > 0 then JoinTwinsAfter_( c )
+    if c.syms->modFileCount > 0 then ModuleJoinsAfter_( c )
 end sub
 #include once "symbols/resolvedump.tiko"
 

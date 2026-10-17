@@ -229,9 +229,13 @@ end function
 '' while fbc refused it on 25 user32 declarations win/winuser.bi had already made.
 ''
 '' WHAT IS ALLOWED, all measured:
-''   - an OVERLOAD set takes a new signature (SameOverloadIdentity_). The keyword has to
-''     be on the FIRST declaration: 'declare f' then 'declare f overload( ... )' is
-''     error 4, while the reverse needs no second keyword.
+''   - an OVERLOAD set takes a new signature (SameOverloadIdentity_). fbc wants the
+''     keyword on the FIRST declaration: 'declare f' then 'declare f overload( ... )' is
+''     its error 4, while the reverse needs no second keyword. TIKO DIVERGES HERE, by the
+''     author's decision (RFC-0001 F4, sys/win, 2026-10-17): a declaration that writes
+''     OVERLOAD joins the name's set whatever the first one said, so a library may add
+''     'GetWindowText( hWin ) as ustring' beside windows.bi's three-argument one. Two
+''     signatures that cannot be told apart are still TKO0677.
 ''   - a TYPE'S MEMBERS and an OPERATOR overload by signature, with no keyword at all --
 ''     constructors, properties and 'operator let' included.
 ''   - a DEFINITION after its DECLARATION is the join, not a second declaration; only a
@@ -309,6 +313,8 @@ private function ProcRedeclared_ _
     if isOperator then byResult = (lcase( w.names->Spelling( nm ) ) = "cast")
     dim as boolean isDef = (sp->b <> Tko.NODE_NONE)
     dim as boolean overloadable = isMember orelse isOperator
+    '' ...or this one writes the keyword itself (the F4 divergence, above).
+    if (sp->extra and Tko.PF_OVERLOAD) <> 0 then overloadable = true
     dim as boolean sawFirst = false
 
     guard = 0

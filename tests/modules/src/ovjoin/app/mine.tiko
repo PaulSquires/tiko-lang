@@ -1,0 +1,4 @@
+'' The importer's own declaration cannot be told apart from qo's.
+#import "acme/qo"
+declare function GetWindowRect overload ( byval w as HWND ) as long
+print 1
