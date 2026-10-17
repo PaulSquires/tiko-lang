@@ -270,7 +270,7 @@ What differs, what is refused and why is on
 | [Feature Index](wiki/Feature-Index.md) | the language features and the standard library, one page each |
 | [Language reference](wiki/Home.md) | every keyword, operator and intrinsic |
 | [Goroutines tutorial](wiki/Modern-Goroutines-Tutorial.md) | concurrency from first `spawn` to cancellation |
-| [C header import tutorial](wiki/modern-Cinclude-tutorial.md) | using a C library with no binding |
+| [Packages and Modules Tutorial](wiki/Packages-and-Modules-Tutorial.md) | `#import`, the standard library and splitting a program into modules |
 | [bench/](bench/README.md) | the benchmarks and how to run them |
 
 ## Licence
