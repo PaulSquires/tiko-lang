@@ -1,0 +1,3 @@
+'' sys/win compiled for a target that is not Windows: the guard in win.ti is the first error.
+#import "sys/win"
+print 1

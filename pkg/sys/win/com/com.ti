@@ -1,5 +1,8 @@
 ' sys/win/com (pkg/sys): every header the module's files include, and the
 ' macros more than one of its files uses -- sys/win's, which COM builds on.
 #pragma once
+#ifndef TIKO_OS_WINDOWS
+#error "sys/win is Windows-only: build for -target windows-x86_64"
+#endif
 
 #include once "../win.ti"

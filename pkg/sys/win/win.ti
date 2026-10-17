@@ -1,4 +1,7 @@
 #pragma once
+#ifndef TIKO_OS_WINDOWS
+#error "sys/win is Windows-only: build for -target windows-x86_64"
+#endif
 
 #INCLUDE ONCE "windows.bi"
 #include once "win/commctrl.bi"
