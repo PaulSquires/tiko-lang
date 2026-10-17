@@ -230,7 +230,7 @@ bash build/package.sh --verify
 This produces `toolchains/tiko-windows/` or `toolchains/tiko-linux/`. The toolchain is a
 self-contained directory: move it anywhere, and it finds its own headers and libraries. Building
 it needs a **seed**, the earlier tiko release `seed/seed.lock` pins: `seed/fetch-seed.sh`
-downloads it and checks its SHA-256 before unpacking anything. No FreeBASIC compiler is involved.
+downloads it and checks its SHA-256 before unpacking anything.
 
 **You need clang 18 or newer,** which tiko uses to assemble and link. It is not bundled. tiko
 looks for it at `C:\Program Files\LLVM\bin\clang.exe` or `/usr/bin/clang`, or wherever
