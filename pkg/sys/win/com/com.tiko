@@ -23,8 +23,10 @@
 ' DEALINGS IN THE SOFTWARE.'
 ' ########################################################################################
 
-#module "win"
-#include once "win.ti"
+#module "com"
+#import "sys/win"
+using win
+#include once "com.ti"
 
 #ifndef __tk_IUnknown_INTERFACE_DEFINED__
 #define __tk_IUnknown_INTERFACE_DEFINED__

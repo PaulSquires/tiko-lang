@@ -10,9 +10,10 @@
 
 #module "gui"
 #import "sys/win"
+#import "sys/win/com"
 #import "sys/win/gdiplus"
 #include once "richedit.ti"
-using win, gdiplus
+using win, com, gdiplus
 
 ' ========================================================================================
 ' Custom structure used by the CRichEditCtx.LoadRtfFromResource method.

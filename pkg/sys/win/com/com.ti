@@ -1,0 +1,5 @@
+' sys/win/com (pkg/sys): every header the module's files include, and the
+' macros more than one of its files uses -- sys/win's, which COM builds on.
+#pragma once
+
+#include once "../win.ti"

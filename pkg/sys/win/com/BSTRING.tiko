@@ -24,8 +24,10 @@
 ' DEALINGS IN THE SOFTWARE.'
 ' ########################################################################################
 
-#module "win"
-#include "win.ti"
+#module "com"
+#import "sys/win"
+using win
+#include "com.ti"
 #include once "win/wtypes.bi"
 #INCLUDE ONCE "/crt/wchar.bi"
 #include once "win/Ole2.bi"

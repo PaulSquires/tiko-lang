@@ -24,8 +24,10 @@
 ' DEALINGS IN THE SOFTWARE.'
 ' ########################################################################################
 
-#module "win"
-#include once "win.ti"
+#module "com"
+#import "sys/win"
+using win
+#include once "com.ti"
 
 #include once "win/shtypes.bi"
 #include once "crt/limits.bi"

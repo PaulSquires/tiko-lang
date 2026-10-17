@@ -15,8 +15,9 @@
 
 #module "gui"
 #import "sys/win"
+#import "sys/win/com"
 #include once "richedit.ti"
-using win
+using win, com
 #include once "win/richole.bi"
 
 ' ========================================================================================
