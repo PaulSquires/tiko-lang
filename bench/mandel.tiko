@@ -7,7 +7,7 @@ function Mandel( byval w as int32, byval h as int32, byval maxit as int32 ) as i
             dim as int32 i = 0
             do while i < maxit andalso zr * zr + zi * zi <= 4.0
                 dim as float64 t = zr * zr - zi * zi + cr
-                zi = 2.0 * zr * zi + ci
+                zi = (zr + zr) * zi + ci
                 zr = t
                 i += 1
             loop

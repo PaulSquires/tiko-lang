@@ -8,8 +8,8 @@ costs.
 | --- | --- | --- | --- | --- |
 | `sieve` | integer loops, array indexing, a 10 MB heap array | Windows | 0.67–0.69 s | 0.67–0.68 s |
 | | | Linux | 0.64–0.65 s | 0.65 s |
-| `mandel` | floating point in a tight loop | Windows | 0.78–0.79 s | 0.74–0.78 s |
-| | | Linux | 0.80 s | 0.75–0.76 s |
+| `mandel` | floating point in a tight loop | Windows | 0.74 s | 0.74 s |
+| | | Linux | 0.75 s | 0.75–0.78 s |
 
 Measured 2026-10-17 with the packaged toolchains at `b360b02f`, on one machine: Windows 11
 (windows-x86_64, clang 21.1.0) and Ubuntu 24.04 under WSL2 (linux-x86_64, clang 18.1.3). Three
