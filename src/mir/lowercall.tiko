@@ -732,7 +732,7 @@ function LowerCallParts _
             '' did not.
             dim as Tko.TypeId brPt = ArgParamType_( c, callee, calleeSigT, i + pbase )
             dim as MirValue brCast
-            if UserConvToScalar_( c, argNode, brPt, brCast ) then
+            if UserConvToScalar_( c, argNode, brPt, brCast, true ) then
                 a = ByrefTempOf_( c, brCast, brPt )
             end if
             '' A CONVERSION, A PAREN-LESS PROCEDURE, OR THE ADDRESS -- see ByrefUdtArg_.
@@ -890,7 +890,7 @@ function LowerCallParts _
             '' sign-extended aggregate.
             dim as boolean argCast = false
             if callee <> Tko.SYMBOL_NONE then
-                argCast = UserConvToScalar_( c, argNode, ArgParamType_( c, callee, calleeSigT, i + pbase ), a )
+                argCast = UserConvToScalar_( c, argNode, ArgParamType_( c, callee, calleeSigT, i + pbase ), a, true )
             end if
             if argCast = false then
                 '' 's1( c0, 2 )' OVER 'byval p as parent' WITH A CHILD ARGUMENT is an

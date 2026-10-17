@@ -704,6 +704,94 @@ function PtrCastIsPick _
     return (pick = cast_) andalso (best > 0) andalso (ties = 1)
 end function
 
+'' WHICH NUMERIC 'operator cast' AN ARGUMENT TAKES FOR A NUMERIC PARAMETER -- the same pick as the
+'' pointer one above (symbFindCastOvlProc / hCheckCastOvl), measured on fbc-modern 1.20,
+'' 2026-10-17, over 11 cast types (every integer width, single, double, boolean, an enum) alone
+'' and in pairs, against single procedures and overload sets:
+''
+''     the parameter's own type                          exact
+''     any other number                                  HALF less the closeness rank of the
+''                                                       cast's type in the PARAMETER's row
+''     an enum cast, into anything but that enum         nothing -- fbc's 58
+''     a string, pointer or 'byref as zstring' cast      nothing
+''
+'' -- the best wins, two at the best are 98. An enum parameter ranks as INTEGER. NumericCastPick
+'' answers a different question (what an operand or a destination meets) and is not this.
+private function NumCastScore_ _
+    ( byref types as Tko.TypeContext, byval r as Tko.TypeId, byval d as Tko.TypeId ) as int32
+    if r = d then return PCS_FULL
+    if types.Kind( r ) = Tko.TK_ENUM then return 0
+    dim as int32 a = FbcDt_( types, r )
+    if (a < 0) orelse (a = 3) orelse (a = 6) then return 0
+    dim as int32 b = 7
+    if types.Kind( d ) <> Tko.TK_ENUM then b = FbcDt_( types, d )
+    if (b < 0) orelse (b = 3) orelse (b = 6) then return 0
+    dim as int32 w = types.Layout( types.Builtin( Tko.TY_WSTRING ) ).size
+    return PCS_HALF - 10 * FbcMatchRank_( b, a, w )
+end function
+
+'' IN AN OVERLOAD SET, does the picked cast yielding R bind the numeric parameter D? Not when,
+'' scored back with the parameter on the left, it is exactly HALF -- D ranked first in R's row,
+'' which is R itself: a 'long' cast never reaches an overloaded 'long' parameter.
+function NumCastBindsInSet( byref types as Tko.TypeContext, byval r as Tko.TypeId, byval d as Tko.TypeId ) as boolean
+    dim as int32 a = FbcDt_( types, types.Unqualify( r ) ), b = FbcDt_( types, types.Unqualify( d ) )
+    if (a < 0) orelse (b < 0) then return true
+    return (FbcMatchRank_( a, b, types.Layout( types.Builtin( Tko.TY_WSTRING ) ).size ) <> 0)
+end function
+
+'' Is D a parameter type this pick serves: a number or an enum, not a string flavour.
+function NumCastParam( byref types as Tko.TypeContext, byval d as Tko.TypeId ) as boolean
+    dim as Tko.TypeId u = types.Unqualify( d )
+    if types.Kind( u ) = Tko.TK_REFERENCE then u = types.Unqualify( types.Inner( u ) )
+    if types.Kind( u ) = Tko.TK_ENUM then return true
+    dim as int32 b = FbcDt_( types, u )
+    return (b >= 0) andalso (b <> 3) andalso (b <> 6)
+end function
+
+'' The cast fbc picks for the numeric parameter D, or NONE when nothing scores; TIES is how many
+'' share the best score (more than one: fbc's 98, or no match in an overload set).
+function NumCastArgPick _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+      byref names as Tko.Interner, byval udt as Tko.TypeId, byval d as Tko.TypeId, _
+      byref ties as int32 ) as Tko.SymbolId
+
+    ties = 0
+    if (udt = Tko.TYPE_NONE) orelse (d = Tko.TYPE_NONE) then return Tko.SYMBOL_NONE
+    dim as Tko.TypeId u = types.Unqualify( udt )
+    if types.Kind( u ) = Tko.TK_REFERENCE then u = types.Unqualify( types.Inner( u ) )
+    if types.Kind( u ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+    dim as Tko.TypeId du = types.Unqualify( d )
+    if types.Kind( du ) = Tko.TK_REFERENCE then du = types.Unqualify( types.Inner( du ) )
+    dim as Tko.SymbolId pick = Tko.SYMBOL_NONE
+    dim as int32 best = 0
+    dim as Tko.SymbolId cur = StructorNamed( syms, types, names, u, "cast" )
+    dim as int32 guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
+        guard += 1
+        dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
+        if cs = nullptr then exit while
+        dim as Tko.TypeId rt = types.Unqualify( cs->type_ )
+        if rt <> Tko.TYPE_NONE then
+            if types.Kind( rt ) = Tko.TK_REFERENCE then rt = types.Unqualify( types.Inner( rt ) )
+            '' a 'byref as' result spelled as a pointer to it is the thing itself
+            dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
+            if (pn <> Tko.NODE_NONE) andalso (ast.Kind( pn ) = Tko.N_PROC) andalso (types.Kind( rt ) = Tko.TK_POINTER) then
+                if (ast.stmts[cast( int32, ast.nodes[cast( int32, pn )].data )].extra and Tko.PF_BYREF_RESULT) <> 0 then
+                    rt = types.Unqualify( types.Inner( rt ) )
+                end if
+            end if
+            dim as int32 sc = NumCastScore_( types, rt, du )
+            if sc > best then
+                best = sc : ties = 1 : pick = cur
+            elseif (sc = best) andalso (sc > 0) then
+                ties += 1
+            end if
+        end if
+        cur = cs->nextOverload
+    wend
+    return pick
+end function
+
 '' A UDT WITH NO NUMERIC CAST BUT A 'byref as zstring|wstring' ONE, MEETING A NUMBER, is its FIRST
 '' CHARACTER: measured on fbc-modern, over "ab", 'z + 1' is 98, '1 + z' 98, 'z * 2' 194, 'z = 97'
 '' -1, 'z + 1.5' 98.5 -- fbc's character class is integer, and a reference to one reads it.

@@ -143,7 +143,9 @@ function ConversionCost _
     end if
     '' A NUMERIC PARAMETER TAKING AN ENUM keeps the integer cost the mapping just
     '' gave it; only the other direction is dear.
-    if toEnum andalso (fromEnum = false) then
+    '' ...BUT NOT A UDT, whose way to an enum is its 'operator cast' (overload.tiko UserConvCost_):
+    '' costed here it made an enum overload viable that fbc never offers a UDT (99).
+    if toEnum andalso (fromEnum = false) andalso (types.Kind( from_ ) <> Tko.TK_UDT) then
         return CONV_BOOL + CONV_WIDEN
     end if
 

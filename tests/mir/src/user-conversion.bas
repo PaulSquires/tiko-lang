@@ -62,7 +62,9 @@ sub takesPlain( byval x as Plain )
     print x.i
 end sub
 
-function wants overload( byval i as long ) as long
+'' DOUBLE, not LONG: in an overload set a cast to the parameter's own type is no match
+'' (fbc's 99 for 'long'), and a converting one reaches it (structpick.tiko NumCastArgPick).
+function wants overload( byval i as double ) as long
     return i
 end function
 

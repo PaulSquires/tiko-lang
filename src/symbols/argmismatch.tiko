@@ -250,6 +250,12 @@ private function AmBadPair_ _
         end if
     end if
     if c.types->Kind( at ) = Tko.TK_UDT then
+        '' A NUMERIC PARAMETER NO CAST REACHES, as fbc picks one (structpick.tiko NumCastArgPick): an
+        '' enum cast meets only its enum -- 'sub s( byval as long )' over a UDT casting to E is 58.
+        if Tko.Check.NumCastParam( *c.types, pt ) andalso (Tko.Check.StructorNamed( *c.syms, *c.types, *c.names, at, "cast" ) <> Tko.SYMBOL_NONE) then
+            dim as int32 nties
+            if Tko.Check.NumCastArgPick( *c.ast, *c.syms, *c.types, *c.names, at, pt, nties ) = Tko.SYMBOL_NONE then return true
+        end if
         '' A POINTER CAST THAT DOES NOT REACH THE POINTER PARAMETER -- 'long ptr' into 'byte ptr' (PtrCastFit).
         if c.types->Kind( pt ) = Tko.TK_POINTER then
             if Tko.Check.PtrCastFit( *c.ast, *c.syms, *c.types, *c.names, at, pt ) = 1 then return true

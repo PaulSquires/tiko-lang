@@ -207,6 +207,12 @@ namespace Tko.Check
           byval defaulted as boolean ) as Tko.SymbolId
     declare function PtrCastScore( byref types as Tko.TypeContext, byval res as Tko.TypeId, byval dst as Tko.TypeId ) as int32
     declare function PtrCastBindsInSet( byref types as Tko.TypeContext, byval res as Tko.TypeId, byval dst as Tko.TypeId ) as boolean
+    declare function NumCastParam( byref types as Tko.TypeContext, byval d as Tko.TypeId ) as boolean
+    declare function NumCastBindsInSet( byref types as Tko.TypeContext, byval r as Tko.TypeId, byval d as Tko.TypeId ) as boolean
+    declare function NumCastArgPick _
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+          byref names as Tko.Interner, byval udt as Tko.TypeId, byval d as Tko.TypeId, _
+          byref ties as int32 ) as Tko.SymbolId
     declare function PtrCastIsPick _
         ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
           byref names as Tko.Interner, byval udt as Tko.TypeId, byval cast_ as Tko.SymbolId, _

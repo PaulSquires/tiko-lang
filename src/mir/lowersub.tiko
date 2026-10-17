@@ -912,7 +912,7 @@ end function
 '' is this.
 function UserConvToScalar_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval dstT as Tko.TypeId, _
-      byref outv as MirValue ) as boolean
+      byref outv as MirValue, byval asArg as boolean = false ) as boolean
 
     if dstT = Tko.TYPE_NONE then return false
     dim as Tko.TypeId d = c.types->Unqualify( dstT )
@@ -933,7 +933,7 @@ function UserConvToScalar_ _
     if c.types->Kind( d ) = Tko.TK_POINTER then
         if UserCastToPtr_( c, id, outv, d ) then return true
     end if
-    return UserCastToNum_( c, id, outv, d )
+    return UserCastToNum_( c, id, outv, d, asArg )
 end function
 
 '' THE 'operator cast' OVERLOAD THAT YIELDS A NUMBER, as a symbol. Split out of
@@ -943,9 +943,17 @@ end function
 '' THE NUMERIC 'operator cast' -- the shared rule (symbols/structpick.tiko NumericCastPick),
 '' by what the value meets, which UserCastToNum_ calls too: the two used to be a first-match
 '' walk and a ranked walk, so a caller called one overload and typed it as the other.
+'' AN ARGUMENT (asArg) takes the cast fbc picks for its parameter's type instead -- an exact
+'' 'boolean' cast for a boolean parameter, never an enum one for a number (NumCastArgPick).
 function UserCastNumOverload_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byval want as Tko.TypeId = Tko.TYPE_NONE ) as Tko.SymbolId
-    dim as Tko.SymbolId pick = Tko.Check.NumericCastPick( *c.syms, *c.types, *c.names, t, want )
+    ( byref c as Ctx, byval t as Tko.TypeId, byval want as Tko.TypeId = Tko.TYPE_NONE, _
+      byval asArg as boolean = false ) as Tko.SymbolId
+    dim as Tko.SymbolId pick = Tko.SYMBOL_NONE
+    if asArg andalso (want <> Tko.TYPE_NONE) andalso Tko.Check.NumCastParam( *c.types, want ) then
+        dim as int32 nties
+        pick = Tko.Check.NumCastArgPick( *c.ast, *c.syms, *c.types, *c.names, t, want, nties )
+    end if
+    if pick = Tko.SYMBOL_NONE then pick = Tko.Check.NumericCastPick( *c.syms, *c.types, *c.names, t, want )
     dim as Tko.Symbol ptr ps = c.syms->SymbolAt( pick )
     if ps = nullptr then return Tko.SYMBOL_NONE
     dim as MirType m2 = LowerType( c.types->Unqualify( ps->type_ ), *c.types )
@@ -974,12 +982,12 @@ end function
 
 function UserCastToNum_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
-      byval want as Tko.TypeId = Tko.TYPE_NONE ) as boolean
+      byval want as Tko.TypeId = Tko.TYPE_NONE, byval asArg as boolean = false ) as boolean
 
     dim as Tko.TypeId t = c.types->Unqualify( c.info->TypeOf_( id ) )
     if t = Tko.TYPE_NONE then return false
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
-    dim as Tko.SymbolId pick = UserCastNumOverload_( c, t, want )
+    dim as Tko.SymbolId pick = UserCastNumOverload_( c, t, want, asArg )
     if pick = Tko.SYMBOL_NONE then
         '' NO NUMERIC CAST, BUT A 'byref as zstring|wstring' ONE, MEETING A NUMBER: the first character,
         '' zero-extended (structpick.tiko CharRefCastPick) -- 'z + 1' is 98 over "ab" to fbc.

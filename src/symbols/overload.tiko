@@ -98,6 +98,26 @@ private function UserConvCost_ _
         return CONV_NONE
     end if
 
+    '' A UDT AT A NUMERIC PARAMETER takes the one cast fbc picks for it (structpick.tiko NumCastArgPick).
+    '' In an overload set hCheckCastOvlEx then rescores it the other way round, and a number against
+    '' its own type is exactly HALF, which is no match: measured on fbc-modern 1.20, a 'long' cast
+    '' against OVERLOADs taking 'zstring ptr' and 'long' is 99, and against 'long' and 'double' binds
+    '' the DOUBLE one -- every converting cast shares one bottom score. An enum parameter in a set
+    '' takes no UDT at all; one procedure takes a cast to its own type, or a converting one.
+    if (c.types->Kind( f ) = Tko.TK_UDT) andalso Tko.Check.NumCastParam( *c.types, t ) then
+        if overloaded andalso (c.types->Kind( t ) = Tko.TK_ENUM) then return CONV_NONE
+        dim as int32 nties
+        dim as Tko.SymbolId npk = Tko.Check.NumCastArgPick( *c.ast, *c.syms, *c.types, *c.names, f, t, nties )
+        if (npk = Tko.SYMBOL_NONE) orelse (nties > 1) then return CONV_NONE
+        dim as Tko.TypeId nrt = c.types->Unqualify( c.syms->SymbolAt( npk )->type_ )
+        if c.types->Kind( nrt ) = Tko.TK_REFERENCE then nrt = c.types->Unqualify( c.types->Inner( nrt ) )
+        if overloaded then
+            if Tko.Check.NumCastBindsInSet( *c.types, nrt, t ) = false then return CONV_NONE
+            return CONV_USERDEF + CONV_NUMERIC
+        end if
+        return CONV_USERDEF + iif( nrt = t, 0, CONV_NUMERIC )
+    end if
+
     '' A CONVERSION CONSTRUCTOR on the destination -- any arity-1 constructor whose
     '' parameter is not the destination type itself, which is the copy constructor.
     if c.types->Kind( t ) = Tko.TK_UDT then
@@ -189,7 +209,8 @@ private function UserConvCost_ _
                 '' { zstring ptr, byref string } such a UDT takes the string.
                 dim as boolean strToPtr = false
                 if c.types->Kind( t ) = Tko.TK_POINTER then
-                    if c.types->Kind( ru ) = Tko.TK_BUILTIN then strToPtr = IsStringy_( c.types->BuiltinOf( ru ) )
+                    '' ...nor does a number: fbc's hCalcTypesDiff refuses a non-pointer for a pointer outright.
+                    if c.types->Kind( ru ) <> Tko.TK_POINTER then strToPtr = true
                     '' A POINTER CAST, ONLY AS fbc PICKS IT (structpick.tiko PtrCastScore): the one cast scoring
                     '' best for the parameter, and in an overload set not one that scores back exactly HALF --
                     '' 'any ptr', or 'ubyte ptr' into 'zstring ptr'. 'long ptr' to 'byte ptr' is 58.

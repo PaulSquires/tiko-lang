@@ -1,0 +1,18 @@
+'' A UDT ARGUMENT AT A NUMERIC PARAMETER takes the one 'operator cast' fbc picks for that type
+'' (structpick.tiko NumCastArgPick): the exact type, else the cast ranked closest in the
+'' parameter's row; an enum cast meets only its enum. In an OVERLOAD SET the pick is scored back
+'' and an exact cast is no match, so offered 'long' and 'double' a 'long' cast takes DOUBLE, while
+'' one procedure takes the exact cast -- the 'boolean' one of 'byte' and 'boolean' for a boolean
+'' parameter, where tiko called the byte one. No number reaches a pointer parameter (a3), and one
+'' procedure taking an enum takes a number through its cast (s2). Output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/numcast-set.bas -o tests/codegen/numcastset.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/numcastset.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: [lo] a1-double 7
+'' EXPECT-RUN-OUT: [bo] s1true
+'' EXPECT-RUN-OUT: [bo] a2-long 5
+'' EXPECT-RUN-OUT: [in] a3-long 9
+'' EXPECT-RUN-OUT: [lo] s2 7

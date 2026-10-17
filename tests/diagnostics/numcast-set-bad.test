@@ -1,0 +1,15 @@
+'' WHAT A NUMERIC 'operator cast' DOES NOT REACH (structpick.tiko NumCastArgPick). In an overload
+'' set an exact cast scores back exactly HALF, which fbc's hCheckCastOvlEx turns into no match: a
+'' 'long' cast offered 'zstring ptr' and 'long' is 99, where tiko bound the long one. An enum
+'' parameter in a set takes no UDT (99), and every converting cast shares one bottom score, so an
+'' 'integer' cast offered 'long' and 'double' is 98. An enum cast into a number is 58. Before, the
+'' enum lines were TKO0994, "this statement was not compiled". Lines identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -fmax-errors 100 --dump-ir tests/diagnostics/src/numcast-set-bad.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: numcast-set-bad.bas(35,9): error TKO0632
+'' EXPECT-OUT: numcast-set-bad.bas(36,9): error TKO0632
+'' EXPECT-OUT: numcast-set-bad.bas(38,9): error TKO0660
+'' EXPECT-OUT: numcast-set-bad.bas(40,5): error TKO0698
+'' EXPECT-NOT: TKO0994
+'' EXPECT-MAX-DIAG: 4

@@ -282,7 +282,7 @@ private function UdtCastsScored_( byref c as Ctx, byval cs as Tko.SymbolId ) as 
         dim as Tko.TypeId rt = c.types->Unqualify( s->type_ )
         if c.types->Kind( rt ) = Tko.TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
         select case c.types->Kind( rt )
-        case Tko.TK_BUILTIN, Tko.TK_POINTER
+        case Tko.TK_BUILTIN, Tko.TK_POINTER, Tko.TK_ENUM   '' numbers and enums: NumCastArgPick
         case else
             return false
         end select
@@ -325,7 +325,7 @@ private function UdtArgInert_ _
             dim as Tko.TypeId pt = c.types->Unqualify( c.info->TypeOf_( pa ) )
             if c.types->Kind( pt ) = Tko.TK_REFERENCE then pt = c.types->Unqualify( c.types->Inner( pt ) )
             select case c.types->Kind( pt )
-            case Tko.TK_BUILTIN, Tko.TK_POINTER
+            case Tko.TK_BUILTIN, Tko.TK_POINTER, Tko.TK_ENUM   '' an enum parameter in a set takes no UDT
             case Tko.TK_UDT
                 '' ...OR A UDT NOTHING REACHES FROM THE ARGUMENT: not its type or one it
                 '' extends, and with no constructor to build one from it. std/containers'
@@ -406,7 +406,14 @@ function UdtCastTie_( byref c as Ctx, byref argT as containers.Array( of uint32 
             '' both at the bottom tier, where the call was left untyped (TKO0994).
             if s->nextOverload = Tko.SYMBOL_NONE then
                 if s->type_ = Tko.TYPE_NONE then return false
-                if c.types->Kind( c.types->Unqualify( s->type_ ) ) <> Tko.TK_POINTER then return false
+                '' ...or a number (NumCastArgPick): a lone 'integer' cast against 'long' and 'longint' is 98.
+                select case c.types->Kind( c.types->Unqualify( s->type_ ) )
+                case Tko.TK_POINTER, Tko.TK_ENUM
+                case Tko.TK_BUILTIN
+                    if Tko.Check.NumCastParam( *c.types, s->type_ ) = false then return false
+                case else
+                    return false
+                end select
                 dim as Tko.NodeId cpn = cast( Tko.NodeId, s->payload )   '' 'byref as zstring' is spelled as a pointer
                 if (cpn = Tko.NODE_NONE) orelse (c.ast->Kind( cpn ) <> Tko.N_PROC) then return false
                 if (c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, cpn )].data )].extra and Tko.PF_BYREF_RESULT) <> 0 then return false
