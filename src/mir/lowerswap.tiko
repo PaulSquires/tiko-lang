@@ -425,6 +425,14 @@ function LowerUdtIndexOp_ _
         '' calls with &TMP and deletes it after the statement. Passing the literal's NARROW
         '' descriptor found no column: fbsqlite's 'row[ "name" ]' read NULL every time.
         gotDesc = UStrParamArgTemp_( c, ie, ipt, iv )
+        '' ...A NARROW KEY NOT OWNING ITS DESCRIPTOR IS COPIED, as an ordinary call's is (fbc: a TMP):
+        '' its temporary went across, 'names( n ) = k' took the buffer the statement then freed.
+        if (gotDesc = false) andalso IsStringType( c, ipt ) andalso (IsUStringType( c, ipt ) = false) _
+           andalso (StrArgOwnDescriptor_( c, ie, ipt ) = false) then
+            dim as int32 kslot = -1
+            gotDesc = ByvalStrTemp_( c, ie, ipt, iv, kslot )
+            if gotDesc andalso (kslot >= 0) then c.f->locals[kslot].frontendType = ipt : c.strTemps.Push( cast( uint32, kslot ) )
+        end if
         if (gotDesc = false) andalso IsStringType( c, ipt ) then gotDesc = StrDescriptorOf_( c, ie, iv )
         if gotDesc = false then iv = LowerAddr( c, ie )
         '' AND A TEMPORARY FOR ANYTHING WITH NO ADDRESS, which is most subscripts:

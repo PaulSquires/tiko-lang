@@ -1,0 +1,19 @@
+'' A temporary string key for 'operator []( byref k as string )' is copied before the
+'' call, as an ordinary call's byref string argument is: concatenations, str( ), a
+'' literal, compound and plain read-modify-write. tiko passed the temporary itself, so
+'' updates were lost, a str( ) key came out empty, and 't[ k ] = t[ k ] + 1' freed the
+'' buffer twice. Expected output is fbc-modern 1.20's.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/udt-index-temp-key.bas -o tests/codegen/udtindextempkey.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/udtindextempkey.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  7
+'' EXPECT-RUN-OUT: [a] 2
+'' EXPECT-RUN-OUT: [b] 2
+'' EXPECT-RUN-OUT: [7] 2
+'' EXPECT-RUN-OUT: [c] 2
+'' EXPECT-RUN-OUT: [d1] 2
+'' EXPECT-RUN-OUT: [d0] 2
+'' EXPECT-RUN-OUT: [e] 0
