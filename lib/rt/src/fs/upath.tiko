@@ -1,0 +1,178 @@
+'' upath.tiko -- the classic file statements' PATHS AS UNICODE on Windows.
+''
+'' A narrow path reaches the runtime as bytes: a string as written -- UTF-8, from tiko
+'' source -- or a ustring or wstring the compiler converted to UTF-8 for a path argument
+'' (lowerstrargs.tiko, WstrPathNarrowArg_). fbc hands those bytes to fopen, remove, _mkdir
+'' and the rest, which read them in the ANSI code page: measured, a UTF-8 'ñ' lands on disk
+'' as 'Ã±', and a file the code page cannot spell -- '日本', an emoji -- cannot be opened at
+'' all, though std/fs, which goes through the W functions, made it. tiko diverges from fbc
+'' here, by the author's decision (C:\dev\docs\tiko-unicode-paths\PLAN.md, option A).
+''
+'' ON WINDOWS the bytes are decoded as UTF-8 when they ARE valid UTF-8 -- MultiByteToWideChar
+'' with MB_ERR_INVALID_CHARS refuses anything else -- and as the ANSI code page when they are
+'' not, so a legacy Latin-1 byte ('é' as &hE9, or a wstring a compiler converted to ANSI)
+'' still names the file it named before; and the W function is called. A path the runtime
+'' RETURNS -- CURDIR, EXEPATH, DIR's names -- comes back as UTF-8 (PathFromWide), so it can be
+'' handed straight back in. Pure ASCII is the same either way.
+''
+'' ELSEWHERE a path is bytes, which is what the file system stores: everything forwards.
+
+#include once "inc/descriptors.ti"
+#include once "inc/sysbind.ti"
+
+#ifdef __FB_WIN32__
+
+const CP_UTF8_              = 65001
+const CP_ACP_               = 0
+const MB_ERR_INVALID_CHARS_ = 8
+
+extern "c"   '' NON-FBCALL: Win32 and the UCRT's wide file functions.
+	declare function w_MultiByteToWideChar stdcall alias "MultiByteToWideChar" _
+		( byval cp as uint32, byval flags as uint32, byval s as const zstring ptr, byval n as int32, _
+		  byval w as wstring ptr, byval wn as int32 ) as int32
+	declare function w_WideCharToMultiByte stdcall alias "WideCharToMultiByte" _
+		( byval cp as uint32, byval flags as uint32, byval w as const wstring ptr, byval wn as int32, _
+		  byval s as zstring ptr, byval n as int32, byval defch as const zstring ptr, _
+		  byval useddef as int32 ptr ) as int32
+	declare function crt_wfopen alias "_wfopen" _
+		( byval p as const wstring ptr, byval m as const wstring ptr ) as FILE ptr
+	declare function crt_wfreopen alias "_wfreopen" _
+		( byval p as const wstring ptr, byval m as const wstring ptr, byval f as FILE ptr ) as FILE ptr
+	declare function crt_wremove alias "_wremove" ( byval p as const wstring ptr ) as int32
+	declare function crt_wrename alias "_wrename" _
+		( byval a as const wstring ptr, byval b as const wstring ptr ) as int32
+end extern
+
+#else
+
+extern "c"   '' NON-FBCALL: libc.
+	declare function crt_remove alias "remove" ( byval p as const zstring ptr ) as int32
+	declare function crt_rename alias "rename" ( byval a as const zstring ptr, byval b as const zstring ptr ) as int32
+end extern
+
+#endif
+
+extern "c"   '' NON-FBCALL: called from the runtime's own files (inc/upath.ti) and, for
+             '' fb_hPathRename, from compiled code -- NAME, which fbc lowers to rename().
+
+#ifdef __FB_WIN32__
+
+'' A NARROW PATH AS UTF-16: UTF-8 when its bytes are valid UTF-8, the ANSI code page when they
+'' are not. malloc'd -- free it. nullptr for a null path or a failed conversion.
+function tkort_PathToWide alias "fb_hPathToWide" ( byval p as const zstring ptr ) as wstring ptr
+	if( p = nullptr ) then return nullptr
+	dim as uint32 cp = CP_UTF8_, fl = MB_ERR_INVALID_CHARS_
+	dim as int32 n = w_MultiByteToWideChar( cp, fl, p, -1, nullptr, 0 )
+	if( n = 0 ) then
+		cp = CP_ACP_
+		fl = 0
+		n = w_MultiByteToWideChar( cp, fl, p, -1, nullptr, 0 )
+		if( n = 0 ) then return nullptr
+	end if
+	dim as wstring ptr w = malloc( cast( uinteger, n ) * 2 )
+	if( w = nullptr ) then return nullptr
+	if( w_MultiByteToWideChar( cp, fl, p, -1, w, n ) = 0 ) then
+		free( w )
+		return nullptr
+	end if
+	return w
+end function
+
+'' A UTF-16 PATH AS UTF-8, into dst of maxlen bytes counting the terminator. The length, or 0
+'' (and an empty dst) when it does not fit or does not convert.
+function tkort_PathFromWide alias "fb_hPathFromWide" _
+	( byval w as const wstring ptr, byval dst as zstring ptr, byval maxlen as integer ) as integer
+	if( (dst = nullptr) orelse (maxlen <= 0) ) then return 0
+	dst[0] = 0
+	if( w = nullptr ) then return 0
+	dim as int32 n = w_WideCharToMultiByte( CP_UTF8_, 0, w, -1, dst, cast( int32, maxlen ), nullptr, nullptr )
+	if( n <= 0 ) then
+		dst[0] = 0
+		return 0
+	end if
+	return n - 1
+end function
+
+'' fopen's mode, "rb" / "w+b", is ASCII: widened in place.
+private sub hWideMode( byval m as const zstring ptr, byval wm as wstring ptr, byval cap as integer )
+	dim as integer i = 0
+	if( m <> nullptr ) then
+		while( (m[i] <> 0) andalso (i < cap - 1) )
+			wm[i] = m[i]
+			i += 1
+		wend
+	end if
+	wm[i] = 0
+end sub
+
+#endif
+
+function tkort_PathFopen alias "fb_hPathFopen" _
+	( byval p as const zstring ptr, byval m as const zstring ptr ) as FILE ptr
+	#ifdef __FB_WIN32__
+		dim as wstring ptr w = tkort_PathToWide( p )
+		if( w = nullptr ) then return nullptr
+		dim as wstring * 16 wm = any
+		hWideMode( m, @wm, 16 )
+		dim as FILE ptr f = crt_wfopen( w, @wm )
+		free( w )
+		return f
+	#else
+		return fopen( p, m )
+	#endif
+end function
+
+function tkort_PathFreopen alias "fb_hPathFreopen" _
+	( byval p as const zstring ptr, byval m as const zstring ptr, byval f as FILE ptr ) as FILE ptr
+	#ifdef __FB_WIN32__
+		dim as wstring ptr w = tkort_PathToWide( p )
+		if( w = nullptr ) then
+			'' freopen closes the stream even when it fails; so does this.
+			if( f <> nullptr ) then fclose( f )
+			return nullptr
+		end if
+		dim as wstring * 16 wm = any
+		hWideMode( m, @wm, 16 )
+		dim as FILE ptr r = crt_wfreopen( w, @wm, f )
+		free( w )
+		return r
+	#else
+		return freopen( p, m, f )
+	#endif
+end function
+
+'' remove(): 0, or non-zero with errno set -- fb_FileKill reads errno straight after, so the
+'' free() between the call and the return keeps it.
+function tkort_PathRemove alias "fb_hPathRemove" ( byval p as const zstring ptr ) as int32
+	#ifdef __FB_WIN32__
+		dim as wstring ptr w = tkort_PathToWide( p )
+		if( w = nullptr ) then return -1
+		dim as int32 r = crt_wremove( w )
+		dim as int32 e = errno
+		free( w )
+		errno = e
+		return r
+	#else
+		return crt_remove( p )
+	#endif
+end function
+
+'' rename(): NAME old AS new.
+function tkort_PathRename alias "fb_hPathRename" _
+	( byval a as const zstring ptr, byval b as const zstring ptr ) as int32
+	#ifdef __FB_WIN32__
+		dim as wstring ptr wa = tkort_PathToWide( a )
+		dim as wstring ptr wb = tkort_PathToWide( b )
+		dim as int32 r = -1
+		if( (wa <> nullptr) andalso (wb <> nullptr) ) then r = crt_wrename( wa, wb )
+		dim as int32 e = errno
+		if( wa <> nullptr ) then free( wa )
+		if( wb <> nullptr ) then free( wb )
+		errno = e
+		return r
+	#else
+		return crt_rename( a, b )
+	#endif
+end function
+
+end extern

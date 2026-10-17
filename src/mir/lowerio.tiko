@@ -835,7 +835,12 @@ function LowerOpenCall_ _
         '' into a narrow temporary. StrDescriptorOf_ has no descriptor to give for either, so
         '' ApexWealth's 'open( frmMain_PlacementPath( ) for output as #f )' was dropped with
         '' its IF. Measured: 'fb_WstrAssignToA( &TMP, -1ll, vr, 0 ); fb_FileOpen( &TMP, ... )'.
-        if WideToNarrowTemp_( c, sp->a, fn ) = false then return false
+        '' ...AS UTF-8 (lib/rt/src/fs/upath.tiko), not fbc's ANSI, which loses '日本'.
+        dim as boolean savedPath = c.pathUtf8
+        c.pathUtf8 = true
+        dim as boolean okw = WideToNarrowTemp_( c, sp->a, fn )
+        c.pathUtf8 = savedPath
+        if okw = false then return false
     elseif StrDescriptorOf_( c, sp->a, fn ) = false then
         return false
     end if

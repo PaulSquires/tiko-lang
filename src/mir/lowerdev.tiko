@@ -273,15 +273,21 @@ private function EmitRename_ _
 
     if oldN = Tko.NODE_NONE then return false
     if newN = Tko.NODE_NONE then return false
-    dim as MirValue oldp
-    if ZstrDataOf_( c, oldN, oldp ) = false then return false
-    dim as MirValue newp
-    if ZstrDataOf_( c, newN, newp ) = false then return false
+    '' WIDE NAMES AS UTF-8 (c.pathUtf8): fbc's 'fb_WstrToStr' is the ANSI code page.
+    dim as boolean savedPath = c.pathUtf8
+    c.pathUtf8 = true
+    dim as MirValue oldp, newp
+    dim as boolean ok = ZstrDataOf_( c, oldN, oldp )
+    if ok then ok = ZstrDataOf_( c, newN, newp )
+    c.pathUtf8 = savedPath
+    if ok = false then return false
 
     dim as containers.Array( of uint32 ) args
     args.Push( cast( uint32, oldp.kind ) ) : args.Push( cast( uint32, oldp.id ) )
     args.Push( cast( uint32, newp.kind ) ) : args.Push( cast( uint32, newp.id ) )
-    outv = EmitRtl( c, RTL_RENAME, args )
+    '' fb_hPathRename, not libc's rename: on Windows the names are UTF-16 there, UTF-8 if valid,
+    '' else the ANSI code page (lib/rt/src/fs/upath.tiko) -- a deliberate divergence from fbc.
+    outv = EmitRtl( c, RTL_PATH_RENAME, args )
     return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 

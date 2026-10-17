@@ -43,6 +43,7 @@
 #include once "inc/file.ti"
 #include once "inc/rterror.ti"
 #include once "inc/sysbind.ti"
+#include once "inc/upath.ti"
 
 '' fb_file.h. A BITMASK, and not in mode order -- see the file header.
 const FB_FILE_ATTR_MODE_INPUT  = 1
@@ -97,8 +98,8 @@ end type
 
 extern "c"   '' NON-FBCALL: libc.
 	#ifdef __FB_WIN32__
-		declare function crt_stat alias "_stat64i32" _
-			( byval p as zstring ptr, byval st as TKORT_STATBUF ptr ) as int32
+		declare function crt_wstat alias "_wstat64i32" _
+			( byval p as wstring ptr, byval st as TKORT_STATBUF ptr ) as int32
 		declare function crt_localtime alias "_localtime64" ( byval t as int64 ptr ) as TKORT_TM ptr
 	#else
 		declare function crt_stat alias "stat64" _
@@ -228,7 +229,7 @@ end function
 '' is FALSE, and the access time is touched.
 function tkort_FileExists alias "fb_FileExists" ( byval filename as zstring ptr ) as int32
 
-	dim as FILE ptr fp = fopen( filename, @"r" )
+	dim as FILE ptr fp = tkrt_PathFopen( filename, @"r" )
 	if( fp <> nullptr ) then
 		fclose( fp )
 		return FB_TRUE
@@ -245,7 +246,16 @@ function tkort_FileDateTime alias "fb_FileDateTime" ( byval filename as zstring 
 
 	dim as TKORT_STATBUF buf = any
 
-	if( crt_stat( filename, @buf ) <> 0 ) then return 0.0
+	#ifdef __FB_WIN32__
+		'' The same struct as _stat64i32; the path as UTF-16 (inc/upath.ti).
+		dim as wstring ptr wname = tkrt_PathToWide( filename )
+		if( wname = nullptr ) then return 0.0
+		dim as int32 sres = crt_wstat( wname, @buf )
+		free( wname )
+		if( sres <> 0 ) then return 0.0
+	#else
+		if( crt_stat( filename, @buf ) <> 0 ) then return 0.0
+	#endif
 
 	'' The mtime is copied OUT of the buffer before localtime is called, exactly
 	'' as fbc's object does -- localtime takes a pointer to a time_t, not a
@@ -268,7 +278,7 @@ function tkort_FileKill alias "fb_FileKill" ( byval str_ as FBSTRING ptr ) as in
 	dim as int32 res = 0, err_ = 0
 
 	if( str_->data <> nullptr ) then
-		res = crt_remove( str_->data )
+		res = tkrt_PathRemove( str_->data )
 		err_ = errno
 	end if
 
@@ -310,11 +320,11 @@ function tkort_CrtFileCopy alias "fb_CrtFileCopy" _
 	dim as uinteger bytesread = any
 	dim as int32 copyfail = 0
 
-	src = fopen( source, @"rb" )
+	src = tkrt_PathFopen( source, @"rb" )
 	if( src = nullptr ) then
 		copyfail = 1
 	else
-		dst = fopen( destination, @"wb" )
+		dst = tkrt_PathFopen( destination, @"wb" )
 		if( dst = nullptr ) then
 			copyfail = 1
 		else

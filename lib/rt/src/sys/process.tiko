@@ -40,10 +40,13 @@
 #include once "inc/ctx.ti"
 #include once "inc/iolock.ti"
 #include once "inc/sysbind.ti"
+#include once "inc/upath.ti"
 
 '' See the file header. windows.h's value on Windows, fb.h's elsewhere.
 #ifdef __FB_WIN32__
-	const MAX_PATH_ = 260
+	'' ...in UTF-8 bytes: CURDIR and EXEPATH come back as UTF-8 now (inc/upath.ti), and
+	'' windows.h's 260 UTF-16 units are up to three bytes each.
+	const MAX_PATH_ = 260 * 3 + 1
 #else
 	const MAX_PATH_ = 1024
 #endif
@@ -72,9 +75,9 @@ end extern
 '' mkdir takes no mode; POSIX spells them plainly and mkdir takes one.
 #ifdef __FB_WIN32__
 	extern "c"   '' NON-FBCALL: CRT entry points, not runtime ones.
-		declare function crt_chdir alias "_chdir" ( byval p as zstring ptr ) as int32
-		declare function crt_mkdir alias "_mkdir" ( byval p as zstring ptr ) as int32
-		declare function crt_rmdir alias "_rmdir" ( byval p as zstring ptr ) as int32
+		declare function crt_wchdir alias "_wchdir" ( byval p as wstring ptr ) as int32
+		declare function crt_wmkdir alias "_wmkdir" ( byval p as wstring ptr ) as int32
+		declare function crt_wrmdir alias "_wrmdir" ( byval p as wstring ptr ) as int32
 	end extern
 #else
 	extern "c"   '' NON-FBCALL: CRT entry points, not runtime ones.
@@ -86,6 +89,23 @@ end extern
 	'' directories group-writable and world-readable, and the umask narrows it
 	'' further. A literal 0777 here would be a different directory mode.
 	const MKDIR_MODE = &o775
+#endif
+
+#ifdef __FB_WIN32__
+'' _wchdir (0), _wmkdir (1) or _wrmdir (2) over the path as UTF-16 (inc/upath.ti): UTF-8 if
+'' valid, else the ANSI code page. -1 when it does not convert, as the CRT says for a bad path.
+private function hWideDirCall( byval p as zstring ptr, byval which as int32 ) as int32
+	dim as wstring ptr w = tkrt_PathToWide( p )
+	if( w = nullptr ) then return -1
+	dim as int32 r = any
+	select case which
+	case 0 : r = crt_wchdir( w )
+	case 1 : r = crt_wmkdir( w )
+	case else : r = crt_wrmdir( w )
+	end select
+	free( w )
+	return r
+end function
 #endif
 
 extern "rtlib"
@@ -204,14 +224,18 @@ end function
 '' The CRT's return value, unchanged, and the temp deleted afterwards. See the
 '' file header on why there is no NULL check and no fb_ErrorSetNum.
 function tkort_ChDir alias "fb_ChDir" ( byval path as FBSTRING ptr ) as int32
-	dim as int32 res = crt_chdir( path->data )
+	#ifdef __FB_WIN32__
+		dim as int32 res = hWideDirCall( path->data, 0 )
+	#else
+		dim as int32 res = crt_chdir( path->data )
+	#endif
 	tkrt_DelTemp( path )
 	return res
 end function
 
 function tkort_MkDir alias "fb_MkDir" ( byval path as FBSTRING ptr ) as int32
 	#ifdef __FB_WIN32__
-		dim as int32 res = crt_mkdir( path->data )
+		dim as int32 res = hWideDirCall( path->data, 1 )
 	#else
 		dim as int32 res = crt_mkdir_( path->data, MKDIR_MODE )
 	#endif
@@ -220,7 +244,11 @@ function tkort_MkDir alias "fb_MkDir" ( byval path as FBSTRING ptr ) as int32
 end function
 
 function tkort_RmDir alias "fb_RmDir" ( byval path as FBSTRING ptr ) as int32
-	dim as int32 res = crt_rmdir( path->data )
+	#ifdef __FB_WIN32__
+		dim as int32 res = hWideDirCall( path->data, 2 )
+	#else
+		dim as int32 res = crt_rmdir( path->data )
+	#endif
 	tkrt_DelTemp( path )
 	return res
 end function

@@ -13,4 +13,4 @@
 '' EXPECT-OUT: 0 statements not lowered
 '' EXPECT-OUT: _ZN2WSC1EPw(
 '' EXPECT-OUT: fb_WstrConcatAW(
-'' EXPECT-OUT: fb_WstrAssignToA(
+'' EXPECT-OUT: fb_WstrAssignToAUtf8(

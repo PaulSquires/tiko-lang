@@ -140,6 +140,7 @@ fs/dir.tiko
 fs/lock.tiko
 fs/volume.tiko
 fs/watch.tiko
+fs/upath.tiko
 fs/fileops2.tiko
 fs/filelow.tiko
 fs/legacydir.tiko

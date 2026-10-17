@@ -38,17 +38,18 @@
 
 #include once "inc/descriptors.ti"
 #include once "inc/sysbind.ti"
+#include once "inc/upath.ti"
 
 #ifdef __FB_WIN32__
 
 	extern "c"   '' NON-FBCALL: kernel32 imports, `stdcall` per declaration --
 	             '' the house idiom, as in inc/console.ti.
-		declare function w_GetModuleFileNameA stdcall alias "GetModuleFileNameA" _
-			( byval hm as any ptr, byval buf as zstring ptr, byval sz as uint32 ) as uint32
+		declare function w_GetModuleFileNameW stdcall alias "GetModuleFileNameW" _
+			( byval hm as any ptr, byval buf as wstring ptr, byval sz as uint32 ) as uint32
 		declare function w_GetModuleHandleA stdcall alias "GetModuleHandleA" _
 			( byval name_ as zstring ptr ) as any ptr
-		declare function w_GetCurrentDirectoryA stdcall alias "GetCurrentDirectoryA" _
-			( byval sz as uint32, byval buf as zstring ptr ) as uint32
+		declare function w_GetCurrentDirectoryW stdcall alias "GetCurrentDirectoryW" _
+			( byval sz as uint32, byval buf as wstring ptr ) as uint32
 		declare sub w_Sleep stdcall alias "Sleep" ( byval ms as uint32 )
 		declare sub w_GlobalMemoryStatus stdcall alias "GlobalMemoryStatus" ( byval p as any ptr )
 	end extern
@@ -105,11 +106,25 @@ extern "c"   '' NON-FBCALL for the two helpers; fb_system.h declares
              '' fb_hGetExePath, fb_hGetExeName and fb_hGetCurrentDir plainly.
 
 '' maxlen INCLUDES THE TERMINATOR and must be at least 1. Nothing checks that.
+#ifdef __FB_WIN32__
+'' The module's file name as UTF-8 into dst (inc/upath.ti), which GetModuleFileNameA could only
+'' give in the ANSI code page; empty when it does not fit.
+private sub hModuleFileUtf8( byval dst as zstring ptr, byval maxlen as integer )
+	dim as wstring * 1024 wm = any
+	dim as uint32 n = w_GetModuleFileNameW( w_GetModuleHandleA( nullptr ), @wm, 1024 )
+	if( (n = 0) orelse (n >= 1024) ) then
+		if( maxlen > 0 ) then dst[0] = 0
+		exit sub
+	end if
+	tkrt_PathFromWide( @wm, dst, maxlen )
+end sub
+#endif
+
 function tkort_hGetExePath alias "fb_hGetExePath" _
 	( byval dst as zstring ptr, byval maxlen as integer ) as zstring ptr
 
 	#ifdef __FB_WIN32__
-		w_GetModuleFileNameA( w_GetModuleHandleA( nullptr ), dst, cast( uint32, maxlen ) )
+		hModuleFileUtf8( dst, maxlen )
 
 		dim as zstring ptr p = strrchr( dst, 92 )      '' '\'
 		if( p <> nullptr ) then
@@ -156,7 +171,7 @@ function tkort_hGetExeName alias "fb_hGetExeName" _
 	( byval dst as zstring ptr, byval maxlen as integer ) as zstring ptr
 
 	#ifdef __FB_WIN32__
-		w_GetModuleFileNameA( w_GetModuleHandleA( nullptr ), dst, cast( uint32, maxlen ) )
+		hModuleFileUtf8( dst, maxlen )
 
 		dim as zstring ptr p = strrchr( dst, 92 )
 		if( p <> nullptr ) then
@@ -203,7 +218,15 @@ function tkort_hGetCurrentDir alias "fb_hGetCurrentDir" _
 		'' WITHOUT the terminator -- or the length WITH it if the buffer was too
 		'' small, which is the one case where the return exceeds maxlen. Not
 		'' distinguished here, because fbc does not distinguish it either.
-		return cast( integer, w_GetCurrentDirectoryA( cast( uint32, maxlen ), dst ) )
+		'' UTF-16, returned as UTF-8 (inc/upath.ti): a directory the ANSI code page cannot
+		'' spell is still the one OPEN, MKDIR and CHDIR will find again.
+		dim as wstring * 1024 wd = any
+		dim as uint32 n = w_GetCurrentDirectoryW( 1024, @wd )
+		if( (n = 0) orelse (n >= 1024) ) then
+			if( maxlen > 0 ) then dst[0] = 0
+			return 0
+		end if
+		return tkrt_PathFromWide( @wd, dst, maxlen )
 	#else
 		if( u_getcwd( dst, cast( uinteger, maxlen ) ) <> nullptr ) then
 			return strlen( dst )

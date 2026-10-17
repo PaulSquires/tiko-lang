@@ -51,6 +51,7 @@
 #include once "inc/ctx.ti"
 #include once "inc/rterror.ti"
 #include once "inc/sysbind.ti"
+#include once "inc/upath.ti"
 
 extern "c"   '' NON-FBCALL: libc's case-insensitive compares. MinGW provides the
              '' POSIX names on Windows too, so one declaration serves all three
@@ -115,8 +116,8 @@ end extern
 
 #ifdef __FB_WIN32__
 	extern "c"   '' NON-FBCALL: kernel32, `stdcall` per declaration.
-		declare function w_CopyFileA stdcall alias "CopyFileA" _
-			( byval src as zstring ptr, byval dst as zstring ptr, byval failIfExists as int32 ) as int32
+		declare function w_CopyFileW stdcall alias "CopyFileW" _
+			( byval src as wstring ptr, byval dst as wstring ptr, byval failIfExists as int32 ) as int32
 	end extern
 #endif
 
@@ -219,7 +220,13 @@ function tkort_FileCopy alias "fb_FileCopy" _
 	#ifdef __FB_WIN32__
 		'' FALSE for failIfExists, so an existing destination IS overwritten --
 		'' which is the one respect in which the two platforms agree.
-		dim as int32 res = w_CopyFileA( source, destination, 0 )
+		'' Both paths as UTF-16 (inc/upath.ti): UTF-8 if valid, else the ANSI code page.
+		dim as wstring ptr ws = tkrt_PathToWide( source )
+		dim as wstring ptr wd = tkrt_PathToWide( destination )
+		dim as int32 res = 0
+		if( (ws <> nullptr) andalso (wd <> nullptr) ) then res = w_CopyFileW( ws, wd, 0 )
+		if( ws <> nullptr ) then free( ws )
+		if( wd <> nullptr ) then free( wd )
 		return tkrt_ErrorSetNum( iif( res = 0, FB_RTERROR_ILLEGALFUNCTIONCALL, FB_RTERROR_OK ) )
 	#else
 		'' fb_CrtFileCopy ALREADY SETS THE ERROR, so this must not set it again

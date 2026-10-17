@@ -943,6 +943,9 @@ private sub CopyBackUStrArgs_ _
         dim as containers.Array( of uint32 ) args
         '' A 'wstring * N' TAKES THE NARROW TEMPORARY BACK WIDENED: fbc emits 'fb_WstrAssignFromA( W$0,
         '' 4ll, &TMP, -1ll )' after the call (functions/param-string-copyback.bas); tiko dropped it.
+        '' ...BUT NOT A PATH'S: its temporary is UTF-8 (c.pathUtf8), which fb_WstrAssignFromA would
+        '' decode as ANSI into the caller's wstring, and the file statements never write it.
+        if (fk = 2) andalso c.pathUtf8 then continue for
         if fk = 2 then
             args.Push( cast( uint32, dst.kind ) ) : args.Push( cast( uint32, dst.id ) )
             args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, tag ) )

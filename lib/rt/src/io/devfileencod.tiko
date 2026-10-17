@@ -43,6 +43,7 @@
 #include once "inc/iolock.ti"
 #include once "inc/rterror.ti"
 #include once "inc/sysbind.ti"
+#include once "inc/upath.ti"
 
 const FB_FILE_ACCESS_ANY       = 0
 const FB_FILE_ACCESS_READWRITE = 3
@@ -445,7 +446,7 @@ function tkort_DevFileOpenEncod alias "fb_DevFileOpenEncod" _
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end select
 
-	fp = fopen( fname, openmask )
+	fp = tkrt_PathFopen( fname, openmask )
 
 	if( h->mode = FB_FILE_MODE_APPEND ) then
 		if( fp = nullptr ) then
@@ -453,7 +454,7 @@ function tkort_DevFileOpenEncod alias "fb_DevFileOpenEncod" _
 			'' below.
 			effective_mode = FB_FILE_MODE_OUTPUT
 			openmask = @"ab"
-			fp = fopen( fname, openmask )
+			fp = tkrt_PathFopen( fname, openmask )
 		else
 			tkrt_SetFileBufSize( fp )
 			if( hCheckBOM( fp, h->encod ) = 0 ) then
@@ -463,7 +464,7 @@ function tkort_DevFileOpenEncod alias "fb_DevFileOpenEncod" _
 				return tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
 			else
 				openmask = @"ab"
-				fp = freopen( fname, openmask, fp )
+				fp = tkrt_PathFreopen( fname, openmask, fp )
 			end if
 		end if
 	end if

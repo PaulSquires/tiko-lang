@@ -174,7 +174,46 @@ end function
 
 
 
+'' THE CLASSIC FILE STATEMENTS' PATHS -- KILL, MKDIR, RMDIR, CHDIR, DIR, and file.bi's
+'' FileExists, FileLen, FileCopy, FileDateTime -- by the runtime name they bind to, wherever
+'' declared. A wide argument for one of them is converted as UTF-8, not through the ANSI code
+'' page (c.pathUtf8; lib/rt/src/fs/upath.tiko). A deliberate divergence from fbc, which loses
+'' every character the code page cannot spell (C:\dev\docs\tiko-unicode-paths\PLAN.md).
+private function PathEntryCallee_( byref c as Ctx, byval callee as Tko.SymbolId ) as boolean
+    if callee = Tko.SYMBOL_NONE then return false
+    dim as Tko.Symbol ptr sym = c.syms->SymbolAt( callee )
+    if sym = nullptr then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, sym->payload )
+    if pn = Tko.NODE_NONE then return false
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return false
+    dim as Tko.StmtPayload ptr sp = _
+        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
+    if sp->aliasName = 0 then return false
+    select case Tko.Text.LowerAscii( c.names->Spelling( sp->aliasName ) )
+    case "fb_filekill", "fb_mkdir", "fb_rmdir", "fb_chdir", "fb_dir", "fb_dir64", _
+         "fb_fileexists", "fb_filelen", "fb_filelenex", "fb_filecopy", "fb_filedatetime"
+        return true
+    end select
+    return false
+end function
+
+declare function LowerCallPartsBody_ _
+    ( byref c as Ctx, byval calleeNode as Tko.NodeId, byval callee as Tko.SymbolId, _
+      byval argFirst as int32, byval argCount as int32, _
+      byval mt as MirType, byval wantRef as boolean = false ) as MirValue
+
 function LowerCallParts _
+    ( byref c as Ctx, byval calleeNode as Tko.NodeId, byval callee as Tko.SymbolId, _
+      byval argFirst as int32, byval argCount as int32, _
+      byval mt as MirType, byval wantRef as boolean = false ) as MirValue
+    dim as boolean saved = c.pathUtf8
+    c.pathUtf8 = PathEntryCallee_( c, callee )
+    dim as MirValue r = LowerCallPartsBody_( c, calleeNode, callee, argFirst, argCount, mt, wantRef )
+    c.pathUtf8 = saved
+    return r
+end function
+
+private function LowerCallPartsBody_ _
     ( byref c as Ctx, byval calleeNode as Tko.NodeId, byval callee as Tko.SymbolId, _
       byval argFirst as int32, byval argCount as int32, _
       byval mt as MirType, byval wantRef as boolean = false ) as MirValue

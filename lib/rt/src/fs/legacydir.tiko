@@ -51,6 +51,7 @@
 #include once "inc/ctx.ti"
 #include once "inc/thread.ti"
 #include once "inc/sysbind.ti"
+#include once "inc/upath.ti"
 
 const TKORT_DIR_MAX_PATH = 1024      '' fb.h's MAX_PATH, which is NOT Windows'
                                      '' 260 -- fbc defines its own.
@@ -85,78 +86,47 @@ end extern
 
 #ifdef __FB_WIN32__
 
-	'' FB_DIRCTX, MEASURED FROM fbc's OWN OBJECTS because there are no 32-bit
-	'' MinGW headers on this machine. Disassembling `fb_Dir` in both
-	'' obj/win32/file_dir.o and obj/win64/file_dir.o gives, identically:
-	''
-	''   fb_TlsGetCtx( 1, 0x138, dtor )   -> sizeof( FB_DIRCTX ) = 312
-	''   lea 0x8(%rax)                    -> data   at offset 8
-	''   mov %rax, 0x130(%rdx)            -> handle at offset 304
-	''   add $0x2c, %rax                  -> data.name at 8 + 36
-	''
-	'' and a C probe on win64 confirms `struct _finddata_t` is 296 bytes with
-	'' attrib at 0 and name at 36. The two targets agree because every field is
-	'' fixed-width and time_t is 64-bit on both under MinGW-w64.
+	'' FB_DIRCTX_ ON WINDOWS IS NOT fbc's. fbc's -- measured from its objects: 312 bytes, the
+	'' CRT's _finddata_t at 8, the name at 8 + 36 -- held a narrow name the ANSI code page had
+	'' spelled, which is why a DIR over a directory of '日本' names answered '??'. The names come
+	'' from FindFirstFileW / FindNextFileW now and go out as UTF-8 (inc/upath.ti), so the context
+	'' holds Win32's record and a UTF-8 copy of its name. Nothing outside this file reads it: the
+	'' TLS slot is sized from sizeof( FB_DIRCTX_ ). Win32 rather than the CRT's _wfindfirst,
+	'' whose struct is a header macro with a different layout in each CRT (see below at the
+	'' narrow one this replaced); WIN32_FIND_DATAW has one. Its attributes are the CRT's bits.
+	type WFD_
+		as uint32    dwFileAttributes
+		as uint32    ftCreation( 0 to 1 )
+		as uint32    ftAccess( 0 to 1 )
+		as uint32    ftWrite( 0 to 1 )
+		as uint32    nFileSizeHigh
+		as uint32    nFileSizeLow
+		as uint32    dwReserved0
+		as uint32    dwReserved1
+		as wstring * 260 cFileName
+		as wstring * 14  cAlternateFileName
+	end type
+	#assert sizeof( WFD_ ) = 592
+
 	type FB_DIRCTX_
 		as int32     in_use
 		as int32     attrib
-		as uint32    d_attrib               '' data.attrib
-		as uint32    d_pad0                 '' padding to the 8-aligned times
-		as int64  d_time_create
-		as int64  d_time_access
-		as int64  d_time_write
-		as uint32    d_size
-		as zstring * 260 d_name            '' 44 .. 303, ending exactly where
-		                                   '' handle begins -- the #asserts
-		                                   '' below are what proved that, after
-		                                   '' a guessed pad byte made the struct
-		                                   '' 320 and both of them fail.
-		as integer  handle                 '' intptr_t
+		as uint32    d_attrib               '' the CRT's view of fd.dwFileAttributes
+		as uint32    d_pad0
+		as WFD_      fd
+		as zstring * 784 d_name            '' fd.cFileName as UTF-8: 260 units, 3 bytes each
+		as any ptr   handle                 '' a find HANDLE
 	end type
 
-	#assert offsetof( FB_DIRCTX_, d_attrib ) = 8
-	#assert offsetof( FB_DIRCTX_, d_name ) = 8 + 36
-	#assert offsetof( FB_DIRCTX_, handle ) = 304
-	#assert sizeof( FB_DIRCTX_ ) = 312
-
-	'' AND `_findfirst` IS NOT ONE FUNCTION. It is a HEADER MACRO in both CRTs,
-	'' selecting one of four real exports by the widths of time_t and of the
-	'' size field -- and the two CRTs resolve the UNDECORATED name differently:
-	''
-	''   MinGW    _findfirst  IS  _finddata64i32_t   name at 36, struct 296
-	''   UCRT     _findfirst  IS  _finddata32_t      name at 20, struct 276
-	''
-	'' Both fill `attrib` at offset 0, so a struct written for one and filled by
-	'' the other reports the RIGHT ATTRIBUTES AND AN EMPTY NAME -- which is
-	'' exactly what legacydir-parity and fileops2-parity showed, six entries with
-	'' attrib=32 and nothing to call them. A short name ends before offset 36, so
-	'' the mismatch reads a NUL rather than garbage and nothing warns.
-	''
-	'' Measured, not read -- `_findfirst` declared by hand over a 0xAA-filled
-	'' buffer, x86_64-pc-windows-msvc:
-	''
-	''   20 00 00 00 02 C5 9A 6A 02 C5 9A 6A 02 C5 9A 6A
-	''   8B 00 00 00 61 73 6D 2E 63 00 AA AA AA AA AA AA
-	''            ^size at 16        ^name at 20
-	''
-	'' So MSVC binds the 64i32 spellings by name, which ARE what its own
-	'' `struct _finddata_t` describes -- sizeof 296, attrib 0, name 36, the same
-	'' record FB_DIRCTX_ above already lays out. The context does not change.
-	extern "c"   '' NON-FBCALL: the CRT find family, whose C names all carry a
-	             '' leading underscore that the alias supplies.
-		#ifdef TKORT_MSVC
-			declare function crt_findfirst alias "_findfirst64i32" _
-				( byval spec as zstring ptr, byval data_ as any ptr ) as integer
-			declare function crt_findnext alias "_findnext64i32" _
-				( byval h as integer, byval data_ as any ptr ) as int32
-		#else
-			declare function crt_findfirst alias "_findfirst" _
-				( byval spec as zstring ptr, byval data_ as any ptr ) as integer
-			declare function crt_findnext alias "_findnext" _
-				( byval h as integer, byval data_ as any ptr ) as int32
-		#endif
-		declare function crt_findclose alias "_findclose" ( byval h as integer ) as int32
+	extern "c"   '' NON-FBCALL: kernel32.
+		declare function w_FindFirstFileW stdcall alias "FindFirstFileW" _
+			( byval spec as wstring ptr, byval data_ as WFD_ ptr ) as any ptr
+		declare function w_FindNextFileW stdcall alias "FindNextFileW" _
+			( byval h as any ptr, byval data_ as WFD_ ptr ) as int32
+		declare function w_FindClose stdcall alias "FindClose" ( byval h as any ptr ) as int32
 	end extern
+
+	const FIND_INVALID_ = -1
 
 #else
 
@@ -232,7 +202,7 @@ extern "c"   '' NON-FBCALL for the destructor; fb_Dir itself is FBCALL and is
 
 private sub hCloseDirInternal( byval ctx as FB_DIRCTX_ ptr )
 	#ifdef __FB_WIN32__
-		crt_findclose( ctx->handle )
+		w_FindClose( ctx->handle )
 	#else
 		u_closedir( ctx->dir_ )
 	#endif
@@ -352,6 +322,14 @@ end function
 
 '' ADVANCES TO THE NEXT MATCH, or closes the scan and returns NULL. The two
 '' platforms share only the shape.
+#ifdef __FB_WIN32__
+private sub hTakeFound( byval ctx as FB_DIRCTX_ ptr )
+	ctx->d_attrib = ctx->fd.dwFileAttributes
+	if( ctx->d_attrib = &h80 ) then ctx->d_attrib = 0       '' FILE_ATTRIBUTE_NORMAL, as the CRT
+	tkrt_PathFromWide( @ctx->fd.cFileName, @ctx->d_name, sizeof( ctx->d_name ) )
+end sub
+#endif
+
 private function hFindNext( byval attrib as int32 ptr ) as zstring ptr
 
 	dim as FB_DIRCTX_ ptr ctx = TKORT_TLSGET_DIR( )
@@ -359,10 +337,11 @@ private function hFindNext( byval attrib as int32 ptr ) as zstring ptr
 
 	#ifdef __FB_WIN32__
 		do
-			if( crt_findnext( ctx->handle, @ctx->d_attrib ) <> 0 ) then
+			if( w_FindNextFileW( ctx->handle, @ctx->fd ) = 0 ) then
 				hCloseDir( )
 				return nullptr
 			end if
+			hTakeFound( ctx )
 			name_ = @ctx->d_name
 		loop while( (ctx->d_attrib and (not ctx->attrib)) <> 0 )
 
@@ -433,9 +412,15 @@ function tkort_Dir alias "fb_Dir" _
 		if( ctx->in_use <> 0 ) then hCloseDir( )
 
 		#ifdef __FB_WIN32__
-			ctx->handle = crt_findfirst( filespec->data, @ctx->d_attrib )
+			dim as wstring ptr wspec = tkrt_PathToWide( filespec->data )
+			ctx->handle = cast( any ptr, FIND_INVALID_ )
+			if( wspec <> nullptr ) then
+				ctx->handle = w_FindFirstFileW( wspec, @ctx->fd )
+				free( wspec )
+			end if
 
-			if( ctx->handle <> -1 ) then
+			if( ctx->handle <> cast( any ptr, FIND_INVALID_ ) ) then
+				hTakeFound( ctx )
 				'' THE MASK IS WIDENED BY 0xFFFFFF00 so that attribute bits a
 				'' newer Windows invents cannot reject every entry.
 				ctx->attrib = attrib or &hFFFFFF00

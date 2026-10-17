@@ -144,6 +144,7 @@ namespace Tko.Mir
         RTL( RTL_WSTR_ASSIGN,       "fb_WstrAssign",       "p",   "pzp"   )
         RTL( RTL_WSTR_ASSIGN_FROMA, "fb_WstrAssignFromA",  "p",   "pzpz"  )
         RTL( RTL_WSTR_ASSIGN_TOA,   "fb_WstrAssignToA",    "p",   "pzpl"  )
+        RTL( RTL_WSTR_ASSIGN_TOA_UTF8, "fb_WstrAssignToAUtf8", "p", "pzpl"  )   '' a wide PATH, as UTF-8
         '' ...AND ITS DECLARATION FORM, which is a DIFFERENT FUNCTION rather than a flag:
         '' 'dim as string c = w & s' is fb_WstrAssignToA_Init from the wide temporary,
         '' the same distinction fb_StrInit and fb_StrAssign make. Without it the whole
@@ -920,6 +921,7 @@ namespace Tko.Mir
         RTL( RTL_H_PUT_ADD,             "fb_hPutAdd",              "v",   "pplllllpp" )
         RTL( RTL_H_STR_DEL_TEMP,        "fb_hStrDelTemp",          "l",   "p"         )
         RTL( RTL_RENAME,                "rename",                  "l",   "pp"        )   '' fb_rename
+        RTL( RTL_PATH_RENAME,           "fb_hPathRename",          "l",   "pp"        )   '' NAME (lib/rt/src/fs/upath.tiko)
         RTL( RTL_MEM_MOVE,              "memmove",                 "p",   "ppz"       )   '' fb_MemMove
         RTL( RTL_MEM_COPY,              "memcpy",                  "p",   "ppz"       )   '' fb_MemCopy
         RTL( RTL_DIVDI3,                "__divdi3",                "q",   "qq"        )   '' fb___divdi3

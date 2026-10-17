@@ -16,7 +16,7 @@
 '' EXPECT-OUT: fb_StrInstrRev
 
 '' NAME is libc, and printing its result means it was TYPED.
-'' EXPECT-OUT: declare i32 rename(ptr $0, ptr $1)
+'' EXPECT-OUT: declare i32 fb_hPathRename(ptr $0, ptr $1)
 '' EXPECT-OUT: fb_PrintInt
 
 '' The GOLDEN pins what no substring can: that the comma form kept its SOURCE operand,

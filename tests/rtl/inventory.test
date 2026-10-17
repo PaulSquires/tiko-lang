@@ -36,4 +36,7 @@
 '' TWO MORE, 2026-10-02: fb_InputUStr and fb_FileLineInputUStr, a ustring's readers (T66).
 '' ONE MORE, 2026-10-06: fb_UStrSwap, SWAP of two ustrings (tests/codegen/swap-ustring).
 '' EXPECT-OUT: fb_UStrSwap void (ptr, i64, ptr, i64)
-'' EXPECT-OUT: rtl: 535 entries
+'' TWO MORE, 2026-10-17: fb_WstrAssignToAUtf8 and fb_hPathRename, the classic file statements'
+'' Unicode paths (tests/codegen/unicode-paths-run).
+'' EXPECT-OUT: fb_hPathRename i32 (ptr, ptr)
+'' EXPECT-OUT: rtl: 537 entries

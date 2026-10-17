@@ -254,7 +254,10 @@ function LowerDir _
         dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
         '' ...a 'ustring * N' too, which IsStringType does not count: it was read as the
         '' continuation form and declined. fbc: 'fb_Dir( fb_UStrToStr( D$0, <tag> ), 16, 0 )'.
-        if IsStringType( c, c.info->TypeOf_( a0 ) ) orelse IsUStringType( c, c.info->TypeOf_( a0 ) ) then
+        '' ...AND A WIDE ONE: 'dir( w )' over a wstring was taken for the continuation form and
+        '' passed @w as the out pointer. fbc: 'fb_Dir( <w as narrow>, 33, 0 )'.
+        if IsStringType( c, c.info->TypeOf_( a0 ) ) orelse IsUStringType( c, c.info->TypeOf_( a0 ) ) orelse _
+           IsWideString_( c, c.info->TypeOf_( a0 ) ) orelse TermIsWide_( c, a0 ) orelse ConcatHasWideTerm_( c, a0 ) then
             pat = a0
             if cp->count >= 2 then attr = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
             if cp->count >= 3 then outn = cast( Tko.NodeId, c.ast->children[cp->first + 2] )
@@ -314,7 +317,14 @@ function LowerDir _
     '' converted first -- its own descriptor read as narrow is the one-character "C" of
     '' "C:\..." -- as fbc does: 'fb_Dir( fb_UStrToStr( &ROOT, -1 ), 16, 0 )'.
     dim as MirValue pv
-    if UStrToStrTemp_( c, pat, pv ) = false then
+    if TermIsWide_( c, pat ) orelse IsWideString_( c, c.info->TypeOf_( pat ) ) orelse ConcatHasWideTerm_( c, pat ) then
+        '' A WIDE PATTERN, as UTF-8 (lib/rt/src/fs/upath.tiko).
+        dim as boolean savedPath = c.pathUtf8
+        c.pathUtf8 = true
+        dim as boolean okw = WideToNarrowTemp_( c, pat, pv )
+        c.pathUtf8 = savedPath
+        if okw = false then return false
+    elseif UStrToStrTemp_( c, pat, pv ) = false then
         if StrDescriptorOf_( c, pat, pv ) = false then return false
     end if
     args.Push( cast( uint32, pv.kind ) ) : args.Push( cast( uint32, pv.id ) )

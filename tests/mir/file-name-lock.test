@@ -1,12 +1,13 @@
-'' NAME renames through libc; LOCK and UNLOCK take a range whose second bound is 0
+'' NAME renames through the runtime's fb_hPathRename (UTF-16 on Windows, libc's rename elsewhere); LOCK and UNLOCK take a range whose second bound is 0
 '' when no 'to' was written.
 '' TEST: cli
 '' ARGS: --dump-ir tests/mir/src/file-name-lock.bas
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: 0 statements not lowered
 
-'' LIBC, not an fb_ entry point.
-'' EXPECT-OUT: declare i32 rename(ptr $0, ptr $1)
+'' The runtime's path helper (lib/rt/src/fs/upath.tiko), not libc's rename as fbc emits: the
+'' names are UTF-16 on Windows, UTF-8 if valid, else the ANSI code page.
+'' EXPECT-OUT: declare i32 fb_hPathRename(ptr $0, ptr $1)
 '' EXPECT-NOT: fb_Rename
 '' EXPECT-NOT: fb_FileName
 

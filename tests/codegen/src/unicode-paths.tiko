@@ -1,0 +1,89 @@
+'' The classic file statements with non-ASCII names -- Latin-1, Cyrillic, CJK and an emoji,
+'' which is a surrogate pair in UTF-16 -- given as a STRING (UTF-8 bytes), a USTRING and a
+'' WSTRING. Every check is made against std/fs, which goes through the W functions on
+'' Windows: it sees the name that is REALLY on disk. Inside a temporary directory, removed at
+'' the end. A tiko divergence from fbc, whose runtime reads the bytes as the ANSI code page.
+#import "std/fs"
+#include once "file.bi"
+
+dim shared as integer fails = 0
+
+sub Check( byref what as string, byval ok as boolean )
+    if ok = false then
+        print "FAIL "; what
+        fails += 1
+    end if
+end sub
+
+'' The same statements over one kind of name. 'nm' etc. are the names as the statement gets
+'' them; 'un' etc. the same names as ustrings, for std/fs.
+sub RunAll( byref tag as string, byref nm as ustring, byref nm2 as ustring, byref nm3 as ustring, _
+            byref dn as ustring, byref un as ustring, byref un2 as ustring, byref un3 as ustring, _
+            byref udn as ustring, byref dirExpect as string )
+    dim as integer f = freefile
+    Check( tag & " open", open( nm for output as #f ) = 0 )
+    print #f, "x"
+    close #f
+    Check( tag & " on disk", fs.IsFile( un ) )
+    Check( tag & " fileexists", fileexists( nm ) <> 0 )
+    Check( tag & " filelen", filelen( nm ) > 0 )
+    Check( tag & " filedatetime", filedatetime( nm ) > 0 )
+    Check( tag & " dir", dir( nm ) = dirExpect )
+    Check( tag & " filecopy", filecopy( nm, nm2 ) = 0 )
+    Check( tag & " copy on disk", fs.IsFile( un2 ) )
+    name nm2 as nm3
+    Check( tag & " name", fs.IsFile( un3 ) andalso ( fs.IsFile( un2 ) = false ) )
+    Check( tag & " kill", kill( nm3 ) = 0 )
+    Check( tag & " killed", fs.IsFile( un3 ) = false )
+    f = freefile
+    Check( tag & " open input", open( nm for input as #f ) = 0 )
+    close #f
+    Check( tag & " kill 2", kill( nm ) = 0 )
+    Check( tag & " mkdir", mkdir( dn ) = 0 )
+    Check( tag & " dir on disk", fs.IsDir( udn ) )
+    Check( tag & " chdir", chdir( dn ) = 0 )
+    dim as string here = curdir( )
+    Check( tag & " curdir", right( here, len( dirExpect ) ) <> "" andalso instr( here, "dir_" ) > 0 )
+    Check( tag & " chdir back", chdir( ".." ) = 0 )
+    Check( tag & " rmdir", rmdir( dn ) = 0 )
+    Check( tag & " dir gone", fs.IsDir( udn ) = false )
+end sub
+
+dim as ustring tmp = fs.CreateTempDir( "tkupath" ).ValueOr( "" )
+if len( tmp ) = 0 then print "no temp dir" : end 1
+chdir tmp
+
+'' a STRING: the UTF-8 bytes of the source's literals
+dim as string s1 = "s_ñ_Ж_日本_😀.txt", s2 = "s_copy_ß_한국.txt", s3 = "s_moved_Ω_🎉.txt", sd = "s_dir_ü_中"
+RunAll( "string", s1, s2, s3, sd, "s_ñ_Ж_日本_😀.txt", "s_copy_ß_한국.txt", "s_moved_Ω_🎉.txt", "s_dir_ü_中", "s_ñ_Ж_日本_😀.txt" )
+
+'' a USTRING
+dim as ustring u1 = "u_ñ_Ж_日本_😀.txt", u2 = "u_copy_ß_한국.txt", u3 = "u_moved_Ω_🎉.txt", ud = "u_dir_ü_中"
+RunAll( "ustring", u1, u2, u3, ud, u1, u2, u3, ud, "u_ñ_Ж_日本_😀.txt" )
+
+'' a WSTRING
+dim as wstring * 64 w1 = "w_ñ_Ж_日本_😀.txt", w2 = "w_copy_ß_한국.txt", w3 = "w_moved_Ω_🎉.txt", wd = "w_dir_ü_中"
+RunAll( "wstring", w1, w2, w3, wd, "w_ñ_Ж_日本_😀.txt", "w_copy_ß_한국.txt", "w_moved_Ω_🎉.txt", "w_dir_ü_中", "w_ñ_Ж_日本_😀.txt" )
+
+'' THE OTHER WAY: a file std/fs named, found and read by the classic statements.
+Check( "fs write", fs.WriteAllText( "x_日本_😀.txt", "z" ).IsOk( ) )
+Check( "classic sees fs file", fileexists( "x_日本_😀.txt" ) <> 0 )
+dim as integer g = freefile
+Check( "classic opens fs file", open( "x_日本_😀.txt" for input as #g ) = 0 )
+close #g
+Check( "classic kills fs file", kill( "x_日本_😀.txt" ) = 0 )
+
+#ifdef __FB_WIN32__
+    '' THE ANSI FALLBACK: a byte string that is not UTF-8 -- 'é' as the single byte &hE9 of the
+    '' ANSI code page 1252 -- still names 'é', as it always has.
+    dim as string a1 = "a_" & chr( 233 ) & ".txt"
+    g = freefile
+    Check( "ansi open", open( a1 for output as #g ) = 0 )
+    close #g
+    Check( "ansi on disk", fs.IsFile( "a_é.txt" ) )
+    Check( "ansi kill", kill( a1 ) = 0 )
+#endif
+
+chdir ".."
+fs.RemoveDirAll( tmp )
+if fails = 0 then print "ok"

@@ -9,7 +9,7 @@
 '' EXPECT-OUT: fb_UStrToStr(@a, -1)
 '' EXPECT-OUT: fb_UStrToStr(@b, -1)
 '' EXPECT-OUT: call i32 fb_FileExists(%
-'' EXPECT-OUT: call.rtl i32 rename(%
+'' EXPECT-OUT: call.rtl i32 fb_hPathRename(%
 '' EXPECT-OUT: fb_StrDelete(@$tmp
 '' EXPECT-NOT: = load @a
 '' EXPECT-NOT: = load @b

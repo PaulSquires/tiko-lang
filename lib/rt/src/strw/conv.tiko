@@ -18,6 +18,15 @@
 #include once "inc/ctx.ti"
 #include once "inc/sysbind.ti"
 
+extern "c"   '' NON-FBCALL: the UTF codecs (ustr/utf.tiko), for fb_WstrAssignToAUtf8.
+	declare function tkrt_U16ToU8_ alias "fb_hUtf16ToUtf8" _
+		( byval src as uint16 ptr, byval src_units as integer, _
+		  byval dst as uint8 ptr, byval dst_bytes as integer ) as integer
+	declare function tkrt_U32ToU16_ alias "fb_hUtf32ToUtf16" _
+		( byval src as uint32 ptr, byval src_units as integer, _
+		  byval dst as uint16 ptr, byval dst_units as integer ) as integer
+end extern
+
 extern "c"   '' NON-FBCALL: fb_unicode.h declares both converters plainly.
 	declare function tkrt_ConvFromA alias "fb_wstr_ConvFromA" _
 		( byval dst as wstring ptr, byval dst_chars as integer, byval src as zstring ptr ) as integer
@@ -251,6 +260,54 @@ function tkort_WstrAssignToA alias "fb_WstrAssignToA" _
 	( byval dst as any ptr, byval dst_chars as integer, byval src as wstring ptr, _
 	  byval fill_rem as int32 ) as any ptr
 	return tkort_WstrAssignToAEx( dst, dst_chars, src, fill_rem, 0 )
+end function
+
+'' A WIDE PATH AS A NARROW ONE, IN UTF-8 -- fb_WstrAssignToA's twin for the classic file
+'' statements (lowerstrargs.tiko, WidePathTemp_). fb_WstrAssignToA goes through the ANSI code
+'' page, where '日本' or an emoji is lost before the runtime sees the path; this keeps every
+'' character, and fs/upath.tiko decodes the UTF-8 on Windows. wstring is UTF-16 on Windows and
+'' UTF-32 elsewhere. Only the var-len destination a temporary is: anything else goes the
+'' ordinary way.
+function tkort_WstrAssignToAUtf8 alias "fb_WstrAssignToAUtf8" _
+	( byval dst as any ptr, byval dst_chars as integer, byval src as wstring ptr, _
+	  byval fill_rem as int32 ) as any ptr
+
+	if( dst = nullptr ) then return dst
+	if( dst_chars <> FB_STRSIZEVARLEN ) then return tkort_WstrAssignToAEx( dst, dst_chars, src, fill_rem, 0 )
+
+	dim as FBSTRING ptr dstr = cptr( FBSTRING ptr, dst )
+	dim as integer n = 0
+	if( src <> nullptr ) then n = FB_WSTR_LEN( src )
+	if( n = 0 ) then
+		tkrt_StrDelete( dstr )
+		return dst
+	end if
+
+	#ifdef __FB_WIN32__
+		dim as uint16 ptr u16 = cptr( uint16 ptr, src )
+		dim as integer units = n
+	#else
+		dim as uint16 ptr u16 = malloc( cast( uinteger, n ) * 2 * 2 )
+		if( u16 = nullptr ) then return dst
+		dim as integer units = tkrt_U32ToU16_( cptr( uint32 ptr, src ), n, u16, n * 2 )
+	#endif
+
+	dim as integer nbytes = tkrt_U16ToU8_( u16, units, nullptr, 0 )
+	if( nbytes > 0 ) then
+		tkrt_StrRealloc( dstr, nbytes, 0 )
+		if( dstr->data <> nullptr ) then
+			tkrt_U16ToU8_( u16, units, cptr( uint8 ptr, dstr->data ), nbytes )
+			dstr->data[nbytes] = 0
+			FB_STRSETLEN( dstr, nbytes )
+		end if
+	else
+		tkrt_StrDelete( dstr )
+	end if
+
+	#ifndef __FB_WIN32__
+		free( u16 )
+	#endif
+	return dst
 end function
 
 function tkort_WstrAssignToA_Init alias "fb_WstrAssignToA_Init" _

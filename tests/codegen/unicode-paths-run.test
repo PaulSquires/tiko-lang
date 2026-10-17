@@ -1,0 +1,14 @@
+'' RUN: the classic file statements with non-ASCII names -- OPEN (output and input), FILEEXISTS,
+'' FILELEN, FILEDATETIME, DIR, FILECOPY, NAME, KILL, MKDIR, CHDIR, CURDIR, RMDIR -- given as a
+'' string, a ustring and a wstring, each checked against std/fs, which sees the name really on
+'' disk; a file std/fs made, found by the classic statements; and on Windows an ANSI byte name
+'' (the code-page fallback). A deliberate divergence from fbc, whose runtime reads the bytes as
+'' the ANSI code page: 'ñ' lands as 'Ã±' and a wstring '日本' fails. Needs the runtime of this
+'' commit, so it passes only once the toolchain is repackaged (it links the packaged libfb.a).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/unicode-paths.tiko -o tests/codegen/unicodepaths.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/unicodepaths.exe
+'' RUN: tests/codegen/unicodepaths.exe
+'' EXPECT-RUN-OUT: ok

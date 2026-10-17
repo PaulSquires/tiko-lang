@@ -49,6 +49,7 @@
 #include once "inc/iolock.ti"
 #include once "inc/rterror.ti"
 #include once "inc/sysbind.ti"
+#include once "inc/upath.ti"
 
 '' fb.h.
 const FB_FILE_BUFSIZE     = 8192
@@ -310,19 +311,19 @@ function tkort_DevFileOpen alias "fb_DevFileOpen" _
 
 	select case h->mode
 	case FB_FILE_MODE_BINARY, FB_FILE_MODE_RANDOM
-		fp = fopen( fname, openmask )
+		fp = tkrt_PathFopen( fname, openmask )
 		if( fp = nullptr ) then
 			'' r+b failed, so the file is missing. In ANY or READWRITE the
 			'' open CREATES it -- which is why `OPEN "new" FOR BINARY AS #1`
 			'' works on a file that does not exist yet.
 			if( (h->access = FB_FILE_ACCESS_ANY) orelse (h->access = FB_FILE_ACCESS_READWRITE) ) then
-				fp = fopen( fname, @"w+b" )
+				fp = tkrt_PathFopen( fname, @"w+b" )
 				'' And if even creating fails -- a read-only directory -- ANY
 				'' falls back to read-only and REWRITES access to match, so
 				'' that a later write reports the right error rather than
 				'' succeeding into nothing.
 				if( (fp = nullptr) andalso (h->access = FB_FILE_ACCESS_ANY) ) then
-					fp = fopen( fname, @"rb" )
+					fp = tkrt_PathFopen( fname, @"rb" )
 					if( fp <> nullptr ) then h->access = FB_FILE_ACCESS_READ
 				end if
 			end if
@@ -336,7 +337,7 @@ function tkort_DevFileOpen alias "fb_DevFileOpen" _
 
 	case FB_FILE_MODE_INPUT
 		'' Twice: binary to measure, text to read. See the file header.
-		fp = fopen( fname, @"rb" )
+		fp = tkrt_PathFopen( fname, @"rb" )
 		if( fp = nullptr ) then
 			if( heap_ <> nullptr ) then free( heap_ )
 			TKORT_IOUNLOCK()
@@ -352,7 +353,7 @@ function tkort_DevFileOpen alias "fb_DevFileOpen" _
 			return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 		end if
 
-		fp = freopen( fname, openmask, fp )
+		fp = tkrt_PathFreopen( fname, openmask, fp )
 		if( fp = nullptr ) then
 			if( heap_ <> nullptr ) then free( heap_ )
 			TKORT_IOUNLOCK()
@@ -363,7 +364,7 @@ function tkort_DevFileOpen alias "fb_DevFileOpen" _
 		tkort_hDevFileSeekStart( fp, FB_FILE_MODE_INPUT, h->encod, 0 )
 
 	case else
-		fp = fopen( fname, openmask )
+		fp = tkrt_PathFopen( fname, openmask )
 		if( fp = nullptr ) then
 			if( heap_ <> nullptr ) then free( heap_ )
 			TKORT_IOUNLOCK()

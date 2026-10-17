@@ -16,6 +16,7 @@
 #include once "inc/descriptors.ti"
 #include once "inc/file.ti"
 #include once "inc/sysbind.ti"
+#include once "inc/upath.ti"
 
 #ifdef ENABLE_MT
 	extern "rtlib"
@@ -256,7 +257,7 @@ extern "c"   '' NON-FBCALL: fb_file.h declares it plainly.
 '' checking ERR afterwards sees a definite answer rather than a stale one.
 function tkort_FileLenEx alias "fb_FileLenEx" ( byval filename as zstring ptr ) as int64
 
-	dim as FILE ptr fp = fopen( filename, "rb" )
+	dim as FILE ptr fp = tkrt_PathFopen( filename, @"rb" )
 	if( fp <> nullptr ) then
 		if( tkrt_fseeko( fp, 0, 2 ) = 0 ) then          '' SEEK_END
 			dim as int64 length = tkrt_ftello( fp )

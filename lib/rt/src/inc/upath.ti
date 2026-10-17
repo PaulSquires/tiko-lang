@@ -1,0 +1,22 @@
+'' upath.ti -- fs/upath.tiko's path helpers: the classic file statements' paths as Unicode on
+'' Windows (UTF-8 if valid, else the ANSI code page, then the W function); bytes elsewhere.
+#pragma once
+
+#include once "inc/sysbind.ti"
+
+extern "c"   '' NON-FBCALL, as fs/upath.tiko defines them.
+	declare function tkrt_PathFopen alias "fb_hPathFopen" _
+		( byval p as const zstring ptr, byval m as const zstring ptr ) as FILE ptr
+	declare function tkrt_PathFreopen alias "fb_hPathFreopen" _
+		( byval p as const zstring ptr, byval m as const zstring ptr, byval f as FILE ptr ) as FILE ptr
+	declare function tkrt_PathRemove alias "fb_hPathRemove" ( byval p as const zstring ptr ) as int32
+	declare function tkrt_PathRename alias "fb_hPathRename" _
+		( byval a as const zstring ptr, byval b as const zstring ptr ) as int32
+	#ifdef __FB_WIN32__
+		'' malloc'd UTF-16 -- free it; nullptr on failure.
+		declare function tkrt_PathToWide alias "fb_hPathToWide" ( byval p as const zstring ptr ) as wstring ptr
+		'' UTF-16 to UTF-8 into dst (maxlen bytes with the terminator); the length, or 0.
+		declare function tkrt_PathFromWide alias "fb_hPathFromWide" _
+			( byval w as const wstring ptr, byval dst as zstring ptr, byval maxlen as integer ) as integer
+	#endif
+end extern

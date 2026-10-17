@@ -492,6 +492,7 @@ private sub EmitWideToNarrow_ _
     '' where a later store takes fb_WstrAssignToA. Measured.
     dim as int32 which = RTL_WSTR_ASSIGN_TOA
     if isInit then which = RTL_WSTR_TOA_INIT
+    if c.pathUtf8 andalso (isInit = false) then which = RTL_WSTR_ASSIGN_TOA_UTF8   '' a path: UTF-8
     EmitRtl( c, which, args )
 end sub
 
@@ -783,7 +784,9 @@ function WideToNarrowTemp_ _
     args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, cast( uint64, -1 ) ) )
     args.Push( cast( uint32, src.kind ) ) : args.Push( cast( uint32, src.id ) )
     args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )
-    EmitRtl( c, RTL_WSTR_ASSIGN_TOA, args )
+    '' A PATH -- c.pathUtf8, set for the classic file statements -- goes as UTF-8, where the ANSI
+    '' code page would lose '日本' before the runtime saw it (lib/rt/src/fs/upath.tiko).
+    EmitRtl( c, iif( c.pathUtf8, RTL_WSTR_ASSIGN_TOA_UTF8, RTL_WSTR_ASSIGN_TOA ), args )
     '' fbc DOES delete this one -- unlike the concat temporary, which it leaves to the
     '' runtime -- so it goes on the statement's narrow temporary list.
     c.strTemps.Push( cast( uint32, slot ) )
