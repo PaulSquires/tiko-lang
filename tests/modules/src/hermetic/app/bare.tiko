@@ -1,0 +1,3 @@
+'' hp/a's header macro used bare by an importer: not a macro here.
+#import "hp/a"
+print A_SIZE

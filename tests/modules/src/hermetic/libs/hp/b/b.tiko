@@ -1,0 +1,5 @@
+#module "b"
+#include once "b.ti"
+public function Count( byref bx as BBox ) as long
+    return ubound( bx.v ) + 1
+end function

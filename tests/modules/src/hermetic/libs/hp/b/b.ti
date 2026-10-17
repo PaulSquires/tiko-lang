@@ -1,0 +1,7 @@
+'' hp/b's own header builds on hp/a's macro: read in an importer after hp/a's interface has
+'' parked A_SIZE, it must still see it.
+#pragma once
+#include once "../a/a.ti"
+type BBox
+    as long v( 0 to A_SIZE - 1 )
+end type

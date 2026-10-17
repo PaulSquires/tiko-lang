@@ -85,6 +85,8 @@ declare sub PpModMarkPublic _
     ( byref e as PpEngine, byval at as SourceLoc, byval got as FileId, byref what as string )
 declare sub PpModConsult( byref e as PpEngine, byval id as InternId )
 declare sub PpModTki( byref e as PpEngine, byval at as SourceLoc )
+declare sub PpModHermNote( byref e as PpEngine, byval from as FileId, byval got as FileId )
+declare sub PpModHermSkip( byref e as PpEngine, byval got as FileId )
 
 '' Resolution order: the INCLUDING file's directory, then the working directory, then
 '' the -i paths and the toolchain's inc/ -- fbc's order, measured (T97). The first is
@@ -186,11 +188,12 @@ private sub PpInclude( byref e as PpEngine, byval at as SourceLoc, byval once as
     next
 
     PpModNoteHeader( e, d.file, got )
+    PpModHermNote( e, d.file, got )
     if e.modst.cincPublic then PpModMarkPublic( e, at, got, "'public #include'" )
-    if PpAlreadyOnce( e, got ) then return
+    if PpAlreadyOnce( e, got ) then PpModHermSkip( e, got ) : return
     if isOnce then
         for each f as uint32 in e.allIncluded
-            if cast( FileId, f ) = got then return
+            if cast( FileId, f ) = got then PpModHermSkip( e, got ) : return
         next
         e.onceFiles.Push( cast( uint32, got ) )
     end if

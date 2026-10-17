@@ -55,6 +55,20 @@ type PpModState
     as string    tkiChain
     as string    tkiHeader
     as IdVec     tkiRestore
+    '' A MODULE'S OWN HEADERS, HERMETIC ('#tki hermetic' / '#tki park', ppmodhdr.tiko): the package
+    '' root of the region being read and the macro table's state at its start; the macros parked
+    '' at the end of every region so far -- out of the importer's sight, put back for any later
+    '' region, whose headers may build on them -- and the ones the current region put back.
+    as string    hermRoot
+    as IdVec     hermSnapDef
+    as IdVec     hermSnapLoc
+    as IdVec     parkedIds
+    as MacroVec  parkedMacs
+    as IdVec     hermRestored
+    '' ...the FileId each parked macro was defined in, and per FileId the file that first
+    '' included it: a reader that includes a header ITSELF gets the header's macros back.
+    as IdVec     parkedFile
+    as IdVec     inclParent
 end type
 
 end namespace

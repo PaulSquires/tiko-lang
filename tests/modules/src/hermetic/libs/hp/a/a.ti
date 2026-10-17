@@ -1,0 +1,7 @@
+'' hp/a's own header: a type its interface names, so it travels, and two macros.
+#pragma once
+type APoint
+    as long x, y
+end type
+#define A_SIZE 7
+#define A_TWICE( n ) ((n) * 2)

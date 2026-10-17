@@ -1,0 +1,6 @@
+#module "a"
+#include once "a.ti"
+public function Make( byval x as long ) as APoint
+    return type<APoint>( x, A_SIZE )
+end function
+#export A_TWICE

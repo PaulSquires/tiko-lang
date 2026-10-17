@@ -1,0 +1,10 @@
+'' A MODULE'S OWN HEADER MACROS ARE ITS OWN. hp/a's header travels -- its interface names
+'' APoint -- but its A_SIZE and A_TWICE stop at the interface: the importer defines both
+'' names itself (TKO0305 before), still reaches the exported one qualified, and hp/b's
+'' header, which builds on A_SIZE after hp/a's interface parked it, still sees it.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i tests/modules/src/hermetic/libs tests/modules/src/hermetic/app/main.tiko -o tests/modules/hermetic.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/hermetic.exe
+'' EXPECT-RUN-OUT:  3 7 7 10 100 0

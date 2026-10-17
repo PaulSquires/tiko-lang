@@ -435,6 +435,11 @@ A module's macros are its own unless it exports them by name, after defining the
   does not declare — `items`, the macro's argument — are left as the caller wrote them.
 - `__FILE__` and `__LINE__` expand where the macro is used, as they always do. And `#cond`
   shows the argument after expansion, so `check.MAX_ITEMS` appears as `10`.
+- **The module's own headers keep their macros too.** When a public declaration names a type
+  from one of the module's headers, your program reads that header to get the type, but the
+  header's macros stop there. A module that wants a header shared whole, macros and all, says
+  `public #include`. Headers from outside the package, such as `windows.bi`, are read as if you had
+  included them yourself.
 
 ### Exporting a generic
 

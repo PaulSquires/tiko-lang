@@ -1,0 +1,5 @@
+'' A module's own header macro, used bare by an importer: not a macro there (it was 7 before).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i tests/modules/src/hermetic/libs tests/modules/src/hermetic/app/bare.tiko -o build/.hermbare.exe
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0743: 'a_size' is not declared

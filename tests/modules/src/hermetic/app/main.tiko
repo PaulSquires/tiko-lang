@@ -1,0 +1,9 @@
+'' The importer defines the two names hp/a's header defines -- its own, not captured -- and
+'' still gets hp/a's exported macro qualified, and hp/b's type sized by hp/a's macro.
+#import "hp/a"
+#import "hp/b"
+#define A_SIZE 100
+#define A_TWICE( n ) 0
+dim as APoint p = a.Make( 3 )
+dim as BBox bx
+print p.x; p.y; b.Count( bx ); a.A_TWICE( 5 ); A_SIZE; A_TWICE( 5 )

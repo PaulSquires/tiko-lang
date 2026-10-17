@@ -215,6 +215,123 @@ private function PpModTkiString_( byref e as PpEngine ) as string
     return mid( s, a + 1, b - a - 1 )
 end function
 
+'' THE FILE A MACRO WAS DEFINED IN, lower case with forward slashes; "" for none.
+private function PpModMacroPath_( byref e as PpEngine, byref m as PpMacro ) as string
+    if m.loc = LOC_NONE then return ""
+    dim as FileId f = e.src->Decode( m.loc ).file
+    if f = FILE_NONE then return ""
+    dim as string p = Text.LowerAscii( e.src->AbsPathOf( f ) )
+    for i as int32 = 0 to len( p ) - 1
+        if p[i] = 92 then p[i] = 47
+    next
+    return p
+end function
+
+'' '#tki hermetic "<package root>"': A MODULE'S OWN HEADER FOLLOWS (tkiemit.tiko). The macros
+'' earlier regions parked come back first -- this header may build on them, as com.ti does on
+'' win.ti -- unless the reader has defined the name again meanwhile, and the table is noted.
+private sub PpModHermStart_( byref e as PpEngine )
+    e.modst.hermRestored.Clear( )
+    for k as int32 = 0 to e.modst.parkedIds.Count - 1
+        dim as InternId id = cast( InternId, e.modst.parkedIds[k] )
+        if MacroFor( e, id ) <> nullptr then continue for
+        dim as int32 slot = SlotOf( e, id )
+        if slot = 0 then continue for
+        e.macros[slot - 1] = e.modst.parkedMacs[k]
+        e.modst.hermRestored.Push( cast( uint32, id ) )
+    next
+    e.modst.hermSnapDef.Clear( )
+    e.modst.hermSnapLoc.Clear( )
+    for i as int32 = 0 to e.macros.Count - 1
+        dim as uint32 d = 0
+        if e.macros[i].isDefined then d = 1
+        e.modst.hermSnapDef.Push( d )
+        e.modst.hermSnapLoc.Push( cast( uint32, e.macros[i].loc ) )
+    next
+end sub
+
+private sub PpModHermPark1_( byref e as PpEngine, byval i as int32 )
+    dim as PpMacro ptr m = @e.macros[i]
+    dim as uint32 id = cast( uint32, m->name )
+    dim as int32 at_ = -1
+    for k as int32 = 0 to e.modst.parkedIds.Count - 1
+        if e.modst.parkedIds[k] = id then at_ = k : exit for
+    next
+    dim as uint32 df = 0
+    if m->loc <> LOC_NONE then df = cast( uint32, e.src->Decode( m->loc ).file )
+    if at_ < 0 then
+        e.modst.parkedIds.Push( id )
+        e.modst.parkedMacs.Push( *m )
+        e.modst.parkedFile.Push( df )
+    else
+        e.modst.parkedMacs[at_] = *m
+        e.modst.parkedFile[at_] = df
+    end if
+    m->isDefined = false
+    FreeTakenName_( e, m->name )
+end sub
+
+'' '#tki park': THE REGION HAS ENDED. Every macro it defined, or defined again, in a file under
+'' the package root is parked, and so is every one it put back: the reader's own code never
+'' sees them, and may define the names itself. A header from inc/ or an -i directory -- the
+'' system headers, windows.bi -- keeps its macros, as a header the reader includes itself would.
+private sub PpModHermPark_( byref e as PpEngine )
+    dim as string root = Text.LowerAscii( e.modst.hermRoot )
+    if (len( root ) > 0) andalso (right( root, 1 ) <> "/") then root &= "/"
+    for i as int32 = 0 to e.macros.Count - 1
+        if len( root ) = 0 then exit for
+        dim as PpMacro ptr m = @e.macros[i]
+        if m->isDefined = false then continue for
+        if m->builtin <> 0 then continue for
+        dim as boolean fresh = (i >= e.modst.hermSnapDef.Count)
+        if fresh = false then
+            fresh = (e.modst.hermSnapDef[i] = 0) orelse (e.modst.hermSnapLoc[i] <> cast( uint32, m->loc ))
+        end if
+        if fresh = false then continue for
+        if left( PpModMacroPath_( e, *m ), len( root ) ) <> root then continue for
+        PpModHermPark1_( e, i )
+    next
+    for each r as uint32 in e.modst.hermRestored
+        dim as int32 slot = SlotOf( e, cast( InternId, r ) )
+        if slot = 0 then continue for
+        if e.macros[slot - 1].isDefined then PpModHermPark1_( e, slot - 1 )
+    next
+    e.modst.hermRestored.Clear( )
+    e.modst.hermRoot = ""
+end sub
+
+'' THE FILE THAT FIRST INCLUDED got, for PpModHermSkip's subtree walk.
+sub PpModHermNote( byref e as PpEngine, byval from as FileId, byval got as FileId )
+    dim as int32 g = cast( int32, got )
+    if g <= 0 then return
+    while e.modst.inclParent.Count <= g
+        e.modst.inclParent.Push( 0 )
+    wend
+    if e.modst.inclParent[g] = 0 then e.modst.inclParent[g] = cast( uint32, from )
+end sub
+
+'' AN '#include' THE once RULE SKIPS: the header was read already, perhaps in a module's
+'' interface, whose region parked its macros. The reader that includes it itself gets them
+'' back -- every parked macro defined in that header or in a file it included -- unless it
+'' has defined the name again meanwhile.
+sub PpModHermSkip( byref e as PpEngine, byval got as FileId )
+    for k as int32 = 0 to e.modst.parkedIds.Count - 1
+        dim as InternId id = cast( InternId, e.modst.parkedIds[k] )
+        if MacroFor( e, id ) <> nullptr then continue for
+        dim as uint32 f = e.modst.parkedFile[k]
+        dim as int32 hops = 0
+        while (f <> 0) andalso (f <> cast( uint32, got )) andalso (hops < 64)
+            if cast( int32, f ) >= e.modst.inclParent.Count then f = 0 : exit while
+            f = e.modst.inclParent[cast( int32, f )]
+            hops += 1
+        wend
+        if f <> cast( uint32, got ) then continue for
+        dim as int32 slot = SlotOf( e, id )
+        if slot = 0 then continue for
+        e.macros[slot - 1] = e.modst.parkedMacs[k]
+    next
+end sub
+
 '' '#tki ...', which only an interface writes. Anywhere else it is an unknown directive.
 sub PpModTki( byref e as PpEngine, byval at as SourceLoc )
     dim as boolean inIface = (e.frames.Count > 0)
@@ -273,6 +390,11 @@ sub PpModTki( byref e as PpEngine, byval at as SourceLoc )
             PpModTkiDiffers_( e, e.names->Spelling( id ), PpModTkiState_( e, @e.macros[slot - 1] ), there )
         end if
         return
+    case "hermetic"
+        e.modst.hermRoot = PpModTkiString_( e )
+        PpModHermStart_( e )
+    case "park"
+        PpModHermPark_( e )
     case "end"
         for each r as uint32 in e.modst.tkiRestore
             dim as PpMacro ptr m = MacroFor( e, cast( InternId, r ) )

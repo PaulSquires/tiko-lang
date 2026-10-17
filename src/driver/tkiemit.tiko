@@ -21,6 +21,7 @@
 
 #import "std/containers"
 #include once "driver/tkiemit.ti"
+#include once "driver/modresolve.ti"
 #include once "pp/pp.ti"
 #include once "symbols/mangle.ti"
 #include once "symbols/modsym.ti"
@@ -885,14 +886,34 @@ private function RequiredHeaders_ _
     for each c as string in used
         w.uses &= "'' uses " & c & !"\n"
     next
+    '' A MODULE'S OWN HEADERS ARE HERMETIC (book ch14: importing a module never captures a name of
+    '' yours). One under the module's package root that travels because the interface names
+    '' something from it is read in the importer between '#tki hermetic' and '#tki park', and the
+    '' macros its subtree defines there reach no further than the interfaces (ppmodhdr.tiko). A
+    '' 'public #include' travels whole, macros and all: that is what it asks for.
+    dim as containers.Array( of uint8 ) isPub
+    for k as int32 = 0 to headers.Count - 1
+        isPub.Push( 0 )
+    next
+    if pr <> nullptr then
+        for each r as uint32 in pr->modHdrPublic
+            if r < cast( uint32, isPub.Count ) then isPub[r] = 1
+        next
+    end if
+    dim as string root = ""
+    if len( w.ctx->modPkgRoot ) > 0 then root = Tko.Text.LowerAscii( AbsPath( w.ctx->modPkgRoot ) )
+    if (len( root ) > 0) andalso (right( root, 1 ) <> "/") then root &= "/"
     dim as string res = ""
     for k as int32 = 0 to headers.Count - 1
         if need[k] = 0 then continue for
+        dim as boolean herm = (len( root ) > 0) andalso (isPub[k] = 0)
+        if herm then herm = (left( Tko.Text.LowerAscii( AbsPath( headers[k] ) ), len( root ) ) = root)
         '' A PUBLIC HEADER THE INTERFACE ITSELF NAMES NOTHING FROM is marked: an importer reads
         '' it only for a module it imported, or reached through 'public', or one an interface
         '' it reads uses (modiface.tiko). Otherwise its names would reach every program above.
         dim as boolean pubOnly = (byName[k] = 0)
         if pubOnly then res &= "'' tki-pub" & !"\n"
+        if herm then res &= "#tki hermetic """ & root & """" & !"\n"
         '' A PUBLIC HEADER'S CONSULTED MACROS go round it, for the importer to hold its own
         '' against (src/pp/ppmodhdr.tiko; RFC-0002 V12).
         dim as string req = ""
@@ -911,6 +932,7 @@ private function RequiredHeaders_ _
         end if
         res &= "#include once """ & headers[k] & """" & !"\n"
         if len( req ) > 0 then res &= "#tki end" & !"\n"
+        if herm then res &= "#tki park" & !"\n"
         if pubOnly then res &= "'' tki-pub-end" & !"\n"
     next
     return res
