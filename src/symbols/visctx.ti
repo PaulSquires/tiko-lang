@@ -40,4 +40,7 @@ type Ctx
     '' AssertLayouts_ (assertlayout.tiko), since the layout pass proper runs after this one.
     as UdtLayouts            udts
     as boolean               udtsBuilt
+    '' For Check.ConstOf, which reads literals' text: nullptr from a caller that has no
+    '' sources, and the checks that fold a constant then stay silent.
+    as SourceManager ptr     srcMgr
 end type

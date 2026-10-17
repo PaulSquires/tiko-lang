@@ -420,6 +420,130 @@ private sub CaseValueKind_ _
     c.diags->Report( TKO0714, PointRange( c.ast->Loc( v ) ) )
 end sub
 
+'' A CASE VALUE THE SUBJECT CANNOT HOLD, under AS CONST -- fbc's warning 25, "Overflow in
+'' constant conversion": the value is converted to the subject's type to index the table.
+'' A plain SELECT compares in the promoted type and fbc says nothing there. Measured, over
+'' forty probes:
+''
+''     ubyte / case 300, case -1, case 250 to 300        warning (one per bound out)
+''     byte  / case 127, 128, 129                        two warnings, one line
+''     long  / case 2147483648, &hFFFFFFFF               warning
+''     ulong / case -1         ulongint / case -1        warning
+''     integer, longint / case &hFFFFFFFFFFFFFFFF        none: fbc types that literal
+''                                                       INTEGER, value -1
+''     integer / case 18446744073709551615ull            warning: ULONGINT, 2^64 - 1
+''     boolean / case 1, case 2                          warning; case -1, case 0 none
+''     an ENUM subject, a FLOAT case value               never
+''
+'' so the rule is the value READ IN ITS OWN TYPE against the subject type's range.
+private sub CaseValueRange_ _
+    ( byref c as Ctx, byval v as NodeId, byval lo as int64, byval hi as int64, _
+      byval subjUns64 as boolean, byref subjName as string )
+
+    if (v = NODE_NONE) orelse (c.srcMgr = nullptr) then return
+    dim as TypeId vt = c.info->TypeOf_( v )
+    if vt = TYPE_NONE then return
+    dim as TypeId vu = c.types->Unqualify( vt )
+    if c.types->Kind( vu ) <> TK_BUILTIN then return
+    dim as boolean vUns = false
+    select case c.types->BuiltinOf( vu )
+    case TY_UBYTE, TY_USHORT, TY_ULONG, TY_UINTEGER, TY_ULONGINT
+        vUns = true
+    case TY_BYTE, TY_SHORT, TY_LONG, TY_INTEGER, TY_LONGINT, TY_BOOLEAN
+    case else
+        return                                      '' a float or a string: not this
+    end select
+    dim as ScopeId sc = c.info->ScopeOf( v )
+    dim as Check.ConstVal cv = Check.ConstOf( _
+        *c.ast, v, *c.srcMgr, *c.names, c.types->target.pointerBits, c.syms, sc )
+    if cv.known = false then return
+    dim as int64 x = cv.value
+    '' A NEGATIVE BIT PATTERN OF AN UNSIGNED VALUE is 2^63 or more: it fits only a 64-bit
+    '' unsigned subject, and no signed one. ...EXCEPT A NEGATION, which fbc types INTEGER
+    '' whatever it negates: '-2147483648' is INTEGER -2147483648 and fits a long, where
+    '' tiko types it after its UINTEGER operand.
+    dim as NodeId bare = v
+    while c.ast->Kind( bare ) = N_PAREN
+        dim as ListPayload ptr pp = _
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, bare )].data )]
+        if pp->count < 1 then exit while
+        bare = cast( NodeId, c.ast->children[pp->first] )
+    wend
+    if c.ast->Kind( bare ) = N_UNARY then
+        dim as UnaryPayload ptr up = _
+            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, bare )].data )]
+        if cast( TokenKind, up->op ) = TK_MINUS then vUns = false : cv.uns = false
+    end if
+    dim as boolean big = (vUns orelse cv.uns) andalso (x < 0)
+    dim as boolean fits
+    if big then
+        fits = subjUns64
+    elseif subjUns64 then
+        fits = (x >= 0)
+    else
+        fits = (x >= lo) andalso (x <= hi)
+    end if
+    if fits then return
+    dim as string shown = iif( big, str( cast( ulongint, x ) ), str( x ) )
+    c.diags->Report( TKO0979, PointRange( c.ast->Loc( v ) ), shown, subjName )
+end sub
+
+'' The subject type's range, then every case value against it.
+private sub CheckSelectConstRange_ _
+    ( byref c as Ctx, byval sp as StmtPayload ptr, byval su as TypeId, byref subjName as string )
+
+    dim as int64 lo = 0, hi = 0
+    dim as boolean uns64 = false
+    dim as boolean wide = (c.types->target.pointerBits = 64)
+    select case c.types->BuiltinOf( su )
+    case TY_BYTE           : lo = -128 : hi = 127
+    case TY_UBYTE, TY_ZSTRING : lo = 0 : hi = 255
+    case TY_SHORT          : lo = -32768 : hi = 32767
+    case TY_USHORT         : lo = 0 : hi = 65535
+    case TY_LONG           : lo = -2147483648ll : hi = 2147483647ll
+    case TY_ULONG          : lo = 0 : hi = 4294967295ll
+    case TY_BOOLEAN        : lo = -1 : hi = 0
+    case TY_INTEGER
+        if wide then
+            lo = -9223372036854775807ll - 1 : hi = 9223372036854775807ll
+        else
+            lo = -2147483648ll : hi = 2147483647ll
+        end if
+    case TY_UINTEGER
+        if wide then
+            uns64 = true
+        else
+            lo = 0 : hi = 4294967295ll
+        end if
+    case TY_LONGINT        : lo = -9223372036854775807ll - 1 : hi = 9223372036854775807ll
+    case TY_ULONGINT       : uns64 = true
+    case else
+        return
+    end select
+
+    dim as ListPayload ptr lp = _
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, sp->b )].data )]
+    for i as int32 = 0 to lp->count - 1
+        dim as NodeId cs = cast( NodeId, c.ast->children[lp->first + i] )
+        if c.ast->Kind( cs ) <> N_CASE then continue for
+        dim as StmtPayload ptr csp = _
+            @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, cs )].data )]
+        for j as int32 = 0 to csp->count - 1
+            dim as NodeId pn = cast( NodeId, c.ast->children[csp->first + j] )
+            if pn = NODE_NONE then continue for
+            if c.ast->Kind( pn ) = N_CASE_RANGE then
+                dim as StmtPayload ptr rp = _
+                    @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
+                if cast( TokenKind, rp->op ) <> 0 then continue for   '' 'case is': TKO0419
+                CaseValueRange_( c, rp->a, lo, hi, uns64, subjName )
+                CaseValueRange_( c, rp->b, lo, hi, uns64, subjName )
+            else
+                CaseValueRange_( c, pn, lo, hi, uns64, subjName )
+            end if
+        next
+    next
+end sub
+
 private sub CheckSelectCaseKinds_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
@@ -445,6 +569,15 @@ private sub CheckSelectCaseKinds_ ( byref c as Ctx, byval id as NodeId )
         return
     end if
     if c.types->Kind( su ) <> TK_BUILTIN then return
+    if cast( TokenKind, sp->op ) = KW_CONST then
+        '' A CHARACTER THROUGH A POINTER is its code: a ubyte for a zstring. A wide one is
+        '' left alone -- its width is the target's.
+        if CharAccess_( c, sp->a, su ) = false then
+            CheckSelectConstRange_( c, sp, su, c.types->Name( su ) )
+        elseif c.types->BuiltinOf( su ) = TY_ZSTRING then
+            CheckSelectConstRange_( c, sp, su, "ubyte" )
+        end if
+    end if
     if CharAccess_( c, sp->a, su ) then return
     '' AS CONST OVER A FLOAT is fbc's 24 at the SELECT itself, measured over 'double' and
     '' 'single': a table cannot be indexed by one. tiko compiled it as a plain SELECT.

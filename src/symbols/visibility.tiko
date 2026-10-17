@@ -1440,9 +1440,11 @@ end sub
 sub Run _
     ( byref ast as AstArena, byval root as NodeId, byref syms as SymbolTable, _
       byref types as TypeContext, byref names as Interner, _
-      byref diags as DiagnosticEngine, byref info as SemanticInfo )
+      byref diags as DiagnosticEngine, byref info as SemanticInfo, _
+      byval src as SourceManager ptr )
 
     dim as Ctx c
+    c.srcMgr = src
     VisRunGen_( true )
     c.ast = @ast
     c.syms = @syms

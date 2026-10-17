@@ -379,7 +379,7 @@ function CompileUnit _
         tPh = timer
         '' AFTER Check: a member access needs its symbol, and only Check binds
         '' one -- a field means nothing until its base has a type.
-        Tko.Vis.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, info )
+        Tko.Vis.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, info, @ctx.sources )
         '' A MODULE'S PUBLIC DECLARATIONS NAME ONLY WHAT AN IMPORTER CAN (TKO0868).
         if ctx.modFileCount > 0 then Tko.ModSym.CheckPublicTypes( syms, ctx.types, ctx.diags )
         dim as Tko.Mir.MirModule mm

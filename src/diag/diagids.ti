@@ -868,6 +868,9 @@
     '' fbc's error 24, "Invalid data types": AS CONST indexes a table by its subject, so the
     '' subject is an integer -- symbols/proccheck.tiko CheckSelectCaseKinds_.
     DIAG( TKO0978, SEV_ERROR,   "'select case as const' needs an integer subject, and this is a '%0'" )
+    '' fbc's warning 25, "Overflow in constant conversion", which fbc gives over a case value
+    '' only under AS CONST -- symbols/proccheck.tiko CaseValueRange_.
+    DIAG( TKO0979, SEV_WARNING, "overflow in constant conversion: the case value %0 does not fit in a '%1'" )
     DIAG( TKO0965, SEV_ERROR,   "'%0' has a field with a constructor, which an initializer list cannot fill" )
     DIAG( TKO0955, SEV_ERROR,   "'end %0' closes no '%0' block" )
     DIAG( TKO0956, SEV_ERROR,   "a second 'case else' -- a select has one, and it comes last" )

@@ -1,0 +1,25 @@
+'' Under 'select case as const', a case value the subject's type cannot hold is TKO0979 --
+'' fbc's warning 25, "Overflow in constant conversion": per value and per range bound, the
+'' value read in its own type. A plain SELECT, an enum subject and values that fit are
+'' quiet. Same eleven warnings on the same lines as fbc-modern 1.20.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/select-const-range.bas -o tests/diagnostics/src/select-const-range.o
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: select-const-range.bas(18,32): warning TKO0979
+'' EXPECT-OUT: select-const-range.bas(19,32): warning TKO0979
+'' EXPECT-OUT: select-const-range.bas(20,39): warning TKO0979
+'' EXPECT-OUT: select-const-range.bas(21,37): warning TKO0979
+'' EXPECT-OUT: select-const-range.bas(21,42): warning TKO0979
+'' EXPECT-OUT: select-const-range.bas(22,32): warning TKO0979
+'' EXPECT-OUT: select-const-range.bas(23,32): warning TKO0979
+'' EXPECT-OUT: select-const-range.bas(24,33): warning TKO0979
+'' EXPECT-OUT: select-const-range.bas(25,34): warning TKO0979
+'' EXPECT-OUT: select-const-range.bas(26,32): warning TKO0979
+'' EXPECT-OUT: select-const-range.bas(27,36): warning TKO0979
+'' EXPECT-NOT: select-const-range.bas(30,
+'' EXPECT-NOT: select-const-range.bas(31,
+'' EXPECT-NOT: select-const-range.bas(32,
+'' EXPECT-NOT: select-const-range.bas(33,
+'' EXPECT-NOT: select-const-range.bas(34,
+'' EXPECT-NOT: select-const-range.bas(35,
+'' EXPECT-NOT: select-const-range.bas(36,
