@@ -217,8 +217,10 @@ Reference pages for each are in the [Feature Index](wiki/Feature-Index.md).
 
 ## Getting started
 
-tiko is **pre-1.0** (`0.1.0-dev`), and there are no binary releases yet. To build a toolchain
-for the machine you are on, run this from Git Bash on Windows, or from Linux:
+tiko is **pre-1.0** (`0.1.0-dev`). Prebuilt toolchains for Windows and Linux x86-64 are on the
+[Releases](https://github.com/PaulSquires/tiko-lang/releases) page: unpack one anywhere. To
+build a toolchain yourself for the machine you are on, run this from Git Bash on
+Windows, or from Linux:
 
 ```bash
 sh seed/fetch-seed.sh
@@ -249,7 +251,7 @@ Source files are `.tiko` and headers are `.ti`. `tiko --help` lists every option
   on Windows and on Linux (2026-09-21).
 - **Tested.** 1,058 suite tests pass (2026-09-24). Behaviour is checked differentially: 2,000
   fuzz-generated programs print the same output as under the reference implementation.
-- **Not there yet:** macOS and ARM64 targets, binary releases and installers, a package
+- **Not there yet:** macOS and ARM64 targets, installers, a package
   manager, and CodeView debug info. Graphics links on Windows only.
 
 ## Coming from FreeBASIC
