@@ -248,8 +248,8 @@ Source files are `.tiko` and headers are `.ti`. `tiko --help` lists every option
 ## Status
 
 - **Self-hosting.** Built by itself twice, the compiler is byte-identical at `-O0` and `-O2`,
-  on Windows and on Linux (2026-09-21).
-- **Tested.** 1,058 suite tests pass (2026-09-24). Behaviour is checked differentially: 2,000
+  on Windows and on Linux.
+- **Tested.** 1,058 suite tests pass. Behaviour is checked differentially: 2,000
   fuzz-generated programs print the same output as under the reference implementation.
 - **Not there yet:** macOS and ARM64 targets, installers, a package
   manager, and CodeView debug info. Graphics links on Windows only.
