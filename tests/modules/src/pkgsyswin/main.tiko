@@ -1,0 +1,11 @@
+'' sys/win through #import: sys/win with 'using', gdiplus qualified, and gui's CWindow --
+'' the largest module, and the one that imports the other two.
+#import "sys/win"
+#import "sys/win/gdiplus"
+#import "sys/win/gui"
+using win
+
+print tkUcase( "tiko" ); " "; tkLcase( "LANG" )
+print hex( gdiplus.GDIP_ARGB( &hFF, 1, 2, 3 ) )
+dim as gui.CWindow w
+print "ok"

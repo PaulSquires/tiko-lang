@@ -1,4 +1,4 @@
-tiko's package library -- pkg/ (std, db, sys, tkl)
+tiko's package library -- pkg/ (std, sys)
 Copyright (C) 2026 Paul Squires
 
 This library is free software; you can redistribute it and/or modify

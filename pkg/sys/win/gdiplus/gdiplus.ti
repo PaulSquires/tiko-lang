@@ -1,0 +1,1395 @@
+' sys/win/gdiplus (pkg/sys): every header the module's files include, and the
+' macros more than one of its files uses.
+#pragma once
+#include once "windows.bi"
+#include once "../colors.ti"
+
+#include once "crt/stddef.bi"
+#include once "crt/math.bi"
+#include once "win/windef.bi"
+#include once "win/wingdi.bi"
+#include once "win/basetyps.bi"
+#include once "win/ddraw.bi"
+
+PUBLIC type BrushType as long
+PUBLIC enum
+	BrushTypeSolidColor = 0
+	BrushTypeHatchFill = 1
+	BrushTypeTextureFill = 2
+	BrushTypePathGradient = 3
+	BrushTypeLinearGradient = 4
+end enum
+
+PUBLIC type CombineMode as long
+PUBLIC enum
+	CombineModeReplace = 0
+	CombineModeIntersect = 1
+	CombineModeUnion = 2
+	CombineModeXor = 3
+	CombineModeExclude = 4
+	CombineModeComplement = 5
+end enum
+
+PUBLIC type CompositingMode as long
+PUBLIC enum
+	CompositingModeSourceOver = 0
+	CompositingModeSourceCopy = 1
+end enum
+
+PUBLIC type CompositingQuality as long
+PUBLIC enum
+	CompositingQualityDefault = 0
+	CompositingQualityHighSpeed = 1
+	CompositingQualityHighQuality = 2
+	CompositingQualityGammaCorrected = 3
+	CompositingQualityAssumeLinear = 4
+end enum
+
+PUBLIC type CoordinateSpace as long
+PUBLIC enum
+	CoordinateSpaceWorld = 0
+	CoordinateSpacePage = 1
+	CoordinateSpaceDevice = 2
+end enum
+
+PUBLIC type CustomLineCapType as long
+PUBLIC enum
+	CustomLineCapTypeDefault = 0
+	CustomLineCapTypeAdjustableArrow = 1
+end enum
+
+
+PUBLIC type DashCap as long
+PUBLIC enum
+	DashCapFlat = 0
+	DashCapRound = 2
+	DashCapTriangle = 3
+end enum
+
+PUBLIC type DashStyle as long
+PUBLIC enum
+	DashStyleSolid = 0
+	DashStyleDash = 1
+	DashStyleDot = 2
+	DashStyleDashDot = 3
+	DashStyleDashDotDot = 4
+	DashStyleCustom = 5
+end enum
+
+PUBLIC type DitherType as long
+PUBLIC enum
+	DitherTypeNone = 0
+	DitherTypeSolid = 1
+	DitherTypeOrdered4x4 = 2
+	DitherTypeOrdered8x8 = 3
+	DitherTypeOrdered16x16 = 4
+	DitherTypeOrdered91x91 = 5
+	DitherTypeSpiral4x4 = 6
+	DitherTypeSpiral8x8 = 7
+	DitherTypeDualSpiral4x4 = 8
+	DitherTypeDualSpiral8x8 = 9
+	DitherTypeErrorDiffusion = 10
+end enum
+
+PUBLIC type DriverStringOptions as long
+PUBLIC enum
+	DriverStringOptionsCmapLookup = 1
+	DriverStringOptionsVertical = 2
+	DriverStringOptionsRealizedAdvance = 4
+	DriverStringOptionsLimitSubpixel = 8
+end enum
+
+PUBLIC type EmfPlusRecordType as long
+PUBLIC enum
+	WmfRecordTypeSetBkColor = &h0201 or &h10000
+	WmfRecordTypeSetBkMode = &h0102 or &h10000
+	WmfRecordTypeSetMapMode = &h0103 or &h10000
+	WmfRecordTypeSetROP2 = &h0104 or &h10000
+	WmfRecordTypeSetRelAbs = &h0105 or &h10000
+	WmfRecordTypeSetPolyFillMode = &h0106 or &h10000
+	WmfRecordTypeSetStretchBltMode = &h0107 or &h10000
+	WmfRecordTypeSetTextCharExtra = &h0108 or &h10000
+	WmfRecordTypeSetTextColor = &h0209 or &h10000
+	WmfRecordTypeSetTextJustification = &h020A or &h10000
+	WmfRecordTypeSetWindowOrg = &h020B or &h10000
+	WmfRecordTypeSetWindowExt = &h020C or &h10000
+	WmfRecordTypeSetViewportOrg = &h020D or &h10000
+	WmfRecordTypeSetViewportExt = &h020E or &h10000
+	WmfRecordTypeOffsetWindowOrg = &h020F or &h10000
+	WmfRecordTypeScaleWindowExt = &h0410 or &h10000
+	WmfRecordTypeOffsetViewportOrg = &h0211 or &h10000
+	WmfRecordTypeScaleViewportExt = &h0412 or &h10000
+	WmfRecordTypeLineTo = &h0213 or &h10000
+	WmfRecordTypeMoveTo = &h0214 or &h10000
+	WmfRecordTypeExcludeClipRect = &h0415 or &h10000
+	WmfRecordTypeIntersectClipRect = &h0416 or &h10000
+	WmfRecordTypeArc = &h0817 or &h10000
+	WmfRecordTypeEllipse = &h0418 or &h10000
+	WmfRecordTypeFloodFill = &h0419 or &h10000
+	WmfRecordTypePie = &h081A or &h10000
+	WmfRecordTypeRectangle = &h041B or &h10000
+	WmfRecordTypeRoundRect = &h061C or &h10000
+	WmfRecordTypePatBlt = &h061D or &h10000
+	WmfRecordTypeSaveDC = &h001E or &h10000
+	WmfRecordTypeSetPixel = &h041F or &h10000
+	WmfRecordTypeOffsetClipRgn = &h0220 or &h10000
+	WmfRecordTypeTextOut = &h0521 or &h10000
+	WmfRecordTypeBitBlt = &h0922 or &h10000
+	WmfRecordTypeStretchBlt = &h0B23 or &h10000
+	WmfRecordTypePolygon = &h0324 or &h10000
+	WmfRecordTypePolyline = &h0325 or &h10000
+	WmfRecordTypeEscape = &h0626 or &h10000
+	WmfRecordTypeRestoreDC = &h0127 or &h10000
+	WmfRecordTypeFillRegion = &h0228 or &h10000
+	WmfRecordTypeFrameRegion = &h0429 or &h10000
+	WmfRecordTypeInvertRegion = &h012A or &h10000
+	WmfRecordTypePaintRegion = &h012B or &h10000
+	WmfRecordTypeSelectClipRegion = &h012C or &h10000
+	WmfRecordTypeSelectObject = &h012D or &h10000
+	WmfRecordTypeSetTextAlign = &h012E or &h10000
+	WmfRecordTypeDrawText = &h062F or &h10000
+	WmfRecordTypeChord = &h0830 or &h10000
+	WmfRecordTypeSetMapperFlags = &h0231 or &h10000
+	WmfRecordTypeExtTextOut = &h0a32 or &h10000
+	WmfRecordTypeSetDIBToDev = &h0d33 or &h10000
+	WmfRecordTypeSelectPalette = &h0234 or &h10000
+	WmfRecordTypeRealizePalette = &h0035 or &h10000
+	WmfRecordTypeAnimatePalette = &h0436 or &h10000
+	WmfRecordTypeSetPalEntries = &h0037 or &h10000
+	WmfRecordTypePolyPolygon = &h0538 or &h10000
+	WmfRecordTypeResizePalette = &h0139 or &h10000
+	WmfRecordTypeDIBBitBlt = &h0940 or &h10000
+	WmfRecordTypeDIBStretchBlt = &h0b41 or &h10000
+	WmfRecordTypeDIBCreatePatternBrush = &h0142 or &h10000
+	WmfRecordTypeStretchDIB = &h0f43 or &h10000
+	WmfRecordTypeExtFloodFill = &h0548 or &h10000
+	WmfRecordTypeSetLayout = &h0149 or &h10000
+	WmfRecordTypeResetDC = &h014C or &h10000
+	WmfRecordTypeStartDoc = &h014D or &h10000
+	WmfRecordTypeStartPage = &h004F or &h10000
+	WmfRecordTypeEndPage = &h0050 or &h10000
+	WmfRecordTypeAbortDoc = &h0052 or &h10000
+	WmfRecordTypeEndDoc = &h005E or &h10000
+	WmfRecordTypeDeleteObject = &h01f0 or &h10000
+	WmfRecordTypeCreatePalette = &h00f7 or &h10000
+	WmfRecordTypeCreateBrush = &h00F8 or &h10000
+	WmfRecordTypeCreatePatternBrush = &h01F9 or &h10000
+	WmfRecordTypeCreatePenIndirect = &h02FA or &h10000
+	WmfRecordTypeCreateFontIndirect = &h02FB or &h10000
+	WmfRecordTypeCreateBrushIndirect = &h02FC or &h10000
+	WmfRecordTypeCreateBitmapIndirect = &h02FD or &h10000
+	WmfRecordTypeCreateBitmap = &h06FE or &h10000
+	WmfRecordTypeCreateRegion = &h06FF or &h10000
+	EmfRecordTypeHeader = 1
+	EmfRecordTypePolyBezier = 2
+	EmfRecordTypePolygon = 3
+	EmfRecordTypePolyline = 4
+	EmfRecordTypePolyBezierTo = 5
+	EmfRecordTypePolyLineTo = 6
+	EmfRecordTypePolyPolyline = 7
+	EmfRecordTypePolyPolygon = 8
+	EmfRecordTypeSetWindowExtEx = 9
+	EmfRecordTypeSetWindowOrgEx = 10
+	EmfRecordTypeSetViewportExtEx = 11
+	EmfRecordTypeSetViewportOrgEx = 12
+	EmfRecordTypeSetBrushOrgEx = 13
+	EmfRecordTypeEOF = 14
+	EmfRecordTypeSetPixelV = 15
+	EmfRecordTypeSetMapperFlags = 16
+	EmfRecordTypeSetMapMode = 17
+	EmfRecordTypeSetBkMode = 18
+	EmfRecordTypeSetPolyFillMode = 19
+	EmfRecordTypeSetROP2 = 20
+	EmfRecordTypeSetStretchBltMode = 21
+	EmfRecordTypeSetTextAlign = 22
+	EmfRecordTypeSetColorAdjustment = 23
+	EmfRecordTypeSetTextColor = 24
+	EmfRecordTypeSetBkColor = 25
+	EmfRecordTypeOffsetClipRgn = 26
+	EmfRecordTypeMoveToEx = 27
+	EmfRecordTypeSetMetaRgn = 28
+	EmfRecordTypeExcludeClipRect = 29
+	EmfRecordTypeIntersectClipRect = 30
+	EmfRecordTypeScaleViewportExtEx = 31
+	EmfRecordTypeScaleWindowExtEx = 32
+	EmfRecordTypeSaveDC = 33
+	EmfRecordTypeRestoreDC = 34
+	EmfRecordTypeSetWorldTransform = 35
+	EmfRecordTypeModifyWorldTransform = 36
+	EmfRecordTypeSelectObject = 37
+	EmfRecordTypeCreatePen = 38
+	EmfRecordTypeCreateBrushIndirect = 39
+	EmfRecordTypeDeleteObject = 40
+	EmfRecordTypeAngleArc = 41
+	EmfRecordTypeEllipse = 42
+	EmfRecordTypeRectangle = 43
+	EmfRecordTypeRoundRect = 44
+	EmfRecordTypeArc = 45
+	EmfRecordTypeChord = 46
+	EmfRecordTypePie = 47
+	EmfRecordTypeSelectPalette = 48
+	EmfRecordTypeCreatePalette = 49
+	EmfRecordTypeSetPaletteEntries = 50
+	EmfRecordTypeResizePalette = 51
+	EmfRecordTypeRealizePalette = 52
+	EmfRecordTypeExtFloodFill = 53
+	EmfRecordTypeLineTo = 54
+	EmfRecordTypeArcTo = 55
+	EmfRecordTypePolyDraw = 56
+	EmfRecordTypeSetArcDirection = 57
+	EmfRecordTypeSetMiterLimit = 58
+	EmfRecordTypeBeginPath = 59
+	EmfRecordTypeEndPath = 60
+	EmfRecordTypeCloseFigure = 61
+	EmfRecordTypeFillPath = 62
+	EmfRecordTypeStrokeAndFillPath = 63
+	EmfRecordTypeStrokePath = 64
+	EmfRecordTypeFlattenPath = 65
+	EmfRecordTypeWidenPath = 66
+	EmfRecordTypeSelectClipPath = 67
+	EmfRecordTypeAbortPath = 68
+	EmfRecordTypeReserved_069 = 69
+	EmfRecordTypeGdiComment = 70
+	EmfRecordTypeFillRgn = 71
+	EmfRecordTypeFrameRgn = 72
+	EmfRecordTypeInvertRgn = 73
+	EmfRecordTypePaintRgn = 74
+	EmfRecordTypeExtSelectClipRgn = 75
+	EmfRecordTypeBitBlt = 76
+	EmfRecordTypeStretchBlt = 77
+	EmfRecordTypeMaskBlt = 78
+	EmfRecordTypePlgBlt = 79
+	EmfRecordTypeSetDIBitsToDevice = 80
+	EmfRecordTypeStretchDIBits = 81
+	EmfRecordTypeExtCreateFontIndirect = 82
+	EmfRecordTypeExtTextOutA = 83
+	EmfRecordTypeExtTextOutW = 84
+	EmfRecordTypePolyBezier16 = 85
+	EmfRecordTypePolygon16 = 86
+	EmfRecordTypePolyline16 = 87
+	EmfRecordTypePolyBezierTo16 = 88
+	EmfRecordTypePolylineTo16 = 89
+	EmfRecordTypePolyPolyline16 = 90
+	EmfRecordTypePolyPolygon16 = 91
+	EmfRecordTypePolyDraw16 = 92
+	EmfRecordTypeCreateMonoBrush = 93
+	EmfRecordTypeCreateDIBPatternBrushPt = 94
+	EmfRecordTypeExtCreatePen = 95
+	EmfRecordTypePolyTextOutA = 96
+	EmfRecordTypePolyTextOutW = 97
+	EmfRecordTypeSetICMMode = 98
+	EmfRecordTypeCreateColorSpace = 99
+	EmfRecordTypeSetColorSpace = 100
+	EmfRecordTypeDeleteColorSpace = 101
+	EmfRecordTypeGLSRecord = 102
+	EmfRecordTypeGLSBoundedRecord = 103
+	EmfRecordTypePixelFormat = 104
+	EmfRecordTypeDrawEscape = 105
+	EmfRecordTypeExtEscape = 106
+	EmfRecordTypeStartDoc = 107
+	EmfRecordTypeSmallTextOut = 108
+	EmfRecordTypeForceUFIMapping = 109
+	EmfRecordTypeNamedEscape = 110
+	EmfRecordTypeColorCorrectPalette = 111
+	EmfRecordTypeSetICMProfileA = 112
+	EmfRecordTypeSetICMProfileW = 113
+	EmfRecordTypeAlphaBlend = 114
+	EmfRecordTypeSetLayout = 115
+	EmfRecordTypeTransparentBlt = 116
+	EmfRecordTypeReserved_117 = 117
+	EmfRecordTypeGradientFill = 118
+	EmfRecordTypeSetLinkedUFIs = 119
+	EmfRecordTypeSetTextJustification = 120
+	EmfRecordTypeColorMatchToTargetW = 121
+	EmfRecordTypeCreateColorSpaceW = 122
+	EmfRecordTypeMax = 122
+	EmfRecordTypeMin = 1
+	EmfPlusRecordTypeInvalid = &h4000
+	EmfPlusRecordTypeHeader
+	EmfPlusRecordTypeEndOfFile
+	EmfPlusRecordTypeComment
+	EmfPlusRecordTypeGetDC
+	EmfPlusRecordTypeMultiFormatStart
+	EmfPlusRecordTypeMultiFormatSection
+	EmfPlusRecordTypeMultiFormatEnd
+	EmfPlusRecordTypeObject
+	EmfPlusRecordTypeClear
+	EmfPlusRecordTypeFillRects
+	EmfPlusRecordTypeDrawRects
+	EmfPlusRecordTypeFillPolygon
+	EmfPlusRecordTypeDrawLines
+	EmfPlusRecordTypeFillEllipse
+	EmfPlusRecordTypeDrawEllipse
+	EmfPlusRecordTypeFillPie
+	EmfPlusRecordTypeDrawPie
+	EmfPlusRecordTypeDrawArc
+	EmfPlusRecordTypeFillRegion
+	EmfPlusRecordTypeFillPath
+	EmfPlusRecordTypeDrawPath
+	EmfPlusRecordTypeFillClosedCurve
+	EmfPlusRecordTypeDrawClosedCurve
+	EmfPlusRecordTypeDrawCurve
+	EmfPlusRecordTypeDrawBeziers
+	EmfPlusRecordTypeDrawImage
+	EmfPlusRecordTypeDrawImagePoints
+	EmfPlusRecordTypeDrawString
+	EmfPlusRecordTypeSetRenderingOrigin
+	EmfPlusRecordTypeSetAntiAliasMode
+	EmfPlusRecordTypeSetTextRenderingHint
+	EmfPlusRecordTypeSetTextContrast
+	EmfPlusRecordTypeSetGammaValue
+	EmfPlusRecordTypeSetInterpolationMode
+	EmfPlusRecordTypeSetPixelOffsetMode
+	EmfPlusRecordTypeSetCompositingMode
+	EmfPlusRecordTypeSetCompositingQuality
+	EmfPlusRecordTypeSave
+	EmfPlusRecordTypeRestore
+	EmfPlusRecordTypeBeginContainer
+	EmfPlusRecordTypeBeginContainerNoParams
+	EmfPlusRecordTypeEndContainer
+	EmfPlusRecordTypeSetWorldTransform
+	EmfPlusRecordTypeResetWorldTransform
+	EmfPlusRecordTypeMultiplyWorldTransform
+	EmfPlusRecordTypeTranslateWorldTransform
+	EmfPlusRecordTypeScaleWorldTransform
+	EmfPlusRecordTypeRotateWorldTransform
+	EmfPlusRecordTypeSetPageTransform
+	EmfPlusRecordTypeResetClip
+	EmfPlusRecordTypeSetClipRect
+	EmfPlusRecordTypeSetClipPath
+	EmfPlusRecordTypeSetClipRegion
+	EmfPlusRecordTypeOffsetClip
+	EmfPlusRecordTypeDrawDriverString
+	EmfPlusRecordTypeStrokeFillPath
+	EmfPlusRecordTypeSerializableObject
+	EmfPlusRecordTypeSetTSGraphics
+	EmfPlusRecordTypeSetTSClip
+	EmfPlusRecordTotal
+	EmfPlusRecordTypeMax = EmfPlusRecordTotal - 1
+	EmfPlusRecordTypeMin = EmfPlusRecordTypeHeader
+end enum
+
+PUBLIC type EmfToWmfBitsFlags as long
+PUBLIC enum
+	EmfToWmfBitsFlagsDefault = 0
+	EmfToWmfBitsFlagsEmbedEmf = 1
+	EmfToWmfBitsFlagsIncludePlaceable = 2
+	EmfToWmfBitsFlagsNoXORClip = 4
+end enum
+
+PUBLIC type EmfType as long
+PUBLIC enum
+	EmfTypeEmfOnly = 3
+	EmfTypeEmfPlusOnly = 4
+	EmfTypeEmfPlusDual = 5
+end enum
+
+PUBLIC type EncoderParameterValueType as long
+PUBLIC enum
+	EncoderParameterValueTypeByte = 1
+	EncoderParameterValueTypeASCII = 2
+	EncoderParameterValueTypeShort = 3
+	EncoderParameterValueTypeLong = 4
+	EncoderParameterValueTypeRational = 5
+	EncoderParameterValueTypeLongRange = 6
+	EncoderParameterValueTypeUndefined = 7
+	EncoderParameterValueTypeRationalRange = 8
+	EncoderParameterValueTypePointer = 9
+end enum
+
+
+PUBLIC type EncoderValue as long
+PUBLIC enum
+	EncoderValueColorTypeCMYK = 0
+	EncoderValueColorTypeYCCK = 1
+	EncoderValueCompressionLZW = 2
+	EncoderValueCompressionCCITT3 = 3
+	EncoderValueCompressionCCITT4 = 4
+	EncoderValueCompressionRle = 5
+	EncoderValueCompressionNone = 6
+	EncoderValueScanMethodInterlaced = 7
+	EncoderValueScanMethodNonInterlaced = 8
+	EncoderValueVersionGif87 = 9
+	EncoderValueVersionGif89 = 10
+	EncoderValueRenderProgressive = 11
+	EncoderValueRenderNonProgressive = 12
+	EncoderValueTransformRotate90 = 13
+	EncoderValueTransformRotate180 = 14
+	EncoderValueTransformRotate270 = 15
+	EncoderValueTransformFlipHorizontal = 16
+	EncoderValueTransformFlipVertical = 17
+	EncoderValueMultiFrame = 18
+	EncoderValueLastFrame = 19
+	EncoderValueFlush = 20
+	EncoderValueFrameDimensionTime = 21
+	EncoderValueFrameDimensionResolution = 22
+	EncoderValueFrameDimensionPage = 23
+   EncoderValueColorTypeGray = 24
+   EncoderValueColorTypeRGB = 25
+end enum
+
+PUBLIC type FillMode as long
+PUBLIC enum
+	FillModeAlternate = 0
+	FillModeWinding = 1
+end enum
+
+PUBLIC type FlushIntention as long
+PUBLIC enum
+	FlushIntentionFlush = 0
+	FlushIntentionSync = 1
+end enum
+
+PUBLIC type FontStyle as long
+PUBLIC enum
+	FontStyleRegular = 0
+	FontStyleBold = 1
+	FontStyleItalic = 2
+	FontStyleBoldItalic = 3
+	FontStyleUnderline = 4
+	FontStyleStrikeout = 8
+end enum
+
+PUBLIC type HatchStyle as long
+PUBLIC enum
+	HatchStyleHorizontal = 0
+	HatchStyleVertical = 1
+	HatchStyleForwardDiagonal = 2
+	HatchStyleBackwardDiagonal = 3
+	HatchStyleCross = 4
+	HatchStyleLargeGrid = 4
+	HatchStyleDiagonalCross = 5
+	HatchStyle05Percent = 6
+	HatchStyle10Percent = 7
+	HatchStyle20Percent = 8
+	HatchStyle25Percent = 9
+	HatchStyle30Percent = 10
+	HatchStyle40Percent = 11
+	HatchStyle50Percent = 12
+	HatchStyle60Percent = 13
+	HatchStyle70Percent = 14
+	HatchStyle75Percent = 15
+	HatchStyle80Percent = 16
+	HatchStyle90Percent = 17
+	HatchStyleLightDownwardDiagonal = 18
+	HatchStyleLightUpwardDiagonal = 19
+	HatchStyleDarkDownwardDiagonal = 20
+	HatchStyleDarkUpwardDiagonal = 21
+	HatchStyleWideDownwardDiagonal = 22
+	HatchStyleWideUpwardDiagonal = 23
+	HatchStyleLightVertical = 24
+	HatchStyleLightHorizontal = 25
+	HatchStyleNarrowVertical = 26
+	HatchStyleNarrowHorizontal = 27
+	HatchStyleDarkVertical = 28
+	HatchStyleDarkHorizontal = 29
+	HatchStyleDashedDownwardDiagonal = 30
+	HatchStyleDashedUpwardDiagonal = 31
+	HatchStyleDashedHorizontal = 32
+	HatchStyleDashedVertical = 33
+	HatchStyleSmallConfetti = 34
+	HatchStyleLargeConfetti = 35
+	HatchStyleZigZag = 36
+	HatchStyleWave = 37
+	HatchStyleDiagonalBrick = 38
+	HatchStyleHorizontalBrick = 39
+	HatchStyleWeave = 40
+	HatchStylePlaid = 41
+	HatchStyleDivot = 42
+	HatchStyleDottedGrid = 43
+	HatchStyleDottedDiamond = 44
+	HatchStyleShingle = 45
+	HatchStyleTrellis = 46
+	HatchStyleSphere = 47
+	HatchStyleSmallGrid = 48
+	HatchStyleSmallCheckerBoard = 49
+	HatchStyleLargeCheckerBoard = 50
+	HatchStyleOutlinedDiamond = 51
+	HatchStyleSolidDiamond = 52
+	HatchStyleTotal = 53
+	HatchStyleMin = HatchStyleHorizontal
+	HatchStyleMax = HatchStyleTotal - 1
+end enum
+
+PUBLIC type HotkeyPrefix as long
+PUBLIC enum
+	HotkeyPrefixNone = 0
+	HotkeyPrefixShow = 1
+	HotkeyPrefixHide = 2
+end enum
+
+PUBLIC type ImageType as long
+PUBLIC enum
+	ImageTypeUnknown = 0
+	ImageTypeBitmap = 1
+	ImageTypeMetafile = 2
+end enum
+
+PUBLIC type InterpolationMode as long
+PUBLIC enum
+	InterpolationModeInvalid = -1
+	InterpolationModeDefault = 0
+	InterpolationModeLowQuality = 1
+	InterpolationModeHighQuality = 2
+	InterpolationModeBilinear = 3
+	InterpolationModeBicubic = 4
+	InterpolationModeNearestNeighbor = 5
+	InterpolationModeHighQualityBilinear = 6
+	InterpolationModeHighQualityBicubic = 7
+end enum
+
+PUBLIC type LinearGradientMode as long
+PUBLIC enum
+	LinearGradientModeHorizontal = 0
+	LinearGradientModeVertical = 1
+	LinearGradientModeForwardDiagonal = 2
+	LinearGradientModeBackwardDiagonal = 3
+end enum
+
+PUBLIC type LineCap as long
+PUBLIC enum
+	LineCapFlat = 0
+	LineCapSquare = 1
+	LineCapRound = 2
+	LineCapTriangle = 3
+	LineCapNoAnchor = &H10
+	LineCapSquareAnchor = &H11
+	LineCapRoundAnchor = &H12
+	LineCapDiamondAnchor = &H13
+	LineCapArrowAnchor = &H14
+	LineCapCustom = &HFF
+   LineCapAnchorMask = &HF0
+end enum
+
+PUBLIC type LineJoin as long
+PUBLIC enum
+	LineJoinMiter = 0
+	LineJoinBevel = 1
+	LineJoinRound = 2
+	LineJoinMiterClipped = 3
+end enum
+
+PUBLIC type MatrixOrder as long
+PUBLIC enum
+	MatrixOrderPrepend = 0
+	MatrixOrderAppend = 1
+end enum
+
+PUBLIC type MetafileFrameUnit as long
+PUBLIC enum
+	MetafileFrameUnitPixel = 2
+	MetafileFrameUnitPoint = 3
+	MetafileFrameUnitInch = 4
+	MetafileFrameUnitDocument = 5
+	MetafileFrameUnitMillimeter = 6
+	MetafileFrameUnitGdi = 7
+end enum
+
+PUBLIC type MetafileType as long
+PUBLIC enum
+	MetafileTypeInvalid = 0
+	MetafileTypeWmf = 1
+	MetafileTypeWmfPlaceable = 2
+	MetafileTypeEmf = 3
+	MetafileTypeEmfPlusOnly = 4
+	MetafileTypeEmfPlusDual = 5
+end enum
+
+PUBLIC type ObjectType as long
+PUBLIC enum
+	ObjectTypeInvalid = 0
+	ObjectTypeBrush = 1
+	ObjectTypePen = 2
+	ObjectTypePath = 3
+	ObjectTypeRegion = 4
+	ObjectTypeFont = 5
+	ObjectTypeStringFormat = 6
+	ObjectTypeImageAttributes = 7
+	ObjectTypeCustomLineCap = 8
+	ObjectTypeGraphics = 9
+	ObjectTypeMin = ObjectTypeBrush
+	ObjectTypeMax = ObjectTypeGraphics
+end enum
+
+PUBLIC type PathPointType as long
+PUBLIC enum
+	PathPointTypeStart = &h00
+	PathPointTypeLine = &h01
+	PathPointTypeBezier = &h03
+	PathPointTypeBezier3 = &h03
+	PathPointTypePathTypeMask = &h07
+	PathPointTypePathDashMode = &h10
+	PathPointTypePathMarker = &h20
+	PathPointTypeCloseSubpath = &h80
+end enum
+
+PUBLIC type PenAlignment as long
+PUBLIC enum
+	PenAlignmentCenter = 0
+	PenAlignmentInset = 1
+end enum
+
+PUBLIC type PenType as long
+PUBLIC enum
+	PenTypeUnknown = -1
+	PenTypeSolidColor = 0
+	PenTypeHatchFill = 1
+	PenTypeTextureFill = 2
+	PenTypePathGradient = 3
+	PenTypeLinearGradient = 4
+end enum
+
+PUBLIC type PixelOffsetMode as long
+PUBLIC enum
+	PixelOffsetModeInvalid = -1
+	PixelOffsetModeDefault = 0
+	PixelOffsetModeHighSpeed = 1
+	PixelOffsetModeHighQuality = 2
+	PixelOffsetModeNone = 3
+	PixelOffsetModeHalf = 4
+end enum
+
+PUBLIC type QualityMode as long
+PUBLIC enum
+	QualityModeInvalid = -1
+	QualityModeDefault = 0
+	QualityModeLow = 1
+	QualityModeHigh = 2
+end enum
+
+PUBLIC type SmoothingMode as long
+PUBLIC enum
+	SmoothingModeInvalid = QualityModeInvalid
+	SmoothingModeDefault = 0
+	SmoothingModeHighSpeed = 1
+	SmoothingModeHighQuality = 2
+	SmoothingModeNone = 3
+	SmoothingModeAntiAlias8x4 = 4
+	SmoothingModeAntiAlias = 4
+	SmoothingModeAntiAlias8x8 = 5
+end enum
+
+PUBLIC type StringAlignment as long
+PUBLIC enum
+	StringAlignmentNear = 0
+	StringAlignmentCenter = 1
+	StringAlignmentFar = 2
+end enum
+
+PUBLIC type StringDigitSubstitute as long
+PUBLIC enum
+	StringDigitSubstituteUser = 0
+	StringDigitSubstituteNone = 1
+	StringDigitSubstituteNational = 2
+	StringDigitSubstituteTraditional = 3
+end enum
+
+PUBLIC type StringFormatFlags as long
+PUBLIC enum
+	StringFormatFlagsDirectionRightToLeft = &h00000001
+	StringFormatFlagsDirectionVertical = &h00000002
+	StringFormatFlagsNoFitBlackBox = &h00000004
+	StringFormatFlagsDisplayFormatControl = &h00000020
+	StringFormatFlagsNoFontFallback = &h00000400
+	StringFormatFlagsMeasureTrailingSpaces = &h00000800
+	StringFormatFlagsNoWrap = &h00001000
+	StringFormatFlagsLineLimit = &h00002000
+	StringFormatFlagsNoClip = &h00004000
+   StringFormatFlagsBypassGDI = &h80000000
+end enum
+
+PUBLIC type StringTrimming as long
+PUBLIC enum
+	StringTrimmingNone = 0
+	StringTrimmingCharacter = 1
+	StringTrimmingWord = 2
+	StringTrimmingEllipsisCharacter = 3
+	StringTrimmingEllipsisWord = 4
+	StringTrimmingEllipsisPath = 5
+end enum
+
+PUBLIC type TextRenderingHint as long
+PUBLIC enum
+	TextRenderingHintSystemDefault = 0
+	TextRenderingHintSingleBitPerPixelGridFit = 1
+	TextRenderingHintSingleBitPerPixel = 2
+	TextRenderingHintAntiAliasGridFit = 3
+	TextRenderingHintAntiAlias = 4
+	TextRenderingHintClearTypeGridFit = 5
+end enum
+
+PUBLIC type Unit as long
+PUBLIC enum
+	UnitWorld = 0
+	UnitDisplay = 1
+	UnitPixel = 2
+	UnitPoint = 3
+	UnitInch = 4
+	UnitDocument = 5
+	UnitMillimeter = 6
+end enum
+
+PUBLIC type WarpMode as long
+PUBLIC enum
+   WarpModePerspective = 0
+   WarpModeBilinear = 1
+end enum
+
+PUBLIC type WrapMode as long
+PUBLIC enum
+   WrapModeTile = 0
+   WrapModeTileFlipX = 1
+   WrapModeTileFlipY = 2
+   WrapModeTileFlipXY = 3
+   WrapModeClamp = 4
+end enum
+
+PUBLIC type GpTestControlEnum as long
+PUBLIC enum
+   TestControlForceBilinear = 0
+   TestControlForceNoICM = 1
+   TestControlGetBuildNumber = 2
+end enum
+
+PUBLIC type Status_ as long
+PUBLIC enum
+   Ok = 0
+   GenericError = 1
+   InvalidParameter = 2
+   OutOfMemory = 3
+   ObjectBusy = 4
+   InsufficientBuffer = 5
+   NotImplemented = 6
+   Win32Error = 7
+   WrongState = 8
+   Aborted = 9
+   FileNotFound = 10
+   ValueOverflow = 11
+   AccessDenied = 12
+   UnknownImageFormat = 13
+   FontFamilyNotFound = 14
+   FontStyleNotFound = 15
+   NotTrueTypeFont = 16
+   UnsupportedGdiplusVersion = 17
+   GdiplusNotInitialized = 18
+   PropertyNotFound = 19
+   PropertyNotSupported = 20
+   ProfileNotFound = 21
+end enum
+
+PUBLIC type GpStatus as long
+PUBLIC enum
+   StatusOk = 0
+   StatusGenericError = 1
+   StatusInvalidParameter = 2
+   StatusOutOfMemory = 3
+   StatusObjectBusy = 4
+   StatusInsufficientBuffer = 5
+   StatusNotImplemented = 6
+   StatusWin32Error = 7
+   StatusWrongState = 8
+   StatusAborted = 9
+   StatusFileNotFound = 10
+   StatusValueOverflow = 11
+   StatusAccessDenied = 12
+   StatusUnknownImageFormat = 13
+   StatusFontFamilyNotFound = 14
+   StatusFontStyleNotFound = 15
+   StatusNotTrueTypeFont = 16
+   StatusUnsupportedGdiplusVersion = 17
+   StatusGdiplusNotInitialized = 18
+   StatusPropertyNotFound = 19
+   StatusPropertyNotSupported = 20
+   StatusProfileNotFound = 21
+end enum
+
+PUBLIC type ImageCodecFlags as long
+PUBLIC enum
+   ImageCodecFlagsEncoder = &h00000001
+   ImageCodecFlagsDecoder = &h00000002
+   ImageCodecFlagsSupportBitmap = &h00000004
+   ImageCodecFlagsSupportVector = &h00000008
+   ImageCodecFlagsSeekableEncode = &h00000010
+   ImageCodecFlagsBlockingDecode = &h00000020
+   ImageCodecFlagsBuiltin = &h00010000
+   ImageCodecFlagsSystem = &h00020000
+   ImageCodecFlagsUser = &h00040000
+end enum
+
+PUBLIC type ImageFlags as long
+PUBLIC enum
+   ImageFlagsNone = 0
+   ImageFlagsScalable = &h00000001
+   ImageFlagsHasAlpha = &h00000002
+   ImageFlagsHasTranslucent = &h00000004
+   ImageFlagsPartiallyScalable = &h00000008
+   ImageFlagsColorSpaceRGB = &h00000010
+   ImageFlagsColorSpaceCMYK = &h00000020
+   ImageFlagsColorSpaceGRAY = &h00000040
+   ImageFlagsColorSpaceYCBCR = &h00000080
+   ImageFlagsColorSpaceYCCK = &h00000100
+   ImageFlagsHasRealDPI = &h00001000
+   ImageFlagsHasRealPixelSize = &h00002000
+   ImageFlagsReadOnly = &h00010000
+   ImageFlagsCaching = &h00020000
+end enum
+
+PUBLIC type ImageLockMode as long
+PUBLIC enum
+   ImageLockModeRead = 1
+   ImageLockModeWrite = 2
+   ImageLockModeUserInputBuf = 4
+end enum
+
+PUBLIC type ItemDataPosition as long
+PUBLIC enum
+   ItemDataPositionAfterHeader = 0
+   ItemDataPositionAfterPalette = 1
+   ItemDataPositionAfterBits = 2
+end enum
+
+PUBLIC type RotateFlipType as long
+PUBLIC enum
+	RotateNoneFlipNone = 0
+	Rotate90FlipNone = 1
+	Rotate180FlipNone = 2
+	Rotate270FlipNone = 3
+	RotateNoneFlipX = 4
+	Rotate90FlipX = 5
+	Rotate180FlipX = 6
+	Rotate270FlipX = 7
+	Rotate180FlipXY = 0
+	Rotate270FlipXY = 1
+	RotateNoneFlipXY = 2
+	Rotate90FlipXY = 3
+	Rotate180FlipY = 4
+	Rotate270FlipY = 5
+	RotateNoneFlipY = 6
+	Rotate90FlipY = 7
+end enum
+
+PUBLIC type BitmapData
+	Width as UINT
+	Height as UINT
+	Stride as INT_
+	PixelFormat as INT_
+	Scan0 as any ptr
+	Reserved as UINT_PTR
+end type
+
+PUBLIC type EncoderParameter
+	Guid as GUID
+	NumberOfValues as ULONG
+	as ULONG Type
+	Value as any ptr
+end type
+
+PUBLIC type EncoderParameters
+	Count as UINT
+	Parameter(0 to 0) as EncoderParameter
+end type
+
+PUBLIC type ImageCodecInfo
+	Clsid as CLSID
+	FormatID as GUID
+	CodecName as wstring ptr
+	DllName as wstring ptr
+	FormatDescription as wstring ptr
+	FilenameExtension as wstring ptr
+	MimeType as wstring ptr
+	Flags as DWORD
+	Version as DWORD
+	SigCount as DWORD
+	SigSize as DWORD
+	SigPattern as BYTE ptr
+	SigMask as BYTE ptr
+end type
+
+PUBLIC type ImageItemData
+	Size as UINT
+	Position as UINT
+	Desc as any ptr
+	DescSize as UINT
+	Data as UINT ptr
+	DataSize as UINT
+	Cookie as UINT
+end type
+
+PUBLIC type PropertyItem
+	id as PROPID
+	length as ULONG
+	as WORD type
+	value as any ptr
+end type
+
+PUBLIC type GpSize
+   Width as INT_
+   Height as INT_
+end type
+
+PUBLIC type GpSizeF
+   Width as SINGLE
+   Height as SINGLE
+end type
+
+PUBLIC type GpPoint
+   X as INT_
+   Y as INT_
+end type
+
+PUBLIC type GpPointF
+   X AS SINGLE
+   Y AS SINGLE
+end type
+
+PUBLIC type GpRect
+   X as INT_
+   Y as INT_
+   Width as INT_
+   Height as INT_
+end type
+
+PUBLIC type GpRectF
+   X AS SINGLE
+   Y AS SINGLE
+   Width AS SINGLE
+   Height AS SINGLE
+end type
+
+PUBLIC type GpCharacterRange
+   First as INT_
+   Length as INT_
+end type
+
+PUBLIC type GpPathData
+   Count as INT_
+   Points as GpPointF ptr
+   Types as BYTE ptr
+end type
+
+PUBLIC TYPE ARGB AS DWORD
+
+#define GDIP_WMF_RECORD_TO_EMFPLUS(meta) ((meta) or &h10000)
+PUBLIC const GDIP_EMFPLUS_RECORD_BASE = &h4000
+
+#define GpSolidBrush GpSolidFill
+#define GpHatchBrush GpHatch
+#define GpLinearGradientBrush GpLineGradient
+#define GpPathGradientBrush GpPathGradient
+#define GpGraphicsPath GpPath
+#define GpTextureBrush GpTexture
+
+
+PUBLIC const PropertyTagGpsVer = cast(PROPID, &h0000)
+PUBLIC const PropertyTagGpsLatitudeRef = cast(PROPID, &h0001)
+PUBLIC const PropertyTagGpsLatitude = cast(PROPID, &h0002)
+PUBLIC const PropertyTagGpsLongitudeRef = cast(PROPID, &h0003)
+PUBLIC const PropertyTagGpsLongitude = cast(PROPID, &h0004)
+PUBLIC const PropertyTagGpsAltitudeRef = cast(PROPID, &h0005)
+PUBLIC const PropertyTagGpsAltitude = cast(PROPID, &h0006)
+PUBLIC const PropertyTagGpsGpsTime = cast(PROPID, &h0007)
+PUBLIC const PropertyTagGpsGpsSatellites = cast(PROPID, &h0008)
+PUBLIC const PropertyTagGpsGpsStatus = cast(PROPID, &h0009)
+PUBLIC const PropertyTagGpsGpsMeasureMode = cast(PROPID, &h000A)
+PUBLIC const PropertyTagGpsGpsDop = cast(PROPID, &h000B)
+PUBLIC const PropertyTagGpsSpeedRef = cast(PROPID, &h000C)
+PUBLIC const PropertyTagGpsSpeed = cast(PROPID, &h000D)
+PUBLIC const PropertyTagGpsTrackRef = cast(PROPID, &h000E)
+PUBLIC const PropertyTagGpsTrack = cast(PROPID, &h000F)
+PUBLIC const PropertyTagGpsImgDirRef = cast(PROPID, &h0010)
+PUBLIC const PropertyTagGpsImgDir = cast(PROPID, &h0011)
+PUBLIC const PropertyTagGpsMapDatum = cast(PROPID, &h0012)
+PUBLIC const PropertyTagGpsDestLatRef = cast(PROPID, &h0013)
+PUBLIC const PropertyTagGpsDestLat = cast(PROPID, &h0014)
+PUBLIC const PropertyTagGpsDestLongRef = cast(PROPID, &h0015)
+PUBLIC const PropertyTagGpsDestLong = cast(PROPID, &h0016)
+PUBLIC const PropertyTagGpsDestBearRef = cast(PROPID, &h0017)
+PUBLIC const PropertyTagGpsDestBear = cast(PROPID, &h0018)
+PUBLIC const PropertyTagGpsDestDistRef = cast(PROPID, &h0019)
+PUBLIC const PropertyTagGpsDestDist = cast(PROPID, &h001A)
+PUBLIC const PropertyTagNewSubfileType = cast(PROPID, &h00FE)
+PUBLIC const PropertyTagSubfileType = cast(PROPID, &h00FF)
+PUBLIC const PropertyTagImageWidth = cast(PROPID, &h0100)
+PUBLIC const PropertyTagImageHeight = cast(PROPID, &h0101)
+PUBLIC const PropertyTagBitsPerSample = cast(PROPID, &h0102)
+PUBLIC const PropertyTagCompression = cast(PROPID, &h0103)
+PUBLIC const PropertyTagPhotometricInterp = cast(PROPID, &h0106)
+PUBLIC const PropertyTagThreshHolding = cast(PROPID, &h0107)
+PUBLIC const PropertyTagCellWidth = cast(PROPID, &h0108)
+PUBLIC const PropertyTagCellHeight = cast(PROPID, &h0109)
+PUBLIC const PropertyTagFillOrder = cast(PROPID, &h010A)
+PUBLIC const PropertyTagDocumentName = cast(PROPID, &h010D)
+PUBLIC const PropertyTagImageDescription = cast(PROPID, &h010E)
+PUBLIC const PropertyTagEquipMake = cast(PROPID, &h010F)
+PUBLIC const PropertyTagEquipModel = cast(PROPID, &h0110)
+PUBLIC const PropertyTagStripOffsets = cast(PROPID, &h0111)
+PUBLIC const PropertyTagOrientation = cast(PROPID, &h0112)
+PUBLIC const PropertyTagSamplesPerPixel = cast(PROPID, &h0115)
+PUBLIC const PropertyTagRowsPerStrip = cast(PROPID, &h0116)
+PUBLIC const PropertyTagStripBytesCount = cast(PROPID, &h0117)
+PUBLIC const PropertyTagMinSampleValue = cast(PROPID, &h0118)
+PUBLIC const PropertyTagMaxSampleValue = cast(PROPID, &h0119)
+PUBLIC const PropertyTagXResolution = cast(PROPID, &h011A)
+PUBLIC const PropertyTagYResolution = cast(PROPID, &h011B)
+PUBLIC const PropertyTagPlanarConfig = cast(PROPID, &h011C)
+PUBLIC const PropertyTagPageName = cast(PROPID, &h011D)
+PUBLIC const PropertyTagXPosition = cast(PROPID, &h011E)
+PUBLIC const PropertyTagYPosition = cast(PROPID, &h011F)
+PUBLIC const PropertyTagFreeOffset = cast(PROPID, &h0120)
+PUBLIC const PropertyTagFreeByteCounts = cast(PROPID, &h0121)
+PUBLIC const PropertyTagGrayResponseUnit = cast(PROPID, &h0122)
+PUBLIC const PropertyTagGrayResponseCurve = cast(PROPID, &h0123)
+PUBLIC const PropertyTagT4Option = cast(PROPID, &h0124)
+PUBLIC const PropertyTagT6Option = cast(PROPID, &h0125)
+PUBLIC const PropertyTagResolutionUnit = cast(PROPID, &h0128)
+PUBLIC const PropertyTagPageNumber = cast(PROPID, &h0129)
+PUBLIC const PropertyTagTransferFunction = cast(PROPID, &h012D)
+PUBLIC const PropertyTagSoftwareUsed = cast(PROPID, &h0131)
+PUBLIC const PropertyTagDateTime = cast(PROPID, &h0132)
+PUBLIC const PropertyTagArtist = cast(PROPID, &h013B)
+PUBLIC const PropertyTagHostComputer = cast(PROPID, &h013C)
+PUBLIC const PropertyTagPredictor = cast(PROPID, &h013D)
+PUBLIC const PropertyTagWhitePoint = cast(PROPID, &h013E)
+PUBLIC const PropertyTagPrimaryChromaticities = cast(PROPID, &h013F)
+PUBLIC const PropertyTagColorMap = cast(PROPID, &h0140)
+PUBLIC const PropertyTagHalftoneHints = cast(PROPID, &h0141)
+PUBLIC const PropertyTagTileWidth = cast(PROPID, &h0142)
+PUBLIC const PropertyTagTileLength = cast(PROPID, &h0143)
+PUBLIC const PropertyTagTileOffset = cast(PROPID, &h0144)
+PUBLIC const PropertyTagTileByteCounts = cast(PROPID, &h0145)
+PUBLIC const PropertyTagInkSet = cast(PROPID, &h014C)
+PUBLIC const PropertyTagInkNames = cast(PROPID, &h014D)
+PUBLIC const PropertyTagNumberOfInks = cast(PROPID, &h014E)
+PUBLIC const PropertyTagDotRange = cast(PROPID, &h0150)
+PUBLIC const PropertyTagTargetPrinter = cast(PROPID, &h0151)
+PUBLIC const PropertyTagExtraSamples = cast(PROPID, &h0152)
+PUBLIC const PropertyTagSampleFormat = cast(PROPID, &h0153)
+PUBLIC const PropertyTagSMinSampleValue = cast(PROPID, &h0154)
+PUBLIC const PropertyTagSMaxSampleValue = cast(PROPID, &h0155)
+PUBLIC const PropertyTagTransferRange = cast(PROPID, &h0156)
+PUBLIC const PropertyTagJPEGProc = cast(PROPID, &h0200)
+PUBLIC const PropertyTagJPEGInterFormat = cast(PROPID, &h0201)
+PUBLIC const PropertyTagJPEGInterLength = cast(PROPID, &h0202)
+PUBLIC const PropertyTagJPEGRestartInterval = cast(PROPID, &h0203)
+PUBLIC const PropertyTagJPEGLosslessPredictors = cast(PROPID, &h0205)
+PUBLIC const PropertyTagJPEGPointTransforms = cast(PROPID, &h0206)
+PUBLIC const PropertyTagJPEGQTables = cast(PROPID, &h0207)
+PUBLIC const PropertyTagJPEGDCTables = cast(PROPID, &h0208)
+PUBLIC const PropertyTagJPEGACTables = cast(PROPID, &h0209)
+PUBLIC const PropertyTagYCbCrCoefficients = cast(PROPID, &h0211)
+PUBLIC const PropertyTagYCbCrSubsampling = cast(PROPID, &h0212)
+PUBLIC const PropertyTagYCbCrPositioning = cast(PROPID, &h0213)
+PUBLIC const PropertyTagREFBlackWhite = cast(PROPID, &h0214)
+PUBLIC const PropertyTagGamma = cast(PROPID, &h0301)
+PUBLIC const PropertyTagICCProfileDescriptor = cast(PROPID, &h0302)
+PUBLIC const PropertyTagSRGBRenderingIntent = cast(PROPID, &h0303)
+PUBLIC const PropertyTagImageTitle = cast(PROPID, &h0320)
+PUBLIC const PropertyTagResolutionXUnit = cast(PROPID, &h5001)
+PUBLIC const PropertyTagResolutionYUnit = cast(PROPID, &h5002)
+PUBLIC const PropertyTagResolutionXLengthUnit = cast(PROPID, &h5003)
+PUBLIC const PropertyTagResolutionYLengthUnit = cast(PROPID, &h5004)
+PUBLIC const PropertyTagPrintFlags = cast(PROPID, &h5005)
+PUBLIC const PropertyTagPrintFlagsVersion = cast(PROPID, &h5006)
+PUBLIC const PropertyTagPrintFlagsCrop = cast(PROPID, &h5007)
+PUBLIC const PropertyTagPrintFlagsBleedWidth = cast(PROPID, &h5008)
+PUBLIC const PropertyTagPrintFlagsBleedWidthScale = cast(PROPID, &h5009)
+PUBLIC const PropertyTagHalftoneLPI = cast(PROPID, &h500A)
+PUBLIC const PropertyTagHalftoneLPIUnit = cast(PROPID, &h500B)
+PUBLIC const PropertyTagHalftoneDegree = cast(PROPID, &h500C)
+PUBLIC const PropertyTagHalftoneShape = cast(PROPID, &h500D)
+PUBLIC const PropertyTagHalftoneMisc = cast(PROPID, &h500E)
+PUBLIC const PropertyTagHalftoneScreen = cast(PROPID, &h500F)
+PUBLIC const PropertyTagJPEGQuality = cast(PROPID, &h5010)
+PUBLIC const PropertyTagGridSize = cast(PROPID, &h5011)
+PUBLIC const PropertyTagThumbnailFormat = cast(PROPID, &h5012)
+PUBLIC const PropertyTagThumbnailWidth = cast(PROPID, &h5013)
+PUBLIC const PropertyTagThumbnailHeight = cast(PROPID, &h5014)
+PUBLIC const PropertyTagThumbnailColorDepth = cast(PROPID, &h5015)
+PUBLIC const PropertyTagThumbnailPlanes = cast(PROPID, &h5016)
+PUBLIC const PropertyTagThumbnailRawBytes = cast(PROPID, &h5017)
+PUBLIC const PropertyTagThumbnailSize = cast(PROPID, &h5018)
+PUBLIC const PropertyTagThumbnailCompressedSize = cast(PROPID, &h5019)
+PUBLIC const PropertyTagColorTransferFunction = cast(PROPID, &h501A)
+PUBLIC const PropertyTagThumbnailData = cast(PROPID, &h501B)
+PUBLIC const PropertyTagThumbnailImageWidth = cast(PROPID, &h5020)
+PUBLIC const PropertyTagThumbnailImageHeight = cast(PROPID, &h5021)
+PUBLIC const PropertyTagThumbnailBitsPerSample = cast(PROPID, &h5022)
+PUBLIC const PropertyTagThumbnailCompression = cast(PROPID, &h5023)
+PUBLIC const PropertyTagThumbnailPhotometricInterp = cast(PROPID, &h5024)
+PUBLIC const PropertyTagThumbnailImageDescription = cast(PROPID, &h5025)
+PUBLIC const PropertyTagThumbnailEquipMake = cast(PROPID, &h5026)
+PUBLIC const PropertyTagThumbnailEquipModel = cast(PROPID, &h5027)
+PUBLIC const PropertyTagThumbnailStripOffsets = cast(PROPID, &h5028)
+PUBLIC const PropertyTagThumbnailOrientation = cast(PROPID, &h5029)
+PUBLIC const PropertyTagThumbnailSamplesPerPixel = cast(PROPID, &h502A)
+PUBLIC const PropertyTagThumbnailRowsPerStrip = cast(PROPID, &h502B)
+PUBLIC const PropertyTagThumbnailStripBytesCount = cast(PROPID, &h502C)
+PUBLIC const PropertyTagThumbnailResolutionX = cast(PROPID, &h502D)
+PUBLIC const PropertyTagThumbnailResolutionY = cast(PROPID, &h502E)
+PUBLIC const PropertyTagThumbnailPlanarConfig = cast(PROPID, &h502F)
+PUBLIC const PropertyTagThumbnailResolutionUnit = cast(PROPID, &h5030)
+PUBLIC const PropertyTagThumbnailTransferFunction = cast(PROPID, &h5031)
+PUBLIC const PropertyTagThumbnailSoftwareUsed = cast(PROPID, &h5032)
+PUBLIC const PropertyTagThumbnailDateTime = cast(PROPID, &h5033)
+PUBLIC const PropertyTagThumbnailArtist = cast(PROPID, &h5034)
+PUBLIC const PropertyTagThumbnailWhitePoint = cast(PROPID, &h5035)
+PUBLIC const PropertyTagThumbnailPrimaryChromaticities = cast(PROPID, &h5036)
+PUBLIC const PropertyTagThumbnailYCbCrCoefficients = cast(PROPID, &h5037)
+PUBLIC const PropertyTagThumbnailYCbCrSubsampling = cast(PROPID, &h5038)
+PUBLIC const PropertyTagThumbnailYCbCrPositioning = cast(PROPID, &h5039)
+PUBLIC const PropertyTagThumbnailRefBlackWhite = cast(PROPID, &h503A)
+PUBLIC const PropertyTagThumbnailCopyRight = cast(PROPID, &h503B)
+PUBLIC const PropertyTagLuminanceTable = cast(PROPID, &h5090)
+PUBLIC const PropertyTagChrominanceTable = cast(PROPID, &h5091)
+PUBLIC const PropertyTagFrameDelay = cast(PROPID, &h5100)
+PUBLIC const PropertyTagLoopCount = cast(PROPID, &h5101)
+PUBLIC const PropertyTagGlobalPalette = cast(PROPID, &h5102)
+PUBLIC const PropertyTagIndexBackground = cast(PROPID, &h5103)
+PUBLIC const PropertyTagIndexTransparent = cast(PROPID, &h5104)
+PUBLIC const PropertyTagPixelUnit = cast(PROPID, &h5110)
+PUBLIC const PropertyTagPixelPerUnitX = cast(PROPID, &h5111)
+PUBLIC const PropertyTagPixelPerUnitY = cast(PROPID, &h5112)
+PUBLIC const PropertyTagPaletteHistogram = cast(PROPID, &h5113)
+PUBLIC const PropertyTagCopyright = cast(PROPID, &h8298)
+PUBLIC const PropertyTagExifExposureTime = cast(PROPID, &h829A)
+PUBLIC const PropertyTagExifFNumber = cast(PROPID, &h829D)
+PUBLIC const PropertyTagExifIFD = cast(PROPID, &h8769)
+PUBLIC const PropertyTagICCProfile = cast(PROPID, &h8773)
+PUBLIC const PropertyTagExifExposureProg = cast(PROPID, &h8822)
+PUBLIC const PropertyTagExifSpectralSense = cast(PROPID, &h8824)
+PUBLIC const PropertyTagGpsIFD = cast(PROPID, &h8825)
+PUBLIC const PropertyTagExifISOSpeed = cast(PROPID, &h8827)
+PUBLIC const PropertyTagExifOECF = cast(PROPID, &h8828)
+PUBLIC const PropertyTagExifVer = cast(PROPID, &h9000)
+PUBLIC const PropertyTagExifDTOrig = cast(PROPID, &h9003)
+PUBLIC const PropertyTagExifDTDigitized = cast(PROPID, &h9004)
+PUBLIC const PropertyTagExifCompConfig = cast(PROPID, &h9101)
+PUBLIC const PropertyTagExifCompBPP = cast(PROPID, &h9102)
+PUBLIC const PropertyTagExifShutterSpeed = cast(PROPID, &h9201)
+PUBLIC const PropertyTagExifAperture = cast(PROPID, &h9202)
+PUBLIC const PropertyTagExifBrightness = cast(PROPID, &h9203)
+PUBLIC const PropertyTagExifExposureBias = cast(PROPID, &h9204)
+PUBLIC const PropertyTagExifMaxAperture = cast(PROPID, &h9205)
+PUBLIC const PropertyTagExifSubjectDist = cast(PROPID, &h9206)
+PUBLIC const PropertyTagExifMeteringMode = cast(PROPID, &h9207)
+PUBLIC const PropertyTagExifLightSource = cast(PROPID, &h9208)
+PUBLIC const PropertyTagExifFlash = cast(PROPID, &h9209)
+PUBLIC const PropertyTagExifFocalLength = cast(PROPID, &h920A)
+PUBLIC const PropertyTagExifMakerNote = cast(PROPID, &h927C)
+PUBLIC const PropertyTagExifUserComment = cast(PROPID, &h9286)
+PUBLIC const PropertyTagExifDTSubsec = cast(PROPID, &h9290)
+PUBLIC const PropertyTagExifDTOrigSS = cast(PROPID, &h9291)
+PUBLIC const PropertyTagExifDTDigSS = cast(PROPID, &h9292)
+PUBLIC const PropertyTagExifFPXVer = cast(PROPID, &hA000)
+PUBLIC const PropertyTagExifColorSpace = cast(PROPID, &hA001)
+PUBLIC const PropertyTagExifPixXDim = cast(PROPID, &hA002)
+PUBLIC const PropertyTagExifPixYDim = cast(PROPID, &hA003)
+PUBLIC const PropertyTagExifRelatedWav = cast(PROPID, &hA004)
+PUBLIC const PropertyTagExifInterop = cast(PROPID, &hA005)
+PUBLIC const PropertyTagExifFlashEnergy = cast(PROPID, &hA20B)
+PUBLIC const PropertyTagExifSpatialFR = cast(PROPID, &hA20C)
+PUBLIC const PropertyTagExifFocalXRes = cast(PROPID, &hA20E)
+PUBLIC const PropertyTagExifFocalYRes = cast(PROPID, &hA20F)
+PUBLIC const PropertyTagExifFocalResUnit = cast(PROPID, &hA210)
+PUBLIC const PropertyTagExifSubjectLoc = cast(PROPID, &hA214)
+PUBLIC const PropertyTagExifExposureIndex = cast(PROPID, &hA215)
+PUBLIC const PropertyTagExifSensingMethod = cast(PROPID, &hA217)
+PUBLIC const PropertyTagExifFileSource = cast(PROPID, &hA300)
+PUBLIC const PropertyTagExifSceneType = cast(PROPID, &hA301)
+PUBLIC const PropertyTagExifCfaPattern = cast(PROPID, &hA302)
+PUBLIC const PropertyTagTypeByte = cast(WORD, 1)
+PUBLIC const PropertyTagTypeASCII = cast(WORD, 2)
+PUBLIC const PropertyTagTypeShort = cast(WORD, 3)
+PUBLIC const PropertyTagTypeLong = cast(WORD, 4)
+PUBLIC const PropertyTagTypeRational = cast(WORD, 5)
+PUBLIC const PropertyTagTypeUndefined = cast(WORD, 7)
+PUBLIC const PropertyTagTypeSLONG = cast(WORD, 9)
+PUBLIC const PropertyTagTypeSRational = cast(WORD, 10)
+
+
+'#define __GDIPLUS_METAHEADER_H
+PUBLIC const GDIP_EMFPLUSFLAGS_DISPLAY = cast(UINT, 1)
+
+PUBLIC type tagENHMETAHEADER3
+	iType as DWORD
+	nSize as DWORD
+	rclBounds as RECTL
+	rclFrame as RECTL
+	dSignature as DWORD
+	nVersion as DWORD
+	nBytes as DWORD
+	nRecords as DWORD
+	nHandles as WORD
+	sReserved as WORD
+	nDescription as DWORD
+	offDescription as DWORD
+	nPalEntries as DWORD
+	szlDevice as SIZEL
+	szlMillimeters as SIZEL
+end type
+
+PUBLIC type ENHMETAHEADER3 as tagENHMETAHEADER3
+PUBLIC type LPENHMETAHEADER3 as tagENHMETAHEADER3 ptr
+
+PUBLIC type PWMFRect16
+	Left AS SHORT
+	Top AS SHORT
+	Right AS SHORT
+	Bottom AS SHORT
+end type
+
+PUBLIC type WmfPlaceableFileHeader
+	Key as UINT32
+	Hmf AS SHORT
+	BoundingBox as PWMFRect16
+	Inch AS SHORT
+	Reserved as UINT32
+	Checksum AS SHORT
+end type
+
+PUBLIC type MetafileHeader
+	as MetafileType Type
+	Size as UINT
+	Version as UINT
+	EmfPlusFlags as UINT
+	DpiX AS SINGLE
+	DpiY AS SINGLE
+	X as INT_
+	Y as INT_
+	Width as INT_
+	Height as INT_
+
+	union
+		WmfHeader as METAHEADER
+		EmfHeader as ENHMETAHEADER3
+	end union
+
+	EmfPlusHeaderSize as INT_
+	LogicalDpiX as INT_
+	LogicalDpiY as INT_
+end type
+
+PUBLIC type PixelFormat as INT_
+#define PixelFormatIndexed cast(INT_, &h00010000)
+#define PixelFormatGDI cast(INT_, &h00020000)
+#define PixelFormatAlpha cast(INT_, &h00040000)
+#define PixelFormatPAlpha cast(INT_, &h00080000)
+#define PixelFormatExtended cast(INT_, &h00100000)
+#define PixelFormatCanonical cast(INT_, &h00200000)
+#define PixelFormatUndefined cast(INT_, 0)
+#define PixelFormatDontCare cast(INT_, 0)
+#define PixelFormat1bppIndexed cast(INT_, ((1 or (1 shl 8)) or PixelFormatIndexed) or PixelFormatGDI)
+#define PixelFormat4bppIndexed cast(INT_, ((2 or (4 shl 8)) or PixelFormatIndexed) or PixelFormatGDI)
+#define PixelFormat8bppIndexed cast(INT_, ((3 or (8 shl 8)) or PixelFormatIndexed) or PixelFormatGDI)
+#define PixelFormat16bppGrayScale cast(INT_, (4 or (16 shl 8)) or PixelFormatExtended)
+#define PixelFormat16bppRGB555 cast(INT_, (5 or (16 shl 8)) or PixelFormatGDI)
+#define PixelFormat16bppRGB565 cast(INT_, (6 or (16 shl 8)) or PixelFormatGDI)
+#define PixelFormat16bppARGB1555 cast(INT_, ((7 or (16 shl 8)) or PixelFormatAlpha) or PixelFormatGDI)
+#define PixelFormat24bppRGB cast(INT_, (8 or (24 shl 8)) or PixelFormatGDI)
+#define PixelFormat32bppRGB cast(INT_, (9 or (32 shl 8)) or PixelFormatGDI)
+#define PixelFormat32bppARGB cast(INT_, (((10 or (32 shl 8)) or PixelFormatAlpha) or PixelFormatGDI) or PixelFormatCanonical)
+#define PixelFormat32bppPARGB cast(INT_, (((11 or (32 shl 8)) or PixelFormatAlpha) or PixelFormatPAlpha) or PixelFormatGDI)
+#define PixelFormat48bppRGB cast(INT_, (12 or (48 shl 8)) or PixelFormatExtended)
+#define PixelFormat64bppARGB cast(INT_, (((13 or (64 shl 8)) or PixelFormatAlpha) or PixelFormatCanonical) or PixelFormatExtended)
+#define PixelFormat64bppPARGB cast(INT_, (((14 or (64 shl 8)) or PixelFormatAlpha) or PixelFormatPAlpha) or PixelFormatExtended)
+#define PixelFormatMax cast(INT_, 15)
+
+PUBLIC type PaletteFlags as long
+PUBLIC enum
+	PaletteFlagsHasAlpha = 1
+	PaletteFlagsGrayScale = 2
+	PaletteFlagsHalftone = 4
+end enum
+
+PUBLIC type PaletteType as long
+PUBLIC enum
+	PaletteTypeCustom = 0
+	PaletteTypeOptimal = 1
+	PaletteTypeFixedBW = 2
+	PaletteTypeFixedHalftone8 = 3
+	PaletteTypeFixedHalftone27 = 4
+	PaletteTypeFixedHalftone64 = 5
+	PaletteTypeFixedHalftone125 = 6
+	PaletteTypeFixedHalftone216 = 7
+	PaletteTypeFixedHalftone252 = 8
+	PaletteTypeFixedHalftone256 = 9
+end enum
+
+PUBLIC type ColorPalette
+	Flags as UINT
+	Count as UINT
+	Entries(0 to 0) as ARGB
+end type
+
+PUBLIC type GpColorPalette
+	Flags as UINT
+	Count as UINT
+	Entries(0 to 255) as ARGB
+end type
+
+PUBLIC type ColorChannelFlags as long
+PUBLIC enum
+	ColorChannelFlagsC = 0
+	ColorChannelFlagsM = 1
+	ColorChannelFlagsY = 2
+	ColorChannelFlagsK = 3
+	ColorChannelFlagsLast = 4
+end enum
+
+PUBLIC type Color_
+	Value as ARGB
+end type
+PUBLIC TYPE GpColor AS ARGB
+
+' #define __GDIPLUS_COLORMATRIX_H
+
+PUBLIC type ColorAdjustType as long
+PUBLIC enum
+	ColorAdjustTypeDefault = 0
+	ColorAdjustTypeBitmap = 1
+	ColorAdjustTypeBrush = 2
+	ColorAdjustTypePen = 3
+	ColorAdjustTypeText = 4
+	ColorAdjustTypeCount = 5
+	ColorAdjustTypeAny = 6
+end enum
+
+PUBLIC type ColorMatrixFlags as long
+PUBLIC enum
+	ColorMatrixFlagsDefault = 0
+	ColorMatrixFlagsSkipGrays = 1
+	ColorMatrixFlagsAltGray = 2
+end enum
+
+PUBLIC type HistogramFormat as long
+PUBLIC enum
+	HistogramFormatARGB = 0
+	HistogramFormatPARGB = 1
+	HistogramFormatRGB = 2
+	HistogramFormatGray = 3
+	HistogramFormatB = 4
+	HistogramFormatG = 5
+	HistogramFormatR = 6
+	HistogramFormatA = 7
+end enum
+
+PUBLIC type ColorMap_
+	oldColor as Color_
+	newColor as Color_
+end type
+PUBLIC TYPE GpColorMap
+	oldColor AS ARGB
+	newColor AS ARGB
+END TYPE
+
+PUBLIC type ColorMatrix
+	m(0 to 4, 0 to 4) AS SINGLE
+end type
+PUBLIC type GpColorMatrix AS ColorMatrix
+' // Use an array (0 TO 4, 0 TO 4) AS SINGLE, and pass @array(0, 0)
+
+#define GetPixelFormatSize(pixfmt) cast(UINT, (cast(UINT, (pixfmt)) and &hff00u) shr 8)
+#define IsAlphaPixelFormat(pixfmt) cast(BOOL, -(((pixfmt) and cast(INT_, &h00040000)) <> 0))
+#define IsCanonicalPixelFormat(pixfmt) cast(BOOL, -(((pixfmt) and cast(INT_, &h00200000)) <> 0))
+#define IsExtendedPixelFormat(pixfmt) cast(BOOL, -(((pixfmt) and cast(INT_, &h00100000)) <> 0))
+#define IsIndexedPixelFormat(pixfmt) cast(BOOL, -(((pixfmt) and cast(INT_, &h00010000)) <> 0))

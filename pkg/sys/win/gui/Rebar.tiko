@@ -1,0 +1,564 @@
+' ########################################################################################
+' Platform: Microsoft Windows
+' Purpose:  Windows common controls - Rebar control
+' Compiler: tiko-lang
+' Copyright (c) 2026 José Roca
+'
+' License: Distributed under the MIT license.
+'
+' Permission is hereby granted, free of charge, to any person obtaining a copy of this
+' software and associated documentation files (the “Software”), to deal in the Software
+' without restriction, including without limitation the rights to use, copy, modify, merge,
+' publish, distribute, sublicense, and/or sell copies of the Software, and to permit
+' persons to whom the Software is furnished to do so, subject to the following conditions:
+
+' The above copyright notice and this permission notice shall be included in all copies or
+' substantial portions of the Software.
+
+' THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+' INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+' PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+' FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+' OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+' DEALINGS IN THE SOFTWARE.'
+' ########################################################################################
+
+#module "gui"
+#import "sys/win"
+using win
+#include once "gui.ti"
+
+#include once "windows.bi"
+#include once "win/uxtheme.bi"
+
+' ========================================================================================
+' Puts the rebar control in drag-and-drop mode.
+' ========================================================================================
+PUBLIC SUB tkRebar_BeginDrag (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD, BYVAL dwPos AS DWORD)
+   SendMessageW(hRebar, RB_BEGINDRAG, uBand, dwPos)
+END SUB
+' ========================================================================================
+
+' ========================================================================================
+' * Deletes a band from a rebar control. Returns TRUE or FALSE.
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_DeleteBand (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD) AS BOOLEAN
+   RETURN SendMessageW(hRebar, RB_DELETEBAND, uBand, 0)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Updates the drag position in the rebar control after a previous RB_BEGINDRAG message.
+' ========================================================================================
+PUBLIC SUB tkRebar_DragMove (BYVAL hRebar AS HWND, BYVAL dwPos AS DWORD)
+   SendMessageW(hRebar, RB_DRAGMOVE, 0, dwPos)
+END SUB
+' ========================================================================================
+
+' ========================================================================================
+' Terminates the rebar control's drag-and-drop operation. This message does not cause an
+' RBN_ENDDRAG notification to be sent.
+' ========================================================================================
+PUBLIC SUB tkRebar_EndDrag (BYVAL hRebar AS HWND)
+   SendMessageW(hRebar, RB_ENDDRAG, 0, 0)
+END SUB
+' ========================================================================================
+
+' ========================================================================================
+' Retrieves the borders of a band. The result of this message can be used to calculate the
+' usable area in a band.
+' ========================================================================================
+PUBLIC SUB tkRebar_GetBandBorders OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD, BYVAL prc AS RECT PTR)
+   SendMessageW(hRebar, RB_GETBANDBORDERS, uBand, cast(LPARAM, prc))
+END SUB
+' ========================================================================================
+' ========================================================================================
+PUBLIC SUB tkRebar_GetBandBorders OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD, BYREF rc AS RECT)
+   SendMessageW(hRebar, RB_GETBANDBORDERS, uBand, cast(LPARAM, @rc))
+END SUB
+' ========================================================================================
+' ========================================================================================
+'PUBLIC FUNCTION tkRebar_GetBandBorders OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD) AS RECT
+'   DIM rc AS RECT
+'   SendMessageW(hRebar, RB_GETBANDBORDERS, uBand, cast(LPARAM, @rc))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+' Usage example:
+' var(l, t, r, b) = tkRebar_GetBandBorders(hRebar, 0)
+' print l, t, r, b
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_GetBandBorders OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD) AS (LONG, LONG, LONG, LONG)
+   DIM rc AS RECT
+   SendMessageW(hRebar, RB_GETBANDBORDERS, uBand, cast(LPARAM, @rc))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' * Retrieves the count of bands currently in the rebar control.
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_GetBandCount (BYVAL hRebar AS HWND) AS DWORD
+   RETURN SendMessageW(hRebar, RB_GETBANDCOUNT, 0, 0)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Retrieves information about a specified band in a rebar control.
+' Returns TRUE or FALSE.
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_GetBandInfo OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD, BYVAL prbbi AS REBARBANDINFOW PTR) AS BOOLEAN
+   IF prbbi = NULL THEN RETURN FALSE
+   IF tkComCtlVersion >= 600 THEN
+      prbbi->cbSize  = REBARBANDINFO_V6_SIZE
+   ELSE
+      prbbi->cbSize  = REBARBANDINFO_V3_SIZE
+   END IF
+   RETURN SendMessageW(hRebar, RB_GETBANDINFO, uBand, cast(LPARAM, prbbi))
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_GetBandInfo OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD, BYREF rbbi AS REBARBANDINFOW) AS BOOLEAN
+   IF VARPTR(rbbi) = 0 THEN RETURN FALSE
+   IF tkComCtlVersion >= 600 THEN
+      rbbi.cbSize  = REBARBANDINFO_V6_SIZE
+   ELSE
+      rbbi.cbSize  = REBARBANDINFO_V3_SIZE
+   END IF
+   RETURN SendMessageW(hRebar, RB_GETBANDINFO, uBand, cast(LPARAM, @rbbi))
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_GetBandInfo OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD) AS REBARBANDINFOW
+   DIM rbbi AS REBARBANDINFOW
+   IF tkComCtlVersion >= 600 THEN
+      rbbi.cbSize  = REBARBANDINFO_V6_SIZE
+   ELSE
+      rbbi.cbSize  = REBARBANDINFO_V3_SIZE
+   END IF
+   SendMessageW(hRebar, RB_GETBANDINFO, uBand, cast(LPARAM, @rbbi))
+   RETURN rbbi
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Retrieves the margins of a band.
+' ========================================================================================
+PUBLIC SUB tkRebar_GetBandMargins OVERLOAD (BYVAL hRebar AS HWND, BYVAL pMargins AS MARGINS PTR)
+   SendMessageW(hRebar, RB_GETBANDMARGINS, 0, cast(LPARAM, pMargins))
+END SUB
+' ========================================================================================
+' ========================================================================================
+PUBLIC SUB tkRebar_GetBandMargins OVERLOAD (BYVAL hRebar AS HWND, BYREF _margins AS MARGINS)
+   SendMessageW(hRebar, RB_GETBANDMARGINS, 0, cast(LPARAM, @_margins))
+END SUB
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_GetBandMargins OVERLOAD (BYVAL hRebar AS HWND) AS MARGINS
+   DIM _margins AS MARGINS
+   SendMessageW(hRebar, RB_GETBANDMARGINS, 0, cast(LPARAM, @_margins))
+   RETURN _margins
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' * Retrieves the height of the rebar control.
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_GetBarHeight (BYVAL hRebar AS HWND) AS DWORD
+   RETURN SendMessageW(hRebar, RB_GETBARHEIGHT, 0, 0)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Retrieves information about the rebar control and the image list it uses.
+' Return value: Returns TRUE or FALSE.
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_GetBarInfo OVERLOAD (BYVAL hRebar AS HWND, BYVAL prbi AS REBARINFO PTR) AS BOOLEAN
+   IF prbi = NULL THEN RETURN FALSE
+   prbi->cbSize = SIZEOF(REBARINFO)
+   RETURN SendMessageW(hRebar, RB_GETBARINFO, 0, cast(LPARAM, prbi))
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_GetBarInfo OVERLOAD (BYVAL hRebar AS HWND, BYREF rbi AS REBARINFO) AS BOOLEAN
+   IF VARPTR(rbi) = 0 THEN RETURN FALSE
+   rbi.cbSize = SIZEOF(rbi)
+   RETURN SendMessageW(hRebar, RB_GETBARINFO, 0, cast(LPARAM, @rbi))
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_GetBarInfo OVERLOAD (BYVAL hRebar AS HWND) AS REBARINFO
+   DIM rbi AS REBARINFO
+   rbi.cbSize = SIZEOF(REBARINFO)
+   SendMessageW(hRebar, RB_GETBARINFO, 0, cast(LPARAM, @rbi))
+   RETURN rbi
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' * Retrieves a rebar control's default background color.
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_GetBkColor (BYVAL hRebar AS HWND) AS COLORREF
+   RETURN SendMessageW(hRebar, RB_GETBKCOLOR, 0, 0)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Retrieves the color scheme information from the rebar control.
+' Return value: Returns TRUE or FALSE.
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_GetColorScheme OVERLOAD (BYVAL hRebar AS HWND, BYVAL pcs AS COLORSCHEME PTR) AS BOOLEAN
+   IF pcs = NULL THEN RETURN FALSE
+   pcs->dwSize = SIZEOF(COLORSCHEME)
+   RETURN SendMessageW(hRebar, RB_GETCOLORSCHEME, 0, CAST(LPARAM, pcs))
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_GetColorScheme OVERLOAD (BYVAL hRebar AS HWND, BYREF cs AS COLORSCHEME) AS BOOLEAN
+   IF VARPTR(cs) THEN RETURN FALSE
+   cs.dwSize = SIZEOF(cs)
+   RETURN SendMessageW(hRebar, RB_GETCOLORSCHEME, 0, CAST(LPARAM, @cs))
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_GetColorScheme OVERLOAD (BYVAL hRebar AS HWND) AS COLORSCHEME
+   DIM cs AS COLORSCHEME
+   cs.dwSize = SIZEOF(cs)
+   SendMessageW(hRebar, RB_GETCOLORSCHEME, 0, CAST(LPARaM, @cs))
+   RETURN cs
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Retrieves a rebar control's IDropTarget interface pointer.
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_GetDropTarget (BYVAL hRebar AS HWND) AS IDropTarget PTR
+   DIM ppIDropTarget AS IDropTarget PTR
+   SendMessageW(hRebar, RB_GETDROPTARGET, 0, CAST(LPARAM, @ppIDropTarget))
+   RETURN ppIDropTarget
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Retrieves the rebar control's current palette.
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_GetPalette (BYVAL hRebar AS HWND) AS HPALETTE
+   RETURN cast(HPALETTE, SendMessageW(hRebar, RB_GETPALETTE, 0, 0))
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Retrieves the bounding rectangle for a given band in a rebar control.
+' Return value: Returns TRUE or FALSE.
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_GetRect OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD, BYVAL prc AS RECT PTR) AS BOOLEAN
+   RETURN SendMessageW(hRebar, RB_GETRECT, uBand, cast(LPARAM, prc))
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_GetRect OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD, BYREF rc AS RECT) AS BOOLEAN
+   RETURN SendMessageW(hRebar, RB_GETRECT, uBand, cast(LPARAM, @rc))
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+'PUBLIC FUNCTION tkRebar_GetRect OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD) AS RECT
+'   DIM rc AS RECT
+'   SendMessageW(hRebar, RB_GETRECT, uBand, cast(LPARAM, @rc))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+' Usage example:
+' var(l, t, r, b) = tkRebar_GetRect(hRebar, 0)
+' print l, t, r, b
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_GetRect OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD) AS (LONG, LONG, LONG, LONG)
+   DIM rc AS RECT
+   SetLastError(SendMessageW(hRebar, RB_GETRECT, uBand, cast(LPARAM, @rc)))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' * Retrieves the number of rows of bands in a rebar control.
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_GetRowCount (BYVAL hRebar AS HWND) AS DWORD
+   RETURN SendMessageW(hRebar, RB_GETROWCOUNT, 0, 0)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' * Retrieves the height of a specified row in a rebar control.
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_GetRowHeight (BYVAL hRebar AS HWND, BYVAL uRow AS DWORD) AS DWORD
+   RETURN SendMessageW(hRebar, RB_GETROWHEIGHT, uRow, 0)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' * Retrieves a rebar control's default text color.
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_GetTextColor (BYVAL hRebar AS HWND) AS COLORREF
+   RETURN SendMessageW(hRebar, RB_GETTEXTCOLOR, 0, 0)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Retrieves the handle to any ToolTip control associated with the rebar control.
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_GetTooltips (BYVAL hRebar AS HWND) AS HWND
+   RETURN cast(HWND, SendMessageW(hRebar, RB_GETTOOLTIPS, 0, 0))
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Determines which portion of a rebar band is at a given point on the screen, if a rebar
+' band exists at that point.
+' - hRebar: Pointer to the rebar control.
+' - lprhbt: Pointer to an RBHITTESTINFO structure. Before sending the message, the pt member
+'   of this structure must be initialized to the point that will be hit tested, in client coordinates.
+' Returns the zero-based index of the band at the given point, or -1 if no rebar band was at the point.
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_HitTest (BYVAL hRebar AS HWND, BYREF rhbt AS RBHITTESTINFO) AS LONG
+   IF VARPTR(rhbt) = 0 THEN RETURN -1
+   RETURN SendMessageW(hRebar, RB_HITTEST, 0, cast(LPARAM, @rhbt))
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Converts a band identifier to a band index in a rebar control.
+' Returns the zero-based band index if successful, or -1 otherwise. If duplicate band
+' identifiers exist, the first one is returned.
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_IdToIndex (BYVAL hRebar AS HWND, BYVAL uBandID AS DWORD) AS LONG
+   RETURN SendMessageW(hRebar, RB_IDTOINDEX, uBandID, 0)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' * Inserts a new band in a rebar control.
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_InsertBand OVERLOAD (BYVAL hRebar AS HWND, BYVAL nIndex AS LONG, BYVAL prbbi AS REBARBANDINFOW PTR) AS BOOLEAN
+   IF prbbi = NULL THEN RETURN FALSE
+   IF tkComCtlVersion >= 600 THEN
+      prbbi->cbSize  = REBARBANDINFO_V6_SIZE
+   ELSE
+      prbbi->cbSize  = REBARBANDINFO_V3_SIZE
+   END IF
+   RETURN SendMessageW(hRebar, RB_INSERTBAND, nIndex, cast(LPARAM, prbbi))
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_InsertBand OVERLOAD (BYVAL hRebar AS HWND, BYVAL nIndex AS LONG, BYREF rbbi AS REBARBANDINFOW) AS BOOLEAN
+   IF VARPTR(rbbi) = 0 THEN RETURN FALSE
+   IF tkComCtlVersion >= 600 THEN
+      rbbi.cbSize  = REBARBANDINFO_V6_SIZE
+   ELSE
+      rbbi.cbSize  = REBARBANDINFO_V3_SIZE
+   END IF
+   RETURN SendMessageW(hRebar, RB_INSERTBAND, nIndex, cast(LPARAM, @rbbi))
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Resizes a band in a rebar control to either its ideal or largest size.
+' ========================================================================================
+PUBLIC SUB tkRebar_MaximizeBand (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD, BYVAL fIdeal AS BOOLEAN)
+   SendMessageW(hRebar, RB_MAXIMIZEBAND, uBand, fIdeal)
+END SUB
+' ========================================================================================
+
+' ========================================================================================
+' Resizes a band in a rebar control to its smallest size.
+' ========================================================================================
+PUBLIC SUB tkRebar_MinimizeBand (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD)
+  SendMessageW(hRebar, RB_MINIMIZEBAND, cast(WPARAM, uBand), 0)
+END SUB
+' ========================================================================================
+
+' ========================================================================================
+' Moves a band from one index to another. Returns TRUE or FALSE.
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_MoveBand (BYVAL hRebar AS HWND, BYVAL nFrom AS DWORD, BYVAL nTo AS DWORD) AS BOOLEAN
+   RETURN SendMessageW(hRebar, RB_MOVEBAND, nFrom, nTo)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Sent to a rebar control to programmatically push a chevron.
+' ========================================================================================
+PUBLIC SUB tkRebar_PushChevron (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD, BYVAL iAppValue AS DWORD)
+   SendMessageW(hRebar, RB_PUSHCHEVRON, uBand, iAppValue)
+END SUB
+' ========================================================================================
+
+' ========================================================================================
+' Sets characteristics of an existing band in a rebar control. Returns TRUE or FALSE.
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_SetBandInfo OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD, BYVAL prbbi AS REBARBANDINFOW PTR) AS BOOLEAN
+   IF prbbi = NULL THEN RETURN FALSE
+   IF tkComCtlVersion >= 600 THEN
+      prbbi->cbSize  = REBARBANDINFO_V6_SIZE
+   ELSE
+      prbbi->cbSize  = REBARBANDINFO_V3_SIZE
+   END IF
+   RETURN SendMessageW(hRebar, RB_SETBANDINFO, uBand, cast(LPARAM, prbbi))
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_SetBandInfo OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD, BYREF rbbi AS REBARBANDINFOW) AS BOOLEAN
+   IF tkComCtlVersion >= 600 THEN
+      rbbi.cbSize  = REBARBANDINFO_V6_SIZE
+   ELSE
+      rbbi.cbSize  = REBARBANDINFO_V3_SIZE
+   END IF
+   RETURN SendMessageW(hRebar, RB_SETBANDINFO, uBand, cast(LPARAM, @rbbi))
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Sets the characteristics of a rebar control. Returns TRUE or FALSE.
+' ========================================================================================
+#if _WIN32_WINNT = &h0602
+PUBLIC FUNCTION tkRebar_SetBandWidth (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD, BYVAL nWidth AS DWORD) AS BOOLEAN
+   RETURN SendMessageW(hRebar, RB_SETBANDWIDTH, uBand, nWidth)
+END FUNCTION
+#endif
+' ========================================================================================
+
+' ========================================================================================
+' Sets the characteristics of a rebar control. Returns TRUE or FALSE.
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_SetBarInfo OVERLOAD (BYVAL hRebar AS HWND, BYVAL prbi AS REBARINFO PTR) AS BOOLEAN
+   IF prbi = NULL THEN RETURN FALSE
+   prbi->cbSize = SIZEOF(REBARINFO)
+   RETURN SendMessageW(hRebar, RB_SETBARINFO, 0, cast(LPARAM, prbi))
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_SetBarInfo OVERLOAD (BYVAL hRebar AS HWND, BYREF rbi AS REBARINFO) AS BOOLEAN
+   IF VARPTR(rbi) = 0 THEN RETURN FALSE
+   rbi.cbSize = SIZEOF(rbi)
+   RETURN SendMessageW(hRebar, RB_SETBARINFO, 0, cast(LPARAM, @rbi))
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Sets a rebar control's default background color.
+' Returns a COLORREF value that represents the previous default background color.
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_SetBkColor (BYVAL hRebar AS HWND, BYVAL clrBk AS DWORD) AS DWORD
+   RETURN SendMessageW(hRebar, RB_SETBKCOLOR, 0, clrBk)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Sets the color scheme information for the rebar control.
+' ========================================================================================
+PUBLIC SUB tkRebar_SetColorScheme OVERLOAD (BYVAL hRebar AS HWND, BYVAL pcs AS COLORSCHEME PTR)
+   IF pcs = NULL THEN EXIT SUB
+   pcs->dwSize = SIZEOF(COLORSCHEME)
+   SendMessageW(hRebar, RB_SETCOLORSCHEME, 0, CAST(LPARAM, pcs))
+END SUB
+' ========================================================================================
+' ========================================================================================
+PUBLIC SUB tkRebar_SetColorScheme OVERLOAD (BYVAL hRebar AS HWND, BYREF cs AS COLORSCHEME)
+   IF VARPTR(cs) THEN EXIT SUB
+   cs.dwSize = SIZEOF(COLORSCHEME)
+   SendMessageW(hRebar, RB_SETCOLORSCHEME, 0, CAST(LPARAM, @cs))
+END SUB
+' ========================================================================================
+
+' ========================================================================================
+' Sets the rebar control's current palette.
+' Returns an HPALETTE that specifies the rebar control's previous palette.
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_SetPalette (BYVAL hRebar AS HWND, BYVAL hPal AS HPALETTE) AS HPALETTE
+   RETURN cast(HPALETTE, SendMessageW(hRebar, RB_SETPALETTE, 0, cast(LPARAM, hPal)))
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Sets a rebar control's parent window.
+' Returns the handle to the previous parent window, or NULL if there is no previous parent.
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_SetParent (BYVAL hRebar AS HWND, BYVAL hwndParent AS hWND) AS HWND
+   RETURN cast(HWND, SendMessageW(hRebar, RB_SETPARENT, cast(WPARAM, hwndParent), 0))
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Sets a rebar control's default text color.
+' Returns a COLORREF value that represents the previous default text color.
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_SetTextColor (BYVAL hRebar AS HWND, BYVAL clrText AS COLORREF) AS COLORREF
+   RETURN SendMessageW(hRebar, RB_SETTEXTCOLOR, 0, clrText)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Associates a tooltip control with the rebar control.
+' ========================================================================================
+PUBLIC SUB tkRebar_SetTooltips (BYVAL hRebar AS HWND, BYVAL hwndToolTip AS HWND)
+   SendMessageW(hRebar, RB_SETTOOLTIPS, cast(WPARAM, hwndToolTip), 0)
+END SUB
+' ========================================================================================
+
+' ========================================================================================
+' Sets the visual style of a rebar control.
+' ========================================================================================
+PUBLIC SUB tkRebar_SetWindowTheme (BYVAL hRebar AS HWND, BYVAL pwszTheme AS WSTRING PTR)
+   SendMessageW(hRebar, RB_SETWINDOWTHEME, 0, cast(LPARAM, pwszTheme))
+END SUB
+' ========================================================================================
+
+' ========================================================================================
+' Shows or hides a given band in a rebar control. Returns TRUE or FALSE.
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_ShowBand (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD, BYVAL fShow AS BOOLEAN) AS BOOLEAN
+   RETURN SendMessageW(hRebar, RB_SHOWBAND, uBand, fShow)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Attempts to find the best layout of the bands for the given rectangle. Returns TRUE or FALSE.
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_SizeToRect OVERLOAD (BYVAL hRebar AS HWND, BYVAL prc AS RECT PTR) AS BOOLEAN
+   RETURN SendMessageW(hRebar, RB_SIZETORECT, 0, cast(LPARAM, prc))
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_SizeToRect OVERLOAD (BYVAL hRebar AS HWND, BYREF rc AS RECT) AS BOOLEAN
+   RETURN SendMessageW(hRebar, RB_SIZETORECT, 0, cast(LPARAM, @rc))
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+'PUBLIC FUNCTION tkRebar_SizeToRect OVERLOAD (BYVAL hRebar AS HWND) AS RECT
+'   DIM rc AS RECT
+'   SendMessageW(hRebar, RB_SIZETORECT, 0, cast(LPARAM, @rc))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_SizeToRect OVERLOAD (BYVAL hRebar AS HWND) AS (LONG, LONG, LONG, LONG)
+   DIM rc AS RECT
+   SetLastError(SendMessageW(hRebar, RB_SIZETORECT, 0, cast(LPARAM, @rc)))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' * Sets the rebar dark mode.
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_SetDarkMode(BYVAL hRebar AS HWND) AS HRESULT
+   RETURN ..SetWindowTheme(hRebar, "DarkModeNavbar", NULL)
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+' * Removes the rebar dark mode.
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_RemoveDarkMode(BYVAL hRebar AS HWND) AS HRESULT
+   RETURN ..SetWindowTheme(hRebar, NULL, NULL)
+END FUNCTION
+' ========================================================================================
