@@ -34,3 +34,5 @@ select case as const sl : case -2147483648 : end select
 select case as const bo : case -1, 0 : end select
 select case as const co : case 5000000000 : end select
 select case as const ul : case 4294967295 : end select
+select case as const ul : case culng( 4294967295ull ) : end select
+select case as const sb : case cuint( 18446744073709551615ull ) : end select

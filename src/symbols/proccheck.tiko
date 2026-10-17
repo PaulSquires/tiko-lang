@@ -446,13 +446,24 @@ private sub CaseValueRange_ _
     dim as TypeId vu = c.types->Unqualify( vt )
     if c.types->Kind( vu ) <> TK_BUILTIN then return
     dim as boolean vUns = false
+    dim as int32 vw = 64
     select case c.types->BuiltinOf( vu )
-    case TY_UBYTE, TY_USHORT, TY_ULONG, TY_UINTEGER, TY_ULONGINT
-        vUns = true
-    case TY_BYTE, TY_SHORT, TY_LONG, TY_INTEGER, TY_LONGINT, TY_BOOLEAN
+    case TY_UBYTE                : vUns = true : vw = 8
+    case TY_USHORT               : vUns = true : vw = 16
+    case TY_ULONG                : vUns = true : vw = 32
+    case TY_UINTEGER, TY_ULONGINT : vUns = true
+    case TY_BYTE                 : vw = 8
+    case TY_SHORT                : vw = 16
+    case TY_LONG                 : vw = 32
+    case TY_INTEGER, TY_LONGINT, TY_BOOLEAN
     case else
         return                                      '' a float or a string: not this
     end select
+    if (c.types->target.pointerBits = 32) then
+        select case c.types->BuiltinOf( vu )
+        case TY_INTEGER, TY_UINTEGER : vw = 32
+        end select
+    end if
     dim as ScopeId sc = c.info->ScopeOf( v )
     dim as Check.ConstVal cv = Check.ConstOf( _
         *c.ast, v, *c.srcMgr, *c.names, c.types->target.pointerBits, c.syms, sc )
@@ -474,7 +485,15 @@ private sub CaseValueRange_ _
             @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, bare )].data )]
         if cast( TokenKind, up->op ) = TK_MINUS then vUns = false : cv.uns = false
     end if
-    dim as boolean big = (vUns orelse cv.uns) andalso (x < 0)
+    '' AT ITS OWN WIDTH: 'culng( 4294967295ull )' folds sign-extended, -1, and is the ulong
+    '' 4294967295 -- which a ulong subject holds.
+    if vw < 64 then
+        x = x and ((1ll shl vw) - 1)
+        if (vUns = false) andalso (x >= (1ll shl (vw - 1))) then x -= (1ll shl vw)
+    end if
+    '' THE TYPE DECIDES, not the folder's own 'uns' flag: 'const c as long = -2147483648'
+    '' carries the unsigned flag of the 2147483648 it negated, and is a long all the same.
+    dim as boolean big = vUns andalso (x < 0)
     dim as boolean fits
     if big then
         fits = subjUns64
