@@ -933,7 +933,31 @@ function UserConvToScalar_ _
     if c.types->Kind( d ) = Tko.TK_POINTER then
         if UserCastToPtr_( c, id, outv, d ) then return true
     end if
-    return UserCastToNum_( c, id, outv, d, asArg )
+    if UserCastToNum_( c, id, outv, d, asArg ) = false then return false
+    '' A BOOLEAN RESULT INTO A NUMBER WIDENS TO -1, here, where the destination is known: every
+    '' caller coerces what this returns FROM THE UDT's type, which CoerceTy cannot see as a
+    '' boolean, so true zero-extended to 1. Measured on fbc-modern over 'operator cast( ) as
+    '' boolean' returning true: 's( b )' into a long, 'dim as long k = b', 'k = b' and 'return b'
+    '' all give -1 (255 into a ubyte, -1 into a double), as a plain boolean does.
+    if UserCastIsBool_( c, id, d, asArg ) andalso (IsBooleanType( c, d ) = false) then
+        dim as boolean numDst = (c.types->Kind( d ) = Tko.TK_BUILTIN) andalso (dm <> MT_PTR)
+        if numDst then numDst = (IsStringType( c, d ) = false) andalso (IsWideString_( c, d ) = false)
+        if numDst then outv = CoerceTy( c, outv, dm, c.types->Builtin( Tko.TY_BOOLEAN ), d )
+    end if
+    return (outv.kind <> cast( uint8, MV_NONE ))
+end function
+
+'' Does the numeric 'operator cast' UserCastToNum_ takes for ID, meeting WANT, yield a BOOLEAN?
+'' Its callers coerce the result from the UDT's own type, which hides the boolean -- and a
+'' boolean widens to -1, not 1, and compares by fbc's boolean rules. ASARG asks about the cast an
+'' ARGUMENT takes (UserCastNumOverload_), which can differ from the one a value takes.
+function UserCastIsBool_( byref c as Ctx, byval id as Tko.NodeId, byval want as Tko.TypeId, _
+                         byval asArg as boolean = false ) as boolean
+    dim as Tko.TypeId t = c.types->Unqualify( c.info->TypeOf_( id ) )
+    if c.types->Kind( t ) <> Tko.TK_UDT then return false
+    dim as Tko.SymbolId pick = UserCastNumOverload_( c, t, want, asArg )
+    if pick = Tko.SYMBOL_NONE then return false
+    return IsBooleanType( c, c.types->Unqualify( c.syms->SymbolAt( pick )->type_ ) )
 end function
 
 '' THE 'operator cast' OVERLOAD THAT YIELDS A NUMBER, as a symbol. Split out of

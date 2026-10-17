@@ -1,0 +1,23 @@
+'' 'operator cast( ) as boolean' CONVERTED TO A NUMBER widens to -1 like a plain boolean: an argument,
+'' an initialiser, an assignment and a return coerced the cast's i8 from the UDT's type and gave 1,
+'' and a comparison or 'not' over it used the stored 1. Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/udt-bool-cast-widen.bas -o tests/codegen/udtboolcastwiden.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/udtboolcastwiden.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: arg long-1
+'' EXPECT-RUN-OUT: arg ubyte255
+'' EXPECT-RUN-OUT: arg double-1
+'' EXPECT-RUN-OUT: arg long 0
+'' EXPECT-RUN-OUT: init long-1
+'' EXPECT-RUN-OUT: init ulong4294967295
+'' EXPECT-RUN-OUT: init single-1
+'' EXPECT-RUN-OUT: asgn long-1
+'' EXPECT-RUN-OUT: ret long-1
+'' EXPECT-RUN-OUT: b = -1-1
+'' EXPECT-RUN-OUT: b = u255 0
+'' EXPECT-RUN-OUT: b and 3 3
+'' EXPECT-RUN-OUT: b = pbtrue
+'' EXPECT-RUN-OUT: not bfalse

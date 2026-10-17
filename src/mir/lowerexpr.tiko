@@ -674,6 +674,9 @@ function LowerExpr _
             x = LowerExpr( c, up->operand )
         end if
         if x.kind = cast( uint8, MV_NONE ) then return v
+        '' ...AND ONE CAST TO BOOLEAN IS A BOOLEAN OPERAND: 'not b' is false over a true one.
+        dim as Tko.TypeId xt = c.info->TypeOf_( up->operand )
+        if UserCastIsBool_( c, up->operand, Tko.TYPE_NONE ) then xt = c.types->Builtin( Tko.TY_BOOLEAN )
         '' THE OPERAND IS COERCED TO THE RESULT'S TYPE, which the BINARY path has
         '' always done and this one did not. Check types 'not flags' over a ULONG as a
         '' 64-bit value while the operand stays i32, and the instruction was emitted
@@ -686,7 +689,7 @@ function LowerExpr _
         '' of the corpus's codegen failures, every one of them fb/tui's input-mode
         '' mask. The widening follows the OPERAND's signedness, so a ULONG
         '' zero-extends and a LONG sign-extends.
-        x = CoerceTy( c, x, mt, c.info->TypeOf_( up->operand ), ft )
+        x = CoerceTy( c, x, mt, xt, ft )
         if x.kind = cast( uint8, MV_NONE ) then return v
         dim as MirInst ins
         ins.ty = cast( uint8, mt )
@@ -710,7 +713,7 @@ function LowerExpr _
             '' Found by build/suiterun.sh: the corpus asserts it in four files at
             '' once -- str( not b1 ), wstr( not b1 ), 'not b1 or b2' and
             '' 'not (a)' -- and every one of them had been compiled and never run.
-            if IsBooleanType( c, c.info->TypeOf_( up->operand ) ) then
+            if IsBooleanType( c, xt ) then
                 dim as MirInst bz
                 bz.op = cast( uint16, M_ICMP_EQ )
                 bz.ty = cast( uint8, MT_I8 )
@@ -915,6 +918,11 @@ function LowerExpr _
         '' type, not the result's: a comparison yields an integer either way.
         dim as Tko.TypeId lt = c.info->TypeOf_( bp->lhs )
         dim as Tko.TypeId rt = c.info->TypeOf_( bp->rhs )
+        '' A UDT SIDE CAST TO BOOLEAN IS A BOOLEAN OPERAND, so the boolean rules below apply to
+        '' it: measured, 'b = -1' and 'b = pb' are true and 'b = ubyte 255' false over 'operator
+        '' cast( ) as boolean' returning true; typed as the UDT it compared its stored 1.
+        if lCast andalso UserCastIsBool_( c, bp->lhs, rt ) then lt = c.types->Builtin( Tko.TY_BOOLEAN )
+        if rCast andalso UserCastIsBool_( c, bp->rhs, c.info->TypeOf_( bp->lhs ) ) then rt = c.types->Builtin( Tko.TY_BOOLEAN )
         '' POINTER PLUS INTEGER IS M_PTR_ADD, and it has to be decided BEFORE the
         '' operands are widened: the widening below brings both to the WIDER type,
         '' which for a pointer operand is MT_PTR, so the integer was bitcast to a

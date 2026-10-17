@@ -721,7 +721,7 @@ declare function EmitRtl _
     declare function UserCastCharRef_( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean : declare function HasNarrowStrCast_( byref c as Ctx, byval t as Tko.TypeId ) as boolean : declare function UdtTermWide_( byref c as Ctx, byval t as Tko.TypeId ) as boolean : declare function ScoredStrTerm_( byref c as Ctx, byval t as Tko.TypeId, byref sym as Tko.SymbolId ) as int32   '' lowercastpick.tiko
     declare function UserCastToNum_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
-          byval want as Tko.TypeId = Tko.TYPE_NONE, byval asArg as boolean = false ) as boolean
+          byval want as Tko.TypeId = Tko.TYPE_NONE, byval asArg as boolean = false ) as boolean : declare function UserCastIsBool_( byref c as Ctx, byval id as Tko.NodeId, byval want as Tko.TypeId, byval asArg as boolean = false ) as boolean
     declare function UserCastToPtr_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
           byval want as Tko.TypeId = Tko.TYPE_NONE ) as boolean
