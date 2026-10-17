@@ -111,6 +111,26 @@ function Verify _
                     Fail( r, bn, "false target " & str( b->target2 ) & " does not exist" )
                 end if
             end if
+            if tk = MTERM_SWITCH then
+                if (b->target2 < 0) orelse (b->target2 >= f->blocks.Count) then
+                    Fail( r, bn, "switch default " & str( b->target2 ) & " does not exist" )
+                end if
+                if b->switchVals.Count <> b->indirectTargets.Count then
+                    Fail( r, bn, "switch has " & str( b->switchVals.Count ) & " values for " & _
+                                 str( b->indirectTargets.Count ) & " targets" )
+                end if
+                for ti as int32 = 0 to b->indirectTargets.Count - 1
+                    dim as int32 st = cast( int32, b->indirectTargets[ti] )
+                    if (st < 0) orelse (st >= f->blocks.Count) then
+                        Fail( r, bn, "switch target " & str( st ) & " does not exist" )
+                    end if
+                    for tj as int32 = 0 to ti - 1
+                        if b->switchVals[tj] = b->switchVals[ti] then
+                            Fail( r, bn, "switch value " & str( b->switchVals[ti] ) & " appears twice" )
+                        end if
+                    next
+                next
+            end if
 
             for i as int32 = 0 to b->insts.Count - 1
                 dim as MirInst ptr ins = @b->insts[i]
@@ -266,7 +286,9 @@ function Verify _
             '' defined theirs (audit F-45): a branch condition or a returned value that
             '' names no temp, and a RET whose value disagrees with the signature -- 'return 5'
             '' in a sub was IR clang refused, and this said ok.
-            if tk = MTERM_CONDBR then CheckUse_( r, bn, -1, cast( MirOp, 0 ), b->cond, defined_ )
+            if (tk = MTERM_CONDBR) orelse (tk = MTERM_SWITCH) then
+                CheckUse_( r, bn, -1, cast( MirOp, 0 ), b->cond, defined_ )
+            end if
             if tk = MTERM_RET then
                 CheckUse_( r, bn, -1, cast( MirOp, 0 ), b->cond, defined_ )
                 CheckUse_( r, bn, -1, cast( MirOp, 0 ), b->ret2, defined_ )
@@ -304,13 +326,22 @@ function Verify _
                         end if
                     end if
                 end if
-                if tk = MTERM_CONDBR then
+                if (tk = MTERM_CONDBR) orelse (tk = MTERM_SWITCH) then
                     if (b->target2 >= 0) andalso (b->target2 < f->blocks.Count) then
                         if seen[b->target2] = 0 then
                             seen[b->target2] = 1
                             changed = true
                         end if
                     end if
+                end if
+                if tk = MTERM_SWITCH then
+                    for ti as int32 = 0 to b->indirectTargets.Count - 1
+                        dim as int32 st = cast( int32, b->indirectTargets[ti] )
+                        if (st >= 0) andalso (st < f->blocks.Count) andalso (seen[st] = 0) then
+                            seen[st] = 1
+                            changed = true
+                        end if
+                    next
                 end if
             next
         wend

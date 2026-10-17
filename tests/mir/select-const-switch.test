@@ -1,0 +1,13 @@
+'' SELECT CASE AS CONST over constants the subject holds lowers to ONE switch terminator,
+'' every value of a range and every alternative listed, CASE ELSE as its default. A value
+'' outside the subject's range (300 over a ubyte) keeps the compare chain, which compares in
+'' the promoted type as fbc does.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/select-const-switch.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: switch %
+'' EXPECT-OUT: 65: sel.body
+'' EXPECT-OUT: 67: sel.body
+'' EXPECT-OUT: 71: sel.body
+'' EXPECT-OUT: condbr
+'' EXPECT-OUT: verify: ok

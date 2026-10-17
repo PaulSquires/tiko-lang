@@ -1,0 +1,13 @@
+'' 'select case as const' refuses a repeated value (fbc's error 4) and a float subject
+'' (fbc's error 24); a plain SELECT takes both. Same lines as fbc-modern 1.20.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/select-const-dup.bas -o tests/diagnostics/src/select-const-dup.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: select-const-dup.bas(9,9): error TKO0977: 'select case as const' already has a case for the value 1
+'' EXPECT-OUT: select-const-dup.bas(14,6): error TKO0977: 'select case as const' already has a case for the value 1
+'' EXPECT-OUT: select-const-dup.bas(19,6): error TKO0977: 'select case as const' already has a case for the value 3
+'' EXPECT-OUT: select-const-dup.bas(23,14): error TKO0977: 'select case as const' already has a case for the value 4
+'' EXPECT-OUT: select-const-dup.bas(26,22): error TKO0978: 'select case as const' needs an integer subject, and this is a 'double'
+'' EXPECT-NOT: (33,
+'' EXPECT-NOT: (38,
+'' EXPECT-NOT: (39,

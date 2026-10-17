@@ -403,6 +403,25 @@ function DumpModule _
                         cast( int32, b->indirectTargets[ti] ), names )
                 next
                 outp += chr( 10 )
+            case MTERM_SWITCH
+                outp += "    switch " & ValStr( *f, b->cond, names, @m ) & ", " & _
+                        BlockName( *f, b->target2, names )
+                '' A RUN of consecutive values into one block prints as 'a..b': 'case 1 to
+                '' 8192' is 8192 entries, and one line per value buried the rest.
+                dim as int32 ti = 0
+                while ti < b->indirectTargets.Count
+                    dim as int32 tj = ti
+                    while (tj + 1 < b->indirectTargets.Count) andalso _
+                          (b->indirectTargets[tj + 1] = b->indirectTargets[ti]) andalso _
+                          (b->switchVals[tj + 1] = b->switchVals[tj] + 1)
+                        tj += 1
+                    wend
+                    outp += ", " & str( b->switchVals[ti] )
+                    if tj > ti then outp += ".." & str( b->switchVals[tj] )
+                    outp += ": " & BlockName( *f, cast( int32, b->indirectTargets[ti] ), names )
+                    ti = tj + 1
+                wend
+                outp += chr( 10 )
             case else
                 '' Printed rather than hidden: a block with no terminator is exactly
                 '' what the verifier exists to catch, and the dump should show it.

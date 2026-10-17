@@ -862,6 +862,12 @@
     '' 'type T extern "c"' (tiko-only): the record is laid out as the target's C compiler lays it
     '' out. "c" is the only language with a layout of its own. parser/decltype.tiko.
     DIAG( TKO0976, SEV_ERROR,   "a TYPE's 'extern' clause takes ""c"", not ""%0""" )
+    '' fbc's error 4, "Duplicated definition": AS CONST is a table, and a value has one
+    '' slot in it -- symbols/resolvesel.tiko SelectConstCheck_.
+    DIAG( TKO0977, SEV_ERROR,   "'select case as const' already has a case for the value %0" )
+    '' fbc's error 24, "Invalid data types": AS CONST indexes a table by its subject, so the
+    '' subject is an integer -- symbols/proccheck.tiko CheckSelectCaseKinds_.
+    DIAG( TKO0978, SEV_ERROR,   "'select case as const' needs an integer subject, and this is a '%0'" )
     DIAG( TKO0965, SEV_ERROR,   "'%0' has a field with a constructor, which an initializer list cannot fill" )
     DIAG( TKO0955, SEV_ERROR,   "'end %0' closes no '%0' block" )
     DIAG( TKO0956, SEV_ERROR,   "a second 'case else' -- a select has one, and it comes last" )

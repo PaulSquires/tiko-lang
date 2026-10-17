@@ -446,6 +446,15 @@ private sub CheckSelectCaseKinds_ ( byref c as Ctx, byval id as NodeId )
     end if
     if c.types->Kind( su ) <> TK_BUILTIN then return
     if CharAccess_( c, sp->a, su ) then return
+    '' AS CONST OVER A FLOAT is fbc's 24 at the SELECT itself, measured over 'double' and
+    '' 'single': a table cannot be indexed by one. tiko compiled it as a plain SELECT.
+    if cast( TokenKind, sp->op ) = KW_CONST then
+        select case c.types->BuiltinOf( su )
+        case TY_SINGLE, TY_DOUBLE
+            c.diags->Report( TKO0978, PointRange( c.ast->Loc( sp->a ) ), c.types->Name( su ) )
+            return
+        end select
+    end if
     dim as boolean subjStr = IsStringyType_( c, su )
     if subjStr = false then
         select case c.types->BuiltinOf( su )

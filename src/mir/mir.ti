@@ -245,6 +245,12 @@ namespace Tko.Mir
         '' list the verifier rejects the module and the optimiser may delete the
         '' handler as unreachable.
         MTERM_INDIRECTBR
+        '' 'select case as const' -- LLVM's 'switch'. 'cond' is the integer subject,
+        '' 'target2' the default block, and each case is a VALUE in 'switchVals' paired
+        '' with the block at the same index of 'indirectTargets'. One terminator instead
+        '' of a compare chain is what lets LLVM build a lookup or jump table, as it does
+        '' for fbc's own switch; a chain stays a chain.
+        MTERM_SWITCH
     end enum
 
     enum MirValueKind
@@ -308,6 +314,9 @@ namespace Tko.Mir
         '' MTERM_INDIRECTBR only: every block 'goto *p' may reach, as block indices.
         '' LLVM requires the list; see the enum.
         as containers.Array( of uint32 ) indirectTargets
+        '' MTERM_SWITCH only: the case values, in the subject's width, one per entry of
+        '' 'indirectTargets' -- which then holds the case blocks.
+        as containers.Array( of int64 ) switchVals
     end type
 
     type MirBlockVec as containers.Array( of MirBlock )

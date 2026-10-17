@@ -1006,6 +1006,17 @@ private sub EmitBlock _
             dsts += "label %" & BlockName( cast( int32, b.indirectTargets[ti] ) )
         next
         Line( e, "indirectbr ptr " & ValStr( e, b.cond ) & ", [ " & dsts & " ]" )
+    case MTERM_SWITCH
+        '' 'select case as const'. The values were narrowed to the subject's width
+        '' when they were lowered, so each prints as the signed literal LLVM expects.
+        dim as string sty = ValType( e, b.cond )
+        dim as string arms = ""
+        for ti as int32 = 0 to b.indirectTargets.Count - 1
+            arms += " " & sty & " " & str( b.switchVals[ti] ) & ", label %" & _
+                    BlockName( cast( int32, b.indirectTargets[ti] ) )
+        next
+        Line( e, "switch " & sty & " " & ValStr( e, b.cond ) & ", label %" & _
+                 BlockName( b.target2 ) & " [" & arms & " ]" )
     case else
         Ice( e, "a block with no terminator" )
     end select

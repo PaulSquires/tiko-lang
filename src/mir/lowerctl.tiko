@@ -20,6 +20,11 @@ declare function LowerCaseTest _
       byval isUns as boolean, byval val as Tko.NodeId, _
       byval subjT as Tko.TypeId = Tko.TYPE_NONE ) as MirValue
 declare function LabelSlot( byref c as Ctx, byval nm as Tko.InternId ) as int32
+'' lowerswitch.tiko: 'select case as const' as one switch, or false for the chain.
+declare function LowerSelectSwitch _
+    ( byref c as Ctx, byval sp as Tko.StmtPayload ptr, byref slotAddr as MirValue, _
+      byval mt as MirType, byval isUns as boolean, byval subjT as Tko.TypeId, _
+      byval joinB as int32 ) as boolean
 declare function LabelBlockOf( byref c as Ctx, byval slot as int32 ) as int32
 
 '' SELECT CASE, lowered as a COMPARISON CHAIN.
@@ -572,7 +577,14 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
     c.loopKind.Push( cast( int32, Tko.KW_SELECT ) )
     dim as boolean isUns = IsUnsignedType( c, subjT )
 
-    for i as int32 = 0 to lp->count - 1
+    '' AS CONST over an integer subject whose every case is a constant it holds: one
+    '' switch, which LLVM can make a table -- lowerswitch.tiko. Otherwise the chain.
+    dim as boolean switched = false
+    if strMode < 0 then
+        switched = LowerSelectSwitch( c, sp, slotAddr, mt, isUns, subjT, joinB )
+    end if
+
+    for i as int32 = 0 to iif( switched, -1, lp->count - 1 )
         dim as Tko.NodeId cs = cast( Tko.NodeId, c.ast->children[lp->first + i] )
         if c.ast->Kind( cs ) <> Tko.N_CASE then continue for
         dim as Tko.StmtPayload ptr cp = StmtOf( c, cs )
@@ -618,7 +630,7 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
     next
 
     '' CASE ELSE is the trailing block, reached when every test failed.
-    if sp->c <> Tko.NODE_NONE then
+    if (switched = false) andalso (sp->c <> Tko.NODE_NONE) then
         PushScope( c, cast( uint32, sp->c ) )
         LowerBlock( c, sp->c )
         CloseScope( c )

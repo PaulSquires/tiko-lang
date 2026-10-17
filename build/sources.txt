@@ -54,6 +54,7 @@ src/mir/lowerswap.tiko
 src/mir/lowerwstr.tiko
 src/mir/lowerwstru.tiko
 src/mir/lowerctl.tiko
+src/mir/lowerswitch.tiko
 src/mir/lowerlabel.tiko
 src/mir/lowereach.tiko
 src/mir/eightbyte.tiko

@@ -1,0 +1,194 @@
+'' lowerswitch.tiko -- 'select case as const' as ONE MTERM_SWITCH, LLVM's 'switch'.
+''
+'' fbc lowers AS CONST to a jump table: a computed goto under -gen gcc, a 'switch' under
+'' -gen llvm. tiko lowered it to the same compare chain as a plain SELECT, so
+''
+''     select case as const c : case 65 : return 0 : case 67 : return 1 ...
+''
+'' stayed a chain of branches where clang turns fbc's switch into a lookup table. On data
+'' the branch predictor cannot learn -- the k-nucleotide benchmark's DNA -- that was 1.3x
+'' the time of the same loop in C.
+''
+'' THE SWITCH IS USED ONLY WHERE IT IS PROVABLY THE CHAIN'S ANSWER. Every case value must
+'' fold to an integer the subject's own type holds; anything else -- a value out of the
+'' subject's range, which the chain compares in the PROMOTED type (fbc: 'case 300' over a
+'' ubyte never matches, 'case -1' over a ulongint does), a boolean subject, a float or a
+'' string one -- keeps the chain, which is measured against fbc case by case. For a value
+'' in range the two agree: the promotion is injective on the subject's values, so the
+'' promoted equality holds exactly when the narrow one does.
+''
+'' A VALUE THAT REPEATS keeps its FIRST case, as the chain does. fbc refuses the
+'' repetition outright (error 4), and Resolve reports it, so this matters only for a
+'' build that goes on past errors.
+
+#import "std/containers"
+#include once "mir/lowerctx.ti"
+#include once "lexer/keywords.ti"
+
+namespace Tko.Mir
+
+private function SwitchWidth_( byval mt as MirType ) as int32
+    select case mt
+    case MT_I8  : return 8
+    case MT_I16 : return 16
+    case MT_I32 : return 32
+    case MT_I64 : return 64
+    end select
+    return 0
+end function
+
+'' One case value, folded and narrowed to the subject's width as the signed number LLVM
+'' prints. False when it does not fold to an integer the subject's type holds.
+private function SwitchVal_ _
+    ( byref c as Ctx, byval node as Tko.NodeId, byval w as int32, byval uns as boolean, _
+      byref outv as int64 ) as boolean
+
+    if node = Tko.NODE_NONE then return false
+    dim as Tko.TypeId vt = c.info->TypeOf_( node )
+    if vt = Tko.TYPE_NONE then return false
+    if IsBooleanType( c, vt ) then return false
+    if SwitchWidth_( LowerType( vt, *c.types ) ) = 0 then return false
+
+    dim as Tko.ScopeId sc = c.info->ScopeOf( node )
+    if sc = Tko.SCOPE_NONE then sc = c.procScope
+    if sc = Tko.SCOPE_NONE then sc = c.modScope
+    dim as Tko.Check.ConstVal cv = Tko.Check.ConstOf( _
+        *c.ast, node, *c.srcMgr, *c.names, c.types->target.pointerBits, c.syms, sc )
+    if cv.known = false then return false
+    dim as int64 v = cv.value
+
+    if w = 64 then
+        if uns andalso (v < 0) then return false
+        outv = v
+        return true
+    end if
+    if uns then
+        if (v < 0) orelse (v > ((1ll shl w) - 1)) then return false
+        if v >= (1ll shl (w - 1)) then v -= (1ll shl w)
+    else
+        if (v < -(1ll shl (w - 1))) orelse (v > ((1ll shl (w - 1)) - 1)) then return false
+    end if
+    outv = v
+    return true
+end function
+
+'' The cases as one switch, their bodies, and CASE ELSE. Returns false, having emitted
+'' nothing, when the statement is not one the switch can take; the caller then builds the
+'' chain. 'slotAddr' holds the subject, stored once; 'joinB' is where every arm ends.
+function LowerSelectSwitch _
+    ( byref c as Ctx, byval sp as Tko.StmtPayload ptr, byref slotAddr as MirValue, _
+      byval mt as MirType, byval isUns as boolean, byval subjT as Tko.TypeId, _
+      byval joinB as int32 ) as boolean
+
+    if cast( Tko.TokenKind, sp->op ) <> Tko.KW_CONST then return false
+    dim as int32 w = SwitchWidth_( mt )
+    if w = 0 then return false
+    if IsBooleanType( c, subjT ) then return false
+
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, sp->b )].data )]
+
+    '' EVERYTHING IS CHECKED BEFORE ANYTHING IS EMITTED, so a refusal leaves the block as
+    '' the chain expects to find it.
+    dim as int64 entries = 0
+    for i as int32 = 0 to lp->count - 1
+        dim as Tko.NodeId cs = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+        if c.ast->Kind( cs ) <> Tko.N_CASE then continue for
+        dim as Tko.StmtPayload ptr cp = StmtOf( c, cs )
+        if (cp = nullptr) orelse (cp->count = 0) then return false
+        for v as int32 = 0 to cp->count - 1
+            dim as Tko.NodeId pn = cast( Tko.NodeId, c.ast->children[cp->first + v] )
+            dim as int64 a = 0, b = 0
+            if c.ast->Kind( pn ) = Tko.N_CASE_RANGE then
+                dim as Tko.StmtPayload ptr rp = StmtOf( c, pn )
+                if rp = nullptr then return false
+                if cast( Tko.TokenKind, rp->op ) <> 0 then return false   '' 'case is'
+                if SwitchVal_( c, rp->a, w, isUns, a ) = false then return false
+                if SwitchVal_( c, rp->b, w, isUns, b ) = false then return false
+                '' Compared as the SUBJECT compares them: an unsigned range was narrowed
+                '' to signed above, so it is ordered on the original values instead.
+                dim as int64 ua = a, ub = b
+                if isUns andalso (w < 64) then
+                    if ua < 0 then ua += (1ll shl w)
+                    if ub < 0 then ub += (1ll shl w)
+                end if
+                if ua > ub then return false
+                entries += ub - ua + 1
+            else
+                if SwitchVal_( c, pn, w, isUns, a ) = false then return false
+                entries += 1
+            end if
+            '' Resolve already refuses a span over 8192; this only bounds the table a
+            '' build that carried on past that error would make.
+            if entries > 8192 then return false
+        next
+    next
+
+    '' THE SWITCH ITSELF, in the block the subject was stored in.
+    dim as int32 switchB = c.curBlock
+    if switchB < 0 then return false
+    dim as MirValue subj = LowerExprLoad( c, slotAddr, mt )
+    if subj.kind = cast( uint8, MV_NONE ) then return false
+    dim as int32 elseB = joinB
+    if sp->c <> Tko.NODE_NONE then elseB = NewBlock( c, "sel.else" )
+    Terminate( c, MTERM_SWITCH, -1, elseB, subj )
+    dim as boolean live = (c.f->blocks[switchB].term = cast( uint8, MTERM_SWITCH ))
+
+    dim as containers.Map( of int64, int32 ) taken
+    for i as int32 = 0 to lp->count - 1
+        dim as Tko.NodeId cs = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+        if c.ast->Kind( cs ) <> Tko.N_CASE then continue for
+        dim as Tko.StmtPayload ptr cp = StmtOf( c, cs )
+        dim as int32 bodyB = NewBlock( c, "sel.body" )
+
+        for v as int32 = 0 to cp->count - 1
+            dim as Tko.NodeId pn = cast( Tko.NodeId, c.ast->children[cp->first + v] )
+            dim as int64 a = 0, b = 0
+            if c.ast->Kind( pn ) = Tko.N_CASE_RANGE then
+                dim as Tko.StmtPayload ptr rp = StmtOf( c, pn )
+                SwitchVal_( c, rp->a, w, isUns, a )
+                SwitchVal_( c, rp->b, w, isUns, b )
+            else
+                SwitchVal_( c, pn, w, isUns, a )
+                b = a
+            end if
+            '' Walked on the subject's own ordering, then narrowed back per value.
+            dim as int64 ua = a, ub = b
+            if isUns andalso (w < 64) then
+                if ua < 0 then ua += (1ll shl w)
+                if ub < 0 then ub += (1ll shl w)
+            end if
+            dim as int64 u = ua
+            do
+                dim as int64 nv = u
+                if isUns andalso (w < 64) andalso (nv >= (1ll shl (w - 1))) then nv -= (1ll shl w)
+                if live andalso (taken.Contains( nv ) = false) then
+                    taken.Put( nv, bodyB )
+                    c.f->blocks[switchB].switchVals.Push( nv )
+                    c.f->blocks[switchB].indirectTargets.Push( cast( uint32, bodyB ) )
+                end if
+                if u = ub then exit do
+                u += 1
+            loop
+        next
+
+        c.curBlock = bodyB
+        PushScope( c, cast( uint32, cp->b ) )
+        LowerBlock( c, cp->b )
+        CloseScope( c )
+        Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
+    next
+
+    if sp->c <> Tko.NODE_NONE then
+        c.curBlock = elseB
+        PushScope( c, cast( uint32, sp->c ) )
+        LowerBlock( c, sp->c )
+        CloseScope( c )
+        Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
+    else
+        c.curBlock = switchB
+    end if
+    return true
+end function
+
+end namespace

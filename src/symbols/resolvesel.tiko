@@ -26,9 +26,12 @@
 ''
 '' -- so it is the SPAN and not the count, and a negative start is no different.
 ''
+'' AND A VALUE APPEARS ONCE: a repeated one is fbc's error 4, "Duplicated definition"
+'' (TKO0977), over a repeat in one case, across two cases, or inside an earlier range.
+''
 '' NOT DONE HERE: fbc's error 24, "Invalid data types", for a non-integral subject
-'' ('select case as const' over a string). That needs the subject's TYPE, and this
-'' runs while types are still being resolved.
+'' ('select case as const' over a string or a float). That needs the subject's TYPE,
+'' and this runs while types are still being resolved -- proccheck.tiko does it.
 const SELCONST_SPAN_MAX = 8192
 
 '' One case value, folded. Returns false when it does not fold -- the caller reports.
@@ -137,6 +140,10 @@ private sub SelectConstCheck_ _
 
     dim as boolean seen = false
     dim as int64 lo = 0, hi = 0
+    '' Every value or range so far, for the DUPLICATE test: fbc's error 4 at the case that
+    '' repeats one -- 'case 1, 1', 'case 1' twice, 'case 3' inside an earlier '2 to 4',
+    '' and two ranges that share an end. A plain SELECT takes the first match instead.
+    dim as containers.Array( of int64 ) prevLo, prevHi
 
     for i as int32 = 0 to lp->count - 1
         dim as Tko.NodeId cs = cast( Tko.NodeId, c.ast->children[lp->first + i] )
@@ -176,6 +183,16 @@ private sub SelectConstCheck_ _
                 end if
                 b = a
             end if
+
+            for k as int32 = 0 to prevLo.Count - 1
+                if (a <= prevHi[k]) andalso (b >= prevLo[k]) then
+                    c.diags->Report( Tko.TKO0977, Tko.PointRange( c.ast->Loc( loc ) ), _
+                                     str( iif( a > prevLo[k], a, prevLo[k] ) ) )
+                    exit for
+                end if
+            next
+            prevLo.Push( a )
+            prevHi.Push( b )
 
             if seen = false then
                 seen = true
