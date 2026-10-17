@@ -1,0 +1,9 @@
+'' A string constant may be READ by subscript (a tiko extension) but not written through
+'' one: '=', '+=' and 'swap' are each TKO0617, as fbc's 119 for a constant.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/const-string-index-write.tiko -o tests/diagnostics/src/const-string-index-write.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: const-string-index-write.tiko(4,2): error TKO0617
+'' EXPECT-OUT: const-string-index-write.tiko(5,2): error TKO0617
+'' EXPECT-OUT: const-string-index-write.tiko(6,7): error TKO0617
+'' EXPECT-NOT: TKO0994

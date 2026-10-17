@@ -1,0 +1,6 @@
+'' Reading 'L[ i ]' over a string constant is allowed; writing through it is not.
+const L = "ACGT"
+dim as ubyte b
+L[0] = 66
+L[1] += 1
+swap L[2], b

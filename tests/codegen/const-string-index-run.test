@@ -1,0 +1,18 @@
+'' 'L[ i ]' over a STRING CONSTANT is its character code, as over a string variable -- a
+'' tiko extension; fbc refuses it (error 3, 24). tiko took it as far as lowering and then
+'' stopped the build on TKO0994. Narrow constants (plain, namespaced, concatenated,
+'' typed 'as string'), any integer index, the NUL past the end, its address, and a
+'' 'wstr' constant a wchar at a time (937 is the omega).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/const-string-index.tiko -o tests/codegen/conststringindex.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0994
+'' RUN: tests/codegen/conststringindex.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 65677184
+'' EXPECT-RUN-OUT: 121           68            111           0
+'' EXPECT-RUN-OUT: 71
+'' EXPECT-RUN-OUT: TC
+'' EXPECT-RUN-OUT: CGT
+'' EXPECT-RUN-OUT: 97            937           0

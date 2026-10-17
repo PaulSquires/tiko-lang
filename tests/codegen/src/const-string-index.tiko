@@ -1,0 +1,31 @@
+'' A STRING CONSTANT SUBSCRIPTED IS ITS CHARACTER CODE, as a string variable is -- a tiko
+'' extension (fbc refuses 'L[ i ]' over a constant). A 'wstr' constant indexes its wide
+'' text a wchar at a time.
+namespace NS
+    const K = "xyz"
+end namespace
+const M = "AB" & "CD"
+const S as string = "hello"
+const L = "ACGT"
+const W = wstr( !"a\u03A9" )
+
+function Pick( byval key as uint64, byval k as int32 ) as string
+    dim as string n = space( k )
+    for j as int32 = 0 to k - 1
+        n[j] = L[( key shr ( 2 * ( k - 1 - j ) ) ) and 3]
+    next
+    return n
+end function
+
+for i as int32 = 0 to len( L ) - 1
+    print L[i];
+next
+print
+print NS.K[1], M[3], S[4], L[4]
+dim as uint64 ix = 2
+dim as uint8 c = L[ix]
+print c
+print Pick( &b1101, 2 )
+dim as zstring ptr p = @L[1]
+print *p
+print W[0], W[1], W[2]

@@ -1053,7 +1053,49 @@ function LowerPtrIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
 
     dim as int32 esz = CharElemSize_( c, pt )
     dim as MirValue base_
-    if dsz > 0 then
+
+    '' A STRING CONSTANT SUBSCRIPTED IS ITS CHARACTER TOO -- 'const L = "ACGT" : print
+    '' L[ 1 ]' is 67. A tiko extension: fbc refuses it (error 3 after a bare name, 24 in
+    '' an expression), and tiko took it this far and then had no address to index, so
+    '' the statement was left out and the build stopped on TKO0994. The base is the
+    '' constant's TEXT, the same literal 'print L' emits; a write through it is already
+    '' TKO0617, as fbc's 119.
+    ''
+    '' A WIDE constant -- 'const W = wstr( "ab" )' -- indexes its wide literal a wchar at a
+    '' time, as a wstring variable does. Asked FIRST, and only when the target is TYPED
+    '' wide: a bare literal with a unicode escape is a WSTRING to fbc but a string to
+    '' Check, so its element would be loaded a byte at a time from wide text. That one is
+    '' left alone, neither path, rather than read wrong.
+    dim as boolean fromConst = false
+    dim as boolean wideLit = false
+    if IsConstNameRef_( c, sp->target ) then
+        dim as Tko.NodeId wl = WideConstLitNode_( c, sp->target )
+        wideLit = (wl <> Tko.NODE_NONE)
+        if wideLit andalso (esz >= 2) then
+            dim as int32 wchars = 0
+            dim as int32 wg = WideLitGlobal_( c, wl, wchars )
+            if wg >= 0 then
+                base_.kind = cast( uint8, MV_GLOBAL )
+                base_.ty = cast( uint8, MT_PTR )
+                base_.id = cast( uint32, wg )
+                esz = c.types->target.wcharBytes
+                fromConst = true
+            end if
+        end if
+    end if
+    if (fromConst = false) andalso (wideLit = false) andalso (dsz <= 1) andalso (esz <= 1) andalso _
+       IsConstNameRef_( c, sp->target ) then
+        dim as string ctext
+        if ConstStringTextOf_( c, sp->target, ctext ) then
+            base_ = LowerTextAddr( c, ctext )
+            esz = 1
+            fromConst = true
+        end if
+    end if
+
+    if fromConst then
+        '' the base is the literal's address, above
+    elseif dsz > 0 then
         esz = dsz
         dim as MirValue desc = LowerAddr( c, sp->target )
         if desc.kind = cast( uint8, MV_NONE ) then return none_
