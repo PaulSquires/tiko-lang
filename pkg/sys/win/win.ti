@@ -1,0 +1,47 @@
+#pragma once
+#ifndef TIKO_OS_WINDOWS
+#error "sys/win is Windows-only: build for -target windows-x86_64"
+#endif
+
+#INCLUDE ONCE "windows.bi"
+#include once "win/commctrl.bi"
+#include once "win/ole2.bi"
+#include once "win/psapi.bi"
+#include once "win/shlobj.bi"
+#include once "win/shlwapi.bi"
+#include once "win/KnownFolders.bi"
+#include once "win/commdlg.bi"
+#include once "win/cderr.bi"
+#include once "win/iphlpapi.bi"
+#include once "win/secext.bi"
+#include once "crt/string.bi"
+#include once "crt/wchar.bi"
+#include once "win/ShellScalingApi.bi"
+#include once "win/windowsx.bi"
+#include once "win/DwmApi.bi"
+#include once "win/wininet.bi"
+#include once "win/unknwnbase.bi"
+#include once "win/ocidl.bi"
+#include once "win/propvarutil.bi"
+
+#define tkGetErrorInfo tkGetWinErrMsg
+#define tkComCtlVersion tkGetFileVersion("comctl32.dll")
+#define tkGetScreenColors tkGetDisplayBitsPerPixel
+#define tkGetScreenRefreshRate tkGetDisplayFrequency
+#define tkGetCurDir tkGetCurrentDirectory
+#define tkExePath tkGetExePath
+#define tkExePathName tkGetExePathName
+#define tkExeFileName tkGetExeFileName
+#define tkExeFileNameX tkGetExeFileNameX
+#define tkExeFileExt tkGetExeFileExt
+#define tkExeFullPath tkGetExeFullPath
+#define tkFileName tkGetFileName
+#define tkFileNameX tkGetFileNameX
+#define tkFileExt tkGetFileExt
+#define tkPathName tkGetPathName
+#define tkFolderName tkGetFolderName
+#define tkSetCurDir tkSetCurrentDirectory
+
+#ifndef TK_BSTR
+   #define TK_BSTR WSTRING PTR
+#endif

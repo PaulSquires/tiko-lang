@@ -1,0 +1,12 @@
+# The sys package: operating-system support written in tiko, one module tree per OS.
+# sys/win is the Windows foundation -- Win32 helpers, string procs, colours -- and the parent of
+# every Windows-specific module: sys/win/com, gui, richedit, gdiplus, direct2d, webview2.
+# Source only: no [vendor] table, so '#import ... link' on it is an error (RFC-0002 V7); it links
+# nothing beyond the system import libraries the toolchain already ships.
+# Reserved like std and vendor: found in the toolchain's pkg/ alone.
+[package]
+name = "sys"
+version = "0.1.0"
+description = "Operating-system support: Windows (sys/win)"
+license = "MIT"
+authors = ["José Roca"]

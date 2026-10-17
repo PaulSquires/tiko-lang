@@ -1,0 +1,13 @@
+' sys/win/webview2 (pkg/sys): every header the module's files include, and the
+' macros more than one of its files uses.
+#pragma once
+#ifndef TIKO_OS_WINDOWS
+#error "sys/win is Windows-only: build for -target windows-x86_64"
+#endif
+
+#include once "windows.bi"
+#include once "win/ole2.bi"
+#include once "win/objidl.bi"
+#include once "win/oaidl.bi"
+
+#define NM_WV2_IMAGEREADY CULNG(-1)

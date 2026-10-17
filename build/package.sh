@@ -304,7 +304,7 @@ if [ "$DO_INC" = "1" ]; then
         note "WARNING: no third-party bindings -- no --third-party-inc and no seed inc/"
         INC_STATE="inc/ at this commit ONLY -- no third-party bindings (no --third-party-inc, no seed)"
     fi
-    # fbx IS NOT SHIPPED (ADR 0017 §20): its successor is the package pkg/tkl. Kept, it
+    # fbx IS NOT SHIPPED (ADR 0017 §20): its successor is the package pkg/sys (sys/win). Kept, it
     # would also be a package named fbx that a '-i <inc>' root offers '#import "fbx/..."'.
     rm -rf "$_newinc/fbx"
     note "headers -> inc/  tiko-lang's own over them: $(find "$ROOT/inc" -name '*.bi' | wc -l | tr -d ' ') files from inc/"
@@ -355,7 +355,7 @@ rm -rf "$OUT/pkg"
 cp -r "$ROOT/pkg" "$OUT/pkg"
 [ -f "$OUT/pkg/std/tiko.toml" ] || die "packaged pkg/ has no std/tiko.toml -- '#import \"std/...\"' would find nothing"
 [ -f "$OUT/pkg/std/strings/string.tiko" ] || die "packaged pkg/ has no std/strings"
-[ -f "$OUT/pkg/tkl/tkGui/CWindow.tiko" ] || die "packaged pkg/ has no tkl/tkGui"
+[ -f "$OUT/pkg/sys/win/gui/CWindow.tiko" ] || die "packaged pkg/ has no sys/win/gui"
 note "packages -> pkg/ ($( ls "$OUT/pkg" | tr '\n' ' '))"
 
 # THE VENDOR PACKAGES (tiko-vendor RFC-0002 V9, V11): their translated headers came with
@@ -718,30 +718,57 @@ verify_std( ) {
     verify_std_run "$1" tasks "$STD_TASKS" "-mt"
 }
 
-# TKL, on a Windows target only: tkCore, gdiplus and tkGui imported from the packaged
-# pkg/tkl -- the tkGui import builds the largest module, and imports the other two -- and
-# a string helper, a GDI+ colour and a CWindow used.
-verify_tkl( ) {
+# SYS/WIN, shipped by every toolchain, usable for Windows alone. On a Windows target all seven
+# modules are imported from the packaged pkg/sys -- gui builds the largest, and imports win and
+# gdiplus; richedit imports com and gui -- and a string helper, a GDI+ colour, a CWindow, a
+# DVARIANT and a RichEdit type used. On any other target the import must stop at the guard every
+# module's header opens with: TKO0309, the #error line, and a failing exit.
+verify_syswin( ) {
     _t=$1
-    case "$_t" in win*) ;; *) return ;; esac
-    _tmp="$OUT/.verifytkl.$_t"
+    _tmp="$OUT/.verifysyswin.$_t"
     rm -rf "$_tmp"; mkdir -p "$_tmp"
-    printf '#import "tkl/tkCore"
-#import "tkl/gdiplus"
-#import "tkl/tkGui"
-dim as tkGui.CWindow w
-print tkCore.tkUcase( "tiko" ); " "; hex( gdiplus.GDIP_ARGB( &hFF, 1, 2, 3 ) )
-' > "$_tmp/tkl.tiko"
-    ( cd "$OUT" && TKO_MODCACHE=".verifytkl.$_t/cache" "./${BINSUB}tiko$EXT" -target "$_t"         ".verifytkl.$_t/tkl.tiko" -o ".verifytkl.$_t/tkl$EXT" ) >"$_tmp/log" 2>&1 || true
-    if [ -f "$_tmp/tkl$EXT" ] && [ "$( "$_tmp/tkl$EXT" 2>/dev/null | tr -d '' )" = "TIKO FF010203" ]; then
-        VERIFY_LINES="$VERIFY_LINES
-  $_t  tkl PASS -- tkCore, gdiplus and tkGui imported, compiled, linked and ran"
-    else
-        _why=$( grep -m1 -iE 'error|undefined' "$_tmp/log" | cut -c1-160 )
-        [ -n "$_why" ] || _why="built, but did not print 'TIKO FF010203'"
-        VERIFY_LINES="$VERIFY_LINES
-  $_t  tkl FAIL -- $_why"
-    fi
+    case "$_t" in
+    win*)
+        printf '#import "sys/win"
+#import "sys/win/com"
+#import "sys/win/gdiplus"
+#import "sys/win/gui"
+#import "sys/win/richedit"
+#import "sys/win/direct2d"
+#import "sys/win/webview2"
+dim as gui.CWindow w
+dim as com.DVARIANT v
+dim as richedit.CTextRange2 ptr r
+print win.tkUcase( "tiko" ); " "; hex( gdiplus.GDIP_ARGB( &hFF, 1, 2, 3 ) )
+' > "$_tmp/syswin.tiko"
+        ( cd "$OUT" && TKO_MODCACHE=".verifysyswin.$_t/cache" "./${BINSUB}tiko$EXT" -target "$_t" \
+            ".verifysyswin.$_t/syswin.tiko" -o ".verifysyswin.$_t/syswin$EXT" ) >"$_tmp/log" 2>&1 || true
+        if [ -f "$_tmp/syswin$EXT" ] && [ "$( "$_tmp/syswin$EXT" 2>/dev/null | tr -d '' )" = "TIKO FF010203" ]; then
+            VERIFY_LINES="$VERIFY_LINES
+  $_t  sys/win PASS -- all seven modules imported, compiled, linked and ran"
+        else
+            _why=$( grep -m1 -iE 'error|undefined' "$_tmp/log" | cut -c1-160 )
+            [ -n "$_why" ] || _why="built, but did not print 'TIKO FF010203'"
+            VERIFY_LINES="$VERIFY_LINES
+  $_t  sys/win FAIL -- $_why"
+        fi
+        ;;
+    *)
+        printf '#import "sys/win"\nprint 1\n' > "$_tmp/guard.tiko"
+        _rc=0
+        ( cd "$OUT" && TKO_MODCACHE=".verifysyswin.$_t/cache" "./${BINSUB}tiko$EXT" -target "$_t" -c \
+            ".verifysyswin.$_t/guard.tiko" -o ".verifysyswin.$_t/guard.o" ) >"$_tmp/log" 2>&1 || _rc=$?
+        if [ "$_rc" -ne 0 ] && grep -q 'error TKO0309: #error: "sys/win is Windows-only' "$_tmp/log"; then
+            VERIFY_LINES="$VERIFY_LINES
+  $_t  sys/win PASS -- shipped, and its import stops at the Windows-only guard"
+        else
+            _why=$( grep -m1 -iE 'error' "$_tmp/log" | cut -c1-160 )
+            [ -n "$_why" ] || _why="the import compiled (exit $_rc): the guard did not fire"
+            VERIFY_LINES="$VERIFY_LINES
+  $_t  sys/win FAIL -- $_why"
+        fi
+        ;;
+    esac
     rm -rf "$_tmp"
 }
 
@@ -784,7 +811,7 @@ if [ "$DO_VERIFY" = "1" ]; then
         verify_target "$t"
         verify_fbcunit "$t"
         verify_std "$t"
-        verify_tkl "$t"
+        verify_syswin "$t"
         verify_vendor "$t"
     done
 else

@@ -1,0 +1,7 @@
+'' 'sys' IS NOT SHADOWABLE: -i names a directory holding a package called sys with a module
+'' sys/fake. sys is looked for in the toolchain's pkg/ alone, which has no fake, so the import
+'' is TKO0140 -- the -i root is never asked.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i tests/modules/src/sysres/roots tests/modules/src/sysres/main.tiko -o build/.sysshadow.exe
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0140: cannot find module 'sys/fake'

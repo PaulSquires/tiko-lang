@@ -1024,7 +1024,7 @@ function LowerCtorInit _
         '' parameter was lowered as its pointee: 'byref w as wstring' came out 'void',
         '' 'declare void _ZN1M1TC1EiRw(ptr, i32, void)', and clang refused the module.
         '' Only a constructor this module does not define reaches here, so it took an
-        '' imported one to show -- pkg/tkl's CGraphCtx.
+        '' imported one to show -- sys/win/gui's CGraphCtx.
         SignatureFromProc( c, decl, pn, false, true )
         fidx = c.m->functions.Count - 1
     end if

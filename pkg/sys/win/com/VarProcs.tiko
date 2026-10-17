@@ -1,0 +1,350 @@
+' ########################################################################################
+' Platform: Microsoft Windows
+' Filename: tkVarProcs.inc
+' Purpose:  VARIANT wrapper procedures.
+' Compiler: tiko-lang
+' Copyright (c) 2026 José Roca
+'
+' License: Distributed under the MIT license.
+'
+' Permission is hereby granted, free of charge, to any person obtaining a copy of this
+' software and associated documentation files (the “Software”), to deal in the Software
+' without restriction, including without limitation the rights to use, copy, modify, merge,
+' publish, distribute, sublicense, and/or sell copies of the Software, and to permit
+' persons to whom the Software is furnished to do so, subject to the following conditions:
+
+' The above copyright notice and this permission notice shall be included in all copies or
+' substantial portions of the Software.
+
+' THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+' INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+' PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+' FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+' OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+' DEALINGS IN THE SOFTWARE.'
+' ########################################################################################
+
+#module "com"
+#import "sys/win"
+using win
+#include once "com.ti"
+
+#include once "win/shtypes.bi"
+#include once "crt/limits.bi"
+#include once "win/propvarutil.bi"
+
+' ########################################################################################
+'                                *** VARIANT WRAPPERS ***
+' ########################################################################################
+
+' ========================================================================================
+' Variant types
+' ========================================================================================
+PUBLIC FUNCTION tkGetVarType (BYVAL pvar AS VARIANT PTR) AS VARTYPE
+   RETURN pvar->vt
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkIsVarTypeFloat (BYVAL vt AS VARTYPE) AS BOOLEAN
+   RETURN (vt = VT_R4 OR vt = VT_R8)
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkIsVariantArray (BYVAL pvar AS VARIANT PTR) AS BOOLEAN
+   RETURN (pvar->vt AND VT_ARRAY)
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkIsVariantString (BYVAL pvar AS VARIANT PTR) AS BOOLEAN
+   RETURN VariantToStringWithDefault(pvar, NULL) <> NULL
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkIsVarTypeSignedInteger (BYVAL vt AS VARTYPE) AS BOOLEAN
+   DIM fRet AS BOOLEAN
+   SELECT CASE vt
+      CASE VT_I1, VT_I2, VT_I4, VT_I8
+         fRet = TRUE
+   END SELECT
+   RETURN fRet
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkIsVarTypeUnsignedInteger (BYVAL vt AS VARTYPE) AS BOOLEAN
+   DIM fRet AS BOOLEAN
+   SELECT CASE vt
+      CASE VT_UI1, VT_UI2, VT_UI4, VT_UI8
+         fRet = TRUE
+   END SELECT
+   RETURN fRet
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkIsVarTypeInteger (BYVAL vt AS VARTYPE) AS BOOLEAN
+   RETURN tkIsVarTypeSignedInteger(vt) OR tkIsVarTypeUnsignedInteger(vt)
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkIsVarTypeNumber (BYVAL vt AS VARTYPE) AS BOOLEAN
+   RETURN (tkIsVarTypeInteger(vt)) OR (tkIsVarTypeFloat(vt))
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Extracts the contents of a VARIANT and returns them as a USTRING.
+' When pvarIn contains an array, each element of the array is appended to the resulting
+' string separated with a semicolon and a space.
+' For variants that contains an array of bytes, use tkVariantToBuffer.
+' Parameters:
+' - pvarIn = Pointer to the variant.
+' - bClear = Clear the contents of the variant (TRUE or FALSE).
+' Return value:
+' - If the function succeeds, it returns the contents of the variant in string form;
+'   if it fails, it returns an empty string and the contents of the variant aren't cleared.
+' ========================================================================================
+PUBLIC FUNCTION tkVarToStr OVERLOAD (BYVAL pvarIn AS VARIANT PTR, BYVAL bClear AS BOOLEAN = FALSE) AS USTRING
+'   DVARIANT_DP("pvarIn: " & WSTR(pvarIn) & " - bClear: " & WSTR(bClear))
+
+   DIM ustr AS USTRING
+   IF pvarIn = NULL THEN RETURN ""
+
+   SELECT CASE pvarIn->vt
+
+      ' // Unsupported by VariantToStringAlloc
+      CASE VT_ERROR : ustr = WSTR(pvarin->scode)
+      CASE VT_R4 : ustr = WSTR(pvarIn->fltVal)
+      CASE VT_CY   ' // Currency
+         DIM s AS STRING = STR(pvarIn->cyVal.int64 / 10000)
+         DIM p AS LONG = INSTR(s, ".")
+         DIM dec AS STRING
+         IF p THEN
+            dec = MID(s + "0000", p + 1, 4)
+            s = LEFT(s, p) & dec
+         END IF
+         IF s = "0" THEN s = "0.0000"
+         RETURN s
+      CASE VT_CY OR VT_BYREF   ' // BYREF CURRENCY
+         DIM _cy AS CY = *pVarIn->pcyVal
+         DIM s AS STRING = STR(_cy.int64 / 10000)
+         DIM p AS LONG = INSTR(s, ".")
+         DIM dec AS STRING
+         IF p THEN
+            dec = MID(s + "0000", p + 1, 4)
+            s = LEFT(s, p) & dec
+         END IF
+         IF s = "0" THEN s = "0.0000"
+         RETURN s
+      CASE VT_DECIMAL   ' // Decimal
+         DIM bstrOut AS BSTR
+         VarBstrFromDec(@pVarIn->decVal, 0, 0, @bstrOut)
+         DIM s AS STRING = *cast(WSTRING PTR, bstrOut)
+         SysFreeString(bstrOut)
+         RETURN s
+      CASE VT_DECIMAL OR VT_BYREF   ' // BYREF DECIMAL
+         DIM bstrOut AS BSTR
+         DIM dec AS DECIMAL = *pVarIn->pdecVal
+         VarBstrFromDec(@dec, 0, 0, @bstrOut)
+         DIM s AS STRING = *cast(WSTRING PTR, bstrOut)
+         SysFreeString(bstrOut)
+         RETURN s
+
+      ' // VT_BYREF variants
+      CASE VT_BSTR OR VT_BYREF : IF pVarIn->pbstrVal THEN ustr = WSTR(*CAST(WSTRING PTR, pVarin->pbstrVal))
+      CASE VT_BOOL OR VT_BYREF : IF pVarIn->pboolVal THEN ustr = WSTR(*pVarIn->pboolVal)
+      CASE VT_I1 OR VT_BYREF   : IF pVarIn->pcVal    THEN ustr = WSTR(*pVarIn->pcVal)
+      CASE VT_UI1 OR VT_BYREF  : IF pVarIn->pbVal    THEN ustr = WSTR(*pVarIn->pbVal)
+      CASE VT_I2 OR VT_BYREF   : IF pVarIn->piVal    THEN ustr = WSTR(*pVarIn->piVal)
+      CASE VT_UI2 OR VT_BYREF  : IF pVarIn->piVal    THEN ustr = WSTR(*pVarIn->puiVal)
+      CASE VT_INT OR VT_BYREF  : IF pVarIn->pintVal  THEN ustr = WSTR(*pVarIn->pintVal)
+      CASE VT_UINT OR VT_BYREF : IF pVarIn->puintVal THEN ustr = WSTR(*pVarIn->puintVal)
+      CASE VT_I4 OR VT_BYREF   : IF pVarIn->plVal    THEN ustr = WSTR(*pVarIn->plVal)
+      CASE VT_UI4 OR VT_BYREF  : IF pVarIn->pulVal   THEN ustr = WSTR(*pVarIn->pulVal)
+      CASE VT_I8 OR VT_BYREF   : IF pVarIn->pllVal   THEN ustr = WSTR(*pVarIn->pllVal)
+      CASE VT_UI8 OR VT_BYREF  : IF pVarIn->pullVal  THEN ustr = WSTR(*pVarIn->pullVal)
+      CASE VT_R4 OR VT_BYREF   : IF pvarIn->pfltVal  THEN ustr = WSTR(*pvarIn->pfltVal)
+      CASE VT_R8 OR VT_BYREF   : IF pvarIn->pdblVal  THEN ustr = WSTR(*pvarIn->pdblVal)
+
+      ' // Array of floats
+      CASE VT_ARRAY OR VT_R4
+         IF pvarIn->parray = NULL THEN RETURN ""
+         ' Get array bounds
+         DIM lBound_ AS LONG, uBound_ AS LONG
+         IF SafeArrayGetLBound(pvarIn->parray, 1, @lBound_) <> S_OK THEN RETURN ""
+         IF SafeArrayGetUBound(pvarIn->parray, 1, @uBound_) <> S_OK THEN RETURN ""
+         ' Access the data
+         DIM pvData AS SINGLE PTR
+         IF SafeArrayAccessData(pvarIn->parray, @pvData) <> S_OK THEN RETURN ""
+         ' Format the array contents
+         FOR i AS LONG = lBound_ TO uBound_
+            IF i > lBound_ THEN ustr += " "
+            ustr += WSTR(pvData[i])
+            IF i < uBound_ THEN ustr += ";"
+         NEXT
+         SafeArrayUnaccessData(pvarIn->parray)
+
+      ' // Array of doubles
+      CASE VT_ARRAY OR VT_R8
+         IF pvarIn->parray = NULL THEN RETURN ""
+         DIM lBound_ AS LONG, uBound_ AS LONG
+         IF SafeArrayGetLBound(pvarIn->parray, 1, @lBound_) <> S_OK THEN RETURN ""
+         IF SafeArrayGetUBound(pvarIn->parray, 1, @uBound_) <> S_OK THEN RETURN ""
+         DIM pvData AS DOUBLE PTR
+         IF SafeArrayAccessData(pvarIn->parray, @pvData) <> S_OK THEN RETURN ""
+         FOR i AS LONG = lBound_ TO uBound_
+            IF i > lBound_ THEN ustr += " "
+            ustr += WSTR(pvData[i])
+            IF i < uBound_ THEN ustr += ";"
+         NEXT
+         SafeArrayUnaccessData(pvarIn->parray)
+
+      ' // Array of signed shorts or bools
+      CASE VT_ARRAY OR VT_I2, VT_ARRAY OR VT_BOOL
+         IF pvarIn->parray = NULL THEN RETURN ""
+         ' Get array bounds
+         DIM lBound_ AS LONG, uBound_ AS LONG
+         IF SafeArrayGetLBound(pvarIn->parray, 1, @lBound_) <> S_OK THEN RETURN ""
+         IF SafeArrayGetUBound(pvarIn->parray, 1, @uBound_) <> S_OK THEN RETURN ""
+         ' Access the data
+         DIM pvData AS SHORT PTR
+         IF SafeArrayAccessData(pvarIn->parray, @pvData) <> S_OK THEN RETURN ""
+         ' Format the array contents
+         FOR i AS LONG = lBound_ TO uBound_
+            IF i > lBound_ THEN ustr += " "
+            ustr += STR(pvData[i - lBound_])  ' Adjust index relative to base
+            IF i < uBound_ THEN ustr += ";"
+         NEXT
+         SafeArrayUnaccessData(pvarIn->parray)
+
+      ' // Array of unsigned shorts
+      CASE VT_ARRAY OR VT_UI2
+         IF pvarIn->parray = NULL THEN RETURN ""
+         ' Get array bounds
+         DIM lBound_ AS LONG, uBound_ AS LONG
+         IF SafeArrayGetLBound(pvarIn->parray, 1, @lBound_) <> S_OK THEN RETURN ""
+         IF SafeArrayGetUBound(pvarIn->parray, 1, @uBound_) <> S_OK THEN RETURN ""
+         ' Access the data
+         DIM pvData AS USHORT PTR
+         IF SafeArrayAccessData(pvarIn->parray, @pvData) <> S_OK THEN RETURN ""
+         ' Format the array contents
+         FOR i AS LONG = lBound_ TO uBound_
+            IF i > lBound_ THEN ustr += " "
+            ustr += WSTR(pvData[i - lBound_])
+            IF i < uBound_ THEN ustr += ";"
+         NEXT
+         SafeArrayUnaccessData pvarIn->parray
+
+      ' // Array of signed longs
+      CASE VT_ARRAY OR VT_I4, VT_ARRAY OR VT_INT
+         IF pvarIn->parray = NULL THEN RETURN ""
+         ' Get array bounds
+         DIM lBound_ AS LONG, uBound_ AS LONG
+         IF SafeArrayGetLBound(pvarIn->parray, 1, @lBound_) <> S_OK THEN RETURN ""
+         IF SafeArrayGetUBound(pvarIn->parray, 1, @uBound_) <> S_OK THEN RETURN ""
+         ' Access the data
+         DIM pvData AS LONG PTR
+         IF SafeArrayAccessData(pvarIn->parray, @pvData) <> S_OK THEN RETURN ""
+         ' Format the array contents
+         FOR i AS LONG = lBound_ TO uBound_
+            IF i > lBound_ THEN ustr += " "
+            ustr += WSTR(pvData[i - lBound_])
+            IF i < uBound_ THEN ustr += ";"
+         NEXT
+         SafeArrayUnaccessData pvarIn->parray
+
+      ' // Array of unsigned longs
+      CASE VT_ARRAY OR VT_UI4, VT_ARRAY OR VT_UINT
+         IF pvarIn->parray = NULL THEN RETURN ""
+         ' Get array bounds
+         DIM lBound_ AS LONG, uBound_ AS LONG
+         IF SafeArrayGetLBound(pvarIn->parray, 1, @lBound_) <> S_OK THEN RETURN ""
+         IF SafeArrayGetUBound(pvarIn->parray, 1, @uBound_) <> S_OK THEN RETURN ""
+         ' Access the data
+         DIM pvData AS ULONG PTR
+         IF SafeArrayAccessData(pvarIn->parray, @pvData) <> S_OK THEN RETURN ""
+         ' Format the array contents
+         FOR i AS LONG = lBound_ TO uBound_
+            IF i > lBound_ THEN ustr += " "
+            ustr += WSTR(pvData[i - lBound_])
+            IF i < uBound_ THEN ustr += ";"
+         NEXT
+         SafeArrayUnaccessData pvarIn->parray
+
+      ' // Array of longints
+      CASE VT_ARRAY OR VT_I8
+         IF pvarIn->parray = NULL THEN RETURN ""
+         ' Get array bounds
+         DIM lBound_ AS LONG, uBound_ AS LONG
+         IF SafeArrayGetLBound(pvarIn->parray, 1, @lBound_) <> S_OK THEN RETURN ""
+         IF SafeArrayGetUBound(pvarIn->parray, 1, @uBound_) <> S_OK THEN RETURN ""
+         ' Access the data
+         DIM pvData AS LONGINT PTR
+         IF SafeArrayAccessData(pvarIn->parray, @pvData) <> S_OK THEN RETURN ""
+         ' Format the array contents
+         FOR i AS LONG = lBound_ TO uBound_
+            IF i > lBound_ THEN ustr += " "
+            ustr += WSTR(pvData[i - lBound_])
+            IF i < uBound_ THEN ustr += ";"
+         NEXT
+         SafeArrayUnaccessData pvarIn->parray
+
+      ' // Array of unsigned longints
+      CASE VT_ARRAY OR VT_UI8
+         IF pvarIn->parray = NULL THEN RETURN ""
+         ' Get array bounds
+         DIM lBound_ AS LONG, uBound_ AS LONG
+         IF SafeArrayGetLBound(pvarIn->parray, 1, @lBound_) <> S_OK THEN RETURN ""
+         IF SafeArrayGetUBound(pvarIn->parray, 1, @uBound_) <> S_OK THEN RETURN ""
+         ' Access the data
+         DIM pvData AS ULONGINT PTR
+         IF SafeArrayAccessData(pvarIn->parray, @pvData) <> S_OK THEN RETURN ""
+         ' Format the array contents
+         FOR i AS LONG = lBound_ TO uBound_
+            IF i > lBound_ THEN ustr += " "
+            ustr += WSTR(pvData[i - lBound_])
+            IF i < uBound_ THEN ustr += ";"
+         NEXT
+         SafeArrayUnaccessData pvarIn->parray
+
+      ' // Array of variants
+         CASE VT_ARRAY OR VT_VARIANT
+            IF pvarIn->parray = NULL THEN RETURN ""
+            DIM vt AS USHORT
+            IF SafeArrayGetVartype(pvarIn->parray, @vt) <> S_OK THEN RETURN ""
+            IF vt <> VT_VARIANT THEN RETURN ""  ' Ensure it's an array of VARIANTs
+            DIM lBound_ AS LONG, uBound_ AS LONG
+            IF SafeArrayGetLBound(pvarIn->parray, 1, @lBound_) <> S_OK THEN RETURN ""
+            IF SafeArrayGetUBound(pvarIn->parray, 1, @uBound_) <> S_OK THEN RETURN ""
+            DIM pvData AS VARIANT PTR
+            IF SafeArrayAccessData(pvarIn->parray, @pvData) <> S_OK THEN RETURN ""
+            FOR i AS LONG = lBound_ TO uBound_
+               DIM ppwszBuf AS WSTRING PTR
+               IF VariantToStringAlloc(@pvData[i], @ppwszBuf) = S_OK AND ppwszBuf <> NULL THEN
+                  IF i = lBound_ THEN
+                     ustr += *ppwszBuf
+                     IF uBound_ > lBound_ THEN ustr += ";"
+                  ELSE
+                     ustr += " " & *ppwszBuf
+                     IF i < uBound_ THEN ustr += ";"
+                  END IF
+                  CoTaskMemFree ppwszBuf
+               END IF
+            NEXT
+            SafeArrayUnaccessData(pvarIn->parray)
+
+      ' // Other...
+      CASE ELSE
+         DIM ppwszBuf AS WSTRING PTR
+         DIM hr AS HRESULT = VariantToStringAlloc(pvarIn, @ppwszBuf)
+         IF hr <> S_OK OR ppwszBuf = NULL THEN RETURN ""
+         ustr = *ppwszBuf
+         CoTaskMemFree ppwszBuf
+
+   END SELECT
+
+   ' // Clear the passed variant
+   IF bClear THEN VariantClear(pVarIn)
+   ' // Return the string
+   RETURN ustr
+
+END FUNCTION
+' ========================================================================================

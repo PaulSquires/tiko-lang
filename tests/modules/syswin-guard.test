@@ -1,0 +1,8 @@
+'' sys/win IS WINDOWS-ONLY, and says so: every sys/win module's header opens with
+'' '#ifndef TIKO_OS_WINDOWS / #error', so an import for linux-x86_64 fails on that line first
+'' rather than somewhere inside windows.bi.
+'' TEST: cli
+'' ARGS: -target linux-x86_64 -c tests/modules/src/syswinguard/main.tiko -o build/.syswinguard.o
+'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: win.ti(3,1): error TKO0309: #error: "sys/win is Windows-only: build for -target windows-x86_64"

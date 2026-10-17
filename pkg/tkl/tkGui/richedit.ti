@@ -1,8 +1,0 @@
-' tk/richedit (pkg/tkl): every header the module's files include, and the
-' macros more than one of its files uses.
-#pragma once
-
-#include once "windows.bi"
-#include once "win/richole.bi"
-#include once "win/ole2.bi"
-#include once "win/richedit.bi"

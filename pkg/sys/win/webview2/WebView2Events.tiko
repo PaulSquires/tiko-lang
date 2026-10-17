@@ -1,0 +1,1899 @@
+' ########################################################################################
+' Library name: tkWebView2Events.inc
+' (C) 2026 José Roca.
+' ########################################################################################
+
+#module "webview2"
+#import "sys/win"
+#include once "webview2.ti"
+using win
+
+' ########################################################################################
+' CWebView2CreateCoreWebView2EnvironmentCompletedHandler class
+' Implementation of the ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler callback interface.
+' ########################################################################################
+PUBLIC TYPE CWebView2CreateCoreWebView2EnvironmentCompletedHandler EXTENDS OBJECT
+
+   DECLARE VIRTUAL FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
+   DECLARE VIRTUAL FUNCTION AddRef () AS ULONG
+   DECLARE VIRTUAL FUNCTION Release () AS ULONG
+   DECLARE VIRTUAL FUNCTION Invoke (BYVAL errorCode AS HRESULT, BYVAL createdEnvironment AS ICoreWebView2Environment PTR) AS HRESULT
+
+   DECLARE CONSTRUCTOR
+   DECLARE VIRTUAL DESTRUCTOR
+
+   ' Reference count for COM
+   refCount AS ULONG = 0
+
+END TYPE
+' ########################################################################################
+
+' =====================================================================================
+' Constructor
+' =====================================================================================
+CONSTRUCTOR CWebView2CreateCoreWebView2EnvironmentCompletedHandler
+END CONSTRUCTOR
+' =====================================================================================
+' =====================================================================================
+' Destructor
+' =====================================================================================
+DESTRUCTOR CWebView2CreateCoreWebView2EnvironmentCompletedHandler
+END DESTRUCTOR
+' =====================================================================================
+
+' ========================================================================================
+' Returns pointers to the implemented classes and supported interfaces.
+' It is never called by WebView, so we simply return S_OK.
+' ========================================================================================
+FUNCTION CWebView2CreateCoreWebView2EnvironmentCompletedHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+' ========================================================================================
+' Increments the reference count for an interface on an object. This method should be called
+' for every new copy of a pointer to an interface on an object.
+' ========================================================================================
+FUNCTION CWebView2CreateCoreWebView2EnvironmentCompletedHandler.AddRef () AS ULONG
+   refCount += 1
+   RETURN refCount
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Decrements the reference count for an interface on an object.
+' If the count reaches 0, it deletes itself.
+' ========================================================================================
+FUNCTION CWebView2CreateCoreWebView2EnvironmentCompletedHandler.Release () AS ULONG
+   refCount -= 1
+   IF refCount = 0 THEN Delete @this
+   RETURN refCount
+END FUNCTION
+' =====================================================================================
+
+' =====================================================================================
+FUNCTION CWebView2CreateCoreWebView2EnvironmentCompletedHandler.Invoke (BYVAL errorCode AS HRESULT, BYVAL createdEnvironment AS ICoreWebView2Environment PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+
+' ########################################################################################
+' CWebView2CreateCoreWebView2ControllerCompletedHandler class
+' Implementation of the ICoreWebView2CreateCoreWebView2ControllerCompletedHandler callback interface.
+' ########################################################################################
+PUBLIC TYPE CWebView2CreateCoreWebView2ControllerCompletedHandler EXTENDS OBJECT
+
+   DECLARE VIRTUAL FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
+   DECLARE VIRTUAL FUNCTION AddRef () AS ULONG
+   DECLARE VIRTUAL FUNCTION Release () AS ULONG
+   DECLARE VIRTUAL FUNCTION Invoke (BYVAL errorCode AS HRESULT, BYVAL createdController AS ICoreWebView2Controller PTR) AS HRESULT
+
+   DECLARE CONSTRUCTOR
+   DECLARE VIRTUAL DESTRUCTOR
+
+   ' Reference count for COM
+   refCount AS ULONG = 0
+
+END TYPE
+' ########################################################################################
+
+' =====================================================================================
+' Constructor
+' =====================================================================================
+CONSTRUCTOR CWebView2CreateCoreWebView2ControllerCompletedHandler
+END CONSTRUCTOR
+' =====================================================================================
+' =====================================================================================
+' Destructor
+' =====================================================================================
+DESTRUCTOR CWebView2CreateCoreWebView2ControllerCompletedHandler
+END DESTRUCTOR
+' =====================================================================================
+
+' ========================================================================================
+' Returns pointers to the implemented classes and supported interfaces.
+' It is never called by WebView, so we simply return S_OK.
+' ========================================================================================
+FUNCTION CWebView2CreateCoreWebView2ControllerCompletedHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+' ========================================================================================
+' Increments the reference count for an interface on an object. This method should be called
+' for every new copy of a pointer to an interface on an object.
+' ========================================================================================
+FUNCTION CWebView2CreateCoreWebView2ControllerCompletedHandler.AddRef () AS ULONG
+   refCount += 1
+   RETURN refCount
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Decrements the reference count for an interface on an object.
+' If the count reaches 0, it deletes itself.
+' ========================================================================================
+FUNCTION CWebView2CreateCoreWebView2ControllerCompletedHandler.Release () AS ULONG
+   refCount -= 1
+   IF refCount = 0 THEN Delete @this
+   RETURN refCount
+END FUNCTION
+' =====================================================================================
+
+' =====================================================================================
+FUNCTION CWebView2CreateCoreWebView2ControllerCompletedHandler.Invoke (BYVAL errorCode AS HRESULT, BYVAL createdController AS ICoreWebView2Controller PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+
+' ########################################################################################
+' CWebView2NavigationStartingdEventHandler class
+' Implementation of the ICoreWebView2NavigationStartingEventHandler callback interface.
+' ########################################################################################
+PUBLIC TYPE CWebView2NavigationStartingdEventHandler EXTENDS OBJECT
+
+   DECLARE VIRTUAL FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
+   DECLARE VIRTUAL FUNCTION AddRef () AS ULONG
+   DECLARE VIRTUAL FUNCTION Release () AS ULONG
+   DECLARE VIRTUAL FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2NavigationCompletedEventArgs PTR) AS HRESULT
+
+   DECLARE CONSTRUCTOR
+   DECLARE VIRTUAL DESTRUCTOR
+
+   ' Reference count for COM
+   refCount AS ULONG = 0
+
+END TYPE
+' ########################################################################################
+
+' =====================================================================================
+' Constructor
+' =====================================================================================
+CONSTRUCTOR CWebView2NavigationStartingdEventHandler
+END CONSTRUCTOR
+' =====================================================================================
+' =====================================================================================
+' Destructor
+' =====================================================================================
+DESTRUCTOR CWebView2NavigationStartingdEventHandler
+END DESTRUCTOR
+' =====================================================================================
+
+' ========================================================================================
+' Returns pointers to the implemented classes and supported interfaces.
+' It is never called by WebView, so we simply return S_OK.
+' ========================================================================================
+FUNCTION CWebView2NavigationStartingdEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+' ========================================================================================
+' Increments the reference count for an interface on an object. This method should be called
+' for every new copy of a pointer to an interface on an object.
+' ========================================================================================
+FUNCTION CWebView2NavigationStartingdEventHandler.AddRef () AS ULONG
+   refCount += 1
+   RETURN refCount
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Decrements the reference count for an interface on an object.
+' If the count reaches 0, it deletes itself.
+' ========================================================================================
+FUNCTION CWebView2NavigationStartingdEventHandler.Release () AS ULONG
+   refCount -= 1
+   IF refCount = 0 THEN Delete @this
+   RETURN refCount
+END FUNCTION
+' =====================================================================================
+
+' =====================================================================================
+FUNCTION CWebView2NavigationStartingdEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2NavigationCompletedEventArgs PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+
+' ########################################################################################
+' CWebView2NavigationCompletedEventHandler class
+' Implementation of the ICoreWebView2NavigationCompletedEventHandler callback interface.
+' ########################################################################################
+PUBLIC TYPE CWebView2NavigationCompletedEventHandler EXTENDS OBJECT
+
+   DECLARE VIRTUAL FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
+   DECLARE VIRTUAL FUNCTION AddRef () AS ULONG
+   DECLARE VIRTUAL FUNCTION Release () AS ULONG
+   DECLARE VIRTUAL FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2NavigationCompletedEventArgs PTR) AS HRESULT
+
+   DECLARE CONSTRUCTOR
+   DECLARE VIRTUAL DESTRUCTOR
+
+   ' Reference count for COM
+   refCount AS ULONG = 0
+
+END TYPE
+' ########################################################################################
+
+' =====================================================================================
+' Constructor
+' =====================================================================================
+CONSTRUCTOR CWebView2NavigationCompletedEventHandler
+END CONSTRUCTOR
+' =====================================================================================
+' =====================================================================================
+' Destructor
+' =====================================================================================
+DESTRUCTOR CWebView2NavigationCompletedEventHandler
+END DESTRUCTOR
+' =====================================================================================
+
+' ========================================================================================
+' Returns pointers to the implemented classes and supported interfaces.
+' It is never called by WebView, so we simply return S_OK.
+' ========================================================================================
+FUNCTION CWebView2NavigationCompletedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+' ========================================================================================
+' Increments the reference count for an interface on an object. This method should be called
+' for every new copy of a pointer to an interface on an object.
+' ========================================================================================
+FUNCTION CWebView2NavigationCompletedEventHandler.AddRef () AS ULONG
+   refCount += 1
+   RETURN refCount
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Decrements the reference count for an interface on an object.
+' If the count reaches 0, it deletes itself.
+' ========================================================================================
+FUNCTION CWebView2NavigationCompletedEventHandler.Release () AS ULONG
+   refCount -= 1
+   IF refCount = 0 THEN Delete @this
+   RETURN refCount
+END FUNCTION
+' =====================================================================================
+
+' =====================================================================================
+FUNCTION CWebView2NavigationCompletedEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2NavigationCompletedEventArgs PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+
+' ########################################################################################
+' CWebView2ContentLoadingEventHandler class
+' Implementation of the ICoreWebView2ContentLoadingEventHandler callback interface.
+' ########################################################################################
+PUBLIC TYPE CWebView2ContentLoadingEventHandler EXTENDS OBJECT
+
+   DECLARE VIRTUAL FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
+   DECLARE VIRTUAL FUNCTION AddRef () AS ULONG
+   DECLARE VIRTUAL FUNCTION Release () AS ULONG
+   DECLARE VIRTUAL FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2ContentLoadingEventArgs PTR) AS HRESULT
+
+   DECLARE CONSTRUCTOR
+   DECLARE VIRTUAL DESTRUCTOR
+
+   ' Reference count for COM
+   refCount AS ULONG = 0
+
+END TYPE
+' ########################################################################################
+
+' =====================================================================================
+' Constructor
+' =====================================================================================
+CONSTRUCTOR CWebView2ContentLoadingEventHandler
+END CONSTRUCTOR
+' =====================================================================================
+' =====================================================================================
+' Destructor
+' =====================================================================================
+DESTRUCTOR CWebView2ContentLoadingEventHandler
+END DESTRUCTOR
+' =====================================================================================
+
+' ========================================================================================
+' Returns pointers to the implemented classes and supported interfaces.
+' It is never called by WebView, so we simply return S_OK.
+' ========================================================================================
+FUNCTION CWebView2ContentLoadingEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+' ========================================================================================
+' Increments the reference count for an interface on an object. This method should be called
+' for every new copy of a pointer to an interface on an object.
+' ========================================================================================
+FUNCTION CWebView2ContentLoadingEventHandler.AddRef () AS ULONG
+   refCount += 1
+   RETURN refCount
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Decrements the reference count for an interface on an object.
+' If the count reaches 0, it deletes itself.
+' ========================================================================================
+FUNCTION CWebView2ContentLoadingEventHandler.Release () AS ULONG
+   refCount -= 1
+   IF refCount = 0 THEN Delete @this
+   RETURN refCount
+END FUNCTION
+' =====================================================================================
+
+' =====================================================================================
+FUNCTION CWebView2ContentLoadingEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2ContentLoadingEventArgs PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+
+' ########################################################################################
+' CWebView2SourceChangedEventHandler class
+' Implementation of the ICoreWebView2SourceChangedEventHandler callback interface.
+' ########################################################################################
+PUBLIC TYPE CWebView2SourceChangedEventHandler EXTENDS OBJECT
+
+   DECLARE VIRTUAL FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
+   DECLARE VIRTUAL FUNCTION AddRef () AS ULONG
+   DECLARE VIRTUAL FUNCTION Release () AS ULONG
+   DECLARE VIRTUAL FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2SourceChangedEventArgs PTR) AS HRESULT
+
+   DECLARE CONSTRUCTOR
+   DECLARE VIRTUAL DESTRUCTOR
+
+   ' Reference count for COM
+   refCount AS ULONG = 0
+
+END TYPE
+' ########################################################################################
+
+' =====================================================================================
+' Constructor
+' =====================================================================================
+CONSTRUCTOR CWebView2SourceChangedEventHandler
+END CONSTRUCTOR
+' =====================================================================================
+' =====================================================================================
+' Destructor
+' =====================================================================================
+DESTRUCTOR CWebView2SourceChangedEventHandler
+END DESTRUCTOR
+' =====================================================================================
+
+' ========================================================================================
+' Returns pointers to the implemented classes and supported interfaces.
+' It is never called by WebView, so we simply return S_OK.
+' ========================================================================================
+FUNCTION CWebView2SourceChangedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+' ========================================================================================
+' Increments the reference count for an interface on an object. This method should be called
+' for every new copy of a pointer to an interface on an object.
+' ========================================================================================
+FUNCTION CWebView2SourceChangedEventHandler.AddRef () AS ULONG
+   refCount += 1
+   RETURN refCount
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Decrements the reference count for an interface on an object.
+' If the count reaches 0, it deletes itself.
+' ========================================================================================
+FUNCTION CWebView2SourceChangedEventHandler.Release () AS ULONG
+   refCount -= 1
+   IF refCount = 0 THEN Delete @this
+   RETURN refCount
+END FUNCTION
+' =====================================================================================
+
+' =====================================================================================
+FUNCTION CWebView2SourceChangedEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2SourceChangedEventArgs PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+
+' ########################################################################################
+' CWebView2HistoryChangedEventHandler class
+' Implementation of the ICoreWebView2HistoryChangedEventHandler callback interface.
+' ########################################################################################
+PUBLIC TYPE CWebView2HistoryChangedEventHandler EXTENDS OBJECT
+
+   DECLARE VIRTUAL FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
+   DECLARE VIRTUAL FUNCTION AddRef () AS ULONG
+   DECLARE VIRTUAL FUNCTION Release () AS ULONG
+   DECLARE VIRTUAL FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS IUnknown PTR) AS HRESULT
+
+   DECLARE CONSTRUCTOR
+   DECLARE VIRTUAL DESTRUCTOR
+
+   ' Reference count for COM
+   refCount AS ULONG = 0
+
+END TYPE
+' ########################################################################################
+
+' =====================================================================================
+' Constructor
+' =====================================================================================
+CONSTRUCTOR CWebView2HistoryChangedEventHandler
+END CONSTRUCTOR
+' =====================================================================================
+' =====================================================================================
+' Destructor
+' =====================================================================================
+DESTRUCTOR CWebView2HistoryChangedEventHandler
+END DESTRUCTOR
+' =====================================================================================
+
+' ========================================================================================
+' Returns pointers to the implemented classes and supported interfaces.
+' It is never called by WebView, so we simply return S_OK.
+' ========================================================================================
+FUNCTION CWebView2HistoryChangedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+' ========================================================================================
+' Increments the reference count for an interface on an object. This method should be called
+' for every new copy of a pointer to an interface on an object.
+' ========================================================================================
+FUNCTION CWebView2HistoryChangedEventHandler.AddRef () AS ULONG
+   refCount += 1
+   RETURN refCount
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Decrements the reference count for an interface on an object.
+' If the count reaches 0, it deletes itself.
+' ========================================================================================
+FUNCTION CWebView2HistoryChangedEventHandler.Release () AS ULONG
+   refCount -= 1
+   IF refCount = 0 THEN Delete @this
+   RETURN refCount
+END FUNCTION
+' =====================================================================================
+
+' =====================================================================================
+FUNCTION CWebView2HistoryChangedEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS IUnknown PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+
+' ########################################################################################
+' CWebView2ScriptDialogOpeningEventHandler class
+' Implementation of the ICoreWebView2ScriptDialogOpeningEventHandler callback interface.
+' ########################################################################################
+PUBLIC TYPE CWebView2ScriptDialogOpeningEventHandler EXTENDS OBJECT
+
+   DECLARE VIRTUAL FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
+   DECLARE VIRTUAL FUNCTION AddRef () AS ULONG
+   DECLARE VIRTUAL FUNCTION Release () AS ULONG
+   DECLARE VIRTUAL FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2ScriptDialogOpeningEventArgs PTR) AS HRESULT
+
+   DECLARE CONSTRUCTOR
+   DECLARE VIRTUAL DESTRUCTOR
+
+   ' Reference count for COM
+   refCount AS ULONG = 0
+
+END TYPE
+' ########################################################################################
+
+' =====================================================================================
+' Constructor
+' =====================================================================================
+CONSTRUCTOR CWebView2ScriptDialogOpeningEventHandler
+END CONSTRUCTOR
+' =====================================================================================
+' =====================================================================================
+' Destructor
+' =====================================================================================
+DESTRUCTOR CWebView2ScriptDialogOpeningEventHandler
+END DESTRUCTOR
+' =====================================================================================
+
+' ========================================================================================
+' Returns pointers to the implemented classes and supported interfaces.
+' It is never called by WebView, so we simply return S_OK.
+' ========================================================================================
+FUNCTION CWebView2ScriptDialogOpeningEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+' ========================================================================================
+' Increments the reference count for an interface on an object. This method should be called
+' for every new copy of a pointer to an interface on an object.
+' ========================================================================================
+FUNCTION CWebView2ScriptDialogOpeningEventHandler.AddRef () AS ULONG
+   refCount += 1
+   RETURN refCount
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Decrements the reference count for an interface on an object.
+' If the count reaches 0, it deletes itself.
+' ========================================================================================
+FUNCTION CWebView2ScriptDialogOpeningEventHandler.Release () AS ULONG
+   refCount -= 1
+   IF refCount = 0 THEN Delete @this
+   RETURN refCount
+END FUNCTION
+' =====================================================================================
+
+' =====================================================================================
+FUNCTION CWebView2ScriptDialogOpeningEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2ScriptDialogOpeningEventArgs PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+
+' ########################################################################################
+' CWebView2PermissionRequestedEventHandler class
+' Implementation of the ICoreWebView2PermissionRequestedEventHandler callback interface.
+' ########################################################################################
+PUBLIC TYPE CWebView2PermissionRequestedEventHandler EXTENDS OBJECT
+
+   DECLARE VIRTUAL FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
+   DECLARE VIRTUAL FUNCTION AddRef () AS ULONG
+   DECLARE VIRTUAL FUNCTION Release () AS ULONG
+   DECLARE VIRTUAL FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2PermissionRequestedEventArgs PTR) AS HRESULT
+
+   DECLARE CONSTRUCTOR
+   DECLARE VIRTUAL DESTRUCTOR
+
+   ' Reference count for COM
+   refCount AS ULONG = 0
+
+END TYPE
+' ########################################################################################
+
+' =====================================================================================
+' Constructor
+' =====================================================================================
+CONSTRUCTOR CWebView2PermissionRequestedEventHandler
+END CONSTRUCTOR
+' =====================================================================================
+' =====================================================================================
+' Destructor
+' =====================================================================================
+DESTRUCTOR CWebView2PermissionRequestedEventHandler
+END DESTRUCTOR
+' =====================================================================================
+
+' ========================================================================================
+' Returns pointers to the implemented classes and supported interfaces.
+' It is never called by WebView, so we simply return S_OK.
+' ========================================================================================
+FUNCTION CWebView2PermissionRequestedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+' ========================================================================================
+' Increments the reference count for an interface on an object. This method should be called
+' for every new copy of a pointer to an interface on an object.
+' ========================================================================================
+FUNCTION CWebView2PermissionRequestedEventHandler.AddRef () AS ULONG
+   refCount += 1
+   RETURN refCount
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Decrements the reference count for an interface on an object.
+' If the count reaches 0, it deletes itself.
+' ========================================================================================
+FUNCTION CWebView2PermissionRequestedEventHandler.Release () AS ULONG
+   refCount -= 1
+   IF refCount = 0 THEN Delete @this
+   RETURN refCount
+END FUNCTION
+' =====================================================================================
+
+' =====================================================================================
+FUNCTION CWebView2PermissionRequestedEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2PermissionRequestedEventArgs PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+
+' ########################################################################################
+' CWebView2ProcessFailedEventHandler class
+' Implementation of the ICoreWebView2ProcessFailedEventHandler callback interface.
+' ########################################################################################
+PUBLIC TYPE CWebView2ProcessFailedEventHandler EXTENDS OBJECT
+
+   DECLARE VIRTUAL FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
+   DECLARE VIRTUAL FUNCTION AddRef () AS ULONG
+   DECLARE VIRTUAL FUNCTION Release () AS ULONG
+   DECLARE VIRTUAL FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2ProcessFailedEventArgs PTR) AS HRESULT
+
+   DECLARE CONSTRUCTOR
+   DECLARE VIRTUAL DESTRUCTOR
+
+   ' Reference count for COM
+   refCount AS ULONG = 0
+
+END TYPE
+' ########################################################################################
+
+' =====================================================================================
+' Constructor
+' =====================================================================================
+CONSTRUCTOR CWebView2ProcessFailedEventHandler
+END CONSTRUCTOR
+' =====================================================================================
+' =====================================================================================
+' Destructor
+' =====================================================================================
+DESTRUCTOR CWebView2ProcessFailedEventHandler
+END DESTRUCTOR
+' =====================================================================================
+
+' ========================================================================================
+' Returns pointers to the implemented classes and supported interfaces.
+' It is never called by WebView, so we simply return S_OK.
+' ========================================================================================
+FUNCTION CWebView2ProcessFailedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+' ========================================================================================
+' Increments the reference count for an interface on an object. This method should be called
+' for every new copy of a pointer to an interface on an object.
+' ========================================================================================
+FUNCTION CWebView2ProcessFailedEventHandler.AddRef () AS ULONG
+   refCount += 1
+   RETURN refCount
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Decrements the reference count for an interface on an object.
+' If the count reaches 0, it deletes itself.
+' ========================================================================================
+FUNCTION CWebView2ProcessFailedEventHandler.Release () AS ULONG
+   refCount -= 1
+   IF refCount = 0 THEN Delete @this
+   RETURN refCount
+END FUNCTION
+' =====================================================================================
+
+' =====================================================================================
+FUNCTION CWebView2ProcessFailedEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2ProcessFailedEventArgs PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+
+' ########################################################################################
+' CWebView2WebMessageReceivedEventHandler class
+' Implementation of the ICoreWebView2WebMessageReceivedEventHandler callback interface.
+' ########################################################################################
+PUBLIC TYPE CWebView2WebMessageReceivedEventHandler EXTENDS OBJECT
+
+   DECLARE VIRTUAL FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
+   DECLARE VIRTUAL FUNCTION AddRef () AS ULONG
+   DECLARE VIRTUAL FUNCTION Release () AS ULONG
+   DECLARE VIRTUAL FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2WebMessageReceivedEventArgs PTR) AS HRESULT
+
+   DECLARE CONSTRUCTOR
+   DECLARE VIRTUAL DESTRUCTOR
+
+   ' Reference count for COM
+   refCount AS ULONG = 0
+
+END TYPE
+' ########################################################################################
+
+' =====================================================================================
+' Constructor
+' =====================================================================================
+CONSTRUCTOR CWebView2WebMessageReceivedEventHandler
+END CONSTRUCTOR
+' =====================================================================================
+' =====================================================================================
+' Destructor
+' =====================================================================================
+DESTRUCTOR CWebView2WebMessageReceivedEventHandler
+END DESTRUCTOR
+' =====================================================================================
+
+' ========================================================================================
+' Returns pointers to the implemented classes and supported interfaces.
+' It is never called by WebView, so we simply return S_OK.
+' ========================================================================================
+FUNCTION CWebView2WebMessageReceivedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+' ========================================================================================
+' Increments the reference count for an interface on an object. This method should be called
+' for every new copy of a pointer to an interface on an object.
+' ========================================================================================
+FUNCTION CWebView2WebMessageReceivedEventHandler.AddRef () AS ULONG
+   refCount += 1
+   RETURN refCount
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Decrements the reference count for an interface on an object.
+' If the count reaches 0, it deletes itself.
+' ========================================================================================
+FUNCTION CWebView2WebMessageReceivedEventHandler.Release () AS ULONG
+   refCount -= 1
+   IF refCount = 0 THEN Delete @this
+   RETURN refCount
+END FUNCTION
+' =====================================================================================
+
+' =====================================================================================
+FUNCTION CWebView2WebMessageReceivedEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2WebMessageReceivedEventArgs PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+
+' ########################################################################################
+' CWebView2NewWindowRequestedEventHandler class
+' Implementation of the ICoreWebView2NewWindowRequestedEventHandler callback interface.
+' ########################################################################################
+PUBLIC TYPE CWebView2NewWindowRequestedEventHandler EXTENDS OBJECT
+
+   DECLARE VIRTUAL FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
+   DECLARE VIRTUAL FUNCTION AddRef () AS ULONG
+   DECLARE VIRTUAL FUNCTION Release () AS ULONG
+   DECLARE VIRTUAL FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2NewWindowRequestedEventArgs PTR) AS HRESULT
+
+   DECLARE CONSTRUCTOR
+   DECLARE VIRTUAL DESTRUCTOR
+
+   ' Reference count for COM
+   refCount AS ULONG = 0
+
+END TYPE
+' ########################################################################################
+
+' =====================================================================================
+' Constructor
+' =====================================================================================
+CONSTRUCTOR CWebView2NewWindowRequestedEventHandler
+END CONSTRUCTOR
+' =====================================================================================
+' =====================================================================================
+' Destructor
+' =====================================================================================
+DESTRUCTOR CWebView2NewWindowRequestedEventHandler
+END DESTRUCTOR
+' =====================================================================================
+
+' ========================================================================================
+' Returns pointers to the implemented classes and supported interfaces.
+' It is never called by WebView, so we simply return S_OK.
+' ========================================================================================
+FUNCTION CWebView2NewWindowRequestedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+' ========================================================================================
+' Increments the reference count for an interface on an object. This method should be called
+' for every new copy of a pointer to an interface on an object.
+' ========================================================================================
+FUNCTION CWebView2NewWindowRequestedEventHandler.AddRef () AS ULONG
+   refCount += 1
+   RETURN refCount
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Decrements the reference count for an interface on an object.
+' If the count reaches 0, it deletes itself.
+' ========================================================================================
+FUNCTION CWebView2NewWindowRequestedEventHandler.Release () AS ULONG
+   refCount -= 1
+   IF refCount = 0 THEN Delete @this
+   RETURN refCount
+END FUNCTION
+' =====================================================================================
+
+' =====================================================================================
+FUNCTION CWebView2NewWindowRequestedEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2NewWindowRequestedEventArgs PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+
+' ########################################################################################
+' CWebView2DocumentTitleChangedEventHandler class
+' Implementation of the ICoreWebView2DocumentTitleChangedEventHandler callback interface.
+' ########################################################################################
+PUBLIC TYPE CWebView2DocumentTitleChangedEventHandler EXTENDS OBJECT
+
+   DECLARE VIRTUAL FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
+   DECLARE VIRTUAL FUNCTION AddRef () AS ULONG
+   DECLARE VIRTUAL FUNCTION Release () AS ULONG
+   DECLARE VIRTUAL FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS IUnknown PTR) AS HRESULT
+
+   DECLARE CONSTRUCTOR
+   DECLARE VIRTUAL DESTRUCTOR
+
+   ' Reference count for COM
+   refCount AS ULONG = 0
+
+END TYPE
+' ########################################################################################
+
+' =====================================================================================
+' Constructor
+' =====================================================================================
+CONSTRUCTOR CWebView2DocumentTitleChangedEventHandler
+END CONSTRUCTOR
+' =====================================================================================
+' =====================================================================================
+' Destructor
+' =====================================================================================
+DESTRUCTOR CWebView2DocumentTitleChangedEventHandler
+END DESTRUCTOR
+' =====================================================================================
+
+' ========================================================================================
+' Returns pointers to the implemented classes and supported interfaces.
+' It is never called by WebView, so we simply return S_OK.
+' ========================================================================================
+FUNCTION CWebView2DocumentTitleChangedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+' ========================================================================================
+' Increments the reference count for an interface on an object. This method should be called
+' for every new copy of a pointer to an interface on an object.
+' ========================================================================================
+FUNCTION CWebView2DocumentTitleChangedEventHandler.AddRef () AS ULONG
+   refCount += 1
+   RETURN refCount
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Decrements the reference count for an interface on an object.
+' If the count reaches 0, it deletes itself.
+' ========================================================================================
+FUNCTION CWebView2DocumentTitleChangedEventHandler.Release () AS ULONG
+   refCount -= 1
+   IF refCount = 0 THEN Delete @this
+   RETURN refCount
+END FUNCTION
+' =====================================================================================
+
+' =====================================================================================
+FUNCTION CWebView2DocumentTitleChangedEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS IUnknown PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+
+' ########################################################################################
+' CWebView2ContainsFullScreenElementChangedEventHandler class
+' Implementation of the ICoreWebView2ContainsFullScreenElementChangedEventHandler callback interface.
+' ########################################################################################
+PUBLIC TYPE CWebView2ContainsFullScreenElementChangedEventHandler EXTENDS OBJECT
+
+   DECLARE VIRTUAL FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
+   DECLARE VIRTUAL FUNCTION AddRef () AS ULONG
+   DECLARE VIRTUAL FUNCTION Release () AS ULONG
+   DECLARE VIRTUAL FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS IUnknown PTR) AS HRESULT
+
+   DECLARE CONSTRUCTOR
+   DECLARE VIRTUAL DESTRUCTOR
+
+   ' Reference count for COM
+   refCount AS ULONG = 0
+
+END TYPE
+' ########################################################################################
+
+' =====================================================================================
+' Constructor
+' =====================================================================================
+CONSTRUCTOR CWebView2ContainsFullScreenElementChangedEventHandler
+END CONSTRUCTOR
+' =====================================================================================
+' =====================================================================================
+' Destructor
+' =====================================================================================
+DESTRUCTOR CWebView2ContainsFullScreenElementChangedEventHandler
+END DESTRUCTOR
+' =====================================================================================
+
+' ========================================================================================
+' Returns pointers to the implemented classes and supported interfaces.
+' It is never called by WebView, so we simply return S_OK.
+' ========================================================================================
+FUNCTION CWebView2ContainsFullScreenElementChangedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+' ========================================================================================
+' Increments the reference count for an interface on an object. This method should be called
+' for every new copy of a pointer to an interface on an object.
+' ========================================================================================
+FUNCTION CWebView2ContainsFullScreenElementChangedEventHandler.AddRef () AS ULONG
+   refCount += 1
+   RETURN refCount
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Decrements the reference count for an interface on an object.
+' If the count reaches 0, it deletes itself.
+' ========================================================================================
+FUNCTION CWebView2ContainsFullScreenElementChangedEventHandler.Release () AS ULONG
+   refCount -= 1
+   IF refCount = 0 THEN Delete @this
+   RETURN refCount
+END FUNCTION
+' =====================================================================================
+
+' =====================================================================================
+FUNCTION CWebView2ContainsFullScreenElementChangedEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS IUnknown PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+
+' ########################################################################################
+' CWebView2WebResourceRequestedEventHandler class
+' Implementation of the ICoreWebView2WebResourceRequestedEventHandler callback interface.
+' ########################################################################################
+PUBLIC TYPE CWebView2WebResourceRequestedEventHandler EXTENDS OBJECT
+
+   DECLARE VIRTUAL FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
+   DECLARE VIRTUAL FUNCTION AddRef () AS ULONG
+   DECLARE VIRTUAL FUNCTION Release () AS ULONG
+   DECLARE VIRTUAL FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2WebResourceRequestedEventArgs PTR) AS HRESULT
+
+   DECLARE CONSTRUCTOR
+   DECLARE VIRTUAL DESTRUCTOR
+
+   ' Reference count for COM
+   refCount AS ULONG = 0
+
+END TYPE
+' ########################################################################################
+
+' =====================================================================================
+' Constructor
+' =====================================================================================
+CONSTRUCTOR CWebView2WebResourceRequestedEventHandler
+END CONSTRUCTOR
+' =====================================================================================
+' =====================================================================================
+' Destructor
+' =====================================================================================
+DESTRUCTOR CWebView2WebResourceRequestedEventHandler
+END DESTRUCTOR
+' =====================================================================================
+
+' ========================================================================================
+' Returns pointers to the implemented classes and supported interfaces.
+' It is never called by WebView, so we simply return S_OK.
+' ========================================================================================
+FUNCTION CWebView2WebResourceRequestedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+' ========================================================================================
+' Increments the reference count for an interface on an object. This method should be called
+' for every new copy of a pointer to an interface on an object.
+' ========================================================================================
+FUNCTION CWebView2WebResourceRequestedEventHandler.AddRef () AS ULONG
+   refCount += 1
+   RETURN refCount
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Decrements the reference count for an interface on an object.
+' If the count reaches 0, it deletes itself.
+' ========================================================================================
+FUNCTION CWebView2WebResourceRequestedEventHandler.Release () AS ULONG
+   refCount -= 1
+   IF refCount = 0 THEN Delete @this
+   RETURN refCount
+END FUNCTION
+' =====================================================================================
+
+' =====================================================================================
+FUNCTION CWebView2WebResourceRequestedEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2WebResourceRequestedEventArgs PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+
+' ########################################################################################
+' CWebView2WindowCloseRequestedEventHandler class
+' Implementation of the ICoreWebView2WindowCloseRequestedEventHandler callback interface.
+' ########################################################################################
+PUBLIC TYPE CWebView2WindowCloseRequestedEventHandler EXTENDS OBJECT
+
+   DECLARE VIRTUAL FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
+   DECLARE VIRTUAL FUNCTION AddRef () AS ULONG
+   DECLARE VIRTUAL FUNCTION Release () AS ULONG
+   DECLARE VIRTUAL FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS IUnknown PTR) AS HRESULT
+
+   DECLARE CONSTRUCTOR
+   DECLARE VIRTUAL DESTRUCTOR
+
+   ' Reference count for COM
+   refCount AS ULONG = 0
+
+END TYPE
+' ########################################################################################
+
+' =====================================================================================
+' Constructor
+' =====================================================================================
+CONSTRUCTOR CWebView2WindowCloseRequestedEventHandler
+END CONSTRUCTOR
+' =====================================================================================
+' =====================================================================================
+' Destructor
+' =====================================================================================
+DESTRUCTOR CWebView2WindowCloseRequestedEventHandler
+END DESTRUCTOR
+' =====================================================================================
+
+' ========================================================================================
+' Returns pointers to the implemented classes and supported interfaces.
+' It is never called by WebView, so we simply return S_OK.
+' ========================================================================================
+FUNCTION CWebView2WindowCloseRequestedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+' ========================================================================================
+' Increments the reference count for an interface on an object. This method should be called
+' for every new copy of a pointer to an interface on an object.
+' ========================================================================================
+FUNCTION CWebView2WindowCloseRequestedEventHandler.AddRef () AS ULONG
+   refCount += 1
+   RETURN refCount
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Decrements the reference count for an interface on an object.
+' If the count reaches 0, it deletes itself.
+' ========================================================================================
+FUNCTION CWebView2WindowCloseRequestedEventHandler.Release () AS ULONG
+   refCount -= 1
+   IF refCount = 0 THEN Delete @this
+   RETURN refCount
+END FUNCTION
+' =====================================================================================
+
+' =====================================================================================
+FUNCTION CWebView2WindowCloseRequestedEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS IUnknown PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+
+' ########################################################################################
+' CWebView2ExecuteScriptCompletedHandler class
+' Implementation of the ICoreWebView2ExecuteScriptCompletedHandler callback interface.
+' ########################################################################################
+PUBLIC TYPE CWebView2ExecuteScriptCompletedHandler EXTENDS OBJECT
+
+   DECLARE VIRTUAL FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
+   DECLARE VIRTUAL FUNCTION AddRef () AS ULONG
+   DECLARE VIRTUAL FUNCTION Release () AS ULONG
+   DECLARE VIRTUAL FUNCTION Invoke (BYVAL errorCode AS HRESULT, BYVAL resultObjectAsJson AS LPCWSTR) AS HRESULT
+
+   DECLARE CONSTRUCTOR
+   DECLARE VIRTUAL DESTRUCTOR
+
+   ' Reference count for COM
+   refCount AS ULONG = 0
+
+END TYPE
+' ########################################################################################
+
+' =====================================================================================
+' Constructor
+' =====================================================================================
+CONSTRUCTOR CWebView2ExecuteScriptCompletedHandler
+END CONSTRUCTOR
+' =====================================================================================
+' =====================================================================================
+' Destructor
+' =====================================================================================
+DESTRUCTOR CWebView2ExecuteScriptCompletedHandler
+END DESTRUCTOR
+' =====================================================================================
+
+' ========================================================================================
+' Returns pointers to the implemented classes and supported interfaces.
+' It is never called by WebView, so we simply return S_OK.
+' ========================================================================================
+FUNCTION CWebView2ExecuteScriptCompletedHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+' ========================================================================================
+' Increments the reference count for an interface on an object. This method should be called
+' for every new copy of a pointer to an interface on an object.
+' ========================================================================================
+FUNCTION CWebView2ExecuteScriptCompletedHandler.AddRef () AS ULONG
+   refCount += 1
+   RETURN refCount
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Decrements the reference count for an interface on an object.
+' If the count reaches 0, it deletes itself.
+' ========================================================================================
+FUNCTION CWebView2ExecuteScriptCompletedHandler.Release () AS ULONG
+   refCount -= 1
+   IF refCount = 0 THEN Delete @this
+   RETURN refCount
+END FUNCTION
+' =====================================================================================
+
+' =====================================================================================
+FUNCTION CWebView2ExecuteScriptCompletedHandler.Invoke (BYVAL errorCode AS HRESULT, BYVAL resultObjectAsJson AS LPCWSTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+
+' ########################################################################################
+' CWebView2AddScriptToExecuteOnDocumentCreatedCompleteHandler class
+' Implementation of the ICoreWebView2AddScriptToExecuteOnDocumentCreatedCompletedHandler callback interface.
+' ########################################################################################
+PUBLIC TYPE CWebView2AddScriptToExecuteOnDocumentCreatedCompleteHandler EXTENDS OBJECT
+
+   DECLARE VIRTUAL FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
+   DECLARE VIRTUAL FUNCTION AddRef () AS ULONG
+   DECLARE VIRTUAL FUNCTION Release () AS ULONG
+   DECLARE VIRTUAL FUNCTION Invoke (BYVAL errorCode AS HRESULT, BYVAL resultObjectAsJson AS LPCWSTR) AS HRESULT
+
+   DECLARE CONSTRUCTOR
+   DECLARE VIRTUAL DESTRUCTOR
+
+   ' Reference count for COM
+   refCount AS ULONG = 0
+
+END TYPE
+' ########################################################################################
+
+' =====================================================================================
+' Constructor
+' =====================================================================================
+CONSTRUCTOR CWebView2AddScriptToExecuteOnDocumentCreatedCompleteHandler
+END CONSTRUCTOR
+' =====================================================================================
+' =====================================================================================
+' Destructor
+' =====================================================================================
+DESTRUCTOR CWebView2AddScriptToExecuteOnDocumentCreatedCompleteHandler
+END DESTRUCTOR
+' =====================================================================================
+
+' ========================================================================================
+' Returns pointers to the implemented classes and supported interfaces.
+' ========================================================================================
+FUNCTION CWebView2AddScriptToExecuteOnDocumentCreatedCompleteHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+' ========================================================================================
+' Increments the reference count for an interface on an object. This method should be called
+' for every new copy of a pointer to an interface on an object.
+' ========================================================================================
+FUNCTION CWebView2AddScriptToExecuteOnDocumentCreatedCompleteHandler.AddRef () AS ULONG
+   refCount += 1
+   RETURN refCount
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Decrements the reference count for an interface on an object.
+' If the count reaches 0, it deletes itself.
+' ========================================================================================
+FUNCTION CWebView2AddScriptToExecuteOnDocumentCreatedCompleteHandler.Release () AS ULONG
+   refCount -= 1
+   IF refCount = 0 THEN Delete @this
+   RETURN refCount
+END FUNCTION
+' =====================================================================================
+
+' =====================================================================================
+FUNCTION CWebView2AddScriptToExecuteOnDocumentCreatedCompleteHandler.Invoke (BYVAL errorCode AS HRESULT, BYVAL resultObjectAsJson AS LPCWSTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+
+' ########################################################################################
+' CWebView2AddCapturePreviewCompletedHandler class
+' Implementation of the ICoreWebView2CapturePreviewCompletedHandler callback interface.
+' ########################################################################################
+PUBLIC TYPE CWebView2AddCapturePreviewCompletedHandler EXTENDS OBJECT
+
+   DECLARE VIRTUAL FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
+   DECLARE VIRTUAL FUNCTION AddRef () AS ULONG
+   DECLARE VIRTUAL FUNCTION Release () AS ULONG
+   DECLARE VIRTUAL FUNCTION Invoke (BYVAL errorCode AS HRESULT) AS HRESULT
+
+   DECLARE CONSTRUCTOR
+   DECLARE VIRTUAL DESTRUCTOR
+
+   ' Reference count for COM
+   refCount AS ULONG = 0
+
+END TYPE
+' ########################################################################################
+
+' =====================================================================================
+' Constructor
+' =====================================================================================
+CONSTRUCTOR CWebView2AddCapturePreviewCompletedHandler
+END CONSTRUCTOR
+' =====================================================================================
+' =====================================================================================
+' Destructor
+' =====================================================================================
+DESTRUCTOR CWebView2AddCapturePreviewCompletedHandler
+END DESTRUCTOR
+' =====================================================================================
+
+' ========================================================================================
+' Returns pointers to the implemented classes and supported interfaces.
+' It is never called by WebView, so we simply return S_OK.
+' ========================================================================================
+FUNCTION CWebView2AddCapturePreviewCompletedHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+' ========================================================================================
+' Increments the reference count for an interface on an object. This method should be called
+' for every new copy of a pointer to an interface on an object.
+' ========================================================================================
+FUNCTION CWebView2AddCapturePreviewCompletedHandler.AddRef () AS ULONG
+   refCount += 1
+   RETURN refCount
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Decrements the reference count for an interface on an object.
+' If the count reaches 0, it deletes itself.
+' ========================================================================================
+FUNCTION CWebView2AddCapturePreviewCompletedHandler.Release () AS ULONG
+   refCount -= 1
+   IF refCount = 0 THEN Delete @this
+   RETURN refCount
+END FUNCTION
+' =====================================================================================
+
+' =====================================================================================
+FUNCTION CWebView2AddCapturePreviewCompletedHandler.Invoke (BYVAL errorCode AS HRESULT) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+
+' ########################################################################################
+' CWebView2DevToolsProtocolEventReceivedEventHandler class
+' Implementation of the ICoreWebView2DevToolsProtocolEventReceivedEventHandler callback interface.
+' ########################################################################################
+PUBLIC TYPE CWebView2DevToolsProtocolEventReceivedEventHandler EXTENDS OBJECT
+
+   DECLARE VIRTUAL FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
+   DECLARE VIRTUAL FUNCTION AddRef () AS ULONG
+   DECLARE VIRTUAL FUNCTION Release () AS ULONG
+   DECLARE VIRTUAL FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2DevToolsProtocolEventReceivedEventArgs PTR) AS HRESULT
+
+   DECLARE CONSTRUCTOR
+   DECLARE VIRTUAL DESTRUCTOR
+
+   ' Reference count for COM
+   refCount AS ULONG = 0
+
+END TYPE
+' ########################################################################################
+
+' =====================================================================================
+' Constructor
+' =====================================================================================
+CONSTRUCTOR CWebView2DevToolsProtocolEventReceivedEventHandler
+END CONSTRUCTOR
+' =====================================================================================
+' =====================================================================================
+' Destructor
+' =====================================================================================
+DESTRUCTOR CWebView2DevToolsProtocolEventReceivedEventHandler
+END DESTRUCTOR
+' =====================================================================================
+
+' ========================================================================================
+' Returns pointers to the implemented classes and supported interfaces.
+' It is never called by WebView, so we simply return S_OK.
+' ========================================================================================
+FUNCTION CWebView2DevToolsProtocolEventReceivedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+' ========================================================================================
+' Increments the reference count for an interface on an object. This method should be called
+' for every new copy of a pointer to an interface on an object.
+' ========================================================================================
+FUNCTION CWebView2DevToolsProtocolEventReceivedEventHandler.AddRef () AS ULONG
+   refCount += 1
+   RETURN refCount
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Decrements the reference count for an interface on an object.
+' If the count reaches 0, it deletes itself.
+' ========================================================================================
+FUNCTION CWebView2DevToolsProtocolEventReceivedEventHandler.Release () AS ULONG
+   refCount -= 1
+   IF refCount = 0 THEN Delete @this
+   RETURN refCount
+END FUNCTION
+' =====================================================================================
+
+' =====================================================================================
+FUNCTION CWebView2DevToolsProtocolEventReceivedEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2DevToolsProtocolEventReceivedEventArgs PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+
+' ########################################################################################
+' CWebView2ZoomFactorChangedEventHandler class
+' Implementation of the ICoreWebView2ZoomFactorChangedEventHandler callback interface.
+' ########################################################################################
+PUBLIC TYPE CWebView2ZoomFactorChangedEventHandler EXTENDS OBJECT
+
+   DECLARE VIRTUAL FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
+   DECLARE VIRTUAL FUNCTION AddRef () AS ULONG
+   DECLARE VIRTUAL FUNCTION Release () AS ULONG
+   DECLARE VIRTUAL FUNCTION Invoke (BYVAL sender AS ICoreWebView2Controller PTR, BYVAL args AS IUnknown PTR) AS HRESULT
+
+   DECLARE CONSTRUCTOR
+   DECLARE VIRTUAL DESTRUCTOR
+
+   ' Reference count for COM
+   refCount AS ULONG = 0
+
+END TYPE
+' ########################################################################################
+
+' =====================================================================================
+' Constructor
+' =====================================================================================
+CONSTRUCTOR CWebView2ZoomFactorChangedEventHandler
+END CONSTRUCTOR
+' =====================================================================================
+' =====================================================================================
+' Destructor
+' =====================================================================================
+DESTRUCTOR CWebView2ZoomFactorChangedEventHandler
+END DESTRUCTOR
+' =====================================================================================
+
+' ========================================================================================
+' Returns pointers to the implemented classes and supported interfaces.
+' It is never called by WebView, so we simply return S_OK.
+' ========================================================================================
+FUNCTION CWebView2ZoomFactorChangedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+' ========================================================================================
+' Increments the reference count for an interface on an object. This method should be called
+' for every new copy of a pointer to an interface on an object.
+' ========================================================================================
+FUNCTION CWebView2ZoomFactorChangedEventHandler.AddRef () AS ULONG
+   refCount += 1
+   RETURN refCount
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Decrements the reference count for an interface on an object.
+' If the count reaches 0, it deletes itself.
+' ========================================================================================
+FUNCTION CWebView2ZoomFactorChangedEventHandler.Release () AS ULONG
+   refCount -= 1
+   IF refCount = 0 THEN Delete @this
+   RETURN refCount
+END FUNCTION
+' =====================================================================================
+
+' =====================================================================================
+FUNCTION CWebView2ZoomFactorChangedEventHandler.Invoke (BYVAL sender AS ICoreWebView2Controller PTR, BYVAL args AS IUnknown PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+
+' ########################################################################################
+' CWebView2MoveFocusRequestedEventHandler class
+' Implementation of the ICoreWebView2MoveFocusRequestedEventHandler callback interface.
+' ########################################################################################
+PUBLIC TYPE CWebView2MoveFocusRequestedEventHandler EXTENDS OBJECT
+
+   DECLARE VIRTUAL FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
+   DECLARE VIRTUAL FUNCTION AddRef () AS ULONG
+   DECLARE VIRTUAL FUNCTION Release () AS ULONG
+   DECLARE VIRTUAL FUNCTION Invoke (BYVAL sender AS ICoreWebView2Controller PTR, BYVAL args AS ICoreWebView2MoveFocusRequestedEventArgs PTR) AS HRESULT
+
+   DECLARE CONSTRUCTOR
+   DECLARE VIRTUAL DESTRUCTOR
+
+   ' Reference count for COM
+   refCount AS ULONG = 0
+
+END TYPE
+' ########################################################################################
+
+' =====================================================================================
+' Constructor
+' =====================================================================================
+CONSTRUCTOR CWebView2MoveFocusRequestedEventHandler
+END CONSTRUCTOR
+' =====================================================================================
+' =====================================================================================
+' Destructor
+' =====================================================================================
+DESTRUCTOR CWebView2MoveFocusRequestedEventHandler
+END DESTRUCTOR
+' =====================================================================================
+
+' ========================================================================================
+' Returns pointers to the implemented classes and supported interfaces.
+' It is never called by WebView, so we simply return S_OK.
+' ========================================================================================
+FUNCTION CWebView2MoveFocusRequestedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+' ========================================================================================
+' Increments the reference count for an interface on an object. This method should be called
+' for every new copy of a pointer to an interface on an object.
+' ========================================================================================
+FUNCTION CWebView2MoveFocusRequestedEventHandler.AddRef () AS ULONG
+   refCount += 1
+   RETURN refCount
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Decrements the reference count for an interface on an object.
+' If the count reaches 0, it deletes itself.
+' ========================================================================================
+FUNCTION CWebView2MoveFocusRequestedEventHandler.Release () AS ULONG
+   refCount -= 1
+   IF refCount = 0 THEN Delete @this
+   RETURN refCount
+END FUNCTION
+' =====================================================================================
+
+' =====================================================================================
+FUNCTION CWebView2MoveFocusRequestedEventHandler.Invoke (BYVAL sender AS ICoreWebView2Controller PTR, BYVAL args AS ICoreWebView2MoveFocusRequestedEventArgs PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+
+' ########################################################################################
+' CWebView2FocusChangedEventHandler Class
+' Implementation of the ICoreWebView2FocusChangedEventHandler callback interface.
+' ########################################################################################
+PUBLIC TYPE CWebView2FocusChangedEventHandler EXTENDS OBJECT
+
+   DECLARE VIRTUAL FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
+   DECLARE VIRTUAL FUNCTION AddRef () AS ULONG
+   DECLARE VIRTUAL FUNCTION Release () AS ULONG
+   DECLARE VIRTUAL FUNCTION Invoke (BYVAL sender AS ICoreWebView2Controller PTR, BYVAL args AS IUnknown PTR) AS HRESULT
+
+   DECLARE CONSTRUCTOR
+   DECLARE VIRTUAL DESTRUCTOR
+
+   ' Reference count for COM
+   refCount AS ULONG = 0
+
+END TYPE
+' ########################################################################################
+
+' =====================================================================================
+' Constructor
+' =====================================================================================
+CONSTRUCTOR CWebView2FocusChangedEventHandler
+END CONSTRUCTOR
+' =====================================================================================
+' =====================================================================================
+' Destructor
+' =====================================================================================
+DESTRUCTOR CWebView2FocusChangedEventHandler
+END DESTRUCTOR
+' =====================================================================================
+
+' ========================================================================================
+' Returns pointers to the implemented classes and supported interfaces.
+' It is never called by WebView, so we simply return S_OK.
+' ========================================================================================
+FUNCTION CWebView2FocusChangedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+' ========================================================================================
+' Increments the reference count for an interface on an object. This method should be called
+' for every new copy of a pointer to an interface on an object.
+' ========================================================================================
+FUNCTION CWebView2FocusChangedEventHandler.AddRef () AS ULONG
+   refCount += 1
+   RETURN refCount
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Decrements the reference count for an interface on an object.
+' If the count reaches 0, it deletes itself.
+' ========================================================================================
+FUNCTION CWebView2FocusChangedEventHandler.Release () AS ULONG
+   refCount -= 1
+   IF refCount = 0 THEN Delete @this
+   RETURN refCount
+END FUNCTION
+' =====================================================================================
+
+' =====================================================================================
+FUNCTION CWebView2FocusChangedEventHandler.Invoke (BYVAL sender AS ICoreWebView2Controller PTR, BYVAL args AS IUnknown PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+
+' ########################################################################################
+' CWebView2AcceleratorKeyPressedEventHandler Class
+' Implementation of the ICoreWebView2AcceleratorKeyPressedEventHandler callback interface.
+' ########################################################################################
+PUBLIC TYPE CWebView2AcceleratorKeyPressedEventHandler EXTENDS OBJECT
+
+   DECLARE VIRTUAL FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
+   DECLARE VIRTUAL FUNCTION AddRef () AS ULONG
+   DECLARE VIRTUAL FUNCTION Release () AS ULONG
+   DECLARE VIRTUAL FUNCTION Invoke (BYVAL sender AS ICoreWebView2Controller PTR, BYVAL args AS ICoreWebView2AcceleratorKeyPressedEventArgs PTR) AS HRESULT
+
+   DECLARE CONSTRUCTOR
+   DECLARE VIRTUAL DESTRUCTOR
+
+   ' Reference count for COM
+   refCount AS ULONG = 0
+
+END TYPE
+' ########################################################################################
+
+' =====================================================================================
+' Constructor
+' =====================================================================================
+CONSTRUCTOR CWebView2AcceleratorKeyPressedEventHandler
+END CONSTRUCTOR
+' =====================================================================================
+' =====================================================================================
+' Destructor
+' =====================================================================================
+DESTRUCTOR CWebView2AcceleratorKeyPressedEventHandler
+END DESTRUCTOR
+' =====================================================================================
+
+' ========================================================================================
+' Returns pointers to the implemented classes and supported interfaces.
+' It is never called by WebView, so we simply return S_OK.
+' ========================================================================================
+FUNCTION CWebView2AcceleratorKeyPressedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+' ========================================================================================
+' Increments the reference count for an interface on an object. This method should be called
+' for every new copy of a pointer to an interface on an object.
+' ========================================================================================
+FUNCTION CWebView2AcceleratorKeyPressedEventHandler.AddRef () AS ULONG
+   refCount += 1
+   RETURN refCount
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Decrements the reference count for an interface on an object.
+' If the count reaches 0, it deletes itself.
+' ========================================================================================
+FUNCTION CWebView2AcceleratorKeyPressedEventHandler.Release () AS ULONG
+   refCount -= 1
+   IF refCount = 0 THEN Delete @this
+   RETURN refCount
+END FUNCTION
+' =====================================================================================
+
+' =====================================================================================
+FUNCTION CWebView2AcceleratorKeyPressedEventHandler.Invoke (BYVAL sender AS ICoreWebView2Controller PTR, BYVAL args AS ICoreWebView2AcceleratorKeyPressedEventArgs PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+
+' ########################################################################################
+' CWebView2NewBrowserVersionAvailableEventHandler Class
+' Implementation of the ICoreWebView2NewBrowserVersionAvailableEventHandler callback interface.
+' ########################################################################################
+PUBLIC TYPE CWebView2NewBrowserVersionAvailableEventHandler EXTENDS OBJECT
+
+   DECLARE VIRTUAL FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
+   DECLARE VIRTUAL FUNCTION AddRef () AS ULONG
+   DECLARE VIRTUAL FUNCTION Release () AS ULONG
+   DECLARE VIRTUAL FUNCTION Invoke (BYVAL webviewEnvironment AS ICoreWebView2Environment PTR, BYVAL args AS IUNknown PTR) AS HRESULT
+
+   DECLARE CONSTRUCTOR
+   DECLARE VIRTUAL DESTRUCTOR
+
+   ' Reference count for COM
+   refCount AS ULONG = 0
+
+END TYPE
+' ########################################################################################
+
+' =====================================================================================
+' Constructor
+' =====================================================================================
+CONSTRUCTOR CWebView2NewBrowserVersionAvailableEventHandler
+END CONSTRUCTOR
+' =====================================================================================
+' =====================================================================================
+' Destructor
+' =====================================================================================
+DESTRUCTOR CWebView2NewBrowserVersionAvailableEventHandler
+END DESTRUCTOR
+' =====================================================================================
+
+' ========================================================================================
+' Returns pointers to the implemented classes and supported interfaces.
+' It is never called by WebView, so we simply return S_OK.
+' ========================================================================================
+FUNCTION CWebView2NewBrowserVersionAvailableEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+' ========================================================================================
+' Increments the reference count for an interface on an object. This method should be called
+' for every new copy of a pointer to an interface on an object.
+' ========================================================================================
+FUNCTION CWebView2NewBrowserVersionAvailableEventHandler.AddRef () AS ULONG
+   refCount += 1
+   RETURN refCount
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Decrements the reference count for an interface on an object.
+' If the count reaches 0, it deletes itself.
+' ========================================================================================
+FUNCTION CWebView2NewBrowserVersionAvailableEventHandler.Release () AS ULONG
+   refCount -= 1
+   IF refCount = 0 THEN Delete @this
+   RETURN refCount
+END FUNCTION
+' =====================================================================================
+
+' =====================================================================================
+FUNCTION CWebView2NewBrowserVersionAvailableEventHandler.Invoke (BYVAL webviewEnvironment AS ICoreWebView2Environment PTR, BYVAL args AS IUNknown PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+
+' ########################################################################################
+' CWebView2CallDevToolsProtocolMethodCompletedHandler Class
+' Implementation of the ICoreWebView2CallDevToolsProtocolMethodCompletedHandler callback interface.
+' ########################################################################################
+PUBLIC TYPE CWebView2CallDevToolsProtocolMethodCompletedHandler EXTENDS OBJECT
+
+   DECLARE VIRTUAL FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
+   DECLARE VIRTUAL FUNCTION AddRef () AS ULONG
+   DECLARE VIRTUAL FUNCTION Release () AS ULONG
+   DECLARE VIRTUAL FUNCTION Invoke (BYVAL errorCode AS HRESULT, BYVAL returnObjectAsJson AS LPCWSTR) AS HRESULT
+
+   DECLARE CONSTRUCTOR
+   DECLARE VIRTUAL DESTRUCTOR
+
+   ' Reference count for COM
+   refCount AS ULONG = 0
+
+END TYPE
+' ########################################################################################
+
+' =====================================================================================
+' Constructor
+' =====================================================================================
+CONSTRUCTOR CWebView2CallDevToolsProtocolMethodCompletedHandler
+END CONSTRUCTOR
+' =====================================================================================
+' =====================================================================================
+' Destructor
+' =====================================================================================
+DESTRUCTOR CWebView2CallDevToolsProtocolMethodCompletedHandler
+END DESTRUCTOR
+' =====================================================================================
+
+' ========================================================================================
+' Returns pointers to the implemented classes and supported interfaces.
+' It is never called by WebView, so we simply return S_OK.
+' ========================================================================================
+FUNCTION CWebView2CallDevToolsProtocolMethodCompletedHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+' ========================================================================================
+' Increments the reference count for an interface on an object. This method should be called
+' for every new copy of a pointer to an interface on an object.
+' ========================================================================================
+FUNCTION CWebView2CallDevToolsProtocolMethodCompletedHandler.AddRef () AS ULONG
+   refCount += 1
+   RETURN refCount
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Decrements the reference count for an interface on an object.
+' If the count reaches 0, it deletes itself.
+' ========================================================================================
+FUNCTION CWebView2CallDevToolsProtocolMethodCompletedHandler.Release () AS ULONG
+   refCount -= 1
+   IF refCount = 0 THEN Delete @this
+   RETURN refCount
+END FUNCTION
+' =====================================================================================
+
+' =====================================================================================
+FUNCTION CWebView2CallDevToolsProtocolMethodCompletedHandler.Invoke (BYVAL errorCode AS HRESULT, BYVAL returnObjectAsJson AS LPCWSTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+
+' ########################################################################################
+' CWebView2ExecuteScriptWithResultCompletedHandler class
+' Implementation of the ICoreWebView2ExecuteScriptWithResultCompletedHandler callback interface.
+' ########################################################################################
+PUBLIC TYPE CWebView2ExecuteScriptWithResultCompletedHandler EXTENDS OBJECT
+
+   DECLARE VIRTUAL FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
+   DECLARE VIRTUAL FUNCTION AddRef () AS ULONG
+   DECLARE VIRTUAL FUNCTION Release () AS ULONG
+   DECLARE VIRTUAL FUNCTION Invoke (BYVAL errorCode AS HRESULT, BYVAL result AS ICoreWebView2ExecuteScriptResult PTR) AS HRESULT
+
+   DECLARE CONSTRUCTOR
+   DECLARE VIRTUAL DESTRUCTOR
+
+   ' Reference count for COM
+   ' This class must start with a reference count of 1 because WebView2
+   ' does not keep a reference to it by calling AddRef.
+   refCount AS ULONG = 1
+
+END TYPE
+' ########################################################################################
+
+' =====================================================================================
+' Constructor
+' =====================================================================================
+CONSTRUCTOR CWebView2ExecuteScriptWithResultCompletedHandler
+END CONSTRUCTOR
+' =====================================================================================
+' =====================================================================================
+' Destructor
+' =====================================================================================
+DESTRUCTOR CWebView2ExecuteScriptWithResultCompletedHandler
+END DESTRUCTOR
+' =====================================================================================
+
+' ========================================================================================
+' Returns pointers to the implemented classes and supported interfaces.
+' It is never called by WebView, so we simply return S_OK.
+' ========================================================================================
+FUNCTION CWebView2ExecuteScriptWithResultCompletedHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================
+
+' ========================================================================================
+' Increments the reference count for an interface on an object. This method should be called
+' for every new copy of a pointer to an interface on an object.
+' ========================================================================================
+FUNCTION CWebView2ExecuteScriptWithResultCompletedHandler.AddRef () AS ULONG
+   refCount += 1
+   RETURN refCount
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Decrements the reference count for an interface on an object.
+' If the count reaches 0, it deletes itself.
+' ========================================================================================
+FUNCTION CWebView2ExecuteScriptWithResultCompletedHandler.Release () AS ULONG
+   refCount -= 1
+   IF refCount = 0 THEN Delete @this
+   RETURN refCount
+END FUNCTION
+' =====================================================================================
+
+' =====================================================================================
+FUNCTION CWebView2ExecuteScriptWithResultCompletedHandler.Invoke (BYVAL errorCode AS HRESULT, BYVAL result AS ICoreWebView2ExecuteScriptResult PTR) AS HRESULT
+   RETURN S_OK
+END FUNCTION
+' =====================================================================================

@@ -1,0 +1,5 @@
+'' A PROJECT CALLED 'sys': the name is the toolchain's, as 'std' and 'vendor' are, TKO0148.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/modules/src/sysres/rootpkg/main.tiko -o build/.sysroot.exe
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0148: package name 'sys' is reserved for the toolchain

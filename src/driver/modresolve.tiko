@@ -255,12 +255,13 @@ private function PkgIndex_( byref ctx as Tko.CompilerContext, byref name_ as str
     return -1
 end function
 
-'' THE TOOLCHAIN'S OWN PACKAGES (RFC-0007 §3; tiko-vendor RFC-0002 V3): 'std', and 'vendor'
-'' -- the C libraries the toolchain ships. An '#import' of either is looked for in the
-'' toolchain's pkg/ alone, so no project, -i directory, TKO_PATH entry or dependency can
-'' stand in for one. 'sys' and 'db' are ordinary names.
+'' THE TOOLCHAIN'S OWN PACKAGES (RFC-0007 §3; tiko-vendor RFC-0002 V3): 'std'; 'vendor', the
+'' C libraries the toolchain ships; and 'sys', the operating-system support built on them
+'' (sys/win). An '#import' of any of them is looked for in the toolchain's pkg/ alone, so no
+'' project, -i directory, TKO_PATH entry or dependency can stand in for one. 'db' is an
+'' ordinary name.
 private function Reserved_( byref lname as string ) as boolean
-    return (lname = "std") orelse (lname = "vendor")
+    return (lname = "std") orelse (lname = "vendor") orelse (lname = "sys")
 end function
 
 '' ONE PACKAGE NAME, ONE ROOT (TKO0149). The first time a name is met its manifest, if it
@@ -478,7 +479,7 @@ function ResolveImport _
     dim as string rest = iif( sl = 0, "", mid( p, sl + 1 ) )
     dim as string lfirst = Tko.Text.LowerAscii( first_ )
 
-    '' ---- 2 and 3: the current package, and its manifest's dependencies. 'std' skips them.
+    '' ---- 2 and 3: the current package, and its manifest's dependencies. A reserved name skips them.
     if Reserved_( lfirst ) = false then
         dim as string proot = ""
         if lfirst = Tko.Text.LowerAscii( pkgName ) then proot = pkgRoot

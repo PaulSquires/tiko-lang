@@ -1,0 +1,4 @@
+#module "fake"
+public function Hello( ) as integer
+    return 1
+end function
