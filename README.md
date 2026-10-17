@@ -67,8 +67,8 @@ output checked. The book is being written.
 - **Readable by design.** Code reads top to bottom as prose. `end function`, `next`, `end if` —
   every block says what it closes, so a reviewer never counts braces.
 - **C-class speed.** tiko has its own compiler front end and typed IR, then hands LLVM IR to
-  clang. On the first two benchmarks it is within 10% of the same code written in C, and level
-  with it on one of them ([bench/](bench/README.md)).
+  clang. On the first two benchmarks it is level with the same code written in C, on Windows and
+  on Linux ([bench/](bench/README.md)).
 - **Tiny, dependency-free executables.** Hello world is a 23 KB `.exe` that imports only
   `kernel32.dll` and `ucrtbase.dll`, both part of Windows. You don't install a runtime and you
   don't need Visual Studio.
