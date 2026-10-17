@@ -1,5 +1,7 @@
 func void _ZN5TABLE4GROWEv(ptr $0) {
   local ptr this
+  local i64 $tmp1
+  local i64 $tmp2
   entry0:
     %1 = alloca ptr this
     store @this, $0
@@ -8,28 +10,63 @@ func void _ZN5TABLE4GROWEv(ptr $0) {
     %4 = const i64 0
     %5 = load @this
     %6 = field.addr %5, 0
-    %7 = const i64 1
-    %8 = call.rtl i64 fb_ArrayUBound(%6, %7)
-    %9 = const i64 1
-    %10 = add %8, %9
-    %11 = call.rtl i32 fb_ArrayRedimPresvEx(%3, 6, -1, 0, 1, %4, %10)
-    %12 = load @this
-    %13 = field.addr %12, 0
-    %14 = load @this
-    %15 = field.addr %14, 0
-    %16 = const i64 1
-    %17 = call.rtl i64 fb_ArrayUBound(%15, %16)
-    %18 = const i64 6
-    %19 = mul %17, %18
-    %20 = load %13
-    %21 = ptr.add %20, %19
-    %22 = field.addr %21, 4
-    %23 = const i64 1001
-    %24 = trunc %23
-    store %22, %24
+    %7 = alloca ptr $tmp1
+    %8 = load %6
+    %24 = alloca ptr $tmp2
+    condbr %8, bound.dim1, bound.miss3
+  bound.dim1:
+    %9 = field.addr %6, 32
+    %10 = load %9
+    %11 = const i64 0
+    %12 = icmp.ult %11, %10
+    condbr %12, bound.hit2, bound.miss3
+  bound.hit2:
+    %13 = field.addr %6, 64
+    %14 = load %13
+    store @$tmp1, %14
+    br bound.join4
+  bound.miss3:
+    %15 = const i64 -1
+    store @$tmp1, %15
+    br bound.join4
+  bound.join4:
+    %16 = load @$tmp1
+    %17 = const i64 1
+    %18 = add %16, %17
+    %19 = call.rtl i32 fb_ArrayRedimPresvEx(%3, 6, -1, 0, 1, %4, %18)
+    %20 = load @this
+    %21 = field.addr %20, 0
+    %22 = load @this
+    %23 = field.addr %22, 0
+    %25 = load %23
+    condbr %25, bound.dim5, bound.miss7
+  bound.dim5:
+    %26 = field.addr %23, 32
+    %27 = load %26
+    %28 = const i64 0
+    %29 = icmp.ult %28, %27
+    condbr %29, bound.hit6, bound.miss7
+  bound.hit6:
+    %30 = field.addr %23, 64
+    %31 = load %30
+    store @$tmp2, %31
+    br bound.join8
+  bound.miss7:
+    %32 = const i64 -1
+    store @$tmp2, %32
+    br bound.join8
+  bound.join8:
+    %33 = load @$tmp2
+    %34 = const i64 6
+    %35 = mul %33, %34
+    %36 = load %21
+    %37 = ptr.add %36, %35
+    %38 = field.addr %37, 4
+    %39 = const i64 1001
+    %40 = trunc %39
+    store %38, %40
     ret
 }
-declare i64 fb_ArrayUBound(ptr $0, i64 $1)
 declare i32 fb_ArrayRedimPresvEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
 func void _ZN5TABLE8GROWLONGEv(ptr $0) {
   local ptr this
@@ -179,4 +216,4 @@ func void _ZN5TABLED1Ev(ptr $0) {
 }
 declare i32 fb_ArrayErase(ptr $0)
 verify: ok
-lowered: 6 functions, 6 blocks, 141 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 14 blocks, 161 insts, 0 statements not lowered, 0 scope imbalance

@@ -7,7 +7,7 @@ print n
 ? "hi"
 
 sub t( array() as integer )
-	'' A BYDESC array named without '()' -- fb_ArrayLBound( ARRAY, 1 ).
+	'' A BYDESC array named without '()' -- read from ARRAY's descriptor.
 	? lbound( array )
 	? ubound( array )
 end sub

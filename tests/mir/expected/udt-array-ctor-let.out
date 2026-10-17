@@ -36,6 +36,8 @@ func void _ZN1TC1Ev(ptr $0) {
 func void _ZN1TC1ER7FBARRAYIu7INTEGERE(ptr $0, ptr $1) {
   local ptr this
   local ptr array
+  local i64 $tmp2
+  local i64 $tmp3
   entry0:
     %1 = alloca ptr this
     store @this, $0
@@ -73,20 +75,56 @@ func void _ZN1TC1ER7FBARRAYIu7INTEGERE(ptr $0, ptr $1) {
     %23 = field.addr %22, 0
     %24 = const i64 0
     %25 = load @array
-    %26 = const i64 1
-    %27 = call.rtl i64 fb_ArrayLBound(%25, %26)
-    %28 = load @array
-    %29 = const i64 1
-    %30 = call.rtl i64 fb_ArrayUBound(%28, %29)
-    %31 = call.rtl i32 fb_ArrayRedimEx(%23, 8, -1, 0, 1, %27, %30)
+    %26 = alloca ptr $tmp2
+    %27 = load %25
+    %37 = alloca ptr $tmp3
+    condbr %27, bound.dim1, bound.miss3
+  bound.dim1:
+    %28 = field.addr %25, 32
+    %29 = load %28
+    %30 = const i64 0
+    %31 = icmp.ult %30, %29
+    condbr %31, bound.hit2, bound.miss3
+  bound.hit2:
+    %32 = field.addr %25, 56
+    %33 = load %32
+    store @$tmp2, %33
+    br bound.join4
+  bound.miss3:
+    %34 = const i64 0
+    store @$tmp2, %34
+    br bound.join4
+  bound.join4:
+    %35 = load @$tmp2
+    %36 = load @array
+    %38 = load %36
+    condbr %38, bound.dim5, bound.miss7
+  bound.dim5:
+    %39 = field.addr %36, 32
+    %40 = load %39
+    %41 = const i64 0
+    %42 = icmp.ult %41, %40
+    condbr %42, bound.hit6, bound.miss7
+  bound.hit6:
+    %43 = field.addr %36, 64
+    %44 = load %43
+    store @$tmp3, %44
+    br bound.join8
+  bound.miss7:
+    %45 = const i64 -1
+    store @$tmp3, %45
+    br bound.join8
+  bound.join8:
+    %46 = load @$tmp3
+    %47 = call.rtl i32 fb_ArrayRedimEx(%23, 8, -1, 0, 1, %35, %46)
     ret
 }
-declare i64 fb_ArrayLBound(ptr $0, i64 $1)
-declare i64 fb_ArrayUBound(ptr $0, i64 $1)
 declare i32 fb_ArrayRedimEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
 func void _ZN1TaSER7FBARRAYIu7INTEGERE(ptr $0, ptr $1) {
   local ptr this
   local ptr array
+  local i64 $tmp2
+  local i64 $tmp3
   entry0:
     %1 = alloca ptr this
     store @this, $0
@@ -96,12 +134,48 @@ func void _ZN1TaSER7FBARRAYIu7INTEGERE(ptr $0, ptr $1) {
     %4 = field.addr %3, 0
     %5 = const i64 0
     %6 = load @array
-    %7 = const i64 1
-    %8 = call.rtl i64 fb_ArrayLBound(%6, %7)
-    %9 = load @array
-    %10 = const i64 1
-    %11 = call.rtl i64 fb_ArrayUBound(%9, %10)
-    %12 = call.rtl i32 fb_ArrayRedimEx(%4, 8, -1, 0, 1, %8, %11)
+    %7 = alloca ptr $tmp2
+    %8 = load %6
+    %18 = alloca ptr $tmp3
+    condbr %8, bound.dim1, bound.miss3
+  bound.dim1:
+    %9 = field.addr %6, 32
+    %10 = load %9
+    %11 = const i64 0
+    %12 = icmp.ult %11, %10
+    condbr %12, bound.hit2, bound.miss3
+  bound.hit2:
+    %13 = field.addr %6, 56
+    %14 = load %13
+    store @$tmp2, %14
+    br bound.join4
+  bound.miss3:
+    %15 = const i64 0
+    store @$tmp2, %15
+    br bound.join4
+  bound.join4:
+    %16 = load @$tmp2
+    %17 = load @array
+    %19 = load %17
+    condbr %19, bound.dim5, bound.miss7
+  bound.dim5:
+    %20 = field.addr %17, 32
+    %21 = load %20
+    %22 = const i64 0
+    %23 = icmp.ult %22, %21
+    condbr %23, bound.hit6, bound.miss7
+  bound.hit6:
+    %24 = field.addr %17, 64
+    %25 = load %24
+    store @$tmp3, %25
+    br bound.join8
+  bound.miss7:
+    %26 = const i64 -1
+    store @$tmp3, %26
+    br bound.join8
+  bound.join8:
+    %27 = load @$tmp3
+    %28 = call.rtl i32 fb_ArrayRedimEx(%4, 8, -1, 0, 1, %16, %27)
     ret
 }
 func i32 main(i32 $0, ptr $1) {
@@ -195,4 +269,4 @@ func void _ZN1TD1Ev(ptr $0) {
 }
 declare i32 fb_ArrayErase(ptr $0)
 verify: ok
-lowered: 5 functions, 5 blocks, 157 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 21 blocks, 197 insts, 0 statements not lowered, 0 scope imbalance

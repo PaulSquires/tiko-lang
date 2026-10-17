@@ -725,6 +725,7 @@ func i32 main(i32 $0, ptr $1) {
   local agg da size 72
   local agg db size 72
   local agg dr size 72
+  local i64 $tmp18
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -1006,22 +1007,39 @@ func i32 main(i32 $0, ptr $1) {
     %169 = load %168
     call.rtl void fb_PrintInt(0, %169, 0)
     %170 = field.addr @dr, 0
-    %171 = const i64 1
-    %172 = call.rtl i64 fb_ArrayUBound(%170, %171)
-    call.rtl void fb_PrintLongint(0, %172, 1)
+    %171 = alloca ptr $tmp18
+    %172 = load %170
+    condbr %172, bound.dim1, bound.miss3
+  bound.dim1:
+    %173 = field.addr %170, 32
+    %174 = load %173
+    %175 = const i64 0
+    %176 = icmp.ult %175, %174
+    condbr %176, bound.hit2, bound.miss3
+  bound.hit2:
+    %177 = field.addr %170, 64
+    %178 = load %177
+    store @$tmp18, %178
+    br bound.join4
+  bound.miss3:
+    %179 = const i64 -1
+    store @$tmp18, %179
+    br bound.join4
+  bound.join4:
+    %180 = load @$tmp18
+    call.rtl void fb_PrintLongint(0, %180, 1)
     call void _ZN1DD1Ev(@dr)
     call void _ZN1DD1Ev(@db)
     call void _ZN1DD1Ev(@da)
-    %173 = const i32 0
-    call.rtl void fb_End(%173)
-    %174 = load @$tmp0
-    ret %174
+    %181 = const i32 0
+    call.rtl void fb_End(%181)
+    %182 = load @$tmp0
+    ret %182
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
-declare i64 fb_ArrayUBound(ptr $0, i64 $1)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 func void _ZN1DC1Ev(ptr $0) {
@@ -1114,4 +1132,4 @@ func void _ZN1DaSERKS_(ptr $0, ptr $1) {
 declare i32 fb_ArrayRedimTo(ptr $0, ptr $1, i32 $2, ptr $3, ptr $4)
 declare ptr memcpy(ptr $0, ptr $1, i64 $2)
 verify: ok
-lowered: 30 functions, 37 blocks, 843 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 30 functions, 41 blocks, 853 insts, 0 statements not lowered, 0 scope imbalance

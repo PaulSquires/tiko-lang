@@ -1,0 +1,10 @@
+'' LBOUND / UBOUND over a DYNAMIC array with a constant dimension are descriptor loads, not
+'' calls: 'ubound( a ) - lbound( a ) + 1' was two calls to the runtime, on every lookup of
+'' std/containers Map. The values are checked by dynarray-bound-inline-run.
+'' TEST: cli
+'' CLEAN: build/.dbi
+'' ARGS: -target windows-x86_64 -O2 --emit-asm tests/codegen/src/dynbound-nocall.bas -o build/.dbi/nocall.s
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE-HAS: build/.dbi/nocall.s :: fb_PrintLongint
+'' EXPECT-FILE-NOT-HAS: build/.dbi/nocall.s :: fb_ArrayUBound
+'' EXPECT-FILE-NOT-HAS: build/.dbi/nocall.s :: fb_ArrayLBound

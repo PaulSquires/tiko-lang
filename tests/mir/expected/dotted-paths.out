@@ -2,10 +2,11 @@ global var agg arr size 240
 func void S1() {
   local agg q size 4
   local agg $tmp1 size 4
+  local i64 $tmp2
   local agg p1 size 8
   local ptr pany
   local i64 r
-  local ptr $tmp5
+  local ptr $tmp6
   local agg x size 8
   entry0:
     %1 = alloca ptr q
@@ -36,122 +37,139 @@ func void S1() {
     %22 = ptr.add %21, %20
     %23 = const i64 9
     store %22, %23
-    %24 = const i64 1
-    %25 = call.rtl i64 fb_ArrayUBound(@@arr, %24)
-    call.rtl void fb_PrintLongint(0, %25, 2)
-    %26 = const i64 1
-    %27 = const i64 8
-    %28 = mul %26, %27
-    %29 = load @@arr
-    %30 = ptr.add %29, %28
+    %24 = alloca ptr $tmp2
+    %25 = load @@arr
+    %40 = alloca ptr p1
+    %44 = alloca ptr pany
+    %45 = alloca ptr r
+    %48 = alloca ptr $tmp6
+    %56 = alloca ptr x
+    condbr %25, bound.dim1, bound.miss3
+  bound.dim1:
+    %26 = field.addr @@arr, 32
+    %27 = load %26
+    %28 = const i64 0
+    %29 = icmp.ult %28, %27
+    condbr %29, bound.hit2, bound.miss3
+  bound.hit2:
+    %30 = field.addr @@arr, 64
     %31 = load %30
-    call.rtl void fb_PrintLongint(0, %31, 1)
-    %32 = alloca ptr p1
-    %33 = call.rtl ptr memset(@p1, 0, 8)
-    %34 = field.addr @p1, 0
-    %35 = const i64 42
-    store %34, %35
-    %36 = alloca ptr pany
+    store @$tmp2, %31
+    br bound.join4
+  bound.miss3:
+    %32 = const i64 -1
+    store @$tmp2, %32
+    br bound.join4
+  bound.join4:
+    %33 = load @$tmp2
+    call.rtl void fb_PrintLongint(0, %33, 2)
+    %34 = const i64 1
+    %35 = const i64 8
+    %36 = mul %34, %35
+    %37 = load @@arr
+    %38 = ptr.add %37, %36
+    %39 = load %38
+    call.rtl void fb_PrintLongint(0, %39, 1)
+    %41 = call.rtl ptr memset(@p1, 0, 8)
+    %42 = field.addr @p1, 0
+    %43 = const i64 42
+    store %42, %43
     store @pany, @p1
-    %37 = alloca ptr r
-    %38 = call.rtl ptr memset(@r, 0, 8)
-    %39 = load @pany
-    %40 = alloca ptr $tmp5
-    store @$tmp5, %39
-    %41 = load @$tmp5
-    %42 = field.addr %41, 0
-    %43 = load %42
-    store @r, %43
-    %44 = load @r
-    call.rtl void fb_PrintLongint(0, %44, 2)
-    %45 = load @pany
-    %46 = field.addr %45, 0
-    %47 = load %46
-    call.rtl void fb_PrintLongint(0, %47, 1)
-    %48 = alloca ptr x
-    %49 = call.rtl ptr memset(@x, 0, 8)
-    %50 = field.addr @x, 0
-    %51 = const i64 1
-    %52 = load %50
-    %53 = const i64 -2
-    %54 = and %52, %53
-    %55 = const i64 1
-    %56 = and %51, %55
-    %57 = or %54, %56
-    store %50, %57
+    %46 = call.rtl ptr memset(@r, 0, 8)
+    %47 = load @pany
+    store @$tmp6, %47
+    %49 = load @$tmp6
+    %50 = field.addr %49, 0
+    %51 = load %50
+    store @r, %51
+    %52 = load @r
+    call.rtl void fb_PrintLongint(0, %52, 2)
+    %53 = load @pany
+    %54 = field.addr %53, 0
+    %55 = load %54
+    call.rtl void fb_PrintLongint(0, %55, 1)
+    %57 = call.rtl ptr memset(@x, 0, 8)
     %58 = field.addr @x, 0
-    %59 = const i64 0
+    %59 = const i64 1
     %60 = load %58
-    %61 = const i64 -3
+    %61 = const i64 -2
     %62 = and %60, %61
     %63 = const i64 1
     %64 = and %59, %63
-    %65 = const i64 1
-    %66 = shl %64, %65
-    %67 = or %62, %66
-    store %58, %67
-    %68 = field.addr @x, 0
-    %69 = const i64 3
-    %70 = load %68
-    %71 = const i64 -253
-    %72 = and %70, %71
-    %73 = const i64 63
-    %74 = and %69, %73
-    %75 = const i64 2
-    %76 = shl %74, %75
-    %77 = or %72, %76
-    store %68, %77
-    %78 = field.addr @x, 0
-    %79 = load %78
-    %80 = const i64 1
-    %81 = and %79, %80
-    %82 = field.addr @x, 0
-    %83 = load %82
-    %84 = const i64 1
-    %85 = ashr %83, %84
-    %86 = const i64 1
-    %87 = and %85, %86
-    %88 = load %78
-    %89 = const i64 -2
-    %90 = and %88, %89
-    %91 = const i64 1
-    %92 = and %87, %91
-    %93 = or %90, %92
-    store %78, %93
-    %94 = load %82
-    %95 = const i64 -3
-    %96 = and %94, %95
-    %97 = const i64 1
-    %98 = and %81, %97
+    %65 = or %62, %64
+    store %58, %65
+    %66 = field.addr @x, 0
+    %67 = const i64 0
+    %68 = load %66
+    %69 = const i64 -3
+    %70 = and %68, %69
+    %71 = const i64 1
+    %72 = and %67, %71
+    %73 = const i64 1
+    %74 = shl %72, %73
+    %75 = or %70, %74
+    store %66, %75
+    %76 = field.addr @x, 0
+    %77 = const i64 3
+    %78 = load %76
+    %79 = const i64 -253
+    %80 = and %78, %79
+    %81 = const i64 63
+    %82 = and %77, %81
+    %83 = const i64 2
+    %84 = shl %82, %83
+    %85 = or %80, %84
+    store %76, %85
+    %86 = field.addr @x, 0
+    %87 = load %86
+    %88 = const i64 1
+    %89 = and %87, %88
+    %90 = field.addr @x, 0
+    %91 = load %90
+    %92 = const i64 1
+    %93 = ashr %91, %92
+    %94 = const i64 1
+    %95 = and %93, %94
+    %96 = load %86
+    %97 = const i64 -2
+    %98 = and %96, %97
     %99 = const i64 1
-    %100 = shl %98, %99
-    %101 = or %96, %100
-    store %82, %101
-    %102 = field.addr @x, 0
-    %103 = load %102
-    %104 = const i64 1
-    %105 = and %103, %104
-    call.rtl void fb_PrintULongint(0, %105, 2)
-    %106 = field.addr @x, 0
-    %107 = load %106
-    %108 = const i64 1
-    %109 = ashr %107, %108
-    %110 = const i64 1
-    %111 = and %109, %110
-    call.rtl void fb_PrintULongint(0, %111, 2)
-    %112 = field.addr @x, 0
-    %113 = load %112
-    %114 = const i64 2
-    %115 = ashr %113, %114
-    %116 = const i64 63
-    %117 = and %115, %116
-    call.rtl void fb_PrintULongint(0, %117, 1)
+    %100 = and %95, %99
+    %101 = or %98, %100
+    store %86, %101
+    %102 = load %90
+    %103 = const i64 -3
+    %104 = and %102, %103
+    %105 = const i64 1
+    %106 = and %89, %105
+    %107 = const i64 1
+    %108 = shl %106, %107
+    %109 = or %104, %108
+    store %90, %109
+    %110 = field.addr @x, 0
+    %111 = load %110
+    %112 = const i64 1
+    %113 = and %111, %112
+    call.rtl void fb_PrintULongint(0, %113, 2)
+    %114 = field.addr @x, 0
+    %115 = load %114
+    %116 = const i64 1
+    %117 = ashr %115, %116
+    %118 = const i64 1
+    %119 = and %117, %118
+    call.rtl void fb_PrintULongint(0, %119, 2)
+    %120 = field.addr @x, 0
+    %121 = load %120
+    %122 = const i64 2
+    %123 = ashr %121, %122
+    %124 = const i64 63
+    %125 = and %123, %124
+    call.rtl void fb_PrintULongint(0, %125, 1)
     ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare i32 fb_ArrayRedimEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
-declare i64 fb_ArrayUBound(ptr $0, i64 $1)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
 func i32 main(i32 $0, ptr $1) {
@@ -171,4 +189,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 147 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 6 blocks, 157 insts, 0 statements not lowered, 0 scope imbalance

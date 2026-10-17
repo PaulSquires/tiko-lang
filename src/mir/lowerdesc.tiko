@@ -1092,9 +1092,106 @@ function LowerDynArrayIndex _
     return Emit( c, pa )
 end function
 
-'' LBOUND and UBOUND over a DYNAMIC array. Both go through the runtime, with the
-'' descriptor cast to the const-void form and a ONE-BASED dimension; a bare
-'' 'lbound( a )' passes 1. A FIXED array folds both at compile time and never calls.
+'' LBOUND / UBOUND OVER A DYNAMIC ARRAY WITH A CONSTANT DIMENSION, READ FROM THE DESCRIPTOR.
+'' fbc calls fb_ArrayLBound / fb_ArrayUBound for every one of them, and so did this: two
+'' calls for each 'ubound( a ) - lbound( a ) + 1', which was std/containers Map's
+'' Capacity( ) on every lookup (7fdcce49). The answer is a pure function of three
+'' descriptor words, so it is computed here, with the runtime's checks in the runtime's
+'' order (lib/rt/src/array/query.tiko), k being the dimension less one:
+''
+''     LBOUND, k = -1        1, without reading the descriptor
+''     k < -1                0 / -1
+''     DATA is null          0 / -1        UBOUND( a, 0 ): 0
+''     k >= DIMENSIONS       0 / -1        unsigned, as the runtime compares
+''     otherwise             DIMTB[k].LBOUND / .UBOUND   UBOUND( a, 0 ): DIMENSIONS
+''
+'' DIMTB[k] IS LOADED ONLY ONCE k < DIMENSIONS HAS BEEN TESTED. A descriptor holds as many
+'' dimension entries as the array was declared with, not FB_MAXDIMENSIONS, so an
+'' unconditional load of a higher entry -- 'ubound( a, 3 )' over 'dim a( any )' -- could
+'' read past its end; and DATA is tested first, because an unallocated array's table
+'' holds zeros, which would read as 'ubound = 0'. A dimension only known at run time
+'' stays a runtime call.
+private function DynBoundInline_ _
+    ( byref c as Ctx, byref desc as MirValue, byval k as int32, byval isU as boolean ) as MirValue
+
+    dim as MirType zt = DescIntTy_( c )
+    dim as int64 empty_ = 0
+    if isU then empty_ = -1
+    if k < -1 then return ConstInt( c, empty_, zt )
+    if k = -1 then
+        if isU = false then return ConstInt( c, 1, zt )
+        empty_ = 0
+    end if
+
+    dim as int32 pb = DescPtrBytes_( c )
+    dim as int32 slot = NewTempLocal( c, zt, pb )
+    if slot < 0 then return NoVal( )
+    dim as MirValue taddr
+    taddr.kind = cast( uint8, MV_LOCAL )
+    taddr.ty = cast( uint8, MT_PTR )
+    taddr.id = slot
+
+    '' The blocks are created in the order they are filled -- see EmitErrorJump_.
+    dim as MirValue dataP = DynArrayDataPtr( c, desc )
+    dim as int32 dimB = -1
+    if k >= 0 then dimB = NewBlock( c, "bound.dim" )
+    dim as int32 hitB = NewBlock( c, "bound.hit" )
+    dim as int32 missB = NewBlock( c, "bound.miss" )
+    dim as int32 joinB = NewBlock( c, "bound.join" )
+    dim as int32 firstB = hitB
+    if k >= 0 then firstB = dimB
+    Terminate( c, MTERM_CONDBR, firstB, missB, dataP )
+
+    dim as MirInst fa
+    fa.op = cast( uint16, M_FIELD_ADDR )
+    fa.ty = cast( uint8, MT_PTR )
+    fa.a = desc
+    fa.imm = 4 * pb                               '' DIMENSIONS
+    if k >= 0 then
+        c.curBlock = dimB
+        dim as MirValue n = LowerExprLoad( c, Emit( c, fa ), zt )
+        dim as MirInst lt
+        lt.op = cast( uint16, M_ICMP_ULT )
+        lt.ty = cast( uint8, MT_I8 )
+        lt.a = ConstInt( c, k, zt )
+        lt.b = n
+        Terminate( c, MTERM_CONDBR, hitB, missB, Emit( c, lt ) )
+    end if
+
+    c.curBlock = hitB
+    dim as MirValue v
+    if k = -1 then
+        v = LowerExprLoad( c, Emit( c, fa ), zt )
+    else
+        dim as int32 which = 1
+        if isU then which = 2
+        v = DescDimField_( c, desc, k, which, zt )
+    end if
+    dim as MirInst sh
+    sh.op = cast( uint16, M_STORE )
+    sh.ty = cast( uint8, MT_VOID )
+    sh.a = taddr
+    sh.b = v
+    Emit( c, sh )
+    Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
+
+    c.curBlock = missB
+    dim as MirInst sm
+    sm.op = cast( uint16, M_STORE )
+    sm.ty = cast( uint8, MT_VOID )
+    sm.a = taddr
+    sm.b = ConstInt( c, empty_, zt )
+    Emit( c, sm )
+    Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
+
+    c.curBlock = joinB
+    return LowerExprLoad( c, taddr, zt )
+end function
+
+'' LBOUND and UBOUND over a DYNAMIC array with a dimension only known at run time go
+'' through the runtime, with the descriptor cast to the const-void form and a ONE-BASED
+'' dimension. A constant dimension -- a bare 'lbound( a )' is dimension 1 -- reads the
+'' descriptor instead (DynBoundInline_). A FIXED array folds both at compile time.
 function LowerArrayBoundCall _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
@@ -1144,18 +1241,22 @@ function LowerArrayBoundCall _
             end if
         end if
         if constDim then
-            '' DIMENSION ZERO IS THE DIMENSION COUNT, and both bounds answer it.
-            '' Measured over 'dim a( 1 to 3 )': 'ubound( a, 0 )' and 'lbound( a, 0 )'
-            '' are both 1.
-            if dimIx < 0 then
-                outv = ConstInt( c, c.types->types[cast( int32, at0 )].dims, MT_I64 )
+            '' DIMENSION ZERO IS THE DIMENSION TABLE ITSELF: LBOUND is 1 and UBOUND the
+            '' rank. Measured over 'dim f2( 1 to 3, 4 to 6 )': 'lbound( f2, 0 )' is 1
+            '' and 'ubound( f2, 0 )' is 2. This answered the rank for BOTH, which a
+            '' one-dimensional array -- where the two agree -- had hidden.
+            if dimIx = -1 then
+                dim as int64 rank0 = 1
+                if nm = "ubound" then rank0 = c.types->types[cast( int32, at0 )].dims
+                outv = ConstInt( c, rank0, MT_I64 )
                 return true
             end if
             '' A DIMENSION PAST THE ARRAY'S RANK IS AN EMPTY ONE: measured, over the
             '' same array 'ubound( a, 2 )' folds to -1 and 'lbound( a, 2 )' to 0 --
             '' fbc emits the constants, not a runtime call. Declining instead took
-            '' the whole PRINT with it.
-            if dimIx >= c.types->types[cast( int32, at0 )].dims then
+            '' the whole PRINT with it. A NEGATIVE one is empty too: 'lbound( f2, -1 )'
+            '' is 0 and 'ubound( f2, -1 )' -1, where this answered the rank.
+            if (dimIx < -1) orelse (dimIx >= c.types->types[cast( int32, at0 )].dims) then
                 dim as int64 empty_ = 0
                 if nm = "ubound" then empty_ = -1
                 outv = ConstInt( c, empty_, MT_I64 )
@@ -1178,6 +1279,20 @@ function LowerArrayBoundCall _
         if ArrayDescArg_( c, a0, true, desc ) = false then return false
     else
         desc = LowerAddr( c, a0 )
+        if desc.kind = cast( uint8, MV_NONE ) then return false
+        dim as int32 dynIx = 0
+        dim as boolean dynConst = true
+        if cp->count = 2 then
+            dim as Tko.NodeId d1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+            dim as Tko.Check.ConstVal dcv = Tko.Check.ConstOf( _
+                *c.ast, d1, *c.srcMgr, *c.names, c.types->target.pointerBits )
+            dynConst = dcv.known
+            if dynConst then dynIx = cast( int32, dcv.value ) - 1
+        end if
+        if dynConst then
+            outv = DynBoundInline_( c, desc, dynIx, (nm = "ubound") )
+            return (outv.kind <> cast( uint8, MV_NONE ))
+        end if
     end if
     if desc.kind = cast( uint8, MV_NONE ) then return false
 

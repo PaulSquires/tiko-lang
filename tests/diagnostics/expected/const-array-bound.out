@@ -5,6 +5,7 @@ func i32 main(i32 $0, ptr $1) {
   local agg dyn size 240
   local i64 i
   local i64 plain
+  local i64 $tmp6
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -108,22 +109,39 @@ func i32 main(i32 $0, ptr $1) {
     %68 = alloca ptr i
     %69 = call.rtl ptr memset(@i, 0, 8)
     %70 = alloca ptr plain
-    %71 = const i64 1
-    %72 = call.rtl i64 fb_ArrayLBound(@dyn, %71)
-    store @plain, %72
-    %73 = call.rtl i32 fb_ArrayErase(@dyn)
-    %74 = const i32 0
-    call.rtl void fb_End(%74)
-    %75 = load @$tmp0
-    ret %75
+    %71 = alloca ptr $tmp6
+    %72 = load @dyn
+    condbr %72, bound.dim1, bound.miss3
+  bound.dim1:
+    %73 = field.addr @dyn, 32
+    %74 = load %73
+    %75 = const i64 0
+    %76 = icmp.ult %75, %74
+    condbr %76, bound.hit2, bound.miss3
+  bound.hit2:
+    %77 = field.addr @dyn, 56
+    %78 = load %77
+    store @$tmp6, %78
+    br bound.join4
+  bound.miss3:
+    %79 = const i64 0
+    store @$tmp6, %79
+    br bound.join4
+  bound.join4:
+    %80 = load @$tmp6
+    store @plain, %80
+    %81 = call.rtl i32 fb_ArrayErase(@dyn)
+    %82 = const i32 0
+    call.rtl void fb_End(%82)
+    %83 = load @$tmp0
+    ret %83
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr memset(ptr $0, i32 $1, i64 $2)
-declare i64 fb_ArrayLBound(ptr $0, i64 $1)
 declare i32 fb_ArrayErase(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 109 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 5 blocks, 119 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/const-array-bound.bas(16,20): error TKO0674: this array bound is not known at compile time
      |
   16 | const BAD2 = ubound( twoD, i )

@@ -189,7 +189,9 @@ func i32 main(i32 $0, ptr $1) {
   local agg c2 size 72
   local i32 s6
   local i32 s7
+  local i64 $tmp5
   local i32 s8
+  local i64 $tmp7
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -234,24 +236,58 @@ func i32 main(i32 $0, ptr $1) {
     %30 = trunc %29
     store @s6, %30
     %31 = alloca ptr s7
-    %32 = const i64 1
-    %33 = call.rtl i64 fb_ArrayLBound(@c2, %32)
-    %34 = trunc %33
-    store @s7, %34
-    %35 = alloca ptr s8
-    %36 = const i64 1
-    %37 = call.rtl i64 fb_ArrayUBound(@c2, %36)
-    %38 = trunc %37
-    store @s8, %38
-    %39 = call.rtl i32 fb_ArrayErase(@c2)
-    %40 = const i32 0
-    call.rtl void fb_End(%40)
-    %41 = load @$tmp0
-    ret %41
+    %32 = alloca ptr $tmp5
+    %33 = load @c2
+    %43 = alloca ptr s8
+    %44 = alloca ptr $tmp7
+    condbr %33, bound.dim1, bound.miss3
+  bound.dim1:
+    %34 = field.addr @c2, 32
+    %35 = load %34
+    %36 = const i64 0
+    %37 = icmp.ult %36, %35
+    condbr %37, bound.hit2, bound.miss3
+  bound.hit2:
+    %38 = field.addr @c2, 56
+    %39 = load %38
+    store @$tmp5, %39
+    br bound.join4
+  bound.miss3:
+    %40 = const i64 0
+    store @$tmp5, %40
+    br bound.join4
+  bound.join4:
+    %41 = load @$tmp5
+    %42 = trunc %41
+    store @s7, %42
+    %45 = load @c2
+    condbr %45, bound.dim5, bound.miss7
+  bound.dim5:
+    %46 = field.addr @c2, 32
+    %47 = load %46
+    %48 = const i64 0
+    %49 = icmp.ult %48, %47
+    condbr %49, bound.hit6, bound.miss7
+  bound.hit6:
+    %50 = field.addr @c2, 64
+    %51 = load %50
+    store @$tmp7, %51
+    br bound.join8
+  bound.miss7:
+    %52 = const i64 -1
+    store @$tmp7, %52
+    br bound.join8
+  bound.join8:
+    %53 = load @$tmp7
+    %54 = trunc %53
+    store @s8, %54
+    %55 = call.rtl i32 fb_ArrayErase(@c2)
+    %56 = const i32 0
+    call.rtl void fb_End(%56)
+    %57 = load @$tmp0
+    ret %57
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
-declare i64 fb_ArrayLBound(ptr $0, i64 $1)
-declare i64 fb_ArrayUBound(ptr $0, i64 $1)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 204 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 10 blocks, 224 insts, 0 statements not lowered, 0 scope imbalance

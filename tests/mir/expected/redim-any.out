@@ -1,10 +1,15 @@
 func void S1() {
   local agg z size 72
+  local i64 $tmp1
+  local i64 $tmp2
   local i32 t
   local i32 v
-  local i64 $tmp3
+  local i64 $tmp5
   local agg w size 96
+  local i64 $tmp7
+  local i64 $tmp8
   local agg q size 72
+  local i64 $tmp10
   entry0:
     %1 = alloca ptr z
     %2 = const ptr 0
@@ -33,153 +38,241 @@ func void S1() {
     %17 = const i64 0
     %18 = field.addr @z, 64
     store %18, %17
-    %19 = const i64 1
-    %20 = call.rtl i64 fb_ArrayLBound(@z, %19)
-    call.rtl void fb_PrintLongint(0, %20, 2)
-    %21 = const i64 1
-    %22 = call.rtl i64 fb_ArrayUBound(@z, %21)
-    call.rtl void fb_PrintLongint(0, %22, 1)
-    %23 = alloca ptr t
-    %24 = const i64 0
-    %25 = trunc %24
-    store @t, %25
-    %26 = alloca ptr v
+    %19 = alloca ptr $tmp1
+    %20 = load @z
+    %29 = alloca ptr $tmp2
+    %39 = alloca ptr t
+    %42 = alloca ptr v
+    %48 = alloca ptr $tmp5
+    %66 = alloca ptr w
+    %90 = alloca ptr $tmp7
+    %100 = alloca ptr $tmp8
+    %110 = alloca ptr q
+    %139 = alloca ptr $tmp10
+    condbr %20, bound.dim1, bound.miss3
+  bound.dim1:
+    %21 = field.addr @z, 32
+    %22 = load %21
+    %23 = const i64 0
+    %24 = icmp.ult %23, %22
+    condbr %24, bound.hit2, bound.miss3
+  bound.hit2:
+    %25 = field.addr @z, 56
+    %26 = load %25
+    store @$tmp1, %26
+    br bound.join4
+  bound.miss3:
     %27 = const i64 0
-    %28 = const i64 0
-    %29 = call.rtl i64 fb_ArrayLBound(@z, 1)
-    %30 = call.rtl i64 fb_ArrayUBound(@z, 1)
-    %31 = load @z
-    %32 = alloca ptr $tmp3
-    store @$tmp3, %29
-    %50 = alloca ptr w
-    %80 = alloca ptr q
-    br each.head1
-  each.head1:
-    %33 = load @$tmp3
-    %34 = icmp.sle %33, %30
-    condbr %34, each.body2, each.exit4
-  each.body2:
-    %35 = load @$tmp3
-    %36 = const i64 4
-    %37 = mul %35, %36
-    %38 = ptr.add %31, %37
-    %39 = load %38
-    store @v, %39
-    %40 = load @t
-    %41 = sext %40
-    %42 = load @v
-    %43 = sext %42
-    %44 = add %41, %43
-    %45 = trunc %44
-    store @t, %45
-    br each.step3
-  each.step3:
-    %46 = load @$tmp3
-    %47 = const i64 1
-    %48 = add %46, %47
-    store @$tmp3, %48
-    br each.head1
-  each.exit4:
-    %49 = load @t
-    call.rtl void fb_PrintInt(0, %49, 1)
-    %51 = const ptr 0
-    %52 = field.addr @w, 0
-    store %52, %51
-    %53 = field.addr @w, 8
-    store %53, %51
-    %54 = const i64 0
-    %55 = field.addr @w, 16
-    store %55, %54
-    %56 = const i64 8
-    %57 = field.addr @w, 24
-    store %57, %56
-    %58 = const i64 2
-    %59 = field.addr @w, 32
-    store %59, %58
-    %60 = const i64 18
-    %61 = field.addr @w, 40
-    store %61, %60
-    %62 = const i64 0
-    %63 = field.addr @w, 48
-    store %63, %62
-    %64 = const i64 0
-    %65 = field.addr @w, 56
-    store %65, %64
-    %66 = const i64 0
-    %67 = field.addr @w, 64
-    store %67, %66
-    %68 = const i64 0
-    %69 = field.addr @w, 72
-    store %69, %68
+    store @$tmp1, %27
+    br bound.join4
+  bound.join4:
+    %28 = load @$tmp1
+    call.rtl void fb_PrintLongint(0, %28, 2)
+    %30 = load @z
+    condbr %30, bound.dim5, bound.miss7
+  bound.dim5:
+    %31 = field.addr @z, 32
+    %32 = load %31
+    %33 = const i64 0
+    %34 = icmp.ult %33, %32
+    condbr %34, bound.hit6, bound.miss7
+  bound.hit6:
+    %35 = field.addr @z, 64
+    %36 = load %35
+    store @$tmp2, %36
+    br bound.join8
+  bound.miss7:
+    %37 = const i64 -1
+    store @$tmp2, %37
+    br bound.join8
+  bound.join8:
+    %38 = load @$tmp2
+    call.rtl void fb_PrintLongint(0, %38, 1)
+    %40 = const i64 0
+    %41 = trunc %40
+    store @t, %41
+    %43 = const i64 0
+    %44 = const i64 0
+    %45 = call.rtl i64 fb_ArrayLBound(@z, 1)
+    %46 = call.rtl i64 fb_ArrayUBound(@z, 1)
+    %47 = load @z
+    store @$tmp5, %45
+    br each.head9
+  each.head9:
+    %49 = load @$tmp5
+    %50 = icmp.sle %49, %46
+    condbr %50, each.body10, each.exit12
+  each.body10:
+    %51 = load @$tmp5
+    %52 = const i64 4
+    %53 = mul %51, %52
+    %54 = ptr.add %47, %53
+    %55 = load %54
+    store @v, %55
+    %56 = load @t
+    %57 = sext %56
+    %58 = load @v
+    %59 = sext %58
+    %60 = add %57, %59
+    %61 = trunc %60
+    store @t, %61
+    br each.step11
+  each.step11:
+    %62 = load @$tmp5
+    %63 = const i64 1
+    %64 = add %62, %63
+    store @$tmp5, %64
+    br each.head9
+  each.exit12:
+    %65 = load @t
+    call.rtl void fb_PrintInt(0, %65, 1)
+    %67 = const ptr 0
+    %68 = field.addr @w, 0
+    store %68, %67
+    %69 = field.addr @w, 8
+    store %69, %67
     %70 = const i64 0
-    %71 = field.addr @w, 80
+    %71 = field.addr @w, 16
     store %71, %70
-    %72 = const i64 0
-    %73 = field.addr @w, 88
+    %72 = const i64 8
+    %73 = field.addr @w, 24
     store %73, %72
-    %74 = const i64 1
-    %75 = const i64 1
-    %76 = call.rtl i64 fb_ArrayLBound(@w, %75)
-    call.rtl void fb_PrintLongint(0, %76, 2)
-    %77 = const i64 1
-    %78 = const i64 1
-    %79 = call.rtl i64 fb_ArrayUBound(@w, %78)
-    call.rtl void fb_PrintLongint(0, %79, 1)
-    %81 = const ptr 0
-    %82 = field.addr @q, 0
-    store %82, %81
-    %83 = field.addr @q, 8
-    store %83, %81
+    %74 = const i64 2
+    %75 = field.addr @w, 32
+    store %75, %74
+    %76 = const i64 18
+    %77 = field.addr @w, 40
+    store %77, %76
+    %78 = const i64 0
+    %79 = field.addr @w, 48
+    store %79, %78
+    %80 = const i64 0
+    %81 = field.addr @w, 56
+    store %81, %80
+    %82 = const i64 0
+    %83 = field.addr @w, 64
+    store %83, %82
     %84 = const i64 0
-    %85 = field.addr @q, 16
+    %85 = field.addr @w, 72
     store %85, %84
-    %86 = const i64 4
-    %87 = field.addr @q, 24
+    %86 = const i64 0
+    %87 = field.addr @w, 80
     store %87, %86
-    %88 = const i64 1
-    %89 = field.addr @q, 32
+    %88 = const i64 0
+    %89 = field.addr @w, 88
     store %89, %88
-    %90 = const i64 17
-    %91 = field.addr @q, 40
-    store %91, %90
-    %92 = const i64 0
-    %93 = field.addr @q, 48
-    store %93, %92
+    %91 = load @w
+    condbr %91, bound.dim13, bound.miss15
+  bound.dim13:
+    %92 = field.addr @w, 32
+    %93 = load %92
     %94 = const i64 0
-    %95 = field.addr @q, 56
-    store %95, %94
-    %96 = const i64 0
-    %97 = field.addr @q, 64
-    store %97, %96
+    %95 = icmp.ult %94, %93
+    condbr %95, bound.hit14, bound.miss15
+  bound.hit14:
+    %96 = field.addr @w, 56
+    %97 = load %96
+    store @$tmp7, %97
+    br bound.join16
+  bound.miss15:
     %98 = const i64 0
-    %99 = const i64 0
-    %100 = const i64 3
-    %101 = call.rtl i32 fb_ArrayRedimEx(@q, 4, -1, 0, 1, %99, %100)
-    %102 = const i64 2
-    %103 = const i64 4
-    %104 = mul %102, %103
-    %105 = load @q
-    %106 = ptr.add %105, %104
-    %107 = const i64 5
-    %108 = trunc %107
-    store %106, %108
-    %109 = const i64 1
-    %110 = call.rtl i64 fb_ArrayUBound(@q, %109)
-    call.rtl void fb_PrintLongint(0, %110, 2)
-    %111 = const i64 2
-    %112 = const i64 4
-    %113 = mul %111, %112
-    %114 = load @q
-    %115 = ptr.add %114, %113
-    %116 = load %115
-    call.rtl void fb_PrintInt(0, %116, 1)
-    %117 = call.rtl i32 fb_ArrayErase(@q)
-    %118 = call.rtl i32 fb_ArrayErase(@w)
-    %119 = call.rtl i32 fb_ArrayErase(@z)
+    store @$tmp7, %98
+    br bound.join16
+  bound.join16:
+    %99 = load @$tmp7
+    call.rtl void fb_PrintLongint(0, %99, 2)
+    %101 = load @w
+    condbr %101, bound.dim17, bound.miss19
+  bound.dim17:
+    %102 = field.addr @w, 32
+    %103 = load %102
+    %104 = const i64 0
+    %105 = icmp.ult %104, %103
+    condbr %105, bound.hit18, bound.miss19
+  bound.hit18:
+    %106 = field.addr @w, 64
+    %107 = load %106
+    store @$tmp8, %107
+    br bound.join20
+  bound.miss19:
+    %108 = const i64 -1
+    store @$tmp8, %108
+    br bound.join20
+  bound.join20:
+    %109 = load @$tmp8
+    call.rtl void fb_PrintLongint(0, %109, 1)
+    %111 = const ptr 0
+    %112 = field.addr @q, 0
+    store %112, %111
+    %113 = field.addr @q, 8
+    store %113, %111
+    %114 = const i64 0
+    %115 = field.addr @q, 16
+    store %115, %114
+    %116 = const i64 4
+    %117 = field.addr @q, 24
+    store %117, %116
+    %118 = const i64 1
+    %119 = field.addr @q, 32
+    store %119, %118
+    %120 = const i64 17
+    %121 = field.addr @q, 40
+    store %121, %120
+    %122 = const i64 0
+    %123 = field.addr @q, 48
+    store %123, %122
+    %124 = const i64 0
+    %125 = field.addr @q, 56
+    store %125, %124
+    %126 = const i64 0
+    %127 = field.addr @q, 64
+    store %127, %126
+    %128 = const i64 0
+    %129 = const i64 0
+    %130 = const i64 3
+    %131 = call.rtl i32 fb_ArrayRedimEx(@q, 4, -1, 0, 1, %129, %130)
+    %132 = const i64 2
+    %133 = const i64 4
+    %134 = mul %132, %133
+    %135 = load @q
+    %136 = ptr.add %135, %134
+    %137 = const i64 5
+    %138 = trunc %137
+    store %136, %138
+    %140 = load @q
+    condbr %140, bound.dim21, bound.miss23
+  bound.dim21:
+    %141 = field.addr @q, 32
+    %142 = load %141
+    %143 = const i64 0
+    %144 = icmp.ult %143, %142
+    condbr %144, bound.hit22, bound.miss23
+  bound.hit22:
+    %145 = field.addr @q, 64
+    %146 = load %145
+    store @$tmp10, %146
+    br bound.join24
+  bound.miss23:
+    %147 = const i64 -1
+    store @$tmp10, %147
+    br bound.join24
+  bound.join24:
+    %148 = load @$tmp10
+    call.rtl void fb_PrintLongint(0, %148, 2)
+    %149 = const i64 2
+    %150 = const i64 4
+    %151 = mul %149, %150
+    %152 = load @q
+    %153 = ptr.add %152, %151
+    %154 = load %153
+    call.rtl void fb_PrintInt(0, %154, 1)
+    %155 = call.rtl i32 fb_ArrayErase(@q)
+    %156 = call.rtl i32 fb_ArrayErase(@w)
+    %157 = call.rtl i32 fb_ArrayErase(@z)
     ret
 }
-declare i64 fb_ArrayLBound(ptr $0, i64 $1)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare i64 fb_ArrayLBound(ptr $0, i64 $1)
 declare i64 fb_ArrayUBound(ptr $0, i64 $1)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare i32 fb_ArrayRedimEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
@@ -201,4 +294,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 6 blocks, 171 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 26 blocks, 219 insts, 0 statements not lowered, 0 scope imbalance
