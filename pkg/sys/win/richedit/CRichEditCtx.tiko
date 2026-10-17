@@ -8,12 +8,13 @@
 ' MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 ' ########################################################################################
 
-#module "gui"
+#module "richedit"
 #import "sys/win"
 #import "sys/win/com"
 #import "sys/win/gdiplus"
+#import "sys/win/gui"
 #include once "richedit.ti"
-using win, com, gdiplus
+using win, com, gdiplus, gui
 
 ' ========================================================================================
 ' Custom structure used by the CRichEditCtx.LoadRtfFromResource method.

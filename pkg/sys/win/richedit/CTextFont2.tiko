@@ -9,7 +9,7 @@
 ' MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 ' ########################################################################################
 
-#module "gui"
+#module "richedit"
 #import "sys/win"
 #include once "richedit.ti"
 using win

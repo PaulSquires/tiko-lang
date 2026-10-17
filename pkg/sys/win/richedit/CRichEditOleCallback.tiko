@@ -13,7 +13,7 @@
 ' this interface and assigning it to the control by using the EM_SETOLECALLBACK message.
 ' ========================================================================================
 
-#module "gui"
+#module "richedit"
 #import "sys/win"
 #import "sys/win/com"
 #include once "richedit.ti"

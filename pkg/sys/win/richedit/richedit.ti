@@ -1,4 +1,4 @@
-' sys/win/gui, RichEdit (pkg/sys): every header the module's files include, and the
+' sys/win/richedit (pkg/sys): every header the module's files include, and the
 ' macros more than one of its files uses.
 #pragma once
 
