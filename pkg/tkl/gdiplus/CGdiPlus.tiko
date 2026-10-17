@@ -198,8 +198,8 @@ FUNCTION CGpBase.RefCount (BYVAL bIncrement AS BOOLEAN) AS LONG
       ' // Initialize the GDI+ library
       DIM StartupInput AS GdiplusStartupInput
       StartupInput.GdiplusVersion = 1 ' Version must be 1
-      m_Status = GdiplusStartup(@token, @StartupInput, nullptr)
-      IF m_Status <> 0 THEN MessageBoxW(nullptr, "GDI+ initialization failed - Error: " & STR(m_Status), "Error", MB_OK OR MB_ICONERROR OR MB_APPLMODAL)
+      m_Status = GdiplusStartup(@token, @StartupInput, NULL)
+      IF m_Status <> 0 THEN MessageBoxW(0, "GDI+ initialization failed - Error: " & STR(m_Status), "Error", MB_OK OR MB_ICONERROR OR MB_APPLMODAL)
    END IF
    ' // Increase or decrease the reference count
    IF bIncrement THEN cRef += 1 ELSE cRef -= 1
@@ -386,7 +386,7 @@ Public:
    DECLARE FUNCTION RemovePropertyItem (BYVAL propId AS PROPID) AS GpStatus
    DECLARE FUNCTION SetPropertyItem (BYVAL pitem AS PropertyItem PTR) AS GpStatus
    DECLARE FUNCTION Clone (BYVAL pImage AS CGpImage PTR) AS GpStatus
-   DECLARE FUNCTION GetThumbnailImage (BYVAL thumbWidth AS UINT, BYVAL thumbHeight AS UINT, BYVAL pThumbnail AS CGpImage PTR, BYVAL pCallback AS ANY PTR = nullptr, BYVAL callbackData AS ANY PTR = nullptr) AS GpStatus
+   DECLARE FUNCTION GetThumbnailImage (BYVAL thumbWidth AS UINT, BYVAL thumbHeight AS UINT, BYVAL pThumbnail AS CGpImage PTR, BYVAL pCallback AS ANY PTR = NULL, BYVAL callbackData AS ANY PTR = NULL) AS GpStatus
 '#if (GDIPVER >= &h0110)
    DECLARE FUNCTION FindFirstItem (BYVAL pitem AS ImageItemData PTR) AS GpStatus
    DECLARE FUNCTION FindNextItem (BYVAL pitem AS ImageItemData PTR) AS GpStatus
@@ -410,7 +410,7 @@ Public:
    DECLARE CONSTRUCTOR (BYVAL nWidth AS INT_, BYVAL nHeight AS INT_, BYVAL pxFormat AS PixelFormat = PixelFormat32bppPARGB)
    DECLARE CONSTRUCTOR (BYVAL nWidth AS INT_, BYVAL nHeight AS INT_, BYVAL pTarget AS CGpGraphics_ PTR)
    DECLARE CONSTRUCTOR (BYVAL gdiBitmapInfo AS BITMAPINFO PTR, BYVAL gdiBitmapData AS ANY PTR)
-   DECLARE CONSTRUCTOR (BYVAL hbm AS HBITMAP, BYVAL hPal AS HPALETTE = nullptr)
+   DECLARE CONSTRUCTOR (BYVAL hbm AS HBITMAP, BYVAL hPal AS HPALETTE = NULL)
    DECLARE CONSTRUCTOR (BYVAL hicon AS HICON)
    DECLARE CONSTRUCTOR (BYVAL hInstance AS HINSTANCE, BYREF wszbitmapName AS WSTRING)
 #ifdef IDirectDrawSurface7
@@ -445,7 +445,7 @@ Public:
    ' // Effects
    DECLARE FUNCTION ApplyEffect (BYVAL pEffect AS CGpEffect PTR, BYVAL roi AS RECT PTR, _
       BYVAL useAuxData AS BOOLEAN, BYVAL auxData AS ANY PTR PTR, BYVAL auxDataSize AS INT_ PTR) AS GpStatus
-   DECLARE FUNCTION ApplyEffect (BYVAL pEffect AS CGpEffect PTR, BYVAL roi AS RECT PTR = nullptr) AS GpStatus
+   DECLARE FUNCTION ApplyEffect (BYVAL pEffect AS CGpEffect PTR, BYVAL roi AS RECT PTR = NULL) AS GpStatus
 
 END TYPE
 ' ########################################################################################
@@ -461,19 +461,19 @@ Public:
    DECLARE CONSTRUCTOR (BYVAL pwszFileName AS WSTRING PTR)
    DECLARE CONSTRUCTOR (BYVAL pwszFileName AS WSTRING PTR, BYVAL wmfPFH AS WmfPlaceableFileHeader PTR)
    DECLARE CONSTRUCTOR (BYVAL pStream AS IStream PTR)
-   DECLARE CONSTRUCTOR (BYVAL referenceHdc AS HDC, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = nullptr)
-   DECLARE CONSTRUCTOR (BYVAL referenceHdc AS HDC, BYVAL frmRect AS GpRectF PTR, BYVAL frameUnit AS MetafileFrameUnit = MetafileFrameUnitGdi, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = nullptr)
-   DECLARE CONSTRUCTOR (BYVAL referenceHdc AS HDC, BYVAL frmRect AS GpRect PTR, BYVAL frameUnit AS MetafileFrameUnit = MetafileFrameUnitGdi, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = nullptr)
-   DECLARE CONSTRUCTOR (BYVAL pwszFileName AS WSTRING PTR, BYVAL referenceHdc AS HDC, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = nullptr)
+   DECLARE CONSTRUCTOR (BYVAL referenceHdc AS HDC, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = NULL)
+   DECLARE CONSTRUCTOR (BYVAL referenceHdc AS HDC, BYVAL frmRect AS GpRectF PTR, BYVAL frameUnit AS MetafileFrameUnit = MetafileFrameUnitGdi, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = NULL)
+   DECLARE CONSTRUCTOR (BYVAL referenceHdc AS HDC, BYVAL frmRect AS GpRect PTR, BYVAL frameUnit AS MetafileFrameUnit = MetafileFrameUnitGdi, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = NULL)
+   DECLARE CONSTRUCTOR (BYVAL pwszFileName AS WSTRING PTR, BYVAL referenceHdc AS HDC, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = NULL)
    DECLARE CONSTRUCTOR (BYVAL pwszFileName AS WSTRING PTR, BYVAL referenceHdc AS HDC, BYVAL frmRect AS GpRectF PTR, _
-           BYVAL frameUnit AS MetafileFrameUnit = MetafileFrameUnitGdi, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = nullptr)
+           BYVAL frameUnit AS MetafileFrameUnit = MetafileFrameUnitGdi, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = NULL)
    DECLARE CONSTRUCTOR (BYVAL pwszFileName AS WSTRING PTR, BYVAL referenceHdc AS HDC, BYVAL frmRect AS GpRect PTR, _
-           BYVAL frameUnit AS MetafileFrameUnit = MetafileFrameUnitGdi, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = nullptr)
+           BYVAL frameUnit AS MetafileFrameUnit = MetafileFrameUnitGdi, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = NULL)
    DECLARE CONSTRUCTOR (BYVAL pStream AS IStream PTR, BYVAL referenceHdc AS HDC, BYVAL nType AS EmfType, BYVAL description AS WSTRING PTR)
    DECLARE CONSTRUCTOR (BYVAL pStream AS IStream PTR, BYVAL referenceHdc AS HDC, BYVAL frmRect AS GpRectF PTR, _
-           BYVAL frameUnit AS MetafileFrameUnit = MetafileFrameUnitGdi, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = nullptr)
+           BYVAL frameUnit AS MetafileFrameUnit = MetafileFrameUnitGdi, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = NULL)
    DECLARE CONSTRUCTOR (BYVAL pStream AS IStream PTR, BYVAL referenceHdc AS HDC, BYVAL frmRect AS GpRect PTR, _
-           BYVAL frameUnit AS MetafileFrameUnit = MetafileFrameUnitGdi, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = nullptr)
+           BYVAL frameUnit AS MetafileFrameUnit = MetafileFrameUnitGdi, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = NULL)
    DECLARE FUNCTION GetMetafileHeader (BYVAL hWmf AS HMETAFILE, BYVAL wmfPFH AS WmfPlaceableFileHeader PTR, BYVAL mh AS MetafileHeader PTR) AS GpStatus
    DECLARE FUNCTION GetMetafileHeader (BYVAL hEmf AS HENHMETAFILE, BYVAL mh AS MetafileHeader PTR) AS GpStatus
    DECLARE FUNCTION GetMetafileHeader (BYVAL pwsFileName AS WSTRING PTR, BYVAL mh AS MetafileHeader PTR) AS GpStatus
@@ -534,8 +534,8 @@ END TYPE
 PUBLIC TYPE CGpTextureBrush EXTENDS CGpBrush
    DECLARE CONSTRUCTOR (BYVAL pTextureBrush AS CGpTextureBrush PTR)
    DECLARE CONSTRUCTOR (BYVAL pImage AS CGpImage PTR, BYVAL nWrapMode AS wrapMode = WrapModeTile)
-   DECLARE CONSTRUCTOR (BYVAL pImage AS CGpImage PTR, BYVAL dstRect AS GpRectF PTR, BYVAL pImageAttributes AS CGpImageAttributes_ PTR = nullptr)
-   DECLARE CONSTRUCTOR (BYVAL pImage AS CGpImage PTR, BYVAL dstRect AS GpRect PTR, BYVAL pImageAttributes AS CGpImageAttributes_ PTR = nullptr)
+   DECLARE CONSTRUCTOR (BYVAL pImage AS CGpImage PTR, BYVAL dstRect AS GpRectF PTR, BYVAL pImageAttributes AS CGpImageAttributes_ PTR = NULL)
+   DECLARE CONSTRUCTOR (BYVAL pImage AS CGpImage PTR, BYVAL dstRect AS GpRect PTR, BYVAL pImageAttributes AS CGpImageAttributes_ PTR = NULL)
    DECLARE CONSTRUCTOR (BYVAL pImage AS CGpImage PTR, BYVAL nWrapMode AS wrapMode, BYVAL dstRect AS GpRect PTR)
    DECLARE CONSTRUCTOR (BYVAL pImage AS CGpImage PTR, BYVAL nWrapMode AS wrapMode, BYVAL dstRect AS GpRectF PTR)
    DECLARE CONSTRUCTOR (BYVAL pImage AS CGpImage PTR, BYVAL nWrapMode AS wrapMode, BYVAL dstX AS SINGLE, BYVAL dstY AS SINGLE, BYVAL dstWidth AS SINGLE, BYVAL dstHeight AS SINGLE)
@@ -831,7 +831,7 @@ Public:
    DECLARE CONSTRUCTOR (BYVAL hdc AS HDC, BYVAL plogfont AS LOGFONTA PTR)
 '#endif
    DECLARE CONSTRUCTOR (BYVAL pFamily AS CGpFontFamily_ PTR, BYVAL emSize AS SINGLE, BYVAL nStyle AS INT_ = 0, BYVAL nUnit AS GpUnit = 0)
-   DECLARE CONSTRUCTOR (BYVAL pwszFamilyName AS WSTRING PTR, BYVAL emSize AS SINGLE, BYVAL nStyle AS INT_ = 0, BYVAL nUnit AS GpUnit = 0, BYVAL pFontCollection AS CGpFontCollection_ PTR = nullptr)
+   DECLARE CONSTRUCTOR (BYVAL pwszFamilyName AS WSTRING PTR, BYVAL emSize AS SINGLE, BYVAL nStyle AS INT_ = 0, BYVAL nUnit AS GpUnit = 0, BYVAL pFontCollection AS CGpFontCollection_ PTR = NULL)
    DECLARE DESTRUCTOR
 '#ifdef __FB_64BIT__
    DECLARE FUNCTION GetLogFontA (BYVAL pGraphics AS CGpGraphics_ PTR, BYVAL pfA AS LOGFONTA PTR) AS GpStatus
@@ -860,7 +860,7 @@ Public:
 Public:
    DECLARE CONSTRUCTOR
    DECLARE CONSTRUCTOR (BYVAL pFontFamily AS CGpFontFamily PTR)
-   DECLARE CONSTRUCTOR (BYVAL pwszName AS WSTRING PTR, BYVAL pFontCollection AS CGpFontCollection_ PTR = nullptr)
+   DECLARE CONSTRUCTOR (BYVAL pwszName AS WSTRING PTR, BYVAL pFontCollection AS CGpFontCollection_ PTR = NULL)
    DECLARE DESTRUCTOR
    DECLARE FUNCTION Clone (BYVAL pFontFamily AS CGpFontFamily PTR) AS GpStatus
    DECLARE FUNCTION GenericSansSerif (BYVAL pFontFamily AS CGpFontFamily PTR) AS GpStatus
@@ -1088,11 +1088,11 @@ Public:
    DECLARE FUNCTION MeasureString (BYVAL pwszString AS WSTRING PTR, BYVAL length AS INT_, BYVAL pFont AS CGpFont PTR, BYVAL origin AS GpPointF PTR, BYVAL boundingBox AS GpRectF PTR) AS GpStatus
    DECLARE FUNCTION MeasureCharacterRanges (BYVAL pwszString AS WSTRING PTR, BYVAL length AS INT_, BYVAL pFont AS CGpFont PTR, _
       BYVAL layoutRect AS GpRectF PTR, BYVAL pStringFormat AS CGpStringFormat PTR, BYVAL regionCount AS INT_, BYVAL regions AS CGpRegion PTR) AS GpStatus
-   DECLARE FUNCTION DrawDriverString (BYVAL rgText AS UINT16 PTR, BYVAL length AS LONG, BYVAL pFont AS CGpFont PTR, BYVAL pBrush AS CGpBrush PTR, BYVAL positions AS ANY PTR, BYVAL flags AS LONG, BYVAL pMatrix AS CGpMatrix PTR = nullptr) AS GpStatus
+   DECLARE FUNCTION DrawDriverString (BYVAL rgText AS UINT16 PTR, BYVAL length AS LONG, BYVAL pFont AS CGpFont PTR, BYVAL pBrush AS CGpBrush PTR, BYVAL positions AS ANY PTR, BYVAL flags AS LONG, BYVAL pMatrix AS CGpMatrix PTR = NULL) AS GpStatus
    DECLARE FUNCTION MeasureDriverString (BYVAL pText AS UINT16 PTR, BYVAL length AS LONG, BYVAL pFont AS CGpFont PTR, _
       BYVAL positions AS ANY PTR, BYVAL flags AS LONG, BYVAL pMatrix AS CGpMatrix PTR, BYVAL boundingBox AS GpRectF PTR) AS GpStatus
    DECLARE FUNCTION MeasureDriverString (BYVAL pText AS UINT16 PTR, BYVAL length AS LONG, BYVAL pFont AS CGpFont PTR, _
-      BYVAL positions AS ANY PTR, BYVAL flags AS LONG, BYVAL pMatrix AS CGpMatrix PTR = nullptr) AS GpRectF
+      BYVAL positions AS ANY PTR, BYVAL flags AS LONG, BYVAL pMatrix AS CGpMatrix PTR = NULL) AS GpRectF
    DECLARE FUNCTION DrawCachedBitmap (BYVAL gpCachedBitmap AS CGpCachedBitmap PTR, BYVAL x AS LONG, BYVAL y AS LONG) AS GpStatus
    DECLARE FUNCTION DrawImage (BYVAL pImage AS CGpImage PTR, BYVAL pt AS GpPointF PTR) AS GpStatus
    DECLARE FUNCTION DrawImage (BYVAL pImage AS CGpImage PTR, BYVAL x AS SINGLE, BYVAL y AS SINGLE) AS GpStatus
@@ -1112,28 +1112,28 @@ Public:
       BYVAL srcrect AS GpRect PTR, BYVAL srcUnit AS GpUnit) AS GpStatus
    DECLARE FUNCTION DrawImage (BYVAL pImage AS CGpImage PTR, BYVAL destRect AS GpRectF PTR, _
       BYVAL srcx AS SINGLE, BYVAL srcy AS SINGLE, BYVAL srcwidth AS SINGLE, BYVAL srcheight AS SINGLE, BYVAL srcUnit AS GpUnit, _
-      BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr, BYVAL pcallback AS DrawImageAbort = nullptr, BYVAL pcallbackData AS ANY PTR = nullptr) AS GpStatus
+      BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL, BYVAL pcallback AS DrawImageAbort = NULL, BYVAL pcallbackData AS ANY PTR = NULL) AS GpStatus
    DECLARE FUNCTION DrawImage (BYVAL pImage AS CGpImage PTR, BYVAL destRect AS GpRect PTR, _
       BYVAL srcx AS INT_, BYVAL srcy AS INT_, BYVAL srcwidth AS INT_, BYVAL srcheight AS INT_, BYVAL srcUnit AS GpUnit, _
-      BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr, BYVAL pcallback AS DrawImageAbort = nullptr, BYVAL pcallbackData AS ANY PTR = nullptr) AS GpStatus
+      BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL, BYVAL pcallback AS DrawImageAbort = NULL, BYVAL pcallbackData AS ANY PTR = NULL) AS GpStatus
    DECLARE FUNCTION DrawImage (BYVAL pImage AS CGpImage PTR, BYVAL destPoints AS GpPointF PTR, BYVAL nCount AS INT_, _
       BYVAL srcx AS SINGLE, BYVAL srcy AS SINGLE, BYVAL srcwidth AS SINGLE, BYVAL srcheight AS SINGLE, BYVAL srcUnit AS GpUnit, _
-      BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr, BYVAL pcallback AS DrawImageAbort = nullptr, BYVAL pcallbackData AS ANY PTR = nullptr) AS GpStatus
+      BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL, BYVAL pcallback AS DrawImageAbort = NULL, BYVAL pcallbackData AS ANY PTR = NULL) AS GpStatus
    DECLARE FUNCTION DrawImage (BYVAL pImage AS CGpImage PTR, BYVAL destPoints AS GpPoint PTR, BYVAL nCount AS INT_, _
       BYVAL srcx AS INT_, BYVAL srcy AS INT_, BYVAL srcwidth AS INT_, BYVAL srcheight AS INT_, BYVAL srcUnit AS GpUnit, _
-      BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr, BYVAL pcallback AS DrawImageAbort = nullptr, BYVAL pcallbackData AS ANY PTR = nullptr) AS GpStatus
+      BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL, BYVAL pcallback AS DrawImageAbort = NULL, BYVAL pcallbackData AS ANY PTR = NULL) AS GpStatus
    DECLARE FUNCTION DrawImage (BYVAL pImage AS CGpImage PTR, BYVAL destx AS SINGLE, BYVAL desty AS SINGLE, BYVAL destWidth AS SINGLE, BYVAL destHeight AS SINGLE, _
       BYVAL srcx AS SINGLE, BYVAL srcy AS SINGLE, BYVAL srcwidth AS SINGLE, BYVAL srcheight AS SINGLE, BYVAL srcUnit AS GpUnit, _
-      BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr, BYVAL pcallback AS DrawImageAbort = nullptr, BYVAL pcallbackData AS ANY PTR = nullptr) AS GpStatus
+      BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL, BYVAL pcallback AS DrawImageAbort = NULL, BYVAL pcallbackData AS ANY PTR = NULL) AS GpStatus
 '   DECLARE FUNCTION DrawImage (BYVAL pImage AS CGpImage PTR, BYVAL destx AS INT_, BYVAL desty AS INT_, BYVAL destWidth AS INT_, BYVAL destHeight AS INT_, _
 '      BYVAL srcx AS INT_, BYVAL srcy AS INT_, BYVAL srcwidth AS INT_, BYVAL srcheight AS INT_, BYVAL srcUnit AS GpUnit, _
 '      BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL, BYVAL pcallback AS DrawImageAbort = NULL, BYVAL pcallbackData AS ANY PTR = NULL) AS GpStatus
    DECLARE FUNCTION DrawImage (BYVAL pImage AS CGpImage PTR, BYVAL destRect AS GpRectF PTR, _
-      BYVAL sourceRect AS GpRectF PTR, BYVAL srcUnit AS GpUnit, BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr) AS GpStatus
+      BYVAL sourceRect AS GpRectF PTR, BYVAL srcUnit AS GpUnit, BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL) AS GpStatus
    DECLARE FUNCTION DrawImage (BYVAL pImage AS CGpImage PTR, BYVAL destRect AS GpRect PTR, _
-      BYVAL sourceRect AS GpRect PTR, BYVAL srcUnit AS GpUnit, BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr) AS GpStatus
+      BYVAL sourceRect AS GpRect PTR, BYVAL srcUnit AS GpUnit, BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL) AS GpStatus
    DECLARE FUNCTION DrawImage (BYVAL pImage AS CGpImage PTR, BYVAL destx AS SINGLE, BYVAL desty AS SINGLE, BYVAL destWidth AS SINGLE, BYVAL destHeight AS SINGLE, _
-      BYVAL srcx AS SINGLE, BYVAL srcy AS SINGLE, BYVAL srcWidth AS SINGLE, BYVAL srcHeight AS SINGLE, BYVAL srcUnit AS GpUnit, BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr) AS GpStatus
+      BYVAL srcx AS SINGLE, BYVAL srcy AS SINGLE, BYVAL srcWidth AS SINGLE, BYVAL srcHeight AS SINGLE, BYVAL srcUnit AS GpUnit, BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL) AS GpStatus
 '   DECLARE FUNCTION DrawImage (BYVAL pImage AS CGpImage PTR, BYVAL destx AS INT_, BYVAL desty AS INT_, BYVAL destWidth AS INT_, BYVAL destHeight AS INT_, _
 '      BYVAL srcx AS INT_, BYVAL srcy AS INT_, BYVAL srcWidth AS INT_, BYVAL srcHeight AS INT_, BYVAL srcUnit AS GpUnit, BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL) AS GpStatus
    ' // Effects ------------------------------------------
@@ -1141,20 +1141,20 @@ Public:
       BYVAL pEffect AS CGpEffect PTR, BYVAL pImageAttributes AS CGpImageAttributes PTR, BYVAL srcUnit AS GpUnit) AS GpStatus
    ' // Begin Metafiles ----------------------------------
    DECLARE FUNCTION EnumerateMetafileDestPoint (BYVAL pMetafile AS CGpMetafile PTR, BYVAL destPoint AS GpPointF PTR, _
-      BYVAL pCallback AS EnumerateMetafileProc = nullptr, BYVAL pCallbackData AS ANY PTR = nullptr, BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr) AS GpStatus
+      BYVAL pCallback AS EnumerateMetafileProc = NULL, BYVAL pCallbackData AS ANY PTR = NULL, BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL) AS GpStatus
    DECLARE FUNCTION EnumerateMetafileDestRect (BYVAL pMetafile AS CGpMetafile PTR, BYVAL destRect AS GpRectF PTR, BYVAL pCallback AS EnumerateMetafileProc, _
-      BYVAL pCallbackData AS ANY PTR = nullptr, BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr) AS GpStatus
+      BYVAL pCallbackData AS ANY PTR = NULL, BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL) AS GpStatus
    DECLARE FUNCTION EnumerateMetafileDestPoints (BYVAL pMetafile AS CGpMetafile PTR, BYVAL destPoints AS GpPointF PTR, BYVAL nCount AS LONG, BYVAL pCallback AS EnumerateMetafileProc, _
-      BYVAL pCallbackData AS ANY PTR = nullptr, BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr) AS GpStatus
+      BYVAL pCallbackData AS ANY PTR = NULL, BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL) AS GpStatus
    DECLARE FUNCTION EnumerateMetafileSrcRectDestPoint (BYVAL pMetafile AS CGpMetafile PTR, BYVAL destPoint AS GpPointF PTR, _
       BYVAL srcRect AS GpRectF PTR, BYVAL srcUnit AS GpUnit, BYVAL pCallback AS EnumerateMetafileProc, _
-      BYVAL pCallbackData AS ANY PTR = nullptr, BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr) AS GpStatus
+      BYVAL pCallbackData AS ANY PTR = NULL, BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL) AS GpStatus
    DECLARE FUNCTION EnumerateMetafileSrcRectDestRect (BYVAL pMetafile AS CGpMetafile PTR, BYVAL destRect AS GpRectF PTR, _
       BYVAL srcRect AS GpRectF PTR, BYVAL srcUnit AS GpUnit, BYVAL pCallback AS EnumerateMetafileProc, _
-      BYVAL pCallbackData AS ANY PTR = nullptr, BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr) AS GpStatus
+      BYVAL pCallbackData AS ANY PTR = NULL, BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL) AS GpStatus
    DECLARE FUNCTION EnumerateMetafileSrcRectDestPoints (BYVAL pMetafile AS CGpMetafile PTR, BYVAL destPoints AS GpPointF PTR, _
       BYVAL nCount AS INT_, BYVAL srcRect AS GpRectF PTR, BYVAL srcUnit AS GpUnit, BYVAL pCallback AS EnumerateMetafileProc, _
-      BYVAL pCallbackData AS ANY PTR = nullptr, BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr) AS GpStatus
+      BYVAL pCallbackData AS ANY PTR = NULL, BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL) AS GpStatus
    ' // End Metafiles ------------------------------------
    DECLARE FUNCTION SetClip (BYVAL pGraphics AS CGpGraphics PTR, BYVAL nCombineMode AS CombineMode = CombineModeReplace) AS GpStatus
    DECLARE FUNCTION SetClip (BYVAL rc AS GpRectF PTR, BYVAL nCombineMode AS CombineMode = CombineModeReplace) AS GpStatus
@@ -1280,21 +1280,21 @@ Public:
    DECLARE FUNCTION TransForm (BYVAL pMatrix AS CGpMatrix PTR) AS GpStatus
    DECLARE FUNCTION GetBounds (BYVAL bounds AS GpRectF PTR, BYVAL pMatrix AS CGpMatrix PTR, BYVAL pPen AS CGpPen PTR) AS GpStatus
    DECLARE FUNCTION GetBounds (BYVAL bounds AS GpRect PTR, BYVAL pMatrix AS CGpMatrix PTR, BYVAL pPen AS CGpPen PTR) AS GpStatus
-   DECLARE FUNCTION Flatten (BYVAL pMatrix AS CGpMatrix PTR = nullptr, BYVAL flatness AS SINGLE = FlatnessDefault) AS GpStatus
-   DECLARE FUNCTION Widen (BYVAL pPen AS CGpPen PTR, BYVAL pMatrix AS CGpMatrix PTR = nullptr, BYVAL flatness AS SINGLE = FlatnessDefault) AS GpStatus
-   DECLARE FUNCTION Outline (BYVAL pMatrix AS CGpMatrix PTR = nullptr, BYVAL flatness AS SINGLE = FlatnessDefault) AS GpStatus
-   DECLARE FUNCTION Warp (BYVAL destPoints AS GpPointF PTR, BYVAL nCount AS INT_, BYVAL srcRect AS GpRectF PTR, BYVAL pMatrix AS CGpMatrix PTR = nullptr, BYVAL nWarpMode AS WarpMode = WarpModePerspective, BYVAL Flatness AS SINGLE = FlatnessDefault) AS GpStatus
+   DECLARE FUNCTION Flatten (BYVAL pMatrix AS CGpMatrix PTR = NULL, BYVAL flatness AS SINGLE = FlatnessDefault) AS GpStatus
+   DECLARE FUNCTION Widen (BYVAL pPen AS CGpPen PTR, BYVAL pMatrix AS CGpMatrix PTR = NULL, BYVAL flatness AS SINGLE = FlatnessDefault) AS GpStatus
+   DECLARE FUNCTION Outline (BYVAL pMatrix AS CGpMatrix PTR = NULL, BYVAL flatness AS SINGLE = FlatnessDefault) AS GpStatus
+   DECLARE FUNCTION Warp (BYVAL destPoints AS GpPointF PTR, BYVAL nCount AS INT_, BYVAL srcRect AS GpRectF PTR, BYVAL pMatrix AS CGpMatrix PTR = NULL, BYVAL nWarpMode AS WarpMode = WarpModePerspective, BYVAL Flatness AS SINGLE = FlatnessDefault) AS GpStatus
    DECLARE FUNCTION GetPointCount () AS INT_
    DECLARE FUNCTION GetPathTypes (BYVAL types AS BYTE PTR, BYVAL nCount AS INT_) AS GpStatus
    DECLARE FUNCTION GetPathPoints (BYREF pts AS GpPointF PTR, BYVAL nCount AS INT_) AS GpStatus
-   DECLARE FUNCTION IsVisible (BYVAL x AS SINGLE, BYVAL y AS SINGLE, BYVAL pGraphics AS CGpGraphics_ PTR = nullptr) AS BOOLEAN
+   DECLARE FUNCTION IsVisible (BYVAL x AS SINGLE, BYVAL y AS SINGLE, BYVAL pGraphics AS CGpGraphics_ PTR = NULL) AS BOOLEAN
 '   DECLARE FUNCTION IsVisible (BYVAL x AS INT_, BYVAL y AS INT_, BYVAL pGraphics AS CGpGraphics_ PTR = NULL) AS BOOLEAN
-   DECLARE FUNCTION IsVisible (BYVAL pt AS GpPointF PTR, BYVAL pGraphics AS CGpGraphics_ PTR = nullptr) AS BOOLEAN
-   DECLARE FUNCTION IsVisible (BYVAL pt AS GpPoint PTR, BYVAL pGraphics AS CGpGraphics_ PTR = nullptr) AS BOOLEAN
-   DECLARE FUNCTION IsOutlineVisible (BYVAL x AS SINGLE, BYVAL y AS SINGLE, BYVAL pPen AS CGpPen PTR, BYVAL pGraphics AS CGpGraphics_ PTR = nullptr) AS BOOLEAN
+   DECLARE FUNCTION IsVisible (BYVAL pt AS GpPointF PTR, BYVAL pGraphics AS CGpGraphics_ PTR = NULL) AS BOOLEAN
+   DECLARE FUNCTION IsVisible (BYVAL pt AS GpPoint PTR, BYVAL pGraphics AS CGpGraphics_ PTR = NULL) AS BOOLEAN
+   DECLARE FUNCTION IsOutlineVisible (BYVAL x AS SINGLE, BYVAL y AS SINGLE, BYVAL pPen AS CGpPen PTR, BYVAL pGraphics AS CGpGraphics_ PTR = NULL) AS BOOLEAN
 '   DECLARE FUNCTION IsOutlineVisible (BYVAL x AS INT_, BYVAL y AS INT_, BYVAL pPen AS CGpPen PTR, BYVAL pGraphics AS CGpGraphics_ PTR = NULL) AS BOOLEAN
-   DECLARE FUNCTION IsOutlineVisible (BYVAL pt AS GpPointF PTR, BYVAL pPen AS CGpPen PTR, BYVAL pGraphics AS CGpGraphics_ PTR = nullptr) AS BOOLEAN
-   DECLARE FUNCTION IsOutlineVisible (BYVAL pt AS GpPoint PTR, BYVAL pPen AS CGpPen PTR, BYVAL pGraphics AS CGpGraphics_ PTR = nullptr) AS BOOLEAN
+   DECLARE FUNCTION IsOutlineVisible (BYVAL pt AS GpPointF PTR, BYVAL pPen AS CGpPen PTR, BYVAL pGraphics AS CGpGraphics_ PTR = NULL) AS BOOLEAN
+   DECLARE FUNCTION IsOutlineVisible (BYVAL pt AS GpPoint PTR, BYVAL pPen AS CGpPen PTR, BYVAL pGraphics AS CGpGraphics_ PTR = NULL) AS BOOLEAN
 
 END TYPE
 ' ########################################################################################

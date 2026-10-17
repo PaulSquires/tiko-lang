@@ -68,7 +68,7 @@ END DESTRUCTOR
 ' Returns pointers to the implemented classes and supported interfaces.
 ' ========================================================================================
 FUNCTION CRichEditOleCallback.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   IF ppvObj = nullptr THEN RETURN E_INVALIDARG
+   IF ppvObj = NULL THEN RETURN E_INVALIDARG
    DIM IID_IRichEditOleCallback_ AS GUID = (&h00020D03, &h0000, &h0000, {&hC0, &h00, &h00, &h00, &h00, &h00, &h00, &h46})
    IF IsEqualIID(riid, @IID_IRichEditOleCallback_) OR IsEqualIID(riid, @IID_IUnknown) OR IsEqualIID(riid, @IID_IDispatch) THEN
       *ppvObj = @this
@@ -115,7 +115,7 @@ END FUNCTION
 FUNCTION CRichEditOleCallback.GetNewStorage (BYVAL lplpstg AS LPSTORAGE PTR) AS HRESULT
    DIM hr AS HRESULT
    DIM pILockBytes AS ILockBytes PTR
-   hr = CreateILockBytesOnHGlobal(nullptr, TRUE, @pILockBytes)
+   hr = CreateILockBytesOnHGlobal(NULL, TRUE, @pILockBytes)
    IF FAILED(hr) THEN RETURN hr
    hr = StgCreateDocfileOnILockBytes(pILockBytes, _
         STGM_SHARE_EXCLUSIVE OR STGM_READWRITE OR STGM_CREATE, 0, lplpstg)

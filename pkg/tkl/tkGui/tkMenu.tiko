@@ -35,14 +35,14 @@ using tkCore
 ' Usage example: tkMenu_GetWindowOwner(hMenu)
 ' ========================================================================================
 PUBLIC FUNCTION tkMenu_GetWindowOwner (BYVAL hMenu AS HMENU) AS HWND
-   DIM hwnd AS HWND = ..GetTopWindow(nullptr)
-   WHILE hwnd <> nullptr
+   DIM hwnd AS HWND = ..GetTopWindow(NULL)
+   WHILE hwnd <> 0
       IF ..GetMenu(hwnd) = hMenu THEN
          RETURN hwnd ' Found the window owner
       END IF
       hwnd = ..GetNextWindow(hwnd, GW_HWNDNEXT)
    WEND
-   RETURN nullptr ' Not found
+   RETURN NULL ' Not found
 END FUNCTION
 ' ========================================================================================
 
@@ -72,9 +72,9 @@ END FUNCTION
 PUBLIC FUNCTION tkMenu_Destroy OVERLOAD (BYVAL hwnd AS HWND) AS BOOLEAN
    ' // Get the menu handle, if any
    DIM hMenu AS HMENU = ..GetMenu(hwnd)
-   IF hMenu = nullptr THEN RETURN FALSE
+   IF hMenu = NULL THEN RETURN FALSE
    ' // Detach the menu from the dialog
-   ..SetMenu(hwnd, nullptr)
+   ..SetMenu(hwnd, NULL)
    ' // Destroy the menu
    RETURN ..DestroyMenu(hMenu)
    ' // Redraw the menu bar
@@ -514,7 +514,7 @@ PUBLIC FUNCTION tkMenu_GetItemTextLen (BYVAL hMenu AS HMENU, BYVAL uItem AS DWOR
    DIM mii AS MENUITEMINFOW
    mii.cbSize = SIZEOF(mii)
    mii.fMask = MIIM_STRING
-   mii.dwTypeData = nullptr
+   mii.dwTypeData = NULL
    ' // Get the needed size of the buffer
    IF GetMenuItemInfoW(hMenu, uItem, fByPosition, @mii) = 0 THEN RETURN 0
    RETURN mii.cch
@@ -539,7 +539,7 @@ END FUNCTION
 ' tkxMsg wsz
 ' ========================================================================================
 PUBLIC FUNCTION tkMenu_GetItemText OVERLOAD (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG, BYVAL pwszText AS WSTRING PTR, BYVAL cchTextMax AS LONG) AS BOOLEAN
-   IF pwszText = nullptr THEN RETURN FALSE
+   IF pwszText = NULL THEN RETURN FALSE
    ' // Fills the MENUITEMINFOW structure
    DIM mii AS MENUITEMINFOW
    mii.cbSize = SIZEOF(mii)
@@ -576,7 +576,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkMenu_GetFont OVERLOAD (BYVAL plfw AS LOGFONTW PTR) AS BOOLEAN
    DIM ncm AS NONCLIENTMETRICSW
-   IF plfw = nullptr THEN RETURN FALSE
+   IF plfw = NULL THEN RETURN FALSE
    IF tkComCtlVersion >= 600 THEN ncm.cbSize = 504 ELSE ncm.cbSize = 500
    IF SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, SIZEOF(ncm), @ncm, 0) = 0 THEN RETURN FALSE
    *plfw = ncm.lfMenuFont
@@ -605,8 +605,8 @@ PUBLIC FUNCTION tkMenu_GetFontPointSize () AS LONG
    DIM ncm AS NONCLIENTMETRICSW
    IF tkComCtlVersion >= 600 THEN ncm.cbSize = 504 ELSE ncm.cbSize = 500
    IF SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, SIZEOF(ncm), @ncm, 0) = 0 THEN RETURN 0
-   DIM hDC AS HDC = CreateDCW("DISPLAY", nullptr, nullptr, nullptr)
-   IF hDC = nullptr THEN RETURN 0
+   DIM hDC AS HDC = CreateDCW("DISPLAY", NULL, NULL, NULL)
+   IF hDC = NULL THEN RETURN 0
    DIM cyPixelsPerInch AS LONG = ..GetDeviceCaps(hDC, LOGPIXELSY)
    ..DeleteDC hDC
    DIM nPointSize AS LONG = MulDiv(ncm.lfMenuFont.lfHeight, 72, cyPixelsPerInch)
@@ -917,7 +917,7 @@ PUBLIC FUNCTION tkMenu_FindItemPos ( _
    DIM hSub AS ..HMENU
    FOR x AS LONG = 0 TO itemCount - 1
       hSub = GetSubMenu(hMenu, x)
-      IF hSub <> nullptr THEN
+      IF hSub <> 0 THEN
          IF tkMenu_FindItemPos(hSub, itemID, hMenuFound, itemPos) THEN
             RETURN TRUE
          END IF
@@ -937,7 +937,7 @@ PUBLIC FUNCTION tkMenu_GetSubmenusCount (BYVAL hMenu AS HMENU) AS LONG
    DIM itemCount AS LONG = ..GetMenuItemCount(hMenu)
    DIM submenuCount AS LONG
    FOR i AS LONG = 0 TO itemCount - 1
-      IF ..GetSubMenu(hMenu, i) <> nullptr THEN submenuCount += 1
+      IF ..GetSubMenu(hMenu, i) <> 0 THEN submenuCount += 1
    NEXT
    RETURN submenuCount
 END FUNCTION
@@ -1057,7 +1057,7 @@ END FUNCTION
 PUBLIC FUNCTION tkMenu_RemoveCloseOption (BYVAL hwnd AS HWND) AS BOOLEAN
    ' // Get the system menu handle
    DIM hMenu AS HMENU = ..GetSystemMenu(hwnd, FALSE)
-   IF hMenu = nullptr THEN RETURN FALSE
+   IF hMenu = NULL THEN RETURN FALSE
    ' // Get the number of menu items
    DIM cbItems AS LONG = ..GetMenuItemCount(hMenu)
    IF cbItems = 0 THEN RETURN FALSE
@@ -1076,7 +1076,7 @@ END FUNCTION
 ' Usage example: tkMenu_RestoreCloseOption(hWin)
 ' =====================================================================================
 PUBLIC FUNCTION tkMenu_RestoreCloseOption (BYVAL hwnd AS HWND) AS BOOLEAN
-   IF ..GetSystemMenu(hwnd, TRUE) <> nullptr THEN RETURN FALSE
+   IF ..GetSystemMenu(hwnd, TRUE) <> NULL THEN RETURN FALSE
    ..DrawMenuBar(hwnd)
    RETURN TRUE
 END FUNCTION
@@ -1100,14 +1100,14 @@ END FUNCTION
 '   To get extended error information, call GetLastError.
 ' =====================================================================================
 PUBLIC FUNCTION tkMenu_GetBarInfo OVERLOAD (BYVAL hwnd AS HWND, BYVAL idObject AS LONG, BYVAL idItem AS LONG, BYVAL pmbi AS MENUBARINFO PTR) AS BOOLEAN
-   IF pmbi = nullptr THEN RETURN FALSE
+   IF pmbi = NULL THEN RETURN FALSE
    pmbi->cbSize = SIZEOF(MENUBARINFO)
    RETURN ..GetMenuBarInfo(hwnd, idObject, idItem, pmbi)
 END FUNCTION
 ' =====================================================================================
 ' =====================================================================================
 PUBLIC FUNCTION tkMenu_GetBarInfo OVERLOAD (BYVAL hwnd AS HWND, BYVAL idObject AS LONG, BYVAL idItem AS LONG, BYREF mbi AS MENUBARINFO) AS BOOLEAN
-   IF VARPTR(mbi) = nullptr THEN RETURN FALSE
+   IF VARPTR(mbi) = NULL THEN RETURN FALSE
    mbi.cbSize = SIZEOF(MENUBARINFO)
    RETURN ..GetMenuBarInfo(hwnd, idObject, idItem, @mbi)
 END FUNCTION
@@ -1267,7 +1267,7 @@ END FUNCTION
 ' * Creates a floating context menu.
 ' ========================================================================================
 PUBLIC FUNCTION tkMenu_ContextMenu (BYVAL hwnd AS HWND, BYVAL hPopupMenu AS HMENU, BYVAL x AS LONG, BYVAL y AS LONG, BYVAL flags AS UINT = 0) AS LONG
-   RETURN ..TrackPopupMenu(hPopupMenu, flags, x, y, 0, hwnd, nullptr)
+   RETURN ..TrackPopupMenu(hPopupMenu, flags, x, y, 0, hwnd, NULL)
 END FUNCTION
 ' ========================================================================================
 
@@ -1276,7 +1276,7 @@ END FUNCTION
 ' the menu. The shortcut menu can appear anywhere on the screen. 
 ' ========================================================================================
 PUBLIC FUNCTION tkMenu_TrackPopupMenu (BYVAL hMenu AS HMENU, BYVAL uFlags AS UINT, BYVAL x AS LONG, BYVAL y AS LONG, _
-BYVAL hwnd AS HWND, BYVAL prc AS RECT PTR = nullptr) AS BOOLEAN
+BYVAL hwnd AS HWND, BYVAL prc AS RECT PTR = NULL) AS BOOLEAN
    RETURN ..TrackPopupMenu(hMenu, uFlags, x, y, 0, hwnd, prc)
 END FUNCTION
 ' ========================================================================================
@@ -1286,7 +1286,7 @@ END FUNCTION
 ' the menu. The shortcut menu can appear anywhere on the screen. 
 ' ========================================================================================
 PUBLIC FUNCTION tkMenu_TrackPopupMenuEx (BYVAL hMenu AS HMENU, BYVAL uFlags AS UINT, BYVAL x AS LONG, BYVAL y AS LONG, _
-BYVAL hwnd AS HWND, BYVAL ptpm AS TPMPARAMS PTR = nullptr) AS BOOLEAN
+BYVAL hwnd AS HWND, BYVAL ptpm AS TPMPARAMS PTR = NULL) AS BOOLEAN
    RETURN ..TrackPopupMenuEx(hMenu, uFlags, x, y, hwnd, ptpm)
 END FUNCTION
 ' ========================================================================================
@@ -1320,14 +1320,14 @@ END FUNCTION
 ' Gets information for a specified menu.
 ' ========================================================================================
 PUBLIC FUNCTION tkMenu_GetInfo OVERLOAD (BYVAL hMenu AS HMENU, BYVAL pmi AS MENUINFO PTR) AS BOOLEAN
-   IF pmi = nullptr THEN RETURN FALSE
+   IF pmi = NULL THEN RETURN FALSE
    pmi->cBSize = SIZEOF(MENUINFO)
    RETURN ..GetMenuInfo(hMenu, pmi)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkMenu_GetInfo OVERLOAD (BYVAL hMenu AS HMENU, BYREF mi AS MENUINFO) AS BOOLEAN
-   IF VARPTR(mi) = nullptr THEN RETURN FALSE
+   IF VARPTR(mi) = NULL THEN RETURN FALSE
    mi.cbSize = SIZEOF(MENUINFO)
    RETURN ..GetMenuInfo(hMenu, @mi)
 END FUNCTION
@@ -1337,14 +1337,14 @@ END FUNCTION
 ' Sets information for a specified menu.
 ' ========================================================================================
 PUBLIC FUNCTION tkMenu_SetInfo OVERLOAD (BYVAL hMenu AS HMENU, BYVAL pmi AS MENUINFO PTR) AS BOOLEAN
-   IF pmi = nullptr THEN RETURN FALSE
+   IF pmi = NULL THEN RETURN FALSE
    pmi->cBSize = SIZEOF(MENUINFO)
    RETURN ..SetMenuInfo(hMenu, pmi)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkMenu_SetInfo OVERLOAD (BYVAL hMenu AS HMENU, BYREF mi AS MENUINFO) AS BOOLEAN
-   IF VARPTR(mi) = nullptr THEN RETURN FALSE
+   IF VARPTR(mi) = NULL THEN RETURN FALSE
    mi.cbSize = SIZEOF(MENUINFO)
    RETURN ..SetMenuInfo(hMenu, @mi)
 END FUNCTION
@@ -1354,14 +1354,14 @@ END FUNCTION
 ' Retrieves information about a menu item.
 ' ========================================================================================
 PUBLIC FUNCTION tkMenu_GetItemInfo OVERLOAD (BYVAL hMenu AS HMENU, BYVAL item AS UINT, BYVAL fByPositon AS BOOLEAN, BYVAL pmii AS MENUITEMINFOW PTR) AS BOOLEAN
-   IF pmii = nullptr THEN RETURN FALSE
+   IF pmii = NULL THEN RETURN FALSE
    pmii->cBSize = SIZEOF(MENUITEMINFOW)
    RETURN ..GetMenuItemInfoW(hMenu, item, fByPositon, pmii)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkMenu_GetItemInfo OVERLOAD (BYVAL hMenu AS HMENU, BYVAL item AS UINT, BYVAL fByPositon AS BOOLEAN, BYREF mii AS MENUITEMINFOW) AS BOOLEAN
-   IF VARPTR(mii) = nullptr THEN RETURN FALSE
+   IF VARPTR(mii) = NULL THEN RETURN FALSE
    mii.cbSize = SIZEOF(MENUITEMINFOW)
    RETURN ..GetMenuItemInfoW(hMenu, item, fByPositon, @mii)
 END FUNCTION
@@ -1371,7 +1371,7 @@ END FUNCTION
 ' Changes information about a menu item.
 ' ========================================================================================
 PUBLIC FUNCTION tkMenu_SetItemInfo OVERLOAD (BYVAL hMenu AS HMENU, BYVAL item AS UINT, BYVAL fByPositon AS BOOLEAN, BYVAL pmii AS MENUITEMINFOW PTR) AS BOOLEAN
-   IF pmii = nullptr THEN RETURN FALSE
+   IF pmii = NULL THEN RETURN FALSE
    pmii->cBSize = SIZEOF(MENUINFO)
    DIM bRes AS BOOLEAN
    bRes = ..SetMenuItemInfoW(hMenu, item, fByPositon, pmii)
@@ -1382,7 +1382,7 @@ END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkMenu_SetItemInfo OVERLOAD (BYVAL hMenu AS HMENU, BYVAL item AS UINT, BYVAL fByPositon AS BOOLEAN, BYREF mii AS MENUITEMINFOW) AS BOOLEAN
-   IF VARPTR(mii) = nullptr THEN RETURN FALSE
+   IF VARPTR(mii) = NULL THEN RETURN FALSE
    mii.cbSize = SIZEOF(MENUINFO)
    DIM bRes AS BOOLEAN
    bRes = ..SetMenuItemInfoW(hMenu, item, fByPositon, @mii)
@@ -1433,7 +1433,7 @@ END FUNCTION
 ' Return value: TRUE or FALSE.
 ' ========================================================================================
 PUBLIC FUNCTION tkMenu_InitBitmapInfo (BYVAL pbmi AS BITMAPINFO PTR, BYVAL cbInfo AS ULONG, BYVAL cx AS LONG, BYVAL cy AS LONG, BYVAL bpp AS WORD) AS BOOLEAN
-   IF pbmi = nullptr THEN RETURN FALSE
+   IF pbmi = NULL THEN RETURN FALSE
    memset(pbmi, 0, cbInfo)
    pbmi->bmiHeader.biSize = SIZEOF(BITMAPINFOHEADER)
    pbmi->bmiHeader.biPlanes = 1
@@ -1456,14 +1456,14 @@ END FUNCTION
 ' Return value: TRUE or FALSE.
 ' ========================================================================================
 PUBLIC FUNCTION tkMenu_Create32BitHBITMAP (BYVAL hDC AS HDC, BYVAL psize AS SIZE PTR, BYVAL ppvBits AS ANY PTR PTR, BYVAL phBmp AS HBITMAP PTR) AS BOOLEAN
-   IF psize = nullptr OR phBmp = nullptr THEN RETURN FALSE
-   *phBmp = nullptr
+   IF psize = NULL OR phBmp = NULL THEN RETURN FALSE
+   *phBmp = NULL
    DIM bmi AS BITMAPINFO
    tkMenu_InitBitmapInfo(@bmi, SIZEOF(bmi), psize->cx, psize->cy, 32)
-   DIM hdcUsed AS ..HDC = IIF(hDC <> nullptr, hDC, GetDC(nullptr))
-   IF hdcUsed = nullptr THEN RETURN FALSE
-   *phBmp = CreateDIBSection(hdcUsed, @bmi, DIB_RGB_COLORS, ppvBits, nullptr, 0)
-   ReleaseDC(nullptr, hdcUsed)
+   DIM hdcUsed AS ..HDC = IIF(hDC <> NULL, hDC, GetDC(NULL))
+   IF hdcUsed = NULL THEN RETURN FALSE
+   *phBmp = CreateDIBSection(hdcUsed, @bmi, DIB_RGB_COLORS, ppvBits, NULL, 0)
+   ReleaseDC(NULL, hdcUsed)
    RETURN TRUE
 END FUNCTION
 ' ========================================================================================
@@ -1502,7 +1502,7 @@ END FUNCTION
 ' Remarks: MFT_BITMAP items do not support PARGB32 bitmaps.
 ' ========================================================================================
 PUBLIC FUNCTION tkMenu_ConvertToPARGB32 (BYVAL hDC AS HDC, BYVAL pargb AS DWORD PTR, BYVAL hbmp AS HBITMAP, BYVAL sizeImage AS SIZE, BYVAL cxRow AS LONG) AS BOOLEAN
-   IF hDC = nullptr OR pargb = nullptr OR hbmp = nullptr THEN RETURN FALSE
+   IF hDC = NULL OR pargb = NULL OR hbmp = NULL THEN RETURN FALSE
    DIM bmi AS BITMAPINFO
    tkMenu_InitBitmapInfo(@bmi, SIZEOF(bmi), sizeImage.cx, sizeImage.cy, 32)
    DIM hHeap AS HANDLE = GetProcessHeap
@@ -1544,7 +1544,7 @@ END FUNCTION
 ' Return value: TRUE or FALSE.
 ' ========================================================================================
 PUBLIC FUNCTION tkMenu_HasAlpha (BYVAL pargb AS DWORD PTR, BYVAL sizeImage AS SIZE, BYVAL cxRow AS LONG) AS BOOLEAN
-   IF pargb = nullptr THEN RETURN FALSE
+   IF pargb = NULL THEN RETURN FALSE
    DIM cxDelta AS ULONG = cxRow - sizeImage.cx
    DIM x AS LONG, y AS LONG
    FOR y = sizeImage.cy TO 1 STEP -1
@@ -1567,7 +1567,7 @@ END FUNCTION
 ' Return value: An HRESULT code
 ' ========================================================================================
 PUBLIC FUNCTION tkMenu_ConvertBufferToPARGB32 (BYVAL hPaintBuffer AS HPAINTBUFFER, BYVAL hDC AS HDC, BYVAL hIcon AS HICON, BYVAL sizeIcon AS SIZE) AS BOOLEAN
-   IF hPaintBuffer = nullptr OR hDC = nullptr OR hIcon = nullptr THEN RETURN FALSE
+   IF hPaintBuffer = NULL OR hDC = NULL OR hIcon = NULL THEN RETURN FALSE
    DIM prgbQuad AS RGBQUAD PTR, cxRow AS LONG
    DIM hr AS HRESULT
    hr = GetBufferedPaintBits(hPaintBuffer, @prgbQuad, @cxRow)
@@ -1604,15 +1604,15 @@ END FUNCTION
 '                  If TRUE, tkMenu_AddIconToItem destroys the icon before returning.
 ' - phbmp        = Location where the bitmap representation of the icon is stored. Can be NULL.
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_AddIconToItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS BOOLEAN, BYVAL hIcon AS HICON, BYVAL fAutoDestroy AS BOOLEAN = TRUE, BYVAL phbmp AS HBITMAP PTR = nullptr) AS BOOLEAN
-   IF hMenu = nullptr OR hIcon = nullptr THEN RETURN FALSE
+PUBLIC FUNCTION tkMenu_AddIconToItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS BOOLEAN, BYVAL hIcon AS HICON, BYVAL fAutoDestroy AS BOOLEAN = TRUE, BYVAL phbmp AS HBITMAP PTR = NULL) AS BOOLEAN
+   IF hMenu = NULL OR hIcon = NULL THEN RETURN FALSE
    DIM hbmp AS HBITMAP, sizIcon AS SIZE, rcIcon AS RECT
    sizIcon.cx = GetSystemMetrics(SM_CXSMICON)
    sizIcon.cy = GetSystemMetrics(SM_CYSMICON)
    SetRect(@rcIcon, 0, 0, sizIcon.cx, sizIcon.cy)
-   DIM hdcDest AS HDC = CreateCompatibleDC(nullptr)
-   IF hdcDest = nullptr THEN RETURN FALSE
-   DIM hr AS HRESULT = tkMenu_Create32BitHBITMAP(hdcDest, @sizIcon, nullptr, @hbmp)
+   DIM hdcDest AS HDC = CreateCompatibleDC(NULL)
+   IF hdcDest = NULL THEN RETURN FALSE
+   DIM hr AS HRESULT = tkMenu_Create32BitHBITMAP(hdcDest, @sizIcon, NULL, @hbmp)
    IF hr THEN
       DIM hbmpOld AS HBITMAP = CAST(HBITMAP, SelectObject(hdcDest, hbmp))
       IF hbmpOld THEN
@@ -1624,7 +1624,7 @@ PUBLIC FUNCTION tkMenu_AddIconToItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD
          DIM hdcBuffer AS HDC
          DIM hPaintBuffer AS HPAINTBUFFER = BeginBufferedPaint(hdcDest, @rcIcon, BPBF_DIB, @paintParams, @hdcBuffer)
          IF hPaintBuffer THEN
-            IF DrawIconEx(hdcBuffer, 0, 0, hIcon, sizIcon.cx, sizIcon.cy, 0, nullptr, DI_NORMAL) THEN
+            IF DrawIconEx(hdcBuffer, 0, 0, hIcon, sizIcon.cx, sizIcon.cy, 0, NULL, DI_NORMAL) THEN
                ' // If icon did not have an alpha channel, we need to convert buffer to PARGB32.
                hr = tkMenu_ConvertBufferToPARGB32(hPaintBuffer, hdcDest, hIcon, sizIcon)
             END IF
@@ -1636,7 +1636,7 @@ PUBLIC FUNCTION tkMenu_AddIconToItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD
    END IF
    DeleteDC(hdcDest)
    IF hr THEN hr = tkMenu_AddBitmapToItem(hMenu, uItem, fByPosition, hbmp)
-   IF hr = FALSE THEN DeleteObject(hbmp): hbmp = nullptr
+   IF hr = FALSE THEN DeleteObject(hbmp): hbmp = NULL
    IF fAutoDestroy THEN DestroyIcon(hIcon)
    IF phbmp THEN *phbmp = hbmp
    RETURN hr
@@ -1665,7 +1665,7 @@ PUBLIC SUB tkMenu_DestroyBitmaps (BYVAL hMenu AS HMENU)
             tkMenu_DestroyBitmaps(mii.hSubMenu)
          END IF
          ' If it has a bitmap and is NOT one of the special ones
-         IF mii.hbmpItem <> nullptr _
+         IF mii.hbmpItem <> NULL _
             ANDALSO mii.hbmpItem <> HBMMENU_CALLBACK _
             ANDALSO mii.hbmpItem <> HBMMENU_SYSTEM _
             ANDALSO mii.hbmpItem <> HBMMENU_MBAR_CLOSE _
@@ -1678,7 +1678,7 @@ PUBLIC SUB tkMenu_DestroyBitmaps (BYVAL hMenu AS HMENU)
             ANDALSO mii.hbmpItem <> HBMMENU_POPUP_MAXIMIZE _
             ANDALSO mii.hbmpItem <> HBMMENU_POPUP_MINIMIZE THEN
             DeleteObject(mii.hbmpItem)
-            mii.hbmpItem = nullptr
+            mii.hbmpItem = NULL
             SetMenuItemInfoW(hMenu, i, TRUE, @mii)
          END IF
       END IF

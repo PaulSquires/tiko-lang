@@ -42,7 +42,7 @@ END DESTRUCTOR
 ' * Creates a new Brush object based on this Brush object.
 ' =====================================================================================
 FUNCTION CGpBrush.Clone (BYVAL pBrush AS CGpBrush PTR) AS GpStatus
-   IF pBrush = nullptr THEN RETURN SetStatus(InvalidParameter)
+   IF pBrush = NULL THEN RETURN SetStatus(InvalidParameter)
    IF pBrush->m_pBrush THEN GdipDeleteBrush(pBrush->m_pBrush)
    RETURN SetStatus(GdipCloneBrush(m_pBrush, @pBrush->m_pBrush))
 END FUNCTION
@@ -130,7 +130,7 @@ END CONSTRUCTOR
 ' Creates a TextureBrush object based on an image, a defining set of coordinates, and
 ' a set of image properties.
 ' =====================================================================================
-CONSTRUCTOR CGpTextureBrush (BYVAL pImage AS CGpImage PTR, BYVAL dstRect AS GpRectF PTR, BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr)
+CONSTRUCTOR CGpTextureBrush (BYVAL pImage AS CGpImage PTR, BYVAL dstRect AS GpRectF PTR, BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL)
    DIM texture AS GpTexture PTR
    m_Status = GdipCreateTextureIA(IIF(pImage, pImage->m_pImage, NULL), IIF(pImageAttributes, pImageAttributes->m_pImgAttr, NULL), _
               dstRect->x, dstRect->y, dstRect->Width, dstRect->Height, @texture)
@@ -138,7 +138,7 @@ CONSTRUCTOR CGpTextureBrush (BYVAL pImage AS CGpImage PTR, BYVAL dstRect AS GpRe
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
-CONSTRUCTOR CGpTextureBrush (BYVAL pImage AS CGpImage PTR, BYVAL dstRect AS GpRect PTR, BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr)
+CONSTRUCTOR CGpTextureBrush (BYVAL pImage AS CGpImage PTR, BYVAL dstRect AS GpRect PTR, BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL)
    DIM texture AS GpTexture PTR
    m_Status = GdipCreateTextureIAI(IIF(pImage, pImage->m_pImage, NULL), IIF(pImageAttributes, pImageAttributes->m_pImgAttr, NULL), _
               dstRect->x, dstRect->y, dstRect->Width, dstRect->Height, @texture)
@@ -257,7 +257,7 @@ END FUNCTION
 ' * Gets a pointer to the Image object that is defined by this texture brush.
 ' =====================================================================================
 FUNCTION CGpTextureBrush.GetImage (BYVAL pImage AS CGpImage PTR) AS GpStatus
-   IF pImage = nullptr THEN RETURN SetStatus(InvalidParameter)
+   IF pImage = NULL THEN RETURN SetStatus(InvalidParameter)
    IF pImage->m_pImage THEN GdipDisposeImage(pImage->m_pImage)
    RETURN SetStatus(GdipGetTextureImage(cast(GpTexture PTR, m_pBrush), @pImage->m_pImage))
 END FUNCTION
@@ -614,7 +614,7 @@ END FUNCTION
 ' Gets the surround colors currently specified for this path gradient brush.
 ' =====================================================================================
 FUNCTION CGpPathGradientBrush.GetSurroundColors (BYVAL colors AS ARGB PTR, BYVAL nCount AS INT_ PTR) AS GpStatus
-   IF colors = nullptr OR nCount = nullptr THEN RETURN SetStatus(InvalidParameter)
+   IF colors = NULL OR nCount = NULL THEN RETURN SetStatus(InvalidParameter)
    DIM nCount1 AS INT_
    m_Status = GdipGetPathGradientSurroundColorCount(cast(GpPathGradient PTR, m_pBrush), @nCount1)
    IF m_Status <> OK THEN RETURN m_Status
@@ -629,7 +629,7 @@ END FUNCTION
 ' Sets the surround colors currently specified for this path gradient brush.
 ' =====================================================================================
 FUNCTION CGpPathGradientBrush.SetSurroundColors (BYVAL colors AS ARGB PTR, BYVAL nCount AS INT_ PTR) AS GpStatus
-   IF colors = nullptr OR nCount = nullptr THEN RETURN SetStatus(InvalidParameter)
+   IF colors = NULL OR nCount = NULL THEN RETURN SetStatus(InvalidParameter)
    DIM nCount1 AS INT_
    m_Status = GdipGetPathGradientPointCount(cast(GpPathGradient PTR, m_pBrush), @nCount1)
    IF *nCount > nCount1 OR nCount1 <= 0 THEN RETURN SetStatus(InvalidParameter)
@@ -665,7 +665,7 @@ END FUNCTION
 ' Not implemented in Windows GDI+ version 1.0.
 ' =====================================================================================
 FUNCTION CGpPathGradientBrush.GetGraphicsPath (BYVAL pGraphPath AS CGpGraphicsPath PTR) AS GpStatus
-   IF pGraphPath = nullptr THEN RETURN SetStatus(InvalidParameter)
+   IF pGraphPath = NULL THEN RETURN SetStatus(InvalidParameter)
    RETURN SetStatus(GdipGetPathGradientPath(cast(GpPathGradient PTR, m_pBrush), pGraphPath->m_pPath))
 END FUNCTION
 ' =====================================================================================
@@ -674,7 +674,7 @@ END FUNCTION
 ' Not implemented in Windows GDI+ version 1.0.
 ' =====================================================================================
 FUNCTION CGpPathGradientBrush.SetGraphicsPath (BYVAL pGraphPath AS CGpGraphicsPath PTR) AS GpStatus
-   IF pGraphPath = nullptr THEN RETURN SetStatus(InvalidParameter)
+   IF pGraphPath = NULL THEN RETURN SetStatus(InvalidParameter)
    RETURN SetStatus(GdipGetPathGradientPath(cast(GpPathGradient PTR, m_pBrush), pGraphPath->m_pPath))
 END FUNCTION
 ' =====================================================================================
@@ -778,7 +778,7 @@ END FUNCTION
 ' Sets the preset colors and the blend positions of this path gradient brush.
 ' =====================================================================================
 FUNCTION CGpPathGradientBrush.SetInterpolationColors (BYVAL presetColors AS ARGB PTR, BYVAL blendPositions AS SINGLE PTR, BYVAL nCount AS INT_) AS GpStatus
-   IF VARPTR(presetColors) = nullptr OR nCount <= 0 THEN RETURN SetStatus(InvalidParameter)
+   IF VARPTR(presetColors) = NULL OR nCount <= 0 THEN RETURN SetStatus(InvalidParameter)
    RETURN SetStatus(GdipSetPathGradientPresetBlend(cast(GpPathGradient PTR, m_pBrush), presetColors, blendPositions, nCount))
 END FUNCTION
 ' =====================================================================================
@@ -787,7 +787,7 @@ END FUNCTION
 ' Sets the number of preset colors currently specified for this path gradient brush.
 ' =====================================================================================
 FUNCTION CGpPathGradientBrush.GetInterpolationColors (BYVAL presetColors AS ARGB PTR, BYVAL blendPositions AS SINGLE PTR, BYVAL nCount AS INT_) AS GpStatus
-   IF VARPTR(presetColors) = nullptr OR nCount <= 0 THEN RETURN SetStatus(InvalidParameter)
+   IF VARPTR(presetColors) = NULL OR nCount <= 0 THEN RETURN SetStatus(InvalidParameter)
    RETURN SetStatus(GdipGetPathGradientPresetBlend(cast(GpPathGradient PTR, m_pBrush), presetColors, blendPositions, nCount))
 END FUNCTION
 ' =====================================================================================

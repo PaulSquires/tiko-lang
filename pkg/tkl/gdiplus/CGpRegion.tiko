@@ -80,7 +80,7 @@ END DESTRUCTOR
 ' * Creates a new Region object based on this Region object.
 ' =====================================================================================
 FUNCTION CGpRegion.Clone (BYVAL pRegion AS CGpRegion PTR) AS GpStatus
-   IF pRegion = nullptr THEN RETURN SetStatus(InvalidParameter)
+   IF pRegion = NULL THEN RETURN SetStatus(InvalidParameter)
    IF pRegion->m_pRegion THEN GdipDeleteRegion(pRegion->m_pRegion)
    RETURN SetStatus(GdipCloneRegion(m_pRegion, @pRegion->m_pRegion))
 END FUNCTION

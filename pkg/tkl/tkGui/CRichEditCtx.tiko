@@ -508,7 +508,7 @@ FUNCTION CRichEditCtx.CRichEditCtxProc ( _
          ' // without the rich edit control inserting a tab in the text
          IF wParam = VK_TAB THEN
             DIM pRichEdit AS CRichEditCtx PTR = cast(CRichEditCtx PTR, dwRefData)
-            IF pRichEdit = nullptr THEN RETURN 0
+            IF pRichEdit = NULL THEN RETURN 0
             '// Eat the TAB key
             IF pRichEdit->AcceptTab = FALSE THEN RETURN 0
          END IF
@@ -525,7 +525,7 @@ FUNCTION CRichEditCtx.CRichEditCtxProc ( _
                RETURN 0
             CASE VK_TAB
                DIM pRichEdit AS CRichEditCtx PTR = cast(CRichEditCtx PTR, dwRefData)
-               IF pRichEdit = nullptr THEN RETURN 0
+               IF pRichEdit = NULL THEN RETURN 0
                IF pRichEdit->AcceptTab = FALSE THEN
                   IF HIWORD(.GetKeyState(VK_SHIFT)) = 0 THEN
                      '// Set the focus in the previous control that has the WS_TABSTOP style
@@ -563,10 +563,10 @@ CONSTRUCTOR CRichEditCtx (BYVAL pWindow AS CWindow PTR, BYVAL cID AS LONG_PTR, B
    BYVAL dwStyle AS LONG = -1, BYVAL dwExStyle AS LONG = -1, BYVAL lpParam AS LONG_PTR = NULL)
 
    ' // Create the control
-   IF pWindow = nullptr THEN EXIT CONSTRUCTOR
+   IF pWindow = NULL THEN EXIT CONSTRUCTOR
    m_hRichEdit = pWindow->AddControl("RICHEDIT", pWindow->hWindow, cID, wszTitle, _
                  x, y, nWidth, nHeight, dwStyle, dwExStyle, lpParam)
-   IF m_hRichEdit = nullptr THEN EXIT CONSTRUCTOR
+   IF m_hRichEdit = NULL THEN EXIT CONSTRUCTOR
    ' // Subclass the control
    SetWindowSubclass m_hRichEdit, CAST(SUBCLASSPROC, @CRichEditCtxProc), cID, CAST(DWORD_PTR, @this)
      
@@ -579,7 +579,7 @@ CONSTRUCTOR CRichEditCtx (BYVAL pWindow AS CWindow PTR, BYVAL cID AS LONG_PTR, B
    SendMessageW(m_hRichEdit, ECM_FIRST + 10, _dwExStyle, &H0010)
    ' // Get a pointer to the ITextDocument2 interface
    m_pTextDocument2 = this.GetDocumentInterface
-   IF m_pTextDocument2 = nullptr THEN EXIT CONSTRUCTOR
+   IF m_pTextDocument2 = NULL THEN EXIT CONSTRUCTOR
 
 END CONSTRUCTOR
 ' ========================================================================================
@@ -592,7 +592,7 @@ DESTRUCTOR CRichEditCtx
    DIM dwRefCount AS DWORD = tkSafeRelease(m_pTextDocument2)
    ' // Destroy the Rich Edit control
    DestroyWindow m_hRichEdit
-   m_hRichEdit = nullptr
+   m_hRichEdit = NULL
 END DESTRUCTOR
 ' ========================================================================================
 
@@ -656,7 +656,7 @@ FUNCTION CRichEditCtx.SetWysiwygPrint (BYREF wszPrinterName AS WSTRING = "") AS 
       _wszPrinterName = tkParseStr(buffer, 1, ",")
    END IF
    ' // Create a device context for the printer
-   DIM hDCPrinter AS HDC = CreateDCW(nullptr, _wszPrinterName, nullptr, nullptr)
+   DIM hDCPrinter AS HDC = CreateDCW(NULL, _wszPrinterName, NULL, NULL)
    ' // Calculate the width in twips
    DIM cx AS LONG, cy AS LONG
    cx = (GetDeviceCaps(hDCPrinter, HORZRES) * 1440) \ GetDeviceCaps(hDCPrinter, LOGPIXELSX)
@@ -2355,11 +2355,11 @@ BYVAL dwFlagsAndAttributes AS DWORD = FILE_ATTRIBUTE_NORMAL) AS BOOLEAN
    m_Result = 0
    DIM dwCreationFlag AS DWORD
    IF Overwrite THEN dwCreationFlag = CREATE_ALWAYS ELSE dwCreationFlag = CREATE_NEW
-   DIM hFile AS HANDLE = CreateFileW(wszFileName, GENERIC_WRITE, 0, nullptr, dwCreationFlag, dwFlagsAndAttributes, nullptr)
+   DIM hFile AS HANDLE = CreateFileW(wszFileName, GENERIC_WRITE, 0, NULL, dwCreationFlag, dwFlagsAndAttributes, NULL)
    IF hFile = INVALID_HANDLE_VALUE THEN m_Result = GetLastError : RETURN FALSE
    ' // Save the rtf text
    DIM dwBytesWritten AS DWORD
-   DIM bSuccess AS BOOLEAN = WriteFile(hFile, STRPTR(strRawText), LEN(strRawText), @dwBytesWritten, nullptr)
+   DIM bSuccess AS BOOLEAN = WriteFile(hFile, STRPTR(strRawText), LEN(strRawText), @dwBytesWritten, NULL)
    IF bSuccess = FALSE THEN m_Result = GetLastError
    CloseHandle(hFile)
    RETURN bSuccess
@@ -2660,19 +2660,19 @@ BYVAL Ascent AS LONG = 0, BYVAL nType AS LONG = TA_BASELINE, BYREF wszAlternateT
    ' // See if the library is already loaded in the address space
    DIM AS ANY PTR pLib = GetModuleHandleW("shlwapi.dll")
    ' // If it is not loaded, load it
-   IF pLib = nullptr THEN pLib = DyLibLoad("shlwapi.dll")
-   IF pLib = nullptr THEN this.m_Result = E_FAIL : RETURN FALSE
+   IF pLib = NULL THEN pLib = DyLibLoad("shlwapi.dll")
+   IF pLib = NULL THEN this.m_Result = E_FAIL : RETURN FALSE
    DIM pShCreateStreamOnFileEx AS FUNCTION (BYVAL pwszFile AS WSTRING PTR, BYVAL grfMode AS DWORD, BYVAL dwAttributes AS DWORD, _
        BYVAL fCreate AS WINBOOL, BYVAL pstmTemplate AS IStream PTR, BYVAL ppStream AS IStream PTR PTR) AS HRESULT
    pShCreateStreamOnFileEx = DyLibSymbol(pLib, "SHCreateStreamOnFileEx")
-   IF pShCreateStreamOnFileEx = nullptr THEN m_Result = E_FAIL : RETURN FALSE
+   IF pShCreateStreamOnFileEx = NULL THEN m_Result = E_FAIL : RETURN FALSE
    DIM pStream AS IStream PTR
    DIM hr AS HRESULT = pShCreateStreamOnFileEx(@wszFileName, STGM_READ, FILE_ATTRIBUTE_NORMAL, FALSE, NULL, @pStream)
    ' For some reason, if we free the library, calling the methods that use the returned
    ' IStream pointer will GPF if compiled with the -O switch.
 '   DyLibFree(pLib)
    m_Result = hr
-   IF hr <> S_OK OR pStream = nullptr THEN RETURN FALSE
+   IF hr <> S_OK OR pStream = NULL THEN RETURN FALSE
    ' // Fill the RICHEDIT_IMAGE_PARAMETERS structure
    DIM ip AS RICHEDIT_IMAGE_PARAMETERS
    ip.xWidth = tkPixelsToHiMetricX(xWidth * m_ScalingRatio)
@@ -3149,7 +3149,7 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CRichEditCtx.EnableWordWrap () AS BOOLEAN
    DIM hDC AS HDC = GetDC(m_hRichEdit)
-   IF hDC = nullptr THEN m_Result = E_FAIL : RETURN FALSE
+   IF hDC = NULL THEN m_Result = E_FAIL : RETURN FALSE
    DIM hr AS HRESULT = SendMessageW(m_hRichEdit, EM_SETTARGETDEVICE, cast(WPARAM, hDC), 0)
    ReleaseDC(m_hRichEdit, hdc)
    IF hr <> 0 THEN
@@ -3168,7 +3168,7 @@ END FUNCTION
 FUNCTION CRichEditCtx.DisableWordWrap (BYVAL LineWidth AS LONG = 32767) AS BOOLEAN
    m_Result = 0
    DIM hDC AS HDC = GetDC(m_hRichEdit)
-   IF hDC = nullptr THEN m_Result = E_FAIL : RETURN FALSE
+   IF hDC = NULL THEN m_Result = E_FAIL : RETURN FALSE
    DIM hr AS HRESULT = SendMessageW(m_hRichEdit, EM_SETTARGETDEVICE, cast(WPARAM, hDC), LineWidth)
    ReleaseDC(m_hRichEdit, hdc)
    IF hr <> 0 THEN
@@ -3213,7 +3213,7 @@ FUNCTION CRichEditCtx.SetFont ( _
    DIM tlf AS LOGFONTW                    ' // LOGFONT structure
    DIM tcf AS CHARFORMATW                 ' // CHARFORMATW structure
 
-   hDC = GetDC(nullptr)
+   hDC = GetDC(NULL)
    EnumFontFamiliesW(hDC, wszFaceName, cast(FONTENUMPROCW, @CRichEditCtxEnumFontFamProcW), cast(LPARAM, @tlf))
    ReleaseDC NULL, hDC
    tcf.cbSize = SIZEOF(tcf)
@@ -3408,19 +3408,19 @@ FUNCTION CRichEditCtx.LoadRtfFromResource ( _
    DIM rtfCustData AS TK_CRichEditCtx_CUSTOMDATA     ' // TK_CRichEditCtx_CUSTOMDATA structure
 
    ' // Checks the validity of the parameters
-   IF m_hRichEdit = nullptr THEN m_Result = E_HANDLE : RETURN FALSE
+   IF m_hRichEdit = 0 THEN m_Result = E_HANDLE : RETURN FALSE
    IF LEN(wszResourceName) = 0 THEN m_Result = E_INVALIDARG : RETURN FALSE
    m_Result = 0
 
    ' // Loads the resource
    hResInfo = FindResourceW(m_hInstance, wszResourceName, CAST(LPCWSTR, RT_RCDATA))
-   IF hResInfo = nullptr THEN m_Result = GetLastError : RETURN FALSE
+   IF hResInfo = NULL THEN m_Result = GetLastError : RETURN FALSE
 
    ' // Loads and locks the resource
    ' // Note  LockResource does not actually lock memory; it is just used to obtain
    ' // a pointer to the memory containing the resource data.
    pResData = LockResource(LoadResource(m_hInstance, hResInfo))
-   IF pResData = nullptr THEN m_Result = GetLastError : RETURN FALSE
+   IF pResData = NULL THEN m_Result = GetLastError : RETURN FALSE
    DIM cbSize AS LONG = SizeofResource(m_hInstance, hResInfo)
    DIM buffer AS STRING = SPACE(cbSize)
    CopyMemory(STRPTR(buffer), pResData, cbSize)
@@ -3451,17 +3451,17 @@ FUNCTION CRichEditCtx.GetTextFromFile (BYREF wszFileName AS WSTRING) AS STRING
    DIM buffer AS STRING                     ' // Buffer
 
    ' // Checks the validity of the parameters
-   IF m_hRichEdit = nullptr THEN m_Result = E_HANDLE : RETURN buffer
+   IF m_hRichEdit = 0 THEN m_Result = E_HANDLE : RETURN buffer
    IF LEN(wszFileName) = 0 THEN m_Result = E_INVALIDARG : RETURN buffer
    m_Result = 0
    ' // Opens the file and sends the message
    hFile = CreateFileW(wszFileName, GENERIC_READ, FILE_SHARE_READ, _
-                       nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr)
+                       NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL)
    IF hFile = INVALID_HANDLE_VALUE THEN m_Result = ERROR_FILE_NOT_FOUND : RETURN buffer
    ' // Get the text
-   cb = GetFileSize(hFile, nullptr)
+   cb = GetFileSize(hFile, NULL)
    buffer = SPACE(cb)
-   IF ReadFile(hFile, STRPTR(buffer), cb, pcb, nullptr) = 0 THEN m_Result = GetLastError
+   IF ReadFile(hFile, STRPTR(buffer), cb, pcb, NULL) = 0 THEN m_Result = GetLastError
    CloseHandle hFile
    RETURN buffer
 
@@ -3476,7 +3476,7 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CRichEditCtx.AppendDocFile (BYREF wszFileName AS WSTRING, BYVAL CodePage AS DWORD = CP_ACP) AS DWORD
    ' // Checks the validity of the parameters
-   IF m_hRichEdit = nullptr THEN m_Result = E_HANDLE : RETURN 0
+   IF m_hRichEdit = 0 THEN m_Result = E_HANDLE : RETURN 0
    IF LEN(wszFileName) = 0 THEN m_Result = E_INVALIDARG : RETURN 0
    m_Result = 0
    ' // Gets all the text from the file
@@ -3511,7 +3511,7 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CRichEditCtx.InsertDocFile (BYREF wszFileName AS WSTRING, BYVAL dwPos AS DWORD, BYVAL CodePage AS DWORD = CP_ACP) AS DWORD
    ' // Checks the validity of the parameters
-   IF m_hRichEdit = nullptr THEN m_Result = E_HANDLE : RETURN 0
+   IF m_hRichEdit = 0 THEN m_Result = E_HANDLE : RETURN 0
    IF LEN(wszFileName) = 0 THEN m_Result = E_INVALIDARG : RETURN 0
    m_Result = 0
    ' // Gets all the text from the file
@@ -3550,11 +3550,11 @@ FUNCTION CRichEditCtx.InsertObject ( _
    ' // Get the IRichEditOle interface
    DIM pRichEditOle AS IRichEditOle PTR
    m_Result = SendMessageW(m_hRichEdit, EM_GETOLEINTERFACE, 0, cast(LPARAM, @pRichEditOle))
-   IF pRichEditOle = nullptr THEN RETURN FALSE
+   IF pRichEditOle = NULL THEN RETURN FALSE
 
    ' // Create structured storage
    DIM pLockBytes AS ILockBytes PTR
-   m_Result = CreateILockBytesOnHGlobal(nullptr, TRUE, @pLockBytes)
+   m_Result = CreateILockBytesOnHGlobal(NULL, TRUE, @pLockBytes)
    IF FAILED(m_Result)THEN RETURN FALSE
 
    DIM pStorage AS IStorage PTR
@@ -3566,7 +3566,7 @@ FUNCTION CRichEditCtx.InsertObject ( _
    ' // Set up the data format
    DIM formatEtc AS FORMATETC
    formatEtc.cfFormat = 0
-   formatEtc.ptd = nullptr
+   formatEtc.ptd = NULL
    formatEtc.dwAspect = DVASPECT_CONTENT
    formatEtc.lindex = -1
    formatEtc.tymed = TYMED_NULL
@@ -3693,11 +3693,11 @@ BYVAL dwFlagsAndAttributes AS DWORD = FILE_ATTRIBUTE_NORMAL) AS BOOLEAN
    m_Result = 0
    DIM dwCreationFlag AS DWORD
    IF Overwrite THEN dwCreationFlag = CREATE_ALWAYS ELSE dwCreationFlag = CREATE_NEW
-   DIM hFile AS HANDLE = CreateFileW(wszFileName, GENERIC_WRITE, 0, nullptr, dwCreationFlag, dwFlagsAndAttributes, nullptr)
+   DIM hFile AS HANDLE = CreateFileW(wszFileName, GENERIC_WRITE, 0, NULL, dwCreationFlag, dwFlagsAndAttributes, NULL)
    IF hFile = INVALID_HANDLE_VALUE THEN m_Result = GetLastError : RETURN FALSE
    ' // Save the rtf text
    DIM dwBytesWritten AS DWORD
-   DIM bSuccess AS BOOLEAN = WriteFile(hFile, STRPTR(strRTFData), LEN(strRTFData), @dwBytesWritten, nullptr)
+   DIM bSuccess AS BOOLEAN = WriteFile(hFile, STRPTR(strRTFData), LEN(strRTFData), @dwBytesWritten, NULL)
    IF bSuccess = FALSE THEN m_Result = GetLastError
    CloseHandle(hFile)
    RETURN bSuccess
@@ -3715,11 +3715,11 @@ BYVAL dwFlagsAndAttributes AS DWORD = FILE_ATTRIBUTE_NORMAL) AS BOOLEAN
    m_Result = 0
    DIM dwCreationFlag AS DWORD
    IF Overwrite THEN dwCreationFlag = CREATE_ALWAYS ELSE dwCreationFlag = CREATE_NEW
-   DIM hFile AS HANDLE = CreateFileW(wszFileName, GENERIC_WRITE, 0, nullptr, dwCreationFlag, dwFlagsAndAttributes, nullptr)
+   DIM hFile AS HANDLE = CreateFileW(wszFileName, GENERIC_WRITE, 0, NULL, dwCreationFlag, dwFlagsAndAttributes, NULL)
    IF hFile = INVALID_HANDLE_VALUE THEN m_Result = GetLastError : RETURN FALSE
    ' // Save the rtf text
    DIM dwBytesWritten AS DWORD
-   DIM bSuccess AS BOOLEAN = WriteFile(hFile, STRPTR(strRTFData), LEN(strRTFData), @dwBytesWritten, nullptr)
+   DIM bSuccess AS BOOLEAN = WriteFile(hFile, STRPTR(strRTFData), LEN(strRTFData), @dwBytesWritten, NULL)
    IF bSuccess = FALSE THEN m_Result = GetLastError
    CloseHandle(hFile)
    RETURN bSuccess
@@ -3737,11 +3737,11 @@ BYVAL dwFlagsAndAttributes AS DWORD = FILE_ATTRIBUTE_NORMAL) AS BOOLEAN
    m_Result = 0
    DIM dwCreationFlag AS DWORD
    IF Overwrite THEN dwCreationFlag = CREATE_ALWAYS ELSE dwCreationFlag = CREATE_NEW
-   DIM hFile AS HANDLE = CreateFileW(wszFileName, GENERIC_WRITE, 0, nullptr, dwCreationFlag, dwFlagsAndAttributes, nullptr)
+   DIM hFile AS HANDLE = CreateFileW(wszFileName, GENERIC_WRITE, 0, NULL, dwCreationFlag, dwFlagsAndAttributes, NULL)
    IF hFile = INVALID_HANDLE_VALUE THEN m_Result = GetLastError : RETURN FALSE
    ' // Save the rtf text
    DIM dwBytesWritten AS DWORD
-   DIM bSuccess AS BOOLEAN = WriteFile(hFile, STRPTR(strRTFData), LEN(strRTFData), @dwBytesWritten, nullptr)
+   DIM bSuccess AS BOOLEAN = WriteFile(hFile, STRPTR(strRTFData), LEN(strRTFData), @dwBytesWritten, NULL)
    IF bSuccess = FALSE THEN m_Result = GetLastError
    CloseHandle(hFile)
    RETURN bSuccess
@@ -3759,11 +3759,11 @@ BYVAL dwFlagsAndAttributes AS DWORD = FILE_ATTRIBUTE_NORMAL) AS BOOLEAN
    m_Result = 0
    DIM dwCreationFlag AS DWORD
    IF Overwrite THEN dwCreationFlag = CREATE_ALWAYS ELSE dwCreationFlag = CREATE_NEW
-   DIM hFile AS HANDLE = CreateFileW(wszFileName, GENERIC_WRITE, 0, nullptr, dwCreationFlag, dwFlagsAndAttributes, nullptr)
+   DIM hFile AS HANDLE = CreateFileW(wszFileName, GENERIC_WRITE, 0, NULL, dwCreationFlag, dwFlagsAndAttributes, NULL)
    IF hFile = INVALID_HANDLE_VALUE THEN m_Result = GetLastError : RETURN FALSE
    ' // Save the rtf text
    DIM dwBytesWritten AS DWORD
-   DIM bSuccess AS BOOLEAN = WriteFile(hFile, STRPTR(strRTFData), LEN(strRTFData), @dwBytesWritten, nullptr)
+   DIM bSuccess AS BOOLEAN = WriteFile(hFile, STRPTR(strRTFData), LEN(strRTFData), @dwBytesWritten, NULL)
    IF bSuccess = FALSE THEN m_Result = GetLastError
    CloseHandle(hFile)
    RETURN bSuccess
@@ -3781,11 +3781,11 @@ BYVAL dwFlagsAndAttributes AS DWORD = FILE_ATTRIBUTE_NORMAL) AS BOOLEAN
    m_Result = 0
    DIM dwCreationFlag AS DWORD
    IF Overwrite THEN dwCreationFlag = CREATE_ALWAYS ELSE dwCreationFlag = CREATE_NEW
-   DIM hFile AS HANDLE = CreateFileW(wszFileName, GENERIC_WRITE, 0, nullptr, dwCreationFlag, dwFlagsAndAttributes, nullptr)
+   DIM hFile AS HANDLE = CreateFileW(wszFileName, GENERIC_WRITE, 0, NULL, dwCreationFlag, dwFlagsAndAttributes, NULL)
    IF hFile = INVALID_HANDLE_VALUE THEN m_Result = GetLastError : RETURN FALSE
    ' // Save the text
    DIM dwBytesWritten AS DWORD
-   DIM bSuccess AS BOOLEAN = WriteFile(hFile, STRPTR(strText), LEN(strText), @dwBytesWritten, nullptr)
+   DIM bSuccess AS BOOLEAN = WriteFile(hFile, STRPTR(strText), LEN(strText), @dwBytesWritten, NULL)
    IF bSuccess = FALSE THEN m_Result = GetLastError
    CloseHandle(hFile)
    RETURN bSuccess
@@ -3803,11 +3803,11 @@ BYVAL dwFlagsAndAttributes AS DWORD = FILE_ATTRIBUTE_NORMAL) AS BOOLEAN
    ' // Create the file
    DIM dwCreationFlag AS DWORD
    IF Overwrite THEN dwCreationFlag = CREATE_ALWAYS ELSE dwCreationFlag = CREATE_NEW
-   DIM hFile AS HANDLE = CreateFileW(wszFileName, GENERIC_WRITE, 0, nullptr, dwCreationFlag, dwFlagsAndAttributes, nullptr)
+   DIM hFile AS HANDLE = CreateFileW(wszFileName, GENERIC_WRITE, 0, NULL, dwCreationFlag, dwFlagsAndAttributes, NULL)
    IF hFile = INVALID_HANDLE_VALUE THEN m_Result = GetLastError : RETURN FALSE
    ' // Save the text
    DIM dwBytesWritten AS DWORD
-   DIM bSuccess AS BOOLEAN = WriteFile(hFile, STRPTR(strText), LEN(strText), @dwBytesWritten, nullptr)
+   DIM bSuccess AS BOOLEAN = WriteFile(hFile, STRPTR(strText), LEN(strText), @dwBytesWritten, NULL)
    IF bSuccess = FALSE THEN m_Result = GetLastError
    CloseHandle(hFile)
    RETURN bSuccess

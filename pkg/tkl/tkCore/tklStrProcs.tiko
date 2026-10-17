@@ -36,7 +36,7 @@ PUBLIC FUNCTION tkUcase (BYVAL pwszStr AS WSTRING PTR, _
    BYVAL dwMapFlags AS DWORD = 0) AS USTRING
 
    ' // Check the validity of the passed parameters
-   IF pwszStr = nullptr THEN RETURN ""
+   IF pwszStr = NULL THEN RETURN ""
    IF LEN(*pwszStr) = 0 THEN RETURN ""
    DIM ustrOut AS USTRING = *pwszStr
    ' // Make sure that LCMAP_LOWERCASE is not being used
@@ -46,15 +46,15 @@ PUBLIC FUNCTION tkUcase (BYVAL pwszStr AS WSTRING PTR, _
    ' // Usually, the length of the converted string will be the same that the one of
    ' // the input string, so let's try it
    DIM cbLen AS LONG = LCMapStringEx(pwszLocaleName, dwMapFlags, pwszStr, LEN(*pwszStr), _
-       STRPTR(ustrOut), LEN(ustrOut), nullptr, nullptr, 0)
+       STRPTR(ustrOut), LEN(ustrOut), NULL, NULL, 0)
    ' // If the output length is bigger than the input one, request the needed length,
    ' // make the buffer bigger and try it again
    IF cbLen = 0 AND GetLastError = ERROR_INSUFFICIENT_BUFFER THEN
-      cbLen = LCMapStringEx(pwszLocaleName, dwMapFlags, pwszStr, LEN(*pwszStr), nullptr, 0, nullptr, nullptr, 0)
+      cbLen = LCMapStringEx(pwszLocaleName, dwMapFlags, pwszStr, LEN(*pwszStr), NULL, 0, NULL, NULL, 0)
       IF cbLen THEN
          ustrOut += WSPACE(cbLen)
          cbLen = LCMapStringEx(pwszLocaleName, dwMapFlags, pwszStr, LEN(*pwszStr), _
-                 STRPTR(ustrOut), LEN(ustrOut), nullptr, nullptr, 0)
+                 STRPTR(ustrOut), LEN(ustrOut), NULL, NULL, 0)
       END IF
    END IF
    RETURN ustrOut
@@ -70,7 +70,7 @@ PUBLIC FUNCTION tkLcase (BYVAL pwszStr AS WSTRING PTR, _
    BYVAL dwMapFlags AS DWORD = 0) AS USTRING
 
    ' // Check the vailidy of the passed parameters
-   IF pwszStr = nullptr THEN RETURN ""
+   IF pwszStr = NULL THEN RETURN ""
    IF LEN(*pwszStr) = 0 THEN RETURN ""
    DIM ustrOut AS USTRING = *pwszStr
    ' // Make sure that LCMAP_UPPERCASE is not being used
@@ -80,15 +80,15 @@ PUBLIC FUNCTION tkLcase (BYVAL pwszStr AS WSTRING PTR, _
    ' // Usually, the length of the converted string will be the same that the one of
    ' // the input string, so let's try it
    DIM cbLen AS LONG = LCMapStringEx(pwszLocaleName, dwMapFlags, pwszStr, LEN(*pwszStr), _
-       STRPTR(ustrOut), LEN(ustrOut), nullptr, nullptr, 0)
+       STRPTR(ustrOut), LEN(ustrOut), NULL, NULL, 0)
    ' // If the output length is bigger than the input one, request the needed length,
    ' // make the buffer bigger and try it again
    IF cbLen = 0 AND GetLastError = ERROR_INSUFFICIENT_BUFFER THEN
-      cbLen = LCMapStringEx(pwszLocaleName, dwMapFlags, pwszStr, LEN(*pwszStr), nullptr, 0, nullptr, nullptr, 0)
+      cbLen = LCMapStringEx(pwszLocaleName, dwMapFlags, pwszStr, LEN(*pwszStr), NULL, 0, NULL, NULL, 0)
       IF cbLen THEN
          ustrOut += WSPACE(cbLen)
          cbLen = LCMapStringEx(pwszLocaleName, dwMapFlags, pwszStr, LEN(*pwszStr), _
-                 STRPTR(ustrOut), LEN(ustrOut), nullptr, nullptr, 0)
+                 STRPTR(ustrOut), LEN(ustrOut), NULL, NULL, 0)
       END IF
    END IF
    RETURN ustrOut
@@ -102,7 +102,7 @@ END FUNCTION
 PUBLIC FUNCTION tkUcode (BYREF ansiStr AS CONST STRING, BYVAL nCodePage AS LONG = 0) AS USTRING
 
    IF nCodePage = CP_UTF8 THEN
-      DIM dwLen AS DWORD = MultiByteToWideChar(CP_UTF8, 0, STRPTR(ansiStr), LEN(ansiStr), nullptr, 0)
+      DIM dwLen AS DWORD = MultiByteToWideChar(CP_UTF8, 0, STRPTR(ansiStr), LEN(ansiStr), NULL, 0)
       IF dwLen THEN
          DIM ustr AS USTRING = WSPACE(dwLen)
          dwLen = MultiByteToWideChar(CP_UTF8, 0, STRPTR(ansiStr), LEN(ansiStr), STRPTR(ustr), dwLen * 2)
@@ -123,17 +123,17 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkAcode (BYVAL pwszStr AS WSTRING PTR, BYVAL nCodePage AS LONG = 0) AS STRING
 
-   IF pwszStr = nullptr THEN EXIT FUNCTION
+   IF pwszStr = NULL THEN EXIT FUNCTION
    IF nCodePage = CP_UTF8 THEN
-      DIM dwLen AS DWORD = WideCharToMultiByte(CP_UTF8, 0, pwszStr, LEN(*pwszStr), nullptr, 0, nullptr, nullptr)
+      DIM dwLen AS DWORD = WideCharToMultiByte(CP_UTF8, 0, pwszStr, LEN(*pwszStr), NULL, 0, NULL, NULL)
       IF dwLen THEN
          DIM ansiStr AS STRING = SPACE(dwLen)
-         dwLen = WideCharToMultiByte(CP_UTF8, 0, pwszStr, LEN(*pwszStr), STRPTR(ansiStr), LEN(ansiStr), nullptr, nullptr)
+         dwLen = WideCharToMultiByte(CP_UTF8, 0, pwszStr, LEN(*pwszStr), STRPTR(ansiStr), LEN(ansiStr), NULL, NULL)
          IF dwLen THEN RETURN ansiStr
       END IF
    ELSE
       DIM ansiStr AS STRING = SPACE(LEN(*pwszStr))
-      DIM dwLen AS DWORD = WideCharToMultiByte(nCodePage, 0, pwszStr, LEN(*pwszStr), STRPTR(ansiStr), LEN(ansiStr), nullptr, nullptr)
+      DIM dwLen AS DWORD = WideCharToMultiByte(nCodePage, 0, pwszStr, LEN(*pwszStr), STRPTR(ansiStr), LEN(ansiStr), NULL, NULL)
       IF dwLen THEN RETURN ansiStr
    ENDIF
    RETURN ""
@@ -497,7 +497,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkBase64EncodeA (BYREF strData AS STRING) AS STRING
    DIM cchStr AS DWORD, strOut AS STRING
-   DIM bRes AS LONG = CryptBinaryToStringA(STRPTR(strData), LEN(strData), CRYPT_STRING_BASE64, nullptr, @cchStr)
+   DIM bRes AS LONG = CryptBinaryToStringA(STRPTR(strData), LEN(strData), CRYPT_STRING_BASE64, NULL, @cchStr)
    IF bRes = 0 OR cchStr = 0 THEN EXIT FUNCTION
    strOut = SPACE(cchStr)
    bRes = CryptBinaryToStringA(STRPTR(strData), LEN(strData), CRYPT_STRING_BASE64, STRPTR(strOut), @cchStr)
@@ -507,7 +507,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkBase64EncodeW (BYREF ustrData AS WSTRING) AS USTRING
    DIM cchStr AS DWORD, ustrOut AS USTRING
-   DIM bRes AS LONG = CryptBinaryToStringW(CAST(UBYTE PTR, STRPTR(ustrData)), LEN(ustrData) * 2, CRYPT_STRING_BASE64, nullptr, @cchStr)
+   DIM bRes AS LONG = CryptBinaryToStringW(CAST(UBYTE PTR, STRPTR(ustrData)), LEN(ustrData) * 2, CRYPT_STRING_BASE64, NULL, @cchStr)
    IF bRes = 0 OR cchStr = 0 THEN EXIT FUNCTION
    ustrOut = WSPACE(cchStr)
    bRes = CryptBinaryToStringW(CAST(UBYTE PTR, STRPTR(ustrData)), LEN(ustrData) * 2, CRYPT_STRING_BASE64, STRPTR(ustrOut), @cchStr)
@@ -523,20 +523,20 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkBase64DecodeA (BYREF strData AS STRING) AS STRING
    DIM cbBinary AS DWORD, strOut AS STRING
-   DIM bRes AS LONG = CryptStringToBinaryA(STRPTR(strData), LEN(strData), CRYPT_STRING_BASE64, nullptr, @cbBinary, nullptr, nullptr)
+   DIM bRes AS LONG = CryptStringToBinaryA(STRPTR(strData), LEN(strData), CRYPT_STRING_BASE64, NULL, @cbBinary, NULL, NULL)
    IF bRes = 0 OR cbBinary = 0 THEN EXIT FUNCTION
    strOut = SPACE(cbBinary)
-   bRes = CryptStringToBinaryA(STRPTR(strData), LEN(strData), CRYPT_STRING_BASE64, STRPTR(strOut), @cbBinary, nullptr, nullptr)
+   bRes = CryptStringToBinaryA(STRPTR(strData), LEN(strData), CRYPT_STRING_BASE64, STRPTR(strOut), @cbBinary, NULL, NULL)
    FUNCTION = strOut
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkBase64DecodeW (BYREF ustrData AS USTRING) AS USTRING
    DIM cbBinary AS DWORD, ustrOut AS USTRING
-   DIM bRes AS LONG = CryptStringToBinaryW(STRPTR(ustrData), LEN(ustrData) * 2, CRYPT_STRING_BASE64, nullptr, @cbBinary, nullptr, nullptr)
+   DIM bRes AS LONG = CryptStringToBinaryW(STRPTR(ustrData), LEN(ustrData) * 2, CRYPT_STRING_BASE64, NULL, @cbBinary, NULL, NULL)
    IF bRes = 0 OR cbBinary = 0 THEN EXIT FUNCTION
    ustrOut = WSPACE(cbBinary \ 2)
-   bRes = CryptStringToBinaryW(STRPTR(ustrData), LEN(ustrData) * 2, CRYPT_STRING_BASE64, CAST(BYTE PTR, STRPTR(ustrOut)), @cbBinary, nullptr, nullptr)
+   bRes = CryptStringToBinaryW(STRPTR(ustrData), LEN(ustrData) * 2, CRYPT_STRING_BASE64, CAST(BYTE PTR, STRPTR(ustrOut)), @cbBinary, NULL, NULL)
    FUNCTION = ustrOut
 END FUNCTION
 ' ========================================================================================

@@ -42,7 +42,7 @@ PUBLIC TYPE CMemBmp
       m_hMemDc AS HDC                       ' // Memory compatible device context handle
 
    Public:
-      DECLARE CONSTRUCTOR (BYVAL nWidth AS LONG = 0, BYVAL nHeight AS LONG = 0, BYVAL hdc AS HDC = nullptr, BYVAL clrBkg AS COLORREF = BGR(255, 255, 255))
+      DECLARE CONSTRUCTOR (BYVAL nWidth AS LONG = 0, BYVAL nHeight AS LONG = 0, BYVAL hdc AS HDC = NULL, BYVAL clrBkg AS COLORREF = BGR(255, 255, 255))
       DECLARE CONSTRUCTOR (BYREF wszFileName AS WSTRING, BYVAL dimPercent AS LONG = 0, BYVAL bGrayScale AS LONG = FALSE, BYVAL clrBkg AS ARGB = 0)
       DECLARE CONSTRUCTOR (BYVAL hInst AS HINSTANCE, BYREF wszImageName AS WSTRING, BYVAL dimPercent AS LONG = 0, BYVAL bGrayScale AS LONG = FALSE, BYVAL clrBkg AS ARGB = 0)
       DECLARE DESTRUCTOR
@@ -74,7 +74,7 @@ END TYPE
 ' ========================================================================================
 ' CMemBmp constructors
 ' ========================================================================================
-CONSTRUCTOR CMemBmp (BYVAL nWidth AS LONG = 0, BYVAL nHeight AS LONG = 0, BYVAL hdc AS .HDC = nullptr, BYVAL clrBkg AS COLORREF = BGR(255, 255, 255))
+CONSTRUCTOR CMemBmp (BYVAL nWidth AS LONG = 0, BYVAL nHeight AS LONG = 0, BYVAL hdc AS .HDC = NULL, BYVAL clrBkg AS COLORREF = BGR(255, 255, 255))
    IF hdc THEN
       ' // Create a compatible bitmap
       m_hBmp = CreateCompatibleBitmap(hdc, nWidth, nHeight)
@@ -83,7 +83,7 @@ CONSTRUCTOR CMemBmp (BYVAL nWidth AS LONG = 0, BYVAL nHeight AS LONG = 0, BYVAL 
       ' // Select the bitmap into the compatible device context
       IF m_hMemDc THEN m_hOldBmp = SelectObject(m_hMemDc, m_hBmp)
    ELSE
-      DIM hdcScreen AS .HDC = CreateDCW("DISPLAY", "", "", nullptr)
+      DIM hdcScreen AS .HDC = CreateDCW("DISPLAY", "", "", NULL)
       IF hdcScreen THEN
          ' // Create a compatible bitmap
          m_hBmp = CreateCompatibleBitmap(hdcScreen, nWidth, nHeight)
@@ -117,7 +117,7 @@ CONSTRUCTOR CMemBmp (BYREF wszFileName AS WSTRING, BYVAL dimPercent AS LONG = 0,
       END IF
    END IF
    ' // Create a device context
-   DIM hdcScreen AS .HDC = CreateDCW("DISPLAY", "", "", nullptr)
+   DIM hdcScreen AS .HDC = CreateDCW("DISPLAY", "", "", NULL)
    IF hdcScreen THEN
       ' // Create a compatible bitmap
       m_hBmp = CreateCompatibleBitmap(hdcScreen, nWidth, nHeight)
@@ -155,7 +155,7 @@ CONSTRUCTOR CMemBmp (BYVAL hInst AS HINSTANCE, BYREF wszImageName AS WSTRING, BY
       END IF
    END IF
    ' // Create a device context
-   DIM hdcScreen AS .HDC = CreateDCW("DISPLAY", "", "", nullptr)
+   DIM hdcScreen AS .HDC = CreateDCW("DISPLAY", "", "", NULL)
    IF hdcScreen THEN
       ' // Create a compatible bitmap
       m_hBmp = CreateCompatibleBitmap(hdcScreen, nWidth, nHeight)
@@ -238,12 +238,12 @@ FUNCTION CMemBmp.DrawBitmap (BYVAL hbmp AS HBITMAP, BYVAL x AS SINGLE = 0, BYVAL
    DIM nStatus AS GpStatus, pGraphics AS GpGraphics PTR, pBitmap AS GpBitmap PTR
    DIM nWidth AS DWORD, nHeight AS DWORD
    DO
-      nStatus = GdipCreateBitmapFromHBITMAP (hbmp, nullptr, @pBitmap)
-      IF pBitmap = nullptr THEN EXIT DO
+      nStatus = GdipCreateBitmapFromHBITMAP (hbmp, NULL, @pBitmap)
+      IF pBitmap = NULL THEN EXIT DO
       GdipGetImageWidth(cast(GpImage PTR, pBitmap), @nWidth)
       GdipGetImageHeight(cast(GpImage PTR, pBitmap), @nHeight)
       nStatus = GdipCreateFromHDC(m_hMemDC, @pGraphics)
-      IF pGraphics = nullptr THEN EXIT DO
+      IF pGraphics = NULL THEN EXIT DO
       IF nRight = 0 OR nBottom = 0 THEN
          GdipDrawImage(pGraphics, cast(GpImage PTR, pBitmap), x, y)
       ELSE
@@ -261,14 +261,14 @@ END FUNCTION
 FUNCTION CMemBmp.DrawBitmap (BYVAL pBitmap AS GpBitmap PTR, BYVAL x AS SINGLE = 0, BYVAL y AS SINGLE = 0, _
    BYVAL nRight AS SINGLE = 0, BYVAL nBottom AS SINGLE = 0) AS GpStatus
 
-   IF pBitmap = nullptr THEN RETURN 2   ' Status InvalidParameter
+   IF pBitmap = NULL THEN RETURN 2   ' Status InvalidParameter
    DIM nStatus AS GpStatus, pGraphics AS GpGraphics PTR
    DIM nWidth AS DWORD, nHeight AS DWORD
    DO
       GdipGetImageWidth(cast(GpImage PTR, pBitmap), @nWidth)
       GdipGetImageHeight(cast(GpImage PTR, pBitmap), @nHeight)
       nStatus = GdipCreateFromHDC(m_hMemDC, @pGraphics)
-      IF pGraphics = nullptr THEN EXIT DO
+      IF pGraphics = NULL THEN EXIT DO
       IF nRight = 0 OR nBottom = 0 THEN
          GdipDrawImage(pGraphics, cast(GpImage PTR, pBitmap), x, y)
       ELSE

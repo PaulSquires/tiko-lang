@@ -61,10 +61,10 @@ END FUNCTION
 ' Returns TRUE if successful, or FALSE otherwise.
 ' ========================================================================================
 PUBLIC FUNCTION tkToolBar_AddButton (BYVAL hToolbar AS HWND, BYVAL idxBitmap AS LONG, BYVAL idCommand AS LONG, _
-BYVAL fsState AS UBYTE = 0, BYVAL fsStyle AS UBYTE = 0, BYVAL dwData AS DWORD_PTR = 0, BYVAL pwszText AS WSTRING PTR = nullptr) AS BOOLEAN
+BYVAL fsState AS UBYTE = 0, BYVAL fsStyle AS UBYTE = 0, BYVAL dwData AS DWORD_PTR = 0, BYVAL pwszText AS WSTRING PTR = NULL) AS BOOLEAN
    IF fsState = 0 THEN fsState = TBSTATE_ENABLED
    DIM idxString AS INT_PTR
-   IF pwszText <> nullptr THEN idxString = IIF(LEN(*pwszText) = 0, -1, CAST(INT_PTR, pwszText))
+   IF pwszText <> NULL THEN idxString = IIF(LEN(*pwszText) = 0, -1, CAST(INT_PTR, pwszText))
 #ifdef __FB_64BIT__
    DIM tbb AS TBBUTTON = (idxBitmap, idCommand, fsState, fsStyle, {0, 0, 0, 0, 0, 0}, dwData, idxString)
 #else
@@ -103,10 +103,10 @@ END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkToolBar_InsertButton OVERLOAD (BYVAL hToolbar AS HWND, BYVAL idxButton AS LONG, BYVAL idxBitmap AS LONG, BYVAL idCommand AS LONG, _
-BYVAL fsState AS UBYTE = 0, BYVAL fsStyle AS UBYTE = 0, BYVAL dwData AS DWORD_PTR = 0, BYVAL pwszText AS WSTRING PTR = nullptr) AS BOOLEAN
+BYVAL fsState AS UBYTE = 0, BYVAL fsStyle AS UBYTE = 0, BYVAL dwData AS DWORD_PTR = 0, BYVAL pwszText AS WSTRING PTR = NULL) AS BOOLEAN
    IF fsState = 0 THEN fsState = TBSTATE_ENABLED
    DIM idxString AS INT_PTR
-   IF pwszText <> nullptr THEN idxString = IIF(LEN(*pwszText) = 0, -1, CAST(INT_PTR, pwszText))
+   IF pwszText <> NULL THEN idxString = IIF(LEN(*pwszText) = 0, -1, CAST(INT_PTR, pwszText))
 #ifdef __FB_64BIT__
    DIM tbb AS TBBUTTON = (idxBitmap, idCommand, fsState, fsStyle, {0, 0, 0, 0, 0, 0}, dwData, idxString)
 #else
@@ -135,7 +135,7 @@ END FUNCTION
 ' Returns the index of the first new string if successful, or -1 otherwise.
 ' ========================================================================================
 PUBLIC FUNCTION tkToolBar_AddString (BYVAL hToolbar AS HWND, BYVAL hInst AS HINSTANCE, BYVAL idString AS INT_PTR) AS LONG
-   RETURN SendMessageW(hToolbar, TB_ADDSTRINGW, CAST(WPARAM, hInst), IIF(hInst = nullptr, idString, MAKELONG(idString, 0)))
+   RETURN SendMessageW(hToolbar, TB_ADDSTRINGW, CAST(WPARAM, hInst), IIF(hInst = NULL, idString, MAKELONG(idString, 0)))
 END FUNCTION
 ' ========================================================================================
 
@@ -340,7 +340,7 @@ END FUNCTION
 ' Returns nonzero if successful, or zero otherwise.
 ' ========================================================================================
 PUBLIC FUNCTION tkToolBar_GetColorScheme OVERLOAD (BYVAL hToolbar AS HWND, BYVAL pcs AS COLORSCHEME PTR) AS BOOLEAN
-   IF pcs = nullptr THEN RETURN FALSE
+   IF pcs = NULL THEN RETURN FALSE
    pcs->dwSize = SIZEOF(COLORSCHEME)
    RETURN SendMessageW(hToolbar, TB_GETCOLORSCHEME, 0, CAST(LPARAM, pcs))
 END FUNCTION
@@ -504,14 +504,14 @@ END FUNCTION
 ' Note: To use this API, you must provide a manifest specifying Comclt32.dll version 6.0.
 ' ========================================================================================
 PUBLIC SUB tkToolBar_GetMetrics OVERLOAD (BYVAL hToolbar AS HWND, BYVAL ptbMetrics AS TBMETRICS PTR)
-   IF ptbMetrics = nullptr THEN EXIT SUB
+   IF ptbMetrics = NULL THEN EXIT SUB
    ptbMetrics->cbSize = SIZEOF(TBMETRICS)
    SendMessageW(hToolbar, TB_GETMETRICS, 0, CAST(LPARAM, ptbMetrics))
 END SUB
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC SUB tkToolBar_GetMetrics OVERLOAD (BYVAL hToolbar AS HWND, BYREF tbMet AS TBMETRICS)
-   IF VARPTR(tbMet) = nullptr THEN EXIT SUB
+   IF VARPTR(tbMet) = NULL THEN EXIT SUB
    tbMet.cbSize = SIZEOF(TBMETRICS)
    SendMessageW(hToolbar, TB_GETMETRICS, 0, CAST(LPARAM, @tbMet))
 END SUB
@@ -1198,13 +1198,13 @@ END FUNCTION
 ' * Sets the toolbar dark mode.
 ' ========================================================================================
 PUBLIC FUNCTION tkToolBar_SetDarkMode (BYVAL hToolbar AS HWND) AS HRESULT
-   RETURN ..SetWindowTheme(hToolbar, "DarkMode_InfoPaneToolbar", nullptr)
+   RETURN ..SetWindowTheme(hToolbar, "DarkMode_InfoPaneToolbar", NULL)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' * Removes the toolbar dark mode.
 ' ========================================================================================
 PUBLIC FUNCTION tkToolBar_RemoveDarkMode (BYVAL hToolbar AS HWND) AS HRESULT
-   RETURN ..SetWindowTheme(hToolbar, nullptr, nullptr)
+   RETURN ..SetWindowTheme(hToolbar, NULL, NULL)
 END FUNCTION
 ' ========================================================================================

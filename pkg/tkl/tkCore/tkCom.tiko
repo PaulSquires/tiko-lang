@@ -58,7 +58,7 @@ PUBLIC TYPE tk_LPDISPATCH AS tk_IDispatch PTR
 ' // If the retrieved length if the same that the returned by LEN, then it must be an OLE string.
 ' ========================================================================================
 PUBLIC FUNCTION tkIsBstr (BYVAL pv aS ANY PTR) AS BOOLEAN
-   IF pv = nullptr THEN RETURN FALSE
+   IF pv = NULL THEN RETURN FALSE
    DIM res AS DWORD = PEEK(DWORD, pv - 4) \ 2
    IF res = LEN(*cast(WSTRING PTR, pv)) THEN RETURN TRUE
 END FUNCTION
@@ -88,9 +88,9 @@ END FUNCTION
 ' Remarks: I have needed to call the UuidCreate function dynamically because, at the time
 ' of writing, the library for the RPCRT4.DLL seems broken and the linker fails.
 ' ========================================================================================
-PUBLIC FUNCTION tkGuid (BYVAL pwszGuidText AS WSTRING PTR = nullptr) AS GUID
+PUBLIC FUNCTION tkGuid (BYVAL pwszGuidText AS WSTRING PTR = NULL) AS GUID
    DIM rguid AS GUID
-   IF pwszGuidText = nullptr THEN
+   IF pwszGuidText = NULL THEN
       ' // Generate a new guid
       DIM AS ANY PTR pLib = DyLibLoad("RPCRT4.DLL")
       IF pLib  THEN
@@ -155,12 +155,12 @@ END FUNCTION
 PUBLIC FUNCTION tkNewCom OVERLOAD (BYREF wszProgID AS CONST WSTRING, BYREF wszLicKey AS WSTRING = "") AS ANY PTR
    DIM hr AS HRESULT, classID AS CLSID, pUnk AS ANY PTR, pIClassFactory2 AS IClassFactory2 PTR
    IF INSTR(wszProgID, "{") THEN CLSIDFromString(wszProgID, @classID) ELSE CLSIDFromProgID(wszProgID, @classID)
-   IF IsEqualGuid(@classID, @IID_NULL) THEN RETURN nullptr
+   IF IsEqualGuid(@classID, @IID_NULL) THEN RETURN NULL
    IF LEN(wszLicKey) = 0 THEN
-      CoCreateInstance(@classID, nullptr, CLSCTX_INPROC_SERVER, @IID_IUnknown, @pUnk)
+      CoCreateInstance(@classID, NULL, CLSCTX_INPROC_SERVER, @IID_IUnknown, @pUnk)
    ELSE
-      hr = CoGetClassObject(@ClassID, CLSCTX_SERVER, nullptr, @IID_IClassFactory2, @pIClassFactory2)
-      IF hr = S_OK AND pIClassFactory2 <> nullptr THEN
+      hr = CoGetClassObject(@ClassID, CLSCTX_SERVER, NULL, @IID_IClassFactory2, @pIClassFactory2)
+      IF hr = S_OK AND pIClassFactory2 <> NULL THEN
          pIClassFactory2->lpVtbl->CreateInstanceLic(pIClassFactory2, NULL, NULL, @IID_IUnknown, @wszLicKey, @pUnk)
       END IF
       IF pIClassFactory2 THEN pIClassFactory2->lpVtbl->Release(pIClassFactory2)
@@ -188,7 +188,7 @@ PUBLIC FUNCTION tkNewCom OVERLOAD (BYREF wszClsID AS CONST WSTRING, BYREF wszIID
    DIM classID AS CLSID, riid AS IID, pUnk AS ANY PTR
    CLSIDFromProgID(wszClsID, @classID)
    CLSIDFromProgID(wszIID, @riid)
-   CoCreateInstance(@classID, nullptr, CLSCTX_INPROC_SERVER, @riid, @pUnk)
+   CoCreateInstance(@classID, NULL, CLSCTX_INPROC_SERVER, @riid, @pUnk)
    RETURN pUnk
 END FUNCTION
 ' ========================================================================================
@@ -208,7 +208,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkNewCom OVERLOAD (BYREF classID AS CONST CLSID) AS ANY PTR
    DIM pUnk AS ANY PTR
-   CoCreateInstance(@classID, nullptr, CLSCTX_INPROC_SERVER, @IID_IUnknown, @pUnk)
+   CoCreateInstance(@classID, NULL, CLSCTX_INPROC_SERVER, @IID_IUnknown, @pUnk)
    RETURN pUnk
 END FUNCTION
 ' ========================================================================================
@@ -231,7 +231,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkNewCom OVERLOAD (BYREF classID AS CONST CLSID, BYREF riid AS CONST IID) AS ANY PTR
    DIM pUnk AS ANY PTR
-   CoCreateInstance(@classID, nullptr, CLSCTX_INPROC_SERVER, @riid, @pUnk)
+   CoCreateInstance(@classID, NULL, CLSCTX_INPROC_SERVER, @riid, @pUnk)
    RETURN pUnk
 END FUNCTION
 ' ========================================================================================
@@ -271,14 +271,14 @@ PUBLIC FUNCTION tkNewCom OVERLOAD (BYREF wszLibName AS CONST WSTRING, BYREF rcls
    ' // See if the library is already loaded in the address space
    hLib = GetModuleHandleW(wszLibName)
    ' // If it is not loaded, load it
-   IF hLib = nullptr THEN hLib = LoadLibraryW(wszLibName)
+   IF hLib = NULL THEN hLib = LoadLibraryW(wszLibName)
    ' // If it fails, abort
-   IF hLib = nullptr THEN EXIT FUNCTION
+   IF hLib = NULL THEN EXIT FUNCTION
 
    ' // Retrieve the address of the exported function DllGetClassObject
    DIM pfnDllGetClassObject AS FUNCTION (BYVAL rclsid AS CONST IID CONST PTR, BYVAL riid AS CONST IID CONST PTR, BYVAL ppv AS LPVOID PTR) AS HRESULT
    pfnDllGetClassObject = CAST(ANY PTR, GetProcAddress(hLib, "DllGetClassObject"))
-   IF pfnDllGetClassObject = nullptr THEN EXIT FUNCTION
+   IF pfnDllGetClassObject = NULL THEN EXIT FUNCTION
 
    IF LEN(wszLicKey) = 0 THEN
       ' // Request a reference to the IClassFactory interface
@@ -336,8 +336,8 @@ END FUNCTION
 PUBLIC FUNCTION tkGetCom OVERLOAD (BYREF wszProgID AS CONST WSTRING) AS IDispatch PTR
    DIM classID AS CLSID, pUnk AS IUnknown PTR, pDisp AS IDispatch PTR
    CLSIDFromProgID(wszProgID, @classID)
-   IF IsEqualGuid(@classID, @IID_NULL) THEN RETURN nullptr
-   GetActiveObject(@classID, nullptr, @pUnk)
+   IF IsEqualGuid(@classID, @IID_NULL) THEN RETURN NULL
+   GetActiveObject(@classID, NULL, @pUnk)
    IF pUnk THEN
       pUnk->lpVtbl->QueryInterface(pUnk, @IID_IDispatch, @pDisp)
       pUnk->lpVtbl->Release(pUnk)
@@ -348,7 +348,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkGetCom OVERLOAD (BYREF classID AS CONST CLSID) AS IDispatch PTR
    DIM pUnk AS IUnknown PTR, pDisp AS IDispatch PTR
-   GetActiveObject(@classID, nullptr, @pUnk)
+   GetActiveObject(@classID, NULL, @pUnk)
    IF pUnk THEN
       pUnk->lpVtbl->QueryInterface(pUnk, @IID_IDispatch, @pDisp)
       pUnk->lpVtbl->Release(pUnk)
@@ -360,15 +360,15 @@ END FUNCTION
 PUBLIC FUNCTION tkAnyCom OVERLOAD (BYREF wszProgID AS CONST WSTRING) AS IDispatch PTR
    DIM classID AS CLSID, pUnk AS IUnknown PTR, pDisp AS IDispatch PTR
    CLSIDFromProgID(wszProgID, @classID)
-   IF IsEqualGuid(@classID, @IID_NULL) THEN RETURN nullptr
+   IF IsEqualGuid(@classID, @IID_NULL) THEN RETURN NULL
    ' // Check if there is an instance already running
-   IF GetActiveObject(@classID, nullptr, @pUnk) = S_OK THEN
+   IF GetActiveObject(@classID, NULL, @pUnk) = S_OK THEN
       pUnk->lpVtbl->QueryInterface(pUnk, @IID_IDispatch, @pDisp)
       pUnk->lpVtbl->Release(pUnk)
       RETURN pDisp
    END IF
    ' // Otherwise, create a new instance
-   CoCreateInstance(@classID, nullptr, CLSCTX_INPROC_SERVER, @IID_IUnknown, @pUnk)
+   CoCreateInstance(@classID, NULL, CLSCTX_INPROC_SERVER, @IID_IUnknown, @pUnk)
    IF pUnk THEN
       pUnk->lpVtbl->QueryInterface(pUnk, @IID_IDispatch, @pDisp)
       pUnk->lpVtbl->Release(pUnk)
@@ -380,13 +380,13 @@ END FUNCTION
 PUBLIC FUNCTION tkAnyCom OVERLOAD (BYREF classID AS CONST CLSID) AS IDispatch PTR
    DIM pUnk AS IUnknown PTR, pDisp AS IDispatch PTR
    ' // Check if there is an instance already running
-   IF GetActiveObject(@classID, nullptr, @pUnk) = S_OK THEN
+   IF GetActiveObject(@classID, NULL, @pUnk) = S_OK THEN
       pUnk->lpVtbl->QueryInterface(pUnk, @IID_IDispatch, @pDisp)
       pUnk->lpVtbl->Release(pUnk)
       RETURN pDisp
    END IF
    ' // Otherwise, create a new instance
-   CoCreateInstance(@classID, nullptr, CLSCTX_INPROC_SERVER, @IID_IUnknown, @pUnk)
+   CoCreateInstance(@classID, NULL, CLSCTX_INPROC_SERVER, @IID_IUnknown, @pUnk)
    IF pUnk THEN
       pUnk->lpVtbl->QueryInterface(pUnk, @IID_IDispatch, @pDisp)
       pUnk->lpVtbl->Release(pUnk)
@@ -405,9 +405,9 @@ END FUNCTION
 ' must free the object.
 ' ========================================================================================
 PUBLIC FUNCTION tkSafeRelease (BYREF pv AS ANY PTR) AS ULONG
-   IF pv = nullptr THEN RETURN 0
+   IF pv = NULL THEN RETURN 0
    FUNCTION = cast(IUnknown PTR, pv)->lpvtbl->Release(pv)
-   pv = nullptr
+   pv = NULL
 END FUNCTION
 ' ========================================================================================
 
@@ -426,7 +426,7 @@ END FUNCTION
 ' calling fbxSafeRelease.
 ' ========================================================================================
 PUBLIC FUNCTION tkSafeAddRef (BYVAL pv AS ANY PTR) AS ULONG
-   IF pv = nullptr THEN RETURN 0
+   IF pv = NULL THEN RETURN 0
    RETURN cast(IUnknown PTR, pv)->lpvtbl->AddRef(pv)
 END FUNCTION
 ' ========================================================================================
@@ -442,16 +442,16 @@ END FUNCTION
 ' Return value: S_OK or an HRESULT value.
 ' ========================================================================================
 PUBLIC FUNCTION tkAdvise OVERLOAD (BYVAL pUnk AS ANY PTR, BYVAL pEvtObj AS ANY PTR, BYVAL riid AS IID PTR, BYVAL pdwCookie AS DWORD PTR) AS HRESULT
-   IF pUnk = nullptr OR pEvtObj = nullptr OR riid = nullptr OR pdwCookie = nullptr THEN RETURN E_INVALIDARG
+   IF pUnk = NULL OR pEvtObj = NULL OR riid = NULL OR pdwCookie = NULL THEN RETURN E_INVALIDARG
    ' // Query for the IConnectionPointContainer interface
    DIM pCPC AS IConnectionPointContainer PTR
    DIM hr AS HRESULT = IUnknown_QueryInterface(cast(IUnknown PTR, pUnk), @IID_IConnectionPointContainer, @pCPC)
-   IF hr <> S_OK OR pCPC = nullptr THEN RETURN hr
+   IF hr <> S_OK OR pCPC = NULL THEN RETURN hr
    ' // Query for the IConnectionPoint interface
    DIM pCP AS IConnectionPoint PTR
    hr = pCPC->lpvtbl->FindConnectionPoint(pCPC, riid, @pCP)
    IUnknown_Release(pCPC)
-   IF hr <> S_OK OR pCP = nullptr THEN RETURN hr
+   IF hr <> S_OK OR pCP = NULL THEN RETURN hr
    ' // Establishes a connection between a connection point object and the client's sink.
    hr = pCP->lpvtbl->Advise(pCP, cast(IUnknown PTR, pEvtObj), pdwCookie)
    IUnknown_Release(pCP)
@@ -480,16 +480,16 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkUnadvise OVERLOAD (BYVAL pUnk AS ANY PTR, BYVAL riid AS IID PTR, BYVAL dwCookie AS DWORD) AS HRESULT
    ' // Not a valid connection
-   IF pUnk = nullptr OR riid = nullptr OR dwCookie = 0 THEN RETURN E_INVALIDARG
+   IF pUnk = NULL OR riid = NULL OR dwCookie = 0 THEN RETURN E_INVALIDARG
    ' // Query for the IConnectionPointContainer interface
    DIM pCPC AS IConnectionPointContainer PTR
    DIM hr AS HRESULT = IUnknown_QueryInterface(cast(IUnknown PTR, pUnk), @IID_IConnectionPointContainer, @pCPC)
-   IF hr <> S_OK OR pCPC = nullptr THEN RETURN hr
+   IF hr <> S_OK OR pCPC = NULL THEN RETURN hr
    ' // Query for the IConnectionPoint interface
    DIM pCP AS IConnectionPoint PTR
    hr = pCPC->lpvtbl->FindConnectionPoint(pCPC, riid, @pCP)
    IUnknown_Release(pCPC)
-   IF hr <> S_OK OR pCP = nullptr THEN RETURN hr
+   IF hr <> S_OK OR pCP = NULL THEN RETURN hr
    ' // Terminates the advisory connection previously established with a call to fbxAdvise
    hr = pCP->lpvtbl->Unadvise(pCP, dwCookie)
    IUnknown_Release(pCP)

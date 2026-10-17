@@ -80,7 +80,7 @@ END TYPE
 ' Creates an instance of the IFileDialogCustomize interface.
 ' ========================================================================================
 CONSTRUCTOR CIFileDialogCustomize (BYVAL pIFileDialogCustomize AS IFileDialogCustomize PTR, BYVAL fAddRef AS BOOLEAN = TRUE)
-   IF pIFileDialogCustomize = nullptr THEN EXIT CONSTRUCTOR
+   IF pIFileDialogCustomize = NULL THEN EXIT CONSTRUCTOR
    CoInitialize NULL
    m_pIFileDialogCustomize = pIFileDialogCustomize
    IF fAddRef THEN m_pIFileDialogCustomize->lpvtbl->AddRef(m_pIFileDialogCustomize)
@@ -91,10 +91,10 @@ END CONSTRUCTOR
 ' Creates an instance of the IFileDialogCustomize interface.
 ' ========================================================================================
 CONSTRUCTOR CIFileDialogCustomize (BYVAL pIFileDialog AS IFileDialog PTR)
-   IF pIFileDialog = nullptr THEN EXIT CONSTRUCTOR
+   IF pIFileDialog = NULL THEN EXIT CONSTRUCTOR
    CoInitialize NULL
    DIM hr AS HRESULT = pIFileDialog->lpvtbl->QueryInterface(pIFileDialog, @IID_IFileDialogCustomize, @m_pIFileDialogCustomize)
-   IF m_pIFileDialogCustomize = nullptr THEN EXIT CONSTRUCTOR
+   IF m_pIFileDialogCustomize = NULL THEN EXIT CONSTRUCTOR
 END CONSTRUCTOR
 ' ========================================================================================
 

@@ -148,7 +148,7 @@ CONSTRUCTOR CGraphCtx (BYVAL pWindow AS CWindow PTR, BYVAL cID AS LONG_PTR, BYRE
    DIM wAtom AS ATOM
    DIM wcexw AS WNDCLASSEXW
    DIM wszClassName AS WSTRING * 260 = "TK_GRAPHCTX"
-   IF .GetClassInfoExW(.GetModuleHandleW(nullptr), @wszClassName, @wcexw) = 0 THEN
+   IF .GetClassInfoExW(.GetModuleHandleW(NULL), @wszClassName, @wcexw) = 0 THEN
       ' // Fill the WNDCLASSEXW structure
       WITH wcexw
          .cbSize        = SIZEOF(wcexw)
@@ -156,13 +156,13 @@ CONSTRUCTOR CGraphCtx (BYVAL pWindow AS CWindow PTR, BYVAL cID AS LONG_PTR, BYRE
          .lpfnWndProc   = @CGraphCtxProc
          .cbClsExtra    = 0
          .cbWndExtra    = SIZEOF(HANDLE)   ' // make room to store a pointer to the class
-         .hInstance     = ..GetModuleHandleW(nullptr)
-         .hCursor       = ..LoadCursorW(nullptr, CAST(LPCWSTR, IDC_ARROW))
+         .hInstance     = ..GetModuleHandleW(NULL)
+         .hCursor       = ..LoadCursorW(NULL, CAST(LPCWSTR, IDC_ARROW))
          .hbrBackground = CAST(HBRUSH, WHITE_BRUSH)
-         .lpszMenuName  = nullptr
+         .lpszMenuName  = NULL
          .lpszClassName = @wszClassName
-         .hIcon         = nullptr
-         .hIconSm       = nullptr
+         .hIcon         = NULL
+         .hIconSm       = NULL
       END WITH
       wAtom = .RegisterClassExW(@wcexw)
    END IF
@@ -198,7 +198,7 @@ CONSTRUCTOR CGraphCtx (BYVAL pWindow AS CWindow PTR, BYVAL cID AS LONG_PTR, BYRE
       bi.bmiHeader.biPlanes = 1
       bi.bmiHeader.biBitCount = m_BitsPerPel
       bi.bmiHeader.biCompression = BI_RGB
-      m_hBmp = ..CreateDIBSection(hDC, @bi, DIB_RGB_COLORS, m_ppvBits, nullptr, 0)
+      m_hBmp = ..CreateDIBSection(hDC, @bi, DIB_RGB_COLORS, m_ppvBits, NULL, 0)
       m_hOldBmp = ..SelectObject(m_hMemDc, m_hBmp)
       ..FillRect m_hMemDc, @m_coord, CAST(HBRUSH, .GetClassLongPtr(.GetParent(m_hCtl), GCLP_HBRBACKGROUND))
       ..ReleaseDc m_hCtl, hDc
@@ -241,10 +241,10 @@ CONSTRUCTOR CGraphCtx (BYVAL hWin AS HWND, BYVAL cID AS LONG_PTR, BYREF wszTitle
    BYVAL x AS LONG = 0, BYVAL y AS LONG = 0, BYVAL nWidth AS LONG = 0, BYVAL nHeight AS LONG = 0, _
    BYVAL dwStyle AS DWORD = 0, BYVAL dwExStyle AS DWORD = 0, BYVAL lpParam AS LONG_PTR = 0)
 
-   IF hWin = nullptr THEN EXIT CONSTRUCTOR
+   IF hWin = NULL THEN EXIT CONSTRUCTOR
    DIM pWindow AS CWindow PTR
    pWindow = CAST(CWindow PTR, GetWindowLongPtrW(hWin, 0))
-   IF pWindow = nullptr THEN EXIT CONSTRUCTOR
+   IF pWindow = NULL THEN EXIT CONSTRUCTOR
    this.Constructor(pWindow, cID, wszTitle, x, y, nWidth, nHeight, dwStyle, dwExStyle, lpParam)
 
 END CONSTRUCTOR
@@ -397,7 +397,7 @@ FUNCTION CGraphCtx.CGraphCtxProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL 
       CASE WM_HSCROLL
          ' // Get a pointer to the class
          pGraphCtx = CAST(CGraphCtx PTR, .GetWindowLongPtrW(hwnd, 0))
-         IF pGraphCtx = nullptr THEN EXIT FUNCTION
+         IF pGraphCtx = NULL THEN EXIT FUNCTION
          ' // Horizontal scrolling
          SELECT CASE LOWORD(wParam)
             CASE SB_THUMBTRACK
@@ -439,7 +439,7 @@ FUNCTION CGraphCtx.CGraphCtxProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL 
       CASE WM_VSCROLL
          ' // Get a pointer to the class
          pGraphCtx = CAST(CGraphCtx PTR, .GetWindowLongPtrW(hwnd, 0))
-         IF pGraphCtx = nullptr THEN EXIT FUNCTION
+         IF pGraphCtx = NULL THEN EXIT FUNCTION
          ' // Vertical scrolling
          SELECT CASE LOWORD(wParam)
             CASE SB_THUMBTRACK
@@ -500,7 +500,7 @@ FUNCTION CGraphCtx.CGraphCtxProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL 
       CASE WM_ERASEBKGND
          ' // Get a pointer to the class
          pGraphCtx = CAST(CGraphCtx PTR, .GetWindowLongPtrW(hwnd, 0))
-         IF pGraphCtx = nullptr THEN EXIT FUNCTION
+         IF pGraphCtx = NULL THEN EXIT FUNCTION
          ' // If not stretchable...
          IF pGraphCtx->m_Stretchable = FALSE THEN
             ' // Erases only the portion of the window not covered
@@ -529,7 +529,7 @@ FUNCTION CGraphCtx.CGraphCtxProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL 
       CASE WM_SIZE
          ' // Get a pointer to the class
          pGraphCtx = CAST(CGraphCtx PTR, .GetWindowLongPtrW(hwnd, 0))
-         IF pGraphCtx = nullptr THEN EXIT FUNCTION
+         IF pGraphCtx = NULL THEN EXIT FUNCTION
          ' // If resizable, sets the virtual buffer to the size of the control.
          ' // If the control is made smaller and then bigger, part of the contents
          ' // are lost. Therefore, the caller must redraw it.
@@ -573,7 +573,7 @@ FUNCTION CGraphCtx.CGraphCtxProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL 
       CASE WM_PRINTCLIENT
          ' // Get a pointer to the class
          pGraphCtx = CAST(CGraphCtx PTR, .GetWindowLongPtrW(hwnd, 0))
-         IF pGraphCtx = nullptr THEN EXIT FUNCTION
+         IF pGraphCtx = NULL THEN EXIT FUNCTION
          ' // Copies the bitmap to the provided device context
          hDC = CAST(.HDC, wParam)
          .GetClientRect(hwnd, @rc)
@@ -591,7 +591,7 @@ FUNCTION CGraphCtx.CGraphCtxProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL 
       CASE WM_PAINT
          ' // Get a pointer to the class
          pGraphCtx = CAST(CGraphCtx PTR, .GetWindowLongPtrW(hwnd, 0))
-         IF pGraphCtx = nullptr THEN EXIT FUNCTION
+         IF pGraphCtx = NULL THEN EXIT FUNCTION
          ' // Copies the bitmap to the control's window
          hDC = .BeginPaint(hwnd, @ps)
          IF pGraphCtx->m_Stretchable = FALSE THEN
@@ -651,7 +651,7 @@ FUNCTION CGraphCtx.SetVirtualBufferSize (BYVAL nWidth AS LONG, BYVAL nHeight AS 
    bi.bmiHeader.biPlanes = 1
    bi.bmiHeader.biBitCount = m_BitsPerPel
    bi.bmiHeader.biCompression = BI_RGB
-   DIM hCloneBmp AS HBITMAP = .CreateDIBSection(hDC, @bi, DIB_RGB_COLORS, nullptr, nullptr, 0)
+   DIM hCloneBmp AS HBITMAP = .CreateDIBSection(hDC, @bi, DIB_RGB_COLORS, NULL, NULL, 0)
    ' // -------------- //
    IF hCloneBmp THEN
       .SelectObject(hCloneDc, hCloneBmp)
@@ -678,7 +678,7 @@ FUNCTION CGraphCtx.SetVirtualBufferSize (BYVAL nWidth AS LONG, BYVAL nHeight AS 
    bi.bmiHeader.biPlanes = 1
    bi.bmiHeader.biBitCount = m_BitsPerPel
    bi.bmiHeader.biCompression = BI_RGB
-   m_hBmp = .CreateDIBSection(hDC, @bi, DIB_RGB_COLORS, m_ppvBits, nullptr, 0)
+   m_hBmp = .CreateDIBSection(hDC, @bi, DIB_RGB_COLORS, m_ppvBits, NULL, 0)
    m_hOldBmp = .SelectObject(m_hMemDc, m_hBmp)
 
    ' // Adjusts the coordinates
@@ -734,7 +734,7 @@ FUNCTION CGraphCtx.SetVirtualBufferSize (BYVAL nWidth AS LONG, BYVAL nHeight AS 
    ' // Copy the cloned bitmap
    IF hCloneBmp THEN
       ..BitBlt(m_hMemDc, 0, 0, m_vWidth, m_vHeight, hCloneDc, 0, 0, SRCCOPY)
-      ..SelectObject(hCloneDc, nullptr)
+      ..SelectObject(hCloneDc, 0)
       ..DeleteDC hCloneDC
       ..DeleteObject hCloneBmp
       ..InvalidateRect m_hCtl, NULL, 0
@@ -786,7 +786,7 @@ END FUNCTION
 '   If the function fails, the return value is FALSE.
 ' ========================================================================================
 FUNCTION CGraphCtx.Clear (BYVAL RGBColor AS COLORREF) AS BOOLEAN
-   IF m_hMemDc = nullptr THEN EXIT FUNCTION
+   IF m_hMemDc = NULL THEN EXIT FUNCTION
    DIM hBrush AS .HBRUSH = .CreateSolidBrush(RGBColor)
    DIM rc AS RECT
    .GetClientRect m_hCtl, @rc
@@ -1045,16 +1045,16 @@ END SUB
 FUNCTION CGraphCtx.DrawBitmap (BYVAL hbmp AS HBITMAP, BYVAL x AS SINGLE = 0, BYVAL y AS SINGLE = 0, _
    BYVAL nRight AS SINGLE = 0, BYVAL nBottom AS SINGLE = 0) AS GpStatus
 
-   IF hbmp = nullptr THEN RETURN 2   ' // Invalid parameter
+   IF hbmp = NULL THEN RETURN 2   ' // Invalid parameter
    DIM nStatus AS GpStatus, pGraphics AS GpGraphics PTR, pBitmap AS GpBitmap PTR
    DIM nWidth AS DWORD, nHeight AS DWORD
    DO
-      nStatus = GdipCreateBitmapFromHBITMAP(hbmp, nullptr, @pBitmap)
-      IF pBitmap = nullptr THEN EXIT DO
+      nStatus = GdipCreateBitmapFromHBITMAP(hbmp, NULL, @pBitmap)
+      IF pBitmap = NULL THEN EXIT DO
       GdipGetImageWidth(cast(GpImage PTR, pBitmap), @nWidth)
       GdipGetImageHeight(cast(GpImage PTR, pBitmap), @nHeight)
       nStatus = GdipCreateFromHDC(m_hMemDC, @pGraphics)
-      IF pGraphics = nullptr THEN EXIT DO
+      IF pGraphics = NULL THEN EXIT DO
       IF nRight = 0 OR nBottom = 0 THEN
          GdipDrawImage(pGraphics, cast(GpImage PTR, pBitmap), x, y)
       ELSE
@@ -1072,14 +1072,14 @@ END FUNCTION
 FUNCTION CGraphCtx.DrawBitmap (BYVAL pBitmap AS GpBitmap PTR, BYVAL x AS SINGLE = 0, BYVAL y AS SINGLE = 0, _
    BYVAL nRight AS SINGLE = 0, BYVAL nBottom AS SINGLE = 0) AS GpStatus
 
-   IF pBitmap = nullptr THEN RETURN 2   ' // Invalid parameter
+   IF pBitmap = NULL THEN RETURN 2   ' // Invalid parameter
    DIM nStatus AS GpStatus, pGraphics AS GpGraphics PTR
    DIM nWidth AS DWORD, nHeight AS DWORD
    DO
       GdipGetImageWidth(cast(GpImage PTR, pBitmap), @nWidth)
       GdipGetImageHeight(cast(GpImage PTR, pBitmap), @nHeight)
       nStatus = GdipCreateFromHDC(m_hMemDC, @pGraphics)
-      IF pGraphics = nullptr THEN EXIT DO
+      IF pGraphics = NULL THEN EXIT DO
       IF nRight = 0 OR nBottom = 0 THEN
          GdipDrawImage(pGraphics, cast(GpImage PTR, pBitmap), x, y)
       ELSE
@@ -1184,14 +1184,14 @@ FUNCTION CGraphCtx.SetPixelFormat (BYVAL nBitsPerPel AS LONG) AS BOOLEAN
    ' // Find a matching pixel format
    pf = .ChoosePixelFormat(m_hMemDC, @pfd)
    IF pf = 0 THEN
-      .MessageBoxW(nullptr, "Can't find a suitable pixel format, GetLastError = " & WSTR(GetLastError), "CGraphCtx.SetPixelFormat", _
+      .MessageBoxW(0, "Can't find a suitable pixel format, GetLastError = " & WSTR(GetLastError), "CGraphCtx.SetPixelFormat", _
          MB_OK OR MB_ICONINFORMATION OR MB_APPLMODAL)
       EXIT FUNCTION
    END IF
 
    ' // Set the pixel format
    IF .SetPixelFormat(m_hMemDC, pf, @pfd) = FALSE THEN
-      .MessageBoxW(nullptr, "Can't set the pixel format, GetLastError = " & WSTR(GetLastError), "CGraphCtx.SetPixelFormat", _
+      .MessageBoxW(0, "Can't set the pixel format, GetLastError = " & WSTR(GetLastError), "CGraphCtx.SetPixelFormat", _
          MB_OK OR MB_ICONINFORMATION OR MB_APPLMODAL)
       EXIT FUNCTION
    END IF
@@ -1206,13 +1206,13 @@ END FUNCTION
 FUNCTION CGraphCtx.CreateContext () AS HGLRC
    ' // Create a new OpenGL rendering context
    DIM hRC AS HGLRC = wglCreateContext(m_hMemDc)
-   IF hRC = nullptr THEN
-      .MessageBoxW(nullptr, "Can't create an OpenGL rendering context, GetLastError = " & WSTR(GetLastError), "CGraphCtx.CreateContext", _
+   IF hRC = NULL THEN
+      .MessageBoxW(0, "Can't create an OpenGL rendering context, GetLastError = " & WSTR(GetLastError), "CGraphCtx.CreateContext", _
          MB_OK OR MB_ICONINFORMATION OR MB_APPLMODAL)
    ELSE
      ' // Make it current
       IF wglMakeCurrent(m_hMemDc, hRC) = FALSE THEN
-         .MessageBoxW(nullptr, "Can't activate the OpenGL rendering context, GetLastError = " & WSTR(GetLastError), "CGraphCtx.CreateContext", _
+         .MessageBoxW(0, "Can't activate the OpenGL rendering context, GetLastError = " & WSTR(GetLastError), "CGraphCtx.CreateContext", _
             MB_OK OR MB_ICONINFORMATION OR MB_APPLMODAL)
       END IF
    END IF
@@ -1240,7 +1240,7 @@ END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CGraphCtx.MakeNotCurrent () AS BOOLEAN
-   FUNCTION = wglMakeCurrent(m_hMemDc, nullptr)
+   FUNCTION = wglMakeCurrent(m_hMemDc, NULL)
 END FUNCTION
 ' ========================================================================================
 

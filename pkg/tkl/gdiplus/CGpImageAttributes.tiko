@@ -43,7 +43,7 @@ END DESTRUCTOR
 ' Creates a new ImageAttributes object based on this ImageAttributes object.
 ' =====================================================================================
 FUNCTION CGpImageAttributes.Clone (BYVAL pCloneImgAttr AS CGpImageAttributes PTR) AS GpStatus
-   IF pCloneImgAttr = nullptr THEN RETURN SetStatus(InvalidParameter)
+   IF pCloneImgAttr = NULL THEN RETURN SetStatus(InvalidParameter)
    IF pCloneImgAttr->m_pImgAttr THEN GdipDisposeImageAttributes(pCloneImgAttr->m_pImgAttr)
    RETURN SetStatus(GdipCloneImageAttributes(m_pImgAttr, @pCloneImgAttr->m_pImgAttr))
 END FUNCTION
@@ -69,7 +69,7 @@ END FUNCTION
 ' Sets the color-adjustment matrix for a specified category.
 ' =====================================================================================
 FUNCTION CGpImageAttributes.SetColorMatrix (BYVAL pColorMatrix AS ColorMatrix PTR, BYVAL nMode AS ColorMatrixFlags = ColorMatrixFlagsDefault, BYVAL nType AS ColorAdjustType = ColorAdjustTypeDefault) AS GpStatus
-   RETURN SetStatus(GdipSetImageAttributesColorMatrix(m_pImgAttr, nType, CTRUE, pColorMatrix, nullptr, nMode))
+   RETURN SetStatus(GdipSetImageAttributesColorMatrix(m_pImgAttr, nType, CTRUE, pColorMatrix, NULL, nMode))
 END FUNCTION
 ' =====================================================================================
 
@@ -77,7 +77,7 @@ END FUNCTION
 ' Clears the color-adjustment matrix for a specified category.
 ' =====================================================================================
 FUNCTION CGpImageAttributes.ClearColorMatrix (BYVAL nType AS ColorAdjustType = ColorAdjustTypeDefault) AS GpStatus
-   RETURN SetStatus(GdipSetImageAttributesColorMatrix(m_pImgAttr, nType, FALSE, nullptr, nullptr, ColorMatrixFlagsDefault))
+   RETURN SetStatus(GdipSetImageAttributesColorMatrix(m_pImgAttr, nType, FALSE, NULL, NULL, ColorMatrixFlagsDefault))
 END FUNCTION
 ' =====================================================================================
 
@@ -93,7 +93,7 @@ END FUNCTION
 ' Clears the color-adjustment matrix and the grayscale-adjustment matrix for a specified category.
 ' =====================================================================================
 FUNCTION CGpImageAttributes.ClearColorMatrices (BYVAL nType AS ColorAdjustType = ColorAdjustTypeDefault) AS GpStatus
-   RETURN SetStatus(GdipSetImageAttributesColorMatrix(m_pImgAttr, nType, FALSE, nullptr, nullptr, ColorMatrixFlagsDefault))
+   RETURN SetStatus(GdipSetImageAttributesColorMatrix(m_pImgAttr, nType, FALSE, NULL, NULL, ColorMatrixFlagsDefault))
 END FUNCTION
 ' =====================================================================================
 
@@ -191,7 +191,7 @@ END FUNCTION
 ' Clears the output channel color profile setting for a specified category.
 ' =====================================================================================
 FUNCTION CGpImageAttributes.ClearOutputChannelColorProfile (BYVAL nType AS ColorAdjustType = ColorAdjustTypeDefault) AS GpStatus
-   RETURN SetStatus(GdipSetImageAttributesOutputChannelColorProfile(m_pImgAttr, nType, FALSE, nullptr))
+   RETURN SetStatus(GdipSetImageAttributesOutputChannelColorProfile(m_pImgAttr, nType, FALSE, NULL))
 END FUNCTION
 ' =====================================================================================
 
@@ -214,7 +214,7 @@ END FUNCTION
 ' Clears the color-remap table for a specified category.
 ' =====================================================================================
 FUNCTION CGpImageAttributes.ClearRemapTable (BYVAL nType AS ColorAdjustType = ColorAdjustTypeDefault) AS GpStatus
-   RETURN SetStatus(GdipSetImageAttributesRemapTable(m_pImgAttr, nType, FALSE, 0, nullptr))
+   RETURN SetStatus(GdipSetImageAttributesRemapTable(m_pImgAttr, nType, FALSE, 0, NULL))
 END FUNCTION
 ' =====================================================================================
 

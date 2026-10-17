@@ -849,7 +849,7 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CGpGraphics.DrawString (BYVAL pwszString AS WSTRING PTR, BYVAL length AS INT_, _
    BYVAL pFont AS CGpFont PTR, BYVAL rcf AS GpRectF PTR, BYVAL pBrush AS CGpBrush PTR) AS GpStatus
-   RETURN SetStatus(GdipDrawString(m_pGraphics, pwszString, length, pFont->m_pFont, rcf, nullptr, pBrush->m_pBrush))
+   RETURN SetStatus(GdipDrawString(m_pGraphics, pwszString, length, pFont->m_pFont, rcf, NULL, pBrush->m_pBrush))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
@@ -857,7 +857,7 @@ FUNCTION CGpGraphics.DrawString (BYVAL pwszString AS WSTRING PTR, BYVAL length A
    BYVAL pFont AS CGpFont PTR, BYVAL x AS SINGLE, BYVAL y AS SINGLE, BYVAL nWidth AS SINGLE, _
    BYVAL nHeight AS SINGLE, BYVAL pBrush AS CGpBrush PTR) AS GpStatus
    DIM layoutRect AS GpRectF = TYPE<GpRectF>(x, y, nWidth, nHeight)
-   RETURN SetStatus(GdipDrawString(m_pGraphics, pwszString, length, pFont->m_pFont, @layoutRect, nullptr, pBrush->m_pBrush))
+   RETURN SetStatus(GdipDrawString(m_pGraphics, pwszString, length, pFont->m_pFont, @layoutRect, NULL, pBrush->m_pBrush))
 END FUNCTION
 ' ========================================================================================
 
@@ -883,14 +883,14 @@ END FUNCTION
 FUNCTION CGpGraphics.DrawString (BYVAL pwszString AS WSTRING PTR, BYVAL length AS INT_, _
    BYVAL pFont AS CGpFont PTR, BYVAL origin as GpPointF PTR, BYVAL pBrush AS CGpBrush PTR) AS GpStatus
    DIM layoutRect AS GpRectF = TYPE<GpRectF>(origin->x, origin->y, 0.0, 0.0)
-   RETURN SetStatus(GdipDrawString(m_pGraphics, pwszString, length, pFont->m_pFont, @layoutRect, nullptr, pBrush->m_pBrush))
+   RETURN SetStatus(GdipDrawString(m_pGraphics, pwszString, length, pFont->m_pFont, @layoutRect, NULL, pBrush->m_pBrush))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CGpGraphics.DrawString (BYVAL pwszString AS WSTRING PTR, BYVAL length AS INT_, _
    BYVAL pFont AS CGpFont PTR, BYVAL x AS SINGLE, BYVAL y AS SINGLE, BYVAL pBrush AS CGpBrush PTR) AS GpStatus
    DIM layoutRect AS GpRectF = TYPE<GpRectF>(x, y, 0.0, 0.0)
-   RETURN SetStatus(GdipDrawString(m_pGraphics, pwszString, length, pFont->m_pFont, @layoutRect, nullptr, pBrush->m_pBrush))
+   RETURN SetStatus(GdipDrawString(m_pGraphics, pwszString, length, pFont->m_pFont, @layoutRect, NULL, pBrush->m_pBrush))
 END FUNCTION
 ' ========================================================================================
 
@@ -945,21 +945,21 @@ FUNCTION CGpGraphics.MeasureString (BYVAL pwszString AS WSTRING PTR, BYVAL lengt
    BYVAL origin AS GpPointF PTR, BYVAL pStringFormat AS CGpStringFormat PTR, BYVAL boundingBox AS GpRectF PTR) AS GpStatus
    DIM layoutRect AS GpRectF = TYPE<GpRectF>(origin->x, origin->y, 0.0, 0.0)
    RETURN SetStatus(GdipMeasureString(m_pGraphics, pwszString, length, _
-      pFont->m_pFont, @layoutRect, pStringFormat->m_pStringFormat, boundingBox, nullptr, nullptr))
+      pFont->m_pFont, @layoutRect, pStringFormat->m_pStringFormat, boundingBox, NULL, NULL))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CGpGraphics.MeasureString (BYVAL pwszString AS WSTRING PTR, BYVAL length AS INT_, BYVAL pFont AS CGpFont PTR, _
    BYVAL layoutRect AS GpRectF PTR, BYVAL pStringFormat AS CGpStringFormat PTR, BYVAL boundingBox AS GpRectF PTR) AS GpStatus
    RETURN SetStatus(GdipMeasureString(m_pGraphics, pwszString, length, _
-      pFont->m_pFont, layoutRect, pStringFormat->m_pStringFormat, boundingBox, nullptr, nullptr))
+      pFont->m_pFont, layoutRect, pStringFormat->m_pStringFormat, boundingBox, NULL, NULL))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CGpGraphics.MeasureString (BYVAL pwszString AS WSTRING PTR, BYVAL length AS INT_, BYVAL pFont AS CGpFont PTR, _
    BYVAL layoutRect AS GpRectF PTR, BYVAL boundingBox AS GpRectF PTR) AS GpStatus
    RETURN SetStatus(GdipMeasureString(m_pGraphics, pwszString, length, _
-      pFont->m_pFont, layoutRect, nullptr, boundingBox, nullptr, nullptr))
+      pFont->m_pFont, layoutRect, NULL, boundingBox, NULL, NULL))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
@@ -967,7 +967,7 @@ FUNCTION CGpGraphics.MeasureString (BYVAL pwszString AS WSTRING PTR, BYVAL lengt
    BYVAL origin AS GpPointF PTR, BYVAL boundingBox AS GpRectF PTR) AS GpStatus
    DIM layoutRect AS GpRectF = TYPE<GpRectF>(origin->x, origin->y, 0.0, 0.0)
    RETURN SetStatus(GdipMeasureString(m_pGraphics, pwszString, length, _
-      pFont->m_pFont, @layoutRect, nullptr, boundingBox, nullptr, nullptr))
+      pFont->m_pFont, @layoutRect, NULL, boundingBox, NULL, NULL))
 END FUNCTION
 ' ========================================================================================
 
@@ -978,7 +978,7 @@ END FUNCTION
 FUNCTION CGpGraphics.MeasureCharacterRanges (BYVAL pwszString AS WSTRING PTR, BYVAL length AS INT_, _
    BYVAL pFont AS CGpFont PTR, BYVAL layoutRect AS GpRectF PTR, BYVAL pStringFormat AS CGpStringFormat PTR, _
    BYVAL regionCount AS INT_, BYVAL regions AS CGpRegion PTR) AS GpStatus
-   IF pwszString = nullptr OR pFont = nullptr OR layoutRect = nullptr OR pStringFormat = nullptr OR regions = nullptr THEN RETURN SetStatus(InvalidParameter)
+   IF pwszString = NULL OR pFont = NULL OR layoutRect = NULL OR pStringFormat = NULL OR regions = NULL THEN RETURN SetStatus(InvalidParameter)
    DIM pRegions(regionCount - 1) AS GpRegion PTR
    FOR i AS LONG = 0 TO regionCount - 1
       pRegions(i) = regions[i].m_pRegion
@@ -996,7 +996,7 @@ END FUNCTION
 ' in one file and as PointF_ PTR in another. It should be GpPointF.
 ' ========================================================================================
 FUNCTION CGpGraphics.DrawDriverString (BYVAL pText AS UINT16 PTR, BYVAL length AS INT_, BYVAL pFont AS CGpFont PTR, _
-   BYVAL pBrush AS CGpBrush PTR, BYVAL positions AS ANY PTR, BYVAL flags AS INT_, BYVAL pMatrix AS CGpMatrix PTR = nullptr) AS GpStatus
+   BYVAL pBrush AS CGpBrush PTR, BYVAL positions AS ANY PTR, BYVAL flags AS INT_, BYVAL pMatrix AS CGpMatrix PTR = NULL) AS GpStatus
    RETURN SetStatus(GdipDrawDriverString(m_pGraphics, pText, length, pFont->m_pFont, pBrush->m_pBrush, positions, flags, IIF(pMatrix, pMatrix->m_pMatrix, NULL)))
 END FUNCTION
 ' ========================================================================================
@@ -1012,7 +1012,7 @@ END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CGpGraphics.MeasureDriverString (BYVAL pText AS UINT16 PTR, BYVAL length AS LONG, BYVAL pFont AS CGpFont PTR, _
-   BYVAL positions AS ANY PTR, BYVAL flags AS LONG, BYVAL pMatrix AS CGpMatrix PTR = nullptr) AS GpRectF
+   BYVAL positions AS ANY PTR, BYVAL flags AS LONG, BYVAL pMatrix AS CGpMatrix PTR = NULL) AS GpRectF
    DIM boundingBox AS GpRectF
    SetStatus(GdipMeasureDriverString(m_pGraphics, pText, length, pFont->m_pFont, _
              positions, flags, IIF(pMatrix, pMatrix->m_pMatrix, NULL), @boundingBox))
@@ -1110,7 +1110,7 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CGpGraphics.DrawImage (BYVAL pImage AS CGpImage PTR, BYVAL destRect AS GpRectF PTR, _
    BYVAL srcx AS SINGLE, BYVAL srcy AS SINGLE, BYVAL srcwidth AS SINGLE, BYVAL srcheight AS SINGLE, BYVAL srcUnit AS GpUnit, _
-   BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr, BYVAL pcallback AS DrawImageAbort = nullptr, BYVAL pcallbackData AS ANY PTR = nullptr) AS GpStatus
+   BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL, BYVAL pcallback AS DrawImageAbort = NULL, BYVAL pcallbackData AS ANY PTR = NULL) AS GpStatus
    RETURN SetStatus(GdipDrawImageRectRect(m_pGraphics, pImage->m_pImage, destRect->x, destRect->y, _
    destRect->Width, destRect->Height, srcx, srcy, srcwidth, srcheight, srcUnit, _
    IIF(pImageAttributes, pImageAttributes->m_pImgAttr, NULL), pCallback, pcallbackData))
@@ -1119,7 +1119,7 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CGpGraphics.DrawImage (BYVAL pImage AS CGpImage PTR, BYVAL destRect AS GpRect PTR, _
    BYVAL srcx AS INT_, BYVAL srcy AS INT_, BYVAL srcwidth AS INT_, BYVAL srcheight AS INT_, BYVAL srcUnit AS GpUnit, _
-   BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr, BYVAL pcallback AS DrawImageAbort = nullptr, BYVAL pcallbackData AS ANY PTR = nullptr) AS GpStatus
+   BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL, BYVAL pcallback AS DrawImageAbort = NULL, BYVAL pcallbackData AS ANY PTR = NULL) AS GpStatus
    RETURN SetStatus(GdipDrawImageRectRectI(m_pGraphics, pImage->m_pImage, destRect->x, destRect->y, _
    destRect->Width, destRect->Height, srcx, srcy, srcwidth, srcheight, srcUnit, _
    IIF(pImageAttributes, pImageAttributes->m_pImgAttr, NULL), pCallback, pcallbackData))
@@ -1129,7 +1129,7 @@ END FUNCTION
 FUNCTION CGpGraphics.DrawImage (BYVAL pImage AS CGpImage PTR, BYVAL destx AS SINGLE, _
    BYVAL desty AS SINGLE, BYVAL destWidth AS SINGLE, BYVAL destHeight AS SINGLE, _
    BYVAL srcx AS SINGLE, BYVAL srcy AS SINGLE, BYVAL srcwidth AS SINGLE, BYVAL srcheight AS SINGLE, BYVAL srcUnit AS GpUnit, _
-   BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr, BYVAL pcallback AS DrawImageAbort = nullptr, BYVAL pcallbackData AS ANY PTR = nullptr) AS GpStatus
+   BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL, BYVAL pcallback AS DrawImageAbort = NULL, BYVAL pcallbackData AS ANY PTR = NULL) AS GpStatus
    RETURN SetStatus(GdipDrawImageRectRect(m_pGraphics, pImage->m_pImage, destx, desty, _
    destWidth, destHeight, srcx, srcy, srcwidth, srcheight, srcUnit, _
    IIF(pImageAttributes, pImageAttributes->m_pImgAttr, NULL), pCallback, pcallbackData))
@@ -1148,7 +1148,7 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CGpGraphics.DrawImage (BYVAL pImage AS CGpImage PTR, BYVAL destPoints AS GpPointF PTR, BYVAL nCount AS INT_, _
    BYVAL srcx AS SINGLE, BYVAL srcy AS SINGLE, BYVAL srcwidth AS SINGLE, BYVAL srcheight AS SINGLE, BYVAL srcUnit AS GpUnit, _
-   BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr, BYVAL pcallback AS DrawImageAbort = nullptr, BYVAL pcallbackData AS ANY PTR = nullptr) AS GpStatus
+   BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL, BYVAL pcallback AS DrawImageAbort = NULL, BYVAL pcallbackData AS ANY PTR = NULL) AS GpStatus
    RETURN SetStatus(GdipDrawImagePointsRect(m_pGraphics, pImage->m_pImage, destPoints, nCount, _
    srcx, srcy, srcwidth, srcheight, srcUnit, IIF(pImageAttributes, pImageAttributes->m_pImgAttr, NULL), pCallback, pcallbackData))
 END FUNCTION
@@ -1156,7 +1156,7 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CGpGraphics.DrawImage (BYVAL pImage AS CGpImage PTR, BYVAL destPoints AS GpPoint PTR, BYVAL nCount AS INT_, _
    BYVAL srcx AS INT_, BYVAL srcy AS INT_, BYVAL srcwidth AS INT_, BYVAL srcheight AS INT_, BYVAL srcUnit AS GpUnit, _
-   BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr, BYVAL pcallback AS DrawImageAbort = nullptr, BYVAL pcallbackData AS ANY PTR = nullptr) AS GpStatus
+   BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL, BYVAL pcallback AS DrawImageAbort = NULL, BYVAL pcallbackData AS ANY PTR = NULL) AS GpStatus
    RETURN SetStatus(GdipDrawImagePointsRectI(m_pGraphics, pImage->m_pImage, destPoints, nCount, _
    srcx, srcy, srcwidth, srcheight, srcUnit, IIF(pImageAttributes, pImageAttributes->m_pImgAttr, NULL), pCallback, pcallbackData))
 END FUNCTION
@@ -1164,26 +1164,26 @@ END FUNCTION
 
 ' ========================================================================================
 FUNCTION CGpGraphics.DrawImage (BYVAL pImage AS CGpImage PTR, BYVAL destRect AS GpRectF PTR, _
-   BYVAL sourceRect AS GpRectF PTR, BYVAL srcUnit AS GpUnit, BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr) AS GpStatus
+   BYVAL sourceRect AS GpRectF PTR, BYVAL srcUnit AS GpUnit, BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL) AS GpStatus
    RETURN SetStatus(GdipDrawImageRectRect(m_pGraphics, pImage->m_pImage, _
           destRect->x, destRect->y, destRect->Width, destRect->Height, sourceRect->x, sourceRect->y, _
-          sourceRect->Width, sourceRect->Height, srcUnit, IIF(pImageAttributes, pImageAttributes->m_pImgAttr, NULL), nullptr, nullptr))
+          sourceRect->Width, sourceRect->Height, srcUnit, IIF(pImageAttributes, pImageAttributes->m_pImgAttr, NULL), NULL, NULL))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CGpGraphics.DrawImage (BYVAL pImage AS CGpImage PTR, BYVAL destRect AS GpRect PTR, _
-   BYVAL sourceRect AS GpRect PTR, BYVAL srcUnit AS GpUnit, BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr) AS GpStatus
+   BYVAL sourceRect AS GpRect PTR, BYVAL srcUnit AS GpUnit, BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL) AS GpStatus
    RETURN SetStatus(GdipDrawImageRectRectI(m_pGraphics, pImage->m_pImage, _
           destRect->x, destRect->y, destRect->Width, destRect->Height, sourceRect->x, sourceRect->y, _
-          sourceRect->Width, sourceRect->Height, srcUnit, IIF(pImageAttributes, pImageAttributes->m_pImgAttr, NULL), nullptr, nullptr))
+          sourceRect->Width, sourceRect->Height, srcUnit, IIF(pImageAttributes, pImageAttributes->m_pImgAttr, NULL), NULL, NULL))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CGpGraphics.DrawImage (BYVAL pImage AS CGpImage PTR, BYVAL destx AS SINGLE, BYVAL desty AS SINGLE, BYVAL destWidth AS SINGLE, BYVAL destHeight AS SINGLE, _
-   BYVAL srcx AS SINGLE, BYVAL srcy AS SINGLE, BYVAL srcWidth AS SINGLE, BYVAL srcHeight AS SINGLE, BYVAL srcUnit AS GpUnit, BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr) AS GpStatus
+   BYVAL srcx AS SINGLE, BYVAL srcy AS SINGLE, BYVAL srcWidth AS SINGLE, BYVAL srcHeight AS SINGLE, BYVAL srcUnit AS GpUnit, BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL) AS GpStatus
    RETURN SetStatus(GdipDrawImageRectRect(m_pGraphics, pImage->m_pImage, _
           destx, desty, destWidth, destHeight, srcx, srcy, srcWidth, srcHeight, _
-          srcUnit, IIF(pImageAttributes, pImageAttributes->m_pImgAttr, NULL), nullptr, nullptr))
+          srcUnit, IIF(pImageAttributes, pImageAttributes->m_pImgAttr, NULL), NULL, NULL))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
@@ -1210,21 +1210,21 @@ END FUNCTION
 ' You can use this function to display a metafile by calling PlayRecord in the callback function.
 ' ========================================================================================
 FUNCTION CGpGraphics.EnumerateMetafileDestPoint (BYVAL pMetafile AS CGpMetafile PTR, BYVAL destPoint AS GpPointF PTR, _
-BYVAL pCallback AS EnumerateMetafileProc = nullptr, BYVAL pCallbackData AS ANY PTR = nullptr, BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr) AS GpStatus
+BYVAL pCallback AS EnumerateMetafileProc = NULL, BYVAL pCallbackData AS ANY PTR = NULL, BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL) AS GpStatus
    RETURN SetStatus(GdipEnumerateMetafileDestPoint(m_pGraphics, IIF(pMetafile, pMetafile->m_pImage, NULL), _
           destPoint, pCallback, pCallbackData, IIF(pImageAttributes, pImageAttributes->m_pImgAttr, NULL)))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CGpGraphics.EnumerateMetafileDestRect (BYVAL pMetafile AS CGpMetafile PTR, BYVAL destRect AS GpRectF PTR, BYVAL pCallback AS EnumerateMetafileProc, _
-BYVAL pCallbackData AS ANY PTR = nullptr, BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr) AS GpStatus
+BYVAL pCallbackData AS ANY PTR = NULL, BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL) AS GpStatus
    RETURN SetStatus(GdipEnumerateMetafileDestRect(m_pGraphics, IIF(pMetafile, pMetafile->m_pImage, NULL), _
           destRect, pCallback, pCallbackData, IIF(pImageAttributes, pImageAttributes->m_pImgAttr, NULL)))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CGpGraphics.EnumerateMetafileDestPoints (BYVAL pMetafile AS CGpMetafile PTR, BYVAL destPoints AS GpPointF PTR, BYVAL nCount AS LONG, BYVAL pCallback AS EnumerateMetafileProc, _
-BYVAL pCallbackData AS ANY PTR = nullptr, BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr) AS GpStatus
+BYVAL pCallbackData AS ANY PTR = NULL, BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL) AS GpStatus
    RETURN SetStatus(GdipEnumerateMetafileDestPoints(m_pGraphics, IIF(pMetafile, pMetafile->m_pImage, NULL), _
           destPoints, nCount, pCallback, pCallbackData, IIF(pImageAttributes, pImageAttributes->m_pImgAttr, NULL)))
 END FUNCTION
@@ -1232,7 +1232,7 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CGpGraphics.EnumerateMetafileSrcRectDestPoint (BYVAL pMetafile AS CGpMetafile PTR, BYVAL destPoint AS GpPointF PTR, _
 BYVAL srcRect AS GpRectF PTR, BYVAL srcUnit AS GpUnit, BYVAL pCallback AS EnumerateMetafileProc, _
-BYVAL pCallbackData AS ANY PTR = nullptr, BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr) AS GpStatus
+BYVAL pCallbackData AS ANY PTR = NULL, BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL) AS GpStatus
    RETURN SetStatus(GdipEnumerateMetafileSrcRectDestPoint(m_pGraphics, IIF(pMetafile, pMetafile->m_pImage, NULL), _
          destPoint, srcRect, srcUnit, pCallback, pCallbackData, IIF(pImageAttributes, pImageAttributes->m_pImgAttr, NULL)))
 END FUNCTION
@@ -1240,7 +1240,7 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CGpGraphics.EnumerateMetafileSrcRectDestRect (BYVAL pMetafile AS CGpMetafile PTR, BYVAL destRect AS GpRectF PTR, _
 BYVAL srcRect AS GpRectF PTR, BYVAL srcUnit AS GpUnit, BYVAL pCallback AS EnumerateMetafileProc, _
-BYVAL pCallbackData AS ANY PTR = nullptr, BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr) AS GpStatus
+BYVAL pCallbackData AS ANY PTR = NULL, BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL) AS GpStatus
    RETURN SetStatus(GdipEnumerateMetafileSrcRectDestRect(m_pGraphics, IIF(pMetafile, pMetafile->m_pImage, NULL), _
           destRect, srcRect, srcUnit, pCallback, pCallbackData, IIF(pImageAttributes, pImageAttributes->m_pImgAttr, NULL)))
 END FUNCTION
@@ -1248,7 +1248,7 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CGpGraphics.EnumerateMetafileSrcRectDestPoints (BYVAL pMetafile AS CGpMetafile PTR, BYVAL destPoints AS GpPointF PTR, _
 BYVAL nCount AS INT_, BYVAL srcRect AS GpRectF PTR, BYVAL srcUnit AS GpUnit, BYVAL pCallback AS EnumerateMetafileProc, _
-BYVAL pCallbackData AS ANY PTR = nullptr, BYVAL pImageAttributes AS CGpImageAttributes PTR = nullptr) AS GpStatus
+BYVAL pCallbackData AS ANY PTR = NULL, BYVAL pImageAttributes AS CGpImageAttributes PTR = NULL) AS GpStatus
    RETURN SetStatus(GdipEnumerateMetafileSrcRectDestPoints(m_pGraphics, IIF(pMetafile, pMetafile->m_pImage, NULL), _
           destPoints, nCount, srcRect, srcUnit, pCallback, pCallbackData, IIF(pImageAttributes, pImageAttributes->m_pImgAttr, NULL)))
 END FUNCTION
@@ -1397,7 +1397,7 @@ END FUNCTION
 ' Gets the clipping region of this Graphics object.
 ' ========================================================================================
 FUNCTION CGpGraphics.GetClip (BYVAL pRegion AS CGpRegion PTR) AS GpStatus
-   IF pRegion = nullptr THEN RETURN SetStatus(InvalidParameter)
+   IF pRegion = NULL THEN RETURN SetStatus(InvalidParameter)
    RETURN SetStatus(GdipGetClip(m_pGraphics, pRegion->m_pRegion))
 END FUNCTION
 ' ========================================================================================

@@ -3,15 +3,15 @@
 ' (C) 2026 José Roca.
 ' ########################################################################################
 
-' ########################################################################################
-' CWebView2CreateCoreWebView2EnvironmentCompletedHandler class
-' Implementation of the ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler callback interface.
-' ########################################################################################
 #module "webview2"
 #import "tkl/tkCore"
 #include once "webview2.ti"
 using tkCore
 
+' ########################################################################################
+' CWebView2CreateCoreWebView2EnvironmentCompletedHandler class
+' Implementation of the ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler callback interface.
+' ########################################################################################
 PUBLIC TYPE CWebView2CreateCoreWebView2EnvironmentCompletedHandler EXTENDS OBJECT
 
    DECLARE VIRTUAL FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT

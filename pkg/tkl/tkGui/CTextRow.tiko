@@ -96,7 +96,7 @@ END CONSTRUCTOR
 ' ========================================================================================
 CONSTRUCTOR CTextRow (BYVAL pTextRow AS ITextRow PTR, BYVAL fAddRef AS BOOLEAN = FALSE)
    ' // Store the pointer of ITextRow interface
-   IF pTextRow = nullptr THEN m_Result = E_INVALIDARG : EXIT CONSTRUCTOR
+   IF pTextRow = NULL THEN m_Result = E_INVALIDARG : EXIT CONSTRUCTOR
    IF fAddRef THEN pTextRow->lpvtbl->AddRef(pTextRow)
    m_pTextRow = pTextRow
 END CONSTRUCTOR
@@ -115,7 +115,7 @@ END DESTRUCTOR
 ' Assignment operator
 ' ========================================================================================
 OPERATOR CTextRow.LET (BYVAL pTextRow AS ITextRow PTR)
-   IF pTextRow = nullptr THEN m_Result = E_INVALIDARG : EXIT OPERATOR
+   IF pTextRow = NULL THEN m_Result = E_INVALIDARG : EXIT OPERATOR
    ' // Release the interface
    IF m_pTextRow THEN m_pTextRow->lpvtbl->Release(m_pTextRow)
    ' // Attach the passed interface pointer to the class
@@ -143,7 +143,7 @@ END FUNCTION
 ' Attaches the passed text document object to the class
 ' ========================================================================================
 FUNCTION CTextRow.Attach (BYVAL pTextRow AS ITextRow PTR, BYVAL fAddRef AS BOOLEAN = FALSE) AS HRESULT
-   IF pTextRow = nullptr THEN m_Result = E_INVALIDARG : RETURN m_Result
+   IF pTextRow = NULL THEN m_Result = E_INVALIDARG : RETURN m_Result
    ' // Release the interface
    IF m_pTextRow THEN m_Result = m_pTextRow->lpvtbl->Release(m_pTextRow)
    ' // Attach the passed interface pointer to the class
@@ -158,7 +158,7 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CTextRow.Detach () AS ITextRow PTR
    DIM pTextRow AS ITextRow PTR = m_pTextRow
-   m_pTextRow = nullptr
+   m_pTextRow = NULL
    RETURN pTextRow
 END FUNCTION
 ' ========================================================================================

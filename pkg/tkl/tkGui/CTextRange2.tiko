@@ -141,7 +141,7 @@ END TYPE
 ' ========================================================================================
 CONSTRUCTOR CTextRange2 (BYVAL pTextRange2 AS ITextRange2 PTR, BYVAL fAddRef AS BOOLEAN = FALSE)
    ' // Store the pointer of the ITextRange2 interface
-   IF pTextRange2 = nullptr THEN m_Result = E_INVALIDARG : EXIT CONSTRUCTOR
+   IF pTextRange2 = NULL THEN m_Result = E_INVALIDARG : EXIT CONSTRUCTOR
    IF fAddRef THEN pTextRange2->lpvtbl->AddRef(pTextRange2)
    m_pTextRange2 = pTextRange2
 END CONSTRUCTOR
@@ -1140,13 +1140,13 @@ FUNCTION CTextRange2.GetRtf () AS STRING
    v.vt = VT_UNKNOWN OR VT_BYREF
    v.ppunkVal = cast(IUnknown PTR PTR, @pData)
    m_Result = this.Copy(@v)
-   IF m_Result <> S_OK OR pData = nullptr THEN Return ""
+   IF m_Result <> S_OK OR pData = NULL THEN Return ""
    ' // Decode RTF data
    DIM fe AS FORMATETC
    fe.cfFormat = RegisterClipboardFormat(CF_RTF)
    fe.dwAspect = DVASPECT_CONTENT
    fe.lindex = -1
-   fe.ptd = nullptr
+   fe.ptd = NULL
    fe.tymed = TYMED_HGLOBAL
    m_Result = pData->lpvtbl->QueryGetData(pData, @fe)
    DIM stm AS STGMEDIUM

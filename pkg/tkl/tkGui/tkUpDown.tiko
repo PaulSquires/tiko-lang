@@ -65,7 +65,7 @@ END FUNCTION
 ' ========================================================================================
 ' Returns the 32-bit position of an up-down control.
 ' ========================================================================================
-PUBLIC FUNCTION tkUpDown_GetPos32 (BYVAL hUpDown AS HWND, BYVAL pfError AS LONG PTR = nullptr) AS LONG
+PUBLIC FUNCTION tkUpDown_GetPos32 (BYVAL hUpDown AS HWND, BYVAL pfError AS LONG PTR = NULL) AS LONG
    RETURN SendMessageW(hUpDown, UDM_GETPOS32, 0, cast(LPARAM, pfError))
 END FUNCTION
 ' ========================================================================================

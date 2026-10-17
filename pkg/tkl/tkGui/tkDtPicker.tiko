@@ -159,14 +159,14 @@ END SUB
 ' Gets information for a specified date and time picker (DTP) control.
 ' ========================================================================================
 PUBLIC SUB tkDTP_GetDateTimePickerInfo OVERLOAD (BYVAL hDtp AS HWND, BYVAL pdtpi AS DATETIMEPICKERINFO PTR)
-   IF pdtpi = nullptr THEN EXIT SUB
+   IF pdtpi = NULL THEN EXIT SUB
    pdtpi->cbSize = SIZEOF(DATETIMEPICKERINFO)
    SendMessageW(hDtp, DTM_GETDATETIMEPICKERINFO, 0, cast(LPARAM, pdtpi))
 END SUB
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC SUB tkDTP_GetDateTimePickerInfo OVERLOAD (BYVAL hDtp AS HWND, BYREF dtpi AS DATETIMEPICKERINFO)
-   IF VARPTR(dtpi) = nullptr THEN EXIT SUB
+   IF VARPTR(dtpi) = NULL THEN EXIT SUB
    dtpi.cbSize = SIZEOF(DATETIMEPICKERINFO)
    SendMessageW(hDtp, DTM_GETDATETIMEPICKERINFO, 0, cast(LPARAM, @dtpi))
 END SUB

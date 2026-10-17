@@ -36,7 +36,7 @@
 ' the animation control.
 ' ========================================================================================
 PUBLIC FUNCTION tkPropSheet_Create (BYVAL hParent AS HWND, BYVAL id AS LONG_PTR, BYVAL dwStyle AS DWORD, BYVAL hInstance AS HINSTANCE) AS HWND
-   RETURN CreateWindowW("SysAnimate32", nullptr, dwStyle, 0, 0, 0, 0, hParent, cast(HMENU, id), hInstance, nullptr)
+   RETURN CreateWindowW("SysAnimate32", NULL, dwStyle, 0, 0, 0, 0, hParent, cast(HMENU, id), hInstance, NULL)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================

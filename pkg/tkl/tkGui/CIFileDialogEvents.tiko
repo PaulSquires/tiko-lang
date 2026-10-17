@@ -74,7 +74,7 @@ END DESTRUCTOR
 ' Returns pointers to the implemented classes and supported interfaces.
 ' ========================================================================================
 FUNCTION CIFileDialogControlEvents.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   IF ppvObj = nullptr THEN RETURN E_INVALIDARG
+   IF ppvObj = NULL THEN RETURN E_INVALIDARG
    IF IsEqualIID(riid, @IID_IFileDialogControlEvents) OR _
       IsEqualIID(riid, @IID_IUnknown) THEN
       *ppvObj = @this
@@ -194,7 +194,7 @@ END DESTRUCTOR
 ' Returns pointers to the implemented classes and supported interfaces.
 ' ========================================================================================
 FUNCTION CIFileDialogEvents.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   IF ppvObj = nullptr THEN RETURN E_INVALIDARG
+   IF ppvObj = NULL THEN RETURN E_INVALIDARG
    IF IsEqualIID(riid, @IID_IFileOpenDialog) OR _
       IsEqualIID(riid, @IID_IFileSaveDialog) OR _
       IsEqualIID(riid, @IID_IUnknown) THEN

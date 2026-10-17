@@ -84,11 +84,11 @@ END TYPE
 ' ========================================================================================
 CONSTRUCTOR CExplorerBrowser
    ' // Initialize the COM library
-   DIM hr AS HRESULT = OleInitialize(nullptr)
+   DIM hr AS HRESULT = OleInitialize(NULL)
    IF hr = S_OK OR hr = S_FALSE THEN m_bUninitCOM = TRUE
    ' // Create an instance of the Dictionary object
    DIM IID_IDictionary_  AS GUID  = (&h42C642C1, &h97E1, &h11CF, {&h97, &h8F, &h00, &hA0, &h24, &h63, &hE0, &h6F})
-   CoCreateInstance(@CLSID_ExplorerBrowser, nullptr, CLSCTX_INPROC_SERVER, @IID_IExplorerBrowser, @m_pExplorer)
+   CoCreateInstance(@CLSID_ExplorerBrowser, NULL, CLSCTX_INPROC_SERVER, @IID_IExplorerBrowser, @m_pExplorer)
 '   IF m_pExplorer = NULL THEN EXIT CONSTRUCTOR
 END CONSTRUCTOR
 ' ========================================================================================
@@ -123,7 +123,7 @@ END FUNCTION
 ' You must call IUnknown_Release to decrement the reference count.
 ' ========================================================================================
 FUNCTION CExplorerBrowser.ObjPtr () AS IExplorerBrowser PTR
-   IF m_pExplorer <> nullptr THEN m_pExplorer->lpvtbl->AddRef(m_pExplorer)
+   IF m_pExplorer <> NULL THEN m_pExplorer->lpvtbl->AddRef(m_pExplorer)
    RETURN m_pExplorer
 END FUNCTION
 ' ========================================================================================
@@ -153,8 +153,8 @@ FUNCTION CExplorerBrowser.GetErrorInfo (BYVAL nError AS LONG = -1) AS USTRING
    DIM cbLen AS DWORD, pBuffer AS WSTRING PTR, ustrMsg AS USTRING
    cbLen = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER OR _
            FORMAT_MESSAGE_FROM_SYSTEM OR FORMAT_MESSAGE_IGNORE_INSERTS, _
-           nullptr, nError, BYVAL MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), _
-           cast(LPWSTR, @pBuffer), 0, nullptr)
+           NULL, nError, BYVAL MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), _
+           cast(LPWSTR, @pBuffer), 0, NULL)
    IF cbLen THEN
       ustrMsg = *pBuffer
       LocalFree pBuffer
@@ -340,7 +340,7 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CExplorerBrowser.NavigateTo (BYREF wszPath AS WSTRING) AS HRESULT
    DIM pidlBrowse AS ITEMIDLIST PTR
-   m_Result = SHParseDisplayName(@wszPath, nullptr, @pidlBrowse, 0, nullptr)
+   m_Result = SHParseDisplayName(@wszPath, NULL, @pidlBrowse, 0, NULL)
    IF m_Result <> S_OK THEN RETURN m_Result
    m_Result = m_pExplorer->lpvtbl->BrowseToIDList(m_pExplorer, pidlBrowse, 0)
    ILFree(pidlBrowse)
@@ -352,7 +352,7 @@ END FUNCTION
 ' Assigns an event handler that listens for events coming from the dialog.
 ' ========================================================================================
 FUNCTION CExplorerBrowser.SetEvents (BYVAL pebe AS IExplorerBrowserEvents PTR) AS HRESULT
-   IF pebe = nullptr THEN RETURN E_POINTER
+   IF pebe = NULL THEN RETURN E_POINTER
    ' // Removes the previous event handler that was attached through the SetEvents method.
    IF m_dwCookie THEN
       m_pExplorer->lpvtbl->Unadvise(m_pExplorer, m_dwCookie)
@@ -407,7 +407,7 @@ END DESTRUCTOR
 ' Returns pointers to the implemented classes and supported interfaces.
 ' ========================================================================================
 FUNCTION CExplorerBrowserEvents.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   IF ppvObj = nullptr THEN RETURN E_INVALIDARG
+   IF ppvObj = NULL THEN RETURN E_INVALIDARG
    IF IsEqualIID(riid, @IID_IExplorerBrowserEvents) OR IsEqualIID(riid, @IID_IUnknown) THEN
       *ppvObj = @this
       RETURN S_OK

@@ -69,8 +69,8 @@ FUNCTION GdiPlusObjects.RefCount (BYVAL bIncrement AS BOOLEAN) AS LONG
       ' // Initialize the GDI+ library
       DIM StartupInput AS GdiplusStartupInput
       StartupInput.GdiplusVersion = 1 ' Version must be 1
-      m_Status = GdiplusStartup(@token, @StartupInput, nullptr)
-      IF m_Status <> 0 THEN MessageBoxW(nullptr, "GDI+ initialization failed - Error: " & WSTR(m_Status), "Error", MB_OK OR MB_ICONERROR OR MB_APPLMODAL)
+      m_Status = GdiplusStartup(@token, @StartupInput, NULL)
+      IF m_Status <> 0 THEN MessageBoxW(0, "GDI+ initialization failed - Error: " & WSTR(m_Status), "Error", MB_OK OR MB_ICONERROR OR MB_APPLMODAL)
    END IF
    ' // Increase or decrease the reference count
    IF bIncrement THEN cRef += 1 ELSE cRef -= 1
@@ -154,7 +154,7 @@ END OPERATOR
 PUBLIC TYPE GdiPlusAdjustableArrowCap EXTENDS GdiPlusObjects
 Public:
    m_AdjustableArrowCap AS GpAdjustableArrowCap PTR
-   DECLARE CONSTRUCTOR (BYVAL cap AS GpAdjustableArrowCap PTR = nullptr)
+   DECLARE CONSTRUCTOR (BYVAL cap AS GpAdjustableArrowCap PTR = NULL)
    DECLARE CONSTRUCTOR (BYVAL nHeight AS SINGLE, BYVAL nWidth AS SINGLE, BYVAL bIsFilled AS BOOL = CTRUE)
    DECLARE DESTRUCTOR
    DECLARE OPERATOR @ () AS GpAdjustableArrowCap PTR PTR
@@ -165,7 +165,7 @@ END TYPE
 ' ========================================================================================
 ' Creates a AdjustableArrowCap
 ' ========================================================================================
-CONSTRUCTOR GdiPlusAdjustableArrowCap (BYVAL cap AS GpAdjustableArrowCap PTR = nullptr)
+CONSTRUCTOR GdiPlusAdjustableArrowCap (BYVAL cap AS GpAdjustableArrowCap PTR = NULL)
    IF cap THEN SetLastError(GdipCloneCustomLineCap(cap, @m_AdjustableArrowCap))
 END CONSTRUCTOR
 ' ========================================================================================
@@ -214,7 +214,7 @@ END OPERATOR
 PUBLIC TYPE GdiPlusBrush EXTENDS GdiPlusObjects
 Public:
    m_Brush AS GpBrush PTR
-   DECLARE CONSTRUCTOR (BYVAL brush AS GpBrush PTR = nullptr)
+   DECLARE CONSTRUCTOR (BYVAL brush AS GpBrush PTR = NULL)
    DECLARE DESTRUCTOR
    DECLARE OPERATOR @ () AS GpBrush PTR PTR
    DECLARE OPERATOR CAST () AS GpBrush PTR
@@ -222,7 +222,7 @@ END TYPE
 ' ========================================================================================
 
 ' ========================================================================================
-CONSTRUCTOR GdiPlusBrush (BYVAL brush AS GpBrush PTR = nullptr)
+CONSTRUCTOR GdiPlusBrush (BYVAL brush AS GpBrush PTR = NULL)
    IF brush THEN SetLastError(GdipCloneBrush(brush, @m_brush))
 END CONSTRUCTOR
 ' ========================================================================================
@@ -262,7 +262,7 @@ END OPERATOR
 PUBLIC TYPE GdiPlusSolidBrush EXTENDS GdiPlusObjects
 Public:
    m_Brush AS GpSolidBrush PTR
-   DECLARE CONSTRUCTOR (BYVAL brush AS GpSolidBrush PTR = nullptr)
+   DECLARE CONSTRUCTOR (BYVAL brush AS GpSolidBrush PTR = NULL)
    DECLARE CONSTRUCTOR (BYVAL colour AS ARGB = &hFF000000)
    DECLARE DESTRUCTOR
    DECLARE OPERATOR @ () AS GpSolidBrush PTR PTR
@@ -273,7 +273,7 @@ END TYPE
 ' ========================================================================================
 ' Creates a brush from another brush.
 ' ========================================================================================
-CONSTRUCTOR GdiPlusSolidBrush (BYVAL brush AS GpSolidBrush PTR = nullptr)
+CONSTRUCTOR GdiPlusSolidBrush (BYVAL brush AS GpSolidBrush PTR = NULL)
    IF brush THEN SetLastError(GdipCloneBrush(brush, @m_brush))
 END CONSTRUCTOR
 ' ========================================================================================
@@ -321,7 +321,7 @@ END OPERATOR
 PUBLIC TYPE GdiPlusHatchBrush EXTENDS GdiPlusObjects
 Public:
    m_Brush AS GpHatchBrush PTR
-   DECLARE CONSTRUCTOR (BYVAL brush AS GpHatchBrush PTR = nullptr)
+   DECLARE CONSTRUCTOR (BYVAL brush AS GpHatchBrush PTR = NULL)
    DECLARE CONSTRUCTOR (BYVAL nHatchStyle AS HatchStyle, BYVAL foreColor AS ARGB, BYVAL backColor AS ARGB = &HFF000000)
    DECLARE DESTRUCTOR
    DECLARE OPERATOR @ () AS GpHatchBrush PTR PTR
@@ -332,7 +332,7 @@ END TYPE
 ' ========================================================================================
 ' Creates a brush from another brush.
 ' ========================================================================================
-CONSTRUCTOR GdiPlusHatchBrush (BYVAL brush AS GpHatchBrush PTR = nullptr)
+CONSTRUCTOR GdiPlusHatchBrush (BYVAL brush AS GpHatchBrush PTR = NULL)
    IF brush THEN SetLastError(GdipCloneBrush(brush, @m_brush))
 END CONSTRUCTOR
 ' ========================================================================================
@@ -539,10 +539,10 @@ PUBLIC TYPE GdiPlusTextureBrush EXTENDS GdiPlusObjects
 Public:
    m_Texture AS GpTextureBrush PTR
    DECLARE CONSTRUCTOR (BYVAL image AS GpImage PTR, BYVAL nWrapMode AS WrapMode = WrapModeTile)
-   DECLARE CONSTRUCTOR (BYVAL image AS GpImage PTR, BYVAL dstRect AS GpRectF PTR, BYVAL imageAttributes AS GpImageAttributes PTR = nullptr)
-   DECLARE CONSTRUCTOR (BYVAL image AS GpImage PTR, BYVAL dstRect AS GpRect PTR, BYVAL imageAttributes AS GpImageAttributes PTR = nullptr)
-   DECLARE CONSTRUCTOR (BYVAL image AS GpImage PTR, BYVAL dstX AS SINGLE, BYVAL dstY AS SINGLE, BYVAL dstWidth AS SINGLE, BYVAL dstHeight AS SINGLE, BYVAL imageAttributes AS GpImageAttributes PTR = nullptr)
-   DECLARE CONSTRUCTOR (BYVAL image AS GpImage PTR, BYVAL dstX AS INT_, BYVAL dstY AS INT_, BYVAL dstWidth AS INT_, BYVAL dstHeight AS INT_, BYVAL imageAttributes AS GpImageAttributes PTR = nullptr)
+   DECLARE CONSTRUCTOR (BYVAL image AS GpImage PTR, BYVAL dstRect AS GpRectF PTR, BYVAL imageAttributes AS GpImageAttributes PTR = NULL)
+   DECLARE CONSTRUCTOR (BYVAL image AS GpImage PTR, BYVAL dstRect AS GpRect PTR, BYVAL imageAttributes AS GpImageAttributes PTR = NULL)
+   DECLARE CONSTRUCTOR (BYVAL image AS GpImage PTR, BYVAL dstX AS SINGLE, BYVAL dstY AS SINGLE, BYVAL dstWidth AS SINGLE, BYVAL dstHeight AS SINGLE, BYVAL imageAttributes AS GpImageAttributes PTR = NULL)
+   DECLARE CONSTRUCTOR (BYVAL image AS GpImage PTR, BYVAL dstX AS INT_, BYVAL dstY AS INT_, BYVAL dstWidth AS INT_, BYVAL dstHeight AS INT_, BYVAL imageAttributes AS GpImageAttributes PTR = NULL)
    DECLARE CONSTRUCTOR (BYVAL image AS GpImage PTR, BYVAL nWrapMode AS WrapMode, BYVAL dstRect AS GpRect PTR)
    DECLARE CONSTRUCTOR (BYVAL image AS GpImage PTR, BYVAL nWrapMode AS WrapMode, BYVAL dstRect AS GpRectF PTR)
    DECLARE CONSTRUCTOR (BYVAL image AS GpImage PTR, BYVAL nWrapMode AS WrapMode, BYVAL dstX AS SINGLE, BYVAL dstY AS SINGLE, BYVAL dstWidth AS SINGLE, BYVAL dstHeight AS SINGLE)
@@ -565,22 +565,22 @@ END CONSTRUCTOR
 ' Creates a TextureBrush object based on an image, a defining set of coordinates, and
 ' a set of image properties.
 ' =====================================================================================
-CONSTRUCTOR GdiPlusTextureBrush (BYVAL image AS GpImage PTR, BYVAL dstRect AS GpRectF PTR, BYVAL imageAttributes AS GpImageAttributes PTR = nullptr)
+CONSTRUCTOR GdiPlusTextureBrush (BYVAL image AS GpImage PTR, BYVAL dstRect AS GpRectF PTR, BYVAL imageAttributes AS GpImageAttributes PTR = NULL)
    SetLastError(GdipCreateTextureIA(image, imageAttributes, dstRect->x, dstRect->y, dstRect->Width, dstRect->Height, @m_Texture))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
-CONSTRUCTOR GdiPlusTextureBrush (BYVAL image AS GpImage PTR, BYVAL dstRect AS GpRect PTR, BYVAL imageAttributes AS GpImageAttributes PTR = nullptr)
+CONSTRUCTOR GdiPlusTextureBrush (BYVAL image AS GpImage PTR, BYVAL dstRect AS GpRect PTR, BYVAL imageAttributes AS GpImageAttributes PTR = NULL)
    SetLastError(GdipCreateTextureIAI(image, imageAttributes, dstRect->x, dstRect->y, dstRect->Width, dstRect->Height, @m_Texture))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
-CONSTRUCTOR GdiPlusTextureBrush (BYVAL image AS GpImage PTR, BYVAL dstX AS SINGLE, BYVAL dstY AS SINGLE, BYVAL dstWidth AS SINGLE, BYVAL dstHeight AS SINGLE, BYVAL imageAttributes AS GpImageAttributes PTR = nullptr)
+CONSTRUCTOR GdiPlusTextureBrush (BYVAL image AS GpImage PTR, BYVAL dstX AS SINGLE, BYVAL dstY AS SINGLE, BYVAL dstWidth AS SINGLE, BYVAL dstHeight AS SINGLE, BYVAL imageAttributes AS GpImageAttributes PTR = NULL)
    SetLastError(GdipCreateTextureIA(image, imageAttributes, dstX, dstY, dstWidth, dstHeight, @m_Texture))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
-CONSTRUCTOR GdiPlusTextureBrush (BYVAL image AS GpImage PTR, BYVAL dstX AS INT_, BYVAL dstY AS INT_, BYVAL dstWidth AS INT_, BYVAL dstHeight AS INT_, BYVAL imageAttributes AS GpImageAttributes PTR = nullptr)
+CONSTRUCTOR GdiPlusTextureBrush (BYVAL image AS GpImage PTR, BYVAL dstX AS INT_, BYVAL dstY AS INT_, BYVAL dstWidth AS INT_, BYVAL dstHeight AS INT_, BYVAL imageAttributes AS GpImageAttributes PTR = NULL)
    SetLastError(GdipCreateTextureIA(image, imageAttributes, dstX, dstY, dstWidth, dstHeight, @m_Texture))
 END CONSTRUCTOR
 ' =====================================================================================
@@ -642,7 +642,7 @@ END OPERATOR
 PUBLIC TYPE GdiPlusImage EXTENDS GdiPlusObjects
 Public:
    m_Image AS GpImage PTR
-   DECLARE CONSTRUCTOR (BYVAL image AS GpImage PTR = nullptr)
+   DECLARE CONSTRUCTOR (BYVAL image AS GpImage PTR = NULL)
    DECLARE CONSTRUCTOR (BYVAL pwszFileName AS WSTRING PTR, BYVAL useEmbeddedColorManagement AS BOOLEAN = FALSE)
    DECLARE CONSTRUCTOR (BYVAL stream AS IStream PTR, BYVAL useEmbeddedColorManagement AS BOOLEAN = FALSE)
    DECLARE CONSTRUCTOR (BYVAL hInst AS HINSTANCE, BYREF wszImageName AS WSTRING)
@@ -688,7 +688,7 @@ END CONSTRUCTOR
 ' ========================================================================================
 CONSTRUCTOR GdiPlusImage (BYVAL hInst AS HINSTANCE, BYREF wszImageName AS WSTRING)
    DIM stream AS IStream PTR = tkImageStreamFromRes(hInst, wszImageName)
-   IF stream = nullptr THEN SetLastError(InvalidParameter): EXIT CONSTRUCTOR
+   IF stream = NULL THEN SetLastError(InvalidParameter): EXIT CONSTRUCTOR
    SetLastError(GdipLoadImageFromStream(stream, @m_Image))
    stream->lpVtbl->Release(stream)
 END CONSTRUCTOR
@@ -738,7 +738,7 @@ END SUB
 PUBLIC TYPE GdiPlusBitmap EXTENDS GdiPlusObjects
 Public:
    m_Bitmap AS GpBitmap PTR
-   DECLARE CONSTRUCTOR (BYVAL bmp AS GpBitmap PTR = nullptr)
+   DECLARE CONSTRUCTOR (BYVAL bmp AS GpBitmap PTR = NULL)
    DECLARE CONSTRUCTOR (BYVAL x AS SINGLE, BYVAL y AS SINGLE, BYVAL nWidth AS SINGLE, BYVAL nHeight AS SINGLE, _
            BYVAL pxFormat AS PixelFormat, BYVAL srcBitmap AS GpBitmap PTR)
    DECLARE CONSTRUCTOR (BYVAL rcf AS GpRectF PTR, BYVAL pxFormat AS PixelFormat, BYVAL srcBitmap AS GpBitmap PTR)
@@ -765,7 +765,7 @@ END TYPE
 ' ========================================================================================
 ' Creates and initializes a Bitmap object from another Bitmap object.
 ' ========================================================================================
-CONSTRUCTOR GdiPlusBitmap (BYVAL bmp AS GpBitmap PTR = nullptr)
+CONSTRUCTOR GdiPlusBitmap (BYVAL bmp AS GpBitmap PTR = NULL)
    IF bmp THEN SetLastError(GdipCloneImage(bmp, @m_Bitmap))
 END CONSTRUCTOR
 ' ========================================================================================
@@ -817,7 +817,7 @@ END CONSTRUCTOR
 ' Creates a Bitmap object based on size and format information.
 ' ========================================================================================
 CONSTRUCTOR GdiPlusBitmap (BYVAL nWidth AS INT_, BYVAL nHeight AS INT_, BYVAL pxFormat AS PixelFormat)
-   SetLastError(GdipCreateBitmapFromScan0(nWidth, nHeight, 0, pxFormat, nullptr, @m_Bitmap))
+   SetLastError(GdipCreateBitmapFromScan0(nWidth, nHeight, 0, pxFormat, NULL, @m_Bitmap))
 END CONSTRUCTOR
 ' ========================================================================================
 ' ========================================================================================
@@ -870,7 +870,7 @@ END CONSTRUCTOR
 ' Creates a new Bitmap object by applying a specified effect to an existing Bitmap object.
 ' ========================================================================================
 CONSTRUCTOR GdiPlusBitmap (BYVAL inputBitmap AS GpBitmap PTR, BYVAL effect AS GpEffect PTR)
-   SetLastError(GdipBitmapCreateApplyEffect(@inputBitmap, 1, effect, nullptr, nullptr, @m_Bitmap, FALSE, nullptr, nullptr))
+   SetLastError(GdipBitmapCreateApplyEffect(@inputBitmap, 1, effect, NULL, NULL, @m_Bitmap, FALSE, NULL, NULL))
 END CONSTRUCTOR
 ' ========================================================================================
 ' ========================================================================================
@@ -918,7 +918,7 @@ END SUB
 PUBLIC TYPE GdiPlusImageAttributes EXTENDS GdiPlusObjects
 Public:
    m_ImgAttr AS GpImageAttributes PTR
-   DECLARE CONSTRUCTOR (BYVAL imgAttr AS GpImageAttributes PTR = nullptr)
+   DECLARE CONSTRUCTOR (BYVAL imgAttr AS GpImageAttributes PTR = NULL)
    DECLARE DESTRUCTOR
    DECLARE OPERATOR @ () AS GpImageAttributes PTR PTR
    DECLARE OPERATOR CAST () AS GpImageAttributes PTR
@@ -928,7 +928,7 @@ END TYPE
 ' ========================================================================================
 ' Default constructor
 ' ========================================================================================
-CONSTRUCTOR GdiPlusImageAttributes (BYVAL imgAttr AS GpImageAttributes PTR = nullptr)
+CONSTRUCTOR GdiPlusImageAttributes (BYVAL imgAttr AS GpImageAttributes PTR = NULL)
    IF imgAttr THEN
       SetLastError(GdipCloneImageAttributes(imgAttr, @m_ImgAttr))
    ELSE
@@ -1044,7 +1044,7 @@ Public:
    DECLARE FUNCTION ScaleTransform (BYVAL order AS MatrixOrder = MatrixOrderPrepend) AS GpStatus
    DECLARE FUNCTION DrawString (BYREF wszText AS CONST WSTRING, BYVAL font AS CONST GpFont PTR, _
            BYVAL brush AS CONST GpBrush PTR, BYVAL x AS SINGLE, BYVAL y AS SINGLE, BYVAL nWidth AS SINGLE = 0, BYVAL nHeight AS SINGLE = 0, _
-           BYVAL stringFormat AS CONST GpStringFormat PTR = nullptr) AS GpStatus
+           BYVAL stringFormat AS CONST GpStringFormat PTR = NULL) AS GpStatus
 END TYPE
 ' ========================================================================================
 
@@ -1162,7 +1162,7 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION GdiPlusGraphics.DrawString (BYREF wszText AS CONST WSTRING, BYVAL font AS CONST GpFont PTR, _
 BYVAL brush AS CONST GpBrush PTR, BYVAL x AS SINGLE, BYVAL y AS SINGLE, BYVAL nWidth AS SINGLE = 0, BYVAL nHeight AS SINGLE = 0, _
-BYVAL stringFormat AS CONST GpStringFormat PTR = nullptr) AS GpStatus
+BYVAL stringFormat AS CONST GpStringFormat PTR = NULL) AS GpStatus
    DIM rcf AS GpRectF = (x, y, nWidth, nHeight)
    RETURN GdipDrawString(m_Graphics, wszText, LEN(wszText), font, @rcf, stringFormat, brush)
 END FUNCTION
@@ -1177,14 +1177,14 @@ END FUNCTION
 PUBLIC TYPE GdiPlusFont EXTENDS GdiPlusObjects
 Public:
    m_Font AS GpFont PTR
-   DECLARE CONSTRUCTOR (BYVAL font AS GpFont PTR = nullptr)
+   DECLARE CONSTRUCTOR (BYVAL font AS GpFont PTR = NULL)
    DECLARE CONSTRUCTOR (BYVAL hdc AS HDC)
    DECLARE CONSTRUCTOR (BYVAL hdc AS HDC, BYVAL plogfont AS LOGFONTA PTR)
    DECLARE CONSTRUCTOR (BYVAL hdc AS HDC, BYVAL plogfont AS LOGFONTW PTR)
    DECLARE CONSTRUCTOR (BYVAL fontFamily AS GpFontFamily PTR, BYVAL emSize AS SINGLE, BYVAL nStyle AS INT_ = 0, BYVAL nUnit AS GpUnit = 0)
-   DECLARE CONSTRUCTOR (BYVAL fontFamily AS GpFontFamily PTR, BYVAL ptSize AS SINGLE, BYVAL fUsingScaleTransform AS BOOLEAN, BYVAL nStyle AS INT_ = 0, BYVAL nUnit AS GpUnit = 0, BYVAL fontCollection AS GpFontCollection PTR = nullptr)
-   DECLARE CONSTRUCTOR (BYVAL pwszFamilyName AS WSTRING PTR, BYVAL emSize AS SINGLE, BYVAL nStyle AS INT_ = 0, BYVAL nUnit AS GpUnit = 0, BYVAL fontCollection AS GpFontCollection PTR = nullptr)
-   DECLARE CONSTRUCTOR (BYVAL pwszFamilyName AS WSTRING PTR, BYVAL ptSize AS SINGLE, BYVAL fUsingScaleTransform AS BOOLEAN, BYVAL nStyle AS INT_ = 0, BYVAL nUnit AS GpUnit = 0, BYVAL fontCollection AS GpFontCollection PTR = nullptr)
+   DECLARE CONSTRUCTOR (BYVAL fontFamily AS GpFontFamily PTR, BYVAL ptSize AS SINGLE, BYVAL fUsingScaleTransform AS BOOLEAN, BYVAL nStyle AS INT_ = 0, BYVAL nUnit AS GpUnit = 0, BYVAL fontCollection AS GpFontCollection PTR = NULL)
+   DECLARE CONSTRUCTOR (BYVAL pwszFamilyName AS WSTRING PTR, BYVAL emSize AS SINGLE, BYVAL nStyle AS INT_ = 0, BYVAL nUnit AS GpUnit = 0, BYVAL fontCollection AS GpFontCollection PTR = NULL)
+   DECLARE CONSTRUCTOR (BYVAL pwszFamilyName AS WSTRING PTR, BYVAL ptSize AS SINGLE, BYVAL fUsingScaleTransform AS BOOLEAN, BYVAL nStyle AS INT_ = 0, BYVAL nUnit AS GpUnit = 0, BYVAL fontCollection AS GpFontCollection PTR = NULL)
    DECLARE DESTRUCTOR
    DECLARE OPERATOR @ () AS GpFont PTR PTR
    DECLARE OPERATOR CAST () AS GpFont PTR
@@ -1194,7 +1194,7 @@ END TYPE
 ' ========================================================================================
 ' Creates and initializes a Font object from another Font object.
 ' =====================================================================================
-CONSTRUCTOR GdiPlusFont (BYVAL font AS GpFont PTR = nullptr)
+CONSTRUCTOR GdiPlusFont (BYVAL font AS GpFont PTR = NULL)
    IF font THEN GdipCloneFont(font, @m_Font)
 END CONSTRUCTOR
 ' =====================================================================================
@@ -1213,7 +1213,7 @@ END CONSTRUCTOR
 ' version of a logical font. This constructor is provided for compatibility with GDI.
 ' ========================================================================================
 CONSTRUCTOR GdiPlusFont (BYVAL hdc AS HDC, BYVAL plogfont AS LOGFONTA PTR)
-   IF plogfont <> nullptr THEN
+   IF plogfont <> NULL THEN
       SetLastError(GdipCreateFontFromLogfontA(hdc, plogfont, @m_Font))
    ELSE
       SetLastError(GdipCreateFontFromDC(hdc, @m_Font))
@@ -1226,7 +1226,7 @@ END CONSTRUCTOR
 ' version of a logical font. This constructor is provided for compatibility with GDI.
 ' ========================================================================================
 CONSTRUCTOR GdiPlusFont (BYVAL hdc AS HDC, BYVAL plogfont AS LOGFONTW PTR)
-   IF plogfont <> nullptr THEN
+   IF plogfont <> NULL THEN
       SetLastError(GdipCreateFontFromLogfontW(hdc, plogfont, @m_Font))
    ELSE
       SetLastError(GdipCreateFontFromDC(hdc, @m_Font))
@@ -1241,7 +1241,7 @@ CONSTRUCTOR GdiPlusFont (BYVAL fontFamily AS GpFontFamily PTR, BYVAL emSize AS S
 END CONSTRUCTOR
 ' ========================================================================================
 ' ========================================================================================
-CONSTRUCTOR GdiPlusFont (BYVAL fontFamily AS GpFontFamily PTR, BYVAL ptSize AS SINGLE, BYVAL fUsingScaleTransform AS BOOLEAN, BYVAL nStyle AS INT_ = 0, BYVAL nUnit AS GpUnit = 0, BYVAL fontCollection AS GpFontCollection PTR = nullptr)
+CONSTRUCTOR GdiPlusFont (BYVAL fontFamily AS GpFontFamily PTR, BYVAL ptSize AS SINGLE, BYVAL fUsingScaleTransform AS BOOLEAN, BYVAL nStyle AS INT_ = 0, BYVAL nUnit AS GpUnit = 0, BYVAL fontCollection AS GpFontCollection PTR = NULL)
    ' // Make the font DPI aware
    ' If scale world transform has been set with GdipScaleWorldTransform, it only needs to be
    ' scaled by multiplying the point size by 1.3333 (one point is one point is approximately
@@ -1272,7 +1272,7 @@ END CONSTRUCTOR
 ' Creates a Font object based on a font family, a size, a font style, a unit of
 ' measurement, and a FontCollection object.
 ' ========================================================================================
-CONSTRUCTOR GdiPlusFont (BYVAL pwszFamilyName AS WSTRING PTR, BYVAL emSize AS SINGLE, BYVAL nStyle AS INT_ = 0, BYVAL nUnit AS GpUnit = 0, BYVAL fontCollection AS GpFontCollection PTR = nullptr)
+CONSTRUCTOR GdiPlusFont (BYVAL pwszFamilyName AS WSTRING PTR, BYVAL emSize AS SINGLE, BYVAL nStyle AS INT_ = 0, BYVAL nUnit AS GpUnit = 0, BYVAL fontCollection AS GpFontCollection PTR = NULL)
    DIM fontFamily AS GpFontFamily PTR
    SetLastError(GdipCreateFontFamilyFromName(pwszFamilyName, fontCollection, @fontFamily))
    IF fontFamily THEN
@@ -1285,7 +1285,7 @@ CONSTRUCTOR GdiPlusFont (BYVAL pwszFamilyName AS WSTRING PTR, BYVAL emSize AS SI
 END CONSTRUCTOR
 ' ========================================================================================
 ' ========================================================================================
-CONSTRUCTOR GdiPlusFont (BYVAL pwszFamilyName AS WSTRING PTR, BYVAL ptSize AS SINGLE, BYVAL fUsingScaleTransform AS BOOLEAN, BYVAL nStyle AS INT_ = 0, BYVAL nUnit AS GpUnit = 0, BYVAL fontCollection AS GpFontCollection PTR = nullptr)
+CONSTRUCTOR GdiPlusFont (BYVAL pwszFamilyName AS WSTRING PTR, BYVAL ptSize AS SINGLE, BYVAL fUsingScaleTransform AS BOOLEAN, BYVAL nStyle AS INT_ = 0, BYVAL nUnit AS GpUnit = 0, BYVAL fontCollection AS GpFontCollection PTR = NULL)
    DIM fontFamily AS GpFontFamily PTR
    SetLastError(GdipCreateFontFamilyFromName(pwszFamilyName, fontCollection, @fontFamily))
    ' // Make the font DPI aware
@@ -1348,8 +1348,8 @@ END OPERATOR
 PUBLIC TYPE GdiPlusFontFamily EXTENDS GdiPlusObjects
 Public:
    m_FontFamily AS GpFontFamily PTR
-   DECLARE CONSTRUCTOR (BYVAL fontFamily AS GpFontFamily PTR = nullptr)
-   DECLARE CONSTRUCTOR (BYVAL pwszName AS WSTRING PTR, BYVAL fontCollection AS GpFontCollection PTR = nullptr)
+   DECLARE CONSTRUCTOR (BYVAL fontFamily AS GpFontFamily PTR = NULL)
+   DECLARE CONSTRUCTOR (BYVAL pwszName AS WSTRING PTR, BYVAL fontCollection AS GpFontCollection PTR = NULL)
    DECLARE DESTRUCTOR
    DECLARE OPERATOR @ () AS GpFontFamily PTR PTR
    DECLARE OPERATOR CAST () AS GpFontFamily PTR
@@ -1359,14 +1359,14 @@ END TYPE
 ' ========================================================================================
 ' Creates and initializes a FontFamily object from another FontFamily object.
 ' =====================================================================================
-CONSTRUCTOR GdiPlusFontFamily (BYVAL fontFamily AS GpFontFamily PTR = nullptr)
+CONSTRUCTOR GdiPlusFontFamily (BYVAL fontFamily AS GpFontFamily PTR = NULL)
    IF fontFamily THEN SetLastError(GdipCloneFontFamily(fontFamily, @m_FontFamily))
 END CONSTRUCTOR
 ' =====================================================================================
 ' ========================================================================================
 ' Creates a FontFamily object based on a specified font collection.
 ' ========================================================================================
-CONSTRUCTOR GdiPlusFontFamily (BYVAL pwszName AS WSTRING PTR, BYVAL fontCollection AS GpFontCollection PTR = nullptr)
+CONSTRUCTOR GdiPlusFontFamily (BYVAL pwszName AS WSTRING PTR, BYVAL fontCollection AS GpFontCollection PTR = NULL)
    SetLastError(GdipCreateFontFamilyFromName(pwszName, fontCollection, @m_FontFamily))
 END CONSTRUCTOR
 ' ========================================================================================
@@ -1406,7 +1406,7 @@ END OPERATOR
 PUBLIC TYPE GdiPlusGraphicsPath EXTENDS GdiPlusObjects
 Public:
    m_Path AS GpPath PTR
-   DECLARE CONSTRUCTOR (BYVAL path AS GpPath PTR = nullptr)
+   DECLARE CONSTRUCTOR (BYVAL path AS GpPath PTR = NULL)
    DECLARE CONSTRUCTOR (BYVAL nFillMode AS FillMode)
    DECLARE CONSTRUCTOR (BYVAL pts AS GpPointF PTR, BYVAL types AS BYTE PTR, BYVAL nCount AS LONG, BYVAL nFillMode AS FillMode = FillModeAlternate)
    DECLARE CONSTRUCTOR (BYVAL pts AS GpPoint PTR, BYVAL types AS BYTE PTR, BYVAL nCount AS LONG, BYVAL nFillMode AS FillMode = FillModeAlternate)
@@ -1419,7 +1419,7 @@ END TYPE
 ' =====================================================================================
 ' Constructors
 ' =====================================================================================
-CONSTRUCTOR GdiPlusGraphicsPath (BYVAL path AS GpPath PTR = nullptr)
+CONSTRUCTOR GdiPlusGraphicsPath (BYVAL path AS GpPath PTR = NULL)
    IF path THEN SetLastError(GdipClonePath(path, @m_Path))
 END CONSTRUCTOR
 ' =====================================================================================
@@ -1476,7 +1476,7 @@ END OPERATOR
 PUBLIC TYPE GdiPlusMatrix EXTENDS GdiPlusObjects
 Public:
    m_Matrix AS GpMatrix PTR
-   DECLARE CONSTRUCTOR (BYVAL matrix AS GpMatrix PTR = nullptr)
+   DECLARE CONSTRUCTOR (BYVAL matrix AS GpMatrix PTR = NULL)
    DECLARE CONSTRUCTOR (BYVAL m11 AS SINGLE, BYVAL m12 AS SINGLE, BYVAL m21 AS SINGLE, BYVAL m22 AS SINGLE, BYVAL dx AS SINGLE, BYVAL dy AS SINGLE)
    DECLARE CONSTRUCTOR (BYVAL rcf AS GpRectF PTR, BYVAL dstplg AS GpPointF PTR)
    DECLARE CONSTRUCTOR (BYVAL rc AS GpRect PTR, BYVAL dstplg AS GpPoint PTR)
@@ -1492,7 +1492,7 @@ END TYPE
 ' ========================================================================================
 ' Creates and initializes a Matrix object from another Matrix object
 ' ========================================================================================
-CONSTRUCTOR GdiPlusMatrix (BYVAL matrix AS GpMatrix PTR = nullptr)
+CONSTRUCTOR GdiPlusMatrix (BYVAL matrix AS GpMatrix PTR = NULL)
    IF matrix THEN
       SetLastError(GdipCloneMatrix(matrix, @m_Matrix))
    ELSE
@@ -1607,7 +1607,7 @@ END OPERATOR
 PUBLIC TYPE GdiPlusPen EXTENDS GdiPlusObjects
 Public:
    m_Pen AS GpPen PTR
-   DECLARE CONSTRUCTOR (BYVAL pen AS GpPen PTR = nullptr)
+   DECLARE CONSTRUCTOR (BYVAL pen AS GpPen PTR = NULL)
    DECLARE CONSTRUCTOR (BYVAL colour AS ARGB, BYVAL nWidth AS SINGLE = 1.0, BYVAL unit AS GpUnit = UnitPixel)
    DECLARE CONSTRUCTOR (BYVAL brush AS GpBrush PTR, BYVAL nWidth AS SINGLE, BYVAL unit AS GpUnit = UnitPixel)
    DECLARE DESTRUCTOR
@@ -1617,7 +1617,7 @@ END TYPE
 ' ========================================================================================
 
 ' =====================================================================================
-CONSTRUCTOR GdiPlusPen (BYVAL pen AS GpPen PTR = nullptr)
+CONSTRUCTOR GdiPlusPen (BYVAL pen AS GpPen PTR = NULL)
    IF pen THEN SetLastError(GdipClonePen(pen, @m_Pen))
 END CONSTRUCTOR
 ' =====================================================================================
@@ -1673,7 +1673,7 @@ END OPERATOR
 PUBLIC TYPE GdiPlusRegion EXTENDS GdiPlusObjects
 Public:
    m_Region AS GpRegion PTR
-   DECLARE CONSTRUCTOR (BYVAL region AS GpRegion PTR = nullptr)
+   DECLARE CONSTRUCTOR (BYVAL region AS GpRegion PTR = NULL)
    DECLARE CONSTRUCTOR (BYVAL rcf AS GpRectF PTR)
    DECLARE CONSTRUCTOR (BYVAL rc AS GpRect PTR)
    DECLARE CONSTRUCTOR (BYVAL x AS SINGLE, BYVAL y AS SINGLE, BYVAL nWidth AS SINGLE, BYVAL nHeight AS SINGLE)
@@ -1690,7 +1690,7 @@ END TYPE
 ' =====================================================================================
 ' Default constructor
 ' =====================================================================================
-CONSTRUCTOR GdiPlusRegion (BYVAL region AS GpRegion PTR = nullptr)
+CONSTRUCTOR GdiPlusRegion (BYVAL region AS GpRegion PTR = NULL)
    IF region THEN
       SetLastError(GdipCloneRegion(region, @m_Region))
    ELSE
@@ -1780,7 +1780,7 @@ END SUB
 PUBLIC TYPE GdiPlusStringFormat EXTENDS GdiPlusObjects
 Public:
    m_StringFormat AS GpStringFormat PTR
-   DECLARE CONSTRUCTOR (BYVAL stringFormat AS GpStringFormat PTR = nullptr)
+   DECLARE CONSTRUCTOR (BYVAL stringFormat AS GpStringFormat PTR = NULL)
    DECLARE CONSTRUCTOR (BYVAL formatAttributes AS INT_, BYVAL language AS LANGID)
    DECLARE DESTRUCTOR
    DECLARE OPERATOR @ () AS GpStringFormat PTR PTR
@@ -1791,7 +1791,7 @@ END TYPE
 ' =====================================================================================
 ' Creates and initializes a default StringFormat object or clones it from another StringFormat object.
 ' =====================================================================================
-CONSTRUCTOR GdiPlusStringFormat (BYVAL stringFormat AS GpStringFormat PTR = nullptr)
+CONSTRUCTOR GdiPlusStringFormat (BYVAL stringFormat AS GpStringFormat PTR = NULL)
    IF stringFormat THEN
       SetLastError(GdipCloneStringFormat(stringFormat, @m_StringFormat))
    ELSE

@@ -205,7 +205,7 @@ CONSTRUCTOR CXpButton (BYVAL pWindow AS CWindow PTR, BYVAL cID AS LONG_PTR, BYRE
    DIM wAtom AS ATOM
    DIM wcexw AS WNDCLASSEXW
    DIM wszClassName AS WSTRING * 260 = "TK_XPBUTTON"
-   IF GetClassInfoExW(.GetModuleHandleW(nullptr), @wszClassName, @wcexw) = 0 THEN
+   IF GetClassInfoExW(.GetModuleHandleW(NULL), @wszClassName, @wcexw) = 0 THEN
       ' // Fill the WNDCLASSEXW structure
       WITH wcexw
          .cbSize        = SIZEOF(wcexw)
@@ -213,13 +213,13 @@ CONSTRUCTOR CXpButton (BYVAL pWindow AS CWindow PTR, BYVAL cID AS LONG_PTR, BYRE
          .lpfnWndProc   = @CXPButtonProc
          .cbClsExtra    = 0
          .cbWndExtra    = SIZEOF(HANDLE)
-         .hInstance     = GetModuleHandleW(nullptr)
-         .hCursor       = LoadCursorW(nullptr, CAST(LPCWSTR, IDC_ARROW))
-         .hbrBackground = nullptr
-         .lpszMenuName  = nullptr
+         .hInstance     = GetModuleHandleW(NULL)
+         .hCursor       = LoadCursorW(NULL, CAST(LPCWSTR, IDC_ARROW))
+         .hbrBackground = NULL
+         .lpszMenuName  = NULL
          .lpszClassName = @wszClassName
-         .hIcon         = nullptr
-         .hIconSm       = nullptr
+         .hIcon         = NULL
+         .hIconSm       = NULL
       END WITH
       wAtom = RegisterClassExW(@wcexw)
    END IF
@@ -231,7 +231,7 @@ CONSTRUCTOR CXpButton (BYVAL pWindow AS CWindow PTR, BYVAL cID AS LONG_PTR, BYRE
    m_ImagePos = XPBI_LEFT OR XPBI_VCENTER
    m_ImageMargin = 4
    m_TextMargin = 4
-   m_hCursor = LoadCursor(nullptr, IDC_ARROW)
+   m_hCursor = LoadCursor(NULL, IDC_ARROW)
 
    ' // Scaling
    m_rx = pWindow->rxRatio
@@ -297,7 +297,7 @@ FUNCTION CXpButton.CXPButtonProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL 
          ELSE
             ' // We want to handle the return key
             pMsg = CAST(MSG PTR, lParam)
-            IF pMsg > nullptr THEN
+            IF pMsg > 0 THEN
                dwMsg = pMsg->Message
                IF dwMsg = WM_KEYDOWN OR dwMsg = WM_CHAR THEN
                   IF pMsg->wParam = VK_RETURN THEN
@@ -341,7 +341,7 @@ FUNCTION CXpButton.CXPButtonProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL 
          IF IsWindowEnabled(hwnd) = FALSE THEN EXIT FUNCTION
          ' // Redraws the button in pushed state
          pButton = CAST(CXpButton PTR, GetWindowLongPtrW(hwnd, 0))
-         IF pButton = nullptr THEN EXIT FUNCTION
+         IF pButton = NULL THEN EXIT FUNCTION
          IF pButton->m_bIsToggle THEN
             IF pButton->m_bToggled = FALSE THEN
                pButton->m_bToggled = TRUE
@@ -363,7 +363,7 @@ FUNCTION CXpButton.CXPButtonProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL 
       CASE WM_LBUTTONDOWN
          ' // Redraws the button in pushed state
          pButton = CAST(CXpButton PTR, GetWindowLongPtrW(hwnd, 0))
-         IF pButton = nullptr THEN EXIT FUNCTION
+         IF pButton = NULL THEN EXIT FUNCTION
          GetWindowRect pButton->hWindow, @rc
          GetCursorPos @pt
          IF PtInRect(@rc, pt) THEN
@@ -385,7 +385,7 @@ FUNCTION CXpButton.CXPButtonProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL 
       CASE WM_LBUTTONUP
          ' // Redraws the button in normal state
          pButton = CAST(CXpButton PTR, GetWindowLongPtrW(hwnd, 0))
-         IF pButton = nullptr THEN EXIT FUNCTION
+         IF pButton = NULL THEN EXIT FUNCTION
          ReleaseCapture
          GetWindowRect pButton->hWindow, @rc
          GetCursorPos @pt
@@ -403,7 +403,7 @@ FUNCTION CXpButton.CXPButtonProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL 
       CASE WM_KEYDOWN
          ' // Redraws the button in pushed state
          pButton = CAST(CXpButton PTR, GetWindowLongPtrW(hwnd, 0))
-         IF pButton = nullptr THEN EXIT FUNCTION
+         IF pButton = NULL THEN EXIT FUNCTION
          SELECT CASE wParam
             CASE VK_RETURN, VK_SPACE
                ' // Toggles the toggle flag
@@ -423,7 +423,7 @@ FUNCTION CXpButton.CXPButtonProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL 
       CASE WM_KEYUP
          ' // Redraws the button in normal state
          pButton = CAST(CXpButton PTR, GetWindowLongPtrW(hwnd, 0))
-         IF pButton = nullptr THEN EXIT FUNCTION
+         IF pButton = NULL THEN EXIT FUNCTION
          IF pButton->m_fState = BST_PUSHED THEN
             pButton->m_fState = 0
             pButton->Redraw
@@ -455,7 +455,7 @@ FUNCTION CXpButton.CXPButtonProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL 
       CASE WM_SETCURSOR
          ' // Establishes the cursor shape
          pButton = CAST(CXpButton PTR, GetWindowLongPtrW(hwnd, 0))
-         IF pButton = nullptr THEN EXIT FUNCTION
+         IF pButton = NULL THEN EXIT FUNCTION
          IF pButton->GetCursor THEN
             SetCursor pButton->GetCursor
             FUNCTION = CTRUE
@@ -473,7 +473,7 @@ FUNCTION CXpButton.CXPButtonProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL 
       CASE WM_MOUSEMOVE
          ' // Tracks the mouse movement and stores the hot state
          DIM trackMouse AS TRACKMOUSEEVENT
-         IF GetPropW(hwnd, "HOT") = nullptr THEN
+         IF GetPropW(hwnd, "HOT") = 0 THEN
             trackMouse.cbSize = SIZEOF(trackMouse)
             trackMouse.dwFlags = TME_LEAVE
             trackMouse.hwndTrack = hwnd
@@ -524,7 +524,7 @@ END SUB
 ' - fRedraw = TRUE or FALSE (redraws the button to reflect the changes)
 ' ========================================================================================
 SUB CXpButton.SetFont (BYVAL hFont AS HFONT, BYVAL fRedraw AS LONG = FALSE)
-   IF hFont = nullptr THEN EXIT SUB
+   IF hFont = NULL THEN EXIT SUB
    IF m_hFont THEN DeleteObject m_hFont
    m_hFont = hFont
    IF fRedraw THEN this.Redraw
@@ -894,7 +894,7 @@ SUB CXpButton.UxDrawPushButton (BYVAL hDC AS HDC)
    DIM wszCaption AS WSTRING * 260        ' // Button text
 
    ' // Selects the font
-   IF hDc = nullptr THEN EXIT SUB
+   IF hDc = 0 THEN EXIT SUB
    SelectObject hDC, m_hFont
 
    ' // Button style
@@ -906,7 +906,7 @@ SUB CXpButton.UxDrawPushButton (BYVAL hDC AS HDC)
    ' // Opens the theme data for the specified window and class
    IF m_bIsThemed THEN
       hTheme = OpenThemeData(m_hCtl, "Button")
-      IF hTheme = nullptr THEN EXIT SUB
+      IF hTheme = 0 THEN EXIT SUB
    END IF
 
    ' // Gets the button state
@@ -937,7 +937,7 @@ SUB CXpButton.UxDrawPushButton (BYVAL hDC AS HDC)
       ' // Increase 1 pixel to include the edge
       InflateRect @rc, 1, 1
       ' // Draws the theme-specified border and fills for the "iPartId" and "iStateId".
-      DrawThemeBackground(hTheme, hDc, BP_PUSHBUTTON, iStateId, @rc, nullptr)
+      DrawThemeBackground(hTheme, hDc, BP_PUSHBUTTON, iStateId, @rc, NULL)
       ' // Gets the size of the content for the theme-defined background
       GetThemeBackgroundContentRect(hTheme, hDc, BP_PUSHBUTTON, iStateId, @rc, @rcContent)
    ELSE
@@ -960,7 +960,7 @@ SUB CXpButton.UxDrawPushButton (BYVAL hDC AS HDC)
             END IF
          END IF
       ELSE
-         If m_hBkBrush = nullptr THEN FillRect hDc, @rcContent, GetSysColorBrush(COLOR_BTNFACE)
+         If m_hBkBrush = NULL THEN FillRect hDc, @rcContent, GetSysColorBrush(COLOR_BTNFACE)
          IF bIsPressed THEN
             FrameRect hDc, @rcContent, GetSysColorBrush(COLOR_BTNSHADOW)
          ELSE
@@ -970,7 +970,7 @@ SUB CXpButton.UxDrawPushButton (BYVAL hDC AS HDC)
             DrawFrameControl hDc, @rcContent, DFC_BUTTON, uState
          END IF
       END IF
-      IF (bIsPressed = CTRUE OR m_bToggled = TRUE) AND m_hBkBrushDown <> nullptr THEN
+      IF (bIsPressed = CTRUE OR m_bToggled = TRUE) AND m_hBkBrushDown <> NULL THEN
          DIM rc2 AS RECT = rcContent
          InflateRect @rc2, -1, -1   ' // To no overwrite the border
          FillRect hDc, @rc2, m_hBkBrushDown
@@ -978,7 +978,7 @@ SUB CXpButton.UxDrawPushButton (BYVAL hDC AS HDC)
          DIM rc2 AS RECT = rcContent
          InflateRect @rc2, -1, -1   ' // To no overwrite the border
          If m_hBkBrush THEN FillRect hDc, @rc2, m_hBkBrush
-         If iStateId = PBS_HOT ANDALSO m_hBkBrushHot <> nullptr THEN
+         If iStateId = PBS_HOT ANDALSO m_hBkBrushHot <> NULL THEN
             FillRect hDc, @rc2, m_hBkBrushHot
          Else
          End If
@@ -1012,10 +1012,10 @@ SUB CXpButton.UxDrawPushButton (BYVAL hDC AS HDC)
    END IF
 
    ' // Draws the image (don't draw it if the icon for normal state doesn't exist)
-   IF m_hImage <> nullptr AND m_ImagePos <> XPBI_NONE THEN
+   IF m_hImage <> NULL AND m_ImagePos <> XPBI_NONE THEN
       IF iStateId = PBS_HOT THEN hImage = m_hHotImage
       IF iStateId = PBS_DISABLED THEN hImage = m_hDisabledImage
-      IF hImage = nullptr THEN hImage = m_hImage
+      IF hImage = 0 THEN hImage = m_hImage
       IF m_ImageType = IMAGE_BITMAP THEN
          DrawStateW hDc, NULL, NULL, CAST(LPARAM, hImage), 0, ix, iy, 0, 0, DST_BITMAP
       ELSE
@@ -1128,7 +1128,7 @@ END SUB
 ' - fRedraw = TRUE or FALSE (redraws the button to reflect the changes)
 ' ========================================================================================
 SUB CXpButton.SetImage (BYVAL hImage AS HANDLE, BYVAL nImageType AS LONG, BYVAL nImageState AS LONG, BYVAL fRedraw AS LONG = FALSE)
-   IF hImage = nullptr THEN EXIT SUB
+   IF hImage = NULL THEN EXIT SUB
    IF nImageType <> IMAGE_ICON AND nImageType <> IMAGE_BITMAP THEN EXIT SUB
    IF nImageState <> XPBI_NORMAL AND nImageState <> XPBI_HOT AND nImageState <> XPBI_DISABLED THEN EXIT SUB
    ' // Destroys the old image
@@ -1207,7 +1207,7 @@ END SUB
 ' - fRedraw = TRUE or FALSE (redraws the button to reflect the changes)
 ' ========================================================================================
 SUB CXpButton.SetIconFromFile (BYVAL pwszPath AS WSTRING PTR, BYVAL ImageState AS LONG, BYVAL fRedraw AS LONG = FALSE)
-   DIM hIcon AS HICON = LoadImageW(nullptr, pwszPath, IMAGE_ICON, 0, 0, LR_LOADFROMFILE)
+   DIM hIcon AS HICON = LoadImageW(NULL, pwszPath, IMAGE_ICON, 0, 0, LR_LOADFROMFILE)
    this.SetImage(hIcon, IMAGE_ICON, ImageState, fRedraw)
 END SUB
 ' ========================================================================================
@@ -1219,7 +1219,7 @@ END SUB
 ' - fRedraw = TRUE or FALSE (redraws the button to reflect the changes)
 ' ========================================================================================
 SUB CXpButton.SetBitmapFromFile (BYVAL pwszPath AS WSTRING PTR, BYVAL ImageState AS LONG, BYVAL fRedraw AS LONG = FALSE)
-   DIM hBitmap AS HBITMAP = LoadImageW(nullptr, pwszPath, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE)
+   DIM hBitmap AS HBITMAP = LoadImageW(NULL, pwszPath, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE)
    this.SetImage(hBitmap, IMAGE_BITMAP, ImageState, fRedraw)
 END SUB
 ' ========================================================================================
@@ -1278,7 +1278,7 @@ END SUB
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CXpButton.GetButtonBkColor () AS COLORREF
-   IF m_hBkBrush = nullptr THEN RETURN 0
+   IF m_hBkBrush = NULL THEN RETURN 0
    Dim lb As LOGBRUSH
    GetObject(m_hBkBrush, SIZEOF(LOGBRUSH), @lb)
    RETURN lb.lbColor
@@ -1293,7 +1293,7 @@ END SUB
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CXpButton.GetButtonBkColorDown () AS COLORREF
-   IF m_hBkBrushDown = nullptr THEN RETURN 0
+   IF m_hBkBrushDown = NULL THEN RETURN 0
    DIM lb AS LOGBRUSH
    GetObject(m_hBkBrushDown, SIZEOF(LOGBRUSH), @lb)
    RETURN lb.lbColor
@@ -1307,7 +1307,7 @@ END SUB
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CXpButton.GetButtonBkColorHot () AS COLORREF
-   IF m_hBkBrushHot = nullptr THEN RETURN 0
+   IF m_hBkBrushHot = NULL THEN RETURN 0
    DIM lb AS LOGBRUSH
    GetObject(m_hBkBrushHot, SIZEOF(LOGBRUSH), @lb)
    RETURN lb.lbColor
@@ -1380,7 +1380,7 @@ END PROPERTY
 ' ========================================================================================
 ' ========================================================================================
 PROPERTY CXpButton.Font (BYVAL hFont AS HFONT)
-   IF hFont = nullptr THEN EXIT PROPERTY
+   IF hFont = NULL THEN EXIT PROPERTY
    IF m_hFont THEN DeleteObject m_hFont
    m_hFont = hFont
    this.Redraw
@@ -1532,7 +1532,7 @@ END PROPERTY
 ' Gets/sets the background color of the button.
 ' ========================================================================================
 PROPERTY CXpButton.ButtonBkColor () AS COLORREF
-   IF m_hBkBrush = nullptr THEN RETURN 0
+   IF m_hBkBrush = NULL THEN RETURN 0
    DIM lb AS LOGBRUSH
    GetObject(m_hBkBrush, SIZEOF(LOGBRUSH), @lb)
    PROPERTY = lb.lbColor
@@ -1547,7 +1547,7 @@ END PROPERTY
 ' ========================================================================================
 ' ========================================================================================
 PROPERTY CXpButton.ButtonBkColorDown () AS COLORREF
-   IF m_hBkBrushDown = nullptr THEN RETURN 0
+   IF m_hBkBrushDown = NULL THEN RETURN 0
    DIM lb AS LOGBRUSH
    GetObject(m_hBkBrushDown, SIZEOF(LOGBRUSH), @lb)
    PROPERTY = lb.lbColor
@@ -1562,7 +1562,7 @@ END PROPERTY
 ' ========================================================================================
 ' ========================================================================================
 PROPERTY CXpButton.ButtonBkColorHot () AS COLORREF
-   IF m_hBkBrushHot = nullptr THEN RETURN 0
+   IF m_hBkBrushHot = NULL THEN RETURN 0
    DIM lb AS LOGBRUSH
    GetObject(m_hBkBrushHot, SIZEOF(LOGBRUSH), @lb)
    PROPERTY = lb.lbColor

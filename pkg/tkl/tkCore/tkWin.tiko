@@ -46,7 +46,7 @@
 PUBLIC FUNCTION wCommand (BYVAL nIndex AS LONG = -1) AS USTRING
    DIM pArgsList AS WSTRING PTR PTR, nArgs AS LONG, ustrArgs AS USTRING
    pArgsList = CAST(WSTRING PTR PTR, CommandLineToArgvW(GetCommandLineW, @nArgs))
-   IF pArgsList = nullptr OR nIndex > nArgs THEN RETURN ustrArgs
+   IF pArgsList = NULL OR nIndex > nArgs THEN RETURN ustrArgs
    IF nIndex < 0 THEN
       FOR i AS LONG = 1 TO nArgs - 1
          ustrArgs += *pArgsList[i] & " "
@@ -74,12 +74,12 @@ END FUNCTION
 ' ========================================================================================
 ' * Helper procedures to display feedback and errors
 ' ========================================================================================
-PUBLIC FUNCTION tkMsg OVERLOAD (BYVAL hWin AS HWND, BYVAL pwszText AS CONST WSTRING PTR, BYVAL pwszCaption AS CONST WSTRING PTR = nullptr, BYVAL uType AS DWORD = 0) AS LONG
+PUBLIC FUNCTION tkMsg OVERLOAD (BYVAL hWin AS HWND, BYVAL pwszText AS CONST WSTRING PTR, BYVAL pwszCaption AS CONST WSTRING PTR = NULL, BYVAL uType AS DWORD = 0) AS LONG
    RETURN MessageBoxW(hWin, pwszText, pwszCaption, MB_APPLMODAL OR uType)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkMsg OVERLOAD (BYVAL pwszText AS CONST WSTRING PTR, BYVAL pwszCaption AS CONST WSTRING PTR = nullptr, BYVAL uType AS DWORD = 0) AS LONG
+PUBLIC FUNCTION tkMsg OVERLOAD (BYVAL pwszText AS CONST WSTRING PTR, BYVAL pwszCaption AS CONST WSTRING PTR = NULL, BYVAL uType AS DWORD = 0) AS LONG
    RETURN MessageBoxW(GetActiveWindow, pwszText, pwszCaption, MB_APPLMODAL OR uType)
 END FUNCTION
 ' ========================================================================================
@@ -88,7 +88,7 @@ END FUNCTION
 ' Detect if the codification is valid utf-16
 ' ========================================================================================
 PUBLIC FUNCTION tkIsTextUnicode (BYREF wszText AS CONST WSTRING) AS BOOLEAN
-   RETURN IsTextUnicode(@wszText, LEN(wszText) * 2, nullptr)
+   RETURN IsTextUnicode(@wszText, LEN(wszText) * 2, NULL)
 END FUNCTION
 ' ========================================================================================
 
@@ -101,7 +101,7 @@ PUBLIC FUNCTION tkIsTextUtf8 (BYREF s AS STRING) AS BOOLEAN
    IF LEN(s) >= 3 THEN
       IF ASC(s,1) = &hEF AND ASC(s,2) = &hBB AND ASC(s,3) = &hBF THEN RETURN TRUE
    END IF
-   DIM wLen AS LONG = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, STRPTR(s), LEN(s), nullptr, 0)
+   DIM wLen AS LONG = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, STRPTR(s), LEN(s), NULL, 0)
    RETURN (wLen <> 0)
 END FUNCTION
 ' ========================================================================================
@@ -112,13 +112,13 @@ END FUNCTION
 PUBLIC FUNCTION tkIsFileUnicode (BYREF wszFileName AS CONST WSTRING) AS BOOLEAN
 
    ' --- Open the file ---
-   DIM hFile AS HANDLE = CreateFileW(@wszFileName, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr)
+   DIM hFile AS HANDLE = CreateFileW(@wszFileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL)
    IF hFile = INVALID_HANDLE_VALUE THEN RETURN FALSE
 
    ' --- Read first 4 bytes for BOM detection ---
    DIM bom(3) AS UBYTE
    DIM dwRead AS DWORD
-   ReadFile(hFile, @bom(0), 4, @dwRead, nullptr)
+   ReadFile(hFile, @bom(0), 4, @dwRead, NULL)
    ' --- UTF-8 BOM with unicode signature ---
    IF dwRead >= 3 THEN
       IF bom(0) = &hEF AND bom(1) = &hBB AND bom(2) = &hBF THEN
@@ -156,15 +156,15 @@ PUBLIC FUNCTION tkIsFileUnicode (BYREF wszFileName AS CONST WSTRING) AS BOOLEAN
    END IF
 
    ' --- No BOM detected: use IsTextUnicode ---
-   SetFilePointer(hFile, 0, nullptr, FILE_BEGIN)
+   SetFilePointer(hFile, 0, NULL, FILE_BEGIN)
    DIM dwFileSize AS DWORD, dwHighSize AS DWORD
    dwFileSize = GetFileSize(hFile, @dwHighSize)
    DIM dwBytesToRead AS DWORD = 1024
    IF dwFileSize < dwBytesToRead THEN dwBytesToRead = dwFileSize
    DIM pBuffer AS UBYTE PTR = CAllocate(1, dwBytesToRead)
    DIM bRes AS BOOLEAN, dwBytesRead AS DWORD
-   IF ReadFile(hFile, pBuffer, dwBytesToRead, @dwBytesRead, nullptr) THEN
-      bRes = IsTextUnicode(pBuffer, dwBytesRead, nullptr)
+   IF ReadFile(hFile, pBuffer, dwBytesToRead, @dwBytesRead, NULL) THEN
+      bRes = IsTextUnicode(pBuffer, dwBytesRead, NULL)
    END IF
    IF pBuffer THEN DeAllocate(pBuffer)
    CloseHandle(hFile)
@@ -179,13 +179,13 @@ END FUNCTION
 PUBLIC FUNCTION tkIsFileUtf8 (BYREF wszFileName AS CONST WSTRING) AS BOOLEAN
 
    ' --- Open the file ---
-   DIM hFile AS HANDLE = CreateFileW(@wszFileName, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr)
+   DIM hFile AS HANDLE = CreateFileW(@wszFileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL)
    IF hFile = INVALID_HANDLE_VALUE THEN RETURN FALSE
 
    ' --- Read first 3 bytes for UTF-8 BOM detection ---
    DIM bom(2) AS UBYTE
    DIM dwRead AS DWORD
-   ReadFile(hFile, @bom(0), 3, @dwRead, nullptr)
+   ReadFile(hFile, @bom(0), 3, @dwRead, NULL)
    ' --- UTF-8 BOM (EF BB BF) ---
    IF dwRead = 3 THEN
       IF bom(0) = &hEF AND bom(1) = &hBB AND bom(2) = &hBF THEN
@@ -196,7 +196,7 @@ PUBLIC FUNCTION tkIsFileUtf8 (BYREF wszFileName AS CONST WSTRING) AS BOOLEAN
 
    ' --- No BOM: validate UTF-8 using MultiByteToWideChar ---
    ' Reset file pointer
-   SetFilePointer(hFile, 0, nullptr, FILE_BEGIN)
+   SetFilePointer(hFile, 0, NULL, FILE_BEGIN)
    ' Read a chunk (1 KB)
    DIM dwBytesToRead AS DWORD = 1024
    DIM dwFileSize AS DWORD, dwHighSize AS DWORD
@@ -204,10 +204,10 @@ PUBLIC FUNCTION tkIsFileUtf8 (BYREF wszFileName AS CONST WSTRING) AS BOOLEAN
    IF dwFileSize < dwBytesToRead THEN dwBytesToRead = dwFileSize
    DIM pBuffer AS UBYTE PTR = CAllocate(1, dwBytesToRead)
    DIM dwBytesRead AS DWORD
-   ReadFile(hFile, pBuffer, dwBytesToRead, @dwBytesRead, nullptr)
+   ReadFile(hFile, pBuffer, dwBytesToRead, @dwBytesRead, NULL)
    ' Try converting to UTF-16
    DIM wchars AS LONG = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, _
-                                            pBuffer, dwBytesRead, nullptr, 0)
+                                            pBuffer, dwBytesRead, NULL, 0)
    IF pBuffer THEN DeAllocate(pBuffer)
    CloseHandle(hFile)
    ' If conversion fails → not UTF-8
@@ -243,10 +243,10 @@ END FUNCTION
 ' Call this procedure if you are performing a tight FOR/NEXT or DO/LOOP and need to allow
 ' your application to be responsive to user input.
 ' ========================================================================================
-PUBLIC SUB tkDoEvents (BYVAL hWin AS HWND = nullptr)
+PUBLIC SUB tkDoEvents (BYVAL hWin AS HWND = NULL)
    DIM uMsg AS MSG
-   IF hWin = nullptr THEN hWin = GetActiveWindow
-   WHILE PeekMessageW(@uMsg, nullptr, 0, 0, PM_REMOVE)
+   IF hWin = NULL THEN hWin = GetActiveWindow
+   WHILE PeekMessageW(@uMsg, NULL, 0, 0, PM_REMOVE)
       ' // Determines whether a message is intended for the specified
       ' // dialog box and, if it is, processes the message.
       IF IsDialogMessageW(hWin, @uMsg) = 0 THEN
@@ -266,7 +266,7 @@ END SUB
 ' ========================================================================================
 PUBLIC SUB tkPumpMessages
    DIM uMsg AS MSG
-   WHILE PeekMessageW(@uMsg, nullptr, 0, 0, PM_REMOVE)
+   WHILE PeekMessageW(@uMsg, NULL, 0, 0, PM_REMOVE)
       ' // Translates virtual-key messages into character messages.
       TranslateMessage @uMsg
       ' // Dispatches a message to a window procedure.
@@ -287,8 +287,8 @@ PUBLIC FUNCTION tkGetWinErrMsg (BYVAL dwError AS DWORD) AS USTRING
    DIM cbLen AS DWORD, pBuffer AS WSTRING PTR, ustrMsg AS USTRING
    cbLen = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER OR _
            FORMAT_MESSAGE_FROM_SYSTEM OR FORMAT_MESSAGE_IGNORE_INSERTS, _
-           nullptr, dwError, BYVAL MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), _
-           cast(LPWSTR, @pBuffer), 0, nullptr)
+           NULL, dwError, BYVAL MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), _
+           cast(LPWSTR, @pBuffer), 0, NULL)
    IF cbLen THEN
       ustrMsg = *pBuffer
       LocalFree pBuffer
@@ -318,10 +318,10 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkGetWindowsVersion () AS LONG
    DIM hLib AS HMODULE = LoadLibraryW("NtDll.dll")
-   IF hLib = nullptr THEN EXIT FUNCTION
+   IF hLib = NULL THEN EXIT FUNCTION
    DIM pfnRtlGetVersion AS FUNCTION (BYVAL lpVersionInformation AS OSVERSIONINFOEXW PTR) AS LONG
    pfnRtlGetVersion = CAST(ANY PTR, GetProcAddress(hLib, "RtlGetVersion"))
-   IF pfnRtlGetVersion = nullptr THEN EXIT FUNCTION
+   IF pfnRtlGetVersion = NULL THEN EXIT FUNCTION
    DIM osverinfo AS OSVERSIONINFOEXW
    osverinfo.dwOSVersionInfoSize = SIZEOF(osverinfo)
    IF pfnRtlGetVersion(@osverinfo) = 0 THEN   ' STATUS_SUCCESS
@@ -336,7 +336,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkGetWindowsMajorVersion () AS LONG
    DIM hLib AS HMODULE = LoadLibraryW("NtDll.dll")
-   IF hLib = nullptr THEN EXIT FUNCTION
+   IF hLib = NULL THEN EXIT FUNCTION
    DIM pfnRtlGetVersion AS FUNCTION (BYVAL lpVersionInformation AS OSVERSIONINFOEXW PTR) AS LONG
    pfnRtlGetVersion = CAST(ANY PTR, GetProcAddress(hLib, "RtlGetVersion"))
    IF pfnRtlGetVersion THEN
@@ -355,7 +355,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkGetWindowsMinorVersion () AS LONG
    DIM hLib AS HMODULE = LoadLibraryW("NtDll.dll")
-   IF hLib = nullptr THEN EXIT FUNCTION
+   IF hLib = NULL THEN EXIT FUNCTION
    DIM pfnRtlGetVersion AS FUNCTION (BYVAL lpVersionInformation AS OSVERSIONINFOEXW PTR) AS LONG
    pfnRtlGetVersion = CAST(ANY PTR, GetProcAddress(hLib, "RtlGetVersion"))
    IF pfnRtlGetVersion THEN
@@ -374,10 +374,10 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkGetWindowsBuild () AS LONG
    DIM hLib AS HMODULE = LoadLibraryW("NtDll.dll")
-   IF hLib = nullptr THEN EXIT FUNCTION
+   IF hLib = NULL THEN EXIT FUNCTION
    DIM pfnRtlGetVersion AS FUNCTION (BYVAL lpVersionInformation AS OSVERSIONINFOEXW PTR) AS LONG
    pfnRtlGetVersion = CAST(ANY PTR, GetProcAddress(hLib, "RtlGetVersion"))
-   IF pfnRtlGetVersion = nullptr THEN EXIT FUNCTION
+   IF pfnRtlGetVersion = NULL THEN EXIT FUNCTION
    DIM osverinfo AS OSVERSIONINFOEXW
    osverinfo.dwOSVersionInfoSize = SIZEOF(osverinfo)
    IF pfnRtlGetVersion(@osverinfo) = 0 THEN   ' STATUS_SUCCESS
@@ -407,7 +407,7 @@ END FUNCTION
 PUBLIC FUNCTION tkGetWindowsProductType () AS DWORD
    DIM dwReturnedProductType AS DWORD
    DIM hLib AS HMODULE = LoadLibraryW("NtDll.dll")
-   IF hLib = nullptr THEN EXIT FUNCTION
+   IF hLib = NULL THEN EXIT FUNCTION
    DIM pfnRtlGetVersion AS FUNCTION (BYVAL lpVersionInformation AS OSVERSIONINFOEXW PTR) AS LONG
    pfnRtlGetVersion = CAST(ANY PTR, GetProcAddress(hLib, "RtlGetVersion"))
    DIM osverinfo AS OSVERSIONINFOEXW
@@ -428,7 +428,7 @@ PUBLIC FUNCTION tkGetWindowsFeatureUpdate () AS USTRING
    DIM valueName AS WSTRING * 260 = "DisplayVersion"
    DIM buffer AS WSTRING * 256
    DIM bufferSize AS DWORD = SIZEOF(buffer)
-   DIM result AS LONG = RegGetValueW(key, @subkey, @valueName, RRF_RT_REG_SZ, nullptr, @buffer, @bufferSize)
+   DIM result AS LONG = RegGetValueW(key, @subkey, @valueName, RRF_RT_REG_SZ, NULL, @buffer, @bufferSize)
    IF result = ERROR_SUCCESS THEN RETURN buffer
    RETURN ""
 END FUNCTION
@@ -443,7 +443,7 @@ PUBLIC FUNCTION tkGetFileVersion (BYVAL pwszFileName AS WSTRING PTR) AS LONG
    DIM cbLen AS DWORD = GetFileVersionInfoSizeW(pwszFileName, @dwHandle)
    IF cbLen = 0 THEN EXIT FUNCTION
    DIM pVerInfo AS HANDLE = HeapAlloc(GetProcessHeap, HEAP_ZERO_MEMORY, cbLen)
-   IF pVerInfo = nullptr THEN EXIT FUNCTION
+   IF pVerInfo = NULL THEN EXIT FUNCTION
    IF GetFileVersionInfoW(pwszFileName, dwHandle, cbLen, pVerInfo) THEN
       IF VerQueryValueW(pVerInfo, "\", @pvsffi, @cbLen) THEN
          DIM wMajor AS WORD = HIWORD(pvsffi->dwFileVersionMS)
@@ -510,7 +510,7 @@ END FUNCTION
 ' print ustr
 ' ========================================================================================
 PUBLIC FUNCTION tkGetSystemWow64Directory () AS USTRING
-   DIM cbLen AS UINT = GetSystemWow64DirectoryW(nullptr, 0)
+   DIM cbLen AS UINT = GetSystemWow64DirectoryW(NULL, 0)
    IF cbLen = 0 THEN RETURN ""
    DIM ustrBuffer AS USTRING = WSPACE(cbLen)
    cbLen = GetSystemWow64DirectoryW(STRPTR(ustrBuffer), cbLen)
@@ -580,7 +580,7 @@ END FUNCTION
 '   https://msdn.microsoft.com/en-us/library/windows/desktop/dd378457(v=vs.85).aspx
 ' Usage example: tkGetKnowFolderPath(@FOLDERID_CommonPrograms)
 ' ========================================================================================
-PUBLIC FUNCTION tkGetKnowFolderPath (BYVAL rfid AS CONST KNOWNFOLDERID CONST PTR, BYVAL dwFlags AS DWORD = 0, BYVAL hToken AS HANDLE = nullptr) AS USTRING
+PUBLIC FUNCTION tkGetKnowFolderPath (BYVAL rfid AS CONST KNOWNFOLDERID CONST PTR, BYVAL dwFlags AS DWORD = 0, BYVAL hToken AS HANDLE = NULL) AS USTRING
    DIM pwszPath AS WSTRING PTR
    IF SHGetKnownFolderPath(rfid, dwFlags, hToken, @pwszPath) <> S_OK THEN RETURN ""
    DIM ustrPath AS USTRING = *pwszPath
@@ -598,7 +598,7 @@ END FUNCTION
 PUBLIC FUNCTION tkGetSpecialFolderLocation (BYVAL nFolder AS LONG) AS USTRING
    DIM pidl AS ITEMIDLIST PTR          ' // Pointer to an item identifier list (PIDL)
    DIM wszPath AS WSTRING * MAX_PATH   ' // Folder's path
-   IF SHGetSpecialFolderLocation(nullptr, nFolder, @pidl) = S_OK THEN
+   IF SHGetSpecialFolderLocation(0, nFolder, @pidl) = S_OK THEN
       SHGetPathFromIDListW pidl, @wszPath
       CoTaskMemFree pidl
       RETURN wszPath
@@ -682,7 +682,7 @@ END FUNCTION
 PUBLIC FUNCTION tkSetWindowStyle (BYVAL hWin AS HWND, BYVAL dwStyle AS LONG_PTR) AS LONG_PTR
    DIM dwOldStyle AS LONG_PTR = GetWindowLongPtrW(hWin, GWL_STYLE)
    SetWindowLongPtrW(hWin, GWL_STYLE, dwStyle)
-   ..SetWindowPos(hWin, nullptr, 0, 0, 0, 0, SWP_FRAMECHANGED OR SWP_NOMOVE OR SWP_NOSIZE OR SWP_NOZORDER)
+   ..SetWindowPos(hWin, NULL, 0, 0, 0, 0, SWP_FRAMECHANGED OR SWP_NOMOVE OR SWP_NOSIZE OR SWP_NOZORDER)
    RETURN dwOldStyle
 END FUNCTION
 ' ========================================================================================
@@ -693,7 +693,7 @@ END FUNCTION
 PUBLIC FUNCTION tkSetWindowExStyle (BYVAL hWin AS HWND, BYVAL dwExStyle AS LONG_PTR) AS LONG_PTR
    DIM dwOldExStyle AS LONG_PTR = GetWindowLongPtrW(hWin, GWL_EXSTYLE)
    SetWindowLongPtrW(hWin, GWL_EXSTYLE, dwExStyle)
-   ..SetWindowPos(hWin, nullptr, 0, 0, 0, 0, SWP_FRAMECHANGED OR SWP_NOMOVE OR SWP_NOSIZE OR SWP_NOZORDER)
+   ..SetWindowPos(hWin, NULL, 0, 0, 0, 0, SWP_FRAMECHANGED OR SWP_NOMOVE OR SWP_NOSIZE OR SWP_NOZORDER)
    RETURN dwOldExStyle
 END FUNCTION
 ' ========================================================================================
@@ -708,7 +708,7 @@ END FUNCTION
 PUBLIC FUNCTION tkAddWindowStyle (BYVAL hWin AS HWND, BYVAL dwStyle AS LONG_PTR) AS LONG_PTR
    DIM dwOldStyle AS LONG_PTR = GetWindowLongPtrW(hWin, GWL_STYLE)
    SetWindowLongPtrW(hWin, GWL_STYLE, dwOldStyle OR dwStyle)
-   ..SetWindowPos(hWin, nullptr, 0, 0, 0, 0, SWP_FRAMECHANGED OR SWP_NOMOVE OR SWP_NOSIZE OR SWP_NOZORDER)
+   ..SetWindowPos(hWin, NULL, 0, 0, 0, 0, SWP_FRAMECHANGED OR SWP_NOMOVE OR SWP_NOSIZE OR SWP_NOZORDER)
    RETURN dwOldStyle
 END FUNCTION
 ' ========================================================================================
@@ -723,7 +723,7 @@ END FUNCTION
 PUBLIC FUNCTION tkAddWindowExStyle (BYVAL hWin AS HWND, BYVAL dwExStyle AS LONG_PTR) AS LONG_PTR
    DIM dwOldExStyle AS LONG_PTR = GetWindowLongPtrW(hWin, GWL_EXSTYLE)
    SetWindowLongPtrW(hWin, GWL_EXSTYLE, dwOldExStyle OR dwExStyle)
-   ..SetWindowPos(hWin, nullptr, 0, 0, 0, 0, SWP_FRAMECHANGED OR SWP_NOMOVE OR SWP_NOSIZE OR SWP_NOZORDER)
+   ..SetWindowPos(hWin, NULL, 0, 0, 0, 0, SWP_FRAMECHANGED OR SWP_NOMOVE OR SWP_NOSIZE OR SWP_NOZORDER)
    RETURN dwOldExStyle
 END FUNCTION
 ' ========================================================================================
@@ -738,7 +738,7 @@ END FUNCTION
 PUBLIC FUNCTION tkRemoveWindowStyle (BYVAL hWin AS HWND, BYVAL dwStyle AS LONG_PTR) AS LONG_PTR
    DIM dwOldStyle AS LONG_PTR = GetWindowLongPtrW(hWin, GWL_STYLE)
    SetWindowLongPtrW(hWin, GWL_STYLE, dwOldStyle AND (NOT dwStyle))
-   ..SetWindowPos(hWin, nullptr, 0, 0, 0, 0, SWP_FRAMECHANGED OR SWP_NOMOVE OR SWP_NOSIZE OR SWP_NOZORDER)
+   ..SetWindowPos(hWin, NULL, 0, 0, 0, 0, SWP_FRAMECHANGED OR SWP_NOMOVE OR SWP_NOSIZE OR SWP_NOZORDER)
    RETURN dwOldStyle
 END FUNCTION
 ' ========================================================================================
@@ -753,7 +753,7 @@ END FUNCTION
 PUBLIC FUNCTION tkRemoveWindowExStyle (BYVAL hWin AS HWND, BYVAL dwExStyle AS DWORD) AS LONG_PTR
    DIM dwOldExStyle AS LONG_PTR = GetWindowLongPtrW(hWin, GWL_EXSTYLE)
    SetWindowLongPtrW(hWin, GWL_EXSTYLE, dwOldExStyle AND (NOT dwExStyle))
-   ..SetWindowPos(hWin, nullptr, 0, 0, 0, 0, SWP_FRAMECHANGED OR SWP_NOMOVE OR SWP_NOSIZE OR SWP_NOZORDER)
+   ..SetWindowPos(hWin, NULL, 0, 0, 0, 0, SWP_FRAMECHANGED OR SWP_NOMOVE OR SWP_NOSIZE OR SWP_NOZORDER)
    RETURN dwOldExStyle
 END FUNCTION
 ' ========================================================================================
@@ -986,7 +986,7 @@ END SUB
 ' Return value: TRUE or FALSE. To get extended error information, call GetLastError.
 ' ========================================================================================
 PUBLIC FUNCTION tkSetWindowLocation (BYVAL hWin AS HWND, BYVAL nLeft AS LONG, BYVAL nTop AS LONG) AS BOOLEAN
-   RETURN ..SetWindowPos(hWin, nullptr, nLeft, nTop, 0, 0, SWP_NOSIZE OR SWP_NOZORDER)
+   RETURN ..SetWindowPos(hWin, 0, nLeft, nTop, 0, 0, SWP_NOSIZE OR SWP_NOZORDER)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
@@ -998,7 +998,7 @@ PUBLIC FUNCTION tkSetWindowLocationForDpi (BYVAL hWin AS HWND, BYVAL nLeft AS LO
    ReleaseDC HWND_DESKTOP, hDC
    IF nLeft = 0 THEN rxRatio = 1
    IF nTop = 0 THEN ryRatio = 1
-   RETURN SetWindowPos(hWin, nullptr, nLeft * rxRatio, nTop * ryRatio, 0, 0, SWP_NOSIZE OR SWP_NOZORDER)
+   RETURN SetWindowPos(hWin, 0, nLeft * rxRatio, nTop * ryRatio, 0, 0, SWP_NOSIZE OR SWP_NOZORDER)
 END FUNCTION
 ' ========================================================================================
 
@@ -1027,7 +1027,7 @@ END FUNCTION
 ' Return value: TRUE or FALSE. To get extended error information, call GetLastError.
 ' ========================================================================================
 PUBLIC FUNCTION tkSetWindowSize (BYVAL hWin AS HWND, BYVAL nWidth AS LONG, BYVAL nHeight AS LONG) AS BOOLEAN
-   RETURN ..SetWindowPos(hWin, nullptr, 0, 0, nWidth, nHeight, SWP_NOZORDER OR SWP_NOMOVE)
+   RETURN ..SetWindowPos(hWin, NULL, 0, 0, nWidth, nHeight, SWP_NOZORDER OR SWP_NOMOVE)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
@@ -1037,7 +1037,7 @@ PUBLIC FUNCTION tkSetWindowSizeForDpi (BYVAL hWin AS HWND, BYVAL nWidth AS LONG,
    DIM rxRatio AS SINGLE = (GetDeviceCaps(hDC, LOGPIXELSX) / 96)
    DIM ryRatio AS SINGLE = (GetDeviceCaps(hDC, LOGPIXELSY) / 96)
    ReleaseDC HWND_DESKTOP, hDC
-   RETURN SetWindowPos(hWin, nullptr, 0, 0, nWidth * rxRatio, nHeight * ryRatio, SWP_NOZORDER OR SWP_NOMOVE)
+   RETURN SetWindowPos(hWin, NULL, 0, 0, nWidth * rxRatio, nHeight * ryRatio, SWP_NOZORDER OR SWP_NOMOVE)
 END FUNCTION
 ' ========================================================================================
 
@@ -1088,7 +1088,7 @@ PUBLIC FUNCTION tkGetTopLevelWindow (BYVAL hWin AS HWND) AS HWND
    DO
       hWndParent = hWndTmp
       hWndTmp = IIF(GetWindowLongPtrW(hwndParent, GWL_STYLE) AND WS_CHILD, GetParent(hwndParent), GetWindow(hWndParent, GW_OWNER))
-      IF hWndTmp = nullptr THEN EXIT DO
+      IF hWndTmp = NULL THEN EXIT DO
    LOOP
    FUNCTION = hWndParent
 END FUNCTION
@@ -1103,7 +1103,7 @@ PUBLIC FUNCTION tkGetTopLevelParent (BYVAL hWin AS HWND) AS HWND
    hWndParent = hWin
    DO
       hWndTmp = GetParent(hWndParent)
-      IF hWndTmp = nullptr THEN EXIT DO
+      IF hWndTmp = NULL THEN EXIT DO
       hWndParent = hWndTmp
    LOOP
    FUNCTION = hWndParent
@@ -1155,7 +1155,7 @@ PUBLIC FUNCTION tkGetControlHandle (BYVAL hWin AS HWND, BYVAL wCtrlID AS WORD) A
    hWin = tkGetFormHandle(hWin)
    hwndChild = cast(HWND, CAST(DWORD_PTR, wCtrlID))
    EnumChildWindows(hWin, @tkGetControlHandle_ChildEnumProc, cast(LPARAM, @hwndChild))
-   IF hwndChild = wCtrlID THEN FUNCTION = nullptr ELSE FUNCTION = hwndChild
+   IF hwndChild = wCtrlID THEN FUNCTION = NULL ELSE FUNCTION = hwndChild
 END FUNCTION
 ' ========================================================================================
 
@@ -1201,11 +1201,11 @@ END FUNCTION
 PUBLIC FUNCTION tkGethWndFromPID (BYVAL PID AS DWORD) AS HWND
    DIM dwPID AS DWORD, dwThreadID AS DWORD
    ' // Get the first window handle
-   DIM hWin AS HWND = FindWindowW(nullptr, nullptr)
+   DIM hWin AS HWND = FindWindowW(NULL, NULL)
    ' // Enumerate all the windows
-   WHILE hWin <> nullptr
+   WHILE hWin <> NULL
       ' // If the parent window is NULL, it's a top level window
-      IF GetParent(hWin) = nullptr THEN
+      IF GetParent(hWin) = NULL THEN
          ' // Get it's process id
          dwThreadID = GetWindowThreadProcessId(hWin, @dwPID)
          IF dwPID = PID THEN
@@ -1301,11 +1301,11 @@ PUBLIC SUB tkSetWindowClientSize (BYVAL hWin AS HWND, BYVAL nWidth AS LONG, BYVA
    SetRect(@rc, 0, 0, nWidth * rxRatio, nHeight * ryRatio)
    DIM hMenu AS HANDLE = GetMenu(hWin)
    DIM dwStyle AS DWORD = GetWindowLongPtrW(hWin, GWL_STYLE)
-   AdjustWindowRectEx(@rc, dwStyle, (hMenu <> nullptr), GetWindowLongPtrW(hWin, GWL_EXSTYLE))
+   AdjustWindowRectEx(@rc, dwStyle, (hMenu <> NULL), GetWindowLongPtrW(hWin, GWL_EXSTYLE))
    ' // If there is a menu, we need to check how much wrapping occurs when we set
    ' // the window to the width specified by AdjustWindowRectEX and an infinite
    ' // amount of height. An infinite height allows us to see every single menu wrap.
-   IF hMenu <> nullptr THEN
+   IF hMenu <> NULL THEN
       rcTemp = rc
       rcTemp.Bottom = &H7FFF   ' // "Infinite" height
       SendMessageW(hWin, WM_NCCALCSIZE, 0, CAST(LPARAM, @rcTemp))
@@ -1323,7 +1323,7 @@ PUBLIC SUB tkSetWindowClientSize (BYVAL hWin AS HWND, BYVAL nWidth AS LONG, BYVA
    END IF
    DIM cx AS LONG = rc.Right - rc.Left
    DIM cy AS LONG = rc.Bottom - rc.Top
-   SetWindowPos(hWin, nullptr, 0, 0, cx, cy, SWP_NOZORDER OR SWP_NOMOVE OR SWP_NOACTIVATE)
+   SetWindowPos(hWin, NULL, 0, 0, cx, cy, SWP_NOZORDER OR SWP_NOMOVE OR SWP_NOACTIVATE)
 
 END SUB
 ' ========================================================================================
@@ -1350,11 +1350,11 @@ PUBLIC SUB tkSetWindowClientSizeForDpi (BYVAL hWin AS HWND, BYVAL nWidth AS LONG
    SetRect(@rc, 0, 0, nWidth * rxRatio, nHeight * ryRatio)
    DIM hMenu AS HANDLE = GetMenu(hWin)
    DIM dwStyle AS DWORD = GetWindowLongPtrW(hWin, GWL_STYLE)
-   AdjustWindowRectEx(@rc, dwStyle, (hMenu <> nullptr), GetWindowLongPtrW(hWin, GWL_EXSTYLE))
+   AdjustWindowRectEx(@rc, dwStyle, (hMenu <> NULL), GetWindowLongPtrW(hWin, GWL_EXSTYLE))
    ' // If there is a menu, we need to check how much wrapping occurs when we set
    ' // the window to the width specified by AdjustWindowRectEX and an infinite
    ' // amount of height. An infinite height allows us to see every single menu wrap.
-   IF hMenu <> nullptr THEN
+   IF hMenu <> NULL THEN
       rcTemp = rc
       rcTemp.Bottom = &H7FFF   ' // "Infinite" height
       SendMessageW(hWin, WM_NCCALCSIZE, 0, CAST(LPARAM, @rcTemp))
@@ -1372,7 +1372,7 @@ PUBLIC SUB tkSetWindowClientSizeForDpi (BYVAL hWin AS HWND, BYVAL nWidth AS LONG
    END IF
    DIM cx AS LONG = rc.Right - rc.Left
    DIM cy AS LONG = rc.Bottom - rc.Top
-   SetWindowPos(hWin, nullptr, 0, 0, cx, cy, SWP_NOZORDER OR SWP_NOMOVE OR SWP_NOACTIVATE)
+   SetWindowPos(hWin, NULL, 0, 0, cx, cy, SWP_NOZORDER OR SWP_NOMOVE OR SWP_NOACTIVATE)
 
 END SUB
 ' ========================================================================================
@@ -1384,7 +1384,7 @@ END SUB
 ' - hWin = Handle of the window.
 ' - hwndParent = [optional] Handle of the parent window.
 ' ========================================================================================
-PUBLIC SUB tkCenterWindow (BYVAL hWin AS HWND = nullptr, BYVAL hwndParent AS HWND = nullptr)
+PUBLIC SUB tkCenterWindow (BYVAL hWin AS HWND = NULL, BYVAL hwndParent AS HWND = NULL)
 
    DIM rc            AS RECT    ' Window coordinates
    DIM rcParent      AS RECT    ' Parent window coordinates
@@ -1430,7 +1430,7 @@ PUBLIC SUB tkCenterWindow (BYVAL hWin AS HWND = nullptr, BYVAL hwndParent AS HWN
    ' // Convert screen coordinates to client area coordinates
    IF (GetWindowLongPtrW(hWin, GWL_STYLE) AND WS_CHILD) = WS_CHILD THEN ScreenToClient hwndParent, @pt
    ' // Reposition the window retaining its size and Z order
-   SetWindowPos(hWin, nullptr, pt.x, pt.y, 0, 0, SWP_NOSIZE OR SWP_NOZORDER)
+   SetWindowPos(hWin, NULL, pt.x, pt.y, 0, 0, SWP_NOSIZE OR SWP_NOZORDER)
 
 END SUB
 ' ========================================================================================
@@ -1450,7 +1450,7 @@ END SUB
 ' Return value: TRUE or FALSE. To get extended error information, call GetLastError.
 ' ========================================================================================
 PUBLIC FUNCTION tkRedrawNonClientArea (BYVAL hWin AS HWND) AS BOOLEAN
-   RETURN SetWindowPos(hWin, nullptr, 0, 0, 0, 0, SWP_NOMOVE OR SWP_NOSIZE OR SWP_NOZORDER OR SWP_NOACTIVATE OR SWP_FRAMECHANGED OR SWP_DRAWFRAME)
+   RETURN SetWindowPos(hWin, 0, 0, 0, 0, 0, SWP_NOMOVE OR SWP_NOSIZE OR SWP_NOZORDER OR SWP_NOACTIVATE OR SWP_FRAMECHANGED OR SWP_DRAWFRAME)
 END FUNCTION
 ' ========================================================================================
 
@@ -1477,7 +1477,7 @@ PUBLIC SUB tkForceVisibleDisplay (BYVAL hWin AS HWND)
    ' // Check if the specified window-rectangle is visible on any display
    DIM rc AS RECT
    GetWindowRect(hWin, @rc)
-   IF MonitorFromRect(@rc, MONITOR_DEFAULTTONULL) <> nullptr THEN EXIT SUB
+   IF MonitorFromRect(@rc, MONITOR_DEFAULTTONULL) <> NULL THEN EXIT SUB
    ' // Find the nearest display to the rectangle
    DIM hMonitor AS HMONITOR
    DIM mi AS MONITORINFO
@@ -1487,7 +1487,7 @@ PUBLIC SUB tkForceVisibleDisplay (BYVAL hWin AS HWND)
    ' // Center window rectangle
    rc.left = mi.rcWork.left + ((mi.rcWork.right - mi.rcWork.left) - (rc.right-rc.left)) \ 2
    rc.top = mi.rcWork.top + ((mi.rcWork.bottom - mi.rcWork.top) - (rc.bottom-rc.top)) \ 2
-   SetWindowPos(hWin, nullptr, rc.left, rc.top, 0, 0, SWP_NOACTIVATE OR SWP_NOZORDER OR SWP_NOSIZE)
+   SetWindowPos(hWin, 0, rc.left, rc.top, 0, 0, SWP_NOACTIVATE OR SWP_NOZORDER OR SWP_NOSIZE)
 END SUB
 ' ========================================================================================
 
@@ -1520,7 +1520,7 @@ PUBLIC FUNCTION tkAppsUseDarkMode () AS BOOLEAN
    DIM valueName AS WSTRING * 260 = "AppsUseLightTheme"
    DIM dwValue AS DWORD
    DIM dwSize AS DWORD = SIZEOF(dwValue)
-   DIM result AS LONG = RegGetValueW(key, @subkey, @valueName, RRF_RT_REG_DWORD, nullptr, @dwValue, @dwSize)
+   DIM result AS LONG = RegGetValueW(key, @subkey, @valueName, RRF_RT_REG_DWORD, NULL, @dwValue, @dwSize)
    IF result = ERROR_SUCCESS THEN RETURN (dwValue = 0)   ' // (0 = dark, 1 = light)
 END FUNCTION
 ' ========================================================================================
@@ -1535,7 +1535,7 @@ PUBLIC FUNCTION tkSystemUsesDarkMode () AS BOOLEAN
    DIM valueName AS WSTRING * 260 = "SystemUsesLightTheme"
    DIM dwValue AS DWORD
    DIM dwSize AS DWORD = SIZEOF(dwValue)
-   DIM result AS LONG = RegGetValueW(key, @subkey, @valueName, RRF_RT_REG_DWORD, nullptr, @dwValue, @dwSize)
+   DIM result AS LONG = RegGetValueW(key, @subkey, @valueName, RRF_RT_REG_DWORD, NULL, @dwValue, @dwSize)
    IF result = ERROR_SUCCESS THEN RETURN (dwValue = 0)
  END FUNCTION
 ' ========================================================================================
@@ -1562,7 +1562,7 @@ END FUNCTION
 ' no effect on this output.
 ' ========================================================================================
 PUBLIC FUNCTION tkGetDesktopLocation (BYREF x AS LONG, BYREF y AS LONG) AS BOOLEAN
-   IF VARPTR(x) = nullptr OR VARPTR(y) = nullptr THEN RETURN FALSE
+   IF VARPTR(x) = 0 OR VARPTR(y) = 0 THEN RETURN FALSE
    DIM rc AS RECT
    FUNCTION = SystemParametersInfo(SPI_GETWORKAREA, 0, @rc, 0)
    x = rc.Left
@@ -1691,7 +1691,7 @@ END FUNCTION
 PUBLIC FUNCTION tkGetDisplayPixelsWidth () AS DWORD
    DIM dm AS DEVMODEW
    dm.dmSize = SIZEOF(dm)
-   EnumDisplaySettingsW(nullptr, ENUM_CURRENT_SETTINGS, @dm)
+   EnumDisplaySettingsW(NULL, ENUM_CURRENT_SETTINGS, @dm)
    FUNCTION = dm.dmPelsWidth
 END FUNCTION
 ' ========================================================================================
@@ -1703,7 +1703,7 @@ END FUNCTION
 PUBLIC FUNCTION tkGetDisplayPixelsHeight () AS DWORD
    DIM dm AS DEVMODEW
    dm.dmSize = SIZEOF(dm)
-   EnumDisplaySettingsW(nullptr, ENUM_CURRENT_SETTINGS, @dm)
+   EnumDisplaySettingsW(NULL, ENUM_CURRENT_SETTINGS, @dm)
    FUNCTION = dm.dmPelsHeight
 END FUNCTION
 ' ========================================================================================
@@ -1714,7 +1714,7 @@ END FUNCTION
 PUBLIC FUNCTION tkGetDisplayBitsPerPixel () AS DWORD
    DIM dm AS DEVMODEW
    dm.dmSize = SIZEOF(dm)
-   EnumDisplaySettingsW(nullptr, ENUM_CURRENT_SETTINGS, @dm)
+   EnumDisplaySettingsW(NULL, ENUM_CURRENT_SETTINGS, @dm)
    FUNCTION = dm.dmBitsPerPel
 END FUNCTION
 ' ========================================================================================
@@ -1726,7 +1726,7 @@ END FUNCTION
 PUBLIC FUNCTION tkGetDisplayFrequency () AS DWORD
    DIM dm AS DEVMODEW
    dm.dmSize = SIZEOF(dm)
-   EnumDisplaySettingsW(nullptr, ENUM_CURRENT_SETTINGS, @dm)
+   EnumDisplaySettingsW(NULL, ENUM_CURRENT_SETTINGS, @dm)
    FUNCTION = dm.dmDisplayFrequency
 END FUNCTION
 ' ========================================================================================
@@ -1786,10 +1786,10 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkControlRunDLL (BYVAL hWin AS HWND, BYVAL hInst AS HINSTANCE, BYVAL cmd AS WSTRING PTR, BYVAL nCmdShow AS LONG) AS BOOLEAN
    DIM AS ANY PTR pLib = DyLibLoad("shell32.dll")
-   IF pLib = nullptr THEN EXIT FUNCTION
+   IF pLib = 0 THEN EXIT FUNCTION
    DIM pProc AS FUNCTION (BYVAL hWin AS HWND, BYVAL hInst AS HINSTANCE, BYVAL cmd AS WSTRING PTR, BYVAL nCmdShow AS LONG) AS BOOLEAN
    pProc = DyLibSymbol(pLib, "Control_RunDLLW")
-   IF pProc = nullptr THEN EXIT FUNCTION
+   IF pProc = 0 THEN EXIT FUNCTION
    FUNCTION = pProc(hWin, hInst, cmd, nCmdShow)
    DyLibFree(pLib)
 END FUNCTION
@@ -1801,8 +1801,8 @@ END FUNCTION
 PUBLIC FUNCTION tkGetPathFromProcessId (BYVAL dwProcessId AS DWORD) AS USTRING
    DIM hProcess AS HANDLE, wszPath AS WSTRING * MAX_PATH
    hProcess = OpenProcess(PROCESS_QUERY_INFORMATION OR PROCESS_VM_READ, FALSE, dwProcessId)
-   IF hProcess <> nullptr THEN
-      GetModuleFileNameExW(hProcess, nullptr, wszPath, SIZEOF(wszPath)\2)
+   IF hProcess <> NULL THEN
+      GetModuleFileNameExW(hProcess, NULL, wszPath, SIZEOF(wszPath)\2)
       CloseHandle(hProcess)
    END IF
    RETURN wszPath
@@ -1847,8 +1847,8 @@ PUBLIC FUNCTION __BrowseForFolderProc (BYVAL hWin AS HWND, BYVAL uMsg AS UINT, B
 
 END FUNCTION
 
-PUBLIC FUNCTION tkBrowseForFolder (BYVAL hWin AS HWND, BYVAL pwszTitle AS WSTRING PTR = nullptr, _
-   BYVAL pwszStartFolder AS WSTRING PTR = nullptr, BYVAL nFlags AS LONG = 0) AS USTRING
+PUBLIC FUNCTION tkBrowseForFolder (BYVAL hWin AS HWND, BYVAL pwszTitle AS WSTRING PTR = NULL, _
+   BYVAL pwszStartFolder AS WSTRING PTR = NULL, BYVAL nFlags AS LONG = 0) AS USTRING
 
    ' // Initialize the COM library
    CoInitialize NULL
@@ -1953,8 +1953,8 @@ PUBLIC FUNCTION tkOpenFileDialog ( _
  , BYREF wszInitialDir AS WSTRING _             ' // Start directory
  , BYREF wszFilter AS WSTRING _                 ' // Filename filter
  , BYREF wszDefExt AS WSTRING _                 ' // Default extension
- , BYVAL pdwFlags AS DWORD PTR = nullptr _         ' // Flags
- , BYVAL pdwBufLen AS DWORD PTR = nullptr _        ' // Buffer length
+ , BYVAL pdwFlags AS DWORD PTR = NULL _         ' // Flags
+ , BYVAL pdwBufLen AS DWORD PTR = NULL _        ' // Buffer length
  ) AS USTRING
 
    DIM dwFlags AS DWORD, dwBufLen AS DWORD
@@ -2056,7 +2056,7 @@ PUBLIC FUNCTION tkSaveFileDialog ( _
  , BYREF wszInitialDir AS WSTRING _             ' // Start directory
  , BYREF wszFilter AS WSTRING _                 ' // Filename filter
  , BYREF wszDefExt AS WSTRING _                 ' // Default extension
- , BYVAL pdwFlags AS DWORD PTR = nullptr _         ' // Flags
+ , BYVAL pdwFlags AS DWORD PTR = NULL _         ' // Flags
  ) AS USTRING
 
    DIM dwFlags AS DWORD
@@ -2125,7 +2125,7 @@ PUBLIC FUNCTION tkShowSysInfo (BYVAL hWin AS HWND) AS BOOLEAN
    RegQueryValueExW hk, "Path", 0, 0, cast(LPBYTE, @wszPath), @cbData
    RegCloseKey hk
    IF LEN(wszPath) = 0 THEN EXIT FUNCTION
-   IF ShellExecuteW(hWin, "open", @wszPath, nullptr, nullptr, SW_SHOWNORMAL) > 32 THEN RETURN TRUE
+   IF ShellExecuteW(hWin, "open", @wszPath, NULL, NULL, SW_SHOWNORMAL) > 32 THEN RETURN TRUE
 END FUNCTION
 ' ========================================================================================
 
@@ -2138,11 +2138,11 @@ END FUNCTION
 '   these colors, the system updates the array with the new RGB values.
 ' Return value: The selected color, or -1 if the user has canceled the dialog.
 ' ========================================================================================
-PUBLIC FUNCTION tkChooseColorDialog (BYVAL hParent AS HWND, BYVAL rgbDefaultColor AS COLORREF = 0, BYVAL lpCustColors AS COLORREF PTR = nullptr) AS LONG
+PUBLIC FUNCTION tkChooseColorDialog (BYVAL hParent AS HWND, BYVAL rgbDefaultColor AS COLORREF = 0, BYVAL lpCustColors AS COLORREF PTR = NULL) AS LONG
    DIM ColorSpec AS CHOOSECOLORW, lCustomColor(15) AS LONG
    ColorSpec.lStructSize  = SIZEOF(ColorSpec)
    ColorSpec.hwndOwner    = hParent     ' // Handle of owner window.  If 0, dialog appears at top/left.
-   IF lpCustColors = nullptr THEN
+   IF lpCustColors = NULL THEN
       FOR lCounter AS LONG = 0 TO 15
          lCustomColor(lCounter) = BGR(0, lCounter * 16, (15 - lCounter) * 16)
       NEXT
@@ -2165,7 +2165,7 @@ PUBLIC FUNCTION tkGetPathFromWindowHandle (BYVAL hWin AS HWND) AS USTRING
    IF idProc THEN
       hProcess = OpenProcess(PROCESS_QUERY_INFORMATION OR PROCESS_VM_READ, FALSE, idProc)
       IF hProcess THEN
-         GetModuleFileNameExW(hProcess, nullptr, wszPath, SIZEOF(wszPath)\2)
+         GetModuleFileNameExW(hProcess, NULL, wszPath, SIZEOF(wszPath)\2)
          CloseHandle(hProcess)
          RETURN wszPath
       END IF
@@ -2189,7 +2189,7 @@ PUBLIC FUNCTION tkUseDpiScaling () AS BOOLEAN
    IF RegOpenKeyExW(HKEY_LOCAL_MACHINE, "Software\Microsoft\Windows\DWM", 0, KEY_QUERY_VALUE, @hkRes) = ERROR_SUCCESS THEN
       IF hkRes THEN
          cbData = SIZEOF(dwData)
-         DIM hr AS LONG = RegQueryValueExW(hkRes, "UseDpiScaling", nullptr, @dwType, CPTR(BYTE PTR, @dwData), @cbData)
+         DIM hr AS LONG = RegQueryValueExW(hkRes, "UseDpiScaling", 0, @dwType, CPTR(BYTE PTR, @dwData), @cbData)
          RegCloseKey hkRes
          IF hr = ERROR_SUCCESS THEN FUNCTION = (dwData <> 0)
       END IF
@@ -2295,9 +2295,9 @@ END FUNCTION
 ' If the application to which the window belongs is not DPI aware, a monitor with a
 ' width resolution of 1920 pixels in a computer using 192 DPI, will return 960 pixels.
 ' ========================================================================================
-PUBLIC FUNCTION tkGetMonitorLogicalWidth (BYVAL hWin AS HWND = nullptr) AS DWORD
+PUBLIC FUNCTION tkGetMonitorLogicalWidth (BYVAL hWin AS HWND = NULL) AS DWORD
    ' // Get the monitor that the window is currently displayed on
-   IF hWin = nullptr THEN hWin = GetDesktopWindow
+   IF hWin = NULL THEN hWin = GetDesktopWindow
    DIM hMonitor AS HMONITOR = MonitorFromWindow(hWin, MONITOR_DEFAULTTONEAREST)
    ' // Get the logical width of the monitor.
    DIM miex AS MONITORINFOEXW
@@ -2312,9 +2312,9 @@ END FUNCTION
 ' If the application to which the window belongs is not DPI aware, a monitor with an
 ' height resolution of 1080 pixels in a computer using 192 DPI, will return 540 pixels.
 ' ========================================================================================
-PUBLIC FUNCTION tkGetMonitorLogicalHeight (BYVAL hWin AS HWND = nullptr) AS DWORD
+PUBLIC FUNCTION tkGetMonitorLogicalHeight (BYVAL hWin AS HWND = NULL) AS DWORD
    ' // Get the monitor that the window is currently displayed on
-   IF hWin = nullptr THEN hWin = GetDesktopWindow
+   IF hWin = NULL THEN hWin = GetDesktopWindow
    DIM hMonitor AS HMONITOR = MonitorFromWindow(hWin, MONITOR_DEFAULTTONEAREST)
    ' // Get the logical width of the monitor.
    DIM miex AS MONITORINFOEXW
@@ -2329,9 +2329,9 @@ END FUNCTION
 ' If the application to which the window belongs is not DPI aware, a computer using
 ' 192 DPI, will return an scaling ratio of 2.
 ' ========================================================================================
-PUBLIC FUNCTION tkGetMonitorHorizontalScaling (BYVAL hWin AS HWND = nullptr) AS DWORD
+PUBLIC FUNCTION tkGetMonitorHorizontalScaling (BYVAL hWin AS HWND = NULL) AS DWORD
    ' // Get the monitor that the window is currently displayed on
-   IF hWin = nullptr THEN hWin = GetDesktopWindow
+   IF hWin = NULL THEN hWin = GetDesktopWindow
    DIM hMonitor AS HMONITOR = MonitorFromWindow(hWin, MONITOR_DEFAULTTONEAREST)
    ' // Get the logical width and height of the monitor.
    DIM miex AS MONITORINFOEXW
@@ -2358,9 +2358,9 @@ END FUNCTION
 ' If the application to which the window belongs is not DPI aware, a computer using
 ' 192 DPI, will return an scaling ratio of 2.
 ' ========================================================================================
-PUBLIC FUNCTION tkGetMonitorVerticalScaling (BYVAL hWin AS HWND = nullptr) AS DWORD
+PUBLIC FUNCTION tkGetMonitorVerticalScaling (BYVAL hWin AS HWND = NULL) AS DWORD
    ' // Get the monitor that the window is currently displayed on
-   IF hWin = nullptr THEN hWin = GetDesktopWindow
+   IF hWin = NULL THEN hWin = GetDesktopWindow
    DIM hMonitor AS HMONITOR = MonitorFromWindow(hWin, MONITOR_DEFAULTTONEAREST)
    ' // Get the logical width and height of the monitor.
    DIM miex AS MONITORINFOEXW
@@ -2459,7 +2459,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkGetWindowsFontInfo (BYVAL nType AS LONG, BYVAL plfw AS LOGFONTW PTR) AS BOOLEAN
    DIM ncm AS NONCLIENTMETRICSW
-   IF plfw = nullptr THEN EXIT FUNCTION
+   IF plfw = NULL THEN EXIT FUNCTION
    IF tkGetWindowsVersion >= 6 THEN ncm.cbSize = 504 ELSE ncm.cbSize = 500
    IF SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, SIZEOF(ncm), @ncm, 0) = 0 THEN EXIT FUNCTION
    SELECT CASE nType
@@ -2486,8 +2486,8 @@ PUBLIC FUNCTION tkGetWindowsFontPointSize (BYVAL nType AS LONG) AS LONG
    DIM ncm AS NONCLIENTMETRICSW
    IF tkGetWindowsVersion >= 6 THEN ncm.cbSize = 504 ELSE ncm.cbSize = 500
    IF SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, SIZEOF(ncm), @ncm, 0) = 0 THEN EXIT FUNCTION
-   DIM hDC AS HDC = CreateDCW("DISPLAY", nullptr, nullptr, nullptr)
-   IF hDC = nullptr THEN EXIT FUNCTION
+   DIM hDC AS HDC = CreateDCW("DISPLAY", NULL, NULL, NULL)
+   IF hDC = NULL THEN EXIT FUNCTION
    DIM cyPixelsPerInch AS LONG = GetDeviceCaps(hDC, LOGPIXELSY)
    DeleteDC hDC
    DIM nPointSize AS LONG
@@ -2507,8 +2507,8 @@ END FUNCTION
 ' Returns the point size of a font given its logical height
 ' ========================================================================================
 PUBLIC FUNCTION tkGetFontPointSize (BYVAL nHeight AS LONG) AS LONG
-   DIM hDC AS HDC = CreateDCW("DISPLAY", nullptr, nullptr, nullptr)
-   IF hDC = nullptr THEN EXIT FUNCTION
+   DIM hDC AS HDC = CreateDCW("DISPLAY", NULL, NULL, NULL)
+   IF hDC = NULL THEN EXIT FUNCTION
    DIM cyPixelsPerInch AS LONG = GetDeviceCaps(hDC, LOGPIXELSY)
    DeleteDC HDC
    DIM nPointSize AS LONG = MulDiv(nHeight, 72, cyPixelsPerInch)
@@ -2521,8 +2521,8 @@ END FUNCTION
 ' Returns the logical height of a font given its point size
 ' ========================================================================================
 PUBLIC FUNCTION tkGetFontHeight (BYVAL nPointSize AS LONG) AS LONG
-   DIM hDC AS HDC = CreateDCW("DISPLAY", nullptr, nullptr, nullptr)
-   IF hDC = nullptr THEN EXIT FUNCTION
+   DIM hDC AS HDC = CreateDCW("DISPLAY", NULL, NULL, NULL)
+   IF hDC = NULL THEN EXIT FUNCTION
    DIM cyPixelsPerInch AS LONG = GetDeviceCaps(hDC, LOGPIXELSY)
    DeleteDC HDC
    DIM nHeight AS LONG = -MulDiv(nPointSize, cyPixelsPerInch, 72)
@@ -2542,17 +2542,17 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkModifyFontFaceName (BYVAL hWin AS HWND, BYREF wszNewFaceName AS WSTRING) AS HFONT
    DIM lfw AS LOGFONTW
-   IF hWin = nullptr OR VARPTR(wszNewFaceName) = nullptr THEN EXIT FUNCTION
+   IF hWin = NULL OR VARPTR(wszNewFaceName) = NULL THEN EXIT FUNCTION
    ' // Get the handle of the font used by the window
    DIM hCurFont AS HFONT = cast(HFONT, SendMessageW(hWin, WM_GETFONT, 0, 0))
-   IF hCurFont = nullptr THEN EXIT FUNCTION
+   IF hCurFont = 0 THEN EXIT FUNCTION
    ' // Get the LOGFONTW structure
    IF GetObject(hCurFont, SIZEOF(lfw), @lfw) = 0 THEN EXIT FUNCTION
    ' // Change the face name
    lfw.lfFaceName = wszNewFaceName
    ' // Create a new font
    DIM hNewFont AS HFONT = CreateFontIndirectW(@lfw)
-   IF hNewFont = nullptr THEN EXIT FUNCTION
+   IF hNewFont = 0 THEN EXIT FUNCTION
    ' // Select the new font and delete the old one
    DIM hDC AS ..HDC = GetDC(hWin)
    DeleteObject(SelectObject(hDC, CAST(HGDIOBJ, hNewFont)))
@@ -2606,7 +2606,7 @@ PUBLIC FUNCTION tkModifyFontSettings (BYVAL hWin AS HWND, BYVAL nSetting AS LONG
    IF IsWindow(hWin) = 0 THEN EXIT FUNCTION
    ' // Get the handle of the font used by the window
    DIM hCurFont AS HFONT = cast(HFONT, SendMessageW(hWin, WM_GETFONT, 0, 0))
-   IF hCurFont = nullptr THEN EXIT FUNCTION
+   IF hCurFont = NULL THEN EXIT FUNCTION
    ' // Get the LOGFONTW structure
    IF GetObject(hCurFont, SIZEOF(lfw), @lfw) = 0 THEN EXIT FUNCTION
    ' // Change the specified setting
@@ -2636,7 +2636,7 @@ PUBLIC FUNCTION tkModifyFontSettings (BYVAL hWin AS HWND, BYVAL nSetting AS LONG
    END SELECT
    ' // Create a new font
    DIM hNewFont AS HFONT = CreateFontIndirectW(@lfw)
-   IF hNewFont = nullptr THEN EXIT FUNCTION
+   IF hNewFont = NULL THEN EXIT FUNCTION
    ' // Select the new font and delete the old one
    DIM hDC AS ..HDC = GetDC(hWin)
    DeleteObject(SelectObject(hDC, CAST(HGDIOBJ, hNewFont)))
@@ -2904,8 +2904,8 @@ END FUNCTION
 ' * Converts the specified dialog box units to screen units (pixels).
 ' ========================================================================================
 PUBLIC FUNCTION tkDialogUnitsToPixels (BYVAL hDlg AS HWND, BYVAL dluX AS LONG, BYVAL dluY AS LONG, BYREF pixelX AS LONG, BYREF pixelY AS LONG) AS BOOLEAN
-   IF hDlg = nullptr THEN RETURN FALSE
-   IF VARPTR(pixelX) = nullptr OR VARPTR(pixelY) = nullptr THEN RETURN FALSE
+   IF hDlg = NULL THEN RETURN FALSE
+   IF VARPTR(pixelX) = 0 OR VARPTR(pixelY) = 0 THEN RETURN FALSE
    DIM rc AS RECT
    rc.Left = dluX : rc.Top = dluY
    DIM bResult AS BOOLEAN = MapDialogRect(hDlg, @rc)
@@ -2919,8 +2919,8 @@ END FUNCTION
 ' Converts the specied screen units (pixels) to dialog box units.
 ' ========================================================================================
 PUBLIC FUNCTION tkPixelsToDialogUnits (BYVAL hDlg AS HWND, BYVAL pixelX AS LONG, BYVAL pixelY AS LONG, BYREF dluX AS LONG, BYREF dluY AS LONG) AS BOOLEAN
-   IF hDlg = nullptr THEN RETURN FALSE
-   IF VARPTR(pixelX) = nullptr OR VARPTR(pixelY) = nullptr THEN RETURN FALSE
+   IF hDlg = NULL THEN RETURN FALSE
+   IF VARPTR(pixelX) = 0 OR VARPTR(pixelY) = 0 THEN RETURN FALSE
    DIM rc AS RECT
    rc.Left = pixelX
    rc.Top = pixelY
@@ -2949,7 +2949,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkClearClipboard () AS BOOLEAN
    ' // Opens the clipboard
-   IF OpenClipboard(nullptr) <> 0 THEN
+   IF OpenClipboard(NULL) <> 0 THEN
       ' // Empties the clipboard
       FUNCTION = EmptyClipboard
       ' // Closes the clipboard
@@ -2969,13 +2969,13 @@ END FUNCTION
 PUBLIC FUNCTION tkGetClipboardData (BYVAL uFormat AS DWORD) AS HGLOBAL
    DIM hSource AS HANDLE
    ' // Opens the clipboard
-   IF OpenClipboard(nullptr) <> 0 THEN
+   IF OpenClipboard(NULL) <> 0 THEN
       ' // Retrieves data from the clipboard in the specified format
       hSource = GetClipboardData(uFormat)
       ' // Closes the clipboard
       CloseClipboard
       ' // Exits on failure
-      IF hSource = nullptr THEN EXIT FUNCTION
+      IF hSource = NULL THEN EXIT FUNCTION
    END IF
    ' // Gets the size of the specified global memory object, in bytes
    DIM dwSize AS SIZE_T_ = GlobalSize(hSource)
@@ -2984,11 +2984,11 @@ PUBLIC FUNCTION tkGetClipboardData (BYVAL uFormat AS DWORD) AS HGLOBAL
    ' // Gets a pointer to the source memory object
    DIM pSource AS LPVOID = GlobalLock(hSource)
    ' // Exits on failure
-   IF pSource = nullptr THEN EXIT FUNCTION
+   IF pSource = NULL THEN EXIT FUNCTION
    ' // Allocates the specified number of bytes from the heap
    DIM hDest AS HGLOBAL = GlobalAlloc(GHND_, dwSize)
    ' // Exits on failure
-   IF hDest = nullptr THEN
+   IF hDest = NULL THEN
       ' // Unlocks the source memory object
       GlobalUnlock hSource
       EXIT FUNCTION
@@ -2996,7 +2996,7 @@ PUBLIC FUNCTION tkGetClipboardData (BYVAL uFormat AS DWORD) AS HGLOBAL
    ' // Gets a pointer to the destination memory object
    DIM pDest AS LPVOID = GlobalLock(hDest)
    ' // Exits on failure
-   IF pDest = nullptr THEN
+   IF pDest = NULL THEN
       ' // Unlocks the source memory object
       GlobalUnlock hSource
       ' // Frees the allocated memory block
@@ -3027,7 +3027,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkSetClipboardData (BYVAL uFormat AS UINT, BYVAL hData AS HANDLE) AS HANDLE
    ' // Opens the clipboard
-   IF OpenClipboard(nullptr) <> 0 THEN
+   IF OpenClipboard(NULL) <> 0 THEN
       ' // Empties the clipboard
       EmptyClipboard
       ' // Places the data object in the clipboard
@@ -3045,16 +3045,16 @@ PUBLIC FUNCTION tkGetClipboardText (BYVAL uFormat AS UINT = CF_UNICODETEXT) AS U
    ' // Check if the required format is available
    IF IsClipboardFormatAvailable(uFormat) = 0 THEN RETURN ""
    ' // Open the clipboard
-   IF OpenClipboard(nullptr) = 0 THEN RETURN ""
+   IF OpenClipboard(NULL) = 0 THEN RETURN ""
    ' // Get memory object of clipboard text
    DIM hMem AS HANDLE = GetClipboardData(uFormat)
-   IF hMem = nullptr THEN
+   IF hMem = NULL THEN
       CloseClipboard
       RETURN ""
    END IF
    ' // Lock it and get a pointer to the data
    DIM pMem AS HGLOBAL = GlobalLock(hMem)
-   IF pMem = nullptr THEN
+   IF pMem = NULL THEN
       CloseClipboard
       RETURN ""
    END IF
@@ -3080,21 +3080,21 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkSetClipboardText (BYREF wszText AS WSTRING, BYVAL uFormat AS UINT = CF_UNICODETEXT) AS HANDLE
    ' // Opens the clipboard
-   IF OpenClipboard(nullptr) <> 0 THEN
+   IF OpenClipboard(NULL) <> 0 THEN
       ' // Empties the clipboard
       EmptyClipboard
       ' // Allocates a global memory block
       DIM hMem AS HGLOBAL = GlobalAlloc(GMEM_MOVEABLE OR GMEM_DDESHARE, (LEN(wszText) + 1) * 2)
-      IF hMem <> nullptr THEN
+      IF hMem <> NULL THEN
          ' // Locks it and gets a pointer to the memory location
          DIM pMem AS LPVOID = GlobalLock(hMem)
          ' // Copies the text into the allocated memory block
-         IF pMem <> nullptr THEN *CAST(WSTRING PTR, pMem) = wszText & CHR(0, 0)
+         IF pMem <> NULL THEN *CAST(WSTRING PTR, pMem) = wszText & CHR(0, 0)
          ' // Unlocks the memory block
          GlobalUnlock hMem
          ' // Places the text in the clipboard
          DIM hData AS HANDLE = SetClipboardData(uFormat, hMem)
-         IF hData <> nullptr THEN
+         IF hData <> NULL THEN
             ' // Returns the handle of the data
             FUNCTION = hData
          ELSE
@@ -3138,7 +3138,7 @@ END FUNCTION
 '   hbmp = tkCreateDIBSection(hdcWindow, 10, 10, @pvBits)
 '   ReleaseDC(hwnd, hdcWindow)
 ' ========================================================================================
-PUBLIC FUNCTION tkCreateDIBSection (BYVAL hDC AS HDC, BYVAL nWidth AS DWORD, BYVAL nHeight AS DWORD, BYVAL bpp AS LONG = 0, BYVAL ppvBits AS ANY PTR PTR = nullptr) AS HBITMAP
+PUBLIC FUNCTION tkCreateDIBSection (BYVAL hDC AS HDC, BYVAL nWidth AS DWORD, BYVAL nHeight AS DWORD, BYVAL bpp AS LONG = 0, BYVAL ppvBits AS ANY PTR PTR = NULL) AS HBITMAP
    DIM bi AS BITMAPINFO
    bi.bmiHeader.biSize = SIZEOF(bi.bmiHeader)
    bi.bmiHeader.biWidth = nWidth
@@ -3146,7 +3146,7 @@ PUBLIC FUNCTION tkCreateDIBSection (BYVAL hDC AS HDC, BYVAL nWidth AS DWORD, BYV
    bi.bmiHeader.biPlanes = 1
    bi.bmiHeader.biBitCount = IIF(bpp <> 0, bpp, GetDeviceCaps(hDC, BITSPIXEL_))
    bi.bmiHeader.biCompression = BI_RGB
-   FUNCTION = CreateDIBSection(hDC, @bi, DIB_RGB_COLORS, ppvBits, nullptr, 0)
+   FUNCTION = CreateDIBSection(hDC, @bi, DIB_RGB_COLORS, ppvBits, NULL, 0)
 END FUNCTION
 ' ========================================================================================
 
@@ -3161,8 +3161,8 @@ END FUNCTION
 PUBLIC FUNCTION tkDibLoadImage (BYVAL pwszFileName AS WSTRING PTR) AS BITMAPFILEHEADER PTR
    DIM bSuccess AS LONG, dwFileSize AS DWORD, dwHighSize AS DWORD, dwBytesRead AS DWORD
    DIM hFile AS HANDLE, pbmfh AS BITMAPFILEHEADER PTR
-   hFile = CreateFileW(pwszFileName, GENERIC_READ, FILE_SHARE_READ, nullptr, _
-           OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr)
+   hFile = CreateFileW(pwszFileName, GENERIC_READ, FILE_SHARE_READ, NULL, _
+           OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL)
    IF hFile = INVALID_HANDLE_VALUE THEN EXIT FUNCTION
    ' // Get the size of the file
    dwFileSize = GetFileSize(hFile, @dwHighSize)
@@ -3173,7 +3173,7 @@ PUBLIC FUNCTION tkDibLoadImage (BYVAL pwszFileName AS WSTRING PTR) AS BITMAPFILE
    ' // Read the contents of the file. Notice that pmfh has been cast as
    ' // BITMAPFILEHEADER PTR to be able to read the header.
    pbmfh = CoTaskMemAlloc(dwFileSize)
-   bSuccess = ReadFile(hFile, pbmfh, dwFileSize, @dwBytesRead, nullptr)
+   bSuccess = ReadFile(hFile, pbmfh, dwFileSize, @dwBytesRead, NULL)
    ' // Check for "BM" (&H4D42, i.e. &H42 = "B", &H4D = "M", they are in reverse order)
    IF bSuccess = 0 OR dwBytesRead <> dwFileSize OR pbmfh->bfType <> &h4D42 THEN
       CoTaskMemFree(pbmfh)
@@ -3195,10 +3195,10 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkDibSaveImage (BYVAL pwszFileName AS WSTRING PTR, BYVAL pbmfh AS BITMAPFILEHEADER PTR) AS BOOLEAN
    DIM bSuccess AS LONG, dwBytesWritten AS DWORD, hFile  AS HANDLE
-   IF pbmfh = nullptr THEN EXIT FUNCTION
-   hFile = CreateFileW(pwszFileName, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr)
+   IF pbmfh = NULL THEN EXIT FUNCTION
+   hFile = CreateFileW(pwszFileName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL)
    IF hFile = INVALID_HANDLE_VALUE THEN EXIT FUNCTION
-   bSuccess = WriteFile(hFile, pbmfh, pbmfh->bfSize, @dwBytesWritten, nullptr)
+   bSuccess = WriteFile(hFile, pbmfh, pbmfh->bfSize, @dwBytesWritten, NULL)
    CloseHandle(hFile)
    IF bSuccess = 0 OR dwBytesWritten <> pbmfh->bfSize THEN
       DeleteFileW(pwszFileName)
@@ -3218,7 +3218,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkGetBitmapWidth (BYVAL hBitmap AS HBITMAP) AS LONG
    DIM bm AS BITMAP
-   IF hBitmap = nullptr THEN EXIT FUNCTION
+   IF hBitmap = NULL THEN EXIT FUNCTION
    IF GetObject(hBitmap, SIZEOF(bm), @bm) THEN FUNCTION = bm.bmWidth
 END FUNCTION
 ' ========================================================================================
@@ -3228,7 +3228,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkGetBitmapHeight (BYVAL hBitmap AS HBITMAP) AS LONG
    DIM bm AS BITMAP
-   IF hBitmap = nullptr THEN EXIT FUNCTION
+   IF hBitmap = NULL THEN EXIT FUNCTION
    IF GetObject(hBitmap, SIZEOF(bm), @bm) THEN FUNCTION = bm.bmHeight
 END FUNCTION
 ' ========================================================================================
@@ -3237,14 +3237,14 @@ END FUNCTION
 ' Captures the display and returns an handle to a bitmap.
 ' ========================================================================================
 PUBLIC FUNCTION tkCaptureDisplay () AS HBITMAP
-   DIM hScreenDC AS HDC = CreateDCW("DISPLAY", "", "", nullptr)
-   IF hScreenDC = nullptr THEN EXIT FUNCTION
+   DIM hScreenDC AS HDC = CreateDCW("DISPLAY", "", "", NULL)
+   IF hScreenDC = NULL THEN EXIT FUNCTION
    DIM cx AS LONG = GetDeviceCaps(hScreenDC, HORZRES)
    DIM cy AS LONG = GetDeviceCaps(hScreenDC, VERTRES)
    DIM hMemDC AS HDC = CreateCompatibleDC(hScreenDC)
-   IF hMemDC = nullptr THEN EXIT FUNCTION
+   IF hMemDC = NULL THEN EXIT FUNCTION
    DIM hBmp AS HBITMAP = CreateCompatibleBitmap(hScreenDC, cx, cy)
-   IF hBmp = nullptr THEN EXIT FUNCTION
+   IF hBmp = NULL THEN EXIT FUNCTION
    DIM hBmpOld AS HBITMAP = SelectObject(hMemDC, hBmp)
    ' // Note: CAPTUREBLT flag is required to capture layered windows
    BitBlt(hMemDC, 0, 0, cx, cy, hScreenDC, 0, 0, SRCCOPY OR CAPTUREBLT)
@@ -3265,9 +3265,9 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkDrawBitmap (BYVAL _hDC AS HDC, BYVAL xStart AS LONG, BYVAL yStart AS LONG, BYVAL hBitmap AS HBITMAP) AS BOOLEAN
    DIM bm AS BITMAP, hMemDC AS HDC
-   IF _hDC = nullptr OR hBitmap = nullptr THEN EXIT FUNCTION
+   IF _hDC = NULL OR hBitmap = NULL THEN EXIT FUNCTION
    hMemDC = CreateCompatibleDC(_hDC)
-   IF hMemDC = nullptr THEN EXIT FUNCTION
+   IF hMemDC = NULL THEN EXIT FUNCTION
    SelectObject hMemDC, hBitmap
    IF GetObject(hBitmap, SIZEOF(BITMAP), @bm) THEN
       BitBlt _hDC, xStart, yStart, bm.bmWidth, bm.bmHeight, hMemDC, 0, 0, SRCCOPY
@@ -3311,7 +3311,7 @@ END FUNCTION
 PUBLIC FUNCTION tkGetComputerNameDnsHostname () AS USTRING
    DIM dwSize AS DWORD
    ' // First call: obtain required size
-   GetComputerNameExW(ComputerNameDnsHostname, nullptr, @dwSize)
+   GetComputerNameExW(ComputerNameDnsHostname, NULL, @dwSize)
    ' // If dwSize <= 1, there is no configured DNS domain
    IF dwSize <= 1 THEN RETURN ""
    ' // Reserve buffer of the exact size
@@ -3329,7 +3329,7 @@ END FUNCTION
 PUBLIC FUNCTION tkGetComputerNameNetBIOS () AS USTRING
    DIM dwSize AS DWORD
    ' // First call: obtain required size
-   GetComputerNameExW(ComputerNameNetBIOS, nullptr, @dwSize)
+   GetComputerNameExW(ComputerNameNetBIOS, NULL, @dwSize)
    ' // If dwSize <= 1, there is no configured DNS domain
    IF dwSize <= 1 THEN RETURN ""
    ' // Reserve buffer of the exact size
@@ -3349,7 +3349,7 @@ END FUNCTION
 PUBLIC FUNCTION tkGetComputerNameDnsFullyQualified () AS USTRING
    DIM dwSize AS DWORD
    ' // First call: obtain required size
-   GetComputerNameExW(ComputerNameDnsFullyQualified, nullptr, @dwSize)
+   GetComputerNameExW(ComputerNameDnsFullyQualified, NULL, @dwSize)
    ' // If dwSize <= 1, there is no configured DNS domain
    IF dwSize <= 1 THEN RETURN ""
    ' // Reserve buffer of the exact size
@@ -3366,7 +3366,7 @@ END FUNCTION
 PUBLIC FUNCTION tkGetUserDomain (BYVAL nameFormat AS EXTENDED_NAME_FORMAT = NameSamCompatible) AS USTRING
    ' // Get the needed size for the buffer
    DIM cbLen AS ULONG
-   GetUserNameExW(2, nullptr, @cbLen)
+   GetUserNameExW(2, NULL, @cbLen)
    IF cbLen = 0 THEN RETURN ""
    DIM ustrBuffer AS USTRING = WSPACE(cbLen)
    IF GetUserNameExW(nameFormat, STRPTR(ustrBuffer), @cbLen) = 0 THEN RETURN ""
@@ -3390,7 +3390,7 @@ PUBLIC FUNCTION tkIsUserAnAdmin () AS BOOLEAN
    DIM ntAuthority AS SID_IDENTIFIER_AUTHORITY = ({0, 0, 0, 0, 0, 5})
    IF AllocateAndInitializeSid(@NtAuthority, 2, SECURITY_BUILTIN_DOMAIN_RID, _
       DOMAIN_ALIAS_RID_ADMINS, 0, 0, 0, 0, 0, 0, @AdministratorsGroup) = 0 THEN EXIT FUNCTION
-   IF CheckTokenMembership(nullptr, AdministratorsGroup, @IsMember) <> 0 THEN
+   IF CheckTokenMembership(NULL, AdministratorsGroup, @IsMember) <> 0 THEN
       FUNCTION = IsMember
    END IF
    FreeSid(AdministratorsGroup)
@@ -3577,7 +3577,7 @@ PUBLIC FUNCTION tkWindowsInstallDate () AS DWORD
    DIM valueName AS WSTRING * 260 = "InstallDate"
    DIM dwValue AS DWORD
    DIM dwSize AS DWORD = SIZEOF(dwValue)
-   DIM result AS LONG = RegGetValueW(key, @subkey, @valueName, RRF_RT_REG_DWORD, nullptr, @dwValue, @dwSize)
+   DIM result AS LONG = RegGetValueW(key, @subkey, @valueName, RRF_RT_REG_DWORD, NULL, @dwValue, @dwSize)
    IF result = ERROR_SUCCESS THEN RETURN dwValue
 END FUNCTION
 ' ========================================================================================
@@ -3592,7 +3592,7 @@ PUBLIC FUNCTION tkGetMACAddress () AS STRING
    ' // Generate a new guid
    DIM rguid AS UUID
    DIM AS ANY PTR pLib = DyLibLoad("RPCRT4.DLL")
-   IF pLib = nullptr THEN RETURN ""
+   IF pLib = NULL THEN RETURN ""
    DIM pProc AS FUNCTION (BYVAL Uuid AS UUID PTR) AS RPC_STATUS
    pProc = DyLibSymbol(pLib, "UuidCreateSequential")
    IF pProc THEN pProc(@rguid)
@@ -3600,7 +3600,7 @@ PUBLIC FUNCTION tkGetMACAddress () AS STRING
    ' //  Convert it to a string
    DIM pwsz AS WSTRING PTR
    StringFromIID(@rguid, CAST(LPOLESTR PTR, @pwsz))
-   IF pwsz = nullptr THEN RETURN ""
+   IF pwsz = NULL THEN RETURN ""
    DIM s AS STRING
    s = MID(*pwsz, 26, 12)
    CoTaskMemFree(pwsz)
@@ -3620,23 +3620,23 @@ PUBLIC FUNCTION tkGetMACAddressEx () AS STRING
    GetAdaptersAddresses(AF_UNSPEC, _
                         GAA_FLAG_SKIP_ANYCAST OR GAA_FLAG_SKIP_MULTICAST OR _
                         GAA_FLAG_SKIP_DNS_SERVER OR GAA_FLAG_SKIP_FRIENDLY_NAME, _
-                        nullptr, nullptr, @size)
+                        NULL, NULL, @size)
    IF size = 0 THEN RETURN ""
    ' // Allocate buffer
    DIM pAddrs AS IP_ADAPTER_ADDRESSES PTR
    pAddrs = CAST(IP_ADAPTER_ADDRESSES PTR, Allocate(size))
-   IF pAddrs = nullptr THEN RETURN ""
+   IF pAddrs = NULL THEN RETURN ""
    ' // Second call: get real data
    IF GetAdaptersAddresses(AF_UNSPEC, _
                            GAA_FLAG_SKIP_ANYCAST OR GAA_FLAG_SKIP_MULTICAST OR _
                            GAA_FLAG_SKIP_DNS_SERVER OR GAA_FLAG_SKIP_FRIENDLY_NAME, _
-                           nullptr, pAddrs, @size) <> 0 THEN
+                           NULL, pAddrs, @size) <> 0 THEN
       Deallocate(pAddrs)
       RETURN ""
    END IF
    ' // Enumerate adapters
    DIM pCurr AS IP_ADAPTER_ADDRESSES PTR = pAddrs
-   WHILE pCurr <> nullptr
+   WHILE pCurr <> NULL
       ' // Ignore adapters with no MAC address or MAC addresses of length 0
       IF pCurr->PhysicalAddressLength >= 6 THEN
          ' Build the MAC address
@@ -3674,23 +3674,23 @@ PUBLIC FUNCTION tkGetAllMACAddresses (macs() AS STRING) AS LONG
    GetAdaptersAddresses(AF_UNSPEC, _
                         GAA_FLAG_SKIP_ANYCAST OR GAA_FLAG_SKIP_MULTICAST OR _
                         GAA_FLAG_SKIP_DNS_SERVER OR GAA_FLAG_SKIP_FRIENDLY_NAME, _
-                        nullptr, nullptr, @size)
+                        NULL, NULL, @size)
    IF size = 0 THEN RETURN -1
    ' // Allocate buffer
    DIM pAddrs AS IP_ADAPTER_ADDRESSES PTR
    pAddrs = CAST(IP_ADAPTER_ADDRESSES PTR, Allocate(size))
-   IF pAddrs = nullptr THEN RETURN -1
+   IF pAddrs = NULL THEN RETURN -1
    ' // Second call: get real data
    IF GetAdaptersAddresses(AF_UNSPEC, _
                            GAA_FLAG_SKIP_ANYCAST OR GAA_FLAG_SKIP_MULTICAST OR _
                            GAA_FLAG_SKIP_DNS_SERVER OR GAA_FLAG_SKIP_FRIENDLY_NAME, _
-                           nullptr, pAddrs, @size) <> 0 THEN
+                           NULL, pAddrs, @size) <> 0 THEN
       Deallocate(pAddrs)
       RETURN -1
    END IF
    DIM pCurr AS IP_ADAPTER_ADDRESSES PTR = pAddrs
    DIM count AS LONG = -1
-   WHILE pCurr <> nullptr
+   WHILE pCurr <> NULL
       IF pCurr->PhysicalAddressLength >= 6 THEN
          DIM s AS STRING = ""
          FOR i AS INTEGER = 0 TO pCurr->PhysicalAddressLength - 1
@@ -3726,23 +3726,23 @@ PUBLIC FUNCTION tkGetAllPhysicalMACAddresses (macs() AS STRING) AS LONG
    GetAdaptersAddresses(AF_UNSPEC, _
                         GAA_FLAG_SKIP_ANYCAST OR GAA_FLAG_SKIP_MULTICAST OR _
                         GAA_FLAG_SKIP_DNS_SERVER OR GAA_FLAG_SKIP_FRIENDLY_NAME, _
-                        nullptr, nullptr, @size)
+                        NULL, NULL, @size)
    IF size = 0 THEN RETURN -1
    ' // Allocate buffer
    DIM pAddrs AS IP_ADAPTER_ADDRESSES PTR
    pAddrs = CAST(IP_ADAPTER_ADDRESSES PTR, Allocate(size))
-   IF pAddrs = nullptr THEN RETURN -1
+   IF pAddrs = NULL THEN RETURN -1
    ' Second call: get actual data
    IF GetAdaptersAddresses(AF_UNSPEC, _
                            GAA_FLAG_SKIP_ANYCAST OR GAA_FLAG_SKIP_MULTICAST OR _
                            GAA_FLAG_SKIP_DNS_SERVER OR GAA_FLAG_SKIP_FRIENDLY_NAME, _
-                           nullptr, pAddrs, @size) <> 0 THEN
+                           NULL, pAddrs, @size) <> 0 THEN
       Deallocate(pAddrs)
       RETURN -1
    END IF
    DIM pCurr AS IP_ADAPTER_ADDRESSES PTR = pAddrs
    DIM count AS LONG = -1
-   WHILE pCurr <> nullptr
+   WHILE pCurr <> NULL
       ' // Skip adapters without valid MAC
       IF pCurr->PhysicalAddressLength < 6 THEN
          pCurr = pCurr->Next
@@ -3879,7 +3879,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkGetExePath () AS USTRING
    DIM buffer AS WSTRING * MAX_PATH, p AS LONG
-   GetModuleFileNameW(nullptr, buffer, SIZEOF(buffer)\2)
+   GetModuleFileNameW(NULL, buffer, SIZEOF(buffer)\2)
    p = INSTRREV(buffer, ANY ":/\")
    IF p THEN
       buffer = LEFT(buffer, p)
@@ -3895,7 +3895,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkGetExePathName () AS USTRING
    DIM buffer AS WSTRING * MAX_PATH, p AS LONG
-   GetModuleFileNameW(nullptr, buffer, SIZEOF(buffer)\2)
+   GetModuleFileNameW(NULL, buffer, SIZEOF(buffer)\2)
    p = INSTRREV(buffer, ANY ":/\")
    RETURN LEFT(buffer, p)
 END FUNCTION
@@ -3906,7 +3906,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkGetExeFileName () AS USTRING
    DIM buffer AS WSTRING * MAX_PATH, p AS LONG
-   GetModuleFileNameW(nullptr, buffer, SIZEOF(buffer)\2)
+   GetModuleFileNameW(NULL, buffer, SIZEOF(buffer)\2)
    p = INSTRREV(buffer, ANY ":/\")
    IF p THEN buffer = MID(buffer, p + 1)
    p = INSTRREV(buffer, ".")
@@ -3920,7 +3920,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkGetExeFileNameX () AS USTRING
    DIM buffer AS WSTRING * MAX_PATH, p AS LONG
-   GetModuleFileNameW(nullptr, buffer, SIZEOF(buffer)\2)
+   GetModuleFileNameW(NULL, buffer, SIZEOF(buffer)\2)
    p = INSTRREV(buffer, ANY ":/\")
    IF p THEN buffer = MID(buffer, p + 1)
    RETURN buffer
@@ -3932,7 +3932,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkGetExeFileExt () AS USTRING
    DIM buffer AS WSTRING * MAX_PATH, p AS LONG
-   GetModuleFileNameW(nullptr, buffer, SIZEOF(buffer)\2)
+   GetModuleFileNameW(NULL, buffer, SIZEOF(buffer)\2)
    p = INSTRREV(buffer, ".")
    IF p THEN RETURN MID(buffer, p) ELSE RETURN buffer
 END FUNCTION
@@ -3943,7 +3943,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkGetExeFullPath () AS USTRING
    DIM buffer AS WSTRING * MAX_PATH, cb AS LONG
-   cb = GetModuleFileNameW(nullptr, buffer, SIZEOF(buffer)\2)
+   cb = GetModuleFileNameW(NULL, buffer, SIZEOF(buffer)\2)
    RETURN LEFT(buffer, cb)
 END FUNCTION
 ' ========================================================================================
@@ -4090,7 +4090,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkFileExists (BYVAL pwszFileSpec AS WSTRING PTR) AS BOOLEAN
    DIM fd AS WIN32_FIND_DATAW
-   IF pwszFileSpec = nullptr THEN EXIT FUNCTION
+   IF pwszFileSpec = NULL THEN EXIT FUNCTION
    DIM hFind AS HANDLE = FindFirstFileW(pwszFileSpec, @fd)
    IF hFind = INVALID_HANDLE_VALUE THEN EXIT FUNCTION
    FindClose hFind
@@ -4144,7 +4144,7 @@ END FUNCTION
 '   ERROR_ACCESS_DENIED.
 ' ========================================================================================
 PUBLIC FUNCTION tkDeleteFile (BYVAL pwszFileSpec AS WSTRING PTR) AS BOOLEAN
-   IF pwszFileSpec = nullptr THEN EXIT FUNCTION
+   IF pwszFileSpec = NULL THEN EXIT FUNCTION
    FUNCTION = DeleteFileW(pwszFileSpec)
 END FUNCTION
 ' ========================================================================================
@@ -4152,7 +4152,7 @@ END FUNCTION
 ' Replacemet for Free Basic's Kill. Returns zero (0) on success, or non-zero on error.
 ' ========================================================================================
 PUBLIC FUNCTION tkKill (BYVAL pwszFileSpec AS WSTRING PTR) AS BOOLEAN
-   IF pwszFileSpec = nullptr THEN EXIT FUNCTION
+   IF pwszFileSpec = NULL THEN EXIT FUNCTION
    FUNCTION = NOT DeleteFileW(pwszFileSpec)
 END FUNCTION
 ' ========================================================================================
@@ -4203,11 +4203,11 @@ END FUNCTION
 '     the final directory in the path.
 ' ========================================================================================
 PUBLIC FUNCTION tkCreateDirectory (BYVAL lpPathName AS LPCWSTR) AS BOOLEAN
-   RETURN CreateDirectoryW(lpPathName, nullptr)
+   RETURN CreateDirectoryW(lpPathName, NULL)
 END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkMakeDir (BYVAL lpPathName AS LPCWSTR) AS BOOLEAN
-   RETURN CreateDirectoryW(lpPathName, nullptr)
+   RETURN CreateDirectoryW(lpPathName, NULL)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
@@ -4215,7 +4215,7 @@ END FUNCTION
 ' Returns 0 on success, or -1 on failure.
 ' ========================================================================================
 PUBLIC FUNCTION tkMkDir (BYVAL lpPathName AS LPCWSTR) AS LONG
-   DIM res AS LONG = CreateDirectoryW(lpPathName, nullptr)
+   DIM res AS LONG = CreateDirectoryW(lpPathName, NULL)
    IF res = 0 THEN RETURN -1 ELSE RETURN 0
 END FUNCTION
 ' ========================================================================================
@@ -4283,7 +4283,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkFolderExists (BYVAL pwszFileSpec AS WSTRING PTR) AS BOOLEAN
    DIM fd AS WIN32_FIND_DATAW
-   IF pwszFileSpec = nullptr THEN EXIT FUNCTION
+   IF pwszFileSpec = NULL THEN EXIT FUNCTION
    DIM hFind AS HANDLE = FindFirstFileW(pwszFileSpec, @fd)
    IF hFind = INVALID_HANDLE_VALUE THEN EXIT FUNCTION
    FindClose hFind
@@ -4563,22 +4563,22 @@ PUBLIC FUNCTION tkFileScanA (BYREF wszFileName AS WSTRING, BYREF szDelimiter AS 
    DIM dwCount AS DWORD, dwFileSize AS DWORD, dwHighSize AS DWORD, dwBytesRead AS DWORD
    IF LEN(szDelimiter) = 0 THEN EXIT FUNCTION
    ' // Open the file
-   DIM hFile AS HANDLE = CreateFileW(@wszFileName, GENERIC_READ, FILE_SHARE_READ, nullptr, _
-                         OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr)
+   DIM hFile AS HANDLE = CreateFileW(@wszFileName, GENERIC_READ, FILE_SHARE_READ, NULL, _
+                         OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL)
    IF hFile = INVALID_HANDLE_VALUE THEN EXIT FUNCTION
    ' // Get the size of the file
    dwFileSize = GetFileSize(hFile, @dwHighSize)
    DIM pBuffer AS UBYTE PTR
    pBuffer = CAllocate(1, dwFileSize)
-   IF pBuffer = nullptr THEN EXIT FUNCTION
-   DIM bSuccess AS LONG = ReadFile(hFile, pBuffer, dwFileSize, @dwBytesRead, nullptr)
+   IF pBuffer = NULL THEN EXIT FUNCTION
+   DIM bSuccess AS LONG = ReadFile(hFile, pBuffer, dwFileSize, @dwBytesRead, NULL)
    CloseHandle(hFile)
    IF bSuccess = FALSE THEN EXIT FUNCTION
    DIM nLen AS LONG = LEN(szDelimiter)
    DIM pstr AS ANY PTR = pBuffer
    DO
       pstr = strstr(pstr, szDelimiter)
-      IF pstr = nullptr THEN EXIT DO
+      IF pstr = NULL THEN EXIT DO
       pstr += nLen
       dwCount += 1
    LOOP
@@ -4593,22 +4593,22 @@ PUBLIC FUNCTION tkFileScanW (BYREF wszFileName AS WSTRING, BYREF wszDelimiter AS
    DIM dwCount AS DWORD, dwFileSize AS DWORD, dwHighSize AS DWORD, dwBytesRead AS DWORD
    IF LEN(wszDelimiter) = 0 THEN EXIT FUNCTION
    ' // Open the file
-   DIM hFile AS HANDLE = CreateFileW(@wszFileName, GENERIC_READ, FILE_SHARE_READ, nullptr, _
-                         OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr)
+   DIM hFile AS HANDLE = CreateFileW(@wszFileName, GENERIC_READ, FILE_SHARE_READ, NULL, _
+                         OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL)
    IF hFile = INVALID_HANDLE_VALUE THEN EXIT FUNCTION
    ' // Get the size of the file
    dwFileSize = GetFileSize(hFile, @dwHighSize)
    DIM pBuffer AS UBYTE PTR
    pBuffer = CAllocate(1, dwFileSize)
-   IF pBuffer = nullptr THEN EXIT FUNCTION
-   DIM bSuccess AS LONG = ReadFile(hFile, pBuffer, dwFileSize, @dwBytesRead, nullptr)
+   IF pBuffer = NULL THEN EXIT FUNCTION
+   DIM bSuccess AS LONG = ReadFile(hFile, pBuffer, dwFileSize, @dwBytesRead, NULL)
    CloseHandle(hFile)
    IF bSuccess = FALSE THEN EXIT FUNCTION
    DIM nLen AS LONG = LEN(wszDelimiter) * 2
    DIM pstr AS ANY PTR = pBuffer
    DO
       pstr = wcsstr(pstr, @wszDelimiter)
-      IF pstr = nullptr THEN EXIT DO
+      IF pstr = NULL THEN EXIT DO
       pstr += nLen
       dwCount += 1
    LOOP
@@ -4692,13 +4692,13 @@ PUBLIC FUNCTION tkExtractResource (BYVAL hInstance AS HINSTANCE, BYREF wszResour
    ELSE
       hRes = FindResourceW(hInstance, wszResourceName, pResourceType)
    END IF
-   IF hRes = nullptr THEN RETURN ""
+   IF hRes = NULL THEN RETURN ""
    ' // Retrieve the resource size
    DIM ResSize AS DWORD = SizeofResource(hInstance, hRes)
    IF ResSize = 0 THEN RETURN ""
    ' // Lock the resource
    DIM pResData AS LPVOID = LockResource(LoadResource(hInstance, hRes))
-   IF pResData = nullptr THEN RETURN ""
+   IF pResData = NULL THEN RETURN ""
    DIM strResData AS STRING = SPACE(ResSize)
    memcpy STRPTR(strResData), pResData, ResSize
    RETURN strResData
@@ -4743,18 +4743,18 @@ PUBLIC FUNCTION tkExtractResourceToFile (BYVAL hInstance AS HINSTANCE, BYREF wsz
    ELSE
       hRes = FindResourceW(hInstance, wszResourceName, pResourceType)
    END IF
-   IF hRes = nullptr THEN RETURN FALSE
+   IF hRes = NULL THEN RETURN FALSE
    ' // Retrieve the resource size
    DIM ResSize AS DWORD = SizeofResource(hInstance, hRes)
    IF ResSize = 0 THEN RETURN FALSE
    ' // Lock the resource
    DIM pResData AS LPVOID = LockResource(LoadResource(hInstance, hRes))
-   IF pResData = nullptr THEN RETURN FALSE
+   IF pResData = NULL THEN RETURN FALSE
    ' // Write the resource data to a file
-   DIM hFile AS HANDLE = CreateFileW(wszFileName, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr)
+   DIM hFile AS HANDLE = CreateFileW(wszFileName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL)
    IF hFile = INVALID_HANDLE_VALUE THEN RETURN FALSE
    DIM dwBytesWritten AS DWORD
-   DIM bSuccess AS BOOLEAN = WriteFile(hFile, pResData, ResSize, @dwBytesWritten, nullptr)
+   DIM bSuccess AS BOOLEAN = WriteFile(hFile, pResData, ResSize, @dwBytesWritten, NULL)
    CloseHandle(hFile)
    RETURN bSuccess
 
@@ -4792,7 +4792,7 @@ END TYPE
 
 PUBLIC FUNCTION tkSaveIconToFile (BYVAL hIcon AS HICON, BYREF fileName AS WSTRING) AS HRESULT
 
-   IF hIcon = nullptr THEN RETURN E_POINTER
+   IF hIcon = 0 THEN RETURN E_POINTER
 
    DIM ii AS ICONINFO
    IF GetIconInfo(hIcon, @ii) = 0 THEN RETURN HRESULT_FROM_WIN32(GetLastError())
@@ -4818,9 +4818,9 @@ PUBLIC FUNCTION tkSaveIconToFile (BYVAL hIcon AS HICON, BYREF fileName AS WSTRIN
 
    ' // Extract color pixels (XOR)
    REDIM AS UBYTE colorPixels(biColor.biSizeImage - 1)
-   DIM hdc AS HDC = GetDC(nullptr)
+   DIM hdc AS HDC = GetDC(NULL)
    IF GetDIBits(hdc, ii.hbmColor, 0, h, @colorPixels(0), cast(BITMAPINFO ptr, @biColor), DIB_RGB_COLORS) = 0 THEN
-      ReleaseDC(nullptr, hdc)
+      ReleaseDC(NULL, hdc)
       DeleteObject(ii.hbmColor)
       DeleteObject(ii.hbmMask)
       RETURN HRESULT_FROM_WIN32(GetLastError())
@@ -4859,9 +4859,9 @@ PUBLIC FUNCTION tkSaveIconToFile (BYVAL hIcon AS HICON, BYREF fileName AS WSTRIN
    entry.dwImageOffset = SIZEOF(ICONDIR) + SIZEOF(ICONDIRENTRY)
 
    ' // Write to file
-   DIM hFile AS HANDLE = CreateFileW(fileName, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr)
+   DIM hFile AS HANDLE = CreateFileW(fileName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL)
    IF hFile = INVALID_HANDLE_VALUE THEN
-      ReleaseDC(nullptr, hdc)
+      ReleaseDC(NULL, hdc)
       DeleteObject(ii.hbmColor)
       DeleteObject(ii.hbmMask)
       return HRESULT_FROM_WIN32(GetLastError())
@@ -4869,20 +4869,20 @@ PUBLIC FUNCTION tkSaveIconToFile (BYVAL hIcon AS HICON, BYREF fileName AS WSTRIN
 
    DIM written AS DWORD
    ' 1) ICONDIR
-   WriteFile(hFile, @id, SIZEOF(ICONDIR), @written, nullptr)
+   WriteFile(hFile, @id, SIZEOF(ICONDIR), @written, NULL)
    ' 2) ICONDIRENTRY
-   WriteFile(hFile, @entry, SIZEOF(ICONDIRENTRY), @written, nullptr)
+   WriteFile(hFile, @entry, SIZEOF(ICONDIRENTRY), @written, NULL)
    ' 3) BITMAPINFOHEADER (with doubled height)
-   WriteFile(hFile, @biWrite, SIZEOF(BITMAPINFOHEADER), @written, nullptr)
+   WriteFile(hFile, @biWrite, SIZEOF(BITMAPINFOHEADER), @written, NULL)
    ' 4) XOR color pixels
-   WriteFile(hFile, @colorPixels(0), biColor.biSizeImage, @written, nullptr)
+   WriteFile(hFile, @colorPixels(0), biColor.biSizeImage, @written, NULL)
    ' 5) AND mask pixels (1bpp, zeroed)
-   WriteFile(hFile, @maskPixels(0), maskSize, @written, nullptr)
+   WriteFile(hFile, @maskPixels(0), maskSize, @written, NULL)
 
    CloseHandle(hFile)
 
    ' // Cleanup
-   ReleaseDC(nullptr, hdc)
+   ReleaseDC(NULL, hdc)
    DeleteObject(ii.hbmColor)
    DeleteObject(ii.hbmMask)
 
@@ -4977,7 +4977,7 @@ PUBLIC FUNCTION tkGetEdgeVersion () AS USTRING
    DIM hk AS HKEY, wszData AS WSTRING * 1024, cbData AS DWORD = SIZEOF(wszData)
    IF RegOpenKeyExW(HKEY_CURRENT_USER, "SOFTWARE\Microsoft\Edge\BLBeacon", 0, _
                     KEY_QUERY_VALUE, @hk) <> ERROR_SUCCESS THEN EXIT FUNCTION
-   IF RegQueryValueExW(hk, "version", nullptr, nullptr, cast(BYTE PTR, @wszData), @cbData) <> ERROR_SUCCESS THEN wszData = ""
+   IF RegQueryValueExW(hk, "version", NULL, NULL, cast(BYTE PTR, @wszData), @cbData) <> ERROR_SUCCESS THEN wszData = ""
    RegCloseKey hk
    RETURN wszData
 END FUNCTION
@@ -4990,7 +4990,7 @@ PUBLIC FUNCTION tkGetFirefoxVersion () AS USTRING
    DIM hk AS HKEY, wszData AS WSTRING * 1024, cbData AS DWORD = SIZEOF(wszData)
    IF RegOpenKeyExW(HKEY_LOCAL_MACHINE, "SOFTWARE\Mozilla\Mozilla Firefox", 0, _
                     KEY_QUERY_VALUE, @hk) <> ERROR_SUCCESS THEN EXIT FUNCTION
-   IF RegQueryValueExW(hk, "CurrentVersion", nullptr, nullptr, cast(BYTE PTR, @wszData), @cbData) <> ERROR_SUCCESS THEN wszData = ""
+   IF RegQueryValueExW(hk, "CurrentVersion", NULL, NULL, cast(BYTE PTR, @wszData), @cbData) <> ERROR_SUCCESS THEN wszData = ""
    RegCloseKey hk
    RETURN wszData
 END FUNCTION
@@ -5003,7 +5003,7 @@ PUBLIC FUNCTION tkGetChromeVersion () AS USTRING
    DIM hk AS HKEY, wszData AS WSTRING * 1024, cbData AS DWORD = SIZEOF(wszData)
    IF RegOpenKeyExW(HKEY_LOCAL_MACHINE, $"SOFTWARE\WOW6432Node\Google\Update\Clients\{8A69D345-D564-463c-AFF1-A69D9E530F96}", 0, _
                     KEY_QUERY_VALUE, @hk) <> ERROR_SUCCESS THEN EXIT FUNCTION
-   IF RegQueryValueExW(hk, "pv", nullptr, nullptr, cast(BYTE PTR, @wszData), @cbData) <> ERROR_SUCCESS THEN wszData = ""
+   IF RegQueryValueExW(hk, "pv", NULL, NULL, cast(BYTE PTR, @wszData), @cbData) <> ERROR_SUCCESS THEN wszData = ""
    RegCloseKey hk
    RETURN wszData
 END FUNCTION
@@ -5063,10 +5063,10 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkLaunchConnectionDialog (BYVAL hParent AS HWND) AS LONG
    DIM AS ANY PTR pLib = DyLibLoad("inetcpl.cpl")
-   IF pLib = nullptr THEN EXIT FUNCTION
+   IF pLib = 0 THEN EXIT FUNCTION
    DIM pProc AS FUNCTION (BYVAL hParent AS HWND) AS LONG
    pProc = DyLibSymbol(pLib, "LaunchConnectionDialog")
-   IF pProc = nullptr THEN EXIT FUNCTION
+   IF pProc = 0 THEN EXIT FUNCTION
    FUNCTION = pProc(hParent)
    DyLibFree(pLib)
 END FUNCTION
@@ -5077,10 +5077,10 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkLaunchInternetControlPanel (BYVAL hParent AS HWND) AS LONG
    DIM AS ANY PTR pLib = DyLibLoad("inetcpl.cpl")
-   IF pLib = nullptr THEN EXIT FUNCTION
+   IF pLib = 0 THEN EXIT FUNCTION
    DIM pProc AS FUNCTION (BYVAL hParent AS HWND) AS LONG
    pProc = DyLibSymbol(pLib, "LaunchInternetControlPanel")
-   IF pProc = nullptr THEN EXIT FUNCTION
+   IF pProc = 0 THEN EXIT FUNCTION
    FUNCTION = pProc(hParent)
    DyLibFree(pLib)
 END FUNCTION
@@ -5091,10 +5091,10 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkLaunchPrivacyDialog (BYVAL hParent AS HWND) AS LONG
    DIM AS ANY PTR pLib = DyLibLoad("inetcpl.cpl")
-   IF pLib = nullptr THEN EXIT FUNCTION
+   IF pLib = 0 THEN EXIT FUNCTION
    DIM pProc AS FUNCTION (BYVAL hParent AS HWND) AS LONG
    pProc = DyLibSymbol(pLib, "LaunchPrivacyDialog")
-   IF pProc = nullptr THEN EXIT FUNCTION
+   IF pProc = 0 THEN EXIT FUNCTION
    FUNCTION = pProc(hParent)
    DyLibFree(pLib)
 END FUNCTION
@@ -5105,10 +5105,10 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkLaunchSecurityDialog (BYVAL hParent AS HWND) AS LONG
    DIM AS ANY PTR pLib = DyLibLoad("inetcpl.cpl")
-   IF pLib = nullptr THEN EXIT FUNCTION
+   IF pLib = 0 THEN EXIT FUNCTION
    DIM pProc AS FUNCTION (BYVAL hParent AS HWND) AS LONG
    pProc = DyLibSymbol(pLib, "LaunchSecurityDialog")
-   IF pProc = nullptr THEN EXIT FUNCTION
+   IF pProc = 0 THEN EXIT FUNCTION
    FUNCTION = pProc(hParent)
    DyLibFree(pLib)
 END FUNCTION
@@ -5161,7 +5161,7 @@ END FUNCTION
 ' Example: tkRemoveEnvironmentVariable("TEMP")
 ' ========================================================================================
 PUBLIC FUNCTION tkRemoveEnvironmentVariable (BYVAL pwszName AS LPCWSTR) AS BOOLEAN
-   RETURN SetEnvironmentVariableW(pwszName, nullptr)
+   RETURN SetEnvironmentVariableW(pwszName, NULL)
 END FUNCTION
 ' ========================================================================================
 
@@ -5184,7 +5184,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkGetEnvironmentStringsCount () AS LONG
    DIM pEnv AS LPWSTR = GetEnvironmentStringsW
-   IF pEnv = nullptr THEN RETURN 0
+   IF pEnv = NULL THEN RETURN 0
    DIM p AS LPWSTR = pEnv
    DIM count AS LONG
    ' First pass: count entries
@@ -5627,7 +5627,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkNegativeInfinityString (BYVAL pwszLocale AS WSTRING PTR = LOCALE_NAME_USER_DEFAULT) AS USTRING
    DIM nLen AS LONG, wstrBuf AS USTRING
-   nLen = GetLocaleInfoEx(pwszLocale, LOCALE_SNEGINFINITY, nullptr, 0)
+   nLen = GetLocaleInfoEx(pwszLocale, LOCALE_SNEGINFINITY, NULL, 0)
    IF nLen = 0 THEN RETURN ""
    wstrBuf = WSPACE(nLen)
    nLen = GetLocaleInfoEx(pwszLocale, LOCALE_SNEGINFINITY, STRPTR(wstrBuf), nLen)

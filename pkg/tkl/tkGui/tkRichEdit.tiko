@@ -1199,7 +1199,7 @@ PUBLIC FUNCTION tkRichEdit_SetFont ( _
    DIM tlf AS LOGFONTW                    ' // LOGFONT structure
    DIM tcf AS CHARFORMATW                 ' // CHARFORMATW structure
 
-   hDC = GetDC(nullptr)
+   hDC = GetDC(NULL)
    EnumFontFamiliesW(hDC, wszFaceName, cast(FONTENUMPROCW, @tkRichEdit_EnumFontFamProcW), cast(LPARAM, @tlf))
    ReleaseDC NULL, hDC
    tcf.cbSize = SIZEOF(tcf)
@@ -1228,7 +1228,7 @@ PUBLIC FUNCTION tkRichEdit_LoadRtfFromFileCallback ( _
  , BYVAL pcb AS LONG PTR _                  ' // Number of bytes actually read
  ) AS UINT                                  ' // 0 for success, or an error code
 
-   IF ReadFile(hFile, lpBuff, cb, pcb, nullptr) = 0 THEN FUNCTION = GetLastError
+   IF ReadFile(hFile, lpBuff, cb, pcb, NULL) = 0 THEN FUNCTION = GetLastError
 
 END FUNCTION
 ' ========================================================================================
@@ -1243,12 +1243,12 @@ PUBLIC FUNCTION tkRichEdit_LoadRtfFromFile ( _
    DIM eds AS EDITSTREAM                    ' // EDITSTREAM structure
 
    ' // Checks the validity of the parameters
-   IF hRichEdit = nullptr THEN EXIT FUNCTION
+   IF hRichEdit = 0 THEN EXIT FUNCTION
    IF LEN(wszFileName) = 0 THEN EXIT FUNCTION
 
    ' // Opens the file and sends the message
    hFile = CreateFileW(wszFileName, GENERIC_READ, FILE_SHARE_READ, _
-                       nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr)
+                       NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL)
    IF hFile = INVALID_HANDLE_VALUE THEN EXIT FUNCTION
    eds.dwCookie = cast(DWORD_PTR, hFile)
    eds.pfnCallback = cast(EDITSTREAMCALLBACK, @tkRichEdit_LoadRtfFromFileCallback)
@@ -1312,18 +1312,18 @@ PUBLIC FUNCTION tkRichEdit_LoadRtfFromResource ( _
    DIM rtfCustData AS TK_RICHEDIT_CUSTOMDATA    ' // TK_RICHEDIT_CUSTOMDATA structure
 
    ' // Checks the validity of the parameters
-   IF hRichEdit = nullptr OR hInstance = nullptr THEN EXIT FUNCTION
+   IF hRichEdit = NULL OR hInstance = NULL THEN EXIT FUNCTION
    IF LEN(wszResourceName) = 0 THEN EXIT FUNCTION
 
    ' // Loads the resource
    hResInfo = FindResourceW(hInstance, wszResourceName, cast(LPCWSTR, RT_RCDATA))
-   IF hResInfo = nullptr THEN EXIT FUNCTION
+   IF hResInfo = NULL THEN EXIT FUNCTION
 
    ' // Loads and locks the resource
    ' // Note  LockResource does not actually lock memory; it is just used to obtain
    ' // a pointer to the memory containing the resource data.
    pResData = LockResource(LoadResource(hInstance, hResInfo))
-   IF pResData = nullptr THEN EXIT FUNCTION
+   IF pResData = NULL THEN EXIT FUNCTION
    DIM cbSize AS LONG = SizeofResource(hInstance, hResInfo)
    DIM buffer AS STRING = SPACE(cbSize)
    CopyMemory(STRPTR(buffer), pResData, cbSize)

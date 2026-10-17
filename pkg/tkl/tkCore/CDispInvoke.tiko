@@ -79,8 +79,8 @@ Public:
    DECLARE FUNCTION SetResult (BYVAL Result AS HRESULT) AS HRESULT
    DECLARE FUNCTION GetErrorInfo (BYVAL nError AS LONG = -1) AS USTRING
 
-   DECLARE FUNCTION DispInvoke (BYVAL wFlags AS WORD, BYVAL dispID AS .DISPID, BYVAL prgArgs AS VARIANT PTR = nullptr, BYVAL cArgs AS UINT = 0, BYVAL lcid AS LCID = LOCALE_USER_DEFAULT) AS HRESULT
-   DECLARE FUNCTION DispInvoke (BYVAL wFlags AS WORD, BYVAL pwszName AS WSTRING PTR, BYVAL prgArgs AS VARIANT PTR = nullptr, BYVAL cArgs AS UINT = 0, BYVAL lcid AS LCID = LOCALE_USER_DEFAULT) AS HRESULT
+   DECLARE FUNCTION DispInvoke (BYVAL wFlags AS WORD, BYVAL dispID AS .DISPID, BYVAL prgArgs AS VARIANT PTR = NULL, BYVAL cArgs AS UINT = 0, BYVAL lcid AS LCID = LOCALE_USER_DEFAULT) AS HRESULT
+   DECLARE FUNCTION DispInvoke (BYVAL wFlags AS WORD, BYVAL pwszName AS WSTRING PTR, BYVAL prgArgs AS VARIANT PTR = NULL, BYVAL cArgs AS UINT = 0, BYVAL lcid AS LCID = LOCALE_USER_DEFAULT) AS HRESULT
 
    DECLARE FUNCTION Get (BYVAL dispID AS DISPID, BYVAL prgArgs AS VARIANT PTR, BYVAL cArgs AS UINT, BYVAL lcid AS LCID = LOCALE_USER_DEFAULT) AS HRESULT
    DECLARE FUNCTION Get (BYVAL pwszName AS WSTRING PTR, BYVAL prgArgs AS VARIANT PTR, BYVAL cArgs AS UINT, BYVAL lcid AS LCID = LOCALE_USER_DEFAULT) AS HRESULT
@@ -166,7 +166,7 @@ END TYPE
 ' ========================================================================================
 CONSTRUCTOR CDispInvoke
    ' // Initialize the COM library
-   DIM hr AS HRESULT = CoInitialize(nullptr)
+   DIM hr AS HRESULT = CoInitialize(NULL)
    IF hr = S_OK OR hr = S_FALSE THEN m_bUninitCOM = TRUE
 END CONSTRUCTOR
 ' ========================================================================================
@@ -179,7 +179,7 @@ END CONSTRUCTOR
 ' ========================================================================================
 CONSTRUCTOR CDispInvoke (BYVAL pDisp AS IDispatch PTR, BYVAL fAddRef AS BOOLEAN = FALSE)
    ' // Initialize the COM library
-   DIM hr AS HRESULT = CoInitialize(nullptr)
+   DIM hr AS HRESULT = CoInitialize(NULL)
    IF hr = S_OK OR hr = S_FALSE THEN m_bUninitCOM = TRUE
    ' // Assign the dispatch pointer
    IF pdisp THEN
@@ -193,10 +193,10 @@ END CONSTRUCTOR
 ' ========================================================================================
 CONSTRUCTOR CDispInvoke (BYVAL vDisp AS VARIANT PTR, BYVAL fAddRef AS BOOLEAN = TRUE)
    ' // Initialize the COM library
-   DIM hr AS HRESULT = CoInitialize(nullptr)
+   DIM hr AS HRESULT = CoInitialize(NULL)
    IF hr = S_OK OR hr = S_FALSE THEN m_bUninitCOM = TRUE
    ' // Assign the dispatch pointer
-   IF vDisp <> nullptr THEN
+   IF vDisp <> NULL THEN
       IF vDisp->vt = VT_DISPATCH THEN m_pDisp = vDisp->pdispVal
       IF m_pDisp THEN
          IF fAddRef THEN m_pDisp->lpvtbl->AddRef(m_pDisp)
@@ -209,7 +209,7 @@ END CONSTRUCTOR
 ' ========================================================================================
 CONSTRUCTOR CDispInvoke (BYVAL vDisp AS VARIANT, BYVAL fAddRef AS BOOLEAN = TRUE)
    ' // Initialize the COM library
-   DIM hr AS HRESULT = CoInitialize(nullptr)
+   DIM hr AS HRESULT = CoInitialize(NULL)
    IF hr = S_OK OR hr = S_FALSE THEN m_bUninitCOM = TRUE
    ' // Assign the dispatch pointer
    IF vDisp.vt = VT_DISPATCH THEN m_pDisp = vDisp.pdispVal
@@ -223,7 +223,7 @@ END CONSTRUCTOR
 ' ========================================================================================
 CONSTRUCTOR CDispInvoke (BYREF cvDisp AS DVARIANT)
    ' // Initialize the COM library
-   DIM hr AS HRESULT = CoInitialize(nullptr)
+   DIM hr AS HRESULT = CoInitialize(NULL)
    IF hr = S_OK OR hr = S_FALSE THEN m_bUninitCOM = TRUE
    ' // Assign the dispatch pointer
    IF cvDisp.vd.vt = VT_DISPATCH THEN m_pDisp = cvDisp.vd.pdispVal
@@ -249,7 +249,7 @@ END CONSTRUCTOR
 ' ========================================================================================
 CONSTRUCTOR CDispInvoke (BYREF wszProgID AS CONST WSTRING, BYREF wszLicKey AS WSTRING = "")
    ' // Initialize the COM library
-   DIM hr AS HRESULT = CoInitialize(nullptr)
+   DIM hr AS HRESULT = CoInitialize(NULL)
    IF hr = S_OK OR hr = S_FALSE THEN m_bUninitCOM = TRUE
    ' // Create an instance of the object
    m_pDisp = tkNewCom(wszProgID, wszLicKey)
@@ -270,7 +270,7 @@ END CONSTRUCTOR
 ' ========================================================================================
 CONSTRUCTOR CDispInvoke (BYREF wszClsID AS CONST WSTRING, BYREF wszIID AS CONST WSTRING)
    ' // Initialize the COM library
-   DIM hr AS HRESULT = CoInitialize(nullptr)
+   DIM hr AS HRESULT = CoInitialize(NULL)
    IF hr = S_OK OR hr = S_FALSE THEN m_bUninitCOM = TRUE
    ' // Create an instance of the object
    m_pDisp = tkNewCom(wszClsID, wszIID)
@@ -289,7 +289,7 @@ END CONSTRUCTOR
 ' ========================================================================================
 CONSTRUCTOR CDispInvoke (BYREF classID AS CONST CLSID)
    ' // Initialize the COM library
-   DIM hr AS HRESULT = CoInitialize(nullptr)
+   DIM hr AS HRESULT = CoInitialize(NULL)
    IF hr = S_OK OR hr = S_FALSE THEN m_bUninitCOM = TRUE
    ' // Create an instance of the object
    DIM pUnk AS IUnknown PTR
@@ -316,7 +316,7 @@ END CONSTRUCTOR
 ' ========================================================================================
 CONSTRUCTOR CDispInvoke (BYREF classID AS CONST CLSID, BYREF riid AS CONST IID)
    ' // Initialize the COM library
-   DIM hr AS HRESULT = CoInitialize(nullptr)
+   DIM hr AS HRESULT = CoInitialize(NULL)
    IF hr = S_OK OR hr = S_FALSE THEN m_bUninitCOM = TRUE
    ' // Create an instance of the object
    DIM pUnk AS IUnknown PTR
@@ -349,7 +349,7 @@ END CONSTRUCTOR
 ' ========================================================================================
 CONSTRUCTOR CDispInvoke (BYREF wszLibName AS CONST WSTRING, BYREF rclsid AS CONST CLSID, BYREF riid AS CONST IID, BYREF wszLicKey AS WSTRING = "")
    ' // Initialize the COM library
-   DIM hr AS HRESULT = CoInitialize(nullptr)
+   DIM hr AS HRESULT = CoInitialize(NULL)
    IF hr = S_OK OR hr = S_FALSE THEN m_bUninitCOM = TRUE
    ' // Create an instance of the object
    m_pDisp = tkNewCom(wszLibName, rclsid, riid, wszLicKey)
@@ -361,7 +361,7 @@ END CONSTRUCTOR
 ' ========================================================================================
 CONSTRUCTOR CDispInvoke (BYREF wszLibName AS CONST WSTRING, BYREF wszClsid AS CONST WSTRING, BYREF wszIid AS CONST WSTRING, BYREF wszLicKey AS WSTRING = "")
    ' // Initialize the COM library
-   DIM hr AS HRESULT = CoInitialize(nullptr)
+   DIM hr AS HRESULT = CoInitialize(NULL)
    IF hr = S_OK OR hr = S_FALSE THEN m_bUninitCOM = TRUE
    ' // Create an instance of the object
    m_pDisp = tkNewCom(wszLibName, wszClsid, wszIid, wszLicKey)
@@ -385,7 +385,7 @@ END DESTRUCTOR
 ' Returns true if it is a valid object, or false otherwise.
 ' ========================================================================================
 FUNCTION CDispInvoke.IsObject () AS BOOLEAN
-   RETURN (m_pDisp <> nullptr)
+   RETURN (m_pDisp <> NULL)
 END FUNCTION
 ' ========================================================================================
 
@@ -413,7 +413,7 @@ END FUNCTION
 ' You must call IUnknown_Release when no longer need it.
 ' ========================================================================================
 FUNCTION CDispInvoke.DispObj () AS IDispatch PTR
-   IF m_pDisp <> nullptr THEN
+   IF m_pDisp <> NULL THEN
       IUnknown_AddRef(m_pDisp)
       RETURN m_pDisp
    END IF
@@ -449,7 +449,7 @@ SUB CDispInvoke.Clear
    VariantClear(@m_varResult)
    ' // Release the dispatch pointer
    IF m_pDisp THEN m_pDisp->lpvtbl->Release(m_pDisp)
-   m_pDisp = nullptr
+   m_pDisp = NULL
 END SUB
 ' ========================================================================================
 
@@ -461,9 +461,9 @@ OPERATOR CDispInvoke.Let (BYVAL pDisp AS IDispatch PTR)
    VariantClear(@m_varResult)
    ' // Release the dispatch pointer
    IF m_pDisp THEN m_pDisp->lpvtbl->Release(m_pDisp)
-   m_pDisp = nullptr
+   m_pDisp = NULL
    ' // Assign the new dispatch pointer
-   IF pDisp = nullptr THEN EXIT OPERATOR
+   IF pDisp = NULL THEN EXIT OPERATOR
    m_pDisp = pDisp
    IF m_pDisp THEN m_pDisp->lpvtbl->AddRef(m_pDisp)
 END OPERATOR
@@ -477,11 +477,11 @@ OPERATOR CDispInvoke.Let (BYVAL vDisp AS VARIANT PTR)
    VariantClear(@m_varResult)
    ' // Release the dispatch pointer
    IF m_pDisp THEN m_pDisp->lpvtbl->Release(m_pDisp)
-   m_pDisp = nullptr
+   m_pDisp = NULL
    ' // Assign the new dispatch pointer
-   IF vDisp = nullptr THEN EXIT OPERATOR
+   IF vDisp = NULL THEN EXIT OPERATOR
    IF vDisp->vt <> VT_DISPATCH THEN EXIT OPERATOR
-   IF vDisp->pdispVal = nullptr THEN EXIT OPERATOR
+   IF vDisp->pdispVal = NULL THEN EXIT OPERATOR
    m_pDisp = vDisp->pdispVal
    IF m_pDisp THEN m_pDisp->lpvtbl->AddRef(m_pDisp)
 END OPERATOR
@@ -495,10 +495,10 @@ OPERATOR CDispInvoke.Let (BYVAL vDisp AS VARIANT)
    VariantClear(@m_varResult)
    ' // Release the dispatch pointer
    IF m_pDisp THEN m_pDisp->lpvtbl->Release(m_pDisp)
-   m_pDisp = nullptr
+   m_pDisp = NULL
    ' // Assign the new dispatch pointer
    IF vDisp.vt <> VT_DISPATCH THEN EXIT OPERATOR
-   IF vDisp.pdispVal = nullptr THEN EXIT OPERATOR
+   IF vDisp.pdispVal = NULL THEN EXIT OPERATOR
    m_pDisp = vDisp.pdispVal
    IF m_pDisp THEN m_pDisp->lpvtbl->AddRef(m_pDisp)
 END OPERATOR
@@ -512,10 +512,10 @@ OPERATOR CDispInvoke.Let (BYREF cvDisp AS DVARIANT)
    VariantClear(@m_varResult)
    ' // Release the dispatch pointer
    IF m_pDisp THEN m_pDisp->lpvtbl->Release(m_pDisp)
-   m_pDisp = nullptr
+   m_pDisp = NULL
    ' // Assign the new dispatch pointer
    IF cvDisp.vd.vt <> VT_DISPATCH THEN EXIT OPERATOR
-   IF cvDisp.vd.pdispVal = nullptr THEN EXIT OPERATOR
+   IF cvDisp.vd.pdispVal = NULL THEN EXIT OPERATOR
    m_pDisp = cvDisp.vd.pdispVal
    IF m_pDisp THEN m_pDisp->lpvtbl->AddRef(m_pDisp)
 END OPERATOR
@@ -527,7 +527,7 @@ END OPERATOR
 ' of the raw interface pointer without calling AddRef.
 ' ========================================================================================
 FUNCTION CDispInvoke.Attach (BYVAL pDisp AS IDispatch PTR, BYVAL fAddRef AS BOOLEAN = FALSE) AS HRESULT
-   IF pdisp = nullptr THEN RETURN E_INVALIDARG
+   IF pdisp = NULL THEN RETURN E_INVALIDARG
    ' // Free the memory used by the result variant
    VariantClear(@m_varResult)
    ' // Release the dispatch pointer
@@ -543,9 +543,9 @@ END FUNCTION
 ' Attaches a Dispatch pointer
 ' ========================================================================================
 FUNCTION CDispInvoke.Attach (BYVAL pvar AS VARIANT PTR) AS HRESULT
-   IF pvar = nullptr THEN RETURN E_INVALIDARG
+   IF pvar = NULL THEN RETURN E_INVALIDARG
    IF pvar->vt <> VT_DISPATCH THEN RETURN E_INVALIDARG
-   IF pvar->pdispVal = nullptr THEN RETURN E_INVALIDARG
+   IF pvar->pdispVal = NULL THEN RETURN E_INVALIDARG
    ' // Free the memory used by the result variant
    VariantClear(@m_varResult)
    ' // Release the dispatch pointer
@@ -569,7 +569,7 @@ FUNCTION CDispInvoke.Detach () AS IDispatch PTR
    ' // Free the memory used by the result variant
    VariantClear(@m_varResult)
    DIM pTmp AS IDispatch PTR = m_pDisp
-   m_pDisp = nullptr
+   m_pDisp = NULL
    RETURN pTmp
 END FUNCTION
 ' ========================================================================================
@@ -578,14 +578,14 @@ END FUNCTION
 ' Detaches the Dispatch pointer and transfers ownership to a variant
 ' ========================================================================================
 FUNCTION CDispInvoke.Detach (BYVAL pvar AS VARIANT PTR) AS HRESULT
-   IF m_pDisp = nullptr THEN RETURN E_POINTER
-   IF pvar = nullptr THEN RETURN E_INVALIDARG
+   IF m_pDisp = NULL THEN RETURN E_POINTER
+   IF pvar = NULL THEN RETURN E_INVALIDARG
    VariantClear(pvar)
    pvar->vt = VT_DISPATCH
    pvar->pdispVal = m_pDisp
    ' // Free the memory used by the result variant
    VariantClear(@m_varResult)
-   m_pDisp = nullptr
+   m_pDisp = NULL
    RETURN S_OK
 END FUNCTION
 ' ========================================================================================
@@ -615,8 +615,8 @@ FUNCTION CDispInvoke.GetErrorInfo (BYVAL nError AS LONG = -1) AS USTRING
    DIM cbLen AS DWORD, pBuffer AS WSTRING PTR, ustrMsg AS USTRING
    cbLen = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER OR _
            FORMAT_MESSAGE_FROM_SYSTEM OR FORMAT_MESSAGE_IGNORE_INSERTS, _
-           nullptr, nError, BYVAL MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), _
-           cast(LPWSTR, @pBuffer), 0, nullptr)
+           NULL, nError, BYVAL MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), _
+           cast(LPWSTR, @pBuffer), 0, NULL)
    IF cbLen THEN
       ustrMsg = *pBuffer
       LocalFree pBuffer
@@ -701,12 +701,12 @@ END FUNCTION
 '   DISP_E_PARAMNOTOPTIONAL: A required parameter was omitted.
 ' ========================================================================================
 FUNCTION CDispInvoke.DispInvoke (BYVAL wFlags AS WORD, BYVAL dispIdMember AS DISPID, _
-BYVAL prgArgs AS VARIANT PTR = nullptr, BYVAL cArgs AS UINT = 0, BYVAL lcid AS LCID = LOCALE_USER_DEFAULT) AS HRESULT
+BYVAL prgArgs AS VARIANT PTR = NULL, BYVAL cArgs AS UINT = 0, BYVAL lcid AS LCID = LOCALE_USER_DEFAULT) AS HRESULT
    ' // Clear the variables
    m_uArgErr = 0
    VariantClear @m_varResult
    memset @m_dispParams, 0, SIZEOF(m_dispParams)
-   IF m_pDisp = nullptr THEN RETURN E_POINTER
+   IF m_pDisp = NULL THEN RETURN E_POINTER
    ' // Fill the DISPPARAMS structure
    m_dispParams.cArgs = cArgs
    m_dispParams.rgvarg = prgArgs
@@ -723,13 +723,13 @@ END FUNCTION
 ' Retrieves the DISPID (dispatch identifier) and calls the function above.
 ' ========================================================================================
 FUNCTION CDispInvoke.DispInvoke (BYVAL wFlags AS WORD, BYVAL pwszName AS WSTRING PTR, _
-BYVAL prgArgs AS VARIANT PTR = nullptr, BYVAL cArgs AS UINT = 0, BYVAL lcid AS LCID = LOCALE_USER_DEFAULT) AS HRESULT
+BYVAL prgArgs AS VARIANT PTR = NULL, BYVAL cArgs AS UINT = 0, BYVAL lcid AS LCID = LOCALE_USER_DEFAULT) AS HRESULT
    ' // Clear the variables
    m_uArgErr = 0
    VariantClear @m_varResult
    memset @m_dispParams, 0, SIZEOF(m_dispParams)
-   IF m_pDisp = nullptr THEN RETURN E_POINTER
-   IF pwszName = nullptr THEN RETURN E_INVALIDARG
+   IF m_pDisp = NULL THEN RETURN E_POINTER
+   IF pwszName = NULL THEN RETURN E_INVALIDARG
    DIM hr AS HRESULT, dispID AS LONG
    hr = m_pDisp->lpvtbl->GetIdsOfNames(m_pDisp, @IID_NULL, @pwszName, 1, lcid, @dispID)
    IF hr <> S_OK THEN RETURN hr
@@ -744,25 +744,25 @@ END FUNCTION
 ' ========================================================================================
 ' Wrapper function to call the Invoke method to get a property value.
 ' ========================================================================================
-FUNCTION CDispInvoke.Get (BYVAL dispID AS DISPID, BYVAL prgArgs AS VARIANT PTR = nullptr, BYVAL cArgs AS UINT = 0, BYVAL lcid AS LCID = LOCALE_USER_DEFAULT) AS HRESULT
+FUNCTION CDispInvoke.Get (BYVAL dispID AS DISPID, BYVAL prgArgs AS VARIANT PTR = NULL, BYVAL cArgs AS UINT = 0, BYVAL lcid AS LCID = LOCALE_USER_DEFAULT) AS HRESULT
    RETURN SetResult(this.DispInvoke(DISPATCH_METHOD OR DISPATCH_PROPERTYGET, dispID, prgArgs, cArgs, lcid))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-FUNCTION CDispInvoke.Get (BYVAL pwszName AS WSTRING PTR, BYVAL prgArgs AS VARIANT PTR = nullptr, BYVAL cArgs AS UINT = 0, BYVAL lcid AS LCID = LOCALE_USER_DEFAULT) AS HRESULT
+FUNCTION CDispInvoke.Get (BYVAL pwszName AS WSTRING PTR, BYVAL prgArgs AS VARIANT PTR = NULL, BYVAL cArgs AS UINT = 0, BYVAL lcid AS LCID = LOCALE_USER_DEFAULT) AS HRESULT
    RETURN SetResult(this.DispInvoke(DISPATCH_METHOD OR DISPATCH_PROPERTYGET, pwszName, prgArgs, cArgs, lcid))
 END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
 FUNCTION CDispInvoke.Get (BYVAL dispID AS DISPID) AS DVARIANT
-   SetResult(this.DispInvoke(DISPATCH_METHOD OR DISPATCH_PROPERTYGET, dispID, nullptr, 0, m_lcid))
+   SetResult(this.DispInvoke(DISPATCH_METHOD OR DISPATCH_PROPERTYGET, dispID, NULL, 0, m_lcid))
    RETURN m_varResult
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CDispInvoke.Get (BYVAL pwszName AS WSTRING PTR) AS DVARIANT
-   SetResult(this.DispInvoke(DISPATCH_METHOD OR DISPATCH_PROPERTYGET, pwszName, nullptr, 0, m_lcid))
+   SetResult(this.DispInvoke(DISPATCH_METHOD OR DISPATCH_PROPERTYGET, pwszName, NULL, 0, m_lcid))
    RETURN m_varResult
 END FUNCTION
 ' ========================================================================================
@@ -941,7 +941,7 @@ END FUNCTION
 ' Wrapper functions to call the Invoke method to call a method or get property.
 ' ========================================================================================
 FUNCTION CDispInvoke.Invoke (BYVAL dispId AS DISPID) AS DVARIANT
-   SetResult(this.DispInvoke(DISPATCH_METHOD OR DISPATCH_PROPERTYGET, dispID, nullptr, 0, m_lcid))
+   SetResult(this.DispInvoke(DISPATCH_METHOD OR DISPATCH_PROPERTYGET, dispID, NULL, 0, m_lcid))
    RETURN m_varResult
 END FUNCTION
 ' ========================================================================================
@@ -1060,7 +1060,7 @@ END FUNCTION
 
 ' ========================================================================================
 FUNCTION CDispInvoke.Invoke (BYVAL pwszName AS WSTRING PTR) AS DVARIANT
-   SetResult(this.DispInvoke(DISPATCH_METHOD OR DISPATCH_PROPERTYGET, pwszName, nullptr, 0, m_lcid))
+   SetResult(this.DispInvoke(DISPATCH_METHOD OR DISPATCH_PROPERTYGET, pwszName, NULL, 0, m_lcid))
    RETURN m_varResult
 END FUNCTION
 ' ========================================================================================

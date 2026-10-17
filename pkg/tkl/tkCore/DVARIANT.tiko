@@ -247,38 +247,13 @@ END TYPE
 '                                  CONSTRUCTORS
 ' ########################################################################################
 
-' Notes about constructors:
-' We can use the constructors to pass values to parameters in procedures without assigning
-' them first to a variable, e.g.:
-' ----------------------------------------------------------------------------------------
-' SUB Foo (BYREF dv AS DVARIANT)
-'    PRINT tkVarToStr(dv)
-' END SUB
-' Foo DVARIANT("Test string")
-' Foo DVARIANT(12345)
-' Foo DVARIANT(12345, "LONG")
-' ----------------------------------------------------------------------------------------
-' SUB Foo (BYVAL dv AS DVARIANT PTR)
-'    PRINT tkDVarToStr(dv)
-' END SUB
-' Foo @DVARIANT("Test string")
-' Foo @DVARIANT(12345)
-' Foo @DVARIANT(12345, "LONG")
-' ----------------------------------------------------------------------------------------
-' SUB Foo (BYVAL v AS VARIANT PTR)
-'    PRINT tkVarToStr(v)
-' END SUB
-' Foo DVARIANT("Test string")
-' Foo DVARIANT(12345)
-' Foo DVARIANT(12345, "LONG")
-' ----------------------------------------------------------------------------------------
-
 ' ========================================================================================
 ' Default constructor
 ' Usage example:
+' DIM dv AS DVARIANT = "Test string"
+' --or--
 ' DIM dv AS DVARIANT
 ' dv = "Test string"
-' print dv
 ' ========================================================================================
 CONSTRUCTOR DVARIANT
 END CONSTRUCTOR
@@ -311,21 +286,21 @@ END CONSTRUCTOR
 CONSTRUCTOR DVARIANT (BYVAL pwsz AS WSTRING PTR)
    vd.vt = VT_BSTR : vd.bstrVal = SysAllocString(pwsz)
    m_Result = 0
-   IF vd.bstrVal = nullptr THEN m_Result = E_FAIL
+   IF vd.bstrVal = NULL THEN m_Result = E_FAIL
 END CONSTRUCTOR
 ' ========================================================================================
 ' ========================================================================================
 CONSTRUCTOR DVARIANT (BYREF ustr AS USTRING)
    vd.vt = VT_BSTR : vd.bstrVal = SysAllocString(ustr)
    m_Result = 0
-   IF vd.bstrVal = nullptr THEN m_Result = E_FAIL
+   IF vd.bstrVal = NULL THEN m_Result = E_FAIL
 END CONSTRUCTOR
 ' ========================================================================================
 ' ========================================================================================
 CONSTRUCTOR DVARIANT (BYREF bs AS BSTRING)
    vd.vt = VT_BSTR : vd.bstrVal = SysAllocString(bs)
    m_Result = 0
-   IF vd.bstrVal = nullptr THEN m_Result = E_FAIL
+   IF vd.bstrVal = NULL THEN m_Result = E_FAIL
 END CONSTRUCTOR
 ' ========================================================================================
 ' ========================================================================================
@@ -503,7 +478,7 @@ END CONSTRUCTOR
 ' ========================================================================================
 ' ========================================================================================
 CONSTRUCTOR DVARIANT (BYVAL _pvar AS ANY PTR, BYREF strType AS STRING)
-   IF _pvar <> nullptr THEN
+   IF _pvar <> NULL THEN
       SELECT CASE UCASE(strType)
          CASE "BOOL"      : vd.vt = VT_BOOL OR VT_BYREF      : vd.pboolVal = _pvar
          CASE "BOOLEAN"   : vd.vt = VT_BOOL OR VT_BYREF      : vd.pboolVal = _pvar
@@ -625,7 +600,7 @@ END OPERATOR
 OPERATOR DVARIANT.LET (BYVAL pwszStr AS WSTRING PTR)
    VariantClear(@vd) : vd.vt = VT_BSTR : vd.bstrVal = SysAllocString(pwszStr)
    m_Result = 0
-   IF vd.bstrVal = nullptr THEN m_Result = E_FAIL
+   IF vd.bstrVal = NULL THEN m_Result = E_FAIL
 END OPERATOR
 ' ========================================================================================
 ' ========================================================================================
@@ -634,7 +609,7 @@ END OPERATOR
 OPERATOR DVARIANT.LET (BYREF ustr AS USTRING)
    VariantClear(@vd) : vd.vt = VT_BSTR : vd.bstrVal = SysAllocString(ustr)
    m_Result = 0
-   IF vd.bstrVal = nullptr THEN m_Result = E_FAIL
+   IF vd.bstrVal = NULL THEN m_Result = E_FAIL
 END OPERATOR
 ' ========================================================================================
 ' ========================================================================================
@@ -643,7 +618,7 @@ END OPERATOR
 OPERATOR DVARIANT.LET (BYREF bs AS BSTRING)
    VariantClear(@vd) : vd.vt = VT_BSTR : vd.bstrVal = SysAllocString(bs)
    m_Result = 0
-   IF vd.bstrVal = nullptr THEN m_Result = E_FAIL
+   IF vd.bstrVal = NULL THEN m_Result = E_FAIL
 END OPERATOR
 ' ========================================================================================
 ' ========================================================================================
@@ -742,7 +717,7 @@ SUB DVARIANT.Put (BYVAL pwszStr AS WSTRING PTR)
    VariantClear(@vd)
    vd.vt = VT_BSTR
    vd.bstrVal = SysAllocString(pwszStr)
-   IF vd.bstrVal = nullptr THEN m_Result = E_FAIL
+   IF vd.bstrVal = NULL THEN m_Result = E_FAIL
 END SUB
 ' ========================================================================================
 ' ========================================================================================
@@ -753,7 +728,7 @@ SUB DVARIANT.Put (BYREF ustr AS USTRING)
    VariantClear(@vd)
    vd.vt = VT_BSTR
    vd.bstrVal = SysAllocString(ustr)
-   IF vd.bstrVal = nullptr THEN m_Result = E_FAIL
+   IF vd.bstrVal = NULL THEN m_Result = E_FAIL
 END SUB
 ' ========================================================================================
 ' ========================================================================================
@@ -764,7 +739,7 @@ SUB DVARIANT.Put (BYREF bs AS BSTRING)
    VariantClear(@vd)
    vd.vt = VT_BSTR
    vd.bstrVal = SysAllocString(bs)
-   IF vd.bstrVal = nullptr THEN m_Result = E_FAIL
+   IF vd.bstrVal = NULL THEN m_Result = E_FAIL
 END SUB
 ' ========================================================================================
 ' ========================================================================================
@@ -773,7 +748,7 @@ END SUB
 FUNCTION DVARIANT.Put (BYVAL pdisp AS IDispatch PTR, BYVAL fAddRef AS BOOLEAN = FALSE) AS HRESULT
    m_Result = 0
    VariantClear(@vd)
-   IF pDisp = nullptr THEN
+   IF pDisp = NULL THEN
       m_Result = E_INVALIDARG
    ELSE
       V_VT(@vd) = VT_DISPATCH
@@ -789,7 +764,7 @@ END FUNCTION
 FUNCTION DVARIANT.Put (BYVAL punk AS IUnknown PTR, BYVAL fAddRef AS BOOLEAN = FALSE) AS HRESULT
    m_Result = 0
    VariantClear(@vd)
-   IF punk = nullptr THEN
+   IF punk = NULL THEN
       m_Result = E_INVALIDARG
    ELSE
       V_VT(@vd) = VT_UNKNOWN
@@ -895,7 +870,7 @@ END SUB
 ' ========================================================================================
 FUNCTION DVARIANT.PutRef (BYVAL _pvar AS ANY PTR, BYVAL _vType AS WORD) AS HRESULT
    VariantClear(@vd)
-   IF _pvar = nullptr THEN RETURN E_INVALIDARG
+   IF _pvar = NULL THEN RETURN E_INVALIDARG
    SELECT CASE _vType
       CASE VT_BOOL      : vd.vt = VT_BOOL OR VT_BYREF      : vd.pboolVal = _pvar
       CASE VT_I1        : vd.vt = VT_I1 OR VT_BYREF        : vd.pcVal = _pvar
@@ -927,7 +902,7 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION DVARIANT.PutRef (BYVAL _pvar AS ANY PTR, BYREF strType AS STRING) AS HRESULT
    VariantClear(@vd)
-   IF _pvar = nullptr THEN RETURN E_INVALIDARG
+   IF _pvar = NULL THEN RETURN E_INVALIDARG
    SELECT CASE UCASE(strType)
       CASE "BOOL"      : vd.vt = VT_BOOL OR VT_BYREF      : vd.pboolVal = _pvar
       CASE "BOOLEAN"   : vd.vt = VT_BOOL OR VT_BYREF      : vd.pboolVal = _pvar
@@ -1119,7 +1094,7 @@ END FUNCTION
 FUNCTION DVARIANT.PutSafeArray (BYVAL parray AS SAFEARRAY PTR, BYVAL fAttach AS BOOLEAN = FALSE) AS HRESULT
    m_Result = 0
    VariantClear(@vd)
-   IF parray = nullptr THEN
+   IF parray = NULL THEN
       m_Result = E_INVALIDARG
       RETURN E_INVALIDARG
    END IF
@@ -1154,7 +1129,7 @@ END FUNCTION
 FUNCTION DVARIANT.PutRecord (BYVAL pIRecordInfo AS IRecordInfo PTR, BYVAL pRec AS ANY PTR) AS HRESULT
    m_Result = 0
    VariantClear(@vd)
-   IF pIRecordInfo = nullptr OR pRec = nullptr THEN
+   IF pIRecordInfo = NULL OR pRec = NULL THEN
       m_Result = E_INVALIDARG
       RETURN E_INVALIDARG
    END IF
@@ -1257,7 +1232,7 @@ END FUNCTION
 FUNCTION DVARIANT.PutDecFromStr (BYVAL pwszIn AS WSTRING PTR, BYVAL lcid AS LCID = 0, BYVAL dwFlags AS ULONG = 0) AS HRESULT
    m_Result = 0
    VariantClear(@vd)
-   IF pwszIn = nullptr THEN
+   IF pwszIn = NULL THEN
       m_Result = E_INVALIDARG
       RETURN E_INVALIDARG
    ELSE
@@ -1618,14 +1593,14 @@ END FUNCTION
 ' =====================================================================================
 FUNCTION DVARIANT.ToUnknown () AS ANY PTR
    m_Result = 0
-   IF vd.vt <> VT_UNKNOWN AND vd.vt <> VT_DISPATCH THEN RETURN nullptr
+   IF vd.vt <> VT_UNKNOWN AND vd.vt <> VT_DISPATCH THEN RETURN NULL
    IF vd.vt = VT_UNKNOWN THEN
-      IF vd.punkVal = nullptr THEN RETURN nullptr
+      IF vd.punkVal = NULL THEN RETURN NULL
       IUnknown_AddRef(vd.punkVal)
       RETURN vd.punkVal
    END IF
    IF vd.vt = VT_DISPATCH THEN
-      IF vd.pdispVal = nullptr THEN RETURN nullptr
+      IF vd.pdispVal = NULL THEN RETURN NULL
       DIM punk AS IUnknown PTR
       m_Result = vd.pdispVal->lpvtbl->QueryInterface(vd.pdispVal, @IID_IUnknown, @punk)
       IF m_Result = S_OK THEN
@@ -1645,14 +1620,14 @@ END FUNCTION
 ' =====================================================================================
 FUNCTION DVARIANT.ToDispatch () AS ANY PTR
    m_Result = 0
-   IF vd.vt <> VT_UNKNOWN AND vd.vt <> VT_DISPATCH THEN RETURN nullptr
+   IF vd.vt <> VT_UNKNOWN AND vd.vt <> VT_DISPATCH THEN RETURN NULL
    IF vd.vt = VT_DISPATCH THEN
-      IF vd.pdispVal = nullptr THEN RETURN nullptr
+      IF vd.pdispVal = NULL THEN RETURN NULL
       IDispatch_AddRef(vd.pdispVal)
       RETURN vd.pdispVal
    END IF
    IF vd.vt = VT_UNKNOWN THEN
-      IF vd.punkVal = nullptr THEN RETURN nullptr
+      IF vd.punkVal = NULL THEN RETURN NULL
       DIM pdisp AS IDispatch PTR
       m_Result = vd.punkVal->lpvtbl->QueryInterface(vd.punkVal, @IID_IDispatch, @pdisp)
       IF m_Result = S_OK THEN
@@ -1996,14 +1971,14 @@ END SUB
 ' ========================================================================================
 FUNCTION DVARIANT.Attach (BYVAL pvar AS VARIANT PTR) AS HRESULT
    m_Result = 0
-   IF pvar = nullptr THEN
+   IF pvar = NULL THEN
       m_Result = E_INVALIDARG
       RETURN E_INVALIDARG
    END IF
    VariantClear @vd
    ' // Copy the contents and give control to CVar
    DIM pdest AS ANY PTR = memcpy(@vd, pvar, SIZEOF(VARIANT))
-   IF pdest = nullptr THEN
+   IF pdest = NULL THEN
       m_Result = E_FAIL
       RETURN E_FAIL
    END IF
@@ -2019,7 +1994,7 @@ FUNCTION DVARIANT.Attach (BYREF v AS VARIANT) AS HRESULT
    VariantClear @vd
    ' // Copy the contents and give control to CVar
    DIM pdest AS ANY PTR = memcpy(@vd, @v, SIZEOF(VARIANT))
-   IF pdest = nullptr THEN
+   IF pdest = NULL THEN
       m_Result = E_FAIL
       RETURN E_FAIL
    END IF
@@ -2036,13 +2011,13 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION DVARIANT.Detach (BYVAL pvar AS VARIANT PTR) AS HRESULT
    m_Result = 0
-   IF pvar = nullptr THEN
+   IF pvar = NULL THEN
       m_Result = E_FAIL
       RETURN E_INVALIDARG
    END IF
    VariantClear(pvar)
    DIM pdest AS ANY PTR = memcpy(pvar, @vd, SIZEOF(VARIANT))
-   IF pdest = nullptr THEN
+   IF pdest = NULL THEN
       m_Result = E_FAIL
       RETURN E_FAIL
    END IF
@@ -2055,7 +2030,7 @@ FUNCTION DVARIANT.Detach (BYREF v AS VARIANT) AS HRESULT
    m_Result = 0
    VariantClear(@v)
    DIM pdest AS ANY PTR = memcpy(@v, @vd, SIZEOF(VARIANT))
-   IF pdest = nullptr THEN
+   IF pdest = NULL THEN
       m_Result = E_FAIL
       RETURN E_FAIL
    END IF
@@ -2288,8 +2263,8 @@ FUNCTION DVARIANT.GetErrorInfo (BYVAL nError AS LONG = -1) AS USTRING
    DIM cbLen AS DWORD, pBuffer AS WSTRING PTR, ustrMsg AS USTRING
    cbLen = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER OR _
            FORMAT_MESSAGE_FROM_SYSTEM OR FORMAT_MESSAGE_IGNORE_INSERTS, _
-           nullptr, nError, BYVAL MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), _
-           cast(LPWSTR, @pBuffer), 0, nullptr)
+           NULL, nError, BYVAL MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), _
+           cast(LPWSTR, @pBuffer), 0, NULL)
    IF cbLen THEN
       ustrMsg = *pBuffer
       LocalFree pBuffer
@@ -2488,21 +2463,21 @@ PUBLIC OPERATOR ^ (BYREF dv1 AS DVARIANT, BYREF dv2 AS DVARIANT) AS DOUBLE
 END OPERATOR
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC OPERATOR Abs (BYREF dv AS DVARIANT) AS DOUBLE
+PUBLIC OPERATOR Abs (BYREF dv AS DVARIANT) AS INTEGER
    DIM dvRes AS DVARIANT
    VarAbs(@dv.vd, @dvRes.vd)
    OPERATOR = VAL(dvRes)
 END OPERATOR
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC OPERATOR Fix (BYREF dv AS DVARIANT) AS DOUBLE
+PUBLIC OPERATOR Fix (BYREF dv AS DVARIANT) AS INTEGER
    DIM dvRes AS DVARIANT
    VarFix(@dv.vd, @dvRes.vd)
    OPERATOR = VAL(dvRes)
 END OPERATOR
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC OPERATOR Int (BYREF dv AS DVARIANT) AS DOUBLE
+PUBLIC OPERATOR Int (BYREF dv AS DVARIANT) AS INTEGER
    DIM dvRes AS DVARIANT
    VarInt(@dv.vd, @dvRes.vd)
    OPERATOR = VAL(dvRes)
@@ -2517,12 +2492,12 @@ END OPERATOR
 ' ========================================================================================
 ' Helper procedure to display messages
 ' ========================================================================================
-PUBLIC FUNCTION tkMsg OVERLOAD (BYREF dv AS DVARIANT, BYVAL pwszCaption AS CONST WSTRING PTR = nullptr, BYVAL uType AS DWORD = 0) AS LONG
+PUBLIC FUNCTION tkMsg OVERLOAD (BYREF dv AS DVARIANT, BYVAL pwszCaption AS CONST WSTRING PTR = NULL, BYVAL uType AS DWORD = 0) AS LONG
    RETURN MessageBoxW(GetActiveWindow, dv.ToStr, pwszCaption, MB_APPLMODAL OR uType)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkMsg OVERLOAD (BYVAL hWin AS HWND, BYREF dv AS DVARIANT, BYVAL pwszCaption AS CONST WSTRING PTR = nullptr, BYVAL uType AS DWORD = 0) AS LONG
+PUBLIC FUNCTION tkMsg OVERLOAD (BYVAL hWin AS HWND, BYREF dv AS DVARIANT, BYVAL pwszCaption AS CONST WSTRING PTR = NULL, BYVAL uType AS DWORD = 0) AS LONG
    RETURN MessageBoxW(hWin, dv.ToStr, pwszCaption, MB_APPLMODAL OR uType)
 END FUNCTION
 ' ========================================================================================

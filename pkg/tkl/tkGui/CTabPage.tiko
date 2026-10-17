@@ -46,7 +46,7 @@ PUBLIC TYPE CTabPage EXTENDS CWindow
       DECLARE DESTRUCTOR
       DECLARE PROPERTY hTabPage () AS HWND
       DECLARE FUNCTION InsertPage (BYVAL hTab AS HWND, BYVAL nPage AS LONG, BYREF wszTitle AS WSTRING = "", _
-         BYVAL nImage AS LONG = -1, BYVAL lpfnWndProc AS WNDPROC = nullptr, _
+         BYVAL nImage AS LONG = -1, BYVAL lpfnWndProc AS WNDPROC = NULL, _
          BYVAL dwStyle AS DWORD = WS_CLIPSIBLINGS OR WS_CLIPCHILDREN, BYVAL dwExStyle AS DWORD = 0) AS HWND
       DECLARE FUNCTION ResizePage () AS BOOLEAN
       DECLARE FUNCTION ResizePages () AS BOOLEAN
@@ -101,14 +101,14 @@ END DESTRUCTOR
 ' - The handle of the new tab page.
 ' ========================================================================================
 FUNCTION CTabPage.InsertPage (BYVAL hTab AS HWND, BYVAL nPage AS LONG, BYREF wszTitle AS WSTRING = "", _
-   BYVAL nImage AS LONG = -1, BYVAL lpfnWndProc AS WNDPROC = nullptr, _
+   BYVAL nImage AS LONG = -1, BYVAL lpfnWndProc AS WNDPROC = NULL, _
    BYVAL dwStyle AS DWORD = WS_CLIPSIBLINGS OR WS_CLIPCHILDREN, BYVAL dwExStyle AS DWORD = 0) AS HWND
 
    DIM AS LONG x, y, nWidth, nHeight, cItems
    DIM rc AS RECT, tci AS TCITEMW
 
    IF IsWindow(hTab) = NULL THEN EXIT FUNCTION
-   IF lpfnWndProc = nullptr THEN lpfnWndProc = CAST(HANDLE, .GetClassLongPtrW(this.hWindow, GWLP_WNDPROC))
+   IF lpfnWndProc = NULL THEN lpfnWndProc = CAST(HANDLE, .GetClassLongPtrW(this.hWindow, GWLP_WNDPROC))
 
    dwStyle = dwStyle OR WS_CHILD
    dwExStyle = dwExStyle OR WS_EX_CONTROLPARENT
@@ -157,7 +157,7 @@ FUNCTION CTabPage.ResizePage () AS BOOLEAN
    tci.mask = TCIF_PARAM
    ' // Get the handle of the tab control
    DIM hTab AS HWND = ..GetParent(m_hTabPage)
-   IF hTab = nullptr THEN RETURN FALSE
+   IF hTab = NULL THEN RETURN FALSE
    ' // Get information of the item
    DIM curTab AS LONG = TabCtrl_GetCurSel(hTab)
    ' // Rseize the tab page
@@ -170,7 +170,7 @@ FUNCTION CTabPage.ResizePage () AS BOOLEAN
          ' // Calculates the tab control's display area given its window rectangle
          SendMessageW(hTab, TCM_ADJUSTRECT, FALSE, CAST(LPARAM, @rcParent))
          ' // Convert to window coordinates
-         ..MapWindowPoints(nullptr, hTab, CAST(LPPOINT, @rcParent), 2)
+         ..MapWindowPoints(NULL, hTab, CAST(LPPOINT, @rcParent), 2)
          ' // Move the tab page
          ..MoveWindow(pTabPage->hTabPage, rcParent.Left, rcParent.Top, _
             rcParent.Right - rcParent.Left, rcParent.Bottom - rcParent.Top, CTRUE)
@@ -186,7 +186,7 @@ END FUNCTION
 FUNCTION CTabPage.ResizePages () AS BOOLEAN
    ' // Get the handle of the tab control
    DIM hTab AS HWND = ..GetParent(m_hTabPage)
-   IF hTab = nullptr THEN RETURN FALSE
+   IF hTab = NULL THEN RETURN FALSE
    ' // Get the number of items
    DIM nCount AS LONG = .SendMessageW(hTab, TCM_GETITEMCOUNT, 0, 0)
    IF nCount = 0 THEN EXIT FUNCTION
@@ -205,7 +205,7 @@ FUNCTION CTabPage.ResizePages () AS BOOLEAN
             ' // Calculates the tab control's display area given its window rectangle
             SendMessageW(hTab, TCM_ADJUSTRECT, FALSE, CAST(LPARAM, @rcParent))
             ' // Convert to window coordinates
-            ..MapWindowPoints(nullptr, hTab, CAST(LPPOINT, @rcParent), 2)
+            ..MapWindowPoints(NULL, hTab, CAST(LPPOINT, @rcParent), 2)
             ' // Move the tab page
             ..MoveWindow(pTabPage->hTabPage, rcParent.Left, rcParent.Top, _
                rcParent.Right - rcParent.Left, rcParent.Bottom - rcParent.Top, CTRUE)
@@ -225,7 +225,7 @@ END FUNCTION
 ' Resizes all the tab pages associated with a tab control
 ' =====================================================================================
 PUBLIC FUNCTION tkResizeTabPages (BYVAL hTab AS HWND) AS BOOLEAN
-   IF hTab = nullptr THEN EXIT FUNCTION
+   IF hTab = NULL THEN EXIT FUNCTION
    DIM nCount AS LONG, i AS LONG, tci AS TCITEMW, pTabPage AS CTabPage PTR
    ' // Get the number of items
    nCount = .SendMessageW(hTab, TCM_GETITEMCOUNT, 0, 0)
@@ -243,7 +243,7 @@ PUBLIC FUNCTION tkResizeTabPages (BYVAL hTab AS HWND) AS BOOLEAN
             ' // Calculates the tab control's display area given its window rectangle
             SendMessageW(hTab, TCM_ADJUSTRECT, FALSE, CAST(LPARAM, @rcParent))
             ' // Convert to window coordinates
-            ..MapWindowPoints(nullptr, hTab, CAST(LPPOINT, @rcParent), 2)
+            ..MapWindowPoints(NULL, hTab, CAST(LPPOINT, @rcParent), 2)
             ' // Move the tab page
             ..MoveWindow(pTabPage->hTabPage, rcParent.Left, rcParent.Top, _
                rcParent.Right - rcParent.Left, rcParent.Bottom - rcParent.Top, CTRUE)
@@ -261,8 +261,8 @@ END FUNCTION
 ' - idx  = Zero based index of the tab.
 ' Return value: TRUE or FALSE.
 ' ========================================================================================
-PUBLIC FUNCTION wndDestroyTabPage (BYVAL hTab AS HWND, BYVAL idx AS LONG) AS BOOLEAN
-   IF hTab = nullptr THEN EXIT FUNCTION
+PUBLIC FUNCTION tkDestroyTabPage (BYVAL hTab AS HWND, BYVAL idx AS LONG) AS BOOLEAN
+   IF hTab = NULL THEN EXIT FUNCTION
    DIM tci AS TCITEMW, pTabPage AS CTabPage PTR
    ' // Ask to return the value of the lParam member
    tci.mask = TCIF_PARAM
@@ -284,7 +284,7 @@ END FUNCTION
 ' Return value: TRUE or FALSE.
 ' ========================================================================================
 PUBLIC FUNCTION tkDestroyAllTabPages (BYVAL hTab AS HWND) AS BOOLEAN
-   IF hTab = nullptr THEN EXIT FUNCTION
+   IF hTab = NULL THEN EXIT FUNCTION
    DIM tci AS TCITEMW, pTabPage AS CTabPage PTR
    ' // Ask to return the value of the lParam member
    tci.mask = TCIF_PARAM
@@ -307,7 +307,7 @@ END FUNCTION
 ' will return the pointer of the selected tab, if any.
 ' ========================================================================================
 PUBLIC FUNCTION tkCTabPagePtr (BYVAL hTab AS HWND, BYVAL idx AS LONG) AS CTabPage PTR
-   IF hTab = nullptr THEN EXIT FUNCTION
+   IF hTab = NULL THEN EXIT FUNCTION
    IF idx = -1 THEN idx = SendMessageW(hTab, TCM_GETCURSEL, 0, 0)
    IF idx = -1 THEN EXIT FUNCTION   ' No tab selected
    ' // Ask to return the value of the lParam member

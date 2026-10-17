@@ -89,7 +89,7 @@ CONSTRUCTOR CIOpenFileDialog
    ' // Initialize the COM library
    CoInitialize NULL
    ' // Create an instance of the FileOpenDialog interface
-   DIM hr AS HRESULT = CoCreateInstance(@CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, @IID_IFileOpenDialog, @m_IFileOpenDialog)
+   DIM hr AS HRESULT = CoCreateInstance(@CLSID_FileOpenDialog, NULL, CLSCTX_INPROC_SERVER, @IID_IFileOpenDialog, @m_IFileOpenDialog)
    SetLastError(hr)
 END CONSTRUCTOR
 ' ========================================================================================
@@ -194,7 +194,7 @@ END FUNCTION
 ' pofd.SetEVents(pfde)
 ' ========================================================================================
 FUNCTION CIOpenFileDialog.SetEvents (BYVAL pfde as IFileDialogEvents PTR) AS HRESULT
-   IF pfde = nullptr THEN RETURN E_POINTER
+   IF pfde = NULL THEN RETURN E_POINTER
    ' // Removes the previous event handler that was attached through the SetEvents method.
    IF m_dwDlgEvtCookie THEN
       m_IFileOpenDialog->lpvtbl->Unadvise(m_IFileOpenDialog, m_dwDlgEvtCookie)
@@ -206,7 +206,7 @@ END FUNCTION
 
 ' ========================================================================================
 FUNCTION CIOpenFileDialog.Advise (BYVAL pfde as IFileDialogEvents PTR) AS DWORD
-   IF pfde = nullptr THEN RETURN E_POINTER
+   IF pfde = NULL THEN RETURN E_POINTER
    DIM dwCookie AS DWORD
    DIM hr AS HRESULT = m_IFileOpenDialog->lpvtbl->Advise(m_IFileOpenDialog, pfde, @dwCookie)
    SetLastError(hr)
@@ -253,7 +253,7 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CIOpenFileDialog.SetFolder (BYVAL pwszFolderName AS WSTRING PTR) AS HRESULT
    DIM pFolder AS IShellItem PTR
-   DIM hr AS HRESULT = SHCreateItemFromParsingName(pwszFolderName, nullptr, @IID_IShellItem, @pFolder)
+   DIM hr AS HRESULT = SHCreateItemFromParsingName(pwszFolderName, NULL, @IID_IShellItem, @pFolder)
    IF hr <> S_OK THEN RETURN hr
    hr = m_IFileOpenDialog->lpVtbl->SetFolder(m_IFileOpenDialog, pFolder)
    IF pFolder THEN pFolder->lpVtbl->Release(pFolder)
@@ -476,10 +476,10 @@ FUNCTION CIOpenFileDialog.GetResultsString (BYVAL sigdnName AS SIGDN = SIGDN_NOR
                ustrResults += *pwszName
                IF idx < dwItemCount - 1 THEN ustrResults += ","
                CoTaskMemFree(pwszName)
-               pwszName = nullptr
+               pwszName = NULL
             END IF
             pItem->lpVtbl->Release(pItem)
-            pItem = nullptr
+            pItem = NULL
          END IF
       NEXT
       pItems->lpVtbl->Release(pItems)
@@ -695,7 +695,7 @@ CONSTRUCTOR CISaveFileDialog
    ' // Initialize the COM library
    CoInitialize NULL
    ' // Create an instance of the FileOpenDialog interface
-   DIM hr AS HRESULT = CoCreateInstance(@CLSID_FileSaveDialog, nullptr, CLSCTX_INPROC_SERVER, @IID_IFileSaveDialog, @m_IFileSaveDialog)
+   DIM hr AS HRESULT = CoCreateInstance(@CLSID_FileSaveDialog, NULL, CLSCTX_INPROC_SERVER, @IID_IFileSaveDialog, @m_IFileSaveDialog)
    SetLastError(hr)
 END CONSTRUCTOR
 ' ========================================================================================
@@ -790,7 +790,7 @@ END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CISaveFileDialog.SetEvents (BYVAL pfde as IFileDialogEvents PTR) AS HRESULT
-   IF pfde = nullptr THEN RETURN E_POINTER
+   IF pfde = NULL THEN RETURN E_POINTER
    ' // Removes the previous event handler that was attached through the SetEvents method.
    IF m_dwDlgEvtCookie THEN
       m_IFileSaveDialog->lpvtbl->Unadvise(m_IFileSaveDialog, m_dwDlgEvtCookie)
@@ -802,7 +802,7 @@ END FUNCTION
 
 ' ========================================================================================
 FUNCTION CISaveFileDialog.Advise (BYVAL pfde as IFileDialogEvents PTR) AS DWORD
-   IF pfde = nullptr THEN RETURN E_POINTER
+   IF pfde = NULL THEN RETURN E_POINTER
    DIM dwCookie AS DWORD
    DIM hr AS HRESULT = m_IFileSaveDialog->lpvtbl->Advise(m_IFileSaveDialog, pfde, @dwCookie)
    SetLastError(hr)
@@ -849,7 +849,7 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CISaveFileDialog.SetFolder (BYVAL pwszFolderName AS WSTRING PTR) AS HRESULT
    DIM pFolder AS IShellItem PTR
-   DIM hr AS HRESULT = SHCreateItemFromParsingName(pwszFolderName, nullptr, @IID_IShellItem, @pFolder)
+   DIM hr AS HRESULT = SHCreateItemFromParsingName(pwszFolderName, NULL, @IID_IShellItem, @pFolder)
    IF hr <> S_OK THEN RETURN hr
    hr = m_IFileSaveDialog->lpVtbl->SetFolder(m_IFileSaveDialog, pFolder)
    IF pFolder THEN pFolder->lpVtbl->Release(pFolder)

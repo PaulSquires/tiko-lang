@@ -298,14 +298,14 @@ END FUNCTION
 ' Gets group information.
 ' ========================================================================================
 PUBLIC FUNCTION tkListView_GetGroupInfo OVERLOAD (BYVAL hListView AS HWND, BYVAL iGroupId AS LONG, BYVAL pgrp AS LVGROUP PTR) AS LONG
-   IF pgrp = nullptr THEN RETURN -1
+   IF pgrp = NULL THEN RETURN -1
    pgrp->cbSize = SIZEOF(LVGROUP)
    RETURN SendMessageW(hListView, LVM_GETGROUPINFO, iGroupId, CAST(LPARAM, pgrp))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkListView_GetGroupInfo OVERLOAD (BYVAL hListView AS HWND, BYVAL iGroupId AS LONG, BYREF grp AS LVGROUP) AS LONG
-   IF VARPTR(grp) = nullptr THEN RETURN -1
+   IF VARPTR(grp) = NULL THEN RETURN -1
    grp.cbSize = SIZEOF(LVGROUP)
    RETURN SendMessageW(hListView, LVM_GETGROUPINFO, iGroupId, CAST(LPARAM, @grp))
 END FUNCTION
@@ -315,14 +315,14 @@ END FUNCTION
 ' Gets information on a specified group.
 ' ========================================================================================
 PUBLIC FUNCTION tkListView_GetGroupInfoByIndex OVERLOAD (BYVAL hListView AS HWND, BYVAL iIndex AS LONG, BYREF pgrp AS LVGROUP PTR) AS BOOLEAN
-   IF pgrp = nullptr THEN RETURN FALSE
+   IF pgrp = NULL THEN RETURN FALSE
    pgrp->cbSize = SIZEOF(LVGROUP)
    RETURN SendMessageW(hListView, LVM_GETGROUPINFOBYINDEX, iIndex, CAST(LPARAM, pgrp))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkListView_GetGroupInfoByIndex OVERLOAD (BYVAL hListView AS HWND, BYVAL iIndex AS LONG, BYREF grp AS LVGROUP) AS BOOLEAN
-   IF VARPTR(grp) = nullptr THEN RETURN FALSE
+   IF VARPTR(grp) = NULL THEN RETURN FALSE
    grp.cbSize = SIZEOF(LVGROUP)
    RETURN SendMessageW(hListView, LVM_GETGROUPINFOBYINDEX, iIndex, CAST(LPARAM, @grp))
 END FUNCTION
@@ -332,14 +332,14 @@ END FUNCTION
 ' Gets information about the display of groups.
 ' ========================================================================================
 PUBLIC SUB tkListView_GetGroupMetrics OVERLOAD (BYVAL hListView AS HWND, BYVAL pGroupMetrics AS LVGROUPMETRICS PTR)
-   IF pGroupMetrics = nullptr THEN EXIT SUB
+   IF pGroupMetrics = NULL THEN EXIT SUB
    pGroupMetrics->cbSize = SIZEOF(LVGROUPMETRICS)
    SendMessageW hListView, LVM_GETGROUPMETRICS, 0, CAST(LPARAM, pGroupMetrics)
 END SUB
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC SUB tkListView_GetGroupMetrics OVERLOAD (BYVAL hListView AS HWND, BYREF GroupMetrics AS LVGROUPMETRICS)
-   IF VARPTR(GroupMetrics) = nullptr THEN EXIT SUB
+   IF VARPTR(GroupMetrics) = NULL THEN EXIT SUB
    GroupMetrics.cbSize = SIZEOF(LVGROUPMETRICS)
    SendMessageW hListView, LVM_GETGROUPMETRICS, 0, CAST(LPARAM, @GroupMetrics)
 END SUB
@@ -427,14 +427,14 @@ END FUNCTION
 ' Gets the position of the insertion point.
 ' ========================================================================================
 PUBLIC FUNCTION tkListView_GetInsertMark OVERLOAD (BYVAL hListView AS HWND, BYVAL pvim AS LVINSERTMARK PTR) AS BOOLEAN
-   IF pvim = nullptr THEN RETURN FALSE
+   IF pvim = NULL THEN RETURN FALSE
    pvim->cbSize = SIZEOF(LVINSERTMARK)
    RETURN SendMessageW(hListView, LVM_GETINSERTMARK, 0, CAST(LPARAM, pvim))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkListView_GetInsertMark OVERLOAD (BYVAL hListView AS HWND, BYREF vim AS LVINSERTMARK) AS BOOLEAN
-   IF VARPTR(vim) = nullptr THEN RETURN FALSE
+   IF VARPTR(vim) = NULL THEN RETURN FALSE
    vim.cbSize = SIZEOF(LVINSERTMARK)
    RETURN SendMessageW(hListView, LVM_GETINSERTMARK, 0, CAST(LPARAM, @vim))
 END FUNCTION
@@ -732,7 +732,7 @@ END FUNCTION
 ' This function is intended to be used only on list-view controls that use the LVS_REPORT style.
 ' ========================================================================================
 PUBLIC FUNCTION tkListView_GetSubItemRect OVERLOAD (BYVAL hListView AS HWND, BYVAL iItem AS LONG, BYVAL iSubItem AS LONG, BYVAL nCode AS LONG, BYVAL prc AS RECT PTR) AS BOOLEAN
-   IF prc = nullptr THEN RETURN FALSE
+   IF prc = NULL THEN RETURN FALSE
    prc->Top = iSubItem
    prc->Left = nCode
    RETURN SendMessageW(hListView, LVM_GETSUBITEMRECT, iItem, CAST(LPARAM, prc))
@@ -740,7 +740,7 @@ END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkListView_GetSubItemRect OVERLOAD (BYVAL hListView AS HWND, BYVAL iItem AS LONG, BYVAL iSubItem AS LONG, BYVAL nCode AS LONG, BYREF rc AS RECT) AS BOOLEAN
-   IF VARPTR(rc) = nullptr THEN RETURN FALSE
+   IF VARPTR(rc) = NULL THEN RETURN FALSE
    rc.Top = iSubItem
    rc.Left = nCode
    RETURN SendMessageW(hListView, LVM_GETSUBITEMRECT, iItem, CAST(LPARAM, @rc))
@@ -785,14 +785,14 @@ END FUNCTION
 ' Gets information about a tile in a list-view control.
 ' ========================================================================================
 PUBLIC SUB tkListView_GetTileInfo OVERLOAD (BYVAL hListView AS HWND, BYVAL pti AS LVTILEINFO PTR)
-   IF pti = nullptr THEN EXIT SUB
+   IF pti = NULL THEN EXIT SUB
    pti->cbSize = SIZEOF(LVTILEINFO)
    SendMessageW hListView, LVM_GETTILEINFO, 0, CAST(LPARAM, pti)
 END SUB
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC SUB tkListView_GetTileInfo OVERLOAD (BYVAL hListView AS HWND, BYREF ti AS LVTILEINFO)
-   IF VARPTR(ti) = nullptr THEN EXIT SUB
+   IF VARPTR(ti) = NULL THEN EXIT SUB
    ti.cbSize = SIZEOF(LVTILEINFO)
    SendMessageW hListView, LVM_GETTILEINFO, 0, CAST(LPARAM, @ti)
 END SUB
@@ -810,14 +810,14 @@ END FUNCTION
 ' Gets information about a list-view control in tile view.
 ' ========================================================================================
 PUBLIC SUB tkListView_GetTileViewInfo OVERLOAD (BYVAL hListView AS HWND, BYVAL ptvi AS LVTILEVIEWINFO PTR)
-   IF ptvi = nullptr THEN EXIT SUB
+   IF ptvi = NULL THEN EXIT SUB
    ptvi->cbSize = SIZEOF(LVTILEVIEWINFO)
    SendMessageW hListView, LVM_GETTILEVIEWINFO, 0, CAST(LPARAM, ptvi)
 END SUB
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC SUB tkListView_GetTileViewInfo OVERLOAD (BYVAL hListView AS HWND, BYREF tvi AS LVTILEVIEWINFO)
-   IF VARPTR(tvi) = nullptr THEN EXIT SUB
+   IF VARPTR(tvi) = NULL THEN EXIT SUB
    tvi.cbSize = SIZEOF(LVTILEVIEWINFO)
    SendMessageW hListView, LVM_GETTILEVIEWINFO, 0, CAST(LPARAM, @tvi)
 END SUB
@@ -970,13 +970,13 @@ END FUNCTION
 '   NEXT
 ' ========================================================================================
 PUBLIC FUNCTION tkListView_InsertColumn OVERLOAD (BYVAL hListView AS HWND, BYVAL iCol AS LONG, BYVAL pcol AS LVCOLUMN PTR) AS LONG
-   IF pcol = nullptr THEN RETURN -1
+   IF pcol = NULL THEN RETURN -1
    RETURN SendMessageW(hListView, LVM_INSERTCOLUMN, iCol, CAST(LPARAM, pcol))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkListView_InsertColumn OVERLOAD (BYVAL hListView AS HWND, BYVAL iCol AS LONG, BYREF col AS LVCOLUMN) AS LONG
-   IF VARPTR(col) = nullptr THEN RETURN -1
+   IF VARPTR(col) = 0 THEN RETURN -1
    RETURN SendMessageW(hListView, LVM_INSERTCOLUMN, iCol, CAST(LPARAM, @col))
 END FUNCTION
 ' ========================================================================================
@@ -1051,13 +1051,13 @@ END SUB
 ' Inserts a new item in a list-view control.
 ' ========================================================================================
 PUBLIC FUNCTION tkListView_InsertItem OVERLOAD (BYVAL hListView AS HWND, BYVAL pitem AS LVITEMW PTR) AS LONG
-   IF pitem = nullptr THEN RETURN - 1
+   IF pitem = NULL THEN RETURN - 1
    RETURN SendMessageW(hListView, LVM_INSERTITEMW, 0, CAST(LPARAM, pitem))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkListView_InsertItem OVERLOAD (BYVAL hListView AS HWND, BYREF item AS LVITEMW) AS LONG
-   IF VARPTR(item) = nullptr THEN RETURN - 1
+   IF VARPTR(item) = 0 THEN RETURN - 1
    RETURN SendMessageW(hListView, LVM_INSERTITEMW, 0, CAST(LPARAM, @item))
 END FUNCTION
 ' ========================================================================================
@@ -1380,7 +1380,7 @@ END FUNCTION
 ' Sets tooltip text.
 ' ========================================================================================
 PUBLIC FUNCTION tkListView_SetInfoTip OVERLOAD (BYVAL hListView AS HWND, BYVAL plvInfoTip AS LVSETINFOTIP PTR) AS BOOLEAN
-   IF plvInfoTip = nullptr THEN RETURN FALSE
+   IF plvInfoTip = NULL THEN RETURN FALSE
    plvInfoTip->cbSize = SIZEOF(LVSETINFOTIP)
    RETURN SendMessageW(hListView, LVM_SETINFOTIP, 0, CAST(LPARAM, plvInfoTip))
 END FUNCTION
@@ -1721,7 +1721,7 @@ END FUNCTION
 PUBLIC SUB tkListView_MakeHeaderFlat (BYVAL hListView AS HWND)
    DIM hLvHeader AS HWND
    hLvHeader = CAST(HWND, SendMessageW(hListView, LVM_GETHEADER, 0, 0))
-   IF hLvHeader = nullptr THEN EXIT SUB
+   IF hLvHeader = 0 THEN EXIT SUB
    SetWindowLong hLvHeader, GWL_STYLE, GetWindowLong(hLvHeader, GWL_STYLE) XOR HDS_BUTTONS
    SetWindowPos GetParent(hListView), NULL, 0, 0, 0, 0, SWP_NOZORDER OR SWP_NOMOVE OR SWP_NOSIZE OR SWP_DRAWFRAME
 END SUB
@@ -1742,7 +1742,7 @@ PUBLIC FUNCTION tkListView_AutoSizeColumns (BYVAL hListView AS HWND) AS BOOLEAN
    DIM AS LONG i, nCount
    DIM hLvHeader AS HWND
    hLvHeader = CAST(HWND, SendMessageW(hListView, LVM_GETHEADER, 0, 0))
-   IF hLvHeader = nullptr THEN EXIT FUNCTION
+   IF hLvHeader = 0 THEN EXIT FUNCTION
    nCount = SendMessageW(hLvHeader, HDM_GETITEMCOUNT, 0, 0)
    FOR i = 0 TO nCount - 1
       FUNCTION = SendMessageW(hListView, LVM_SETCOLUMNWIDTH, i, LVSCW_AUTOSIZE)
@@ -1766,7 +1766,7 @@ PUBLIC FUNCTION tkListView_AutoSizeHeader (BYVAL hListView AS HWND) AS BOOLEAN
    DIM AS LONG i, nCount
    DIM hLvHeader AS HWND
    hLvHeader = CAST(HWND, SendMessageW(hListView, LVM_GETHEADER, 0, 0))
-   IF hLvHeader = nullptr THEN EXIT FUNCTION
+   IF hLvHeader = 0 THEN EXIT FUNCTION
    nCount = SendMessageW(hLvHeader, HDM_GETITEMCOUNT, 0, 0)
    FOR i = 0 TO nCount - 1
       FUNCTION = SendMessageW(hListView, LVM_SETCOLUMNWIDTH, i, LVSCW_AUTOSIZE_USEHEADER)
@@ -1779,7 +1779,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkListView_GetColumnCount (BYVAL hListView AS HWND) AS LONG
    DIM hLvHeader AS HWND = CAST(HWND, SendMessageW(hListView, LVM_GETHEADER, 0, 0))
-   IF hLvHeader = nullptr THEN EXIT FUNCTION
+   IF hLvHeader = 0 THEN EXIT FUNCTION
    RETURN SendMessageW(hLvHeader, HDM_GETITEMCOUNT, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -1794,7 +1794,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkListView_GetHeaderText (BYVAL hListView AS HWND, BYVAL iCol AS LONG, BYVAL cchTextMax AS LONG = MAX_PATH + 1) AS USTRING
    DIM hLvHeader AS HWND = CAST(HWND, SendMessageW(hListView, LVM_GETHEADER, 0, 0))
-   IF hLvHeader = nullptr THEN RETURN ""
+   IF hLvHeader = 0 THEN RETURN ""
    DIM ustrText AS USTRING
    IF cchTextMax < 1 THEN cchTextMax = MAX_PATH + 1
    ustrText = WSPACE(cchTextMax + 1)
@@ -1812,7 +1812,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkListView_GetColumnOrder (BYVAL hListView AS HWND, BYVAL iCol AS LONG) AS LONG
    DIM hLvHeader AS HWND = CAST(HWND, SendMessageW(hListView, LVM_GETHEADER, 0, 0))
-   IF hLvHeader = nullptr THEN RETURN 0
+   IF hLvHeader = 0 THEN RETURN 0
    DIM hdi AS HDITEMW
    hdi.mask = HDI_ORDER
    SetLastError(SendMessageW(hLvHeader, HDM_GETITEMW, iCol, CAST(LPARAM, @hdi)))
@@ -1825,7 +1825,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkListView_GetOrderArray (BYVAL hListView AS HWND, BYVAL iCount AS DWORD, BYVAL lpi AS LONG PTR) AS LONG
    DIM hLvHeader AS HWND = CAST(HWND, SendMessageW(hListView, LVM_GETHEADER, 0, 0))
-   IF hLvHeader = nullptr THEN RETURN 0
+   IF hLvHeader = 0 THEN RETURN 0
    RETURN SendMessageW(hLvHeader, HDM_GETORDERARRAY, iCount, CAST(LPARAM, lpi))
 END FUNCTION
 ' ========================================================================================
@@ -1849,9 +1849,9 @@ END FUNCTION
 ' - fRedraw = Specifies whether the control should be redrawn immediately upon setting the font.
 '             If this parameter is TRUE, the control redraws itself.
 ' ========================================================================================
-PUBLIC SUB tkListView_SetTooltipsFont (BYVAL hListView AS HWND, BYVAL hFont AS HFONT = nullptr, BYVAL fRedraw AS BOOLEAN = FALSE)
+PUBLIC SUB tkListView_SetTooltipsFont (BYVAL hListView AS HWND, BYVAL hFont AS HFONT = NULL, BYVAL fRedraw AS BOOLEAN = FALSE)
    DIM hwndTooltips AS HWND = CAST(HWND, SendMessageW(hListView, LVM_GETTOOLTIPS, 0, 0))
-   IF hwndTooltips = nullptr THEN EXIT SUB
+   IF hwndTooltips = NULL THEN EXIT SUB
    SendMessageW(hwndTooltips, WM_SETFONT, CAST(WPARAM, hFont), fRedraw)
 END SUB
 ' ========================================================================================
@@ -1876,7 +1876,7 @@ PUBLIC FUNCTION tkListView_SetHeaderFont ( _
 
    ' // Get the handle of the header
    hLvHeader = CAST(HWND, SendMessageW(hListView, LVM_GETHEADER, 0, 0))
-   IF hLvHeader = nullptr THEN RETURN nullptr
+   IF hLvHeader = 0 THEN RETURN NULL
 
    ' // Create the font
    hDC = GetDC(HWND_DESKTOP)
@@ -1896,7 +1896,7 @@ PUBLIC FUNCTION tkListView_SetHeaderFont ( _
    lf.lfFaceName       =  wszFaceName                                             ' typeface name
    ReleaseDC HWND_DESKTOP, hDC
    hLvHeaderFont = CreateFontIndirectW(@lf)
-   IF hLvHeaderFont = nullptr THEN RETURN nullptr
+   IF hLvHeaderFont = NULL THEN RETURN NULL
 
    ' // Select the font
    hDC = GetDC(hLvHeader)
@@ -1934,13 +1934,13 @@ PUBLIC FUNCTION tkListView_ModifyHeaderFont ( _
 
    ' // Get the handle of the header
    hLvHeader = CAST(HWND, SendMessageW(hListView, LVM_GETHEADER, 0, 0))
-   IF hLvHeader = nullptr THEN RETURN nullptr
+   IF hLvHeader = 0 THEN RETURN NULL
 
    ' // Get the handle of the font used by the header
    hCurFont = CAST(HFONT, SendMessageW(hLvHeader, WM_GETFONT, 0, 0))
-   IF hCurFont = nullptr THEN EXIT FUNCTION
+   IF hCurFont = NULL THEN EXIT FUNCTION
    ' // Get the LOGFONT structure
-   IF GetObjectW(hCurFont, SIZEOF(lf), @lf) = 0 THEN RETURN nullptr
+   IF GetObjectW(hCurFont, SIZEOF(lf), @lf) = 0 THEN RETURN NULL
 
    ' // Change the requested values
    IF lPointSize THEN
@@ -1957,7 +1957,7 @@ PUBLIC FUNCTION tkListView_ModifyHeaderFont ( _
 
    ' // Create the font
    hLvHeaderFont = CreateFontIndirectW(@lf)
-   IF hLvHeaderFont = nullptr THEN EXIT FUNCTION
+   IF hLvHeaderFont = 0 THEN EXIT FUNCTION
 
    ' // Select the font
    hDC = GetDC(hLvHeader)
@@ -2139,13 +2139,13 @@ END FUNCTION
 ' Sets the listview dark mode.
 ' ========================================================================================
 PUBLIC FUNCTION tkListView_SetDarkMode (BYVAL hListView AS HWND) AS HRESULT
-   RETURN SetWindowTheme(hListView, "DarkMode_Explorer", nullptr)
+   RETURN SetWindowTheme(hListView, "DarkMode_Explorer", NULL)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' Removes the listview dark mode.
 ' ========================================================================================
 PUBLIC FUNCTION tkListView_RemoveDarkMode (BYVAL hListView AS HWND) AS HRESULT
-   RETURN SetWindowTheme(hListView, nullptr, nullptr)
+   RETURN SetWindowTheme(hListView, NULL, NULL)
 END FUNCTION
 ' ========================================================================================
