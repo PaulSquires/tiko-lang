@@ -1,0 +1,3 @@
+'' -i offers a package called sys holding sys/fake; sys is the toolchain's, so it is never asked.
+#import "sys/fake"
+print fake.Hello( )
