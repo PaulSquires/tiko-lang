@@ -413,6 +413,12 @@ private sub DecidePtrCastArgs_( byref c as Ctx )
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( callee )
         if s = nullptr then continue for
         if s->kind <> cast( uint8, Tko.SYM_PROC ) then continue for
+        '' ONE PROCEDURE ALONE: in an overload set the tie only takes that candidate out -- measured,
+        '' casts to 'byte ptr' and 'zstring ptr' against OVERLOADs taking 'any ptr' and 'zstring ptr'
+        '' bind the zstring one, and casts to 'byte ptr' and 'ubyte ptr' against 'zstring ptr' and
+        '' 'byte ptr' the byte one. overload.tiko scores that (PtrCastIsPick).
+        dim as Tko.SymbolId hd = c.syms->LookupLocal( s->parent, s->name )
+        if (hd <> Tko.SYMBOL_NONE) andalso (c.syms->SymbolAt( hd )->nextOverload <> Tko.SYMBOL_NONE) then continue for
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then continue for
         dim as Tko.StmtPayload ptr pp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )]

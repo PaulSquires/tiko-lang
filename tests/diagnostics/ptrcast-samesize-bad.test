@@ -1,0 +1,28 @@
+'' WHAT A SAME-SIZE POINTER 'operator cast' DOES NOT REACH (structpick.tiko PtrCastScore). In an
+'' overload set, the pointee ranked FIRST in the parameter's row scores back exactly HALF, which
+'' fbc's hCheckCastOvlEx turns into no match: 'ubyte ptr' into 'zstring ptr', 'ushort ptr' into
+'' 'wstring ptr' -- fbc's 99, where tiko stopped on TKO0994. Another size and derived-to-base are
+'' 58 (a single procedure); two casts at the best score are 98 -- 'zstring ptr' and 'any ptr' into
+'' 'ubyte ptr', 'zstring ptr' and 'ubyte ptr' into 'byte ptr'. The same 'ubyte ptr' cast into a
+'' single 'byte ptr' procedure binds (line 58), where tiko said TKO0698. Lines identical to
+'' fbc-modern's errors. Line 79: an exact pointee scores the same const or not, so 'byte ptr' and
+'' 'const zstring ptr' casts tie two overloads (98). Lines 93-94: a 'zstring ptr' cast that fbc picks
+'' for a 'string' parameter is a bottom-tier match in a set -- tied with 'byte ptr' (98), alone the
+'' 58. Line 103: an assignment dropping the picked cast's pointee const (181); line 102 is fine.
+'' Line 111: one 'zstring ptr' cast, the same two overloads -- a tie, where the call was untyped.
+'' TEST: cli
+'' ARGS: -fmax-errors 100 --dump-ir tests/diagnostics/src/ptrcast-samesize-bad.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: ptrcast-samesize-bad.bas(60,9): error TKO0632
+'' EXPECT-OUT: ptrcast-samesize-bad.bas(61,9): error TKO0632
+'' EXPECT-OUT: ptrcast-samesize-bad.bas(63,5): error TKO0698
+'' EXPECT-OUT: ptrcast-samesize-bad.bas(64,6): error TKO0698
+'' EXPECT-OUT: ptrcast-samesize-bad.bas(66,5): error TKO0660
+'' EXPECT-OUT: ptrcast-samesize-bad.bas(67,5): error TKO0660
+'' EXPECT-OUT: ptrcast-samesize-bad.bas(79,9): error TKO0660
+'' EXPECT-OUT: ptrcast-samesize-bad.bas(93,9): error TKO0660
+'' EXPECT-OUT: ptrcast-samesize-bad.bas(94,11): error TKO0698
+'' EXPECT-OUT: ptrcast-samesize-bad.bas(103,1): error TKO0747
+'' EXPECT-OUT: ptrcast-samesize-bad.bas(111,9): error TKO0660
+'' EXPECT-NOT: TKO0994
+'' EXPECT-MAX-DIAG: 11

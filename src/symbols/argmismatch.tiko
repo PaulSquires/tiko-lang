@@ -348,6 +348,57 @@ end function
 
 '' Called by ResolveCall_ when a NON-overloaded callee scored unviable. Reports TKO0698 at
 '' the first argument that is one of the pairs above, and nothing otherwise.
+'' A 'zstring ptr' OR 'wstring ptr' CAST IS WHAT fbc PICKS FOR A 'string' PARAMETER when the UDT
+'' has no text cast to beat it (castpick.tiko StrCastPick: FULL-2 and HALF-4). On one procedure
+'' that is the 58 AmBadPair_ reports; IN AN OVERLOAD SET it is still a MATCH, at the bottom tier
+'' every converting cast shares (hCheckCastOvlEx: the cast's fit back to 'string' is no match,
+'' and anything below HALF is one constant). So it ties another bottom candidate -- measured on
+'' fbc-modern 1.20, casts to 'zstring ptr' and 'long ptr' against OVERLOADs taking 'byte ptr'
+'' and 'byref as string' are error 98 -- and, chosen alone, it is the 58 at the argument.
+private function UdtStrPickIsPtr_( byref c as Ctx, byval u as Tko.TypeId ) as boolean
+    dim as int32 oc, cls
+    Tko.Check.StrCastPick( *c.ast, *c.syms, *c.types, *c.names, u, Tko.Check.CT_STRING, oc, cls )
+    if oc <> Tko.Check.CP_NOCONV then return false
+    return (cls = Tko.Check.CR_CHARPTR) orelse (cls = Tko.Check.CR_WCHARPTR)
+end function
+
+'' ...THE CHOSEN OVERLOAD'S 58: a UDT argument at a 'string' parameter that only such a cast reached.
+private function UdtStrPtrChosen_ _
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval argFirst as int32, byval argCount as int32, _
+      byref argT as containers.Array( of uint32 ) ) as boolean
+
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( callee )
+    if (s = nullptr) orelse (s->kind <> cast( uint8, Tko.SYM_PROC )) then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+    if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then return false
+    dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+    dim as int32 ai = 0
+    for i as int32 = 0 to pp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        if (ai >= argCount) orelse (ai >= argT.Count) then exit for
+        dim as Tko.StmtPayload ptr sp = StmtOf( c, prm )
+        if sp->op = cast( uint16, Tko.TK_ELLIPSIS ) then exit for
+        if (c.ast->nodes[cast( int32, prm )].flags and Tko.NF_VARIADIC) <> 0 then exit for
+        dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[argFirst + ai] )
+        dim as Tko.TypeId at = cast( Tko.TypeId, argT[ai] )
+        ai += 1
+        if (at = Tko.TYPE_NONE) orelse (sp->a = Tko.NODE_NONE) then continue for
+        at = c.types->Unqualify( at )
+        if c.types->Kind( at ) = Tko.TK_REFERENCE then at = c.types->Unqualify( c.types->Inner( at ) )
+        if c.types->Kind( at ) <> Tko.TK_UDT then continue for
+        dim as Tko.TypeId pt = c.types->Unqualify( c.info->TypeOf_( sp->a ) )
+        if c.types->Kind( pt ) = Tko.TK_REFERENCE then pt = c.types->Unqualify( c.types->Inner( pt ) )
+        if c.types->Kind( pt ) <> Tko.TK_BUILTIN then continue for
+        if c.types->BuiltinOf( pt ) <> Tko.TY_STRING then continue for
+        if UdtStrPickIsPtr_( c, at ) then
+            c.diags->Report( Tko.TKO0698, Tko.PointRange( c.ast->Loc( a ) ) )
+            return true
+        end if
+    next
+    return false
+end function
+
 private sub ReportArgMismatch_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval callee as Tko.SymbolId, _
       byval argFirst as int32, byval argCount as int32, byref argT as containers.Array( of uint32 ) )

@@ -238,7 +238,23 @@ private sub JudgeConversion_ _
     '' PtrCastFit (structpick.tiko), which is the rule lowering's PtrCastPick follows.
     if rUdt andalso (ok = TK_POINTER) then
         select case Tko.Check.PtrCastFit( *c.ast, *c.syms, *c.types, *c.names, udt, other )
-        case 0 : return
+        case 0
+            '' ...AND NOT DROPPING ITS POINTEE'S 'const': fbc picks the cast, then judges the store.
+            '' Measured on fbc-modern: a 'const byte ptr' or 'const zstring ptr' cast into 'byte ptr',
+            '' 'ubyte ptr', 'zstring ptr', 'boolean ptr' or 'any ptr' is 181 by ASSIGNMENT -- an
+            '' initialiser and an argument take it, though 'dim as zstring ptr z = q' over a 'const byte
+            '' ptr' q is 181 too.
+            dim as SymbolId pk = SYMBOL_NONE
+            if byAssign then pk = Tko.Check.PtrCastPick( *c.syms, *c.types, *c.names, udt, other )
+            if pk <> SYMBOL_NONE then
+                dim as TypeId pr = c.types->Unqualify( c.syms->SymbolAt( pk )->type_ )
+                if c.types->Kind( pr ) = TK_POINTER then
+                    if c.types->IsConst( c.types->Inner( pr ) ) andalso (c.types->IsConst( c.types->Inner( c.types->Unqualify( other ) ) ) = false) then
+                        c.diags->Report( TKO0747, PointRange( c.ast->Loc( at ) ) )
+                    end if
+                end if
+            end if
+            return
         case -1
             '' CASTS, BUT NONE TO A POINTER: only a pointer cast reaches a pointer. Measured on
             '' fbc-modern: a numeric cast into 'any ptr' is 24 (181 by assignment), a string or

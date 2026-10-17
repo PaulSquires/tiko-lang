@@ -264,16 +264,16 @@ declare function UdtReachable_ _
 
 '' ...OR CONVERTS ONLY THROUGH 'operator cast's THE SCORING COSTS: declared on the argument's
 '' own type (overload.tiko looks no further, so a cast on a base keeps the report quiet), each
-'' yielding a builtin or an 'any ptr', against the same builtin-or-pointer parameters. The
+'' yielding a builtin or a pointer, against the same builtin-or-pointer parameters. The
 '' scoring already refuses what fbc refuses there -- an 'any ptr' cast in an overload set, a
 '' string result for a pointer parameter -- and with the report silent the call was left
 '' untyped, and lowering stopped on TKO0994. Measured on fbc-modern 1.20, 2026-10-17: a type
 '' with 'cast( ) byref as const wstring' and 'cast( ) as any ptr' passed to an OVERLOAD
 '' taking 'byval as const wstring ptr' is error 99 (sys/win's BSTRING into tkMsg); add a
 '' 'cast( ) as const wstring ptr' and the call binds. 585 cast-set x overload-set cells: every
-'' report is fbc's 99 or 58. NOT ANY OTHER POINTER: through a cast fbc binds a pointee of the
-'' same size -- 'zstring ptr' reaches 'byte ptr', 'wstring ptr' reaches 'short ptr', but
-'' 'ubyte ptr' not 'zstring ptr' -- which PtrCastReaches (structpick.tiko) does not model.
+'' report is fbc's 99 or 58. ANY OTHER POINTER TOO, now that the scoring picks a pointer cast
+'' as fbc does (structpick.tiko PtrCastScore): 'ubyte ptr' into an overloaded 'zstring ptr'
+'' parameter, 'ushort ptr' into 'wstring ptr', were TKO0994 where fbc says 99.
 private function UdtCastsScored_( byref c as Ctx, byval cs as Tko.SymbolId ) as boolean
     for guard as int32 = 0 to 999
         if cs = Tko.SYMBOL_NONE then return true
@@ -282,11 +282,7 @@ private function UdtCastsScored_( byref c as Ctx, byval cs as Tko.SymbolId ) as 
         dim as Tko.TypeId rt = c.types->Unqualify( s->type_ )
         if c.types->Kind( rt ) = Tko.TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
         select case c.types->Kind( rt )
-        case Tko.TK_BUILTIN
-        case Tko.TK_POINTER
-            dim as Tko.TypeId ri = c.types->Unqualify( c.types->Inner( rt ) )
-            if c.types->Kind( ri ) <> Tko.TK_BUILTIN then return false
-            if c.types->BuiltinOf( ri ) <> Tko.TY_ANY then return false
+        case Tko.TK_BUILTIN, Tko.TK_POINTER
         case else
             return false
         end select
@@ -404,7 +400,17 @@ function UdtCastTie_( byref c as Ctx, byref argT as containers.Array( of uint32 
             dim as Tko.SymbolId cs = UdtMemberSym_( c, a, "cast" )
             if cs = Tko.SYMBOL_NONE then return false
             dim as Tko.Symbol ptr s = c.syms->SymbolAt( cs )
-            if (s = nullptr) orelse (s->nextOverload = Tko.SYMBOL_NONE) then return false
+            if s = nullptr then return false
+            '' ...OR ONE CAST YIELDING A POINTER, which the scoring now prices as fbc does: a lone
+            '' 'zstring ptr' cast against OVERLOADs taking 'byte ptr' and 'byref as string' is 98,
+            '' both at the bottom tier, where the call was left untyped (TKO0994).
+            if s->nextOverload = Tko.SYMBOL_NONE then
+                if s->type_ = Tko.TYPE_NONE then return false
+                if c.types->Kind( c.types->Unqualify( s->type_ ) ) <> Tko.TK_POINTER then return false
+                dim as Tko.NodeId cpn = cast( Tko.NodeId, s->payload )   '' 'byref as zstring' is spelled as a pointer
+                if (cpn = Tko.NODE_NONE) orelse (c.ast->Kind( cpn ) <> Tko.N_PROC) then return false
+                if (c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, cpn )].data )].extra and Tko.PF_BYREF_RESULT) <> 0 then return false
+            end if
             any_ = true
         case else
             return false

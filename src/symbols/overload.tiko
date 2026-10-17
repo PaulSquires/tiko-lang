@@ -93,7 +93,10 @@ private function UserConvCost_ _
     dim as int32 best = CONV_NONE
     '' A UDT INTO 'string': fbc's best cast against STRING must be text (castpick.tiko) -- [as zstring ptr, as ustring] is 58.
     dim as boolean udtToStr = cbool( (c.types->Kind( f ) = Tko.TK_UDT) andalso (c.types->Kind( t ) = Tko.TK_BUILTIN) )
-    if udtToStr andalso cbool( c.types->BuiltinOf( t ) = Tko.TY_STRING ) andalso cbool( Tko.Check.UdtStrCastFit( *c.ast, *c.syms, *c.types, *c.names, f, Tko.Check.CT_STRING ) > 0 ) then return CONV_NONE
+    if udtToStr andalso cbool( c.types->BuiltinOf( t ) = Tko.TY_STRING ) andalso cbool( Tko.Check.UdtStrCastFit( *c.ast, *c.syms, *c.types, *c.names, f, Tko.Check.CT_STRING ) > 0 ) then
+        if overloaded andalso UdtStrPickIsPtr_( c, f ) then return CONV_USERDEF + CONV_NUMERIC   '' the bottom tier: argmismatch.tiko
+        return CONV_NONE
+    end if
 
     '' A CONVERSION CONSTRUCTOR on the destination -- any arity-1 constructor whose
     '' parameter is not the destination type itself, which is the copy constructor.
@@ -187,11 +190,22 @@ private function UserConvCost_ _
                 dim as boolean strToPtr = false
                 if c.types->Kind( t ) = Tko.TK_POINTER then
                     if c.types->Kind( ru ) = Tko.TK_BUILTIN then strToPtr = IsStringy_( c.types->BuiltinOf( ru ) )
-                    if c.types->Kind( ru ) = Tko.TK_POINTER then strToPtr = (Tko.Check.PtrCastReaches( *c.types, ru, t ) = false)   '' 'long ptr' to 'byte ptr' is 58
+                    '' A POINTER CAST, ONLY AS fbc PICKS IT (structpick.tiko PtrCastScore): the one cast scoring
+                    '' best for the parameter, and in an overload set not one that scores back exactly HALF --
+                    '' 'any ptr', or 'ubyte ptr' into 'zstring ptr'. 'long ptr' to 'byte ptr' is 58.
+                    if c.types->Kind( ru ) = Tko.TK_POINTER then
+                        strToPtr = (Tko.Check.PtrCastIsPick( *c.ast, *c.syms, *c.types, *c.names, f, cur, t ) = false)
+                        if overloaded andalso (strToPtr = false) then strToPtr = (Tko.Check.PtrCastBindsInSet( *c.types, ru, t ) = false)
+                    end if
                 end if
                 dim as int32 sc = CONV_NONE
                 if (anyPtrCast = false) andalso (strToPtr = false) then
                     sc = ConversionCost( ru, t, *c.types ) : if (sc > 0) andalso (sc < CONV_NONE) then sc = CONV_NUMERIC   '' cast + any conversion: one flat score, fbc's 98
+                    '' ...and a POINTER cast fbc picked scores its pointee exact, const or not, or that flat
+                    '' score: 'const zstring ptr' and 'byte ptr' casts against 'zstring ptr' / 'byte ptr' tie (98).
+                    if (c.types->Kind( ru ) = Tko.TK_POINTER) andalso (c.types->Kind( t ) = Tko.TK_POINTER) then
+                        sc = iif( c.types->Unqualify( c.types->Inner( ru ) ) = c.types->Unqualify( c.types->Inner( t ) ), 0, CONV_NUMERIC )
+                    end if
                     if (sc = CONV_NUMERIC) andalso Tko.Check.StringSameWidth( *c.types, ru, t ) then sc = CONV_WIDEN   '' structpick.tiko
                 end if
                 '' EXACT STRING CAST BEATS EXACT NUMERIC, as fbc; two numerics tie, its 99 (F-55, SYM-11).
@@ -1281,6 +1295,7 @@ private function ResolveCall_ _
         end if
         return Tko.TYPE_NONE
     end if
+    if overloaded andalso UdtStrPtrChosen_( c, best, argFirst, argCount, argT ) then return Tko.TYPE_NONE   '' argmismatch.tiko
     c.st->callsResolved += 1
     c.info->SetRef( id, best )
 

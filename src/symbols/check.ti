@@ -205,7 +205,12 @@ namespace Tko.Check
         ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
           byref names as Tko.Interner, byref info as Tko.SemanticInfo, byval t as Tko.TypeId, _
           byval defaulted as boolean ) as Tko.SymbolId
-    declare function PtrCastReaches( byref types as Tko.TypeContext, byval res as Tko.TypeId, byval dst as Tko.TypeId ) as boolean
+    declare function PtrCastScore( byref types as Tko.TypeContext, byval res as Tko.TypeId, byval dst as Tko.TypeId ) as int32
+    declare function PtrCastBindsInSet( byref types as Tko.TypeContext, byval res as Tko.TypeId, byval dst as Tko.TypeId ) as boolean
+    declare function PtrCastIsPick _
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+          byref names as Tko.Interner, byval udt as Tko.TypeId, byval cast_ as Tko.SymbolId, _
+          byval dst as Tko.TypeId ) as boolean
     declare function StructorCastCost _
         ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
           byref names as Tko.Interner, byval at as Tko.TypeId, byval pt as Tko.TypeId ) as int32

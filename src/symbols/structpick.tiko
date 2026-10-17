@@ -414,32 +414,195 @@ end function
 '' (NumericCastRank). Lowering ranked always, so 'x + 1' added 2.75 and 'dim as long k =
 '' x' stored 3 where fbc has 101 and 100; Check typed 'x + 1' DOUBLE where fbc says
 '' INTEGER. A number is an ENUM or any builtin that is not a string flavour or VOID.
-'' THE POINTER 'operator cast' -- by what the value meets. Measured on fbc-modern, with casts to
-'' 'any ptr', 'long ptr' and 'double ptr' in any order:
+'' WHICH POINTER 'operator cast' SERVES A POINTER, AND HOW WELL -- fbc's own scoring, read in
+'' symb-proc.bas (hCheckCastOvl, symbFindCastOvlProc, hCheckCastOvlEx) and measured on fbc-modern
+'' 1.20, 2026-10-17, over 21 x 21 pointees (every builtin, 'any', a base, a derived and an
+'' unrelated UDT, 'const zstring', 'const byte') in four contexts: a single procedure, an
+'' overload set, an initialiser and an assignment.
 ''
-''     dim as double ptr p = x / byval double ptr / p = x     the EXACT pointer       [double]
-''     dim as byte ptr p = x  (long ptr + any ptr)             the 'any ptr' one       [any]
-''     if x then              (long ptr + any ptr)             the 'any ptr' one       [any]
-''     dim as any ptr p = x   (long ptr + double ptr)          error 98, ambiguous
+'' A cast is scored against the TARGET pointer with the CAST'S RESULT on the left:
 ''
-'' tiko took the first pointer overload every time, and 'pd' read a long's bytes as a double.
-'' WANT is the destination, TYPE_NONE where none is named; where fbc is ambiguous this keeps
-'' the first, as before.
-function PtrCastPick _
-    ( byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, byref names as Tko.Interner, _
-      byval udt as Tko.TypeId, byval want as Tko.TypeId ) as Tko.SymbolId
+''     the same pointee, const or not                    exact (a matching const scores higher)
+''     'any ptr' on either side                          HALF
+''     integer pointees of the SAME SIZE                 HALF less the closeness rank of the
+''                                                       target's pointee in the row of the
+''                                                       result's (symb_dtypeMatchTB)
+''     anything else -- another size, a float, a UDT     no match: not derived-to-base either
+''
+'' -- zstring/byte/ubyte/boolean are one size, short/ushort/wstring another (wchar is 4 bytes
+'' on Linux, so there 'wstring' pairs with long/ulong). The best score is the cast, and two at
+'' the best are fbc's error 98. What a single procedure, an initialiser and an assignment take
+'' is exactly that pick (PtrCastFit).
+''
+'' AN OVERLOAD SET ASKS ONE THING MORE (PtrCastBindsInSet): the pick is scored back, the
+'' parameter now on the left, and a score of exactly HALF becomes NO MATCH -- hCheckCastOvlEx
+'' maps [HALF, TYPE) onto [CONV - (TYPE - HALF), CONV), and CONV - (TYPE - HALF) is zero. That
+'' is every 'any ptr' cast, and the same-size pair ranked FIRST in the parameter's row -- which
+'' is the pointee itself, except for the string characters, whose own row puts them last:
+'' 'ubyte ptr' is first in zstring's row and 'ushort ptr' in wstring's, so those two reach
+'' the single procedure and not the set, while 'byte ptr' and 'short ptr' (ranked second)
+'' reach both. tiko had only 'exact or any ptr': fbc's same-size casts were TKO0698 on a single
+'' procedure and TKO0994, an internal error, in a set.
 
+'' fbc's numeric types in its own order, BOOLEAN .. DOUBLE with ENUM between UINTEGER and LONG
+'' (FB_DATATYPE, symb.bi): the index the rank table below is built over. -1 for anything else.
+private function FbcDt_( byref types as Tko.TypeContext, byval t as Tko.TypeId ) as int32
+    if types.Kind( t ) = Tko.TK_ENUM then return 9
+    if types.Kind( t ) <> Tko.TK_BUILTIN then return -1
+    select case types.BuiltinOf( t )
+    case Tko.TY_BOOLEAN  : return 0
+    case Tko.TY_BYTE     : return 1
+    case Tko.TY_UBYTE    : return 2
+    case Tko.TY_ZSTRING  : return 3
+    case Tko.TY_SHORT    : return 4
+    case Tko.TY_USHORT   : return 5
+    case Tko.TY_WSTRING  : return 6
+    case Tko.TY_INTEGER  : return 7
+    case Tko.TY_UINTEGER : return 8
+    case Tko.TY_LONG     : return 10
+    case Tko.TY_ULONG    : return 11
+    case Tko.TY_LONGINT  : return 12
+    case Tko.TY_ULONGINT : return 13
+    case Tko.TY_SINGLE   : return 14
+    case Tko.TY_DOUBLE   : return 15
+    end select
+    return -1
+end function
+
+'' Size, signedness and signed kind (typeToSigned) of an FbcDt_ index; W is the wchar width,
+'' and wchar is unsigned on both targets (ushort, ulong).
+private function FbcSize_( byval d as int32, byval w as int32 ) as int32
+    select case d
+    case 0, 1, 2, 3 : return 1
+    case 4, 5       : return 2
+    case 6          : return w
+    case 10, 11, 14 : return 4
+    end select
+    return 8
+end function
+
+private function FbcSigned_( byval d as int32 ) as boolean
+    select case d
+    case 0, 1, 4, 7, 9, 10, 12, 14, 15 : return true
+    end select
+    return false
+end function
+
+private function FbcKind_( byval d as int32, byval w as int32 ) as int32
+    select case d
+    case 2, 3 : return 1
+    case 5    : return 4
+    case 6    : if w = 2 then return 4 else return 10
+    case 8    : return 7
+    case 11   : return 10
+    case 13   : return 12
+    end select
+    return d
+end function
+
+'' closestType( d, a, b ) = b, with a <> b: fbc's rules in its order, the first that decides.
+private function FbcCloser_( byval d as int32, byval a as int32, byval b as int32, byval w as int32 ) as boolean
+    '' not enum, not zstring, not wstring
+    for k as int32 = 0 to 2
+        dim as int32 x = 9
+        if k = 1 then x = 3
+        if k = 2 then x = 6
+        if (a <> x) andalso (b = x) then return false
+        if (b <> x) andalso (a = x) then return true
+    next
+    '' not boolean, for a non-boolean row
+    if d <> 0 then
+        if (a <> 0) andalso (b = 0) then return false
+        if (b <> 0) andalso (a = 0) then return true
+    end if
+    '' the row's class (integer or float)
+    dim as boolean ca = ((a < 14) = (d < 14))
+    dim as boolean cb = ((b < 14) = (d < 14))
+    if ca <> cb then return cb
+    '' at least as large, then the nearer size
+    dim as int32 sd = FbcSize_( d, w ), sa = FbcSize_( a, w ), sb = FbcSize_( b, w )
+    if (sa >= sd) <> (sb >= sd) then return (sb >= sd)
+    if abs( sa - sd ) <> abs( sb - sd ) then return (abs( sb - sd ) < abs( sa - sd ))
+    '' the same signedness, then the same kind, then [u]integer
+    if (FbcSigned_( a ) = FbcSigned_( d )) <> (FbcSigned_( b ) = FbcSigned_( d )) then return (FbcSigned_( b ) = FbcSigned_( d ))
+    dim as int32 kd = FbcKind_( d, w )
+    if (FbcKind_( a, w ) = kd) <> (FbcKind_( b, w ) = kd) then return (FbcKind_( b, w ) = kd)
+    if (FbcKind_( a, w ) = 7) <> (FbcKind_( b, w ) = 7) then return (FbcKind_( b, w ) = 7)
+    return false
+end function
+
+'' Where X ranks in D's row, 0 the closest: symbDataInit's exchange sort, as written.
+private function FbcMatchRank_( byval d as int32, byval x as int32, byval w as int32 ) as int32
+    dim as int32 rk(0 to 15)
+    for i as int32 = 0 to 15
+        rk(i) = i
+    next
+    for i as int32 = 0 to 14
+        for j as int32 = i + 1 to 15
+            if FbcCloser_( d, rk(i), rk(j), w ) then swap rk(i), rk(j)
+        next
+    next
+    for i as int32 = 0 to 15
+        if rk(i) = x then return i
+    next
+    return 15
+end function
+
+const PCS_FULL as int32 = 5000
+const PCS_TYPE as int32 = 4000
+const PCS_HALF as int32 = 3000
+
+'' How well a cast yielding the pointer RES serves the pointer DST, 0 for not at all; see above.
+'' Swap the two and it is the overload set's second question.
+function PtrCastScore( byref types as Tko.TypeContext, byval res as Tko.TypeId, byval dst as Tko.TypeId ) as int32
+    dim as Tko.TypeId r = types.Unqualify( res )
+    dim as Tko.TypeId d = types.Unqualify( dst )
+    if (types.Kind( r ) <> Tko.TK_POINTER) orelse (types.Kind( d ) <> Tko.TK_POINTER) then return 0
+    dim as Tko.TypeId ri = types.Inner( r )
+    dim as Tko.TypeId di = types.Inner( d )
+    dim as Tko.TypeId ru = types.Unqualify( ri )
+    dim as Tko.TypeId du = types.Unqualify( di )
+    if ru = du then
+        if types.IsConst( ri ) = types.IsConst( di ) then return PCS_FULL
+        return PCS_TYPE
+    end if
+    if (types.Kind( ru ) = Tko.TK_BUILTIN) andalso (types.BuiltinOf( ru ) = Tko.TY_ANY) then return PCS_HALF
+    if (types.Kind( du ) = Tko.TK_BUILTIN) andalso (types.BuiltinOf( du ) = Tko.TY_ANY) then return PCS_HALF
+    '' the same depth of pointer below, and then the same-size integer rule on what is left
+    for guard as int32 = 0 to 31
+        if (types.Kind( ru ) <> Tko.TK_POINTER) orelse (types.Kind( du ) <> Tko.TK_POINTER) then exit for
+        ru = types.Unqualify( types.Inner( ru ) )
+        du = types.Unqualify( types.Inner( du ) )
+    next
+    dim as int32 a = FbcDt_( types, ru ), b = FbcDt_( types, du )
+    if (a < 0) orelse (b < 0) orelse (a >= 14) orelse (b >= 14) then return 0
+    if ru = du then return PCS_TYPE
+    dim as int32 w = types.Layout( types.Builtin( Tko.TY_WSTRING ) ).size
+    if FbcSize_( a, w ) <> FbcSize_( b, w ) then return 0
+    return PCS_HALF - 10 * FbcMatchRank_( a, b, w )
+end function
+
+'' The pick, fbc's way: the UDT's pointer cast scoring best for the pointer WANT (TYPE_NONE when
+'' none is named: the 'any ptr' cast, else the first). ties = how many share the best score; best =
+'' that score, 0 when nothing matches. A 'byref as' result is the thing itself, not a pointer, and
+'' is skipped when AST is given.
+private function PtrCastBest_ _
+    ( byval ast as Tko.AstArena ptr, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+      byref names as Tko.Interner, byval udt as Tko.TypeId, byval want as Tko.TypeId, _
+      byref nPtr as int32, byref best as int32, byref ties as int32 ) as Tko.SymbolId
+
+    nPtr = 0 : best = 0 : ties = 0
     if udt = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
     dim as Tko.TypeId u = types.Unqualify( udt )
     if types.Kind( u ) = Tko.TK_REFERENCE then u = types.Unqualify( types.Inner( u ) )
     if types.Kind( u ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
-    dim as Tko.TypeId wi = Tko.TYPE_NONE
+    dim as Tko.TypeId w = Tko.TYPE_NONE
     if want <> Tko.TYPE_NONE then
-        dim as Tko.TypeId w = types.Unqualify( want )
+        w = types.Unqualify( want )
         if types.Kind( w ) = Tko.TK_REFERENCE then w = types.Unqualify( types.Inner( w ) )
-        if types.Kind( w ) = Tko.TK_POINTER then wi = types.Unqualify( types.Inner( w ) )
+        if types.Kind( w ) <> Tko.TK_POINTER then w = Tko.TYPE_NONE
     end if
-    dim as Tko.SymbolId first = Tko.SYMBOL_NONE, anyp = Tko.SYMBOL_NONE
+    dim as Tko.SymbolId pick = Tko.SYMBOL_NONE, first = Tko.SYMBOL_NONE, anyp = Tko.SYMBOL_NONE
     dim as Tko.SymbolId cur = StructorNamed( syms, types, names, u, "cast" )
     dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
@@ -447,40 +610,63 @@ function PtrCastPick _
         dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
         if cs = nullptr then exit while
         dim as Tko.TypeId rt = types.Unqualify( cs->type_ )
-        if rt <> Tko.TYPE_NONE then
+        dim as boolean byrefRes = false
+        if ast <> nullptr then
+            dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
+            if (pn <> Tko.NODE_NONE) andalso (ast->Kind( pn ) = Tko.N_PROC) then
+                byrefRes = ((ast->nodes[cast( int32, pn )].flags and Tko.NF_BYREF) <> 0)
+            end if
+        end if
+        if (rt <> Tko.TYPE_NONE) andalso (byrefRes = false) then
             if types.Kind( rt ) = Tko.TK_POINTER then
-                dim as Tko.TypeId ri = types.Unqualify( types.Inner( rt ) )
-                if (wi <> Tko.TYPE_NONE) andalso (ri = wi) then return cur
+                nPtr += 1
                 if first = Tko.SYMBOL_NONE then first = cur
-                if anyp = Tko.SYMBOL_NONE then
-                    if types.Kind( ri ) = Tko.TK_BUILTIN then
-                        if types.BuiltinOf( ri ) = Tko.TY_ANY then anyp = cur
+                if w <> Tko.TYPE_NONE then
+                    dim as int32 sc = PtrCastScore( types, rt, w )
+                    if sc > best then
+                        best = sc : ties = 1 : pick = cur
+                    elseif (sc = best) andalso (sc > 0) then
+                        ties += 1
                     end if
+                elseif anyp = Tko.SYMBOL_NONE then
+                    dim as Tko.TypeId ri = types.Unqualify( types.Inner( rt ) )
+                    if (types.Kind( ri ) = Tko.TK_BUILTIN) andalso (types.BuiltinOf( ri ) = Tko.TY_ANY) then anyp = cur
                 end if
             end if
         end if
         cur = cs->nextOverload
     wend
+    if w <> Tko.TYPE_NONE then return pick
     if anyp <> Tko.SYMBOL_NONE then return anyp
     return first
 end function
 
-'' DOES A UDT'S POINTER 'operator cast' REACH THE POINTER WANT? -1 when it declares none (not
-'' this question), 0 when one does, 1 when none does, 2 when several do and none is better.
-'' Measured on fbc-modern: a cast reaches only its EXACT pointer type, or any pointer when it
-'' yields 'any ptr', or 'any ptr' from any pointer. 'long ptr' into 'byte ptr' or 'zstring ptr'
-'' is error 24 by initialiser, 181 by assignment, 58 as an argument; 'long ptr' and 'double ptr'
-'' both into 'any ptr' is error 98. A 'byref as' result is the thing itself, not a pointer.
-'' Does a cast yielding the pointer RES reach the pointer DST? Its own type, or either is 'any ptr'.
-function PtrCastReaches( byref types as Tko.TypeContext, byval res as Tko.TypeId, byval dst as Tko.TypeId ) as boolean
-    dim as Tko.TypeId ri = types.Unqualify( types.Inner( types.Unqualify( res ) ) )
-    dim as Tko.TypeId di = types.Unqualify( types.Inner( types.Unqualify( dst ) ) )
-    if ri = di then return true
-    if (types.Kind( ri ) = Tko.TK_BUILTIN) andalso (types.BuiltinOf( ri ) = Tko.TY_ANY) then return true
-    if (types.Kind( di ) = Tko.TK_BUILTIN) andalso (types.BuiltinOf( di ) = Tko.TY_ANY) then return true
-    return false
+'' THE POINTER 'operator cast' LOWERING CALLS -- the pick above. Measured on fbc-modern, with
+'' casts to 'any ptr', 'long ptr' and 'double ptr' in any order:
+''
+''     dim as double ptr p = x / byval double ptr / p = x     the EXACT pointer       [double]
+''     dim as byte ptr p = x  (long ptr + any ptr)             the 'any ptr' one       [any]
+''     if x then              (long ptr + any ptr)             the 'any ptr' one       [any]
+''     dim as any ptr p = x   (long ptr + double ptr)          error 98, ambiguous
+''
+'' tiko took the first pointer overload every time, and 'pd' read a long's bytes as a double.
+'' WANT is the destination, TYPE_NONE where none is named; where fbc is ambiguous, or nothing
+'' matches (a call Check has already refused), this keeps the first.
+function PtrCastPick _
+    ( byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, byref names as Tko.Interner, _
+      byval udt as Tko.TypeId, byval want as Tko.TypeId ) as Tko.SymbolId
+
+    dim as int32 nPtr, best, ties
+    dim as Tko.SymbolId pick = PtrCastBest_( nullptr, syms, types, names, udt, want, nPtr, best, ties )
+    if pick <> Tko.SYMBOL_NONE then return pick
+    if nPtr = 0 then return Tko.SYMBOL_NONE
+    return PtrCastBest_( nullptr, syms, types, names, udt, Tko.TYPE_NONE, nPtr, best, ties )
 end function
 
+'' DOES A UDT'S POINTER 'operator cast' REACH THE POINTER WANT? -1 when it declares none (not
+'' this question), 0 when one does, 1 when none does, 2 when several do and none is better --
+'' error 98. 'long ptr' into 'byte ptr' is error 24 by initialiser, 181 by assignment, 58 as
+'' an argument.
 function PtrCastFit _
     ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
       byref names as Tko.Interner, byval udt as Tko.TypeId, byval want as Tko.TypeId ) as int32
@@ -492,39 +678,30 @@ function PtrCastFit _
     dim as Tko.TypeId w = types.Unqualify( want )
     if types.Kind( w ) = Tko.TK_REFERENCE then w = types.Unqualify( types.Inner( w ) )
     if types.Kind( w ) <> Tko.TK_POINTER then return -1
-    dim as Tko.TypeId wi = types.Unqualify( types.Inner( w ) )
-    dim as boolean wantAny = false
-    if types.Kind( wi ) = Tko.TK_BUILTIN then wantAny = (types.BuiltinOf( wi ) = Tko.TY_ANY)
-    dim as int32 nPtr = 0, nFit = 0
-    dim as Tko.SymbolId cur = StructorNamed( syms, types, names, u, "cast" )
-    dim as int32 guard = 0
-    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
-        guard += 1
-        dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
-        if cs = nullptr then exit while
-        dim as Tko.TypeId rt = types.Unqualify( cs->type_ )
-        dim as boolean byrefRes = false
-        dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
-        if (pn <> Tko.NODE_NONE) andalso (ast.Kind( pn ) = Tko.N_PROC) then
-            byrefRes = ((ast.nodes[cast( int32, pn )].flags and Tko.NF_BYREF) <> 0)
-        end if
-        if (rt <> Tko.TYPE_NONE) andalso (byrefRes = false) then
-            if types.Kind( rt ) = Tko.TK_POINTER then
-                nPtr += 1
-                dim as Tko.TypeId ri = types.Unqualify( types.Inner( rt ) )
-                if ri = wi then return 0
-                dim as boolean resAny = false
-                if types.Kind( ri ) = Tko.TK_BUILTIN then resAny = (types.BuiltinOf( ri ) = Tko.TY_ANY)
-                if resAny then return 0
-                if wantAny then nFit += 1
-            end if
-        end if
-        cur = cs->nextOverload
-    wend
+    dim as int32 nPtr, best, ties
+    PtrCastBest_( @ast, syms, types, names, u, w, nPtr, best, ties )
     if nPtr = 0 then return -1
-    if nFit = 1 then return 0
-    if nFit > 1 then return 2
-    return 1
+    if best = 0 then return 1
+    if ties > 1 then return 2
+    return 0
+end function
+
+'' IN AN OVERLOAD SET, does the cast yielding RES -- when it is the pick -- bind the pointer
+'' parameter DST? Not when scored back it is exactly HALF; see above.
+function PtrCastBindsInSet( byref types as Tko.TypeContext, byval res as Tko.TypeId, byval dst as Tko.TypeId ) as boolean
+    return (PtrCastScore( types, dst, res ) <> PCS_HALF)
+end function
+
+'' Is the cast RES the one fbc picks for the pointer DST among the UDT's casts, and the only
+'' one at its score? overload.tiko asks it of each cast it scores.
+function PtrCastIsPick _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+      byref names as Tko.Interner, byval udt as Tko.TypeId, byval cast_ as Tko.SymbolId, _
+      byval dst as Tko.TypeId ) as boolean
+
+    dim as int32 nPtr, best, ties
+    dim as Tko.SymbolId pick = PtrCastBest_( @ast, syms, types, names, udt, dst, nPtr, best, ties )
+    return (pick = cast_) andalso (best > 0) andalso (ties = 1)
 end function
 
 '' A UDT WITH NO NUMERIC CAST BUT A 'byref as zstring|wstring' ONE, MEETING A NUMBER, is its FIRST

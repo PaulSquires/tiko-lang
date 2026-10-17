@@ -1,0 +1,31 @@
+'' A POINTER 'operator cast' REACHES A POINTER OF THE SAME SIZE, as fbc picks it (structpick.tiko
+'' PtrCastScore). 'zstring ptr' into 'byte ptr' and 'ubyte ptr', 'wstring ptr' into 'short ptr' and
+'' 'ushort ptr', 'byte ptr' and 'ubyte ptr' into 'zstring ptr', 'long ptr' into 'ulong ptr',
+'' 'integer ptr' into 'longint ptr' -- on a single procedure, in an overload set where the pair is
+'' not ranked first in the parameter's row, from an initialiser and an assignment. Among two casts
+'' the closer pointee wins over another size, and 'any ptr' over a same-size one. tiko knew only
+'' 'exact or any ptr': every one of these was TKO0698, or TKO0994 in a set. Output is fbc-modern's.
+'' A tie inside ONE overload of a set only takes that overload out (the last two lines).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/ptrcast-samesize.bas -o tests/codegen/ptrcastsamesize.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/ptrcastsamesize.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: [zs] sb 65
+'' EXPECT-RUN-OUT: [zs] su66
+'' EXPECT-RUN-OUT: [ws] sh 67
+'' EXPECT-RUN-OUT: [ws] sw68
+'' EXPECT-RUN-OUT: [by] sz AB
+'' EXPECT-RUN-OUT: [ub] sz AB
+'' EXPECT-RUN-OUT: [lo] sl4294967291
+'' EXPECT-RUN-OUT: [in] sq 77
+'' EXPECT-RUN-OUT: [zs] ob 65 1
+'' EXPECT-RUN-OUT: [by] oz AB 1
+'' EXPECT-RUN-OUT: [ws] os 67 1
+'' EXPECT-RUN-OUT: [zs] sb 65
+'' EXPECT-RUN-OUT: [an] sb 65
+'' EXPECT-RUN-OUT: [zs] pu65
+'' EXPECT-RUN-OUT: [by] pz AB
+'' EXPECT-RUN-OUT: [zs] tz 2
+'' EXPECT-RUN-OUT: [by] tb 2
