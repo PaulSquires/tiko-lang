@@ -1,0 +1,8 @@
+#import "wtext"
+#import "wmsg"
+
+dim as wtext.Text t = "abc"
+dim as wtext.PText p = "wxyz"
+print wmsg.Size( t )
+print wmsg.Count( 10, p )
+print wmsg.Count( p )

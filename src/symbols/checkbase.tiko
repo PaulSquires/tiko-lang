@@ -251,15 +251,49 @@ end function
 '' which otherwise declines every UDT argument: a user cast, a parameter type's
 '' constructor, a base-class conversion or a generic instantiation may be the path the
 '' scoring does not model. None applies when the argument's type -- a named, non-generic
-'' UDT -- declares no 'operator cast' in itself or what it extends, and every candidate's
-'' parameters are builtins or pointers. Measured on fbc-modern 1.20, 2026-09-30: 'g( u )'
-'' over 'g( long )' and 'g( double )', and 'hashOf( k )' over fb/hash.bi's builtin
-'' overloads (generics/fail-container-nohash, -set), are fbc's error 99.
+'' UDT -- declares no 'operator cast' (or only scored ones, UdtCastsScored_) in itself or
+'' what it extends, and every candidate's parameters are builtins or pointers. Measured on
+'' fbc-modern 1.20, 2026-09-30: 'g( u )' over 'g( long )' and 'g( double )', and 'hashOf( k )'
+'' over fb/hash.bi's builtin overloads (generics/fail-container-nohash, -set), are fbc's
+'' error 99.
 declare function UdtMemberSym_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId
 
 declare function UdtReachable_ _
     ( byref c as Ctx, byval u as Tko.TypeId, byval p as Tko.TypeId ) as boolean
+
+'' ...OR CONVERTS ONLY THROUGH 'operator cast's THE SCORING COSTS: declared on the argument's
+'' own type (overload.tiko looks no further, so a cast on a base keeps the report quiet), each
+'' yielding a builtin or an 'any ptr', against the same builtin-or-pointer parameters. The
+'' scoring already refuses what fbc refuses there -- an 'any ptr' cast in an overload set, a
+'' string result for a pointer parameter -- and with the report silent the call was left
+'' untyped, and lowering stopped on TKO0994. Measured on fbc-modern 1.20, 2026-10-17: a type
+'' with 'cast( ) byref as const wstring' and 'cast( ) as any ptr' passed to an OVERLOAD
+'' taking 'byval as const wstring ptr' is error 99 (sys/win's BSTRING into tkMsg); add a
+'' 'cast( ) as const wstring ptr' and the call binds. 585 cast-set x overload-set cells: every
+'' report is fbc's 99 or 58. NOT ANY OTHER POINTER: through a cast fbc binds a pointee of the
+'' same size -- 'zstring ptr' reaches 'byte ptr', 'wstring ptr' reaches 'short ptr', but
+'' 'ubyte ptr' not 'zstring ptr' -- which PtrCastReaches (structpick.tiko) does not model.
+private function UdtCastsScored_( byref c as Ctx, byval cs as Tko.SymbolId ) as boolean
+    for guard as int32 = 0 to 999
+        if cs = Tko.SYMBOL_NONE then return true
+        dim as Tko.Symbol ptr s = c.syms->SymbolAt( cs )
+        if (s = nullptr) orelse (s->type_ = Tko.TYPE_NONE) then return false
+        dim as Tko.TypeId rt = c.types->Unqualify( s->type_ )
+        if c.types->Kind( rt ) = Tko.TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
+        select case c.types->Kind( rt )
+        case Tko.TK_BUILTIN
+        case Tko.TK_POINTER
+            dim as Tko.TypeId ri = c.types->Unqualify( c.types->Inner( rt ) )
+            if c.types->Kind( ri ) <> Tko.TK_BUILTIN then return false
+            if c.types->BuiltinOf( ri ) <> Tko.TY_ANY then return false
+        case else
+            return false
+        end select
+        cs = s->nextOverload
+    next
+    return false
+end function
 
 private function UdtArgInert_ _
     ( byref c as Ctx, byval u as Tko.TypeId, byval callee as Tko.SymbolId ) as boolean
@@ -272,7 +306,11 @@ private function UdtArgInert_ _
     dim as Tko.TypeId t = u
     for guard as int32 = 0 to 31
         if (t = Tko.TYPE_NONE) orelse (c.types->Kind( t ) <> Tko.TK_UDT) then exit for
-        if UdtMemberSym_( c, t, "cast" ) <> Tko.SYMBOL_NONE then return false
+        dim as Tko.SymbolId cs = UdtMemberSym_( c, t, "cast" )
+        if cs <> Tko.SYMBOL_NONE then
+            if t <> u then return false
+            if UdtCastsScored_( c, cs ) = false then return false
+        end if
         t = c.types->BaseOf( t )
     next
     dim as Tko.SymbolId ck = callee

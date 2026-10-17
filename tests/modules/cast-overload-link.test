@@ -1,0 +1,14 @@
+'' A UDT ARGUMENT REACHES A 'const wstring ptr' PARAMETER through its own 'operator cast',
+'' with the type in one module and the procedures in another. One procedure takes the
+'' 'any ptr' cast; an OVERLOAD SET takes only the typed 'const wstring ptr' one -- fbc-modern
+'' prints the same 6, 14 and 4 for the classic program. cast-overload-nomatch.test is the
+'' set without that cast.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i tests/modules/src/castovl/libs tests/modules/src/castovl/app/main.tiko -o tests/modules/castovllink.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/modules/castovllink.exe
+'' RUN: tests/modules/castovllink.exe
+'' EXPECT-RUN-OUT:  6
+'' EXPECT-RUN-OUT:  14
+'' EXPECT-RUN-OUT:  4

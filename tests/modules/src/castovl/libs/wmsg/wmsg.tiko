@@ -1,0 +1,15 @@
+#module "wmsg"
+
+'' sys/win's tkMsg shape: an overload set over 'const wstring ptr'.
+public function Count overload ( byval h as long, byval p as const wstring ptr ) as long
+    return h + len( *p )
+end function
+
+public function Count overload ( byval p as const wstring ptr ) as long
+    return len( *p )
+end function
+
+'' One procedure, not a set.
+public function Size ( byval p as const wstring ptr ) as long
+    return len( *p ) * 2
+end function

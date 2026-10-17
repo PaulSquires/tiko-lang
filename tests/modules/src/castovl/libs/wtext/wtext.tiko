@@ -1,0 +1,41 @@
+#module "wtext"
+
+'' sys/win's BSTRING shape: a wide string reached by reference, or as an untyped pointer.
+public type Text extends wstring
+    m as wstring ptr
+    declare constructor ( byval p as const wstring ptr )
+    declare operator cast () byref as const wstring
+    declare operator cast () as any ptr
+end type
+
+constructor Text ( byval p as const wstring ptr )
+    m = cast( wstring ptr, p )
+end constructor
+
+operator Text.cast () byref as const wstring
+    return *m
+end operator
+
+operator Text.cast () as any ptr
+    return m
+end operator
+
+'' The same, with the typed pointer an overload set can take.
+public type PText extends wstring
+    m as wstring ptr
+    declare constructor ( byval p as const wstring ptr )
+    declare operator cast () byref as const wstring
+    declare operator cast () as const wstring ptr
+end type
+
+constructor PText ( byval p as const wstring ptr )
+    m = cast( wstring ptr, p )
+end constructor
+
+operator PText.cast () byref as const wstring
+    return *m
+end operator
+
+operator PText.cast () as const wstring ptr
+    return m
+end operator

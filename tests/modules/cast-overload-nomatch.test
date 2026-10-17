@@ -1,0 +1,13 @@
+'' NO OVERLOAD TAKES A UDT WHOSE CASTS ARE 'byref as const wstring' AND 'any ptr' at a
+'' 'const wstring ptr' parameter -- sys/win's BSTRING passed to tkMsg. fbc-modern says error
+'' 99, "No matching overloaded function", for the classic program. The report was kept quiet
+'' for any UDT with an 'operator cast', so the call stayed untyped and the build stopped on
+'' TKO0994, "this statement was not compiled", once per call.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i tests/modules/src/castovl/libs tests/modules/src/castovl/app/bad.tiko -o tests/modules/castovlbad.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: bad.tiko(5,17): error TKO0632: no overload of 'count' matches these arguments
+'' EXPECT-OUT: bad.tiko(6,17): error TKO0632: no overload of 'count' matches these arguments
+'' EXPECT-NOT: TKO0994
+'' EXPECT-NO-FILE: tests/modules/castovlbad.exe
