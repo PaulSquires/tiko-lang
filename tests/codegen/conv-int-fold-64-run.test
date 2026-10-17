@@ -1,0 +1,18 @@
+'' cint, clngint, cuint and culngint of a 64-bit INTEGER literal fold exactly: they went
+'' through a double, so 'clngint( 9223372036854775807 )' folded to 2^63 and
+'' 'culngint( 18446744073709551615ull )' to 0. A FLOAT argument still rounds half to
+'' even. Expected output is fbc-modern 1.20's.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/conv-int-fold-64.bas -o tests/codegen/convintfold64.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/convintfold64.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  9223372036854775807
+'' EXPECT-RUN-OUT: 18446744073709551615
+'' EXPECT-RUN-OUT:  9223372036854775807
+'' EXPECT-RUN-OUT: 9007199254740993
+'' EXPECT-RUN-OUT: -9223372036854775807
+'' EXPECT-RUN-OUT: 9223372036854775809
+'' EXPECT-RUN-OUT:  1
+'' EXPECT-RUN-OUT:  2             4            -2            8

@@ -187,6 +187,29 @@ end function
 
 '' The numeric value of a literal argument, as a double, so the rounding intrinsics
 '' can see 2.5 rather than an integer. Returns false when it is not a literal.
+'' IS THIS LITERAL (through parentheses and a sign) AN INTEGER ONE? A conversion of one
+'' folds on the exact integer path: through a double, 'clngint( 9223372036854775807 )'
+'' came out 2^63 and 'culngint( 18446744073709551615ull )' 2^64, which wraps to 0.
+private function LitIsInt_( byref ast as Tko.AstArena, byval id as Tko.NodeId ) as boolean
+    for guard as int32 = 0 to 15
+        if id = Tko.NODE_NONE then return false
+        select case ast.Kind( id )
+        case Tko.N_INT_LIT
+            return true
+        case Tko.N_PAREN
+            dim as Tko.ListPayload ptr pp = _
+                @ast.lists[cast( int32, ast.nodes[cast( int32, id )].data )]
+            if pp->count <> 1 then return false
+            id = cast( Tko.NodeId, ast.children[pp->first] )
+        case Tko.N_UNARY
+            id = ast.unaries[cast( int32, ast.nodes[cast( int32, id )].data )].operand
+        case else
+            return false
+        end select
+    next
+    return false
+end function
+
 private function LitNum_ _
     ( byref ast as Tko.AstArena, byval id as Tko.NodeId, byref d as float64 ) as boolean
 
@@ -855,6 +878,7 @@ private function ConstCall_ _
     '' decline. The rounding is the FLOAT path's; an integer that is already known
     '' needs none of it.
     case "cint", "clngint"
+        if iv.known andalso LitIsInt_( ast, a0 ) then return CV_( iv.value )
         if isNum then
             dim as int64 r = RoundHalfEven_( d )
             if nm = "cint" then return CV_( r )
@@ -903,6 +927,7 @@ private function ConstCall_ _
         '' go through the signed rounding above: measured, fbc folds
         '' 'culngint( 2^63 )' to 9223372036854775808ull and 'culngint( 2^64 - 2^11 )'
         '' to 18446744073709549568ull, both of which are negative read as signed.
+        if iv.known andalso LitIsInt_( ast, a0 ) then return CVWU_( iv.value, 64, true )
         if isNum then return CVWU_( cast( int64, culngint( d ) ), 64, true )
         if iv.known then return CVWU_( iv.value, 64, true )
     case "cbool"
