@@ -1,0 +1,120 @@
+'' regex-redux: match and replace DNA patterns with PCRE2 (JIT).
+
+#import "std/strings"
+#cinclude "stdio.h"
+#cinclude "string.h"
+#cinclude "pcre2.h"
+#foreignlib PCRE2 dynamic "../libs/pcre2"
+#ifdef __FB_WIN32__
+#cinclude "io.h"
+#define STDIN_FILE __acrt_iob_func( 0 )
+#else
+#define STDIN_FILE stdin
+#endif
+
+'' The C runtime comes through #cinclude here, not crt/*.bi: those headers'
+'' crt/stdint.bi collides with the <stdint.h> macros pcre2.h brings in.
+'' #cinclude imports PCRE2's functions under their real names (pcre2_*_8):
+'' the unsuffixed spellings are macros naming them, which it does not translate.
+
+function Compile( byref pattern as const string ) as pcre2_code_8 ptr
+    dim as long errc
+    dim as PCRE2_SIZE errOffset
+    dim as pcre2_code_8 ptr re = pcre2_compile_8( cast( PCRE2_SPTR8, strptr( pattern ) ), _
+        PCRE2_ZERO_TERMINATED, 0, @errc, @errOffset, nullptr )
+    pcre2_jit_compile_8( re, PCRE2_JIT_COMPLETE )
+    return re
+end function
+
+function CountMatches( byref pattern as const string, byval s as uint8 ptr, byval length as integer ) as integer
+    dim as pcre2_code_8 ptr re = Compile( pattern )
+    dim as pcre2_match_data_8 ptr md = pcre2_match_data_create_from_pattern_8( re, nullptr )
+    dim as PCRE2_SIZE ptr ov = pcre2_get_ovector_pointer_8( md )
+    dim as integer count = 0
+    dim as PCRE2_SIZE off = 0
+    do while pcre2_jit_match_8( re, s, length, off, 0, md, nullptr ) > 0
+        count += 1
+        off = ov[1]
+    loop
+    pcre2_match_data_free_8( md )
+    pcre2_code_free_8( re )
+    return count
+end function
+
+'' Every match of pattern in src replaced by rep, into dst; returns dst's length.
+function ReplaceAll( byref pattern as const string, byval src as uint8 ptr, byval length as integer, _
+                     byref rep as const string, byval dst as uint8 ptr ) as integer
+    dim as pcre2_code_8 ptr re = Compile( pattern )
+    dim as pcre2_match_data_8 ptr md = pcre2_match_data_create_from_pattern_8( re, nullptr )
+    dim as PCRE2_SIZE ptr ov = pcre2_get_ovector_pointer_8( md )
+    dim as integer repLen = len( rep ), o = 0
+    dim as PCRE2_SIZE off = 0
+    do while pcre2_jit_match_8( re, src, length, off, 0, md, nullptr ) > 0
+        memcpy( dst + o, src + off, ov[0] - off )
+        o += ov[0] - off
+        if repLen > 0 then
+            memcpy( dst + o, strptr( rep ), repLen )
+            o += repLen
+        end if
+        off = ov[1]
+    loop
+    memcpy( dst + o, src + off, length - off )
+    o += length - off
+    pcre2_match_data_free_8( md )
+    pcre2_code_free_8( re )
+    return o
+end function
+
+'' All of stdin; returns the number of bytes read into buf( ).
+function ReadAll( buf( ) as uint8 ) as integer
+    dim as integer cap = 1 shl 20, n = 0
+    redim buf( 0 to cap - 1 )
+    do
+        if n = cap then
+            cap *= 2
+            redim preserve buf( 0 to cap - 1 )
+        end if
+        dim as integer got = fread( @buf( n ), 1, cap - n, STDIN_FILE )
+        if got = 0 then
+            exit do
+        end if
+        n += got
+    loop
+    return n
+end function
+
+#ifdef __FB_WIN32__
+_setmode( 0, &h8000 )   '' stdin binary: _O_BINARY
+#endif
+
+dim as string variants( 0 to 8 ) = { _
+    "agggtaaa|tttaccct", _
+    "[cgt]gggtaaa|tttaccc[acg]", _
+    "a[act]ggtaaa|tttacc[agt]t", _
+    "ag[act]gtaaa|tttac[agt]ct", _
+    "agg[act]taaa|ttta[agt]cct", _
+    "aggg[acg]aaa|ttt[cgt]ccct", _
+    "agggt[cgt]aa|tt[acg]accct", _
+    "agggta[cgt]a|t[acg]taccct", _
+    "agggtaa[cgt]|[acg]ttaccct" }
+
+dim as string substFrom( 0 to 4 ) = { "tHa[Nt]", "aND|caN|Ha[DS]|WaS", "a[NSt]|BY", "<[^>]*>", "\|[^|][^|]*\|" }
+dim as string substTo( 0 to 4 ) = { "<4>", "<3>", "<2>", "|", "-" }
+
+dim as uint8 text( )
+dim as integer ilen = ReadAll( text( ) )
+'' room for the substitutions, which can lengthen the text
+dim as uint8 bufA( 0 to ilen * 2 + 16 ), bufB( 0 to ilen * 2 + 16 )
+dim as uint8 ptr a = @bufA( 0 ), b = @bufB( 0 )
+dim as integer clen = ReplaceAll( !">.*\n|\n", @text( 0 ), ilen, "", a )
+
+for i as int32 = 0 to 8
+    print strings.Format( !"{} {}\n", variants( i ), CountMatches( variants( i ), a, clen ) );
+next
+
+dim as integer length = clen
+for i as int32 = 0 to 4
+    length = ReplaceAll( substFrom( i ), a, length, substTo( i ), b )
+    swap a, b
+next
+print strings.Format( !"\n{}\n{}\n{}\n", ilen, clen, length );

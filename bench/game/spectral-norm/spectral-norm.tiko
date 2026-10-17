@@ -1,0 +1,48 @@
+'' spectral-norm: the spectral norm of an infinite matrix, by the power method.
+
+#import "std/strings"
+
+function A( byval i as int32, byval j as int32 ) as float64
+    return 1.0 / ( ( i + j ) * ( i + j + 1 ) \ 2 + i + 1 )
+end function
+
+sub MultAv( byval n as int32, byval v as float64 ptr, byval av as float64 ptr )
+    for i as int32 = 0 to n - 1
+        dim as float64 sum = 0.0
+        for j as int32 = 0 to n - 1
+            sum += A( i, j ) * v[j]
+        next
+        av[i] = sum
+    next
+end sub
+
+sub MultAtv( byval n as int32, byval v as float64 ptr, byval atv as float64 ptr )
+    for i as int32 = 0 to n - 1
+        dim as float64 sum = 0.0
+        for j as int32 = 0 to n - 1
+            sum += A( j, i ) * v[j]
+        next
+        atv[i] = sum
+    next
+end sub
+
+sub MultAtAv( byval n as int32, byval v as float64 ptr, byval atav as float64 ptr, byval tmp as float64 ptr )
+    MultAv( n, v, tmp )
+    MultAtv( n, tmp, atav )
+end sub
+
+dim as int32 n = iif( len( command( 1 ) ) > 0, valint( command( 1 ) ), 100 )
+dim as float64 u( 0 to n - 1 ), v( 0 to n - 1 ), tmp( 0 to n - 1 )
+for i as int32 = 0 to n - 1
+    u( i ) = 1.0
+next
+for i as int32 = 1 to 10
+    MultAtAv( n, @u( 0 ), @v( 0 ), @tmp( 0 ) )
+    MultAtAv( n, @v( 0 ), @u( 0 ), @tmp( 0 ) )
+next
+dim as float64 vbv = 0.0, vv = 0.0
+for i as int32 = 0 to n - 1
+    vbv += u( i ) * v( i )
+    vv += v( i ) * v( i )
+next
+print strings.Format( !"{:.9f}\n", sqr( vbv / vv ) );

@@ -1,0 +1,88 @@
+'' reverse-complement: write the reverse complement of each DNA sequence.
+
+#include once "crt/stdio.bi"
+#ifdef __FB_WIN32__
+#include once "crt/io.bi"
+#endif
+
+const LINE_WIDTH = 60
+
+'' All of stdin; returns the number of bytes read into buf( ).
+function ReadAll( buf( ) as uint8 ) as integer
+    dim as integer cap = 1 shl 20, n = 0
+    redim buf( 0 to cap - 1 )
+    do
+        if n = cap then
+            cap *= 2
+            redim preserve buf( 0 to cap - 1 )
+        end if
+        dim as integer got = fread( @buf( n ), 1, cap - n, stdin )
+        if got = 0 then
+            exit do
+        end if
+        n += got
+    loop
+    return n
+end function
+
+#ifdef __FB_WIN32__
+_setmode( 0, &h8000 )   '' stdin and stdout binary: _O_BINARY
+_setmode( 1, &h8000 )
+#endif
+
+dim as uint8 comp( 0 to 255 )
+for i as int32 = 0 to 255
+    comp( i ) = i
+next
+dim as string from_ = "ACBDGHKMNSRUTWVYacbdghkmnsrutwvy"
+dim as string to_ = "TGVHCDMKNSYAAWBRTGVHCDMKNSYAAWBR"
+for i as int32 = 0 to len( from_ ) - 1
+    comp( from_[i] ) = to_[i]
+next
+
+dim as uint8 text( )
+dim as integer length = ReadAll( text( ) )
+dim as uint8 seq( 0 to length )
+dim as uint8 outp( 0 to length + length \ LINE_WIDTH + 1 )
+dim as integer o = 0, i = 0
+do while i < length
+    '' header line, copied as is
+    dim as integer start = i
+    do while i < length andalso text( i ) <> 10
+        i += 1
+    loop
+    for j as integer = start to i - 1
+        outp( o ) = text( j )
+        o += 1
+    next
+    outp( o ) = 10
+    o += 1
+    i += 1
+    '' sequence lines up to the next header, newlines dropped
+    dim as integer s = 0
+    do while i < length andalso text( i ) <> asc( ">" )
+        if text( i ) <> 10 then
+            seq( s ) = text( i )
+            s += 1
+        end if
+        i += 1
+    loop
+    '' reversed and complemented, LINE_WIDTH to a line
+    dim as int32 col = 0
+    do while s > 0
+        s -= 1
+        outp( o ) = comp( seq( s ) )
+        o += 1
+        col += 1
+        if col = LINE_WIDTH then
+            outp( o ) = 10
+            o += 1
+            col = 0
+        end if
+    loop
+    if col > 0 then
+        outp( o ) = 10
+        o += 1
+    end if
+loop
+fwrite( @outp( 0 ), 1, o, stdout )

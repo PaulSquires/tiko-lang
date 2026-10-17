@@ -1,0 +1,105 @@
+'' fasta: generate DNA sequences by copying and by weighted random selection.
+
+#include once "crt/stdio.bi"
+#ifdef __FB_WIN32__
+#include once "crt/io.bi"
+#endif
+
+const LINE_WIDTH = 60
+const IM = 139968
+const IA = 3877
+const IC = 29573
+
+const ALU = "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGG" _
+          & "GAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGA" _
+          & "CCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAAT" _
+          & "ACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCA" _
+          & "GCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGG" _
+          & "AGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCC" _
+          & "AGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA"
+
+type Freq
+    as uint8 c
+    as float64 p
+end type
+
+dim shared as int32 seed = 42
+
+function Rnd01( ) as float64
+    seed = ( seed * IA + IC ) mod IM
+    return 1.0 * seed / IM
+end function
+
+sub WriteText( byref s as const string )
+    fwrite( strptr( s ), 1, len( s ), stdout )
+end sub
+
+sub RepeatFasta( byref s as const string, byval n as int32 )
+    dim as int32 slen = len( s )
+    dim as string doubled = s & left( s, LINE_WIDTH )
+    dim as uint8 lineBuf( 0 to LINE_WIDTH )
+    dim as int32 pos_ = 0
+    do while n > 0
+        dim as int32 count = iif( n < LINE_WIDTH, n, LINE_WIDTH )
+        for i as int32 = 0 to count - 1
+            lineBuf( i ) = doubled[pos_ + i]
+        next
+        lineBuf( count ) = 10
+        fwrite( @lineBuf( 0 ), 1, count + 1, stdout )
+        pos_ += count
+        if pos_ > slen then
+            pos_ -= slen
+        end if
+        n -= count
+    loop
+end sub
+
+sub RandomFasta( table( ) as Freq, byval n as int32 )
+    dim as int32 size = ubound( table ) + 1
+    dim as float64 cum( 0 to size - 1 )
+    dim as float64 p = 0.0
+    for i as int32 = 0 to size - 1
+        p += table( i ).p
+        cum( i ) = p
+    next
+    dim as int32 last = size - 1
+    dim as uint8 lineBuf( 0 to LINE_WIDTH )
+    do while n > 0
+        dim as int32 count = iif( n < LINE_WIDTH, n, LINE_WIDTH )
+        for i as int32 = 0 to count - 1
+            dim as float64 r = Rnd01( )
+            dim as int32 j = 0
+            do while j < last andalso r >= cum( j )
+                j += 1
+            loop
+            lineBuf( i ) = table( j ).c
+        next
+        lineBuf( count ) = 10
+        fwrite( @lineBuf( 0 ), 1, count + 1, stdout )
+        n -= count
+    loop
+end sub
+
+dim as Freq iub( 0 to 14 ) = { _
+    ( asc( "a" ), 0.27 ), ( asc( "c" ), 0.12 ), ( asc( "g" ), 0.12 ), ( asc( "t" ), 0.27 ), _
+    ( asc( "B" ), 0.02 ), ( asc( "D" ), 0.02 ), ( asc( "H" ), 0.02 ), ( asc( "K" ), 0.02 ), _
+    ( asc( "M" ), 0.02 ), ( asc( "N" ), 0.02 ), ( asc( "R" ), 0.02 ), ( asc( "S" ), 0.02 ), _
+    ( asc( "V" ), 0.02 ), ( asc( "W" ), 0.02 ), ( asc( "Y" ), 0.02 ) }
+
+dim as Freq homosapiens( 0 to 3 ) = { _
+    ( asc( "a" ), 0.3029549426680 ), ( asc( "c" ), 0.1979883004921 ), _
+    ( asc( "g" ), 0.1975473066391 ), ( asc( "t" ), 0.3015094502008 ) }
+
+#ifdef __FB_WIN32__
+_setmode( 1, &h8000 )   '' stdout binary: _O_BINARY
+#endif
+dim shared as uint8 outBuf( 0 to 65535 )
+setvbuf( stdout, cast( zstring ptr, @outBuf( 0 ) ), _IOFBF, 65536 )
+
+dim as int32 n = iif( len( command( 1 ) ) > 0, valint( command( 1 ) ), 1000 )
+WriteText( !">ONE Homo sapiens alu\n" )
+RepeatFasta( ALU, n * 2 )
+WriteText( !">TWO IUB ambiguity codes\n" )
+RandomFasta( iub( ), n * 3 )
+WriteText( !">THREE Homo sapiens frequency\n" )
+RandomFasta( homosapiens( ), n * 5 )

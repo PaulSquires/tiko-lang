@@ -1,0 +1,134 @@
+'' k-nucleotide: count every k-nucleotide of the third sequence, k = 1 2 3 4 6 12 18.
+
+#import "std/containers"
+#import "std/strings"
+#include once "crt/stdio.bi"
+#ifdef __FB_WIN32__
+#include once "crt/io.bi"
+#endif
+
+using containers
+
+'' All of stdin; returns the number of bytes read into buf( ).
+function ReadAll( buf( ) as uint8 ) as integer
+    dim as integer cap = 1 shl 20, n = 0
+    redim buf( 0 to cap - 1 )
+    do
+        if n = cap then
+            cap *= 2
+            redim preserve buf( 0 to cap - 1 )
+        end if
+        dim as integer got = fread( @buf( n ), 1, cap - n, stdin )
+        if got = 0 then
+            exit do
+        end if
+        n += got
+    loop
+    return n
+end function
+
+function CodeOf( byval c as uint8 ) as uint64
+    select case as const c
+    case asc( "A" ) : return 0
+    case asc( "C" ) : return 1
+    case asc( "G" ) : return 2
+    case else : return 3
+    end select
+end function
+
+sub CountAll( byref counts as Map( of uint64, int32 ), seq( ) as uint8, byval n as integer, byval k as int32 )
+    dim as uint64 mask = ( 1ull shl ( 2 * k ) ) - 1
+    dim as uint64 key = 0
+    for i as integer = 0 to k - 2
+        key = ( key shl 2 ) or CodeOf( seq( i ) )
+    next
+    for i as integer = k - 1 to n - 1
+        key = ( ( key shl 2 ) or CodeOf( seq( i ) ) ) and mask
+        counts[key] += 1
+    next
+end sub
+
+type Entry
+    as uint64 key
+    as int32 count
+end type
+
+sub WriteFrequencies( seq( ) as uint8, byval n as integer, byval k as int32 )
+    dim as Map( of uint64, int32 ) counts
+    CountAll( counts, seq( ), n, k )
+    dim as Array( of Entry ) entries
+    for each kv in counts
+        dim as Entry e
+        e.key = kv.key
+        e.count = kv.value
+        entries.Push( e )
+    next
+    SortBy( entries, function( byref x as Entry, byref y as Entry ) as boolean
+        if x.count <> y.count then
+            return x.count > y.count
+        end if
+        return x.key < y.key
+    end function )
+    dim as string letters = "ACGT"
+    dim as integer total = n - k + 1
+    for i as int32 = 0 to entries.Count( ) - 1
+        dim as string name_ = space( k )
+        for j as int32 = 0 to k - 1
+            name_[j] = letters[( entries[i].key shr ( 2 * ( k - 1 - j ) ) ) and 3]
+        next
+        print strings.Format( !"{} {:.3f}\n", name_, 100.0 * entries[i].count / total );
+    next
+    print !"\n";
+end sub
+
+sub WriteCount( seq( ) as uint8, byval n as integer, byref frag as const string )
+    dim as int32 k = len( frag )
+    dim as Map( of uint64, int32 ) counts
+    CountAll( counts, seq( ), n, k )
+    dim as uint64 key = 0
+    for i as int32 = 0 to k - 1
+        key = ( key shl 2 ) or CodeOf( frag[i] )
+    next
+    dim as int32 c = 0
+    counts.TryGet( key, c )
+    print strings.Format( !"{}\t{}\n", c, frag );
+end sub
+
+#ifdef __FB_WIN32__
+_setmode( 0, &h8000 )   '' stdin binary: _O_BINARY
+#endif
+
+dim as uint8 text( )
+dim as integer length = ReadAll( text( ) )
+'' the sequence after the ">THREE" header line, upper-cased, newlines dropped
+dim as integer i = 0
+do
+    if length - i >= 6 andalso text( i ) = asc( ">" ) andalso text( i + 1 ) = asc( "T" ) _
+            andalso text( i + 2 ) = asc( "H" ) andalso text( i + 3 ) = asc( "R" ) then
+        exit do
+    end if
+    do while text( i ) <> 10
+        i += 1
+    loop
+    i += 1
+loop
+do while text( i ) <> 10
+    i += 1
+loop
+i += 1
+dim as integer n = 0
+do while i < length
+    if text( i ) <> 10 then
+        text( n ) = text( i ) and not &h20
+        n += 1
+    end if
+    i += 1
+loop
+
+WriteFrequencies( text( ), n, 1 )
+WriteFrequencies( text( ), n, 2 )
+WriteCount( text( ), n, "GGT" )
+WriteCount( text( ), n, "GGTA" )
+WriteCount( text( ), n, "GGTATT" )
+WriteCount( text( ), n, "GGTATTTTAATT" )
+WriteCount( text( ), n, "GGTATTTTAATTTATAGT" )

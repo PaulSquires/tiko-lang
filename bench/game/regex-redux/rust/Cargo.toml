@@ -1,0 +1,15 @@
+[package]
+name = "regex-redux"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "regex-redux"
+path = "../regex-redux.rs"
+
+[dependencies]
+regex = "1"
+
+[profile.release]
+opt-level = 3

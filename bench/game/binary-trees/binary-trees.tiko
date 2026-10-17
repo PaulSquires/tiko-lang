@@ -1,0 +1,57 @@
+'' binary-trees: allocate, walk and free many perfect binary trees.
+
+#import "std/strings"
+
+type Node
+    as Node ptr left, right
+end type
+
+function BottomUp( byval depth as int32 ) as Node ptr
+    dim as Node ptr t = new Node
+    if depth > 0 then
+        t->left = BottomUp( depth - 1 )
+        t->right = BottomUp( depth - 1 )
+    else
+        t->left = nullptr
+        t->right = nullptr
+    end if
+    return t
+end function
+
+function Check( byval t as Node ptr ) as int32
+    if t->left = nullptr then
+        return 1
+    end if
+    return 1 + Check( t->left ) + Check( t->right )
+end function
+
+sub DeleteTree( byval t as Node ptr )
+    if t->left <> nullptr then
+        DeleteTree( t->left )
+        DeleteTree( t->right )
+    end if
+    delete t
+end sub
+
+dim as int32 n = iif( len( command( 1 ) ) > 0, valint( command( 1 ) ), 10 )
+dim as int32 minDepth = 4
+dim as int32 maxDepth = iif( n > minDepth + 2, n, minDepth + 2 )
+dim as int32 stretch = maxDepth + 1
+
+dim as Node ptr t = BottomUp( stretch )
+print strings.Format( !"stretch tree of depth {}\t check: {}\n", stretch, Check( t ) );
+DeleteTree( t )
+
+dim as Node ptr longLived = BottomUp( maxDepth )
+for depth as int32 = minDepth to maxDepth step 2
+    dim as int32 iterations = 1 shl ( maxDepth - depth + minDepth )
+    dim as int32 sum = 0
+    for i as int32 = 1 to iterations
+        t = BottomUp( depth )
+        sum += Check( t )
+        DeleteTree( t )
+    next
+    print strings.Format( !"{}\t trees of depth {}\t check: {}\n", iterations, depth, sum );
+next
+print strings.Format( !"long lived tree of depth {}\t check: {}\n", maxDepth, Check( longLived ) );
+DeleteTree( longLived )

@@ -1,0 +1,47 @@
+'' mandelbrot: the Mandelbrot set as a 1-bit portable bitmap.
+
+#include once "crt/stdio.bi"
+#ifdef __FB_WIN32__
+#include once "crt/io.bi"
+#endif
+
+#ifdef __FB_WIN32__
+_setmode( 1, &h8000 )   '' stdout binary: _O_BINARY
+#endif
+
+dim as int32 n = iif( len( command( 1 ) ) > 0, valint( command( 1 ) ), 200 )
+dim as int32 w = n, h = n
+dim as int32 rowBytes = ( w + 7 ) \ 8
+dim as uint8 bitmap( 0 to rowBytes * h - 1 )
+dim as int32 p = 0
+for y as int32 = 0 to h - 1
+    dim as float64 ci = 2.0 * y / h - 1.0
+    dim as int32 byt = 0, bits = 0
+    for x as int32 = 0 to w - 1
+        dim as float64 cr = 2.0 * x / w - 1.5
+        dim as float64 zr = 0.0, zi = 0.0, tr = 0.0, ti = 0.0
+        dim as int32 i = 0
+        do while i < 50 andalso tr + ti <= 4.0
+            zi = ( zr + zr ) * zi + ci
+            zr = tr - ti + cr
+            tr = zr * zr
+            ti = zi * zi
+            i += 1
+        loop
+        byt = ( byt shl 1 ) or iif( tr + ti <= 4.0, 1, 0 )
+        bits += 1
+        if bits = 8 then
+            bitmap( p ) = byt
+            p += 1
+            byt = 0
+            bits = 0
+        end if
+    next
+    if bits > 0 then
+        bitmap( p ) = byt shl ( 8 - bits )
+        p += 1
+    end if
+next
+dim as string header = "P4" & chr( 10 ) & w & " " & h & chr( 10 )
+fwrite( strptr( header ), 1, len( header ), stdout )
+fwrite( @bitmap( 0 ), 1, p, stdout )

@@ -1,0 +1,58 @@
+'' fannkuch-redux: the most pancake flips over all permutations of 0..n-1.
+
+#import "std/strings"
+
+function Fannkuch( byval n as int32, byref checksum as int32 ) as int32
+    dim as int32 perm( 0 to 15 ), perm1( 0 to 15 ), count( 0 to 15 )
+    dim as int32 maxFlips = 0, permCount = 0, r = n
+    checksum = 0
+    for i as int32 = 0 to n - 1
+        perm1( i ) = i
+    next
+    do
+        do while r <> 1
+            count( r - 1 ) = r
+            r -= 1
+        loop
+        for i as int32 = 0 to n - 1
+            perm( i ) = perm1( i )
+        next
+        dim as int32 flips = 0
+        dim as int32 k = perm( 0 )
+        do while k <> 0
+            dim as int32 k2 = ( k + 1 ) shr 1
+            for i as int32 = 0 to k2 - 1
+                dim as int32 t = perm( i )
+                perm( i ) = perm( k - i )
+                perm( k - i ) = t
+            next
+            flips += 1
+            k = perm( 0 )
+        loop
+        if flips > maxFlips then
+            maxFlips = flips
+        end if
+        checksum += iif( permCount mod 2 = 0, flips, -flips )
+        do
+            if r = n then
+                return maxFlips
+            end if
+            dim as int32 perm0 = perm1( 0 )
+            for i as int32 = 0 to r - 1
+                perm1( i ) = perm1( i + 1 )
+            next
+            perm1( r ) = perm0
+            count( r ) -= 1
+            if count( r ) > 0 then
+                exit do
+            end if
+            r += 1
+        loop
+        permCount += 1
+    loop
+end function
+
+dim as int32 n = iif( len( command( 1 ) ) > 0, valint( command( 1 ) ), 7 )
+dim as int32 checksum
+dim as int32 maxFlips = Fannkuch( n, checksum )
+print strings.Format( !"{}\nPfannkuchen({}) = {}\n", checksum, n, maxFlips );

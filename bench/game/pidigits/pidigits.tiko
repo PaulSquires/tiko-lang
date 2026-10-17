@@ -1,0 +1,58 @@
+'' pidigits: the digits of pi, by the unbounded spigot algorithm on GMP integers.
+
+#import "std/strings"
+#cinclude "gmp.h"
+#foreignlib GMP dynamic "../libs/gmp"
+
+'' #cinclude imports GMP's functions under their real names (__gmpz_*): the
+'' mpz_* spellings are macros naming them, which it does not translate.
+dim shared as __mpz_struct tmp1, tmp2, acc, den, num
+
+function ExtractDigit( byval nth as culong ) as culong
+    __gmpz_mul_ui( @tmp1, @num, nth )
+    __gmpz_add( @tmp2, @tmp1, @acc )
+    __gmpz_tdiv_q( @tmp1, @tmp2, @den )
+    return __gmpz_get_ui( @tmp1 )
+end function
+
+sub EliminateDigit( byval d as culong )
+    __gmpz_submul_ui( @acc, @den, d )
+    __gmpz_mul_ui( @acc, @acc, 10 )
+    __gmpz_mul_ui( @num, @num, 10 )
+end sub
+
+sub NextTerm( byval k as culong )
+    dim as culong k2 = k * 2 + 1
+    __gmpz_addmul_ui( @acc, @num, 2 )
+    __gmpz_mul_ui( @acc, @acc, k2 )
+    __gmpz_mul_ui( @den, @den, k2 )
+    __gmpz_mul_ui( @num, @num, k )
+end sub
+
+dim as int32 n = iif( len( command( 1 ) ) > 0, valint( command( 1 ) ), 30 )
+__gmpz_init( @tmp1 )
+__gmpz_init( @tmp2 )
+__gmpz_init_set_ui( @acc, 0 )
+__gmpz_init_set_ui( @den, 1 )
+__gmpz_init_set_ui( @num, 1 )
+dim as string digits
+dim as culong k = 0
+dim as int32 i = 0
+do while i < n
+    k += 1
+    NextTerm( k )
+    if __gmpz_cmp( @num, @acc ) > 0 then
+        continue do
+    end if
+    dim as culong d = ExtractDigit( 3 )
+    if d <> ExtractDigit( 4 ) then
+        continue do
+    end if
+    digits &= chr( asc( "0" ) + d )
+    i += 1
+    if len( digits ) = 10 orelse i = n then
+        print strings.Format( !"{:<10}\t:{}\n", digits, i );
+        digits = ""
+    end if
+    EliminateDigit( d )
+loop
