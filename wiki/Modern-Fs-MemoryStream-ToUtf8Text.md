@@ -1,0 +1,31 @@
+[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **MemoryStream.ToUtf8Text**
+
+# MemoryStream.ToUtf8Text
+
+ustring
+
+## Syntax
+
+```freebasic
+MemoryStream.ToUtf8Text( )
+```
+
+## Notes
+
+- Every byte decoded as text by ReadAllText's rules, so a file and a MemoryStream holding the same bytes give the same string: a UTF-8, UTF-16LE or UTF-16BE byte-order mark is honoured and dropped; no mark means UTF-8; invalid UTF-8 becomes U+FFFD.
+
+## Examples
+
+```freebasic
+#import "std/fs"
+using fs
+
+dim as MemoryStream m = MemoryStream( "caf" & wchr( &hE9 ) )
+print len( m.ToUtf8Text( ) )    '' 4
+```
+
+---
+
+**Library:** [Filesystem Library](Category-Filesystem)
+**Category:** [Filesystem](Category-Filesystem)
+**Documented under:** Streams

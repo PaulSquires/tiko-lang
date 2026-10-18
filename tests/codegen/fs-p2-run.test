@@ -1,0 +1,13 @@
+'' RUN: std/fs phase P2 -- the Stream contract against MemoryStream (short reads, Ok( 0 ) at
+'' the end, bad arguments, Seek's rules, the zero-filled gap, ReadExact, ReadToEnd
+'' appending); a stream defined outside the module overriding the protected hooks one byte
+'' per call, through ReadExact, WriteAll and Copy; the base Stream's FS_UNSUPPORTED;
+'' MemoryStream as a value; and ToUtf8Text agreeing with ReadAllText on a corpus of BOMs,
+'' invalid UTF-8, odd UTF-16 and lone surrogates.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/fs-p2.tiko -o tests/codegen/fsp2.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/fsp2.exe
+'' RUN: tests/codegen/fsp2.exe
+'' EXPECT-RUN-OUT: ok

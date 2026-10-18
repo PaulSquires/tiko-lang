@@ -1,0 +1,539 @@
+#module "fs"
+#import "std/outcome"
+#import "std/containers"
+using outcome
+using containers
+'' std/fs: fsstream -- Stream, the byte-stream base type; MemoryStream; Copy
+''
+'' Specified in C:\dev\docs\tiko-fs\RFC-0001-files-and-streams.md section 5.
+''
+'' ONE BASE TYPE, NOT Reader + Writer + Seeker. tiko types have single inheritance
+'' and no interfaces, so a File that both reads and writes could not extend two
+'' bases. Stream carries every operation, says which ones work through CanRead,
+'' CanWrite and CanSeek, and its own versions of the hooks FAIL with
+'' FS_UNSUPPORTED -- so a read-only stream overrides ReadCore and CanRead and
+'' nothing else. The hooks are virtual, not abstract, for exactly that reason.
+''
+'' THE PUBLIC PRIMITIVES ARE NOT VIRTUAL. Read, Write, Seek and Flush check their
+'' arguments once, here, and call a PROTECTED VIRTUAL HOOK -- ReadCore, WriteCore,
+'' SeekCore, FlushCore -- which reports through a boolean and a byref FsError. A
+'' derived stream overrides the hooks. Two reasons:
+''
+''   - rule 6 below is enforced in one place, so no stream can forget it;
+''   - a virtual call that RETURNS a Result( of T, FsError ) -- a UDT that needs
+''     destruction -- is miscompiled by tiko today (an internal compiler error when
+''     it initialises a DIM, invalid IR when it is assigned; fbc compiles both).
+''     std/fs is compiled into tiko itself by the pinned seed, which has that bug,
+''     so the hooks must not return one even after the compiler is fixed.
+''
+'' THE CONTRACT, which every Stream is tested against (RFC-0001 section 5.1):
+''
+''   1. Read may return FEWER bytes than asked. Ok( 0 ) for n > 0 means end of
+''      data, and nothing else does. n = 0 returns Ok( 0 ) and touches nothing.
+''   2. Write may write fewer bytes than asked, but never 0 for n > 0 without
+''      failing. WriteAll loops.
+''   3. ReadExact loops; data that ends early is FS_UNEXPECTED_EOF, with what was
+''      read left in buf.
+''   4. ReadToEnd APPENDS to buf and returns the number of bytes appended.
+''   5. A failed call leaves the position unspecified.
+''   6. n < 0, or a null buf with n > 0, is FS_INVALID_ARGUMENT.
+''   7. Seek returns the new absolute position; a result below 0 is
+''      FS_INVALID_ARGUMENT; past the end is allowed.
+''   8. A stream is not thread-safe unless its own documentation says so.
+''
+'' NO RUNTIME CALLS. Everything here is tiko over memcpy/memset, so the seed that
+'' builds tiko itself can always link it (RFC-0001 section 3.1).
+
+
+
+#if __FB_LANG__ <> "fb"
+    #error "std/fs requires -lang fb (it uses namespaces)"
+#endif
+
+extern "C"
+    declare function fb_fsstream_memcpy alias "memcpy" _
+        ( byval d as any ptr, byval s as const any ptr, byval n as uinteger ) as any ptr
+    declare function fb_fsstream_memset alias "memset" _
+        ( byval d as any ptr, byval c as long, byval n as uinteger ) as any ptr
+end extern
+
+public enum SeekOrigin
+    SEEK_FROM_START = 0
+    SEEK_FROM_CURRENT = 1
+    SEEK_FROM_END = 2
+end enum
+
+'' ------------------------------------------------------------------ Stream
+
+public type Stream extends object
+    declare constructor( )
+    declare virtual destructor( )
+
+    '' capability -- constant for the life of an open stream
+    declare const virtual function CanRead ( ) as boolean
+    declare const virtual function CanWrite( ) as boolean
+    declare const virtual function CanSeek ( ) as boolean
+
+    '' the primitives: argument checks, then the hook
+    declare function Read ( byval buf as ubyte ptr, byval n as longint ) as FsResultI64
+    declare function Write( byval buf as const ubyte ptr, byval n as longint ) as FsResultI64
+    declare function Seek ( byval offset as longint, byval origin as SeekOrigin = SEEK_FROM_START ) as FsResultI64
+    declare function Flush( ) as FsResultBool
+
+    '' composed on the primitives
+    declare function ReadExact ( byval buf as ubyte ptr, byval n as longint ) as FsResultBool
+    declare function ReadToEnd ( buf as Array( of ubyte ) ) as FsResultI64
+    declare function WriteAll  ( byval buf as const ubyte ptr, byval n as longint ) as FsResultBool
+    declare function WriteBytes( buf as Array( of ubyte ) ) as FsResultBool
+    declare function WriteUtf8 ( byref s as const ustring ) as FsResultBool
+    declare function Position  ( ) as FsResultI64
+
+protected:
+    '' The hooks a derived stream overrides. Each returns TRUE on success, or FALSE
+    '' with `failure` filled in. They are called with arguments already checked:
+    '' ReadCore and WriteCore see n > 0 and a non-null buf; SeekCore sees a valid
+    '' origin and computes the new position itself. These versions fail with
+    '' FS_UNSUPPORTED, except FlushCore, which has nothing to flush.
+    declare virtual function ReadCore ( byval buf as ubyte ptr, byval n as longint, byref got as longint, byref failure as FsError ) as boolean
+    declare virtual function WriteCore( byval buf as const ubyte ptr, byval n as longint, byref done as longint, byref failure as FsError ) as boolean
+    declare virtual function SeekCore ( byval offset as longint, byval origin as SeekOrigin, byref newpos as longint, byref failure as FsError ) as boolean
+    declare virtual function FlushCore( byref failure as FsError ) as boolean
+end type
+
+constructor Stream( )
+end constructor
+
+destructor Stream( )
+end destructor
+
+const function Stream.CanRead( ) as boolean
+    return FALSE
+end function
+
+const function Stream.CanWrite( ) as boolean
+    return FALSE
+end function
+
+const function Stream.CanSeek( ) as boolean
+    return FALSE
+end function
+
+function Stream.ReadCore( byval buf as ubyte ptr, byval n as longint, byref got as longint, byref failure as FsError ) as boolean
+    failure = FsError( FS_UNSUPPORTED, 0, "Read", "" )
+    return FALSE
+end function
+
+function Stream.WriteCore( byval buf as const ubyte ptr, byval n as longint, byref done as longint, byref failure as FsError ) as boolean
+    failure = FsError( FS_UNSUPPORTED, 0, "Write", "" )
+    return FALSE
+end function
+
+function Stream.SeekCore( byval offset as longint, byval origin as SeekOrigin, byref newpos as longint, byref failure as FsError ) as boolean
+    failure = FsError( FS_UNSUPPORTED, 0, "Seek", "" )
+    return FALSE
+end function
+
+function Stream.FlushCore( byref failure as FsError ) as boolean
+    return TRUE
+end function
+
+function Stream.Read( byval buf as ubyte ptr, byval n as longint ) as FsResultI64
+    if( ( n < 0 ) orelse ( ( buf = nullptr ) andalso ( n > 0 ) ) ) then
+        return FsFail( of longint )( FS_INVALID_ARGUMENT, "Read", "" )
+    end if
+    if( n = 0 ) then return Ok( of longint, FsError )( 0 )
+
+    dim as longint got = 0
+    dim as FsError failure
+    if( this.ReadCore( buf, n, got, failure ) = FALSE ) then return Fail( of longint, FsError )( failure )
+    return Ok( of longint, FsError )( got )
+end function
+
+function Stream.Write( byval buf as const ubyte ptr, byval n as longint ) as FsResultI64
+    if( ( n < 0 ) orelse ( ( buf = nullptr ) andalso ( n > 0 ) ) ) then
+        return FsFail( of longint )( FS_INVALID_ARGUMENT, "Write", "" )
+    end if
+    if( n = 0 ) then return Ok( of longint, FsError )( 0 )
+
+    dim as longint done = 0
+    dim as FsError failure
+    if( this.WriteCore( buf, n, done, failure ) = FALSE ) then return Fail( of longint, FsError )( failure )
+    return Ok( of longint, FsError )( done )
+end function
+
+function Stream.Seek( byval offset as longint, byval origin as SeekOrigin ) as FsResultI64
+    if( ( origin < SEEK_FROM_START ) orelse ( origin > SEEK_FROM_END ) ) then
+        return FsFail( of longint )( FS_INVALID_ARGUMENT, "Seek", "" )
+    end if
+
+    dim as longint newpos = 0
+    dim as FsError failure
+    if( this.SeekCore( offset, origin, newpos, failure ) = FALSE ) then return Fail( of longint, FsError )( failure )
+    return Ok( of longint, FsError )( newpos )
+end function
+
+function Stream.Flush( ) as FsResultBool
+    dim as FsError failure
+    if( this.FlushCore( failure ) = FALSE ) then return Fail( of boolean, FsError )( failure )
+    return Ok( of boolean, FsError )( TRUE )
+end function
+
+function Stream.ReadExact( byval buf as ubyte ptr, byval n as longint ) as FsResultBool
+    if( ( n < 0 ) orelse ( ( buf = nullptr ) andalso ( n > 0 ) ) ) then
+        return FsFail( of boolean )( FS_INVALID_ARGUMENT, "ReadExact", "" )
+    end if
+
+    dim as longint got = 0
+    while( got < n )
+        dim as FsResultI64 r = this.Read( buf + got, n - got )
+        if( r.IsOk( ) = FALSE ) then return Fail( of boolean, FsError )( r.Failure( ) )
+        if( r.Value( ) = 0 ) then return FsFail( of boolean )( FS_UNEXPECTED_EOF, "ReadExact", "" )
+        got += r.Value( )
+    wend
+
+    return Ok( of boolean, FsError )( TRUE )
+end function
+
+function Stream.ReadToEnd( buf as Array( of ubyte ) ) as FsResultI64
+    const CHUNK = 65536
+    dim as ubyte ptr tmp = callocate( CHUNK, 1 )
+    if( tmp = nullptr ) then return FsFail( of longint )( FS_NO_SPACE, "ReadToEnd", "" )
+
+    dim as longint total = 0
+    do
+        dim as FsResultI64 r = this.Read( tmp, CHUNK )
+        if( r.IsOk( ) = FALSE ) then
+            deallocate( tmp )
+            return r
+        end if
+        if( r.Value( ) = 0 ) then exit do
+
+        for i as long = 0 to clng( r.Value( ) ) - 1
+            buf.Push( tmp[i] )
+        next
+        total += r.Value( )
+    loop
+
+    deallocate( tmp )
+    return Ok( of longint, FsError )( total )
+end function
+
+function Stream.WriteAll( byval buf as const ubyte ptr, byval n as longint ) as FsResultBool
+    if( ( n < 0 ) orelse ( ( buf = nullptr ) andalso ( n > 0 ) ) ) then
+        return FsFail( of boolean )( FS_INVALID_ARGUMENT, "WriteAll", "" )
+    end if
+
+    dim as longint done = 0
+    while( done < n )
+        dim as FsResultI64 r = this.Write( buf + done, n - done )
+        if( r.IsOk( ) = FALSE ) then return Fail( of boolean, FsError )( r.Failure( ) )
+        '' Rule 2 says a Write never does this; a stream that breaks the rule must
+        '' not turn WriteAll into an endless loop.
+        if( r.Value( ) <= 0 ) then return FsFail( of boolean )( FS_UNKNOWN, "WriteAll", "" )
+        done += r.Value( )
+    wend
+
+    return Ok( of boolean, FsError )( TRUE )
+end function
+
+function Stream.WriteBytes( buf as Array( of ubyte ) ) as FsResultBool
+    dim as long n = buf.Count( )
+    if( n = 0 ) then return Ok( of boolean, FsError )( TRUE )
+
+    dim as ubyte ptr tmp = callocate( n, 1 )
+    if( tmp = nullptr ) then return FsFail( of boolean )( FS_NO_SPACE, "WriteBytes", "" )
+    for i as long = 0 to n - 1
+        tmp[i] = buf[i]
+    next
+
+    dim as FsResultBool r = this.WriteAll( tmp, n )
+    deallocate( tmp )
+    return r
+end function
+
+'' UTF-8, no BOM -- WriteAllText's encoding. A lone surrogate is written as U+FFFD,
+'' which is what the ustring-to-string conversion does on every target.
+function Stream.WriteUtf8( byref s as const ustring ) as FsResultBool
+    dim as string b = s
+    return this.WriteAll( cptr( const ubyte ptr, strptr( b ) ), len( b ) )
+end function
+
+function Stream.Position( ) as FsResultI64
+    return this.Seek( 0, SEEK_FROM_CURRENT )
+end function
+
+'' ------------------------------------------------------------ MemoryStream
+''
+'' A growable byte buffer with a position: for tests, and for building output
+'' before one WriteAtomic. A VALUE: copying it copies the bytes and the position,
+'' so two copies never share a buffer.
+
+public type MemoryStream extends Stream
+    declare constructor( )
+    declare constructor( buf as Array( of ubyte ) )
+    declare constructor( byref s as const ustring )
+    declare constructor( byref other as const MemoryStream )
+    declare operator let( byref other as const MemoryStream )
+    declare destructor( ) override
+
+    declare const function CanRead ( ) as boolean override
+    declare const function CanWrite( ) as boolean override
+    declare const function CanSeek ( ) as boolean override
+    declare const function Length( ) as longint
+    declare const function ToBytes( buf as Array( of ubyte ) ) as longint
+    declare const function ToUtf8Text( ) as ustring
+    declare sub Clear( )
+
+protected:
+    declare function ReadCore ( byval buf as ubyte ptr, byval n as longint, byref got as longint, byref failure as FsError ) as boolean override
+    declare function WriteCore( byval buf as const ubyte ptr, byval n as longint, byref done as longint, byref failure as FsError ) as boolean override
+    declare function SeekCore ( byval offset as longint, byval origin as SeekOrigin, byref newpos as longint, byref failure as FsError ) as boolean override
+
+private:
+    declare function hReserve( byval need as longint ) as boolean
+    declare sub hCopyFrom( byref other as const MemoryStream )
+
+    as ubyte ptr m_buf
+    as longint   m_len
+    as longint   m_cap
+    as longint   m_pos
+end type
+
+constructor MemoryStream( )
+    this.m_buf = nullptr
+    this.m_len = 0
+    this.m_cap = 0
+    this.m_pos = 0
+end constructor
+
+constructor MemoryStream( buf as Array( of ubyte ) )
+    this.m_buf = nullptr
+    this.m_len = 0
+    this.m_cap = 0
+    this.m_pos = 0
+    dim as long n = buf.Count( )
+    if( n > 0 ) then
+        if( this.hReserve( n ) ) then
+            for i as long = 0 to n - 1
+                this.m_buf[i] = buf[i]
+            next
+            this.m_len = n
+        end if
+    end if
+end constructor
+
+'' The UTF-8 bytes of s, position 0 -- so it reads back as the text it was made from.
+constructor MemoryStream( byref s as const ustring )
+    this.m_buf = nullptr
+    this.m_len = 0
+    this.m_cap = 0
+    this.m_pos = 0
+    dim as string b = s
+    if( len( b ) > 0 ) then
+        if( this.hReserve( len( b ) ) ) then
+            fb_fsstream_memcpy( this.m_buf, strptr( b ), len( b ) )
+            this.m_len = len( b )
+        end if
+    end if
+end constructor
+
+constructor MemoryStream( byref other as const MemoryStream )
+    this.m_buf = nullptr
+    this.m_len = 0
+    this.m_cap = 0
+    this.m_pos = 0
+    this.hCopyFrom( other )
+end constructor
+
+operator MemoryStream.let( byref other as const MemoryStream )
+    if( @other = @this ) then exit operator
+    this.m_len = 0
+    this.m_pos = 0
+    this.hCopyFrom( other )
+end operator
+
+destructor MemoryStream( )
+    if( this.m_buf <> nullptr ) then deallocate( this.m_buf )
+    this.m_buf = nullptr
+end destructor
+
+sub MemoryStream.hCopyFrom( byref other as const MemoryStream )
+    if( other.m_len > 0 ) then
+        if( this.hReserve( other.m_len ) ) then
+            fb_fsstream_memcpy( this.m_buf, other.m_buf, other.m_len )
+            this.m_len = other.m_len
+        end if
+    end if
+    this.m_pos = other.m_pos
+end sub
+
+'' Capacity for `need` bytes, doubling. FALSE when the allocation fails, with the
+'' buffer untouched.
+function MemoryStream.hReserve( byval need as longint ) as boolean
+    if( need <= this.m_cap ) then return TRUE
+
+    dim as longint cap = iif( this.m_cap < 64, 64, this.m_cap )
+    while( cap < need )
+        cap *= 2
+    wend
+
+    dim as ubyte ptr nb = reallocate( this.m_buf, cap )
+    if( nb = nullptr ) then return FALSE
+
+    this.m_buf = nb
+    this.m_cap = cap
+    return TRUE
+end function
+
+const function MemoryStream.CanRead( ) as boolean
+    return TRUE
+end function
+
+const function MemoryStream.CanWrite( ) as boolean
+    return TRUE
+end function
+
+const function MemoryStream.CanSeek( ) as boolean
+    return TRUE
+end function
+
+function MemoryStream.ReadCore( byval buf as ubyte ptr, byval n as longint, byref got as longint, byref failure as FsError ) as boolean
+    dim as longint avail = this.m_len - this.m_pos
+    got = 0
+    if( avail <= 0 ) then return TRUE
+
+    got = iif( n < avail, n, avail )
+    fb_fsstream_memcpy( buf, this.m_buf + this.m_pos, got )
+    this.m_pos += got
+    return TRUE
+end function
+
+'' Grows the buffer; a write after a seek past the end ZERO-FILLS the gap, as a file
+'' does.
+function MemoryStream.WriteCore( byval buf as const ubyte ptr, byval n as longint, byref done as longint, byref failure as FsError ) as boolean
+    dim as longint finish = this.m_pos + n
+    if( this.hReserve( finish ) = FALSE ) then
+        failure = FsError( FS_NO_SPACE, 0, "Write", "" )
+        return FALSE
+    end if
+
+    if( this.m_pos > this.m_len ) then
+        fb_fsstream_memset( this.m_buf + this.m_len, 0, this.m_pos - this.m_len )
+    end if
+
+    fb_fsstream_memcpy( this.m_buf + this.m_pos, buf, n )
+    this.m_pos = finish
+    if( finish > this.m_len ) then this.m_len = finish
+    done = n
+    return TRUE
+end function
+
+function MemoryStream.SeekCore( byval offset as longint, byval origin as SeekOrigin, byref newpos as longint, byref failure as FsError ) as boolean
+    dim as longint base_ = 0
+
+    select case origin
+    case SEEK_FROM_CURRENT
+        base_ = this.m_pos
+    case SEEK_FROM_END
+        base_ = this.m_len
+    end select
+
+    if( base_ + offset < 0 ) then
+        failure = FsError( FS_INVALID_ARGUMENT, 0, "Seek", "" )
+        return FALSE
+    end if
+
+    this.m_pos = base_ + offset
+    newpos = this.m_pos
+    return TRUE
+end function
+
+const function MemoryStream.Length( ) as longint
+    return this.m_len
+end function
+
+'' Replaces buf's contents with every byte, whatever the position; returns the count.
+const function MemoryStream.ToBytes( buf as Array( of ubyte ) ) as longint
+    buf.Clear( )
+    buf.Reserve( clng( this.m_len ) )
+    for i as longint = 0 to this.m_len - 1
+        buf.Push( this.m_buf[i] )
+    next
+    return this.m_len
+end function
+
+'' Every byte decoded as text, by ReadAllText's rules, so a file and a MemoryStream
+'' holding the same bytes give the same string:
+''   1. a UTF-8, UTF-16LE or UTF-16BE BOM is honoured and consumed;
+''   2. no BOM means UTF-8;
+''   3. invalid UTF-8 is replaced with U+FFFD, not rejected. UTF-16 is taken unit
+''      for unit, lone surrogates included, and an odd trailing byte is dropped.
+const function MemoryStream.ToUtf8Text( ) as ustring
+    dim as longint n = this.m_len
+    dim as ubyte ptr p = this.m_buf
+
+    if( n >= 2 ) then
+        dim as boolean le = ( p[0] = &hFF ) andalso ( p[1] = &hFE )
+        dim as boolean be = ( p[0] = &hFE ) andalso ( p[1] = &hFF )
+        if( le orelse be ) then
+            dim as long units = clng( ( n - 2 ) \ 2 )
+            if( units <= 0 ) then return ""
+            dim as ustring u = wspace( units )
+            for i as long = 0 to units - 1
+                dim as ulong lo = p[2 + i * 2], hi = p[3 + i * 2]
+                if( be ) then swap lo, hi
+                u[i] = lo or ( hi shl 8 )
+            next
+            return u
+        end if
+    end if
+
+    dim as longint start = 0
+    if( n >= 3 ) then
+        if( ( p[0] = &hEF ) andalso ( p[1] = &hBB ) andalso ( p[2] = &hBF ) ) then start = 3
+    end if
+    if( n - start <= 0 ) then return ""
+
+    dim as string b = space( n - start )
+    fb_fsstream_memcpy( strptr( b ), p + start, n - start )
+    return b
+end function
+
+sub MemoryStream.Clear( )
+    this.m_len = 0
+    this.m_pos = 0
+end sub
+
+'' -------------------------------------------------------------------- Copy
+
+public declare function Copy overload ( byref src as Stream, byref dst as Stream, byval bufSize as long = 65536 ) as FsResultI64
+
+'' From src's position to its end, into dst with WriteAll; the byte count. dst is not
+'' flushed. A failure on either side keeps its code and native code, with Operation
+'' "Copy".
+public function Copy( byref src as Stream, byref dst as Stream, byval bufSize as long ) as FsResultI64
+    if( bufSize < 1 ) then return FsFail( of longint )( FS_INVALID_ARGUMENT, "Copy", "" )
+
+    dim as ubyte ptr tmp = callocate( bufSize, 1 )
+    if( tmp = nullptr ) then return FsFail( of longint )( FS_NO_SPACE, "Copy", "" )
+
+    dim as longint total = 0
+    do
+        dim as FsResultI64 r = src.Read( tmp, bufSize )
+        if( r.IsOk( ) = FALSE ) then
+            deallocate( tmp )
+            return Fail( of longint, FsError )( FsError( r.Failure( ).Code( ), r.Failure( ).OsCode( ), "Copy", r.Failure( ).Path( ) ) )
+        end if
+        if( r.Value( ) = 0 ) then exit do
+
+        dim as FsResultBool w = dst.WriteAll( tmp, r.Value( ) )
+        if( w.IsOk( ) = FALSE ) then
+            deallocate( tmp )
+            return Fail( of longint, FsError )( FsError( w.Failure( ).Code( ), w.Failure( ).OsCode( ), "Copy", w.Failure( ).Path( ) ) )
+        end if
+        total += r.Value( )
+    loop
+
+    deallocate( tmp )
+    return Ok( of longint, FsError )( total )
+end function

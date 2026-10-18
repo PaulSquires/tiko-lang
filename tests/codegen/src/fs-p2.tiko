@@ -1,0 +1,196 @@
+'' std/fs phase P2 (C:\dev\docs\tiko-fs\RFC-0001 section 5): the Stream contract -- rules
+'' 1 to 7 against MemoryStream; a stream defined OUTSIDE the module that overrides the
+'' protected hooks and moves one byte per call, driving ReadExact, WriteAll and Copy
+'' through short reads and writes; the base Stream's FS_UNSUPPORTED; MemoryStream as a
+'' value; and ToUtf8Text agreeing with ReadAllText byte for byte on a corpus of BOMs,
+'' invalid UTF-8, odd UTF-16 and lone surrogates.
+#import "std/fs"
+#import "std/containers"
+
+dim shared as integer fails = 0
+
+sub Check( byref what as string, byval ok as boolean )
+    if ok = false then
+        print "FAIL "; what
+        fails += 1
+    end if
+end sub
+
+'' One byte per Read and per Write, over a MemoryStream it owns: the short-IO case
+'' every caller of Read and Write has to survive.
+type Trickle extends fs.Stream
+    as fs.MemoryStream inner
+    declare const function CanRead ( ) as boolean override
+    declare const function CanWrite( ) as boolean override
+protected:
+    declare function ReadCore ( byval buf as ubyte ptr, byval n as longint, byref got as longint, byref failure as fs.FsError ) as boolean override
+    declare function WriteCore( byval buf as const ubyte ptr, byval n as longint, byref done as longint, byref failure as fs.FsError ) as boolean override
+end type
+
+const function Trickle.CanRead( ) as boolean
+    return true
+end function
+
+const function Trickle.CanWrite( ) as boolean
+    return true
+end function
+
+function Trickle.ReadCore( byval buf as ubyte ptr, byval n as longint, byref got as longint, byref failure as fs.FsError ) as boolean
+    dim as fs.FsResultI64 r = this.inner.Read( buf, 1 )
+    if r.IsOk( ) = false then failure = r.Failure( ) : return false
+    got = r.Value( )
+    return true
+end function
+
+function Trickle.WriteCore( byval buf as const ubyte ptr, byval n as longint, byref done as longint, byref failure as fs.FsError ) as boolean
+    dim as fs.FsResultI64 r = this.inner.Write( buf, 1 )
+    if r.IsOk( ) = false then failure = r.Failure( ) : return false
+    done = r.Value( )
+    return true
+end function
+
+function Text( byref m as fs.MemoryStream ) as string
+    dim as containers.Array( of ubyte ) b
+    m.ToBytes( b )
+    dim as string s = ""
+    for i as long = 0 to b.Count( ) - 1
+        s &= chr( b[i] )
+    next
+    return s
+end function
+
+'' polymorphism: any Stream, by reference
+function Drain( byref s as fs.Stream ) as longint
+    dim as containers.Array( of ubyte ) b
+    return s.ReadToEnd( b ).ValueOr( -1 )
+end function
+
+dim as ubyte buf( 0 to 15 )
+
+'' -- rule 1: short reads, Ok( 0 ) at the end, n = 0 touches nothing
+dim as fs.MemoryStream m = fs.MemoryStream( "hello" )
+Check( "caps", m.CanRead( ) andalso m.CanWrite( ) andalso m.CanSeek( ) )
+Check( "length", m.Length( ) = 5 )
+Check( "read 3", m.Read( @buf(0), 3 ).ValueOr( -1 ) = 3 )
+Check( "read bytes", ( buf(0) = asc( "h" ) ) andalso ( buf(2) = asc( "l" ) ) )
+Check( "read zero", m.Read( @buf(0), 0 ).ValueOr( -1 ) = 0 )
+Check( "pos after zero", m.Position( ).ValueOr( -1 ) = 3 )
+Check( "short read", m.Read( @buf(0), 16 ).ValueOr( -1 ) = 2 )
+Check( "eof", m.Read( @buf(0), 16 ).ValueOr( -1 ) = 0 )
+
+'' -- rule 6: bad arguments
+dim as fs.FsResultI64 bad = m.Read( @buf(0), -1 )
+Check( "neg n", ( bad.IsOk( ) = false ) andalso ( bad.Failure( ).Code( ) = fs.FS_INVALID_ARGUMENT ) )
+bad = m.Write( nullptr, 3 )
+Check( "null buf", ( bad.IsOk( ) = false ) andalso ( bad.Failure( ).Code( ) = fs.FS_INVALID_ARGUMENT ) )
+bad = m.Seek( 0, cast( fs.SeekOrigin, 7 ) )
+Check( "bad origin", ( bad.IsOk( ) = false ) andalso ( bad.Failure( ).Code( ) = fs.FS_INVALID_ARGUMENT ) )
+
+'' -- rule 7: Seek returns the absolute position; below 0 fails; past the end is fine
+Check( "seek start", m.Seek( 1 ).ValueOr( -1 ) = 1 )
+Check( "seek cur", m.Seek( 2, fs.SEEK_FROM_CURRENT ).ValueOr( -1 ) = 3 )
+Check( "seek end", m.Seek( -1, fs.SEEK_FROM_END ).ValueOr( -1 ) = 4 )
+bad = m.Seek( -10, fs.SEEK_FROM_CURRENT )
+Check( "seek negative", ( bad.IsOk( ) = false ) andalso ( bad.Failure( ).Code( ) = fs.FS_INVALID_ARGUMENT ) )
+Check( "seek past end", m.Seek( 8 ).ValueOr( -1 ) = 8 )
+
+'' -- a write past the end zero-fills the gap and grows the length
+Check( "write past end", m.WriteUtf8( "!" ).IsOk( ) )
+Check( "grown", m.Length( ) = 9 )
+Check( "zero fill", Text( m ) = "hello" & chr( 0, 0, 0 ) & "!" )
+Check( "overwrite", m.Seek( 0 ).IsOk( ) andalso m.WriteUtf8( "J" ).IsOk( ) )
+Check( "overwritten", left( Text( m ), 5 ) = "Jello" )
+
+'' -- rule 3: ReadExact, including the early end
+m.Seek( 0 )
+Check( "exact", m.ReadExact( @buf(0), 5 ).IsOk( ) andalso ( buf(0) = asc( "J" ) ) )
+m.Seek( 7 )
+dim as fs.FsResultBool rx = m.ReadExact( @buf(0), 5 )
+Check( "exact eof", ( rx.IsOk( ) = false ) andalso ( rx.Failure( ).Code( ) = fs.FS_UNEXPECTED_EOF ) )
+Check( "exact kept", buf(0) = 0 andalso buf(1) = asc( "!" ) )
+
+'' -- rule 4: ReadToEnd appends
+dim as containers.Array( of ubyte ) acc
+acc.Push( 1 )
+m.Seek( 6 )
+Check( "to end", m.ReadToEnd( acc ).ValueOr( -1 ) = 3 )
+Check( "appended", ( acc.Count( ) = 4 ) andalso ( acc[0] = 1 ) andalso ( acc[3] = asc( "!" ) ) )
+m.Seek( 0 )
+Check( "drain by ref", Drain( m ) = 9 )
+
+'' -- a value: a copy has its own bytes and position
+dim as fs.MemoryStream c = m
+c.Seek( 0 ) : c.WriteUtf8( "X" )
+Check( "copy independent", ( left( Text( c ), 1 ) = "X" ) andalso ( left( Text( m ), 1 ) = "J" ) )
+Check( "copy pos", m.Position( ).ValueOr( -1 ) = 9 )
+dim as fs.MemoryStream assigned
+assigned = c
+Check( "let", Text( assigned ) = Text( c ) )
+m.Clear( )
+Check( "clear", ( m.Length( ) = 0 ) andalso ( m.Position( ).ValueOr( -1 ) = 0 ) )
+
+'' -- WriteUtf8: UTF-8, a lone surrogate as U+FFFD
+dim as fs.MemoryStream w
+dim as ustring ls = "a" & wchr( &hD800 ) & "b"
+w.WriteUtf8( ls )
+Check( "utf8 surrogate", Text( w ) = "a" & chr( &hEF, &hBF, &hBD ) & "b" )
+
+'' -- the base Stream does nothing and says so
+dim as fs.Stream nothing_
+Check( "base caps", ( nothing_.CanRead( ) = false ) andalso ( nothing_.CanSeek( ) = false ) )
+bad = nothing_.Read( @buf(0), 1 )
+Check( "base read", ( bad.IsOk( ) = false ) andalso ( bad.Failure( ).Code( ) = fs.FS_UNSUPPORTED ) )
+Check( "base flush", nothing_.Flush( ).IsOk( ) )
+
+'' -- short IO through a stream from outside the module
+dim as Trickle t
+t.inner = fs.MemoryStream( "abcdef" )
+Check( "trickle read 1", t.Read( @buf(0), 4 ).ValueOr( -1 ) = 1 )
+Check( "trickle exact", t.ReadExact( @buf(0), 3 ).IsOk( ) andalso ( buf(0) = asc( "b" ) ) andalso ( buf(2) = asc( "d" ) ) )
+dim as fs.MemoryStream sink
+Check( "copy trickle", fs.Copy( t, sink ).ValueOr( -1 ) = 2 )
+Check( "copied", Text( sink ) = "ef" )
+dim as Trickle t2
+dim as fs.MemoryStream src = fs.MemoryStream( "xyz" )
+Check( "copy into trickle", fs.Copy( src, t2, 1 ).ValueOr( -1 ) = 3 )
+Check( "write all trickle", t2.WriteUtf8( "12" ).IsOk( ) )
+Check( "trickle got", Text( t2.inner ) = "xyz12" )
+dim as fs.FsResultI64 cb = fs.Copy( src, t2, 0 )
+Check( "copy bad size", ( cb.IsOk( ) = false ) andalso ( cb.Failure( ).Code( ) = fs.FS_INVALID_ARGUMENT ) andalso ( cb.Failure( ).Operation( ) = "Copy" ) )
+dim as fs.Stream ro
+dim as fs.FsResultI64 cf = fs.Copy( ro, sink )
+Check( "copy failure", ( cf.IsOk( ) = false ) andalso ( cf.Failure( ).Code( ) = fs.FS_UNSUPPORTED ) andalso ( cf.Failure( ).Operation( ) = "Copy" ) )
+
+'' -- ToUtf8Text and ReadAllText decode the same bytes the same way
+dim as ustring tmp = fs.CreateTempDir( ).ValueOr( "" )
+if len( tmp ) = 0 then print "no temp dir" : end 1
+dim as ustring f = fs.PathJoin( tmp, "t.txt" )
+
+dim as string corpus( 0 to 11 )
+corpus(0) = "plain ascii"
+corpus(1) = chr( &hEF, &hBB, &hBF ) & "bom " & chr( &hC3, &hB1 )
+corpus(2) = chr( &hFF, &hFE ) & chr( &h41, 0, &h3D, &hD8, &h00, &hDE, &h00, &hD8, &h42, 0 )
+corpus(3) = chr( &hFE, &hFF ) & chr( 0, &h41, &hD8, &h3D, &hDE, &h00, 0, &h42 )
+corpus(4) = chr( &hFF, &hFE ) & chr( &h41, 0, &h42 )
+corpus(5) = "a" & chr( &h80 ) & "b" & chr( &hE6, &h97 ) & "c" & chr( &hC0, &hAF ) & "d"
+corpus(6) = ""
+corpus(7) = chr( &hEF, &hBB, &hBF )
+corpus(8) = chr( &hFF, &hFE )
+corpus(9) = chr( &hF0, &h9F, &h98, &h80 ) & chr( &hED, &hA0, &h80 )
+corpus(10) = chr( &hFE )
+corpus(11) = "line1" & chr( 13, 10 ) & "line2" & chr( 10 )
+
+for i as integer = 0 to 11
+    dim as containers.Array( of ubyte ) bytes
+    for k as integer = 1 to len( corpus(i) )
+        bytes.Push( asc( corpus(i), k ) )
+    next
+    fs.WriteAllBytes( f, bytes )
+    dim as ustring fromFile = fs.ReadAllText( f ).ValueOr( "<err>" )
+    dim as fs.MemoryStream ms = fs.MemoryStream( bytes )
+    dim as ustring fromStream = ms.ToUtf8Text( )
+    Check( "decode " & i, ( len( fromFile ) = len( fromStream ) ) andalso ( fromFile = fromStream ) )
+next
+
+fs.RemoveDirAll( tmp )
+if fails = 0 then print "ok"

@@ -34,6 +34,8 @@
 
 '' Phase 7 -- RFC-0009
 
+'' Streams -- C:\dev\docs\tiko-fs\RFC-0001 section 5 (fsstream: Stream, MemoryStream, Copy)
+
 '' std/path's names, kept when std/path was folded into std/fs (RFC-0009 M30): each is the
 '' function it names, as an exported macro -- 'fs.JoinPath( a, b )' is 'fs.PathJoin( a, b )'.
 '' Exported macros are used qualified only: 'using fs' brings PathJoin, not JoinPath.
