@@ -1,0 +1,13 @@
+'' RUN: std/fs phase P1 -- the nine error codes appended after FS_UNKNOWN and their
+'' messages; WriteAtomic over the runtime's durable kernel (the caller's Rnd untouched, no
+'' temporary left on success or failure, the bytes overload); MoveFile refusing an existing
+'' destination with both files intact; ReplaceFile; TryExists; the "tiko" temp prefix.
+'' Needs the runtime of this commit (fb_UStrFsWriteAtomic, fb_UStrFsWriteAtomicText), so it
+'' passes only once the toolchain is repackaged (it links the packaged libfb.a).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/fs-p1.tiko -o tests/codegen/fsp1.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/fsp1.exe
+'' RUN: tests/codegen/fsp1.exe
+'' EXPECT-RUN-OUT: ok

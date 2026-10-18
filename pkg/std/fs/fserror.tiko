@@ -55,11 +55,11 @@ using outcome
 #endif
 
 
-'' A closed, portable enum: sixteen codes a program can plausibly BRANCH on.
+'' A closed, portable enum: the codes a program can plausibly BRANCH on.
 '' Everything else is FS_UNKNOWN plus a preserved native code.
 ''
-'' These values must equal the FB_FS_* constants in
-'' src/rtlib/fb_filesystem.h. fbc_tests.filesystem.error cross-checks every one
+'' These values must equal the FB_FS_* constants in tiko-rt's
+'' lib/rt/src/inc/fserror.ti. fbc_tests.filesystem.error cross-checks every one
 '' of them through fb_UStrFsErrorMessage, whose table is indexed by the C
 '' constant -- so a divergence shows up as a wrong message, not as silence.
 public enum FsErrorCode
@@ -80,6 +80,18 @@ public enum FsErrorCode
     FS_INTERRUPTED          '' a signal interrupted the call (POSIX EINTR)
     FS_UNSUPPORTED          '' the platform or filesystem cannot do this
     FS_UNKNOWN              '' mapped to nothing; OsCode( ) is the real answer
+
+    '' APPENDED AFTER FS_UNKNOWN (C:\dev\docs\tiko-fs\RFC-0001 section 4), so every
+    '' value above keeps the number a program may have stored.
+    FS_CLOSED               '' an operation on a file that is not open
+    FS_UNEXPECTED_EOF       '' the data ended before the amount asked for
+    FS_NOT_SEEKABLE         '' a seek or positional IO on a pipe, socket or terminal
+    FS_INVALID_DATA         '' text decoding met data it was told to reject
+    FS_TOO_LARGE            '' a size limit was exceeded
+    FS_WOULD_BLOCK          '' a non-blocking attempt found the lock held
+    FS_TOO_MANY_LINKS       '' the hard-link limit was reached
+    FS_BROKEN_PIPE          '' a write to a pipe with no reader
+    FS_INVALID_ARGUMENT     '' contradictory options, a negative offset, a zero size
 end enum
 
 FBFS_EXTERN

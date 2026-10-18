@@ -13,6 +13,7 @@ CreateTempFile( [ prefix ] )
 ## Notes
 
 - CREATES it and returns the path
+- `prefix` defaults to `"tiko"`.
 
 ## Examples
 

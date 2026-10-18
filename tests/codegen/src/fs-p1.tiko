@@ -1,0 +1,132 @@
+'' std/fs phase P1 (C:\dev\docs\tiko-fs\RFC-0001 sections 4 and 9): the nine appended error
+'' codes and their messages; WriteAtomic over the runtime kernel -- the caller's Rnd
+'' sequence untouched, no temporary left behind on success or failure, the bytes
+'' overload, and on Linux the target's permission bits kept; MoveFile refusing an
+'' existing destination; TryExists; and the "tiko" temp prefix. Inside a temporary
+'' directory, removed at the end.
+#import "std/fs"
+#import "std/containers"
+
+dim shared as integer fails = 0
+
+sub Check( byref what as string, byval ok as boolean )
+    if ok = false then
+        print "FAIL "; what
+        fails += 1
+    end if
+end sub
+
+function Entries( byref d as ustring ) as long
+    dim as containers.Array( of fs.DirEntry ) es
+    dim as fs.FsResultLong r = fs.ListDir( d, es )
+    if r.IsOk( ) = false then return -1
+    return r.Value( )
+end function
+
+'' -- the codes: appended after FS_UNKNOWN, so the old values do not move
+Check( "unknown still 16", cast( long, fs.FS_UNKNOWN ) = 16 )
+Check( "closed 17", cast( long, fs.FS_CLOSED ) = 17 )
+Check( "invalid argument 25", cast( long, fs.FS_INVALID_ARGUMENT ) = 25 )
+Check( "msg closed", fs.FsErrorMessage( fs.FS_CLOSED ) = "file is closed" )
+Check( "msg eof", fs.FsErrorMessage( fs.FS_UNEXPECTED_EOF ) = "unexpected end of data" )
+Check( "msg seek", fs.FsErrorMessage( fs.FS_NOT_SEEKABLE ) = "not seekable" )
+Check( "msg data", fs.FsErrorMessage( fs.FS_INVALID_DATA ) = "invalid data" )
+Check( "msg large", fs.FsErrorMessage( fs.FS_TOO_LARGE ) = "too large" )
+Check( "msg block", fs.FsErrorMessage( fs.FS_WOULD_BLOCK ) = "would block" )
+Check( "msg links", fs.FsErrorMessage( fs.FS_TOO_MANY_LINKS ) = "too many links" )
+Check( "msg pipe", fs.FsErrorMessage( fs.FS_BROKEN_PIPE ) = "broken pipe" )
+Check( "msg arg", fs.FsErrorMessage( fs.FS_INVALID_ARGUMENT ) = "invalid argument" )
+Check( "msg past end", fs.FsErrorMessage( cast( fs.FsErrorCode, 26 ) ) = "unknown error" )
+
+dim as ustring tmp = fs.CreateTempDir( ).ValueOr( "" )
+if len( tmp ) = 0 then print "no temp dir" : end 1
+
+'' -- the "tiko" default prefix
+Check( "temp dir prefix", left( fs.PathFileName( tmp ), 4 ) = "tiko" )
+dim as ustring tf = fs.CreateTempFile( ).ValueOr( "" )
+Check( "temp file prefix", left( fs.PathFileName( tf ), 4 ) = "tiko" )
+fs.RemoveFile( tf )
+
+dim as ustring work = fs.PathJoin( tmp, "w" )
+Check( "mkdir", fs.CreateDir( work ).IsOk( ) )
+dim as ustring cfg = fs.PathJoin( work, "cfg.txt" )
+
+'' -- WriteAtomic leaves the caller's random sequence alone
+randomize 42
+dim as double r1 = rnd( ), r2 = rnd( )
+randomize 42
+Check( "atomic new", fs.WriteAtomic( cfg, "one" ).IsOk( ) )
+Check( "atomic over", fs.WriteAtomic( cfg, "two" ).IsOk( ) )
+Check( "rnd untouched", ( rnd( ) = r1 ) andalso ( rnd( ) = r2 ) )
+Check( "atomic content", fs.ReadAllText( cfg ).ValueOr( "" ) = "two" )
+Check( "no temp left", Entries( work ) = 1 )
+
+'' -- the bytes overload: written as given, no encoding
+dim as containers.Array( of ubyte ) b
+b.Push( 0 ) : b.Push( 255 ) : b.Push( 10 )
+dim as ustring binf = fs.PathJoin( work, "b.binf" )
+Check( "atomic bytes", fs.WriteAtomic( binf, b ).IsOk( ) )
+dim as containers.Array( of ubyte ) back
+Check( "bytes back", fs.ReadAllBytes( binf, back ).ValueOr( -1 ) = 3 )
+if back.Count( ) = 3 then
+    Check( "bytes equal", ( back[0] = 0 ) andalso ( back[1] = 255 ) andalso ( back[2] = 10 ) )
+end if
+dim as containers.Array( of ubyte ) none
+Check( "atomic empty", fs.WriteAtomic( binf, none ).IsOk( ) )
+Check( "empty size", fs.Stat( binf ).Value( ).Size( ) = 0 )
+fs.RemoveFile( binf )
+
+'' -- failures report and leave nothing behind
+dim as fs.FsResultBool bad = fs.WriteAtomic( fs.PathJoin( work, "nodir", "x.txt" ), "z" )
+Check( "missing dir fails", bad.IsOk( ) = false )
+if bad.IsOk( ) = false then
+    Check( "missing dir code", bad.Failure( ).Code( ) = fs.FS_NOT_FOUND )
+    Check( "missing dir op", bad.Failure( ).Operation( ) = "WriteAtomic" )
+end if
+Check( "trailing separator", fs.WriteAtomic( work & fs.PathSeparator( ), "z" ).IsOk( ) = false )
+Check( "still one entry", Entries( work ) = 1 )
+
+#ifdef __FB_LINUX__
+    '' -- the target's permission bits survive the replace
+    Check( "chmod 600", fs.SetPosixMode( cfg, &o600 ).IsOk( ) )
+    Check( "atomic keeps", fs.WriteAtomic( cfg, "three" ).IsOk( ) )
+    Check( "mode kept", ( fs.GetPosixMode( cfg ).ValueOr( 0 ) and &o777 ) = &o600 )
+#endif
+
+'' -- MoveFile without overwrite refuses, and both files survive
+dim as ustring a = fs.PathJoin( work, "a.txt" ), d = fs.PathJoin( work, "d.txt" )
+fs.WriteAllText( a, "A" )
+fs.WriteAllText( d, "D" )
+dim as fs.FsResultBool mv = fs.MoveFile( a, d, false )
+Check( "move refused", mv.IsOk( ) = false )
+if mv.IsOk( ) = false then Check( "move code", mv.Failure( ).Code( ) = fs.FS_ALREADY_EXISTS )
+Check( "src intact", fs.ReadAllText( a ).ValueOr( "" ) = "A" )
+Check( "dst intact", fs.ReadAllText( d ).ValueOr( "" ) = "D" )
+fs.RemoveFile( d )
+Check( "move ok", fs.MoveFile( a, d, false ).IsOk( ) )
+Check( "moved", ( fs.Exists( a ) = false ) andalso ( fs.ReadAllText( d ).ValueOr( "" ) = "A" ) )
+fs.WriteAllText( a, "A2" )
+Check( "move overwrite", fs.MoveFile( a, d, true ).IsOk( ) )
+Check( "overwritten", fs.ReadAllText( d ).ValueOr( "" ) = "A2" )
+
+'' -- ReplaceFile still replaces
+dim as ustring rep = fs.PathJoin( work, "rep.txt" )
+fs.WriteAllText( rep, "R" )
+Check( "replace", fs.ReplaceFile( d, rep ).IsOk( ) )
+Check( "replaced", ( fs.ReadAllText( d ).ValueOr( "" ) = "R" ) andalso ( fs.Exists( rep ) = false ) )
+
+'' -- TryExists
+Check( "try yes", fs.TryExists( d ).ValueOr( false ) = true )
+dim as fs.FsResultBool te = fs.TryExists( fs.PathJoin( work, "absent" ) )
+Check( "try no", te.IsOk( ) andalso ( te.Value( ) = false ) )
+te = fs.TryExists( fs.PathJoin( d, "below-a-file" ) )
+Check( "try under file", te.IsOk( ) andalso ( te.Value( ) = false ) )
+#ifdef __FB_LINUX__
+    dim as ustring dang = fs.PathJoin( work, "dangling" )
+    Check( "symlink", fs.CreateSymlink( fs.PathJoin( work, "gone" ), dang ).IsOk( ) )
+    te = fs.TryExists( dang )
+    Check( "try dangling", te.IsOk( ) andalso ( te.Value( ) = false ) )
+#endif
+
+fs.RemoveDirAll( tmp )
+if fails = 0 then print "ok"

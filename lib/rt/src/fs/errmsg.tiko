@@ -46,7 +46,16 @@ dim shared as zstring ptr hFsMessages( 0 to FB_FS_CODE_MAX ) = { _
 	@"cross-device link", _
 	@"interrupted", _
 	@"unsupported", _
-	@"unknown error" _
+	@"unknown error", _
+	@"file is closed", _
+	@"unexpected end of data", _
+	@"not seekable", _
+	@"invalid data", _
+	@"too large", _
+	@"would block", _
+	@"too many links", _
+	@"broken pipe", _
+	@"invalid argument" _
 }
 
 extern "rtlib"

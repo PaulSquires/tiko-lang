@@ -5,7 +5,8 @@
 ## Syntax
 
 ```freebasic
-WriteAtomic( p, s )
+WriteAtomic( p, s )        '' text, written as UTF-8
+WriteAtomic( p, bytes )    '' Array( of ubyte ), written as given
 ```
 
 ## Examples
@@ -22,9 +23,10 @@ dim as ustring dir_ = td.Value( )
 dim as ustring p = PathJoin( dir_, "config.txt" )
 WriteAllText( p, "old" )
 
-'' Writes to a TEMPORARY FILE beside the target and renames it into
-'' place, so a reader sees either the whole old file or the whole new
-'' one -- never a half-written one, even if the process dies mid-write
+'' Writes to a TEMPORARY FILE beside the target, flushes it to the disk
+'' and renames it into place, so a reader sees either the whole old file
+'' or the whole new one -- never a half-written one -- and once it
+'' returns Ok the new contents survive a power cut
 print WriteAtomic( p, "new" ).IsOk( )    '' true
 print ReadAllText( p ).Value( )          '' new
 

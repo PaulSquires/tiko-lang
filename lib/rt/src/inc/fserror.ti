@@ -23,4 +23,16 @@ const FB_FS_CROSS_DEVICE    = 13
 const FB_FS_INTERRUPTED     = 14
 const FB_FS_UNSUPPORTED     = 15
 const FB_FS_UNKNOWN         = 16
-const FB_FS_CODE_MAX        = FB_FS_UNKNOWN
+
+'' APPENDED, never inserted (C:\dev\docs\tiko-fs\RFC-0001 section 4): every value above
+'' stays what it was, so a stored code and the message table's order both survive.
+const FB_FS_CLOSED           = 17
+const FB_FS_UNEXPECTED_EOF   = 18
+const FB_FS_NOT_SEEKABLE     = 19
+const FB_FS_INVALID_DATA     = 20
+const FB_FS_TOO_LARGE        = 21
+const FB_FS_WOULD_BLOCK      = 22
+const FB_FS_TOO_MANY_LINKS   = 23
+const FB_FS_BROKEN_PIPE      = 24
+const FB_FS_INVALID_ARGUMENT = 25
+const FB_FS_CODE_MAX         = FB_FS_INVALID_ARGUMENT

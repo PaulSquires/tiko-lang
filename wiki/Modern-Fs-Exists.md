@@ -30,7 +30,7 @@ print Exists( dir_ )         '' true -- directories too
 print Exists( PathJoin( dir_, "nope" ) )         '' false
 
 '' A boolean, not a Result: "I could not tell" and "it is not there"
-'' are the same answer to this question. Stat is the one that
+'' are the same answer to this question. TryExists is the one that
 '' distinguishes them.
 
 RemoveDirAll( dir_ )

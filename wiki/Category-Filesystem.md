@@ -93,7 +93,7 @@ There is no `?` operator and no must-use diagnostic, so ignoring a Result stays 
 
 ### FsErrorCode
 
-Sixteen codes plus FS_OK, closed on purpose:
+Twenty-five codes plus FS_OK, closed on purpose:
 
 ```text
 FS_OK                (never appears inside a failure)
@@ -113,7 +113,18 @@ FS_CROSS_DEVICE      rename across volumes
 FS_INTERRUPTED       a signal interrupted the call (POSIX EINTR)
 FS_UNSUPPORTED       the platform or filesystem cannot do this AT ALL
 FS_UNKNOWN           mapped to nothing; OsCode( ) is the real answer
+FS_CLOSED            an operation on a file that is not open
+FS_UNEXPECTED_EOF    the data ended before the amount asked for
+FS_NOT_SEEKABLE      a seek or positional IO on a pipe, socket or terminal
+FS_INVALID_DATA      text decoding met data it was told to reject
+FS_TOO_LARGE         a size limit was exceeded
+FS_WOULD_BLOCK       a non-blocking attempt found the lock held
+FS_TOO_MANY_LINKS    the hard-link limit was reached
+FS_BROKEN_PIPE       a write to a pipe with no reader
+FS_INVALID_ARGUMENT  contradictory options, a negative offset, a zero size
 ```
+
+The codes after FS_UNKNOWN were added later and appended, so every code keeps its number.
 
 **FS_UNSUPPORTED means this will never work here**, as distinct from FS_ACCESS_DENIED, which means try again with more privilege. A caller can branch on it once at startup instead of treating it as transient.
 
@@ -259,11 +270,12 @@ LStat( p )      FsResultInfo -- does NOT follow
 Exists( p )     boolean
 IsFile( p )     boolean -- follows links
 IsDir( p )      boolean -- follows links
+TryExists( p )  FsResultBool -- follows links; fails when it cannot tell
 ```
 
 **Absence is an error, not an empty success.** Stat and LStat fail with FS_NOT_FOUND, so FS_NOT_FOUND and FS_ACCESS_DENIED stay distinguishable. That is the whole argument for Result over Optional here.
 
-**The three predicates collapse every failure to false.** Exists( p ) is false when p is absent and also when the directory above it denies access. That is a real loss of information and it is deliberate -- it is what makes them usable in an IF. Call Stat when you need the distinction.
+**The three predicates collapse every failure to false.** Exists( p ) is false when p is absent and also when the directory above it denies access. That is a real loss of information and it is deliberate -- it is what makes them usable in an IF. So false means "could not confirm", not "does not exist". Call TryExists when you need the distinction: Ok( true ) when p is there, Ok( false ) only when it is absent (or a component of the path is a file), and a failure -- FS_ACCESS_DENIED, FS_LOOP -- when the answer is unknown. A dangling symbolic link is Ok( false ).
 
 There is deliberately no IsSymlink( p ) predicate: the answer depends on whether you followed, a two-valued result cannot say which it did, and LStat( p ) is one line away.
 
@@ -462,14 +474,15 @@ RemoveFile( p )
 ```text
 ReplaceFile( target, replacement )
 WriteAtomic( p, s )
+WriteAtomic( p, bytes )          Array( of ubyte ), written as given
 ```
 
 ### Temporary Files
 
 ```text
 TempDir( )                       the system temp directory; creates nothing
-CreateTempFile( [ prefix ] )     CREATES it and returns the path
-CreateTempDir( [ prefix ] )      CREATES it and returns the path
+CreateTempFile( [ prefix ] )     CREATES it and returns the path; prefix defaults to "tiko"
+CreateTempDir( [ prefix ] )      CREATES it and returns the path; prefix defaults to "tiko"
 ```
 
 ### Text Encoding
@@ -512,6 +525,8 @@ CopyOptions          default
 
 ### MoveFile
 
+**Without overwrite, MoveFile refuses an existing destination atomically** wherever the system can: Windows refuses in the rename itself, and Linux uses renameat2 with RENAME_NOREPLACE, or link-then-unlink on a filesystem without it. Only on a filesystem that supports neither (vfat, exFAT) does it fall back to checking first and renaming after, which is not atomic.
+
 **MoveFile handles FS_CROSS_DEVICE.** On a cross-volume rename it copies, then deletes. If the delete then fails, the copy is not rolled back: the call reports the delete's error and the destination exists. Losing the destination to tidy up after a partial failure is worse than leaving both. The fallback is not atomic, and no API on either platform can make it so.
 
 ### WriteAtomic
@@ -522,9 +537,11 @@ What it actually guarantees, because the word is routinely oversold:
 | --- | --- |
 | a reader sees the old file or the new one, never a partial | **yes** |
 | survives a crash mid-call | **yes** |
-| survives power loss without an explicit directory sync | **no** |
+| the new contents survive power loss once it returns Ok | **yes** |
 
-It writes to a temporary in the same directory as the target -- not the system temp directory, which is often on another volume and would destroy the atomicity -- flushes it, then replaces. The temporary is cleaned up on every failure path.
+It writes a temporary in the same directory as the target -- not the system temp directory, which is often on another volume and would destroy the atomicity -- named from the platform CSPRNG and created exclusively. It flushes the temporary to the disk, renames it over the target write-through, and on POSIX syncs the directory too. The temporary takes the target's permission bits on POSIX, so a 0600 file stays 0600. It never touches RND, so a seeded program's random sequence is unchanged. The temporary is removed on every failure path.
+
+The durability costs a synchronous flush or two per call. That is the price of the name: a replace that can leave an empty file after a power cut protects nothing.
 
 ### CreateTempFile And CreateTempDir
 
@@ -907,18 +924,18 @@ One page per entry, 139 in all:
 | [Exists](Modern-Fs-Exists) | [MatchPattern](Modern-Fs-MatchPattern) | [SetWin32Attributes](Modern-Fs-SetWin32Attributes) |
 | [FileInfo.AbsolutePath](Modern-Fs-FileInfo-AbsolutePath) | [MemoryMappedFile.Close](Modern-Fs-MemoryMappedFile-Close) | [Stat](Modern-Fs-Stat) |
 | [FileInfo.AccessedUtc](Modern-Fs-FileInfo-AccessedUtc) | [MemoryMappedFile.Data](Modern-Fs-MemoryMappedFile-Data) | [TempDir](Modern-Fs-TempDir) |
-| [FileInfo.CanonicalPath](Modern-Fs-FileInfo-CanonicalPath) | [MemoryMappedFile.Flush](Modern-Fs-MemoryMappedFile-Flush) | [VolumeInfo.FileSystem](Modern-Fs-VolumeInfo-FileSystem) |
-| [FileInfo.CreatedUtc](Modern-Fs-FileInfo-CreatedUtc) | [MemoryMappedFile.IsOpen](Modern-Fs-MemoryMappedFile-IsOpen) | [VolumeInfo.IsCaseSensitive](Modern-Fs-VolumeInfo-IsCaseSensitive) |
-| [FileInfo.CurrentDir](Modern-Fs-FileInfo-CurrentDir) | [MemoryMappedFile.Open](Modern-Fs-MemoryMappedFile-Open) | [VolumeInfo.IsReadOnly](Modern-Fs-VolumeInfo-IsReadOnly) |
-| [FileInfo.Exists](Modern-Fs-FileInfo-Exists) | [MemoryMappedFile.Size](Modern-Fs-MemoryMappedFile-Size) | [VolumeInfo.MaxComponentLen](Modern-Fs-VolumeInfo-MaxComponentLen) |
-| [FileInfo.HasAccessed](Modern-Fs-FileInfo-HasAccessed) | [MoveFile](Modern-Fs-MoveFile) | [VolumeInfo.Name](Modern-Fs-VolumeInfo-Name) |
-| [FileInfo.HasCreated](Modern-Fs-FileInfo-HasCreated) | [NativeAttributes](Modern-Fs-NativeAttributes) | [VolumeInfo.RootPath](Modern-Fs-VolumeInfo-RootPath) |
-| [FileInfo.IsDirectory](Modern-Fs-FileInfo-IsDirectory) | [Overwrite](Modern-Fs-Overwrite) | [VolumeInfo.SupportsLinks](Modern-Fs-VolumeInfo-SupportsLinks) |
-| [FileInfo.IsFile](Modern-Fs-FileInfo-IsFile) | [PathChangeExtension](Modern-Fs-PathChangeExtension) | [WalkDir](Modern-Fs-WalkDir) |
-| [FileInfo.IsHidden](Modern-Fs-FileInfo-IsHidden) | [PathEquals](Modern-Fs-PathEquals) | [WriteAllBytes](Modern-Fs-WriteAllBytes) |
-| [FileInfo.IsOther](Modern-Fs-FileInfo-IsOther) | [PathExtension](Modern-Fs-PathExtension) | [WriteAllText](Modern-Fs-WriteAllText) |
-| [FileInfo.IsReadOnly](Modern-Fs-FileInfo-IsReadOnly) | [PathFileName](Modern-Fs-PathFileName) | [WriteAtomic](Modern-Fs-WriteAtomic) |
-| [FileInfo.IsSymlink](Modern-Fs-FileInfo-IsSymlink) | [PathHasExtension](Modern-Fs-PathHasExtension) |  |
+| [FileInfo.CanonicalPath](Modern-Fs-FileInfo-CanonicalPath) | [MemoryMappedFile.Flush](Modern-Fs-MemoryMappedFile-Flush) | [TryExists](Modern-Fs-TryExists) |
+| [FileInfo.CreatedUtc](Modern-Fs-FileInfo-CreatedUtc) | [MemoryMappedFile.IsOpen](Modern-Fs-MemoryMappedFile-IsOpen) | [VolumeInfo.FileSystem](Modern-Fs-VolumeInfo-FileSystem) |
+| [FileInfo.CurrentDir](Modern-Fs-FileInfo-CurrentDir) | [MemoryMappedFile.Open](Modern-Fs-MemoryMappedFile-Open) | [VolumeInfo.IsCaseSensitive](Modern-Fs-VolumeInfo-IsCaseSensitive) |
+| [FileInfo.Exists](Modern-Fs-FileInfo-Exists) | [MemoryMappedFile.Size](Modern-Fs-MemoryMappedFile-Size) | [VolumeInfo.IsReadOnly](Modern-Fs-VolumeInfo-IsReadOnly) |
+| [FileInfo.HasAccessed](Modern-Fs-FileInfo-HasAccessed) | [MoveFile](Modern-Fs-MoveFile) | [VolumeInfo.MaxComponentLen](Modern-Fs-VolumeInfo-MaxComponentLen) |
+| [FileInfo.HasCreated](Modern-Fs-FileInfo-HasCreated) | [NativeAttributes](Modern-Fs-NativeAttributes) | [VolumeInfo.Name](Modern-Fs-VolumeInfo-Name) |
+| [FileInfo.IsDirectory](Modern-Fs-FileInfo-IsDirectory) | [Overwrite](Modern-Fs-Overwrite) | [VolumeInfo.RootPath](Modern-Fs-VolumeInfo-RootPath) |
+| [FileInfo.IsFile](Modern-Fs-FileInfo-IsFile) | [PathChangeExtension](Modern-Fs-PathChangeExtension) | [VolumeInfo.SupportsLinks](Modern-Fs-VolumeInfo-SupportsLinks) |
+| [FileInfo.IsHidden](Modern-Fs-FileInfo-IsHidden) | [PathEquals](Modern-Fs-PathEquals) | [WalkDir](Modern-Fs-WalkDir) |
+| [FileInfo.IsOther](Modern-Fs-FileInfo-IsOther) | [PathExtension](Modern-Fs-PathExtension) | [WriteAllBytes](Modern-Fs-WriteAllBytes) |
+| [FileInfo.IsReadOnly](Modern-Fs-FileInfo-IsReadOnly) | [PathFileName](Modern-Fs-PathFileName) | [WriteAllText](Modern-Fs-WriteAllText) |
+| [FileInfo.IsSymlink](Modern-Fs-FileInfo-IsSymlink) | [PathHasExtension](Modern-Fs-PathHasExtension) | [WriteAtomic](Modern-Fs-WriteAtomic) |
 | [FileInfo.ModifiedUtc](Modern-Fs-FileInfo-ModifiedUtc) | [PathIsAbsolute](Modern-Fs-PathIsAbsolute) |  |
 
 ---

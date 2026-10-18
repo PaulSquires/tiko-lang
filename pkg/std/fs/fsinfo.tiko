@@ -229,7 +229,8 @@ end function
 '' These COLLAPSE EVERY FAILURE TO FALSE. Exists( p ) is false when p is absent
 '' and also when the directory above it denies access. That is a real loss of
 '' information and it is deliberate: it is what makes the predicate usable in an
-'' IF. A caller who needs the distinction calls Stat.
+'' IF. So FALSE MEANS "COULD NOT CONFIRM", not "does not exist". A caller who needs
+'' the distinction calls TryExists, below, or Stat.
 ''
 '' IsFile and IsDir FOLLOW LINKS, matching Stat, so IsDir( linkToDir ) is true.
 ''
@@ -256,6 +257,27 @@ public function IsDir( byref p as const ustring ) as boolean
     dim as FileInfo fi
     if( FsStatRaw( p, 1, @fi ) <> FS_OK ) then return FALSE
     return fi.IsDirectory( )
+end function
+
+'' TryExists: Exists that can say "I don't know" (C:\dev\docs\tiko-fs\RFC-0001
+'' section 9.4, defect D4) -- Rust's fs::exists. Ok( TRUE ) when the stat succeeds;
+'' Ok( FALSE ) only when the answer really is "absent": NOT_FOUND, or NOT_A_DIRECTORY
+'' (a component of the path is a file, so nothing can be below it); every other
+'' failure -- access denied, a link loop, an IO error -- is returned as the failure it
+'' is. Follows links, as Exists does, so a dangling link is Ok( FALSE ).
+public declare function TryExists overload ( byref p as const ustring ) as FsResultBool
+
+public function TryExists( byref p as const ustring ) as FsResultBool
+    dim as FileInfo fi
+    dim as long r = FsStatRaw( p, 1, @fi )
+
+    if( r = FS_OK ) then return Ok( of boolean, FsError )( TRUE )
+
+    if( ( r = FS_NOT_FOUND ) orelse ( r = FS_NOT_A_DIRECTORY ) ) then
+        return Ok( of boolean, FsError )( FALSE )
+    end if
+
+    return FsFail( of boolean )( cast( FsErrorCode, r ), "TryExists", p )
 end function
 
 '' ------------------------------------------------------------------ resolvers

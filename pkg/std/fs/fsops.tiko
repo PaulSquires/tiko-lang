@@ -77,6 +77,10 @@ FBFSOPS_EXTERN
     declare function FsReplaceFileRaw alias "fb_UStrFsReplaceFile" _
         ( byref target as const ustring, byref replacement as const ustring ) as long
 
+    '' The platform CSPRNG -- the one CreateTempFile names its files with.
+    declare function FsRandomBytesRaw alias "fb_FsRandomBytes" _
+        ( byval buf as ubyte ptr, byval n as long ) as long
+
     declare function FsTempDirRaw alias "fb_UStrFsTempDir" ( byref status as long ) as ustring
 
     declare function FsCreateTempFileRaw alias "fb_UStrFsCreateTempFile" _
@@ -502,7 +506,11 @@ end function
 
 public declare function ReplaceFile overload ( byref target as const ustring, byref replacement as const ustring ) as FsResultBool
 public declare function WriteAtomic overload ( byref p as const ustring, byref s as const ustring ) as FsResultBool
+public declare function WriteAtomic overload ( byref p as const ustring, buf as Array( of ubyte ) ) as FsResultBool
 
+'' The rename is durable when this returns -- MOVEFILE_WRITE_THROUGH on Windows, a
+'' directory fsync on POSIX -- but the REPLACEMENT's content is not synced here: this
+'' call never wrote it. A caller that wrote it syncs it first, as WriteAtomic does.
 public function ReplaceFile( byref target as const ustring, byref replacement as const ustring ) as FsResultBool
     dim as long r = FsReplaceFileRaw( target, replacement )
 
@@ -513,46 +521,87 @@ public function ReplaceFile( byref target as const ustring, byref replacement as
     return Ok( of boolean, FsError )( TRUE )
 end function
 
-'' Writes to a uniquely-named temporary IN THE SAME DIRECTORY AS p -- not in
-'' the system temp directory, which is frequently on another volume and would
-'' turn the final step into a cross-volume copy and destroy the atomicity --
-'' then replaces.
+'' WHAT "ATOMIC" BUYS (C:\dev\docs\tiko-fs\RFC-0001 section 9.1): a reader sees the old
+'' file or the new one, never a partial -- AND, once this returns Ok, the new
+'' contents survive power loss.
 ''
-'' WHAT "ATOMIC" ACTUALLY BUYS, because the word is routinely oversold: a
-'' reader sees the old file or the new one, never a partial, and that survives
-'' a crash mid-call. It does NOT survive power loss without an explicit
-'' directory sync, which this deliberately does not do: it costs a synchronous
-'' IO on every call, and this function's contract is "readers never see a
-'' partial file", not "the write survives a power cut".
+''   1. A temporary BESIDE p -- never in the system temp directory, which may be
+''      another volume and would turn the rename into a copy -- named
+''      .<name>.<16 hex digits>.tmp from the CSPRNG. Rnd is never touched: the
+''      caller's random sequence is the caller's.
+''   2. Written through fb_UStrFsWriteWhole's mode 2 (FS_WHOLE_NEW_SYNCED): created
+''      EXCLUSIVELY, so the create is the existence check and a collision is
+''      retried (64 times at most); every byte written, flushed to the disk, closed
+''      -- each step checked.
+''   3. On POSIX it takes p's permission bits, so a 0600 file stays 0600. On
+''      Windows ReplaceFileW carries the attributes and ACL over.
+''   4. ReplaceFile: renamed over p, write-through on Windows, the directory synced
+''      after on POSIX.
+''   5. Any failure before the rename removes the temporary.
 ''
-'' The temporary is cleaned up on every failure path.
-public function WriteAtomic( byref p as const ustring, byref s as const ustring ) as FsResultBool
-    dim as ustring dir = PathParent( p )
-    if( len( dir ) = 0 ) then dir = "."
+'' The durability costs a synchronous flush or two per call. That is the price of
+'' the name: an "atomic" write that can leave an EMPTY file after a crash -- which a
+'' rename without a prior fsync can, on ext4 and XFS -- protects nothing.
+''
+'' ONLY EXISTING RUNTIME ENTRY POINTS ARE CALLED, ON PURPOSE. std/fs is compiled into
+'' tiko itself, which links the SEED's runtime; a new tiko-rt symbol here would stop
+'' the pinned seed building the tree. A runtime that predates mode 2 reads it as
+'' "append", which still creates and writes the temporary -- without the exclusive
+'' create and the flush, i.e. the old guarantee -- until the toolchain is repackaged.
+const FS_WHOLE_NEW_SYNCED = 2
 
-    '' Unique within the destination directory. CreateTempFile cannot be used
-    '' here: it creates in the SYSTEM temp directory, which is the volume
-    '' this function must avoid.
+private function hAtomicTempName( byref p as const ustring ) as ustring
+    dim as ubyte rb( 0 to 7 )
+    dim as string hx
+
+    if( FsRandomBytesRaw( @rb(0), 8 ) <> FS_OK ) then return ""
+
+    for i as long = 0 to 7
+        hx &= lcase( hex( rb(i), 2 ) )
+    next
+
+    dim as ustring parent = PathParent( p )
+    dim as ustring nm = "." & PathFileName( p ) & "." & hx & ".tmp"
+    if( len( parent ) = 0 ) then return nm
+    return PathJoin( parent, nm )
+end function
+
+'' The one sequence behind both overloads: `isText` picks the writer.
+private function hWriteAtomic( byref p as const ustring, byref s as const ustring, byval d as const ubyte ptr, byval n as longint, byval isText as boolean ) as FsResultBool
+    if( len( PathFileName( p ) ) = 0 ) then
+        return FsFail( of boolean )( FS_IS_A_DIRECTORY, "WriteAtomic", p )
+    end if
+
     dim as ustring tmp
-    dim as long attempt = 0
+    dim as long r = FS_ALREADY_EXISTS
 
-    do
-        tmp = PathJoin( dir, ".fbtmp" & hex( cast( ulongint, rnd( ) * 4294967295 ) ) & hex( attempt ) )
-        if( Exists( tmp ) = FALSE ) then exit do
-        attempt += 1
-    loop while( attempt < 64 )
+    for attempt as long = 1 to 64
+        tmp = hAtomicTempName( p )
+        if( len( tmp ) = 0 ) then
+            return FsFail( of boolean )( FS_UNSUPPORTED, "WriteAtomic", p )
+        end if
 
-    if( attempt >= 64 ) then
-        return FsFail( of boolean )( FS_ALREADY_EXISTS, "WriteAtomic", p )
+        if( isText ) then
+            r = FsWriteAllTextRaw( tmp, s, FS_WHOLE_NEW_SYNCED )
+        else
+            r = FsWriteWholeRaw( tmp, d, n, FS_WHOLE_NEW_SYNCED )
+        end if
+
+        if( r <> FS_ALREADY_EXISTS ) then exit for
+    next
+
+    if( r <> FS_OK ) then
+        '' ALREADY_EXISTS on the last attempt is somebody else's file: leave it
+        if( r <> FS_ALREADY_EXISTS ) then FsRemoveFileRaw( tmp )
+        return FsFail( of boolean )( cast( FsErrorCode, r ), "WriteAtomic", p )
     end if
 
-    dim as FsResultBool w = WriteAllText( tmp, s )
-    if( w.IsOk( ) = FALSE ) then
-        FsRemoveFileRaw( tmp )
-        return w
-    end if
+    #ifndef __FB_WIN32__
+        var mode_ = GetPosixMode( p )
+        if( mode_.IsOk( ) ) then SetPosixMode( tmp, mode_.Value( ) and &o7777 )
+    #endif
 
-    dim as long r = FsReplaceFileRaw( p, tmp )
+    r = FsReplaceFileRaw( p, tmp )
     if( r <> FS_OK ) then
         FsRemoveFileRaw( tmp )
         return FsFail( of boolean )( cast( FsErrorCode, r ), "WriteAtomic", p )
@@ -561,11 +610,36 @@ public function WriteAtomic( byref p as const ustring, byref s as const ustring 
     return Ok( of boolean, FsError )( TRUE )
 end function
 
+public function WriteAtomic( byref p as const ustring, byref s as const ustring ) as FsResultBool
+    return hWriteAtomic( p, s, nullptr, 0, TRUE )
+end function
+
+'' The same sequence over bytes, written as they are -- no encoding, no BOM.
+public function WriteAtomic( byref p as const ustring, buf as Array( of ubyte ) ) as FsResultBool
+    dim as long n = buf.Count( )
+    dim as ubyte ptr tmp = nullptr
+
+    if( n > 0 ) then
+        tmp = callocate( n, sizeof( ubyte ) )
+        if( tmp = nullptr ) then
+            return FsFail( of boolean )( FS_NO_SPACE, "WriteAtomic", p )
+        end if
+        for i as long = 0 to n - 1
+            tmp[i] = buf[i]
+        next
+    end if
+
+    dim as FsResultBool r = hWriteAtomic( p, "", tmp, n, FALSE )
+
+    if( tmp <> nullptr ) then deallocate( tmp )
+    return r
+end function
+
 '' ------------------------------------------------------------------- temp
 
 public declare function TempDir overload ( ) as FsResultUStr
-public declare function CreateTempFile overload ( byref prefix as const ustring = "fb" ) as FsResultUStr
-public declare function CreateTempDir overload ( byref prefix as const ustring = "fb" ) as FsResultUStr
+public declare function CreateTempFile overload ( byref prefix as const ustring = "tiko" ) as FsResultUStr
+public declare function CreateTempDir overload ( byref prefix as const ustring = "tiko" ) as FsResultUStr
 
 public function TempDir( ) as FsResultUStr
     dim as long status = FS_OK
@@ -584,10 +658,13 @@ end function
 '' opportunity. Creation is atomic (CREATE_NEW / O_EXCL) and the name comes
 '' from the platform CSPRNG, never from Rnd.
 ''
-'' NEITHER IS DELETED AUTOMATICALLY. FreeBASIC has no scope guard that would
-'' make that reliable, and a temp file that vanished when a variable went out
-'' of scope would be a surprise in a language with no defer. RemoveDirAll is
-'' there for the directory case.
+'' NEITHER IS DELETED AUTOMATICALLY, by decision (C:\dev\docs\tiko-fs\RFC-0001, F12):
+'' cleanup is the caller's, and `defer fs.RemoveFile( path )` says so where it
+'' happens. A file that vanished when a variable went out of scope would be a
+'' surprise. RemoveDirAll is there for the directory case.
+''
+'' THE DEFAULT PREFIX IS "tiko" (it was "fb" until RFC-0001, F14). Only the name
+'' changes; a program that looked for its leftovers by the old prefix passes "fb".
 public function CreateTempFile( byref prefix as const ustring ) as FsResultUStr
     dim as long status = FS_OK
     dim as ustring r = FsCreateTempFileRaw( prefix, status )

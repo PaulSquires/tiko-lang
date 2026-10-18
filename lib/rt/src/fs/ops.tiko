@@ -73,6 +73,21 @@ private function hHexDigit( byval v as int32 ) as int32
 	return 97 + (v - 10)
 end function
 
+'' fb_UStrFsWriteWhole's last argument. It was a boolean (append or not) and stays
+'' ABI-compatible: 0 and 1 mean what they always did, and 2 is WriteAtomic's
+'' temporary (C:\dev\docs\tiko-fs\RFC-0001 section 9.1) -- created EXCLUSIVELY, so the
+'' create is the existence check, and flushed to the disk before it is closed, with
+'' the close checked too. A runtime older than mode 2 reads it as "append": the file
+'' is still created and written, just not exclusively and not flushed -- the old
+'' WriteAtomic's guarantee rather than a failure.
+''
+'' WHY A MODE AND NOT A NEW ENTRY POINT: std/fs is compiled into tiko itself, which
+'' links the SEED's runtime. A std/fs that called a symbol only this runtime has
+'' would stop the pinned seed building the tree.
+const WHOLE_TRUNCATE_   = 0
+const WHOLE_APPEND_     = 1
+const WHOLE_NEW_SYNCED_ = 2
+
 #if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
 
 '' ---------------------------------------------------------- Windows backend
@@ -94,6 +109,7 @@ const FILE_ATTRIBUTE_READONLY_ = &h00000001ul
 const FILE_ATTRIBUTE_DIRECTORY_ = &h00000010ul
 const FILE_END_                = 2
 const MOVEFILE_REPLACE_EXISTING_    = &h00000001ul
+const MOVEFILE_WRITE_THROUGH_       = &h00000008ul
 const REPLACEFILE_IGNORE_MERGE_ERRORS_ = &h00000002ul
 
 '' The largest single ReadFile/WriteFile request. A DWORD would take 4 GB, but
@@ -129,6 +145,7 @@ extern "c"   '' NON-FBCALL: kernel32 and advapi32 imports, not rtlib entry point
 	declare function w_GetTempPathW stdcall alias "GetTempPathW" ( byval cap as uint32, byval buf as wstring ptr ) as uint32
 	declare function w_LoadLibraryW stdcall alias "LoadLibraryW" ( byval n as wstring ptr ) as any ptr
 	declare function w_GetProcAddress stdcall alias "GetProcAddress" ( byval h as any ptr, byval n as zstring ptr ) as any ptr
+	declare function w_FlushFileBuffers stdcall alias "FlushFileBuffers" ( byval h as any ptr ) as int32
 end extern
 
 type RTLGENRANDOM as function stdcall ( byval buf as any ptr, byval n as uint32 ) as uint8
@@ -260,14 +277,21 @@ function tkort_UStrFsWriteWhole alias "fb_UStrFsWriteWhole" _
 	w = hFsWide( p )
 	if( w = nullptr ) then return FB_FS_UNKNOWN
 
-	h = w_CreateFileW( w, iif( append_ <> 0, FILE_APPEND_DATA_, GENERIC_WRITE_ ), _
-		FILE_SHARE_READ_, nullptr, iif( append_ <> 0, OPEN_ALWAYS_, CREATE_ALWAYS_ ), _
-		FILE_ATTRIBUTE_NORMAL_, nullptr )
+	dim as boolean synced = ( append_ = WHOLE_NEW_SYNCED_ )
+	dim as boolean appending = ( append_ <> WHOLE_TRUNCATE_ ) andalso ( synced = FALSE )
+
+	if( synced ) then
+		h = w_CreateFileW( w, GENERIC_WRITE_, 0, nullptr, CREATE_NEW_, FILE_ATTRIBUTE_NORMAL_, nullptr )
+	else
+		h = w_CreateFileW( w, iif( appending, FILE_APPEND_DATA_, GENERIC_WRITE_ ), _
+			FILE_SHARE_READ_, nullptr, iif( appending, OPEN_ALWAYS_, CREATE_ALWAYS_ ), _
+			FILE_ATTRIBUTE_NORMAL_, nullptr )
+	end if
 	free( w )
 
 	if( cast( integer, h ) = INVALID_HANDLE_VALUE_ ) then return tkrt_FsMapOsError( )
 
-	if( append_ <> 0 ) then w_SetFilePointer( h, 0, nullptr, FILE_END_ )
+	if( appending ) then w_SetFilePointer( h, 0, nullptr, FILE_END_ )
 
 	while( done < len_ )
 		dim as int64 left_ = len_ - done
@@ -282,6 +306,16 @@ function tkort_UStrFsWriteWhole alias "fb_UStrFsWriteWhole" _
 
 		done += wrote
 	wend
+
+	if( synced ) then
+		if( w_FlushFileBuffers( h ) = 0 ) then
+			e = tkrt_FsMapOsError( )
+			w_CloseHandle( h )
+			return e
+		end if
+		if( w_CloseHandle( h ) = 0 ) then return tkrt_FsMapOsError( )
+		return FB_FS_OK
+	end if
 
 	w_CloseHandle( h )
 	return FB_FS_OK
@@ -385,14 +419,31 @@ function tkort_UStrFsMoveFile alias "fb_UStrFsMoveFile" _
 end function
 
 '' ReplaceFileW, falling back to MoveFileExW. Guarantees a reader sees the old
-'' or the new content and never a partial file; does NOT guarantee survival of
-'' power loss -- WriteAtomic flushes the temp before calling this, and the
-'' stronger durability guarantee is explicitly not on offer.
+'' or the new content and never a partial file. The fallback is WRITE-THROUGH: the
+'' rename is on disk when it returns (C:\dev\docs\tiko-fs\RFC-0001 section 9.1).
+'' ReplaceFileW has no working equivalent -- REPLACEFILE_WRITE_THROUGH is
+'' documented as unsupported -- so a caller that needs the CONTENT to survive
+'' power loss syncs the replacement before calling, as WriteAtomic does.
+private function hReplaceWide( byval wt as wstring ptr, byval wr as wstring ptr ) as int32
+	if( w_ReplaceFileW( wt, wr, nullptr, REPLACEFILE_IGNORE_MERGE_ERRORS_, nullptr, nullptr ) <> 0 ) then
+		return FB_FS_OK
+	end if
+
+	'' ReplaceFileW requires the target to exist. For a first write it does
+	'' not, and a plain replacing rename is then both correct and equally
+	'' atomic.
+	if( w_MoveFileExW( wr, wt, MOVEFILE_REPLACE_EXISTING_ or MOVEFILE_WRITE_THROUGH_ ) = 0 ) then
+		return tkrt_FsMapOsError( )
+	end if
+
+	return FB_FS_OK
+end function
+
 function tkort_UStrFsReplaceFile alias "fb_UStrFsReplaceFile" _
 	( byval target as FBUSTRING ptr, byval replacement as FBUSTRING ptr ) as int32
 
 	dim as wstring ptr wt = any, wr = any
-	dim as int32 r = FB_FS_OK
+	dim as int32 r = any
 
 	wt = hFsWide( target )
 	wr = hFsWide( replacement )
@@ -402,12 +453,7 @@ function tkort_UStrFsReplaceFile alias "fb_UStrFsReplaceFile" _
 		return FB_FS_UNKNOWN
 	end if
 
-	if( w_ReplaceFileW( wt, wr, nullptr, REPLACEFILE_IGNORE_MERGE_ERRORS_, nullptr, nullptr ) = 0 ) then
-		'' ReplaceFileW requires the target to exist. For a first write it does
-		'' not, and a plain replacing rename is then both correct and equally
-		'' atomic.
-		if( w_MoveFileExW( wr, wt, MOVEFILE_REPLACE_EXISTING_ ) = 0 ) then r = tkrt_FsMapOsError( )
-	end if
+	r = hReplaceWide( wt, wr )
 
 	free( wt ) : free( wr )
 	return r
@@ -599,8 +645,18 @@ const O_CREAT_  = &o100
 const O_EXCL_   = &o200
 const O_TRUNC_  = &o1000
 const O_APPEND_ = &o2000
+const O_DIRECTORY_ = &o200000
+const O_CLOEXEC_   = &o2000000
+const S_IFREG_     = &o100000
 
 const EINTR_ = 4
+'' For the no-replace rename (MoveFile, overwrite = 0). Named here and not shared with
+'' error.tiko, whose constants are that file's own.
+const EPERM_ = 1, EEXIST_ = 17, EINVAL_ = 22, ENOSYS_ = 38, EOPNOTSUPP_ = 95
+
+const SYS_renameat2_    = 316
+const AT_FDCWD_         = -100
+const RENAME_NOREPLACE_ = 1
 
 const SYS_getrandom_ = 318
 
@@ -628,6 +684,8 @@ extern "c"   '' NON-FBCALL: libc, not rtlib entry points.
 	declare function u_strlen alias "strlen" ( byval s as zstring ptr ) as uinteger
 	declare function u_errno_location alias "__errno_location" ( ) as int32 ptr
 	declare function u_syscall alias "syscall" ( byval n as int64, ... ) as int64
+	declare function u_link alias "link" ( byval s as zstring ptr, byval d as zstring ptr ) as int32
+	declare function u_fsync alias "fsync" ( byval fd as int32 ) as int32
 	declare function u_utf16to8 alias "fb_hUtf16ToUtf8" _
 		( byval src as FB_UCHAR ptr, byval units as integer, byval dst as zstring ptr, byval cap as integer ) as integer
 	declare function u_utf8to16 alias "fb_hUtf8ToUtf16" _
@@ -776,7 +834,11 @@ function tkort_UStrFsWriteWhole alias "fb_UStrFsWriteWhole" _
 	path_ = hFsNarrow( p )
 	if( path_ = nullptr ) then return FB_FS_UNKNOWN
 
-	flags = O_WRONLY_ or O_CREAT_ or iif( append_ <> 0, O_APPEND_, O_TRUNC_ )
+	if( append_ = WHOLE_NEW_SYNCED_ ) then
+		flags = O_WRONLY_ or O_CREAT_ or O_EXCL_ or O_CLOEXEC_
+	else
+		flags = O_WRONLY_ or O_CREAT_ or iif( append_ <> WHOLE_TRUNCATE_, O_APPEND_, O_TRUNC_ )
+	end if
 
 	fd = u_open( path_, flags, &o666 )
 	free( path_ )
@@ -796,6 +858,14 @@ function tkort_UStrFsWriteWhole alias "fb_UStrFsWriteWhole" _
 
 		done += n
 	wend
+
+	if( append_ = WHOLE_NEW_SYNCED_ ) then
+		if( u_fsync( fd ) <> 0 ) then
+			e = tkrt_FsMapOsError( )
+			u_close( fd )
+			return e
+		end if
+	end if
 
 	if( u_close( fd ) <> 0 ) then return tkrt_FsMapOsError( )
 
@@ -932,11 +1002,101 @@ function tkort_UStrFsCopyFile alias "fb_UStrFsCopyFile" _
 	return r
 end function
 
+'' A rename that REFUSES an existing destination, atomically where the system can
+'' (C:\dev\docs\tiko-fs\RFC-0001 section 9.3, defect D3). rename(2) always replaces,
+'' and the old check-then-rename destroyed a file created in between.
+''
+''   1. renameat2( RENAME_NOREPLACE ), through syscall( ) as statx is reached: the
+''      kernel refuses with EEXIST, no window.
+''   2. ENOSYS (an old kernel) or EINVAL (a filesystem without the flag): link( )
+''      then unlink( ) for a REGULAR file -- link refuses EEXIST atomically too. If
+''      the unlink fails the link is undone, so the source is never left doubled.
+''   3. link refused by the filesystem (vfat, exFAT, some FUSE: EPERM, EOPNOTSUPP),
+''      or a source that is not a regular file: the old check-then-rename. THIS LAST
+''      RESORT IS NOT ATOMIC, and is documented as such.
+private function hRenameNoReplace( byval sp as zstring ptr, byval dp as zstring ptr ) as int32
+	dim as stat_ st = any
+	dim as int32 err_ = any, e = any
+
+	if( u_syscall( SYS_renameat2_, cast( int64, AT_FDCWD_ ), sp, cast( int64, AT_FDCWD_ ), dp, _
+	               cast( int64, RENAME_NOREPLACE_ ) ) = 0 ) then
+		return FB_FS_OK
+	end if
+
+	err_ = TKORT_ERRNO
+	if( (err_ <> ENOSYS_) andalso (err_ <> EINVAL_) ) then return tkrt_FsMapOsError( )
+
+	if( u_lstat( sp, @st ) <> 0 ) then return tkrt_FsMapOsError( )
+
+	if( (*cptr( uint32 ptr, @st.raw(STAT_MODE_) ) and S_IFMT_) = S_IFREG_ ) then
+		if( u_link( sp, dp ) = 0 ) then
+			if( u_unlink( sp ) = 0 ) then return FB_FS_OK
+			e = tkrt_FsMapOsError( )
+			u_unlink( dp )
+			return e
+		end if
+
+		err_ = TKORT_ERRNO
+		if( (err_ <> EPERM_) andalso (err_ <> EOPNOTSUPP_) ) then return tkrt_FsMapOsError( )
+	end if
+
+	if( u_lstat( dp, @st ) = 0 ) then return FB_FS_ALREADY_EXISTS
+	if( u_rename( sp, dp ) <> 0 ) then return tkrt_FsMapOsError( )
+	return FB_FS_OK
+end function
+
+'' The directory part of a narrow path, as a NEW buffer the caller frees: "." for a
+'' bare name, "/" for a name directly under the root.
+private function hParentNarrow( byval tp as zstring ptr ) as zstring ptr
+	dim as integer tl = u_strlen( tp ), cut = 0, i = any
+	dim as zstring ptr d = any
+
+	for i = 0 to tl - 1
+		if( tp[i] = 47 ) then cut = i + 1
+	next
+
+	if( cut = 0 ) then
+		d = malloc( 2 )
+		if( d <> nullptr ) then d[0] = 46 : d[1] = 0
+	elseif( cut = 1 ) then
+		d = malloc( 2 )
+		if( d <> nullptr ) then d[0] = 47 : d[1] = 0
+	else
+		d = malloc( cut )
+		if( d <> nullptr ) then
+			for i = 0 to cut - 2
+				d[i] = tp[i]
+			next
+			d[cut - 1] = 0
+		end if
+	end if
+
+	return d
+end function
+
+'' fsync on a DIRECTORY: what makes a rename inside it survive power loss. EINVAL --
+'' a filesystem that cannot sync a directory -- is not an error: the rename has
+'' already happened and there is nothing more to do.
+private function hSyncDir( byval dirp as zstring ptr ) as int32
+	dim as int32 fd = any, e = FB_FS_OK
+
+	if( dirp = nullptr ) then return FB_FS_UNKNOWN
+
+	fd = u_open( dirp, O_RDONLY_ or O_DIRECTORY_ or O_CLOEXEC_ )
+	if( fd < 0 ) then return tkrt_FsMapOsError( )
+
+	if( u_fsync( fd ) <> 0 ) then
+		if( TKORT_ERRNO <> EINVAL_ ) then e = tkrt_FsMapOsError( )
+	end if
+
+	u_close( fd )
+	return e
+end function
+
 function tkort_UStrFsMoveFile alias "fb_UStrFsMoveFile" _
 	( byval s as FBUSTRING ptr, byval d as FBUSTRING ptr, byval overwrite as int32 ) as int32
 
 	dim as zstring ptr sp = any, dp = any
-	dim as stat_ st = any
 	dim as int32 r = FB_FS_OK
 
 	sp = hFsNarrow( s )
@@ -947,27 +1107,36 @@ function tkort_UStrFsMoveFile alias "fb_UStrFsMoveFile" _
 		return FB_FS_UNKNOWN
 	end if
 
-	'' rename(2) always replaces. Refusing to overwrite therefore has to be a
-	'' separate check, and it is inherently racy -- documented rather than
-	'' pretended away.
 	if( overwrite = 0 ) then
-		if( u_lstat( dp, @st ) = 0 ) then
-			free( sp ) : free( dp )
-			return FB_FS_ALREADY_EXISTS
-		end if
+		r = hRenameNoReplace( sp, dp )
+	elseif( u_rename( sp, dp ) <> 0 ) then
+		r = tkrt_FsMapOsError( )
 	end if
-
-	if( u_rename( sp, dp ) <> 0 ) then r = tkrt_FsMapOsError( )
 
 	free( sp ) : free( dp )
 	return r
 end function
 
-'' rename(2) gives exactly the guarantee WriteAtomic needs: a reader sees the
-'' old file or the new one, never a partial.
+'' rename(2) gives exactly the guarantee a reader needs: the old file or the new
+'' one, never a partial. The directory sync after it makes the rename itself
+'' durable (RFC-0001 section 9.1); the replacement's CONTENT is the caller's to sync.
 function tkort_UStrFsReplaceFile alias "fb_UStrFsReplaceFile" _
 	( byval target as FBUSTRING ptr, byval replacement as FBUSTRING ptr ) as int32
-	return tkort_UStrFsMoveFile( replacement, target, 1 )
+
+	dim as zstring ptr tp = any, dirp = any
+	dim as int32 r = any
+
+	r = tkort_UStrFsMoveFile( replacement, target, 1 )
+	if( r <> FB_FS_OK ) then return r
+
+	tp = hFsNarrow( target )
+	if( tp = nullptr ) then return FB_FS_UNKNOWN
+
+	dirp = hParentNarrow( tp )
+	r = hSyncDir( dirp )
+
+	free( dirp ) : free( tp )
+	return r
 end function
 
 '' Identity for WalkDir's FollowSymlinks visited set. stat, not lstat: the walk

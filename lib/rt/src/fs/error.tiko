@@ -18,6 +18,12 @@
 ''
 '' TWO CODES HAVE NO WINDOWS SOURCE: IS_A_DIRECTORY is synthesised higher up by
 '' checking the kind before opening, and INTERRUPTED cannot occur there at all.
+''
+'' THREE CODES HAVE NO OS SOURCE ON EITHER PLATFORM: CLOSED, INVALID_DATA and
+'' INVALID_ARGUMENT are decided by the caller before or after the system call.
+'' EINVAL and ERROR_INVALID_PARAMETER therefore stay what they were (INVALID_PATH and
+'' UNKNOWN): for a path call they mostly mean a malformed path, and changing that
+'' mapping would change what every existing call reports.
 
 #include once "inc/descriptors.ti"
 #include once "inc/fserror.ti"
@@ -53,6 +59,12 @@ const TKW_ERROR_PRIVILEGE_NOT_HELD    = 1314
 const TKW_ERROR_CANT_RESOLVE_FILENAME = 1921
 const TKW_ERROR_REPARSE_TAG_INVALID   = 4394
 const TKW_ERROR_USER_MAPPED_FILE      = 1224
+const TKW_ERROR_HANDLE_EOF            = 38
+const TKW_ERROR_BROKEN_PIPE           = 109
+const TKW_ERROR_SEEK_ON_DEVICE        = 132
+const TKW_ERROR_FILE_TOO_LARGE        = 223
+const TKW_ERROR_NO_DATA               = 232
+const TKW_ERROR_TOO_MANY_LINKS        = 1142
 const TKW_NO_ERROR                   = 0
 
 extern "c"   '' NON-FBCALL: a kernel32 import, not an rtlib entry point.
@@ -109,6 +121,22 @@ function tkort_FsMapOsError alias "fb_FsMapOsError" ( ) as int32
 	case TKW_ERROR_NOT_SUPPORTED, TKW_ERROR_INVALID_FUNCTION
 		return FB_FS_UNSUPPORTED
 
+	case TKW_ERROR_HANDLE_EOF
+		return FB_FS_UNEXPECTED_EOF
+
+	case TKW_ERROR_SEEK_ON_DEVICE
+		return FB_FS_NOT_SEEKABLE
+
+	case TKW_ERROR_FILE_TOO_LARGE
+		return FB_FS_TOO_LARGE
+
+	case TKW_ERROR_TOO_MANY_LINKS
+		return FB_FS_TOO_MANY_LINKS
+
+	'' ERROR_NO_DATA is "the pipe is being closed": a write with no reader left.
+	case TKW_ERROR_BROKEN_PIPE, TKW_ERROR_NO_DATA
+		return FB_FS_BROKEN_PIPE
+
 	case TKW_NO_ERROR
 		return FB_FS_OK
 	end select
@@ -133,6 +161,7 @@ const EXDEV_ = 18, ENOTDIR_ = 20, EISDIR_ = 21, EINVAL_ = 22
 const EFBIG_ = 27, ENOSPC_ = 28, EROFS_ = 30, ENAMETOOLONG_ = 36
 const ENOSYS_ = 38, ENOTEMPTY_ = 39, ELOOP_ = 40, EILSEQ_ = 84
 const EOPNOTSUPP_ = 95, ETXTBSY_ = 26, EDQUOT_ = 122
+const EAGAIN_ = 11, ESPIPE_ = 29, EMLINK_ = 31, EPIPE_ = 32, EOVERFLOW_ = 75
 
 extern "rtlib"
 
@@ -170,8 +199,26 @@ function tkort_FsMapOsError alias "fb_FsMapOsError" ( ) as int32
 	case ELOOP_
 		return FB_FS_LOOP
 
-	case ENOSPC_, EFBIG_, EDQUOT_
+	case ENOSPC_, EDQUOT_
 		return FB_FS_NO_SPACE
+
+	'' EFBIG was NO_SPACE until FS_TOO_LARGE existed: the volume is not full, the
+	'' file has reached a size limit (RLIMIT_FSIZE, the filesystem's maximum).
+	case EFBIG_, EOVERFLOW_
+		return FB_FS_TOO_LARGE
+
+	case ESPIPE_
+		return FB_FS_NOT_SEEKABLE
+
+	case EMLINK_
+		return FB_FS_TOO_MANY_LINKS
+
+	case EPIPE_
+		return FB_FS_BROKEN_PIPE
+
+	'' EWOULDBLOCK is EAGAIN on Linux: a non-blocking flock found the lock held.
+	case EAGAIN_
+		return FB_FS_WOULD_BLOCK
 
 	case EROFS_
 		return FB_FS_READ_ONLY
