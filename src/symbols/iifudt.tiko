@@ -100,7 +100,19 @@ private function IifStringKind_ ( byref c as Ctx, byval n as NodeId ) as string
     end if
     if c.types->Kind( t ) <> TK_BUILTIN then return ""
     select case c.types->BuiltinOf( t )
-    case TY_STRING, TY_ZSTRING : return "narrow string"
+    case TY_STRING
+        '' ...BUT A CHAIN WITH A USTRING TERM IS A USTRING: fbc's 'typeof( u & "x" )'. Check
+        '' types every '&' STRING, so 'iif( c, u & "x", u )' was refused as a mix.
+        dim as NodeId b = Unparen3_( c, n )
+        if c.ast->Kind( b ) = N_BINARY then
+            dim as BinaryPayload ptr bp = @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, b )].data )]
+            if (cast( TokenKind, bp->op ) = TK_AMP) orelse (cast( TokenKind, bp->op ) = TK_PLUS) then
+                if IifStringKind_( c, bp->lhs ) = "ustring" then return "ustring"
+                if IifStringKind_( c, bp->rhs ) = "ustring" then return "ustring"
+            end if
+        end if
+        return "narrow string"
+    case TY_ZSTRING            : return "narrow string"
     case TY_WSTRING            : return "wstring"
     case TY_USTRING            : return "ustring"
     end select

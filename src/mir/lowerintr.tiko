@@ -526,6 +526,15 @@ end function
 '' Returns false when the member is not a bitfield, so the caller carries on as before.
 ''
 
+'' One arm of a string iif into its temporary: fb_StrInit, or for a USTRING iif the
+'' declaration path, which already converts, renders and nests in UTF-16.
+private function StrIifArmInit_ _
+    ( byref c as Ctx, byval isU as boolean, byval slot as int32, byref taddr as MirValue, _
+      byval e as Tko.NodeId ) as boolean
+    if isU then return LowerStringInit( c, slot, e, e )
+    return StrInitFrom_( c, taddr, e )
+end function
+
 '' A STRING 'iif'. Measured from fbc:
 ''
 ''     if( C == 0 ) goto label$2;
@@ -542,6 +551,11 @@ end function
 '' happened to be there. Its life ends with the STATEMENT, which is shorter than any
 '' scope, so it is registered on the statement-temporary list rather than the scope
 '' cleanup list.
+''
+'' ...AND A USTRING iif IS THE SAME SHAPE IN UTF-16: fb_UStrInit in each arm and
+'' fb_UStrDelete after, measured. IsStringType claims USTRING too, so the narrow
+'' fb_StrInit copied a UTF-16 descriptor's units as bytes and every consumer read the
+'' temporary back as UTF-16: 'iif( f, left( r, 1 ), r )' over "C:" gave "C" + NUL.
 function LowerStringIif_ _
     ( byref c as Ctx, byval condE as Tko.NodeId, byval thenE as Tko.NodeId, _
       byval elseE as Tko.NodeId, byref outv as MirValue ) as boolean
@@ -549,8 +563,15 @@ function LowerStringIif_ _
     dim as MirValue cond = LowerCondition( c, condE )
     if cond.kind = cast( uint8, MV_NONE ) then return false
 
+    '' A ustring CHAIN counts: Check types it STRING, fbc and the iif row in Check USTRING.
+    dim as boolean isU = IsUStringType( c, c.info->TypeOf_( thenE ) ) orelse _
+                         IsUStringType( c, c.info->TypeOf_( elseE ) ) orelse _
+                         IsUStrChain_( c, thenE ) orelse IsUStrChain_( c, elseE )
     dim as int32 slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
     if slot < 0 then return false
+    '' The slot's TYPE is what ReleaseStrTemps_ picks fb_UStrDelete by, and what
+    '' LowerStringInit reads to initialise each arm as 'dim as ustring t = arm' would.
+    if isU then c.f->locals[slot].frontendType = c.types->Builtin( Tko.TY_USTRING )
     dim as MirValue taddr
     taddr.kind = cast( uint8, MV_LOCAL )
     taddr.ty = cast( uint8, MT_PTR )
@@ -577,13 +598,13 @@ function LowerStringIif_ _
     '' arms were given, and the same symptom: a free of stack garbage.
     c.curBlock = thenB
     dim as int32 stm = c.strTemps.Count
-    if StrInitFrom_( c, taddr, thenE ) = false then return StrIifAbandon_( c, joinB, elseB )
+    if StrIifArmInit_( c, isU, slot, taddr, thenE ) = false then return StrIifAbandon_( c, joinB, elseB )
     ReleaseStrTemps_( c, stm )
     Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
 
     c.curBlock = elseB
     dim as int32 sem = c.strTemps.Count
-    if StrInitFrom_( c, taddr, elseE ) = false then return StrIifAbandon_( c, joinB, -1 )
+    if StrIifArmInit_( c, isU, slot, taddr, elseE ) = false then return StrIifAbandon_( c, joinB, -1 )
     ReleaseStrTemps_( c, sem )
     Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
 

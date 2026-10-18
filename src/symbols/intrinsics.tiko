@@ -1333,6 +1333,11 @@ private function IntrinsicTableType_ _
             TypeOf_( c, cast( Tko.NodeId, c.ast->children[cp->first + 1] ) )
         dim as Tko.TypeId tb = _
             TypeOf_( c, cast( Tko.NodeId, c.ast->children[cp->first + 2] ) )
+        '' A USTRING CHAIN ARM IS A USTRING. Check types every '&' STRING; fbc says
+        '' 'typeof( iif( f, u & "x", u & s ) )' is USTRING, measured, and a STRING iif
+        '' read the UTF-16 temporary its arms build as narrow bytes.
+        ta = IifUStrChainArm_( c, cast( Tko.NodeId, c.ast->children[cp->first + 1] ), ta )
+        tb = IifUStrChainArm_( c, cast( Tko.NodeId, c.ast->children[cp->first + 2] ), tb )
         if ta = tb then return ta
         if ta = Tko.TYPE_NONE then return tb
         if tb = Tko.TYPE_NONE then return ta

@@ -1,0 +1,14 @@
+'' A ustring CHAIN is a USTRING to iif's string-kind test (T88), as it is to fbc: Check types
+'' every '&' STRING, so 'iif( f, s & u, u )' was refused as a mix and 'iif( f, u & "x", s )'
+'' was not. MEASURED, fbc-modern 1.20: error 24 on exactly lines 6-9, 11 and 13.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/iif-ustring-chain-kinds.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: iif-ustring-chain-kinds.bas(6,8): error TKO0946: iif cannot choose between a ustring and a narrow string
+'' EXPECT-OUT: iif-ustring-chain-kinds.bas(7,8): error TKO0946
+'' EXPECT-OUT: iif-ustring-chain-kinds.bas(8,8): error TKO0946
+'' EXPECT-OUT: iif-ustring-chain-kinds.bas(9,8): error TKO0946
+'' EXPECT-OUT: iif-ustring-chain-kinds.bas(11,8): error TKO0946: iif cannot choose between a narrow string and a ustring
+'' EXPECT-OUT: iif-ustring-chain-kinds.bas(13,8): error TKO0946
+'' EXPECT-NOT: (10,
+'' EXPECT-NOT: (12,

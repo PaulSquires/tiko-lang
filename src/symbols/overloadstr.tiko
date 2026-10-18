@@ -36,6 +36,18 @@ private function ConcatHasUString_ _
     return ConcatHasUString_( c, bp->rhs )
 end function
 
+'' AN IIF ARM'S TYPE, with a ustring CHAIN as the USTRING fbc types it -- see the iif row
+'' in intrinsics.tiko. Only a STRING-typed concatenation is reconsidered: a UDT arm that
+'' casts to a ustring is still that UDT.
+private function IifUStrChainArm_ _
+    ( byref c as Ctx, byval arm as Tko.NodeId, byval t as Tko.TypeId ) as Tko.TypeId
+    if t = Tko.TYPE_NONE then return t
+    if c.types->Kind( t ) <> Tko.TK_BUILTIN then return t
+    if c.types->BuiltinOf( t ) <> Tko.TY_STRING then return t
+    if ConcatHasUString_( c, arm ) then return c.types->Builtin( Tko.TY_USTRING )
+    return t
+end function
+
 '' Whether an UNTYPED '+' or '&' concatenation has a term whose UDT casts to WSTRING and
 '' to no other string -- see ResolveCall_. AfxNova's DWSTRING concatenates that way,
 '' through 'cast( ) byref as const wstring', and Check leaves the result untyped because

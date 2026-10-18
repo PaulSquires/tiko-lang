@@ -52,7 +52,7 @@ function IsAggIif_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 end function
 
 
-'' An 'iif' whose arms are NARROW var-length strings. Same shape test as IsAggIif_,
+'' An 'iif' whose arms are var-length strings, either flavour. Same shape test as IsAggIif_,
 '' and asked before anything is lowered for the same reason: the arms must not be
 '' evaluated twice.
 function IsStrIif_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
@@ -69,7 +69,6 @@ function IsStrIif_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         dim as Tko.TypeId at = _
             c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[lp->first + k] ) )
         if IsStringType( c, at ) = false then return false
-        if IsUStringType( c, at ) then return false
     next
     return true
 end function
@@ -878,8 +877,8 @@ function LowerAddr _
     '' VALUE. Without it 'iif( c, sa, sb )[0]' had no base to index from and the whole
     '' statement declined: twelve of expressions/iif.bas's fourteen.
     ''
-    '' NARROW ONLY, like LowerStringIif_ itself: its arms go through fb_StrInit, which
-    '' would write narrow bytes into a UTF-16 descriptor.
+    '' A USTRING one too, now LowerStringIif_ builds it in UTF-16: 'iif( f, r, q )[1]'
+    '' had been declined (TKO0994) while LowerStringIif_ was narrow only.
     if IsStrIif_( c, id ) then
         dim as Tko.ListPayload ptr ip3 = _
             @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]

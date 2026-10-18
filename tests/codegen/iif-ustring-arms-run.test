@@ -1,0 +1,41 @@
+'' RUN: an 'iif' whose arms are USTRINGs. LowerStringIif_ was narrow only, so fb_StrInit
+'' copied a UTF-16 descriptor's units as bytes and every reader took the temporary as UTF-16:
+'' 'iif( f, left( r, 1 ), r )' over "C:" printed "C" + NUL. Arms that are ustring CHAINS
+'' were typed STRING by Check, so the whole iif was narrow too. Covers both arms taken,
+'' variable / call / user-function / chain / nested arms, print, len, a ustring argument,
+'' a narrow destination, a comparison and a subscript. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/iif-ustring-arms.bas -o tests/codegen/iifustringarms.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/iifustringarms.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 1[C:] 2
+'' EXPECT-RUN-OUT: 2[C] 1
+'' EXPECT-RUN-OUT: 3[xy] 2
+'' EXPECT-RUN-OUT: 4[C:] 2
+'' EXPECT-RUN-OUT: 5[xyz]
+'' EXPECT-RUN-OUT: 6[C:]
+'' EXPECT-RUN-OUT: 7[:]
+'' EXPECT-RUN-OUT: 8[XYZ]
+'' EXPECT-RUN-OUT: 9[xyz!]
+'' EXPECT-RUN-OUT: 10[C:!]
+'' EXPECT-RUN-OUT: 11[C:]
+'' EXPECT-RUN-OUT: 12[C:]
+'' EXPECT-RUN-OUT: C:
+'' EXPECT-RUN-OUT:  2             1
+'' EXPECT-RUN-OUT: 13[C]
+'' EXPECT-RUN-OUT: 14[xyz]
+'' EXPECT-RUN-OUT: arg[C:]
+'' EXPECT-RUN-OUT: arg[C]
+'' EXPECT-RUN-OUT: 15[C:]
+'' EXPECT-RUN-OUT: 16 eq
+'' EXPECT-RUN-OUT: 17[n22]
+'' EXPECT-RUN-OUT: 18[C]18[C:2]18[C]
+'' EXPECT-RUN-OUT: 19[pre]
+'' EXPECT-RUN-OUT: 20[pre1]
+'' EXPECT-RUN-OUT: 21[xyzy]
+'' EXPECT-RUN-OUT: 22[xyzx]
+'' EXPECT-RUN-OUT: xyzy           4
+'' EXPECT-RUN-OUT: 23[1xyz]
+'' EXPECT-RUN-OUT: 121           67
