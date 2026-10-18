@@ -646,8 +646,20 @@ END FUNCTION
 ' -or-
 '   tkSetWindowText(hwnd, "Some text")
 ' ========================================================================================
-PUBLIC FUNCTION tkSetWindowText (BYVAL hwnd AS HWND, BYVAL pwszText AS WSTRING PTR) AS BOOLEAN
+PUBLIC FUNCTION tkSetWindowText OVERLOAD (BYVAL hwnd AS HWND, BYVAL pwszText AS WSTRING PTR) AS BOOLEAN
    RETURN SetWindowTextW(hwnd, pwszText)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' The same, for narrow text: a literal, a STRING or a ZSTRING, read as UTF-8, as tiko's
+' literals are. Without it, once the name is SetWindowText (RFC-0001 rule K), a bare
+' SetWindowText(hwnd, "Some text") would bind Windows' SetWindowTextA and send ANSI. An
+' explicit ZSTRING PTR (@sz, STRPTR(s)) still reaches SetWindowTextA, the API's own form.
+' ========================================================================================
+PUBLIC FUNCTION tkSetWindowText OVERLOAD (BYVAL hwnd AS HWND, BYREF szText AS ZSTRING) AS BOOLEAN
+   DIM ustrText AS USTRING = szText
+   RETURN SetWindowTextW(hwnd, ustrText)
 END FUNCTION
 ' ========================================================================================
 
