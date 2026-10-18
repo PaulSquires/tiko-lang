@@ -8,6 +8,7 @@ FsResultUStr
 
 ```freebasic
 CanonicalPath( p )
+CanonicalPath( p, allowMissing )    '' TRUE: canonicalise the existing prefix, append the missing rest
 ```
 
 ## Notes

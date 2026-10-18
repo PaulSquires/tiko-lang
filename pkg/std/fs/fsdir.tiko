@@ -348,6 +348,20 @@ end function
 '' PRE-ORDER falls out of the stack discipline: pop an entry, yield it, and
 '' push its children in REVERSE so the first child is popped next.
 
+'' What a WalkOptions.Filter answers for one entry, as bit flags (C:\dev\docs\tiko-fs\RFC-0001
+'' section 11).
+public enum WalkDecision
+    WALK_SKIP    = 0          '' neither yield it nor walk into it
+    WALK_YIELD   = 1          '' hand this entry to the caller
+    WALK_DESCEND = 2          '' if it is a directory, walk into it
+    WALK_ALL     = 3
+    WALK_STOP    = 4          '' end the whole walk after this entry
+end enum
+
+'' The filter: called once for every entry the walk reaches, with the caller's own
+'' pointer, returning WalkDecision bits.
+public type WalkFilter as function( byref e as const DirEntry, byval user as any ptr ) as long
+
 public type WalkOptions
     '' Constructed, not zero-initialised, because two of these default TRUE
     '' and a dim'd UDT would come out FALSE.
@@ -358,6 +372,12 @@ public type WalkOptions
     as boolean IncludeHidden      '' default TRUE
     as boolean StopOnError        '' default FALSE
     as long    MaxDepth           '' default 0 = unbounded
+
+    '' RFC-0001 section 11 -- all default to the behaviour above:
+    as WalkFilter Filter          '' nullptr = WALK_ALL for every entry
+    as any ptr    FilterUser      '' passed to Filter untouched
+    as boolean    ContentsFirst   '' FALSE; TRUE = a directory AFTER its contents
+    as boolean    SortByName      '' FALSE; TRUE = each directory in ordinal name order
 end type
 
 constructor WalkOptions( )
@@ -375,6 +395,11 @@ constructor WalkOptions( )
     this.IncludeHidden    = TRUE
     this.StopOnError      = FALSE
     this.MaxDepth         = 0
+
+    this.Filter        = nullptr
+    this.FilterUser    = nullptr
+    this.ContentsFirst = FALSE
+    this.SortByName    = FALSE
 end constructor
 
 FBFSDIR_EXTERN
@@ -383,10 +408,28 @@ FBFSDIR_EXTERN
         ( byref p as const ustring, byref vol as ulongint, byref id as ulongint ) as long
 end extern
 
+'' PRUNING (RFC-0001 section 11). Two ways, for two kinds of loop:
+''
+''   - WalkOptions.Filter, consulted for EVERY entry the walk reaches, returns
+''     WalkDecision bits. An entry is yielded only when the options AND the filter
+''     both say so, and walked into only when both do -- so a filter can prune a
+''     directory that YieldDirectories = FALSE would never show. This is how a
+''     FOR EACH loop prunes: its body cannot reach the iterator.
+''   - SkipChildren( ), on an explicit iterator, cancels the descent into the entry
+''     just yielded. That is why a yielded directory's children are pushed on the
+''     NEXT MoveNext rather than before the yield: until then they can be skipped.
+''
+'' CONTENTS FIRST puts a directory back on the stack, marked, under its children;
+'' popped again with the mark, it is yielded after everything beneath it. In that
+'' order SkipChildren has nothing left to skip and does nothing.
+''
+'' SORT BY NAME orders each directory's listing by ORDINAL comparison of Name( ) --
+'' code unit by code unit, the same on every machine and in every locale.
 public type WalkIterator
     declare function IsValid ( ) as boolean
     declare function Value   ( ) byref as DirEntryResult
     declare sub      MoveNext( )
+    declare sub      SkipChildren( )
 
     declare sub hOpen( )
     declare sub hAdvance( )
@@ -397,11 +440,58 @@ public type WalkIterator
     as ustring              m_root
     as WalkOptions          m_opts
     as Array( of DirEntry ) m_stack
+    as Array( of long )     m_mark          '' per stack slot: 1 = yield it now, its contents are done
     as boolean              m_opened, m_live
     as boolean              m_haserr
     as FsError              m_err
     as DirEntryResult       m_cur
+    as boolean              m_pend          '' the yielded entry's children are still to push
+    as DirEntry             m_pendEntry
+    as boolean              m_stop          '' a filter said WALK_STOP
 end type
+
+'' Ordinal order of Name( ): a bottom-up merge sort of indices, stable.
+private sub hSortByName( kids as Array( of DirEntry ), order as Array( of long ) )
+    dim as long n = kids.Count( )
+    order.Clear( )
+    for i as long = 0 to n - 1
+        order.Push( i )
+    next
+    if( n < 2 ) then exit sub
+    dim as Array( of long ) tmp
+    for i as long = 0 to n - 1
+        tmp.Push( 0 )
+    next
+    dim as long w = 1
+    while( w < n )
+        dim as long lo = 0
+        while( lo < n )
+            dim as long mid_ = lo + w, hi = lo + 2 * w
+            if( mid_ > n ) then mid_ = n
+            if( hi > n ) then hi = n
+            dim as long i = lo, j = mid_, k = lo
+            while( ( i < mid_ ) andalso ( j < hi ) )
+                if( kids[order[j]].Name( ) < kids[order[i]].Name( ) ) then
+                    tmp[k] = order[j] : j += 1
+                else
+                    tmp[k] = order[i] : i += 1
+                end if
+                k += 1
+            wend
+            while( i < mid_ )
+                tmp[k] = order[i] : i += 1 : k += 1
+            wend
+            while( j < hi )
+                tmp[k] = order[j] : j += 1 : k += 1
+            wend
+            lo = hi
+        wend
+        for t as long = 0 to n - 1
+            order[t] = tmp[t]
+        next
+        w *= 2
+    wend
+end sub
 
 function WalkIterator.hHidden( byref e as DirEntry ) as boolean
     #if defined( __FB_WIN32__ )
@@ -466,10 +556,22 @@ sub WalkIterator.hPushChildren( byref dir as const ustring, byval depth as long 
     end if
 
     '' reversed, so the first child pops first and the order is stable
+    if( this.m_opts.SortByName ) then
+        dim as Array( of long ) order
+        hSortByName( kids, order )
+        for i as long = order.Count( ) - 1 to 0 step -1
+            dim as DirEntry e = kids[order[i]]
+            e.m_depth = depth
+            this.m_stack.Push( e )
+            this.m_mark.Push( 0 )
+        next
+        exit sub
+    end if
     for i as long = kids.Count( ) - 1 to 0 step -1
         dim as DirEntry e = kids[i]
         e.m_depth = depth
         this.m_stack.Push( e )
+        this.m_mark.Push( 0 )
     next
 end sub
 
@@ -489,6 +591,15 @@ sub WalkIterator.hAdvance( )
         end if
 
         dim as DirEntry e = this.m_stack.Pop( )
+        dim as long mark = this.m_mark.Pop( )
+
+        '' contents first: back again, everything beneath it done -- yield it now
+        if( mark = 1 ) then
+            this.m_live = TRUE
+            this.m_cur = Ok( of DirEntry, FsError )( e )
+            exit sub
+        end if
+
         dim as boolean descend = this.hDescendable( e )
         dim as boolean yieldit = TRUE
 
@@ -500,17 +611,49 @@ sub WalkIterator.hAdvance( )
             yieldit = FALSE
         end if
 
-        '' children pushed BEFORE yielding, so they are on top for the next
-        '' pop -- that is what makes the order pre-order
-        if( descend ) then
-            this.hPushChildren( e.Path( ), e.Depth( ) + 1 )
+        if( this.m_opts.Filter <> nullptr ) then
+            dim as long d = this.m_opts.Filter( e, this.m_opts.FilterUser )
+            if( ( d and WALK_YIELD ) = 0 ) then yieldit = FALSE
+            if( ( d and WALK_DESCEND ) = 0 ) then descend = FALSE
+            if( ( d and WALK_STOP ) <> 0 ) then
+                this.m_stop = TRUE
+                descend = FALSE
+                if( yieldit = FALSE ) then
+                    this.m_live = FALSE
+                    exit sub
+                end if
+            end if
+        end if
+
+        if( this.m_opts.ContentsFirst ) then
+            if( descend ) then
+                '' under its children, marked, so it pops again after them
+                if( yieldit ) then
+                    this.m_stack.Push( e )
+                    this.m_mark.Push( 1 )
+                end if
+                this.hPushChildren( e.Path( ), e.Depth( ) + 1 )
+                continue do
+            end if
+            if( yieldit ) then
+                this.m_live = TRUE
+                this.m_cur = Ok( of DirEntry, FsError )( e )
+                exit sub
+            end if
+            continue do
         end if
 
         if( yieldit ) then
+            '' the children wait for the next MoveNext, so SkipChildren can cancel them
+            this.m_pend = descend
+            if( descend ) then this.m_pendEntry = e
             this.m_live = TRUE
             this.m_cur = Ok( of DirEntry, FsError )( e )
             exit sub
         end if
+
+        '' not yielded, so nobody can skip it: walk in now
+        if( descend ) then this.hPushChildren( e.Path( ), e.Depth( ) + 1 )
     loop
 end sub
 
@@ -545,7 +688,23 @@ sub WalkIterator.MoveNext( )
         exit sub
     end if
 
+    if( this.m_stop ) then
+        this.m_live = FALSE
+        exit sub
+    end if
+
+    if( this.m_pend ) then
+        this.m_pend = FALSE
+        this.hPushChildren( this.m_pendEntry.Path( ), this.m_pendEntry.Depth( ) + 1 )
+    end if
+
     this.hAdvance( )
+end sub
+
+'' Do not walk into the entry just yielded. A no-op for anything but a directory the
+'' walk was about to enter, and under ContentsFirst, where its contents came first.
+sub WalkIterator.SkipChildren( )
+    this.m_pend = FALSE
 end sub
 
 public type WalkRange

@@ -245,6 +245,7 @@ end function
 '' -------------------------------------------------------------- directories
 
 public declare function CreateDir overload ( byref p as const ustring ) as FsResultBool
+public declare function CreateDirAll overload ( byref p as const ustring, byval posixMode as ulong ) as FsResultBool
 public declare function CreateDirAll overload ( byref p as const ustring ) as FsResultBool
 public declare function RemoveDir overload ( byref p as const ustring ) as FsResultBool
 public declare function RemoveDirAll overload ( byref p as const ustring ) as FsResultI64
@@ -302,6 +303,48 @@ public function CreateDirAll( byref p as const ustring ) as FsResultBool
     next
 
     return Ok( of boolean, FsError )( TRUE )
+end function
+
+#ifndef __FB_WIN32__
+extern "C"
+    declare function fbo_mkdir alias "mkdir" ( byval p as const zstring ptr, byval mode as ulong ) as long
+end extern
+#endif
+
+'' CreateDirAll with the mode EVERY directory it creates gets, before the umask (C:\dev\docs\tiko-fs\RFC-0001
+'' section 12; Python 3.15's parent_mode, one value for all). Ignored on Windows, where it
+'' is CreateDirAll. libc's mkdir is called from here, as fsfile.tiko calls the OS (F19).
+public function CreateDirAll( byref p as const ustring, byval posixMode as ulong ) as FsResultBool
+#ifdef __FB_WIN32__
+    return CreateDirAll( p )
+#else
+    dim as ustring normalized = PathNormalize( p )
+
+    if( len( normalized ) = 0 ) then
+        return FsFail( of boolean )( FS_INVALID_PATH, "CreateDirAll", p )
+    end if
+
+    dim as Array( of ustring ) comps
+    dim as long n = PathSplit( normalized, comps )
+    dim as ustring at = PathRoot( normalized )
+    if( len( at ) = 0 ) then at = "."
+
+    for i as long = 0 to n - 1
+        at = PathJoin( at, comps[i] )
+        dim as string narrow = at
+        if( fbo_mkdir( strptr( narrow ), posixMode ) = 0 ) then continue for
+
+        dim as long c = FsMapOsError( )
+        dim as long o = FsOsError( )
+        if( c = FS_ALREADY_EXISTS ) then
+            if( IsDir( at ) ) then continue for
+            return FsFail( of boolean )( FS_NOT_A_DIRECTORY, "CreateDirAll", at )
+        end if
+        return Fail( of boolean, FsError )( FsError( cast( FsErrorCode, c ), o, "CreateDirAll", at ) )
+    next
+
+    return Ok( of boolean, FsError )( TRUE )
+#endif
 end function
 
 public function RemoveDir( byref p as const ustring ) as FsResultBool

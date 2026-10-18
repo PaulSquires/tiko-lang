@@ -372,3 +372,264 @@ FBFS_JOIN_OVERLOADS( wstring, ustring )
 FBFS_CHGEXT_OVERLOADS( string, string )
 FBFS_CHGEXT_OVERLOADS( wstring, ustring )
 
+
+
+'' ======================================================== RFC-0001 section 12
+''
+'' Path additions, specified in C:\dev\docs\tiko-fs\RFC-0001-files-and-streams.md
+'' section 12. Pure, like everything above: no syscalls, either grammar on either host.
+
+'' ---------------------------------------------------------- PathComponents
+
+public enum PathComponentKind
+    PATH_PREFIX = 0         '' "C:", "\\server\share", "\\?\", "\\.\..." -- Windows grammar only
+    PATH_ROOT   = 1         '' the root separator
+    PATH_CURDIR = 2         '' "." -- kept only as the first component
+    PATH_PARENT = 3         '' ".."
+    PATH_NORMAL = 4         '' a name
+end enum
+
+'' PathComponent.PrefixKind( ) of a PATH_PREFIX
+public const PATH_PREFIX_DISK         = 1     '' C:
+public const PATH_PREFIX_UNC          = 2     '' \\server\share
+public const PATH_PREFIX_VERBATIM     = 3     '' \\?\name
+public const PATH_PREFIX_VERBATIM_UNC = 4     '' \\?\UNC\server\share
+public const PATH_PREFIX_VERBATIM_DISK = 5    '' \\?\C:
+public const PATH_PREFIX_DEVICE       = 6     '' \\.\name
+
+public type PathComponent
+    declare const function Kind( ) as PathComponentKind
+    declare const function Text( ) as ustring
+    declare const function PrefixKind( ) as long     '' 0 unless Kind( ) = PATH_PREFIX
+
+    as PathComponentKind m_kind
+    as ustring           m_text
+    as long              m_prefix
+end type
+
+const function PathComponent.Kind( ) as PathComponentKind
+    return this.m_kind
+end function
+
+const function PathComponent.Text( ) as ustring
+    return this.m_text
+end function
+
+const function PathComponent.PrefixKind( ) as long
+    return this.m_prefix
+end function
+
+private function hIsSep( byval c as ulong, byval gram as long ) as boolean
+    if( c = 47 ) then return TRUE
+    return ( gram = FB_PATH_WIN32 ) andalso ( c = 92 )
+end function
+
+'' The kind of a Windows prefix, from its text.
+private function hPrefixKind( byref pre as const ustring ) as long
+    dim as ustring u = ucase( pre )
+    if( left( u, 8 ) = "\\?\UNC\" ) then return PATH_PREFIX_VERBATIM_UNC
+    if( left( u, 4 ) = "\\?\" ) then
+        if( ( len( u ) >= 6 ) andalso ( u[5] = 58 ) ) then return PATH_PREFIX_VERBATIM_DISK
+        return PATH_PREFIX_VERBATIM
+    end if
+    if( left( u, 4 ) = "\\.\" ) then return PATH_PREFIX_DEVICE
+    if( left( u, 2 ) = "\\" ) then return PATH_PREFIX_UNC
+    return PATH_PREFIX_DISK
+end function
+
+'' The components of p, IN ORDER, as written -- not normalised, except that a "." after
+'' the first component is dropped, as Rust's Path::components does. On the Windows
+'' grammar a root splits into its PATH_PREFIX and the PATH_ROOT separator after it.
+public declare function PathComponentList overload ( byref p as const ustring, comps as Array( of PathComponent ), byval gram as long = FB_PATH_NATIVE ) as long
+
+public function PathComponentList( byref p as const ustring, comps as Array( of PathComponent ), byval gram as long ) as long
+    comps.Clear( )
+    dim as integer rl = PathRootLen( p, gram )
+    if( rl > 0 ) then
+        dim as ustring r = left( p, rl )
+        dim as boolean sepEnd = hIsSep( r[rl - 1], gram )
+        dim as ustring pre = r
+        if( sepEnd ) then pre = left( r, rl - 1 )
+        if( ( gram = FB_PATH_WIN32 ) andalso ( len( pre ) > 0 ) ) then
+            dim as PathComponent c
+            c.m_kind = PATH_PREFIX
+            c.m_text = pre
+            c.m_prefix = hPrefixKind( pre )
+            comps.Push( c )
+        end if
+        if( sepEnd orelse ( gram <> FB_PATH_WIN32 ) ) then
+            dim as PathComponent c
+            c.m_kind = PATH_ROOT
+            c.m_text = right( r, 1 )
+            comps.Push( c )
+        end if
+    end if
+
+    dim as integer at = rl, clen = 0, start
+    do
+        start = PathNextComponent( p, gram, at, clen )
+        if( start < 0 ) then exit do
+        at = start + clen
+        dim as ustring t = mid( p, start + 1, clen )
+        dim as PathComponent c
+        c.m_text = t
+        if( t = "." ) then
+            if( comps.Count( ) > 0 ) then continue do
+            c.m_kind = PATH_CURDIR
+        elseif( t = ".." ) then
+            c.m_kind = PATH_PARENT
+        else
+            c.m_kind = PATH_NORMAL
+        end if
+        comps.Push( c )
+    loop
+    return comps.Count( )
+end function
+
+'' 'for each c in PathComponents( p )' over PathComponentList.
+public type PathComponentIterator
+    declare function IsValid ( ) as boolean
+    declare function Value   ( ) byref as PathComponent
+    declare sub      MoveNext( )
+    as Array( of PathComponent ) m_comps
+    as long                      m_i
+end type
+
+function PathComponentIterator.IsValid( ) as boolean
+    return this.m_i < this.m_comps.Count( )
+end function
+
+function PathComponentIterator.Value( ) byref as PathComponent
+    return this.m_comps[this.m_i]
+end function
+
+sub PathComponentIterator.MoveNext( )
+    this.m_i += 1
+end sub
+
+public type PathComponentRange
+    declare const function GetIterator( ) as PathComponentIterator
+    as ustring m_path
+    as long    m_gram
+end type
+
+const function PathComponentRange.GetIterator( ) as PathComponentIterator
+    dim as PathComponentIterator it
+    PathComponentList( this.m_path, it.m_comps, this.m_gram )
+    it.m_i = 0
+    return it
+end function
+
+public declare function PathComponents overload ( byref p as const ustring, byval gram as long = FB_PATH_NATIVE ) as PathComponentRange
+
+public function PathComponents( byref p as const ustring, byval gram as long ) as PathComponentRange
+    dim as PathComponentRange r
+    r.m_path = p
+    r.m_gram = gram
+    return r
+end function
+
+'' ------------------------------------------------------- names and extensions
+
+'' The file name up to its FIRST dot, a leading dot not counting: "a.tar.gz" -> "a",
+'' ".bashrc" -> ".bashrc", ".config.toml" -> ".config". Rust's file_prefix.
+public declare function PathFilePrefix overload ( byref p as const ustring, byval gram as long = FB_PATH_NATIVE ) as ustring
+
+public function PathFilePrefix( byref p as const ustring, byval gram as long ) as ustring
+    dim as ustring nm = PathFileName( p, gram )
+    dim as long n = len( nm )
+    for i as long = 1 to n - 1
+        if( nm[i] = 46 ) then return left( nm, i )
+    next
+    return nm
+end function
+
+'' Adds an extension AFTER any there already: "a.tar" + "gz" -> "a.tar.gz". A leading
+'' dot in ext is not doubled. A trailing separator does not hide the name, as for
+'' PathFileName: "dir/" + "gz" -> "dir.gz". An empty ext, or a path with no file name
+'' (a root), returns p.
+'' Rust's with_added_extension; PathChangeExtension is the one that replaces.
+public declare function PathAddExtension overload ( byref p as const ustring, byref ext as const ustring, byval gram as long = FB_PATH_NATIVE ) as ustring
+
+public function PathAddExtension( byref p as const ustring, byref ext as const ustring, byval gram as long ) as ustring
+    dim as ustring e = ext
+    while( ( len( e ) > 0 ) andalso ( e[0] = 46 ) )
+        e = mid( e, 2 )
+    wend
+    if( len( e ) = 0 ) then return p
+    if( len( PathFileName( p, gram ) ) = 0 ) then return p
+    dim as ustring q = p
+    while( ( len( q ) > 0 ) andalso hIsSep( q[len( q ) - 1], gram ) )
+        q = left( q, len( q ) - 1 )
+    wend
+    return q & "." & e
+end function
+
+'' ---------------------------------------------------- local and reserved
+
+'' TRUE when any component, under the Windows grammar, is a reserved device name --
+'' CON PRN AUX NUL CONIN$ CONOUT$ COM1-9 LPT1-9 and their superscript-digit forms --
+'' in any case, with or without an extension. Always FALSE under the POSIX grammar.
+public declare function PathIsReserved overload ( byref p as const ustring, byval gram as long = FB_PATH_NATIVE ) as boolean
+
+private function hReservedName( byref nm as const ustring ) as boolean
+    dim as ustring s = nm
+    dim as long d = instr( s, "." )
+    if( d > 0 ) then s = left( s, d - 1 )
+    s = rtrim( ucase( s ) )
+    select case s
+    case "CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$"
+        return TRUE
+    end select
+    if( len( s ) = 4 ) then
+        dim as ustring stem = left( s, 3 )
+        if( ( stem = "COM" ) orelse ( stem = "LPT" ) ) then
+            dim as ulong c = s[3]
+            '' 1-9, and the superscripts 1, 2, 3 (U+00B9, U+00B2, U+00B3)
+            if( ( c >= 49 ) andalso ( c <= 57 ) ) then return TRUE
+            if( ( c = &hB9 ) orelse ( c = &hB2 ) orelse ( c = &hB3 ) ) then return TRUE
+        end if
+    end if
+    return FALSE
+end function
+
+public function PathIsReserved( byref p as const ustring, byval gram as long ) as boolean
+    if( gram <> FB_PATH_WIN32 ) then return FALSE
+    dim as Array( of PathComponent ) cs
+    PathComponentList( p, cs, gram )
+    for i as long = 0 to cs.Count( ) - 1
+        if( cs[i].m_kind = PATH_NORMAL ) then
+            if( hReservedName( cs[i].m_text ) ) then return TRUE
+        end if
+    next
+    return FALSE
+end function
+
+'' Go's filepath.IsLocal, lexically: TRUE when p is not empty, has no root and no
+'' drive, does not climb above where it starts once '.' and '..' are resolved, and --
+'' under the Windows grammar -- names no reserved device and has no ':' (a drive or an
+'' alternate data stream). The building block for "join an untrusted name under a
+'' directory". NOT a containment guarantee: a symbolic link inside can still lead out.
+public declare function PathIsLocal overload ( byref p as const ustring, byval gram as long = FB_PATH_NATIVE ) as boolean
+
+public function PathIsLocal( byref p as const ustring, byval gram as long ) as boolean
+    if( len( p ) = 0 ) then return FALSE
+    if( PathRootLen( p, gram ) > 0 ) then return FALSE
+    if( gram = FB_PATH_WIN32 ) then
+        if( instr( p, ":" ) > 0 ) then return FALSE
+        if( PathIsReserved( p, gram ) ) then return FALSE
+    end if
+    dim as long depth = 0
+    dim as Array( of PathComponent ) cs
+    PathComponentList( p, cs, gram )
+    for i as long = 0 to cs.Count( ) - 1
+        select case cs[i].m_kind
+        case PATH_PARENT
+            depth -= 1
+            if( depth < 0 ) then return FALSE
+        case PATH_NORMAL
+            depth += 1
+        end select
+    next
+    return TRUE
+end function

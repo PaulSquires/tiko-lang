@@ -8,6 +8,7 @@ mkdir -p; SUCCEEDS if it is already a directory
 
 ```freebasic
 CreateDirAll( p )
+CreateDirAll( p, posixMode )    '' the mode of every directory it creates; ignored on Windows
 ```
 
 ## Notes

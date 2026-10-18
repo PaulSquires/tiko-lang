@@ -1,0 +1,220 @@
+'' std/fs phase P6 (C:\dev\docs\tiko-fs\RFC-0001 sections 11 and 12): WalkDir's SortByName,
+'' ContentsFirst, Filter (keep, skip, prune, stop, and pruning what YieldDirectories hides)
+'' and SkipChildren; PathComponents over every Windows prefix kind and POSIX; PathFilePrefix,
+'' PathAddExtension, PathIsLocal, PathIsReserved; CanonicalPath with a missing tail; and
+'' CreateDirAll with a mode. Windows paths are built from chr( 92 ): tiko string literals
+'' process escapes, so a literal backslash pair would be one character.
+#import "std/fs"
+
+dim shared as integer fails = 0
+
+sub Check( byref what as string, byval ok as boolean )
+    if ok = false then
+        print "FAIL "; what
+        fails += 1
+    end if
+end sub
+
+dim shared as ustring BS
+BS = chr( 92 )
+
+dim shared as ustring tmp
+tmp = fs.CreateTempDir( ).ValueOr( "" )
+if len( tmp ) = 0 then print "no temp dir" : end 1
+
+'' The walk's yield, as "rel|rel|..." with '/' between components.
+function Walked( byref opts as const fs.WalkOptions ) as string
+    dim as string r = ""
+    for each e in fs.WalkDir( tmp, opts )
+        if e.IsOk( ) then
+            dim as ustring rel = fs.PathRelativeTo( e.Value( ).Path( ), tmp ).ValueOr( "?" )
+            dim as string s = rel
+            for i as long = 0 to len( s ) - 1
+                if s[i] = 92 then s[i] = 47
+            next
+            r = r & s & "|"
+        else
+            r = r & "ERR|"
+        end if
+    next
+    return r
+end function
+
+function OnlyFiles( byref e as const fs.DirEntry, byval user as any ptr ) as long
+    *cptr( long ptr, user ) += 1
+    if e.IsDirectory( ) then return fs.WALK_DESCEND
+    return fs.WALK_ALL
+end function
+
+function PruneA( byref e as const fs.DirEntry, byval user as any ptr ) as long
+    if e.Name( ) = "a" then return fs.WALK_YIELD          '' shown, not entered
+    if e.Name( ) = "b" then return fs.WALK_SKIP           '' neither
+    return fs.WALK_ALL
+end function
+
+function StopAtB( byref e as const fs.DirEntry, byval user as any ptr ) as long
+    if e.Name( ) = "b" then return fs.WALK_ALL or fs.WALK_STOP
+    return fs.WALK_ALL
+end function
+
+'' the tree: .hid/h.txt  a/a1.txt  a/a2.txt  b/b1.txt  c.txt
+fs.CreateDirAll( fs.PathJoin( tmp, ".hid" ) )
+fs.CreateDirAll( fs.PathJoin( tmp, "a" ) )
+fs.CreateDirAll( fs.PathJoin( tmp, "b" ) )
+fs.WriteAllText( fs.PathJoin( tmp, ".hid", "h.txt" ), "h" )
+fs.WriteAllText( fs.PathJoin( tmp, "a", "a2.txt" ), "2" )
+fs.WriteAllText( fs.PathJoin( tmp, "a", "a1.txt" ), "1" )
+fs.WriteAllText( fs.PathJoin( tmp, "b", "b1.txt" ), "b" )
+fs.WriteAllText( fs.PathJoin( tmp, "c.txt" ), "c" )
+
+'' -- order
+scope
+    dim as fs.WalkOptions o
+    o.SortByName = true
+    Check( "pre-order sorted", Walked( o ) = ".hid|.hid/h.txt|a|a/a1.txt|a/a2.txt|b|b/b1.txt|c.txt|" )
+    o.ContentsFirst = true
+    Check( "contents first", Walked( o ) = ".hid/h.txt|.hid|a/a1.txt|a/a2.txt|a|b/b1.txt|b|c.txt|" )
+    o.YieldDirectories = false
+    Check( "contents first files", Walked( o ) = ".hid/h.txt|a/a1.txt|a/a2.txt|b/b1.txt|c.txt|" )
+end scope
+
+'' -- the filter
+scope
+    dim as fs.WalkOptions o
+    o.SortByName = true
+    dim as long seen = 0
+    o.Filter = @OnlyFiles
+    o.FilterUser = @seen
+    Check( "filter files only", Walked( o ) = ".hid/h.txt|a/a1.txt|a/a2.txt|b/b1.txt|c.txt|" )
+    Check( "filter saw all", seen = 8 )
+    o.Filter = @PruneA
+    Check( "filter prune", Walked( o ) = ".hid|.hid/h.txt|a|c.txt|" )
+    o.YieldDirectories = false
+    Check( "filter prunes hidden dirs", Walked( o ) = ".hid/h.txt|c.txt|" )
+    o.YieldDirectories = true
+    o.Filter = @StopAtB
+    Check( "filter stop", Walked( o ) = ".hid|.hid/h.txt|a|a/a1.txt|a/a2.txt|b|" )
+    o.ContentsFirst = true
+    o.Filter = @PruneA
+    Check( "filter contents first", Walked( o ) = ".hid/h.txt|.hid|a|c.txt|" )
+end scope
+
+'' -- SkipChildren on an explicit iterator
+scope
+    dim as fs.WalkOptions o
+    o.SortByName = true
+    dim as fs.WalkRange wr = fs.WalkDir( tmp, o )
+    dim as fs.WalkIterator it = wr.GetIterator( )
+    dim as string got = ""
+    while it.IsValid( )
+        dim as fs.DirEntryResult r = it.Value( )
+        if r.IsOk( ) then
+            got = got & r.Value( ).Name( ) & "|"
+            if ( r.Value( ).Name( ) = "a" ) orelse ( r.Value( ).Name( ) = ".hid" ) then it.SkipChildren( )
+        end if
+        it.MoveNext( )
+    wend
+    Check( "skipchildren", got = ".hid|a|b|b1.txt|c.txt|" )
+
+    o.ContentsFirst = true
+    dim as fs.WalkRange wr2 = fs.WalkDir( tmp, o )
+    dim as fs.WalkIterator it2 = wr2.GetIterator( )
+    dim as long n = 0
+    while it2.IsValid( )
+        it2.SkipChildren( )
+        n += 1
+        it2.MoveNext( )
+    wend
+    Check( "skipchildren no-op after contents", n = 8 )
+end scope
+
+'' -- PathComponents
+function Comps( byref p as const ustring, byval gram as long ) as string
+    dim as string r = ""
+    for each c in fs.PathComponents( p, gram )
+        dim as string t = c.Text( )
+        r = r & c.Kind( ) & ":" & t
+        if c.Kind( ) = fs.PATH_PREFIX then r = r & "#" & c.PrefixKind( )
+        r = r & " "
+    next
+    return r
+end function
+
+dim as long W = fs.FB_PATH_WIN32, P = fs.FB_PATH_POSIX
+dim as ustring b2 = BS & BS
+Check( "comp verbatim unc", Comps( b2 & "?" & BS & "UNC" & BS & "srv" & BS & "sh" & BS & "x", W ) = "0:" & b2 & "?" & BS & "UNC" & BS & "srv" & BS & "sh#4 1:" & BS & " 4:x " )
+Check( "comp verbatim disk", Comps( b2 & "?" & BS & "C:" & BS & "x", W ) = "0:" & b2 & "?" & BS & "C:#5 1:" & BS & " 4:x " )
+Check( "comp device", left( Comps( b2 & "." & BS & "COM1", W ), 2 ) = "0:" andalso instr( Comps( b2 & "." & BS & "COM1", W ), "#6" ) > 0 )
+Check( "comp unc", Comps( b2 & "srv" & BS & "sh" & BS & "x", W ) = "0:" & b2 & "srv" & BS & "sh#2 1:" & BS & " 4:x " )
+Check( "comp disk", Comps( "C:" & BS & "x" & BS & "y", W ) = "0:C:#1 1:" & BS & " 4:x 4:y " )
+Check( "comp drive relative", Comps( "C:x", W ) = "0:C:#1 4:x " )
+Check( "comp posix", Comps( "/a/b", P ) = "1:/ 4:a 4:b " )
+Check( "comp curdir", Comps( "./x/./y/..", P ) = "2:. 4:x 4:y 3:.. " )
+
+'' -- names
+Check( "prefix", fs.PathFilePrefix( "/d/a.tar.gz", P ) = "a" )
+Check( "prefix dotfile", fs.PathFilePrefix( ".bashrc", P ) = ".bashrc" )
+Check( "prefix dot config", fs.PathFilePrefix( ".config.toml", P ) = ".config" )
+Check( "prefix none", fs.PathFilePrefix( "README", P ) = "README" )
+Check( "add ext", fs.PathAddExtension( "a.tar", "gz", P ) = "a.tar.gz" )
+Check( "add ext dot", fs.PathAddExtension( "a.tar", ".gz", P ) = "a.tar.gz" )
+Check( "add ext empty", fs.PathAddExtension( "a.tar", "", P ) = "a.tar" )
+Check( "add ext trailing sep", fs.PathAddExtension( "dir/", "gz", P ) = "dir.gz" )
+Check( "add ext root", fs.PathAddExtension( "/", "gz", P ) = "/" )
+
+'' -- local
+Check( "local a", fs.PathIsLocal( "a", P ) )
+Check( "local a/b", fs.PathIsLocal( "a/b", P ) )
+Check( "local a/../b", fs.PathIsLocal( "a/../b", P ) )
+Check( "local dot", fs.PathIsLocal( ".", P ) )
+Check( "not local empty", fs.PathIsLocal( "", P ) = false )
+Check( "not local ..", fs.PathIsLocal( "..", P ) = false )
+Check( "not local a/../..", fs.PathIsLocal( "a/../..", P ) = false )
+Check( "not local abs", fs.PathIsLocal( "/a", P ) = false )
+Check( "local win", fs.PathIsLocal( "a" & BS & "b", W ) )
+Check( "not local drive", fs.PathIsLocal( "C:a", W ) = false )
+Check( "not local colon", fs.PathIsLocal( "a:b", W ) = false )
+Check( "not local rooted", fs.PathIsLocal( BS & "a", W ) = false )
+Check( "not local nul", fs.PathIsLocal( "nul", W ) = false )
+Check( "posix nul is a name", fs.PathIsLocal( "nul", P ) )
+
+'' -- reserved
+Check( "reserved com1.log", fs.PathIsReserved( "d" & BS & "Com1.log", W ) )
+Check( "reserved conin$", fs.PathIsReserved( "conin$", W ) )
+Check( "reserved trailing space", fs.PathIsReserved( "con ", W ) )
+Check( "reserved superscript", fs.PathIsReserved( "LPT" & wchr( &hB9 ), W ) )
+Check( "reserved inner", fs.PathIsReserved( "d" & BS & "aux" & BS & "x", W ) )
+Check( "not reserved com10", fs.PathIsReserved( "com10", W ) = false )
+Check( "not reserved auxiliary", fs.PathIsReserved( "auxiliary", W ) = false )
+Check( "not reserved posix", fs.PathIsReserved( "con", P ) = false )
+
+'' -- CanonicalPath with a missing tail
+scope
+    dim as ustring base_ = fs.CanonicalPath( tmp ).Value( )
+    dim as fs.FsResultUStr r = fs.CanonicalPath( fs.PathJoin( tmp, "missing", "x.txt" ), true )
+    Check( "canonical missing", r.IsOk( ) andalso fs.PathEquals( r.ValueOr( "" ), fs.PathJoin( base_, "missing", "x.txt" ) ) )
+    Check( "canonical missing strict", fs.CanonicalPath( fs.PathJoin( tmp, "missing", "x.txt" ) ).IsOk( ) = false )
+    Check( "canonical existing", fs.CanonicalPath( fs.PathJoin( tmp, "a" ), true ).ValueOr( "" ) = fs.CanonicalPath( fs.PathJoin( tmp, "a" ) ).ValueOr( "?" ) )
+    Check( "canonical dotdot", fs.PathEquals( fs.CanonicalPath( fs.PathJoin( tmp, "a", "..", "new" ), true ).ValueOr( "" ), fs.PathJoin( base_, "new" ) ) )
+    dim as ustring lnk = fs.PathJoin( tmp, "la" )
+    if fs.CreateSymlink( fs.PathJoin( tmp, "a" ), lnk, true ).IsOk( ) then
+        Check( "canonical through link", fs.PathEquals( fs.CanonicalPath( fs.PathJoin( lnk, "new.txt" ), true ).ValueOr( "" ), fs.PathJoin( base_, "a", "new.txt" ) ) )
+    else
+        print "note: no symbolic link here, the link check did not run"
+    end if
+end scope
+
+'' -- CreateDirAll with a mode
+scope
+    dim as ustring d = fs.PathJoin( tmp, "m1", "m2" )
+    Check( "createdirall mode", fs.CreateDirAll( d, &o700 ).IsOk( ) andalso fs.IsDir( d ) )
+    Check( "createdirall mode again", fs.CreateDirAll( d, &o700 ).IsOk( ) )
+#ifndef __FB_WIN32__
+    Check( "mode outer", ( fs.GetPosixMode( fs.PathJoin( tmp, "m1" ) ).ValueOr( 0 ) and &o777 ) = &o700 )
+    Check( "mode inner", ( fs.GetPosixMode( d ).ValueOr( 0 ) and &o777 ) = &o700 )
+#endif
+    Check( "createdirall file in way", fs.CreateDirAll( fs.PathJoin( tmp, "c.txt", "x" ), &o755 ).Failure( ).Code( ) = fs.FS_NOT_A_DIRECTORY )
+end scope
+
+fs.RemoveDirAll( tmp )
+if fails = 0 then print "ok"

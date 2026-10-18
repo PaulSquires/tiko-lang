@@ -336,6 +336,7 @@ end function
 
 public declare function AbsolutePath overload ( byref p as const ustring ) as FsResultUStr
 public declare function CanonicalPath overload ( byref p as const ustring ) as FsResultUStr
+public declare function CanonicalPath overload ( byref p as const ustring, byval allowMissing as boolean ) as FsResultUStr
 public declare function CurrentDir overload ( ) as FsResultUStr
 public declare function SetCurrentDir overload ( byref p as const ustring ) as FsResultBool
 
@@ -370,6 +371,37 @@ public function CanonicalPath( byref p as const ustring ) as FsResultUStr
     end if
 
     return Ok( of ustring, FsError )( r )
+end function
+
+'' allowMissing = TRUE (C:\dev\docs\tiko-fs\RFC-0001 section 12): the longest prefix of p that EXISTS
+'' is canonicalised -- links resolved -- and the missing rest appended, lexically
+'' normalised. Python 3.15's realpath( strict = ALLOW_MISSING ): a path can be made
+'' canonical before the file it names is created. Any failure other than "not there"
+'' (access denied, a loop) is still a failure. FALSE is the one-argument CanonicalPath.
+public function CanonicalPath( byref p as const ustring, byval allowMissing as boolean ) as FsResultUStr
+    if( allowMissing = FALSE ) then return CanonicalPath( p )
+
+    dim as FsResultUStr ab = AbsolutePath( p )
+    if( ab.IsOk( ) = FALSE ) then return ab
+    dim as ustring q = PathNormalize( ab.Value( ) )
+    dim as ustring tail = ""
+    do
+        dim as FsResultUStr r = CanonicalPath( q )
+        if( r.IsOk( ) ) then
+            if( len( tail ) = 0 ) then return r
+            return Ok( of ustring, FsError )( PathNormalize( PathJoin( r.Value( ), tail ) ) )
+        end if
+        dim as FsErrorCode code = r.Failure( ).Code( )
+        if( ( code <> FS_NOT_FOUND ) andalso ( code <> FS_NOT_A_DIRECTORY ) ) then return r
+        dim as ustring parent = PathParent( q )
+        if( ( len( parent ) = 0 ) orelse ( parent = q ) ) then return r
+        if( len( tail ) = 0 ) then
+            tail = PathFileName( q )
+        else
+            tail = PathJoin( PathFileName( q ), tail )
+        end if
+        q = parent
+    loop
 end function
 
 public function CurrentDir( ) as FsResultUStr
