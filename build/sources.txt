@@ -1,6 +1,7 @@
 src/driver/main.tiko
 src/support/text.tiko
 src/support/arena.tiko
+src/support/stablevec.tiko
 src/support/intern.tiko
 src/support/platform.tiko
 src/support/spawn.tiko

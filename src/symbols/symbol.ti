@@ -20,6 +20,7 @@
 #include once "source/location.ti"
 #include once "types/type.ti"
 #include once "support/intern.ti"
+#include once "support/stablevec.ti"
 
 namespace Tko
 
@@ -275,8 +276,27 @@ namespace Tko
         as int32     count
     end type
 
-    type SymbolVec as containers.Array( of Symbol )
-    type ScopeVec  as containers.Array( of SymScope )
+    '' THE SYMBOLS AND SCOPES NEVER MOVE. SymbolAt and ScopeAt return the address of a
+    '' record, and callers keep it across calls that declare -- resolving a type can
+    '' instantiate a generic, which adds symbols and scopes. Over a containers.Array that
+    '' address dangled the moment the array grew; on Linux, where a large freed block is
+    '' unmapped, the compiler crashed (Resolve's generic instantiation, a module's type
+    '' aliases) on programs that were fine, depending on file names and the module cache.
+    '' The records are plain data, so the stable store copies them byte for byte.
+    type SymbolVec
+        as StableStore st
+        declare constructor( )
+        declare function Count( ) as int32
+        declare operator []( byval i as int32 ) byref as Symbol
+        declare sub Push( byref s as Symbol )
+    end type
+    type ScopeVec
+        as StableStore st
+        declare constructor( )
+        declare function Count( ) as int32
+        declare operator []( byval i as int32 ) byref as SymScope
+        declare sub Push( byref s as SymScope )
+    end type
     type SymSlotVec as containers.Array( of uint32 )
 
     type SymbolTable

@@ -1,0 +1,51 @@
+'' stablevec.ti -- a growable array of fixed-size records whose addresses never change.
+''
+'' containers.Array keeps its elements in one block and moves them when it grows, so a
+'' pointer to an element is good only until the next Push. The symbol table hands out
+'' exactly such pointers (SymbolTable.SymbolAt / ScopeAt), and hundreds of call sites hold
+'' one across a call that may declare a symbol -- resolving a type that instantiates a
+'' generic is enough. Each of those read freed memory once the table moved; on Linux,
+'' where a large freed block is unmapped, the compiler crashed, depending on nothing in
+'' the program but the file names and the module cache's state.
+''
+'' Invariants:
+''   - Records live in chunks of STABLE_CHUNK_RECS that are allocated once, never
+''     reallocated and never freed before the destructor. An address returned by Slot
+''     stays valid for the life of the store.
+''   - Records are copied in byte for byte: the store is for plain data only (no strings,
+''     no arrays, nothing with a constructor or destructor).
+''   - The store cannot be copied; a copy would share the chunks.
+
+#ifndef __TKO_STABLEVEC_BI__
+#define __TKO_STABLEVEC_BI__
+
+#include once "tko.ti"
+
+namespace Tko
+
+    const STABLE_CHUNK_RECS as int32 = 4096
+
+    type StableStore
+        as any ptr ptr chunks       '' chunk pointers; this table may move, the chunks never do
+        as int32       chunkCount
+        as int32       chunkCap
+        as int32       num
+        as int32       recBytes
+
+        '' recBytes is set by the owner before the first Append.
+        declare constructor( )
+        declare destructor( )
+
+        '' The address of record i, 0 <= i < num.
+        declare function Slot( byval i as int32 ) as any ptr
+        '' Appends a copy of the recBytes bytes at src.
+        declare sub Append( byval src as const any ptr )
+
+        private:
+        declare constructor( byref other as const StableStore )
+        declare operator let( byref other as const StableStore )
+    end type
+
+end namespace
+
+#endif

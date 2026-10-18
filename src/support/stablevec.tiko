@@ -1,0 +1,53 @@
+'' stablevec.tiko -- see stablevec.ti
+
+#import "std/containers"
+#include once "support/stablevec.ti"
+
+namespace Tko
+
+constructor StableStore( )
+    this.chunks = nullptr
+    this.chunkCount = 0
+    this.chunkCap = 0
+    this.num = 0
+    this.recBytes = 0
+end constructor
+
+destructor StableStore( )
+    for k as int32 = 0 to this.chunkCount - 1
+        deallocate( this.chunks[k] )
+    next
+    deallocate( this.chunks )
+end destructor
+
+function StableStore.Slot( byval i as int32 ) as any ptr
+    dim as uint8 ptr base_ = this.chunks[i \ STABLE_CHUNK_RECS]
+    return base_ + cast( integer, i mod STABLE_CHUNK_RECS ) * this.recBytes
+end function
+
+sub StableStore.Append( byval src as const any ptr )
+    if this.num = this.chunkCount * STABLE_CHUNK_RECS then
+        if this.chunkCount = this.chunkCap then
+            '' Only the table of chunk POINTERS grows; no record moves.
+            dim as int32 cap = iif( this.chunkCap = 0, 16, this.chunkCap * 2 )
+            dim as any ptr ptr grown = reallocate( this.chunks, cap * sizeof( any ptr ) )
+            if grown = nullptr then
+                print "tiko-lang: internal error: out of memory growing a stable store"
+                end 4
+            end if
+            this.chunks = grown
+            this.chunkCap = cap
+        end if
+        dim as any ptr blk = callocate( STABLE_CHUNK_RECS, this.recBytes )
+        if blk = nullptr then
+            print "tiko-lang: internal error: out of memory allocating a stable chunk"
+            end 4
+        end if
+        this.chunks[this.chunkCount] = blk
+        this.chunkCount += 1
+    end if
+    this.num += 1
+    memcpy( this.Slot( this.num - 1 ), src, this.recBytes )
+end sub
+
+end namespace

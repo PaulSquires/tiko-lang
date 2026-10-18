@@ -1,0 +1,51 @@
+'' THE SYMBOL TABLE'S STORAGE NEVER MOVES (support/stablevec.ti). SymbolTable.SymbolAt and
+'' ScopeAt hand out record addresses that callers keep across calls that declare, so a
+'' record's address must survive every later Append. Over a containers.Array it did not,
+'' and the Linux compiler crashed reading freed memory. This takes addresses as it goes,
+'' appends 20,000 more records across several chunks, and checks each address and value.
+#import "std/containers"
+#include once "support/stablevec.ti"
+
+type Rec
+    as int32 a
+    as int64 b
+    as uint8 c
+end type
+
+dim as Tko.StableStore st
+st.recBytes = sizeof( Rec )
+
+const TOTAL as int32 = 20000
+const EVERY as int32 = 997
+dim as Rec ptr kept( 0 to TOTAL \ EVERY )
+dim as int32 keptAt( 0 to TOTAL \ EVERY )
+dim as int32 nk = 0
+
+for i as int32 = 0 to TOTAL - 1
+    dim as Rec r
+    r.a = i
+    r.b = cast( int64, i ) * 1000003
+    r.c = cast( uint8, i and 255 )
+    st.Append( @r )
+    if (i mod EVERY) = 0 then
+        kept( nk ) = st.Slot( i )
+        keptAt( nk ) = i
+        nk += 1
+    end if
+next
+
+dim as int32 moved = 0, wrong = 0
+for k as int32 = 0 to nk - 1
+    dim as int32 i = keptAt( k )
+    if kept( k ) <> st.Slot( i ) then moved += 1
+    dim as boolean same = (kept( k )->a = i) andalso (kept( k )->c = cast( uint8, i and 255 ))
+    if same then same = (kept( k )->b = cast( int64, i ) * 1000003)
+    if same = false then wrong += 1
+next
+for i as int32 = 0 to TOTAL - 1
+    dim as Rec ptr p = st.Slot( i )
+    if p->a <> i then wrong += 1
+next
+
+print "records"; st.num; " chunks"; st.chunkCount
+print "kept"; nk; " moved"; moved; " wrong"; wrong

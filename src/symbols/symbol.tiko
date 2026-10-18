@@ -43,6 +43,38 @@ end function
 
 '' ------------------------------------------------------------------- lifetime
 
+constructor SymbolVec( )
+    this.st.recBytes = sizeof( Symbol )
+end constructor
+
+function SymbolVec.Count( ) as int32
+    return this.st.num
+end function
+
+operator SymbolVec.[]( byval i as int32 ) byref as Symbol
+    return *cast( Symbol ptr, this.st.Slot( i ) )
+end operator
+
+sub SymbolVec.Push( byref s as Symbol )
+    this.st.Append( @s )
+end sub
+
+constructor ScopeVec( )
+    this.st.recBytes = sizeof( SymScope )
+end constructor
+
+function ScopeVec.Count( ) as int32
+    return this.st.num
+end function
+
+operator ScopeVec.[]( byval i as int32 ) byref as SymScope
+    return *cast( SymScope ptr, this.st.Slot( i ) )
+end operator
+
+sub ScopeVec.Push( byref s as SymScope )
+    this.st.Append( @s )
+end sub
+
 const SYMTAB_INITIAL_SLOTS as int32 = 4096
 const SYMTAB_LOAD_NUM as int32 = 7
 const SYMTAB_LOAD_DEN as int32 = 10
