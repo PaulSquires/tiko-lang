@@ -1,0 +1,6 @@
+'' ...and says so when there is none.
+'' TEST: cli
+'' ENV: TKO_CLANG=tests/driver/src/no-such-clang.exe
+'' ARGS: --version
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: llvm not found -- install LLVM 18 or newer, or set TKO_CLANG

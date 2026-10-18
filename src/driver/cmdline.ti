@@ -21,7 +21,9 @@ namespace Tko.Cmdline
           byref diags as Tko.DiagnosticEngine ) as boolean
 
     declare function HelpText( byval category as string = "" ) as string
-    declare function VersionText( ) as string
+    '' 'clangExe' is the clang a build would run, "" when there is none: finding it reads
+    '' the environment and the disk, which this module does not, so the driver passes it.
+    declare function VersionText( byref clangExe as string ) as string
 
 end namespace
 

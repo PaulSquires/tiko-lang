@@ -1,0 +1,9 @@
+'' NO LLVM IS SAID BEFORE THE FRONT END RUNS (TKO0124), not only after it: a build without
+'' clang used to parse and lower the whole program and only then stop at TKO0111. The
+'' warning names no path -- TKO0111 still does, and '--version' names the clang found.
+'' TEST: cli
+'' ENV: TKO_CLANG=tests/driver/src/no-such-clang.exe
+'' ARGS: -target windows-x86_64 -o tests/driver/src/no-llvm-warning-out.exe tests/source/plain.bas
+'' EXPECT-EXIT: 3
+'' EXPECT-OUT-SEQ: warning TKO0124: LLVM is not installed
+'' EXPECT-OUT-SEQ: error TKO0111: no usable toolchain

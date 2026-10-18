@@ -14,4 +14,6 @@
 '' EXPECT-EXIT: 3
 '' EXPECT-OUT: error TKO0111: no usable toolchain: clang not found
 '' EXPECT-FILE-HAS: build/.diagfile-tool.tsv :: \nerror\tTKO0111\t\t0\t0\t0\t0\tno usable toolchain: clang not found
-'' EXPECT-FILE-HAS: build/.diagfile-tool.tsv :: \nend\t1\t0\t3\n
+'' ...and the one warning is TKO0124, said before the front end ran: no LLVM at all.
+'' EXPECT-FILE-HAS: build/.diagfile-tool.tsv :: \nwarning\tTKO0124\t
+'' EXPECT-FILE-HAS: build/.diagfile-tool.tsv :: \nend\t1\t1\t3\n

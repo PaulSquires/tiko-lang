@@ -1,0 +1,6 @@
+'' '--version' NAMES THE CLANG A BUILD WOULD RUN, on its third line.
+'' TEST: cli
+'' ENV: TKO_CLANG=C:/Program Files/Git/usr/bin/true.exe
+'' ARGS: --version
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: llvm C:/Program Files/Git/usr/bin/true.exe

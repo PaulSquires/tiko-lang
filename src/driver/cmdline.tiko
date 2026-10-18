@@ -105,7 +105,7 @@ end namespace
 
 namespace Tko.Cmdline
 
-function VersionText( ) as string
+function VersionText( byref clangExe as string ) as string
     dim as string v = str( Tko.TKO_VERSION_MAJOR ) & "." & _
                       str( Tko.TKO_VERSION_MINOR ) & "." & _
                       str( Tko.TKO_VERSION_PATCH ) & Tko.TKO_VERSION_SUFFIX
@@ -120,6 +120,12 @@ function VersionText( ) as string
     '' THE BINARY IS tiko: tiko-lang names the repository, not the program.
     outp += "tiko " & v & chr( 10 )
     outp += "target " & os_ & chr( 10 )
+    '' THE THIRD LINE, so 'head -1' readers of the first (check-listings.sh) are untouched.
+    if len( clangExe ) > 0 then
+        outp += "llvm " & clangExe & chr( 10 )
+    else
+        outp += "llvm not found -- install LLVM 18 or newer, or set TKO_CLANG" & chr( 10 )
+    end if
     return outp
 end function
 

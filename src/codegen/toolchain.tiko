@@ -123,6 +123,13 @@ function FindTools _
     return t
 end function
 
+function FoundClang( ) as string
+    dim as containers.Array( of string ) none_
+    dim as ToolPaths t = FindTools( "", none_ )
+    if t.found = false then return ""
+    return t.clangExe
+end function
+
 '' A path with spaces in it needs quoting, and on Windows most of them have spaces.
 '' ...QUOTED AS THE CHILD WILL PARSE IT -- the Windows rules, which fbc's Unix exec
 '' (fb_hParseArgs) applies too: backslashes are literal except before a quote, where

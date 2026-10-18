@@ -77,6 +77,10 @@
     '' fbc's error 86: '-pic used, but not supported by target system (only works for
     '' Unixes)' -- measured, fbc-modern refuses '-pic' on its Windows targets.
     DIAG( TKO0123, SEV_ERROR,   "-pic makes position-independent code for a Unix shared library; target '%0' is not a Unix" )
+    '' NO LLVM, SAID BEFORE THE FRONT END RUNS rather than after it: a build without clang
+    '' parses and lowers the whole program and only then fails with TKO0111. Where it was
+    '' looked for is TKO0111's to say, and '--version' names the one that was found.
+    DIAG( TKO0124, SEV_WARNING, "LLVM is not installed: no clang was found, so this build cannot produce code -- install LLVM 18 or newer, or set TKO_CLANG" )
     '' The build graph of ADR 0017. The rest of the 0140-0151 block lands with its phase.
     DIAG( TKO0140, SEV_ERROR,   "cannot find module '%0' (searched: %1)" )
     DIAG( TKO0141, SEV_ERROR,   "import cycle: %0" )

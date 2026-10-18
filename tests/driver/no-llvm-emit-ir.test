@@ -1,0 +1,6 @@
+'' '--emit-ir' NEEDS NO CLANG, so a missing one is not warned about (TKO0124 is a build's).
+'' TEST: cli
+'' ENV: TKO_CLANG=tests/driver/src/no-such-clang.exe
+'' ARGS: -target windows-x86_64 --emit-ir tests/source/plain.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0124

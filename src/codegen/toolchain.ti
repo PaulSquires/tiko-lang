@@ -82,6 +82,10 @@ namespace Tko.Codegen
     declare function FindTools _
         ( byref clangOpt as string, byref libOpt as containers.Array( of string ) ) as ToolPaths
 
+    '' THE CLANG A BUILD WOULD RUN, or "" when there is none: FindTools' own lookup, so
+    '' '--version' and the driver's TKO0124 can never name a clang the build would not use.
+    declare function FoundClang( ) as string
+
     '' A RESOURCE SCRIPT TO A '.res'. Windows only: there is no such thing to link
     '' into an ELF binary, and a '.rc' passed with a Linux target is a mistake worth
     '' reporting rather than a file to ignore.

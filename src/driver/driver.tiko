@@ -825,7 +825,7 @@ function Run _
 
     '' --version and --help answer and stop, even with other options present.
     if ctx.options.showVersion then
-        print Tko.Cmdline.VersionText( );
+        print Tko.Cmdline.VersionText( Tko.Codegen.FoundClang( ) );
         return Tko.DiagOut.Finish( ctx, Tko.EXIT_OK )
     end if
     if ctx.options.showHelp then
@@ -847,6 +847,13 @@ function Run _
     if ctx.options.inputs.IsEmpty( ) then
         ctx.diags.ReportGlobal( Tko.TKO0102 )
         return Tko.DiagOut.Finish( ctx, Tko.EXIT_CMDLINE )
+    end if
+
+    '' NO LLVM, said before the front end (TKO0124): a build or '--emit-asm' needs clang;
+    '' a dump, '--emit-ir' or an editor scan does not.
+    dim as boolean needsClang = (AnotherModeWasAsked_( ctx.options ) = false) orelse ctx.options.emitAsm
+    if needsClang andalso (scanning = false) then
+        if Tko.Codegen.FoundClang( ) = "" then ctx.diags.ReportGlobal( Tko.TKO0124 )
     end if
 
     '' ---- partition the inputs ---------------------------------------------
