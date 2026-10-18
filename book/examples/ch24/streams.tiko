@@ -1,0 +1,28 @@
+#import "std/fs"
+
+'' Build the text in memory, then copy it to a file in one step.
+dim m as fs.MemoryStream
+scope
+    dim w as fs.TextWriter = fs.TextWriter( m )
+    w.NewLine = chr( 10 )
+    for i as int32 = 1 to 3
+        w.WriteLine( "line " & i )
+    next
+end scope
+print "in memory:"; m.Length( ); " bytes"
+
+m.Seek( 0 )                               '' Copy starts at the position
+dim f as fs.File
+f.Create( "out.txt" )
+print "copied:"; fs.Copy( m, f ).Value( ); " bytes"
+f.Close( )
+
+'' Read it back through a TextReader, which works on any stream.
+f.OpenRead( "out.txt" )
+dim r as fs.TextReader = fs.TextReader( f )
+dim as ustring ln
+do while r.ReadLine( ln ).ValueOr( false )
+    print "["; ln; "]"
+loop
+f.Close( )
+fs.RemoveFile( "out.txt" )

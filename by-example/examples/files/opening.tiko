@@ -1,0 +1,33 @@
+#import "std/fs"
+
+print "Opening a File"
+dim as ustring dir_ = fs.CreateTempDir( "tbe" ).Value( )
+dim as ustring p = fs.PathJoin( dir_, "once.txt" )
+
+dim f as fs.File
+var r = f.OpenRead( p )
+print "open a missing file: "; r.IsOk( )
+print "not found: "; cbool( r.Failure( ).Code( ) = fs.FS_NOT_FOUND )
+
+'' CreateNew refuses a file that is already there.
+print "first CreateNew: "; f.CreateNew( p ).IsOk( )
+f.Close( )
+var again = f.CreateNew( p )
+print "second CreateNew: "; again.IsOk( )
+print "already exists: "; _
+      cbool( again.Failure( ).Code( ) = fs.FS_ALREADY_EXISTS )
+
+'' Options say exactly what the program needs.
+dim o as fs.OpenOptions
+o.Read = true
+o.Write = true
+print "read and write: "; f.Open( p, o ).IsOk( )
+f.Close( )
+
+'' A File refuses what it was not opened for.
+f.OpenRead( p )
+print "write to a read-only File: "; f.WriteUtf8( "x" ).IsOk( )
+f.Close( )
+print "still open: "; f.IsOpen( )
+
+fs.RemoveDirAll( dir_ )

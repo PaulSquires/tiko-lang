@@ -1,0 +1,9 @@
+Opening a File
+open a missing file: false
+not found: true
+first CreateNew: true
+second CreateNew: false
+already exists: true
+read and write: true
+write to a read-only File: false
+still open: false

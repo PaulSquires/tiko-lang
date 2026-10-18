@@ -1,0 +1,21 @@
+#import "std/fs"
+
+print "Directories"
+dim as ustring dir_ = fs.CreateTempDir( "tbe" ).Value( )
+fs.CreateDirAll( fs.PathJoin( dir_, "src", "net" ) )   '' every level
+fs.WriteAllText( fs.PathJoin( dir_, "README" ), "" )
+fs.WriteAllText( fs.PathJoin( dir_, "src", "main.tiko" ), "" )
+fs.WriteAllText( fs.PathJoin( dir_, "src", "net", "http.tiko" ), "" )
+
+'' The whole tree, in name order, indented by depth.
+dim o as fs.WalkOptions
+o.SortByName = true
+for each e in fs.WalkDir( dir_, o )
+    if e.IsOk( ) then
+        print space( e.Value( ).Depth( ) * 2 ); e.Value( ).Name( )
+    end if
+next
+
+'' rm -rf: the count includes the directory itself.
+print "removed:"; fs.RemoveDirAll( dir_ ).Value( )
+print "still there: "; fs.Exists( dir_ )

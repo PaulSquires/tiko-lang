@@ -1,0 +1,37 @@
+#import "std/fs"
+
+print "Records at a position"
+type Score
+    player as int32
+    points as int32
+end type
+
+dim as ustring dir_ = fs.CreateTempDir( "tbe" ).Value( )
+dim o as fs.OpenOptions
+o.Read = true
+o.Write = true
+o.Create = true
+dim f as fs.File
+f.Open( fs.PathJoin( dir_, "scores.dat" ), o )
+
+'' Record n lives n * sizeof( Score ) bytes into the file.
+const SZ = sizeof( Score )
+dim s as Score
+for n as int32 = 0 to 3
+    s.player = n
+    s.points = n * 100
+    f.WriteAt( n * SZ, cptr( ubyte ptr, @s ), SZ )
+next
+print "file size:"; f.Size( ).Value( )
+
+'' Straight to record 2, change it, write it back in place.
+f.ReadAt( 2 * SZ, cptr( ubyte ptr, @s ), SZ )
+s.points += 5
+f.WriteAt( 2 * SZ, cptr( ubyte ptr, @s ), SZ )
+
+for n as int32 = 0 to 3
+    f.ReadAt( n * SZ, cptr( ubyte ptr, @s ), SZ )
+    print "player"; s.player; ":"; s.points
+next
+f.Close( )
+fs.RemoveDirAll( dir_ )

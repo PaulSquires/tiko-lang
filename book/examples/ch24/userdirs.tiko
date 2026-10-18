@@ -1,0 +1,20 @@
+#import "std/fs"
+
+'' Where a program keeps its files. Nothing is created: each call says
+'' where the directory should be, and the program adds its own name.
+var cfg = fs.ConfigDir( )
+if cfg.IsOk( ) then
+    var mine = fs.PathJoin( cfg.Value( ), "myapp", "settings.ini" )
+    print "settings under the config dir: "; fs.PathIsAbsolute( mine )
+end if
+print "cache dir found: "; fs.CacheDir( ).IsOk( )
+
+'' The program's own file, however it was started.
+var exe = fs.ExecutablePath( ).ValueOr( "" )
+print "running: "; fs.PathStem( exe )
+
+'' ~ means the home directory, and only at the start.
+var home = fs.HomeDir( ).ValueOr( "" )
+print cbool( fs.ExpandHome( "~/notes.txt" ).ValueOr( "" ) = _
+             fs.PathJoin( home, "notes.txt" ) )
+print fs.ExpandHome( "a/~/b" ).ValueOr( "" )

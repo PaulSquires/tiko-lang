@@ -1,0 +1,28 @@
+#import "std/fs"
+
+print "Line by line"
+dim as ustring dir_ = fs.CreateTempDir( "tbe" ).Value( )
+dim as ustring p = fs.PathJoin( dir_, "log.txt" )
+
+scope
+    dim f as fs.File
+    f.Create( p )                     '' creates, or empties, the file
+    dim w as fs.TextWriter = fs.TextWriter( f )
+    w.WriteLine( "started" )
+    w.WriteLine( "working" )
+end scope                             '' the File closes itself here
+
+scope
+    dim f as fs.File
+    f.OpenAppend( p )                 '' keeps what is there
+    dim w as fs.TextWriter = fs.TextWriter( f )
+    w.WriteLine( "finished" )
+end scope
+
+dim as int32 n = 0
+for each ln in fs.ReadLines( p )
+    n += 1
+    print n; " "; ln.Value( )
+next
+
+fs.RemoveDirAll( dir_ )

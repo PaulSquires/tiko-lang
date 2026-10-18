@@ -1,23 +1,24 @@
+#import "std/fs"
+
 '' Write a text file, add to it, read it back a line at a time.
-var f = freefile( )                   '' a file number nobody is using
-open "notes.txt" for output as #f     '' creates, or empties, the file
-print #f, "first line"
-print #f, "second line"
-close #f
+scope
+    dim f as fs.File
+    f.Create( "notes.txt" )               '' creates, or empties, the file
+    dim w as fs.TextWriter = fs.TextWriter( f )
+    w.WriteLine( "first line" )
+    w.WriteLine( "second line" )
+end scope                                 '' the file closes here
 
-f = freefile( )
-open "notes.txt" for append as #f     '' keeps what is there
-print #f, "third line"
-close #f
+scope
+    dim f as fs.File
+    f.OpenAppend( "notes.txt" )           '' keeps what is there
+    dim w as fs.TextWriter = fs.TextWriter( f )
+    w.WriteLine( "third line" )
+end scope
 
-f = freefile( )
-open "notes.txt" for input as #f
-dim as ustring text
 dim as int32 n = 0
-do until eof( f )
-    line input #f, text
+for each ln in fs.ReadLines( "notes.txt" )
     n += 1
-    print n; ": "; text
-loop
-close #f
-kill "notes.txt"
+    print n; ": "; ln.Value( )
+next
+fs.RemoveFile( "notes.txt" )

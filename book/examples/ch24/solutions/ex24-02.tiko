@@ -1,25 +1,33 @@
+#import "std/fs"
+
 '' Exercise 24-2: sell stock, refusing to go below zero.
 type Item
     id as int32
     qty as int32
 end type
 
-function Sell( byval f as int32, byval rec as int32, _
+function Sell( byref f as fs.File, byval rec as int32, _
                byval n as int32 ) as boolean
     dim it as Item
-    get #f, rec, it
+    dim as int64 at = ( rec - 1 ) * sizeof( Item )
+    var got = f.ReadAt( at, cptr( ubyte ptr, @it ), sizeof( Item ) )
+    if got.IsOk( ) = false then return false
     if it.qty < n then return false
     it.qty -= n
-    put #f, rec, it
-    return true
+    return f.WriteAt( at, cptr( ubyte ptr, @it ), sizeof( Item ) ).IsOk( )
 end function
 
-var f = freefile( )
-open "ex.dat" for random as #f len = sizeof( Item )
+dim o as fs.OpenOptions
+o.Read = true
+o.Write = true
+o.Create = true
+dim f as fs.File
+f.Open( "ex.dat", o )
 dim it as Item
-it.id = 1 : it.qty = 5 : put #f, 1, it
+it.id = 1 : it.qty = 5
+f.WriteAt( 0, cptr( ubyte ptr, @it ), sizeof( Item ) )
 print Sell( f, 1, 3 ); Sell( f, 1, 3 )
-get #f, 1, it
+f.ReadAt( 0, cptr( ubyte ptr, @it ), sizeof( Item ) )
 print "left:"; it.qty
-close #f
-kill "ex.dat"
+f.Close( )
+fs.RemoveFile( "ex.dat" )

@@ -1,0 +1,26 @@
+#import "std/fs"
+#import "std/containers"
+
+print "Whole files"
+dim as ustring dir_ = fs.CreateTempDir( "tbe" ).Value( )
+dim as ustring p = fs.PathJoin( dir_, "todo.txt" )
+
+fs.WriteAllText( p, "buy milk" & chr( 10 ) )
+fs.AppendAllText( p, "call home" & chr( 10 ) )
+
+dim lines as containers.Array( of ustring )
+print fs.ReadAllLines( p, lines ).Value( ); " lines"
+for each ln in lines
+    print "- "; ln
+next
+
+'' Bytes, not text: exactly what is on disk.
+dim bytes as containers.Array( of ubyte )
+fs.ReadAllBytes( p, bytes )
+print bytes.Count( ); " bytes"
+
+'' Replace a file so that a reader sees the old one or the new one.
+fs.WriteAtomic( p, "all done" & chr( 10 ) )
+print fs.ReadAllText( p ).Value( );
+
+fs.RemoveDirAll( dir_ )

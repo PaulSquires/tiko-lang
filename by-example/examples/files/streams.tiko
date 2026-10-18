@@ -1,0 +1,31 @@
+#import "std/fs"
+
+print "Streams"
+'' Text built in memory: a MemoryStream is a Stream, like a File.
+dim m as fs.MemoryStream
+scope
+    dim w as fs.TextWriter = fs.TextWriter( m )
+    w.NewLine = chr( 10 )
+    w.WriteLine( "alpha" )
+    w.WriteLine( "beta" )
+end scope
+print m.Length( ); " bytes in memory"
+
+'' Copy it to a file in one call. Copy starts at the position.
+dim as ustring dir_ = fs.CreateTempDir( "tbe" ).Value( )
+dim as ustring p = fs.PathJoin( dir_, "out.txt" )
+m.Seek( 0 )
+dim f as fs.File
+f.Create( p )
+print fs.Copy( m, f ).Value( ); " bytes copied"
+f.Close( )
+
+'' A TextReader reads lines from any stream.
+f.OpenRead( p )
+dim r as fs.TextReader = fs.TextReader( f )
+dim as ustring ln
+do while r.ReadLine( ln ).ValueOr( false )
+    print "["; ln; "]"
+loop
+f.Close( )
+fs.RemoveDirAll( dir_ )

@@ -1,0 +1,6 @@
+Files
+hello, file
+size:11, file: true
+read a missing file: false
+not found: true
+removed: 2

@@ -1,0 +1,21 @@
+#import "std/fs"
+
+print "Where files live"
+'' Each call says where a directory should be. Nothing is created.
+var cfg = fs.ConfigDir( )
+if cfg.IsOk( ) then
+    dim as ustring mine = fs.PathJoin( cfg.Value( ), "myapp" )
+    print "config is absolute: "; fs.PathIsAbsolute( mine )
+end if
+print "data: "; fs.DataDir( ).IsOk( ); _
+      ", cache: "; fs.CacheDir( ).IsOk( ); _
+      ", state: "; fs.StateDir( ).IsOk( )
+
+'' The program's own file, however it was started.
+print "this program: "; fs.PathStem( fs.ExecutablePath( ).ValueOr( "" ) )
+
+'' A leading ~ is the home directory; anything else is left alone.
+dim as ustring home = fs.HomeDir( ).ValueOr( "" )
+print cbool( fs.ExpandHome( "~/notes" ).ValueOr( "" ) = _
+             fs.PathJoin( home, "notes" ) )
+print fs.ExpandHome( "a/~" ).ValueOr( "" )

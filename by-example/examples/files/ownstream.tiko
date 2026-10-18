@@ -1,0 +1,33 @@
+#import "std/fs"
+#import "std/outcome"
+using outcome
+
+'' A stream that keeps nothing and counts the lines written to it.
+type LineCounter extends fs.Stream
+    as int64 lines = 0
+    declare const function CanWrite( ) as boolean override
+    declare function Write( byval buf as const ubyte ptr, _
+                            byval n as longint ) as fs.FsResultI64 override
+end type
+
+const function LineCounter.CanWrite( ) as boolean
+    return true
+end function
+
+function LineCounter.Write( byval buf as const ubyte ptr, _
+                            byval n as longint ) as fs.FsResultI64
+    for i as longint = 0 to n - 1
+        if buf[i] = 10 then this.lines += 1
+    next
+    return Ok( of longint, fs.FsError )( n )
+end function
+
+print "Your own stream"
+dim c as LineCounter
+dim w as fs.TextWriter = fs.TextWriter( c )
+w.NewLine = chr( 10 )
+for i as int32 = 1 to 5
+    w.WriteLine( "line " & i )
+next
+print c.lines; " lines"
+print "can read: "; c.CanRead( )

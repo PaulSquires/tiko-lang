@@ -1,0 +1,37 @@
+#import "std/fs"
+#import "std/outcome"
+using outcome
+
+'' A stream of your own: it keeps nothing, and counts what passes.
+type Counter extends fs.Stream
+    as int64 bytes = 0
+    as int64 lines = 0
+    declare const function CanWrite( ) as boolean override
+    declare function Write( byval buf as const ubyte ptr, _
+                            byval n as longint ) as fs.FsResultI64 override
+end type
+
+const function Counter.CanWrite( ) as boolean
+    return true
+end function
+
+function Counter.Write( byval buf as const ubyte ptr, _
+                        byval n as longint ) as fs.FsResultI64
+    if ( n < 0 ) orelse ( ( buf = nullptr ) andalso ( n > 0 ) ) then
+        return fs.FsFail( of longint )( fs.FS_INVALID_ARGUMENT, "Write", "" )
+    end if
+    for i as longint = 0 to n - 1
+        if buf[i] = 10 then this.lines += 1
+    next
+    this.bytes += n
+    return Ok( of longint, fs.FsError )( n )
+end function
+
+dim c as Counter
+dim w as fs.TextWriter = fs.TextWriter( c )
+w.NewLine = chr( 10 )
+w.WriteLine( "one" )
+w.WriteLine( "two" )
+w.Write( "three" )
+print c.lines; " lines,"; c.bytes; " bytes"
+print "can read: "; c.CanRead( )

@@ -1,0 +1,6 @@
+Where files live
+config is absolute: true
+data: true, cache: true, state: true
+this program: userdirs
+true
+a/~

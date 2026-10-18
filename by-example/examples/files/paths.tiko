@@ -1,0 +1,24 @@
+#import "std/fs"
+
+'' Taking a path apart touches no disk.
+dim as ustring p = "projects/tiko/src/main.tiko"
+print fs.PathFileName( p )
+print fs.PathStem( p )
+print fs.PathExtension( p )
+print fs.PathFileName( fs.PathParent( p ) )
+print fs.PathChangeExtension( "notes.txt", ".md" )
+print fs.PathFilePrefix( "backup.tar.gz" )
+print fs.PathAddExtension( "backup.tar", "gz" )
+print "["; fs.PathExtension( ".gitignore" ); "]"
+
+'' The pieces, one at a time.
+for each c in fs.PathComponents( "projects/./tiko/../docs" )
+    print "<"; c.Text( ); ">";
+next
+print
+
+'' Joining uses the platform's separator, so compare, don't print.
+dim as ustring j = fs.PathJoin( "projects", "tiko", "main.tiko" )
+print cbool( fs.PathEquals( j, "projects/tiko/main.tiko" ) )
+print cbool( fs.PathNormalize( "projects/./tiko/../docs" ) = _
+             fs.PathJoin( "projects", "docs" ) )

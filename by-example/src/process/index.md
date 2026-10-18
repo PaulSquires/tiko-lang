@@ -29,7 +29,7 @@ The pages in this section take each channel in turn:
 - [Exit codes](exit.md): `end n`.
 - [Running other programs](run.md): `exec`, `shell` and `open pipe`.
 
-Reading and writing files is covered in its own section.
+Reading and writing files is covered in [its own section](../files/index.md).
 
 ### Activities
 

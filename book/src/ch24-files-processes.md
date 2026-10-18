@@ -5,18 +5,22 @@ configuration file, a log, a folder of results, an exit code a build script chec
 is about that boundary — the files a program reads and writes, the directories around them, the
 console it talks through, and the other programs it starts.
 
-tiko has two layers for files. The **statements** — `open`, `print #`, `line input #`, `get`,
-`put`, `kill`, `mkdir` — are built into the language and have been the way programs did file
-work for a very long time. The **`std/fs` module** sits beside them: a path algebra, a single
-`Stat` call for every fact about a file, directory walks with `for each`, whole-file reads and
-writes, and failures reported as `Result` values (Chapter 17) rather than as runtime errors. Both
-are first-class; this chapter shows when each fits.
+Files are the **`std/fs` module**: an open `File` and the streams layered on it, a path algebra, a
+single `Stat` call for every fact about a file, directory walks with `for each`, whole-file reads
+and writes, and the directories a program keeps its own files in. Every operation that can fail
+returns a `Result` (Chapter 17) rather than raising a runtime error, so a missing file is a value
+the program looks at, not a crash.
 
-## Stream I/O
+```tiko
+#import "std/fs"
+```
+
+## Files and streams
 
 ### Text files
 
-A file is opened on a **file number**, and `freefile( )` hands out one nobody is using:
+A `File` is opened in place and **closes itself** when it goes out of scope. A `TextWriter`
+writes text to it, and `ReadLines` reads a file back a line at a time with `for each`:
 
 ```tiko
 {{#include ../examples/ch24/textfile.tiko}}
@@ -26,46 +30,71 @@ A file is opened on a **file number**, and `freefile( )` hands out one nobody is
 {{#include ../examples/ch24/textfile.out}}
 ```
 
-| Mode | Opens for | An existing file is |
-|---|---|---|
-| `for output` | writing | **emptied** |
-| `for append` | writing at the end | kept |
-| `for input` | reading | read; a missing file is runtime error 2 under `-e` |
-| `for binary` | reading and writing bytes, anywhere | kept |
-| `for random` | fixed-size records, by number | kept |
+`Create` makes the file, or empties one that is there; `OpenAppend` keeps what is there and writes
+at the end; `OpenRead` opens for reading only. The `scope` blocks are where each `File` ends: its
+destructor closes the handle, and the `TextWriter` declared after it is destroyed first, so nothing
+is left unwritten. A `File` cannot be copied — pass it `byref`.
 
-`print #f, …` writes a line as `print` would. `line input #f, text` reads one line, without its
-line ending, into a `ustring` or `string`. `eof( f )` is true once nothing is left to read, so
-`do until eof( f )` reads to the end. `close #f` releases the number; a program that never closes
-its files leaks them until it ends.
+`WriteLine` ends each line the way the platform does: carriage return and line feed on Windows,
+line feed alone on Linux. Set the writer's `NewLine` to `chr( 10 )` for files that must be the
+same bytes everywhere. `ReadLines` accepts either ending, removes it, and yields one
+`Result( of ustring, FsError )` per line — `ln.Value( )` is the text. It holds one line in memory at
+a time, whatever the size of the file, and leaving the loop early closes the file.
 
-`open` also takes an `access` clause (`access read`, `access write`, `access read write`) to say
-how much of the file the program needs, `encoding "utf8"` and its siblings for text that is not
-in the system's narrow encoding, and a `lock` clause that keeps other programs out of the file
-while it is open.
+Text is UTF-8. A `TextReader` and `ReadLines` also honour a byte-order mark at the start of a file,
+for UTF-8 and UTF-16 text written by other programs.
 
-`print #` ends each line the way the platform does: two bytes on Windows (carriage return and line
-feed), one on Linux. Reading back with `line input #` handles both, but a byte count such as
-`lof( f )` — the length of the open file — differs between the two for the same text.
+### Opening a file
 
-### Fields with write # and input #
+Every open returns a `Result( of boolean, FsError )`, and the error says why:
 
 ```tiko
-{{#include ../examples/ch24/writeinput.tiko}}
+{{#include ../examples/ch24/openfile.tiko}}
 ```
 
 ```text
-{{#include ../examples/ch24/writeinput.out}}
+{{#include ../examples/ch24/openfile.out}}
 ```
 
-`write #` writes values separated by commas, with strings in quotes, so a comma inside a string
-survives the round trip. `input #` reads them back into variables of the right types. It is the
-simplest way to save a few values and read them again; for anything that other programs must read,
+| Method | Opens for | An existing file is | A missing file |
+|---|---|---|---|
+| `OpenRead( p )` | reading | read | fails, `FS_NOT_FOUND` |
+| `Create( p )` | writing | **emptied** | created |
+| `CreateNew( p )` | writing | refused, `FS_ALREADY_EXISTS` | created |
+| `OpenAppend( p )` | writing at the end | kept | created |
+| `Open( p, options )` | what `OpenOptions` says | as the options say | as the options say |
+
+An `OpenOptions` names what the program needs: `Read`, `Write`, `Append`, `Truncate`, `Create` and
+`CreateNew`. A combination that makes no sense — `Append` with `Truncate`, `CreateNew` without
+`Write` — is refused before anything is opened. An operation the `File` was not opened for fails
+too: writing to a file opened for reading is a failure, not a silent nothing.
+
+Other programs may still read, write, rename and delete a file you have open; on Windows the
+`ShareRead`, `ShareWrite` and `ShareDelete` options narrow that. A handle is **not** passed to the
+programs this one starts unless `Inheritable` is set.
+
+### Fields in a line
+
+The simplest file format a program can save and read again is one record per line with its fields
+separated by commas:
+
+```tiko
+{{#include ../examples/ch24/fields.tiko}}
+```
+
+```text
+{{#include ../examples/ch24/fields.out}}
+```
+
+A field that contains a comma is written inside double quotes, and `strings.SplitCsvRow` splits a
+line into its fields with the quotes removed, so `hopper, grace` survives the round trip. `valint`
+and `val` turn the text fields back into numbers. For anything that other programs must read,
 prefer a format both sides agree on.
 
-### Binary and random-access files
+### Records at a position
 
-A **random-access** file is a row of fixed-size records, read and written by number:
+A file of fixed-size records can be read and written **by number**, without touching the records
+around the one you want:
 
 ```tiko
 {{#include ../examples/ch24/records.tiko}}
@@ -75,22 +104,58 @@ A **random-access** file is a row of fixed-size records, read and written by num
 {{#include ../examples/ch24/records.out}}
 ```
 
-`len = sizeof( Item )` sets the record size, and `put #f, n, it` writes record `n` wherever it
-falls — record 2 can be read or rewritten without touching records 1 and 3. Every field must have
-a fixed size for this to work, which is why `label` is a `string * 8` rather than a `ustring`: a
-variable-length string is a pointer, and a pointer written to a file means nothing when it is read
-back. `lof( f )` is the file's length in bytes, `loc( f )` the last record read or written, and
-`seek` moves to a position without reading.
+`WriteAt( position, buffer, count )` writes `count` bytes at a byte position, and `ReadAt` reads
+them; record `n` begins `( n - 1 ) * sizeof( Item )` bytes into the file. Neither moves the file's
+position, and both may be called from several threads on one `File`. `Size( )` is the length of
+the file in bytes. Every field must have a fixed size for this to work, which is why `label` is a
+`string * 8` rather than a `ustring`: a variable-length string is a pointer, and a pointer written to
+a file means nothing when it is read back.
 
-`open … for binary` is the same idea without records: `get #f, position, variable` reads
-`sizeof( variable )` bytes at a byte position, which is how a program reads a header or a block
-of a file format.
+### Streams
 
-## The std/fs module
+A `File` is a **`Stream`**: something that bytes can be read from, written to, or both. A
+`MemoryStream` is another — a growable buffer in memory — and everything that works on one works on
+the other:
 
 ```tiko
-#import "std/fs"
+{{#include ../examples/ch24/streams.tiko}}
 ```
+
+```text
+{{#include ../examples/ch24/streams.out}}
+```
+
+`fs.Copy( source, destination )` copies from the source's current position to its end, which is why
+the listing seeks the `MemoryStream` back to 0 first. A `TextReader` reads lines from any stream,
+here the `File`; `ReadLine` returns `false` when there are no more.
+
+| Type | Is |
+|---|---|
+| `File` | a file on disk; **unbuffered**: each `Read` and `Write` is one call to the system |
+| `MemoryStream` | bytes in memory; `Length( )`, `ToUtf8Text( )` |
+| `BufferedReader`, `BufferedWriter` | a buffer over another stream, so many small reads or writes become a few large ones |
+| `TextReader`, `TextWriter` | text over another stream: `ReadLine`, `WriteLine` |
+
+A wrapper keeps a pointer to the stream it was given, so that stream must outlive it — declare the
+stream first. `Read` may return fewer bytes than asked, and `Ok( 0 )` means the end; `ReadExact`,
+`WriteAll` and `Copy` are the loops that make short reads and writes invisible.
+
+A stream of your own extends `fs.Stream` and overrides the operations it supports:
+
+```tiko
+{{#include ../examples/ch24/counting.tiko}}
+```
+
+```text
+{{#include ../examples/ch24/counting.out}}
+```
+
+`Read`, `Write`, `Seek` and `Flush` are virtual and return a `Result`. `Counter` overrides `Write`
+and says so with `CanWrite`; the operations it does not override fail with `FS_UNSUPPORTED`, and
+`CanRead( )` answers `false`. Anything written for a `Stream` — `TextWriter`, `Copy`, a buffer —
+now works with it.
+
+## Paths, metadata and directories
 
 ### Paths
 
@@ -193,7 +258,10 @@ file system gives, so the listing sorts before printing.
 `Glob( pattern, results )` finds the paths that match a pattern: `*` and `?` within one part of a
 path, and `**` for any number of directories, including none. `CopyDir` copies a tree and
 `RemoveDirAll` deletes one; each returns how many objects it handled. `RemoveDirAll` deletes a
-link to a directory without following it, so it cannot reach outside the tree it was given.
+link inside the tree as a link, without following it, and it opens each directory relative to the
+one it is already in, so even another program swapping a directory for a link while the delete
+runs cannot send it outside the tree. Given a path that is itself a link, it refuses with
+`FS_NOT_A_DIRECTORY` and deletes nothing.
 
 ### Whole files, written atomically
 
@@ -240,29 +308,51 @@ a directory when the program calls its `Poll` method. Its events depend on the p
 timing — a single save can arrive as several events — so treat each batch as a reason to look
 again rather than as an exact log.
 
-## The classic statements
+### Where a program keeps its files
 
 ```tiko
-{{#include ../examples/ch24/classic.tiko}}
+{{#include ../examples/ch24/userdirs.tiko}}
 ```
 
 ```text
-{{#include ../examples/ch24/classic.out}}
+{{#include ../examples/ch24/userdirs.out}}
 ```
 
-These are the statements every BASIC-family program has used, and they still work. Most have a
-`std/fs` counterpart that reports failure as a `Result` instead of a runtime error or a silent
-nothing:
-
-| Classic | Does | std/fs |
+| Function | Windows | Linux |
 |---|---|---|
-| `mkdir p`, `rmdir p` | create or remove one directory | `CreateDir`, `CreateDirAll`, `RemoveDir`, `RemoveDirAll` |
+| `HomeDir( )` | the user's profile folder | `$HOME`, else the user's account entry |
+| `ConfigDir( )` | `AppData\Roaming` | `$XDG_CONFIG_HOME`, else `~/.config` |
+| `DataDir( )` | `AppData\Local` | `$XDG_DATA_HOME`, else `~/.local/share` |
+| `CacheDir( )` | `AppData\Local` | `$XDG_CACHE_HOME`, else `~/.cache` |
+| `StateDir( )` | `AppData\Local` | `$XDG_STATE_HOME`, else `~/.local/state` |
+| `ExecutablePath( )` | the program's own file | the program's own file |
+
+**Nothing is created and no program name is added.** Each call says where the directory should
+be; join your own program's name, and `CreateDirAll` it before writing there. On Linux an `XDG_`
+variable counts only when it holds an absolute path. `ExecutablePath( )` is the full path of the
+running program however it was started, which `command( 0 )` is not — the way to find a file
+installed beside the program. `ExpandHome` replaces a leading `~` with the home directory and leaves
+every other path as it is.
+
+## Coming from the file statements
+
+tiko still compiles the file statements of the BASIC family — `open`, `print #`, `line input #`,
+`get #`, `put #`, `kill`, `mkdir` and the rest — so older programs keep working. New code uses
+`std/fs`, where a failure is a value rather than a runtime error or a silent nothing:
+
+| Statement | Does | std/fs |
+|---|---|---|
+| `open … for output` / `append` / `input` | open a text file | `File.Create`, `OpenAppend`, `OpenRead` |
+| `print #`, `line input #`, `eof` | write and read lines | `TextWriter.WriteLine`, `ReadLines`, `TextReader.ReadLine` |
+| `write #`, `input #` | comma-separated fields | `WriteLine` of the fields, `strings.SplitCsvRow` |
+| `open … for random`, `get #`, `put #` | fixed-size records | `File.ReadAt`, `WriteAt` |
+| `lof( f )`, `seek` | length, position | `File.Size( )`, `Seek` |
+| `mkdir p`, `rmdir p` | create or remove a directory | `CreateDir`, `CreateDirAll`, `RemoveDir`, `RemoveDirAll` |
 | `chdir p`, `curdir( )` | change or read the current directory | `SetCurrentDir`, `CurrentDir` |
 | `kill p` | delete a file | `RemoveFile` |
 | `name old as new` | rename | `MoveFile` (which also crosses drives) |
 | `dir( pattern )`, `dir( )` | first match, then next match | `ReadDir`, `Glob` |
-| `filelen`, `fileexists` (`file.bi`) | size, existence | `Stat`, `Exists` |
-| `exepath( )` | the folder the program is in | — |
+| `exepath( )` | the folder the program is in | `PathParent( ExecutablePath( ).Value( ) )` |
 
 `dir( )` keeps one listing per thread, so two listings cannot be interleaved and a goroutine cannot
 continue the main program's (Chapter 22). `ReadDir` has neither limit.
@@ -357,8 +447,11 @@ should say so through its exit code, not only through what it prints.
 
 ## What it costs
 
-- **A statement-level `open` keeps its file open until `close`**, and each open file holds an
-  operating-system handle. Close what you open, or wrap it in a type with a destructor (Chapter 21).
+- **A `File` holds an operating-system handle until it is closed or goes out of scope.** Keep it
+  in the narrowest `scope` that needs it. Call `Close( )` yourself when you need to know whether
+  the close itself succeeded: it returns a `Result`, and a destructor has nowhere to report one.
+- **A `File` is unbuffered**: every `Read` and `Write` is a system call. Many small writes belong in
+  a `BufferedWriter`, a `TextWriter` over one, or a `MemoryStream` written once.
 - **`Stat` is one system call**; `Exists` followed by a size check is two, and the file can change
   between them.
 - **`WalkDir` holds one directory open at a time** and cannot exhaust handles, however deep the
@@ -368,16 +461,22 @@ should say so through its exit code, not only through what it prints.
 
 ## Summary
 
-- `open … for output | append | input | binary | random as #f`, with `freefile( )`. `print #`,
-  `line input #`, `write #`/`input #`, `eof`, `lof`, `loc`, `seek`, `close`.
-- Random-access files read and write fixed-size records by number with `get #` and `put #`; every
-  field must be fixed-size.
-- `#import "std/fs"`: the `Path*` functions; `Stat` for every fact at once, failures as `FsError`;
-  `ReadDir`, `WalkDir`, `Glob`; `ReadAllText`/`ReadAllLines`/`WriteAllText`; `WriteAtomic`.
+- `#import "std/fs"`. A `File` opens with `OpenRead`, `Create`, `CreateNew`, `OpenAppend` or
+  `Open( p, OpenOptions )`, closes itself, and reports every failure as an `FsError`.
+- `TextWriter.WriteLine` writes lines; `for each ln in ReadLines( p )` reads them back.
+  `strings.SplitCsvRow` splits a line of comma-separated fields.
+- `ReadAt` and `WriteAt` read and write fixed-size records at a position; every field must be
+  fixed-size.
+- A `File` is a `Stream`, like `MemoryStream`; buffers, text readers and writers, and `Copy` work on
+  any stream, including one you write by extending `fs.Stream`.
+- The `Path*` functions; `Stat` for every fact at once; `ReadDir`, `WalkDir`, `Glob`;
+  `ReadAllText`/`ReadAllLines`/`WriteAllText`; `WriteAtomic`.
+- `ConfigDir`, `DataDir`, `CacheDir`, `StateDir`, `HomeDir` and `ExecutablePath` say where a program
+  keeps its files.
 - **`PathJoin` with an absolute second part discards the first** — check containment with
   `PathStartsWith` before using a path built from input.
-- The classic `mkdir`, `chdir`, `kill`, `name`, `dir` still work; `std/fs` reports their failures
-  as values.
+- The file statements (`open`, `print #`, `kill`, `mkdir`, `dir` …) still compile for older
+  programs; each has a `std/fs` counterpart that reports failure as a value.
 - `IsRedirected( )` decides whether to draw on the console. `inkey` never waits; `getkey` does.
 - `command( n )`, `environ`, `setenviron`; `shell`, `exec`, `chain`, `run`, `open pipe`; `end n`
   sets the exit code.
@@ -386,11 +485,12 @@ should say so through its exit code, not only through what it prints.
 
 1. Walk a directory tree and count its files by extension, printing the counts in a stable order.
    {solution="ex24-01"}
-2. Write `Sell( f, record, n )` for the random-access stock file: it reduces the quantity by `n`
-   and refuses, returning `false`, if there are not enough. {solution="ex24-02"}
+2. Write `Sell( f, record, n )` for the stock file of `records.tiko`: it reduces the quantity of
+   record `record` by `n` and refuses, returning `false`, if there are not enough.
+   {solution="ex24-02"}
 3. Make `pathescape.tiko` refuse any name that would leave `uploads`, and print which names were
    refused, on both platforms.
 4. Rewrite `textfile.tiko` with `fs.WriteAllText` and `fs.ReadAllLines`. Which version would you
-   want if the file might be missing?
+   want for a file of a few lines, and which for a log of a few gigabytes?
 5. Write a program that runs `exitcode.tiko`'s executable with `exec` and prints a different message
    for exit status 0 and for anything else.

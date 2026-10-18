@@ -1,0 +1,4 @@
+open missing: false, not found: true
+first create: true
+second create: false, exists: true
+write to a read-only File: false

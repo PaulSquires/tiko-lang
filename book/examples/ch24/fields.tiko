@@ -1,0 +1,22 @@
+#import "std/fs"
+#import "std/strings"
+
+'' One record per line, fields separated by commas. A field that holds
+'' a comma is quoted, and SplitCsvRow takes the quotes off again.
+dim f as fs.File
+f.Create( "people.csv" )
+scope
+    dim w as fs.TextWriter = fs.TextWriter( f )
+    w.WriteLine( "ada,36,1.5" )
+    w.WriteLine( """hopper, grace"",85,2" )
+end scope
+f.Close( )
+
+for each ln in fs.ReadLines( "people.csv" )
+    var cols = strings.SplitCsvRow( ln.Value( ) )
+    dim as ustring who = cols[0]
+    dim as int32 age = valint( cols[1] )
+    dim as float64 rating = val( cols[2] )
+    print who; " |"; age; " |"; rating
+next
+fs.RemoveFile( "people.csv" )

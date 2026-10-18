@@ -1,0 +1,19 @@
+#import "std/fs"
+
+print "Files"
+'' A scratch directory of our own, under a fresh name.
+dim as ustring dir_ = fs.CreateTempDir( "tbe" ).Value( )
+dim as ustring p = fs.PathJoin( dir_, "greeting.txt" )
+
+fs.WriteAllText( p, "hello, file" )
+print fs.ReadAllText( p ).Value( )
+
+var info = fs.Stat( p )
+print "size:"; info.Value( ).Size( ); ", file: "; info.Value( ).IsFile( )
+
+'' A failure is a value to look at, not a crash.
+var missing = fs.ReadAllText( fs.PathJoin( dir_, "nope.txt" ) )
+print "read a missing file: "; missing.IsOk( )
+print "not found: "; cbool( missing.Failure( ).Code( ) = fs.FS_NOT_FOUND )
+
+print "removed:"; fs.RemoveDirAll( dir_ ).Value( )

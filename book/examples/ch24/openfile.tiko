@@ -1,0 +1,24 @@
+#import "std/fs"
+
+'' Every way of opening a file can fail, and says why.
+dim f as fs.File
+var r = f.OpenRead( "missing.txt" )
+print "open missing: "; r.IsOk( ); ", not found: "; _
+      cbool( r.Failure( ).Code( ) = fs.FS_NOT_FOUND )
+
+'' CreateNew refuses a file that is already there.
+dim o as fs.OpenOptions
+o.Write = true
+o.CreateNew = true
+print "first create: "; f.Open( "once.txt", o ).IsOk( )
+f.Close( )
+var again = f.Open( "once.txt", o )
+print "second create: "; again.IsOk( ); ", exists: "; _
+      cbool( again.Failure( ).Code( ) = fs.FS_ALREADY_EXISTS )
+
+'' A File refuses what it was not opened for.
+f.OpenRead( "once.txt" )
+var w = f.WriteUtf8( "x" )
+print "write to a read-only File: "; w.IsOk( )
+f.Close( )
+fs.RemoveFile( "once.txt" )

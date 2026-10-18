@@ -59,7 +59,7 @@ A solution is one way to do the exercise, not the only one. Several build on a c
 | 23.1 | Containers and Sorting | Count the words of a text in a `Map` and print the three most frequent, ties broken alphabetically so the output never varies. | `ch23/solutions/ex23-01.tiko` |
 | 23.2 | Containers and Sorting | Keep the booked appointment times in an `OrderedSet`. | `ch23/solutions/ex23-02.tiko` |
 | 24.1 | Files, Processes and the Environment | Walk a directory tree and count its files by extension, printing the counts in a stable order. | `ch24/solutions/ex24-01.tiko` |
-| 24.2 | Files, Processes and the Environment | Write `Sell( f, record, n )` for the random-access stock file: it reduces the quantity by `n` and refuses, returning `false`, if there are not enough. | `ch24/solutions/ex24-02.tiko` |
+| 24.2 | Files, Processes and the Environment | Write `Sell( f, record, n )` for the stock file of `records.tiko`: it reduces the quantity of record `record` by `n` and refuses, returning `false`, if there are not enough. | `ch24/solutions/ex24-02.tiko` |
 | 25.1 | Dates and Times | Write `WorkingDays( first, last )`, the number of Monday-to-Friday days from `first` up to but not including `last`, and check it on a week, a month and a year. | `ch25/solutions/ex25-01.tiko` |
 | 25.2 | Dates and Times | Read a list of lap times written as ISO 8601 durations, report any that do not parse, and print the total and the mean. | `ch25/solutions/ex25-02.tiko` |
 | 26.1 | Numbers | Put 1000.00 in a savings account at 4% a year, credit and round the interest to cents each year, and print the balance for ten years in `Decimal`. | `ch26/solutions/ex26-01.tiko` |
@@ -79,4 +79,4 @@ A solution is one way to do the exercise, not the only one. Several build on a c
 | 34.1 | Capstone: a TUI Ledger | Print the spending in each category over the whole ledger, the largest first. | `ch34/solutions/ex34-01.tiko` |
 | 34.2 | Capstone: a TUI Ledger | Accept a quick-entry line, `date;payee;category;amount`, and check it with `ParseTxn`. | `ch34/solutions/ex34-02.tiko` |
 
-<!-- 70 solutions of 170 exercises, generated 2026-10-16 -->
+<!-- 70 solutions of 170 exercises, generated 2026-10-18 -->

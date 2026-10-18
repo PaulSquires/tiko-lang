@@ -1,0 +1,23 @@
+#import "std/fs"
+
+print "File information"
+dim as ustring dir_ = fs.CreateTempDir( "tbe" ).Value( )
+dim as ustring p = fs.PathJoin( dir_, "data.bin" )
+fs.WriteAllText( p, "12345" )
+
+var r = fs.Stat( p )
+if r.IsOk( ) then
+    var info = r.Value( )
+    print "size:"; info.Size( )
+    print "file: "; info.IsFile( ); ", directory: "; info.IsDirectory( )
+    print "read-only: "; info.IsReadOnly( )
+end if
+
+'' Every failure has a code, so "absent" and "not allowed" differ.
+var gone = fs.Stat( fs.PathJoin( dir_, "gone" ) )
+print "missing: "; cbool( gone.Failure( ).Code( ) = fs.FS_NOT_FOUND )
+
+'' Yes-or-no questions fold every failure into false.
+print fs.Exists( p ); " "; fs.IsDir( dir_ ); " "; fs.IsFile( dir_ )
+
+fs.RemoveDirAll( dir_ )
