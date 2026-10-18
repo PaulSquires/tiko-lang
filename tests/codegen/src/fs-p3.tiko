@@ -1,0 +1,249 @@
+'' std/fs phase P3 (C:\dev\docs\tiko-fs\RFC-0001 section 6): OpenOptions validation;
+'' every create/open disposition; append; positional IO that never moves the position;
+'' SetSize; Stat on the handle; a closed File, an open one opened again, a directory, the
+'' wrong access mode; whole-file locks between two Files and between a File and a FileLock;
+'' handles not inherited unless asked; NoFollow; Copy, ReadExact and polymorphism through a
+'' File; OpenTemp; a non-ASCII name. Inside a temporary directory, removed at the end.
+#import "std/fs"
+#import "std/containers"
+
+#ifdef __FB_WIN32__
+extern "C"
+    declare function t_GetHandleInformation stdcall alias "GetHandleInformation" ( byval h as any ptr, byval flags as ulong ptr ) as long
+end extern
+#else
+extern "C"
+    declare function t_fcntl alias "fcntl" ( byval fd as long, byval cmd as long, ... ) as long
+end extern
+#endif
+
+dim shared as integer fails = 0
+
+sub Check( byref what as string, byval ok as boolean )
+    if ok = false then
+        print "FAIL "; what
+        fails += 1
+    end if
+end sub
+
+function Code( byref r as fs.FsResultBool ) as fs.FsErrorCode
+    if r.IsOk( ) then return fs.FS_OK
+    return r.Failure( ).Code( )
+end function
+
+function CodeI( byref r as fs.FsResultI64 ) as fs.FsErrorCode
+    if r.IsOk( ) then return fs.FS_OK
+    return r.Failure( ).Code( )
+end function
+
+'' Is the handle passed on to a child process?
+function Inherited( byref f as fs.File ) as boolean
+#ifdef __FB_WIN32__
+    dim as ulong fl = 0
+    t_GetHandleInformation( cast( any ptr, f.NativeHandle( ) ), @fl )
+    return ( fl and 1 ) <> 0
+#else
+    return ( t_fcntl( cast( long, f.NativeHandle( ) ), 1 ) and 1 ) = 0     '' F_GETFD, FD_CLOEXEC
+#endif
+end function
+
+function Drain( byref s as fs.Stream ) as string
+    dim as containers.Array( of ubyte ) b
+    s.ReadToEnd( b )
+    dim as string r = ""
+    for i as long = 0 to b.Count( ) - 1
+        r &= chr( b[i] )
+    next
+    return r
+end function
+
+dim as ustring tmp = fs.CreateTempDir( ).ValueOr( "" )
+if len( tmp ) = 0 then print "no temp dir" : end 1
+dim as ustring p = fs.PathJoin( tmp, "a.txt" )
+dim as ubyte buf( 0 to 31 )
+
+'' -- validation, before any system call
+scope
+    dim as fs.File f
+    dim as fs.OpenOptions o
+    Check( "no mode", Code( f.Open( p, o ) ) = fs.FS_INVALID_ARGUMENT )
+    o.Read = true : o.Truncate = true
+    Check( "truncate without write", Code( f.Open( p, o ) ) = fs.FS_INVALID_ARGUMENT )
+    o = fs.OpenOptions( ) : o.Append = true : o.Truncate = true
+    Check( "truncate with append", Code( f.Open( p, o ) ) = fs.FS_INVALID_ARGUMENT )
+    o = fs.OpenOptions( ) : o.Read = true : o.Create = true
+    Check( "create without write", Code( f.Open( p, o ) ) = fs.FS_INVALID_ARGUMENT )
+    o = fs.OpenOptions( ) : o.Read = true : o.CreateNew = true
+    Check( "createnew without write", Code( f.Open( p, o ) ) = fs.FS_INVALID_ARGUMENT )
+    Check( "nothing created", fs.Exists( p ) = false )
+end scope
+
+'' -- dispositions
+scope
+    dim as fs.File f
+    dim as fs.FsResultBool r = f.OpenRead( p )
+    Check( "open missing", Code( r ) = fs.FS_NOT_FOUND )
+    if r.IsOk( ) = false then Check( "open missing op", r.Failure( ).Operation( ) = "Open" )
+    dim as fs.OpenOptions o
+    o.Write = true : o.Truncate = true
+    Check( "truncate missing", Code( f.Open( p, o ) ) = fs.FS_NOT_FOUND )
+    Check( "create", f.Create( p ).IsOk( ) andalso f.WriteUtf8( "hello world" ).IsOk( ) )
+    Check( "in use", Code( f.Create( p ) ) = fs.FS_IN_USE )
+    Check( "close", f.Close( ).IsOk( ) )
+    Check( "createnew existing", Code( f.CreateNew( p ) ) = fs.FS_ALREADY_EXISTS )
+    o = fs.OpenOptions( ) : o.Write = true : o.Create = true
+    Check( "open always keeps", f.Open( p, o ).IsOk( ) andalso ( f.Size( ).ValueOr( -1 ) = 11 ) )
+    f.Close( )
+    Check( "create truncates", f.Create( p ).IsOk( ) andalso ( f.Size( ).ValueOr( -1 ) = 0 ) )
+    f.WriteUtf8( "0123456789" )
+    f.Close( )
+    Check( "createnew fresh", f.CreateNew( fs.PathJoin( tmp, "new.txt" ) ).IsOk( ) )
+    f.Close( )
+end scope
+
+'' -- reading, seeking, positional IO
+scope
+    dim as fs.File f
+    Check( "openread", f.OpenRead( p ).IsOk( ) )
+    Check( "caps", f.CanRead( ) andalso ( f.CanWrite( ) = false ) andalso f.CanSeek( ) )
+    Check( "read 4", f.Read( @buf(0), 4 ).ValueOr( -1 ) = 4 andalso buf(3) = asc( "3" ) )
+    Check( "position", f.Position( ).ValueOr( -1 ) = 4 )
+    Check( "readat", f.ReadAt( 7, @buf(0), 2 ).ValueOr( -1 ) = 2 andalso buf(0) = asc( "7" ) )
+    Check( "readat kept pos", f.Position( ).ValueOr( -1 ) = 4 )
+    Check( "readat past end", f.ReadAt( 100, @buf(0), 2 ).ValueOr( -1 ) = 0 )
+    Check( "seek end", f.Seek( -1, fs.SEEK_FROM_END ).ValueOr( -1 ) = 9 )
+    Check( "read last", f.Read( @buf(0), 8 ).ValueOr( -1 ) = 1 andalso buf(0) = asc( "9" ) )
+    Check( "eof", f.Read( @buf(0), 8 ).ValueOr( -1 ) = 0 )
+    Check( "seek negative", CodeI( f.Seek( -1 ) ) = fs.FS_INVALID_ARGUMENT )
+    Check( "write readonly", CodeI( f.Write( @buf(0), 1 ) ) = fs.FS_ACCESS_DENIED )
+    dim as fs.FsResultInfo st = f.Stat( )
+    Check( "stat", st.IsOk( ) andalso st.Value( ).IsFile( ) andalso ( st.Value( ).Size( ) = 10 ) )
+    if st.IsOk( ) then Check( "stat mtime", st.Value( ).ModifiedUtc( ) = fs.Stat( p ).Value( ).ModifiedUtc( ) )
+    Check( "flush sync", f.Flush( ).IsOk( ) )
+    Check( "readexact", f.Seek( 0 ).IsOk( ) andalso f.ReadExact( @buf(0), 10 ).IsOk( ) )
+    Check( "readexact eof", Code( f.ReadExact( @buf(0), 1 ) ) = fs.FS_UNEXPECTED_EOF )
+    f.Seek( 0 )
+    Check( "as Stream", Drain( f ) = "0123456789" )
+end scope
+
+'' -- writing in place, SetSize, positional writes
+scope
+    dim as fs.File f
+    dim as fs.OpenOptions o
+    o.Read = true : o.Write = true
+    Check( "open rw", f.Open( p, o ).IsOk( ) )
+    Check( "read writeonly ok", f.CanRead( ) andalso f.CanWrite( ) )
+    f.Seek( 2 )
+    Check( "writeat", f.WriteAt( 5, @"XY", 2 ).ValueOr( -1 ) = 2 )
+    Check( "writeat kept pos", f.Position( ).ValueOr( -1 ) = 2 )
+    Check( "setsize grow", f.SetSize( 14 ).IsOk( ) andalso ( f.Size( ).ValueOr( -1 ) = 14 ) )
+    Check( "setsize kept pos", f.Position( ).ValueOr( -1 ) = 2 )
+    Check( "setsize shrink", f.SetSize( 8 ).IsOk( ) andalso ( f.Size( ).ValueOr( -1 ) = 8 ) )
+    Check( "sync", f.Sync( ).IsOk( ) andalso f.SyncData( ).IsOk( ) )
+    Check( "setsize negative", Code( f.SetSize( -1 ) ) = fs.FS_INVALID_ARGUMENT )
+    f.Close( )
+    Check( "content", fs.ReadAllText( p ).ValueOr( "" ) = "01234XY7" )
+end scope
+
+'' -- append: every write lands at the end, whatever the position
+scope
+    dim as fs.File f
+    Check( "open append", f.OpenAppend( p ).IsOk( ) )
+    f.WriteUtf8( "a" )
+    f.Seek( 0 )
+    f.WriteUtf8( "b" )
+    Check( "writeat append refused", CodeI( f.WriteAt( 0, @"z", 1 ) ) = fs.FS_INVALID_ARGUMENT )
+    Check( "read appendonly", CodeI( f.Read( @buf(0), 1 ) ) = fs.FS_ACCESS_DENIED )
+    f.Close( )
+    Check( "appended", fs.ReadAllText( p ).ValueOr( "" ) = "01234XY7ab" )
+end scope
+
+'' -- closed
+scope
+    dim as fs.File f
+    Check( "closed read", CodeI( f.Read( @buf(0), 1 ) ) = fs.FS_CLOSED )
+    Check( "closed seek", CodeI( f.Seek( 0 ) ) = fs.FS_CLOSED )
+    Check( "closed size", CodeI( f.Size( ) ) = fs.FS_CLOSED )
+    Check( "closed lock", Code( f.Lock( ) ) = fs.FS_CLOSED )
+    Check( "closed close", f.Close( ).IsOk( ) )
+    Check( "closed handle", ( f.IsOpen( ) = false ) andalso ( f.NativeHandle( ) = -1 ) )
+    Check( "closed caps", ( f.CanRead( ) = false ) andalso ( f.CanSeek( ) = false ) )
+end scope
+
+'' -- a directory is not a File
+scope
+    dim as fs.File f
+    Check( "directory", Code( f.OpenRead( tmp ) ) = fs.FS_IS_A_DIRECTORY )
+end scope
+
+'' -- locks: two Files, then a File and a FileLock
+scope
+    dim as fs.File f1, f2
+    f1.OpenRead( p ) : f2.OpenRead( p )
+    Check( "lock ex", f1.Lock( ).IsOk( ) )
+    Check( "trylock blocked", Code( f2.TryLock( ) ) = fs.FS_WOULD_BLOCK )
+    Check( "trylock shared blocked", Code( f2.TryLock( false ) ) = fs.FS_WOULD_BLOCK )
+    dim as fs.FileLock fl
+    Check( "filelock blocked", fl.Acquire( p, true, 0 ).IsOk( ) = false )
+    Check( "unlock", f1.Unlock( ).IsOk( ) andalso f1.Unlock( ).IsOk( ) )
+    Check( "trylock free", f2.TryLock( ).IsOk( ) )
+    f2.Unlock( )
+    Check( "shared 1", f1.Lock( false ).IsOk( ) )
+    Check( "shared 2", f2.TryLock( false ).IsOk( ) )
+    f1.Unlock( ) : f2.Unlock( )
+    Check( "filelock first", fl.Acquire( p, true, 0 ).IsOk( ) )
+    Check( "file blocked by filelock", Code( f1.TryLock( ) ) = fs.FS_WOULD_BLOCK )
+    fl.Release( )
+    f2.Lock( )
+    f2.Close( )
+    Check( "close releases", f1.TryLock( ).IsOk( ) )
+end scope
+
+'' -- handles are not inherited unless asked
+scope
+    dim as fs.File f
+    f.OpenRead( p )
+    Check( "not inherited", Inherited( f ) = false )
+    f.Close( )
+    dim as fs.OpenOptions o = fs.OpenOptionsRead( )
+    o.Inheritable = true
+    f.Open( p, o )
+    Check( "inherited when asked", Inherited( f ) )
+end scope
+
+'' -- NoFollow
+scope
+    dim as ustring lnk = fs.PathJoin( tmp, "lnk" )
+    if fs.CreateSymlink( p, lnk ).IsOk( ) then
+        dim as fs.File f
+        dim as fs.OpenOptions o = fs.OpenOptionsRead( )
+        o.NoFollow = true
+        Check( "nofollow", Code( f.Open( lnk, o ) ) = fs.FS_LOOP )
+        Check( "follow", f.OpenRead( lnk ).IsOk( ) )
+    else
+        print "note: no symbolic link here, NoFollow not exercised"
+    end if
+end scope
+
+'' -- Copy, OpenTemp, a non-ASCII name
+scope
+    dim as fs.File t
+    Check( "opentemp", t.OpenTemp( tmp ).IsOk( ) )
+    Check( "temp prefix", left( fs.PathFileName( t.Path( ) ), 4 ) = "tiko" )
+    dim as fs.MemoryStream m = fs.MemoryStream( "copied through a file" )
+    Check( "copy in", fs.Copy( m, t ).ValueOr( -1 ) = 21 )
+    t.Seek( 0 )
+    dim as fs.MemoryStream back
+    Check( "copy out", fs.Copy( t, back ).ValueOr( -1 ) = 21 )
+    Check( "round trip", back.ToUtf8Text( ) = "copied through a file" )
+    t.Close( )
+
+    dim as ustring un = fs.PathJoin( tmp, "ñandú-" & wchr( &h65E5, &h672C ) & ".txt" )
+    dim as fs.File u
+    Check( "unicode create", u.Create( un ).IsOk( ) andalso u.WriteUtf8( "x" ).IsOk( ) )
+    u.Close( )
+    Check( "unicode on disk", fs.IsFile( un ) andalso ( fs.ReadAllText( un ).ValueOr( "" ) = "x" ) )
+end scope
+
+fs.RemoveDirAll( tmp )
+if fails = 0 then print "ok"

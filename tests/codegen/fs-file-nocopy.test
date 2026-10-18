@@ -1,0 +1,7 @@
+'' A File cannot be copied -- its copy constructor and its assignment are private: a
+'' copy-initialisation is TKO0633 and an assignment TKO0746 (std/fs RFC-0001 section 6.2).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 --frontend-only tests/codegen/src/fs-file-nocopy.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: fs-file-nocopy.tiko(5,16): error TKO0633
+'' EXPECT-OUT: fs-file-nocopy.tiko(7,1): error TKO0746

@@ -1,0 +1,12 @@
+'' RUN: std/fs phase P3, the open-file handle -- OpenOptions validation, every create/open
+'' disposition, append, positional IO that never moves the position, SetSize, Stat on the
+'' handle, a closed File, a directory, the wrong access mode, locks between two Files and
+'' between a File and a FileLock, handles not inherited unless asked, NoFollow, Copy and
+'' ReadExact through a File, OpenTemp and a non-ASCII name.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/fs-p3.tiko -o tests/codegen/fsp3.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/fsp3.exe
+'' RUN: tests/codegen/fsp3.exe
+'' EXPECT-RUN-OUT: ok

@@ -1,0 +1,7 @@
+'' A File owns its handle, so it cannot be copied: two values would close one handle
+'' twice. A copy-initialisation (TKO0633) and an assignment (TKO0746) are both refused.
+#import "std/fs"
+dim as fs.File a
+dim as fs.File b = a
+dim as fs.File c
+c = a

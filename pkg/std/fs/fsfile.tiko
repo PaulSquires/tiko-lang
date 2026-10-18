@@ -1,0 +1,941 @@
+#module "fs"
+#import "std/outcome"
+using outcome
+'' std/fs: fsfile -- OpenOptions and File, the open-file handle
+''
+'' Specified in C:\dev\docs\tiko-fs\RFC-0001-files-and-streams.md section 6.
+''
+'' File is a Stream over an operating-system handle -- a HANDLE on Windows, a file
+'' descriptor on POSIX -- that it owns. It is UNBUFFERED: every Read and Write is one
+'' system call (wrap a BufferedReader or BufferedWriter for many small ones). It is
+'' NOT COPYABLE: two File values would close one handle twice. It is made by an Open
+'' method on a File that already exists, and its destructor closes it.
+''
+'' THE OS IS CALLED FROM HERE, NOT THROUGH tiko-rt (RFC-0001 section 3.1, the
+'' author's decision for P3). std/fs is compiled into tiko itself by the pinned seed,
+'' which links the seed's runtime; a File built on new runtime entry points could not
+'' land until a seed carrying them was cut. kernel32 and libc are in every link, so
+'' declaring them here builds with any seed. The error mapping is still the runtime's
+'' (fb_FsMapOsError, fb_FsOsError), so a File reports exactly what every other std/fs
+'' call reports for the same native error.
+''
+'' Not thread-safe, except ReadAt and WriteAt, which may run concurrently on one File:
+'' pread/pwrite on POSIX, and on Windows a per-File lock around the positioned call and
+'' the restoring of the file pointer (section 6.4).
+
+
+
+#if __FB_LANG__ <> "fb"
+    #error "std/fs requires -lang fb (it uses namespaces)"
+#endif
+
+#if defined( __FB_WIN32__ ) and ( not defined( __FB_64BIT__ ) )
+    #define FBFSFILE_EXTERN extern "Windows"
+#else
+    #define FBFSFILE_EXTERN extern "C"
+#endif
+
+FBFSFILE_EXTERN
+    '' The CSPRNG CreateTempFile names its files with -- for OpenTemp.
+    declare function FsFileRandomRaw alias "fb_FsRandomBytes" _
+        ( byval buf as ubyte ptr, byval n as long ) as long
+end extern
+
+'' ------------------------------------------------------------- OpenOptions
+
+public type OpenOptions
+    '' Constructed, not zero-initialised: the three share flags default TRUE.
+    declare constructor( )
+
+    as boolean Read                 '' FALSE
+    as boolean Write                '' FALSE
+    as boolean Append               '' FALSE  -- implies Write; every write lands at the end
+    as boolean Truncate             '' FALSE  -- requires Write
+    as boolean Create               '' FALSE  -- create if missing
+    as boolean CreateNew            '' FALSE  -- create; FS_ALREADY_EXISTS if present, atomically
+    as boolean ShareRead            '' TRUE   -- Windows only: others may read while open
+    as boolean ShareWrite           '' TRUE   -- Windows only: others may write
+    as boolean ShareDelete          '' TRUE   -- Windows only: others may rename or delete it
+    as boolean Inheritable          '' FALSE  -- a child process does NOT get the handle
+    as boolean NoFollow             '' FALSE  -- FS_LOOP if the last component is a symbolic link
+    as ulong   PosixMode            '' &o666  -- a created file's mode before the umask; POSIX only
+end type
+
+constructor OpenOptions( )
+    this.Read = FALSE
+    this.Write = FALSE
+    this.Append = FALSE
+    this.Truncate = FALSE
+    this.Create = FALSE
+    this.CreateNew = FALSE
+    '' PERMISSIVE, as Linux behaves and as Rust defaults (RFC-0001 F13): a file open
+    '' here does not stop another program reading, writing or deleting it.
+    this.ShareRead = TRUE
+    this.ShareWrite = TRUE
+    this.ShareDelete = TRUE
+    this.Inheritable = FALSE
+    this.NoFollow = FALSE
+    this.PosixMode = &o666
+end constructor
+
+public declare function OpenOptionsRead overload ( ) as OpenOptions
+public declare function OpenOptionsWrite overload ( ) as OpenOptions
+public declare function OpenOptionsAppend overload ( ) as OpenOptions
+
+public function OpenOptionsRead( ) as OpenOptions
+    dim as OpenOptions o
+    o.Read = TRUE
+    return o
+end function
+
+'' Write + Create + Truncate: what WriteAllText does to a file.
+public function OpenOptionsWrite( ) as OpenOptions
+    dim as OpenOptions o
+    o.Write = TRUE
+    o.Create = TRUE
+    o.Truncate = TRUE
+    return o
+end function
+
+public function OpenOptionsAppend( ) as OpenOptions
+    dim as OpenOptions o
+    o.Append = TRUE
+    o.Create = TRUE
+    return o
+end function
+
+'' ----------------------------------------------------- the platform kernels
+''
+'' Each returns 0 on success, or the portable code of the failure with the native code
+'' in `os` -- read IMMEDIATELY after the failing call, before anything else can touch
+'' GetLastError or errno.
+
+#ifdef __FB_WIN32__
+
+const FBF_INVALID_HANDLE        = -1
+const FBF_GENERIC_READ          = &h80000000ul
+const FBF_GENERIC_WRITE         = &h40000000ul
+const FBF_FILE_APPEND_DATA      = &h00000004ul
+const FBF_FILE_READ_ATTRIBUTES  = &h00000080ul
+const FBF_SYNCHRONIZE           = &h00100000ul
+const FBF_FILE_SHARE_READ       = 1
+const FBF_FILE_SHARE_WRITE      = 2
+const FBF_FILE_SHARE_DELETE     = 4
+const FBF_CREATE_NEW            = 1
+const FBF_CREATE_ALWAYS         = 2
+const FBF_OPEN_EXISTING         = 3
+const FBF_OPEN_ALWAYS           = 4
+const FBF_TRUNCATE_EXISTING     = 5
+const FBF_FILE_ATTRIBUTE_NORMAL = &h80ul
+const FBF_ATTR_DIRECTORY        = &h10ul
+const FBF_ATTR_HIDDEN           = &h02ul
+const FBF_ATTR_READONLY         = &h01ul
+const FBF_ATTR_REPARSE_POINT    = &h400ul
+const FBF_FLAG_OPEN_REPARSE     = &h00200000ul
+const FBF_FILE_TYPE_DISK        = 1
+const FBF_LOCK_FAIL_IMMEDIATELY = 1
+const FBF_LOCK_EXCLUSIVE        = 2
+const FBF_ERROR_ACCESS_DENIED   = 5
+const FBF_ERROR_LOCK_VIOLATION  = 33
+const FBF_ERROR_HANDLE_EOF      = 38
+const FBF_ERROR_BROKEN_PIPE     = 109
+const FBF_ERROR_NEGATIVE_SEEK   = 131
+const FBF_ERROR_NOT_LOCKED      = 158
+const FBF_FILE_END_OF_FILE_INFO = 6
+const FBF_IO_MAX                = &h40000000ll      '' 1 GiB: a DWORD request, comfortably
+
+type FbfSecurityAttributes
+    as ulong nLength
+    as any ptr lpSecurityDescriptor
+    as long bInheritHandle
+end type
+
+type FbfOverlapped
+    as uinteger Internal_
+    as uinteger InternalHigh
+    as ulong Offset
+    as ulong OffsetHigh
+    as any ptr hEvent
+end type
+
+extern "C"
+    declare function fbf_CreateFileW stdcall alias "CreateFileW" ( byval name_ as const any ptr, byval access_ as ulong, _
+        byval share as ulong, byval sa as FbfSecurityAttributes ptr, byval disp as ulong, byval flags as ulong, _
+        byval tmpl as any ptr ) as any ptr
+    declare function fbf_CloseHandle stdcall alias "CloseHandle" ( byval h as any ptr ) as long
+    declare function fbf_ReadFile stdcall alias "ReadFile" ( byval h as any ptr, byval buf as any ptr, _
+        byval n as ulong, byval got as ulong ptr, byval ov as FbfOverlapped ptr ) as long
+    declare function fbf_WriteFile stdcall alias "WriteFile" ( byval h as any ptr, byval buf as const any ptr, _
+        byval n as ulong, byval done as ulong ptr, byval ov as FbfOverlapped ptr ) as long
+    declare function fbf_SetFilePointerEx stdcall alias "SetFilePointerEx" ( byval h as any ptr, _
+        byval dist as longint, byval newpos as longint ptr, byval method as ulong ) as long
+    declare function fbf_GetFileSizeEx stdcall alias "GetFileSizeEx" ( byval h as any ptr, byval sz as longint ptr ) as long
+    declare function fbf_FlushFileBuffers stdcall alias "FlushFileBuffers" ( byval h as any ptr ) as long
+    declare function fbf_SetFileInformationByHandle stdcall alias "SetFileInformationByHandle" ( byval h as any ptr, _
+        byval cls as long, byval info as any ptr, byval size as ulong ) as long
+    declare function fbf_GetFileInformationByHandle stdcall alias "GetFileInformationByHandle" ( byval h as any ptr, _
+        byval info as ubyte ptr ) as long
+    declare function fbf_GetFileType stdcall alias "GetFileType" ( byval h as any ptr ) as ulong
+    declare function fbf_GetFileAttributesW stdcall alias "GetFileAttributesW" ( byval name_ as const any ptr ) as ulong
+    declare function fbf_LockFileEx stdcall alias "LockFileEx" ( byval h as any ptr, byval flags as ulong, _
+        byval reserved as ulong, byval lo as ulong, byval hi as ulong, byval ov as FbfOverlapped ptr ) as long
+    declare function fbf_UnlockFileEx stdcall alias "UnlockFileEx" ( byval h as any ptr, byval reserved as ulong, _
+        byval lo as ulong, byval hi as ulong, byval ov as FbfOverlapped ptr ) as long
+    declare function fbf_GetLastError stdcall alias "GetLastError" ( ) as ulong
+    declare sub fbf_AcquireSRWLockExclusive stdcall alias "AcquireSRWLockExclusive" ( byval l as any ptr ptr )
+    declare sub fbf_ReleaseSRWLockExclusive stdcall alias "ReleaseSRWLockExclusive" ( byval l as any ptr ptr )
+end extern
+
+#else
+
+const FBF_O_RDONLY   = &o0
+const FBF_O_WRONLY   = &o1
+const FBF_O_RDWR     = &o2
+const FBF_O_CREAT    = &o100
+const FBF_O_EXCL     = &o200
+const FBF_O_TRUNC    = &o1000
+const FBF_O_APPEND   = &o2000
+const FBF_O_NOFOLLOW = &o400000
+const FBF_O_CLOEXEC  = &o2000000
+const FBF_EINTR      = 4
+const FBF_SEEK_SET   = 0
+const FBF_LOCK_SH    = 1
+const FBF_LOCK_EX    = 2
+const FBF_LOCK_NB    = 4
+const FBF_LOCK_UN    = 8
+const FBF_S_IFMT     = &o170000
+const FBF_S_IFREG    = &o100000
+const FBF_S_IFDIR    = &o040000
+const FBF_S_IFLNK    = &o120000
+const FBF_S_IFBLK    = &o060000
+const FBF_IO_MAX     = &h40000000ll
+
+'' struct stat on linux-x86_64 -- the same offsets tiko-rt's fs/stat.tiko uses
+const FBF_STAT_SIZE = 144
+const FBF_ST_MODE   = 24
+const FBF_ST_SIZE   = 48
+const FBF_ST_ATIM   = 72
+const FBF_ST_MTIM   = 88
+
+extern "C"
+    declare function fbf_open alias "open" ( byval p as zstring ptr, byval flags as long, ... ) as long
+    declare function fbf_close alias "close" ( byval fd as long ) as long
+    declare function fbf_read alias "read" ( byval fd as long, byval buf as any ptr, byval n as uinteger ) as integer
+    declare function fbf_write alias "write" ( byval fd as long, byval buf as const any ptr, byval n as uinteger ) as integer
+    declare function fbf_pread alias "pread" ( byval fd as long, byval buf as any ptr, byval n as uinteger, byval off as longint ) as integer
+    declare function fbf_pwrite alias "pwrite" ( byval fd as long, byval buf as const any ptr, byval n as uinteger, byval off as longint ) as integer
+    declare function fbf_lseek alias "lseek" ( byval fd as long, byval off as longint, byval whence as long ) as longint
+    declare function fbf_fstat alias "fstat" ( byval fd as long, byval st as ubyte ptr ) as long
+    declare function fbf_ftruncate alias "ftruncate" ( byval fd as long, byval n as longint ) as long
+    declare function fbf_fsync alias "fsync" ( byval fd as long ) as long
+    declare function fbf_fdatasync alias "fdatasync" ( byval fd as long ) as long
+    declare function fbf_flock alias "flock" ( byval fd as long, byval op as long ) as long
+    declare function fbf_errno_location alias "__errno_location" ( ) as long ptr
+end extern
+
+#endif
+
+'' ------------------------------------------------------------------- File
+
+public type File extends Stream
+    declare constructor( )
+    declare destructor( ) override
+
+    '' -- opening: every Open* fails FS_IN_USE if this File is already open
+    declare function Open      ( byref p as const ustring, byref opts as const OpenOptions ) as FsResultBool
+    declare function OpenRead  ( byref p as const ustring ) as FsResultBool
+    declare function Create    ( byref p as const ustring ) as FsResultBool
+    declare function CreateNew ( byref p as const ustring ) as FsResultBool
+    declare function OpenAppend( byref p as const ustring ) as FsResultBool
+    declare function OpenTemp  ( byref dir as const ustring = "", byref prefix as const ustring = "tiko" ) as FsResultBool
+    declare function Close     ( ) as FsResultBool
+
+    declare const function IsOpen( ) as boolean
+    declare const function Path  ( ) as ustring
+
+    '' -- Stream
+    declare const function CanRead ( ) as boolean override
+    declare const function CanWrite( ) as boolean override
+    declare const function CanSeek ( ) as boolean override
+    declare function Read ( byval buf as ubyte ptr, byval n as longint ) as FsResultI64 override
+    declare function Write( byval buf as const ubyte ptr, byval n as longint ) as FsResultI64 override
+    declare function Seek ( byval offset as longint, byval origin as SeekOrigin = SEEK_FROM_START ) as FsResultI64 override
+    declare function Flush( ) as FsResultBool override
+
+    '' -- positional: never move Position( ), on either platform
+    declare function ReadAt ( byval pos_ as longint, byval buf as ubyte ptr, byval n as longint ) as FsResultI64
+    declare function WriteAt( byval pos_ as longint, byval buf as const ubyte ptr, byval n as longint ) as FsResultI64
+
+    '' -- size and durability
+    declare function Size    ( ) as FsResultI64
+    declare function SetSize ( byval n as longint ) as FsResultBool
+    declare function Sync    ( ) as FsResultBool
+    declare function SyncData( ) as FsResultBool
+
+    '' -- the open object
+    declare function Stat( ) as FsResultInfo
+
+    '' -- whole-file advisory lock on THIS handle
+    declare function Lock   ( byval exclusive as boolean = TRUE ) as FsResultBool
+    declare function TryLock( byval exclusive as boolean = TRUE ) as FsResultBool
+    declare function Unlock ( ) as FsResultBool
+
+    '' -- HANDLE on Windows, file descriptor on POSIX; -1 when closed. File keeps it.
+    declare const function NativeHandle( ) as integer
+
+private:
+    declare constructor( byref other as const File )
+    declare operator let( byref other as const File )
+
+    declare function hOsFail( byref op as const ustring ) as FsError
+    declare function hClosedOr( byref op as const ustring, byref failure as FsError ) as boolean
+    declare function hLock( byval exclusive as boolean, byval wait_ as boolean, byref op as const ustring ) as FsResultBool
+
+    as integer m_h          '' -1 when closed
+    as ustring m_path
+    as boolean m_read
+    as boolean m_write
+    as boolean m_append
+    as boolean m_seekable
+    as long    m_lock       '' 0 none, 1 shared, 2 exclusive
+    as any ptr m_srw        '' Windows: the SRWLOCK ReadAt/WriteAt take; unused on POSIX
+end type
+
+constructor File( )
+    this.m_h = -1
+    this.m_read = FALSE
+    this.m_write = FALSE
+    this.m_append = FALSE
+    this.m_seekable = FALSE
+    this.m_lock = 0
+    this.m_srw = nullptr
+end constructor
+
+'' Closes, and DROPS any error: a destructor has nowhere to report it. Call Close( )
+'' to see the error a network filesystem may only report at close.
+destructor File( )
+    if( this.m_h <> -1 ) then this.Close( )
+end destructor
+
+'' The failure of the OS call just made: the portable code and the native one, read
+'' before anything else runs.
+function File.hOsFail( byref op as const ustring ) as FsError
+    dim as long c = FsMapOsError( )
+    dim as long o = FsOsError( )
+    return FsError( cast( FsErrorCode, c ), o, op, this.m_path )
+end function
+
+'' TRUE, with `failure` set to FS_CLOSED, when there is no handle -- every operation
+'' asks this first, so no system call is ever made on a closed File.
+function File.hClosedOr( byref op as const ustring, byref failure as FsError ) as boolean
+    if( this.m_h <> -1 ) then return FALSE
+    failure = FsError( FS_CLOSED, 0, op, this.m_path )
+    return TRUE
+end function
+
+const function File.IsOpen( ) as boolean
+    return ( this.m_h <> -1 )
+end function
+
+const function File.Path( ) as ustring
+    return this.m_path
+end function
+
+const function File.NativeHandle( ) as integer
+    return this.m_h
+end function
+
+const function File.CanRead( ) as boolean
+    return ( this.m_h <> -1 ) andalso this.m_read
+end function
+
+const function File.CanWrite( ) as boolean
+    return ( this.m_h <> -1 ) andalso this.m_write
+end function
+
+const function File.CanSeek( ) as boolean
+    return ( this.m_h <> -1 ) andalso this.m_seekable
+end function
+
+'' ---------------------------------------------------------------- opening
+
+function File.Open( byref p as const ustring, byref opts as const OpenOptions ) as FsResultBool
+    if( this.m_h <> -1 ) then return FsFail( of boolean )( FS_IN_USE, "Open", p )
+
+    '' Validation before any system call (RFC-0001 section 6.1) -- Rust's rule set.
+    dim as boolean wr = opts.Write orelse opts.Append
+    dim as boolean bad = FALSE
+    if( ( opts.Read = FALSE ) andalso ( wr = FALSE ) ) then bad = TRUE
+    if( opts.CreateNew = FALSE ) then
+        if( opts.Truncate andalso ( ( opts.Write = FALSE ) orelse opts.Append ) ) then bad = TRUE
+        if( opts.Create andalso ( wr = FALSE ) ) then bad = TRUE
+    elseif( wr = FALSE ) then
+        bad = TRUE
+    end if
+    if( bad ) then return FsFail( of boolean )( FS_INVALID_ARGUMENT, "Open", p )
+
+    this.m_path = p
+    this.m_read = opts.Read
+    this.m_write = wr
+    this.m_append = opts.Append
+    this.m_lock = 0
+
+#ifdef __FB_WIN32__
+    dim as ulong access_ = 0
+    if( opts.Read ) then access_ or= FBF_GENERIC_READ
+    if( opts.Append ) then
+        '' FILE_APPEND_DATA WITHOUT FILE_WRITE_DATA: the system puts every write at
+        '' the end, atomically, as O_APPEND does
+        access_ or= FBF_FILE_APPEND_DATA or FBF_FILE_READ_ATTRIBUTES or FBF_SYNCHRONIZE
+    elseif( opts.Write ) then
+        access_ or= FBF_GENERIC_WRITE
+    end if
+
+    dim as ulong share = 0
+    if( opts.ShareRead ) then share or= FBF_FILE_SHARE_READ
+    if( opts.ShareWrite ) then share or= FBF_FILE_SHARE_WRITE
+    if( opts.ShareDelete ) then share or= FBF_FILE_SHARE_DELETE
+
+    dim as ulong disp = FBF_OPEN_EXISTING
+    if( opts.CreateNew ) then
+        disp = FBF_CREATE_NEW
+    elseif( opts.Create andalso opts.Truncate ) then
+        disp = FBF_CREATE_ALWAYS
+    elseif( opts.Create ) then
+        disp = FBF_OPEN_ALWAYS
+    elseif( opts.Truncate ) then
+        disp = FBF_TRUNCATE_EXISTING
+    end if
+
+    dim as ulong flags = FBF_FILE_ATTRIBUTE_NORMAL
+    if( opts.NoFollow ) then flags or= FBF_FLAG_OPEN_REPARSE
+
+    dim as FbfSecurityAttributes sa
+    sa.nLength = sizeof( FbfSecurityAttributes )
+    sa.lpSecurityDescriptor = nullptr
+    sa.bInheritHandle = iif( opts.Inheritable, 1, 0 )
+
+    dim as any ptr h = fbf_CreateFileW( strptr( p ), access_, share, @sa, disp, flags, nullptr )
+    if( cast( integer, h ) = FBF_INVALID_HANDLE ) then
+        dim as ulong le = fbf_GetLastError( )
+        dim as FsError f = this.hOsFail( "Open" )
+        '' A DIRECTORY is refused as "access denied" without BACKUP_SEMANTICS; say so.
+        if( le = FBF_ERROR_ACCESS_DENIED ) then
+            dim as ulong at = fbf_GetFileAttributesW( strptr( p ) )
+            if( ( at <> &hFFFFFFFFul ) andalso ( ( at and FBF_ATTR_DIRECTORY ) <> 0 ) ) then
+                f = FsError( FS_IS_A_DIRECTORY, cast( long, le ), "Open", p )
+            end if
+        end if
+        return Fail( of boolean, FsError )( f )
+    end if
+
+    if( opts.NoFollow ) then
+        '' Opened WITH the reparse flag, the handle is the link itself, if it is one.
+        dim as ubyte bh( 0 to 51 )
+        if( fbf_GetFileInformationByHandle( h, @bh(0) ) <> 0 ) then
+            if( ( *cptr( ulong ptr, @bh(0) ) and FBF_ATTR_REPARSE_POINT ) <> 0 ) then
+                fbf_CloseHandle( h )
+                return FsFail( of boolean )( FS_LOOP, "Open", p )
+            end if
+        end if
+    end if
+
+    this.m_h = cast( integer, h )
+    this.m_seekable = ( fbf_GetFileType( h ) = FBF_FILE_TYPE_DISK )
+#else
+    dim as long flags = FBF_O_RDONLY
+    if( opts.Read andalso wr ) then
+        flags = FBF_O_RDWR
+    elseif( wr ) then
+        flags = FBF_O_WRONLY
+    end if
+    if( opts.Append ) then flags or= FBF_O_APPEND
+    if( opts.CreateNew ) then
+        flags or= FBF_O_CREAT or FBF_O_EXCL
+    else
+        if( opts.Create ) then flags or= FBF_O_CREAT
+        if( opts.Truncate ) then flags or= FBF_O_TRUNC
+    end if
+    if( opts.Inheritable = FALSE ) then flags or= FBF_O_CLOEXEC
+    if( opts.NoFollow ) then flags or= FBF_O_NOFOLLOW
+
+    dim as string narrow = p
+    dim as long fd = fbf_open( strptr( narrow ), flags, cast( ulong, opts.PosixMode ) )
+    if( fd < 0 ) then return Fail( of boolean, FsError )( this.hOsFail( "Open" ) )
+
+    dim as ubyte st( 0 to FBF_STAT_SIZE - 1 )
+    dim as ulong mode_ = 0
+    if( fbf_fstat( fd, @st(0) ) = 0 ) then mode_ = *cptr( ulong ptr, @st(FBF_ST_MODE) )
+    '' open( ) SUCCEEDS on a directory for reading; a File is never one.
+    if( ( mode_ and FBF_S_IFMT ) = FBF_S_IFDIR ) then
+        fbf_close( fd )
+        return FsFail( of boolean )( FS_IS_A_DIRECTORY, "Open", p )
+    end if
+
+    this.m_h = fd
+    this.m_seekable = ( ( mode_ and FBF_S_IFMT ) = FBF_S_IFREG ) orelse ( ( mode_ and FBF_S_IFMT ) = FBF_S_IFBLK )
+#endif
+
+    return Ok( of boolean, FsError )( TRUE )
+end function
+
+function File.OpenRead( byref p as const ustring ) as FsResultBool
+    return this.Open( p, OpenOptionsRead( ) )
+end function
+
+function File.Create( byref p as const ustring ) as FsResultBool
+    return this.Open( p, OpenOptionsWrite( ) )
+end function
+
+function File.CreateNew( byref p as const ustring ) as FsResultBool
+    dim as OpenOptions o
+    o.Write = TRUE
+    o.CreateNew = TRUE
+    return this.Open( p, o )
+end function
+
+function File.OpenAppend( byref p as const ustring ) as FsResultBool
+    return this.Open( p, OpenOptionsAppend( ) )
+end function
+
+'' A new file named <prefix><16 hex digits> from the CSPRNG, created EXCLUSIVELY and
+'' opened Read + Write, in `dir` -- the system temp directory when `dir` is empty.
+'' NEVER DELETED AUTOMATICALLY (RFC-0001 F12): `defer fs.RemoveFile( f.Path( ) )`.
+function File.OpenTemp( byref dir as const ustring, byref prefix as const ustring ) as FsResultBool
+    if( this.m_h <> -1 ) then return FsFail( of boolean )( FS_IN_USE, "OpenTemp", dir )
+
+    dim as ustring d = dir
+    if( len( d ) = 0 ) then
+        dim as FsResultUStr t = TempDir( )
+        if( t.IsOk( ) = FALSE ) then return Fail( of boolean, FsError )( t.Failure( ) )
+        d = t.Value( )
+    end if
+
+    dim as OpenOptions o
+    o.Read = TRUE
+    o.Write = TRUE
+    o.CreateNew = TRUE
+
+    dim as FsResultBool r = FsFail( of boolean )( FS_ALREADY_EXISTS, "OpenTemp", d )
+    for attempt as long = 1 to 64
+        dim as ubyte rb( 0 to 7 )
+        if( FsFileRandomRaw( @rb(0), 8 ) <> FS_OK ) then
+            return FsFail( of boolean )( FS_UNSUPPORTED, "OpenTemp", d )
+        end if
+        dim as string hx
+        for i as long = 0 to 7
+            hx &= lcase( hex( rb(i), 2 ) )
+        next
+        r = this.Open( PathJoin( d, prefix & hx ), o )
+        if( r.IsOk( ) ) then exit for
+        if( r.Failure( ).Code( ) <> FS_ALREADY_EXISTS ) then exit for
+    next
+    return r
+end function
+
+'' Reports the close's own error -- where a network filesystem reports a deferred write
+'' failure. The handle is gone afterwards either way, and is never closed twice.
+function File.Close( ) as FsResultBool
+    if( this.m_h = -1 ) then return Ok( of boolean, FsError )( TRUE )
+
+    dim as boolean ok_ = TRUE
+    dim as FsError f
+#ifdef __FB_WIN32__
+    if( fbf_CloseHandle( cast( any ptr, this.m_h ) ) = 0 ) then
+        f = this.hOsFail( "Close" )
+        ok_ = FALSE
+    end if
+#else
+    if( fbf_close( cast( long, this.m_h ) ) <> 0 ) then
+        f = this.hOsFail( "Close" )
+        ok_ = FALSE
+    end if
+#endif
+    this.m_h = -1
+    this.m_lock = 0
+    if( ok_ = FALSE ) then return Fail( of boolean, FsError )( f )
+    return Ok( of boolean, FsError )( TRUE )
+end function
+
+'' ------------------------------------------------------------------ Stream
+
+function File.Read( byval buf as ubyte ptr, byval n as longint ) as FsResultI64
+    dim as FsError f
+    if( this.hClosedOr( "Read", f ) ) then return Fail( of longint, FsError )( f )
+    if( ( n < 0 ) orelse ( ( buf = nullptr ) andalso ( n > 0 ) ) ) then
+        return FsFail( of longint )( FS_INVALID_ARGUMENT, "Read", this.m_path )
+    end if
+    if( this.m_read = FALSE ) then return FsFail( of longint )( FS_ACCESS_DENIED, "Read", this.m_path )
+    if( n = 0 ) then return Ok( of longint, FsError )( 0 )
+    if( n > FBF_IO_MAX ) then n = FBF_IO_MAX
+
+#ifdef __FB_WIN32__
+    dim as ulong got = 0
+    if( fbf_ReadFile( cast( any ptr, this.m_h ), buf, cast( ulong, n ), @got, nullptr ) = 0 ) then
+        dim as ulong le = fbf_GetLastError( )
+        '' The end of a pipe whose writer closed is the end of the data, not an error.
+        if( ( le = FBF_ERROR_BROKEN_PIPE ) orelse ( le = FBF_ERROR_HANDLE_EOF ) ) then return Ok( of longint, FsError )( 0 )
+        return Fail( of longint, FsError )( this.hOsFail( "Read" ) )
+    end if
+    dim as longint got64 = got
+    return Ok( of longint, FsError )( got64 )
+#else
+    do
+        dim as integer k = fbf_read( cast( long, this.m_h ), buf, cast( uinteger, n ) )
+        if( k >= 0 ) then return Ok( of longint, FsError )( k )
+        if( *fbf_errno_location( ) <> FBF_EINTR ) then exit do
+    loop
+    return Fail( of longint, FsError )( this.hOsFail( "Read" ) )
+#endif
+end function
+
+function File.Write( byval buf as const ubyte ptr, byval n as longint ) as FsResultI64
+    dim as FsError f
+    if( this.hClosedOr( "Write", f ) ) then return Fail( of longint, FsError )( f )
+    if( ( n < 0 ) orelse ( ( buf = nullptr ) andalso ( n > 0 ) ) ) then
+        return FsFail( of longint )( FS_INVALID_ARGUMENT, "Write", this.m_path )
+    end if
+    if( this.m_write = FALSE ) then return FsFail( of longint )( FS_ACCESS_DENIED, "Write", this.m_path )
+    if( n = 0 ) then return Ok( of longint, FsError )( 0 )
+    if( n > FBF_IO_MAX ) then n = FBF_IO_MAX
+
+#ifdef __FB_WIN32__
+    dim as ulong done = 0
+    if( fbf_WriteFile( cast( any ptr, this.m_h ), buf, cast( ulong, n ), @done, nullptr ) = 0 ) then
+        return Fail( of longint, FsError )( this.hOsFail( "Write" ) )
+    end if
+    dim as longint done64 = done
+    return Ok( of longint, FsError )( done64 )
+#else
+    do
+        dim as integer k = fbf_write( cast( long, this.m_h ), buf, cast( uinteger, n ) )
+        if( k >= 0 ) then return Ok( of longint, FsError )( k )
+        if( *fbf_errno_location( ) <> FBF_EINTR ) then exit do
+    loop
+    return Fail( of longint, FsError )( this.hOsFail( "Write" ) )
+#endif
+end function
+
+function File.Seek( byval offset as longint, byval origin as SeekOrigin ) as FsResultI64
+    dim as FsError f
+    if( this.hClosedOr( "Seek", f ) ) then return Fail( of longint, FsError )( f )
+    if( ( origin < SEEK_FROM_START ) orelse ( origin > SEEK_FROM_END ) ) then
+        return FsFail( of longint )( FS_INVALID_ARGUMENT, "Seek", this.m_path )
+    end if
+    if( this.m_seekable = FALSE ) then return FsFail( of longint )( FS_NOT_SEEKABLE, "Seek", this.m_path )
+
+#ifdef __FB_WIN32__
+    dim as longint np = 0
+    if( fbf_SetFilePointerEx( cast( any ptr, this.m_h ), offset, @np, cast( ulong, origin ) ) = 0 ) then
+        if( fbf_GetLastError( ) = FBF_ERROR_NEGATIVE_SEEK ) then
+            return FsFail( of longint )( FS_INVALID_ARGUMENT, "Seek", this.m_path )
+        end if
+        return Fail( of longint, FsError )( this.hOsFail( "Seek" ) )
+    end if
+    return Ok( of longint, FsError )( np )
+#else
+    '' SEEK_SET/CUR/END are 0/1/2 on Linux too
+    dim as longint np = fbf_lseek( cast( long, this.m_h ), offset, cast( long, origin ) )
+    if( np < 0 ) then
+        if( *fbf_errno_location( ) = 22 ) then return FsFail( of longint )( FS_INVALID_ARGUMENT, "Seek", this.m_path )
+        return Fail( of longint, FsError )( this.hOsFail( "Seek" ) )
+    end if
+    return Ok( of longint, FsError )( np )
+#endif
+end function
+
+'' File buffers nothing, so there is nothing to flush; Sync is the call that reaches
+'' the disk.
+function File.Flush( ) as FsResultBool
+    dim as FsError f
+    if( this.hClosedOr( "Flush", f ) ) then return Fail( of boolean, FsError )( f )
+    return Ok( of boolean, FsError )( TRUE )
+end function
+
+'' -------------------------------------------------------------- positional
+
+function File.ReadAt( byval pos_ as longint, byval buf as ubyte ptr, byval n as longint ) as FsResultI64
+    dim as FsError f
+    if( this.hClosedOr( "ReadAt", f ) ) then return Fail( of longint, FsError )( f )
+    if( ( n < 0 ) orelse ( pos_ < 0 ) orelse ( ( buf = nullptr ) andalso ( n > 0 ) ) ) then
+        return FsFail( of longint )( FS_INVALID_ARGUMENT, "ReadAt", this.m_path )
+    end if
+    if( this.m_read = FALSE ) then return FsFail( of longint )( FS_ACCESS_DENIED, "ReadAt", this.m_path )
+    if( this.m_seekable = FALSE ) then return FsFail( of longint )( FS_NOT_SEEKABLE, "ReadAt", this.m_path )
+    if( n = 0 ) then return Ok( of longint, FsError )( 0 )
+    if( n > FBF_IO_MAX ) then n = FBF_IO_MAX
+
+#ifdef __FB_WIN32__
+    '' ReadFile at an OVERLAPPED offset MOVES the pointer of a synchronous handle, so
+    '' it is saved and restored, under the File's lock (RFC-0001 section 6.4).
+    dim as any ptr h = cast( any ptr, this.m_h )
+    dim as FbfOverlapped ov
+    ov.Offset = cast( ulong, pos_ and &hFFFFFFFFll )
+    ov.OffsetHigh = cast( ulong, pos_ shr 32 )
+    dim as ulong got = 0
+    dim as longint cur = 0
+    dim as boolean ok_ = TRUE
+    dim as boolean eof_ = FALSE
+    fbf_AcquireSRWLockExclusive( @this.m_srw )
+    fbf_SetFilePointerEx( h, 0, @cur, 1 )
+    if( fbf_ReadFile( h, buf, cast( ulong, n ), @got, @ov ) = 0 ) then
+        if( fbf_GetLastError( ) = FBF_ERROR_HANDLE_EOF ) then
+            eof_ = TRUE
+        else
+            f = this.hOsFail( "ReadAt" )
+            ok_ = FALSE
+        end if
+    end if
+    fbf_SetFilePointerEx( h, cur, nullptr, 0 )
+    fbf_ReleaseSRWLockExclusive( @this.m_srw )
+    if( ok_ = FALSE ) then return Fail( of longint, FsError )( f )
+    if( eof_ ) then return Ok( of longint, FsError )( 0 )
+    dim as longint got64 = got
+    return Ok( of longint, FsError )( got64 )
+#else
+    do
+        dim as integer k = fbf_pread( cast( long, this.m_h ), buf, cast( uinteger, n ), pos_ )
+        if( k >= 0 ) then return Ok( of longint, FsError )( k )
+        if( *fbf_errno_location( ) <> FBF_EINTR ) then exit do
+    loop
+    return Fail( of longint, FsError )( this.hOsFail( "ReadAt" ) )
+#endif
+end function
+
+'' REFUSED ON AN APPEND FILE: pwrite with O_APPEND ignores the offset on Linux, so the
+'' two platforms could not agree on where the bytes go.
+function File.WriteAt( byval pos_ as longint, byval buf as const ubyte ptr, byval n as longint ) as FsResultI64
+    dim as FsError f
+    if( this.hClosedOr( "WriteAt", f ) ) then return Fail( of longint, FsError )( f )
+    if( ( n < 0 ) orelse ( pos_ < 0 ) orelse ( ( buf = nullptr ) andalso ( n > 0 ) ) orelse this.m_append ) then
+        return FsFail( of longint )( FS_INVALID_ARGUMENT, "WriteAt", this.m_path )
+    end if
+    if( this.m_write = FALSE ) then return FsFail( of longint )( FS_ACCESS_DENIED, "WriteAt", this.m_path )
+    if( this.m_seekable = FALSE ) then return FsFail( of longint )( FS_NOT_SEEKABLE, "WriteAt", this.m_path )
+    if( n = 0 ) then return Ok( of longint, FsError )( 0 )
+    if( n > FBF_IO_MAX ) then n = FBF_IO_MAX
+
+#ifdef __FB_WIN32__
+    dim as any ptr h = cast( any ptr, this.m_h )
+    dim as FbfOverlapped ov
+    ov.Offset = cast( ulong, pos_ and &hFFFFFFFFll )
+    ov.OffsetHigh = cast( ulong, pos_ shr 32 )
+    dim as ulong done = 0
+    dim as longint cur = 0
+    dim as boolean ok_ = TRUE
+    fbf_AcquireSRWLockExclusive( @this.m_srw )
+    fbf_SetFilePointerEx( h, 0, @cur, 1 )
+    if( fbf_WriteFile( h, buf, cast( ulong, n ), @done, @ov ) = 0 ) then
+        f = this.hOsFail( "WriteAt" )
+        ok_ = FALSE
+    end if
+    fbf_SetFilePointerEx( h, cur, nullptr, 0 )
+    fbf_ReleaseSRWLockExclusive( @this.m_srw )
+    if( ok_ = FALSE ) then return Fail( of longint, FsError )( f )
+    dim as longint done64 = done
+    return Ok( of longint, FsError )( done64 )
+#else
+    do
+        dim as integer k = fbf_pwrite( cast( long, this.m_h ), buf, cast( uinteger, n ), pos_ )
+        if( k >= 0 ) then return Ok( of longint, FsError )( k )
+        if( *fbf_errno_location( ) <> FBF_EINTR ) then exit do
+    loop
+    return Fail( of longint, FsError )( this.hOsFail( "WriteAt" ) )
+#endif
+end function
+
+'' --------------------------------------------------- size and durability
+
+function File.Size( ) as FsResultI64
+    dim as FsError f
+    if( this.hClosedOr( "Size", f ) ) then return Fail( of longint, FsError )( f )
+#ifdef __FB_WIN32__
+    dim as longint sz = 0
+    if( fbf_GetFileSizeEx( cast( any ptr, this.m_h ), @sz ) = 0 ) then
+        return Fail( of longint, FsError )( this.hOsFail( "Size" ) )
+    end if
+    return Ok( of longint, FsError )( sz )
+#else
+    dim as ubyte st( 0 to FBF_STAT_SIZE - 1 )
+    if( fbf_fstat( cast( long, this.m_h ), @st(0) ) <> 0 ) then
+        return Fail( of longint, FsError )( this.hOsFail( "Size" ) )
+    end if
+    return Ok( of longint, FsError )( *cptr( longint ptr, @st(FBF_ST_SIZE) ) )
+#endif
+end function
+
+'' Extends with zeros or truncates. The position does not move.
+function File.SetSize( byval n as longint ) as FsResultBool
+    dim as FsError f
+    if( this.hClosedOr( "SetSize", f ) ) then return Fail( of boolean, FsError )( f )
+    if( n < 0 ) then return FsFail( of boolean )( FS_INVALID_ARGUMENT, "SetSize", this.m_path )
+#ifdef __FB_WIN32__
+    dim as longint eof_ = n
+    if( fbf_SetFileInformationByHandle( cast( any ptr, this.m_h ), FBF_FILE_END_OF_FILE_INFO, @eof_, 8 ) = 0 ) then
+        return Fail( of boolean, FsError )( this.hOsFail( "SetSize" ) )
+    end if
+#else
+    if( fbf_ftruncate( cast( long, this.m_h ), n ) <> 0 ) then
+        return Fail( of boolean, FsError )( this.hOsFail( "SetSize" ) )
+    end if
+#endif
+    return Ok( of boolean, FsError )( TRUE )
+end function
+
+'' Data and metadata to the disk: FlushFileBuffers / fsync.
+function File.Sync( ) as FsResultBool
+    dim as FsError f
+    if( this.hClosedOr( "Sync", f ) ) then return Fail( of boolean, FsError )( f )
+#ifdef __FB_WIN32__
+    if( fbf_FlushFileBuffers( cast( any ptr, this.m_h ) ) = 0 ) then return Fail( of boolean, FsError )( this.hOsFail( "Sync" ) )
+#else
+    if( fbf_fsync( cast( long, this.m_h ) ) <> 0 ) then return Fail( of boolean, FsError )( this.hOsFail( "Sync" ) )
+#endif
+    return Ok( of boolean, FsError )( TRUE )
+end function
+
+'' The data only: fdatasync. Windows has no lighter call, so it is Sync there.
+function File.SyncData( ) as FsResultBool
+    dim as FsError f
+    if( this.hClosedOr( "SyncData", f ) ) then return Fail( of boolean, FsError )( f )
+#ifdef __FB_WIN32__
+    if( fbf_FlushFileBuffers( cast( any ptr, this.m_h ) ) = 0 ) then return Fail( of boolean, FsError )( this.hOsFail( "SyncData" ) )
+#else
+    if( fbf_fdatasync( cast( long, this.m_h ) ) <> 0 ) then return Fail( of boolean, FsError )( this.hOsFail( "SyncData" ) )
+#endif
+    return Ok( of boolean, FsError )( TRUE )
+end function
+
+'' ------------------------------------------------------------------- Stat
+
+'' The FileInfo of the OPEN object -- the same fields Stat( path ) fills, from the handle.
+function File.Stat( ) as FsResultInfo
+    dim as FsError f
+    if( this.hClosedOr( "Stat", f ) ) then return Fail( of FileInfo, FsError )( f )
+    dim as FileInfo fi
+#ifdef __FB_WIN32__
+    dim as ubyte bh( 0 to 51 )
+    if( fbf_GetFileInformationByHandle( cast( any ptr, this.m_h ), @bh(0) ) = 0 ) then
+        return Fail( of FileInfo, FsError )( this.hOsFail( "Stat" ) )
+    end if
+    '' BY_HANDLE_FILE_INFORMATION: attributes @0, creation @4, access @12, write @20,
+    '' size high @32, low @36. FILETIME is 1601-based; FileInfo ticks are 0001-based.
+    const TO_0001 = 504911232000000000ll
+    dim as ulong attrs = *cptr( ulong ptr, @bh(0) )
+    fi.m_attrs = attrs
+    fi.m_size = ( cast( ulongint, *cptr( ulong ptr, @bh(32) ) ) shl 32 ) or *cptr( ulong ptr, @bh(36) )
+    fi.m_ctime = ( ( cast( longint, *cptr( ulong ptr, @bh(8) ) ) shl 32 ) or *cptr( ulong ptr, @bh(4) ) ) + TO_0001
+    fi.m_atime = ( ( cast( longint, *cptr( ulong ptr, @bh(16) ) ) shl 32 ) or *cptr( ulong ptr, @bh(12) ) ) + TO_0001
+    fi.m_mtime = ( ( cast( longint, *cptr( ulong ptr, @bh(24) ) ) shl 32 ) or *cptr( ulong ptr, @bh(20) ) ) + TO_0001
+    if( ( attrs and FBF_ATTR_DIRECTORY ) <> 0 ) then
+        fi.m_kind = FB_FSKIND_DIR
+    elseif( ( attrs and FBF_ATTR_REPARSE_POINT ) <> 0 ) then
+        fi.m_kind = FB_FSKIND_LINK
+    else
+        fi.m_kind = FB_FSKIND_FILE
+    end if
+    fi.m_flags = FB_FSFLAG_HAS_CTIME or FB_FSFLAG_HAS_ATIME
+    if( ( attrs and FBF_ATTR_READONLY ) <> 0 ) then fi.m_flags or= FB_FSFLAG_READONLY
+    if( ( attrs and FBF_ATTR_HIDDEN ) <> 0 ) then fi.m_flags or= FB_FSFLAG_HIDDEN
+#else
+    dim as ubyte st( 0 to FBF_STAT_SIZE - 1 )
+    if( fbf_fstat( cast( long, this.m_h ), @st(0) ) <> 0 ) then
+        return Fail( of FileInfo, FsError )( this.hOsFail( "Stat" ) )
+    end if
+    const TO_1970 = 621355968000000000ll
+    dim as ulong m = *cptr( ulong ptr, @st(FBF_ST_MODE) )
+    fi.m_attrs = m
+    fi.m_size = cast( ulongint, *cptr( longint ptr, @st(FBF_ST_SIZE) ) )
+    fi.m_mtime = TO_1970 + *cptr( longint ptr, @st(FBF_ST_MTIM) ) * 10000000ll + *cptr( longint ptr, @st(FBF_ST_MTIM + 8) ) \ 100ll
+    fi.m_atime = TO_1970 + *cptr( longint ptr, @st(FBF_ST_ATIM) ) * 10000000ll + *cptr( longint ptr, @st(FBF_ST_ATIM + 8) ) \ 100ll
+    fi.m_ctime = 0
+    select case m and FBF_S_IFMT
+    case FBF_S_IFREG
+        fi.m_kind = FB_FSKIND_FILE
+    case FBF_S_IFDIR
+        fi.m_kind = FB_FSKIND_DIR
+    case FBF_S_IFLNK
+        fi.m_kind = FB_FSKIND_LINK
+    case else
+        fi.m_kind = FB_FSKIND_OTHER
+    end select
+    '' fstat has no birth time (statx by descriptor would): HasCreated( ) is FALSE
+    fi.m_flags = FB_FSFLAG_HAS_ATIME
+    if( ( m and &o222 ) = 0 ) then fi.m_flags or= FB_FSFLAG_READONLY
+    '' hidden on POSIX is a leading dot in the NAME, which Stat( path ) also reads
+    dim as ustring nm = PathFileName( this.m_path )
+    if( len( nm ) > 0 ) then
+        if( nm[0] = 46 ) then fi.m_flags or= FB_FSFLAG_HIDDEN
+    end if
+#endif
+    return Ok( of FileInfo, FsError )( fi )
+end function
+
+'' ------------------------------------------------------------------ locks
+''
+'' Whole-file, on THIS handle, through the kernel FileLock uses -- LockFileEx on Windows
+'' (mandatory there), flock on POSIX (advisory) -- so a File and a FileLock on the same
+'' file exclude each other. Closing the File releases its lock.
+
+function File.hLock( byval exclusive as boolean, byval wait_ as boolean, byref op as const ustring ) as FsResultBool
+    dim as FsError f
+    if( this.hClosedOr( op, f ) ) then return Fail( of boolean, FsError )( f )
+    dim as long want = iif( exclusive, 2, 1 )
+    if( this.m_lock = want ) then return Ok( of boolean, FsError )( TRUE )
+#ifdef __FB_WIN32__
+    dim as any ptr h = cast( any ptr, this.m_h )
+    dim as FbfOverlapped ov
+    '' CONVERSION IS NOT ATOMIC ON WINDOWS (RFC-0001 F18): the held lock is released
+    '' first, so another process may take the file in between.
+    if( this.m_lock <> 0 ) then
+        fbf_UnlockFileEx( h, 0, &hFFFFFFFFul, &hFFFFFFFFul, @ov )
+        this.m_lock = 0
+    end if
+    dim as ulong flags = iif( exclusive, FBF_LOCK_EXCLUSIVE, 0 )
+    if( wait_ = FALSE ) then flags or= FBF_LOCK_FAIL_IMMEDIATELY
+    if( fbf_LockFileEx( h, flags, 0, &hFFFFFFFFul, &hFFFFFFFFul, @ov ) = 0 ) then
+        if( fbf_GetLastError( ) = FBF_ERROR_LOCK_VIOLATION ) then
+            return Fail( of boolean, FsError )( FsError( FS_WOULD_BLOCK, FBF_ERROR_LOCK_VIOLATION, op, this.m_path ) )
+        end if
+        return Fail( of boolean, FsError )( this.hOsFail( op ) )
+    end if
+#else
+    '' flock converts shared <-> exclusive itself
+    dim as long lop = iif( exclusive, FBF_LOCK_EX, FBF_LOCK_SH )
+    if( wait_ = FALSE ) then lop or= FBF_LOCK_NB
+    do
+        if( fbf_flock( cast( long, this.m_h ), lop ) = 0 ) then exit do
+        if( *fbf_errno_location( ) <> FBF_EINTR ) then return Fail( of boolean, FsError )( this.hOsFail( op ) )
+    loop
+#endif
+    this.m_lock = want
+    return Ok( of boolean, FsError )( TRUE )
+end function
+
+function File.Lock( byval exclusive as boolean ) as FsResultBool
+    return this.hLock( exclusive, TRUE, "Lock" )
+end function
+
+'' FS_WOULD_BLOCK when another holder has it.
+function File.TryLock( byval exclusive as boolean ) as FsResultBool
+    return this.hLock( exclusive, FALSE, "TryLock" )
+end function
+
+'' Ok when nothing is held.
+function File.Unlock( ) as FsResultBool
+    dim as FsError f
+    if( this.hClosedOr( "Unlock", f ) ) then return Fail( of boolean, FsError )( f )
+    if( this.m_lock = 0 ) then return Ok( of boolean, FsError )( TRUE )
+#ifdef __FB_WIN32__
+    dim as FbfOverlapped ov
+    if( fbf_UnlockFileEx( cast( any ptr, this.m_h ), 0, &hFFFFFFFFul, &hFFFFFFFFul, @ov ) = 0 ) then
+        if( fbf_GetLastError( ) <> FBF_ERROR_NOT_LOCKED ) then return Fail( of boolean, FsError )( this.hOsFail( "Unlock" ) )
+    end if
+#else
+    if( fbf_flock( cast( long, this.m_h ), FBF_LOCK_UN ) <> 0 ) then
+        return Fail( of boolean, FsError )( this.hOsFail( "Unlock" ) )
+    end if
+#endif
+    this.m_lock = 0
+    return Ok( of boolean, FsError )( TRUE )
+end function
