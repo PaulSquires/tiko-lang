@@ -29,11 +29,12 @@
 #include once "windows.bi"
 #include once "win/uxtheme.bi"
 
+NAMESPACE UpDown
 ' ========================================================================================
 ' Retrieves acceleration information for an up-down control.
 ' The return value is the number of accelerators currently set for the control.
 ' ========================================================================================
-PUBLIC FUNCTION tkUpDown_GetAccel (BYVAL hUpDown AS HWND, BYVAL cAccels AS DWORD, BYVAL pAccels AS UDACCEL PTR) AS LONG
+PUBLIC FUNCTION GetAccel (BYVAL hUpDown AS HWND, BYVAL cAccels AS DWORD, BYVAL pAccels AS UDACCEL PTR) AS LONG
    RETURN SendMessageW(hUpDown, UDM_GETACCEL, cAccels, CAST(LPARAM, pAccels))
 END FUNCTION
 ' ========================================================================================
@@ -41,7 +42,7 @@ END FUNCTION
 ' ========================================================================================
 ' Retrieves the current radix base (that is, either base 10 or 16) for an up-down control.
 ' ========================================================================================
-PUBLIC FUNCTION tkUpDown_GetBase (BYVAL hUpDown AS HWND) AS LONG
+PUBLIC FUNCTION GetBase (BYVAL hUpDown AS HWND) AS LONG
    RETURN SendMessageW(hUpDown, UDM_GETBASE, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -49,7 +50,7 @@ END FUNCTION
 ' ========================================================================================
 ' Retrieves the handle to the current buddy window.
 ' ========================================================================================
-PUBLIC FUNCTION tkUpDown_GetBuddy (BYVAL hUpDown AS HWND) AS HWND
+PUBLIC FUNCTION GetBuddy (BYVAL hUpDown AS HWND) AS HWND
    RETURN cast(HWND, SendMessageW(hUpDown, UDM_GETBUDDY, 0, 0))
 END FUNCTION
 ' ========================================================================================
@@ -57,7 +58,7 @@ END FUNCTION
 ' ========================================================================================
 ' Retrieves the current position of an up-down control with 16-bit precision.
 ' ========================================================================================
-PUBLIC FUNCTION tkUpDown_GetPos (BYVAL hUpDown AS HWND) AS LONG
+PUBLIC FUNCTION GetPos (BYVAL hUpDown AS HWND) AS LONG
    RETURN SendMessageW(hUpDown, UDM_GETPOS, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -65,7 +66,7 @@ END FUNCTION
 ' ========================================================================================
 ' Returns the 32-bit position of an up-down control.
 ' ========================================================================================
-PUBLIC FUNCTION tkUpDown_GetPos32 (BYVAL hUpDown AS HWND, BYVAL pfError AS LONG PTR = NULL) AS LONG
+PUBLIC FUNCTION GetPos32 (BYVAL hUpDown AS HWND, BYVAL pfError AS LONG PTR = NULL) AS LONG
    RETURN SendMessageW(hUpDown, UDM_GETPOS32, 0, cast(LPARAM, pfError))
 END FUNCTION
 ' ========================================================================================
@@ -73,7 +74,7 @@ END FUNCTION
 ' ========================================================================================
 ' Returns the 32-bit position of an up-down control.
 ' ========================================================================================
-PUBLIC FUNCTION tkUpDown_GetRange (BYVAL hUpDown AS HWND) AS LONG
+PUBLIC FUNCTION GetRange (BYVAL hUpDown AS HWND) AS LONG
    RETURN SendMessageW(hUpDown, UDM_GETRANGE, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -81,7 +82,7 @@ END FUNCTION
 ' ========================================================================================
 ' Returns the 32-bit position of an up-down control.
 ' ========================================================================================
-PUBLIC SUB tkUpDown_GetRange32 (BYVAL hUpDown AS HWND, BYVAL pLow AS LONG PTR, BYVAL pHigh AS LONG PTR)
+PUBLIC SUB GetRange32 (BYVAL hUpDown AS HWND, BYVAL pLow AS LONG PTR, BYVAL pHigh AS LONG PTR)
    SendMessageW(hUpDown, UDM_GETRANGE32, cast(WPARAM, pLow), cast(LPARAM, pHigh))
 END SUB
 ' ========================================================================================
@@ -90,7 +91,7 @@ END SUB
 ' Sets the acceleration for an up-down control.
 ' Returns TRUE if successful, or FALSE otherwise.
 ' ========================================================================================
-PUBLIC FUNCTION tkUpDown_SetAccel (BYVAL hUpDown AS HWND, BYVAL cAccels AS DWORD, BYVAL pAccels AS UDACCEL PTR) AS BOOLEAN
+PUBLIC FUNCTION SetAccel (BYVAL hUpDown AS HWND, BYVAL cAccels AS DWORD, BYVAL pAccels AS UDACCEL PTR) AS BOOLEAN
    RETURN SendMessageW(hUpDown, UDM_SETACCEL, cAccels, cast(LPARAM, pAccels))
 END FUNCTION
 ' ========================================================================================
@@ -99,7 +100,7 @@ END FUNCTION
 ' * Sets the acceleration for an up-down control.
 ' The return value is the previous base value. If an invalid base is given, the return value is zero.
 ' ========================================================================================
-PUBLIC FUNCTION tkUpDown_SetBase (BYVAL hUpDown AS HWND, BYVAL nBase AS LONG) AS LONG
+PUBLIC FUNCTION SetBase (BYVAL hUpDown AS HWND, BYVAL nBase AS LONG) AS LONG
    RETURN SendMessageW(hUpDown, UDM_SETBASE, nBase, 0)
 END FUNCTION
 ' ========================================================================================
@@ -108,7 +109,7 @@ END FUNCTION
 ' * Sets the buddy window for an up-down control.
 ' The return value is the handle to the previous buddy window.
 ' ========================================================================================
-PUBLIC FUNCTION tkUpDown_SetBuddy (BYVAL hUpDown AS HWND, BYVAL hwndBuddy AS HWND) AS HWND
+PUBLIC FUNCTION SetBuddy (BYVAL hUpDown AS HWND, BYVAL hwndBuddy AS HWND) AS HWND
    RETURN cast(HWND, SendMessageW(hUpDown, UDM_SETBUDDY, cast(WPARAM, hwndBuddy), 0))
 END FUNCTION
 ' ========================================================================================
@@ -117,7 +118,7 @@ END FUNCTION
 ' Sets the current position for an up-down control with 16-bit precision.
 ' The return value is the previous position.
 ' ========================================================================================
-PUBLIC FUNCTION tkUpDown_SetPos (BYVAL hUpDown AS HWND, BYVAL nPos AS SHORT) AS LONG
+PUBLIC FUNCTION SetPos (BYVAL hUpDown AS HWND, BYVAL nPos AS SHORT) AS LONG
    RETURN SendMessageW(hUpDown, UDM_SETPOS, 0, MAKELONG(nPos, 0))
 END FUNCTION
 ' ========================================================================================
@@ -126,7 +127,7 @@ END FUNCTION
 ' * Sets the current position for an up-down control with 32-bit precision.
 ' The return value is the previous position.
 ' ========================================================================================
-PUBLIC FUNCTION tkUpDown_SetPos32 (BYVAL hUpDown AS HWND, BYVAL nPos AS LONG) AS LONG
+PUBLIC FUNCTION SetPos32 (BYVAL hUpDown AS HWND, BYVAL nPos AS LONG) AS LONG
    RETURN SendMessageW(hUpDown, UDM_SETPOS32, 0, cast(LPARAM, nPos))
 END FUNCTION
 ' ========================================================================================
@@ -134,7 +135,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Sets the minimum and maximum positions (range) for an up-down control.
 ' ========================================================================================
-PUBLIC SUB tkUpDown_SetRange (BYVAL hUpDown AS HWND, BYVAL nUpper AS SHORT, BYVAL nLower AS SHORT)
+PUBLIC SUB SetRange (BYVAL hUpDown AS HWND, BYVAL nUpper AS SHORT, BYVAL nLower AS SHORT)
    SendMessageW(hUpDown, UDM_SETRANGE, 0, MAKELONG(nUpper, nLower))
 END SUB
 ' ========================================================================================
@@ -142,7 +143,8 @@ END SUB
 ' ========================================================================================
 ' Sets the minimum and maximum positions (range) for an up-down control.
 ' ========================================================================================
-PUBLIC SUB tkUpDown_SetRange32 (BYVAL hUpDown AS HWND, BYVAL iLow AS LONG, BYVAL iHigh AS LONG)
+PUBLIC SUB SetRange32 (BYVAL hUpDown AS HWND, BYVAL iLow AS LONG, BYVAL iHigh AS LONG)
    SendMessageW(hUpDown, UDM_SETRANGE32, cast(WPARAM, iLow), cast(LPARAM, iHigh))
 END SUB
 ' ========================================================================================
+END NAMESPACE

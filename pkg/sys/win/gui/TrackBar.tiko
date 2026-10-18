@@ -29,10 +29,11 @@
 #include once "windows.bi"
 #include once "win/uxtheme.bi"
 
+NAMESPACE TrackBar
 ' ========================================================================================
 ' Clears the current selection range in a trackbar.
 ' ========================================================================================
-PUBLIC SUB tkTrackBar_ClearSel (BYVAL hTrackbar AS HWND, BYVAL fRedraw AS BOOLEAN = FALSE)
+PUBLIC SUB ClearSel (BYVAL hTrackbar AS HWND, BYVAL fRedraw AS BOOLEAN = FALSE)
    SendMessageW(hTrackbar, TBM_CLEARSEL, fRedraw, 0)
 END SUB
 ' ========================================================================================
@@ -41,7 +42,7 @@ END SUB
 ' Removes the current tick marks from a trackbar. This message does not remove the first
 ' and last tick marks, which are created automatically by the trackbar.
 ' ========================================================================================
-PUBLIC SUB tkTrackBar_ClearTics (BYVAL hTrackbar AS HWND, BYVAL fRedraw AS BOOLEAN = FALSE)
+PUBLIC SUB ClearTics (BYVAL hTrackbar AS HWND, BYVAL fRedraw AS BOOLEAN = FALSE)
    SendMessageW(hTrackbar, TBM_CLEARTICS, fRedraw, 0)
 END SUB
 ' ========================================================================================
@@ -56,7 +57,7 @@ END SUB
 '   control uses the TBS_VERT style, the message will retrieve the buddy below the trackbar.
 ' Returns the handle to the buddy window at the location specified by wParam, or NULL if no buddy window exists at that location.
 ' ========================================================================================
-PUBLIC FUNCTION tkTrackBar_GetBuddy (BYVAL hTrackbar AS HWND, BYVAL fLocation AS BOOLEAN) AS HWND
+PUBLIC FUNCTION GetBuddy (BYVAL hTrackbar AS HWND, BYVAL fLocation AS BOOLEAN) AS HWND
    RETURN CAST(HWND, SendMessage(hTrackbar, TBM_GETBUDDY, fLocation, 0))
 END FUNCTION
 ' ========================================================================================
@@ -66,24 +67,24 @@ END FUNCTION
 ' (The channel is the area over which the slider moves. It contains the highlight when a
 ' range is selected.)
 ' ========================================================================================
-PUBLIC SUB tkTrackBar_GetChannelRect OVERLOAD (BYVAL hTrackbar AS HWND, BYVAL prc AS RECT PTR)
+PUBLIC SUB GetChannelRect OVERLOAD (BYVAL hTrackbar AS HWND, BYVAL prc AS RECT PTR)
    SendMessageW(hTrackbar, TBM_GETCHANNELRECT, 0, cast(LPARAM, prc))
 END SUB
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC SUB tkTrackBar_GetChannelRect OVERLOAD (BYVAL hTrackbar AS HWND, BYREF rc AS RECT)
+PUBLIC SUB GetChannelRect OVERLOAD (BYVAL hTrackbar AS HWND, BYREF rc AS RECT)
    SendMessageW(hTrackbar, TBM_GETCHANNELRECT, 0, cast(LPARAM, @rc))
 END SUB
 ' ========================================================================================
 ' ========================================================================================
-'PUBLIC FUNCTION tkTrackBar_GetChannelRect OVERLOAD (BYVAL hTrackbar AS HWND) AS RECT
+'PUBLIC FUNCTION TrackBar.GetChannelRect OVERLOAD (BYVAL hTrackbar AS HWND) AS RECT
 '   DIM rc AS RECT
 '   SendMessageW(hTrackbar, TBM_GETCHANNELRECT, 0, cast(LPARAM, @rc))
 '   RETURN rc
 'END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkTrackBar_GetChannelRect OVERLOAD (BYVAL hTrackbar AS HWND) AS (LONG, LONG, LONG, LONG)
+PUBLIC FUNCTION GetChannelRect OVERLOAD (BYVAL hTrackbar AS HWND) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
    SendMessageW(hTrackbar, TBM_GETCHANNELRECT, 0, cast(LPARAM, @rc))
    RETURN (rc.left, rc.top, rc.right, rc.bottom)
@@ -95,7 +96,7 @@ END FUNCTION
 ' keyboard input from the arrow keys, such as the or keys. The logical positions are the
 ' integer increments in the trackbar's range of minimum to maximum slider positions.
 ' ========================================================================================
-PUBLIC FUNCTION tkTrackBar_GetLineSize (BYVAL hTrackbar AS HWND) AS LONG
+PUBLIC FUNCTION GetLineSize (BYVAL hTrackbar AS HWND) AS LONG
    RETURN SendMessageW(hTrackbar, TBM_GETLINESIZE, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -103,7 +104,7 @@ END FUNCTION
 ' ========================================================================================
 ' Retrieves the number of tick marks in a trackbar.
 ' ========================================================================================
-PUBLIC FUNCTION tkTrackBar_GetNumTics (BYVAL hTrackbar AS HWND) AS LONG
+PUBLIC FUNCTION GetNumTics (BYVAL hTrackbar AS HWND) AS LONG
    RETURN SendMessageW(hTrackbar, TBM_GETNUMTICS, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -114,7 +115,7 @@ END FUNCTION
 ' channel. The logical positions are the integer increments in the trackbar's range of
 ' minimum to maximum slider positions.
 ' ========================================================================================
-PUBLIC FUNCTION tkTrackBar_GetPageSize (BYVAL hTrackbar AS HWND) AS LONG
+PUBLIC FUNCTION GetPageSize (BYVAL hTrackbar AS HWND) AS LONG
    RETURN SendMessageW(hTrackbar, TBM_GETPAGESIZE, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -123,7 +124,7 @@ END FUNCTION
 ' Retrieves the current logical position of the slider in a trackbar. The logical positions
 ' are the integer values in the trackbar's range of minimum to maximum slider positions.
 ' ========================================================================================
-PUBLIC FUNCTION tkTrackBar_GetPos (BYVAL hTrackbar AS HWND) AS LONG
+PUBLIC FUNCTION GetPos (BYVAL hTrackbar AS HWND) AS LONG
    RETURN SendMessageW(hTrackbar, TBM_GETPOS, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -131,7 +132,7 @@ END FUNCTION
 ' ========================================================================================
 ' Retrieves the address of an array that contains the positions of the tick marks for a trackbar.
 ' ========================================================================================
-PUBLIC FUNCTION tkTrackBar_GetPTics (BYVAL hTrackbar AS HWND) AS DWORD
+PUBLIC FUNCTION GetPTics (BYVAL hTrackbar AS HWND) AS DWORD
    RETURN SendMessageW(hTrackbar, TBM_GETPTICS, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -139,7 +140,7 @@ END FUNCTION
 ' ========================================================================================
 ' Retrieves the maximum position for the slider in a trackbar.
 ' ========================================================================================
-PUBLIC FUNCTION tkTrackBar_GetRangeMax (BYVAL hTrackbar AS HWND) AS LONG
+PUBLIC FUNCTION GetRangeMax (BYVAL hTrackbar AS HWND) AS LONG
    RETURN SendMessageW(hTrackbar, TBM_GETRANGEMAX, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -147,7 +148,7 @@ END FUNCTION
 ' ========================================================================================
 ' Retrieves the minimum position for the slider in a trackbar.
 ' ========================================================================================
-PUBLIC FUNCTION tkTrackBar_GetRangeMin (BYVAL hTrackbar AS HWND) AS LONG
+PUBLIC FUNCTION GetRangeMin (BYVAL hTrackbar AS HWND) AS LONG
    RETURN SendMessageW(hTrackbar, TBM_GETRANGEMIN, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -155,7 +156,7 @@ END FUNCTION
 ' ========================================================================================
 ' Retrieves the ending position of the current selection range in a trackbar.
 ' ========================================================================================
-PUBLIC FUNCTION tkTrackBar_GetSelEnd (BYVAL hTrackbar AS HWND) AS LONG
+PUBLIC FUNCTION GetSelEnd (BYVAL hTrackbar AS HWND) AS LONG
    RETURN SendMessageW(hTrackbar, TBM_GETSELEND, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -163,7 +164,7 @@ END FUNCTION
 ' ========================================================================================
 ' Retrieves the starting position of the current selection range in a trackbar.
 ' ========================================================================================
-PUBLIC FUNCTION tkTrackBar_GetSelStart (BYVAL hTrackbar AS HWND) AS LONG
+PUBLIC FUNCTION GetSelStart (BYVAL hTrackbar AS HWND) AS LONG
    RETURN SendMessageW(hTrackbar, TBM_GETSELSTART, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -171,7 +172,7 @@ END FUNCTION
 ' ========================================================================================
 ' Retrieves the length of the slider in a trackbar.
 ' ========================================================================================
-PUBLIC FUNCTION tkTrackBar_GetThumbLength (BYVAL hTrackbar AS HWND) AS LONG
+PUBLIC FUNCTION GetThumbLength (BYVAL hTrackbar AS HWND) AS LONG
    RETURN SendMessageW(hTrackbar, TBM_GETTHUMBLENGTH, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -179,24 +180,24 @@ END FUNCTION
 ' ========================================================================================
 ' Retrieves the length of the slider in a trackbar.
 ' ========================================================================================
-PUBLIC SUB tkTrackBar_GetThumbRect OVERLOAD (BYVAL hTrackbar AS HWND, BYVAL prc AS RECT PTR)
+PUBLIC SUB GetThumbRect OVERLOAD (BYVAL hTrackbar AS HWND, BYVAL prc AS RECT PTR)
    SendMessageW(hTrackbar, TBM_GETTHUMBRECT, 0, cast(LPARAM, prc))
 END SUB
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC SUB tkTrackBar_GetThumbRect OVERLOAD (BYVAL hTrackbar AS HWND, BYREF rc AS RECT)
+PUBLIC SUB GetThumbRect OVERLOAD (BYVAL hTrackbar AS HWND, BYREF rc AS RECT)
    SendMessageW(hTrackbar, TBM_GETTHUMBRECT, 0, cast(LPARAM, @rc))
 END SUB
 ' ========================================================================================
 ' ========================================================================================
-'PUBLIC FUNCTION tkTrackBar_GetThumbRect OVERLOAD (BYVAL hTrackbar AS HWND) AS RECT
+'PUBLIC FUNCTION TrackBar.GetThumbRect OVERLOAD (BYVAL hTrackbar AS HWND) AS RECT
 '   DIM rc AS RECT
 '   SendMessageW(hTrackbar, TBM_GETTHUMBRECT, 0, cast(LPARAM, @rc))
 '   RETURN rc
 'END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkTrackBar_GetThumbRect OVERLOAD (BYVAL hTrackbar AS HWND) AS (LONG, LONG, LONG, LONG)
+PUBLIC FUNCTION GetThumbRect OVERLOAD (BYVAL hTrackbar AS HWND) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
    SendMessageW(hTrackbar, TBM_GETTHUMBRECT, 0, cast(LPARAM, @rc))
    RETURN (rc.left, rc.top, rc.right, rc.bottom)
@@ -206,7 +207,7 @@ END FUNCTION
 ' ========================================================================================
 ' Retrieves the length of the slider in a trackbar.
 ' ========================================================================================
-PUBLIC FUNCTION tkTrackBar_GetTic (BYVAL hTrackbar AS HWND, BYVAL iTic AS DWORD) AS LONG
+PUBLIC FUNCTION GetTic (BYVAL hTrackbar AS HWND, BYVAL iTic AS DWORD) AS LONG
    RETURN SendMessageW(hTrackbar, TBM_GETTIC, iTic, 0)
 END FUNCTION
 ' ========================================================================================
@@ -214,7 +215,7 @@ END FUNCTION
 ' ========================================================================================
 ' Retrieves the length of the slider in a trackbar.
 ' ========================================================================================
-PUBLIC FUNCTION tkTrackBar_GetTicPos (BYVAL hTrackbar AS HWND, BYVAL iTic AS DWORD) AS LONG
+PUBLIC FUNCTION GetTicPos (BYVAL hTrackbar AS HWND, BYVAL iTic AS DWORD) AS LONG
    RETURN SendMessageW(hTrackbar, TBM_GETTICPOS, iTic, 0)
 END FUNCTION
 ' ========================================================================================
@@ -222,7 +223,7 @@ END FUNCTION
 ' ========================================================================================
 ' Retrieves the handle to the ToolTip control assigned to the trackbar, if any.
 ' ========================================================================================
-PUBLIC FUNCTION tkTrackBar_GetTooltips (BYVAL hTrackbar AS HWND) AS HWND
+PUBLIC FUNCTION GetTooltips (BYVAL hTrackbar AS HWND) AS HWND
    RETURN CAST(HWND, SendMessageW(hTrackbar, TBM_GETTOOLTIPS, 0, 0))
 END FUNCTION
 ' ========================================================================================
@@ -233,7 +234,7 @@ END FUNCTION
 ' or vertical).
 ' Returns the handle to the window that was previously assigned to the control at that location.
 ' ========================================================================================
-PUBLIC FUNCTION tkTrackBar_SetBuddy (BYVAL hTrackbar AS HWND, BYVAL fLocation AS BOOLEAN, BYVAL hwndBuddy AS HWND) AS HWND
+PUBLIC FUNCTION SetBuddy (BYVAL hTrackbar AS HWND, BYVAL fLocation AS BOOLEAN, BYVAL hwndBuddy AS HWND) AS HWND
    RETURN CAST(HWND, SendMessageW(hTrackbar, TBM_SETBUDDY, fLocation, cast(LPARAM, hwndBuddy)))
 END FUNCTION
 ' ========================================================================================
@@ -245,7 +246,7 @@ END FUNCTION
 ' Returns a 32-bit value that specifies the previous line size.
 ' Remarks: The default setting for the line size is 1.
 ' ========================================================================================
-PUBLIC FUNCTION tkTrackBar_SetLineSize (BYVAL hTrackbar AS HWND, BYVAL lLineSize AS LONG) AS LONG
+PUBLIC FUNCTION SetLineSize (BYVAL hTrackbar AS HWND, BYVAL lLineSize AS LONG) AS LONG
    RETURN SendMessageW(hTrackbar, TBM_SETLINESIZE, 0, lLineSize)
 END FUNCTION
 ' ========================================================================================
@@ -257,7 +258,7 @@ END FUNCTION
 ' maximum slider positions.
 ' Returns a 32-bit value that specifies the previous page size.
 ' ========================================================================================
-PUBLIC FUNCTION tkTrackBar_SetPageSize (BYVAL hTrackbar AS HWND, BYVAL lPageSize AS LONG) AS LONG
+PUBLIC FUNCTION SetPageSize (BYVAL hTrackbar AS HWND, BYVAL lPageSize AS LONG) AS LONG
    RETURN SendMessageW(hTrackbar, TBM_SETPAGESIZE, 0, lPageSize)
 END FUNCTION
 ' ========================================================================================
@@ -265,7 +266,7 @@ END FUNCTION
 ' ========================================================================================
 ' Sets the current logical position of the slider in a trackbar.
 ' ========================================================================================
-PUBLIC SUB tkTrackBar_SetPos (BYVAL hTrackbar AS HWND, BYVAL fPosition AS BOOLEAN, BYVAL lPosition AS LONG)
+PUBLIC SUB SetPos (BYVAL hTrackbar AS HWND, BYVAL fPosition AS BOOLEAN, BYVAL lPosition AS LONG)
    SendMessageW(hTrackbar, TBM_SETPOS, fPosition, lPosition)
 END SUB
 ' ========================================================================================
@@ -273,7 +274,7 @@ END SUB
 ' ========================================================================================
 ' Sets the range of minimum and maximum logical positions for the slider in a trackbar.
 ' ========================================================================================
-PUBLIC SUB tkTrackBar_SetRange (BYVAL hTrackbar AS HWND, BYVAL lMinimum AS LONG, BYVAL lMaximum AS LONG, BYVAL fRedraw AS BOOLEAN = FALSE)
+PUBLIC SUB SetRange (BYVAL hTrackbar AS HWND, BYVAL lMinimum AS LONG, BYVAL lMaximum AS LONG, BYVAL fRedraw AS BOOLEAN = FALSE)
    SendMessageW(hTrackbar, TBM_SETRANGE, fRedraw, MAKELONG(lMinimum, lMaximum))
 END SUB
 ' ========================================================================================
@@ -281,7 +282,7 @@ END SUB
 ' ========================================================================================
 ' * Sets the maximum logical position for the slider in a trackbar.
 ' ========================================================================================
-PUBLIC SUB tkTrackBar_SetRangeMax (BYVAL hTrackbar AS HWND, BYVAL lMaximum AS LONG, BYVAL fRedraw AS BOOLEAN = FALSE)
+PUBLIC SUB SetRangeMax (BYVAL hTrackbar AS HWND, BYVAL lMaximum AS LONG, BYVAL fRedraw AS BOOLEAN = FALSE)
    SendMessageW(hTrackbar, TBM_SETRANGEMAX, fRedraw, lMaximum)
 END SUB
 ' ========================================================================================
@@ -289,7 +290,7 @@ END SUB
 ' ========================================================================================
 ' * Sets the minimum logical position for the slider in a trackbar.
 ' ========================================================================================
-PUBLIC SUB tkTrackBar_SetRangeMin (BYVAL hTrackbar AS HWND, BYVAL lMinimum AS LONG, BYVAL fRedraw AS BOOLEAN = FALSE)
+PUBLIC SUB SetRangeMin (BYVAL hTrackbar AS HWND, BYVAL lMinimum AS LONG, BYVAL fRedraw AS BOOLEAN = FALSE)
    SendMessageW(hTrackbar, TBM_SETRANGEMIN, fRedraw, lMinimum)
 END SUB
 ' ========================================================================================
@@ -297,7 +298,7 @@ END SUB
 ' ========================================================================================
 ' Sets the starting and ending positions for the available selection range in a trackbar.
 ' ========================================================================================
-PUBLIC SUB tkTrackBar_SetSel (BYVAL hTrackbar AS HWND, BYVAL iStart AS SHORT, BYVAL iEnd AS SHORT, BYVAL fRedraw AS BOOLEAN = FALSE)
+PUBLIC SUB SetSel (BYVAL hTrackbar AS HWND, BYVAL iStart AS SHORT, BYVAL iEnd AS SHORT, BYVAL fRedraw AS BOOLEAN = FALSE)
    SendMessageW(hTrackbar, TBM_SETSEL, fRedraw, MAKELONG(iStart, iEnd))
 END SUB
 ' ========================================================================================
@@ -306,7 +307,7 @@ END SUB
 ' Sets the ending logical position of the current selection range in a trackbar. This
 ' message is ignored if the trackbar does not have the TBS_ENABLESELRANGE style.
 ' ========================================================================================
-PUBLIC SUB tkTrackBar_SetSelEnd (BYVAL hTrackbar AS HWND, BYVAL lEnd AS LONG, BYVAL fRedraw AS BOOLEAN = FALSE)
+PUBLIC SUB SetSelEnd (BYVAL hTrackbar AS HWND, BYVAL lEnd AS LONG, BYVAL fRedraw AS BOOLEAN = FALSE)
    SendMessageW(hTrackbar, TBM_SETSELEND, fRedraw, lEnd)
 END SUB
 ' ========================================================================================
@@ -315,7 +316,7 @@ END SUB
 ' Sets the starting logical position of the current selection range in a trackbar. This
 ' message is ignored if the trackbar does not have the BS_ENABLESELRANGE style.
 ' ========================================================================================
-PUBLIC SUB tkTrackBar_SetSelStart (BYVAL hTrackbar AS HWND, BYVAL lStart AS LONG, BYVAL fRedraw AS BOOLEAN = FALSE)
+PUBLIC SUB SetSelStart (BYVAL hTrackbar AS HWND, BYVAL lStart AS LONG, BYVAL fRedraw AS BOOLEAN = FALSE)
    SendMessageW(hTrackbar, TBM_SETSELSTART, fRedraw, lStart)
 END SUB
 ' ========================================================================================
@@ -324,7 +325,7 @@ END SUB
 ' Sets the length of the slider in a trackbar. This message is ignored if the trackbar
 ' does not have the TBS_FIXEDLENGTH style.
 ' ========================================================================================
-PUBLIC SUB tkTrackBar_SetThumbLength (BYVAL hTrackbar AS HWND, BYVAL iLength AS LONG)
+PUBLIC SUB SetThumbLength (BYVAL hTrackbar AS HWND, BYVAL iLength AS LONG)
    SendMessageW(hTrackbar, TBM_SETTHUMBLENGTH, iLength, 0)
 END SUB
 ' ========================================================================================
@@ -332,7 +333,7 @@ END SUB
 ' ========================================================================================
 ' Sets a tick mark in a trackbar at the specified logical position.
 ' ========================================================================================
-PUBLIC FUNCTION tkTrackBar_SetTic (BYVAL hTrackbar AS HWND, BYVAL lPosition AS LONG) AS BOOLEAN
+PUBLIC FUNCTION SetTic (BYVAL hTrackbar AS HWND, BYVAL lPosition AS LONG) AS BOOLEAN
    RETURN SendMessageW(hTrackbar, TBM_SETTIC, 0, lPosition)
 END FUNCTION
 ' ========================================================================================
@@ -340,7 +341,7 @@ END FUNCTION
 ' ========================================================================================
 ' Sets the interval frequency for tick marks in a trackbar.
 ' ========================================================================================
-PUBLIC SUB tkTrackBar_SetTicFreq (BYVAL hTrackbar AS HWND, BYVAL wFreq AS WORD)
+PUBLIC SUB SetTicFreq (BYVAL hTrackbar AS HWND, BYVAL wFreq AS WORD)
    SendMessageW(hTrackbar, TBM_SETTICFREQ, wFreq, 0)
 END SUB
 ' ========================================================================================
@@ -349,7 +350,7 @@ END SUB
 ' Positions a ToolTip control used by a trackbar control. Trackbar controls that use the
 ' TBS_TOOLTIPS style display ToolTips.
 ' ========================================================================================
-PUBLIC FUNCTION tkTrackBar_SetTipSide (BYVAL hTrackbar AS HWND, BYVAL fLocation AS LONG) AS LONG
+PUBLIC FUNCTION SetTipSide (BYVAL hTrackbar AS HWND, BYVAL fLocation AS LONG) AS LONG
    RETURN SendMessageW(hTrackbar, TBM_SETTIPSIDE, fLocation, 0)
 END FUNCTION
 ' ========================================================================================
@@ -357,7 +358,8 @@ END FUNCTION
 ' ========================================================================================
 ' Assigns a ToolTip control to a trackbar control.
 ' ========================================================================================
-PUBLIC SUB tkTrackBar_SetToolTips (BYVAL hTrackbar AS HWND, BYVAL hwndTT AS HWND)
+PUBLIC SUB SetToolTips (BYVAL hTrackbar AS HWND, BYVAL hwndTT AS HWND)
    SendMessageW(hTrackbar, TBM_SETTOOLTIPS, cast(WPARAM, hwndTT), 0)
 END SUB
 ' ========================================================================================
+END NAMESPACE

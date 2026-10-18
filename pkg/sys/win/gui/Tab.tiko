@@ -30,16 +30,17 @@
 #include once "win/commctrl.bi"
 #include once "win/uxtheme.bi"
 
+NAMESPACE TabCtl
 ' ========================================================================================
 ' Calculates a tab control's display area given a window rectangle, or calculates the
 ' window rectangle that would correspond to a specified display area.
 ' ========================================================================================
-PUBLIC SUB tkTab_AdjustRect OVERLOAD (BYVAL hTab AS HWND, BYVAL fLarger AS BOOLEAN, BYVAL prc AS RECT PTR)
+PUBLIC SUB AdjustRect OVERLOAD (BYVAL hTab AS HWND, BYVAL fLarger AS BOOLEAN, BYVAL prc AS RECT PTR)
    SendMessageW hTab, TCM_ADJUSTRECT, fLarger, CAST(LPARAM, prc)
 END SUB
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC SUB tkTab_AdjustRect OVERLOAD (BYVAL hTab AS HWND, BYVAL fLarger AS BOOLEAN, BYREF rc AS RECT)
+PUBLIC SUB AdjustRect OVERLOAD (BYVAL hTab AS HWND, BYVAL fLarger AS BOOLEAN, BYREF rc AS RECT)
    SendMessageW hTab, TCM_ADJUSTRECT, fLarger, CAST(LPARAM, @rc)
 END SUB
 ' ========================================================================================
@@ -47,14 +48,14 @@ END SUB
 ' ========================================================================================
 ' * Removes all items from a tab control.
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_DeleteAllItems (BYVAL hTab AS HWND) AS BOOLEAN
+PUBLIC FUNCTION DeleteAllItems (BYVAL hTab AS HWND) AS BOOLEAN
    RETURN SendMessageW(hTab, TCM_DELETEALLITEMS, 0, 0)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' * Removes an item from a tab control.
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_DeleteItem (BYVAL hTab AS HWND, BYVAL iItem AS LONG) AS BOOLEAN
+PUBLIC FUNCTION DeleteItem (BYVAL hTab AS HWND, BYVAL iItem AS LONG) AS BOOLEAN
    RETURN SendMessageW(hTab, TCM_DELETEITEM, iItem, 0)
 END FUNCTION
 ' ========================================================================================
@@ -62,7 +63,7 @@ END FUNCTION
 ' ========================================================================================
 ' Resets items in a tab control, clearing any that were set to the TCIS_BUTTONPRESSED state.
 ' ========================================================================================
-PUBLIC SUB tkTab_DeselectAll (BYVAL hTab AS HWND, BYVAL fExcludeFocus AS BOOLEAN)
+PUBLIC SUB DeselectAll (BYVAL hTab AS HWND, BYVAL fExcludeFocus AS BOOLEAN)
    SendMessageW hTab, TCM_DESELECTALL, fExcludeFocus, 0
 END SUB
 ' ========================================================================================
@@ -70,7 +71,7 @@ END SUB
 ' ========================================================================================
 ' * Returns the index of the item that has the focus in a tab control.
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_GetCurFocus (BYVAL hTab AS HWND) AS LONG
+PUBLIC FUNCTION GetCurFocus (BYVAL hTab AS HWND) AS LONG
    RETURN SendMessageW(hTab, TCM_GETCURFOCUS, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -78,7 +79,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Determines the currently selected tab in a tab control.
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_GetCurSel (BYVAL hTab AS HWND) AS LONG
+PUBLIC FUNCTION GetCurSel (BYVAL hTab AS HWND) AS LONG
    RETURN SendMessageW(hTab, TCM_GETCURSEL, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -86,7 +87,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Retrieves the extended styles that are currently in use for the tab control.
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_GetExtendedStyle (BYVAL hTab AS HWND) AS DWORD
+PUBLIC FUNCTION GetExtendedStyle (BYVAL hTab AS HWND) AS DWORD
    RETURN SendMessageW(hTab, TCM_GETEXTENDEDSTYLE, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -95,7 +96,7 @@ END FUNCTION
 ' Gets the 0-based index in the tab control's image list.
 ' Returns the index of the image or -1 if not found.
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_GetImageIndex (BYVAL hTab AS HWND, BYVAL iItem AS DWORD) AS LONG
+PUBLIC FUNCTION GetImageIndex (BYVAL hTab AS HWND, BYVAL iItem AS DWORD) AS LONG
    DIM ttc_item AS TCITEMW
    ttc_item.mask = TCIF_IMAGE
    FUNCTION = -1
@@ -108,7 +109,7 @@ END FUNCTION
 ' ========================================================================================
 ' Retrieves the image list associated with a tab control.
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_GetImageList (BYVAL hTab AS HWND) AS HIMAGELIST
+PUBLIC FUNCTION GetImageList (BYVAL hTab AS HWND) AS HIMAGELIST
    RETURN CAST(HIMAGELIST, SendMessageW(hTab, TCM_GETIMAGELIST, 0, 0))
 END FUNCTION
 ' ========================================================================================
@@ -122,15 +123,15 @@ END FUNCTION
 ' DIM wszText AS WSTRING * 260
 ' tcitem.pszText = @wszText
 ' tcitem.cchTextMax = 260
-' tkTab_GetItem(hTab, 0, tcitem)
+' TabCtl.GetItem(hTab, 0, tcitem)
 ' print *tcitem.pszText
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_GetItem OVERLOAD (BYVAL hTab AS HWND, BYVAL iItem AS DWORD, BYREF tcitem AS TCITEMW) AS BOOLEAN
+PUBLIC FUNCTION GetItem OVERLOAD (BYVAL hTab AS HWND, BYVAL iItem AS DWORD, BYREF tcitem AS TCITEMW) AS BOOLEAN
    RETURN SendMessageW(hTab, TCM_GETITEMW, iItem, CAST(LPARAM, @tcitem))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_GetItem OVERLOAD (BYVAL hTab AS HWND, BYVAL iItem AS DWORD, BYVAL ptcitem AS TCITEMW PTR) AS BOOLEAN
+PUBLIC FUNCTION GetItem OVERLOAD (BYVAL hTab AS HWND, BYVAL iItem AS DWORD, BYVAL ptcitem AS TCITEMW PTR) AS BOOLEAN
    RETURN SendMessageW(hTab, TCM_GETITEMW, iItem, CAST(LPARAM, ptcitem))
 END FUNCTION
 ' ========================================================================================
@@ -138,7 +139,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Retrieves the number of tabs in the tab control.
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_GetItemCount (BYVAL hTab AS HWND) AS LONG
+PUBLIC FUNCTION GetItemCount (BYVAL hTab AS HWND) AS LONG
    RETURN SendMessageW(hTab, TCM_GETITEMCOUNT, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -146,17 +147,17 @@ END FUNCTION
 ' ========================================================================================
 ' * Retrieves the bounding rectangle for a tab in a tab control.
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_GetItemRect OVERLOAD (BYVAL hTab AS HWND, BYVAL iItem AS DWORD, BYVAL prc AS RECT PTR) AS BOOLEAN
+PUBLIC FUNCTION GetItemRect OVERLOAD (BYVAL hTab AS HWND, BYVAL iItem AS DWORD, BYVAL prc AS RECT PTR) AS BOOLEAN
    RETURN SendMessageW(hTab, TCM_GETITEMRECT, iItem, CAST(LPARAM, prc))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_GetItemRect OVERLOAD (BYVAL hTab AS HWND, BYVAL iItem AS DWORD, BYREF rc AS RECT) AS BOOLEAN
+PUBLIC FUNCTION GetItemRect OVERLOAD (BYVAL hTab AS HWND, BYVAL iItem AS DWORD, BYREF rc AS RECT) AS BOOLEAN
    RETURN SendMessageW(hTab, TCM_GETITEMRECT, iItem, CAST(LPARAM, @rc))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-'PUBLIC FUNCTION tkTab_GetItemRect OVERLOAD (BYVAL hTab AS HWND, BYVAL iItem AS DWORD) AS RECT
+'PUBLIC FUNCTION TabCtl.GetItemRect OVERLOAD (BYVAL hTab AS HWND, BYVAL iItem AS DWORD) AS RECT
 '   DIM rc AS RECT
 '   SendMessageW(hTab, TCM_GETITEMRECT, iItem, CAST(LPARAM, @rc))
 '   RETURN rc
@@ -164,10 +165,10 @@ END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' Usage example:
-' var(l, t, r, b) = tkTab_GetItemRect(hTab, 0)
+' var(l, t, r, b) = TabCtl.GetItemRect(hTab, 0)
 ' print l, t, r, b
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_GetItemRect OVERLOAD (BYVAL hTab AS HWND, BYVAL iItem AS DWORD) AS (LONG, LONG, LONG, LONG)
+PUBLIC FUNCTION GetItemRect OVERLOAD (BYVAL hTab AS HWND, BYVAL iItem AS DWORD) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
    SetLastError(SendMessageW(hTab, TCM_GETITEMRECT, iItem, CAST(LPARAM, @rc)))
    RETURN (rc.left, rc.top, rc.right, rc.bottom)
@@ -177,7 +178,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Retrieves the number of rows of tabs in the tab control.
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_GetRowCount (BYVAL hTab AS HWND) AS LONG
+PUBLIC FUNCTION GetRowCount (BYVAL hTab AS HWND) AS LONG
    RETURN SendMessageW(hTab, TCM_GETROWCOUNT, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -186,7 +187,7 @@ END FUNCTION
 ' Gets the name of a tab in a Tab control.
 ' Returns TRUE if successful, or FALSE otherwise.
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_GetText OVERLOAD (BYVAL hTab AS HWND, BYVAL nTabIndex AS DWORD, BYVAL pwszText AS WSTRING PTR, BYVAL cchTextMax AS LONG) AS BOOLEAN
+PUBLIC FUNCTION GetText OVERLOAD (BYVAL hTab AS HWND, BYVAL nTabIndex AS DWORD, BYVAL pwszText AS WSTRING PTR, BYVAL cchTextMax AS LONG) AS BOOLEAN
    DIM ttc_item AS TCITEMW
    ttc_item.mask = TCIF_TEXT
    ttc_item.pszText = pwszText
@@ -197,7 +198,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Gets the name of a tab in a Tab control.
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_GetText OVERLOAD (BYVAL hTab AS HWND, BYVAL nTabIndex AS DWORD) AS USTRING
+PUBLIC FUNCTION GetText OVERLOAD (BYVAL hTab AS HWND, BYVAL nTabIndex AS DWORD) AS USTRING
    DIM wszText AS WSTRING * 260
    DIM ttc_item AS TCITEMW
    ttc_item.mask = TCIF_TEXT
@@ -211,7 +212,7 @@ END FUNCTION
 ' ========================================================================================
 ' Retrieves the handle to the ToolTip control associated with a tab control.
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_GetToolTips (BYVAL hTab AS HWND) AS HWND
+PUBLIC FUNCTION GetToolTips (BYVAL hTab AS HWND) AS HWND
    RETURN CAST(HWND, SendMessageW(hTab, TCM_GETTOOLTIPS, 0, 0))
 END FUNCTION
 ' ========================================================================================
@@ -219,7 +220,7 @@ END FUNCTION
 ' ========================================================================================
 ' Sets the highlight state of a tab item.
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_HighlightItem (BYVAL hTab AS HWND, BYVAL idItem AS LONG, BYVAL fHighlight AS WORD) AS LONG
+PUBLIC FUNCTION HighlightItem (BYVAL hTab AS HWND, BYVAL idItem AS LONG, BYVAL fHighlight AS WORD) AS LONG
    RETURN SendMessageW(hTab, TCM_HIGHLIGHTITEM, idItem, MAKELONG(fHighlight, 0))
 END FUNCTION
 ' ========================================================================================
@@ -227,12 +228,12 @@ END FUNCTION
 ' ========================================================================================
 ' Determines which tab, if any, is at a specified screen position.
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_HitTest OVERLOAD (BYVAL hTab AS HWND, BYVAL pInfo AS TCHITTESTINFO PTR) AS LONG
+PUBLIC FUNCTION HitTest OVERLOAD (BYVAL hTab AS HWND, BYVAL pInfo AS TCHITTESTINFO PTR) AS LONG
    RETURN SendMessageW(hTab, TCM_HITTEST, 0, CAST(LPARAM, pInfo))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_HitTest OVERLOAD (BYVAL hTab AS HWND, BYREF info AS TCHITTESTINFO) AS LONG
+PUBLIC FUNCTION HitTest OVERLOAD (BYVAL hTab AS HWND, BYREF info AS TCHITTESTINFO) AS LONG
    RETURN SendMessageW(hTab, TCM_HITTEST, 0, CAST(LPARAM, @info))
 END FUNCTION
 ' ========================================================================================
@@ -240,12 +241,12 @@ END FUNCTION
 ' ========================================================================================
 ' Inserts a new tab in a tab control.
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_InsertItem OVERLOAD (BYVAL hTab AS HWND, BYVAL iItem AS DWORD, BYVAL pitem AS TCITEMW PTR) AS LONG
+PUBLIC FUNCTION InsertItem OVERLOAD (BYVAL hTab AS HWND, BYVAL iItem AS DWORD, BYVAL pitem AS TCITEMW PTR) AS LONG
    RETURN SendMessageW(hTab, TCM_INSERTITEMW, iItem, CAST(LPARAM, pitem))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_InsertItem OVERLOAD (BYVAL hTab AS HWND, BYVAL iItem AS DWORD, BYREF item AS TCITEMW) AS LONG
+PUBLIC FUNCTION InsertItem OVERLOAD (BYVAL hTab AS HWND, BYVAL iItem AS DWORD, BYREF item AS TCITEMW) AS LONG
    RETURN SendMessageW(hTab, TCM_INSERTITEMW, iItem, CAST(LPARAM, @Item))
 END FUNCTION
 ' ========================================================================================
@@ -259,7 +260,7 @@ END FUNCTION
 ' - lParam: Application-defined data associated with the tab control item.
 ' Returns the index of the new tab if successful, or -1 otherwise.
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_InsertTab (BYVAL hTab AS HWND, BYVAL nTabIndex AS DWORD, BYVAL iImage AS LONG, BYVAL pwszText AS WSTRING PTR, BYVAL lParam AS ..LPARAM = 0) AS LONG
+PUBLIC FUNCTION InsertTab (BYVAL hTab AS HWND, BYVAL nTabIndex AS DWORD, BYVAL iImage AS LONG, BYVAL pwszText AS WSTRING PTR, BYVAL lParam AS ..LPARAM = 0) AS LONG
    IF pwszText = NULL THEN RETURN -1
    DIM ttc_item AS TCITEMW
    ttc_item.mask = TCIF_TEXT OR TCIF_IMAGE OR TCIF_RTLREADING OR TCIF_PARAM OR TCIF_STATE OR TCIS_BUTTONPRESSED OR TCIS_HIGHLIGHTED
@@ -274,17 +275,17 @@ END FUNCTION
 ' ========================================================================================
 ' * Retrieves the number of tabs and calls InsertTab to add a new tab.
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_AddTab (BYVAL hTab AS HWND, BYVAL iImage AS LONG, BYVAL pwszText AS WSTRING PTR, BYVAL lParam AS ..LPARAM = 0) AS LONG
+PUBLIC FUNCTION AddTab (BYVAL hTab AS HWND, BYVAL iImage AS LONG, BYVAL pwszText AS WSTRING PTR, BYVAL lParam AS ..LPARAM = 0) AS LONG
    IF pwszText = NULL THEN RETURN -1
    DIM nTabIndex AS LONG = SendMessageW(hTab, TCM_GETITEMCOUNT, 0, 0)
-   RETURN tkTab_InsertTab(hTab, nTabIndex, iImage, pwszText, lParam)
+   RETURN TabCtl.InsertTab(hTab, nTabIndex, iImage, pwszText, lParam)
 END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
 ' Removes an image from a tab control's image list.
 ' ========================================================================================
-PUBLIC SUB tkTab_RemoveImage (BYVAL hTab AS HWND, BYVAL iImage AS LONG)
+PUBLIC SUB RemoveImage (BYVAL hTab AS HWND, BYVAL iImage AS LONG)
    SendMessageW hTab, TCM_REMOVEIMAGE, iImage, 0
 END SUB
 ' ========================================================================================
@@ -292,7 +293,7 @@ END SUB
 ' ========================================================================================
 ' * Sets the focus to a specified tab in a tab control.
 ' ========================================================================================
-PUBLIC SUB tkTab_SetCurFocus (BYVAL hTab AS HWND, BYVAL iItem AS LONG)
+PUBLIC SUB SetCurFocus (BYVAL hTab AS HWND, BYVAL iItem AS LONG)
    SendMessageW hTab, TCM_SETCURFOCUS, iItem, 0
 END SUB
 ' ========================================================================================
@@ -300,7 +301,7 @@ END SUB
 ' ========================================================================================
 ' * Selects a tab in a tab control.
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_SetCurSel (BYVAL hTab AS HWND, BYVAL iItem AS LONG) AS LONG
+PUBLIC FUNCTION SetCurSel (BYVAL hTab AS HWND, BYVAL iItem AS LONG) AS LONG
    RETURN SendMessageW(hTab, TCM_SETCURSEL, iItem, 0)
 END FUNCTION
 ' ========================================================================================
@@ -308,7 +309,7 @@ END FUNCTION
 ' ========================================================================================
 ' Sets the extended styles that the tab control will use.
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_SetExtendedStyle (BYVAL hTab AS HWND, BYVAL dwExStyle AS DWORD) AS DWORD
+PUBLIC FUNCTION SetExtendedStyle (BYVAL hTab AS HWND, BYVAL dwExStyle AS DWORD) AS DWORD
    RETURN SendMessageW(hTab, TCM_SETEXTENDEDSTYLE, 0, dwExStyle)
 END FUNCTION
 ' ========================================================================================
@@ -316,7 +317,7 @@ END FUNCTION
 ' ========================================================================================
 ' Assigns an image list to a tab control.
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_SetImageList (BYVAL hTab AS HWND, BYVAL himl AS HIMAGELIST) AS BOOLEAN
+PUBLIC FUNCTION SetImageList (BYVAL hTab AS HWND, BYVAL himl AS HIMAGELIST) AS BOOLEAN
     RETURN SendMessageW(hTab, TCM_SETIMAGELIST, 0, CAST(LPARAM, himl))
 END FUNCTION
 ' ========================================================================================
@@ -325,7 +326,7 @@ END FUNCTION
 ' Sets the zero-based index in the tab control's image list.
 ' Returns TRUE if successful, or FALSE otherwise.
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_SetImageIndex (BYVAL hTab AS HWND, BYVAL iItem AS LONG, BYVAL iImage AS LONG) AS BOOLEAN
+PUBLIC FUNCTION SetImageIndex (BYVAL hTab AS HWND, BYVAL iItem AS LONG, BYVAL iImage AS LONG) AS BOOLEAN
    DIM ttc_item AS TCITEMW
    ttc_item.mask = TCIF_IMAGE
    ttc_item.iImage = iImage
@@ -336,12 +337,12 @@ END FUNCTION
 ' ========================================================================================
 ' Sets some or all of a tab's attributes.
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_SetItem OVERLOAD (BYVAL hTab AS HWND, BYVAL iItem AS LONG, BYREF pitem AS TCITEMW PTR) AS LONG
+PUBLIC FUNCTION SetItem OVERLOAD (BYVAL hTab AS HWND, BYVAL iItem AS LONG, BYREF pitem AS TCITEMW PTR) AS LONG
    RETURN SendMessageW(hTab, TCM_SETITEMW, iItem, CAST(LPARAM, pitem))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_SetItem OVERLOAD (BYVAL hTab AS HWND, BYVAL iItem AS LONG, BYREF item AS TCITEMW) AS LONG
+PUBLIC FUNCTION SetItem OVERLOAD (BYVAL hTab AS HWND, BYVAL iItem AS LONG, BYREF item AS TCITEMW) AS LONG
    RETURN SendMessageW(hTab, TCM_SETITEMW, iItem, CAST(LPARAM, @item))
 END FUNCTION
 ' ========================================================================================
@@ -349,7 +350,7 @@ END FUNCTION
 ' ========================================================================================
 ' Sets the number of bytes per tab reserved for application-defined data in a tab control.
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_SetItemExtra (BYVAL hTab AS HWND, BYVAL cb AS LONG) AS BOOLEAN
+PUBLIC FUNCTION SetItemExtra (BYVAL hTab AS HWND, BYVAL cb AS LONG) AS BOOLEAN
    RETURN SendMessageW(hTab, TCM_SETITEMEXTRA, cb, 0)
 END FUNCTION
 ' ========================================================================================
@@ -357,7 +358,7 @@ END FUNCTION
 ' ========================================================================================
 ' Sets the width and height of tabs in a fixed-width or owner-drawn tab control.
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_SetItemSize (BYVAL hTab AS HWND, BYVAL x AS LONG, BYVAL y AS LONG) AS DWORD
+PUBLIC FUNCTION SetItemSize (BYVAL hTab AS HWND, BYVAL x AS LONG, BYVAL y AS LONG) AS DWORD
    RETURN SendMessageW(hTab, TCM_SETITEMSIZE, 0, MAKELONG(x, y))
 END FUNCTION
 ' ========================================================================================
@@ -365,7 +366,7 @@ END FUNCTION
 ' ========================================================================================
 ' Sets the width and height of tabs in a fixed-width or owner-drawn tab control.
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_SetMinTabWidth (BYVAL hTab AS HWND, BYVAL cx AS LONG) AS LONG
+PUBLIC FUNCTION SetMinTabWidth (BYVAL hTab AS HWND, BYVAL cx AS LONG) AS LONG
    RETURN SendMessageW(hTab, TCM_SETMINTABWIDTH, 0, cx)
 END FUNCTION
 ' ========================================================================================
@@ -373,7 +374,7 @@ END FUNCTION
 ' ========================================================================================
 ' Sets the amount of space (padding) around each tab's icon and label in a tab control.
 ' ========================================================================================
-PUBLIC SUB tkTab_SetPadding (BYVAL hTab AS HWND, BYVAL cx AS INTEGER, BYVAL cy AS INTEGER)
+PUBLIC SUB SetPadding (BYVAL hTab AS HWND, BYVAL cx AS INTEGER, BYVAL cy AS INTEGER)
    SendMessageW hTab, TCM_SETPADDING, 0, MAKELONG(cx, cy)
 END SUB
 ' ========================================================================================
@@ -382,7 +383,7 @@ END SUB
 ' * Sets the name of a tab in a Tab control.
 ' Returns TRUE if successful, or FALSE otherwise.
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_SetText (BYVAL hTab AS HWND, BYVAL nTabIndex AS DWORD, BYVAL pwszText AS WSTRING PTR) AS BOOLEAN
+PUBLIC FUNCTION SetText (BYVAL hTab AS HWND, BYVAL nTabIndex AS DWORD, BYVAL pwszText AS WSTRING PTR) AS BOOLEAN
    DIM ttc_item AS TCITEMW
    ttc_item.mask = TCIF_TEXT
    ttc_item.pszText = pwszText
@@ -394,7 +395,8 @@ END FUNCTION
 ' ========================================================================================
 ' Assigns a ToolTip control to a tab control.
 ' ========================================================================================
-PUBLIC SUB tkTab_SetToolTips (BYVAL hTab AS HWND, BYVAL hwndTT AS HWND)
+PUBLIC SUB SetToolTips (BYVAL hTab AS HWND, BYVAL hwndTT AS HWND)
    SendMessageW hTab, TCM_SETTOOLTIPS, CAST(WPARAM, hwndTT), 0
 END SUB
 ' ========================================================================================
+END NAMESPACE

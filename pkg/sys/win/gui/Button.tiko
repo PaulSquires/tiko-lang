@@ -29,12 +29,13 @@
 #include once "windows.bi"
 #include once "win/uxtheme.bi"
 
+NAMESPACE Button
 ' ========================================================================================
 ' * Simulates the user clicking a button. This message causes the button to receive the
 ' WM_LBUTTONDOWN and WM_LBUTTONUP messages, and the button's parent window to receive a
 ' BN_CLICKED notification code.
 ' ========================================================================================
-PUBLIC SUB tkButton_Click (BYVAL hButton AS HWND)
+PUBLIC SUB Click (BYVAL hButton AS HWND)
    SendMessageW(hButton, BM_CLICK, 0, 0)
 END sUB
 ' ========================================================================================
@@ -43,21 +44,21 @@ END sUB
 ' * Retrieves a handle to the image (icon or bitmap) associated with the button.
 ' The return value is a handle to the image, if any; otherwise, it is NULL.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_GetImage (BYVAL hButton AS HWND, BYVAL imgType AS LONG) AS HANDLE
+PUBLIC FUNCTION GetImage (BYVAL hButton AS HWND, BYVAL imgType AS LONG) AS HANDLE
    RETURN cast(HANDLE, SendMessageW(hButton, BM_GETIMAGE, imgType, 0))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' * Retrieves a handle to the bitmap associated with the button.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_GetBitmap (BYVAL hButton AS HWND) AS HANDLE
+PUBLIC FUNCTION GetBitmap (BYVAL hButton AS HWND) AS HANDLE
    RETURN CAST(HANDLE, SendMessageW(hButton, BM_GETIMAGE, IMAGE_BITMAP, 0))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' * Retrieves a handle to the icon associated with the button.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_GetIcon (BYVAL hButton AS HWND) AS HANDLE
+PUBLIC FUNCTION GetIcon (BYVAL hButton AS HWND) AS HANDLE
    RETURN cast(HANDLE, SendMessageW(hButton, BM_GETIMAGE, IMAGE_ICON, 0))
 END FUNCTION
 ' ========================================================================================
@@ -66,7 +67,7 @@ END FUNCTION
 ' * Associates a new image (icon or bitmap) with the button. The return value is a handle to
 ' the image previously associated with the button, if any; otherwise, it is NULL.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_SetImage (BYVAL hButton AS HWND, BYVAL ImageType AS DWORD, BYVAL hImage AS HANDLE) AS HANDLE
+PUBLIC FUNCTION SetImage (BYVAL hButton AS HWND, BYVAL ImageType AS DWORD, BYVAL hImage AS HANDLE) AS HANDLE
    RETURN cast(HANDLE, SendMessageW(hButton, BM_SETIMAGE, cast(WPARAM, ImageType), cast(LPARAM, hImage)))
 END FUNCTION
 ' ========================================================================================
@@ -75,7 +76,7 @@ END FUNCTION
 ' * Associates a new bitmap with a button. The return value is a handle to the image previously
 ' associated with the button, if any; otherwise, it is NULL.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_SetBitmap (BYVAL hButton AS HWND, BYVAL hbmp AS HBITMAP) AS HBITMAP
+PUBLIC FUNCTION SetBitmap (BYVAL hButton AS HWND, BYVAL hbmp AS HBITMAP) AS HBITMAP
    RETURN cast(HBITMAP, SendMessageW(hButton, BM_SETIMAGE, cast(WPARAM, IMAGE_BITMAP), cast(LPARAM, hbmp)))
 END FUNCTION
 ' ========================================================================================
@@ -84,7 +85,7 @@ END FUNCTION
 ' * Associates a new icon with the button. The return value is a handle to the image previously
 ' associated with the button, if any; otherwise, it is NULL.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_SetIcon (BYVAL hButton AS HWND, BYVAL hIcon AS HICON) AS HICON
+PUBLIC FUNCTION SetIcon (BYVAL hButton AS HWND, BYVAL hIcon AS HICON) AS HICON
    RETURN cast(..HICON, SendMessageW(hButton, BM_SETIMAGE, cast(WPARAM, IMAGE_ICON), cast(LPARAM, hIcon)))
 END FUNCTION
 ' ========================================================================================
@@ -92,17 +93,17 @@ END FUNCTION
 ' ========================================================================================
 ' * Gets the BUTTON_IMAGELIST structure that describes the image list assigned to a button control. 
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_GetImageList OVERLOAD (BYVAL hButton AS HWND, BYVAL pbuttonImagelist AS BUTTON_IMAGELIST PTR) AS BOOLEAN
+PUBLIC FUNCTION GetImageList OVERLOAD (BYVAL hButton AS HWND, BYVAL pbuttonImagelist AS BUTTON_IMAGELIST PTR) AS BOOLEAN
    RETURN SendMessageW(hButton, BCM_GETIMAGELIST, 0, CAST(LPARAM, pbuttonImagelist))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_GetImageList OVERLOAD (BYVAL hButton AS HWND, BYREF buttonImagelist AS BUTTON_IMAGELIST) AS BOOLEAN
+PUBLIC FUNCTION GetImageList OVERLOAD (BYVAL hButton AS HWND, BYREF buttonImagelist AS BUTTON_IMAGELIST) AS BOOLEAN
    RETURN SendMessageW(hButton, BCM_GETIMAGELIST, 0, CAST(LPARAM, @buttonImagelist))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_GetImageList OVERLOAD (BYVAL hButton AS HWND) AS BUTTON_IMAGELIST
+PUBLIC FUNCTION GetImageList OVERLOAD (BYVAL hButton AS HWND) AS BUTTON_IMAGELIST
    DIM bi AS BUTTON_IMAGELIST
    SendMessageW(hButton, BCM_GETIMAGELIST, 0, CAST(LPARAM, @bi))
    RETURN bi
@@ -111,7 +112,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Assigns an image list to a button control.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_SetImageList OVERLOAD (BYVAL hButton AS HWND, BYVAL pbuttonImagelist AS BUTTON_IMAGELIST PTR) AS BOOLEAN
+PUBLIC FUNCTION SetImageList OVERLOAD (BYVAL hButton AS HWND, BYVAL pbuttonImagelist AS BUTTON_IMAGELIST PTR) AS BOOLEAN
    RETURN SendMessageW(hButton, BCM_SETIMAGELIST, 0, cast(LPARAM, pbuttonImagelist))
 END FUNCTION
 ' ========================================================================================
@@ -133,7 +134,7 @@ END FUNCTION
 '                The default value is BUTTON_IMAGELIST_ALIGN_LEFT.
 ' Return value:  If the function succeeds, it returns TRUE. Otherwise it returns FALSE.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_SetImageList OVERLOAD (BYVAL hButton AS HWND, BYVAL himl AS HIMAGELIST, BYVAL nLeft AS LONG, BYVAL nTop AS LONG, BYVAL nRight AS LONG, BYVAL nBottom AS LONG, BYVAL uALign AS UINT = 0) AS BOOLEAN
+PUBLIC FUNCTION SetImageList OVERLOAD (BYVAL hButton AS HWND, BYVAL himl AS HIMAGELIST, BYVAL nLeft AS LONG, BYVAL nTop AS LONG, BYVAL nRight AS LONG, BYVAL nBottom AS LONG, BYVAL uALign AS UINT = 0) AS BOOLEAN
    DIM bi AS BUTTON_IMAGELIST = (himl, (nLeft, nTop, nRight, nBottom), uAlign)
    RETURN SendMessageW(hButton, BCM_SETIMAGELIST, 0, cast(LPARAM, @bi))
 END FUNCTION
@@ -143,7 +144,7 @@ END FUNCTION
 ' * Deletes an image (icon or bitmap) associated a button.
 ' Returns TRUE or FALSE.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_DeleteImage (BYVAL hButton AS HWND, BYVAL ImageType AS DWORD) AS BOOLEAN
+PUBLIC FUNCTION DeleteImage (BYVAL hButton AS HWND, BYVAL ImageType AS DWORD) AS BOOLEAN
    RETURN DeleteObject(cast(HGDIOBJ, SendMessageW(hButton, BM_SETIMAGE, cast(WPARAM, ImageType), cast(LPARAM, NULL))))
 END FUNCTION
 ' ========================================================================================
@@ -151,7 +152,7 @@ END FUNCTION
 ' * Deletes a bitmap associated with a button.
 ' Returns TRUE or FALSE.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_DeleteBitmap (BYVAL hButton AS HWND) AS BOOLEAN
+PUBLIC FUNCTION FreeBitmap (BYVAL hButton AS HWND) AS BOOLEAN
    RETURN DeleteObject(cast(HGDIOBJ, SendMessageW(hButton, BM_SETIMAGE, cast(WPARAM, IMAGE_BITMAP), cast(LPARAM, NULL))))
 END FUNCTION
 ' ========================================================================================
@@ -159,7 +160,7 @@ END FUNCTION
 ' * Deletes an icon associated with a button.
 ' Returns TRUE or FALSE.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_DeleteIcon (BYVAL hButton AS HWND) AS BOOLEAN
+PUBLIC FUNCTION DeleteIcon (BYVAL hButton AS HWND) AS BOOLEAN
    RETURN DeleteObject(cast(HGDIOBJ, SendMessageW(hButton, BM_SETIMAGE, cast(WPARAM, IMAGE_ICON), cast(LPARAM, NULL))))
 END FUNCTION
 ' ========================================================================================
@@ -167,14 +168,14 @@ END FUNCTION
 ' ========================================================================================
 ' * Enables mouse and keyboard input to the specified button 
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_Enable (BYVAL hButton AS HWND) AS BOOLEAN
+PUBLIC FUNCTION Enable (BYVAL hButton AS HWND) AS BOOLEAN
    RETURN EnableWIndow(hButton, CTRUE)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' * Disables mouse and keyboard input to the specified button 
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_Disable (BYVAL hButton AS HWND) AS BOOLEAN
+PUBLIC FUNCTION Disable (BYVAL hButton AS HWND) AS BOOLEAN
    RETURN EnableWIndow(hButton, FALSE)
 END FUNCTION
 ' ========================================================================================
@@ -182,7 +183,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Gets the text of a button.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_GetText OVERLOAD (BYVAL hButton AS HWND) AS USTRING
+PUBLIC FUNCTION GetText OVERLOAD (BYVAL hButton AS HWND) AS USTRING
    DIM nLen AS LONG = GetWindowTextLengthW(hButton)
    DIM ustrText AS USTRING = WSPACE(nLen + 1)
    GetWindowTextW(hButton, ustrText, nLen + 1)
@@ -193,7 +194,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Gets the length of the text of a button.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_GetTextLength (BYVAL hButton AS HWND) AS LONG
+PUBLIC FUNCTION GetTextLength (BYVAL hButton AS HWND) AS LONG
    RETURN GetWindowTextLengthW(hButton)
 END FUNCTION
 ' ========================================================================================
@@ -201,7 +202,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Sets the text of the button.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_SetText (BYVAL hButton AS HWND, BYVAL pwszText AS WSTRING PTR) AS BOOLEAN
+PUBLIC FUNCTION SetText (BYVAL hButton AS HWND, BYVAL pwszText AS WSTRING PTR) AS BOOLEAN
    RETURN SetWindowTextW(hButton, pwszText)
 END FUNCTION
 ' ========================================================================================
@@ -209,7 +210,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Gets the check state of a radio button or check box.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_GetCheck (BYVAL hButton AS HWND) AS LRESULT
+PUBLIC FUNCTION GetCheck (BYVAL hButton AS HWND) AS LRESULT
    RETURN SendMessageW(hButton, BM_GETCHECK, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -217,7 +218,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Sets the check state of a radio button or check box.
 ' ========================================================================================
-PUBLIC SUB tkButton_SetCheck (BYVAL hButton AS HWND, BYVAL checkState AS LONG)
+PUBLIC SUB SetCheck (BYVAL hButton AS HWND, BYVAL checkState AS LONG)
    SendMessageW(hButton, BM_SETCHECK, checkState, 0)
 END SUB
 ' ========================================================================================
@@ -225,14 +226,14 @@ END SUB
 ' ========================================================================================
 ' * Sets the button state to checked.
 ' ========================================================================================
-PUBLIC SUB tkButton_Check (BYVAL hButton AS HWND)
+PUBLIC SUB Check (BYVAL hButton AS HWND)
    SendMessageW hButton, BM_SETCHECK, BST_CHECKED, 0
 END SUB
 ' ========================================================================================
 ' ========================================================================================
 ' * Unchecks the button.
 ' ========================================================================================
-PUBLIC SUB tkButton_Uncheck (BYVAL hButton AS HWND)
+PUBLIC SUB Uncheck (BYVAL hButton AS HWND)
    SendMessageW hButton, BM_SETCHECK, BST_UNCHECKED, 0
 END SUB
 ' ========================================================================================
@@ -240,12 +241,12 @@ END SUB
 ' * Sets the button state to grayed, indicating an indeterminate state. Use this value only
 ' if the button has the BS_3STATE or BS_AUTO3STATE style.
 ' ========================================================================================
-PUBLIC SUB tkButton_Gray (BYVAL hButton AS HWND)
+PUBLIC SUB Gray (BYVAL hButton AS HWND)
    SendMessageW hButton, BM_SETCHECK, BST_INDETERMINATE, 0
 END SUB
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC SUB tkButton_Indeterminate (BYVAL hButton AS HWND)
+PUBLIC SUB Indeterminate (BYVAL hButton AS HWND)
    SendMessageW hButton, BM_SETCHECK, BST_INDETERMINATE, 0
 END SUB
 ' ========================================================================================
@@ -253,7 +254,7 @@ END SUB
 ' ========================================================================================
 ' * Gets the state of a button or check box.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_GetState (BYVAL hButton AS HWND) AS LRESULT
+PUBLIC FUNCTION GetState (BYVAL hButton AS HWND) AS LRESULT
    RETURN SendMessageW(hButton, BM_GETSTATE, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -261,7 +262,7 @@ END FUNCTION
 ' * Sets the highlight state of a button. The highlight state indicates whether the button
 ' is highlighted as if the user had pushed it. 
 ' ========================================================================================
-PUBLIC SUB tkButton_SetState (BYVAL hButton AS HWND, BYVAL bstate AS BOOLEAN)
+PUBLIC SUB SetState (BYVAL hButton AS HWND, BYVAL bstate AS BOOLEAN)
    SendMessageW(hButton, BM_SETSTATE, bstate, 0)
 END SUB
 ' ========================================================================================
@@ -269,14 +270,14 @@ END SUB
 ' ========================================================================================
 ' * Gets the style of button.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_GetStyle (BYVAL hButton AS HWND) AS DWORD
+PUBLIC FUNCTION GetStyle (BYVAL hButton AS HWND) AS DWORD
    RETURN GetWindowLongPtrW(hButton, GWL_STYLE)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' Sets the style of a button.
 ' ========================================================================================
-PUBLIC SUB tkButton_SetStyle (BYVAL hButton AS HWND, BYVAL dwStyle AS DWORD, BYVAL fRedraw AS BOOLEAN)
+PUBLIC SUB SetStyle (BYVAL hButton AS HWND, BYVAL dwStyle AS DWORD, BYVAL fRedraw AS BOOLEAN)
    SendMessageW(hButton, BM_SETSTYLE, dwStyle, fRedraw)
 END SUB
 ' ========================================================================================
@@ -285,25 +286,25 @@ END SUB
 ' * Gets the size of the button that best fits its text and image, if an image list is present.
 ' Usage example:
 ' DIM sz AS SIZE
-' print tkButton_GetIdealSize(hButton, @sz)
+' print Button.GetIdealSize(hButton, @sz)
 ' print sz.cx, sz.cy
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_GetIdealSize OVERLOAD (BYVAL hButton AS HWND, BYVAL pSize AS SIZE PTR) AS BOOLEAN
+PUBLIC FUNCTION GetIdealSize OVERLOAD (BYVAL hButton AS HWND, BYVAL pSize AS SIZE PTR) AS BOOLEAN
    RETURN SendMessageW(hButton, BCM_GETIDEALSIZE, 0, CAST(LPARAM, pSize))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' Usage example:
 ' DIM sz AS SIZE
-' print tkButton_GetIdealSize(hButton, sz)
+' print Button.GetIdealSize(hButton, sz)
 ' print sz.cx, sz.cy
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_GetIdealSize OVERLOAD (BYVAL hButton AS HWND, BYREF sz AS SIZE) AS BOOLEAN
+PUBLIC FUNCTION GetIdealSize OVERLOAD (BYVAL hButton AS HWND, BYREF sz AS SIZE) AS BOOLEAN
    RETURN SendMessageW(hButton, BCM_GETIDEALSIZE, 0, CAST(LPARAM, @sz))
 END FUNCTION
 ' ========================================================================================
 '' ========================================================================================
-'PUBLIC FUNCTION tkButton_GetIdealSize OVERLOAD (BYVAL hButton AS HWND) AS SIZE
+'PUBLIC FUNCTION Button.GetIdealSize OVERLOAD (BYVAL hButton AS HWND) AS SIZE
 '   DIM sz AS SIZE
 '   SetLastError(SendMessageW(hButton, BCM_GETIDEALSIZE, 0, CAST(LPARAM, @sz)))
 '   RETURN sz
@@ -311,10 +312,10 @@ END FUNCTION
 '' ========================================================================================
 ' ========================================================================================
 ' Usage example:
-' var(cx, cy) = tkButton_GetIdealSize(hButton)
+' var(cx, cy) = Button.GetIdealSize(hButton)
 ' IF GetLastError = 1 THEN PRINT cx, cy
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_GetIdealSize OVERLOAD (BYVAL hButton AS HWND) AS (LONG, LONG)
+PUBLIC FUNCTION GetIdealSize OVERLOAD (BYVAL hButton AS HWND) AS (LONG, LONG)
    DIM sz AS SIZE
    SetLastError(SendMessageW(hButton, BCM_GETIDEALSIZE, 0, CAST(LPARAM, @sz)))
    RETURN (sz.cx, sz.cy)
@@ -324,17 +325,17 @@ END FUNCTION
 ' ========================================================================================
 ' * Retrieves the margins used to draw text in a button control.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_GetTextMargin OVERLOAD (BYVAL hButton AS HWND, BYVAL pMargin AS RECT PTR) AS BOOLEAN
+PUBLIC FUNCTION GetTextMargin OVERLOAD (BYVAL hButton AS HWND, BYVAL pMargin AS RECT PTR) AS BOOLEAN
    RETURN SendMessageW(hButton, BCM_GETTEXTMARGIN, 0, CAST(LPARAM, pMargin))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_GetTextMargin OVERLOAD (BYVAL hButton AS HWND, BYREF margin AS RECT) AS BOOLEAN
+PUBLIC FUNCTION GetTextMargin OVERLOAD (BYVAL hButton AS HWND, BYREF margin AS RECT) AS BOOLEAN
    RETURN SendMessageW(hButton, BCM_GETTEXTMARGIN, 0, CAST(LPARAM, @margin))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-'PUBLIC FUNCTION tkButton_GetTextMargin OVERLOAD (BYVAL hButton AS HWND) AS RECT
+'PUBLIC FUNCTION Button.GetTextMargin OVERLOAD (BYVAL hButton AS HWND) AS RECT
 '   DIM rc AS RECT
 '   SetLastError(SendMessageW(hButton, BCM_GETTEXTMARGIN, 0, CAST(LPARAM, @rc)))
 '   RETURN rc
@@ -342,10 +343,10 @@ END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' Usage example:
-' var(l, t, r, b) = tkButton_GetTextMargin(hButton)
+' var(l, t, r, b) = Button.GetTextMargin(hButton)
 ' IF GetLastError = 1 THEN print l, t, r, b
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_GetTextMargin OVERLOAD (BYVAL hButton AS HWND) AS (LONG, LONG, LONG, LONG)
+PUBLIC FUNCTION GetTextMargin OVERLOAD (BYVAL hButton AS HWND) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
    SetLastError(SendMessageW(hButton, BCM_GETTEXTMARGIN, 0, CAST(LPARAM, @rc)))
    RETURN (rc.left, rc.top, rc.right, rc.bottom)
@@ -355,17 +356,17 @@ END FUNCTION
 ' ========================================================================================
 ' * Sets the margins for drawing text in a button control.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_SetTextMargin OVERLOAD (BYVAL hButton AS HWND, BYVAL pMargin AS RECT PTR) AS BOOLEAN
+PUBLIC FUNCTION SetTextMargin OVERLOAD (BYVAL hButton AS HWND, BYVAL pMargin AS RECT PTR) AS BOOLEAN
    RETURN SendMessageW(hButton, BCM_SETTEXTMARGIN, 0, CAST(LPARAM, pMargin))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_SetTextMargin OVERLOAD (BYVAL hButton AS HWND, BYREF margin AS RECT) AS BOOLEAN
+PUBLIC FUNCTION SetTextMargin OVERLOAD (BYVAL hButton AS HWND, BYREF margin AS RECT) AS BOOLEAN
    RETURN SendMessageW(hButton, BCM_SETTEXTMARGIN, 0, CAST(LPARAM, @margin))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_SetTextMargin OVERLOAD (BYVAL hButton AS HWND, BYVAL nLeft AS LONG, BYVAL nTop AS LONG, BYVAL nRight AS LONG, BYVAL nBottom AS LONG) AS BOOLEAN
+PUBLIC FUNCTION SetTextMargin OVERLOAD (BYVAL hButton AS HWND, BYVAL nLeft AS LONG, BYVAL nTop AS LONG, BYVAL nRight AS LONG, BYVAL nBottom AS LONG) AS BOOLEAN
    DIM rc AS RECT = TYPE(nLeft, nTop, nRight, nBottom)
    RETURN SendMessageW(hButton, BCM_SETTEXTMARGIN, 0, CAST(LPARAM, @rc))
 END FUNCTION
@@ -377,7 +378,7 @@ END FUNCTION
 ' Starting with Vista and later, radio buttons no longer send BN_CLICKED when they
 ' receive focus, so this message has not effect in these Windows versions.
 ' ========================================================================================
-PUBLIC SUB tkButton_SetDontClick (BYVAL hButton AS HWND, BYVAL fState AS BOOLEAN)
+PUBLIC SUB SetDontClick (BYVAL hButton AS HWND, BYVAL fState AS BOOLEAN)
    SendMessageW(hButton, BM_SETDONTCLICK, cast(WPARAM, fState), 0)
 END SUB
  ' ========================================================================================
@@ -385,7 +386,7 @@ END SUB
  ' ========================================================================================
 ' * Sets the drop down state for a specified button with style of BS_SPLITBUTTON.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_SetDropDownState (BYVAL hButton AS HWND, BYVAL fDropDown AS BOOLEAN) AS BOOLEAN
+PUBLIC FUNCTION SetDropDownState (BYVAL hButton AS HWND, BYVAL fDropDown AS BOOLEAN) AS BOOLEAN
    RETURN SendMessageW(hButton, BCM_SETDROPDOWNSTATE, fDropDown, 0)
 END FUNCTION
 ' ========================================================================================
@@ -393,17 +394,17 @@ END FUNCTION
 ' ========================================================================================
 ' Gets information for a specified split button control.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_GetSplitInfo OVERLOAD (BYVAL hButton AS HWND, BYVAL pinfo AS BUTTON_SPLITINFO PTR) AS BOOLEAN
+PUBLIC FUNCTION GetSplitInfo OVERLOAD (BYVAL hButton AS HWND, BYVAL pinfo AS BUTTON_SPLITINFO PTR) AS BOOLEAN
    RETURN SendMessageW(hButton, BCM_GETSPLITINFO, 0, CAST(LPARAM, pinfo))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_GetSplitInfo OVERLOAD (BYVAL hButton AS HWND, BYREF info AS BUTTON_SPLITINFO) AS BOOLEAN
+PUBLIC FUNCTION GetSplitInfo OVERLOAD (BYVAL hButton AS HWND, BYREF info AS BUTTON_SPLITINFO) AS BOOLEAN
    RETURN SendMessageW(hButton, BCM_GETSPLITINFO, 0, CAST(LPARAM, @info))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_GetSplitInfo OVERLOAD (BYVAL hButton AS HWND) AS BUTTON_SPLITINFO
+PUBLIC FUNCTION GetSplitInfo OVERLOAD (BYVAL hButton AS HWND) AS BUTTON_SPLITINFO
    DIM info AS BUTTON_SPLITINFO
 '   info.mask = BCSIF_GLYPH OR BCSIF_IMAGE OR BCSIF_SIZE OR BCSIF_STYLE
    info.mask = BCSIF_IMAGE OR BCSIF_SIZE OR BCSIF_STYLE
@@ -412,7 +413,7 @@ PUBLIC FUNCTION tkButton_GetSplitInfo OVERLOAD (BYVAL hButton AS HWND) AS BUTTON
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_GetSplitStyle (BYVAL hButton AS HWND) AS UINT
+PUBLIC FUNCTION GetSplitStyle (BYVAL hButton AS HWND) AS UINT
    DIM info AS BUTTON_SPLITINFO
    info.mask = BCSIF_STYLE
    SetLastError(SendMessageW(hButton, BCM_GETSPLITINFO, 0, CAST(LPARAM, @info)))
@@ -420,7 +421,7 @@ PUBLIC FUNCTION tkButton_GetSplitStyle (BYVAL hButton AS HWND) AS UINT
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_GetSplitImageList (BYVAL hButton AS HWND) AS HIMAGELIST
+PUBLIC FUNCTION GetSplitImageList (BYVAL hButton AS HWND) AS HIMAGELIST
    DIM info AS BUTTON_SPLITINFO
    info.mask = BCSIF_IMAGE
    SetLastError(SendMessageW(hButton, BCM_GETSPLITINFO, 0, CAST(LPARAM, @info)))
@@ -428,7 +429,7 @@ PUBLIC FUNCTION tkButton_GetSplitImageList (BYVAL hButton AS HWND) AS HIMAGELIST
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-'PUBLIC FUNCTION tkButton_GetSplitGlyphSize (BYVAL hButton AS HWND) AS SIZE
+'PUBLIC FUNCTION Button.GetSplitGlyphSize (BYVAL hButton AS HWND) AS SIZE
 '   DIM info AS BUTTON_SPLITINFO
 '   info.mask = BCSIF_SIZE
 '   SendMessageW(hButton, BCM_GETSPLITINFO, 0, CAST(LPARAM, @info))
@@ -440,10 +441,10 @@ END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' Usage example:
-' var(cx, cy) = tkButton_GetSplitGlyphSize(hSplitButton)
+' var(cx, cy) = Button.GetSplitGlyphSize(hSplitButton)
 ' IF GetLastError = 1 THEN PRINT cx, cy
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_GetSplitGlyphSize (BYVAL hButton AS HWND) AS (LONG, LONG)
+PUBLIC FUNCTION GetSplitGlyphSize (BYVAL hButton AS HWND) AS (LONG, LONG)
    DIM info AS BUTTON_SPLITINFO
    info.mask = BCSIF_SIZE
    SetLastError(SendMessageW(hButton, BCM_GETSPLITINFO, 0, CAST(LPARAM, @info)))
@@ -454,7 +455,7 @@ END FUNCTION
 ' ========================================================================================
 ' Sets the split size (glyph area) of a split button (BCSIF_SIZE).
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_SetSplitGlyphSize (BYVAL hButton AS HWND, BYVAL cx AS LONG, BYVAL cy AS LONG) AS BOOLEAN
+PUBLIC FUNCTION SetSplitGlyphSize (BYVAL hButton AS HWND, BYVAL cx AS LONG, BYVAL cy AS LONG) AS BOOLEAN
    DIM info AS BUTTON_SPLITINFO
    info.mask = BCSIF_SIZE
    info.size.cx = cx
@@ -465,19 +466,19 @@ END FUNCTION
 ' ========================================================================================
 ' Sets information for a specified split button control.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_SetSplitInfo OVERLOAD (BYVAL hButton AS HWND, BYVAL pinfo AS BUTTON_SPLITINFO PTR) AS BOOLEAN
+PUBLIC FUNCTION SetSplitInfo OVERLOAD (BYVAL hButton AS HWND, BYVAL pinfo AS BUTTON_SPLITINFO PTR) AS BOOLEAN
    RETURN SendMessageW(hButton, BCM_SETSPLITINFO, 0, CAST(LPARAM, pinfo))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_SetSplitInfo OVERLOAD (BYVAL hButton AS HWND, BYREF info AS BUTTON_SPLITINFO) AS BOOLEAN
+PUBLIC FUNCTION SetSplitInfo OVERLOAD (BYVAL hButton AS HWND, BYREF info AS BUTTON_SPLITINFO) AS BOOLEAN
    RETURN SendMessageW(hButton, BCM_SETSPLITINFO, 0, CAST(LPARAM, @info))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' * Sets the split style of a split button (BCSIF_STYLE).
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_SetSplitStyle (BYVAL hButton AS HWND, BYVAL uStyle AS UINT) AS BOOLEAN
+PUBLIC FUNCTION SetSplitStyle (BYVAL hButton AS HWND, BYVAL uStyle AS UINT) AS BOOLEAN
    DIM info AS BUTTON_SPLITINFO
    info.mask = BCSIF_STYLE
    info.uSplitStyle = uStyle
@@ -488,7 +489,7 @@ END FUNCTION
 ' Sets the image list used as split glyph (BCSIF_IMAGE / BCSIF_GLYPH).
 ' Normally you only need BCSIF_IMAGE; BCSIF_GLYPH is optional.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_SetSplitImageList (BYVAL hButton AS HWND, BYVAL himlGlyph AS HIMAGELIST) AS BOOLEAN
+PUBLIC FUNCTION SetSplitImageList (BYVAL hButton AS HWND, BYVAL himlGlyph AS HIMAGELIST) AS BOOLEAN
    DIM info AS BUTTON_SPLITINFO
    info.mask = BCSIF_IMAGE   ' o BCSIF_IMAGE OR BCSIF_GLYPH if you want to force a glyph
    info.himlGlyph = himlGlyph
@@ -499,7 +500,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Gets the length of the note text that may be displayed in the description for a command link.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_GetNoteLength (BYVAL hButton AS HWND) AS LONG
+PUBLIC FUNCTION GetNoteLength (BYVAL hButton AS HWND) AS LONG
    RETURN SendMessageW(hButton, BCM_GETNOTELENGTH, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -507,7 +508,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Gets the text of the note associated with the Command Link button.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_GetNote (BYVAL hButton AS HWND) AS USTRING
+PUBLIC FUNCTION GetNote (BYVAL hButton AS HWND) AS USTRING
    DIM nLen AS DWORD = SendMessageW(hButton, BCM_GETNOTELENGTH, 0, 0)
    IF nLen < 1 THEN RETURN ""
    nLen += 1
@@ -525,7 +526,7 @@ END FUNCTION
 '       is too short, Windows will hide the note and render a single-line layout.  
 '       Make the button taller to ensure the note becomes visible.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_SetNote (BYVAL hButton AS HWND, BYVAL pwsz AS WSTRING PTR) AS BOOLEAN
+PUBLIC FUNCTION SetNote (BYVAL hButton AS HWND, BYVAL pwsz AS WSTRING PTR) AS BOOLEAN
    RETURN SendMessageW(hButton, BCM_SETNOTE, 0, CAST(LPARAM, pwsz))
 END FUNCTION
 ' ========================================================================================
@@ -534,7 +535,7 @@ END FUNCTION
 ' * Sets the elevation required state for a specified button or command link to display an elevated icon.
 ' Note: Although the documentation says that it returns 1 on success, it seems to return always 0.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_SetElevationRequiredState (BYVAL hButton AS HWND, BYVAL fRequired AS BOOLEAN) AS LONG
+PUBLIC FUNCTION SetElevationRequiredState (BYVAL hButton AS HWND, BYVAL fRequired AS BOOLEAN) AS LONG
    RETURN SendMessageW(hButton, BCM_SETSHIELD, 0, fRequired)
 END FUNCTION
 ' ========================================================================================
@@ -542,14 +543,15 @@ END FUNCTION
 ' ========================================================================================
 ' * Set button dark mode.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_SetDarkMode (BYVAL hButton AS HWND) AS HRESULT
+PUBLIC FUNCTION SetDarkMode (BYVAL hButton AS HWND) AS HRESULT
    RETURN SetWindowTheme(hButton, "DarkMode_Explorer", NULL)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' * Remove button dark mode.
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_RemoveDarkMode (BYVAL hButton AS HWND) AS HRESULT
+PUBLIC FUNCTION RemoveDarkMode (BYVAL hButton AS HWND) AS HRESULT
    RETURN SetWindowTheme(hButton, NULL, NULL)
 END FUNCTION
 ' ========================================================================================
+END NAMESPACE

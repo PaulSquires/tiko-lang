@@ -125,9 +125,14 @@ class Map:
 
 # ------------------------------------------------------------------------- one file
 class Edit:
-    __slots__ = ("file", "line", "col", "where", "kind", "old", "new", "note")
-    def __init__(s, file, line, col, where, kind, old, new, note=""):
+    __slots__ = ("file", "line", "col", "where", "kind", "old", "new", "note", "pos", "ln")
+    def __init__(s, file, line, col, where, kind, old, new, note="", pos=-1, ln=0):
         s.file, s.line, s.col, s.where, s.kind, s.old, s.new, s.note = file, line, col, where, kind, old, new, note
+        s.pos, s.ln = pos, ln
+
+class Def:
+    """A procedure or macro definition the map names: where it is, and its body's extent."""
+    __slots__ = ("file", "act", "row", "line", "end", "declare", "name_pos", "name_len", "public_pos", "overload")
 
 def file_module(path, src, user):
     m = re.search(r'^\s*#module\s+"(\w+)"', src, re.M | re.I)
@@ -148,7 +153,8 @@ def prev_code(toks, k):
     while j >= 0 and toks[j].kind == "comment": j -= 1
     return j
 
-def scan(path, rel, mp, user, edits, uncovered, notes):
+def scan(path, rel, mp, user, edits, uncovered, notes, defs=None):
+    if defs is None: defs = []
     src = io.open(path, encoding="utf-8", errors="replace").read()
     toks = tokenize(src)
     mod = file_module(path, src, user)
@@ -161,14 +167,14 @@ def scan(path, rel, mp, user, edits, uncovered, notes):
     for k, t in enumerate(toks):
         if t.kind == "comment":
             if MARKER_RE.search(t.text):
-                edits.append(Edit(rel, t.line, t.col, "comment", "marker", MARKER_RE.search(t.text).group(0), "", "delete the conversion marker (RFC 5.5)"))
+                edits.append(Edit(rel, t.line, t.col, "comment", "marker", MARKER_RE.search(t.text).group(0), "", "delete the conversion marker (RFC 5.5)", t.pos, len(t.text)))
             for m in STALE_FBX.finditer(t.text):
                 edits.append(Edit(rel, t.line, t.col, "comment", "stale-doc", m.group(0), "", "doc names a function that no longer exists (RFC 5.5)"))
             for m in re.finditer(r"[A-Za-z_]\w*", t.text):
                 w = m.group(0)
                 r = mp.resolve(w, mod, imported) if (mod or user) else None
                 if r and r != "ambiguous":
-                    edits.append(Edit(rel, t.line, t.col + m.start(), "comment", r["act"], w, newform(r, user, imports), "doc text"))
+                    edits.append(Edit(rel, t.line, t.col + m.start(), "comment", r["act"], w, newform(r, user, imports), "doc text", t.pos + m.start(), len(w)))
                 elif PREFIX_RE.match(w) and r is None:
                     uncovered[(w.lower(), "comment")].append((rel, t.line))
             continue
@@ -176,6 +182,8 @@ def scan(path, rel, mp, user, edits, uncovered, notes):
         w, lw = t.text, t.text.lower()
         # the end of a definition's body
         if lw == "end" and k + 1 < len(toks) and toks[k + 1].kind == "ident" and toks[k + 1].text.lower() in DEF_KW:
+            if cur_def is not None:
+                cur_def.end = t.line
             cur_member_family = None; cur_def = None
             continue
         j = prev_code(toks, k)
@@ -224,7 +232,7 @@ def scan(path, rel, mp, user, edits, uncovered, notes):
             is_call = nk < len(toks) and toks[nk].kind == "punct" and toks[nk].text == "("
             if cur_member_family and not qual and is_call and lw in mp.fam_members.get(cur_member_family, ()):
                 edits.append(Edit(rel, t.line, t.col, "code", "needs-global", w, ".." + w,
-                                  "inside namespace %s this name is the member; the Windows one needs '..'" % cur_member_family))
+                                  "inside namespace %s this name is the member; the Windows one needs '..'" % cur_member_family, t.pos, len(w)))
             if PREFIX_RE.match(w):
                 uncovered[(lw, "code")].append((rel, t.line, "def" if is_def else "ref"))
             continue
@@ -240,8 +248,19 @@ def scan(path, rel, mp, user, edits, uncovered, notes):
                 note = "delete the definition"
             elif act == "private":
                 note = "remove PUBLIC"
-            cur_def = r
-            edits.append(Edit(rel, t.line, t.col, "def", act, w, defform(r), note))
+            edits.append(Edit(rel, t.line, t.col, "def", act, w, defform(r), note, t.pos, len(w)))
+            d = Def(); d.file, d.act, d.row, d.line, d.end = rel, act, r, t.line, t.line
+            d.name_pos, d.name_len, d.overload = t.pos, len(w), has_overload(toks, k)
+            d.declare, d.public_pos = False, -1
+            j2 = k - 1
+            while j2 >= 0 and toks[j2].kind != "nl":
+                tw = toks[j2].text.lower() if toks[j2].kind == "ident" else ""
+                if tw == "declare": d.declare = True
+                if tw == "public": d.public_pos = toks[j2].pos
+                j2 -= 1
+            defs.append(d)
+            if pt.text.lower() in DEF_KW and not d.declare:
+                cur_def = d
         else:
             if user:
                 new = newform(r, user, imports, qualified=True, already=qual)
@@ -256,7 +275,11 @@ def scan(path, rel, mp, user, edits, uncovered, notes):
                 note = "an ALIAS MACRO over a dropped name: drop the alias too, or retarget it"
             if act == "member" and not user and r["module"] != mod:
                 note = "cross-module reference to a family member"
-            edits.append(Edit(rel, t.line, t.col, "code", act, w, new, note))
+            if cur_member_family and act in ("rename", "overload") and r["new"].lower() in mp.fam_members.get(cur_member_family, ()):
+                edits.append(Edit(rel, t.line, t.col, "code", "conflict", w, r["new"],
+                                  "inside namespace %s the new name is a member too: qualify it" % cur_member_family, t.pos, len(w)))
+                continue
+            edits.append(Edit(rel, t.line, t.col, "code", act, w, new, note, t.pos, len(w)))
     return src
 
 def on_define_line(toks, k):
@@ -326,13 +349,14 @@ def main():
     ap.add_argument("--report", required=True)
     ap.add_argument("--edits")
     ap.add_argument("--apply", action="store_true")
+    ap.add_argument("--phase", help="I2 (families into namespaces) or I3 (plain names, drops, OVERLOAD, PUBLIC, markers)")
     a = ap.parse_args()
-    if a.apply:
-        sys.exit("syswinrename: --apply is RFC-0001 phases I2/I3 and is not implemented yet -- this is the dry run")
+    if a.apply and (a.user or a.phase not in ("I2", "I3")):
+        sys.exit("syswinrename: --apply takes --phase I2 or I3, and is for the library only")
     mp = Map(a.map)
     root = os.path.abspath(a.user or a.root)
     user = bool(a.user)
-    edits, uncovered, notes = [], collections.defaultdict(list), collections.defaultdict(list)
+    edits, uncovered, notes, defs = [], collections.defaultdict(list), collections.defaultdict(list), []
     files = []
     for d, _, fs in os.walk(root):
         for f in sorted(fs):
@@ -340,8 +364,10 @@ def main():
                 files.append(os.path.join(d, f))
     for p in sorted(files):
         rel = os.path.relpath(p, root).replace("\\", "/")
-        scan(p, rel, mp, user, edits, uncovered, notes)
+        scan(p, rel, mp, user, edits, uncovered, notes, defs)
     write_report(a, mp, root, user, files, edits, uncovered, notes)
+    if a.apply:
+        apply(root, a.phase, edits, defs)
 
 def write_report(a, mp, root, user, files, edits, uncovered, notes):
     L = []
@@ -372,6 +398,8 @@ def write_report(a, mp, root, user, files, edits, uncovered, notes):
             ["  %s:%d  %s  ->  %s%s" % (e.file, e.line, e.old, e.new, ("   [" + e.note + "]") if "ALIAS" in e.note else "") for e in code if e.kind == "drop" and e.where == "code"])
     section("NEEDS A HAND -- ambiguous names (in more than one module; the file's imports do not decide)",
             ["  %s:%d  %s" % (e.file, e.line, e.old) for e in code if e.kind == "ambiguous"])
+    section("CONFLICTS -- inside a family namespace, a renamed module name that is also one of the family's members",
+            ["  %s:%d  %s -> %s" % (e.file, e.line, e.old, e.new) for e in code if e.kind == "conflict"])
     section("NEEDS '..' -- inside a family namespace, a bare call to the Windows function the family now shadows",
             ["  %s:%d  %s -> %s   (%s)" % (e.file, e.line, e.old, e.new, e.note) for e in code if e.kind == "needs-global"])
     section("CROSS-MODULE references to family members (need the namespace reachable: gui.Family.Member, or 'using gui')",
@@ -405,6 +433,108 @@ def write_report(a, mp, root, user, files, edits, uncovered, notes):
             for e in sorted(edits, key=lambda e: (e.file, e.line, e.col)):
                 f.write("%s\t%d\t%d\t%s\t%s\t%s\t%s\t%s\n" % (e.file, e.line, e.col, e.where, e.kind, e.old, e.new, e.note))
     print("syswinrename: dry run, %d files, %d code edits, %d comment edits -> %s" % (len(files), len(code), len(com), a.report))
+
+# ------------------------------------------------------------------------- applying
+I3_KINDS = {"rename", "overload", "private"}
+
+def is_blank(l): return l.strip() == ""
+def is_comment(l):
+    x = l.lstrip()
+    return x.startswith("'") or x[:4].lower() == "rem "
+
+END_RE = re.compile(r"^\s*end\s+(function|sub)\b", re.I)
+def is_banner(l): return l.strip().startswith("' ====")
+
+def doc_start(lines, i):
+    """The first line of the doc comment above line i (0-based). It stops at the TRAILING
+    banner of the procedure before -- the one '' ==== line straight after its END -- because
+    sys/win's banners are shared: that line touches the next procedure's own opening banner."""
+    while i - 1 >= 0 and is_comment(lines[i - 1]):
+        if is_banner(lines[i - 1]) and i - 2 >= 0 and END_RE.match(lines[i - 2]): break
+        i -= 1
+    return i
+
+def doc_end(lines, i):
+    """The last line belonging to the procedure that ends on line i: its END, and the one
+    banner straight after it if there is one -- never the next procedure's doc comment."""
+    if i + 1 < len(lines) and is_banner(lines[i + 1]): return i + 1
+    return i
+
+def apply(root, phase, edits, defs):
+    by_file = collections.defaultdict(list)
+    for e in edits: by_file[e.file].append(e)
+    dby = collections.defaultdict(list)
+    for d in defs: dby[d.file].append(d)
+    changed = 0
+    for rel in sorted(set(by_file) | set(dby)):
+        path = os.path.join(root, rel)
+        raw = io.open(path, "rb").read()
+        crlf = b"\r\n" in raw
+        src = raw.decode("utf-8")
+        ops = []   # (pos, end, text) over the original text
+        for e in by_file[rel]:
+            if e.pos < 0: continue
+            if phase == "I2":
+                if e.kind in ("member", "needs-global"):
+                    ops.append((e.pos, e.pos + e.ln, e.new))
+            elif e.kind in I3_KINDS:
+                ops.append((e.pos, e.pos + e.ln, e.new))
+        if phase == "I3":
+            for d in dby[rel]:
+                if d.act == "overload" and not d.overload and not d.declare:
+                    ops.append((d.name_pos + d.name_len, d.name_pos + d.name_len, " OVERLOAD"))
+                if d.act == "private" and d.public_pos >= 0:
+                    e2 = d.public_pos + len("public")
+                    while e2 < len(src) and src[e2] in " \t": e2 += 1
+                    ops.append((d.public_pos, e2, ""))
+        ops.sort(key=lambda o: (o[0], o[1]), reverse=True)
+        last = None
+        for a, b, t in ops:
+            if last is not None and b > last: sys.exit("syswinrename: overlapping edits in %s at %d" % (rel, a))
+            src = src[:a] + t + src[b:]
+            last = a
+        lines = src.replace("\r\n", "\n").split("\n")
+        # the line structure -- whole-line deletions and insertions -- by the ORIGINAL line numbers,
+        # which the token edits above kept (none of them adds or removes a newline)
+        dels, ins = set(), collections.defaultdict(list)   # ins[i]: lines to insert BEFORE line i
+        if phase == "I2":
+            mem = sorted([d for d in dby[rel] if d.act == "member"], key=lambda d: d.line)
+            runs = []
+            for d in mem:
+                fam = d.row["new"].split(".")[0]
+                if runs and runs[-1][0] == fam and all(is_blank(l) or is_comment(l) for l in lines[runs[-1][2]:d.line - 1]):
+                    runs[-1][2] = d.end
+                else:
+                    runs.append([fam, d.line, d.end])
+            for fam, a, b in runs:
+                top = doc_start(lines, a - 1)
+                bot = doc_end(lines, b - 1)
+                ins[top].append("NAMESPACE " + fam)
+                ins[bot + 1].insert(0, "END NAMESPACE")
+        else:
+            for d in dby[rel]:
+                if d.act != "drop": continue
+                if lines[d.line - 1].lstrip().startswith("#"):
+                    dels.add(d.line - 1)                 # an alias macro: its one line
+                    continue
+                top = doc_start(lines, d.line - 1)
+                bot = doc_end(lines, d.end - 1)
+                for i in range(top, bot + 1): dels.add(i)
+                if bot + 1 < len(lines) and is_blank(lines[bot + 1]) and (top == 0 or is_blank(lines[top - 1])):
+                    dels.add(bot + 1)
+            for e in by_file[rel]:
+                if e.kind == "marker": dels.add(e.line - 1)
+        out = []
+        for i, l in enumerate(lines):
+            out.extend(ins.get(i, []))
+            if i not in dels: out.append(l)
+        out.extend(ins.get(len(lines), []))
+        text = "\n".join(out)
+        if crlf: text = text.replace("\n", "\r\n")
+        if text.encode("utf-8") != raw:
+            io.open(path, "wb").write(text.encode("utf-8"))
+            changed += 1
+    print("syswinrename: %s applied, %d files changed" % (phase, changed))
 
 if __name__ == "__main__":
     main()

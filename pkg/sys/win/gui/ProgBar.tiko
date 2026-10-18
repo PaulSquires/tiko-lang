@@ -28,11 +28,12 @@
 
 #include once "windows.bi"
 
+NAMESPACE ProgBar
 ' ========================================================================================
 ' Advances the current position of a progress bar by a specified increment and redraws the
 ' bar to reflect the new position. Returns the previous position.
 ' ========================================================================================
-PUBLIC FUNCTION tkProgBar_DeltaPos (BYVAL hProgBar AS HWND, BYVAL nIncrement AS LONG) AS LONG
+PUBLIC FUNCTION DeltaPos (BYVAL hProgBar AS HWND, BYVAL nIncrement AS LONG) AS LONG
    RETURN SendMessageW(hProgBar, PBM_DELTAPOS, nIncrement, 0)
 END FUNCTION
 ' ========================================================================================
@@ -40,7 +41,7 @@ END FUNCTION
 ' ========================================================================================
 ' Retrieves the current high limit of a given progress bar control.
 ' ========================================================================================
-PUBLIC FUNCTION tkProgBar_GetHighLimit (BYVAL hProgBar AS HWND) AS LONG
+PUBLIC FUNCTION GetHighLimit (BYVAL hProgBar AS HWND) AS LONG
    RETURN SendMessageW(hProgBar, PBM_GETRANGE, FALSE, 0)
 END FUNCTION
 ' ========================================================================================
@@ -48,7 +49,7 @@ END FUNCTION
 ' ========================================================================================
 ' Retrieves the current low limit of a given progress bar control.
 ' ========================================================================================
-PUBLIC FUNCTION tkProgBar_GetLowLimit (BYVAL hProgBar AS HWND) AS LONG
+PUBLIC FUNCTION GetLowLimit (BYVAL hProgBar AS HWND) AS LONG
    RETURN SendMessageW(hProgBar, PBM_GETRANGE, TRUE, 0)
 END FUNCTION
 ' ========================================================================================
@@ -56,7 +57,7 @@ END FUNCTION
 ' ========================================================================================
 ' Retrieves the current maximum range of a given progress bar control.
 ' ========================================================================================
-PUBLIC FUNCTION tkProgBar_GetMaxRange (BYVAL hProgBar AS HWND) AS LONG
+PUBLIC FUNCTION GetMaxRange (BYVAL hProgBar AS HWND) AS LONG
    RETURN SendMessageW(hProgBar, PBM_GETRANGE, FALSE, 0)
 END FUNCTION
 ' ========================================================================================
@@ -64,7 +65,7 @@ END FUNCTION
 ' ========================================================================================
 ' Retrieves the current minimum range of a given progress bar control.
 ' ========================================================================================
-PUBLIC FUNCTION tkProgBar_GetMinRange (BYVAL hProgBar AS HWND) AS LONG
+PUBLIC FUNCTION GetMinRange (BYVAL hProgBar AS HWND) AS LONG
    RETURN SendMessageW(hProgBar, PBM_GETRANGE, TRUE, 0)
 END FUNCTION
 ' ========================================================================================
@@ -72,7 +73,7 @@ END FUNCTION
 ' ========================================================================================
 ' Retrieves the current position of the progress bar.
 ' ========================================================================================
-PUBLIC FUNCTION tkProgBar_GetPos (BYVAL hProgBar AS HWND) AS DWORD
+PUBLIC FUNCTION GetPos (BYVAL hProgBar AS HWND) AS DWORD
    RETURN SendMessageW(hProgBar, PBM_GETPOS, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -85,17 +86,17 @@ END FUNCTION
 ' - ppBRange: Pointer to a PBRANGE structure that is to be filled with both limit values.
 ' Returns an INT that represents the limit value specified by fWhichLimit
 ' ========================================================================================
-PUBLIC FUNCTION tkProgBar_GetRange OVERLOAD (BYVAL hProgBar AS HWND, BYVAL fWhichLimit AS BOOLEAN, BYVAL pPBRange AS PBRANGE PTR) AS LONG
+PUBLIC FUNCTION GetRange OVERLOAD (BYVAL hProgBar AS HWND, BYVAL fWhichLimit AS BOOLEAN, BYVAL pPBRange AS PBRANGE PTR) AS LONG
    RETURN SendMessageW(hProgBar, PBM_GETRANGE, fWhichLimit, cast(LPARAM, pPBRange))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkProgBar_GetRange OVERLOAD (BYVAL hProgBar AS HWND, BYVAL fWhichLimit AS BOOLEAN, BYREF range AS PBRANGE) AS LONG
+PUBLIC FUNCTION GetRange OVERLOAD (BYVAL hProgBar AS HWND, BYVAL fWhichLimit AS BOOLEAN, BYREF range AS PBRANGE) AS LONG
    RETURN SendMessageW(hProgBar, PBM_GETRANGE, fWhichLimit, cast(LPARAM, @range))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkProgBar_GetRange OVERLOAD (BYVAL hProgBar AS HWND, BYVAL fWhichLimit AS BOOLEAN) AS PBRANGE
+PUBLIC FUNCTION GetRange OVERLOAD (BYVAL hProgBar AS HWND, BYVAL fWhichLimit AS BOOLEAN) AS PBRANGE
    DIM Range AS PBRANGE
    SendMessageW(hProgBar, PBM_GETRANGE, fWhichLimit, cast(LPARAM, @Range))
    RETURN Range
@@ -108,7 +109,7 @@ END FUNCTION
 ' If nIncVal is outside the range of the control, the position is set to the closest boundary.
 ' Do not send this message to a control that has the PBS_MARQUEE style.
 ' ========================================================================================
-PUBLIC FUNCTION tkProgBar_IncPos (BYVAL hProgBar AS HWND, BYVAL nIncVal AS LONG) AS LONG
+PUBLIC FUNCTION IncPos (BYVAL hProgBar AS HWND, BYVAL nIncVal AS LONG) AS LONG
    DIM nPos AS LONG = SendMessageW(hProgBar, PBM_GETPOS, 0, 0)
    RETURN SendMessageW(hProgBar, PBM_SETPOS, nPos + nIncVal, 0)
 END FUNCTION
@@ -122,7 +123,7 @@ END FUNCTION
 ' Returns the previous progress indicator bar color, or CLR_DEFAULT if the progress
 ' indicator bar color is the default color.
 ' ========================================================================================
-PUBLIC FUNCTION tkProgBar_SetBarColor (BYVAL hProgBar AS HWND, BYVAL clrBar AS COLORREF) AS COLORREF
+PUBLIC FUNCTION SetBarColor (BYVAL hProgBar AS HWND, BYVAL clrBar AS COLORREF) AS COLORREF
    RETURN SendMessageW(hProgBar, PBM_SETBARCOLOR, 0, clrBar)
 END FUNCTION
 ' ========================================================================================
@@ -133,7 +134,7 @@ END FUNCTION
 '   value to cause the progress bar to use its default background color.
 ' Returns the previous background color, or CLR_DEFAULT if the background color is the default color.
 ' ========================================================================================
-PUBLIC FUNCTION tkProgBar_SetBkColor (BYVAL hProgBar AS HWND, BYVAL clrBk AS COLORREF) AS COLORREF
+PUBLIC FUNCTION SetBkColor (BYVAL hProgBar AS HWND, BYVAL clrBk AS COLORREF) AS COLORREF
    RETURN SendMessageW(hProgBar, PBM_SETBKCOLOR, 0, clrBk)
 END FUNCTION
 ' ========================================================================================
@@ -145,7 +146,7 @@ END FUNCTION
 '   parameter is zero, the marquee animation is updated every 30 milliseconds.
 ' Return value: Always returns TRUE.
 ' ========================================================================================
-PUBLIC FUNCTION tkProgBar_SetMarquee (BYVAL hProgBar AS HWND, BYVAL fOn AS BOOLEAN, BYVAL dwAnimationSpeed AS DWORD) AS LONG
+PUBLIC FUNCTION SetMarquee (BYVAL hProgBar AS HWND, BYVAL fOn AS BOOLEAN, BYVAL dwAnimationSpeed AS DWORD) AS LONG
    RETURN SendMessageW(hProgBar, PBM_SETMARQUEE, fOn, dwAnimationSpeed)
 END FUNCTION
 ' ========================================================================================
@@ -154,7 +155,7 @@ END FUNCTION
 ' Sets the progress bar marquee mode to off.
 ' Return value: Always returns TRUE.
 ' ========================================================================================
-PUBLIC FUNCTION tkProgBar_SetMarqueeOff (BYVAL hProgBar AS HWND) AS LONG
+PUBLIC FUNCTION SetMarqueeOff (BYVAL hProgBar AS HWND) AS LONG
    RETURN SendMessageW(hProgBar, PBM_SETMARQUEE, FALSE, 0)
 END FUNCTION
 ' ========================================================================================
@@ -163,7 +164,7 @@ END FUNCTION
 ' Sets the progress bar to marquee mode. This causes the progress bar to move like a marquee.
 ' Return value: Always returns TRUE.
 ' ========================================================================================
-PUBLIC FUNCTION tkProgBar_SetMarqueeOn (BYVAL hProgBar AS HWND, BYVAL dwAnimationSpeed AS DWORD) AS LONG
+PUBLIC FUNCTION SetMarqueeOn (BYVAL hProgBar AS HWND, BYVAL dwAnimationSpeed AS DWORD) AS LONG
    RETURN SendMessageW(hProgBar, PBM_SETMARQUEE, CTRUE, dwAnimationSpeed)
 END FUNCTION
 ' ========================================================================================
@@ -173,7 +174,7 @@ END FUNCTION
 ' - nNewPos: Signed integer that becomes the new position.
 ' Returns the previous position.
 ' ========================================================================================
-PUBLIC FUNCTION tkProgBar_SetPos (BYVAL hProgBar AS HWND, BYVAL nNewPos AS LONG) AS LONG
+PUBLIC FUNCTION SetPos (BYVAL hProgBar AS HWND, BYVAL nNewPos AS LONG) AS LONG
    RETURN SendMessageW(hProgBar, PBM_SETPOS, nNewPos, 0)
 END FUNCTION
 ' ========================================================================================
@@ -186,7 +187,7 @@ END FUNCTION
 ' Returns the previous range values if successful, or zero otherwise. The LOWORD specifies
 ' the previous minimum value, and the HIWORD specifies the previous maximum value.
 ' ========================================================================================
-PUBLIC FUNCTION tkProgBar_SetRange (BYVAL hProgBar AS HWND, BYVAL nMinRange AS WORD, BYVAL nMaxRange AS WORD) AS DWORD
+PUBLIC FUNCTION SetRange (BYVAL hProgBar AS HWND, BYVAL nMinRange AS WORD, BYVAL nMaxRange AS WORD) AS DWORD
    RETURN SendMessageW(hProgBar, PBM_SETRANGE, 0, MAKELONG(nMinRange, nMaxRange))
 END FUNCTION
 ' ========================================================================================
@@ -198,7 +199,7 @@ END FUNCTION
 ' ranges were 32-bit values, the return value consists of the LOWORDs of both 32-bit limits.
 ' To retrieve the entire high and low 32-bit values, use the PBM_GETRANGE message.
 ' ========================================================================================
-PUBLIC FUNCTION tkProgBar_SetRange32 (BYVAL hProgBar AS HWND, BYVAL nMinRange AS LONG, BYVAL nMaxRange AS LONG) AS DWORD
+PUBLIC FUNCTION SetRange32 (BYVAL hProgBar AS HWND, BYVAL nMinRange AS LONG, BYVAL nMaxRange AS LONG) AS DWORD
    RETURN SendMessageW(hProgBar, PBM_SETRANGE32, nMinRange, nMaxRange)
 END FUNCTION
 ' ========================================================================================
@@ -209,7 +210,7 @@ END FUNCTION
 ' message. By default, the step increment is set to 10.
 ' Return value: Returns the previous step increment.
 ' ========================================================================================
-PUBLIC FUNCTION tkProgBar_SetStep (BYVAL hProgBar AS HWND, BYVAL nStepInc AS LONG) AS LONG
+PUBLIC FUNCTION SetStep (BYVAL hProgBar AS HWND, BYVAL nStepInc AS LONG) AS LONG
    RETURN SendMessageW(hProgBar, PBM_SETSTEP, nStepInc, 0)
 END FUNCTION
 ' ========================================================================================
@@ -221,7 +222,7 @@ END FUNCTION
 ' Remarks: When the position exceeds the maximum range value, this message resets the
 ' current position so that the progress indicator starts over again from the beginning.
 ' ========================================================================================
-PUBLIC FUNCTION tkProgBar_StepIt (BYVAL hProgBar AS HWND) AS LONG
+PUBLIC FUNCTION StepIt (BYVAL hProgBar AS HWND) AS LONG
    RETURN SendMessageW(hProgBar, PBM_STEPIT, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -229,14 +230,14 @@ END FUNCTION
 ' ========================================================================================
 ' Gets the color of the progress bar.
 ' ========================================================================================
-PUBLIC FUNCTION tkProgBar_GetBarColor (BYVAL hProgBar AS HWND) AS COLORREF
+PUBLIC FUNCTION GetBarColor (BYVAL hProgBar AS HWND) AS COLORREF
    RETURN SendMessageW(hProgBar, PBM_GETBARCOLOR, 0, 0)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' Gets the background color of the progress bar.
 ' ========================================================================================
-PUBLIC FUNCTION tkProgBar_GetBkColor (BYVAL hProgBar AS HWND) AS COLORREF
+PUBLIC FUNCTION GetBkColor (BYVAL hProgBar AS HWND) AS COLORREF
    RETURN SendMessageW(hProgBar, PBM_GETBKCOLOR, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -247,7 +248,7 @@ END FUNCTION
 ' - PBST_ERROR: Error
 ' - PBST_PAUSED: Paused
 ' ========================================================================================
-PUBLIC FUNCTION tkProgBar_GetState (BYVAL hProgBar AS HWND) AS LONG
+PUBLIC FUNCTION GetState (BYVAL hProgBar AS HWND) AS LONG
    RETURN SendMessageW(hProgBar, PBM_GETSTATE, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -257,7 +258,8 @@ END FUNCTION
 ' PBST_NORMAL (in progress), PBST_ERROR (error), PBST_PAUSED (paused).
 ' Return value: Returns the previous state.
 ' ========================================================================================
-PUBLIC FUNCTION tkProgBar_SetState (BYVAL hProgBar AS HWND, BYVAL iState AS LONG) AS LONG
+PUBLIC FUNCTION SetState (BYVAL hProgBar AS HWND, BYVAL iState AS LONG) AS LONG
    RETURN SendMessageW(hProgBar, PBM_SETSTATE, iState, 0)
 END FUNCTION
 ' ========================================================================================
+END NAMESPACE

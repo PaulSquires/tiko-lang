@@ -221,10 +221,11 @@ END FUNCTION
 '                                *** HELPER FUNCTIONS ***
 ' ########################################################################################
 
+NAMESPACE TabCtl
 ' =====================================================================================
 ' Resizes all the tab pages associated with a tab control
 ' =====================================================================================
-PUBLIC FUNCTION tkResizeTabPages (BYVAL hTab AS HWND) AS BOOLEAN
+PUBLIC FUNCTION ResizePages (BYVAL hTab AS HWND) AS BOOLEAN
    IF hTab = NULL THEN EXIT FUNCTION
    DIM nCount AS LONG, i AS LONG, tci AS TCITEMW, pTabPage AS CTabPage PTR
    ' // Get the number of items
@@ -261,7 +262,7 @@ END FUNCTION
 ' - idx  = Zero based index of the tab.
 ' Return value: TRUE or FALSE.
 ' ========================================================================================
-PUBLIC FUNCTION tkDestroyTabPage (BYVAL hTab AS HWND, BYVAL idx AS LONG) AS BOOLEAN
+PUBLIC FUNCTION DestroyPage (BYVAL hTab AS HWND, BYVAL idx AS LONG) AS BOOLEAN
    IF hTab = NULL THEN EXIT FUNCTION
    DIM tci AS TCITEMW, pTabPage AS CTabPage PTR
    ' // Ask to return the value of the lParam member
@@ -283,7 +284,7 @@ END FUNCTION
 ' - hTab = Handle to the tab control.
 ' Return value: TRUE or FALSE.
 ' ========================================================================================
-PUBLIC FUNCTION tkDestroyAllTabPages (BYVAL hTab AS HWND) AS BOOLEAN
+PUBLIC FUNCTION DestroyAllPages (BYVAL hTab AS HWND) AS BOOLEAN
    IF hTab = NULL THEN EXIT FUNCTION
    DIM tci AS TCITEMW, pTabPage AS CTabPage PTR
    ' // Ask to return the value of the lParam member
@@ -300,6 +301,7 @@ PUBLIC FUNCTION tkDestroyAllTabPages (BYVAL hTab AS HWND) AS BOOLEAN
    LOOP
 END FUNCTION
 ' ========================================================================================
+END NAMESPACE
 
 ' ========================================================================================
 ' Returns a pointer to the CTabPage class given the handle of the tab control to which the

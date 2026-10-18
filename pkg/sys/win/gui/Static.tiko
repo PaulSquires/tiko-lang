@@ -30,11 +30,12 @@
 #include once "win/commctrl.bi"
 #include once "win/uxtheme.bi"
 
+NAMESPACE Label
 ' ========================================================================================
 ' * Enables the control.
 ' Return value: False if the control was previous enabled; otherwise TRUE
 ' ========================================================================================
-PUBLIC FUNCTION tkStatic_Enable (BYVAL hStatic AS HWND) AS BOOLEAN
+PUBLIC FUNCTION Enable (BYVAL hStatic AS HWND) AS BOOLEAN
    RETURN EnableWindow(hStatic, CTRUE)
 END FUNCTION
 ' ========================================================================================
@@ -42,7 +43,7 @@ END FUNCTION
 ' * Disables the control.
 ' Return value: False if the control was previous disabled; otherwise TRUE
 ' ========================================================================================
-PUBLIC FUNCTION tkStatic_Disable (BYVAL hStatic AS HWND) AS BOOLEAN
+PUBLIC FUNCTION Disable (BYVAL hStatic AS HWND) AS BOOLEAN
    DIM res AS LONG = EnableWindow(hStatic, FALSE)
    DIM bEnable AS BOOLEAN
    IF res = 0 THEN bEnable = TRUE ELSE bEnable = FALSE
@@ -53,7 +54,7 @@ END FUNCTION
 ' ========================================================================================
 ' Deletes a bitmap associated with a static control. Returns TRUE o FALSE.
 ' ========================================================================================
-PUBLIC FUNCTION tkStatic_DeleteBitmap (BYVAL hStatic AS HWND) AS BOOLEAN
+PUBLIC FUNCTION FreeBitmap (BYVAL hStatic AS HWND) AS BOOLEAN
    RETURN DeleteObject(cast(HGDIOBJ, SendMessageW(hStatic, STM_SETIMAGE, cast(WPARAM, IMAGE_BITMAP), 0)))
 END FUNCTION
 ' ========================================================================================
@@ -61,7 +62,7 @@ END FUNCTION
 ' ========================================================================================
 ' Deletes a cursor associated with a static control. Returns TRUE or FALSE.
 ' ========================================================================================
-PUBLIC FUNCTION tkStatic_DeleteCursor (BYVAL hStatic AS HWND) AS BOOLEAN
+PUBLIC FUNCTION DeleteCursor (BYVAL hStatic AS HWND) AS BOOLEAN
    RETURN DeleteObject(cast(HGDIOBJ, SendMessageW(hStatic, STM_SETIMAGE, cast(WPARAM, IMAGE_CURSOR), 0)))
 END FUNCTION
 ' ========================================================================================
@@ -69,7 +70,7 @@ END FUNCTION
 ' ========================================================================================
 ' Deletes an enhanced metafile associated with a static control. Returns TRUE or FALSE.
 ' ========================================================================================
-PUBLIC FUNCTION tkStatic_DeleteEnhancedMetafile (BYVAL hStatic AS HWND) AS BOOLEAN
+PUBLIC FUNCTION DeleteEnhancedMetafile (BYVAL hStatic AS HWND) AS BOOLEAN
    RETURN DeleteObject(cast(HGDIOBJ, SendMessageW(hStatic, STM_SETIMAGE, cast(WPARAM, IMAGE_ENHMETAFILE), 0)))
 END FUNCTION
 ' ========================================================================================
@@ -77,7 +78,7 @@ END FUNCTION
 ' ========================================================================================
 ' Deletes an icon associated with a static control. Returns TRUE o FALSE.
 ' ========================================================================================
-PUBLIC FUNCTION tkStatic_DeleteIcon (BYVAL hStatic AS HWND) AS BOOLEAN
+PUBLIC FUNCTION DeleteIcon (BYVAL hStatic AS HWND) AS BOOLEAN
    RETURN DeleteObject(cast(HGDIOBJ, SendMessageW(hStatic, STM_SETICON, 0, 0)))
 END FUNCTION
 ' ========================================================================================
@@ -85,7 +86,7 @@ END FUNCTION
 ' ========================================================================================
 ' Deletes an image associated with a static control. Returns TRUE or FALSE.
 ' ========================================================================================
-PUBLIC FUNCTION tkStatic_DeleteImage (BYVAL hStatic AS HWND, BYVAL nType AS LONG) AS BOOLEAN
+PUBLIC FUNCTION DeleteImage (BYVAL hStatic AS HWND, BYVAL nType AS LONG) AS BOOLEAN
    RETURN DeleteObject(cast(HGDIOBJ, SendMessageW(hStatic, STM_SETIMAGE, cast(WPARAM, nType), 0)))
 END FUNCTION
 ' ========================================================================================
@@ -93,7 +94,7 @@ END FUNCTION
 ' ========================================================================================
 ' Retrieves a handle to the icon associated with a static control that has the SS_ICON style.
 ' ========================================================================================
-PUBLIC FUNCTION tkStatic_GetIcon (BYVAL hStatic AS HWND) AS HICON
+PUBLIC FUNCTION GetIcon (BYVAL hStatic AS HWND) AS HICON
    RETURN CAST(HICON, SendMessageW(hStatic, STM_GETICON, 0, 0))
 END FUNCTION
 ' ========================================================================================
@@ -102,7 +103,7 @@ END FUNCTION
 ' Retrieves a handle to the image (icon or bitmap) associated with a static control.
 ' The return value is a handle to the image, if any; otherwise, it is NULL.
 ' ========================================================================================
-PUBLIC FUNCTION tkStatic_GetImage (BYVAL hStatic AS HWND, BYVAL nType AS LONG) AS HANDLE
+PUBLIC FUNCTION GetImage (BYVAL hStatic AS HWND, BYVAL nType AS LONG) AS HANDLE
    RETURN cast(HANDLE, SendMessageW(hStatic, STM_GETIMAGE, nType, 0))
 END FUNCTION
 ' ========================================================================================
@@ -112,7 +113,7 @@ END FUNCTION
 ' The return value is a handle to the image previously associated with the static control,
 ' if any; otherwise, it is NULL.
 ' ========================================================================================
-PUBLIC FUNCTION tkStatic_SetBitmap (BYVAL hStatic AS HWND, BYVAL hBmp AS HBITMAP) AS HBITMAP
+PUBLIC FUNCTION SetBitmap (BYVAL hStatic AS HWND, BYVAL hBmp AS HBITMAP) AS HBITMAP
    RETURN cast(HBITMAP, SendMessageW(hStatic, STM_SETIMAGE, cast(WPARAM, IMAGE_BITMAP), cast(LPARAM, hBmp)))
 END FUNCTION
 ' ========================================================================================
@@ -121,7 +122,7 @@ END FUNCTION
 ' Associates a cursor with a static control.
 ' The return value is a handle to the cursor previously associated with the static control.
 ' ========================================================================================
-PUBLIC FUNCTION tkStatic_SetCursor (BYVAL hStatic AS HWND, BYVAL hCur AS HCURSOR) AS HCURSOR
+PUBLIC FUNCTION SetCursor (BYVAL hStatic AS HWND, BYVAL hCur AS HCURSOR) AS HCURSOR
    RETURN cast(HCURSOR, SendMessageW(hStatic, STM_SETIMAGE, cast(WPARAM, IMAGE_CURSOR), cast(LPARAM, hCur)))
 END FUNCTION
 ' ========================================================================================
@@ -131,7 +132,7 @@ END FUNCTION
 ' The return value is a handle to the image previously associated with the static control,
 ' if any; otherwise, it is NULL.
 ' ========================================================================================
-PUBLIC FUNCTION tkStatic_SetEnhancedMetafile (BYVAL hStatic AS HWND, BYVAL _hEnhMetafile AS HENHMETAFILE) AS HENHMETAFILE
+PUBLIC FUNCTION SetEnhancedMetafile (BYVAL hStatic AS HWND, BYVAL _hEnhMetafile AS HENHMETAFILE) AS HENHMETAFILE
    RETURN cast(HENHMETAFILE, SendMessageW(hStatic, STM_SETIMAGE, cast(WPARAM, IMAGE_ENHMETAFILE), cast(LPARAM, _hEnhMetafile)))
 END FUNCTION
 ' ========================================================================================
@@ -141,7 +142,7 @@ END FUNCTION
 ' The return value is a handle to the icon previously associated with the static control,
 ' if any; otherwise, it is NULL.
 ' ========================================================================================
-PUBLIC FUNCTION tkStatic_SetIcon (BYVAL hStatic AS HWND, BYVAL hIcon AS HICON) AS HICON
+PUBLIC FUNCTION SetIcon (BYVAL hStatic AS HWND, BYVAL hIcon AS HICON) AS HICON
    RETURN CAST(..HICON, SendMessageW(hStatic, STM_SETICON, CAST(WPARAM, hIcon), 0))
 END FUNCTION
 ' ========================================================================================
@@ -158,7 +159,7 @@ END FUNCTION
 '   IMAGE_ENHMETAFILE SS_ENHMETAFILE
 '   IMAGE_ICON        SS_ICON
 ' ========================================================================================
-PUBLIC FUNCTION tkStatic_SetImage (BYVAL hStatic AS HWND, BYVAL nType AS LONG, BYVAL hImage AS HANDLE) AS HANDLE
+PUBLIC FUNCTION SetImage (BYVAL hStatic AS HWND, BYVAL nType AS LONG, BYVAL hImage AS HANDLE) AS HANDLE
    RETURN cast(HANDLE, SendMessageW(hStatic, STM_SETIMAGE, cast(WPARAM, nType), cast(LPARAM, hImage)))
 END FUNCTION
 ' ========================================================================================
@@ -166,7 +167,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Gets the length of the text of a static control.
 ' ========================================================================================
-PUBLIC FUNCTION tkStatic_GetTextLength (BYVAL hStatic AS HWND) AS LONG
+PUBLIC FUNCTION GetTextLength (BYVAL hStatic AS HWND) AS LONG
    RETURN GetWindowTextLength(hStatic)
 END FUNCTION
 ' ========================================================================================
@@ -174,7 +175,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Gets the text of a static control.
 ' ========================================================================================
-PUBLIC FUNCTION tkStatic_GetText (BYVAL hStatic AS HWND) AS USTRING
+PUBLIC FUNCTION GetText (BYVAL hStatic AS HWND) AS USTRING
    DIM nLen AS LONG, buffer AS USTRING
    nLen = GetWindowTextLength(hStatic)
    buffer = WSPACE(nLen + 1)
@@ -186,7 +187,8 @@ END FUNCTION
 ' ========================================================================================
 ' * Sets the text of a static control.
 ' ========================================================================================
-PUBLIC FUNCTION tkStatic_SetText (BYVAL hStatic AS HWND, BYVAL pwszText AS WSTRING PTR) AS BOOLEAN
+PUBLIC FUNCTION SetText (BYVAL hStatic AS HWND, BYVAL pwszText AS WSTRING PTR) AS BOOLEAN
    RETURN SetWindowTextW(hStatic, pwszText)
 END FUNCTION
 ' ========================================================================================
+END NAMESPACE

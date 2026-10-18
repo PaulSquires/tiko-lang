@@ -28,21 +28,22 @@
 
 #include once "windows.bi"
 
+NAMESPACE DTP
 ' ========================================================================================
 ' Gets the currently selected time from a date and time picker (DTP) control and places it
 ' in a specified SYSTEMTIME structure.
 ' ========================================================================================
-PUBLIC FUNCTION tkDTP_GetSystemtime OVERLOAD (BYVAL hDtp AS HWND, BYVAL pst AS SYSTEMTIME PTR) AS DWORD
+PUBLIC FUNCTION GetSystemtime OVERLOAD (BYVAL hDtp AS HWND, BYVAL pst AS SYSTEMTIME PTR) AS DWORD
    RETURN SendMessageW(hDtp, DTM_GETSYSTEMTIME, 0, cast(LPARAM, pst))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkDTP_GetSystemtime OVERLOAD (BYVAL hDtp AS HWND, BYREF st AS SYSTEMTIME) AS DWORD
+PUBLIC FUNCTION GetSystemtime OVERLOAD (BYVAL hDtp AS HWND, BYREF st AS SYSTEMTIME) AS DWORD
    RETURN SendMessageW(hDtp, DTM_GETSYSTEMTIME, 0, cast(LPARAM, @st))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkDTP_GetSystemtime OVERLOAD (BYVAL hDtp AS HWND) AS SYSTEMTIME
+PUBLIC FUNCTION GetSystemtime OVERLOAD (BYVAL hDtp AS HWND) AS SYSTEMTIME
    DIM st AS SYSTEMTIME
    SendMessageW(hDtp, DTM_GETSYSTEMTIME, 0, cast(LPARAM, @st))
    RETURN st
@@ -52,12 +53,12 @@ END FUNCTION
 ' ========================================================================================
 ' Sets a date and time picker (DTP) control to a given date and time.
 ' ========================================================================================
-PUBLIC FUNCTION tkDTP_SetSystemtime OVERLOAD (BYVAL hDtp AS HWND, BYVAL gd AS DWORD, BYVAL pst AS SYSTEMTIME PTR) AS DWORD
+PUBLIC FUNCTION SetSystemtime OVERLOAD (BYVAL hDtp AS HWND, BYVAL gd AS DWORD, BYVAL pst AS SYSTEMTIME PTR) AS DWORD
    RETURN SendMessageW(hDtp, DTM_SETSYSTEMTIME, gd, cast(LPARAM, pst))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkDTP_SetSystemtime OVERLOAD (BYVAL hDtp AS HWND, BYVAL gd AS DWORD, BYREF st AS SYSTEMTIME) AS DWORD
+PUBLIC FUNCTION SetSystemtime OVERLOAD (BYVAL hDtp AS HWND, BYVAL gd AS DWORD, BYREF st AS SYSTEMTIME) AS DWORD
    RETURN SendMessageW(hDtp, DTM_SETSYSTEMTIME, gd, cast(LPARAM, @st))
 END FUNCTION
 ' ========================================================================================
@@ -66,7 +67,7 @@ END FUNCTION
 ' Gets the current minimum and maximum allowable system times for a date and time picker (DTP)
 ' control.
 ' ========================================================================================
-PUBLIC FUNCTION tkDTP_GetRange (BYVAL hDtp AS HWND, BYVAL rgst AS SYSTEMTIME PTR) AS DWORD
+PUBLIC FUNCTION GetRange (BYVAL hDtp AS HWND, BYVAL rgst AS SYSTEMTIME PTR) AS DWORD
    RETURN SendMessageW(hDtp, DTM_GETRANGE, 0, cast(LPARAM, rgst))
 END FUNCTION
 ' ========================================================================================
@@ -74,7 +75,7 @@ END FUNCTION
 ' ========================================================================================
 ' Sets the minimum and maximum allowable system times for a date and time picker (DTP) control.
 ' ========================================================================================
-PUBLIC FUNCTION tkDTP_SetRange (BYVAL hDtp AS HWND, BYVAL gd AS DWORD, BYVAL rgst AS SYSTEMTIME PTR) AS DWORD
+PUBLIC FUNCTION SetRange (BYVAL hDtp AS HWND, BYVAL gd AS DWORD, BYVAL rgst AS SYSTEMTIME PTR) AS DWORD
    RETURN SendMessageW(hDtp, DTM_SETRANGE, gd, cast(LPARAM, rgst))
 END FUNCTION
 ' ========================================================================================
@@ -82,7 +83,7 @@ END FUNCTION
 ' ========================================================================================
 ' Sets the display of a date and time picker (DTP) control based on a given format string.
 ' ========================================================================================
-PUBLIC SUB tkDTP_SetFormat (BYVAL hDtp AS HWND, BYVAL pwsz AS WSTRING PTR) AS BOOLEAN
+PUBLIC SUB SetFormat (BYVAL hDtp AS HWND, BYVAL pwsz AS WSTRING PTR) AS BOOLEAN
    RETURN SendMessageW(hDtp, DTM_SETFORMATW, 0, cast(LPARAM, pwsz))
 END SUB
 ' ========================================================================================
@@ -91,7 +92,7 @@ END SUB
 ' Sets the color for a given portion of the month calendar within a date and time picker (DTP)
 ' control.
 ' ========================================================================================
-PUBLIC FUNCTION tkDTP_SetMonthCalColor (BYVAL hDtp AS HWND, BYVAL iColor AS LONG, BYVAL clr AS COLORREF) AS COLORREF
+PUBLIC FUNCTION SetMonthCalColor (BYVAL hDtp AS HWND, BYVAL iColor AS LONG, BYVAL clr AS COLORREF) AS COLORREF
    RETURN SendMessageW(hDtp, DTM_SETMCCOLOR, iColor, clr)
 END FUNCTION
 ' ========================================================================================
@@ -100,7 +101,7 @@ END FUNCTION
 ' Gets the color for a given portion of the month calendar within a date and time picker (DTP)
 ' control.
 ' ========================================================================================
-PUBLIC FUNCTION tkDTP_GetMonthCalColor (BYVAL hDtp AS HWND, BYVAL iColor AS LONG) AS COLORREF
+PUBLIC FUNCTION GetMonthCalColor (BYVAL hDtp AS HWND, BYVAL iColor AS LONG) AS COLORREF
    RETURN SendMessageW(hDtp, DTM_GETMCCOLOR, iColor, 0)
 END FUNCTION
 ' ========================================================================================
@@ -108,7 +109,7 @@ END FUNCTION
 ' ========================================================================================
 ' Gets the handle to a date and time picker's (DTP) child month calendar control.
 ' ========================================================================================
-PUBLIC FUNCTION tkDTP_GetMonthCal (BYVAL hDtp AS HWND) AS HWND
+PUBLIC FUNCTION GetMonthCal (BYVAL hDtp AS HWND) AS HWND
    RETURN cast(HWND, SendMessageW(hDtp, DTM_GETMONTHCAL, 0, 0))
 END FUNCTION
 ' ========================================================================================
@@ -117,7 +118,7 @@ END FUNCTION
 ' Gets the font that the date and time picker (DTP) control's child month calendar control
 ' is currently using.
 ' ========================================================================================
-PUBLIC FUNCTION tkDTP_GetMonthCalFont (BYVAL hDtp AS HWND) AS HFONT
+PUBLIC FUNCTION GetMonthCalFont (BYVAL hDtp AS HWND) AS HFONT
    RETURN cast(HFONT, SendMessageW(hDtp, DTM_GETMCFONT, 0, 0))
 END FUNCTION
 ' ========================================================================================
@@ -126,7 +127,7 @@ END FUNCTION
 ' Sets the font to be used by the date and time picker (DTP) control's child month calendar
 ' control.
 ' ========================================================================================
-PUBLIC SUB tkDTP_SetMonthCalFont (BYVAL hDtp AS HWND, BYVAL hfont AS HFONT, BYVAL fRedraw AS BOOLEAN)
+PUBLIC SUB SetMonthCalFont (BYVAL hDtp AS HWND, BYVAL hfont AS HFONT, BYVAL fRedraw AS BOOLEAN)
    SendMessageW(hDtp, DTM_SETMCFONT, cast(WPARAM, hfont), cast(LPARAM, fRedraw))
 END SUB
 ' ========================================================================================
@@ -134,7 +135,7 @@ END SUB
 ' ========================================================================================
 ' Sets the style for a specified date and time picker (DTP) control.
 ' ========================================================================================
-PUBLIC FUNCTION tkDTP_SetMonthCalStyle (BYVAL hDtp AS HWND, BYVAL dwStyle AS DWORD) AS LRESULT
+PUBLIC FUNCTION SetMonthCalStyle (BYVAL hDtp AS HWND, BYVAL dwStyle AS DWORD) AS LRESULT
    RETURN SendMessageW(hDtp, DTM_SETMCSTYLE, 0, cast(LPARAM, dwStyle))
 END FUNCTION
 ' ========================================================================================
@@ -142,7 +143,7 @@ END FUNCTION
 ' ========================================================================================
 ' Gets the style of a specified date and time picker (DTP) control.
 ' ========================================================================================
-PUBLIC FUNCTION tkDTP_GetMonthCalStyle (BYVAL hDtp AS HWND) AS LRESULT
+PUBLIC FUNCTION GetMonthCalStyle (BYVAL hDtp AS HWND) AS LRESULT
    RETURN SendMessageW(hDtp, DTM_GETMCSTYLE, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -150,7 +151,7 @@ END FUNCTION
 ' ========================================================================================
 ' Closes the date and time picker (DTP) control.
 ' ========================================================================================
-PUBLIC SUB tkDTP_CloseMonthCal (BYVAL hDtp AS HWND)
+PUBLIC SUB CloseMonthCal (BYVAL hDtp AS HWND)
    SendMessageW(hDtp, DTM_CLOSEMONTHCAL, 0, 0)
 END SUB
 ' ========================================================================================
@@ -158,21 +159,21 @@ END SUB
 ' ========================================================================================
 ' Gets information for a specified date and time picker (DTP) control.
 ' ========================================================================================
-PUBLIC SUB tkDTP_GetDateTimePickerInfo OVERLOAD (BYVAL hDtp AS HWND, BYVAL pdtpi AS DATETIMEPICKERINFO PTR)
+PUBLIC SUB GetDateTimePickerInfo OVERLOAD (BYVAL hDtp AS HWND, BYVAL pdtpi AS DATETIMEPICKERINFO PTR)
    IF pdtpi = NULL THEN EXIT SUB
    pdtpi->cbSize = SIZEOF(DATETIMEPICKERINFO)
    SendMessageW(hDtp, DTM_GETDATETIMEPICKERINFO, 0, cast(LPARAM, pdtpi))
 END SUB
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC SUB tkDTP_GetDateTimePickerInfo OVERLOAD (BYVAL hDtp AS HWND, BYREF dtpi AS DATETIMEPICKERINFO)
+PUBLIC SUB GetDateTimePickerInfo OVERLOAD (BYVAL hDtp AS HWND, BYREF dtpi AS DATETIMEPICKERINFO)
    IF VARPTR(dtpi) = NULL THEN EXIT SUB
    dtpi.cbSize = SIZEOF(DATETIMEPICKERINFO)
    SendMessageW(hDtp, DTM_GETDATETIMEPICKERINFO, 0, cast(LPARAM, @dtpi))
 END SUB
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkDTP_GetDateTimePickerInfo OVERLOAD (BYVAL hDtp AS HWND) AS DATETIMEPICKERINFO
+PUBLIC FUNCTION GetDateTimePickerInfo OVERLOAD (BYVAL hDtp AS HWND) AS DATETIMEPICKERINFO
    DIM dtpi AS DATETIMEPICKERINFO
    dtpi.cbSize = SIZEOF(DATETIMEPICKERINFO)
    SendMessageW(hDtp, DTM_GETDATETIMEPICKERINFO, 0, cast(LPARAM, @dtpi))
@@ -183,26 +184,27 @@ END FUNCTION
 ' ========================================================================================
 ' Gets the size needed to display the control without clipping.
 ' ========================================================================================
-PUBLIC FUNCTION tkDTP_GetIdealSize OVERLOAD (BYVAL hDtp AS HWND, BYVAL psize AS SIZE PTR) AS BOOLEAN
+PUBLIC FUNCTION GetIdealSize OVERLOAD (BYVAL hDtp AS HWND, BYVAL psize AS SIZE PTR) AS BOOLEAN
    RETURN SendMessageW(hDtp, DTM_GETIDEALSIZE, 0, cast(LPARAM, psize))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkDTP_GetIdealSize OVERLOAD (BYVAL hDtp AS HWND, BYREF sz AS SIZE) AS BOOLEAN
+PUBLIC FUNCTION GetIdealSize OVERLOAD (BYVAL hDtp AS HWND, BYREF sz AS SIZE) AS BOOLEAN
    RETURN SendMessageW(hDtp, DTM_GETIDEALSIZE, 0, cast(LPARAM, @sz))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-'PUBLIC FUNCTION tkDTP_GetIdealSize OVERLOAD (BYVAL hDtp AS HWND) AS SIZE
+'PUBLIC FUNCTION DTP.GetIdealSize OVERLOAD (BYVAL hDtp AS HWND) AS SIZE
 '   DIM sz AS SIZE
 '   SendMessageW(hDtp, DTM_GETIDEALSIZE, 0, cast(LPARAM, @sz))
 '   RETURN sz
 'END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkDTP_GetIdealSize OVERLOAD (BYVAL hDtp AS HWND) AS (LONG, LONG)
+PUBLIC FUNCTION GetIdealSize OVERLOAD (BYVAL hDtp AS HWND) AS (LONG, LONG)
    DIM sz AS SIZE
    SetLastError(SendMessageW(hDtp, DTM_GETIDEALSIZE, 0, cast(LPARAM, @sz)))
    RETURN (sz.cx, sz.cy)
 END FUNCTION
 ' ========================================================================================
+END NAMESPACE

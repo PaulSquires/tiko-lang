@@ -30,12 +30,13 @@
 #include once "win/commctrl.bi"
 #include once "win/ole2.bi"
 
+NAMESPACE Pager
 ' ========================================================================================
 ' Enables or disables mouse forwarding for the pager control. When mouse forwarding is
 ' enabled, the pager control forwards WM_MOUSEMOVE messages to the contained window. You
 ' can use this macro or send the PGM_FORWARDMOUSE message explicitly.
 ' ========================================================================================
-PUBLIC SUB tkPager_ForwardMouse (BYVAL hPager AS HWND, BYVAL bForward AS BOOLEAN)
+PUBLIC SUB ForwardMouse (BYVAL hPager AS HWND, BYVAL bForward AS BOOLEAN)
    SendMessageW(hPager, PGM_FORWARDMOUSE, cast(WPARAM, bForWard), 0)
 END SUB
 ' ========================================================================================
@@ -44,7 +45,7 @@ END SUB
 ' Retrieves the current background color for the pager control. You can use this macro or
 ' send the PGM_GETBKCOLOR message explicitly.
 ' ========================================================================================
-PUBLIC FUNCTION tkPager_GetBkColor (BYVAL hPager AS HWND) AS COLORREF
+PUBLIC FUNCTION GetBkColor (BYVAL hPager AS HWND) AS COLORREF
    RETURN SendMessageW(hPager, PGM_GETBKCOLOR, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -53,7 +54,7 @@ END FUNCTION
 ' Retrieves the current border size for the pager control. You can use this macro or send
 ' the PGM_GETBORDER message explicitly.
 ' ========================================================================================
-PUBLIC FUNCTION tkPager_GetBorder (BYVAL hPager AS HWND) AS LONG
+PUBLIC FUNCTION GetBorder (BYVAL hPager AS HWND) AS LONG
    RETURN SendMessageW(hPager, PGM_GETBORDER, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -62,7 +63,7 @@ END FUNCTION
 ' Retrieves the current button size for the pager control. You can use this macro or send
 ' the PGM_GETBUTTONSIZE message explicitly.
 ' ========================================================================================
-PUBLIC FUNCTION tkPager_GetButtonSize (BYVAL hPager AS HWND) AS LONG
+PUBLIC FUNCTION GetButtonSize (BYVAL hPager AS HWND) AS LONG
    RETURN SendMessageW(hPager, PGM_GETBUTTONSIZE, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -71,7 +72,7 @@ END FUNCTION
 ' Retrieves the state of the specified button in a pager control. You can use this macro
 ' or send the PGM_GETBUTTONSTATE message explicitly.
 ' ========================================================================================
-PUBLIC FUNCTION tkPager_GetButtonState (BYVAL hPager AS HWND, BYVAL iButton AS LONG) AS DWORD
+PUBLIC FUNCTION GetButtonState (BYVAL hPager AS HWND, BYVAL iButton AS LONG) AS DWORD
    RETURN SendMessageW(hPager, PGM_GETBUTTONSTATE, 0, iButton)
 END FUNCTION
 ' ========================================================================================
@@ -80,12 +81,12 @@ END FUNCTION
 ' Retrieves a pager control's IDropTarget interface pointer. You can use this macro or send
 ' the PGM_GETDROPTARGET message explicitly.
 ' ========================================================================================
-PUBLIC SUB tkPager_GetDropTarget OVERLOAD (BYVAL hPager AS HWND, BYVAL ppdt AS IDropTarget PTR PTR)
+PUBLIC SUB GetDropTarget OVERLOAD (BYVAL hPager AS HWND, BYVAL ppdt AS IDropTarget PTR PTR)
    SendMessageW(hPager, PGM_GETDROPTARGET, 0, cast(LPARAM, ppdt))
 END SUB
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkPager_GetDropTarget OVERLOAD (BYVAL hPager AS HWND) AS IDropTarget PTR
+PUBLIC FUNCTION GetDropTarget OVERLOAD (BYVAL hPager AS HWND) AS IDropTarget PTR
    DIM pdt AS IDropTarget PTR
    SendMessageW(hPager, PGM_GETDROPTARGET, 0, cast(LPARAM, @pdt))
    RETURN pdt
@@ -96,7 +97,7 @@ END FUNCTION
 ' Retrieves the current scroll position of the pager control. You can use this macro or
 ' send the PGM_GETPOS message explicitly.
 ' ========================================================================================
-PUBLIC FUNCTION tkPager_GetPos (BYVAL hPager AS HWND) AS LONG
+PUBLIC FUNCTION GetPos (BYVAL hPager AS HWND) AS LONG
    RETURN SendMessageW(hPager, PGM_GETPOS, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -106,7 +107,7 @@ END FUNCTION
 ' method will result in a PGN_CALCSIZE notification being sent. You can use this method or
 ' send the PGM_RECALCSIZE message explicitly.
 ' ========================================================================================
-PUBLIC SUB tkPager_RecalcSize (BYVAL hPager AS HWND)
+PUBLIC SUB RecalcSize (BYVAL hPager AS HWND)
    SendMessageW(hPager, PGM_RECALCSIZE, 0, 0)
 END SUB
 ' ========================================================================================
@@ -115,7 +116,7 @@ END SUB
 ' Sets the current background color for the pager control. You can use this macro or send
 ' the PGM_SETBKCOLOR message explicitly.
 ' ========================================================================================
-PUBLIC FUNCTION tkPager_SetBkColor (BYVAL hPager AS HWND, BYVAL clr AS COLORREF) AS COLORREF
+PUBLIC FUNCTION SetBkColor (BYVAL hPager AS HWND, BYVAL clr AS COLORREF) AS COLORREF
    RETURN SendMessageW(hPager, PGM_SETBKCOLOR, 0, cast(LPARAM, clr))
 END FUNCTION
 ' ========================================================================================
@@ -124,7 +125,7 @@ END FUNCTION
 ' Sets the current border size for the pager control. You can use this macro or send the
 ' PGM_SETBORDER message explicitly.
 ' ========================================================================================
-PUBLIC FUNCTION tkPager_SetBorder (BYVAL hPager AS HWND, BYVAL iBorder AS LONG) AS LONG
+PUBLIC FUNCTION SetBorder (BYVAL hPager AS HWND, BYVAL iBorder AS LONG) AS LONG
    RETURN SendMessageW(hPager, PGM_SETBORDER, 0, cast(LPARAM, iBorder))
 END FUNCTION
 ' ========================================================================================
@@ -133,7 +134,7 @@ END FUNCTION
 ' Sets the current button size for the pager control. You can use this macro or send the
 ' PGM_SETBUTTONSIZE message explicitly.
 ' ========================================================================================
-PUBLIC FUNCTION tkPager_SetButtonSize (BYVAL hPager AS HWND, BYVAL iSize AS LONG) AS LONG
+PUBLIC FUNCTION SetButtonSize (BYVAL hPager AS HWND, BYVAL iSize AS LONG) AS LONG
    RETURN SendMessageW(hPager, PGM_SETBUTTONSIZE, 0, cast(LPARAM, iSize))
 END FUNCTION
 ' ========================================================================================
@@ -145,7 +146,7 @@ END FUNCTION
 ' contained window should be a child of the pager control. You can use this macro or send
 ' the PGM_SETCHILD message explicitly.
 ' ========================================================================================
-PUBLIC SUB tkPager_SetChild (BYVAL hPager AS HWND, BYVAL hwndChild AS HWND)
+PUBLIC SUB SetChild (BYVAL hPager AS HWND, BYVAL hwndChild AS HWND)
    SendMessageW(hPager, PGM_SETCHILD, 0, cast(LPARAM, hwndChild))
 END SUB
 ' ========================================================================================
@@ -154,7 +155,8 @@ END SUB
 ' Sets the scroll position for the pager control. You can use this macro or send the
 ' PGM_SETPOS message explicitly.
 ' ========================================================================================
-PUBLIC FUNCTION tkPager_SetPos (BYVAL hPager AS HWND, BYVAL iPos AS LONG) AS LONG
+PUBLIC FUNCTION SetPos (BYVAL hPager AS HWND, BYVAL iPos AS LONG) AS LONG
    RETURN SendMessageW(hPager, PGM_SETPOS, 0, cast(LPARAM, iPos))
 END FUNCTION
 ' ========================================================================================
+END NAMESPACE

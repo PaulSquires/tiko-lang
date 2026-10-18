@@ -153,9 +153,9 @@ FUNCTION CMaskedEdit.CMaskedEditProc ( _
          IF wParam = 26 THEN
             DIM pthis AS CMaskedEdit PTR = CAST(CMaskedEdit PTR, dwRefData)
             IF pthis = NULL THEN EXIT FUNCTION
-            DIM nPos AS LONG = tkEdit_GetSelStart(pthis->hWindow)
+            DIM nPos AS LONG = Edit.GetSelStart(pthis->hWindow)
             IF LEN(pthis->m_strUndo) THEN pthis->SetText(pthis->m_strUndo)
-            tkEdit_SetSel(pthis->hWindow, nPos, nPos)
+            Edit.SetSel(pthis->hWindow, nPos, nPos)
             EXIT FUNCTION
          END IF
          DIM pthis AS CMaskedEdit PTR = CAST(CMaskedEdit PTR, dwRefData)
@@ -172,8 +172,8 @@ FUNCTION CMaskedEdit.CMaskedEditProc ( _
          DIM pthis AS CMaskedEdit PTR = CAST(CMaskedEdit PTR, dwRefData)
          IF pthis = NULL THEN EXIT FUNCTION
          pthis->m_strUndo = pthis->GetText(FALSE)
-         DIM nStart AS LONG = tkEdit_GetSelStart(pthis->hWindow)
-         DIM nEnd AS LONG = tkEdit_GetSelEnd(pthis->hWindow)
+         DIM nStart AS LONG = Edit.GetSelStart(pthis->hWindow)
+         DIM nEnd AS LONG = Edit.GetSelEnd(pthis->hWindow)
          DIM ustrText AS USTRING = pthis->GetText(FALSE)
          IF LEN(ustrText) = 0 THEN EXIT FUNCTION
          ustrText = MID(ustrText, nStart + 1, nEnd - nStart)
@@ -183,14 +183,14 @@ FUNCTION CMaskedEdit.CMaskedEditProc ( _
          IF LEN(pthis->m_strInputTemplate) = 0 THEN EXIT FUNCTION
          pthis->SetText(pthis->m_strInputTemplate)
          FOR i AS LONG = 1 TO LEN(ustrText)
-            tkEdit_SetSel(pthis->m_hCtl, i - 1, i - 1)
+            Edit.SetSel(pthis->m_hCtl, i - 1, i - 1)
             IF MID(ustrText, i, 1) <> MID(pthis->m_strInputTemplate, i, 1) THEN
                IF ASC(MID(ustrText, i, 1)) <> pthis->m_chMaskInputTemplate THEN
                   pthis->OnCharPrintchar(ASC(MID(ustrText, i, 1)), 0, 0)
                END IF
             END IF
          NEXT
-         tkEdit_SetSel(pthis->hWindow, nStart, nStart)
+         Edit.SetSel(pthis->hWindow, nStart, nStart)
          pthis->SetPos
          EXIT FUNCTION
 
@@ -533,7 +533,7 @@ FUNCTION CMaskedEdit.DoUpdate (BYVAL bRestoreLastGood AS BOOLEAN, BYVAL nBeginOl
    IF bRet = FALSE AND bRestoreLastGood = TRUE THEN
       DIM ustrOld AS USTRING = m_str
       SetWindowText(m_hCtl, ustrOld)
-      IF nBeginOld <> -1 THEN tkEdit_SetSel(m_hCtl, nBeginOld, nEndOld)
+      IF nBeginOld <> -1 THEN Edit.SetSel(m_hCtl, nBeginOld, nEndOld)
    END IF
    RETURN bRet
 END FUNCTION
@@ -552,8 +552,8 @@ SUB CMaskedEdit.OnCharPrintchar(BYVAL nChar AS UINT, BYVAL nRepCnt AS UINT, BYVA
       chChar = towlower(chChar)
    END IF
    DIM nStartPos AS LONG, nEndPos AS LONG
-   nStartPos = tkEdit_GetSelStart(m_hCtl)
-   nEndPos = tkEdit_GetSelEnd(m_hCtl)
+   nStartPos = Edit.GetSelStart(m_hCtl)
+   nEndPos = Edit.GetSelEnd(m_hCtl)
    ' // Calc group bounds
    DIM nGroupStart AS LONG, nGroupEnd AS LONG
    this.GetGroupBounds(nGroupStart, nGroupEnd, nStartPos)
@@ -561,7 +561,7 @@ SUB CMaskedEdit.OnCharPrintchar(BYVAL nChar AS UINT, BYVAL nRepCnt AS UINT, BYVA
 '   IF (nStartPos < 0 AND nEndPos > LEN(m_str)) OR nStartPos < nGroupStart OR nStartPos > nGroupEnd OR _
 '      nEndPos < nGroupStart OR nEndPos > nGroupEnd THEN
 '      MessageBeep(CAST(UINT, -1))
-'      tkEdit_SetSel(m_hCtl, nGroupStart, nGroupEnd)
+'      Edit.SetSel(m_hCtl, nGroupStart, nGroupEnd)
 '      RETURN
 '   END IF
    ' // No selected chars
@@ -581,7 +581,7 @@ SUB CMaskedEdit.OnCharPrintchar(BYVAL nChar AS UINT, BYVAL nRepCnt AS UINT, BYVA
             END IF
             ' // if next group was found
             IF nGroupStart <> -1 AND nGroupStart > nEndPos THEN
-               tkEdit_SetSel(m_hCtl, nGroupStart, nGroupStart)
+               Edit.SetSel(m_hCtl, nGroupStart, nGroupStart)
                nStartPos = nGroupStart
                nEndPos = nGroupStart
             ' // no more groups
@@ -596,14 +596,14 @@ SUB CMaskedEdit.OnCharPrintchar(BYVAL nChar AS UINT, BYVAL nRepCnt AS UINT, BYVA
             RETURN
          END IF
          ' // Replace char in Editbox and m_str
-         tkEdit_SetSel(m_hCtl, nStartPos, nEndPos + 1)
+         Edit.SetSel(m_hCtl, nStartPos, nEndPos + 1)
          DIM ustrChar AS USTRING = WCHR(chChar)
-         tkEdit_ReplaceSel(m_hCtl, TRUE, ustrChar)
+         Edit.ReplaceSel(m_hCtl, TRUE, ustrChar)
          MID(m_str, nEndPos + 1, 1) = WCHR(chChar)
-         tkEdit_SetSel(m_hCtl, nEndPos + 1, nEndPos + 1)
+         Edit.SetSel(m_hCtl, nEndPos + 1, nEndPos + 1)
          ' // Automaticaly move the cursor to the next group
-         nStartPos = tkEdit_GetSelStart(m_hCtl)
-         nEndPos = tkEdit_GetSelEnd(m_hCtl)
+         nStartPos = Edit.GetSelStart(m_hCtl)
+         nEndPos = Edit.GetSelEnd(m_hCtl)
          IF nEndPos = nGroupEnd THEN   ' // at the end of group
             ' // can search next group
             IF nEndPos < LEN(m_str) - 1 THEN
@@ -611,7 +611,7 @@ SUB CMaskedEdit.OnCharPrintchar(BYVAL nChar AS UINT, BYVAL nRepCnt AS UINT, BYVA
             END IF
             ' // if next group was found
             IF nGroupStart <> -1 AND nGroupStart > nEndPos THEN
-               tkEdit_SetSel(m_hCtl, nGroupStart, nGroupStart)
+               Edit.SetSel(m_hCtl, nGroupStart, nGroupStart)
                nStartPos = nGroupStart
                nEndPos = nGroupStart
             END IF
@@ -625,8 +625,8 @@ SUB CMaskedEdit.OnCharPrintchar(BYVAL nChar AS UINT, BYVAL nRepCnt AS UINT, BYVA
          END IF
          ' // Don't use m_chMaskInputTemplate
          DIM nBeginOld AS LONG, nEndOld AS LONG
-         nBeginOld = tkEdit_GetSelStart(m_hCtl)
-         nEndOld = tkEdit_GetSelEnd(m_hCtl)
+         nBeginOld = Edit.GetSelStart(m_hCtl)
+         nEndOld = Edit.GetSelEnd(m_hCtl)
          this.DoUpdate(TRUE, nBeginOld, nEndOld)
       END IF
    ELSE   ' // Have one or more chars selected
@@ -644,18 +644,18 @@ SUB CMaskedEdit.OnCharPrintchar(BYVAL nChar AS UINT, BYVAL nRepCnt AS UINT, BYVA
          DIM ustrReplace AS USTRING
          ustrReplace = WSTRING(nRange, m_chMaskInputTemplate)
          MID(ustrReplace, 1, 1) = WCHR(chChar)
-         tkEdit_SetSel(m_hCtl, nStartPos, nStartPos + nRange)
-         tkEdit_ReplaceSel(m_hCtl, TRUE, ustrReplace)
-         tkEdit_SetSel(m_hCtl, nStartPos, nStartPos)
+         Edit.SetSel(m_hCtl, nStartPos, nStartPos + nRange)
+         Edit.ReplaceSel(m_hCtl, TRUE, ustrReplace)
+         Edit.SetSel(m_hCtl, nStartPos, nStartPos)
          FOR i AS LONG = 0 TO LEN(ustrReplace) - 1
             MID(m_str, nStartPos + i + 1, 1) = WCHR(ustrReplace[i])
          NEXT
-         tkEdit_SetSel(m_hCtl, nStartPos + 1, nStartPos + 1)
+         Edit.SetSel(m_hCtl, nStartPos + 1, nStartPos + 1)
       ELSE
          ' // Don't use m_chMaskInputTemplate
          DIM nBeginOld AS LONG, nEndOld AS LONG
-         nBeginOld = tkEdit_GetSelStart(m_hCtl)
-         nEndOld = tkEdit_GetSelEnd(m_hCtl)
+         nBeginOld = Edit.GetSelStart(m_hCtl)
+         nEndOld = Edit.GetSelEnd(m_hCtl)
          this.DoUpdate(TRUE, nBeginOld, nEndOld)
       END IF
    END IF
@@ -678,44 +678,44 @@ SUB CMaskedEdit.OnKeyDown(BYVAL nChar AS UINT, BYVAL nRepCnt AS UINT, BYVAL nFla
       CASE VK_END
          ' // Set the cursor at the end of the text
          IF GetKeyState(VK_CONTROL) AND &h80 THEN
-            tkEdit_SetSel(m_hCtl, LEN(m_str), LEN(m_str))
+            Edit.SetSel(m_hCtl, LEN(m_str), LEN(m_str))
             RETURN
          END IF
          ' // Calc last group bounds
          DIM nGroupStart AS LONG, nGroupEnd AS LONG
-         nGroupStart = tkEdit_GetSelStart(m_hCtl)
-         nGroupEnd = tkEdit_GetSelEnd(m_hCtl)
+         nGroupStart = Edit.GetSelStart(m_hCtl)
+         nGroupEnd = Edit.GetSelEnd(m_hCtl)
          this.GetGroupBounds(nGroupStart, nGroupEnd, nGroupEnd, TRUE)
          IF nGroupStart = -1 THEN
             this.GetGroupBounds(nGroupStart, nGroupEnd, LEN(m_str), FALSE)
          END IF
          IF nGroupStart = -1 THEN RETURN
-         tkEdit_SetSel(m_hCtl, nGroupEnd, nGroupEnd)
+         Edit.SetSel(m_hCtl, nGroupEnd, nGroupEnd)
          RETURN
 
       CASE VK_HOME
          ' // Set the cursor at the end of the text
          IF GetKeyState(VK_CONTROL) AND &h80 THEN
-            tkEdit_SetSel(m_hCtl, 1, 1)
+            Edit.SetSel(m_hCtl, 1, 1)
             RETURN
          END IF
          ' // Calc last group bounds
          DIM nGroupStart AS LONG, nGroupEnd AS LONG
-         nGroupStart = tkEdit_GetSelStart(m_hCtl)
-         nGroupEnd = tkEdit_GetSelEnd(m_hCtl)
+         nGroupStart = Edit.GetSelStart(m_hCtl)
+         nGroupEnd = Edit.GetSelEnd(m_hCtl)
          this.GetGroupBounds(nGroupStart, nGroupEnd, nGroupEnd, FALSE)
          IF nGroupStart = -1 THEN
             this.GetGroupBounds(nGroupStart, nGroupEnd, 0, TRUE)
          END IF
          IF nGroupStart = -1 THEN RETURN
-         tkEdit_SetSel(m_hCtl, nGroupStart, nGroupStart)
+         Edit.SetSel(m_hCtl, nGroupStart, nGroupStart)
          RETURN
 
       CASE VK_UP, VK_LEFT
          ' // Calc last group bounds
          DIM nGroupStart AS LONG, nGroupEnd AS LONG
-         nGroupStart = tkEdit_GetSelStart(m_hCtl)
-         nGroupEnd = tkEdit_GetSelEnd(m_hCtl)
+         nGroupStart = Edit.GetSelStart(m_hCtl)
+         nGroupEnd = Edit.GetSelEnd(m_hCtl)
          this.GetGroupBounds(nGroupStart, nGroupEnd, nGroupEnd, FALSE)
          IF nGroupStart = -1 THEN
             this.GetGroupBounds(nGroupStart, nGroupEnd, 0, TRUE)
@@ -723,43 +723,43 @@ SUB CMaskedEdit.OnKeyDown(BYVAL nChar AS UINT, BYVAL nRepCnt AS UINT, BYVAL nFla
          IF nGroupStart = -1 THEN RETURN
          IF GetKeyState(VK_SHIFT) AND &h80 THEN
             DIM nStart AS LONG, nEnd AS LONG
-            nStart = tkEdit_GetSelStart(m_hCtl)
-            nEnd = tkEdit_GetSelEnd(m_hCtl)
+            nStart = Edit.GetSelStart(m_hCtl)
+            nEnd = Edit.GetSelEnd(m_hCtl)
             IF m_bSelectByGroup THEN
                DIM nNewStart AS LONG = MAX(nStart-1, nGroupStart)
                ' // additional
                nNewStart = MIN(nNewStart, nGroupEnd)
-               tkEdit_SetSel(m_hCtl, nNewStart, nEnd)
+               Edit.SetSel(m_hCtl, nNewStart, nEnd)
             ELSE
-               tkEdit_SetSel(m_hCtl, nStart-1, nEnd)
+               Edit.SetSel(m_hCtl, nStart-1, nEnd)
             END IF
          ELSEIF GetKeyState(VK_CONTROL) AND &h80 THEN
             ' // move to the previous group
             DIM nStart AS LONG, nEnd AS LONG
-            nStart = tkEdit_GetSelStart(m_hCtl)
-            nEnd = tkEdit_GetSelEnd(m_hCtl)
+            nStart = Edit.GetSelStart(m_hCtl)
+            nEnd = Edit.GetSelEnd(m_hCtl)
             IF nStart < 0 THEN RETURN
             IF nStart > 1 THEN   ' // can search previous group
                this.GetGroupBounds(nGroupStart, nGroupEnd, nStart-1, FALSE)
             END IF
             IF (nGroupStart > -1) AND _  ' // if previous group was found
                (nGroupStart <> nStart OR nGroupEnd <> nEnd) THEN   ' // and it's not the same
-               tkEdit_SetSel(m_hCtl, nGroupStart, nGroupEnd)
+               Edit.SetSel(m_hCtl, nGroupStart, nGroupEnd)
             ELSE   ' else // no more groups
                MessageBeep(CAST(UINT, -1))
             END IF
             RETURN
          ELSE
             DIM nStart AS LONG, nEnd AS LONG
-            nStart = tkEdit_GetSelStart(m_hCtl)
-            nEnd = tkEdit_GetSelEnd(m_hCtl)
+            nStart = Edit.GetSelStart(m_hCtl)
+            nEnd = Edit.GetSelEnd(m_hCtl)
             ' // move to the previous group
             IF nStart = nEnd AND nStart = nGroupStart THEN
                IF nStart > 1 THEN   ' // can search previous group
                   this.GetGroupBounds(nGroupStart, nGroupEnd, nStart-1, FALSE)
                END IF
                IF nGroupStart <> -1 AND nGroupEnd < nStart THEN   ' // if previous group was found
-                  tkEdit_SetSel(m_hCtl, nGroupEnd, nGroupEnd)
+                  Edit.SetSel(m_hCtl, nGroupEnd, nGroupEnd)
                ELSE   ' // no more groups
                   MessageBeep(CAST(UINT, -1))
                END IF
@@ -767,7 +767,7 @@ SUB CMaskedEdit.OnKeyDown(BYVAL nChar AS UINT, BYVAL nRepCnt AS UINT, BYVAL nFla
                DIM nNewStart AS LONG = MAX(nStart-1, nGroupStart)
                ' // additional
                nNewStart = MIN(nNewStart, nGroupEnd)
-               tkEdit_SetSel(m_hCtl, nNewStart, nNewStart)
+               Edit.SetSel(m_hCtl, nNewStart, nNewStart)
             END IF
             RETURN
          END IF
@@ -775,8 +775,8 @@ SUB CMaskedEdit.OnKeyDown(BYVAL nChar AS UINT, BYVAL nRepCnt AS UINT, BYVAL nFla
       CASE VK_DOWN, VK_RIGHT
          ' // Calc last group bounds
          DIM nGroupStart AS LONG, nGroupEnd AS LONG
-         nGroupStart = tkEdit_GetSelStart(m_hCtl)
-         nGroupEnd = tkEdit_GetSelEnd(m_hCtl)
+         nGroupStart = Edit.GetSelStart(m_hCtl)
+         nGroupEnd = Edit.GetSelEnd(m_hCtl)
          this.GetGroupBounds(nGroupStart, nGroupEnd, nGroupEnd, TRUE)
          IF nGroupStart = -1 THEN
             this.GetGroupBounds(nGroupStart, nGroupEnd, LEN(m_str), FALSE)
@@ -784,44 +784,44 @@ SUB CMaskedEdit.OnKeyDown(BYVAL nChar AS UINT, BYVAL nRepCnt AS UINT, BYVAL nFla
          IF nGroupStart = -1 THEN RETURN
          IF GetKeyState(VK_SHIFT) AND &h80 THEN
             DIM nStart AS LONG, nEnd AS LONG
-            nStart = tkEdit_GetSelStart(m_hCtl)
-            nEnd = tkEdit_GetSelEnd(m_hCtl)
+            nStart = Edit.GetSelStart(m_hCtl)
+            nEnd = Edit.GetSelEnd(m_hCtl)
             IF m_bSelectByGroup THEN
                DIM nNewEnd AS LONG = MIN(nEnd + 1, nGroupEnd)
                ' // additional
                nNewEnd = MAX(nNewEnd, nGroupStart)
-               tkEdit_SetSel(m_hCtl, nStart, nNewEnd)
+               Edit.SetSel(m_hCtl, nStart, nNewEnd)
             ELSE
-               tkEdit_SetSel(m_hCtl, nStart, nEnd + 1)
+               Edit.SetSel(m_hCtl, nStart, nEnd + 1)
             END IF
             RETURN
          ELSEIF GetKeyState(VK_CONTROL) AND &h80 THEN
             ' // move to the next group
             DIM nStart AS LONG, nEnd AS LONG
-            nStart = tkEdit_GetSelStart(m_hCtl)
-            nEnd = tkEdit_GetSelEnd(m_hCtl)
+            nStart = Edit.GetSelStart(m_hCtl)
+            nEnd = Edit.GetSelEnd(m_hCtl)
             IF nStart = -1 THEN RETURN
             IF nEnd < LEN(m_str) -1 THEN ' // can search next group
                this.GetGroupBounds(nGroupStart, nGroupEnd, nEnd + 1, TRUE)
             END IF
             IF (nGroupStart <> -1) AND _   ' // if previous group was found
                (nGroupStart <> nStart OR nGroupEnd <> nEnd) THEN   ' // and it's not the same
-               tkEdit_SetSel(m_hCtl, nGroupStart, nGroupEnd)
+               Edit.SetSel(m_hCtl, nGroupStart, nGroupEnd)
             ELSE   ' // no more groups
                MessageBeep(CAST(UINT, -1))
             END IF
             RETURN
          ELSE
             DIM nStart AS LONG, nEnd AS LONG
-            nStart = tkEdit_GetSelStart(m_hCtl)
-            nEnd = tkEdit_GetSelEnd(m_hCtl)
+            nStart = Edit.GetSelStart(m_hCtl)
+            nEnd = Edit.GetSelEnd(m_hCtl)
             ' // move to the next group
             IF nStart = nEnd AND nEnd = nGroupEnd THEN
                IF nEnd < LEN(m_str) - 1 THEN   ' // can search next group
                   this.GetGroupBounds(nGroupStart, nGroupEnd, nStart + 1, TRUE)
                END IF
                IF nGroupStart <> -1 AND nGroupStart > nEnd THEN   ' // if next group was found
-                  tkEdit_SetSel(m_hCtl, nGroupStart, nGroupStart)
+                  Edit.SetSel(m_hCtl, nGroupStart, nGroupStart)
                ELSE   ' // no more groups
                   MessageBeep(CAST(UINT, -1))
                END IF
@@ -829,7 +829,7 @@ SUB CMaskedEdit.OnKeyDown(BYVAL nChar AS UINT, BYVAL nRepCnt AS UINT, BYVAL nFla
                DIM nNewEnd AS LONG = MIN(nEnd + 1, nGroupEnd)
                ' // additional
                nNewEnd = MAX(nNewEnd, nGroupStart)
-               tkEdit_SetSel(m_hCtl, nNewEnd, nNewEnd)
+               Edit.SetSel(m_hCtl, nNewEnd, nNewEnd)
             END IF
             RETURN
          END IF
@@ -858,8 +858,8 @@ SUB CMaskedEdit.OnCharBackspace (BYVAL nChar AS UINT, BYVAL nRepCnt AS UINT, BYV
 
    IF LEN(m_strMask) = 0 OR LEN(m_strInputTemplate) = 0 THEN RETURN
    DIM nStartPos AS LONG, nEndPos AS LONG
-   nStartPos = tkEdit_GetSelStart(m_hCtl)
-   nEndPos = tkEdit_GetSelEnd(m_hCtl)
+   nStartPos = Edit.GetSelStart(m_hCtl)
+   nEndPos = Edit.GetSelEnd(m_hCtl)
    IF nStartPos < 0 THEN RETURN
    IF nEndPos < 0 THEN RETURN
    IF nEndPos < nStartPos THEN RETURN
@@ -888,7 +888,7 @@ SUB CMaskedEdit.OnCharBackspace (BYVAL nChar AS UINT, BYVAL nRepCnt AS UINT, BYV
             END IF
             ' // if previous group was found
             IF nGroupStart <> -1 AND nGroupEnd < nEndPos THEN
-               tkEdit_SetSel(m_hCtl, nGroupEnd, nGroupEnd)
+               Edit.SetSel(m_hCtl, nGroupEnd, nGroupEnd)
                RETURN
             ' // no more group
             ELSE
@@ -920,16 +920,16 @@ SUB CMaskedEdit.OnCharBackspace (BYVAL nChar AS UINT, BYVAL nRepCnt AS UINT, BYV
             ustrReplace += WCHR(m_chMaskInputTemplate)
          END IF
          ' // Replace the content with the shifted string
-         tkEdit_SetSel(m_hCtl, nIndex, nIndex + nSameMaskCharsNum)
-         tkEdit_ReplaceSel(m_hCtl, TRUE, ustrReplace)
-         tkEdit_SetSel(m_hCtl, nIndex, nIndex)
+         Edit.SetSel(m_hCtl, nIndex, nIndex + nSameMaskCharsNum)
+         Edit.ReplaceSel(m_hCtl, TRUE, ustrReplace)
+         Edit.SetSel(m_hCtl, nIndex, nIndex)
          FOR i AS LONG = 0 TO LEN(ustrReplace) - 1
             MID(m_str, nIndex + i + 1) = WCHR(ustrReplace[i])
          NEXT
       ELSE   ' // Don't use m_chMaskInputTemplate - delete symbol
          DIM nBeginOld AS LONG, nEndOld AS LONG
-         nBeginOld = tkEdit_GetSelStart(m_hCtl)
-         nEndOld = tkEdit_GetSelEnd(m_hCtl)
+         nBeginOld = Edit.GetSelStart(m_hCtl)
+         nEndOld = Edit.GetSelEnd(m_hCtl)
          this.DoUpdate(TRUE, nBeginOld, nEndOld)
       END IF
    ELSE   ' // Have one or more chars selected
@@ -941,18 +941,18 @@ SUB CMaskedEdit.OnCharBackspace (BYVAL nChar AS UINT, BYVAL nRepCnt AS UINT, BYV
          IF nRange < 1 THEN RETURN
          DIM ustrReplace AS USTRING
          ustrReplace = WSTRING(nRange, m_chMaskInputTemplate)
-         tkEdit_SetSel(m_hCtl, nStartPos, nStartPos + nRange)
-         tkEdit_ReplaceSel(m_hCtl, TRUE, ustrReplace)
-         tkEdit_SetSel(m_hCtl, nStartPos, nStartPos)
+         Edit.SetSel(m_hCtl, nStartPos, nStartPos + nRange)
+         Edit.ReplaceSel(m_hCtl, TRUE, ustrReplace)
+         Edit.SetSel(m_hCtl, nStartPos, nStartPos)
          FOR i AS LONG = 0 TO LEN(ustrReplace) - 1
             MID(m_str, nStartPos + i + 1, 1) = WCHR(ustrReplace[i])
          NEXT
-         tkEdit_SetSel(m_hCtl, nStartPos, nStartPos)
+         Edit.SetSel(m_hCtl, nStartPos, nStartPos)
       ELSE
          ' // Don't use m_chMaskInputTemplate - delete symbols
          DIM nBeginOld AS LONG, nEndOld AS LONG
-         nBeginOld = tkEdit_GetSelStart(m_hCtl)
-         nEndOld = tkEdit_GetSelEnd(m_hCtl)
+         nBeginOld = Edit.GetSelStart(m_hCtl)
+         nEndOld = Edit.GetSelEnd(m_hCtl)
          this.DoUpdate(TRUE, nBeginOld, nEndOld)
       END IF
    END IF
@@ -963,15 +963,15 @@ END SUB
 SUB CMaskedEdit.OnCharDelete (BYVAL nChar AS UINT, BYVAL nRepCnt AS UINT, BYVAL nFlags AS UINT)
    IF LEN(m_strMask) = 0 OR LEN(m_strInputTemplate) = 0 THEN RETURN
    DIM nStartPos AS LONG, nEndPos AS LONG
-   nStartPos = tkEdit_GetSelStart(m_hCtl)
-   nEndPos = tkEdit_GetSelEnd(m_hCtl)
+   nStartPos = Edit.GetSelStart(m_hCtl)
+   nEndPos = Edit.GetSelEnd(m_hCtl)
    IF nStartPos < 1 THEN RETURN
    IF nEndPos < 1 THEN RETURN
    IF nEndPos < nStartPos THEN RETURN
    ' // Calc group bounds
    DIM nGroupStart AS LONG, nGroupEnd AS LONG
-   nGroupStart = tkEdit_GetSelStart(m_hCtl)
-   nGroupEnd = tkEdit_GetSelEnd(m_hCtl)
+   nGroupStart = Edit.GetSelStart(m_hCtl)
+   nGroupEnd = Edit.GetSelEnd(m_hCtl)
    this.GetGroupBounds(nGroupStart, nGroupEnd, nGroupStart)
 
 '   // Out of range
@@ -1014,16 +1014,16 @@ SUB CMaskedEdit.OnCharDelete (BYVAL nChar AS UINT, BYVAL nRepCnt AS UINT, BYVAL 
             ustrReplace += WCHR(m_chMaskInputTemplate)
          END IF
          ' // Replace the content with the shifted string
-         tkEdit_SetSel(m_hCtl, nIndex, nIndex + nSameMaskCharsNum)
-         tkEdit_ReplaceSel(m_hCtl, TRUE, ustrReplace)
-         tkEdit_SetSel(m_hCtl, nIndex, nIndex)
+         Edit.SetSel(m_hCtl, nIndex, nIndex + nSameMaskCharsNum)
+         Edit.ReplaceSel(m_hCtl, TRUE, ustrReplace)
+         Edit.SetSel(m_hCtl, nIndex, nIndex)
          FOR i AS LONG = 0 TO LEN(ustrReplace) - 1
             MID(m_str, nIndex + i + 1) = WCHR(ustrReplace[i])
          NEXT
       ELSE
          DIM nBeginOld AS LONG, nEndOld AS LONG
-         nBeginOld = tkEdit_GetSelStart(m_hCtl)
-         nEndOld = tkEdit_GetSelEnd(m_hCtl)
+         nBeginOld = Edit.GetSelStart(m_hCtl)
+         nEndOld = Edit.GetSelEnd(m_hCtl)
          this.DoUpdate(TRUE, nBeginOld, nEndOld)
       END IF
    ELSE   ' // Have one or more chars selected
@@ -1035,18 +1035,18 @@ SUB CMaskedEdit.OnCharDelete (BYVAL nChar AS UINT, BYVAL nRepCnt AS UINT, BYVAL 
          IF nRange < 1 THEN RETURN
          DIM ustrReplace AS USTRING
          ustrReplace = WSTRING(nRange, m_chMaskInputTemplate)
-         tkEdit_SetSel(m_hCtl, nStartPos, nStartPos + nRange)
-         tkEdit_ReplaceSel(m_hCtl, TRUE, ustrReplace)
-         tkEdit_SetSel(m_hCtl, nStartPos, nStartPos)
+         Edit.SetSel(m_hCtl, nStartPos, nStartPos + nRange)
+         Edit.ReplaceSel(m_hCtl, TRUE, ustrReplace)
+         Edit.SetSel(m_hCtl, nStartPos, nStartPos)
          FOR i AS LONG = 0 TO LEN(ustrReplace) - 1
             MID(m_str, nStartPos + i + 1, 1) = WCHR(ustrReplace[i])
          NEXT
-         tkEdit_SetSel(m_hCtl, nStartPos, nStartPos)
+         Edit.SetSel(m_hCtl, nStartPos, nStartPos)
       ELSE
          ' // Don't use m_chMaskInputTemplate - delete symbols
          DIM nBeginOld AS LONG, nEndOld AS LONG
-         nBeginOld = tkEdit_GetSelStart(m_hCtl)
-         nEndOld = tkEdit_GetSelEnd(m_hCtl)
+         nBeginOld = Edit.GetSelStart(m_hCtl)
+         nEndOld = Edit.GetSelEnd(m_hCtl)
          this. DoUpdate(TRUE, nBeginOld, nEndOld)
       END IF
    END IF
@@ -1058,17 +1058,17 @@ SUB CMaskedEdit.SetPos (BYVAL nPos AS LONG = -1)
    IF nPos = -1 THEN
       ' // Calc last group bounds
       DIM nGroupStart AS LONG, nGroupEnd AS LONG
-      nGroupStart = tkEdit_GetSelStart(m_hCtl)
-      nGroupEnd = tkEdit_GetSelEnd(m_hCtl)
+      nGroupStart = Edit.GetSelStart(m_hCtl)
+      nGroupEnd = Edit.GetSelEnd(m_hCtl)
       this.GetGroupBounds(nGroupStart, nGroupEnd, nGroupEnd, FALSE)
       IF nGroupStart = -1 THEN
          this.GetGroupBounds(nGroupStart, nGroupEnd, 0, TRUE)
       END IF
       IF nGroupStart = -1 THEN RETURN
-      tkEdit_SetSel(m_hCtl, nGroupStart, nGroupStart)
+      Edit.SetSel(m_hCtl, nGroupStart, nGroupStart)
       RETURN
    END IF
-   tkEdit_SetSel(m_hCtl, nPos, nPos)
+   Edit.SetSel(m_hCtl, nPos, nPos)
 END SUB
 ' ========================================================================================
 
@@ -1089,10 +1089,10 @@ FUNCTION CMaskedEdit.SetText (BYREF ustrText AS USTRING) AS BOOLEAN
          FOR i AS LONG = 1 TO LEN(ustrText)
             this.OnCharPrintchar((ASC(MID(ustrText, i, 1))), 0, 0)
          NEXT
-         tkEdit_SetSel(m_hCtl, 0, 0)
+         Edit.SetSel(m_hCtl, 0, 0)
       END IF
    END IF
-   DIM nPos AS LONG = tkEdit_GetSelStart(m_hCtl)
+   DIM nPos AS LONG = Edit.GetSelStart(m_hCtl)
    IF nPos = 0 AND LEN(m_str) <> 0 THEN PostMessageW(m_hCtl, 9999, 0, 0)
    FUNCTION = TRUE
 END FUNCTION

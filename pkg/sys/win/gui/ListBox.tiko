@@ -30,11 +30,12 @@
 #include once "win/commctrl.bi"
 #include once "win/uxtheme.bi"
 
+NAMESPACE ListBox
 ' ========================================================================================
 ' * Enables the control.
 ' Return value: False if the control was previous enabled; otherwise TRUE
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_Enable (BYVAL hListBox AS HWND) AS BOOLEAN
+PUBLIC FUNCTION Enable (BYVAL hListBox AS HWND) AS BOOLEAN
    RETURN EnableWindow(hListBox, TRUE)
 END FUNCTION
 ' ========================================================================================
@@ -42,7 +43,7 @@ END FUNCTION
 ' * Disables the control
 ' Return value: False if the control was previous disabled; otherwise TRUE
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_Disable (BYVAL hListBox AS HWND) AS BOOLEAN
+PUBLIC FUNCTION Disable (BYVAL hListBox AS HWND) AS BOOLEAN
    DIM res AS LONG = EnableWindow(hListBox, FALSE)
    DIM bEnable AS BOOLEAN
    IF res = 0 THEN bEnable = TRUE ELSE bEnable = FALSE
@@ -53,7 +54,7 @@ END FUNCTION
 ' ========================================================================================
 ' Adds the specified filename to a list box that contains a directory listing.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_AddFile (BYVAL hListBox AS HWND, BYVAL pwszFileName AS WSTRING PTR) AS LONG
+PUBLIC FUNCTION AddFile (BYVAL hListBox AS HWND, BYVAL pwszFileName AS WSTRING PTR) AS LONG
    RETURN SendMessageW(hListBox, LB_ADDFILE, 0, CAST(LPARAM, pwszFileName))
 END FUNCTION
 ' ========================================================================================
@@ -63,7 +64,7 @@ END FUNCTION
 ' string is added to the end of the list. Otherwise, the string is inserted into the list
 ' and the list is sorted.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_AddString (BYVAL hListBox AS HWND, BYVAL pwszText AS WSTRING PTR) AS LONG
+PUBLIC FUNCTION AddString (BYVAL hListBox AS HWND, BYVAL pwszText AS WSTRING PTR) AS LONG
    RETURN SendMessageW(hListBox, LB_ADDSTRING, 0, CAST(LPARAM, pwszText))
 END FUNCTION
 ' ========================================================================================
@@ -71,7 +72,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Deletes a string in a list box.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_DeleteString (BYVAL hListBox AS HWND, BYVAL index AS LONG) AS LONG
+PUBLIC FUNCTION DeleteString (BYVAL hListBox AS HWND, BYVAL index AS LONG) AS LONG
    RETURN SendMessageW(hListBox, LB_DELETESTRING, index, 0)
 END FUNCTION
 ' ========================================================================================
@@ -81,7 +82,7 @@ END FUNCTION
 ' directories and files that match a specified string and set of file attributes.
 ' LB_DIR can also add mapped drive letters to the list box.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_Dir (BYVAL hListBox AS HWND, BYVAL Attr AS DWORD, BYVAL pwszFileSpec AS WSTRING PTR) AS LONG
+PUBLIC FUNCTION Dir (BYVAL hListBox AS HWND, BYVAL Attr AS DWORD, BYVAL pwszFileSpec AS WSTRING PTR) AS LONG
    RETURN SendMessageW(hListBox, LB_DIR, Attr, CAST(LPARAM, pwszFileSpec))
 END FUNCTION
 ' ========================================================================================
@@ -89,7 +90,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Finds the first string in a list box that begins with the specified string.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_FindString (BYVAL hListBox AS HWND, BYVAL indexStart AS LONG, BYVAL pwszString AS WSTRING PTR) AS LONG
+PUBLIC FUNCTION FindString (BYVAL hListBox AS HWND, BYVAL indexStart AS LONG, BYVAL pwszString AS WSTRING PTR) AS LONG
    RETURN SendMessageW(hListBox, LB_FINDSTRING, indexStart, CAST(LPARAM, pwszString))
 END FUNCTION
 ' ========================================================================================
@@ -98,7 +99,7 @@ END FUNCTION
 ' * Finds the first list box string that exactly matches the specified string, except that
 ' the search is not case sensitive.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_FindStringExact (BYVAL hListBox AS HWND, BYVAL indexStart AS LONG, BYVAL pwszSearchString AS WSTRING PTR) AS LONG
+PUBLIC FUNCTION FindStringExact (BYVAL hListBox AS HWND, BYVAL indexStart AS LONG, BYVAL pwszSearchString AS WSTRING PTR) AS LONG
    RETURN SendMessageW(hListBox, LB_FINDSTRINGEXACT, indexStart, CAST(LPARAM, pwszSearchString))
 END FUNCTION
 ' ========================================================================================
@@ -107,7 +108,7 @@ END FUNCTION
 ' * Gets the index of the anchor item--that is, the item from which a multiple selection
 ' starts. A multiple selection spans all items from the anchor item to the caret item.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_GetAnchorIndex (BYVAL hListBox AS HWND) AS LONG
+PUBLIC FUNCTION GetAnchorIndex (BYVAL hListBox AS HWND) AS LONG
    RETURN SendMessageW(hListBox, LB_GETANCHORINDEX, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -116,7 +117,7 @@ END FUNCTION
 ' * Determines the index of the item that has the focus rectangle in a multiple-selection
 ' list box. The item may or may not be selected.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_GetCaretIndex (BYVAL hListBox AS HWND) AS LONG
+PUBLIC FUNCTION GetCaretIndex (BYVAL hListBox AS HWND) AS LONG
    RETURN SendMessageW(hListBox, LB_GETCARETINDEX, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -124,7 +125,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Gets the number of items in a list box.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_GetCount (BYVAL hListBox AS HWND) AS LONG
+PUBLIC FUNCTION GetCount (BYVAL hListBox AS HWND) AS LONG
    RETURN SendMessageW(hListBox, LB_GETCOUNT, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -132,7 +133,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Gets the index of the currently selected item, if any, in a list box.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_GetCurSel (BYVAL hListBox AS HWND) AS LONG
+PUBLIC FUNCTION GetCurSel (BYVAL hListBox AS HWND) AS LONG
    RETURN SendMessageW(hListBox, IIF((GetWindowLongPtrW(hListBox, GWL_STYLE) AND LBS_MULTIPLESEL), LB_GETCARETINDEX, LB_GETCURSEL), 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -141,7 +142,7 @@ END FUNCTION
 ' Gets the width, in pixels, that a list box can be scrolled horizontally (the scrollable
 ' width) if the list box has a horizontal scroll bar.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_GetHorizontalExtent (BYVAL hListBox AS HWND) AS LONG
+PUBLIC FUNCTION GetHorizontalExtent (BYVAL hListBox AS HWND) AS LONG
    RETURN SendMessageW(hListBox, LB_GETHORIZONTALEXTENT, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -149,7 +150,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Gets the number of items per column in a specified list box.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_GetListBoxInfo (BYVAL hListBox AS HWND) AS LONG
+PUBLIC FUNCTION GetListBoxInfo (BYVAL hListBox AS HWND) AS LONG
    RETURN SendMessageW(hListBox, LB_GETLISTBOXINFO, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -157,7 +158,7 @@ END FUNCTION
 ' ========================================================================================
 ' Gets the application-defined value associated with the specified list box item.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_GetItemData (BYVAL hListBox AS HWND, BYVAL index AS LONG) AS LONG_PTR
+PUBLIC FUNCTION GetItemData (BYVAL hListBox AS HWND, BYVAL index AS LONG) AS LONG_PTR
    RETURN SendMessageW(hListBox, LB_GETITEMDATA, index, 0)
 END FUNCTION
 ' ========================================================================================
@@ -165,7 +166,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Gets the height of items in a list box.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_GetItemHeight (BYVAL hListBox AS HWND, BYVAL index AS LONG) AS LONG
+PUBLIC FUNCTION GetItemHeight (BYVAL hListBox AS HWND, BYVAL index AS LONG) AS LONG
    RETURN SendMessageW(hListBox, LB_GETITEMHEIGHT, index, 0)
 END FUNCTION
 ' ========================================================================================
@@ -174,17 +175,17 @@ END FUNCTION
 ' * Gets the dimensions of the rectangle that bounds a list box item as it is currently
 ' displayed in the list box.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_GetItemRect OVERLOAD (BYVAL hListBox AS HWND, BYVAL index AS LONG, BYVAL prc AS RECT PTR) AS LONG
+PUBLIC FUNCTION GetItemRect OVERLOAD (BYVAL hListBox AS HWND, BYVAL index AS LONG, BYVAL prc AS RECT PTR) AS LONG
    RETURN SendMessageW(hListBox, LB_GETITEMRECT, index, CAST(LPARAM, prc))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_GetItemRect OVERLOAD (BYVAL hListBox AS HWND, BYVAL index AS LONG, BYREF rc AS RECT) AS LONG
+PUBLIC FUNCTION GetItemRect OVERLOAD (BYVAL hListBox AS HWND, BYVAL index AS LONG, BYREF rc AS RECT) AS LONG
    RETURN SendMessageW(hListBox, LB_GETITEMRECT, index, CAST(LPARAM, @rc))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-'PUBLIC FUNCTION tkListBox_GetItemRect OVERLOAD (BYVAL hListBox AS HWND, BYVAL index AS LONG) AS RECT
+'PUBLIC FUNCTION ListBox.GetItemRect OVERLOAD (BYVAL hListBox AS HWND, BYVAL index AS LONG) AS RECT
 '   DIM rc AS RECT
 '   SendMessageW(hListBox, LB_GETITEMRECT, index, CAST(LPARAM, @rc))
 '   RETURN rc
@@ -192,10 +193,10 @@ END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' Usage example:
-' var(l, t, r, b) = tkListBox_GetItemRect(hListBox, 1)
+' var(l, t, r, b) = ListBox.GetItemRect(hListBox, 1)
 ' IF GetLastError = 1 THEN PRINT l, t, r, b
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_GetItemRect OVERLOAD (BYVAL hListBox AS HWND, BYVAL index AS LONG) AS (LONG, LONG, LONG, LONG)
+PUBLIC FUNCTION GetItemRect OVERLOAD (BYVAL hListBox AS HWND, BYVAL index AS LONG) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
    SetLastError(SendMessageW(hListBox, LB_GETITEMRECT, index, CAST(LPARAM, @rc)))
    RETURN (rc.left, rc.top, rc.right, rc.bottom)
@@ -207,7 +208,7 @@ END FUNCTION
 ' sorting order of displayed text (for list boxes with the LBS_SORT style) and of text
 ' added by the LB_ADDSTRING message.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_GetLocale (BYVAL hListBox AS HWND) AS LONG
+PUBLIC FUNCTION GetLocale (BYVAL hListBox AS HWND) AS LONG
    RETURN SendMessageW(hListBox, LB_GETLOCALE, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -215,7 +216,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Gets the selection state of an item.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_GetSel (BYVAL hListBox AS HWND, BYVAL Index AS LONG) AS BOOLEAN
+PUBLIC FUNCTION GetSel (BYVAL hListBox AS HWND, BYVAL Index AS LONG) AS BOOLEAN
    RETURN SendMessageW(hListBox, LB_GETSEL, Index, 0) > 0
 END FUNCTION
 ' ========================================================================================
@@ -227,7 +228,7 @@ END FUNCTION
 ' selected item is returned as the result of the function. If no item is selected, the
 ' value -1 is returned.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_GetSelect (BYVAL hListBox AS HWND, BYVAL startIndex AS LONG = 0) AS LONG
+PUBLIC FUNCTION GetSelect (BYVAL hListBox AS HWND, BYVAL startIndex AS LONG = 0) AS LONG
    IF (GetWindowLongPtrW(hListBox, GWL_STYLE) AND LBS_EXTENDEDSEL) = LBS_EXTENDEDSEL THEN
       ' // Multiple-selection listbox
       ' // Search for the first selected item starting from startIndex (zero-based)
@@ -249,7 +250,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Gets the total number of selected items in a multiple-selection list box.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_GetSelCount (BYVAL hListBox AS HWND) AS LONG
+PUBLIC FUNCTION GetSelCount (BYVAL hListBox AS HWND) AS LONG
    RETURN SendMessageW(hListBox, LB_GETSELCOUNT, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -258,7 +259,7 @@ END FUNCTION
 ' * Fills a buffer with an array of integers that specify the item numbers of selected items
 ' in a multiple-selection list box.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_GetSelItems (BYVAL hListBox AS HWND, BYVAL items AS DWORD, BYVAL prgItems AS LONG PTR) AS LONG
+PUBLIC FUNCTION GetSelItems (BYVAL hListBox AS HWND, BYVAL items AS DWORD, BYVAL prgItems AS LONG PTR) AS LONG
    RETURN SendMessage(hListBox, LB_GETSELITEMS, items, CAST(LPARAM, prgItems))
 END FUNCTION
 ' ========================================================================================
@@ -266,7 +267,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Gets a string from a list box.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_GetText (BYVAL hListBox AS HWND, BYVAL index AS LONG) AS USTRING
+PUBLIC FUNCTION GetText (BYVAL hListBox AS HWND, BYVAL index AS LONG) AS USTRING
    DIM nLen AS LONG, buffer AS USTRING
    IF index < 0 THEN index = SendMessageW(hListBox, IIF((GetWindowLongPtrW(hListBox, GWL_STYLE) AND LBS_MULTIPLESEL), LB_GETCARETINDEX, LB_GETCURSEL), 0, 0)
    nLen = SendMessageW(hListBox, LB_GETTEXTLEN, index, 0)
@@ -279,7 +280,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Gets the length of a string in a list box.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_GetTextLen (BYVAL hListBox AS HWND, BYVAL index AS LONG) AS LONG
+PUBLIC FUNCTION GetTextLen (BYVAL hListBox AS HWND, BYVAL index AS LONG) AS LONG
    RETURN SendMessageW(hListBox, LB_GETTEXTLEN, index, 0)
 END FUNCTION
 ' ========================================================================================
@@ -289,7 +290,7 @@ END FUNCTION
 ' is at the top of the list box, but if the list box contents have been scrolled another
 ' item may be at the top.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_GetTopIndex (BYVAL hListBox AS HWND) AS LONG
+PUBLIC FUNCTION GetTopIndex (BYVAL hListBox AS HWND) AS LONG
    RETURN SendMessageW(hListBox, LB_GETTOPINDEX, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -298,7 +299,7 @@ END FUNCTION
 ' Allocates memory for storing list box items. This message is used before an application
 ' adds a large number of items to a list box.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_InitStorage (BYVAL hListBox AS HWND, BYVAL nItems AS DWORD, BYVAL nBytes AS DWORD) AS LONG
+PUBLIC FUNCTION InitStorage (BYVAL hListBox AS HWND, BYVAL nItems AS DWORD, BYVAL nBytes AS DWORD) AS LONG
    RETURN SendMessageW(hListBox, LB_INITSTORAGE, nItems, nBytes)
 END FUNCTION
 ' ========================================================================================
@@ -307,7 +308,7 @@ END FUNCTION
 ' * Inserts a string into a list box. Unlike the LB_ADDSTRING message, the LB_INSERTSTRING
 ' message does not cause a list with the LBS_SORT style to be sorted.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_InsertString (BYVAL hListBox AS HWND, BYVAL index AS LONG, BYVAL pwszText AS WSTRING PTR) AS LONG
+PUBLIC FUNCTION InsertString (BYVAL hListBox AS HWND, BYVAL index AS LONG, BYVAL pwszText AS WSTRING PTR) AS LONG
    RETURN SendMessageW(hListBox, LB_INSERTSTRING, index, CAST(LPARAM, pwszText))
 END FUNCTION
 ' ========================================================================================
@@ -315,7 +316,7 @@ END FUNCTION
 ' ========================================================================================
 ' Gets the zero-based index of the item nearest the specified point in a list box.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_ItemFromPoint (BYVAL hListBox AS HWND, BYVAL x AS SHORT, BYVAL y AS SHORT) AS LONG
+PUBLIC FUNCTION ItemFromPoint (BYVAL hListBox AS HWND, BYVAL x AS SHORT, BYVAL y AS SHORT) AS LONG
    RETURN SendMessageW(hListBox, LB_ITEMFROMPOINT, 0, MAKELONG(x, y))
 END FUNCTION
 ' ========================================================================================
@@ -323,7 +324,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Removes all items from a list box.
 ' ========================================================================================
-PUBLIC SUB tkListBox_ResetContent (BYVAL hListBox AS HWND)
+PUBLIC SUB ResetContent (BYVAL hListBox AS HWND)
    SendMessageW hListBox, LB_RESETCONTENT, 0, 0
 END SUB
 ' ========================================================================================
@@ -332,7 +333,7 @@ END SUB
 ' * Searches a list box for an item that begins with the characters in a specified string.
 ' If a matching item is found, the item is selected.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_SelectString OVERLOAD (BYVAL hListBox AS HWND, BYVAL start AS LONG, BYVAL pwszText AS WSTRING PTR) AS LONG
+PUBLIC FUNCTION SelectString OVERLOAD (BYVAL hListBox AS HWND, BYVAL start AS LONG, BYVAL pwszText AS WSTRING PTR) AS LONG
    RETURN SendMessageW(hListBox, LB_SELECTSTRING, start, CAST(LPARAM, pwszText))
 END FUNCTION
 ' ========================================================================================
@@ -340,7 +341,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Selects one or more consecutive items in a multiple-selection list box.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_SelItemRange (BYVAL hListBox AS HWND, BYVAL fSel AS BOOLEAN, BYVAL startIndex AS SHORT, BYVAL endIndex AS SHORT) AS LONG
+PUBLIC FUNCTION SelItemRange (BYVAL hListBox AS HWND, BYVAL fSel AS BOOLEAN, BYVAL startIndex AS SHORT, BYVAL endIndex AS SHORT) AS LONG
    RETURN SendMessageW(hListBox, LB_SELITEMRANGE, fSel, MAKELONG(startIndex, endIndex))
 END FUNCTION
 ' ========================================================================================
@@ -348,7 +349,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Selects one or more consecutive items in a multiple-selection list box.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_SelItemRangeEx (BYVAL hListBox AS HWND, BYVAL startIndex AS LONG, BYVAL endIndex AS LONG) AS LONG
+PUBLIC FUNCTION SelItemRangeEx (BYVAL hListBox AS HWND, BYVAL startIndex AS LONG, BYVAL endIndex AS LONG) AS LONG
    RETURN SendMessageW(hListBox, LB_SELITEMRANGEEX, startIndex, endIndex)
 END FUNCTION
 ' ========================================================================================
@@ -357,7 +358,7 @@ END FUNCTION
 ' * Sets the anchor item--that is, the item from which a multiple selection starts.
 ' A multiple selection spans all items from the anchor item to the caret item.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_SetAnchorIndex (BYVAL hListBox AS HWND, BYVAL index AS LONG) AS LONG
+PUBLIC FUNCTION SetAnchorIndex (BYVAL hListBox AS HWND, BYVAL index AS LONG) AS LONG
    RETURN SendMessageW(hListBox, LB_SETANCHORINDEX, index, 0)
 END FUNCTION
 ' ========================================================================================
@@ -366,7 +367,7 @@ END FUNCTION
 ' * Sets the focus rectangle to the item at the specified index in a multiple-selection list
 ' box. If the item is not visible, it is scrolled into view.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_SetCaretIndex (BYVAL hListBox AS HWND, BYVAL index AS LONG, BYVAL fVisibility AS BOOLEAN = FALSE) AS LONG
+PUBLIC FUNCTION SetCaretIndex (BYVAL hListBox AS HWND, BYVAL index AS LONG, BYVAL fVisibility AS BOOLEAN = FALSE) AS LONG
    RETURN SendMessageW(hListBox, LB_SETCARETINDEX, index, cast(LPARAM, fVisibility))
 END FUNCTION
 ' ========================================================================================
@@ -375,7 +376,7 @@ END FUNCTION
 ' Sets the width, in pixels, of all columns in a multiple-column list box (created with
 ' the LBS_MULTICOLUMN style).
 ' ========================================================================================
-PUBLIC SUB tkListBox_SetColumnWidth (BYVAL hListBox AS HWND, BYVAL nWidth AS DWORD)
+PUBLIC SUB SetColumnWidth (BYVAL hListBox AS HWND, BYVAL nWidth AS DWORD)
    SendMessageW(hListBox, LB_SETCOLUMNWIDTH, nWidth, 0)
 END SUB
 ' ========================================================================================
@@ -384,7 +385,7 @@ END SUB
 ' Sets the count of items in a list box created with the LBS_NODATA style and not created
 ' with the LBS_HASSTRINGS style.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_SetCount (BYVAL hListBox AS HWND, BYVAL nCount AS DWORD) AS LONG
+PUBLIC FUNCTION SetCount (BYVAL hListBox AS HWND, BYVAL nCount AS DWORD) AS LONG
    RETURN SendMessageW(hListBox, LB_SETCOUNT, nCount, 0)
 END FUNCTION
 ' ========================================================================================
@@ -393,7 +394,7 @@ END FUNCTION
 ' * Selects a string and scroll it into view, if necessary. When the new string is selected,
 ' the list box removes the highlight from the previously selected string.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_SetCurSel (BYVAL hListBox AS HWND, BYVAL index AS LONG) AS LONG
+PUBLIC FUNCTION SetCurSel (BYVAL hListBox AS HWND, BYVAL index AS LONG) AS LONG
    RETURN SendMessageW(hListBox, LB_SETCURSEL, index, 0)
 END FUNCTION
 ' ========================================================================================
@@ -405,7 +406,7 @@ END FUNCTION
 ' items in the list box. If the width of the list box is equal to or greater than this
 ' value, the horizontal scroll bar is hidden.
 ' ========================================================================================
-PUBLIC SUB tkListBox_SetHorizontalExtent (BYVAL hListBox AS HWND, BYVAL cxExtent AS LONG)
+PUBLIC SUB SetHorizontalExtent (BYVAL hListBox AS HWND, BYVAL cxExtent AS LONG)
    SendMessageW hListBox, LB_SETHORIZONTALEXTENT, cxExtent, 0
 END SUB
 ' ========================================================================================
@@ -413,7 +414,7 @@ END SUB
 ' ========================================================================================
 ' Sets a value associated with the specified item in a list box.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_SetItemData (BYVAL hListBox AS HWND, BYVAL index AS LONG, BYVAL pData AS LONG_PTR) AS LONG
+PUBLIC FUNCTION SetItemData (BYVAL hListBox AS HWND, BYVAL index AS LONG, BYVAL pData AS LONG_PTR) AS LONG
    RETURN SendMessageW(hListBox, LB_SETITEMDATA, index, cast(LPARAM, pData))
 END FUNCTION
 ' ========================================================================================
@@ -423,7 +424,7 @@ END FUNCTION
 ' LBS_OWNERDRAWVARIABLE style, this message sets the height of the item specified by the
 ' nHeight parameter. Otherwise, this message sets the height of all items in the list box.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_SetItemHeight (BYVAL hListBox AS HWND, BYVAL index AS LONG, BYVAL nHeight AS DWORD) AS LONG
+PUBLIC FUNCTION SetItemHeight (BYVAL hListBox AS HWND, BYVAL index AS LONG, BYVAL nHeight AS DWORD) AS LONG
    RETURN SendMessageW(hListBox, LB_SETITEMHEIGHT, index, nHeight)
 END FUNCTION
 ' ========================================================================================
@@ -433,7 +434,7 @@ END FUNCTION
 ' sorting order of displayed text (for list boxes with the LBS_SORT style) and of text
 ' added by the LB_ADDSTRING message.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_SetLocale (BYVAL hListBox AS HWND, BYVAL wLocaleID AS DWORD) AS LONG
+PUBLIC FUNCTION SetLocale (BYVAL hListBox AS HWND, BYVAL wLocaleID AS DWORD) AS LONG
    RETURN SendMessageW(hListBox, LB_SETLOCALE, wLocaleID, 0)
 END FUNCTION
 ' ========================================================================================
@@ -441,7 +442,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Selects a string in a list box.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_SetSel (BYVAL hListBox AS HWND, BYVAL fSelect AS BOOLEAN, BYVAL index AS LONG = -1) AS LONG
+PUBLIC FUNCTION SetSel (BYVAL hListBox AS HWND, BYVAL fSelect AS BOOLEAN, BYVAL index AS LONG = -1) AS LONG
    IF (GetWindowLongPtrW(hListBox, GWL_STYLE) AND LBS_EXTENDEDSEL) = LBS_EXTENDEDSEL THEN
       ' // Multiple-selection listbox
       RETURN SendMessageW(hListBox, LB_SETSEL, fSelect, index)
@@ -454,7 +455,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Selects the specified string in a list box.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_SelectString OVERLOAD (BYVAL hListBox AS HWND, BYVAL index AS LONG =-1) AS LONG
+PUBLIC FUNCTION SelectString OVERLOAD (BYVAL hListBox AS HWND, BYVAL index AS LONG =-1) AS LONG
    IF (GetWindowLongPtrW(hListBox, GWL_STYLE) AND LBS_EXTENDEDSEL) = LBS_EXTENDEDSEL THEN
       ' // Multiple-selection listbox
       RETURN SendMessageW(hListBox, LB_SETSEL, CTRUE, index)
@@ -467,7 +468,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Unselects the specified string in a multiple-selection list box.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_UnselectString (BYVAL hListBox AS HWND, BYVAL index AS LONG = -1) AS LONG
+PUBLIC FUNCTION UnselectString (BYVAL hListBox AS HWND, BYVAL index AS LONG = -1) AS LONG
    IF (GetWindowLongPtrW(hListBox, GWL_STYLE) AND LBS_EXTENDEDSEL) = LBS_EXTENDEDSEL THEN
       ' // Multiple-selection listbox
       RETURN SendMessageW(hListBox, LB_SETSEL, FALSE, index)
@@ -481,7 +482,7 @@ END FUNCTION
 ' ========================================================================================
 ' Sets the tab-stop positions in a list box.
 ' ========================================================================================
-PUBLIC SUB tkListBox_SetTabStops (BYVAL hListBox AS HWND, BYVAL cTabs AS LONG, BYVAL prgTabs AS LONG PTR)
+PUBLIC SUB SetTabStops (BYVAL hListBox AS HWND, BYVAL cTabs AS LONG, BYVAL prgTabs AS LONG PTR)
    SendMessageW hListBox, LB_SETTABSTOPS, cTabs, CAST(LPARAM, prgTabs)
 END SUB
 ' ========================================================================================
@@ -489,7 +490,7 @@ END SUB
 ' ========================================================================================
 ' * Ensures that a particular item in a list box is visible.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_SetTopIndex (BYVAL hListBox AS HWND, BYVAL index AS LONG) AS LONG
+PUBLIC FUNCTION SetTopIndex (BYVAL hListBox AS HWND, BYVAL index AS LONG) AS LONG
    RETURN SendMessageW(hListBox, LB_SETTOPINDEX, index, 0)
 END FUNCTION
 ' ========================================================================================
@@ -497,7 +498,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Replaces a string, and his associated data, into a list box.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_ReplaceString (BYVAL hListBox AS HWND, BYVAL index AS LONG, BYVAL pwszNewText AS WSTRING PTR, BYVAL pNewData AS LONG_PTR = NULL) AS LONG
+PUBLIC FUNCTION ReplaceString (BYVAL hListBox AS HWND, BYVAL index AS LONG, BYVAL pwszNewText AS WSTRING PTR, BYVAL pNewData AS LONG_PTR = NULL) AS LONG
    DIM lRes AS LONG = SendMessageW(hListBox, LB_DELETESTRING, index, 0)
    IF lRes = LB_ERR THEN RETURN lRes
    ' // Insert the new string
@@ -509,7 +510,7 @@ PUBLIC FUNCTION tkListBox_ReplaceString (BYVAL hListBox AS HWND, BYVAL index AS 
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_SetText (BYVAL hListBox AS HWND, BYVAL index AS LONG, BYVAL pwszNewText AS WSTRING PTR) AS LONG
+PUBLIC FUNCTION SetText (BYVAL hListBox AS HWND, BYVAL index AS LONG, BYVAL pwszNewText AS WSTRING PTR) AS LONG
    DIM lRes AS LONG = SendMessageW(hListBox, LB_DELETESTRING, index, 0)
    IF lRes = LB_ERR THEN RETURN lRes
    ' // Insert the new string
@@ -522,7 +523,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Calculates the size, in logical units, of the widest string item.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_CalcHorizontalExtent (BYVAL hListBox AS HWND) AS LONG
+PUBLIC FUNCTION CalcHorizontalExtent (BYVAL hListBox AS HWND) AS LONG
    ' // Get an handle to the device context of the control
    DIM hDC AS HDC = GetDC(hListBox)
    ' // Get the number of items
@@ -550,28 +551,28 @@ END FUNCTION
 ' ========================================================================================
 ' Adds item data to the list box.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_AddItemData (BYVAL hListBox AS HWND, BYVAL pData AS LONG_PTR) AS LONG
+PUBLIC FUNCTION AddItemData (BYVAL hListBox AS HWND, BYVAL pData AS LONG_PTR) AS LONG
    RETURN SendMessageW(hListBox, LB_ADDSTRING, 0, CAST(LPARAM, pData))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' Inserts item data to a list box.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_InsertItemData (BYVAL hListBox AS HWND, BYVAL index AS LONG, BYVAL pData AS LONG_PTR) AS LONG
+PUBLIC FUNCTION InsertItemData (BYVAL hListBox AS HWND, BYVAL index AS LONG, BYVAL pData AS LONG_PTR) AS LONG
    RETURN SendMessageW(hListBox, LB_INSERTSTRING, index, CAST(LPARAM, pData))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' Finds the first item in a list box that has the specified item data.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_FindItemData (BYVAL hListBox AS HWND, BYVAL indexStart AS LONG, BYVAL pData AS LONG_PTR) AS LONG
+PUBLIC FUNCTION FindItemData (BYVAL hListBox AS HWND, BYVAL indexStart AS LONG, BYVAL pData AS LONG_PTR) AS LONG
    RETURN SendMessageW(hListBox, LB_FINDSTRING, indexStart, CAST(LPARAM, pData))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' Searches a list box for an item that has the specified item data. If a matching item is found, the item is selected.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_SelectItemData (BYVAL hListBox AS HWND, BYVAL indexStart AS LONG, BYVAL pData AS LONG_PTR) AS LONG
+PUBLIC FUNCTION SelectItemData (BYVAL hListBox AS HWND, BYVAL indexStart AS LONG, BYVAL pData AS LONG_PTR) AS LONG
    RETURN SendMessageW(hListBox, LB_SELECTSTRING, indexStart, CAST(LPARAM, pData))
 END FUNCTION
 ' ========================================================================================
@@ -580,7 +581,7 @@ END FUNCTION
 ' * Set the control dark mode.
 ' Only affects the scroll bars.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_SetDarkMode (BYVAL hListBox AS HWND) AS HRESULT
+PUBLIC FUNCTION SetDarkMode (BYVAL hListBox AS HWND) AS HRESULT
    RETURN SetWindowTheme(hListBox, "DarkMode_Explorer", NULL)
 END FUNCTION
 ' ========================================================================================
@@ -588,7 +589,8 @@ END FUNCTION
 ' * Removes the control dark mode.
 ' Only affects the scroll bars.
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_RemoveDarkMode (BYVAL hListBox AS HWND) AS HRESULT
+PUBLIC FUNCTION RemoveDarkMode (BYVAL hListBox AS HWND) AS HRESULT
    RETURN SetWindowTheme(hListBox, NULL, NULL)
 END FUNCTION
 ' ========================================================================================
+END NAMESPACE

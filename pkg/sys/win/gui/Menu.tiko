@@ -30,11 +30,12 @@ using win
 
 #include once "windows.bi"
 
+NAMESPACE Menu
 ' ========================================================================================
 ' * Retrieves the window owner of the specified menu.
-' Usage example: tkMenu_GetWindowOwner(hMenu)
+' Usage example: Menu.OwnerWindow(hMenu)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_GetWindowOwner (BYVAL hMenu AS HMENU) AS HWND
+PUBLIC FUNCTION OwnerWindow (BYVAL hMenu AS HMENU) AS HWND
    DIM hwnd AS HWND = ..GetTopWindow(NULL)
    WHILE hwnd <> 0
       IF ..GetMenu(hwnd) = hMenu THEN
@@ -49,27 +50,27 @@ END FUNCTION
 ' ========================================================================================
 ' * Creates a new menu bar
 ' Usage example:
-' DIM hMenu AS HMENU = tkMenu_Create
+' DIM hMenu AS HMENU = Menu.Create
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_Create () AS HMENU
+PUBLIC FUNCTION Create () AS HMENU
    RETURN ..CreateMenu
 END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
 ' * Destroys the specified menu and frees any memory that the menu occupies.
-' Usage example: tkMenu_Destroy(hMenu)
+' Usage example: Menu.Destroy(hMenu)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_Destroy OVERLOAD (BYVAL hMenu AS HMENU) AS BOOLEAN
+PUBLIC FUNCTION Destroy OVERLOAD (BYVAL hMenu AS HMENU) AS BOOLEAN
    RETURN ..DestroyMenu(hMenu)
 END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
 ' * Destroys the menu attached to a window or dialog and frees any memory that the menu occupies.
-' Usage example: tkMenu_Destroy(hwnd)
+' Usage example: Menu.Destroy(hwnd)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_Destroy OVERLOAD (BYVAL hwnd AS HWND) AS BOOLEAN
+PUBLIC FUNCTION Destroy OVERLOAD (BYVAL hwnd AS HWND) AS BOOLEAN
    ' // Get the menu handle, if any
    DIM hMenu AS HMENU = ..GetMenu(hwnd)
    IF hMenu = NULL THEN RETURN FALSE
@@ -87,11 +88,11 @@ END FUNCTION
 ' shortcut menu. You can use this function to specify the content, appearance, and behavior
 ' of the menu item.
 ' Usage examples:
-' tkMenu_Append hMenu, MF_POPUP OR MF_ENABLED, CAST(UINT_PTR, hPopUpMenu), "&File"
-' tkMenu_Append hPopUpMenu, MF_ENABLED, IDM_NEW, "&New" & CHR(9) & "Ctrl+N"
-' tkMenu_Append hPopUpMenu, MF_SEPARATOR, 0, ""
+' Menu.AppendItem hMenu, MF_POPUP OR MF_ENABLED, CAST(UINT_PTR, hPopUpMenu), "&File"
+' Menu.AppendItem hPopUpMenu, MF_ENABLED, IDM_NEW, "&New" & CHR(9) & "Ctrl+N"
+' Menu.AppendItem hPopUpMenu, MF_SEPARATOR, 0, ""
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_Append (BYVAL hMenu AS HMENU, BYVAL uFlags AS UINT, BYVAL uIDNewItem AS UINT_PTR, BYVAL pwszNewItem AS WSTRING PTR) AS BOOLEAN
+PUBLIC FUNCTION AppendItem (BYVAL hMenu AS HMENU, BYVAL uFlags AS UINT, BYVAL uIDNewItem AS UINT_PTR, BYVAL pwszNewItem AS WSTRING PTR) AS BOOLEAN
    RETURN ..AppendMenuW(hMenu, uFlags, uIDNewItem, pwszNewItem)
 END FUNCTION
 ' ========================================================================================
@@ -107,12 +108,12 @@ END FUNCTION
 ' MF_CHECKED or MF_UNCHECKED). If the menu item does not exist, the return value is -1.
 ' Usage examples:
 ' - By command:
-'    tkMenu_CheckItem(hMenu, IDM_OPEN)
+'    Menu.CheckItem(hMenu, IDM_OPEN)
 ' - By position:
-'    DIM hSubMenu AS HMENU = tkMenu_GetSubMenu(hMenu, 0)
-'    tkMenu_CheckItem(hSubMenu, 1, TRUE)
+'    DIM hSubMenu AS HMENU = Menu.GetSubMenu(hMenu, 0)
+'    Menu.CheckItem(hSubMenu, 1, TRUE)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_CheckItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS LONG
+PUBLIC FUNCTION CheckItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS LONG
    DIM dwFlags AS DWORD
    IF fByPosition THEN dwFlags = MF_BYPOSITION ELSE dwFlags = MF_BYCOMMAND
    dwFlags = dwFlags OR MF_CHECKED
@@ -129,9 +130,9 @@ END FUNCTION
 '           identifier. Otherwise, it is a menu item position.
 ' Return Value: The return value specifies the previous state of the menu item (either
 ' MF_CHECKED or MF_UNCHECKED). If the menu item does not exist, the return value is -1.
-' Usage example: tkMenu_UncheckItem(hMenu, IDM_OPEN)
+' Usage example: Menu.UncheckItem(hMenu, IDM_OPEN)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_UncheckItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS DWORD
+PUBLIC FUNCTION UncheckItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS DWORD
    DIM dwFlags AS DWORD
    IF fByPosition THEN dwFlags = MF_BYPOSITION ELSE dwFlags = MF_BYCOMMAND
    dwFlags = dwFlags OR MF_UNCHECKED
@@ -141,9 +142,9 @@ END FUNCTION
 
 ' ========================================================================================
 ' * Toggles the checked state of a menu item.
-' Usage example: tkMenu_ToggleItem(hMenu, IDM_OPEN)
+' Usage example: Menu.ToggleItem(hMenu, IDM_OPEN)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_ToggleItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS LONG
+PUBLIC FUNCTION ToggleItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS LONG
    DIM dwFlags AS DWORD
    IF fByPosition THEN dwFlags = MF_BYPOSITION ELSE dwFlags = MF_BYCOMMAND
    IF ..GetMenuState(hMenu, uItem, dwFlags) AND MF_CHECKED = MF_CHECKED THEN
@@ -157,9 +158,9 @@ END FUNCTION
 
 ' ========================================================================================
 ' * Returns TRUE if the specified menu item is checked; FALSE otherwise.
-' Usage example: tkMenu_IsItemChecked(hMenu, IDM_OPEN)
+' Usage example: Menu.IsItemChecked(hMenu, IDM_OPEN)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_IsItemChecked (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
+PUBLIC FUNCTION IsItemChecked (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
    DIM dwFlags AS DWORD
    IF fByPosition THEN dwFlags = MF_BYPOSITION ELSE dwFlags = MF_BYCOMMAND
    IF ..GetMenuState(hMenu, uItem, dwFlags) AND MF_CHECKED = MF_CHECKED THEN RETURN TRUE
@@ -168,9 +169,9 @@ END FUNCTION
 
 ' ========================================================================================
 ' * Returns TRUE if the specified menu item is enabled; FALSE otherwise.
-' Usage example: tkMenu_IsItemEnabled(hMenu, IDM_OPEN)
+' Usage example: Menu.IsItemEnabled(hMenu, IDM_OPEN)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_IsItemEnabled (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
+PUBLIC FUNCTION IsItemEnabled (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
    DIM dwFlags AS DWORD
    IF fByPosition THEN dwFlags = MF_BYPOSITION ELSE dwFlags = MF_BYCOMMAND
    DIM dwRes AS DWORD = ..GetMenuState(hMenu, uItem, dwFlags)
@@ -182,7 +183,7 @@ END FUNCTION
 ' * Returns TRUE if the specified menu item is disabled; FALSE otherwise.
 ' Usage example: IsItemDisabled(hMenu, IDM_OPEN)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_IsItemDisabled (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
+PUBLIC FUNCTION IsItemDisabled (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
    DIM dwFlags AS DWORD
    IF fByPosition THEN dwFlags = MF_BYPOSITION ELSE dwFlags = MF_BYCOMMAND
    DIM dwRes AS DWORD = ..GetMenuState(hMenu, uItem, dwFlags)
@@ -192,9 +193,9 @@ END FUNCTION
 
 ' ========================================================================================
 ' * Returns TRUE if the specified menu item is grayed; FALSE otherwise.
-' Usage example: tkMenu_IsItemGrayed(hMenu, IDM_OPEN)
+' Usage example: Menu.IsItemGrayed(hMenu, IDM_OPEN)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_IsItemGrayed (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
+PUBLIC FUNCTION IsItemGrayed (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
    DIM dwFlags AS DWORD
    IF fByPosition THEN dwFlags = MF_BYPOSITION ELSE dwFlags = MF_BYCOMMAND
    DIM dwRes AS DWORD = ..GetMenuState(hMenu, uItem, dwFlags)
@@ -204,9 +205,9 @@ END FUNCTION
 
 ' ========================================================================================
 ' * Returns TRUE if the specified menu item is highlighted; FALSE otherwise.
-' Usage example: tkMenu_IsItemHighlighted(hMenu, IDM_OPEN)
+' Usage example: Menu.IsItemHighlighted(hMenu, IDM_OPEN)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_IsItemHighlighted (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
+PUBLIC FUNCTION IsItemHighlighted (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
    DIM dwFlags AS DWORD
    IF fByPosition THEN dwFlags = MF_BYPOSITION ELSE dwFlags = MF_BYCOMMAND
    DIM dwRes AS DWORD = ..GetMenuState(hMenu, uItem, dwFlags)
@@ -217,10 +218,10 @@ END FUNCTION
 ' ========================================================================================
 ' * Returns TRUE if the specified menu item is a separator; FALSE otherwise.
 ' Usage example:
-' DIM hSubMenu AS HMENU = tkMenu_GetSubMenu(hMenu, 0)
-' PRINT tkMenu_IsItemSeparator(hSubMenu, 2, TRUE)
+' DIM hSubMenu AS HMENU = Menu.GetSubMenu(hMenu, 0)
+' PRINT Menu.IsItemSeparator(hSubMenu, 2, TRUE)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_IsItemSeparator (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
+PUBLIC FUNCTION IsItemSeparator (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
    DIM dwFlags AS DWORD
    IF fByPosition THEN dwFlags = MF_BYPOSITION ELSE dwFlags = MF_BYCOMMAND
    DIM dwRes AS DWORD = ..GetMenuState(hMenu, uItem, dwFlags)
@@ -231,7 +232,7 @@ END FUNCTION
 ' ========================================================================================
 ' Returns TRUE if the specified menu item is a submenu; FALSE otherwise.
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_IsItemPopup (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
+PUBLIC FUNCTION IsItemPopup (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
    DIM dwFlags AS DWORD
    IF fByPosition THEN dwFlags = MF_BYPOSITION ELSE dwFlags = MF_BYCOMMAND
    DIM dwRes AS DWORD = ..GetMenuState(hMenu, uItem, dwFlags)
@@ -242,7 +243,7 @@ END FUNCTION
 ' ========================================================================================
 ' Returns TRUE if the specified menu item is ownerdraw; FALSE otherwise.
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_IsItemOwnerdraw (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
+PUBLIC FUNCTION IsItemOwnerdraw (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
    DIM dwFlags AS DWORD
    IF fByPosition THEN dwFlags = MF_BYPOSITION ELSE dwFlags = MF_BYCOMMAND
    DIM dwRes AS DWORD = ..GetMenuState(hMenu, uItem, dwFlags)
@@ -267,9 +268,9 @@ END FUNCTION
 ' - MFS_UNCHECKED The item is unchecked.
 ' - MFS_UNHILITE  The item is not highlighed.
 ' Note: To get extended error information, use the GetLastError function.
-' Usage example: tkMenu_GetItemState(hMenu, IDM_OPEN)
+' Usage example: Menu.GetItemState(hMenu, IDM_OPEN)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_GetItemState (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS DWORD
+PUBLIC FUNCTION GetItemState (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS DWORD
    DIM mii AS MENUITEMINFOW
    mii.cbSize = SIZEOF(mii)
    mii.fMask = MIIM_STATE
@@ -297,9 +298,9 @@ END FUNCTION
 ' Return Value: TRUE or FALSE. To get extended error information, use the GetLastError function.
 ' Note: The application must call the DrawMenuBar function whenever a menu changes,
 ' whether or not the menu is in a displayed window.
-' Usage example: tkMenu_SetItemState(hMenu, IDM_OPEN, MFS_CHECKED)
+' Usage example: Menu.SetItemState(hMenu, IDM_OPEN, MFS_CHECKED)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_SetItemState (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fState AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
+PUBLIC FUNCTION SetItemState (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fState AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
    DIM mii AS MENUITEMINFOW
    mii.cbSize = SIZEOF(mii)
    mii.fMask = MIIM_STATE
@@ -307,7 +308,7 @@ PUBLIC FUNCTION tkMenu_SetItemState (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD,
    DIM bRes AS BOOLEAN
    bRes = SetMenuItemInfoW(hMenu, uItem, fByPosition, @mii)
    ' Redraw the menu bar to reflect the changes
-   IF bRes THEN ..DrawMenuBar(tkMenu_GetWindowOwner(hMenu))
+   IF bRes THEN ..DrawMenuBar(Menu.OwnerWindow(hMenu))
    RETURN bRes
 END FUNCTION
 ' ========================================================================================
@@ -322,9 +323,9 @@ END FUNCTION
 ' Return Value: TRUE or FALSE. To get extended error information, use the GetLastError function.
 ' Note: The application must call the DrawMenuBar function whenever a menu changes,
 ' whether or not the menu is in a displayed window.
-' Usage example: tkMenu_EnableItem(hMenu, IDM_OPEN)
+' Usage example: Menu.EnableItem(hMenu, IDM_OPEN)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_EnableItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
+PUBLIC FUNCTION EnableItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
    DIM mii AS MENUITEMINFOW
    mii.cbSize = SIZEOF(mii)
    mii.fMask = MIIM_STATE
@@ -332,7 +333,7 @@ PUBLIC FUNCTION tkMenu_EnableItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, B
    DIM bRes AS BOOLEAN
    bRes = SetMenuItemInfoW(hMenu, uItem, fByPosition, @mii)
    ' Redraw the menu bar to reflect the changes
-   IF bRes THEN ..DrawMenuBar(tkMenu_GetWindowOwner(hMenu))
+   IF bRes THEN ..DrawMenuBar(Menu.OwnerWindow(hMenu))
    RETURN bRes
 END FUNCTION
 ' ========================================================================================
@@ -347,16 +348,16 @@ END FUNCTION
 ' Return Value: TRUE or FALSE. To get extended error information, use the GetLastError function.
 ' Note: The application must call the DrawMenuBar function whenever a menu changes,
 ' whether or not the menu is in a displayed window.
-' Usage example: tkMenu_DisableItem((hMenu, IDM_OPEN)
+' Usage example: Menu.DisableItem((hMenu, IDM_OPEN)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_DisableItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
+PUBLIC FUNCTION DisableItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
    DIM mii AS MENUITEMINFOW
    mii.cbSize = SIZEOF(mii)
    mii.fMask = MIIM_STATE
    mii.fState = MFS_DISABLED
    DIM bRes AS BOOLEAN = SetMenuItemInfoW(hMenu, uItem, fByPosition, @mii)
    ' Redraw the menu bar to reflect the changes
-   IF bRes THEN ..DrawMenuBar(tkMenu_GetWindowOwner(hMenu))
+   IF bRes THEN ..DrawMenuBar(Menu.OwnerWindow(hMenu))
    RETURN bRes
 END FUNCTION
 ' ========================================================================================
@@ -371,16 +372,16 @@ END FUNCTION
 ' Return Value: TRUE or FALSE. To get extended error information, use the GetLastError function.
 ' Note: The application must call the DrawMenuBar function whenever a menu changes,
 ' whether or not the menu is in a displayed window.
-' Usage example: tkMenu_GrayItem(hMenu, IDM_OPEN)
+' Usage example: Menu.GrayItem(hMenu, IDM_OPEN)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_GrayItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
+PUBLIC FUNCTION GrayItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
    DIM mii AS MENUITEMINFOW
    mii.cbSize = SIZEOF(mii)
    mii.fMask = MIIM_STATE
    mii.fState = MFS_GRAYED
    DIM bRes AS BOOLEAN = SetMenuItemInfoW(hMenu, uItem, fByPosition, @mii)
    ' Redraw the menu bar to reflect the changes
-   IF bRes THEN ..DrawMenuBar(tkMenu_GetWindowOwner(hMenu))
+   IF bRes THEN ..DrawMenuBar(Menu.OwnerWindow(hMenu))
    RETURN bRes
 END FUNCTION
 ' ========================================================================================
@@ -395,16 +396,16 @@ END FUNCTION
 ' Return Value: TRUE or FALSE. To get extended error information, use the GetLastError function.
 ' Note: The application must call the DrawMenuBar function whenever a menu changes,
 ' whether or not the menu is in a displayed window.
-' Usage example: tkMenu_HiliteItem(hMenu, IDM_OPEN)
+' Usage example: Menu.HiliteItem(hMenu, IDM_OPEN)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_HiliteItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
+PUBLIC FUNCTION HiliteItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
    DIM mii AS MENUITEMINFOW
    mii.cbSize = SIZEOF(mii)
    mii.fMask = MIIM_STATE
    mii.fState = MFS_HILITE
    DIM bRes AS BOOLEAN = SetMenuItemInfoW(hMenu, uItem, fByPosition, @mii)
    ' Redraw the menu bar to reflect the changes
-   IF bRes THEN ..DrawMenuBar(tkMenu_GetWindowOwner(hMenu))
+   IF bRes THEN ..DrawMenuBar(Menu.OwnerWindow(hMenu))
    RETURN bRes
 END FUNCTION
 ' ========================================================================================
@@ -415,9 +416,9 @@ END FUNCTION
 ' - hwnd  = [in] A handle to the menu that contains the menu item.
 ' - uItem = [in] The zero-based position of the menu item to change.
 ' Return value: TRUE or FALSE.
-' Usage example: tkMenu_RightJustifyItem(hMenu, 2)
+' Usage example: Menu.RightJustifyItem(hMenu, 2)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_RightJustifyItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD) AS BOOLEAN
+PUBLIC FUNCTION RightJustifyItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD) AS BOOLEAN
    DIM mii AS MENUITEMINFOW, buffer AS WSTRING * MAX_PATH + 1
    mii.cbSize = SIZEOF(MENUITEMINFOW)
    mii.dwTypeData = @buffer
@@ -431,7 +432,7 @@ PUBLIC FUNCTION tkMenu_RightJustifyItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DW
       bRes = SetMenuItemInfoW(hMenu, uItem, CTRUE, @mii)
    END IF
    ' Redraw the menu bar to reflect the changes
-   IF bRes THEN ..DrawMenuBar(tkMenu_GetWindowOwner(hMenu))
+   IF bRes THEN ..DrawMenuBar(Menu.OwnerWindow(hMenu))
    RETURN bRes
 END FUNCTION
 ' ========================================================================================
@@ -442,10 +443,10 @@ END FUNCTION
 ' - uItem = [in] The zero-based position of the menu item to change.
 ' Return value: TRUE or FALSE.
 ' Usage examples:
-' tkMenu_SetItemBold(hMenu, IDM_EXIT)
-' tkMenu_BoldItem(hMenu, IDM_EXIT)
+' Menu.SetItemBold(hMenu, IDM_EXIT)
+' Menu.BoldItem(hMenu, IDM_EXIT)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_SetItemBold (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
+PUBLIC FUNCTION SetItemBold (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
    DIM mii AS MENUITEMINFOW, buffer AS WSTRING * MAX_PATH + 1
    mii.cbSize = SIZEOF(MENUITEMINFOW)
    mii.dwTypeData = @buffer
@@ -458,12 +459,12 @@ PUBLIC FUNCTION tkMenu_SetItemBold (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, 
       bRes = SetMenuItemInfoW(hMenu, uItem, fByPosition, @mii)
    END IF
    ' Redraw the menu bar to reflect the changes
-   IF bRes THEN ..DrawMenuBar(tkMenu_GetWindowOwner(hMenu))
+   IF bRes THEN ..DrawMenuBar(Menu.OwnerWindow(hMenu))
    RETURN bRes
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_BoldItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
+PUBLIC FUNCTION BoldItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
    DIM mii AS MENUITEMINFOW, buffer AS WSTRING * MAX_PATH + 1
    mii.cbSize = SIZEOF(MENUITEMINFOW)
    mii.dwTypeData = @buffer
@@ -476,7 +477,7 @@ PUBLIC FUNCTION tkMenu_BoldItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYV
       bRes = SetMenuItemInfoW(hMenu, uItem, fByPosition, @mii)
    END IF
    ' Redraw the menu bar to reflect the changes
-   IF bRes THEN ..DrawMenuBar(tkMenu_GetWindowOwner(hMenu))
+   IF bRes THEN ..DrawMenuBar(Menu.OwnerWindow(hMenu))
    RETURN bRes
 END FUNCTION
 ' ========================================================================================
@@ -490,9 +491,9 @@ END FUNCTION
 ' - fByPosition = The meaning of uItem. If this parameter is FALSE, uItem is a menu item
 '           identifier. Otherwise, it is a menu item position.
 ' Return value: TRUE or FALSE.
-' Usage example: tkMenu_SetItemText(hMenu, IDM_OPEN, "Open new")
+' Usage example: Menu.SetItemText(hMenu, IDM_OPEN, "Open new")
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_SetItemText (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYREF wszText AS WSTRING, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
+PUBLIC FUNCTION SetItemText (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYREF wszText AS WSTRING, BYVAL fByPosition AS LONG = FALSE) AS BOOLEAN
    DIM mii AS MENUITEMINFOW
    mii.cbSize = SIZEOF(mii)
    mii.fMask = MIIM_STRING
@@ -500,16 +501,16 @@ PUBLIC FUNCTION tkMenu_SetItemText (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, 
    DIM bRes AS BOOLEAN
    bRes = SetMenuItemInfoW(hMenu, uItem, fByPosition, @mii)
    ' Redraw the menu bar to reflect the changes
-   IF bRes THEN ..DrawMenuBar(tkMenu_GetWindowOwner(hMenu))
+   IF bRes THEN ..DrawMenuBar(Menu.OwnerWindow(hMenu))
    RETURN bRes
 END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
 ' * Returns the lengnth of the specified menu item.
-' Usage example: tkMenu_GetItemTextLen(hMenu, IDM_OPEN)
+' Usage example: Menu.GetItemTextLen(hMenu, IDM_OPEN)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_GetItemTextLen (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS LONG
+PUBLIC FUNCTION GetItemTextLen (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS LONG
    ' // Fills the MENUITEMINFOW structure
    DIM mii AS MENUITEMINFOW
    mii.cbSize = SIZEOF(mii)
@@ -535,10 +536,10 @@ END FUNCTION
 ' Return value: TRUE or FALSE.
 ' Usage example:
 ' DIM wsz AS WSTRING * 260
-' tkMenu_GetItemText(hMenu, IDM_OPEN, FALSE, @wsz, 260)
+' Menu.GetItemText(hMenu, IDM_OPEN, FALSE, @wsz, 260)
 ' tkxMsg wsz
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_GetItemText OVERLOAD (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG, BYVAL pwszText AS WSTRING PTR, BYVAL cchTextMax AS LONG) AS BOOLEAN
+PUBLIC FUNCTION GetItemText OVERLOAD (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG, BYVAL pwszText AS WSTRING PTR, BYVAL cchTextMax AS LONG) AS BOOLEAN
    IF pwszText = NULL THEN RETURN FALSE
    ' // Fills the MENUITEMINFOW structure
    DIM mii AS MENUITEMINFOW
@@ -550,9 +551,9 @@ PUBLIC FUNCTION tkMenu_GetItemText OVERLOAD (BYVAL hMenu AS HMENU, BYVAL uItem A
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-' Usage example: DIM ustrText AS USTRING = tkMenu_GetItemText(hMenu, IDM_OPEN)
+' Usage example: DIM ustrText AS USTRING = Menu.GetItemText(hMenu, IDM_OPEN)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_GetItemText OVERLOAD (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS USTRING
+PUBLIC FUNCTION GetItemText OVERLOAD (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS LONG = FALSE) AS USTRING
    DIM wszText AS WSTRING * 260
    DIM mii AS MENUITEMINFOW
    mii.cbSize = SIZEOF(mii)
@@ -571,10 +572,10 @@ END FUNCTION
 ' To get extended error information, call GetLastError.
 ' Usage example:
 ' DIM lfw AS LOGFONTW
-' tkMenu_GetFont(@lfw)
+' Menu.GetFont(@lfw)
 ' print lfw.lfFaceName
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_GetFont OVERLOAD (BYVAL plfw AS LOGFONTW PTR) AS BOOLEAN
+PUBLIC FUNCTION GetFont OVERLOAD (BYVAL plfw AS LOGFONTW PTR) AS BOOLEAN
    DIM ncm AS NONCLIENTMETRICSW
    IF plfw = NULL THEN RETURN FALSE
    IF tkComCtlVersion >= 600 THEN ncm.cbSize = 504 ELSE ncm.cbSize = 500
@@ -585,10 +586,10 @@ END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' Usage example:
-' DIM lfw AS LOGFONTW = tkMenu_GetFont
+' DIM lfw AS LOGFONTW = Menu.GetFont
 ' print lfw.lfFaceName
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_GetFont OVERLOAD () AS LOGFONTW
+PUBLIC FUNCTION GetFont OVERLOAD () AS LOGFONTW
    DIM ncm AS NONCLIENTMETRICSW
    IF tkComCtlVersion >= 600 THEN ncm.cbSize = 504 ELSE ncm.cbSize = 500
    SetLastError(SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, SIZEOF(ncm), @ncm, 0))
@@ -599,9 +600,9 @@ END FUNCTION
 ' ========================================================================================
 ' * Retrieves the point size of the font used in menu bars.
 ' If the function fails, the return value is 0.
-' print tkMenu_GetFontPointSize
+' print Menu.GetFontPointSize
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_GetFontPointSize () AS LONG
+PUBLIC FUNCTION GetFontPointSize () AS LONG
    DIM ncm AS NONCLIENTMETRICSW
    IF tkComCtlVersion >= 600 THEN ncm.cbSize = 504 ELSE ncm.cbSize = 500
    IF SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, SIZEOF(ncm), @ncm, 0) = 0 THEN RETURN 0
@@ -618,27 +619,27 @@ END FUNCTION
 ' ========================================================================================
 ' * Retrieves the bounding rectangle for the specified menu item.
 ' Usage example:
-' DIM rc AS RECT = tkMenu_GetItemRect(hWin, hMenu, 1)
+' DIM rc AS RECT = Menu.GetItemRect(hWin, hMenu, 1)
 ' print rc.left, rc.top, rc.right, rc.bottom
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_GetItemRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU, BYVAL uItem AS UINT, BYVAL prcItem AS RECT PTR) AS BOOLEAN
+PUBLIC FUNCTION GetItemRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU, BYVAL uItem AS UINT, BYVAL prcItem AS RECT PTR) AS BOOLEAN
    RETURN ..GetMenuItemRect(hwnd, hMenu, uItem, prcItem)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_GetItemRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU, BYVAL uItem AS UINT, BYREF rcItem AS RECT) AS BOOLEAN
+PUBLIC FUNCTION GetItemRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU, BYVAL uItem AS UINT, BYREF rcItem AS RECT) AS BOOLEAN
    RETURN ..GetMenuItemRect(hwnd, hMenu, uItem, @rcItem)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-'PUBLIC FUNCTION tkMenu_GetItemRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU, BYVAL uItem AS UINT) AS RECT
+'PUBLIC FUNCTION Menu.GetItemRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU, BYVAL uItem AS UINT) AS RECT
 '   DIM rcItem AS RECT
 '   ..GetMenuItemRect(hwnd, hMenu, uItem, @rcItem)
 '   RETURN rcItem
 'END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_GetItemRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU, BYVAL uItem AS UINT) AS (LONG, LONG, LONG, LONG)
+PUBLIC FUNCTION GetItemRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU, BYVAL uItem AS UINT) AS (LONG, LONG, LONG, LONG)
    DIM rcItem AS RECT
    SetLastError(..GetMenuItemRect(hwnd, hMenu, uItem, @rcItem))
    RETURN (rcItem.left, rcItem.Top, rcItem.right, rcItem.bottom)
@@ -654,10 +655,10 @@ END FUNCTION
 ' If the function succeeds, the return value is 0.
 ' If the function fails, the return value is a system error code.
 ' Usage example:
-' DIM rc AS RECT = tkMenu_GetRect(hWin, hMenu)
+' DIM rc AS RECT = Menu.GetRect(hWin, hMenu)
 ' print rc.left, rc.top, rc.right, rc.bottom
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_GetRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU, BYVAL prcmenu AS RECT PTR) AS LONG
+PUBLIC FUNCTION GetRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU, BYVAL prcmenu AS RECT PTR) AS LONG
    DIM i AS LONG, nRes AS LONG, rc AS RECT
    FOR i = 1 TO ..GetMenuItemCount(hmenu)
       nRes = ..GetMenuItemRect(hwnd, hmenu, i, @rc)
@@ -668,7 +669,7 @@ PUBLIC FUNCTION tkMenu_GetRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMEN
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_GetRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU, BYREF rcmenu AS RECT) AS LONG
+PUBLIC FUNCTION GetRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU, BYREF rcmenu AS RECT) AS LONG
    DIM i AS LONG, nRes AS LONG, rc AS RECT
    FOR i = 1 TO ..GetMenuItemCount(hmenu)
       nRes = ..GetMenuItemRect(hwnd, hmenu, i, @rc)
@@ -679,7 +680,7 @@ PUBLIC FUNCTION tkMenu_GetRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMEN
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-'PUBLIC FUNCTION tkMenu_GetRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU) AS RECT
+'PUBLIC FUNCTION Menu.GetRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU) AS RECT
 '   DIM i AS LONG, nRes AS LONG, rc AS RECT, rcMenu AS RECT
 '   FOR i = 1 TO ..GetMenuItemCount(hmenu)
 '      nRes = ..GetMenuItemRect(hwnd, hmenu, i, @rc)
@@ -690,7 +691,7 @@ END FUNCTION
 'END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_GetRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU) AS (LONG, LONG, LONG, LONG)
+PUBLIC FUNCTION GetRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU) AS (LONG, LONG, LONG, LONG)
    DIM i AS LONG, nRes AS LONG, rc AS RECT, rcMenu AS RECT
    FOR i = 1 TO ..GetMenuItemCount(hmenu)
       nRes = ..GetMenuItemRect(hwnd, hmenu, i, @rc)
@@ -706,12 +707,12 @@ END FUNCTION
 ' insert or append menu items by using the InsertMenuItem function. You can also use the
 ' AppendMenu function to append menu items.
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_CreatePopup () AS HMENU
+PUBLIC FUNCTION CreatePopup () AS HMENU
    RETURN ..CreatePopupMenu
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_NewPopup () AS HMENU
+PUBLIC FUNCTION NewPopup () AS HMENU
    RETURN ..CreatePopupMenu
 END FUNCTION
 ' ========================================================================================
@@ -719,7 +720,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Adds a popup child menu to an existing menu.
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_AddPopup (BYVAL hMenu AS HMENU, BYVAL hPopup AS HMENU, BYVAL fState AS UINT, _
+PUBLIC FUNCTION AddPopup (BYVAL hMenu AS HMENU, BYVAL hPopup AS HMENU, BYVAL fState AS UINT, _
 BYVAL item AS LONG, BYREF wszText AS WSTRING, BYVAL fByPosition AS BOOLEAN = FALSE) AS BOOLEAN
    fState = fState OR MF_POPUP
    IF item = 0 THEN RETURN AppendMenuW(hMenu, fState, CAST(UINT_PTR, hPopup), @wszText)
@@ -734,7 +735,7 @@ BYVAL item AS LONG, BYREF wszText AS WSTRING, BYVAL fByPosition AS BOOLEAN = FAL
    mii.fState = fState
    DIM bRes AS BOOLEAN = SetMenuItemInfoW(hMenu, item, fByPosition, @mii)
    ' Redraw the menu bar to reflect the changes
-   IF bRes THEN ..DrawMenuBar(tkMenu_GetWindowOwner(hMenu))
+   IF bRes THEN ..DrawMenuBar(Menu.OwnerWindow(hMenu))
    RETURN bRes
 END FUNCTION
 ' ========================================================================================
@@ -742,14 +743,14 @@ END FUNCTION
 ' ========================================================================================
 ' * Attaches a menu to a window or dialog.
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_Attach (BYVAL hMenu AS HMENU, BYVAL hwnd AS HWND) AS BOOLEAN
+PUBLIC FUNCTION Attach (BYVAL hMenu AS HMENU, BYVAL hwnd AS HWND) AS BOOLEAN
    RETURN ..SetMenu(hwnd, hMenu)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' * Assigns a new menu to the specified window.
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_SetMenu (BYVAL hwnd AS HWND, BYVAL hMenu AS HMENU) AS BOOLEAN
+PUBLIC FUNCTION SetMenu (BYVAL hwnd AS HWND, BYVAL hMenu AS HMENU) AS BOOLEAN
    RETURN ..SetMenu(hwnd, hMenu)
 END FUNCTION
 ' ========================================================================================
@@ -763,39 +764,39 @@ END FUNCTION
 ' ----------------------------------------------------------------------------------------
 ' Remove by identifier:
 ' ----------------------------------------------------------------------------------------
-' tkMenu_RemoveItem(hMenu, IDM_OPEN)    ' Removes the menu item with the IDM_OPEN identifier
-' tkMenu_RemoveItem(hMenu, IDM_POPUP)   ' Removes de popup menu with the IDM_POPUP identifier
+' Menu.RemoveItem(hMenu, IDM_OPEN)    ' Removes the menu item with the IDM_OPEN identifier
+' Menu.RemoveItem(hMenu, IDM_POPUP)   ' Removes de popup menu with the IDM_POPUP identifier
 ' ----------------------------------------------------------------------------------------
 ' Remove a menu by position
 ' ----------------------------------------------------------------------------------------
-' tkMenu_RemoveItem(hMenu, 1, TRUE)     ' Removes the second menu (zero-based position)
+' Menu.RemoveItem(hMenu, 1, TRUE)     ' Removes the second menu (zero-based position)
 ' ----------------------------------------------------------------------------------------
 ' Remove an item by position
 ' ----------------------------------------------------------------------------------------
 ' DIM hFoundMenu AS HMENU, itemPos AS LONG
-' DIM bRes AS BOOLEAN = tkMenu_FindItemPos(hMenu, IDM_EXIT, hFoundMenu, itemPos)
-' IF bRes THEN tkMenu_RemoveItem(hFoundMenu, itemPos, TRUE)
+' DIM bRes AS BOOLEAN = Menu.FindItemPos(hMenu, IDM_EXIT, hFoundMenu, itemPos)
+' IF bRes THEN Menu.RemoveItem(hFoundMenu, itemPos, TRUE)
 ' ----------------------------------------------------------------------------------------
 ' Note: To remove menus use always the position and to remove drop-down menus use the identifier.
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_RemoveItem (BYVAL hMenu AS HMENU, BYVAL item AS LONG, BYVAL fByPosition AS BOOLEAN = FALSE) AS BOOLEAN
+PUBLIC FUNCTION RemoveItem (BYVAL hMenu AS HMENU, BYVAL item AS LONG, BYVAL fByPosition AS BOOLEAN = FALSE) AS BOOLEAN
    DIM uFlags AS UINT
    IF fByPosition = TRUE THEN uFlags = MF_BYPOSITION ELSE uFlags = MF_BYCOMMAND
    DIM bRes AS BOOLEAN
    bRes = ..RemoveMenu(hMenu, item, uFlags)
    ' Redraw the menu bar to reflect the changes
-   IF bRes THEN ..DrawMenuBar(tkMenu_GetWindowOwner(hMenu))
+   IF bRes THEN ..DrawMenuBar(Menu.OwnerWindow(hMenu))
    RETURN bRes
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_DeleteItem (BYVAL hMenu AS HMENU, BYVAL item AS LONG, BYVAL fByPosition AS BOOLEAN = FALSE) AS BOOLEAN
+PUBLIC FUNCTION DeleteItem (BYVAL hMenu AS HMENU, BYVAL item AS LONG, BYVAL fByPosition AS BOOLEAN = FALSE) AS BOOLEAN
    DIM uFlags AS UINT
    IF fByPosition = TRUE THEN uFlags = MF_BYPOSITION ELSE uFlags = MF_BYCOMMAND
    DIM bRes AS BOOLEAN
    bRes = ..RemoveMenu(hMenu, item, uFlags)
    ' Redraw the menu bar to reflect the changes
-   IF bRes THEN ..DrawMenuBar(tkMenu_GetWindowOwner(hMenu))
+   IF bRes THEN ..DrawMenuBar(Menu.OwnerWindow(hMenu))
    RETURN bRes
 END FUNCTION
 ' ========================================================================================
@@ -803,24 +804,24 @@ END FUNCTION
 ' ========================================================================================
 ' Deletes a menu or detaches a submenu from the specified menu.
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_RemoveMenu (BYVAL hMenu AS HMENU, BYVAL uPositiom AS DWORD, BYVAL fByPosition AS BOOLEAN = TRUE) AS BOOLEAN
+PUBLIC FUNCTION RemoveMenu (BYVAL hMenu AS HMENU, BYVAL uPositiom AS DWORD, BYVAL fByPosition AS BOOLEAN = TRUE) AS BOOLEAN
    DIM uFlags AS UINT
    IF fByPosition = TRUE THEN uFlags = MF_BYPOSITION ELSE uFlags = MF_BYCOMMAND
    DIM bRes AS BOOLEAN
    bRes = ..RemoveMenu(hMenu, uPositiom, uFlags)
    ' Redraw the menu bar to reflect the changes
-   IF bRes THEN ..DrawMenuBar(tkMenu_GetWindowOwner(hMenu))
+   IF bRes THEN ..DrawMenuBar(Menu.OwnerWindow(hMenu))
    RETURN bRes
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_DeleteMenu (BYVAL hMenu AS HMENU, BYVAL uPositiom AS DWORD, BYVAL fByPosition AS BOOLEAN = TRUE) AS BOOLEAN
+PUBLIC FUNCTION DeleteMenu (BYVAL hMenu AS HMENU, BYVAL uPositiom AS DWORD, BYVAL fByPosition AS BOOLEAN = TRUE) AS BOOLEAN
    DIM uFlags AS UINT
    IF fByPosition = TRUE THEN uFlags = MF_BYPOSITION ELSE uFlags = MF_BYCOMMAND
    DIM bRes AS BOOLEAN
    bRes = ..RemoveMenu(hMenu, uPositiom, uFlags)
    ' Redraw the menu bar to reflect the changes
-   IF bRes THEN ..DrawMenuBar(tkMenu_GetWindowOwner(hMenu))
+   IF bRes THEN ..DrawMenuBar(Menu.OwnerWindow(hMenu))
    RETURN bRes
 END FUNCTION
 ' ========================================================================================
@@ -828,52 +829,52 @@ END FUNCTION
 ' ========================================================================================
 ' * Redraws the menu bar of the specified window. If the menu bar changes after the system
 ' has created the window, this function must be called to draw the changed menu bar.
-' Usage example: tkMenu_DrawBar(hwnd)
+' Usage example: Menu.DrawBar(hwnd)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_DrawBar (BYVAL hwnd AS HWND) AS BOOLEAN
+PUBLIC FUNCTION DrawBar (BYVAL hwnd AS HWND) AS BOOLEAN
    RETURN ..DrawMenuBar(hwnd)
 END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
 ' * Retrieves a handle to the menu assigned to the specified window or dialog. 
-' Usage example: tkMenu_GetHandle(hWin)
+' Usage example: Menu.GetHandle(hWin)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_GetHandle (BYVAL hwnd AS HWND) AS HMENU
+PUBLIC FUNCTION GetHandle (BYVAL hwnd AS HWND) AS HMENU
    RETURN ..GetMenu(hwnd)
 END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
 ' * Retrieves the system menu handle.
-' Usage example: tkMenu_GetSystemMenuHandle(hWin)
+' Usage example: Menu.GetSystemMenuHandle(hWin)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_GetSystemMenuHandle (BYVAL hwnd AS HWND, BYVAL bRevert AS BOOLEAN = FALSE) AS HMENU
+PUBLIC FUNCTION GetSystemMenuHandle (BYVAL hwnd AS HWND, BYVAL bRevert AS BOOLEAN = FALSE) AS HMENU
    RETURN ..GetSystemMenu(hwnd, bRevert)
 END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
 ' * Retrieves a handle to the drop-down menu or submenu activated by the specified menu item.
-' Usage example: DIM hSubMenu AS HMENU = tkMenu_GetSubMenu(hMenu, 0)
+' Usage example: DIM hSubMenu AS HMENU = Menu.GetSubMenu(hMenu, 0)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_GetSubMenu (BYVAL hMenu AS HMENU, BYVAL nPos AS LONG) AS HMENU
+PUBLIC FUNCTION GetSubMenu (BYVAL hMenu AS HMENU, BYVAL nPos AS LONG) AS HMENU
    RETURN ..GetSubMenu(hMenu, nPos)
 END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
 ' * Retrieves the menu item ID of a menu item located at the specified position in a menu.
-' Usage example: tkMenu_GetItemID(tkMenu_GetSubMenu(hMenu, 0), 1) 
+' Usage example: Menu.GetItemID(Menu.GetSubMenu(hMenu, 0), 1) 
 ' - Returms the identifier of the second item of the first submenu.
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_GetItemID OVERLOAD (BYVAL hMenu AS HMENU, BYVAL nPos AS LONG) AS LONG
+PUBLIC FUNCTION GetItemID OVERLOAD (BYVAL hMenu AS HMENU, BYVAL nPos AS LONG) AS LONG
    RETURN ..GetMenuItemID(hMenu, nPos)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_GetItemID OVERLOAD (BYVAL hMenu AS HMENU, BYVAL submenu AS LONG, BYVAL nPos AS LONG) AS LONG
-   RETURN ..GetMenuItemID(GetSubMenu(hMenu, submenu), nPos)
+PUBLIC FUNCTION GetItemID OVERLOAD (BYVAL hMenu AS HMENU, BYVAL submenu AS LONG, BYVAL nPos AS LONG) AS LONG
+   RETURN ..GetMenuItemID(..GetSubMenu(hMenu, submenu), nPos)
 END FUNCTION
 ' ========================================================================================
 
@@ -887,14 +888,14 @@ END FUNCTION
 ' Return value: TRUE if found, FALSE otherwise.
 ' Example:
 '   DIM hFoundMenu AS HMENU, itemPos AS LONG
-'   DIM bRes AS BOOLEAN = tkMenu_FindItemPos(hMenu, IDM_COPY, hFoundMenu, itemPos)
+'   DIM bRes AS BOOLEAN = Menu.FindItemPos(hMenu, IDM_COPY, hFoundMenu, itemPos)
 '   IF bRes THEN
 '      PRINT "hFoundMenu", hFoundMenu
 '      PRINT "itemPos", itemPos
-'      PRINT tkMenu_GetItemID(hFoundMenu, itemPos)
+'      PRINT Menu.GetItemID(hFoundMenu, itemPos)
 '   END IF
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_FindItemPos ( _
+PUBLIC FUNCTION FindItemPos ( _
       BYVAL hMenu AS HMENU, _
       BYVAL itemID AS UINT, _
       BYREF hMenuFound AS HMENU, _
@@ -916,9 +917,9 @@ PUBLIC FUNCTION tkMenu_FindItemPos ( _
    ' --- 2. Search recursively in submenus ---
    DIM hSub AS ..HMENU
    FOR x AS LONG = 0 TO itemCount - 1
-      hSub = GetSubMenu(hMenu, x)
+      hSub = ..GetSubMenu(hMenu, x)
       IF hSub <> 0 THEN
-         IF tkMenu_FindItemPos(hSub, itemID, hMenuFound, itemPos) THEN
+         IF Menu.FindItemPos(hSub, itemID, hMenuFound, itemPos) THEN
             RETURN TRUE
          END IF
       END IF
@@ -931,9 +932,9 @@ END FUNCTION
 
 ' ========================================================================================
 ' * Retrieves the number of submenus of a menu.
-' Usage example: tkMenu_GetSubmenusCount(hMenu)
+' Usage example: Menu.GetSubmenusCount(hMenu)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_GetSubmenusCount (BYVAL hMenu AS HMENU) AS LONG
+PUBLIC FUNCTION GetSubmenusCount (BYVAL hMenu AS HMENU) AS LONG
    DIM itemCount AS LONG = ..GetMenuItemCount(hMenu)
    DIM submenuCount AS LONG
    FOR i AS LONG = 0 TO itemCount - 1
@@ -960,9 +961,9 @@ END FUNCTION
 ' - MFS_UNCHECKED The item is unchecked.
 ' - MFS_UNHILITE  The item is not highlighted.
 ' Note: To get extended error information, use the GetLastError function.
-' Usage example: tkMenu_GetState(hMenu, IDM_OPEN)
+' Usage example: Menu.GetState(hMenu, IDM_OPEN)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_GetState (BYVAL hMenu AS HMENU, BYVAL item AS LONG, BYVAL fByPosition AS BOOLEAN = FALSE) AS UINT
+PUBLIC FUNCTION GetState (BYVAL hMenu AS HMENU, BYVAL item AS LONG, BYVAL fByPosition AS BOOLEAN = FALSE) AS UINT
    DIM mii AS MENUITEMINFOW
    mii.cbSize = SIZEOF(mii)
    mii.fMask = MIIM_STATE
@@ -973,9 +974,9 @@ END FUNCTION
 
 ' ========================================================================================
 ' * Toggles the checked state of a menu item.
-' Usage example: tkMenu_ToggleCheckState(hMenu, IDM_OPEN)
+' Usage example: Menu.ToggleCheckState(hMenu, IDM_OPEN)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_ToggleCheckState (BYVAL hMenu AS HMENU, BYVAL item AS LONG, BYVAL fByPosition AS BOOLEAN = FALSE) AS BOOLEAN
+PUBLIC FUNCTION ToggleCheckState (BYVAL hMenu AS HMENU, BYVAL item AS LONG, BYVAL fByPosition AS BOOLEAN = FALSE) AS BOOLEAN
    DIM dwFlags AS DWORD
    IF fByPosition THEN dwFlags = MF_BYPOSITION ELSE dwFlags = MF_BYCOMMAND
    IF GetMenuState(hMenu, item, dwFlags) AND MF_CHECKED = MF_CHECKED THEN
@@ -992,7 +993,7 @@ PUBLIC FUNCTION tkMenu_ToggleCheckState (BYVAL hMenu AS HMENU, BYVAL item AS LON
    DIM bRes AS BOOLEAN
    bRes = SetMenuItemInfoW(hMenu, item, fByPosition, @mii)
    ' Redraw the menu bar to reflect the changes
-   IF bRes THEN ..DrawMenuBar(tkMenu_GetWindowOwner(hMenu))
+   IF bRes THEN ..DrawMenuBar(Menu.OwnerWindow(hMenu))
    RETURN bRes
 END FUNCTION
 ' ========================================================================================
@@ -1000,15 +1001,15 @@ END FUNCTION
 ' ========================================================================================
 ' * Determines whether a handle is a menu handle.
 ' Usage examples:
-' tkMenu_IsMenu(hMenu)
-' tkMenu_IsMenuHandle(hMenu)
+' Menu.IsMenu(hMenu)
+' Menu.IsMenuHandle(hMenu)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_IsMenu (BYVAL hMenu AS HMENU) AS BOOLEAN
+PUBLIC FUNCTION IsMenu (BYVAL hMenu AS HMENU) AS BOOLEAN
    RETURN ..IsMenu(hMenu)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_IsMenuHandle (BYVAL hMenu AS HMENU) AS BOOLEAN
+PUBLIC FUNCTION IsMenuHandle (BYVAL hMenu AS HMENU) AS BOOLEAN
    RETURN ..IsMenu(hMenu)
 END FUNCTION
 ' ========================================================================================
@@ -1032,9 +1033,9 @@ END FUNCTION
 ' Return Value: TRUE or FALSE. To get extended error information, use the GetLastError function.
 ' Note: The application must call the DrawMenuBar function whenever a menu changes,
 ' whether or not the menu is in a displayed window.
-' Usage example: tkMenu_SetState(hMenu, IDM_OPEN, MFS_CHECKED)
+' Usage example: Menu.SetState(hMenu, IDM_OPEN, MFS_CHECKED)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_SetState (BYVAL hMenu AS HMENU, BYVAL item AS LONG, BYVAL fState AS UINT, BYVAL fByPosition AS BOOLEAN = FALSE) AS BOOLEAN
+PUBLIC FUNCTION SetState (BYVAL hMenu AS HMENU, BYVAL item AS LONG, BYVAL fState AS UINT, BYVAL fByPosition AS BOOLEAN = FALSE) AS BOOLEAN
    DIM mii AS MENUITEMINFOW
    mii.cbSize = SIZEOF(mii)
    mii.fMask = MIIM_STATE
@@ -1042,7 +1043,7 @@ PUBLIC FUNCTION tkMenu_SetState (BYVAL hMenu AS HMENU, BYVAL item AS LONG, BYVAL
    DIM bRes AS BOOLEAN
    bRes = SetMenuItemInfoW(hMenu, item, fByPosition, @mii)
    ' Redraw the menu bar to reflect the changes
-   IF bRes THEN ..DrawMenuBar(tkMenu_GetWindowOwner(hMenu))
+   IF bRes THEN ..DrawMenuBar(Menu.OwnerWindow(hMenu))
    RETURN bRes
 END FUNCTION
 ' ========================================================================================
@@ -1052,9 +1053,9 @@ END FUNCTION
 ' Parameter: hwnd = Handle of the window or dialog that owns the menu.
 ' Return value: TRUE of FALSE.
 ' Note: To restore the close menu, call RestoreCloseOption.
-' Usage example: tkMenu_RemoveCloseOption(hWin)
+' Usage example: Menu.RemoveCloseOption(hWin)
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_RemoveCloseOption (BYVAL hwnd AS HWND) AS BOOLEAN
+PUBLIC FUNCTION RemoveCloseOption (BYVAL hwnd AS HWND) AS BOOLEAN
    ' // Get the system menu handle
    DIM hMenu AS HMENU = ..GetSystemMenu(hwnd, FALSE)
    IF hMenu = NULL THEN RETURN FALSE
@@ -1073,9 +1074,9 @@ END FUNCTION
 ' =====================================================================================
 ' Restores the system menu close option and enables Alt+F4 and the X button.
 ' Parameter: hwnd = Handle of the window or dialog that owns the menu.
-' Usage example: tkMenu_RestoreCloseOption(hWin)
+' Usage example: Menu.RestoreCloseOption(hWin)
 ' =====================================================================================
-PUBLIC FUNCTION tkMenu_RestoreCloseOption (BYVAL hwnd AS HWND) AS BOOLEAN
+PUBLIC FUNCTION RestoreCloseOption (BYVAL hwnd AS HWND) AS BOOLEAN
    IF ..GetSystemMenu(hwnd, TRUE) <> NULL THEN RETURN FALSE
    ..DrawMenuBar(hwnd)
    RETURN TRUE
@@ -1099,21 +1100,21 @@ END FUNCTION
 '   If the function fails, the return value is FALSE.
 '   To get extended error information, call GetLastError.
 ' =====================================================================================
-PUBLIC FUNCTION tkMenu_GetBarInfo OVERLOAD (BYVAL hwnd AS HWND, BYVAL idObject AS LONG, BYVAL idItem AS LONG, BYVAL pmbi AS MENUBARINFO PTR) AS BOOLEAN
+PUBLIC FUNCTION GetBarInfo OVERLOAD (BYVAL hwnd AS HWND, BYVAL idObject AS LONG, BYVAL idItem AS LONG, BYVAL pmbi AS MENUBARINFO PTR) AS BOOLEAN
    IF pmbi = NULL THEN RETURN FALSE
    pmbi->cbSize = SIZEOF(MENUBARINFO)
    RETURN ..GetMenuBarInfo(hwnd, idObject, idItem, pmbi)
 END FUNCTION
 ' =====================================================================================
 ' =====================================================================================
-PUBLIC FUNCTION tkMenu_GetBarInfo OVERLOAD (BYVAL hwnd AS HWND, BYVAL idObject AS LONG, BYVAL idItem AS LONG, BYREF mbi AS MENUBARINFO) AS BOOLEAN
+PUBLIC FUNCTION GetBarInfo OVERLOAD (BYVAL hwnd AS HWND, BYVAL idObject AS LONG, BYVAL idItem AS LONG, BYREF mbi AS MENUBARINFO) AS BOOLEAN
    IF VARPTR(mbi) = NULL THEN RETURN FALSE
    mbi.cbSize = SIZEOF(MENUBARINFO)
    RETURN ..GetMenuBarInfo(hwnd, idObject, idItem, @mbi)
 END FUNCTION
 ' =====================================================================================
 ' =====================================================================================
-PUBLIC FUNCTION tkMenu_GetBarInfo OVERLOAD (BYVAL hwnd AS HWND, BYVAL idObject AS LONG, BYVAL idItem AS LONG) AS MENUBARINFO
+PUBLIC FUNCTION GetBarInfo OVERLOAD (BYVAL hwnd AS HWND, BYVAL idObject AS LONG, BYVAL idItem AS LONG) AS MENUBARINFO
    DIM mbi AS MENUBARINFO : mbi.cbSize = SIZEOF(MENUBARINFO)
    DIM bRes AS BOOLEAN = ..GetMenuBarInfo(hwnd, idObject, idItem, @mbi)
    RETURN mbi
@@ -1131,15 +1132,15 @@ END FUNCTION
 ' - fByPosition: The meaning of check. If this parameter is FALSE, check is a menu item
 '                identifier. Otherwise, it is a menu item position.
 ' Usage example:
-'   tkMenu_CheckRadioButton(hMenu, IDM_OPEN, IDM_EXIT, IDM_SAVE)         ' By item identifier
-'   tkMenu_CheckRadioButton(tkMenu_GetSubMenu(hMenu, 0), 0, 1, 1, TRUE)   ' By position
+'   Menu.CheckRadioButton(hMenu, IDM_OPEN, IDM_EXIT, IDM_SAVE)         ' By item identifier
+'   Menu.CheckRadioButton(Menu.GetSubMenu(hMenu, 0), 0, 1, 1, TRUE)   ' By position
 ' =====================================================================================
-PUBLIC FUNCTION tkMenu_CheckRadioButton (BYVAL hMenu AS HMENU, BYVAL first AS LONG, BYVAL last AS LONG, BYVAL check AS LONG, BYVAL fByPosition AS BOOLEAN = FALSE) AS BOOLEAN
+PUBLIC FUNCTION CheckRadioButton (BYVAL hMenu AS HMENU, BYVAL first AS LONG, BYVAL last AS LONG, BYVAL check AS LONG, BYVAL fByPosition AS BOOLEAN = FALSE) AS BOOLEAN
    DIM dwFlags AS DWORD
    IF fByPosition = TRUE THEN dwFlags = MF_BYPOSITION ELSE dwFlags = MF_BYCOMMAND
    DIM bRes AS BOOLEAN = ..CheckMenuRadioItem(hMenu, first, last, check, dwFlags)
    ' Redraw the menu bar to reflect the changes
-   IF bRes THEN ..DrawMenuBar(tkMenu_GetWindowOwner(hMenu))
+   IF bRes THEN ..DrawMenuBar(Menu.OwnerWindow(hMenu))
    RETURN bRes
 END FUNCTION
 ' =====================================================================================
@@ -1148,17 +1149,17 @@ END FUNCTION
 ' * Retrieves the dimensions of the default check-mark bitmap. The system displays this
 ' bitmap next to selected menu items. Before calling the MenuSetItemBitmaps function to
 ' replace the default check-mark bitmap for a menu item, an application must determine
-' the correct bitmap size by calling tkMenu_GetCheckMarkWidth and tkMenu_GetCheckMarkHeight.
-' Usage example: DIM nWidth AS LONG = tkMenu_GetCheckMarkWidth
+' the correct bitmap size by calling Menu.GetCheckMarkWidth and Menu.GetCheckMarkHeight.
+' Usage example: DIM nWidth AS LONG = Menu.GetCheckMarkWidth
 ' =====================================================================================
-PUBLIC FUNCTION tkMenu_GetCheckMarkWidth () AS LONG
+PUBLIC FUNCTION GetCheckMarkWidth () AS LONG
    RETURN GetSystemMetrics(SM_CYMENUCHECK)
 END FUNCTION
 ' =====================================================================================
 ' =====================================================================================
-' * Usage example: DIM nHeight AS LONG = tkMenu_GetCheckMarkHeight
+' * Usage example: DIM nHeight AS LONG = Menu.GetCheckMarkHeight
 ' =====================================================================================
-PUBLIC FUNCTION tkMenu_GetCheckMarkHeight () AS LONG
+PUBLIC FUNCTION GetCheckMarkHeight () AS LONG
    RETURN GetSystemMetrics(SM_CXMENUCHECK)
 END FUNCTION
 ' =====================================================================================
@@ -1173,9 +1174,9 @@ END FUNCTION
 '                 Otherwise, it is a menu item position.
 ' Return value: TRUE or FALSE. To get extended error information, use the GetLastError function.
 ' Usage example:
-' tkMenu_SetDefaultItem(hMenu, 1)
+' Menu.SetDefaultItem(hMenu, 1)
 ' =====================================================================================
-PUBLIC FUNCTION tkMenu_SetDefaultItem (BYVAL hMenu AS HMENU, BYVAL item AS LONG, BYVAL fByPosition AS BOOLEAN = TRUE) AS BOOLEAN
+PUBLIC FUNCTION SetDefaultItem (BYVAL hMenu AS HMENU, BYVAL item AS LONG, BYVAL fByPosition AS BOOLEAN = TRUE) AS BOOLEAN
    RETURN ..SetMenuDefaultItem(hMenu, item, fByPosition)
 END FUNCTION
 ' =====================================================================================
@@ -1199,7 +1200,7 @@ END FUNCTION
 ' If the function fails, the return value is 0. To get extended error information, call GetLastError.
 ' Usage example: MenuGetDefaultItem(hMenu, 1)
 ' =====================================================================================
-PUBLIC FUNCTION tkMenu_GetDefaultItem (BYVAL hMenu AS HMENU, BYVAL gmdiFlags AS UINT = 0, BYVAL fByPosition AS BOOLEAN = TRUE) AS LONG
+PUBLIC FUNCTION GetDefaultItem (BYVAL hMenu AS HMENU, BYVAL gmdiFlags AS UINT = 0, BYVAL fByPosition AS BOOLEAN = TRUE) AS LONG
    IF gmdiFlags = 0 THEN gmdiFlags = GMDI_GOINTOPOPUPS
    RETURN ..GetMenuDefaultItem(hMenu, gmdiFlags, fByPosition) + 1
 END FUNCTION
@@ -1208,10 +1209,10 @@ END FUNCTION
 ' =====================================================================================
 ' * Determines the number of items in the specified menu.
 ' Usage examples:
-' tkMenu_GetItemCount(hMenu)
-' tkMenu_GetItemCount(tkMenu_GetSubmenu(hMenu, 0))
+' Menu.GetItemCount(hMenu)
+' Menu.GetItemCount(Menu.GetSubMenu(hMenu, 0))
 ' =====================================================================================
-PUBLIC FUNCTION tkMenu_GetItemCount (BYVAL hMenu AS HMENU) AS LONG
+PUBLIC FUNCTION GetItemCount (BYVAL hMenu AS HMENU) AS LONG
    RETURN ..GetMenuItemCount(hMenu)
 END FUNCTION
 ' =====================================================================================
@@ -1220,10 +1221,10 @@ END FUNCTION
 ' * Associates the specified bitmap with a menu item. Whether the menu item is selected or
 ' clear, the system displays the appropriate bitmap next to the menu item.
 ' Usage example:
-' tkMenu_CheckItem(hMenu, IDM_OPEN)
-' tkMenu_SetItemBitmaps(hMenu, IDM_OPEN, NULL, NULL)
+' Menu.CheckItem(hMenu, IDM_OPEN)
+' Menu.SetItemBitmaps(hMenu, IDM_OPEN, NULL, NULL)
 ' =====================================================================================
-PUBLIC FUNCTION tkMenu_SetItemBitmaps (BYVAL hMenu AS HMENU, BYVAL item AS LONG, BYVAL hBitmapUnchecked AS HBITMAP, _
+PUBLIC FUNCTION SetItemBitmaps (BYVAL hMenu AS HMENU, BYVAL item AS LONG, BYVAL hBitmapUnchecked AS HBITMAP, _
 BYVAL hBitmapChecked AS HBITMAP, BYVAL fByPosition AS BOOLEAN = FALSE) AS BOOLEAN
    DIM dwFlags AS UINT
    IF fByPosition = TRUE THEN dwFlags = MF_BYPOSITION ELSE dwFlags = MF_BYCOMMAND
@@ -1234,12 +1235,12 @@ END FUNCTION
 ' =====================================================================================
 ' Determines which menu item, if any, is at the specified location.
 ' =====================================================================================
-PUBLIC FUNCTION tkMenu_GetItemFromPoint OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU, BYVAL ptScreen AS POINT) AS LONG
+PUBLIC FUNCTION GetItemFromPoint OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU, BYVAL ptScreen AS POINT) AS LONG
    RETURN ..MenuItemFromPoint(hwnd, hMenu, ptScreen)
 END FUNCTION
 ' =====================================================================================
 ' =====================================================================================
-PUBLIC FUNCTION tkMenu_GetItemFromPoint OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU, BYVAL x AS LONG, BYVAL y AS LONG) AS LONG
+PUBLIC FUNCTION GetItemFromPoint OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU, BYVAL x AS LONG, BYVAL y AS LONG) AS LONG
    DIM ptScreen AS POINT
    ptScreen.x = x : ptScreen.y = y
    RETURN ..MenuItemFromPoint(hwnd, hMenu, ptScreen)
@@ -1248,17 +1249,17 @@ END FUNCTION
 
 ' =====================================================================================
 ' * Associates a Help context identifier with a menu.
-' tkMenu_SetContextHelpId(hMenu, 123)
+' Menu.SetContextHelpId(hMenu, 123)
 ' =====================================================================================
-PUBLIC FUNCTION tkMenu_SetContextHelpId (BYVAL hMenu AS HMENU, BYVAL helpID AS DWORD) AS BOOLEAN
+PUBLIC FUNCTION SetContextHelpId (BYVAL hMenu AS HMENU, BYVAL helpID AS DWORD) AS BOOLEAN
    RETURN ..SetMenuContextHelpId(hMenu, helpID)
 END FUNCTION
 ' =====================================================================================
 ' =====================================================================================
 ' * Retrieves the Help context identifier associated with the specified menu.
-' print tkMenu_GetContextHelpId(hMenu)
+' print Menu.GetContextHelpId(hMenu)
 ' =====================================================================================
-PUBLIC FUNCTION tkMenu_GetContextHelpId (BYVAL hMenu AS HMENU) AS DWORD
+PUBLIC FUNCTION GetContextHelpId (BYVAL hMenu AS HMENU) AS DWORD
    RETURN ..GetMenuContextHelpId(hMenu)
 END FUNCTION
 ' =====================================================================================
@@ -1266,7 +1267,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Creates a floating context menu.
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_ContextMenu (BYVAL hwnd AS HWND, BYVAL hPopupMenu AS HMENU, BYVAL x AS LONG, BYVAL y AS LONG, BYVAL flags AS UINT = 0) AS LONG
+PUBLIC FUNCTION ContextMenu (BYVAL hwnd AS HWND, BYVAL hPopupMenu AS HMENU, BYVAL x AS LONG, BYVAL y AS LONG, BYVAL flags AS UINT = 0) AS LONG
    RETURN ..TrackPopupMenu(hPopupMenu, flags, x, y, 0, hwnd, NULL)
 END FUNCTION
 ' ========================================================================================
@@ -1275,7 +1276,7 @@ END FUNCTION
 ' * Displays a shortcut menu at the specified location and tracks the selection of items on
 ' the menu. The shortcut menu can appear anywhere on the screen. 
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_TrackPopupMenu (BYVAL hMenu AS HMENU, BYVAL uFlags AS UINT, BYVAL x AS LONG, BYVAL y AS LONG, _
+PUBLIC FUNCTION TrackPopupMenu (BYVAL hMenu AS HMENU, BYVAL uFlags AS UINT, BYVAL x AS LONG, BYVAL y AS LONG, _
 BYVAL hwnd AS HWND, BYVAL prc AS RECT PTR = NULL) AS BOOLEAN
    RETURN ..TrackPopupMenu(hMenu, uFlags, x, y, 0, hwnd, prc)
 END FUNCTION
@@ -1285,7 +1286,7 @@ END FUNCTION
 ' * Displays a shortcut menu at the specified location and tracks the selection of items on
 ' the menu. The shortcut menu can appear anywhere on the screen. 
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_TrackPopupMenuEx (BYVAL hMenu AS HMENU, BYVAL uFlags AS UINT, BYVAL x AS LONG, BYVAL y AS LONG, _
+PUBLIC FUNCTION TrackPopupMenuEx (BYVAL hMenu AS HMENU, BYVAL uFlags AS UINT, BYVAL x AS LONG, BYVAL y AS LONG, _
 BYVAL hwnd AS HWND, BYVAL ptpm AS TPMPARAMS PTR = NULL) AS BOOLEAN
    RETURN ..TrackPopupMenuEx(hMenu, uFlags, x, y, hwnd, ptpm)
 END FUNCTION
@@ -1294,7 +1295,7 @@ END FUNCTION
 ' ========================================================================================
 ' Loads the specified menu resource from the executable (.exe) file associated with an application instance.
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_Load (BYVAL hInst AS HINSTANCE, BYVAL pMenuName AS WSTRING PTR) AS HMENU
+PUBLIC FUNCTION Load (BYVAL hInst AS HINSTANCE, BYVAL pMenuName AS WSTRING PTR) AS HMENU
    RETURN ..LoadMenuW(hInst, pMenuName)
 END FUNCTION
 ' ========================================================================================
@@ -1302,7 +1303,7 @@ END FUNCTION
 ' ========================================================================================
 ' Loads the specified menu template in memory.
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_LoadIndirect (BYVAL pMenuTemplate AS MENUTEMPLATEW PTR) AS HMENU
+PUBLIC FUNCTION LoadIndirect (BYVAL pMenuTemplate AS MENUTEMPLATEW PTR) AS HMENU
    RETURN ..LoadMenuIndirectW(pMenuTemplate)
 END FUNCTION
 ' ========================================================================================
@@ -1311,7 +1312,7 @@ END FUNCTION
 ' Changes an existing menu item. This function is used to specify the content, appearance,
 ' and behavior of the menu item.
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_Modify (BYVAL hMenu AS HMENU, BYVAL uPosition AS UINT, BYVAL uFlags AS UINT, BYVAL uIDNewItem AS UINT_PTR, BYVAL pNewItem AS WSTRING PTR) AS BOOLEAN
+PUBLIC FUNCTION Modify (BYVAL hMenu AS HMENU, BYVAL uPosition AS UINT, BYVAL uFlags AS UINT, BYVAL uIDNewItem AS UINT_PTR, BYVAL pNewItem AS WSTRING PTR) AS BOOLEAN
    RETURN ..ModifyMenuW(hMenu, uPosition, uFlags, uIDNewItem, pNewItem)
 END FUNCTION
 ' ========================================================================================
@@ -1319,14 +1320,14 @@ END FUNCTION
 ' ========================================================================================
 ' Gets information for a specified menu.
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_GetInfo OVERLOAD (BYVAL hMenu AS HMENU, BYVAL pmi AS MENUINFO PTR) AS BOOLEAN
+PUBLIC FUNCTION GetInfo OVERLOAD (BYVAL hMenu AS HMENU, BYVAL pmi AS MENUINFO PTR) AS BOOLEAN
    IF pmi = NULL THEN RETURN FALSE
    pmi->cBSize = SIZEOF(MENUINFO)
    RETURN ..GetMenuInfo(hMenu, pmi)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_GetInfo OVERLOAD (BYVAL hMenu AS HMENU, BYREF mi AS MENUINFO) AS BOOLEAN
+PUBLIC FUNCTION GetInfo OVERLOAD (BYVAL hMenu AS HMENU, BYREF mi AS MENUINFO) AS BOOLEAN
    IF VARPTR(mi) = NULL THEN RETURN FALSE
    mi.cbSize = SIZEOF(MENUINFO)
    RETURN ..GetMenuInfo(hMenu, @mi)
@@ -1336,14 +1337,14 @@ END FUNCTION
 ' ========================================================================================
 ' Sets information for a specified menu.
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_SetInfo OVERLOAD (BYVAL hMenu AS HMENU, BYVAL pmi AS MENUINFO PTR) AS BOOLEAN
+PUBLIC FUNCTION SetInfo OVERLOAD (BYVAL hMenu AS HMENU, BYVAL pmi AS MENUINFO PTR) AS BOOLEAN
    IF pmi = NULL THEN RETURN FALSE
    pmi->cBSize = SIZEOF(MENUINFO)
    RETURN ..SetMenuInfo(hMenu, pmi)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_SetInfo OVERLOAD (BYVAL hMenu AS HMENU, BYREF mi AS MENUINFO) AS BOOLEAN
+PUBLIC FUNCTION SetInfo OVERLOAD (BYVAL hMenu AS HMENU, BYREF mi AS MENUINFO) AS BOOLEAN
    IF VARPTR(mi) = NULL THEN RETURN FALSE
    mi.cbSize = SIZEOF(MENUINFO)
    RETURN ..SetMenuInfo(hMenu, @mi)
@@ -1353,14 +1354,14 @@ END FUNCTION
 ' ========================================================================================
 ' Retrieves information about a menu item.
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_GetItemInfo OVERLOAD (BYVAL hMenu AS HMENU, BYVAL item AS UINT, BYVAL fByPositon AS BOOLEAN, BYVAL pmii AS MENUITEMINFOW PTR) AS BOOLEAN
+PUBLIC FUNCTION GetItemInfo OVERLOAD (BYVAL hMenu AS HMENU, BYVAL item AS UINT, BYVAL fByPositon AS BOOLEAN, BYVAL pmii AS MENUITEMINFOW PTR) AS BOOLEAN
    IF pmii = NULL THEN RETURN FALSE
    pmii->cBSize = SIZEOF(MENUITEMINFOW)
    RETURN ..GetMenuItemInfoW(hMenu, item, fByPositon, pmii)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_GetItemInfo OVERLOAD (BYVAL hMenu AS HMENU, BYVAL item AS UINT, BYVAL fByPositon AS BOOLEAN, BYREF mii AS MENUITEMINFOW) AS BOOLEAN
+PUBLIC FUNCTION GetItemInfo OVERLOAD (BYVAL hMenu AS HMENU, BYVAL item AS UINT, BYVAL fByPositon AS BOOLEAN, BYREF mii AS MENUITEMINFOW) AS BOOLEAN
    IF VARPTR(mii) = NULL THEN RETURN FALSE
    mii.cbSize = SIZEOF(MENUITEMINFOW)
    RETURN ..GetMenuItemInfoW(hMenu, item, fByPositon, @mii)
@@ -1370,24 +1371,24 @@ END FUNCTION
 ' ========================================================================================
 ' Changes information about a menu item.
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_SetItemInfo OVERLOAD (BYVAL hMenu AS HMENU, BYVAL item AS UINT, BYVAL fByPositon AS BOOLEAN, BYVAL pmii AS MENUITEMINFOW PTR) AS BOOLEAN
+PUBLIC FUNCTION SetItemInfo OVERLOAD (BYVAL hMenu AS HMENU, BYVAL item AS UINT, BYVAL fByPositon AS BOOLEAN, BYVAL pmii AS MENUITEMINFOW PTR) AS BOOLEAN
    IF pmii = NULL THEN RETURN FALSE
    pmii->cBSize = SIZEOF(MENUINFO)
    DIM bRes AS BOOLEAN
    bRes = ..SetMenuItemInfoW(hMenu, item, fByPositon, pmii)
    ' Redraw the menu bar to reflect the changes
-   IF bRes THEN ..DrawMenuBar(tkMenu_GetWindowOwner(hMenu))
+   IF bRes THEN ..DrawMenuBar(Menu.OwnerWindow(hMenu))
    RETURN bRes
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_SetItemInfo OVERLOAD (BYVAL hMenu AS HMENU, BYVAL item AS UINT, BYVAL fByPositon AS BOOLEAN, BYREF mii AS MENUITEMINFOW) AS BOOLEAN
+PUBLIC FUNCTION SetItemInfo OVERLOAD (BYVAL hMenu AS HMENU, BYVAL item AS UINT, BYVAL fByPositon AS BOOLEAN, BYREF mii AS MENUITEMINFOW) AS BOOLEAN
    IF VARPTR(mii) = NULL THEN RETURN FALSE
    mii.cbSize = SIZEOF(MENUINFO)
    DIM bRes AS BOOLEAN
    bRes = ..SetMenuItemInfoW(hMenu, item, fByPositon, @mii)
    ' Redraw the menu bar to reflect the changes
-   IF bRes THEN ..DrawMenuBar(tkMenu_GetWindowOwner(hMenu))
+   IF bRes THEN ..DrawMenuBar(Menu.OwnerWindow(hMenu))
    RETURN bRes
 END FUNCTION
 ' ========================================================================================
@@ -1422,17 +1423,17 @@ END FUNCTION
 '    DIM hSubMenu AS HMENU = GetSubMenu(hMenu, 1)
 '    DIM hIcon AS HICON
 '    hIcon = LoadImageW(NULL, "MyIcon.ico", IMAGE_ICON, 32, 32, LR_LOADFROMFILE)
-'    IF hIcon THEN tkMenu_AddIconToItem(hSubMenu, 0, TRUE, hIcon)
+'    IF hIcon THEN Menu.AddIconToItem(hSubMenu, 0, TRUE, hIcon)
 ' PNG icons can be used by converting them to an icon with tkGdip_ImageFromFile:
 '    hIcon = tkGdip_ImageFromFile("MyIcon.png")
-'    IF hIcon THEN tkMenu_AddIconToItem(hSubMenu, 0, TRUE, hIcon)
+'    IF hIcon THEN Menu.AddIconToItem(hSubMenu, 0, TRUE, hIcon)
 
 '#if _WIN32_WINNT >= &h0602
 ' ========================================================================================
 ' Initializes the BITMAPINFO structure
 ' Return value: TRUE or FALSE.
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_InitBitmapInfo (BYVAL pbmi AS BITMAPINFO PTR, BYVAL cbInfo AS ULONG, BYVAL cx AS LONG, BYVAL cy AS LONG, BYVAL bpp AS WORD) AS BOOLEAN
+PUBLIC FUNCTION InitBitmapInfo (BYVAL pbmi AS BITMAPINFO PTR, BYVAL cbInfo AS ULONG, BYVAL cx AS LONG, BYVAL cy AS LONG, BYVAL bpp AS WORD) AS BOOLEAN
    IF pbmi = NULL THEN RETURN FALSE
    memset(pbmi, 0, cbInfo)
    pbmi->bmiHeader.biSize = SIZEOF(BITMAPINFOHEADER)
@@ -1455,11 +1456,11 @@ END FUNCTION
 ' - phbmp   = A pointer to a variable that receives the handle to the newly created DIB.
 ' Return value: TRUE or FALSE.
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_Create32BitHBITMAP (BYVAL hDC AS HDC, BYVAL psize AS SIZE PTR, BYVAL ppvBits AS ANY PTR PTR, BYVAL phBmp AS HBITMAP PTR) AS BOOLEAN
+PUBLIC FUNCTION Create32BitHBITMAP (BYVAL hDC AS HDC, BYVAL psize AS SIZE PTR, BYVAL ppvBits AS ANY PTR PTR, BYVAL phBmp AS HBITMAP PTR) AS BOOLEAN
    IF psize = NULL OR phBmp = NULL THEN RETURN FALSE
    *phBmp = NULL
    DIM bmi AS BITMAPINFO
-   tkMenu_InitBitmapInfo(@bmi, SIZEOF(bmi), psize->cx, psize->cy, 32)
+   Menu.InitBitmapInfo(@bmi, SIZEOF(bmi), psize->cx, psize->cy, 32)
    DIM hdcUsed AS ..HDC = IIF(hDC <> NULL, hDC, GetDC(NULL))
    IF hdcUsed = NULL THEN RETURN FALSE
    *phBmp = CreateDIBSection(hdcUsed, @bmi, DIB_RGB_COLORS, ppvBits, NULL, 0)
@@ -1479,7 +1480,7 @@ END FUNCTION
 ' - hbmp        = Bitmap handle.
 ' Return value: TRUE or FALSE.
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_AddBitmapToItem (BYVAL hMenu AS HMENU, BYVAL nMenuItem AS LONG, BYVAL fByPosition AS BOOLEAN, BYVAL hbmp AS HBITMAP) AS BOOLEAN
+PUBLIC FUNCTION AddBitmapToItem (BYVAL hMenu AS HMENU, BYVAL nMenuItem AS LONG, BYVAL fByPosition AS BOOLEAN, BYVAL hbmp AS HBITMAP) AS BOOLEAN
    DIM mii AS MENUITEMINFOW
    mii.cbSize = SIZEOF(mii)
    mii.fMask = MIIM_BITMAP
@@ -1501,10 +1502,10 @@ END FUNCTION
 ' Return value: TRUE or FALSE.
 ' Remarks: MFT_BITMAP items do not support PARGB32 bitmaps.
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_ConvertToPARGB32 (BYVAL hDC AS HDC, BYVAL pargb AS DWORD PTR, BYVAL hbmp AS HBITMAP, BYVAL sizeImage AS SIZE, BYVAL cxRow AS LONG) AS BOOLEAN
+PUBLIC FUNCTION ConvertToPARGB32 (BYVAL hDC AS HDC, BYVAL pargb AS DWORD PTR, BYVAL hbmp AS HBITMAP, BYVAL sizeImage AS SIZE, BYVAL cxRow AS LONG) AS BOOLEAN
    IF hDC = NULL OR pargb = NULL OR hbmp = NULL THEN RETURN FALSE
    DIM bmi AS BITMAPINFO
-   tkMenu_InitBitmapInfo(@bmi, SIZEOF(bmi), sizeImage.cx, sizeImage.cy, 32)
+   Menu.InitBitmapInfo(@bmi, SIZEOF(bmi), sizeImage.cx, sizeImage.cy, 32)
    DIM hHeap AS HANDLE = GetProcessHeap
    DIM pvBits AS ANY PTR = HeapAlloc(hHeap, 0, bmi.bmiHeader.biWidth * 4 * bmi.bmiHeader.biHeight)
    IF pvBits THEN
@@ -1543,7 +1544,7 @@ END FUNCTION
 '               This value is not necessarily equal to the buffer width. It may be larger.
 ' Return value: TRUE or FALSE.
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_HasAlpha (BYVAL pargb AS DWORD PTR, BYVAL sizeImage AS SIZE, BYVAL cxRow AS LONG) AS BOOLEAN
+PUBLIC FUNCTION HasAlpha (BYVAL pargb AS DWORD PTR, BYVAL sizeImage AS SIZE, BYVAL cxRow AS LONG) AS BOOLEAN
    IF pargb = NULL THEN RETURN FALSE
    DIM cxDelta AS ULONG = cxRow - sizeImage.cx
    DIM x AS LONG, y AS LONG
@@ -1566,18 +1567,18 @@ END FUNCTION
 ' - sizeIcon     = The size of the icon.
 ' Return value: An HRESULT code
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_ConvertBufferToPARGB32 (BYVAL hPaintBuffer AS HPAINTBUFFER, BYVAL hDC AS HDC, BYVAL hIcon AS HICON, BYVAL sizeIcon AS SIZE) AS BOOLEAN
+PUBLIC FUNCTION ConvertBufferToPARGB32 (BYVAL hPaintBuffer AS HPAINTBUFFER, BYVAL hDC AS HDC, BYVAL hIcon AS HICON, BYVAL sizeIcon AS SIZE) AS BOOLEAN
    IF hPaintBuffer = NULL OR hDC = NULL OR hIcon = NULL THEN RETURN FALSE
    DIM prgbQuad AS RGBQUAD PTR, cxRow AS LONG
    DIM hr AS HRESULT
    hr = GetBufferedPaintBits(hPaintBuffer, @prgbQuad, @cxRow)
    IF SUCCEEDED(hr) THEN
       DIM pargb AS DWORD PTR = CAST(DWORD PTR, prgbQuad)
-      IF NOT tkMenu_HasAlpha(pargb, sizeIcon, cxRow) THEN
+      IF NOT Menu.HasAlpha(pargb, sizeIcon, cxRow) THEN
          DIM info AS ICONINFO
          IF GetIconInfo(hicon, @info) THEN
             IF info.hbmMask THEN
-               hr = tkMenu_ConvertToPARGB32(hDC, pargb, info.hbmMask, sizeIcon, cxRow)
+               hr = Menu.ConvertToPARGB32(hDC, pargb, info.hbmMask, sizeIcon, cxRow)
                DeleteObject(info.hbmColor)
                DeleteObject(info.hbmMask)
             END IF
@@ -1601,10 +1602,10 @@ END FUNCTION
 '                  menu item identifier. Otherwise, it is a menu item position.
 ' - hIcon        = Handle of the icon to add to the menu.
 ' - fAutoDestroy = TRUE (the default) or FALSE.
-'                  If TRUE, tkMenu_AddIconToItem destroys the icon before returning.
+'                  If TRUE, Menu.AddIconToItem destroys the icon before returning.
 ' - phbmp        = Location where the bitmap representation of the icon is stored. Can be NULL.
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_AddIconToItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS BOOLEAN, BYVAL hIcon AS HICON, BYVAL fAutoDestroy AS BOOLEAN = TRUE, BYVAL phbmp AS HBITMAP PTR = NULL) AS BOOLEAN
+PUBLIC FUNCTION AddIconToItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD, BYVAL fByPosition AS BOOLEAN, BYVAL hIcon AS HICON, BYVAL fAutoDestroy AS BOOLEAN = TRUE, BYVAL phbmp AS HBITMAP PTR = NULL) AS BOOLEAN
    IF hMenu = NULL OR hIcon = NULL THEN RETURN FALSE
    DIM hbmp AS HBITMAP, sizIcon AS SIZE, rcIcon AS RECT
    sizIcon.cx = GetSystemMetrics(SM_CXSMICON)
@@ -1612,7 +1613,7 @@ PUBLIC FUNCTION tkMenu_AddIconToItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD
    SetRect(@rcIcon, 0, 0, sizIcon.cx, sizIcon.cy)
    DIM hdcDest AS HDC = CreateCompatibleDC(NULL)
    IF hdcDest = NULL THEN RETURN FALSE
-   DIM hr AS HRESULT = tkMenu_Create32BitHBITMAP(hdcDest, @sizIcon, NULL, @hbmp)
+   DIM hr AS HRESULT = Menu.Create32BitHBITMAP(hdcDest, @sizIcon, NULL, @hbmp)
    IF hr THEN
       DIM hbmpOld AS HBITMAP = CAST(HBITMAP, SelectObject(hdcDest, hbmp))
       IF hbmpOld THEN
@@ -1626,7 +1627,7 @@ PUBLIC FUNCTION tkMenu_AddIconToItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD
          IF hPaintBuffer THEN
             IF DrawIconEx(hdcBuffer, 0, 0, hIcon, sizIcon.cx, sizIcon.cy, 0, NULL, DI_NORMAL) THEN
                ' // If icon did not have an alpha channel, we need to convert buffer to PARGB32.
-               hr = tkMenu_ConvertBufferToPARGB32(hPaintBuffer, hdcDest, hIcon, sizIcon)
+               hr = Menu.ConvertBufferToPARGB32(hPaintBuffer, hdcDest, hIcon, sizIcon)
             END IF
             ' // This will write the buffer contents to the destination bitmap.
             EndBufferedPaint(hPaintBuffer, TRUE)
@@ -1635,7 +1636,7 @@ PUBLIC FUNCTION tkMenu_AddIconToItem (BYVAL hMenu AS HMENU, BYVAL uItem AS DWORD
       END IF
    END IF
    DeleteDC(hdcDest)
-   IF hr THEN hr = tkMenu_AddBitmapToItem(hMenu, uItem, fByPosition, hbmp)
+   IF hr THEN hr = Menu.AddBitmapToItem(hMenu, uItem, fByPosition, hbmp)
    IF hr = FALSE THEN DeleteObject(hbmp): hbmp = NULL
    IF fAutoDestroy THEN DestroyIcon(hIcon)
    IF phbmp THEN *phbmp = hbmp
@@ -1650,10 +1651,10 @@ END FUNCTION
 ' CASE WM_DESTROY
 '     // Destroy the menu and the bitmaps
 '     DIM hMenu AS HMENU = GetMenu(hwnd)
-'     tkMenu_DestroyBitmaps(hMenu)
-'     tkMenu_Destroy(hMenu)              
+'     Menu.DestroyBitmaps(hMenu)
+'     Menu.Destroy(hMenu)              
 ' ========================================================================================
-PUBLIC SUB tkMenu_DestroyBitmaps (BYVAL hMenu AS HMENU)
+PUBLIC SUB DestroyBitmaps (BYVAL hMenu AS HMENU)
    DIM count AS LONG = GetMenuItemCount(hMenu)
    DIM mii AS MENUITEMINFOW
    mii.cbSize = SIZEOF(MENUITEMINFOW)
@@ -1662,7 +1663,7 @@ PUBLIC SUB tkMenu_DestroyBitmaps (BYVAL hMenu AS HMENU)
       IF GetMenuItemInfoW(hMenu, i, TRUE, @mii) THEN
          ' If it has a submenu, process it recursively
          IF mii.hSubMenu THEN
-            tkMenu_DestroyBitmaps(mii.hSubMenu)
+            Menu.DestroyBitmaps(mii.hSubMenu)
          END IF
          ' If it has a bitmap and is NOT one of the special ones
          IF mii.hbmpItem <> NULL _
@@ -1685,3 +1686,4 @@ PUBLIC SUB tkMenu_DestroyBitmaps (BYVAL hMenu AS HMENU)
     NEXT
 END SUB
 ' ========================================================================================
+END NAMESPACE
