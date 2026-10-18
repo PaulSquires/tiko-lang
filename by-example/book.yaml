@@ -11,12 +11,12 @@ pin:
   windows:
     root: "../toolchains/tiko-windows"      # relative to this directory
     exe: "tiko.exe"
-    commit: "ca9b3d75f"
+    commit: "58c73ab2a"
     packaged: "2026-10-18"
   linux:
     root: "../toolchains/tiko-linux"        # same path, reached through WSL
     exe: "bin/tiko"
-    commit: "ca9b3d75f"
+    commit: "58c73ab2a"
     packaged: "2026-10-18"
     wsl_distro: "Ubuntu"
   targets: [windows-x86_64, linux-x86_64]
