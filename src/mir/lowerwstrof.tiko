@@ -382,4 +382,19 @@ function Utf8WideLit_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     return false
 end function
 
+'' DOES THIS CONCATENATION HOLD A NON-ASCII UTF-8 LITERAL (Utf8WideLit_)? Only for a context
+'' that is already wide -- a comparison whose other side is a wstring -- where the chain must
+'' be built wide so the literal is its characters, not its bytes widened one by one.
+function ConcatHasUtf8Lit_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    if e = Tko.NODE_NONE then return false
+    if c.ast->Kind( e ) <> Tko.N_BINARY then return Utf8WideLit_( c, e )
+    if c.info->RefOf( e ) <> Tko.SYMBOL_NONE then return false
+    dim as containers.Array( of uint32 ) vt
+    FlattenConcat( c, e, vt )
+    for k as int32 = 0 to vt.Count - 1
+        if Utf8WideLit_( c, cast( Tko.NodeId, vt[k] ) ) then return true
+    next
+    return false
+end function
+
 end namespace

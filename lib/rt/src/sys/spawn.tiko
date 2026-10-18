@@ -3,11 +3,14 @@
 ''
 '' TWO IMPLEMENTATIONS THAT SHARE ONLY THEIR SIGNATURE.
 ''
-''   Windows   _spawnl / _execl with the arguments as ONE STRING. The CRT hands
+''   Windows   _wspawnl / _wexecl with the arguments as ONE STRING. The CRT hands
 ''             the command line to the child unparsed, so the child's own startup
 ''             splits it -- which is why the program path goes through
 ''             fb_hGetShortPath first: a path with a space in it would be split
-''             into two arguments by the child.
+''             into two arguments by the child. The program and the arguments go
+''             as UTF-16: UTF-8 when valid, else the ANSI code page (fs/upath.tiko)
+''             -- a tiko divergence from fbc's narrow _spawnl, by the author's
+''             decision -- so the short path is GetShortPathNameW's.
 ''   POSIX     fork + execvp with a real argv VECTOR. fb_hParseArgs splits the
 ''             argument string IN PLACE into NUL-separated pieces and returns the
 ''             count; the pointers are then walked out of that buffer.
@@ -46,6 +49,7 @@
 #include once "inc/console.ti"
 #include once "inc/print.ti"
 #include once "inc/sysbind.ti"
+#include once "inc/upath.ti"
 
 '' fb.h's MAX_PATH, which is fbc's own 1024 and NOT Windows' 260.
 const TKORT_EXEC_MAXPATH = 1024
@@ -80,12 +84,12 @@ end extern
 	extern "c"   '' NON-FBCALL: MSVCRT, and fbc's short-path helper.
 		'' VARIADIC, and therefore cdecl: the argument list is terminated by a
 		'' NULL, which is why these cannot be declared with a fixed arity.
-		declare function crt_spawnl alias "_spawnl" _
-			( byval mode_ as int32, byval path as zstring ptr, ... ) as integer
-		declare function crt_execl alias "_execl" _
-			( byval path as zstring ptr, ... ) as integer
-		declare function tkrt_hGetShortPath alias "fb_hGetShortPath" _
-			( byval src as zstring ptr, byval dst as zstring ptr, byval maxlen as integer ) as zstring ptr
+		declare function crt_wspawnl alias "_wspawnl" _
+			( byval mode_ as int32, byval path as const wstring ptr, ... ) as integer
+		declare function crt_wexecl alias "_wexecl" _
+			( byval path as const wstring ptr, ... ) as integer
+		declare function w_GetShortPathNameW stdcall alias "GetShortPathNameW" _
+			( byval l as const wstring ptr, byval s as wstring ptr, byval n as uint32 ) as uint32
 		'' fbc's, in io_printbuff.o -- still C, and the reason this file cannot
 		'' spell FB_CON_CORRECT_POSITION as anything but a call.
 		declare sub tkrt_ConsolePrintBufferEx alias "fb_ConsolePrintBufferEx" _
@@ -113,6 +117,29 @@ end extern
 
 #endif
 
+#ifdef __FB_WIN32__
+
+'' fb_hGetShortPath's rule in UTF-16: a program path with no space is used as it is; one with a
+'' space becomes its short form, and if GetShortPathNameW fails (no 8.3 names on the volume)
+'' the long path is used. malloc'd -- free it; nullptr when the path does not convert.
+private function hWideShortPath( byval p as zstring ptr ) as wstring ptr
+	dim as wstring ptr w = tkrt_PathToWide( p )
+	if( (w = nullptr) orelse (strchr( p, 32 ) = nullptr) ) then return w
+	dim as uint32 n = w_GetShortPathNameW( w, nullptr, 0 )
+	if( n = 0 ) then return w
+	dim as wstring ptr sp = malloc( cast( uinteger, n ) * 2 )
+	if( sp = nullptr ) then return w
+	dim as uint32 got = w_GetShortPathNameW( w, sp, n )
+	if( (got = 0) orelse (got >= n) ) then
+		free( sp )
+		return w
+	end if
+	free( w )
+	return sp
+end function
+
+#endif
+
 extern "rtlib"   '' FBCALL: fb_system.h decorates fb_ExecEx, and the win32
                  '' archive spells it `_fb_ExecEx@12`.
 
@@ -135,8 +162,8 @@ function tkort_ExecEx alias "fb_ExecEx" _
 
 	#ifdef __FB_WIN32__
 		'' THE SHORT PATH, because the child's own startup splits the command
-		'' line on spaces and a long path would be torn in two.
-		tkrt_hGetShortPath( program->data, @buffer, TKORT_EXEC_MAXPATH )
+		'' line on spaces and a long path would be torn in two -- as UTF-16.
+		dim as wstring ptr wprog = hWideShortPath( program->data )
 
 		'' ONE STRING, NOT A VECTOR -- see the file header.
 		if( args = nullptr ) then
@@ -168,14 +195,19 @@ function tkort_ExecEx alias "fb_ExecEx" _
 
 		'' THE ARGUMENT LIST IS NULL-TERMINATED, which is what makes these
 		'' variadic rather than three-argument calls.
-		if( do_fork <> 0 ) then
-			res = cast( int32, crt_spawnl( TKORT_P_WAIT, @buffer, @buffer, arguments, 0 ) )
+		dim as wstring ptr wargs = tkrt_PathToWide( arguments )
+		if( (wprog = nullptr) orelse (wargs = nullptr) ) then
+			res = -1
+		elseif( do_fork <> 0 ) then
+			res = cast( int32, crt_wspawnl( TKORT_P_WAIT, wprog, wprog, wargs, 0 ) )
 		else
-			res = cast( int32, crt_execl( @buffer, @buffer, arguments, 0 ) )
+			res = cast( int32, crt_wexecl( wprog, wprog, wargs, 0 ) )
 		end if
 
 		'' Freed on every path that returns -- alloca would have done it.
 		if( (args <> nullptr) andalso (arguments <> nullptr) ) then free( arguments )
+		if( wprog <> nullptr ) then free( wprog )
+		if( wargs <> nullptr ) then free( wargs )
 
 		return res
 	#else

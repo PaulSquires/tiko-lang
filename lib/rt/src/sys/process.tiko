@@ -108,6 +108,62 @@ private function hWideDirCall( byval p as zstring ptr, byval which as int32 ) as
 end function
 #endif
 
+#ifdef __FB_WIN32__
+
+'' THE CRT's OWN WIDE PARSE of the command line, so the split is exactly the narrow argv's:
+'' the UCRT's _configure_wide_argv on the Microsoft ABI, msvcrt's __wgetmainargs elsewhere.
+#ifdef TKORT_MSVC
+	extern "c"   '' NON-FBCALL: ucrtbase.dll.
+		declare function crt_configure_wide_argv alias "_configure_wide_argv" ( byval mode_ as int32 ) as int32
+		declare function crt_p_argc alias "__p___argc" ( ) as int32 ptr
+		declare function crt_p_wargv alias "__p___wargv" ( ) as wstring ptr ptr ptr
+	end extern
+#else
+	extern "c"   '' NON-FBCALL: msvcrt.dll.
+		declare function crt_wgetmainargs alias "__wgetmainargs" _
+			( byval argc as int32 ptr, byval argv as wstring ptr ptr ptr, byval env as wstring ptr ptr ptr, _
+			  byval glob as int32, byval si as int32 ptr ) as int32
+	end extern
+#endif
+
+dim shared as zstring ptr ptr hArgv8 = nullptr
+
+'' COMMAND'S ARGUMENTS AS UTF-8 on Windows -- a tiko divergence from fbc, whose COMMAND is the
+'' CRT's ANSI argv, where an argument the code page cannot spell is already lost: by the
+'' author's decision (C:\dev\docs	iko-unicode-paths\PLAN.md). Built once, on the first
+'' COMMAND, and kept for the life of the process, as the CRT keeps its own. The narrow argv is
+'' the answer whenever the wide one is not there or has a different count, and for any single
+'' argument that does not convert. Two threads making the first call at once can both build
+'' it; one copy is then never freed, which is all that race costs.
+private function hArgvUtf8( ) as zstring ptr ptr
+	if( hArgv8 <> nullptr ) then return hArgv8
+	dim as int32 wc = 0
+	dim as wstring ptr ptr wv = nullptr
+	#ifdef TKORT_MSVC
+		'' 1 = _crt_argv_unexpanded_arguments, as _configure_narrow_argv was called.
+		if( crt_configure_wide_argv( 1 ) = 0 ) then
+			wc = *crt_p_argc( )
+			wv = *crt_p_wargv( )
+		end if
+	#else
+		dim as wstring ptr ptr wenv = nullptr
+		dim as int32 si = 0   '' _startupinfo: one int, newmode
+		if( crt_wgetmainargs( @wc, @wv, @wenv, 0, @si ) <> 0 ) then wv = nullptr
+	#endif
+	if( (wv = nullptr) orelse (wc <> __fb_ctx.argc) ) then return __fb_ctx.argv
+	dim as zstring ptr ptr a = malloc( sizeof( any ptr ) * cast( uinteger, wc + 1 ) )
+	if( a = nullptr ) then return __fb_ctx.argv
+	for i as integer = 0 to wc - 1
+		a[i] = tkrt_WideToUtf8( wv[i] )
+		if( a[i] = nullptr ) then a[i] = __fb_ctx.argv[i]
+	next
+	a[wc] = nullptr
+	hArgv8 = a
+	return a
+end function
+
+#endif
+
 extern "rtlib"
 
 '' ------------------------------------------------------------------ CURDIR$
@@ -176,6 +232,7 @@ end function
 
 '' ------------------------------------------------------------------ COMMAND$
 
+
 '' arg < 0 JOINS EVERYTHING FROM argv[1]; arg >= argc is the empty string, and
 '' arg = 0 is the program name. A program with no arguments answers "" to
 '' COMMAND$(-1) without allocating anything.
@@ -184,6 +241,13 @@ function tkort_Command alias "fb_Command" ( byval arg as int32 ) as FBSTRING ptr
 	dim as FBSTRING ptr dst = any
 	dim as integer i = any, length_ = any
 
+	'' ON WINDOWS THE ARGUMENTS ARE UTF-8 (hArgvUtf8), not the CRT's ANSI argv.
+	#ifdef __FB_WIN32__
+		dim as zstring ptr ptr argv_ = hArgvUtf8( )
+	#else
+		dim as zstring ptr ptr argv_ = __fb_ctx.argv
+	#endif
+
 	if( arg < 0 ) then
 		if( __fb_ctx.argc <= 1 ) then return TKORT_NULLSTR()
 
@@ -191,7 +255,7 @@ function tkort_Command alias "fb_Command" ( byval arg as int32 ) as FBSTRING ptr
 		'' argc-1 arguments from argv[1] up.
 		length_ = 0
 		for i = 1 to __fb_ctx.argc - 1
-			length_ += strlen( __fb_ctx.argv[i] )
+			length_ += strlen( argv_[i] )
 		next
 
 		dst = tkrt_hStrAllocTemp( nullptr, length_ + __fb_ctx.argc - 2 )
@@ -201,7 +265,7 @@ function tkort_Command alias "fb_Command" ( byval arg as int32 ) as FBSTRING ptr
 		'' argument count and irrelevant at any realistic one.
 		dst->data[0] = 0
 		for i = 1 to __fb_ctx.argc - 1
-			strcat( dst->data, __fb_ctx.argv[i] )
+			strcat( dst->data, argv_[i] )
 			if( i <> __fb_ctx.argc - 1 ) then strcat( dst->data, @" " )
 		next
 
@@ -210,11 +274,11 @@ function tkort_Command alias "fb_Command" ( byval arg as int32 ) as FBSTRING ptr
 
 	if( arg >= __fb_ctx.argc ) then return TKORT_NULLSTR()
 
-	length_ = strlen( __fb_ctx.argv[arg] )
+	length_ = strlen( argv_[arg] )
 	dst = tkrt_hStrAllocTemp( nullptr, length_ )
 	if( dst = nullptr ) then return TKORT_NULLSTR()
 
-	strcpy( dst->data, __fb_ctx.argv[arg] )
+	strcpy( dst->data, argv_[arg] )
 
 	return dst
 end function

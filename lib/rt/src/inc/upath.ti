@@ -12,11 +12,16 @@ extern "c"   '' NON-FBCALL, as fs/upath.tiko defines them.
 	declare function tkrt_PathRemove alias "fb_hPathRemove" ( byval p as const zstring ptr ) as int32
 	declare function tkrt_PathRename alias "fb_hPathRename" _
 		( byval a as const zstring ptr, byval b as const zstring ptr ) as int32
+	'' popen() -- OPEN PIPE's command, as UTF-16 on Windows.
+	declare function tkrt_PathPopen alias "fb_hPathPopen" _
+		( byval c as const zstring ptr, byval m as const zstring ptr ) as FILE ptr
 	#ifdef __FB_WIN32__
 		'' malloc'd UTF-16 -- free it; nullptr on failure.
 		declare function tkrt_PathToWide alias "fb_hPathToWide" ( byval p as const zstring ptr ) as wstring ptr
 		'' UTF-16 to UTF-8 into dst (maxlen bytes with the terminator); the length, or 0.
 		declare function tkrt_PathFromWide alias "fb_hPathFromWide" _
 			( byval w as const wstring ptr, byval dst as zstring ptr, byval maxlen as integer ) as integer
+		'' UTF-16 to UTF-8, malloc'd -- free it; nullptr on failure.
+		declare function tkrt_WideToUtf8 alias "fb_hWideToUtf8" ( byval w as const wstring ptr ) as zstring ptr
 	#endif
 end extern

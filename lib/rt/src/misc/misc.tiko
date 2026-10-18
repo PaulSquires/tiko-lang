@@ -27,6 +27,7 @@
 #include once "inc/descriptors.ti"
 #include once "inc/ctx.ti"
 #include once "inc/sysbind.ti"
+#include once "inc/upath.ti"
 
 '' --------------------------------------------------------------------- I18N
 
@@ -128,6 +129,39 @@ extern "c"   '' NON-FBCALL: libc and the internal temp-descriptor helpers.
 	declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
 end extern
 
+#ifdef __FB_WIN32__
+
+extern "c"   '' NON-FBCALL: kernel32 and the CRT's wide environment.
+	declare function w_GetEnvironmentVariableW stdcall alias "GetEnvironmentVariableW" _
+		( byval n as const wstring ptr, byval v as wstring ptr, byval cap as uint32 ) as uint32
+	declare function crt_wputenv alias "_wputenv" ( byval s as const wstring ptr ) as int32
+end extern
+
+'' ENVIRON'S VALUE AS UTF-8, malloc'd -- free it -- or nullptr when the variable is not set.
+'' The name is UTF-8 when valid, else the ANSI code page (fs/upath.tiko): a tiko divergence from
+'' fbc's getenv, by the author's decision. It reads the OS environment block, not the CRT's
+'' narrow copy, whose non-ANSI characters were lost when it was made. _wputenv (SETENVIRON)
+'' updates that block too.
+private function hEnvUtf8( byval varname as const zstring ptr ) as zstring ptr
+	dim as wstring ptr wn = tkrt_PathToWide( varname )
+	if( wn = nullptr ) then return nullptr
+	dim as zstring ptr res = nullptr
+	dim as uint32 n = w_GetEnvironmentVariableW( wn, nullptr, 0 )
+	if( n > 0 ) then
+		dim as wstring ptr wv = malloc( cast( uinteger, n ) * 2 )
+		if( wv <> nullptr ) then
+			wv[0] = 0
+			'' Shorter than n, or the variable changed between the two calls.
+			if( w_GetEnvironmentVariableW( wn, wv, n ) < n ) then res = tkrt_WideToUtf8( wv )
+			free( wv )
+		end if
+	end if
+	free( wn )
+	return res
+end function
+
+#endif
+
 #ifdef ENABLE_MT
 	#define STRLOCK()   fb_StrLock()
 	#define STRUNLOCK() fb_StrUnlock()
@@ -144,7 +178,11 @@ function tkort_GetEnviron alias "fb_GetEnviron" ( byval varname as FBSTRING ptr 
 	dim as integer len_ = any
 
 	if( varname <> nullptr ) then
-		if( varname->data <> nullptr ) then tmp = c_getenv( varname->data )
+		#ifdef __FB_WIN32__
+			if( varname->data <> nullptr ) then tmp = hEnvUtf8( varname->data )
+		#else
+			if( varname->data <> nullptr ) then tmp = c_getenv( varname->data )
+		#endif
 	end if
 
 	STRLOCK()
@@ -173,6 +211,10 @@ function tkort_GetEnviron alias "fb_GetEnviron" ( byval varname as FBSTRING ptr 
 
 	STRUNLOCK()
 
+	#ifdef __FB_WIN32__
+		if( tmp <> nullptr ) then free( tmp )
+	#endif
+
 	return dst
 end function
 
@@ -180,7 +222,19 @@ function tkort_SetEnviron alias "fb_SetEnviron" ( byval s as FBSTRING ptr ) as i
 	dim as int32 res = 0
 
 	if( s <> nullptr ) then
-		if( s->data <> nullptr ) then res = c_putenv( s->data )
+		#ifdef __FB_WIN32__
+			'' AS UTF-16 (hEnvUtf8 above). -1, putenv's failure, if it does not convert.
+			if( s->data <> nullptr ) then
+				dim as wstring ptr w = tkrt_PathToWide( s->data )
+				res = -1
+				if( w <> nullptr ) then
+					res = crt_wputenv( w )
+					free( w )
+				end if
+			end if
+		#else
+			if( s->data <> nullptr ) then res = c_putenv( s->data )
+		#endif
 	end if
 
 	tkrt_StrDelTemp( s )

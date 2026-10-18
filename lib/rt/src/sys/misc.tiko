@@ -49,6 +49,7 @@
 #include once "inc/descriptors.ti"
 #include once "inc/console.ti"
 #include once "inc/sysbind.ti"
+#include once "inc/upath.ti"
 
 '' fb.h's FB_EXT_CHAR, spelled as a byte -- it is `((char)255)` there, which is
 '' -1 on a signed-char platform and 255 on an unsigned one. Comparing as UBYTE
@@ -62,6 +63,9 @@ extern "c"   '' NON-FBCALL: the string lock, declared plain in fb_string.h, and
 	'' `system_` is already taken -- FreeBASIC provides it -- so the binding
 	'' carries a prefix like every other libc call in this tree.
 	declare function crt_system alias "system" ( byval cmd as zstring ptr ) as int32
+	#ifdef __FB_WIN32__
+		declare function crt_wsystem alias "_wsystem" ( byval cmd as const wstring ptr ) as int32
+	#endif
 end extern
 
 extern "rtlib"   '' FBCALL: fb_Inkey and fb_Sleep are both decorated, and the
@@ -216,8 +220,18 @@ end function
 '' WEXITSTATUS -- and reads 127, "/bin/sh could not be executed", as -1. So does
 '' this, with the two macros spelled out: WIFEXITED is (st and &h7F) = 0, and
 '' WEXITSTATUS is (st shr 8) and &hFF. Windows' system() already returns the code.
+''
+'' ON WINDOWS THE COMMAND IS UTF-16, through _wsystem: its bytes are UTF-8 when valid, else
+'' the ANSI code page (fs/upath.tiko), so 'shell "dir 日本"' reaches cmd.exe intact.
 function tkort_hShell alias "fb_hShell" ( byval program as zstring ptr ) as int32
-	dim as int32 errcode = crt_system( program )
+	#ifdef __FB_WIN32__
+		dim as wstring ptr w = tkrt_PathToWide( program )
+		if( w = nullptr ) then return -1
+		dim as int32 errcode = crt_wsystem( w )
+		free( w )
+	#else
+		dim as int32 errcode = crt_system( program )
+	#endif
 	#ifndef __FB_WIN32__
 		if( (errcode <> -1) andalso ((errcode and &h7F) = 0) ) then
 			errcode = (errcode shr 8) and &hFF

@@ -15,6 +15,10 @@
 '' RETURNS -- CURDIR, EXEPATH, DIR's names -- comes back as UTF-8 (PathFromWide), so it can be
 '' handed straight back in. Pure ASCII is the same either way.
 ''
+'' THE SAME RULE COVERS THE TEXT THE OTHER STATEMENTS HAND TO WINDOWS (by the same decision):
+'' OPEN PIPE's command (fb_hPathPopen, here), SHELL, EXEC/RUN/CHAIN, DYLIBLOAD, ENVIRON and
+'' SETENVIRON (sys/ and misc/), and COMMAND, which returns the CRT's wide argv as UTF-8.
+''
 '' ELSEWHERE a path is bytes, which is what the file system stores: everything forwards.
 
 #include once "inc/descriptors.ti"
@@ -41,6 +45,8 @@ extern "c"   '' NON-FBCALL: Win32 and the UCRT's wide file functions.
 	declare function crt_wremove alias "_wremove" ( byval p as const wstring ptr ) as int32
 	declare function crt_wrename alias "_wrename" _
 		( byval a as const wstring ptr, byval b as const wstring ptr ) as int32
+	declare function crt_wpopen alias "_wpopen" _
+		( byval c as const wstring ptr, byval m as const wstring ptr ) as FILE ptr
 end extern
 
 #else
@@ -48,6 +54,8 @@ end extern
 extern "c"   '' NON-FBCALL: libc.
 	declare function crt_remove alias "remove" ( byval p as const zstring ptr ) as int32
 	declare function crt_rename alias "rename" ( byval a as const zstring ptr, byval b as const zstring ptr ) as int32
+	declare function crt_popen alias "popen" _
+		( byval c as const zstring ptr, byval m as const zstring ptr ) as FILE ptr
 end extern
 
 #endif
@@ -91,6 +99,21 @@ function tkort_PathFromWide alias "fb_hPathFromWide" _
 		return 0
 	end if
 	return n - 1
+end function
+
+'' UTF-16 AS UTF-8, malloc'd -- free it -- for text of any length: an argument of COMMAND, a
+'' value of ENVIRON. nullptr for a null string or a failed conversion.
+function tkort_WideToUtf8 alias "fb_hWideToUtf8" ( byval w as const wstring ptr ) as zstring ptr
+	if( w = nullptr ) then return nullptr
+	dim as int32 n = w_WideCharToMultiByte( CP_UTF8_, 0, w, -1, nullptr, 0, nullptr, nullptr )
+	if( n <= 0 ) then return nullptr
+	dim as zstring ptr s = malloc( cast( uinteger, n ) )
+	if( s = nullptr ) then return nullptr
+	if( w_WideCharToMultiByte( CP_UTF8_, 0, w, -1, s, n, nullptr, nullptr ) <= 0 ) then
+		free( s )
+		return nullptr
+	end if
+	return s
 end function
 
 '' fopen's mode, "rb" / "w+b", is ASCII: widened in place.
@@ -154,6 +177,23 @@ function tkort_PathRemove alias "fb_hPathRemove" ( byval p as const zstring ptr 
 		return r
 	#else
 		return crt_remove( p )
+	#endif
+end function
+
+'' popen(): OPEN PIPE. The command goes to the shell as UTF-16 on Windows (_wpopen), so a
+'' command line naming '日本' reaches cmd.exe intact.
+function tkort_PathPopen alias "fb_hPathPopen" _
+	( byval c as const zstring ptr, byval m as const zstring ptr ) as FILE ptr
+	#ifdef __FB_WIN32__
+		dim as wstring ptr w = tkort_PathToWide( c )
+		if( w = nullptr ) then return nullptr
+		dim as wstring * 16 wm = any
+		hWideMode( m, @wm, 16 )
+		dim as FILE ptr f = crt_wpopen( w, @wm )
+		free( w )
+		return f
+	#else
+		return crt_popen( c, m )
 	#endif
 end function
 

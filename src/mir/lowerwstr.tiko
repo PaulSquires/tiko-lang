@@ -685,8 +685,14 @@ function ConcatHasWideTerm_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     end if
     dim as containers.Array( of uint32 ) vt
     FlattenConcat( c, e, vt )
+    '' A NON-ASCII UTF-8 LITERAL IS NOT A WIDE TERM: it follows its context like any other
+    '' literal. Measured, fbc-modern types 'v & "ñ"' STRING and keeps the literal's bytes
+    '' (C3 B1); counting it here made the chain wide, and a narrow destination then got it back
+    '' through the ANSI code page -- 'ñ' as F1, '日本' as '??'. Where the context IS wide, the
+    '' literal's characters are what count: ConcatHasUtf8Lit_ below, asked by the comparison,
+    '' and WideConcatToTemp_, which decodes each such term (wstring/utf8.bas).
     for k as int32 = 0 to vt.Count - 1
-        if TermIsWide_( c, cast( Tko.NodeId, vt[k] ) ) orelse Utf8WideLit_( c, cast( Tko.NodeId, vt[k] ) ) then return true   '' a UTF-8 literal too
+        if TermIsWide_( c, cast( Tko.NodeId, vt[k] ) ) then return true
     next
     return false
 end function

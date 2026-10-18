@@ -53,6 +53,7 @@
 #include once "inc/rterror.ti"
 #include once "inc/ctx.ti"
 #include once "inc/sysbind.ti"
+#include once "inc/upath.ti"
 
 const FB_FILE_ACCESS_ANY       = 0
 const FB_FILE_ACCESS_READ      = 1
@@ -262,7 +263,8 @@ function tkort_DevPipeOpen alias "fb_DevPipeOpen" _
 	end select
 
 	if( res = FB_RTERROR_OK ) then
-		fp = crt_popen( filename, @openmask )
+		'' THE COMMAND AS UTF-16 ON WINDOWS (fs/upath.tiko): UTF-8 if valid, else ANSI.
+		fp = tkrt_PathPopen( filename, @openmask )
 		if( fp = nullptr ) then res = tkrt_ErrorSetNum( FB_RTERROR_FILENOTFOUND )
 		'' opaque IS SET EVEN WHEN popen FAILED, to NULL -- which is what every
 		'' hook then tests for.

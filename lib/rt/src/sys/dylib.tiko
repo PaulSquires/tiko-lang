@@ -35,6 +35,7 @@
 #include once "inc/descriptors.ti"
 #include once "inc/iolock.ti"
 #include once "inc/sysbind.ti"
+#include once "inc/upath.ti"
 
 extern "c"   '' NON-FBCALL: the internal temp-descriptor helper.
 	declare sub tkrt_StrDelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr )
@@ -47,7 +48,7 @@ end extern
 const TKORT_PROCNAME_MAX = 1024
 
 extern "c"   '' NON-FBCALL: kernel32 imports, not rtlib entry points.
-	declare function w_LoadLibraryA stdcall alias "LoadLibraryA" ( byval n as zstring ptr ) as any ptr
+	declare function w_LoadLibraryW stdcall alias "LoadLibraryW" ( byval n as const wstring ptr ) as any ptr
 	declare function w_FreeLibrary stdcall alias "FreeLibrary" ( byval h as any ptr ) as int32
 	declare function w_GetProcAddress stdcall alias "GetProcAddress" ( byval h as any ptr, byval n as zstring ptr ) as any ptr
 	declare function w_GetModuleHandleA stdcall alias "GetModuleHandleA" ( byval n as zstring ptr ) as any ptr
@@ -55,13 +56,24 @@ extern "c"   '' NON-FBCALL: kernel32 imports, not rtlib entry points.
 	declare function c_strchr alias "strchr" ( byval s as zstring ptr, byval c as int32 ) as zstring ptr
 end extern
 
+'' THE LIBRARY NAME AS UTF-16, through LoadLibraryW: UTF-8 when valid, else the ANSI code page
+'' (fs/upath.tiko) -- a tiko divergence from fbc's LoadLibraryA, by the author's decision, so a
+'' DLL in a folder named '日本' loads.
+private function hLoadWide( byval n as const zstring ptr ) as any ptr
+	dim as wstring ptr w = tkrt_PathToWide( n )
+	if( w = nullptr ) then return nullptr
+	dim as any ptr h = w_LoadLibraryW( w )
+	free( w )
+	return h
+end function
+
 extern "rtlib"
 
 function tkort_DylibLoad alias "fb_DylibLoad" ( byval library as FBSTRING ptr ) as any ptr
 	dim as any ptr res = nullptr
 
 	if( library <> nullptr ) then
-		if( library->data <> nullptr ) then res = w_LoadLibraryA( library->data )
+		if( library->data <> nullptr ) then res = hLoadWide( library->data )
 	end if
 
 	'' del if temp
@@ -132,7 +144,7 @@ function tkort_hDynLoad alias "fb_hDynLoad" _
 	dim as any ptr hlib = any
 	dim as integer i = any
 
-	hlib = w_LoadLibraryA( libname )
+	hlib = hLoadWide( libname )
 	if( hlib = nullptr ) then return nullptr
 
 	'' ALL OR NOTHING -- see the file header.

@@ -457,6 +457,20 @@ function LowerBuiltinProc _
                     continue for
                 end if
             end if
+            '' ...AND A WSTRING into a narrow temporary of its own. fbc converts one through
+            '' fb_WstrAssignToA; 'run( w )', 'chain( w )' and 'dylibload( w )' were TKO0801. As
+            '' UTF-8 for RUN, CHAIN and DYLIBLOAD, by the path rule (lib/rt/src/fs/upath.tiko),
+            '' where fbc's ANSI loses '日本'; the other descriptor builtins keep fbc's conversion.
+            if TermIsWide_( c, a ) orelse ConcatHasWideTerm_( c, a ) then
+                dim as boolean savedB = c.pathUtf8
+                c.pathUtf8 = (r = RTL_RUN) orelse (r = RTL_CHAIN) orelse (r = RTL_DYLIB_LOAD)
+                dim as boolean okb = WideToNarrowTemp_( c, a, sdv )
+                c.pathUtf8 = savedB
+                if okb = false then return false
+                args.Push( cast( uint32, sdv.kind ) )
+                args.Push( cast( uint32, sdv.id ) )
+                continue for
+            end if
         end if
 
         dim as MirValue av = LowerExpr( c, a )

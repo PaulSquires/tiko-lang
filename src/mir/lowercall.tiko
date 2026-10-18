@@ -191,7 +191,8 @@ private function PathEntryCallee_( byref c as Ctx, byval callee as Tko.SymbolId 
     if sp->aliasName = 0 then return false
     select case Tko.Text.LowerAscii( c.names->Spelling( sp->aliasName ) )
     case "fb_filekill", "fb_mkdir", "fb_rmdir", "fb_chdir", "fb_dir", "fb_dir64", _
-         "fb_fileexists", "fb_filelen", "fb_filelenex", "fb_filecopy", "fb_filedatetime"
+         "fb_fileexists", "fb_filelen", "fb_filelenex", "fb_filecopy", "fb_filedatetime", _
+         "fb_shell", "fb_exec", "fb_getenviron", "fb_setenviron"   '' the same rule for their text
         return true
     end select
     return false

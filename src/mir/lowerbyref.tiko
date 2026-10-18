@@ -649,7 +649,10 @@ function UStrToStrTemp_( byref c as Ctx, byval e as Tko.NodeId, byref outv as Mi
     if c.types->Kind( ut ) = Tko.TK_REFERENCE then ut = c.types->Unqualify( c.types->Inner( ut ) )
     '' ...AND A 'ustring * N', whose (buffer, tag) pair EmitStrTerm pushes: measured,
     '' 'fb_VAL( fb_UStrToStr( LF$0, &h8000000000000005 ) )'. It was a false TKO0626.
-    if IsUStringType( c, ut ) = false then return false
+    '' ...AND A USTRING CHAIN, which Check types STRING (IsUStrChain_): 'open "a_" & u' and
+    '' 'open pipe "echo " & u' handed the runtime fb_UStrConcat's UTF-16 descriptor as a
+    '' narrow name, and cmd.exe was given the single character 'e'.
+    if (IsUStringType( c, ut ) = false) andalso (IsUStrChain_( c, e ) = false) then return false
     dim as containers.Array( of uint32 ) args
     if EmitStrTerm( c, args, e, true ) = false then return false
     outv = EmitRtl( c, RTL_USTR_TO_STR, args )

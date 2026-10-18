@@ -60,6 +60,11 @@ function LowerStrCompare _
     dim as Tko.NodeId cr = Unparen_( c, bp->rhs )
     dim as boolean lw = TermIsWide_( c, bp->lhs ) orelse ConcatHasWideTerm_( c, cl )
     dim as boolean rw = TermIsWide_( c, bp->rhs ) orelse ConcatHasWideTerm_( c, cr )
+    '' A UTF-8 LITERAL CHAIN AGAINST A WIDE SIDE is built wide, so its literals are their
+    '' characters: 'hw1 = hello + world' (wstring/utf8.bas). Against a narrow side it stays a
+    '' byte concatenation, as fbc keeps it (lowerwstr.tiko, ConcatHasWideTerm_).
+    if lw andalso (rw = false) andalso (cr <> Tko.NODE_NONE) andalso (c.ast->Kind( cr ) = Tko.N_BINARY) then rw = ConcatHasUtf8Lit_( c, cr )
+    if rw andalso (lw = false) andalso (cl <> Tko.NODE_NONE) andalso (c.ast->Kind( cl ) = Tko.N_BINARY) then lw = ConcatHasUtf8Lit_( c, cl )
     dim as boolean isWide = lw orelse rw
     '' ...UNLESS THE OTHER SIDE IS A USTRING, in which case it is a UTF-16 comparison
     '' and the WIDE operand is the one converted -- 'fb_WstrToUStr' then fb_UStrCompare,

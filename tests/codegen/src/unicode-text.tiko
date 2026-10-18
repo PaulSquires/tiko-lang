@@ -1,0 +1,155 @@
+'' COMMAND, ENVIRON/SETENVIRON, SHELL, EXEC, RUN, CHAIN, DYLIBLOAD and OPEN PIPE with text
+'' outside the ANSI code page -- Latin-1, CJK and an emoji, a surrogate pair in UTF-16 -- given
+'' as a STRING (UTF-8 bytes), a USTRING and a WSTRING. A tiko divergence from fbc, whose runtime
+'' hands Windows the bytes as ANSI. Each check looks at the EFFECT: a file std/fs (the W
+'' functions) sees on disk, a child's own COMMAND and, on Windows, its raw GetCommandLineW, the
+'' environment block as GetEnvironmentVariableW reads it. Inside a temporary directory.
+#import "std/fs"
+#ifdef __FB_WIN32__
+#include once "windows.bi"
+#endif
+
+const U = "ñ_日本_😀"
+dim shared as integer fails = 0
+sub Check( byref what as string, byval ok as boolean )
+    if ok = false then
+        print "FAIL "; what
+        fails += 1
+    end if
+end sub
+
+'' THE WIDE SIDE, Windows only: the text as UTF-16, from a local (a 'dim shared' wide
+'' initialiser is decoded byte by byte -- a separate compiler bug).
+#ifdef __FB_WIN32__
+function WideU( ) as wstring ptr
+    static as wstring * 32 w
+    dim as wstring * 32 l = "ñ_日本_😀"
+    w = l
+    return @w
+end function
+function WideCmdHas( ) as boolean
+    return instr( *GetCommandLineW( ), *WideU( ) ) > 0
+end function
+function WideEnvIs( byref n as string, byref v as string ) as boolean
+    dim as wstring * 64 wn, wv, buf
+    MultiByteToWideChar( CP_UTF8, 0, strptr( n ), -1, @wn, 64 )
+    MultiByteToWideChar( CP_UTF8, 0, strptr( v ), -1, @wv, 64 )
+    dim as long k = GetEnvironmentVariableW( @wn, @buf, 64 )
+    return (k > 0) andalso (buf = wv)
+end function
+#endif
+
+'' THE CHILDREN. EXEC's checks its arguments; RUN's replaces itself with a leaf that names a
+'' file after its argument; CHAIN's has no arguments and reads the environment it inherited.
+select case command( 1 )
+case "child"
+    #ifdef __FB_WIN32__
+        if WideCmdHas( ) = false then end 2
+    #endif
+    if (command( 2 ) = U) andalso (command( -1 ) = "child " & U) then end 42
+    end 1
+case "dorun"
+    run( command( 0 ), "leaf " & U )
+    end 3
+case "leaf"
+    #ifdef __FB_WIN32__
+        if WideCmdHas( ) = false then end 2
+    #endif
+    fs.WriteAllText( "leaf_" & command( 2 ) & ".txt", "x" )
+    end 0
+case ""
+    if environ( "TKU_MODE" ) = "chain_" & U then end 43
+end select
+
+'' The program itself, by absolute name: the children run after the CHDIR below.
+dim as string self = command( 0 )
+dim as integer sl = instrrev( self, any "/\" )
+self = exepath( ) & "/" & mid( self, sl + 1 )
+#ifdef __FB_WIN32__
+    if lcase( right( self, 4 ) ) <> ".exe" then self &= ".exe"
+#endif
+
+dim as ustring tmp = fs.CreateTempDir( "tkutext" ).ValueOr( "" )
+if len( tmp ) = 0 then print "no temp dir" : end 1
+chdir tmp
+
+'' ENVIRON / SETENVIRON: a value and a name outside the code page, as each kind
+dim as string s = U
+dim as ustring uv = U   '' not 'u': FB names are case-blind, so that is U again
+dim as wstring * 32 w = "ñ_日本_😀"
+dim as wstring * 64 we = "TKU_W=ñ_日本_😀"
+Check( "setenviron string", setenviron( "TKU_S=" & s ) = 0 )
+Check( "setenviron ustring", setenviron( "TKU_U=" & uv ) = 0 )
+Check( "setenviron wstring", setenviron( we ) = 0 )
+Check( "environ string", environ( "TKU_S" ) = U )
+Check( "environ ustring", environ( "TKU_U" ) = U )
+Check( "environ wstring", environ( "TKU_W" ) = U )
+Check( "setenviron name", setenviron( "TKU_" & s & "=1" ) = 0 )
+Check( "environ name", environ( "TKU_" & s ) = "1" )
+dim as wstring * 64 wn = "TKU_ñ_日本_😀"
+Check( "environ wstring name", environ( wn ) = "1" )
+Check( "environ unset", environ( "TKU_NOT_SET_9" ) = "" )
+#ifdef __FB_WIN32__
+    Check( "OS env value", WideEnvIs( "TKU_S", U ) )
+    Check( "OS env value w", WideEnvIs( "TKU_W", U ) )
+    Check( "OS env name", WideEnvIs( "TKU_" & U, "1" ) )
+#endif
+
+'' SHELL and OPEN PIPE: the command names a file outside the code page
+Check( "shell string", shell( "echo x> s_" & s & ".txt" ) = 0 )
+Check( "shell on disk", fs.IsFile( "s_" & U & ".txt" ) )
+dim as wstring * 64 wsh = "echo x> w_ñ_日本_😀.txt"
+Check( "shell wstring", shell( wsh ) = 0 )
+Check( "shell wstring on disk", fs.IsFile( "w_" & U & ".txt" ) )
+dim as integer f = freefile
+open pipe "echo x> p_" & uv & ".txt" for input as #f
+Check( "open pipe ustring", err = 0 )
+close #f
+Check( "pipe on disk", fs.IsFile( "p_" & U & ".txt" ) )
+dim as wstring * 64 wp = "echo x> q_ñ_日本_😀.txt"
+f = freefile
+open pipe wp for input as #f
+Check( "open pipe wstring", err = 0 )
+close #f
+Check( "pipe wstring on disk", fs.IsFile( "q_" & U & ".txt" ) )
+
+'' EXEC: a child whose COMMAND -- and raw command line -- holds the argument
+Check( "exec string", exec( self, "child " & s ) = 42 )
+dim as wstring * 64 wa = "child ñ_日本_😀"
+Check( "exec wstring", exec( self, wa ) = 42 )
+'' RUN: the replacement process gets the argument and writes a file named by it
+Check( "run launched", exec( self, "dorun" ) <> -1 )
+dim as boolean got = false
+for i as integer = 1 to 100
+    if fs.IsFile( "leaf_" & U & ".txt" ) then got = true : exit for
+    sleep 100, 1
+next
+Check( "run", got )
+'' CHAIN: no arguments; the child reads the Unicode value it inherited
+Check( "setenviron mode", setenviron( "TKU_MODE=chain_" & s ) = 0 )
+Check( "chain", chain( self ) = 43 )
+Check( "unset mode", setenviron( "TKU_MODE=" ) = 0 )
+
+'' DYLIBLOAD: a library in a folder outside the code page
+#ifdef __FB_WIN32__
+    dim as string dd = "d_" & s
+    mkdir dd
+    Check( "dll copied", fs.CopyFile( "C:/Windows/System32/version.dll", dd & "/tkuver.dll", true ).IsOk( ) )
+    dim as string dl = curdir( ) & "/" & dd & "/tkuver.dll"
+    dim as any ptr h = dylibload( dl )
+    Check( "dylibload string", h <> 0 )
+    if h then
+        Check( "dylibsymbol", dylibsymbol( h, "GetFileVersionInfoSizeW" ) <> 0 )
+        dylibfree( h )
+    end if
+    dim as wstring * 300 wdl
+    MultiByteToWideChar( CP_UTF8, 0, strptr( dl ), -1, @wdl, 300 )
+    h = dylibload( wdl )
+    Check( "dylibload wstring", h <> 0 )
+    if h then dylibfree( h )
+#endif
+
+'' COMMAND itself is covered by the children above.
+chdir ".."
+fs.RemoveDirAll( tmp )
+if fails = 0 then print "ok"

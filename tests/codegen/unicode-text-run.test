@@ -1,0 +1,14 @@
+'' RUN: COMMAND, ENVIRON/SETENVIRON, SHELL, EXEC, RUN, CHAIN, DYLIBLOAD and OPEN PIPE with text
+'' outside the ANSI code page, given as a string, a ustring and a wstring -- each checked by its
+'' effect: a file std/fs sees on disk, a child's own COMMAND and raw GetCommandLineW, the
+'' environment block as GetEnvironmentVariableW reads it, a DLL loaded from a folder named in
+'' it. A deliberate divergence from fbc, whose runtime hands Windows the bytes as ANSI. Needs
+'' the runtime of this commit, so it passes only once the toolchain is repackaged (it links the
+'' packaged libfb.a): against the previous one, 12 checks fail.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/unicode-text.tiko -o tests/codegen/unicodetext.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/unicodetext.exe
+'' RUN: tests/codegen/unicodetext.exe
+'' EXPECT-RUN-OUT: ok

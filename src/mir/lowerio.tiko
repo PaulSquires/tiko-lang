@@ -820,7 +820,22 @@ function LowerOpenCall_ _
             if sp->count >= 1 then opN = cast( Tko.NodeId, c.ast->children[sp->first] )
         end if
         if opN <> Tko.NODE_NONE then
-            if StrDescriptorOf_( c, opN, fn ) = false then return false
+            '' A WIDE OPERAND -- 'open pipe w', w a wstring -- into a narrow temporary, as UTF-8 by
+            '' the path rule (lib/rt/src/fs/upath.tiko). StrDescriptorOf_ has no descriptor to give
+            '' for it, and the whole statement was dropped without a word.
+            '' A USTRING OPERAND -- or a chain over one -- through fb_UStrToStr first, as the
+            '' file form's name goes: its descriptor holds UTF-16, and 'open pipe "echo " & u'
+            '' handed cmd.exe the single character 'e'.
+            if UStrToStrTemp_( c, opN, fn ) then
+            elseif TermIsWide_( c, opN ) orelse ConcatHasWideTerm_( c, opN ) then
+                dim as boolean savedDev = c.pathUtf8
+                c.pathUtf8 = true
+                dim as boolean okd = WideToNarrowTemp_( c, opN, fn )
+                c.pathUtf8 = savedDev
+                if okd = false then return false
+            elseif StrDescriptorOf_( c, opN, fn ) = false then
+                return false
+            end if
         else
             dim as containers.Array( of uint32 ) ea
             ea.Push( cast( uint32, MV_GLOBAL ) )
