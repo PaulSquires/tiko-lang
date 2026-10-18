@@ -295,12 +295,12 @@ END OPERATOR
 ' ========================================================================================
 ' Helper procedures to display messages
 ' ========================================================================================
-PUBLIC FUNCTION fbxMsg OVERLOAD (BYREF bs AS BSTRING, BYVAL pwszCaption AS CONST WSTRING PTR = NULL, BYVAL uType AS DWORD = 0) AS LONG
+PUBLIC FUNCTION BstrMsg OVERLOAD (BYREF bs AS BSTRING, BYVAL pwszCaption AS CONST WSTRING PTR = NULL, BYVAL uType AS DWORD = 0) AS LONG
    RETURN MessageBoxW(GetActiveWindow, CAST(WSTRING PTR, STRPTR(bs)), pwszCaption, MB_APPLMODAL OR uType)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION fbxMsg OVERLOAD (BYVAL hWin AS HWND, BYREF bs AS BSTRING, BYVAL pwszCaption AS CONST WSTRING PTR = NULL, BYVAL uType AS DWORD = 0) AS LONG
+PUBLIC FUNCTION BstrMsg OVERLOAD (BYVAL hWin AS HWND, BYREF bs AS BSTRING, BYVAL pwszCaption AS CONST WSTRING PTR = NULL, BYVAL uType AS DWORD = 0) AS LONG
    RETURN MessageBoxW(hWin, CAST(WSTRING PTR, STRPTR(bs)), pwszCaption, MB_APPLMODAL OR uType)
 END FUNCTION
 ' ========================================================================================

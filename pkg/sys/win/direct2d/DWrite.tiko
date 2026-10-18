@@ -10,7 +10,6 @@
 #include once "win/unknwn.bi"
 #include once "win/winerror.bi"
 
-' [pkg/sys] a block kept once in the package was here
 
 PUBLIC DIM SHARED IID_IDWriteAsyncResult AS GUID = (&hCE25F8FD, &h863B, &h4D13, {&h96, &h51, &hC1, &hF8, &h8D, &hC7, &h3F, &hE2})
 PUBLIC DIM SHARED IID_IDWriteBitmapRenderTarget AS GUID = (&h5E5A32A3, &h8DFF, &h4773, {&h9F, &hF6, &h06, &h96, &hEA, &hB7, &h72, &h67})
@@ -499,11 +498,9 @@ end enum
 '    (static_cast<UINT32>(static_cast<UINT8>(c)) << 16) | \
 '    (static_cast<UINT32>(static_cast<UINT8>(b)) << 8)  | \
 '     static_cast<UINT32>(static_cast<UINT8>(a)))
-' [pkg/fbx] #define DWRITE_MAKE_OPENTYPE_TAG moved to direct2d.ti
 
 '/// Creates an OpenType tag for glyph positioning and substitution font features.
 '#define DWRITE_MAKE_FONT_FEATURE_TAG(a,b,c,d) (static_cast<DWRITE_FONT_FEATURE_TAG>(DWRITE_MAKE_OPENTYPE_TAG(a,b,c,d)))
-' [pkg/fbx] #define DWRITE_MAKE_FONT_FEATURE_TAG moved to direct2d.ti
 
 '/// Font file loader interface handles loading font file resources of a particular type from a key.
 '/// The font file loader interface is recommended to be implemented by a singleton object.
@@ -525,7 +522,7 @@ end enum
 #ifndef __IDWriteFontFileLoader_INTERFACE_DEFINED__
 #define __IDWriteFontFileLoader_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteFontFileLoader_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteFontFileLoader_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION CreateStreamFromKey (BYVAL fontFileReferenceKey AS const ANY PTR, BYVAL fontFileReferenceKeySize AS UINT32, BYREF fontFileStream AS IDWriteFontFileStream PTR) AS HRESULT
 END TYPE
 
@@ -567,7 +564,7 @@ END TYPE
 #ifndef __IDWriteFontFileStream_INTERFACE_DEFINED__
 #define __IDWriteFontFileStream_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteFontFileStream_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteFontFileStream_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION ReadFileFragment (BYVAL fragmentStart AS const ANY PTR, BYVAL fileOffset AS UINT64, BYVAL fragmentSize AS UINT64, BYREF fragmentContext AS ANY PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION ReleaseFileFragment (BYVAL fragmentContext AS ANY PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetFileSize (BYREF fileSize AS UINT64) AS HRESULT
@@ -589,7 +586,7 @@ END TYPE
 #ifndef __IDWriteFontFile_INTERFACE_DEFINED__
 #define __IDWriteFontFile_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteFontFile_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteFontFile_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION GetReferenceKey (BYREF fontFileReferenceKey AS const ANY PTR, BYREF fontFileReferenceKeySize AS UINT32) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetLoader (BYREF fontFileLoader AS IDWriteFontFileLoader PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION Analyze (BYVAL isSupportedFontType AS BOOLEAN PTR, BYREF fontFileType AS DWRITE_FONT_FILE_TYPE, BYREF fontFaceType AS DWRITE_FONT_FACE_TYPE, BYREF numberOfFaces AS UINT32) AS HRESULT
@@ -682,7 +679,7 @@ end type
 #ifndef __IDWriteRenderingParams_INTERFACE_DEFINED__
 #define __IDWriteRenderingParams_INTERFACE_DEFINED__
 
-'PUBLIC TYPE IDWriteRenderingParams_ EXTENDS tk_IUnknown
+'PUBLIC TYPE IDWriteRenderingParams_ EXTENDS ComUnknown
 '   DECLARE ABSTRACT FUNCTION GetGamma () AS FLOAT
 '   DECLARE ABSTRACT FUNCTION GetEnhancedContrast () AS FLOAT
 '   DECLARE ABSTRACT FUNCTION GetClearTypeLevel () AS FLOAT
@@ -690,7 +687,7 @@ end type
 '   DECLARE ABSTRACT FUNCTION GetRenderingMode () AS DWRITE_RENDERING_MODE
 'END TYPE
 
-PUBLIC TYPE IDWriteRenderingParams_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteRenderingParams_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION GetGamma (BYREF value AS FLOAT) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetEnhancedContrast (BYREF value AS FLOAT) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetClearTypeLevel (BYREF level AS FLOAT) AS HRESULT
@@ -720,7 +717,7 @@ END TYPE
 #ifndef __IDWriteFontFace_INTERFACE_DEFINED__
 #define __IDWriteFontFace_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteFontFace_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteFontFace_ EXTENDS ComUnknown
 '   DECLARE ABSTRACT FUNCTION GetType () AS DWRITE_FONT_FACE_TYPE
    DECLARE ABSTRACT FUNCTION GetType (BYREF value AS DWRITE_FONT_FACE_TYPE) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetFiles (BYREF numberOfFiles AS UINT32, BYVAL fontFiles AS IDWriteFontFile PTR) AS HRESULT
@@ -774,7 +771,7 @@ END TYPE
 #ifndef __IDWriteFontCollectionLoader_INTERFACE_DEFINED__
 #define __IDWriteFontCollectionLoader_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteFontCollectionLoader_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteFontCollectionLoader_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION CreateEnumeratorFromKey (BYVAL factory AS IDWriteFactory PTR, BYVAL collectionKey AS const ANY PTR, _
       BYVAL collectionKeySize AS UINT32, BYREF fontFileEnumerator AS IDWriteFontFileEnumerator PTR) AS HRESULT
 END TYPE
@@ -795,7 +792,7 @@ END TYPE
 #ifndef __IDWriteFontFileEnumerator_INTERFACE_DEFINED__
 #define __IDWriteFontFileEnumerator_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteFontFileEnumerator_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteFontFileEnumerator_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION MoveNext (BYREF hasCurrentFile AS BOOLEAN) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetCurrentFontFile (BYREF fontFile AS IDWriteFontFile PTR) AS HRESULT
 END TYPE
@@ -815,7 +812,7 @@ END TYPE
 #ifndef __IDWriteLocalizedStrings_INTERFACE_DEFINED__
 #define __IDWriteLocalizedStrings_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteLocalizedStrings_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteLocalizedStrings_ EXTENDS ComUnknown
 '   DECLARE ABSTRACT FUNCTION GetCount () AS UINT32
    DECLARE ABSTRACT FUNCTION GetCount (BYREF count AS UINT32) AS HRESULT
    DECLARE ABSTRACT FUNCTION FindLocaleName (BYREF localeName AS const WSTRING, BYREF index AS UINT32, BYREF exists AS BOOLEAN PTR) AS HRESULT
@@ -840,7 +837,7 @@ END TYPE
 #ifndef __IDWriteFontCollection_INTERFACE_DEFINED__
 #define __IDWriteFontCollection_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteFontCollection_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteFontCollection_ EXTENDS ComUnknown
 '   DECLARE ABSTRACT FUNCTION GetFontFamilyCount () AS UINT32
    DECLARE ABSTRACT FUNCTION GetFontFamilyCount (BYREF count AS UINT32) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetFontFamily (BYVAL index AS UINT32, BYREF fontFamily AS IDWriteFontFamily PTR) AS HRESULT
@@ -863,7 +860,7 @@ END TYPE
 #ifndef __IDWriteFontList_INTERFACE_DEFINED__
 #define __IDWriteFontList_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteFontList_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteFontList_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION GetFontCollection (BYREF fontCollection AS IDWriteFontCollection PTR) AS HRESULT
 '   DECLARE ABSTRACT FUNCTION GetFontCount () AS UINT32
    DECLARE ABSTRACT FUNCTION GetFontCount (BYREF count AS UINT32) AS HRESULT
@@ -909,7 +906,7 @@ END TYPE
 #ifndef __IDWriteFont_INTERFACE_DEFINED__
 #define __IDWriteFont_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteFont_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteFont_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION GetFontFamily (BYREF fontFamily AS IDWriteFontFamily PTR) AS HRESULT
 '   DECLARE ABSTRACT FUNCTION GetWeight () AS DWRITE_FONT_WEIGHT
    DECLARE ABSTRACT FUNCTION GetWeight (BYREF value AS DWRITE_FONT_WEIGHT) AS HRESULT
@@ -1165,7 +1162,7 @@ end type
 #ifndef __IDWriteTextFormat_INTERFACE_DEFINED__
 #define __IDWriteTextFormat_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteTextFormat_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteTextFormat_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION SetTextAlignment (BYVAL textAlignment AS DWRITE_TEXT_ALIGNMENT) AS HRESULT
    DECLARE ABSTRACT FUNCTION SetParagraphAlignment (BYVAL paragraphAlignment AS DWRITE_PARAGRAPH_ALIGNMENT) AS HRESULT
    DECLARE ABSTRACT FUNCTION SetWordWrapping (BYVAL wordWrapping AS DWRITE_WORD_WRAPPING) AS HRESULT
@@ -1221,7 +1218,7 @@ END TYPE
 #ifndef __IDWriteTypography_INTERFACE_DEFINED__
 #define __IDWriteTypography_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteTypography_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteTypography_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION AddFontFeature (BYVAL fontFeature AS DWRITE_FONT_FEATURE) AS HRESULT
 '   DECLARE ABSTRACT FUNCTION GetFontFeatureCount () AS UINT32
    DECLARE ABSTRACT FUNCTION GetFontFeatureCount (BYREF count AS UINT32) AS HRESULT
@@ -1318,7 +1315,7 @@ end enum
 #ifndef __IDWriteNumberSubstitution_INTERFACE_DEFINED__
 #define __IDWriteNumberSubstitution_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteNumberSubstitution_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteNumberSubstitution_ EXTENDS ComUnknown
    ' It has no additional methods
 END TYPE
 
@@ -1368,7 +1365,7 @@ end type
 #ifndef __IDWriteTextAnalysisSource_INTERFACE_DEFINED__
 #define __IDWriteTextAnalysisSource_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteTextAnalysisSource_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteTextAnalysisSource_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION GetTextAtPosition (BYVAL textPosition AS UINT32, BYREF textString AS WSTRING PTR, BYREF textLength AS UINT32) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetTextBeforePosition (BYVAL textPosition AS UINT32, BYREF textString AS WSTRING PTR, BYREF textLength AS UINT32) AS HRESULT
 '   DECLARE ABSTRACT FUNCTION GetParagraphReadingDirection () AS DWRITE_READING_DIRECTION
@@ -1392,7 +1389,7 @@ END TYPE
 #ifndef __IDWriteTextAnalysisSink_INTERFACE_DEFINED__
 #define __IDWriteTextAnalysisSink_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteTextAnalysisSink_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteTextAnalysisSink_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION SetScriptAnalysis (BYVAL textPosition AS UINT32, BYVAL textLength AS UINT32, BYREF scriptAnalysis AS const DWRITE_SCRIPT_ANALYSIS) AS HRESULT
    DECLARE ABSTRACT FUNCTION SetLineBreakpoints (BYVAL textPosition AS UINT32, BYVAL textLength AS UINT32, BYREF lineBreakpoints AS const DWRITE_LINE_BREAKPOINT) AS HRESULT
    DECLARE ABSTRACT FUNCTION SetBidiLevel (BYVAL textPosition AS UINT32, BYVAL textLength AS UINT32, BYVAL explicitLevel AS UBYTE, BYVAL resolvedLevel AS UBYTE) AS HRESULT
@@ -1414,7 +1411,7 @@ END TYPE
 #ifndef __IDWriteTextAnalyzer_INTERFACE_DEFINED__
 #define __IDWriteTextAnalyzer_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteTextAnalyzer_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteTextAnalyzer_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION AnalyzeScript (BYVAL analysisSource AS IDWriteTextAnalysisSource PTR, BYVAL textPosition AS UINT32, _
            BYVAL textLength AS UINT32, BYVAL analysisSink AS IDWriteTextAnalysisSink PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION AnalyzeBidi (BYVAL analysisSource AS IDWriteTextAnalysisSource PTR, BYVAL textPosition AS UINT32, _
@@ -1720,7 +1717,7 @@ end type
 #ifndef __IDWriteInlineObject_INTERFACE_DEFINED__
 #define __IDWriteInlineObject_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteInlineObject_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteInlineObject_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Draw (BYVAL clientDrawingContext AS ANY PTR, BYVAL renderer AS IDWriteTextRenderer PTR, _
            BYVAL originX AS FLOAT, BYVAL originY AS FLOAT, BYVAL isSideways AS BOOLEAN, BYVAL isRightToLeft AS BOOLEAN, _
            BYVAL clientDrawingEffect AS IUnknown PTR) AS HRESULT
@@ -1746,7 +1743,7 @@ END TYPE
 #ifndef __IDWritePixelSnapping_INTERFACE_DEFINED__
 #define __IDWritePixelSnapping_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWritePixelSnapping_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWritePixelSnapping_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION IsPixelSnappingDisabled (BYVAL clientDrawingContext AS ANY PTR, BYREF IsDisabled AS BOOLEAN) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetCurrentTransform (BYVAL clientDrawingContext AS ANY PTR, BYREF transform AS DWRITE_MATRIX) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetPixelsPerDip (BYVAL clientDrawingContext AS ANY PTR, BYREF pixelsPerDip AS FLOAT) AS HRESULT
@@ -1857,7 +1854,7 @@ END TYPE
 #ifndef __IDWriteBitmapRenderTarget_INTERFACE_DEFINED__
 #define __IDWriteBitmapRenderTarget_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteBitmapRenderTarget_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteBitmapRenderTarget_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION DrawGlyphRun (BYVAL baselineOriginX AS FLOAT, BYVAL baselineOriginY AS FLOAT, _
            BYVAL measuringMode AS DWRITE_MEASURING_MODE, BYREF glyphRun AS DWRITE_GLYPH_RUN, _
            BYVAL renderingParams AS IDWriteRenderingParams PTR, BYVAL textColor AS COLORREF, BYREF blackBoxRect AS ..RECT) AS HRESULT
@@ -1887,7 +1884,7 @@ END TYPE
 #ifndef __IDWriteGdiInterop_INTERFACE_DEFINED__
 #define __IDWriteGdiInterop_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteGdiInterop_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteGdiInterop_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION CreateFontFromLOGFONT (BYREF logFont AS const LOGFONTW, BYREF font AS IDWriteFont PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION ConvertFontToLOGFONT (BYVAL font AS IDWriteFont PTR, BYREF logFont AS LOGFONTW, BYREF isSystemFont AS BOOLEAN) AS HRESULT
    DECLARE ABSTRACT FUNCTION ConvertFontFaceToLOGFONT (BYVAL font AS IDWriteFontFace PTR, BYREF logFont AS LOGFONTW) AS HRESULT
@@ -1913,7 +1910,6 @@ PUBLIC enum
 end enum
 
 ' /// Maximum alpha value in a texture returned by IDWriteGlyphRunAnalysis::CreateAlphaTexture.
-' [pkg/fbx] #define DWRITE_ALPHA_MAX moved to direct2d.ti
 
 ' ########################################################################################
 ' Interface name: IDWriteGlyphRunAnalysis
@@ -1926,7 +1922,7 @@ end enum
 #ifndef __IDWriteGlyphRunAnalysis_INTERFACE_DEFINED__
 #define __IDWriteGlyphRunAnalysis_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteGlyphRunAnalysis_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteGlyphRunAnalysis_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION GetAlphaTextureBounds (BYVAL textureType AS DWRITE_TEXTURE_TYPE, BYREF textureBounds AS ..RECT) AS HRESULT
    DECLARE ABSTRACT FUNCTION CreateAlphaTexture (BYVAL textureType AS DWRITE_TEXTURE_TYPE, BYREF textureBounds AS const ..RECT, _
            BYVAL alphaValues AS BYTE PTR, BYVAL BufferSize AS UINT32) AS HRESULT
@@ -1949,7 +1945,7 @@ END TYPE
 #ifndef __IDWriteFactory_INTERFACE_DEFINED__
 #define __IDWriteFactory_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteFactory_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteFactory_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION GetSystemFontCollection (BYREF fontCollection AS IDWriteFontCollection PTR, BYVAL checkForUpdates AS BOOLEAN = FALSE) AS HRESULT
    DECLARE ABSTRACT FUNCTION CreateCustomFontCollection (BYVAL collectionLoader AS IDWriteFontCollectionLoader PTR, _
            BYVAL collectionKey AS const ANY PTR, BYVAL collectionKeySize AS UINT32, BYREF fontCollection AS IDWriteFontCollection PTR) AS HRESULT
@@ -2004,29 +2000,8 @@ PUBLIC DECLARE FUNCTION DWriteCreateFactory LIB "dwrite" ALIAS "DWriteCreateFact
 ' ========================================================================================
 
 '// Macros used to define DirectWrite error codes.
-' [pkg/fbx] #define FACILITY_DWRITE moved to direct2d.ti
-' [pkg/fbx] #define DWRITE_ERR_BASE moved to direct2d.ti
-' [pkg/fbx] #define MAKE_DWRITE_HR moved to direct2d.ti
-' [pkg/fbx] #define MAKE_DWRITE_HR_ERR moved to direct2d.ti
 
 '// DWrite errors have moved to winerror.h
-' [pkg/fbx] #define DWRITE_E_FILEFORMAT moved to direct2d.ti
-' [pkg/fbx] #define DWRITE_E_UNEXPECTED moved to direct2d.ti
-' [pkg/fbx] #define DWRITE_E_NOFONT moved to direct2d.ti
-' [pkg/fbx] #define DWRITE_E_FILENOTFOUND moved to direct2d.ti
-' [pkg/fbx] #define DWRITE_E_FILEACCESS moved to direct2d.ti
-' [pkg/fbx] #define DWRITE_E_FONTCOLLECTIONOBSOLETE moved to direct2d.ti
-' [pkg/fbx] #define DWRITE_E_ALREADYREGISTERED moved to direct2d.ti
-' [pkg/fbx] #define DWRITE_E_CACHEFORMAT moved to direct2d.ti
-' [pkg/fbx] #define DWRITE_E_CACHEVERSION moved to direct2d.ti
-' [pkg/fbx] #define DWRITE_E_UNSUPPORTEDOPERATION moved to direct2d.ti
-' [pkg/fbx] #define DWRITE_E_TEXTRENDERERINCOMPATIBLE moved to direct2d.ti
-' [pkg/fbx] #define DWRITE_E_FLOWDIRECTIONCONFLICTS moved to direct2d.ti
-' [pkg/fbx] #define DWRITE_E_NOCOLOR moved to direct2d.ti
-' [pkg/fbx] #define DWRITE_E_REMOTEFONT moved to direct2d.ti
-' [pkg/fbx] #define DWRITE_E_DOWNLOADCANCELLED moved to direct2d.ti
-' [pkg/fbx] #define DWRITE_E_DOWNLOADFAILED moved to direct2d.ti
-' [pkg/fbx] #define DWRITE_E_TOOMANYDOWNLOADS moved to direct2d.ti
 
 
 ' ########################################################################################
@@ -2958,7 +2933,7 @@ END TYPE
 #ifndef __IDWriteFontFallback_INTERFACE_DEFINED__
 #define __IDWriteFontFallback_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteFontFallback_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteFontFallback_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION MapCharacters (BYVAL analysisSource AS IDWriteTextAnalysisSource PTR, BYVAL textPosition AS UINT32, _
            BYVAL textLength AS UINT32, BYVAL baseFontCollection AS IDWriteFontCollection PTR, BYREF baseFamilyName AS const WSTRING, _
            BYVAL baseWeight AS DWRITE_FONT_WEIGHT, BYVAL baseStyle AS DWRITE_FONT_STYLE, BYVAL baseStretch AS DWRITE_FONT_STRETCH, _
@@ -2978,7 +2953,7 @@ END TYPE
 #ifndef __IDWriteFontFallbackBuilder_INTERFACE_DEFINED__
 #define __IDWriteFontFallbackBuilder_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteFontFallbackBuilder_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteFontFallbackBuilder_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION AddMapping (BYREF ranges AS DWRITE_UNICODE_RANGE, BYVAL rangesCount AS UINT32, _
            BYREF targetFamilyNames AS const WSTRING, BYVAL targetFamilyNamesCount AS UINT32, BYVAL fontCollection AS IDWriteFontCollection PTR, _
            BYREF localeName AS const WSTRING, BYREF baseFamilyName AS const WSTRING, BYVAL scale AS SINGLE = 1.0!) AS HRESULT
@@ -3062,7 +3037,6 @@ END TYPE
 #endif
 
 ' /// Reserved palette entry index that does not specify any palette entry.
-' [pkg/fbx] #define DWRITE_NO_PALETTE_INDEX moved to direct2d.ti
 
 PUBLIC type DWRITE_COLOR_GLYPH_RUN
    AS DWRITE_GLYPH_RUN glyphRun
@@ -3083,7 +3057,7 @@ end type
 #ifndef __IDWriteColorGlyphRunEnumerator_INTERFACE_DEFINED__
 #define __IDWriteColorGlyphRunEnumerator_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteColorGlyphRunEnumerator_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteColorGlyphRunEnumerator_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION MoveNext (BYREF hasRun AS BOOLEAN) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetCurrentRun (BYREF colorGlyphRun AS const DWRITE_COLOR_GLYPH_RUN PTR) AS HRESULT
 END TYPE
@@ -3155,19 +3129,15 @@ END TYPE
 'type IDWriteFontDownloadQueue AS IDWriteFontDownloadQueue_
 
 #ifndef DWRITE_E_REMOTEFONT
-' [pkg/fbx] #define DWRITE_E_REMOTEFONT moved to direct2d.ti
 #endif
 
 #ifndef DWRITE_E_DOWNLOADCANCELLED
-' [pkg/fbx] #define DWRITE_E_DOWNLOADCANCELLED moved to direct2d.ti
 #endif
 
 #ifndef DWRITE_E_DOWNLOADFAILED
-' [pkg/fbx] #define DWRITE_E_DOWNLOADFAILED moved to direct2d.ti
 #endif
 
 #ifndef DWRITE_E_TOOMANYDOWNLOADS
-' [pkg/fbx] #define DWRITE_E_TOOMANYDOWNLOADS moved to direct2d.ti
 #endif
 
 PUBLIC TYPE DWRITE_FONT_PROPERTY_ID AS LONG
@@ -3280,7 +3250,7 @@ END TYPE
 #ifndef __IDWriteFontSet_INTERFACE_DEFINED__
 #define __IDWriteFontSet_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteFontSet_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteFontSet_ EXTENDS ComUnknown
 '   DECLARE ABSTRACT FUNCTION GetFontCount () AS UINT32
    DECLARE ABSTRACT FUNCTION GetFontCount (BYREF value AS UINT32) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetFontFaceReference (BYVAL listIndex AS UINT32, BYREF fontFaceReference AS IDWriteFontFaceReference PTR) AS HRESULT
@@ -3310,7 +3280,7 @@ END TYPE
 #ifndef __IDWriteFontSetBuilder_INTERFACE_DEFINED__
 #define __IDWriteFontSetBuilder_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteFontSetBuilder_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteFontSetBuilder_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION AddFontFaceReference (BYVAL fontFaceReference AS IDWriteFontFaceReference PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION AddFontFaceReference_2 (BYVAL fontFaceReference AS IDWriteFontFaceReference PTR, _
            BYREF fproperties AS DWRITE_FONT_PROPERTY, BYVAL propertyCount AS UINT32) AS HRESULT
@@ -3390,7 +3360,7 @@ END TYPE
 #ifndef __IDWriteFontFaceReference_INTERFACE_DEFINED__
 #define __IDWriteFontFaceReference_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteFontFaceReference_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteFontFaceReference_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION CreateFontFace (BYREF fontFace AS IDWriteFontFace3 PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION CreateFontFaceWithSimulations (BYVAL fontFaceSimulationFlags AS DWRITE_FONT_SIMULATIONS, _
            BYREF fontFace AS IDWriteFontFace3 PTR) AS HRESULT
@@ -3492,7 +3462,7 @@ END TYPE
 #ifndef __IDWriteStringList_INTERFACE_DEFINED__
 #define __IDWriteStringList_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteStringList_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteStringList_ EXTENDS ComUnknown
 '   DECLARE ABSTRACT FUNCTION GetCount () AS UINT32
    DECLARE ABSTRACT FUNCTION GetCount (BYREF value AS UINT32) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetLocaleNameLength (BYVAL listIndex AS UINT32, BYREF length AS UINT32) AS HRESULT
@@ -3514,7 +3484,7 @@ END TYPE
 #ifndef __IDWriteFontDownloadListener_INTERFACE_DEFINED__
 #define __IDWriteFontDownloadListener_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteFontDownloadListener_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteFontDownloadListener_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION DownloadCompleted (BYVAL downloadQueue AS IDWriteFontDownloadQueue PTR, BYVAL context AS IUnknown PTR, BYVAL downloadResult AS HRESULT) AS HRESULT
 END TYPE
 
@@ -3531,7 +3501,7 @@ END TYPE
 #ifndef __IDWriteFontDownloadQueue_INTERFACE_DEFINED__
 #define __IDWriteFontDownloadQueue_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteFontDownloadQueue_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteFontDownloadQueue_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION AddListener (BYVAL listener AS IDWriteFontDownloadListener PTR, BYREF token AS UINT32) AS HRESULT
    DECLARE ABSTRACT FUNCTION RemoveListener (BYVAL token AS UINT32) AS HRESULT
 '   DECLARE ABSTRACT FUNCTION IsEmpty () AS BOOL
@@ -3752,7 +3722,7 @@ END TYPE
 #ifndef __IDWriteAsyncResult_INTERFACE_DEFINED__
 #define __IDWriteAsyncResult_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteAsyncResult_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteAsyncResult_ EXTENDS ComUnknown
 '   DECLARE ABSTRACT FUNCTION GetWaitHandle () AS HANDLE
    DECLARE ABSTRACT FUNCTION GetWaitHandle (BYREF value AS HANDLE) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetResult () AS HRESULT
@@ -3864,7 +3834,6 @@ END TYPE
 ' ########################################################################################
 
 '#define DWRITE_MAKE_FONT_AXIS_TAG(a,b,c,d) (static_cast<DWRITE_FONT_AXIS_TAG>(DWRITE_MAKE_OPENTYPE_TAG(a,b,c,d)))
-' [pkg/fbx] #define DWRITE_MAKE_FONT_AXIS_TAG moved to direct2d.ti
 
 PUBLIC TYPE DWRITE_FONT_AXIS_TAG AS LONG
 PUBLIC enum
@@ -3875,7 +3844,6 @@ PUBLIC enum
     DWRITE_FONT_AXIS_TAG_ITALIC         = DWRITE_MAKE_FONT_AXIS_TAG("i","t","a","l")
 end enum
 
-' [pkg/fbx] #define DWRITE_STANDARD_FONT_AXIS_COUNT moved to direct2d.ti
 
 PUBLIC type DWRITE_FONT_AXIS_VALUE
    AS DWRITE_FONT_AXIS_TAG axisTag
@@ -3969,7 +3937,7 @@ END TYPE
 #ifndef __IDWriteFontResource_INTERFACE_DEFINED__
 #define __IDWriteFontResource_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWriteFontResource_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWriteFontResource_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION GetFontFile (BYREF fontFile AS IDWriteFontFile PTR) AS HRESULT
 '   DECLARE ABSTRACT FUNCTION GetFontFaceIndex () AS UINT32
    DECLARE ABSTRACT FUNCTION GetFontFaceIndex (BYREF value AS UINT32) AS HRESULT
@@ -4527,7 +4495,7 @@ end type
 #ifndef __IDWritePaintReader_INTERFACE_DEFINED__
 #define __IDWritePaintReader_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDWritePaintReader_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDWritePaintReader_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION SetCurrentGlyph (BYVAL glyphIndex AS UINT32, BYREF paintElement AS DWRITE_PAINT_ELEMENT, _
            BYVAL structSize AS UINT32, BYREF clipBox AS D2D_RECT_F, BYREF glyphAttributes AS DWRITE_PAINT_ATTRIBUTES) AS HRESULT
    DECLARE ABSTRACT FUNCTION SetTextColor (BYREF textColor AS DWRITE_COLOR_F) AS HRESULT

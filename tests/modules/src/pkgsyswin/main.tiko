@@ -5,7 +5,7 @@
 #import "sys/win/gui"
 using win
 
-print tkUcase( "tiko" ); " "; tkLcase( "LANG" )
+print win.UpperCase( "tiko" ); " "; win.LowerCase( "LANG" )
 print hex( gdiplus.GDIP_ARGB( &hFF, 1, 2, 3 ) )
 dim as gui.CWindow w
 print "ok"

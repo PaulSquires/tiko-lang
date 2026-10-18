@@ -764,7 +764,7 @@ END PROPERTY
 ' Gets the font name.
 ' ========================================================================================
 FUNCTION CTextFont2.GetName () AS USTRING
-   DIM pName AS TK_BSTR, ustrName AS USTRING
+   DIM pName AS WBSTR, ustrName AS USTRING
    m_Result = m_pTextFont2->lpvtbl->GetName(m_pTextFont2, @pName)
    ustrName = *pName
    SysFreeString pName
@@ -775,7 +775,7 @@ END FUNCTION
 ' Sets the font name.
 ' ========================================================================================
 FUNCTION CTextFont2.SetName (BYREF wszFontName AS WSTRING) AS HRESULT
-   DIM bstrName AS TK_BSTR = SysAllocString(wszFontName)
+   DIM bstrName AS WBSTR = SysAllocString(wszFontName)
    m_Result = m_pTextFont2->lpvtbl->SetName(m_pTextFont2, bstrName)
    SysFreestring bstrName
    RETURN m_Result
@@ -785,7 +785,7 @@ END FUNCTION
 ' Gets the font name.
 ' ========================================================================================
 PROPERTY CTextFont2.Name () AS USTRING
-   DIM pName AS TK_BSTR, ustrName AS USTRING
+   DIM pName AS WBSTR, ustrName AS USTRING
    m_Result = m_pTextFont2->lpvtbl->GetName(m_pTextFont2, @pName)
    ustrName = *pName
    SysFreeString pName
@@ -796,7 +796,7 @@ END PROPERTY
 ' Sets the font name.
 ' ========================================================================================
 PROPERTY CTextFont2.Name (BYREF ustrFontName AS USTRING)
-   DIM bstrFontName AS TK_BSTR = SysAllocString(ustrFontName)
+   DIM bstrFontName AS WBSTR = SysAllocString(ustrFontName)
    m_Result = m_pTextFont2->lpvtbl->SetName(m_pTextFont2, bstrFontName)
    SysFreestring bstrFontName
 END PROPERTY

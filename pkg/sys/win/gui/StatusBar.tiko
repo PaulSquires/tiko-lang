@@ -266,7 +266,7 @@ END SUB
 '   to the border of the window.
 ' Returns TRUE if successful, or FALSE otherwise.
 ' Usage example:
-'   DIM rgParts(1 TO 3) AS LONG = {tkScale(100), tkScale(220), -1}
+'   DIM rgParts(1 TO 3) AS LONG = {Scale(100), Scale(220), -1}
 '   IF StatusBar.SetParts(hStatusBar, 3, @rgParts(1)) THEN
 '      StatusBar.Simple(hStatusBar, FALSE)
 '   END IF
@@ -283,12 +283,12 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION SetParts OVERLOAD (BYVAL hStatusBar AS HWND, BYREF strSizes AS STRING) AS BOOLEAN
    DIM AS LONG nParts, X, y
-   nParts = MAX(tkParseCount(strSizes),1)
+   nParts = MAX(ParseCount(strSizes),1)
    IF nParts < 2 THEN RETURN SendMessageW(hStatusBar, SB_SIMPLE, (nParts = 1), 0)
    DIM Parts(1 TO nParts) AS LONG
    FOR X = 1 TO nParts
-      Y = VAL(tkParseStr(strSizes, X))
-      Y = tkScale(Y)   ' // Scale according the DPI
+      Y = VAL(ParseStr(strSizes, X))
+      Y = Scale(Y)   ' // Scale according the DPI
       IF X = 1 THEN
          Parts(X) = Y
       ELSE

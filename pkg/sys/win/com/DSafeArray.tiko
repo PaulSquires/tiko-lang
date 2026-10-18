@@ -1157,7 +1157,7 @@ FUNCTION DSafeArray.GetStr (BYVAL prgIndices AS LONG PTR) AS BSTRING
    IF m_psa = NULL THEN RETURN ""
    DIM vt AS VARTYPE = this.GetType
    IF vt <> VT_BSTR THEN RETURN ""
-   DIM bs AS TK_BSTR
+   DIM bs AS WBSTR
    SafeArrayGetElement(m_psa, prgIndices, @bs)
    RETURN bs
 END FUNCTION
@@ -1182,7 +1182,7 @@ FUNCTION DSafeArray.GetStr (BYVAL idx AS LONG) AS BSTRING
    IF m_psa = NULL THEN RETURN ""
    DIM vt AS VARTYPE = this.GetType
    IF vt <> VT_BSTR THEN RETURN ""
-   DIM bs AS TK_BSTR
+   DIM bs AS WBSTR
    SafeArrayGetElement(m_psa, @idx, @bs)
    RETURN bs
 END FUNCTION
@@ -1212,7 +1212,7 @@ FUNCTION DSafeArray.GetStr (BYVAL cElem AS LONG, BYVAL cDim AS LONG) AS BSTRING
    DIM vt AS VARTYPE = this.GetType
    IF vt <> VT_BSTR THEN RETURN ""
    DIM rgIdx(1) AS LONG = {cElem, cDim}
-   DIM bs AS TK_BSTR
+   DIM bs AS WBSTR
    SafeArrayGetElement(m_psa, @rgIdx(0), @bs)
    RETURN bs
 END FUNCTION
@@ -1556,7 +1556,7 @@ FUNCTION DSafeArray.AppendStr (BYVAL pwszData AS WSTRING PTR) AS HRESULT
    DIM hr AS HRESULT = SafeArrayRedim(m_psa, @sanewbounds(0))
    IF hr THEN RETURN hr
    DIM idx AS LONG = cElements - 1 + lLBound
-   DIM bs AS TK_BSTR = SysAllocString(pwszData)
+   DIM bs AS WBSTR = SysAllocString(pwszData)
    FUNCTION = SafeArrayPutElement(m_psa, @idx, bs)
    SysFreeString bs
 END FUNCTION
@@ -1698,7 +1698,7 @@ FUNCTION DSafeArray.InsertElement (BYVAL nPos AS LONG, BYREF bsData AS BSTRING) 
    IF hr THEN RETURN hr
    ' // Move all the elements down
    DIM cElem AS LONG = nPos - this.LBound
-   DIM pvData AS TK_BSTR PTR = this.AccessData
+   DIM pvData AS WBSTR PTR = this.AccessData
    IF pvData THEN
       ' // Move all the elements from nPos down
       FOR i AS LONG = cElements - 1 TO cElem + 1 STEP - 1
@@ -1742,7 +1742,7 @@ FUNCTION DSafeArray.InsertStr (BYVAL nPos AS LONG, BYVAL pwszData AS WSTRING PTR
    IF hr THEN RETURN hr
    ' // Move all the elements down
    DIM cElem AS LONG = nPos - this.LBound
-   DIM pvData AS TK_BSTR PTR = this.AccessData
+   DIM pvData AS WBSTR PTR = this.AccessData
    IF pvData THEN
       ' // Move all the elements from nPos down
       FOR i AS LONG = cElements - 1 TO cElem + 1 STEP - 1
@@ -1923,10 +1923,10 @@ FUNCTION DSafeArray.DeleteStringElement (BYVAL nPos AS LONG) AS HRESULT
    IF nPos < this.LBound OR nPos > this.UBound THEN RETURN E_FAIL
    DIM cElem AS LONG = nPos - this.LBound
    DIM cElements AS DWORD = this.Count(1)
-   DIM pvData AS TK_BSTR PTR = this.AccessData
+   DIM pvData AS WBSTR PTR = this.AccessData
    IF pvData THEN
       ' // Save the element to be deleted
-      DIM pTemp AS TK_BSTR = pvData[cElem]
+      DIM pTemp AS WBSTR = pvData[cElem]
       ' // Move all the elements from nPos + 1 up
       FOR i AS LONG = cElem TO cElements - 1 STEP 1
          pvData[i] = pvData[i + 1]
@@ -1994,7 +1994,7 @@ FUNCTION DSafeArray.FindElement (BYREF wszFind AS WSTRING, BYVAL IgnoreCase AS B
    DIM vt AS VARTYPE = this.GetType
    IF vt <> VT_BSTR THEN RETURN 0
    DIM ustrFind AS USTRING = IIF(IgnoreCase = TRUE, UCASE(wszFind), wszFind)
-   DIM pvData AS TK_BSTR PTR = this.AccessData
+   DIM pvData AS WBSTR PTR = this.AccessData
    IF pvData THEN
       FOR i AS LONG = 0 TO this.UBound - this.LBound
          IF IIF(IgnoreCase = TRUE, UCASE(*pvData[i]), *pvData[i]) = ustrFind THEN
@@ -2015,14 +2015,14 @@ END FUNCTION
 ' ========================================================================================
 ' qsort DSafeArray comparison function
 ' ========================================================================================
-PUBLIC FUNCTION tkDSafeArrayCompare CDECL (BYVAL a AS BSTR PTR, BYVAL b AS BSTR PTR) AS LONG
+PUBLIC FUNCTION DSafeArrayCompare CDECL (BYVAL a AS BSTR PTR, BYVAL b AS BSTR PTR) AS LONG
    FUNCTION = wcscmp(*a, *b)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' Reverse qsort DSafeArray comparison function
 ' ========================================================================================
-PUBLIC FUNCTION tkDSafeArrayReverseCompare CDECL (BYVAL a AS BSTR PTR, BYVAL b AS BSTR PTR) AS LONG
+PUBLIC FUNCTION DSafeArrayReverseCompare CDECL (BYVAL a AS BSTR PTR, BYVAL b AS BSTR PTR) AS LONG
    DIM r AS LONG = wcscmp(*a, *b)
    IF r = 1 THEN r = -1 ELSE IF r = -1 THEN r = 1
    RETURN r
@@ -2039,12 +2039,12 @@ FUNCTION DSafeArray.Sort (BYVAL bAscend AS BOOLEAN = TRUE) AS HRESULT
    IF nDims <> 1 THEN RETURN E_FAIL
    DIM vt AS VARTYPE = this.GetType
    IF vt <> VT_BSTR THEN RETURN E_FAIL
-   DIM pvData AS TK_BSTR PTR = this.AccessData
+   DIM pvData AS WBSTR PTR = this.AccessData
    IF pvData = NULL THEN RETURN E_UNEXPECTED
    IF bAscend THEN
-      qsort pvData, this.Count, SIZEOF(TK_BSTR), CPTR(ANY PTR, @tkDSafeArrayCompare)
+      qsort pvData, this.Count, SIZEOF(WBSTR), CPTR(ANY PTR, @DSafeArrayCompare)
    ELSE
-      qsort pvData, this.Count, SIZEOF(TK_BSTR), CPTR(ANY PTR, @tkDSafeArrayReverseCompare)
+      qsort pvData, this.Count, SIZEOF(WBSTR), CPTR(ANY PTR, @DSafeArrayReverseCompare)
    END IF
    IF pvData THEN this.UnaccessData
 END FUNCTION
@@ -2062,7 +2062,7 @@ END FUNCTION
 ' Return value: A DSafeArray containing a token in each element.
 ' Usage example:
 ' DIM wsz AS WSTRING * 260 = "- This, a sample string."
-' DIM dsa AS DSafeArray = tkStrSplit(wsz, " ,.-")
+' DIM dsa AS DSafeArray = StrSplit(wsz, " ,.-")
 ' FOR i AS LONG = dsa.LBound TO dsa.UBound
 '    DIM bsOut AS BSTRING
 '    dsa.GetElement(i, bsOut)
@@ -2073,7 +2073,7 @@ END FUNCTION
 '    print dsa.GetStr(i)
 ' NEXT
 ' ========================================================================================
-'PUBLIC FUNCTION tkStrSplit (BYREF wszStr AS WSTRING, BYREF wszDelimiters AS WSTRING) AS DSafeArray
+'PUBLIC FUNCTION StrSplit (BYREF wszStr AS WSTRING, BYREF wszDelimiters AS WSTRING) AS DSafeArray
 '   ' Longitud en caracteres (sin incluir el terminador)
 '   DIM cch AS SIZE_T = LEN(wszStr)
 
@@ -2098,7 +2098,7 @@ END FUNCTION
 'END FUNCTION
 ' ========================================================================================
 
-PUBLIC FUNCTION tkStrSplit (BYREF wszStr AS WSTRING, BYREF wszDelimiters AS WSTRING) AS DSafeArray
+PUBLIC FUNCTION StrSplit (BYREF wszStr AS WSTRING, BYREF wszDelimiters AS WSTRING) AS DSafeArray
    DIM ustr      AS USTRING = wszStr          ' Cadena de trabajo gestionada
    DIM udelims   AS USTRING = wszDelimiters   ' Delimitadores gestionados
    DIM dsa       AS DSafeArray = DSafeArray(VT_BSTR, 0, 1)
@@ -2140,17 +2140,17 @@ END FUNCTION
 ' dsa.PutElement(1, BSTRING("One"))
 ' dsa.PutElement(2, BSTRING("Two"))
 ' dsa.PutElement(3, BSTRING("Three"))
-' DIM ustr AS UTRING = tkStrJoin(dsa, ",")
+' DIM ustr AS UTRING = StrJoin(dsa, ",")
 ' PRINT ustr   ' ouput: One,Two,Three
 ' ========================================================================================
-PUBLIC FUNCTION tkStrJoin (BYREF dsa AS DSafeArray, BYREF wszDelimiter AS WSTRING) AS USTRING
+PUBLIC FUNCTION StrJoin (BYREF dsa AS DSafeArray, BYREF wszDelimiter AS WSTRING) AS USTRING
    DIM ustr AS USTRING
    IF dsa.NumDims <> 1 THEN RETURN ustr
    IF dsa.GetType <> VT_BSTR THEN RETURN ustr
    ' // Use direct access for speed
    DIM nCount AS LONG = dsa.Count
    IF nCount = 0 THEN RETURN ustr
-   DIM pvData AS TK_BSTR PTR = dsa.AccessData
+   DIM pvData AS WBSTR PTR = dsa.AccessData
    IF pvData = NULL THEN RETURN ustr
    ' // Add a leading ""
    IF wszDelimiter = CHR(34, 44, 34) THEN ustr = CHR(34)
@@ -2170,7 +2170,7 @@ END FUNCTION
 ' - wszFileName: Path of the file
 ' - szDelimiter: Delimiter of the line (CHR(13, 10) in Windows, CHR(10) in Linmux).
 ' ========================================================================================
-PUBLIC FUNCTION tkFileReadAllLinesA (BYREF wszFileName AS WSTRING, BYREF szDelimiter AS CONST ZSTRING = CHR(13, 10)) AS DSafeArray
+PUBLIC FUNCTION FileReadAllLinesA (BYREF wszFileName AS WSTRING, BYREF szDelimiter AS CONST ZSTRING = CHR(13, 10)) AS DSafeArray
    DIM _dsa AS DSafeArray = DSafeArray(VT_BSTR, 0, 1)
    DIM dwCount AS DWORD, dwFileSize AS DWORD, dwHighSize AS DWORD, dwBytesRead AS DWORD
    IF LEN(szDelimiter) = 0 THEN RETURN _dsa
@@ -2243,7 +2243,7 @@ END FUNCTION
 ' - wszFileName: Path of the file
 ' - szDelimiter: Delimiter of the line (CHR(13, 10) in Windows, CHR(10) in Linmux).
 ' ========================================================================================
-PUBLIC FUNCTION tkFileReadAllLinesW (BYREF wszFileName AS WSTRING, BYREF wszDelimiter AS CONST WSTRING = CHR(13, 10)) AS DSafeArray
+PUBLIC FUNCTION FileReadAllLinesW (BYREF wszFileName AS WSTRING, BYREF wszDelimiter AS CONST WSTRING = CHR(13, 10)) AS DSafeArray
    DIM _dsa AS DSafeArray = DSafeArray(VT_BSTR, 0, 1)
    DIM dwCount AS DWORD, dwFileSize AS DWORD, dwHighSize AS DWORD, dwBytesRead AS DWORD
    IF LEN(wszDelimiter) = 0 THEN RETURN _dsa

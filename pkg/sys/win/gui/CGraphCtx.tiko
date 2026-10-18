@@ -916,7 +916,7 @@ END PROPERTY
 ' ========================================================================================
 SUB CGraphCtx.LoadImageFromFile (BYREF wszFileName AS WSTRING)
    ' // Initialize Gdiplus
-   DIM token AS ULONG_PTR = tkGdipInit
+   DIM token AS ULONG_PTR = Init
    IF token = NULL THEN EXIT SUB
    ' // Load the image from file and display it in the control
    DIM pBitmap AS GpBitmap PTR, pGraphics AS GpGraphics PTR, nWidth AS DWORD, nHeight AS DWORD
@@ -953,7 +953,7 @@ SUB CGraphCtx.CreateBitmapFromFile (BYREF wszFileName AS WSTRING, BYVAL dimPerce
 '   ' // Initialize Gdiplus
 '   DIM token AS ULONG_PTR = AfxGdipInit
 '   IF token = NULL THEN EXIT SUB
-   DIM hbmp AS HBITMAP = tkGdipBitmapFromFile(wszFileName, dimPercent, bGrayScale)
+   DIM hbmp AS HBITMAP = BitmapFromFile(wszFileName, dimPercent, bGrayScale)
    IF hbmp THEN
       DIM bm AS BITMAP, hMemDC AS HDC
       hMemDC = .CreateCompatibleDC(m_hMemDC)
@@ -996,7 +996,7 @@ SUB CGraphCtx.LoadImageFromRes (BYVAL hInst AS HINSTANCE, BYREF wszImageName AS 
    ' // Initialize Gdiplus
 '   DIM token AS ULONG_PTR = AfxGdipInit
 '   IF token = NULL THEN EXIT SUB
-   DIM hbmp AS HBITMAP = tkGdipBitmapFromRes(hInst, wszImageName, dimPercent, bGrayScale, clrBackground)
+   DIM hbmp AS HBITMAP = BitmapFromRes(hInst, wszImageName, dimPercent, bGrayScale, clrBackground)
    IF hbmp THEN
       DIM bm AS BITMAP, hMemDC AS HDC
       hMemDC = .CreateCompatibleDC(m_hMemDC)
@@ -1114,32 +1114,32 @@ END FUNCTION
 ' If the method fails, it returns one of the other elements of the Status enumeration.
 ' ========================================================================================
 FUNCTION CGraphCtx.SaveImage (BYREF wszFileName AS WSTRING, BYREF wszMimeType AS WSTRING = "image/bmp") AS LONG
-   FUNCTION = tkGdipSaveHBITMAPToFile(m_hBmp, wszFileName, wszMimeType)
+   FUNCTION = SaveHBITMAPToFile(m_hBmp, wszFileName, wszMimeType)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CGraphCtx.SaveImageAsBmp (BYREF wszFileName AS WSTRING) AS LONG
-   FUNCTION = tkGdipSaveHBITMAPToFile(m_hBmp, wszFileName, "image/bmp")
+   FUNCTION = SaveHBITMAPToFile(m_hBmp, wszFileName, "image/bmp")
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CGraphCtx.SaveImageAsJpeg (BYREF wszFileName AS WSTRING) AS LONG
-   FUNCTION = tkGdipSaveHBITMAPToFile(m_hBmp, wszFileName, "image/jpeg")
+   FUNCTION = SaveHBITMAPToFile(m_hBmp, wszFileName, "image/jpeg")
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CGraphCtx.SaveImageAsPng (BYREF wszFileName AS WSTRING) AS LONG
-   FUNCTION = tkGdipSaveHBITMAPToFile(m_hBmp, wszFileName, "image/png")
+   FUNCTION = SaveHBITMAPToFile(m_hBmp, wszFileName, "image/png")
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CGraphCtx.SaveImageAsGif (BYREF wszFileName AS WSTRING) AS LONG
-   FUNCTION = tkGdipSaveHBITMAPToFile(m_hBmp, wszFileName, "image/gif")
+   FUNCTION = SaveHBITMAPToFile(m_hBmp, wszFileName, "image/gif")
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CGraphCtx.SaveImageAsTiff (BYREF wszFileName AS WSTRING) AS LONG
-   FUNCTION = tkGdipSaveHBITMAPToFile(m_hBmp, wszFileName, "image/tiff")
+   FUNCTION = SaveHBITMAPToFile(m_hBmp, wszFileName, "image/tiff")
 END FUNCTION
 ' ========================================================================================
 
@@ -1158,7 +1158,7 @@ END FUNCTION
 ' Return value: Returns TRUE if the bitmap has been printed successfully, or FALSE otherwise.
 ' ========================================================================================
 FUNCTION CGraphCtx.PrintImage (BYVAL bStretch AS BOOLEAN = FALSE, BYVAL nStretchMode AS LONG = InterpolationModeHighQualityBicubic) AS BOOLEAN
-   FUNCTION = tkGdipPrintHBITMAP(m_hBmp, bStretch, nStretchMode)
+   FUNCTION = PrintHBITMAP(m_hBmp, bStretch, nStretchMode)
 END FUNCTION
 ' ========================================================================================
 
@@ -1247,7 +1247,7 @@ END FUNCTION
 ' ========================================================================================
 ' Returns a pointer to the CGraphCtx class given the handle of its associated window.
 ' ========================================================================================
-PUBLIC FUNCTION tkCGraphCtxPtr (BYVAL hwnd AS HWND) AS CGraphCtx PTR
+PUBLIC FUNCTION CGraphCtxPtr (BYVAL hwnd AS HWND) AS CGraphCtx PTR
    FUNCTION = CAST(CGraphCtx PTR, .GetWindowLongPtrW(hwnd, 0))
 END FUNCTION
 ' ========================================================================================

@@ -488,7 +488,7 @@ FUNCTION CWebView2.LoadImageAsDataURL(BYREF ustrPath AS USTRING) AS STRING
 
    ' // Determine MIME type from extension
    DIM mime AS STRING
-   DIM ext AS USTRING = LCASE(tkParsePathName("EXTN", ustrPath))
+   DIM ext AS USTRING = LCASE(ParsePathName("EXTN", ustrPath))
    SELECT CASE ext
       CASE ".jpg", ".jpeg"
          mime = "image/jpeg"
@@ -503,8 +503,8 @@ FUNCTION CWebView2.LoadImageAsDataURL(BYREF ustrPath AS USTRING) AS STRING
    END SELECT
 
    ' // Remove carriage returns and line feeds, if any
-   b64 = tkStrReplace(b64, CHR(13), "")
-   b64 = tkStrReplace(b64, CHR(10), "")
+   b64 = StrReplace(b64, CHR(13), "")
+   b64 = StrReplace(b64, CHR(10), "")
 
    ' // Compose data URL
    DIM strSrc AS STRING = "data:" & mime & ";base64," & b64
@@ -1729,7 +1729,7 @@ END FUNCTION
 ' ========================================================================================
 ' Returns a raw pointer to the CWebView class.
 ' ========================================================================================
-PUBLIC FUNCTION tkCWebView2Ptr (BYVAL hWin AS HWND) AS CWebView2 PTR
+PUBLIC FUNCTION CWebView2Ptr (BYVAL hWin AS HWND) AS CWebView2 PTR
    IF IsWindow(hWin) = FALSE THEN RETURN NULL
    RETURN cast(CWebView2 PTR, GetWindowLongPtrW(hWin, GWLP_USERDATA))
 END FUNCTION
@@ -1739,7 +1739,7 @@ END FUNCTION
 ' Saves the contents of an html script to a temporary file and returns the name of the file.
 ' The file is saved with a .html extension and using UTF-8 encoding.
 ' ========================================================================================
-PUBLIC FUNCTION tkSaveTempHtmlFile (BYVAL pwszBuffer AS WSTRING PTR) AS USTRING
+PUBLIC FUNCTION SaveTempHtmlFile (BYVAL pwszBuffer AS WSTRING PTR) AS USTRING
    DIM wszTmpFileName AS WSTRING * MAX_PATH
    DIM wszTmpPath AS WSTRING * MAX_PATH - 14
    DIM dwRes AS DWORD, fn AS LONG

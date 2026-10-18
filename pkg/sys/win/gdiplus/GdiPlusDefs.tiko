@@ -109,12 +109,6 @@ PUBLIC type GpRegion as any
 PUBLIC type GpSolidFill as any
 PUBLIC type GpStringFormat as any
 PUBLIC type GpTexture as any
-' [pkg/fbx] #define GpSolidBrush moved to gdiplus.ti
-' [pkg/fbx] #define GpHatchBrush moved to gdiplus.ti
-' [pkg/fbx] #define GpLinearGradientBrush moved to gdiplus.ti
-' [pkg/fbx] #define GpPathGradientBrush moved to gdiplus.ti
-' [pkg/fbx] #define GpGraphicsPath moved to gdiplus.ti
-' [pkg/fbx] #define GpTextureBrush moved to gdiplus.ti
 
 ' // Encoder parameter GUIDs
 PUBLIC Dim Shared EncoderChrominanceTable   As GUID = Type(&hF2E455DC, &h09B3, &h4316, {&h82, &h60, &h67, &h6A, &hDA, &h32, &h48, &h1C})

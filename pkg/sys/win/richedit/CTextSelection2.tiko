@@ -223,7 +223,7 @@ END FUNCTION
 ' * Gets the text in this range according to the specified conversion flags.
 ' ========================================================================================
 FUNCTION CTextSelection2.GetText (BYVAL Flags AS LONG = tomUseCRLF) AS USTRING
-   DIM pText AS TK_BSTR, ustrText AS USTRING
+   DIM pText AS WBSTR, ustrText AS USTRING
    m_Result = m_pTextSelection2->lpvtbl->GetText2(m_pTextSelection2, Flags, @pText)
    ustrText = *pText
    SysFreeString pText
@@ -234,7 +234,7 @@ END FUNCTION
 ' * Sets the text in this range according to the specified conversion flags.
 ' ========================================================================================
 FUNCTION CTextSelection2.SetText (BYREF wszText AS WSTRING, BYVAL Flags AS LONG = 0) AS HRESULT
-   DIM bstrText AS TK_BSTR = SysAllocString(wszText)
+   DIM bstrText AS WBSTR = SysAllocString(wszText)
    m_Result = m_pTextSelection2->lpvtbl->SetText2(m_pTextSelection2, Flags, bstrText)
    SysFreeString bstrText
    RETURN m_Result
@@ -639,7 +639,7 @@ END FUNCTION
 ' are also specified by Count, and the matching criteria are given by Flags.
 ' ========================================================================================
 FUNCTION CTextSelection2.FindText (BYREF wszText AS WSTRING, BYVAL Count AS LONG = tomForward, BYVAL Flags AS LONG = 0) AS LONG
-   DIM Length AS LONG, bstrText AS TK_BSTR
+   DIM Length AS LONG, bstrText AS WBSTR
    bstrText = SysAllocString(wszText)
    m_Result = m_pTextSelection2->lpvtbl->FindText(m_pTextSelection2, bstrText, Count, Flags, @Length)
    SysFreeString bstrText
@@ -654,7 +654,7 @@ END FUNCTION
 ' string. If the string is not found, the range is unchanged, and pLength is set equal to zero.
 ' ========================================================================================
 FUNCTION CTextSelection2.FindTextStart (BYREF wszText AS WSTRING, BYVAL Count AS LONG = tomForward, BYVAL Flags AS LONG = 0) AS LONG
-   DIM Length AS LONG, bstrText AS TK_BSTR
+   DIM Length AS LONG, bstrText AS WBSTR
    bstrText = SysAllocString(wszText)
    m_Result = m_pTextSelection2->lpvtbl->FindTextStart(m_pTextSelection2, bstrText, Count, Flags, @Length)
    SysFreeString bstrText
@@ -670,7 +670,7 @@ END FUNCTION
 ' set equal to zero.
 ' ========================================================================================
 FUNCTION CTextSelection2.FindTextEnd (BYREF wszText AS WSTRING, BYVAL Count AS LONG = tomForward, BYVAL Flags AS LONG = 0) AS LONG
-   DIM Length AS LONG, bstrText AS TK_BSTR
+   DIM Length AS LONG, bstrText AS WBSTR
    bstrText = SysAllocString(wszText)
    m_Result = m_pTextSelection2->lpvtbl->FindTextEnd(m_pTextSelection2, bstrText, Count, Flags, @Length)
    SysFreeString bstrText
@@ -880,7 +880,7 @@ END FUNCTION
 ' UI settings like AutoCorrect and smart quotes.
 ' ========================================================================================
 FUNCTION CTextSelection2.TypeText (BYREF wszText AS WSTRING) AS HRESULT
-   DIM bstrText AS TK_BSTR = SysAllocString(wszText)
+   DIM bstrText AS WBSTR = SysAllocString(wszText)
    m_Result = m_pTextSelection2->lpvtbl->TypeText(m_pTextSelection2, bstrText)
    SysFreeString bstrText
    RETURN m_Result
@@ -981,7 +981,7 @@ END FUNCTION
 ' Returns the URL text associated with a range.
 ' ========================================================================================
 FUNCTION CTextSelection2.GetURL () AS USTRING
-   DIM bstrUrl AS TK_BSTR
+   DIM bstrUrl AS WBSTR
    m_Result = m_pTextSelection2->lpvtbl->GetURL(m_pTextSelection2, @bstrUrl)
    DIM ustrUrl AS USTRING = *bstrUrl
    SysFreeString bstrUrl
@@ -993,7 +993,7 @@ END FUNCTION
 ' Sets the text in this range to that of the specified URL.
 ' ========================================================================================
 FUNCTION CTextSelection2.SetURL (BYREF wszUrl AS WSTRING) AS HRESULT
-   DIM bstrUrl AS TK_BSTR = SysAllocString(wszUrl)
+   DIM bstrUrl AS WBSTR = SysAllocString(wszUrl)
    m_Result = m_pTextSelection2->lpvtbl->SetURL(m_pTextSelection2, bstrUrl)
    SysFreeString bstrUrl
    RETURN m_Result
@@ -1166,7 +1166,7 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CTextSelection2.GetMathFunctionType (BYREF wszName AS WSTRING) AS LONG
    DIM Value AS LONG
-   DIM bstrName AS TK_BSTR = SysALlocString(wszName)
+   DIM bstrName AS WBSTR = SysALlocString(wszName)
    m_Result = m_pTextSelection2->lpvtbl->GetMathFunctionType(m_pTextSelection2, bstrName, @Value)
    SysFreeString bstrName
    RETURN Value
@@ -1178,7 +1178,7 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CTextSelection2.InsertImage (BYVAL width_ AS LONG, BYVAL height AS LONG, BYVAL ascent AS LONG, _
 BYVAL nType AS LONG, BYREF wszAltText AS WSTRING, BYVAL pStream AS IStream PTR) AS HRESULT
-   DIM bstrAltText AS TK_BSTR = SysAllocString(wszAltText)
+   DIM bstrAltText AS WBSTR = SysAllocString(wszAltText)
    m_Result = m_pTextSelection2->lpvtbl->InsertImage(m_pTextSelection2, width_, height, ascent, nType, bstrAltText, pStream)
    SysFreeString bstrAltText
    RETURN m_Result

@@ -8,7 +8,6 @@
 #include once "win/oaidl.bi"
 #include once "win/ocidl.bi"
 
-' [pkg/sys] a block kept once in the package was here
 
 PUBLIC DIM SHARED IID_IDXGIAdapter AS GUID = (&h2411E7E1, &h12AC, &h4CCF, {&hBD, &h14, &h97, &h98, &hE8, &h53, &h4D, &hC0})
 PUBLIC DIM SHARED IID_IDXGIAdapter1 AS GUID = (&h29038F61, &h3839, &h4626, {&h91, &hFD, &h08, &h68, &h79, &h01, &h1A, &h05})
@@ -55,14 +54,11 @@ PUBLIC DIM SHARED IID_IDXGISwapChain4 AS GUID = (&h3D585D5A, &hBD4A, &h489E, {&h
 PUBLIC DIM SHARED IID_IDXGISwapChainMedia AS GUID = (&hDD95B90B, &hF05F, &h4F6A, {&hBD, &h65, &h25, &hBF, &hB2, &h64, &hBD, &h84})
 
 #ifndef _FACDXGI
-' [pkg/fbx] #define _FACDXGI moved to direct2d.ti
 #endif
 
 #ifndef MAKE_DXGI_STATUS
-' [pkg/fbx] #define MAKE_DXGI_STATUS moved to direct2d.ti
 #endif
 #ifndef MAKE_DXGI_HRESULT
-' [pkg/fbx] #define MAKE_DXGI_HRESULT moved to direct2d.ti
 #endif
 
 '#if 0
@@ -75,19 +71,14 @@ PUBLIC DIM SHARED IID_IDXGISwapChainMedia AS GUID = (&hDD95B90B, &hF05F, &h4F6A,
 '#endif
 
 #ifndef DXGI_CPU_ACCESS_NONE
-' [pkg/fbx] #define DXGI_CPU_ACCESS_NONE moved to direct2d.ti
 #endif
 #ifndef DXGI_CPU_ACCESS_DYNAMIC
-' [pkg/fbx] #define DXGI_CPU_ACCESS_DYNAMIC moved to direct2d.ti
 #endif
 #ifndef DXGI_CPU_ACCESS_READ_WRITE
-' [pkg/fbx] #define DXGI_CPU_ACCESS_READ_WRITE moved to direct2d.ti
 #endif
 #ifndef DXGI_CPU_ACCESS_SCRATCH
-' [pkg/fbx] #define DXGI_CPU_ACCESS_SCRATCH moved to direct2d.ti
 #endif
 #ifndef DXGI_CPU_ACCESS_FIELD
-' [pkg/fbx] #define DXGI_CPU_ACCESS_FIELD moved to direct2d.ti
 #endif
 
 PUBLIC TYPE DXGI_USAGE AS UINT
@@ -249,7 +240,7 @@ PUBLIC TYPE IDXGIFactory6 AS IDXGIFactory6_
 #ifndef __IDXGIObject_INTERFACE_DEFINED__
 #define __IDXGIObject_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDXGIObject_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDXGIObject_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION SetPrivateData (BYREF name AS GUID, BYVAL DataSize AS UINT, BYVAL pData AS const ANY PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION SetPrivateDataInterface (BYREF name AS GUID, BYVAL pUnknown AS IUnknown PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetPrivateData (BYREF name AS GUID, BYVAL pDataSize AS UINT PTR, BYVAL pData AS ANY PTR) AS HRESULT
@@ -712,7 +703,7 @@ END TYPE
 #ifndef __IDXGIDisplayControl_INTERFACE_DEFINED__
 #define __IDXGIDisplayControl_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDXGIDisplayControl_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDXGIDisplayControl_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION IsStereoEnabled () AS BOOLEAN
    DECLARE ABSTRACT SUB SetStereoEnabled (BYVAL Enabled AS BOOLEAN)
 END TYPE
@@ -1034,7 +1025,7 @@ END TYPE
 #ifndef __IDXGIDecodeSwapChain_INTERFACE_DEFINED__
 #define __IDXGIDecodeSwapChain_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDXGIDecodeSwapChain_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDXGIDecodeSwapChain_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION PresentBuffer (BYVAL BufferToPresent AS UINT, BYVAL SyncInterval AS UINT, BYVAL UINT AS LONG) AS HRESULT
    DECLARE ABSTRACT FUNCTION SetSourceRect (BYREF rc AS RECT) AS HRESULT
    DECLARE ABSTRACT FUNCTION SetTargetRect (BYREF rc AS RECT) AS HRESULT
@@ -1059,7 +1050,7 @@ END TYPE
 #ifndef __IDXGIFactoryMedia_INTERFACE_DEFINED__
 #define __IDXGIFactoryMedia_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDXGIFactoryMedia_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDXGIFactoryMedia_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION CreateSwapChainForCompositionSurfaceHandle (BYVAL pDevice AS IUnknown PTR, BYVAL hSurface AS HANDLE, _
       BYREF dec AS DXGI_SWAP_CHAIN_DESC1, BYVAL pRestrictToOutput AS IDXGIOutput PTR, BYREF ppSwapChain AS IDXGISwapChain1 PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION CreateDecodeSwapChainForCompositionSurfaceHandle (BYVAL pDevice AS IUnknown PTR, BYVAL hSurface AS HANDLE, _
@@ -1080,7 +1071,7 @@ END TYPE
 #ifndef __IDXGISwapChainMedia_INTERFACE_DEFINED__
 #define __IDXGISwapChainMedia_INTERFACE_DEFINED__
 
-PUBLIC TYPE IDXGISwapChainMedia_ EXTENDS tk_IUnknown
+PUBLIC TYPE IDXGISwapChainMedia_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION GetFrameStatisticsMedia (BYREF Stats AS DXGI_FRAME_STATISTICS_MEDIA) AS HRESULT
    DECLARE ABSTRACT FUNCTION SetPresentDuration (BYVAL Duration AS UINT) AS HRESULT
    DECLARE ABSTRACT FUNCTION CheckPresentDurationSupport (BYVAL DesiredPresentDuration AS UINT, BYREF ClosestSmallerPresentDuration AS UINT, BYREF ClosestLargerPresentDuration AS UINT) AS HRESULT
@@ -1108,7 +1099,6 @@ END TYPE
 ' ########################################################################################
 
 
-' [pkg/fbx] #define DXGI_CREATE_FACTORY_DEBUG moved to direct2d.ti
 
 PUBLIC DECLARE FUNCTION CreateDXGIFactory2 LIB "Dxgi" ALIAS "CreateDXGIFactory2" (BYVAL flags AS UINT, BYREF factory AS ANY PTR) AS HRESULT
 

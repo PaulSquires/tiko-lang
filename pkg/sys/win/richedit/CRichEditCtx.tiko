@@ -19,8 +19,8 @@ using win, com, gdiplus, gui
 ' ========================================================================================
 ' Custom structure used by the CRichEditCtx.LoadRtfFromResource method.
 ' ========================================================================================
-#ifndef TK_CRichEditCtx_CUSTOMDATA
-PUBLIC TYPE TK_CRichEditCtx_CUSTOMDATA
+#ifndef CRichEditCtx_CUSTOMDATA
+PUBLIC TYPE CRichEditCtx_CUSTOMDATA
    pData  AS BYTE PTR
    nLen   AS LONG
    curPos AS LONG
@@ -62,7 +62,7 @@ PUBLIC TYPE CRichEditCtx EXTENDS CTextObjectBase
          BYVAL FontType AS LONG, BYVAL lplf AS LOGFONTW PTR) AS LONG
 '      DECLARE STATIC FUNCTION CRichEditCtxLoadFromFileCallback (BYVAL hFile AS HANDLE, BYVAL lpBuff AS BYTE PTR, _
 '         BYVAL cb AS LONG, BYVAL pcb AS LONG PTR) AS UINT
-      DECLARE STATIC FUNCTION CRichEditCtxLoadRtfFromResourceCallback (BYVAL pCustData AS TK_CRichEditCtx_CUSTOMDATA PTR, _
+      DECLARE STATIC FUNCTION CRichEditCtxLoadRtfFromResourceCallback (BYVAL pCustData AS CRichEditCtx_CUSTOMDATA PTR, _
          BYVAL lpBuff AS BYTE PTR, BYVAL cb AS LONG, BYVAL pcb AS LONG PTR) AS DWORD
 
       ' // Propereties
@@ -591,7 +591,7 @@ END CONSTRUCTOR
 ' ========================================================================================
 DESTRUCTOR CRichEditCtx
    ' // Release the ITextDocument2 interface
-   DIM dwRefCount AS DWORD = tkSafeRelease(m_pTextDocument2)
+   DIM dwRefCount AS DWORD = SafeRelease(m_pTextDocument2)
    ' // Destroy the Rich Edit control
    DestroyWindow m_hRichEdit
    m_hRichEdit = NULL
@@ -655,7 +655,7 @@ FUNCTION CRichEditCtx.SetWysiwygPrint (BYREF wszPrinterName AS WSTRING = "") AS 
       ' // Get the default printer
       DIM buffer AS WSTRING * MAX_PATH
       GetProfileStringW "WINDOWS", "DEVICE", "", buffer, SIZEOF(buffer)
-      _wszPrinterName = tkParseStr(buffer, 1, ",")
+      _wszPrinterName = ParseStr(buffer, 1, ",")
    END IF
    ' // Create a device context for the printer
    DIM hDCPrinter AS HDC = CreateDCW(NULL, _wszPrinterName, NULL, NULL)
@@ -2655,7 +2655,7 @@ BYVAL Ascent AS LONG = 0, BYVAL nType AS LONG = TA_BASELINE, BYREF wszAlternateT
    ' // Retrieve the size of the image
    IF xWidth = 0 AND yHeight = 0 THEN
       DIM dwWidth AS DWORD, dwHeight AS DWORD
-      DIM nStatus AS LONG = tkGdipGetImageSizeFromFile(wszFileName, @dwWidth, @dwHeight)
+      DIM nStatus AS LONG = GetImageSizeFromFile(wszFileName, @dwWidth, @dwHeight)
       IF nStatus = 0 THEN xWidth = dwWidth : yHeight = dwHeight
    END IF
    ' // Opens the file and creates an stream
@@ -2677,16 +2677,16 @@ BYVAL Ascent AS LONG = 0, BYVAL nType AS LONG = TA_BASELINE, BYREF wszAlternateT
    IF hr <> S_OK OR pStream = NULL THEN RETURN FALSE
    ' // Fill the RICHEDIT_IMAGE_PARAMETERS structure
    DIM ip AS RICHEDIT_IMAGE_PARAMETERS
-   ip.xWidth = tkPixelsToHiMetricX(xWidth * m_ScalingRatio)
-   ip.yHeight = tkPixelsToHiMetricY(yHeight * m_ScalingRatio)
-   ip.Ascent = IIF(Ascent = 0, 0, tkPixelsToHiMetricY(Ascent * m_ScalingRatio))
+   ip.xWidth = PixelsToHiMetricX(xWidth * m_ScalingRatio)
+   ip.yHeight = PixelsToHiMetricY(yHeight * m_ScalingRatio)
+   ip.Ascent = IIF(Ascent = 0, 0, PixelsToHiMetricY(Ascent * m_ScalingRatio))
    ip.Type = nType
    ip.pwszAlternateText = @wszAlternateText
    ip.pIStream = pStream
    ' // Insert the image
    m_Result = SendMessageW(m_hRichEdit, EM_INSERTIMAGE, 0, cast(LPARAM, @ip))
    ' // Release the stream
-   tkSafeRelease(pStream)
+   SafeRelease(pStream)
    ' // Return TRUE for success or FALSE for failure
    IF m_Result <> S_OK THEN RETURN FALSE
    RETURN TRUE
@@ -3375,7 +3375,7 @@ END FUNCTION
 ' Transfers a stream of data into a rich edit control.
 ' ========================================================================================
 FUNCTION CRichEditCtx.CRichEditCtxLoadRtfFromResourceCallback ( _
-   BYVAL pCustData AS TK_CRichEditCtx_CUSTOMDATA PTR _   ' // Value of the dwCookie member of the EDITSTREAM structure.
+   BYVAL pCustData AS CRichEditCtx_CUSTOMDATA PTR _   ' // Value of the dwCookie member of the EDITSTREAM structure.
  , BYVAL lpBuff AS BYTE PTR _                              ' // Pointer to a buffer to write to.
  , BYVAL cb AS LONG _                                      ' // Number of bytes to write.
  , BYVAL pcb AS LONG PTR _                                 ' // Number of bytes actually written.
@@ -3407,7 +3407,7 @@ FUNCTION CRichEditCtx.LoadRtfFromResource ( _
    DIM hResInfo AS HRSRC                             ' // Resource handle
    DIM pResData AS LPVOID                            ' // Pointer to the resource data
    DIM eds AS EDITSTREAM                             ' // EDITSTREAM structure
-   DIM rtfCustData AS TK_CRichEditCtx_CUSTOMDATA     ' // TK_CRichEditCtx_CUSTOMDATA structure
+   DIM rtfCustData AS CRichEditCtx_CUSTOMDATA     ' // CRichEditCtx_CUSTOMDATA structure
 
    ' // Checks the validity of the parameters
    IF m_hRichEdit = 0 THEN m_Result = E_HANDLE : RETURN FALSE
@@ -3562,7 +3562,7 @@ FUNCTION CRichEditCtx.InsertObject ( _
    DIM pStorage AS IStorage PTR
    m_Result = StgCreateDocfileOnILockBytes(pLockBytes, _
       STGM_SHARE_EXCLUSIVE OR STGM_CREATE OR STGM_READWRITE, 0, @pStorage)
-   tkSafeRelease(pLockBytes)
+   SafeRelease(pLockBytes)
    IF FAILED(m_Result) THEN RETURN FALSE
 
    ' // Set up the data format
@@ -3587,7 +3587,7 @@ FUNCTION CRichEditCtx.InsertObject ( _
    ' // Get the IOleObject interface to the object
    DIM pObject AS IOleObject PTR
    m_Result = pUnk->lpvtbl->QueryInterface(pUnk, @IID_IOleObject, @pObject)
-   tkSafeRelease(pUnk)
+   SafeRelease(pUnk)
    IF FAILED(m_Result) THEN RETURN FALSE
 
    ' // To ensure that references are counted correctly, notify the object that it is contained
@@ -3596,8 +3596,8 @@ FUNCTION CRichEditCtx.InsertObject ( _
    ' // Get the object class identifier
    m_Result = pObject->lpvtbl->GetUserClassID(pObject, @clsid)
    IF FAILED(m_Result) THEN
-      tkSafeRelease(pObject)
-      tkSafeRelease(pStorage)
+      SafeRelease(pObject)
+      SafeRelease(pStorage)
       RETURN FALSE
    END IF
 
@@ -3614,19 +3614,19 @@ FUNCTION CRichEditCtx.InsertObject ( _
    reobject.pstg = pStorage
    DIM sizel AS SIZEL
    DIM dwWidth AS DWORD, dwHeight AS DWORD
-   DIM nStatus AS LONG = tkGdipGetImageSizeFromFile(wszFileName, @dwWidth, @dwHeight)
+   DIM nStatus AS LONG = GetImageSizeFromFile(wszFileName, @dwWidth, @dwHeight)
    IF nStatus = 0 THEN
-      sizel.cx = tkPixelsToHiMetricX(dwWidth * m_ScalingRatio)
-      sizel.cy = tkPixelsToHiMetricY(dwHeight * m_ScalingRatio)
+      sizel.cx = PixelsToHiMetricX(dwWidth * m_ScalingRatio)
+      sizel.cy = PixelsToHiMetricY(dwHeight * m_ScalingRatio)
    END IF
    reobject.sizel = sizel
 
    ' // Insert the object
    m_Result = pRichEditOle->lpvtbl->InsertObject(pRichEditOle, @reobject)
-   tkSafeRelease(pClientSite)
-   tkSafeRelease(pObject)
-   tkSafeRelease(pStorage)
-   tkSafeRelease(pRichEditOle)
+   SafeRelease(pClientSite)
+   SafeRelease(pObject)
+   SafeRelease(pStorage)
+   SafeRelease(pRichEditOle)
    IF FAILED(m_Result) THEN RETURN FALSE
    
    ' // Return success
@@ -4108,9 +4108,9 @@ FUNCTION CRichEditCtx.GetDocumentInterface () AS ITextDocument2 PTR
    m_Result = SendMessageW(hRichEdit, EM_GETOLEINTERFACE, 0, cast(LPARAM, @pUnk))
    ' // Retrieve a pointer to its ITextDocument2 interface
    IF pUnk THEN
-      DIM IID_ITextDocument2_ AS IID = tkGuid(IID_ITextDocument2)
+      DIM IID_ITextDocument2_ AS IID = Guid(IID_ITextDocument2)
       m_Result = IUnknown_QueryInterface(pUnk, @IID_ITextDocument2_, @pTextDocument2)
-      tkSafeRelease(pUnk)
+      SafeRelease(pUnk)
    END IF
    RETURN pTextDocument2
 END FUNCTION
@@ -4131,7 +4131,7 @@ END FUNCTION
 ' Opens a new document. If another document is open, this method saves any current changes
 ' and closes the current document before opening a new one.
 ' Example:
-' DIM dv AS DVARIANT = tkGetExePath & $"\Test.rtf"
+' DIM dv AS DVARIANT = GetExePath & $"\Test.rtf"
 ' pRichEditCtrl.OpenDoc(dv)
 ' Default code page is CP_UNICODE (1200).
 ' If it is an ansi text file, pass CP_ANSI.
@@ -4171,7 +4171,7 @@ END FUNCTION
 ' Gets the file name of this document. This is the ITextDocument2 default property.
 ' ========================================================================================
 FUNCTION CRichEditCtx.DocName () AS USTRING
-   DIM ustr AS USTRING, bstr AS TK_BSTR
+   DIM ustr AS USTRING, bstr AS WBSTR
    m_Result = m_pTextDocument2->lpvtbl->GetName(m_pTextDocument2, @bstr)
    ustr = *bstr
    SysFreeString(bstr)
@@ -4180,7 +4180,7 @@ END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CRichEditCtx.GetDocName () AS USTRING
-   DIM ustr AS USTRING, bstr AS TK_BSTR
+   DIM ustr AS USTRING, bstr AS WBSTR
    m_Result = m_pTextDocument2->lpvtbl->GetName(m_pTextDocument2, @bstr)
    ustr = *bstr
    SysFreeString(bstr)
@@ -4521,7 +4521,7 @@ END FUNCTION
 ' Gets the name of the Text Object Model (TOM) engine.
 ' ========================================================================================
 FUNCTION CRichEditCtx.GetGenerator () AS USTRING
-   DIM bstr AS TK_BSTR, ustr AS USTRING
+   DIM bstr AS WBSTR, ustr AS USTRING
    m_Result = m_pTextDocument2->lpvtbl->GetGenerator(m_pTextDocument2, @bstr)
    ustr = *bstr
    SysFreeString(bstr)
@@ -4664,7 +4664,7 @@ END FUNCTION
 FUNCTION CRichEditCtx.GetPreferredFont (BYVAL cp AS LONG, BYVAL CharRep AS LONG, BYVAL nOptions AS LONG, _
 BYVAL curCharRep AS LONG, BYVAL curFontSize AS LONG, BYREF ustrFontName AS USTRING, _
 BYREF PitchAndFamily AS LONG, BYREF NewFontSize AS LONG) AS HRESULT
-   DIM bstrFontName AS TK_BSTR
+   DIM bstrFontName AS WBSTR
    m_Result = m_pTextDocument2->lpvtbl->GetPreferredFont(m_pTextDocument2, cp, CharRep, _
    nOptions, curCharRep, curFontSize, @bstrFontName, @PitchAndFamily, @NewFontSize)
    ustrFontName = *bstrFontName
@@ -4878,7 +4878,7 @@ END FUNCTION
 ' Usage example:
 ' DIM pRichEdit AS CRichEditCtx PTR = AfxCRichEditCtxPtr(CAST(HWND, lParam))
 ' ========================================================================================
-PUBLIC FUNCTION tkCRichEditCtxPtr OVERLOAD (BYVAL hRichEdit AS HWND) AS CRichEditCtx PTR
+PUBLIC FUNCTION CRichEditCtxPtr OVERLOAD (BYVAL hRichEdit AS HWND) AS CRichEditCtx PTR
    DIM pRichEditCtx AS CRichEditCtx PTR = CAST(CRichEditCtx PTR, SendMessageW(hRichEdit, WM_USER + 100, 0, 0))
    RETURN pRichEditCtx
 END FUNCTION
@@ -4889,7 +4889,7 @@ END FUNCTION
 ' hParent = Handle of the parent window of the rich edit control.
 ' cID = Identifier of the rich edit control.
 ' ========================================================================================
-PUBLIC FUNCTION tkCRichEditCtxPtr OVERLOAD (BYVAL hParent AS HWND, BYVAL cID AS LONG) AS CRichEditCtx PTR
+PUBLIC FUNCTION CRichEditCtxPtr OVERLOAD (BYVAL hParent AS HWND, BYVAL cID AS LONG) AS CRichEditCtx PTR
    DIM pRichEditCtx AS CRichEditCtx PTR = CAST(CRichEditCtx PTR, SendMessageW(GetDlgItem(hParent, cID), WM_USER + 100, 0, 0))
    RETURN pRichEditCtx
 END FUNCTION

@@ -57,9 +57,9 @@ END SUB
 PUBLIC FUNCTION AddTool (BYVAL hTooltip AS HWND, BYVAL lpti AS TOOLINFOW PTR) AS BOOLEAN
    IF lpti = NULL THEN RETURN FALSE
 #ifdef __FB_64BIT__
-   IF tkComCtlVersion < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
+   IF GetFileVersion("comctl32.dll") < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
 #else
-   IF tkComCtlVersion < 600 THEN lpti->cbSize = 44 ELSE lpti->cbSize = 48
+   IF GetFileVersion("comctl32.dll") < 600 THEN lpti->cbSize = 44 ELSE lpti->cbSize = 48
 #endif
    RETURN SendMessageW(hTooltip, TTM_ADDTOOLW, 0, CAST(LPARAM, lpti))
 END FUNCTION
@@ -86,9 +86,9 @@ END FUNCTION
 PUBLIC SUB DelTool OVERLOAD (BYVAL hTooltip AS HWND, BYVAL lpti AS TOOLINFOW PTR)
    IF lpti = NULL THEN EXIT SUB
 #ifdef __FB_64BIT__
-   IF tkComCtlVersion < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
+   IF GetFileVersion("comctl32.dll") < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
 #else
-   IF tkComCtlVersion < 600 THEN lpti->cbSize = 44 ELSE lpti->cbSize = 48
+   IF GetFileVersion("comctl32.dll") < 600 THEN lpti->cbSize = 44 ELSE lpti->cbSize = 48
 #endif
    SendMessageW(hTooltip, TTM_DELTOOLW, 0, cast(LPARAM, lpti))
 END SUB
@@ -97,9 +97,9 @@ END SUB
 PUBLIC SUB DelTool OVERLOAD (BYVAL hTooltip AS HWND, BYREF ti AS TOOLINFOW)
    IF VARPTR(ti) = NULL THEN EXIT SUB
 #ifdef __FB_64BIT__
-   IF tkComCtlVersion < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
+   IF GetFileVersion("comctl32.dll") < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
 #else
-   IF tkComCtlVersion < 600 THEN ti.cbSize = 44 ELSE ti.cbSize = 48
+   IF GetFileVersion("comctl32.dll") < 600 THEN ti.cbSize = 44 ELSE ti.cbSize = 48
 #endif
    SendMessageW(hTooltip, TTM_DELTOOLW, 0, cast(LPARAM, @ti))
 END SUB
@@ -112,9 +112,9 @@ END SUB
 PUBLIC FUNCTION EnumTools OVERLOAD (BYVAL hTooltip AS HWND, BYVAL iTool AS DWORD, BYVAL lpti AS TOOLINFOW PTR) AS BOOLEAN
    IF lpti = NULL THEN RETURN FALSE
 #ifdef __FB_64BIT__
-   IF tkComCtlVersion < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
+   IF GetFileVersion("comctl32.dll") < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
 #else
-   IF tkComCtlVersion < 600 THEN lpti->cbSize = 44 ELSE lpti->cbSize = 48
+   IF GetFileVersion("comctl32.dll") < 600 THEN lpti->cbSize = 44 ELSE lpti->cbSize = 48
 #endif
    RETURN SendMessageW(hTooltip, TTM_ENUMTOOLSW, cast(WPARAM, iTool), cast(LPARAM, lpti))
 END FUNCTION
@@ -123,9 +123,9 @@ END FUNCTION
 PUBLIC FUNCTION EnumTools OVERLOAD (BYVAL hTooltip AS HWND, BYVAL iTool AS DWORD, BYREF ti AS TOOLINFOW) AS BOOLEAN
    IF VARPTR(ti) = NULL THEN RETURN FALSE
 #ifdef __FB_64BIT__
-   IF tkComCtlVersion < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
+   IF GetFileVersion("comctl32.dll") < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
 #else
-   IF tkComCtlVersion < 600 THEN ti.cbSize = 44 ELSE ti.cbSize = 48
+   IF GetFileVersion("comctl32.dll") < 600 THEN ti.cbSize = 44 ELSE ti.cbSize = 48
 #endif
    RETURN SendMessageW(hTooltip, TTM_ENUMTOOLSW, cast(WPARAM, iTool), cast(LPARAM, @ti))
 END FUNCTION
@@ -137,9 +137,9 @@ END FUNCTION
 PUBLIC FUNCTION GetBubbleSize OVERLOAD (BYVAL hTooltip AS HWND, BYVAL lpti AS TOOLINFOW PTR) AS DWORD
    IF lpti = NULL THEN RETURN 0
 #ifdef __FB_64BIT__
-   IF tkComCtlVersion < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
+   IF GetFileVersion("comctl32.dll") < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
 #else
-   IF tkComCtlVersion < 600 THEN lpti->cbSize = 44 ELSE lpti->cbSize = 48
+   IF GetFileVersion("comctl32.dll") < 600 THEN lpti->cbSize = 44 ELSE lpti->cbSize = 48
 #endif
    RETURN SendMessageW(hTooltip, TTM_GETBUBBLESIZE, 0, cast(LPARAM, lpti))
 END FUNCTION
@@ -148,9 +148,9 @@ END FUNCTION
 PUBLIC FUNCTION GetBubbleSize OVERLOAD (BYVAL hTooltip AS HWND, BYREF ti AS TOOLINFOW) AS DWORD
    IF VARPTR(ti) = NULL THEN RETURN 0
 #ifdef __FB_64BIT__
-   IF tkComCtlVersion < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
+   IF GetFileVersion("comctl32.dll") < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
 #else
-   IF tkComCtlVersion < 600 THEN ti.cbSize = 44 ELSE ti.cbSize = 48
+   IF GetFileVersion("comctl32.dll") < 600 THEN ti.cbSize = 44 ELSE ti.cbSize = 48
 #endif
    RETURN SendMessageW(hTooltip, TTM_GETBUBBLESIZE, 0, cast(LPARAM, @ti))
 END FUNCTION
@@ -168,9 +168,9 @@ END FUNCTION
 PUBLIC FUNCTION GetCurrentTool OVERLOAD (BYVAL hTooltip AS HWND, BYVAL lpti AS TOOLINFOW PTR) AS BOOLEAN
    IF lpti <> NULL THEN
    #ifdef __FB_64BIT__
-      IF tkComCtlVersion < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
+      IF GetFileVersion("comctl32.dll") < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
    #else
-      IF tkComCtlVersion < 600 THEN lpti->cbSize = 44 ELSE lpti->cbSize = 48
+      IF GetFileVersion("comctl32.dll") < 600 THEN lpti->cbSize = 44 ELSE lpti->cbSize = 48
    #endif
    END IF
    RETURN SendMessageW(hTooltip, TTM_GETCURRENTTOOLW, 0, cast(LPARAM, lpti))
@@ -180,9 +180,9 @@ END FUNCTION
 PUBLIC FUNCTION GetCurrentTool OVERLOAD (BYVAL hTooltip AS HWND, BYREF ti AS TOOLINFOW) AS BOOLEAN
    IF VARPTR(ti) <> NULL THEN
    #ifdef __FB_64BIT__
-      IF tkComCtlVersion < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
+      IF GetFileVersion("comctl32.dll") < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
    #else
-      IF tkComCtlVersion < 600 THEN ti.cbSize = 44 ELSE ti.cbSize = 48
+      IF GetFileVersion("comctl32.dll") < 600 THEN ti.cbSize = 44 ELSE ti.cbSize = 48
    #endif
    END IF
    RETURN SendMessageW(hTooltip, TTM_GETCURRENTTOOLW, 0, cast(LPARAM, @ti))
@@ -249,9 +249,9 @@ END FUNCTION
 PUBLIC SUB GetText OVERLOAD (BYVAL hTooltip AS HWND, BYVAL numChars AS DWORD, BYVAL lpti AS TOOLINFOW PTR)
    IF lpti = NULL THEN EXIT SUB
 #ifdef __FB_64BIT__
-   IF tkComCtlVersion < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
+   IF GetFileVersion("comctl32.dll") < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
 #else
-   IF tkComCtlVersion < 600 THEN lpti->cbSize = 44 ELSE lpti->cbSize = 48
+   IF GetFileVersion("comctl32.dll") < 600 THEN lpti->cbSize = 44 ELSE lpti->cbSize = 48
 #endif
    SendMessageW(hTooltip, TTM_GETTEXTW, numChars, cast(LPARAM, lpti))
 END SUB
@@ -260,9 +260,9 @@ END SUB
 PUBLIC SUB GetText OVERLOAD (BYVAL hTooltip AS HWND, BYVAL numChars AS DWORD, BYREF ti AS TOOLINFOW)
    IF VARPTR(ti) = NULL THEN EXIT SUB
 #ifdef __FB_64BIT__
-   IF tkComCtlVersion < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
+   IF GetFileVersion("comctl32.dll") < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
 #else
-   IF tkComCtlVersion < 600 THEN ti.cbSize = 44 ELSE ti.cbSize = 48
+   IF GetFileVersion("comctl32.dll") < 600 THEN ti.cbSize = 44 ELSE ti.cbSize = 48
 #endif
    SendMessageW(hTooltip, TTM_GETTEXTW, numChars, cast(LPARAM, @ti))
 END SUB
@@ -278,9 +278,9 @@ END SUB
 PUBLIC FUNCTION GetText OVERLOAD (BYVAL hTooltip AS HWND, BYVAL hwnd AS HWND, BYVAL numChars AS DWORD) AS USTRING
    DIM ti AS TOOLINFOW
 #ifdef __FB_64BIT__
-   IF tkComCtlVersion < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
+   IF GetFileVersion("comctl32.dll") < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
 #else
-   IF tkComCtlVersion < 600 THEN ti.cbSize = 44 ELSE ti.cbSize = 48
+   IF GetFileVersion("comctl32.dll") < 600 THEN ti.cbSize = 44 ELSE ti.cbSize = 48
 #endif
    ' Try IDISHWND pattern first
    ti.hwnd = GetParent(hwnd)
@@ -349,9 +349,9 @@ END FUNCTION
 PUBLIC FUNCTION GetToolInfo OVERLOAD (BYVAL hTooltip AS HWND, BYVAL lpti AS TOOLINFOW PTR) AS BOOLEAN
    IF lpti = NULL THEN RETURN FALSE
 #ifdef __FB_64BIT__
-   IF tkComCtlVersion < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
+   IF GetFileVersion("comctl32.dll") < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
 #else
-   IF tkComCtlVersion < 600 THEN lpti->cbSize = 44 ELSE lpti->cbSize = 48
+   IF GetFileVersion("comctl32.dll") < 600 THEN lpti->cbSize = 44 ELSE lpti->cbSize = 48
 #endif
    RETURN SendMessageW(hTooltip, TTM_GETTOOLINFOW, 0, cast(LPARAM, lpti))
 END FUNCTION
@@ -360,9 +360,9 @@ END FUNCTION
 PUBLIC FUNCTION GetToolInfo OVERLOAD (BYVAL hTooltip AS HWND, BYREF ti AS TOOLINFOW) AS BOOLEAN
    IF VARPTR(ti) = NULL THEN RETURN FALSE
 #ifdef __FB_64BIT__
-   IF tkComCtlVersion < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
+   IF GetFileVersion("comctl32.dll") < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
 #else
-   IF tkComCtlVersion < 600 THEN ti.cbSize = 44 ELSE ti.cbSize = 48
+   IF GetFileVersion("comctl32.dll") < 600 THEN ti.cbSize = 44 ELSE ti.cbSize = 48
 #endif
    RETURN SendMessageW(hTooltip, TTM_GETTOOLINFOW, 0, cast(LPARAM, @ti))
 END FUNCTION
@@ -371,9 +371,9 @@ END FUNCTION
 PUBLIC FUNCTION GetToolInfo OVERLOAD (BYVAL hTooltip AS HWND) AS TOOLINFOW
    DIM ti AS TOOLINFOW
 #ifdef __FB_64BIT__
-   IF tkComCtlVersion < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
+   IF GetFileVersion("comctl32.dll") < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
 #else
-   IF tkComCtlVersion < 600 THEN ti.cbSize = 44 ELSE ti.cbSize = 48
+   IF GetFileVersion("comctl32.dll") < 600 THEN ti.cbSize = 44 ELSE ti.cbSize = 48
 #endif
    SendMessageW(hTooltip, TTM_GETTOOLINFOW, 0, cast(LPARAM, @ti))
    RETURN ti
@@ -400,9 +400,9 @@ END FUNCTION
 PUBLIC SUB NewToolRect OVERLOAD (BYVAL hTooltip AS HWND, BYVAL lpti AS TOOLINFOW PTR)
    IF lpti = NULL THEN EXIT SUB
 #ifdef __FB_64BIT__
-   IF tkComCtlVersion < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
+   IF GetFileVersion("comctl32.dll") < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
 #else
-   IF tkComCtlVersion < 600 THEN lpti->cbSize = 44 ELSE lpti->cbSize = 48
+   IF GetFileVersion("comctl32.dll") < 600 THEN lpti->cbSize = 44 ELSE lpti->cbSize = 48
 #endif
    SendMessageW(hTooltip, TTM_NEWTOOLRECTW, 0, cast(LPARAM, lpti))
 END SUB
@@ -411,9 +411,9 @@ END SUB
 PUBLIC SUB NewToolRect OVERLOAD (BYVAL hTooltip AS HWND, BYREF ti AS TOOLINFOW)
    IF VARPTR(ti) = NULL THEN EXIT SUB
 #ifdef __FB_64BIT__
-   IF tkComCtlVersion < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
+   IF GetFileVersion("comctl32.dll") < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
 #else
-   IF tkComCtlVersion < 600 THEN ti.cbSize = 44 ELSE ti.cbSize = 48
+   IF GetFileVersion("comctl32.dll") < 600 THEN ti.cbSize = 44 ELSE ti.cbSize = 48
 #endif
    SendMessageW(hTooltip, TTM_NEWTOOLRECTW, 0, cast(LPARAM, @ti))
 END SUB
@@ -519,9 +519,9 @@ END FUNCTION
 PUBLIC SUB SetToolInfo OVERLOAD (BYVAL hTooltip AS HWND, BYVAL lpti AS TOOLINFOW PTR)
    IF lpti = NULL THEN EXIT SUB
 #ifdef __FB_64BIT__
-   IF tkComCtlVersion < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
+   IF GetFileVersion("comctl32.dll") < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
 #else
-   IF tkComCtlVersion < 600 THEN lpti->cbSize = 44 ELSE lpti->cbSize = 48
+   IF GetFileVersion("comctl32.dll") < 600 THEN lpti->cbSize = 44 ELSE lpti->cbSize = 48
 #endif
    SendMessageW(hTooltip, TTM_SETTOOLINFOW, 0, cast(LPARAM, lpti))
 END SUB
@@ -530,9 +530,9 @@ END SUB
 PUBLIC SUB SetToolInfo OVERLOAD (BYVAL hTooltip AS HWND, BYREF ti AS TOOLINFOW)
    IF VARPTR(ti) = NULL THEN EXIT SUB
 #ifdef __FB_64BIT__
-   IF tkComCtlVersion < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
+   IF GetFileVersion("comctl32.dll") < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
 #else
-   IF tkComCtlVersion < 600 THEN ti.cbSize = 44 ELSE ti.cbSize = 48
+   IF GetFileVersion("comctl32.dll") < 600 THEN ti.cbSize = 44 ELSE ti.cbSize = 48
 #endif
    SendMessageW(hTooltip, TTM_SETTOOLINFOW, 0, cast(LPARAM, @ti))
 END SUB
@@ -562,9 +562,9 @@ END SUB
 PUBLIC SUB TrackActivate OVERLOAD (BYVAL hTooltip AS HWND, BYVAL lpti AS TOOLINFOW PTR)
    IF lpti = NULL THEN EXIT SUB
 #ifdef __FB_64BIT__
-   IF tkComCtlVersion < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
+   IF GetFileVersion("comctl32.dll") < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
 #else
-   IF tkComCtlVersion < 600 THEN lpti->cbSize = 44 ELSE lpti->cbSize = 48
+   IF GetFileVersion("comctl32.dll") < 600 THEN lpti->cbSize = 44 ELSE lpti->cbSize = 48
 #endif
    SendMessageW(hTooltip, TTM_TRACKACTIVATE, CTRUE, cast(LPARAM, lpti))
 END SUB
@@ -573,9 +573,9 @@ END SUB
 PUBLIC SUB TrackActivate OVERLOAD (BYVAL hTooltip AS HWND, BYREF ti AS TOOLINFOW)
    IF VARPTR(ti) = NULL THEN EXIT SUB
 #ifdef __FB_64BIT__
-   IF tkComCtlVersion < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
+   IF GetFileVersion("comctl32.dll") < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
 #else
-   IF tkComCtlVersion < 600 THEN ti.cbSize = 44 ELSE ti.cbSize = 48
+   IF GetFileVersion("comctl32.dll") < 600 THEN ti.cbSize = 44 ELSE ti.cbSize = 48
 #endif
    SendMessageW(hTooltip, TTM_TRACKACTIVATE, CTRUE, cast(LPARAM, @ti))
 END SUB
@@ -586,9 +586,9 @@ END SUB
 PUBLIC SUB TrackDeactivate OVERLOAD (BYVAL hTooltip AS HWND, BYVAL lpti AS TOOLINFOW PTR)
    IF lpti = NULL THEN EXIT SUB
 #ifdef __FB_64BIT__
-   IF tkComCtlVersion < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
+   IF GetFileVersion("comctl32.dll") < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
 #else
-   IF tkComCtlVersion < 600 THEN lpti->cbSize = 44 ELSE lpti->cbSize = 48
+   IF GetFileVersion("comctl32.dll") < 600 THEN lpti->cbSize = 44 ELSE lpti->cbSize = 48
 #endif
    SendMessageW(hTooltip, TTM_TRACKACTIVATE, FALSE, cast(LPARAM, lpti))
 END SUB
@@ -597,9 +597,9 @@ END SUB
 PUBLIC SUB TrackDeactivate OVERLOAD (BYVAL hTooltip AS HWND, BYREF ti AS TOOLINFOW)
    IF VARPTR(ti) = NULL THEN EXIT SUB
 #ifdef __FB_64BIT__
-   IF tkComCtlVersion < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
+   IF GetFileVersion("comctl32.dll") < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
 #else
-   IF tkComCtlVersion < 600 THEN ti.cbSize = 44 ELSE ti.cbSize = 48
+   IF GetFileVersion("comctl32.dll") < 600 THEN ti.cbSize = 44 ELSE ti.cbSize = 48
 #endif
    SendMessageW(hTooltip, TTM_TRACKACTIVATE, FALSE, cast(LPARAM, @ti))
 END SUB
@@ -627,9 +627,9 @@ END SUB
 PUBLIC SUB UpdateTipText OVERLOAD (BYVAL hTooltip AS HWND, BYVAL lpti AS TOOLINFOW PTR)
    IF lpti = NULL THEN EXIT SUB
 #ifdef __FB_64BIT__
-   IF tkComCtlVersion < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
+   IF GetFileVersion("comctl32.dll") < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
 #else
-   IF tkComCtlVersion < 600 THEN lpti->cbSize = 44 ELSE lpti->cbSize = 48
+   IF GetFileVersion("comctl32.dll") < 600 THEN lpti->cbSize = 44 ELSE lpti->cbSize = 48
 #endif
    SendMessageW(hTooltip, TTM_UPDATETIPTEXTW, 0, cast(LPARAM, lpti))
 END SUB
@@ -638,9 +638,9 @@ END SUB
 PUBLIC SUB UpdateTipText OVERLOAD (BYVAL hTooltip AS HWND, BYREF ti AS TOOLINFOW)
    IF VARPTR(ti) = NULL THEN EXIT SUB
 #ifdef __FB_64BIT__
-   IF tkComCtlVersion < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
+   IF GetFileVersion("comctl32.dll") < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
 #else
-   IF tkComCtlVersion < 600 THEN ti.cbSize = 44 ELSE ti.cbSize = 48
+   IF GetFileVersion("comctl32.dll") < 600 THEN ti.cbSize = 44 ELSE ti.cbSize = 48
 #endif
    SendMessageW(hTooltip, TTM_UPDATETIPTEXTW, 0, cast(LPARAM, @ti))
 END SUB
@@ -673,9 +673,9 @@ PUBLIC FUNCTION AddTooltip (BYVAL hwnd AS HWND, BYREF wszText AS CONST WSTRING =
    '    version 6 of comctl32.dll, and 64 bytes in lower versions.
    DIM tti AS TOOLINFOW
 #ifdef __FB_64BIT__
-   IF tkComCtlVersion < 600 THEN tti.cbSize = 64 ELSE tti.cbSize = 72
+   IF GetFileVersion("comctl32.dll") < 600 THEN tti.cbSize = 64 ELSE tti.cbSize = 72
 #else
-   IF tkComCtlVersion < 600 THEN tti.cbSize = 44 ELSE tti.cbSize = 48
+   IF GetFileVersion("comctl32.dll") < 600 THEN tti.cbSize = 44 ELSE tti.cbSize = 48
 #endif
    IF (GetWindowLongPtrW(hwnd, GWL_STYLE) AND WS_CHILD) = WS_CHILD THEN
       tti.uFlags = TTF_IDISHWND OR TTF_SUBCLASS
@@ -710,9 +710,9 @@ PUBLIC SUB SetTooltipText (BYVAL hTooltip AS HWND, BYVAL hwnd AS HWND, BYREF wsz
    '    version 6 of comctl32.dll, and 64 bytes in lower versions.
    DIM tti AS TOOLINFOW
 #ifdef __FB_64BIT__
-   IF tkComCtlVersion < 600 THEN tti.cbSize = 64 ELSE tti.cbSize = 72
+   IF GetFileVersion("comctl32.dll") < 600 THEN tti.cbSize = 64 ELSE tti.cbSize = 72
 #else
-   IF tkComCtlVersion < 600 THEN tti.cbSize = 44 ELSE tti.cbSize = 48
+   IF GetFileVersion("comctl32.dll") < 600 THEN tti.cbSize = 44 ELSE tti.cbSize = 48
 #endif
    IF (GetWindowLongPtrW(hwnd, GWL_STYLE) AND WS_CHILD) = WS_CHILD THEN
       tti.hwnd = GetParent(hwnd)
@@ -745,9 +745,9 @@ PUBLIC SUB DeleteTooltip (BYVAL hTooltip AS HWND, BYVAL hwnd AS HWND)
    '    version 6 of comctl32.dll, and 64 bytes in lower versions.
    DIM tti AS TOOLINFOW
 #ifdef __FB_64BIT__
-   IF tkComCtlVersion < 600 THEN tti.cbSize = 64 ELSE tti.cbSize = 72
+   IF GetFileVersion("comctl32.dll") < 600 THEN tti.cbSize = 64 ELSE tti.cbSize = 72
 #else
-   IF tkComCtlVersion < 600 THEN tti.cbSize = 44 ELSE tti.cbSize = 48
+   IF GetFileVersion("comctl32.dll") < 600 THEN tti.cbSize = 44 ELSE tti.cbSize = 48
 #endif
    IF (GetWindowLongPtrW(hwnd, GWL_STYLE) AND WS_CHILD) = WS_CHILD THEN
       tti.hwnd = GetParent(hwnd)

@@ -1263,8 +1263,8 @@ END NAMESPACE
 ' ========================================================================================
 ' Custom structure used by the tkRichEdit_LoadRtfFromResourceW function.
 ' ========================================================================================
-#ifndef TK_RICHEDIT_CUSTOMDATA
-PUBLIC TYPE TK_RICHEDIT_CUSTOMDATA
+#ifndef RICHEDIT_CUSTOMDATA
+PUBLIC TYPE RICHEDIT_CUSTOMDATA
    pData  AS BYTE PTR
    nLen   AS LONG
    curPos AS LONG
@@ -1278,7 +1278,7 @@ NAMESPACE RichEdit
 ' Transfers a stream of data into a rich edit control.
 ' ========================================================================================
 PUBLIC FUNCTION LoadRtfFromResourceCallback ( _
-   BYVAL pCustData AS TK_RICHEDIT_CUSTOMDATA PTR _    ' // Value of the dwCookie member of the EDITSTREAM structure.
+   BYVAL pCustData AS RICHEDIT_CUSTOMDATA PTR _    ' // Value of the dwCookie member of the EDITSTREAM structure.
  , BYVAL lpBuff AS BYTE PTR _                         ' // Pointer to a buffer to write to.
  , BYVAL cb AS LONG _                                 ' // Number of bytes to write.
  , BYVAL pcb AS LONG PTR _                            ' // Number of bytes actually written.
@@ -1312,7 +1312,7 @@ PUBLIC FUNCTION LoadRtfFromResource ( _
    DIM hResInfo AS HRSRC                        ' // Resource handle
    DIM pResData AS LPVOID                       ' // Pointer to the resource data
    DIM eds AS EDITSTREAM                        ' // EDITSTREAM structure
-   DIM rtfCustData AS TK_RICHEDIT_CUSTOMDATA    ' // TK_RICHEDIT_CUSTOMDATA structure
+   DIM rtfCustData AS RICHEDIT_CUSTOMDATA    ' // RICHEDIT_CUSTOMDATA structure
 
    ' // Checks the validity of the parameters
    IF hRichEdit = NULL OR hInstance = NULL THEN EXIT FUNCTION

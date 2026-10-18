@@ -111,7 +111,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION GetBandInfo OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD, BYVAL prbbi AS REBARBANDINFOW PTR) AS BOOLEAN
    IF prbbi = NULL THEN RETURN FALSE
-   IF tkComCtlVersion >= 600 THEN
+   IF GetFileVersion("comctl32.dll") >= 600 THEN
       prbbi->cbSize  = REBARBANDINFO_V6_SIZE
    ELSE
       prbbi->cbSize  = REBARBANDINFO_V3_SIZE
@@ -122,7 +122,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION GetBandInfo OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD, BYREF rbbi AS REBARBANDINFOW) AS BOOLEAN
    IF VARPTR(rbbi) = 0 THEN RETURN FALSE
-   IF tkComCtlVersion >= 600 THEN
+   IF GetFileVersion("comctl32.dll") >= 600 THEN
       rbbi.cbSize  = REBARBANDINFO_V6_SIZE
    ELSE
       rbbi.cbSize  = REBARBANDINFO_V3_SIZE
@@ -133,7 +133,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION GetBandInfo OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD) AS REBARBANDINFOW
    DIM rbbi AS REBARBANDINFOW
-   IF tkComCtlVersion >= 600 THEN
+   IF GetFileVersion("comctl32.dll") >= 600 THEN
       rbbi.cbSize  = REBARBANDINFO_V6_SIZE
    ELSE
       rbbi.cbSize  = REBARBANDINFO_V3_SIZE
@@ -342,7 +342,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION InsertBand OVERLOAD (BYVAL hRebar AS HWND, BYVAL nIndex AS LONG, BYVAL prbbi AS REBARBANDINFOW PTR) AS BOOLEAN
    IF prbbi = NULL THEN RETURN FALSE
-   IF tkComCtlVersion >= 600 THEN
+   IF GetFileVersion("comctl32.dll") >= 600 THEN
       prbbi->cbSize  = REBARBANDINFO_V6_SIZE
    ELSE
       prbbi->cbSize  = REBARBANDINFO_V3_SIZE
@@ -353,7 +353,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION InsertBand OVERLOAD (BYVAL hRebar AS HWND, BYVAL nIndex AS LONG, BYREF rbbi AS REBARBANDINFOW) AS BOOLEAN
    IF VARPTR(rbbi) = 0 THEN RETURN FALSE
-   IF tkComCtlVersion >= 600 THEN
+   IF GetFileVersion("comctl32.dll") >= 600 THEN
       rbbi.cbSize  = REBARBANDINFO_V6_SIZE
    ELSE
       rbbi.cbSize  = REBARBANDINFO_V3_SIZE
@@ -399,7 +399,7 @@ END SUB
 ' ========================================================================================
 PUBLIC FUNCTION SetBandInfo OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD, BYVAL prbbi AS REBARBANDINFOW PTR) AS BOOLEAN
    IF prbbi = NULL THEN RETURN FALSE
-   IF tkComCtlVersion >= 600 THEN
+   IF GetFileVersion("comctl32.dll") >= 600 THEN
       prbbi->cbSize  = REBARBANDINFO_V6_SIZE
    ELSE
       prbbi->cbSize  = REBARBANDINFO_V3_SIZE
@@ -409,7 +409,7 @@ END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION SetBandInfo OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD, BYREF rbbi AS REBARBANDINFOW) AS BOOLEAN
-   IF tkComCtlVersion >= 600 THEN
+   IF GetFileVersion("comctl32.dll") >= 600 THEN
       rbbi.cbSize  = REBARBANDINFO_V6_SIZE
    ELSE
       rbbi.cbSize  = REBARBANDINFO_V3_SIZE

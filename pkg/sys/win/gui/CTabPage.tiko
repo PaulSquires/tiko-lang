@@ -308,7 +308,7 @@ END NAMESPACE
 ' tab page is associated and the zero-based tab index. If nTabIdx is ommited, the function
 ' will return the pointer of the selected tab, if any.
 ' ========================================================================================
-PUBLIC FUNCTION tkCTabPagePtr (BYVAL hTab AS HWND, BYVAL idx AS LONG) AS CTabPage PTR
+PUBLIC FUNCTION CTabPagePtr (BYVAL hTab AS HWND, BYVAL idx AS LONG) AS CTabPage PTR
    IF hTab = NULL THEN EXIT FUNCTION
    IF idx = -1 THEN idx = SendMessageW(hTab, TCM_GETCURSEL, 0, 0)
    IF idx = -1 THEN EXIT FUNCTION   ' No tab selected

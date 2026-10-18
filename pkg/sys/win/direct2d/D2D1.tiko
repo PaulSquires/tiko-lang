@@ -448,7 +448,6 @@
 '#include <d3dcommon.h>
 '#endif /* WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) */
 
-' [pkg/fbx] a block kept once in the package was here
 
 
 ' ########################################################################################
@@ -535,7 +534,6 @@ PUBLIC type D2D_POINT_2F
    AS FLOAT y
 end type
 
-' [pkg/fbx] #define D2D_POINT_2L moved to direct2d.ti
 
 PUBLIC type D2D_POINT_2U
    AS UINT32 x
@@ -556,7 +554,6 @@ PUBLIC type D2D_RECT_U
    AS UINT32 bottom
 end type
 
-' [pkg/fbx] #define D2D_RECT_L moved to direct2d.ti
 
 PUBLIC type D2D_SIZE_F
    AS FLOAT width
@@ -575,9 +572,7 @@ end type
 '#define D2D1_RECT_U D2D_RECT_U
 '#define D2D1_SIZE_F D2D_SIZE_F
 '#define D2D1_SIZE_U D2D_SIZE_U
-' [pkg/fbx] #define D2D1_COLOR_F moved to direct2d.ti
 '#define D2D1_MATRIX_3X2_F D2D_MATRIX_3X2_F
-' [pkg/fbx] #define D2D1_TAG moved to direct2d.ti
 
 
 PUBLIC type D2D_VECTOR_2F
@@ -606,76 +601,23 @@ end type
 
 ' D2D Status Codes
 
-' [pkg/fbx] #define FACILITY_D2D moved to direct2d.ti
-' [pkg/fbx] #define MAKE_D2DHR moved to direct2d.ti
-' [pkg/fbx] #define MAKE_D2DHR_ERR moved to direct2d.ti
 
 ' D2D error codes
 ' // Error codes shared with WINCODECS
 
 ' // The pixel format is not supported.
-' [pkg/fbx] #define WINCODEC_ERR_UNSUPPORTEDPIXELFORMAT moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_UNSUPPORTED_PIXEL_FORMAT moved to direct2d.ti
 
 ' // Error codes that were already returned in prior versions and were part of the MIL facility.
 
 ' // Error codes mapped from WIN32 where there isn't already another HRESULT based define
 
 ' // The supplied buffer was too small to accommodate the data.
-' [pkg/fbx] #define D2DERR_INSUFFICIENT_BUFFER moved to direct2d.ti
 
 ' // The file specified was not found.
-' [pkg/fbx] #define D2DERR_FILE_NOT_FOUND moved to direct2d.ti
 
 ' // D2D specific codes now live in winerror.h
 
 ' /* may be defined from d2derr.h */
-' [pkg/fbx] #define D2DERR_WRONG_STATE moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_NOT_INITIALIZED moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_UNSUPPORTED_OPERATION moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_SCANNER_FAILED moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_SCREEN_ACCESS_DENIED moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_DISPLAY_STATE_INVALID moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_ZERO_VECTOR moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_INTERNAL_ERROR moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_DISPLAY_FORMAT_NOT_SUPPORTED moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_INVALID_CALL moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_NO_HARDWARE_DEVICE moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_RECREATE_TARGET moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_TOO_MANY_SHADER_ELEMENTS moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_SHADER_COMPILE_FAILED moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_MAX_TEXTURE_SIZE_EXCEEDED moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_UNSUPPORTED_VERSION moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_BAD_NUMBER moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_WRONG_FACTORY moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_LAYER_ALREADY_IN_USE moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_POP_CALL_DID_NOT_MATCH_PUSH moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_WRONG_RESOURCE_DOMAIN moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_PUSH_POP_UNBALANCED moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_RENDER_TARGET_HAS_LAYER_OR_CLIPRECT moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_INCOMPATIBLE_BRUSH_TYPES moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_WIN32_ERROR moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_TARGET_NOT_GDI_COMPATIBLE moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_TEXT_EFFECT_IS_WRONG_TYPE moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_TEXT_RENDERER_NOT_RELEASED moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_EXCEEDS_MAX_BITMAP_SIZE moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_INVALID_GRAPH_CONFIGURATION moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_INVALID_INTERNAL_GRAPH_CONFIGURATION moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_CYCLIC_GRAPH moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_BITMAP_CANNOT_DRAW moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_OUTSTANDING_BITMAP_REFERENCES moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_ORIGINAL_TARGET_NOT_BOUND moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_INVALID_TARGET moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_BITMAP_BOUND_AS_TARGET moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_INSUFFICIENT_DEVICE_CAPABILITIES moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_INTERMEDIATE_TOO_LARGE moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_EFFECT_IS_NOT_REGISTERED moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_INVALID_PROPERTY moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_NO_SUBPROPERTIES moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_PRINT_JOB_CLOSED moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_PRINT_FORMAT_NOT_SUPPORTED moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_TOO_MANY_TRANSFORM_INPUTS moved to direct2d.ti
-' [pkg/fbx] #define D2DERR_INVALID_GLYPH_IMAGE moved to direct2d.ti
 
 ' ########################################################################################
 '                                 *** dxgicommon.h ***
@@ -857,17 +799,9 @@ end enum
 '                                *** dxgitype.h ***
 ' ########################################################################################
 
-' [pkg/fbx] #define _FACDXGI moved to direct2d.ti
-' [pkg/fbx] #define MAKE_DXGI_HRESULT moved to direct2d.ti
-' [pkg/fbx] #define MAKE_DXGI_STATUS moved to direct2d.ti
 
 '// DXGI error messages have moved to winerror.h
 
-' [pkg/fbx] #define DXGI_CPU_ACCESS_NONE moved to direct2d.ti
-' [pkg/fbx] #define DXGI_CPU_ACCESS_DYNAMIC moved to direct2d.ti
-' [pkg/fbx] #define DXGI_CPU_ACCESS_READ_WRITE moved to direct2d.ti
-' [pkg/fbx] #define DXGI_CPU_ACCESS_SCRATCH moved to direct2d.ti
-' [pkg/fbx] #define DXGI_CPU_ACCESS_FIELD moved to direct2d.ti
 
 PUBLIC type DXGI_RGB
    AS float Red
@@ -875,7 +809,6 @@ PUBLIC type DXGI_RGB
    AS float Blue
 end type
 
-' [pkg/fbx] #define DXGI_RGBA moved to direct2d.ti
 
 PUBLIC type DXGI_GAMMA_CONTROL
    AS DXGI_RGB Scale
@@ -995,15 +928,6 @@ PUBLIC type D2D1_PIXEL_FORMAT
    AS D2D1_ALPHA_MODE alphaMode
 end type
 
-' [pkg/fbx] #define D2D1_POINT_2F moved to direct2d.ti
-' [pkg/fbx] #define D2D1_POINT_2U moved to direct2d.ti
-' [pkg/fbx] #define D2D1_POINT_2L moved to direct2d.ti
-' [pkg/fbx] #define D2D1_RECT_F moved to direct2d.ti
-' [pkg/fbx] #define D2D1_RECT_U moved to direct2d.ti
-' [pkg/fbx] #define D2D1_RECT_L moved to direct2d.ti
-' [pkg/fbx] #define D2D1_SIZE_F moved to direct2d.ti
-' [pkg/fbx] #define D2D1_SIZE_U moved to direct2d.ti
-' [pkg/fbx] #define D2D1_MATRIX_3X2_F moved to direct2d.ti
 
 ' ########################################################################################
 
@@ -1080,8 +1004,6 @@ PUBLIC TYPE ID2D1TessellationSink AS ID2D1TessellationSink_
 PUBLIC TYPE ID2D1TransformedGeometry AS ID2D1TransformedGeometry_
 
 '#define D2D1_INVALID_TAG ULONGLONG_MAX
-' [pkg/fbx] #define D2D1_INVALID_TAG moved to direct2d.ti
-' [pkg/fbx] #define D2D1_DEFAULT_FLATTENING_TOLERANCE moved to direct2d.ti
 
 ' ========================================================================================
 ' This defines the superset of interpolation mode supported by D2D APIs and built-in effects
@@ -1201,7 +1123,6 @@ PUBLIC type D3DCOLORVALUE
 end type
 #endif
 
-' [pkg/fbx] #define D2D_COLOR_F moved to direct2d.ti
 
 ' ========================================================================================
 ' Describes the pixel format and dpi of a bitmap.
@@ -1636,7 +1557,7 @@ end type
 #ifndef __ID2D1Resource_INTERFACE_DEFINED__
 #define __ID2D1Resource_INTERFACE_DEFINED__
 
-PUBLIC TYPE ID2D1Resource_ EXTENDS tk_IUnknown
+PUBLIC TYPE ID2D1Resource_ EXTENDS ComUnknown
    DECLARE ABSTRACT SUB GetFactory (BYREF factory AS ID2D1Factory PTR)
 END TYPE
 
@@ -2006,7 +1927,7 @@ END TYPE
 #ifndef __ID2D1SimplifiedGeometrySink_INTERFACE_DEFINED__
 #define __ID2D1SimplifiedGeometrySink_INTERFACE_DEFINED__
 
-PUBLIC TYPE ID2D1SimplifiedGeometrySink_ EXTENDS tk_IUnknown
+PUBLIC TYPE ID2D1SimplifiedGeometrySink_ EXTENDS ComUnknown
    DECLARE ABSTRACT SUB SetFillMode (BYVAL fillMode AS D2D1_FILL_MODE)
    DECLARE ABSTRACT SUB SetSegmentFlags (BYVAL vertexFlags AS D2D1_PATH_SEGMENT)
    DECLARE ABSTRACT SUB BeginFigure (BYVAL startPoint AS D2D1_POINT_2F, BYVAL figureBegin AS D2D1_FIGURE_BEGIN)
@@ -2052,7 +1973,7 @@ END TYPE
 #ifndef __ID2D1TessellationSink_INTERFACE_DEFINED__
 #define __ID2D1TessellationSink_INTERFACE_DEFINED__
 
-PUBLIC TYPE ID2D1TessellationSink_ EXTENDS tk_IUnknown
+PUBLIC TYPE ID2D1TessellationSink_ EXTENDS ComUnknown
    DECLARE ABSTRACT SUB AddTriangles (BYREF triangles AS D2D1_TRIANGLE, BYVAL trianglesCount AS UINT32)
    DECLARE ABSTRACT FUNCTION Close () AS HRESULT
 END TYPE
@@ -2285,7 +2206,7 @@ END TYPE
 #ifndef __ID2D1GdiInteropRenderTarget_INTERFACE_DEFINED__
 #define __ID2D1GdiInteropRenderTarget_INTERFACE_DEFINED__
 
-PUBLIC TYPE ID2D1GdiInteropRenderTarget_ EXTENDS tk_IUnknown
+PUBLIC TYPE ID2D1GdiInteropRenderTarget_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION GetDC (BYVAL mode AS D2D1_DC_INITIALIZE_MODE, BYREF hDC AS ..HDC) AS HRESULT
    DECLARE ABSTRACT FUNCTION ReleaseDC (BYREF rcUpdate AS const RECT) AS HRESULT
 END TYPE
@@ -2322,7 +2243,7 @@ END TYPE
 #ifndef __ID2D1Factory_INTERFACE_DEFINED__
 #define __ID2D1Factory_INTERFACE_DEFINED__
 
-PUBLIC TYPE ID2D1Factory_ EXTENDS tk_IUnknown
+PUBLIC TYPE ID2D1Factory_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION ReloadSystemMetrics () AS HRESULT
    DECLARE ABSTRACT SUB GetDesktopDpi (BYREF dpiX AS FLOAT, BYREF dpiY AS FLOAT)
    DECLARE ABSTRACT FUNCTION CreateRectangleGeometry (BYREF rectangle AS D2D1_RECT_F, BYREF rectangleGeometry AS ID2D1RectangleGeometry PTR) AS HRESULT
@@ -2472,7 +2393,6 @@ PUBLIC CONST D2D1_INVALID_PROPERTY_INDEX = &hFFFFFFFF
 'typedef D2D_RECT_L D2D1_RECT_L;
 'typedef D2D_POINT_2L D2D1_POINT_2L;
 
-' [pkg/fbx] #define D2D1_RECT_L: direct2d.ti has it
 '#define D2D1_POINT_2L D2D_POINT_2L
 
 '/// This defines the valid property types that can be used in an effect property interface.
@@ -2646,9 +2566,6 @@ end enum
 'typedef D2D_VECTOR_3F D2D1_VECTOR_3F;
 'typedef D2D_VECTOR_4F D2D1_VECTOR_4F;
 
-' [pkg/fbx] #define D2D1_VECTOR_2F moved to direct2d.ti
-' [pkg/fbx] #define D2D1_VECTOR_3F moved to direct2d.ti
-' [pkg/fbx] #define D2D1_VECTOR_4F moved to direct2d.ti
 
 PUBLIC type D2D1_BITMAP_PROPERTIES1
    AS D2D1_PIXEL_FORMAT pixelFormat
@@ -2678,9 +2595,6 @@ end type
 'typedef D2D_MATRIX_4X4_F D2D1_MATRIX_4X4_F;
 'typedef D2D_MATRIX_5X4_F D2D1_MATRIX_5X4_F;
 
-' [pkg/fbx] #define D2D1_MATRIX_4X3_F moved to direct2d.ti
-' [pkg/fbx] #define D2D1_MATRIX_4X4_F moved to direct2d.ti
-' [pkg/fbx] #define D2D1_MATRIX_5X4_F moved to direct2d.ti
 
 PUBLIC type D2D1_POINT_DESCRIPTION
    AS D2D1_POINT_2F point
@@ -2773,7 +2687,7 @@ end type
 #ifndef __ID2D1GdiMetafileSink_INTERFACE_DEFINED__
 #define __ID2D1GdiMetafileSink_INTERFACE_DEFINED__
 
-PUBLIC TYPE ID2D1GdiMetafileSink_ EXTENDS tk_IUnknown
+PUBLIC TYPE ID2D1GdiMetafileSink_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION ProcessRecord (BYVAL recordType AS DWORD, BYVAL recordData AS const ANY PTR, BYVAL recordDataSize AS DWORD) AS HRESULT
 END TYPE
 
@@ -2810,7 +2724,7 @@ END TYPE
 #ifndef __ID2D1CommandSink_INTERFACE_DEFINED__
 #define __ID2D1CommandSink_INTERFACE_DEFINED__
 
-PUBLIC TYPE ID2D1CommandSink_ EXTENDS tk_IUnknown
+PUBLIC TYPE ID2D1CommandSink_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION BeginDraw () AS HRESULT
    DECLARE ABSTRACT FUNCTION EndDraw () AS HRESULT
    DECLARE ABSTRACT FUNCTION SetAntialiasMode (BYVAL antialiasMode AS D2D1_ANTIALIAS_MODE) AS HRESULT
@@ -2881,7 +2795,7 @@ END TYPE
 #ifndef __ID2D1PrintControl_INTERFACE_DEFINED__
 #define __ID2D1PrintControl_INTERFACE_DEFINED__
 
-PUBLIC TYPE ID2D1PrintControl_ EXTENDS tk_IUnknown
+PUBLIC TYPE ID2D1PrintControl_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION AddPage (BYVAL commandList AS ID2D1CommandList PTR, BYVAL pageSize AS D2D_SIZE_F, _
       BYVAL pagePrintTicketStream AS IStream PTR, BYREF tag1 AS D2D1_TAG = NULL, BYREF tag2 AS D2D1_TAG = NULL) AS HRESULT
    DECLARE ABSTRACT FUNCTION Close () AS HRESULT
@@ -2989,7 +2903,7 @@ END TYPE
 #ifndef __ID2D1Properties_INTERFACE_DEFINED__
 #define __ID2D1Properties_INTERFACE_DEFINED__
 
-PUBLIC TYPE ID2D1Properties_ EXTENDS tk_IUnknown
+PUBLIC TYPE ID2D1Properties_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION GetPropertyCount () AS UINT32
    DECLARE ABSTRACT FUNCTION GetPropertyName (BYVAL index AS UINT32, BYREF wszName AS WSTRING, BYVAL nameCount AS UINT32) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetPropertyNameLength (BYVAL index AS UINT32) AS UINT32
@@ -3262,7 +3176,7 @@ END TYPE
 #ifndef __ID2D1Multithread_INTERFACE_DEFINED__
 #define __ID2D1Multithread_INTERFACE_DEFINED__
 
-PUBLIC TYPE ID2D1Multithread_ EXTENDS tk_IUnknown
+PUBLIC TYPE ID2D1Multithread_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION GetMultithreadProtected () AS BOOLEAN
    DECLARE ABSTRACT SUB Enter ()
    DECLARE ABSTRACT SUB Leave ()

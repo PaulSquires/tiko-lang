@@ -2579,15 +2579,15 @@
 "module": "sys.win.com",
 "kind": "proc",
 "old": "tkIsVariantArray",
-"act": "overload",
-"new": "IsVariantArray"
+"act": "drop",
+"new": "IsVariantArray( p )  (propvarutil.bi)"
 },
 {
 "module": "sys.win.com",
 "kind": "proc",
 "old": "tkIsVariantString",
-"act": "overload",
-"new": "IsVariantString"
+"act": "drop",
+"new": "IsVariantString( p )  (propvarutil.bi)"
 },
 {
 "module": "sys.win.com",
@@ -11350,29 +11350,29 @@
 "module": "sys.win",
 "kind": "macro",
 "old": "tkComCtlVersion",
-"act": "rename",
-"new": "ComCtlVersion"
+"act": "drop",
+"new": "win.GetFileVersion( \"comctl32.dll\" )"
 },
 {
 "module": "sys.win",
 "kind": "macro",
 "old": "tkGetScreenColors",
-"act": "rename",
-"new": "GetScreenColors"
+"act": "drop",
+"new": "win.GetDisplayBitsPerPixel( )"
 },
 {
 "module": "sys.win",
 "kind": "macro",
 "old": "tkGetScreenRefreshRate",
-"act": "rename",
-"new": "GetScreenRefreshRate"
+"act": "drop",
+"new": "win.GetDisplayFrequency( )"
 },
 {
 "module": "sys.win",
 "kind": "macro",
 "old": "tkGetCurDir",
-"act": "rename",
-"new": "GetCurDir"
+"act": "drop",
+"new": "win.GetCurrentDirectory( )"
 },
 {
 "module": "sys.win",
@@ -11385,71 +11385,71 @@
 "module": "sys.win",
 "kind": "macro",
 "old": "tkExePathName",
-"act": "rename",
-"new": "ExePathName"
+"act": "drop",
+"new": "win.GetExePathName( )"
 },
 {
 "module": "sys.win",
 "kind": "macro",
 "old": "tkExeFileName",
-"act": "rename",
-"new": "ExeFileName"
+"act": "drop",
+"new": "win.GetExeFileName( )"
 },
 {
 "module": "sys.win",
 "kind": "macro",
 "old": "tkExeFileNameX",
-"act": "rename",
-"new": "ExeFileNameX"
+"act": "drop",
+"new": "win.GetExeFileNameX( )"
 },
 {
 "module": "sys.win",
 "kind": "macro",
 "old": "tkExeFileExt",
-"act": "rename",
-"new": "ExeFileExt"
+"act": "drop",
+"new": "win.GetExeFileExt( )"
 },
 {
 "module": "sys.win",
 "kind": "macro",
 "old": "tkExeFullPath",
-"act": "rename",
-"new": "ExeFullPath"
+"act": "drop",
+"new": "win.GetExeFullPath( )"
 },
 {
 "module": "sys.win",
 "kind": "macro",
 "old": "tkFileName",
-"act": "rename",
-"new": "FileName"
+"act": "drop",
+"new": "win.GetFileName( p )"
 },
 {
 "module": "sys.win",
 "kind": "macro",
 "old": "tkFileNameX",
-"act": "rename",
-"new": "FileNameX"
+"act": "drop",
+"new": "win.GetFileNameX( p )"
 },
 {
 "module": "sys.win",
 "kind": "macro",
 "old": "tkFileExt",
-"act": "rename",
-"new": "FileExt"
+"act": "drop",
+"new": "win.GetFileExt( p )"
 },
 {
 "module": "sys.win",
 "kind": "macro",
 "old": "tkPathName",
-"act": "rename",
-"new": "PathName"
+"act": "drop",
+"new": "win.GetPathName( p )"
 },
 {
 "module": "sys.win",
 "kind": "macro",
 "old": "tkFolderName",
-"act": "rename",
-"new": "FolderName"
+"act": "drop",
+"new": "win.GetFolderName( p )"
 },
 {
 "module": "sys.win",

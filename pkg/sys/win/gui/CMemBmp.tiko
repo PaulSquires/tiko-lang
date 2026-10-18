@@ -108,7 +108,7 @@ END CONSTRUCTOR
 CONSTRUCTOR CMemBmp (BYREF wszFileName AS WSTRING, BYVAL dimPercent AS LONG = 0, BYVAL bGrayScale AS LONG = FALSE, BYVAL clrBkg AS ARGB = 0)
    DIM nWidth AS LONG, nHeight AS LONG, bm AS BITMAP
    ' // Load the image as a bitmap
-   DIM hbmp AS HBITMAP = tkGdipBitmapFromFile(wszFileName, dimPercent, bGrayScale, clrBkg)
+   DIM hbmp AS HBITMAP = BitmapFromFile(wszFileName, dimPercent, bGrayScale, clrBkg)
    IF hbmp THEN
       ' // Retrieve the width and height of the bitmap
       IF GetObject(hbmp, SIZEOF(BITMAP), @bm) THEN
@@ -146,7 +146,7 @@ END CONSTRUCTOR
 CONSTRUCTOR CMemBmp (BYVAL hInst AS HINSTANCE, BYREF wszImageName AS WSTRING, BYVAL dimPercent AS LONG = 0, BYVAL bGrayScale AS LONG = FALSE, BYVAL clrBkg AS ARGB = 0)
    DIM nWidth AS LONG, nHeight AS LONG, bm AS BITMAP
    ' // Load the image as a bitmap
-   DIM hbmp AS HBITMAP = tkGdipBitmapFromRes(hInst, wszImageName, dimPercent, bGrayScale, clrBkg)
+   DIM hbmp AS HBITMAP = BitmapFromRes(hInst, wszImageName, dimPercent, bGrayScale, clrBkg)
    IF hbmp THEN
       ' // Retrieve the width and height of the bitmap
       IF GetObject(hbmp, SIZEOF(BITMAP), @bm) THEN
@@ -358,32 +358,32 @@ END FUNCTION
 ' If the method fails, it returns one of the other elements of the Status enumeration.
 ' ========================================================================================
 FUNCTION CMemBmp.SaveBitmap (BYREF wszFileName AS WSTRING, BYREF wszMimeType AS WSTRING = "image/bmp") AS LONG
-   FUNCTION = tkGdipSaveHBITMAPToFile(m_hBmp, wszFileName, wszMimeType)
+   FUNCTION = SaveHBITMAPToFile(m_hBmp, wszFileName, wszMimeType)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CMemBmp.SaveBitmapAsBmp (BYREF wszFileName AS WSTRING) AS LONG
-   FUNCTION = tkGdipSaveHBITMAPToFile(m_hBmp, wszFileName, "image/bmp")
+   FUNCTION = SaveHBITMAPToFile(m_hBmp, wszFileName, "image/bmp")
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CMemBmp.SaveBitmapAsJpeg (BYREF wszFileName AS WSTRING) AS LONG
-   FUNCTION = tkGdipSaveHBITMAPToFile(m_hBmp, wszFileName, "image/jpeg")
+   FUNCTION = SaveHBITMAPToFile(m_hBmp, wszFileName, "image/jpeg")
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CMemBmp.SaveBitmapAsPng (BYREF wszFileName AS WSTRING) AS LONG
-   FUNCTION = tkGdipSaveHBITMAPToFile(m_hBmp, wszFileName, "image/png")
+   FUNCTION = SaveHBITMAPToFile(m_hBmp, wszFileName, "image/png")
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CMemBmp.SaveBitmapAsGif (BYREF wszFileName AS WSTRING) AS LONG
-   FUNCTION = tkGdipSaveHBITMAPToFile(m_hBmp, wszFileName, "image/gif")
+   FUNCTION = SaveHBITMAPToFile(m_hBmp, wszFileName, "image/gif")
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CMemBmp.SaveBitmapAsTiff (BYREF wszFileName AS WSTRING) AS LONG
-   FUNCTION = tkGdipSaveHBITMAPToFile(m_hBmp, wszFileName, "image/tiff")
+   FUNCTION = SaveHBITMAPToFile(m_hBmp, wszFileName, "image/tiff")
 END FUNCTION
 ' ========================================================================================
 
@@ -402,6 +402,6 @@ END FUNCTION
 ' Return value: Returns TRUE if the bitmap has been printed successfully, or FALSE otherwise.
 ' ========================================================================================
 FUNCTION CMemBmp.PrintBitmap (BYVAL bStretch AS BOOLEAN = FALSE, BYVAL nStretchMode AS LONG = InterpolationModeHighQualityBicubic) AS BOOLEAN
-   FUNCTION = tkGdipPrintHBITMAP(m_hBmp, bStretch, nStretchMode)
+   FUNCTION = PrintHBITMAP(m_hBmp, bStretch, nStretchMode)
 END FUNCTION
 ' ========================================================================================

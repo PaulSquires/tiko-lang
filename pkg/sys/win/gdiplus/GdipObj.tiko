@@ -687,7 +687,7 @@ END CONSTRUCTOR
 ' Creates an Image object from a resource file.
 ' ========================================================================================
 CONSTRUCTOR GdiPlusImage (BYVAL hInst AS HINSTANCE, BYREF wszImageName AS WSTRING)
-   DIM stream AS IStream PTR = tkImageStreamFromRes(hInst, wszImageName)
+   DIM stream AS IStream PTR = ImageStreamFromRes(hInst, wszImageName)
    IF stream = NULL THEN SetLastError(InvalidParameter): EXIT CONSTRUCTOR
    SetLastError(GdipLoadImageFromStream(stream, @m_Image))
    stream->lpVtbl->Release(stream)

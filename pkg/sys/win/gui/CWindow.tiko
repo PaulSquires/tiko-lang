@@ -33,9 +33,9 @@ using win
 #include once "win/richedit.bi"
 #include once "../colors.ti"
 
-#ifndef TK_ANCHORPROPERTY
+#ifndef ANCHORPROPERTY
 ' // Layout manager - Anchor properties
-PUBLIC TYPE TK_ANCHORPROPERTY
+PUBLIC TYPE ANCHORPROPERTY
    hwndCtl AS HWND
    anchor  AS LONG
    rc      AS RECT
@@ -44,26 +44,26 @@ PUBLIC TYPE TK_ANCHORPROPERTY
 END TYPE
 #endif
 
-#ifndef TK_WINDOWCOLORS
+#ifndef WINDOWCOLORS
 ' // Windows and control colors
-PUBLIC TYPE TK_WINDOWCOLORS
+PUBLIC TYPE WINDOWCOLORS
    hwnd AS ..HWND
    foreColor AS COLORREF
    backColor AS COLORREF
 END TYPE
 #endif
 
-#ifndef TK_CTLUSERDATA
+#ifndef CTLUSERDATA
 ' // Controls user data
-PUBLIC TYPE TK_CTLUSERDATA
+PUBLIC TYPE CTLUSERDATA
    hCtl AS HWND
    Values (0 TO 9) AS LONG_PTR
 END TYPE
 #endif
 
-#ifndef TK_CTLCALLBACKS
+#ifndef CTLCALLBACKS
 ' // Controls user data
-PUBLIC TYPE TK_CTLCALLBACKS
+PUBLIC TYPE CTLCALLBACKS
    hCtl AS HWND
    pCallback AS ANY PTR
 END TYPE
@@ -91,10 +91,10 @@ Private:
    m_hRichEditLib AS HMODULE                       ' // Rich Edit moudle handle
    DIM m_rgUserData(0 TO 99) AS LONG_PTR           ' // User data
    DIM m_rgAccelEntries(ANY) AS ACCEL              ' // Accelerator table
-   DIM m_rgProps(ANY) AS TK_ANCHORPROPERTY        ' // Array of anchor property structures
-   DIM m_rgCtrlUserData(ANY) AS TK_CTLUSERDATA    ' // Control's user data
-   DIM m_rgColors(ANY) AS TK_WINDOWCOLORS         ' // Window and controls colors - Array of colors structures
-   DIM m_rgCtrlCallbacks(ANY) AS TK_CTLCALLBACKS  ' // Control's callbacks
+   DIM m_rgProps(ANY) AS ANCHORPROPERTY        ' // Array of anchor property structures
+   DIM m_rgCtrlUserData(ANY) AS CTLUSERDATA    ' // Control's user data
+   DIM m_rgColors(ANY) AS WINDOWCOLORS         ' // Window and controls colors - Array of colors structures
+   DIM m_rgCtrlCallbacks(ANY) AS CTLCALLBACKS  ' // Control's callbacks
    ' // Scrollable windows
    m_IsWindowScrollable AS BOOLEAN                 ' // Window scrollable -True of False
    m_OrigClientRect AS RECT                        ' // Coordinates of the window original client area
@@ -267,10 +267,10 @@ END TYPE
 ' // CWindow class forward declarations
 PUBLIC DECLARE FUNCTION CWindow_RegisterClass (BYREF wszClassName AS CONST WSTRING, BYVAL hInstance AS HINSTANCE, BYVAL lpfnWndProc AS WNDPROC) AS ATOM
 PUBLIC DECLARE FUNCTION CWindow_WindowProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM, BYVAL lParam AS LPARAM) AS LRESULT
-PUBLIC DECLARE FUNCTION tkCWindowPtr OVERLOAD (BYVAL hwnd AS HWND) AS CWindow PTR
-PUBLIC DECLARE FUNCTION tkCWindowPtr OVERLOAD (BYVAL lParam AS LPARAM) AS CWindow PTR
-PUBLIC DECLARE FUNCTION tkCWindowPtr OVERLOAD (BYVAL pCreateStruct AS CREATESTRUCT PTR) AS CWindow PTR
-PUBLIC DECLARE FUNCTION tkCWindowOwnerPtr OVERLOAD (BYVAL hwnd AS HWND) AS CWindow PTR
+PUBLIC DECLARE FUNCTION CWindowPtr OVERLOAD (BYVAL hwnd AS HWND) AS CWindow PTR
+PUBLIC DECLARE FUNCTION CWindowPtr OVERLOAD (BYVAL lParam AS LPARAM) AS CWindow PTR
+PUBLIC DECLARE FUNCTION CWindowPtr OVERLOAD (BYVAL pCreateStruct AS CREATESTRUCT PTR) AS CWindow PTR
+PUBLIC DECLARE FUNCTION CWindowOwnerPtr OVERLOAD (BYVAL hwnd AS HWND) AS CWindow PTR
 
 ' ========================================================================================
 ' Registers the window class.
@@ -380,14 +380,14 @@ FUNCTION CWindow_WindowProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wPara
 
       CASE WM_SYSCOMMAND
          ' // Trap the SC_CLOSE message sent by Alt+F4 and the X-button
-         pWindow = tkCWindowPtr(hwnd)
+         pWindow = CWindowPtr(hwnd)
          IF pWindow THEN
          ' // Abort the action
             IF (wParam AND &hFFF0) = SC_CLOSE AND pWindow->IsStabilized = TRUE THEN RETURN 0
          END IF
 
       CASE WM_COMMAND
-         pWindow = tkCWindowPtr(hwnd)
+         pWindow = CWindowPtr(hwnd)
          IF pWindow THEN
             DIM hCtl AS ..HWND = CAST(..HWND, lParam)
             DIM nItem AS LONG = pWindow->GetControlCallbackItem(hCtl)
@@ -397,7 +397,7 @@ FUNCTION CWindow_WindowProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wPara
          END IF
 
       CASE WM_NOTIFY
-         pWindow = tkCWindowPtr(hwnd)
+         pWindow = CWindowPtr(hwnd)
          IF pWindow THEN
             DIM ptnmhdr AS NMHDR PTR = CAST(NMHDR PTR, lParam)
             DIM hCtl AS ..HWND = ptnmhdr->hwndFrom
@@ -408,7 +408,7 @@ FUNCTION CWindow_WindowProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wPara
          END IF
 
       CASE WM_ERASEBKGND
-         pWindow = tkCWindowPtr(hwnd)
+         pWindow = CWindowPtr(hwnd)
          IF pWindow THEN
             DIM hDC AS ..HDC = CAST(..HDC, wParam)
             DIM rcClient AS RECT
@@ -425,7 +425,7 @@ FUNCTION CWindow_WindowProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wPara
       CASE WM_CTLCOLOREDIT, WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC
          ' WM_CTLCOLORBTN does not color a button - use XPBUTTON
          ' wParam = HDC; lParam = Handle of the control.
-         pWindow = tkCWindowPtr(hwnd)
+         pWindow = CWindowPtr(hwnd)
          IF pWindow THEN
             DIM nItem AS LONG = pWindow->GetColorItem(CAST(..HWND, lParam))
             IF nItem >= 0 THEN
@@ -438,7 +438,7 @@ FUNCTION CWindow_WindowProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wPara
 
       CASE WM_SIZE
          ' // Adjust anchored controls and redraw the main window
-         pWindow = tkCWindowPtr(hwnd)
+         pWindow = CWindowPtr(hwnd)
          IF pWindow THEN
             IF wParam = SIZE_RESTORED OR wParam = SIZE_MAXIMIZED THEN
                IF pWindow->AdjustControls THEN
@@ -455,21 +455,21 @@ FUNCTION CWindow_WindowProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wPara
 
       CASE WM_HSCROLL
          ' // Horizontal scrollbar
-         pWindow = tkCWindowPtr(hwnd)
+         pWindow = CWindowPtr(hwnd)
          IF pWindow THEN
             IF pWindow->IsWindowScrollable THEN pWindow->OnHScroll(wParam, lParam)
          END IF
 
       CASE WM_VSCROLL
          ' // Vertical scrollbar
-         pWindow = tkCWindowPtr(hwnd)
+         pWindow = CWindowPtr(hwnd)
          IF pWindow THEN
             IF pWindow->IsWindowScrollable THEN pWindow->OnVScroll(wParam, lParam)
          END IF
 
    END SELECT
 
-   pWindow = tkCWindowPtr(hwnd)
+   pWindow = CWindowPtr(hwnd)
    IF pWindow THEN
       IF pWindow->GetWindowProc THEN
          DIM res AS LRESULT = CallWindowProcW(pWindow->GetWindowProc, hwnd, uMsg, wParam, lParam)
@@ -501,15 +501,15 @@ CONSTRUCTOR CWindow (BYREF wszClassName AS CONST WSTRING = "")
    ' // Instance handle
    m_hInstance = ..GetModuleHandleW(NULL)
    ' // Scale windows according to the DPI setting.
-'   IF tkUseDpiScaling = 0 THEN this.DPI = 96 ELSE this.DPI = -1   ' May fail in Windows 10
+'   IF UseDpiScaling = 0 THEN this.DPI = 96 ELSE this.DPI = -1   ' May fail in Windows 10
    IF IsProcessDpiAware = FALSE THEN this.DPI = 96 ELSE this.DPI = -1
    ' // Default font name
    IF LEN(m_wszDefaultFontName) = 0 THEN
-      IF tkGetWindowsVersion >= 600 AND CLNG(IsProcessDpiAware) THEN m_wszDefaultFontName = "Segoe UI" ELSE m_wszDefaultFontName = "Tahoma"
+      IF GetWindowsVersion >= 600 AND CLNG(IsProcessDpiAware) THEN m_wszDefaultFontName = "Segoe UI" ELSE m_wszDefaultFontName = "Tahoma"
    END IF
    ' // Default font size
    IF m_DefaultFontSize = 0 THEN
-      IF tkGetWindowsVersion >= 600 AND CLNG(IsProcessDpiAware) THEN m_DefaultFontSize = 9 ELSE m_DefaultFontSize = 8
+      IF GetWindowsVersion >= 600 AND CLNG(IsProcessDpiAware) THEN m_DefaultFontSize = 9 ELSE m_DefaultFontSize = 8
    END IF
    ' // Initialize the common controls library
    DIM icc AS INITCOMMONCONTROLSEX
@@ -616,11 +616,11 @@ END PROPERTY
 '       IF pWindow THEN pWindow->AddControl("Button", hwnd, IDCANCEL, "&Close", 350, 250, 75, 23)
 ' -or-
 '    CASE WM_CREATE
-'       DIM pWindow AS CWindow PTR = tkCWindowPtr(CAST(CREATESTRUCT PTR, lParam))
+'       DIM pWindow AS CWindow PTR = CWindowPtr(CAST(CREATESTRUCT PTR, lParam))
 '       IF pWindow THEN pWindow->AddControl("Button", hwnd, IDCANCEL, "&Close", 350, 250, 75, 23)
 ' -or-
 '    CASE WM_CREATE
-'       DIM pWindow AS CWindow PTR = tkCWindowPtr(lParam)
+'       DIM pWindow AS CWindow PTR = CWindowPtr(lParam)
 '       IF pWindow THEN pWindow->AddControl("Button", hwnd, IDCANCEL, "&Close", 350, 250, 75, 23)
 ' ========================================================================================
 FUNCTION CWindow.Create (BYVAL hParent AS HWND = NULL, BYREF wszTitle AS WSTRING = "", BYVAL lpfnWndProc AS WNDPROC = NULL, _
@@ -673,7 +673,7 @@ END FUNCTION
 ' Adjusts the bounding rectangle of the window based on the desired size of the client area.
 ' ========================================================================================
 SUB CWindow.SetClientSize (BYVAL nWidth AS LONG, BYVAL nHeight AS LONG)
-   tkSetWindowClientSize(m_hwnd, nWidth, nHeight, m_rx, m_ry)
+   SetWindowClientSize(m_hwnd, nWidth, nHeight, m_rx, m_ry)
 END SUB
 ' ========================================================================================
 
@@ -686,7 +686,7 @@ END SUB
 ' =====================================================================================
 SUB CWindow.Center (BYVAL hwnd AS HWND = NULL, BYVAL hwndParent AS HWND = NULL)
    IF hwnd = NULL THEN hwnd = m_hwnd
-   tkCenterWindow(hwnd, hwndParent)
+   CenterWindow(hwnd, hwndParent)
 END SUB
 ' =====================================================================================
 
@@ -1989,7 +1989,7 @@ FUNCTION CWindow.ControlSetUser (BYVAL cID AS LONG, BYVAL index AS LONG, BYVAL u
    DIM nItem AS LONG = this.GetUserDataItem(cID)
    ' // If it does not exist, make room for it
    IF nItem = -1 THEN
-      REDIM PRESERVE m_rgCtrlUserData(UBOUND(m_rgCtrlUserData) + 1) AS TK_CTLUSERDATA
+      REDIM PRESERVE m_rgCtrlUserData(UBOUND(m_rgCtrlUserData) + 1) AS CTLUSERDATA
       nItem = UBOUND(m_rgCtrlUserData)
    END IF
    m_rgCtrlUserData(nItem).hCtl = hCtl
@@ -2007,7 +2007,7 @@ FUNCTION CWindow.ControlSetUser (BYVAL hCtl AS HWND, BYVAL index AS LONG, BYVAL 
    DIM nItem AS LONG = this.GetUserDataItem(hCtl)
    ' // If it does not exist, make room for it
    IF nItem = -1 THEN
-      REDIM PRESERVE m_rgCtrlUserData(UBOUND(m_rgCtrlUserData) + 1) AS TK_CTLUSERDATA
+      REDIM PRESERVE m_rgCtrlUserData(UBOUND(m_rgCtrlUserData) + 1) AS CTLUSERDATA
       nItem = UBOUND(m_rgCtrlUserData)
    END IF
    m_rgCtrlUserData(nItem).hCtl = hCtl
@@ -2067,7 +2067,7 @@ FUNCTION CWindow.SetControlCallback (BYVAL cID AS LONG, BYVAL pCallback AS ANY P
    DIM nItem AS LONG = this.GetControlCallbackItem(cID)
    ' // If it does not exist, make room for it
    IF nItem = -1 THEN
-      REDIM PRESERVE m_rgCtrlCallbacks(UBOUND(m_rgCtrlCallbacks) + 1) AS TK_CTLCALLBACKS
+      REDIM PRESERVE m_rgCtrlCallbacks(UBOUND(m_rgCtrlCallbacks) + 1) AS CTLCALLBACKS
       nItem = UBOUND(m_rgCtrlCallbacks)
    END IF
    m_rgCtrlCallbacks(nItem).hCtl = hCtl
@@ -2082,7 +2082,7 @@ FUNCTION CWindow.SetControlCallback (BYVAL hCtl AS HWND, BYVAL pCallback AS ANY 
    DIM nItem AS LONG = this.GetControlCallbackItem(hCtl)
    ' // If it does not exist, make room for it
    IF nItem = -1 THEN
-      REDIM PRESERVE m_rgCtrlCallbacks(UBOUND(m_rgCtrlCallbacks) + 1) AS TK_CTLCALLBACKS
+      REDIM PRESERVE m_rgCtrlCallbacks(UBOUND(m_rgCtrlCallbacks) + 1) AS CTLCALLBACKS
       nItem = UBOUND(m_rgCtrlCallbacks)
    END IF
    m_rgCtrlCallbacks(nItem).hCtl = hCtl
@@ -2131,7 +2131,7 @@ FUNCTION CWindow.AnchorControl (BYVAL hwndCtl AS HWND, BYVAL nAnchorMode AS LONG
    DIM nItem AS LONG = this.GetAnchorItem(hwndCtl)
    ' // If it does not exist, make room for it
    IF nItem = -1 THEN
-      REDIM PRESERVE m_rgProps(UBOUND(m_rgProps) + 1) AS TK_ANCHORPROPERTY
+      REDIM PRESERVE m_rgProps(UBOUND(m_rgProps) + 1) AS ANCHORPROPERTY
       nItem = UBOUND(m_rgProps)
    END IF
    m_rgProps(nItem).hwndCtl = hwndCtl
@@ -2145,7 +2145,7 @@ FUNCTION CWindow.AnchorControl (BYVAL hwndCtl AS HWND, BYVAL nAnchorMode AS LONG
    ' // Get the client coordinates of the parent window
    DIm rcParent AS RECT
    .GetClientRect(GetParent(hwndCtl), @rcParent)
-   m_rgProps(nItem).anchor    = MIN(MAX(nAnchorMode, TK_ANCHOR_NONE), TK_ANCHOR_CENTER)
+   m_rgProps(nItem).anchor    = MIN(MAX(nAnchorMode, ANCHOR_NONE), ANCHOR_CENTER)
    m_rgProps(nItem).rc.Left   = pt.x
    m_rgProps(nItem).rc.Top    = pt.y
    m_rgProps(nItem).rc.Right  = rcParent.Right - (rcCtl.Right - rcCtl.Left + pt.x)
@@ -2177,79 +2177,79 @@ FUNCTION CWindow.LayoutEnumChildProc (BYVAL hwndChild AS HWND, BYVAL lParam AS L
    DIM pWindow AS CWindow PTR = CAST(CWindow PTR, lParam)
    DIM nItem AS LONG = pWindow->GetAnchorItem(hwndChild)
    IF nItem > -1 THEN
-      IF pWindow->m_rgProps(nItem).anchor > TK_ANCHOR_NONE THEN
+      IF pWindow->m_rgProps(nItem).anchor > ANCHOR_NONE THEN
          ..GetWindowRect(hwndChild, @rcChild)
          nWidth = rcChild.Right - rcChild.Left
          nHeight = rcChild.Bottom - rcChild.Top
          ..GetClientRect(GetParent(hwndChild), @rcParent)
          x = 0: y = 0: xWidth = 0: yHeight = 0
          SELECT CASE pWindow->m_rgProps(nItem).anchor
-            CASE TK_ANCHOR_NONE
+            CASE ANCHOR_NONE
                x = pWindow->m_rgProps(nItem).rc.Left
                y = pWindow->m_rgProps(nItem).rc.Top
                xWidth = MAX(rcParent.Right - pWindow->m_rgProps(nItem).rc.Left - pWindow->m_rgProps(nItem).rc.Right, 0)
                yHeight = nHeight
-            CASE TK_ANCHOR_WIDTH
+            CASE ANCHOR_WIDTH
                x = pWindow->m_rgProps(nItem).rc.Left
                y = pWindow->m_rgProps(nItem).rc.Top
                xWidth = MAX(rcParent.Right - pWindow->m_rgProps(nItem).rc.Left - pWindow->m_rgProps(nItem).rc.Right, 0)
                yHeight = nHeight
-            CASE TK_ANCHOR_RIGHT
+            CASE ANCHOR_RIGHT
                x = rcParent.Right - nWidth - pWindow->m_rgProps(nItem).rc.Right
                y = pWindow->m_rgProps(nItem).rc.Top
                xWidth = nWidth
                yHeight = nHeight
-            CASE TK_ANCHOR_CENTER_HORZ
+            CASE ANCHOR_CENTER_HORZ
                x = (rcParent.Right \ 2) + pWindow->m_rgProps(nItem).centerX
                y = pWindow->m_rgProps(nItem).rc.Top
                xWidth = nWidth
                yHeight = nHeight
-            CASE TK_ANCHOR_HEIGHT
+            CASE ANCHOR_HEIGHT
                x = pWindow->m_rgProps(nItem).rc.Left
                y = pWindow->m_rgProps(nItem).rc.Top
                xWidth = nWidth
                yHeight = MAX(rcParent.Bottom - pWindow->m_rgProps(nItem).rc.Top - pWindow->m_rgProps(nItem).rc.Bottom, 0)
-            CASE TK_ANCHOR_HEIGHT_WIDTH
+            CASE ANCHOR_HEIGHT_WIDTH
                x = pWindow->m_rgProps(nItem).rc.Left
                y = pWindow->m_rgProps(nItem).rc.Top
                xWidth = MAX(rcParent.Right - pWindow->m_rgProps(nItem).rc.Left - pWindow->m_rgProps(nItem).rc.Right, 0)
                yHeight = MAX(rcParent.Bottom - pWindow->m_rgProps(nItem).rc.Top - pWindow->m_rgProps(nItem).rc.Bottom, 0)
-            CASE TK_ANCHOR_HEIGHT_RIGHT
+            CASE ANCHOR_HEIGHT_RIGHT
                x = rcParent.Right - nWidth - pWindow->m_rgProps(nItem).rc.Right
                y = pWindow->m_rgProps(nItem).rc.Top
                xWidth = nWidth
                yHeight = MAX(rcParent.Bottom - pWindow->m_rgProps(nItem).rc.Top - pWindow->m_rgProps(nItem).rc.Bottom, 0)
-            CASE TK_ANCHOR_BOTTOM
+            CASE ANCHOR_BOTTOM
                x = pWindow->m_rgProps(nItem).rc.Left
                y = rcParent.Bottom - pWindow->m_rgProps(nItem).rc.Bottom - nHeight
                xWidth = nWidth
                yHeight = nHeight
-            CASE TK_ANCHOR_BOTTOM_WIDTH
+            CASE ANCHOR_BOTTOM_WIDTH
                x = pWindow->m_rgProps(nItem).rc.Left
                y = rcParent.Bottom - pWindow->m_rgProps(nItem).rc.Bottom - nHeight
                xWidth = MAX(rcParent.Right - pWindow->m_rgProps(nItem).rc.Left - pWindow->m_rgProps(nItem).rc.Right, 0)
                yHeight = nHeight
-            CASE TK_ANCHOR_BOTTOM_RIGHT
+            CASE ANCHOR_BOTTOM_RIGHT
                x = rcParent.Right - nWidth - pWindow->m_rgProps(nItem).rc.Right
                y = rcParent.Bottom - pWindow->m_rgProps(nItem).rc.Bottom - nHeight
                xWidth = nWidth
                yHeight = nHeight
-            CASE TK_ANCHOR_CENTER_HORZ_BOTTOM
+            CASE ANCHOR_CENTER_HORZ_BOTTOM
                x = (rcParent.Right \ 2) + pWindow->m_rgProps(nItem).centerX
                y = rcParent.Bottom - pWindow->m_rgProps(nItem).rc.Bottom - nHeight
                xWidth = nWidth
                yHeight = nHeight
-            CASE TK_ANCHOR_CENTER_VERT
+            CASE ANCHOR_CENTER_VERT
                x = pWindow->m_rgProps(nItem).rc.Left
                y = (rcParent.Bottom - nHeight) \ 2
                xWidth = nWidth
                yHeight = nHeight
-            CASE TK_ANCHOR_CENTER_VERT_RIGHT
+            CASE ANCHOR_CENTER_VERT_RIGHT
                x = rcParent.Right - nWidth - pWindow->m_rgProps(nItem).rc.Right
                y = (rcParent.Bottom - nHeight) \ 2
                xWidth = nWidth
                yHeight = nHeight
-            CASE TK_ANCHOR_CENTER
+            CASE ANCHOR_CENTER
                x = (rcParent.Right \ 2) + pWindow->m_rgProps(nItem).centerX
                y = (rcParent.Bottom \ 2) + pWindow->m_rgProps(nItem).centerY
                xWidth = nWidth
@@ -2475,7 +2475,7 @@ FUNCTION CWindow.SetCtlColors (BYVAL hCtl AS ..HWND, BYVAL foreColor AS COLORREF
    DIM nItem AS LONG = this.GetColorItem(hCtl)
    ' // If it does not exist, make room for it
    IF nItem = -1 THEN
-      REDIM PRESERVE m_rgColors(UBOUND(m_rgColors) + 1) AS TK_WINDOWCOLORS
+      REDIM PRESERVE m_rgColors(UBOUND(m_rgColors) + 1) AS WINDOWCOLORS
       nItem = UBOUND(m_rgColors)
    END IF
    m_rgColors(nItem).hwnd = hCtl
@@ -2508,9 +2508,9 @@ END FUNCTION
 
 ' ========================================================================================
 ' Returns a pointer to the CWindow class given the handle of its associated window handle.
-' To retrieve it from the handle of any of its child windows or controls, use tkCWindowOwnerPtr.
+' To retrieve it from the handle of any of its child windows or controls, use CWindowOwnerPtr.
 ' ========================================================================================
-FUNCTION tkCWindowPtr OVERLOAD (BYVAL hwnd AS HWND) AS CWindow PTR
+FUNCTION CWindowPtr OVERLOAD (BYVAL hwnd AS HWND) AS CWindow PTR
    FUNCTION = CAST(CWindow PTR, ..GetWindowLongPtrW(hwnd, 0))
 END FUNCTION
 ' ========================================================================================
@@ -2518,7 +2518,7 @@ END FUNCTION
 ' ========================================================================================
 ' Returns a pointer to the CWindow class given the a pointer to the CREATESTRUCT structure.
 ' ========================================================================================
-FUNCTION tkCWindowPtr OVERLOAD (BYVAL lParam AS LPARAM) AS CWindow PTR
+FUNCTION CWindowPtr OVERLOAD (BYVAL lParam AS LPARAM) AS CWindow PTR
    DIM pCreateStruct AS CREATESTRUCT PTR = CAST(CREATESTRUCT PTR, lParam)
    FUNCTION = CAST(CWindow PTR, pCreateStruct->lpCreateParams)
 END FUNCTION
@@ -2527,7 +2527,7 @@ END FUNCTION
 ' ========================================================================================
 ' Returns a pointer to the CWindow class given the a pointer to the CREATESTRUCT structure.
 ' ========================================================================================
-FUNCTION tkCWindowPtr OVERLOAD (BYVAL pCreateStruct AS CREATESTRUCT PTR) AS CWindow PTR
+FUNCTION CWindowPtr OVERLOAD (BYVAL pCreateStruct AS CREATESTRUCT PTR) AS CWindow PTR
    FUNCTION = CAST(CWindow PTR, pCreateStruct->lpCreateParams)
 END FUNCTION
 ' ========================================================================================
@@ -2536,7 +2536,7 @@ END FUNCTION
 ' Returns a pointer to the CWindow class given the handle of the window created with it
 ' or the handle of any of it's children.
 ' ========================================================================================
-FUNCTION tkCWindowOwnerPtr OVERLOAD (BYVAL hwnd AS HWND) AS CWindow PTR
+FUNCTION CWindowOwnerPtr OVERLOAD (BYVAL hwnd AS HWND) AS CWindow PTR
    IF hwnd = NULL THEN EXIT FUNCTION
    DIM hRootOwner AS ..HWND = ..GetAncestor(hwnd, GA_ROOTOWNER)
    IF hRootOwner = NULL THEN EXIT FUNCTION
@@ -2563,9 +2563,9 @@ END FUNCTION
 '   Note: The maximum length is 2048 characters.
 ' ========================================================================================
 ' Forward declaration of the callback function
-PUBLIC DECLARE FUNCTION tkInputBoxWindowProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM, BYVAL lParam AS LPARAM) AS LRESULT
+DECLARE FUNCTION tkInputBoxWindowProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM, BYVAL lParam AS LPARAM) AS LRESULT
 ' ========================================================================================
-PUBLIC FUNCTION tkInputBox (BYVAL hParent AS HWND = NULL, BYVAL x AS LONG = 0, BYVAL y AS LONG = 0, _
+PUBLIC FUNCTION InputBox (BYVAL hParent AS HWND = NULL, BYVAL x AS LONG = 0, BYVAL y AS LONG = 0, _
 BYREF ustrCaption AS USTRING = "", BYREF ustrPrompt AS USTRING = "", BYREF ustrText AS USTRING = "", _
 BYVAL nLen AS LONG = 260, BYVAL bPassword AS BOOLEAN = FALSE) AS USTRING
 
@@ -2638,7 +2638,7 @@ FUNCTION tkInputBoxWindowProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wPa
                   DIM nLen AS LONG = SendMessageW(GetDlgItem(hwnd, 101), WM_GETTEXTLENGTH, 0, 0)
                   IF nLen > 2048 THEN nLen = 2048
 '                  nLen = SendMessageW(GetDlgItem(hwnd, 101), WM_GETTEXT, nLen + 1, cast(..LPARAM, pText))
-                  DIM pInputBox AS CWindow PTR = tkCWindowPtr(hwnd)
+                  DIM pInputBox AS CWindow PTR = CWindowPtr(hwnd)
                   IF pInputBox THEN
                      ' // Pointer to the string buffer
                      DIM pText AS LONG_PTR = pInputBox->UserData(0)

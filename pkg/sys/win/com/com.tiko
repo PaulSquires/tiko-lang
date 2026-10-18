@@ -30,25 +30,25 @@ using win
 
 #ifndef __tk_IUnknown_INTERFACE_DEFINED__
 #define __tk_IUnknown_INTERFACE_DEFINED__
-PUBLIC TYPE tk_IUnknown AS tk_IUnknown_
-PUBLIC TYPE tk_IUnknown_ EXTENDS OBJECT
+PUBLIC TYPE ComUnknown AS ComUnknown_
+PUBLIC TYPE ComUnknown_ EXTENDS OBJECT
 	DECLARE ABSTRACT FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
 	DECLARE ABSTRACT FUNCTION AddRef () AS ULONG
 	DECLARE ABSTRACT FUNCTION Release () AS ULONG
 END TYPE
-PUBLIC TYPE tk_LPUNKNOWN AS tk_IUnknown PTR
+PUBLIC TYPE LPCOMUNKNOWN AS ComUnknown PTR
 #endif
 
 #ifndef __tk_IDispatch_INTERFACE_DEFINED__
 #define __tk_IDispatch_INTERFACE_DEFINED__
-PUBLIC TYPE tk_IDispatch AS tk_IDispatch_
-PUBLIC TYPE tk_IDispatch_  EXTENDS tk_Iunknown
+PUBLIC TYPE ComDispatch AS ComDispatch_
+PUBLIC TYPE ComDispatch_  EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION GetTypeInfoCount (BYVAL pctinfo AS UINT PTR) as HRESULT
    DECLARE ABSTRACT FUNCTION GetTypeInfo (BYVAL iTInfo AS UINT, BYVAL lcid AS LCID, BYVAL ppTInfo AS ITypeInfo PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetIDsOfNames (BYVAL riid AS CONST IID CONST PTR, BYVAL rgszNames AS LPOLESTR PTR, BYVAL cNames AS UINT, BYVAL lcid AS LCID, BYVAL rgDispId AS DISPID PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL dispIdMember AS DISPID, BYVAL riid AS CONST IID CONST PTR, BYVAL lcid AS LCID, BYVAL wFlags AS WORD, BYVAL pDispParams AS DISPPARAMS PTR, BYVAL pVarResult AS VARIANT PTR, BYVAL pExcepInfo AS EXCEPINFO PTR, BYVAL puArgErr AS UINT PTR) AS HRESULT
 END TYPE
-PUBLIC TYPE tk_LPDISPATCH AS tk_IDispatch PTR
+PUBLIC TYPE LPCOMDISPATCH AS ComDispatch PTR
 #endif
 
 ' ========================================================================================
@@ -59,7 +59,7 @@ PUBLIC TYPE tk_LPDISPATCH AS tk_IDispatch PTR
 ' // unicode characters, that is the value returned by the FreeBASIC LEN operator.
 ' // If the retrieved length if the same that the returned by LEN, then it must be an OLE string.
 ' ========================================================================================
-PUBLIC FUNCTION tkIsBstr (BYVAL pv aS ANY PTR) AS BOOLEAN
+PUBLIC FUNCTION IsBstr (BYVAL pv aS ANY PTR) AS BOOLEAN
    IF pv = NULL THEN RETURN FALSE
    DIM res AS DWORD = PEEK(DWORD, pv - 4) \ 2
    IF res = LEN(*cast(WSTRING PTR, pv)) THEN RETURN TRUE
@@ -76,7 +76,7 @@ END FUNCTION
 ' returns a valid pointer to that item. If there is insufficient memory available,
 ' CoTaskMemAlloc returns NULL.
 ' ========================================================================================
-PUBLIC FUNCTION tkWstrAlloc (BYREF wszStr AS WSTRING) AS WSTRING PTR
+PUBLIC FUNCTION WstrAlloc (BYREF wszStr AS WSTRING) AS WSTRING PTR
    DIM ppwsz AS WSTRING PTR
    IF SHStrDupW(@wszStr, @ppwsz) = S_OK THEN RETURN ppwsz
 END FUNCTION
@@ -90,7 +90,7 @@ END FUNCTION
 ' Remarks: I have needed to call the UuidCreate function dynamically because, at the time
 ' of writing, the library for the RPCRT4.DLL seems broken and the linker fails.
 ' ========================================================================================
-PUBLIC FUNCTION tkGuid (BYVAL pwszGuidText AS WSTRING PTR = NULL) AS GUID
+PUBLIC FUNCTION Guid (BYVAL pwszGuidText AS WSTRING PTR = NULL) AS GUID
    DIM rguid AS GUID
    IF pwszGuidText = NULL THEN
       ' // Generate a new guid
@@ -111,7 +111,7 @@ END FUNCTION
 ' ========================================================================================
 ' Returns a 38-byte human-readable guid string from a 16-byte GUID.
 ' ========================================================================================
-PUBLIC FUNCTION tkGuidText OVERLOAD (BYVAL classID AS CLSID PTR) AS STRING
+PUBLIC FUNCTION GuidText OVERLOAD (BYVAL classID AS CLSID PTR) AS STRING
    DIM pwsz AS WSTRING PTR
    SetLastError(StringFromCLSID(classID, CAST(LPOLESTR PTR, @pwsz)))
    FUNCTION = *pwsz
@@ -119,7 +119,7 @@ PUBLIC FUNCTION tkGuidText OVERLOAD (BYVAL classID AS CLSID PTR) AS STRING
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkGuidText OVERLOAD (BYVAL classID AS CLSID) AS STRING
+PUBLIC FUNCTION GuidText OVERLOAD (BYVAL classID AS CLSID) AS STRING
    DIM pwsz AS WSTRING PTR
    SetLastError(StringFromCLSID(@classID, CAST(LPOLESTR PTR, @pwsz)))
    FUNCTION = *pwsz
@@ -127,7 +127,7 @@ PUBLIC FUNCTION tkGuidText OVERLOAD (BYVAL classID AS CLSID) AS STRING
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkGuidText OVERLOAD (BYVAL riid AS REFIID) AS STRING
+PUBLIC FUNCTION GuidText OVERLOAD (BYVAL riid AS REFIID) AS STRING
    DIM pwsz AS WSTRING PTR
    SetLastError(StringFromIID(riid, CAST(LPOLESTR PTR, @pwsz)))
    FUNCTION = *pwsz
@@ -154,7 +154,7 @@ END FUNCTION
 ' where CLSID_Dictionary has been declared as
 ' CONST CLSID_Dictionary = "{EE09B103-97E0-11CF-978F-00A02463E06F}"
 ' ========================================================================================
-PUBLIC FUNCTION tkNewCom OVERLOAD (BYREF wszProgID AS CONST WSTRING, BYREF wszLicKey AS WSTRING = "") AS ANY PTR
+PUBLIC FUNCTION NewCom OVERLOAD (BYREF wszProgID AS CONST WSTRING, BYREF wszLicKey AS WSTRING = "") AS ANY PTR
    DIM hr AS HRESULT, classID AS CLSID, pUnk AS ANY PTR, pIClassFactory2 AS IClassFactory2 PTR
    IF INSTR(wszProgID, "{") THEN CLSIDFromString(wszProgID, @classID) ELSE CLSIDFromProgID(wszProgID, @classID)
    IF IsEqualGuid(@classID, @IID_NULL) THEN RETURN NULL
@@ -186,7 +186,7 @@ END FUNCTION
 ' and IID_IDictionary as
 '   CONST IID_IDictionary = "{42C642C1-97E1-11CF-978F-00A02463E06F}"
 ' ========================================================================================
-PUBLIC FUNCTION tkNewCom OVERLOAD (BYREF wszClsID AS CONST WSTRING, BYREF wszIID AS CONST WSTRING) AS ANY PTR
+PUBLIC FUNCTION NewCom OVERLOAD (BYREF wszClsID AS CONST WSTRING, BYREF wszIID AS CONST WSTRING) AS ANY PTR
    DIM classID AS CLSID, riid AS IID, pUnk AS ANY PTR
    CLSIDFromProgID(wszClsID, @classID)
    CLSIDFromProgID(wszIID, @riid)
@@ -208,7 +208,7 @@ END FUNCTION
 ' where CLSID_Dictionary has been declared as
 '   DIM CLSID_Dictionary AS CLSID = (&hEE09B103, &h97E0, &h11CF, {&h97, &h8F, &h00, &hA0, &h24, &h63, &hE0, &h6F})
 ' ========================================================================================
-PUBLIC FUNCTION tkNewCom OVERLOAD (BYREF classID AS CONST CLSID) AS ANY PTR
+PUBLIC FUNCTION NewCom OVERLOAD (BYREF classID AS CONST CLSID) AS ANY PTR
    DIM pUnk AS ANY PTR
    CoCreateInstance(@classID, NULL, CLSCTX_INPROC_SERVER, @IID_IUnknown, @pUnk)
    RETURN pUnk
@@ -231,7 +231,7 @@ END FUNCTION
 ' and IID_IDictionary as
 '   DIM IID_IDictionary AS IID = (&h42C642C1, &h97E1, &h11CF, {&h97, &h8F, &h00, &hA0, &h24, &h63, &hE0, &h6F})
 ' ========================================================================================
-PUBLIC FUNCTION tkNewCom OVERLOAD (BYREF classID AS CONST CLSID, BYREF riid AS CONST IID) AS ANY PTR
+PUBLIC FUNCTION NewCom OVERLOAD (BYREF classID AS CONST CLSID, BYREF riid AS CONST IID) AS ANY PTR
    DIM pUnk AS ANY PTR
    CoCreateInstance(@classID, NULL, CLSCTX_INPROC_SERVER, @riid, @pUnk)
    RETURN pUnk
@@ -265,7 +265,7 @@ END FUNCTION
 ' frees any other resources that the thread maintains, and forces all RPC connections on
 ' the thread to close.
 ' ========================================================================================
-PUBLIC FUNCTION tkNewCom OVERLOAD (BYREF wszLibName AS CONST WSTRING, BYREF rclsid AS CONST CLSID, BYREF riid AS CONST IID, BYREF wszLicKey AS WSTRING = "") AS ANY PTR
+PUBLIC FUNCTION NewCom OVERLOAD (BYREF wszLibName AS CONST WSTRING, BYREF rclsid AS CONST CLSID, BYREF riid AS CONST IID, BYREF wszLicKey AS WSTRING = "") AS ANY PTR
 
    DIM hr AS LONG, hLib AS HMODULE, pDisp AS ANY PTR
    DIM pIClassFactory AS IClassFactory PTR, pIClassFactory2 AS IClassFactory2 PTR
@@ -314,11 +314,11 @@ END FUNCTION
 ' ========================================================================================
 ' Converts the wszClsid and wszIid parameters to GUIDs and calls the function above.
 ' ========================================================================================
-PUBLIC FUNCTION tkNewCom OVERLOAD (BYREF wszLibName AS CONST WSTRING, BYREF wszClsid AS CONST WSTRING, BYREF wszIid AS CONST WSTRING, BYREF wszLicKey AS WSTRING = "") AS ANY PTR
+PUBLIC FUNCTION NewCom OVERLOAD (BYREF wszLibName AS CONST WSTRING, BYREF wszClsid AS CONST WSTRING, BYREF wszIid AS CONST WSTRING, BYREF wszLicKey AS WSTRING = "") AS ANY PTR
    DIM rclsid AS CLSID, riid AS IID
-   rclsid = tkGuid(wszClsid)
-   riid = tkGuid(wszIid)
-   RETURN tkNewCom(wszLibName, rclsid, riid, wszLicKey)
+   rclsid = Guid(wszClsid)
+   riid = Guid(wszIid)
+   RETURN NewCom(wszLibName, rclsid, riid, wszLicKey)
 END FUNCTION
 ' ========================================================================================
 
@@ -335,7 +335,7 @@ END FUNCTION
 ' Office application before the application has lost focus, you might receive an error.
 ' See: https://support.microsoft.com/en-us/help/238610/getobject-or-getactiveobject-cannot-find-a-running-office-application
 ' ========================================================================================
-PUBLIC FUNCTION tkGetCom OVERLOAD (BYREF wszProgID AS CONST WSTRING) AS IDispatch PTR
+PUBLIC FUNCTION GetCom OVERLOAD (BYREF wszProgID AS CONST WSTRING) AS IDispatch PTR
    DIM classID AS CLSID, pUnk AS IUnknown PTR, pDisp AS IDispatch PTR
    CLSIDFromProgID(wszProgID, @classID)
    IF IsEqualGuid(@classID, @IID_NULL) THEN RETURN NULL
@@ -348,7 +348,7 @@ PUBLIC FUNCTION tkGetCom OVERLOAD (BYREF wszProgID AS CONST WSTRING) AS IDispatc
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkGetCom OVERLOAD (BYREF classID AS CONST CLSID) AS IDispatch PTR
+PUBLIC FUNCTION GetCom OVERLOAD (BYREF classID AS CONST CLSID) AS IDispatch PTR
    DIM pUnk AS IUnknown PTR, pDisp AS IDispatch PTR
    GetActiveObject(@classID, NULL, @pUnk)
    IF pUnk THEN
@@ -359,7 +359,7 @@ PUBLIC FUNCTION tkGetCom OVERLOAD (BYREF classID AS CONST CLSID) AS IDispatch PT
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkAnyCom OVERLOAD (BYREF wszProgID AS CONST WSTRING) AS IDispatch PTR
+PUBLIC FUNCTION AnyCom OVERLOAD (BYREF wszProgID AS CONST WSTRING) AS IDispatch PTR
    DIM classID AS CLSID, pUnk AS IUnknown PTR, pDisp AS IDispatch PTR
    CLSIDFromProgID(wszProgID, @classID)
    IF IsEqualGuid(@classID, @IID_NULL) THEN RETURN NULL
@@ -379,7 +379,7 @@ PUBLIC FUNCTION tkAnyCom OVERLOAD (BYREF wszProgID AS CONST WSTRING) AS IDispatc
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkAnyCom OVERLOAD (BYREF classID AS CONST CLSID) AS IDispatch PTR
+PUBLIC FUNCTION AnyCom OVERLOAD (BYREF classID AS CONST CLSID) AS IDispatch PTR
    DIM pUnk AS IUnknown PTR, pDisp AS IDispatch PTR
    ' // Check if there is an instance already running
    IF GetActiveObject(@classID, NULL, @pUnk) = S_OK THEN
@@ -406,7 +406,7 @@ END FUNCTION
 ' object (whether the object supports single or multiple interfaces), the implementation
 ' must free the object.
 ' ========================================================================================
-PUBLIC FUNCTION tkSafeRelease (BYREF pv AS ANY PTR) AS ULONG
+PUBLIC FUNCTION SafeRelease (BYREF pv AS ANY PTR) AS ULONG
    IF pv = NULL THEN RETURN 0
    FUNCTION = cast(IUnknown PTR, pv)->lpvtbl->Release(pv)
    pv = NULL
@@ -427,7 +427,7 @@ END FUNCTION
 ' beyond the lifetime of the original pointer. The cloned pointer must be released by
 ' calling fbxSafeRelease.
 ' ========================================================================================
-PUBLIC FUNCTION tkSafeAddRef (BYVAL pv AS ANY PTR) AS ULONG
+PUBLIC FUNCTION SafeAddRef (BYVAL pv AS ANY PTR) AS ULONG
    IF pv = NULL THEN RETURN 0
    RETURN cast(IUnknown PTR, pv)->lpvtbl->AddRef(pv)
 END FUNCTION
@@ -443,7 +443,7 @@ END FUNCTION
 ' pdwCookie: [out] A pointer to the cookie that uniquely identifies the connection.
 ' Return value: S_OK or an HRESULT value.
 ' ========================================================================================
-PUBLIC FUNCTION tkAdvise OVERLOAD (BYVAL pUnk AS ANY PTR, BYVAL pEvtObj AS ANY PTR, BYVAL riid AS IID PTR, BYVAL pdwCookie AS DWORD PTR) AS HRESULT
+PUBLIC FUNCTION Advise OVERLOAD (BYVAL pUnk AS ANY PTR, BYVAL pEvtObj AS ANY PTR, BYVAL riid AS IID PTR, BYVAL pdwCookie AS DWORD PTR) AS HRESULT
    IF pUnk = NULL OR pEvtObj = NULL OR riid = NULL OR pdwCookie = NULL THEN RETURN E_INVALIDARG
    ' // Query for the IConnectionPointContainer interface
    DIM pCPC AS IConnectionPointContainer PTR
@@ -461,13 +461,13 @@ PUBLIC FUNCTION tkAdvise OVERLOAD (BYVAL pUnk AS ANY PTR, BYVAL pEvtObj AS ANY P
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkAdvise OVERLOAD (BYVAL pUnk AS ANY PTR, BYVAL pEvtObj AS ANY PTR, BYREF riid AS CONST IID, BYVAL pdwCookie AS DWORD PTR) AS HRESULT
-   RETURN tkAdvise(pUnk, pEvtObj, cast(IID PTR, @riid), pdwCookie)
+PUBLIC FUNCTION Advise OVERLOAD (BYVAL pUnk AS ANY PTR, BYVAL pEvtObj AS ANY PTR, BYREF riid AS CONST IID, BYVAL pdwCookie AS DWORD PTR) AS HRESULT
+   RETURN Advise(pUnk, pEvtObj, cast(IID PTR, @riid), pdwCookie)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkAdvise OVERLOAD (BYVAL pUnk AS ANY PTR, BYVAL pEvtObj AS ANY PTR, BYREF riid AS IID, BYVAL pdwCookie AS DWORD PTR) AS HRESULT
-   RETURN tkAdvise(pUnk, pEvtObj, cast(IID PTR, @riid), pdwCookie)
+PUBLIC FUNCTION Advise OVERLOAD (BYVAL pUnk AS ANY PTR, BYVAL pEvtObj AS ANY PTR, BYREF riid AS IID, BYVAL pdwCookie AS DWORD PTR) AS HRESULT
+   RETURN Advise(pUnk, pEvtObj, cast(IID PTR, @riid), pdwCookie)
 END FUNCTION
 ' ========================================================================================
 
@@ -480,7 +480,7 @@ END FUNCTION
 ' dwCookie: [in] The cookie that uniquely identifies the connection.
 ' Return value: S_OK or an HRESULT value.
 ' ========================================================================================
-PUBLIC FUNCTION tkUnadvise OVERLOAD (BYVAL pUnk AS ANY PTR, BYVAL riid AS IID PTR, BYVAL dwCookie AS DWORD) AS HRESULT
+PUBLIC FUNCTION Unadvise OVERLOAD (BYVAL pUnk AS ANY PTR, BYVAL riid AS IID PTR, BYVAL dwCookie AS DWORD) AS HRESULT
    ' // Not a valid connection
    IF pUnk = NULL OR riid = NULL OR dwCookie = 0 THEN RETURN E_INVALIDARG
    ' // Query for the IConnectionPointContainer interface
@@ -499,13 +499,13 @@ PUBLIC FUNCTION tkUnadvise OVERLOAD (BYVAL pUnk AS ANY PTR, BYVAL riid AS IID PT
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkUnadvise OVERLOAD (BYVAL pUnk AS ANY PTR, BYREF riid AS CONST IID, BYVAL dwCookie AS DWORD) AS HRESULT
-   RETURN tkUnadvise(pUnk, cast(IID PTR, @riid), dwCookie)
+PUBLIC FUNCTION Unadvise OVERLOAD (BYVAL pUnk AS ANY PTR, BYREF riid AS CONST IID, BYVAL dwCookie AS DWORD) AS HRESULT
+   RETURN Unadvise(pUnk, cast(IID PTR, @riid), dwCookie)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkUnadvise OVERLOAD (BYVAL pUnk AS ANY PTR, BYREF riid AS IID, BYVAL dwCookie AS DWORD) AS HRESULT
-   RETURN tkUnadvise(pUnk, cast(IID PTR, @riid), dwCookie)
+PUBLIC FUNCTION Unadvise OVERLOAD (BYVAL pUnk AS ANY PTR, BYREF riid AS IID, BYVAL dwCookie AS DWORD) AS HRESULT
+   RETURN Unadvise(pUnk, cast(IID PTR, @riid), dwCookie)
 END FUNCTION
 ' ========================================================================================
 
@@ -515,16 +515,16 @@ END FUNCTION
 ' calling a method of an Automation interface and will only succeed if the object supports
 ' the IErrorInfo interface.
 ' ========================================================================================
-PUBLIC FUNCTION tkGetOleErrorInfo () AS USTRING
+PUBLIC FUNCTION GetOleErrorInfo () AS USTRING
    DIM pErrorInfo AS IErrorInfo PTR, ustrInfo AS USTRING
    DIM hr AS HRESULT = GetErrorInfo(0, @pErrorInfo)
    IF hr <> S_OK THEN RETURN ""
-   DIM bstrDescription AS TK_BSTR
+   DIM bstrDescription AS WBSTR
    hr = pErrorInfo->lpvtbl->GetDescription(pErrorInfo, @bstrDescription)
    IF hr = S_OK THEN
       ustrInfo = *bstrDescription
       SysFreeString bstrDescription
-      tkSafeRelease(pErrorInfo)
+      SafeRelease(pErrorInfo)
    END IF
    RETURN ustrInfo
 END FUNCTION
@@ -569,7 +569,7 @@ END FUNCTION
 ' DIM pFont AS IFontDisp PTR = fbxOleCreateFontDisp("Courier New", 10, FW_BOLD, , , , DEFAULT_CHARSET)
 ' DIM pFont AS IFontDisp PTR = fbxOleCreateFontDisp("Marlett", 8, FW_NORMAL, , , , SYMBOL_CHARSET)
 ' ========================================================================================
-PUBLIC FUNCTION tkOleCreateFontDisp ( _
+PUBLIC FUNCTION OleCreateFontDisp ( _
    BYREF wszFontName AS WSTRING, _                  ' __in  Font name
    BYVAL cySize AS LONGLONG, _                      ' __in  Point size
    BYVAL fWeight AS SHORT = FW_NORMAL, _            ' __in  Weight (FW_NORMAL, etc.)
@@ -595,7 +595,7 @@ PUBLIC FUNCTION tkOleCreateFontDisp ( _
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkOleCreateFont ( _
+PUBLIC FUNCTION OleCreateFont ( _
    BYREF wszFontName AS WSTRING, _                  ' __in  Font name
    BYVAL cySize AS LONGLONG, _                      ' __in  Point size
    BYVAL fWeight AS SHORT = FW_NORMAL, _            ' __in  Weight (FW_NORMAL, etc.)

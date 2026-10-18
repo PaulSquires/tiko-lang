@@ -177,7 +177,7 @@ FUNCTION CMaskedEdit.CMaskedEditProc ( _
          DIM ustrText AS USTRING = pthis->GetText(FALSE)
          IF LEN(ustrText) = 0 THEN EXIT FUNCTION
          ustrText = MID(ustrText, nStart + 1, nEnd - nStart)
-         IF uMsg = WM_CUT THEN tkSetClipboardText(ustrText)
+         IF uMsg = WM_CUT THEN SetClipboardText(ustrText)
          pthis->OnCharDelete(ASC(" "), 0, 0)
          ustrText = pthis->GetText(FALSE)
          IF LEN(pthis->m_strInputTemplate) = 0 THEN EXIT FUNCTION
@@ -198,7 +198,7 @@ FUNCTION CMaskedEdit.CMaskedEditProc ( _
          DIM pthis AS CMaskedEdit PTR = CAST(CMaskedEdit PTR, dwRefData)
          IF pthis = NULL THEN EXIT FUNCTION
          pthis->m_strUndo = pthis->GetText(FALSE)
-         DIM ustrText AS USTRING = tkGetClipboardText
+         DIM ustrText AS USTRING = GetClipboardText
          IF LEN(ustrText) = 0 THEN EXIT FUNCTION
          FOR i AS LONG = 1 TO LEN(ustrText)
             pthis->OnCharPrintchar((ASC(MID(ustrText, i, 1))), 0, 0)
@@ -527,7 +527,7 @@ END FUNCTION
 
 ' ========================================================================================
 FUNCTION CMaskedEdit.DoUpdate (BYVAL bRestoreLastGood AS BOOLEAN, BYVAL nBeginOld AS LONG = -1, BYVAL nEndOld AS LONG = -1) AS BOOLEAN
-   DIM ustrNew AS USTRING = tkGetWindowText(m_hCtl)
+   DIM ustrNew AS USTRING = GetWindowText(m_hCtl)
    DIM bRet AS BOOLEAN = this.SetValue(ustrNew, TRUE)
    IF bRet = FALSE THEN MessageBeep(CAST(UINT, -1))
    IF bRet = FALSE AND bRestoreLastGood = TRUE THEN
@@ -545,7 +545,7 @@ SUB CMaskedEdit.OnCharPrintchar(BYVAL nChar AS UINT, BYVAL nRepCnt AS UINT, BYVA
    DIM chChar AS USHORT = nChar
    IF iswprint(chChar) = FALSE THEN RETURN
    ' // Processing ES_UPPERCASE and ES_LOWERCASE styles
-   DIM dwStyle AS DWORD = tkGetWindowStyle(m_hCtl)
+   DIM dwStyle AS DWORD = GetWindowStyle(m_hCtl)   ' windowsx.bi's macro (RFC-0001 5.1.1)
    IF (dwStyle AND ES_UPPERCASE) = ES_UPPERCASE THEN
       chChar = towupper(chChar)
    ELSEIF (dwStyle AND ES_LOWERCASE) = ES_LOWERCASE THEN
@@ -1107,7 +1107,7 @@ FUNCTION CMaskedEdit.SetText (BYREF ustrText AS USTRING, BYVAL bSetMaskedCharsOn
       FOR i AS LONG = 1 TO LEN(m_strInputTemplate)
          IF MID(ustr, i, 1) = MID(m_strInputTemplate, i, 1) THEN MID(ustr, i, 1) = "_"
       NEXT
-      ustr = tkStrRemove(ustr, "_")
+      ustr = StrRemove(ustr, "_")
    END IF
    FUNCTION = this.SetText(ustr)
 END FUNCTION
@@ -1117,12 +1117,12 @@ END FUNCTION
 ' Gets the text of the control
 ' ========================================================================================
 FUNCTION CMaskedEdit.GetText (BYVAL bGetMaskedCharsOnly AS BOOLEAN = FALSE) AS USTRING
-   DIM ustr AS USTRING = tkGetWindowText(m_hCtl)
+   DIM ustr AS USTRING = GetWindowText(m_hCtl)
    IF bGetMaskedCharsOnly THEN
       FOR i AS LONG = 1 TO LEN(m_strInputTemplate)
          IF MID(ustr, i, 1) = MID(m_strInputTemplate, i, 1) THEN MID(ustr, i, 1) = "_"
       NEXT
-      ustr = tkStrRemove(ustr, "_")
+      ustr = StrRemove(ustr, "_")
    END IF
    RETURN ustr
 END FUNCTION
@@ -1132,12 +1132,12 @@ END FUNCTION
 ' Gets the length of the text of the control
 ' ========================================================================================
 FUNCTION CMaskedEdit.GetTextLength (BYVAL bGetMaskedCharsOnly AS BOOLEAN = FALSE) AS LONG
-   DIM ustr AS USTRING = tkGetWindowText(m_hCtl)
+   DIM ustr AS USTRING = GetWindowText(m_hCtl)
    IF bGetMaskedCharsOnly THEN
       FOR i AS LONG = 1 TO LEN(m_strInputTemplate)
          IF MID(ustr, i, 1) = MID(m_strInputTemplate, i, 1) THEN MID(ustr, i, 1) = "_"
       NEXT
-      ustr = tkStrRemove(ustr, "_")
+      ustr = StrRemove(ustr, "_")
    END IF
    RETURN LEN(ustr)
 END FUNCTION
@@ -1152,9 +1152,9 @@ END FUNCTION
 ' hMaskedEdit = Handle of the Masked Edit control.
 ' Usage example:
 ' DIM hMasKedEdit AS HWND = GetDlgItem(<parent handle>, <identifier of the control>)
-' DIM pMaskedEdit AS CMaskedEdit PTR = tkCMaskedEditPtr(hMasKedEdit))
+' DIM pMaskedEdit AS CMaskedEdit PTR = CMaskedEditPtr(hMasKedEdit))
 ' ========================================================================================
-PUBLIC FUNCTION tkCMaskedEditPtr OVERLOAD (BYVAL hMasKedEdit AS HWND) AS CMaskedEdit PTR
+PUBLIC FUNCTION CMaskedEditPtr OVERLOAD (BYVAL hMasKedEdit AS HWND) AS CMaskedEdit PTR
    DIM pMaskedEdit AS CMaskedEdit PTR = CAST(CMaskedEdit PTR, SendMessageW(hMasKedEdit, WM_USER + 100, 0, 0))
    RETURN pMaskedEdit
 END FUNCTION
@@ -1165,9 +1165,9 @@ END FUNCTION
 ' hParent = Handle of the parent window of the rich edit control.
 ' cID = Identifier of the rich edit control.
 ' Usage example:
-' DIM pMaskedEdit AS CMaskedEdit PTR = tkCMaskedEditPtr(<parent handle>, <identifier of the control>)
+' DIM pMaskedEdit AS CMaskedEdit PTR = CMaskedEditPtr(<parent handle>, <identifier of the control>)
 ' ========================================================================================
-PUBLIC FUNCTION tkCMaskedEditPtr OVERLOAD (BYVAL hParent AS HWND, BYVAL cID AS LONG) AS CMaskedEdit PTR
+PUBLIC FUNCTION CMaskedEditPtr OVERLOAD (BYVAL hParent AS HWND, BYVAL cID AS LONG) AS CMaskedEdit PTR
    DIM pMaskedEdit AS CMaskedEdit PTR = CAST(CMaskedEdit PTR, SendMessageW(GetDlgItem(hParent, cID), WM_USER + 100, 0, 0))
    RETURN pMaskedEdit
 END FUNCTION

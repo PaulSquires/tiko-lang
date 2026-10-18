@@ -739,7 +739,7 @@ verify_syswin( ) {
 dim as gui.CWindow w
 dim as com.DVARIANT v
 dim as richedit.CTextRange2 ptr r
-print win.tkUcase( "tiko" ); " "; hex( gdiplus.GDIP_ARGB( &hFF, 1, 2, 3 ) )
+print win.UpperCase( "tiko" ); " "; hex( gdiplus.GDIP_ARGB( &hFF, 1, 2, 3 ) )
 ' > "$_tmp/syswin.tiko"
         ( cd "$OUT" && TKO_MODCACHE=".verifysyswin.$_t/cache" "./${BINSUB}tiko$EXT" -target "$_t" \
             ".verifysyswin.$_t/syswin.tiko" -o ".verifysyswin.$_t/syswin$EXT" ) >"$_tmp/log" 2>&1 || true

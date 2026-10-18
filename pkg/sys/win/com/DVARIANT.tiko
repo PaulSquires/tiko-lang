@@ -131,7 +131,7 @@ Public:
    DECLARE FUNCTION PutDateString (BYVAL pwszDate AS WSTRING PTR, BYVAL lcid AS LCID = 0, BYVAL dwFlags AS ULONG = 0) AS HRESULT
    DECLARE FUNCTION PutVbDate (BYVAL vbDate AS DATE_) AS HRESULT
    DECLARE FUNCTION PutSystemTime (BYVAL st AS SYSTEMTIME PTR) AS BOOLEAN
-   DECLARE FUNCTION PutGuid (BYVAL guid AS IID PTR) AS HRESULT
+   DECLARE FUNCTION PutGuid (BYVAL pGuid AS IID PTR) AS HRESULT
    DECLARE FUNCTION PutFileTime (BYVAL pft AS FILETIME PTR) AS HRESULT
    DECLARE FUNCTION PutFileTimeArray (BYVAL prgft AS FILETIME PTR, BYVAL cElems AS ULONG) AS HRESULT
    DECLARE FUNCTION PutStrRet (BYVAL pstrret AS STRRET PTR, BYVAL pidl AS PCUITEMID_CHILD) AS HRESULT
@@ -1180,10 +1180,10 @@ END FUNCTION
 ' =====================================================================================
 ' Initializes a DVARIANT based on a GUID. The structure is initialized as a VT_BSTR type.
 ' =====================================================================================
-FUNCTION DVARIANT.PutGuid (BYVAL guid AS IID PTR) AS HRESULT
+FUNCTION DVARIANT.PutGuid (BYVAL pGuid AS IID PTR) AS HRESULT
    m_Result = 0
    VariantClear(@vd)
-   m_Result = InitVariantFromGUIDAsString(guid, @vd)
+   m_Result = InitVariantFromGUIDAsString(pGuid, @vd)
    RETURN m_Result
 END FUNCTION
 ' =====================================================================================
@@ -1551,7 +1551,7 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION DVARIANT.ToStr () AS USTRING
    m_Result = 0
-   RETURN tkVarToStr(@vd)
+   RETURN VarToStr(@vd)
 END FUNCTION
 ' ========================================================================================
 ' =====================================================================================
@@ -1585,7 +1585,7 @@ END FUNCTION
 ' =====================================================================================
 FUNCTION DVARIANT.ToBStr () AS BSTRING
    m_Result = 0
-   RETURN tkVarToStr(@vd)
+   RETURN VarToStr(@vd)
 END FUNCTION
 ' =====================================================================================
 
@@ -2301,19 +2301,19 @@ END OPERATOR
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION Left OVERLOAD (BYREF dv AS DVARIANT, BYVAL nChars AS INTEGER) AS USTRING
-   DIM ustr AS USTRING = tkVarToStr(@dv.vd)
+   DIM ustr AS USTRING = VarToStr(@dv.vd)
    RETURN LEFT(ustr, nChars)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION Right OVERLOAD (BYREF dv AS DVARIANT, BYVAL nChars AS INTEGER) AS USTRING
-   DIM ustr AS USTRING = tkVarToStr(@dv.vd)
+   DIM ustr AS USTRING = VarToStr(@dv.vd)
    RETURN RIGHT(ustr, nChars)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION Val OVERLOAD (BYREF dv AS DVARIANT) AS DOUBLE
-   DIM ustr AS USTRING = tkVarToStr(@dv.vd)
+   DIM ustr AS USTRING = VarToStr(@dv.vd)
    RETURN .VAL(ustr)
 END FUNCTION
 ' ========================================================================================
@@ -2494,12 +2494,12 @@ END OPERATOR
 ' ========================================================================================
 ' Helper procedure to display messages
 ' ========================================================================================
-PUBLIC FUNCTION tkMsg OVERLOAD (BYREF dv AS DVARIANT, BYVAL pwszCaption AS CONST WSTRING PTR = NULL, BYVAL uType AS DWORD = 0) AS LONG
+PUBLIC FUNCTION VariantMsg OVERLOAD (BYREF dv AS DVARIANT, BYVAL pwszCaption AS CONST WSTRING PTR = NULL, BYVAL uType AS DWORD = 0) AS LONG
    RETURN MessageBoxW(GetActiveWindow, dv.ToStr, pwszCaption, MB_APPLMODAL OR uType)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkMsg OVERLOAD (BYVAL hWin AS HWND, BYREF dv AS DVARIANT, BYVAL pwszCaption AS CONST WSTRING PTR = NULL, BYVAL uType AS DWORD = 0) AS LONG
+PUBLIC FUNCTION VariantMsg OVERLOAD (BYVAL hWin AS HWND, BYREF dv AS DVARIANT, BYVAL pwszCaption AS CONST WSTRING PTR = NULL, BYVAL uType AS DWORD = 0) AS LONG
    RETURN MessageBoxW(hWin, dv.ToStr, pwszCaption, MB_APPLMODAL OR uType)
 END FUNCTION
 ' ========================================================================================
@@ -2507,12 +2507,12 @@ END FUNCTION
 ' ========================================================================================
 ' To pass optional parameters.
 ' ========================================================================================
-PUBLIC FUNCTION tkVtError () AS VARIANT
+PUBLIC FUNCTION VtError () AS VARIANT
    RETURN TYPE(VT_ERROR, 0, 0, 0, DISP_E_PARAMNOTFOUND)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkVtNULL () AS VARIANT
+PUBLIC FUNCTION VtNULL () AS VARIANT
    RETURN TYPE(VT_NULL, 0, 0, 0, 0)
 END FUNCTION
 ' ========================================================================================

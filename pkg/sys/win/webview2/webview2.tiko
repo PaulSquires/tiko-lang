@@ -13,13 +13,13 @@
 
 #ifndef __tk_IUnknown_INTERFACE_DEFINED__
 #define __tk_IUnknown_INTERFACE_DEFINED__
-PUBLIC TYPE tk_IUnknown AS tk_IUnknown_
-PUBLIC TYPE tk_IUnknown_ EXTENDS OBJECT
+PUBLIC TYPE ComUnknown AS ComUnknown_
+PUBLIC TYPE ComUnknown_ EXTENDS OBJECT
 	DECLARE ABSTRACT FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
 	DECLARE ABSTRACT FUNCTION AddRef () AS ULONG
 	DECLARE ABSTRACT FUNCTION Release () AS ULONG
 END TYPE
-PUBLIC TYPE tk_LPUNKNOWN AS tk_IUnknown PTR
+PUBLIC TYPE LPCOMUNKNOWN AS ComUnknown PTR
 #endif
 
 PUBLIC TYPE EventRegistrationToken
@@ -1123,7 +1123,7 @@ END FUNCTION
 #ifndef __ICoreWebView2_INTERFACE_DEFINED__
 #define __ICoreWebView2_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_Settings (BYVAL Settings AS ICoreWebView2Settings PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Source (BYVAL uri AS LPWSTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION Navigate (BYVAL uri AS LPCWSTR) AS HRESULT
@@ -1704,7 +1704,7 @@ END TYPE
 #ifndef __ICoreWebView2AcceleratorKeyPressedEventArgs_INTERFACE_DEFINED__
 #define __ICoreWebView2AcceleratorKeyPressedEventArgs_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2AcceleratorKeyPressedEventArgs_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2AcceleratorKeyPressedEventArgs_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_KeyEventKind (BYVAL KeyEventKind AS COREWEBVIEW2_KEY_EVENT_KIND PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_VirtualKey (BYVAL VirtualKey AS UINT PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_KeyEventLParam (BYVAL lParam AS INT_ PTR) AS HRESULT
@@ -1744,7 +1744,7 @@ END TYPE
 #ifndef __ICoreWebView2AcceleratorKeyPressedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2AcceleratorKeyPressedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2AcceleratorKeyPressedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2AcceleratorKeyPressedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2Controller PTR, BYVAL args AS ICoreWebView2AcceleratorKeyPressedEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -1761,7 +1761,7 @@ END TYPE
 #ifndef __ICoreWebView2AddScriptToExecuteOnDocumentCreatedCompletedHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2AddScriptToExecuteOnDocumentCreatedCompletedHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2AddScriptToExecuteOnDocumentCreatedCompletedHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2AddScriptToExecuteOnDocumentCreatedCompletedHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL errorCode AS HRESULT, BYVAL result AS WSTRING PTR) AS HRESULT
 END TYPE
 
@@ -1778,7 +1778,7 @@ END TYPE
 #ifndef __ICoreWebView2BasicAuthenticationRequestedEventArgs_INTERFACE_DEFINED__
 #define __ICoreWebView2BasicAuthenticationRequestedEventArgs_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2BasicAuthenticationRequestedEventArgs_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2BasicAuthenticationRequestedEventArgs_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_uri (BYVAL value AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Challenge (BYVAL Challenge AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Response (BYVAL Response AS ICoreWebView2BasicAuthenticationResponse PTR PTR) AS HRESULT
@@ -1800,7 +1800,7 @@ END TYPE
 #ifndef __ICoreWebView2BasicAuthenticationRequestedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2BasicAuthenticationRequestedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2BasicAuthenticationRequestedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2BasicAuthenticationRequestedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2BasicAuthenticationRequestedEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -1817,7 +1817,7 @@ END TYPE
 #ifndef __ICoreWebView2BasicAuthenticationResponse_INTERFACE_DEFINED__
 #define __ICoreWebView2BasicAuthenticationResponse_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2BasicAuthenticationResponse_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2BasicAuthenticationResponse_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_UserName (BYVAL UserName AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION put_UserName (BYVAL UserName AS WSTRING PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Password (BYVAL Password AS WSTRING PTR PTR) AS HRESULT
@@ -1837,7 +1837,7 @@ END TYPE
 #ifndef __ICoreWebView2BrowserExtension_INTERFACE_DEFINED__
 #define __ICoreWebView2BrowserExtension_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2BrowserExtension_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2BrowserExtension_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_id (BYVAL value AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_name (BYVAL value AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION Remove (BYVAL handler AS ICoreWebView2BrowserExtensionRemoveCompletedHandler PTR) AS HRESULT
@@ -1858,7 +1858,7 @@ END TYPE
 #ifndef __ICoreWebView2BrowserExtensionEnableCompletedHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2BrowserExtensionEnableCompletedHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2BrowserExtensionEnableCompletedHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2BrowserExtensionEnableCompletedHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL errorCode AS HRESULT) AS HRESULT
 END TYPE
 
@@ -1875,7 +1875,7 @@ END TYPE
 #ifndef __ICoreWebView2BrowserExtensionList_INTERFACE_DEFINED__
 #define __ICoreWebView2BrowserExtensionList_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2BrowserExtensionList_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2BrowserExtensionList_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_Count (BYVAL value AS UINT PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetValueAtIndex (BYVAL index AS UINT, BYVAL value AS ICoreWebView2BrowserExtension PTR PTR) AS HRESULT
 END TYPE
@@ -1893,7 +1893,7 @@ END TYPE
 #ifndef __ICoreWebView2BrowserExtensionRemoveCompletedHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2BrowserExtensionRemoveCompletedHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2BrowserExtensionRemoveCompletedHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2BrowserExtensionRemoveCompletedHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL errorCode AS HRESULT) AS HRESULT
 END TYPE
 
@@ -1910,7 +1910,7 @@ END TYPE
 #ifndef __ICoreWebView2BrowserProcessExitedEventArgs_INTERFACE_DEFINED__
 #define __ICoreWebView2BrowserProcessExitedEventArgs_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2BrowserProcessExitedEventArgs_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2BrowserProcessExitedEventArgs_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_BrowserProcessExitKind (BYVAL value AS COREWEBVIEW2_BROWSER_PROCESS_EXIT_KIND PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_BrowserProcessId (BYVAL value AS UINT PTR) AS HRESULT
 END TYPE
@@ -1928,7 +1928,7 @@ END TYPE
 #ifndef __ICoreWebView2BrowserProcessExitedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2BrowserProcessExitedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2BrowserProcessExitedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2BrowserProcessExitedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2Environment PTR, BYVAL args AS ICoreWebView2BrowserProcessExitedEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -1945,7 +1945,7 @@ END TYPE
 #ifndef __ICoreWebView2BytesReceivedChangedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2BytesReceivedChangedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2BytesReceivedChangedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2BytesReceivedChangedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2DownloadOperation PTR, BYVAL args AS IUnknown PTR) AS HRESULT
 END TYPE
 
@@ -1962,7 +1962,7 @@ END TYPE
 #ifndef __ICoreWebView2CallDevToolsProtocolMethodCompletedHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2CallDevToolsProtocolMethodCompletedHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2CallDevToolsProtocolMethodCompletedHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2CallDevToolsProtocolMethodCompletedHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL errorCode AS HRESULT, BYVAL result AS WSTRING PTR) AS HRESULT
 END TYPE
 
@@ -1979,7 +1979,7 @@ END TYPE
 #ifndef __ICoreWebView2CapturePreviewCompletedHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2CapturePreviewCompletedHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2CapturePreviewCompletedHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2CapturePreviewCompletedHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL errorCode AS HRESULT) AS HRESULT
 END TYPE
 
@@ -1996,7 +1996,7 @@ END TYPE
 #ifndef __ICoreWebView2Certificate_INTERFACE_DEFINED__
 #define __ICoreWebView2Certificate_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2Certificate_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2Certificate_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_Subject (BYVAL value AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Issuer (BYVAL value AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_ValidFrom (BYVAL value AS DOUBLE PTR) AS HRESULT
@@ -2020,7 +2020,7 @@ END TYPE
 #ifndef __ICoreWebView2ClearBrowsingDataCompletedHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2ClearBrowsingDataCompletedHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ClearBrowsingDataCompletedHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ClearBrowsingDataCompletedHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL errorCode AS HRESULT) AS HRESULT
 END TYPE
 
@@ -2037,7 +2037,7 @@ END TYPE
 #ifndef __ICoreWebView2ClearServerCertificateErrorActionsCompletedHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2ClearServerCertificateErrorActionsCompletedHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ClearServerCertificateErrorActionsCompletedHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ClearServerCertificateErrorActionsCompletedHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL errorCode AS HRESULT) AS HRESULT
 END TYPE
 
@@ -2054,7 +2054,7 @@ END TYPE
 #ifndef __ICoreWebView2ClientCertificate_INTERFACE_DEFINED__
 #define __ICoreWebView2ClientCertificate_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ClientCertificate_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ClientCertificate_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_Subject (BYVAL value AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Issuer (BYVAL value AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_ValidFrom (BYVAL value AS DOUBLE PTR) AS HRESULT
@@ -2079,7 +2079,7 @@ END TYPE
 #ifndef __ICoreWebView2ClientCertificateCollection_INTERFACE_DEFINED__
 #define __ICoreWebView2ClientCertificateCollection_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ClientCertificateCollection_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ClientCertificateCollection_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_Count (BYVAL value AS UINT PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetValueAtIndex (BYVAL index AS UINT, BYVAL value AS ICoreWebView2ClientCertificate PTR PTR) AS HRESULT
 END TYPE
@@ -2097,7 +2097,7 @@ END TYPE
 #ifndef __ICoreWebView2ClientCertificateRequestedEventArgs_INTERFACE_DEFINED__
 #define __ICoreWebView2ClientCertificateRequestedEventArgs_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ClientCertificateRequestedEventArgs_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ClientCertificateRequestedEventArgs_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_Host (BYVAL value AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Port (BYVAL value AS INT_ PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_IsProxy (BYVAL value AS LONG PTR) AS HRESULT
@@ -2125,7 +2125,7 @@ END TYPE
 #ifndef __ICoreWebView2ClientCertificateRequestedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2ClientCertificateRequestedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ClientCertificateRequestedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ClientCertificateRequestedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2ClientCertificateRequestedEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -2142,7 +2142,7 @@ END TYPE
 #ifndef __ICoreWebView2CompositionController_INTERFACE_DEFINED__
 #define __ICoreWebView2CompositionController_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2CompositionController_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2CompositionController_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_RootVisualTarget (BYVAL target AS IUnknown PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION put_RootVisualTarget (BYVAL target AS IUnknown PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION SendMouseInput (BYVAL eventKind AS COREWEBVIEW2_MOUSE_EVENT_KIND, BYVAL virtualKeys AS COREWEBVIEW2_MOUSE_EVENT_VIRTUAL_KEYS, BYVAL mouseData AS UINT, BYVAL point AS POINT) AS HRESULT
@@ -2223,7 +2223,7 @@ END TYPE
 #ifndef __ICoreWebView2ContainsFullScreenElementChangedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2ContainsFullScreenElementChangedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ContainsFullScreenElementChangedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ContainsFullScreenElementChangedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS IUnknown PTR) AS HRESULT
 END TYPE
 
@@ -2240,7 +2240,7 @@ END TYPE
 #ifndef __ICoreWebView2ContentLoadingEventArgs_INTERFACE_DEFINED__
 #define __ICoreWebView2ContentLoadingEventArgs_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ContentLoadingEventArgs_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ContentLoadingEventArgs_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_IsErrorPage (BYVAL value AS LONG PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_NavigationId (BYVAL value AS ULONGINT PTR) AS HRESULT
 END TYPE
@@ -2258,7 +2258,7 @@ END TYPE
 #ifndef __ICoreWebView2ContentLoadingEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2ContentLoadingEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ContentLoadingEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ContentLoadingEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2ContentLoadingEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -2275,7 +2275,7 @@ END TYPE
 #ifndef __ICoreWebView2ContextMenuItem_INTERFACE_DEFINED__
 #define __ICoreWebView2ContextMenuItem_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ContextMenuItem_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ContextMenuItem_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_name (BYVAL value AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Label (BYVAL value AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_CommandId (BYVAL value AS INT_ PTR) AS HRESULT
@@ -2304,7 +2304,7 @@ END TYPE
 #ifndef __ICoreWebView2ContextMenuItemCollection_INTERFACE_DEFINED__
 #define __ICoreWebView2ContextMenuItemCollection_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ContextMenuItemCollection_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ContextMenuItemCollection_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_Count (BYVAL value AS UINT PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetValueAtIndex (BYVAL index AS UINT, BYVAL value AS ICoreWebView2ContextMenuItem PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION RemoveValueAtIndex (BYVAL index AS UINT) AS HRESULT
@@ -2324,7 +2324,7 @@ END TYPE
 #ifndef __ICoreWebView2ContextMenuRequestedEventArgs_INTERFACE_DEFINED__
 #define __ICoreWebView2ContextMenuRequestedEventArgs_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ContextMenuRequestedEventArgs_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ContextMenuRequestedEventArgs_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_MenuItems (BYVAL value AS ICoreWebView2ContextMenuItemCollection PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_ContextMenuTarget (BYVAL value AS ICoreWebView2ContextMenuTarget PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Location (BYVAL value AS POINT PTR) AS HRESULT
@@ -2348,7 +2348,7 @@ END TYPE
 #ifndef __ICoreWebView2ContextMenuRequestedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2ContextMenuRequestedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ContextMenuRequestedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ContextMenuRequestedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2ContextMenuRequestedEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -2365,7 +2365,7 @@ END TYPE
 #ifndef __ICoreWebView2ContextMenuTarget_INTERFACE_DEFINED__
 #define __ICoreWebView2ContextMenuTarget_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ContextMenuTarget_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ContextMenuTarget_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_Kind (BYVAL value AS COREWEBVIEW2_CONTEXT_MENU_TARGET_KIND PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_IsEditable (BYVAL value AS LONG PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_IsRequestedForMainFrame (BYVAL value AS LONG PTR) AS HRESULT
@@ -2394,7 +2394,7 @@ END TYPE
 #ifndef __ICoreWebView2Controller_INTERFACE_DEFINED__
 #define __ICoreWebView2Controller_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2Controller_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2Controller_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_IsVisible (BYVAL IsVisible AS LONG PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION put_IsVisible (BYVAL IsVisible AS LONG) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Bounds (BYVAL Bounds AS RECT PTR) AS HRESULT
@@ -2493,7 +2493,7 @@ END TYPE
 #ifndef __ICoreWebView2ControllerOptions_INTERFACE_DEFINED__
 #define __ICoreWebView2ControllerOptions_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ControllerOptions_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ControllerOptions_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_ProfileName (BYVAL value AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION put_ProfileName (BYVAL value AS WSTRING PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_IsInPrivateModeEnabled (BYVAL value AS LONG PTR) AS HRESULT
@@ -2567,7 +2567,7 @@ END TYPE
 #ifndef __ICoreWebView2Cookie_INTERFACE_DEFINED__
 #define __ICoreWebView2Cookie_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2Cookie_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2Cookie_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_name (BYVAL name AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_value (BYVAL value AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION put_value (BYVAL value AS WSTRING PTR) AS HRESULT
@@ -2597,7 +2597,7 @@ END TYPE
 #ifndef __ICoreWebView2CookieList_INTERFACE_DEFINED__
 #define __ICoreWebView2CookieList_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2CookieList_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2CookieList_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_Count (BYVAL value AS UINT PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetValueAtIndex (BYVAL index AS UINT, BYVAL value AS ICoreWebView2Cookie PTR PTR) AS HRESULT
 END TYPE
@@ -2615,7 +2615,7 @@ END TYPE
 #ifndef __ICoreWebView2CookieManager_INTERFACE_DEFINED__
 #define __ICoreWebView2CookieManager_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2CookieManager_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2CookieManager_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION CreateCookie (BYVAL name AS WSTRING PTR, BYVAL value AS WSTRING PTR, BYVAL Domain AS WSTRING PTR, BYVAL Path AS WSTRING PTR, BYVAL cookie AS ICoreWebView2Cookie PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION CopyCookie (BYVAL cookieParam AS ICoreWebView2Cookie PTR, BYVAL cookie AS ICoreWebView2Cookie PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetCookies (BYVAL uri AS WSTRING PTR, BYVAL handler AS ICoreWebView2GetCookiesCompletedHandler PTR) AS HRESULT
@@ -2639,7 +2639,7 @@ END TYPE
 #ifndef __ICoreWebView2CreateCoreWebView2CompositionControllerCompletedHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2CreateCoreWebView2CompositionControllerCompletedHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2CreateCoreWebView2CompositionControllerCompletedHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2CreateCoreWebView2CompositionControllerCompletedHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL errorCode AS HRESULT, BYVAL result AS ICoreWebView2CompositionController PTR) AS HRESULT
 END TYPE
 
@@ -2656,7 +2656,7 @@ END TYPE
 #ifndef __ICoreWebView2CreateCoreWebView2ControllerCompletedHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2CreateCoreWebView2ControllerCompletedHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2CreateCoreWebView2ControllerCompletedHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2CreateCoreWebView2ControllerCompletedHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL errorCode AS HRESULT, BYVAL result AS ICoreWebView2Controller PTR) AS HRESULT
 END TYPE
 
@@ -2673,7 +2673,7 @@ END TYPE
 #ifndef __ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL errorCode AS HRESULT, BYVAL result AS ICoreWebView2Environment PTR) AS HRESULT
 END TYPE
 
@@ -2690,7 +2690,7 @@ END TYPE
 #ifndef __ICoreWebView2CursorChangedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2CursorChangedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2CursorChangedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2CursorChangedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2CompositionController PTR, BYVAL args AS IUnknown PTR) AS HRESULT
 END TYPE
 
@@ -2707,7 +2707,7 @@ END TYPE
 #ifndef __ICoreWebView2CustomItemSelectedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2CustomItemSelectedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2CustomItemSelectedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2CustomItemSelectedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2ContextMenuItem PTR, BYVAL args AS IUnknown PTR) AS HRESULT
 END TYPE
 
@@ -2724,7 +2724,7 @@ END TYPE
 #ifndef __ICoreWebView2CustomSchemeRegistration_INTERFACE_DEFINED__
 #define __ICoreWebView2CustomSchemeRegistration_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2CustomSchemeRegistration_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2CustomSchemeRegistration_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_SchemeName (BYVAL SchemeName AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_TreatAsSecure (BYVAL TreatAsSecure AS LONG PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION put_TreatAsSecure (BYVAL TreatAsSecure AS LONG) AS HRESULT
@@ -2747,7 +2747,7 @@ END TYPE
 #ifndef __ICoreWebView2Deferral_INTERFACE_DEFINED__
 #define __ICoreWebView2Deferral_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2Deferral_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2Deferral_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Complete () AS HRESULT
 END TYPE
 
@@ -2764,7 +2764,7 @@ END TYPE
 #ifndef __ICoreWebView2DevToolsProtocolEventReceivedEventArgs_INTERFACE_DEFINED__
 #define __ICoreWebView2DevToolsProtocolEventReceivedEventArgs_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2DevToolsProtocolEventReceivedEventArgs_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2DevToolsProtocolEventReceivedEventArgs_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_ParameterObjectAsJson (BYVAL value AS WSTRING PTR PTR) AS HRESULT
 END TYPE
 
@@ -2798,7 +2798,7 @@ END TYPE
 #ifndef __ICoreWebView2DevToolsProtocolEventReceivedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2DevToolsProtocolEventReceivedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2DevToolsProtocolEventReceivedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2DevToolsProtocolEventReceivedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2DevToolsProtocolEventReceivedEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -2815,7 +2815,7 @@ END TYPE
 #ifndef __ICoreWebView2DevToolsProtocolEventReceiver_INTERFACE_DEFINED__
 #define __ICoreWebView2DevToolsProtocolEventReceiver_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2DevToolsProtocolEventReceiver_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2DevToolsProtocolEventReceiver_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION add_DevToolsProtocolEventReceived (BYVAL eventHandler AS ICoreWebView2DevToolsProtocolEventReceivedEventHandler PTR, BYVAL token AS EventRegistrationToken PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION remove_DevToolsProtocolEventReceived (BYVAL token AS EventRegistrationToken) AS HRESULT
 END TYPE
@@ -2834,7 +2834,7 @@ END TYPE
 #ifndef __ICoreWebView2DocumentTitleChangedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2DocumentTitleChangedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2DocumentTitleChangedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2DocumentTitleChangedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS IUnknown PTR) AS HRESULT
 END TYPE
 
@@ -2851,7 +2851,7 @@ END TYPE
 #ifndef __ICoreWebView2DOMContentLoadedEventArgs_INTERFACE_DEFINED__
 #define __ICoreWebView2DOMContentLoadedEventArgs_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2DOMContentLoadedEventArgs_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2DOMContentLoadedEventArgs_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_NavigationId (BYVAL value AS ULONGINT PTR) AS HRESULT
 END TYPE
 
@@ -2868,7 +2868,7 @@ END TYPE
 #ifndef __ICoreWebView2DOMContentLoadedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2DOMContentLoadedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2DOMContentLoadedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2DOMContentLoadedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2DOMContentLoadedEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -2885,7 +2885,7 @@ END TYPE
 #ifndef __ICoreWebView2DownloadOperation_INTERFACE_DEFINED__
 #define __ICoreWebView2DownloadOperation_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2DownloadOperation_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2DownloadOperation_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION add_BytesReceivedChanged (BYVAL eventHandler AS ICoreWebView2BytesReceivedChangedEventHandler PTR, BYVAL token AS EventRegistrationToken PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION remove_BytesReceivedChanged (BYVAL token AS EventRegistrationToken) AS HRESULT
    DECLARE ABSTRACT FUNCTION add_EstimatedEndTimeChanged (BYVAL eventHandler AS ICoreWebView2EstimatedEndTimeChangedEventHandler PTR, BYVAL token AS EventRegistrationToken PTR) AS HRESULT
@@ -2921,7 +2921,7 @@ END TYPE
 #ifndef __ICoreWebView2DownloadStartingEventArgs_INTERFACE_DEFINED__
 #define __ICoreWebView2DownloadStartingEventArgs_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2DownloadStartingEventArgs_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2DownloadStartingEventArgs_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_DownloadOperation (BYVAL DownloadOperation AS ICoreWebView2DownloadOperation PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Cancel (BYVAL Cancel AS LONG PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION put_Cancel (BYVAL Cancel AS LONG) AS HRESULT
@@ -2945,7 +2945,7 @@ END TYPE
 #ifndef __ICoreWebView2DownloadStartingEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2DownloadStartingEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2DownloadStartingEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2DownloadStartingEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2DownloadStartingEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -2962,7 +2962,7 @@ END TYPE
 #ifndef __ICoreWebView2Environment_INTERFACE_DEFINED__
 #define __ICoreWebView2Environment_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2Environment_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2Environment_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION CreateCoreWebView2Controller (BYVAL ParentWindow AS HWND, BYVAL handler AS ICoreWebView2CreateCoreWebView2ControllerCompletedHandler PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION CreateWebResourceResponse (BYVAL Content AS IStream PTR, BYVAL StatusCode AS INT_, BYVAL ReasonPhrase AS WSTRING PTR, BYVAL Headers AS WSTRING PTR, BYVAL Response AS ICoreWebView2WebResourceResponse PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_BrowserVersionString (BYVAL versionInfo AS WSTRING PTR PTR) AS HRESULT
@@ -3229,7 +3229,7 @@ END TYPE
 #ifndef __ICoreWebView2EnvironmentOptions_INTERFACE_DEFINED__
 #define __ICoreWebView2EnvironmentOptions_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2EnvironmentOptions_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2EnvironmentOptions_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_AdditionalBrowserArguments (BYVAL value AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION put_AdditionalBrowserArguments (BYVAL value AS WSTRING PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Language (BYVAL value AS WSTRING PTR PTR) AS HRESULT
@@ -3253,7 +3253,7 @@ END TYPE
 #ifndef __ICoreWebView2EnvironmentOptions2_INTERFACE_DEFINED__
 #define __ICoreWebView2EnvironmentOptions2_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2EnvironmentOptions2_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2EnvironmentOptions2_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_ExclusiveUserDataFolderAccess (BYVAL value AS LONG PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION put_ExclusiveUserDataFolderAccess (BYVAL value AS LONG) AS HRESULT
 END TYPE
@@ -3271,7 +3271,7 @@ END TYPE
 #ifndef __ICoreWebView2EnvironmentOptions3_INTERFACE_DEFINED__
 #define __ICoreWebView2EnvironmentOptions3_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2EnvironmentOptions3_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2EnvironmentOptions3_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_IsCustomCrashReportingEnabled (BYVAL value AS LONG PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION put_IsCustomCrashReportingEnabled (BYVAL value AS LONG) AS HRESULT
 END TYPE
@@ -3289,7 +3289,7 @@ END TYPE
 #ifndef __ICoreWebView2EnvironmentOptions4_INTERFACE_DEFINED__
 #define __ICoreWebView2EnvironmentOptions4_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2EnvironmentOptions4_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2EnvironmentOptions4_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION GetCustomSchemeRegistrations (BYVAL Count AS UINT PTR, BYVAL schemeRegistrations AS ICoreWebView2CustomSchemeRegistration PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION SetCustomSchemeRegistrations (BYVAL Count AS UINT, BYVAL schemeRegistrations AS ICoreWebView2CustomSchemeRegistration PTR PTR) AS HRESULT
 END TYPE
@@ -3307,7 +3307,7 @@ END TYPE
 #ifndef __ICoreWebView2EnvironmentOptions5_INTERFACE_DEFINED__
 #define __ICoreWebView2EnvironmentOptions5_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2EnvironmentOptions5_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2EnvironmentOptions5_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_EnableTrackingPrevention (BYVAL value AS LONG PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION put_EnableTrackingPrevention (BYVAL value AS LONG) AS HRESULT
 END TYPE
@@ -3325,7 +3325,7 @@ END TYPE
 #ifndef __ICoreWebView2EnvironmentOptions6_INTERFACE_DEFINED__
 #define __ICoreWebView2EnvironmentOptions6_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2EnvironmentOptions6_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2EnvironmentOptions6_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_AreBrowserExtensionsEnabled (BYVAL value AS LONG PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION put_AreBrowserExtensionsEnabled (BYVAL value AS LONG) AS HRESULT
 END TYPE
@@ -3343,7 +3343,7 @@ END TYPE
 #ifndef __ICoreWebView2EnvironmentOptions7_INTERFACE_DEFINED__
 #define __ICoreWebView2EnvironmentOptions7_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2EnvironmentOptions7_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2EnvironmentOptions7_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_ChannelSearchKind (BYVAL value AS COREWEBVIEW2_CHANNEL_SEARCH_KIND PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION put_ChannelSearchKind (BYVAL value AS COREWEBVIEW2_CHANNEL_SEARCH_KIND) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_ReleaseChannels (BYVAL value AS COREWEBVIEW2_RELEASE_CHANNELS PTR) AS HRESULT
@@ -3363,7 +3363,7 @@ END TYPE
 #ifndef __ICoreWebView2EnvironmentOptions8_INTERFACE_DEFINED__
 #define __ICoreWebView2EnvironmentOptions8_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2EnvironmentOptions8_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2EnvironmentOptions8_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_ScrollBarStyle (BYVAL value AS COREWEBVIEW2_SCROLLBAR_STYLE PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION put_ScrollBarStyle (BYVAL value AS COREWEBVIEW2_SCROLLBAR_STYLE) AS HRESULT
 END TYPE
@@ -3381,7 +3381,7 @@ END TYPE
 #ifndef __ICoreWebView2EstimatedEndTimeChangedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2EstimatedEndTimeChangedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2EstimatedEndTimeChangedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2EstimatedEndTimeChangedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2DownloadOperation PTR, BYVAL args AS IUnknown PTR) AS HRESULT
 END TYPE
 
@@ -3398,7 +3398,7 @@ END TYPE
 #ifndef __ICoreWebView2ExecuteScriptCompletedHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2ExecuteScriptCompletedHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ExecuteScriptCompletedHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ExecuteScriptCompletedHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL errorCode AS HRESULT, BYVAL result AS WSTRING PTR) AS HRESULT
 END TYPE
 
@@ -3415,7 +3415,7 @@ END TYPE
 #ifndef __ICoreWebView2ExecuteScriptResult_INTERFACE_DEFINED__
 #define __ICoreWebView2ExecuteScriptResult_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ExecuteScriptResult_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ExecuteScriptResult_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_Succeeded (BYVAL value AS LONG PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_ResultAsJson (BYVAL jsonResult AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION TryGetResultAsString (BYVAL stringResult AS WSTRING PTR PTR, BYVAL value AS LONG PTR) AS HRESULT
@@ -3435,7 +3435,7 @@ END TYPE
 #ifndef __ICoreWebView2ExecuteScriptWithResultCompletedHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2ExecuteScriptWithResultCompletedHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ExecuteScriptWithResultCompletedHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ExecuteScriptWithResultCompletedHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL errorCode AS HRESULT, BYVAL result AS ICoreWebView2ExecuteScriptResult PTR) AS HRESULT
 END TYPE
 
@@ -3452,7 +3452,7 @@ END TYPE
 #ifndef __ICoreWebView2FaviconChangedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2FaviconChangedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2FaviconChangedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2FaviconChangedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS IUnknown PTR) AS HRESULT
 END TYPE
 
@@ -3469,7 +3469,7 @@ END TYPE
 #ifndef __ICoreWebView2File_INTERFACE_DEFINED__
 #define __ICoreWebView2File_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2File_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2File_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_Path (BYVAL value AS WSTRING PTR PTR) AS HRESULT
 END TYPE
 
@@ -3486,7 +3486,7 @@ END TYPE
 #ifndef __ICoreWebView2FileSystemHandle_INTERFACE_DEFINED__
 #define __ICoreWebView2FileSystemHandle_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2FileSystemHandle_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2FileSystemHandle_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_Kind (BYVAL value AS COREWEBVIEW2_FILE_SYSTEM_HANDLE_KIND PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Path (BYVAL value AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Permission (BYVAL value AS COREWEBVIEW2_FILE_SYSTEM_HANDLE_PERMISSION PTR) AS HRESULT
@@ -3505,7 +3505,7 @@ END TYPE
 #ifndef __ICoreWebView2Find_INTERFACE_DEFINED__
 #define __ICoreWebView2Find_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2Find_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2Find_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_ActiveMatchIndex (BYVAL value AS INT_ PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_MatchCount (BYVAL value AS INT_ PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION add_ActiveMatchIndexChanged (BYVAL eventHandler AS ICoreWebView2FindActiveMatchIndexChangedEventHandler PTR, BYVAL token AS EventRegistrationToken PTR) AS HRESULT
@@ -3531,7 +3531,7 @@ END TYPE
 #ifndef __ICoreWebView2FindActiveMatchIndexChangedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2FindActiveMatchIndexChangedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2FindActiveMatchIndexChangedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2FindActiveMatchIndexChangedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2Find PTR, BYVAL args AS IUnknown PTR) AS HRESULT
 END TYPE
 
@@ -3548,7 +3548,7 @@ END TYPE
 #ifndef __ICoreWebView2FindMatchCountChangedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2FindMatchCountChangedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2FindMatchCountChangedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2FindMatchCountChangedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2Find PTR, BYVAL args AS IUnknown PTR) AS HRESULT
 END TYPE
 
@@ -3565,7 +3565,7 @@ END TYPE
 #ifndef __ICoreWebView2FindOptions_INTERFACE_DEFINED__
 #define __ICoreWebView2FindOptions_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2FindOptions_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2FindOptions_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_FindTerm (BYVAL value AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION put_FindTerm (BYVAL value AS WSTRING PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_IsCaseSensitive (BYVAL value AS LONG PTR) AS HRESULT
@@ -3591,7 +3591,7 @@ END TYPE
 #ifndef __ICoreWebView2FindStartCompletedHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2FindStartCompletedHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2FindStartCompletedHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2FindStartCompletedHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL errorCode AS HRESULT) AS HRESULT
 END TYPE
 
@@ -3608,7 +3608,7 @@ END TYPE
 #ifndef __ICoreWebView2FocusChangedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2FocusChangedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2FocusChangedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2FocusChangedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2Controller PTR, BYVAL args AS IUnknown PTR) AS HRESULT
 END TYPE
 
@@ -3625,7 +3625,7 @@ END TYPE
 #ifndef __ICoreWebView2Frame_INTERFACE_DEFINED__
 #define __ICoreWebView2Frame_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2Frame_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2Frame_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_name (BYVAL name AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION add_NameChanged (BYVAL eventHandler AS ICoreWebView2FrameNameChangedEventHandler PTR, BYVAL token AS EventRegistrationToken PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION remove_NameChanged (BYVAL token AS EventRegistrationToken) AS HRESULT
@@ -3766,7 +3766,7 @@ END TYPE
 #ifndef __ICoreWebView2FrameChildFrameCreatedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2FrameChildFrameCreatedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2FrameChildFrameCreatedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2FrameChildFrameCreatedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2Frame PTR, BYVAL args AS ICoreWebView2FrameCreatedEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -3783,7 +3783,7 @@ END TYPE
 #ifndef __ICoreWebView2FrameContentLoadingEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2FrameContentLoadingEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2FrameContentLoadingEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2FrameContentLoadingEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2Frame PTR, BYVAL args AS ICoreWebView2ContentLoadingEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -3800,7 +3800,7 @@ END TYPE
 #ifndef __ICoreWebView2FrameCreatedEventArgs_INTERFACE_DEFINED__
 #define __ICoreWebView2FrameCreatedEventArgs_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2FrameCreatedEventArgs_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2FrameCreatedEventArgs_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_Frame (BYVAL value AS ICoreWebView2Frame PTR PTR) AS HRESULT
 END TYPE
 
@@ -3817,7 +3817,7 @@ END TYPE
 #ifndef __ICoreWebView2FrameCreatedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2FrameCreatedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2FrameCreatedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2FrameCreatedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2FrameCreatedEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -3834,7 +3834,7 @@ END TYPE
 #ifndef __ICoreWebView2FrameDestroyedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2FrameDestroyedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2FrameDestroyedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2FrameDestroyedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2Frame PTR, BYVAL args AS IUnknown PTR) AS HRESULT
 END TYPE
 
@@ -3851,7 +3851,7 @@ END TYPE
 #ifndef __ICoreWebView2FrameDOMContentLoadedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2FrameDOMContentLoadedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2FrameDOMContentLoadedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2FrameDOMContentLoadedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2Frame PTR, BYVAL args AS ICoreWebView2DOMContentLoadedEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -3868,7 +3868,7 @@ END TYPE
 #ifndef __ICoreWebView2FrameInfo_INTERFACE_DEFINED__
 #define __ICoreWebView2FrameInfo_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2FrameInfo_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2FrameInfo_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_name (BYVAL value AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Source (BYVAL value AS WSTRING PTR PTR) AS HRESULT
 END TYPE
@@ -3905,7 +3905,7 @@ END TYPE
 #ifndef __ICoreWebView2FrameInfoCollection_INTERFACE_DEFINED__
 #define __ICoreWebView2FrameInfoCollection_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2FrameInfoCollection_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2FrameInfoCollection_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION GetIterator (BYVAL value AS ICoreWebView2FrameInfoCollectionIterator PTR PTR) AS HRESULT
 END TYPE
 
@@ -3922,7 +3922,7 @@ END TYPE
 #ifndef __ICoreWebView2FrameInfoCollectionIterator_INTERFACE_DEFINED__
 #define __ICoreWebView2FrameInfoCollectionIterator_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2FrameInfoCollectionIterator_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2FrameInfoCollectionIterator_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_hasCurrent (BYVAL value AS LONG PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetCurrent (BYVAL value AS ICoreWebView2FrameInfo PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION MoveNext (BYVAL value AS LONG PTR) AS HRESULT
@@ -3941,7 +3941,7 @@ END TYPE
 #ifndef __ICoreWebView2FrameNameChangedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2FrameNameChangedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2FrameNameChangedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2FrameNameChangedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2Frame PTR, BYVAL args AS IUnknown PTR) AS HRESULT
 END TYPE
 
@@ -3958,7 +3958,7 @@ END TYPE
 #ifndef __ICoreWebView2FrameNavigationCompletedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2FrameNavigationCompletedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2FrameNavigationCompletedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2FrameNavigationCompletedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2Frame PTR, BYVAL args AS ICoreWebView2NavigationCompletedEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -3975,7 +3975,7 @@ END TYPE
 #ifndef __ICoreWebView2FrameNavigationStartingEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2FrameNavigationStartingEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2FrameNavigationStartingEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2FrameNavigationStartingEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2Frame PTR, BYVAL args AS ICoreWebView2NavigationStartingEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -3992,7 +3992,7 @@ END TYPE
 #ifndef __ICoreWebView2FramePermissionRequestedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2FramePermissionRequestedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2FramePermissionRequestedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2FramePermissionRequestedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2Frame PTR, BYVAL args AS ICoreWebView2PermissionRequestedEventArgs2 PTR) AS HRESULT
 END TYPE
 
@@ -4009,7 +4009,7 @@ END TYPE
 #ifndef __ICoreWebView2FrameScreenCaptureStartingEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2FrameScreenCaptureStartingEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2FrameScreenCaptureStartingEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2FrameScreenCaptureStartingEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2Frame PTR, BYVAL args AS ICoreWebView2ScreenCaptureStartingEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -4026,7 +4026,7 @@ END TYPE
 #ifndef __ICoreWebView2FrameWebMessageReceivedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2FrameWebMessageReceivedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2FrameWebMessageReceivedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2FrameWebMessageReceivedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2Frame PTR, BYVAL args AS ICoreWebView2WebMessageReceivedEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -4043,7 +4043,7 @@ END TYPE
 #ifndef __ICoreWebView2GetCookiesCompletedHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2GetCookiesCompletedHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2GetCookiesCompletedHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2GetCookiesCompletedHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL errorCode AS HRESULT, BYVAL result AS ICoreWebView2CookieList PTR) AS HRESULT
 END TYPE
 
@@ -4060,7 +4060,7 @@ END TYPE
 #ifndef __ICoreWebView2GetFaviconCompletedHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2GetFaviconCompletedHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2GetFaviconCompletedHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2GetFaviconCompletedHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL errorCode AS HRESULT, BYVAL result AS IStream PTR) AS HRESULT
 END TYPE
 
@@ -4077,7 +4077,7 @@ END TYPE
 #ifndef __ICoreWebView2GetNonDefaultPermissionSettingsCompletedHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2GetNonDefaultPermissionSettingsCompletedHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2GetNonDefaultPermissionSettingsCompletedHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2GetNonDefaultPermissionSettingsCompletedHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL errorCode AS HRESULT, BYVAL result AS ICoreWebView2PermissionSettingCollectionView PTR) AS HRESULT
 END TYPE
 
@@ -4094,7 +4094,7 @@ END TYPE
 #ifndef __ICoreWebView2GetProcessExtendedInfosCompletedHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2GetProcessExtendedInfosCompletedHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2GetProcessExtendedInfosCompletedHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2GetProcessExtendedInfosCompletedHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL errorCode AS HRESULT, BYVAL result AS ICoreWebView2ProcessExtendedInfoCollection PTR) AS HRESULT
 END TYPE
 
@@ -4111,7 +4111,7 @@ END TYPE
 #ifndef __ICoreWebView2HistoryChangedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2HistoryChangedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2HistoryChangedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2HistoryChangedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS IUnknown PTR) AS HRESULT
 END TYPE
 
@@ -4128,7 +4128,7 @@ END TYPE
 #ifndef __ICoreWebView2HttpHeadersCollectionIterator_INTERFACE_DEFINED__
 #define __ICoreWebView2HttpHeadersCollectionIterator_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2HttpHeadersCollectionIterator_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2HttpHeadersCollectionIterator_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION GetCurrentHeader (BYVAL name AS WSTRING PTR PTR, BYVAL value AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_HasCurrentHeader (BYVAL hasCurrent AS LONG PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION MoveNext (BYVAL hasNext AS LONG PTR) AS HRESULT
@@ -4147,7 +4147,7 @@ END TYPE
 #ifndef __ICoreWebView2HttpRequestHeaders_INTERFACE_DEFINED__
 #define __ICoreWebView2HttpRequestHeaders_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2HttpRequestHeaders_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2HttpRequestHeaders_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION GetHeader (BYVAL name AS WSTRING PTR, BYVAL value AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetHeaders (BYVAL name AS WSTRING PTR, BYVAL value AS ICoreWebView2HttpHeadersCollectionIterator PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION Contains (BYVAL name AS WSTRING PTR, BYVAL value AS LONG PTR) AS HRESULT
@@ -4169,7 +4169,7 @@ END TYPE
 #ifndef __ICoreWebView2HttpResponseHeaders_INTERFACE_DEFINED__
 #define __ICoreWebView2HttpResponseHeaders_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2HttpResponseHeaders_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2HttpResponseHeaders_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION AppendHeader (BYVAL name AS WSTRING PTR, BYVAL value AS WSTRING PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION Contains (BYVAL name AS WSTRING PTR, BYVAL value AS LONG PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetHeader (BYVAL name AS WSTRING PTR, BYVAL value AS WSTRING PTR PTR) AS HRESULT
@@ -4190,7 +4190,7 @@ END TYPE
 #ifndef __ICoreWebView2IsDefaultDownloadDialogOpenChangedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2IsDefaultDownloadDialogOpenChangedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2IsDefaultDownloadDialogOpenChangedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2IsDefaultDownloadDialogOpenChangedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS IUnknown PTR) AS HRESULT
 END TYPE
 
@@ -4207,7 +4207,7 @@ END TYPE
 #ifndef __ICoreWebView2IsDocumentPlayingAudioChangedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2IsDocumentPlayingAudioChangedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2IsDocumentPlayingAudioChangedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2IsDocumentPlayingAudioChangedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS IUnknown PTR) AS HRESULT
 END TYPE
 
@@ -4224,7 +4224,7 @@ END TYPE
 #ifndef __ICoreWebView2IsMutedChangedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2IsMutedChangedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2IsMutedChangedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2IsMutedChangedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS IUnknown PTR) AS HRESULT
 END TYPE
 
@@ -4241,7 +4241,7 @@ END TYPE
 #ifndef __ICoreWebView2LaunchingExternalUriSchemeEventArgs_INTERFACE_DEFINED__
 #define __ICoreWebView2LaunchingExternalUriSchemeEventArgs_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2LaunchingExternalUriSchemeEventArgs_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2LaunchingExternalUriSchemeEventArgs_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_uri (BYVAL value AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_InitiatingOrigin (BYVAL value AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_IsUserInitiated (BYVAL value AS LONG PTR) AS HRESULT
@@ -4263,7 +4263,7 @@ END TYPE
 #ifndef __ICoreWebView2LaunchingExternalUriSchemeEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2LaunchingExternalUriSchemeEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2LaunchingExternalUriSchemeEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2LaunchingExternalUriSchemeEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2LaunchingExternalUriSchemeEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -4280,7 +4280,7 @@ END TYPE
 #ifndef __ICoreWebView2MoveFocusRequestedEventArgs_INTERFACE_DEFINED__
 #define __ICoreWebView2MoveFocusRequestedEventArgs_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2MoveFocusRequestedEventArgs_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2MoveFocusRequestedEventArgs_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_reason (BYVAL reason AS COREWEBVIEW2_MOVE_FOCUS_REASON PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Handled (BYVAL value AS LONG PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION put_Handled (BYVAL value AS LONG) AS HRESULT
@@ -4299,7 +4299,7 @@ END TYPE
 #ifndef __ICoreWebView2MoveFocusRequestedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2MoveFocusRequestedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2MoveFocusRequestedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2MoveFocusRequestedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2Controller PTR, BYVAL args AS ICoreWebView2MoveFocusRequestedEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -4316,7 +4316,7 @@ END TYPE
 #ifndef __ICoreWebView2NavigationCompletedEventArgs_INTERFACE_DEFINED__
 #define __ICoreWebView2NavigationCompletedEventArgs_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2NavigationCompletedEventArgs_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2NavigationCompletedEventArgs_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_IsSuccess (BYVAL IsSuccess AS LONG PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_WebErrorStatus (BYVAL WebErrorStatus AS COREWEBVIEW2_WEB_ERROR_STATUS PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_NavigationId (BYVAL NavigationId AS ULONGINT PTR) AS HRESULT
@@ -4352,7 +4352,7 @@ END TYPE
 #ifndef __ICoreWebView2NavigationCompletedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2NavigationCompletedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2NavigationCompletedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2NavigationCompletedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2NavigationCompletedEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -4369,7 +4369,7 @@ END TYPE
 #ifndef __ICoreWebView2NavigationStartingEventArgs_INTERFACE_DEFINED__
 #define __ICoreWebView2NavigationStartingEventArgs_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2NavigationStartingEventArgs_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2NavigationStartingEventArgs_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_uri (BYVAL uri AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_IsUserInitiated (BYVAL IsUserInitiated AS LONG PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_IsRedirected (BYVAL IsRedirected AS LONG PTR) AS HRESULT
@@ -4427,7 +4427,7 @@ END TYPE
 #ifndef __ICoreWebView2NavigationStartingEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2NavigationStartingEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2NavigationStartingEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2NavigationStartingEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2NavigationStartingEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -4444,7 +4444,7 @@ END TYPE
 #ifndef __ICoreWebView2NewBrowserVersionAvailableEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2NewBrowserVersionAvailableEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2NewBrowserVersionAvailableEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2NewBrowserVersionAvailableEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2Environment PTR, BYVAL args AS IUnknown PTR) AS HRESULT
 END TYPE
 
@@ -4461,7 +4461,7 @@ END TYPE
 #ifndef __ICoreWebView2NewWindowRequestedEventArgs_INTERFACE_DEFINED__
 #define __ICoreWebView2NewWindowRequestedEventArgs_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2NewWindowRequestedEventArgs_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2NewWindowRequestedEventArgs_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_uri (BYVAL uri AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION put_NewWindow (BYVAL NewWindow AS ICoreWebView2 PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_NewWindow (BYVAL NewWindow AS ICoreWebView2 PTR PTR) AS HRESULT
@@ -4519,7 +4519,7 @@ END TYPE
 #ifndef __ICoreWebView2NewWindowRequestedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2NewWindowRequestedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2NewWindowRequestedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2NewWindowRequestedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2NewWindowRequestedEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -4536,7 +4536,7 @@ END TYPE
 #ifndef __ICoreWebView2NonClientRegionChangedEventArgs_INTERFACE_DEFINED__
 #define __ICoreWebView2NonClientRegionChangedEventArgs_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2NonClientRegionChangedEventArgs_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2NonClientRegionChangedEventArgs_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_RegionKind (BYVAL value AS COREWEBVIEW2_NON_CLIENT_REGION_KIND PTR) AS HRESULT
 END TYPE
 
@@ -4553,7 +4553,7 @@ END TYPE
 #ifndef __ICoreWebView2NonClientRegionChangedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2NonClientRegionChangedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2NonClientRegionChangedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2NonClientRegionChangedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2CompositionController PTR, BYVAL args AS ICoreWebView2NonClientRegionChangedEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -4570,7 +4570,7 @@ END TYPE
 #ifndef __ICoreWebView2Notification_INTERFACE_DEFINED__
 #define __ICoreWebView2Notification_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2Notification_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2Notification_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION add_CloseRequested (BYVAL eventHandler AS ICoreWebView2NotificationCloseRequestedEventHandler PTR, BYVAL token AS EventRegistrationToken PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION remove_CloseRequested (BYVAL token AS EventRegistrationToken) AS HRESULT
    DECLARE ABSTRACT FUNCTION ReportShown () AS HRESULT
@@ -4604,7 +4604,7 @@ END TYPE
 #ifndef __ICoreWebView2NotificationCloseRequestedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2NotificationCloseRequestedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2NotificationCloseRequestedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2NotificationCloseRequestedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2Notification PTR, BYVAL args AS IUnknown PTR) AS HRESULT
 END TYPE
 
@@ -4621,7 +4621,7 @@ END TYPE
 #ifndef __ICoreWebView2NotificationReceivedEventArgs_INTERFACE_DEFINED__
 #define __ICoreWebView2NotificationReceivedEventArgs_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2NotificationReceivedEventArgs_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2NotificationReceivedEventArgs_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_SenderOrigin (BYVAL value AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Notification (BYVAL value AS ICoreWebView2Notification PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION put_Handled (BYVAL value AS LONG) AS HRESULT
@@ -4642,7 +4642,7 @@ END TYPE
 #ifndef __ICoreWebView2NotificationReceivedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2NotificationReceivedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2NotificationReceivedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2NotificationReceivedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2NotificationReceivedEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -4659,7 +4659,7 @@ END TYPE
 #ifndef __ICoreWebView2ObjectCollectionView_INTERFACE_DEFINED__
 #define __ICoreWebView2ObjectCollectionView_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ObjectCollectionView_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ObjectCollectionView_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_Count (BYVAL value AS UINT PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetValueAtIndex (BYVAL index AS UINT, BYVAL value AS IUnknown PTR PTR) AS HRESULT
 END TYPE
@@ -4695,7 +4695,7 @@ END TYPE
 #ifndef __ICoreWebView2PermissionRequestedEventArgs_INTERFACE_DEFINED__
 #define __ICoreWebView2PermissionRequestedEventArgs_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2PermissionRequestedEventArgs_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2PermissionRequestedEventArgs_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_uri (BYVAL uri AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_PermissionKind (BYVAL PermissionKind AS COREWEBVIEW2_PERMISSION_KIND PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_IsUserInitiated (BYVAL IsUserInitiated AS LONG PTR) AS HRESULT
@@ -4753,7 +4753,7 @@ END TYPE
 #ifndef __ICoreWebView2PermissionRequestedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2PermissionRequestedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2PermissionRequestedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2PermissionRequestedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2PermissionRequestedEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -4770,7 +4770,7 @@ END TYPE
 #ifndef __ICoreWebView2PermissionSetting_INTERFACE_DEFINED__
 #define __ICoreWebView2PermissionSetting_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2PermissionSetting_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2PermissionSetting_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_PermissionKind (BYVAL value AS COREWEBVIEW2_PERMISSION_KIND PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_PermissionOrigin (BYVAL value AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_PermissionState (BYVAL value AS COREWEBVIEW2_PERMISSION_STATE PTR) AS HRESULT
@@ -4789,7 +4789,7 @@ END TYPE
 #ifndef __ICoreWebView2PermissionSettingCollectionView_INTERFACE_DEFINED__
 #define __ICoreWebView2PermissionSettingCollectionView_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2PermissionSettingCollectionView_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2PermissionSettingCollectionView_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION GetValueAtIndex (BYVAL index AS UINT, BYVAL permissionSetting AS ICoreWebView2PermissionSetting PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Count (BYVAL value AS UINT PTR) AS HRESULT
 END TYPE
@@ -4807,7 +4807,7 @@ END TYPE
 #ifndef __ICoreWebView2PointerInfo_INTERFACE_DEFINED__
 #define __ICoreWebView2PointerInfo_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2PointerInfo_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2PointerInfo_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_PointerKind (BYVAL PointerKind AS ULONG PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION put_PointerKind (BYVAL PointerKind AS ULONG) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_PointerId (BYVAL PointerId AS UINT PTR) AS HRESULT
@@ -4879,7 +4879,7 @@ END TYPE
 #ifndef __ICoreWebView2PrintCompletedHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2PrintCompletedHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2PrintCompletedHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2PrintCompletedHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL errorCode AS HRESULT, BYVAL result AS COREWEBVIEW2_PRINT_STATUS) AS HRESULT
 END TYPE
 
@@ -4896,7 +4896,7 @@ END TYPE
 #ifndef __ICoreWebView2PrintSettings_INTERFACE_DEFINED__
 #define __ICoreWebView2PrintSettings_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2PrintSettings_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2PrintSettings_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_Orientation (BYVAL Orientation AS COREWEBVIEW2_PRINT_ORIENTATION PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION put_Orientation (BYVAL Orientation AS COREWEBVIEW2_PRINT_ORIENTATION) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_ScaleFactor (BYVAL ScaleFactor AS DOUBLE PTR) AS HRESULT
@@ -4970,7 +4970,7 @@ END TYPE
 #ifndef __ICoreWebView2PrintToPdfCompletedHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2PrintToPdfCompletedHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2PrintToPdfCompletedHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2PrintToPdfCompletedHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL errorCode AS HRESULT, BYVAL result AS LONG) AS HRESULT
 END TYPE
 
@@ -4987,7 +4987,7 @@ END TYPE
 #ifndef __ICoreWebView2PrintToPdfStreamCompletedHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2PrintToPdfStreamCompletedHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2PrintToPdfStreamCompletedHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2PrintToPdfStreamCompletedHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL errorCode AS HRESULT, BYVAL result AS IStream PTR) AS HRESULT
 END TYPE
 
@@ -5004,7 +5004,7 @@ END TYPE
 #ifndef __ICoreWebView2ProcessExtendedInfo_INTERFACE_DEFINED__
 #define __ICoreWebView2ProcessExtendedInfo_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ProcessExtendedInfo_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ProcessExtendedInfo_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_ProcessInfo (BYVAL ProcessInfo AS ICoreWebView2ProcessInfo PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_AssociatedFrameInfos (BYVAL frames AS ICoreWebView2FrameInfoCollection PTR PTR) AS HRESULT
 END TYPE
@@ -5022,7 +5022,7 @@ END TYPE
 #ifndef __ICoreWebView2ProcessExtendedInfoCollection_INTERFACE_DEFINED__
 #define __ICoreWebView2ProcessExtendedInfoCollection_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ProcessExtendedInfoCollection_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ProcessExtendedInfoCollection_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_Count (BYVAL value AS UINT PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetValueAtIndex (BYVAL index AS UINT, BYVAL value AS ICoreWebView2ProcessExtendedInfo PTR PTR) AS HRESULT
 END TYPE
@@ -5040,7 +5040,7 @@ END TYPE
 #ifndef __ICoreWebView2ProcessFailedEventArgs_INTERFACE_DEFINED__
 #define __ICoreWebView2ProcessFailedEventArgs_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ProcessFailedEventArgs_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ProcessFailedEventArgs_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_ProcessFailedKind (BYVAL value AS COREWEBVIEW2_PROCESS_FAILED_KIND PTR) AS HRESULT
 END TYPE
 
@@ -5094,7 +5094,7 @@ END TYPE
 #ifndef __ICoreWebView2ProcessFailedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2ProcessFailedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ProcessFailedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ProcessFailedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2ProcessFailedEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -5111,7 +5111,7 @@ END TYPE
 #ifndef __ICoreWebView2ProcessInfo_INTERFACE_DEFINED__
 #define __ICoreWebView2ProcessInfo_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ProcessInfo_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ProcessInfo_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_ProcessId (BYVAL value AS INT_ PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Kind (BYVAL Kind AS COREWEBVIEW2_PROCESS_KIND PTR) AS HRESULT
 END TYPE
@@ -5129,7 +5129,7 @@ END TYPE
 #ifndef __ICoreWebView2ProcessInfoCollection_INTERFACE_DEFINED__
 #define __ICoreWebView2ProcessInfoCollection_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ProcessInfoCollection_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ProcessInfoCollection_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_Count (BYVAL value AS UINT PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetValueAtIndex (BYVAL index AS UINT, BYVAL value AS ICoreWebView2ProcessInfo PTR PTR) AS HRESULT
 END TYPE
@@ -5147,7 +5147,7 @@ END TYPE
 #ifndef __ICoreWebView2ProcessInfosChangedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2ProcessInfosChangedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ProcessInfosChangedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ProcessInfosChangedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2Environment PTR, BYVAL args AS IUnknown PTR) AS HRESULT
 END TYPE
 
@@ -5164,7 +5164,7 @@ END TYPE
 #ifndef __ICoreWebView2Profile_INTERFACE_DEFINED__
 #define __ICoreWebView2Profile_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2Profile_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2Profile_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_ProfileName (BYVAL value AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_IsInPrivateModeEnabled (BYVAL value AS LONG PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_ProfilePath (BYVAL value AS WSTRING PTR PTR) AS HRESULT
@@ -5316,7 +5316,7 @@ END TYPE
 #ifndef __ICoreWebView2ProfileAddBrowserExtensionCompletedHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2ProfileAddBrowserExtensionCompletedHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ProfileAddBrowserExtensionCompletedHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ProfileAddBrowserExtensionCompletedHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL errorCode AS HRESULT, BYVAL result AS ICoreWebView2BrowserExtension PTR) AS HRESULT
 END TYPE
 
@@ -5333,7 +5333,7 @@ END TYPE
 #ifndef __ICoreWebView2ProfileDeletedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2ProfileDeletedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ProfileDeletedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ProfileDeletedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2Profile PTR, BYVAL args AS IUnknown PTR) AS HRESULT
 END TYPE
 
@@ -5350,7 +5350,7 @@ END TYPE
 #ifndef __ICoreWebView2ProfileGetBrowserExtensionsCompletedHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2ProfileGetBrowserExtensionsCompletedHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ProfileGetBrowserExtensionsCompletedHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ProfileGetBrowserExtensionsCompletedHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL errorCode AS HRESULT, BYVAL result AS ICoreWebView2BrowserExtensionList PTR) AS HRESULT
 END TYPE
 
@@ -5367,7 +5367,7 @@ END TYPE
 #ifndef __ICoreWebView2RasterizationScaleChangedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2RasterizationScaleChangedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2RasterizationScaleChangedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2RasterizationScaleChangedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2Controller PTR, BYVAL args AS IUnknown PTR) AS HRESULT
 END TYPE
 
@@ -5384,7 +5384,7 @@ END TYPE
 #ifndef __ICoreWebView2RegionRectCollectionView_INTERFACE_DEFINED__
 #define __ICoreWebView2RegionRectCollectionView_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2RegionRectCollectionView_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2RegionRectCollectionView_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_Count (BYVAL value AS UINT PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetValueAtIndex (BYVAL index AS UINT, BYVAL value AS RECT PTR) AS HRESULT
 END TYPE
@@ -5402,7 +5402,7 @@ END TYPE
 #ifndef __ICoreWebView2SaveAsUIShowingEventArgs_INTERFACE_DEFINED__
 #define __ICoreWebView2SaveAsUIShowingEventArgs_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2SaveAsUIShowingEventArgs_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2SaveAsUIShowingEventArgs_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_ContentMimeType (BYVAL value AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION put_Cancel (BYVAL value AS LONG) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Cancel (BYVAL value AS LONG PTR) AS HRESULT
@@ -5430,7 +5430,7 @@ END TYPE
 #ifndef __ICoreWebView2SaveAsUIShowingEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2SaveAsUIShowingEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2SaveAsUIShowingEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2SaveAsUIShowingEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2SaveAsUIShowingEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -5447,7 +5447,7 @@ END TYPE
 #ifndef __ICoreWebView2SaveFileSecurityCheckStartingEventArgs_INTERFACE_DEFINED__
 #define __ICoreWebView2SaveFileSecurityCheckStartingEventArgs_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2SaveFileSecurityCheckStartingEventArgs_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2SaveFileSecurityCheckStartingEventArgs_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_CancelSave (BYVAL value AS LONG PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION put_CancelSave (BYVAL value AS LONG) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_DocumentOriginUri (BYVAL value AS WSTRING PTR PTR) AS HRESULT
@@ -5471,7 +5471,7 @@ END TYPE
 #ifndef __ICoreWebView2SaveFileSecurityCheckStartingEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2SaveFileSecurityCheckStartingEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2SaveFileSecurityCheckStartingEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2SaveFileSecurityCheckStartingEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2SaveFileSecurityCheckStartingEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -5488,7 +5488,7 @@ END TYPE
 #ifndef __ICoreWebView2ScreenCaptureStartingEventArgs_INTERFACE_DEFINED__
 #define __ICoreWebView2ScreenCaptureStartingEventArgs_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ScreenCaptureStartingEventArgs_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ScreenCaptureStartingEventArgs_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_Cancel (BYVAL value AS LONG PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION put_Cancel (BYVAL value AS LONG) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Handled (BYVAL value AS LONG PTR) AS HRESULT
@@ -5510,7 +5510,7 @@ END TYPE
 #ifndef __ICoreWebView2ScreenCaptureStartingEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2ScreenCaptureStartingEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ScreenCaptureStartingEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ScreenCaptureStartingEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2ScreenCaptureStartingEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -5527,7 +5527,7 @@ END TYPE
 #ifndef __ICoreWebView2ScriptDialogOpeningEventArgs_INTERFACE_DEFINED__
 #define __ICoreWebView2ScriptDialogOpeningEventArgs_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ScriptDialogOpeningEventArgs_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ScriptDialogOpeningEventArgs_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_uri (BYVAL uri AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Kind (BYVAL Kind AS COREWEBVIEW2_SCRIPT_DIALOG_KIND PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Message (BYVAL Message AS WSTRING PTR PTR) AS HRESULT
@@ -5551,7 +5551,7 @@ END TYPE
 #ifndef __ICoreWebView2ScriptDialogOpeningEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2ScriptDialogOpeningEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ScriptDialogOpeningEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ScriptDialogOpeningEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2ScriptDialogOpeningEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -5568,7 +5568,7 @@ END TYPE
 #ifndef __ICoreWebView2ScriptException_INTERFACE_DEFINED__
 #define __ICoreWebView2ScriptException_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ScriptException_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ScriptException_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_LineNumber (BYVAL value AS UINT PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_ColumnNumber (BYVAL value AS UINT PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_name (BYVAL value AS WSTRING PTR PTR) AS HRESULT
@@ -5589,7 +5589,7 @@ END TYPE
 #ifndef __ICoreWebView2ServerCertificateErrorDetectedEventArgs_INTERFACE_DEFINED__
 #define __ICoreWebView2ServerCertificateErrorDetectedEventArgs_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ServerCertificateErrorDetectedEventArgs_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ServerCertificateErrorDetectedEventArgs_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_ErrorStatus (BYVAL value AS COREWEBVIEW2_WEB_ERROR_STATUS PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_RequestUri (BYVAL value AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_ServerCertificate (BYVAL value AS ICoreWebView2Certificate PTR PTR) AS HRESULT
@@ -5611,7 +5611,7 @@ END TYPE
 #ifndef __ICoreWebView2ServerCertificateErrorDetectedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2ServerCertificateErrorDetectedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ServerCertificateErrorDetectedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ServerCertificateErrorDetectedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2ServerCertificateErrorDetectedEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -5628,7 +5628,7 @@ END TYPE
 #ifndef __ICoreWebView2SetPermissionStateCompletedHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2SetPermissionStateCompletedHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2SetPermissionStateCompletedHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2SetPermissionStateCompletedHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL errorCode AS HRESULT) AS HRESULT
 END TYPE
 
@@ -5645,7 +5645,7 @@ END TYPE
 #ifndef __ICoreWebView2Settings_INTERFACE_DEFINED__
 #define __ICoreWebView2Settings_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2Settings_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2Settings_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_IsScriptEnabled (BYVAL IsScriptEnabled AS LONG PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION put_IsScriptEnabled (BYVAL IsScriptEnabled AS LONG) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_IsWebMessageEnabled (BYVAL IsWebMessageEnabled AS LONG PTR) AS HRESULT
@@ -5825,7 +5825,7 @@ END TYPE
 #ifndef __ICoreWebView2SharedBuffer_INTERFACE_DEFINED__
 #define __ICoreWebView2SharedBuffer_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2SharedBuffer_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2SharedBuffer_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_Size (BYVAL value AS ULONGINT PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Buffer (BYVAL value AS UBYTE PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION OpenStream (BYVAL value AS IStream PTR PTR) AS HRESULT
@@ -5846,7 +5846,7 @@ END TYPE
 #ifndef __ICoreWebView2ShowSaveAsUICompletedHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2ShowSaveAsUICompletedHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ShowSaveAsUICompletedHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ShowSaveAsUICompletedHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL errorCode AS HRESULT, BYVAL result AS COREWEBVIEW2_SAVE_AS_UI_RESULT) AS HRESULT
 END TYPE
 
@@ -5863,7 +5863,7 @@ END TYPE
 #ifndef __ICoreWebView2SourceChangedEventArgs_INTERFACE_DEFINED__
 #define __ICoreWebView2SourceChangedEventArgs_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2SourceChangedEventArgs_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2SourceChangedEventArgs_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_IsNewDocument (BYVAL value AS LONG PTR) AS HRESULT
 END TYPE
 
@@ -5880,7 +5880,7 @@ END TYPE
 #ifndef __ICoreWebView2SourceChangedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2SourceChangedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2SourceChangedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2SourceChangedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2SourceChangedEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -5897,7 +5897,7 @@ END TYPE
 #ifndef __ICoreWebView2StateChangedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2StateChangedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2StateChangedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2StateChangedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2DownloadOperation PTR, BYVAL args AS IUnknown PTR) AS HRESULT
 END TYPE
 
@@ -5914,7 +5914,7 @@ END TYPE
 #ifndef __ICoreWebView2StatusBarTextChangedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2StatusBarTextChangedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2StatusBarTextChangedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2StatusBarTextChangedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS IUnknown PTR) AS HRESULT
 END TYPE
 
@@ -5931,7 +5931,7 @@ END TYPE
 #ifndef __ICoreWebView2StringCollection_INTERFACE_DEFINED__
 #define __ICoreWebView2StringCollection_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2StringCollection_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2StringCollection_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_Count (BYVAL value AS UINT PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetValueAtIndex (BYVAL index AS UINT, BYVAL value AS WSTRING PTR PTR) AS HRESULT
 END TYPE
@@ -5949,7 +5949,7 @@ END TYPE
 #ifndef __ICoreWebView2TrySuspendCompletedHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2TrySuspendCompletedHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2TrySuspendCompletedHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2TrySuspendCompletedHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL errorCode AS HRESULT, BYVAL result AS LONG) AS HRESULT
 END TYPE
 
@@ -5966,7 +5966,7 @@ END TYPE
 #ifndef __ICoreWebView2WebMessageReceivedEventArgs_INTERFACE_DEFINED__
 #define __ICoreWebView2WebMessageReceivedEventArgs_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2WebMessageReceivedEventArgs_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2WebMessageReceivedEventArgs_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_Source (BYVAL value AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_webMessageAsJson (BYVAL value AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION TryGetWebMessageAsString (BYVAL value AS WSTRING PTR PTR) AS HRESULT
@@ -6002,7 +6002,7 @@ END TYPE
 #ifndef __ICoreWebView2WebMessageReceivedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2WebMessageReceivedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2WebMessageReceivedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2WebMessageReceivedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2WebMessageReceivedEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -6019,7 +6019,7 @@ END TYPE
 #ifndef __ICoreWebView2WebResourceRequest_INTERFACE_DEFINED__
 #define __ICoreWebView2WebResourceRequest_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2WebResourceRequest_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2WebResourceRequest_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_uri (BYVAL uri AS WSTRING PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION put_uri (BYVAL uri AS WSTRING PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Method (BYVAL Method AS WSTRING PTR PTR) AS HRESULT
@@ -6042,7 +6042,7 @@ END TYPE
 #ifndef __ICoreWebView2WebResourceRequestedEventArgs_INTERFACE_DEFINED__
 #define __ICoreWebView2WebResourceRequestedEventArgs_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2WebResourceRequestedEventArgs_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2WebResourceRequestedEventArgs_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_Request (BYVAL Request AS ICoreWebView2WebResourceRequest PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Response (BYVAL Response AS ICoreWebView2WebResourceResponse PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION put_Response (BYVAL Response AS ICoreWebView2WebResourceResponse PTR) AS HRESULT
@@ -6080,7 +6080,7 @@ END TYPE
 #ifndef __ICoreWebView2WebResourceRequestedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2WebResourceRequestedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2WebResourceRequestedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2WebResourceRequestedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2WebResourceRequestedEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -6097,7 +6097,7 @@ END TYPE
 #ifndef __ICoreWebView2WebResourceResponse_INTERFACE_DEFINED__
 #define __ICoreWebView2WebResourceResponse_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2WebResourceResponse_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2WebResourceResponse_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_Content (BYVAL Content AS IStream PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION put_Content (BYVAL Content AS IStream PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Headers (BYVAL Headers AS ICoreWebView2HttpResponseHeaders PTR PTR) AS HRESULT
@@ -6120,7 +6120,7 @@ END TYPE
 #ifndef __ICoreWebView2WebResourceResponseReceivedEventArgs_INTERFACE_DEFINED__
 #define __ICoreWebView2WebResourceResponseReceivedEventArgs_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2WebResourceResponseReceivedEventArgs_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2WebResourceResponseReceivedEventArgs_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_Request (BYVAL value AS ICoreWebView2WebResourceRequest PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Response (BYVAL value AS ICoreWebView2WebResourceResponseView PTR PTR) AS HRESULT
 END TYPE
@@ -6138,7 +6138,7 @@ END TYPE
 #ifndef __ICoreWebView2WebResourceResponseReceivedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2WebResourceResponseReceivedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2WebResourceResponseReceivedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2WebResourceResponseReceivedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2WebResourceResponseReceivedEventArgs PTR) AS HRESULT
 END TYPE
 
@@ -6155,7 +6155,7 @@ END TYPE
 #ifndef __ICoreWebView2WebResourceResponseView_INTERFACE_DEFINED__
 #define __ICoreWebView2WebResourceResponseView_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2WebResourceResponseView_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2WebResourceResponseView_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_Headers (BYVAL Headers AS ICoreWebView2HttpResponseHeaders PTR PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_StatusCode (BYVAL StatusCode AS INT_ PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_ReasonPhrase (BYVAL ReasonPhrase AS WSTRING PTR PTR) AS HRESULT
@@ -6175,7 +6175,7 @@ END TYPE
 #ifndef __ICoreWebView2WebResourceResponseViewGetContentCompletedHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2WebResourceResponseViewGetContentCompletedHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2WebResourceResponseViewGetContentCompletedHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2WebResourceResponseViewGetContentCompletedHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL errorCode AS HRESULT, BYVAL result AS IStream PTR) AS HRESULT
 END TYPE
 
@@ -6192,7 +6192,7 @@ END TYPE
 #ifndef __ICoreWebView2WindowCloseRequestedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2WindowCloseRequestedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2WindowCloseRequestedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2WindowCloseRequestedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS IUnknown PTR) AS HRESULT
 END TYPE
 
@@ -6209,7 +6209,7 @@ END TYPE
 #ifndef __ICoreWebView2WindowFeatures_INTERFACE_DEFINED__
 #define __ICoreWebView2WindowFeatures_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2WindowFeatures_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2WindowFeatures_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION get_HasPosition (BYVAL value AS LONG PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_HasSize (BYVAL value AS LONG PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION get_Left (BYVAL value AS UINT PTR) AS HRESULT
@@ -6235,7 +6235,7 @@ END TYPE
 #ifndef __ICoreWebView2ZoomFactorChangedEventHandler_INTERFACE_DEFINED__
 #define __ICoreWebView2ZoomFactorChangedEventHandler_INTERFACE_DEFINED__
 
-PUBLIC TYPE ICoreWebView2ZoomFactorChangedEventHandler_ EXTENDS tk_IUnknown
+PUBLIC TYPE ICoreWebView2ZoomFactorChangedEventHandler_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Invoke (BYVAL sender AS ICoreWebView2Controller PTR, BYVAL args AS IUnknown PTR) AS HRESULT
 END TYPE
 

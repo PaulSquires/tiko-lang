@@ -234,9 +234,9 @@ END FUNCTION
 ' ========================================================================================
 ' Returns the version of Gdiplus.dll, e.g. 601 for version 6.01.
 ' * Returns the version of specified file multiplied by 100, e.g. 601 for version 6.01.
-' Example: DIM ver AS LONG = tkGetFileVersion("COMCTL32.DLL")
+' Example: DIM ver AS LONG = GetFileVersion("COMCTL32.DLL")
 ' ========================================================================================
-PUBLIC FUNCTION tkGdipDllVersion () AS LONG
+PUBLIC FUNCTION DllVersion () AS LONG
    DIM pvsffi AS VS_FIXEDFILEINFO PTR, dwHandle AS DWORD
    DIM cbLen AS DWORD = GetFileVersionInfoSizeW("gdiplus.dll", @dwHandle)
    IF cbLen = 0 THEN EXIT FUNCTION
@@ -256,7 +256,7 @@ END FUNCTION
 ' =====================================================================================
 ' Returns the description of a GdiPlus status code.
 ' =====================================================================================
-PUBLIC FUNCTION tkGdipStatusStr (BYVAL status AS GpStatus) AS STRING
+PUBLIC FUNCTION StatusStr (BYVAL status AS GpStatus) AS STRING
 
    DIM strMsg AS STRING * 260 = "Unknown"
 
@@ -295,9 +295,9 @@ END FUNCTION
 ' ========================================================================================
 ' Initilizes GDI+
 ' Returns a token or 0 if it fails.
-' Pass the token to tkGdipShutdown when you have finished using GDI+.
+' Pass the token to Uninit when you have finished using GDI+.
 ' ========================================================================================
-PUBLIC FUNCTION tkGdipInit () AS ULONG_PTR
+PUBLIC FUNCTION Init () AS ULONG_PTR
    DIM token AS ULONG_PTR, StartupInput AS GdiplusStartupInput
    StartupInput.GdiplusVersion = 1   ' Version must be 1
    GdiplusStartup(@token, @StartupInput, NULL)
@@ -306,10 +306,10 @@ END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
-' Cleans up resources used by Windows GDI+. Each call to tkGdipInit should be paired with
-' a call to tkGdipShutdown
+' Cleans up resources used by Windows GDI+. Each call to Init should be paired with
+' a call to Uninit
 ' ========================================================================================
-PUBLIC SUB tkGdipShutdown (BYVAL token AS ULONG_PTR)
+PUBLIC SUB Uninit (BYVAL token AS ULONG_PTR)
    IF token THEN GdiplusShutdown(token)
 END SUB
 ' ========================================================================================
@@ -322,7 +322,7 @@ END SUB
 ' scale the font automatically. Otherwise, we will convert and scale the font size using
 ' the value returned by the GetDeviceCaps API function.
 ' ========================================================================================
-PUBLIC FUNCTION tkGdipPointsToPixels (BYVAL ptSize AS SINGLE, BYVAL fUsingWorldTransform AS BOOLEAN = FALSE) AS SINGLE
+PUBLIC FUNCTION PointsToPixels (BYVAL ptSize AS SINGLE, BYVAL fUsingWorldTransform AS BOOLEAN = FALSE) AS SINGLE
    IF fUsingWorldTransform THEN RETURN ptSize * 1.3333
    ' // Scale according the DPI settings of the computer
    DIM hDC AS HDC = GetDC(HWND_DESKTOP)
@@ -342,10 +342,10 @@ END FUNCTION
 '   If the function succeeds, it returns Ok, which is an element of the Status enumeration.
 '   If the function fails, it returns one of the other elements of the Status enumeration.
 ' ========================================================================================
-PUBLIC FUNCTION tkGdipGetImageSizeFromFile (BYREF wszFileName AS WSTRING, BYVAL nWidth AS DWORD PTR, BYVAL nHeight AS DWORD PTR) AS LONG
+PUBLIC FUNCTION GetImageSizeFromFile (BYREF wszFileName AS WSTRING, BYVAL nWidth AS DWORD PTR, BYVAL nHeight AS DWORD PTR) AS LONG
    IF LEN(wszFileName) = 0 THEN RETURN E_INVALIDARG
    ' // Initialize Gdiplus
-   DIM token AS ULONG_PTR = tkGdipInit
+   DIM token AS ULONG_PTR = Init
    IF token = NULL THEN EXIT FUNCTION
    DIM hr AS LONG, pImage AS GpImage PTR
    ' // Load the image
@@ -376,9 +376,9 @@ END FUNCTION
 ' Remarks:
 '   A quirk in the GDI+ GdipLoadImageFromFile function causes that dim gray images (often
 '   used for disabled icons) are converted to darker shades of gray. Therefore, is better
-'   to use tkGdipImageFromFile.
+'   to use ImageFromFile.
 ' ========================================================================================
-PUBLIC FUNCTION tkGdipImageFromFile2 (BYREF wszFileName AS WSTRING, _
+PUBLIC FUNCTION ImageFromFile2 (BYREF wszFileName AS WSTRING, _
    BYVAL dimPercent AS LONG = 0, BYVAL bGrayScale AS LONG = FALSE, _
    BYVAL imageType AS LONG = IMAGE_ICON, BYVAL clrBackground AS ARGB = 0) AS HANDLE
 
@@ -387,7 +387,7 @@ PUBLIC FUNCTION tkGdipImageFromFile2 (BYREF wszFileName AS WSTRING, _
    DIM pixColor AS GDIP_BGRA, iColor AS LONG, rFactor AS SINGLE
 
    ' // Initialize Gdiplus
-   DIM token AS ULONG_PTR = tkGdipInit
+   DIM token AS ULONG_PTR = Init
    IF token = NULL THEN EXIT FUNCTION
    ' // Load the image from file
    GdipLoadImageFromFile(wszFileName, @pImage)
@@ -462,13 +462,13 @@ END FUNCTION
 '   GET #nFile, , *pBuffer, bufferSize
 '   CLOSE nFile
 '   IF pBuffer THEN
-'      DIM hIcon AS HICON = tkGdipIconFromBuffer(pBuffer, ImageSize)
+'      DIM hIcon AS HICON = IconFromBuffer(pBuffer, ImageSize)
 '      ImageList_ReplaceIcon(hImageList, -1, hIcon)
 '      DestroyIcon(hIcon)
 '      DeAllocate(pBuffer)
 '   END IF
 ' ========================================================================================
-PUBLIC FUNCTION tkGdipImageFromBuffer (BYVAL pBuffer AS ANY PTR, BYVAL bufferSize AS SIZE_T_, _
+PUBLIC FUNCTION ImageFromBuffer (BYVAL pBuffer AS ANY PTR, BYVAL bufferSize AS SIZE_T_, _
    BYVAL dimPercent AS LONG = 0, BYVAL bGrayScale AS LONG = FALSE, _
    BYVAL imageType AS LONG = IMAGE_ICON, BYVAL clrBackground AS ARGB = 0) AS HANDLE
 
@@ -478,7 +478,7 @@ PUBLIC FUNCTION tkGdipImageFromBuffer (BYVAL pBuffer AS ANY PTR, BYVAL bufferSiz
    DIM pixColor AS GDIP_BGRA, iColor AS LONG, rFactor AS SINGLE
 
    ' // Initialize Gdiplus
-   DIM token AS ULONG_PTR = tkGdipInit
+   DIM token AS ULONG_PTR = Init
    IF token = NULL THEN EXIT FUNCTION
    ' // Allocate memory to hold the image
    hGlobal = GlobalAlloc(GMEM_MOVEABLE, bufferSize)
@@ -546,15 +546,15 @@ PUBLIC FUNCTION tkGdipImageFromBuffer (BYVAL pBuffer AS ANY PTR, BYVAL bufferSiz
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkGdipIconFromBuffer (BYVAL pBuffer AS ANY PTR, BYVAL bufferSize AS SIZE_T_, _
+PUBLIC FUNCTION IconFromBuffer (BYVAL pBuffer AS ANY PTR, BYVAL bufferSize AS SIZE_T_, _
    BYVAL dimPercent AS LONG = 0, BYVAL bGrayScale AS LONG = FALSE) AS HANDLE
-   FUNCTION = tkGdipImageFromBuffer(pBuffer, bufferSize, dimPercent, bGrayScale, IMAGE_ICON, 0)
+   FUNCTION = ImageFromBuffer(pBuffer, bufferSize, dimPercent, bGrayScale, IMAGE_ICON, 0)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkGdipBitmapFromBuffer (BYVAL pBuffer AS ANY PTR, BYVAL bufferSize AS SIZE_T_, _
+PUBLIC FUNCTION BitmapFromBuffer (BYVAL pBuffer AS ANY PTR, BYVAL bufferSize AS SIZE_T_, _
    BYVAL dimPercent AS LONG = 0, BYVAL bGrayScale AS LONG = FALSE, BYVAL clrBackground AS ARGB = 0) AS HANDLE
-   FUNCTION = tkGdipImageFromBuffer(pBuffer, bufferSize, dimPercent, bGrayScale, IMAGE_BITMAP, clrBackground)
+   FUNCTION = ImageFromBuffer(pBuffer, bufferSize, dimPercent, bGrayScale, IMAGE_BITMAP, clrBackground)
 END FUNCTION
 ' ========================================================================================
 
@@ -575,7 +575,7 @@ END FUNCTION
 ' for disabled icons) are converted to darker shades of gray. Therefore, instead of using it
 ' I'm getting here the image data opening the file with OPEN in binary mode.
 ' ========================================================================================
-PUBLIC FUNCTION tkGdipImageFromFile (BYREF wszFileName AS WSTRING, _
+PUBLIC FUNCTION ImageFromFile (BYREF wszFileName AS WSTRING, _
    BYVAL dimPercent AS LONG = 0, BYVAL bGrayScale AS LONG = FALSE, _
    BYVAL imageType AS LONG = IMAGE_ICON, BYVAL clrBackground AS ARGB = 0) AS HANDLE
 
@@ -603,7 +603,7 @@ PUBLIC FUNCTION tkGdipImageFromFile (BYREF wszFileName AS WSTRING, _
 '   GET #nFile, , *pBuffer, bufferSize
 '   CLOSE nFile
 '   IF pBuffer THEN
-'      FUNCTION = tkGdipImageFromBuffer(pBuffer, bufferSize, dimPercent, bGrayScale, imageType, clrBackground)
+'      FUNCTION = ImageFromBuffer(pBuffer, bufferSize, dimPercent, bGrayScale, imageType, clrBackground)
 '      DeAllocate(pBuffer)
 '   END IF
 
@@ -625,7 +625,7 @@ PUBLIC FUNCTION tkGdipImageFromFile (BYREF wszFileName AS WSTRING, _
    CloseHandle(hFile)
    IF bSuccess THEN
       IF pBuffer THEN
-         FUNCTION = tkGdipImageFromBuffer(pBuffer, dwFileSize, dimPercent, bGrayScale, imageType, clrBackground)
+         FUNCTION = ImageFromBuffer(pBuffer, dwFileSize, dimPercent, bGrayScale, imageType, clrBackground)
          DeAllocate(pBuffer)
       END IF
    END IF
@@ -635,17 +635,17 @@ END FUNCTION
 ' ========================================================================================
 ' Loads an image from a file, converts it to an icon and returns the handle.
 ' ========================================================================================
-PUBLIC FUNCTION tkGdipIconFromFile (BYREF wszFileName AS WSTRING, _
+PUBLIC FUNCTION IconFromFile (BYREF wszFileName AS WSTRING, _
    BYVAL dimPercent AS LONG = 0, BYVAL bGrayScale AS LONG = FALSE) AS HANDLE
-   FUNCTION = tkGdipImageFromFile(wszFileName, dimPercent, bGrayScale, IMAGE_ICON, 0)
+   FUNCTION = ImageFromFile(wszFileName, dimPercent, bGrayScale, IMAGE_ICON, 0)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' Loads an image from a file, converts it to a bitmap and returns the handle.
 ' ========================================================================================
-PUBLIC FUNCTION tkGdipBitmapFromFile (BYREF wszFileName AS WSTRING, _
+PUBLIC FUNCTION BitmapFromFile (BYREF wszFileName AS WSTRING, _
    BYVAL dimPercent AS LONG = 0, BYVAL bGrayScale AS LONG = FALSE, BYVAL clrBackground AS ARGB = 0) AS HANDLE
-   FUNCTION = tkGdipImageFromFile(wszFileName, dimPercent, bGrayScale, IMAGE_BITMAP, clrBackground)
+   FUNCTION = ImageFromFile(wszFileName, dimPercent, bGrayScale, IMAGE_BITMAP, clrBackground)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
@@ -658,9 +658,9 @@ END FUNCTION
 ' Return value:
 '   Returns the index of the image if successful, or -1 otherwise.
 ' ========================================================================================
-PUBLIC FUNCTION tkGdipAddIconFromFile (BYVAL hIml AS HIMAGELIST, BYREF wszFileName AS WSTRING, _
+PUBLIC FUNCTION AddIconFromFile (BYVAL hIml AS HIMAGELIST, BYREF wszFileName AS WSTRING, _
    BYVAL dimPercent AS LONG = 0, BYVAL bGrayScale AS LONG = FALSE) AS LONG
-   DIM hIcon AS HICON = tkGdipImageFromFile(wszFileName, dimPercent, bGrayScale, IMAGE_ICON, 0)
+   DIM hIcon AS HICON = ImageFromFile(wszFileName, dimPercent, bGrayScale, IMAGE_ICON, 0)
    IF hIcon THEN FUNCTION = ImageList_ReplaceIcon(hIml, -1, hIcon)
    IF hIcon THEN DestroyIcon(hIcon)
 END FUNCTION
@@ -686,7 +686,7 @@ END FUNCTION
 '   If the function succeeds, the return value is the handle of the created icon or bitmap.
 '   If the function fails, the return value is NULL.
 ' ========================================================================================
-PUBLIC FUNCTION tkGdipImageFromRes (BYVAL hInstance AS HINSTANCE, BYREF wszImageName AS WSTRING, _
+PUBLIC FUNCTION ImageFromRes (BYVAL hInstance AS HINSTANCE, BYREF wszImageName AS WSTRING, _
    BYVAL dimPercent AS LONG = 0, BYVAL bGrayScale AS LONG = FALSE, _
    BYVAL imageType AS LONG = IMAGE_ICON, BYVAL clrBackground AS ARGB = 0) AS HANDLE
 
@@ -697,7 +697,7 @@ PUBLIC FUNCTION tkGdipImageFromRes (BYVAL hInstance AS HINSTANCE, BYREF wszImage
    DIM pixColor AS GDIP_BGRA, iColor AS LONG, rFactor AS SINGLE
 
    ' // Initialize Gdiplus
-   DIM token AS ULONG_PTR = tkGdipInit
+   DIM token AS ULONG_PTR = Init
    IF token = NULL THEN EXIT FUNCTION
 
    ' // Find the resource
@@ -788,17 +788,17 @@ END FUNCTION
 ' ========================================================================================
 ' Loads an image from a resource file, converts it to an icon and returns the handle.
 ' ========================================================================================
-PUBLIC FUNCTION tkGdipIconFromRes (BYVAL hInstance AS HINSTANCE, BYREF wszImageName AS WSTRING, _
+PUBLIC FUNCTION IconFromRes (BYVAL hInstance AS HINSTANCE, BYREF wszImageName AS WSTRING, _
    BYVAL dimPercent AS LONG = 0, BYVAL bGrayScale AS LONG = FALSE) AS HANDLE
-   FUNCTION = tkGdipImageFromRes(hInstance, wszImageName, dimPercent, bGrayScale, IMAGE_ICON, 0)
+   FUNCTION = ImageFromRes(hInstance, wszImageName, dimPercent, bGrayScale, IMAGE_ICON, 0)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' Loads an image from a resource file, converts it to a bitmap and returns the handle.
 ' ========================================================================================
-PUBLIC FUNCTION tkGdipBitmapFromRes (BYVAL hInstance AS HINSTANCE, BYREF wszImageName AS WSTRING, _
+PUBLIC FUNCTION BitmapFromRes (BYVAL hInstance AS HINSTANCE, BYREF wszImageName AS WSTRING, _
    BYVAL dimPercent AS LONG = 0, BYVAL bGrayScale AS LONG = FALSE, BYVAL clrBackground AS ARGB = 0) AS HANDLE
-   FUNCTION = tkGdipImageFromRes(hInstance, wszImageName, dimPercent, bGrayScale, IMAGE_BITMAP, clrBackground)
+   FUNCTION = ImageFromRes(hInstance, wszImageName, dimPercent, bGrayScale, IMAGE_BITMAP, clrBackground)
 END FUNCTION
 ' ========================================================================================
 
@@ -819,9 +819,9 @@ END FUNCTION
 ' Return value:
 '   Returns the index of the image if successful, or -1 otherwise.
 ' ========================================================================================
-PUBLIC FUNCTION tkGdipAddIconFromRes (BYVAL hIml AS HIMAGELIST, BYVAL hInstance AS HINSTANCE, _
+PUBLIC FUNCTION AddIconFromRes (BYVAL hIml AS HIMAGELIST, BYVAL hInstance AS HINSTANCE, _
    BYREF wszImageName AS WSTRING, BYVAL dimPercent AS LONG = 0, BYVAL bGrayScale AS LONG = FALSE) AS LONG
-   DIM hIcon AS HICON = tkGdipImageFromRes(hInstance, wszImageName, dimPercent, bGrayScale, IMAGE_ICON, 0)
+   DIM hIcon AS HICON = ImageFromRes(hInstance, wszImageName, dimPercent, bGrayScale, IMAGE_ICON, 0)
    IF hIcon THEN FUNCTION = ImageList_ReplaceIcon(hIml, -1, hIcon)
    IF hIcon THEN DestroyIcon(hIcon)
 END FUNCTION
@@ -834,9 +834,9 @@ END FUNCTION
 ' Return value:
 '   The encoder clsid.
 ' ========================================================================================
-PUBLIC FUNCTION tkGdipGetEncoderClsid (BYREF wszMimeType AS WSTRING) AS GUID
+PUBLIC FUNCTION GetEncoderClsid (BYREF wszMimeType AS WSTRING) AS GUID
    ' // Initialize Gdiplus
-   DIM token AS ULONG_PTR = tkGdipInit
+   DIM token AS ULONG_PTR = Init
    IF token = 0 THEN EXIT FUNCTION
    ' // The GdipGetImageEncodersSize function gets the number of available image encoders
    ' // and the total size of the array of ImageCodecInfo structures
@@ -877,45 +877,45 @@ END FUNCTION
 ' If the method succeeds, it returns Ok, which is an element of the Status enumeration.
 ' If the method fails, it returns one of the other elements of the Status enumeration.
 ' ========================================================================================
-PUBLIC FUNCTION tkGdipSaveImageToFile (BYVAL pImage AS GpImage PTR, BYREF wszFileName AS WSTRING, BYREF wszMimeType AS WSTRING) AS LONG
+PUBLIC FUNCTION SaveImageToFile (BYVAL pImage AS GpImage PTR, BYREF wszFileName AS WSTRING, BYREF wszMimeType AS WSTRING) AS LONG
    IF pImage = NULL OR LEN(TRIM(wszFileName)) = 0 THEN RETURN InvalidParameter
    ' // Initialize Gdiplus
-   DIM token AS ULONG_PTR = tkGdipInit
+   DIM token AS ULONG_PTR = Init
    IF token = 0 THEN EXIT FUNCTION
-   DIM clsidEncoder AS GUID = tkGdipGetEncoderClsid(wszMimeType)
+   DIM clsidEncoder AS GUID = GetEncoderClsid(wszMimeType)
    FUNCTION = GdipSaveImageToFile(pImage, @wszFileName, @clsidEncoder, NULL)
    ' // Shutdown Gdiplus
    GdiplusShutdown token
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkGdipSaveImageToBmp (BYVAL pImage AS GpImage PTR, BYREF wszFileName AS WSTRING) AS LONG
-   FUNCTION = tkGdipSaveImageToFile(pImage, wszFilename, "image/bmp")
+PUBLIC FUNCTION SaveImageToBmp (BYVAL pImage AS GpImage PTR, BYREF wszFileName AS WSTRING) AS LONG
+   FUNCTION = SaveImageToFile(pImage, wszFilename, "image/bmp")
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkGdipSaveImageToJpeg OVERLOAD (BYVAL pImage AS GpImage PTR, BYREF wszFileName AS WSTRING) AS LONG
-   FUNCTION = tkGdipSaveImageToFile(pImage, wszFilename, "image/jpeg")
+PUBLIC FUNCTION SaveImageToJpeg OVERLOAD (BYVAL pImage AS GpImage PTR, BYREF wszFileName AS WSTRING) AS LONG
+   FUNCTION = SaveImageToFile(pImage, wszFilename, "image/jpeg")
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkGdipSaveImageToJpg OVERLOAD (BYVAL pImage AS GpImage PTR, BYREF wszFileName AS WSTRING) AS LONG
-   FUNCTION = tkGdipSaveImageToFile(pImage, wszFilename, "image/jpeg")
+PUBLIC FUNCTION SaveImageToJpg OVERLOAD (BYVAL pImage AS GpImage PTR, BYREF wszFileName AS WSTRING) AS LONG
+   FUNCTION = SaveImageToFile(pImage, wszFilename, "image/jpeg")
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkGdipSaveImageToPng (BYVAL pImage AS GpImage PTR, BYREF wszFileName AS WSTRING) AS LONG
-   FUNCTION = tkGdipSaveImageToFile(pImage, wszFilename, "image/png")
+PUBLIC FUNCTION SaveImageToPng (BYVAL pImage AS GpImage PTR, BYREF wszFileName AS WSTRING) AS LONG
+   FUNCTION = SaveImageToFile(pImage, wszFilename, "image/png")
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkGdipSaveImageToGif (BYVAL pImage AS GpImage PTR, BYREF wszFileName AS WSTRING) AS LONG
-   FUNCTION = tkGdipSaveImageToFile(pImage, wszFilename, "image/gif")
+PUBLIC FUNCTION SaveImageToGif (BYVAL pImage AS GpImage PTR, BYREF wszFileName AS WSTRING) AS LONG
+   FUNCTION = SaveImageToFile(pImage, wszFilename, "image/gif")
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkGdipSaveImageToTiff (BYVAL pImage AS GpImage PTR, BYREF wszFileName AS WSTRING) AS LONG
-   FUNCTION = tkGdipSaveImageToFile(pImage, wszFilename, "image/tiff")
+PUBLIC FUNCTION SaveImageToTiff (BYVAL pImage AS GpImage PTR, BYREF wszFileName AS WSTRING) AS LONG
+   FUNCTION = SaveImageToFile(pImage, wszFilename, "image/tiff")
 END FUNCTION
 ' ========================================================================================
 
@@ -934,15 +934,15 @@ END FUNCTION
 ' If the method succeeds, it returns Ok, which is an element of the Status enumeration.
 ' If the method fails, it returns one of the other elements of the Status enumeration.
 ' ========================================================================================
-PUBLIC FUNCTION tkGdipSaveHBITMAPToFile (BYVAL hbmp AS HBITMAP, BYREF wszFileName AS WSTRING, BYREF wszMimeType AS WSTRING = "image/bmp") AS LONG
+PUBLIC FUNCTION SaveHBITMAPToFile (BYVAL hbmp AS HBITMAP, BYREF wszFileName AS WSTRING, BYREF wszMimeType AS WSTRING = "image/bmp") AS LONG
    IF hbmp = NULL OR LEN(TRIM(wszFileName)) = 0 THEN RETURN InvalidParameter
    ' // Initialize Gdiplus
-   DIM token AS ULONG_PTR = tkGdipInit
+   DIM token AS ULONG_PTR = Init
    ' // Create a Bitmap object from an HBITMAP
    DIM pBitmap AS GpBitmap PTR
    GdipCreateBitmapFromHBITMAP(hbmp, NULL, @pBitmap)
    IF pBitmap THEN
-      DIM clsidEncoder AS GUID = tkGdipGetEncoderClsid(wszMimeType)
+      DIM clsidEncoder AS GUID = GetEncoderClsid(wszMimeType)
       FUNCTION = GdipSaveImageToFile(CAST(GpImage PTR, pBitmap), @wszFileName, @clsidEncoder, NULL)
       GdipDisposeImage(cast(GpImage PTR, pBitmap))
    END IF
@@ -967,10 +967,10 @@ END FUNCTION
 '   InterpolationModeHighQualityBicubic = 7
 ' Return value: Returns TRUE if the bitmap has been printed successfully, or FALSE otherwise.
 ' ========================================================================================
-PUBLIC FUNCTION tkGdipPrintHBITMAP (BYVAL hbmp AS HBITMAP, BYVAL bStretch AS BOOLEAN = FALSE, BYVAL nStretchMode AS LONG = InterpolationModeHighQualityBicubic) AS BOOLEAN
+PUBLIC FUNCTION PrintHBITMAP (BYVAL hbmp AS HBITMAP, BYVAL bStretch AS BOOLEAN = FALSE, BYVAL nStretchMode AS LONG = InterpolationModeHighQualityBicubic) AS BOOLEAN
 
    ' // Initialize Gdiplus
-   DIM token AS ULONG_PTR = tkGdipInit
+   DIM token AS ULONG_PTR = Init
    IF token = NULL THEN EXIT FUNCTION
    DIM hPrinter AS HANDLE
    DIM pbufferDoc AS UBYTE PTR
@@ -1062,7 +1062,7 @@ END FUNCTION
 ' * ERROR_INVALID_DATA = Bad image size.
 ' * A GdiPlus status value.
 ' =======================================================================================
-PUBLIC FUNCTION tkGdipLoadTexture OVERLOAD (BYREF wszFileName AS WSTRING, BYREF TextureWidth AS LONG, _
+PUBLIC FUNCTION LoadTexture OVERLOAD (BYREF wszFileName AS WSTRING, BYREF TextureWidth AS LONG, _
    BYREF TextureHeight AS LONG, BYREF strTextureData AS STRING) AS LONG
 
    DIM pImage AS GpImage PTR, pThumb AS GpImage PTR
@@ -1070,7 +1070,7 @@ PUBLIC FUNCTION tkGdipLoadTexture OVERLOAD (BYREF wszFileName AS WSTRING, BYREF 
    DIM pTextureData AS ANY PTR
 
    ' // Initialize Gdiplus
-   DIM token AS ULONG_PTR = tkGdipInit
+   DIM token AS ULONG_PTR = Init
    IF token = NULL THEN FUNCTION = 18 : EXIT FUNCTION   ' // GdiplusNotInitialized
 
    DO
@@ -1138,7 +1138,7 @@ END FUNCTION
 ' * ERROR_INVALID_DATA = Bad image size.
 ' * A GdiPlus status value.
 ' =======================================================================================
-PUBLIC FUNCTION tkGdipLoadTexture OVERLOAD (BYVAL hInstance AS HINSTANCE, _
+PUBLIC FUNCTION LoadTexture OVERLOAD (BYVAL hInstance AS HINSTANCE, _
    BYREF wszResourceName AS WSTRING, BYREF TextureWidth AS LONG, _
    BYREF TextureHeight AS LONG, BYREF strTextureData AS STRING) AS LONG
 
@@ -1155,7 +1155,7 @@ PUBLIC FUNCTION tkGdipLoadTexture OVERLOAD (BYVAL hInstance AS HINSTANCE, _
 
 
    ' // Initialize Gdiplus
-   DIM token AS ULONG_PTR = tkGdipInit
+   DIM token AS ULONG_PTR = Init
    IF token = NULL THEN FUNCTION = 18 : EXIT FUNCTION   ' // GdiplusNotInitialized
 
    DO
@@ -1250,7 +1250,7 @@ END FUNCTION
 '   A pointer to the IStream interface, or NULL on failure.
 '   The returned stream owns the HGLOBAL memory (fDeleteOnRelease=TRUE).
 ' ========================================================================================
-PUBLIC FUNCTION tkImageStreamFromRes (BYVAL hInstance AS HINSTANCE, BYREF wszImageName AS WSTRING) AS IStream PTR
+PUBLIC FUNCTION ImageStreamFromRes (BYVAL hInstance AS HINSTANCE, BYREF wszImageName AS WSTRING) AS IStream PTR
 
    DIM hRes      AS HRSRC
    DIM cbRes     AS DWORD
@@ -1262,7 +1262,7 @@ PUBLIC FUNCTION tkImageStreamFromRes (BYVAL hInstance AS HINSTANCE, BYREF wszIma
    DIM dwID      AS DWORD
 
    ' // Initialize Gdiplus
-   DIM token AS ULONG_PTR = tkGdipInit
+   DIM token AS ULONG_PTR = Init
    IF token = NULL THEN EXIT FUNCTION
 
    ' // Find the resource

@@ -40,27 +40,17 @@ using win
 ' ========================================================================================
 ' Variant types
 ' ========================================================================================
-PUBLIC FUNCTION tkGetVarType (BYVAL pvar AS VARIANT PTR) AS VARTYPE
+PUBLIC FUNCTION GetVarType (BYVAL pvar AS VARIANT PTR) AS VARTYPE
    RETURN pvar->vt
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkIsVarTypeFloat (BYVAL vt AS VARTYPE) AS BOOLEAN
+PUBLIC FUNCTION IsVariantTypeFloat (BYVAL vt AS VARTYPE) AS BOOLEAN
    RETURN (vt = VT_R4 OR vt = VT_R8)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkIsVariantArray (BYVAL pvar AS VARIANT PTR) AS BOOLEAN
-   RETURN (pvar->vt AND VT_ARRAY)
-END FUNCTION
-' ========================================================================================
-' ========================================================================================
-PUBLIC FUNCTION tkIsVariantString (BYVAL pvar AS VARIANT PTR) AS BOOLEAN
-   RETURN VariantToStringWithDefault(pvar, NULL) <> NULL
-END FUNCTION
-' ========================================================================================
-' ========================================================================================
-PUBLIC FUNCTION tkIsVarTypeSignedInteger (BYVAL vt AS VARTYPE) AS BOOLEAN
+PUBLIC FUNCTION IsVariantTypeSignedInteger (BYVAL vt AS VARTYPE) AS BOOLEAN
    DIM fRet AS BOOLEAN
    SELECT CASE vt
       CASE VT_I1, VT_I2, VT_I4, VT_I8
@@ -70,7 +60,7 @@ PUBLIC FUNCTION tkIsVarTypeSignedInteger (BYVAL vt AS VARTYPE) AS BOOLEAN
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkIsVarTypeUnsignedInteger (BYVAL vt AS VARTYPE) AS BOOLEAN
+PUBLIC FUNCTION IsVariantTypeUnsignedInteger (BYVAL vt AS VARTYPE) AS BOOLEAN
    DIM fRet AS BOOLEAN
    SELECT CASE vt
       CASE VT_UI1, VT_UI2, VT_UI4, VT_UI8
@@ -80,13 +70,13 @@ PUBLIC FUNCTION tkIsVarTypeUnsignedInteger (BYVAL vt AS VARTYPE) AS BOOLEAN
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkIsVarTypeInteger (BYVAL vt AS VARTYPE) AS BOOLEAN
-   RETURN tkIsVarTypeSignedInteger(vt) OR tkIsVarTypeUnsignedInteger(vt)
+PUBLIC FUNCTION IsVariantTypeInteger (BYVAL vt AS VARTYPE) AS BOOLEAN
+   RETURN IsVariantTypeSignedInteger(vt) OR IsVariantTypeUnsignedInteger(vt)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkIsVarTypeNumber (BYVAL vt AS VARTYPE) AS BOOLEAN
-   RETURN (tkIsVarTypeInteger(vt)) OR (tkIsVarTypeFloat(vt))
+PUBLIC FUNCTION IsVariantTypeNumber (BYVAL vt AS VARTYPE) AS BOOLEAN
+   RETURN (IsVariantTypeInteger(vt)) OR (IsVariantTypeFloat(vt))
 END FUNCTION
 ' ========================================================================================
 
@@ -102,7 +92,7 @@ END FUNCTION
 ' - If the function succeeds, it returns the contents of the variant in string form;
 '   if it fails, it returns an empty string and the contents of the variant aren't cleared.
 ' ========================================================================================
-PUBLIC FUNCTION tkVarToStr OVERLOAD (BYVAL pvarIn AS VARIANT PTR, BYVAL bClear AS BOOLEAN = FALSE) AS USTRING
+PUBLIC FUNCTION VarToStr OVERLOAD (BYVAL pvarIn AS VARIANT PTR, BYVAL bClear AS BOOLEAN = FALSE) AS USTRING
 '   DVARIANT_DP("pvarIn: " & WSTR(pvarIn) & " - bClear: " & WSTR(bClear))
 
    DIM ustr AS USTRING

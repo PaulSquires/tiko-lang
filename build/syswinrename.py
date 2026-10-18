@@ -30,7 +30,7 @@ MOD_ALIAS = {"sys.win": "win", "sys.win.com": "com", "sys.win.gui": "gui",
              "sys.win.direct2d": "direct2d", "sys.win.webview2": "webview2"}
 IMPORT_MOD = {"sys/" + m.replace("sys.", "").replace(".", "/"): m for m in MOD_ALIAS}
 PREFIX_RE = re.compile(r"^(tkl[A-Z_]|tk[A-Z_]|TK_|fbx[A-Z]|FBX_|Afx[A-Z])")
-MARKER_RE = re.compile(r"\[pkg/(fbx|tkl|sys)\]")
+MARKER_RE = re.compile(r"\[pkg/(fbx|tkl|tk|sys)\]")
 STALE_FBX = re.compile(r"\bfbx(NewCom|Guid|Advise|GetCom|AnyCom|SafeRelease|OleCreateFontDisp|ImageStreamFromRes)\b")
 DEF_KW = {"function", "sub"}
 DEF_PRE = {"public", "private", "static", "declare", "overload"}
@@ -163,6 +163,7 @@ def scan(path, rel, mp, user, edits, uncovered, notes, defs=None):
     aliases = {a.lower(): m for m, a in imports.items()}
     for m, a in MOD_ALIAS.items(): aliases.setdefault(a, m)
     cur_member_family = None          # inside the body of a family member's definition
+    cur_ns = None                     # inside a NAMESPACE block
     cur_def = None
     for k, t in enumerate(toks):
         if t.kind == "comment":
@@ -180,6 +181,14 @@ def scan(path, rel, mp, user, edits, uncovered, notes, defs=None):
             continue
         if t.kind != "ident": continue
         w, lw = t.text, t.text.lower()
+        # an open NAMESPACE block (after I2 the family members are plain names inside one)
+        if lw == "namespace":
+            jn = prev_code(toks, k)
+            if jn >= 0 and toks[jn].kind == "ident" and toks[jn].text.lower() == "end":
+                cur_ns = None
+            elif k + 1 < len(toks) and toks[k + 1].kind == "ident":
+                cur_ns = toks[k + 1].text
+            continue
         # the end of a definition's body
         if lw == "end" and k + 1 < len(toks) and toks[k + 1].kind == "ident" and toks[k + 1].text.lower() in DEF_KW:
             if cur_def is not None:
@@ -275,9 +284,10 @@ def scan(path, rel, mp, user, edits, uncovered, notes, defs=None):
                 note = "an ALIAS MACRO over a dropped name: drop the alias too, or retarget it"
             if act == "member" and not user and r["module"] != mod:
                 note = "cross-module reference to a family member"
-            if cur_member_family and act in ("rename", "overload") and r["new"].lower() in mp.fam_members.get(cur_member_family, ()):
+            fam_here = cur_member_family or cur_ns
+            if fam_here and act in ("rename", "overload") and r["new"].lower() in mp.fam_members.get(fam_here, ()):
                 edits.append(Edit(rel, t.line, t.col, "code", "conflict", w, r["new"],
-                                  "inside namespace %s the new name is a member too: qualify it" % cur_member_family, t.pos, len(w)))
+                                  "inside namespace %s the new name is a member too: qualify it" % fam_here, t.pos, len(w)))
                 continue
             edits.append(Edit(rel, t.line, t.col, "code", act, w, new, note, t.pos, len(w)))
     return src

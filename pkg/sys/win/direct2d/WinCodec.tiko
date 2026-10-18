@@ -10,23 +10,23 @@
 
 #ifndef __tk_IUnknown_INTERFACE_DEFINED__
 #define __tk_IUnknown_INTERFACE_DEFINED__
-PUBLIC TYPE tk_IUnknown AS tk_IUnknown_
-PUBLIC TYPE tk_IUnknown_ EXTENDS OBJECT
+PUBLIC TYPE ComUnknown AS ComUnknown_
+PUBLIC TYPE ComUnknown_ EXTENDS OBJECT
 	DECLARE ABSTRACT FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
 	DECLARE ABSTRACT FUNCTION AddRef () AS ULONG
 	DECLARE ABSTRACT FUNCTION Release () AS ULONG
 END TYPE
-PUBLIC TYPE tk_LPUNKNOWN AS tk_IUnknown PTR
+PUBLIC TYPE LPCOMUNKNOWN AS ComUnknown PTR
 #endif
 
 #ifndef __tk_IStream_INTERFACE_DEFINED__
 #define __tk_IStream_INTERFACE_DEFINED__
-PUBLIC TYPE tk_IStream EXTENDS tk_IUnknown
+PUBLIC TYPE ComStream EXTENDS ComUnknown
 	DECLARE ABSTRACT FUNCTION Read (BYVAL pv AS ANY PTR, BYVAL cb AS ULONG, BYVAL pcbRead AS ULONG PTR) AS HRESULT
 	DECLARE ABSTRACT FUNCTION Write (BYVAL pv AS CONST ANY PTR, BYVAL cb AS ULONG, BYVAL pcbWritten AS ULONG PTR) AS HRESULT
 	DECLARE ABSTRACT FUNCTION Seek (BYVAL dlibMove AS LARGE_INTEGER, BYVAL dwOrigin AS DWORD, BYVAL plibNewPosition AS ULARGE_INTEGER PTR) AS HRESULT
 	DECLARE ABSTRACT FUNCTION SetSize (BYVAL libNewSize as ULARGE_INTEGER) AS HRESULT
-	DECLARE ABSTRACT FUNCTION CopyTo (BYVAL pstm AS tk_IStream PTR, BYVAL cb AS ULARGE_INTEGER, BYVAL pcbRead AS ULARGE_INTEGER PTR, BYVAL pcbWritten AS ULARGE_INTEGER PTR) AS HRESULT
+	DECLARE ABSTRACT FUNCTION CopyTo (BYVAL pstm AS ComStream PTR, BYVAL cb AS ULARGE_INTEGER, BYVAL pcbRead AS ULARGE_INTEGER PTR, BYVAL pcbWritten AS ULARGE_INTEGER PTR) AS HRESULT
 	DECLARE ABSTRACT FUNCTION Commit (BYVAL grfCommitFlags AS DWORD) AS HRESULT
 	DECLARE ABSTRACT FUNCTION Revert () AS HRESULT
 	DECLARE ABSTRACT FUNCTION LockRegion (BYVAL libOffset AS ULARGE_INTEGER, BYVAL cb AS ULARGE_INTEGER, BYVAL dwLockType AS DWORD) AS HRESULT
@@ -34,7 +34,7 @@ PUBLIC TYPE tk_IStream EXTENDS tk_IUnknown
 	DECLARE ABSTRACT FUNCTION Stat (BYVAL pstatstg AS STATSTG PTR, BYVAL grfStatFlag AS DWORD) AS HRESULT
 	DECLARE ABSTRACT FUNCTION Clone (BYREF ppstm AS IStream PTR) AS HRESULT
 END TYPE
-PUBLIC TYPE FBX_LPSTREAM AS tk_IStream PTR
+PUBLIC TYPE LPCOMSTREAM AS ComStream PTR
 #endif
 
 ' // WIC GUIDs and CLSIDs
@@ -247,7 +247,6 @@ PUBLIC CONST WIC_JPEG_HUFFMAN_BASELINE_ONE = 0
 PUBLIC CONST WIC_JPEG_HUFFMAN_BASELINE_THREE = &h111100
 
 PUBLIC DIM SHARED IID_WICPixelFormatDontCare AS GUID = TYPE<GUID>(&h6fddc324, &h4e03, &h4bfe, {&hb1, &h85, &h3d, &h77, &h76, &h8d, &hc9, &h00})
-' [pkg/sys] #define IID_WICPixelFormatUndefined moved to direct2d.ti
 PUBLIC DIM SHARED IID_WICPixelFormat1bppIndexed AS GUID = TYPE<GUID>(&h6fddc324, &h4e03, &h4bfe, {&hb1, &h85, &h3d, &h77, &h76, &h8d, &hc9, &h01})
 PUBLIC DIM SHARED IID_WICPixelFormat2bppIndexed AS GUID = TYPE<GUID>(&h6fddc324, &h4e03, &h4bfe, {&hb1, &h85, &h3d, &h77, &h76, &h8d, &hc9, &h02})
 PUBLIC DIM SHARED IID_WICPixelFormat4bppIndexed AS GUID = TYPE<GUID>(&h6fddc324, &h4e03, &h4bfe, {&hb1, &h85, &h3d, &h77, &h76, &h8d, &hc9, &h03})
@@ -812,7 +811,7 @@ PUBLIC DIM SHARED IID_IWICPalette AS GUID = TYPE<GUID>(&h00000040, &hA8F2, &h487
 #ifndef __IWICPalette_INTERFACE_DEFINED__
 #define __IWICPalette_INTERFACE_DEFINED__
 
-PUBLIC TYPE IWICPalette_ EXTENDS tk_IUnknown
+PUBLIC TYPE IWICPalette_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION InitializePredefined (BYVAL ePaletteType AS WICBitmapPaletteType, BYVAL fAddTransparentColor AS BOOLEAN) AS HRESULT
    DECLARE ABSTRACT FUNCTION InitializeCustom (BYREF colors AS WICColor, BYVAL cCount AS UINT) AS HRESULT
    DECLARE ABSTRACT FUNCTION InitializeFromBitmap (BYVAL pISurface AS IWICBitmapSource PTR, BYVAL cCount AS UINT, BYVAL fAddTransparentColor AS BOOLEAN) AS HRESULT
@@ -840,7 +839,7 @@ PUBLIC DIM SHARED IID_IWICBitmapSource AS GUID = (&h00000120, &hA8F2, &h4877, {&
 #ifndef __IWICBitmapSource_INTERFACE_DEFINED__
 #define __IWICBitmapSource_INTERFACE_DEFINED__
 
-PUBLIC TYPE IWICBitmapSource_ EXTENDS tk_IUnknown
+PUBLIC TYPE IWICBitmapSource_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION GetSize (BYREF uiWidth AS UINT, BYREF uiHeight AS UINT) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetPixelFormat (BYREF PixelFormat AS WICPixelFormatGUID) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetResolution (BYREF DpiX AS DOUBLE, BYREF DpiY AS DOUBLE) AS HRESULT
@@ -966,7 +965,7 @@ PUBLIC DIM SHARED IID_IWICBitmapLock AS GUID = (&h00000123, &hA8F2, &h4877, {&hB
 #ifndef __IWICBitmapLock_INTERFACE_DEFINED__
 #define __IWICBitmapLock_INTERFACE_DEFINED__
 
-PUBLIC TYPE IWICBitmapLock_ EXTENDS tk_IUnknown
+PUBLIC TYPE IWICBitmapLock_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION GetSize (BYREF uiWidth AS UINT, BYREF uiHeight AS UINT) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetStride (BYREF cbStride AS UINT) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetDataPointer (BYREF cbBufferSize AS UINT, BYREF pbData AS WICInProcPointer) AS HRESULT
@@ -1011,7 +1010,7 @@ PUBLIC DIM SHARED IID_IWICColorContext AS GUID = (&h3C613A02, &h34B2, &h44EA, {&
 #ifndef __IWICColorContext_INTERFACE_DEFINED__
 #define __IWICColorContext_INTERFACE_DEFINED__
 
-PUBLIC TYPE IWICColorContext_ EXTENDS tk_IUnknown
+PUBLIC TYPE IWICColorContext_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION InitializeFromFilename (BYREF wszFilename AS WSTRING) AS HRESULT
    DECLARE ABSTRACT FUNCTION InitializeFromMemory (BYVAL pbBuffer AS BYTE PTR, BYVAL cbBufferSize AS UINT) AS HRESULT
    DECLARE ABSTRACT FUNCTION InitializeFromExifColorSpace (BYVAL value AS UINT) AS HRESULT
@@ -1055,7 +1054,7 @@ PUBLIC DIM SHARED IID_IWICFastMetadataEncoder AS GUID = (&hB84E2C09, &h78C9, &h4
 #ifndef __IWICFastMetadataEncoder_INTERFACE_DEFINED__
 #define __IWICFastMetadataEncoder_INTERFACE_DEFINED__
 
-PUBLIC TYPE IWICFastMetadataEncoder_ EXTENDS tk_IUnknown
+PUBLIC TYPE IWICFastMetadataEncoder_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Commit () AS HRESULT
    DECLARE ABSTRACT FUNCTION GetMetadataQueryWriter (BYREF ppIMetadataQueryWriter AS IWICMetadataQueryWriter PTR) AS HRESULT
 END TYPE
@@ -1075,7 +1074,7 @@ PUBLIC DIM SHARED IID_IWICStream AS GUID = (&h135FF860, &h22B7, &h4DDF, {&hB0, &
 #ifndef __Afx_IWICStream_INTERFACE_DEFINED__
 #define __Afx_IWICStream_INTERFACE_DEFINED__
 
-PUBLIC TYPE IWICStream_ EXTENDS tk_IStream
+PUBLIC TYPE IWICStream_ EXTENDS ComStream
    DECLARE ABSTRACT FUNCTION InitializeFromIStream (BYVAL pIStream AS IStream PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION InitializeFromFilename (BYREF wzFilename AS WSTRING, BYVAL dwDesiredAccess AS DWORD) AS HRESULT
    DECLARE ABSTRACT FUNCTION InitializeFromMemory (BYVAL pbBuffer AS WICInProcPointer, BYVAL cbBufferSize AS DWORD) AS HRESULT
@@ -1098,7 +1097,7 @@ PUBLIC DIM SHARED IID_IWICEnumMetadataItem AS GUID = (&hDC2BB46D, &h3F07, &h481E
 #ifndef __IWICEnumMetadataItem_INTERFACE_DEFINED__
 #define __IWICEnumMetadataItem_INTERFACE_DEFINED__
 
-PUBLIC TYPE IWICEnumMetadataItem_ EXTENDS tk_IUnknown
+PUBLIC TYPE IWICEnumMetadataItem_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Next_ (BYVAL ULONG AS LONG, BYREF rgeltSchema AS PROPVARIANT, BYREF rgeltId AS PROPVARIANT, BYREF rgeltValue AS PROPVARIANT, BYREF celtFetched AS ULONG) AS HRESULT
    DECLARE ABSTRACT FUNCTION Skip (BYVAL celt AS ULONG) AS HRESULT
    DECLARE ABSTRACT FUNCTION Reset () AS HRESULT
@@ -1120,7 +1119,7 @@ PUBLIC DIM SHARED IID_IWICMetadataQueryReader AS GUID = (&h30989668, &hE1C9, &h4
 #ifndef __IWICMetadataQueryReader_INTERFACE_DEFINED__
 #define __IWICMetadataQueryReader_INTERFACE_DEFINED__
 
-PUBLIC TYPE IWICMetadataQueryReader_ EXTENDS tk_IUnknown
+PUBLIC TYPE IWICMetadataQueryReader_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION GetContainerFormat (BYREF guidContainerFormat AS GUID) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetLocation (BYVAL cchMaxLength AS UINT, BYVAL wzNamespace AS WSTRING PTR, BYVAL cchActualLength AS UINT) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetMetadataByName (BYVAL wzName AS LPCWSTR, BYREF pvarValue AS PROPVARIANT) AS HRESULT
@@ -1162,7 +1161,7 @@ PUBLIC DIM SHARED IID_IWICBitmapEncoder AS GUID = (&h00000103, &hA8F2, &h4877, {
 #ifndef __IWICBitmapEncoder_INTERFACE_DEFINED__
 #define __IWICBitmapEncoder_INTERFACE_DEFINED__
 
-PUBLIC TYPE IWICBitmapEncoder_ EXTENDS tk_IUnknown
+PUBLIC TYPE IWICBitmapEncoder_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Initialize (BYVAL pIStream AS IStream PTR, BYVAL cacheOption AS WICBitmapEncoderCacheOption) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetContainerFormat (BYREF guidContainerFormat AS GUID) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetEncoderInfo (BYREF ppIEncoderInfo AS IWICBitmapEncoderInfo PTR) AS HRESULT
@@ -1190,7 +1189,7 @@ PUBLIC DIM SHARED IID_IWICBitmapFrameEncode AS GUID = (&h00000105, &hA8F2, &h487
 #ifndef __IWICBitmapFrameEncode_INTERFACE_DEFINED__
 #define __IWICBitmapFrameEncode_INTERFACE_DEFINED__
 
-PUBLIC TYPE IWICBitmapFrameEncode_ EXTENDS tk_IUnknown
+PUBLIC TYPE IWICBitmapFrameEncode_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Initialize (BYVAL pIEncoderOptions AS IPropertyBag2 PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION SetSize (BYVAL uiWidth AS UINT, BYVAL uiHeight AS UINT) AS HRESULT
    DECLARE ABSTRACT FUNCTION SetResolution (BYVAL dpiX AS DOUBLE, BYVAL dpiY AS DOUBLE) AS HRESULT
@@ -1219,7 +1218,7 @@ PUBLIC DIM SHARED IID_IWICPlanarBitmapFrameEncode AS GUID = (&hF928B7B8, &h2221,
 #ifndef __IWICPlanarBitmapFrameEncode_INTERFACE_DEFINED__
 #define __IWICPlanarBitmapFrameEncode_INTERFACE_DEFINED__
 
-PUBLIC TYPE IWICPlanarBitmapFrameEncode_ EXTENDS tk_IUnknown
+PUBLIC TYPE IWICPlanarBitmapFrameEncode_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION WritePixels (BYVAL lineCount AS LONG, BYVAL pPlanes AS WICBitmapPlane PTR, BYVAL cPlanes AS UINT) AS HRESULT
    DECLARE ABSTRACT FUNCTION WriteSource (BYREF ppPlanes AS IWICBitmapSource PTR, BYVAL cPlanes AS UINT, BYREF rcSource AS WICRect) AS HRESULT
 END TYPE
@@ -1239,7 +1238,7 @@ PUBLIC DIM SHARED IID_IWICImageEncoder AS GUID = (&h04C75BF8, &h3CE1, &h473B, {&
 #ifndef __IWICImageEncoder_INTERFACE_DEFINED__
 #define __IWICImageEncoder_INTERFACE_DEFINED__
 
-PUBLIC TYPE Afx_IWICImageEncoder_ EXTENDS tk_IUnknown
+PUBLIC TYPE Afx_IWICImageEncoder_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION WriteFrame (BYVAL pImage AS ID2D1Image PTR, BYVAL pFrameEncode AS IWICBitmapFrameEncode PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION WriteFrameThumbnail (BYVAL pImage AS ID2D1Image PTR, BYVAL pFrameEncode AS IWICBitmapFrameEncode PTR, BYVAL pImageParameters AS WICImageParameters PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION WriteThumbnail (BYVAL pImage AS ID2D1Image PTR, BYVAL pEncoder AS IWICBitmapEncoder PTR, BYVAL pImageParameters AS WICImageParameters PTR) AS HRESULT
@@ -1260,7 +1259,7 @@ PUBLIC DIM SHARED IID_IWICBitmapDecoder AS GUID = (&h9EDDE9E7, &h8DEE, &h47EA, {
 #ifndef __IWICBitmapDecoder_INTERFACE_DEFINED__
 #define __IWICBitmapDecoder_INTERFACE_DEFINED__
 
-PUBLIC TYPE IWICBitmapDecoder_ EXTENDS tk_IUnknown
+PUBLIC TYPE IWICBitmapDecoder_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION QueryCapability (BYVAL pIStream AS IStream PTR, BYREF dwCapability AS DWORD) AS HRESULT
    DECLARE ABSTRACT FUNCTION Initialize (BYVAL pIStream AS IStream PTR, BYVAL cacheOptions AS WICDecodeOptions) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetContainerFormat (BYREF guidContainerFormat AS GUID) AS HRESULT
@@ -1289,7 +1288,7 @@ PUBLIC DIM SHARED IID_IWICBitmapSourceTransform AS GUID = (&h3B16811B, &h6A43, &
 #ifndef __IWICBitmapSourceTransform_INTERFACE_DEFINED__
 #define __IWICBitmapSourceTransform_INTERFACE_DEFINED__
 
-PUBLIC TYPE IWICBitmapSourceTransform_ EXTENDS tk_IUnknown
+PUBLIC TYPE IWICBitmapSourceTransform_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION CopyPixels (BYREF rc AS WICRect, BYVAL uiWidth AS UINT, BYVAL uiHeight AS UINT, _
       BYREF guidDstFormat AS WICPixelFormatGUID, BYVAL dstTransform AS WICBitmapTransformOptions, _
       BYVAL nStride AS UINT, BYVAL cbBufferSize AS UINT, BYVAL pbBuffer AS LONG) AS HRESULT
@@ -1333,7 +1332,7 @@ PUBLIC DIM SHARED IID_IWICPlanarBitmapSourceTransform AS GUID = (&h3AFF9CCE, &hB
 #ifndef __IWICPlanarBitmapSourceTransform_INTERFACE_DEFINED__
 #define __IWICPlanarBitmapSourceTransform_INTERFACE_DEFINED__
 
-PUBLIC TYPE IWICPlanarBitmapSourceTransform_ EXTENDS tk_IUnknown
+PUBLIC TYPE IWICPlanarBitmapSourceTransform_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION DoesSupportTransform (BYREF uiWidth AS UINT, BYREF uiHeight AS UINT, _
       BYVAL dstTransform AS WICBitmapTransformOptions, BYVAL dstPlanarOptions AS WICPlanarOptions, _
       BYVAL guidDstFormats AS const WICPixelFormatGUID, BYVAL pPlaneDescriptions AS WICBitmapPlaneDescription PTR, _
@@ -1379,7 +1378,7 @@ PUBLIC DIM SHARED IID_IWICProgressiveLevelControl AS GUID = (&hDAAC296F, &h7AA5,
 #ifndef __IWICProgressiveLevelControl_INTERFACE_DEFINED__
 #define __IWICProgressiveLevelControl_INTERFACE_DEFINED__
 
-PUBLIC TYPE IWICProgressiveLevelControl_ EXTENDS tk_IUnknown
+PUBLIC TYPE IWICProgressiveLevelControl_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION GetLevelCount (BYREF cLevels AS UINT) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetCurrentLevel (BYREF nLevel AS UINT) AS HRESULT
    DECLARE ABSTRACT FUNCTION SetCurrentLevel (BYVAL nLevel AS UINT) AS HRESULT
@@ -1400,7 +1399,7 @@ PUBLIC DIM SHARED IID_IWICDisplayAdaptationControl AS GUID = (&hDE9D91D2, &h70B4
 #ifndef __IWICDisplayAdaptationControl_INTERFACE_DEFINED__
 #define __IWICDisplayAdaptationControl_INTERFACE_DEFINED__
 
-PUBLIC TYPE Afx_IWICDisplayAdaptationControl_ EXTENDS tk_IUnknown
+PUBLIC TYPE Afx_IWICDisplayAdaptationControl_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION DoesSupportChangingMaxLuminance (BYREF guidDstFormat AS WICPixelFormatGUID, BYREF fIsSupported AS BOOLEAN) AS HRESULT
    DECLARE ABSTRACT FUNCTION SetDisplayMaxLuminance (BYVAL fLuminanceInNits AS FLOAT) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetDisplayMaxLuminance (BYREF fLuminanceInNits AS FLOAT) AS HRESULT
@@ -1421,7 +1420,7 @@ PUBLIC DIM SHARED IID_IWICProgressCallback AS GUID = (&h4776F9CD, &h9517, &h45FA
 #ifndef __IWICProgressCallback_INTERFACE_DEFINED__
 #define __IWICProgressCallback_INTERFACE_DEFINED__
 
-PUBLIC TYPE IWICProgressCallback_ EXTENDS tk_IUnknown
+PUBLIC TYPE IWICProgressCallback_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Notify (BYVAL uFrameNum AS ULONG, BYVAL operation AS WICProgressOperation, BYVAL dblProgress AS DOUBLE) AS HRESULT
 END TYPE
 
@@ -1442,7 +1441,7 @@ PUBLIC DIM SHARED IID_IWICBitmapCodecProgressNotification AS GUID = (&h64C1024E,
 
 PUBLIC DECLARE FUNCTION PFNProgressNotification (BYVAL pvData AS LPVOID, BYVAL uFrameNum AS ULONG, BYVAL operation AS WICProgressOperation, BYVAL dblProgress AS DOUBLE) AS HRESULT
 
-PUBLIC TYPE IWICBitmapCodecProgressNotification_ EXTENDS tk_IUnknown
+PUBLIC TYPE IWICBitmapCodecProgressNotification_ EXTENDS ComUnknown
 '   DECLARE ABSTRACT FUNCTION RegisterProgressNotification (BYVAL pfnProgressNotification AS PFNProgressNotification, _
 '      BYVAL pvData AS LPVOID, BYVAL dwProgressFlags AS DWORD) AS HRESULT
    DECLARE ABSTRACT FUNCTION RegisterProgressNotification (BYVAL pfnProgressNotification AS ANY PTR, _
@@ -1465,7 +1464,7 @@ PUBLIC DIM SHARED IID_IWICComponentInfo AS GUID = (&h23BC3F0A, &h698B, &h4357, {
 #ifndef __IWICComponentInfo_INTERFACE_DEFINED__
 #define __IWICComponentInfo_INTERFACE_DEFINED__
 
-PUBLIC TYPE IWICComponentInfo_ EXTENDS tk_IUnknown
+PUBLIC TYPE IWICComponentInfo_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION GetComponentType (BYVAL pType AS WICComponentType PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetCLSID (BYREF clsid AS CLSID) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetSigningStatus (BYREF Status AS DWORD) AS HRESULT
@@ -1630,7 +1629,7 @@ PUBLIC DIM SHARED IID_IWICImagingFactory AS GUID = (&hEC5EC8A9, &hC395, &h4314, 
 #ifndef __Afx_IWICImagingFactory_INTERFACE_DEFINED__
 #define __Afx_IWICImagingFactory_INTERFACE_DEFINED__
 
-PUBLIC TYPE IWICImagingFactory_ EXTENDS tk_IUnknown
+PUBLIC TYPE IWICImagingFactory_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION CreateDecoderFromFilename (BYREF wszFilename AS WSTRING, BYREF guidVendor AS const GUID, _
       BYVAL dwDesiredAccess AS DWORD, BYVAL metadataOptions AS WICDecodeOptions, BYREF ppIDecoder AS IWICBitmapDecoder PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION CreateDecoderFromStream (BYVAL pIStream AS IStream PTR, BYREF guidVendor AS GUID, _
@@ -1738,10 +1737,6 @@ PUBLIC DECLARE FUNCTION WICMapSchemaToName LIB "d2d1" ALIAS "WICMapSchemaToName"
    BYREF wszSchema AS WSTRING, BYVAL cchName AS UINT, BYREF wszName AS WSTRING, BYREF cchActual AS UINT) AS HRESULT
 ' ========================================================================================
 
-' [pkg/fbx] #define FACILITY_WINCODEC_ERR moved to direct2d.ti
-' [pkg/fbx] #define WINCODEC_ERR_BASE moved to direct2d.ti
-' [pkg/fbx] #define MAKE_WINCODECHR moved to direct2d.ti
-' [pkg/fbx] #define MAKE_WINCODECHR_ERR moved to direct2d.ti
 
 PUBLIC CONST WINCODEC_ERR_GENERIC_ERROR    = E_FAIL
 PUBLIC CONST WINCODEC_ERR_INVALIDPARAMETER = E_INVALIDARG
@@ -1901,7 +1896,7 @@ PUBLIC DIM SHARED IID_IWICDevelopRawNotificationCallback AS GUID = (&h95C75A6E, 
 #ifndef __IWICDevelopRawNotificationCallback_INTERFACE_DEFINED__
 #define __IWICDevelopRawNotificationCallback_INTERFACE_DEFINED__
 
-PUBLIC TYPE IWICDevelopRawNotificationCallback_ EXTENDS tk_IUnknown
+PUBLIC TYPE IWICDevelopRawNotificationCallback_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION Notify (BYVAL NotificationMask AS UINT) AS HRESULT
 END TYPE
 
@@ -2004,7 +1999,7 @@ PUBLIC DIM SHARED IID_IWICDdsDecoder AS GUID = (&h409CD537, &h8532, &h40CB, {&h9
 #ifndef __IWICDdsDecoder_INTERFACE_DEFINED__
 #define __IWICDdsDecoder_INTERFACE_DEFINED__
 
-PUBLIC TYPE IWICDdsDecoder_ EXTENDS tk_IUnknown
+PUBLIC TYPE IWICDdsDecoder_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION GetParameters (BYREF pParameters AS WICDdsParameters) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetFrame (BYVAL arrayIndex AS UINT, BYVAL mipLevel AS UINT, _
       BYVAL sliceIndex AS UINT, BYREF ppIBitmapFrame AS IWICBitmapFrameDecode PTR) AS HRESULT
@@ -2025,7 +2020,7 @@ PUBLIC DIM SHARED IID_IWICDdsEncoder AS GUID = (&h5CACDB4C, &h407E, &h41B3, {&hB
 #ifndef __Afx_IWICDdsEncoder_INTERFACE_DEFINED__
 #define __Afx_IWICDdsEncoder_INTERFACE_DEFINED__
 
-PUBLIC TYPE Afx_IWICDdsEncoder_ EXTENDS tk_IUnknown
+PUBLIC TYPE Afx_IWICDdsEncoder_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION SetParameters (BYREF parameters AS WICDdsParameters) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetParameters (BYREF parameters AS WICDdsParameters) AS HRESULT
    DECLARE ABSTRACT FUNCTION CreateNewFrame (BYREF ppIFrameEncode AS IWICBitmapFrameEncode PTR, _
@@ -2057,7 +2052,7 @@ PUBLIC DIM SHARED IID_IWICDdsFrameDecode AS GUID = (&h3D4C0C61, &h18A4, &h41E4, 
 #ifndef __IWICDdsFrameDecode_INTERFACE_DEFINED__
 #define __IWICDdsFrameDecode_INTERFACE_DEFINED__
 
-PUBLIC TYPE IWICDdsFrameDecode_ EXTENDS tk_IUnknown
+PUBLIC TYPE IWICDdsFrameDecode_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION GetSizeInBlocks (BYREF widthInBlocks AS UINT, BYREF heightInBlocks AS UINT) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetFormatInfo (BYREF formatInfo AS WICDdsFormatInfo) AS HRESULT
    DECLARE ABSTRACT FUNCTION CopyBlocks (BYREF rcBoundsInBlocks AS WICRect, BYVAL cbStride AS UINT, _
@@ -2079,7 +2074,7 @@ PUBLIC DIM SHARED IID_IWICJpegFrameDecode AS GUID = (&h8939F66E, &hC46A, &h4C21,
 #ifndef __IWICJpegFrameDecode_INTERFACE_DEFINED__
 #define __IWICJpegFrameDecode_INTERFACE_DEFINED__
 
-PUBLIC TYPE IWICJpegFrameDecode_ EXTENDS tk_IUnknown
+PUBLIC TYPE IWICJpegFrameDecode_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION DoesSupportIndexing (BYREF fIndexingSupported AS BOOLEAN) AS HRESULT
    DECLARE ABSTRACT FUNCTION SetIndexing (BYVAL options AS WICJpegIndexingOptions, BYVAL horizontalIntervalSize AS UINT) AS HRESULT
    DECLARE ABSTRACT FUNCTION ClearIndexing () AS HRESULT
@@ -2110,7 +2105,7 @@ PUBLIC DIM SHARED IID_IWICJpegFrameEncode AS GUID = (&h2F0C601F, &hD2C6, &h468C,
 #ifndef __IWICJpegFrameEncode_INTERFACE_DEFINED__
 #define __IWICJpegFrameEncode_INTERFACE_DEFINED__
 
-PUBLIC TYPE IWICJpegFrameEncode_ EXTENDS tk_IUnknown
+PUBLIC TYPE IWICJpegFrameEncode_ EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION GetAcHuffmanTable (BYVAL scanIndex AS UINT, BYVAL tableIndex AS UINT, BYREF AcHuffmanTable AS DXGI_JPEG_AC_HUFFMAN_TABLE) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetDcHuffmanTable (BYVAL scanIndex AS UINT, BYVAL tableIndex AS UINT, BYREF DcHuffmanTable AS DXGI_JPEG_DC_HUFFMAN_TABLE) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetQuantizationTable (BYVAL scanIndex AS UINT, BYVAL tableIndex AS UINT, BYREF QuantizationTable AS DXGI_JPEG_QUANTIZATION_TABLE) AS HRESULT

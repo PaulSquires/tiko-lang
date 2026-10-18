@@ -1237,7 +1237,7 @@ END SUB
 ' ========================================================================================
 SUB CXpButton.SetImageFromFile (BYREF wszPath AS WSTRING, BYVAL ImageState AS LONG = XPBI_NORMAL, BYVAL fRedraw AS LONG = FALSE, _
 BYVAL dimPercent AS LONG = 0, BYVAL bGrayScale AS LONG = FALSE)
-   DIM hIcon AS HICON = tkGdipIconFromFile(wszPath, dimPercent, bGrayScale)
+   DIM hIcon AS HICON = IconFromFile(wszPath, dimPercent, bGrayScale)
    this.SetIcon(hIcon, ImageState, fRedraw)
 END SUB
 ' ========================================================================================
@@ -1262,7 +1262,7 @@ END SUB
 ' ========================================================================================
 SUB CXpButton.SetImageFromRes (BYVAL hInstance AS HINSTANCE, BYREF wszImageName AS WSTRING, BYVAL ImageState AS LONG = XPBI_NORMAL, BYVAL fRedraw AS LONG = FALSE, _
 BYVAL dimPercent AS LONG = 0, BYVAL bGrayScale AS LONG = FALSE)
-   DIM hIcon AS HICON = tkGdipIconFromRes(hInstance, wszImageName, dimPercent, bGrayScale)
+   DIM hIcon AS HICON = IconFromRes(hInstance, wszImageName, dimPercent, bGrayScale)
    this.SetIcon(hIcon, ImageState, fRedraw)
 END SUB
 ' ========================================================================================
@@ -1724,7 +1724,7 @@ END SUB
 ' Returns a pointer to the class given the handle of its associated window handle.
 ' hCtl = Handle of the button control.
 ' ========================================================================================
-PUBLIC FUNCTION AfxCXpButtonPtr OVERLOAD (BYVAL hCtl AS HWND) AS CXpButton PTR
+PUBLIC FUNCTION CXpButtonPtr OVERLOAD (BYVAL hCtl AS HWND) AS CXpButton PTR
    FUNCTION = CAST(CXpButton PTR, GetWindowLongPtrW(hCtl, 0))
 END FUNCTION
 ' ========================================================================================
@@ -1734,7 +1734,7 @@ END FUNCTION
 ' hParent = Handle of the parent window of the image control.
 ' cID = Identifier of the button control.
 ' ========================================================================================
-PUBLIC FUNCTION AfxCXpButtonPtr OVERLOAD (BYVAL hParent AS HWND, BYVAL cID AS LONG) AS CXpButton PTR
+PUBLIC FUNCTION CXpButtonPtr OVERLOAD (BYVAL hParent AS HWND, BYVAL cID AS LONG) AS CXpButton PTR
    FUNCTION = CAST(CXpButton PTR, GetWindowLongPtrW(GetDlgItem(hParent, cID), 0))
 END FUNCTION
 ' ========================================================================================

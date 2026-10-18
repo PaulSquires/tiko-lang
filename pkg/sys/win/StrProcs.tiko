@@ -31,7 +31,7 @@
 ' ========================================================================================
 ' * Returns an uppercased version of a string.
 ' ========================================================================================
-PUBLIC FUNCTION tkUcase (BYVAL pwszStr AS WSTRING PTR, _
+PUBLIC FUNCTION UpperCase (BYVAL pwszStr AS WSTRING PTR, _
    BYVAL pwszLocaleName AS WSTRING PTR = LOCALE_NAME_USER_DEFAULT, _
    BYVAL dwMapFlags AS DWORD = 0) AS USTRING
 
@@ -65,7 +65,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Returns a lowercased version of a string.
 ' ========================================================================================
-PUBLIC FUNCTION tkLcase (BYVAL pwszStr AS WSTRING PTR, _
+PUBLIC FUNCTION LowerCase (BYVAL pwszStr AS WSTRING PTR, _
    BYVAL pwszLocaleName AS WSTRING PTR = LOCALE_NAME_USER_DEFAULT, _
    BYVAL dwMapFlags AS DWORD = 0) AS USTRING
 
@@ -99,7 +99,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Translates ansi bytes to Unicode chars.
 ' ========================================================================================
-PUBLIC FUNCTION tkUcode (BYREF ansiStr AS CONST STRING, BYVAL nCodePage AS LONG = 0) AS USTRING
+PUBLIC FUNCTION Ucode (BYREF ansiStr AS CONST STRING, BYVAL nCodePage AS LONG = 0) AS USTRING
 
    IF nCodePage = CP_UTF8 THEN
       DIM dwLen AS DWORD = MultiByteToWideChar(CP_UTF8, 0, STRPTR(ansiStr), LEN(ansiStr), NULL, 0)
@@ -121,7 +121,7 @@ END FUNCTION
 ' ========================================================================================
 ' * Translates Unicode chars to ansi bytes.
 ' ========================================================================================
-PUBLIC FUNCTION tkAcode (BYVAL pwszStr AS WSTRING PTR, BYVAL nCodePage AS LONG = 0) AS STRING
+PUBLIC FUNCTION Acode (BYVAL pwszStr AS WSTRING PTR, BYVAL nCodePage AS LONG = 0) AS STRING
 
    IF pwszStr = NULL THEN EXIT FUNCTION
    IF nCodePage = CP_UTF8 THEN
@@ -144,32 +144,32 @@ END FUNCTION
 ' ========================================================================================
 ' Converts Unicode to utf8.
 ' ========================================================================================
-PUBLIC FUNCTION tkWideToUtf8 (BYVAL pwszStr AS WSTRING PTR) AS STRING
-   RETURN tkAcode(pwszStr, CP_UTF8)
+PUBLIC FUNCTION WideToUtf8 (BYVAL pwszStr AS WSTRING PTR) AS STRING
+   RETURN Acode(pwszStr, CP_UTF8)
 END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
 ' * Converts utf8 to Unicode.
 ' ========================================================================================
-PUBLIC FUNCTION tkUtf8ToWide (BYREF utf8Str AS CONST STRING) AS USTRING
-   RETURN tkUcode(utf8Str, CP_UTF8)
+PUBLIC FUNCTION Utf8ToWide (BYREF utf8Str AS CONST STRING) AS USTRING
+   RETURN Ucode(utf8Str, CP_UTF8)
 END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
 ' * Transltes Unicode to OEM byte characters.
 ' ========================================================================================
-PUBLIC FUNCTION tkWideToOem (BYVAL pwszStr AS WSTRING PTR) AS STRING
-   RETURN tkAcode(pwszStr, CP_OEMCP)
+PUBLIC FUNCTION WideToOem (BYVAL pwszStr AS WSTRING PTR) AS STRING
+   RETURN Acode(pwszStr, CP_OEMCP)
 END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
 ' * Traslates a byte string of OEM characters to Unicode.
 ' ========================================================================================
-PUBLIC FUNCTION tkOemToWide (BYREF oemStr AS CONST STRING) AS USTRING
-   RETURN tkUcode(oemStr, CP_OEMCP)
+PUBLIC FUNCTION OemToWide (BYREF oemStr AS CONST STRING) AS USTRING
+   RETURN Ucode(oemStr, CP_OEMCP)
 END FUNCTION
 ' ========================================================================================
 
@@ -177,7 +177,7 @@ END FUNCTION
 ' * Converts a numeric value into a string that represents the number expressed as a size
 ' value in bytes, kilobytes, megabytes, or gigabytes, depending on the size.
 ' ========================================================================================
-PUBLIC FUNCTION tkFormatByteSize (BYVAL ull AS LONGLONG) AS USTRING
+PUBLIC FUNCTION FormatByteSize (BYVAL ull AS LONGLONG) AS USTRING
    DIM wsz AS WSTRING *  260 = WSPACE(260)
    StrFormatByteSizeW(ull, @wsz, 260)
    RETURN wsz
@@ -188,7 +188,7 @@ END FUNCTION
 ' * Converts a numeric value into a string that represents the number expressed as a size
 ' value in kilobytes.
 ' ========================================================================================
-PUBLIC FUNCTION tkFormatKBSize (BYVAL ull AS LONGLONG) AS USTRING
+PUBLIC FUNCTION FormatKBSize (BYVAL ull AS LONGLONG) AS USTRING
    DIM wsz AS WSTRING * 260 = WSPACE(260)
    StrFormatKBSizeW(ull, @wsz, 260)
    RETURN wsz
@@ -210,7 +210,7 @@ END FUNCTION
 '                74000    2  1 min. 10 sec.
 '                74000    1  1 min.
 ' ========================================================================================
-PUBLIC FUNCTION tkStrFromTimeInterval (BYVAL dwTimeMS AS DWORD, BYVAL digits AS LONG) AS USTRING
+PUBLIC FUNCTION StrFromTimeInterval OVERLOAD (BYVAL dwTimeMS AS DWORD, BYVAL digits AS LONG) AS USTRING
    DIM ustr AS USTRING = WSPACE(260)
    StrFromTimeIntervalW(STRPTR(ustr), 260, dwTimeMS, digits)
    RETURN ustr
@@ -297,9 +297,9 @@ END FUNCTION
 ' When a match is found, the scan for the next match begins at the position immediately
 ' following the prior match.
 ' This function is case sensitive.
-' Example: tkStrReplace("Hello World", "World", "Earth")   ' -> "Hello Earth"
+' Example: StrReplace("Hello World", "World", "Earth")   ' -> "Hello Earth"
 ' ========================================================================================
-PUBLIC FUNCTION tkStrReplace OVERLOAD (BYREF wszMainStr AS CONST WSTRING, BYREF wszMatchStr AS CONST WSTRING, BYREF wszReplaceWith AS CONST WSTRING) AS USTRING
+PUBLIC FUNCTION StrReplace OVERLOAD (BYREF wszMainStr AS CONST WSTRING, BYREF wszMatchStr AS CONST WSTRING, BYREF wszReplaceWith AS CONST WSTRING) AS USTRING
    DIM ustrMainStr AS USTRING = wszMainStr
    DIM nLenReplaceWith AS LONG = LEN(wszReplaceWith)
    DIM nLenMatchStr AS LONG = LEN(wszMatchStr)
@@ -314,7 +314,7 @@ PUBLIC FUNCTION tkStrReplace OVERLOAD (BYREF wszMainStr AS CONST WSTRING, BYREF 
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-' * Case insensitive version of tkStrReplace.
+' * Case insensitive version of StrReplace.
 ' Example: AfxStrReplaceI("Hello world", "World", "Earth")   ' -> "Hello Earth"
 ' ========================================================================================
 'PUBLIC FUNCTION tkStrReplaceI (BYREF wszMainStr AS CONST WSTRING, BYREF wszMatchStr AS CONST WSTRING, BYREF wszReplaceWith AS CONST WSTRING) AS USTRING
@@ -337,9 +337,9 @@ END FUNCTION
 ' * Returns a copy of a string with substrings removed.
 ' If wszMatchStr is not present in wszMainStr, all of wszMainStr is returned intact.
 ' This function is case sensitive.
-' Example: tkStrRemove("Hello World. Welcome to the Freebasic World", "World")
+' Example: StrRemove("Hello World. Welcome to the Freebasic World", "World")
 ' ========================================================================================
-PUBLIC FUNCTION tkStrRemove (BYREF wszMainStr AS CONST WSTRING, BYREF wszMatchStr AS CONST WSTRING) AS USTRING
+PUBLIC FUNCTION StrRemove (BYREF wszMainStr AS CONST WSTRING, BYREF wszMatchStr AS CONST WSTRING) AS USTRING
    DIM ustrMainStr AS USTRING = wszMainStr
    DIM nLen AS LONG = LEN(wszMatchStr)
    DO
@@ -354,13 +354,13 @@ END FUNCTION
 ' ========================================================================================
 ' Returns the count of delimited fields from a string expression.
 ' If wszMainStr is empty (a null string) or contains no delimiter character(s), the string
-' is considered to contain exactly one sub-field. In this case, tkParseCount returns the value 1.
+' is considered to contain exactly one sub-field. In this case, ParseCount returns the value 1.
 ' Delimiter contains a string (one or more characters) that must be fully matched.
 ' Delimiters are case-sensitive.
-' Example: DIM nCount AS LONG = tkParseCount("one,two,three", ",")   ' Output: 3
-' Example: DIM nCount AS LONG = tkParseCount("1;2,3", ",;")          ' Output: 3
+' Example: DIM nCount AS LONG = ParseCount("one,two,three", ",")   ' Output: 3
+' Example: DIM nCount AS LONG = ParseCount("1;2,3", ",;")          ' Output: 3
 ' ========================================================================================
-PUBLIC FUNCTION tkParseCount (BYREF wszSourceString AS CONST WSTRING, BYREF wszDelimiter AS CONST WSTRING = ",") AS LONG
+PUBLIC FUNCTION ParseCount (BYREF wszSourceString AS CONST WSTRING, BYREF wszDelimiter AS CONST WSTRING = ",") AS LONG
    DIM nCount AS LONG = 1
    DIM nPos AS LONG = 1
    DO
@@ -379,11 +379,11 @@ END FUNCTION
 ' If nPosition evaluates to zero or is outside of the actual field count, an empty string is returned.
 ' If nPosition is negative then fields are searched from the right to left of the MainString.
 ' Delimiters are case-sensitive.
-' Example: DIM ustr AS USTRING = tkParseStr("one,two,three")           ' Output: one
-' Example: DIM ustr AS USTRING = tkParseStr("one;two,three", 1, ";")   ' Output: one
-' Example: DIM ustr AS USTRING = tkParseStr("1;2,3", 2, ",;")          ' Output: 2
+' Example: DIM ustr AS USTRING = ParseStr("one,two,three")           ' Output: one
+' Example: DIM ustr AS USTRING = ParseStr("one;two,three", 1, ";")   ' Output: one
+' Example: DIM ustr AS USTRING = ParseStr("1;2,3", 2, ",;")          ' Output: 2
 ' ========================================================================================
-PUBLIC FUNCTION tkParseStr (BYREF wszSourceString AS CONST WSTRING, BYVAL index AS LONG = 1, BYREF wszDelimiter AS CONST WSTRING = ",") AS USTRING
+PUBLIC FUNCTION ParseStr (BYREF wszSourceString AS CONST WSTRING, BYVAL index AS LONG = 1, BYREF wszDelimiter AS CONST WSTRING = ",") AS USTRING
 
    DIM ustr AS USTRING
    IF LEN(wszSourceString) = 0 THEN RETURN ustr
@@ -455,7 +455,7 @@ END FUNCTION
 '  NAMEX
 '        Returns the name and the EXTN parts combined.
 ' ========================================================================================
-PUBLIC FUNCTION tkParsePathName (BYREF wszOption AS CONST WSTRING, BYREF wszFileSpec AS WSTRING) AS USTRING
+PUBLIC FUNCTION ParsePathName (BYREF wszOption AS CONST WSTRING, BYREF wszFileSpec AS WSTRING) AS USTRING
    DIM ustr AS USTRING
    IF LEN(wszFileSpec) = 0 THEN RETURN ustr
    SELECT CASE UCASE(wszOption)
@@ -490,12 +490,12 @@ END FUNCTION
 ' ========================================================================================
 ' Usage example:
 ' DIM ustr AS USTRING = "Good morning!"
-' ustr = tkBase64EncodeW(ustr)
+' ustr = Base64EncodeW(ustr)
 ' print ustr
-' DIM ustr2 AS USTRING = tkBase64EncodeW(ustr)
+' DIM ustr2 AS USTRING = Base64EncodeW(ustr)
 ' print ustr2
 ' ========================================================================================
-PUBLIC FUNCTION tkBase64EncodeA (BYREF strData AS STRING) AS STRING
+PUBLIC FUNCTION Base64EncodeA (BYREF strData AS STRING) AS STRING
    DIM cchStr AS DWORD, strOut AS STRING
    DIM bRes AS LONG = CryptBinaryToStringA(STRPTR(strData), LEN(strData), CRYPT_STRING_BASE64, NULL, @cchStr)
    IF bRes = 0 OR cchStr = 0 THEN EXIT FUNCTION
@@ -505,7 +505,7 @@ PUBLIC FUNCTION tkBase64EncodeA (BYREF strData AS STRING) AS STRING
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkBase64EncodeW (BYREF ustrData AS WSTRING) AS USTRING
+PUBLIC FUNCTION Base64EncodeW (BYREF ustrData AS WSTRING) AS USTRING
    DIM cchStr AS DWORD, ustrOut AS USTRING
    DIM bRes AS LONG = CryptBinaryToStringW(CAST(UBYTE PTR, STRPTR(ustrData)), LEN(ustrData) * 2, CRYPT_STRING_BASE64, NULL, @cchStr)
    IF bRes = 0 OR cchStr = 0 THEN EXIT FUNCTION
@@ -515,13 +515,11 @@ PUBLIC FUNCTION tkBase64EncodeW (BYREF ustrData AS WSTRING) AS USTRING
 END FUNCTION
 ' ========================================================================================
 #ifndef UNICODE
-' [pkg/tk] #define tkBase64Encode moved to core.ti
 #else
-' [pkg/tk] #define tkBase64Encode moved to core.ti
 #endif
 
 ' ========================================================================================
-PUBLIC FUNCTION tkBase64DecodeA (BYREF strData AS STRING) AS STRING
+PUBLIC FUNCTION Base64DecodeA (BYREF strData AS STRING) AS STRING
    DIM cbBinary AS DWORD, strOut AS STRING
    DIM bRes AS LONG = CryptStringToBinaryA(STRPTR(strData), LEN(strData), CRYPT_STRING_BASE64, NULL, @cbBinary, NULL, NULL)
    IF bRes = 0 OR cbBinary = 0 THEN EXIT FUNCTION
@@ -531,7 +529,7 @@ PUBLIC FUNCTION tkBase64DecodeA (BYREF strData AS STRING) AS STRING
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkBase64DecodeW (BYREF ustrData AS USTRING) AS USTRING
+PUBLIC FUNCTION Base64DecodeW (BYREF ustrData AS USTRING) AS USTRING
    DIM cbBinary AS DWORD, ustrOut AS USTRING
    DIM bRes AS LONG = CryptStringToBinaryW(STRPTR(ustrData), LEN(ustrData) * 2, CRYPT_STRING_BASE64, NULL, @cbBinary, NULL, NULL)
    IF bRes = 0 OR cbBinary = 0 THEN EXIT FUNCTION
@@ -556,7 +554,7 @@ END FUNCTION
 ' ========================================================================================
 ' Checks if the specified string has surrogates.
 ' ========================================================================================
-PUBLIC FUNCTION tkStrHasSurrogates (BYREF wszStr AS WSTRING) AS BOOLEAN
+PUBLIC FUNCTION StrHasSurrogates (BYREF wszStr AS WSTRING) AS BOOLEAN
    FOR i AS LONG = 1 TO LEN(wszStr)
       IF ASC(wszStr, i) >= &hD800 AND ASC(wszStr, i) <= &hDBFF THEN RETURN TRUE
    NEXT
@@ -567,7 +565,7 @@ END FUNCTION
 ' ========================================================================================
 ' Checks whether a UTF-16 encoded string contains valid high-low surrogate pairs.
 ' ========================================================================================
-PUBLIC FUNCTION tkIsValidSurrogatePair (BYVAL high AS USHORT, BYVAL low AS USHORT) AS BOOLEAN
+PUBLIC FUNCTION IsValidSurrogatePair (BYVAL high AS USHORT, BYVAL low AS USHORT) AS BOOLEAN
    RETURN (high >= &hD800 AND high <= &hDBFF) AND (low >= &hDC00 AND low <= &hDFFF)
 END FUNCTION
 ' ========================================================================================
@@ -576,7 +574,7 @@ END FUNCTION
 ' Converts a surrogate pair to a Unicode code point.
 ' Extracts the actual Unicode code point from a valid surrogate pair.
 ' ========================================================================================
-PUBLIC FUNCTION tkSurrogatePairToCodePoint (BYVAL high AS USHORT, BYVAL low AS USHORT) AS ULONG
+PUBLIC FUNCTION SurrogatePairToCodePoint (BYVAL high AS USHORT, BYVAL low AS USHORT) AS ULONG
    IF IS_SURROGATE_PAIR(high, low) THEN
       RETURN ((high - &hD800) * &h400) + (low - &hDC00) + &h10000
   END IF
@@ -588,7 +586,7 @@ END FUNCTION
 ' Encode Unicode code point as surrogate pair.
 ' Converts a Unicode code point (above U+FFFF) back into its high and low surrogate pair.
 ' ========================================================================================
-PUBLIC SUB tkCodePointToSurrogatePair (BYVAL codePoint AS ULONG, BYREF high AS USHORT, BYREF low AS USHORT)
+PUBLIC SUB CodePointToSurrogatePair (BYVAL codePoint AS ULONG, BYREF high AS USHORT, BYREF low AS USHORT)
    IF codePoint >= &H10000 AND codePoint <= &h10FFFF THEN
       high = &hD800 + ((codePoint - &h10000) \ &h400)
       low = &hDC00 + ((codePoint - &h10000) MOD &h400)
@@ -614,7 +612,7 @@ END SUB
 '   This version avoids repeated casting by caching memAddr as a USHORT pointer 
 '   and uses bitmask comparisons instead of range comparisons.
 ' ========================================================================================
-PUBLIC FUNCTION tkScanForSurrogates (BYVAL memAddr AS WSTRING PTR, BYVAL nChars AS LONG, BYVAL searchBrokenOnly AS BOOLEAN = TRUE) AS LONG
+PUBLIC FUNCTION ScanForSurrogates (BYVAL memAddr AS WSTRING PTR, BYVAL nChars AS LONG, BYVAL searchBrokenOnly AS BOOLEAN = TRUE) AS LONG
    DIM localPtr AS USHORT PTR = CAST(USHORT PTR, memAddr)
    DIM AS LONG i, chunkSize = 64
    FOR i = 0 TO nChars - 1 STEP chunkSize
@@ -663,7 +661,7 @@ END FUNCTION
 ' Returns a wide-character string from a codepoint.
 ' The codepoint returned is the sum of a surrogate pair.
 ' =====================================================================================
-PUBLIC FUNCTION tkChrW (BYVAL codepoint AS UInteger) AS USTRING
+PUBLIC FUNCTION ChrW (BYVAL codepoint AS UInteger) AS USTRING
    If codepoint <= &hFFFF Then RETURN WCHR(codepoint)
    ' Convert to UTF-16 surrogate pair for higher codepoints
    DIM AS USHORT highSurrogate = &hD800 OR ((codepoint - &h10000) SHR 10)

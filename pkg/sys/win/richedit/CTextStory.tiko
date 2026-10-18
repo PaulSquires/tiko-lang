@@ -208,7 +208,7 @@ END FUNCTION
 ' Gets the text in a story according to the specified conversion flags.
 ' ========================================================================================
 FUNCTION CTextStory.GetText (BYVAL Flags AS LONG) AS USTRING
-   DIM bstrText AS TK_BSTR
+   DIM bstrText AS WBSTR
    m_Result = m_pTextStory->lpvtbl->GetText(m_pTextStory, Flags, @bstrText)
    DIM ustrText AS USTRING = *bstrText
    SysFreeString bstrText
@@ -238,7 +238,7 @@ END FUNCTION
 ' Sets the text in this range.
 ' ========================================================================================
 FUNCTION CTextStory.SetText (BYVAL Flags AS LONG, BYREF wszText AS WSTRING) AS HRESULT
-   DIM bstrText AS TK_BSTR = SysAllocString(wszText)
+   DIM bstrText AS WBSTR = SysAllocString(wszText)
    m_Result = m_pTextStory->lpvtbl->SetText(m_pTextStory, Flags, bstrText)
    SysFreeString bstrText
    RETURN m_Result

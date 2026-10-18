@@ -254,7 +254,7 @@ CONSTRUCTOR CDispInvoke (BYREF wszProgID AS CONST WSTRING, BYREF wszLicKey AS WS
    DIM hr AS HRESULT = CoInitialize(NULL)
    IF hr = S_OK OR hr = S_FALSE THEN m_bUninitCOM = TRUE
    ' // Create an instance of the object
-   m_pDisp = tkNewCom(wszProgID, wszLicKey)
+   m_pDisp = NewCom(wszProgID, wszLicKey)
 END CONSTRUCTOR
 ' ========================================================================================
 
@@ -275,7 +275,7 @@ CONSTRUCTOR CDispInvoke (BYREF wszClsID AS CONST WSTRING, BYREF wszIID AS CONST 
    DIM hr AS HRESULT = CoInitialize(NULL)
    IF hr = S_OK OR hr = S_FALSE THEN m_bUninitCOM = TRUE
    ' // Create an instance of the object
-   m_pDisp = tkNewCom(wszClsID, wszIID)
+   m_pDisp = NewCom(wszClsID, wszIID)
 END CONSTRUCTOR
 ' ========================================================================================
 
@@ -295,7 +295,7 @@ CONSTRUCTOR CDispInvoke (BYREF classID AS CONST CLSID)
    IF hr = S_OK OR hr = S_FALSE THEN m_bUninitCOM = TRUE
    ' // Create an instance of the object
    DIM pUnk AS IUnknown PTR
-   pUnk = tkNewCom(classID)
+   pUnk = NewCom(classID)
    IF pUnk THEN
       pUnk->lpVtbl->QueryInterface(pUnk, @IID_IDispatch, @m_pDisp)
       IF m_pDisp THEN pUnk->lpVtbl->Release(pUnk) ELSE m_pDisp = cast(IDispatch PTR, pUnk)
@@ -322,7 +322,7 @@ CONSTRUCTOR CDispInvoke (BYREF classID AS CONST CLSID, BYREF riid AS CONST IID)
    IF hr = S_OK OR hr = S_FALSE THEN m_bUninitCOM = TRUE
    ' // Create an instance of the object
    DIM pUnk AS IUnknown PTR
-   pUnk = tkNewCom(classID, riid)
+   pUnk = NewCom(classID, riid)
    IF pUnk THEN
       pUnk->lpVtbl->QueryInterface(pUnk, @IID_IDispatch, @m_pDisp)
       IF m_pDisp THEN pUnk->lpVtbl->Release(pUnk) ELSE m_pDisp = cast(IDispatch PTR, pUnk)
@@ -354,7 +354,7 @@ CONSTRUCTOR CDispInvoke (BYREF wszLibName AS CONST WSTRING, BYREF rclsid AS CONS
    DIM hr AS HRESULT = CoInitialize(NULL)
    IF hr = S_OK OR hr = S_FALSE THEN m_bUninitCOM = TRUE
    ' // Create an instance of the object
-   m_pDisp = tkNewCom(wszLibName, rclsid, riid, wszLicKey)
+   m_pDisp = NewCom(wszLibName, rclsid, riid, wszLicKey)
 END CONSTRUCTOR
 ' ========================================================================================
 
@@ -366,7 +366,7 @@ CONSTRUCTOR CDispInvoke (BYREF wszLibName AS CONST WSTRING, BYREF wszClsid AS CO
    DIM hr AS HRESULT = CoInitialize(NULL)
    IF hr = S_OK OR hr = S_FALSE THEN m_bUninitCOM = TRUE
    ' // Create an instance of the object
-   m_pDisp = tkNewCom(wszLibName, wszClsid, wszIid, wszLicKey)
+   m_pDisp = NewCom(wszLibName, wszClsid, wszIid, wszLicKey)
 END CONSTRUCTOR
 ' ========================================================================================
 
