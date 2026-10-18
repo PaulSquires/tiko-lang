@@ -16,6 +16,11 @@ declare function ModuleCacheRoot( byref ctx as Tko.CompilerContext ) as string
 '' '--clean-module-cache': every entry of the pool removed, and a line saying how many.
 declare function CleanModuleCache( byref ctx as Tko.CompilerContext ) as string
 
+'' WHERE THE RECORD OF AN ARTEFACT'S LAST LINK LIVES (tiko-build B5; unitcache.tiko):
+'' <pool>/links/<hash of its path>.link, in the pool rather than beside it, and trimmed
+'' like an entry -- unused for seven days, it goes. "" when there is no pool. Not made.
+declare function LinkRecordPath( byref artifact as string ) as string
+
 '' THE KEY of module n of the build (ctx.ifaceChains[n]), whose dependencies' interfaces are
 '' already in ctx.ifaceTexts. One line per item.
 declare function ModuleKey( byref ctx as Tko.CompilerContext, byval n as int32 ) as string

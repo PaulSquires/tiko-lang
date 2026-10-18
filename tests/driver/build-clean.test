@@ -1,5 +1,5 @@
 '' 'tiko clean' removes the artefact the same 'tiko build' wrote (PLAN B1), and the record of
-'' its link beside it (B5).
+'' its link (B5): in the module cache, and none beside the exe.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.bcl/cache
 '' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
@@ -10,3 +10,4 @@
 '' EXPECT-OUT: {"event":"clean","target":"main","path":"build/.bcl/app.exe","removed":true}
 '' EXPECT-NO-FILE: build/.bcl/app.exe
 '' EXPECT-NO-FILE: build/.bcl/app.exe.link
+'' EXPECT-NO-FILE: build/.bcl/cache/links/*.link

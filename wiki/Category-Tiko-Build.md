@@ -135,7 +135,7 @@ An unknown profile is `TKO0163`. Each profile writes to its own `out/<profile>/`
 - **Main files are cached** in the module cache (`TKO_MODCACHE`, else the user's cache directory), keyed by the compiler, the options, the file and everything it read: includes, and the interfaces of the modules it imports. A change inside a module's procedures recompiles the module, not its importers.
 - **Not cached**: a file with an error or a warning (a cached object would not report it again), one that expands `__DATE__`, `__DATE_ISO__` or `__TIME__`, and one whose `#cmdline` restarted the compile. `-v` says why (`TKO0169`).
 - **Misses compile in parallel** when there are two or more: one quiet child `tiko` per file, `-j` at once. A child that crashes is `TKO0167`, exit 6.
-- **The link is skipped** when nothing it reads has changed. `<output>.link` beside the artefact records the compiler, the options, and the size and time of every object and library, and of the artefact itself; deleting or touching the artefact relinks.
+- **The link is skipped** when nothing it reads has changed. A record in the module cache (`links/` under the cache directory) holds the compiler, the options, and the size and time of every object and library, and of the artefact itself; deleting or touching the artefact relinks. Like a cache entry, a record unused for seven days is removed, and `tiko --clean-module-cache` removes them all.
 - **One build per target at a time.** A second `tiko build` of a target whose build is running fails with `TKO0166` instead of writing over it.
 - **`tiko check`** reads the cache and writes nothing: a file the last build compiled cleanly is not compiled again, and every other is run through lowering.
 

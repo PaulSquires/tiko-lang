@@ -10,6 +10,7 @@
 #include once "driver/driver.ti"
 #include once "driver/diagout.ti"
 #include once "driver/manifest.ti"
+#include once "driver/modcache.ti"
 #include once "driver/modresolve.ti"
 #include once "support/spawn.ti"
 #include once "support/diskcache.ti"
@@ -409,7 +410,10 @@ private function Clean_ _
         if Lock_( p, lk, ctx.diags ) = false then return Tko.EXIT_USER_ERROR
         dim as boolean had = fs.IsFile( p.artifact )
         if had then kill( p.artifact )
-        '' ...and the record of its link (B5), which says what the deleted artefact was made of.
+        '' ...and the record of its link (B5), which says what the deleted artefact was made of:
+        '' in the pool, or beside it where an older tiko left it.
+        dim as string rec = Tko.Modules.LinkRecordPath( p.artifact )
+        if fs.IsFile( rec ) then fs.RemoveFile( rec )
         if fs.IsFile( p.artifact & ".link" ) then kill( p.artifact & ".link" )
         ReleaseLock( lk )
         EmitLine( obs, """event"":""clean"",""target"":" & JsonStr( p.name ) & ",""path"":" & _

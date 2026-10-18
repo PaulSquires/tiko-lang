@@ -1292,7 +1292,7 @@ function Run _
                 else
                     dim as float64 tLink = timer
                     '' ...NOT AGAIN, under 'tiko build', when nothing it reads changed (unitcache.ti).
-                    dim as string lsig = Tko.UnitCache.LinkSignature( ctx, args, linkObjs )
+                    dim as string lsig = Tko.UnitCache.LinkSignature( ctx, ucs, args, linkObjs )
                     if Tko.UnitCache.LinkUpToDate( ctx, lsig ) then
                         if ctx.options.verbose then print "link: " & ctx.options.outputPath & " is up to date"
                     else

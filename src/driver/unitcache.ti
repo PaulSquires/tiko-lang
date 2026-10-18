@@ -98,10 +98,12 @@ namespace Tko.UnitCache
     declare function Crashed( byref s as Store, byval i as int32 ) as boolean
 
     '' THE LINK, skipped when nothing it reads has changed (tiko-build B5): its signature --
-    '' "" outside a 'tiko build' -- whether '<output>.link' holds it with the artefact as it is,
-    '' and the record written after a link that succeeded (removed otherwise).
+    '' "" outside a 'tiko build' and when s has no pool -- whether the artefact's record in the
+    '' pool (modcache.ti LinkRecordPath) holds it with the artefact as it is, and the record
+    '' written after a link that succeeded (removed otherwise).
     declare function LinkSignature _
-        ( byref ctx as Tko.CompilerContext, byref args as Tko.StrVec, byref linkObjs as Tko.StrVec ) as string
+        ( byref ctx as Tko.CompilerContext, byref s as Store, byref args as Tko.StrVec, _
+          byref linkObjs as Tko.StrVec ) as string
     declare function LinkUpToDate( byref ctx as Tko.CompilerContext, byref sig as string ) as boolean
     declare sub LinkRecord( byref ctx as Tko.CompilerContext, byref sig as string, byval linked as boolean )
 

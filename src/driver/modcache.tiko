@@ -126,8 +126,22 @@ private sub DropStaleChains_( byref root as string )
     next
 end sub
 
-'' At most once a day, the entries unused for UNUSED_DAYS. The stamp is written FIRST, so two
-'' builds starting together do not both walk the pool.
+'' The link records (LinkRecordPath) last written before 'cutoff' -- every one, for a cutoff
+'' of 0. A record names its artefact, not an entry, so nothing else would remove it.
+private sub DropLinkRecords_( byref root as string, byval cutoff as int64 )
+    dim as string ld = JoinPath( root, "links" )
+    dim as containers.Array( of fs.DirEntry ) es
+    if fs.ListDir( ld, es ).IsOk( ) = false then return
+    for k as int32 = 0 to es.Count - 1
+        if es[k].IsFile( ) = false then continue for
+        dim as string p = JoinPath( ld, es[k].Name( ) )
+        if right( p, 5 ) <> ".link" then continue for
+        if (cutoff = 0) orelse (Mtime_( p ) < cutoff) then fs.RemoveFile( p )
+    next
+end sub
+
+'' At most once a day, the entries and link records unused for UNUSED_DAYS. The stamp is
+'' written FIRST, so two builds starting together do not both walk the pool.
 private sub Trim_( byref root as string )
     dim as string tf = JoinPath( root, "trim.txt" )
     dim as int64 now_ = fb_DtClockUtcNow( )
@@ -146,16 +160,21 @@ private sub Trim_( byref root as string )
         if now_ - used_ > UNUSED_DAYS * TICKS_PER_DAY then fs.RemoveDirAll( d )
     next
     DropStaleChains_( root )
+    DropLinkRecords_( root, now_ - UNUSED_DAYS * TICKS_PER_DAY )
 end sub
 
-private function PoolDir_( byref ctx as Tko.CompilerContext ) as string
+'' The pool's directory, made or not: TKO_MODCACHE, else the user cache's.
+private function PoolPath_( ) as string
     dim as string root = environ( "TKO_MODCACHE" )
+    if len( root ) = 0 then root = Tko.DiskCache.UserCacheDir( "modcache" )
+    return root
+end function
+
+private function PoolDir_( byref ctx as Tko.CompilerContext ) as string
+    dim as string root = PoolPath_( )
     if len( root ) = 0 then
-        root = Tko.DiskCache.UserCacheDir( "modcache" )
-        if len( root ) = 0 then
-            ctx.diags.ReportGlobal( Tko.TKO0150, "no user cache directory; set TKO_MODCACHE" )
-            return ""
-        end if
+        ctx.diags.ReportGlobal( Tko.TKO0150, "no user cache directory; set TKO_MODCACHE" )
+        return ""
     end if
     if fs.IsDir( root ) = false then fs.CreateDirAll( root )
     if fs.IsDir( root ) = false then
@@ -186,6 +205,7 @@ function CleanModuleCache( byref ctx as Tko.CompilerContext ) as string
         next
     end if
     DropStaleChains_( root )
+    DropLinkRecords_( root, 0 )
     return "removed " & n & " module cache entr" & iif( n = 1, "y", "ies" ) & " from " & root & Nl_( )
 end function
 
@@ -211,6 +231,14 @@ private function KeyPath_( byref p as string ) as string
     #else
         return AbsPath( p )
     #endif
+end function
+
+'' Named by the artefact's path as a key spells it, so 'app.exe', './app.exe' and, on
+'' Windows, 'APP.EXE' are one record.
+function LinkRecordPath( byref artifact as string ) as string
+    dim as string root = PoolPath_( )
+    if len( root ) = 0 then return ""
+    return JoinPath( JoinPath( root, "links" ), Tko.DiskCache.Hash( KeyPath_( artifact ) ) & ".link" )
 end function
 
 '' THE OPTIONS AN OBJECT DEPENDS ON, shared by the module key and the unit key so the two

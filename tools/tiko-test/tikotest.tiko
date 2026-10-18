@@ -17,6 +17,9 @@
 ''     '' EXPECT-FILE-HAS: p :: s  the file must exist and contain those bytes
 ''     '' EXPECT-FILE-NOT-HAS: p :: s   ...and must NOT contain them
 ''                              in both, \t \n \r and \\ in s are TAB, LF, CR, backslash
+''                              and in these three and EXPECT-NO-FILE a '*' in the
+''                              path's last component matches any run of characters;
+''                              a content check wants exactly one file to match
 ''     '' EXPECT-MAX-DIAG: 3        at most N ': error TKO' lines -- the recovery gate
 ''     '' RUN: path                 after a build for one of the HOST's targets, run the
 ''                              program the build made; it must exit 0 (or the
@@ -616,6 +619,80 @@ function FileExists_( byval p as string ) as boolean
     return true
 end function
 
+'' DOES A NAME MATCH A PATTERN in which '*' is any run of characters, none included.
+function Wild_( byref nm as string, byref pat as string ) as boolean
+    dim as int32 n = 0
+    dim as int32 p = 0
+    dim as int32 starP = -1
+    dim as int32 starN = 0
+    while n < len( nm )
+        dim as int32 pc = -1
+        if p < len( pat ) then pc = pat[p]
+        if pc = 42 then
+            starP = p : starN = n : p += 1
+        elseif pc = nm[n] then
+            p += 1 : n += 1
+        elseif starP >= 0 then
+            starN += 1 : n = starN : p = starP + 1
+        else
+            return false
+        end if
+    wend
+    while (p < len( pat )) andalso (pat[p] = 42)
+        p += 1
+    wend
+    return p = len( pat )
+end function
+
+'' THE FILES A PATH NAMES: the path itself, existing or not, when it holds no '*'; else
+'' every file in its directory whose name its last component matches. So a test can name
+'' a file it cannot spell -- a link record in the module cache is named by a hash of the
+'' artefact's absolute path, which differs in every checkout.
+sub Expand_( byref p as string, byref outp as Array( of string ) )
+    if instr( p, "*" ) = 0 then
+        outp.Push( p )
+        exit sub
+    end if
+    dim as int32 cut = instrrev( p, "/" )
+    if instrrev( p, chr( 92 ) ) > cut then cut = instrrev( p, chr( 92 ) )
+    dim as string dir_ = "."
+    if cut > 0 then dir_ = left( p, cut - 1 )
+    dim as string pat = mid( p, cut + 1 )
+    dim as Array( of DirEntry ) es
+    if ListDir( dir_, es ).IsOk( ) = false then exit sub
+    for k as int32 = 0 to es.Count - 1
+        if es[k].IsFile( ) = false then continue for
+        if Wild_( es[k].Name( ), pat ) then outp.Push( left( p, cut ) & es[k].Name( ) )
+    next
+end sub
+
+sub KillAll_( byref p as string )
+    dim as Array( of string ) m
+    Expand_( p, m )
+    for each f as string in m
+        kill( f )
+    next
+end sub
+
+'' THE ONE FILE a content check reads: a pattern matching none did not create it, and
+'' one matching two cannot say which it means.
+function One_( byref p as string, byref got as string, byref why as string ) as boolean
+    dim as Array( of string ) m
+    Expand_( p, m )
+    if m.Count > 1 then
+        why = p & " matches " & m.Count & " files"
+        return false
+    end if
+    if m.Count = 1 then
+        if FileExists_( m[0] ) then
+            got = m[0]
+            return true
+        end if
+    end if
+    why = "did not create: " & p
+    return false
+end function
+
 '' THE GOLDEN FOR ONE TARGET: 'expected/foo.out' with '.<target>' inserted before
 '' the extension. Returns "" when there is no such file, which means the base golden
 '' serves this target too -- the common case, and what keeps 310 of the MIR tests to
@@ -857,7 +934,7 @@ function RunOne _
             kill( f_ )
         next
         for each f2 as string in tc.expectNoFile
-            kill( f2 )
+            KillAll_( f2 )
         next
         '' ...AND THE FILES WHOSE CONTENT IS ASSERTED, for the same reason: an archive
         '' left by a previous run already contains the member names this is about to
@@ -865,11 +942,11 @@ function RunOne _
         '' produced anything at all.
         for each f3 as string in tc.expectFileHas
             dim as int32 s3 = instr( f3, "::" )
-            if s3 > 0 then kill( Trim_( left( f3, s3 - 1 ) ) )
+            if s3 > 0 then KillAll_( Trim_( left( f3, s3 - 1 ) ) )
         next
         for each f4 as string in tc.expectFileNotHas
             dim as int32 s4 = instr( f4, "::" )
-            if s4 > 0 then kill( Trim_( left( f4, s4 - 1 ) ) )
+            if s4 > 0 then KillAll_( Trim_( left( f4, s4 - 1 ) ) )
         next
         '' ...AND THE PROGRAM A RUN WILL START: a stale one from an older compiler would
         '' otherwise be run, and pass, whatever this build did.
@@ -955,10 +1032,14 @@ function CheckOne_ _
     next
 
     for each none_ as string in tc.expectNoFile
-        if FileExists_( none_ ) then
-            why = "unexpectedly created: " & none_
-            return false
-        end if
+        dim as Array( of string ) nm_
+        Expand_( none_, nm_ )
+        for each n_ as string in nm_
+            if FileExists_( n_ ) then
+                why = "unexpectedly created: " & n_
+                return false
+            end if
+        next
     next
 
     '' 'path :: text' -- the file must exist and contain those bytes. Read whole and
@@ -970,13 +1051,10 @@ function CheckOne_ _
             why = "malformed EXPECT-FILE-HAS (want 'path :: text'): " & has_
             return false
         end if
-        dim as string hpath = Trim_( left( has_, sep - 1 ) )
+        dim as string hpath
+        if One_( Trim_( left( has_, sep - 1 ) ), hpath, why ) = false then return false
         '' Unescaped AFTER the trim, so an escaped TAB at either end survives it.
         dim as string hwant = Unescape_( Trim_( mid( has_, sep + 2 ) ) )
-        if FileExists_( hpath ) = false then
-            why = "did not create: " & hpath
-            return false
-        end if
         dim as string blob
         if ReadBytes_( hpath, blob ) = false then
             why = "cannot read: " & hpath
@@ -996,12 +1074,9 @@ function CheckOne_ _
             why = "malformed EXPECT-FILE-NOT-HAS (want 'path :: text'): " & not_
             return false
         end if
-        dim as string npath = Trim_( left( not_, nsep - 1 ) )
+        dim as string npath
+        if One_( Trim_( left( not_, nsep - 1 ) ), npath, why ) = false then return false
         dim as string nwant = Unescape_( Trim_( mid( not_, nsep + 2 ) ) )
-        if FileExists_( npath ) = false then
-            why = "did not create: " & npath
-            return false
-        end if
         dim as string nblob
         if ReadBytes_( npath, nblob ) = false then
             why = "cannot read: " & npath

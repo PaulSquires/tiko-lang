@@ -1,5 +1,6 @@
 '' ...AND A LINK WHOSE EXE IS GONE IS MADE (tiko-build B5): the same warm build after the output
-'' directory was emptied -- the exe and its '.link' record with it -- links again.
+'' directory was emptied links again. The exe's record outlives it, in the module cache, but
+'' names the exe as that link left it, so it cannot match.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.blrc/cache
 '' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
