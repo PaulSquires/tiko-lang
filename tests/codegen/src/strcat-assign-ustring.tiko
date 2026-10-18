@@ -1,0 +1,17 @@
+'' A USTRING inside a chain appended to a narrow STRING ('g &= u & "|"') appended the chain's
+'' UTF-16 units as bytes -- "o<NUL>n<NUL>" where fbc holds "one|". Every '&=' / '+=' shape below,
+'' with the reverse (a ustring destination) for contrast. The expected output is fbc's, measured.
+dim as ustring u = "one", u2 = "two"
+dim as string s = "S"
+dim as string g1 = "" : g1 &= u & "|" : print "[" & g1 & "]"
+dim as string g2 = "" : g2 &= u : print "[" & g2 & "]"
+dim as string g3 = "" : g3 = g3 & u & "|" : print "[" & g3 & "]"
+dim as string g4 = "x" : g4 &= "a" & u : print "[" & g4 & "]"
+dim as string g5 = "" : g5 &= u & u2 : print "[" & g5 & "]"
+dim as string g6 = "" : g6 += u & "|" : print "[" & g6 & "]"
+dim as string g7 = "" : g7 &= ( u & "|" ) : print "[" & g7 & "]"
+dim as string g8 = "" : g8 &= s & u & s : print "[" & g8 & "]"
+dim as ustring v = "V" : v &= s & "x" : print "[" & v & "]"
+dim as string g9 = "" : g9 &= u & 42 : print "[" & g9 & "]"
+dim as string ga = "" : ga &= u & wchr( &h65E5 ) : print len( ga ); "[" & ga & "]"
+dim as string gb = "" : gb &= s & "x" : print "[" & gb & "]"

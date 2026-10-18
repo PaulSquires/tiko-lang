@@ -141,6 +141,30 @@ function LowerConcatAssignStmt _
             if wideOnly then return NarrowAppendWide_( c, dst, value )
         end if
 
+        '' A USTRING ANYWHERE IN A CHAIN APPENDED TO A NARROW STRING folds as well. The
+        '' flavour of the WHOLE chain is NEUTRAL for 'u & "|"' -- see the USTRING note
+        '' above -- so EmitStrTerm built the chain as a ustring and handed its UTF-16
+        '' units to fb_StrConcatAssign as narrow bytes: 'g &= u & "|"' held "o<NUL>n<NUL>"
+        '' where fbc holds "one|". 'g = g & u & "|"' was always right; this is that fold.
+        if isU = false then
+            dim as containers.Array( of uint32 ) nterms
+            FlattenConcat( c, value, nterms )
+            if nterms.Count >= 2 then
+                dim as boolean anyU = false
+                for i as int32 = 0 to nterms.Count - 1
+                    if IsUStringType( c, c.info->TypeOf_( Unparen_( c, cast( Tko.NodeId, nterms[i] ) ) ) ) then anyU = true
+                next
+                if anyU then
+                    dim as containers.Array( of uint32 ) nchain
+                    nchain.Push( cast( uint32, target ) )
+                    for i as int32 = 0 to nterms.Count - 1
+                        nchain.Push( nterms[i] )
+                    next
+                    return LowerUStrChain( c, dst, false, nchain, false )
+                end if
+            end if
+        end if
+
         dim as boolean mism = false
         if vf <> STF_NEUTRAL then
             if isU then

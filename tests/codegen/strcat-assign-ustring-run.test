@@ -1,0 +1,21 @@
+'' RUN: '&=' and '+=' on a STRING whose right-hand side is a chain containing a USTRING fold as
+'' 's = s & ...' does, instead of appending the chain's UTF-16 units as bytes. Expected: fbc's
+'' output for the same program.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/strcat-assign-ustring.tiko -o tests/codegen/strcatassignustring.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/strcatassignustring.exe
+'' RUN: tests/codegen/strcatassignustring.exe
+'' EXPECT-RUN-OUT: [one|]
+'' EXPECT-RUN-OUT: [one]
+'' EXPECT-RUN-OUT: [one|]
+'' EXPECT-RUN-OUT: [xaone]
+'' EXPECT-RUN-OUT: [onetwo]
+'' EXPECT-RUN-OUT: [one|]
+'' EXPECT-RUN-OUT: [one|]
+'' EXPECT-RUN-OUT: [SoneS]
+'' EXPECT-RUN-OUT: [VSx]
+'' EXPECT-RUN-OUT: [one42]
+'' EXPECT-RUN-OUT:  6[one日]
+'' EXPECT-RUN-OUT: [Sx]
