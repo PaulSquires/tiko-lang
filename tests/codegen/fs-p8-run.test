@@ -1,0 +1,11 @@
+'' RUN: std/fs phase P8 -- RemoveDirAll on handle-relative primitives: the count, read-only
+'' files, a link inside the tree unlinked and never entered, p itself a link refused with
+'' FS_NOT_A_DIRECTORY and nothing deleted, p a file or missing, and a swap race in which
+'' another thread replaces a subdirectory with a link to an outside sentinel (40 rounds).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -mt tests/codegen/src/fs-p8.tiko -o tests/codegen/fsp8.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/fsp8.exe
+'' RUN: tests/codegen/fsp8.exe
+'' EXPECT-RUN-OUT: ok

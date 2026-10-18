@@ -1,0 +1,142 @@
+'' std/fs phase P8 (C:\dev\docs\tiko-fs\RFC-0001 section 15): RemoveDirAll on handle-relative
+'' primitives. The count, read-only files, a link inside the tree unlinked and never entered,
+'' p itself a link refused with FS_NOT_A_DIRECTORY and NOTHING deleted (before P8 that call
+'' emptied the link's target), p a file or missing, and the swap race: another thread swaps a
+'' subdirectory for a link to an outside directory while the removal runs, and the outside
+'' sentinel must survive every round.
+#import "std/fs"
+
+dim shared as integer fails = 0
+
+sub Check( byref what as string, byval ok as boolean )
+    if ok = false then
+        print "FAIL "; what
+        fails += 1
+    end if
+end sub
+
+dim shared as ustring tmp, raceRoot, raceOutside
+
+sub Touch( byref p as const ustring )
+    fs.WriteAllText( p, "x" )
+end sub
+
+dim as boolean links = false
+tmp = fs.CreateTempDir( ).ValueOr( "" )
+Check( "tmp", len( tmp ) > 0 )
+
+'' ---------------------------------------------------------------- the count, read-only
+dim as ustring r1 = fs.PathJoin( tmp, "r1" )
+fs.CreateDirAll( fs.PathJoin( r1, "a/b" ) )
+Touch( fs.PathJoin( r1, "a/f1" ) )
+Touch( fs.PathJoin( r1, "a/f2" ) )
+Touch( fs.PathJoin( r1, "a/b/f3" ) )
+Touch( fs.PathJoin( r1, "c" ) )
+fs.SetReadOnly( fs.PathJoin( r1, "a/f2" ), true )
+fs.SetReadOnly( fs.PathJoin( r1, "c" ), true )
+dim as fs.FsResultI64 n = fs.RemoveDirAll( r1 )
+Check( "count ok", n.IsOk( ) )
+Check( "count 7", n.ValueOr( -1 ) = 7 )
+Check( "r1 gone", fs.Exists( r1 ) = false )
+
+'' empty directory: just itself
+dim as ustring r0 = fs.PathJoin( tmp, "r0" )
+fs.CreateDir( r0 )
+Check( "empty 1", fs.RemoveDirAll( r0 ).ValueOr( -1 ) = 1 )
+
+'' ---------------------------------------------------------------- p not a directory
+dim as ustring afile = fs.PathJoin( tmp, "afile" )
+Touch( afile )
+dim as fs.FsResultI64 nf = fs.RemoveDirAll( afile )
+Check( "file refused", nf.IsOk( ) = false )
+Check( "file code", cbool( nf.IsOk( ) = false ) andalso cbool( nf.Failure( ).Code( ) = fs.FS_NOT_A_DIRECTORY ) )
+Check( "file kept", fs.IsFile( afile ) )
+dim as fs.FsResultI64 nm = fs.RemoveDirAll( fs.PathJoin( tmp, "missing" ) )
+Check( "missing code", cbool( nm.IsOk( ) = false ) andalso cbool( nm.Failure( ).Code( ) = fs.FS_NOT_FOUND ) )
+
+'' ---------------------------------------------------------------- links
+dim as ustring outside = fs.PathJoin( tmp, "outside" )
+fs.CreateDir( outside )
+Touch( fs.PathJoin( outside, "precious.txt" ) )
+
+dim as ustring r2 = fs.PathJoin( tmp, "r2" )
+fs.CreateDir( r2 )
+if fs.CreateSymlink( outside, fs.PathJoin( r2, "lnk" ), true ).IsOk( ) then
+    links = true
+    Touch( fs.PathJoin( r2, "f" ) )
+    '' a link inside the tree is removed as a link
+    dim as fs.FsResultI64 n2 = fs.RemoveDirAll( r2 )
+    Check( "inner link ok", n2.IsOk( ) )
+    Check( "inner link count", n2.ValueOr( -1 ) = 3 )
+    Check( "inner link target survives", fs.IsFile( fs.PathJoin( outside, "precious.txt" ) ) )
+
+    '' p itself a link: refused, link and target untouched
+    dim as ustring lp = fs.PathJoin( tmp, "lp" )
+    fs.CreateSymlink( outside, lp, true )
+    dim as fs.FsResultI64 n3 = fs.RemoveDirAll( lp )
+    Check( "link p refused", n3.IsOk( ) = false )
+    Check( "link p code", cbool( n3.IsOk( ) = false ) andalso cbool( n3.Failure( ).Code( ) = fs.FS_NOT_A_DIRECTORY ) )
+    Check( "link p kept", fs.IsLink( lp ) )
+    Check( "link p target survives", fs.IsFile( fs.PathJoin( outside, "precious.txt" ) ) )
+    '' lp stays: the final RemoveDirAll( tmp ) unlinks it as a link inside the tree
+end if
+
+#ifdef __FB_WIN32__
+    '' a junction (no privilege needed) is a link too: unlinked inside, refused as p
+    dim as ustring r3 = fs.PathJoin( tmp, "r3" )
+    dim as ustring jn = fs.PathJoin( r3, "jn" )
+    fs.CreateDir( r3 )
+    shell "mklink /J """ & jn & """ """ & outside & """ >nul"
+    Check( "junction made", fs.IsDir( jn ) )
+    dim as fs.FsResultI64 nj = fs.RemoveDirAll( jn )
+    Check( "junction p code", cbool( nj.IsOk( ) = false ) andalso cbool( nj.Failure( ).Code( ) = fs.FS_NOT_A_DIRECTORY ) )
+    Check( "junction p kept", fs.IsDir( jn ) )
+    Check( "junction r3 ok", fs.RemoveDirAll( r3 ).ValueOr( -1 ) = 2 )
+    Check( "junction target survives", fs.IsFile( fs.PathJoin( outside, "precious.txt" ) ) )
+#endif
+
+'' ---------------------------------------------------------------- the swap race
+sub Attacker( byval unused as any ptr )
+    dim as ustring d = fs.PathJoin( raceRoot, "d" )
+    dim as ustring x = fs.PathJoin( raceRoot, "x" )
+    for i as long = 1 to 20000
+        if fs.MoveFile( d, x ).IsOk( ) then
+            fs.CreateSymlink( raceOutside, d, true )
+            exit sub
+        end if
+    next
+end sub
+
+if links then
+    raceOutside = outside
+    for i as long = 1 to 8
+        Touch( fs.PathJoin( outside, "s" & i ) )
+    next
+    dim as integer swapped = 0
+    for round_ as long = 1 to 40
+        raceRoot = fs.PathJoin( tmp, "race" & round_ )
+        dim as ustring d = fs.PathJoin( raceRoot, "d" )
+        fs.CreateDirAll( d )
+        for i as long = 1 to 60
+            Touch( fs.PathJoin( d, "f" & i ) )
+        next
+        dim as any ptr th = threadcreate( @Attacker, 0 )
+        fs.RemoveDirAll( raceRoot )
+        threadwait( th )
+        if fs.Exists( fs.PathJoin( raceRoot, "x" ) ) orelse fs.IsLink( d ) then swapped += 1
+        '' whatever the race left, a second pass clears it -- still without following
+        for k as long = 1 to 3
+            if fs.Exists( raceRoot ) = false then exit for
+            fs.RemoveDirAll( raceRoot )
+        next
+        Check( "race " & round_ & " root gone", fs.Exists( raceRoot ) = false )
+        Check( "race " & round_ & " sentinel", fs.IsFile( fs.PathJoin( outside, "precious.txt" ) ) )
+        for i as long = 1 to 8
+            Check( "race " & round_ & " s" & i, fs.IsFile( fs.PathJoin( outside, "s" & i ) ) )
+        next
+    next
+end if
+
+fs.RemoveDirAll( tmp )
+Check( "tmp gone", fs.Exists( tmp ) = false )
+if fails = 0 then print "ok"

@@ -367,72 +367,7 @@ public function RemoveFile( byref p as const ustring ) as FsResultBool
     return Ok( of boolean, FsError )( TRUE )
 end function
 
-'' rm -rf. Returns the number of objects removed.
-''
-'' THREE NORMATIVE RULES, and the second is the most important destructive
-'' behaviour in the module:
-''
-''   1. It uses ListDir, NOT the iterator. Deleting entries while enumerating
-''      invalidates the iterator and is explicitly undefined on Windows.
-''   2. A SYMLINK TO A DIRECTORY IS UNLINKED, NEVER DESCENDED. This is what
-''      stops rm -rf on a tree containing a link to C:\ from doing what it
-''      sounds like. It relies on DirEntry.IsSymlink being LSTAT-shaped.
-''   3. The Windows read-only attribute is cleared before deleting, matching
-''      rm -rf and del /f. Without it this fails partway through a checked-out
-''      repository, which is the worst outcome for a destructive operation.
-''
-'' On failure it reports the FIRST error and STOPS. It does not continue
-'' destructively past something it did not understand.
-public function RemoveDirAll( byref p as const ustring ) as FsResultI64
-    dim as Array( of DirEntry ) entries
-    dim as longint removed = 0
-
-    dim as FsResultLong listed = ListDir( p, entries )
-    if( listed.IsOk( ) = FALSE ) then
-        return Fail( of longint, FsError )( listed.Failure( ) )
-    end if
-
-    for i as long = 0 to entries.Count( ) - 1
-        dim as ustring child = entries[i].Path( )
-
-        '' rule 2: a link is removed as a link, never followed
-        if( entries[i].IsDirectory( ) andalso ( entries[i].IsSymlink( ) = FALSE ) ) then
-            dim as FsResultI64 sub_ = RemoveDirAll( child )
-            if( sub_.IsOk( ) = FALSE ) then
-                return sub_
-            end if
-            removed += sub_.Value( )
-        else
-            dim as long r = FsRemoveFileRaw( child )
-
-            '' rule 3: clear read-only and retry once, which is what
-            '' rm -rf does. RFC-0007 replaces this with SetReadOnly.
-            if( r = FS_READ_ONLY ) then
-                FsSetReadOnlyRaw( child, 0 )
-                r = FsRemoveFileRaw( child )
-            end if
-
-            '' a directory symlink unlinks with RemoveDirectory, not
-            '' DeleteFile, on Windows
-            if( ( r <> FS_OK ) andalso entries[i].IsSymlink( ) ) then
-                r = FsRemoveDirRaw( child )
-            end if
-
-            if( r <> FS_OK ) then
-                return FsFail( of longint )( cast( FsErrorCode, r ), "RemoveDirAll", child )
-            end if
-
-            removed += 1
-        end if
-    next
-
-    dim as long rd = FsRemoveDirRaw( p )
-    if( rd <> FS_OK ) then
-        return FsFail( of longint )( cast( FsErrorCode, rd ), "RemoveDirAll", p )
-    end if
-
-    return Ok( of longint, FsError )( removed + 1 )
-end function
+'' RemoveDirAll is in fstree.tiko: handle-relative, hardened against the swap race.
 
 '' Defaults to NOT overwriting. The legacy FileCopy overwrites unconditionally
 '' and reports a bare code; that default has cost people data and is not

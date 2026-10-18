@@ -1,0 +1,441 @@
+#module "fs"
+#import "std/outcome"
+#import "std/containers"
+using outcome
+using containers
+'' std/fs: fstree -- RemoveDirAll on handle-relative primitives
+''
+'' Specified in C:\dev\docs\tiko-fs\RFC-0001-files-and-streams.md sections 9.2 and 15.
+''
+'' THE HAZARD THIS CLOSES (CVE-2022-21658 in Rust's std, the same shape): a path-based
+'' rm -rf lists a directory, then walks into each subdirectory BY NAME. Between the two,
+'' another process can swap a subdirectory for a symbolic link to somewhere else, and
+'' the walk deletes THAT. Here every directory is opened RELATIVE TO THE HANDLE OF ITS
+'' PARENT and WITHOUT FOLLOWING a final link, and every deletion is made relative to an
+'' open handle too, so a swapped name can only ever be removed as the link it now is.
+''
+''   Linux    openat( parent, name, O_DIRECTORY | O_NOFOLLOW ), unlinkat( parent, name )
+''   Windows  NtOpenFile with RootDirectory = the parent handle and FILE_OPEN_REPARSE_POINT;
+''            a handle that turns out to be a reparse point is deleted as the link it is,
+''            never listed; deletion is FILE_DISPOSITION_INFO_EX (POSIX semantics, read-only
+''            ignored), falling back to clearing read-only + FILE_DISPOSITION_INFO
+''
+'' THE RULES (unchanged where they existed):
+''   1. Returns the number of objects removed, p itself included.
+''   2. Stops at the FIRST error and reports it; does not continue destructively past
+''      something it did not understand. An entry that vanished meanwhile is not an error.
+''   3. A symbolic link or junction INSIDE the tree is removed as a link, never entered.
+''   4. Read-only files are removed, as rm -rf and del /f do.
+''   5. p ITSELF A LINK is refused with FS_NOT_A_DIRECTORY and nothing is deleted. (Until
+''      this file, p as a link to a directory deleted everything in the link's TARGET --
+''      measured on both platforms -- which is the hazard above in its plainest form.)
+''
+'' The OS is called from here (RFC-0001 F19); native errors still go through the
+'' runtime's fb_FsMapOsError.
+
+
+
+#if __FB_LANG__ <> "fb"
+    #error "std/fs requires -lang fb (it uses namespaces)"
+#endif
+
+'' declared in fsops.tiko, with the rest of the directory operations
+
+#ifdef __FB_WIN32__
+
+const FBT_INVALID_HANDLE        = -1
+const FBT_LIST_DIRECTORY        = &h0001ul
+const FBT_READ_ATTRIBUTES       = &h0080ul
+const FBT_WRITE_ATTRIBUTES      = &h0100ul
+const FBT_DELETE                = &h00010000ul
+const FBT_SYNCHRONIZE           = &h00100000ul
+const FBT_SHARE_ALL             = 7
+const FBT_OPEN_EXISTING         = 3
+const FBT_FLAG_BACKUP_SEMANTICS = &h02000000ul
+const FBT_FLAG_OPEN_REPARSE     = &h00200000ul
+const FBT_ATTR_READONLY         = &h01ul
+const FBT_ATTR_DIRECTORY        = &h10ul
+const FBT_ATTR_NORMAL           = &h80ul
+const FBT_ATTR_REPARSE          = &h400ul
+const FBT_FILE_DIRECTORY_FILE   = &h00000001ul
+const FBT_FILE_SYNC_NONALERT    = &h00000020ul
+const FBT_FILE_OPEN_REPARSE     = &h00200000ul
+const FBT_OBJ_CASE_INSENSITIVE  = &h40ul
+const FBT_FileBasicInfo         = 0
+const FBT_FileAttributeTagInfo  = 9
+const FBT_TAG_NAME_SURROGATE    = &h20000000ul
+const FBT_FileDispositionInfo   = 4
+const FBT_FileIdBothDirInfo     = 10
+const FBT_FileDispositionInfoEx = 21
+const FBT_ERROR_FILE_NOT_FOUND  = 2
+const FBT_ERROR_PATH_NOT_FOUND  = 3
+const FBT_ERROR_NO_MORE_FILES   = 18
+const FBT_STATUS_NOT_A_DIRECTORY = &hC0000103ul
+
+type FbtUnicodeString
+    as ushort   Length
+    as ushort   MaximumLength
+    as any ptr  Buffer
+end type
+
+type FbtObjectAttributes
+    as ulong    Length
+    as any ptr  RootDirectory
+    as FbtUnicodeString ptr ObjectName
+    as ulong    Attributes
+    as any ptr  SecurityDescriptor
+    as any ptr  SecurityQualityOfService
+end type
+
+type FbtNtOpenFileFn as function stdcall ( byval h as any ptr ptr, byval access_ as ulong, _
+    byval oa as FbtObjectAttributes ptr, byval iosb as any ptr, byval share as ulong, byval opts as ulong ) as long
+type FbtNtToDosFn as function stdcall ( byval status as long ) as ulong
+
+extern "C"
+    declare function fbt_CreateFileW stdcall alias "CreateFileW" ( byval name_ as const any ptr, byval access_ as ulong, _
+        byval share as ulong, byval sa as any ptr, byval disp as ulong, byval flags as ulong, byval tmpl as any ptr ) as any ptr
+    declare function fbt_CloseHandle stdcall alias "CloseHandle" ( byval h as any ptr ) as long
+    declare function fbt_GetFileInformationByHandleEx stdcall alias "GetFileInformationByHandleEx" ( byval h as any ptr, _
+        byval cls as long, byval info as any ptr, byval size as ulong ) as long
+    declare function fbt_SetFileInformationByHandle stdcall alias "SetFileInformationByHandle" ( byval h as any ptr, _
+        byval cls as long, byval info as any ptr, byval size as ulong ) as long
+    declare function fbt_GetModuleHandleW stdcall alias "GetModuleHandleW" ( byval name_ as const any ptr ) as any ptr
+    declare function fbt_GetProcAddress stdcall alias "GetProcAddress" ( byval m as any ptr, byval name_ as const zstring ptr ) as any ptr
+    declare function fbt_GetLastError stdcall alias "GetLastError" ( ) as ulong
+    declare sub fbt_SetLastError stdcall alias "SetLastError" ( byval e as ulong )
+end extern
+
+private function hFail( byref op as const ustring, byref p as const ustring ) as FsError
+    dim as long c = FsMapOsError( )
+    dim as long o = FsOsError( )
+    return FsError( cast( FsErrorCode, c ), o, op, p )
+end function
+
+'' A child of `root`, by name, without following a final link. NULL with the Win32 error
+'' set (from the NTSTATUS) on failure.
+private function hOpenRel( byval root as any ptr, byref name_ as const ustring, byval access_ as ulong, _
+        byval opts as ulong, byref status as long ) as any ptr
+    static as FbtNtOpenFileFn pOpen = nullptr
+    static as FbtNtToDosFn pToDos = nullptr
+    if( pOpen = nullptr ) then
+        dim as ustring nt = "ntdll.dll"
+        dim as any ptr m = fbt_GetModuleHandleW( strptr( nt ) )
+        pOpen = cast( FbtNtOpenFileFn, fbt_GetProcAddress( m, @"NtOpenFile" ) )
+        pToDos = cast( FbtNtToDosFn, fbt_GetProcAddress( m, @"RtlNtStatusToDosError" ) )
+    end if
+    dim as FbtUnicodeString us
+    us.Length = len( name_ ) * 2
+    us.MaximumLength = us.Length
+    us.Buffer = cast( any ptr, strptr( name_ ) )
+    dim as FbtObjectAttributes oa
+    oa.Length = sizeof( FbtObjectAttributes )
+    oa.RootDirectory = root
+    oa.ObjectName = @us
+    oa.Attributes = FBT_OBJ_CASE_INSENSITIVE
+    dim as ubyte iosb( 0 to 15 )
+    dim as any ptr h = nullptr
+    status = pOpen( @h, access_, @oa, @iosb(0), FBT_SHARE_ALL, opts or FBT_FILE_SYNC_NONALERT )
+    if( status < 0 ) then
+        fbt_SetLastError( pToDos( status ) )
+        return nullptr
+    end if
+    return h
+end function
+
+'' A LINK is a reparse point whose tag is a name surrogate: a symbolic link, a junction, a
+'' mount point. Other reparse points (cloud placeholders, dedup) are what they look like.
+private function hIsLink( byval attrs as ulong, byval tag as ulong ) as boolean
+    return ( ( attrs and FBT_ATTR_REPARSE ) <> 0 ) andalso ( ( tag and FBT_TAG_NAME_SURROGATE ) <> 0 )
+end function
+
+private function hAttrs( byval h as any ptr, byref attrs as ulong, byref link as boolean ) as boolean
+    dim as ulong at( 0 to 1 )
+    link = FALSE
+    if( fbt_GetFileInformationByHandleEx( h, FBT_FileAttributeTagInfo, @at(0), 8 ) = 0 ) then return FALSE
+    attrs = at(0)
+    link = hIsLink( at(0), at(1) )
+    return TRUE
+end function
+
+'' Marks the open object for deletion. FILE_DISPOSITION_INFO_EX removes it from the
+'' namespace at once and ignores read-only; a filesystem without it (FAT) gets read-only
+'' cleared and the classic disposition, which deletes at close.
+private function hMarkDelete( byval h as any ptr, byval attrs as ulong ) as boolean
+    dim as ulong flags = &h1 or &h2 or &h10        '' DELETE | POSIX_SEMANTICS | IGNORE_READONLY_ATTRIBUTE
+    if( fbt_SetFileInformationByHandle( h, FBT_FileDispositionInfoEx, @flags, 4 ) <> 0 ) then return TRUE
+    if( ( attrs and FBT_ATTR_READONLY ) <> 0 ) then
+        dim as ubyte bi( 0 to 39 )
+        dim as ulong na = attrs and ( not FBT_ATTR_READONLY )
+        if( na = 0 ) then na = FBT_ATTR_NORMAL
+        *cptr( ulong ptr, @bi(32) ) = na
+        fbt_SetFileInformationByHandle( h, FBT_FileBasicInfo, @bi(0), 40 )
+    end if
+    dim as ubyte del_ = 1
+    return ( fbt_SetFileInformationByHandle( h, FBT_FileDispositionInfo, @del_, 1 ) <> 0 )
+end function
+
+'' Everything inside the open directory `dir`. `path` is for error messages only.
+private function hClear( byval dir as any ptr, byref path as const ustring, byref removed as longint, byref f as FsError ) as boolean
+    '' list it whole first, then delete -- not while the listing is in progress
+    dim as Array( of ustring ) names
+    dim as Array( of ulong ) kinds
+    dim as Array( of ulong ) tags
+    dim as ubyte ptr buf = callocate( 65536, 1 )
+    if( buf = nullptr ) then
+        f = FsError( FS_NO_SPACE, 0, "RemoveDirAll", path )
+        return FALSE
+    end if
+    do
+        if( fbt_GetFileInformationByHandleEx( dir, FBT_FileIdBothDirInfo, buf, 65536 ) = 0 ) then
+            if( fbt_GetLastError( ) = FBT_ERROR_NO_MORE_FILES ) then exit do
+            f = hFail( "RemoveDirAll", path )
+            deallocate( buf )
+            return FALSE
+        end if
+        dim as ulong at = 0
+        do
+            dim as ubyte ptr e = buf + at
+            dim as ulong nlen = *cptr( ulong ptr, e + 60 ) \ 2
+            dim as ushort ptr nm = cptr( ushort ptr, e + 104 )
+            dim as boolean dot = ( nlen = 1 ) andalso ( nm[0] = 46 )
+            dim as boolean dotdot = ( nlen = 2 ) andalso ( nm[0] = 46 ) andalso ( nm[1] = 46 )
+            if( ( dot = FALSE ) andalso ( dotdot = FALSE ) ) then
+                dim as ustring s = wspace( nlen )
+                for i as long = 0 to nlen - 1
+                    s[i] = nm[i]
+                next
+                names.Push( s )
+                kinds.Push( *cptr( ulong ptr, e + 56 ) )
+                tags.Push( *cptr( ulong ptr, e + 64 ) )    '' EaSize holds the reparse tag
+            end if
+            dim as ulong nxt = *cptr( ulong ptr, e )
+            if( nxt = 0 ) then exit do
+            at += nxt
+        loop
+    loop
+    deallocate( buf )
+
+    for i as long = 0 to names.Count( ) - 1
+        dim as ustring child = PathJoin( path, names[i] )
+        dim as long st
+        dim as any ptr h
+        dim as boolean wantDir = ( ( kinds[i] and FBT_ATTR_DIRECTORY ) <> 0 ) andalso ( hIsLink( kinds[i], tags[i] ) = FALSE )
+        if( wantDir ) then
+            h = hOpenRel( dir, names[i], FBT_LIST_DIRECTORY or FBT_DELETE or FBT_SYNCHRONIZE or FBT_READ_ATTRIBUTES or FBT_WRITE_ATTRIBUTES, _
+                FBT_FILE_DIRECTORY_FILE or FBT_FILE_OPEN_REPARSE, st )
+            '' swapped for a file meanwhile: delete it as one
+            if( ( h = nullptr ) andalso ( cast( ulong, st ) = FBT_STATUS_NOT_A_DIRECTORY ) ) then wantDir = FALSE
+        end if
+        if( wantDir = FALSE ) then
+            h = hOpenRel( dir, names[i], FBT_DELETE or FBT_SYNCHRONIZE or FBT_READ_ATTRIBUTES or FBT_WRITE_ATTRIBUTES, _
+                FBT_FILE_OPEN_REPARSE, st )
+        end if
+        if( h = nullptr ) then
+            dim as ulong le = fbt_GetLastError( )
+            if( ( le = FBT_ERROR_FILE_NOT_FOUND ) orelse ( le = FBT_ERROR_PATH_NOT_FOUND ) ) then continue for   '' gone already
+            f = hFail( "RemoveDirAll", child )
+            return FALSE
+        end if
+
+        dim as ulong a = 0
+        dim as boolean lnk = TRUE
+        if( hAttrs( h, a, lnk ) = FALSE ) then lnk = TRUE
+        '' the OPEN OBJECT decides: a directory handle that is really a link (or that
+        '' cannot be classified) is deleted as the link and never listed
+        if( wantDir andalso ( lnk = FALSE ) ) then
+            if( hClear( h, child, removed, f ) = FALSE ) then
+                fbt_CloseHandle( h )
+                return FALSE
+            end if
+        end if
+        if( hMarkDelete( h, a ) = FALSE ) then
+            f = hFail( "RemoveDirAll", child )
+            fbt_CloseHandle( h )
+            return FALSE
+        end if
+        fbt_CloseHandle( h )
+        removed += 1
+    next
+    return TRUE
+end function
+
+public function RemoveDirAll( byref p as const ustring ) as FsResultI64
+    dim as any ptr h = fbt_CreateFileW( strptr( p ), FBT_LIST_DIRECTORY or FBT_DELETE or FBT_SYNCHRONIZE or FBT_READ_ATTRIBUTES or FBT_WRITE_ATTRIBUTES, _
+        FBT_SHARE_ALL, nullptr, FBT_OPEN_EXISTING, FBT_FLAG_BACKUP_SEMANTICS or FBT_FLAG_OPEN_REPARSE, nullptr )
+    if( cast( integer, h ) = FBT_INVALID_HANDLE ) then return Fail( of longint, FsError )( hFail( "RemoveDirAll", p ) )
+
+    dim as ulong a = 0
+    dim as boolean lnk
+    if( hAttrs( h, a, lnk ) = FALSE ) then
+        dim as FsError f = hFail( "RemoveDirAll", p )
+        fbt_CloseHandle( h )
+        return Fail( of longint, FsError )( f )
+    end if
+    '' rule 5: a link is refused, a file is not a directory
+    if( lnk orelse ( ( a and FBT_ATTR_DIRECTORY ) = 0 ) ) then
+        fbt_CloseHandle( h )
+        return FsFail( of longint )( FS_NOT_A_DIRECTORY, "RemoveDirAll", p )
+    end if
+
+    dim as longint removed = 0
+    dim as FsError f
+    if( hClear( h, p, removed, f ) = FALSE ) then
+        fbt_CloseHandle( h )
+        return Fail( of longint, FsError )( f )
+    end if
+    if( hMarkDelete( h, a ) = FALSE ) then
+        f = hFail( "RemoveDirAll", p )
+        fbt_CloseHandle( h )
+        return Fail( of longint, FsError )( f )
+    end if
+    fbt_CloseHandle( h )
+    return Ok( of longint, FsError )( removed + 1 )
+end function
+
+#else
+
+const FBT_O_RDONLY    = &o0
+const FBT_O_DIRECTORY = &o200000
+const FBT_O_NOFOLLOW  = &o400000
+const FBT_O_CLOEXEC   = &o2000000
+const FBT_OPEN_DIR    = FBT_O_RDONLY or FBT_O_DIRECTORY or FBT_O_NOFOLLOW or FBT_O_CLOEXEC
+const FBT_AT_REMOVEDIR = &h200
+const FBT_AT_SYMLINK_NOFOLLOW = &h100
+const FBT_DT_UNKNOWN  = 0
+const FBT_DT_DIR      = 4
+const FBT_S_IFMT      = &o170000
+const FBT_S_IFDIR     = &o040000
+const FBT_ENOENT      = 2
+const FBT_ENOTDIR     = 20
+const FBT_EISDIR      = 21
+const FBT_ELOOP       = 40
+
+extern "C"
+    declare function fbt_open alias "open" ( byval p as const zstring ptr, byval flags as long, ... ) as long
+    declare function fbt_openat alias "openat" ( byval dirfd as long, byval p as const zstring ptr, byval flags as long, ... ) as long
+    declare function fbt_close alias "close" ( byval fd as long ) as long
+    declare function fbt_dup alias "dup" ( byval fd as long ) as long
+    declare function fbt_fdopendir alias "fdopendir" ( byval fd as long ) as any ptr
+    declare function fbt_readdir alias "readdir" ( byval d as any ptr ) as ubyte ptr
+    declare function fbt_closedir alias "closedir" ( byval d as any ptr ) as long
+    declare function fbt_unlinkat alias "unlinkat" ( byval dirfd as long, byval p as const zstring ptr, byval flags as long ) as long
+    declare function fbt_fstatat alias "fstatat" ( byval dirfd as long, byval p as const zstring ptr, byval st as ubyte ptr, byval flags as long ) as long
+    declare function fbt_rmdir alias "rmdir" ( byval p as const zstring ptr ) as long
+    declare function fbt_errno_location alias "__errno_location" ( ) as long ptr
+end extern
+
+private function hFail( byref op as const ustring, byref p as const ustring ) as FsError
+    dim as long c = FsMapOsError( )
+    dim as long o = FsOsError( )
+    return FsError( cast( FsErrorCode, c ), o, op, p )
+end function
+
+declare function hClear( byval fd as long, byref path as const ustring, byref removed as longint, byref f as FsError ) as boolean
+
+'' `name` (a directory, by its listing) inside `fd`: opened without following a link,
+'' cleared, removed. A name that turns out NOT to be a directory any more is unlinked as
+'' whatever it now is.
+private function hRemoveDirAt( byval fd as long, byref name_ as const string, byref path as const ustring, _
+        byref removed as longint, byref f as FsError ) as boolean
+    dim as long cfd = fbt_openat( fd, strptr( name_ ), FBT_OPEN_DIR )
+    if( cfd < 0 ) then
+        dim as long e = *fbt_errno_location( )
+        if( e = FBT_ENOENT ) then return TRUE
+        if( ( e = FBT_ELOOP ) orelse ( e = FBT_ENOTDIR ) ) then
+            if( fbt_unlinkat( fd, strptr( name_ ), 0 ) = 0 ) then
+                removed += 1
+                return TRUE
+            end if
+            if( *fbt_errno_location( ) = FBT_ENOENT ) then return TRUE
+        end if
+        f = hFail( "RemoveDirAll", path )
+        return FALSE
+    end if
+    dim as boolean ok_ = hClear( cfd, path, removed, f )
+    fbt_close( cfd )
+    if( ok_ = FALSE ) then return FALSE
+    if( fbt_unlinkat( fd, strptr( name_ ), FBT_AT_REMOVEDIR ) <> 0 ) then
+        if( *fbt_errno_location( ) = FBT_ENOENT ) then return TRUE
+        f = hFail( "RemoveDirAll", path )
+        return FALSE
+    end if
+    removed += 1
+    return TRUE
+end function
+
+function hClear( byval fd as long, byref path as const ustring, byref removed as longint, byref f as FsError ) as boolean
+    '' list it whole first (through a dup, which fdopendir takes over), then delete
+    dim as long dfd = fbt_dup( fd )
+    if( dfd < 0 ) then
+        f = hFail( "RemoveDirAll", path )
+        return FALSE
+    end if
+    dim as any ptr d = fbt_fdopendir( dfd )
+    if( d = nullptr ) then
+        f = hFail( "RemoveDirAll", path )
+        fbt_close( dfd )
+        return FALSE
+    end if
+    dim as Array( of string ) names
+    dim as Array( of long ) types
+    do
+        '' struct dirent: d_type at offset 18, d_name at 19
+        dim as ubyte ptr e = fbt_readdir( d )
+        if( e = nullptr ) then exit do
+        dim as zstring ptr nm = cptr( zstring ptr, e + 19 )
+        dim as string s = *nm
+        if( ( s = "." ) orelse ( s = ".." ) ) then continue do
+        names.Push( s )
+        dim as long ty = e[18]
+        types.Push( ty )
+    loop
+    fbt_closedir( d )
+
+    for i as long = 0 to names.Count( ) - 1
+        dim as ustring child = PathJoin( path, names[i] )
+        dim as long t = types[i]
+        if( t = FBT_DT_UNKNOWN ) then
+            dim as ubyte st( 0 to 143 )
+            if( fbt_fstatat( fd, strptr( names[i] ), @st(0), FBT_AT_SYMLINK_NOFOLLOW ) = 0 ) then
+                if( ( *cptr( ulong ptr, @st(24) ) and FBT_S_IFMT ) = FBT_S_IFDIR ) then t = FBT_DT_DIR
+            end if
+        end if
+        if( t = FBT_DT_DIR ) then
+            if( hRemoveDirAt( fd, names[i], child, removed, f ) = FALSE ) then return FALSE
+        else
+            if( fbt_unlinkat( fd, strptr( names[i] ), 0 ) = 0 ) then
+                removed += 1
+            else
+                dim as long e = *fbt_errno_location( )
+                if( e = FBT_ENOENT ) then continue for
+                '' swapped for a directory meanwhile: remove it as one
+                if( e = FBT_EISDIR ) then
+                    if( hRemoveDirAt( fd, names[i], child, removed, f ) = FALSE ) then return FALSE
+                    continue for
+                end if
+                f = hFail( "RemoveDirAll", child )
+                return FALSE
+            end if
+        end if
+    next
+    return TRUE
+end function
+
+public function RemoveDirAll( byref p as const ustring ) as FsResultI64
+    dim as string narrow = p
+    dim as long fd = fbt_open( strptr( narrow ), FBT_OPEN_DIR )
+    if( fd < 0 ) then
+        '' rule 5: p itself a link is refused, and so is a file
+        if( *fbt_errno_location( ) = FBT_ELOOP ) then return FsFail( of longint )( FS_NOT_A_DIRECTORY, "RemoveDirAll", p )
+        return Fail( of longint, FsError )( hFail( "RemoveDirAll", p ) )
+    end if
+    dim as longint removed = 0
+    dim as FsError f
+    dim as boolean ok_ = hClear( fd, p, removed, f )
+    fbt_close( fd )
+    if( ok_ = FALSE ) then return Fail( of longint, FsError )( f )
+    if( fbt_rmdir( strptr( narrow ) ) <> 0 ) then return Fail( of longint, FsError )( hFail( "RemoveDirAll", p ) )
+    return Ok( of longint, FsError )( removed + 1 )
+end function
+
+#endif

@@ -546,11 +546,12 @@ CreateDirAll tolerates another process creating the same tree concurrently: an F
 
 ### RemoveDirAll
 
-Three rules, and the second is the most important destructive behaviour in the library:
+Four rules, and the second and third are the most important destructive behaviour in the library:
 
-1. It lists each level with ListDir rather than iterating, because deleting while enumerating is undefined.
-2. **A symlink to a directory is unlinked, never descended.** This is what stops a recursive delete of a tree containing a link to `C:\` from doing what it sounds like.
-3. The Windows read-only attribute is cleared before deleting, as `rm -rf` does. Without it the call fails partway through a checked-out repository.
+1. It lists each directory whole before deleting anything in it, because deleting while enumerating is undefined.
+2. **A symlink or junction inside the tree is unlinked, never descended.** This is what stops a recursive delete of a tree containing a link to `C:\` from doing what it sounds like.
+3. **It cannot be raced into following a link.** Each directory is opened relative to its already-open parent and without following a link, and every deletion is made relative to an open directory, so a subdirectory swapped for a link while the removal runs is removed as that link. For the same reason **p itself a link is refused** with FS_NOT_A_DIRECTORY and nothing is deleted.
+4. Read-only files are removed, as `rm -rf` does. Without that the call fails partway through a checked-out repository.
 
 On failure it reports the first error and stops; it does not continue destructively past something it did not understand.
 
@@ -740,6 +741,29 @@ SetReadOnly is genuinely portable, but **is not an exact inverse on POSIX** -- c
 SetHidden is portable in name only: on POSIX hiddenness is a naming convention, so honouring it would mean renaming the file behind your back. It returns FS_UNSUPPORTED there instead.
 
 **There is no owner, group or ACL API.** There is no portable subset beyond the read-only bit, and a partial ACL API is worse than none -- it invites code that looks portable and silently grants more than it meant to on one platform.
+
+## User Directories
+
+```text
+HomeDir( )            the home directory
+ConfigDir( )          user configuration         AppData\Roaming     $XDG_CONFIG_HOME  ~/.config
+DataDir( )            user data                  AppData\Local       $XDG_DATA_HOME    ~/.local/share
+CacheDir( )           files that can be rebuilt  AppData\Local       $XDG_CACHE_HOME   ~/.cache
+StateDir( )           logs, history, recents     AppData\Local       $XDG_STATE_HOME   ~/.local/state
+ExecutablePath( )     the running program's full path
+ExpandHome( p )       a leading ~ replaced by HomeDir( )
+```
+
+Each returns an FsResultUStr without a trailing separator. **Nothing is created and no application name is added**: join your own name and CreateDirAll it before writing there. On Windows the answers come from the shell's known folders, falling back to the environment; on Linux an XDG variable is honoured only when it is an absolute path, and $HOME falls back to the passwd entry.
+
+```freebasic
+#import "std/fs"
+using fs
+
+dim as ustring cfg = PathJoin( ConfigDir( ).ValueOr( "." ), "myapp" )
+CreateDirAll( cfg )
+WriteAtomic( PathJoin( cfg, "settings.ini" ), "[main]" & chr( 10 ) )
+```
 
 ## Volumes
 
@@ -1000,9 +1024,11 @@ Nine fbcunit suites, vendored in tiko-lang at tests/vendor/fbc-tests/filesystem/
 | fs-p2 | the Stream contract, a stream defined outside the library, Copy, and MemoryStream decoding as ReadAllText does |
 | fs-p3 | File: the option rules, every disposition, append, positional IO, SetSize, Stat, locks, inheritance, NoFollow, OpenTemp |
 | fs-file-nocopy | a File cannot be copied or assigned |
-| fs-p6 | walk order, filters, pruning and SkipChildren; components of every Windows prefix; PathIsLocal and PathIsReserved tables; CanonicalPath with a missing tail; CreateDirAll's mode |
-| fs-p5 | FileId through hard and symbolic links, SameFile, File.Id, Instant round trips, owner and Chown, SetTimesNoFollow on a link |
 | fs-p4 | buffered and text layers through a one-byte-at-a-time stream, line for line against ReadAllLines, ReadLines closing on exit for, the size limits |
+| fs-p5 | FileId through hard and symbolic links, SameFile, File.Id, Instant round trips, owner and Chown, SetTimesNoFollow on a link |
+| fs-p6 | walk order, filters, pruning and SkipChildren; components of every Windows prefix; PathIsLocal and PathIsReserved tables; CanonicalPath with a missing tail; CreateDirAll's mode |
+| fs-p7 | the user directories against the platform's own answer, XDG overrides and the passwd fallback, ExecutablePath, ExpandHome |
+| fs-p8 | RemoveDirAll's count, read-only files, a link inside the tree, p itself a link or a file, and a subdirectory swapped for a link to an outside sentinel while the removal runs |
 
 The suites deliberately do not assert that a truncating writer faults a live mapping, nor cross-process lock exclusion.
 
@@ -1013,81 +1039,83 @@ One page per entry, 139 in all:
 |   |   |   |
 |---|---|---|
 | [AppendAllBytes](Modern-Fs-AppendAllBytes) | [FileInfo.HasAccessed](Modern-Fs-FileInfo-HasAccessed) | [PathJoin](Modern-Fs-PathJoin) |
-| [AppendAllText](Modern-Fs-AppendAllText) | [FileInfo.IsHidden](Modern-Fs-FileInfo-IsHidden) | [PathNormalize](Modern-Fs-PathNormalize) |
-| [BufferedReader](Modern-Fs-BufferedReader) | [FileInfo.IsOther](Modern-Fs-FileInfo-IsOther) | [PathParent](Modern-Fs-PathParent) |
-| [BufferedReader.Peek](Modern-Fs-BufferedReader-Peek) | [FileInfo.IsReadOnly](Modern-Fs-FileInfo-IsReadOnly) | [PathRelativeTo](Modern-Fs-PathRelativeTo) |
-| [BufferedReader.ReadByte](Modern-Fs-BufferedReader-ReadByte) | [FileInfo.IsSymlink](Modern-Fs-FileInfo-IsSymlink) | [PathRoot](Modern-Fs-PathRoot) |
-| [BufferedReader.ReadLine](Modern-Fs-BufferedReader-ReadLine) | [FileInfo.Modified](Modern-Fs-FileInfo-Modified) | [PathRootLen](Modern-Fs-PathRootLen) |
-| [BufferedReader.ReadUntil](Modern-Fs-BufferedReader-ReadUntil) | [FileInfo.ModifiedUtc](Modern-Fs-FileInfo-ModifiedUtc) | [PathSeparator](Modern-Fs-PathSeparator) |
-| [BufferedWriter](Modern-Fs-BufferedWriter) | [FileInfo.NativeAttributes](Modern-Fs-FileInfo-NativeAttributes) | [PathSplit](Modern-Fs-PathSplit) |
-| [Chown](Modern-Fs-Chown) | [FileInfo.OwnerGid](Modern-Fs-FileInfo-OwnerGid) | [PathStartsWith](Modern-Fs-PathStartsWith) |
-| [Copy](Modern-Fs-Copy) | [FileInfo.OwnerUid](Modern-Fs-FileInfo-OwnerUid) | [PathStem](Modern-Fs-PathStem) |
-| [CopyDir](Modern-Fs-CopyDir) | [FileInfo.SetCurrentDir](Modern-Fs-FileInfo-SetCurrentDir) | [PathToNative](Modern-Fs-PathToNative) |
-| [CopyFile](Modern-Fs-CopyFile) | [FileInfo.Size](Modern-Fs-FileInfo-Size) | [PatternIsRecursive](Modern-Fs-PatternIsRecursive) |
-| [CopySymlinksAsLinks](Modern-Fs-CopySymlinksAsLinks) | [FileLock.Acquire](Modern-Fs-FileLock-Acquire) | [PatternWildcardAt](Modern-Fs-PatternWildcardAt) |
-| [CreateDir](Modern-Fs-CreateDir) | [FileLock.IsHeld](Modern-Fs-FileLock-IsHeld) | [PreservePermissions](Modern-Fs-PreservePermissions) |
-| [CreateDirAll](Modern-Fs-CreateDirAll) | [FileLock.Release](Modern-Fs-FileLock-Release) | [PreserveTimestamps](Modern-Fs-PreserveTimestamps) |
-| [CreateHardLink](Modern-Fs-CreateHardLink) | [FileWatcher.IsWatching](Modern-Fs-FileWatcher-IsWatching) | [ReadAllBytes](Modern-Fs-ReadAllBytes) |
-| [CreateSymlink](Modern-Fs-CreateSymlink) | [FileWatcher.Poll](Modern-Fs-FileWatcher-Poll) | [ReadAllLines](Modern-Fs-ReadAllLines) |
-| [CreateTempDir](Modern-Fs-CreateTempDir) | [FileWatcher.Start](Modern-Fs-FileWatcher-Start) | [ReadAllText](Modern-Fs-ReadAllText) |
-| [CreateTempFile](Modern-Fs-CreateTempFile) | [FileWatcher.Stop](Modern-Fs-FileWatcher-Stop) | [ReadDir](Modern-Fs-ReadDir) |
-| [DirEntry.Depth](Modern-Fs-DirEntry-Depth) | [FsChange.Kind](Modern-Fs-FsChange-Kind) | [ReadLines](Modern-Fs-ReadLines) |
-| [DirEntry.DirIterator](Modern-Fs-DirEntry-DirIterator) | [FsChange.Path](Modern-Fs-FsChange-Path) | [ReadLink](Modern-Fs-ReadLink) |
-| [DirEntry.FollowSymlinks](Modern-Fs-DirEntry-FollowSymlinks) | [FsError.Code](Modern-Fs-FsError-Code) | [RemoveDir](Modern-Fs-RemoveDir) |
-| [DirEntry.IncludeHidden](Modern-Fs-DirEntry-IncludeHidden) | [FsError.Message](Modern-Fs-FsError-Message) | [RemoveDirAll](Modern-Fs-RemoveDirAll) |
-| [DirEntry.Info](Modern-Fs-DirEntry-Info) | [FsError.Operation](Modern-Fs-FsError-Operation) | [RemoveFile](Modern-Fs-RemoveFile) |
-| [DirEntry.IsDirectory](Modern-Fs-DirEntry-IsDirectory) | [FsError.OsCode](Modern-Fs-FsError-OsCode) | [ReplaceFile](Modern-Fs-ReplaceFile) |
-| [DirEntry.IsFile](Modern-Fs-DirEntry-IsFile) | [FsError.Path](Modern-Fs-FsError-Path) | [SameFile](Modern-Fs-SameFile) |
-| [DirEntry.IsOther](Modern-Fs-DirEntry-IsOther) | [FsError.Path2](Modern-Fs-FsError-Path2) | [SeekOrigin](Modern-Fs-SeekOrigin) |
-| [DirEntry.IsSymlink](Modern-Fs-DirEntry-IsSymlink) | [GetDiskSpace](Modern-Fs-GetDiskSpace) | [SetHidden](Modern-Fs-SetHidden) |
-| [DirEntry.IsValid](Modern-Fs-DirEntry-IsValid) | [GetFileId](Modern-Fs-GetFileId) | [SetPosixMode](Modern-Fs-SetPosixMode) |
-| [DirEntry.MaxDepth](Modern-Fs-DirEntry-MaxDepth) | [GetPosixMode](Modern-Fs-GetPosixMode) | [SetReadOnly](Modern-Fs-SetReadOnly) |
-| [DirEntry.MoveNext](Modern-Fs-DirEntry-MoveNext) | [GetVolumeInfo](Modern-Fs-GetVolumeInfo) | [SetTimes](Modern-Fs-SetTimes) |
-| [DirEntry.Name](Modern-Fs-DirEntry-Name) | [GetVolumes](Modern-Fs-GetVolumes) | [SetTimesNoFollow](Modern-Fs-SetTimesNoFollow) |
-| [DirEntry.Path](Modern-Fs-DirEntry-Path) | [GetWin32Attributes](Modern-Fs-GetWin32Attributes) | [SetWin32Attributes](Modern-Fs-SetWin32Attributes) |
-| [DirEntry.StopOnError](Modern-Fs-DirEntry-StopOnError) | [Glob](Modern-Fs-Glob) | [Stat](Modern-Fs-Stat) |
+| [AppendAllText](Modern-Fs-AppendAllText) | [FileInfo.HasOwner](Modern-Fs-FileInfo-HasOwner) | [PathIsRoot](Modern-Fs-PathIsRoot) |
+| [BufferedReader](Modern-Fs-BufferedReader) | [FileInfo.IsDirectory](Modern-Fs-FileInfo-IsDirectory) | [PathNextComponent](Modern-Fs-PathNextComponent) |
+| [BufferedReader.Peek](Modern-Fs-BufferedReader-Peek) | [FileInfo.IsFile](Modern-Fs-FileInfo-IsFile) | [PathNormalize](Modern-Fs-PathNormalize) |
+| [BufferedReader.ReadByte](Modern-Fs-BufferedReader-ReadByte) | [FileInfo.IsHidden](Modern-Fs-FileInfo-IsHidden) | [PathParent](Modern-Fs-PathParent) |
+| [BufferedReader.ReadLine](Modern-Fs-BufferedReader-ReadLine) | [FileInfo.IsOther](Modern-Fs-FileInfo-IsOther) | [PathRelativeTo](Modern-Fs-PathRelativeTo) |
+| [BufferedReader.ReadUntil](Modern-Fs-BufferedReader-ReadUntil) | [FileInfo.IsReadOnly](Modern-Fs-FileInfo-IsReadOnly) | [PathRoot](Modern-Fs-PathRoot) |
+| [BufferedWriter](Modern-Fs-BufferedWriter) | [FileInfo.IsSymlink](Modern-Fs-FileInfo-IsSymlink) | [PathRootLen](Modern-Fs-PathRootLen) |
+| [CacheDir](Modern-Fs-CacheDir) | [FileInfo.Modified](Modern-Fs-FileInfo-Modified) | [PathSeparator](Modern-Fs-PathSeparator) |
+| [Chown](Modern-Fs-Chown) | [FileInfo.ModifiedUtc](Modern-Fs-FileInfo-ModifiedUtc) | [PathSplit](Modern-Fs-PathSplit) |
+| [ConfigDir](Modern-Fs-ConfigDir) | [FileInfo.NativeAttributes](Modern-Fs-FileInfo-NativeAttributes) | [PathStartsWith](Modern-Fs-PathStartsWith) |
+| [Copy](Modern-Fs-Copy) | [FileInfo.OwnerGid](Modern-Fs-FileInfo-OwnerGid) | [PathStem](Modern-Fs-PathStem) |
+| [CopyDir](Modern-Fs-CopyDir) | [FileInfo.OwnerUid](Modern-Fs-FileInfo-OwnerUid) | [PathToNative](Modern-Fs-PathToNative) |
+| [CopyFile](Modern-Fs-CopyFile) | [FileInfo.SetCurrentDir](Modern-Fs-FileInfo-SetCurrentDir) | [PatternIsRecursive](Modern-Fs-PatternIsRecursive) |
+| [CopySymlinksAsLinks](Modern-Fs-CopySymlinksAsLinks) | [FileInfo.Size](Modern-Fs-FileInfo-Size) | [PatternWildcardAt](Modern-Fs-PatternWildcardAt) |
+| [CreateDir](Modern-Fs-CreateDir) | [FileLock.Acquire](Modern-Fs-FileLock-Acquire) | [PreservePermissions](Modern-Fs-PreservePermissions) |
+| [CreateDirAll](Modern-Fs-CreateDirAll) | [FileLock.IsHeld](Modern-Fs-FileLock-IsHeld) | [PreserveTimestamps](Modern-Fs-PreserveTimestamps) |
+| [CreateHardLink](Modern-Fs-CreateHardLink) | [FileLock.Release](Modern-Fs-FileLock-Release) | [ReadAllBytes](Modern-Fs-ReadAllBytes) |
+| [CreateSymlink](Modern-Fs-CreateSymlink) | [FileWatcher.IsWatching](Modern-Fs-FileWatcher-IsWatching) | [ReadAllLines](Modern-Fs-ReadAllLines) |
+| [CreateTempDir](Modern-Fs-CreateTempDir) | [FileWatcher.Poll](Modern-Fs-FileWatcher-Poll) | [ReadAllText](Modern-Fs-ReadAllText) |
+| [CreateTempFile](Modern-Fs-CreateTempFile) | [FileWatcher.Start](Modern-Fs-FileWatcher-Start) | [ReadDir](Modern-Fs-ReadDir) |
+| [DataDir](Modern-Fs-DataDir) | [FileWatcher.Stop](Modern-Fs-FileWatcher-Stop) | [ReadLines](Modern-Fs-ReadLines) |
+| [DirEntry.Depth](Modern-Fs-DirEntry-Depth) | [FsChange.Kind](Modern-Fs-FsChange-Kind) | [ReadLink](Modern-Fs-ReadLink) |
+| [DirEntry.DirIterator](Modern-Fs-DirEntry-DirIterator) | [FsChange.Path](Modern-Fs-FsChange-Path) | [RemoveDir](Modern-Fs-RemoveDir) |
+| [DirEntry.FollowSymlinks](Modern-Fs-DirEntry-FollowSymlinks) | [FsError.Code](Modern-Fs-FsError-Code) | [RemoveDirAll](Modern-Fs-RemoveDirAll) |
+| [DirEntry.IncludeHidden](Modern-Fs-DirEntry-IncludeHidden) | [FsError.Message](Modern-Fs-FsError-Message) | [RemoveFile](Modern-Fs-RemoveFile) |
+| [DirEntry.Info](Modern-Fs-DirEntry-Info) | [FsError.Operation](Modern-Fs-FsError-Operation) | [ReplaceFile](Modern-Fs-ReplaceFile) |
+| [DirEntry.IsDirectory](Modern-Fs-DirEntry-IsDirectory) | [FsError.OsCode](Modern-Fs-FsError-OsCode) | [SameFile](Modern-Fs-SameFile) |
+| [DirEntry.IsFile](Modern-Fs-DirEntry-IsFile) | [FsError.Path](Modern-Fs-FsError-Path) | [SeekOrigin](Modern-Fs-SeekOrigin) |
+| [DirEntry.IsOther](Modern-Fs-DirEntry-IsOther) | [FsError.Path2](Modern-Fs-FsError-Path2) | [SetHidden](Modern-Fs-SetHidden) |
+| [DirEntry.IsSymlink](Modern-Fs-DirEntry-IsSymlink) | [GetDiskSpace](Modern-Fs-GetDiskSpace) | [SetPosixMode](Modern-Fs-SetPosixMode) |
+| [DirEntry.IsValid](Modern-Fs-DirEntry-IsValid) | [GetFileId](Modern-Fs-GetFileId) | [SetReadOnly](Modern-Fs-SetReadOnly) |
+| [DirEntry.MaxDepth](Modern-Fs-DirEntry-MaxDepth) | [GetPosixMode](Modern-Fs-GetPosixMode) | [SetTimes](Modern-Fs-SetTimes) |
+| [DirEntry.MoveNext](Modern-Fs-DirEntry-MoveNext) | [GetVolumeInfo](Modern-Fs-GetVolumeInfo) | [SetTimesNoFollow](Modern-Fs-SetTimesNoFollow) |
+| [DirEntry.Name](Modern-Fs-DirEntry-Name) | [GetVolumes](Modern-Fs-GetVolumes) | [SetWin32Attributes](Modern-Fs-SetWin32Attributes) |
+| [DirEntry.Path](Modern-Fs-DirEntry-Path) | [GetWin32Attributes](Modern-Fs-GetWin32Attributes) | [Stat](Modern-Fs-Stat) |
+| [DirEntry.StopOnError](Modern-Fs-DirEntry-StopOnError) | [Glob](Modern-Fs-Glob) | [StateDir](Modern-Fs-StateDir) |
 | [DirEntry.Value](Modern-Fs-DirEntry-Value) | [GlobRoot](Modern-Fs-GlobRoot) | [Stream](Modern-Fs-Stream) |
-| [DirEntry.WalkIterator](Modern-Fs-DirEntry-WalkIterator) | [IsDir](Modern-Fs-IsDir) | [Stream.CanRead](Modern-Fs-Stream-CanRead) |
-| [DirEntry.YieldDirectories](Modern-Fs-DirEntry-YieldDirectories) | [IsFile](Modern-Fs-IsFile) | [Stream.CanSeek](Modern-Fs-Stream-CanSeek) |
-| [DiskSpace.AvailableBytes](Modern-Fs-DiskSpace-AvailableBytes) | [IsLink](Modern-Fs-IsLink) | [Stream.CanWrite](Modern-Fs-Stream-CanWrite) |
-| [DiskSpace.FreeBytes](Modern-Fs-DiskSpace-FreeBytes) | [LChown](Modern-Fs-LChown) | [Stream.Flush](Modern-Fs-Stream-Flush) |
-| [DiskSpace.TotalBytes](Modern-Fs-DiskSpace-TotalBytes) | [LinkCount](Modern-Fs-LinkCount) | [Stream.Position](Modern-Fs-Stream-Position) |
-| [Exists](Modern-Fs-Exists) | [ListDir](Modern-Fs-ListDir) | [Stream.Read](Modern-Fs-Stream-Read) |
-| [File](Modern-Fs-File) | [LStat](Modern-Fs-LStat) | [Stream.ReadExact](Modern-Fs-Stream-ReadExact) |
-| [File.Close](Modern-Fs-File-Close) | [MatchPattern](Modern-Fs-MatchPattern) | [Stream.ReadToEnd](Modern-Fs-Stream-ReadToEnd) |
-| [File.Create](Modern-Fs-File-Create) | [MemoryMappedFile.Close](Modern-Fs-MemoryMappedFile-Close) | [Stream.Seek](Modern-Fs-Stream-Seek) |
-| [File.CreateNew](Modern-Fs-File-CreateNew) | [MemoryMappedFile.Data](Modern-Fs-MemoryMappedFile-Data) | [Stream.Write](Modern-Fs-Stream-Write) |
-| [File.Id](Modern-Fs-File-Id) | [MemoryMappedFile.Flush](Modern-Fs-MemoryMappedFile-Flush) | [Stream.WriteAll](Modern-Fs-Stream-WriteAll) |
-| [File.IsOpen](Modern-Fs-File-IsOpen) | [MemoryMappedFile.IsOpen](Modern-Fs-MemoryMappedFile-IsOpen) | [Stream.WriteBytes](Modern-Fs-Stream-WriteBytes) |
-| [File.Lock](Modern-Fs-File-Lock) | [MemoryMappedFile.Open](Modern-Fs-MemoryMappedFile-Open) | [Stream.WriteUtf8](Modern-Fs-Stream-WriteUtf8) |
-| [File.NativeHandle](Modern-Fs-File-NativeHandle) | [MemoryMappedFile.Size](Modern-Fs-MemoryMappedFile-Size) | [TempDir](Modern-Fs-TempDir) |
-| [File.Open](Modern-Fs-File-Open) | [MemoryStream](Modern-Fs-MemoryStream) | [TextErrorMode](Modern-Fs-TextErrorMode) |
-| [File.OpenAppend](Modern-Fs-File-OpenAppend) | [MemoryStream.Clear](Modern-Fs-MemoryStream-Clear) | [TextReader](Modern-Fs-TextReader) |
-| [File.OpenRead](Modern-Fs-File-OpenRead) | [MemoryStream.Length](Modern-Fs-MemoryStream-Length) | [TextReader.Encoding](Modern-Fs-TextReader-Encoding) |
-| [File.OpenTemp](Modern-Fs-File-OpenTemp) | [MemoryStream.ToBytes](Modern-Fs-MemoryStream-ToBytes) | [TextReader.ReadLine](Modern-Fs-TextReader-ReadLine) |
-| [File.Path](Modern-Fs-File-Path) | [MemoryStream.ToUtf8Text](Modern-Fs-MemoryStream-ToUtf8Text) | [TextReader.ReadToEnd](Modern-Fs-TextReader-ReadToEnd) |
-| [File.ReadAt](Modern-Fs-File-ReadAt) | [MoveFile](Modern-Fs-MoveFile) | [TextWriter](Modern-Fs-TextWriter) |
-| [File.SetSize](Modern-Fs-File-SetSize) | [NativeAttributes](Modern-Fs-NativeAttributes) | [TextWriter.WriteLine](Modern-Fs-TextWriter-WriteLine) |
-| [File.Size](Modern-Fs-File-Size) | [OpenOptions](Modern-Fs-OpenOptions) | [TryExists](Modern-Fs-TryExists) |
-| [File.Stat](Modern-Fs-File-Stat) | [OpenOptionsAppend](Modern-Fs-OpenOptionsAppend) | [VolumeInfo.FileSystem](Modern-Fs-VolumeInfo-FileSystem) |
-| [File.Sync](Modern-Fs-File-Sync) | [OpenOptionsRead](Modern-Fs-OpenOptionsRead) | [VolumeInfo.IsCaseSensitive](Modern-Fs-VolumeInfo-IsCaseSensitive) |
-| [File.SyncData](Modern-Fs-File-SyncData) | [OpenOptionsWrite](Modern-Fs-OpenOptionsWrite) | [VolumeInfo.IsReadOnly](Modern-Fs-VolumeInfo-IsReadOnly) |
-| [File.TryLock](Modern-Fs-File-TryLock) | [Overwrite](Modern-Fs-Overwrite) | [VolumeInfo.MaxComponentLen](Modern-Fs-VolumeInfo-MaxComponentLen) |
-| [File.Unlock](Modern-Fs-File-Unlock) | [PathAddExtension](Modern-Fs-PathAddExtension) | [VolumeInfo.Name](Modern-Fs-VolumeInfo-Name) |
-| [File.WriteAt](Modern-Fs-File-WriteAt) | [PathChangeExtension](Modern-Fs-PathChangeExtension) | [VolumeInfo.RootPath](Modern-Fs-VolumeInfo-RootPath) |
-| [FileId](Modern-Fs-FileId) | [PathComponent](Modern-Fs-PathComponent) | [VolumeInfo.SupportsLinks](Modern-Fs-VolumeInfo-SupportsLinks) |
-| [FileInfo.AbsolutePath](Modern-Fs-FileInfo-AbsolutePath) | [PathComponents](Modern-Fs-PathComponents) | [WalkDecision](Modern-Fs-WalkDecision) |
-| [FileInfo.Accessed](Modern-Fs-FileInfo-Accessed) | [PathEquals](Modern-Fs-PathEquals) | [WalkDir](Modern-Fs-WalkDir) |
-| [FileInfo.AccessedUtc](Modern-Fs-FileInfo-AccessedUtc) | [PathExtension](Modern-Fs-PathExtension) | [WalkFilter](Modern-Fs-WalkFilter) |
-| [FileInfo.CanonicalPath](Modern-Fs-FileInfo-CanonicalPath) | [PathFileName](Modern-Fs-PathFileName) | [WalkIterator.SkipChildren](Modern-Fs-WalkIterator-SkipChildren) |
-| [FileInfo.Created](Modern-Fs-FileInfo-Created) | [PathFilePrefix](Modern-Fs-PathFilePrefix) | [WalkOptions.ContentsFirst](Modern-Fs-DirEntry-ContentsFirst) |
-| [FileInfo.CreatedUtc](Modern-Fs-FileInfo-CreatedUtc) | [PathHasExtension](Modern-Fs-PathHasExtension) | [WalkOptions.Filter](Modern-Fs-DirEntry-Filter) |
-| [FileInfo.CurrentDir](Modern-Fs-FileInfo-CurrentDir) | [PathIsAbsolute](Modern-Fs-PathIsAbsolute) | [WalkOptions.SortByName](Modern-Fs-DirEntry-SortByName) |
-| [FileInfo.Exists](Modern-Fs-FileInfo-Exists) | [PathIsCaseSensitive](Modern-Fs-PathIsCaseSensitive) | [WriteAllBytes](Modern-Fs-WriteAllBytes) |
-| [FileInfo.HasCreated](Modern-Fs-FileInfo-HasCreated) | [PathIsLocal](Modern-Fs-PathIsLocal) | [WriteAllText](Modern-Fs-WriteAllText) |
-| [FileInfo.HasOwner](Modern-Fs-FileInfo-HasOwner) | [PathIsReserved](Modern-Fs-PathIsReserved) | [WriteAtomic](Modern-Fs-WriteAtomic) |
-| [FileInfo.IsDirectory](Modern-Fs-FileInfo-IsDirectory) | [PathIsRoot](Modern-Fs-PathIsRoot) |  |
-| [FileInfo.IsFile](Modern-Fs-FileInfo-IsFile) | [PathNextComponent](Modern-Fs-PathNextComponent) |  |
+| [DirEntry.WalkIterator](Modern-Fs-DirEntry-WalkIterator) | [HomeDir](Modern-Fs-HomeDir) | [Stream.CanRead](Modern-Fs-Stream-CanRead) |
+| [DirEntry.YieldDirectories](Modern-Fs-DirEntry-YieldDirectories) | [IsDir](Modern-Fs-IsDir) | [Stream.CanSeek](Modern-Fs-Stream-CanSeek) |
+| [DiskSpace.AvailableBytes](Modern-Fs-DiskSpace-AvailableBytes) | [IsFile](Modern-Fs-IsFile) | [Stream.CanWrite](Modern-Fs-Stream-CanWrite) |
+| [DiskSpace.FreeBytes](Modern-Fs-DiskSpace-FreeBytes) | [IsLink](Modern-Fs-IsLink) | [Stream.Flush](Modern-Fs-Stream-Flush) |
+| [DiskSpace.TotalBytes](Modern-Fs-DiskSpace-TotalBytes) | [LChown](Modern-Fs-LChown) | [Stream.Position](Modern-Fs-Stream-Position) |
+| [ExecutablePath](Modern-Fs-ExecutablePath) | [LinkCount](Modern-Fs-LinkCount) | [Stream.Read](Modern-Fs-Stream-Read) |
+| [Exists](Modern-Fs-Exists) | [ListDir](Modern-Fs-ListDir) | [Stream.ReadExact](Modern-Fs-Stream-ReadExact) |
+| [ExpandHome](Modern-Fs-ExpandHome) | [LStat](Modern-Fs-LStat) | [Stream.ReadToEnd](Modern-Fs-Stream-ReadToEnd) |
+| [File](Modern-Fs-File) | [MatchPattern](Modern-Fs-MatchPattern) | [Stream.Seek](Modern-Fs-Stream-Seek) |
+| [File.Close](Modern-Fs-File-Close) | [MemoryMappedFile.Close](Modern-Fs-MemoryMappedFile-Close) | [Stream.Write](Modern-Fs-Stream-Write) |
+| [File.Create](Modern-Fs-File-Create) | [MemoryMappedFile.Data](Modern-Fs-MemoryMappedFile-Data) | [Stream.WriteAll](Modern-Fs-Stream-WriteAll) |
+| [File.CreateNew](Modern-Fs-File-CreateNew) | [MemoryMappedFile.Flush](Modern-Fs-MemoryMappedFile-Flush) | [Stream.WriteBytes](Modern-Fs-Stream-WriteBytes) |
+| [File.Id](Modern-Fs-File-Id) | [MemoryMappedFile.IsOpen](Modern-Fs-MemoryMappedFile-IsOpen) | [Stream.WriteUtf8](Modern-Fs-Stream-WriteUtf8) |
+| [File.IsOpen](Modern-Fs-File-IsOpen) | [MemoryMappedFile.Open](Modern-Fs-MemoryMappedFile-Open) | [TempDir](Modern-Fs-TempDir) |
+| [File.Lock](Modern-Fs-File-Lock) | [MemoryMappedFile.Size](Modern-Fs-MemoryMappedFile-Size) | [TextErrorMode](Modern-Fs-TextErrorMode) |
+| [File.NativeHandle](Modern-Fs-File-NativeHandle) | [MemoryStream](Modern-Fs-MemoryStream) | [TextReader](Modern-Fs-TextReader) |
+| [File.Open](Modern-Fs-File-Open) | [MemoryStream.Clear](Modern-Fs-MemoryStream-Clear) | [TextReader.Encoding](Modern-Fs-TextReader-Encoding) |
+| [File.OpenAppend](Modern-Fs-File-OpenAppend) | [MemoryStream.Length](Modern-Fs-MemoryStream-Length) | [TextReader.ReadLine](Modern-Fs-TextReader-ReadLine) |
+| [File.OpenRead](Modern-Fs-File-OpenRead) | [MemoryStream.ToBytes](Modern-Fs-MemoryStream-ToBytes) | [TextReader.ReadToEnd](Modern-Fs-TextReader-ReadToEnd) |
+| [File.OpenTemp](Modern-Fs-File-OpenTemp) | [MemoryStream.ToUtf8Text](Modern-Fs-MemoryStream-ToUtf8Text) | [TextWriter](Modern-Fs-TextWriter) |
+| [File.Path](Modern-Fs-File-Path) | [MoveFile](Modern-Fs-MoveFile) | [TextWriter.WriteLine](Modern-Fs-TextWriter-WriteLine) |
+| [File.ReadAt](Modern-Fs-File-ReadAt) | [NativeAttributes](Modern-Fs-NativeAttributes) | [TryExists](Modern-Fs-TryExists) |
+| [File.SetSize](Modern-Fs-File-SetSize) | [OpenOptions](Modern-Fs-OpenOptions) | [VolumeInfo.FileSystem](Modern-Fs-VolumeInfo-FileSystem) |
+| [File.Size](Modern-Fs-File-Size) | [OpenOptionsAppend](Modern-Fs-OpenOptionsAppend) | [VolumeInfo.IsCaseSensitive](Modern-Fs-VolumeInfo-IsCaseSensitive) |
+| [File.Stat](Modern-Fs-File-Stat) | [OpenOptionsRead](Modern-Fs-OpenOptionsRead) | [VolumeInfo.IsReadOnly](Modern-Fs-VolumeInfo-IsReadOnly) |
+| [File.Sync](Modern-Fs-File-Sync) | [OpenOptionsWrite](Modern-Fs-OpenOptionsWrite) | [VolumeInfo.MaxComponentLen](Modern-Fs-VolumeInfo-MaxComponentLen) |
+| [File.SyncData](Modern-Fs-File-SyncData) | [Overwrite](Modern-Fs-Overwrite) | [VolumeInfo.Name](Modern-Fs-VolumeInfo-Name) |
+| [File.TryLock](Modern-Fs-File-TryLock) | [PathAddExtension](Modern-Fs-PathAddExtension) | [VolumeInfo.RootPath](Modern-Fs-VolumeInfo-RootPath) |
+| [File.Unlock](Modern-Fs-File-Unlock) | [PathChangeExtension](Modern-Fs-PathChangeExtension) | [VolumeInfo.SupportsLinks](Modern-Fs-VolumeInfo-SupportsLinks) |
+| [File.WriteAt](Modern-Fs-File-WriteAt) | [PathComponent](Modern-Fs-PathComponent) | [WalkDecision](Modern-Fs-WalkDecision) |
+| [FileId](Modern-Fs-FileId) | [PathComponents](Modern-Fs-PathComponents) | [WalkDir](Modern-Fs-WalkDir) |
+| [FileInfo.AbsolutePath](Modern-Fs-FileInfo-AbsolutePath) | [PathEquals](Modern-Fs-PathEquals) | [WalkFilter](Modern-Fs-WalkFilter) |
+| [FileInfo.Accessed](Modern-Fs-FileInfo-Accessed) | [PathExtension](Modern-Fs-PathExtension) | [WalkIterator.SkipChildren](Modern-Fs-WalkIterator-SkipChildren) |
+| [FileInfo.AccessedUtc](Modern-Fs-FileInfo-AccessedUtc) | [PathFileName](Modern-Fs-PathFileName) | [WalkOptions.ContentsFirst](Modern-Fs-DirEntry-ContentsFirst) |
+| [FileInfo.CanonicalPath](Modern-Fs-FileInfo-CanonicalPath) | [PathFilePrefix](Modern-Fs-PathFilePrefix) | [WalkOptions.Filter](Modern-Fs-DirEntry-Filter) |
+| [FileInfo.Created](Modern-Fs-FileInfo-Created) | [PathHasExtension](Modern-Fs-PathHasExtension) | [WalkOptions.SortByName](Modern-Fs-DirEntry-SortByName) |
+| [FileInfo.CreatedUtc](Modern-Fs-FileInfo-CreatedUtc) | [PathIsAbsolute](Modern-Fs-PathIsAbsolute) | [WriteAllBytes](Modern-Fs-WriteAllBytes) |
+| [FileInfo.CurrentDir](Modern-Fs-FileInfo-CurrentDir) | [PathIsCaseSensitive](Modern-Fs-PathIsCaseSensitive) | [WriteAllText](Modern-Fs-WriteAllText) |
+| [FileInfo.Exists](Modern-Fs-FileInfo-Exists) | [PathIsLocal](Modern-Fs-PathIsLocal) | [WriteAtomic](Modern-Fs-WriteAtomic) |
+| [FileInfo.HasCreated](Modern-Fs-FileInfo-HasCreated) | [PathIsReserved](Modern-Fs-PathIsReserved) |  |
 
 ---
 
