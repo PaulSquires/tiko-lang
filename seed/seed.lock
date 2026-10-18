@@ -16,13 +16,14 @@
 # later than it reaches the language. Advance this file at release points, together with
 # seed/chain.txt.
 #
-# PINNED: seed-4, published 2026-10-13 (UTC), built by seed-3 with no fbc. Both archives are
-# the toolchains package.sh --verify produced from 90d2c6e7 -- byte for byte release
-# toolchain-90d2c6e7's -- the first whose compiler zero-extends an unsigned static-array
-# subscript. Bootstrapped from each archive: stage1 == stage2 == stage3 on both hosts; the
-# release notes list the rest. The seeds before it are in chain.txt.
+# PINNED: seed-5, published 2026-10-18 (UTC), built by seed-4 with no fbc. Both archives are
+# the toolchains package.sh --verify produced from ca9b3d75 -- the first whose compiler lowers a
+# virtual call returning a UDT that needs destruction (a Result), and a field read off a
+# hidden-result return written without parentheses; seed-4 stopped on the first with TKO0994.
+# Bootstrapped from each archive: stage1 == stage2 == stage3 on both hosts; the release notes
+# list the rest. The seeds before it are in chain.txt.
 # build/defaultseed.sh prefers seed/cache/<host> -- where fetch-seed.sh unpacks this -- over
 # any locally packaged toolchain.
 
-windows  seed-4  tiko-seed-windows-x86_64-90d2c6e7.zip  52fbcc524198e45e4684838934b84cf2cd0ed89d5d67ee63dc87c6af7ea7dee2  90d2c6e736b791b4657e7ef5baa0044b63718aa5
-linux    seed-4  tiko-seed-linux-x86_64-90d2c6e7.tar.gz  424bbf9632fce3bfc3077b7107c80842300afeb1fdad22b7c8cea817ce45df09  90d2c6e736b791b4657e7ef5baa0044b63718aa5
+windows  seed-5  tiko-seed-windows-x86_64-ca9b3d75.zip  cd7e68847ab9b4d6d3857d37f62f8a98d927329471dee2aa04a6095403d0cfe4  ca9b3d75fad6767fe0267674aef416e4e22de58f
+linux    seed-5  tiko-seed-linux-x86_64-ca9b3d75.tar.gz  26b51a5782e0ab7bcab9af14474fae08fa92e019608a999fcfd57324eca6e145  ca9b3d75fad6767fe0267674aef416e4e22de58f
