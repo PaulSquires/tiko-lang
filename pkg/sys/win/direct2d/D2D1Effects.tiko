@@ -1,6 +1,8 @@
 
 ' // Built in effect CLSIDs
 #module "direct2d"
+#import "sys/win/com"
+using com
 #include once "direct2d.ti"
 
 PUBLIC DIM SHARED CLSID_D2D12DAffineTransform AS GUID =      (&h6AA97485, &h6354, &h4cfc, {&h90, &h8C, &hE4, &hA7, &h4F, &h62, &hC9, &h6C})

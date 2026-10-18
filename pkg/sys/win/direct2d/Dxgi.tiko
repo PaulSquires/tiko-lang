@@ -1,5 +1,7 @@
 
 #module "direct2d"
+#import "sys/win/com"
+using com
 #include once "direct2d.ti"
 
 ' /* Headers for imported files */

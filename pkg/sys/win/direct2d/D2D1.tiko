@@ -63,6 +63,8 @@
 ' to be 32-bit, no matter if you use te 32 or the 64-bit compiler.
 
 #module "direct2d"
+#import "sys/win/com"
+using com
 #include once "direct2d.ti"
 
 #ifdef D2D_POINT_2L

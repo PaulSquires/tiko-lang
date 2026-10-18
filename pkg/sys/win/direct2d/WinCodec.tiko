@@ -1,4 +1,6 @@
 #module "direct2d"
+#import "sys/win/com"
+using com
 #include once "direct2d.ti"
 
 '/* header files for imported files */
@@ -8,16 +10,7 @@
 #include once "win/propidl.bi"
 #include once "win/ocidl.bi"
 
-#ifndef __tk_IUnknown_INTERFACE_DEFINED__
-#define __tk_IUnknown_INTERFACE_DEFINED__
-PUBLIC TYPE ComUnknown AS ComUnknown_
-PUBLIC TYPE ComUnknown_ EXTENDS OBJECT
-	DECLARE ABSTRACT FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
-	DECLARE ABSTRACT FUNCTION AddRef () AS ULONG
-	DECLARE ABSTRACT FUNCTION Release () AS ULONG
-END TYPE
-PUBLIC TYPE LPCOMUNKNOWN AS ComUnknown PTR
-#endif
+' The COM base types -- ComUnknown, ComUnknown_, LPCOMUNKNOWN -- are sys/win/com's (RFC-0001 5.4).
 
 #ifndef __tk_IStream_INTERFACE_DEFINED__
 #define __tk_IStream_INTERFACE_DEFINED__
