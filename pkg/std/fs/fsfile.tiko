@@ -274,6 +274,7 @@ public type File extends Stream
 
     '' -- the open object
     declare function Stat( ) as FsResultInfo
+    declare function Id  ( ) as FsResultId          '' in fsmeta.tiko, with FileId
 
     '' -- whole-file advisory lock on THIS handle
     declare function Lock   ( byval exclusive as boolean = TRUE ) as FsResultBool
@@ -860,7 +861,9 @@ function File.Stat( ) as FsResultInfo
         fi.m_kind = FB_FSKIND_OTHER
     end select
     '' fstat has no birth time (statx by descriptor would): HasCreated( ) is FALSE
-    fi.m_flags = FB_FSFLAG_HAS_ATIME
+    fi.m_flags = FB_FSFLAG_HAS_ATIME or FB_FSFLAG_HAS_OWNER
+    fi.m_uid = *cptr( ulong ptr, @st(28) )      '' st_uid
+    fi.m_gid = *cptr( ulong ptr, @st(32) )      '' st_gid
     if( ( m and &o222 ) = 0 ) then fi.m_flags or= FB_FSFLAG_READONLY
     '' hidden on POSIX is a leading dot in the NAME, which Stat( path ) also reads
     dim as ustring nm = PathFileName( this.m_path )

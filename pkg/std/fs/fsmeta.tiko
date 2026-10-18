@@ -1,0 +1,270 @@
+#module "fs"
+#import "std/outcome"
+#import "std/chrono"
+using outcome
+'' std/fs: fsmeta -- FileId and SameFile, owner changes, times as Instant, and times set
+'' on a symbolic link itself
+''
+'' Specified in C:\dev\docs\tiko-fs\RFC-0001-files-and-streams.md section 10.
+''
+'' IDENTITY IS NOT A FileInfo FIELD. On Windows the 128-bit file id needs an open handle
+'' (GetFileInformationByHandleEx), so putting it in FileInfo would make every Stat open
+'' the file. GetFileId asks for it when it is wanted.
+''
+'' The OS is called from here, as fsfile.tiko does (RFC-0001 F19): no new runtime entry
+'' point, so the pinned seed builds it; native errors still go through the runtime's
+'' fb_FsMapOsError.
+
+
+
+#if __FB_LANG__ <> "fb"
+    #error "std/fs requires -lang fb (it uses namespaces)"
+#endif
+
+'' ------------------------------------------------------------------ FileId
+
+'' What makes two paths the same file: the volume and the file's number on it.
+'' Device is the volume serial on Windows and st_dev on POSIX; the id is Windows'
+'' 128-bit FILE_ID_128 in IdHigh:IdLow, or st_ino in IdLow with IdHigh 0.
+public type FileId
+    as ulongint Device
+    as ulongint IdHigh
+    as ulongint IdLow
+end type
+
+public declare operator =  ( byref a as const FileId, byref b as const FileId ) as boolean
+public declare operator <> ( byref a as const FileId, byref b as const FileId ) as boolean
+
+public operator =( byref a as const FileId, byref b as const FileId ) as boolean
+    return ( a.Device = b.Device ) andalso ( a.IdHigh = b.IdHigh ) andalso ( a.IdLow = b.IdLow )
+end operator
+
+public operator <>( byref a as const FileId, byref b as const FileId ) as boolean
+    return ( a = b ) = FALSE
+end operator
+
+public type FsResultId as Result( of FileId, FsError )
+
+#ifdef __FB_WIN32__
+
+const FBM_INVALID_HANDLE         = -1
+const FBM_FILE_READ_ATTRIBUTES   = &h80ul
+const FBM_FILE_WRITE_ATTRIBUTES  = &h100ul
+const FBM_SHARE_ALL              = 7
+const FBM_OPEN_EXISTING          = 3
+const FBM_FLAG_BACKUP_SEMANTICS  = &h02000000ul
+const FBM_FLAG_OPEN_REPARSE      = &h00200000ul
+const FBM_FILE_ID_INFO           = 18
+const FBM_TO_FILETIME            = 504911232000000000ll     '' 0001 ticks -> 1601 FILETIME
+
+extern "C"
+    declare function fbm_CreateFileW stdcall alias "CreateFileW" ( byval name_ as const any ptr, byval access_ as ulong, _
+        byval share as ulong, byval sa as any ptr, byval disp as ulong, byval flags as ulong, byval tmpl as any ptr ) as any ptr
+    declare function fbm_CloseHandle stdcall alias "CloseHandle" ( byval h as any ptr ) as long
+    declare function fbm_GetFileInformationByHandleEx stdcall alias "GetFileInformationByHandleEx" ( byval h as any ptr, _
+        byval cls as long, byval info as any ptr, byval size as ulong ) as long
+    declare function fbm_GetFileInformationByHandle stdcall alias "GetFileInformationByHandle" ( byval h as any ptr, _
+        byval info as ubyte ptr ) as long
+    declare function fbm_SetFileTime stdcall alias "SetFileTime" ( byval h as any ptr, byval created as const longint ptr, _
+        byval accessed as const longint ptr, byval written as const longint ptr ) as long
+end extern
+
+'' The id of an open handle: FILE_ID_INFO where the volume has it, else the 64-bit index
+'' of BY_HANDLE_FILE_INFORMATION (ReFS answers the first, FAT only the second).
+private function hIdOfHandle( byval h as any ptr, byref id as FileId ) as boolean
+    dim as ubyte fi( 0 to 23 )
+    if( fbm_GetFileInformationByHandleEx( h, FBM_FILE_ID_INFO, @fi(0), 24 ) <> 0 ) then
+        id.Device = *cptr( ulongint ptr, @fi(0) )
+        id.IdLow  = *cptr( ulongint ptr, @fi(8) )
+        id.IdHigh = *cptr( ulongint ptr, @fi(16) )
+        return TRUE
+    end if
+    dim as ubyte bh( 0 to 51 )
+    if( fbm_GetFileInformationByHandle( h, @bh(0) ) = 0 ) then return FALSE
+    id.Device = *cptr( ulong ptr, @bh(28) )
+    id.IdHigh = 0
+    id.IdLow  = ( cast( ulongint, *cptr( ulong ptr, @bh(44) ) ) shl 32 ) or *cptr( ulong ptr, @bh(48) )
+    return TRUE
+end function
+
+#else
+
+const FBM_STAT_SIZE = 144
+const FBM_AT_FDCWD = -100
+const FBM_AT_SYMLINK_NOFOLLOW = &h100
+const FBM_UTIME_OMIT = ( ( 1 shl 30 ) - 2 )
+const FBM_TO_1970 = 621355968000000000ll
+
+extern "C"
+    declare function fbm_stat alias "stat" ( byval p as const zstring ptr, byval st as ubyte ptr ) as long
+    declare function fbm_lstat alias "lstat" ( byval p as const zstring ptr, byval st as ubyte ptr ) as long
+    declare function fbm_fstat alias "fstat" ( byval fd as long, byval st as ubyte ptr ) as long
+    declare function fbm_chown alias "chown" ( byval p as const zstring ptr, byval uid as ulong, byval gid as ulong ) as long
+    declare function fbm_lchown alias "lchown" ( byval p as const zstring ptr, byval uid as ulong, byval gid as ulong ) as long
+    declare function fbm_utimensat alias "utimensat" ( byval dirfd as long, byval p as const zstring ptr, _
+        byval times as const longint ptr, byval flags as long ) as long
+end extern
+
+private sub hIdOfStat( byval st as const ubyte ptr, byref id as FileId )
+    id.Device = *cptr( const ulongint ptr, st )          '' st_dev
+    id.IdHigh = 0
+    id.IdLow  = *cptr( const ulongint ptr, st + 8 )      '' st_ino
+end sub
+
+#endif
+
+private function hOsFail( byref op as const ustring, byref p as const ustring ) as FsError
+    dim as long c = FsMapOsError( )
+    dim as long o = FsOsError( )
+    return FsError( cast( FsErrorCode, c ), o, op, p )
+end function
+
+public declare function GetFileId overload ( byref p as const ustring, byval followLinks as boolean = TRUE ) as FsResultId
+public declare function SameFile overload ( byref a as const ustring, byref b as const ustring ) as FsResultBool
+
+'' followLinks = FALSE identifies a symbolic link itself rather than what it points to.
+public function GetFileId( byref p as const ustring, byval followLinks as boolean ) as FsResultId
+    dim as FileId id
+#ifdef __FB_WIN32__
+    dim as ulong flags = FBM_FLAG_BACKUP_SEMANTICS
+    if( followLinks = FALSE ) then flags or= FBM_FLAG_OPEN_REPARSE
+    dim as any ptr h = fbm_CreateFileW( strptr( p ), FBM_FILE_READ_ATTRIBUTES, FBM_SHARE_ALL, nullptr, FBM_OPEN_EXISTING, flags, nullptr )
+    if( cast( integer, h ) = FBM_INVALID_HANDLE ) then return Fail( of FileId, FsError )( hOsFail( "GetFileId", p ) )
+    dim as boolean ok_ = hIdOfHandle( h, id )
+    dim as FsError f
+    if( ok_ = FALSE ) then f = hOsFail( "GetFileId", p )
+    fbm_CloseHandle( h )
+    if( ok_ = FALSE ) then return Fail( of FileId, FsError )( f )
+#else
+    dim as string narrow = p
+    dim as ubyte st( 0 to FBM_STAT_SIZE - 1 )
+    dim as long r = iif( followLinks, fbm_stat( strptr( narrow ), @st(0) ), fbm_lstat( strptr( narrow ), @st(0) ) )
+    if( r <> 0 ) then return Fail( of FileId, FsError )( hOsFail( "GetFileId", p ) )
+    hIdOfStat( @st(0), id )
+#endif
+    return Ok( of FileId, FsError )( id )
+end function
+
+'' Whether a and b name the same file, following links on both. A missing one is a
+'' failure (FS_NOT_FOUND), not FALSE: "not the same" and "could not tell" differ.
+public function SameFile( byref a as const ustring, byref b as const ustring ) as FsResultBool
+    dim as FsResultId ia = GetFileId( a )
+    if( ia.IsOk( ) = FALSE ) then
+        dim as FsError f = ia.Failure( )
+        return Fail( of boolean, FsError )( FsError( f.Code( ), f.OsCode( ), "SameFile", a ) )
+    end if
+    dim as FsResultId ib = GetFileId( b )
+    if( ib.IsOk( ) = FALSE ) then
+        dim as FsError f = ib.Failure( )
+        return Fail( of boolean, FsError )( FsError( f.Code( ), f.OsCode( ), "SameFile", b ) )
+    end if
+    return Ok( of boolean, FsError )( ia.Value( ) = ib.Value( ) )
+end function
+
+'' The identity of the file this File has open -- even if its name has changed since.
+function File.Id( ) as FsResultId
+    if( this.m_h = -1 ) then return Fail( of FileId, FsError )( FsError( FS_CLOSED, 0, "Id", this.m_path ) )
+    dim as FileId fid
+#ifdef __FB_WIN32__
+    if( hIdOfHandle( cast( any ptr, this.m_h ), fid ) = FALSE ) then
+        return Fail( of FileId, FsError )( this.hOsFail( "Id" ) )
+    end if
+#else
+    dim as ubyte st( 0 to FBM_STAT_SIZE - 1 )
+    if( fbm_fstat( cast( long, this.m_h ), @st(0) ) <> 0 ) then
+        return Fail( of FileId, FsError )( this.hOsFail( "Id" ) )
+    end if
+    hIdOfStat( @st(0), fid )
+#endif
+    return Ok( of FileId, FsError )( fid )
+end function
+
+'' -------------------------------------------------------------------- owner
+
+public declare function Chown overload ( byref p as const ustring, byval uid as long, byval gid as long ) as FsResultBool
+public declare function LChown overload ( byref p as const ustring, byval uid as long, byval gid as long ) as FsResultBool
+
+'' -1 leaves that id unchanged. POSIX only: FS_UNSUPPORTED on Windows, whose owners
+'' are SIDs. Changing to another user generally needs privilege (FS_ACCESS_DENIED).
+public function Chown( byref p as const ustring, byval uid as long, byval gid as long ) as FsResultBool
+#ifdef __FB_WIN32__
+    return FsFail( of boolean )( FS_UNSUPPORTED, "Chown", p )
+#else
+    dim as string narrow = p
+    if( fbm_chown( strptr( narrow ), cast( ulong, uid ), cast( ulong, gid ) ) <> 0 ) then
+        return Fail( of boolean, FsError )( hOsFail( "Chown", p ) )
+    end if
+    return Ok( of boolean, FsError )( TRUE )
+#endif
+end function
+
+'' Chown on a symbolic link itself, not what it points to.
+public function LChown( byref p as const ustring, byval uid as long, byval gid as long ) as FsResultBool
+#ifdef __FB_WIN32__
+    return FsFail( of boolean )( FS_UNSUPPORTED, "LChown", p )
+#else
+    dim as string narrow = p
+    if( fbm_lchown( strptr( narrow ), cast( ulong, uid ), cast( ulong, gid ) ) <> 0 ) then
+        return Fail( of boolean, FsError )( hOsFail( "LChown", p ) )
+    end if
+    return Ok( of boolean, FsError )( TRUE )
+#endif
+end function
+
+'' -------------------------------------------------------------------- times
+
+public declare function SetTimes overload ( byref p as const ustring, byval modified as chrono.Instant, byval accessed as chrono.Instant ) as FsResultBool
+public declare function SetTimesNoFollow overload ( byref p as const ustring, byval mtimeUtc as longint, byval atimeUtc as longint = 0 ) as FsResultBool
+public declare function SetTimesNoFollow overload ( byref p as const ustring, byval modified as chrono.Instant, byval accessed as chrono.Instant ) as FsResultBool
+
+'' SetTimes with Instants. An Instant's ticks are FileInfo's ticks, and a tick of 0
+'' still means "leave that one alone".
+public function SetTimes( byref p as const ustring, byval modified as chrono.Instant, byval accessed as chrono.Instant ) as FsResultBool
+    return SetTimes( p, modified.Ticks, accessed.Ticks )
+end function
+
+'' The times of a symbolic link ITSELF; on anything else, the same as SetTimes. Ticks of
+'' 100 ns since 0001-01-01 UTC; 0 leaves that time alone.
+public function SetTimesNoFollow( byref p as const ustring, byval mtimeUtc as longint, byval atimeUtc as longint ) as FsResultBool
+#ifdef __FB_WIN32__
+    dim as any ptr h = fbm_CreateFileW( strptr( p ), FBM_FILE_WRITE_ATTRIBUTES, FBM_SHARE_ALL, nullptr, FBM_OPEN_EXISTING, _
+        FBM_FLAG_BACKUP_SEMANTICS or FBM_FLAG_OPEN_REPARSE, nullptr )
+    if( cast( integer, h ) = FBM_INVALID_HANDLE ) then return Fail( of boolean, FsError )( hOsFail( "SetTimesNoFollow", p ) )
+    dim as longint ft_m = mtimeUtc - FBM_TO_FILETIME, ft_a = atimeUtc - FBM_TO_FILETIME
+    '' a null FILETIME pointer leaves that time alone
+    dim as longint ptr pa = nullptr, pm = nullptr
+    if( atimeUtc <> 0 ) then pa = @ft_a
+    if( mtimeUtc <> 0 ) then pm = @ft_m
+    dim as boolean ok_ = ( fbm_SetFileTime( h, nullptr, pa, pm ) <> 0 )
+    dim as FsError f
+    if( ok_ = FALSE ) then f = hOsFail( "SetTimesNoFollow", p )
+    fbm_CloseHandle( h )
+    if( ok_ = FALSE ) then return Fail( of boolean, FsError )( f )
+#else
+    '' struct timespec times[2] = { atime, mtime }; UTIME_OMIT leaves one alone
+    dim as longint ts( 0 to 3 )
+    if( atimeUtc <> 0 ) then
+        dim as longint u = atimeUtc - FBM_TO_1970
+        ts(0) = u \ 10000000ll : ts(1) = ( u mod 10000000ll ) * 100
+        if( ts(1) < 0 ) then ts(0) -= 1 : ts(1) += 1000000000ll
+    else
+        ts(0) = 0 : ts(1) = FBM_UTIME_OMIT
+    end if
+    if( mtimeUtc <> 0 ) then
+        dim as longint u = mtimeUtc - FBM_TO_1970
+        ts(2) = u \ 10000000ll : ts(3) = ( u mod 10000000ll ) * 100
+        if( ts(3) < 0 ) then ts(2) -= 1 : ts(3) += 1000000000ll
+    else
+        ts(2) = 0 : ts(3) = FBM_UTIME_OMIT
+    end if
+    dim as string narrow = p
+    if( fbm_utimensat( FBM_AT_FDCWD, strptr( narrow ), @ts(0), FBM_AT_SYMLINK_NOFOLLOW ) <> 0 ) then
+        return Fail( of boolean, FsError )( hOsFail( "SetTimesNoFollow", p ) )
+    end if
+#endif
+    return Ok( of boolean, FsError )( TRUE )
+end function
+
+public function SetTimesNoFollow( byref p as const ustring, byval modified as chrono.Instant, byval accessed as chrono.Instant ) as FsResultBool
+    return SetTimesNoFollow( p, modified.Ticks, accessed.Ticks )
+end function

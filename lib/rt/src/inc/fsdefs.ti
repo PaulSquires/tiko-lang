@@ -33,6 +33,7 @@ const FB_FSFLAG_READONLY  = 1
 const FB_FSFLAG_HIDDEN    = 2
 const FB_FSFLAG_HAS_CTIME = 4
 const FB_FSFLAG_HAS_ATIME = 8
+const FB_FSFLAG_HAS_OWNER = 16     '' uid/gid are filled (POSIX); C:\dev\docs	iko-fs\RFC-0001 section 10.2
 
 const FB_FSVOL_READONLY = 1
 const FB_FSVOL_CASESENS = 2
@@ -57,6 +58,10 @@ type FB_FSINFO
 	as uint32     native_attrs             '' dwFileAttributes / st_mode
 	as int32      kind                     '' FB_FSKIND_*
 	as int32      flags                    '' FB_FSFLAG_*
+	'' APPENDED (RFC-0001 section 10.2): every field above keeps its offset, so a caller
+	'' built against the shorter struct reads exactly what it always read.
+	as uint32     uid                      '' st_uid; 0 unless FB_FSFLAG_HAS_OWNER
+	as uint32     gid                      '' st_gid
 end type
 
 type FB_FSDIRENT

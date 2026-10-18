@@ -8,6 +8,7 @@
 
 ```freebasic
 SetTimes( p, mtimeUtc [, atimeUtc ] )
+SetTimes( p, modified, accessed )    '' chrono.Instant values; 0 ticks leaves one alone
 ```
 
 ## Notes

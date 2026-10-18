@@ -558,6 +558,8 @@ const STAT_MODE_      = 24
 const STAT_SIZE_      = 48
 const STAT_ATIM_      = 72
 const STAT_MTIM_      = 88
+const STAT_UID_       = 28
+const STAT_GID_       = 32
 
 const S_IFMT_  = &o170000
 const S_IFDIR_ = &o040000
@@ -678,6 +680,10 @@ private sub hFillFromStat( byval st as stat_ ptr, byval out_ as FB_FSINFO ptr )
 	                            *cptr( int64 ptr, @st->raw(STAT_ATIM_ + 8) ) )
 
 	out_->flags or= FB_FSFLAG_HAS_ATIME
+
+	out_->uid = *cptr( uint32 ptr, @st->raw(STAT_UID_) )
+	out_->gid = *cptr( uint32 ptr, @st->raw(STAT_GID_) )
+	out_->flags or= FB_FSFLAG_HAS_OWNER
 
 	'' Read-only means "no write bit for the calling user" -- the portable
 	'' answer the two platforms can agree on. GetPosixMode is there for code

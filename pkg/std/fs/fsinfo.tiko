@@ -1,6 +1,7 @@
 #module "fs"
 #import "std/outcome"
 #import "std/containers"
+#import "std/chrono"
 using outcome
 using containers
 '' std/fs: fsinfo -- fs.FileInfo and the metadata calls
@@ -40,6 +41,7 @@ public const FB_FSFLAG_READONLY = 1
 public const FB_FSFLAG_HIDDEN = 2
 public const FB_FSFLAG_HAS_CTIME = 4
 public const FB_FSFLAG_HAS_ATIME = 8
+public const FB_FSFLAG_HAS_OWNER = 16
 
 
 '' The FB mirror of FB_FSINFO. FIELD ORDER AND WIDTHS ARE PART OF THE ABI --
@@ -64,6 +66,18 @@ public type FileInfo
     declare const function HasCreated  ( ) as boolean
     declare const function HasAccessed ( ) as boolean
 
+    '' -- the same times as chrono.Instant (C:\dev\docs\tiko-fs\RFC-0001 section 10.3):
+    '' FileInfo's ticks ARE Instant's ticks -- 100 ns since 0001-01-01 UTC -- so
+    '' nothing is converted. NOT DateTime.FromFileTime, which counts from 1601.
+    declare const function Modified    ( ) as chrono.Instant
+    declare const function Created     ( ) as chrono.Instant    '' meaningful when HasCreated( )
+    declare const function Accessed    ( ) as chrono.Instant    '' meaningful when HasAccessed( )
+
+    '' -- owner, POSIX (section 10.2): Windows has SIDs, which are out of scope
+    declare const function HasOwner    ( ) as boolean
+    declare const function OwnerUid    ( ) as ulong             '' 0 unless HasOwner( )
+    declare const function OwnerGid    ( ) as ulong
+
     '' -- attributes, the portable two ---------------------------------
     declare const function IsReadOnly  ( ) as boolean
     declare const function IsHidden    ( ) as boolean
@@ -81,6 +95,10 @@ public type FileInfo
     as ulong    m_attrs
     as long     m_kind
     as long     m_flags
+    '' APPENDED with FB_FSINFO's own (section 10.2), so every field above keeps its
+    '' offset and a runtime with the shorter struct still fills them correctly.
+    as ulong    m_uid
+    as ulong    m_gid
 end type
 
 public type FsResultInfo as Result( of FileInfo, FsError )
@@ -159,6 +177,34 @@ end function
 
 const function FileInfo.HasAccessed( ) as boolean
     return ( ( this.m_flags and FB_FSFLAG_HAS_ATIME ) <> 0 )
+end function
+
+const function FileInfo.Modified( ) as chrono.Instant
+    return chrono.Instant.FromTicks( this.m_mtime )
+end function
+
+const function FileInfo.Created( ) as chrono.Instant
+    return chrono.Instant.FromTicks( this.m_ctime )
+end function
+
+const function FileInfo.Accessed( ) as chrono.Instant
+    return chrono.Instant.FromTicks( this.m_atime )
+end function
+
+const function FileInfo.HasOwner( ) as boolean
+    return ( ( this.m_flags and FB_FSFLAG_HAS_OWNER ) <> 0 )
+end function
+
+'' 0 when there is no owner to report. A runtime from before the owner fields leaves
+'' the flag clear and may leave padding in m_uid, so the flag decides, not the field.
+const function FileInfo.OwnerUid( ) as ulong
+    if( ( this.m_flags and FB_FSFLAG_HAS_OWNER ) = 0 ) then return 0
+    return this.m_uid
+end function
+
+const function FileInfo.OwnerGid( ) as ulong
+    if( ( this.m_flags and FB_FSFLAG_HAS_OWNER ) = 0 ) then return 0
+    return this.m_gid
 end function
 
 '' FILE_ATTRIBUTE_READONLY on Windows; "no write bit for the calling user" on

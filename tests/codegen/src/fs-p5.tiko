@@ -1,0 +1,115 @@
+'' std/fs phase P5 (C:\dev\docs\tiko-fs\RFC-0001 section 10): FileId and SameFile -- a hard
+'' link is the same file, a copy is not, a symbolic link is its target when followed and
+'' itself when not; File.Id; FileInfo's chrono.Instant accessors equal its ticks and
+'' round-trip through SetTimes; the owner fields (POSIX) and Chown/LChown; and
+'' SetTimesNoFollow changing a link's own time and not its target's.
+#import "std/fs"
+#import "std/chrono"
+
+#ifndef __FB_WIN32__
+extern "C"
+    declare function t_getuid alias "getuid" ( ) as ulong
+    declare function t_getgid alias "getgid" ( ) as ulong
+end extern
+#endif
+
+dim shared as integer fails = 0
+
+sub Check( byref what as string, byval ok as boolean )
+    if ok = false then
+        print "FAIL "; what
+        fails += 1
+    end if
+end sub
+
+dim as ustring tmp = fs.CreateTempDir( ).ValueOr( "" )
+if len( tmp ) = 0 then print "no temp dir" : end 1
+dim as ustring a = fs.PathJoin( tmp, "a.txt" ), b = fs.PathJoin( tmp, "b.txt" ), c = fs.PathJoin( tmp, "c.txt" )
+fs.WriteAllText( a, "same" )
+fs.CopyFile( a, c )
+
+'' -- identity
+dim as fs.FsResultId ia = fs.GetFileId( a )
+Check( "id", ia.IsOk( ) )
+Check( "id stable", fs.GetFileId( a ).Value( ) = ia.Value( ) )
+Check( "hard link", fs.CreateHardLink( a, b ).IsOk( ) )
+Check( "hard link same id", fs.GetFileId( b ).Value( ) = ia.Value( ) )
+Check( "samefile link", fs.SameFile( a, b ).ValueOr( false ) )
+Check( "copy differs", fs.SameFile( a, c ).ValueOr( true ) = false )
+Check( "copy id differs", fs.GetFileId( c ).Value( ) <> ia.Value( ) )
+Check( "samefile spelled twice", fs.SameFile( a, fs.PathJoin( tmp, ".", "a.txt" ) ).ValueOr( false ) )
+dim as fs.FsResultBool sm = fs.SameFile( a, fs.PathJoin( tmp, "absent" ) )
+Check( "samefile missing", ( sm.IsOk( ) = false ) andalso ( sm.Failure( ).Code( ) = fs.FS_NOT_FOUND ) andalso ( sm.Failure( ).Operation( ) = "SameFile" ) )
+Check( "id of directory", fs.GetFileId( tmp ).IsOk( ) )
+
+dim as ustring lnk = fs.PathJoin( tmp, "lnk" )
+dim as boolean haveLink = fs.CreateSymlink( a, lnk ).IsOk( )
+if haveLink then
+    Check( "link followed", fs.GetFileId( lnk ).Value( ) = ia.Value( ) )
+    Check( "link itself", fs.GetFileId( lnk, false ).Value( ) <> ia.Value( ) )
+    Check( "samefile through link", fs.SameFile( lnk, a ).ValueOr( false ) )
+else
+    print "note: no symbolic link here, the link checks did not run"
+end if
+
+'' -- File.Id
+scope
+    dim as fs.File f
+    Check( "closed id", f.Id( ).IsOk( ) = false )
+    f.OpenRead( a )
+    Check( "file id", f.Id( ).Value( ) = ia.Value( ) )
+    f.Close( )
+end scope
+
+'' -- times as Instant
+scope
+    dim as fs.FileInfo fi = fs.Stat( a ).Value( )
+    Check( "modified ticks", fi.Modified( ).Ticks = fi.ModifiedUtc( ) )
+    Check( "accessed ticks", fi.Accessed( ).Ticks = fi.AccessedUtc( ) )
+    dim as chrono.Instant when = chrono.Instant.ParseIso( "2001-02-03T04:05:06Z" )
+    Check( "settimes instant", fs.SetTimes( a, when, when ).IsOk( ) )
+    dim as fs.FileInfo f2 = fs.Stat( a ).Value( )
+    Check( "round trip", f2.Modified( ) = when )
+    Check( "iso", f2.Modified( ).ToIsoString( ) = "2001-02-03T04:05:06Z" )
+    dim as fs.File h
+    h.OpenRead( a )
+    Check( "handle stat agrees", h.Stat( ).Value( ).Modified( ) = when )
+    h.Close( )
+end scope
+
+'' -- SetTimesNoFollow: the link's own time, not its target's
+if haveLink then
+    dim as chrono.Instant t1 = chrono.Instant.ParseIso( "2010-01-01T00:00:00Z" )
+    dim as chrono.Instant t2 = chrono.Instant.ParseIso( "2020-06-15T12:00:00Z" )
+    fs.SetTimes( a, t1, t1 )
+    Check( "nofollow", fs.SetTimesNoFollow( lnk, t2, t2 ).IsOk( ) )
+    Check( "link changed", fs.LStat( lnk ).Value( ).Modified( ) = t2 )
+    Check( "target kept", fs.Stat( a ).Value( ).Modified( ) = t1 )
+end if
+Check( "nofollow plain file", fs.SetTimesNoFollow( c, chrono.Instant.ParseIso( "2015-05-05T05:05:05Z" ), chrono.Instant.ParseIso( "2015-05-05T05:05:05Z" ) ).IsOk( ) )
+Check( "nofollow plain applied", fs.Stat( c ).Value( ).Modified( ).ToIsoString( ) = "2015-05-05T05:05:05Z" )
+
+'' -- owner
+scope
+    dim as fs.FileInfo fi = fs.Stat( a ).Value( )
+#ifdef __FB_WIN32__
+    Check( "no owner on windows", ( fi.HasOwner( ) = false ) andalso ( fi.OwnerUid( ) = 0 ) )
+    Check( "chown unsupported", fs.Chown( a, -1, -1 ).Failure( ).Code( ) = fs.FS_UNSUPPORTED )
+    Check( "lchown unsupported", fs.LChown( a, -1, -1 ).Failure( ).Code( ) = fs.FS_UNSUPPORTED )
+#else
+    Check( "has owner", fi.HasOwner( ) )
+    Check( "owner uid", fi.OwnerUid( ) = t_getuid( ) )
+    Check( "owner gid", fi.OwnerGid( ) = t_getgid( ) )
+    dim as fs.File h
+    h.OpenRead( a )
+    Check( "handle owner", h.Stat( ).Value( ).OwnerUid( ) = t_getuid( ) )
+    h.Close( )
+    Check( "chown self", fs.Chown( a, t_getuid( ), -1 ).IsOk( ) )
+    Check( "chown unchanged", fs.Chown( a, -1, -1 ).IsOk( ) )
+    if haveLink then Check( "lchown self", fs.LChown( lnk, -1, t_getgid( ) ).IsOk( ) )
+    Check( "chown missing", fs.Chown( fs.PathJoin( tmp, "absent" ), -1, -1 ).Failure( ).Code( ) = fs.FS_NOT_FOUND )
+#endif
+end scope
+
+fs.RemoveDirAll( tmp )
+if fails = 0 then print "ok"
