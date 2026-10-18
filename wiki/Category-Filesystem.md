@@ -566,7 +566,7 @@ Copy( src, dst [, bufSize ] )   FsResultI64 -- src's position to its end
 
 **One base type, with capability queries.** A tiko type has one base, so a stream that both reads and writes cannot extend a Reader and a Writer. Stream carries every operation and says which ones work. The operations it cannot do fail with FS_UNSUPPORTED.
 
-**Your own stream overrides the hooks, not the operations.** Read, Write, Seek and Flush check their arguments once and call protected virtual hooks -- ReadCore, WriteCore, SeekCore, FlushCore -- each of which returns true, or false with a byref FsError filled in. Override the hooks your stream supports, and CanRead, CanWrite and CanSeek to match. [Stream](Modern-Fs-Stream) has a complete example.
+**Your own stream overrides the operations it supports.** Read, Write, Seek and Flush are virtual and return a Result; override the ones your stream can do, and CanRead, CanWrite and CanSeek to match. An override keeps the contract itself, the argument rule included. [Stream](Modern-Fs-Stream) has a complete example.
 
 **Short reads and writes are normal.** Read may return fewer bytes than asked; only Ok( 0 ) means the end. Write may write fewer than asked. ReadExact, WriteAll and Copy are the loops that make that invisible.
 

@@ -1,6 +1,6 @@
 '' std/fs phase P2 (C:\dev\docs\tiko-fs\RFC-0001 section 5): the Stream contract -- rules
 '' 1 to 7 against MemoryStream; a stream defined OUTSIDE the module that overrides the
-'' protected hooks and moves one byte per call, driving ReadExact, WriteAll and Copy
+'' virtual Read and Write and moves one byte per call, driving ReadExact, WriteAll and Copy
 '' through short reads and writes; the base Stream's FS_UNSUPPORTED; MemoryStream as a
 '' value; and ToUtf8Text agreeing with ReadAllText byte for byte on a corpus of BOMs,
 '' invalid UTF-8, odd UTF-16 and lone surrogates.
@@ -22,9 +22,8 @@ type Trickle extends fs.Stream
     as fs.MemoryStream inner
     declare const function CanRead ( ) as boolean override
     declare const function CanWrite( ) as boolean override
-protected:
-    declare function ReadCore ( byval buf as ubyte ptr, byval n as longint, byref got as longint, byref failure as fs.FsError ) as boolean override
-    declare function WriteCore( byval buf as const ubyte ptr, byval n as longint, byref done as longint, byref failure as fs.FsError ) as boolean override
+    declare function Read ( byval buf as ubyte ptr, byval n as longint ) as fs.FsResultI64 override
+    declare function Write( byval buf as const ubyte ptr, byval n as longint ) as fs.FsResultI64 override
 end type
 
 const function Trickle.CanRead( ) as boolean
@@ -35,18 +34,16 @@ const function Trickle.CanWrite( ) as boolean
     return true
 end function
 
-function Trickle.ReadCore( byval buf as ubyte ptr, byval n as longint, byref got as longint, byref failure as fs.FsError ) as boolean
-    dim as fs.FsResultI64 r = this.inner.Read( buf, 1 )
-    if r.IsOk( ) = false then failure = r.Failure( ) : return false
-    got = r.Value( )
-    return true
+'' One byte per call, whatever n asks for -- and the contract's argument rule kept, as
+'' every override must keep it.
+function Trickle.Read( byval buf as ubyte ptr, byval n as longint ) as fs.FsResultI64
+    if n <= 0 then return this.inner.Read( buf, n )
+    return this.inner.Read( buf, 1 )
 end function
 
-function Trickle.WriteCore( byval buf as const ubyte ptr, byval n as longint, byref done as longint, byref failure as fs.FsError ) as boolean
-    dim as fs.FsResultI64 r = this.inner.Write( buf, 1 )
-    if r.IsOk( ) = false then failure = r.Failure( ) : return false
-    done = r.Value( )
-    return true
+function Trickle.Write( byval buf as const ubyte ptr, byval n as longint ) as fs.FsResultI64
+    if n <= 0 then return this.inner.Write( buf, n )
+    return this.inner.Write( buf, 1 )
 end function
 
 function Text( byref m as fs.MemoryStream ) as string
@@ -146,6 +143,11 @@ Check( "base flush", nothing_.Flush( ).IsOk( ) )
 dim as Trickle t
 t.inner = fs.MemoryStream( "abcdef" )
 Check( "trickle read 1", t.Read( @buf(0), 4 ).ValueOr( -1 ) = 1 )
+dim as fs.FsResultI64 vr = t.Read( @buf(0), 4 )
+Check( "virtual dim init", vr.IsOk( ) andalso ( vr.Value( ) = 1 ) andalso ( buf(0) = asc( "b" ) ) )
+vr = t.Read( @buf(0), -1 )
+Check( "trickle neg n", ( vr.IsOk( ) = false ) andalso ( vr.Failure( ).Code( ) = fs.FS_INVALID_ARGUMENT ) )
+t.inner.Seek( 1 )
 Check( "trickle exact", t.ReadExact( @buf(0), 3 ).IsOk( ) andalso ( buf(0) = asc( "b" ) ) andalso ( buf(2) = asc( "d" ) ) )
 dim as fs.MemoryStream sink
 Check( "copy trickle", fs.Copy( t, sink ).ValueOr( -1 ) = 2 )

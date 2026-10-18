@@ -9,20 +9,18 @@ The byte-stream base type.
 ```freebasic
 type Stream extends object
     CanRead( ) / CanWrite( ) / CanSeek( )        '' const virtual
-    Read( buf, n ) / Write( buf, n )             '' FsResultI64
-    Seek( offset [, origin ] )                   '' FsResultI64
-    Flush( )                                     '' FsResultBool
+    Read( buf, n ) / Write( buf, n )             '' virtual, FsResultI64
+    Seek( offset [, origin ] )                   '' virtual, FsResultI64
+    Flush( )                                     '' virtual, FsResultBool
     ReadExact / ReadToEnd / WriteAll / WriteBytes / WriteUtf8 / Position
-protected:
-    ReadCore / WriteCore / SeekCore / FlushCore  '' the virtual hooks
 end type
 ```
 
 ## Notes
 
-- Read, Write, Seek and Flush are not virtual. They check their arguments and call a protected virtual hook. A stream of your own extends Stream and overrides the hooks it supports, plus CanRead, CanWrite and CanSeek.
-- Each hook returns true on success, or false with its byref FsError filled in. ReadCore and WriteCore are called only with n > 0 and a non-null buf; SeekCore only with a valid origin.
-- The hooks Stream itself provides fail with FS_UNSUPPORTED, except FlushCore, which has nothing to flush and succeeds.
+- Read, Write, Seek and Flush are virtual. A stream of your own extends Stream and overrides the ones it supports, plus CanRead, CanWrite and CanSeek.
+- The versions Stream itself provides fail with FS_UNSUPPORTED, except Flush, which has nothing to flush and succeeds.
+- An override keeps the contract below itself, the argument rule included. ReadExact, ReadToEnd, WriteAll, WriteBytes and WriteUtf8 are built on Read and Write and check their own arguments.
 - The contract every stream keeps: Read may return fewer bytes than asked, and Ok( 0 ) for n > 0 means the end; Write may write fewer, but never 0; n < 0 or a null buf with n > 0 is FS_INVALID_ARGUMENT; Seek returns the new position and fails below 0 but not past the end; a failed call leaves the position unspecified.
 - A stream is not thread-safe unless its own page says so.
 
@@ -30,29 +28,32 @@ end type
 
 ```freebasic
 #import "std/fs"
-using fs
+#import "std/outcome"
+using fs, outcome
 
 
 '' A stream that yields the letters a to z, then ends
 type Alphabet extends Stream
     as long nextLetter = 0
     declare const function CanRead( ) as boolean override
-protected:
-    declare function ReadCore( byval buf as ubyte ptr, byval n as longint, byref got as longint, byref failure as FsError ) as boolean override
+    declare function Read( byval buf as ubyte ptr, byval n as longint ) as FsResultI64 override
 end type
 
 const function Alphabet.CanRead( ) as boolean
     return true
 end function
 
-function Alphabet.ReadCore( byval buf as ubyte ptr, byval n as longint, byref got as longint, byref failure as FsError ) as boolean
-    got = 0
+function Alphabet.Read( byval buf as ubyte ptr, byval n as longint ) as FsResultI64
+    if( ( n < 0 ) orelse ( ( buf = nullptr ) andalso ( n > 0 ) ) ) then
+        return FsFail( of longint )( FS_INVALID_ARGUMENT, "Read", "" )
+    end if
+    dim as longint got = 0
     while( ( got < n ) andalso ( this.nextLetter < 26 ) )
         buf[got] = asc( "a" ) + this.nextLetter
         got += 1
         this.nextLetter += 1
     wend
-    return true
+    return Ok( of longint, FsError )( got )
 end function
 
 dim as Alphabet a
