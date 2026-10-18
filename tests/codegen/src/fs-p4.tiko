@@ -1,0 +1,278 @@
+'' std/fs phase P4 (C:\dev\docs\tiko-fs\RFC-0001 sections 7 and 8): BufferedReader and
+'' BufferedWriter at a tiny capacity; TextReader through a stream that delivers ONE byte
+'' per read, so every line ending and every UTF-8 sequence is split at every possible
+'' place, checked line for line against ReadAllLines and whole against ReadAllText over a
+'' corpus of BOMs, CR/LF mixes, invalid UTF-8 and odd UTF-16; TEXT_STRICT; TextWriter;
+'' ReadLines, including that leaving the loop early closes the file; and the size-limited
+'' ReadAllText/ReadAllBytes and AppendAllBytes.
+#import "std/fs"
+#import "std/containers"
+
+dim shared as integer fails = 0
+
+sub Check( byref what as string, byval ok as boolean )
+    if ok = false then
+        print "FAIL "; what
+        fails += 1
+    end if
+end sub
+
+'' One byte per Read, whatever is asked: every boundary, everywhere.
+type Trickle extends fs.Stream
+    as fs.MemoryStream inner
+    declare const function CanRead( ) as boolean override
+    declare function Read( byval buf as ubyte ptr, byval n as longint ) as fs.FsResultI64 override
+end type
+
+const function Trickle.CanRead( ) as boolean
+    return true
+end function
+
+function Trickle.Read( byval buf as ubyte ptr, byval n as longint ) as fs.FsResultI64
+    if n <= 0 then return this.inner.Read( buf, n )
+    return this.inner.Read( buf, 1 )
+end function
+
+function Bytes( byref s as const string ) as containers.Array( of ubyte )
+    dim as containers.Array( of ubyte ) b
+    for k as integer = 1 to len( s )
+        b.Push( asc( s, k ) )
+    next
+    return b
+end function
+
+function MemText( byref m as fs.MemoryStream ) as string
+    dim as containers.Array( of ubyte ) b
+    m.ToBytes( b )
+    dim as string r = ""
+    for i as long = 0 to b.Count( ) - 1
+        r &= chr( b[i] )
+    next
+    return r
+end function
+
+'' How many handles this process has open, where the OS can say.
+function OpenFds( ) as long
+#ifdef __FB_WIN32__
+    return -1
+#else
+    dim as containers.Array( of fs.DirEntry ) es
+    return fs.ListDir( "/proc/self/fd", es ).ValueOr( -1 )
+#endif
+end function
+
+dim as ustring tmp = fs.CreateTempDir( ).ValueOr( "" )
+if len( tmp ) = 0 then print "no temp dir" : end 1
+dim as ustring p = fs.PathJoin( tmp, "t.txt" )
+dim as ubyte buf( 0 to 31 )
+
+'' -- BufferedReader, capacity 4
+scope
+    dim as fs.MemoryStream m = fs.MemoryStream( "ab" & chr( 13, 10 ) & "cd" & chr( 13 ) & "e" & chr( 10 ) & "fgh" & chr( 13 ) )
+    dim as fs.BufferedReader br = fs.BufferedReader( m, 4 )
+    dim as string ln
+    Check( "br line 1", br.ReadLine( ln ).ValueOr( false ) andalso ( ln = "ab" ) )
+    Check( "br line 2 keeps lone cr", br.ReadLine( ln ).ValueOr( false ) andalso ( ln = "cd" & chr( 13 ) & "e" ) )
+    Check( "br last line", br.ReadLine( ln ).ValueOr( false ) andalso ( ln = "fgh" ) )
+    Check( "br end", br.ReadLine( ln ).ValueOr( true ) = false )
+
+    dim as fs.MemoryStream m2 = fs.MemoryStream( "0123456789" )
+    dim as fs.BufferedReader b2 = fs.BufferedReader( m2, 4 )
+    dim as ubyte c
+    Check( "readbyte", b2.ReadByte( c ).ValueOr( false ) andalso ( c = asc( "0" ) ) )
+    dim as containers.Array( of ubyte ) pk
+    Check( "peek", ( b2.Peek( 3, pk ).ValueOr( -1 ) = 3 ) andalso ( pk[0] = asc( "1" ) ) )
+    Check( "peek capped", b2.Peek( 99, pk ).ValueOr( -1 ) = 4 )
+    Check( "peek no consume", b2.ReadByte( c ).ValueOr( false ) andalso ( c = asc( "1" ) ) )
+    Check( "position adjusted", b2.Position( ).ValueOr( -1 ) = 2 )
+    dim as containers.Array( of ubyte ) ru
+    Check( "readuntil", ( b2.ReadUntil( asc( "5" ), ru ).ValueOr( -1 ) = 4 ) andalso ( ru[3] = asc( "5" ) ) )
+    Check( "seek current", b2.Seek( -1, fs.SEEK_FROM_CURRENT ).ValueOr( -1 ) = 5 )
+    Check( "after seek", b2.ReadByte( c ).ValueOr( false ) andalso ( c = asc( "5" ) ) )
+    Check( "buffered first", b2.Read( @buf(0), 16 ).ValueOr( -1 ) = 3 andalso buf(0) = asc( "6" ) )
+    Check( "bypass read", b2.Read( @buf(0), 16 ).ValueOr( -1 ) = 1 andalso buf(0) = asc( "9" ) )
+    Check( "br eof", b2.Read( @buf(0), 1 ).ValueOr( -1 ) = 0 )
+    Check( "br caps", b2.CanRead( ) andalso ( b2.CanWrite( ) = false ) andalso b2.CanSeek( ) )
+end scope
+
+'' -- BufferedWriter, capacity 4
+scope
+    dim as fs.MemoryStream m
+    scope
+        dim as fs.BufferedWriter bw = fs.BufferedWriter( m, 4 )
+        bw.WriteUtf8( "ab" )
+        Check( "bw buffered", m.Length( ) = 0 )
+        bw.WriteUtf8( "cde" )
+        Check( "bw spilled", MemText( m ) = "ab" )
+        Check( "bw flush", bw.Flush( ).IsOk( ) andalso ( MemText( m ) = "abcde" ) )
+        bw.WriteUtf8( "0123456789" )
+        Check( "bw large through", MemText( m ) = "abcde0123456789" )
+        bw.WriteUtf8( "zz" )
+    end scope
+    Check( "bw destructor flushes", MemText( m ) = "abcde0123456789zz" )
+end scope
+
+'' -- TextReader one byte at a time, against ReadAllLines and ReadAllText
+dim as string corpus( 0 to 12 )
+corpus(0) = "plain"
+corpus(1) = "a" & chr( 10 ) & "b" & chr( 13, 10 ) & "c"
+corpus(2) = "a" & chr( 13 ) & "b" & chr( 10 ) & chr( 10 ) & "c" & chr( 10 )
+corpus(3) = chr( &hEF, &hBB, &hBF ) & "bom " & chr( &hC3, &hB1 ) & chr( 10 ) & chr( &hE6, &h97, &hA5 ) & chr( 13, 10 )
+corpus(4) = chr( &hFF, &hFE ) & chr( &h41, 0, 13, 0, 10, 0, &h3D, &hD8, &h00, &hDE, 10, 0, &h00, &hD8, &h42, 0 )
+corpus(5) = chr( &hFE, &hFF ) & chr( 0, &h41, 0, 10, &hD8, &h3D, &hDE, &h00, 0, 13 )
+corpus(6) = chr( &hFF, &hFE ) & chr( &h41, 0, &h42 )
+corpus(7) = "a" & chr( &h80 ) & "b" & chr( 10 ) & chr( &hE6, &h97 ) & chr( 10 ) & "c" & chr( &hC0, &hAF ) & "d"
+corpus(8) = ""
+corpus(9) = chr( 10 )
+corpus(10) = chr( &hF0, &h9F, &h98, &h80 ) & chr( 10 ) & chr( &hED, &hA0, &h80 )
+corpus(11) = chr( 13 )
+corpus(12) = "x" & chr( 13, 13, 10 )
+
+for i as integer = 0 to 12
+    dim as containers.Array( of ubyte ) b = Bytes( corpus(i) )
+    fs.WriteAllBytes( p, b )
+
+    dim as containers.Array( of ustring ) want
+    fs.ReadAllLines( p, want )
+    dim as Trickle t
+    t.inner = fs.MemoryStream( b )
+    dim as fs.TextReader tr = fs.TextReader( t )
+    dim as ustring ln
+    dim as long n = 0
+    dim as boolean same = true
+    while tr.ReadLine( ln ).ValueOr( false )
+        if n >= want.Count( ) then
+            same = false
+        elseif ln <> want[n] then
+            same = false
+        end if
+        n += 1
+    wend
+    Check( "lines " & i, same andalso ( n = want.Count( ) ) )
+
+    dim as Trickle t2
+    t2.inner = fs.MemoryStream( b )
+    dim as fs.TextReader tr2 = fs.TextReader( t2 )
+    dim as ustring all_
+    tr2.ReadToEnd( all_ )
+    Check( "whole " & i, all_ = fs.ReadAllText( p ).ValueOr( "<err>" ) )
+next
+
+scope
+    dim as fs.MemoryStream m = fs.MemoryStream( Bytes( corpus(4) ) )
+    dim as fs.TextReader tr = fs.TextReader( m )
+    Check( "encoding before", tr.Encoding( ) = "" )
+    dim as ustring ln
+    tr.ReadLine( ln )
+    Check( "encoding le", tr.Encoding( ) = "utf-16le" )
+    dim as fs.MemoryStream m8 = fs.MemoryStream( "x" )
+    dim as fs.TextReader t8 = fs.TextReader( m8 )
+    t8.ReadLine( ln )
+    Check( "encoding 8", t8.Encoding( ) = "utf-8" )
+end scope
+
+'' -- TEXT_STRICT
+scope
+    dim as fs.MemoryStream good = fs.MemoryStream( Bytes( "ok " & chr( &hC3, &hB1 ) & chr( 10 ) & "fine" ) )
+    dim as fs.TextReader sg = fs.TextReader( good, fs.TEXT_STRICT )
+    dim as ustring ln
+    Check( "strict good", sg.ReadLine( ln ).ValueOr( false ) andalso sg.ReadLine( ln ).ValueOr( false ) )
+    dim as fs.MemoryStream bad = fs.MemoryStream( Bytes( "ok" & chr( 10 ) & "b" & chr( &hC0, &hAF ) & chr( 10 ) ) )
+    dim as fs.TextReader sb = fs.TextReader( bad, fs.TEXT_STRICT )
+    Check( "strict first", sb.ReadLine( ln ).ValueOr( false ) )
+    dim as fs.FsResultBool r = sb.ReadLine( ln )
+    Check( "strict bad", ( r.IsOk( ) = false ) andalso ( r.Failure( ).Code( ) = fs.FS_INVALID_DATA ) )
+    dim as fs.MemoryStream sur = fs.MemoryStream( Bytes( chr( &hED, &hA0, &h80 ) ) )
+    dim as fs.TextReader ss = fs.TextReader( sur, fs.TEXT_STRICT )
+    Check( "strict surrogate", ss.ReadLine( ln ).IsOk( ) = false )
+    dim as fs.MemoryStream trunc = fs.MemoryStream( Bytes( "a" & chr( &hE6, &h97 ) ) )
+    dim as fs.TextReader st = fs.TextReader( trunc, fs.TEXT_STRICT )
+    Check( "strict truncated", st.ReadLine( ln ).IsOk( ) = false )
+end scope
+
+'' -- TextWriter
+scope
+    dim as fs.MemoryStream m
+    dim as fs.TextWriter tw = fs.TextWriter( m )
+#ifdef __FB_WIN32__
+    Check( "newline native", tw.NewLine = chr( 13, 10 ) )
+#else
+    Check( "newline native", tw.NewLine = chr( 10 ) )
+#endif
+    tw.NewLine = chr( 10 )
+    tw.WriteLine( "one" )
+    tw.Write( "t" & wchr( &hD800 ) & "o" )
+    tw.WriteLine( )
+    Check( "textwriter", MemText( m ) = "one" & chr( 10 ) & "t" & chr( &hEF, &hBF, &hBD ) & "o" & chr( 10 ) )
+    dim as fs.MemoryStream mb
+    dim as fs.TextWriter twb = fs.TextWriter( mb, true )
+    twb.Write( "x" )
+    twb.Write( "y" )
+    Check( "bom once", MemText( mb ) = chr( &hEF, &hBB, &hBF ) & "xy" )
+    dim as fs.MemoryStream me
+    dim as fs.TextWriter twe = fs.TextWriter( me, true )
+    Check( "flush", twe.Flush( ).IsOk( ) andalso ( me.Length( ) = 0 ) )
+end scope
+
+'' -- ReadLines
+scope
+    fs.WriteAllText( p, "one" & chr( 10 ) & "two" & chr( 13, 10 ) & "three" )
+    dim as string got = ""
+    dim as long n = 0
+    for each ln in fs.ReadLines( p )
+        '' 'got = got & ...', not 'got &= ln.Value( ) & ...': a string &= of a ustring
+        '' EXPRESSION appends its UTF-16 bytes (a tiko compiler defect fbc does not have)
+        if ln.IsOk( ) then got = got & ln.Value( ) & "|"
+        n += 1
+    next
+    Check( "readlines", ( n = 3 ) andalso ( got = "one|two|three|" ) )
+
+    n = 0
+    dim as boolean firstFailed = false
+    for each ln in fs.ReadLines( fs.PathJoin( tmp, "absent.txt" ) )
+        n += 1
+        if ( ln.IsOk( ) = false ) then firstFailed = ( ln.Failure( ).Code( ) = fs.FS_NOT_FOUND ) andalso ( ln.Failure( ).Operation( ) = "ReadLines" )
+    next
+    Check( "readlines missing", ( n = 1 ) andalso firstFailed )
+
+    '' exit for closes the file
+    dim as long before = OpenFds( )
+    dim as fs.OpenOptions excl = fs.OpenOptionsRead( )
+    excl.ShareRead = false : excl.ShareWrite = false : excl.ShareDelete = false
+    for each ln in fs.ReadLines( p )
+#ifdef __FB_WIN32__
+        dim as fs.File probe
+        Check( "open while iterating", probe.Open( p, excl ).IsOk( ) = false )
+#else
+        Check( "fd while iterating", OpenFds( ) = before + 1 )
+#endif
+        exit for
+    next
+#ifdef __FB_WIN32__
+    dim as fs.File after
+    Check( "closed after exit for", after.Open( p, excl ).IsOk( ) )
+#else
+    Check( "closed after exit for", OpenFds( ) = before )
+#endif
+end scope
+
+'' -- section 8
+scope
+    fs.WriteAllText( p, "12345" )
+    dim as containers.Array( of ubyte ) b
+    Check( "bytes limit equal", fs.ReadAllBytes( p, b, 5 ).ValueOr( -1 ) = 5 )
+    dim as fs.FsResultI64 rb = fs.ReadAllBytes( p, b, 4 )
+    Check( "bytes limit over", ( rb.IsOk( ) = false ) andalso ( rb.Failure( ).Code( ) = fs.FS_TOO_LARGE ) andalso ( b.Count( ) = 0 ) )
+    Check( "text limit equal", fs.ReadAllText( p, 5 ).ValueOr( "" ) = "12345" )
+    dim as fs.FsResultUStr rt = fs.ReadAllText( p, 4 )
+    Check( "text limit over", ( rt.IsOk( ) = false ) andalso ( rt.Failure( ).Code( ) = fs.FS_TOO_LARGE ) andalso ( rt.Failure( ).Operation( ) = "ReadAllText" ) )
+    Check( "limit negative", fs.ReadAllBytes( p, b, -1 ).IsOk( ) = false )
+    Check( "text limit missing", fs.ReadAllText( fs.PathJoin( tmp, "nope" ), 10 ).Failure( ).Code( ) = fs.FS_NOT_FOUND )
+    dim as ustring ap = fs.PathJoin( tmp, "ap.bin" )
+    Check( "append 1", fs.AppendAllBytes( ap, Bytes( "ab" ) ).IsOk( ) )
+    Check( "append 2", fs.AppendAllBytes( ap, Bytes( "cd" ) ).IsOk( ) )
+    Check( "appended", fs.ReadAllText( ap ).ValueOr( "" ) = "abcd" )
+end scope
+
+fs.RemoveDirAll( tmp )
+if fails = 0 then print "ok"

@@ -1,0 +1,897 @@
+#module "fs"
+#import "std/outcome"
+#import "std/containers"
+using outcome
+using containers
+'' std/fs: fstext -- BufferedReader, BufferedWriter, TextReader, TextWriter, ReadLines,
+'' and the whole-file additions (size limits, AppendAllBytes)
+''
+'' Specified in C:\dev\docs\tiko-fs\RFC-0001-files-and-streams.md sections 7 and 8.
+''
+'' A WRAPPER DOES NOT OWN WHAT IT WRAPS. BufferedReader, BufferedWriter, TextReader and
+'' TextWriter keep a POINTER to the Stream they were given, so that stream must outlive
+'' the wrapper -- the same lifetime rule a defer-managed handle has. Each wrapper owns
+'' its own buffer and is therefore NOT copyable.
+''
+'' LINES ARE ReadAllLines' LINES, everywhere here: a line ends at LF; one CR before the
+'' LF is dropped; a CR anywhere else is text; the last line needs no LF; and a final LF
+'' is not followed by an empty line. (RFC-0001 section 7.3 first proposed lone CR as a
+'' line end too, and said to follow ReadAllLines if it did not -- it does not.)
+''
+'' TEXT IS DECODED BY ReadAllText's RULES (section 7.3): a UTF-8, UTF-16LE or UTF-16BE BOM
+'' is honoured and consumed, no BOM means UTF-8, and invalid UTF-8 becomes U+FFFD -- or,
+'' under TEXT_STRICT, fails with FS_INVALID_DATA. UTF-8 lines are cut at the LF BYTE,
+'' which no multi-byte sequence contains, so a sequence split across two reads of the
+'' inner stream is simply joined before it is decoded.
+
+
+
+#if __FB_LANG__ <> "fb"
+    #error "std/fs requires -lang fb (it uses namespaces)"
+#endif
+
+extern "C"
+    declare function fb_fstext_memcpy alias "memcpy" _
+        ( byval d as any ptr, byval s as const any ptr, byval n as uinteger ) as any ptr
+    declare function fb_fstext_memmove alias "memmove" _
+        ( byval d as any ptr, byval s as const any ptr, byval n as uinteger ) as any ptr
+end extern
+
+const FS_TEXT_DEFAULT_CAPACITY = 65536
+
+'' ---------------------------------------------------------- BufferedReader
+
+public type BufferedReader extends Stream
+    declare constructor( byref inner as Stream, byval capacity as long = FS_TEXT_DEFAULT_CAPACITY )
+    declare destructor( ) override
+
+    declare const function CanRead ( ) as boolean override
+    declare const function CanWrite( ) as boolean override
+    declare const function CanSeek ( ) as boolean override
+    declare function Read( byval buf as ubyte ptr, byval n as longint ) as FsResultI64 override
+    declare function Seek( byval offset as longint, byval origin as SeekOrigin = SEEK_FROM_START ) as FsResultI64 override
+
+    declare function ReadByte ( byref b as ubyte ) as FsResultBool
+    declare function ReadUntil( byval delim as ubyte, buf as Array( of ubyte ) ) as FsResultI64
+    declare function ReadLine ( byref line_ as string ) as FsResultBool
+    declare function Peek     ( byval n as long, buf as Array( of ubyte ) ) as FsResultI64
+
+private:
+    declare constructor( byref other as const BufferedReader )
+    declare operator let( byref other as const BufferedReader )
+    declare function hFill( byref failure as FsError ) as long
+
+    as Stream ptr m_inner
+    as ubyte ptr  m_buf
+    as long       m_cap
+    as long       m_pos
+    as long       m_len
+end type
+
+constructor BufferedReader( byref inner as Stream, byval capacity as long )
+    this.m_inner = @inner
+    this.m_cap = iif( capacity < 1, 1, capacity )
+    this.m_buf = callocate( this.m_cap, 1 )
+    this.m_pos = 0
+    this.m_len = 0
+end constructor
+
+destructor BufferedReader( )
+    if( this.m_buf <> nullptr ) then deallocate( this.m_buf )
+end destructor
+
+const function BufferedReader.CanRead( ) as boolean
+    return this.m_inner->CanRead( )
+end function
+
+const function BufferedReader.CanWrite( ) as boolean
+    return FALSE
+end function
+
+const function BufferedReader.CanSeek( ) as boolean
+    return this.m_inner->CanSeek( )
+end function
+
+'' Moves what is unread to the front and reads ONCE into the rest. Returns the bytes
+'' added -- 0 at the end of the inner stream -- or -1 with `failure` set.
+function BufferedReader.hFill( byref failure as FsError ) as long
+    if( this.m_buf = nullptr ) then
+        failure = FsError( FS_NO_SPACE, 0, "Read", "" )
+        return -1
+    end if
+    dim as long left_ = this.m_len - this.m_pos
+    if( ( left_ > 0 ) andalso ( this.m_pos > 0 ) ) then fb_fstext_memmove( this.m_buf, this.m_buf + this.m_pos, left_ )
+    this.m_pos = 0
+    this.m_len = iif( left_ > 0, left_, 0 )
+    if( this.m_len >= this.m_cap ) then return 0
+
+    dim as FsResultI64 r = this.m_inner->Read( this.m_buf + this.m_len, this.m_cap - this.m_len )
+    if( r.IsOk( ) = FALSE ) then
+        failure = r.Failure( )
+        return -1
+    end if
+    this.m_len += clng( r.Value( ) )
+    return clng( r.Value( ) )
+end function
+
+'' From the buffer; when it is empty, ONE inner read refills it -- or, for a request at
+'' least the buffer's size, the request goes straight to the inner stream.
+function BufferedReader.Read( byval buf as ubyte ptr, byval n as longint ) as FsResultI64
+    if( ( n < 0 ) orelse ( ( buf = nullptr ) andalso ( n > 0 ) ) ) then
+        return FsFail( of longint )( FS_INVALID_ARGUMENT, "Read", "" )
+    end if
+    if( n = 0 ) then return Ok( of longint, FsError )( 0 )
+
+    if( this.m_pos >= this.m_len ) then
+        if( n >= this.m_cap ) then return this.m_inner->Read( buf, n )
+        dim as FsError f
+        dim as long got = this.hFill( f )
+        if( got < 0 ) then return Fail( of longint, FsError )( f )
+        if( got = 0 ) then return Ok( of longint, FsError )( 0 )
+    end if
+
+    dim as longint k = this.m_len - this.m_pos
+    if( n < k ) then k = n
+    fb_fstext_memcpy( buf, this.m_buf + this.m_pos, k )
+    this.m_pos += k
+    return Ok( of longint, FsError )( k )
+end function
+
+'' Discards the buffer, then seeks the inner stream. A SEEK_FROM_CURRENT offset is
+'' measured from where the CALLER is, which is behind the inner stream by what is
+'' still unread here.
+function BufferedReader.Seek( byval offset as longint, byval origin as SeekOrigin ) as FsResultI64
+    dim as longint off = offset
+    if( origin = SEEK_FROM_CURRENT ) then off -= ( this.m_len - this.m_pos )
+    this.m_pos = 0
+    this.m_len = 0
+    return this.m_inner->Seek( off, origin )
+end function
+
+'' TRUE with the byte; FALSE at the end.
+function BufferedReader.ReadByte( byref b as ubyte ) as FsResultBool
+    if( this.m_pos >= this.m_len ) then
+        dim as FsError f
+        dim as long got = this.hFill( f )
+        if( got < 0 ) then return Fail( of boolean, FsError )( f )
+        if( got = 0 ) then return Ok( of boolean, FsError )( FALSE )
+    end if
+    b = this.m_buf[this.m_pos]
+    this.m_pos += 1
+    return Ok( of boolean, FsError )( TRUE )
+end function
+
+'' Appends bytes up to and INCLUDING delim (or to the end) to buf; the count appended,
+'' 0 at the end.
+function BufferedReader.ReadUntil( byval delim as ubyte, buf as Array( of ubyte ) ) as FsResultI64
+    dim as longint total = 0
+    do
+        if( this.m_pos >= this.m_len ) then
+            dim as FsError f
+            dim as long got = this.hFill( f )
+            if( got < 0 ) then return Fail( of longint, FsError )( f )
+            if( got = 0 ) then exit do
+        end if
+        dim as ubyte c = this.m_buf[this.m_pos]
+        this.m_pos += 1
+        buf.Push( c )
+        total += 1
+        if( c = delim ) then exit do
+    loop
+    return Ok( of longint, FsError )( total )
+end function
+
+'' The next line as BYTES -- not decoded, so a binary or non-UTF-8 line comes back
+'' unchanged -- with its LF and a CR before it removed. FALSE at the end.
+function BufferedReader.ReadLine( byref line_ as string ) as FsResultBool
+    line_ = ""
+    dim as boolean any_ = FALSE
+    do
+        if( this.m_pos >= this.m_len ) then
+            dim as FsError f
+            dim as long got = this.hFill( f )
+            if( got < 0 ) then return Fail( of boolean, FsError )( f )
+            if( got = 0 ) then exit do
+        end if
+        '' scan the buffered run for LF and take it in one piece
+        dim as long s = this.m_pos, e = this.m_pos
+        while( ( e < this.m_len ) andalso ( this.m_buf[e] <> 10 ) )
+            e += 1
+        wend
+        if( e > s ) then
+            dim as string chunk = space( e - s )
+            fb_fstext_memcpy( strptr( chunk ), this.m_buf + s, e - s )
+            line_ &= chunk
+        end if
+        any_ = TRUE
+        if( e < this.m_len ) then
+            this.m_pos = e + 1
+            if( len( line_ ) > 0 ) then
+                if( line_[len( line_ ) - 1] = 13 ) then line_ = left( line_, len( line_ ) - 1 )
+            end if
+            return Ok( of boolean, FsError )( TRUE )
+        end if
+        this.m_pos = e
+    loop
+    '' A FINAL SEGMENT WITH NO LF IS A LINE -- even one that is only a CR, which is an
+    '' empty line once the CR goes, exactly as ReadAllLines reads it.
+    if( ( any_ = FALSE ) orelse ( len( line_ ) = 0 ) ) then return Ok( of boolean, FsError )( FALSE )
+    if( line_[len( line_ ) - 1] = 13 ) then line_ = left( line_, len( line_ ) - 1 )
+    return Ok( of boolean, FsError )( TRUE )
+end function
+
+'' Up to min( n, capacity ) bytes ahead, WITHOUT consuming them: buf's contents are
+'' replaced and the count returned -- fewer only at the end of the data.
+function BufferedReader.Peek( byval n as long, buf as Array( of ubyte ) ) as FsResultI64
+    buf.Clear( )
+    if( n < 0 ) then return FsFail( of longint )( FS_INVALID_ARGUMENT, "Peek", "" )
+    dim as long want = iif( n > this.m_cap, this.m_cap, n )
+    while( this.m_len - this.m_pos < want )
+        dim as FsError f
+        dim as long got = this.hFill( f )
+        if( got < 0 ) then return Fail( of longint, FsError )( f )
+        if( got = 0 ) then exit while
+    wend
+    dim as long k = this.m_len - this.m_pos
+    if( k > want ) then k = want
+    for i as long = 0 to k - 1
+        buf.Push( this.m_buf[this.m_pos + i] )
+    next
+    dim as longint k64 = k
+    return Ok( of longint, FsError )( k64 )
+end function
+
+'' ---------------------------------------------------------- BufferedWriter
+
+public type BufferedWriter extends Stream
+    declare constructor( byref inner as Stream, byval capacity as long = FS_TEXT_DEFAULT_CAPACITY )
+    '' Flushes, and DROPS any error -- call Flush( ) to see it.
+    declare destructor( ) override
+
+    declare const function CanRead ( ) as boolean override
+    declare const function CanWrite( ) as boolean override
+    declare const function CanSeek ( ) as boolean override
+    declare function Write( byval buf as const ubyte ptr, byval n as longint ) as FsResultI64 override
+    declare function Seek ( byval offset as longint, byval origin as SeekOrigin = SEEK_FROM_START ) as FsResultI64 override
+    declare function Flush( ) as FsResultBool override
+
+private:
+    declare constructor( byref other as const BufferedWriter )
+    declare operator let( byref other as const BufferedWriter )
+    declare function hDrain( ) as FsResultBool
+
+    as Stream ptr m_inner
+    as ubyte ptr  m_buf
+    as long       m_cap
+    as long       m_len
+end type
+
+constructor BufferedWriter( byref inner as Stream, byval capacity as long )
+    this.m_inner = @inner
+    this.m_cap = iif( capacity < 1, 1, capacity )
+    this.m_buf = callocate( this.m_cap, 1 )
+    this.m_len = 0
+end constructor
+
+destructor BufferedWriter( )
+    this.hDrain( )
+    if( this.m_buf <> nullptr ) then deallocate( this.m_buf )
+end destructor
+
+const function BufferedWriter.CanRead( ) as boolean
+    return FALSE
+end function
+
+const function BufferedWriter.CanWrite( ) as boolean
+    return this.m_inner->CanWrite( )
+end function
+
+const function BufferedWriter.CanSeek( ) as boolean
+    return this.m_inner->CanSeek( )
+end function
+
+'' What is buffered, written to the inner stream -- without flushing the inner one.
+function BufferedWriter.hDrain( ) as FsResultBool
+    if( this.m_len = 0 ) then return Ok( of boolean, FsError )( TRUE )
+    dim as FsResultBool r = this.m_inner->WriteAll( this.m_buf, this.m_len )
+    this.m_len = 0
+    return r
+end function
+
+'' Into the buffer; a full buffer goes to the inner stream first, and a request at
+'' least the buffer's size goes through directly after it.
+function BufferedWriter.Write( byval buf as const ubyte ptr, byval n as longint ) as FsResultI64
+    if( ( n < 0 ) orelse ( ( buf = nullptr ) andalso ( n > 0 ) ) ) then
+        return FsFail( of longint )( FS_INVALID_ARGUMENT, "Write", "" )
+    end if
+    if( n = 0 ) then return Ok( of longint, FsError )( 0 )
+    if( this.m_buf = nullptr ) then return FsFail( of longint )( FS_NO_SPACE, "Write", "" )
+
+    if( this.m_len + n > this.m_cap ) then
+        dim as FsResultBool d = this.hDrain( )
+        if( d.IsOk( ) = FALSE ) then return Fail( of longint, FsError )( d.Failure( ) )
+    end if
+    if( n >= this.m_cap ) then
+        dim as FsResultBool w = this.m_inner->WriteAll( buf, n )
+        if( w.IsOk( ) = FALSE ) then return Fail( of longint, FsError )( w.Failure( ) )
+        return Ok( of longint, FsError )( n )
+    end if
+    fb_fstext_memcpy( this.m_buf + this.m_len, buf, n )
+    this.m_len += clng( n )
+    return Ok( of longint, FsError )( n )
+end function
+
+function BufferedWriter.Seek( byval offset as longint, byval origin as SeekOrigin ) as FsResultI64
+    dim as FsResultBool d = this.hDrain( )
+    if( d.IsOk( ) = FALSE ) then return Fail( of longint, FsError )( d.Failure( ) )
+    return this.m_inner->Seek( offset, origin )
+end function
+
+function BufferedWriter.Flush( ) as FsResultBool
+    dim as FsResultBool d = this.hDrain( )
+    if( d.IsOk( ) = FALSE ) then return d
+    return this.m_inner->Flush( )
+end function
+
+'' -------------------------------------------------------------- TextReader
+
+public enum TextErrorMode
+    TEXT_REPLACE = 0        '' invalid UTF-8 becomes U+FFFD -- ReadAllText's rule
+    TEXT_STRICT  = 1        '' invalid UTF-8 fails with FS_INVALID_DATA
+end enum
+
+'' TRUE when b[0..n-1] is well-formed UTF-8: no stray continuation byte, no truncated or
+'' overlong sequence, no surrogate, nothing above U+10FFFF.
+private function hValidUtf8( byval b as const ubyte ptr, byval n as long ) as boolean
+    dim as long i = 0
+    while( i < n )
+        dim as ulong c = b[i]
+        dim as long k
+        dim as ulong lo = &h80, hi = &hBF
+        if( c < &h80 ) then
+            i += 1
+            continue while
+        elseif( ( c >= &hC2 ) andalso ( c <= &hDF ) ) then
+            k = 1
+        elseif( ( c >= &hE0 ) andalso ( c <= &hEF ) ) then
+            k = 2
+            if( c = &hE0 ) then lo = &hA0
+            if( c = &hED ) then hi = &h9F
+        elseif( ( c >= &hF0 ) andalso ( c <= &hF4 ) ) then
+            k = 3
+            if( c = &hF0 ) then lo = &h90
+            if( c = &hF4 ) then hi = &h8F
+        else
+            return FALSE
+        end if
+        '' truncated: the k continuation bytes would run past the end
+        if( i + k >= n ) then return FALSE
+        dim as ulong c1 = b[i + 1]
+        if( ( c1 < lo ) orelse ( c1 > hi ) ) then return FALSE
+        for j as long = 2 to k
+            dim as ulong cj = b[i + j]
+            if( ( cj < &h80 ) orelse ( cj > &hBF ) ) then return FALSE
+        next
+        i += k + 1
+    wend
+    return TRUE
+end function
+
+public type TextReader
+    declare constructor( byref inner as Stream, byval mode as TextErrorMode = TEXT_REPLACE )
+    declare destructor( )
+
+    '' The next line, decoded; FALSE at the end.
+    declare function ReadLine( byref line_ as ustring ) as FsResultBool
+    '' Everything left, decoded and APPENDED to s; TRUE when anything was appended.
+    declare function ReadToEnd( byref s as ustring ) as FsResultBool
+    '' "utf-8", "utf-16le" or "utf-16be" once the first read has looked; "" before.
+    declare const function Encoding( ) as ustring
+
+private:
+    declare constructor( byref other as const TextReader )
+    declare operator let( byref other as const TextReader )
+    declare function hFill( byref failure as FsError ) as long
+    declare function hStart( byref failure as FsError ) as boolean
+    declare function hDecode8( byref b as const string, byref out_ as ustring, byref failure as FsError ) as boolean
+    declare function hNext16( byref unit as ulong, byref failure as FsError ) as long
+
+    as Stream ptr    m_inner
+    as TextErrorMode m_mode
+    as ubyte ptr     m_buf
+    as long          m_cap
+    as long          m_pos
+    as long          m_len
+    as boolean       m_eof
+    as long          m_enc      '' 0 not yet known, 1 UTF-8, 2 UTF-16LE, 3 UTF-16BE
+end type
+
+constructor TextReader( byref inner as Stream, byval mode as TextErrorMode )
+    this.m_inner = @inner
+    this.m_mode = mode
+    this.m_cap = FS_TEXT_DEFAULT_CAPACITY
+    this.m_buf = callocate( this.m_cap, 1 )
+    this.m_pos = 0
+    this.m_len = 0
+    this.m_eof = FALSE
+    this.m_enc = 0
+end constructor
+
+destructor TextReader( )
+    if( this.m_buf <> nullptr ) then deallocate( this.m_buf )
+end destructor
+
+const function TextReader.Encoding( ) as ustring
+    select case this.m_enc
+    case 1
+        return "utf-8"
+    case 2
+        return "utf-16le"
+    case 3
+        return "utf-16be"
+    end select
+    return ""
+end function
+
+'' As BufferedReader.hFill: compact, then one inner read. 0 at the end, -1 on failure.
+function TextReader.hFill( byref failure as FsError ) as long
+    if( this.m_eof ) then return 0
+    if( this.m_buf = nullptr ) then
+        failure = FsError( FS_NO_SPACE, 0, "ReadLine", "" )
+        return -1
+    end if
+    dim as long left_ = this.m_len - this.m_pos
+    if( ( left_ > 0 ) andalso ( this.m_pos > 0 ) ) then fb_fstext_memmove( this.m_buf, this.m_buf + this.m_pos, left_ )
+    this.m_pos = 0
+    this.m_len = iif( left_ > 0, left_, 0 )
+    if( this.m_len >= this.m_cap ) then return 0
+    dim as FsResultI64 r = this.m_inner->Read( this.m_buf + this.m_len, this.m_cap - this.m_len )
+    if( r.IsOk( ) = FALSE ) then
+        failure = r.Failure( )
+        return -1
+    end if
+    if( r.Value( ) = 0 ) then this.m_eof = TRUE
+    this.m_len += clng( r.Value( ) )
+    return clng( r.Value( ) )
+end function
+
+'' Rule 1: looks at the first bytes -- reading until there are three or the data ends
+'' -- and consumes a BOM.
+function TextReader.hStart( byref failure as FsError ) as boolean
+    if( this.m_enc <> 0 ) then return TRUE
+    while( ( this.m_len - this.m_pos < 3 ) andalso ( this.m_eof = FALSE ) )
+        if( this.hFill( failure ) < 0 ) then return FALSE
+    wend
+    dim as long avail = this.m_len - this.m_pos
+    dim as ubyte ptr p = this.m_buf + this.m_pos
+    this.m_enc = 1
+    if( avail >= 2 ) then
+        if( ( p[0] = &hFF ) andalso ( p[1] = &hFE ) ) then
+            this.m_enc = 2 : this.m_pos += 2 : return TRUE
+        end if
+        if( ( p[0] = &hFE ) andalso ( p[1] = &hFF ) ) then
+            this.m_enc = 3 : this.m_pos += 2 : return TRUE
+        end if
+    end if
+    if( avail >= 3 ) then
+        if( ( p[0] = &hEF ) andalso ( p[1] = &hBB ) andalso ( p[2] = &hBF ) ) then this.m_pos += 3
+    end if
+    return TRUE
+end function
+
+'' UTF-8 bytes to text: the ustring conversion, which replaces as ReadAllText does --
+'' after a check, under TEXT_STRICT.
+function TextReader.hDecode8( byref b as const string, byref out_ as ustring, byref failure as FsError ) as boolean
+    if( this.m_mode = TEXT_STRICT ) then
+        if( hValidUtf8( cptr( const ubyte ptr, strptr( b ) ), len( b ) ) = FALSE ) then
+            failure = FsError( FS_INVALID_DATA, 0, "ReadLine", "" )
+            return FALSE
+        end if
+    end if
+    out_ = b
+    return TRUE
+end function
+
+'' The next UTF-16 unit: 1 with it, 0 at the end (an odd last byte is dropped), -1 on
+'' failure.
+function TextReader.hNext16( byref unit as ulong, byref failure as FsError ) as long
+    while( this.m_len - this.m_pos < 2 )
+        if( this.m_eof ) then
+            this.m_pos = this.m_len
+            return 0
+        end if
+        if( this.hFill( failure ) < 0 ) then return -1
+    wend
+    dim as ulong a = this.m_buf[this.m_pos], b = this.m_buf[this.m_pos + 1]
+    this.m_pos += 2
+    unit = iif( this.m_enc = 2, a or ( b shl 8 ), ( a shl 8 ) or b )
+    return 1
+end function
+
+function TextReader.ReadLine( byref line_ as ustring ) as FsResultBool
+    line_ = ""
+    dim as FsError f
+    if( this.hStart( f ) = FALSE ) then return Fail( of boolean, FsError )( f )
+
+    if( this.m_enc = 1 ) then
+        '' UTF-8: whole bytes up to the LF byte, then decoded once
+        dim as string acc
+        dim as boolean any_ = FALSE
+        do
+            if( this.m_pos >= this.m_len ) then
+                dim as long got = this.hFill( f )
+                if( got < 0 ) then return Fail( of boolean, FsError )( f )
+                if( got = 0 ) then exit do
+            end if
+            dim as long s = this.m_pos, e = this.m_pos
+            while( ( e < this.m_len ) andalso ( this.m_buf[e] <> 10 ) )
+                e += 1
+            wend
+            if( e > s ) then
+                dim as string chunk = space( e - s )
+                fb_fstext_memcpy( strptr( chunk ), this.m_buf + s, e - s )
+                acc &= chunk
+            end if
+            any_ = TRUE
+            if( e < this.m_len ) then
+                this.m_pos = e + 1
+                if( len( acc ) > 0 ) then
+                    if( acc[len( acc ) - 1] = 13 ) then acc = left( acc, len( acc ) - 1 )
+                end if
+                if( this.hDecode8( acc, line_, f ) = FALSE ) then return Fail( of boolean, FsError )( f )
+                return Ok( of boolean, FsError )( TRUE )
+            end if
+            this.m_pos = e
+        loop
+        '' a final segment with no LF is a line, even a lone CR (an empty one)
+        if( ( any_ = FALSE ) orelse ( len( acc ) = 0 ) ) then return Ok( of boolean, FsError )( FALSE )
+        if( acc[len( acc ) - 1] = 13 ) then acc = left( acc, len( acc ) - 1 )
+        if( this.hDecode8( acc, line_, f ) = FALSE ) then return Fail( of boolean, FsError )( f )
+        return Ok( of boolean, FsError )( TRUE )
+    end if
+
+    '' UTF-16: unit by unit, into a growing buffer of units
+    dim as ustring acc = wspace( 64 )
+    dim as long n = 0
+    dim as boolean any_ = FALSE
+    do
+        dim as ulong u
+        dim as long r = this.hNext16( u, f )
+        if( r < 0 ) then return Fail( of boolean, FsError )( f )
+        if( r = 0 ) then exit do
+        any_ = TRUE
+        if( u = 10 ) then
+            if( ( n > 0 ) andalso ( acc[n - 1] = 13 ) ) then n -= 1
+            line_ = left( acc, n )
+            return Ok( of boolean, FsError )( TRUE )
+        end if
+        if( n >= len( acc ) ) then acc &= wspace( len( acc ) )
+        acc[n] = u
+        n += 1
+    loop
+    if( ( any_ = FALSE ) orelse ( n = 0 ) ) then return Ok( of boolean, FsError )( FALSE )
+    if( acc[n - 1] = 13 ) then n -= 1
+    line_ = left( acc, n )
+    return Ok( of boolean, FsError )( TRUE )
+end function
+
+function TextReader.ReadToEnd( byref s as ustring ) as FsResultBool
+    dim as FsError f
+    if( this.hStart( f ) = FALSE ) then return Fail( of boolean, FsError )( f )
+
+    if( this.m_enc = 1 ) then
+        dim as string acc
+        do
+            if( this.m_pos < this.m_len ) then
+                dim as string chunk = space( this.m_len - this.m_pos )
+                fb_fstext_memcpy( strptr( chunk ), this.m_buf + this.m_pos, this.m_len - this.m_pos )
+                acc &= chunk
+                this.m_pos = this.m_len
+            end if
+            dim as long got = this.hFill( f )
+            if( got < 0 ) then return Fail( of boolean, FsError )( f )
+            if( got = 0 ) then exit do
+        loop
+        if( len( acc ) = 0 ) then return Ok( of boolean, FsError )( FALSE )
+        dim as ustring t
+        if( this.hDecode8( acc, t, f ) = FALSE ) then return Fail( of boolean, FsError )( f )
+        s &= t
+        return Ok( of boolean, FsError )( TRUE )
+    end if
+
+    dim as ustring acc = wspace( 64 )
+    dim as long n = 0
+    do
+        dim as ulong u
+        dim as long r = this.hNext16( u, f )
+        if( r < 0 ) then return Fail( of boolean, FsError )( f )
+        if( r = 0 ) then exit do
+        if( n >= len( acc ) ) then acc &= wspace( len( acc ) )
+        acc[n] = u
+        n += 1
+    loop
+    if( n = 0 ) then return Ok( of boolean, FsError )( FALSE )
+    s &= left( acc, n )
+    return Ok( of boolean, FsError )( TRUE )
+end function
+
+'' -------------------------------------------------------------- TextWriter
+
+public type TextWriter
+    declare constructor( byref inner as Stream, byval writeBom as boolean = FALSE )
+
+    '' Platform-native by default (RFC-0001 F15): CRLF on Windows, LF on Linux. Only
+    '' WriteLine uses it; Write writes s exactly as given.
+    as ustring NewLine
+
+    declare function Write    ( byref s as const ustring ) as FsResultBool
+    declare function WriteLine( byref s as const ustring = "" ) as FsResultBool
+    declare function Flush( ) as FsResultBool
+
+private:
+    declare constructor( byref other as const TextWriter )
+    declare operator let( byref other as const TextWriter )
+
+    as Stream ptr m_inner
+    as boolean    m_bom
+    as boolean    m_started
+end type
+
+constructor TextWriter( byref inner as Stream, byval writeBom as boolean )
+    this.m_inner = @inner
+    this.m_bom = writeBom
+    this.m_started = FALSE
+#ifdef __FB_WIN32__
+    this.NewLine = chr( 13, 10 )
+#else
+    this.NewLine = chr( 10 )
+#endif
+end constructor
+
+'' UTF-8; the BOM, if asked for, before the first text. A lone surrogate is U+FFFD.
+function TextWriter.Write( byref s as const ustring ) as FsResultBool
+    if( this.m_started = FALSE ) then
+        this.m_started = TRUE
+        if( this.m_bom ) then
+            dim as ubyte bom( 0 to 2 ) = { &hEF, &hBB, &hBF }
+            dim as FsResultBool b = this.m_inner->WriteAll( @bom(0), 3 )
+            if( b.IsOk( ) = FALSE ) then return b
+        end if
+    end if
+    if( len( s ) = 0 ) then return Ok( of boolean, FsError )( TRUE )
+    return this.m_inner->WriteUtf8( s )
+end function
+
+function TextWriter.WriteLine( byref s as const ustring ) as FsResultBool
+    dim as FsResultBool r = this.Write( s )
+    if( r.IsOk( ) = FALSE ) then return r
+    return this.Write( this.NewLine )
+end function
+
+function TextWriter.Flush( ) as FsResultBool
+    return this.m_inner->Flush( )
+end function
+
+'' -------------------------------------------------------------- ReadLines
+''
+'' 'for each line in fs.ReadLines( p )' -- one FsResultUStr per line, read lazily, so
+'' memory is the buffer plus the longest line. A failure is YIELDED, not thrown and not
+'' swallowed: an open failure is the first and only element, and a read failure ends
+'' the sequence after it. Leaving the loop early -- exit for, goto, return -- closes the
+'' file, because the iterator owns it.
+''
+'' COPIES RESTART, THEY NEVER SHARE. The protocol returns the iterator by value, and
+'' this one owns a File and a TextReader; a copy carries only the path and mode and
+'' opens its own, so no handle is ever closed twice. The copy for each makes is taken
+'' before the first element, as DirIterator relies on too.
+
+public type LineIterator
+    declare constructor( )
+    declare constructor( byref other as const LineIterator )
+    declare operator let( byref other as const LineIterator )
+    declare destructor( )
+
+    declare function IsValid ( ) as boolean
+    declare function Value   ( ) byref as FsResultUStr
+    declare sub      MoveNext( )
+
+    declare sub hOpen( )
+    declare sub hFetch( )
+    declare sub hRelease( )
+
+    as ustring       m_path
+    as TextErrorMode m_mode
+    as File ptr      m_file
+    as TextReader ptr m_reader
+    as boolean       m_opened
+    as boolean       m_live
+    as boolean       m_done
+    as FsResultUStr  m_cur
+end type
+
+constructor LineIterator( )
+    this.m_mode = TEXT_REPLACE
+    this.m_file = nullptr
+    this.m_reader = nullptr
+    this.m_opened = FALSE
+    this.m_live = FALSE
+    this.m_done = FALSE
+end constructor
+
+constructor LineIterator( byref other as const LineIterator )
+    this.m_path = other.m_path
+    this.m_mode = other.m_mode
+    this.m_file = nullptr
+    this.m_reader = nullptr
+    this.m_opened = FALSE
+    this.m_live = FALSE
+    this.m_done = FALSE
+end constructor
+
+operator LineIterator.let( byref other as const LineIterator )
+    if( @other = @this ) then exit operator
+    this.hRelease( )
+    this.m_path = other.m_path
+    this.m_mode = other.m_mode
+    this.m_opened = FALSE
+    this.m_live = FALSE
+    this.m_done = FALSE
+end operator
+
+destructor LineIterator( )
+    this.hRelease( )
+end destructor
+
+sub LineIterator.hRelease( )
+    if( this.m_reader <> nullptr ) then delete this.m_reader
+    this.m_reader = nullptr
+    if( this.m_file <> nullptr ) then delete this.m_file     '' its destructor closes
+    this.m_file = nullptr
+end sub
+
+sub LineIterator.hOpen( )
+    if( this.m_opened ) then exit sub
+    this.m_opened = TRUE
+    this.m_file = new File( )
+    dim as FsResultBool r = this.m_file->OpenRead( this.m_path )
+    if( r.IsOk( ) = FALSE ) then
+        this.m_cur = Fail( of ustring, FsError )( FsError( r.Failure( ).Code( ), r.Failure( ).OsCode( ), "ReadLines", this.m_path ) )
+        this.m_live = TRUE
+        this.m_done = TRUE
+        this.hRelease( )
+        exit sub
+    end if
+    this.m_reader = new TextReader( *this.m_file, this.m_mode )
+    this.hFetch( )
+end sub
+
+sub LineIterator.hFetch( )
+    if( this.m_done orelse ( this.m_reader = nullptr ) ) then
+        this.m_live = FALSE
+        exit sub
+    end if
+    dim as ustring line_
+    dim as FsResultBool r = this.m_reader->ReadLine( line_ )
+    if( r.IsOk( ) = FALSE ) then
+        this.m_cur = Fail( of ustring, FsError )( FsError( r.Failure( ).Code( ), r.Failure( ).OsCode( ), "ReadLines", this.m_path ) )
+        this.m_live = TRUE
+        this.m_done = TRUE
+        exit sub
+    end if
+    if( r.Value( ) = FALSE ) then
+        this.m_live = FALSE
+        this.hRelease( )
+        exit sub
+    end if
+    this.m_cur = Ok( of ustring, FsError )( line_ )
+    this.m_live = TRUE
+end sub
+
+function LineIterator.IsValid( ) as boolean
+    this.hOpen( )
+    return this.m_live
+end function
+
+function LineIterator.Value( ) byref as FsResultUStr
+    this.hOpen( )
+    return this.m_cur
+end function
+
+sub LineIterator.MoveNext( )
+    this.hOpen( )
+    if( this.m_done ) then
+        this.m_live = FALSE
+        this.hRelease( )
+        exit sub
+    end if
+    this.hFetch( )
+end sub
+
+public type LineRange
+    declare const function GetIterator( ) as LineIterator
+    as ustring       m_path
+    as TextErrorMode m_mode
+end type
+
+const function LineRange.GetIterator( ) as LineIterator
+    dim as LineIterator it
+    it.m_path = this.m_path
+    it.m_mode = this.m_mode
+    return it
+end function
+
+public declare function ReadLines overload ( byref p as const ustring, byval mode as TextErrorMode = TEXT_REPLACE ) as LineRange
+
+public function ReadLines( byref p as const ustring, byval mode as TextErrorMode ) as LineRange
+    dim as LineRange r
+    r.m_path = p
+    r.m_mode = mode
+    return r
+end function
+
+'' ---------------------------------------------------- whole-file additions
+''
+'' RFC-0001 section 8. maxBytes is checked against the open file's size BEFORE anything
+'' is read, and again while reading, so a file that grows meanwhile still stops at
+'' maxBytes + 1 bytes: FS_TOO_LARGE either way.
+
+public declare function ReadAllBytes overload ( byref p as const ustring, buf as Array( of ubyte ), byval maxBytes as longint ) as FsResultI64
+public declare function ReadAllText overload ( byref p as const ustring, byval maxBytes as longint ) as FsResultUStr
+public declare function AppendAllBytes overload ( byref p as const ustring, buf as Array( of ubyte ) ) as FsResultBool
+
+private function hRelabel( byref e as const FsError, byref op as const ustring, byref p as const ustring ) as FsError
+    return FsError( e.Code( ), e.OsCode( ), op, p )
+end function
+
+public function ReadAllBytes( byref p as const ustring, buf as Array( of ubyte ), byval maxBytes as longint ) as FsResultI64
+    buf.Clear( )
+    if( maxBytes < 0 ) then return FsFail( of longint )( FS_INVALID_ARGUMENT, "ReadAllBytes", p )
+
+    dim as File f
+    dim as FsResultBool o = f.OpenRead( p )
+    if( o.IsOk( ) = FALSE ) then return Fail( of longint, FsError )( hRelabel( o.Failure( ), "ReadAllBytes", p ) )
+    dim as FsResultI64 sz = f.Size( )
+    if( sz.IsOk( ) andalso ( sz.Value( ) > maxBytes ) ) then
+        return FsFail( of longint )( FS_TOO_LARGE, "ReadAllBytes", p )
+    end if
+
+    const CHUNK = 65536
+    dim as ubyte tmp( 0 to CHUNK - 1 )
+    dim as longint total = 0
+    do
+        dim as FsResultI64 r = f.Read( @tmp(0), CHUNK )
+        if( r.IsOk( ) = FALSE ) then return Fail( of longint, FsError )( hRelabel( r.Failure( ), "ReadAllBytes", p ) )
+        if( r.Value( ) = 0 ) then exit do
+        if( total + r.Value( ) > maxBytes ) then
+            buf.Clear( )
+            return FsFail( of longint )( FS_TOO_LARGE, "ReadAllBytes", p )
+        end if
+        for i as long = 0 to clng( r.Value( ) ) - 1
+            buf.Push( tmp(i) )
+        next
+        total += r.Value( )
+    loop
+    return Ok( of longint, FsError )( total )
+end function
+
+'' ReadAllText's text, from at most maxBytes bytes: the same decoding (MemoryStream's
+'' ToUtf8Text, which the P2 suite holds equal to ReadAllText).
+public function ReadAllText( byref p as const ustring, byval maxBytes as longint ) as FsResultUStr
+    dim as Array( of ubyte ) b
+    dim as FsResultI64 r = ReadAllBytes( p, b, maxBytes )
+    if( r.IsOk( ) = FALSE ) then return Fail( of ustring, FsError )( hRelabel( r.Failure( ), "ReadAllText", p ) )
+    dim as MemoryStream m = MemoryStream( b )
+    return Ok( of ustring, FsError )( m.ToUtf8Text( ) )
+end function
+
+'' Append + Create: each write lands at the end, atomically per write, on both platforms.
+public function AppendAllBytes( byref p as const ustring, buf as Array( of ubyte ) ) as FsResultBool
+    dim as File f
+    dim as FsResultBool o = f.Open( p, OpenOptionsAppend( ) )
+    if( o.IsOk( ) = FALSE ) then return Fail( of boolean, FsError )( hRelabel( o.Failure( ), "AppendAllBytes", p ) )
+    dim as FsResultBool w = f.WriteBytes( buf )
+    if( w.IsOk( ) = FALSE ) then return Fail( of boolean, FsError )( hRelabel( w.Failure( ), "AppendAllBytes", p ) )
+    dim as FsResultBool c = f.Close( )
+    if( c.IsOk( ) = FALSE ) then return Fail( of boolean, FsError )( hRelabel( c.Failure( ), "AppendAllBytes", p ) )
+    return Ok( of boolean, FsError )( TRUE )
+end function

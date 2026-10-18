@@ -8,6 +8,7 @@ FsResultUStr
 
 ```freebasic
 ReadAllText( p )
+ReadAllText( p, maxBytes )    '' FS_TOO_LARGE above maxBytes, before anything is read
 ```
 
 ## Notes

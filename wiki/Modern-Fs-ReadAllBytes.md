@@ -8,6 +8,7 @@ FsResultI64 -- fills Array( of ubyte )
 
 ```freebasic
 ReadAllBytes( p, buf )
+ReadAllBytes( p, buf, maxBytes )    '' FS_TOO_LARGE above maxBytes, before anything is read
 ```
 
 ## Notes

@@ -1,0 +1,13 @@
+'' RUN: std/fs phase P4 -- BufferedReader and BufferedWriter at capacity 4; TextReader through a
+'' stream that delivers one byte per read, line for line against ReadAllLines and whole against
+'' ReadAllText over a corpus of BOMs, CR/LF mixes, invalid UTF-8 and odd UTF-16; TEXT_STRICT;
+'' TextWriter (native NewLine, BOM once, lone surrogate); ReadLines, a missing file as one
+'' failure, and the file closed when the loop is left early (a deny-sharing open succeeds
+'' afterwards); the size-limited ReadAllText/ReadAllBytes and AppendAllBytes.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/fs-p4.tiko -o tests/codegen/fsp4.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/fsp4.exe
+'' RUN: tests/codegen/fsp4.exe
+'' EXPECT-RUN-OUT: ok
