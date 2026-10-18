@@ -3473,7 +3473,7 @@ END FUNCTION
 ' ========================================================================================
 ' Appends the contents of the specified RTF file
 ' Usage example:
-' DIM wszFileName AS WSTRING * MAX_PATH = AfxGetExePath & $"\Test.rtf"
+' DIM wszFileName AS WSTRING * MAX_PATH = win.GetExePath & $"\Test.rtf"
 ' pRichEdit->AppendDocFile(wszFileName)
 ' ========================================================================================
 FUNCTION CRichEditCtx.AppendDocFile (BYREF wszFileName AS WSTRING, BYVAL CodePage AS DWORD = CP_ACP) AS DWORD
@@ -3508,7 +3508,7 @@ END FUNCTION
 ' dwPos : The position where to insert the contents of the rtf file.
 '         If dwPos = -1, the rtf contents are inserted at the caret position.
 ' Usage example:
-' DIM wszFileName AS WSTRING * MAX_PATH = AfxGetExePath & $"\Test.rtf"
+' DIM wszFileName AS WSTRING * MAX_PATH = win.GetExePath & $"\Test.rtf"
 ' pRichEdit->InsertDocFile(wszFileName, 500)
 ' ========================================================================================
 FUNCTION CRichEditCtx.InsertDocFile (BYREF wszFileName AS WSTRING, BYVAL dwPos AS DWORD, BYVAL CodePage AS DWORD = CP_ACP) AS DWORD
@@ -4151,7 +4151,7 @@ END FUNCTION
 ' ========================================================================================
 ' Saves the document to a file in the specified format.
 ' pVar = Path and file name, e.g. 
-'    DIM dv AS DVARIANT = AfxGetExePath & $"\Test.rtf"
+'    DIM dv AS DVARIANT = win.GetExePath & $"\Test.rtf"
 '    pRichEdit->SaveDoc(dv, tomCreateAlways OR tomRTF)
 ' Pass NULL to overwrite the file if it already exists.
 ' ========================================================================================
@@ -4876,7 +4876,7 @@ END FUNCTION
 ' Retrieves a pointer to the CRichEditCtx class from the handle of the RichEdit control.
 ' hRichEdit = Handle of the Rich Edit control.
 ' Usage example:
-' DIM pRichEdit AS CRichEditCtx PTR = AfxCRichEditCtxPtr(CAST(HWND, lParam))
+' DIM pRichEdit AS CRichEditCtx PTR = CRichEditCtxPtr(CAST(HWND, lParam))
 ' ========================================================================================
 PUBLIC FUNCTION CRichEditCtxPtr OVERLOAD (BYVAL hRichEdit AS HWND) AS CRichEditCtx PTR
    DIM pRichEditCtx AS CRichEditCtx PTR = CAST(CRichEditCtx PTR, SendMessageW(hRichEdit, WM_USER + 100, 0, 0))

@@ -29,7 +29,7 @@
 ' ========================================================================================
 ' Returns command line parameters used to call the program
 ' Unicode replacement for FreeBasic's Command keyword.
-' Usage: result = tkCommand ( [ index ] )
+' Usage: result = wCommand ( [ index ] )
 ' Parameter:
 ' - index : Zero-based index for a particular command-line argument.
 ' Return Value

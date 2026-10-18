@@ -86,7 +86,7 @@ END FUNCTION
 ' Converts a string into a 16-byte (128-bit) Globally Unique Identifier (GUID)
 ' To be valid, the string must contain exactly 32 hexadecimal digits, delimited by hyphens
 ' and enclosed by curly braces. For example: {B09DE715-87C1-11D1-8BE3-0000F8754DA1}
-' If pwszGuidText is omited, fbxGuid generates a new unique guid.
+' If pwszGuidText is omited, Guid generates a new unique guid.
 ' Remarks: I have needed to call the UuidCreate function dynamically because, at the time
 ' of writing, the library for the RPCRT4.DLL seems broken and the linker fails.
 ' ========================================================================================
@@ -148,9 +148,9 @@ END FUNCTION
 '   The interface pointer or NULL.
 ' Usage examples:
 '   DIM pDic AS IDictionary PTR
-'   pDic = fbxNewCom("Scripting.Dictionary")
+'   pDic = NewCom("Scripting.Dictionary")
 ' -or-
-'   pDic = fbxNewCom(CLSID_Dictionary)
+'   pDic = NewCom(CLSID_Dictionary)
 ' where CLSID_Dictionary has been declared as
 ' CONST CLSID_Dictionary = "{EE09B103-97E0-11CF-978F-00A02463E06F}"
 ' ========================================================================================
@@ -180,7 +180,7 @@ END FUNCTION
 '   The interface pointer or NULL.
 ' Usage examples:
 '   DIM pDic AS IDictionary PTR
-'   pDic = fbxNewCom(CLSID_Dictionary, IID_IDictionary)
+'   pDic = NewCom(CLSID_Dictionary, IID_IDictionary)
 ' where CLSID_Dictionary has been declared as
 '   CONST CLSID_Dictionary = "{EE09B103-97E0-11CF-978F-00A02463E06F}"
 ' and IID_IDictionary as
@@ -204,7 +204,7 @@ END FUNCTION
 '   The interface pointer or NULL.
 ' Usage examples:
 '   DIM pDic AS IDictionary PTR
-'   pDic = fbxNewCom(CLSID_Dictionary)
+'   pDic = NewCom(CLSID_Dictionary)
 ' where CLSID_Dictionary has been declared as
 '   DIM CLSID_Dictionary AS CLSID = (&hEE09B103, &h97E0, &h11CF, {&h97, &h8F, &h00, &hA0, &h24, &h63, &hE0, &h6F})
 ' ========================================================================================
@@ -225,7 +225,7 @@ END FUNCTION
 '   The interface pointer or NULL.
 ' Usage examples:
 '   DIM pDic AS IDictionary PTR
-'   pDic = fbxNewCom(CLSID_Dictionary, IID_IDictionary)
+'   pDic = NewCom(CLSID_Dictionary, IID_IDictionary)
 ' where CLSID_Dictionary has been declared as
 '   DIM CLSID_Dictionary AS CLSID = (&hEE09B103, &h97E0, &h11CF, {&h97, &h8F, &h00, &hA0, &h24, &h63, &hE0, &h6F})
 ' and IID_IDictionary as
@@ -247,7 +247,7 @@ END FUNCTION
 ' - riid = A reference to the identifier of the interface to be used to communicate with the object.
 ' - wszLicKey = The license key.
 ' If it succeeds, returns a reference to the requested interface; otherwise, it returns null.
-' Not every component is a suitable candidate for use under this overloaded fbxNewCom function.
+' Not every component is a suitable candidate for use under this overloaded NewCom function.
 '  - Only in-process servers (DLLs) are supported.
 '  - Components that are system components or part of the operating system, such as XML,
 '    Data Access, Internet Explorer, or DirectX, aren't supported
@@ -324,10 +324,10 @@ END FUNCTION
 
 ' ========================================================================================
 ' If the requested object is in an EXE (out-of-process server), such Office applications,
-' and it is running and registered in the Running Object Table (ROT), fbxGetCom will
-' return a pointer to its interface. fbxAnyCom will first try to use an existing, running
+' and it is running and registered in the Running Object Table (ROT), GetCom will
+' return a pointer to its interface. AnyCom will first try to use an existing, running
 ' application if available, or it will create a new instance if not.
-' Be aware that fbxGetCom can fail under if Office is running but not registered in the ROT.
+' Be aware that GetCom can fail under if Office is running but not registered in the ROT.
 ' When an Office application starts, it does not immediately register its running objects.
 ' This optimizes the application's startup process. Instead of registering at startup, an
 ' Office application registers its running objects in the ROT once it loses focus. Therefore,
@@ -425,7 +425,7 @@ END FUNCTION
 ' includes the lifetime of references to it. You use AddRef to stabilize a copy of an
 ' interface pointer. It can also be called when the life of a cloned pointer must extend
 ' beyond the lifetime of the original pointer. The cloned pointer must be released by
-' calling fbxSafeRelease.
+' calling SafeRelease.
 ' ========================================================================================
 PUBLIC FUNCTION SafeAddRef (BYVAL pv AS ANY PTR) AS ULONG
    IF pv = NULL THEN RETURN 0
@@ -472,7 +472,7 @@ END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
-' Releases the events connection identified with the cookie returned by the fbxAdvise method.
+' Releases the events connection identified with the cookie returned by the Advise method.
 ' Parameters
 ' pUnk [in] A pointer to the IUnknown of the object the client wants to disconnect with.
 ' riid: [in] The GUID of the connection point. Typically, this is the same as the outgoing
@@ -492,7 +492,7 @@ PUBLIC FUNCTION Unadvise OVERLOAD (BYVAL pUnk AS ANY PTR, BYVAL riid AS IID PTR,
    hr = pCPC->lpvtbl->FindConnectionPoint(pCPC, riid, @pCP)
    IUnknown_Release(pCPC)
    IF hr <> S_OK OR pCP = NULL THEN RETURN hr
-   ' // Terminates the advisory connection previously established with a call to fbxAdvise
+   ' // Terminates the advisory connection previously established with a call to Advise
    hr = pCP->lpvtbl->Unadvise(pCP, dwCookie)
    IUnknown_Release(pCP)
    RETURN hr
@@ -565,9 +565,9 @@ END FUNCTION
 ' Remarks: The returned font must be destroyed calling the release method of the IFontDisp
 ' interface when no longer needed to prevent memory leaks.
 ' Usage examples:
-' DIM pFont AS IFontDisp PTR = fbxOleCreateFontDisp("MS Sans Serif", 8, FW_NORMAL, , , , DEFAULT_CHARSET)
-' DIM pFont AS IFontDisp PTR = fbxOleCreateFontDisp("Courier New", 10, FW_BOLD, , , , DEFAULT_CHARSET)
-' DIM pFont AS IFontDisp PTR = fbxOleCreateFontDisp("Marlett", 8, FW_NORMAL, , , , SYMBOL_CHARSET)
+' DIM pFont AS IFontDisp PTR = OleCreateFontDisp("MS Sans Serif", 8, FW_NORMAL, , , , DEFAULT_CHARSET)
+' DIM pFont AS IFontDisp PTR = OleCreateFontDisp("Courier New", 10, FW_BOLD, , , , DEFAULT_CHARSET)
+' DIM pFont AS IFontDisp PTR = OleCreateFontDisp("Marlett", 8, FW_NORMAL, , , , SYMBOL_CHARSET)
 ' ========================================================================================
 PUBLIC FUNCTION OleCreateFontDisp ( _
    BYREF wszFontName AS WSTRING, _                  ' __in  Font name

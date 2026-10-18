@@ -1168,7 +1168,7 @@ END FUNCTION
 ' ########################################################################################
 
 ' ========================================================================================
-' Enumerates font families. Used by the tkRichEdit_SetFontW function.
+' Enumerates font families. Used by the RichEdit.SetFont function.
 ' ========================================================================================
 PUBLIC FUNCTION EnumFontFamProcW ( _
    BYVAL lpelf    AS ENUMLOGFONTW PTR, _     ' // Address of ENUMLOGFONT structure
@@ -1219,7 +1219,7 @@ END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
-' Callback function used by the tkRichEdit_LoadRtfFromFileW function.
+' Callback function used by the RichEdit.LoadRtfFromFile function.
 ' Transfers a stream of data into a rich edit control.
 ' ========================================================================================
 PUBLIC FUNCTION LoadRtfFromFileCallback ( _
@@ -1261,7 +1261,7 @@ END FUNCTION
 END NAMESPACE
 
 ' ========================================================================================
-' Custom structure used by the tkRichEdit_LoadRtfFromResourceW function.
+' Custom structure used by the RichEdit.LoadRtfFromResource function.
 ' ========================================================================================
 #ifndef RICHEDIT_CUSTOMDATA
 PUBLIC TYPE RICHEDIT_CUSTOMDATA
@@ -1274,7 +1274,7 @@ END TYPE
 
 NAMESPACE RichEdit
 ' ========================================================================================
-' Callback function used by the tkRichEdit_LoadRtfFromResourceW function.
+' Callback function used by the RichEdit.LoadRtfFromResource function.
 ' Transfers a stream of data into a rich edit control.
 ' ========================================================================================
 PUBLIC FUNCTION LoadRtfFromResourceCallback ( _

@@ -951,7 +951,7 @@ END SUB
 SUB CGraphCtx.CreateBitmapFromFile (BYREF wszFileName AS WSTRING, BYVAL dimPercent AS LONG = 0, BYVAL bGrayScale AS LONG = FALSE)
    IF LEN(wszFileName) = 0 THEN EXIT SUB
 '   ' // Initialize Gdiplus
-'   DIM token AS ULONG_PTR = AfxGdipInit
+'   DIM token AS ULONG_PTR = gdiplus.Init
 '   IF token = NULL THEN EXIT SUB
    DIM hbmp AS HBITMAP = BitmapFromFile(wszFileName, dimPercent, bGrayScale)
    IF hbmp THEN
@@ -994,7 +994,7 @@ END SUB
 SUB CGraphCtx.LoadImageFromRes (BYVAL hInst AS HINSTANCE, BYREF wszImageName AS WSTRING, _
    BYVAL dimPercent AS LONG = 0, BYVAL bGrayScale AS LONG = FALSE, BYVAL clrBackground AS ARGB = 0)
    ' // Initialize Gdiplus
-'   DIM token AS ULONG_PTR = AfxGdipInit
+'   DIM token AS ULONG_PTR = gdiplus.Init
 '   IF token = NULL THEN EXIT SUB
    DIM hbmp AS HBITMAP = BitmapFromRes(hInst, wszImageName, dimPercent, bGrayScale, clrBackground)
    IF hbmp THEN

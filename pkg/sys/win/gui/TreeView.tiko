@@ -575,7 +575,7 @@ END FUNCTION
 ' Usage example:
 ' DIM wszText AS WSTRING * 260
 ' TreeView.GetParentText(hTreeView, hItem, @wszText, 260)
-' AfxMsg(wszText)
+' win.Msg(wszText)
 ' Returns TRUE if successful, or FALSE otherwise.
 ' ========================================================================================
 PUBLIC FUNCTION GetParentText OVERLOAD (BYVAL hTreeView AS HWND, BYVAL hItem AS HTREEITEM, BYVAL pwszText AS WSTRING PTR, BYVAL cchTextMax AS LONG) AS BOOLEAN

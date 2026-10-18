@@ -5,7 +5,7 @@
 #error "sys/win is Windows-only: build for -target windows-x86_64"
 #endif
 
-#include once "../win.ti"   '' sys/win's macros (tkComCtlVersion, TK_BSTR): header macros are not an importer's
+#include once "../win.ti"   '' sys/win's macros (WBSTR): header macros are not an importer's
 #include once "windows.bi"
 #include once "win/commctrl.bi"
 #include once "win/uxtheme.bi"
