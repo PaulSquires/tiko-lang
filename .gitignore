@@ -104,3 +104,11 @@ tests/vendor/**/*.o
 /examples/**/*.dll
 /examples/**/*.so
 /examples/**/*.so.*
+
+# the PsControls demos: Microsoft's icon font, copied in locally and never redistributed; the
+# images two demos write at run time; tiko build's link record
+/examples/PsControls/SegoeFluentIcons.ttf
+/examples/PsControls/*/sample_icon.png
+/examples/PsControls/*/sample.png
+/examples/PsControls/*/sample.bmp
+/examples/PsControls/**/*.link
