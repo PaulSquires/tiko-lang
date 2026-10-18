@@ -28,22 +28,26 @@ Five boxes, all on one subclassed RichEdit50W: a cue banner with its own colour 
 
 ## Requirements
 
-**Files to copy into your project:**
+The control is the module `vendor/PsControls/PsTextBox`. It comes with the toolchain and imports
+`sys/win/richedit`, `PsBufferPaint` and `PsPopupMenu` (the built-in right-click menu) itself:
 
-| File | Purpose |
-|---|---|
-| `PsTextBox.ti` | Declarations — types, callbacks, constants, function prototypes |
-| `PsTextBox.tiko` | Implementation |
-| `PsPopupMenu.ti` | The owner-drawn floating menu used for the built-in right-click menu |
-| `PsPopupMenu.tiko` | Its implementation |
-| `PsBufferPaint.ti` | The flicker-free drawing surface the frame is painted through |
-| `PsBufferPaint.tiko` | Its implementation |
+```freebasic
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+#import "vendor/PsControls/PsTextBox"
 
-**tiko and its sys/win package are required.** The control is a `CWindow` (from `sys/win/gui`),
-uses `sys/win/richedit` for the `richedit.RichEdit.*` helpers and `sys/win` for clipboard access
-(`win.GetClipboardText`), and `PsBufferPaint` draws through `sys/win/gdiplus`. None of the
-control's files imports a package itself: your main file imports them before including the control (see *Include order*).
-Build with `tiko build` in a folder whose `tiko.toml` defines `UNICODE`, as the demo's does:
+using gui
+using gdiplus
+using PsTextBox
+```
+
+Import `PsPopupMenu` yourself only to call its setters on the handle `PsTextBox_GetContextMenu`
+returns, and `PsVScrollBar` for the scrollbar wiring under *Scroll changed* — PsTextBox does not
+import that one.
+
+**`UNICODE` is required.** The module is compiled with it and your program must match. Build
+with `tiko build` in a folder whose `tiko.toml` defines it, as the demo's does:
 
 ```toml
 [target.main]
@@ -59,25 +63,6 @@ UNICODE = "1"
 file cannot `#define` it ahead of `#import "sys/win"`, and without it every bare Win32 name —
 `DrawText`, `SetWindowText`, `CreateFontIndirect` — binds its ANSI form.
 
-**Include order.** `PsTextBox.ti` pulls in `PsBufferPaint.ti` and `PsPopupMenu.ti` itself, but the
-three implementation files must be included in dependency order, after the imports and `using`
-lines — `sys/win/richedit` among them:
-
-```freebasic
-#import "sys/win"
-#import "sys/win/gui"
-#import "sys/win/gdiplus"
-#import "sys/win/richedit"
-
-using gui
-using gdiplus
-using richedit
-
-#include once "PsBufferPaint.tiko"
-#include once "PsPopupMenu.tiko"    ' PsTextBox's built-in right-click menu runs on it
-#include once "PsTextBox.tiko"
-```
-
 **GDI+ must be running before the first repaint and must outlive the last one.** The frame is
 rendered through GDI+, so bracket your message loop:
 
@@ -88,7 +73,7 @@ gdiplus.Uninit( gdipToken )
 ```
 
 `gdiplus.Uninit` must come after every window is destroyed, because each repaint builds and
-tears down a `PsBufferPaint`. If you also call `CoInitialize`, shut GDI+ down before
+tears down a `PsPaintBuffer`. If you also call `CoInitialize`, shut GDI+ down before
 `CoUninitialize` — GDI+ leans on COM.
 
 **`PsTextBox_FilterMessage` in your message pump is mandatory.** The right-click menu is a
@@ -670,7 +655,7 @@ These are the control's own constants rather than richedit's `PFA_*` values: how
 reaches the editor is an implementation detail, the same way you do not have to know that the
 forecolor arrives by `EM_SETCHARFORMAT`.
 
-There are no `#define`d default constants — the defaults live on the control's own type:
+There are no default constants — the defaults live on the control's own type:
 
 | Setting | Default |
 |---|---|
@@ -694,8 +679,8 @@ Colour defaults are listed under **Colors**.
 
 ## Related controls
 
-**PsPopupMenu** is not optional — it *is* the built-in right-click menu, and both its files must
-be in your project and included before `PsTextBox.tiko`. Reach the control's instance with
+**PsPopupMenu** is not optional — it *is* the built-in right-click menu, and the module imports
+it itself. Reach the control's instance with
 `PsTextBox_GetContextMenu` and style it with `PsPopupMenu`'s own setters; that handle is stable for
 the control's lifetime, so theming it once at startup is enough. `PsTextBox_FilterMessage` exists
 because `PsPopupMenu` is not modal, and it simply routes the message on to `PsPopupMenu`'s filter.

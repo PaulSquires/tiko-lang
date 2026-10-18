@@ -19,8 +19,6 @@ naming that point and a callback you can hook. Every message it receives is offe
 message callback first, so anything interactive — click-to-drill-down being the obvious case — is
 yours to add.
 
-Repository: <https://github.com/PaulSquires/PsControls>
-
 ## What it looks like
 
 ![PsChart](PsChart.png)
@@ -37,21 +35,28 @@ opens where the record stops.
 
 ## Requirements
 
-| File | Why |
-|---|---|
-| `PsChart.ti`, `PsChart.tiko` | The control. |
-| `PsBufferPaint.ti`, `PsBufferPaint.tiko` | The drawing surface. `PsChart.ti` includes it for you; it must be on your include path. |
-| `PsTipHost.ti`, `PsTipHost.tiko` | The tooltip backend switch. Also included for you. |
-| `PsTooltip.ti`, `PsTooltip.tiko` | Needed by `PsTipHost`. |
-| `PsChart_SelfTest.tiko` | The control's self-test. Required even if you never run it: `PsChart.tiko` includes it at its end. |
+The module is `vendor/PsControls/PsChart`. It comes with the toolchain and brings in
+PsBufferPaint and PsTipHost (and, through PsTipHost, PsTooltip) itself.
+
+```freebasic
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+#import "vendor/PsControls/PsChart"
+
+using gui
+using gdiplus
+using PsChart
+```
+
+Naming `PSTIP_MODE_*` for `PsChart_SetTooltipMode` takes `#import "vendor/PsControls/PsTipHost"`
+and `using PsTipHost` as well.
 
 `PsChart_SetSeriesSymbol` draws its markers with geometry, not glyphs, so there is no font file to
 ship.
 
-**tiko and its sys/win package are required.** The control is a `CWindow` (from `sys/win/gui`)
-and `PsBufferPaint` draws through `sys/win/gdiplus`. None of the control's files imports a
-package itself: your main file imports them before including the control (see *Include order*).
-Build with `tiko build` in a folder whose `tiko.toml` defines `UNICODE`, as the demo's does:
+Your program must define `UNICODE`, as the vendor package does for its modules. Set it in
+`tiko.toml`, as the demo does:
 
 ```toml
 [target.main]
@@ -66,30 +71,8 @@ UNICODE = "1"
 `UNICODE` has to come from the manifest (or `-d UNICODE` on a `tiko` command line): a source
 file cannot `#define` it ahead of `#import "sys/win"`, and without it every bare Win32 name —
 `DrawText`, `SetWindowText`, `CreateFontIndirect` — binds its ANSI form.
-In the demo folder, `tiko build` (debug profile: `-g -exx`) or `tiko build --profile release`
-writes `main.exe` there; `build.bat` runs the same build, release by default, `build.bat debug`
-for debug and `build.bat clean` to delete the output.
-
-### Include order
-
-Put the `#import` and `using` lines first, then include the `.tiko` files in this order, once,
-from your main module:
-
-```freebasic
-#import "sys/win"
-#import "sys/win/gui"
-#import "sys/win/gdiplus"
-
-using gui
-using gdiplus
-
-#include once "PsBufferPaint.tiko"
-#include once "PsChart.tiko"
-```
-
-`PsChart.tiko` pulls in `PsChart.ti` (which includes `PsBufferPaint.ti` and `PsTipHost.ti`) and
-`PsTipHost.tiko` itself, so those four need no line of their own. `PsBufferPaint.tiko` must come
-first.
+The demo is in the toolchain's `examples/PsControls/PsChart/`: `tiko build` there (debug profile:
+`-g -exx`) or `tiko build --profile release` writes `main.exe` there.
 
 ### GDI+ must be running
 
@@ -516,7 +499,7 @@ Fires once per repaint, after the control has filled the background and resolved
 legend and the chrome. This is not the additive kind of paint callback: draw the chart yourself,
 or do not set one.
 
-Draw through `p->b`, which is the control's own `PsBufferPaint` for this repaint. Never build a
+Draw through `p->b`, which is the control's own `PsPaintBuffer` for this repaint. Never build a
 second GDI+ `Graphics` on its DC, and never touch the screen DC.
 
 Every sentinel is already resolved: `fMin`/`fMax`/`fStep` are the real range even when
@@ -528,7 +511,7 @@ skip and never 0.
 | Field | Meaning |
 |---|---|
 | `hChart` | The control. |
-| `b` | Its `PsBufferPaint ptr` for this repaint. |
+| `b` | Its `PsPaintBuffer ptr` for this repaint. |
 | `rcClient` | The whole client rect. |
 | `rcPlot` | The plot area. |
 | `rcTitle` | The title strip; empty when there is no title. |

@@ -13,30 +13,36 @@ One popup window is long-lived: create it once, fill it with items, then show an
 often as you like. It never takes focus and never takes activation, so your window's title bar
 stays painted active while a menu is up.
 
-It is also the dropdown used by [PsMenuBar](README.md). Nothing in this document requires the
+It is also the dropdown used by [PsMenuBar](../PsMenuBar/README.md). Nothing in this document requires the
 bar — with one exception, called out below: which filter function you call in your message pump.
 
 ---
 
 ## Requirements
 
-**Files to copy into your project:**
+The module is `vendor/PsControls/PsPopupMenu`, comes with the toolchain, and brings in
+`PsBufferPaint` (the flicker-free drawing surface it paints through) itself. Import
+`PsBufferPaint` yourself as well only to write a paint callback:
 
-| File | Purpose |
-|---|---|
-| `PsPopupMenu.ti` | Declarations — types, callbacks, constants, function prototypes |
-| `PsPopupMenu.tiko` | Implementation |
-| `PsBufferPaint.ti` | The flicker-free drawing surface the control paints through |
-| `PsBufferPaint.tiko` | Its implementation |
+```freebasic
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+#import "vendor/PsControls/PsBufferPaint"
+#import "vendor/PsControls/PsPopupMenu"
 
-Those four files are the whole of it. `PsMenuBar.ti` / `PsMenuBar.tiko` are **not** needed unless
-you also want the horizontal bar — the dependency runs one way, and `PsPopupMenu` knows nothing
-about `PsMenuBar`.
+using gui
+using gdiplus
+using PsBufferPaint
+using PsPopupMenu
+```
 
-**tiko and its sys/win package are required.** The control is a `CWindow` (from `sys/win/gui`)
-and `PsBufferPaint` draws through `sys/win/gdiplus`. None of the control's files imports a
-package itself: your main file imports them before including the control (see *Include order*).
-Build with `tiko build` in a folder whose `tiko.toml` defines `UNICODE`, as the demo's in this folder (shared with `PsMenuBar`) does:
+`PsMenuBar` is **not** needed unless you also want the horizontal bar — the dependency runs one
+way, and `PsPopupMenu` knows nothing about `PsMenuBar`.
+
+The control is a `CWindow` (from `sys/win/gui`) and `PsBufferPaint` draws through
+`sys/win/gdiplus`. Build with `tiko build` in a folder whose `tiko.toml` defines `UNICODE`, as
+the `PsMenuBar` demo's (the one that exercises this control) does:
 
 ```toml
 [target.main]
@@ -52,24 +58,9 @@ UNICODE = "1"
 file cannot `#define` it ahead of `#import "sys/win"`, and without it every bare Win32 name —
 `DrawText`, `SetWindowText`, `CreateFontIndirect` — binds its ANSI form.
 
-`tiko build` (debug profile, `-g -exx`) or `tiko build --profile release` from the control's
-folder writes `main.exe` there.
-
-**Include order.** `PsPopupMenu.tiko` pulls in its own `.ti`, which pulls in `PsBufferPaint.ti`.
-The two implementation files are included in this order, after the package imports and `using`
-lines and after any colour/font globals you want the control's callbacks to see:
-
-```freebasic
-#import "sys/win"
-#import "sys/win/gui"
-#import "sys/win/gdiplus"
-
-using gui
-using gdiplus
-
-#include once "PsBufferPaint.tiko"
-#include once "PsPopupMenu.tiko"
-```
+`PsPopupMenu` has no demo of its own. `tiko build` (debug profile, `-g -exx`) or
+`tiko build --profile release` from the toolchain's `examples/PsControls/PsMenuBar/` writes that
+demo's `main.exe` there.
 
 **GDI+ must be running before the first repaint and must outlive the last one.** The control
 renders through GDI+, so bracket your message loop:
@@ -81,7 +72,7 @@ gdiplus.Uninit( gdipToken )
 ```
 
 `gdiplus.Uninit` must come after every window is destroyed, because each repaint builds and
-tears down a `PsBufferPaint`. If you also use COM, initialise it before GDI+ and uninitialise it
+tears down a `PsPaintBuffer`. If you also use COM, initialise it before GDI+ and uninitialise it
 after — GDI+ leans on COM.
 
 ### The message-pump filter is mandatory
@@ -109,7 +100,7 @@ Call it once per popup **chain root** you can open — that is, once per menu yo
 chain and resolves the root itself. A call for a menu that is not currently open costs a few
 comparisons and returns FALSE, so a host with three context menus can simply list all three.
 
-**If you are using [PsMenuBar](README.md), call `PsMenuBar_FilterMessage` for the bar** — it
+**If you are using [PsMenuBar](../PsMenuBar/README.md), call `PsMenuBar_FilterMessage` for the bar** — it
 wraps this filter for the bar's own dropdowns and adds the bar-boundary keys. It does **not**
 cover popups you show yourself. A host with both a menu bar and a standalone context menu calls
 both:
@@ -359,7 +350,7 @@ left alone — Alt handling stays yours.
 wrapping walk, so a menu whose every row is disabled simply keeps no selection.
 
 The two consumed no-ops — Right on a plain row, Left at the root — are the seams
-[PsMenuBar](README.md) fills in: under a bar they become "step to the next / previous bar item".
+[PsMenuBar](../PsMenuBar/README.md) fills in: under a bar they become "step to the next / previous bar item".
 
 ### Dismissal
 
@@ -659,7 +650,7 @@ The control fills the whole window with `BackColor` before the row loop, and pai
 | `hPopup` | The popup, so the callback can query it |
 | `itemID` | The row index within this popup |
 | `id` | The row's command id (0 for separators) |
-| `b` | The control's `PsBufferPaint` for this repaint (borrowed, not owned) |
+| `b` | The control's `PsPaintBuffer` for this repaint (borrowed, not owned) |
 | `rc` | The full row rect — **fill this** |
 | `rcCheck` | Left gutter; centre the check glyph here |
 | `rcText` | Caption `DT_LEFT`, accelerator `DT_RIGHT`, same rect |
@@ -737,10 +728,10 @@ Timing and internal timer ids:
 
 ## Related controls
 
-- **[PsMenuBar](README.md)** — the horizontal menu bar. It attaches `PsPopupMenu` windows as its
+- **[PsMenuBar](../PsMenuBar/README.md)** — the horizontal menu bar. It attaches `PsPopupMenu` windows as its
   dropdowns, registers itself as their notify window, and adds the bar-boundary keyboard moves
   (Left at a root level and Right on a row without a submenu step between bar items). If you use
   it, call `PsMenuBar_FilterMessage` for the bar's own menus — but remember it does not cover
   popups you show yourself.
 
-`PsPopupMenu` and `PsBufferPaint` are all you need for context menus. The bar is strictly additive.
+`PsPopupMenu`, which brings in `PsBufferPaint` itself, is all you need for context menus. The bar is strictly additive.

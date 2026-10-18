@@ -3,7 +3,7 @@
 A flicker-free drawing surface for tiko Win32 applications: you paint into an offscreen
 bitmap and it is copied to the screen in one blit, so nothing the user sees is ever half-drawn.
 
-It is not a control. It is a `TYPE` you create as a local variable inside a `WM_PAINT` handler,
+It is not a control. It is a `TYPE`, `PsPaintBuffer`, you create as a local variable inside a `WM_PAINT` handler,
 draw through, and let go of. Owner-drawn controls paint through one of these, and so does any
 window that draws its own client area.
 
@@ -17,17 +17,22 @@ object pays its cost internally: you never have to think about which API you are
 
 ## Requirements
 
-**Files to copy into your project:**
+The module is `vendor/PsControls/PsBufferPaint`, comes with the toolchain, and imports no other
+PsControls module. It draws through `sys/win/gdiplus` and finds a window's DPI scale through
+`sys/win/gui`:
 
-| File | Purpose |
-|---|---|
-| `PsBufferPaint.ti` | Declarations — the `PsBufferPaint` type and the free functions |
-| `PsBufferPaint.tiko` | Implementation |
+```freebasic
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+#import "vendor/PsControls/PsBufferPaint"
 
-**tiko and its sys/win package are required.** `PsBufferPaint` draws through `sys/win/gdiplus`
-and finds a window's DPI scale through `sys/win/gui`. Neither of its files imports a package
-itself: your main file imports them before including it (see *Include order*). Build with
-`tiko build` in a folder whose `tiko.toml` defines `UNICODE`, as the demo's does:
+using gui
+using gdiplus
+using PsBufferPaint
+```
+
+Build with `tiko build` in a folder whose `tiko.toml` defines `UNICODE`, as the demo's does:
 
 ```toml
 [target.main]
@@ -41,31 +46,13 @@ UNICODE = "1"
 
 `UNICODE` has to come from the manifest (or `-d UNICODE` on a `tiko` command line): a source
 file cannot `#define` it ahead of `#import "sys/win"`, and without it every bare Win32 name —
-`DrawText`, `SetWindowText`, `CreateFontIndirect` — binds its ANSI form. In the demo folder,
-`tiko build` (debug profile: `-g -exx`) or `tiko build --profile release` writes `main.exe`
-there; `build.bat` runs the same build, release by default, `build.bat debug` for debug and
-`build.bat clean` to delete the output.
+`DrawText`, `SetWindowText`, `CreateFontIndirect` — binds its ANSI form. In the toolchain's
+`examples/PsControls/PsBufferPaint/`, `tiko build` (debug profile: `-g -exx`) or
+`tiko build --profile release` writes the demo's `main.exe` there.
 
 `PaintLine` also needs a `CWindow` (from `sys/win/gui`) behind the window handle you passed to
 `BeginDoubleBuffer`, because that is where it gets the DPI scale from. Every other method works
 on any `HWND`.
-
-**Include order.** The `#import` and `using` lines come first, because `PsBufferPaint.ti` names
-`sys/win/gdiplus` types (`CGpGraphics`, `CGpPen`, ...) and `PsBufferPaint.tiko` calls `CWindowPtr`,
-neither importing them; after that the only ordering
-rule is that `PsBufferPaint.tiko` comes before anything that draws through it:
-
-```freebasic
-#import "sys/win"
-#import "sys/win/gui"
-#import "sys/win/gdiplus"
-
-using gui
-using gdiplus
-
-#include once "PsBufferPaint.tiko"
-#include once "frmMain.tiko"        ' your own forms, which paint through it
-```
 
 **GDI+ must be running before the first repaint and must outlive the last one.** All geometry is
 rendered through GDI+, so bracket your message loop:
@@ -77,7 +64,7 @@ gdiplus.Uninit( gdipToken )
 ```
 
 `gdiplus.Uninit` must come **after** every window is destroyed. Each repaint builds a
-`PsBufferPaint` and tears it down again, and the teardown deletes GDI+ objects — shutting GDI+ down
+`PsPaintBuffer` and tears it down again, and the teardown deletes GDI+ objects — shutting GDI+ down
 while a window can still paint means those deletions run against a dead library. Skip
 `gdiplus.Init` altogether and nothing geometric draws at all, while text still appears, which makes
 the symptom look like a colour bug rather than a missing initialisation.
@@ -91,7 +78,7 @@ exit, with `BeginDoubleBuffer` / `EndDoubleBuffer` bracketing everything you dra
 
 ```freebasic
 case WM_PAINT
-    dim b as PsBufferPaint
+    dim b as PsPaintBuffer
     b.BeginDoubleBuffer( hwnd )
 
     ' Clear the whole surface first.
@@ -132,7 +119,7 @@ That is the whole minimum. Everything below is refinement.
 
 ### The object is a stack local, and its lifetime is one repaint
 
-You do not keep a `PsBufferPaint` around between paints. Declare it inside the handler and let it
+You do not keep a `PsPaintBuffer` around between paints. Declare it inside the handler and let it
 go out of scope at the end. The GDI+ `Graphics`, pen and brush it builds live only as long as the
 object does, so a long-lived instance would hold GDI+ objects open indefinitely.
 
@@ -408,7 +395,7 @@ Not members; they need no buffer.
 |---|---|
 | `isMouseOverRECT( hWin, rc ) as boolean` | TRUE when the cursor is inside `rc`, which is given in `hWin`'s **client** coordinates. The rect is taken by value, so yours is not modified. Purely positional: it does not consider which window is actually on top, so a rect covered by another window still tests TRUE. |
 | `isMouseOverWindow( hChild ) as boolean` | TRUE when `hChild` is exactly the window under the cursor. Unlike the above this *is* a hit test against the real window stack, so a child window sitting on top makes it FALSE. |
-| `PaintRect( hDC, rc, clr ) as long` | Fills `rc` with `clr` on **any** DC, via `ExtTextOut`/`ETO_OPAQUE`. Nothing to do with a buffer's state — use it when you have a bare DC and no `PsBufferPaint`. Distinct from the same-named method, which takes only a rect and uses the buffer's back colour. |
+| `PaintRect( hDC, rc, clr ) as long` | Fills `rc` with `clr` on **any** DC, via `ExtTextOut`/`ETO_OPAQUE`. Nothing to do with a buffer's state — use it when you have a bare DC and no `PsPaintBuffer`. Distinct from the same-named method, which takes only a rect and uses the buffer's back colour. |
 
 ---
 
@@ -438,7 +425,7 @@ mention alpha simply mean "opaque".
 
 ## Constants
 
-`PsBufferPaint.ti` defines no constants, enums or macros of its own. What you pass to the drawing
+The module defines no constants, enums or macros of its own. What you pass to the drawing
 methods are ordinary Win32 values: `COLORREF` colours, `DT_*` flags for the text methods, and a GDI
 `PS_*` pen style for `PaintRectFactory`.
 

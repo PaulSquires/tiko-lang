@@ -18,8 +18,6 @@ It is a display element only. It never takes focus, never takes activation, and 
 hit-test transparent, so clicks pass straight through it to whatever is underneath. Only one tip
 is ever on screen at a time, whatever number of them you create.
 
-Repository: <https://github.com/PaulSquires/PsTooltip>
-
 ---
 
 ## What it looks like
@@ -35,42 +33,38 @@ other seven are not also in the picture.
 
 ## Requirements
 
-| File | Purpose |
-|---|---|
-| `PsTooltip.ti` | Public surface: types, enums, callback typedefs, declarations |
-| `PsTooltip.tiko` | Implementation |
-| `PsBufferPaint.ti` | Flicker-free drawing surface |
-| `PsBufferPaint.tiko` | |
-
-`PsBufferPaint` must be at version carrying `PaintPolygon`; `TIP_STYLE_BALLOON` draws its stem
-with it.
-
-### tiko and sys/win
-
-The control is a `CWindow` (from `sys/win/gui`) and `PsBufferPaint` draws through
-`sys/win/gdiplus`. None of the control's files imports a package itself: your main file imports
-them before including the control (see *Include order*). Build with `tiko build` in a folder whose
-`tiko.toml` defines `UNICODE` under `[target.main.defines]`, as the demo's does — a source file
-cannot `#define` it ahead of `#import "sys/win"`, and without it every bare Win32 name binds its
-ANSI form. The demo's `build.bat` runs the same build: release by default, `build.bat debug` for
-debug, `build.bat clean` to delete the output.
-
-### Include order
-
-Verified against the demo's `main.tiko`. `PsTooltip.tiko` includes `PsTooltip.ti` itself, so you
-only name the `.tiko` — but the imports and `using` lines come first, then `PsBufferPaint.tiko`:
+The module is `vendor/PsControls/PsTooltip`, comes with the toolchain, and brings in
+`PsBufferPaint` (the flicker-free drawing surface; `TIP_STYLE_BALLOON` draws its stem with its
+`PaintPolygon`) itself. Import `PsBufferPaint` yourself as well only to write a paint callback:
 
 ```freebasic
 #import "sys/win"
 #import "sys/win/gui"
 #import "sys/win/gdiplus"
+#import "vendor/PsControls/PsBufferPaint"
+#import "vendor/PsControls/PsTooltip"
 
 using gui
 using gdiplus
-
-#include once "PsBufferPaint.tiko"
-#include once "PsTooltip.tiko"
+using PsBufferPaint
+using PsTooltip
 ```
+
+### tiko and sys/win
+
+The control is a `CWindow` (from `sys/win/gui`) and `PsBufferPaint` draws through
+`sys/win/gdiplus`. Build with `tiko build` in a folder whose `tiko.toml` defines `UNICODE` under
+`[target.main.defines]`, as the demo's does — a source file cannot `#define` it ahead of
+`#import "sys/win"`, and without it every bare Win32 name binds its ANSI form:
+
+```toml
+[target.main.defines]
+UNICODE = "1"
+```
+
+The demo is in the toolchain's `examples/PsControls/PsTooltip/`: `tiko build` there (debug
+profile, `-g -exx`) or `tiko build --profile release` writes its `main.exe`. Its self-test,
+`PsTooltip_SelfTest.tiko` (run with `PSTOOLTIP_SELFTEST=1`), lives beside it.
 
 ### GDI+ must be running
 
@@ -560,7 +554,7 @@ registry.
 |---|---|
 | `hTooltip` | The tip window |
 | `hAttached` | The control it is serving |
-| `b` | The tip's `PsBufferPaint` for this repaint (borrowed, not a copy) |
+| `b` | The tip's `PsPaintBuffer` for this repaint (borrowed, not a copy) |
 | `rcClient` | The whole window, **including** the stem band |
 | `rcBody` | The rounded frame. Equals `rcClient` in `TIP_STYLE_RECT`; in `TIP_STYLE_BALLOON` it is `rcClient` less the stem band on whichever edge the stem leaves |
 | `rcGlyph` | The declared glyph cell. Empty when there is no glyph |

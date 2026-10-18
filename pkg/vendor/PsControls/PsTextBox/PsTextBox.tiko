@@ -20,14 +20,14 @@ using PsBufferPaint
 using PsPopupMenu
 
 #include once "vbcompat.bi"                 ' format() -- numeric mode formatting
-' The built-in context menu is a PsPopupMenu (canonical home C:\dev\PsMenuBar; vendored
-' here). This is the control family's owner-drawn floating menu -- using it instead of
+' The built-in context menu is a PsPopupMenu (the vendor/PsControls/PsPopupMenu module,
+' imported above). This is the control family's owner-drawn floating menu -- using it instead of
 ' TrackPopupMenu is what makes the textbox's right-click menu themeable and consistent
 ' with the rest of an app's menus. It brings a MESSAGE-PUMP OBLIGATION with it: see
 ' PsTextBox_FilterMessage below.
 ' The RichEdit helpers the implementation uses (richedit.RichEdit.GetText, GetSelText,
 ' CanPaste, ...) and win/richedit.bi's CHARFORMATW, EM_CANPASTE, ... come from sys/win/richedit,
-' which the HOST imports (#import "sys/win/richedit"). Prefer them over re-rolled SendMessage.
+' which this module imports itself (above). Prefer them over re-rolled SendMessage.
 
 public type PSTEXTBOX_MESSAGEINFO
     hTextBox        as HWND       ' the CONTROL (container) handle, not the RichEdit child
@@ -441,7 +441,7 @@ end sub
 
 
 ' ========================================================================================
-' The context menu's public surface. See the contract block in PsTextBox.ti -- the filter
+' The context menu's public surface. See the contract block at the top of this file -- the filter
 ' is an OBLIGATION on the host's message pump, not an optional extra.
 ' ========================================================================================
 function PsTextBox_GetContextMenu( byval hTextBoxControl as HWND ) as HWND
@@ -1522,7 +1522,8 @@ function PsTextBoxRichEdit_SubclassProc ( _
             if (_wParam = VK_TAB) andalso (bSingleLine = true) then
                 ' Tab leaves the control: focus the next (Shift+Tab: previous) tab stop
                 ' of the top-level window. Handled here so tabbing works even in hosts
-                ' whose message loop has no IsDialogMessage (see PsTextBox.ti). Reached
+                ' whose message loop has no IsDialogMessage (see the declarations at the
+                ' top of this file). Reached
                 ' only when the MessageCallback declined the key -- a host can veto
                 ' VK_TAB to repurpose it (e.g. list navigation in a picker).
                 dim as HWND hRoot = GetAncestor( hWin, GA_ROOT )
@@ -1632,7 +1633,7 @@ end function
 ' ========================================================================================
 ' PsTextBox container window procedure. Owns the chrome and the child geometry, relays
 ' EN_CHANGE, and forwards the classic edit-control message range to the RichEdit child
-' (the message door -- see PsTextBox.ti).
+' (the message door -- see the declarations at the top of this file).
 ' ========================================================================================
 function PsTextBox_WndProc( _
             byval hwnd   as HWND, _

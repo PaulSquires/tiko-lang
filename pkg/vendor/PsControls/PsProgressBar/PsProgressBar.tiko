@@ -33,26 +33,26 @@ using PsTooltip
 ' has no hot state to strand (see the PUBLIC API header). A determinate bar costs nothing.
 ' Timer IDs are per-window, so every instance can share this id; it is distinct from the
 ' siblings' purely as a debugging courtesy.
-#define IDT_CPROGRESSBAR_MARQUEE   &hCBB0
+public const IDT_CPROGRESSBAR_MARQUEE = &hCBB0
 
 ' Defaults. The SIZE values are DPI-scaled at Create; every setter afterwards takes raw
 ' pixels and the caller scales (the family rule). The two THICKNESS/CURVATURE values are NOT
 ' DPI-scaled, ever -- a hairline should stay a hairline (PsMenuBar's nSeparatorThickness).
-#define PSPROGRESSBAR_DEFAULT_THICKNESS      0   ' 0 = fill the client's cross axis
-#define PSPROGRESSBAR_DEFAULT_BARINSET       0
-#define PSPROGRESSBAR_DEFAULT_BORDERTHICK    0   ' not DPI-scaled; 0 = no track border
-#define PSPROGRESSBAR_DEFAULT_CURVATURE     -1   ' not DPI-scaled; -1 = stadium (see below)
-#define PSPROGRESSBAR_DEFAULT_BLOCKLEN      10
-#define PSPROGRESSBAR_DEFAULT_BLOCKGAP       3
-#define PSPROGRESSBAR_DEFAULT_MARQUEE_MS    30
-#define PSPROGRESSBAR_DEFAULT_MARQUEE_STEP   2
-#define PSPROGRESSBAR_DEFAULT_CHUNK_PCT     25
+public const PSPROGRESSBAR_DEFAULT_THICKNESS = 0   ' 0 = fill the client's cross axis
+public const PSPROGRESSBAR_DEFAULT_BARINSET = 0
+public const PSPROGRESSBAR_DEFAULT_BORDERTHICK = 0   ' not DPI-scaled; 0 = no track border
+public const PSPROGRESSBAR_DEFAULT_CURVATURE = -1   ' not DPI-scaled; -1 = stadium (see below)
+public const PSPROGRESSBAR_DEFAULT_BLOCKLEN = 10
+public const PSPROGRESSBAR_DEFAULT_BLOCKGAP = 3
+public const PSPROGRESSBAR_DEFAULT_MARQUEE_MS = 30
+public const PSPROGRESSBAR_DEFAULT_MARQUEE_STEP = 2
+public const PSPROGRESSBAR_DEFAULT_CHUNK_PCT = 25
 
 ' A CURVATURE OF -1 MEANS "STADIUM": the painter substitutes the track's cross-axis extent,
 ' which PsBufferPaint's BuildRoundPath then clamps to half, making both ends exact
 ' semicircles. It is a sentinel rather than a real measurement because the track thickness is
 ' not known until layout runs, and it is what makes the default look survive a resize.
-#define PSPROGRESSBAR_CURVATURE_STADIUM     -1
+public const PSPROGRESSBAR_CURVATURE_STADIUM = -1
 
 
 ' Orientation. FIXED AT CREATE and immutable afterwards -- PsSplitter's rule. Named for the
@@ -2080,7 +2080,7 @@ private function PsProgressBar_ProbePart( _
 end function
 
 
-' See the header in PsProgressBar.ti. A part wiped by a PaintBorderRect fill is literally ONE
+' See the declarations at the top of this file. A part wiped by a PaintBorderRect fill is literally ONE
 ' tone, so the useful signal is the count LEAVING 1 -- not the count being large.
 function PsProgressBar_CountRenderedTones( byval hProgressBar as HWND, byval nPart as long ) as long
     dim as long nTones = 0
@@ -2119,9 +2119,8 @@ dim shared as long gPRG_TestCount
 dim shared as long gPRG_FailCount
 
 ' The throwaway controls the self-test creates get their ids from HERE, not from the demo's
-' frmMain.ti. Naming a host constant would make this .tiko compile only at a site that happened
-' to define it -- i.e. only inside this repo -- and anyone who copied the four files into their
-' own project would get "Variable not declared" from a file they never edited.
+' frmMain.ti. A module cannot see its host's constants at all, so naming one would fail with
+' "Variable not declared" in every program that imports it.
 #define PSPROGRESSBAR_SELFTEST_IDC   32700
 
 private sub PRGTest_Check( byval sName as string, byval bOK as boolean, byval sDetail as string )

@@ -24,19 +24,19 @@ using PsBufferPaint
 ' It is a support class in the spirit of PsBufferPaint, NOT a control: a plain TYPE a control
 ' holds, with no HWND and no window of its own. It does exactly three things -- LOAD (decode a
 ' file once, at natural size), MEASURE (report natural width/height), and hand out the decoded
-' CGpImage ptr. It does NOT draw: the draw is PsBufferPaint.PaintImage, which owns the buffer's
+' CGpImage ptr. It does NOT draw: the draw is PsPaintBuffer.PaintImage, which owns the buffer's
 ' GDI+ graphics and must not have a second one built on the same HDC beside it. Load here, draw
 ' there.
 '
 ' HOST OBLIGATIONS -- both PsBufferPaint's already, neither new:
-'   1. The host imports GDI+ (#import "sys/win/gdiplus", using gdiplus) before including this
-'      header. CGpImage / CGpBitmap come from there; this header does not import anything.
+'   1. The module imports GDI+ and PsBufferPaint itself (above); CGpImage / CGpBitmap come
+'      from sys/win/gdiplus. A host only imports GDI+ to name those types or call Init.
 '   2. GDI+ must be initialised (gdiplus.Init / gdiplus.Uninit bracketing the message loop)
 '      before the first Load, because decoding builds GDI+ objects. A control's WM_PAINT already
 '      runs inside that bracket, so a host that adopted PsBufferPaint has nothing to add.
 ' Identifiers are bOK, never `ok`, by family convention only: under sys/win GDI+'s Ok no longer
-' collides with a host's own. A consumer's .ti does `#include once "PsImage.ti"`; PsImage.tiko
-' pulls in the implementation once at the host translation unit.
+' collides with a host's own. A consumer does `#import "vendor/PsControls/PsImage"`; the
+' module is compiled once, however many importers it has.
 ' ========================================================================================
 
 
@@ -61,7 +61,7 @@ public type PsImageFile
     declare function Load( byval wszPath as ustring ) as long
 
     ' Wrap an existing HBITMAP (e.g. one loaded from a resource, or built procedurally). The
-    ' PsImage takes a GDI+ COPY -- the caller keeps ownership of the HBITMAP and must still
+    ' PsImageFile takes a GDI+ COPY -- the caller keeps ownership of the HBITMAP and must still
     ' free it. Returns non-zero on success.
     declare function LoadFromBitmap( byval hbm as HBITMAP ) as long
 
@@ -77,7 +77,7 @@ public type PsImageFile
     declare function NaturalWidth() as long
     declare function NaturalHeight() as long
 
-    ' The decoded image, for PsBufferPaint.PaintImage. NULL when not valid. The PsImage retains
+    ' The decoded image, for PsPaintBuffer.PaintImage. NULL when not valid. The PsImageFile retains
     ' ownership -- do NOT delete the returned pointer.
     declare function Image() as CGpImage ptr
 

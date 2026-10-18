@@ -24,20 +24,20 @@ using PsTipHost
 ' control. WM_MOUSELEAVE (TME_LEAVE) is not reliably delivered on fast exits, so a
 ' periodic cursor check acts as a safety net. Timer IDs are per-window, so every
 ' instance can share this id.
-#define IDT_CSELECTBAR_HOTTRACK   &hCB60
-#define PSSELECTBAR_HOTTRACK_MS    100
+public const IDT_CSELECTBAR_HOTTRACK = &hCB60
+public const PSSELECTBAR_HOTTRACK_MS = 100
 
 ' Default horizontal padding added to the LEFT and RIGHT of a panel's measured text. These
 ' are the only things besides the text itself that decide a panel's width. DPI-scaled at
 ' Create; PsSelectBar_SetPadding takes raw pixels thereafter.
-#define PSSELECTBAR_DEFAULT_PADLEFT   12
-#define PSSELECTBAR_DEFAULT_PADRIGHT  12
+public const PSSELECTBAR_DEFAULT_PADLEFT = 12
+public const PSSELECTBAR_DEFAULT_PADRIGHT = 12
 
 ' Default thickness of the selection indicator, and the gap between the bottom of the text
 ' and the top of that line. Both are LAYOUT inputs: they are part of the block height that
 ' gets centred in the client area. DPI-scaled at Create.
-#define PSSELECTBAR_DEFAULT_INDICATORH    2
-#define PSSELECTBAR_DEFAULT_INDICATORGAP  4
+public const PSSELECTBAR_DEFAULT_INDICATORH = 2
+public const PSSELECTBAR_DEFAULT_INDICATORGAP = 4
 
 
 ' Colors for the built-in painter. Copied on Set.
@@ -162,8 +162,8 @@ public type PSSELECTBAR_STATE
     ' Three single-valued indices. Because the panel set is STATIC -- panels are added once
     ' and never inserted, deleted or moved -- none of them can ever be left dangling by a
     ' mutation, so this control carries none of the index fix-up code every other sibling
-    ' needs (three separate sites in PsTabBar.ti alone, and the family's most repeated bug
-    ' class). Clear() is the one exception and it resets all three.
+    ' needs (three separate sites in PsTabBar's declarations alone, and the family's most
+    ' repeated bug class). Clear() is the one exception and it resets all three.
     nCurSel           as long = -1       ' the current panel; -1 only while the bar is empty
     nLastHotIdx       as long = -1       ' panel the mouse was last over (hover tracking)
     nPressedIdx       as long = -1       ' panel under a live left press, or -1
@@ -642,7 +642,7 @@ end function
 
 
 ' ========================================================================================
-' Remove all panels. For a FULL REBUILD only -- see the header's static contract.
+' Remove all panels. For a FULL REBUILD only -- see STATIC BY CONTRACT above.
 ' ========================================================================================
 sub PsSelectBar_Clear( byval hSelectBar as HWND )
     dim as PSSELECTBAR_STATE ptr pSel = GetSelectBarPointer(hSelectBar)
@@ -1101,7 +1101,7 @@ end function
 
 
 ' ========================================================================================
-' Callback setters. See the type declarations in PsSelectBar.ti for each contract.
+' Callback setters. See the type declarations at the top of this file for each contract.
 ' ========================================================================================
 public sub PsSelectBar_SetPaintPanelCallback( byval hSelectBar as HWND, byval usersub as SEL_PaintPanelCallbackSub )
     dim as PSSELECTBAR_STATE ptr pSel = GetSelectBarPointer(hSelectBar)

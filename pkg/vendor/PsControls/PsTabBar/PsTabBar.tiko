@@ -24,19 +24,19 @@ using PsTipHost
 ' control. WM_MOUSELEAVE (TME_LEAVE) is not reliably delivered on fast exits, so a
 ' periodic cursor check acts as a safety net. Timer IDs are per-window, so every
 ' instance can share this id.
-#define IDT_CTABBAR_HOTTRACK   &hCB01
-#define PSTABBAR_HOTTRACK_MS    100
+public const IDT_CTABBAR_HOTTRACK = &hCB01
+public const PSTABBAR_HOTTRACK_MS = 100
 
 
 ' Default horizontal inset applied to each side of a tab's text when measuring. The
 ' control DPI-scales this at Create; PsTabBar_SetPadding takes raw pixels thereafter.
-#define PSTABBAR_DEFAULT_PADDING  8
+public const PSTABBAR_DEFAULT_PADDING = 8
 
 ' Default side of the two square icon rects (left icon, right close icon) reserved in
 ' EVERY tab, used or not -- always reserving them is what keeps the caption at the same
 ' offset in every tab, and stops the close "X" shifting the text when it appears on
 ' hover. DPI-scaled at Create; PsTabBar_SetIconWidth takes raw pixels thereafter.
-#define PSTABBAR_DEFAULT_ICONWIDTH  20
+public const PSTABBAR_DEFAULT_ICONWIDTH = 20
 
 ' Cross-control navigation messages, for driving the bar from a SEPARATE control (the
 ' host's nav buttons) via SendMessage. Each is the message-shaped door to the plain
@@ -375,7 +375,7 @@ sub PSTABBAR_STATE.LayoutTabs()
 
         SetRect( @this.tabs(i).rc, x, rcClient.top, x + this.tabs(i).nWidth, rcClient.bottom )
 
-        ' rcPaint: the asymmetric deflation (see the header comment).
+        ' rcPaint: the asymmetric deflation (see the declarations at the top of this file).
         dim as RECT rp = this.tabs(i).rc
         rp.left   += this.nBorderWidth
         rp.top    += this.nBorderWidth
@@ -739,7 +739,7 @@ public declare sub      PsTabBar_SetSelChangeCallback( byval hTabBar as HWND, by
 public declare sub      PsTabBar_SetCloseCallback( byval hTabBar as HWND, byval usersub as TB_CloseCallbackSub )
 public declare sub      PsTabBar_SetReorderCallback( byval hTabBar as HWND, byval usersub as TB_ReorderCallbackSub )
 
-' The tooltip backend switch, pulled in here so a host needs no extra include line.
+' The tooltip backend switch is PsTipHost, which the module imports itself (top of this file).
 
 
 private function GetTabBarPointer( byval hTabBar as HWND ) as PSTABBAR_STATE ptr
@@ -1429,7 +1429,7 @@ function PsTabBar_OnPaint( byval hwnd as HWND ) as LRESULT
             if IntersectRect( @rcHit, @pTabBar->tabs(i).rc, @rcUpdate ) = 0 then continue for
             p.itemID     = i
             ' The DEFLATED paint area, plus every derived rect precomputed -- the
-            ' callback never re-derives geometry (author's call, see REFACTOR_PLAN.md).
+            ' callback never re-derives geometry (author's call).
             p.rc         = pTabBar->tabs(i).rcPaint
             p.rcText     = pTabBar->tabs(i).rcText
             p.rcIcon     = pTabBar->tabs(i).rcIcon
@@ -1729,7 +1729,7 @@ function PsTabBar_WndProc( _
 
     ' ------------------------------------------------------------------------------------
     ' The press machinery. The control TAKES capture on a press (the PsStatusBar decision
-    ' reversed, deliberately -- see PsTabBar.ti): capture is what makes "press the X,
+    ' reversed, deliberately -- see the declarations at the top of this file): capture is what makes "press the X,
     ' slide off, release" a reliable cancel. It pays PsVScrollBar's full price:
     '   - capture taken BEFORE the host callback can suppress anything;
     '   - released in the up-handler unconditionally, callback result IGNORED there;

@@ -24,11 +24,11 @@ using gdiplus
 using PsBufferPaint
 
 ' Timer ids are per-window, so every instance can share these values.
-#define IDT_CVSCROLL_HOTTRACK   &hCB10
-#define IDT_CVSCROLL_REPEAT     &hCB11
-#define CVSCROLL_HOTTRACK_MS    100    ' hover safety-net poll (TME_LEAVE is unreliable)
-#define CVSCROLL_REPEAT_DELAY   400    ' initial delay before track auto-repeat kicks in
-#define CVSCROLL_REPEAT_MS      80     ' auto-repeat interval while the button is held
+public const IDT_CVSCROLL_HOTTRACK = &hCB10
+public const IDT_CVSCROLL_REPEAT = &hCB11
+public const CVSCROLL_HOTTRACK_MS = 100   ' hover safety-net poll (TME_LEAVE is unreliable)
+public const CVSCROLL_REPEAT_DELAY = 400   ' initial delay before track auto-repeat kicks in
+public const CVSCROLL_REPEAT_MS = 80   ' auto-repeat interval while the button is held
 public const CVSCROLL_MIN_THUMB = 20   ' minimum thumb height (DPI scaled at use)
 public const CVSCROLL_DEFAULT_WIDTH = 12   ' default track width (DPI scaled at use)
 
@@ -512,7 +512,8 @@ function PsVScrollBar_WndProc( _
         ' hiword is unsigned (Learnings.md).
         '
         ' Reaching us at all depends on "scroll inactive windows when I hover over them"
-        ' (on by default), since this control never takes focus -- see PsVScrollBar.ti.
+        ' (on by default), since this control never takes focus -- see the ROUTING note above
+        ' PsVScrollBar_HandleWheelDelta's declaration at the top of this file.
         if pSB then
             PsVScrollBar_HandleWheelDelta( hwnd, cast(short, hiword(wParam)) )
             return 0                    ' we own this gesture, moved or not

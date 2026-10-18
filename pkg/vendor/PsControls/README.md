@@ -55,9 +55,12 @@ suffix, and the two support classes were renamed:
 | `PsImage` (the image type) | `PsImageFile` |
 
 The module names, and every procedure (`PsBufferPaint_...`, `PsImage_...`), are unchanged.
-A constant a program or another module uses (`PSTOGGLE_DEFAULT_TRACKW`, `CVSCROLL_DEFAULT_WIDTH`,
-`PM_ALIGN_BELOW`, ...) is a `public const` rather than a `#define`, since a macro does not cross a
-module boundary bare.
+Every constant the controls' headers used to `#define` (`PSTOGGLE_DEFAULT_TRACKW`,
+`CCOLHDR_FILL_LAST`, `PM_ALIGN_BELOW`, the timer ids, ...) is a `public const`, since a macro does
+not cross a module boundary bare; `using` reaches them as before.
+
+The per-control READMEs describe the module layout; where one names a constant or enum of a
+dependency (`PSTIP_MODE_PS` is PsTipHost's, for instance), import that module too.
 
 ## Requirements
 
@@ -82,7 +85,3 @@ module boundary bare.
 software freely; if you modify these files, publish those files' changes. The Exhibit B
 "Incompatible With Secondary Licenses" notice is not applied, which keeps the controls
 GPL-compatible.
-
-The per-control READMEs were written for the copy-the-files layout these controls had before
-they were modules; where a README lists files to copy or `#include` lines, the `#import` above
-replaces them.

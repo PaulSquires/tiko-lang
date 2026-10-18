@@ -25,19 +25,25 @@ The horizontal twin of `PsVScrollBar`, axis-transposed. **A** scrolls and shows 
 
 ## Requirements
 
-**Files to copy into your project:**
+The control is the module `vendor/PsControls/PsHScrollBar`, which comes with the toolchain and
+imports `PsBufferPaint` itself. Import `PsBufferPaint` too only to name its types — the paint
+callback below draws through a `PsPaintBuffer`:
 
-| File | Purpose |
-|---|---|
-| `PsHScrollBar.ti` | Declarations — types, callbacks, constants, function prototypes |
-| `PsHScrollBar.tiko` | Implementation |
-| `PsBufferPaint.ti` | The flicker-free drawing surface the control paints through |
-| `PsBufferPaint.tiko` | Its implementation |
+```freebasic
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+#import "vendor/PsControls/PsBufferPaint"
+#import "vendor/PsControls/PsHScrollBar"
 
-**tiko and its sys/win package are required.** The control is a `CWindow` (from `sys/win/gui`)
-and `PsBufferPaint` draws through `sys/win/gdiplus`. None of the control's files imports a
-package itself: your main file imports them before including the control (see *Include order*).
-Build with `tiko build` in a folder whose `tiko.toml` defines `UNICODE`, as the demo's does:
+using gui
+using gdiplus
+using PsBufferPaint
+using PsHScrollBar
+```
+
+**`UNICODE` must be defined for your program**, as it is for the module. Set it in `tiko.toml`,
+as the demo's does:
 
 ```toml
 [target.main]
@@ -53,23 +59,8 @@ UNICODE = "1"
 file cannot `#define` it ahead of `#import "sys/win"`, and without it every bare Win32 name —
 `DrawText`, `SetWindowText`, `CreateFontIndirect` — binds its ANSI form.
 
-`tiko build` (debug profile, `-g -exx`) or `tiko build --profile release` from the control's
-folder writes `main.exe` there.
-
-**Include order.** `PsHScrollBar.tiko` pulls in its own `.ti`, which pulls in `PsBufferPaint.ti`.
-The package imports and `using` lines come first, then the two implementation files in this order:
-
-```freebasic
-#import "sys/win"
-#import "sys/win/gui"
-#import "sys/win/gdiplus"
-
-using gui
-using gdiplus
-
-#include once "PsBufferPaint.tiko"
-#include once "PsHScrollBar.tiko"
-```
+The demo is in the toolchain's `examples/PsControls/PsHScrollBar/`: `tiko build` (debug profile,
+`-g -exx`) or `tiko build --profile release` there writes `main.exe`.
 
 **GDI+ must be running before the first repaint and must outlive the last one.** The control
 renders through GDI+, so bracket your message loop:
@@ -81,7 +72,7 @@ gdiplus.Uninit( gdipToken )
 ```
 
 `gdiplus.Uninit` must come after every window is destroyed, because each repaint builds and
-tears down a `PsBufferPaint`. If you also initialise COM, do it before `gdiplus.Init` and
+tears down a `PsPaintBuffer`. If you also initialise COM, do it before `gdiplus.Init` and
 uninitialise it after `gdiplus.Uninit` — GDI+ leans on COM.
 
 **There is no pump obligation.** The control needs no message filter, no `IsDialogMessage` and
@@ -541,7 +532,7 @@ after it, so it must cover every pixel of the client area. The three colours set
 
 | Field | Meaning |
 |---|---|
-| `b` | The control's `PsBufferPaint` for this repaint (borrowed, not owned) |
+| `b` | The control's `PsPaintBuffer` for this repaint (borrowed, not owned) |
 | `rcClient` | The whole client area — the track |
 | `rcThumb` | The thumb, in client coordinates. **Empty when no thumb is needed** — test it with `IsRectEmpty` before drawing |
 | `isHot` | The mouse is over the thumb |

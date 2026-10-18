@@ -33,8 +33,8 @@ using PsTooltip
 ' check acts as a safety net. Timer IDs are per-window, so every instance can share this id.
 ' Distinct from PsButton's &hCB90 and PsToggle's &hCB70 purely as a debugging courtesy -- nothing
 ' requires it, since the ids never share a window.
-#define IDT_CCHECKBOX_HOTTRACK   &hCBA0
-#define PSCHECKBOX_HOTTRACK_MS    100
+public const IDT_CCHECKBOX_HOTTRACK = &hCBA0
+public const PSCHECKBOX_HOTTRACK_MS = 100
 
 ' The two Segoe Fluent Icons codepoints the control draws by default.
 '
@@ -54,8 +54,8 @@ using PsTooltip
 ' Written as \u ESCAPES, not as literal characters: this file has no BOM, and fbc reads a
 ' BOM-less source as bytes -- a literal U+E739 pasted in here would arrive as its three UTF-8
 ' bytes and draw three garbage glyphs. tiko writes them the same way for the same reason.
-#define PSCHECKBOX_GLYPH_UNCHECKED  !"\uE739"
-#define PSCHECKBOX_GLYPH_CHECKED    !"\uE73A"
+public const PSCHECKBOX_GLYPH_UNCHECKED = !"\uE739"
+public const PSCHECKBOX_GLYPH_CHECKED = !"\uE73A"
 
 ' Default geometry. Everything except nFocusThick is DPI-scaled once at Create; every setter
 ' afterwards takes raw pixels and the caller scales (the family rule).
@@ -64,20 +64,20 @@ using PsTooltip
 ' not the visual inset of a button face -- it is only breathing room around the content, and it
 ' matters mainly to a host that opts into a hover row highlight by setting BackColorHot. There
 ' is no reference screenshot for this control, so these are a judgement call.
-#define PSCHECKBOX_DEFAULT_PADLEFT     4
-#define PSCHECKBOX_DEFAULT_PADTOP      2
-#define PSCHECKBOX_DEFAULT_PADRIGHT    4
-#define PSCHECKBOX_DEFAULT_PADBOTTOM   2
+public const PSCHECKBOX_DEFAULT_PADLEFT = 4
+public const PSCHECKBOX_DEFAULT_PADTOP = 2
+public const PSCHECKBOX_DEFAULT_PADRIGHT = 4
+public const PSCHECKBOX_DEFAULT_PADBOTTOM = 2
 ' Gap between the box cell and the caption. Spent ONLY when there is a caption to separate the
 ' box from -- a caption-less checkbox charges padding + box + padding and nothing else.
-#define PSCHECKBOX_DEFAULT_BOXGAP      8
+public const PSCHECKBOX_DEFAULT_BOXGAP = 8
 ' The box cell. DECLARED, never measured (PsIconPanel's rule): the glyph font is a paint-time
 ' input, so a glyph too large for the cell simply clips rather than resizing the control.
-#define PSCHECKBOX_DEFAULT_BOXWIDTH   16
-#define PSCHECKBOX_DEFAULT_BOXHEIGHT  16
-#define PSCHECKBOX_DEFAULT_FOCUSGAP    2
-#define PSCHECKBOX_DEFAULT_FOCUSCURV   4     ' ellipse DIAMETER, not a radius
-#define PSCHECKBOX_DEFAULT_FOCUSTHICK  1     ' not DPI-scaled
+public const PSCHECKBOX_DEFAULT_BOXWIDTH = 16
+public const PSCHECKBOX_DEFAULT_BOXHEIGHT = 16
+public const PSCHECKBOX_DEFAULT_FOCUSGAP = 2
+public const PSCHECKBOX_DEFAULT_FOCUSCURV = 4   ' ellipse DIAMETER, not a radius
+public const PSCHECKBOX_DEFAULT_FOCUSTHICK = 1   ' not DPI-scaled
 
 
 ' Which side of the caption the box sits on.
@@ -934,7 +934,8 @@ public declare function PsCheckBox_CountRenderedTones( byval hCheckBox as HWND, 
 public declare function PsCheckBox_HashRenderedPart( byval hCheckBox as HWND, byval nPart as long ) as ulong
 public declare sub      PsCheckBox_RunSelfTest( byval hWndParent as HWND )
 
-' The tooltip backend switch, pulled in here so a host needs no extra include line.
+' The tooltip backend switch: this module imports PsTipHost itself (top of file), so a host
+' needs no extra import line.
 
 
 ' Forward declaration: the content setters re-apply auto-size, and they are defined well above
@@ -1248,7 +1249,8 @@ end sub
 '
 ' FOCUS: this is the fourth focusable control in the family, after PsToggle, PsComboBox and
 ' PsButton. See the WM_GETDLGCODE handler for the one subtlety that needed care, and the note in
-' PsCheckBox.ti for why Enter activates here even though a system checkbox ignores it.
+' the declarations at the top of this file for why Enter activates here even though a system
+' checkbox ignores it.
 ' ========================================================================================
 function PsCheckBox_WndProc( _
             byval hwnd   as HWND, _
@@ -1475,7 +1477,7 @@ function PsCheckBox_WndProc( _
             ' VK_RETURN is here by choice, not by inheritance -- a system checkbox ignores Enter
             ' and lets it reach the dialog's default button. PsToggle and PsButton both take it, so
             ' taking it here keeps the focusable half of the family consistent. See the API
-            ' header in PsCheckBox.ti.
+            ' declarations at the top of this file.
             PsCheckBox_FireToggle( pChk, hwnd )
             return 0
         end select
@@ -1796,8 +1798,8 @@ end sub
 
 
 ' ========================================================================================
-' Action.  Fires the change callback -- see the declaration in PsCheckBox.ti for why an action is
-' not a setter, and PsCheckBox_SetChecked for the silent version.
+' Action.  Fires the change callback -- see its declaration at the top of this file for why an
+' action is not a setter, and PsCheckBox_SetChecked for the silent version.
 ' ========================================================================================
 sub PsCheckBox_Toggle( byval hCheckBox as HWND )
     dim as PSCHECKBOX_STATE ptr pChk = GetCheckBoxPointer(hCheckBox)
@@ -2316,7 +2318,7 @@ private function PsCheckBox_ProbePart( _
 end function
 
 
-' See the header in PsCheckBox.ti. A part wiped by a PaintBorderRect fill is literally ONE tone,
+' See the declarations at the top of this file. A part wiped by a PaintBorderRect fill is literally ONE tone,
 ' so the useful signal is the count LEAVING 1 -- not the count being large.
 public function PsCheckBox_CountRenderedTones( byval hCheckBox as HWND, byval nPart as long ) as long
     dim as long nTones = 0
@@ -2325,7 +2327,7 @@ public function PsCheckBox_CountRenderedTones( byval hCheckBox as HWND, byval nP
     return nTones
 end function
 
-' See the header in PsCheckBox.ti. Compare two hashes of the SAME part taken in two different
+' See the declarations at the top of this file. Compare two hashes of the SAME part taken in two different
 ' states: equal means the state change never reached the surface. It can only prove difference,
 ' never correctness. (0 is also the failure return; an FNV-1a of a non-empty region landing
 ' exactly on 0 is possible in principle and has been accepted rather than worked around.)

@@ -14,8 +14,8 @@ the visual style the user happens to be running.
 The field in the middle is a real editing control — a `PsTextBox` in numeric mode, whose own
 child is a RichEdit. Typing, selection, the clipboard, paste validation, undo and the
 right-click menu all come from there rather than being reimplemented. That is what makes this
-control cheap to use, and it is what gives it the two obligations in the next section: three
-extra pairs of files, and one line in your message pump.
+control cheap to use, and it is what gives it the obligation in the next section: one line in
+your message pump.
 
 The control has no caption. It draws only the frame, the two buttons and the number, so a
 label goes beside it, positioned by you.
@@ -32,27 +32,24 @@ Seven rows: integers, two decimals with a 0.25 step, custom colours, a host-pain
 
 ## Requirements
 
-**Files to copy into your project:**
+The module is `vendor/PsControls/PsNumericUpDown`, comes with the toolchain, and brings in
+`PsBufferPaint` and `PsTextBox` (and through it `PsPopupMenu` and `sys/win/richedit`) itself:
 
-| File | Purpose |
-|---|---|
-| `PsNumericUpDown.ti` | Declarations — types, callbacks, constants, function prototypes |
-| `PsNumericUpDown.tiko` | Implementation |
-| `PsTextBox.ti` | The editing control used as the value field |
-| `PsTextBox.tiko` | Its implementation |
-| `PsPopupMenu.ti` | The value field's right-click menu |
-| `PsPopupMenu.tiko` | Its implementation |
-| `PsBufferPaint.ti` | The flicker-free drawing surface everything paints through |
-| `PsBufferPaint.tiko` | Its implementation |
+```freebasic
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+#import "vendor/PsControls/PsNumericUpDown"
 
-An application that already hosts `PsTextBox` or `PsPopupMenu` has those files once already —
-they are the same files, and `#include once` means nothing is duplicated.
+using gui
+using gdiplus
+using PsNumericUpDown
+```
 
 **tiko and its sys/win package are required.** The control is a `CWindow` (from
 `sys/win/gui`), `PsTextBox` calls `richedit.RichEdit.*` from `sys/win/richedit`, and
-`PsBufferPaint` draws through `sys/win/gdiplus`. None of the control's files imports a package
-itself: your main file imports them before including the control (see *Include order*). Build
-with `tiko build` in a folder whose `tiko.toml` defines `UNICODE`, as the demo's does:
+`PsBufferPaint` draws through `sys/win/gdiplus`. Build with `tiko build` in a folder whose
+`tiko.toml` defines `UNICODE`, as the demo's does:
 
 ```toml
 [target.main]
@@ -68,25 +65,6 @@ UNICODE = "1"
 file cannot `#define` it ahead of `#import "sys/win"`, and without it every bare Win32 name —
 `DrawText`, `SetWindowText`, `CreateFontIndirect` — binds its ANSI form.
 
-**Include order.** Each `.ti` pulls in what it needs, but the package imports and `using` lines
-must come first, and the four implementation files must then be included bottom-up:
-
-```freebasic
-#import "sys/win"
-#import "sys/win/gui"
-#import "sys/win/gdiplus"
-#import "sys/win/richedit"
-
-using gui
-using gdiplus
-using richedit
-
-#include once "PsBufferPaint.tiko"
-#include once "PsPopupMenu.tiko"
-#include once "PsTextBox.tiko"
-#include once "PsNumericUpDown.tiko"
-```
-
 **GDI+ must be running before the first repaint and must outlive the last one.** The control
 renders all of its geometry through GDI+, so bracket your message loop:
 
@@ -97,7 +75,7 @@ gdiplus.Uninit( gdipToken )
 ```
 
 `gdiplus.Uninit` must come after every window is destroyed, because each repaint builds and
-tears down a `PsBufferPaint`.
+tears down a `PsPaintBuffer`.
 
 ### The pump call is mandatory
 
@@ -681,7 +659,7 @@ you drew there.
 | Field | Meaning |
 |---|---|
 | `hCtrl` | The control, so the callback can query it |
-| `b` | The control's `PsBufferPaint` for this repaint (borrowed, not owned) |
+| `b` | The control's `PsPaintBuffer` for this repaint (borrowed, not owned) |
 | `rcClient` | The whole client area |
 | `rcFrame` | Where the rounded border is stroked |
 | `rcMinus` | The left button cell |
@@ -802,7 +780,9 @@ here, but it is the reason `PsNumericUpDown_FilterMessage` has to be in your pum
 
 **`PsBufferPaint`** is the drawing surface this control — and any paint callback you write —
 renders through. Its primitives (`PaintRoundRect`, `PaintRoundOutline`, `PaintRect`,
-`SetBackColor`, `SetPenColor`) are what a callback has to work with.
+`SetBackColor`, `SetPenColor`) are what a callback has to work with. A callback that names
+`PsPaintBuffer` or a `PsBufferPaint_*` call needs `#import "vendor/PsControls/PsBufferPaint"`
+and `using PsBufferPaint` too.
 
 ## Licence
 

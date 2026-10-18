@@ -41,9 +41,8 @@ using gdiplus
 ' backend while both existed; do not "correct" them by reasoning about what the docs imply.
 ' ========================================================================================
 
-' Included HERE rather than left to the call site on purpose. PsListBox.ti names typedefs it
-' does not include and so only compiles where the host happens to have pre-loaded them (see
-' CLAUDE.md); this file does not repeat that trap.
+' The module imports sys/win, gui and gdiplus itself, so it never depends on what the host
+' happens to have imported first.
 '
 ' bOK, NEVER "ok", IS THE FAMILY CONVENTION -- and under sys/win it is only a convention.
 ' It dates from AfxNova, where GDI+'s Status enum put Ok = 0 into every host's scope and any
@@ -244,7 +243,6 @@ public type PsPaintBuffer
     ' edge lines up with a 1px PaintRoundOutline frame it joins.
     '
     ' Added for PsTooltip's balloon stem. Purely additive -- no existing method was touched
-    ' -- which is what makes the vendored copies safe to re-sync mechanically
     ' (PaintTextEx's and PaintGradientRect's precedent).
     declare function PaintPolygon( _
                 byval pts as POINT ptr, _
@@ -252,8 +250,8 @@ public type PsPaintBuffer
                 byval nPenWidth as long = 0 _
                 ) as long
     ' --- CHART PRIMITIVES ----------------------------------------------------------------
-    ' Added for PsChart. Purely additive -- no existing method was touched -- which is what
-    ' makes the vendored copies safe to re-sync mechanically (PaintPolygon's precedent).
+    ' Added for PsChart. Purely additive -- no existing method was touched (PaintPolygon's
+    ' precedent).
     '
     ' Filled pie wedge inscribed in rc, optionally stroked. nPenWidth 0 = fill only.
     ' Angles are GDI+ degrees: 0 is 3 o'clock and a POSITIVE sweep runs CLOCKWISE, which is
@@ -337,12 +335,12 @@ public type PsPaintBuffer
     ' same HDC would put two independently-batching GDI+ objects on one surface with nothing
     ' coordinating their flushes (the reason PaintGradientRect had to live here too).
     '
-    ' Takes a CGpImage ptr, NOT a PsImage ptr, so this class gains no dependency on PsImage:
+    ' Takes a CGpImage ptr, NOT a PsImageFile ptr, so this class gains no dependency on PsImage:
     ' the two are decoupled and either can be adopted alone.
     '
     ' nFit chooses placement (see the PS_IMGFIT enum). Scaling is HighQualityBicubic so a cell
     ' a few pixels off the image's native size stays clean. Purely additive -- no existing
-    ' method touched, so the vendored copies re-sync mechanically (PaintPolygon's precedent).
+    ' method touched (PaintPolygon's precedent).
     declare function PaintImage( _
                 byval pImage as CGpImage ptr, _
                 byval rc as RECT ptr, _
@@ -1005,8 +1003,8 @@ end function
 ' RECT cover the same pixels. Do NOT be tempted to use PaintRect's full-extent convention
 ' here: the two differ by one pixel and mixing them is the obvious thing to get wrong.
 '
-' Added for PsProgressBar. Purely additive -- no existing method was touched -- which is
-' what makes the vendored copies safe to re-sync mechanically (PaintTextEx's precedent).
+' Added for PsProgressBar. Purely additive -- no existing method was touched (PaintTextEx's
+' precedent).
 ' ========================================================================================
 function PsPaintBuffer.PaintGradientRect( _
             byval rc as RECT ptr, _
@@ -1189,7 +1187,8 @@ end function
 
 ' ========================================================================================
 ' CHART PRIMITIVES -- PaintPie, PaintPieRing, PaintPolyline, PaintCurve, SetClipRect,
-' ResetClip. Added for PsChart. Purely additive; see the .ti for the per-method contract.
+' ResetClip. Added for PsChart. Purely additive; see the declarations at the top of this file
+' for the per-method contract.
 '
 ' All four drawing methods scale their pen the way PaintPolygon and PaintLine do rather than
 ' the way PaintEllipse does (which does not scale at all, and is the odd one out by its own
@@ -1341,8 +1340,8 @@ private sub CBufApplySeriesPen( byval pPen as CGpPen ptr, byval nDash as long = 
 
     ' Dash lengths are in PEN-WIDTH UNITS, which is what makes one pattern serve every width:
     ' a 2px dashed series has dashes twice as long as a 1px one and the two read as the same
-    ' style. See the PS_PENDASH comment in the .ti for why these are stated rather than taken
-    ' from GDI+'s DashStyle enum.
+    ' style. See the PS_PENDASH comment at the top of this file for why these are stated
+    ' rather than taken from GDI+'s DashStyle enum.
     '
     ' The dash CAP is left flat on purpose. A round dash cap at a 1px pen turns every dot into
     ' a smudge two-thirds the length of the gap beside it, which is the one thing the pattern
@@ -1494,7 +1493,7 @@ end function
 
 
 ' ========================================================================================
-' Draw a GDI+ image into rc, fitting it per nFit. See the .ti header for why the draw lives
+' Draw a GDI+ image into rc, fitting it per nFit. See its declaration above for why the draw lives
 ' here rather than in the control that owns the image.
 '
 ' The image's alpha is honoured (a .png/.ico with transparency composites over whatever the

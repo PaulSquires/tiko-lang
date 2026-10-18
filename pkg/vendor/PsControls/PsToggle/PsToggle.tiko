@@ -22,8 +22,8 @@ using PsBufferPaint
 ' Polling timer that guarantees hot-tracking is cleared when the mouse leaves the control.
 ' WM_MOUSELEAVE (TME_LEAVE) is not reliably delivered on fast exits, so a periodic cursor
 ' check acts as a safety net. Timer IDs are per-window, so every instance can share this id.
-#define IDT_CTOGGLE_HOTTRACK   &hCB70
-#define PSTOGGLE_HOTTRACK_MS    100
+public const IDT_CTOGGLE_HOTTRACK = &hCB70
+public const PSTOGGLE_HOTTRACK_MS = 100
 
 ' (PSTOGGLE_SUPERSAMPLE is gone. The pill and knob used to be rendered at 4x into an
 '  offscreen tile and scaled back down with a HALFTONE StretchBlt to fake antialiasing,
@@ -38,7 +38,7 @@ public const PSTOGGLE_DEFAULT_TRACKW = 40
 public const PSTOGGLE_DEFAULT_TRACKH = 20
 public const PSTOGGLE_DEFAULT_KNOBINSET = 2
 public const PSTOGGLE_DEFAULT_BORDERTHICK = 1   ' not DPI-scaled
-#define PSTOGGLE_DEFAULT_FOCUSGAP     3
+public const PSTOGGLE_DEFAULT_FOCUSGAP = 3
 public const PSTOGGLE_DEFAULT_FOCUSTHICK = 1   ' not DPI-scaled
 
 ' Where the pill sits horizontally when the control is wider than the pill needs. It is
@@ -1049,7 +1049,8 @@ public function PsToggle_GetChecked( byval hToggle as HWND ) as boolean
 end function
 
 ' ========================================================================================
-' SILENT: the change callback fires only for user interaction. See the header.
+' SILENT: the change callback fires only for user interaction. See the declarations at the
+' top of this file.
 ' ========================================================================================
 public sub PsToggle_SetChecked( byval hToggle as HWND, byval isChecked as boolean )
     dim as PSTOGGLE_STATE ptr pTog = GetTogglePointer(hToggle)

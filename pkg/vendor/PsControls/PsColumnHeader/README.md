@@ -16,33 +16,33 @@ the measurement), a click-on-the-caption notification for host-driven sorting, a
 tooltips.
 
 The control never sorts, never takes focus, and never creates a child window.
-[PsListTree](README.md) embeds one above its rows, but the control works perfectly well on its
+[PsListTree](../PsListTree/README.md) embeds one above its rows, but the control works perfectly well on its
 own.
 
 ---
 
 ## Requirements
 
-**Files to copy into your project:**
+The module is `vendor/PsControls/PsColumnHeader`, comes with the toolchain, and brings in
+`PsBufferPaint` (the flicker-free drawing surface it paints through) and `PsTipHost` (the
+tooltip backend switch, which in turn brings in `PsTooltip`) itself. Import `PsBufferPaint`
+yourself as well for the paint callback:
 
-| File | Purpose |
-|---|---|
-| `PsColumnHeader.ti` | Declarations — types, callbacks, constants, function prototypes |
-| `PsColumnHeader.tiko` | Implementation |
-| `PsBufferPaint.ti` | The flicker-free drawing surface the control paints through |
-| `PsBufferPaint.tiko` | Its implementation |
-| `PsTipHost.ti` / `.tiko` | The tooltip backend switch the control holds — not a control, no window of its own |
-| `PsTooltip.ti` / `.tiko` | The owner-drawn tooltip `PsTipHost` can drive instead of the system one |
+```freebasic
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+#import "vendor/PsControls/PsBufferPaint"
+#import "vendor/PsControls/PsColumnHeader"
 
-The tooltip pair is required even if you never leave the default system tooltip:
-`PsColumnHeader.ti` includes `PsTipHost.ti` and `PsColumnHeader.tiko` includes `PsTipHost.tiko`
-(which pulls in `PsTooltip.tiko`). They must be present on disk but you never name them in an
-include line of your own.
+using gui
+using gdiplus
+using PsBufferPaint
+using PsColumnHeader
+```
 
-**tiko and its sys/win package are required.** The control is a `CWindow` (from `sys/win/gui`)
-and `PsBufferPaint` draws through `sys/win/gdiplus`. None of the control's files imports a
-package itself: your main file imports them before including the control (see *Include order*).
-Build with `tiko build` in a folder whose `tiko.toml` defines `UNICODE`, as the demo's does:
+The control is a `CWindow` (from `sys/win/gui`) and `PsBufferPaint` draws through
+`sys/win/gdiplus`. Build with `tiko build` in a folder whose `tiko.toml` defines `UNICODE`:
 
 ```toml
 [target.main]
@@ -58,25 +58,13 @@ UNICODE = "1"
 file cannot `#define` it ahead of `#import "sys/win"`, and without it every bare Win32 name —
 `DrawText`, `SetWindowText`, `CreateFontIndirect` — binds its ANSI form.
 
-**Include order.** `PsColumnHeader.tiko` pulls in its own `.ti`, which pulls in
-`PsBufferPaint.ti`. The package imports and `using` lines come first, then the two
-implementation files in this order:
+`PsColumnHeader` has no demo of its own; the `PsListTree` demo in the toolchain's
+`examples/PsControls/PsListTree/` exercises it.
 
-```freebasic
-#import "sys/win"
-#import "sys/win/gui"
-#import "sys/win/gdiplus"
-
-using gui
-using gdiplus
-
-#include once "PsBufferPaint.tiko"
-#include once "PsColumnHeader.tiko"
-```
-
-If you are using the header **inside a PsListTree**, it must come before `PsListTree.tiko` —
-`PsListTree.ti` names the `HDR_*` callback types without including this header itself. See the
-include-order note in [README.md](README.md).
+If you are using the header **inside a PsListTree**, `PsListTree` imports this module itself.
+Import `PsColumnHeader` as well only to name its own things — the `HDR_*` callback types,
+`PSCOLUMNHEADER_PAINTINFO`, or a `PsColumnHeader_*` call on the handle from
+`PsListTree_GetHeader`.
 
 **GDI+ must be running before the first repaint and must outlive the last one.** All geometry
 is rendered through GDI+, so bracket your message loop:
@@ -88,7 +76,7 @@ gdiplus.Uninit( gdipToken )
 ```
 
 `gdiplus.Uninit` must come after every window is destroyed, because each repaint builds and
-tears down a `PsBufferPaint`.
+tears down a `PsPaintBuffer`.
 
 **There is no message-pump obligation.** No filter to call, and nothing to add to your loop.
 The control is not a tabstop and never takes focus — deliberately, since a header must not
@@ -173,7 +161,7 @@ end function
 
 **Inside a PsListTree**, do not create the header — the list already owns one. Reach it with
 `PsListTree_GetHeader`, define columns with the `PsListTree_*Column*` wrappers, and register
-callbacks with `PsListTree_SetHeader*` / `PsListTree_SetColumn*`. See [README.md](README.md).
+callbacks with `PsListTree_SetHeader*` / `PsListTree_SetColumn*`. See [PsListTree's README](../PsListTree/README.md).
 
 ---
 
@@ -479,8 +467,12 @@ to 0 is a real request for "no delay" and survives a switch as such.
 To theme every tip in the process at once — the intended way to use `PSTIP_MODE_PS` — call
 `PsTooltip_SetDefaultColors` / `SetDefaultFonts` / `SetDefaultStyle` / `SetDefaultMaxWidth` /
 `SetDefaultDelays` **before any control is created**, and then just opt each control in. The
-fonts are borrowed: you keep ownership and must outlive every tip that uses them. See the
-*Tooltips* section of [README.md](README.md) for a worked example.
+fonts are borrowed: you keep ownership and must outlive every tip that uses them.
+`PSTIP_MODE_*` belong to the `PsTipHost` module and the `PsTooltip_*` calls to `PsTooltip`; this
+module imports both itself, but to name them your file imports them too
+(`#import "vendor/PsControls/PsTipHost"`, `#import "vendor/PsControls/PsTooltip"`, plus `using`
+each). See the
+*Tooltips* section of [PsListTree's README](../PsListTree/README.md) for a worked example.
 
 A header embedded in a `PsListTree` has its own independent tooltip and its own mode — setting
 the list's does not set the header's.
@@ -566,7 +558,7 @@ Inset your caption by `PsColumnHeader_GetPadding( p->hHeader )`.
 |---|---|
 | `hHeader` | The control, so the callback can query it |
 | `itemID` | The column index |
-| `b` | The control's `PsBufferPaint` for this repaint (borrowed, not owned) |
+| `b` | The control's `PsPaintBuffer` for this repaint (borrowed, not owned) |
 | `rc` | This column's rect, in client coordinates |
 | `isHot` | The mouse is over this column's **body** |
 | `isPressed` | A live left press on this column's body |
@@ -680,7 +672,7 @@ With no auto-size callback installed, a divider double-click does nothing.
 
 ## Constants
 
-Defined in `PsColumnHeader.ti`:
+Defined in the `PsColumnHeader` module:
 
 | Constant | Value | Meaning |
 |---|---:|---|
@@ -692,7 +684,8 @@ Defined in `PsColumnHeader.ti`:
 | `IDT_CCOLHDR_HOTTRACK` | `&hCB30` | Timer id for the hover safety-net poll, which doubles as the ESC poll during a drag. Timer ids are per-window, so every instance shares it |
 | `CCOLHDR_HOTTRACK_MS` | 100 | How often that poll runs |
 
-The tooltip backend values passed to `PsColumnHeader_SetTooltipMode` come from `PsTipHost.ti`:
+The tooltip backend values passed to `PsColumnHeader_SetTooltipMode` come from the `PsTipHost`
+module (import it, and `using PsTipHost`, to name them):
 
 | Constant | Value | Meaning |
 |---|---:|---|
@@ -720,7 +713,7 @@ And the control itself:
 ## Related controls
 
 `PsColumnHeader` creates nothing and embeds nothing. It is, however, embedded by
-**[PsListTree](README.md)**, which places one above its rows and uses it as the single store for
+**[PsListTree](../PsListTree/README.md)**, which places one above its rows and uses it as the single store for
 its column model — every `PsListTree_*Column*` function delegates here.
 
 If your header is a PsListTree's, three rules apply:

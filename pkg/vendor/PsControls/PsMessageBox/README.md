@@ -28,32 +28,29 @@ An actual modal box, raised from the demo and captured while its nested message 
 
 ## Requirements
 
-**Files to copy into your project:**
+The control is the module `vendor/PsControls/PsMessageBox`, which comes with the toolchain and
+imports `PsBufferPaint` and `PsButton` (the footer buttons, which bring in `PsImage`, `PsTipHost`
+and `PsTooltip`) itself. Import one of them too only to name something of its own — `PsBufferPaint`
+for a paint callback, `PsButton` for the `PSBUTTON_COLORS` that `PsMessageBox_SetButtonColors`
+takes or for a `PsButton_*` call on a footer button:
 
-| File | Purpose |
-|---|---|
-| `PsMessageBox.ti` | Declarations — types, callbacks, constants, function prototypes |
-| `PsMessageBox.tiko` | Implementation |
-| `PsButton.ti` | The footer buttons are PsButtons |
-| `PsButton.tiko` | Its implementation |
-| `PsTipHost.ti` / `.tiko` | The buttons' tooltip backend — pulled in by `PsButton.ti` / `PsButton.tiko` |
-| `PsTooltip.ti` / `.tiko` | Pulled in by `PsTipHost` |
-| `PsBufferPaint.ti` | The flicker-free drawing surface the control paints through |
-| `PsBufferPaint.tiko` | Its implementation |
+```freebasic
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+#import "vendor/PsControls/PsMessageBox"
 
-The last four are transitive: the box itself has no tooltips, but `PsButton` does, and its header
-chain names those files. They must be present in the build even though nothing in the
-`PsMessageBox_*` surface refers to them.
+using gui
+using gdiplus
+using PsMessageBox
+```
 
-**Use the `PsBufferPaint` copy shipped in this repo.** The box draws its wrapped message with
-`PsBufferPaint.PaintTextEx`. `PaintText` forces `DT_VCENTER or DT_SINGLELINE`, which cannot coexist
-with `DT_WORDBREAK`, so it structurally cannot draw a wrapped message — an older copy of
-`PsBufferPaint` without `PaintTextEx` will not build against this control.
+The box draws its wrapped message with `PsPaintBuffer.PaintTextEx`. `PaintText` forces
+`DT_VCENTER or DT_SINGLELINE`, which cannot coexist with `DT_WORDBREAK`, so it structurally cannot
+draw a wrapped message.
 
-**tiko and its sys/win package are required.** The control is a `CWindow` (from `sys/win/gui`)
-and `PsBufferPaint` draws through `sys/win/gdiplus`. None of the control's files imports a package
-itself: your main file imports them before including the control (see *Include order*). Build with
-`tiko build` in a folder whose `tiko.toml` defines `UNICODE`, as the demo's does:
+**`UNICODE` must be defined for your program**, as it is for the module. Set it in `tiko.toml`,
+as the demo's does:
 
 ```toml
 [target.main]
@@ -69,22 +66,8 @@ UNICODE = "1"
 cannot `#define` it ahead of `#import "sys/win"`, and without it every bare Win32 name —
 `DrawText`, `SetWindowText`, `CreateFontIndirect` — binds its ANSI form.
 
-**Include order.** Each `.tiko` pulls in its own `.ti`, and `PsMessageBox.ti` pulls in both
-`PsBufferPaint.ti` and `PsButton.ti`. The package imports and `using` lines come first, then the
-three implementation files in this order:
-
-```freebasic
-#import "sys/win"
-#import "sys/win/gui"
-#import "sys/win/gdiplus"
-
-using gui
-using gdiplus
-
-#include once "PsBufferPaint.tiko"
-#include once "PsButton.tiko"
-#include once "PsMessageBox.tiko"
-```
+The demo is in the toolchain's `examples/PsControls/PsMessageBox/`: `tiko build` (debug profile,
+`-g -exx`) or `tiko build --profile release` there writes `main.exe`.
 
 **GDI+ must be running before the first repaint and must outlive the last one.** The control
 renders its geometry through GDI+, so bracket your message loop:
@@ -96,7 +79,7 @@ gdiplus.Uninit( gdipToken )
 ```
 
 `gdiplus.Uninit` must come after every window is destroyed, because each repaint builds and tears
-down a `PsBufferPaint`.
+down a `PsPaintBuffer`.
 
 **There is no pump obligation.** There is no `PsMessageBox_FilterMessage` and nothing to add to your
 `GetMessage` loop — not for Tab, not for Escape, not for the focus ring. `PsMessageBox_DoModal` runs
@@ -671,7 +654,7 @@ the box *around* them.
 | Field | Meaning |
 |---|---|
 | `hMsgBox` | The box, so the callback can query it |
-| `b` | The box's `PsBufferPaint` for this repaint (borrowed, not owned) |
+| `b` | The box's `PsPaintBuffer` for this repaint (borrowed, not owned) |
 | `rcClient` | The whole client area |
 | `rcCaption` | The caption band, full width |
 | `rcCaptionText` | The title's span: the caption minus its padding and the close cell |
@@ -699,7 +682,7 @@ the body padding to `rcBody`, because the icon cell and the icon gap can change 
 - Use `PaintTextEx` for the message, not `PaintText` — the latter forces `DT_SINGLELINE`.
 
 > **A paint callback that fills a rectangle covering the whole box will erase everything under it.**
-> In particular `PsBufferPaint.PaintBorderRect` **fills** before it strokes, so reaching for it to
+> In particular `PsPaintBuffer.PaintBorderRect` **fills** before it strokes, so reaching for it to
 > draw the window outline or the footer divider floods everything beneath and the box renders as
 > one solid block — which survives a glance, because the flood colour is a real colour from the
 > box. `PaintRoundOutline` and `PaintLine` stroke without filling.
@@ -799,8 +782,8 @@ end enum
 | `PSMESSAGEBOX_DEFAULT_BORDERTHICK` | 1 | Window outline, never DPI-scaled |
 | `PSMESSAGEBOX_DEFAULT_DIVIDERTHICK` | 1 | Footer hairline, never DPI-scaled |
 
-The glyph codepoints are `#define`s rather than literals buried in the resolver, so that a host
-shipping a different icon font can see exactly what to remap:
+The glyph codepoints are named constants rather than literals buried in the resolver, so that a
+host shipping a different icon font can see exactly what to remap:
 
 | Constant | Codepoint | Segoe Fluent Icons name |
 |---|---|---|
@@ -828,15 +811,18 @@ the `PSBUTTON_COLORS` struct that `PsMessageBox_SetButtonColors` takes. `PsMessa
 returns each button's `HWND`, so any PsButton function — a left glyph, a tooltip, a different colour
 set for a destructive choice — is reachable directly.
 
-`PsMessageBox.ti` includes `PsButton.ti` for you; you only need both `.tiko` files in your build.
+The module imports `PsButton` itself; import it in your own file only to name its types or call
+`PsButton_*` on a footer button.
 
 ## Running the demo
 
-The demo loads **Segoe Fluent Icons** at startup via `AddFontResourceEx`, and
-**aborts if the font is absent** — the control family draws its glyphs from it.
+The demo is in the toolchain's `examples/PsControls/PsMessageBox/`. It loads **Segoe Fluent
+Icons** at startup via `AddFontResourceEx` from `examples/PsControls/SegoeFluentIcons.ttf` — one
+copy shared by every demo — and **aborts if the font is absent**: the control family draws its
+glyphs from it.
 
 The font ships with Windows 11 but is Microsoft's, not ours, so it is not
-redistributed here. Copy it in once before building:
+redistributed here. Copy it in once, from `examples/PsControls/`, before building:
 
 ```bash
 copy C:\Windows\Fonts\SegoeIcons.ttf SegoeFluentIcons.ttf

@@ -50,33 +50,42 @@ The same control in its list modes. On the left a grouped single-column list —
 
 ## Requirements
 
-**Files to copy into your project:**
+The control is the module `vendor/PsControls/PsListTree`, which comes with the toolchain and
+imports what it is built from itself: `sys/win/richedit`, `PsBufferPaint`, `PsTipHost` (the
+tooltip backend switch, which brings in `PsTooltip`), `PsColumnHeader` (the header band — see
+[PsColumnHeader](../PsColumnHeader/README.md)), `PsTextBox` (the rename editor, which brings in
+`PsPopupMenu` for its context menu) and `PsVScrollBar` (the embedded scrollbar). They are part of
+the build whether or not you ever define a column, leave the system tooltip or enable editing.
+Import one of them too only to name something of its own — below, `PsBufferPaint` for the row
+painter, `PsColumnHeader` for `PsColumnHeader_GetPadding`, `PsTipHost` for `PSTIP_MODE_PS`,
+`PsTooltip` for the process-wide tip defaults and `PsTextBox` for `PsTextBox_GetBorderColor`:
 
-| File | Purpose |
-|---|---|
-| `PsListTree.ti` | Declarations — types, callbacks, constants, function prototypes |
-| `PsListTree.tiko` | Implementation |
-| `PsColumnHeader.ti` / `.tiko` | The column header band the control embeds — see [PsColumnHeader.md](PsColumnHeader.md) |
-| `PsVScrollBar.ti` / `.tiko` | The vertical scrollbar the control embeds |
-| `PsBufferPaint.ti` / `.tiko` | The flicker-free drawing surface everything paints through |
-| `PsTipHost.ti` / `.tiko` | The tooltip backend switch the control holds — not a control, no window of its own |
-| `PsTooltip.ti` / `.tiko` | The owner-drawn tooltip `PsTipHost` can drive instead of the system one |
-| `PsTextBox.ti` / `.tiko` | The single-line editor created over a row during a rename |
-| `PsPopupMenu.ti` / `.tiko` | The editor's context menu |
+```freebasic
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+#import "vendor/PsControls/PsBufferPaint"
+#import "vendor/PsControls/PsColumnHeader"
+#import "vendor/PsControls/PsTipHost"
+#import "vendor/PsControls/PsTooltip"
+#import "vendor/PsControls/PsTextBox"
+#import "vendor/PsControls/PsListTree"
 
-All fourteen files are required even if you never define a column, never touch the scrollbar,
-never leave the default system tooltip and never enable in-place label editing: the control
-creates both children unconditionally, `PsListTree.ti` / `.tiko` include the tooltip pair
-themselves, and `PsListTree.tiko` calls `PsTextBox_*` whether or not editing is ever turned on —
-leave the editor pair out and `PsListTree.tiko` does not compile. The tooltip pair adds **no
-include line of its own** to your host — see *Include order* below. The pump call under
-*In-place label editing* is needed only if you enable editing (`PsListTree_EnableLabelEdit`).
+using gui
+using gdiplus
+using PsBufferPaint
+using PsColumnHeader
+using PsTipHost
+using PsTooltip
+using PsTextBox
+using PsListTree
+```
 
-**tiko and its sys/win package are required.** The control is a `CWindow` (from `sys/win/gui`),
-`PsBufferPaint` draws through `sys/win/gdiplus`, and the label editor (`PsTextBox`) calls
-`richedit.RichEdit.*` from `sys/win/richedit`. None of the control's files imports a package
-itself: your main file imports them before including the control (see *Include order*). Build
-with `tiko build` in a folder whose `tiko.toml` defines `UNICODE`, as the demo's does:
+The pump call under *In-place label editing* is needed only if you enable editing
+(`PsListTree_EnableLabelEdit`).
+
+**`UNICODE` must be defined for your program**, as it is for the module. Set it in `tiko.toml`,
+as the demo's does:
 
 ```toml
 [target.main]
@@ -92,40 +101,14 @@ UNICODE = "1"
 file cannot `#define` it ahead of `#import "sys/win"`, and without it every bare Win32 name —
 `DrawText`, `SetWindowText`, `CreateFontIndirect` — binds its ANSI form.
 
-**Include order — this one bites.** `PsListTree.ti` includes only `PsBufferPaint.ti` and
-`PsTipHost.ti`. It does **not** include `PsVScrollBar.ti` or `PsColumnHeader.ti`, yet it names
-types from both: `CVSCROLL_DEFAULT_WIDTH` and `VScrollPaintCallbackSub` from the scrollbar, and
-`HDR_WidthChangedCallbackSub`, `HDR_ClickCallbackSub`, `HDR_AutoSizeCallbackFunc`,
-`HDR_PaintCallbackSub` and `HDR_TooltipCallbackFunc` from the header. It therefore compiles
-only at an include site that has already pulled those two in. The package imports and `using`
-lines come first, then the six implementation files in exactly this order:
+The demos are in the toolchain's `examples/PsControls/PsListTree/`: `tiko build` (debug profile,
+`-g -exx`) or `tiko build --profile release` there writes both `main.exe` and `tree_demo.exe` —
+two targets of one `tiko.toml`; `tiko build tree_demo` builds just the one.
 
-```freebasic
-#import "sys/win"
-#import "sys/win/gui"
-#import "sys/win/gdiplus"
-#import "sys/win/richedit"
-
-using gui
-using gdiplus
-using richedit
-
-#include once "PsBufferPaint.tiko"
-#include once "PsVScrollBar.tiko"
-#include once "PsColumnHeader.tiko"
-#include once "PsPopupMenu.tiko"
-#include once "PsTextBox.tiko"
-#include once "PsListTree.tiko"
-```
-
-Get the order wrong and the errors point at `PsListTree.ti`, naming types rather than the
-missing include.
-
-`PsTipHost` and `PsTooltip` are **not** in the list on purpose. `PsListTree.ti` includes
-`PsTipHost.ti` and `PsListTree.tiko` includes `PsTipHost.tiko` (which pulls in `PsTooltip.tiko`),
-so the four files must be present on disk but you never name them. Adding
-`#include once "PsTooltip.tiko"` yourself is harmless — the headers are `#pragma once` — and
-equally unnecessary.
+The control's own signatures name types from two of its imports: `VScrollPaintCallbackSub` from
+`PsVScrollBar`, and `HDR_WidthChangedCallbackSub`, `HDR_ClickCallbackSub`,
+`HDR_AutoSizeCallbackFunc`, `HDR_PaintCallbackSub` and `HDR_TooltipCallbackFunc` from
+`PsColumnHeader`. To write one of those callbacks, import that module too.
 
 **GDI+ must be running before the first repaint and must outlive the last one.** All geometry
 is rendered through GDI+, so bracket your message loop:
@@ -137,7 +120,7 @@ gdiplus.Uninit( gdipToken )
 ```
 
 `gdiplus.Uninit` must come after every window is destroyed, because each repaint builds and
-tears down a `PsBufferPaint`.
+tears down a `PsPaintBuffer`.
 
 **The message-pump filter is needed only for label editing.** If — and only if — you call
 `PsListTree_EnableLabelEdit`, you must call `PsListTree_FilterMessage( @msg )` in your loop,
@@ -375,7 +358,7 @@ column's x-span. **Group-header rows never get cells** — they always span the 
 
 The column model lives in the embedded `PsColumnHeader`, which is the single store for widths,
 minimums and the fill designation. The `PsListTree_*Column*` functions are wrappers that delegate
-to it. See [PsColumnHeader.md](PsColumnHeader.md) for the width, minimum-width and fill rules.
+to it. See [PsColumnHeader](../PsColumnHeader/README.md) for the width, minimum-width and fill rules.
 
 **Column definitions and cell text are independent.** Cell storage is sparse and per row, so
 you can populate rows before or after defining columns; a cell never set reads back `""`. The
@@ -545,8 +528,9 @@ Fonts you pass in stay yours: the control stores the `HFONT` and never destroys 
 ![The PsListTree tree demo](tree_demo.png)
 
 The same control, driven as a treeview: unlimited depth, control-drawn twisties, per-depth
-indent, and label editing. `tree_demo.exe` (build it with `build_tree.bat`) is a focused harness
-for exactly these features; `main.exe` (from `build.bat`) exercises everything else.
+indent, and label editing. `tree_demo.exe` (the `tree_demo` target of the demo's `tiko.toml`)
+is a focused harness for exactly these features; `main.exe` (the `main` target) exercises
+everything else.
 
 Every row carries a **tree level** (0 = top-level), and the tree lives in ordinary array order: a
 node's whole subtree is the contiguous run of deeper-level rows right after it, so parent, child
@@ -884,7 +868,7 @@ PsListTree_SetTooltipMode( hList, PSTIP_MODE_PS )
 `PsTooltip_SetDefaultStyle` is available on the same footing, and `PsTooltip_ClearDefaults`
 disarms the lot. The fonts are **borrowed**: you keep ownership and must outlive every tip that
 uses them — the one real hazard here, since you are promising them to controls you never see.
-See `PsTooltip.ti` for the colour struct and the style constants.
+See [PsTooltip](../PsTooltip/README.md) for the colour struct and the style constants.
 
 ### Border
 
@@ -971,7 +955,7 @@ Nothing here is required; the control creates, positions, ranges and auto-hides 
 
 ### Columns and the header band
 
-All optional. Widths and minimum widths are **pixels**; see [PsColumnHeader.md](PsColumnHeader.md)
+All optional. Widths and minimum widths are **pixels**; see [PsColumnHeader](../PsColumnHeader/README.md)
 for the layout rules these delegate to.
 
 | Function | Description |
@@ -1026,16 +1010,17 @@ Passing 0 to any callback setter clears it.
 
 ### Geometry and internals
 
-These are declared in `PsListTree.ti` rather than hidden, so they are listed here for
+These are public rather than hidden, so they are listed here for
 completeness. Only the first is something a host has a reason to call.
 
 | Function | Description |
 |---|---|
 | `PsListTree_PositionWindows( hwnd ) as LRESULT` | Re-lays out the three children — header band, row surface, scrollbar strip — inside the container's client rect, honouring the border inset and the scrollbar's auto-hide. The control calls it from `WM_SIZE` and from every path that changes the layout, so you normally never need it. Reach for it only if you have changed something behind the control's back and the children have not caught up. Always returns 0. Takes the control handle, like everything else here. |
 
-The remaining four take a `PSLISTTREE ptr` — the control's private state struct, which a caller
-outside the implementation cannot form. They are internal machinery, visible only because
-`PSLISTTREE.Refresh` is defined in the header and has to call them:
+The remaining four take a `PSLISTTREE_STATE ptr` — the control's private state struct, which a caller
+outside the implementation cannot form. They are internal machinery, public only because
+`PSLISTTREE_STATE.Refresh` is defined ahead of them, among the declarations at the top of the
+module, and has to call them:
 
 | Function | Role |
 |---|---|
@@ -1120,7 +1105,7 @@ may override the font per row.
 | Field | Meaning |
 |---|---|
 | `itemID` | The row's **model** index |
-| `b` | The control's `PsBufferPaint` for this repaint (borrowed, not owned) |
+| `b` | The control's `PsPaintBuffer` for this repaint (borrowed, not owned) |
 | `rc` | The row's rect, in the surface's client coordinates |
 | `isHot` | The mouse is over this row. At most one row at a time |
 | `isSelected` | The row is part of the selection |
@@ -1307,7 +1292,7 @@ with the getters (or `itemData`) to resync a parallel model. It does **not** fir
 ### Header callbacks
 
 The five header callbacks registered through `PsListTree_Set*` use the `HDR_*` typedefs and are
-documented in full in [PsColumnHeader.md](PsColumnHeader.md). Two notes specific to using them
+documented in full in [PsColumnHeader](../PsColumnHeader/README.md). Two notes specific to using them
 through `PsListTree`:
 
 - **`PsListTree_SetColumnResizeCallback` is the only correct door for resize notifications.** The
@@ -1320,14 +1305,14 @@ through `PsListTree`:
 
 ## Constants
 
-Defined in `PsListTree.ti`:
+Defined in `PsListTree`:
 
 | Constant | Value | Meaning |
 |---|---:|---|
 | `IDT_CLISTTREE_HOTTRACK` | `&hCB01` | Timer id for the hover safety-net poll. Timer ids are per-window, so every instance shares it |
 | `PSLISTTREE_HOTTRACK_MS` | 100 | How often that poll checks whether the cursor has left |
 
-The tooltip backend values passed to `PsListTree_SetTooltipMode` come from `PsTipHost.ti`:
+The tooltip backend values passed to `PsListTree_SetTooltipMode` come from `PsTipHost`:
 
 | Constant | Value | Meaning |
 |---|---:|---|
@@ -1346,7 +1331,7 @@ Defaults the control starts with:
 | Selection mode | single | — |
 | Column width / minimum width | 100 / 0 | Pixels |
 
-The fill-column designations passed to `PsListTree_SetFillColumn` come from `PsColumnHeader.ti`:
+The fill-column designations passed to `PsListTree_SetFillColumn` come from `PsColumnHeader`:
 
 | Constant | Value | Meaning |
 |---|---:|---|
@@ -1364,7 +1349,7 @@ destroyed with the list. It also holds a `PsTooltip` when you opt the instance i
 
 | Control | Role | Reached through |
 |---|---|---|
-| **PsColumnHeader** | The column model and the interactive header band. It is the single store for column widths, minimums, geometry and the fill designation — the `PsListTree_*Column*` functions all delegate to it. See [PsColumnHeader.md](PsColumnHeader.md) | `PsListTree_GetHeader` |
+| **PsColumnHeader** | The column model and the interactive header band. It is the single store for column widths, minimums, geometry and the fill designation — the `PsListTree_*Column*` functions all delegate to it. See [PsColumnHeader](../PsColumnHeader/README.md) | `PsListTree_GetHeader` |
 | **PsVScrollBar** | The owner-drawn vertical scrollbar, ranged and auto-hidden by the list | `PsListTree_GetScrollBar` |
 
 Both handles are escape hatches for appearance and queries. Two things you must not do through
@@ -1377,11 +1362,13 @@ list.
 
 ## Running the demo
 
-The demo loads **Segoe Fluent Icons** at startup via `AddFontResourceEx`, and
-**aborts if the font is absent** — the control family draws its glyphs from it.
+The demos are in the toolchain's `examples/PsControls/PsListTree/`. Both load **Segoe Fluent
+Icons** at startup via `AddFontResourceEx` from `examples/PsControls/SegoeFluentIcons.ttf` — one
+copy shared by every demo — and **abort if the font is absent**: the control family draws its
+glyphs from it.
 
 The font ships with Windows 11 but is Microsoft's, not ours, so it is not
-redistributed here. Copy it in once before building:
+redistributed here. Copy it in once, from `examples/PsControls/`, before building:
 
 ```bash
 copy C:\Windows\Fonts\SegoeIcons.ttf SegoeFluentIcons.ttf

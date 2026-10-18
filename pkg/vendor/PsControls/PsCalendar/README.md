@@ -13,8 +13,6 @@ Everything it draws is replaceable. You can restyle it field by field through a 
 take over individual day cells with a callback (availability shading, appointment dots), or
 replace the entire renderer.
 
-Repository: <https://github.com/PaulSquires/PsCalendar>
-
 ---
 
 ## What it looks like
@@ -28,46 +26,39 @@ and a six-month grid using a host day painter and localized month names.
 
 ## Requirements
 
-Copy these files into your project:
-
-| File | What it is |
-|---|---|
-| `PsCalendar.ti` | Public header — types, enums, callback typedefs, declarations |
-| `PsCalendar.tiko` | Implementation |
-| `PsBufferPaint.ti` | Flicker-free drawing surface (header) |
-| `PsBufferPaint.tiko` | Drawing surface (implementation) |
-| `PsTipHost.ti` / `PsTipHost.tiko` | The tooltip backend switch — see *Tooltips: two backends* |
-| `PsTooltip.ti` / `PsTooltip.tiko` | The owner-drawn tooltip. Required even if you never switch to it: `PsTipHost.tiko` includes it. |
-
-It also needs tiko and its sys/win package: the control is a `CWindow` (from `sys/win/gui`) and
-draws through `sys/win/gdiplus`, but none of its files imports a package itself, so your main file
-imports them first (see *Include order*). Build with `tiko build` in a folder whose `tiko.toml`
-defines `UNICODE = "1"` under `[target.main.defines]`, as the demo's does — a source file cannot
-`#define` it ahead of `#import "sys/win"`, and without it every bare Win32 name binds its ANSI
-form. In the demo folder, `tiko build` (debug profile: `-g -exx`) or `tiko build --profile release`
-writes `main.exe` there; `build.bat` runs the same build, release by default, `build.bat debug`
-for debug and `build.bat clean` to delete the output.
-
-### Include order
-
-The `#import` and `using` lines come first; then `PsBufferPaint.tiko` must be included **before**
-`PsCalendar.tiko`:
+The module is `vendor/PsControls/PsCalendar`. It comes with the toolchain and brings in
+PsBufferPaint and PsTipHost (and, through PsTipHost, PsTooltip) itself.
 
 ```freebasic
 #import "sys/win"
 #import "sys/win/gui"
 #import "sys/win/gdiplus"
+#import "vendor/PsControls/PsTipHost"
+#import "vendor/PsControls/PsTooltip"
+#import "vendor/PsControls/PsCalendar"
 
 using gui
 using gdiplus
-
-#include once "PsBufferPaint.tiko"
-#include once "PsCalendar.tiko"
+using PsTipHost
+using PsTooltip
+using PsCalendar
 ```
 
-That is the whole list of include lines. `PsCalendar.tiko` includes `PsTipHost.tiko` itself, which
-in turn includes `PsTooltip.tiko`, so the four tooltip files only have to be *present* — you never
-name them. PsCalendar wraps no child control and owns no popup window of its own.
+The PsTipHost and PsTooltip lines are needed only to name `PSTIP_MODE_*` and to call the
+`PsTooltip_*` theming procedures — see *Tooltips: two backends*. PsCalendar wraps no child
+control and owns no popup window of its own.
+
+Your program must define `UNICODE`, as the vendor package does for its modules: a source file
+cannot `#define` it ahead of `#import "sys/win"`, and without it every bare Win32 name binds its
+ANSI form. Set it in `tiko.toml`, as the demo does, or pass `-d UNICODE`:
+
+```toml
+[target.main.defines]
+UNICODE = "1"
+```
+
+The demo is in the toolchain's `examples/PsControls/PsCalendar/`: `tiko build` there (debug
+profile: `-g -exx`) or `tiko build --profile release` writes `main.exe` there.
 
 ### Initialise GDI+
 
@@ -274,7 +265,7 @@ to the first day of the first panel. `PsCalendar_GetFocusCell` reports where it 
 | Function | Behaviour |
 |---|---|
 | `PsCalendar_Create( hWndParent as HWND, CtrlID as long ) as HWND` | Creates the control as a child of `hWndParent` at zero size. Position it yourself. Returns the `HWND`, or 0 on failure. |
-| `GetCalendarPointer( hCtrl as HWND ) as PSCALENDAR ptr` | The per-instance state block. Reading laid-out geometry through the accessors below is safer — they force a pending layout first; the raw struct does not. |
+| `GetCalendarPointer( hCtrl as HWND ) as PSCALENDAR_STATE ptr` | The per-instance state block. Reading laid-out geometry through the accessors below is safer — they force a pending layout first; the raw struct does not. |
 
 ### Selection
 

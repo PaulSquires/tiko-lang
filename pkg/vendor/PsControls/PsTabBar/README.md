@@ -34,21 +34,30 @@ Two bars. The upper one has a selected tab and more tabs than fit its width; the
 
 ## Requirements
 
-**Files to copy into your project:**
+The control is the module `vendor/PsControls/PsTabBar`. It comes with the toolchain and imports
+`PsBufferPaint` and `PsTipHost` itself (`PsTipHost` brings in `PsTooltip`). Import
+`PsBufferPaint` yourself for the paint callback's buffer, `PsTipHost` for the `PSTIP_MODE_*`
+names, and `PsTooltip` for the `PsTooltip_*` calls under *Tooltips: two backends*:
 
-| File | Purpose |
-|---|---|
-| `PsTabBar.ti` | Declarations — types, callbacks, constants, custom messages, function prototypes |
-| `PsTabBar.tiko` | Implementation |
-| `PsBufferPaint.ti` | The flicker-free drawing surface the control paints through |
-| `PsBufferPaint.tiko` | Its implementation |
-| `PsTipHost.ti` / `PsTipHost.tiko` | The tooltip backend switch — see *Tooltips: two backends* |
-| `PsTooltip.ti` / `PsTooltip.tiko` | The owner-drawn tooltip. Required even if you never switch to it: `PsTipHost.tiko` includes it. |
+```freebasic
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+#import "vendor/PsControls/PsBufferPaint"
+#import "vendor/PsControls/PsTipHost"
+#import "vendor/PsControls/PsTooltip"
+#import "vendor/PsControls/PsTabBar"
 
-**tiko and its sys/win package are required.** The control is a `CWindow` (from `sys/win/gui`)
-and `PsBufferPaint` draws through `sys/win/gdiplus`. None of the control's files imports a
-package itself: your main file imports them before including the control (see *Include order*).
-Build with `tiko build` in a folder whose `tiko.toml` defines `UNICODE`, as the demo's does:
+using gui
+using gdiplus
+using PsBufferPaint
+using PsTipHost
+using PsTooltip
+using PsTabBar
+```
+
+**`UNICODE` is required.** The module is compiled with it and your program must match. Build
+with `tiko build` in a folder whose `tiko.toml` defines it, as the demo's does:
 
 ```toml
 [target.main]
@@ -64,24 +73,6 @@ UNICODE = "1"
 file cannot `#define` it ahead of `#import "sys/win"`, and without it every bare Win32 name —
 `DrawText`, `SetWindowText`, `CreateFontIndirect` — binds its ANSI form.
 
-**Include order.** The imports and `using` lines first, then the two implementation files in
-this order. `PsTabBar.tiko` pulls in its own `.ti`, which pulls in `PsBufferPaint.ti` and `PsTipHost.ti`;
-`PsTabBar.tiko` also pulls in `PsTipHost.tiko`, which in turn pulls in `PsTooltip.tiko`. So the two
-tooltip files need no include line of your own. The **implementation** of `PsBufferPaint` is the
-one thing not pulled in for you, so include it yourself, first:
-
-```freebasic
-#import "sys/win"
-#import "sys/win/gui"
-#import "sys/win/gdiplus"
-
-using gui
-using gdiplus
-
-#include once "PsBufferPaint.tiko"
-#include once "PsTabBar.tiko"
-```
-
 **GDI+ must be running before the first repaint and must outlive the last one.** The control
 renders through GDI+, so bracket your message loop:
 
@@ -92,7 +83,7 @@ gdiplus.Uninit( gdipToken )
 ```
 
 `gdiplus.Uninit` must come after every window is destroyed, because each repaint builds and
-tears down a `PsBufferPaint`. If you also use COM, shut GDI+ down *before* `CoUninitialize` —
+tears down a `PsPaintBuffer`. If you also use COM, shut GDI+ down *before* `CoUninitialize` —
 GDI+ leans on COM.
 
 **There is no pump obligation.** The control installs no message filter, needs no
@@ -259,7 +250,7 @@ Navigation is exposed twice: as a plain function, and as a `WM_USER`-based messa
 procedure calls the function.
 
 The reason for the second door is that scroll buttons for a tab bar usually live in a
-*different* control, one that has no include-level knowledge of this one. A separate nav
+*different* control, one that does not import this one. A separate nav
 control can drive the bar with nothing but its `HWND`:
 
 ```freebasic
@@ -270,7 +261,7 @@ SendMessage( hBar, TCM_NAVIGATE, cast(WPARAM, -1), 0 )
 EnableWindow( hBtnLeft, iif( SendMessage( hBar, TCM_CANNAVIGATE, cast(WPARAM, -1), 0 ), CTRUE, FALSE ) )
 ```
 
-In-process code that already includes `PsTabBar.ti` should just call `PsTabBar_Navigate` and
+In-process code that already imports `PsTabBar` should just call `PsTabBar_Navigate` and
 `PsTabBar_CanNavigate` directly; the behaviour is identical.
 
 ### Tabs never shrink, and overflow clips
@@ -599,7 +590,7 @@ if hTip then PsTooltip_SetTitle( hTip, "Open documents" )   ' not reachable on t
 
 ### Custom messages
 
-Both are declared in `PsTabBar.ti` and answered by the control's window procedure. They are the
+Both are `public const`s of the `PsTabBar` module and answered by the control's window procedure. They are the
 `SendMessage` door to the identically named functions, for driving the bar from a separate
 control that only has its `HWND`.
 
@@ -706,7 +697,7 @@ Two contracts, or the layout will not match what you draw:
 |---|---|
 | `hTabBar` | The control, so the callback can query it |
 | `itemID` | This tab's model index |
-| `b` | The control's `PsBufferPaint` for this repaint (borrowed, not owned) |
+| `b` | The control's `PsPaintBuffer` for this repaint (borrowed, not owned) |
 | `rc` | The **border-deflated** paint area — fill this. On the active tab it runs to the client bottom, and that fill is what covers the break in the bottom rule |
 | `rcText` | The caption area, from `rcIcon.right` to `rcClose.left`, on symmetric vertical extents so `DT_VCENTER` text never moves when the selection changes |
 | `rcIcon` | The left icon square |
@@ -836,8 +827,8 @@ returning TRUE from `WM_MOUSEMOVE` stops that move driving a live drag.
 ### Custom messages
 
 ```freebasic
-#define TCM_NAVIGATE     (WM_USER + 100)
-#define TCM_CANNAVIGATE  (WM_USER + 101)
+public const TCM_NAVIGATE = (WM_USER + 100)
+public const TCM_CANNAVIGATE = (WM_USER + 101)
 ```
 
 See *Custom messages* in the API reference for their `wParam` / return contracts.
@@ -855,18 +846,23 @@ The border width has no named constant; it defaults to 1 DPI-scaled pixel, floor
 
 ### Types
 
-`PSTABBAR_PAINTINFO`, `PSTABBAR_MESSAGEINFO` and `PSTABBAR_TABINFO` are declared in `PsTabBar.ti`.
+`PSTABBAR_PAINTINFO`, `PSTABBAR_MESSAGEINFO` and `PSTABBAR_TABINFO` are public types of the
+`PsTabBar` module.
 The first two are documented under *Callbacks*. `PSTABBAR_TABINFO` is the control's internal
 per-tab record — its derived rect fields are produced by the layout and must never be written
 from outside; reach them through `PsTabBar_GetTabRect` / `PsTabBar_GetTabParts` instead.
 
 ## Running the demo
 
-The demo loads **Segoe Fluent Icons** at startup via `AddFontResourceEx`, and
+The demo is in the toolchain's `examples/PsControls/PsTabBar/`. Build it there with
+`tiko build` (debug, `-g -exx`) or `tiko build --profile release`.
+
+It loads **Segoe Fluent Icons** at startup via `AddFontResourceEx`, and
 **aborts if the font is absent** — the control family draws its glyphs from it.
 
 The font ships with Windows 11 but is Microsoft's, not ours, so it is not
-redistributed here. Copy it in once before building:
+redistributed here. The demos share one copy, `examples/PsControls/SegoeFluentIcons.ttf`;
+copy it in once, from `examples/PsControls/`, before running:
 
 ```bash
 copy C:\Windows\Fonts\SegoeIcons.ttf SegoeFluentIcons.ttf

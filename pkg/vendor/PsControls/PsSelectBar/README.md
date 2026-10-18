@@ -31,23 +31,31 @@ Three bars: the Output-panel style with one current entry underlined, a blue-acc
 
 ## Requirements
 
-**Files to copy into your project:**
+The module is `vendor/PsControls/PsSelectBar`, comes with the toolchain, and brings in
+`PsBufferPaint` and `PsTipHost` (the tooltip backend switch, which in turn brings in `PsTooltip`,
+reachable with `PSTIP_MODE_PS`) itself:
 
-| File | Purpose |
-|---|---|
-| `PsSelectBar.ti` | Declarations — types, callbacks, constants, function prototypes |
-| `PsSelectBar.tiko` | Implementation |
-| `PsBufferPaint.ti` | The flicker-free drawing surface the control paints through |
-| `PsBufferPaint.tiko` | Its implementation |
-| `PsTipHost.ti` | The tooltip backend switch — declarations |
-| `PsTipHost.tiko` | Its implementation |
-| `PsTooltip.ti` | The owner-drawn tooltip, reachable with `PSTIP_MODE_PS` — declarations |
-| `PsTooltip.tiko` | Its implementation |
+```freebasic
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+#import "vendor/PsControls/PsTipHost"
+#import "vendor/PsControls/PsTooltip"
+#import "vendor/PsControls/PsSelectBar"
+
+using gui
+using gdiplus
+using PsTipHost
+using PsTooltip
+using PsSelectBar
+```
+
+The `PsTipHost` and `PsTooltip` lines are needed only to name `PSTIP_MODE_*` or call
+`PsTooltip_*` yourself, as the tooltip example below does.
 
 **tiko and its sys/win package are required.** The control is a `CWindow` (from `sys/win/gui`)
-and `PsBufferPaint` draws through `sys/win/gdiplus`. None of the control's files imports a
-package itself: your main file imports them before including the control (see *Include order*).
-Build with `tiko build` in a folder whose `tiko.toml` defines `UNICODE`, as the demo's does:
+and `PsBufferPaint` draws through `sys/win/gdiplus`. Build with `tiko build` in a folder whose
+`tiko.toml` defines `UNICODE`, as the demo's does:
 
 ```toml
 [target.main]
@@ -63,26 +71,8 @@ UNICODE = "1"
 file cannot `#define` it ahead of `#import "sys/win"`, and without it every bare Win32 name —
 `DrawText`, `SetWindowText`, `CreateFontIndirect` — binds its ANSI form.
 
-**Include order.** The imports and `using` lines come first, then the two implementation files
-in this order. `PsSelectBar.tiko` pulls in its own `.ti`, which pulls in `PsBufferPaint.ti` and
-`PsTipHost.ti`; it also pulls in `PsTipHost.tiko` itself, which pulls in `PsTooltip.tiko`. So the
-four tooltip files must be present on disk, but they need **no include line of their own** — the
-host's include list is unchanged:
-
-```freebasic
-#import "sys/win"
-#import "sys/win/gui"
-#import "sys/win/gdiplus"
-
-using gui
-using gdiplus
-
-#include once "PsBufferPaint.tiko"
-#include once "PsSelectBar.tiko"
-```
-
 **GDI+ must be running before the first repaint and must outlive the last one.** Every repaint
-builds and tears down a `PsBufferPaint`, so bracket your message loop:
+builds and tears down a `PsPaintBuffer`, so bracket your message loop:
 
 ```freebasic
 dim as ULONG_PTR gdipToken = gdiplus.Init()
@@ -620,7 +610,7 @@ double buffer for this repaint; do not touch the screen DC.
 |---|---|
 | `hSelectBar` | The control, so the callback can query it |
 | `itemID` | The panel's model index |
-| `b` | The control's `PsBufferPaint` for this repaint (borrowed, not owned) |
+| `b` | The control's `PsPaintBuffer` for this repaint (borrowed, not owned) |
 | `rc` | The full cell, padding included — **fill this** |
 | `rcText` | Exactly the measured text box — the label goes here |
 | `rcIndicator` | Where the line goes; fill it when `isSelected` |
@@ -694,14 +684,15 @@ tip repeating it is noise.
 ## Constants
 
 One enum, the tooltip backend selector, taken by `PsSelectBar_SetTooltipMode` and returned by
-`PsSelectBar_GetTooltipMode`:
+`PsSelectBar_GetTooltipMode`. It belongs to the `PsTipHost` module, so naming it takes
+`#import "vendor/PsControls/PsTipHost"` and `using PsTipHost`:
 
 | Constant | Value | Meaning |
 |---|---:|---|
 | `PSTIP_MODE_SYSTEM` | 0 | The comctl32 tooltip. **The default.** |
 | `PSTIP_MODE_PS` | 1 | `PsTooltip` — owner-drawn, themeable, word-wrapping |
 
-The tunable defaults are `#define`s:
+The tunable defaults are constants:
 
 | Constant | Value | Meaning |
 |---|---:|---|

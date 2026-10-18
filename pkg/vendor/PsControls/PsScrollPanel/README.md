@@ -30,21 +30,23 @@ A settings page taller than its viewport. The scrollbar **is not visible here, a
 
 ## Requirements
 
-**Files to copy into your project:**
+The module is `vendor/PsControls/PsScrollPanel`, comes with the toolchain, and brings in
+`PsBufferPaint` and `PsVScrollBar` (the vertical scrollbar the control creates and owns) itself:
 
-| File | Purpose |
-|---|---|
-| `PsScrollPanel.ti` | Declarations — types, callbacks, constants, function prototypes |
-| `PsScrollPanel.tiko` | Implementation |
-| `PsVScrollBar.ti` | The vertical scrollbar the control creates and owns |
-| `PsVScrollBar.tiko` | Its implementation |
-| `PsBufferPaint.ti` | The flicker-free drawing surface both controls paint through |
-| `PsBufferPaint.tiko` | Its implementation |
+```freebasic
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+#import "vendor/PsControls/PsScrollPanel"
+
+using gui
+using gdiplus
+using PsScrollPanel
+```
 
 **tiko and its sys/win package are required.** The control is a `CWindow` (from `sys/win/gui`)
-and `PsBufferPaint` draws through `sys/win/gdiplus`. None of the control's files imports a
-package itself: your main file imports them before including the control (see *Include order*).
-Build with `tiko build` in a folder whose `tiko.toml` defines `UNICODE`, as the demo's does:
+and `PsBufferPaint` draws through `sys/win/gdiplus`. Build with `tiko build` in a folder whose
+`tiko.toml` defines `UNICODE`, as the demo's does:
 
 ```toml
 [target.main]
@@ -60,23 +62,6 @@ UNICODE = "1"
 file cannot `#define` it ahead of `#import "sys/win"`, and without it every bare Win32 name —
 `DrawText`, `SetWindowText`, `CreateFontIndirect` — binds its ANSI form.
 
-**Include order.** `PsScrollPanel.ti` pulls in `PsBufferPaint.ti` and `PsVScrollBar.ti` for the
-types it names, but the package imports and `using` lines must come first, and the three
-implementation files must then be included in dependency order:
-
-```freebasic
-#import "sys/win"
-#import "sys/win/gui"
-#import "sys/win/gdiplus"
-
-using gui
-using gdiplus
-
-#include once "PsBufferPaint.tiko"
-#include once "PsVScrollBar.tiko"
-#include once "PsScrollPanel.tiko"
-```
-
 **GDI+ must be running before the first repaint and must outlive the last one.** Both controls
 render their geometry through GDI+, so bracket your message loop:
 
@@ -87,7 +72,7 @@ gdiplus.Uninit( gdipToken )
 ```
 
 `gdiplus.Uninit` must come after every window is destroyed, because each repaint builds and
-tears down a `PsBufferPaint`.
+tears down a `PsPaintBuffer`.
 
 **There is no message-filter obligation.** The control installs no pump filter and exports
 none: it needs nothing from your message loop in order to work.
@@ -494,7 +479,7 @@ boxes, alternating bands and so on.
 |---|---|
 | `hScrollPanel` | The container, so the callback can query the control |
 | `hPanel` | The window actually being painted — the page |
-| `b` | The page's `PsBufferPaint` for this repaint (borrowed, not owned) |
+| `b` | The page's `PsPaintBuffer` for this repaint (borrowed, not owned) |
 | `rcClient` | **The whole page**, not the visible slice |
 | `nPos` | The current scroll offset, for content that cares |
 
@@ -575,12 +560,12 @@ which is what makes those safe to call from inside this handler.
 
 ## Constants
 
-There are no enums. Four `#define`s carry the defaults:
+There are no enums. Four constants carry the defaults:
 
 | Constant | Value | Meaning |
 |---|---:|---|
 | `PSSCROLLPANEL_LINE_HEIGHT` | 20 | Default wheel line height in unscaled pixels, DPI-scaled at use. Change it per instance with `PsScrollPanel_SetLineHeight`. |
-| `CVSCROLL_DEFAULT_WIDTH` | 12 | Default strip width in unscaled pixels, DPI-scaled at use. From `PsVScrollBar.ti`. Change it per instance with `PsScrollPanel_SetScrollBarWidth`. |
+| `CVSCROLL_DEFAULT_WIDTH` | 12 | Default strip width in unscaled pixels, DPI-scaled at use. From the `PsVScrollBar` module — import it too to name this. Change it per instance with `PsScrollPanel_SetScrollBarWidth`. |
 | `PSSCROLLPANEL_REVEAL_MS` | 100 | The reveal poll interval, in milliseconds. |
 | `IDT_CSCROLLPANEL_REVEAL` | `&hCB30` | The reveal timer's id. Timer ids are per-window, so every instance shares this one — but do not use it for a timer of your own on the container. |
 
@@ -588,8 +573,8 @@ There are no enums. Four `#define`s carry the defaults:
 
 ## Related controls
 
-PsScrollPanel **creates and owns a `PsVScrollBar`**, which is why `PsVScrollBar.ti` / `.tiko` are
-required files rather than optional ones. The bar's rectangle, visibility, range and position
+PsScrollPanel **creates and owns a `PsVScrollBar`**, which is why the module imports
+`PsVScrollBar` itself. The bar's rectangle, visibility, range and position
 all belong to the control; `PsScrollPanel_GetScrollBar` exists for the things this API does not
 expose, such as installing a custom bar painter. Do not show, hide, move or resize it yourself.
 

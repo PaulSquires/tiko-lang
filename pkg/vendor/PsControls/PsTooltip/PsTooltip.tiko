@@ -68,28 +68,28 @@ using PsBufferPaint
 ' Guards a stale HWND whose slot 0 now belongs to some other window. The clock tick walks a
 ' registry asynchronously to whatever the host is doing, so "is this still one of ours?" is a
 ' question that genuinely gets asked here -- the same reason PsOptionButton carries one.
-#define PSTOOLTIP_SIGNATURE   &h54495054    ' 'TIPT'
+public const PSTOOLTIP_SIGNATURE = &h54495054   ' 'TIPT'
 
 ' --- geometry defaults, in UNSCALED pixels. All are DPI-scaled once, at Create. -----------
-#define PSTOOLTIP_DEFAULT_PADX         10
-#define PSTOOLTIP_DEFAULT_PADY          7
-#define PSTOOLTIP_DEFAULT_CURVATURE     6    ' corner ellipse DIAMETER, GDI's vocabulary
-#define PSTOOLTIP_DEFAULT_STEMW        14
-#define PSTOOLTIP_DEFAULT_STEMH         7
-#define PSTOOLTIP_DEFAULT_GLYPHCELL    20
-#define PSTOOLTIP_DEFAULT_GLYPHGAP      8
-#define PSTOOLTIP_DEFAULT_TITLEGAP      4
-#define PSTOOLTIP_DEFAULT_MOVETOL       3    ' cursor jitter tolerated while dwelling
+public const PSTOOLTIP_DEFAULT_PADX = 10
+public const PSTOOLTIP_DEFAULT_PADY = 7
+public const PSTOOLTIP_DEFAULT_CURVATURE = 6   ' corner ellipse DIAMETER, GDI's vocabulary
+public const PSTOOLTIP_DEFAULT_STEMW = 14
+public const PSTOOLTIP_DEFAULT_STEMH = 7
+public const PSTOOLTIP_DEFAULT_GLYPHCELL = 20
+public const PSTOOLTIP_DEFAULT_GLYPHGAP = 8
+public const PSTOOLTIP_DEFAULT_TITLEGAP = 4
+public const PSTOOLTIP_DEFAULT_MOVETOL = 3   ' cursor jitter tolerated while dwelling
 
 ' --- timing defaults, in MILLISECONDS -----------------------------------------------------
 ' Derived at Create from GetDoubleClickTime(), which is comctl32's own rule for TTDT_INITIAL /
 ' TTDT_AUTOPOP / TTDT_RESHOW. A tip that appears on a different beat from every other tip on
 ' the machine reads as broken, so the system setting is the right source.
-#define PSTOOLTIP_DEFAULT_FADEMS      120
+public const PSTOOLTIP_DEFAULT_FADEMS = 120
 
 ' The fade wants a finer clock than the dwell does. Both are shared across every instance.
 public const PSTOOLTIP_CLOCK_IDLE_MS = 100
-#define PSTOOLTIP_CLOCK_FADE_MS        15
+public const PSTOOLTIP_CLOCK_FADE_MS = 15
 
 
 ' Frame style. Orthogonal to everything else: a balloon is the same tip with a stem.
@@ -662,8 +662,8 @@ public dim shared gTIP_ClockMs  as long = 0
 dim shared gTIP_ClassReg as boolean = false
 
 ' Process-wide defaults applied by PsTooltip_Create. Each is INDEPENDENTLY ARMED, so a field
-' the host never set keeps whatever Create derives for it -- see the .ti header for why that
-' is not one struct. Same thread, same lifetime rules as the registry above.
+' the host never set keeps whatever Create derives for it -- see the declarations at the top
+' of this file for why that is not one struct. Same thread, same lifetime rules as the registry above.
 dim shared gTIP_DefColors     as PSTOOLTIP_COLORS
 dim shared gTIP_HasDefColors  as boolean = false
 dim shared gTIP_DefFontText   as HFONT
@@ -825,7 +825,7 @@ end sub
 
 
 ' ========================================================================================
-' PURE FUNCTIONS -- see the contract in PsTooltip.ti. Nothing here touches a window, a timer
+' PURE FUNCTIONS -- see the contract at the top of this file. Nothing here touches a window, a timer
 ' or the clock; that is what makes the placement law, the stem geometry, the fade ramp and
 ' the show decision assertable over their whole ranges with no message pump.
 ' ========================================================================================
@@ -854,7 +854,7 @@ public function PsTooltip_ComputeOrigin( _
     end select
 
     ' Horizontal: a plain clamp. There is no flip-left case, because no placement mode puts
-    ' the tip beside its anchor -- see the TIP_ALIGN_* comment in the header.
+    ' the tip beside its anchor -- see the TIP_ALIGN_* comment at the top of this file.
     if x + tipW > rcWork.right then x = rcWork.right - tipW
     if x < rcWork.left then x = rcWork.left
 
@@ -1179,7 +1179,7 @@ end sub
 ' ========================================================================================
 ' TEXT RESOLUTION -- authored text wins, then the callback, then nothing.
 '
-' NO CAPTION FALLBACK, deliberately: see the TIP_TooltipCallbackFunc header for why that is a
+' NO CAPTION FALLBACK, deliberately: see the TIP_TooltipCallbackFunc comment above for why that is a
 ' real behaviour change from four of the controls this replaces, and a wanted one.
 ' ========================================================================================
 private function TIP_ResolveText( byval pTip as PSTOOLTIP_STATE ptr ) as ustring
@@ -1823,7 +1823,7 @@ private function PsTooltip_WndProc( byval hwnd as HWND, byval uMsg as UINT, _
         return true
 
     case WM_DESTROY
-        ' Result deliberately ignored -- see the MessageCallback header.
+        ' Result deliberately ignored -- see the MessageCallback comment at the top of this file.
         TIP_CallMessage( pTip, hwnd, uMsg, wParam, lParam )
         if pTip then
             if gTIP_Visible = hwnd then gTIP_Visible = 0
@@ -2264,7 +2264,7 @@ end sub
 ' the HFONT and keeps it alive, exactly as it does for PsTooltip_SetFonts.
 '
 ' The pixel->point conversion is the whole reason this is worth a shared function rather than
-' six lines in each host; see the contract in the .ti before changing it. Briefly: lfHeight is
+' six lines in each host; see its declaration above before changing it. Briefly: lfHeight is
 ' pixels at the current DPI, a point size is not, and every CreateFont-style call that takes
 ' points scales them again.
 ' ========================================================================================
@@ -2425,7 +2425,7 @@ end function
 ' RENDER PROBES
 '
 ' Both drive PsTooltip_Render -- the SAME function WM_PAINT calls -- into an offscreen buffer.
-' See the header for why that split is the whole point, and for the warning about inheriting a
+' See their declarations above for why that split is the whole point, and for the warning about inheriting a
 ' tone threshold from a sibling.
 ' ========================================================================================
 private function TIP_RenderOffscreen( byval pTip as PSTOOLTIP_STATE ptr, byval nPart as long, _
@@ -2478,7 +2478,7 @@ end function
 
 
 ' ========================================================================================
-' Drive exactly ONE tick with injected inputs. See the contract in PsTooltip.ti.
+' Drive exactly ONE tick with injected inputs. See the contract at the top of this file.
 ' ========================================================================================
 public sub PsTooltip_TickForTest( byval hTooltip as HWND, byval ptCursor as POINT, _
                            byval bOver as boolean, byval bButtonDown as boolean, _

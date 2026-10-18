@@ -23,23 +23,31 @@ codepoint.
 
 ## Requirements
 
-Copy these files into your project:
+The module is `vendor/PsControls/PsCheckBox`. It comes with the toolchain and brings in
+PsBufferPaint, PsTipHost and PsTooltip itself.
 
-| File | Purpose |
-|---|---|
-| `PsCheckBox.ti` | Public surface: types, colours, constants, declarations |
-| `PsCheckBox.tiko` | Implementation |
-| `PsBufferPaint.ti` | The double-buffered drawing surface the control paints through |
-| `PsBufferPaint.tiko` | |
-| `PsTipHost.ti` / `PsTipHost.tiko` | The tooltip backend switch — see *Tooltips: two backends* |
-| `PsTooltip.ti` / `PsTooltip.tiko` | The owner-drawn tooltip. Required even if you never switch to it: `PsTipHost.tiko` includes it. |
+```freebasic
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+#import "vendor/PsControls/PsTipHost"
+#import "vendor/PsControls/PsTooltip"
+#import "vendor/PsControls/PsCheckBox"
 
-You also need a font supplying the box glyph — `SegoeFluentIcons.ttf` ships with this repo.
+using gui
+using gdiplus
+using PsTipHost
+using PsTooltip
+using PsCheckBox
+```
 
-**tiko and its sys/win package are required.** The control is a `CWindow` (from `sys/win/gui`)
-and `PsBufferPaint` draws through `sys/win/gdiplus`. None of the control's files imports a
-package itself: your main file imports them before including the control (see *Include order*).
-Build with `tiko build` in a folder whose `tiko.toml` defines `UNICODE`, as the demo's does:
+The PsTipHost and PsTooltip lines are needed only to name `PSTIP_MODE_*` and to call the
+`PsTooltip_*` procedures — see *Tooltips: two backends*.
+
+You also need a font supplying the box glyph — Segoe Fluent Icons; see *Running the demo*.
+
+Your program must define `UNICODE`, as the vendor package does for its modules. Set it in
+`tiko.toml`, as the demo does:
 
 ```toml
 [target.main]
@@ -54,30 +62,8 @@ UNICODE = "1"
 `UNICODE` has to come from the manifest (or `-d UNICODE` on a `tiko` command line): a source
 file cannot `#define` it ahead of `#import "sys/win"`, and without it every bare Win32 name —
 `DrawText`, `SetWindowText`, `CreateFontIndirect` — binds its ANSI form.
-In the demo folder, `tiko build` (debug profile: `-g -exx`) or `tiko build --profile release`
-writes `main.exe` there.
-
-### Include order
-
-`PsCheckBox.tiko` includes `PsCheckBox.ti`, which includes `PsBufferPaint.ti` and `PsTipHost.ti`;
-`PsCheckBox.tiko` also includes `PsTipHost.tiko`, which in turn includes `PsTooltip.tiko`. So the
-tooltip files need no include line of your own. The `#import` and `using` lines and the
-**implementation** of `PsBufferPaint` are not pulled in for you, so write them yourself, first:
-
-```freebasic
-#import "sys/win"
-#import "sys/win/gui"
-#import "sys/win/gdiplus"
-
-using gui
-using gdiplus
-
-#include once "PsBufferPaint.tiko"
-#include once "PsCheckBox.tiko"
-```
-
-Beyond that there is no ordering trap: `PsCheckBox.ti` names no type it does not itself include,
-so it compiles at any site that has already made the imports and loaded `PsBufferPaint`.
+The demo is in the toolchain's `examples/PsControls/PsCheckBox/`: `tiko build` there (debug
+profile: `-g -exx`) or `tiko build --profile release` writes `main.exe` there.
 
 ### GDI+ must be running
 
@@ -255,7 +241,7 @@ the release decides that nothing happened.
   There is no indeterminate / tri-state.
 - **One colour per box.** The composite glyph is a single piece of ink, so the box outline and the
   tick inside it always share a colour. A two-colour box needs a paint callback.
-- **No mnemonics.** `"&Enable"` draws a literal ampersand. `PsBufferPaint.PaintText` forces
+- **No mnemonics.** `"&Enable"` draws a literal ampersand. `PsPaintBuffer.PaintText` forces
   `DT_NOPREFIX`, so this is enforced by the renderer rather than merely intended. Wire an
   accelerator to `PsCheckBox_Toggle` instead.
 - **No multiline.** One line, ellipsized into the caption span. Wrapping would make the ideal
@@ -581,7 +567,7 @@ Return `""` for no tooltip.
 | Field | Meaning |
 |---|---|
 | `hCheckBox` | The control, so the callback can query it |
-| `b` | The control's `PsBufferPaint` for this repaint — paint through this |
+| `b` | The control's `PsPaintBuffer` for this repaint — paint through this |
 | `rcClient` | The whole client area |
 | `rcContent` | `rcClient` deflated by the focus-ring band |
 | `rcBox` | The box cell. Never empty |
@@ -655,9 +641,9 @@ out of the same test.
 | `PSCHECKBOX_GLYPH_UNCHECKED` | `U+E739` | Checkbox — an empty outlined square |
 | `PSCHECKBOX_GLYPH_CHECKED` | `U+E73A` | CheckboxComposite — the square with a tick |
 
-Both are written in the header as `\u` escapes rather than as literal characters, because a
-BOM-less source file is read as bytes and a pasted `U+E739` would arrive as its three UTF-8 bytes.
-Do the same if you replace them from source.
+Both are written in the declarations at the top of `PsCheckBox.tiko` as `\u` escapes rather than
+as literal characters, because a BOM-less source file is read as bytes and a pasted `U+E739`
+would arrive as its three UTF-8 bytes. Do the same if you replace them from source.
 
 ### Default geometry
 
@@ -693,7 +679,8 @@ The demo loads **Segoe Fluent Icons** at startup via `AddFontResourceEx`, and
 **aborts if the font is absent** — the control family draws its glyphs from it.
 
 The font ships with Windows 11 but is Microsoft's, not ours, so it is not
-redistributed here. Copy it in once before building:
+redistributed here. The demo reads one shared copy, `examples/PsControls/SegoeFluentIcons.ttf`,
+one level above its own folder. Copy it there once, from `examples/PsControls`:
 
 ```bash
 copy C:\Windows\Fonts\SegoeIcons.ttf SegoeFluentIcons.ttf

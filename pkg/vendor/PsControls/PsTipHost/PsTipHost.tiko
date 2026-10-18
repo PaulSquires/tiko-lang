@@ -368,8 +368,8 @@ end sub
 ' ========================================================================================
 ' PUBLIC API -- tracked tips
 '
-' The control decides when, what and where; the dwell plays no part. See the .ti header for
-' why the two backends are handed different things.
+' The control decides when, what and where; the dwell plays no part. See the declarations at
+' the top of this file for why the two backends are handed different things.
 ' ========================================================================================
 public sub PsTipHost_SetTracked( byval pHost as PSTIPHOST_STATE ptr, byval bTracked as boolean )
     if pHost = 0 then exit sub

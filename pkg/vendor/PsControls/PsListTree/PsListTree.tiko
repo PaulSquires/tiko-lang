@@ -33,16 +33,16 @@ using PsVScrollBar
 ' periodic cursor check acts as a safety net. Timer IDs are per-window, so every
 ' instance can share this id. Value is deliberately unusual to avoid colliding with
 ' any timer the standard listbox uses internally.
-#define IDT_CLISTTREE_HOTTRACK   &hCB01
-#define PSLISTTREE_HOTTRACK_MS    100
+public const IDT_CLISTTREE_HOTTRACK = &hCB01
+public const PSLISTTREE_HOTTRACK_MS = 100
 
 ' Auto-scroll timer used ONLY while a drag-reorder is in progress: when the cursor is held
 ' near the top/bottom edge the list scrolls a row at a time so off-screen drop targets are
 ' reachable. Separate id from the hot-track timer so the two never step on each other.
-#define IDT_CLISTTREE_DRAGSCROLL &hCB02
-#define PSLISTTREE_DRAGSCROLL_MS   60
+public const IDT_CLISTTREE_DRAGSCROLL = &hCB02
+public const PSLISTTREE_DRAGSCROLL_MS = 60
 ' How close to the top/bottom edge (in pixels) the cursor must be to trigger auto-scroll.
-#define PSLISTTREE_DRAGSCROLL_ZONE 18
+public const PSLISTTREE_DRAGSCROLL_ZONE = 18
 
 ' One cell of a multi-column row, as handed to the paint callback. The rect is in the
 ' row buffer's coordinate space (y spans 0..row height; x comes from the header's
@@ -453,7 +453,7 @@ public type PSLISTTREE_STATE
     declare sub      Refresh()
 end type
 
-' Defined in PsListTree.tiko, but PSLISTTREE_STATE.Refresh (below) has to call it -- push the
+' Defined further down this file, but PSLISTTREE_STATE.Refresh (below) has to call it -- push the
 ' scrollbar's range/visibility to match the current model + scroll position.
 public declare sub      PsListTree_SyncScrollBar( byval pList as PSLISTTREE_STATE ptr )
 public declare sub      PsListTree_SyncViewFromModel( byval pList as PSLISTTREE_STATE ptr )
@@ -1220,8 +1220,8 @@ public declare sub      PsListTree_SetScrollBarPaintCallback( byval hListControl
 ' ----------------------------------------------------------------------------------------
 ' Columns and the header band.  All optional: with no columns defined the control paints
 ' exactly as before. Column state lives in the embedded PsColumnHeader child (the single
-' source of truth); these wrappers delegate to it. Widths are PIXELS (see PsColumnHeader.ti
-' for the width/min-width/fill rules); HeaderHeight is unscaled units like RowHeight.
+' source of truth); these wrappers delegate to it. Widths are PIXELS (see PsColumnHeader's
+' module header for the width/min-width/fill rules); HeaderHeight is unscaled units like RowHeight.
 '
 '   Columns can be defined with the header band hidden (ShowHeader false, the default):
 '   rows still paint in columns, there is just no interactive header strip. The header
@@ -1296,7 +1296,8 @@ public declare sub      PsListTree_SetBeginLabelEditCallback( byval hListControl
 public declare sub      PsListTree_SetEndLabelEditCallback( byval hListControl as HWND, byval userfunc as EndLabelEditCallbackFunc )
 public declare sub      PsListTree_SetExpandCollapseCallback( byval hListControl as HWND, byval usersub as ExpandCollapseCallbackSub )
 
-' The tooltip backend switch, pulled in here so a host needs no extra include line.
+' The tooltip backend switch (PsTipHost) is imported at the top of this module, so a host
+' needs no import of its own for it.
 
 
 function GetListTreePointer( byval hListControl as HWND ) as PSLISTTREE_STATE ptr
@@ -1938,7 +1939,8 @@ end function
 
 ' ========================================================================================
 ' Per-cell text. Column 0 aliases the row's Text (the pre-columns API); higher columns
-' live in the row's sparse cells() storage -- see the .ti contract. Storage is grown by
+' live in the row's sparse cells() storage -- see the PSLISTTREE_ROWINFO contract at the top
+' of this file. Storage is grown by
 ' the ROWINFO member sub because fbc cannot parse `redim rows(i).cells(...)`.
 ' ========================================================================================
 public function PsListTree_SetCellText( byval hListControl as HWND, byval row as integer, byval col as integer, byval Text as ustring ) as boolean
@@ -1986,8 +1988,8 @@ end function
 
 ' ========================================================================================
 ' Row column-span. A spanned row is an ordinary, selectable row that paints as ONE cell
-' across the whole column band (its text stays in column 0). See the PAINTINFO contract in
-' the .ti. Programmatic (silent); the change repaints so a visible row reflows immediately.
+' across the whole column band (its text stays in column 0). See the PAINTINFO contract at
+' the top of this file. Programmatic (silent); the change repaints so a visible row reflows immediately.
 ' ========================================================================================
 public function PsListTree_SetRowSpanColumns( byval hListControl as HWND, byval row as integer, byval bSpan as boolean = true ) as boolean
     dim as PSLISTTREE_STATE ptr pList = GetListTreePointer(hListControl)
@@ -2016,7 +2018,7 @@ end function
 ' ========================================================================================
 ' Row selectability. A non-selectable row cannot be selected or focused by ANY path (the
 ' invariant is enforced in SetRowSelected / SelectOnly / SelectRange and the four public
-' setters) and keyboard navigation skips it. See the .ti contract.
+' setters) and keyboard navigation skips it. See the contract at the top of this file.
 ' ========================================================================================
 public function PsListTree_SetRowSelectable( byval hListControl as HWND, byval row as integer, byval bSelectable as boolean = true ) as boolean
     dim as PSLISTTREE_STATE ptr pList = GetListTreePointer(hListControl)

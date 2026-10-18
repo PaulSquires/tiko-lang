@@ -27,19 +27,23 @@ One vertical bar and one horizontal bar dividing three panes. The **bars are the
 
 ## Requirements
 
-**Files to copy into your project:**
+The module is `vendor/PsControls/PsSplitter`, comes with the toolchain, and brings in
+`PsBufferPaint` itself:
 
-| File | Purpose |
-|---|---|
-| `PsSplitter.ti` | Declarations — types, callbacks, constants, function prototypes |
-| `PsSplitter.tiko` | Implementation |
-| `PsBufferPaint.ti` | The flicker-free drawing surface the control paints through |
-| `PsBufferPaint.tiko` | Its implementation |
+```freebasic
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+#import "vendor/PsControls/PsSplitter"
+
+using gui
+using gdiplus
+using PsSplitter
+```
 
 **tiko and its sys/win package are required.** The control is a `CWindow` (from `sys/win/gui`)
-and `PsBufferPaint` draws through `sys/win/gdiplus`. None of the control's files imports a
-package itself: your main file imports them before including the control (see *Include order*).
-Build with `tiko build` in a folder whose `tiko.toml` defines `UNICODE`, as the demo's does:
+and `PsBufferPaint` draws through `sys/win/gdiplus`. Build with `tiko build` in a folder whose
+`tiko.toml` defines `UNICODE`, as the demo's does:
 
 ```toml
 [target.main]
@@ -55,21 +59,6 @@ UNICODE = "1"
 file cannot `#define` it ahead of `#import "sys/win"`, and without it every bare Win32 name —
 `DrawText`, `SetWindowText`, `CreateFontIndirect` — binds its ANSI form.
 
-**Include order.** `PsSplitter.tiko` pulls in its own `.ti`, which pulls in `PsBufferPaint.ti`.
-The two implementation files are included in this order, after the imports and `using` lines:
-
-```freebasic
-#import "sys/win"
-#import "sys/win/gui"
-#import "sys/win/gdiplus"
-
-using gui
-using gdiplus
-
-#include once "PsBufferPaint.tiko"
-#include once "PsSplitter.tiko"
-```
-
 **GDI+ must be running before the first repaint and must outlive the last one.** The control
 renders through GDI+, so bracket your message loop:
 
@@ -80,7 +69,7 @@ gdiplus.Uninit( gdipToken )
 ```
 
 `gdiplus.Uninit` must come after every window is destroyed, because each repaint builds and
-tears down a `PsBufferPaint`.
+tears down a `PsPaintBuffer`.
 
 **There is no pump obligation.** The control needs no message filter, no `IsDialogMessage` and
 no accelerator cooperation. It never takes focus and handles no keys, so an ordinary
@@ -495,7 +484,7 @@ of the bar, background included.
 | Field | Meaning |
 |---|---|
 | `hSplitter` | The control, so the callback can query it |
-| `b` | The control's `PsBufferPaint` for this repaint (borrowed, not owned) |
+| `b` | The control's `PsPaintBuffer` for this repaint (borrowed, not owned) |
 | `rcClient` | The whole bar, in client coordinates |
 | `nOrientation` | `PSSPLITTER_VERTICAL` or `PSSPLITTER_HORIZONTAL` — one callback can serve both kinds of bar |
 | `isHot` | The mouse is over the bar. **Stays TRUE for the whole of a drag** |

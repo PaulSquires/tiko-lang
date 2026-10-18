@@ -1,9 +1,7 @@
 # PsColorPicker
 
 A modal colour picker popup for tiko / Win32, owner-drawn throughout, built on tiko's sys/win
-package and [PsBufferPaint](https://github.com/PaulSquires/PsBufferPaint).
-
-Repository: [github.com/PaulSquires/PsColorPicker](https://github.com/PaulSquires/PsColorPicker)
+package and [PsBufferPaint](../PsBufferPaint/README.md).
 
 `PsColorPicker_DoModal` puts a chromeless popup on screen, blocks until the user answers, and
 returns `TRUE` with the chosen colour written back — or `FALSE` if they abandoned it, in which
@@ -28,21 +26,27 @@ the OK button. Alpha is hidden here — it is shown by default and this host tur
 
 ## Requirements
 
-| File | Why |
-| --- | --- |
-| `PsColorPicker.ti` | The public surface. |
-| `PsColorPicker.tiko` | The implementation. |
-| `PsBufferPaint.ti` / `PsBufferPaint.tiko` | The flicker-free drawing surface everything is painted through. |
-| `PsVScrollBar.ti` / `PsVScrollBar.tiko` | The list scrollbar. You never reference it, but the files must be present. |
+The module is `vendor/PsControls/PsColorPicker`. It comes with the toolchain and brings in
+PsBufferPaint and PsVScrollBar (the list scrollbar, which you never reference) itself.
 
-`PsColorPicker_SelfTest.tiko` is **not** optional if you take `PsColorPicker.tiko` unaltered — the
-implementation includes it at the end. Either copy it along with the rest, or delete that
-`#include once` line.
+```freebasic
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+#import "vendor/PsControls/PsBufferPaint"
+#import "vendor/PsControls/PsColorPicker"
 
-**tiko and its sys/win package are required.** The popup is a `CWindow` (from `sys/win/gui`)
-and `PsBufferPaint` draws through `sys/win/gdiplus`. None of the control's files imports a
-package itself: your main file imports them before including the picker (see *Include order*).
-Build with `tiko build` in a folder whose `tiko.toml` defines `UNICODE`, as the demo's does:
+using gui
+using gdiplus
+using PsBufferPaint
+using PsColorPicker
+```
+
+The PsBufferPaint line is needed only for a paint callback that draws through `p->b` — see
+*Painting*.
+
+Your program must define `UNICODE`, as the vendor package does for its modules. Set it in
+`tiko.toml`, as the demo does:
 
 ```toml
 [target.main]
@@ -57,27 +61,8 @@ UNICODE = "1"
 `UNICODE` has to come from the manifest (or `-d UNICODE` on a `tiko` command line): a source
 file cannot `#define` it ahead of `#import "sys/win"`, and without it every bare Win32 name —
 `DrawText`, `SetWindowText`, `CreateFontIndirect` — binds its ANSI form.
-In the demo folder, `tiko build` (debug profile: `-g -exx`) or `tiko build --profile release`
-writes `main.exe` there.
-
-### Include order
-
-`PsColorPicker.ti` includes `PsBufferPaint.ti` and `PsVScrollBar.ti` for you, and
-`PsColorPicker.tiko` includes `PsVScrollBar.tiko` for you. So the only things you must get right are
-that the `#import` and `using` lines come first and that `PsBufferPaint.tiko` precedes
-`PsColorPicker.tiko`:
-
-```freebasic
-#import "sys/win"
-#import "sys/win/gui"
-#import "sys/win/gdiplus"
-
-using gui
-using gdiplus
-
-#include once "PsBufferPaint.tiko"
-#include once "PsColorPicker.tiko"
-```
+The demo is in the toolchain's `examples/PsControls/PsColorPicker/`: `tiko build` there (debug
+profile: `-g -exx`) or `tiko build --profile release` writes `main.exe` there.
 
 ### GDI+ must be running
 
@@ -621,10 +606,10 @@ DPI scaling is applied once at creation. Every setter afterwards takes raw pixel
 
 ## Related controls
 
-The popup embeds a [PsVScrollBar](https://github.com/PaulSquires/PsVScrollBar) for the Web and
+The popup embeds a [PsVScrollBar](../PsVScrollBar/README.md) for the Web and
 System lists, and paints everything through
-[PsBufferPaint](https://github.com/PaulSquires/PsBufferPaint). You never call into either directly,
-but their files must be present — see Requirements.
+[PsBufferPaint](../PsBufferPaint/README.md). You never call into either directly;
+the module imports both itself — see Requirements.
 
 ## Licence
 

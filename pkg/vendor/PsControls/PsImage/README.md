@@ -4,33 +4,38 @@ A small support class for loading a raster image — `.ico`, `.png`, `.bmp`, `.j
 `HBITMAP`/`HICON` — so an owner-drawn control can show a **real picture in an icon slot** instead
 of (or as well as) a Segoe Fluent Icons glyph.
 
-It is not a control. It is a `TYPE` you construct, point at a file once, and keep alongside a
+It is not a control. It is a `TYPE`, `PsImageFile`, you construct, point at a file once, and keep alongside a
 control for as long as that control needs the image. It does exactly three things — **load**
 (decode once, at natural size), **measure** (report natural width/height), and hand out the
-decoded image — and it does **not** draw. The drawing is [`PsBufferPaint.PaintImage`](#drawing),
+decoded image — and it does **not** draw. The drawing is [`PsPaintBuffer.PaintImage`](#drawing),
 which owns the paint surface's GDI+ graphics object. Load here, draw there.
 
 PsImage is the loader that pairs with `PsBufferPaint`, in the same way `PsBufferPaint` is the
 surface every Ps\* control paints through.
 
-Repository: <https://github.com/PaulSquires/PsImage>
-
 ---
 
 ## Requirements
 
-**Files to copy into your project:**
+The module is `vendor/PsControls/PsImage`, comes with the toolchain, and brings in
+`PsBufferPaint` — the surface whose `PaintImage` actually draws the loaded image — itself.
+PsImage decodes into `sys/win/gdiplus` objects (`CGpBitmap`). Import `PsBufferPaint` yourself as
+well to name the buffer and `PS_IMGFIT_*` at the draw site:
 
-| File | Purpose |
-|---|---|
-| `PsImage.ti` | Declarations — the `PsImage` type |
-| `PsImage.tiko` | Implementation |
-| `PsBufferPaint.ti` / `.tiko` | The surface whose `PaintImage` actually draws the loaded image |
+```freebasic
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+#import "vendor/PsControls/PsBufferPaint"
+#import "vendor/PsControls/PsImage"
 
-**tiko and its sys/win package are required.** PsImage decodes into `sys/win/gdiplus` objects
-(`CGpBitmap`), and `PsBufferPaint` draws through the same package. None of these files imports a
-package itself: your main file imports them before including PsImage (see *Include order*). Build with
-`tiko build` in a folder whose `tiko.toml` defines `UNICODE`, as the demo's does:
+using gui
+using gdiplus
+using PsBufferPaint
+using PsImage
+```
+
+Build with `tiko build` in a folder whose `tiko.toml` defines `UNICODE`, as the demo's does:
 
 ```toml
 [target.main]
@@ -45,24 +50,8 @@ UNICODE = "1"
 file cannot `#define` it ahead of `#import "sys/win"`, and without it every bare Win32 name —
 `DrawText`, `SetWindowText`, `CreateFontIndirect` — binds its ANSI form.
 
-`tiko build` (debug profile, `-g -exx`) or `tiko build --profile release` from PsImage's
-folder writes `main.exe` there.
-
-**Include order.** The package imports and `using` lines come first; after that the only rule
-is that `PsImage.tiko` comes before anything that uses it:
-
-```freebasic
-#import "sys/win"
-#import "sys/win/gui"
-#import "sys/win/gdiplus"
-
-using gui
-using gdiplus
-
-#include once "PsBufferPaint.tiko"
-#include once "PsImage.tiko"
-#include once "frmMain.tiko"        ' your own forms
-```
+`tiko build` (debug profile, `-g -exx`) or `tiko build --profile release` from the toolchain's
+`examples/PsControls/PsImage/` writes the demo's `main.exe` there.
 
 **GDI+ must be running before the first load and must outlive the last image.** Decoding builds
 GDI+ objects, so bracket your message loop — the same bracket `PsBufferPaint` already asks for:
@@ -70,7 +59,7 @@ GDI+ objects, so bracket your message loop — the same bracket `PsBufferPaint` 
 ```freebasic
 dim as ULONG_PTR gdipToken = gdiplus.Init()
 ' ... create windows, load images, run the message loop ...
-gdiplus.Uninit( gdipToken )      ' AFTER every PsImage has been destroyed
+gdiplus.Uninit( gdipToken )      ' AFTER every PsImageFile has been destroyed
 ```
 
 **There is no pump obligation.** PsImage owns no window and no timer — there is nothing to add to
@@ -85,7 +74,7 @@ your paint routine:
 
 ```freebasic
 ' --- once ---
-dim as PsImage img
+dim as PsImageFile img
 if img.Load( "C:\icons\save.png" ) then
     ' loaded
 end if
@@ -113,12 +102,12 @@ surface.
 | `IsValid()` | `long` | Non-zero once a load has succeeded and nothing has failed since. |
 | `NaturalWidth()` | `long` | Decoded pixel width, or 0 when not valid. |
 | `NaturalHeight()` | `long` | Decoded pixel height, or 0 when not valid. |
-| `Image()` | `CGpImage ptr` | The decoded image, for `PsBufferPaint.PaintImage`. `NULL` when not valid. **The PsImage keeps ownership — do not delete it.** |
+| `Image()` | `CGpImage ptr` | The decoded image, for `PsPaintBuffer.PaintImage`. `NULL` when not valid. **The `PsImageFile` keeps ownership — do not delete it.** |
 
 Notes:
 
 - **Decode happens once, at natural size.** Scaling to a cell is done at draw time by
-  `PaintImage`, with high-quality bicubic interpolation, so one PsImage can be drawn into cells
+  `PaintImage`, with high-quality bicubic interpolation, so one `PsImageFile` can be drawn into cells
   of different sizes without reloading.
 - **`.ico` uses a fast path** (`LoadImageW` → the `HICON` constructor) so the system picks the
   best-matching icon frame, then falls back to the generic file decoder if that fails.
@@ -126,7 +115,7 @@ Notes:
   already painted into the cell, so fill the cell background first if you want one.
 
 <a name="drawing"></a>
-## Drawing — `PsBufferPaint.PaintImage`
+## Drawing — `PsPaintBuffer.PaintImage`
 
 ```freebasic
 b.PaintImage( pImage as CGpImage ptr, rc as RECT ptr, nFit as long = PS_IMGFIT_ASPECT )
@@ -138,7 +127,7 @@ b.PaintImage( pImage as CGpImage ptr, rc as RECT ptr, nFit as long = PS_IMGFIT_A
 | `PS_IMGFIT_STRETCH` | Fill `rc` exactly, aspect ignored. |
 | `PS_IMGFIT_CENTER` | Natural size, centred, clipped by `rc` if larger. No scaling. |
 
-`PaintImage` lives on `PsBufferPaint` rather than on PsImage because it must draw through the
+`PaintImage` lives on `PsPaintBuffer` rather than on `PsImageFile` because it must draw through the
 buffer's own GDI+ graphics — a control building a second graphics object on the same device
 context would put two independently-batching GDI+ objects on one surface with nothing
 coordinating them.

@@ -1,7 +1,7 @@
 # PsOptionButton
 
 An owner-drawn option button (radio button) for tiko + Win32, built on tiko's sys/win package and
-[PsBufferPaint](https://github.com/PaulSquires/PsBufferPaint).
+[PsBufferPaint](../PsBufferPaint/README.md).
 
 A circle and an optional caption, side by side, with a focus ring around the pair. Unchecked
 draws a thin outlined ring; checked draws an accent-filled disc with a contrasting dot on it.
@@ -15,8 +15,6 @@ It also implements the keyboard behaviour a Windows radio group actually has, wh
 most hand-rolled radio buttons get wrong: **the whole group is a single tab stop**, and the arrow
 keys move the selection within it. Tab moves past the group, not through it.
 
-Repository: <https://github.com/PaulSquires/PsOptionButton>
-
 ---
 
 ## What it looks like
@@ -27,25 +25,34 @@ Repository: <https://github.com/PaulSquires/PsOptionButton>
 
 ## Requirements
 
-Copy these files into your project:
+The module is `vendor/PsControls/PsOptionButton`, comes with the toolchain, and brings in
+`PsBufferPaint`, `PsTipHost` (the tooltip backend switch — see *Tooltips: two backends*) and
+`PsTooltip` itself. The self-test (`PsOptionButton_RunSelfTest`) is part of the module.
 
-| File | Purpose |
-|---|---|
-| `PsOptionButton.ti` | public surface — types, enums, callbacks, declarations |
-| `PsOptionButton.tiko` | implementation |
-| `PsBufferPaint.ti` | flicker-free drawing surface |
-| `PsBufferPaint.tiko` | |
-| `PsTipHost.ti` / `PsTipHost.tiko` | the tooltip backend switch — see *Tooltips: two backends* |
-| `PsTooltip.ti` / `PsTooltip.tiko` | the owner-drawn tooltip. Required even if you never switch to it: `PsTipHost.tiko` includes it. |
-| `PsOptionButton_SelfTest.tiko` | the control's self-test (`PsOptionButton_RunSelfTest`). Required even if you never run it: `PsOptionButton.tiko` includes it at its end. |
+```freebasic
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+#import "vendor/PsControls/PsTipHost"
+#import "vendor/PsControls/PsTooltip"
+#import "vendor/PsControls/PsOptionButton"
+
+using gui
+using gdiplus
+using PsTipHost
+using PsTooltip
+using PsOptionButton
+```
+
+The `PsTipHost` and `PsTooltip` lines are needed only to name `PSTIP_MODE_*` or call
+`PsTooltip_*` yourself, as the tooltip example below does.
 
 There is no icon font to ship. The circle is drawn as geometry through GDI+, so nothing here
 depends on Segoe Fluent Icons being installed.
 
 You also need tiko and its sys/win package: the control is a `CWindow` (from `sys/win/gui`) and
-`PsBufferPaint` draws through `sys/win/gdiplus`. Your main file imports them (see *Include
-order*), and you build with `tiko build` in a folder whose `tiko.toml` defines `UNICODE`, as the
-demo's does:
+`PsBufferPaint` draws through `sys/win/gdiplus`. Build with `tiko build` in a folder whose
+`tiko.toml` defines `UNICODE`, as the demo's does:
 
 ```toml
 [target.main]
@@ -60,32 +67,6 @@ UNICODE = "1"
 `UNICODE` has to come from the manifest (or `-d UNICODE` on a `tiko` command line): a source file
 cannot `#define` it ahead of `#import "sys/win"`, and without it every bare Win32 name —
 `DrawText`, `SetWindowText`, `CreateFontIndirect` — binds its ANSI form.
-
-### Include order
-
-The package imports and `using` lines come first; then `PsBufferPaint.tiko` must be included
-**before** `PsOptionButton.tiko`:
-
-```freebasic
-#import "sys/win"
-#import "sys/win/gui"
-#import "sys/win/gdiplus"
-
-using gui
-using gdiplus
-
-#include once "PsBufferPaint.tiko"
-#include once "PsOptionButton.tiko"
-```
-
-Those two include lines are the whole of it. `PsOptionButton.tiko` includes `PsTipHost.tiko`
-and `PsOptionButton_SelfTest.tiko` itself, and `PsTipHost.tiko` includes `PsTooltip.tiko`, so the
-tooltip backend and the self-test add no include line to the host — only the five files to the
-table above.
-
-`PsOptionButton.ti` includes `PsBufferPaint.ti` itself, so the header is self-sufficient. It does
-**not** import any package — the host must already have imported `sys/win`, `sys/win/gui` and
-`sys/win/gdiplus`, and must already have said `using gui` and `using gdiplus`.
 
 ### GDI+ must be running
 
@@ -653,7 +634,7 @@ no tooltip text of its own. Return `""` for no tooltip.
 | Field | Meaning |
 |---|---|
 | `hOptionButton` | the control, so the callback can query it |
-| `b` | the control's `PsBufferPaint` for this repaint (not a copy) |
+| `b` | the control's `PsPaintBuffer` for this repaint (not a copy) |
 | `rcClient` | the whole client area |
 | `rcContent` | `rcClient` deflated by the focus-ring band |
 | `rcBox` | the declared box **cell**. Never empty |

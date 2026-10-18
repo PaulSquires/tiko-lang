@@ -17,8 +17,6 @@ It is **display-only**. It takes no focus, no mouse capture and no keyboard, and
 to a click. Every message it receives is offered to your message callback, so anything
 interactive — click-to-cancel being the obvious case — is yours to add.
 
-Repository: <https://github.com/PaulSquires/PsProgressBar>
-
 ---
 
 ## What it looks like
@@ -29,43 +27,31 @@ Repository: <https://github.com/PaulSquires/PsProgressBar>
 
 ## Requirements
 
-Copy these files into your project:
-
-| File | Purpose |
-|---|---|
-| `PsProgressBar.ti` | Public surface, state type, layout |
-| `PsProgressBar.tiko` | Implementation |
-| `PsBufferPaint.ti` | Flicker-free drawing surface (header) |
-| `PsBufferPaint.tiko` | Flicker-free drawing surface (implementation) |
-| `PsTipHost.ti` / `PsTipHost.tiko` | The tooltip backend switch — see *Tooltips: two backends* |
-| `PsTooltip.ti` / `PsTooltip.tiko` | The owner-drawn tooltip. Required even if you never switch to it: `PsTipHost.tiko` includes it. |
-
-`PsProgressBar.ti` includes `PsBufferPaint.ti` and `PsTipHost.ti` itself, and
-`PsProgressBar.tiko` includes `PsTipHost.tiko` (which in turn includes `PsTooltip.tiko`), so the
-extra files cost you no include lines — they only have to be present.
-
-### Include order
-
-Headers first, implementations after your globals — the same order `main.tiko` uses:
+The module is `vendor/PsControls/PsProgressBar`, comes with the toolchain, and brings in
+`PsBufferPaint`, `PsTipHost` (the tooltip backend switch — see *Tooltips: two backends*) and
+`PsTooltip` itself:
 
 ```freebasic
 #import "sys/win"
 #import "sys/win/gui"
 #import "sys/win/gdiplus"
+#import "vendor/PsControls/PsTipHost"
+#import "vendor/PsControls/PsTooltip"
+#import "vendor/PsControls/PsProgressBar"
 
 using gui
 using gdiplus
-
-' ... your fonts, theme and other globals here ...
-
-#include once "PsBufferPaint.tiko"
-#include once "PsProgressBar.tiko"
+using PsTipHost
+using PsTooltip
+using PsProgressBar
 ```
 
-None of the control's files imports a package itself: the control is a `CWindow` (from
-`sys/win/gui`) and `PsBufferPaint` draws through `sys/win/gdiplus`, and your main file imports
-both, as above. Build with `tiko build` in a folder whose `tiko.toml` defines `UNICODE`, as the
-demo's does:
+The `PsTipHost` and `PsTooltip` lines are needed only to name `PSTIP_MODE_*` or call
+`PsTooltip_*` yourself, as the tooltip example below does.
+
+The control is a `CWindow` (from `sys/win/gui`) and `PsBufferPaint` draws through
+`sys/win/gdiplus`. Build with `tiko build` in a folder whose `tiko.toml` defines `UNICODE`, as
+the demo's does:
 
 ```toml
 [target.main]
@@ -507,7 +493,7 @@ before you are called, so a callback that only adds something on top does not ha
 background.
 
 > **A callback that fills a rectangle covering the whole control erases everything already drawn.**
-> `PsBufferPaint`'s `PaintBorderRect` and `PaintRoundBorderRect` **fill before they stroke**, so
+> `PsPaintBuffer`'s `PaintBorderRect` and `PaintRoundBorderRect` **fill before they stroke**, so
 > using either as a frame over your own drawing wipes it out. Use `PaintRoundOutline`, which
 > strokes only. `PsProgressBar_CountRenderedTones` exists so you can assert you have not done this.
 
@@ -516,7 +502,7 @@ background.
 | Field | Meaning |
 |---|---|
 | `hProgressBar` | The control, so the callback can query it |
-| `b` | The `PsBufferPaint` for this repaint — a pointer, not a copy |
+| `b` | The `PsPaintBuffer` for this repaint — a pointer, not a copy |
 | `rcClient` | The whole client area |
 | `rcTrack` | The groove |
 | `rcFill` | Where a 100% bar reaches |

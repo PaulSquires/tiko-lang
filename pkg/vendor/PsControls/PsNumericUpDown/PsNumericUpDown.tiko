@@ -27,9 +27,9 @@ using PsTextBox
 ' WM_MOUSELEAVE (TME_LEAVE) is not reliably delivered on fast exits, AND the PsTextBox child
 ' covers the middle of our client, so a periodic cursor check is the safety net. Timer ids
 ' are per-window, so every instance can share these two.
-#define IDT_CNUMERICUPDOWN_HOTTRACK   &hCB80
-#define IDT_CNUMERICUPDOWN_REPEAT     &hCB81
-#define PSNUMERICUPDOWN_HOTTRACK_MS    100
+public const IDT_CNUMERICUPDOWN_HOTTRACK = &hCB80
+public const IDT_CNUMERICUPDOWN_REPEAT = &hCB81
+public const PSNUMERICUPDOWN_HOTTRACK_MS = 100
 
 ' Defaults. The SIZE values are DPI-scaled at Create; every setter afterwards takes raw
 ' pixels and the caller scales (the family rule).
@@ -43,27 +43,27 @@ using PsTextBox
 ' whose length scales while its weight does not gets thinner and thinner relative to itself as
 ' the display scales. At 1.75x an unscaled bar is 18 pixels long and 1 thick, which reads as a
 ' thread rather than a minus sign. Asked of a real screenshot, not reasoned about.
-#define CNUD_DEFAULT_BUTTONW        28
-#define CNUD_DEFAULT_VALUEPAD        6     ' left and right, inside the value cell
-#define CNUD_DEFAULT_VERTPAD         5     ' above and below the text, for GetIdealSize
-#define CNUD_DEFAULT_CORNERRADIUS    6
+public const CNUD_DEFAULT_BUTTONW = 28
+public const CNUD_DEFAULT_VALUEPAD = 6   ' left and right, inside the value cell
+public const CNUD_DEFAULT_VERTPAD = 5   ' above and below the text, for GetIdealSize
+public const CNUD_DEFAULT_CORNERRADIUS = 6
 public const CNUD_DEFAULT_BORDERTHICK = 1   ' not DPI-scaled
 public const CNUD_DEFAULT_DIVIDERTHICK = 1   ' not DPI-scaled
-#define CNUD_DEFAULT_GLYPHLENGTH    10     ' the bar of the "-", and each bar of the "+"
+public const CNUD_DEFAULT_GLYPHLENGTH = 10   ' the bar of the "-", and each bar of the "+"
 public const CNUD_DEFAULT_GLYPHTHICK = 1   ' DPI-scaled -- it is an icon stroke, not a rule
 
 ' Auto-repeat: hold a button and it keeps stepping. Delay before the first repeat, then one
 ' step per interval. Either at 0 disables repeating entirely (one click = one step).
-#define CNUD_DEFAULT_REPEATDELAY   400
-#define CNUD_DEFAULT_REPEATINTERVAL 60
+public const CNUD_DEFAULT_REPEATDELAY = 400
+public const CNUD_DEFAULT_REPEATINTERVAL = 60
 
 ' Value defaults. The range is deliberately wide: a host that never calls SetRange gets a
 ' control that does not silently clamp, but the range machinery is always present so the
 ' buttons can grey out at a limit.
-#define CNUD_DEFAULT_MIN            -1000000.0
-#define CNUD_DEFAULT_MAX             1000000.0
-#define CNUD_DEFAULT_INCREMENT       1.0
-#define CNUD_DEFAULT_DECIMALPLACES   0
+public const CNUD_DEFAULT_MIN = -1000000.0
+public const CNUD_DEFAULT_MAX = 1000000.0
+public const CNUD_DEFAULT_INCREMENT = 1.0
+public const CNUD_DEFAULT_DECIMALPLACES = 0
 
 ' The three hit-testable parts, plus "nothing". The value cell is reported by HitTest for
 ' completeness, but the control never acts on it -- that area belongs to the PsTextBox child,
@@ -638,9 +638,8 @@ declare function NUD_HandleWheel( byval pNud as PSNUMERICUPDOWN_STATE ptr, byval
 
 ' ========================================================================================
 ' Format a value the way the control displays it. Deliberately NOT calling PsTextBox's own
-' private PsTextBox_FormatNumeric: everything here is textually included into one module, so
-' that private helper happens to be reachable, but reaching for it would couple this control
-' to an implementation detail of a VENDORED file that is synced from elsewhere.
+' PsTextBox_FormatNumeric: it is private to the PsTextBox module this one imports, and reaching
+' for it would couple this control to an implementation detail of another module.
 ' ========================================================================================
 private function NUD_FormatValue( byval nValue as double, byval nDecimalPlaces as long ) as ustring
     dim as string fmt = "0"

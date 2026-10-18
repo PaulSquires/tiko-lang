@@ -20,7 +20,7 @@ using PsImage
 using PsTipHost
 
 ' An item can show a real image file (.ico/.png/.bmp/.jpg) instead of a Fluent glyph.
-' PsImage owns the decode; PsBufferPaint.PaintImage draws it. See PsIconPanel_SetImage.
+' PsImage owns the decode; PsPaintBuffer.PaintImage draws it. See PsIconPanel_SetImage.
 ' The tooltip backend switch. The control ships on the SYSTEM (comctl32) backend exactly
 ' as it always has; a host opts an instance into PsTooltip with PsIconPanel_SetTooltipMode.
 
@@ -28,23 +28,23 @@ using PsTipHost
 ' control. WM_MOUSELEAVE (TME_LEAVE) is not reliably delivered on fast exits, so a
 ' periodic cursor check acts as a safety net. Timer IDs are per-window, so every
 ' instance can share this id.
-#define IDT_CICONPANEL_HOTTRACK   &hCB50
-#define PSICONPANEL_HOTTRACK_MS    100
+public const IDT_CICONPANEL_HOTTRACK = &hCB50
+public const PSICONPANEL_HOTTRACK_MS = 100
 
 ' Default icon cell size. Every icon gets a cell of exactly this size unless the item
 ' overrides it. DPI-scaled at Create; PsIconPanel_SetIconSize takes raw pixels thereafter.
-#define PSICONPANEL_DEFAULT_ICONWIDTH   20
-#define PSICONPANEL_DEFAULT_ICONHEIGHT  20
+public const PSICONPANEL_DEFAULT_ICONWIDTH = 20
+public const PSICONPANEL_DEFAULT_ICONHEIGHT = 20
 
 ' Default space reserved BEFORE and AFTER each icon. This is the author's spacing control
 ' and the whole reason this control exists: it is never adjusted, redistributed or
 ' squeezed by the layout. DPI-scaled at Create; the setters take raw pixels thereafter.
-#define PSICONPANEL_DEFAULT_PADBEFORE   4
-#define PSICONPANEL_DEFAULT_PADAFTER    4
+public const PSICONPANEL_DEFAULT_PADBEFORE = 4
+public const PSICONPANEL_DEFAULT_PADAFTER = 4
 
 ' Default thickness of a separator's rule (it takes the place of the icon width in a
 ' separator's cell). DPI-scaled at Create.
-#define PSICONPANEL_DEFAULT_SEPWIDTH    1
+public const PSICONPANEL_DEFAULT_SEPWIDTH = 1
 
 
 ' Where the whole run of items sits in the client area. This is the ONLY thing the layout
@@ -211,7 +211,7 @@ public type PSICONPANEL_STATE
     ' Two single-valued indices. Because the item set is STATIC -- items are added once and
     ' never inserted, deleted or moved -- neither can ever be left dangling by a mutation,
     ' so this control carries none of the index fix-up code the dynamic siblings need
-    ' (three separate sites in PsTabBar.ti alone, and the family's most repeated bug class).
+    ' (three separate sites in PsTabBar alone, and the family's most repeated bug class).
     nLastHotIdx       as long = -1       ' item the mouse was last over (hover tracking)
     hotTimerOn        as boolean = false ' is the hot-tracking safety-net timer running?
     ' --- Press state (mouse capture). The control TAKES capture on a press -- unlike
@@ -628,9 +628,8 @@ public declare sub      PsIconPanel_SetTooltipCallback( byval hIconPanel as HWND
 public declare sub      PsIconPanel_SetClickCallback( byval hIconPanel as HWND, byval usersub as IP_ClickCallbackSub )
 public declare sub      PsIconPanel_SetSelChangeCallback( byval hIconPanel as HWND, byval usersub as IP_SelChangeCallbackSub )
 
-' The tooltip backend switch, pulled in here so a host needs no extra include line.
-' Image loader implementation, pulled in here so a host needs no extra include line
-' (#include once guards it if the host includes it too).
+' The tooltip backend switch (PsTipHost) and the image loader (PsImage) are imported at the
+' top of this module, so a host needs no import of its own for either.
 
 
 function GetIconPanelPointer( byval hIconPanel as HWND ) as PSICONPANEL_STATE ptr
@@ -1257,7 +1256,7 @@ end function
 
 
 ' ========================================================================================
-' Callback setters. See the type declarations in PsIconPanel.ti for each contract.
+' Callback setters. See the type declarations at the top of this file for each contract.
 ' ========================================================================================
 public sub PsIconPanel_SetPaintItemCallback( byval hIconPanel as HWND, byval usersub as IP_PaintItemCallbackSub )
     dim as PSICONPANEL_STATE ptr pIcon = GetIconPanelPointer(hIconPanel)

@@ -40,8 +40,8 @@ using PsBufferPaint
 ' Polling timer that guarantees hot-tracking is cleared when the mouse leaves the control.
 ' WM_MOUSELEAVE (TME_LEAVE) is not reliably delivered on fast exits, so a periodic cursor
 ' check acts as a safety net. Timer IDs are per-window, so every instance can share this id.
-#define IDT_CSPLITTER_HOTTRACK   &hCB20
-#define PSSPLITTER_HOTTRACK_MS    100
+public const IDT_CSPLITTER_HOTTRACK = &hCB20
+public const PSSPLITTER_HOTTRACK_MS = 100
 
 ' Named for the BAR's own axis: a VERTICAL bar is a vertical line separating a left and a
 ' right pane, and drags horizontally (IDC_SIZEWE).

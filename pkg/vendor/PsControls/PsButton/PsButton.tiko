@@ -28,7 +28,7 @@ using PsTooltip
 ' The family names its booleans bOK, never "ok" -- a convention from AfxNova, where GDI+'s
 ' Ok = 0 made an "ok" a duplicate definition. Under sys/win an "ok" of your own compiles.
 ' An icon slot can hold a real image file (.ico/.png/.bmp/.jpg) instead of a Fluent glyph.
-' PsImage owns the decode; PsBufferPaint.PaintImage does the draw. See PsButton_SetImageLeft.
+' PsImage owns the decode; PsPaintBuffer.PaintImage does the draw. See PsButton_SetImageLeft.
 ' The tooltip backend switch. The control ships on the SYSTEM (comctl32) backend exactly as it
 ' always has; a host opts this instance into PsTooltip with PsButton_SetTooltipMode. PsTipHost
 ' holds both backends and is what keeps the hover time honoured across a switch.
@@ -36,31 +36,31 @@ using PsTooltip
 ' Polling timer that guarantees hot-tracking is cleared when the mouse leaves the control.
 ' WM_MOUSELEAVE (TME_LEAVE) is not reliably delivered on fast exits, so a periodic cursor
 ' check acts as a safety net. Timer IDs are per-window, so every instance can share this id.
-#define IDT_CBUTTON_HOTTRACK   &hCB90
-#define PSBUTTON_HOTTRACK_MS    100
+public const IDT_CBUTTON_HOTTRACK = &hCB90
+public const PSBUTTON_HOTTRACK_MS = 100
 
 ' Default geometry. Everything except the two THICKNESS values is DPI-scaled once at Create;
 ' every setter afterwards takes raw pixels and the caller scales (the family rule).
-#define PSBUTTON_DEFAULT_PADLEFT     12
-#define PSBUTTON_DEFAULT_PADRIGHT    12
-#define PSBUTTON_DEFAULT_PADTOP       6
-#define PSBUTTON_DEFAULT_PADBOTTOM    6
+public const PSBUTTON_DEFAULT_PADLEFT = 12
+public const PSBUTTON_DEFAULT_PADRIGHT = 12
+public const PSBUTTON_DEFAULT_PADTOP = 6
+public const PSBUTTON_DEFAULT_PADBOTTOM = 6
 ' Gap between an icon cell and the caption. Spent ONLY when there is a caption to separate
 ' the icon from -- an icon-only button charges padding + icon + padding and nothing else.
-#define PSBUTTON_DEFAULT_ICONGAP      8
+public const PSBUTTON_DEFAULT_ICONGAP = 8
 ' The icon cell. DECLARED, never measured (PsIconPanel's rule): the glyph font is a paint-time
 ' input, so a font too large for the cell simply clips rather than resizing the button.
-#define PSBUTTON_DEFAULT_ICONWIDTH   16
-#define PSBUTTON_DEFAULT_ICONHEIGHT  16
+public const PSBUTTON_DEFAULT_ICONWIDTH = 16
+public const PSBUTTON_DEFAULT_ICONHEIGHT = 16
 ' Corner curvature of the button chrome. This is an ellipse DIAMETER, not a radius --
 ' PsBufferPaint keeps GDI's vocabulary and halves it internally, so 12 draws a 6px radius.
 ' Thirteen controls pass GDI-flavoured numbers there; do not "fix" it to a radius here.
-#define PSBUTTON_DEFAULT_CURVATURE   12
+public const PSBUTTON_DEFAULT_CURVATURE = 12
 ' The button reads BORDERLESS out of the box (see PSBUTTON_COLORS), so a border thickness of 1
 ' costs nothing until a host sets a contrasting BorderColor. Zero disables it outright.
-#define PSBUTTON_DEFAULT_BORDERTHICK  1     ' not DPI-scaled
-#define PSBUTTON_DEFAULT_FOCUSGAP     2
-#define PSBUTTON_DEFAULT_FOCUSTHICK   1     ' not DPI-scaled
+public const PSBUTTON_DEFAULT_BORDERTHICK = 1   ' not DPI-scaled
+public const PSBUTTON_DEFAULT_FOCUSGAP = 2
+public const PSBUTTON_DEFAULT_FOCUSTHICK = 1   ' not DPI-scaled
 
 
 ' Where the caption sits in the span between the two icon cells.
@@ -182,8 +182,8 @@ public type PSBUTTON_PAINTINFO
     wszGlyphRight as ustring
     ' Resolved image handles for the two icon cells, or NULL. When set, the icon slot draws
     ' this image (via p->b->PaintImage) INSTEAD OF the glyph -- a custom PaintCallback should
-    ' honour it the same way, image first. The PsBufferPaint owns nothing here; the control's
-    ' PsImage does.
+    ' honour it the same way, image first. The PsPaintBuffer owns nothing here; the control's
+    ' PsImageFile does.
     pImageLeft    as CGpImage ptr
     pImageRight   as CGpImage ptr
     nTextAlign    as long              ' BTN_ALIGN_*; map it to DT_LEFT / DT_CENTER / DT_RIGHT
@@ -270,7 +270,7 @@ public type PSBUTTON_STATE
     wszGlyphRight   as ustring        ' likewise
     ' An icon slot holds EITHER a Fluent glyph OR an image, never both: the setters keep that
     ' invariant (SetImageLeft clears wszGlyphLeft, SetGlyphLeft frees pImageLeft). The control
-    ' OWNS these PsImage objects and frees them in WM_DESTROY. NULL = no image on that side.
+    ' OWNS these PsImageFile objects and frees them in WM_DESTROY. NULL = no image on that side.
     pImageLeft      as PsImageFile ptr
     pImageRight     as PsImageFile ptr
     wszTooltip      as ustring        ' "" = ask TooltipCallback, then show nothing
@@ -518,7 +518,7 @@ sub PSBUTTON_STATE.LayoutButton()
 
     ' No geometry yet (created 0x0, sized only once the host shows us). Placement is
     ' impossible, so leave the rects alone and ask to be run again -- but note this bail comes
-    ' AFTER the ideal size is computed. See the header.
+    ' AFTER the ideal size is computed. See the PUBLIC API notes at the top of this file.
     if (clientW <= 0) orelse (clientH <= 0) then
         this.bLayoutDirty = true
         exit sub
@@ -662,7 +662,7 @@ end sub
 '   PsImage's HBITMAP/HICON wrappers), not from an HICON handed to this control.
 '
 ' NO MNEMONICS
-'   "&Save" draws a literal ampersand -- PsBufferPaint.PaintText forces DT_NOPREFIX, so this is
+'   "&Save" draws a literal ampersand -- PsPaintBuffer.PaintText forces DT_NOPREFIX, so this is
 '   enforced by the renderer rather than merely intended. A host wanting Alt+S wires its own
 '   accelerator and calls PsButton_Click().
 '
@@ -738,7 +738,7 @@ public declare sub      PsButton_SetItemData( byval hButton as HWND, byval itemD
 '     than being a cosmetic flag: a disabled window gets no mouse input and the dialog manager's
 '     Tab skips it. It clears any live press and hover at once rather than waiting for the next
 '     mouse move.
-'   SetDefault is appearance only -- see the header. It is SILENT and cheap; only the border
+'   SetDefault is appearance only -- see "isDefault IS APPEARANCE ONLY" above. It is SILENT and cheap; only the border
 '     colour changes, so it never re-measures.
 '   GetFocused answers for this window directly (there is no child to hold focus, unlike
 '     PsNumericUpDown where GetFocus() = hCtrl is never true).
@@ -890,7 +890,7 @@ public declare sub      PsButton_SetClickCallback( byval hButton as HWND, byval 
 '                 many distinct colours land inside one of its rects (capped at 64). Nothing in
 '                 the control calls it; it exists to make one specific defect measurable.
 '
-'                 THE DEFECT: PsBufferPaint.PaintBorderRect FILLS before it strokes, so a paint
+'                 THE DEFECT: PsPaintBuffer.PaintBorderRect FILLS before it strokes, so a paint
 '                 callback that reaches for it to draw a frame or a focus ring floods everything
 '                 beneath and the control renders as one solid block. That has shipped three
 '                 times in this family (PsToggle, PsComboBox, PsNumericUpDown), every time from a
@@ -914,12 +914,9 @@ public declare sub      PsButton_SetClickCallback( byval hButton as HWND, byval 
 public declare function PsButton_CountRenderedTones( byval hButton as HWND, byval nPart as long ) as long
 public declare sub      PsButton_RunSelfTest( byval hWndParent as HWND )
 
-' The image loader's implementation, pulled in here so a host that already includes PsButton.tiko
-' needs no extra include line (PsColorPicker/PsVScrollBar precedent). #include once guards it if
-' the host includes it too.
-' Likewise the tooltip backend switch, which pulls PsTooltip.tiko in behind it. Adopting this
-' control therefore still costs the host no new include line -- but it DOES add two files to
-' the copy list (PsTipHost + PsTooltip), which the README records.
+' The image loader (PsImage) and the tooltip backend switch (PsTipHost, with PsTooltip behind
+' it) are imported at the top of this module, so a host that imports PsButton needs no import
+' of its own for either.
 
 
 ' Forward declaration: the content setters re-apply auto-size, and they are defined well above
@@ -1024,7 +1021,7 @@ private sub PsButton_RenderDefault( _
 
     ' ---- the fonts ---------------------------------------------------------------------
     ' Paint the caption with the SAME font the measuring pass used -- the caller's if set, else
-    ' the stock GUI font. PsBufferPaint.SetFont IGNORES a null handle, so leaving it unset would
+    ' the stock GUI font. PsPaintBuffer.SetFont IGNORES a null handle, so leaving it unset would
     ' silently paint in the DC's font while the width was measured in another, and long
     ' captions would clip for no visible reason.
     dim as HFONT hTextUse = pBtn->hTextFont
@@ -1627,7 +1624,7 @@ public function PsButton_Create( byval hWndParent as HWND, byval CtrlID as long 
     ' The dialog manager then descends into it hunting for tabstops, finds no children, and
     ' SKIPS IT: the control becomes unreachable by Tab. (It does not break the rest of the form
     ' -- that was measured. PsButton's demo merely looked completely dead because every control
-    ' on it was a PsButton.) Measured, not theorised; see REFACTOR_PLAN.md.
+    ' on it was a PsButton.) Measured, not theorised.
     '
     ' A leaf control must be a tab ITEM, not a tab container. WS_EX_WINDOWEDGE goes with it --
     ' it is a raised-border hint that means nothing to a window drawing its own chrome.
@@ -1860,9 +1857,9 @@ end sub
 
 
 ' ========================================================================================
-' Action.  This one DOES notify -- see the header. It is refused on a disabled button, exactly
-' as a real click would be, and it does not paint a press flash: it reports an action, it does
-' not animate one.
+' Action.  This one DOES notify -- see the declarations at the top of this file. It is refused
+' on a disabled button, exactly as a real click would be, and it does not paint a press flash:
+' it reports an action, it does not animate one.
 ' ========================================================================================
 public sub PsButton_Click( byval hButton as HWND )
     dim as PSBUTTON_STATE ptr pBtn = GetButtonPointer(hButton)
@@ -2250,7 +2247,8 @@ end function
 
 ' ========================================================================================
 ' Render the control OFFSCREEN with its current painter and count the distinct colours inside
-' one of its rects. See the header in PsButton.ti for what this is for and why it is public.
+' one of its rects. See its declaration at the top of this file for what this is for and why
+' it is public.
 '
 ' THREE THINGS HERE ARE LOAD-BEARING, and all three come from the write-up in Learnings.md:
 '
@@ -2297,7 +2295,7 @@ public function PsButton_CountRenderedTones( byval hButton as HWND, byval nPart 
         return 0
     end if
 
-    ' 32bpp top-down, matching what PsBufferPaint.SetupBitmap builds, so the pixels we read are
+    ' 32bpp top-down, matching what PsPaintBuffer.SetupBitmap builds, so the pixels we read are
     ' laid out the way the renderer wrote them.
     dim as BITMAPINFO bmi
     with bmi.bmiHeader

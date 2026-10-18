@@ -14,8 +14,9 @@
 ''  the MONTHS/YEARS drill-down come from there; the focus/keyboard model, the N x M panel
 ''  grid and the shared nav band do not -- a popup never needed them.
 ''
-''  PsCalendar and PsDatePicker are deliberately collision-free and may be included in the
-''  SAME module: every identifier here is CAL_* / PSCALENDAR_* / PsCalendar_* / CCAL_*.
+''  PsCalendar and PsDatePicker are deliberately collision-free and may be imported, both with
+''  `using`, into the SAME program: every identifier here is CAL_* / PSCALENDAR_* /
+''  PsCalendar_* / CCAL_*.
 ''
 
 #module "PsCalendar"
@@ -42,8 +43,8 @@ using PsTipHost
 '              cell is re-resolved on a poll as well. Every recent sibling except the
 '              display-only PsProgressBar carries one.
 ' ----------------------------------------------------------------------------------------
-#define IDT_PSCALENDAR_HOTTRACK   &hCB95
-#define PSCALENDAR_HOTTRACK_MS     100
+public const IDT_PSCALENDAR_HOTTRACK = &hCB95
+public const PSCALENDAR_HOTTRACK_MS = 100
 
 
 ' ----------------------------------------------------------------------------------------
@@ -56,25 +57,25 @@ using PsTipHost
 ' would come out two pixels thick at 175%. This is PsOptionButton's rule, and it is the one
 ' thing in this file that no assertion running at 100% DPI can catch.
 ' ----------------------------------------------------------------------------------------
-#define CCAL_PAD                 8     ' outer padding, all four sides (inside the border)
-#define CCAL_NAVBANDH           34     ' the shared prev / title / next band
-#define CCAL_NAVGAP              4     ' between the nav band and the panel grid
-#define CCAL_CHEVW              28     ' width of each chevron cell inside the nav band
-#define CCAL_GUTTERX            12     ' between month panels, horizontally
-#define CCAL_GUTTERY            10     ' between month panels, vertically
-#define CCAL_CAPTIONH           24     ' a panel's own month caption (suppressed at 1 panel)
-#define CCAL_WEEKDAYH           22     ' the S M T W T F S row
-#define CCAL_CELLMINW           34     ' one day cell, for GetIdealSize only -- cells STRETCH
-#define CCAL_CELLMINH           30
+public const CCAL_PAD = 8   ' outer padding, all four sides (inside the border)
+public const CCAL_NAVBANDH = 34   ' the shared prev / title / next band
+public const CCAL_NAVGAP = 4   ' between the nav band and the panel grid
+public const CCAL_CHEVW = 28   ' width of each chevron cell inside the nav band
+public const CCAL_GUTTERX = 12   ' between month panels, horizontally
+public const CCAL_GUTTERY = 10   ' between month panels, vertically
+public const CCAL_CAPTIONH = 24   ' a panel's own month caption (suppressed at 1 panel)
+public const CCAL_WEEKDAYH = 22   ' the S M T W T F S row
+public const CCAL_CELLMINW = 34   ' one day cell, for GetIdealSize only -- cells STRETCH
+public const CCAL_CELLMINH = 30
 
-#define CCAL_DEFAULT_BORDERTHICK 0     ' NOT DPI-scaled. 0 = no frame (the embedded default)
-#define CCAL_DEFAULT_CHEVTHICK   2     ' NOT DPI-scaled -- PaintLine scales it
-#define CCAL_DEFAULT_FOCUSTHICK  1     ' NOT DPI-scaled -- PaintRoundOutline scales it
+public const CCAL_DEFAULT_BORDERTHICK = 0   ' NOT DPI-scaled. 0 = no frame (the embedded default)
+public const CCAL_DEFAULT_CHEVTHICK = 2   ' NOT DPI-scaled -- PaintLine scales it
+public const CCAL_DEFAULT_FOCUSTHICK = 1   ' NOT DPI-scaled -- PaintRoundOutline scales it
 
 ' The month/year drill-down grid: 3 columns x 4 rows keeps long month names uncrowded, and
 ' one formula serves both grids.
-#define CCAL_MY_COLS             3
-#define CCAL_MY_ROWS             4
+public const CCAL_MY_COLS = 3
+public const CCAL_MY_ROWS = 4
 
 ' HARD YEAR LIMITS. SYSTEMTIME.wYear is a WORD, so a year walked below 1 does not go
 ' negative -- it WRAPS to ~65535 and the calendar silently starts counting down from there.
@@ -84,14 +85,14 @@ using PsTipHost
 ' The public PsCalendar_AddMonths / _AddDays helpers are deliberately NOT clamped -- they are
 ' pure arithmetic and a caller may legitimately want a serial outside this window. Everything
 ' that writes the anchor or the selection goes through the clamp instead.
-#define CCAL_MIN_YEAR            1
-#define CCAL_MAX_YEAR         9999
+public const CCAL_MIN_YEAR = 1
+public const CCAL_MAX_YEAR = 9999
 
 ' Panel grid cap. 3x4 = a full year is the realistic maximum for one surface, and 12 is
 ' already the drill-down grid's cell count. Fixing it lets every layout array be STATIC:
 ' no redim, no allocation on the layout path, and a shape the assertions can be written
 ' against. SetPanelGrid rejects anything larger.
-#define CCAL_MAX_PANELS         12
+public const CCAL_MAX_PANELS = 12
 
 
 ' Week start.
@@ -131,7 +132,7 @@ public enum
 end enum
 ' Composite codes: a drill-down cell is CAL_PART_MYCELL_BASE + k (k = 0..11); a day cell is
 ' CAL_PART_DAYCELL_BASE + panel*100 + k (k = 0..41).
-#define CAL_PART_MYCELL_BASE    100
+public const CAL_PART_MYCELL_BASE = 100
 public const CAL_PART_DAYCELL_BASE = 1000
 
 
@@ -438,7 +439,7 @@ end type
 
 
 ' ========================================================================================
-' PUBLIC API   (full contracts in the .tiko banner)
+' PUBLIC API   (full contracts at each definition, below)
 ' ========================================================================================
 
 ' --- creation ---
@@ -597,7 +598,8 @@ public declare function PsCalendar_TestPartTones( byval hCtrl as HWND, byval nPa
 public declare function PsCalendar_TestPartBrightness( byval hCtrl as HWND, byval nPart as long ) as long
 public declare function PsCalendar_TestHashPart( byval hCtrl as HWND, byval nPart as long ) as ulongint
 
-' The tooltip backend switch, pulled in here so a host needs no extra include line.
+' The tooltip backend switch: this module imports PsTipHost itself (top of file), so a host
+' needs no extra import line.
 
 
 dim shared gCAL_Trace as long = -1
@@ -639,9 +641,9 @@ declare function CAL_NavTarget( byval pCal as PSCALENDAR_STATE ptr, byval nDir a
 ' PURE DATE MATH  (proleptic Gregorian; serial = days since 1970-01-01, Hinnant's algorithm)
 '
 ' Ported verbatim from PsDatePicker under distinct names. The duplication is deliberate and
-' priced in: the two controls must be includable in the SAME module, which rules out sharing
-' the symbols, and a fourth copy of thirty lines of arithmetic is cheaper than a third
-' vendored file. Every one is a pure function of its inputs.
+' priced in: the two controls must be importable, both with `using`, into the SAME program,
+' which rules out sharing the symbols, and a fourth copy of thirty lines of arithmetic is
+' cheaper than a third module. Every one is a pure function of its inputs.
 '
 ' Cell -> date goes through the serial rather than through month/day special cases, which is
 ' why every month and year rollover, both week starts, and leap years all fall out for free.
@@ -2982,7 +2984,7 @@ end sub
 
 
 ' ========================================================================================
-' Tooltip backend.  See PsTipHost.ti -- the tip here is a TRACKED one, shown by the control.
+' Tooltip backend.  See PsTipHost's module header -- the tip here is a TRACKED one, shown by the control.
 ' ========================================================================================
 public function PsCalendar_GetTooltipHandle( byval hCalendar as HWND ) as HWND
     dim as PSCALENDAR_STATE ptr pCal = GetCalendarPointer(hCalendar)

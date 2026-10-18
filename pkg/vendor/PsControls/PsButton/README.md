@@ -34,22 +34,33 @@ Colours are the shipped dark defaults; every one of them is settable.
 
 ## Requirements
 
-**Files to copy into your project:**
+The module is `vendor/PsControls/PsButton`, comes with the toolchain, and brings in
+`PsBufferPaint` (the flicker-free drawing surface it paints through), `PsImage` (the image
+loader behind `PsButton_SetImageLeft`/`SetImageRight`), `PsTipHost` (the tooltip backend switch
+— see *Tooltips: two backends*) and `PsTooltip` (the owner-drawn tooltip) itself. Import
+`PsBufferPaint` yourself as well for a paint callback, and `PsTipHost` / `PsTooltip` to name
+`PSTIP_MODE_*` or call `PsTooltip_*`:
 
-| File | Purpose |
-|---|---|
-| `PsButton.ti` | Declarations — types, callbacks, constants, function prototypes |
-| `PsButton.tiko` | Implementation |
-| `PsBufferPaint.ti` | The flicker-free drawing surface the control paints through |
-| `PsBufferPaint.tiko` | Its implementation |
-| `PsImage.ti` / `PsImage.tiko` | The image loader behind `PsButton_SetImageLeft`/`SetImageRight`. Required even if you only ever use glyphs: `PsButton.ti` includes it. |
-| `PsTipHost.ti` / `PsTipHost.tiko` | The tooltip backend switch — see *Tooltips: two backends* |
-| `PsTooltip.ti` / `PsTooltip.tiko` | The owner-drawn tooltip. Required even if you never switch to it: `PsTipHost.tiko` includes it. |
+```freebasic
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+#import "vendor/PsControls/PsBufferPaint"
+#import "vendor/PsControls/PsTipHost"
+#import "vendor/PsControls/PsTooltip"
+#import "vendor/PsControls/PsButton"
 
-**tiko and its sys/win package are required.** The control is a `CWindow` (from `sys/win/gui`)
-and `PsBufferPaint` draws through `sys/win/gdiplus`. None of the control's files imports a
-package itself: your main file imports them before including the control (see *Include order*).
-Build with `tiko build` in a folder whose `tiko.toml` defines `UNICODE`, as the demo's does:
+using gui
+using gdiplus
+using PsBufferPaint
+using PsTipHost
+using PsTooltip
+using PsButton
+```
+
+The control is a `CWindow` (from `sys/win/gui`) and `PsBufferPaint` draws through
+`sys/win/gdiplus`. Build with `tiko build` in a folder whose `tiko.toml` defines `UNICODE`, as
+the demo's does:
 
 ```toml
 [target.main]
@@ -63,24 +74,9 @@ UNICODE = "1"
 
 `UNICODE` has to come from the manifest (or `-d UNICODE` on a `tiko` command line): a source
 file cannot `#define` it ahead of `#import "sys/win"`, and without it every bare Win32 name —
-`DrawText`, `SetWindowText`, `CreateFontIndirect` — binds its ANSI form. In the demo folder,
-`tiko build` (debug profile: `-g -exx`) or `tiko build --profile release` writes `main.exe` there.
-
-**Include order.** The `#import` and `using` lines come first. `PsButton.tiko` pulls in its own
-`.ti`, which pulls in `PsBufferPaint.ti`. The two implementation files are included after the
-imports, in this order:
-
-```freebasic
-#import "sys/win"
-#import "sys/win/gui"
-#import "sys/win/gdiplus"
-
-using gui
-using gdiplus
-
-#include once "PsBufferPaint.tiko"
-#include once "PsButton.tiko"
-```
+`DrawText`, `SetWindowText`, `CreateFontIndirect` — binds its ANSI form. In the toolchain's
+`examples/PsControls/PsButton/`, `tiko build` (debug profile: `-g -exx`) or
+`tiko build --profile release` writes the demo's `main.exe` there.
 
 **GDI+ must be running before the first repaint and must outlive the last one.** The control
 renders all of its geometry through GDI+, so bracket your message loop:
@@ -92,7 +88,7 @@ gdiplus.Uninit( gdipToken )
 ```
 
 `gdiplus.Uninit` must come after every window is destroyed, because each repaint builds and
-tears down a `PsBufferPaint`.
+tears down a `PsPaintBuffer`.
 
 **There is no pump filter to install.** If you are coming from a neighbouring control this is
 worth reading twice: there is no `PsButton_FilterMessage`, and there is nothing for you to call
@@ -417,7 +413,7 @@ Firm properties of the control, not settings:
   toolbar button and an on/off switch are different controls.
 - **`isDefault` is appearance only.** One border colour, applied last and with no mood test. It
   never claims Enter from elsewhere in the dialog.
-- **No mnemonics.** `"&Save"` draws a literal ampersand — `PsBufferPaint.PaintText` forces
+- **No mnemonics.** `"&Save"` draws a literal ampersand — `PsPaintBuffer.PaintText` forces
   `DT_NOPREFIX`, so this is enforced by the renderer rather than merely intended. Wire your own
   accelerator and call `PsButton_Click`.
 - **No `WM_COMMAND` to the parent.** Notification is the click callback and nothing else.
@@ -603,7 +599,7 @@ the third is how you check that painter is behaving.
 | `PsButton_CountRenderedTones( hButton, nPart ) as long` | Renders the control **offscreen** with its current painter and returns how many distinct colours land inside one of its rects (`BTN_PART_*`), capped at 64. Returns 0 if the control has no geometry yet, or if the named part's rect is empty. Nothing in the control calls it. |
 
 `PsButton_CountRenderedTones` exists for one specific purpose: **checking that a custom paint
-callback is not flooding the control**. `PsBufferPaint.PaintBorderRect` fills before it strokes,
+callback is not flooding the control**. `PsPaintBuffer.PaintBorderRect` fills before it strokes,
 so a callback that reaches for it to draw a frame or a focus ring floods everything beneath and
 the control renders as one solid block — which survives a glance, because the flood colour is a
 real colour from the control. A wiped part is literally one tone, so `count > 1` is an
@@ -748,7 +744,7 @@ repaint the background, and cannot end up sitting on the wrong one.
 | Field | Meaning |
 |---|---|
 | `hButton` | The control, so the callback can query it |
-| `b` | The control's `PsBufferPaint` for this repaint (borrowed, not owned) |
+| `b` | The control's `PsPaintBuffer` for this repaint (borrowed, not owned) |
 | `rcClient` | The whole client area |
 | `rcButton` | The chrome: `rcClient` deflated by the focus-ring band |
 | `rcIconLeft` | The left icon cell. **Empty** when the side carries neither a glyph nor a valid image |
@@ -763,7 +759,7 @@ repaint the background, and cannot end up sitting on the wrong one.
 | `wszText` | The caption |
 | `wszGlyphLeft` | The left glyph string |
 | `wszGlyphRight` | The right glyph string |
-| `pImageLeft` | The resolved left-cell image (`CGpImage ptr`), or NULL. When non-NULL, draw it with `p->b->PaintImage` **instead of** the glyph. Borrowed — the control's `PsImage` owns it |
+| `pImageLeft` | The resolved left-cell image (`CGpImage ptr`), or NULL. When non-NULL, draw it with `p->b->PaintImage` **instead of** the glyph. Borrowed — the control's `PsImageFile` owns it |
 | `pImageRight` | The same for the right cell |
 | `nTextAlign` | `BTN_ALIGN_*` — map it to `DT_LEFT` / `DT_CENTER` / `DT_RIGHT` |
 
@@ -886,8 +882,9 @@ end enum
 The demo loads **Segoe Fluent Icons** at startup via `AddFontResourceEx`, and
 **aborts if the font is absent** — the control family draws its glyphs from it.
 
-The font ships with Windows 11 but is Microsoft's, not ours, so it is not
-redistributed here. Copy it in once before building:
+It reads one shared copy, `examples/PsControls/SegoeFluentIcons.ttf` — the parent of the
+demo's folder, not beside the exe. The font ships with Windows 11 but is Microsoft's, not ours,
+so it is not redistributed here. Copy it in once, from `examples/PsControls/`:
 
 ```bash
 copy C:\Windows\Fonts\SegoeIcons.ttf SegoeFluentIcons.ttf

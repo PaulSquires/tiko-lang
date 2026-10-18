@@ -26,21 +26,30 @@ Two independent status bars: a blue-themed one with right-aligned panels, and a 
 
 ## Requirements
 
-**Files to copy into your project:**
+The control is the module `vendor/PsControls/PsStatusBar`. It comes with the toolchain and
+imports `PsBufferPaint` and `PsTipHost` itself (`PsTipHost` brings in `PsTooltip`). Import
+`PsBufferPaint` yourself for the paint callback's buffer, `PsTipHost` for the `PSTIP_MODE_*`
+names, and `PsTooltip` for the `PsTooltip_*` calls under *Tooltips: two backends*:
 
-| File | Purpose |
-|---|---|
-| `PsStatusBar.ti` | Declarations — types, callbacks, constants, function prototypes |
-| `PsStatusBar.tiko` | Implementation |
-| `PsBufferPaint.ti` | The flicker-free drawing surface the control paints through |
-| `PsBufferPaint.tiko` | Its implementation |
-| `PsTipHost.ti` / `PsTipHost.tiko` | The tooltip backend switch — see *Tooltips: two backends* |
-| `PsTooltip.ti` / `PsTooltip.tiko` | The owner-drawn tooltip. Required even if you never switch to it: `PsTipHost.tiko` includes it. |
+```freebasic
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+#import "vendor/PsControls/PsBufferPaint"
+#import "vendor/PsControls/PsTipHost"
+#import "vendor/PsControls/PsTooltip"
+#import "vendor/PsControls/PsStatusBar"
 
-**tiko and its sys/win package are required.** The control is a `CWindow` (from `sys/win/gui`)
-and `PsBufferPaint` draws through `sys/win/gdiplus`. None of the control's files imports a
-package itself: your main file imports them before including the control (see *Include order*).
-Build with `tiko build` in a folder whose `tiko.toml` defines `UNICODE`, as the demo's does:
+using gui
+using gdiplus
+using PsBufferPaint
+using PsTipHost
+using PsTooltip
+using PsStatusBar
+```
+
+**`UNICODE` is required.** The module is compiled with it and your program must match. Build
+with `tiko build` in a folder whose `tiko.toml` defines it, as the demo's does:
 
 ```toml
 [target.main]
@@ -56,24 +65,6 @@ UNICODE = "1"
 file cannot `#define` it ahead of `#import "sys/win"`, and without it every bare Win32 name —
 `DrawText`, `SetWindowText`, `CreateFontIndirect` — binds its ANSI form.
 
-**Include order.** `PsStatusBar.ti` pulls in `PsBufferPaint.ti` and `PsTipHost.ti`;
-`PsStatusBar.tiko` pulls in `PsTipHost.tiko`, which in turn pulls in `PsTooltip.tiko`. So the four
-tooltip files need no include line of your own. The **implementation** of `PsBufferPaint` is the
-one thing not pulled in for you, so include it yourself, first, after the imports and the
-`using` lines:
-
-```freebasic
-#import "sys/win"
-#import "sys/win/gui"
-#import "sys/win/gdiplus"
-
-using gui
-using gdiplus
-
-#include once "PsBufferPaint.tiko"
-#include once "PsStatusBar.tiko"
-```
-
 **GDI+ must be running before the first repaint and must outlive the last one.** The control
 renders through `PsBufferPaint`, which draws geometry with GDI+, so bracket your message loop:
 
@@ -84,11 +75,11 @@ gdiplus.Uninit( gdipToken )
 ```
 
 `gdiplus.Uninit` must come after every window is destroyed, because each repaint builds and
-tears down a `PsBufferPaint`. If you also call `CoInitialize` / `CoUninitialize`, put the
+tears down a `PsPaintBuffer`. If you also call `CoInitialize` / `CoUninitialize`, put the
 shutdown before `CoUninitialize` — GDI+ leans on COM.
 
 **There is no pump obligation.** The control installs no message filter and needs none — the
-header declares no filter function for you to call. It never takes focus and is not a tabstop,
+module declares no filter function for you to call. It never takes focus and is not a tabstop,
 so `IsDialogMessage` is irrelevant to it. An ordinary `GetMessage` / `TranslateMessage` /
 `DispatchMessage` loop is all it asks for.
 
@@ -565,7 +556,7 @@ is hot.
 |---|---|
 | 1 | Any pending layout is consumed — one measuring pass, however many mutators ran |
 | 2 | The update rectangle is captured (before `BeginPaint` clears it) |
-| 3 | A `PsBufferPaint` is created and the **whole client** is filled with `BackColor` |
+| 3 | A `PsPaintBuffer` is created and the **whole client** is filled with `BackColor` |
 | 4 | Your paint callback is invoked once per panel that intersects the update rectangle |
 | 5 | The buffer is blitted to the screen |
 
@@ -596,7 +587,7 @@ Nothing at all is drawn inside panels if no paint callback is set.
 |---|---|
 | `hStatusBar` | The control, so the callback can query it — chiefly for `PsStatusBar_GetPadding` |
 | `itemID` | The panel's model index |
-| `b` | The control's `PsBufferPaint` for this repaint (borrowed, not owned) |
+| `b` | The control's `PsPaintBuffer` for this repaint (borrowed, not owned) |
 | `rc` | This panel's rect, in client coordinates — the only rect you may fill |
 | `isHot` | The mouse is over this panel |
 | `wszCaption` | The panel's `Text`, copied for you so you need not call `GetText` |
@@ -690,7 +681,9 @@ end function
 | `PSTIP_MODE_SYSTEM` | 0 | The comctl32 tooltip backend — the default |
 | `PSTIP_MODE_PS` | 1 | The owner-drawn `PsTooltip` backend |
 
-Two more defaults are not `#define`s but structure-field initialisers worth knowing:
+The two `PSTIP_MODE_*` values belong to `PsTipHost`: import it, and `using` it, to name them.
+
+Two more defaults are not constants but structure-field initialisers worth knowing:
 
 | Default | Value |
 |---|---:|
@@ -699,11 +692,15 @@ Two more defaults are not `#define`s but structure-field initialisers worth know
 
 ## Running the demo
 
-The demo loads **Segoe Fluent Icons** at startup via `AddFontResourceEx`, and
+The demo is in the toolchain's `examples/PsControls/PsStatusBar/`. Build it there with
+`tiko build` (debug, `-g -exx`) or `tiko build --profile release`.
+
+It loads **Segoe Fluent Icons** at startup via `AddFontResourceEx`, and
 **aborts if the font is absent** — the control family draws its glyphs from it.
 
 The font ships with Windows 11 but is Microsoft's, not ours, so it is not
-redistributed here. Copy it in once before building:
+redistributed here. The demos share one copy, `examples/PsControls/SegoeFluentIcons.ttf`;
+copy it in once, from `examples/PsControls/`, before running:
 
 ```bash
 copy C:\Windows\Fonts\SegoeIcons.ttf SegoeFluentIcons.ttf

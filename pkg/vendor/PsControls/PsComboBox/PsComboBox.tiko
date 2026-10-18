@@ -21,12 +21,9 @@ using gdiplus
 using PsBufferPaint
 using PsPopupMenu
 
-' BOTH dependencies are included HERE rather than left to the call site. PsListBox.ti names
-' typedefs it does not include and so only compiles where the host happens to have pre-loaded
-' them (see CLAUDE.md); this file deliberately does not repeat that trap.
-'
-' A host that already vendors PsPopupMenu.ti gets ONE copy: #include once dedupes by resolved
-' path, which is how tiko already shares a single copy between PsTextBox and PsMenuBar.
+' BOTH dependencies are imported HERE, so a host needs nothing beyond #import of this module.
+' A host that imports PsPopupMenu for its own use gets the same single module, which is how
+' PsTextBox and PsMenuBar already share it.
 '
 ' The family names its booleans bOK, never "ok" -- a convention from AfxNova, where GDI+'s
 ' Ok = 0 made an "ok" a duplicate definition. Under sys/win an "ok" of your own compiles.
@@ -34,31 +31,31 @@ using PsPopupMenu
 ' Polling timer that guarantees hot-tracking is cleared when the mouse leaves the control.
 ' WM_MOUSELEAVE (TME_LEAVE) is not reliably delivered on fast exits, so a periodic cursor
 ' check acts as a safety net. Timer IDs are per-window, so every instance can share this id.
-#define IDT_CCOMBOBOX_HOTTRACK   &hCB80
-#define PSCOMBOBOX_HOTTRACK_MS    100
+public const IDT_CCOMBOBOX_HOTTRACK = &hCB80
+public const PSCOMBOBOX_HOTTRACK_MS = 100
 
 ' Default geometry. Everything except the two THICKNESS values is DPI-scaled once at Create;
 ' every setter afterwards takes raw pixels and the caller scales (the family rule).
-#define PSCOMBOBOX_DEFAULT_PADLEFT     12
-#define PSCOMBOBOX_DEFAULT_PADRIGHT    10
-#define PSCOMBOBOX_DEFAULT_PADTOP       6
-#define PSCOMBOBOX_DEFAULT_PADBOTTOM    6
+public const PSCOMBOBOX_DEFAULT_PADLEFT = 12
+public const PSCOMBOBOX_DEFAULT_PADRIGHT = 10
+public const PSCOMBOBOX_DEFAULT_PADTOP = 6
+public const PSCOMBOBOX_DEFAULT_PADBOTTOM = 6
 ' Gap between the caption and the chevron. Only spent when the caption is shown -- in
 ' arrow-only mode there is nothing to separate the chevron FROM, so it is not added.
-#define PSCOMBOBOX_DEFAULT_TEXTGAP      8
-#define PSCOMBOBOX_DEFAULT_CHEVRONW     9
-#define PSCOMBOBOX_DEFAULT_CHEVRONH    12
+public const PSCOMBOBOX_DEFAULT_TEXTGAP = 8
+public const PSCOMBOBOX_DEFAULT_CHEVRONW = 9
+public const PSCOMBOBOX_DEFAULT_CHEVRONH = 12
 ' Vertical air between the up chevron and the down chevron, inside CHEVRONH.
-#define PSCOMBOBOX_DEFAULT_CHEVRONGAP   3
+public const PSCOMBOBOX_DEFAULT_CHEVRONGAP = 3
 ' Corner curvature of the button chrome. This is an ellipse DIAMETER, not a radius --
 ' PsBufferPaint keeps GDI's vocabulary and halves it internally, so 12 draws a 6px radius.
 ' Twelve controls pass GDI-flavoured numbers there; do not "fix" it to a radius here.
-#define PSCOMBOBOX_DEFAULT_CURVATURE   12
+public const PSCOMBOBOX_DEFAULT_CURVATURE = 12
 ' The button reads BORDERLESS out of the box (see PSCOMBOBOX_COLORS), so a border thickness
 ' of 1 costs nothing until a host sets a contrasting BorderColor. Zero disables it outright.
-#define PSCOMBOBOX_DEFAULT_BORDERTHICK  1     ' not DPI-scaled
-#define PSCOMBOBOX_DEFAULT_FOCUSGAP     2
-#define PSCOMBOBOX_DEFAULT_FOCUSTHICK   1     ' not DPI-scaled
+public const PSCOMBOBOX_DEFAULT_BORDERTHICK = 1   ' not DPI-scaled
+public const PSCOMBOBOX_DEFAULT_FOCUSGAP = 2
+public const PSCOMBOBOX_DEFAULT_FOCUSTHICK = 1   ' not DPI-scaled
 
 
 ' Whether the button shows the selected item's caption, or only the chevron.
@@ -2544,7 +2541,7 @@ end sub
 
 
 ' ========================================================================================
-' THE message-pump hook. See the contract in PsComboBox.ti.
+' THE message-pump hook. See the contract in the declarations at the top of this file.
 '
 ' Two jobs, in this order:
 '

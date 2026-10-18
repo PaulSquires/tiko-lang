@@ -33,30 +33,30 @@ using PsTooltip
 ' check acts as a safety net. Timer IDs are per-window, so every instance can share this id.
 ' Distinct from PsCheckBox's &hCBA0, PsButton's &hCB90 and PsToggle's &hCB70 purely as a
 ' debugging courtesy -- nothing requires it, since the ids never share a window.
-#define IDT_PSOPTIONBUTTON_HOTTRACK   &hCBB0
-#define PSOPTIONBUTTON_HOTTRACK_MS     100
+public const IDT_PSOPTIONBUTTON_HOTTRACK = &hCBB0
+public const PSOPTIONBUTTON_HOTTRACK_MS = 100
 
 ' Stamped into the first field of every PSOPTIONBUTTON_STATE and checked before any other field is
 ' read. NEW TO THIS FAMILY, and it exists because this is the first control that holds handles
 ' to OTHER controls: everywhere else a bad HWND costs you a null pointer, here it could cost a
 ' dereference of someone else's window memory. See the GROUP MODEL header below -- the registry
 ' is what actually removes that hazard, and this is the belt to its braces.
-#define PSOPTIONBUTTON_SIGNATURE   &h4F505442    ' 'OPTB'
+public const PSOPTIONBUTTON_SIGNATURE = &h4F505442   ' 'OPTB'
 
 ' Default geometry. DPI scaling is applied once at Create -- but note the two exceptions below,
 ' which are NOT an oversight. Every setter afterwards takes raw pixels and the caller scales
 ' (the family rule).
-#define PSOPTIONBUTTON_DEFAULT_PADLEFT     4
-#define PSOPTIONBUTTON_DEFAULT_PADTOP      2
-#define PSOPTIONBUTTON_DEFAULT_PADRIGHT    4
-#define PSOPTIONBUTTON_DEFAULT_PADBOTTOM   2
+public const PSOPTIONBUTTON_DEFAULT_PADLEFT = 4
+public const PSOPTIONBUTTON_DEFAULT_PADTOP = 2
+public const PSOPTIONBUTTON_DEFAULT_PADRIGHT = 4
+public const PSOPTIONBUTTON_DEFAULT_PADBOTTOM = 2
 ' Gap between the box cell and the caption. Spent ONLY when there is a caption to separate the
 ' box from -- a caption-less option button charges padding + box + padding and nothing else.
-#define PSOPTIONBUTTON_DEFAULT_BOXGAP      8
+public const PSOPTIONBUTTON_DEFAULT_BOXGAP = 8
 ' The box CELL. Declared, never measured. The circle is inscribed in it (see LayoutOptionButton),
 ' so a non-square cell still yields a round button rather than a stadium.
-#define PSOPTIONBUTTON_DEFAULT_BOXWIDTH   16
-#define PSOPTIONBUTTON_DEFAULT_BOXHEIGHT  16
+public const PSOPTIONBUTTON_DEFAULT_BOXWIDTH = 16
+public const PSOPTIONBUTTON_DEFAULT_BOXHEIGHT = 16
 
 ' THESE TWO ARE DELIBERATELY *NOT* DPI-SCALED AT CREATE, and the reason is the same for both:
 ' they are handed to PsBufferPaint.PaintRoundOutline, WHICH SCALES THE PEN ITSELF
@@ -64,24 +64,24 @@ using PsTooltip
 ' well would scale them TWICE and give a ring two pixels thick at 175% where one was asked for.
 ' This is the same double-scaling trap tiko hit with PsListBox_SetRowHeight. They DO end up
 ' DPI-aware; the painter is simply the thing that does it.
-#define PSOPTIONBUTTON_DEFAULT_RINGTHICK   1
-#define PSOPTIONBUTTON_DEFAULT_FOCUSTHICK  1
+public const PSOPTIONBUTTON_DEFAULT_RINGTHICK = 1
+public const PSOPTIONBUTTON_DEFAULT_FOCUSTHICK = 1
 
 ' The dot. 0 means DERIVE it as a percentage of the circle diameter, which is the default
 ' because the alternative silently decouples: a host that scales the box cell up to 24px and
 ' leaves a declared dot at 6px gets a button that looks broken and nothing warns it. A nonzero
 ' value overrides and IS DPI-scaled at Create, since unlike the pens above it is a distance and
 ' nothing downstream scales it. (PsVScrollBar_SetWheelStep's "0 = ask the system" precedent.)
-#define PSOPTIONBUTTON_DEFAULT_DOTSIZE     0
-#define PSOPTIONBUTTON_DOTRATIO_PCT       40
+public const PSOPTIONBUTTON_DEFAULT_DOTSIZE = 0
+public const PSOPTIONBUTTON_DOTRATIO_PCT = 40
 
-#define PSOPTIONBUTTON_DEFAULT_FOCUSGAP    2
-#define PSOPTIONBUTTON_DEFAULT_FOCUSCURV   4     ' ellipse DIAMETER, not a radius
+public const PSOPTIONBUTTON_DEFAULT_FOCUSGAP = 2
+public const PSOPTIONBUTTON_DEFAULT_FOCUSCURV = 4   ' ellipse DIAMETER, not a radius
 
 ' Every option button starts here. A form with ONE logical group therefore needs no grouping
 ' calls at all; see the GROUP MODEL header below for why the group id is nonetheless a Create
 ' parameter rather than only a setter.
-#define PSOPTIONBUTTON_DEFAULT_GROUPID     0
+public const PSOPTIONBUTTON_DEFAULT_GROUPID = 0
 
 
 ' Which side of the caption the box sits on.
@@ -2795,7 +2795,7 @@ private function PsOptionButton_ProbePart( _
 end function
 
 
-' See the header in PsOptionButton.ti. A part wiped by a PaintBorderRect fill is literally ONE
+' See the declarations at the top of this file. A part wiped by a PaintBorderRect fill is literally ONE
 ' tone, so the useful signal is the count LEAVING 1 -- not the count being large.
 public function PsOptionButton_CountRenderedTones( byval hOptionButton as HWND, byval nPart as long ) as long
     dim as long nTones = 0
@@ -2804,7 +2804,7 @@ public function PsOptionButton_CountRenderedTones( byval hOptionButton as HWND, 
     return nTones
 end function
 
-' See the header in PsOptionButton.ti. Compare two hashes of the SAME part taken in two different
+' See the declarations at the top of this file. Compare two hashes of the SAME part taken in two different
 ' states: equal means the state change never reached the surface. It can only prove difference,
 ' never correctness. (0 is also the failure return; an FNV-1a of a non-empty region landing
 ' exactly on 0 is possible in principle and has been accepted rather than worked around.)
@@ -3824,7 +3824,7 @@ public sub PsOptionButton_RunSelfTest( byval hWndParent as HWND )
         ' PaintBorderRect destroys the render completely, and the box still reports TWO tones,
         ' because PaintBorderRect FILLS and then strokes a border -- fill colour plus pen colour.
         ' "> 1" passes on that. PsMessageBox hit the identical thing for the identical reason and
-        ' its REFACTOR_PLAN says so; inheriting the number rather than re-measuring it is the
+        ' its notes say so; inheriting the number rather than re-measuring it is the
         ' trap, and this control walked into it before the A/B pass pulled it back out.
         '
         ' Measured, both states, this control:

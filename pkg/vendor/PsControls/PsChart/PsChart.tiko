@@ -30,7 +30,7 @@ using PsTipHost
 ' (the family has been bitten by this in four controls), so a hot data point is also checked
 ' on a timer and cleared if the cursor is no longer inside the client rect. This is the ONLY
 ' timer this control runs, and it runs only while something is hot.
-#define IDT_CCHART_HOTTRACK   &hCBC0
+public const IDT_CCHART_HOTTRACK = &hCBC0
 
 
 ' ========================================================================================
@@ -41,31 +41,31 @@ using PsTipHost
 ' thickness -- are NOT DPI-scaled, ever: a hairline should stay a hairline (PsMenuBar's
 ' nSeparatorThickness rule).
 ' ========================================================================================
-#define PSCHART_DEFAULT_PADDING          10   ' inset from the client edge on all four sides
-#define PSCHART_DEFAULT_CHROMEGAP         6   ' between title/subtitle/legend/plot blocks
-#define PSCHART_DEFAULT_TICKLEN           4   ' axis tick, and the gap before a value label
-#define PSCHART_DEFAULT_BARGAP            1   ' between bars WITHIN one category group
-#define PSCHART_DEFAULT_GROUPGAPPCT      25   ' percent of the slot left empty between groups
-#define PSCHART_DEFAULT_HLOCTICK          3   ' the open/close tick's arm length, per side
-#define PSCHART_DEFAULT_LINEWIDTH         2
-#define PSCHART_DEFAULT_SYMBOLSIZE        6
-#define PSCHART_DEFAULT_PIEGAP            1   ' NOT scaled: a slice separator is a hairline
-#define PSCHART_DEFAULT_TICKHINT          5   ' how many value gridlines to aim for
-#define PSCHART_DEFAULT_LABELGAP          8   ' minimum clear space between two X labels
-#define PSCHART_DEFAULT_HOTPOLL_MS      100
-#define PSCHART_DEFAULT_HITRADIUS         8   ' line-series hit tolerance, in pixels
+public const PSCHART_DEFAULT_PADDING = 10   ' inset from the client edge on all four sides
+public const PSCHART_DEFAULT_CHROMEGAP = 6   ' between title/subtitle/legend/plot blocks
+public const PSCHART_DEFAULT_TICKLEN = 4   ' axis tick, and the gap before a value label
+public const PSCHART_DEFAULT_BARGAP = 1   ' between bars WITHIN one category group
+public const PSCHART_DEFAULT_GROUPGAPPCT = 25   ' percent of the slot left empty between groups
+public const PSCHART_DEFAULT_HLOCTICK = 3   ' the open/close tick's arm length, per side
+public const PSCHART_DEFAULT_LINEWIDTH = 2
+public const PSCHART_DEFAULT_SYMBOLSIZE = 6
+public const PSCHART_DEFAULT_PIEGAP = 1   ' NOT scaled: a slice separator is a hairline
+public const PSCHART_DEFAULT_TICKHINT = 5   ' how many value gridlines to aim for
+public const PSCHART_DEFAULT_LABELGAP = 8   ' minimum clear space between two X labels
+public const PSCHART_DEFAULT_HOTPOLL_MS = 100
+public const PSCHART_DEFAULT_HITRADIUS = 8   ' line-series hit tolerance, in pixels
 
 ' How many distinct series colours the built-in palette holds before it wraps. Ten is the
 ' point past which a categorical palette stops being distinguishable anyway; a host with
 ' more series is expected to set colours per series rather than lean on the wrap.
-#define PSCHART_PALETTE_COUNT            10
+public const PSCHART_PALETTE_COUNT = 10
 
 ' -1 in nDecimals means "derive from the axis step" -- see CHT_AutoDecimals. It is a
 ' sentinel rather than 0 because 0 decimals is a real, common request.
-#define PSCHART_DECIMALS_AUTO            -1
+public const PSCHART_DECIMALS_AUTO = -1
 ' 0 in nLabelSkip means "measure the labels and work it out". A stride of 1 (draw every
 ' label) is a real request and must not be confused with it.
-#define PSCHART_SKIP_AUTO                 0
+public const PSCHART_SKIP_AUTO = 0
 
 
 ' ========================================================================================
@@ -286,11 +286,11 @@ end type
 ' ========================================================================================
 ' WHAT A PAINT CALLBACK RECEIVES.
 '
-' A PsBufferPaint ptr -- the control's OWN buffer for this repaint -- and every rect layout
+' A PsPaintBuffer ptr -- the control's OWN buffer for this repaint -- and every rect layout
 ' resolved. Never an HDC, and never a GDI+ Graphics: a second Graphics on the same surface
 ' would put two independently-batching GDI+ objects on one HDC with nothing coordinating
-' their flushes (PsBufferPaint.ti says this at length, and it is why PaintPie had to be
-' added there rather than here).
+' their flushes (PsBufferPaint's module header says this at length, and it is why PaintPie
+' had to be added there rather than here).
 '
 ' Every sentinel is already resolved before this struct reaches a host: fMin/fMax/fStep are
 ' the REAL range even when autoscaling, nDecimals is the derived count and never -1, and
@@ -369,7 +369,7 @@ public enum
 end enum
 
 
-' --- pure helpers, defined in the .tiko -----------------------------------------------------
+' --- pure helpers, defined further down this file ------------------------------------------
 ' Declared up here because the member procedures below call them.
 
 ' Snap a raw data range to readable gridlines. Returns the axis bounds and the step through
@@ -2102,7 +2102,7 @@ private sub CHT_RenderAreaFills( byval pChart as PSCHART_STATE ptr, byval b as P
 end sub
 
 ' CHT_LINE_* is the chart's vocabulary and PS_PENDASH_* is the buffer's. They are deliberately
-' two enums rather than one shared constant: PsBufferPaint is vendored into every control in
+' two enums rather than one shared constant: PsBufferPaint is imported by every control in
 ' the family and must not grow a dependency on a chart's idea of what a line style is.
 private function CHT_DashForLineStyle( byval nStyle as long ) as long
     select case nStyle
@@ -2434,7 +2434,7 @@ private sub CHT_Render( byval pChart as PSCHART_STATE ptr, byval b as PsPaintBuf
 
     ' A host callback replaces EVERYTHING except the background fill above -- so a callback
     ' that only wants to add an annotation still has to draw the chart itself. That is the
-    ' all-or-nothing contract stated in the .ti, and it is PsProgressBar's shape.
+    ' all-or-nothing contract stated at the top of this file, and it is PsProgressBar's shape.
     if pChart->PaintCallback then
         dim as PSCHART_PAINTINFO p
         p.hChart       = pChart->hWin

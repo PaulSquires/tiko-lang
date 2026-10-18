@@ -10,7 +10,7 @@ depends on the visual style the user happens to be running, and every colour it 
 you set. Items are measured from your font, so the bar hugs its content and the strip to the
 right of the items stays yours to draw in.
 
-The dropdowns are **[PsPopupMenu](PsPopupMenu.md)** windows, which is where the actual menu rows,
+The dropdowns are **[PsPopupMenu](../PsPopupMenu/README.md)** windows, which is where the actual menu rows,
 submenus, checkmarks and accelerator labels live. This document covers the bar; that one covers
 the menus, and stands alone if all you want is a context menu.
 
@@ -20,31 +20,36 @@ the menus, and stands alone if all you want is a context menu.
 
 ![The PsMenuBar demo](PsMenuBar.png)
 
-The repo holds two controls, and both are here: the horizontal **PsMenuBar** across the top, and the **PsPopupMenu** dropped from `File`. The dropdown shows what the popup handles — accelerator text, separators of their own height, a submenu arrow (`Open Recent`), a checkmark, and a disabled item. `Update available` on the right is painted by the host into the bar's spare space, not a menu item. Cropped below the menu.
+Both halves of the menu system are here: the horizontal **PsMenuBar** across the top, and the **PsPopupMenu** dropped from `File`. The dropdown shows what the popup handles — accelerator text, separators of their own height, a submenu arrow (`Open Recent`), a checkmark, and a disabled item. `Update available` on the right is painted by the host into the bar's spare space, not a menu item. Cropped below the menu.
 
 ---
 
 ## Requirements
 
-**Files to copy into your project:**
+The bar is the module `vendor/PsControls/PsMenuBar`, which comes with the toolchain and imports
+`PsPopupMenu` and `PsBufferPaint` itself — importing it alone compiles the complete menu system.
+The bar's dropdowns *are* `PsPopupMenu` windows, which you build with `PsPopupMenu_*` calls, so
+import `PsPopupMenu` too to name them, and `PsBufferPaint` for a paint callback. The dependency
+runs one way: a host that wants only context menus imports just `PsPopupMenu`. See
+[PsPopupMenu](../PsPopupMenu/README.md).
 
-| File | Purpose |
-|---|---|
-| `PsMenuBar.ti` | Declarations for the bar — types, callbacks, constants, prototypes |
-| `PsMenuBar.tiko` | Its implementation |
-| `PsPopupMenu.ti` | Declarations for the dropdowns |
-| `PsPopupMenu.tiko` | Their implementation |
-| `PsBufferPaint.ti` | The flicker-free drawing surface both controls paint through |
-| `PsBufferPaint.tiko` | Its implementation |
+```freebasic
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+#import "vendor/PsControls/PsBufferPaint"
+#import "vendor/PsControls/PsPopupMenu"
+#import "vendor/PsControls/PsMenuBar"
 
-All six. The bar's dropdowns *are* `PsPopupMenu` windows, so the pair is not optional here — but
-the dependency runs one way, and a host that wants only context menus needs just `PsPopupMenu`
-plus `PsBufferPaint`. See [PsPopupMenu.md](PsPopupMenu.md).
+using gui
+using gdiplus
+using PsBufferPaint
+using PsPopupMenu
+using PsMenuBar
+```
 
-**tiko and its sys/win package are required.** Both controls are `CWindow`s (from `sys/win/gui`)
-and `PsBufferPaint` draws through `sys/win/gdiplus`. None of the controls' files imports a
-package itself: your main file imports them before including the controls (see *Include order*).
-Build with `tiko build` in a folder whose `tiko.toml` defines `UNICODE`, as the demo's does:
+**`UNICODE` must be defined for your program**, as it is for the modules. Set it in `tiko.toml`,
+as the demo's does:
 
 ```toml
 [target.main]
@@ -60,25 +65,8 @@ UNICODE = "1"
 file cannot `#define` it ahead of `#import "sys/win"`, and without it every bare Win32 name —
 `DrawText`, `SetWindowText`, `CreateFontIndirect` — binds its ANSI form.
 
-`tiko build` (debug profile, `-g -exx`) or `tiko build --profile release` from the control's
-folder writes `main.exe` there.
-
-**Include order.** `PsMenuBar.tiko` pulls in its own `.ti` **and** `PsPopupMenu.tiko`, so including
-it alone gives you the complete menu system. The package imports and `using` lines come first;
-you still include `PsBufferPaint.tiko` before it, and after any colour or font globals your
-callbacks need to see:
-
-```freebasic
-#import "sys/win"
-#import "sys/win/gui"
-#import "sys/win/gdiplus"
-
-using gui
-using gdiplus
-
-#include once "PsBufferPaint.tiko"
-#include once "PsMenuBar.tiko"        ' pulls in PsPopupMenu.tiko itself
-```
+The demo is in the toolchain's `examples/PsControls/PsMenuBar/`: `tiko build` (debug profile,
+`-g -exx`) or `tiko build --profile release` there writes `main.exe`.
 
 **GDI+ must be running before the first repaint and must outlive the last one.** Both controls
 render through GDI+, so bracket your message loop:
@@ -90,7 +78,7 @@ gdiplus.Uninit( gdipToken )
 ```
 
 `gdiplus.Uninit` must come after every window is destroyed, because each repaint builds and
-tears down a `PsBufferPaint`. If you also use COM, initialise it before GDI+ and uninitialise it
+tears down a `PsPaintBuffer`. If you also use COM, initialise it before GDI+ and uninitialise it
 after — GDI+ leans on COM.
 
 ### The message-pump filter is mandatory
@@ -334,7 +322,7 @@ every second one.
 
 There are two keyboard modes.
 
-**A dropdown is open.** Keys go to the open menu — see [PsPopupMenu](PsPopupMenu.md) for the full
+**A dropdown is open.** Keys go to the open menu — see [PsPopupMenu](../PsPopupMenu/README.md) for the full
 table — with two moves added at the bar boundary:
 
 | Key | Effect |
@@ -443,7 +431,7 @@ Append-only, and silent.
 
 | Function | Description |
 |---|---|
-| `PsMenuBar_SetDropDown( hMenuBar, idx, hPopup ) as boolean` | Attaches a [PsPopupMenu](PsPopupMenu.md) window as item `idx`'s dropdown. **Ownership transfers** — the bar destroys it when the bar is destroyed. Attaching over an existing dropdown **destroys the old one**. `hPopup = 0` detaches without destroying, returning ownership to you. FALSE for an invalid index. Does not change the bar's layout. |
+| `PsMenuBar_SetDropDown( hMenuBar, idx, hPopup ) as boolean` | Attaches a [PsPopupMenu](../PsPopupMenu/README.md) window as item `idx`'s dropdown. **Ownership transfers** — the bar destroys it when the bar is destroyed. Attaching over an existing dropdown **destroys the old one**. `hPopup = 0` detaches without destroying, returning ownership to you. FALSE for an invalid index. Does not change the bar's layout. |
 | `PsMenuBar_GetDropDown( hMenuBar, idx ) as HWND` | The item's dropdown, or 0 when it has none or the index is invalid. This is how you reach the menu rows to flip a checkmark or an enabled state. |
 
 An item with no dropdown still paints and still highlights on hover; clicking it does nothing.
@@ -592,7 +580,7 @@ repaint it.
 |---|---|
 | `hMenuBar` | The bar, so the callback can query it |
 | `itemID` | The bar item **index** |
-| `b` | The control's `PsBufferPaint` for this repaint (borrowed, not owned) |
+| `b` | The control's `PsPaintBuffer` for this repaint (borrowed, not owned) |
 | `rc` | The item's full rect — **fill this** |
 | `isHot` | The mouse is over this item |
 | `isActive` | This item's dropdown is open, or it holds the keyboard highlight |
@@ -615,13 +603,13 @@ on the item whose dropdown is open.
 | `IDT_CMENUBAR_HOTTRACK` | `&hCB40` | That timer's id. Timer ids are per-window, so every instance shares it |
 
 The dropdowns bring their own constants — alignment flags, notification messages and geometry
-defaults. See [PsPopupMenu.md](PsPopupMenu.md).
+defaults. See [PsPopupMenu](../PsPopupMenu/README.md).
 
 ---
 
 ## Related controls
 
-- **[PsPopupMenu](PsPopupMenu.md)** — the floating menu the bar uses for every dropdown, and the
+- **[PsPopupMenu](../PsPopupMenu/README.md)** — the floating menu the bar uses for every dropdown, and the
   place all the menu detail lives: rows, separators, checkmarks, accelerator labels, recursive
   submenus, the row paint callback and the colour struct that goes with it. It is independently
   usable, so the same control serves as your context menus, and its document stands alone.

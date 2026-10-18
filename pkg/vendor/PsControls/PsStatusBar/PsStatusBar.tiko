@@ -24,13 +24,13 @@ using PsTipHost
 ' control. WM_MOUSELEAVE (TME_LEAVE) is not reliably delivered on fast exits, so a
 ' periodic cursor check acts as a safety net. Timer IDs are per-window, so every
 ' instance can share this id.
-#define IDT_CSTATUSBAR_HOTTRACK   &hCB01
-#define PSSTATUSBAR_HOTTRACK_MS    100
+public const IDT_CSTATUSBAR_HOTTRACK = &hCB01
+public const PSSTATUSBAR_HOTTRACK_MS = 100
 
 
 ' Default horizontal inset applied to each side of a panel's text when measuring. The
 ' control DPI-scales this at Create; PsStatusBar_SetPadding takes raw pixels thereafter.
-#define PSSTATUSBAR_DEFAULT_PADDING  8
+public const PSSTATUSBAR_DEFAULT_PADDING = 8
 
 ' type and array to hold values related to the statusbar panels
 ' NOTE: "width" is a FreeBASIC reserved word (see C:\dev\Learnings.md) and produces errors
@@ -396,7 +396,7 @@ public declare sub      PsStatusBar_SetPaintCallback( byval hStatusBarControl as
 public declare sub      PsStatusBar_SetMessageCallback( byval hStatusBarControl as HWND, byval userfunc as SB_MessageCallbackFunc )
 public declare sub      PsStatusBar_SetTooltipCallback( byval hStatusBarControl as HWND, byval userfunc as SB_TooltipCallbackFunc )
 
-' The tooltip backend switch, pulled in here so a host needs no extra include line.
+' The tooltip backend switch is PsTipHost, which the module imports itself (top of this file).
 
 
 function GetStatusBarPointer( byval hStatusBarControl as HWND ) as PSSTATUSBAR_STATE ptr

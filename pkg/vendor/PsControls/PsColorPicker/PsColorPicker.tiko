@@ -30,7 +30,7 @@
 '    PsNumericUpDown children. That decision predates the popup conversion, where its original
 '    justification was the pump obligation those children carry -- a justification the nested
 '    loop has since made moot, since the loop could simply make the call itself. It is kept
-'    anyway because the fields are worth less than the three vendored files they would cost:
+'    anyway because the fields are worth less than the three extra modules they would cost:
 '    they accept digits, Backspace, Delete, arrows, Home/End and Tab, and nothing else. No
 '    selection, no clipboard, no undo. A host that needs those wants a PsTextBox on its own
 '    dialog, not inside this popup.
@@ -75,8 +75,8 @@
 '    deliberately no Cancel button -- an outside click is how a dropdown is abandoned, and a
 '    second button for the same job would only make the footer wider.
 '
-'    THE OK BUTTON IS DRAWN BY THIS CONTROL, not a vendored PsButton. It is one rect, one paint
-'    branch and one hit test, and vendoring PsButton would pull PsImage in behind it for a
+'    THE OK BUTTON IS DRAWN BY THIS CONTROL, not an imported PsButton. It is one rect, one paint
+'    branch and one hit test, and importing PsButton would pull PsImage in behind it for a
 '    button that will never show an image.
 '
 '    THE PARENT IS NOT DISABLED for the duration, which is the one place this departs from
@@ -124,13 +124,13 @@ using PsVScrollBar
 ' hot. CARET is new to this control and runs ONLY while a field has focus -- an idle picker
 ' burns no timer at all.
 ' ----------------------------------------------------------------------------------------
-#define IDT_PSCOLORPICKER_HOTTRACK    &hCBC0
-#define PSCOLORPICKER_HOTTRACK_MS      100
-#define IDT_PSCOLORPICKER_CARET       &hCBC1
+public const IDT_PSCOLORPICKER_HOTTRACK = &hCBC0
+public const PSCOLORPICKER_HOTTRACK_MS = 100
+public const IDT_PSCOLORPICKER_CARET = &hCBC1
 
 ' Stamped into the first field of every PSCOLORPICKER_STATE and checked before any other field is
 ' read. PsOptionButton's precedent.
-#define PSCOLORPICKER_SIGNATURE   &h434C5250    ' 'CLRP'
+public const PSCOLORPICKER_SIGNATURE = &h434C5250   ' 'CLRP'
 
 
 ' ----------------------------------------------------------------------------------------
@@ -141,9 +141,9 @@ using PsVScrollBar
 ' records: they are handed to PaintRoundOutline / PaintLine, WHICH SCALE THE PEN THEMSELVES.
 ' Scaling here as well would give a two-pixel hairline at 175% where one was asked for.
 ' ----------------------------------------------------------------------------------------
-#define PSCOLORPICKER_DEFAULT_PAD           8
-#define PSCOLORPICKER_DEFAULT_GAP           6
-#define PSCOLORPICKER_DEFAULT_TABHEIGHT    24
+public const PSCOLORPICKER_DEFAULT_PAD = 8
+public const PSCOLORPICKER_DEFAULT_GAP = 6
+public const PSCOLORPICKER_DEFAULT_TABHEIGHT = 24
 
 ' The tint/shade matrix. The grid is an EXACT multiple of the cell size, which is what makes
 ' the point->cell arithmetic a plain division with no rounding case to get wrong.
@@ -152,45 +152,45 @@ using PsVScrollBar
 ' was shorter than the lists would leave a band of dead panel under it on the Custom tab. Making
 ' the two agree costs nothing here: the matrix is a LAW rather than a table, so 14 rows is simply
 ' a finer lightness ramp than 12 was.
-#define PSCOLORPICKER_DEFAULT_MATRIXCOLS   16
-#define PSCOLORPICKER_DEFAULT_MATRIXROWS   14
-#define PSCOLORPICKER_DEFAULT_CELLW        18
-#define PSCOLORPICKER_DEFAULT_CELLH        22
+public const PSCOLORPICKER_DEFAULT_MATRIXCOLS = 16
+public const PSCOLORPICKER_DEFAULT_MATRIXROWS = 14
+public const PSCOLORPICKER_DEFAULT_CELLW = 18
+public const PSCOLORPICKER_DEFAULT_CELLH = 22
 
 ' The Web / System LISTS. One row per entry: a swatch of nSwatchW, then the name.
 '
 ' nListRows is how many rows are VISIBLE, and it is what sizes the body -- 137 named web colours
 ' will never fit, so this is the number that decides whether the list is comfortable to scan or a
 ' letterbox. It is also the page size handed to the scrollbar.
-#define PSCOLORPICKER_DEFAULT_SWATCHW      34
-#define PSCOLORPICKER_DEFAULT_LISTROWS     14
-#define PSCOLORPICKER_DEFAULT_SCROLLW      14
+public const PSCOLORPICKER_DEFAULT_SWATCHW = 34
+public const PSCOLORPICKER_DEFAULT_LISTROWS = 14
+public const PSCOLORPICKER_DEFAULT_SCROLLW = 14
 
 ' The Initial/Current preview is ONE box of PREVIEWW x (2 * PREVIEWH), split across the middle,
 ' with its two labels drawn above and below it. PREVIEWH is therefore the height of ONE half.
-#define PSCOLORPICKER_DEFAULT_PREVIEWW     92
-#define PSCOLORPICKER_DEFAULT_PREVIEWH     46
-#define PSCOLORPICKER_DEFAULT_FIELDW       58
-#define PSCOLORPICKER_DEFAULT_FIELDH       24
-#define PSCOLORPICKER_DEFAULT_OKW          92
-#define PSCOLORPICKER_DEFAULT_OKH          30
+public const PSCOLORPICKER_DEFAULT_PREVIEWW = 92
+public const PSCOLORPICKER_DEFAULT_PREVIEWH = 46
+public const PSCOLORPICKER_DEFAULT_FIELDW = 58
+public const PSCOLORPICKER_DEFAULT_FIELDH = 24
+public const PSCOLORPICKER_DEFAULT_OKW = 92
+public const PSCOLORPICKER_DEFAULT_OKH = 30
 ' Wide enough for "Green:" -- the field labels are whole words now, not single letters.
-#define PSCOLORPICKER_DEFAULT_LABELW       52
-#define PSCOLORPICKER_DEFAULT_ROWH         22
+public const PSCOLORPICKER_DEFAULT_LABELW = 52
+public const PSCOLORPICKER_DEFAULT_ROWH = 22
 
 ' The tab strip is sized to its text: each tab is its caption plus this much padding on either
 ' side. Left-aligned, so the strip's leftover width to the right of the last tab is empty.
-#define PSCOLORPICKER_DEFAULT_TABPAD       14
+public const PSCOLORPICKER_DEFAULT_TABPAD = 14
 
 ' Curvature is an ellipse DIAMETER, as RoundRect took it -- the vocabulary every method in
 ' PsBufferPaint uses.
-#define PSCOLORPICKER_DEFAULT_CURVATURE     4
-#define PSCOLORPICKER_DEFAULT_BORDERTHICK   1   ' NOT scaled here; see above
-#define PSCOLORPICKER_DEFAULT_FOCUSTHICK    1   ' NOT scaled here; see above
+public const PSCOLORPICKER_DEFAULT_CURVATURE = 4
+public const PSCOLORPICKER_DEFAULT_BORDERTHICK = 1   ' NOT scaled here; see above
+public const PSCOLORPICKER_DEFAULT_FOCUSTHICK = 1   ' NOT scaled here; see above
 
 ' How far the hot/selected ring is inset into a swatch, so the ring reads as being ON the
 ' swatch rather than as a gap around it.
-#define PSCOLORPICKER_RINGINSET             1
+public const PSCOLORPICKER_RINGINSET = 1
 
 
 ' ----------------------------------------------------------------------------------------
@@ -1350,11 +1350,9 @@ public declare sub      PsColorPicker_RunSelfTest( byval hWndParent as HWND )
 
 ' NO PsColorPicker_FilterMessage, and there must never be one. See the header.
 
-' The scrollbar's IMPLEMENTATION, pulled in here rather than left to the host. `#include once`
-' makes it a no-op in a host that already includes it for its own use (tiko does), and including
-' it here means adopting this control is still just "add the files and include the .tiko" -- a
-' host that forgot it would get four undefined references at LINK time, which is the least
-' helpful moment to find out.
+' The scrollbar comes from the PsVScrollBar module, which this module imports itself (top of
+' file), so adopting this control is still just one #import -- the host has nothing to add for
+' the scrollbar and cannot forget it.
 
 
 ' Forward declarations: the mutators re-derive the body selection, and the WndProc uses the
@@ -1384,8 +1382,8 @@ declare function PsColorPicker_GridCount( byval pClr as PSCOLORPICKER_STATE ptr 
 ' Index 25 is skipped -- it is unused in the COLOR_* series.
 '
 ' Written as PARALLEL ARRAYS of scalars rather than one array of a UDT: fbc's array initialisers
-' are reliable for flat scalar lists and fussy about aggregates, and this file is vendored into
-' hosts where a build failure is expensive to diagnose.
+' are reliable for flat scalar lists and fussy about aggregates, and this module is compiled
+' into hosts where a build failure is expensive to diagnose.
 ' ========================================================================================
 dim shared as zstring * 21 gClrWebName(0 to 136) = { _
     "Black"               , "DimGray"             , "Gray"                , "DarkGray", _
@@ -2298,7 +2296,7 @@ private sub PsColorPicker_RenderPreviews( _
 end sub
 
 
-' The OK button. Hand-drawn rather than a vendored PsButton -- see the .ti header. Mood order is
+' The OK button. Hand-drawn rather than an imported PsButton -- see the file header. Mood order is
 ' pressed > hot > idle, PsButton's precedence with its two disabled entries removed: OK is never
 ' disabled, because every reachable state of this popup has a committable colour in it.
 private sub PsColorPicker_RenderOK( _
@@ -2462,8 +2460,8 @@ private function PsColorPicker_OnPaint( byval hwnd as HWND ) as LRESULT
 
     if pClr->bLayoutDirty then pClr->LayoutColorPicker()
     ' Both of these depend on the tab's row count and on the viewport height, which the layout
-    ' has only just settled -- so they run here rather than inside LayoutColorPicker, which lives
-    ' in the .ti and cannot see PsColorPicker_GridCount.
+    ' has only just settled -- so they run here rather than inside LayoutColorPicker, which is
+    ' defined above PsColorPicker_GridCount's declaration and cannot see it.
     if pClr->bScrollToSel then
         pClr->bScrollToSel = false
         PsColorPicker_EnsureSelVisible( pClr )
@@ -3595,7 +3593,8 @@ public function PsColorPicker_RunModal( byval hCtrl as HWND ) as boolean
 end function
 
 
-' The whole interaction in one call. See the .ti for the contract; the shape worth noting here is
+' The whole interaction in one call. See the declarations at the top of this file for the
+' contract; the shape worth noting here is
 ' that clr and nAlpha are read on the way IN as the starting value and written on the way OUT
 ' only on OK, so a cancel genuinely leaves the host's variables alone.
 private function PsColorPicker_DoModalCore( _
@@ -3995,7 +3994,7 @@ public sub PsColorPicker_SetPaintCallback( byval hCtrl as HWND, byval usersub as
 end sub
 
 
-' See the header in PsColorPicker.ti. The buffer comes from the PAINTINFO rather than being
+' See the declarations at the top of this file. The buffer comes from the PAINTINFO rather than being
 ' rebuilt, so this draws into the SAME buffer the callback is already holding -- calling it does
 ' not begin a second double-buffer cycle, and calling it twice simply draws twice.
 '
@@ -4156,7 +4155,7 @@ private function PsColorPicker_ProbePart( _
 end function
 
 
-' See the header in PsColorPicker.ti. A part wiped by a PaintBorderRect fill is literally ONE
+' See the declarations at the top of this file. A part wiped by a PaintBorderRect fill is literally ONE
 ' tone, so the useful signal is the count LEAVING 1 -- not the count being large.
 '
 ' AND THE FLOOR IS PER-PART, MEASURED, NOT INHERITED. PsButton's and PsCheckBox's "> 1" threshold

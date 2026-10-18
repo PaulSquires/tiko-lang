@@ -19,8 +19,6 @@ never accepted and only the calendar can set the date.
 If you want a calendar embedded in your window rather than dropping out of a field, that is
 `PsCalendar` — no text box, no popup, and no pump obligation.
 
-Repository: <https://github.com/PaulSquires/PsDatePicker>
-
 ---
 
 ## What it looks like
@@ -34,24 +32,28 @@ calendar limited to a 60-day range, and an empty-allowed field with a host day p
 
 ## Requirements
 
-This control both **wraps a real child** and **owns a second top-level window**, so its file list
-is longer than most. Copy all of these:
+This control both **wraps a real child** and **owns a second top-level window**. The module is
+`vendor/PsControls/PsDatePicker`; it comes with the toolchain and brings in PsBufferPaint,
+PsTipHost (and through it PsTooltip) and PsTextBox (the editable field, which in turn brings
+`sys/win/richedit` and PsPopupMenu, its right-click menu) itself.
 
-| File | What it is |
-|---|---|
-| `PsDatePicker.ti` | Public header — types, enums, callback typedefs, declarations |
-| `PsDatePicker.tiko` | Implementation |
-| `PsTextBox.ti` / `PsTextBox.tiko` | The editable field |
-| `PsPopupMenu.ti` / `PsPopupMenu.tiko` | The field's right-click menu (required by `PsTextBox`) |
-| `PsBufferPaint.ti` / `PsBufferPaint.tiko` | Flicker-free GDI+ drawing surface |
-| `PsTipHost.ti` / `PsTipHost.tiko` | The tooltip backend switch |
-| `PsTooltip.ti` / `PsTooltip.tiko` | The optional owner-drawn tooltip backend (required by `PsTipHost`) |
+```freebasic
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+#import "vendor/PsControls/PsDatePicker"
 
-**tiko and its sys/win package are required.** The control is a `CWindow` (from `sys/win/gui`),
-`PsBufferPaint` draws through `sys/win/gdiplus`, and the field's RichEdit is driven through
-`sys/win/richedit`. None of the control's files imports a package itself: your main file imports
-them before including the control (see *Include order*). Build with `tiko build` in a folder whose
-`tiko.toml` defines `UNICODE`, as the demo's does:
+using gui
+using gdiplus
+using PsDatePicker
+```
+
+Naming `PSTIP_MODE_*` takes `#import "vendor/PsControls/PsTipHost"` and `using PsTipHost` as
+well; `PsTextBox_*` styling through `PsDatePicker_GetTextBoxHandle` takes PsTextBox, and
+`PsTooltip_*` styling through `PsDatePicker_GetPsTooltipHandle` takes PsTooltip, the same way.
+
+Your program must define `UNICODE`, as the vendor package does for its modules. Set it in
+`tiko.toml`, as the demo does:
 
 ```toml
 [target.main]
@@ -67,34 +69,8 @@ UNICODE = "1"
 file cannot `#define` it ahead of `#import "sys/win"`, and without it every bare Win32 name —
 `DrawText`, `SetWindowText`, `CreateFontIndirect` — binds its ANSI form.
 
-`tiko build` (debug profile, `-g -exx`) or `tiko build --profile release` from the control's
-folder writes `main.exe` there. The demo's `build.bat` runs the same build — release by default,
-`build.bat debug` for debug, `build.bat clean` to delete the output.
-
-### Include order
-
-`PsDatePicker.ti` names types from `PsBufferPaint`, `PsTipHost` and `PsTextBox` and includes
-those headers itself. The package imports and `using` lines come first, then the
-**implementations** in this order:
-
-```freebasic
-#import "sys/win"
-#import "sys/win/gui"
-#import "sys/win/gdiplus"
-#import "sys/win/richedit"
-
-using gui
-using gdiplus
-using richedit
-
-#include once "PsBufferPaint.tiko"
-#include once "PsPopupMenu.tiko"
-#include once "PsTextBox.tiko"
-#include once "PsDatePicker.tiko"
-```
-
-`PsDatePicker.tiko` includes `PsTipHost.tiko` (and through it `PsTooltip.tiko`) for you, so those
-two need no line of their own — but the files must be present.
+The demo is in the toolchain's `examples/PsControls/PsDatePicker/`: `tiko build` there (debug
+profile, `-g -exx`) or `tiko build --profile release` writes `main.exe` there.
 
 ### Initialise GDI+
 
@@ -156,7 +132,8 @@ SetWindowPos( hDate, NULL, 20, 20, w, h, SWP_NOZORDER )
 ShowWindow( hDate, SW_SHOW )
 ```
 
-And the callbacks it wires:
+And the callbacks it wires (`format()` needs `#include once "vbcompat.bi"` in your file — the
+module's own include of it does not reach you):
 
 ```freebasic
 ' date -> display text
@@ -594,7 +571,7 @@ background has already been filled with `BackColor` before you are called.
 | Field | What it is |
 |---|---|
 | `hCtrl` | The control window |
-| `b` | The `PsBufferPaint` surface to draw into |
+| `b` | The `PsPaintBuffer` surface to draw into |
 | `rcClient` | The full client rect |
 | `rcFrame` | The frame — currently the whole client |
 | `rcField` | Where the `PsTextBox` child sits; anything you draw here is covered by it |
@@ -621,7 +598,7 @@ appointment dots, per-day colouring.
 | Field | What it is |
 |---|---|
 | `hCtrl` | The **picker** control, not the popup |
-| `b` | The `PsBufferPaint` surface |
+| `b` | The `PsPaintBuffer` surface |
 | `rcCell` | The cell rect, in calendar client coordinates |
 | `stDate` | The date this cell represents |
 | `dayNumber` | 1–31, the number to draw |
@@ -769,8 +746,8 @@ being dropped, and a notch stops at a disabled chevron.
 ## Related controls
 
 - **`PsTextBox`** is the editing field. Its docs cover the text behaviour you inherit — caret,
-  selection, undo, paste, the right-click menu — and the reason `PsPopupMenu` is on the file
-  list. Its `FilterMessage` obligation is discharged for you by `PsDatePicker_FilterMessage`.
+  selection, undo, paste, the right-click menu — and the reason it imports `PsPopupMenu`. Its
+  `FilterMessage` obligation is discharged for you by `PsDatePicker_FilterMessage`.
 - **`PsTooltip`** is the optional tip backend selected by `PsDatePicker_SetTooltipMode`. Style it
   through the handle `PsDatePicker_GetPsTooltipHandle` hands back.
 - **`PsCalendar`** is the embedded, non-popup calendar: the same grid and drill-down as a normal

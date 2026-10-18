@@ -34,22 +34,31 @@ The same seven items laid out in three panels: left-justified, centre-justified 
 
 ## Requirements
 
-**Files to copy into your project:**
+The control is the module `vendor/PsControls/PsIconPanel`, which comes with the toolchain and
+imports `PsBufferPaint`, `PsImage` (the loader behind `PsIconPanel_SetImage`) and `PsTipHost`
+(the tooltip backend switch, which brings in `PsTooltip`) itself. Import one of them too only to
+name something of its own — below, `PsBufferPaint` for the paint callback, `PsTipHost` for
+`PSTIP_MODE_PS`, `PsTooltip` for the `PsTooltip_*` calls under *Tooltips: two backends*:
 
-| File | Purpose |
-|---|---|
-| `PsIconPanel.ti` | Declarations — types, callbacks, constants, function prototypes |
-| `PsIconPanel.tiko` | Implementation |
-| `PsBufferPaint.ti` | The flicker-free drawing surface the control paints through |
-| `PsBufferPaint.tiko` | Its implementation |
-| `PsImage.ti` / `PsImage.tiko` | The image loader behind `PsIconPanel_SetImage`. Required even if you only ever use glyphs: `PsIconPanel.ti` includes it. |
-| `PsTipHost.ti` / `PsTipHost.tiko` | The tooltip backend switch — see *Tooltips: two backends* |
-| `PsTooltip.ti` / `PsTooltip.tiko` | The owner-drawn tooltip. Required even if you never switch to it: `PsTipHost.tiko` includes it. |
+```freebasic
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+#import "vendor/PsControls/PsBufferPaint"
+#import "vendor/PsControls/PsTipHost"
+#import "vendor/PsControls/PsTooltip"
+#import "vendor/PsControls/PsIconPanel"
 
-**tiko and its sys/win package are required.** The control is a `CWindow` (from `sys/win/gui`)
-and `PsBufferPaint` draws through `sys/win/gdiplus`. None of the control's files imports a
-package itself: your main file imports them before including the control (see *Include order*).
-Build with `tiko build` in a folder whose `tiko.toml` defines `UNICODE`, as the demo's does:
+using gui
+using gdiplus
+using PsBufferPaint
+using PsTipHost
+using PsTooltip
+using PsIconPanel
+```
+
+**`UNICODE` must be defined for your program**, as it is for the module. Set it in `tiko.toml`,
+as the demo's does:
 
 ```toml
 [target.main]
@@ -65,25 +74,8 @@ UNICODE = "1"
 file cannot `#define` it ahead of `#import "sys/win"`, and without it every bare Win32 name —
 `DrawText`, `SetWindowText`, `CreateFontIndirect` — binds its ANSI form.
 
-`tiko build` (debug profile, `-g -exx`) or `tiko build --profile release` from the control's
-folder writes `main.exe` there.
-
-**Include order.** `PsIconPanel.tiko` pulls in its own `.ti` (which pulls in `PsBufferPaint.ti`,
-`PsImage.ti` and `PsTipHost.ti`) and then `PsTipHost.tiko` and `PsImage.tiko` themselves — so
-adopting the image and tooltip features adds no include line of your own. The two implementation
-files you write are included in this order, after the package imports and `using` lines:
-
-```freebasic
-#import "sys/win"
-#import "sys/win/gui"
-#import "sys/win/gdiplus"
-
-using gui
-using gdiplus
-
-#include once "PsBufferPaint.tiko"
-#include once "PsIconPanel.tiko"
-```
+The demo is in the toolchain's `examples/PsControls/PsIconPanel/`: `tiko build` (debug profile,
+`-g -exx`) or `tiko build --profile release` there writes `main.exe`.
 
 **GDI+ must be running before the first repaint and must outlive the last one.** `PsBufferPaint`
 renders geometry through GDI+, so bracket your message loop:
@@ -95,7 +87,7 @@ gdiplus.Uninit( gdipToken )
 ```
 
 `gdiplus.Uninit` must come after every window is destroyed, because each repaint builds and
-tears down a `PsBufferPaint`. If your host also initialises COM, shut GDI+ down before
+tears down a `PsPaintBuffer`. If your host also initialises COM, shut GDI+ down before
 `CoUninitialize` — GDI+ leans on COM.
 
 **There is no pump obligation.** The control installs no message filter and asks nothing of your
@@ -664,7 +656,7 @@ renderer that wants the panel background under an item can simply leave that are
 |---|---|
 | `hIconPanel` | The control, so the callback can query it |
 | `itemID` | The item's index (a model index) |
-| `b` | The control's `PsBufferPaint` for this repaint (borrowed, not owned) |
+| `b` | The control's `PsPaintBuffer` for this repaint (borrowed, not owned) |
 | `itemKind` | `IP_KIND_TOGGLE`, `IP_KIND_COMMAND` or `IP_KIND_SEPARATOR` |
 | `rc` | The full cell — padding included, full client height. This is what the built-in painter fills |
 | `rcIcon` | The glyph box: draw the icon in this |
@@ -756,11 +748,13 @@ end enum
 
 ## Running the demo
 
-The demo loads **Segoe Fluent Icons** at startup via `AddFontResourceEx`, and
-**aborts if the font is absent** — the control family draws its glyphs from it.
+The demo is in the toolchain's `examples/PsControls/PsIconPanel/`. It loads **Segoe Fluent
+Icons** at startup via `AddFontResourceEx` from `examples/PsControls/SegoeFluentIcons.ttf` — one
+copy shared by every demo — and **aborts if the font is absent**: the control family draws its
+glyphs from it.
 
 The font ships with Windows 11 but is Microsoft's, not ours, so it is not
-redistributed here. Copy it in once before building:
+redistributed here. Copy it in once, from `examples/PsControls/`, before building:
 
 ```bash
 copy C:\Windows\Fonts\SegoeIcons.ttf SegoeFluentIcons.ttf

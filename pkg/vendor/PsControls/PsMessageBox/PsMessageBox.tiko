@@ -24,50 +24,50 @@ using PsButton
 ' The family names its booleans bOK, never "ok" -- a convention from AfxNova, where GDI+'s
 ' Ok = 0 made an "ok" a duplicate definition. Under sys/win an "ok" of your own compiles.
 ' The footer buttons ARE PsButtons. This control is the first in the family to be a genuine
-' container of siblings, so unlike every other .ti here this one pulls in another control.
+' container of siblings, so this module imports another control (PsButton, above).
 
 ' Polling timer that guarantees the close button's hot-tracking is cleared when the mouse
 ' leaves. WM_MOUSELEAVE (TME_LEAVE) is not reliably delivered on fast exits. Timer IDs are
 ' per-window, so every instance can share this id.
-#define IDT_CMESSAGEBOX_HOTTRACK   &hCB91
-#define PSMESSAGEBOX_HOTTRACK_MS    100
+public const IDT_CMESSAGEBOX_HOTTRACK = &hCB91
+public const PSMESSAGEBOX_HOTTRACK_MS = 100
 
 ' The most buttons the footer will hold. Not an arbitrary cap: a message box that needs a
 ' fourth choice wants a real dialog, and the layout arithmetic below is written against a
 ' fixed-size array precisely so there is no index fix-up code to get wrong.
-#define PSMESSAGEBOX_MAXBUTTONS      3
+public const PSMESSAGEBOX_MAXBUTTONS = 3
 
 ' Control ids handed to the footer buttons. The HOST's return ids are set separately with
 ' PsButton_SetID, so these never enter anyone's command stream -- they exist only so
 ' GetDlgItem / GetNextDlgTabItem have something to report.
-#define IDC_CMESSAGEBOX_BUTTON_BASE 8100
+public const IDC_CMESSAGEBOX_BUTTON_BASE = 8100
 
 ' Default geometry, in unscaled pixels. Everything except the THICKNESS values is DPI-scaled
 ' once at Create; every setter afterwards takes raw pixels and the caller scales (family rule).
-#define PSMESSAGEBOX_DEFAULT_CAPTIONHEIGHT  34
-#define PSMESSAGEBOX_DEFAULT_CAPTIONPADX    14
-#define PSMESSAGEBOX_DEFAULT_CLOSEWIDTH     44
-#define PSMESSAGEBOX_DEFAULT_BODYPADX       20
-#define PSMESSAGEBOX_DEFAULT_BODYPADY       20
-#define PSMESSAGEBOX_DEFAULT_FOOTERPADX     20
-#define PSMESSAGEBOX_DEFAULT_FOOTERPADY     14
-#define PSMESSAGEBOX_DEFAULT_ICONWIDTH      32
-#define PSMESSAGEBOX_DEFAULT_ICONHEIGHT     32
-#define PSMESSAGEBOX_DEFAULT_ICONGAP        16
-#define PSMESSAGEBOX_DEFAULT_BUTTONGAP       8
-#define PSMESSAGEBOX_DEFAULT_BUTTONMINWIDTH 88
-#define PSMESSAGEBOX_DEFAULT_MAXWIDTH      420
-#define PSMESSAGEBOX_DEFAULT_MINWIDTH      300
-#define PSMESSAGEBOX_DEFAULT_BORDERTHICK     1     ' not DPI-scaled -- a hairline stays a hairline
-#define PSMESSAGEBOX_DEFAULT_DIVIDERTHICK    1     ' likewise
+public const PSMESSAGEBOX_DEFAULT_CAPTIONHEIGHT = 34
+public const PSMESSAGEBOX_DEFAULT_CAPTIONPADX = 14
+public const PSMESSAGEBOX_DEFAULT_CLOSEWIDTH = 44
+public const PSMESSAGEBOX_DEFAULT_BODYPADX = 20
+public const PSMESSAGEBOX_DEFAULT_BODYPADY = 20
+public const PSMESSAGEBOX_DEFAULT_FOOTERPADX = 20
+public const PSMESSAGEBOX_DEFAULT_FOOTERPADY = 14
+public const PSMESSAGEBOX_DEFAULT_ICONWIDTH = 32
+public const PSMESSAGEBOX_DEFAULT_ICONHEIGHT = 32
+public const PSMESSAGEBOX_DEFAULT_ICONGAP = 16
+public const PSMESSAGEBOX_DEFAULT_BUTTONGAP = 8
+public const PSMESSAGEBOX_DEFAULT_BUTTONMINWIDTH = 88
+public const PSMESSAGEBOX_DEFAULT_MAXWIDTH = 420
+public const PSMESSAGEBOX_DEFAULT_MINWIDTH = 300
+public const PSMESSAGEBOX_DEFAULT_BORDERTHICK = 1   ' not DPI-scaled -- a hairline stays a hairline
+public const PSMESSAGEBOX_DEFAULT_DIVIDERTHICK = 1   ' likewise
 
 ' The glyphs the icon kinds resolve to (Segoe Fluent Icons / Segoe MDL2 Assets codepoints), and
 ' the close button's. They are #defines rather than literals buried in the resolver so a host
 ' that ships a different icon font can see exactly what to remap.
-#define PSMESSAGEBOX_GLYPH_INFO      &hE946      ' Info
-#define PSMESSAGEBOX_GLYPH_WARNING   &hE7BA      ' Warning  (the triangle in the reference shot)
-#define PSMESSAGEBOX_GLYPH_ERROR     &hEA39      ' ErrorBadge
-#define PSMESSAGEBOX_GLYPH_QUESTION  &hE9CE      ' StatusCircleQuestionMark
+public const PSMESSAGEBOX_GLYPH_INFO = &hE946   ' Info
+public const PSMESSAGEBOX_GLYPH_WARNING = &hE7BA   ' Warning  (the triangle in the reference shot)
+public const PSMESSAGEBOX_GLYPH_ERROR = &hEA39   ' ErrorBadge
+public const PSMESSAGEBOX_GLYPH_QUESTION = &hE9CE   ' StatusCircleQuestionMark
 public const PSMESSAGEBOX_GLYPH_CLOSE = &hE8BB   ' ChromeClose
 
 
@@ -2243,7 +2243,7 @@ end function
 
 
 ' Render the box OFFSCREEN with its current painter and count the distinct colours inside one of
-' its rects. See the declaration in PsMessageBox.ti for what this is for and why it is public.
+' its rects. See the declaration at the top of this file for what this is for and why it is public.
 public function PsMessageBox_CountRenderedTones( byval hMsgBox as HWND, byval nPart as long ) as long
     dim as PSMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer(hMsgBox)
     if pBox = 0 then return 0

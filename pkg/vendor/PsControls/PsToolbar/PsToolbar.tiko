@@ -34,13 +34,12 @@ using PsTooltip
 '   item set cannot be. So this is a sibling, not an extension -- PsIconPanel keeps its
 '   contract, its static pairing with PsSelectBar, and its existing host.
 '
-' A host that already vendors PsBufferPaint.ti / PsPopupMenu.ti gets ONE copy: #include once
-' dedupes by resolved path. Include the matching .tiko files in dependency order:
-'   PsBufferPaint.tiko, PsPopupMenu.tiko, PsToolbar.tiko
+' The module imports PsBufferPaint, PsPopupMenu, PsImage, PsTipHost and PsTooltip itself;
+' a host that imports any of them too still gets ONE copy of each.
 ' ========================================================================================
 
 ' An item can show a real image file (.ico/.png/.bmp/.jpg) instead of a Fluent glyph.
-' PsImage owns the decode; PsBufferPaint.PaintImage draws it. See PsToolbar_SetItemImage.
+' PsImage owns the decode; PsPaintBuffer.PaintImage draws it. See PsToolbar_SetItemImage.
 ' The tooltip backend switch. The control ships on the SYSTEM (comctl32) backend exactly
 ' as it always has; a host opts an instance into PsTooltip with PsToolbar_SetTooltipMode.
 
@@ -48,34 +47,34 @@ using PsTooltip
 ' Polling timer that guarantees hot-tracking is cleared when the mouse leaves the control.
 ' WM_MOUSELEAVE (TME_LEAVE) is not reliably delivered on fast exits, so a periodic cursor
 ' check acts as a safety net. Timer IDs are per-window, so every instance can share this id.
-#define IDT_PSTOOLBAR_HOTTRACK    &hCB60
-#define PSTOOLBAR_HOTTRACK_MS      100
+public const IDT_PSTOOLBAR_HOTTRACK = &hCB60
+public const PSTOOLBAR_HOTTRACK_MS = 100
 
 ' Default icon cell. DPI-scaled at Create; the setters take raw pixels thereafter.
-#define PSTOOLBAR_DEFAULT_ICONWIDTH    16
-#define PSTOOLBAR_DEFAULT_ICONHEIGHT   16
+public const PSTOOLBAR_DEFAULT_ICONWIDTH = 16
+public const PSTOOLBAR_DEFAULT_ICONHEIGHT = 16
 
 ' Default space reserved BEFORE and AFTER each item's content.
-#define PSTOOLBAR_DEFAULT_PADBEFORE     6
-#define PSTOOLBAR_DEFAULT_PADAFTER      6
-#define PSTOOLBAR_DEFAULT_PADTOP        4
-#define PSTOOLBAR_DEFAULT_PADBOTTOM     4
+public const PSTOOLBAR_DEFAULT_PADBEFORE = 6
+public const PSTOOLBAR_DEFAULT_PADAFTER = 6
+public const PSTOOLBAR_DEFAULT_PADTOP = 4
+public const PSTOOLBAR_DEFAULT_PADBOTTOM = 4
 
 ' Space between the icon cell and the caption. Charged ONLY when there is a caption.
-#define PSTOOLBAR_DEFAULT_TEXTGAP       6
+public const PSTOOLBAR_DEFAULT_TEXTGAP = 6
 
 ' A separator's rule takes the place of the content in its cell.
-#define PSTOOLBAR_DEFAULT_SEPWIDTH      1
+public const PSTOOLBAR_DEFAULT_SEPWIDTH = 1
 
 ' The chevron zone on a SPLIT / DROPDOWN item, and on the overflow button.
-#define PSTOOLBAR_DEFAULT_CHEVRONWIDTH  14
-#define PSTOOLBAR_DEFAULT_CHEVRONGAP    4
+public const PSTOOLBAR_DEFAULT_CHEVRONWIDTH = 14
+public const PSTOOLBAR_DEFAULT_CHEVRONGAP = 4
 ' The hairline between a SPLIT button's action zone and its chevron zone. NOT DPI-scaled --
 ' a hairline should stay a hairline (PsMenuBar's nSeparatorThickness rule).
-#define PSTOOLBAR_DEFAULT_DIVIDERTHICK  1
+public const PSTOOLBAR_DEFAULT_DIVIDERTHICK = 1
 
 ' Corner rounding of an item's hot / pressed / selected fill. 0 = square.
-#define PSTOOLBAR_DEFAULT_CURVATURE     4
+public const PSTOOLBAR_DEFAULT_CURVATURE = 4
 
 
 ' ----------------------------------------------------------------------------------------
@@ -1558,9 +1557,8 @@ public declare function PsToolbar_HashRenderedPart( byval hToolbar as HWND, byva
 ' ----------------------------------------------------------------------------------------
 public declare sub PsToolbar_RunSelfTest( byval hWndParent as HWND )
 
-' The tooltip backend switch, pulled in here so a host needs no extra include line.
-' Image loader implementation, pulled in here so a host needs no extra include line
-' (#include once guards it if the host includes it too).
+' The tooltip backend switch (PsTipHost) and the image loader (PsImage) are modules this
+' module imports itself (top of this file); a host needs no import of its own for them.
 
 
 ' Forward declarations for the private helpers that are used above their definitions.
@@ -3854,7 +3852,7 @@ end sub
 
 
 ' ========================================================================================
-' THE message-pump hook. See the contract in PsToolbar.ti.
+' THE message-pump hook. See the contract in the declarations at the top of this file.
 '
 ' Two jobs, in this order:
 '
@@ -3916,7 +3914,8 @@ end function
 
 
 ' ========================================================================================
-' Render probes. See the warning in PsToolbar.ti: DO NOT COPY A THRESHOLD FROM A SIBLING.
+' Render probes. See the warning in the declarations at the top of this file: DO NOT COPY A
+' THRESHOLD FROM A SIBLING.
 '
 ' Both drive PsToolbar_RenderAll -- the exact path WM_PAINT uses -- rather than poking one
 ' item through a callback, so a flooded or frozen renderer cannot hide behind them.
@@ -3995,7 +3994,7 @@ private function PsToolbar_RenderToDIB( _
         return false
     end if
 
-    ' 32bpp top-down, matching what PsBufferPaint.SetupBitmap builds, so the pixels we read
+    ' 32bpp top-down, matching what PsPaintBuffer.SetupBitmap builds, so the pixels we read
     ' are laid out the way the renderer wrote them.
     dim as BITMAPINFO bmi
     with bmi.bmiHeader

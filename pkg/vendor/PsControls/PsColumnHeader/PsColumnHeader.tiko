@@ -38,13 +38,13 @@ using PsTipHost
 ' control. WM_MOUSELEAVE (TME_LEAVE) is not reliably delivered on fast exits, so a
 ' periodic cursor check acts as a safety net. Timer ids are per-window, so every
 ' instance can share this id.
-#define IDT_CCOLHDR_HOTTRACK    &hCB30
-#define CCOLHDR_HOTTRACK_MS     100
+public const IDT_CCOLHDR_HOTTRACK = &hCB30
+public const CCOLHDR_HOTTRACK_MS = 100
 
 ' Default horizontal inset for a column's caption. The control DPI-scales this at
 ' Create; PsColumnHeader_SetPadding takes raw pixels thereafter. Padding is paint-side
 ' only here (unlike PsStatusBar, widths are stored, not measured from text).
-#define CCOLHDR_DEFAULT_PADDING 8
+public const CCOLHDR_DEFAULT_PADDING = 8
 
 ' Half-width of the divider hit zone: a boundary is grabbable within +/- this many
 ' pixels (DPI-scaled at use) of a column's right edge.
@@ -59,8 +59,8 @@ public const CCOLHDR_DEFAULT_MINWIDTH = 16
 ' shrinks and grows with the window (never below its minimum width). Default is
 ' FILL_LAST: with a single column the cell spans the full width, and there is no dead
 ' strip right of the last column.
-#define CCOLHDR_FILL_LAST      -2
-#define CCOLHDR_FILL_NONE      -1
+public const CCOLHDR_FILL_LAST = -2
+public const CCOLHDR_FILL_NONE = -1
 
 ' NOTE: "width" is a FreeBASIC reserved word (see C:\dev\Learnings.md) and produces
 ' errors that never name the real problem -- hence nMinWidth / nWidth throughout.
@@ -513,7 +513,8 @@ public declare sub      PsColumnHeader_SetClickCallback( byval hHeader as HWND, 
 public declare sub      PsColumnHeader_SetWidthChangedCallback( byval hHeader as HWND, byval usersub as HDR_WidthChangedCallbackSub )
 public declare sub      PsColumnHeader_SetAutoSizeCallback( byval hHeader as HWND, byval userfunc as HDR_AutoSizeCallbackFunc )
 
-' The tooltip backend switch, pulled in here so a host needs no extra include line.
+' The tooltip backend switch (PsTipHost) is imported at the top of this module, so a host
+' needs no import of its own.
 
 
 function GetColumnHeaderPointer( byval hHeader as HWND ) as PSCOLUMNHEADER_STATE ptr

@@ -29,21 +29,27 @@ Seven rows: the reference two-item case carrying the focus ring, arrow-only, dis
 
 ## Requirements
 
-**Files to copy into your project:**
+The module is `vendor/PsControls/PsComboBox`. It comes with the toolchain and brings in
+PsBufferPaint and PsPopupMenu (the floating list the control drops) itself.
 
-| File | Purpose |
-|---|---|
-| `PsComboBox.ti` | Declarations — types, callbacks, constants, function prototypes |
-| `PsComboBox.tiko` | Implementation |
-| `PsPopupMenu.ti` | The floating list the control drops |
-| `PsPopupMenu.tiko` | Its implementation |
-| `PsBufferPaint.ti` | The flicker-free drawing surface both controls paint through |
-| `PsBufferPaint.tiko` | Its implementation |
+```freebasic
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+#import "vendor/PsControls/PsComboBox"
 
-**tiko and its sys/win package are required.** The control is a `CWindow` (from `sys/win/gui`)
-and `PsBufferPaint` draws through `sys/win/gdiplus`. None of the control's files imports a
-package itself: your main file imports them before including the control (see *Include order*).
-Build with `tiko build` in a folder whose `tiko.toml` defines `UNICODE`, as the demo's does:
+using gui
+using gdiplus
+using PsComboBox
+```
+
+Naming `PSPOPUPMENU_COLORS` for `PsComboBox_SetListColors`, or calling `PsPopupMenu_Set*` through
+`PsComboBox_GetListHandle`, takes `#import "vendor/PsControls/PsPopupMenu"` and
+`using PsPopupMenu` as well; a paint callback that names `PsPaintBuffer` likewise takes
+`PsBufferPaint`.
+
+Your program must define `UNICODE`, as the vendor package does for its modules. Set it in
+`tiko.toml`, as the demo does:
 
 ```toml
 [target.main]
@@ -57,28 +63,9 @@ UNICODE = "1"
 
 `UNICODE` has to come from the manifest (or `-d UNICODE` on a `tiko` command line): a source
 file cannot `#define` it ahead of `#import "sys/win"`, and without it every bare Win32 name —
-`DrawText`, `SetWindowText`, `CreateFontIndirect` — binds its ANSI form. In the demo folder,
-`tiko build` (debug profile: `-g -exx`) or `tiko build --profile release` writes `main.exe` there.
-
-**Include order.** `PsComboBox.ti` includes **both** of its dependencies' headers itself, so there
-is no declaration-order trap to fall into among them. The `#import` and `using` lines come first,
-then the three implementation files in dependency order:
-
-```freebasic
-#import "sys/win"
-#import "sys/win/gui"
-#import "sys/win/gdiplus"
-
-using gui
-using gdiplus
-
-#include once "PsBufferPaint.tiko"
-#include once "PsPopupMenu.tiko"
-#include once "PsComboBox.tiko"
-```
-
-If your project already vendors `PsPopupMenu`, you keep one copy: `#include once` dedupes by
-resolved path.
+`DrawText`, `SetWindowText`, `CreateFontIndirect` — binds its ANSI form. The demo is in the
+toolchain's `examples/PsControls/PsComboBox/`: `tiko build` there (debug profile: `-g -exx`) or
+`tiko build --profile release` writes `main.exe` there.
 
 **GDI+ must be running before the first repaint and must outlive the last one.** Both controls
 render their geometry through GDI+, so bracket your message loop:
@@ -90,7 +77,7 @@ gdiplus.Uninit( gdipToken )
 ```
 
 `gdiplus.Uninit` must come after every window is destroyed, because each repaint builds and
-tears down a `PsBufferPaint`.
+tears down a `PsPaintBuffer`.
 
 ### The message-pump contract — this one is mandatory
 
@@ -317,7 +304,7 @@ Every setter afterwards takes raw pixels and expects **you** to scale — typica
 
 The border and focus-ring thicknesses should not be scaled at all: a hairline should stay a
 hairline at any DPI. **The chevron thickness is the deliberate exception**: it is not scaled at
-creation, but `PsBufferPaint.PaintLine` scales the pen width it is handed, so the chevron's stroke
+creation, but `PsPaintBuffer.PaintLine` scales the pen width it is handed, so the chevron's stroke
 *does* grow on a high-DPI display. A rule is a hairline; a glyph's stroke should grow with the
 glyph.
 
@@ -522,7 +509,7 @@ change can move the ideal width — re-applies auto-size if you turned it on.
 | `PsComboBox_GetChevronGap( hCombo ) as long` | The vertical air between the up chevron and the down chevron. |
 | `PsComboBox_SetChevronGap( hCombo, nGap )` | Sets it; clamped to a minimum of 0. It lives **inside** the chevron cell, so it changes the two arms' height and never the control's ideal size — repaint only, no re-layout. |
 | `PsComboBox_GetChevronThickness( hCombo ) as long` | The chevron's stroke weight. |
-| `PsComboBox_SetChevronThickness( hCombo, nThickness )` | Sets it; clamped to a minimum of 1. Repaint only — the arms are drawn inside the cell, so nothing moves. **This is the one thickness that is DPI-scaled**, at paint time, by `PsBufferPaint.PaintLine`. |
+| `PsComboBox_SetChevronThickness( hCombo, nThickness )` | Sets it; clamped to a minimum of 1. Repaint only — the arms are drawn inside the cell, so nothing moves. **This is the one thickness that is DPI-scaled**, at paint time, by `PsPaintBuffer.PaintLine`. |
 | `PsComboBox_GetCornerCurvature( hCombo ) as long` | The chrome's corner curvature. |
 | `PsComboBox_SetCornerCurvature( hCombo, nCurvature )` | Sets it; clamped to a minimum of 0, where **0 means square corners**. This is an ellipse **diameter**, not a radius — `PsBufferPaint` keeps GDI's vocabulary and halves it internally, so 12 draws a 6px radius. Repaint only. |
 | `PsComboBox_GetBorderThickness( hCombo ) as long` | The chrome's border thickness. |
@@ -739,7 +726,7 @@ with it, and a different font means the width lies.
 | Field | Meaning |
 |---|---|
 | `hCombo` | The control, so the callback can query it |
-| `b` | The control's `PsBufferPaint` for this repaint (borrowed, not owned) |
+| `b` | The control's `PsPaintBuffer` for this repaint (borrowed, not owned) |
 | `rcClient` | The whole client area |
 | `rcButton` | The chrome: `rcClient` deflated by the focus-ring band |
 | `rcText` | The caption box. Empty when `isTextVisible` is FALSE |
@@ -881,9 +868,8 @@ Two neighbours worth knowing about, for when this control is the wrong shape:
 - If you want a **row of flat labels with exactly one current**, rather than a dropdown, that is
   `PsSelectBar`.
 
-Both the button and the list paint through `PsBufferPaint`, which is why it appears in the file
-list even though you never call it directly — except from a paint callback, where it arrives as
-`p->b`.
+Both the button and the list paint through `PsBufferPaint`, which the module imports itself; you
+never call it directly — except from a paint callback, where it arrives as `p->b`.
 
 ## Licence
 

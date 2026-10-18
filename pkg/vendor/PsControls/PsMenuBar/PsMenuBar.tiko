@@ -25,12 +25,12 @@ using PsBufferPaint
 ' bar. WM_MOUSELEAVE (TME_LEAVE) is not reliably delivered on fast exits, so a
 ' periodic cursor check acts as a safety net. Timer ids are per-window, so every
 ' instance can share this id.
-#define IDT_CMENUBAR_HOTTRACK   &hCB40
-#define PSMENUBAR_HOTTRACK_MS    100
+public const IDT_CMENUBAR_HOTTRACK = &hCB40
+public const PSMENUBAR_HOTTRACK_MS = 100
 
 ' Default horizontal inset applied to each side of an item's caption when measuring
 ' (tiko uses 6+6). DPI-scaled at Create; PsMenuBar_SetPadding takes raw pixels.
-#define PSMENUBAR_DEFAULT_PADDING  6
+public const PSMENUBAR_DEFAULT_PADDING = 6
 
 
 public type PSMENUBAR_ITEM
@@ -124,7 +124,7 @@ end type
 ' dropdown. Click opens the dropdown; while one is open, hovering another bar item
 ' auto-switches to its dropdown; clicking the bar again closes. The bar never takes
 ' focus -- keyboard navigation arrives through PsMenuBar_FilterMessage, which the host
-' MUST call in its message pump (see the contract in PsPopupMenu.ti; the bar's filter
+' MUST call in its message pump (see the contract in PsPopupMenu's module header; the bar's filter
 ' wraps the popup one, so one call serves the whole menu system).
 '
 ' ALT-KEY ACTIVATION IS THE HOST'S. The filter never consumes WM_SYSKEY* -- the host
@@ -204,9 +204,8 @@ public declare sub      PsMenuBar_SetInitPopupCallback( byval hMenuBar as HWND, 
 public declare sub      PsMenuBar_SetPaintItemCallback( byval hMenuBar as HWND, byval usersub as MB_PaintItemCallbackSub )
 
 ' The bar drives its dropdowns through the popup's implementation (including a few of
-' its module-scope helpers -- everything is #include'd into one module, the family's
-' vendoring reality), so pull it in here: including PsMenuBar.tiko alone gives a host
-' the complete menu system.
+' its helpers, which PsPopupMenu makes public for this), imported at the top of this
+' module: importing PsMenuBar alone gives a host the complete menu system.
 
 
 private function GetMenuBarPointer( byval hMenuBar as HWND ) as PSMENUBAR_STATE ptr
@@ -791,7 +790,8 @@ end sub
 
 
 ' ========================================================================================
-' The message-pump filter for the whole menu system (see PsMenuBar.ti). Wraps the
+' The message-pump filter for the whole menu system (see its declaration at the top of
+' this file). Wraps the
 ' PsPopupMenu filter, adding the bar-boundary keyboard moves and the highlight-only
 ' keyboard mode.
 ' ========================================================================================

@@ -16,57 +16,49 @@ created and destroys nothing, and the contents of a split or dropdown button's m
 fill. It is **mouse-driven only** — it takes no focus and no tab stop, so it never steals the
 caret from an editor, and it has no keyboard interface of its own.
 
-Repository: <https://github.com/PaulSquires/PsToolbar>
-
 ## What it looks like
 
 ![PsToolbar](PsToolbar.png)
 
 ## Requirements
 
-| File | Purpose |
-|---|---|
-| `PsToolbar.ti` / `PsToolbar.tiko` | the control |
-| `PsPopupMenu.ti` / `PsPopupMenu.tiko` | dropdown and overflow menus |
-| `PsBufferPaint.ti` / `PsBufferPaint.tiko` | the flicker-free drawing surface |
-| `PsImage.ti` / `PsImage.tiko` | the image loader behind `PsToolbar_SetItemImage`. Required even if you only ever use glyphs: `PsToolbar.ti` includes it. |
-| `PsTipHost.ti` / `PsTipHost.tiko` | the tooltip backend switch — see *Tooltips: two backends* |
-| `PsTooltip.ti` / `PsTooltip.tiko` | the owner-drawn tooltip. Required even if you never switch to it: `PsTipHost.tiko` includes it. |
-| `SegoeFluentIcons.ttf` | optional — only if you use Segoe Fluent Icons glyphs |
-
-Copy all twelve source files into your project. If you already vendor `PsPopupMenu`,
-`PsBufferPaint`, `PsImage`, `PsTipHost` or `PsTooltip`, you get one copy of each —
-`#include once` dedupes by resolved path.
-
-### tiko and sys/win
-
-The control is a `CWindow` (from `sys/win/gui`) and `PsBufferPaint` draws through
-`sys/win/gdiplus`. None of the control's files imports a package itself: your main file imports
-them before including the control (see *Include order*). Build with `tiko build` in a folder whose
-`tiko.toml` defines `UNICODE` under `[target.main.defines]`, as the demo's does — a source file
-cannot `#define` it ahead of `#import "sys/win"`, and without it every bare Win32 name binds its
-ANSI form.
-
-### Include order
-
-`PsToolbar.ti` names types from both siblings, so their implementations must be compiled in
-first, after the imports and `using` lines:
+The control is the module `vendor/PsControls/PsToolbar`. It comes with the toolchain and imports
+`PsBufferPaint`, `PsPopupMenu` (dropdown and overflow menus), `PsImage` (the image loader behind
+`PsToolbar_SetItemImage`), `PsTipHost` and `PsTooltip` itself. Import `PsPopupMenu` yourself for
+the `PsPopupMenu_*` calls that fill an item's menu, `PsTipHost` for the `PSTIP_MODE_*` names, and
+`PsTooltip` for the `PsTooltip_*` calls under *Tooltips: two backends*:
 
 ```freebasic
 #import "sys/win"
 #import "sys/win/gui"
 #import "sys/win/gdiplus"
+#import "vendor/PsControls/PsPopupMenu"
+#import "vendor/PsControls/PsTipHost"
+#import "vendor/PsControls/PsTooltip"
+#import "vendor/PsControls/PsToolbar"
 
 using gui
 using gdiplus
-
-#include once "PsBufferPaint.tiko"
-#include once "PsPopupMenu.tiko"
-#include once "PsToolbar.tiko"
+using PsPopupMenu
+using PsTipHost
+using PsTooltip
+using PsToolbar
 ```
 
-`PsToolbar.tiko` includes `PsImage.tiko` and `PsTipHost.tiko` (which in turn includes
-`PsTooltip.tiko`) for you, so those three add no line to your host.
+Segoe Fluent Icons is needed only if you use its glyphs.
+
+### UNICODE
+
+The module is compiled with `UNICODE` and your program must match. Build with `tiko build` in a
+folder whose `tiko.toml` defines it, as the demo's does — a source file cannot `#define` it ahead
+of `#import "sys/win"`, and without it every bare Win32 name binds its ANSI form:
+
+```toml
+[target.main.defines]
+UNICODE = "1"
+```
+
+Or pass `-d UNICODE` on a `tiko` command line.
 
 ### GDI+ must be running
 
@@ -659,7 +651,7 @@ Three rules:
 |---|---|
 | `hToolbar` | The control, so the callback can query it |
 | `itemID` | Model index; −1 for the overflow button |
-| `b` | The control's `PsBufferPaint` for this repaint — paint through this, never the screen DC |
+| `b` | The control's `PsPaintBuffer` for this repaint — paint through this, never the screen DC |
 | `itemKind` | `TBR_KIND_*` |
 | `rc` | The whole cell: fill this |
 | `rcIcon` | The icon box — or a separator's rule |
@@ -839,11 +831,15 @@ current, **PsSelectBar**.
 
 ## Running the demo
 
-The demo loads **Segoe Fluent Icons** at startup via `AddFontResourceEx`, and
+The demo is in the toolchain's `examples/PsControls/PsToolbar/`. Build it there with
+`tiko build` (debug, `-g -exx`) or `tiko build --profile release`.
+
+It loads **Segoe Fluent Icons** at startup via `AddFontResourceEx`, and
 **aborts if the font is absent** — the control family draws its glyphs from it.
 
 The font ships with Windows 11 but is Microsoft's, not ours, so it is not
-redistributed here. Copy it in once before building:
+redistributed here. The demos share one copy, `examples/PsControls/SegoeFluentIcons.ttf`;
+copy it in once, from `examples/PsControls/`, before running:
 
 ```bash
 copy C:\Windows\Fonts\SegoeIcons.ttf SegoeFluentIcons.ttf

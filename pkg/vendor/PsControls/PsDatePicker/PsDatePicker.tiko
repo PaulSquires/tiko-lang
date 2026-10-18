@@ -37,10 +37,10 @@ using PsTextBox
 '               so it cannot see focus loss and polls GetForegroundWindow to dismiss on
 '               alt-tab, exactly as PsPopupMenu does.
 ' ----------------------------------------------------------------------------------------
-#define IDT_CDATEPICKER_HOTTRACK   &hCB90
-#define IDT_CDATEPICKER_CALPOLL    &hCB91
-#define PSDATEPICKER_HOTTRACK_MS    100
-#define PSDATEPICKER_CALPOLL_MS     100
+public const IDT_CDATEPICKER_HOTTRACK = &hCB90
+public const IDT_CDATEPICKER_CALPOLL = &hCB91
+public const PSDATEPICKER_HOTTRACK_MS = 100
+public const PSDATEPICKER_CALPOLL_MS = 100
 
 ' Custom messages the calendar popup sends UP to its owning container. The calendar is a
 ' separate top-level window; these are the one-way door back.
@@ -49,8 +49,8 @@ using PsTextBox
 '   CALCLOSED   - the calendar dismissed itself (Esc, outside click, foreground lost).
 '                 wParam <> 0 if it closed because of a pick (so the container does not
 '                 double-fire DropDownCallback).
-#define DTP_CM_DATEPICKED   (WM_USER + 720)
-#define DTP_CM_CALCLOSED    (WM_USER + 721)
+public const DTP_CM_DATEPICKED = (WM_USER + 720)
+public const DTP_CM_CALCLOSED = (WM_USER + 721)
 
 
 ' ----------------------------------------------------------------------------------------
@@ -58,24 +58,24 @@ using PsTextBox
 ' and the caller scales (the family rule). The BORDER and DIVIDER thicknesses are RULES and
 ' are never scaled -- a hairline stays a hairline (PsMenuBar's nSeparatorThickness rule).
 ' ----------------------------------------------------------------------------------------
-#define CDTP_DEFAULT_ICONWIDTH      28     ' the calendar-icon cell, right of the field
-#define CDTP_DEFAULT_FIELDPAD        6     ' left and right, inside the value cell
-#define CDTP_DEFAULT_VERTPAD         5     ' above and below the text, for GetIdealSize
-#define CDTP_DEFAULT_CORNERRADIUS    6
-#define CDTP_DEFAULT_BORDERTHICK     1     ' not DPI-scaled
-#define CDTP_DEFAULT_DIVIDERTHICK    1     ' not DPI-scaled
-#define CDTP_DEFAULT_ICONGLYPH       &hE787   ' Segoe Fluent Icons "Calendar"
-#define CDTP_DEFAULT_ICONFONTPT      11    ' point size of the control-created default icon font
+public const CDTP_DEFAULT_ICONWIDTH = 28   ' the calendar-icon cell, right of the field
+public const CDTP_DEFAULT_FIELDPAD = 6   ' left and right, inside the value cell
+public const CDTP_DEFAULT_VERTPAD = 5   ' above and below the text, for GetIdealSize
+public const CDTP_DEFAULT_CORNERRADIUS = 6
+public const CDTP_DEFAULT_BORDERTHICK = 1   ' not DPI-scaled
+public const CDTP_DEFAULT_DIVIDERTHICK = 1   ' not DPI-scaled
+public const CDTP_DEFAULT_ICONGLYPH = &hE787   ' Segoe Fluent Icons "Calendar"
+public const CDTP_DEFAULT_ICONFONTPT = 11   ' point size of the control-created default icon font
 
 ' Calendar popup geometry (logical, DPI-scaled once at the calendar's Create).
-#define CDTP_CAL_PAD                 8     ' outer padding, all four sides
-#define CDTP_CAL_GUTTER            12     ' between the two month panels
-#define CDTP_CAL_HEADERH           34
-#define CDTP_CAL_CHEVW             28
-#define CDTP_CAL_WEEKDAYH          22
-#define CDTP_CAL_FOOTERH           30     ' the optional "Today" footer band
-#define CDTP_CAL_CELLMINW          34
-#define CDTP_CAL_CELLMINH          30
+public const CDTP_CAL_PAD = 8   ' outer padding, all four sides
+public const CDTP_CAL_GUTTER = 12   ' between the two month panels
+public const CDTP_CAL_HEADERH = 34
+public const CDTP_CAL_CHEVW = 28
+public const CDTP_CAL_WEEKDAYH = 22
+public const CDTP_CAL_FOOTERH = 30   ' the optional "Today" footer band
+public const CDTP_CAL_CELLMINW = 34
+public const CDTP_CAL_CELLMINH = 30
 
 ' The month/year drill-down grid: 3 columns x 4 rows keeps long month names uncrowded, and
 ' one formula serves both grids.
@@ -236,7 +236,7 @@ end type
 
 
 ' ----------------------------------------------------------------------------------------
-' Callback typedefs (DTP_ prefix). See the public-API banner in the .tiko for contracts.
+' Callback typedefs (DTP_ prefix). Contracts beside each typedef, and in README.md.
 ' ----------------------------------------------------------------------------------------
 ' Resolve what the user typed. Return TRUE and fill *pDate for a valid date; FALSE for text you
 ' cannot parse. Empty text is handled by the control (see SetAllowEmpty).
@@ -438,7 +438,7 @@ end type
 
 
 ' ========================================================================================
-' PUBLIC API   (full contracts in the .tiko banner)
+' PUBLIC API   (full contracts in this module's README.md)
 ' ========================================================================================
 
 ' --- creation / children / focus ---
@@ -526,7 +526,7 @@ public declare function PsDatePicker_GetTooltipHandle( byval hDatePicker as HWND
 public declare function PsDatePicker_GetPsTooltipHandle( byval hDatePicker as HWND ) as HWND
 public declare sub      PsDatePicker_SetTooltipCallback( byval hCtrl as HWND, byval userfunc as DTP_TooltipCallbackFunc )
 
-' --- host message pump (NOT optional -- see the banner) ---
+' --- host message pump (NOT optional -- see README.md, "Message pump") ---
 public declare function PsDatePicker_FilterMessage( byval pMsg as MSG ptr ) as boolean
 
 ' --- pure date-math helpers (public so a host and the self-test can reuse them) ---
@@ -551,7 +551,8 @@ public declare function PsDatePicker_TestPartBrightness( byval hCal as HWND, byv
 ' Build + seed + size the calendar WITHOUT showing it, for the self-test. Returns hCal.
 public declare function PsDatePicker_TestPrepareCalendar( byval hCtrl as HWND, byval eView as long, byval anchorYear as long, byval anchorMonth as long ) as HWND
 
-' The tooltip backend switch, pulled in here so a host needs no extra include line.
+' The tooltip backend switch: this module imports PsTipHost itself (top of file), so a host
+' needs no extra import line.
 
 
 ' Only one calendar can be open at a time (it is a floating popup). This module-global names
@@ -2768,7 +2769,7 @@ end sub
 
 
 ' ========================================================================================
-' Tooltip backend (the popup calendar's day-cell tip).  See PsTipHost.ti.
+' Tooltip backend (the popup calendar's day-cell tip).  See PsTipHost's module header.
 ' ========================================================================================
 public function PsDatePicker_GetTooltipHandle( byval hDatePicker as HWND ) as HWND
     dim as PSDATEPICKER_STATE ptr pCtrl = GetDatePickerPointer(hDatePicker)
@@ -2820,7 +2821,7 @@ end sub
 
 
 ' ========================================================================================
-' Host message pump.  NOT optional -- see the banner.
+' Host message pump.  NOT optional -- see README.md, "Message pump".
 ' ========================================================================================
 public function PsDatePicker_FilterMessage( byval pMsg as MSG ptr ) as boolean
     if pMsg = 0 then return false

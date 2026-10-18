@@ -50,9 +50,9 @@ using PsVScrollBar
 ' Reveal/focus poll timer. Timer ids are per-window, so every instance can share this one.
 ' (&hCB10/&hCB11 belong to the PsVScrollBar this control owns -- do not reuse them here.)
 public const IDT_CSCROLLPANEL_REVEAL = &hCB30
-#define PSSCROLLPANEL_REVEAL_MS    100
+public const PSSCROLLPANEL_REVEAL_MS = 100
 
-#define PSSCROLLPANEL_LINE_HEIGHT  20    ' default wheel unit, unscaled (DPI scaled at use)
+public const PSSCROLLPANEL_LINE_HEIGHT = 20   ' default wheel unit, unscaled (DPI scaled at use)
 
 
 public type SCP_PAINTINFO

@@ -24,12 +24,12 @@ using PsBufferPaint
 '      closes the chain when the user alt-tabs away. A host wanting INSTANT dismissal
 '      calls PsPopupMenu_CloseChain / PsMenuBar_CloseMenu from its own WM_ACTIVATEAPP.
 ' Timer ids are per-window, so every instance can share this id.
-#define IDT_CPOPUPMENU_POLL    &hCB41
-#define PSPOPUPMENU_POLL_MS     100
+public const IDT_CPOPUPMENU_POLL = &hCB41
+public const PSPOPUPMENU_POLL_MS = 100
 
 ' How long the cursor rests on an item before its submenu opens (or a stale sibling
 ' submenu closes). A click opens the submenu immediately; hover waits this long.
-#define PSPOPUPMENU_HOVER_MS    250
+public const PSPOPUPMENU_HOVER_MS = 250
 
 ' Default geometry, DPI-scaled once at Create; the setters take raw pixels thereafter.
 public const PSPOPUPMENU_DEFAULT_ITEMHEIGHT = 24   ' command row height (tiko compact mode = 20)
@@ -41,7 +41,7 @@ public const PSPOPUPMENU_DEFAULT_SEPHEIGHT = 9   ' separator row height
 ' Thickness of the rule drawn inside that row. NOT DPI-scaled at Create, unlike every
 ' other geometry input here: a hairline divider should stay a hairline at 150% rather
 ' than growing into a bar. A host that wants it scaled scales it itself.
-#define PSPOPUPMENU_DEFAULT_SEPTHICKNESS  1
+public const PSPOPUPMENU_DEFAULT_SEPTHICKNESS = 1
 public const PSPOPUPMENU_DEFAULT_CHECKCOL = 30   ' left gutter column for the check glyph
 public const PSPOPUPMENU_DEFAULT_CHEVRONCOL = 20   ' right column for the submenu chevron
 public const PSPOPUPMENU_DEFAULT_ACCELGAP = 24   ' minimum gap between caption and accel text
@@ -1589,7 +1589,7 @@ end sub
 
 
 ' ========================================================================================
-' The message-pump filter (see the contract in PsPopupMenu.ti). Accepts any handle in
+' The message-pump filter (see the contract at the top of this file). Accepts any handle in
 ' the popup's chain; acts only while that chain is THE open chain.
 ' ========================================================================================
 public function PsPopupMenu_FilterMessage( byval hPopup as HWND, byval pMsg as MSG ptr ) as boolean

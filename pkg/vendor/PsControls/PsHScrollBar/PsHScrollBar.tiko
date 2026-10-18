@@ -25,11 +25,11 @@ using gdiplus
 using PsBufferPaint
 
 ' Timer ids are per-window, so every instance can share these values.
-#define IDT_CHSCROLL_HOTTRACK   &hCB20
-#define IDT_CHSCROLL_REPEAT     &hCB21
-#define CHSCROLL_HOTTRACK_MS    100    ' hover safety-net poll (TME_LEAVE is unreliable)
-#define CHSCROLL_REPEAT_DELAY   400    ' initial delay before track auto-repeat kicks in
-#define CHSCROLL_REPEAT_MS      80     ' auto-repeat interval while the button is held
+public const IDT_CHSCROLL_HOTTRACK = &hCB20
+public const IDT_CHSCROLL_REPEAT = &hCB21
+public const CHSCROLL_HOTTRACK_MS = 100   ' hover safety-net poll (TME_LEAVE is unreliable)
+public const CHSCROLL_REPEAT_DELAY = 400   ' initial delay before track auto-repeat kicks in
+public const CHSCROLL_REPEAT_MS = 80   ' auto-repeat interval while the button is held
 public const CHSCROLL_MIN_THUMB = 20   ' minimum thumb width (DPI scaled at use)
 public const CHSCROLL_DEFAULT_HEIGHT = 12   ' default track height (DPI scaled at use)
 
@@ -497,7 +497,8 @@ function PsHScrollBar_WndProc( _
         ' content. The signed-word cast is not optional: hiword is unsigned (Learnings.md).
         '
         ' Reaching us at all depends on "scroll inactive windows when I hover over them"
-        ' (on by default), since this control never takes focus -- see PsHScrollBar.ti.
+        ' (on by default), since this control never takes focus -- see the ROUTING note above
+        ' PsHScrollBar_HandleWheelDelta's declaration at the top of this file.
         '
         ' There is deliberately no WM_MOUSEWHEEL case here: a horizontal bar answers
         ' horizontal gestures only.
