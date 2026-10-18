@@ -179,7 +179,11 @@ src/tests/generics/fail-container-nohash-set.bas pins the missing-HashOf diagnos
 
 One page per entry, 10 in all:
 
-[Add](Modern-Set-Add) · [Capacity](Modern-Set-Capacity) · [Clear](Modern-Set-Clear) · [Contains](Modern-Set-Contains) · [Count](Modern-Set-Count) · [ExceptWith](Modern-Set-ExceptWith) · [GetIterator](Modern-Set-GetIterator) · [IntersectWith](Modern-Set-IntersectWith) · [IsEmpty](Modern-Set-IsEmpty) · [Items](Modern-Set-Items) · [Remove](Modern-Set-Remove) · [Reserve](Modern-Set-Reserve) · [Set](Modern-Set-Set) · [SetIterator](Modern-Set-SetIterator) · [UnionWith](Modern-Set-UnionWith)
+|   |   |   |   |   |
+|---|---|---|---|---|
+| [Add](Modern-Set-Add) | [Contains](Modern-Set-Contains) | [GetIterator](Modern-Set-GetIterator) | [Items](Modern-Set-Items) | [Set](Modern-Set-Set) |
+| [Capacity](Modern-Set-Capacity) | [Count](Modern-Set-Count) | [IntersectWith](Modern-Set-IntersectWith) | [Remove](Modern-Set-Remove) | [SetIterator](Modern-Set-SetIterator) |
+| [Clear](Modern-Set-Clear) | [ExceptWith](Modern-Set-ExceptWith) | [IsEmpty](Modern-Set-IsEmpty) | [Reserve](Modern-Set-Reserve) | [UnionWith](Modern-Set-UnionWith) |
 
 ---
 

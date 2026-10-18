@@ -226,7 +226,10 @@ src/tests/generics/fail-result-nodefaultctor.bas pins the diagnostic for a type 
 
 One page per entry, 9 in all:
 
-[Fail](Modern-Result-Fail) · [Failure](Modern-Result-Failure) · [IsOk](Modern-Result-IsOk) · [Ok](Modern-Result-Ok) · [Optional](Modern-Result-Optional) · [Result](Modern-Result-Result) · [Value](Modern-Result-Value) · [ValueOr](Modern-Result-ValueOr)
+|   |   |   |   |
+|---|---|---|---|
+| [Fail](Modern-Result-Fail) | [IsOk](Modern-Result-IsOk) | [Optional](Modern-Result-Optional) | [Value](Modern-Result-Value) |
+| [Failure](Modern-Result-Failure) | [Ok](Modern-Result-Ok) | [Result](Modern-Result-Result) | [ValueOr](Modern-Result-ValueOr) |
 
 ---
 

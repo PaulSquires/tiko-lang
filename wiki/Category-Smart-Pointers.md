@@ -267,7 +267,10 @@ Under tiko: container-sharedptr.bas and global-unary-operators.bas build and run
 
 One page per entry, 11 in all:
 
-[Expired](Modern-SharedPtr-Expired) · [Get](Modern-SharedPtr-Get) · [IsNull](Modern-SharedPtr-IsNull) · [Lock](Modern-SharedPtr-Lock) · [MakeShared](Modern-SharedPtr-MakeShared) · [MakeSharedFrom](Modern-SharedPtr-MakeSharedFrom) · [Ref](Modern-SharedPtr-Ref) · [Reset](Modern-SharedPtr-Reset) · [SharedPtr](Modern-SharedPtr-SharedPtr) · [SpCast](Modern-SharedPtr-SpCast) · [UseCount](Modern-SharedPtr-UseCount) · [WeakPtr](Modern-SharedPtr-WeakPtr)
+|   |   |   |   |   |   |
+|---|---|---|---|---|---|
+| [Expired](Modern-SharedPtr-Expired) | [IsNull](Modern-SharedPtr-IsNull) | [MakeShared](Modern-SharedPtr-MakeShared) | [Ref](Modern-SharedPtr-Ref) | [SharedPtr](Modern-SharedPtr-SharedPtr) | [UseCount](Modern-SharedPtr-UseCount) |
+| [Get](Modern-SharedPtr-Get) | [Lock](Modern-SharedPtr-Lock) | [MakeSharedFrom](Modern-SharedPtr-MakeSharedFrom) | [Reset](Modern-SharedPtr-Reset) | [SpCast](Modern-SharedPtr-SpCast) | [WeakPtr](Modern-SharedPtr-WeakPtr) |
 
 ---
 

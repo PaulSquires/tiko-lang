@@ -384,7 +384,17 @@ See also: [Date and Time](Category-Date-and-Time-Chrono) (Instant, TimeSpan, Wal
 
 One page per entry, 32 in all:
 
-[AddSink](Modern-Log-AddSink) · [ClearSinks](Modern-Log-ClearSinks) · [Debug](Modern-Log-Debug) · [Emit](Modern-Log-Emit) · [Enabled](Modern-Log-Enabled) · [Error](Modern-Log-Error) · [Fatal](Modern-Log-Fatal) · [Flush](Modern-Log-Flush) · [Info](Modern-Log-Info) · [LevelFromName](Modern-Log-LevelFromName) · [LevelName](Modern-Log-LevelName) · [LevelNameShort](Modern-Log-LevelNameShort) · [LevelToSyslog](Modern-Log-LevelToSyslog) · [Log](Modern-Log-Log) · [LogEvent.AddBool](Modern-Log-LogEvent-AddBool) · [LogEvent.Close](Modern-Log-LogEvent-Close) · [LogEvent.ConsoleSink](Modern-Log-LogEvent-ConsoleSink) · [LogEvent.AddFloat](Modern-Log-LogEvent-AddFloat) · [LogEvent.DroppedCount](Modern-Log-LogEvent-DroppedCount) · [LogEvent.AddError](Modern-Log-LogEvent-AddError) · [LogEvent.Flush](Modern-Log-LogEvent-Flush) · [LogEvent.AddInt](Modern-Log-LogEvent-AddInt) · [LogEvent.Msg](Modern-Log-LogEvent-Msg) · [LogEvent.AddPtr](Modern-Log-LogEvent-AddPtr) · [LogEvent.Render](Modern-Log-LogEvent-Render) · [LogEvent.Send](Modern-Log-LogEvent-Send) · [LogEvent.Site](Modern-Log-LogEvent-Site) · [LogEvent.AddSpan](Modern-Log-LogEvent-AddSpan) · [LogEvent.AddText](Modern-Log-LogEvent-AddText) · [LogEvent.AddTime](Modern-Log-LogEvent-AddTime) · [LogEvent.AddUInt](Modern-Log-LogEvent-AddUInt) · [LogEvent.AddValue](Modern-Log-LogEvent-AddValue) · [LogEvent.Write](Modern-Log-LogEvent-Write) · [MinLevel](Modern-Log-MinLevel) · [Name](Modern-Log-Name) · [RemoveSink](Modern-Log-RemoveSink) · [SinkCount](Modern-Log-SinkCount) · [Trace](Modern-Log-Trace) · [Warn](Modern-Log-Warn) · [WithField](Modern-Log-WithField) · [WithName](Modern-Log-WithName)
+|   |   |   |   |   |
+|---|---|---|---|---|
+| [AddSink](Modern-Log-AddSink) | [LevelFromName](Modern-Log-LevelFromName) | [LogEvent.DroppedCount](Modern-Log-LogEvent-DroppedCount) | [LogEvent.AddSpan](Modern-Log-LogEvent-AddSpan) | [SinkCount](Modern-Log-SinkCount) |
+| [ClearSinks](Modern-Log-ClearSinks) | [LevelName](Modern-Log-LevelName) | [LogEvent.AddError](Modern-Log-LogEvent-AddError) | [LogEvent.AddText](Modern-Log-LogEvent-AddText) | [Trace](Modern-Log-Trace) |
+| [Debug](Modern-Log-Debug) | [LevelNameShort](Modern-Log-LevelNameShort) | [LogEvent.Flush](Modern-Log-LogEvent-Flush) | [LogEvent.AddTime](Modern-Log-LogEvent-AddTime) | [Warn](Modern-Log-Warn) |
+| [Emit](Modern-Log-Emit) | [LevelToSyslog](Modern-Log-LevelToSyslog) | [LogEvent.AddInt](Modern-Log-LogEvent-AddInt) | [LogEvent.AddUInt](Modern-Log-LogEvent-AddUInt) | [WithField](Modern-Log-WithField) |
+| [Enabled](Modern-Log-Enabled) | [Log](Modern-Log-Log) | [LogEvent.Msg](Modern-Log-LogEvent-Msg) | [LogEvent.AddValue](Modern-Log-LogEvent-AddValue) | [WithName](Modern-Log-WithName) |
+| [Error](Modern-Log-Error) | [LogEvent.AddBool](Modern-Log-LogEvent-AddBool) | [LogEvent.AddPtr](Modern-Log-LogEvent-AddPtr) | [LogEvent.Write](Modern-Log-LogEvent-Write) |  |
+| [Fatal](Modern-Log-Fatal) | [LogEvent.Close](Modern-Log-LogEvent-Close) | [LogEvent.Render](Modern-Log-LogEvent-Render) | [MinLevel](Modern-Log-MinLevel) |  |
+| [Flush](Modern-Log-Flush) | [LogEvent.ConsoleSink](Modern-Log-LogEvent-ConsoleSink) | [LogEvent.Send](Modern-Log-LogEvent-Send) | [Name](Modern-Log-Name) |  |
+| [Info](Modern-Log-Info) | [LogEvent.AddFloat](Modern-Log-LogEvent-AddFloat) | [LogEvent.Site](Modern-Log-LogEvent-Site) | [RemoveSink](Modern-Log-RemoveSink) |  |
 
 ---
 

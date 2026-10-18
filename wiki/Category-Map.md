@@ -219,7 +219,11 @@ generics/fail-container-nohash.bas pins the missing-HashOf diagnostic.
 
 One page per entry, 14 in all:
 
-[Add](Modern-Map-Add) · [Capacity](Modern-Map-Capacity) · [Clear](Modern-Map-Clear) · [Contains](Modern-Map-Contains) · [Count](Modern-Map-Count) · [GetIterator](Modern-Map-GetIterator) · [IsEmpty](Modern-Map-IsEmpty) · [Keys](Modern-Map-Keys) · [Map](Modern-Map-Map) · [MapIterator](Modern-Map-MapIterator) · [MapPairIter](Modern-Map-MapPairIter) · [MapPairView](Modern-Map-MapPairView) · [Pairs](Modern-Map-Pairs) · [Put](Modern-Map-Put) · [Remove](Modern-Map-Remove) · [Reserve](Modern-Map-Reserve) · [TryGet](Modern-Map-TryGet) · [Values](Modern-Map-Values)
+|   |   |   |   |   |   |
+|---|---|---|---|---|---|
+| [Add](Modern-Map-Add) | [Contains](Modern-Map-Contains) | [IsEmpty](Modern-Map-IsEmpty) | [MapIterator](Modern-Map-MapIterator) | [Pairs](Modern-Map-Pairs) | [Reserve](Modern-Map-Reserve) |
+| [Capacity](Modern-Map-Capacity) | [Count](Modern-Map-Count) | [Keys](Modern-Map-Keys) | [MapPairIter](Modern-Map-MapPairIter) | [Put](Modern-Map-Put) | [TryGet](Modern-Map-TryGet) |
+| [Clear](Modern-Map-Clear) | [GetIterator](Modern-Map-GetIterator) | [Map](Modern-Map-Map) | [MapPairView](Modern-Map-MapPairView) | [Remove](Modern-Map-Remove) | [Values](Modern-Map-Values) |
 
 ---
 

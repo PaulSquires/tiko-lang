@@ -205,7 +205,14 @@ See also: [Map](Category-Map) (containers.Map( of TK, TV )), [Set](Category-Set)
 
 One page per entry, 17 in all:
 
-[OrderedMap](Modern-OrderedMap-OrderedMap) · [OrderedMap.Add](Modern-OrderedMap-Add) · [OrderedMap.BlackHeight](Modern-OrderedMap-BlackHeight) · [OrderedMap.Clear](Modern-OrderedMap-Clear) · [OrderedMap.Contains](Modern-OrderedMap-Contains) · [OrderedMap.Count](Modern-OrderedMap-Count) · [OrderedMap.GetIterator](Modern-OrderedMap-GetIterator) · [OrderedMap.IsEmpty](Modern-OrderedMap-IsEmpty) · [OrderedMap.Keys](Modern-OrderedMap-Keys) · [OrderedMap.Pairs](Modern-OrderedMap-Pairs) · [OrderedMap.Put](Modern-OrderedMap-Put) · [OrderedMap.Remove](Modern-OrderedMap-Remove) · [OrderedMap.TryCeiling](Modern-OrderedMap-TryCeiling) · [OrderedMap.TryFirst](Modern-OrderedMap-TryFirst) · [OrderedMap.TryFloor](Modern-OrderedMap-TryFloor) · [OrderedMap.TryGet](Modern-OrderedMap-TryGet) · [OrderedMap.TryLast](Modern-OrderedMap-TryLast) · [OrderedMap.Values](Modern-OrderedMap-Values) · [OrderedMapIterator](Modern-OrderedMap-OrderedMapIterator) · [OrderedMapPairIter](Modern-OrderedMap-OrderedMapPairIter) · [OrderedMapPairView](Modern-OrderedMap-OrderedMapPairView)
+|   |   |   |   |
+|---|---|---|---|
+| [OrderedMap](Modern-OrderedMap-OrderedMap) | [OrderedMap.GetIterator](Modern-OrderedMap-GetIterator) | [OrderedMap.TryCeiling](Modern-OrderedMap-TryCeiling) | [OrderedMapIterator](Modern-OrderedMap-OrderedMapIterator) |
+| [OrderedMap.Add](Modern-OrderedMap-Add) | [OrderedMap.IsEmpty](Modern-OrderedMap-IsEmpty) | [OrderedMap.TryFirst](Modern-OrderedMap-TryFirst) | [OrderedMapPairIter](Modern-OrderedMap-OrderedMapPairIter) |
+| [OrderedMap.BlackHeight](Modern-OrderedMap-BlackHeight) | [OrderedMap.Keys](Modern-OrderedMap-Keys) | [OrderedMap.TryFloor](Modern-OrderedMap-TryFloor) | [OrderedMapPairView](Modern-OrderedMap-OrderedMapPairView) |
+| [OrderedMap.Clear](Modern-OrderedMap-Clear) | [OrderedMap.Pairs](Modern-OrderedMap-Pairs) | [OrderedMap.TryGet](Modern-OrderedMap-TryGet) |  |
+| [OrderedMap.Contains](Modern-OrderedMap-Contains) | [OrderedMap.Put](Modern-OrderedMap-Put) | [OrderedMap.TryLast](Modern-OrderedMap-TryLast) |  |
+| [OrderedMap.Count](Modern-OrderedMap-Count) | [OrderedMap.Remove](Modern-OrderedMap-Remove) | [OrderedMap.Values](Modern-OrderedMap-Values) |  |
 
 ---
 

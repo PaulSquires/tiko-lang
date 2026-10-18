@@ -162,7 +162,11 @@ The copy and assignment section is load-bearing rather than a formality: it chec
 
 One page per entry, 13 in all:
 
-[Back](Modern-LinkedList-Back) · [Clear](Modern-LinkedList-Clear) · [Count](Modern-LinkedList-Count) · [Front](Modern-LinkedList-Front) · [GetIterator](Modern-LinkedList-GetIterator) · [IsEmpty](Modern-LinkedList-IsEmpty) · [LinkedList](Modern-LinkedList-LinkedList) · [LinkedListIterator](Modern-LinkedList-LinkedListIterator) · [LinkedNode](Modern-LinkedList-LinkedNode) · [PopBack](Modern-LinkedList-PopBack) · [PopFront](Modern-LinkedList-PopFront) · [PushBack](Modern-LinkedList-PushBack) · [PushFront](Modern-LinkedList-PushFront) · [SortList](Modern-LinkedList-SortList) · [SortListBy](Modern-LinkedList-SortListBy)
+|   |   |   |   |   |
+|---|---|---|---|---|
+| [Back](Modern-LinkedList-Back) | [Front](Modern-LinkedList-Front) | [LinkedList](Modern-LinkedList-LinkedList) | [PopBack](Modern-LinkedList-PopBack) | [PushFront](Modern-LinkedList-PushFront) |
+| [Clear](Modern-LinkedList-Clear) | [GetIterator](Modern-LinkedList-GetIterator) | [LinkedListIterator](Modern-LinkedList-LinkedListIterator) | [PopFront](Modern-LinkedList-PopFront) | [SortList](Modern-LinkedList-SortList) |
+| [Count](Modern-LinkedList-Count) | [IsEmpty](Modern-LinkedList-IsEmpty) | [LinkedNode](Modern-LinkedList-LinkedNode) | [PushBack](Modern-LinkedList-PushBack) | [SortListBy](Modern-LinkedList-SortListBy) |
 
 ---
 

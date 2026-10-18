@@ -361,7 +361,14 @@ toolchains/tiko-linux/bin/tiko   -mt yourprogram.tiko
 
 One page per entry, 11 in all:
 
-[Add](Modern-Chan-Add) · [Cancel](Modern-Chan-Cancel) · [Channel](Modern-Chan-Channel-Channel) · [Channel.Capacity](Modern-Chan-Channel-Capacity) · [Channel.ChannelIterator](Modern-Chan-Channel-ChannelIterator) · [Channel.Close](Modern-Chan-Channel-Close) · [Channel.Count](Modern-Chan-Channel-Count) · [Channel.GetIterator](Modern-Chan-Channel-GetIterator) · [Channel.IsClosed](Modern-Chan-Channel-IsClosed) · [Channel.IsNil](Modern-Chan-Channel-IsNil) · [Channel.Receive](Modern-Chan-Channel-Receive) · [Channel.ReceiveFor](Modern-Chan-Channel-ReceiveFor) · [Channel.RecvChan](Modern-Chan-Channel-RecvChan) · [Channel.Send](Modern-Chan-Channel-Send) · [Channel.SendChan](Modern-Chan-Channel-SendChan) · [Channel.SendFor](Modern-Chan-Channel-SendFor) · [Channel.TryReceive](Modern-Chan-Channel-TryReceive) · [Channel.TrySend](Modern-Chan-Channel-TrySend) · [Context](Modern-Chan-Context) · [Count](Modern-Chan-Count) · [Done](Modern-Chan-Done) · [Err](Modern-Chan-Err) · [GoroutineCount](Modern-Chan-GoroutineCount) · [IsCancelled](Modern-Chan-IsCancelled) · [spawn](Modern-Chan-Spawn) · [Wait](Modern-Chan-Wait) · [WaitFor](Modern-Chan-WaitFor) · [WithCancel](Modern-Chan-WithCancel) · [WithTimeout](Modern-Chan-WithTimeout) · [WorkerCount](Modern-Chan-WorkerCount)
+|   |   |   |   |   |
+|---|---|---|---|---|
+| [Add](Modern-Chan-Add) | [Channel.Count](Modern-Chan-Channel-Count) | [Channel.RecvChan](Modern-Chan-Channel-RecvChan) | [Context](Modern-Chan-Context) | [spawn](Modern-Chan-Spawn) |
+| [Cancel](Modern-Chan-Cancel) | [Channel.GetIterator](Modern-Chan-Channel-GetIterator) | [Channel.Send](Modern-Chan-Channel-Send) | [Count](Modern-Chan-Count) | [Wait](Modern-Chan-Wait) |
+| [Channel](Modern-Chan-Channel-Channel) | [Channel.IsClosed](Modern-Chan-Channel-IsClosed) | [Channel.SendChan](Modern-Chan-Channel-SendChan) | [Done](Modern-Chan-Done) | [WaitFor](Modern-Chan-WaitFor) |
+| [Channel.Capacity](Modern-Chan-Channel-Capacity) | [Channel.IsNil](Modern-Chan-Channel-IsNil) | [Channel.SendFor](Modern-Chan-Channel-SendFor) | [Err](Modern-Chan-Err) | [WithCancel](Modern-Chan-WithCancel) |
+| [Channel.ChannelIterator](Modern-Chan-Channel-ChannelIterator) | [Channel.Receive](Modern-Chan-Channel-Receive) | [Channel.TryReceive](Modern-Chan-Channel-TryReceive) | [GoroutineCount](Modern-Chan-GoroutineCount) | [WithTimeout](Modern-Chan-WithTimeout) |
+| [Channel.Close](Modern-Chan-Channel-Close) | [Channel.ReceiveFor](Modern-Chan-Channel-ReceiveFor) | [Channel.TrySend](Modern-Chan-Channel-TrySend) | [IsCancelled](Modern-Chan-IsCancelled) | [WorkerCount](Modern-Chan-WorkerCount) |
 
 ---
 

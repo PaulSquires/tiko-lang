@@ -182,7 +182,12 @@ src/tests/generics/fail-container-nosort.bas and fail-container-noequals.bas pin
 
 One page per entry, 21 in all:
 
-[Array](Modern-Array-Array) · [ArrayIterator](Modern-Array-ArrayIterator) · [At](Modern-Array-At) · [Capacity](Modern-Array-Capacity) · [Clear](Modern-Array-Clear) · [Contains](Modern-Array-Contains) · [Count](Modern-Array-Count) · [ForEach](Modern-Array-ForEach) · [GetIterator](Modern-Array-GetIterator) · [IndexOf](Modern-Array-IndexOf) · [Insert](Modern-Array-Insert) · [IsEmpty](Modern-Array-IsEmpty) · [IsSorted](Modern-Array-IsSorted) · [Pop](Modern-Array-Pop) · [Push](Modern-Array-Push) · [Remove](Modern-Array-Remove) · [RemoveSwap](Modern-Array-RemoveSwap) · [Reserve](Modern-Array-Reserve) · [Shrink](Modern-Array-Shrink) · [Sort](Modern-Array-Sort) · [SortBy](Modern-Array-SortBy) · [StableSort](Modern-Array-StableSort) · [StableSortBy](Modern-Array-StableSortBy)
+|   |   |   |   |   |   |
+|---|---|---|---|---|---|
+| [Array](Modern-Array-Array) | [Clear](Modern-Array-Clear) | [GetIterator](Modern-Array-GetIterator) | [IsSorted](Modern-Array-IsSorted) | [RemoveSwap](Modern-Array-RemoveSwap) | [SortBy](Modern-Array-SortBy) |
+| [ArrayIterator](Modern-Array-ArrayIterator) | [Contains](Modern-Array-Contains) | [IndexOf](Modern-Array-IndexOf) | [Pop](Modern-Array-Pop) | [Reserve](Modern-Array-Reserve) | [StableSort](Modern-Array-StableSort) |
+| [At](Modern-Array-At) | [Count](Modern-Array-Count) | [Insert](Modern-Array-Insert) | [Push](Modern-Array-Push) | [Shrink](Modern-Array-Shrink) | [StableSortBy](Modern-Array-StableSortBy) |
+| [Capacity](Modern-Array-Capacity) | [ForEach](Modern-Array-ForEach) | [IsEmpty](Modern-Array-IsEmpty) | [Remove](Modern-Array-Remove) | [Sort](Modern-Array-Sort) |  |
 
 ---
 

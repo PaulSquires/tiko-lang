@@ -392,7 +392,15 @@ One page per entry, 150 in all, each with a compilable example.
 
 **Money types — `currency.tiko`, `decimal.tiko`**
 
-[Currency](Modern-Finance-Currency) · [CurrencyFromInt](Modern-Finance-CurrencyFromInt) · [CurrencyFromParts](Modern-Finance-CurrencyFromParts) · [CurrencyFromRaw](Modern-Finance-CurrencyFromRaw) · [CurrencyFromDouble](Modern-Finance-CurrencyFromDouble) · [CurrencyParse](Modern-Finance-CurrencyParse) · [CurrencyInvalid](Modern-Finance-CurrencyInvalid) · [Raw](Modern-Finance-Raw) · [Apportion](Modern-Finance-Apportion) · [AddProduct](Modern-Finance-AddProduct) · [AddScaled](Modern-Finance-AddScaled) · [Total](Modern-Finance-Total) · [Decimal](Modern-Finance-Decimal) · [DecimalZero](Modern-Finance-DecimalZero) · [DecimalOne](Modern-Finance-DecimalOne) · [DecimalMinusOne](Modern-Finance-DecimalMinusOne) · [DecimalMinValue](Modern-Finance-DecimalMinValue) · [DecimalMaxValue](Modern-Finance-DecimalMaxValue) · [DecimalInvalid](Modern-Finance-DecimalInvalid) · [DecimalFromInt](Modern-Finance-DecimalFromInt) · [DecimalFromUInt](Modern-Finance-DecimalFromUInt) · [DecimalFromScaled](Modern-Finance-DecimalFromScaled) · [DecimalFromParts](Modern-Finance-DecimalFromParts) · [DecimalFromDouble](Modern-Finance-DecimalFromDouble) · [DecimalFromCurrency](Modern-Finance-DecimalFromCurrency) · [DecimalParse](Modern-Finance-DecimalParse) · [DecimalCompare](Modern-Finance-DecimalCompare) · [DecimalApportion](Modern-Finance-DecimalApportion) · [IsValid](Modern-Finance-IsValid) · [Ceiling](Modern-Finance-Ceiling) · [RoundMode](Modern-Finance-RoundMode) · [ToDouble](Modern-Finance-ToDouble)
+|   |   |   |   |   |
+|---|---|---|---|---|
+| [Currency](Modern-Finance-Currency) | [Raw](Modern-Finance-Raw) | [DecimalOne](Modern-Finance-DecimalOne) | [DecimalFromScaled](Modern-Finance-DecimalFromScaled) | [IsValid](Modern-Finance-IsValid) |
+| [CurrencyFromInt](Modern-Finance-CurrencyFromInt) | [Apportion](Modern-Finance-Apportion) | [DecimalMinusOne](Modern-Finance-DecimalMinusOne) | [DecimalFromParts](Modern-Finance-DecimalFromParts) | [Ceiling](Modern-Finance-Ceiling) |
+| [CurrencyFromParts](Modern-Finance-CurrencyFromParts) | [AddProduct](Modern-Finance-AddProduct) | [DecimalMinValue](Modern-Finance-DecimalMinValue) | [DecimalFromDouble](Modern-Finance-DecimalFromDouble) | [RoundMode](Modern-Finance-RoundMode) |
+| [CurrencyFromRaw](Modern-Finance-CurrencyFromRaw) | [AddScaled](Modern-Finance-AddScaled) | [DecimalMaxValue](Modern-Finance-DecimalMaxValue) | [DecimalFromCurrency](Modern-Finance-DecimalFromCurrency) | [ToDouble](Modern-Finance-ToDouble) |
+| [CurrencyFromDouble](Modern-Finance-CurrencyFromDouble) | [Total](Modern-Finance-Total) | [DecimalInvalid](Modern-Finance-DecimalInvalid) | [DecimalParse](Modern-Finance-DecimalParse) |  |
+| [CurrencyParse](Modern-Finance-CurrencyParse) | [Decimal](Modern-Finance-Decimal) | [DecimalFromInt](Modern-Finance-DecimalFromInt) | [DecimalCompare](Modern-Finance-DecimalCompare) |  |
+| [CurrencyInvalid](Modern-Finance-CurrencyInvalid) | [DecimalZero](Modern-Finance-DecimalZero) | [DecimalFromUInt](Modern-Finance-DecimalFromUInt) | [DecimalApportion](Modern-Finance-DecimalApportion) |  |
 
 **Errors — `finerror.tiko`**
 
@@ -400,7 +408,17 @@ One page per entry, 150 in all, each with a compilable example.
 
 **Conventions, day count and rates — `fincore.tiko`**
 
-[Compounding](Modern-Finance-Compounding) · [PaymentFrequency](Modern-Finance-PaymentFrequency) · [PaymentTiming](Modern-Finance-PaymentTiming) · [DayCount](Modern-Finance-DayCount) · [MoneyRounding](Modern-Finance-MoneyRounding) · [MoneyRoundingMake](Modern-Finance-MoneyRoundingMake) · [MoneyRoundingCents](Modern-Finance-MoneyRoundingCents) · [MoneyRoundingBankersFour](Modern-Finance-MoneyRoundingBankersFour) · [MoneyRoundingExact](Modern-Finance-MoneyRoundingExact) · [MoneyRound](Modern-Finance-MoneyRound) · [DayCountDays](Modern-Finance-DayCountDays) · [DayCountFraction](Modern-Finance-DayCountFraction) · [DayCountFractionDouble](Modern-Finance-DayCountFractionDouble) · [GrowthFactor](Modern-Finance-GrowthFactor) · [DiscountFactor](Modern-Finance-DiscountFactor) · [GrowthFactorFractional](Modern-Finance-GrowthFactorFractional) · [GrowthFactorContinuous](Modern-Finance-GrowthFactorContinuous) · [SimpleInterest](Modern-Finance-SimpleInterest) · [SimpleInterestBetween](Modern-Finance-SimpleInterestBetween) · [RatePerPeriod](Modern-Finance-RatePerPeriod) · [RateEffectiveFromNominal](Modern-Finance-RateEffectiveFromNominal) · [RateNominalFromEffective](Modern-Finance-RateNominalFromEffective) · [RateConvertCompounding](Modern-Finance-RateConvertCompounding) · [RateContinuousFromEffective](Modern-Finance-RateContinuousFromEffective) · [RateEffectiveFromContinuous](Modern-Finance-RateEffectiveFromContinuous) · [RatePerPaymentFromNominal](Modern-Finance-RatePerPaymentFromNominal)
+|   |   |   |
+|---|---|---|
+| [Compounding](Modern-Finance-Compounding) | [MoneyRound](Modern-Finance-MoneyRound) | [SimpleInterestBetween](Modern-Finance-SimpleInterestBetween) |
+| [PaymentFrequency](Modern-Finance-PaymentFrequency) | [DayCountDays](Modern-Finance-DayCountDays) | [RatePerPeriod](Modern-Finance-RatePerPeriod) |
+| [PaymentTiming](Modern-Finance-PaymentTiming) | [DayCountFraction](Modern-Finance-DayCountFraction) | [RateEffectiveFromNominal](Modern-Finance-RateEffectiveFromNominal) |
+| [DayCount](Modern-Finance-DayCount) | [DayCountFractionDouble](Modern-Finance-DayCountFractionDouble) | [RateNominalFromEffective](Modern-Finance-RateNominalFromEffective) |
+| [MoneyRounding](Modern-Finance-MoneyRounding) | [GrowthFactor](Modern-Finance-GrowthFactor) | [RateConvertCompounding](Modern-Finance-RateConvertCompounding) |
+| [MoneyRoundingMake](Modern-Finance-MoneyRoundingMake) | [DiscountFactor](Modern-Finance-DiscountFactor) | [RateContinuousFromEffective](Modern-Finance-RateContinuousFromEffective) |
+| [MoneyRoundingCents](Modern-Finance-MoneyRoundingCents) | [GrowthFactorFractional](Modern-Finance-GrowthFactorFractional) | [RateEffectiveFromContinuous](Modern-Finance-RateEffectiveFromContinuous) |
+| [MoneyRoundingBankersFour](Modern-Finance-MoneyRoundingBankersFour) | [GrowthFactorContinuous](Modern-Finance-GrowthFactorContinuous) | [RatePerPaymentFromNominal](Modern-Finance-RatePerPaymentFromNominal) |
+| [MoneyRoundingExact](Modern-Finance-MoneyRoundingExact) | [SimpleInterest](Modern-Finance-SimpleInterest) |  |
 
 **The root finder — `finsolve.tiko`**
 
@@ -408,20 +426,48 @@ One page per entry, 150 in all, each with a compilable example.
 
 **Time value of money — `fintvm.tiko`**
 
-[AnnuityTerms](Modern-Finance-AnnuityTerms) · [AnnuityTermsMake](Modern-Finance-AnnuityTermsMake) · [PresentValue](Modern-Finance-PresentValue) · [FutureValue](Modern-Finance-FutureValue) · [PaymentAmount](Modern-Finance-PaymentAmount) · [PresentValueOfLump](Modern-Finance-PresentValueOfLump) · [FutureValueOfLump](Modern-Finance-FutureValueOfLump) · [AnnuityPresentValueFactor](Modern-Finance-AnnuityPresentValueFactor) · [AnnuityFutureValueFactor](Modern-Finance-AnnuityFutureValueFactor) · [PeriodsRequired](Modern-Finance-PeriodsRequired) · [PeriodsRequiredWhole](Modern-Finance-PeriodsRequiredWhole) · [SolveRatePerPeriod](Modern-Finance-SolveRatePerPeriod)
+|   |   |   |   |
+|---|---|---|---|
+| [AnnuityTerms](Modern-Finance-AnnuityTerms) | [FutureValue](Modern-Finance-FutureValue) | [FutureValueOfLump](Modern-Finance-FutureValueOfLump) | [PeriodsRequired](Modern-Finance-PeriodsRequired) |
+| [AnnuityTermsMake](Modern-Finance-AnnuityTermsMake) | [PaymentAmount](Modern-Finance-PaymentAmount) | [AnnuityPresentValueFactor](Modern-Finance-AnnuityPresentValueFactor) | [PeriodsRequiredWhole](Modern-Finance-PeriodsRequiredWhole) |
+| [PresentValue](Modern-Finance-PresentValue) | [PresentValueOfLump](Modern-Finance-PresentValueOfLump) | [AnnuityFutureValueFactor](Modern-Finance-AnnuityFutureValueFactor) | [SolveRatePerPeriod](Modern-Finance-SolveRatePerPeriod) |
 
 **Loans and amortization — `finloan.tiko`**
 
-[LoanTerms](Modern-Finance-LoanTerms) · [LoanTermsMake](Modern-Finance-LoanTermsMake) · [LoanTermsUsMortgage](Modern-Finance-LoanTermsUsMortgage) · [LoanTermsCanadianMortgage](Modern-Finance-LoanTermsCanadianMortgage) · [AmortizationRow](Modern-Finance-AmortizationRow) · [AmortizationSchedule](Modern-Finance-AmortizationSchedule) · [AmortizationIterator](Modern-Finance-AmortizationIterator) · [ScheduleToArray](Modern-Finance-ScheduleToArray) · [LoanPayment](Modern-Finance-LoanPayment) · [LoanSchedule](Modern-Finance-LoanSchedule) · [LoanRowAt](Modern-Finance-LoanRowAt) · [LoanBalanceAt](Modern-Finance-LoanBalanceAt) · [LoanInterestBetween](Modern-Finance-LoanInterestBetween) · [LoanPrincipalBetween](Modern-Finance-LoanPrincipalBetween) · [LoanSummarize](Modern-Finance-LoanSummarize) · [LoanSummary](Modern-Finance-LoanSummary) · [ExtraPayment](Modern-Finance-ExtraPayment) · [ExtraPaymentOnce](Modern-Finance-ExtraPaymentOnce) · [ExtraPaymentRecurring](Modern-Finance-ExtraPaymentRecurring) · [LoanPayoffAmount](Modern-Finance-LoanPayoffAmount) · [LoanImpliedRate](Modern-Finance-LoanImpliedRate) · [LoanAnnualPercentageRate](Modern-Finance-LoanAnnualPercentageRate)
+|   |   |   |   |
+|---|---|---|---|
+| [LoanTerms](Modern-Finance-LoanTerms) | [AmortizationIterator](Modern-Finance-AmortizationIterator) | [LoanInterestBetween](Modern-Finance-LoanInterestBetween) | [ExtraPaymentRecurring](Modern-Finance-ExtraPaymentRecurring) |
+| [LoanTermsMake](Modern-Finance-LoanTermsMake) | [ScheduleToArray](Modern-Finance-ScheduleToArray) | [LoanPrincipalBetween](Modern-Finance-LoanPrincipalBetween) | [LoanPayoffAmount](Modern-Finance-LoanPayoffAmount) |
+| [LoanTermsUsMortgage](Modern-Finance-LoanTermsUsMortgage) | [LoanPayment](Modern-Finance-LoanPayment) | [LoanSummarize](Modern-Finance-LoanSummarize) | [LoanImpliedRate](Modern-Finance-LoanImpliedRate) |
+| [LoanTermsCanadianMortgage](Modern-Finance-LoanTermsCanadianMortgage) | [LoanSchedule](Modern-Finance-LoanSchedule) | [LoanSummary](Modern-Finance-LoanSummary) | [LoanAnnualPercentageRate](Modern-Finance-LoanAnnualPercentageRate) |
+| [AmortizationRow](Modern-Finance-AmortizationRow) | [LoanRowAt](Modern-Finance-LoanRowAt) | [ExtraPayment](Modern-Finance-ExtraPayment) |  |
+| [AmortizationSchedule](Modern-Finance-AmortizationSchedule) | [LoanBalanceAt](Modern-Finance-LoanBalanceAt) | [ExtraPaymentOnce](Modern-Finance-ExtraPaymentOnce) |  |
 
 **Cash flows and appraisal — `fincash.tiko`**
 
-[CashFlow](Modern-Finance-CashFlow) · [CashFlowMake](Modern-Finance-CashFlowMake) · [CashFlowAt](Modern-Finance-CashFlowAt) · [NetPresentValue](Modern-Finance-NetPresentValue) · [NetFutureValue](Modern-Finance-NetFutureValue) · [InternalRateOfReturn](Modern-Finance-InternalRateOfReturn) · [ModifiedInternalRateOfReturn](Modern-Finance-ModifiedInternalRateOfReturn) · [NetPresentValueOnDates](Modern-Finance-NetPresentValueOnDates) · [InternalRateOfReturnOnDates](Modern-Finance-InternalRateOfReturnOnDates) · [PaybackPeriod](Modern-Finance-PaybackPeriod) · [DiscountedPaybackPeriod](Modern-Finance-DiscountedPaybackPeriod) · [ProfitabilityIndex](Modern-Finance-ProfitabilityIndex)
+|   |   |   |   |
+|---|---|---|---|
+| [CashFlow](Modern-Finance-CashFlow) | [NetPresentValue](Modern-Finance-NetPresentValue) | [ModifiedInternalRateOfReturn](Modern-Finance-ModifiedInternalRateOfReturn) | [PaybackPeriod](Modern-Finance-PaybackPeriod) |
+| [CashFlowMake](Modern-Finance-CashFlowMake) | [NetFutureValue](Modern-Finance-NetFutureValue) | [NetPresentValueOnDates](Modern-Finance-NetPresentValueOnDates) | [DiscountedPaybackPeriod](Modern-Finance-DiscountedPaybackPeriod) |
+| [CashFlowAt](Modern-Finance-CashFlowAt) | [InternalRateOfReturn](Modern-Finance-InternalRateOfReturn) | [InternalRateOfReturnOnDates](Modern-Finance-InternalRateOfReturnOnDates) | [ProfitabilityIndex](Modern-Finance-ProfitabilityIndex) |
 
 **Depreciation — `findeprec.tiko`**
 
-[DepreciationTerms](Modern-Finance-DepreciationTerms) · [DepreciationTermsMake](Modern-Finance-DepreciationTermsMake) · [DepreciationRow](Modern-Finance-DepreciationRow) · [DepreciationMethod](Modern-Finance-DepreciationMethod) · [DepreciationStraightLine](Modern-Finance-DepreciationStraightLine) · [DepreciationDecliningBalance](Modern-Finance-DepreciationDecliningBalance) · [DepreciationDoubleDeclining](Modern-Finance-DepreciationDoubleDeclining) · [DepreciationSumOfYearsDigits](Modern-Finance-DepreciationSumOfYearsDigits) · [DepreciationUnitsOfProduction](Modern-Finance-DepreciationUnitsOfProduction) · [DepreciationSchedule](Modern-Finance-DepreciationSchedule) · [DepreciationScheduleIterator](Modern-Finance-DepreciationScheduleIterator) · [DepreciationScheduleOf](Modern-Finance-DepreciationScheduleOf) · [DepreciationScheduleToArray](Modern-Finance-DepreciationScheduleToArray)
+|   |   |   |
+|---|---|---|
+| [DepreciationTerms](Modern-Finance-DepreciationTerms) | [DepreciationDecliningBalance](Modern-Finance-DepreciationDecliningBalance) | [DepreciationScheduleIterator](Modern-Finance-DepreciationScheduleIterator) |
+| [DepreciationTermsMake](Modern-Finance-DepreciationTermsMake) | [DepreciationDoubleDeclining](Modern-Finance-DepreciationDoubleDeclining) | [DepreciationScheduleOf](Modern-Finance-DepreciationScheduleOf) |
+| [DepreciationRow](Modern-Finance-DepreciationRow) | [DepreciationSumOfYearsDigits](Modern-Finance-DepreciationSumOfYearsDigits) | [DepreciationScheduleToArray](Modern-Finance-DepreciationScheduleToArray) |
+| [DepreciationMethod](Modern-Finance-DepreciationMethod) | [DepreciationUnitsOfProduction](Modern-Finance-DepreciationUnitsOfProduction) |  |
+| [DepreciationStraightLine](Modern-Finance-DepreciationStraightLine) | [DepreciationSchedule](Modern-Finance-DepreciationSchedule) |  |
 
 **Returns and risk — `finport.tiko`**
 
-[ReturnFrequency](Modern-Finance-ReturnFrequency) · [ReturnSummary](Modern-Finance-ReturnSummary) · [SummarizeReturns](Modern-Finance-SummarizeReturns) · [HoldingPeriodReturn](Modern-Finance-HoldingPeriodReturn) · [CompoundAnnualGrowthRate](Modern-Finance-CompoundAnnualGrowthRate) · [AnnualizeReturn](Modern-Finance-AnnualizeReturn) · [AnnualizeReturnOverPeriods](Modern-Finance-AnnualizeReturnOverPeriods) · [TimeWeightedReturn](Modern-Finance-TimeWeightedReturn) · [ModifiedDietzReturn](Modern-Finance-ModifiedDietzReturn) · [MoneyWeightedReturn](Modern-Finance-MoneyWeightedReturn) · [CumulativeReturnSeries](Modern-Finance-CumulativeReturnSeries) · [DrawdownSeries](Modern-Finance-DrawdownSeries) · [MaxDrawdown](Modern-Finance-MaxDrawdown) · [MaxDrawdownPeak](Modern-Finance-MaxDrawdownPeak) · [MaxDrawdownTrough](Modern-Finance-MaxDrawdownTrough) · [Volatility](Modern-Finance-Volatility) · [DownsideDeviation](Modern-Finance-DownsideDeviation) · [SharpeRatio](Modern-Finance-SharpeRatio) · [SortinoRatio](Modern-Finance-SortinoRatio) · [Beta](Modern-Finance-Beta) · [Alpha](Modern-Finance-Alpha) · [TrackingError](Modern-Finance-TrackingError) · [InformationRatio](Modern-Finance-InformationRatio) · [CorrelationToBenchmark](Modern-Finance-CorrelationToBenchmark)
+|   |   |   |   |
+|---|---|---|---|
+| [ReturnFrequency](Modern-Finance-ReturnFrequency) | [AnnualizeReturnOverPeriods](Modern-Finance-AnnualizeReturnOverPeriods) | [MaxDrawdown](Modern-Finance-MaxDrawdown) | [SortinoRatio](Modern-Finance-SortinoRatio) |
+| [ReturnSummary](Modern-Finance-ReturnSummary) | [TimeWeightedReturn](Modern-Finance-TimeWeightedReturn) | [MaxDrawdownPeak](Modern-Finance-MaxDrawdownPeak) | [Beta](Modern-Finance-Beta) |
+| [SummarizeReturns](Modern-Finance-SummarizeReturns) | [ModifiedDietzReturn](Modern-Finance-ModifiedDietzReturn) | [MaxDrawdownTrough](Modern-Finance-MaxDrawdownTrough) | [Alpha](Modern-Finance-Alpha) |
+| [HoldingPeriodReturn](Modern-Finance-HoldingPeriodReturn) | [MoneyWeightedReturn](Modern-Finance-MoneyWeightedReturn) | [Volatility](Modern-Finance-Volatility) | [TrackingError](Modern-Finance-TrackingError) |
+| [CompoundAnnualGrowthRate](Modern-Finance-CompoundAnnualGrowthRate) | [CumulativeReturnSeries](Modern-Finance-CumulativeReturnSeries) | [DownsideDeviation](Modern-Finance-DownsideDeviation) | [InformationRatio](Modern-Finance-InformationRatio) |
+| [AnnualizeReturn](Modern-Finance-AnnualizeReturn) | [DrawdownSeries](Modern-Finance-DrawdownSeries) | [SharpeRatio](Modern-Finance-SharpeRatio) | [CorrelationToBenchmark](Modern-Finance-CorrelationToBenchmark) |

@@ -205,7 +205,13 @@ See also: [Map](Category-Map) (containers.Map( of TK, TV )), [Set](Category-Set)
 
 One page per entry, 16 in all:
 
-[OrderedSet](Modern-OrderedSet-OrderedSet) · [OrderedSet.Add](Modern-OrderedSet-Add) · [OrderedSet.BlackHeight](Modern-OrderedSet-BlackHeight) · [OrderedSet.Clear](Modern-OrderedSet-Clear) · [OrderedSet.Contains](Modern-OrderedSet-Contains) · [OrderedSet.Count](Modern-OrderedSet-Count) · [OrderedSet.ExceptWith](Modern-OrderedSet-ExceptWith) · [OrderedSet.GetIterator](Modern-OrderedSet-GetIterator) · [OrderedSet.IntersectWith](Modern-OrderedSet-IntersectWith) · [OrderedSet.IsEmpty](Modern-OrderedSet-IsEmpty) · [OrderedSet.Items](Modern-OrderedSet-Items) · [OrderedSet.Remove](Modern-OrderedSet-Remove) · [OrderedSet.TryCeiling](Modern-OrderedSet-TryCeiling) · [OrderedSet.TryFirst](Modern-OrderedSet-TryFirst) · [OrderedSet.TryFloor](Modern-OrderedSet-TryFloor) · [OrderedSet.TryLast](Modern-OrderedSet-TryLast) · [OrderedSet.UnionWith](Modern-OrderedSet-UnionWith) · [OrderedSetIterator](Modern-OrderedSet-OrderedSetIterator)
+|   |   |   |   |
+|---|---|---|---|
+| [OrderedSet](Modern-OrderedSet-OrderedSet) | [OrderedSet.Count](Modern-OrderedSet-Count) | [OrderedSet.Items](Modern-OrderedSet-Items) | [OrderedSet.TryLast](Modern-OrderedSet-TryLast) |
+| [OrderedSet.Add](Modern-OrderedSet-Add) | [OrderedSet.ExceptWith](Modern-OrderedSet-ExceptWith) | [OrderedSet.Remove](Modern-OrderedSet-Remove) | [OrderedSet.UnionWith](Modern-OrderedSet-UnionWith) |
+| [OrderedSet.BlackHeight](Modern-OrderedSet-BlackHeight) | [OrderedSet.GetIterator](Modern-OrderedSet-GetIterator) | [OrderedSet.TryCeiling](Modern-OrderedSet-TryCeiling) | [OrderedSetIterator](Modern-OrderedSet-OrderedSetIterator) |
+| [OrderedSet.Clear](Modern-OrderedSet-Clear) | [OrderedSet.IntersectWith](Modern-OrderedSet-IntersectWith) | [OrderedSet.TryFirst](Modern-OrderedSet-TryFirst) |  |
+| [OrderedSet.Contains](Modern-OrderedSet-Contains) | [OrderedSet.IsEmpty](Modern-OrderedSet-IsEmpty) | [OrderedSet.TryFloor](Modern-OrderedSet-TryFloor) |  |
 
 ---
 

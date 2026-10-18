@@ -200,7 +200,10 @@ See also: [Array](Category-Array) (containers.Array( of T )), [LinkedList](Categ
 
 One page per entry, 8 in all:
 
-[IsSorted](Modern-Sorting-IsSorted) · [IsSortedBy](Modern-Sorting-IsSortedBy) · [Sort](Modern-Sorting-Sort) · [SortBy](Modern-Sorting-SortBy) · [SortList](Modern-Sorting-SortList) · [SortListBy](Modern-Sorting-SortListBy) · [StableSort](Modern-Sorting-StableSort) · [StableSortBy](Modern-Sorting-StableSortBy)
+|   |   |   |   |
+|---|---|---|---|
+| [IsSorted](Modern-Sorting-IsSorted) | [Sort](Modern-Sorting-Sort) | [SortList](Modern-Sorting-SortList) | [StableSort](Modern-Sorting-StableSort) |
+| [IsSortedBy](Modern-Sorting-IsSortedBy) | [SortBy](Modern-Sorting-SortBy) | [SortListBy](Modern-Sorting-SortListBy) | [StableSortBy](Modern-Sorting-StableSortBy) |
 
 ---
 
