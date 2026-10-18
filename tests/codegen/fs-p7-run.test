@@ -1,0 +1,11 @@
+'' RUN: std/fs phase P7 -- HomeDir, ConfigDir, DataDir, CacheDir and StateDir against the
+'' platform's own answer (the environment the Windows shell folders mirror; on Linux the XDG
+'' variables and $HOME, then the passwd entry); ExecutablePath is this program; ExpandHome
+'' expands only "~", "~/" and "~\".
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/fs-p7.tiko -o tests/codegen/fsp7.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/fsp7.exe
+'' RUN: tests/codegen/fsp7.exe
+'' EXPECT-RUN-OUT: ok

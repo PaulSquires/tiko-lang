@@ -1,0 +1,61 @@
+'' std/fs phase P7 (C:\dev\docs\tiko-fs\RFC-0001 section 13): HomeDir, ConfigDir, DataDir,
+'' CacheDir and StateDir against the platform's own answer -- on Windows the environment the
+'' shell folders mirror, on Linux the XDG variables (absolute honoured, relative ignored) and
+'' $HOME, falling back to the passwd entry when $HOME is unset; ExecutablePath is this
+'' program; ExpandHome expands only "~", "~/" (and "~\" on Windows).
+#import "std/fs"
+
+dim shared as integer fails = 0
+
+sub Check( byref what as string, byval ok as boolean )
+    if ok = false then
+        print "FAIL "; what
+        fails += 1
+    end if
+end sub
+
+'' putenv keeps the POINTER on Linux, so every string handed to setenviron lives as
+'' long as the program.
+dim shared as string e1, e2, e3, e4, e5, e6
+
+dim as ustring home = fs.HomeDir( ).ValueOr( "" )
+Check( "home", len( home ) > 0 andalso fs.IsDir( home ) )
+Check( "home no trailing sep", ( right( home, 1 ) <> "/" ) andalso ( right( home, 1 ) <> chr( 92 ) ) )
+Check( "exe", fs.PathFileName( fs.ExecutablePath( ).ValueOr( "" ) ) = fs.PathFileName( command( 0 ) ) orelse _
+              fs.PathStem( fs.ExecutablePath( ).ValueOr( "" ) ) = fs.PathStem( command( 0 ) ) )
+Check( "exe absolute", fs.PathIsAbsolute( fs.ExecutablePath( ).ValueOr( "" ) ) )
+Check( "exe exists", fs.IsFile( fs.ExecutablePath( ).ValueOr( "" ) ) )
+
+Check( "tilde", fs.ExpandHome( "~" ).ValueOr( "" ) = home )
+Check( "tilde slash", fs.ExpandHome( "~/x/y" ).ValueOr( "" ) = fs.PathJoin( home, "x/y" ) )
+Check( "tilde user unchanged", fs.ExpandHome( "~bob/x" ).ValueOr( "" ) = "~bob/x" )
+Check( "plain unchanged", fs.ExpandHome( "a/~" ).ValueOr( "" ) = "a/~" )
+Check( "empty unchanged", fs.ExpandHome( "" ).IsOk( ) andalso ( fs.ExpandHome( "" ).ValueOr( "x" ) = "" ) )
+
+#ifdef __FB_WIN32__
+    Check( "tilde backslash", fs.ExpandHome( "~" & chr( 92 ) & "x" ).ValueOr( "" ) = fs.PathJoin( home, "x" ) )
+    Check( "home = USERPROFILE", fs.PathEquals( home, environ( "USERPROFILE" ) ) )
+    Check( "config = APPDATA", fs.PathEquals( fs.ConfigDir( ).ValueOr( "" ), environ( "APPDATA" ) ) )
+    Check( "data = LOCALAPPDATA", fs.PathEquals( fs.DataDir( ).ValueOr( "" ), environ( "LOCALAPPDATA" ) ) )
+    Check( "cache = LOCALAPPDATA", fs.PathEquals( fs.CacheDir( ).ValueOr( "" ), environ( "LOCALAPPDATA" ) ) )
+    Check( "state = LOCALAPPDATA", fs.PathEquals( fs.StateDir( ).ValueOr( "" ), environ( "LOCALAPPDATA" ) ) )
+#else
+    '' defaults under $HOME
+    e1 = "XDG_CONFIG_HOME=" : setenviron( e1 )
+    e2 = "XDG_DATA_HOME=" : setenviron( e2 )
+    e3 = "XDG_CACHE_HOME=relative/cache" : setenviron( e3 )
+    Check( "config default", fs.ConfigDir( ).ValueOr( "" ) = fs.PathJoin( home, ".config" ) )
+    Check( "data default", fs.DataDir( ).ValueOr( "" ) = fs.PathJoin( home, ".local/share" ) )
+    Check( "cache relative ignored", fs.CacheDir( ).ValueOr( "" ) = fs.PathJoin( home, ".cache" ) )
+    '' absolute XDG values win, trailing separator dropped
+    e4 = "XDG_CONFIG_HOME=/tmp/tk-xdg-config/" : setenviron( e4 )
+    e5 = "XDG_STATE_HOME=/tmp/tk-xdg-state" : setenviron( e5 )
+    Check( "config xdg", fs.ConfigDir( ).ValueOr( "" ) = "/tmp/tk-xdg-config" )
+    Check( "state xdg", fs.StateDir( ).ValueOr( "" ) = "/tmp/tk-xdg-state" )
+    '' no $HOME: the passwd entry
+    e6 = "HOME=" : setenviron( e6 )
+    dim as ustring pwhome = fs.HomeDir( ).ValueOr( "" )
+    Check( "home from passwd", ( len( pwhome ) > 0 ) andalso fs.PathIsAbsolute( pwhome ) )
+#endif
+
+if fails = 0 then print "ok"

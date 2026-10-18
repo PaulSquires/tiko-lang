@@ -1,0 +1,288 @@
+#module "fs"
+#import "std/outcome"
+using outcome
+'' std/fs: fsenv -- where a program keeps things: the home, config, data, cache and
+'' state directories, the running executable, and ~ expansion
+''
+'' Specified in C:\dev\docs\tiko-fs\RFC-0001-files-and-streams.md section 13.
+''
+'' NOTHING IS CREATED AND NO APPLICATION NAME IS ADDED. Each call says where the
+'' directory SHOULD be; the caller joins its own name and creates what it needs.
+''
+''                 Windows                          Linux
+''   HomeDir       FOLDERID_Profile                 $HOME if absolute, else the passwd entry
+''   ConfigDir     FOLDERID_RoamingAppData          $XDG_CONFIG_HOME if absolute, else ~/.config
+''   DataDir       FOLDERID_LocalAppData            $XDG_DATA_HOME if absolute, else ~/.local/share
+''   CacheDir      FOLDERID_LocalAppData            $XDG_CACHE_HOME if absolute, else ~/.cache
+''   StateDir      FOLDERID_LocalAppData            $XDG_STATE_HOME if absolute, else ~/.local/state
+''
+'' A RELATIVE XDG value is ignored, as the XDG specification requires.
+''
+'' SHGetKnownFolderPath IS REACHED THROUGH GetProcAddress, not linked: std/fs is
+'' compiled into tiko itself, and kernel32 is the one library every link has. If shell32
+'' cannot be loaded the environment's USERPROFILE / APPDATA / LOCALAPPDATA answer instead.
+
+
+
+#if __FB_LANG__ <> "fb"
+    #error "std/fs requires -lang fb (it uses namespaces)"
+#endif
+
+public declare function HomeDir overload ( ) as FsResultUStr
+public declare function ConfigDir overload ( ) as FsResultUStr
+public declare function DataDir overload ( ) as FsResultUStr
+public declare function CacheDir overload ( ) as FsResultUStr
+public declare function StateDir overload ( ) as FsResultUStr
+public declare function ExecutablePath overload ( ) as FsResultUStr
+public declare function ExpandHome overload ( byref p as const ustring ) as FsResultUStr
+
+'' No trailing separator, whatever the source gave.
+private function hNoTrail( byref d as const ustring ) as ustring
+    dim as ustring r = d
+    while( len( r ) > 1 )
+        dim as ulong c = r[len( r ) - 1]
+        if( ( c <> 47 ) andalso ( c <> 92 ) ) then exit while
+#ifdef __FB_WIN32__
+        '' keep the separator of a drive root, "C:\"
+        if( ( len( r ) = 3 ) andalso ( r[1] = 58 ) ) then exit while
+#endif
+        r = left( r, len( r ) - 1 )
+    wend
+    return r
+end function
+
+#ifdef __FB_WIN32__
+
+type FbeGuid
+    as ulong  d1
+    as ushort d2, d3
+    as ubyte  d4( 0 to 7 )
+end type
+
+type FbeKnownFolderFn as function stdcall ( byval rfid as const FbeGuid ptr, byval flags as ulong, _
+    byval token as any ptr, byval path as ushort ptr ptr ) as long
+type FbeFreeFn as sub stdcall ( byval p as any ptr )
+
+extern "C"
+    declare function fbe_LoadLibraryW stdcall alias "LoadLibraryW" ( byval name_ as const any ptr ) as any ptr
+    declare function fbe_GetProcAddress stdcall alias "GetProcAddress" ( byval m as any ptr, byval name_ as const zstring ptr ) as any ptr
+    declare function fbe_GetModuleFileNameW stdcall alias "GetModuleFileNameW" ( byval m as any ptr, _
+        byval buf as ushort ptr, byval n as ulong ) as ulong
+    declare function fbe_GetLastError stdcall alias "GetLastError" ( ) as ulong
+end extern
+
+private function hGuid( byval d1 as ulong, byval d2 as ushort, byval d3 as ushort, _
+        byval a as ubyte, byval b as ubyte, byval c as ubyte, byval d as ubyte, _
+        byval e as ubyte, byval f as ubyte, byval g as ubyte, byval h as ubyte ) as FbeGuid
+    dim as FbeGuid r
+    r.d1 = d1 : r.d2 = d2 : r.d3 = d3
+    r.d4(0) = a : r.d4(1) = b : r.d4(2) = c : r.d4(3) = d
+    r.d4(4) = e : r.d4(5) = f : r.d4(6) = g : r.d4(7) = h
+    return r
+end function
+
+'' 1 Profile, 2 RoamingAppData, 3 LocalAppData. "" when the shell cannot say.
+private function hKnownFolder( byval which as long ) as ustring
+    static as FbeKnownFolderFn pGet = nullptr
+    static as FbeFreeFn pFree = nullptr
+    static as boolean tried = FALSE
+    if( tried = FALSE ) then
+        tried = TRUE
+        dim as ustring s32 = "shell32.dll", o32 = "ole32.dll"
+        dim as any ptr hs = fbe_LoadLibraryW( strptr( s32 ) )
+        dim as any ptr ho = fbe_LoadLibraryW( strptr( o32 ) )
+        if( hs <> nullptr ) then pGet = cast( FbeKnownFolderFn, fbe_GetProcAddress( hs, @"SHGetKnownFolderPath" ) )
+        if( ho <> nullptr ) then pFree = cast( FbeFreeFn, fbe_GetProcAddress( ho, @"CoTaskMemFree" ) )
+    end if
+    if( ( pGet = nullptr ) orelse ( pFree = nullptr ) ) then return ""
+
+    dim as FbeGuid id
+    select case which
+    case 1
+        id = hGuid( &h5E6C858F, &h0E22, &h4760, &h9A, &hFE, &hEA, &h33, &h17, &hB6, &h71, &h73 )
+    case 2
+        id = hGuid( &h3EB685DB, &h65F9, &h4CF6, &hA0, &h3A, &hE3, &hEF, &h65, &h72, &h9F, &h3D )
+    case else
+        id = hGuid( &hF1B32785, &h6FBA, &h4FCF, &h9D, &h55, &h7B, &h8E, &h7F, &h15, &h70, &h91 )
+    end select
+
+    dim as ushort ptr w = nullptr
+    dim as ustring r = ""
+    if( pGet( @id, 0, nullptr, @w ) = 0 ) then
+        if( w <> nullptr ) then
+            dim as long n = 0
+            while( w[n] <> 0 )
+                n += 1
+            wend
+            if( n > 0 ) then
+                r = wspace( n )
+                for i as long = 0 to n - 1
+                    r[i] = w[i]
+                next
+            end if
+        end if
+    end if
+    if( w <> nullptr ) then pFree( w )
+    return r
+end function
+
+private function hFolder( byval which as long, byref envName as const string, byref op as const ustring ) as FsResultUStr
+    dim as ustring r = hKnownFolder( which )
+    if( len( r ) = 0 ) then r = environ( envName )
+    if( len( r ) = 0 ) then return FsFail( of ustring )( FS_NOT_FOUND, op, "" )
+    return Ok( of ustring, FsError )( hNoTrail( r ) )
+end function
+
+public function HomeDir( ) as FsResultUStr
+    return hFolder( 1, "USERPROFILE", "HomeDir" )
+end function
+
+public function ConfigDir( ) as FsResultUStr
+    return hFolder( 2, "APPDATA", "ConfigDir" )
+end function
+
+public function DataDir( ) as FsResultUStr
+    return hFolder( 3, "LOCALAPPDATA", "DataDir" )
+end function
+
+public function CacheDir( ) as FsResultUStr
+    return hFolder( 3, "LOCALAPPDATA", "CacheDir" )
+end function
+
+public function StateDir( ) as FsResultUStr
+    return hFolder( 3, "LOCALAPPDATA", "StateDir" )
+end function
+
+'' The running image, in full. The buffer grows until the name fits: a long path is
+'' longer than MAX_PATH, and GetModuleFileNameW truncates silently.
+public function ExecutablePath( ) as FsResultUStr
+    dim as ulong cap = 260
+    do
+        dim as ushort ptr buf = callocate( cap + 1, 2 )
+        if( buf = nullptr ) then return FsFail( of ustring )( FS_NO_SPACE, "ExecutablePath", "" )
+        dim as ulong n = fbe_GetModuleFileNameW( nullptr, buf, cap )
+        if( n = 0 ) then
+            deallocate( buf )
+            dim as long c = FsMapOsError( ), o = FsOsError( )
+            return Fail( of ustring, FsError )( FsError( cast( FsErrorCode, c ), o, "ExecutablePath", "" ) )
+        end if
+        if( n < cap ) then
+            dim as ustring r = wspace( n )
+            for i as long = 0 to n - 1
+                r[i] = buf[i]
+            next
+            deallocate( buf )
+            return Ok( of ustring, FsError )( r )
+        end if
+        deallocate( buf )
+        cap *= 2
+    loop while( cap <= 65536 )
+    return FsFail( of ustring )( FS_NAME_TOO_LONG, "ExecutablePath", "" )
+end function
+
+#else
+
+extern "C"
+    declare function fbe_getuid alias "getuid" ( ) as ulong
+    declare function fbe_getpwuid_r alias "getpwuid_r" ( byval uid as ulong, byval pwd as any ptr, _
+        byval buf as zstring ptr, byval n as uinteger, byval result as any ptr ptr ) as long
+    declare function fbe_readlink alias "readlink" ( byval p as const zstring ptr, byval buf as zstring ptr, _
+        byval n as uinteger ) as integer
+end extern
+
+private function hAbsolute( byref s as const ustring ) as boolean
+    return ( len( s ) > 0 ) andalso ( s[0] = 47 )
+end function
+
+public function HomeDir( ) as FsResultUStr
+    dim as ustring h = environ( "HOME" )
+    if( hAbsolute( h ) ) then return Ok( of ustring, FsError )( hNoTrail( h ) )
+
+    '' the passwd entry: struct passwd is 48 bytes on x86_64, pw_dir at offset 32
+    dim as ubyte pwd( 0 to 47 )
+    dim as zstring * 4096 buf
+    dim as any ptr res = nullptr
+    if( fbe_getpwuid_r( fbe_getuid( ), @pwd(0), @buf, 4096, @res ) = 0 ) then
+        if( res <> nullptr ) then
+            dim as zstring ptr d = *cptr( zstring ptr ptr, @pwd(32) )
+            if( d <> nullptr ) then
+                dim as string sd = *d
+                dim as ustring ud = sd
+                if( hAbsolute( ud ) ) then return Ok( of ustring, FsError )( hNoTrail( ud ) )
+            end if
+        end if
+    end if
+    return FsFail( of ustring )( FS_NOT_FOUND, "HomeDir", "" )
+end function
+
+'' $name if it is an absolute path, else ~/fallback.
+private function hXdg( byref name_ as const string, byref fallback as const ustring, byref op as const ustring ) as FsResultUStr
+    dim as ustring v = environ( name_ )
+    if( hAbsolute( v ) ) then return Ok( of ustring, FsError )( hNoTrail( v ) )
+    dim as FsResultUStr h = HomeDir( )
+    if( h.IsOk( ) = FALSE ) then return Fail( of ustring, FsError )( FsError( h.Failure( ).Code( ), h.Failure( ).OsCode( ), op, "" ) )
+    return Ok( of ustring, FsError )( PathJoin( h.Value( ), fallback ) )
+end function
+
+public function ConfigDir( ) as FsResultUStr
+    return hXdg( "XDG_CONFIG_HOME", ".config", "ConfigDir" )
+end function
+
+public function DataDir( ) as FsResultUStr
+    return hXdg( "XDG_DATA_HOME", ".local/share", "DataDir" )
+end function
+
+public function CacheDir( ) as FsResultUStr
+    return hXdg( "XDG_CACHE_HOME", ".cache", "CacheDir" )
+end function
+
+public function StateDir( ) as FsResultUStr
+    return hXdg( "XDG_STATE_HOME", ".local/state", "StateDir" )
+end function
+
+'' /proc/self/exe, which the kernel resolves to the running image's real path.
+public function ExecutablePath( ) as FsResultUStr
+    dim as uinteger cap = 4096
+    do
+        dim as zstring ptr buf = callocate( cap + 1, 1 )
+        if( buf = nullptr ) then return FsFail( of ustring )( FS_NO_SPACE, "ExecutablePath", "" )
+        dim as integer n = fbe_readlink( @"/proc/self/exe", buf, cap )
+        if( n < 0 ) then
+            deallocate( buf )
+            dim as long c = FsMapOsError( ), o = FsOsError( )
+            return Fail( of ustring, FsError )( FsError( cast( FsErrorCode, c ), o, "ExecutablePath", "" ) )
+        end if
+        if( n < cap ) then
+            buf[n] = 0
+            dim as string s = *buf
+            deallocate( buf )
+            dim as ustring r = s
+            return Ok( of ustring, FsError )( r )
+        end if
+        deallocate( buf )
+        cap *= 2
+    loop while( cap <= 1048576 )
+    return FsFail( of ustring )( FS_NAME_TOO_LONG, "ExecutablePath", "" )
+end function
+
+#endif
+
+'' A leading "~" alone, "~/..." and (Windows) "~\..." become the home directory. "~user"
+'' and everything else come back UNCHANGED and successfully; only an expansion that was
+'' needed and could not find the home directory fails.
+public function ExpandHome( byref p as const ustring ) as FsResultUStr
+    dim as ustring same = p
+    if( ( len( p ) = 0 ) orelse ( p[0] <> 126 ) ) then return Ok( of ustring, FsError )( same )
+    dim as boolean expand = ( len( p ) = 1 )
+    if( len( p ) > 1 ) then
+        if( p[1] = 47 ) then expand = TRUE
+#ifdef __FB_WIN32__
+        if( p[1] = 92 ) then expand = TRUE
+#endif
+    end if
+    if( expand = FALSE ) then return Ok( of ustring, FsError )( same )
+    dim as FsResultUStr h = HomeDir( )
+    if( h.IsOk( ) = FALSE ) then return Fail( of ustring, FsError )( FsError( h.Failure( ).Code( ), h.Failure( ).OsCode( ), "ExpandHome", p ) )
+    if( len( p ) = 1 ) then return h
+    return Ok( of ustring, FsError )( PathJoin( h.Value( ), mid( p, 3 ) ) )
+end function
