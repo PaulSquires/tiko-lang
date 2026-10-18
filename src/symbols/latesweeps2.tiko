@@ -480,7 +480,10 @@ private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
     if c.types->Kind( bu ) = TK_POINTER then bu = c.types->Unqualify( c.types->Inner( bu ) )
     '' A TYPE WITH NO MEMBERS AT ALL: 'x.foo' over a long, or a pointer to one -- fbc's error
     '' 265, "Symbol not a CLASS". tiko stopped with TKO0994, having nothing to lower.
-    if c.types->Kind( bu ) = TK_BUILTIN then
+    '' ...AND A FIXED-LENGTH STRING, 'wstring * N': an ARRAY of its element, not a builtin,
+    '' so 'w.sptr( )' fell through to the UDT test below and stopped the build the same way.
+    dim as boolean fixStr = (Tko.Check.FixedStringElem( bu, *c.types ) <> TYPE_NONE)
+    if (c.types->Kind( bu ) = TK_BUILTIN) orelse fixStr then
         '' '->' and '.' over a POINTER are TKO0631's and TKO0630's, reported already; only a
         '' '.' over a value is this rule's. A COMPILER-MADE name ('$dt1', '$fe1' -- the
         '' temporaries destructuring reads '_1' and '_2' off) is not the user's to fix: the

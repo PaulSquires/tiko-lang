@@ -1,0 +1,13 @@
+'' A MEMBER OF A STRING is TKO0972 (fbc-modern's error 265, "Symbol not a CLASS"), wherever it
+'' stands; fixed-length ones spell as written. Two shapes stopped the build with TKO0994: an argument of 'new' -- the late sweep never
+'' walked into one -- and a FIXED-LENGTH string, which is an array of its element, not a builtin.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/member-of-string.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: member-of-string.bas(14,22): error TKO0972: 'path' has no member named 'sptr': a 'ustring' has no members
+'' EXPECT-OUT: member-of-string.bas(21,3): error TKO0972: 'w' has no member named 'sptr': a 'wstring * 10' has no members
+'' EXPECT-OUT: member-of-string.bas(22,22): error TKO0972: 'z' has no member named 'sptr': a 'zstring * 10' has no members
+'' EXPECT-OUT: member-of-string.bas(23,9): error TKO0972: 's' has no member named 'foo': a 'string * 4' has no members
+'' EXPECT-OUT: member-of-string.bas(24,9): error TKO0972: 'u' has no member named 'foo': a 'ustring * 4' has no members
+'' EXPECT-OUT: member-of-string.bas(25,43): error TKO0972: 'u' has no member named 'n': a 'ustring * 4' has no members
+'' EXPECT-NOT: TKO0994

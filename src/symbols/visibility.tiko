@@ -1271,19 +1271,19 @@ private sub Walk_ _
         '' this codebase has now made eight times. Reading a CAST or a SIZEOF as a list
         '' indexed the list pool with a unary's offset and took the compiler down with
         '' an access violation, in 23 tests at once.
-        case N_CALL, N_INDEX, N_PAREN, N_TUPLE, N_INITIALIZER, N_STRCAT
+        '' ...AND 'new T( args )', whose TARGET is the type: its children -- placement buffer,
+        '' element count, constructor arguments -- are expressions ('new B( w.sptr( ) )').
+        case N_CALL, N_INDEX, N_PAREN, N_TUPLE, N_INITIALIZER, N_STRCAT, N_NEW
             dim as ListPayload ptr lp = _
                 @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
-            Walk_( c, lp->target, inner, innerByref, innerConst, innerWith, innerResult )
+            if k <> N_NEW then Walk_( c, lp->target, inner, innerByref, innerConst, innerWith, innerResult )
             for i as int32 = 0 to lp->count - 1
                 Walk_( c, cast( NodeId, c.ast->children[lp->first + i] ), inner, innerByref, innerConst, innerWith, innerResult )
             next
             return
         case else
-            '' EVERYTHING ELSE STOPS HERE -- a literal, an identifier, and also 'new T',
-            '' a closure and the intrinsic-shaped expressions. Guessing which pool one of
-            '' those indexes is how the crash above happened, and a member access inside
-            '' a 'new' going unchecked is a miss rather than a wrong answer.
+            '' EVERYTHING ELSE STOPS HERE -- a literal, an identifier, a closure and the
+            '' intrinsic-shaped expressions: guessing which pool one indexes is the crash above.
             return
         end select
     case NCAT_TYPE

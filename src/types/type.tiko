@@ -881,6 +881,10 @@ function TypeContext.Name( byval t as TypeId ) as string
             case TY_ZSTRING, TY_WSTRING, TY_USTRING
                 return prefix & BuiltinName( this.BuiltinOf( el ) ) & " * " & _
                        this.types[cast( int32, t )].elems
+            '' 'string * N' and 'ustring * N' have element builtins of their own, which
+            '' spelled 'fixstr()' and 'fixustr()' -- names nobody wrote.
+            case TY_FIXSTR  : return prefix & "string * " & this.types[cast( int32, t )].elems
+            case TY_FIXUSTR : return prefix & "ustring * " & this.types[cast( int32, t )].elems
             end select
         end if
         dim as int32 d = this.types[cast( int32, t )].dims
