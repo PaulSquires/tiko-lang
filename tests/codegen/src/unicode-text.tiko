@@ -18,6 +18,17 @@ sub Check( byref what as string, byval ok as boolean )
     end if
 end sub
 
+'' SETENVIRON KEEPS ITS ARGUMENT ON LINUX: it is putenv there, as in fbc, and putenv keeps the
+'' pointer, so a temporary leaves the entry dangling and every child then inherits a broken
+'' environment. On Linux each value lives in a shared slot; Windows copies (_wputenv).
+dim shared as string keepEnv( 1 to 16 )
+dim shared as integer nKeep = 0
+function SetEnv( byref kv as string ) as long
+    nKeep += 1
+    keepEnv( nKeep ) = kv
+    return setenviron( keepEnv( nKeep ) )
+end function
+
 '' THE WIDE SIDE, Windows only: the text as UTF-16, from a local (a 'dim shared' wide
 '' initialiser is decoded byte by byte -- a separate compiler bug).
 #ifdef __FB_WIN32__
@@ -58,7 +69,12 @@ case "leaf"
     fs.WriteAllText( "leaf_" & command( 2 ) & ".txt", "x" )
     end 0
 case ""
-    if environ( "TKU_MODE" ) = "chain_" & U then end 43
+    '' CHAIN's child, known by the marker it finds in the directory it inherited -- never by
+    '' the environment alone, so a child can never run the whole test again.
+    if fs.IsFile( "chain.flag" ) then
+        if environ( "TKU_MODE" ) = "chain_" & U then end 43
+        end 44
+    end if
 end select
 
 '' The program itself, by absolute name: the children run after the CHDIR below.
@@ -78,13 +94,19 @@ dim as string s = U
 dim as ustring uv = U   '' not 'u': FB names are case-blind, so that is U again
 dim as wstring * 32 w = "ñ_日本_😀"
 dim as wstring * 64 we = "TKU_W=ñ_日本_😀"
-Check( "setenviron string", setenviron( "TKU_S=" & s ) = 0 )
-Check( "setenviron ustring", setenviron( "TKU_U=" & uv ) = 0 )
-Check( "setenviron wstring", setenviron( we ) = 0 )
+#ifdef __FB_WIN32__
+    Check( "setenviron string", setenviron( "TKU_S=" & s ) = 0 )
+    Check( "setenviron ustring", setenviron( "TKU_U=" & uv ) = 0 )
+    Check( "setenviron wstring", setenviron( we ) = 0 )
+    Check( "environ wstring", environ( "TKU_W" ) = U )
+    Check( "setenviron name", setenviron( "TKU_" & s & "=1" ) = 0 )
+#else
+    Check( "setenviron string", SetEnv( "TKU_S=" & s ) = 0 )
+    Check( "setenviron ustring", SetEnv( "TKU_U=" & uv ) = 0 )
+    Check( "setenviron name", SetEnv( "TKU_" & s & "=1" ) = 0 )
+#endif
 Check( "environ string", environ( "TKU_S" ) = U )
 Check( "environ ustring", environ( "TKU_U" ) = U )
-Check( "environ wstring", environ( "TKU_W" ) = U )
-Check( "setenviron name", setenviron( "TKU_" & s & "=1" ) = 0 )
 Check( "environ name", environ( "TKU_" & s ) = "1" )
 dim as wstring * 64 wn = "TKU_ñ_日本_😀"
 Check( "environ wstring name", environ( wn ) = "1" )
@@ -126,9 +148,11 @@ for i as integer = 1 to 100
 next
 Check( "run", got )
 '' CHAIN: no arguments; the child reads the Unicode value it inherited
-Check( "setenviron mode", setenviron( "TKU_MODE=chain_" & s ) = 0 )
+Check( "setenviron mode", SetEnv( "TKU_MODE=chain_" & s ) = 0 )
+fs.WriteAllText( "chain.flag", "1" )
 Check( "chain", chain( self ) = 43 )
-Check( "unset mode", setenviron( "TKU_MODE=" ) = 0 )
+fs.RemoveFile( "chain.flag" )
+Check( "unset mode", SetEnv( "TKU_MODE=" ) = 0 )
 
 '' DYLIBLOAD: a library in a folder outside the code page
 #ifdef __FB_WIN32__
