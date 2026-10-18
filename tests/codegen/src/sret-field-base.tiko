@@ -1,0 +1,98 @@
+'' A FIELD READ STRAIGHT OFF A RESULT returned through a hidden-result temporary -- a UDT
+'' with a destructor -- where the call is written WITHOUT parentheses: a function
+'' ('Mk.v'), a method, a virtual method, a property and a virtual property dispatched to
+'' an override. The field path asked for the result as a whole aggregate and then applied
+'' the field offset to that value: invalid IR ("'[32 x i8]' but expected 'ptr'"). The
+'' expected output is fbc's, measured on the same program, lifetimes included.
+dim shared as long made = 0, destroyed = 0
+
+type Box
+    as string s
+    as long v
+    declare constructor( )
+    declare constructor( byref o as const Box )
+    declare destructor( )
+end type
+
+constructor Box( )
+    made += 1
+end constructor
+
+constructor Box( byref o as const Box )
+    made += 1
+    this.s = o.s
+    this.v = o.v
+end constructor
+
+destructor Box( )
+    destroyed += 1
+end destructor
+
+function Mk( ) as Box
+    dim as Box b
+    b.v = 9
+    b.s = "mk"
+    return b
+end function
+
+type Holder extends object
+    as long dummy
+    declare function Meth( ) as Box
+    declare virtual function VMeth( ) as Box
+    declare property Prop( ) as Box
+    declare virtual property VProp( ) as Box
+end type
+
+function Holder.Meth( ) as Box
+    dim as Box b
+    b.v = 11
+    return b
+end function
+
+function Holder.VMeth( ) as Box
+    dim as Box b
+    b.v = 12
+    return b
+end function
+
+property Holder.Prop( ) as Box
+    dim as Box b
+    b.v = 13
+    return b
+end property
+
+property Holder.VProp( ) as Box
+    dim as Box b
+    b.v = 14
+    return b
+end property
+
+type Sub_ extends Holder
+    declare function VMeth( ) as Box override
+    declare property VProp( ) as Box override
+end type
+
+function Sub_.VMeth( ) as Box
+    dim as Box b
+    b.v = 22
+    return b
+end function
+
+property Sub_.VProp( ) as Box
+    dim as Box b
+    b.v = 24
+    return b
+end property
+
+sub Show( byref h as Holder )
+    print h.Meth.v; h.VMeth.v; h.Prop.v; h.VProp.v
+end sub
+
+scope
+    print Mk.v; " "; Mk.s
+    dim as Holder h
+    dim as Sub_ s
+    Show( h )
+    Show( s )
+end scope
+print iif( made = destroyed, "balanced", "UNBALANCED" ); made

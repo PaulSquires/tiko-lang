@@ -1,0 +1,13 @@
+'' RUN: a field read off a hidden-result UDT returned by a call written without parentheses --
+'' 'Mk.v', a method, a virtual method, a property and a virtual property through an override.
+'' It was invalid IR (the field offset applied to a loaded aggregate). Expected: fbc's output.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/sret-field-base.tiko -o tests/codegen/sretfieldbase.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/sretfieldbase.exe
+'' RUN: tests/codegen/sretfieldbase.exe
+'' EXPECT-RUN-OUT: 9 mk
+'' EXPECT-RUN-OUT: 11 12 13 14
+'' EXPECT-RUN-OUT: 11 22 13 24
+'' EXPECT-RUN-OUT: balanced 20

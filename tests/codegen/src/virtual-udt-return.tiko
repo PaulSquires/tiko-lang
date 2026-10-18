@@ -1,0 +1,108 @@
+'' A VIRTUAL method (and a virtual property) returning a UDT that needs destruction, used
+'' every way a result can be: a DIM initialiser, an assignment, through a byref base
+'' parameter, dispatched to an override, as a temporary in an expression, as a byval
+'' argument, and discarded. Each Box construction, copy and destruction is logged, so the
+'' lifetimes are compared as well as the values. Until the fix, the DIM initialiser was an
+'' internal compiler error (TKO0994) and the assignment produced invalid IR. The expected
+'' output is fbc's, measured on the same program.
+dim shared as long made = 0, copied = 0, destroyed = 0
+
+type Box
+    as string s
+    as long v
+    declare constructor( )
+    declare constructor( byref o as const Box )
+    declare operator let( byref o as const Box )
+    declare destructor( )
+end type
+
+constructor Box( )
+    made += 1
+end constructor
+
+constructor Box( byref o as const Box )
+    copied += 1
+    this.s = o.s
+    this.v = o.v
+end constructor
+
+operator Box.let( byref o as const Box )
+    this.s = o.s
+    this.v = o.v
+end operator
+
+destructor Box( )
+    destroyed += 1
+end destructor
+
+type Animal extends object
+    declare virtual function Get( byval n as long ) as Box
+    declare virtual property Prop( ) as Box
+    declare function Twice( ) as long
+end type
+
+function Animal.Get( byval n as long ) as Box
+    dim as Box b
+    b.v = n
+    b.s = "animal"
+    return b
+end function
+
+property Animal.Prop( ) as Box
+    dim as Box b
+    b.v = 7
+    b.s = "aprop"
+    return b
+end property
+
+function Animal.Twice( ) as long
+    dim as Box r = this.Get( 21 )
+    return r.v * 2
+end function
+
+type Dog extends Animal
+    declare function Get( byval n as long ) as Box override
+    declare property Prop( ) as Box override
+end type
+
+function Dog.Get( byval n as long ) as Box
+    dim as Box b
+    b.v = n + 100
+    b.s = "dog"
+    return b
+end function
+
+property Dog.Prop( ) as Box
+    dim as Box b
+    b.v = 70
+    b.s = "dprop"
+    return b
+end property
+
+function Show( byval b as Box ) as string
+    return b.s & ":" & b.v
+end function
+
+sub Use( byref a as Animal )
+    dim as Box r = a.Get( 1 )
+    print r.s; r.v
+    dim as Box q
+    q = a.Get( 2 )
+    print q.s; q.v
+    print a.Get( 3 ).v; " "; a.Get( 4 ).s
+    print Show( a.Get( 5 ) )
+    a.Get( 6 )
+    dim as Box p = a.Prop
+    print p.s; p.v
+    print a.Prop.v
+end sub
+
+scope
+    dim as Animal x
+    dim as Dog d
+    print x.Twice( ), d.Twice( )
+    Use( x )
+    Use( d )
+end scope
+print "made"; made; " copied"; copied; " destroyed"; destroyed
+print iif( made + copied = destroyed, "balanced", "UNBALANCED" )

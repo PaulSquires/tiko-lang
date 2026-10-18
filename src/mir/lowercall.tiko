@@ -1174,8 +1174,14 @@ private function LowerCallPartsBody_ _
         CopyBackUStrArgs_( c, ustrBackNode, ustrBackSlot )
     DeleteStrArgTemps_( c, strTemps, strTempTypes, byrefDecl )
                 c.lastCallOk = true
+                '' A HIDDEN-RESULT RETURN ANSWERS AS THE DIRECT AND POINTER PATHS DO: its
+                '' address when the caller asks for a pointer, a whole-aggregate load
+                '' otherwise. Always loading it gave a DIM of a destructible UDT (which
+                '' copy-constructs from an address) an aggregate value -- an internal
+                '' compiler error -- and an assignment invalid IR ('[32 x i8]' where a
+                '' 'ptr' was expected). fbc compiles both.
                 if sretTmp.kind <> cast( uint8, MV_NONE ) then
-                    return LowerExprLoad( c, sretTmp, MT_AGG )
+                    return SretOrResult_( c, sretTmp, vr, mt )
                 end if
                 '' A BYREF RESULT IS READ THROUGH, as the pointer path does: 'xa.f1( )' over a virtual
                 '' 'byref as const integer' printed the address (virtual/compatible-override.bas).

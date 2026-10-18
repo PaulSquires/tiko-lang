@@ -662,7 +662,16 @@ function LowerAddr _
             end if
         end if
         if (bsy <> nullptr) andalso (ptrResult = false) then
-            if LowerBareProcCall_( c, mp->lhs, MT_AGG, base_ ) then
+            '' AN SRET RESULT IS ASKED FOR AS AN ADDRESS. Asking MT_AGG loaded the whole
+            '' temporary, and the field offset below was then applied to a VALUE --
+            ''     '%t7' defined with type '[32 x i8]' but expected 'ptr'
+            '' for 'mk.v', 'h.Meth.v' and 'h.Prop.v' over any UDT with a destructor; fbc
+            '' prints the field.
+            dim as MirType bmt = MT_AGG
+            if bsy->type_ <> Tko.TYPE_NONE then
+                if UsesSretReturn( c, bsy->type_ ) then bmt = MT_PTR
+            end if
+            if LowerBareProcCall_( c, mp->lhs, bmt, base_ ) then
                 bt = c.types->Unqualify( bsy->type_ )
                 '' An SRET result IS the temporary's address already; anything
                 '' narrower comes back as a VALUE and needs one of its own before a

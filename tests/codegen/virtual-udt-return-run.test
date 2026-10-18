@@ -1,0 +1,23 @@
+'' RUN: a VIRTUAL method and a virtual property returning a UDT with a destructor, used as a DIM
+'' initialiser, an assignment, through a byref base parameter, dispatched to an override, as a
+'' temporary, as a byval argument and discarded. The DIM was an internal compiler error (TKO0994)
+'' and the assignment invalid IR. Expected: fbc's output for the same program, lifetimes included.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/virtual-udt-return.tiko -o tests/codegen/virtualudtreturn.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/virtualudtreturn.exe
+'' RUN: tests/codegen/virtualudtreturn.exe
+'' EXPECT-RUN-OUT: 242
+'' EXPECT-RUN-OUT: animal 1
+'' EXPECT-RUN-OUT: animal 2
+'' EXPECT-RUN-OUT: 3 animal
+'' EXPECT-RUN-OUT: animal:5
+'' EXPECT-RUN-OUT: aprop 7
+'' EXPECT-RUN-OUT: dog 101
+'' EXPECT-RUN-OUT: dog 102
+'' EXPECT-RUN-OUT: 103 dog
+'' EXPECT-RUN-OUT: dog:105
+'' EXPECT-RUN-OUT: dprop 70
+'' EXPECT-RUN-OUT: made 20 copied 20 destroyed 40
+'' EXPECT-RUN-OUT: balanced
