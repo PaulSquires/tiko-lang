@@ -7,6 +7,12 @@
 name = "vendor"
 version = "0.1.0"
 
+# vendor/PsControls/* (Win32 controls written in tiko, source only) call bare Win32 names, and
+# UNICODE is what binds each to its W form. A module never sees its importer's defines, so the
+# package sets it; no other module here includes a Windows header.
+[defines]
+UNICODE = "1"
+
 # The link modes each module ships: what '#import ... link' may ask for.
 [vendor.sqlite3]
 links = ["static", "dynamic"]

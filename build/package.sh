@@ -268,6 +268,9 @@ rm -rf "$OUT/examples"
 cp -r "$ROOT/examples" "$OUT/examples"
 find "$OUT/examples" -type f \( -name '*.exe' -o -name '*.dll' -o -name '*.so' -o -name '*.o' \
     -o -name '*.pdb' -o -name '*.a' -o ! -name '*.*' \) -delete
+# The PsControls demos load Segoe Fluent Icons from examples/PsControls/. It is Microsoft's and
+# is not ours to ship: a copy placed there locally stays out of the package.
+rm -f "$OUT/examples/PsControls/SegoeFluentIcons.ttf"
 [ -f "$OUT/examples/SDL3/renderer/01-clear/clear.tiko" ] || die "packaged examples/ has no SDL3/"
 note "examples -> examples/ ($( ls "$OUT/examples" | tr '\n' ' '))"
 
