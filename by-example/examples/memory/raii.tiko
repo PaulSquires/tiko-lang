@@ -1,0 +1,35 @@
+'' A destructor runs when its object's block ends, on every way out.
+type Resource
+    as ustring tag
+    declare constructor( byref tag as ustring )
+    declare destructor( )
+end type
+
+constructor Resource( byref tag as ustring )
+    this.tag = tag
+    print "  open "; tag
+end constructor
+
+destructor Resource( )
+    print "  close "; tag
+end destructor
+
+sub Work( byval stopEarly as boolean )
+    dim a as Resource = Resource( "a" )
+    dim b as Resource = Resource( "b" )
+    scope
+        dim inner as Resource = Resource( "inner" )
+        print "  in the scope"
+    end scope                           '' inner closes here
+    if stopEarly then
+        print "  returning early"
+        exit sub                        '' b, then a, close here...
+    end if
+    dim c as Resource = Resource( "c" )
+    print "  at the end"
+end sub                                 '' ...or c, b, a close here
+
+print "Work( false ):"
+Work( false )
+print "Work( true ):"
+Work( true )

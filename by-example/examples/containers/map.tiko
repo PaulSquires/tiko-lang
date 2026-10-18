@@ -1,0 +1,27 @@
+#import "std/containers"
+
+dim ages as containers.Map( of ustring, int32 )
+
+'' Writing: [ ] inserts or replaces; Add only inserts.
+ages[ "ada" ] = 36
+ages[ "alan" ] = 41
+print "add grace: "; ages.Add( "grace", 85 )
+print "add ada:   "; ages.Add( "ada", 99 )      '' refused, ada keeps 36
+ages[ "ada" ] = 37                               '' replaced
+print "count:"; ages.Count( )
+
+'' Reading without inserting: Contains and TryGet.
+dim as int32 age
+if ages.TryGet( "alan", age ) then print "alan is"; age
+print "has edsger? "; ages.Contains( "edsger" )
+if ages.TryGet( "edsger", age ) = false then print "edsger: not found"
+
+print "remove alan: "; ages.Remove( "alan" )
+print "remove alan: "; ages.Remove( "alan" )   '' nothing left to remove
+
+'' Iteration order is the table's, not yours: sort the keys to print.
+var names = ages.Keys( )
+containers.Sort( names )
+for each who in names
+    print who; ages[ who ]
+next

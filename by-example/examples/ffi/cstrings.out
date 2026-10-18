@@ -1,0 +1,6 @@
+strlen: 9
+strlen of a literal: 4
+after '=': value
+strstr found 'xyz': false
+len: 4, strlen: 5
+copied: key=value

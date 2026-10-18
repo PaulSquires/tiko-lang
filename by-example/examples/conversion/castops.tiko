@@ -1,0 +1,59 @@
+#import "std/strings"
+
+type Fahrenheit
+    as float64 degrees
+end type
+
+'' A constructor taking another type says how to build a Celsius
+'' FROM it. An operator cast says how to turn a Celsius INTO another
+'' type.
+type Celsius
+    as float64 degrees
+    declare constructor( byval d as float64 )
+    declare constructor( byref f as Fahrenheit )
+    declare operator let( byref f as Fahrenheit )
+    declare operator cast( ) as float64
+    declare operator cast( ) as ustring
+end type
+
+constructor Celsius( byval d as float64 )
+    degrees = d
+end constructor
+
+function ToCelsius( byref f as Fahrenheit ) as float64
+    return ( f.degrees - 32 ) * 5 / 9
+end function
+
+constructor Celsius( byref f as Fahrenheit )
+    degrees = ToCelsius( f )
+end constructor
+
+operator Celsius.let( byref f as Fahrenheit )
+    degrees = ToCelsius( f )
+end operator
+
+operator Celsius.cast( ) as float64
+    return degrees
+end operator
+
+operator Celsius.cast( ) as ustring
+    return strings.Format( "{:.1f} C", degrees )
+end operator
+
+'' From: the constructors run wherever a Celsius is built from a value.
+dim as Fahrenheit boiling = ( 212 )
+dim as Celsius a = boiling
+dim as Celsius b = 37.5
+print "a = "; a; ", b = "; b
+
+'' Assigning to a Celsius that already exists needs an operator let.
+dim as Fahrenheit freezing = ( 32 )
+b = freezing
+print "b = "; b
+
+'' Into: the casts run wherever a float64 or a ustring is expected.
+dim as float64 raw = a
+print "raw ="; raw
+print "a + 1 ="; cast( float64, a ) + 1
+dim as ustring text = b
+print "text = " & text

@@ -1,0 +1,10 @@
+#cmdline "-exx"
+
+type Point
+    as int32 x, y
+end type
+
+'' -exx checks every access through a pointer for null.
+dim as Point ptr p = nullptr
+print p->x                              '' stops here
+print "not reached"

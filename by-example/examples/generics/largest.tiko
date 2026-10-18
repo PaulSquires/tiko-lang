@@ -1,0 +1,11 @@
+'' One definition of Larger serves every type that has a '>'.
+function Larger( of T )( byval a as T, byval b as T ) as T
+    if a > b then return a
+    return b
+end function
+
+print Larger( 3, 9 )            '' T is an integer here...
+print Larger( 2.5, -1.0 )       '' ...a float64 here...
+
+dim as ustring early = "apple", late = "pear"
+print Larger( early, late )     '' ...and a ustring here

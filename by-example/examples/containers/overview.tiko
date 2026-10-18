@@ -1,0 +1,25 @@
+#import "std/containers"
+
+dim words( 0 to 7 ) as ustring = _
+    { "red", "blue", "red", "green", "blue", "red", "teal", "green" }
+
+'' Three containers, three questions about the same words.
+dim order as containers.Array( of ustring )         '' all of them, in order
+dim seen as containers.Set( of ustring )            '' each one once
+dim counts as containers.Map( of ustring, int32 )   '' how many of each
+
+for each w in words
+    order.Push( w )
+    if seen.Add( w ) then print "new word: "; w
+    counts[ w ] += 1
+next
+
+print order.Count( ); " words,"; seen.Count( ); " distinct"
+print "the fifth word is "; order[ 4 ]
+
+'' A Map has no order of its own, so sort the keys before printing.
+var keys = counts.Keys( )
+containers.Sort( keys )
+for each k in keys
+    print k; ":"; counts[ k ]
+next

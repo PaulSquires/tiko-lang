@@ -1,0 +1,14 @@
+a copy that works:
+  open the source
+  open the target
+  copied
+  close the target
+  close the source
+a copy that fails:
+  open the source
+  open the target
+  the write failed
+  close the target
+  close the source
+  leaving Ticket, n = 1
+Ticket( ) returned 1

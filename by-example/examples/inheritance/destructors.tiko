@@ -1,0 +1,49 @@
+'' Connection has a virtual destructor; Plain does not.
+type Plain
+    declare destructor( )
+    id as int32
+end type
+
+destructor Plain( )
+    print "  ~Plain"
+end destructor
+
+type PlainSocket extends Plain
+    declare destructor( )
+end type
+
+destructor PlainSocket( )
+    print "  ~PlainSocket: socket closed"
+end destructor
+
+type Connection extends Object
+    declare virtual destructor( )
+end type
+
+destructor Connection( )
+    print "  ~Connection"
+end destructor
+
+type Socket extends Connection
+    declare virtual destructor( )    '' virtual at this level too
+end type
+
+destructor Socket( )
+    print "  ~Socket: socket closed"
+end destructor
+
+type TlsSocket extends Socket
+    declare destructor( )
+end type
+
+destructor TlsSocket( )
+    print "  ~TlsSocket: session ended"
+end destructor
+
+print "delete through a Plain ptr:"
+dim as Plain ptr p = new PlainSocket
+delete p                            '' only ~Plain runs
+
+print "delete through a Connection ptr:"
+dim as Connection ptr c = new TlsSocket
+delete c                            '' the whole chain runs

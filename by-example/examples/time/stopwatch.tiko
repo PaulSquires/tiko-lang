@@ -1,0 +1,28 @@
+#import "std/chrono"
+
+function SumTo( byval n as int64 ) as int64
+    dim as int64 total = 0
+    for i as int64 = 1 to n
+        total += i
+    next
+    return total
+end function
+
+'' A Stopwatch reads a clock that only moves forward.
+var sw = chrono.Stopwatch.StartNew( )
+var total = SumTo( 1000000 )
+var taken = sw.Elapsed( )
+
+'' The time differs on every run; these facts do not.
+print "total:"; total
+print "running: "; sw.IsRunning( )
+print "elapsed >= 0: "; cbool( taken.Ticks( ) >= 0 )
+print "a later reading is not smaller: "; ( sw.Elapsed( ) >= taken )
+
+'' Stop_ pauses it: time spent stopped is not counted.
+sw.Restart( )
+sw.Stop_( )
+var paused = sw.ElapsedTicks( )
+sleep 200, 1
+print "stopped, so unchanged: "; cbool( sw.ElapsedTicks( ) = paused )
+print "running: "; sw.IsRunning( )

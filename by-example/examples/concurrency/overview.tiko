@@ -1,0 +1,26 @@
+#import "std/tasks"
+#cmdline "-mt"
+
+'' Add up one slice of the range and send the answer back.
+sub SumRange( byval lo as int64, byval hi as int64, _
+              byval results as tasks.SendChan( of int64 ) )
+    dim as int64 total = 0
+    for i as int64 = lo to hi
+        total += i
+    next
+    results.Send( total )
+end sub
+
+'' Four goroutines, a quarter of the work each.
+var results = tasks.Channel( of int64 )( 4 )
+for part as int32 = 0 to 3
+    spawn SumRange( part * 250000 + 1, ( part + 1 ) * 250000, results )
+next
+
+'' The parts arrive in any order; their sum does not depend on it.
+dim as int64 total = 0, partial
+for part as int32 = 1 to 4
+    results.Receive( partial )
+    total += partial
+next
+print "sum of 1 to 1000000:"; total

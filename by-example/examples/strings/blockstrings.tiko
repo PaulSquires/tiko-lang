@@ -1,0 +1,34 @@
+'' A block string opens with """ at the end of a line and closes at
+'' the first line that starts with """.
+dim as ustring query = """
+    select id, name
+      from users
+     where name = "Ada"
+    """
+print query
+
+'' The closing line's indentation is the margin, removed from every
+'' line. The line breaks next to the quotes are not part of the text.
+print "length:"; len( query ); ", ends with: "; right( query, 5 )
+
+'' An empty line before the closing """ ends the text with a line feed.
+dim as ustring list = """
+    - eggs
+    - milk
+
+    """
+print list; "(end of list)"
+
+'' !""" reads escape sequences; a backslash at the end of a line joins
+'' it to the next.
+dim as ustring row = !"""
+    name\tvalue
+    one long line, \
+    continued
+    """
+print row
+
+'' A block string is an expression like any other literal.
+print ucase( """
+    shout
+    """ ); "!"

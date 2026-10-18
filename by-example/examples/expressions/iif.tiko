@@ -1,0 +1,31 @@
+'' iif( condition, a, b ) is a for a true condition and b otherwise.
+'' Unlike if, it is an expression, so it can sit inside another one.
+dim as int32 stock = 0
+print "in stock: "; iif( stock > 0, "yes", "no" )
+
+dim as int32 n = 7
+print n; " is "; iif( n mod 2 = 0, "even", "odd" )
+
+'' The two values must have compatible types. Numbers of different
+'' types meet at the wider one.
+var limit = iif( n > 5, 10, 2.5 )
+limit += 0.25          '' limit is a float64, so it can hold this
+print "limit ="; limit
+
+'' Only the chosen value is evaluated, so the other may be one that
+'' would fail.
+function Report( byval tag as ustring ) as ustring
+    print "  (evaluated "; tag; ")"
+    return tag
+end function
+
+print iif( n > 5, Report( "large" ), Report( "small" ) )
+
+dim as int32 divisor = 0
+print "safe quotient:"; iif( divisor <> 0, 100 \ divisor, 0 )
+
+'' iif nests, though a select case often reads better.
+for score as int32 = 40 to 100 step 30
+    print score; " -> "; _
+          iif( score >= 90, "A", iif( score >= 60, "pass", "fail" ) )
+next

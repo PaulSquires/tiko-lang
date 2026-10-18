@@ -1,0 +1,37 @@
+'' do ... loop repeats a block. The test can go at either end.
+dim as int32 n
+
+'' do while tests first, so the body may run zero times.
+n = 0
+do while n < 3
+    print "while"; n
+    n += 1
+loop
+
+'' do until is the same test with the sense reversed.
+n = 0
+do until n = 3
+    print "until"; n
+    n += 1
+loop
+
+'' With the test after loop, the body always runs at least once.
+n = 10
+do
+    print "ran once, with n ="; n
+    n += 1
+loop while n < 3
+
+n = 0
+do
+    n += 1
+loop until n * n > 50
+print "first n whose square is over 50:"; n
+
+'' A do with no test at all runs until something leaves it.
+n = 0
+do
+    n += 1
+    if n = 4 then exit do
+loop
+print "left the loop at"; n

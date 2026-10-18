@@ -1,0 +1,4 @@
+calls: 2
+byval copy: 6
+byref view: 1001
+total: 5000

@@ -1,0 +1,5 @@
+'' The source names its own program. -x names the output exactly as
+'' written, and an option in #cmdline wins over the command line's.
+#cmdline "-x renamed.exe"
+
+print "built as renamed.exe"

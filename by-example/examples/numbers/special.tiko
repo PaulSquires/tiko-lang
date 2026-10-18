@@ -1,0 +1,31 @@
+#import "std/numeric"
+
+'' Infinity and NaN are made by functions, not constants.
+var inf = numeric.Infinity( )
+var nan_ = numeric.NaN( )
+
+'' Overflow in floating point gives infinity, not a wrapped value.
+dim as float64 big = 1e308
+print "1e308 * 10 is infinite: "; numeric.IsInfinite( big * 10 )
+print "inf > 1e308: "; cbool( inf > big )
+print "inf - inf is NaN: "; numeric.IsNaN( inf - inf )
+
+'' A NaN equals nothing, not even itself: ask with IsNaN.
+print "nan = nan: "; cbool( nan_ = nan_ )
+print "IsNaN( nan ): "; numeric.IsNaN( nan_ )
+
+'' Classify names the kind of value.
+print "Classify( 0.0 ) is FP_ZERO: "; _
+      cbool( numeric.Classify( 0.0 ) = numeric.FP_ZERO )
+print "Classify( 1.0 ) is FP_NORMAL: "; _
+      cbool( numeric.Classify( 1.0 ) = numeric.FP_NORMAL )
+
+'' Two zeros: equal as numbers, different in the sign bit.
+dim as float64 negZero = -0.0
+print "-0 = 0: "; cbool( negZero = 0.0 ); _
+      ", IsNegative( -0 ): "; numeric.IsNegative( negZero )
+print "1 / -0 is negative infinity: "; _
+      cbool( 1 / negZero = numeric.NegInfinity( ) )
+
+'' The library passes a NaN on rather than dropping it.
+print "Max( nan, 1 ) is NaN: "; numeric.IsNaN( numeric.Max( nan_, 1.0 ) )

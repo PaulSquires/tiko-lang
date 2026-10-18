@@ -1,0 +1,9 @@
+'' The main file of a project. tiko.toml beside it says how to build
+'' it, so 'tiko build' needs no file names and 'tiko run' no -o.
+#import "./text"
+
+dim as ustring who = "world"
+if len( command( 1 ) ) > 0 then who = command( 1 )
+for i as int32 = 1 to TIMES
+    print text.Greeting( who )
+next

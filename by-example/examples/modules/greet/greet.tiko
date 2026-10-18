@@ -1,0 +1,13 @@
+'' A module is a directory. Every file in it begins with #module and
+'' the directory's name.
+#module "greet"
+
+public function Hello( byval who as ustring ) as ustring
+    return "Hello, " & Capitalise_( who ) & "!"
+end function
+
+public const DEFAULT_NAME = "world"
+
+function Capitalise_( byval s as ustring ) as ustring
+    return ucase( left( s, 1 ) ) & mid( s, 2 )
+end function

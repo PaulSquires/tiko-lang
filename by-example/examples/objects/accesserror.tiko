@@ -1,0 +1,12 @@
+type Account
+    declare function Balance( ) as int64
+  private:
+    balance_ as int64
+end type
+
+function Account.Balance( ) as int64
+    return balance_
+end function
+
+dim as Account acct
+acct.balance_ = 1000000             '' refused: balance_ is private

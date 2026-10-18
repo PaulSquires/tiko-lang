@@ -1,0 +1,7 @@
+on error goto handler
+error 5
+end
+
+handler:
+print "handled"
+resume next                 '' tiko has no resume

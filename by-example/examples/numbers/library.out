@@ -1,0 +1,12 @@
+Round( 2.5 ) = 3, Round( -2.5 ) =-3
+RoundHalfEven( 2.5 ) = 2, RoundHalfEven( 3.5 ) = 4
+Floor( -1.5 ) =-2, Ceil( -1.5 ) =-1, Truncate( -1.5 ) =-1
+Round( 3.14159, 2 ) = 3.14
+Min = 3, Max = 8, Clamp( 15, 0, 10 ) = 10
+Lerp( 0, 200, 0.25 ) = 50
+PI = 3.141592653589793, Hypot( 3, 4 ) = 5
+Log2( 1024 ) = 10, Log10( 1000 ) = 3
+IPow( 3, 4 ) = 81, ISqrt( 99 ) = 9
+GCD( 12, 18 ) = 6, LCM( 4, 6 ) = 12
+-7 mod 3 =-1, FloorMod( -7, 3 ) = 2
+47 lines, 10 a page: 4 full pages and 7 over

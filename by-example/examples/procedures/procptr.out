@@ -1,0 +1,6 @@
+op( 5 ) = 10
+op( 5 ) = 25
+twice: 2 4 6 8
+square: 1 4 9 16
+chosen( 7 ) = 49
+** called through a pointer **

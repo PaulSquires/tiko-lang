@@ -1,0 +1,43 @@
+#cmdline "-mt"
+
+'' A one-slot mailbox: the producer waits while it is full, the
+'' consumer waits while it is empty.
+type Mailbox
+    as any ptr lock, changed
+    as boolean full
+    as int32 item
+end type
+
+sub Producer( byval p as any ptr )
+    var box = cptr( Mailbox ptr, p )
+    for n as int32 = 1 to 5
+        mutexlock( box->lock )
+        do while box->full                 '' re-test after every wake-up
+            condwait( box->changed, box->lock )
+        loop
+        box->item = n * 10
+        box->full = true
+        condsignal( box->changed )
+        mutexunlock( box->lock )
+    next
+end sub
+
+dim box as Mailbox
+box.lock = mutexcreate( )
+box.changed = condcreate( )
+var worker = threadcreate( @Producer, @box )
+
+for k as int32 = 1 to 5
+    mutexlock( box.lock )
+    do until box.full                      '' sleeps, releasing the lock
+        condwait( box.changed, box.lock )
+    loop
+    print "took"; box.item
+    box.full = false
+    condsignal( box.changed )
+    mutexunlock( box.lock )
+next
+
+threadwait( worker )
+conddestroy( box.changed )
+mutexdestroy( box.lock )

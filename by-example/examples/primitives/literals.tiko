@@ -1,0 +1,24 @@
+'' Integers in four bases. The prefix names the base.
+print "decimal 255        ="; 255
+print "hex     &hFF       ="; &hFF
+print "octal   &o377      ="; &o377
+print "binary  &b11111111 ="; &b11111111
+
+'' Floating-point literals: a point, an exponent, or both.
+print "1.5     ="; 1.5
+print "2.5e3   ="; 2.5e3
+print "1e-4    ="; 1e-4
+print ".25     ="; .25
+
+'' A suffix fixes the literal's type; sizeof shows the width it chose.
+print "sizeof( 1 )    ="; sizeof( 1 )
+print "sizeof( 1L )   ="; sizeof( 1L )
+print "sizeof( 1LL )  ="; sizeof( 1LL )
+print "sizeof( 1UL )  ="; sizeof( 1UL )
+print "sizeof( 1.5 )  ="; sizeof( 1.5 )
+print "sizeof( 1.5F ) ="; sizeof( 1.5F )
+
+'' Booleans and text.
+print "true and false: "; true; " "; false
+print "a ustring literal: "; "in double quotes"
+print !"an escaped literal:\tafter a tab"

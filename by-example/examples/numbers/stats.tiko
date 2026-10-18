@@ -1,0 +1,30 @@
+#import "std/numeric"
+#import "std/containers"
+
+'' The statistics functions take a containers.Array of numbers.
+dim scores as containers.Array( of float64 )
+dim raw( ... ) as float64 = { 72, 85, 91, 64, 85, 78, 99, 70 }
+for i as int32 = 0 to ubound( raw )
+    scores.Push( raw( i ) )
+next
+
+print "count: "; numeric.Count( scores )
+print "mean:"; numeric.Mean( scores )
+print "median:"; numeric.Median( scores )
+print "min:"; numeric.MinOf( scores ); ", max:"; numeric.MaxOf( scores )
+print "stddev:"; numeric.Round( numeric.StdDev( scores ), 3 )
+print "75th percentile:"; numeric.Percentile( scores, 75 )
+
+'' Median sorts a copy: the array keeps its order.
+print "first score is still"; scores[ 0 ]
+
+'' RunningStats sees each value once and keeps only a few numbers.
+dim acc as numeric.RunningStats
+for i as int32 = 0 to ubound( raw )
+    acc.Add( raw( i ) )
+next
+print "running mean:"; acc.Mean( ); ", max:"; acc.MaxValue( )
+
+'' The mean of nothing is NaN, not zero.
+dim empty as containers.Array( of float64 )
+print "mean of nothing is NaN: "; numeric.IsNaN( numeric.Mean( empty ) )

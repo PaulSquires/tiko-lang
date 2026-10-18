@@ -1,0 +1,19 @@
+'' Every variable has one type, fixed when the program is compiled.
+dim as int32 items = 3
+dim as float64 unitPrice = 2.5
+dim as ustring currency = "EUR"
+
+'' Mixing numeric types converts to the wider type before the
+'' operation, so nothing is lost.
+var cost = items * unitPrice
+print "cost ="; cost; " (" & sizeof( cost ) & " bytes, a float64)"
+
+'' Assigning to a narrower type converts on the way in. A float
+'' assigned to an integer is rounded.
+dim as int32 rounded = cost
+print "rounded ="; rounded
+
+'' Text and numbers meet only through an explicit conversion, or the
+'' & operator, which converts its operands to text.
+print "total: " & cost & " " & currency
+print "total: " & str( rounded ) & " " & currency

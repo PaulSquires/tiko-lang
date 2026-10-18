@@ -1,0 +1,5 @@
+scope
+    dim as int32 temporary = 42
+end scope
+
+print temporary     '' refused: temporary ended with its scope

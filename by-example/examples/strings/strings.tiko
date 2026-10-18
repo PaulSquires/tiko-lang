@@ -1,0 +1,28 @@
+'' ustring is tiko's text type: it grows as needed and holds Unicode.
+dim as ustring greeting = "Hello"
+dim as ustring who = "world"
+
+'' & joins two strings into a new one.
+dim as ustring message = greeting & ", " & who & "!"
+print message
+print "length:"; len( message )
+
+'' & also turns numbers into text on the way.
+dim as int32 apples = 3
+print "I have " & apples & " apples and " & 2.5 & " pears"
+
+'' &= appends to the string you already have.
+message &= " Again."
+print message
+
+'' Strings compare by their characters, case included.
+print cbool( "apple" < "banana" ); " "; cbool( "Tiko" = "tiko" )
+
+'' A new ustring starts out empty.
+dim as ustring blank
+print "empty:"; len( blank ); " "; cbool( blank = "" )
+
+'' Assigning a string copies it: the two are independent afterwards.
+dim as ustring twin = greeting
+twin &= "!!!"
+print greeting; " / "; twin

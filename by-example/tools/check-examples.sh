@@ -1,0 +1,348 @@
+#!/usr/bin/env bash
+# check-examples.sh -- compile and run every example in tiko by Example, on every target.
+#
+# Adapted from book/tools/check-listings.sh: a section is a directory name under
+# examples/ (hello, flow, ...) instead of chNN, and each section builds into its own
+# out/ subtree, so two sections can be checked at the same time.
+#
+#   tools/check-examples.sh                    both targets, all sections
+#   tools/check-examples.sh --target windows-x86_64
+#   tools/check-examples.sh hello flow         only those sections
+#   tools/check-examples.sh --list             show what would run
+#
+# A listing is examples/<section>/name.tiko (or name.bas, for legacy material). Beside it:
+#   name.out    expected stdout (required unless the listing expects a compile error);
+#               name.<target>.out, where it exists, replaces it on that target
+#   name.exit   expected exit code (default 0)
+#   name.args   command-line arguments, one line
+#   name.stdin  fed to the program
+# A file whose first directive is #module belongs to a module directory and is built
+# through the listing that imports it.
+#   name.meta   key: value lines --
+#                 targets: windows-x86_64          restrict to one target
+#                 expect: compile-error TKO0413
+#                 modules: a.bas b.bas         extra sources in the same directory
+#                 forward: ch15                records a use-before-define
+#                 cwd: listing                 compile in the listing's own directory, as a
+#                                              reader would -- for a #cmdline -cinclude, which
+#                                              is relative to the working directory
+#                 prebuild: -lib a.tiko        tiko commands run first, in the listing's
+#                                              directory, ';' between them -- a library the
+#                                              listing links. Implies cwd: listing; a source
+#                                              named here is not a listing of its own
+#                 env: LD_LIBRARY_PATH=.       set for the run, on every target
+#                 project: greeter             the listing is the main file of a project:
+#                                              `tiko build greeter` runs in its directory,
+#                                              beside its tiko.toml, and the program run is
+#                                              out/debug/greeter -- what `tiko run` runs.
+#                                              Implies cwd: listing
+#                 output: renamed.exe          the listing names its own program (a -x in its
+#                                              #cmdline, which wins over the harness's -o):
+#                                              that file, in the listing's directory, is run.
+#                                              Implies cwd: listing
+#                 blocked: T13 linux-x86_64    a known compiler/toolchain defect, and
+#                                              where it bites; reported BLOCKED, not FAIL.
+#                                              The listing is NEVER weakened to pass --
+#                                              the work item gets fixed instead.
+#
+# Compiler flags belong in the listing itself (#cmdline "-exx"), so the file alone
+# reproduces the result.
+#
+# Exit: 0 all pass, 1 a listing failed, 2 the pin or toolchain is wrong.
+set -uo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$root"
+
+# Git Bash rewrites anything that looks like a Unix path before handing it to a Windows
+# program, so wsl.exe would receive C:/Program Files/Git/mnt/c/... instead of /mnt/c/...
+export MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*'
+
+# ------------------------------------------------------------------ the pin
+yaml_get() { # yaml_get <section> <key>   (flat enough for book.yaml's pin block)
+  awk -v sect="$1" -v key="$2" '
+    $0 ~ "^  " sect ":" { in_s = 1; next }
+    in_s && /^  [a-z_]+:/ { in_s = 0 }
+    in_s && $1 == key":" { gsub(/"/, "", $2); print $2; exit }
+  ' book.yaml
+}
+
+PIN_VERSION="$(awk '/^  version:/ { gsub(/"/, "", $2); print $2; exit }' book.yaml)"
+WIN_ROOT="$(yaml_get windows root)";  WIN_EXE="$(yaml_get windows exe)"
+LIN_ROOT="$(yaml_get linux root)";    LIN_EXE="$(yaml_get linux exe)"
+WSL_DISTRO="$(yaml_get linux wsl_distro)"
+
+targets=(windows-x86_64 linux-x86_64)
+chapters=(); list_only=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --target) targets=("${2:?--target needs a name}"); shift ;;
+    --list)   list_only=1 ;;
+    --*) echo "check-examples: unknown argument $1" >&2; exit 2 ;;
+    *)        chapters+=("${1%/}") ;;
+  esac
+  shift
+done
+
+# The roots in book.yaml are relative to this book directory, which lives inside the
+# compiler's repository -- so a clone anywhere works. The Linux side needs the same place
+# spelled as WSL sees it.
+to_wsl() { cygpath -w "$1" 2>/dev/null | sed -E 's|^([A-Za-z]):|/mnt/\L\1|; s|\\|/|g'; }
+
+win_tiko="$(cd "$root/$WIN_ROOT" && pwd)/$WIN_EXE"
+lin_tiko="$(to_wsl "$(cd "$root/$LIN_ROOT" && pwd)")/$LIN_EXE"
+book_wsl="$(cygpath -w "$root" 2>/dev/null | sed -E 's|^([A-Za-z]):|/mnt/\L\1|; s|\\|/|g')"
+
+# A stale toolchain yields a plausible number, not an error. Assert the pin first.
+assert_pin() {
+  local what="$1" got="$2"
+  if [[ "$got" != *"$PIN_VERSION"* ]]; then
+    echo "check-examples: $what reports '$got', which is not the pinned $PIN_VERSION" >&2
+    echo "  update book.yaml's pin deliberately, or point at the pinned toolchain." >&2
+    exit 2
+  fi
+}
+
+# --version says only "0.1.0-dev", which every build says, so it cannot tell two packagings
+# apart. The MANIFEST inside each toolchain records the commit it was built from; hold the
+# pin to that as well, or a repackaged toolchain silently changes what the book verified.
+assert_manifest() {
+  local what="$1" manifest="$2" want="$3"
+  [[ -n "$want" ]] || return 0
+  if [[ ! -f "$manifest" ]]; then
+    echo "check-examples: $what has no MANIFEST.txt at $manifest" >&2; exit 2
+  fi
+  local got; got="$(grep -m1 -oE '^commit +[0-9a-f]{7,40}' "$manifest" | awk '{print $2}')"
+  if [[ "$got" != "$want"* && "$want" != "$got"* ]]; then
+    echo "check-examples: the $what toolchain was packaged from $got, but book.yaml pins $want." >&2
+    echo "  Re-verify the listings and update the pin deliberately." >&2
+    exit 2
+  fi
+}
+
+assert_manifest "windows" "$(cygpath -u "$WIN_ROOT" 2>/dev/null || echo "$WIN_ROOT")/MANIFEST.txt" \
+  "$(awk '/^  windows:/,/^  linux:/' book.yaml | awk '/commit:/ { gsub(/"/, "", $2); print $2; exit }')"
+assert_manifest "linux" "$(cygpath -u "${LIN_ROOT/\/mnt\/c/C:}" 2>/dev/null || echo "$LIN_ROOT")/MANIFEST.txt" \
+  "$(awk '/^  linux:/,/^  targets:/' book.yaml | awk '/commit:/ { gsub(/"/, "", $2); print $2; exit }')"
+
+for t in "${targets[@]}"; do
+  case "$t" in
+    windows-x86_64)
+      [[ -x "$win_tiko" ]] || { echo "check-examples: no tiko at $win_tiko" >&2; exit 2; }
+      assert_pin "$win_tiko" "$("$win_tiko" --version 2>&1 | head -1)" ;;
+    linux-x86_64)
+      v="$(wsl -d "$WSL_DISTRO" -- "$lin_tiko" --version 2>&1 | head -1 | tr -d '\r')"
+      [[ -n "$v" ]] || { echo "check-examples: no tiko at $lin_tiko (WSL $WSL_DISTRO)" >&2; exit 2; }
+      assert_pin "$lin_tiko" "$v" ;;
+    *) echo "check-examples: unknown target $t" >&2; exit 2 ;;
+  esac
+done
+
+# ------------------------------------------------------------------ listings
+meta_get() { [[ -f "$1" ]] && sed -nE "s/^$2:[[:space:]]*//p" "$1" | head -1; }
+
+mapfile -t all < <(find examples \( -name '*.tiko' -o -name '*.bas' \) | sed 's|\\|/|g' | sort)
+listings=()
+for f in "${all[@]}"; do
+  # The chapter is the first directory under examples/: a listing may sit deeper, in a
+  # project of its own (ch14/app/main.tiko) or among the solutions.
+  rel="${f#examples/}"; chap="${rel%%/*}"
+  if [[ ${#chapters[@]} -gt 0 ]]; then
+    keep=0; for c in "${chapters[@]}"; do [[ "$chap" == "$c" ]] && keep=1; done
+    (( keep )) || continue
+  fi
+  # A file of a module begins with #module (comments may come first). It is compiled
+  # through the listing that imports it, never on its own.
+  first="$(grep -m1 -vE "^[[:space:]]*('.*)?$" "$f" | tr -d '
+')"
+  [[ "$first" == '#module'* ]] && continue
+  # A module named by another listing's meta is built with it, not on its own.
+  base="$(basename "$f")"; dir="$(dirname "$f")"
+  if grep -qs -- "$base" "$dir"/*.meta 2>/dev/null && ! [[ -f "${f%.*}.meta" ]]; then
+    grep -qsE "^(modules|prebuild):.*$base" "$dir"/*.meta && continue
+  fi
+  listings+=("$f")
+done
+
+if (( list_only )); then printf '%s\n' "${listings[@]}"; exit 0; fi
+[[ ${#listings[@]} -gt 0 ]] || { echo "check-examples: no listings found"; exit 0; }
+
+tag="all"; [[ ${#chapters[@]} -gt 0 ]] && tag="$(IFS=-; echo "${chapters[*]}")"
+mkdir -p out/bin out/run
+report="out/report-$tag.md"
+{ echo "# Listings report"; echo; echo "pin: tiko $PIN_VERSION"; echo;
+  hdr="| Listing |"; sep="|---|"
+  for t in "${targets[@]}"; do hdr+=" $t |"; sep+="---|"; done
+  echo "$hdr Note |"; echo "$sep---|"; } > "$report"
+
+pass=0; fail=0; wide=0; blockedn=0
+
+for f in "${listings[@]}"; do
+  base="${f%.*}"; name="$(basename "$base")"; dir="$(dirname "$f")"
+  rel="${f#examples/}"; chap="${rel%%/*}"
+  meta="$base.meta"
+  only_targets="$(meta_get "$meta" targets)"
+  expect="$(meta_get "$meta" expect)"
+  modules="$(meta_get "$meta" modules)"
+  blocked="$(meta_get "$meta" blocked)"        # e.g. "T13 linux-x86_64"
+  cwd="$(meta_get "$meta" cwd)"
+  prebuild="$(meta_get "$meta" prebuild)"
+  runenv="$(meta_get "$meta" env)"
+  project="$(meta_get "$meta" project)"
+  output="$(meta_get "$meta" output)"
+  [[ -n "$output" ]] && cwd=listing
+  [[ -n "$prebuild" ]] && cwd=listing
+  [[ -n "$project" ]] && cwd=listing
+  blocked_item="${blocked%% *}"; blocked_where="${blocked#* }"
+  srcs=("$f"); for m in $modules; do srcs+=("$dir/$m"); done
+  local_srcs=(); for s in "${srcs[@]}"; do local_srcs+=("$(basename "$s")"); done
+
+  # House style: an example fits an 80-column code block without wrapping.
+  long=$(awk 'length > 80 { n++ } END { print n+0 }' "$f")
+  (( long )) && { wide=$((wide+1)); }
+
+  results=(); note=""
+  for t in "${targets[@]}"; do
+    if [[ -n "$only_targets" && "$only_targets" != *"$t"* ]]; then results+=("n/a"); continue; fi
+
+    outdir="out/bin/$chap/$t"; mkdir -p "$outdir" "out/run/$chap"
+    log="out/run/$chap/$name.$t.log"; rm -f "$log"
+
+    # The prebuild commands, each a tiko invocation in the listing's directory.
+    pre_ok=1
+    if [[ -n "$prebuild" ]]; then
+      IFS=';' read -ra pre_cmds <<< "$prebuild"
+      for pc in "${pre_cmds[@]}"; do
+        if [[ "$t" == windows-x86_64 ]]; then
+          ( cd "$dir" && eval "\"$win_tiko\" $pc" ) >> "$log" 2>&1 || pre_ok=0
+        else
+          wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && '$lin_tiko' $pc" >> "$log" 2>&1 || pre_ok=0
+        fi
+      done
+    fi
+    if (( ! pre_ok )); then
+      results+=("FAIL"); note="prebuild failed: $(head -2 "$log" | tr '\n' ' ' | cut -c1-80)"
+      continue
+    fi
+
+    [[ -n "$output" ]] && rm -f "$dir/$output"
+    if [[ -n "$project" ]]; then
+      # A project builds where its tiko.toml is, into its own out/debug.
+      if [[ "$t" == windows-x86_64 ]]; then
+        exe="$dir/out/debug/$project.exe"; rm -f "$exe"
+        ( cd "$dir" && "$win_tiko" build "$project" ) >> "$log" 2>&1; crc=$?
+      else
+        exe="$dir/out/debug/$project"; rm -f "$exe"
+        wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && '$lin_tiko' build $project" >> "$log" 2>&1; crc=$?
+      fi
+    elif [[ "$t" == windows-x86_64 ]]; then
+      exe="$outdir/$name.exe"; rm -f "$exe"
+      if [[ "$cwd" == listing ]]; then
+        ( cd "$dir" && "$win_tiko" "${local_srcs[@]}" -o "$(cygpath -m "$root/$exe")" ) >> "$log" 2>&1; crc=$?
+      else
+        "$win_tiko" "${srcs[@]}" -o "$exe" > "$log" 2>&1; crc=$?
+      fi
+    else
+      exe="$outdir/$name"; rm -f "$exe"
+      if [[ "$cwd" == listing ]]; then
+        wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && '$lin_tiko' ${local_srcs[*]} -o '$book_wsl/$exe'" >> "$log" 2>&1; crc=$?
+      else
+        wsl -d "$WSL_DISTRO" -- "$lin_tiko" "${srcs[@]/#/$book_wsl/}" -o "$book_wsl/$exe" > "$log" 2>&1; crc=$?
+      fi
+    fi
+
+    # The listing's own -x named the program: that is the file to run.
+    [[ -n "$output" ]] && exe="$dir/$output"
+    if [[ -n "$expect" ]]; then           # this listing must NOT compile
+      want_id="${expect#compile-error }"
+      if (( crc == 0 )); then results+=("FAIL"); note="compiled, but expected $want_id"
+      elif grep -q "$want_id" "$log"; then results+=("PASS")
+      else results+=("FAIL"); note="failed without $want_id"; fi
+      continue
+    fi
+
+    if (( crc != 0 )); then
+      results+=("FAIL"); note="compile failed: $(head -2 "$log" | tr '\n' ' ' | cut -c1-90)"
+      continue
+    fi
+
+    args=""; [[ -f "$base.args" ]] && args="$(head -1 "$base.args")"
+    if [[ "$t" == windows-x86_64 ]]; then
+      # Run from the listing's own directory, so a program can open a data file that sits
+      # beside it -- which is where a reader would keep it, and how they would run it.
+      # One quoted eval: the .args line is parsed once, as a shell would, so a '*' inside
+      # quotes reaches the program instead of being expanded against the directory.
+      if [[ -f "$base.stdin" ]]; then
+        got="$(cd "$dir" && eval "$runenv \"\$root/\$exe\" $args" < "$root/$base.stdin" 2>&1)"
+      else
+        got="$(cd "$dir" && eval "$runenv \"\$root/\$exe\" $args" 2>&1)"
+      fi
+    else
+      if [[ -f "$base.stdin" ]]; then
+        got="$(wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && $runenv '$book_wsl/$exe' $args" < "$base.stdin" 2>&1)"
+      else
+        got="$(wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && $runenv '$book_wsl/$exe' $args" 2>&1)"
+      fi
+    fi
+    rc=$?
+    got="$(printf '%s' "$got" | tr -d '\r')"
+
+    # A program's own output can name its source file -- a runtime error does. The path
+    # it prints is whatever was passed to the compiler, which differs between a native
+    # build and a WSL one, so reduce every form of it to the bare file name. That is also
+    # what a reader compiling in the listing's own directory sees.
+    for s in "${srcs[@]}"; do
+      b="$(basename "$s")"
+      got="${got//$book_wsl\/$s/$b}"
+      got="${got//$s/$b}"
+      got="${got//${s//\//\\}/$b}"
+    done
+
+    want_rc=0; [[ -f "$base.exit" ]] && want_rc="$(head -1 "$base.exit")"
+    # A program whose output depends on the platform carries one file per target.
+    outf="$base.out"; [[ -f "$base.$t.out" ]] && outf="$base.$t.out"
+    if [[ ! -f "$outf" ]]; then
+      results+=("FAIL"); note="no expected output file ($name.out)"; continue
+    fi
+    want="$(tr -d '\r' < "$outf")"; want="${want%$'\n'}"
+
+    if [[ "$got" == "$want" && "$rc" == "$want_rc" ]]; then
+      results+=("PASS")
+    else
+      results+=("FAIL")
+      if [[ "$rc" != "$want_rc" ]]; then note="exit $rc, expected $want_rc"
+      else note="output differs"; printf '%s\n' "--- expected"  "$want" "--- got" "$got" >> "$log"; fi
+    fi
+  done
+
+  # A failure on a target a work item is known to break is BLOCKED, not FAIL: it counts
+  # against the compiler, not the book, and the chapter cannot go final either way.
+  if [[ -n "$blocked_item" ]]; then
+    for i in "${!results[@]}"; do
+      if [[ "${results[$i]}" == FAIL ]] &&
+         { [[ "$blocked" == "$blocked_item" ]] || [[ "$blocked_where" == *"${targets[$i]}"* ]]; }; then
+        results[$i]="BLOCKED($blocked_item)"
+        note="${note:+$note; }known: $blocked_item"
+      fi
+    done
+  fi
+
+  row_fail=0; row_blocked=0
+  for r in "${results[@]}"; do
+    [[ "$r" == FAIL ]] && row_fail=1
+    [[ "$r" == BLOCKED* ]] && row_blocked=1
+  done
+  if (( row_fail )); then fail=$((fail+1))
+  elif (( row_blocked )); then blockedn=$((blockedn+1))
+  else pass=$((pass+1)); fi
+  (( long )) && note="${note:+$note; }$long line(s) over 80 columns"
+  row="| \`$f\` |"; for r in "${results[@]}"; do row+=" $r |"; done
+  echo "$row $note |" >> "$report"
+done
+
+{ echo; echo "**$pass passed, $fail failed, $blockedn blocked**, ${#listings[@]} listings, targets: ${targets[*]}.";
+  (( wide )) && echo; (( wide )) && echo "$wide listing(s) exceed 80 columns."; } >> "$report"
+
+echo "check-examples: $pass passed, $fail failed, $blockedn blocked (${#listings[@]} listings) -- $report"
+(( fail == 0 )) || exit 1
+exit 0

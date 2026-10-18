@@ -1,0 +1,7 @@
+calling
+  made 4
+  made 40
+  gone 4
+back, and the heap one is still here: 40
+  gone 40
+done

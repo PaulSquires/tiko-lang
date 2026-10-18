@@ -1,0 +1,7 @@
+ 1 2 4 5 7
+first value over 50: row 2, column 2
+row 1: 1 2 (stopped at a zero)
+row 2: 5 (stopped at a zero)
+row 3: 9 10 11 12
+pass 1
+done

@@ -1,0 +1,26 @@
+'' Choosing and repeating: the statements most programs are made of.
+
+'' for counts; if chooses; continue for skips to the next pass.
+dim as int32 total = 0
+for n as int32 = 1 to 10
+    if n mod 2 = 0 then continue for     '' leave out the even numbers
+    total += n
+next
+print "sum of the odd numbers 1 to 10:"; total
+
+'' do loop repeats while a condition holds.
+dim as int32 side = 1
+do while side * side < 50
+    side += 1
+loop
+print "first square over 50:"; side * side
+
+'' select case compares one value against several cases.
+select case total
+case is < 10
+    print "the sum is small"
+case 10 to 30
+    print "the sum is medium"
+case else
+    print "the sum is large"
+end select

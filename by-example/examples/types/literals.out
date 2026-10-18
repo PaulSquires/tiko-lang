@@ -1,0 +1,16 @@
+42         is integer
+&hFF       is integer
+2.5        is float64
+1e6        is float64
+
+42L        is int32
+42LL       is int64
+42U        is uinteger
+42UL       is uint32
+42ULL      is uint64
+2.5F       is float32
+2.5D       is float64
+
+3000000000 is uinteger
+3000000000 - 3000000001 = 18446744073709551615
+3000000000LL - 3000000001LL = -1

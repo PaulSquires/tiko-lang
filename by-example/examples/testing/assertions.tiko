@@ -1,0 +1,28 @@
+#include once "fbcunit.bi"
+
+function Initials( byval first as ustring, _
+                   byval last as ustring ) as ustring
+    return ucase( left( first, 1 ) & left( last, 1 ) )
+end function
+
+SUITE( assertions )
+    TEST( truth )
+        CU_ASSERT( len( Initials( "ada", "lovelace" ) ) = 2 )
+        CU_ASSERT_TRUE( Initials( "ada", "lovelace" ) = "AL" )
+        CU_ASSERT_FALSE( Initials( "ada", "lovelace" ) = "al" )
+    END_TEST
+
+    TEST( equality )
+        CU_ASSERT_EQUAL( Initials( "alan", "turing" ), "AT" )
+        CU_ASSERT_NOT_EQUAL( Initials( "alan", "turing" ), "TA" )
+    END_TEST
+
+    TEST( floating_point )
+        '' 0.1 + 0.2 is not exactly 0.3; compare within a tolerance.
+        dim as float64 sum = 0.1 + 0.2
+        CU_ASSERT_DOUBLE_EQUAL( sum, 0.3, 1e-12 )
+        CU_ASSERT_NOT_EQUAL( sum, 0.3 )
+    END_TEST
+END_SUITE
+
+end iif( fbcu.run_tests( ), 0, 1 )

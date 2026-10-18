@@ -1,0 +1,30 @@
+'' defer runs a statement when the enclosing block is left.
+sub Copy( byval fail as boolean )
+    print "  open the source"
+    defer print "  close the source"
+
+    print "  open the target"
+    defer print "  close the target"
+
+    if fail then
+        print "  the write failed"
+        exit sub                       '' both defers still run
+    end if
+    print "  copied"
+end sub
+
+print "a copy that works:"
+Copy( false )
+print "a copy that fails:"
+Copy( true )
+
+'' A function's result is settled before its defers run.
+function Ticket( ) as int32
+    dim as int32 n = 1
+    defer n = 100                      '' too late to change the result
+    defer print "  leaving Ticket, n ="; n
+    return n
+end function
+
+dim as int32 t = Ticket( )
+print "Ticket( ) returned"; t

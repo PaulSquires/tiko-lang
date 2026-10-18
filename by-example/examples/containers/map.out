@@ -1,0 +1,10 @@
+add grace: true
+add ada:   false
+count: 3
+alan is 41
+has edsger? false
+edsger: not found
+remove alan: true
+remove alan: false
+ada 37
+grace 85

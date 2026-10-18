@@ -1,0 +1,6 @@
+'' Without parentheses, the argument's text mixes with the body's.
+#define BAD_SQUARE( x ) x * x
+#define SQUARE( x ) ( ( x ) * ( x ) )
+
+print "BAD_SQUARE( 1 + 2 ) ="; BAD_SQUARE( 1 + 2 )
+print "SQUARE( 1 + 2 )     ="; SQUARE( 1 + 2 )

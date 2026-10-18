@@ -1,0 +1,30 @@
+'' Load a library while the program runs, and find a function in it.
+#ifdef __FB_WIN32__
+    const LIBNAME = "ucrtbase.dll"
+#else
+    const LIBNAME = "libm.so.6"
+#endif
+
+type MathFn as function cdecl( byval x as float64 ) as float64
+
+dim as any ptr lib_ = dylibload( LIBNAME )
+if lib_ = nullptr then
+    print "could not load the maths library"
+    end 1
+end if
+
+'' dylibsymbol returns an address, or nullptr for a name it lacks.
+dim as MathFn root = dylibsymbol( lib_, "sqrt" )
+dim as MathFn missing = dylibsymbol( lib_, "no_such_function" )
+print "found sqrt: "; cbool( root <> nullptr )
+print "found no_such_function: "; cbool( missing <> nullptr )
+
+if root <> nullptr then
+    print "sqrt( 144 ) ="; root( 144.0 )
+end if
+
+'' A library that is not there is a null handle, not a crash.
+print "missing library loads: "; _
+      cbool( dylibload( "no_such_library_here" ) <> nullptr )
+
+dylibfree( lib_ )

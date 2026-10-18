@@ -1,0 +1,48 @@
+#import "std/containers"
+
+type Player
+    as ustring name, team
+    as int32 points
+end type
+
+sub Show( byref ps as containers.Array( of Player ) )
+    for each p in ps
+        print "  "; p.team; " "; p.name; p.points
+    next
+end sub
+
+'' Sort uses the element's own '<'.
+dim nums as containers.Array( of int32 ) = { 9, 4, 7, 1 }
+print "sorted? "; containers.IsSorted( nums )
+containers.Sort( nums )
+print "sorted? "; containers.IsSorted( nums ); nums[ 0 ]; nums[ 3 ]
+
+'' SortBy takes a comparer: true when a must come before b.
+containers.SortBy( nums, function( byref a as int32, _
+                                   byref b as int32 ) as boolean
+    return a > b                         '' descending
+end function )
+print "descending:"; nums[ 0 ]; nums[ 1 ]; nums[ 2 ]; nums[ 3 ]
+
+dim ps as containers.Array( of Player )
+dim p as Player
+p.name = "ada" : p.team = "red"  : p.points = 31 : ps.Push( p )
+p.name = "bob" : p.team = "blue" : p.points = 27 : ps.Push( p )
+p.name = "cy"  : p.team = "red"  : p.points = 27 : ps.Push( p )
+p.name = "dee" : p.team = "blue" : p.points = 35 : ps.Push( p )
+
+'' Best first...
+containers.SortBy( ps, function( byref a as Player, _
+                                 byref b as Player ) as boolean
+    return a.points > b.points
+end function )
+print "by points:"
+Show( ps )
+
+'' ...then by team, STABLY: within a team, best-first survives.
+containers.StableSortBy( ps, function( byref a as Player, _
+                                       byref b as Player ) as boolean
+    return a.team < b.team
+end function )
+print "by team, then points:"
+Show( ps )

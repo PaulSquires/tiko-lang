@@ -1,0 +1,14 @@
+#import "std/logs"
+
+'' Logs normally go to stderr with a timestamp. This sends them to
+'' stdout with no timestamp, so the output is the same on every run.
+dim tr as logs.TextRenderer
+tr.stamp = logs.TS_NONE
+dim con as logs.ConsoleSink = logs.ConsoleSink( logs.CT_STDOUT, @tr )
+logs.LogInit( @con, logs.LOG_INFO )
+
+logs.LogInfo( "starting" )
+logs.LogDebug( "not shown: debug is below the INFO level" )
+logs.LogWarn( "disk 91% full" )
+
+logs.LogShutdown( )

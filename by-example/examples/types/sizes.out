@@ -1,0 +1,6 @@
+sizeof( int16 ) = 2, len( int16 ) = 2
+sizeof( float64 ) = 8
+sizeof( integer ) = 8, sizeof( any ptr ) = 8
+len: 2 27, sizeof: 24 24
+Loose: sizeof 12, value at offset 4, mark at 8
+Tight: sizeof 8, value at offset 0, mark at 5

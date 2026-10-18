@@ -1,0 +1,17 @@
+cast( float64, 7 ) / 2 = 3.5
+cast( int32, price ) \ 2 = 3
+cint( 2.6 )    = 3
+clng( 2.6 )    = 3
+clngint( 2.6 ) = 3
+cdbl( 1 ) / 3  = 0.3333333333333333
+csng( 1 ) / csng( 3 ) = 0.3333333
+
+cast( uint8, 300 )  = 44
+cast( int8, 200 )   = -56
+cast( uint16, -1 )  = 65535
+cubyte( 260 )       = 4
+0 - 1 as a uint32   = 4294967295
+255 + 1 as a uint8  = 0
+
+cbool( 0 ) = false, cbool( 5 ) = true
+cint( true ) =-1, cint( false ) = 0

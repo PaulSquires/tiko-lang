@@ -1,0 +1,18 @@
+'' A semicolon joins items with no gap; a comma moves to the next
+'' 14-column print zone.
+print "one"; "two"; "three"
+print "a", "b", "c"
+
+'' A positive number prints with a leading space where its sign
+'' would go; a negative one prints its minus sign there.
+print 42
+print -42
+print "answer:"; 42
+
+'' A trailing semicolon keeps the cursor on the same line.
+print "no newline yet... ";
+print "now there is one"
+
+'' An empty print ends the line.
+print
+print "done"

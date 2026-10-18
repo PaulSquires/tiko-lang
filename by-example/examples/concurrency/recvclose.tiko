@@ -1,0 +1,6 @@
+#import "std/tasks"
+#cmdline "-mt"
+
+sub Consume( byval inbox as tasks.RecvChan( of int32 ) )
+    inbox.Close( )            '' closing is the sender's decision
+end sub

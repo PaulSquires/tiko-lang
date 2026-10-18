@@ -1,0 +1,19 @@
+'' A second file of the same module.
+#module "scores"
+
+'' No keyword: every file of this module may call it; importers may not.
+function Letter_( byval points as int32 ) as ustring
+    select case points
+    case is >= 90 : return "A"
+    case is >= 75 : return "B"
+    case is >= 50 : return "C"
+    case else     : return "F"
+    end select
+end function
+
+'' private: the module's own business, invisible from outside.
+private function Clamp_( byval points as int32 ) as int32
+    if points < 0 then return 0
+    if points > 100 then return 100
+    return points
+end function

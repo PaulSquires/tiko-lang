@@ -1,0 +1,5 @@
+'' "./greet" is the directory greet/ beside this file.
+#import "./greet"
+
+print greet.Hello( "ada" )
+print greet.Hello( greet.DEFAULT_NAME )

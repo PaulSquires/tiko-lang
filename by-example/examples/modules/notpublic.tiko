@@ -1,0 +1,3 @@
+#import "./scores"
+
+print scores.Letter_( 95 )      '' refused: Letter_ is not public

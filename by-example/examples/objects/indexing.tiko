@@ -1,0 +1,48 @@
+'' The last four readings, oldest first. Index 0 is always the oldest,
+'' wherever it happens to sit in the storage.
+type Recent
+    declare sub Push( byval value as int32 )
+    declare function Count( ) as int32
+    declare operator []( byval i as int32 ) byref as int32
+  private:
+    slots_( 0 to 3 ) as int32
+    start_ as int32                 '' where the oldest reading is
+    count_ as int32
+end type
+
+sub Recent.Push( byval value as int32 )
+    if count_ < 4 then
+        slots_( ( start_ + count_ ) mod 4 ) = value
+        count_ += 1
+    else                            '' full: overwrite the oldest
+        slots_( start_ ) = value
+        start_ = ( start_ + 1 ) mod 4
+    end if
+end sub
+
+function Recent.Count( ) as int32
+    return count_
+end function
+
+'' Returning byref hands back the element itself, so r[ i ] can be
+'' read, assigned and updated in place.
+operator Recent.[]( byval i as int32 ) byref as int32
+    return slots_( ( start_ + i ) mod 4 )
+end operator
+
+sub Show( byref r as Recent )
+    for i as int32 = 0 to r.Count( ) - 1
+        print r[ i ];
+    next
+    print
+end sub
+
+dim as Recent r
+for reading as int32 = 1 to 6
+    r.Push( reading * 10 )
+next
+Show( r )                           '' 10 and 20 have been pushed out
+
+r[ 0 ] = 99                         '' assign through the index
+r[ 3 ] += 1                         '' or update in place
+Show( r )

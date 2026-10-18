@@ -1,0 +1,36 @@
+'' C's qsort calls back into the program to compare two elements.
+type Compare as function cdecl( byval a as const any ptr, _
+                                byval b as const any ptr ) as int32
+
+extern "C"
+    declare sub qsort( byval base_ as any ptr, byval n as uinteger, _
+                       byval size as uinteger, byval cmp as Compare )
+end extern
+
+'' A named procedure: cdecl, and exactly the parameters C passes.
+function Ascending cdecl( byval a as const any ptr, _
+                          byval b as const any ptr ) as int32
+    dim as int32 x = *cptr( const int32 ptr, a )
+    dim as int32 y = *cptr( const int32 ptr, b )
+    return iif( x < y, -1, iif( x > y, 1, 0 ) )
+end function
+
+sub Show( nums( ) as int32 )
+    for i as int32 = 0 to ubound( nums )
+        print nums( i );
+    next
+    print
+end sub
+
+dim nums( 0 to 5 ) as int32 = { 42, 7, 19, 3, 88, 21 }
+qsort( @nums( 0 ), 6, sizeof( int32 ), @Ascending )
+Show( nums( ) )
+
+'' A lambda that captures nothing is a plain function too.
+qsort( @nums( 0 ), 6, sizeof( int32 ), _
+       function cdecl( byval a as const any ptr, _
+                       byval b as const any ptr ) as int32
+           return *cptr( const int32 ptr, b ) - _
+                  *cptr( const int32 ptr, a )
+       end function )
+Show( nums( ) )

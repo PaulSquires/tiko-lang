@@ -1,0 +1,12 @@
+#cmdline "-g"
+
+'' assert states what must be true. assertwarn reports and goes on;
+'' assert reports and stops the program.
+function Average( byval total as int32, byval count as int32 ) as int32
+    assertwarn( count < 1000 )          '' unusual, not wrong
+    assert( count > 0 )                 '' a caller's mistake
+    return total \ count
+end function
+
+dim as int32 big = Average( 50000, 5000 )
+dim as int32 bad = Average( 10, 0 )

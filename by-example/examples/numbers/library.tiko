@@ -1,0 +1,35 @@
+#import "std/numeric"
+
+'' Rounding that says which way it goes.
+print "Round( 2.5 ) ="; numeric.Round( 2.5 ); _
+      ", Round( -2.5 ) ="; numeric.Round( -2.5 )
+print "RoundHalfEven( 2.5 ) ="; numeric.RoundHalfEven( 2.5 ); _
+      ", RoundHalfEven( 3.5 ) ="; numeric.RoundHalfEven( 3.5 )
+print "Floor( -1.5 ) ="; numeric.Floor( -1.5 ); _
+      ", Ceil( -1.5 ) ="; numeric.Ceil( -1.5 ); _
+      ", Truncate( -1.5 ) ="; numeric.Truncate( -1.5 )
+print "Round( 3.14159, 2 ) ="; numeric.Round( 3.14159, 2 )
+
+'' Selection.
+print "Min ="; numeric.Min( 3, 8 ); ", Max ="; numeric.Max( 3, 8 ); _
+      ", Clamp( 15, 0, 10 ) ="; numeric.Clamp( 15, 0, 10 )
+print "Lerp( 0, 200, 0.25 ) ="; numeric.Lerp( 0.0, 200.0, 0.25 )
+
+'' Constants and geometry.
+print "PI ="; numeric.PI; ", Hypot( 3, 4 ) ="; numeric.Hypot( 3.0, 4.0 )
+print "Log2( 1024 ) ="; numeric.Log2( 1024.0 ); _
+      ", Log10( 1000 ) ="; numeric.Log10( 1000.0 )
+
+'' Whole-number work, done exactly.
+print "IPow( 3, 4 ) ="; numeric.IPow( 3, 4 ); _
+      ", ISqrt( 99 ) ="; numeric.ISqrt( 99 )
+print "GCD( 12, 18 ) ="; numeric.GCD( 12, 18 ); _
+      ", LCM( 4, 6 ) ="; numeric.LCM( 4, 6 )
+
+'' A remainder that never goes negative, for wrapping around.
+print "-7 mod 3 ="; -7 mod 3; ", FloorMod( -7, 3 ) ="; _
+      numeric.FloorMod( -7, 3 )
+
+'' Quotient and remainder together, as a tuple.
+var ( pages, rest ) = numeric.DivMod( 47, 10 )
+print "47 lines, 10 a page:"; pages; " full pages and"; rest; " over"

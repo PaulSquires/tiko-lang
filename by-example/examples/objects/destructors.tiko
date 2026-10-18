@@ -1,0 +1,43 @@
+type Tracer
+    declare constructor( byref label as ustring )
+    declare destructor( )
+    label as ustring
+end type
+
+constructor Tracer( byref label as ustring )
+    this.label = label
+    print "  + "; label
+end constructor
+
+'' The destructor runs when the object goes away.
+destructor Tracer( )
+    print "  - "; label
+end destructor
+
+sub Work( )
+    dim as Tracer t = Tracer( "local to Work" )
+    print "  working"
+end sub                             '' t is destroyed here
+
+print "start"
+dim as Tracer whole = Tracer( "program-wide" )
+
+print "a scope:"
+scope
+    dim as Tracer first = Tracer( "first" )
+    dim as Tracer second = Tracer( "second" )
+end scope                           '' last created, first destroyed
+
+print "a procedure:"
+Work( )
+
+print "a loop:"
+for i as int32 = 1 to 2
+    dim as Tracer lap = Tracer( "pass " & i )
+next                                '' once per pass
+
+print "a temporary:"
+var size = len( Tracer( "temporary" ).label )
+print "  its label had"; size; " characters"
+
+print "end"

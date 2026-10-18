@@ -1,0 +1,16 @@
+#import "std/containers"
+
+dim stock as containers.Map( of ustring, int32 )
+stock[ "apples" ] = 12
+stock[ "pears" ] = 4
+
+'' Reading through [ ] looks harmless...
+if stock[ "plums" ] = 0 then print "no plums"
+if stock[ "kiwis" ] = 0 then print "no kiwis"
+
+'' ...but every miss inserted a zero.
+print "entries:"; stock.Count( )
+
+'' The same question asked with Contains leaves the map alone.
+if stock.Contains( "figs" ) = false then print "no figs"
+print "entries:"; stock.Count( )

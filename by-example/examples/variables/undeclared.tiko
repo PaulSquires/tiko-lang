@@ -1,0 +1,4 @@
+dim as int32 total = 0
+
+totl = total + 1      '' a typo: there is no variable called totl
+print total

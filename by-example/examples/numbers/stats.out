@@ -1,0 +1,9 @@
+count: 8
+mean: 80.5
+median: 81.5
+min: 64, max: 99
+stddev: 11.674
+75th percentile: 86.5
+first score is still 72
+running mean: 80.5, max: 99
+mean of nothing is NaN: true

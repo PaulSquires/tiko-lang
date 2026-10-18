@@ -1,0 +1,48 @@
+'' SQLite's own C interface, from the toolchain's vendor package.
+#import "vendor/sqlite3"
+
+'' Column text is UTF-8 bytes that SQLite owns; copy it out at once.
+function ColumnText( byval st as sqlite3_stmt ptr, byval i as int32 ) _
+         as ustring
+    return *cast( zstring ptr, sqlite3_column_text( st, i ) )
+end function
+
+'' A connection is a sqlite3 ptr; ":memory:" is a private database
+'' that lives as long as the connection.
+dim db as sqlite3 ptr
+if sqlite3_open( ":memory:", @db ) <> SQLITE_OK then
+    print "cannot open: "; *sqlite3_errmsg( db )
+    end 1
+end if
+
+'' sqlite3_exec runs SQL that returns no rows.
+dim as string sql = _
+    "create table city( name text, country text, people int );" & _
+    "insert into city values( 'Lagos', 'Nigeria', 15388000 );" & _
+    "insert into city values( 'Osaka', 'Japan', 19060000 );" & _
+    "insert into city values( 'Lima', 'Peru', 11283000 );"
+if sqlite3_exec( db, sql, nullptr, nullptr, nullptr ) <> SQLITE_OK then
+    print "failed: "; *sqlite3_errmsg( db )
+    end 1
+end if
+
+'' A query is prepared, then stepped through one row at a time.
+dim st as sqlite3_stmt ptr
+sqlite3_prepare_v2( db, "select name, country, people from city " & _
+                        "order by people desc", -1, @st, nullptr )
+do while sqlite3_step( st ) = SQLITE_ROW
+    print left( ColumnText( st, 0 ) & space( 8 ), 8 ); _
+          left( ColumnText( st, 1 ) & space( 10 ), 10 ); _
+          sqlite3_column_int64( st, 2 )
+loop
+sqlite3_finalize( st )
+
+'' A query with one value in its one row.
+sqlite3_prepare_v2( db, "select sum( people ) from city", _
+                    -1, @st, nullptr )
+if sqlite3_step( st ) = SQLITE_ROW then
+    print "total people:"; sqlite3_column_int64( st, 0 )
+end if
+sqlite3_finalize( st )
+
+sqlite3_close( db )

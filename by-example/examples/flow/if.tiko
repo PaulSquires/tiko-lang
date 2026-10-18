@@ -1,0 +1,26 @@
+'' if ... then ... end if, with any number of elseif branches.
+dim as int32 temperature = 18
+
+if temperature >= 25 then
+    print "hot"
+elseif temperature >= 15 then
+    print "mild"
+else
+    print "cold"
+end if
+
+'' A whole if on one line needs no end if, and may have an else.
+if temperature > 0 then print "above freezing"
+if temperature > 30 then print "a heatwave" else print "no heatwave"
+
+'' The condition is a number: zero is false, anything else is true.
+dim as int32 items = 3
+if items then print items; " items to pack"
+
+'' andalso and orelse join conditions.
+if temperature > 10 andalso temperature < 20 then print "jacket weather"
+
+'' On a one-line if, everything after then belongs to the if --
+'' including the statements after a colon.
+if temperature > 30 then print "stay inside" : print "drink water"
+print "done"

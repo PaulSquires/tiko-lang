@@ -1,0 +1,42 @@
+extern "C"
+    declare function strlen( byval s as const zstring ptr ) as uinteger
+    declare function strchr( byval s as const zstring ptr, _
+                             byval c as int32 ) as zstring ptr
+    declare function strstr( byval s as const zstring ptr, _
+                             byval find as const zstring ptr ) _
+                             as zstring ptr
+    declare function malloc( byval n as uinteger ) as any ptr
+    declare sub free( byval p as any ptr )
+    declare function strcpy( byval dst as zstring ptr, _
+                             byval src as const zstring ptr ) _
+                             as zstring ptr
+end extern
+
+'' Into C: strptr is a pointer to a string's own bytes and its zero.
+dim as string s = "key=value"
+print "strlen: "; strlen( strptr( s ) )
+
+'' A literal can be passed straight to a const zstring ptr.
+print "strlen of a literal: "; strlen( "four" )
+
+'' Out of C: a pointer into C's memory. *p copies the characters out.
+dim as zstring ptr eq = strchr( strptr( s ), asc( "=" ) )
+if eq <> nullptr then
+    dim as ustring rest = *( eq + 1 )
+    print "after '=': "; rest
+end if
+
+'' A C function that finds nothing returns a null pointer.
+print "strstr found 'xyz': "; _
+      cbool( strstr( strptr( s ), "xyz" ) <> nullptr )
+
+'' A ustring's text goes to C as UTF-8: one character, two bytes.
+dim as ustring u = "caf" & wchr( 233 )
+print "len:"; len( u ); ", strlen: "; strlen( u )
+
+'' Memory C allocates, C must free. Copy the text out first.
+dim as zstring ptr copy_ = malloc( len( s ) + 1 )
+strcpy( copy_, strptr( s ) )
+dim as ustring kept = *copy_
+free( copy_ )
+print "copied: "; kept

@@ -1,0 +1,9 @@
+#cmdline "-exx"
+
+'' -exx checks every array index while the program runs.
+dim scores( 0 to 2 ) as int32 = { 70, 85, 90 }
+dim as int32 total = 0
+for i as int32 = 0 to 3                 '' one too far
+    total += scores( i )
+next
+print total                             '' never reached

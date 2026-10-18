@@ -1,0 +1,32 @@
+#cmdline "-mt"
+#include once "fbatomic.bi"
+
+'' Shared by four threads, with no mutex anywhere.
+type Race
+    as int32 hits                   '' counted by every thread
+    as int32 winner                 '' 0 until one thread claims it
+    as int32 claims                 '' how many claims succeeded
+end type
+
+sub Runner( byval p as any ptr )
+    var r = cptr( Race ptr, p )
+    for i as int32 = 1 to 100000
+        FB.AtomicFetchAddLong( @r->hits, 1 )      '' one indivisible add
+    next
+    '' Store 1 only if the value is still 0; the old value says who won.
+    if FB.AtomicCasLong( @r->winner, 0, 1 ) = 0 then
+        FB.AtomicFetchAddLong( @r->claims, 1 )
+    end if
+end sub
+
+dim r as Race
+dim runners( 0 to 3 ) as any ptr
+for i as int32 = 0 to 3
+    runners( i ) = threadcreate( @Runner, @r )
+next
+for i as int32 = 0 to 3
+    threadwait( runners( i ) )
+next
+
+print "hits:"; FB.AtomicLoadLong( @r.hits )
+print "successful claims:"; FB.AtomicLoadLong( @r.claims )

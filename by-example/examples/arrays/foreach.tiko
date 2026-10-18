@@ -1,0 +1,43 @@
+'' for each gives a copy of each element; for each byref gives the
+'' element itself.
+dim as int32 prices( 1 to 4 ) = { 10, 20, 30, 40 }
+
+for each p in prices
+    p = 0                          '' changes the copy only
+next
+print "after writing to copies:";
+for each p in prices : print p; : next
+print
+
+for each byref p in prices
+    p += p \ 10                    '' changes the array
+next
+print "after for each byref:";
+for each p in prices : print p; : next
+print
+
+'' The same works for an array of your own type.
+type Item
+    as ustring label
+    as int32 count
+end type
+
+dim as Item stock( 0 to 2 )
+stock( 0 ).label = "nuts" : stock( 1 ).label = "bolts"
+stock( 2 ).label = "washers"
+for each byref it in stock
+    it.count = len( it.label )
+next
+for each it in stock
+    print it.label; it.count
+next
+
+'' A grid is walked one row at a time, with the order written out.
+dim as int32 grid( 1 to 2, 1 to 3 ) = { { 1, 2, 3 }, { 4, 5, 6 } }
+dim as int32 total = 0
+for r as int32 = lbound( grid, 1 ) to ubound( grid, 1 )
+    for c as int32 = lbound( grid, 2 ) to ubound( grid, 2 )
+        total += grid( r, c )
+    next
+next
+print "grid total:"; total

@@ -1,0 +1,43 @@
+'' byval passes a copy; byref passes the caller's own variable.
+sub AddTax( byval price as float64, byref total as float64 )
+    price *= 1.25            '' changes the copy only
+    total += price           '' changes the caller's variable
+end sub
+
+dim as float64 price = 8, total = 0
+AddTax( price, total )
+AddTax( price, total )
+print "price"; price; ", total"; total
+
+'' With no keyword, what you get depends on the parameter's type.
+type Point
+    as int32 x, y
+end type
+
+sub NoKeywordInt( n as int32 )
+    n = 99
+end sub
+
+sub NoKeywordText( s as ustring )
+    s = "changed"
+end sub
+
+sub NoKeywordPoint( p as Point )
+    p.x = 99
+end sub
+
+dim as int32 n = 1
+dim as ustring s = "kept"
+dim as Point p = ( 1, 2 )
+NoKeywordInt( n )
+NoKeywordText( s )
+NoKeywordPoint( p )
+print "int32:"; n; "  ustring: " & s & "  Point.x:"; p.x
+
+'' byref as const passes without copying and refuses writes.
+function Initials( byref fullName as const ustring ) as ustring
+    dim as int32 gap = instr( fullName, " " )
+    return left( fullName, 1 ) & mid( fullName, gap + 1, 1 )
+end function
+
+print "initials: " & Initials( "Ada Lovelace" )

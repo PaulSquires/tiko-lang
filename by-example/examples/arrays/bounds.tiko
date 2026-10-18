@@ -1,0 +1,8 @@
+'' -exx makes the program check every index against the array's bounds.
+#cmdline "-exx"
+
+dim as int32 scores( 1 to 3 ) = { 70, 85, 92 }
+dim as int32 i = 4                 '' one past the end
+
+scores( i ) = 100                  '' stops here with runtime error 6
+print "not reached"

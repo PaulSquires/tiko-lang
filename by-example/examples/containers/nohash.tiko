@@ -1,0 +1,12 @@
+#import "std/containers"
+
+'' Equality, but no hash: not enough for a Map key.
+type Cell
+    as int32 row, col
+end type
+
+operator = ( byref a as Cell, byref b as Cell ) as boolean
+    return ( a.row = b.row ) andalso ( a.col = b.col )
+end operator
+
+dim terrain as containers.Map( of Cell, ustring )

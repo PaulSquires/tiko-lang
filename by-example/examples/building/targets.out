@@ -1,0 +1,7 @@
+target sizes:
+pointer: 8 bytes
+integer: 8 bytes
+int32:   4 bytes
+long:    4 bytes
+float64: 8 bytes
+a 64-bit build

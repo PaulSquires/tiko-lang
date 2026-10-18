@@ -1,0 +1,7 @@
+queued: 3 of 3
+try to send 40: false
+first out: 10
+drained: 20
+drained: 30
+receive after close: false, v is still -1
+wait 50 ms for a value: false

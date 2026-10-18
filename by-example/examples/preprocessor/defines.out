@@ -1,0 +1,4 @@
+-- tally --
+slots: 5
+MAX_ITEMS is not defined any more
+limit: 10

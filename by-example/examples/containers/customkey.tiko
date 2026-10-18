@@ -1,0 +1,38 @@
+#import "std/containers"
+
+'' A key type extends Hashable and overrides HashOf( ).
+type Cell extends containers.Hashable
+    as int32 row, col
+    declare constructor( byval row as int32 = 0, byval col as int32 = 0 )
+    declare function HashOf( ) as uint64 override
+end type
+
+constructor Cell( byval row as int32, byval col as int32 )
+    this.row = row
+    this.col = col
+end constructor
+
+'' Hash exactly the fields that '=' compares.
+function Cell.HashOf( ) as uint64
+    return containers.HashOf( row ) xor ( containers.HashOf( col ) shl 1 )
+end function
+
+operator = ( byref a as Cell, byref b as Cell ) as boolean
+    return ( a.row = b.row ) andalso ( a.col = b.col )
+end operator
+
+dim terrain as containers.Map( of Cell, ustring )
+terrain[ Cell( 2, 3 ) ] = "forest"
+terrain[ Cell( 0, 0 ) ] = "river"
+
+'' A different Cell with the same fields finds the same entry.
+dim probe as Cell = Cell( 2, 3 )
+dim as ustring found
+if terrain.TryGet( probe, found ) then print "(2, 3) is "; found
+print "has (3, 2)? "; terrain.Contains( Cell( 3, 2 ) )
+
+'' The same key type works in a Set.
+dim visited as containers.Set( of Cell )
+print "first add: "; visited.Add( Cell( 1, 1 ) )
+print "second add: "; visited.Add( Cell( 1, 1 ) )
+print "count:"; visited.Count( )

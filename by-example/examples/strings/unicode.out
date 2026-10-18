@@ -1,0 +1,6 @@
+café: len 4, characters 4
+face: len 4, characters 3
+units of face: 61 D83D DE00 62
+mid( face, 2, 1 ) is a lone unit: D83D
+UTF-8 bytes: 6, round trip equal: true
+CAFÉ, U+3B1 in upper case is U+391

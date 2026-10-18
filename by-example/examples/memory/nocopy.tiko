@@ -1,0 +1,13 @@
+type Buffer
+    declare constructor( byval size as int32 )
+private:
+    declare constructor( byref other as Buffer )    '' no copies
+    as int32 count
+end type
+
+constructor Buffer( byval size as int32 )
+    count = size
+end constructor
+
+dim a as Buffer = Buffer( 4 )
+dim b as Buffer = a                     '' a second owner? refused

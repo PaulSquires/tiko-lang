@@ -1,0 +1,49 @@
+'' An enum names a set of related integer constants. Values count up
+'' from 0, or on from the last value given.
+enum Colour
+    Red
+    Green
+    Blue = 10
+    Violet
+end enum
+
+print "Red ="; Red; ", Green ="; Green; ", Blue ="; Blue; _
+      ", Violet ="; Violet
+
+'' A variable of the enum's type holds one of its values. The members
+'' can be written plainly or through the enum's name.
+dim as Colour wall = Colour.Blue
+print "wall ="; wall
+wall = Green
+print "wall ="; wall
+
+'' select case reads well with enum members.
+function Describe( byval c as Colour ) as ustring
+    select case c
+    case Red, Violet
+        return "warm"
+    case Green, Blue
+        return "cool"
+    case else
+        return "unknown"
+    end select
+end function
+print "Violet is "; Describe( Violet )
+
+'' An explicit enum must always be qualified, so its short member
+'' names cannot clash with anything else.
+enum Level explicit
+    Low = 1
+    Medium
+    High
+end enum
+dim as Level volume = Level.High
+print "volume ="; volume; ", and High - Low ="; Level.High - Level.Low
+
+'' An enum value converts to an integer freely.
+dim as int32 n = Level.Medium
+print "Medium as an int32:"; n
+
+'' The other direction is not checked: any integer fits.
+wall = 42
+print "wall ="; wall; " is "; Describe( wall )

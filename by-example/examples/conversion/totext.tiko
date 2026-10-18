@@ -1,0 +1,23 @@
+#import "std/strings"
+
+dim as int32 count = 42
+dim as float64 ratio = 2.71828
+dim as boolean ok = true
+
+'' str( x ) is the text of a value, with no leading space.
+print "["; str( count ); "] ["; str( -count ); "] ["; str( ratio ); _
+      "] ["; str( ok ); "]"
+
+'' & converts each side to text and joins them.
+dim as ustring line_ = "count=" & count & ", ratio=" & ratio & ", ok=" & ok
+print line_
+
+'' hex, oct and bin show an integer in another base; a second
+'' argument pads to that many digits.
+print "hex: "; hex( 255 ); " "; hex( 255, 4 ); "  oct: "; oct( 8 ); _
+      "  bin: "; bin( 5, 8 )
+
+'' strings.Format controls width, alignment, precision and base.
+print strings.Format( "[{:>6}] [{:<6}] [{:06}]", count, count, count )
+print strings.Format( "[{:.2f}] [{:.3e}] [{:+}]", ratio, ratio, count )
+print strings.Format( "[{:#x}] [{:#b}] [{:>8}]", count, 5, ok )

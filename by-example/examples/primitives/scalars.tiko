@@ -1,0 +1,27 @@
+#import "std/strings"
+
+'' The scalar types say how big they are in their names.
+dim as int8    tiny  = -128
+dim as int16   small = 32767
+dim as int32   count = 2147483647
+dim as int64   huge  = 9223372036854775807
+dim as uint8   octet = 255
+dim as uint64  mask  = &hFFFFFFFFFFFFFFFF
+dim as float32 ratio = 0.75
+dim as float64 pi    = 3.141592653589793
+dim as boolean ready = true
+
+print strings.Format( "{:<8} {:>5}  {}", "type", "bytes", "value" )
+print strings.Format( "{:<8} {:>5}  {}", "int8", sizeof( tiny ), tiny )
+print strings.Format( "{:<8} {:>5}  {}", "int16", sizeof( small ), small )
+print strings.Format( "{:<8} {:>5}  {}", "int32", sizeof( count ), count )
+print strings.Format( "{:<8} {:>5}  {}", "int64", sizeof( huge ), huge )
+print strings.Format( "{:<8} {:>5}  {}", "uint8", sizeof( octet ), octet )
+print strings.Format( "{:<8} {:>5}  {}", "uint64", sizeof( mask ), mask )
+print strings.Format( "{:<8} {:>5}  {}", "float32", sizeof( ratio ), ratio )
+print strings.Format( "{:<8} {:>5}  {}", "float64", sizeof( pi ), pi )
+print strings.Format( "{:<8} {:>5}  {}", "boolean", sizeof( ready ), ready )
+
+'' Text is a ustring: a sequence of characters that grows as needed.
+dim as ustring label = "primitive"
+print strings.Format( "label is {}, {} characters", label, len( label ) )

@@ -1,0 +1,78 @@
+#import "std/tui"
+
+'' What must outlive one frame, such as a selection, lives in the app.
+type JobsApp extends tui.TuiApp
+    as tui.TuiListState listState
+    declare function Init( ) as tui.TuiCmd override
+    declare function Update( byref e as tui.TuiEvent ) _
+                             as tui.TuiCmd override
+    declare sub View( byref f as tui.TuiFrame ) override
+end type
+
+function JobsApp.Init( ) as tui.TuiCmd
+    listState.selected = 2
+    return tui.TuiNone( )
+end function
+
+function JobsApp.Update( byref e as tui.TuiEvent ) as tui.TuiCmd
+    return tui.TuiNone( )
+end function
+
+function Boxed( byref title as ustring ) as tui.TuiBlock
+    dim as tui.TuiBlock b
+    b.borderKind = tui.TUIBORDER_ASCII
+    b.sides = tui.TUISIDE_ALL
+    b.AddTitle( title, tui.TuiStyleDefault( ), _
+                tui.TUISIDE_TOP, tui.TUIALIGN_LEFT )
+    return b
+end function
+
+sub JobsApp.View( byref f as tui.TuiFrame )
+    '' Rows: a body that fills the space, then a 1-row gauge.
+    dim as tui.TuiConstraintArray rowsC
+    rowsC.Push( tui.TuiFill( ) )
+    rowsC.Push( tui.TuiLength( 1 ) )
+    dim as tui.TuiRectArray band = tui.TuiSplitV( f.Area( ), rowsC )
+
+    '' Columns: the body splits into a 16-column list and the rest.
+    dim as tui.TuiConstraintArray colsC
+    colsC.Push( tui.TuiLength( 16 ) )
+    colsC.Push( tui.TuiFill( ) )
+    dim as tui.TuiRectArray col = tui.TuiSplitH( band[ 0 ], colsC )
+
+    var lb = Boxed( " jobs " )
+    lb.Render( f, col[ 0 ] )
+    dim as tui.TuiList lst
+    lst.items.Push( "backup" )
+    lst.items.Push( "index" )
+    lst.items.Push( "report" )
+    lst.state = @listState
+    lst.selectPrefix = "> "
+    lst.Render( f, lb.Inner( col[ 0 ] ) )
+
+    var db = Boxed( " detail " )
+    db.Render( f, col[ 1 ] )
+    dim as tui.TuiParagraph p
+    p.text = "report: 3 of 4 steps"
+    p.Render( f, db.Inner( col[ 1 ] ) )
+
+    dim as tui.TuiGauge g
+    g.ratio = 0.75
+    g.showLabel = true
+    g.Render( f, band[ 1 ] )
+end sub
+
+dim as JobsApp app
+dim as tui.TuiScreen scr
+scr.Resize( 40, 6 )
+app.Init( )
+tui.TuiRenderOnce( app, scr )
+
+dim as tui.TuiBuffer ptr bf = scr.Front( )
+for y as int32 = 0 to bf->rows - 1
+    dim as ustring row
+    for x as int32 = 0 to bf->cols - 1
+        if bf->At( x, y )->width > 0 then row &= bf->At( x, y )->text
+    next
+    print rtrim( row )
+next

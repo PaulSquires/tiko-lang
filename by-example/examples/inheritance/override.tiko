@@ -1,0 +1,52 @@
+type Animal extends Object
+    declare virtual function Sound( ) as ustring
+end type
+
+function Animal.Sound( ) as ustring
+    return "..."
+end function
+
+'' override alone replaces Animal's Sound, and closes it there.
+type Cat extends Animal
+    declare function Sound( ) as ustring override
+end type
+
+function Cat.Sound( ) as ustring
+    return "meow"
+end function
+
+type Kitten extends Cat
+    declare function Sound( ) as ustring    '' hides; cannot override
+end type
+
+function Kitten.Sound( ) as ustring
+    return "mew"
+end function
+
+'' virtual and override together replace it and keep it open.
+type Dog extends Animal
+    declare virtual function Sound( ) as ustring override
+end type
+
+function Dog.Sound( ) as ustring
+    return "woof"
+end function
+
+type Puppy extends Dog
+    declare function Sound( ) as ustring override
+end type
+
+function Puppy.Sound( ) as ustring
+    return "yip"
+end function
+
+sub Speak( byref a as Animal )
+    print "  through an Animal: "; a.Sound( )
+end sub
+
+dim as Kitten kit
+dim as Puppy pup
+print "kitten, directly: "; kit.Sound( )
+Speak( kit )
+print "puppy, directly: "; pup.Sound( )
+Speak( pup )

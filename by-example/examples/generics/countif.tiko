@@ -1,0 +1,45 @@
+'' F can be any callable: a procedure, a lambda, or a closure.
+function CountIf( of T, F )( items() as T, byref test as F ) as int32
+    dim as int32 n = 0
+    for each x in items
+        if test( x ) then n += 1
+    next
+    return n
+end function
+
+sub Transform( of T, F )( items() as T, byref change as F )
+    for each byref x in items
+        x = change( x )
+    next
+end sub
+
+dim nums( 0 to 5 ) as int32 = { 3, 8, 1, 9, 4, 7 }
+
+'' A lambda that captures nothing, written at the call.
+print "over 5:"; CountIf( nums(), function( byval n as int32 ) as boolean
+    return n > 5
+end function )
+
+'' A closure: it carries its own copy of limit.
+dim as int32 limit = 3
+var overLimit = function[ byval limit ]( byval n as int32 ) as boolean
+    return n > limit
+end function
+print "over"; limit; ":"; CountIf( nums(), overLimit )
+
+'' The same generic, with a lambda that returns a new value.
+var tenfold = function( byval n as int32 ) as int32
+    return n * 10
+end function
+Transform( nums(), tenfold )
+for each n in nums
+    print n;
+next
+print
+
+'' T is now ustring; the lambda's parameter matches it.
+dim words( 0 to 2 ) as ustring = { "fig", "banana", "kiwi" }
+var fourLetters = function( byref w as ustring ) as boolean
+    return len( w ) = 4
+end function
+print "four letters:"; CountIf( words(), fourLetters )

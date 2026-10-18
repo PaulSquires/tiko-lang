@@ -1,0 +1,31 @@
+#import "std/numeric"
+
+dim as int32 top = 2147483647
+
+'' Stored back in an int32, a sum past the top wraps, silently.
+dim as int32 wrapped = top + 1
+print "top + 1 as int32 ="; wrapped
+
+'' The same happens to unsigned types, at both ends.
+dim as uint8 small = 255
+small += 1
+print "255 + 1 as uint8 = "; small
+small -= 1
+print "0 - 1 as uint8   = "; small
+
+'' Checked: an empty Optional instead of a wrong number.
+var sum = numeric.AddChecked( top, 1 )
+print "AddChecked( top, 1 ) has a value: "; sum.HasValue( )
+print "AddChecked( top, -1 ) ="; numeric.AddChecked( top, -1 ).Value( )
+
+'' Saturating: stop at the end of the range.
+print "AddSaturating( top, 1 ) ="; numeric.AddSaturating( top, 1 )
+
+'' Wrapping: what + does, spelled so a reader knows it was meant.
+print "AddWrapping( top, 1 )   ="; numeric.AddWrapping( top, 1 )
+
+'' ^ works in float64, so above 2^53 an integer power is rounded.
+dim as int64 b = 3, e = 38
+dim as int64 viaPow = b ^ e
+print "3 ^ 38       ="; viaPow
+print "IPow( 3, 38 ) ="; numeric.IPow( b, e )

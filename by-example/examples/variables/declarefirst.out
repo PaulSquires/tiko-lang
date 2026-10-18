@@ -1,0 +1,7 @@
+count = 0, total = 0, done = false, label = ""
+verdict: empty
+t = 0 0, slots = 0 0
+pass 1: n = 1
+pass 2: n = 2
+pass 3: n = 3
+scratch = 7

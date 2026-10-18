@@ -1,0 +1,26 @@
+'' The same table as an array of records: the compiler checks every
+'' value's type, and the count comes from the array itself.
+type Question
+    as ustring text, answer
+    declare constructor( )
+    declare constructor( byval t as ustring, byval a as ustring )
+end type
+
+constructor Question( )
+end constructor
+
+constructor Question( byval t as ustring, byval a as ustring )
+    text = t
+    answer = a
+end constructor
+
+dim quiz( 1 to 3 ) as Question = { _
+    Question( "Capital of France?", "Paris" ), _
+    Question( "Largest planet?", "Jupiter" ), _
+    Question( "Square root of 81?", "9" ) }
+var bonus = Question( "Year the first BASIC ran?", "1964" )
+
+for i as int32 = lbound( quiz ) to ubound( quiz )
+    print "Q"; i; ": "; quiz( i ).text; " -- "; quiz( i ).answer
+next
+print "Bonus: "; bonus.text; " -- "; bonus.answer

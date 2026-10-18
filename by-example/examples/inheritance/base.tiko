@@ -1,0 +1,44 @@
+type Account extends Object
+    '' Defaults give Account a constructor that needs no argument, which
+    '' every type derived from it needs to be copyable.
+    declare constructor( byref owner as ustring = "", _
+                         byval opening as int64 = 0 )
+    declare virtual function Describe( ) as ustring
+    owner as ustring
+    balance as int64
+end type
+
+constructor Account( byref owner as ustring, byval opening as int64 )
+    this.owner = owner
+    balance = opening
+    print "  Account constructor"
+end constructor
+
+function Account.Describe( ) as ustring
+    return owner & ": " & balance
+end function
+
+type Savings extends Account
+    declare constructor( byref owner as ustring, byval opening as int64, _
+                         byval rate as float64 )
+    declare function Describe( ) as ustring override
+    rate as float64
+end type
+
+constructor Savings( byref owner as ustring, byval opening as int64, _
+                     byval rate as float64 )
+    '' base( ... ) picks the base constructor; it runs before the rest.
+    base( owner, opening )
+    this.rate = rate
+    print "  Savings constructor"
+end constructor
+
+'' base.Describe( ) calls Account's version, not this one, so the
+'' derived text extends the base text instead of repeating it.
+function Savings.Describe( ) as ustring
+    return base.Describe( ) & " at " & rate & "%"
+end function
+
+dim as Savings s = Savings( "Ada", 500, 2.5 )
+dim as Account ptr p = @s
+print p->Describe( )

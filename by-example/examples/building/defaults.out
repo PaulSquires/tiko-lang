@@ -1,0 +1,5 @@
+this build:
+runtime error checks: false
+thread-safe runtime:  false
+debug build:          false
+optimisation level:    0

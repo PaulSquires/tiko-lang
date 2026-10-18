@@ -1,0 +1,14 @@
+'' The same menu with select case: no labels, no jumps.
+for choice as int32 = 0 to 4
+    print "choice"; choice; ": ";
+    select case choice
+    case 1
+        print "adding a record"
+    case 2
+        print "listing the records"
+    case 3
+        print "quitting"
+    case else
+        print "no such option"
+    end select
+next

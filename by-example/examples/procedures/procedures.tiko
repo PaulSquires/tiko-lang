@@ -1,0 +1,28 @@
+'' A sub does something. A function answers something.
+
+sub Greet( byref who as ustring )
+    print "Hello, " & who & "!"
+end sub
+
+function Square( byval n as int32 ) as int32
+    return n * n
+end function
+
+'' function = sets the result and carries on; return leaves at once.
+function Sign( byval n as int32 ) as ustring
+    function = "positive"
+    if n < 0 then return "negative"
+    if n = 0 then function = "zero"
+end function
+
+Greet( "world" )
+print "Square( 12 ) ="; Square( 12 )
+print Sign( -4 ) & " " & Sign( 0 ) & " " & Sign( 9 )
+
+'' A function's answer may be ignored; the call still happens.
+function Report( ) as int32
+    print "Report ran"
+    return 1
+end function
+
+Report( )

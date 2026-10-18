@@ -1,0 +1,19 @@
+#import "std/chrono"
+
+'' Five value types, each for one idea.
+var day   = chrono.LocalDate( 2025, 3, 4 )
+var clock = chrono.LocalTime( 14, 30, 5, 250 )
+var when  = chrono.DateTime( 2025, 3, 4, 14, 30, 5, 0 )
+var at    = when.WithOffset( 60 ).ToInstant( )
+var span  = chrono.TimeSpan( 1, 2, 3, 4, 500 )
+
+print "LocalDate  "; day.ToIsoString( )
+print "LocalTime  "; clock.ToIsoString( )
+print "DateTime   "; when.ToIsoString( )
+print "Instant    "; at.ToIsoString( )
+print "TimeSpan   "; span.ToIsoString( )
+
+'' Values never change in place: AddDays returns a new date.
+var next_ = day.AddDays( 1 )
+print "day is still "; day.ToIsoString( ); _
+      ", the next is "; next_.ToIsoString( )

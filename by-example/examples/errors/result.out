@@ -1,0 +1,6 @@
+port 8080
+refused: 'http' is not a number
+refused: 70000 is outside 1 to 65535
+refused: the port is empty
+or the default: 80
+a new Result is ok: false

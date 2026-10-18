@@ -1,0 +1,19 @@
+'' A small order: the quantity and price arrive as text.
+dim as ustring quantityText = "12"
+dim as ustring priceText = "7.29"
+
+'' Text to number: val reads a float64, valint a whole number.
+var quantity = valint( quantityText )
+var price = val( priceText )
+
+'' Number to number: arithmetic converts to the wider type, and
+'' cint converts back to a whole number, rounding.
+var total = quantity * price
+var wholeTotal = cint( total )
+var perItem = cast( float32, total / quantity )
+
+'' Number to text: str, or the & operator.
+dim as ustring report = "total " & str( total ) & ", about " & _
+                         wholeTotal & ", or " & perItem & " each"
+print report
+print "the report is"; len( report ); " characters of text"

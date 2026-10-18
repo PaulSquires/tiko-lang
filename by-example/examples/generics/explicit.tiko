@@ -1,0 +1,31 @@
+'' Writing the type arguments yourself.
+type Pair( of K, V )
+    as K first
+    as V second
+end type
+
+'' A name for an instantiation you use often.
+type Score as Pair( of ustring, int32 )
+
+function Larger( of T )( byval a as T, byval b as T ) as T
+    if a > b then return a
+    return b
+end function
+
+'' T appears only in the result, so no call could infer it.
+function Blank( of T )( ) as T
+    dim value as T
+    return value
+end function
+
+'' Mixed arguments: name T, and both arguments convert to it.
+print Larger( of float64 )( 2, 2.5 )
+print Larger( of int32 )( 7, 3 )
+
+print Blank( of int32 )( ); " ["; Blank( of ustring )( ); "]"
+
+dim best as Score
+best.first = "ada"
+best.second = 36
+dim same as Pair( of ustring, int32 ) = best    '' one type, two names
+print same.first; same.second

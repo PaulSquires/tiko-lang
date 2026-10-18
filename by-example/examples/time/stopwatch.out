@@ -1,0 +1,6 @@
+total: 500000500000
+running: true
+elapsed >= 0: true
+a later reading is not smaller: true
+stopped, so unchanged: true
+running: false

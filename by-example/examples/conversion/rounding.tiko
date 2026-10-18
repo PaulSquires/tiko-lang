@@ -1,0 +1,29 @@
+#import "std/numeric"
+
+'' Right-align a number in a column 6 wide.
+function Cell( byval v as float64 ) as ustring
+    var s = str( v )
+    return space( 6 - len( s ) ) & s
+end function
+
+dim as float64 samples( 1 to 8 ) = _
+    { 0.5, 1.5, 2.5, 2.6, -0.5, -1.5, -2.5, -2.6 }
+
+print "     x  cint   int   fix  Round  HalfEven"
+for i as int32 = 1 to 8
+    var x = samples( i )
+    print Cell( x ); Cell( cint( x ) ); Cell( int( x ) ); Cell( fix( x ) ); _
+          Cell( numeric.Round( x ) ); "  "; Cell( numeric.RoundHalfEven( x ) )
+next
+print
+
+'' Every float-to-integer conversion rounds the way cint does.
+dim as int32 assigned = 2.5
+print "dim as int32 = 2.5 gives"; assigned
+print "cast( int32, 3.5 ) gives"; cast( int32, 3.5 )
+print
+
+'' Floor and Ceil round towards minus and plus infinity.
+print "Floor( -1.5 ) ="; numeric.Floor( -1.5 ); _
+      ", Ceil( -1.5 ) ="; numeric.Ceil( -1.5 )
+print "Round( 3.14159, 2 ) ="; numeric.Round( 3.14159, 2 )

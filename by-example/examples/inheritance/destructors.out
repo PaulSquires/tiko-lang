@@ -1,0 +1,6 @@
+delete through a Plain ptr:
+  ~Plain
+delete through a Connection ptr:
+  ~TlsSocket: session ended
+  ~Socket: socket closed
+  ~Connection

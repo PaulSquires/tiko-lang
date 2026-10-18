@@ -1,0 +1,29 @@
+'' redim preserve on a grid keeps the elements in memory order, which
+'' is row by row. Changing the number of columns moves them.
+sub ShowGrid( g( , ) as int32 )
+    for r as int32 = lbound( g, 1 ) to ubound( g, 1 )
+        print " ";
+        for c as int32 = lbound( g, 2 ) to ubound( g, 2 )
+            print g( r, c );
+        next
+        print
+    next
+end sub
+
+dim as int32 g( )
+redim g( 1 to 2, 1 to 3 )
+for r as int32 = 1 to 2
+    for c as int32 = 1 to 3
+        g( r, c ) = r * 10 + c
+    next
+next
+print "before:"
+ShowGrid( g( ) )
+
+redim preserve g( 1 to 3, 1 to 3 )       '' one more row: safe
+print "a row added:"
+ShowGrid( g( ) )
+
+redim preserve g( 1 to 3, 1 to 4 )       '' one more column: moves
+print "a column added:"
+ShowGrid( g( ) )

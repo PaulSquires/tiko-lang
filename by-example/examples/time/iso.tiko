@@ -1,0 +1,29 @@
+#import "std/chrono"
+
+'' ToIsoString writes one canonical form for each value.
+var when = chrono.DateTime( 2025, 3, 4, 14, 30, 5, 0 )
+print when.ToIsoString( )
+print when.WithOffset( 330 ).ToIsoString( )
+print when.AssumeUtc( ).ToIsoString( )
+
+'' TryParseIso reads several ISO 8601 forms, and refuses guesses.
+dim inputs( ... ) as ustring = { _
+    "2025-03-04T14:30:05Z", "2025-03-04 14:30:05+05:30", _
+    "20250304T143005Z", "2025-W10-2", "2025-063", _
+    "03/04/2025", "2025-02-30" }
+
+for i as int32 = 0 to ubound( inputs )
+    dim d as chrono.DateTime
+    var ok = chrono.DateTime.TryParseIso( inputs( i ), d )
+    print left( inputs( i ) & space( 27 ), 27 ); _
+          iif( ok, d.ToIsoString( ), "refused" )
+next
+
+'' Durations have an ISO form too. A month is not a fixed length.
+dim spans( ... ) as ustring = { "PT90M", "P1W", "P1DT0.5S", "P1M" }
+for i as int32 = 0 to ubound( spans )
+    dim s as chrono.TimeSpan
+    var ok = chrono.TimeSpan.TryParseIso( spans( i ), s )
+    print left( spans( i ) & space( 10 ), 10 ); _
+          iif( ok, s.ToIsoString( ), "refused" )
+next

@@ -1,0 +1,47 @@
+#import "std/tasks"
+#cmdline "-mt"
+
+'' Would count for ever; stops as soon as its context is done.
+sub Counter( byval ctx as tasks.Context, _
+            byval out_ as tasks.Channel( of int32 ), _
+            byval report as tasks.SendChan( of ustring ) )
+    dim as int32 sent = 0
+    do
+        select channel
+            case send sent + 1 to out_     : sent += 1
+            case receive from ctx.Done( )  : exit do
+        end select
+    loop
+    report.Send( "sent " & sent & ", then " & ctx.Err( ) )
+end sub
+
+'' Polls in small steps until its context is done.
+sub Poll( byval ctx as tasks.Context, _
+          byval report as tasks.SendChan( of ustring ) )
+    do until ctx.IsCancelled( )
+        sleep 5, 1                         '' one small piece of work
+    loop
+    report.Send( "poll stopped: " & ctx.Err( ) )
+end sub
+
+var reports = tasks.Channel( of ustring )( 1 )
+dim as ustring why
+
+'' Cancelled by hand, after taking three values.
+var ctx = tasks.WithCancel( tasks.Context( ) )
+var values = tasks.Channel( of int32 )( 0 )
+spawn Counter( ctx, values, reports )
+dim as int32 v
+for k as int32 = 1 to 3
+    values.Receive( v )
+    print "got"; v
+next
+ctx.Cancel( )
+reports.Receive( why )
+print why
+
+'' Cancelled by its own deadline, 50 ms from now.
+var deadline = tasks.WithTimeout( tasks.Context( ), 50 )
+spawn Poll( deadline, reports )
+reports.Receive( why )
+print why

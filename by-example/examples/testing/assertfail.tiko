@@ -1,0 +1,15 @@
+'' A failed assert reports its file, line, procedure and condition on
+'' standard error, and ends the program with exit code 1.
+#cmdline "-eassert"
+
+function Half( byval n as int32 ) as int32
+    return n \ 2
+end function
+
+sub TestHalf( )
+    assert( Half( 10 ) = 5 )
+    assert( Half( 7 ) = 4 )        '' wrong: 7 \ 2 is 3
+    print "not reached"
+end sub
+
+TestHalf( )

@@ -1,0 +1,49 @@
+'' The iterator: where the walk is, and how to move on.
+type RangeIterator
+    as int32 at, last, stride
+    declare function IsValid( ) as boolean
+    declare function Value( ) as int32
+    declare sub MoveNext( )
+end type
+
+function RangeIterator.IsValid( ) as boolean    '' is there an element?
+    if stride > 0 then return at <= last
+    return at >= last
+end function
+
+function RangeIterator.Value( ) as int32        '' the current element
+    return at
+end function
+
+sub RangeIterator.MoveNext( )                   '' step to the next one
+    at += stride
+end sub
+
+'' The collection only has to hand out an iterator.
+type Range
+    as int32 first, last, stride
+    declare function GetIterator( ) as RangeIterator
+end type
+
+function Range.GetIterator( ) as RangeIterator
+    print "(GetIterator)"
+    return type( first, last, stride )          '' on the first element
+end function
+
+dim evens as Range = ( 0, 10, 2 )
+for each n in evens
+    print n;
+next
+print
+
+dim countdown as Range = ( 5, 1, -1 )
+for each n in countdown
+    print n;
+next
+print " lift-off"
+
+dim backwards as Range = ( 1, 5, -1 )           '' steps away: empty
+for each n in backwards
+    print "never printed"
+next
+print "an empty range walks zero times"

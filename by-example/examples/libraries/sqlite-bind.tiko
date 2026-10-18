@@ -1,0 +1,63 @@
+#import "vendor/sqlite3"
+
+'' SQLite reports failure as a result code; this turns one into a stop.
+sub Check( byval rc as int32, byval db as sqlite3 ptr )
+    if rc <> SQLITE_OK andalso rc <> SQLITE_DONE then
+        print "SQLite error"; rc; ": "; *sqlite3_errmsg( db )
+        end 1
+    end if
+end sub
+
+sub Execute( byval db as sqlite3 ptr, byref sql as ustring )
+    Check( sqlite3_exec( db, sql, nullptr, nullptr, nullptr ), db )
+end sub
+
+dim db as sqlite3 ptr
+Check( sqlite3_open( ":memory:", @db ), db )
+Execute( db, "create table item( id integer primary key, " & _
+         "name text not null, price int )" )
+
+'' Each ? is a parameter: the values never become part of the SQL.
+dim as ustring names( ... ) = { "tea", "O'Brien's jam", "bread" }
+dim as int64 prices( ... ) = { 450, 799, 320 }
+dim ins as sqlite3_stmt ptr
+Check( sqlite3_prepare_v2( db, _
+    "insert into item( name, price ) values( ?, ? )", _
+    -1, @ins, nullptr ), db )
+for i as int32 = 0 to ubound( names )
+    sqlite3_bind_text( ins, 1, names( i ), -1, SQLITE_TRANSIENT )
+    sqlite3_bind_int64( ins, 2, prices( i ) )
+    Check( sqlite3_step( ins ), db )
+    sqlite3_reset( ins )
+next
+sqlite3_finalize( ins )
+print "last id:"; sqlite3_last_insert_rowid( db )
+
+'' A parameter in a query, too.
+dim sel as sqlite3_stmt ptr
+Check( sqlite3_prepare_v2( db, "select name from item where price > ?", _
+    -1, @sel, nullptr ), db )
+sqlite3_bind_int64( sel, 1, 400 )
+do while sqlite3_step( sel ) = SQLITE_ROW
+    print "over 4.00: "; *cast( zstring ptr, sqlite3_column_text( sel, 0 ) )
+loop
+sqlite3_finalize( sel )
+
+'' A transaction: everything in it happens, or nothing does.
+Execute( db, "begin" )
+Execute( db, "delete from item" )
+Execute( db, "rollback" )
+Check( sqlite3_prepare_v2( db, "select count( * ) from item", _
+    -1, @sel, nullptr ), db )
+sqlite3_step( sel )
+print "after the rollback:"; sqlite3_column_int( sel, 0 ); " items"
+sqlite3_finalize( sel )
+
+'' A failure is a result code, and SQLite says why.
+dim errMsg as zstring ptr
+if sqlite3_exec( db, "insert into item( price ) values( 1 )", _
+                 nullptr, nullptr, @errMsg ) <> SQLITE_OK then
+    print "refused: "; *errMsg
+    sqlite3_free( errMsg )
+end if
+sqlite3_close( db )

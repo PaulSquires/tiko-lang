@@ -1,0 +1,6 @@
+sizeof( Bits32 ) = 4
+1.0 as a float32 is the bit pattern &h3F800000
+its bytes, lowest address first: 00 00 80 3F
+an int64: 42
+a float64: 2.5
+sizeof( Value ) = 16, i and f both at offset 8 8

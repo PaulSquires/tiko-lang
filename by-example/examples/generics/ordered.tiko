@@ -1,0 +1,25 @@
+'' Largest( of T ) needs '>' on T.
+function Largest( of T )( items() as T ) as T
+    var best = items( lbound( items ) )
+    for each x in items
+        if x > best then best = x
+    next
+    return best
+end function
+
+type Version
+    as int32 major, minor
+end type
+
+'' Supply the operator the generic asks for.
+operator > ( byref a as Version, byref b as Version ) as boolean
+    if a.major <> b.major then return a.major > b.major
+    return a.minor > b.minor
+end operator
+
+dim releases( 0 to 2 ) as Version = { ( 1, 4 ), ( 2, 0 ), ( 1, 9 ) }
+var newest = Largest( releases() )
+print "newest:"; newest.major; "."; str( newest.minor )
+
+dim scores( 0 to 3 ) as int32 = { 70, 85, 90, 62 }
+print "best score:"; Largest( scores() )

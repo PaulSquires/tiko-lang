@@ -1,0 +1,9 @@
+Ada 555-0100 / Ada 555-0199
+dim as Samples y = x
+  copy constructor
+z = x
+  operator let
+Inspect( x )
+  copy constructor
+  Inspect sees 7
+x, y, z hold 7 8 7

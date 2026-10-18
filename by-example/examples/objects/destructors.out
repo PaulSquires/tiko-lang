@@ -1,0 +1,22 @@
+start
+  + program-wide
+a scope:
+  + first
+  + second
+  - second
+  - first
+a procedure:
+  + local to Work
+  working
+  - local to Work
+a loop:
+  + pass 1
+  - pass 1
+  + pass 2
+  - pass 2
+a temporary:
+  + temporary
+  - temporary
+  its label had 9 characters
+end
+  - program-wide

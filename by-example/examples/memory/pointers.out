@@ -1,0 +1,8 @@
+*p = 10
+n is now 20
+pt is 30 4
+first[2] = 30, *( first + 3 ) = 40
+int32 ptr + 1 moves 4
+uint8 ptr + 1 moves 1
+walked: 10 20 30 40 50
+lastOne - first = 4

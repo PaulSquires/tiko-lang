@@ -1,0 +1,9 @@
+C:\tools\new ["quoted"]
+tab:[	] quote:["] backslash:[\]
+two lines:
+  this is the second
+AB C D
+café is 4 characters
+U+1F600 is 2 code units
+raw: \t \n
+true

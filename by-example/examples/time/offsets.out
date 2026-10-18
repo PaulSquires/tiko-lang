@@ -1,0 +1,8 @@
+naive:      2025-03-04T09:00:00  has offset: false
+as instant valid: false
+Toronto:    2025-03-04T09:00:00-05:00
+UTC:        2025-03-04T14:00:00Z
+Kolkata:    2025-03-04T19:30:00+05:30
+same instant: true
+local offset within 18 hours: true
+local reading converts back: true

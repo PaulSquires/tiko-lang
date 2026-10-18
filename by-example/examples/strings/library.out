@@ -1,0 +1,15 @@
+starts with reports: true
+ends with .TIKO:     false
+  ... ignoring case: true
+contains /2026/:     true
+slashes: 2
+reports | 2026/summary.tiko
+42
+reports\2026\summary.tiko
+1234567
+far too many spaces|
+The Quick Brown Fox
+desserts ababab
+[000042] [id....] [  mid  ]
+true false
+true false

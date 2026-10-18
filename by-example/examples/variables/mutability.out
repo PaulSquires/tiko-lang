@@ -1,0 +1,5 @@
+score = 15
+MaxScore = 100
+lives = 3, snapshot = 15, score = 0
+showing 0
+after two bumps, score = 2

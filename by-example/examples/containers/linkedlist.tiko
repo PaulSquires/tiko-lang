@@ -1,0 +1,23 @@
+#import "std/containers"
+
+'' As a queue: in at the back, out at the front.
+dim jobs as containers.LinkedList( of ustring )
+jobs.PushBack( "build" )
+jobs.PushBack( "test" )
+jobs.PushFront( "fetch" )                '' jumps the queue
+print "front: "; jobs.Front( ); ", back: "; jobs.Back( )
+do until jobs.IsEmpty( )
+    print "doing "; jobs.PopFront( )
+loop
+
+'' As a stack: in and out at the same end.
+dim undo as containers.LinkedList( of ustring )
+undo.PushBack( "type" )
+undo.PushBack( "bold" )
+undo.PushBack( "delete" )
+print "undo "; undo.PopBack( ); ", then "; undo.PopBack( )
+print undo.Count( ); " left: "; undo.Back( )
+
+'' An empty list pops a default value instead of failing.
+dim empty as containers.LinkedList( of int32 )
+print "pop of empty:"; empty.PopFront( )

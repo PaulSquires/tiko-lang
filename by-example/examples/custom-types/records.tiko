@@ -1,0 +1,35 @@
+'' A type groups named fields into one value.
+type Point
+    as int32 x, y
+end type
+
+'' Fields can be other types, and can declare a starting value.
+type Frame
+    as Point origin
+    as Point size = ( 640, 480 )
+    as ustring title = "untitled"
+    as boolean visible = true
+end type
+
+'' A list in parentheses fills the fields in declaration order.
+dim as Point corner = ( 3, 4 )
+print "corner:"; corner.x; corner.y
+
+'' Fields you do not set start at their declared value, or zero.
+dim as Frame w
+print "fresh frame: "; w.title; ","; w.size.x; " x"; w.size.y; _
+      ", origin"; w.origin.x; w.origin.y; ", visible "; w.visible
+
+'' A dot reaches a field; a second dot reaches into a nested type.
+w.title = "editor"
+w.origin = corner
+w.size.x = 800
+print "edited:      "; w.title; ","; w.size.x; " x"; w.size.y; _
+      ", origin"; w.origin.x; w.origin.y
+
+'' Assignment copies every field. The copy is independent.
+dim as Frame twin = w
+twin.title = "twin"
+twin.origin.x = 99
+print "original: "; w.title; w.origin.x
+print "twin:     "; twin.title; twin.origin.x

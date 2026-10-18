@@ -1,0 +1,42 @@
+'' A stack of anything: T stands for the element type.
+type Stack( of T )
+    declare sub Push( byval item as T )
+    declare function Pop( ) as T
+    declare property Count( ) as int32
+private:
+    as T items( any )
+    as int32 used
+end type
+
+'' Members written outside the type repeat its ( of T ).
+sub Stack( of T ).Push( byval item as T )
+    if used > ubound( items ) then redim preserve items( used * 2 + 3 )
+    items( used ) = item
+    used += 1
+end sub
+
+function Stack( of T ).Pop( ) as T
+    used -= 1
+    return items( used )
+end function
+
+property Stack( of T ).Count( ) as int32
+    return used
+end property
+
+dim numbers as Stack( of int32 )
+for i as int32 = 1 to 4
+    numbers.Push( i * i )
+next
+
+dim words as Stack( of ustring )
+words.Push( "first" )
+words.Push( "second" )
+
+print "numbers:"; numbers.Count; ", words:"; words.Count
+do while numbers.Count > 0
+    print numbers.Pop( );
+loop
+print
+print words.Pop( )
+print words.Pop( )

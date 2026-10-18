@@ -1,0 +1,28 @@
+#import "std/strings"
+
+'' strings.Format fills {} placeholders with its arguments, in order.
+print strings.Format( "{} days", 31 )
+print strings.Format( "{} plus {} is {}", 2, 3, 2 + 3 )
+
+'' A number inside the braces picks an argument by position.
+print strings.Format( "{0}, this is {1}. {1}, this is {0}.", _
+                      "Alice", "Bob" )
+
+'' After a colon comes the format spec: fill, alignment, width.
+print strings.Format( "[{:>8}]", "right" )
+print strings.Format( "[{:<8}]", "left" )
+print strings.Format( "[{:^8}]", "mid" )
+print strings.Format( "[{:-^12}]", "fill" )
+
+'' Zero padding and a sign.
+print strings.Format( "{:05} {:+}", 42, 7 )
+
+'' Other bases, with or without a prefix.
+print strings.Format( "{:x} {:#x} {:o} {:b}", 255, 255, 8, 5 )
+
+'' Precision for floating-point values.
+dim as float64 pi = 3.14159265358979
+print strings.Format( "pi is about {:.3f}", pi )
+
+'' {{ and }} print literal braces.
+print strings.Format( "{{}} is an empty pair" )

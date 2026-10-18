@@ -1,0 +1,25 @@
+'' Questions answered while compiling, not while running.
+type Header
+    magic as uint32
+    size as uint32
+end type
+
+'' #assert stops the build when its condition is false: if a field is
+'' ever added to Header, this program no longer compiles.
+#assert sizeof( Header ) = 8
+
+dim as int32 count = 0
+dim as int64 total = 0
+
+'' #if typeof( ) compares two types exactly.
+#if typeof( count ) = typeof( int32 )
+    print "count is an int32"
+#endif
+#if typeof( total ) <> typeof( count )
+    print "total is a different type"
+#endif
+
+'' #print reports a note while the program compiles.
+#print the Header layout is checked
+
+print "Header is"; sizeof( Header ); " bytes"

@@ -1,0 +1,5 @@
+count: 8 bytes, price: 8 bytes, ready: 1 byte, tiny: 1 byte
+mean = 3.5, total = 42.5, 8 bytes
+int16 + int16 = 60000 in 8 bytes
+other = 200 in 1 byte, another = 1.5
+tiny after 255 + 1 = 0

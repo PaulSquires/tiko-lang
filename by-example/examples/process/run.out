@@ -1,0 +1,5 @@
+parent: running the child with exec
+  child: hello from the child
+parent: exec returned 7
+parent: shell( "exit 3" ) returned 3
+parent: read [  child: hello from the child]

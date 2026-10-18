@@ -1,0 +1,19 @@
+'' One function, two answers: a tuple carries both.
+function MinMax( values() as int32 ) as (lo as int32, hi as int32)
+    var lo = values( lbound( values ) ), hi = lo
+    for each v in values            '' for each needs no index
+        if v < lo then lo = v
+        if v > hi then hi = v
+    next
+    return (lo, hi)
+end function
+
+dim temps( 0 to 4 ) as int32 = { 12, -3, 25, 7, 0 }
+
+'' Take the tuple apart into two new variables...
+var (coldest, warmest) = MinMax( temps() )
+print "coldest"; coldest; ", warmest"; warmest
+
+'' ...or keep it whole and use its element names.
+var range_ = MinMax( temps() )
+print "spread:"; range_.hi - range_.lo

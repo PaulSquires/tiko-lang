@@ -1,0 +1,14 @@
+'' #assert is checked while the program is compiled.
+const SLOTS = 12
+const SLOT_BYTES = 64
+
+type Header
+    as uint32 magic
+    as uint16 version, flags
+end type
+
+#assert SLOTS mod 4 = 0                 '' the table is read in fours
+#assert SLOTS * SLOT_BYTES <= 1024      '' it fits in one page
+#assert sizeof( Header ) = 8            '' the file format says so
+
+print "slots:"; SLOTS; ", bytes:"; SLOTS * SLOT_BYTES

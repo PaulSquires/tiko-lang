@@ -1,0 +1,8 @@
+n = 0
+  result 0
+n = 3
+  freed
+  result 14
+n = 2000
+  freed
+  result-2

@@ -1,0 +1,34 @@
+#import "std/containers"
+
+'' A procedure that takes another procedure is "higher-order". Taking it
+'' as a generic F accepts plain lambdas and capturing closures alike.
+sub Repeat( of F )( byval times as int32, byref action as F )
+    for i as int32 = 1 to times
+        action( i )
+    next
+end sub
+
+dim as int32 sumOfSquares = 0
+Repeat( 4, sub[ byref sumOfSquares ]( byval i as int32 )
+    sumOfSquares += i * i
+end sub )
+print "1 + 4 + 9 + 16 ="; sumOfSquares
+
+'' The standard containers take callables the same way.
+dim scores as containers.Array( of int32 ) = { 72, 95, 41, 88, 60 }
+
+'' SortBy asks the comparer one question: does a come before b?
+containers.SortBy( scores, function( byref a as int32, _
+                                     byref b as int32 ) as boolean
+    return a > b
+end function )
+
+'' ForEach hands each element to an action; this one counts passes.
+dim as int32 passMark = 60, passed = 0
+containers.ForEach( scores, _
+    sub[ byval passMark, byref passed ]( byref s as int32 )
+        print s;
+        if s >= passMark then passed += 1
+    end sub )
+print
+print passed; " of"; scores.Count( ); " scores passed"

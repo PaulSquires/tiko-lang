@@ -1,0 +1,33 @@
+type TickIterator
+    as int32 left
+    declare function IsValid( ) as boolean
+    declare function Value( ) as int32
+    declare sub MoveNxt( )                      '' misspelt
+end type
+
+function TickIterator.IsValid( ) as boolean
+    return left > 0
+end function
+
+function TickIterator.Value( ) as int32
+    return left
+end function
+
+sub TickIterator.MoveNxt( )
+    left -= 1
+end sub
+
+type Ticks
+    as int32 count
+    declare function GetIterator( ) as TickIterator
+end type
+
+function Ticks.GetIterator( ) as TickIterator
+    return type( count )
+end function
+
+dim three as Ticks
+three.count = 3
+for each t in three
+    print t
+next

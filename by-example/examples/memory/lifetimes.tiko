@@ -1,0 +1,25 @@
+type Counter
+    as int32 value
+    declare constructor( byval start as int32 )
+    declare destructor( )
+end type
+
+constructor Counter( byval start as int32 )
+    value = start
+    print "  made"; value
+end constructor
+
+destructor Counter( )
+    print "  gone"; value
+end destructor
+
+function MakeOnHeap( byval n as int32 ) as Counter ptr
+    dim onStack as Counter = Counter( n )   '' lives until end function
+    return new Counter( n * 10 )            '' lives until delete
+end function
+
+print "calling"
+dim as Counter ptr kept = MakeOnHeap( 4 )
+print "back, and the heap one is still here:"; kept->value
+delete kept
+print "done"

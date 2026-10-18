@@ -1,0 +1,8 @@
+'' Compiled on its own: tiko -c greet.tiko writes greet.o.
+sub Greet( byval who as ustring )
+    print "hello, "; who
+end sub
+
+'' The top level of a file that is not the main one runs before the
+'' program starts.
+print "greet.tiko is set up"

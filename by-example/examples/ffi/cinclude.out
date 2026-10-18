@@ -1,0 +1,4 @@
+div( 47, 10 ): 4, 7
+strlen: 6
+ 1 3 5 7 9
+RAND_MAX is positive: true

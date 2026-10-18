@@ -1,0 +1,5 @@
+columns = 80, rows = 25
+title = console, ratio = 3.2
+count = 3, greeting = hello, area = 2000
+count = 4, greeting = hello, world
+average = 500

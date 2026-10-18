@@ -1,0 +1,44 @@
+type Vehicle
+    declare constructor( byval wheels as int32 = 4 )
+    declare function Describe( ) as ustring
+    wheels as int32
+    speed as int32
+end type
+
+constructor Vehicle( byval wheels as int32 )
+    this.wheels = wheels
+end constructor
+
+function Vehicle.Describe( ) as ustring
+    return wheels & " wheels at " & speed & " km/h"
+end function
+
+'' A Bicycle is a Vehicle with more fields.
+type Bicycle extends Vehicle
+    declare constructor( byval gears as int32 )
+    gears as int32
+end type
+
+constructor Bicycle( byval gears as int32 )
+    base( 2 )                       '' build the Vehicle part first
+    this.gears = gears
+end constructor
+
+'' Anything written for a Vehicle accepts a Bicycle.
+sub Report( byref v as Vehicle )
+    print "  "; v.Describe( )
+end sub
+
+dim as Bicycle bike = Bicycle( 21 )
+bike.speed = 25                     '' a field it inherited
+print "bike has"; bike.gears; " gears"
+Report( bike )
+
+dim as Vehicle car
+car.speed = 90
+Report( car )
+
+'' The base's fields come first, laid out exactly as in a Vehicle.
+print "sizes:"; sizeof( Vehicle ); sizeof( Bicycle )
+print "offsets:"; offsetof( Bicycle, wheels ); offsetof( Bicycle, speed ); _
+      offsetof( Bicycle, gears )

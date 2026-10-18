@@ -1,0 +1,56 @@
+#import "std/tasks"
+#import "std/containers"
+#cmdline "-mt"
+
+'' Each worker takes jobs until the jobs channel is closed and empty.
+sub Worker( byval jobs as tasks.RecvChan( of int32 ), _
+            byval results as tasks.SendChan( of int32 ), _
+            byval wg as tasks.WaitGroup ptr )
+    dim as int32 n
+    do while jobs.Receive( n )
+        results.Send( n * n )
+    loop
+    wg->Done( )                       '' this worker has finished
+end sub
+
+'' Closes results once every worker has called Done( ).
+sub CloseWhenDone( byval wg as tasks.WaitGroup ptr, _
+                   byval results as tasks.SendChan( of int32 ) )
+    wg->Wait( )
+    results.Close( )
+end sub
+
+'' Sends the jobs 1 to upTo, then closes the channel.
+sub Feed( byval upTo as int32, byval jobs as tasks.SendChan( of int32 ) )
+    for n as int32 = 1 to upTo
+        jobs.Send( n )
+    next
+    jobs.Close( )
+end sub
+
+var jobs = tasks.Channel( of int32 )( 4 )
+var results = tasks.Channel( of int32 )( 4 )
+dim wg as tasks.WaitGroup
+
+'' Fan out: three workers share one jobs channel.
+for w as int32 = 1 to 3
+    wg.Add( )                         '' count it before it starts
+    spawn Worker( jobs, results, @wg )
+next
+spawn CloseWhenDone( @wg, results )
+
+'' Feed the jobs from another goroutine, so the main program is free
+'' to collect results while they are still being sent.
+spawn Feed( 10, jobs )
+
+'' Fan in: one loop collects from all three.
+dim squares as containers.Array( of int32 )
+for each sq in results
+    squares.Push( sq )
+next
+containers.Sort( squares )            '' arrival order varies
+print squares.Count( ); " results:";
+for each sq in squares
+    print sq;
+next
+print

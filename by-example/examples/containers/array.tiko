@@ -1,0 +1,38 @@
+#import "std/containers"
+
+sub Show( byref label as ustring, byref xs as containers.Array( of int32 ) )
+    print label; ":";
+    for each x in xs
+        print x;
+    next
+    print "   (count"; xs.Count( ); ")"
+end sub
+
+'' A brace list gives the starting elements.
+dim xs as containers.Array( of int32 ) = { 5, 3, 9 }
+Show( "start", xs )
+
+xs.Push( 7 )                         '' append at the end
+Show( "push 7", xs )
+
+'' Indices start at 0, and xs[ i ] can be assigned.
+print "first"; xs[ 0 ]; ", last"; xs[ xs.Count( ) - 1 ]
+xs[ 1 ] = 30
+Show( "xs[1] = 30", xs )
+
+print "pop gives"; xs.Pop( )         '' remove and return the last
+Show( "after pop", xs )
+
+xs.Insert( 0, 1 )                    '' shifts the rest along
+Show( "insert 1 at 0", xs )
+xs.Remove( 2 )                       '' closes the gap, keeps the order
+Show( "remove at 2", xs )
+
+'' for each byref changes the elements in place.
+for each byref x in xs
+    x *= 2
+next
+Show( "doubled", xs )
+
+xs.Clear( )
+print "empty now: "; xs.IsEmpty( ); ", pop of empty gives"; xs.Pop( )

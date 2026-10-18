@@ -1,0 +1,48 @@
+'' A union's fields all start at the same address: they are different
+'' views of one block of memory, as large as the largest field.
+union Bits32
+    as float32 asFloat
+    as uint32 asInt
+    as uint8 bytes( 0 to 3 )
+end union
+
+dim as Bits32 u
+u.asFloat = 1.0
+print "sizeof( Bits32 ) ="; sizeof( Bits32 )
+print "1.0 as a float32 is the bit pattern &h"; hex( u.asInt, 8 )
+print "its bytes, lowest address first:";
+for i as int32 = 0 to 3
+    print " "; hex( u.bytes( i ), 2 );
+next
+print
+
+'' A union inside a type gives one slot two meanings. A field beside
+'' it must record which meaning is current: the union cannot.
+enum ValueKind
+    KindInt
+    KindFloat
+end enum
+
+type Value
+    as ValueKind kind
+    union
+        as int64 i
+        as float64 f
+    end union
+end type
+
+sub Show( byref v as Value )
+    if v.kind = KindInt then
+        print "an int64:"; v.i
+    else
+        print "a float64:"; v.f
+    end if
+end sub
+
+dim as Value a, b
+a.kind = KindInt : a.i = 42
+b.kind = KindFloat : b.f = 2.5
+Show( a )
+Show( b )
+print "sizeof( Value ) ="; sizeof( Value ); ", i and f both at offset"; _
+      offsetof( Value, i ); offsetof( Value, f )

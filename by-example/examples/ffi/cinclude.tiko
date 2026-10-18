@@ -1,0 +1,26 @@
+'' #cinclude reads a C header and makes tiko declarations from it.
+#cinclude once "stdlib.h"
+#cinclude once "string.h"
+
+'' div_t and div come from the header. A field named like a tiko
+'' keyword gets an underscore: C's rem is rem_ here.
+dim as div_t d = div( 47, 10 )
+print "div( 47, 10 ):"; d.quot; ","; d.rem_
+
+'' So do strlen and qsort, with C's own parameter types.
+print "strlen: "; strlen( "header" )
+
+function ByValue cdecl( byval a as const any ptr, _
+                        byval b as const any ptr ) as int32
+    return *cptr( const int32 ptr, a ) - *cptr( const int32 ptr, b )
+end function
+
+dim nums( 0 to 4 ) as int32 = { 5, 3, 9, 1, 7 }
+qsort( @nums( 0 ), 5, sizeof( int32 ), @ByValue )
+for i as int32 = 0 to 4
+    print nums( i );
+next
+print
+
+'' A #define that is a constant comes across too.
+print "RAND_MAX is positive: "; cbool( RAND_MAX > 0 )

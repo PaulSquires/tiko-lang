@@ -1,0 +1,33 @@
+'' A byref parameter is a reference the caller sets up.
+sub Double_( byref n as int32 )
+    n *= 2
+end sub
+
+dim as int32 x = 21
+Double_( x )
+print "after Double_:"; x
+
+'' dim byref makes a second name for an existing variable. It is
+'' bound once, when declared, and stays bound to that variable.
+dim as int32 b = 5
+dim byref as int32 alias_ = b
+alias_ = 9
+print "b ="; b; ", same address: "; cbool( @alias_ = @b )
+
+'' A function can return a reference: here, to an array element.
+function Largest( a() as int32 ) byref as int32
+    var best = lbound( a )
+    for i as int32 = lbound( a ) + 1 to ubound( a )
+        if a( i ) > a( best ) then best = i
+    next
+    return a( best )
+end function
+
+dim nums( 0 to 3 ) as int32 = { 4, 17, 8, 2 }
+( Largest( nums() ) ) = 0               '' assigns to nums( 1 )
+dim byref as int32 top = Largest( nums() )
+top += 100                              '' now nums( 2 )
+for each n in nums
+    print n;
+next
+print

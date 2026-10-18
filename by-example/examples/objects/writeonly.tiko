@@ -1,0 +1,14 @@
+'' A property with only a setter can be assigned but never read.
+type Door
+    declare property Code( byval value as int32 )
+  private:
+    code_ as int32
+end type
+
+property Door.Code( byval value as int32 )
+    code_ = value
+end property
+
+dim as Door d
+d.Code = 1234
+print d.Code                        '' refused: there is no getter

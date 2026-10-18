@@ -1,0 +1,27 @@
+#import "std/containers"
+
+'' Halve the range each step. Only correct on a sorted array.
+function BinarySearch( byref xs as containers.Array( of int32 ), _
+                       byval wanted as int32 ) as int32
+    dim as int32 lo = 0, hi = xs.Count( ) - 1
+    do while lo <= hi
+        dim as int32 middle = ( lo + hi ) \ 2
+        if xs[ middle ] = wanted then return middle
+        if xs[ middle ] < wanted then lo = middle + 1 else hi = middle - 1
+    loop
+    return -1
+end function
+
+dim scores as containers.Array( of int32 ) = { 70, 85, 90, 85 }
+
+'' IndexOf and Contains are free procedures, and walk the whole array.
+dim as int32 wanted = 85, missing = 60
+print "first 85 at " & containers.IndexOf( scores, wanted )
+print "60 at " & containers.IndexOf( scores, missing )
+print "has 60? "; containers.Contains( scores, missing )
+
+'' On a sorted array, a binary search looks at far fewer elements.
+containers.Sort( scores )
+print "sorted:"; scores[ 0 ]; scores[ 1 ]; scores[ 2 ]; scores[ 3 ]
+print "90 at " & BinarySearch( scores, 90 )
+print "60 at " & BinarySearch( scores, 60 )

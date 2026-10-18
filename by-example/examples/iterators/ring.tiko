@@ -1,0 +1,71 @@
+'' A ring keeps the newest N values. Its iterator walks them oldest
+'' first, and Value( ) is byref, so a byref loop can change them.
+type RingIterator( of T )
+    as T ptr slots
+    as int32 size, at, left
+    declare function IsValid( ) as boolean
+    declare function Value( ) byref as T
+    declare sub MoveNext( )
+end type
+
+function RingIterator( of T ).IsValid( ) as boolean
+    return left > 0
+end function
+
+function RingIterator( of T ).Value( ) byref as T
+    return slots[at]
+end function
+
+sub RingIterator( of T ).MoveNext( )
+    at = ( at + 1 ) mod size
+    left -= 1
+end sub
+
+type Ring( of T )
+    declare constructor( byval size as int32 )
+    declare sub Add( byval item as T )
+    declare function GetIterator( ) as RingIterator( of T )
+private:
+    as T items( any )
+    as int32 nextSlot, used
+end type
+
+constructor Ring( of T )( byval size as int32 )
+    redim items( 0 to size - 1 )
+end constructor
+
+sub Ring( of T ).Add( byval item as T )
+    var size = ubound( items ) + 1
+    items( nextSlot ) = item
+    nextSlot = ( nextSlot + 1 ) mod size
+    if used < size then used += 1
+end sub
+
+function Ring( of T ).GetIterator( ) as RingIterator( of T )
+    dim it as RingIterator( of T )
+    it.size = ubound( items ) + 1
+    it.slots = @items( 0 )
+    it.at = ( nextSlot - used + it.size ) mod it.size
+    it.left = used
+    return it
+end function
+
+var recent = Ring( of ustring )( 3 )
+dim words( 0 to 4 ) as ustring = { "one", "two", "three", "four", "five" }
+for each w in words
+    recent.Add( w )
+next
+for each w in recent
+    print w; " ";
+next
+print
+
+var readings = Ring( of float64 )( 4 )
+readings.Add( 1.5 ) : readings.Add( 2.25 )
+for each byref x in readings            '' writes into the ring
+    x *= 2
+next
+for each x in readings
+    print x;
+next
+print

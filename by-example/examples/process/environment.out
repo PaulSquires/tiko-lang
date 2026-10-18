@@ -1,0 +1,4 @@
+unset: []
+BYEXAMPLE_MODE = draft
+BYEXAMPLE_MODE = final
+BYEXAMPLE_LEVEL = 3

@@ -1,0 +1,34 @@
+'' A lambda that uses variables from around it lists them in square
+'' brackets, and says for each one how it is held.
+dim as int32 calls = 0
+dim as int32 step_ = 5
+
+'' byref: the lambda works on the caller's variable itself.
+var countCall = sub[ byref calls ]( )
+    calls += 1
+end sub
+countCall( )
+countCall( )
+print "calls:"; calls
+
+'' byval: the lambda keeps its own copy, taken when the lambda is made.
+var addStep = function[ byval step_ ]( byval x as int32 ) as int32
+    return x + step_
+end function
+var addStepNow = function[ byref step_ ]( byval x as int32 ) as int32
+    return x + step_
+end function
+
+step_ = 1000
+print "byval copy:"; addStep( 1 )        '' still adds 5
+print "byref view:"; addStepNow( 1 )     '' adds the current 1000
+
+'' Modes can be mixed in one list. step_ is 1000 by now, and that is
+'' the value this lambda copies.
+dim as int32 total = 0
+var addScaled = sub[ byref total, byval step_ ]( byval x as int32 )
+    total += x * step_
+end sub
+addScaled( 2 )
+addScaled( 3 )
+print "total:"; total

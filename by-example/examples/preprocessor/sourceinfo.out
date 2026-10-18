@@ -1,0 +1,7 @@
+file: sourceinfo.tiko
+line: 7
+in REPORT, line 3
+sourceinfo.tiko(17): failed: n > 0
+averages: 2 0
+an ISO date has 10 characters
+now: generated.tiko line 1001

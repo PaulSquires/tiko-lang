@@ -1,0 +1,26 @@
+'' dim declares a variable. The type can come before the names...
+dim as int32 columns = 80, rows = 25
+
+'' ...or after each name, which lets one line mix types.
+dim title as ustring = "console", ratio as float64 = 3.2
+
+'' var takes the type from the value, so the value is required.
+var count = 3
+var area = columns * rows
+
+'' For text, state the type: a ustring.
+dim greeting as ustring = "hello"
+
+print "columns ="; columns; ", rows ="; rows
+print "title = "; title; ", ratio ="; ratio
+print "count ="; count; ", greeting = "; greeting; ", area ="; area
+
+'' A variable can be assigned a new value of its type at any time.
+count = count + 1
+greeting = greeting & ", world"
+print "count ="; count; ", greeting = "; greeting
+
+'' Declarations can appear anywhere a statement can, so a variable can
+'' be declared where it is first needed.
+dim as float64 average = area / count
+print "average ="; average

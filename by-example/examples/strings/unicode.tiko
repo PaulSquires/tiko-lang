@@ -1,0 +1,40 @@
+'' Count characters, treating a surrogate pair as one.
+function CharCount( byref s as ustring ) as int32
+    dim as int32 count = 0
+    for i as int32 = 1 to len( s )
+        dim as int32 unit = asc( s, i )
+        '' A low surrogate is the second half of a pair: skip it.
+        if unit < &hDC00 orelse unit > &hDFFF then count += 1
+    next
+    return count
+end function
+
+'' wchr builds a ustring from code points, so the source stays ASCII.
+dim as ustring cafe = "caf" & wchr( 233 )             '' U+00E9
+dim as ustring face = "a" & wchr( &h1F600 ) & "b"     '' U+1F600
+
+print cafe; ": len"; len( cafe ); ", characters"; CharCount( cafe )
+print "face: len"; len( face ); ", characters"; CharCount( face )
+
+'' len counts UTF-16 code units. U+1F600 is above U+FFFF, so it is
+'' stored as two units, a surrogate pair.
+print "units of face:";
+for i as int32 = 1 to len( face )
+    print " " & hex( asc( face, i ) );
+next
+print
+
+'' Cutting by position can split the pair and leave half a character.
+dim as ustring half = mid( face, 2, 1 )
+print "mid( face, 2, 1 ) is a lone unit: "; hex( asc( half ) )
+
+'' Converting to the byte type string encodes UTF-8, and back again.
+dim as string bytes = face
+dim as ustring back = bytes
+print "UTF-8 bytes:"; len( bytes ); ", round trip equal: "; _
+      cbool( back = face )
+
+'' ucase and lcase know letters beyond ASCII.
+dim as ustring alpha = wchr( &h3B1 )                    '' Greek alpha
+print ucase( cafe ); ", U+3B1 in upper case is U+"; _
+      hex( asc( ucase( alpha ) ) )

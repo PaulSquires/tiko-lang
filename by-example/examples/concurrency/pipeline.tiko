@@ -1,0 +1,31 @@
+#import "std/tasks"
+#cmdline "-mt"
+
+'' Each stage says which end of a channel it holds.
+sub Generate( byval upTo as int32, byval out_ as tasks.SendChan( of int32 ) )
+    for i as int32 = 1 to upTo
+        out_.Send( i )
+    next
+    out_.Close( )                 '' tells the next stage there is no more
+end sub
+
+sub KeepOdd( byval in_ as tasks.RecvChan( of int32 ), _
+             byval out_ as tasks.SendChan( of int32 ) )
+    dim as int32 v
+    do while in_.Receive( v )     '' false once in_ is closed and empty
+        if v mod 2 = 1 then out_.Send( v )
+    loop
+    out_.Close( )
+end sub
+
+'' Capacity 0: every send waits for a receiver, a handover.
+var numbers = tasks.Channel( of int32 )( 0 )
+var odds = tasks.Channel( of int32 )( 0 )
+
+spawn Generate( 9, numbers )
+spawn KeepOdd( numbers, odds )
+
+for each v in odds                '' ends when KeepOdd closes odds
+    print v;
+next
+print

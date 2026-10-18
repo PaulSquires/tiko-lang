@@ -1,0 +1,18 @@
+#include once "crt/long.bi"
+
+'' Most C types have one tiko equivalent on every platform.
+print "int       int32  "; sizeof( int32 )
+print "long long int64  "; sizeof( int64 )
+print "double    float64"; sizeof( float64 )
+print "void *    any ptr"; sizeof( any ptr )
+
+'' C's long and wchar_t do not: their size depends on the platform.
+print "long      clong  "; sizeof( clong )
+print "wchar_t   wstring"; sizeof( wstring * 1 )
+
+#ifdef __FB_WIN32__
+    print "built for Windows"
+#endif
+#ifdef __FB_LINUX__
+    print "built for Linux"
+#endif

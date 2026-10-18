@@ -1,0 +1,6 @@
+function Larger( of T )( byval a as T, byval b as T ) as T
+    if a > b then return a
+    return b
+end function
+
+print Larger( 2, 2.5 )          '' an integer and a float64: which T?

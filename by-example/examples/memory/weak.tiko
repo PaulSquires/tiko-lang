@@ -1,0 +1,49 @@
+#import "std/memory"
+
+'' A parent owns its child; the child's link back must not own.
+type Node
+    as ustring tag
+    as memory.SharedPtr( of Node ) child        '' owns, downward
+    as memory.WeakPtr( of Node ) parent         '' observes, upward
+    declare destructor( )
+end type
+
+destructor Node( )
+    print "  freed "; tag
+end destructor
+
+'' The same shape with an owning link back: a cycle.
+type LeakyNode
+    as ustring tag
+    as memory.SharedPtr( of LeakyNode ) child
+    as memory.SharedPtr( of LeakyNode ) parent
+    declare destructor( )
+end type
+
+destructor LeakyNode( )
+    print "  freed "; tag
+end destructor
+
+print "owning both ways:"
+scope
+    var root = memory.MakeShared( of LeakyNode )( )
+    root->tag = "leaky root"
+    root->child = memory.MakeShared( of LeakyNode )( )
+    root->child->tag = "leaky child"
+    root->child->parent = root
+end scope
+print "  (nothing was freed)"
+
+print "weak link back:"
+scope
+    var root = memory.MakeShared( of Node )( )
+    root->tag = "root"
+    root->child = memory.MakeShared( of Node )( )
+    root->child->tag = "child"
+    root->child->parent = root
+
+    '' Lock( ) gives a real owner for as long as you hold it, or null.
+    var up = root->child->parent.Lock( )
+    if up.IsNull( ) = false then print "  the child's parent is "; up->tag
+    print "  root owners:"; root.UseCount( )
+end scope

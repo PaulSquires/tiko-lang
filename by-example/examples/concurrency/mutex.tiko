@@ -1,0 +1,30 @@
+#cmdline "-mt"
+
+'' The shared total and the lock that guards it travel together.
+type Account
+    as any ptr lock
+    as int64 balance
+end type
+
+sub Deposit( byval p as any ptr )
+    var acct = cptr( Account ptr, p )
+    for i as int32 = 1 to 100000
+        mutexlock( acct->lock )       '' one thread at a time from here...
+        acct->balance += 1
+        mutexunlock( acct->lock )     '' ...to here
+    next
+end sub
+
+dim acct as Account
+acct.lock = mutexcreate( )
+
+dim tellers( 0 to 3 ) as any ptr
+for i as int32 = 0 to 3
+    tellers( i ) = threadcreate( @Deposit, @acct )
+next
+for i as int32 = 0 to 3
+    threadwait( tellers( i ) )
+next
+
+mutexdestroy( acct.lock )             '' no thread can use it any more
+print "balance:"; acct.balance

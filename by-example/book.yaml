@@ -1,0 +1,22 @@
+title: "tiko by Example"
+author: "Paul Squires"
+
+## --- the pin -------------------------------------------------------------
+## Every example on the site is compiled and run with exactly these
+## toolchains. tools/check-examples.sh refuses to run if a toolchain's
+## MANIFEST does not match, because a stale toolchain yields a plausible
+## result rather than an error.
+pin:
+  version: "0.1.0-dev"
+  windows:
+    root: "../toolchains/tiko-windows"      # relative to this directory
+    exe: "tiko.exe"
+    commit: "ca9b3d75f"
+    packaged: "2026-10-18"
+  linux:
+    root: "../toolchains/tiko-linux"        # same path, reached through WSL
+    exe: "bin/tiko"
+    commit: "ca9b3d75f"
+    packaged: "2026-10-18"
+    wsl_distro: "Ubuntu"
+  targets: [windows-x86_64, linux-x86_64]

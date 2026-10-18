@@ -1,0 +1,41 @@
+type Ticket
+    declare constructor( )
+    declare static function Issued( ) as int32
+    declare static function Reset( ) as int32
+    declare function Number( ) as int32
+  private:
+    static issued_ as int32         '' one copy, shared by every Ticket
+    number_ as int32                '' one per Ticket
+end type
+
+'' A definition outside the type gives the static field its starting
+'' value. Without one, it starts at 0.
+dim as int32 Ticket.issued_ = 100
+
+constructor Ticket( )
+    issued_ += 1
+    number_ = issued_
+end constructor
+
+'' A static method has no object: it is called on the type itself.
+static function Ticket.Issued( ) as int32
+    return issued_
+end function
+
+static function Ticket.Reset( ) as int32
+    dim as int32 before = issued_
+    issued_ = 0
+    return before
+end function
+
+function Ticket.Number( ) as int32
+    return number_
+end function
+
+print "counter before any ticket:"; Ticket.Issued( )
+dim as Ticket a, b, c
+print "counter:"; Ticket.Issued( ); ", b is number"; b.Number( )
+
+print "reset after"; Ticket.Reset( )
+dim as Ticket d
+print "d is number"; d.Number( ); ", c is still"; c.Number( )

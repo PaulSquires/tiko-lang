@@ -1,0 +1,5 @@
+corner: 3 4
+fresh frame: untitled, 640 x 480, origin 0 0, visible true
+edited:      editor, 800 x 480, origin 3 4
+original: editor 3
+twin:     twin 99

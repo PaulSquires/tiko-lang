@@ -1,0 +1,28 @@
+type Connection
+    as int32 id
+    declare constructor( )
+    declare destructor( )
+end type
+
+constructor Connection( )
+    print "  connection opened"
+end constructor
+
+destructor Connection( )
+    print "  connection closed"
+end destructor
+
+sub Transfer( )
+    dim link as Connection
+    defer print "  transfer finished"
+    error 5                             '' leaves for the outer handler
+end sub
+
+on error goto failed
+print "transfer:"
+Transfer( )
+end
+
+failed:
+dim as int32 code = err
+print "handler: error"; code

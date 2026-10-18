@@ -1,0 +1,34 @@
+'' Three kinds of custom type, working together.
+
+'' A constant: a name for a fixed value.
+const ReorderLevel = 5
+
+'' An enum: a closed set of named values.
+enum Category
+    Tools
+    Parts
+    Supplies
+end enum
+
+'' A record: named fields grouped into one value.
+type StockItem
+    as ustring label
+    as Category kind
+    as int32 onHand
+end type
+
+sub Report( byref item as StockItem )
+    with item
+        print .label; " (category"; .kind; "):"; .onHand; " on hand";
+        if .onHand <= ReorderLevel then print " -- reorder";
+        print
+    end with
+end sub
+
+dim as StockItem hammer = ( "hammer", Tools, 12 )
+dim as StockItem bolt = ( "bolt", Parts, 3 )
+dim as StockItem tape = ( "tape", Supplies, 5 )
+
+Report( hammer )
+Report( bolt )
+Report( tape )

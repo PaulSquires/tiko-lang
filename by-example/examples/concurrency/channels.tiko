@@ -1,0 +1,31 @@
+#import "std/tasks"
+#cmdline "-mt"
+
+'' A channel made with a capacity of 3 buffers up to three values.
+var box = tasks.Channel( of int32 )( 3 )
+box.Send( 10 )
+box.Send( 20 )
+box.Send( 30 )
+print "queued:"; box.Count( ); " of"; box.Capacity( )
+
+'' TrySend never waits: with the buffer full it fails instead.
+print "try to send 40: "; box.TrySend( 40 )
+
+'' Values come out in the order they went in.
+dim as int32 v
+box.Receive( v )
+print "first out:"; v
+
+'' Close: no more sends, but what is queued can still be received.
+box.Close( )
+for each x in box                 '' drains, then ends
+    print "drained:"; x
+next
+
+'' Receive on a closed, empty channel returns false at once.
+v = -1
+print "receive after close: "; box.Receive( v ); ", v is still " & v
+
+'' ReceiveFor gives up after a number of milliseconds.
+var quiet = tasks.Channel( of int32 )( 1 )
+print "wait 50 ms for a value: "; quiet.ReceiveFor( v, 50 )

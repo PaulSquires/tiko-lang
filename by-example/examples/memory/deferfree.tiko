@@ -1,0 +1,33 @@
+'' deallocate, and say so, so the program shows when it happens.
+sub Release( byval p as any ptr )
+    deallocate( p )
+    print "  freed"
+end sub
+
+'' The squares 1, 4, 9 ... of the first n numbers, summed through a
+'' scratch buffer. Every way out after the allocate frees it.
+function SumOfSquares( byval n as int32 ) as int64
+    if n < 1 then return 0                  '' nothing allocated yet
+
+    dim as int64 ptr squares = allocate( n * sizeof( int64 ) )
+    defer Release( squares )                '' written once, beside it
+    if squares = nullptr then return -1     '' freeing null is harmless
+
+    for i as int32 = 0 to n - 1
+        squares[i] = ( i + 1 ) * ( i + 1 )
+    next
+    if n > 1000 then return -2              '' another way out
+
+    dim as int64 total = 0
+    for i as int32 = 0 to n - 1
+        total += squares[i]
+    next
+    return total
+end function
+
+dim sizes( 0 to 2 ) as int32 = { 0, 3, 2000 }
+for each n in sizes
+    print "n ="; n
+    var sum = SumOfSquares( n )
+    print "  result"; sum
+next

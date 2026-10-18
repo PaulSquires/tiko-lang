@@ -1,0 +1,31 @@
+#import "std/logs"
+
+dim tr as logs.TextRenderer
+tr.stamp = logs.TS_NONE
+dim con as logs.ConsoleSink = logs.ConsoleSink( logs.CT_STDOUT, @tr )
+
+'' A Logger of your own, with a level and one sink.
+dim lg as logs.Logger
+lg.MinLevel = logs.LOG_DEBUG
+lg.AddSink( @con )
+
+'' One call per record. Below MinLevel, nothing is built.
+lg.Info( "server started" )
+lg.Debug( "cache warm" )
+lg.Trace( "not shown: trace is below debug" )
+
+'' Fields are typed and chained; Msg( ) finishes and sends the record.
+lg.Warn( ).AddText( "user", "quinn" ).AddInt( "attempts", 3 ) _
+          .Msg( "login failed" )
+
+'' A child logger adds its own field to every record it writes.
+var db = lg.WithField( "component", logs.LogValue( "db" ) )
+db.Info( ).AddInt( "rows", 42 ).AddFloat( "ms", 1.5 ) _
+          .Msg( "query complete" )
+
+'' Levels as text, both ways, for a setting read from a file.
+dim lv as logs.LogLevel
+if logs.LevelFromName( "warn", lv ) then
+    print "warn is level"; lv; ", "; logs.LevelName( logs.LOG_ERROR ); _
+          " is level"; logs.LOG_ERROR
+end if

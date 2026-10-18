@@ -1,0 +1,33 @@
+[book]
+title = "tiko by Example"
+authors = ["Paul Squires"]
+description = "tiko by Example: a collection of runnable examples that illustrate the tiko language and its standard library."
+language = "en"
+src = "src"
+
+[output.html]
+hash-files = true
+default-theme = "light"
+preferred-dark-theme = "navy"
+git-repository-url = "https://github.com/PaulSquires/tiko-lang"
+edit-url-template = "https://github.com/PaulSquires/tiko-lang/edit/master/by-example/{path}"
+site-url = "/by-example/"
+additional-css = ["./mdbook-admonish.css", "src/theme/tiko.css"]
+additional-js = ["src/theme/tiko-highlight.js"]
+copy-fonts = true
+
+[output.html.fold]
+enable = true
+level = 0
+
+[output.html.search]
+enable = true
+limit-results = 20
+
+[preprocessor.admonish]
+command = "mdbook-admonish"
+assets_version = "3.1.0" # do not edit: managed by `mdbook-admonish install`
+
+[build]
+build-dir = "book"
+create-missing = false

@@ -1,0 +1,30 @@
+'' The compiler knows where every line came from.
+sub Report( )
+    print "in "; __FUNCTION__; ", line"; __LINE__
+end sub
+
+print "file: "; __FILE__
+print "line:"; __LINE__
+Report( )
+
+'' In a macro they describe the place the macro is USED, which is what
+'' makes a CHECK macro useful.
+#define CHECK( cond ) _
+    if not ( cond ) then _
+        print __FILE__ & "(" & __LINE__ & "): failed: " & #cond
+
+function Average( byval total as int32, byval n as int32 ) as int32
+    CHECK( n > 0 )
+    return iif( n > 0, total \ n, 0 )
+end function
+
+var a = Average( 10, 4 )
+var b = Average( 10, 0 )
+print "averages:"; a; b
+
+'' The build date changes every day, so print only its shape.
+print "an ISO date has"; len( __DATE_ISO__ ); " characters"
+
+'' #line renumbers the lines that follow, and can rename the file.
+#line 1000 "generated.tiko"
+print "now: "; __FILE__; " line"; __LINE__

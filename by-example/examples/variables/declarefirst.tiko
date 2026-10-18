@@ -1,0 +1,39 @@
+'' A variable declared without a value starts at zero: 0 for numbers,
+'' false for booleans, "" for text.
+dim as int32 count
+dim as float64 total
+dim as boolean done
+dim as ustring label
+print "count ="; count; ", total ="; total; ", done = "; done; _
+      ", label = """; label; """"
+
+'' So a variable can be declared first and given its value later.
+dim as ustring verdict
+if count = 0 then
+    verdict = "empty"
+else
+    verdict = "has items"
+end if
+print "verdict: "; verdict
+
+'' Records and arrays start at zero in every field and element.
+type Tally
+    as int32 hits, misses
+end type
+dim as Tally t
+dim as int32 slots( 1 to 4 )
+print "t ="; t.hits; t.misses; ", slots ="; slots( 1 ); slots( 4 )
+
+'' A declaration inside a loop runs on every pass, so it starts at
+'' zero each time.
+for i as int32 = 1 to 3
+    dim as int32 n
+    n += i
+    print "pass"; i; ": n ="; n
+next
+
+'' = any skips the zeroing. The variable holds whatever was in that
+'' memory, so it must be written before it is read.
+dim as int32 scratch = any
+scratch = 7
+print "scratch ="; scratch

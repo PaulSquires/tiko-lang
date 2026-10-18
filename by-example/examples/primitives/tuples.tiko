@@ -1,0 +1,24 @@
+'' A tuple groups values without declaring a type first.
+var pair = ( 7, 2.5 )
+print "pair:"; pair._1; pair._2
+
+'' A tuple type can name its elements. _1, _2 ... always work too.
+dim as ( x as float64, y as float64 ) pt = ( 1.5, -2 )
+print "point: x ="; pt.x; ", y ="; pt.y; ", _1 ="; pt._1
+pt.y = 4
+print "after pt.y = 4, y ="; pt.y
+
+'' A function can return a tuple, which gives it two results.
+function DivMod( byval a as int32, byval b as int32 ) _
+        as ( quotient as int32, remainder as int32 )
+    return ( a \ b, a mod b )
+end function
+
+var r = DivMod( 17, 5 )
+print "17 / 5 is"; r.quotient; " remainder"; r.remainder
+
+'' Tuples of the same element types compare element by element.
+dim as ( int32, int32 ) a = ( 1, 2 ), b = ( 1, 2 )
+print "a = b: "; cbool( a = b )
+b._2 = 3
+print "a = b: "; cbool( a = b )

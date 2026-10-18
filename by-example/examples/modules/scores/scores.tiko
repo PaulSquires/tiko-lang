@@ -1,0 +1,6 @@
+#module "scores"
+
+'' public: part of the module's interface, for every importer.
+public function Grade( byval points as int32 ) as ustring
+    return Letter_( Clamp_( points ) )
+end function

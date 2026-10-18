@@ -1,0 +1,20 @@
+'' command( n ) is the n-th argument, with its quotes removed.
+dim as int32 n = 1
+do while len( command( n ) ) > 0
+    print n; ": "; command( n )
+    n += 1
+loop
+
+'' Past the last argument, command( n ) is an empty string.
+print "command( 9 ) = ["; command( 9 ); "]"
+
+'' command( ) is every argument, joined into one string.
+print "all: "; command( )
+
+'' command( 0 ) is the program itself; its path depends on how it
+'' was started, so print only whether there is one.
+print "has a program path: "; cbool( len( command( 0 ) ) > 0 )
+
+'' At the top level, the count and the C-style array of arguments.
+print "__FB_ARGC__ ="; __FB_ARGC__
+print "argv[ 2 ] = "; *__FB_ARGV__[ 2 ]

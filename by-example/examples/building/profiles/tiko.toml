@@ -1,0 +1,11 @@
+[package]
+name = "report"
+
+[target.report]
+main = "main.tiko"
+
+# A profile of your own: the release options, plus the
+# thread-safe runtime.
+[profile.fast]
+inherits = "release"
+options  = ["-mt"]

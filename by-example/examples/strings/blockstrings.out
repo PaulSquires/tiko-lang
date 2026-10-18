@@ -1,0 +1,10 @@
+select id, name
+  from users
+ where name = "Ada"
+length: 48, ends with: "Ada"
+- eggs
+- milk
+(end of list)
+name	value
+one long line, continued
+SHOUT!

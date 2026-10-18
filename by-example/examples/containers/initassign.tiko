@@ -1,0 +1,4 @@
+#import "std/containers"
+
+dim primes as containers.Array( of int32 ) = { 2, 3, 5 }
+primes = { 7, 11 }          '' a brace list is for the declaration only

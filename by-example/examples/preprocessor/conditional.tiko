@@ -1,0 +1,32 @@
+'' Conditional compilation chooses which lines are compiled at all.
+#define LOG_LEVEL 2
+#define WITH_COLOUR
+
+#if LOG_LEVEL >= 3
+    print "logging: everything"
+#elseif LOG_LEVEL = 2
+    print "logging: warnings and errors"
+#else
+    print "logging: errors only"
+#endif
+
+'' #ifdef and #ifndef ask only whether a name is defined.
+#ifdef WITH_COLOUR
+    print "colour: on"
+#endif
+#ifndef WITH_SOUND
+    print "sound: not built in"
+#endif
+
+'' defined( ) does the same inside an #if, and combines with andalso,
+'' orelse and not.
+#if defined( WITH_COLOUR ) andalso not defined( WITH_SOUND )
+    print "a quiet, colourful build"
+#endif
+
+'' A line in a branch not taken is never compiled, so it may name
+'' things that do not exist.
+#if 0
+    NoSuchProcedure( )
+#endif
+print "done"

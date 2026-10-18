@@ -1,0 +1,4 @@
+counter before any ticket: 100
+counter: 103, b is number 102
+reset after 103
+d is number 1, c is still 103

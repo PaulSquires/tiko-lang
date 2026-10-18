@@ -1,0 +1,29 @@
+#import "std/containers"
+
+'' A Map key must hash itself and compare with '='.
+type Cell extends containers.Hashable
+    as int32 row, col
+    declare constructor( byval row as int32 = 0, byval col as int32 = 0 )
+    declare function HashOf( ) as ulongint override
+end type
+
+constructor Cell( byval row as int32, byval col as int32 )
+    this.row = row : this.col = col
+end constructor
+
+function Cell.HashOf( ) as ulongint
+    return containers.HashOf( row ) * 31 + containers.HashOf( col )
+end function
+
+operator = ( byref a as Cell, byref b as Cell ) as boolean
+    return ( a.row = b.row ) andalso ( a.col = b.col )
+end operator
+
+dim board as containers.Map( of Cell, ustring )
+board[ Cell( 1, 1 ) ] = "X"
+board[ Cell( 0, 2 ) ] = "O"
+board[ Cell( 1, 1 ) ] = "X again"
+
+print "cells used:"; board.Count
+print "centre: "; board[ Cell( 1, 1 ) ]
+print "has (2, 2): "; board.Contains( Cell( 2, 2 ) )

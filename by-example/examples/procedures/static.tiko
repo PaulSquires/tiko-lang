@@ -1,0 +1,31 @@
+'' A static local is created once and keeps its value between calls.
+function NextTicket( ) as int32
+    static as int32 counter = 100      '' set once, before the first call
+    counter += 1
+    return counter
+end function
+
+print NextTicket( ); NextTicket( ); NextTicket( )
+
+'' An ordinary local starts again on every call.
+function Fresh( ) as int32
+    dim as int32 counter = 100
+    counter += 1
+    return counter
+end function
+
+print Fresh( ); Fresh( ); Fresh( )
+
+'' A static array works too: this one remembers the last three values.
+sub Remember( byval value as int32 )
+    static as int32 recent( 0 to 2 )
+    static as int32 slot = 0
+    recent( slot ) = value
+    slot = ( slot + 1 ) mod 3
+    print "recent:"; recent( 0 ); recent( 1 ); recent( 2 )
+end sub
+
+Remember( 7 )
+Remember( 8 )
+Remember( 9 )
+Remember( 10 )

@@ -1,0 +1,38 @@
+#cmdline "-mt"
+
+'' Everything a thread needs travels in one record, passed by address.
+type Slice
+    as int64 lo, hi
+    as int64 result
+end type
+
+sub SumSquares( byval p as any ptr )
+    var s = cptr( Slice ptr, p )
+    dim as int64 total = 0
+    for i as int64 = s->lo to s->hi
+        total += i * i
+    next
+    s->result = total             '' only this thread writes this record
+end sub
+
+dim slices( 0 to 2 ) as Slice
+dim handles( 0 to 2 ) as any ptr
+
+for i as int32 = 0 to 2
+    slices( i ).lo = i * 100 + 1
+    slices( i ).hi = ( i + 1 ) * 100
+    handles( i ) = threadcreate( @SumSquares, @slices( i ) )
+next
+
+'' threadwait returns when that thread has finished.
+for i as int32 = 0 to 2
+    threadwait( handles( i ) )
+next
+
+dim as int64 total = 0
+for i as int32 = 0 to 2
+    print "squares"; slices( i ).lo; " to"; slices( i ).hi; ":"; _
+          slices( i ).result
+    total += slices( i ).result
+next
+print "all:"; total

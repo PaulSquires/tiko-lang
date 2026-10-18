@@ -1,0 +1,13 @@
+sorted? false
+sorted? true 1 9
+descending: 9 7 4 1
+by points:
+  blue dee 35
+  red ada 31
+  blue bob 27
+  red cy 27
+by team, then points:
+  blue dee 35
+  blue bob 27
+  red ada 31
+  red cy 27

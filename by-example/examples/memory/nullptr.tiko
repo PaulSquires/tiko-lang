@@ -1,0 +1,37 @@
+'' nullptr is the null pointer: an address of nothing.
+type Node
+    as int32 value
+    as Node ptr nextNode                '' nullptr marks the end
+end type
+
+dim as Node nodeC = ( 3, nullptr )
+dim as Node nodeB = ( 2, @nodeC )
+dim as Node nodeA = ( 1, @nodeB )
+
+print "the list:";
+dim as Node ptr at = @nodeA
+do while at <> nullptr                  '' test before you follow
+    print at->value;
+    at = at->nextNode
+loop
+print
+
+'' 0 is also null, but it is an integer to everything that has to
+'' choose a type. nullptr is a pointer.
+sub Show overload ( byval n as integer )
+    print "  Show( integer )"
+end sub
+
+sub Show overload ( byval p as any ptr )
+    print "  Show( any ptr )"
+end sub
+
+print "Show( 0 ) and Show( nullptr ):"
+Show( 0 )
+Show( nullptr )
+
+var a = 0                               '' an integer
+var b = nullptr                         '' a pointer
+print "var from 0, then from nullptr:"
+Show( a )
+Show( b )

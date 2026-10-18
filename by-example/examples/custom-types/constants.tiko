@@ -1,0 +1,28 @@
+'' const names a value that is fixed when the program is compiled.
+const MaxUsers = 100
+const Pi = 3.141592653589793
+const AppName = "inventory"
+
+'' Without a type, a constant takes the literal's type. With one,
+'' the value is converted to it.
+const Small as uint8 = 200
+const Ratio as float32 = 0.5
+
+print "MaxUsers = " & MaxUsers & ", " & sizeof( MaxUsers ) & " bytes"
+print "Pi = " & Pi & ", " & sizeof( Pi ) & " bytes"
+print "AppName = " & AppName
+print "Small = " & Small & ", " & sizeof( Small ) & " byte"
+print "Ratio = " & Ratio & ", " & sizeof( Ratio ) & " bytes"
+
+'' A constant can be built from other constants, and can size an array.
+const Rows = 3
+const Cols = Rows * 2
+const Cells = Rows * Cols
+dim as int32 board( 1 to Cells )
+print "board has"; ubound( board ); " cells"
+
+'' Constants declared inside a block belong to that block.
+scope
+    const Greeting = "hello from inside"
+    print Greeting
+end scope

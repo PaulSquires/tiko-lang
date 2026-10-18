@@ -1,0 +1,4 @@
+string:  café, len 5
+ustring: café, len 4
+ucase:   CAFé / CAFÉ
+asc 4:  195 / 233

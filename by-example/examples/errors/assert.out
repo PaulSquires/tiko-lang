@@ -1,0 +1,2 @@
+assert.tiko(6): assertion failed at AVERAGE: count < 1000
+assert.tiko(7): assertion failed at AVERAGE: count > 0

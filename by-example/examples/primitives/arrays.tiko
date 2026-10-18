@@ -1,0 +1,25 @@
+'' A fixed-size array: its bounds are part of the declaration.
+dim as int32 primes( 0 to 4 ) = { 2, 3, 5, 7, 11 }
+print "primes go from"; lbound( primes ); " to"; ubound( primes )
+print "the third prime is"; primes( 2 )
+
+'' The lower bound can be anything; "..." lets the list set the upper.
+dim as ustring days( 1 to ... ) = { "Mon", "Tue", "Wed" }
+print "days 1 to"; ubound( days ); ": "; days( 1 ); " "; days( 3 )
+
+'' A single number is the upper bound, so this has 4 elements, 0 to 3.
+dim as float64 readings( 3 )
+readings( 3 ) = 9.5
+print "readings:"; readings( 0 ); readings( 1 ); readings( 2 ); readings( 3 )
+
+'' One set of braces per dimension.
+dim as int32 grid( 1 to 2, 1 to 3 ) = { { 1, 2, 3 }, { 4, 5, 6 } }
+print "grid is"; ubound( grid, 1 ); " by"; ubound( grid, 2 ); _
+      ", grid( 2, 3 ) ="; grid( 2, 3 )
+
+'' Walking an array by index.
+dim as int32 total = 0
+for i as int32 = lbound( primes ) to ubound( primes )
+    total += primes( i )
+next
+print "sum of primes:"; total

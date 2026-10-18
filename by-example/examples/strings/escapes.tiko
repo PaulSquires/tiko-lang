@@ -1,0 +1,22 @@
+'' In an ordinary literal a backslash is just a backslash, and a
+'' doubled quote stands for one quote character.
+print "C:\tools\new [""quoted""]"
+
+'' Put ! in front and the literal reads escape sequences instead.
+print !"tab:[\t] quote:[\"] backslash:[\\]"
+print !"two lines:\n  this is the second"
+
+'' Codes in hexadecimal or decimal, and Unicode code points.
+print !"\x41\x42 \67 \&h44"
+dim as ustring cafe = !"caf\u00E9"
+print cafe; " is"; len( cafe ); " characters"
+
+'' \U takes eight hex digits, for code points above U+FFFF.
+dim as ustring face = !"\U0001F600"
+print "U+1F600 is"; len( face ); " code units"
+
+'' $ in front marks a literal that never reads escapes.
+print $"raw: \t \n"
+
+'' A program can build the characters as well as spell them.
+print cbool( !"a\tb" = "a" & chr( 9 ) & "b" )

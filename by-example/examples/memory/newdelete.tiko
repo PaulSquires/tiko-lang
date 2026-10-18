@@ -1,0 +1,41 @@
+'' new knows the type: no sizeof, no cast, and the memory is zeroed.
+dim as int32 ptr one = new int32( 42 )
+print "new int32( 42 ):"; *one
+delete one
+
+dim as float64 ptr several = new float64[ 3 ]
+several[0] = 1.5 : several[2] = 2.5
+print "new float64[ 3 ]:"; several[0]; several[1]; several[2]
+delete[] several                        '' [] matches the [] in new
+
+'' For a type with no constructor, the arguments fill the fields.
+type Point
+    as int32 x, y
+end type
+dim as Point ptr pt = new Point( 3, 4 )
+print "new Point( 3, 4 ):"; pt->x; pt->y
+delete pt
+
+'' For a type with a constructor, new calls it and delete runs the
+'' destructor, once per element for the [] forms.
+type Tracked
+    as int32 id
+    declare constructor( )
+    declare destructor( )
+end type
+
+constructor Tracked( )
+    static as int32 nextId = 0          '' counts every Tracked made
+    nextId += 1
+    id = nextId
+    print "  construct"; id
+end constructor
+
+destructor Tracked( )
+    print "  destroy"; id
+end destructor
+
+print "new Tracked[ 2 ]:"
+dim as Tracked ptr pair = new Tracked[ 2 ]
+print "delete[]:"
+delete[] pair

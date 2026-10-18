@@ -1,0 +1,43 @@
+'' A namespace gives a group of names a family name, inside one file.
+namespace Metric
+    const CM_PER_M = 100
+
+    function Area( byval w as float64, byval h as float64 ) as float64
+        return w * h
+    end function
+
+    '' Namespaces nest.
+    namespace Convert
+        function ToInches( byval cm as float64 ) as float64
+            return cm / 2.54
+        end function
+    end namespace
+end namespace
+
+namespace Imperial
+    '' The same name in another namespace is a different procedure.
+    function Area( byval w as float64, byval h as float64 ) as float64
+        return w * h * 144      '' square feet to square inches
+    end function
+end namespace
+
+'' A namespace can be reopened to add more names.
+namespace Metric
+    function Perimeter( byval w as float64, _
+                        byval h as float64 ) as float64
+        return 2 * ( w + h )
+    end function
+end namespace
+
+print "metric area:  "; Metric.Area( 2, 3 )
+print "imperial area:"; Imperial.Area( 2, 3 )
+print "perimeter:    "; Metric.Perimeter( 2, 3 )
+print "inches:       "; Metric.Convert.ToInches( 254 )
+
+'' using makes the names bare until the end of the block.
+sub Report( )
+    using Metric
+    print "in Report:    "; Area( 4, 5 ); CM_PER_M
+end sub
+
+Report( )

@@ -1,0 +1,36 @@
+'' A lambda is a procedure written as an expression, where it is used.
+type Transform as function( byval x as int32 ) as int32
+
+sub ApplyAll( values( ) as int32, byval f as Transform )
+    for i as int32 = lbound( values ) to ubound( values )
+        values( i ) = f( values( i ) )
+    next
+end sub
+
+'' Stored in a variable of a matching procedure type...
+dim as Transform double_ = function( byval x as int32 ) as int32
+    return x * 2
+end function
+print double_( 21 )
+
+'' ...or in a var, which takes its type from the lambda. A short body
+'' fits on one line, with colons between the statements.
+var cube = function( byval x as int32 ) as int32 : return x * x * x : _
+    end function
+print cube( 3 )
+
+'' ...or passed straight to the procedure that wants it.
+dim as int32 readings( 0 to 3 ) = { 1, 2, 3, 4 }
+ApplyAll( readings( ), function( byval x as int32 ) as int32
+    return x + 100
+end function )
+for each r in readings
+    print r;
+next
+print
+
+'' A lambda with nothing to return is a sub.
+var greet = sub( byref who as ustring )
+    print "hello, " & who
+end sub
+greet( "lambda" )

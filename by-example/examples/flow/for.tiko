@@ -1,0 +1,42 @@
+'' for counts from a start value to an end value, both included.
+'' Declaring the counter in the for keeps it inside the loop.
+for i as int32 = 1 to 5
+    print i;
+next
+print
+
+'' step sets the stride; a negative step counts down.
+for i as int32 = 0 to 20 step 5
+    print i;
+next
+print
+for i as int32 = 10 to 1 step -3
+    print i;
+next
+print
+
+'' A range that is already finished runs zero times.
+for i as int32 = 5 to 1
+    print "never printed"
+next
+print "the 5 to 1 loop ran zero times"
+
+'' The end value is worked out once, before the first pass.
+dim as int32 last = 3
+for i as int32 = 1 to last
+    last = 10                    '' too late: the loop still stops at 3
+    print i;
+next
+print
+
+'' The counter may be a floating-point number.
+for x as float64 = 0 to 1 step 0.25
+    print x;
+next
+print
+
+'' A counter declared before the loop is still there after it.
+dim as int32 k
+for k = 1 to 3
+next
+print "k after the loop:"; k

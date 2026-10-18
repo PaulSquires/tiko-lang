@@ -1,0 +1,39 @@
+'' A statement does something; an expression has a value and a type.
+dim as int32 x = 5                   '' a statement, holding an expression
+dim as int32 y = x * x + 2 * x + 1   '' an expression can be any size
+print "y ="; y
+
+'' A call to a function is an expression; a call to a sub is not.
+function Square( byval n as int32 ) as int32
+    return n * n
+end function
+sub Announce( byval n as int32 )
+    print "announcing"; n
+end sub
+
+Announce( Square( 3 ) + 1 )
+
+'' In a statement that starts with a variable, the first = assigns
+'' and any later = compares. So this stores the comparison's value.
+dim as int32 flag = 0
+flag = y = 36
+print "flag ="; flag
+flag = ( y = 37 )
+print "flag ="; flag
+
+'' if is a statement. To pick a value inside an expression, use iif.
+dim as ustring parity
+if y mod 2 = 0 then
+    parity = "even"
+else
+    parity = "odd"
+end if
+print "y is "; parity; " and x is "; iif( x mod 2 = 0, "even", "odd" )
+
+'' A computation that needs several steps goes in a function, whose
+'' call is then a single expression.
+function Hypotenuse( byval a as float64, byval b as float64 ) as float64
+    var squares = a * a + b * b
+    return sqr( squares )
+end function
+print "hypotenuse of 3 and 4:"; Hypotenuse( 3, 4 )

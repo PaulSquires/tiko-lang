@@ -1,0 +1,8 @@
+ 1: --verbose
+ 2: two words
+ 3: 3
+command( 9 ) = []
+all: --verbose two words 3
+has a program path: true
+__FB_ARGC__ = 4
+argv[ 2 ] = two words

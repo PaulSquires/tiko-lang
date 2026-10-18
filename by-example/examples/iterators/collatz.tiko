@@ -1,0 +1,60 @@
+'' A sequence computed as it is walked: nothing is stored.
+type CollatzIterator
+    as int64 n
+    as boolean done
+    declare function IsValid( ) as boolean
+    declare function Value( ) as int64
+    declare sub MoveNext( )
+end type
+
+function CollatzIterator.IsValid( ) as boolean
+    return not done
+end function
+
+function CollatzIterator.Value( ) as int64
+    return n
+end function
+
+sub CollatzIterator.MoveNext( )
+    if n = 1 then
+        done = true                 '' 1 was the last element
+    elseif n mod 2 = 0 then
+        n \= 2
+    else
+        n = 3 * n + 1
+    end if
+end sub
+
+type Collatz
+    as int64 start
+    declare function GetIterator( ) as CollatzIterator
+end type
+
+function Collatz.GetIterator( ) as CollatzIterator
+    return type( start, false )
+end function
+
+dim six as Collatz = ( 6 )
+for each n in six
+    print n;
+next
+print
+
+'' A long walk: only the running totals are kept.
+dim twentySeven as Collatz = ( 27 )
+dim as int64 steps = 0, highest = 0
+for each n in twentySeven
+    steps += 1
+    if n > highest then highest = n
+next
+print "27 takes"; steps - 1; " steps and climbs to"; highest
+
+'' exit for stops the walk: the rest is never computed.
+dim huge as Collatz = ( 989345275647 )
+dim as int32 shown = 0
+for each n in huge
+    print n;
+    shown += 1
+    if shown = 4 then exit for
+next
+print " ..."

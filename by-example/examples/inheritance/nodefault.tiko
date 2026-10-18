@@ -1,0 +1,21 @@
+'' A base with no constructor that takes no argument.
+type Account
+    declare constructor( byval opening as int64 )
+    balance as int64
+end type
+
+constructor Account( byval opening as int64 )
+    balance = opening
+end constructor
+
+type Savings extends Account
+    declare constructor( byval opening as int64 )
+    rate as float64
+end type
+
+constructor Savings( byval opening as int64 )
+    base( opening )
+end constructor
+
+dim as Savings s = Savings( 100 )
+print s.balance

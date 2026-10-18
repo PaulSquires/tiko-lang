@@ -1,0 +1,49 @@
+'' continue for skips to the next pass; exit for leaves the loop.
+for i as int32 = 1 to 10
+    if i mod 3 = 0 then continue for
+    if i > 7 then exit for
+    print i;
+next
+print
+
+'' Naming the loop kind twice leaves two loops at once.
+dim as int32 grid( 1 to 3, 1 to 3 ) = _
+    { { 5, 20, 31 }, { 12, 64, 7 }, { 99, 1, 2 } }
+dim as int32 foundRow = 0, foundCol = 0
+for r as int32 = 1 to 3
+    for c as int32 = 1 to 3
+        if grid( r, c ) > 50 then
+            foundRow = r
+            foundCol = c
+            exit for, for
+        end if
+    next
+next
+print "first value over 50: row"; foundRow; ", column"; foundCol
+
+'' continue for, for goes straight to the next pass of the outer loop.
+'' Each row is printed up to its first zero.
+dim as int32 rows( 1 to 3, 1 to 4 ) = _
+    { { 1, 2, 0, 4 }, { 5, 0, 7, 8 }, { 9, 10, 11, 12 } }
+for r as int32 = 1 to 3
+    print "row"; r; ":";
+    for c as int32 = 1 to 4
+        if rows( r, c ) = 0 then
+            print " (stopped at a zero)"
+            continue for, for
+        end if
+        print rows( r, c );
+    next
+    print
+next
+
+'' exit names the kind of block, so it can reach past a different kind:
+'' this exit for leaves the for from inside a do.
+for i as int32 = 1 to 3
+    do
+        if i = 2 then exit for
+        print "pass"; i
+        exit do
+    loop
+next
+print "done"

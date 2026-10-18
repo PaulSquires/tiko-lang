@@ -1,0 +1,5 @@
+'' Linked with the object file: tiko main.tiko greet.o
+declare sub Greet( byval who as ustring )
+
+print "main starts"
+Greet( "world" )

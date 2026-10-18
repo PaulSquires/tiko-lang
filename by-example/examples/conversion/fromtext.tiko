@@ -1,0 +1,31 @@
+#import "std/numeric"
+
+'' val reads a number from the front of the text. It skips leading
+'' spaces, stops at the first character that cannot continue the
+'' number, and gives 0 when there is no number at all.
+print "val( ""3.75"" )     ="; val( "3.75" )
+print "val( ""  12 cm"" )  ="; val( "  12 cm" )
+print "val( ""1e3"" )      ="; val( "1e3" )
+print "val( ""&hFF"" )     ="; val( "&hFF" )
+print "val( ""none"" )     ="; val( "none" )
+print
+
+'' valint, vallng and valuint read whole numbers into integer types.
+print "valint( ""99.9"" )  ="; valint( "99.9" )
+print "vallng( ""9000000000"" ) ="; vallng( "9000000000" )
+print
+
+'' val cannot tell "0" from rubbish. numeric.TryParseLong and
+'' TryParseDouble take the whole text or nothing, and say which.
+dim as ustring inputs( 1 to 4 ) = { "42", "42abc", "", "-7" }
+for i as int32 = 1 to 4
+    var n = numeric.TryParseLong( inputs( i ) )
+    if n.HasValue( ) then
+        print """" & inputs( i ) & """ is the int32 " & n.Value( )
+    else
+        print """" & inputs( i ) & """ is not a number"
+    end if
+next
+
+var d = numeric.TryParseDouble( "2.5e-3" )
+print "TryParseDouble( ""2.5e-3"" ) ="; d.ValueOr( 0 )

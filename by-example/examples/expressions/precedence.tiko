@@ -1,0 +1,37 @@
+'' Each line shows an expression and its value, then the same
+'' expression with the grouping tiko gives it written out.
+sub Show( byval e1 as ustring, byval v1 as float64, _
+          byval e2 as ustring, byval v2 as float64 )
+    print left( e1 & space( 14 ), 14 ); "= "; left( v1 & space( 6 ), 6 ); _
+          left( e2 & space( 18 ), 18 ); "= " & v2
+end sub
+
+'' ^ binds tighter than unary minus, and groups to the left.
+Show( "-2 ^ 2", -2 ^ 2, "-(2 ^ 2)", -( 2 ^ 2 ) )
+Show( "2 ^ 3 ^ 2", 2 ^ 3 ^ 2, "(2 ^ 3) ^ 2", ( 2 ^ 3 ) ^ 2 )
+
+'' * and / come before \, which comes before mod.
+Show( "7 \ 2 * 2", 7 \ 2 * 2, "7 \ (2 * 2)", 7 \ ( 2 * 2 ) )
+Show( "9 mod 5 \ 2", 9 mod 5 \ 2, "9 mod (5 \ 2)", 9 mod ( 5 \ 2 ) )
+
+'' Shifts bind tighter than + and -.
+Show( "1 shl 2 + 3", 1 shl 2 + 3, "(1 shl 2) + 3", ( 1 shl 2 ) + 3 )
+
+'' Comparisons bind tighter than and, or and not.
+dim as int32 n = 6, a = 3, b = 0
+Show( "n and 1 <> 0", n and 1 <> 0, "n and (1 <> 0)", n and ( 1 <> 0 ) )
+Show( "not a = b", not a = b, "not (a = b)", not ( a = b ) )
+print
+
+'' & joins after the arithmetic, and comparisons come after &.
+print """x"" & 1 + 2 = ""x3"" is "; cbool( "x" & 1 + 2 = "x3" )
+
+'' and binds tighter than or.
+print "true or false and false   = "; cbool( true or false and false )
+print "true or (false and false) = "; cbool( true or ( false and false ) )
+
+'' andalso and orelse share one level and group left to right.
+print "true orelse false andalso false   = "; _
+      cbool( true orelse false andalso false )
+print "(true orelse false) andalso false = "; _
+      cbool( ( true orelse false ) andalso false )

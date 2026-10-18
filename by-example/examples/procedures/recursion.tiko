@@ -1,0 +1,36 @@
+'' A procedure may call itself. Each call has its own parameters.
+function Factorial( byval n as int32 ) as int64
+    if n <= 1 then return 1
+    return n * Factorial( n - 1 )
+end function
+
+for n as int32 = 1 to 5
+    print n; "! ="; Factorial( n )
+next
+
+'' Moving towards the base case one step at a time.
+sub Countdown( byval n as int32 )
+    if n = 0 then
+        print " liftoff"
+        exit sub
+    end if
+    print n;
+    Countdown( n - 1 )
+end sub
+
+Countdown( 5 )
+
+'' Two procedures that call each other: declare the second one first.
+declare function IsOdd( byval n as int32 ) as boolean
+
+function IsEven( byval n as int32 ) as boolean
+    if n = 0 then return true
+    return IsOdd( n - 1 )
+end function
+
+function IsOdd( byval n as int32 ) as boolean
+    if n = 0 then return false
+    return IsEven( n - 1 )
+end function
+
+print "7 is even: "; IsEven( 7 ); ", 10 is even: "; IsEven( 10 )

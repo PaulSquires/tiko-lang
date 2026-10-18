@@ -1,0 +1,33 @@
+type Settings
+    as int32 columns, rows
+    as ustring title
+    as boolean resizable
+end type
+
+dim as Settings s
+
+'' Inside with ... end with, a leading dot means "a field of s".
+with s
+    .columns = 80
+    .rows = 25
+    .title = "Report"
+    .resizable = false
+end with
+
+print s.title; ":"; s.columns; " x"; s.rows; ", resizable "; s.resizable
+
+'' with works on a nested field too, and code inside it can use
+'' anything else in scope.
+type Document
+    as ustring path
+    as Settings layout
+end type
+
+dim as Document doc
+doc.path = "notes.txt"
+with doc.layout
+    .columns = s.columns * 2
+    .rows = s.rows
+    .title = doc.path
+end with
+print doc.layout.title; ":"; doc.layout.columns; " x"; doc.layout.rows

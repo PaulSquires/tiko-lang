@@ -1,0 +1,46 @@
+'' A procedure has an address, and a variable can hold it.
+function Twice( byval x as float64 ) as float64
+    return x * 2
+end function
+
+function Square( byval x as float64 ) as float64
+    return x * x
+end function
+
+'' The type of such a variable is the procedure's signature, unnamed.
+dim as function( byval as float64 ) as float64 op = @Twice
+print "op( 5 ) ="; op( 5 )
+op = procptr( Square )             '' procptr( ) is the same as @
+print "op( 5 ) ="; op( 5 )
+
+'' A type alias gives the signature a name.
+type Operation as function( byval x as float64 ) as float64
+
+'' A parameter of that type takes any procedure of that shape.
+sub Tabulate( byref title as ustring, byval f as Operation )
+    print title & ":";
+    for i as int32 = 1 to 4
+        print f( i );
+    next
+    print
+end sub
+
+Tabulate( "twice", @Twice )
+Tabulate( "square", @Square )
+
+'' A function can return one, chosen while the program runs.
+function Pick( byref opName as ustring ) as Operation
+    if opName = "square" then return @Square
+    return @Twice
+end function
+
+var chosen = Pick( "square" )
+print "chosen( 7 ) ="; chosen( 7 )
+
+'' A sub's address works the same way.
+sub Announce( byref text as ustring )
+    print "** " & text & " **"
+end sub
+
+dim as sub( byref as ustring ) callback = @Announce
+callback( "called through a pointer" )

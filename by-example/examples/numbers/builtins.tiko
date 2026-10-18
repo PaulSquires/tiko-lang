@@ -1,0 +1,24 @@
+'' The built-in numeric functions need no import.
+print "abs( -3.5 ) ="; abs( -3.5 ); ", sgn( -2 ) ="; sgn( -2 )
+print "sqr( 2 )    ="; sqr( 2 )
+print "exp( 1 )    ="; exp( 1 )
+print "log( 100 )  ="; log( 100 ); "  (natural log)"
+
+'' Trigonometry works in radians.
+dim as float64 pi = atn( 1 ) * 4
+print "pi          ="; pi
+print "sin( pi / 6 ) ="; sin( pi / 6 )
+print "atan2( 1, 1 ) ="; atan2( 1, 1 )
+
+'' int rounds down, fix rounds toward zero, frac is what fix drops.
+print "int( -2.5 ) ="; int( -2.5 ); ", fix( -2.5 ) ="; fix( -2.5 ); _
+      ", frac( -2.5 ) ="; frac( -2.5 )
+
+'' / divides as floating point; \ divides whole numbers.
+print "7 / 2 ="; 7 / 2; ", 7 \ 2 ="; 7 \ 2; ", 7 mod 2 ="; 7 mod 2
+
+'' mod and \ truncate: the remainder takes the sign of the left side.
+print "-7 mod 3 ="; -7 mod 3; ", -7 \ 3 ="; -7 \ 3
+
+'' ^ raises to a power, in floating point.
+print "2 ^ 10 ="; 2 ^ 10; ", 2 ^ 0.5 ="; 2 ^ 0.5

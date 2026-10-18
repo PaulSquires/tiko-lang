@@ -1,0 +1,28 @@
+'' One source, two platforms: the compiler predefines a symbol for the
+'' platform it builds for, and the branch for the other is never
+'' compiled.
+#if defined( __FB_WIN32__ )
+    const PLATFORM = "Windows"
+    const PATH_SEP = "\"
+    const TEMP_VAR = "TEMP"
+#elseif defined( __FB_LINUX__ )
+    const PLATFORM = "Linux"
+    const PATH_SEP = "/"
+    const TEMP_VAR = "TMPDIR"
+#else
+    #error "this program supports Windows and Linux only"
+#endif
+
+print "platform:      "; PLATFORM
+print "a path:        logs"; PATH_SEP; "today.txt"
+print "temp variable: "; TEMP_VAR
+
+#ifdef __FB_UNIX__
+    print "a Unix-like system"
+#endif
+#ifdef __FB_64BIT__
+    print "pointers:     "; sizeof( any ptr ) * 8; " bits"
+#endif
+#ifdef __TIKO_COMPILER__
+    print "compiled by tiko"
+#endif

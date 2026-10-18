@@ -1,0 +1,9 @@
+fields: 4
+  [red]
+  [green]
+  []
+  [blue]
+first is red, last is blue
+red + green +  + blue
+true (5 fields)
+one|two|three|four

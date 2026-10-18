@@ -1,0 +1,24 @@
+#import "std/strings"
+
+'' To walk the words of a text, split it into an Array first.
+dim as ustring csv = "red,green,blue"
+for each colour in strings.Split( csv, "," )
+    print "["; colour; "]";
+next
+print
+
+'' A ustring is walked by index, one character at a time.
+dim as ustring word = "caf" & wchr( 233 )        '' U+00E9, e-acute
+for i as int32 = 1 to len( word )
+    print mid( word, i, 1 ); " ";
+next
+print "-"; len( word ); " characters"
+
+'' A string is a sequence of bytes, and for each yields those.
+dim as string bytes_ = word                      '' encoded as UTF-8
+var count = 0
+for each b in bytes_
+    print b; " ";
+    count += 1
+next
+print "-"; count; " bytes"

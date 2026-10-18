@@ -1,0 +1,7 @@
+add 10: true
+add 4:  false
+contains 6: true, contains 7: false
+evens and small: 2 4
+evens or small: 1 2 3 4 6 8
+evens, not small: 6 8
+evens itself: 2 4 6 8

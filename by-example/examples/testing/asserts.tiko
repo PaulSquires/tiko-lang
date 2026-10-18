@@ -1,0 +1,16 @@
+'' assert checks a condition while the program runs. It is compiled
+'' in only when asked for: -eassert here, or any -g build.
+#cmdline "-eassert"
+
+function Half( byval n as int32 ) as int32
+    return n \ 2
+end function
+
+sub TestHalf( )
+    assert( Half( 10 ) = 5 )
+    assert( Half( 0 ) = 0 )
+    assert( Half( -6 ) = -3 )
+end sub
+
+TestHalf( )
+print "all checks passed"

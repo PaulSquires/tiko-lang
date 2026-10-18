@@ -1,0 +1,14 @@
+'' A program learns about its surroundings from its arguments and its
+'' environment, and reports back through its exit code.
+print "arguments:";
+dim as int32 i = 1
+do while len( command( i ) ) > 0
+    print " ["; command( i ); "]";
+    i += 1
+loop
+print
+
+setenviron "GREETING=hello"
+print "GREETING is "; environ( "GREETING" )
+
+'' Reaching the end of the program exits with code 0: success.

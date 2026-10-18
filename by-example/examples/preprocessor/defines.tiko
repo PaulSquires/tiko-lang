@@ -1,0 +1,23 @@
+'' #define gives a name to a piece of text. The preprocessor puts the
+'' text in place of every use of the name, before the program is
+'' compiled.
+#define APP_NAME "tally"
+#define MAX_ITEMS 5
+#define BANNER "-- " & APP_NAME & " --"
+
+print BANNER
+dim counts( 1 to MAX_ITEMS ) as int32
+print "slots:"; ubound( counts )
+
+'' #ifdef asks whether a name is defined; #undef removes it.
+#undef MAX_ITEMS
+#ifdef MAX_ITEMS
+    print "MAX_ITEMS is defined"
+#else
+    print "MAX_ITEMS is not defined any more"
+#endif
+
+'' For a plain value, a const is usually the better choice: it has a
+'' type and a scope, and the compiler checks it.
+const LIMIT as int32 = 10
+print "limit:"; LIMIT

@@ -1,0 +1,7 @@
+Red = 0, Green = 1, Blue = 10, Violet = 11
+wall = 10
+wall = 1
+Violet is warm
+volume = 3, and High - Low = 2
+Medium as an int32: 2
+wall = 42 is unknown

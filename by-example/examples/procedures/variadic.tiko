@@ -1,0 +1,33 @@
+'' "..." after the type makes the last parameter take any number of
+'' arguments. Inside, it is an ordinary array.
+function Total( values( ) as const int32 ... ) as int64
+    dim as int64 sum = 0
+    for each v in values
+        sum += v
+    next
+    return sum
+end function
+
+print Total( 1, 2, 3 ); Total( 10 ); Total( )
+
+'' Fixed parameters come first; the variadic one is always last.
+function Join( byref sep as const ustring, _
+               parts( ) as const ustring ... ) as ustring
+    dim as ustring result
+    for i as int32 = lbound( parts ) to ubound( parts )
+        if i > lbound( parts ) then result &= sep
+        result &= parts( i )
+    next
+    return result
+end function
+
+print Join( ", ", "red", "green", "blue" )
+print "[" & Join( ", " ) & "]"
+
+'' An array of the element type can be passed as the whole list.
+dim as int32 week( 0 to 6 ) = { 3, 5, 2, 8, 6, 4, 7 }
+print "week total:"; Total( week( ) )
+
+'' Every argument is converted to the element type, as for any int32.
+dim as int16 small = 4
+print Total( small, 5.0, 6 )

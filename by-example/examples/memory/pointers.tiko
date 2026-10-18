@@ -1,0 +1,34 @@
+'' An address, and what lives at it.
+dim as int32 n = 10
+dim as int32 ptr p = @n                 '' @ takes the address
+print "*p ="; *p                        '' * reads what p points at
+*p = 20                                 '' ...or writes it
+print "n is now"; n
+
+type Point
+    as int32 x, y
+end type
+
+dim as Point pt = ( 3, 4 )
+dim as Point ptr pp = @pt
+pp->x = 30                              '' -> reaches a field
+print "pt is"; pt.x; pt.y
+
+'' Arithmetic counts elements, not bytes.
+dim as int32 a( 0 to 4 ) = { 10, 20, 30, 40, 50 }
+dim as int32 ptr first = @a( 0 )
+print "first[2] ="; first[2]; ", *( first + 3 ) ="; *( first + 3 )
+
+dim as uint8 ptr bytes = cast( uint8 ptr, first )
+print "int32 ptr + 1 moves"; cast( integer, first + 1 ) - cast( integer, first )
+print "uint8 ptr + 1 moves"; cast( integer, bytes + 1 ) - cast( integer, bytes )
+
+'' Walking a run of elements, and the distance between two pointers.
+dim as int32 ptr lastOne = @a( 4 ), q = first
+print "walked:";
+do while q <= lastOne
+    print *q;
+    q += 1
+loop
+print
+print "lastOne - first ="; lastOne - first

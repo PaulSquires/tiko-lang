@@ -1,0 +1,21 @@
+#import "std/strings"
+
+'' A parameter with "= value" may be left out of the call.
+sub Rule( byval length as int32 = 10, byref mark as ustring = "-", _
+          byref title as ustring = "" )
+    print title & strings.Repeat( length, mark )
+end sub
+
+Rule( )                       '' every default
+Rule( 4 )                     '' length given
+Rule( 6, "=" )                '' length and mark
+Rule( , "*" )                 '' an empty slot keeps length's default
+Rule( 3, , "total " )         '' and so does one in the middle
+
+'' A default can be an expression; it is worked out at each call.
+function Scaled( byval value as float64, _
+                 byval factor as float64 = 1 / 4 ) as float64
+    return value * factor
+end function
+
+print Scaled( 10 ); Scaled( 10, 2 )

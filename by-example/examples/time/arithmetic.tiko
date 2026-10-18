@@ -1,0 +1,26 @@
+#import "std/chrono"
+
+var start = chrono.LocalDate( 2025, 1, 31 )
+
+'' Days are exact.
+print "+ 30 days:   "; start.AddDays( 30 ).ToIsoString( )
+print "- 31 days:   "; start.AddDays( -31 ).ToIsoString( )
+
+'' Months clamp to the end of a shorter month.
+print "+ 1 month:   "; start.AddMonths( 1 ).ToIsoString( )
+print "+ 2 months:  "; start.AddMonths( 2 ).ToIsoString( )
+print "1 month, twice: "; _
+      start.AddMonths( 1 ).AddMonths( 1 ).ToIsoString( )
+print "+ 1 year from a leap day: "; _
+      chrono.LocalDate( 2024, 2, 29 ).AddYears( 1 ).ToIsoString( )
+
+'' Subtracting two dates gives the days between them.
+var xmas = chrono.LocalDate( 2025, 12, 25 )
+print "days from Jan 31 to Christmas:"; xmas - start
+
+'' Dates compare like numbers.
+print "start < xmas: "; ( start < xmas )
+
+'' The month's first and last days.
+print "month: "; start.StartOfMonth( ).ToIsoString( ); " to "; _
+      start.AddMonths( 1 ).EndOfMonth( ).ToIsoString( )

@@ -1,0 +1,39 @@
+#import "std/containers"
+
+'' Every library container can be walked with for each.
+dim primes as containers.Array( of int32 ) = { 2, 3, 5, 7 }
+print "primes:";
+for each p in primes
+    print p;
+next
+print
+
+'' byref binds the element itself, so the loop can change it.
+for each byref p in primes
+    p *= 10
+next
+print "times ten:"; primes[0]; primes[3]
+
+'' A set yields its members; an ordered one, in sorted order.
+dim tags as containers.OrderedSet( of ustring )
+tags.Add( "red" ) : tags.Add( "blue" ) : tags.Add( "red" )
+print "tags:";
+for each tag in tags
+    print " "; tag;
+next
+print
+
+'' A map yields key/value records...
+dim ages as containers.OrderedMap( of ustring, int32 )
+ages.Put( "grace", 85 )
+ages.Put( "ada", 36 )
+ages.Put( "edsger", 72 )
+for each entry in ages
+    print entry.key; " is"; entry.value
+next
+
+'' ...and Pairs( ) yields tuples, which for each takes apart.
+for each (who, age) in ages.Pairs( )
+    print who; "="; str( age ); " ";
+next
+print

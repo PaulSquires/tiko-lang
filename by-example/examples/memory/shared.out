@@ -1,0 +1,8 @@
+  ada, owners: 1
+  ada, owners: 2
+  ada, owners: 1
+  grace, owners: 1
+reset both:
+  session for ada closed
+  session for grace closed
+s is null: true

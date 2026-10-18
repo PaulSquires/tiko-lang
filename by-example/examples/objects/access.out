@@ -1,0 +1,5 @@
+  entry 1: opened
+  entry 2: deposit
+  entry 3: withdrawal
+withdraw 500: false, withdraw 30: true
+balance: 120

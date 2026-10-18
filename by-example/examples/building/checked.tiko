@@ -1,0 +1,14 @@
+'' A checked build: -exx adds array-bounds and null-pointer checks,
+'' and records where each error happens.
+#cmdline "-exx"
+
+function Total( scores( ) as int32, byval count as int32 ) as int32
+    dim as int32 sum = 0
+    for i as int32 = 1 to count
+        sum += scores( i )
+    next
+    return sum
+end function
+
+dim scores( 1 to 3 ) as int32 = { 70, 85, 90 }
+print Total( scores( ), 4 )        '' one too many

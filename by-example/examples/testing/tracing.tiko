@@ -1,0 +1,36 @@
+'' TRACE( msg ) reports where it was used, on standard error. Remove
+'' the #define and every TRACE compiles to nothing.
+#define TRACING
+
+#ifdef TRACING
+    #define TRACE( msg ) TraceAt( __FILE__, __LINE__, __FUNCTION__, msg )
+#else
+    #define TRACE( msg )
+#endif
+
+sub TraceAt( byval file as ustring, byval lineNo as int32, _
+             byval proc as ustring, byval msg as ustring )
+    var f = freefile( )
+    open err for output as #f
+    print #f, file & "(" & lineNo & ") " & proc & ": " & msg
+    close #f
+end sub
+
+function Mean( values( ) as float64 ) as float64
+    var n = ubound( values ) - lbound( values ) + 1
+    TRACE( "count " & n )
+    dim total as float64
+    for i as int32 = lbound( values ) to ubound( values )
+        total += values( i )
+    next
+    TRACE( "total " & total )
+    return total / n
+end function
+
+sub Report( )
+    dim readings( 0 to 3 ) as float64 = { 3.5, 4.0, 5.5, 3.0 }
+    var m = Mean( readings( ) )
+    TRACE( "mean " & m )
+end sub
+
+Report( )

@@ -1,0 +1,59 @@
+#import "std/outcome"
+
+type Endpoint
+    as ustring host
+    as int32 port
+end type
+
+type PortResult as outcome.Result( of int32, ustring )
+type EndpointResult as outcome.Result( of Endpoint, ustring )
+
+'' Level 3: one number.
+function ParsePort( byref text as ustring ) as PortResult
+    var port = valint( text )
+    if str( port ) <> text orelse port < 1 orelse port > 65535 then
+        var why = "bad port '" & text & "'"
+        return outcome.Fail( of int32, ustring )( why )
+    end if
+    return outcome.Ok( of int32, ustring )( port )
+end function
+
+'' Level 2: "host:port". A failure below is passed up unchanged.
+function ParseEndpoint( byref text as ustring ) as EndpointResult
+    var colon = instr( text, ":" )
+    if colon = 0 then
+        var why = "no ':' in '" & text & "'"
+        return outcome.Fail( of Endpoint, ustring )( why )
+    end if
+    var port = ParsePort( mid( text, colon + 1 ) )
+    if port.IsOk( ) = false then
+        return outcome.Fail( of Endpoint, ustring )( port.Failure( ) )
+    end if
+    dim ep as Endpoint
+    ep.host = left( text, colon - 1 )
+    ep.port = port.Value( )
+    return outcome.Ok( of Endpoint, ustring )( ep )
+end function
+
+'' Level 1: a named setting. A failure gains context on the way up.
+function LoadSetting( byref key as ustring, byref text as ustring ) _
+    as EndpointResult
+    var ep = ParseEndpoint( text )
+    if ep.IsOk( ) = false then
+        var why = key & ": " & ep.Failure( )
+        return outcome.Fail( of Endpoint, ustring )( why )
+    end if
+    return ep
+end function
+
+dim keys( 0 to 2 ) as ustring = { "db", "cache", "mail" }
+dim texts( 0 to 2 ) as ustring = { "db.local:5432", "cache.local", _
+                                   "mail.local:25x" }
+for i as int32 = 0 to 2
+    var r = LoadSetting( keys( i ), texts( i ) )
+    if r.IsOk( ) then
+        print keys( i ); " -> "; r.Value( ).host; " port"; r.Value( ).port
+    else
+        print "error: "; r.Failure( )
+    end if
+next

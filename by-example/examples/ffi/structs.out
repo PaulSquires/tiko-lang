@@ -1,0 +1,4 @@
+div( 47, 10 ): quot 4, rem 7
+Natural: size 8, value at 4
+Packed:  size 5, value at 1
+Record:  size 12, id at 8

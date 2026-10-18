@@ -1,0 +1,16 @@
+'' Each #import names a module of the standard library. The imports
+'' come first in the file, before any other code.
+#import "std/strings"
+#import "std/containers"
+
+'' A module's names are reached through the module's name.
+print strings.Replace( "a-b-c", "-", " + " )
+print strings.StartsWith( "tiko-lang", "tiko" )
+print strings.Format( "{} has {} letters", "module", len( "module" ) )
+
+'' Types are reached the same way.
+dim words as containers.Array( of ustring )
+words.Push( "pear" )
+words.Push( "apple" )
+words.Push( "fig" )
+print "words:"; words.Count( )

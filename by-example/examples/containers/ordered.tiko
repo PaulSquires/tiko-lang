@@ -1,0 +1,30 @@
+#import "std/containers"
+
+'' An OrderedMap keeps its keys sorted: here, departure times.
+dim departures as containers.OrderedMap( of int32, ustring )
+departures[ 1430 ] = "Leeds"
+departures[ 905 ] = "York"
+departures[ 1215 ] = "Hull"
+departures[ 1750 ] = "Derby"
+
+for each (hhmm, town) in departures.Pairs( )      '' always in key order
+    print hhmm; " "; town
+next
+
+dim as int32 t
+dim as ustring town
+if departures.TryFirst( t, town ) then print "first:"; t; " "; town
+if departures.TryLast( t, town ) then print "last:"; t; " "; town
+
+'' The neighbours of a value that is not a key.
+if departures.TryCeiling( 1300, t ) then print "next after 1300:"; t
+if departures.TryFloor( 1300, t ) then print "last before 1300:"; t
+print "anything after 1800? "; departures.TryCeiling( 1800, t )
+
+'' An OrderedSet is the same tree with no values.
+dim tags as containers.OrderedSet( of ustring ) = { "sale", "new", "eco" }
+tags.Add( "gift" )
+for each tag in tags
+    print " "; tag;
+next
+print

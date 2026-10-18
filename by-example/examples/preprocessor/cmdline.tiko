@@ -1,0 +1,18 @@
+'' -d NAME=value defines a symbol before the first line of the file.
+'' #cmdline puts compiler options in the source itself.
+#cmdline "-d EDITION=2 -d SEATS=25"
+
+'' A default, for a build that does not choose.
+#ifndef EDITION
+    #define EDITION 1
+#endif
+
+#if EDITION = 1
+    print "standard edition"
+#else
+    print "professional edition"
+#endif
+
+#ifdef SEATS
+    print "licensed for"; SEATS; " seats"
+#endif

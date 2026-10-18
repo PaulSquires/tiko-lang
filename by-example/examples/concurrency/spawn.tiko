@@ -1,0 +1,27 @@
+#import "std/tasks"
+#import "std/containers"
+#cmdline "-mt"
+
+'' A goroutine has no result: it reports through a channel.
+sub Label( byval id as int32, byval prefix as ustring, _
+           byval out_ as tasks.SendChan( of ustring ) )
+    out_.Send( prefix & "-" & id )
+end sub
+
+var labels = tasks.Channel( of ustring )( 8 )
+dim as ustring prefix = "task"
+for i as int32 = 1 to 4
+    spawn Label( i, prefix, labels )   '' i and prefix are copied now
+next
+prefix = "changed"                     '' too late for all of them
+
+'' They finish in any order; an OrderedSet keeps what they sent sorted.
+dim got as containers.OrderedSet( of ustring )
+dim as ustring s
+for i as int32 = 1 to 4
+    labels.Receive( s )
+    got.Add( s )
+next
+for each g in got
+    print g
+next

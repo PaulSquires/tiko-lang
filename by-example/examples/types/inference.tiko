@@ -1,0 +1,32 @@
+'' var gives a variable the type of its first value.
+var count = 10          '' integer, from the literal
+var price = 4.25        '' float64
+var ready = true        '' boolean
+var tiny = cast( uint8, 7 )
+
+print "count:"; sizeof( count ); " bytes, price:"; sizeof( price ); _
+      " bytes, ready:"; sizeof( ready ); " byte, tiny:"; sizeof( tiny ); _
+      " byte"
+
+'' The value can be any expression, including a call.
+function Average( byval a as float64, byval b as float64 ) as float64
+    return ( a + b ) / 2
+end function
+var mean = Average( 3, 4 )
+var total = count * price       '' integer times float64 is float64
+print "mean ="; mean; ", total ="; total; ","; sizeof( total ); " bytes"
+
+'' Arithmetic on narrow integers is done at integer width.
+dim as int16 a = 30000, b = 30000
+var sum = a + b
+print "int16 + int16 ="; sum; " in"; sizeof( sum ); " bytes"
+
+'' typeof( x ) is x's type, usable wherever a type is expected.
+dim as typeof( tiny ) other = 200
+dim as typeof( price ) another = 1.5
+print "other = "; other; " in"; sizeof( other ); " byte, another ="; another
+
+'' The type is fixed once inferred: tiny is still a uint8.
+tiny = 255
+tiny += 1
+print "tiny after 255 + 1 = "; tiny

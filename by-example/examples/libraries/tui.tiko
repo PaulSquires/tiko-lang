@@ -1,0 +1,79 @@
+#import "std/tui"
+
+'' An application is three methods: Init, Update and View.
+type CounterApp extends tui.TuiApp
+    as int32 count
+    declare function Init( ) as tui.TuiCmd override
+    declare function Update( byref e as tui.TuiEvent ) _
+                             as tui.TuiCmd override
+    declare sub View( byref f as tui.TuiFrame ) override
+end type
+
+function CounterApp.Init( ) as tui.TuiCmd
+    count = 0
+    return tui.TuiNone( )
+end function
+
+'' Update changes the state, and says what should happen next.
+function CounterApp.Update( byref e as tui.TuiEvent ) as tui.TuiCmd
+    if e.kind <> tui.TUIEVENT_KEY then return tui.TuiNone( )
+    select case e.key.code
+    case tui.TUIKEY_ESCAPE
+        return tui.TuiQuit( 0 )
+    case tui.TUIKEY_UP
+        count += 1
+    case tui.TUIKEY_DOWN
+        count -= 1
+    end select
+    return tui.TuiRedraw( )
+end function
+
+'' View draws the whole screen from the state, every frame.
+sub CounterApp.View( byref f as tui.TuiFrame )
+    dim as tui.TuiBlock b
+    b.borderKind = tui.TUIBORDER_ASCII
+    b.sides = tui.TUISIDE_ALL
+    b.AddTitle( " counter ", tui.TuiStyleDefault( ), _
+                tui.TUISIDE_TOP, tui.TUIALIGN_CENTER )
+    b.Render( f, f.Area( ) )
+    dim as tui.TuiParagraph p
+    p.align = tui.TUIALIGN_CENTER
+    p.text = "count: " & str( count )
+    p.Render( f, b.Inner( f.Area( ) ) )
+end sub
+
+'' Print the cells a screen holds, one row per line.
+sub Dump( byref scr as tui.TuiScreen )
+    dim as tui.TuiBuffer ptr bf = scr.Front( )
+    for y as int32 = 0 to bf->rows - 1
+        dim as ustring row
+        for x as int32 = 0 to bf->cols - 1
+            if bf->At( x, y )->width > 0 then row &= bf->At( x, y )->text
+        next
+        print rtrim( row )
+    next
+end sub
+
+'' No terminal needed: render one frame into a 24 x 3 screen.
+dim as CounterApp app
+dim as tui.TuiScreen scr
+scr.Resize( 24, 3 )
+app.Init( )
+var first = tui.TuiRenderOnce( app, scr )
+Dump( scr )
+
+'' Feed Update two Up keys, as the event loop would, and draw again.
+dim as tui.TuiEvent up
+up.kind = tui.TUIEVENT_KEY
+up.key.code = tui.TUIKEY_UP
+app.Update( up )
+app.Update( up )
+var second = tui.TuiRenderOnce( app, scr )
+Dump( scr )
+
+'' Only the changed cells are sent; an unchanged frame sends nothing.
+var third = tui.TuiRenderOnce( app, scr )
+print "bytes sent:"; len( first ); len( second ); len( third )
+
+'' A real program hands the app to the loop instead:
+''     tui.TuiRun( app, tui.TuiTermOptionsDefault( ) )

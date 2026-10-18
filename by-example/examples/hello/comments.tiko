@@ -1,0 +1,9 @@
+'' A line comment starts with two apostrophes and runs to the end
+'' of the line. It is the form used for almost every comment.
+
+/' A block comment starts with slash-apostrophe and ends with
+   apostrophe-slash. It can span lines, /' and nest '/ inside. '/
+
+dim as int32 x = 5 + /' 90 + '/ 5   '' a block comment mid-expression
+
+print "x is"; x

@@ -1,0 +1,4 @@
+dim as ustring word = "tiko"
+for each ch in word                 '' a ustring cannot be walked
+    print ch
+next

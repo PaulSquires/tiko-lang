@@ -1,0 +1,10 @@
+new word: red
+new word: blue
+new word: green
+new word: teal
+ 8 words, 4 distinct
+the fifth word is blue
+blue: 2
+green: 2
+red: 3
+teal: 1

@@ -1,0 +1,8 @@
+'' Built with no options: tiko defaults.tiko -o defaults
+'' Each option defines a symbol the source can test.
+
+print "this build:"
+print "runtime error checks: "; cbool( __FB_ERR__ <> 0 )
+print "thread-safe runtime:  "; cbool( __FB_MT__ )
+print "debug build:          "; cbool( __FB_DEBUG__ )
+print "optimisation level:   "; __FB_OPTIMIZE__

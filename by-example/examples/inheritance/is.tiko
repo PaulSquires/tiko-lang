@@ -1,0 +1,48 @@
+type Message extends Object
+    declare function Summary( ) as ustring
+    sender as ustring
+end type
+
+function Message.Summary( ) as ustring
+    return "from " & sender
+end function
+
+type TextMessage extends Message
+    text as ustring
+end type
+
+type Reply extends TextMessage
+    inReplyTo as int32
+end type
+
+type Picture extends Message
+    w as int32
+    h as int32
+end type
+
+sub Show( byref m as Message )
+    print m.Summary( );
+    '' is asks what the object really is, at run time. It is true for
+    '' the type named and for anything derived from it.
+    if m is TextMessage then
+        '' Safe now: the object really is a TextMessage.
+        dim as TextMessage ptr t = cast( TextMessage ptr, @m )
+        print ": "; t->text;
+    end if
+    if m is Reply then
+        print " (reply to #" & cast( Reply ptr, @m )->inReplyTo & ")";
+    end if
+    if m is Picture then print ": a picture";
+    print
+end sub
+
+dim as TextMessage hello
+hello.sender = "Ada" : hello.text = "hello"
+dim as Reply answer
+answer.sender = "Grace" : answer.text = "hi!" : answer.inReplyTo = 1
+dim as Picture photo
+photo.sender = "Alan" : photo.w = 640 : photo.h = 480
+
+Show( hello )
+Show( answer )
+Show( photo )

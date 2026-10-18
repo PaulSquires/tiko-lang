@@ -1,0 +1,11 @@
+'' select case true runs the first case whose condition is true.
+dim as boolean raining = false, windy = true
+
+select case true
+case raining
+    print "take an umbrella"
+case windy
+    print "take a coat"
+case else
+    print "take nothing"
+end select

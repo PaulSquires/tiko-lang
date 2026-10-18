@@ -1,0 +1,4 @@
+'' This is a comment. The compiler ignores everything after ''.
+
+'' print writes a line of text to standard output.
+print "Hello, world!"

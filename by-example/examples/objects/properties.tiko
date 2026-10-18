@@ -1,0 +1,48 @@
+type Thermostat
+    declare property Celsius( ) as float64                '' get
+    declare property Celsius( byval value as float64 )    '' set
+    declare property Fahrenheit( ) as float64             '' get only
+    declare property Preset( byval slot as int32 ) as float64
+    declare property Preset( byval slot as int32, byval value as float64 )
+  private:
+    celsius_ as float64
+    presets_( 1 to 3 ) as float64
+end type
+
+property Thermostat.Celsius( ) as float64
+    return celsius_
+end property
+
+'' The setter is where the type keeps its own rules.
+property Thermostat.Celsius( byval value as float64 )
+    if value < -273.15 then value = -273.15
+    celsius_ = value
+end property
+
+'' Computed on demand, so it can never disagree with Celsius.
+property Thermostat.Fahrenheit( ) as float64
+    return celsius_ * 9 / 5 + 32
+end property
+
+'' A property can take an index, like an array the type controls.
+property Thermostat.Preset( byval slot as int32 ) as float64
+    return presets_( slot )
+end property
+
+property Thermostat.Preset( byval slot as int32, byval value as float64 )
+    presets_( slot ) = value
+end property
+
+dim as Thermostat t
+t.Celsius = 21.5                    '' calls the setter
+print "celsius"; t.Celsius; ", fahrenheit"; t.Fahrenheit
+
+t.Celsius = t.Celsius + 2.5         '' get, add, then set
+print "warmer:"; t.Celsius
+
+t.Celsius = -500
+print "asked for -500, got "; t.Celsius
+
+
+t.Preset( 2 ) = 18
+print "preset 2 is"; t.Preset( 2 )

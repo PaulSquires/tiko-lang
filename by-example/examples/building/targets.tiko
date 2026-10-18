@@ -1,0 +1,11 @@
+'' Both targets are 64-bit x86-64, and tiko's types have the same size
+'' on each -- long included, which is 32 bits on Windows and Linux.
+print "target sizes:"
+print "pointer:"; sizeof( any ptr ); " bytes"
+print "integer:"; sizeof( integer ); " bytes"
+print "int32:  "; sizeof( int32 ); " bytes"
+print "long:   "; sizeof( long ); " bytes"
+print "float64:"; sizeof( float64 ); " bytes"
+#ifdef __FB_64BIT__
+    print "a 64-bit build"
+#endif

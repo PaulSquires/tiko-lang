@@ -1,0 +1,35 @@
+'' type Name as T gives an existing type a second name.
+type Celsius as float64
+type UserId as uint32
+
+dim as Celsius outside = 21.5
+dim as UserId owner = 1042
+print "outside:"; outside; ", owner: "; owner
+
+'' An alias is the same type, not a new one: values mix freely.
+dim as float64 plain = outside
+dim as Celsius fromPlain = plain + 0.5
+print "plain:"; plain; ", fromPlain:"; fromPlain
+print "sizeof( Celsius ) ="; sizeof( Celsius ); _
+      ", sizeof( UserId ) ="; sizeof( UserId )
+
+'' Aliases shorten long type names, such as a tuple type.
+type Span as ( first as int32, last as int32 )
+
+function Widen( byval s as Span, byval by_ as int32 ) as Span
+    return ( s.first - by_, s.last + by_ )
+end function
+
+dim as Span hours = ( 9, 17 )
+var longer = Widen( hours, 1 )
+print "hours"; hours.first; " to"; hours.last; _
+      ", widened"; longer.first; " to"; longer.last
+
+'' They also name a record type a second way.
+type Point2D
+    as float64 x, y
+end type
+type Vec2 as Point2D
+dim as Vec2 v = ( 3, 4 )
+dim as Point2D p = v
+print "p ="; p.x; p.y

@@ -1,0 +1,48 @@
+type Temperature
+    declare constructor( )                          '' the default
+    declare constructor( byval celsius as float64 )
+    declare constructor( byref text as ustring )
+    celsius as float64
+end type
+
+constructor Temperature( )
+    celsius = 20
+    print "  default: room temperature"
+end constructor
+
+constructor Temperature( byval celsius as float64 )
+    this.celsius = celsius
+    print "  from a number"
+end constructor
+
+'' One constructor can hand its work to another.
+constructor Temperature( byref text as ustring )
+    this.constructor( val( text ) )
+    print "  ... by way of the text"
+end constructor
+
+sub Show( byref t as Temperature )
+    print "  Show got"; t.celsius
+end sub
+
+print "dim as Temperature a"
+dim as Temperature a
+
+print "var b = Temperature( 5.5 )"
+var b = Temperature( 5.5 )
+
+print "dim as Temperature c = Temperature( ""31"" )"
+dim as Temperature c = Temperature( "31" )
+
+'' A constructor with one parameter is also a conversion.
+print "dim as Temperature d = -4"
+dim as Temperature d = -4
+print "Show( 12 )"
+Show( 12 )
+
+'' An array of objects runs the default constructor for each element.
+print "dim as Temperature week( 1 to 2 )"
+dim as Temperature week( 1 to 2 )
+
+print "celsius: " & a.celsius & ", " & b.celsius & ", " & c.celsius & _
+      ", " & d.celsius

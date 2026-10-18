@@ -1,0 +1,10 @@
+start: 5 3 9   (count 3)
+push 7: 5 3 9 7   (count 4)
+first 5, last 7
+xs[1] = 30: 5 30 9 7   (count 4)
+pop gives 7
+after pop: 5 30 9   (count 3)
+insert 1 at 0: 1 5 30 9   (count 4)
+remove at 2: 1 5 9   (count 3)
+doubled: 2 10 18   (count 3)
+empty now: true, pop of empty gives 0

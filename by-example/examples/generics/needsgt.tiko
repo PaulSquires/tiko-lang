@@ -1,0 +1,16 @@
+'' Largest( of T ) uses '>' on T, but nothing in its header says so.
+function Largest( of T )( items() as T ) as T
+    var best = items( lbound( items ) )
+    for each x in items
+        if x > best then best = x
+    next
+    return best
+end function
+
+type Version
+    as int32 major, minor
+end type
+
+dim releases( 0 to 2 ) as Version = { ( 1, 4 ), ( 2, 0 ), ( 1, 9 ) }
+var newest = Largest( releases() )      '' Version has no '>'
+print newest.major; newest.minor

@@ -1,0 +1,37 @@
+#import "std/tasks"
+#cmdline "-mt"
+
+'' Sends msg on out_ after a delay.
+sub After( byval ms as int32, byval msg as ustring, _
+           byval out_ as tasks.SendChan( of ustring ) )
+    sleep ms, 1
+    out_.Send( msg )
+end sub
+
+var quick = tasks.Channel( of ustring )( 1 )
+var slow = tasks.Channel( of ustring )( 1 )
+dim as ustring msg
+
+'' case else: if nothing is ready right now, do not wait at all.
+select channel
+    case receive msg from quick : print "quick: "; msg
+    case receive msg from slow  : print "slow: "; msg
+    case else                   : print "nothing ready yet"
+end select
+
+spawn After( 20, "quick reply", quick )
+spawn After( 3000, "slow reply", slow )
+
+'' Wait for whichever channel is ready first.
+select channel
+    case receive msg from quick : print "first: "; msg
+    case receive msg from slow  : print "first: "; msg
+    case timeout 1000           : print "no reply within 1000 ms"
+end select
+
+'' case timeout: wait, but only so long.
+select channel
+    case receive msg from quick : print "then: "; msg
+    case receive msg from slow  : print "then: "; msg
+    case timeout 100            : print "nothing else within 100 ms"
+end select

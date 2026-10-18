@@ -1,0 +1,12 @@
+'' The exit code is what a script or a build tool checks.
+function CountErrors( ) as int32
+    return 4
+end function
+
+var errors = CountErrors( )
+print errors; " errors found"
+
+'' end n stops the program here with exit status n.
+if errors > 0 then end errors
+
+print "not printed: the program has already ended"

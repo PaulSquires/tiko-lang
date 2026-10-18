@@ -1,0 +1,24 @@
+'' The tests of the wordstats module: a program of their own, which
+'' sees the module exactly as any other importer does.
+#import "./wordstats"
+#include once "fbcunit.bi"
+
+SUITE( text_statistics )
+    TEST( counts_words )
+        CU_ASSERT_EQUAL( wordstats.WordCount( "" ), 0 )
+        CU_ASSERT_EQUAL( wordstats.WordCount( "single" ), 1 )
+        CU_ASSERT_EQUAL( wordstats.WordCount( "one two three" ), 3 )
+    END_TEST
+
+    TEST( ignores_extra_spaces )
+        CU_ASSERT_EQUAL( wordstats.WordCount( "  two   words " ), 2 )
+    END_TEST
+
+    TEST( finds_the_longest_word )
+        CU_ASSERT_EQUAL( wordstats.LongestWord( "a quick fox" ), "quick" )
+        CU_ASSERT_EQUAL( wordstats.LongestWord( "ab cd" ), "ab" )
+        CU_ASSERT_EQUAL( wordstats.LongestWord( "" ), "" )
+    END_TEST
+END_SUITE
+
+end iif( fbcu.run_tests( ), 0, 1 )

@@ -1,0 +1,22 @@
+#import "std/logs"
+
+'' Any procedure can log through the default logger: nothing is passed.
+sub SaveSettings( byref path as ustring, byval bytes as int32 )
+    logs.LogEventInfo( AddText( "path", path ).AddInt( "bytes", bytes ), _
+                       "settings saved" )
+end sub
+
+dim tr as logs.TextRenderer
+tr.stamp = logs.TS_NONE
+dim con as logs.ConsoleSink = logs.ConsoleSink( logs.CT_STDOUT, @tr )
+logs.LogInit( @con, logs.LOG_INFO )
+
+logs.LogInfo( "starting" )
+SaveSettings( "settings.ini", 512 )
+logs.LogEventError( AddInt( "code", 5 ), "upload failed" )
+
+'' The macros and the logger itself reach the same place.
+logs.DefaultLogger( ).Warn( ).AddBool( "retry", true ).Msg( "slow" )
+
+'' Flush and close the sinks: LogShutdown is not called for you.
+logs.LogShutdown( )

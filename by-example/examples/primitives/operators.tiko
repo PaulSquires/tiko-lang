@@ -1,0 +1,35 @@
+'' Arithmetic. / always gives a float; \ is integer division.
+print "7 + 2   ="; 7 + 2
+print "7 - 2   ="; 7 - 2
+print "7 * 2   ="; 7 * 2
+print "7 / 2   ="; 7 / 2
+print "7 \ 2   ="; 7 \ 2
+print "7 mod 2 ="; 7 mod 2
+print "7 ^ 2   ="; 7 ^ 2
+print "-7 \ 2  ="; -7 \ 2; "   -7 mod 2 ="; -7 mod 2
+print
+
+'' Comparisons give -1 for true and 0 for false.
+print "3 < 5  ="; 3 < 5; "   3 = 5 ="; 3 = 5; "   3 <> 5 ="; 3 <> 5
+print "as a boolean: "; cbool( 3 < 5 ); " "; cbool( 3 = 5 )
+print "text compares too: "; cbool( "apple" < "banana" )
+print
+
+'' Bitwise operators work on every bit of an integer.
+print "12 and 10 ="; 12 and 10
+print "12 or 10  ="; 12 or 10
+print "12 xor 10 ="; 12 xor 10
+print "not 12    ="; not 12
+print "1 shl 4   ="; 1 shl 4
+print "256 shr 2 ="; 256 shr 2
+print "bits of 12 and 10: "; bin( 12 ); " "; bin( 10 ); " -> "; _
+      bin( 12 and 10 )
+print
+
+'' Each binary operator has a compound assignment form.
+dim as int32 total = 10
+total += 5
+total *= 2
+total \= 4
+total shl= 1
+print "total ="; total

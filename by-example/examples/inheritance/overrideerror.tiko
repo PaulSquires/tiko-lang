@@ -1,0 +1,24 @@
+type Animal extends Object
+    declare virtual function Sound( ) as ustring
+end type
+
+function Animal.Sound( ) as ustring
+    return "..."
+end function
+
+type Cat extends Animal
+    declare function Sound( ) as ustring override
+end type
+
+function Cat.Sound( ) as ustring
+    return "meow"
+end function
+
+'' Cat.Sound is an override but not virtual: nothing left to replace.
+type Kitten extends Cat
+    declare function Sound( ) as ustring override
+end type
+
+function Kitten.Sound( ) as ustring
+    return "mew"
+end function

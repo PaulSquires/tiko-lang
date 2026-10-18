@@ -1,0 +1,5 @@
+#module "text"
+
+public function Greeting( byval who as ustring ) as ustring
+    return "Hello, " & who & "!"
+end function

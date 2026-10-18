@@ -1,0 +1,25 @@
+'' Without virtual, the type the compiler sees picks the method.
+type Animal
+    declare function Sound( ) as ustring
+    legs as int32
+end type
+
+function Animal.Sound( ) as ustring
+    return "..."
+end function
+
+type Dog extends Animal
+    declare function Sound( ) as ustring    '' hides Animal.Sound
+end type
+
+function Dog.Sound( ) as ustring
+    return "woof"
+end function
+
+sub Speak( byref a as Animal )
+    print "  through an Animal: "; a.Sound( )
+end sub
+
+dim as Dog rex
+print "directly: "; rex.Sound( )
+Speak( rex )

@@ -1,0 +1,42 @@
+type Animal extends Object
+    declare virtual function Sound( ) as ustring
+    legs as int32
+end type
+
+function Animal.Sound( ) as ustring
+    return "..."
+end function
+
+type Dog extends Animal
+    declare function Sound( ) as ustring override
+    tricks as int32
+end type
+
+function Dog.Sound( ) as ustring
+    return "woof"
+end function
+
+sub ByReference( byref a as Animal )
+    print "byref:  "; a.Sound( ); ", a Dog: "; cbool( a is Dog )
+end sub
+
+'' byval makes a new Animal from the Animal part of the argument.
+sub ByValue( byval a as Animal )
+    print "byval:  "; a.Sound( ); ", a Dog: "; cbool( a is Dog )
+end sub
+
+dim as Dog rex
+rex.tricks = 3
+ByReference( rex )
+ByValue( rex )
+
+'' Assignment to an Animal does the same.
+dim as Animal pet = rex
+print "copied: "; pet.Sound( ); ", a Dog: "; cbool( pet is Dog )
+
+'' A pointer keeps the whole object.
+dim as Animal ptr p = @rex
+print "ptr:    "; p->Sound( ); ", a Dog: "; cbool( *p is Dog )
+
+'' The hidden table pointer is the whole of an Object.
+print "sizes:"; sizeof( Object ); sizeof( Animal ); sizeof( Dog )

@@ -1,0 +1,7 @@
+function DivMod( byval n as int32, byval d as int32 ) _
+    as (quotient as int32, remainder as int32)
+    return (n \ d, n mod d)
+end function
+
+var (q, r, extra) = DivMod( 17, 5 )     '' three names, two elements
+print q; r; extra

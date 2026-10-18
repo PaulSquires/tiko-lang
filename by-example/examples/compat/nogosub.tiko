@@ -1,0 +1,9 @@
+'' The subroutine as a sub: what it changes is passed byref.
+sub AddOne( byref total as int32 )
+    total += 1
+end sub
+
+dim as int32 total = 0
+AddOne( total )
+AddOne( total )
+print total

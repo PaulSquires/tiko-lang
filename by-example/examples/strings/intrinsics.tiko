@@ -1,0 +1,31 @@
+'' The string functions built into the language. Positions count
+'' from 1, and a search that finds nothing returns 0.
+dim as ustring s = "The quick brown fox"
+
+print "["; left( s, 3 ); "] ["; right( s, 3 ); "]"
+print "["; mid( s, 5, 5 ); "] ["; mid( s, 11 ); "]"
+
+print "brown is at"; instr( s, "brown" )
+print "from 14 on, o is at"; instr( 14, s, "o" )
+print "last o is at"; instrrev( s, "o" )
+print "zebra is at"; instr( s, "zebra" )
+
+print ucase( s )
+print lcase( s )
+
+dim as ustring padded = "   spaced out   "
+print "["; trim( padded ); "]"
+print "["; ltrim( padded ); "] ["; rtrim( padded ); "]"
+print "["; trim( "--core--", any "-" ); "]"
+
+print "["; space( 4 ); "] ["; string( 6, "=" ); "]"
+print "chr( 65 ) is " & chr( 65 ) & ", asc( ""B"" ) is " & asc( "B" )
+print "the third character's code is " & asc( s, 3 )
+
+'' mid on the left of = overwrites characters in place.
+mid( s, 5, 5 ) = "QUICK"
+print s
+
+'' str and val convert between numbers and text.
+dim as ustring n = str( 6 * 7 )
+print "["; n; "]"; val( "2.5" ) * 2

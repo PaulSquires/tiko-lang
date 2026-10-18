@@ -1,0 +1,6 @@
+'' for each refuses a grid: the order is not defined. Does not compile.
+dim as int32 grid( 1 to 2, 1 to 3 ) = { { 1, 2, 3 }, { 4, 5, 6 } }
+
+for each v in grid
+    print v;
+next

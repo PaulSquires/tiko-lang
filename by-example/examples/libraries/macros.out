@@ -1,0 +1,4 @@
+INFO   starting
+INFO   settings saved  path=settings.ini bytes=512
+ERROR  upload failed  code=5
+WARN   slow  retry=true

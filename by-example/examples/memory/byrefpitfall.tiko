@@ -1,0 +1,14 @@
+type Board
+    as int32 cells( 0 to 8 )
+    declare function Cell( byval i as int32 ) byref as int32
+end type
+
+function Board.Cell( byval i as int32 ) byref as int32
+    return cells( i )
+end function
+
+dim b as Board
+b.Cell( 4 ) = 5                         '' meant as an assignment...
+print "cell 4 holds"; b.cells( 4 )
+( b.Cell( 4 ) ) = 5                     '' ...and written as one
+print "cell 4 holds"; b.cells( 4 )

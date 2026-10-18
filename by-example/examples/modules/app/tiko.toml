@@ -1,0 +1,9 @@
+# The program's project: its name, what it depends on, what it builds.
+[package]
+name = "app"
+
+[dependencies]
+units = { path = "../units" }
+
+[target.convert]
+main = "main.tiko"

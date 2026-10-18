@@ -1,0 +1,36 @@
+'' A dynamic array is sized, resized and freed while the program runs.
+sub Show( byref label as ustring, values( ) as int32 )
+    print label & " (" & lbound( values ) & " to " & ubound( values ) & "):";
+    for each v in values
+        print v;
+    next
+    print
+end sub
+
+dim values( any ) as int32         '' "any": the bounds come later
+Show( "declared", values( ) )
+
+redim values( 1 to 3 )
+values( 1 ) = 10 : values( 2 ) = 20 : values( 3 ) = 30
+Show( "redim", values( ) )
+
+'' redim preserve keeps what fits; new elements start at zero.
+redim preserve values( 1 to 5 )
+Show( "grown", values( ) )
+redim preserve values( 1 to 2 )
+Show( "shrunk", values( ) )
+
+'' Plain redim starts over: every element is zero again.
+redim values( 1 to 4 )
+Show( "redim again", values( ) )
+
+'' erase frees the storage and leaves the array empty.
+erase values
+Show( "erased", values( ) )
+
+'' Growing one element at a time builds a list of unknown length.
+for n as int32 = 1 to 3
+    redim preserve values( lbound( values ) to ubound( values ) + 1 )
+    values( ubound( values ) ) = n * 100
+next
+Show( "appended", values( ) )

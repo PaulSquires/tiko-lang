@@ -1,0 +1,10 @@
+'' Two versions that fit equally well. Does not compile.
+sub Show overload ( byval a as int32, byval b as float64 )
+    print "int32, float64"
+end sub
+
+sub Show overload ( byval a as float64, byval b as int32 )
+    print "float64, int32"
+end sub
+
+Show( 1, 2 )

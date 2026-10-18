@@ -1,0 +1,52 @@
+#cmdline "-exx"
+#import "std/outcome"
+
+'' error n raises runtime error n.
+function Ratio( byval a as int32, byval b as int32 ) as int32
+    if b = 0 then error 1               '' 1: illegal function call
+    return a \ b
+end function
+
+sub Report( byval a as int32, byval b as int32 )
+    on local error goto failed
+    dim as int32 r = Ratio( a, b )
+    print a; " /"; b; " ="; r
+    exit sub
+failed:
+    '' Copy the error out first: the next runtime call may clear it.
+    dim as int32 code = err, lineNo = erl
+    print "error"; code; " at line"; lineNo; " in "; *erfn( )
+end sub
+
+'' The runtime raises numbered errors of its own.
+sub ShowDay( byval i as int32 )
+    on local error goto failed
+    dim days( 0 to 6 ) as ustring = _
+        { "mon", "tue", "wed", "thu", "fri", "sat", "sun" }
+    dim as ustring day = days( i )      '' -exx checks the index
+    print "day"; i; " is "; day
+    exit sub
+failed:
+    dim as int32 code = err
+    print "day"; i; ": runtime error"; code
+end sub
+
+sub ShowValue( byref o as outcome.Optional( of int32 ) )
+    on local error goto failed
+    dim as int32 v = o.Value( )         '' raises when empty
+    print "value:"; v
+    exit sub
+failed:
+    dim as int32 code = err
+    print "no value: runtime error"; code
+end sub
+
+Report( 12, 4 )
+Report( 1, 0 )
+ShowDay( 2 )
+ShowDay( 9 )
+var holding = outcome.Some( of int32 )( 42 )
+var vacant = outcome.None( of int32 )( )
+ShowValue( holding )
+ShowValue( vacant )
+print "the program carried on"

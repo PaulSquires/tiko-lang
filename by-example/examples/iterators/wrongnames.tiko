@@ -1,0 +1,11 @@
+function ScreenSize( ) as (w as int32, h as int32)
+    return (1920, 1080)
+end function
+
+'' Declared (h, w): the copy is by position, so the names lie.
+dim s as (h as int32, w as int32) = ScreenSize( )
+print "width"; s.w; ", height"; s.h
+
+'' Destructuring is by position too: these are just new names.
+var (h, w) = ScreenSize( )
+print "width"; w; ", height"; h

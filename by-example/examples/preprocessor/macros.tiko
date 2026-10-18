@@ -1,0 +1,26 @@
+'' A macro with parameters substitutes the text of each argument.
+'' Parenthesise every parameter, and the whole body.
+#define LARGER( a, b ) iif( ( a ) > ( b ), ( a ), ( b ) )
+#define SQUARE( x ) ( ( x ) * ( x ) )
+
+'' #x turns an argument into a string literal; ## pastes two tokens.
+#define SHOW( expr ) print #expr; " ="; expr
+#define COLUMN( n ) column##n
+
+dim as int32 column1 = 4, column2 = 9
+SHOW( LARGER( column1, column2 ) )
+SHOW( SQUARE( column1 + 1 ) )
+SHOW( COLUMN( 2 ) )
+
+'' #macro ... #endmacro spans several lines, so it can expand to
+'' whole statements.
+#macro SWAP_VALUES( a, b )
+    scope
+        var tmp_ = a
+        a = b
+        b = tmp_
+    end scope
+#endmacro
+
+SWAP_VALUES( column1, column2 )
+print "after the swap:"; column1; column2

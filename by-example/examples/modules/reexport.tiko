@@ -1,0 +1,5 @@
+'' One import brings in kit, and with it the module kit passes on.
+#import "./kit"
+
+print kit.Report( "grace", 88 )
+print kit.greet.Hello( "again" )

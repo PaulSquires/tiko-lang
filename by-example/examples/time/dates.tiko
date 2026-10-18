@@ -1,0 +1,25 @@
+#import "std/chrono"
+
+var d = chrono.LocalDate( 2024, 2, 29 )
+
+'' The parts are read with properties.
+print "year"; d.Year( ); ", month"; d.Month( ); ", day"; d.Day( )
+print "day of year"; d.DayOfYear( ); ", quarter"; d.Quarter( )
+
+'' DayOfWeek counts the ISO way: 1 is Monday, 7 is Sunday.
+print "day of week"; d.DayOfWeek( ); " = "; _
+      chrono.DateTime.WeekdayName( d.DayOfWeek( ) )
+print "last day of its month: "; d.IsLastDayOfMonth( )
+
+'' Calendar facts, without making a date.
+print "2024 is a leap year: "; chrono.DateTime.IsLeapYear( 2024 )
+print "days in February 2025:"; chrono.DateTime.DaysInMonth( 2025, 2 )
+
+'' There is no 29 February 2025: the value is Invalid, not March 1.
+var bad = chrono.LocalDate( 2025, 2, 29 )
+print "2025-02-29 valid: "; bad.IsValid( ); _
+      ", as text: ["; bad.ToIsoString( ); "]"
+
+'' A date declared with no value is Invalid too.
+dim unset as chrono.LocalDate
+print "unset date valid: "; unset.IsValid( )

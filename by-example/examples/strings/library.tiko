@@ -1,0 +1,31 @@
+#import "std/strings"
+
+dim as ustring path = "reports/2026/summary.tiko"
+
+'' Tests: each returns a boolean.
+print "starts with reports: "; strings.StartsWith( path, "reports" )
+print "ends with .TIKO:     "; strings.EndsWith( path, ".TIKO" )
+print "  ... ignoring case: "; strings.EndsWith( path, ".TIKO", true )
+print "contains /2026/:     "; strings.Contains( path, "/2026/" )
+print "slashes:"; strings.Tally( path, "/" )
+
+'' Pieces: before a match, after it, and between two.
+print strings.Extract( 1, path, "/" ); " | "; _
+      strings.Remain( path, "/" )
+print strings.Between( "total=[42]", "[", "]" )
+
+'' Changes: each returns a new string and leaves its input alone.
+print strings.Replace( path, "/", "\" )
+print strings.Remove( "1,234,567", "," )
+print strings.Shrink( "  far    too   many  spaces " ); "|"
+print strings.MCase( "the QUICK brown fox" )
+print strings.Reverse( "stressed" ); " "; strings.Repeat( 3, "ab" )
+
+'' Padding to a width, with any fill character.
+print "["; strings.PadLeft( "42", 6, "0" ); "] ["; _
+      strings.PadRight( "id", 6, "." ); "] ["; _
+      strings.PadCenter( "mid", 7 ); "]"
+
+'' Is it a number? val( ) cannot tell you; IsNumeric can.
+print strings.IsNumeric( "-1.5e3" ); " "; strings.IsNumeric( "12abc" )
+print strings.IsBlank( "   " ); " "; strings.IsBlank( " x " )

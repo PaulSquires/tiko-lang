@@ -1,0 +1,5 @@
+#module "temperature"
+
+public function ToFahrenheit( byval celsius as float64 ) as float64
+    return celsius * 9 / 5 + 32
+end function

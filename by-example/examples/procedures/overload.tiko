@@ -1,0 +1,26 @@
+'' overload lets one name have several parameter lists. The compiler
+'' picks the version whose parameters fit the arguments best.
+sub Describe overload ( byval n as int32 )
+    print "a whole number:"; n
+end sub
+
+sub Describe overload ( byval x as float64 )
+    print "a fraction:"; x
+end sub
+
+sub Describe overload ( byref text as ustring )
+    print "some text: " & text
+end sub
+
+sub Describe overload ( byval x as int32, byval y as int32 )
+    print "a pair:"; x; ","; y
+end sub
+
+Describe( 42 )
+Describe( 2.5 )
+Describe( "tiko" )
+Describe( 3, 4 )
+
+'' An int16 has no version of its own; it converts to int32.
+dim as int16 small = 7
+Describe( small )

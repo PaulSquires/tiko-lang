@@ -1,0 +1,47 @@
+'' extends Object gives the type a table of virtual methods.
+type Animal extends Object
+    declare virtual function Sound( ) as ustring
+    declare function Introduce( ) as ustring
+end type
+
+function Animal.Sound( ) as ustring
+    return "..."
+end function
+
+'' Not virtual itself, but the call inside it is.
+function Animal.Introduce( ) as ustring
+    return "I say " & Sound( )
+end function
+
+type Dog extends Animal
+    declare function Sound( ) as ustring override
+end type
+
+function Dog.Sound( ) as ustring
+    return "woof"
+end function
+
+type Cat extends Animal
+    declare function Sound( ) as ustring override
+end type
+
+function Cat.Sound( ) as ustring
+    return "meow"
+end function
+
+sub Speak( byref a as Animal )
+    print "  through an Animal: "; a.Sound( )
+end sub
+
+dim as Dog rex
+dim as Cat tom
+dim as Animal someone
+Speak( rex )
+Speak( tom )
+Speak( someone )
+
+'' One loop, many types: each call reaches the object's own method.
+dim as Animal ptr zoo( 0 to 2 ) = { @rex, @tom, @someone }
+for i as int32 = 0 to 2
+    print "  "; zoo( i )->Introduce( )
+next

@@ -1,0 +1,32 @@
+'' sizeof( T ) is the size of a type in bytes; sizeof( x ) is the size
+'' of a value's type. len( T ) means the same for a type.
+print "sizeof( int16 ) ="; sizeof( int16 ); ", len( int16 ) ="; len( int16 )
+print "sizeof( float64 ) ="; sizeof( float64 )
+
+'' integer and pointers are as wide as an address on the target.
+print "sizeof( integer ) ="; sizeof( integer ); _
+      ", sizeof( any ptr ) ="; sizeof( any ptr )
+
+'' For text, len( s ) is the number of characters; sizeof( s ) is the
+'' fixed size of the ustring value itself, whatever it holds.
+dim as ustring shortText = "hi"
+dim as ustring longText = "a much longer piece of text"
+print "len:"; len( shortText ); len( longText ); _
+      ", sizeof:"; sizeof( shortText ); sizeof( longText )
+
+'' A record is at least the sum of its fields. Each field sits at a
+'' multiple of its own size, so the order of the fields matters.
+type Loose
+    as uint8 flag
+    as int32 value
+    as uint8 mark
+end type
+type Tight
+    as int32 value
+    as uint8 flag
+    as uint8 mark
+end type
+print "Loose: sizeof"; sizeof( Loose ); ", value at offset"; _
+      offsetof( Loose, value ); ", mark at"; offsetof( Loose, mark )
+print "Tight: sizeof"; sizeof( Tight ); ", value at offset"; _
+      offsetof( Tight, value ); ", mark at"; offsetof( Tight, mark )

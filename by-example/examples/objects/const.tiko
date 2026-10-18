@@ -1,0 +1,31 @@
+type Rect
+    declare const function Area( ) as float64     '' promises not to
+    declare const function Describe( ) as ustring '' change the object
+    declare sub Scale( byval k as float64 )
+    w as float64
+    h as float64
+end type
+
+const function Rect.Area( ) as float64
+    return w * h
+end function
+
+'' A const method may call other const methods.
+const function Rect.Describe( ) as ustring
+    return w & " x " & h & ", area " & Area( )
+end function
+
+sub Rect.Scale( byval k as float64 )
+    w *= k
+    h *= k
+end sub
+
+'' A const parameter can be read, and its const methods called.
+sub Report( byref r as const Rect )
+    print "  "; r.Describe( )
+end sub
+
+dim as Rect r = ( 2, 3 )
+Report( r )
+r.Scale( 2 )                        '' an ordinary object can change
+Report( r )

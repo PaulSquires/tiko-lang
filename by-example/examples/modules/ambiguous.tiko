@@ -1,0 +1,7 @@
+'' Two modules under using both supply Contains.
+#import "std/strings"
+#import "std/containers"
+using strings
+using containers
+
+print Contains( "tiko", "k" )      '' refused: which Contains?

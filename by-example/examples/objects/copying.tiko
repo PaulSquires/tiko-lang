@@ -1,0 +1,70 @@
+'' Fields that copy themselves need nothing more: the default copy
+'' copies every field, and a ustring copies its text.
+type Contact
+    fullName as ustring
+    phone as ustring
+end type
+
+dim as Contact a = ( "Ada", "555-0100" )
+dim as Contact b = a                '' copy
+b.phone = "555-0199"
+print a.fullName; " "; a.phone; " / "; b.fullName; " "; b.phone
+
+'' A type that owns memory through a pointer must say what a copy
+'' means, or two objects would share, and both free, one block.
+type Samples
+    declare constructor( byval n as int32 )
+    declare constructor( byref other as Samples )     '' copy
+    declare operator let( byref other as Samples )    '' assign
+    declare destructor( )
+    items as int32 ptr
+    size as int32
+end type
+
+constructor Samples( byval n as int32 )
+    size = n
+    items = callocate( n, sizeof( int32 ) )
+end constructor
+
+'' A new object made from an existing one: nothing to free first.
+constructor Samples( byref other as Samples )
+    size = other.size
+    items = allocate( size * sizeof( int32 ) )
+    for i as int32 = 0 to size - 1 : items[ i ] = other.items[ i ] : next
+    print "  copy constructor"
+end constructor
+
+'' Assigning into an object that already owns a block: free it first,
+'' unless the object is being assigned to itself.
+operator Samples.let( byref other as Samples )
+    if @this = @other then exit operator
+    deallocate( items )
+    size = other.size
+    items = allocate( size * sizeof( int32 ) )
+    for i as int32 = 0 to size - 1 : items[ i ] = other.items[ i ] : next
+    print "  operator let"
+end operator
+
+destructor Samples( )
+    deallocate( items )
+end destructor
+
+sub Inspect( byval s as Samples )      '' byval makes a copy, too
+    print "  Inspect sees"; s.items[ 0 ]
+end sub
+
+dim as Samples x = Samples( 3 )
+x.items[ 0 ] = 7
+
+print "dim as Samples y = x"
+dim as Samples y = x
+y.items[ 0 ] = 8
+
+print "z = x"
+dim as Samples z = Samples( 1 )
+z = x
+z = z                               '' to itself: nothing happens
+
+print "Inspect( x )"
+Inspect( x )
+print "x, y, z hold"; x.items[ 0 ]; y.items[ 0 ]; z.items[ 0 ]

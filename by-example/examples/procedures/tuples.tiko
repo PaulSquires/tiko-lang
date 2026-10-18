@@ -1,0 +1,27 @@
+'' A function can return several values at once as a tuple.
+function Divide( byval a as int32, byval b as int32 ) as ( int32, int32 )
+    return ( a \ b, a mod b )
+end function
+
+'' var ( a, b ) = takes the tuple apart into new variables.
+var ( quotient, remainder ) = Divide( 17, 5 )
+print "17 / 5 ="; quotient; " remainder"; remainder
+
+'' The elements can have names, which the caller can use.
+function MinMax( values( ) as int32 ) as ( lo as int32, hi as int32 )
+    dim as int32 lo = values( lbound( values ) ), hi = lo
+    for each v in values
+        if v < lo then lo = v
+        if v > hi then hi = v
+    next
+    return ( lo, hi )
+end function
+
+dim as int32 readings( 0 to 4 ) = { 14, 9, 21, 17, 3 }
+var range = MinMax( readings( ) )
+print "lowest"; range.lo; ", highest"; range.hi
+
+'' A tuple can also be assigned to variables that already exist.
+dim as int32 q, r
+( q, r ) = Divide( 23, 4 )
+print "23 / 4 ="; q; " remainder"; r

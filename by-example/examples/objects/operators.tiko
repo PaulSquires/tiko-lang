@@ -1,0 +1,76 @@
+function Gcd( byval a as int64, byval b as int64 ) as int64
+    a = abs( a ) : b = abs( b )
+    do while b <> 0
+        dim as int64 t = a mod b
+        a = b : b = t
+    loop
+    return a
+end function
+
+type Fraction
+    declare constructor( byval n as int64 = 0, byval d as int64 = 1 )
+    declare operator let( byval whole as int64 )  '' members: they change
+    declare operator +=( byref o as Fraction )    '' or convert this
+    declare operator cast( ) as ustring           '' object
+    num as int64
+    den as int64
+end type
+
+constructor Fraction( byval n as int64, byval d as int64 )
+    dim as int64 g = Gcd( n, d )
+    if d < 0 then g = -g             '' keep the sign on top
+    num = n \ g : den = d \ g
+end constructor
+
+operator Fraction.let( byval whole as int64 )
+    num = whole : den = 1
+end operator
+
+operator Fraction.cast( ) as ustring
+    if den = 1 then return str( num )
+    return num & "/" & den
+end operator
+
+'' Binary operators are global: neither side is privileged.
+operator + ( byref a as Fraction, byref b as Fraction ) as Fraction
+    return Fraction( a.num * b.den + b.num * a.den, a.den * b.den )
+end operator
+
+operator * ( byref a as Fraction, byref b as Fraction ) as Fraction
+    return Fraction( a.num * b.num, a.den * b.den )
+end operator
+
+operator - ( byref a as Fraction ) as Fraction    '' unary minus
+    return Fraction( -a.num, a.den )
+end operator
+
+operator = ( byref a as Fraction, byref b as Fraction ) as boolean
+    return a.num = b.num andalso a.den = b.den
+end operator
+
+operator <> ( byref a as Fraction, byref b as Fraction ) as boolean
+    return not ( a = b )
+end operator
+
+operator < ( byref a as Fraction, byref b as Fraction ) as boolean
+    return a.num * b.den < b.num * a.den
+end operator
+
+operator Fraction.+=( byref o as Fraction )
+    this = Fraction( num * o.den + o.num * den, den * o.den )
+end operator
+
+dim as Fraction half = Fraction( 1, 2 ), third = Fraction( 1, 3 )
+
+print "1/2 + 1/3 = "; half + third
+print "1/2 * 1/3 = "; half * third
+print "-(1/2)    = "; -half
+print "2/4 = 1/2:  "; Fraction( 2, 4 ) = half
+print "1/3 < 1/2:  "; third < half; ", 1/3 <> 1/2: "; third <> half
+print "1/2 + 1/3 * 1/2 = "; half + third * half; "  (* first)"
+
+dim as Fraction total
+total = 3                           '' operator let, from an int64
+total += half
+total += Fraction( 6, -4 )
+print "3 + 1/2 - 3/2 = "; total

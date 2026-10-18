@@ -1,0 +1,37 @@
+'' select case tests one value against each case in turn. The first
+'' case that matches runs, and nothing falls through to the next.
+sub Classify( byval n as int32 )
+    print n; ": ";
+    select case n
+    case 0
+        print "zero"
+    case 1, 2, 3
+        print "one, two or three"
+    case 4 to 9
+        print "a digit above three"
+    case is < 0
+        print "negative"
+    case 10 to 99, 1000
+        print "two digits, or exactly 1000"
+    case else
+        print "something else"
+    end select
+end sub
+
+dim as int32 samples( 0 to 6 ) = { 0, 2, 7, -5, 42, 1000, 500 }
+for each n in samples
+    Classify( n )
+next
+
+'' A ustring works too, and a range compares alphabetically.
+dim as ustring words( 0 to 2 ) = { "pear", "kiwi", "zebra" }
+for each w in words
+    select case w
+    case "apple", "pear"
+        print w; " is a fruit we stock"
+    case "a" to "m"
+        print w; " is in the first half of the alphabet"
+    case else
+        print w; " is in the second half"
+    end select
+next

@@ -1,0 +1,9 @@
+in stock: no
+ 7 is odd
+limit = 10.25
+  (evaluated large)
+large
+safe quotient: 0
+ 40 -> fail
+ 70 -> pass
+ 100 -> A

@@ -1,0 +1,25 @@
+'' An array is many values of one type under one name, reached by index.
+
+'' A fixed array: its bounds are written in the declaration.
+dim as int32 days( 1 to 12 ) = { 31, 28, 31, 30, 31, 30, _
+                                 31, 31, 30, 31, 30, 31 }
+print "months"; lbound( days ); " to"; ubound( days )
+print "days in June:"; days( 6 )
+
+dim as int32 total = 0
+for m as int32 = lbound( days ) to ubound( days )
+    total += days( m )
+next
+print "days in the year:"; total
+
+'' Elements start at zero (an empty string for text) until assigned.
+dim as float64 rainfall( 0 to 2 )
+rainfall( 1 ) = 12.5
+print "rainfall:"; rainfall( 0 ); rainfall( 1 ); rainfall( 2 )
+
+'' A dynamic array has no size until redim gives it one.
+dim as ustring names( )
+print "names starts with"; ubound( names ) - lbound( names ) + 1; " elements"
+redim names( 1 to 3 )
+names( 1 ) = "Ada" : names( 2 ) = "Grace" : names( 3 ) = "Edsger"
+print "now"; ubound( names ) - lbound( names ) + 1; ": " & names( 2 )

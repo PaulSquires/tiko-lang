@@ -1,0 +1,15 @@
+'' #inclib names the library to link: libmathlib.a, found here.
+#inclib "mathlib"
+
+declare function Gcd( byval a as int64, byval b as int64 ) as int64
+declare function Lcm( byval a as int64, byval b as int64 ) as int64
+
+print "Gcd( 84, 36 ) ="; Gcd( 84, 36 )
+print "Lcm( 4, 6 )   ="; Lcm( 4, 6 )
+
+'' The smallest number that 1 to 20 all divide.
+dim as int64 n = 1
+for i as int32 = 2 to 20
+    n = Lcm( n, i )
+next
+print "Lcm( 1..20 )  ="; n

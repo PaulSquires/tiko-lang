@@ -1,0 +1,10 @@
+'' Checking an index yourself works in every build, with or without -exx.
+function ScoreAt( scores( ) as const int32, byval i as int32 ) as int32
+    if i < lbound( scores ) orelse i > ubound( scores ) then return -1
+    return scores( i )
+end function
+
+dim as int32 scores( 1 to 3 ) = { 70, 85, 92 }
+for i as int32 = 0 to 4
+    print "ScoreAt("; i; " ) ="; ScoreAt( scores( ), i )
+next

@@ -1,0 +1,7 @@
+false andalso ...: left
+true orelse ...:   left yes
+false and ...:     left right
+true or ...:       left right yes
+values( 1 ) is big
+values( 3 ) is big
+6 and 3 = 2, 6 andalso 3 = true

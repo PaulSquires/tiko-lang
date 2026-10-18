@@ -1,0 +1,60 @@
+'' Shape says every shape has an area and a name, without saying how.
+type Shape extends Object
+    declare abstract function Area( ) as float64
+    declare abstract function Name( ) as ustring
+    declare function Describe( ) as ustring
+end type
+
+function Shape.Describe( ) as ustring
+    return Name( ) & " with area " & Area( )
+end function
+
+type Rect extends Shape
+    declare constructor( byval w as float64, byval h as float64 )
+    declare function Area( ) as float64 override
+    declare function Name( ) as ustring override
+    w as float64
+    h as float64
+end type
+
+constructor Rect( byval w as float64, byval h as float64 )
+    this.w = w : this.h = h
+end constructor
+
+function Rect.Area( ) as float64
+    return w * h
+end function
+
+function Rect.Name( ) as ustring
+    return "a " & w & " by " & h & " rectangle"
+end function
+
+type Circle extends Shape
+    declare constructor( byval r as float64 )
+    declare function Area( ) as float64 override
+    declare function Name( ) as ustring override
+    r as float64
+end type
+
+constructor Circle( byval r as float64 )
+    this.r = r
+end constructor
+
+function Circle.Area( ) as float64
+    return 3.14159 * r * r
+end function
+
+function Circle.Name( ) as ustring
+    return "a circle of radius " & r
+end function
+
+dim as Rect door = Rect( 1, 2 )
+dim as Circle coin = Circle( 2 )
+dim as Shape ptr shapes( 0 to 1 ) = { @door, @coin }
+
+dim as float64 total = 0
+for i as int32 = 0 to 1
+    print shapes( i )->Describe( )
+    total += shapes( i )->Area( )
+next
+print "total area:"; total

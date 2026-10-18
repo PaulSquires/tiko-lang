@@ -1,0 +1,39 @@
+#import "std/containers"
+
+'' A brace list fills a container as it is declared.
+dim primes as containers.Array( of int32 ) = { 2, 3, 5, 7 }
+dim tags as containers.Set( of ustring ) = { "new", "sale", "new" }
+dim route as containers.LinkedList( of ustring ) = { "home", "shop", "home" }
+
+'' The elements are ordinary expressions, evaluated in order.
+dim as int32 w = 3, h = 4
+dim sizes as containers.Array( of int32 ) = { w, h, w * h }
+
+'' A map takes one { key, value } pair per entry.
+dim ages as containers.OrderedMap( of ustring, int32 ) = _
+    { { "ada", 36 }, { "alan", 41 }, { "grace", 85 } }
+
+print primes.Count( ); tags.Count( ); route.Count( ); ages.Count( )
+print sizes[ 0 ]; sizes[ 1 ]; sizes[ 2 ]
+for each (who, age) in ages.Pairs( )
+    print who; age
+next
+
+'' Any type with a constructor and an Add (or Push, or PushBack)
+'' member takes a brace list too: one call per element.
+type Tally
+    as int32 total
+    declare constructor( )
+    declare sub Add( byval v as int32 )
+end type
+
+constructor Tally( )
+    total = 0
+end constructor
+
+sub Tally.Add( byval v as int32 )
+    total += v
+end sub
+
+dim score as Tally = { 10, 20, 12 }
+print "tally:"; score.total

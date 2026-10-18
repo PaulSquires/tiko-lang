@@ -1,0 +1,4 @@
+dim as int32 total = 1
+
+dim as int32 total = 2      '' refused: same name, same scope
+print total

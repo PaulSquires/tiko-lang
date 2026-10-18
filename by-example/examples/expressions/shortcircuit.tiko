@@ -1,0 +1,36 @@
+#cmdline "-exx"
+
+'' A condition with a side effect shows which operands run.
+function Check( byval tag as ustring, byval result as boolean ) as boolean
+    print " "; tag;
+    return result
+end function
+
+'' andalso and orelse stop as soon as the answer is known.
+print "false andalso ...:";
+if Check( "left", false ) andalso Check( "right", true ) then print " yes";
+print
+print "true orelse ...:  ";
+if Check( "left", true ) orelse Check( "right", false ) then print " yes";
+print
+
+'' and and or always evaluate both sides.
+print "false and ...:    ";
+if Check( "left", false ) and Check( "right", true ) then print " yes";
+print
+print "true or ...:      ";
+if Check( "left", true ) or Check( "right", false ) then print " yes";
+print
+
+'' That makes andalso the safe way to guard a second test.
+dim as int32 values( 1 to 3 ) = { 4, 0, 9 }
+for i as int32 = 0 to 4
+    if i >= lbound( values ) andalso i <= ubound( values ) _
+            andalso values( i ) > 3 then
+        print "values("; i; " ) is big"
+    end if
+next
+
+'' On integers, and/or/xor/not work bit by bit. andalso and orelse
+'' treat any non-zero value as true.
+print "6 and 3 ="; 6 and 3; ", 6 andalso 3 = "; cbool( 6 andalso 3 )

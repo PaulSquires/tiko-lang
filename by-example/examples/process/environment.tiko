@@ -1,0 +1,19 @@
+'' environ( name ) reads a variable; an unset one reads as "".
+print "unset: ["; environ( "BYEXAMPLE_NOT_SET" ); "]"
+
+'' setenviron sets one for this process and the programs it starts.
+setenviron "BYEXAMPLE_MODE=draft"
+print "BYEXAMPLE_MODE = "; environ( "BYEXAMPLE_MODE" )
+
+'' Setting it again replaces the value.
+setenviron "BYEXAMPLE_MODE=final"
+print "BYEXAMPLE_MODE = "; environ( "BYEXAMPLE_MODE" )
+
+'' A default for a variable that may be missing.
+function EnvOr( byref name_ as ustring, byref fallback as ustring ) _
+         as ustring
+    dim as ustring value = environ( name_ )
+    return iif( len( value ) > 0, value, fallback )
+end function
+
+print "BYEXAMPLE_LEVEL = "; EnvOr( "BYEXAMPLE_LEVEL", "3" )

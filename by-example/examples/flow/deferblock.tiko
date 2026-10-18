@@ -1,0 +1,35 @@
+'' A defer belongs to the nearest enclosing block, not the procedure.
+sub InAnIf( )
+    print "  start"
+    if true then
+        print "    acquired"
+        defer print "    released"     '' runs at end if
+        print "    used"
+    end if
+    print "  after the if: already released"
+end sub
+
+'' A loop body is a block, so a defer there runs at the end of every
+'' pass -- including a pass cut short by continue or exit.
+sub InALoop( )
+    for i as int32 = 1 to 5
+        defer print "    end of pass"; i
+        if i = 2 then continue for
+        if i = 3 then exit for
+        print "  pass"; i
+    next
+end sub
+
+'' The deferred statement reads its variables when it runs.
+sub LateRead( )
+    dim as int32 v = 7
+    defer print "  v when the defer ran:"; v
+    v = 9
+end sub
+
+print "a defer inside an if:"
+InAnIf( )
+print "a defer inside a loop:"
+InALoop( )
+print "what a defer reads:"
+LateRead( )

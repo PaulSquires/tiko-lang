@@ -1,0 +1,28 @@
+#import "std/chrono"
+
+'' A DateTime with no offset is a reading on an unnamed clock.
+var naive = chrono.DateTime( 2025, 3, 4, 9, 0, 0, 0 )
+print "naive:      "; naive.ToIsoString( ); _
+      "  has offset: "; naive.HasOffset( )
+print "as instant valid: "; naive.ToInstant( ).IsValid( )
+
+'' WithOffset says which clock it was read on (minutes from UTC).
+var toronto = naive.WithOffset( -300 )
+print "Toronto:    "; toronto.ToIsoString( )
+
+'' ToOffset shows the same moment on another clock.
+print "UTC:        "; toronto.ToOffset( 0 ).ToIsoString( )
+print "Kolkata:    "; toronto.ToOffset( 330 ).ToIsoString( )
+
+'' The same moment on two clocks is one Instant.
+var a = toronto.ToInstant( )
+var b = toronto.ToOffset( 330 ).ToInstant( )
+print "same instant: "; ( a = b )
+
+'' The machine's own zone: ask for its offset AT a given instant.
+var jul = chrono.Instant.ParseIso( "2025-07-15T12:00:00Z" )
+dim as int32 local_ = chrono.TimeZoneInfo.LocalOffsetAt( jul )
+print "local offset within 18 hours: "; _
+      cbool( abs( local_ ) <= 18 * 60 )
+var there = chrono.DateTime.FromInstant( jul, local_ )
+print "local reading converts back: "; ( there.ToInstant( ) = jul )

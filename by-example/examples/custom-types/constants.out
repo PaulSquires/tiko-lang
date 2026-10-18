@@ -1,0 +1,7 @@
+MaxUsers = 100, 8 bytes
+Pi = 3.141592653589793, 8 bytes
+AppName = inventory
+Small = 200, 1 byte
+Ratio = 0.5, 4 bytes
+board has 18 cells
+hello from inside

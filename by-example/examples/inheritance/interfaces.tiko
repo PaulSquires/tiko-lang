@@ -1,0 +1,49 @@
+'' A contract: abstract methods and no data. Any type that extends it
+'' and fills in the methods can be used wherever an Encoder is wanted.
+type Encoder extends Object
+    declare abstract function Name( ) as ustring
+    declare abstract function Encode( byref key as ustring, _
+                                      byval value as int32 ) as ustring
+end type
+
+type IniEncoder extends Encoder
+    declare function Name( ) as ustring override
+    declare function Encode( byref key as ustring, _
+                             byval value as int32 ) as ustring override
+end type
+
+function IniEncoder.Name( ) as ustring
+    return "ini"
+end function
+
+function IniEncoder.Encode( byref key as ustring, _
+                            byval value as int32 ) as ustring
+    return key & "=" & value
+end function
+
+type JsonEncoder extends Encoder
+    declare function Name( ) as ustring override
+    declare function Encode( byref key as ustring, _
+                             byval value as int32 ) as ustring override
+end type
+
+function JsonEncoder.Name( ) as ustring
+    return "json"
+end function
+
+function JsonEncoder.Encode( byref key as ustring, _
+                             byval value as int32 ) as ustring
+    return """" & key & """: " & value
+end function
+
+'' Written once, against the contract only.
+sub Save( byref enc as Encoder )
+    print "as "; enc.Name( ); ":"
+    print "  "; enc.Encode( "width", 640 )
+    print "  "; enc.Encode( "height", 480 )
+end sub
+
+dim as IniEncoder ini
+dim as JsonEncoder json
+Save( ini )
+Save( json )

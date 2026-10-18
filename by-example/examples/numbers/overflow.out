@@ -1,0 +1,9 @@
+top + 1 as int32 =-2147483648
+255 + 1 as uint8 = 0
+0 - 1 as uint8   = 255
+AddChecked( top, 1 ) has a value: false
+AddChecked( top, -1 ) = 2147483646
+AddSaturating( top, 1 ) = 2147483647
+AddWrapping( top, 1 )   =-2147483648
+3 ^ 38       = 1350851717672992000
+IPow( 3, 38 ) = 1350851717672992089

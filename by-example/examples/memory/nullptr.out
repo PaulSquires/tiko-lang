@@ -1,0 +1,7 @@
+the list: 1 2 3
+Show( 0 ) and Show( nullptr ):
+  Show( integer )
+  Show( any ptr )
+var from 0, then from nullptr:
+  Show( integer )
+  Show( any ptr )

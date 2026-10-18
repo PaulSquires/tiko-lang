@@ -1,0 +1,9 @@
+'' The same program as modern tiko writes it.
+dim names( 1 to 3 ) as ustring = { "ada", "grace", "alan" }
+
+dim as int32 total = 0
+for each n in names
+    print ucase( left( n, 1 ) ) & mid( n, 2 )
+    total += len( n )
+next
+print "letters:"; total

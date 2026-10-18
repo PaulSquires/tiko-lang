@@ -1,0 +1,7 @@
+owning both ways:
+  (nothing was freed)
+weak link back:
+  the child's parent is root
+  root owners: 2
+  freed root
+  freed child

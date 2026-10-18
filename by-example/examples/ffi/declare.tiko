@@ -1,0 +1,25 @@
+'' The C runtime is always linked, so its functions need only a
+'' declaration.
+
+'' One at a time: cdecl is C's calling convention, and alias gives the
+'' exact name the linker looks for, so the tiko name can differ.
+declare function CLength cdecl alias "strlen" _
+    ( byval s as const zstring ptr ) as uinteger
+
+'' A block: everything inside is cdecl and keeps its exact spelling.
+extern "C"
+    declare function toupper( byval c as int32 ) as int32
+    declare function CAbs alias "abs" ( byval n as int32 ) as int32
+    declare function atoi( byval s as const zstring ptr ) as int32
+end extern
+
+dim as zstring * 16 word = "interface"
+print "strlen: "; CLength( @word )
+
+for i as int32 = 0 to len( word ) - 1
+    word[ i ] = toupper( word[ i ] )
+next
+print "toupper: "; word
+
+print "abs:"; CAbs( -42 )
+print "atoi:"; atoi( "  123 apples" )

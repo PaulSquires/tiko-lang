@@ -1,0 +1,6 @@
+'' Every line must start at or right of the closing line's margin.
+dim as ustring note = """
+    first
+  second
+    """
+print note

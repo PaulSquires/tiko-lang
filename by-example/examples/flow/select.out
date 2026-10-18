@@ -1,0 +1,10 @@
+ 0: zero
+ 2: one, two or three
+ 7: a digit above three
+-5: negative
+ 42: two digits, or exactly 1000
+ 1000: two digits, or exactly 1000
+ 500: something else
+pear is a fruit we stock
+kiwi is in the first half of the alphabet
+zebra is in the second half

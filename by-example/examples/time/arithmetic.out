@@ -1,0 +1,9 @@
++ 30 days:   2025-03-02
+- 31 days:   2024-12-31
++ 1 month:   2025-02-28
++ 2 months:  2025-03-31
+1 month, twice: 2025-03-28
++ 1 year from a leap day: 2025-02-28
+days from Jan 31 to Christmas: 328
+start < xmas: true
+month: 2025-01-01 to 2025-02-28

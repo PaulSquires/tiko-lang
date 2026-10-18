@@ -1,0 +1,6 @@
+'' Prints the options its profile built it with.
+print "this build:"
+print "debug information:   "; cbool( __FB_DEBUG__ )
+print "error checks:        "; cbool( __FB_ERR__ <> 0 )
+print "optimisation level:  "; __FB_OPTIMIZE__
+print "thread-safe runtime: "; cbool( __FB_MT__ )

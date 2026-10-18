@@ -1,0 +1,23 @@
+'' This program is its own child: given "child", it does the child's
+'' part and stops, so the example needs no other program.
+if command( 1 ) = "child" then
+    print "  child: hello from the child"
+    end 7
+end if
+
+'' exec runs a program directly and returns its exit code.
+print "parent: running the child with exec"
+var code = exec( command( 0 ), "child" )
+print "parent: exec returned"; code
+
+'' shell runs a command line through the system's shell.
+print "parent: shell( ""exit 3"" ) returned"; shell( "exit 3" )
+
+'' open pipe reads what a command prints, line by line.
+dim as ustring cmdline = """" & command( 0 ) & """ child"
+dim as int32 f = freefile( )
+open pipe cmdline for input as #f
+dim as ustring got
+line input #f, got
+close #f
+print "parent: read ["; got; "]"

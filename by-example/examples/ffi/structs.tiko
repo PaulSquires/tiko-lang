@@ -1,0 +1,38 @@
+'' A type has C's struct layout, so C can fill one in or return one.
+type DivResult
+    as int32 quot
+    as int32 rem_       '' a field cannot be named rem: rem is a comment
+end type
+
+extern "C"
+    declare function div( byval num as int32, byval den as int32 ) _
+                     as DivResult
+end extern
+
+var r = div( 47, 10 )
+print "div( 47, 10 ): quot"; r.quot; ", rem"; r.rem_
+
+'' Natural alignment: value starts on a 4-byte boundary, as in C.
+type Natural
+    as uint8 tag
+    as int32 value
+end type
+
+'' field = 1 packs the fields, as C's #pragma pack( 1 ) does.
+type Packed field = 1
+    as uint8 tag
+    as int32 value
+end type
+
+print "Natural: size"; sizeof( Natural ); _
+      ", value at"; offsetof( Natural, value )
+print "Packed:  size"; sizeof( Packed ); _
+      ", value at"; offsetof( Packed, value )
+
+'' A fixed-size zstring is an inline char array, like C's char[ 8 ].
+type Record
+    as zstring * 8 label
+    as int32 id
+end type
+print "Record:  size"; sizeof( Record ); _
+      ", id at"; offsetof( Record, id )

@@ -1,0 +1,2 @@
+expect: compile-error TKO0617
+blocked: BUG-arrays-2

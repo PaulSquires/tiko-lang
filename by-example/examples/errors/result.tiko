@@ -1,0 +1,35 @@
+#import "std/outcome"
+
+'' A port number, or the reason the text is not one.
+type PortResult as outcome.Result( of int32, ustring )
+
+function ParsePort( byref text as ustring ) as PortResult
+    if len( text ) = 0 then
+        return outcome.Fail( of int32, ustring )( "the port is empty" )
+    end if
+    if str( valint( text ) ) <> text then
+        var why = "'" & text & "' is not a number"
+        return outcome.Fail( of int32, ustring )( why )
+    end if
+    var port = valint( text )
+    if port < 1 orelse port > 65535 then
+        var why = text & " is outside 1 to 65535"
+        return outcome.Fail( of int32, ustring )( why )
+    end if
+    return outcome.Ok( of int32, ustring )( port )
+end function
+
+dim inputs( 0 to 3 ) as ustring = { "8080", "http", "70000", "" }
+for each text in inputs
+    var r = ParsePort( text )
+    if r.IsOk( ) then
+        print "port"; r.Value( )
+    else
+        print "refused: "; r.Failure( )
+    end if
+next
+
+'' ValueOr picks a default; a new Result is a failure.
+print "or the default:"; ParsePort( "x" ).ValueOr( 80 )
+dim unset as PortResult
+print "a new Result is ok: "; unset.IsOk( )

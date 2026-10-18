@@ -1,0 +1,5 @@
+dim as int32 items = 3
+dim as ustring label
+
+label = items      '' refused: a number is not text
+print label

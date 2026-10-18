@@ -1,0 +1,39 @@
+#import "std/money"
+
+'' Binary floating point cannot hold 0.1 exactly.
+dim as float64 a = 0.1, b = 0.2
+print "float64: 0.1 + 0.2 = 0.3 is "; cbool( a + b = 0.3 )
+
+'' Decimal holds decimal fractions exactly.
+var d1 = money.DecimalParse( "0.1" ).Value( )
+var d2 = money.DecimalParse( "0.2" ).Value( )
+var d3 = money.DecimalParse( "0.3" ).Value( )
+print "Decimal: 0.1 + 0.2 = "; ( d1 + d2 ).ToString( ); " is "; _
+      ( d1 + d2 = d3 )
+
+'' A Decimal keeps its scale; Round( 2 ) makes it cents.
+var price = money.DecimalParse( "59.97" ).Value( )
+var rate = money.DecimalParse( "0.0825" ).Value( )
+var tax = price * rate
+print "tax at 8.25%: "; tax.ToString( ); ", to cents: "; _
+      tax.Round( 2 ).ToString( )
+
+'' Currency: always four places, in eight bytes.
+var each_ = money.CurrencyParse( "19.99" ).Value( )
+print "3 at 19.99 = "; ( each_ * 3 ).ToString( )
+print "2 / 3      = "; ( money.CurrencyFromInt( 2 ) / 3 ).ToString( )
+
+'' Parsing is strict: a fifth place is refused, not cut off.
+print "1.23456 as Currency: "; _
+      money.CurrencyParse( "1.23456" ).HasValue( )
+
+'' Split 100.00 three ways so the parts add back to the total.
+dim weights( 0 to 2 ) as int64 = { 1, 1, 1 }
+dim parts( ) as money.Decimal
+money.DecimalApportion( money.DecimalParse( "100.00" ).Value( ), 2, _
+                        weights( ), parts( ) )
+print "100.00 in three:";
+for i as int32 = 0 to ubound( parts )
+    print " "; parts( i ).ToString( );
+next
+print

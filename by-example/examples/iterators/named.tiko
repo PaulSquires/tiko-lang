@@ -1,0 +1,22 @@
+'' Element names come from the declaration a value is reached through.
+type Size as (w as int32, h as int32)
+
+function ScreenSize( ) as Size
+    return (1920, 1080)
+end function
+
+var s = ScreenSize( )
+print "by name:"; s.w; s.h
+print "by position:"; s._1; s._2       '' _1 .. _N always work
+
+'' A call's result carries the names of the function's declaration.
+print "height alone:"; ScreenSize( ).h
+
+'' Elements nest, and so do their names.
+dim box as (topLeft as Size, bottomRight as Size) = ((0, 0), (40, 30))
+print "corner:"; box.bottomRight.w; box.bottomRight.h
+
+'' Names are not part of the type: these are all (int32, int32).
+dim plain as (int32, int32) = s
+dim span as (lo as int32, hi as int32) = plain
+print "span:"; span.lo; span.hi; ", equal: "; cbool( span = s )

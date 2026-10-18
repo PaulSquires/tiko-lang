@@ -1,0 +1,5 @@
+'' for each does not walk a ustring. Does not compile.
+dim as ustring word = "loop"
+for each letter in word
+    print letter
+next

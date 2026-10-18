@@ -1,0 +1,31 @@
+'' cast( T, value ) converts a value to the type you name.
+dim as float64 price = 7.0
+print "cast( float64, 7 ) / 2 ="; cast( float64, 7 ) / 2
+print "cast( int32, price ) \ 2 ="; cast( int32, price ) \ 2
+
+'' The c... functions are shorthand for the common targets.
+print "cint( 2.6 )    ="; cint( 2.6 )      '' integer
+print "clng( 2.6 )    ="; clng( 2.6 )      '' int32
+print "clngint( 2.6 ) ="; clngint( 2.6 )   '' int64
+print "cdbl( 1 ) / 3  ="; cdbl( 1 ) / 3    '' float64
+print "csng( 1 ) / csng( 3 ) ="; csng( 1 ) / csng( 3 )   '' float32
+print
+
+'' Narrowing an integer keeps the low bits, so it wraps silently.
+print "cast( uint8, 300 )  = "; cast( uint8, 300 )
+print "cast( int8, 200 )   = "; cast( int8, 200 )
+print "cast( uint16, -1 )  = "; cast( uint16, -1 )
+print "cubyte( 260 )       = "; cubyte( 260 )
+
+'' Unsigned arithmetic wraps the same way.
+dim as uint32 counter = 0
+counter -= 1
+print "0 - 1 as a uint32   = "; counter
+dim as uint8 small = 255
+small += 1
+print "255 + 1 as a uint8  = "; small
+print
+
+'' Booleans: zero is false, anything else true; true is -1.
+print "cbool( 0 ) = "; cbool( 0 ); ", cbool( 5 ) = "; cbool( 5 )
+print "cint( true ) ="; cint( true ); ", cint( false ) ="; cint( false )

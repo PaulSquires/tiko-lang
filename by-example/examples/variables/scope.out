@@ -1,0 +1,8 @@
+1: outer
+2: inner, temporary = 42
+3: 2.5
+4: inner
+5: outer
+loop 1: 2
+loop 2: 4
+6: changed in an if

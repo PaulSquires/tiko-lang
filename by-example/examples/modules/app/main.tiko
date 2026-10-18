@@ -1,0 +1,8 @@
+'' A path that starts with a dependency's name is found through
+'' tiko.toml, wherever that package lives.
+#import "units/length"
+#import "units/temperature"
+#import "std/strings"
+
+print strings.Format( "100 m is {:.1f} ft", length.ToFeet( 100 ) )
+print strings.Format( "25 C is {} F", temperature.ToFahrenheit( 25 ) )

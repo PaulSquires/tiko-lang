@@ -1,0 +1,8 @@
+#module "kit"
+#import "../greet" public   '' re-exported: importers reach kit.greet
+#import "../scores"         '' kit's own business
+
+public function Report( byval who as ustring, _
+                        byval points as int32 ) as ustring
+    return greet.Hello( who ) & " Your grade: " & scores.Grade( points )
+end function

@@ -1,0 +1,17 @@
+'' The average of the readings, or 0 when there are none.
+function Average( readings() as float64 ) as float64
+    var count = ubound( readings ) - lbound( readings ) + 1
+    if count = 0 then return 0                  '' "no answer"
+    dim as float64 total = 0
+    for each r in readings
+        total += r
+    next
+    return total / count
+end function
+
+dim nothing( any ) as float64
+dim balanced( 0 to 3 ) as float64 = { -2, 2, -1.5, 1.5 }
+
+'' Both print 0. Only one of them is an average.
+print "no readings:"; Average( nothing() )
+print "balanced:   "; Average( balanced() )

@@ -1,0 +1,51 @@
+'' A Buffer owns a block of memory for exactly as long as it lives.
+'' A copy would share the block, and two destructors would free it
+'' twice, so copying is declared private and never defined.
+type Buffer
+    declare constructor( byval length as int32 )
+    declare destructor( )
+    declare function Size( ) as int32
+    declare function At( byval i as int32 ) byref as uint8
+private:
+    declare constructor( byref other as Buffer )    '' no copies
+    declare operator let( byref other as Buffer )   '' no assignment
+    as uint8 ptr bytes
+    as int32 count
+end type
+
+constructor Buffer( byval length as int32 )
+    bytes = callocate( length, 1 )
+    count = length
+    print "  allocated"; length; " bytes"
+end constructor
+
+destructor Buffer( )
+    deallocate( bytes )
+    print "  freed"; count; " bytes"
+end destructor
+
+function Buffer.Size( ) as int32
+    return count
+end function
+
+function Buffer.At( byval i as int32 ) byref as uint8
+    return bytes[i]
+end function
+
+'' Borrowing by reference is fine: no second owner is made.
+function Total( byref b as Buffer ) as int32
+    dim as int32 sum = 0
+    for i as int32 = 0 to b.Size( ) - 1
+        sum += b.At( i )
+    next
+    return sum
+end function
+
+scope
+    dim block as Buffer = Buffer( 4 )
+    for i as int32 = 0 to 3
+        ( block.At( i ) ) = i * 10
+    next
+    print "  total"; Total( block )
+end scope
+print "after the scope"

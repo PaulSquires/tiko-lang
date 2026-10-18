@@ -1,0 +1,36 @@
+#import "std/memory"
+
+'' One object, several owners; the last owner to go destroys it.
+type Session
+    as ustring user
+    declare destructor( )
+end type
+
+destructor Session( )
+    print "  session for "; user; " closed"
+end destructor
+
+'' byref: the procedure uses the object and does not become an owner.
+sub Show( byref s as memory.SharedPtr( of Session ) )
+    print "  "; s->user; ", owners:"; s.UseCount( )
+end sub
+
+var s = memory.MakeShared( of Session )( )     '' a new Session
+s->user = "ada"                                '' -> reaches its fields
+Show( s )
+
+scope
+    var t = s                                  '' a second owner
+    Show( t )
+end scope                                      '' t lets go; s remains
+Show( s )
+
+'' A SharedPtr can also adopt an object made with new.
+var other = memory.SharedPtr( of Session )( new Session )
+other->user = "grace"
+Show( other )
+
+print "reset both:"
+s.Reset( )                                     '' the last owner of ada
+other.Reset( )
+print "s is null: "; s.IsNull( )

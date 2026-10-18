@@ -1,0 +1,35 @@
+#import "std/strings"
+#import "std/containers"
+using containers
+
+'' Three ways to build "1;2;3;...;1000;" from many small pieces.
+const PieceCount = 1000
+
+'' 1. Append one piece at a time. A ustring keeps spare room at its
+''    end, so each &= copies only the new piece.
+dim as ustring appended
+for i as int32 = 1 to PieceCount
+    appended &= strings.Format( "{};", i )
+next
+
+'' 2. Collect the pieces, then Join them in one pass.
+dim as Array( of ustring ) pieces
+for i as int32 = 1 to PieceCount
+    pieces.Push( str( i ) )
+next
+dim as ustring joined = strings.Join( pieces, ";" ) & ";"
+
+'' 3. When the final size is known, make room once and overwrite it
+''    with the mid statement, which never reallocates.
+dim as ustring filled = space( len( appended ) )
+dim as int32 at = 1
+for i as int32 = 1 to PieceCount
+    dim as ustring piece = i & ";"
+    mid( filled, at ) = piece
+    at += len( piece )
+next
+
+print "length:"; len( appended )
+print left( appended, 20 ); " ... "; right( appended, 15 )
+print "all three equal: "; cbool( appended = joined ) andalso _
+                           cbool( appended = filled )

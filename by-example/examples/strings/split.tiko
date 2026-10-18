@@ -1,0 +1,25 @@
+#import "std/strings"
+
+'' Split cuts a string at every delimiter and returns the pieces
+'' in an Array( of ustring ).
+var fields = strings.Split( "red,green,,blue", "," )
+print "fields:"; fields.Count( )
+for each f in fields
+    print "  ["; f; "]"
+next
+
+'' Indexing counts from 0, like every container.
+print "first is "; fields[ 0 ]; ", last is "; fields[ fields.Count( ) - 1 ]
+
+'' Join is the reverse: pieces in, one string out.
+print strings.Join( fields, " + " )
+
+'' Splitting and joining with the same delimiter gives back the
+'' original, empty fields and all.
+dim as ustring row = ",a,,b,"
+print cbool( strings.Join( strings.Split( row, "," ), "," ) = row ); _
+      " (" & strings.Split( row, "," ).Count( ) & " fields)"
+
+'' SplitChars treats every character it is given as a delimiter.
+var words = strings.SplitChars( "one two;three,four", " ;," )
+print strings.Join( words, "|" )

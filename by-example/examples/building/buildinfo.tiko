@@ -1,0 +1,9 @@
+'' A program can see how it was built: each option it was given
+'' defines a symbol the source can test.
+#cmdline "-exx -mt -O2"
+
+print "this build:"
+print "runtime error checks: "; cbool( __FB_ERR__ <> 0 )
+print "thread-safe runtime:  "; cbool( __FB_MT__ )
+print "debug build:          "; cbool( __FB_DEBUG__ )
+print "optimisation level:   "; __FB_OPTIMIZE__

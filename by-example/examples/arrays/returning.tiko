@@ -1,0 +1,36 @@
+'' A function returns an array when its result type ends in ( ).
+
+'' A brace list: the array is sized to the list, indexed from 0.
+function Vowels( ) as ustring( )
+    return { "a", "e", "i", "o", "u" }
+end function
+
+'' A local array, built in a loop. It is moved to the caller, not
+'' copied, and keeps the bounds the function gave it.
+function Squares( byval n as int32 ) as int32( )
+    dim as int32 result( )
+    redim result( 1 to n )
+    for i as int32 = 1 to n
+        result( i ) = i * i
+    next
+    return result
+end function
+
+'' var takes the result with its type and bounds.
+var v = Vowels( )
+print "vowels " & lbound( v ) & " to " & ubound( v ) & ", last: " & v( 4 )
+
+var sq = Squares( 5 )
+print "squares " & lbound( sq ) & " to " & ubound( sq ) & ", sq( 5 ) ="; sq( 5 )
+
+'' A result can be walked directly; it is freed after the loop.
+for each n in Squares( 3 )
+    print n;
+next
+print
+
+'' Assigning a result to an existing dynamic array replaces its contents.
+dim as int32 table( )
+table = Squares( 2 )
+print "table " & lbound( table ) & " to " & ubound( table ) & ":"; _
+      table( 1 ); table( 2 )

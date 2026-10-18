@@ -1,0 +1,12 @@
+'' TRACE is 0 to turn tracing off -- or so the author thought.
+#define TRACE 0
+
+#ifdef TRACE
+    print "#ifdef TRACE: tracing is on"
+#endif
+
+#if TRACE
+    print "#if TRACE: tracing is on"
+#else
+    print "#if TRACE: tracing is off"
+#endif

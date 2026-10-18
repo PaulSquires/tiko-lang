@@ -1,0 +1,33 @@
+'' A type can carry procedures of its own: methods.
+type Counter
+    declare sub Increment( )
+    declare sub Add( byval amount as int32 )
+    declare function Value( ) as int32
+    count as int32
+end type
+
+'' A method is defined outside the type and named Type.Method.
+sub Counter.Increment( )
+    count += 1                      '' a field of the object
+end sub
+
+sub Counter.Add( byval amount as int32 )
+    this.count += amount            '' "this." spells it out
+end sub
+
+function Counter.Value( ) as int32
+    return count
+end function
+
+dim as Counter clicks, errors
+clicks.Increment( )
+clicks.Increment( )
+clicks.Add( 10 )
+errors.Increment( )
+
+'' Each object has its own fields.
+print "clicks:"; clicks.Value( )
+print "errors:"; errors.Value( )
+
+'' Methods add nothing to the size of an object.
+print "size of a Counter:"; sizeof( Counter )

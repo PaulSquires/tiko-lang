@@ -1,0 +1,5 @@
+last id: 3
+over 4.00: tea
+over 4.00: O'Brien's jam
+after the rollback: 3 items
+refused: NOT NULL constraint failed: item.name

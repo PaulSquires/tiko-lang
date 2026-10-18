@@ -1,0 +1,4 @@
+found sqrt: true
+found no_such_function: false
+sqrt( 144 ) = 12
+missing library loads: false

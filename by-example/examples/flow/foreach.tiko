@@ -1,0 +1,34 @@
+'' for each visits every element of an array, in index order.
+dim as ustring planets( 1 to 4 ) = { "Mercury", "Venus", "Earth", "Mars" }
+for each p as ustring in planets
+    print p
+next
+
+'' Leave out the type and the loop variable takes the element type.
+dim as int32 primes( 0 to 4 ) = { 2, 3, 5, 7, 11 }
+dim as int32 total = 0
+for each n in primes
+    total += n
+next
+print "sum of the primes:"; total
+
+'' exit for and continue for work as they do in a counting loop.
+for each n in primes
+    if n = 2 then continue for
+    if n > 7 then exit for
+    print "odd prime"; n
+next
+
+'' A dynamic array with nothing in it runs the body zero times.
+dim as int32 nothing_( )
+for each n in nothing_
+    print "never printed"
+next
+print "the empty array had no elements"
+
+'' A ustring is walked by position instead, with for and mid.
+dim as ustring word = "loop"
+for i as int32 = 1 to len( word )
+    print "["; mid( word, i, 1 ); "]";
+next
+print

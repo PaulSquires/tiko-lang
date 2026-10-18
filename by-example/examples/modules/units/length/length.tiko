@@ -1,0 +1,7 @@
+#module "length"
+
+public const FEET_PER_METRE = 3.28084
+
+public function ToFeet( byval metres as float64 ) as float64
+    return metres * FEET_PER_METRE
+end function

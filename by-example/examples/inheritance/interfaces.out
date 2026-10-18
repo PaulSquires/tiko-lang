@@ -1,0 +1,6 @@
+as ini:
+  width=640
+  height=480
+as json:
+  "width": 640
+  "height": 480

@@ -1,0 +1,43 @@
+'' An array parameter is written name( ) as Type, and so is the
+'' argument. The procedure works on the caller's array, not a copy.
+sub Fill( values( ) as int32, byval start as int32 )
+    for i as int32 = lbound( values ) to ubound( values )
+        values( i ) = start
+        start += 1
+    next
+end sub
+
+function Sum( values( ) as const int32 ) as int64
+    dim as int64 total = 0
+    for each v in values
+        total += v
+    next
+    return total
+end function
+
+'' The bounds travel with the array.
+dim as int32 small( 1 to 3 )
+dim as int32 odd( -2 to 2 )
+Fill( small( ), 10 )
+Fill( odd( ), 1 )
+print "small:"; small( 1 ); small( 2 ); small( 3 ); ", sum"; Sum( small( ) )
+print "odd: " & lbound( odd ) & " to " & ubound( odd ) & ", sum"; Sum( odd( ) )
+
+'' A dynamic array can be resized by the procedure it is passed to.
+sub Grow( values( ) as int32, byval extra as int32 )
+    redim preserve values( lbound( values ) to ubound( values ) + extra )
+end sub
+
+dim as int32 list( )
+redim list( 1 to 2 )
+Grow( list( ), 3 )
+print "list now " & lbound( list ) & " to " & ubound( list )
+
+'' A parameter's dimensions are written with commas: ( , ) is two.
+sub Describe( m( , ) as int32 )
+    print "a grid of"; ubound( m, 1 ) - lbound( m, 1 ) + 1; " rows and"; _
+          ubound( m, 2 ) - lbound( m, 2 ) + 1; " columns"
+end sub
+
+dim as int32 table( 1 to 4, 0 to 5 )
+Describe( table( ) )

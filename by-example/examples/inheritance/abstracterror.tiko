@@ -1,0 +1,6 @@
+type Shape extends Object
+    declare abstract function Area( ) as float64
+end type
+
+dim as Shape s                      '' refused: Area has no body
+print s.Area( )

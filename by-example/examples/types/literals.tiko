@@ -1,0 +1,48 @@
+'' One overload per type: the compiler picks the one that matches the
+'' argument's type exactly, so TypeOf_ names the type a literal has.
+function TypeOf_ overload( byval v as int32 ) as ustring
+    return "int32"
+end function
+function TypeOf_ overload( byval v as int64 ) as ustring
+    return "int64"
+end function
+function TypeOf_ overload( byval v as integer ) as ustring
+    return "integer"
+end function
+function TypeOf_ overload( byval v as uint32 ) as ustring
+    return "uint32"
+end function
+function TypeOf_ overload( byval v as uint64 ) as ustring
+    return "uint64"
+end function
+function TypeOf_ overload( byval v as uinteger ) as ustring
+    return "uinteger"
+end function
+function TypeOf_ overload( byval v as float32 ) as ustring
+    return "float32"
+end function
+function TypeOf_ overload( byval v as float64 ) as ustring
+    return "float64"
+end function
+
+print "42         is "; TypeOf_( 42 )
+print "&hFF       is "; TypeOf_( &hFF )
+print "2.5        is "; TypeOf_( 2.5 )
+print "1e6        is "; TypeOf_( 1e6 )
+print
+
+'' A suffix asks for a type.
+print "42L        is "; TypeOf_( 42L )
+print "42LL       is "; TypeOf_( 42LL )
+print "42U        is "; TypeOf_( 42U )
+print "42UL       is "; TypeOf_( 42UL )
+print "42ULL      is "; TypeOf_( 42ULL )
+print "2.5F       is "; TypeOf_( 2.5F )
+print "2.5D       is "; TypeOf_( 2.5D )
+print
+
+'' A decimal literal too big for 32 signed bits but small enough for
+'' 32 unsigned ones is unsigned.
+print "3000000000 is "; TypeOf_( 3000000000 )
+print "3000000000 - 3000000001 = "; 3000000000 - 3000000001
+print "3000000000LL - 3000000001LL = "; 3000000000LL - 3000000001LL

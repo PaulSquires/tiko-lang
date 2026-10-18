@@ -1,0 +1,35 @@
+'' An ordinary variable can be changed as often as you like.
+dim as int32 score = 10
+score += 5
+print "score ="; score
+
+'' const fixes a name to a value the compiler knows.
+const MaxScore = 100
+print "MaxScore ="; MaxScore
+
+'' dim as const fixes a variable after its first value, which may be
+'' computed while the program runs.
+function StartingLives( ) as int32
+    return 3
+end function
+
+dim as const int32 lives = StartingLives( )
+dim as const int32 snapshot = score
+score = 0
+print "lives ="; lives; ", snapshot ="; snapshot; ", score ="; score
+
+'' A const parameter promises the procedure will not change what it is
+'' given, even though it receives the caller's variable by reference.
+sub Show( byref value as const int32 )
+    print "showing"; value
+end sub
+
+'' Without const, a byref parameter can change the caller's variable.
+sub Bump( byref value as int32 )
+    value += 1
+end sub
+
+Show( score )
+Bump( score )
+Bump( score )
+print "after two bumps, score ="; score

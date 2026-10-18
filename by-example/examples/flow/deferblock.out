@@ -1,0 +1,13 @@
+a defer inside an if:
+  start
+    acquired
+    used
+    released
+  after the if: already released
+a defer inside a loop:
+  pass 1
+    end of pass 1
+    end of pass 2
+    end of pass 3
+what a defer reads:
+  v when the defer ran: 9

@@ -1,0 +1,6 @@
+'' Every capture must say byval or byref. Does not compile.
+dim as int32 count = 0
+var bump = sub[ count ]( )
+    count += 1
+end sub
+bump( )

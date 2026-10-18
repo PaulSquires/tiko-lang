@@ -1,0 +1,7 @@
+'' A byref as const parameter cannot be written. Does not compile.
+sub Shout( byref text as const ustring )
+    text = ucase( text )
+    print text
+end sub
+
+Shout( "hello" )

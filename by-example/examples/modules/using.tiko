@@ -1,0 +1,23 @@
+'' "as" gives a module a different name in this file.
+#import "std/strings" as txt
+#import "std/containers"
+
+'' using makes a module's public names usable without the prefix.
+using containers
+
+dim primes as Array( of int32 )
+for n as int32 = 2 to 20
+    var isPrime = true
+    for d as int32 = 2 to n - 1
+        if n mod d = 0 then isPrime = false : exit for
+    next
+    if isPrime then primes.Push( n )
+next
+
+print txt.Format( "{} primes below 20", primes.Count( ) )
+print txt.Format( "the largest is {}", primes[primes.Count( ) - 1] )
+
+'' The qualified name still works under using.
+dim names as containers.Array( of ustring )
+names.Push( "tiko" )
+print txt.PadLeft( names[0], 8, "." )

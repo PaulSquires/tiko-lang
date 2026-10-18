@@ -1,0 +1,31 @@
+#module "wordstats"
+
+'' The number of words in s, where words are separated by spaces.
+public function WordCount( byval s as ustring ) as int32
+    dim as int32 n = 0
+    dim as boolean inWord = false
+    for i as int32 = 1 to len( s )
+        if mid( s, i, 1 ) = " " then
+            inWord = false
+        elseif not inWord then
+            inWord = true
+            n += 1
+        end if
+    next
+    return n
+end function
+
+'' The longest word in s; the first one when several tie.
+public function LongestWord( byval s as ustring ) as ustring
+    dim as ustring best, word
+    for i as int32 = 1 to len( s ) + 1
+        var c = mid( s, i, 1 )
+        if c = " " orelse c = "" then
+            if len( word ) > len( best ) then best = word
+            word = ""
+        else
+            word &= c
+        end if
+    next
+    return best
+end function

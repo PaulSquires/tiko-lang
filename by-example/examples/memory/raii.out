@@ -1,0 +1,20 @@
+Work( false ):
+  open a
+  open b
+  open inner
+  in the scope
+  close inner
+  open c
+  at the end
+  close c
+  close b
+  close a
+Work( true ):
+  open a
+  open b
+  open inner
+  in the scope
+  close inner
+  returning early
+  close b
+  close a

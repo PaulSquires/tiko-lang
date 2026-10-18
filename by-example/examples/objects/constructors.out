@@ -1,0 +1,16 @@
+dim as Temperature a
+  default: room temperature
+var b = Temperature( 5.5 )
+  from a number
+dim as Temperature c = Temperature( "31" )
+  from a number
+  ... by way of the text
+dim as Temperature d = -4
+  from a number
+Show( 12 )
+  from a number
+  Show got 12
+dim as Temperature week( 1 to 2 )
+  default: room temperature
+  default: room temperature
+celsius: 20, 5.5, 31, -4

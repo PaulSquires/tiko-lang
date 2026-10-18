@@ -1,0 +1,20 @@
+type Rect
+    declare const function Area( ) as float64
+    declare sub Scale( byval k as float64 )
+    w as float64
+    h as float64
+end type
+
+const function Rect.Area( ) as float64
+    return w * h
+end function
+
+sub Rect.Scale( byval k as float64 )
+    w *= k
+    h *= k
+end sub
+
+sub Report( byref r as const Rect )
+    print r.Area( )                 '' fine: Area is const
+    r.Scale( 2 )                    '' refused: Scale is not
+end sub

@@ -1,0 +1,7 @@
+ 1 2 3 4 5
+ 0 5 10 15 20
+ 10 7 4 1
+the 5 to 1 loop ran zero times
+ 1 2 3
+ 0 0.25 0.5 0.75 1
+k after the loop: 4

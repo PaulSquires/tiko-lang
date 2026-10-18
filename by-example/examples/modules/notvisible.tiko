@@ -1,0 +1,3 @@
+#import "./scores"
+
+print scores.Clamp_( 130 )      '' refused: private names are not seen

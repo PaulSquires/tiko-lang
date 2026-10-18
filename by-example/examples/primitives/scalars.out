@@ -1,0 +1,11 @@
+type     bytes  value
+int8         1  -128
+int16        2  32767
+int32        4  2147483647
+int64        8  9223372036854775807
+uint8        1  255
+uint64       8  18446744073709551615
+float32      4  0.75
+float64      8  3.141592653589793
+boolean      1  true
+label is primitive, 9 characters

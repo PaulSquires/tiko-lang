@@ -1,0 +1,3 @@
+#import "./kit"
+
+print kit.scores.Grade( 88 )    '' refused: kit did not re-export scores

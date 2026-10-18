@@ -1,0 +1,18 @@
+#import "std/strings"
+
+'' A type that can turn itself into text declares a cast to ustring.
+type Point
+    as float64 x, y
+    declare operator cast( ) as ustring
+end type
+
+operator Point.cast( ) as ustring
+    return strings.Format( "({}, {})", x, y )
+end operator
+
+dim p as Point = ( 1.5, -2 )
+
+'' Every place that wants text now accepts a Point.
+print p
+print "p is " & p
+print strings.Format( "p is {} and {:>14}", p, p )

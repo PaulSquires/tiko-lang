@@ -1,0 +1,30 @@
+'' The right-hand side is read completely before anything is written.
+dim as int32 a = 1, b = 2
+(a, b) = (b, a)
+print "swapped:"; a; b
+
+dim as int32 x = 1, y = 2, z = 3
+(x, y, z) = (z, x, y)
+print "rotated:"; x; y; z
+
+'' The targets can be any places: array elements, fields...
+dim cards( 0 to 2 ) as ustring = { "ace", "king", "queen" }
+(cards( 0 ), cards( 2 )) = (cards( 2 ), cards( 0 ))
+print cards( 0 ); " "; cards( 1 ); " "; cards( 2 )
+
+'' ...or existing variables taking a function's two results.
+function DivMod( byval n as int32, byval d as int32 ) _
+    as (quotient as int32, remainder as int32)
+    return (n \ d, n mod d)
+end function
+
+dim as int32 q, r
+(q, r) = DivMod( 17, 5 )
+print "17 / 5 ="; q; " remainder"; r
+
+'' One step of Fibonacci, without a temporary.
+dim as int64 older = 0, newer = 1
+for i as int32 = 1 to 50
+    (older, newer) = (newer, older + newer)
+next
+print "fib(50) ="; older

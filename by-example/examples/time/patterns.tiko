@@ -1,0 +1,27 @@
+#import "std/chrono"
+
+var d = chrono.DateTime( 2025, 3, 4, 14, 30, 5, 0 ).WithOffset( 60 )
+
+'' Pattern letters, always in English, whatever the machine.
+print d.ToString( "dddd, d MMMM yyyy" )
+print d.ToString( "ddd dd/MM/yy h:mm tt" )
+print d.ToString( "yyyy-MM-dd'T'HH:mm:sszzz" )
+
+'' One letter is a named format: "R" is the RFC 1123 HTTP form.
+print d.ToString( "R" )
+
+'' A letter that is not a pattern letter is an error: quote it.
+dim text as ustring
+print "bare T accepted: "; d.TryFormat( "yyyy-MM-ddTHH:mm", text )
+
+'' A pattern says which number is the day when reading.
+dim p as chrono.DateTime
+if chrono.DateTime.TryParseExact( "04.03.2025 17:45", _
+                                  "dd.MM.yyyy HH:mm", p ) then
+    print "parsed: "; p.ToIsoString( )
+end if
+
+'' Repeated fields are checked: 4 March 2025 is not a Monday.
+print "Monday 04.03.2025 accepted: "; _
+      chrono.DateTime.TryParseExact( "Monday 04.03.2025", _
+                                     "dddd dd.MM.yyyy", p )

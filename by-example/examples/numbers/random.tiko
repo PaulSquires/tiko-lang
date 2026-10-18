@@ -1,0 +1,38 @@
+#import "std/numeric"
+
+'' randomize with a seed makes rnd repeat the same sequence.
+randomize 42
+print "rnd:";
+for i as int32 = 1 to 3
+    print rnd( );
+next
+print
+
+'' numeric.Rng is a generator you hold: each one is its own stream.
+dim dice as numeric.Rng = numeric.RngSeeded( 2025 )
+print "ten dice:";
+for i as int32 = 1 to 10
+    print dice.NextInt( 1, 6 );    '' both ends included
+next
+print
+
+'' The same seed gives the same stream, on every platform.
+dim again as numeric.Rng = numeric.RngSeeded( 2025 )
+print "same seed:";
+for i as int32 = 1 to 10
+    print again.NextInt( 1, 6 );
+next
+print
+
+'' Shuffle an array; every order is equally likely.
+dim cards( 1 to 6 ) as int32 = { 1, 2, 3, 4, 5, 6 }
+numeric.Shuffle( dice, cards( ) )
+print "shuffled:";
+for i as int32 = 1 to 6
+    print cards( i );
+next
+print
+
+'' A double from 0 up to, but not including, 1.
+var x = dice.NextDouble( )
+print "0 <= x < 1: "; cbool( x >= 0 andalso x < 1 )

@@ -1,0 +1,47 @@
+type Account
+  public:                           '' anyone may use these
+    declare constructor( byval opening as int64 )
+    declare sub Deposit( byval amount as int64 )
+    declare function Withdraw( byval amount as int64 ) as boolean
+    declare function Balance( ) as int64
+  private:                          '' only Account's own methods
+    declare sub Record( byref what as ustring )
+    balance_ as int64
+    entries_ as int32
+end type
+
+constructor Account( byval opening as int64 )
+    balance_ = iif( opening < 0, 0, opening )
+    Record( "opened" )
+end constructor
+
+sub Account.Deposit( byval amount as int64 )
+    if amount <= 0 then exit sub    '' the type keeps its own rules
+    balance_ += amount
+    Record( "deposit" )
+end sub
+
+function Account.Withdraw( byval amount as int64 ) as boolean
+    if amount <= 0 orelse amount > balance_ then return false
+    balance_ -= amount
+    Record( "withdrawal" )
+    return true
+end function
+
+function Account.Balance( ) as int64
+    return balance_
+end function
+
+'' A private method is a helper the outside world never sees.
+sub Account.Record( byref what as ustring )
+    entries_ += 1
+    print "  entry"; entries_; ": "; what
+end sub
+
+dim as Account acct = Account( 100 )
+acct.Deposit( 50 )
+acct.Deposit( -1000 )               '' ignored
+var tooMuch = acct.Withdraw( 500 )
+var enough = acct.Withdraw( 30 )
+print "withdraw 500: "; tooMuch; ", withdraw 30: "; enough
+print "balance:"; acct.Balance( )

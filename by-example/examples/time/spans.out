@@ -1,0 +1,9 @@
+span:        P1DT2H30M
+TotalHours: 26.5
+Days 1, Hours 2, Minutes 30
+lap:         PT1M35.5S
+three laps:  PT4M46.5S
+span - lap:  P1DT2H28M24.5S
+lap < span:  true
+negative:    -PT1H30M, Hours -1, Minutes -30
+flight:      PT7H40M = 460 minutes

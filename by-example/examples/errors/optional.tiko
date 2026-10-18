@@ -1,0 +1,30 @@
+#import "std/outcome"
+
+'' Where needle is in items, if it is anywhere.
+function IndexOf( items() as ustring, byref needle as ustring ) _
+    as outcome.Optional( of int32 )
+    for i as int32 = lbound( items ) to ubound( items )
+        if items( i ) = needle then return outcome.Some( i )
+    next
+    return outcome.None( of int32 )( )
+end function
+
+dim planets( 0 to 3 ) as ustring = { "mercury", "venus", "earth", "mars" }
+
+'' Ask first, then take the value.
+var found = IndexOf( planets(), "earth" )
+if found.HasValue( ) then print "earth is at"; found.Value( )
+
+var missing = IndexOf( planets(), "pluto" )
+print "pluto has a value: "; missing.HasValue( )
+
+'' ValueOr supplies a fallback and never fails.
+print "pluto is at"; missing.ValueOr( -1 )
+
+'' A new Optional is empty; Clear( ) empties one again.
+dim later as outcome.Optional( of ustring )
+print "a new Optional has a value: "; later.HasValue( )
+later = outcome.Some( planets( 1 ) )
+print "now it holds "; later.Value( )
+later.Clear( )
+print "after Clear: "; later.HasValue( )

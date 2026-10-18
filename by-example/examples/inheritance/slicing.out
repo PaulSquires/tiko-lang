@@ -1,0 +1,5 @@
+byref:  woof, a Dog: true
+byval:  ..., a Dog: false
+copied: ..., a Dog: false
+ptr:    woof, a Dog: true
+sizes: 8 16 24

@@ -1,0 +1,14 @@
+# Build output: the rendered site and the harness's programs and logs.
+book/
+out/
+*.exe
+*.o
+*.obj
+*.pdb
+*.ilk
+*.a
+*.lib
+*.dll
+*.so
+*.tmp
+*.lx

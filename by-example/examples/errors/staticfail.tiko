@@ -1,0 +1,7 @@
+const SLOTS = 20
+const SLOT_BYTES = 64
+
+#assert SLOTS mod 4 = 0                 '' holds
+#assert SLOTS * SLOT_BYTES <= 1024      '' 1280: refused
+
+print "built"
