@@ -11455,8 +11455,8 @@
 "module": "sys.win",
 "kind": "macro",
 "old": "tkSetCurDir",
-"act": "rename",
-"new": "SetCurDir"
+"act": "drop",
+"new": "fs.SetCurrentDir( p )  or  SetCurrentDirectoryW( p )"
 },
 {
 "module": "sys.win",

@@ -249,6 +249,10 @@ def scan(path, rel, mp, user, edits, uncovered, notes):
                 new = refform(r, mod)
             note = "manual: the replacement's arguments differ" if act == "drop" else ""
             if act == "drop" and on_define_line(toks, k):
+                dn = define_name(toks, k)
+                dr = mp.resolve(dn, mod, imported) if dn else None
+                if dr and dr != "ambiguous" and dr["act"] == "drop":
+                    continue   # the body of an alias that is itself dropped goes with it
                 note = "an ALIAS MACRO over a dropped name: drop the alias too, or retarget it"
             if act == "member" and not user and r["module"] != mod:
                 note = "cross-module reference to a family member"
@@ -260,6 +264,12 @@ def on_define_line(toks, k):
     while j >= 0 and toks[j].kind != "nl": j -= 1
     a = j + 1
     return a + 1 < len(toks) and toks[a].text == "#" and toks[a + 1].text.lower() == "define"
+
+def define_name(toks, k):
+    j = k - 1
+    while j >= 0 and toks[j].kind != "nl": j -= 1
+    a = j + 1
+    return toks[a + 2].text if a + 2 < len(toks) and toks[a + 2].kind == "ident" else None
 
 def has_overload(toks, k):
     for t in toks[k + 1:k + 4]:
