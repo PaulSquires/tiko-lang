@@ -74,7 +74,7 @@
 #define IsRButtonDown() (GetKeyState(VK_RBUTTON) < 0)
 #define IsMButtonDown() (GetKeyState(VK_MBUTTON) < 0)
 #define SubclassDialog(hwndDlg, lpfn) SetWindowLongPtr(hwndDlg, DWLP_DLGPROC, cast(LPARAM, (lpfn)))
-#define SetDlgMsgResult(hwnd,msg,result) (iif((msg)=WM_CTLCOLORMSGBOX orelse (msg)=WM_CTLCOLOREDIT orelse (msg)=WM_CTLCOLORLISTBOX orelse (msg)=WM_CTLCOLORBTN orelse (msg)=WM_CTLCOLORDLG orelse (msg)=WM_CTLCOLORSCROLLBAR orelse (msg)=WM_CTLCOLORSTATIC orelse (msg)=WM_COMPAREITEM orelse (msg)=WM_VKEYTOITEM orelse (msg)=WM_CHARTOITEM orelse (msg)=WM_QUERYDRAGICON orelse (msg)=WM_INITDIALOG, cast(WINBOOL, (result)), (SetWindowLongPtr((hwnd),DWLP_MSGRESULT,cast(LPARAM, cast(LRESULT, result)),TRUE))))
+#define SetDlgMsgResult(hwnd,msg,result) (iif((msg)=WM_CTLCOLORMSGBOX orelse (msg)=WM_CTLCOLOREDIT orelse (msg)=WM_CTLCOLORLISTBOX orelse (msg)=WM_CTLCOLORBTN orelse (msg)=WM_CTLCOLORDLG orelse (msg)=WM_CTLCOLORSCROLLBAR orelse (msg)=WM_CTLCOLORSTATIC orelse (msg)=WM_COMPAREITEM orelse (msg)=WM_VKEYTOITEM orelse (msg)=WM_CHARTOITEM orelse (msg)=WM_QUERYDRAGICON orelse (msg)=WM_INITDIALOG, cast(WINBOOL, (result)), iif(SetWindowLongPtr((hwnd),DWLP_MSGRESULT,cast(LPARAM, cast(LRESULT, result))), CTRUE, CTRUE)))
 #macro DefDlgProcEx(hwnd, msg, wParam, lParam, pfRecursion)
 	scope
 		(*(pfRecursion)) = CTRUE
