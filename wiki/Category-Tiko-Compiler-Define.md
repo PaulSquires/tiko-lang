@@ -61,7 +61,7 @@ Exactly one of the two is defined on every target. `TIKO_OS_MACOS` is not define
 | Define | tiko |
 | --- | --- |
 | `__TIKO_COMPILER__` | `1` |
-| `__TKO_VERSION__` | `"0.1.0-dev"` |
+| `__TIKO_VERSION__` | `"0.1.0-dev"` |
 | `__FB_VERSION__` | `"1.20.0"` |
 | `__FB_SIGNATURE__` | `"tiko-lang"` |
 | `__FB_BACKEND__` | `"llvm"` |
@@ -69,7 +69,7 @@ Exactly one of the two is defined on every target. `TIKO_OS_MACOS` is not define
 | `TIKO_OS_WINDOWS` | `1` on `windows-x86_64`, otherwise not defined |
 | `TIKO_OS_LINUX` | `1` on `linux-x86_64`, otherwise not defined |
 
-`__TIKO_COMPILER__` says **which compiler** is building; `__TKO_VERSION__` says which version of it. Neither says which features it has, so code that must build with several versions still tests more than one symbol.
+`__TIKO_COMPILER__` says **which compiler** is building; `__TIKO_VERSION__` says which version of it. Neither says which features it has, so code that must build with several versions still tests more than one symbol.
 
 tests/pp/tiko-compiler-define.test holds the define and its value; tests/pp/tiko-target-defines.test holds the `TIKO_OS_` names on each target.
 

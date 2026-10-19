@@ -2,7 +2,7 @@
 dim as int32 count = 0
 dim as int64 total = 0
 
-#if defined( __FB_64BIT__ ) andalso defined( __TKO_VERSION__ )
+#if defined( __FB_64BIT__ ) andalso defined( __TIKO_VERSION__ )
 print "a 64-bit build, by tiko"
 #endif
 

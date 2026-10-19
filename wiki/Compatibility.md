@@ -24,7 +24,7 @@ Each of these is a diagnostic, not a silent difference:
 
 ## Where tiko differs
 
-**tiko defines `__TIKO_COMPILER__`, always `1`,** and fbc does not, so `#ifdef __TIKO_COMPILER__` is how a source tree asks "is this tiko?". `__TKO_VERSION__` gives tiko's version (`0.1.0-dev`), and fbc has no such name. See [`__TIKO_COMPILER__`](Category-Tiko-Compiler-Define).
+**tiko defines `__TIKO_COMPILER__`, always `1`,** and fbc does not, so `#ifdef __TIKO_COMPILER__` is how a source tree asks "is this tiko?". `__TIKO_VERSION__` gives tiko's version (`0.1.0-dev`), and fbc has no such name. See [`__TIKO_COMPILER__`](Category-Tiko-Compiler-Define).
 
 **tiko declares ten fixed-width type names that fbc does not have:** `int8`, `uint8`, `int16`, `uint16`, `int32`, `uint32`, `int64`, `uint64`, `float32` and `float64`, typedefs for `byte` through `double`. They are not keywords. A program's own declaration of one of the names replaces tiko's with no diagnostic, so code that already uses them compiles and prints the same under both compilers: `win/basetsd.bi`'s `type INT32 as long`, a `type uint8 as integer`, a variable called `float32`. See [Fixed-Width Types](Category-Fixed-Width-Types).
 

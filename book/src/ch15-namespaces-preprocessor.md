@@ -369,7 +369,7 @@ platform symbols tiko defines:
 | `__FB_LINUX__`, `__FB_UNIX__` | Linux |
 | `__FB_64BIT__` | every 64-bit target |
 | `__FB_MSVC__` | the `windows-x86_64` target |
-| `__TKO_VERSION__` | always: tiko's version, as a string |
+| `__TIKO_VERSION__` | always: tiko's version, as a string |
 
 You define your own on the command line: `-d NAME=value` is `#define NAME value` before the first
 line of every file.

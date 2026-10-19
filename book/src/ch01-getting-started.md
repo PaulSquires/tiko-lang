@@ -275,7 +275,7 @@ toolchain from source, which this chapter does not.
 ## Exercises
 
 1. Write a program that reports which compiler built it and which version that compiler is.
-   `__TIKO_COMPILER__` is defined by tiko and by nothing else, and `__TKO_VERSION__` holds the
+   `__TIKO_COMPILER__` is defined by tiko and by nothing else, and `__TIKO_VERSION__` holds the
    version as a string. Test the first with `#ifdef`. {solution="ex01-01"}
 2. Make a program greet you by name and then exit with status 3, and check the status from your
    shell (`echo $?`, or `echo %ERRORLEVEL%` in `cmd`). {solution="ex01-02"}
