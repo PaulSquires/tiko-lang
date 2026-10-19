@@ -1,0 +1,10 @@
+'' RUN: std/config + the std/strings CSV writer, phase P8 -- TOML read (1.1) and write (1.0),
+'' the table rules and every error code with its position, INI dialect and options, CSV
+'' quoting and a SplitCsv round trip (C:\dev\docs\tiko-stdlib\RFC-0001 section 12).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/std-config-p8.tiko -o tests/codegen/stdconfigp8.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/stdconfigp8.exe
+'' RUN: tests/codegen/stdconfigp8.exe
+'' EXPECT-RUN-OUT: ok

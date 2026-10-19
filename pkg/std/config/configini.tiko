@@ -1,0 +1,254 @@
+#module "config"
+#import "std/containers"
+#import "std/outcome"
+#import "std/fs"
+using containers
+using outcome
+'' std/config: configini -- IniFile, ParseIni, LoadIni, SaveIni (RFC-0001 section 12.1).
+'' The dialect is in config.tiko's banner.
+
+public enum IniDuplicates
+    INI_LAST_WINS = 0           '' a repeated key replaces the first; a repeated section merges
+    INI_DUP_ERROR               '' a repeated key or section is CFG_DUPLICATE_KEY
+end enum
+
+public type IniOptions
+    as boolean CaseSensitiveKeys = FALSE     '' section and key names
+    as IniDuplicates Duplicates = INI_LAST_WINS
+end type
+
+type IniNames_ as Array( of ustring )
+
+type IniSection_
+    as ustring name_
+    as IniNames_ keys
+    as IniNames_ vals
+end type
+
+type IniSections_ as Array( of IniSection_ )
+
+public type IniFile                                      '' a value; sections and keys in file order
+    declare constructor( )
+    declare constructor( byval caseSensitive as boolean )
+    declare function Get( byref section as const ustring, byref key as const ustring ) as Optional( of ustring )
+    declare sub SetValue( byref section as const ustring, byref key as const ustring, byref v as const ustring )
+    declare function Sections( ) as Array( of ustring )
+    declare function Keys( byref section as const ustring ) as Array( of ustring )
+    '' The key, or with key "" the whole section.  FALSE when there was nothing to remove.
+    declare function Remove( byref section as const ustring, byref key as const ustring = "" ) as boolean
+    declare function ToText( ) as ustring
+    '' Internal.
+    as IniSections_ hSecs
+    as boolean hCase
+    declare function FindSec_( byref section as const ustring ) as long
+    declare function FindKey_( byval si as long, byref key as const ustring ) as long
+end type
+
+constructor IniFile( )
+    this.hCase = FALSE
+end constructor
+
+constructor IniFile( byval caseSensitive as boolean )
+    this.hCase = caseSensitive
+end constructor
+
+function IniSame_( byref a as const ustring, byref b as const ustring, byval cs as boolean ) as boolean
+    if( cs ) then return ( a = b )
+    return ( lcase( a ) = lcase( b ) )
+end function
+
+function IniFile.FindSec_( byref section as const ustring ) as long
+    for i as long = 0 to this.hSecs.Count( ) - 1
+        if( IniSame_( this.hSecs[i].name_, section, this.hCase ) ) then return i
+    next
+    return -1
+end function
+
+function IniFile.FindKey_( byval si as long, byref key as const ustring ) as long
+    for i as long = 0 to this.hSecs[si].keys.Count( ) - 1
+        if( IniSame_( this.hSecs[si].keys[i], key, this.hCase ) ) then return i
+    next
+    return -1
+end function
+
+function IniFile.Get( byref section as const ustring, byref key as const ustring ) as Optional( of ustring )
+    dim as long si = this.FindSec_( section )
+    if( si < 0 ) then return None( of ustring )( )
+    dim as long ki = this.FindKey_( si, key )
+    if( ki < 0 ) then return None( of ustring )( )
+    return Some( this.hSecs[si].vals[ki] )
+end function
+
+sub IniFile.SetValue( byref section as const ustring, byref key as const ustring, byref v as const ustring )
+    dim as long si = this.FindSec_( section )
+    if( si < 0 ) then
+        dim as IniSection_ s
+        s.name_ = section
+        this.hSecs.Push( s )
+        si = this.hSecs.Count( ) - 1
+    end if
+    dim as long ki = this.FindKey_( si, key )
+    if( ki >= 0 ) then
+        this.hSecs[si].vals[ki] = v
+    else
+        dim as ustring kc = key, vc = v
+        this.hSecs[si].keys.Push( kc )
+        this.hSecs[si].vals.Push( vc )
+    end if
+end sub
+
+function IniFile.Sections( ) as Array( of ustring )
+    dim as Array( of ustring ) a
+    for i as long = 0 to this.hSecs.Count( ) - 1
+        a.Push( this.hSecs[i].name_ )
+    next
+    return a
+end function
+
+function IniFile.Keys( byref section as const ustring ) as Array( of ustring )
+    dim as Array( of ustring ) a
+    dim as long si = this.FindSec_( section )
+    if( si >= 0 ) then a = this.hSecs[si].keys
+    return a
+end function
+
+function IniFile.Remove( byref section as const ustring, byref key as const ustring = "" ) as boolean
+    dim as long si = this.FindSec_( section )
+    if( si < 0 ) then return FALSE
+    if( len( key ) = 0 ) then
+        this.hSecs.Remove( si )
+        return TRUE
+    end if
+    dim as long ki = this.FindKey_( si, key )
+    if( ki < 0 ) then return FALSE
+    this.hSecs[si].keys.Remove( ki )
+    this.hSecs[si].vals.Remove( ki )
+    return TRUE
+end function
+
+'' A value that would not read back as itself goes in quotes: edge whitespace, or a value
+'' that is itself quoted.  A line break cannot be written at all and is kept as it is.
+function IniValueText_( byref v as const ustring ) as ustring
+    dim as long n = len( v )
+    if( n = 0 ) then return ""
+    dim as long a = v[0], z = v[n - 1]
+    dim as boolean edge = ( a = 32 ) orelse ( a = 9 ) orelse ( z = 32 ) orelse ( z = 9 )
+    dim as boolean quoted = ( n >= 2 ) andalso ( a = 34 ) andalso ( z = 34 )
+    if( edge orelse quoted ) then return wchr( 34 ) & v & wchr( 34 )
+    return v
+end function
+
+function IniFile.ToText( ) as ustring
+    dim as ustring o
+    for i as long = 0 to this.hSecs.Count( ) - 1
+        dim as boolean header = ( len( this.hSecs[i].name_ ) > 0 ) orelse ( i > 0 )
+        if( header ) then
+            if( len( o ) > 0 ) then o &= wchr( 10 )
+            o &= "[" & this.hSecs[i].name_ & "]" & wchr( 10 )
+        end if
+        for k as long = 0 to this.hSecs[i].keys.Count( ) - 1
+            o &= this.hSecs[i].keys[k] & " = " & IniValueText_( this.hSecs[i].vals[k] ) & wchr( 10 )
+        next
+    next
+    return o
+end function
+
+public type ConfigResultIni as Result( of IniFile, ConfigError )
+
+function IniTrim_( byref s as const ustring ) as ustring
+    dim as long n = len( s )
+    dim as long a = 0, z = n
+    while( ( a < z ) andalso ( ( s[a] = 32 ) orelse ( s[a] = 9 ) ) )
+        a += 1
+    wend
+    while( ( z > a ) andalso ( ( s[z - 1] = 32 ) orelse ( s[z - 1] = 9 ) ) )
+        z -= 1
+    wend
+    return mid( s, a + 1, z - a )
+end function
+
+function IniFail_( byval c as ConfigErrorCode, byval ln as long, byval col as long, byref det as const ustring ) as ConfigResultIni
+    return Fail( of IniFile, ConfigError )( ConfigError( c, ln, col, det ) )
+end function
+
+public function ParseIni( byref text as const ustring, byval opts as IniOptions = IniOptions( ) ) as ConfigResultIni
+    dim as IniFile ini = IniFile( opts.CaseSensitiveKeys )
+    dim as ustring sec = ""
+    dim as long si = -1
+    dim as long n = len( text )
+    dim as long pos_ = 0
+    if( ( n > 0 ) andalso ( text[0] = &hFEFF ) ) then pos_ = 1
+    dim as long ln = 0
+    while( pos_ < n )
+        dim as long e = pos_
+        while( ( e < n ) andalso ( text[e] <> 10 ) )
+            e += 1
+        wend
+        dim as long ee = e
+        if( ( ee > pos_ ) andalso ( text[ee - 1] = 13 ) ) then ee -= 1
+        dim as ustring raw = mid( text, pos_ + 1, ee - pos_ )
+        pos_ = e + 1
+        ln += 1
+        dim as ustring s = IniTrim_( raw )
+        if( len( s ) = 0 ) then continue while
+        dim as long col = 1
+        while( ( raw[col - 1] = 32 ) orelse ( raw[col - 1] = 9 ) )
+            col += 1
+        wend
+        dim as long c0 = s[0]
+        if( ( c0 = 59 ) orelse ( c0 = 35 ) ) then continue while
+        if( c0 = 91 ) then
+            if( s[len( s ) - 1] <> 93 ) then return IniFail_( CFG_SYNTAX, ln, col, "expected ']'" )
+            sec = IniTrim_( mid( s, 2, len( s ) - 2 ) )
+            si = ini.FindSec_( sec )
+            if( si >= 0 ) then
+                if( opts.Duplicates = INI_DUP_ERROR ) then return IniFail_( CFG_DUPLICATE_KEY, ln, col, "section '" & sec & "'" )
+            else
+                dim as IniSection_ ns
+                ns.name_ = sec
+                ini.hSecs.Push( ns )
+                si = ini.hSecs.Count( ) - 1
+            end if
+            continue while
+        end if
+        dim as long eq = 0
+        for k as long = 0 to len( s ) - 1
+            if( ( s[k] = 61 ) orelse ( s[k] = 58 ) ) then
+                eq = k + 1
+                exit for
+            end if
+        next
+        if( eq = 0 ) then return IniFail_( CFG_SYNTAX, ln, col, "expected '=' or ':'" )
+        dim as ustring ky = IniTrim_( left( s, eq - 1 ) )
+        dim as ustring v = IniTrim_( mid( s, eq + 1 ) )
+        if( len( ky ) = 0 ) then return IniFail_( CFG_SYNTAX, ln, col, "empty key" )
+        dim as long vn = len( v )
+        dim as boolean quoted = ( vn >= 2 ) andalso ( v[0] = 34 ) andalso ( v[vn - 1] = 34 )
+        if( quoted ) then v = mid( v, 2, vn - 2 )
+        if( si < 0 ) then
+            dim as IniSection_ ns
+            ns.name_ = ""
+            ini.hSecs.Push( ns )
+            si = ini.hSecs.Count( ) - 1
+        end if
+        dim as long ki = ini.FindKey_( si, ky )
+        if( ki >= 0 ) then
+            if( opts.Duplicates = INI_DUP_ERROR ) then return IniFail_( CFG_DUPLICATE_KEY, ln, col, "'" & ky & "'" )
+            ini.hSecs[si].vals[ki] = v
+        else
+            ini.hSecs[si].keys.Push( ky )
+            ini.hSecs[si].vals.Push( v )
+        end if
+    wend
+    return Ok( of IniFile, ConfigError )( ini )
+end function
+
+public function LoadIni( byref path as const ustring, byval opts as IniOptions = IniOptions( ) ) as ConfigResultIni
+    dim as fs.FsResultUStr r = fs.ReadAllText( path )
+    if( r.IsOk( ) = FALSE ) then return Fail( of IniFile, ConfigError )( CfgIoError_( r.Failure( ) ) )
+    return ParseIni( r.Value( ), opts )
+end function
+
+public function SaveIni( byref ini as IniFile, byref path as const ustring ) as fs.FsResultBool
+    return fs.WriteAllText( path, ini.ToText( ) )
+end function

@@ -1,0 +1,451 @@
+#module "config"
+#import "std/containers"
+#import "std/outcome"
+#import "std/chrono"
+using containers
+using outcome
+'' std/config: configtoml -- TomlValue, the TOML document tree (RFC-0001 section 12.2).
+''
+'' A table's entries are its children, each carrying its own key, in insertion order;
+'' lookup by key is a linear scan, which is what a configuration file's tables can afford.
+'' Every child is a separate heap node, so a pointer to one (Find, the parser's current
+'' table) stays valid while its siblings are added.
+
+#include once "fberror.bi"
+
+public enum TomlKind
+    TOML_NONE = 0               '' a default-constructed TomlValue; not a TOML type
+    TOML_STRING = 1
+    TOML_INT
+    TOML_FLOAT
+    TOML_BOOL
+    TOML_OFFSET_DATETIME
+    TOML_LOCAL_DATETIME
+    TOML_LOCAL_DATE
+    TOML_LOCAL_TIME
+    TOML_ARRAY
+    TOML_TABLE
+end enum
+
+'' Parser bookkeeping in TomlValue.hFlags.
+const TKF_EXPLICIT = 1          '' defined: by a [header], or by dotted keys in an earlier section
+const TKF_FROZEN   = 2          '' an inline table or a static array: never extended
+const TKF_AOT      = 4          '' an array made by [[header]]
+
+public type TomlValue
+    declare constructor( )
+    declare constructor( byref rhs as TomlValue )
+    declare destructor( )
+    declare operator let( byref rhs as TomlValue )
+
+    declare static function FromString( byref s as const ustring ) as TomlValue
+    declare static function FromInt( byval n as longint ) as TomlValue
+    declare static function FromFloat( byval d as double ) as TomlValue
+    declare static function FromBool( byval b as boolean ) as TomlValue
+    declare static function FromDateTime( byref dt as chrono.DateTime ) as TomlValue   '' offset, or local when it has none
+    declare static function FromLocalDate( byref d as chrono.LocalDate ) as TomlValue
+    declare static function FromLocalTime( byref t as chrono.LocalTime ) as TomlValue
+    declare static function NewTable( ) as TomlValue
+    declare static function NewArray( ) as TomlValue
+
+    declare function Kind( ) as TomlKind
+    declare function AsString( ) as Optional( of ustring )
+    declare function AsInt( ) as Optional( of longint )
+    declare function AsFloat( ) as Optional( of double )         '' an integer converts too
+    declare function AsBool( ) as Optional( of boolean )
+    declare function AsDateTime( ) as Optional( of chrono.DateTime )   '' offset and local date-times
+    declare function AsLocalDate( ) as Optional( of chrono.LocalDate )
+    declare function AsLocalTime( ) as Optional( of chrono.LocalTime )
+
+    '' Arrays and tables.  Count is 0 for anything else.  Index i is 0-based; a table's
+    '' entries are in insertion order, KeyAt( i ) naming entry i.
+    declare function Count( ) as long
+    declare operator [] ( byval i as long ) byref as TomlValue
+    declare function Item( byval i as long ) byref as TomlValue
+    declare function KeyAt( byval i as long ) as ustring
+    declare function Has( byref k as const ustring ) as boolean
+    declare function Get( byref k as const ustring ) as Optional( of TomlValue )
+    declare function Find( byref k as const ustring ) as TomlValue ptr     '' NULL when absent
+    declare function Keys( ) as Array( of ustring )
+    '' "a.b.c": keys separated by dots, a number indexing an array ("servers.0.host").
+    '' A key that itself contains a dot cannot be named this way; use Get.
+    declare function Path( byref p as const ustring ) as Optional( of TomlValue )
+    declare function SetKey( byref k as const ustring, byref v as TomlValue ) as boolean   '' FALSE unless a table
+    declare function Push( byref v as TomlValue ) as boolean                              '' FALSE unless an array
+    declare function RemoveKey( byref k as const ustring ) as boolean
+    '' Structural equality; table entries compared by key, in any order; NaN equals NaN.
+    declare function Equals( byref o as TomlValue ) as boolean
+
+    '' Internal.  Public only because the parser and writer in this module reach it.
+    as TomlKind hKind
+    as ustring hKey                  '' this value's key in its parent table
+    as ustring hStr
+    as longint hInt
+    as double hFlt
+    as boolean hBool
+    as long hY, hMo, hD, hH, hMi, hS
+    as long hFrac                    '' 100 ns ticks past the second, 0..9999999
+    as long hOff                     '' minutes east of UTC (offset date-times)
+    as TomlValue ptr ptr hKids
+    as long hCount, hCap
+    as long hFlags
+    declare function AddKid_( byref k as const ustring, byref v as TomlValue ) as TomlValue ptr
+end type
+
+sub TvCopy_( byref d as TomlValue, byref r as TomlValue )
+    d.hKind = r.hKind
+    d.hKey = r.hKey
+    d.hStr = r.hStr
+    d.hInt = r.hInt
+    d.hFlt = r.hFlt
+    d.hBool = r.hBool
+    d.hY = r.hY : d.hMo = r.hMo : d.hD = r.hD
+    d.hH = r.hH : d.hMi = r.hMi : d.hS = r.hS
+    d.hFrac = r.hFrac
+    d.hOff = r.hOff
+    d.hFlags = r.hFlags
+    d.hKids = 0
+    d.hCount = 0
+    d.hCap = 0
+    if( r.hCount > 0 ) then
+        d.hKids = allocate( r.hCount * sizeof( any ptr ) )
+        for i as long = 0 to r.hCount - 1
+            d.hKids[i] = new TomlValue( *r.hKids[i] )
+        next
+        d.hCount = r.hCount
+        d.hCap = r.hCount
+    end if
+end sub
+
+sub TvFree_( byref d as TomlValue )
+    for i as long = 0 to d.hCount - 1
+        delete d.hKids[i]
+    next
+    if( d.hKids <> 0 ) then deallocate( d.hKids )
+    d.hKids = 0
+    d.hCount = 0
+    d.hCap = 0
+end sub
+
+constructor TomlValue( )
+    this.hKind = TOML_NONE
+    this.hKids = 0
+end constructor
+
+constructor TomlValue( byref rhs as TomlValue )
+    TvCopy_( this, rhs )
+end constructor
+
+destructor TomlValue( )
+    TvFree_( this )
+end destructor
+
+operator TomlValue.let( byref rhs as TomlValue )
+    if( @this = @rhs ) then exit operator
+    '' rhs may live inside this tree (v = v[0]): copy it out before freeing.
+    dim as TomlValue tmp = rhs
+    TvFree_( this )
+    TvCopy_( this, tmp )
+end operator
+
+function TomlValue.AddKid_( byref k as const ustring, byref v as TomlValue ) as TomlValue ptr
+    if( this.hCount = this.hCap ) then
+        this.hCap = iif( this.hCap = 0, 4, this.hCap * 2 )
+        this.hKids = reallocate( this.hKids, this.hCap * sizeof( any ptr ) )
+    end if
+    dim as TomlValue ptr p = new TomlValue( v )
+    p->hKey = k
+    this.hKids[this.hCount] = p
+    this.hCount += 1
+    return p
+end function
+
+'' -------------------------------------------------------------- construction
+
+static function TomlValue.FromString( byref s as const ustring ) as TomlValue
+    dim as TomlValue v
+    v.hKind = TOML_STRING
+    v.hStr = s
+    return v
+end function
+
+static function TomlValue.FromInt( byval n as longint ) as TomlValue
+    dim as TomlValue v
+    v.hKind = TOML_INT
+    v.hInt = n
+    return v
+end function
+
+static function TomlValue.FromFloat( byval d as double ) as TomlValue
+    dim as TomlValue v
+    v.hKind = TOML_FLOAT
+    v.hFlt = d
+    return v
+end function
+
+static function TomlValue.FromBool( byval b as boolean ) as TomlValue
+    dim as TomlValue v
+    v.hKind = TOML_BOOL
+    v.hBool = b
+    return v
+end function
+
+static function TomlValue.FromDateTime( byref dt as chrono.DateTime ) as TomlValue
+    dim as TomlValue v
+    v.hKind = iif( dt.HasOffset, TOML_OFFSET_DATETIME, TOML_LOCAL_DATETIME )
+    v.hY = dt.Year : v.hMo = dt.Month : v.hD = dt.Day
+    v.hH = dt.Hour : v.hMi = dt.Minute : v.hS = dt.Second
+    v.hFrac = clng( dt.TickOfDay mod chrono.DT_TICKS_PER_SECOND )
+    if( dt.HasOffset ) then v.hOff = dt.OffsetMinutes
+    return v
+end function
+
+static function TomlValue.FromLocalDate( byref d as chrono.LocalDate ) as TomlValue
+    dim as TomlValue v
+    v.hKind = TOML_LOCAL_DATE
+    v.hY = d.Year : v.hMo = d.Month : v.hD = d.Day
+    return v
+end function
+
+static function TomlValue.FromLocalTime( byref t as chrono.LocalTime ) as TomlValue
+    dim as TomlValue v
+    v.hKind = TOML_LOCAL_TIME
+    v.hH = t.Hour : v.hMi = t.Minute : v.hS = t.Second
+    v.hFrac = clng( t.Ticks mod chrono.DT_TICKS_PER_SECOND )
+    return v
+end function
+
+static function TomlValue.NewTable( ) as TomlValue
+    dim as TomlValue v
+    v.hKind = TOML_TABLE
+    return v
+end function
+
+static function TomlValue.NewArray( ) as TomlValue
+    dim as TomlValue v
+    v.hKind = TOML_ARRAY
+    return v
+end function
+
+'' -------------------------------------------------------------- scalars
+
+function TomlValue.Kind( ) as TomlKind
+    return this.hKind
+end function
+
+function TomlValue.AsString( ) as Optional( of ustring )
+    if( this.hKind = TOML_STRING ) then return Some( this.hStr )
+    return None( of ustring )( )
+end function
+
+function TomlValue.AsInt( ) as Optional( of longint )
+    if( this.hKind = TOML_INT ) then return Some( this.hInt )
+    return None( of longint )( )
+end function
+
+function TomlValue.AsFloat( ) as Optional( of double )
+    if( this.hKind = TOML_FLOAT ) then return Some( this.hFlt )
+    if( this.hKind = TOML_INT ) then
+        dim as double d = cdbl( this.hInt )
+        return Some( d )
+    end if
+    return None( of double )( )
+end function
+
+function TomlValue.AsBool( ) as Optional( of boolean )
+    if( this.hKind = TOML_BOOL ) then return Some( this.hBool )
+    return None( of boolean )( )
+end function
+
+function TvTime_( byref v as TomlValue ) as chrono.LocalTime
+    dim as boolean bad = ( v.hH > 23 ) orelse ( v.hMi > 59 ) orelse ( v.hS > 59 )
+    if( bad ) then return chrono.LocalTime.Invalid( )
+    dim as longint t = clngint( v.hH ) * chrono.DT_TICKS_PER_HOUR + clngint( v.hMi ) * chrono.DT_TICKS_PER_MINUTE _
+                     + clngint( v.hS ) * chrono.DT_TICKS_PER_SECOND + v.hFrac
+    return chrono.LocalTime.FromTicks( t )
+end function
+
+function TomlValue.AsDateTime( ) as Optional( of chrono.DateTime )
+    dim as boolean isDt = ( this.hKind = TOML_OFFSET_DATETIME ) orelse ( this.hKind = TOML_LOCAL_DATETIME )
+    if( isDt = FALSE ) then return None( of chrono.DateTime )( )
+    dim as chrono.LocalDate d = chrono.LocalDate( this.hY, this.hMo, this.hD )
+    dim as chrono.DateTime dt = chrono.DateTime.FromDateTime( d, TvTime_( this ) )
+    if( this.hKind = TOML_OFFSET_DATETIME ) then dt = dt.WithOffset( cshort( this.hOff ) )
+    if( dt.IsValid = FALSE ) then return None( of chrono.DateTime )( )
+    return Some( dt )
+end function
+
+function TomlValue.AsLocalDate( ) as Optional( of chrono.LocalDate )
+    if( this.hKind <> TOML_LOCAL_DATE ) then return None( of chrono.LocalDate )( )
+    dim as chrono.LocalDate d = chrono.LocalDate( this.hY, this.hMo, this.hD )
+    if( d.IsValid = FALSE ) then return None( of chrono.LocalDate )( )
+    return Some( d )
+end function
+
+function TomlValue.AsLocalTime( ) as Optional( of chrono.LocalTime )
+    if( this.hKind <> TOML_LOCAL_TIME ) then return None( of chrono.LocalTime )( )
+    dim as chrono.LocalTime t = TvTime_( this )
+    if( t.IsValid = FALSE ) then return None( of chrono.LocalTime )( )
+    return Some( t )
+end function
+
+'' -------------------------------------------------------------- containers
+
+function TomlValue.Count( ) as long
+    return this.hCount
+end function
+
+operator TomlValue.[] ( byval i as long ) byref as TomlValue
+    if( ( i < 0 ) orelse ( i >= this.hCount ) ) then
+        error( FB.FB_RTERROR_OUTOFBOUNDS )
+        return this
+    end if
+    return *this.hKids[i]
+end operator
+
+function TomlValue.Item( byval i as long ) byref as TomlValue
+    if( ( i < 0 ) orelse ( i >= this.hCount ) ) then
+        error( FB.FB_RTERROR_OUTOFBOUNDS )
+        return this
+    end if
+    return *this.hKids[i]
+end function
+
+function TomlValue.KeyAt( byval i as long ) as ustring
+    if( ( i < 0 ) orelse ( i >= this.hCount ) ) then return ""
+    return this.hKids[i]->hKey
+end function
+
+function TomlValue.Find( byref k as const ustring ) as TomlValue ptr
+    if( this.hKind <> TOML_TABLE ) then return 0
+    for i as long = 0 to this.hCount - 1
+        if( this.hKids[i]->hKey = k ) then return this.hKids[i]
+    next
+    return 0
+end function
+
+function TomlValue.Has( byref k as const ustring ) as boolean
+    return ( this.Find( k ) <> 0 )
+end function
+
+function TomlValue.Get( byref k as const ustring ) as Optional( of TomlValue )
+    dim as TomlValue ptr p = this.Find( k )
+    if( p = 0 ) then return None( of TomlValue )( )
+    return Some( *p )
+end function
+
+function TomlValue.Keys( ) as Array( of ustring )
+    dim as Array( of ustring ) a
+    if( this.hKind = TOML_TABLE ) then
+        for i as long = 0 to this.hCount - 1
+            a.Push( this.hKids[i]->hKey )
+        next
+    end if
+    return a
+end function
+
+function TomlValue.Path( byref p as const ustring ) as Optional( of TomlValue )
+    dim as TomlValue ptr cur = @this
+    dim as long n = len( p )
+    dim as long st = 0
+    do
+        dim as long e = st
+        while( ( e < n ) andalso ( p[e] <> 46 ) )
+            e += 1
+        wend
+        dim as ustring seg = mid( p, st + 1, e - st )
+        if( cur->hKind = TOML_TABLE ) then
+            cur = cur->Find( seg )
+        elseif( cur->hKind = TOML_ARRAY ) then
+            dim as boolean digits = ( len( seg ) > 0 )
+            for j as long = 0 to len( seg ) - 1
+                if( ( seg[j] < 48 ) orelse ( seg[j] > 57 ) ) then digits = FALSE
+            next
+            dim as long ix = iif( digits, clng( val( seg ) ), -1 )
+            if( ( ix < 0 ) orelse ( ix >= cur->hCount ) ) then
+                cur = 0
+            else
+                cur = cur->hKids[ix]
+            end if
+        else
+            cur = 0
+        end if
+        if( cur = 0 ) then return None( of TomlValue )( )
+        if( e >= n ) then exit do
+        st = e + 1
+    loop
+    return Some( *cur )
+end function
+
+function TomlValue.SetKey( byref k as const ustring, byref v as TomlValue ) as boolean
+    if( this.hKind <> TOML_TABLE ) then return FALSE
+    dim as TomlValue ptr p = this.Find( k )
+    if( p <> 0 ) then
+        *p = v
+        p->hKey = k
+    else
+        this.AddKid_( k, v )
+    end if
+    return TRUE
+end function
+
+function TomlValue.Push( byref v as TomlValue ) as boolean
+    if( this.hKind <> TOML_ARRAY ) then return FALSE
+    this.AddKid_( "", v )
+    return TRUE
+end function
+
+function TomlValue.RemoveKey( byref k as const ustring ) as boolean
+    if( this.hKind <> TOML_TABLE ) then return FALSE
+    for i as long = 0 to this.hCount - 1
+        if( this.hKids[i]->hKey = k ) then
+            delete this.hKids[i]
+            for j as long = i to this.hCount - 2
+                this.hKids[j] = this.hKids[j + 1]
+            next
+            this.hCount -= 1
+            return TRUE
+        end if
+    next
+    return FALSE
+end function
+
+function TomlValue.Equals( byref o as TomlValue ) as boolean
+    if( this.hKind <> o.hKind ) then return FALSE
+    select case this.hKind
+    case TOML_NONE
+        return TRUE
+    case TOML_STRING
+        return ( this.hStr = o.hStr )
+    case TOML_INT
+        return ( this.hInt = o.hInt )
+    case TOML_FLOAT
+        dim as boolean nanA = ( this.hFlt <> this.hFlt )
+        dim as boolean nanB = ( o.hFlt <> o.hFlt )
+        if( nanA orelse nanB ) then return ( nanA = nanB )
+        return ( this.hFlt = o.hFlt )
+    case TOML_BOOL
+        return ( this.hBool = o.hBool )
+    case TOML_ARRAY
+        if( this.hCount <> o.hCount ) then return FALSE
+        for i as long = 0 to this.hCount - 1
+            if( this.hKids[i]->Equals( *o.hKids[i] ) = FALSE ) then return FALSE
+        next
+        return TRUE
+    case TOML_TABLE
+        if( this.hCount <> o.hCount ) then return FALSE
+        for i as long = 0 to this.hCount - 1
+            dim as TomlValue ptr q = o.Find( this.hKids[i]->hKey )
+            if( q = 0 ) then return FALSE
+            if( this.hKids[i]->Equals( *q ) = FALSE ) then return FALSE
+        next
+        return TRUE
+    end select
+    '' the date-time kinds
+    dim as boolean same = ( this.hY = o.hY ) andalso ( this.hMo = o.hMo ) andalso ( this.hD = o.hD ) _
+        andalso ( this.hH = o.hH ) andalso ( this.hMi = o.hMi ) andalso ( this.hS = o.hS ) _
+        andalso ( this.hFrac = o.hFrac ) andalso ( this.hOff = o.hOff )
+    return same
+end function
+
+public type ConfigResultToml as Result( of TomlValue, ConfigError )

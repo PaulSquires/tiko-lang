@@ -1,0 +1,390 @@
+'' std/config and the std/strings CSV writer, phase P8 (C:\dev\docs\tiko-stdlib\RFC-0001
+'' section 12; no JSON converters).  TOML: every value kind incl. the 1.1 additions, the
+'' table-definition rules, each error code with a position, writer output re-parsed equal.
+'' INI: the dialect's cases, options, edits and a text round trip.  CSV: quoting, a round
+'' trip through SplitCsv, CsvWriter to a file.  Plus LoadToml/LoadIni and CFG_IO.
+#import "std/config"
+#import "std/strings"
+#import "std/containers"
+#import "std/fs"
+#import "std/chrono"
+using containers
+
+dim shared as integer fails = 0
+
+sub Check( byref what as string, byval ok as boolean )
+    if ok = false then
+        print "FAIL "; what
+        fails += 1
+    end if
+end sub
+
+function Toml( byref s as ustring ) as config.TomlValue
+    dim r as config.ConfigResultToml = config.ParseToml( s )
+    if r.IsOk( ) = false then
+        print "FAIL parse: "; r.Failure( ).Message( )
+        fails += 1
+        return config.TomlValue( )
+    end if
+    return r.Value( )
+end function
+
+'' "code@line:col" of a failed parse, or "ok".
+function TomlErr( byref s as ustring ) as string
+    dim r as config.ConfigResultToml = config.ParseToml( s )
+    if r.IsOk( ) then return "ok"
+    return r.Failure( ).Code( ) & "@" & r.Failure( ).Line( ) & ":" & r.Failure( ).Column( )
+end function
+
+function PStr( byref v as config.TomlValue, byref p as ustring ) as ustring
+    return v.Path( p ).ValueOr( config.TomlValue( ) ).AsString( ).ValueOr( "<none>" )
+end function
+
+function PInt( byref v as config.TomlValue, byref p as ustring ) as longint
+    return v.Path( p ).ValueOr( config.TomlValue( ) ).AsInt( ).ValueOr( -999 )
+end function
+
+function PFlt( byref v as config.TomlValue, byref p as ustring ) as double
+    return v.Path( p ).ValueOr( config.TomlValue( ) ).AsFloat( ).ValueOr( -999 )
+end function
+
+function PKind( byref v as config.TomlValue, byref p as ustring ) as long
+    return v.Path( p ).ValueOr( config.TomlValue( ) ).Kind( )
+end function
+
+'' Written, re-parsed, equal.
+function RoundTrips( byref v as config.TomlValue ) as boolean
+    dim t as config.ConfigResultText = config.ToTomlText( v )
+    if t.IsOk( ) = false then return false
+    dim r as config.ConfigResultToml = config.ParseToml( t.Value( ) )
+    if r.IsOk( ) = false then
+        print "re-parse: "; r.Failure( ).Message( ); " in:"
+        print t.Value( )
+        return false
+    end if
+    return r.Value( ).Equals( v )
+end function
+
+'' ------------------------------------------------------------ TOML: the spec's example
+scope
+    dim as ustring doc = !"# This is a TOML document\n\n" _
+        & !"title = \"TOML Example\"\n\n" _
+        & !"[owner]\nname = \"Tom Preston-Werner\"\ndob = 1979-05-27T07:32:00-08:00\n\n" _
+        & !"[database]\nenabled = true\nports = [ 8000, 8001, 8002 ]\n" _
+        & !"data = [ [\"delta\", \"phi\"], [3.14] ]\ntemp_targets = { cpu = 79.5, case = 72.0 }\n\n" _
+        & !"[servers]\n\n[servers.alpha]\nip = \"10.0.0.1\"\nrole = \"frontend\"\n\n" _
+        & !"[servers.beta]\nip = \"10.0.0.2\"\nrole = \"backend\"\n"
+    dim as config.TomlValue v = Toml( doc )
+    Check( "title", PStr( v, "title" ) = "TOML Example" )
+    Check( "owner.name", PStr( v, "owner.name" ) = "Tom Preston-Werner" )
+    Check( "enabled", v.Path( "database.enabled" ).Value( ).AsBool( ).ValueOr( false ) = true )
+    Check( "ports", PInt( v, "database.ports.2" ) = 8002 )
+    Check( "data", PStr( v, "database.data.0.1" ) = "phi" andalso PFlt( v, "database.data.1.0" ) = 3.14 )
+    Check( "inline", PFlt( v, "database.temp_targets.case" ) = 72.0 )
+    Check( "servers", PStr( v, "servers.beta.role" ) = "backend" )
+    Check( "keys order", v.Keys( ).Count( ) = 4 andalso v.KeyAt( 0 ) = "title" andalso v.KeyAt( 3 ) = "servers" )
+    dim as config.TomlValue dob = v.Path( "owner.dob" ).Value( )
+    Check( "dob kind", dob.Kind( ) = config.TOML_OFFSET_DATETIME )
+    dim as chrono.DateTime dt = dob.AsDateTime( ).ValueOr( chrono.DateTime( ) )
+    Check( "dob chrono", dt.Year = 1979 andalso dt.Month = 5 andalso dt.Day = 27 andalso dt.Hour = 7 andalso dt.OffsetMinutes = -480 )
+    Check( "spec round trip", RoundTrips( v ) )
+end scope
+
+'' ------------------------------------------------------------ TOML: strings
+scope
+    dim as config.TomlValue v = Toml( _
+        !"a = \"tab\\tq\\\"bs\\\\\"\n" _
+        & !"b = \"\\u00E9\\U0001F600\"\n" _
+        & !"c = \"\\e\\x41\"\n" _
+        & !"d = \"\"\"\nRoses\nViolets\"\"\"\n" _
+        & !"e = \"\"\"\\\n    The quick \\\n\n    fox.\"\"\"\n" _
+        & !"f = 'C:\\Users\\nodejs'\n" _
+        & !"g = '''\nfirst\n  second'''\n" _
+        & !"h = '''a'''''\n" _
+        & !"i = \"\"\"q\"\"\"\"\"\n" _
+        & !"j = \"\"\n" )
+    Check( "escapes", PStr( v, "a" ) = !"tab\tq\"bs\\" )
+    Check( "unicode", PStr( v, "b" ) = wchr( 233, &hD83D, &hDE00 ) )
+    Check( "1.1 escapes", PStr( v, "c" ) = wchr( 27 ) & "A" )
+    Check( "ml basic", PStr( v, "d" ) = !"Roses\nViolets" )
+    Check( "line-ending backslash", PStr( v, "e" ) = "The quick fox." )
+    Check( "literal", PStr( v, "f" ) = !"C:\\Users\\nodejs" )
+    Check( "ml literal", PStr( v, "g" ) = !"first\n  second" )
+    Check( "ml literal quotes", PStr( v, "h" ) = "a''" )
+    Check( "ml basic quotes", PStr( v, "i" ) = !"q\"\"" )
+    Check( "empty", PStr( v, "j" ) = "" andalso PKind( v, "j" ) = config.TOML_STRING )
+    Check( "string round trip", RoundTrips( v ) )
+end scope
+
+'' ------------------------------------------------------------ TOML: numbers and booleans
+scope
+    dim as config.TomlValue v = Toml( _
+        !"i1 = +99\ni2 = 0\ni3 = -17\ni4 = 1_000\ni5 = 0xDEAD_beef\ni6 = 0o755\ni7 = 0b1101\n" _
+        & !"imax = 9223372036854775807\nimin = -9223372036854775808\n" _
+        & !"f1 = 3.1415\nf2 = -0.01\nf3 = 5e+22\nf4 = 1e06\nf5 = -2E-2\nf6 = 6.626e-34\n" _
+        & !"f7 = 224_617.445_991_228\nf8 = inf\nf9 = -inf\nf10 = nan\nf11 = -0.0\n" _
+        & !"t = true\nf = false\n" )
+    Check( "ints", PInt( v, "i1" ) = 99 andalso PInt( v, "i2" ) = 0 andalso PInt( v, "i3" ) = -17 andalso PInt( v, "i4" ) = 1000 )
+    Check( "radix", PInt( v, "i5" ) = &hDEADBEEFll andalso PInt( v, "i6" ) = 493 andalso PInt( v, "i7" ) = 13 )
+    Check( "limits", PInt( v, "imax" ) = 9223372036854775807ll andalso PInt( v, "imin" ) = -9223372036854775807ll - 1 )
+    Check( "floats", PFlt( v, "f1" ) = 3.1415 andalso PFlt( v, "f2" ) = -0.01 andalso PFlt( v, "f3" ) = 5e22 )
+    Check( "floats 2", PFlt( v, "f4" ) = 1e6 andalso PFlt( v, "f5" ) = -0.02 andalso PFlt( v, "f6" ) = 6.626e-34 )
+    Check( "float underscores", PFlt( v, "f7" ) = 224617.445991228 )
+    dim as double pinf = PFlt( v, "f8" ), ninf = PFlt( v, "f9" ), nn = PFlt( v, "f10" )
+    Check( "inf", pinf > 1e308 andalso ninf < -1e308 )
+    Check( "nan", nn <> nn )
+    Check( "kinds", PKind( v, "i1" ) = config.TOML_INT andalso PKind( v, "f4" ) = config.TOML_FLOAT andalso PKind( v, "t" ) = config.TOML_BOOL )
+    Check( "bools", v.Get( "t" ).Value( ).AsBool( ).ValueOr( false ) = true andalso v.Get( "f" ).Value( ).AsBool( ).ValueOr( true ) = false )
+    Check( "number round trip", RoundTrips( v ) )
+    dim t as config.ConfigResultText = config.ToTomlText( v )
+    Check( "float text", instr( t.Value( ), !"f11 = -0.0\n" ) > 0 andalso instr( t.Value( ), !"f3 = 5e+22\n" ) > 0 andalso instr( t.Value( ), !"f10 = nan\n" ) > 0 )
+end scope
+
+'' ------------------------------------------------------------ TOML: date-times
+scope
+    dim as config.TomlValue v = Toml( _
+        !"odt1 = 1979-05-27T07:32:00Z\nodt2 = 1979-05-27T00:32:00.999999-07:00\nodt3 = 1979-05-27 07:32:00Z\n" _
+        & !"ldt = 1979-05-27T07:32:00\nld = 1979-05-27\nlt1 = 07:32:00\nlt2 = 00:32:00.999999\n" _
+        & !"lt3 = 07:32\nodt4 = 1979-05-27T07:32Z\nleap = 2000-02-29\n" )
+    Check( "dt kinds", PKind( v, "odt1" ) = config.TOML_OFFSET_DATETIME andalso PKind( v, "ldt" ) = config.TOML_LOCAL_DATETIME _
+        andalso PKind( v, "ld" ) = config.TOML_LOCAL_DATE andalso PKind( v, "lt1" ) = config.TOML_LOCAL_TIME )
+    dim as chrono.DateTime d2 = v.Get( "odt2" ).Value( ).AsDateTime( ).ValueOr( chrono.DateTime( ) )
+    Check( "odt2", d2.Microsecond = 999999 andalso d2.OffsetMinutes = -420 andalso d2.Hour = 0 )
+    Check( "odt3 = odt1", v.Get( "odt3" ).Value( ).Equals( v.Get( "odt1" ).Value( ) ) )
+    dim as chrono.DateTime l = v.Get( "ldt" ).Value( ).AsDateTime( ).ValueOr( chrono.DateTime( ) )
+    Check( "ldt no offset", l.IsValid andalso l.HasOffset = false andalso l.Minute = 32 )
+    dim as chrono.LocalDate ld = v.Get( "ld" ).Value( ).AsLocalDate( ).ValueOr( chrono.LocalDate( ) )
+    Check( "ld", ld.Year = 1979 andalso ld.Day = 27 )
+    dim as chrono.LocalTime lt = v.Get( "lt2" ).Value( ).AsLocalTime( ).ValueOr( chrono.LocalTime( ) )
+    Check( "lt2", lt.Minute = 32 andalso lt.Microsecond = 999999 )
+    Check( "lt3 no seconds", v.Get( "lt3" ).Value( ).AsLocalTime( ).HasValue( ) andalso v.Get( "lt3" ).Value( ).AsLocalTime( ).Value( ).Second = 0 )
+    Check( "wrong accessor", v.Get( "ld" ).Value( ).AsDateTime( ).HasValue( ) = false )
+    Check( "date-time round trip", RoundTrips( v ) )
+    dim t as config.ConfigResultText = config.ToTomlText( v )
+    Check( "dt text", instr( t.Value( ), !"odt2 = 1979-05-27T00:32:00.999999-07:00\n" ) > 0 andalso instr( t.Value( ), !"lt3 = 07:32:00\n" ) > 0 )
+end scope
+
+'' ------------------------------------------------------------ TOML: arrays, inline tables, keys
+scope
+    dim as config.TomlValue v = Toml( _
+        !"a = [\n  1, # one\n  2,\n]\nb = [ [ 1, 2 ], [\"a\", 'b'], [ {x = 1}, 2.5 ] ]\nc = []\n" _
+        & !"it = { name = \"x\", pt = { x = 1, y = 2 }, d.e = 3 }\n" _
+        & !"ml = {\n  k = 1, # 1.1\n  j = 2,\n}\nemp = {}\n" _
+        & !"\"quoted key\" = 1\n'lit.key' = 2\n3.14159 = \"pi\"\nsite.\"google.com\" = true\n" _
+        & !"fruit . color = \"yellow\"\n" )
+    Check( "array trailing comma", v.Get( "a" ).Value( ).Count( ) = 2 )
+    Check( "nested arrays", PInt( v, "b.0.1" ) = 2 andalso PStr( v, "b.1.1" ) = "b" andalso PInt( v, "b.2.0.x" ) = 1 )
+    Check( "empty array", PKind( v, "c" ) = config.TOML_ARRAY andalso v.Get( "c" ).Value( ).Count( ) = 0 )
+    Check( "inline nested", PInt( v, "it.pt.y" ) = 2 andalso PInt( v, "it.d.e" ) = 3 )
+    Check( "1.1 inline", PInt( v, "ml.j" ) = 2 )
+    Check( "empty inline", PKind( v, "emp" ) = config.TOML_TABLE andalso v.Get( "emp" ).Value( ).Count( ) = 0 )
+    Check( "quoted keys", v.Has( "quoted key" ) andalso v.Has( "lit.key" ) )
+    Check( "dotted numeric key", v.Get( "3" ).Value( ).Get( "14159" ).Value( ).AsString( ).ValueOr( "" ) = "pi" )
+    Check( "quoted dotted", v.Get( "site" ).Value( ).Has( "google.com" ) )
+    Check( "spaced dots", PStr( v, "fruit.color" ) = "yellow" )
+    Check( "inline round trip", RoundTrips( v ) )
+end scope
+
+'' ------------------------------------------------------------ TOML: table rules
+scope
+    dim as config.TomlValue v = Toml( _
+        !"[fruit]\napple.color = \"red\"\napple.taste.sweet = true\n[fruit.apple.texture]\nsmooth = true\n" _
+        & !"[x.y.z]\nk = 1\n[x]\nm = 2\n" _
+        & !"[[products]]\nname = \"Hammer\"\n[[products]]\n[[products]]\nname = \"Nail\"\n" _
+        & !"[[fruits]]\nname = \"apple\"\n[fruits.physical]\ncolor = \"red\"\n[[fruits.varieties]]\nname = \"red delicious\"\n" _
+        & !"[[fruits.varieties]]\nname = \"granny smith\"\n[[fruits]]\nname = \"banana\"\n[[fruits.varieties]]\nname = \"plantain\"\n" )
+    Check( "dotted then sub-table", v.Path( "fruit.apple.texture.smooth" ).HasValue( ) andalso v.Path( "fruit.apple.taste.sweet" ).HasValue( ) )
+    Check( "implicit then explicit", PInt( v, "x.m" ) = 2 andalso PInt( v, "x.y.z.k" ) = 1 )
+    Check( "aot", v.Get( "products" ).Value( ).Count( ) = 3 andalso v.Path( "products.1" ).Value( ).Count( ) = 0 andalso PStr( v, "products.2.name" ) = "Nail" )
+    Check( "aot nested", PStr( v, "fruits.0.varieties.1.name" ) = "granny smith" andalso PStr( v, "fruits.1.varieties.0.name" ) = "plantain" )
+    Check( "aot sub-table", PStr( v, "fruits.0.physical.color" ) = "red" )
+    Check( "rules round trip", RoundTrips( v ) )
+end scope
+
+'' ------------------------------------------------------------ TOML: errors
+scope
+    dim as long SY = config.CFG_SYNTAX, DK = config.CFG_DUPLICATE_KEY, TR = config.CFG_TYPE_REDEFINED
+    dim as long IE = config.CFG_INVALID_ESCAPE, NR = config.CFG_NUMBER_RANGE, ID = config.CFG_INVALID_DATETIME
+    Check( "dup key", TomlErr( !"a = 1\na = 2" ) = DK & "@2:1" )
+    Check( "dup table", TomlErr( !"[a]\n[a]" ) = DK & "@2:1" )
+    Check( "dotted reopened", TomlErr( !"[fruit]\napple.color = 1\n[fruit.apple]" ) = DK & "@3:1" )
+    Check( "dotted through explicit", TomlErr( !"[a.b]\n[a]\nb.c = 1" ) = DK & "@3:1" )
+    Check( "inline reopened", TomlErr( !"a = {}\n[a]" ) = DK & "@2:1" )
+    Check( "inline extended", TomlErr( !"a = { b = 1 }\na.c = 2" ) = TR & "@2:1" )
+    Check( "static array appended", TomlErr( !"a = [1]\n[[a]]" ) = TR & "@2:1" )
+    Check( "scalar as table", TomlErr( !"a = 1\n[a.b]" ) = TR & "@2:1" )
+    Check( "table as aot", TomlErr( !"[a]\n[[a]]" ) = TR & "@2:1" )
+    Check( "aot as table", TomlErr( !"[[a]]\n[a]" ) = TR & "@2:1" )
+    Check( "inline dup", TomlErr( "a = { b = 1, b = 2 }" ) = DK & "@1:14" )
+    Check( "bad escape", TomlErr( !"a = \"\\q\"" ) = IE & "@1:6" )
+    Check( "surrogate escape", TomlErr( !"a = \"\\uD800\"" ) = IE & "@1:6" )
+    Check( "int range", TomlErr( "a = 9223372036854775808" ) = NR & "@1:5" )
+    Check( "int range neg", TomlErr( "a = -9223372036854775809" ) = NR & "@1:5" )
+    Check( "hex range", TomlErr( "a = 0x8000000000000000" ) = NR & "@1:5" )
+    Check( "leading zero", TomlErr( "a = 01" ) = SY & "@1:5" )
+    Check( "double underscore", TomlErr( "a = 1__0" ) = SY & "@1:5" )
+    Check( "signed hex", TomlErr( "a = +0x10" ) = SY & "@1:5" )
+    Check( "bare dot float", TomlErr( "a = .5" ) = SY & "@1:5" )
+    Check( "trailing dot", TomlErr( "a = 1." ) = SY & "@1:5" )
+    Check( "not leap", TomlErr( "a = 1979-02-29" ) = ID & "@1:5" )
+    Check( "hour 24", TomlErr( "a = 24:00:00" ) = ID & "@1:5" )
+    Check( "bad offset", TomlErr( "a = 1979-05-27T07:32:00+25:00" ) = ID & "@1:5" )
+    Check( "two on a line", TomlErr( !"a = \"x\" b = 1" ) = SY & "@1:9" )
+    Check( "no value", TomlErr( "a = " ) = SY & "@1:5" )
+    Check( "no equals", TomlErr( !"a\n" ) = SY & "@1:2" )
+    Check( "position", TomlErr( !"a = 1\nb = = 2" ) = SY & "@2:5" )
+    Check( "open header", TomlErr( "[a" ) = SY & "@1:3" )
+    Check( "unterminated", TomlErr( !"a = \"abc\nb = 1" ) = SY & "@1:9" )
+    Check( "lone CR", TomlErr( !"a = 1\rb = 2" ) = SY & "@1:6" )
+    Check( "control in comment", TomlErr( "a = 1 # x" & chr( 1 ) ) = SY & "@1:10" )
+    Check( "array no comma", TomlErr( "a = [1 2]" ) = SY & "@1:8" )
+    Check( "word", TomlErr( "a = yes" ) = SY & "@1:5" )
+    dim r as config.ConfigResultToml = config.ParseToml( !"x = 1\nx = 2" )
+    Check( "message", r.Failure( ).Message( ) = "line 2, column 1: duplicate key: 'x'" )
+end scope
+
+'' ------------------------------------------------------------ TOML: building and writing
+scope
+    dim as config.TomlValue root = config.TomlValue.NewTable( )
+    dim as config.TomlValue srv = config.TomlValue.NewTable( )
+    srv.SetKey( "host", config.TomlValue.FromString( "local host" ) )
+    srv.SetKey( "port", config.TomlValue.FromInt( 8080 ) )
+    root.SetKey( "name", config.TomlValue.FromString( !"a\"b\\c\n" ) )
+    root.SetKey( "ratio", config.TomlValue.FromFloat( 3.0 ) )
+    root.SetKey( "server", srv )
+    dim as config.TomlValue users = config.TomlValue.NewArray( )
+    dim as config.TomlValue u = config.TomlValue.NewTable( )
+    u.SetKey( "id", config.TomlValue.FromInt( 1 ) )
+    users.Push( u )
+    u.SetKey( "id", config.TomlValue.FromInt( 2 ) )
+    users.Push( u )
+    root.SetKey( "users", users )
+    root.SetKey( "when", config.TomlValue.FromLocalDate( chrono.LocalDate( 2026, 10, 19 ) ) )
+    root.SetKey( "a b", config.TomlValue.FromBool( true ) )
+    dim t as config.ConfigResultText = config.ToTomlText( root )
+    dim as ustring want = !"name = \"a\\\"b\\\\c\\n\"\nratio = 3.0\nwhen = 2026-10-19\n\"a b\" = true\n\n" _
+        & !"[server]\nhost = \"local host\"\nport = 8080\n\n[[users]]\nid = 1\n\n[[users]]\nid = 2\n"
+    Check( "writer text", t.Value( ) = want )
+    if t.Value( ) <> want then print t.Value( )
+    Check( "built round trip", RoundTrips( root ) )
+    Check( "replace key", root.SetKey( "ratio", config.TomlValue.FromInt( 4 ) ) andalso PInt( root, "ratio" ) = 4 andalso root.Count( ) = 6 )
+    Check( "remove key", root.RemoveKey( "a b" ) andalso root.Has( "a b" ) = false andalso root.RemoveKey( "nope" ) = false )
+    Check( "set on non-table", config.TomlValue.FromInt( 1 ).SetKey( "x", u ) = false )
+    dim as config.TomlValue cp = root
+    cp = cp.Item( 2 )
+    Check( "assign from own child", cp.Kind( ) = config.TOML_TABLE andalso PInt( cp, "port" ) = 8080 )
+    Check( "root not a table", config.ToTomlText( config.TomlValue.FromInt( 1 ) ).Failure( ).Code( ) = config.CFG_NOT_REPRESENTABLE )
+    root.SetKey( "hole", config.TomlValue( ) )
+    Check( "empty value", config.ToTomlText( root ).Failure( ).Code( ) = config.CFG_NOT_REPRESENTABLE )
+    dim as config.TomlValue mixed = Toml( !"m = [ { a = 1 }, 2 ]\naot = [ { a = 1 }, { b = { c = 2 } } ]\ne = {}\n[t]\n[t.u]\nv = 1\n" )
+    Check( "mixed round trip", RoundTrips( mixed ) )
+end scope
+
+'' ------------------------------------------------------------ INI
+scope
+    dim as ustring txt = wchr( &hFEFF ) & !"top = 1\r\n; comment\r\n# also\r\n[Server]\r\nhost = example.org ; not a comment\r\n" _
+        & !"port: 8080\r\n  path  =  \"  /x  \"  \r\n\r\nempty =\r\n[other]\r\nkey=v=w\r\n"
+    dim r as config.ConfigResultIni = config.ParseIni( txt )
+    Check( "ini ok", r.IsOk( ) )
+    dim as config.IniFile ini = r.Value( )
+    Check( "ini root key", ini.Get( "", "top" ).ValueOr( "?" ) = "1" )
+    Check( "ini value with ;", ini.Get( "Server", "host" ).ValueOr( "?" ) = "example.org ; not a comment" )
+    Check( "ini colon", ini.Get( "server", "PORT" ).ValueOr( "?" ) = "8080" )
+    Check( "ini quoted", ini.Get( "Server", "path" ).ValueOr( "?" ) = "  /x  " )
+    Check( "ini empty value", ini.Get( "Server", "empty" ).HasValue( ) andalso ini.Get( "Server", "empty" ).Value( ) = "" )
+    Check( "ini first separator", ini.Get( "other", "key" ).ValueOr( "?" ) = "v=w" )
+    Check( "ini missing", ini.Get( "Server", "nope" ).HasValue( ) = false andalso ini.Get( "nope", "x" ).HasValue( ) = false )
+    dim as Array( of ustring ) secs = ini.Sections( )
+    Check( "ini sections", secs.Count( ) = 3 andalso secs[0] = "" andalso secs[1] = "Server" andalso secs[2] = "other" )
+    Check( "ini keys", ini.Keys( "server" ).Count( ) = 4 andalso ini.Keys( "server" )[1] = "port" )
+    dim r2 as config.ConfigResultIni = config.ParseIni( ini.ToText( ) )
+    Check( "ini round trip", r2.IsOk( ) andalso r2.Value( ).ToText( ) = ini.ToText( ) andalso r2.Value( ).Get( "Server", "path" ).ValueOr( "?" ) = "  /x  " )
+    ini.SetValue( "new", "k", "v" )
+    ini.SetValue( "server", "port", "9090" )
+    Check( "ini set", ini.Get( "new", "k" ).ValueOr( "?" ) = "v" andalso ini.Get( "Server", "port" ).ValueOr( "?" ) = "9090" )
+    Check( "ini remove key", ini.Remove( "Server", "host" ) andalso ini.Get( "Server", "host" ).HasValue( ) = false )
+    Check( "ini remove section", ini.Remove( "other" ) andalso ini.Sections( ).Count( ) = 3 andalso ini.Remove( "other" ) = false )
+    Check( "ini text", ini.ToText( ) = !"top = 1\n\n[Server]\nport = 9090\npath = \"  /x  \"\nempty = \n\n[new]\nk = v\n" )
+    if ini.ToText( ) <> !"top = 1\n\n[Server]\nport = 9090\npath = \"  /x  \"\nempty = \n\n[new]\nk = v\n" then print ini.ToText( )
+
+    dim as config.IniOptions cs
+    cs.CaseSensitiveKeys = true
+    dim r3 as config.ConfigResultIni = config.ParseIni( !"[A]\nk = 1\nK = 2\n", cs )
+    Check( "ini case-sensitive", r3.Value( ).Get( "A", "K" ).ValueOr( "?" ) = "2" andalso r3.Value( ).Get( "a", "k" ).HasValue( ) = false )
+    Check( "ini last wins", config.ParseIni( !"[a]\nk = 1\nK = 2\n" ).Value( ).Get( "a", "k" ).ValueOr( "?" ) = "2" )
+    Check( "ini merge sections", config.ParseIni( !"[a]\nx = 1\n[b]\n[a]\ny = 2\n" ).Value( ).Keys( "a" ).Count( ) = 2 )
+    dim as config.IniOptions strict
+    strict.Duplicates = config.INI_DUP_ERROR
+    dim r4 as config.ConfigResultIni = config.ParseIni( !"[a]\nk = 1\n  K = 2\n", strict )
+    Check( "ini dup error", r4.IsOk( ) = false andalso r4.Failure( ).Code( ) = config.CFG_DUPLICATE_KEY andalso r4.Failure( ).Line( ) = 3 andalso r4.Failure( ).Column( ) = 3 )
+    Check( "ini dup section error", config.ParseIni( !"[a]\n[a]\n", strict ).IsOk( ) = false )
+    dim r5 as config.ConfigResultIni = config.ParseIni( !"[a]\n[b\n" )
+    Check( "ini open section", r5.IsOk( ) = false andalso r5.Failure( ).Code( ) = config.CFG_SYNTAX andalso r5.Failure( ).Line( ) = 2 )
+    dim r6 as config.ConfigResultIni = config.ParseIni( !"[a]\njust words\n" )
+    Check( "ini no separator", r6.IsOk( ) = false andalso r6.Failure( ).Message( ) = "line 2, column 1: syntax error: expected '=' or ':'" )
+    Check( "ini empty key", config.ParseIni( "= 1" ).IsOk( ) = false )
+end scope
+
+'' ------------------------------------------------------------ CSV writer
+scope
+    dim as Array( of ustring ) row
+    row.Push( "plain" ) : row.Push( "a,b" ) : row.Push( !"say \"hi\"" ) : row.Push( !"two\nlines" )
+    row.Push( " lead" ) : row.Push( "trail " ) : row.Push( "" ) : row.Push( "caf" & wchr( 233 ) ) : row.Push( !"cr\rx" )
+    dim as ustring line_ = strings.JoinCsvRow( row )
+    Check( "join", line_ = !"plain,\"a,b\",\"say \"\"hi\"\"\",\"two\nlines\",\" lead\",\"trail \",,caf" & wchr( 233 ) & !",\"cr\rx\"" )
+    dim as Array( of ustring ) tabbed
+    tabbed.Push( "a,b" ) : tabbed.Push( !"c\td" )
+    Check( "join tab", strings.JoinCsvRow( tabbed, !"\t" ) = !"a,b\t\"c\td\"" )
+    dim as Array( of ustring ) empty_
+    Check( "join empty", strings.JoinCsvRow( empty_ ) = "" )
+    '' round trip through SplitCsv: two rows, every special character
+    dim as ustring doc = strings.JoinCsvRow( row ) & !"\r\n" & strings.JoinCsvRow( tabbed ) & !"\r\n"
+    dim as Array( of strings.CsvURow ) back = strings.SplitCsv( doc )
+    dim as boolean same = ( back.Count( ) = 2 )
+    if same then same = ( back[0].fields.Count( ) = row.Count( ) ) andalso ( back[1].fields.Count( ) = 2 )
+    if same then
+        for i as long = 0 to row.Count( ) - 1
+            if back[0].fields[i] <> row[i] then same = false
+        next
+        if back[1].fields[1] <> tabbed[1] then same = false
+    end if
+    Check( "csv round trip", same )
+
+    dim as ustring path = "tests/codegen/stdconfigp8.csv"
+    scope
+        dim as fs.File f
+        Check( "csv create", f.Create( path ).IsOk( ) )
+        dim as strings.CsvWriter w = strings.CsvWriter( f )
+        w.WriteRow( row )
+        w.WriteRow( tabbed )
+        Check( "csv finish", w.Finish( ).IsOk( ) )
+    end scope
+    Check( "csv file", fs.ReadAllText( path ).ValueOr( "?" ) = doc )
+    scope
+        dim as fs.File f
+        f.Create( path )
+        dim as strings.CsvWriter w = strings.CsvWriter( f, ";", false )
+        w.WriteRow( tabbed )
+        w.Finish( )
+    end scope
+    Check( "csv lf + sep", fs.ReadAllText( path ).ValueOr( "?" ) = !"a,b;c\td\n" )
+    fs.RemoveFile( path )
+end scope
+
+'' ------------------------------------------------------------ files
+scope
+    dim as ustring tp = "tests/codegen/stdconfigp8.toml", ip = "tests/codegen/stdconfigp8.ini"
+    fs.WriteAllText( tp, !"[s]\nk = \"v\"\n" )
+    Check( "LoadToml", PStr( config.LoadToml( tp ).ValueOr( config.TomlValue( ) ), "s.k" ) = "v" )
+    dim as config.IniFile ini
+    ini.SetValue( "s", "k", "v" )
+    Check( "SaveIni", config.SaveIni( ini, ip ).IsOk( ) )
+    Check( "LoadIni", config.LoadIni( ip ).Value( ).Get( "s", "k" ).ValueOr( "?" ) = "v" )
+    dim r as config.ConfigResultToml = config.LoadToml( "tests/codegen/no-such-file.toml" )
+    Check( "CFG_IO", r.IsOk( ) = false andalso r.Failure( ).Code( ) = config.CFG_IO andalso r.Failure( ).OsCode( ) = fs.FS_NOT_FOUND )
+    Check( "CFG_IO ini", config.LoadIni( "tests/codegen/no-such-file.ini" ).Failure( ).Code( ) = config.CFG_IO )
+    fs.RemoveFile( tp )
+    fs.RemoveFile( ip )
+end scope
+
+if fails = 0 then print "ok" else print fails; " failed"
