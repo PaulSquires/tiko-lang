@@ -1,0 +1,49 @@
+'' A constructor's 'byval q as D2 = D2( 9 )' default, D2 non-trivial: every call shape passes a
+'' pointer to a constructed copy. See tests/codegen/ctor-byval-udt-default-run.test.
+dim shared as long made, gone
+
+type D2
+    v as long
+    declare constructor( byval n as long )
+    declare constructor( byref o as D2 )
+    declare destructor( )
+end type
+constructor D2( byval n as long )
+    v = n : made += 1
+end constructor
+constructor D2( byref o as D2 )
+    v = o.v : made += 1
+end constructor
+destructor D2( )
+    gone += 1
+end destructor
+
+type Wr
+    s as long
+    q as long
+    declare constructor( byval s as long, byval q as D2 = D2( 9 ) )
+end type
+constructor Wr( byval s as long, byval q as D2 = D2( 9 ) )
+    this.s = s
+    this.q = q.v
+end constructor
+
+sub Show( byref w as Wr )
+    print w.s; w.q
+end sub
+
+sub Main( )
+    dim as Wr ptr p = new Wr( 3 )
+    print p->s; p->q
+    delete p
+    dim as Wr c4 = 4
+    print c4.s; c4.q
+    dim as Wr a = Wr( 1 )
+    print a.s; a.q
+    var b = Wr( 2 )
+    print b.s; b.q
+    Show( Wr( 5 ) )
+end sub
+
+Main( )
+print made; gone

@@ -978,16 +978,11 @@ function LowerCtorInit _
                     dref = CtorByrefArgAddr_( c, dsp->b, dt, dv )
                 end if
             end if
-            '' ...AND A STRING DEFAULT, BYVAL OR BYREF, IS A DESCRIPTOR -- ByvalDefaultArg_.
-            if (dref = false) andalso IsStringType( c, c.types->Unqualify( dt ) ) then
-                dv = ByvalDefaultArg_( c, dsp->b, dt ) : dref = (dv.kind <> cast( uint8, MV_NONE ))
-            end if
-            if dref = false then
-                dv = LowerExpr( c, dsp->b )
-                if dv.kind = cast( uint8, MV_NONE ) then return false
-                dv = CoerceTy( c, dv, LowerType( dt, *c.types ), dt)
-                if dv.kind = cast( uint8, MV_NONE ) then return false
-            end if
+            '' ...AND ANY OTHER IS ByvalDefaultArg_'s, as in PushCtorArgs_: coerced, a string's
+            '' descriptor, a byval non-trivial UDT's pointer to a copy -- 'Wr( 1 )' over 'byval q
+            '' as D2 = D2( 9 )' passed the loaded aggregate and clang refused it (TKO0113).
+            if dref = false then dv = ByvalDefaultArg_( c, dsp->b, dt )
+            if dv.kind = cast( uint8, MV_NONE ) then return false
             argT.Push( cast( uint32, dt ) )
             argKind.Push( cast( uint32, dv.kind ) )
             argId.Push( cast( uint32, dv.id ) )
