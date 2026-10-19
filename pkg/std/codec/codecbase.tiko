@@ -1,0 +1,328 @@
+#module "codec"
+#import "std/containers"
+#import "std/outcome"
+using containers
+using outcome
+'' std/codec: base64, base32 and hex (RFC 4648)
+''
+''     print codec.Base64Encode( "hi?" )                         '' aGk/
+''     print codec.Base64Encode( "hi?", codec.B64_URL )       '' aGk_
+''     print codec.Base32Encode( "hi" )                          '' NBUQ====
+''
+''     dim bytes as containers.Array( of ubyte )
+''     var r = codec.Base64Decode( "aGk/", bytes )
+''     if r.IsOk( ) then print r.Value( ); " bytes"                 '' 2 bytes
+''
+'' Base64 and base32 share one engine: the text is a stream of 6-bit or 5-bit
+'' values, and the bytes are the same bits read eight at a time.  The last
+'' group may be short; its unused low bits must be zero (ENC_TRAILING_BITS
+'' otherwise), so a byte sequence has one encoding only.
+''
+'' Padding: Encode writes '=' to a whole group unless pad is FALSE.  Decode
+'' accepts '=' only where the encoder would have put it, and requires it unless
+'' DECODE_ALLOW_MISSING_PAD is given -- unpadded base64url (JWT) needs the flag.
+''
+'' Base32 decoding is case-sensitive, as the RFC's alphabet is upper case; hex
+'' decoding accepts either case.
+
+public enum Base64Variant
+    B64_STANDARD = 0      '' RFC 4648 section 4: A-Z a-z 0-9 + /
+    B64_URL               '' RFC 4648 section 5: A-Z a-z 0-9 - _
+end enum
+
+public enum Base32Variant
+    B32_STANDARD = 0      '' RFC 4648 section 6: A-Z 2-7
+    B32_HEX               '' RFC 4648 section 7: 0-9 A-V, sorts like the bytes
+end enum
+
+const ENC_B64_STD = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+const ENC_B64_URL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+const ENC_B32_STD = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+const ENC_B32_HEX = "0123456789ABCDEFGHIJKLMNOPQRSTUV"
+
+'' -------------------------------------------------------------- the engine
+
+function EncEncodeRadix( byval p as const ubyte ptr, byval n as long, byval bits as long, _
+                         byref alpha as const string, byval pad as boolean ) as ustring
+    dim as long group = iif( bits = 6, 4, 8 )
+    dim as long nchars = ( n * 8 + bits - 1 ) \ bits
+    dim as long total = nchars
+    if( pad ) then
+        if( ( nchars mod group ) <> 0 ) then
+            total = nchars + ( group - nchars mod group )
+        end if
+    end if
+    dim as string s = space( total )
+    dim as ubyte ptr q = cptr( ubyte ptr, strptr( s ) )
+    dim as const ubyte ptr a = cptr( const ubyte ptr, strptr( alpha ) )
+    dim as ulongint acc = 0
+    dim as long have = 0, o = 0, mask = ( 1 shl bits ) - 1
+    for i as long = 0 to n - 1
+        acc = ( acc shl 8 ) or p[i]
+        have += 8
+        while( have >= bits )
+            have -= bits
+            q[o] = a[( acc shr have ) and mask]
+            o += 1
+        wend
+        acc and= ( ( 1ull shl have ) - 1 )
+    next
+    if( have > 0 ) then
+        q[o] = a[( acc shl ( bits - have ) ) and mask]
+        o += 1
+    end if
+    while( o < total )
+        q[o] = asc( "=" )
+        o += 1
+    wend
+    return s
+end function
+
+'' Expected '=' count for a final group of 'rem_' data characters.
+function EncPadFor( byval bits as long, byval rem_ as long ) as long
+    if( rem_ = 0 ) then
+        return 0
+    end if
+    if( bits = 6 ) then
+        return 4 - rem_
+    end if
+    return 8 - rem_
+end function
+
+function EncRemainderValid( byval bits as long, byval rem_ as long ) as boolean
+    if( bits = 6 ) then
+        return rem_ <> 1
+    end if
+    return ( rem_ = 0 ) orelse ( rem_ = 2 ) orelse ( rem_ = 4 ) orelse ( rem_ = 5 ) orelse ( rem_ = 7 )
+end function
+
+function EncDecodeRadix( byref text as const ustring, byref out_ as Array( of ubyte ), _
+                         byval bits as long, byref alpha as const string, byval opts as long, _
+                         byref op as const ustring ) as EncResultI64
+    dim as long table( 0 to 127 )
+    for c as long = 0 to 127
+        table( c ) = -1
+    next
+    for k as long = 1 to len( alpha )
+        table( asc( alpha, k ) ) = k - 1
+    next
+    dim as boolean skipWs = ( opts and DECODE_IGNORE_WHITESPACE ) <> 0
+    dim as boolean padOptional = ( opts and DECODE_ALLOW_MISSING_PAD ) <> 0
+    dim as long group = iif( bits = 6, 4, 8 )
+
+    '' pass 1: classify every character, count data and padding
+    dim as Array( of ubyte ) vals
+    dim as long m = 0, pc = 0, firstPad = 0, lastData = 0
+    dim as long n = len( text )
+    vals.Reserve( n )
+    for i as long = 1 to n
+        dim as long c = asc( text, i )
+        if( skipWs andalso EncIsSpace( c ) ) then
+            continue for
+        end if
+        if( c = asc( "=" ) ) then
+            if( pc = 0 ) then
+                firstPad = i
+            end if
+            pc += 1
+            continue for
+        end if
+        if( pc > 0 ) then
+            return EncFail( of longint )( ENC_INVALID_PADDING, firstPad, op )
+        end if
+        dim as long v = -1
+        if( c < 128 ) then
+            v = table( c )
+        end if
+        if( v < 0 ) then
+            return EncFail( of longint )( ENC_INVALID_CHAR, i, op )
+        end if
+        vals.Push( cubyte( v ) )
+        m += 1
+        lastData = i
+    next
+
+    dim as long rem_ = m mod group
+    if( EncRemainderValid( bits, rem_ ) = FALSE ) then
+        return EncFail( of longint )( ENC_INVALID_LENGTH, 0, op )
+    end if
+    if( pc > 0 ) then
+        if( pc <> EncPadFor( bits, rem_ ) ) then
+            return EncFail( of longint )( ENC_INVALID_PADDING, firstPad, op )
+        end if
+    elseif( rem_ <> 0 andalso padOptional = FALSE ) then
+        return EncFail( of longint )( ENC_INVALID_PADDING, 0, op )
+    end if
+
+    '' pass 2: the bits, eight at a time
+    out_.Clear( )
+    out_.Reserve( ( m * bits ) \ 8 )
+    dim as ulongint acc = 0
+    dim as long have = 0
+    for i as long = 0 to m - 1
+        acc = ( acc shl bits ) or vals.items( i )
+        have += bits
+        if( have >= 8 ) then
+            have -= 8
+            out_.Push( cubyte( ( acc shr have ) and &hFF ) )
+            acc and= ( ( 1ull shl have ) - 1 )
+        end if
+    next
+    if( acc <> 0 ) then
+        return EncFail( of longint )( ENC_TRAILING_BITS, lastData, op )
+    end if
+    return Ok( of longint, EncodingError )( clngint( out_.num ) )
+end function
+
+'' -------------------------------------------------------------- base64
+
+public function Base64Encode overload ( byref buf as Array( of ubyte ), byval v as Base64Variant = B64_STANDARD, _
+                                        byval pad as boolean = TRUE ) as ustring
+    return EncEncodeRadix( EncArrayPtr( buf ), buf.num, 6, iif( v = B64_URL, ENC_B64_URL, ENC_B64_STD ), pad )
+end function
+
+public function Base64Encode overload ( byref s as const ustring, byval v as Base64Variant = B64_STANDARD, _
+                                        byval pad as boolean = TRUE ) as ustring
+    dim as string b = s
+    return EncEncodeRadix( cptr( const ubyte ptr, strptr( b ) ), len( b ), 6, _
+                           iif( v = B64_URL, ENC_B64_URL, ENC_B64_STD ), pad )
+end function
+
+public function Base64Encode overload ( byref s as const string, byval v as Base64Variant = B64_STANDARD, _
+                                        byval pad as boolean = TRUE ) as ustring
+    return EncEncodeRadix( cptr( const ubyte ptr, strptr( s ) ), len( s ), 6, _
+                           iif( v = B64_URL, ENC_B64_URL, ENC_B64_STD ), pad )
+end function
+
+'' Decodes into out_ (replacing its contents); the value is the byte count.
+public function Base64Decode( byref text as const ustring, byref out_ as Array( of ubyte ), _
+                              byval v as Base64Variant = B64_STANDARD, byval opts as long = DECODE_STRICT ) as EncResultI64
+    return EncDecodeRadix( text, out_, 6, iif( v = B64_URL, ENC_B64_URL, ENC_B64_STD ), opts, "Base64Decode" )
+end function
+
+'' Decodes to text; the bytes must be UTF-8 (ENC_INVALID_UTF8 otherwise).
+public function Base64DecodeText( byref text as const ustring, byval v as Base64Variant = B64_STANDARD, _
+                                  byval opts as long = DECODE_STRICT ) as EncResultText
+    dim as Array( of ubyte ) b
+    dim as EncResultI64 r = EncDecodeRadix( text, b, 6, iif( v = B64_URL, ENC_B64_URL, ENC_B64_STD ), opts, "Base64DecodeText" )
+    if( r.IsOk( ) = FALSE ) then
+        return Fail( of ustring, EncodingError )( r.Failure( ) )
+    end if
+    return EncBytesToText( EncArrayPtr( b ), b.num, "Base64DecodeText" )
+end function
+
+'' -------------------------------------------------------------- base32
+
+public function Base32Encode overload ( byref buf as Array( of ubyte ), byval v as Base32Variant = B32_STANDARD, _
+                                        byval pad as boolean = TRUE ) as ustring
+    return EncEncodeRadix( EncArrayPtr( buf ), buf.num, 5, iif( v = B32_HEX, ENC_B32_HEX, ENC_B32_STD ), pad )
+end function
+
+public function Base32Encode overload ( byref s as const ustring, byval v as Base32Variant = B32_STANDARD, _
+                                        byval pad as boolean = TRUE ) as ustring
+    dim as string b = s
+    return EncEncodeRadix( cptr( const ubyte ptr, strptr( b ) ), len( b ), 5, _
+                           iif( v = B32_HEX, ENC_B32_HEX, ENC_B32_STD ), pad )
+end function
+
+public function Base32Encode overload ( byref s as const string, byval v as Base32Variant = B32_STANDARD, _
+                                        byval pad as boolean = TRUE ) as ustring
+    return EncEncodeRadix( cptr( const ubyte ptr, strptr( s ) ), len( s ), 5, _
+                           iif( v = B32_HEX, ENC_B32_HEX, ENC_B32_STD ), pad )
+end function
+
+public function Base32Decode( byref text as const ustring, byref out_ as Array( of ubyte ), _
+                              byval v as Base32Variant = B32_STANDARD, byval opts as long = DECODE_STRICT ) as EncResultI64
+    return EncDecodeRadix( text, out_, 5, iif( v = B32_HEX, ENC_B32_HEX, ENC_B32_STD ), opts, "Base32Decode" )
+end function
+
+public function Base32DecodeText( byref text as const ustring, byval v as Base32Variant = B32_STANDARD, _
+                                  byval opts as long = DECODE_STRICT ) as EncResultText
+    dim as Array( of ubyte ) b
+    dim as EncResultI64 r = EncDecodeRadix( text, b, 5, iif( v = B32_HEX, ENC_B32_HEX, ENC_B32_STD ), opts, "Base32DecodeText" )
+    if( r.IsOk( ) = FALSE ) then
+        return Fail( of ustring, EncodingError )( r.Failure( ) )
+    end if
+    return EncBytesToText( EncArrayPtr( b ), b.num, "Base32DecodeText" )
+end function
+
+'' -------------------------------------------------------------- hex
+
+function EncHexOf( byval p as const ubyte ptr, byval n as long, byval upper as boolean ) as ustring
+    dim as string digits = "0123456789abcdef"
+    if( upper ) then
+        digits = "0123456789ABCDEF"
+    end if
+    dim as const ubyte ptr d = cptr( const ubyte ptr, strptr( digits ) )
+    dim as string s = space( n * 2 )
+    dim as ubyte ptr q = cptr( ubyte ptr, strptr( s ) )
+    for i as long = 0 to n - 1
+        q[2 * i] = d[p[i] shr 4]
+        q[2 * i + 1] = d[p[i] and 15]
+    next
+    return s
+end function
+
+public function HexEncode overload ( byref buf as Array( of ubyte ), byval upper as boolean = FALSE ) as ustring
+    return EncHexOf( EncArrayPtr( buf ), buf.num, upper )
+end function
+
+public function HexEncode overload ( byref s as const ustring, byval upper as boolean = FALSE ) as ustring
+    dim as string b = s
+    return EncHexOf( cptr( const ubyte ptr, strptr( b ) ), len( b ), upper )
+end function
+
+public function HexEncode overload ( byref s as const string, byval upper as boolean = FALSE ) as ustring
+    return EncHexOf( cptr( const ubyte ptr, strptr( s ) ), len( s ), upper )
+end function
+
+function EncHexDigit( byval c as long ) as long
+    select case c
+    case asc( "0" ) to asc( "9" ) : return c - asc( "0" )
+    case asc( "a" ) to asc( "f" ) : return c - asc( "a" ) + 10
+    case asc( "A" ) to asc( "F" ) : return c - asc( "A" ) + 10
+    end select
+    return -1
+end function
+
+function EncHexDecodeOp( byref text as const ustring, byref out_ as Array( of ubyte ), _
+                         byval opts as long, byref op as const ustring ) as EncResultI64
+    dim as boolean skipWs = ( opts and DECODE_IGNORE_WHITESPACE ) <> 0
+    out_.Clear( )
+    out_.Reserve( len( text ) \ 2 )
+    dim as long hi = -1
+    for i as long = 1 to len( text )
+        dim as long c = asc( text, i )
+        if( skipWs andalso EncIsSpace( c ) ) then
+            continue for
+        end if
+        dim as long d = EncHexDigit( c )
+        if( d < 0 ) then
+            return EncFail( of longint )( ENC_INVALID_CHAR, i, op )
+        end if
+        if( hi < 0 ) then
+            hi = d
+        else
+            out_.Push( cubyte( hi * 16 + d ) )
+            hi = -1
+        end if
+    next
+    if( hi >= 0 ) then
+        return EncFail( of longint )( ENC_INVALID_LENGTH, 0, op )
+    end if
+    return Ok( of longint, EncodingError )( clngint( out_.num ) )
+end function
+
+public function HexDecode( byref text as const ustring, byref out_ as Array( of ubyte ), _
+                           byval opts as long = DECODE_STRICT ) as EncResultI64
+    return EncHexDecodeOp( text, out_, opts, "HexDecode" )
+end function
+
+public function HexDecodeText( byref text as const ustring, byval opts as long = DECODE_STRICT ) as EncResultText
+    dim as Array( of ubyte ) b
+    dim as EncResultI64 r = EncHexDecodeOp( text, b, opts, "HexDecodeText" )
+    if( r.IsOk( ) = FALSE ) then
+        return Fail( of ustring, EncodingError )( r.Failure( ) )
+    end if
+    return EncBytesToText( EncArrayPtr( b ), b.num, "HexDecodeText" )
+end function

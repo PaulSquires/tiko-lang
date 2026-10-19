@@ -1,0 +1,276 @@
+'' std/codec and std/uuids, phase P2 (C:\dev\docs\tiko-stdlib\RFC-0001 sections 5 and 7).
+'' Vectors: RFC 4648 section 10 (base64, base32, base32hex, base16), RFC 9562
+'' appendix A (the v4 and v7 examples).  Plus every byte value round-tripped,
+'' each decode error code with its position, percent-encoding per mode, endian
+'' get/put/append, LEB128 boundary values, and 100000 NewV7s strictly ordered.
+#import "std/codec"
+#import "std/uuids"
+#import "std/containers"
+using containers
+
+dim shared as integer fails = 0
+
+sub Check( byref what as string, byval ok as boolean )
+    if ok = false then
+        print "FAIL "; what
+        fails += 1
+    end if
+end sub
+
+function Bytes( byref s as string ) as Array( of ubyte )
+    dim as Array( of ubyte ) a
+    for i as long = 1 to len( s )
+        a.Push( asc( s, i ) )
+    next
+    return a
+end function
+
+function HexOf( byref a as Array( of ubyte ) ) as string
+    dim as string s
+    for i as long = 0 to a.Count( ) - 1
+        s &= hex( a[i], 2 )
+    next
+    return s
+end function
+
+'' The error code and position of a failed decode, as "code@pos", or "ok".
+function B64Err( byref t as ustring, byval opts as long = codec.DECODE_STRICT ) as string
+    dim as Array( of ubyte ) b
+    var r = codec.Base64Decode( t, b, codec.B64_STANDARD, opts )
+    if r.IsOk( ) then return "ok"
+    return r.Failure( ).Code( ) & "@" & r.Failure( ).Position( )
+end function
+
+'' ------------------------------------------------------------ RFC 4648 vectors
+scope
+    dim as string plain( 0 to 6 ) = { "", "f", "fo", "foo", "foob", "fooba", "foobar" }
+    dim as string b64( 0 to 6 ) = { "", "Zg==", "Zm8=", "Zm9v", "Zm9vYg==", "Zm9vYmE=", "Zm9vYmFy" }
+    dim as string b32( 0 to 6 ) = { "", "MY======", "MZXQ====", "MZXW6===", "MZXW6YQ=", "MZXW6YTB", "MZXW6YTBOI======" }
+    dim as string b32h( 0 to 6 ) = { "", "CO======", "CPNG====", "CPNMU===", "CPNMUOG=", "CPNMUOJ1", "CPNMUOJ1E8======" }
+    for i as long = 0 to 6
+        Check( "b64 enc " & plain( i ), codec.Base64Encode( plain( i ) ) = b64( i ) )
+        Check( "b32 enc " & plain( i ), codec.Base32Encode( plain( i ) ) = b32( i ) )
+        Check( "b32hex enc " & plain( i ), codec.Base32Encode( plain( i ), codec.B32_HEX ) = b32h( i ) )
+        dim as ustring t
+        t = b64( i ) : Check( "b64 dec " & plain( i ), codec.Base64DecodeText( t ).ValueOr( "?" ) = plain( i ) )
+        t = b32( i ) : Check( "b32 dec " & plain( i ), codec.Base32DecodeText( t ).ValueOr( "?" ) = plain( i ) )
+        t = b32h( i ) : Check( "b32hex dec " & plain( i ), codec.Base32DecodeText( t, codec.B32_HEX ).ValueOr( "?" ) = plain( i ) )
+    next
+    Check( "base16", codec.HexEncode( "foobar", TRUE ) = "666F6F626172" andalso codec.HexEncode( "foobar" ) = "666f6f626172" )
+    Check( "hex dec mixed case", codec.HexDecodeText( "666F6f626172" ).ValueOr( "?" ) = "foobar" )
+end scope
+
+'' ------------------------------------------------------------ every byte, every variant
+scope
+    dim as Array( of ubyte ) all
+    for i as long = 0 to 255
+        all.Push( cubyte( i ) )
+    next
+    dim as boolean ok = TRUE
+    for lenTry as long = 0 to 40
+        dim as Array( of ubyte ) src
+        for i as long = 0 to lenTry - 1
+            src.Push( all[( i * 37 + lenTry ) mod 256] )
+        next
+        dim as Array( of ubyte ) back
+        for pad as long = 0 to 1
+            dim as boolean p = ( pad = 1 )
+            dim as long opts = iif( p, codec.DECODE_STRICT, codec.DECODE_ALLOW_MISSING_PAD )
+            codec.Base64Decode( codec.Base64Encode( src, codec.B64_STANDARD, p ), back, codec.B64_STANDARD, opts )
+            if HexOf( back ) <> HexOf( src ) then ok = FALSE
+            codec.Base64Decode( codec.Base64Encode( src, codec.B64_URL, p ), back, codec.B64_URL, opts )
+            if HexOf( back ) <> HexOf( src ) then ok = FALSE
+            codec.Base32Decode( codec.Base32Encode( src, codec.B32_STANDARD, p ), back, codec.B32_STANDARD, opts )
+            if HexOf( back ) <> HexOf( src ) then ok = FALSE
+            codec.Base32Decode( codec.Base32Encode( src, codec.B32_HEX, p ), back, codec.B32_HEX, opts )
+            if HexOf( back ) <> HexOf( src ) then ok = FALSE
+        next
+        codec.HexDecode( codec.HexEncode( src ), back )
+        if HexOf( back ) <> HexOf( src ) then ok = FALSE
+    next
+    dim as Array( of ubyte ) back
+    codec.Base64Decode( codec.Base64Encode( all ), back )
+    Check( "256 bytes b64", HexOf( back ) = HexOf( all ) )
+    Check( "round trips", ok )
+    dim as Array( of ubyte ) ff = Bytes( chr( &hFB, &hFF ) )
+    Check( "b64 std vs url", codec.Base64Encode( ff ) = "+/8=" andalso codec.Base64Encode( ff, codec.B64_URL ) = "-_8=" )
+    Check( "b64 unpadded", codec.Base64Encode( ff, codec.B64_URL, FALSE ) = "-_8" )
+end scope
+
+'' ------------------------------------------------------------ text and UTF-8
+scope
+    dim as ustring u = "h" & wchr( &hE9 ) & "llo"
+    Check( "ustring is utf-8", codec.Base64Encode( u ) = "aMOpbGxv" )
+    Check( "literal agrees", codec.Base64Encode( "h" & chr( &hC3, &hA9 ) & "llo" ) = "aMOpbGxv" )
+    Check( "decode text", codec.Base64DecodeText( "aMOpbGxv" ).ValueOr( "?" ) = u )
+    var r = codec.Base64DecodeText( "/w==" )
+    Check( "not utf-8", r.IsOk( ) = FALSE andalso r.Failure( ).Code( ) = codec.ENC_INVALID_UTF8 )
+    Check( "message", r.Failure( ).Message( ) = "Base64DecodeText: decoded data is not valid UTF-8" )
+end scope
+
+'' ------------------------------------------------------------ decode errors
+scope
+    Check( "trailing bits", B64Err( "Zh==" ) = codec.ENC_TRAILING_BITS & "@2" )
+    Check( "short pad", B64Err( "Zg=" ) = codec.ENC_INVALID_PADDING & "@3" )
+    Check( "missing pad", B64Err( "Zg" ) = codec.ENC_INVALID_PADDING & "@0" )
+    Check( "missing pad allowed", B64Err( "Zg", codec.DECODE_ALLOW_MISSING_PAD ) = "ok" )
+    Check( "bad length", B64Err( "Z" ) = codec.ENC_INVALID_LENGTH & "@0" )
+    Check( "data after pad", B64Err( "Zg==Zg==" ) = codec.ENC_INVALID_PADDING & "@3" )
+    Check( "bad char", B64Err( "Zm9v!" ) = codec.ENC_INVALID_CHAR & "@5" )
+    Check( "non-ascii char", B64Err( "Zm" & wchr( &hE9 ) & "v" ) = codec.ENC_INVALID_CHAR & "@3" )
+    Check( "whitespace strict", B64Err( "Zm9v" & chr( 13, 10 ) & "YmFy" ) = codec.ENC_INVALID_CHAR & "@5" )
+    Check( "whitespace allowed", B64Err( "Zm9v" & chr( 13, 10 ) & "YmFy", codec.DECODE_IGNORE_WHITESPACE ) = "ok" )
+    dim as Array( of ubyte ) b
+    var h = codec.HexDecode( "abc", b )
+    Check( "hex odd", h.IsOk( ) = FALSE andalso h.Failure( ).Code( ) = codec.ENC_INVALID_LENGTH )
+    h = codec.HexDecode( "a g1", b )
+    Check( "hex bad", h.Failure( ).Code( ) = codec.ENC_INVALID_CHAR andalso h.Failure( ).Position( ) = 2 )
+    var l = codec.Base32Decode( "MZXW6YQ", b, codec.B32_STANDARD, codec.DECODE_ALLOW_MISSING_PAD )
+    Check( "b32 unpadded", l.IsOk( ) andalso l.Value( ) = 4 )
+    l = codec.Base32Decode( "mzxw6yq=", b )
+    Check( "b32 case-sensitive", l.IsOk( ) = FALSE andalso l.Failure( ).Position( ) = 1 )
+end scope
+
+'' ------------------------------------------------------------ percent-encoding
+scope
+    dim as ustring s = "a b&c/" & wchr( &hE9 )
+    Check( "pct component", codec.PercentEncode( s ) = "a%20b%26c%2F%C3%A9" )
+    Check( "pct path", codec.PercentEncode( s, codec.PCT_PATH ) = "a%20b&c/%C3%A9" )
+    Check( "pct query", codec.PercentEncode( "a b&c=1+", codec.PCT_QUERY ) = "a+b%26c%3D1%2B" )
+    Check( "pct unreserved", codec.PercentEncode( "AZaz09-._~" ) = "AZaz09-._~" )
+    Check( "pct dec query", codec.PercentDecode( "a+b%26c%3d1", codec.PCT_QUERY ).ValueOr( "?" ) = "a b&c=1" )
+    Check( "pct dec plus kept", codec.PercentDecode( "a+b" ).ValueOr( "?" ) = "a+b" )
+    Check( "pct dec utf8", codec.PercentDecode( "caf%C3%A9" ).ValueOr( "?" ) = "caf" & wchr( &hE9 ) )
+    Check( "pct passthrough", codec.PercentDecode( "caf" & wchr( &hE9 ) & "%20x" ).ValueOr( "?" ) = "caf" & wchr( &hE9 ) & " x" )
+    var r = codec.PercentDecode( "ab%zz" )
+    Check( "pct bad", r.IsOk( ) = FALSE andalso r.Failure( ).Position( ) = 3 )
+    r = codec.PercentDecode( "%4" )
+    Check( "pct short", r.IsOk( ) = FALSE andalso r.Failure( ).Code( ) = codec.ENC_INVALID_CHAR )
+    r = codec.PercentDecode( "%FF" )
+    Check( "pct not utf8", r.Failure( ).Code( ) = codec.ENC_INVALID_UTF8 )
+end scope
+
+'' ------------------------------------------------------------ endian
+scope
+    dim as Array( of ubyte ) b
+    codec.AppendU32LE( b, &h11223344 )
+    codec.AppendU16BE( b, 513 )
+    Check( "append bytes", HexOf( b ) = "443322110201" )
+    Check( "get u32", codec.GetU32LE( b, 0 ) = &h11223344 andalso codec.GetU32BE( b, 0 ) = &h44332211 )
+    Check( "get u16", codec.GetU16BE( b, 4 ) = 513 andalso codec.GetU16LE( b, 4 ) = 258 )
+    codec.PutI16LE( b, 0, -2 )
+    Check( "i16 sign", codec.GetI16LE( b, 0 ) = -2 andalso codec.GetU16LE( b, 0 ) = 65534 )
+    codec.PutU64BE( b, 10, &h0102030405060708ull )
+    Check( "put grows zero-filled", b.Count( ) = 18 andalso b[6] = 0 andalso b[9] = 0 andalso b[10] = 1 andalso b[17] = 8 )
+    Check( "i64", codec.GetI64BE( b, 10 ) = &h0102030405060708ll )
+    codec.PutI32BE( b, 0, -123456 )
+    Check( "i32", codec.GetI32BE( b, 0 ) = -123456 )
+    codec.PutF64LE( b, 0, 1.5 )
+    Check( "f64", codec.GetF64LE( b, 0 ) = 1.5 andalso codec.GetU64LE( b, 0 ) = &h3FF8000000000000ull )
+    dim as double negz = -0.0
+    codec.PutF64BE( b, 0, negz )
+    Check( "f64 -0", codec.GetU64BE( b, 0 ) = &h8000000000000000ull )
+    codec.PutF32LE( b, 0, -2.25 )
+    Check( "f32", codec.GetF32LE( b, 0 ) = -2.25 andalso codec.GetU32LE( b, 0 ) = &hC0100000 )
+end scope
+
+'' ------------------------------------------------------------ varints
+function UV( byval v as ulongint ) as string
+    dim as Array( of ubyte ) b
+    codec.AppendUVarint( b, v )
+    return HexOf( b )
+end function
+
+function SV( byval v as longint ) as string
+    dim as Array( of ubyte ) b
+    codec.AppendVarint( b, v )
+    return HexOf( b )
+end function
+
+scope
+    Check( "uv 0", UV( 0 ) = "00" )
+    Check( "uv 127", UV( 127 ) = "7F" )
+    Check( "uv 128", UV( 128 ) = "8001" )
+    Check( "uv 300", UV( 300 ) = "AC02" )
+    Check( "uv max63", UV( &h7FFFFFFFFFFFFFFFull ) = "FFFFFFFFFFFFFFFF7F" )
+    Check( "uv max64", UV( &hFFFFFFFFFFFFFFFFull ) = "FFFFFFFFFFFFFFFFFF01" )
+    Check( "sv zigzag", SV( 0 ) = "00" andalso SV( -1 ) = "01" andalso SV( 1 ) = "02" andalso SV( -2 ) = "03" )
+    Check( "sv min", SV( -9223372036854775807ll - 1 ) = "FFFFFFFFFFFFFFFFFF01" )
+
+    dim as ulongint uvals( 0 to 5 ) = { 0, 1, 127, 128, 300, &hFFFFFFFFFFFFFFFFull }
+    dim as longint svals( 0 to 5 ) = { 0, -1, 63, -64, 9223372036854775807ll, -9223372036854775807ll - 1 }
+    dim as Array( of ubyte ) b
+    for i as long = 0 to 5
+        codec.AppendUVarint( b, uvals( i ) )
+        codec.AppendVarint( b, svals( i ) )
+    next
+    dim as long at = 0
+    dim as boolean ok = TRUE
+    for i as long = 0 to 5
+        if codec.ReadUVarint( b, at ).ValueOr( 999 ) <> uvals( i ) then ok = FALSE
+        if codec.ReadVarint( b, at ).ValueOr( 999 ) <> svals( i ) then ok = FALSE
+    next
+    Check( "varint round trip", ok andalso at = b.Count( ) )
+
+    dim as Array( of ubyte ) t = Bytes( chr( &h80 ) )
+    at = 0
+    var r = codec.ReadUVarint( t, at )
+    Check( "truncated", r.IsOk( ) = FALSE andalso r.Failure( ).Code( ) = codec.ENC_TRUNCATED andalso at = 0 )
+    dim as Array( of ubyte ) o = Bytes( string( 9, &hFF ) & chr( 2 ) )
+    r = codec.ReadUVarint( o, at )
+    Check( "overflow", r.IsOk( ) = FALSE andalso r.Failure( ).Code( ) = codec.ENC_OVERFLOW )
+end scope
+
+'' ------------------------------------------------------------ uuid
+scope
+    var r4 = uuids.Parse( "919108f7-52d1-4320-9bac-f847db4148a8" )
+    Check( "v4 example", r4.IsOk( ) andalso r4.Value( ).Version( ) = 4 andalso r4.Value( ).Variant( ) = 1 )
+    Check( "v4 round trip", r4.Value( ).ToString( ) = "919108f7-52d1-4320-9bac-f847db4148a8" )
+    var r7 = uuids.Parse( "017F22E2-79B0-7CC3-98C4-DC0C0C07398F" )
+    Check( "v7 example", r7.IsOk( ) andalso r7.Value( ).Version( ) = 7 andalso r7.Value( ).UnixMillis( ) = 1645557742000ll )
+    Check( "lower case out", r7.Value( ).ToString( ) = "017f22e2-79b0-7cc3-98c4-dc0c0c07398f" )
+    Check( "braces", uuids.Parse( "{017f22e2-79b0-7cc3-98c4-dc0c0c07398f}" ).Value( ) = r7.Value( ) )
+    Check( "urn", uuids.Parse( "URN:uuid:017f22e2-79b0-7cc3-98c4-dc0c0c07398f" ).Value( ) = r7.Value( ) )
+    Check( "bare hex", uuids.Parse( "017f22e279b07cc398c4dc0c0c07398f" ).Value( ) = r7.Value( ) )
+    Check( "v4 has no time", r4.Value( ).UnixMillis( ) = -1 )
+
+    var e = uuids.Parse( "017f22e2-79b0-7cc3-98c4-dc0c0c07398" )
+    Check( "bad length", e.IsOk( ) = FALSE andalso e.Failure( ).Code( ) = uuids.UUID_INVALID_LENGTH )
+    e = uuids.Parse( "017f22e2-79b0-7cc3-98c4-dc0c0c07398g" )
+    Check( "bad char", e.Failure( ).Code( ) = uuids.UUID_INVALID_CHAR andalso e.Failure( ).Position( ) = 36 )
+    e = uuids.Parse( "017f22e279-b0-7cc3-98c4-dc0c0c07398f" )
+    Check( "bad hyphen", e.Failure( ).Code( ) = uuids.UUID_INVALID_FORMAT andalso e.Failure( ).Position( ) = 9 )
+
+    Check( "nil", uuids.NilUuid( ).IsNil( ) andalso uuids.NilUuid( ).ToString( ) = "00000000-0000-0000-0000-000000000000" )
+    Check( "max", uuids.MaxUuid( ).ToString( ) = "ffffffff-ffff-ffff-ffff-ffffffffffff" andalso uuids.MaxUuid( ).Version( ) = 15 )
+    Check( "order", uuids.NilUuid( ) < r7.Value( ) andalso r7.Value( ) < uuids.MaxUuid( ) andalso ( r7.Value( ) < r7.Value( ) ) = FALSE )
+
+    dim as boolean okv4 = TRUE
+    dim as Set( of uuids.Uuid ) seen
+    for i as long = 1 to 10000
+        dim as uuids.Uuid u = uuids.NewV4( )
+        if u.Version( ) <> 4 orelse u.Variant( ) <> 1 then okv4 = FALSE
+        seen.Add( u )
+    next
+    Check( "v4 bits", okv4 )
+    Check( "v4 distinct (Set key)", seen.Count( ) = 10000 )
+
+    dim as boolean okv7 = TRUE
+    dim as uuids.Uuid prev = uuids.NewV7( )
+    for i as long = 1 to 100000
+        dim as uuids.Uuid u = uuids.NewV7( )
+        if ( prev < u ) = FALSE then okv7 = FALSE
+        if u.Version( ) <> 7 orelse u.Variant( ) <> 1 then okv7 = FALSE
+        prev = u
+    next
+    Check( "v7 strictly increasing", okv7 )
+    Check( "v7 time is now", prev.UnixMillis( ) > 1700000000000ll )
+
+    var fromB = uuids.FromBytes( r4.Value( ).ToBytes( ) )
+    Check( "bytes round trip", fromB.IsOk( ) andalso fromB.Value( ) = r4.Value( ) )
+    dim as Array( of ubyte ) short_
+    short_.Push( 1 )
+    Check( "bytes length", uuids.FromBytes( short_ ).IsOk( ) = FALSE )
+end scope
+
+if fails = 0 then print "ok"

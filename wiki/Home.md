@@ -46,7 +46,7 @@ Every listing in the book is a real program, compiled and run on Windows and Lin
 
 **Collections and algorithms:** [Array](Category-Array) · [Map](Category-Map) · [Set](Category-Set) · [LinkedList](Category-LinkedList) · [OrderedMap and OrderedSet](Category-OrderedMap) · [Sorting](Category-Sorting) · [Searching](Category-Searching) · [PriorityQueue](Category-PriorityQueue) · [Deque](Category-Deque) · [BitSet](Category-BitSet)
 
-**Values and text:** [Optional](Category-Optional) · [Result](Category-Result) · [SharedPtr and WeakPtr](Category-Smart-Pointers) · [String Library](Category-String-Library) · [Format](Category-Format)
+**Values and text:** [Optional](Category-Optional) · [Result](Category-Result) · [SharedPtr and WeakPtr](Category-Smart-Pointers) · [String Library](Category-String-Library) · [Format](Category-Format) · [Codec](Category-Codec) · [UUID](Category-UUID)
 
 **System and numbers:** [Chrono Date and Time](Category-Date-and-Time-Chrono) · [Filesystem Library](Category-Filesystem) · [Math Library](Category-Math-Library) · [Finance](Category-Finance) · [Logging](Category-Logging) · [Terminal TUI Library](Category-Terminal-TUI-Library)
 

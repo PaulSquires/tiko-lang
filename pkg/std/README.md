@@ -23,6 +23,8 @@ libraries in `inc/fb`; that directory is gone, and its code lives here.
 | `std/logs` | `Logger`, sinks, renderers, the default logger, and the logging macros | |
 | `std/tui` | the terminal UI library | |
 | `std/memory` | `SharedPtr`, `WeakPtr`, `MakeShared` | |
+| `std/codec` | base64, base32, hex, percent-encoding; endian get/put; LEB128 varints | |
+| `std/uuids` | `Uuid`, `NewV4`, `NewV7`, `Parse` | |
 
 **How a module's names are used:**
 - **Qualified, or through `using`.** `strings.Replace( s, "a", "b" )`, or `using strings` and

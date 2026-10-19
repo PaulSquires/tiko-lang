@@ -1,0 +1,10 @@
+'' RUN: std/codec + std/uuids phase P2 -- RFC 4648 and RFC 9562 vectors, round trips, decode
+'' errors with positions, percent-encoding modes, endian get/put, LEB128, NewV7 ordering
+'' (C:\dev\docs\tiko-stdlib\RFC-0001 sections 5 and 7).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/std-codec-uuid-p2.tiko -o tests/codegen/stdcodecp2.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/stdcodecp2.exe
+'' RUN: tests/codegen/stdcodecp2.exe
+'' EXPECT-RUN-OUT: ok
