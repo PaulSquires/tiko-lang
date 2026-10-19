@@ -1,0 +1,23 @@
+#import "std/uuids"
+#import "std/containers"
+
+'' Random identifiers: no two alike, nothing to guess.
+dim a as uuids.Uuid = uuids.NewV4( )
+dim b as uuids.Uuid = uuids.NewV4( )
+print "version"; a.Version( ); ","; len( a.ToString( ) ); " characters"
+print "a = b? "; a = b
+
+'' Time-ordered identifiers sort in the order they were made.
+dim older as uuids.Uuid = uuids.NewV7( )
+dim newer as uuids.Uuid = uuids.NewV7( )
+print "version"; older.Version( ); ", in order? "; older < newer
+print "made this century? "; cbool( older.UnixMillis( ) > 946684800000 )
+
+'' Parsing accepts the common spellings, and prints one.
+var r = uuids.Parse( "{F81D4FAE-7DEC-11D0-A765-00A0C91E6BF6}" )
+print r.Value( ).ToString( )
+
+'' A Uuid is a key like any other.
+dim owners as containers.Map( of uuids.Uuid, ustring )
+owners[ a ] = "ada"
+print "owner of a: "; owners[ a ]

@@ -38,6 +38,7 @@ The pages in this section:
   in the source.
 - [Unicode](unicode.md): what `len` counts.
 - [Building strings](building.md): assembling text from many pieces.
+- [Base64, hex and URLs](encodings.md): bytes as text, and text inside URLs.
 
 Laying out values with `strings.Format` is covered in
 [Formatted print](../hello/format.md), and making your own types printable in

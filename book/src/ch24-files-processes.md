@@ -111,6 +111,35 @@ the file in bytes. Every field must have a fixed size for this to work, which is
 `string * 8` rather than a `ustring`: a variable-length string is a pointer, and a pointer written to
 a file means nothing when it is read back.
 
+### Binary formats
+
+A record of fixed-size fields is one kind of binary file. Most binary formats — images, archives,
+network messages — are laid out byte by byte instead, with each number in a stated width and
+**byte order**:
+
+```tiko
+{{#include ../examples/ch24/binformat.tiko}}
+```
+
+```text
+{{#include ../examples/ch24/binformat.out}}
+```
+
+`codec.AppendU32BE` appends a 32-bit number **big-endian**, most significant byte first — the order
+a person reads, and the one network protocols use. `AppendU16LE` writes **little-endian**, the
+order x86 processors keep in memory and most file formats on Windows use. The format decides; the
+code must match it field by field, which is why every name carries its width and order: `Get`,
+`Put` and `Append`, for `U16` to `U64`, `I16` to `I64`, `F32` and `F64`, each `LE` or `BE`. A `Get`
+past the end of the buffer is a run-time error, the same as indexing an array past its end.
+
+The values are **varints**: each byte carries seven bits and a flag saying whether another byte
+follows, so 5 takes one byte and a million three. `AppendVarint` first folds the sign in, so that
+-2 stays as short as 2. `ReadUVarint( buf, at )` and `ReadVarint` read one value at `at` and move
+`at` past it, which is what lets the loop walk the list without knowing where each value ends.
+
+The buffer is a `containers.Array( of ubyte )`, so `fs.WriteAllBytes` and `fs.ReadAllBytes` move it
+to and from a file whole, and `MemoryStream` and `File.Write` take its bytes as they are.
+
 ### Streams
 
 A `File` is a **`Stream`**: something that bytes can be read from, written to, or both. A
@@ -467,6 +496,8 @@ should say so through its exit code, not only through what it prints.
   `strings.SplitCsvRow` splits a line of comma-separated fields.
 - `ReadAt` and `WriteAt` read and write fixed-size records at a position; every field must be
   fixed-size.
+- `std/codec` lays out binary formats in a byte `Array`: `Get`/`Put`/`Append` + width + `LE`/`BE`,
+  and LEB128 varints with `AppendUVarint`/`ReadUVarint`.
 - A `File` is a `Stream`, like `MemoryStream`; buffers, text readers and writers, and `Copy` work on
   any stream, including one you write by extending `fs.Stream`.
 - The `Path*` functions; `Stat` for every fact at once; `ReadDir`, `WalkDir`, `Glob`;
@@ -494,3 +525,6 @@ should say so through its exit code, not only through what it prints.
    want for a file of a few lines, and which for a log of a few gigabytes?
 5. Write a program that runs `exitcode.tiko`'s executable with `exec` and prints a different message
    for exit status 0 and for anything else.
+6. Write `binformat.tiko`'s buffer to a file with `fs.WriteAllBytes`, read it back with
+   `fs.ReadAllBytes`, and check the magic number before reading anything else. What should a
+   reader do with a file whose version it does not know?

@@ -1,0 +1,14 @@
+#import "std/codec"
+
+'' A decoder that guesses hides corrupt data. This one refuses.
+dim inputs( 0 to 3 ) as ustring = _
+    { "aGVsbG8=", "aGVsbG8", "aGVs bG8=", "aGVsbG9=" }
+
+for each t in inputs
+    var r = codec.Base64DecodeText( t )
+    if r.IsOk( ) then
+        print t; " -> "; r.Value( )
+    else
+        print t; " -> "; r.Failure( ).Message( )
+    end if
+next

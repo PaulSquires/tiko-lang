@@ -1,0 +1,25 @@
+#import "std/uuids"
+
+'' NewV4 is random; NewV7 starts with the time, so later ones sort later.
+dim ids( 0 to 2 ) as uuids.Uuid
+for i as int32 = 0 to 2
+    ids( i ) = uuids.NewV7( )
+next
+print "version:"; ids( 0 ).Version( )
+print "sorted by creation? "; ids( 0 ) < ids( 1 ) andalso ids( 1 ) < ids( 2 )
+print "a random one is version"; uuids.NewV4( ).Version( )
+
+'' Parsing takes the usual spellings and always prints one form.
+dim spellings( 0 to 3 ) as ustring = { _
+    "F81D4FAE-7DEC-11D0-A765-00A0C91E6BF6", _
+    "{f81d4fae-7dec-11d0-a765-00a0c91e6bf6}", _
+    "f81d4fae7dec11d0a76500a0c91e6bf6", _
+    "f81d4fae-7dec-11d0-a765" }
+for each s in spellings
+    var r = uuids.Parse( s )
+    if r.IsOk( ) then
+        print r.Value( ).ToString( )
+    else
+        print s; ": "; r.Failure( ).Message( )
+    end if
+next

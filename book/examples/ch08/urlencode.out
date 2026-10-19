@@ -1,0 +1,4 @@
+component: fish%20%26%20chips
+form:      fish+%26+chips
+path:      menu/fish%20&%20chips
+decoded:   fish & chips

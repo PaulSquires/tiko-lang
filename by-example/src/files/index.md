@@ -34,6 +34,7 @@ The pages in this section:
 - [Line by line](lines.md): `File`, `TextWriter` and `ReadLines`.
 - [Opening a File](opening.md): the ways to open, and what each refuses.
 - [Records at a position](records.md): `ReadAt` and `WriteAt`.
+- [Binary formats](binary.md): numbers in a byte order, and varints.
 - [Streams](streams.md): one interface for files, memory and your own types.
 - [File information](metadata.md): `Stat` and the yes-or-no questions.
 - [Directories](directories.md): creating, walking and removing trees.

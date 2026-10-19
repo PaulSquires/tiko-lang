@@ -1,0 +1,31 @@
+#import "std/codec"
+#import "std/containers"
+#import "std/fs"
+
+'' A record in a fixed binary layout: id, temperature, then a name.
+dim rec as containers.Array( of ubyte )
+codec.AppendU32LE( rec, 1042 )               '' 4 bytes, little-endian
+codec.AppendF32LE( rec, 21.5 )               '' 4 bytes, IEEE 754
+dim tag as ustring = "lab"
+codec.AppendUVarint( rec, len( tag ) )       '' the length, then the bytes
+for i as int32 = 1 to len( tag )
+    rec.Push( asc( tag, i ) )
+next
+print "record: "; codec.HexEncode( rec, true )
+
+dim scratch as ustring = fs.CreateTempDir( ).Value( )
+dim path as ustring = fs.PathJoin( scratch, "record.dat" )
+fs.WriteAllBytes( path, rec )
+
+'' Read the file back and pick the fields out again.
+dim got as containers.Array( of ubyte )
+fs.ReadAllBytes( path, got )
+dim at as int32 = 8
+dim n as uint64 = codec.ReadUVarint( got, at ).Value( )
+dim label as ustring
+for i as int32 = 0 to n - 1
+    label &= chr( got[ at + i ] )
+next
+print "id: "; codec.GetU32LE( got, 0 ); ", temp:"; codec.GetF32LE( got, 4 ); _
+    ", label: "; label
+fs.RemoveDirAll( scratch )

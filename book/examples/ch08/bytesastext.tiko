@@ -1,0 +1,20 @@
+#import "std/codec"
+#import "std/containers"
+
+'' Four bytes that no text format can carry as they are.
+dim raw as containers.Array( of ubyte )
+dim b( 0 to 3 ) as uint8 = { &h00, &hFB, &hFF, &h7F }
+for i as int32 = 0 to 3
+    raw.Push( b( i ) )
+next
+
+print "hex:     "; codec.HexEncode( raw )
+print "base64:  "; codec.Base64Encode( raw )
+print "url-safe "; codec.Base64Encode( raw, codec.B64_URL, false )
+
+'' Text is encoded as its UTF-8 bytes, and decodes back the same.
+dim word as ustring = "na" & wchr( &hEF ) & "ve"
+dim enc as ustring = codec.Base64Encode( word )
+print "naive:   "; enc
+dim back as ustring = codec.Base64DecodeText( enc ).Value( )
+print "same:    "; cbool( back = word )

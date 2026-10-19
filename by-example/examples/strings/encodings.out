@@ -1,0 +1,6 @@
+base64: dXNlcjpzZWNyZXQ=
+hex:    757365723a736563726574
+back:   user:secret
+query:  ?q=rock+%26+roll%2Flive
+path:   /rock%20%26%20roll%2Flive
+error:  Base64DecodeText: invalid character at 5

@@ -1,0 +1,16 @@
+#import "std/codec"
+
+'' Base64 and hex carry bytes through places that only take text.
+dim token as ustring = "user:secret"
+print "base64: "; codec.Base64Encode( token )
+print "hex:    "; codec.HexEncode( token )
+print "back:   "; codec.Base64DecodeText( "dXNlcjpzZWNyZXQ=" ).Value( )
+
+'' Percent-encoding makes text safe inside a URL.
+dim search as ustring = "rock & roll/live"
+print "query:  ?q="; codec.PercentEncode( search, codec.PCT_QUERY )
+print "path:   /"; codec.PercentEncode( search )
+
+'' Decoding is strict: it says what is wrong, and where.
+var bad = codec.Base64DecodeText( "dXNl!jpz" )
+if bad.IsOk( ) = false then print "error:  "; bad.Failure( ).Message( )

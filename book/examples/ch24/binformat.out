@@ -1,0 +1,5 @@
+ 14 bytes: 544B4F310200040AD8040380897A
+magic   544B4F31
+version 2
+values 5 300 -2 1000000
+read up to byte 14

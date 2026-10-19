@@ -1,0 +1,26 @@
+#import "std/codec"
+#import "std/containers"
+
+'' A small binary format: a magic number, a version, then a count
+'' and the values, each as short as it can be.
+dim buf as containers.Array( of ubyte )
+codec.AppendU32BE( buf, &h544B4F31 )            '' "TKO1"
+codec.AppendU16LE( buf, 2 )
+dim values( 0 to 3 ) as int64 = { 5, 300, -2, 1000000 }
+codec.AppendUVarint( buf, 4 )
+for i as int32 = 0 to 3
+    codec.AppendVarint( buf, values( i ) )
+next
+print buf.Count( ); " bytes: "; codec.HexEncode( buf, true )
+
+'' Reading it back, field by field.
+print "magic   "; hex( codec.GetU32BE( buf, 0 ) )
+print "version "; codec.GetU16LE( buf, 4 )
+dim at as int32 = 6
+dim n as uint64 = codec.ReadUVarint( buf, at ).Value( )
+dim shown as ustring = "values"
+for i as int32 = 1 to n
+    shown &= " " & codec.ReadVarint( buf, at ).Value( )
+next
+print shown
+print "read up to byte"; at
