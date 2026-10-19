@@ -35,3 +35,24 @@ section opens with a short overview page, and each page ends with a few
 If you want the longer explanation of why tiko works the way it does, read
 [*The tiko Programming Language*](https://tiko-lang.net/book/), the book this
 site accompanies.
+
+## Where to look things up
+
+An example shows one way to use a feature. The full definition of every
+keyword, option and library function is in the **tiko wiki**,
+[github.com/PaulSquires/tiko-lang/wiki](https://github.com/PaulSquires/tiko-lang/wiki),
+the language's reference documentation:
+
+- [**Feature Index**](https://github.com/PaulSquires/tiko-lang/wiki/Feature-Index)
+  — every language feature and library, one line each, with a link to its
+  reference page.
+- [**Function Finder**](https://github.com/PaulSquires/tiko-lang/wiki/Function-Finder)
+  — every function, grouped by what you want to do, with one line on what each
+  one does.
+- [**Keyword Index**](https://github.com/PaulSquires/tiko-lang/wiki/Keyword-Index)
+  — every keyword, statement and operator, A to Z.
+- [**Quick Start**](https://github.com/PaulSquires/tiko-lang/wiki/Quick-Start)
+  — building a toolchain and compiling your first program.
+
+When an example uses a function you have not met, the Function Finder is the
+fastest way to its page.

@@ -241,6 +241,19 @@ two tools exist and both are worth the five minutes:
 
 Chapter 18 comes back to both, together with testing and the debugger.
 
+## Looking things up
+
+The reference for everything this book does not spell out — every keyword's full syntax, every
+compiler option, every function in the standard library — is the **tiko wiki**, at
+[github.com/PaulSquires/tiko-lang/wiki](https://github.com/PaulSquires/tiko-lang/wiki). Two pages
+answer most questions: the
+[Feature Index](https://github.com/PaulSquires/tiko-lang/wiki/Feature-Index), one line per
+language feature and library, and the
+[Function Finder](https://github.com/PaulSquires/tiko-lang/wiki/Function-Finder), every function
+grouped by the job it does. The wiki's
+[Quick Start](https://github.com/PaulSquires/tiko-lang/wiki/Quick-Start) covers building a
+toolchain from source, which this chapter does not.
+
 ## Summary
 
 - A tiko installation is a directory you unpack anywhere; the compiler locates its own headers and
@@ -256,6 +269,8 @@ Chapter 18 comes back to both, together with testing and the debugger.
   `-Werror` suits discipline.
 - Build with `-exx` while you learn, and let a listing carry its own options with `#cmdline`.
 - `ustring` is the string type, and numeric types say their width: `int32`, `int64`, `float64`.
+- The reference for every keyword, option and function is the tiko wiki; start from its Feature
+  Index or Function Finder.
 
 ## Exercises
 
