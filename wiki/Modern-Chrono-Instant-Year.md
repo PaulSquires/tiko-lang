@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.Year**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.Year**
 
-# Instant.Year
+# DateTime.Year
 
 Returns the year, 1 to 9999.
 
 ## Syntax
 
 ```freebasic
-Instant.Year
+DateTime.Year
 ```
 
 ## Examples

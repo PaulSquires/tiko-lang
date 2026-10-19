@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.OffsetMinutes**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.OffsetMinutes**
 
-# Instant.OffsetMinutes
+# DateTime.OffsetMinutes
 
 Returns the UTC offset in minutes; check HasOffset first, as no offset reads 32767.
 
 ## Syntax
 
 ```freebasic
-Instant.OffsetMinutes
+DateTime.OffsetMinutes
 ```
 
 ## Examples

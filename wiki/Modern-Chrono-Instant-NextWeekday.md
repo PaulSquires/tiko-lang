@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.NextWeekday**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.NextWeekday**
 
-# Instant.NextWeekday
+# DateTime.NextWeekday
 
 Returns the same time on the next given weekday, always strictly later.
 
 ## Syntax
 
 ```freebasic
-Instant.NextWeekday( dow )
+DateTime.NextWeekday( dow )
 ```
 
 ## Examples

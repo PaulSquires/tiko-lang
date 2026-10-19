@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.Month**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.Month**
 
-# Instant.Month
+# DateTime.Month
 
 Returns the month, 1 to 12.
 
 ## Syntax
 
 ```freebasic
-Instant.Month
+DateTime.Month
 ```
 
 ## Examples

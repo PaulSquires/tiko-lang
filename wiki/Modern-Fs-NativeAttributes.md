@@ -1,13 +1,13 @@
-[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **NativeAttributes**
+[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **FileInfo.NativeAttributes**
 
-# NativeAttributes
+# FileInfo.NativeAttributes
 
 Returns the raw attribute word: file attributes on Windows, the mode bits on Linux.
 
 ## Syntax
 
 ```freebasic
-NativeAttributes( )
+FileInfo.NativeAttributes( )
 ```
 
 ## Examples

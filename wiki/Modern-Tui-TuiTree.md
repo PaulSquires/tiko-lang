@@ -28,8 +28,8 @@ using tui
 dim as TuiTreeState st
 dim as TuiTree t
 t.Add( "src", 0, TRUE, 1 )
-t.Add( "fb", 1, TRUE, 2 )
-t.Add( "tui.bi", 2, FALSE, 3 )
+t.Add( "std", 1, TRUE, 2 )
+t.Add( "tui.tiko", 2, FALSE, 3 )
 t.Add( "docs", 0, TRUE, 4 )
 t.state = @st
 t.useUnicode = TRUE

@@ -17,11 +17,11 @@ LocalTime.ToIsoString
 using chrono
 
 print LocalTime( 14, 30, 5, 0 ).ToIsoString( )         '' 14:30:05
-print LocalTime( 14, 30, 5, 123 ).ToIsoString( )    '' 14:30:05.123
+print LocalTime( 14, 30, 5, 123 ).ToIsoString( )    '' 14:30:05.1230000
 print LocalTime.Midnight( ).ToIsoString( )          '' 00:00:00
 
 '' ISO 8601, so it round-trips through ParseIso. The fraction appears
-'' only when it is non-zero.
+'' only when it is non-zero, and then always with seven digits.
 ```
 
 ---

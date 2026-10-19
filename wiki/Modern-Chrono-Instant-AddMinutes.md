@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.AddMinutes**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.AddMinutes**
 
-# Instant.AddMinutes
+# DateTime.AddMinutes
 
 Returns the date-time moved by a number of minutes, fractions allowed.
 
 ## Syntax
 
 ```freebasic
-Instant.AddMinutes
+DateTime.AddMinutes
 ```
 
 ## Examples

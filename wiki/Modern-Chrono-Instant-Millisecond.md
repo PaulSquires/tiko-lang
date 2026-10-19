@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.Millisecond**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.Millisecond**
 
-# Instant.Millisecond
+# DateTime.Millisecond
 
 Returns the milliseconds within the second, 0 to 999.
 
 ## Syntax
 
 ```freebasic
-Instant.Millisecond
+DateTime.Millisecond
 ```
 
 ## Examples

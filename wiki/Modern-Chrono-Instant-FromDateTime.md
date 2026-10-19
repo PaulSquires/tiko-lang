@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.FromDateTime**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.FromDateTime**
 
-# Instant.FromDateTime
+# DateTime.FromDateTime
 
 Returns a date-time that joins a date and a time of day.
 
 ## Syntax
 
 ```freebasic
-Instant.FromDateTime( date, time )
+DateTime.FromDateTime( date, time )
 ```
 
 ## Examples

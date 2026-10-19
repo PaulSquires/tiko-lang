@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.Minute**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.Minute**
 
-# Instant.Minute
+# DateTime.Minute
 
 Returns the minute, 0 to 59.
 
 ## Syntax
 
 ```freebasic
-Instant.Minute
+DateTime.Minute
 ```
 
 ## Examples

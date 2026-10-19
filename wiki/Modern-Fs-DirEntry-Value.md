@@ -1,13 +1,13 @@
-[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **DirEntry.Value**
+[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **DirIterator.Value**
 
-# DirEntry.Value
+# DirIterator.Value
 
 Returns the current entry by reference; the next MoveNext makes it invalid.
 
 ## Syntax
 
 ```freebasic
-DirEntry.Value( )
+DirIterator.Value( )
 ```
 
 ## Notes

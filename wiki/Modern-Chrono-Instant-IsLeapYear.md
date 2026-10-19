@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.IsLeapYear**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.IsLeapYear**
 
-# Instant.IsLeapYear
+# DateTime.IsLeapYear
 
 Returns true if a year is a leap year under the full Gregorian rule.
 
 ## Syntax
 
 ```freebasic
-Instant.IsLeapYear( y )
+DateTime.IsLeapYear( y )
 ```
 
 ## Examples

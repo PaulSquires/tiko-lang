@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.IsoWeekYear**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.IsoWeekYear**
 
-# Instant.IsoWeekYear
+# DateTime.IsoWeekYear
 
 Returns the year the ISO week belongs to, which can differ from Year near New Year.
 
 ## Syntax
 
 ```freebasic
-Instant.IsoWeekYear
+DateTime.IsoWeekYear
 ```
 
 ## Examples

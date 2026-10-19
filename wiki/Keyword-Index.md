@@ -13,6 +13,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [#assert](procedures-Assert) | Preprocessor conditional directive. | [Preprocessor](Category-Preprocessor) |
 | [Abs](Abs) | Returns the absolute value of a number. | [Mathematical Functions](Category-Mathematical-Functions) |
 | [AbsChecked](Modern-Math-AbsChecked) | Returns the absolute value as an Optional, empty for the most negative value. | [Math Library](Category-Math-Library) |
+| [AbsolutePath](Modern-Fs-FileInfo-AbsolutePath) | Returns the full form of a path against the current folder; the path need not exist. | [Filesystem](Category-Filesystem) |
 | [AbsSaturating](Modern-Math-AbsSaturating) | Returns the absolute value; the most negative value becomes the maximum instead. | [Math Library](Category-Math-Library) |
 | [Abstract](Abstract) | Declare abstract methods. | [User Defined Types](Category-User-Defined-Types) |
 | [Access](Access) | Limits a Binary or Random file in Open to reading, writing, or both. | [File I/O Functions](Category-File-I-O-Functions) |
@@ -104,6 +105,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [Call](Call) | Statement to invoke a subroutine. | [Procedures](Category-Procedures) |
 | [CAllocate](Callocate) | Reserves memory for a number of elements, set to zero, and returns a pointer or 0. | [Memory Functions](Category-Memory-Functions) |
 | [Cancel](Modern-Chan-Cancel) | Cancels the context and every context made from it; a second call is harmless. | [Goroutines and Channels](Category-Goroutines-and-Channels) |
+| [CanonicalPath](Modern-Fs-FileInfo-CanonicalPath) | Returns the real path with links resolved; it must exist unless allowMissing is true. | [Filesystem](Category-Filesystem) |
 | [Capacity](Modern-Array-Capacity) | Returns how many elements fit before the array has to grow. | [Array](Category-Array) |
 | [Capacity](Modern-Map-Capacity) | Returns the number of slots in the table, always a power of two. | [Map](Category-Map) |
 | [Capacity](Modern-Set-Capacity) | Returns the number of slots in the table, always a power of two. | [Set](Category-Set) |
@@ -274,6 +276,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [COne](Modern-Math-COne) | Returns the complex number 1. | [Math Library](Category-Math-Library) |
 | [Conjugate](Modern-Math-Conjugate) | Returns the conjugate of a quaternion, the reverse rotation when it is normalised. | [Math Library](Category-Math-Library) |
 | [Console Functions](Console-Functions) | Procedures that work with the console. | [Console Functions](Category-Console-Functions) |
+| [ConsoleSink](Modern-Log-LogEvent-ConsoleSink) | Holds a sink that writes to stderr or stdout, in colour only on a terminal. | [Logging](Category-Logging) |
 | [Const](Const) | Non-modifiable variable declaration. | [Variable Declarations](Category-Variable-Declarations) |
 | [Const (Member)](Const-Member) | Specifies that a member procedure is read only. | [User Defined Types](Category-User-Defined-Types) |
 | [Const (Qualifier)](Const-Qualifier) | Specifies that a data type or pointer data type is read only. | [Standard Data Types](Category-Standard-Data-Types) |
@@ -289,7 +292,10 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [Converting Data Types](Converting-Data-Types) | Operators and procedures that convert between different types. | [Converting Data Types](Category-Converting-Data-Types) |
 | [CopyDir](Modern-Fs-CopyDir) | Copies a folder and everything in it; returns how many entries it created. | [Filesystem](Category-Filesystem) |
 | [CopyFile](Modern-Fs-CopyFile) | Copies a file; fails if the destination exists unless overwrite is true. | [Filesystem](Category-Filesystem) |
-| [CopySymlinksAsLinks](Modern-Fs-CopySymlinksAsLinks) | Chooses whether CopyDir copies a link as a link rather than its target; true by default. | [Filesystem](Category-Filesystem) |
+| [CopyOptions.CopySymlinksAsLinks](Modern-Fs-CopySymlinksAsLinks) | Chooses whether CopyDir copies a link as a link rather than its target; true by default. | [Filesystem](Category-Filesystem) |
+| [CopyOptions.Overwrite](Modern-Fs-Overwrite) | Chooses whether CopyDir replaces files already at the destination; false by default. | [Filesystem](Category-Filesystem) |
+| [CopyOptions.PreservePermissions](Modern-Fs-PreservePermissions) | Chooses whether CopyDir keeps permission bits or attributes; false by default. | [Filesystem](Category-Filesystem) |
+| [CopyOptions.PreserveTimestamps](Modern-Fs-PreserveTimestamps) | Chooses whether CopyDir keeps each file's times; false by default. | [Filesystem](Category-Filesystem) |
 | [Correlation](Modern-Math-Correlation) | Returns the Pearson correlation of two arrays, from -1 to 1. | [Math Library](Category-Math-Library) |
 | [Cos](Cos) | Returns the cosine of an angle in radians. | [Mathematical Functions](Category-Mathematical-Functions) |
 | [Count](Modern-Array-Count) | Returns the number of elements; the valid indices are 0 to Count minus 1. | [Array](Category-Array) |
@@ -344,6 +350,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [CurrencyFromRaw](Modern-Finance-CurrencyFromRaw) | Returns a Currency from its stored integer, which is the amount times 10000. | [Finance](Category-Finance) |
 | [CurrencyInvalid](Modern-Finance-CurrencyInvalid) | Returns the Invalid Currency, which overflow also produces; it never equals anything. | [Finance](Category-Finance) |
 | [CurrencyParse](Modern-Finance-CurrencyParse) | Parses text into a Currency exactly; returns empty on bad input or over four places. | [Finance](Category-Finance) |
+| [CurrentDir](Modern-Fs-FileInfo-CurrentDir) | Returns the program's current folder. | [Filesystem](Category-Filesystem) |
 | [CurrentLocaleFormat](Modern-Math-CurrentLocaleFormat) | Returns a NumFormat holding this machine's decimal and thousands separators. | [Math Library](Category-Math-Library) |
 | [CUShort](Cushort) | Converts a number or string to a UShort, rounding to the nearest; no overflow check. | [Converting Data Types](Category-Converting-Data-Types) |
 | [Custom](Custom) | Calls your own function for each pixel to combine source and destination in Put. | [2D Drawing Functions](Category-2D-Drawing-Functions) |
@@ -373,6 +380,83 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [DateDiff](Datediff) | Counts the years, months, days or other units between two date serials. | [Date and Time Functions](Category-Date-and-Time-Functions) |
 | [DatePart](Datepart) | Returns one part of a date serial, such as its year, quarter, week or hour. | [Date and Time Functions](Category-Date-and-Time-Functions) |
 | [DateSerial](Dateserial) | Returns the date serial for a year, month and day; out-of-range values roll over. | [Date and Time Functions](Category-Date-and-Time-Functions) |
+| [DateTime](Modern-Chrono-Instant-DateTime) | Creates a date-time from a year, month, day and optional time, or Invalid if none. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.AddCalendarDays](Modern-Chrono-Instant-AddCalendarDays) | Returns the same clock time a number of days later, even across a DST change. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.AddCalendarMonths](Modern-Chrono-Instant-AddCalendarMonths) | Returns the same clock time some months later, clamping the day to the month's end. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.AddCalendarYears](Modern-Chrono-Instant-AddCalendarYears) | Returns the same clock time some years later, with the UTC offset worked out again. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.AddDays](Modern-Chrono-Instant-AddDays) | Returns the date-time moved by days of exactly 24 hours, fractions allowed. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.AddHours](Modern-Chrono-Instant-AddHours) | Returns the date-time moved by a number of hours, fractions allowed. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.AddMilliseconds](Modern-Chrono-Instant-AddMilliseconds) | Returns the date-time moved by a number of milliseconds, fractions allowed. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.AddMinutes](Modern-Chrono-Instant-AddMinutes) | Returns the date-time moved by a number of minutes, fractions allowed. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.AddMonths](Modern-Chrono-Instant-AddMonths) | Returns the date-time moved by whole months, clamping the day to the month's end. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.AddSeconds](Modern-Chrono-Instant-AddSeconds) | Returns the date-time moved by a number of seconds, fractions allowed. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.AddTicks](Modern-Chrono-Instant-AddTicks) | Returns the date-time moved by a number of 100 ns ticks. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.AddYears](Modern-Chrono-Instant-AddYears) | Returns the date-time moved by whole years; 29 February becomes the 28th if needed. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.AssumeUtc](Modern-Chrono-Instant-AssumeUtc) | Returns the moment the date-time names if its clock reading is taken as UTC. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.Day](Modern-Chrono-Instant-Day) | Returns the day of the month, starting at 1. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.DayOfWeek](Modern-Chrono-Instant-DayOfWeek) | Returns the day of the week, 1 for Monday to 7 for Sunday. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.DayOfYear](Modern-Chrono-Instant-DayOfYear) | Returns the day of the year, starting at 1. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.DaysInMonth](Modern-Chrono-Instant-DaysInMonth) | Returns the number of days in a month of a given year. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.DaysInYear](Modern-Chrono-Instant-DaysInYear) | Returns 365 or 366, the number of days in a year. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.EndOfDay](Modern-Chrono-Instant-EndOfDay) | Returns the last tick of the same day, 23:59:59.9999999. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.EndOfMonth](Modern-Chrono-Instant-EndOfMonth) | Returns the last tick of the last day of the month. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.EndOfYear](Modern-Chrono-Instant-EndOfYear) | Returns the last tick of 31 December of the same year. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.FileTime](Modern-Chrono-Instant-FileTime) | Returns the date-time as a Windows FILETIME: 100 ns ticks since 1601-01-01. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.FromDate](Modern-Chrono-Instant-FromDate) | Returns a date-time at midnight on the given date. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.FromDateTime](Modern-Chrono-Instant-FromDateTime) | Returns a date-time that joins a date and a time of day. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.FromFileTime](Modern-Chrono-Instant-FromFileTime) | Creates a UTC date-time from a Windows FILETIME. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.FromInstant](Modern-Chrono-Instant-FromInstant) | Returns the date-time a moment shows on a clock with the given UTC offset. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.FromJulianDay](Modern-Chrono-Instant-FromJulianDay) | Creates a date-time from a fractional Julian day. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.FromOleDate](Modern-Chrono-Instant-FromOleDate) | Creates a date-time from an OLE automation date. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.FromSerial](Modern-Chrono-Instant-FromSerial) | Creates a date-time from a date serial, the days since 1899-12-30. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.GetDate](Modern-Chrono-Instant-GetDate) | Returns the date part as a LocalDate, dropping the time and the offset. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.GetTimeOfDay](Modern-Chrono-Instant-GetTimeOfDay) | Returns the time-of-day part as a LocalTime. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.HasOffset](Modern-Chrono-Instant-HasOffset) | Returns true if the date-time carries a UTC offset. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.Hour](Modern-Chrono-Instant-Hour) | Returns the hour, 0 to 23. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.IsFirstDayOfMonth](Modern-Chrono-Instant-IsFirstDayOfMonth) | Returns true if the date is the first day of its month. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.IsLastDayOfMonth](Modern-Chrono-Instant-IsLastDayOfMonth) | Returns true if the date is the last day of its month. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.IsLeapYear](Modern-Chrono-Instant-IsLeapYear) | Returns true if a year is a leap year under the full Gregorian rule. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.IsoWeek](Modern-Chrono-Instant-IsoWeek) | Returns the ISO week number, 1 to 53; pair it with IsoWeekYear. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.IsoWeekYear](Modern-Chrono-Instant-IsoWeekYear) | Returns the year the ISO week belongs to, which can differ from Year near New Year. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.IsUtc](Modern-Chrono-Instant-IsUtc) | Returns true if the offset is zero; a date-time with no offset is not UTC. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.JulianDay](Modern-Chrono-Instant-JulianDay) | Returns the Julian day, a fractional day count whose days start at noon. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.JulianDayNumber](Modern-Chrono-Instant-JulianDayNumber) | Returns the whole Julian day number, without the fraction. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.Microsecond](Modern-Chrono-Instant-Microsecond) | Returns the microseconds within the second, the milliseconds included. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.Millisecond](Modern-Chrono-Instant-Millisecond) | Returns the milliseconds within the second, 0 to 999. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.Minute](Modern-Chrono-Instant-Minute) | Returns the minute, 0 to 59. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.Month](Modern-Chrono-Instant-Month) | Returns the month, 1 to 12. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.MonthName](Modern-Chrono-Instant-MonthName) | Returns the English name of a month number, or its three-letter abbreviation. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.MonthUName](Modern-Chrono-Instant-MonthUName) | Returns the English name of a month number, or its abbreviation, as a ustring. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.NextWeekday](Modern-Chrono-Instant-NextWeekday) | Returns the same time on the next given weekday, always strictly later. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.OffsetMinutes](Modern-Chrono-Instant-OffsetMinutes) | Returns the UTC offset in minutes; check HasOffset first, as no offset reads 32767. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.OleDate](Modern-Chrono-Instant-OleDate) | Returns the date-time as an OLE automation date, the number Excel and ADO use. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.ParseExact](Modern-Chrono-Instant-ParseExact) | Reads text laid out by a pattern such as "dd/MM/yyyy", or Invalid if it does not match. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.PrevWeekday](Modern-Chrono-Instant-PrevWeekday) | Returns the same time on the previous given weekday, always strictly earlier. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.Quarter](Modern-Chrono-Instant-Quarter) | Returns the calendar quarter, 1 to 4. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.Second](Modern-Chrono-Instant-Second) | Returns the second, 0 to 59. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.Serial](Modern-Chrono-Instant-Serial) | Returns the date-time as a date serial: days since 1899-12-30, with a fraction. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.StartOfDay](Modern-Chrono-Instant-StartOfDay) | Returns midnight at the start of the same day, keeping the offset. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.StartOfMonth](Modern-Chrono-Instant-StartOfMonth) | Returns midnight on the first day of the month. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.StartOfWeek](Modern-Chrono-Instant-StartOfWeek) | Returns midnight on the first day of the week, Monday unless told otherwise. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.StartOfYear](Modern-Chrono-Instant-StartOfYear) | Returns midnight on 1 January of the same year. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.TickOfDay](Modern-Chrono-Instant-TickOfDay) | Returns the time of day as one number: 100 ns ticks since midnight. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.ToInstant](Modern-Chrono-Instant-ToInstant) | Returns the moment the date-time names, or Invalid if it has no offset. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.ToLocal](Modern-Chrono-Instant-ToLocal) | Returns the same moment shown at the machine's local UTC offset. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.ToLocaleDateString](Modern-Chrono-Instant-ToLocaleDateString) | Returns the date as the machine's locale writes it, for display only. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.ToLocaleDateUString](Modern-Chrono-Instant-ToLocaleDateUString) | Returns the date in the machine's locale format as a ustring, for display only. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.ToLocaleString](Modern-Chrono-Instant-ToLocaleString) | Returns the date and time as the machine's locale writes them, for display only. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.ToLocaleTimeString](Modern-Chrono-Instant-ToLocaleTimeString) | Returns the time of day as the machine's locale writes it, for display only. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.ToLocaleTimeUString](Modern-Chrono-Instant-ToLocaleTimeUString) | Returns the time in the machine's locale format as a ustring, for display only. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.ToLocaleUString](Modern-Chrono-Instant-ToLocaleUString) | Returns the date and time in the machine's locale format as a ustring. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.ToOffset](Modern-Chrono-Instant-ToOffset) | Converts to another UTC offset, keeping the moment and changing the clock reading. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.TryFormat](Modern-Chrono-Instant-TryFormat) | Formats the date-time with a pattern into a variable; returns false if the pattern is bad. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.TryParse](Modern-Chrono-Instant-TryParse) | Reads ISO 8601 text into a date-time, the same as TryParseIso. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.TryParseExact](Modern-Chrono-Instant-TryParseExact) | Reads text laid out by a pattern into a date-time; returns false if it does not match. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.WeekdayName](Modern-Chrono-Instant-WeekdayName) | Returns the English name of a weekday, 1 being Monday, or its abbreviation. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.WeekdayUName](Modern-Chrono-Instant-WeekdayUName) | Returns the English name of a weekday, 1 being Monday, as a ustring. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.WeeksInYear](Modern-Chrono-Instant-WeeksInYear) | Returns 52 or 53, the number of ISO weeks in a year. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.WithOffset](Modern-Chrono-Instant-WithOffset) | Attaches a UTC offset in minutes, keeping the clock reading and changing the moment. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.Year](Modern-Chrono-Instant-Year) | Returns the year, 1 to 9999. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [DateValue](Datevalue) | Returns the date serial for text written in the system's date format. | [Date and Time Functions](Category-Date-and-Time-Functions) |
 | [Day](Day) | Returns the day of the month of a date serial. | [Date and Time Functions](Category-Date-and-Time-Functions) |
 | [Deallocate](Deallocate) | Frees memory from Allocate, CAllocate or Reallocate; does nothing for a null pointer. | [Memory Functions](Category-Memory-Functions) |
@@ -406,23 +490,17 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [Dim](Dim) | Declares a variable. | [Variable Declarations](Category-Variable-Declarations) |
 | [Dir](Dir) | Returns the first name matching a pattern, then the next one on each later call. | [Operating System Functions](Category-Operating-System-Functions) |
 | [DirEntry.Depth](Modern-Fs-DirEntry-Depth) | Returns how deep the entry is in a walk, 0 for the children of the folder walked. | [Filesystem](Category-Filesystem) |
-| [DirEntry.DirIterator](Modern-Fs-DirEntry-DirIterator) | Holds the iterator ReadDir hands out, for stepping through a folder without for each. | [Filesystem](Category-Filesystem) |
-| [DirEntry.FollowSymlinks](Modern-Fs-DirEntry-FollowSymlinks) | Chooses whether a walk enters linked folders; false by default, so it cannot loop. | [Filesystem](Category-Filesystem) |
-| [DirEntry.IncludeHidden](Modern-Fs-DirEntry-IncludeHidden) | Chooses whether a walk returns hidden entries; true by default. | [Filesystem](Category-Filesystem) |
 | [DirEntry.Info](Modern-Fs-DirEntry-Info) | Returns the entry's FileInfo: free on Windows, one extra system call on Linux. | [Filesystem](Category-Filesystem) |
 | [DirEntry.IsDirectory](Modern-Fs-DirEntry-IsDirectory) | Returns true if the entry is a folder; a link to a folder reports as a link. | [Filesystem](Category-Filesystem) |
 | [DirEntry.IsFile](Modern-Fs-DirEntry-IsFile) | Returns true if the entry is a file; a link reports as a link, not as its target. | [Filesystem](Category-Filesystem) |
 | [DirEntry.IsOther](Modern-Fs-DirEntry-IsOther) | Returns true if the entry is a device, pipe or socket rather than a file, folder or link. | [Filesystem](Category-Filesystem) |
 | [DirEntry.IsSymlink](Modern-Fs-DirEntry-IsSymlink) | Returns true if the entry is a symbolic link. | [Filesystem](Category-Filesystem) |
-| [DirEntry.IsValid](Modern-Fs-DirEntry-IsValid) | Returns true while the iterator is on an entry. | [Filesystem](Category-Filesystem) |
-| [DirEntry.MaxDepth](Modern-Fs-DirEntry-MaxDepth) | Limits how deep a walk goes: 1 is the immediate children, 0 (the default) no limit. | [Filesystem](Category-Filesystem) |
-| [DirEntry.MoveNext](Modern-Fs-DirEntry-MoveNext) | Moves the iterator on to the next entry. | [Filesystem](Category-Filesystem) |
 | [DirEntry.Name](Modern-Fs-DirEntry-Name) | Returns the entry's name, without its folder. | [Filesystem](Category-Filesystem) |
 | [DirEntry.Path](Modern-Fs-DirEntry-Path) | Returns the entry's full path, ready to open. | [Filesystem](Category-Filesystem) |
-| [DirEntry.StopOnError](Modern-Fs-DirEntry-StopOnError) | Chooses whether a walk ends at its first error; false by default, so it carries on. | [Filesystem](Category-Filesystem) |
-| [DirEntry.Value](Modern-Fs-DirEntry-Value) | Returns the current entry by reference; the next MoveNext makes it invalid. | [Filesystem](Category-Filesystem) |
-| [DirEntry.WalkIterator](Modern-Fs-DirEntry-WalkIterator) | Holds the iterator WalkDir hands out, for stepping through a walk without for each. | [Filesystem](Category-Filesystem) |
-| [DirEntry.YieldDirectories](Modern-Fs-DirEntry-YieldDirectories) | Chooses whether a walk returns folders as well as files; true by default. | [Filesystem](Category-Filesystem) |
+| [DirIterator](Modern-Fs-DirEntry-DirIterator) | Holds the iterator ReadDir hands out, for stepping through a folder without for each. | [Filesystem](Category-Filesystem) |
+| [DirIterator.IsValid](Modern-Fs-DirEntry-IsValid) | Returns true while the iterator is on an entry. | [Filesystem](Category-Filesystem) |
+| [DirIterator.MoveNext](Modern-Fs-DirEntry-MoveNext) | Moves the iterator on to the next entry. | [Filesystem](Category-Filesystem) |
+| [DirIterator.Value](Modern-Fs-DirEntry-Value) | Returns the current entry by reference; the next MoveNext makes it invalid. | [Filesystem](Category-Filesystem) |
 | [DiskSpace.AvailableBytes](Modern-Fs-DiskSpace-AvailableBytes) | Returns the bytes this user may still write; the number to check before writing. | [Filesystem](Category-Filesystem) |
 | [DiskSpace.FreeBytes](Modern-Fs-DiskSpace-FreeBytes) | Returns the free bytes on the volume, ignoring quotas; the number to report. | [Filesystem](Category-Filesystem) |
 | [DiskSpace.TotalBytes](Modern-Fs-DiskSpace-TotalBytes) | Returns the capacity of the volume in bytes. | [Filesystem](Category-Filesystem) |
@@ -514,11 +592,8 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [FileDateTime](Filedatetime) | Returns when a file was last modified, as a date serial. | [Operating System Functions](Category-Operating-System-Functions) |
 | [FileExists](Fileexists) | Returns non-zero if the file exists, or 0 if it does not. | [Operating System Functions](Category-Operating-System-Functions) |
 | [FileFlush](Fileflush) | Writes buffered output for one or all open files to the system, or on to disk. | [Operating System Functions](Category-Operating-System-Functions) |
-| [FileInfo.AbsolutePath](Modern-Fs-FileInfo-AbsolutePath) | Returns the full form of a path against the current folder; the path need not exist. | [Filesystem](Category-Filesystem) |
 | [FileInfo.AccessedUtc](Modern-Fs-FileInfo-AccessedUtc) | Returns the last-access time in ticks, or 0 when HasAccessed is false. | [Filesystem](Category-Filesystem) |
-| [FileInfo.CanonicalPath](Modern-Fs-FileInfo-CanonicalPath) | Returns the real path with links resolved; it must exist unless allowMissing is true. | [Filesystem](Category-Filesystem) |
 | [FileInfo.CreatedUtc](Modern-Fs-FileInfo-CreatedUtc) | Returns the creation time in ticks, or 0 when HasCreated is false. | [Filesystem](Category-Filesystem) |
-| [FileInfo.CurrentDir](Modern-Fs-FileInfo-CurrentDir) | Returns the program's current folder. | [Filesystem](Category-Filesystem) |
 | [FileInfo.Exists](Modern-Fs-FileInfo-Exists) | Returns true if the FileInfo describes something that exists. | [Filesystem](Category-Filesystem) |
 | [FileInfo.HasAccessed](Modern-Fs-FileInfo-HasAccessed) | Returns true if the platform records access times, so Accessed means something. | [Filesystem](Category-Filesystem) |
 | [FileInfo.HasCreated](Modern-Fs-FileInfo-HasCreated) | Returns true if the platform records creation times, so Created means something. | [Filesystem](Category-Filesystem) |
@@ -530,7 +605,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [FileInfo.IsSymlink](Modern-Fs-FileInfo-IsSymlink) | Returns true if the path is a symbolic link; only ever true from LStat. | [Filesystem](Category-Filesystem) |
 | [FileInfo.ModifiedUtc](Modern-Fs-FileInfo-ModifiedUtc) | Returns the last-write time in ticks of 100 ns since 0001-01-01 UTC. | [Filesystem](Category-Filesystem) |
 | [FileInfo.NativeAttributes](Modern-Fs-FileInfo-NativeAttributes) | Returns the raw attribute word: file attributes on Windows, the mode bits on Linux. | [Filesystem](Category-Filesystem) |
-| [FileInfo.SetCurrentDir](Modern-Fs-FileInfo-SetCurrentDir) | Changes the program's current folder, for every thread at once. | [Filesystem](Category-Filesystem) |
+| [FileInfo.NativeAttributes](Modern-Fs-NativeAttributes) | Returns the raw attribute word: file attributes on Windows, the mode bits on Linux. | [Filesystem](Category-Filesystem) |
 | [FileInfo.Size](Modern-Fs-FileInfo-Size) | Returns the size in bytes. | [Filesystem](Category-Filesystem) |
 | [FileLen](Filelen) | Returns the size of a named file in bytes. | [Operating System Functions](Category-Operating-System-Functions) |
 | [FileLock.Acquire](Modern-Fs-FileLock-Acquire) | Takes a lock on a file that cooperating programs share, waiting up to a timeout. | [Filesystem](Category-Filesystem) |
@@ -656,102 +731,25 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [Insert](Modern-Array-Insert) | Inserts a value at a position, moving the later elements up one place. | [Array](Category-Array) |
 | [InsertAt](Modern-String-InsertAt) | Inserts text at a position. | [String Library](Category-String-Library) |
 | [Instant.Add](Modern-Chrono-Instant-Add) | Returns the date-time moved forward by a TimeSpan. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.AddCalendarDays](Modern-Chrono-Instant-AddCalendarDays) | Returns the same clock time a number of days later, even across a DST change. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.AddCalendarMonths](Modern-Chrono-Instant-AddCalendarMonths) | Returns the same clock time some months later, clamping the day to the month's end. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.AddCalendarYears](Modern-Chrono-Instant-AddCalendarYears) | Returns the same clock time some years later, with the UTC offset worked out again. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.AddDays](Modern-Chrono-Instant-AddDays) | Returns the date-time moved by days of exactly 24 hours, fractions allowed. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.AddHours](Modern-Chrono-Instant-AddHours) | Returns the date-time moved by a number of hours, fractions allowed. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.AddMilliseconds](Modern-Chrono-Instant-AddMilliseconds) | Returns the date-time moved by a number of milliseconds, fractions allowed. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.AddMinutes](Modern-Chrono-Instant-AddMinutes) | Returns the date-time moved by a number of minutes, fractions allowed. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.AddMonths](Modern-Chrono-Instant-AddMonths) | Returns the date-time moved by whole months, clamping the day to the month's end. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.AddSeconds](Modern-Chrono-Instant-AddSeconds) | Returns the date-time moved by a number of seconds, fractions allowed. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.AddTicks](Modern-Chrono-Instant-AddTicks) | Returns the date-time moved by a number of 100 ns ticks. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.AddYears](Modern-Chrono-Instant-AddYears) | Returns the date-time moved by whole years; 29 February becomes the 28th if needed. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.AssumeUtc](Modern-Chrono-Instant-AssumeUtc) | Returns the moment the date-time names if its clock reading is taken as UTC. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [Instant.CompareTo](Modern-Chrono-Instant-CompareTo) | Returns -1, 0 or 1 to order two moments, or -2 if either is Invalid. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.DateTime](Modern-Chrono-Instant-DateTime) | Creates a date-time from a year, month, day and optional time, or Invalid if none. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.Day](Modern-Chrono-Instant-Day) | Returns the day of the month, starting at 1. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.DayOfWeek](Modern-Chrono-Instant-DayOfWeek) | Returns the day of the week, 1 for Monday to 7 for Sunday. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.DayOfYear](Modern-Chrono-Instant-DayOfYear) | Returns the day of the year, starting at 1. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.DaysInMonth](Modern-Chrono-Instant-DaysInMonth) | Returns the number of days in a month of a given year. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.DaysInYear](Modern-Chrono-Instant-DaysInYear) | Returns 365 or 366, the number of days in a year. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.EndOfDay](Modern-Chrono-Instant-EndOfDay) | Returns the last tick of the same day, 23:59:59.9999999. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.EndOfMonth](Modern-Chrono-Instant-EndOfMonth) | Returns the last tick of the last day of the month. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.EndOfYear](Modern-Chrono-Instant-EndOfYear) | Returns the last tick of 31 December of the same year. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.FileTime](Modern-Chrono-Instant-FileTime) | Returns the date-time as a Windows FILETIME: 100 ns ticks since 1601-01-01. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.FromDate](Modern-Chrono-Instant-FromDate) | Returns a date-time at midnight on the given date. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.FromDateTime](Modern-Chrono-Instant-FromDateTime) | Returns a date-time that joins a date and a time of day. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.FromFileTime](Modern-Chrono-Instant-FromFileTime) | Creates a UTC date-time from a Windows FILETIME. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.FromInstant](Modern-Chrono-Instant-FromInstant) | Returns the date-time a moment shows on a clock with the given UTC offset. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.FromJulianDay](Modern-Chrono-Instant-FromJulianDay) | Creates a date-time from a fractional Julian day. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.FromOleDate](Modern-Chrono-Instant-FromOleDate) | Creates a date-time from an OLE automation date. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.FromSerial](Modern-Chrono-Instant-FromSerial) | Creates a date-time from a date serial, the days since 1899-12-30. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [Instant.FromTicks](Modern-Chrono-Instant-FromTicks) | Creates a moment from 100 ns ticks since 0001-01-01, or Invalid if out of range. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [Instant.FromUnixMicroseconds](Modern-Chrono-Instant-FromUnixMicroseconds) | Returns the moment a number of microseconds after 1970-01-01 UTC. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [Instant.FromUnixMilliseconds](Modern-Chrono-Instant-FromUnixMilliseconds) | Returns the moment a number of milliseconds after 1970-01-01 UTC. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [Instant.FromUnixSeconds](Modern-Chrono-Instant-FromUnixSeconds) | Returns the moment a number of seconds after 1970-01-01 UTC; negative is earlier. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.GetDate](Modern-Chrono-Instant-GetDate) | Returns the date part as a LocalDate, dropping the time and the offset. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.GetTimeOfDay](Modern-Chrono-Instant-GetTimeOfDay) | Returns the time-of-day part as a LocalTime. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.HasOffset](Modern-Chrono-Instant-HasOffset) | Returns true if the date-time carries a UTC offset. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.Hour](Modern-Chrono-Instant-Hour) | Returns the hour, 0 to 23. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [Instant.Instant](Modern-Chrono-Instant-Instant) | Creates a moment on the UTC timeline from a tick count; Invalid with no argument. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [Instant.Invalid](Modern-Chrono-Instant-Invalid) | Returns the Invalid date-time, which never equals anything, itself included. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.IsFirstDayOfMonth](Modern-Chrono-Instant-IsFirstDayOfMonth) | Returns true if the date is the first day of its month. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.IsLastDayOfMonth](Modern-Chrono-Instant-IsLastDayOfMonth) | Returns true if the date is the last day of its month. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.IsLeapYear](Modern-Chrono-Instant-IsLeapYear) | Returns true if a year is a leap year under the full Gregorian rule. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.IsoWeek](Modern-Chrono-Instant-IsoWeek) | Returns the ISO week number, 1 to 53; pair it with IsoWeekYear. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.IsoWeekYear](Modern-Chrono-Instant-IsoWeekYear) | Returns the year the ISO week belongs to, which can differ from Year near New Year. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.IsUtc](Modern-Chrono-Instant-IsUtc) | Returns true if the offset is zero; a date-time with no offset is not UTC. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [Instant.IsValid](Modern-Chrono-Instant-IsValid) | Returns true if the date-time is a real, in-range value; the only safe test. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.JulianDay](Modern-Chrono-Instant-JulianDay) | Returns the Julian day, a fractional day count whose days start at noon. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.JulianDayNumber](Modern-Chrono-Instant-JulianDayNumber) | Returns the whole Julian day number, without the fraction. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [Instant.MaxValue](Modern-Chrono-Instant-MaxValue) | Returns the latest date-time, the last tick of 9999-12-31. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.Microsecond](Modern-Chrono-Instant-Microsecond) | Returns the microseconds within the second, the milliseconds included. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.Millisecond](Modern-Chrono-Instant-Millisecond) | Returns the milliseconds within the second, 0 to 999. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.Minute](Modern-Chrono-Instant-Minute) | Returns the minute, 0 to 59. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [Instant.MinValue](Modern-Chrono-Instant-MinValue) | Returns the earliest date-time, midnight on 0001-01-01. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.Month](Modern-Chrono-Instant-Month) | Returns the month, 1 to 12. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.MonthName](Modern-Chrono-Instant-MonthName) | Returns the English name of a month number, or its three-letter abbreviation. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.MonthUName](Modern-Chrono-Instant-MonthUName) | Returns the English name of a month number, or its abbreviation, as a ustring. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.NextWeekday](Modern-Chrono-Instant-NextWeekday) | Returns the same time on the next given weekday, always strictly later. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.OffsetMinutes](Modern-Chrono-Instant-OffsetMinutes) | Returns the UTC offset in minutes; check HasOffset first, as no offset reads 32767. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.OleDate](Modern-Chrono-Instant-OleDate) | Returns the date-time as an OLE automation date, the number Excel and ADO use. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.ParseExact](Modern-Chrono-Instant-ParseExact) | Reads text laid out by a pattern such as "dd/MM/yyyy", or Invalid if it does not match. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [Instant.ParseIso](Modern-Chrono-Instant-ParseIso) | Reads ISO 8601 text into a date-time, or Invalid if it is not ISO 8601. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.PrevWeekday](Modern-Chrono-Instant-PrevWeekday) | Returns the same time on the previous given weekday, always strictly earlier. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.Quarter](Modern-Chrono-Instant-Quarter) | Returns the calendar quarter, 1 to 4. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.Second](Modern-Chrono-Instant-Second) | Returns the second, 0 to 59. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.Serial](Modern-Chrono-Instant-Serial) | Returns the date-time as a date serial: days since 1899-12-30, with a fraction. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.StartOfDay](Modern-Chrono-Instant-StartOfDay) | Returns midnight at the start of the same day, keeping the offset. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.StartOfMonth](Modern-Chrono-Instant-StartOfMonth) | Returns midnight on the first day of the month. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.StartOfWeek](Modern-Chrono-Instant-StartOfWeek) | Returns midnight on the first day of the week, Monday unless told otherwise. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.StartOfYear](Modern-Chrono-Instant-StartOfYear) | Returns midnight on 1 January of the same year. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [Instant.Subtract](Modern-Chrono-Instant-Subtract) | Returns the date-time moved back by a TimeSpan, or Invalid past the earliest date. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.TickOfDay](Modern-Chrono-Instant-TickOfDay) | Returns the time of day as one number: 100 ns ticks since midnight. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [Instant.Ticks](Modern-Chrono-Instant-Ticks) | Returns the 100 ns ticks since 0001-01-01, counted on the value's own clock. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.ToInstant](Modern-Chrono-Instant-ToInstant) | Returns the moment the date-time names, or Invalid if it has no offset. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [Instant.ToIsoString](Modern-Chrono-Instant-ToIsoString) | Returns the date-time as ISO 8601 text, with Z or the offset when it has one. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.ToLocal](Modern-Chrono-Instant-ToLocal) | Returns the same moment shown at the machine's local UTC offset. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.ToLocaleDateString](Modern-Chrono-Instant-ToLocaleDateString) | Returns the date as the machine's locale writes it, for display only. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.ToLocaleDateUString](Modern-Chrono-Instant-ToLocaleDateUString) | Returns the date in the machine's locale format as a ustring, for display only. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.ToLocaleString](Modern-Chrono-Instant-ToLocaleString) | Returns the date and time as the machine's locale writes them, for display only. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.ToLocaleTimeString](Modern-Chrono-Instant-ToLocaleTimeString) | Returns the time of day as the machine's locale writes it, for display only. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.ToLocaleTimeUString](Modern-Chrono-Instant-ToLocaleTimeUString) | Returns the time in the machine's locale format as a ustring, for display only. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.ToLocaleUString](Modern-Chrono-Instant-ToLocaleUString) | Returns the date and time in the machine's locale format as a ustring. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.ToOffset](Modern-Chrono-Instant-ToOffset) | Converts to another UTC offset, keeping the moment and changing the clock reading. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [Instant.ToString](Modern-Chrono-Instant-ToString) | Returns ISO 8601 text, or the date-time laid out by a pattern such as "yyyy-MM-dd". | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.TryFormat](Modern-Chrono-Instant-TryFormat) | Formats the date-time with a pattern into a variable; returns false if the pattern is bad. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.TryParse](Modern-Chrono-Instant-TryParse) | Reads ISO 8601 text into a date-time, the same as TryParseIso. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.TryParseExact](Modern-Chrono-Instant-TryParseExact) | Reads text laid out by a pattern into a date-time; returns false if it does not match. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [Instant.TryParseIso](Modern-Chrono-Instant-TryParseIso) | Reads ISO 8601 text into a date-time; returns false and sets it Invalid on failure. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [Instant.UnixMicroseconds](Modern-Chrono-Instant-UnixMicroseconds) | Returns the microseconds since 1970-01-01 UTC. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [Instant.UnixMilliseconds](Modern-Chrono-Instant-UnixMilliseconds) | Returns the milliseconds since 1970-01-01 UTC. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [Instant.UnixSeconds](Modern-Chrono-Instant-UnixSeconds) | Returns the whole seconds since 1970-01-01 UTC, dropping any fraction. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.WeekdayName](Modern-Chrono-Instant-WeekdayName) | Returns the English name of a weekday, 1 being Monday, or its abbreviation. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.WeekdayUName](Modern-Chrono-Instant-WeekdayUName) | Returns the English name of a weekday, 1 being Monday, as a ustring. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.WeeksInYear](Modern-Chrono-Instant-WeeksInYear) | Returns 52 or 53, the number of ISO weeks in a year. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.WithOffset](Modern-Chrono-Instant-WithOffset) | Attaches a UTC offset in minutes, keeping the clock reading and changing the moment. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [Instant.Year](Modern-Chrono-Instant-Year) | Returns the year, 1 to 9999. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [InStr](Instr) | Returns the position of the first match, or 0 if there is none. | [String Functions](Category-String-Functions) |
 | [InstrChars](Modern-String-InstrChars) | Returns the position of the first character from a set, or 0. | [String Library](Category-String-Library) |
 | [InStrRev](Instrrev) | Returns the position of the last match, or 0 if there is none. | [String Functions](Category-String-Functions) |
@@ -908,15 +906,9 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [LogEvent.AddTime](Modern-Log-LogEvent-AddTime) | Adds a named field holding a point in time. | [Logging](Category-Logging) |
 | [LogEvent.AddUInt](Modern-Log-LogEvent-AddUInt) | Adds a named unsigned 64-bit integer field. | [Logging](Category-Logging) |
 | [LogEvent.AddValue](Modern-Log-LogEvent-AddValue) | Adds a named field from a value you built yourself, of any supported kind. | [Logging](Category-Logging) |
-| [LogEvent.Close](Modern-Log-LogEvent-Close) | Closes a sink and releases what it holds; every kind of sink closes the same way. | [Logging](Category-Logging) |
-| [LogEvent.ConsoleSink](Modern-Log-LogEvent-ConsoleSink) | Holds a sink that writes to stderr or stdout, in colour only on a terminal. | [Logging](Category-Logging) |
-| [LogEvent.DroppedCount](Modern-Log-LogEvent-DroppedCount) | Returns how many records a sink could not write; the count never resets. | [Logging](Category-Logging) |
-| [LogEvent.Flush](Modern-Log-LogEvent-Flush) | Flushes one sink on its own. | [Logging](Category-Logging) |
 | [LogEvent.Msg](Modern-Log-LogEvent-Msg) | Sets the message and sends the record; a record that is never sent logs nothing. | [Logging](Category-Logging) |
-| [LogEvent.Render](Modern-Log-LogEvent-Render) | Appends a record as one line of text to a buffer, without clearing it first. | [Logging](Category-Logging) |
 | [LogEvent.Send](Modern-Log-LogEvent-Send) | Sends the record without a message, for a record that is only fields. | [Logging](Category-Logging) |
 | [LogEvent.Site](Modern-Log-LogEvent-Site) | Records the file, line and procedure the record came from. | [Logging](Category-Logging) |
-| [LogEvent.Write](Modern-Log-LogEvent-Write) | Writes one record to a sink; the method a sink of your own overrides. | [Logging](Category-Logging) |
 | [Logging](Category-Logging) |  | [Logging](Category-Logging) |
 | [Logical Operators](Logical-Operators) | Operators that perform bitwise logic. | [Operators](Category-Operators) |
 | [Long](Long) | Standard data type: 32-bit signed integer. | [Standard Data Types](Category-Standard-Data-Types) |
@@ -1011,7 +1003,6 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [Namespace](Namespace) | Declares a namespace block. | [Modularizing](Category-Modularizing) |
 | [NaN](Modern-Math-NaN) | Returns a Double that is NaN, not a number. | [Math Library](Category-Math-Library) |
 | [NaNF](Modern-Math-NaNF) | Returns a Single that is NaN, not a number. | [Math Library](Category-Math-Library) |
-| [NativeAttributes](Modern-Fs-NativeAttributes) | Returns the raw attribute word: file attributes on Windows, the mode bits on Linux. | [Filesystem](Category-Filesystem) |
 | [NegChecked](Modern-Math-NegChecked) | Negates an integer, returning an empty Optional for the most negative value. | [Math Library](Category-Math-Library) |
 | [NegInfinity](Modern-Math-NegInfinity) | Returns negative infinity as a Double. | [Math Library](Category-Math-Library) |
 | [NegInfinityF](Modern-Math-NegInfinityF) | Returns negative infinity as a Single. | [Math Library](Category-Math-Library) |
@@ -1177,7 +1168,6 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [Output](Output) | Opens a text file for writing with Open, creating it or emptying it first. | [File I/O Functions](Category-File-I-O-Functions) |
 | [Overload](Overload) | Specifies that a procedure name can be overloaded. | [Procedures](Category-Procedures) |
 | [Override](Override) | Method attribute; specifies that a method must override a virtual. | [User Defined Types](Category-User-Defined-Types) |
-| [Overwrite](Modern-Fs-Overwrite) | Chooses whether CopyDir replaces files already at the destination; false by default. | [Filesystem](Category-Filesystem) |
 
 ## P
 
@@ -1235,8 +1225,6 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [Preprocessor](Preprocessor) | Commands that control the preprocessor. | [Preprocessor](Category-Preprocessor) |
 | [Preprocessor Operators](Preprocessor-Operators) | Operators that are executed by the preprocessor. | [Operators](Category-Operators) |
 | [Preserve](Preserve) | Keeps the existing elements when ReDim resizes an array. | [Array Functions](Category-Array-Functions) |
-| [PreservePermissions](Modern-Fs-PreservePermissions) | Chooses whether CopyDir keeps permission bits or attributes; false by default. | [Filesystem](Category-Filesystem) |
-| [PreserveTimestamps](Modern-Fs-PreserveTimestamps) | Chooses whether CopyDir keeps each file's times; false by default. | [Filesystem](Category-Filesystem) |
 | [PReset](Preset) | Plots one pixel, in the given colour or the current background colour. | [2D Drawing Functions](Category-2D-Drawing-Functions) |
 | [Print | ?](Print) | Writes values to the console, then a new line unless it ends with a comma or semicolon. | [Console Functions](Category-Console-Functions) |
 | [Private](Private) | Specifies a procedure having internal linkage. | [Modularizing](Category-Modularizing) |
@@ -1356,6 +1344,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [Select Case](procedures-Select-Case) | Conditional statement block. | [Control Flow Statements](Category-Control-Flow-Statements) |
 | [Set](Category-Set) |  | [Set](Category-Set) |
 | [Set](Modern-Set-Set) | Holds each value at most once, in no particular order. | [Set](Category-Set) |
+| [SetCurrentDir](Modern-Fs-FileInfo-SetCurrentDir) | Changes the program's current folder, for every thread at once. | [Filesystem](Category-Filesystem) |
 | [SetDate](Setdate) | Sets the system date from text like mm-dd-yyyy; needs admin rights, 0 means success. | [Date and Time Functions](Category-Date-and-Time-Functions) |
 | [SetEnviron](Setenviron) | Sets an environment variable from "NAME=value" text; returns 0 on success. | [Operating System Functions](Category-Operating-System-Functions) |
 | [SetHidden](Modern-Fs-SetHidden) | Sets or clears a file's hidden flag on Windows; fails as unsupported on Linux. | [Filesystem](Category-Filesystem) |
@@ -1381,6 +1370,10 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [Sign](Modern-Math-Sign) | Returns -1, 0 or 1 for the sign of a number, always as a Long. | [Math Library](Category-Math-Library) |
 | [Sin](Sin) | Returns the sine of an angle in radians. | [Mathematical Functions](Category-Mathematical-Functions) |
 | [Single](Single) | Standard data type: 32 bit floating point. | [Standard Data Types](Category-Standard-Data-Types) |
+| [Sink.Close](Modern-Log-LogEvent-Close) | Closes a sink and releases what it holds; every kind of sink closes the same way. | [Logging](Category-Logging) |
+| [Sink.DroppedCount](Modern-Log-LogEvent-DroppedCount) | Returns how many records a sink could not write; the count never resets. | [Logging](Category-Logging) |
+| [Sink.Flush](Modern-Log-LogEvent-Flush) | Flushes one sink on its own. | [Logging](Category-Logging) |
+| [Sink.Write](Modern-Log-LogEvent-Write) | Writes one record to a sink; the method a sink of your own overrides. | [Logging](Category-Logging) |
 | [SinkCount](Modern-Log-SinkCount) | Returns how many sinks are attached to the logger. | [Logging](Category-Logging) |
 | [SizeOf](Sizeof) | Returns the size of a variable or type in bytes. | [Miscellaneous Keywords](Category-Miscellaneous-Keywords) |
 | [Sleep](Sleep) | Waits until a specified time has elapsed, or a key is pressed. | [Miscellaneous Keywords](Category-Miscellaneous-Keywords) |
@@ -1461,6 +1454,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [Tan](Tan) | Returns the tangent of an angle in radians. | [Mathematical Functions](Category-Mathematical-Functions) |
 | [TempDir](Modern-Fs-TempDir) | Returns the system's temporary folder; creates nothing. | [Filesystem](Category-Filesystem) |
 | [TestFpException](Modern-Math-TestFpException) | Returns true if a floating-point exception flag has been raised since it was cleared. | [Math Library](Category-Math-Library) |
+| [TextRenderer.Render](Modern-Log-LogEvent-Render) | Appends a record as one line of text to a buffer, without clearing it first. | [Logging](Category-Logging) |
 | [Then](Then) | Control flow statement for conditional branching. | [Miscellaneous Keywords](Category-Miscellaneous-Keywords) |
 | [This](This) | Hidden instance parameter passed to non-static member functions in a Type or Class. | [User Defined Types](Category-User-Defined-Types) |
 | [ThreadCall](Threadcall) |  | [Threading Support Functions](Category-Threading-Support-Functions) |
@@ -1616,6 +1610,12 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [Wait](Modern-Chan-Wait) | Waits until the work outstanding reaches zero. | [Goroutines and Channels](Category-Goroutines-and-Channels) |
 | [WaitFor](Modern-Chan-WaitFor) | Waits at most ms milliseconds for the work to reach zero; returns false on a timeout. | [Goroutines and Channels](Category-Goroutines-and-Channels) |
 | [WalkDir](Modern-Fs-WalkDir) | Lists every entry under a folder, subfolders included, for a for each loop. | [Filesystem](Category-Filesystem) |
+| [WalkIterator](Modern-Fs-DirEntry-WalkIterator) | Holds the iterator WalkDir hands out, for stepping through a walk without for each. | [Filesystem](Category-Filesystem) |
+| [WalkOptions.FollowSymlinks](Modern-Fs-DirEntry-FollowSymlinks) | Chooses whether a walk enters linked folders; false by default, so it cannot loop. | [Filesystem](Category-Filesystem) |
+| [WalkOptions.IncludeHidden](Modern-Fs-DirEntry-IncludeHidden) | Chooses whether a walk returns hidden entries; true by default. | [Filesystem](Category-Filesystem) |
+| [WalkOptions.MaxDepth](Modern-Fs-DirEntry-MaxDepth) | Limits how deep a walk goes: 1 is the immediate children, 0 (the default) no limit. | [Filesystem](Category-Filesystem) |
+| [WalkOptions.StopOnError](Modern-Fs-DirEntry-StopOnError) | Chooses whether a walk ends at its first error; false by default, so it carries on. | [Filesystem](Category-Filesystem) |
+| [WalkOptions.YieldDirectories](Modern-Fs-DirEntry-YieldDirectories) | Chooses whether a walk returns folders as well as files; true by default. | [Filesystem](Category-Filesystem) |
 | [Warn](Modern-Log-Warn) | Logs a message at the warn level, or returns a record to add fields to. | [Logging](Category-Logging) |
 | [WBin](Wbin) | Returns a number as binary wide-string text. | [String Functions](Category-String-Functions) |
 | [WChr](Wchr) | Returns a wide string made from one or more Unicode code points. | [String Functions](Category-String-Functions) |

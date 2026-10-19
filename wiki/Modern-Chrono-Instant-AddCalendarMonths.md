@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.AddCalendarMonths**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.AddCalendarMonths**
 
-# Instant.AddCalendarMonths
+# DateTime.AddCalendarMonths
 
 Returns the same clock time some months later, clamping the day to the month's end.
 
 ## Syntax
 
 ```freebasic
-Instant.AddCalendarMonths( n )
+DateTime.AddCalendarMonths( n )
 ```
 
 ## Examples

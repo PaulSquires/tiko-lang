@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.AddSeconds**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.AddSeconds**
 
-# Instant.AddSeconds
+# DateTime.AddSeconds
 
 Returns the date-time moved by a number of seconds, fractions allowed.
 
 ## Syntax
 
 ```freebasic
-Instant.AddSeconds
+DateTime.AddSeconds
 ```
 
 ## Examples

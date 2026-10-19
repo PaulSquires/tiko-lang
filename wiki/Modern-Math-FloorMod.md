@@ -7,7 +7,7 @@ Returns the remainder with the divisor's sign, so FloorMod(-1, 5) is 4.
 ## Syntax
 
 ```freebasic
-FloorMod(-7,3)
+FloorMod( byval a as T, byval b as T ) as T
 ```
 
 ## Examples

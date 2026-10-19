@@ -1,14 +1,14 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.ParseExact**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.ParseExact**
 
-# Instant.ParseExact
+# DateTime.ParseExact
 
 Reads text laid out by a pattern such as "dd/MM/yyyy", or Invalid if it does not match.
 
 ## Syntax
 
 ```freebasic
-Instant.ParseExact( s, pattern )
-Instant.ParseExact
+DateTime.ParseExact( s, pattern )
+DateTime.ParseExact
 ```
 
 ## Examples

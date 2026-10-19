@@ -7,26 +7,28 @@ Returns the smallest value in an array, or NaN if it is empty.
 ## Syntax
 
 ```freebasic
-MinOf( a( ) as T ) as float64
+MinOf( byref a as Array( of T ) ) as float64
 ```
 
 ## Notes
 
 - Distinct from `Min`, which compares two values -- this reduces an array.
-- An empty array gives 0.
+- An empty array gives NaN.
 - `Range` is `MaxOf` minus this.
 
 ## Examples
 
 ```freebasic
 #import "std/numeric"
+#import "std/containers"
 using numeric
+using containers
 
-dim as float64 a( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 6.0 }
+dim as Array( of float64 ) a = { 2.0, 4.0, 4.0, 4.0, 6.0 }
 
-print MinOf( a( ) )          '' 2
-print MaxOf( a( ) )          '' 6
-print Range( a( ) )          '' 4 -- the difference
+print MinOf( a )          '' 2
+print MaxOf( a )          '' 6
+print Range( a )          '' 4 -- the difference
 ```
 
 ---

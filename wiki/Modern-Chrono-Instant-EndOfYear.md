@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.EndOfYear**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.EndOfYear**
 
-# Instant.EndOfYear
+# DateTime.EndOfYear
 
 Returns the last tick of 31 December of the same year.
 
 ## Syntax
 
 ```freebasic
-Instant.EndOfYear
+DateTime.EndOfYear
 ```
 
 ## Examples

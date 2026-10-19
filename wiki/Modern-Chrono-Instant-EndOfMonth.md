@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.EndOfMonth**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.EndOfMonth**
 
-# Instant.EndOfMonth
+# DateTime.EndOfMonth
 
 Returns the last tick of the last day of the month.
 
 ## Syntax
 
 ```freebasic
-Instant.EndOfMonth
+DateTime.EndOfMonth
 ```
 
 ## Examples

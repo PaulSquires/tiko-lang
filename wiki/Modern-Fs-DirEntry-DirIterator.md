@@ -1,6 +1,6 @@
-[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **DirEntry.DirIterator**
+[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **DirIterator**
 
-# DirEntry.DirIterator
+# DirIterator
 
 Holds the iterator ReadDir hands out, for stepping through a folder without for each.
 

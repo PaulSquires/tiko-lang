@@ -1,6 +1,6 @@
-[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **LogEvent.Close**
+[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **Sink.Close**
 
-# LogEvent.Close
+# Sink.Close
 
 Closes a sink and releases what it holds; every kind of sink closes the same way.
 

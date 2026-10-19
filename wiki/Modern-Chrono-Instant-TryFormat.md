@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.TryFormat**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.TryFormat**
 
-# Instant.TryFormat
+# DateTime.TryFormat
 
 Formats the date-time with a pattern into a variable; returns false if the pattern is bad.
 
 ## Syntax
 
 ```freebasic
-Instant.TryFormat( pattern, result )
+DateTime.TryFormat( pattern, result )
 ```
 
 ## Examples

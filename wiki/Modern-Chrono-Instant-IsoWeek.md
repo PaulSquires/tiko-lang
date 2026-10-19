@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.IsoWeek**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.IsoWeek**
 
-# Instant.IsoWeek
+# DateTime.IsoWeek
 
 Returns the ISO week number, 1 to 53; pair it with IsoWeekYear.
 
 ## Syntax
 
 ```freebasic
-Instant.IsoWeek
+DateTime.IsoWeek
 ```
 
 ## Examples

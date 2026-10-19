@@ -7,7 +7,7 @@ Returns the sample standard deviation of an array, dividing by n-1.
 ## Syntax
 
 ```freebasic
-StdDev( a( ) as T ) as float64
+StdDev( byref a as Array( of T ) ) as float64
 ```
 
 ## Notes
@@ -20,12 +20,14 @@ StdDev( a( ) as T ) as float64
 
 ```freebasic
 #import "std/numeric"
+#import "std/containers"
 using numeric
+using containers
 
-dim as float64 a( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 6.0 }
+dim as Array( of float64 ) a = { 2.0, 4.0, 4.0, 4.0, 6.0 }
 
-print StdDev( a( ) )             '' 1.414213562373095
-print StdDev( a( ) ) ^ 2         '' 2 -- Variance, give or take rounding
+print StdDev( a )             '' 1.414213562373095
+print StdDev( a ) ^ 2         '' 2 -- Variance, give or take rounding
 ```
 
 ---

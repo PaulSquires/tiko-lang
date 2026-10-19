@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.Serial**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.Serial**
 
-# Instant.Serial
+# DateTime.Serial
 
 Returns the date-time as a date serial: days since 1899-12-30, with a fraction.
 
 ## Syntax
 
 ```freebasic
-Instant.Serial
+DateTime.Serial
 ```
 
 ## Examples

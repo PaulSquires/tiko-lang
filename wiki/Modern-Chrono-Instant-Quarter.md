@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.Quarter**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.Quarter**
 
-# Instant.Quarter
+# DateTime.Quarter
 
 Returns the calendar quarter, 1 to 4.
 
 ## Syntax
 
 ```freebasic
-Instant.Quarter
+DateTime.Quarter
 ```
 
 ## Examples

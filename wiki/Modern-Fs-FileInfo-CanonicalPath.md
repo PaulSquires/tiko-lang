@@ -1,6 +1,6 @@
-[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **FileInfo.CanonicalPath**
+[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **CanonicalPath**
 
-# FileInfo.CanonicalPath
+# CanonicalPath
 
 Returns the real path with links resolved; it must exist unless allowMissing is true.
 

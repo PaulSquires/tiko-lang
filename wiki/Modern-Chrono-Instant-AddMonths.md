@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.AddMonths**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.AddMonths**
 
-# Instant.AddMonths
+# DateTime.AddMonths
 
 Returns the date-time moved by whole months, clamping the day to the month's end.
 
 ## Syntax
 
 ```freebasic
-Instant.AddMonths( n )
+DateTime.AddMonths( n )
 ```
 
 ## Examples

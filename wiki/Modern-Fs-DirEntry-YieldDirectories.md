@@ -1,13 +1,13 @@
-[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **DirEntry.YieldDirectories**
+[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **WalkOptions.YieldDirectories**
 
-# DirEntry.YieldDirectories
+# WalkOptions.YieldDirectories
 
 Chooses whether a walk returns folders as well as files; true by default.
 
 ## Syntax
 
 ```freebasic
-DirEntry.YieldDirectories
+WalkOptions.YieldDirectories
 ```
 
 ## Examples

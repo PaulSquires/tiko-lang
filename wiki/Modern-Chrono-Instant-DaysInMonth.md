@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.DaysInMonth**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.DaysInMonth**
 
-# Instant.DaysInMonth
+# DateTime.DaysInMonth
 
 Returns the number of days in a month of a given year.
 
 ## Syntax
 
 ```freebasic
-Instant.DaysInMonth( y, mo )
+DateTime.DaysInMonth( y, mo )
 ```
 
 ## Examples

@@ -1,13 +1,13 @@
-[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **Overwrite**
+[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **CopyOptions.Overwrite**
 
-# Overwrite
+# CopyOptions.Overwrite
 
 Chooses whether CopyDir replaces files already at the destination; false by default.
 
 ## Syntax
 
 ```freebasic
-.Overwrite
+CopyOptions.Overwrite
 ```
 
 ## Examples

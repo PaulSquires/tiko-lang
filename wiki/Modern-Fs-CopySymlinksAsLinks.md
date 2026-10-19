@@ -1,13 +1,13 @@
-[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **CopySymlinksAsLinks**
+[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **CopyOptions.CopySymlinksAsLinks**
 
-# CopySymlinksAsLinks
+# CopyOptions.CopySymlinksAsLinks
 
 Chooses whether CopyDir copies a link as a link rather than its target; true by default.
 
 ## Syntax
 
 ```freebasic
-.CopySymlinksAsLinks
+CopyOptions.CopySymlinksAsLinks
 ```
 
 ## Examples

@@ -12,7 +12,7 @@ Site( file, line, func )
 
 ## Notes
 
-- what the phase-5 macros will fill in
+- what the LogInfo-style macros fill in
 
 ## Examples
 
@@ -20,8 +20,9 @@ Site( file, line, func )
 #import "std/logs"
 using logs
 
-'' File, line and function. Phase 5's macro layer will fill these in
-'' automatically; until then they are passed by hand.
+'' File, line and function. The LogInfo-style macros fill these in
+'' automatically on the default logger; with your own Logger they are
+'' passed by hand.
 ''
 '' TextRenderer.showsite DEFAULTS TO FALSE, so a Site( ) call on the
 '' default sink is captured and then not printed. Turn it on and hand

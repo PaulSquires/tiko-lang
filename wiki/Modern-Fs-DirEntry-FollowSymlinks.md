@@ -1,13 +1,13 @@
-[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **DirEntry.FollowSymlinks**
+[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **WalkOptions.FollowSymlinks**
 
-# DirEntry.FollowSymlinks
+# WalkOptions.FollowSymlinks
 
 Chooses whether a walk enters linked folders; false by default, so it cannot loop.
 
 ## Syntax
 
 ```freebasic
-DirEntry.FollowSymlinks
+WalkOptions.FollowSymlinks
 ```
 
 ## Examples

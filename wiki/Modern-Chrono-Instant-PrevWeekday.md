@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.PrevWeekday**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.PrevWeekday**
 
-# Instant.PrevWeekday
+# DateTime.PrevWeekday
 
 Returns the same time on the previous given weekday, always strictly earlier.
 
 ## Syntax
 
 ```freebasic
-Instant.PrevWeekday( dow )
+DateTime.PrevWeekday( dow )
 ```
 
 ## Examples

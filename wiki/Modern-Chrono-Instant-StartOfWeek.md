@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.StartOfWeek**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.StartOfWeek**
 
-# Instant.StartOfWeek
+# DateTime.StartOfWeek
 
 Returns midnight on the first day of the week, Monday unless told otherwise.
 
 ## Syntax
 
 ```freebasic
-Instant.StartOfWeek( firstDay = DT_MONDAY )
+DateTime.StartOfWeek( firstDay = DT_MONDAY )
 ```
 
 ## Examples

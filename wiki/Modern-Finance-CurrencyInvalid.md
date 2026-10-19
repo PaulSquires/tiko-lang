@@ -12,7 +12,7 @@ CurrencyInvalid( ) as Currency
 
 ## Notes
 
-- Overflow and a failed parse both land here rather than raising, in the same style the chrono types use.
+- Overflow lands here rather than raising, in the same style the chrono types use. A failed parse does not: `CurrencyParse` returns an empty Optional.
 - **Absorbing**: arithmetic touching it yields Invalid, so one bad value in a long sum does not quietly become a plausible number.
 - `IsValid` is the only correct test -- an Invalid does not compare equal to anything, itself included.
 

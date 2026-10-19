@@ -18,7 +18,7 @@ An error reporting function returning a pointer to the name of the module.
 
 Returns a pointer to the string identifying the module where the error occurred.
 
- Returns NULL if the source is not compiled with the *[-exx](Compiler-Option-Exx)* compiler option.
+ The module name is recorded whether or not the source is compiled with the *[-exx](Compiler-Option-Exx)* compiler option. It is [`Erfn`](Erfn) that returns NULL without *-exx*.
 
 ## Remarks
 

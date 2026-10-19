@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.DayOfYear**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.DayOfYear**
 
-# Instant.DayOfYear
+# DateTime.DayOfYear
 
 Returns the day of the year, starting at 1.
 
 ## Syntax
 
 ```freebasic
-Instant.DayOfYear
+DateTime.DayOfYear
 ```
 
 ## Examples

@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.IsLastDayOfMonth**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.IsLastDayOfMonth**
 
-# Instant.IsLastDayOfMonth
+# DateTime.IsLastDayOfMonth
 
 Returns true if the date is the last day of its month.
 
 ## Syntax
 
 ```freebasic
-Instant.IsLastDayOfMonth
+DateTime.IsLastDayOfMonth
 ```
 
 ## Examples

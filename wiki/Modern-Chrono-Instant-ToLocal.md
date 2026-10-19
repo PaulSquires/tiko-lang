@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.ToLocal**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.ToLocal**
 
-# Instant.ToLocal
+# DateTime.ToLocal
 
 Returns the same moment shown at the machine's local UTC offset.
 
 ## Syntax
 
 ```freebasic
-Instant.ToLocal
+DateTime.ToLocal
 ```
 
 ## Examples

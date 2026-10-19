@@ -35,7 +35,9 @@ box.state = @st
 box.placeholder = "your name"
 box.normal = th.normal
 box.focused_ = th.selected        '' visibly different
-box.Render( *(new TuiFrame), TuiRectOf( 0, 0, 0, 0 ) )   '' see below
+
+'' Inside an app's View( byref f as TuiFrame ) it is drawn with
+'' box.Render( f, area )
 
 print st.text                     '' quinn -- read the value straight out
 ```

@@ -21,8 +21,8 @@ dim as LocalTime t = LocalTime( 14, 30, 5, 0 )
 print t.ToString( )          '' 14:30:05
 
 '' The same text as ToIsoString for this type. An Invalid value prints
-'' as "Invalid" rather than as a misleading time.
-print LocalTime.Invalid( ).ToString( )
+'' as an empty string rather than as a misleading time.
+print LocalTime.Invalid( ).ToString( ) = ""   '' -1 (true)
 ```
 
 ---

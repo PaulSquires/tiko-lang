@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.FileTime**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.FileTime**
 
-# Instant.FileTime
+# DateTime.FileTime
 
 Returns the date-time as a Windows FILETIME: 100 ns ticks since 1601-01-01.
 
 ## Syntax
 
 ```freebasic
-Instant.FileTime
+DateTime.FileTime
 ```
 
 ## Examples

@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.ToInstant**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.ToInstant**
 
-# Instant.ToInstant
+# DateTime.ToInstant
 
 Returns the moment the date-time names, or Invalid if it has no offset.
 
 ## Syntax
 
 ```freebasic
-Instant.ToInstant
+DateTime.ToInstant
 ```
 
 ## Examples

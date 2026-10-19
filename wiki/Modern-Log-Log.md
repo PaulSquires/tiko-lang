@@ -21,10 +21,9 @@ Log( lv, m )
 #import "std/logs"
 using logs
 
-'' THERE IS NO PROCESS-WIDE DEFAULT LOGGER in phase 1. A `dim shared`
-'' in a .bi included by two modules gives two of them, so a singleton
-'' needs storage in the runtime and this module deliberately adds no C.
-'' Use an explicit Logger.
+'' The process-wide logger is DefaultLogger( ), set up with LogInit and
+'' used by the LogInfo-style macros. An explicit Logger, as here, is the
+'' alternative when a part of the program wants its own sinks.
 dim con as ConsoleSink
 dim lg as Logger
 lg.AddSink( @con )

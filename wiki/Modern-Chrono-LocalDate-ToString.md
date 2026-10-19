@@ -18,9 +18,9 @@ using chrono
 
 print LocalDate( 2026, 8, 13 ).ToString( )         '' 2026-08-13
 
-'' Same text as ToIsoString for this type. Invalid prints as a word
-'' rather than as a plausible-looking date.
-print LocalDate.Invalid( ).ToString( )
+'' Same text as ToIsoString for this type. Invalid prints as an empty
+'' string rather than as a plausible-looking date.
+print LocalDate.Invalid( ).ToString( ) = ""         '' -1 (true)
 ```
 
 ---

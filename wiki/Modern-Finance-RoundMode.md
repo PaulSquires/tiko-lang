@@ -12,7 +12,7 @@ RoundMode( byval digits as int32, byval mode as int32 ) as Currency
 
 ## Notes
 
-- `Round( digits )` uses half-away-from-zero; this is the form that lets the rule be named instead of assumed.
+- `Round( digits )` is this with half-to-even; this is the form that lets the rule be named instead of assumed.
 - Half-to-even is what accounting standards generally ask for, because a long run of halves rounded away from zero drifts upwards.
 - `digits` is 0 to 4 -- four is where the representation ends.
 - Immutable.

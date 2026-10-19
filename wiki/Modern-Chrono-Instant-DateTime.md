@@ -1,6 +1,6 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.DateTime**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime**
 
-# Instant.DateTime
+# DateTime
 
 Creates a date-time from a year, month, day and optional time, or Invalid if none.
 

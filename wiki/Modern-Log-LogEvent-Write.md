@@ -1,6 +1,6 @@
-[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **LogEvent.Write**
+[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **Sink.Write**
 
-# LogEvent.Write
+# Sink.Write
 
 Writes one record to a sink; the method a sink of your own overrides.
 

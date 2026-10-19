@@ -14,7 +14,7 @@ RunningStats.MinValue( ) as float64
 
 - Tracked as values arrive, so it costs one comparison per `Add` rather than a second pass.
 - `MinOf` is the array equivalent.
-- On an empty accumulator it reads as 0.
+- On an empty accumulator it reads as NaN.
 
 ## Examples
 

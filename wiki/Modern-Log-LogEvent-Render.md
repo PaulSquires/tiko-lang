@@ -1,6 +1,6 @@
-[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **LogEvent.Render**
+[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **TextRenderer.Render**
 
-# LogEvent.Render
+# TextRenderer.Render
 
 Appends a record as one line of text to a buffer, without clearing it first.
 
@@ -33,7 +33,7 @@ r.message = "hello"
 tr.Render( r, out_ )
 print len( out_ ) > 0        '' -1 (true) -- the line was rendered
 
-'' JsonRenderer is phase 2; TextRenderer is the only one here
+'' JsonRenderer is the other renderer: one JSON object per line
 ```
 
 ---

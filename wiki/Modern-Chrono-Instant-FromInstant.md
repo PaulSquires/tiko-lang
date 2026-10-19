@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.FromInstant**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.FromInstant**
 
-# Instant.FromInstant
+# DateTime.FromInstant
 
 Returns the date-time a moment shows on a clock with the given UTC offset.
 
 ## Syntax
 
 ```freebasic
-Instant.FromInstant( instant, offMin )
+DateTime.FromInstant( instant, offMin )
 ```
 
 ## Examples

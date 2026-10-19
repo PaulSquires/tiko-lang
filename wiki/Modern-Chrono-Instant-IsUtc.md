@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.IsUtc**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.IsUtc**
 
-# Instant.IsUtc
+# DateTime.IsUtc
 
 Returns true if the offset is zero; a date-time with no offset is not UTC.
 
 ## Syntax
 
 ```freebasic
-Instant.IsUtc
+DateTime.IsUtc
 ```
 
 ## Examples

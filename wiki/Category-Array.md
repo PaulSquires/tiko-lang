@@ -81,12 +81,12 @@ Sorting is in sort.tiko, in the same std/containers module, documented under [So
 
 'a.At( 1 ) = 11' does NOT assign. It parses as an equality expression and warns:
 
-```freebasic
-warning 34(1): '=' parsed as equality operator in function argument,
-               not assignment to BYREF function result
+```text
+warning TKO0931: '=' is read as a comparison inside the argument of 'at', not as an
+assignment to its byref result; to assign, write '( at( ... ) ) = value'
 ```
 
-That is a language rule about byref function results, not something this container can fix. At( ) is for reading and for passing byref; use a\[ 1 \] = 11 to write.
+That is a language rule about byref function results, not something this container can fix. At( ) is for reading and for passing byref; use a\[ 1 \] = 11 to write, or wrap the call in parentheses: '( a.At( 1 ) ) = 11'.
 
 ## WHY Sort, IndexOf AND Contains ARE NOT MEMBERS
 

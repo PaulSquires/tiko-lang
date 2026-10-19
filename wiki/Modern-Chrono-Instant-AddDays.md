@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.AddDays**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.AddDays**
 
-# Instant.AddDays
+# DateTime.AddDays
 
 Returns the date-time moved by days of exactly 24 hours, fractions allowed.
 
 ## Syntax
 
 ```freebasic
-Instant.AddDays
+DateTime.AddDays
 ```
 
 ## Examples

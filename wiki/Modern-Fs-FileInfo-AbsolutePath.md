@@ -1,6 +1,6 @@
-[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **FileInfo.AbsolutePath**
+[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **AbsolutePath**
 
-# FileInfo.AbsolutePath
+# AbsolutePath
 
 Returns the full form of a path against the current folder; the path need not exist.
 

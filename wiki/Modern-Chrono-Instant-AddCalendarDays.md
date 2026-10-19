@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.AddCalendarDays**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.AddCalendarDays**
 
-# Instant.AddCalendarDays
+# DateTime.AddCalendarDays
 
 Returns the same clock time a number of days later, even across a DST change.
 
 ## Syntax
 
 ```freebasic
-Instant.AddCalendarDays( n )
+DateTime.AddCalendarDays( n )
 ```
 
 ## Examples

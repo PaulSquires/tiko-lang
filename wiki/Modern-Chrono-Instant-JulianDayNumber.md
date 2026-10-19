@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.JulianDayNumber**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.JulianDayNumber**
 
-# Instant.JulianDayNumber
+# DateTime.JulianDayNumber
 
 Returns the whole Julian day number, without the fraction.
 
 ## Syntax
 
 ```freebasic
-Instant.JulianDayNumber
+DateTime.JulianDayNumber
 ```
 
 ## Examples

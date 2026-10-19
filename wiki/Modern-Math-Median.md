@@ -7,7 +7,7 @@ Returns the middle value of an array, without reordering it.
 ## Syntax
 
 ```freebasic
-Median( a( ) as T ) as float64
+Median( byref a as Array( of T ) ) as float64
 ```
 
 ## Notes
@@ -20,16 +20,18 @@ Median( a( ) as T ) as float64
 
 ```freebasic
 #import "std/numeric"
+#import "std/containers"
 using numeric
+using containers
 
-dim as float64 a( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 6.0 }
+dim as Array( of float64 ) a = { 2.0, 4.0, 4.0, 4.0, 6.0 }
 
-print Median( a( ) )         '' 4
+print Median( a )         '' 4
 
 '' One absurd value moves the mean and leaves the median alone
-dim as float64 b( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 1e9 }
-print Median( b( ) )         '' 4
-print Mean( b( ) ) > 1e8     '' -1 (true)
+dim as Array( of float64 ) b = { 2.0, 4.0, 4.0, 4.0, 1e9 }
+print Median( b )         '' 4
+print Mean( b ) > 1e8     '' -1 (true)
 ```
 
 ---

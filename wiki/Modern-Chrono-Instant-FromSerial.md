@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.FromSerial**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.FromSerial**
 
-# Instant.FromSerial
+# DateTime.FromSerial
 
 Creates a date-time from a date serial, the days since 1899-12-30.
 
 ## Syntax
 
 ```freebasic
-Instant.FromSerial( float64 )
+DateTime.FromSerial( float64 )
 ```
 
 ## Examples

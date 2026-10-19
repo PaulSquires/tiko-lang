@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.DaysInYear**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.DaysInYear**
 
-# Instant.DaysInYear
+# DateTime.DaysInYear
 
 Returns 365 or 366, the number of days in a year.
 
 ## Syntax
 
 ```freebasic
-Instant.DaysInYear( y )
+DateTime.DaysInYear( y )
 ```
 
 ## Examples

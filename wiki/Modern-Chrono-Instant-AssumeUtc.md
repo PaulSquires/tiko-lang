@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.AssumeUtc**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.AssumeUtc**
 
-# Instant.AssumeUtc
+# DateTime.AssumeUtc
 
 Returns the moment the date-time names if its clock reading is taken as UTC.
 
 ## Syntax
 
 ```freebasic
-Instant.AssumeUtc
+DateTime.AssumeUtc
 ```
 
 ## Examples

@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.WeekdayName**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.WeekdayName**
 
-# Instant.WeekdayName
+# DateTime.WeekdayName
 
 Returns the English name of a weekday, 1 being Monday, or its abbreviation.
 
 ## Syntax
 
 ```freebasic
-Instant.WeekdayName( dow [, abbrev] )
+DateTime.WeekdayName( dow [, abbrev] )
 ```
 
 ## Examples

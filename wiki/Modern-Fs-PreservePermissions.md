@@ -1,13 +1,13 @@
-[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **PreservePermissions**
+[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **CopyOptions.PreservePermissions**
 
-# PreservePermissions
+# CopyOptions.PreservePermissions
 
 Chooses whether CopyDir keeps permission bits or attributes; false by default.
 
 ## Syntax
 
 ```freebasic
-.PreservePermissions
+CopyOptions.PreservePermissions
 ```
 
 ## Examples

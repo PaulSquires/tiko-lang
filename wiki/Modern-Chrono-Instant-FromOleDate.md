@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.FromOleDate**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.FromOleDate**
 
-# Instant.FromOleDate
+# DateTime.FromOleDate
 
 Creates a date-time from an OLE automation date.
 
 ## Syntax
 
 ```freebasic
-Instant.FromOleDate( float64 )
+DateTime.FromOleDate( float64 )
 ```
 
 ## Examples

@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.MonthName**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.MonthName**
 
-# Instant.MonthName
+# DateTime.MonthName
 
 Returns the English name of a month number, or its three-letter abbreviation.
 
 ## Syntax
 
 ```freebasic
-Instant.MonthName( mo [, abbrev] )
+DateTime.MonthName( mo [, abbrev] )
 ```
 
 ## Examples

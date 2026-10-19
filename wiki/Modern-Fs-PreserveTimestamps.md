@@ -1,13 +1,13 @@
-[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **PreserveTimestamps**
+[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **CopyOptions.PreserveTimestamps**
 
-# PreserveTimestamps
+# CopyOptions.PreserveTimestamps
 
 Chooses whether CopyDir keeps each file's times; false by default.
 
 ## Syntax
 
 ```freebasic
-.PreserveTimestamps
+CopyOptions.PreserveTimestamps
 ```
 
 ## Examples

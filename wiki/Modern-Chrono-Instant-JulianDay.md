@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.JulianDay**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.JulianDay**
 
-# Instant.JulianDay
+# DateTime.JulianDay
 
 Returns the Julian day, a fractional day count whose days start at noon.
 
 ## Syntax
 
 ```freebasic
-Instant.JulianDay
+DateTime.JulianDay
 ```
 
 ## Examples

@@ -1,13 +1,13 @@
-[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **DirEntry.MaxDepth**
+[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **WalkOptions.MaxDepth**
 
-# DirEntry.MaxDepth
+# WalkOptions.MaxDepth
 
 Limits how deep a walk goes: 1 is the immediate children, 0 (the default) no limit.
 
 ## Syntax
 
 ```freebasic
-DirEntry.MaxDepth
+WalkOptions.MaxDepth
 ```
 
 ## Examples

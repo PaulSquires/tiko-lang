@@ -7,7 +7,7 @@ Returns a remainder that is never negative, whatever the signs.
 ## Syntax
 
 ```freebasic
-EuclidMod(-7,-3)
+EuclidMod( byval a as T, byval b as T ) as T
 ```
 
 ## Examples

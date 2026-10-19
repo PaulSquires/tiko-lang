@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.HasOffset**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.HasOffset**
 
-# Instant.HasOffset
+# DateTime.HasOffset
 
 Returns true if the date-time carries a UTC offset.
 
 ## Syntax
 
 ```freebasic
-Instant.HasOffset
+DateTime.HasOffset
 ```
 
 ## Examples

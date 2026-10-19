@@ -1,6 +1,6 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **ToLocaleString**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.ToLocaleString**
 
-# ToLocaleString
+# DateTime.ToLocaleString
 
 Returns the date and time as the machine's locale writes them, for display only.
 

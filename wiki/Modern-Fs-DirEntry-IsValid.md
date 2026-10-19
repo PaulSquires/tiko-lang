@@ -1,13 +1,13 @@
-[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **DirEntry.IsValid**
+[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **DirIterator.IsValid**
 
-# DirEntry.IsValid
+# DirIterator.IsValid
 
 Returns true while the iterator is on an entry.
 
 ## Syntax
 
 ```freebasic
-DirEntry.IsValid( )
+DirIterator.IsValid( )
 ```
 
 ## Notes

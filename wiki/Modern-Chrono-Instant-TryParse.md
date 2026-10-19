@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.TryParse**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.TryParse**
 
-# Instant.TryParse
+# DateTime.TryParse
 
 Reads ISO 8601 text into a date-time, the same as TryParseIso.
 
 ## Syntax
 
 ```freebasic
-Instant.TryParse
+DateTime.TryParse
 ```
 
 ## Examples

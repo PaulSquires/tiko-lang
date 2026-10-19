@@ -21,11 +21,15 @@ v.Push( 10 ) : v.Push( 20 )
 
 print v.At( 1 )          '' 20
 
-'' At returns BYREF, so it assigns in place
-v.At( 0 ) = 99
-print v[ 0 ]             '' 99
+'' At returns BYREF, but 'v.At( 0 ) = 99' is read as a comparison, not
+'' an assignment (warning TKO0931). Write through [] instead, or wrap
+'' the call in parentheses
+v[ 0 ] = 99
+print v.At( 0 )          '' 99
+( v.At( 1 ) ) = 77
+print v[ 1 ]             '' 77
 
-'' Identical to the [] operator; At reads better through a pointer:
+'' For reading it is the [] operator; At reads better through a pointer:
 '' p->At( 0 ) rather than (*p)[ 0 ]
 ```
 

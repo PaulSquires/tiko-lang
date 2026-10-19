@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.FromDate**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.FromDate**
 
-# Instant.FromDate
+# DateTime.FromDate
 
 Returns a date-time at midnight on the given date.
 
 ## Syntax
 
 ```freebasic
-Instant.FromDate( date )
+DateTime.FromDate( date )
 ```
 
 ## Examples

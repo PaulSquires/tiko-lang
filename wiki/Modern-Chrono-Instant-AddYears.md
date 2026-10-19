@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.AddYears**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.AddYears**
 
-# Instant.AddYears
+# DateTime.AddYears
 
 Returns the date-time moved by whole years; 29 February becomes the 28th if needed.
 
 ## Syntax
 
 ```freebasic
-Instant.AddYears( n )
+DateTime.AddYears( n )
 ```
 
 ## Examples

@@ -1,6 +1,6 @@
-[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **LogEvent.Flush**
+[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **Sink.Flush**
 
-# LogEvent.Flush
+# Sink.Flush
 
 Flushes one sink on its own.
 

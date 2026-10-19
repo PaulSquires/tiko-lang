@@ -7,7 +7,7 @@ Returns the Pearson correlation of two arrays, from -1 to 1.
 ## Syntax
 
 ```freebasic
-Correlation( x( ) as T, y( ) as T ) as float64
+Correlation( byref x as Array( of T ), byref y as Array( of T ) ) as float64
 ```
 
 ## Notes
@@ -21,16 +21,18 @@ Correlation( x( ) as T, y( ) as T ) as float64
 
 ```freebasic
 #import "std/numeric"
+#import "std/containers"
 using numeric
+using containers
 
-dim as float64 x( 0 to 4 ) = { 1.0, 2.0, 3.0, 4.0, 5.0 }
-dim as float64 y( 0 to 4 ) = { 2.0, 4.0, 6.0, 8.0, 10.0 }
+dim as Array( of float64 ) x = { 1.0, 2.0, 3.0, 4.0, 5.0 }
+dim as Array( of float64 ) y = { 2.0, 4.0, 6.0, 8.0, 10.0 }
 
-print Correlation( x( ), y( ) )               '' 0.9999999999999998 --
+print Correlation( x, y )               '' 0.9999999999999998 --
                              '' a perfect line, to within one rounding
 
-dim as float64 down( 0 to 4 ) = { 10.0, 8.0, 6.0, 4.0, 2.0 }
-print Correlation( x( ), down( ) )            '' -0.9999999999999998
+dim as Array( of float64 ) down = { 10.0, 8.0, 6.0, 4.0, 2.0 }
+print Correlation( x, down )            '' -0.9999999999999998
 ```
 
 ---

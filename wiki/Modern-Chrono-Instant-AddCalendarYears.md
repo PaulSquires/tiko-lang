@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.AddCalendarYears**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.AddCalendarYears**
 
-# Instant.AddCalendarYears
+# DateTime.AddCalendarYears
 
 Returns the same clock time some years later, with the UTC offset worked out again.
 
 ## Syntax
 
 ```freebasic
-Instant.AddCalendarYears( n )
+DateTime.AddCalendarYears( n )
 ```
 
 ## Examples

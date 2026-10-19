@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.Day**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.Day**
 
-# Instant.Day
+# DateTime.Day
 
 Returns the day of the month, starting at 1.
 
 ## Syntax
 
 ```freebasic
-Instant.Day
+DateTime.Day
 ```
 
 ## Examples

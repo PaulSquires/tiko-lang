@@ -1,6 +1,6 @@
-[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **FileInfo.SetCurrentDir**
+[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **SetCurrentDir**
 
-# FileInfo.SetCurrentDir
+# SetCurrentDir
 
 Changes the program's current folder, for every thread at once.
 

@@ -7,7 +7,7 @@ Returns the population standard deviation of an array, dividing by n.
 ## Syntax
 
 ```freebasic
-StdDevPopulation( a( ) as T ) as float64
+StdDevPopulation( byref a as Array( of T ) ) as float64
 ```
 
 ## Notes
@@ -19,12 +19,14 @@ StdDevPopulation( a( ) as T ) as float64
 
 ```freebasic
 #import "std/numeric"
+#import "std/containers"
 using numeric
+using containers
 
-dim as float64 a( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 6.0 }
+dim as Array( of float64 ) a = { 2.0, 4.0, 4.0, 4.0, 6.0 }
 
-print StdDevPopulation( a( ) )   '' 1.264911064067352
-print StdDevPopulation( a( ) ) < StdDev( a( ) )       '' -1 (true)
+print StdDevPopulation( a )   '' 1.264911064067352
+print StdDevPopulation( a ) < StdDev( a )       '' -1 (true)
 ```
 
 ---

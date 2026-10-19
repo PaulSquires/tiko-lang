@@ -1,13 +1,13 @@
-[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **DirEntry.StopOnError**
+[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **WalkOptions.StopOnError**
 
-# DirEntry.StopOnError
+# WalkOptions.StopOnError
 
 Chooses whether a walk ends at its first error; false by default, so it carries on.
 
 ## Syntax
 
 ```freebasic
-DirEntry.StopOnError
+WalkOptions.StopOnError
 ```
 
 ## Examples

@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.AddTicks**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.AddTicks**
 
-# Instant.AddTicks
+# DateTime.AddTicks
 
 Returns the date-time moved by a number of 100 ns ticks.
 
 ## Syntax
 
 ```freebasic
-Instant.AddTicks( n )
+DateTime.AddTicks( n )
 ```
 
 ## Examples

@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.Second**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.Second**
 
-# Instant.Second
+# DateTime.Second
 
 Returns the second, 0 to 59.
 
 ## Syntax
 
 ```freebasic
-Instant.Second
+DateTime.Second
 ```
 
 ## Examples

@@ -1,6 +1,6 @@
-[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **DirEntry.WalkIterator**
+[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **WalkIterator**
 
-# DirEntry.WalkIterator
+# WalkIterator
 
 Holds the iterator WalkDir hands out, for stepping through a walk without for each.
 

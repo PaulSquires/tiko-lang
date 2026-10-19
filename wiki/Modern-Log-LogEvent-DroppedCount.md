@@ -1,6 +1,6 @@
-[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **LogEvent.DroppedCount**
+[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **Sink.DroppedCount**
 
-# LogEvent.DroppedCount
+# Sink.DroppedCount
 
 Returns how many records a sink could not write; the count never resets.
 
@@ -24,7 +24,7 @@ lg.Info( "one record" )
 
 '' How many records this sink threw away. A ConsoleSink writes
 '' synchronously and drops nothing, so it is always 0; the counter
-'' exists for phase 6's AsyncSink, whose queue can overflow.
+'' matters for AsyncSink, whose queue can overflow.
 print con.DroppedCount( )    '' 0
 ```
 

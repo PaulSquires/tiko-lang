@@ -1,13 +1,13 @@
-[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **DirEntry.IncludeHidden**
+[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **WalkOptions.IncludeHidden**
 
-# DirEntry.IncludeHidden
+# WalkOptions.IncludeHidden
 
 Chooses whether a walk returns hidden entries; true by default.
 
 ## Syntax
 
 ```freebasic
-DirEntry.IncludeHidden
+WalkOptions.IncludeHidden
 ```
 
 ## Examples

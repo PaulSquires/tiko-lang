@@ -7,26 +7,28 @@ Counts the elements in an array.
 ## Syntax
 
 ```freebasic
-Count( a( ) as T ) as uint64
+Count( byref a as Array( of T ) ) as uint64
 ```
 
 ## Notes
 
-- Present so that a statistic and its sample size come from the same place -- `ubound( a ) - lbound( a ) + 1` is the same number written three ways to get wrong.
+- Present so that a statistic and its sample size come from the same place.
 - It is also a `RunningStats` member, where it counts what has been added so far.
 
 ## Examples
 
 ```freebasic
 #import "std/numeric"
+#import "std/containers"
 using numeric
+using containers
 
-dim as float64 a( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 6.0 }
+dim as Array( of float64 ) a = { 2.0, 4.0, 4.0, 4.0, 6.0 }
 
-print Count( a( ) )          '' 5
+print Count( a )          '' 5
 
-'' The same number, without the off-by-one arithmetic
-print ubound( a ) - lbound( a ) + 1           '' 5
+'' The same number the array itself reports
+print a.Count( )          '' 5
 ```
 
 ---

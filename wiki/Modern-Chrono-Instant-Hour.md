@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.Hour**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.Hour**
 
-# Instant.Hour
+# DateTime.Hour
 
 Returns the hour, 0 to 23.
 
 ## Syntax
 
 ```freebasic
-Instant.Hour
+DateTime.Hour
 ```
 
 ## Examples

@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.WithOffset**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.WithOffset**
 
-# Instant.WithOffset
+# DateTime.WithOffset
 
 Attaches a UTC offset in minutes, keeping the clock reading and changing the moment.
 
 ## Syntax
 
 ```freebasic
-Instant.WithOffset( offMin )
+DateTime.WithOffset( offMin )
 ```
 
 ## Examples

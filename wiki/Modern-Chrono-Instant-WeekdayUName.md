@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.WeekdayUName**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.WeekdayUName**
 
-# Instant.WeekdayUName
+# DateTime.WeekdayUName
 
 Returns the English name of a weekday, 1 being Monday, as a ustring.
 
 ## Syntax
 
 ```freebasic
-Instant.WeekdayUName
+DateTime.WeekdayUName
 ```
 
 ## Examples

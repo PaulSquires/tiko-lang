@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.DayOfWeek**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.DayOfWeek**
 
-# Instant.DayOfWeek
+# DateTime.DayOfWeek
 
 Returns the day of the week, 1 for Monday to 7 for Sunday.
 
 ## Syntax
 
 ```freebasic
-Instant.DayOfWeek
+DateTime.DayOfWeek
 ```
 
 ## Examples

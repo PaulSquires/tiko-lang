@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.OleDate**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.OleDate**
 
-# Instant.OleDate
+# DateTime.OleDate
 
 Returns the date-time as an OLE automation date, the number Excel and ADO use.
 
 ## Syntax
 
 ```freebasic
-Instant.OleDate
+DateTime.OleDate
 ```
 
 ## Examples

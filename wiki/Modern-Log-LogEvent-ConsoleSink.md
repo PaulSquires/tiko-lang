@@ -1,6 +1,6 @@
-[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **LogEvent.ConsoleSink**
+[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **ConsoleSink**
 
-# LogEvent.ConsoleSink
+# ConsoleSink
 
 Holds a sink that writes to stderr or stdout, in colour only on a terminal.
 
@@ -32,8 +32,8 @@ lg.AddSink( @con )
 
 lg.Info( "to stderr" )
 
-'' It is the only sink in phase 1: FileSink and rotation are phase 3,
-'' AsyncSink phase 6
+'' FileSink writes to a file, with rotation, and AsyncSink moves the
+'' writing of any other sink onto a background thread
 ```
 
 ---

@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.EndOfDay**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.EndOfDay**
 
-# Instant.EndOfDay
+# DateTime.EndOfDay
 
 Returns the last tick of the same day, 23:59:59.9999999.
 
 ## Syntax
 
 ```freebasic
-Instant.EndOfDay
+DateTime.EndOfDay
 ```
 
 ## Examples

@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.GetDate**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.GetDate**
 
-# Instant.GetDate
+# DateTime.GetDate
 
 Returns the date part as a LocalDate, dropping the time and the offset.
 
 ## Syntax
 
 ```freebasic
-Instant.GetDate
+DateTime.GetDate
 ```
 
 ## Examples

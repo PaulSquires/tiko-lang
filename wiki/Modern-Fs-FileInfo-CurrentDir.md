@@ -1,6 +1,6 @@
-[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **FileInfo.CurrentDir**
+[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **CurrentDir**
 
-# FileInfo.CurrentDir
+# CurrentDir
 
 Returns the program's current folder.
 

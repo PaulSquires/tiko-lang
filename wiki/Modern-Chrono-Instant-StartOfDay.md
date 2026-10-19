@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.StartOfDay**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.StartOfDay**
 
-# Instant.StartOfDay
+# DateTime.StartOfDay
 
 Returns midnight at the start of the same day, keeping the offset.
 
 ## Syntax
 
 ```freebasic
-Instant.StartOfDay
+DateTime.StartOfDay
 ```
 
 ## Examples

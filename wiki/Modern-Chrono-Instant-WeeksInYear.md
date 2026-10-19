@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.WeeksInYear**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.WeeksInYear**
 
-# Instant.WeeksInYear
+# DateTime.WeeksInYear
 
 Returns 52 or 53, the number of ISO weeks in a year.
 
 ## Syntax
 
 ```freebasic
-Instant.WeeksInYear( y )
+DateTime.WeeksInYear( y )
 ```
 
 ## Examples

@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.StartOfYear**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.StartOfYear**
 
-# Instant.StartOfYear
+# DateTime.StartOfYear
 
 Returns midnight on 1 January of the same year.
 
 ## Syntax
 
 ```freebasic
-Instant.StartOfYear
+DateTime.StartOfYear
 ```
 
 ## Examples

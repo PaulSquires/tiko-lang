@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.ToLocaleDateString**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.ToLocaleDateString**
 
-# Instant.ToLocaleDateString
+# DateTime.ToLocaleDateString
 
 Returns the date as the machine's locale writes it, for display only.
 
 ## Syntax
 
 ```freebasic
-Instant.ToLocaleDateString
+DateTime.ToLocaleDateString
 ```
 
 ## Examples

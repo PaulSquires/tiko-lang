@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.FromFileTime**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.FromFileTime**
 
-# Instant.FromFileTime
+# DateTime.FromFileTime
 
 Creates a UTC date-time from a Windows FILETIME.
 
 ## Syntax
 
 ```freebasic
-Instant.FromFileTime( int64 )
+DateTime.FromFileTime( int64 )
 ```
 
 ## Examples

@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.TickOfDay**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.TickOfDay**
 
-# Instant.TickOfDay
+# DateTime.TickOfDay
 
 Returns the time of day as one number: 100 ns ticks since midnight.
 
 ## Syntax
 
 ```freebasic
-Instant.TickOfDay
+DateTime.TickOfDay
 ```
 
 ## Examples

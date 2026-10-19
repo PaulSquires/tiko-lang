@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.IsFirstDayOfMonth**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.IsFirstDayOfMonth**
 
-# Instant.IsFirstDayOfMonth
+# DateTime.IsFirstDayOfMonth
 
 Returns true if the date is the first day of its month.
 
 ## Syntax
 
 ```freebasic
-Instant.IsFirstDayOfMonth
+DateTime.IsFirstDayOfMonth
 ```
 
 ## Examples

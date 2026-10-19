@@ -1,13 +1,13 @@
-[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **Instant.StartOfMonth**
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **DateTime.StartOfMonth**
 
-# Instant.StartOfMonth
+# DateTime.StartOfMonth
 
 Returns midnight on the first day of the month.
 
 ## Syntax
 
 ```freebasic
-Instant.StartOfMonth
+DateTime.StartOfMonth
 ```
 
 ## Examples

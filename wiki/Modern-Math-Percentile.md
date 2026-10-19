@@ -7,7 +7,7 @@ Returns the value below which p percent of an array falls, with p from 0 to 100.
 ## Syntax
 
 ```freebasic
-Percentile( a( ) as T, byval p as float64 ) as float64
+Percentile( byref a as Array( of T ), byval p as float64 ) as float64
 ```
 
 ## Notes
@@ -21,18 +21,20 @@ Percentile( a( ) as T, byval p as float64 ) as float64
 
 ```freebasic
 #import "std/numeric"
+#import "std/containers"
 using numeric
+using containers
 
-dim as float64 a( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 6.0 }
+dim as Array( of float64 ) a = { 2.0, 4.0, 4.0, 4.0, 6.0 }
 
-print Percentile( a( ), 50.0 )   '' 4 -- the median
-print Percentile( a( ), 0.0 )    '' 2 -- the minimum
-print Percentile( a( ), 100.0 )  '' 6 -- the maximum
-print Percentile( a( ), 95.0 )   '' 5.6 -- interpolated, not an element
+print Percentile( a, 50.0 )   '' 4 -- the median
+print Percentile( a, 0.0 )    '' 2 -- the minimum
+print Percentile( a, 100.0 )  '' 6 -- the maximum
+print Percentile( a, 95.0 )   '' 5.6 -- interpolated, not an element
 
 '' A PERCENTAGE, not a fraction. This asks for the half-of-one-percent
 '' point, which is nearly the minimum -- not the median.
-print Percentile( a( ), 0.5 )    '' 2.04
+print Percentile( a, 0.5 )    '' 2.04
 ```
 
 ---

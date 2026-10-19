@@ -1,13 +1,13 @@
-[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **DirEntry.MoveNext**
+[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **DirIterator.MoveNext**
 
-# DirEntry.MoveNext
+# DirIterator.MoveNext
 
 Moves the iterator on to the next entry.
 
 ## Syntax
 
 ```freebasic
-DirEntry.MoveNext( )
+DirIterator.MoveNext( )
 ```
 
 ## Notes

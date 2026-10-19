@@ -12,7 +12,7 @@ SetHidden( p, v )
 
 ## Notes
 
-- portable IN NAME ONLY
+- Portable in name only. On Windows it sets or clears FILE_ATTRIBUTE_HIDDEN. On Linux a hidden file is one whose name starts with a dot, and rather than rename the file behind your back it fails with FS_UNSUPPORTED.
 
 ## Examples
 
@@ -28,9 +28,10 @@ WriteAllText( p, "hello" )
 print SetHidden( p, true ).IsOk( )         '' true
 print Stat( p ).Value( ).IsHidden( )       '' true
 
-'' PORTABLE IN NAME ONLY. On Windows it sets an attribute; ON POSIX
-'' HIDDEN MEANS A LEADING DOT, so this RENAMES the file -- and the path
-'' you were holding no longer names it.
+'' PORTABLE IN NAME ONLY. On Windows it sets an attribute. On Linux
+'' hidden means a leading dot in the name, and renaming the file is a
+'' different operation, so there the call fails with FS_UNSUPPORTED
+'' and the file is left alone.
 SetHidden( p, false )
 
 RemoveDirAll( dir_ )
