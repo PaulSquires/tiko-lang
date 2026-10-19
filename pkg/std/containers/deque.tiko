@@ -1,0 +1,205 @@
+#module "containers"
+'' std/containers: deque -- containers.Deque( of T ), a double-ended queue
+''
+'' C:\dev\docs\tiko-stdlib\RFC-0001 section 4.2.
+''
+''     dim d as containers.Deque( of long )
+''     d.PushBack( 2 ) : d.PushFront( 1 ) : d.PushBack( 3 )
+''     print d[ 0 ], d.PopBack( )          '' 1  3
+''
+'' A RING BUFFER whose capacity is a power of two, so a logical index maps to a
+'' slot with a mask rather than a division.  PushFront, PushBack, PopFront and
+'' PopBack are O(1) amortised; d[ i ] is O(1).  This is what LinkedList cannot
+'' give: indexing, and no allocation per element.
+''
+'' Index 0 is the FRONT.  'for each' walks front to back.
+''
+'' EMPTY: the Pop forms return a default T, as Array.Pop does; the TryPop forms
+'' say whether there was anything.  Front, Back and d[ i ] require 0 <= i <
+'' Count( ); outside that they return a reference to storage whose value is
+'' unspecified (masked into the buffer, so memory-safe) -- an index past the end
+'' is a bug in the caller, and this does not hide it by growing.
+''
+'' A collection initialiser calls PushBack:
+''
+''     dim d as containers.Deque( of long ) = { 1, 2, 3 }
+
+public const DEQUE_MIN_CAPACITY as long = 8
+
+public type DequeIterator( of T )
+    as any ptr src
+    as long idx
+    declare function IsValid( ) as boolean
+    declare function Value( ) byref as T
+    declare sub MoveNext( )
+end type
+
+public type Deque( of T )
+    as T items( any )
+    as long head_       '' slot of the front element
+    as long num
+
+    declare sub PushBack( byref v as T )
+    declare sub PushFront( byref v as T )
+    declare function PopBack( ) as T
+    declare function PopFront( ) as T
+    declare function TryPopBack( byref outv as T ) as boolean
+    declare function TryPopFront( byref outv as T ) as boolean
+    declare function Front( ) byref as T
+    declare function Back( ) byref as T
+    declare operator [] ( byval i as long ) byref as T
+    declare function At( byval i as long ) byref as T
+    declare function Count( ) as long
+    declare function Capacity( ) as long
+    declare function IsEmpty( ) as boolean
+    declare sub Clear( )
+    declare sub Reserve( byval n as long )
+    declare function GetIterator( ) as DequeIterator( of T )
+end type
+
+function DequeIterator( of T ).IsValid( ) as boolean
+    dim as Deque( of T ) ptr d = cptr( Deque( of T ) ptr, this.src )
+    return this.idx < d->num
+end function
+
+function DequeIterator( of T ).Value( ) byref as T
+    dim as Deque( of T ) ptr d = cptr( Deque( of T ) ptr, this.src )
+    return d->At( this.idx )
+end function
+
+sub DequeIterator( of T ).MoveNext( )
+    this.idx += 1
+end sub
+
+function Deque( of T ).Capacity( ) as long
+    return ubound( this.items ) + 1
+end function
+
+function Deque( of T ).Count( ) as long
+    return this.num
+end function
+
+function Deque( of T ).IsEmpty( ) as boolean
+    return this.num = 0
+end function
+
+'' Grows to the next power of two >= n, unwrapping the ring so the front lands
+'' in slot 0.  Elements move by SWAP, so a growing Deque( of ustring ) copies no
+'' strings (the sort module's measurement).
+sub Deque( of T ).Reserve( byval n as long )
+    dim as long cap = this.Capacity( )
+    if( n <= cap ) then
+        exit sub
+    end if
+    dim as long newcap = DEQUE_MIN_CAPACITY
+    while( newcap < n )
+        newcap *= 2
+    wend
+
+    dim as T fresh( any )
+    redim fresh( 0 to newcap - 1 )
+    if( cap > 0 ) then
+        dim as long mask = cap - 1
+        for i as long = 0 to this.num - 1
+            swap fresh( i ), this.items( ( this.head_ + i ) and mask )
+        next
+    end if
+    erase this.items
+    redim this.items( 0 to newcap - 1 )
+    for i as long = 0 to this.num - 1
+        swap this.items( i ), fresh( i )
+    next
+    this.head_ = 0
+end sub
+
+sub Deque( of T ).PushBack( byref v as T )
+    this.Reserve( this.num + 1 )
+    dim as long mask = this.Capacity( ) - 1
+    this.items( ( this.head_ + this.num ) and mask ) = v
+    this.num += 1
+end sub
+
+sub Deque( of T ).PushFront( byref v as T )
+    this.Reserve( this.num + 1 )
+    dim as long mask = this.Capacity( ) - 1
+    this.head_ = ( this.head_ - 1 ) and mask
+    this.items( this.head_ ) = v
+    this.num += 1
+end sub
+
+'' The vacated slot is reset to a default T, so a popped ustring's buffer is
+'' released now rather than when the slot is next written.
+function Deque( of T ).TryPopBack( byref outv as T ) as boolean
+    if( this.num = 0 ) then
+        return FALSE
+    end if
+    dim as long mask = this.Capacity( ) - 1
+    dim as long slot = ( this.head_ + this.num - 1 ) and mask
+    dim as T empty_
+    swap outv, this.items( slot )
+    swap this.items( slot ), empty_
+    this.num -= 1
+    return TRUE
+end function
+
+function Deque( of T ).TryPopFront( byref outv as T ) as boolean
+    if( this.num = 0 ) then
+        return FALSE
+    end if
+    dim as long mask = this.Capacity( ) - 1
+    dim as T empty_
+    swap outv, this.items( this.head_ )
+    swap this.items( this.head_ ), empty_
+    this.head_ = ( this.head_ + 1 ) and mask
+    this.num -= 1
+    return TRUE
+end function
+
+function Deque( of T ).PopBack( ) as T
+    dim as T r
+    this.TryPopBack( r )
+    return r
+end function
+
+function Deque( of T ).PopFront( ) as T
+    dim as T r
+    this.TryPopFront( r )
+    return r
+end function
+
+function Deque( of T ).At( byval i as long ) byref as T
+    if( this.Capacity( ) = 0 ) then
+        this.Reserve( 1 )
+    end if
+    return this.items( ( this.head_ + i ) and ( this.Capacity( ) - 1 ) )
+end function
+
+operator Deque( of T ).[] ( byval i as long ) byref as T
+    return this.At( i )
+end operator
+
+function Deque( of T ).Front( ) byref as T
+    return this.At( 0 )
+end function
+
+function Deque( of T ).Back( ) byref as T
+    return this.At( this.num - 1 )
+end function
+
+'' Keeps the capacity, as Array.Clear does.
+sub Deque( of T ).Clear( )
+    dim as long cap = this.Capacity( )
+    if( cap > 0 ) then
+        erase this.items
+        redim this.items( 0 to cap - 1 )
+    end if
+    this.head_ = 0
+    this.num = 0
+end sub
+
+function Deque( of T ).GetIterator( ) as DequeIterator( of T )
+    dim it as DequeIterator( of T )
+    it.src = @this
+    it.idx = 0
+    return it
+end function

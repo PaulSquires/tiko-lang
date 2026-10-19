@@ -1,0 +1,399 @@
+#module "containers"
+'' std/containers: algo -- searching and rearranging an Array( of T )
+''
+'' C:\dev\docs\tiko-stdlib\RFC-0001 section 4.4.
+''
+''     dim v as containers.Array( of long ) = { 1, 3, 3, 7 }
+''     print containers.LowerBound( v, 3 )          '' 1
+''     print containers.BinarySearch( v, 5 )        '' -4: absent, would go at index 3
+''
+'' Free generic procedures, like the sorts and for the same two reasons (see
+'' sort.tiko): a requirement on T ('<' or '=') lands on the call that needs it,
+'' not on Array, and generic procedures cannot be overloaded, so every comparer
+'' form is a separate '...By' name.
+''
+'' A comparer 'less( x, y )' is the strict '<' the sorts take: TRUE when x must
+'' come BEFORE y.  An equality predicate 'same( x, y )' (DedupBy) is TRUE when
+'' the two are interchangeable.  Either may be a capturing lambda.
+''
+'' Indices are 0-based, as everywhere in Array.
+''
+'' SEARCHES REQUIRE A SORTED ARRAY -- sorted by the same '<' the search uses.
+'' On an unsorted array they return some index without complaint.
+
+'' -------------------------------------------------------------- searching
+
+'' First index i with not( a[ i ] < v ): where v would be inserted to keep a
+'' sorted, before any equal elements.  Count( ) when every element is less.
+public function LowerBoundBy( of T, TCmp )( byref a as Array( of T ), byref v as T, byref less as TCmp ) as long
+    dim as long lo = 0, hi = a.num
+    while( lo < hi )
+        dim as long m = lo + ( hi - lo ) \ 2
+        if( less( a.items( m ), v ) ) then
+            lo = m + 1
+        else
+            hi = m
+        end if
+    wend
+    return lo
+end function
+
+public function LowerBound( of T )( byref a as Array( of T ), byref v as T ) as long
+    dim as function( byref as T, byref as T ) as boolean less = _
+        function( byref x as T, byref y as T ) as boolean
+            return x < y
+        end function
+    return LowerBoundBy( a, v, less )
+end function
+
+'' First index i with v < a[ i ]: insertion after any equal elements.
+public function UpperBoundBy( of T, TCmp )( byref a as Array( of T ), byref v as T, byref less as TCmp ) as long
+    dim as long lo = 0, hi = a.num
+    while( lo < hi )
+        dim as long m = lo + ( hi - lo ) \ 2
+        if( less( v, a.items( m ) ) ) then
+            hi = m
+        else
+            lo = m + 1
+        end if
+    wend
+    return lo
+end function
+
+public function UpperBound( of T )( byref a as Array( of T ), byref v as T ) as long
+    dim as function( byref as T, byref as T ) as boolean less = _
+        function( byref x as T, byref y as T ) as boolean
+            return x < y
+        end function
+    return UpperBoundBy( a, v, less )
+end function
+
+'' The index of an element equivalent to v (neither is less than the other) --
+'' the FIRST such, since this is LowerBound plus a test.  When there is none,
+'' -( insertion point ) - 1: always negative, and the insertion point is
+'' -( result + 1 ), so a miss still says where v belongs (Java and C#).
+public function BinarySearchBy( of T, TCmp )( byref a as Array( of T ), byref v as T, byref less as TCmp ) as long
+    dim as long i = LowerBoundBy( a, v, less )
+    if( i < a.num ) then
+        if( less( v, a.items( i ) ) = FALSE ) then
+            return i
+        end if
+    end if
+    return -i - 1
+end function
+
+public function BinarySearch( of T )( byref a as Array( of T ), byref v as T ) as long
+    dim as function( byref as T, byref as T ) as boolean less = _
+        function( byref x as T, byref y as T ) as boolean
+            return x < y
+        end function
+    return BinarySearchBy( a, v, less )
+end function
+
+'' For an array partitioned by pred -- every element for which pred is TRUE
+'' comes before every element for which it is FALSE -- the index of the first
+'' FALSE one, Count( ) when there is none.  'pred( x )' returns boolean.
+public function PartitionPoint( of T, TPred )( byref a as Array( of T ), byref pred as TPred ) as long
+    dim as long lo = 0, hi = a.num
+    while( lo < hi )
+        dim as long m = lo + ( hi - lo ) \ 2
+        if( pred( a.items( m ) ) ) then
+            lo = m + 1
+        else
+            hi = m
+        end if
+    wend
+    return lo
+end function
+
+'' -------------------------------------------------------------- minimum, maximum
+
+'' The index of the first smallest element; -1 when a is empty.
+public function MinIndexBy( of T, TCmp )( byref a as Array( of T ), byref less as TCmp ) as long
+    if( a.num = 0 ) then
+        return -1
+    end if
+    dim as long b = 0
+    for i as long = 1 to a.num - 1
+        if( less( a.items( i ), a.items( b ) ) ) then
+            b = i
+        end if
+    next
+    return b
+end function
+
+public function MinIndex( of T )( byref a as Array( of T ) ) as long
+    dim as function( byref as T, byref as T ) as boolean less = _
+        function( byref x as T, byref y as T ) as boolean
+            return x < y
+        end function
+    return MinIndexBy( a, less )
+end function
+
+'' The index of the first largest element; -1 when a is empty.
+public function MaxIndexBy( of T, TCmp )( byref a as Array( of T ), byref less as TCmp ) as long
+    if( a.num = 0 ) then
+        return -1
+    end if
+    dim as long b = 0
+    for i as long = 1 to a.num - 1
+        if( less( a.items( b ), a.items( i ) ) ) then
+            b = i
+        end if
+    next
+    return b
+end function
+
+public function MaxIndex( of T )( byref a as Array( of T ) ) as long
+    dim as function( byref as T, byref as T ) as boolean less = _
+        function( byref x as T, byref y as T ) as boolean
+            return x < y
+        end function
+    return MaxIndexBy( a, less )
+end function
+
+'' -------------------------------------------------------------- rearranging
+
+'' In place.  Every move is a SWAP, so no element is copied.
+''
+'' ReverseArray and RotateArray, not Reverse and Rotate: strings.Reverse and
+'' numeric.Rotate exist, and a program 'using' both modules would find the bare
+'' name ambiguous (TKO0919) -- the reason SortList is not another Sort.
+public sub ReverseArray( of T )( byref a as Array( of T ) )
+    dim as long i = 0, j = a.num - 1
+    while( i < j )
+        swap a.items( i ), a.items( j )
+        i += 1
+        j -= 1
+    wend
+end sub
+
+sub AlgoReverseRange( of T )( byref a as Array( of T ), byval i as long, byval j as long )
+    while( i < j )
+        swap a.items( i ), a.items( j )
+        i += 1
+        j -= 1
+    wend
+end sub
+
+'' Rotates left by k: the element at index k becomes the first.  Any k --
+'' negative rotates right, and k is taken modulo Count( ).  Three reversals.
+public sub RotateArray( of T )( byref a as Array( of T ), byval k as long )
+    dim as long n = a.num
+    if( n < 2 ) then
+        exit sub
+    end if
+    k = k mod n
+    if( k < 0 ) then
+        k += n
+    end if
+    if( k = 0 ) then
+        exit sub
+    end if
+    AlgoReverseRange( a, 0, k - 1 )
+    AlgoReverseRange( a, k, n - 1 )
+    AlgoReverseRange( a, 0, n - 1 )
+end sub
+
+'' Removes CONSECUTIVE duplicates, keeping the first of each run (Rust's
+'' Vec::dedup, C++'s unique + erase).  Sort first to remove all duplicates.
+'' Returns the number removed.
+public function DedupBy( of T, TEq )( byref a as Array( of T ), byref same as TEq ) as long
+    dim as long n = a.num
+    if( n < 2 ) then
+        return 0
+    end if
+    dim as long w = 1
+    for r as long = 1 to n - 1
+        if( same( a.items( r ), a.items( w - 1 ) ) = FALSE ) then
+            if( w <> r ) then
+                swap a.items( w ), a.items( r )
+            end if
+            w += 1
+        end if
+    next
+    dim as long removed = n - w
+    while( a.num > w )
+        a.Pop( )
+    wend
+    return removed
+end function
+
+public function Dedup( of T )( byref a as Array( of T ) ) as long
+    dim as function( byref as T, byref as T ) as boolean same = _
+        function( byref x as T, byref y as T ) as boolean
+            return x = y
+        end function
+    return DedupBy( a, same )
+end function
+
+'' Rearranges a into the next permutation in lexicographic order by less and
+'' returns TRUE; at the last permutation, rearranges into the first (sorted)
+'' and returns FALSE -- C++'s next_permutation.  So
+''
+''     Sort( v )
+''     do
+''         ...
+''     loop while NextPermutation( v )
+''
+'' visits every distinct permutation once, duplicates included only once.
+public function NextPermutationBy( of T, TCmp )( byref a as Array( of T ), byref less as TCmp ) as boolean
+    dim as long n = a.num
+    if( n < 2 ) then
+        return FALSE
+    end if
+    dim as long i = n - 2
+    while( i >= 0 )
+        if( less( a.items( i ), a.items( i + 1 ) ) ) then
+            exit while
+        end if
+        i -= 1
+    wend
+    if( i < 0 ) then
+        AlgoReverseRange( a, 0, n - 1 )
+        return FALSE
+    end if
+    dim as long j = n - 1
+    while( less( a.items( i ), a.items( j ) ) = FALSE )
+        j -= 1
+    wend
+    swap a.items( i ), a.items( j )
+    AlgoReverseRange( a, i + 1, n - 1 )
+    return TRUE
+end function
+
+public function NextPermutation( of T )( byref a as Array( of T ) ) as boolean
+    dim as function( byref as T, byref as T ) as boolean less = _
+        function( byref x as T, byref y as T ) as boolean
+            return x < y
+        end function
+    return NextPermutationBy( a, less )
+end function
+
+'' -------------------------------------------------------------- selection
+
+'' Hoare-style partition of a[ lo .. hi ] around a median-of-three pivot.
+'' Returns p with a[ lo .. p-1 ] not greater than a[ p ] and a[ p+1 .. hi ] not
+'' less, a[ p ] in its sorted place.
+function AlgoPartitionBy( of T, TCmp )( byref a as Array( of T ), byval lo as long, byval hi as long, byref less as TCmp ) as long
+    dim as long m = lo + ( hi - lo ) \ 2
+    if( less( a.items( m ), a.items( lo ) ) ) then swap a.items( m ), a.items( lo )
+    if( less( a.items( hi ), a.items( lo ) ) ) then swap a.items( hi ), a.items( lo )
+    if( less( a.items( hi ), a.items( m ) ) ) then swap a.items( hi ), a.items( m )
+    '' the median is at m; park it at hi and partition lo .. hi-1 (Lomuto)
+    swap a.items( m ), a.items( hi )
+    dim as long s = lo
+    for i as long = lo to hi - 1
+        if( less( a.items( i ), a.items( hi ) ) ) then
+            if( i <> s ) then
+                swap a.items( i ), a.items( s )
+            end if
+            s += 1
+        end if
+    next
+    swap a.items( s ), a.items( hi )
+    return s
+end function
+
+'' Afterwards a[ k ] is the element a full sort would put there, everything
+'' before it is not greater and everything after it is not less.  Quickselect,
+'' falling back to a full sort of the remaining range when it degenerates, so
+'' the worst case is O(n log n), not O(n^2).  k outside 0 .. Count( )-1 does
+'' nothing.
+public sub NthElementBy( of T, TCmp )( byref a as Array( of T ), byval k as long, byref less as TCmp )
+    if( ( k < 0 ) orelse ( k >= a.num ) ) then
+        exit sub
+    end if
+    dim as long lo = 0, hi = a.num - 1
+    dim as long budget = 0
+    dim as long m = a.num
+    while( m > 1 )
+        m \= 2
+        budget += 2
+    wend
+    while( hi > lo )
+        if( budget = 0 ) then
+            '' degenerate input: sort what is left and stop
+            SortIntroBy( a, lo, hi, 2 * 32, less )
+            exit sub
+        end if
+        budget -= 1
+        dim as long p = AlgoPartitionBy( a, lo, hi, less )
+        if( p = k ) then
+            exit sub
+        elseif( k < p ) then
+            hi = p - 1
+        else
+            lo = p + 1
+        end if
+    wend
+end sub
+
+public sub NthElement( of T )( byref a as Array( of T ), byval k as long )
+    dim as function( byref as T, byref as T ) as boolean less = _
+        function( byref x as T, byref y as T ) as boolean
+            return x < y
+        end function
+    NthElementBy( a, k, less )
+end sub
+
+'' Sift-down for a MAX-heap under less over a[ 0 .. n-1 ] -- heap.tiko's
+'' HeapSiftDownBy with the comparison turned round.  A wrapper lambda cannot do
+'' the turning: a capturing lambda may not take the generic's T (TKO0921).
+sub AlgoSiftDownMaxBy( of T, TCmp )( byref a as Array( of T ), byval i as long, byval n as long, byref less as TCmp )
+    do
+        dim as long l = 2 * i + 1
+        if( l >= n ) then
+            exit do
+        end if
+        dim as long m = l
+        dim as long r = l + 1
+        if( r < n ) then
+            if( less( a.items( l ), a.items( r ) ) ) then
+                m = r
+            end if
+        end if
+        if( less( a.items( i ), a.items( m ) ) = FALSE ) then
+            exit do
+        end if
+        swap a.items( i ), a.items( m )
+        i = m
+    loop
+end sub
+
+'' Afterwards a[ 0 .. k-1 ] are the k smallest elements in sorted order; the
+'' order of the rest is unspecified.  k >= Count( ) sorts everything.  A
+'' max-heap of the k smallest seen so far: O(n log k).
+public sub PartialSortBy( of T, TCmp )( byref a as Array( of T ), byval k as long, byref less as TCmp )
+    dim as long n = a.num
+    if( k <= 0 ) then
+        exit sub
+    end if
+    if( k >= n ) then
+        SortBy( a, less )
+        exit sub
+    end if
+    '' a[ 0 .. k-1 ] as a max-heap: the root is the largest of the k kept
+    for i as long = k \ 2 - 1 to 0 step -1
+        AlgoSiftDownMaxBy( a, i, k, less )
+    next
+    for i as long = k to n - 1
+        if( less( a.items( i ), a.items( 0 ) ) ) then
+            swap a.items( i ), a.items( 0 )
+            AlgoSiftDownMaxBy( a, 0, k, less )
+        end if
+    next
+    '' heap-sort the prefix in place: move the largest to the end each time
+    for e as long = k - 1 to 1 step -1
+        swap a.items( 0 ), a.items( e )
+        AlgoSiftDownMaxBy( a, 0, e, less )
+    next
+end sub
+
+public sub PartialSort( of T )( byref a as Array( of T ), byval k as long )
+    dim as function( byref as T, byref as T ) as boolean less = _
+        function( byref x as T, byref y as T ) as boolean
+            return x < y
+        end function
+    PartialSortBy( a, k, less )
+end sub

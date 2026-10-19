@@ -1,0 +1,261 @@
+#module "containers"
+'' std/containers: heap -- containers.PriorityQueue( of T ) and PriorityQueueBy( of T, TLess )
+''
+'' C:\dev\docs\tiko-stdlib\RFC-0001 section 4.1.
+''
+''     dim q as containers.PriorityQueue( of long )
+''     q.Push( 5 ) : q.Push( 1 ) : q.Push( 3 )
+''     print q.Pop( )                      '' 1 -- smallest first
+''
+'' A BINARY HEAP in an Array( of T ): Push and Pop are O(log n), Peek is O(1),
+'' MakeHeap is O(n).
+''
+'' MIN-FIRST BY '<', as Go's container/heap and Python's heapq, and unlike Rust's
+'' BinaryHeap and C++'s priority_queue, which are max-first.  The element that
+'' leaves first is the one nothing compares less than.  For max-first, or for any
+'' other order, use PriorityQueueBy with a comparer:
+''
+''     type LongLess as function( byref x as long, byref y as long ) as boolean
+''     dim later as LongLess = function( byref x as long, byref y as long ) as boolean
+''         return x > y
+''     end function
+''     dim q as containers.PriorityQueueBy( of long, LongLess ) = _
+''         containers.PriorityQueueBy( of long, LongLess )( later )
+''
+'' 'less( a, b )' is TRUE when a must leave BEFORE b -- the same strict '<' the
+'' sorts take.  A capturing lambda works too, as TLess = typeof( itsName ): the
+'' comparer is held in a field of type TLess, not converted to a procedure
+'' pointer.  (typeof( ) of a 'var' holding a NON-capturing lambda is an internal
+'' compiler error as of 2026-10-18; name a procedure-pointer type instead.)
+''
+'' EQUAL PRIORITIES leave in no particular order: a heap is not stable.  Give
+'' the elements a sequence number and compare on it second when order matters.
+''
+'' EMPTY: Pop on an empty queue returns a default T, as Array.Pop does, and
+'' TryPop says whether there was anything.  Peek on an empty queue returns a
+'' reference to storage whose value is unspecified (memory-safe, never
+'' meaningful) -- test IsEmpty first.
+''
+'' 'for each' walks the elements in HEAP order, which is not priority order.
+'' ToSortedArray gives priority order without disturbing the queue.
+
+'' -------------------------------------------------------------- internal
+''
+'' The heap primitives, shared by both queue types and by MakeHeap.  Generic
+'' procedures rather than members so that a comparer is supplied per call, the
+'' way the sorts work.
+
+sub HeapSiftUpBy( of T, TCmp )( byref a as Array( of T ), byval i as long, byref less as TCmp )
+    while( i > 0 )
+        dim as long p = ( i - 1 ) \ 2
+        if( less( a.items( i ), a.items( p ) ) ) then
+            swap a.items( i ), a.items( p )
+            i = p
+        else
+            exit while
+        end if
+    wend
+end sub
+
+sub HeapSiftDownBy( of T, TCmp )( byref a as Array( of T ), byval i as long, byval n as long, byref less as TCmp )
+    do
+        dim as long l = 2 * i + 1
+        if( l >= n ) then
+            exit do
+        end if
+        dim as long m = l
+        dim as long r = l + 1
+        if( r < n ) then
+            if( less( a.items( r ), a.items( l ) ) ) then
+                m = r
+            end if
+        end if
+        if( less( a.items( m ), a.items( i ) ) = FALSE ) then
+            exit do
+        end if
+        swap a.items( i ), a.items( m )
+        i = m
+    loop
+end sub
+
+'' Removes the root into 'outv'.  The caller has checked that a is not empty.
+sub HeapPopInto( of T, TCmp )( byref a as Array( of T ), byref outv as T, byref less as TCmp )
+    dim as long n = a.num - 1
+    swap a.items( 0 ), a.items( n )
+    swap outv, a.items( n )
+    a.num = n
+    HeapSiftDownBy( a, 0, n, less )
+end sub
+
+'' Heap-orders a[ 0 .. n-1 ]; the rest of a is untouched.
+sub HeapifyBy( of T, TCmp )( byref a as Array( of T ), byval n as long, byref less as TCmp )
+    for i as long = n \ 2 - 1 to 0 step -1
+        HeapSiftDownBy( a, i, n, less )
+    next
+end sub
+
+'' -------------------------------------------------------------- PriorityQueue
+
+public type PriorityQueue( of T )
+    as Array( of T ) heap_
+
+    declare sub Push( byref v as T )
+    declare function Pop( ) as T
+    declare function TryPop( byref outv as T ) as boolean
+    declare function Peek( ) byref as T
+    declare function Count( ) as long
+    declare function IsEmpty( ) as boolean
+    declare sub Clear( )
+    declare sub Reserve( byval n as long )
+    declare function ToSortedArray( ) as Array( of T )
+    declare function GetIterator( ) as ArrayIterator( of T )
+end type
+
+sub PriorityQueue( of T ).Push( byref v as T )
+    dim as function( byref as T, byref as T ) as boolean less = _
+        function( byref x as T, byref y as T ) as boolean
+            return x < y
+        end function
+    this.heap_.Push( v )
+    HeapSiftUpBy( this.heap_, this.heap_.num - 1, less )
+end sub
+
+function PriorityQueue( of T ).Pop( ) as T
+    dim as T r
+    this.TryPop( r )
+    return r
+end function
+
+function PriorityQueue( of T ).TryPop( byref outv as T ) as boolean
+    if( this.heap_.num = 0 ) then
+        return FALSE
+    end if
+    dim as function( byref as T, byref as T ) as boolean less = _
+        function( byref x as T, byref y as T ) as boolean
+            return x < y
+        end function
+    HeapPopInto( this.heap_, outv, less )
+    return TRUE
+end function
+
+'' The next element to leave.  Unspecified on an empty queue (see the banner).
+'' Do not keep the reference across a Push or Pop: both move elements.
+function PriorityQueue( of T ).Peek( ) byref as T
+    if( this.heap_.num = 0 ) then
+        this.heap_.Reserve( 1 )
+    end if
+    return this.heap_.items( 0 )
+end function
+
+function PriorityQueue( of T ).Count( ) as long
+    return this.heap_.num
+end function
+
+function PriorityQueue( of T ).IsEmpty( ) as boolean
+    return this.heap_.num = 0
+end function
+
+sub PriorityQueue( of T ).Clear( )
+    this.heap_.Clear( )
+end sub
+
+sub PriorityQueue( of T ).Reserve( byval n as long )
+    this.heap_.Reserve( n )
+end sub
+
+function PriorityQueue( of T ).ToSortedArray( ) as Array( of T )
+    dim as Array( of T ) r = this.heap_
+    Sort( r )
+    return r
+end function
+
+function PriorityQueue( of T ).GetIterator( ) as ArrayIterator( of T )
+    return this.heap_.GetIterator( )
+end function
+
+'' Builds a queue from an array's elements in O(n): cheaper than n Pushes.
+public function MakeHeap( of T )( byref a as Array( of T ) ) as PriorityQueue( of T )
+    dim as function( byref as T, byref as T ) as boolean less = _
+        function( byref x as T, byref y as T ) as boolean
+            return x < y
+        end function
+    dim as PriorityQueue( of T ) q
+    q.heap_ = a
+    HeapifyBy( q.heap_, q.heap_.num, less )
+    return q
+end function
+
+'' -------------------------------------------------------------- PriorityQueueBy
+
+public type PriorityQueueBy( of T, TLess )
+    as Array( of T ) heap_
+    as TLess less_
+
+    declare constructor( byref less as TLess )
+    declare sub Push( byref v as T )
+    declare function Pop( ) as T
+    declare function TryPop( byref outv as T ) as boolean
+    declare function Peek( ) byref as T
+    declare function Count( ) as long
+    declare function IsEmpty( ) as boolean
+    declare sub Clear( )
+    declare sub Reserve( byval n as long )
+    declare function ToSortedArray( ) as Array( of T )
+    declare function GetIterator( ) as ArrayIterator( of T )
+end type
+
+constructor PriorityQueueBy( of T, TLess )( byref less as TLess )
+    this.less_ = less
+end constructor
+
+sub PriorityQueueBy( of T, TLess ).Push( byref v as T )
+    this.heap_.Push( v )
+    HeapSiftUpBy( this.heap_, this.heap_.num - 1, this.less_ )
+end sub
+
+function PriorityQueueBy( of T, TLess ).Pop( ) as T
+    dim as T r
+    this.TryPop( r )
+    return r
+end function
+
+function PriorityQueueBy( of T, TLess ).TryPop( byref outv as T ) as boolean
+    if( this.heap_.num = 0 ) then
+        return FALSE
+    end if
+    HeapPopInto( this.heap_, outv, this.less_ )
+    return TRUE
+end function
+
+function PriorityQueueBy( of T, TLess ).Peek( ) byref as T
+    if( this.heap_.num = 0 ) then
+        this.heap_.Reserve( 1 )
+    end if
+    return this.heap_.items( 0 )
+end function
+
+function PriorityQueueBy( of T, TLess ).Count( ) as long
+    return this.heap_.num
+end function
+
+function PriorityQueueBy( of T, TLess ).IsEmpty( ) as boolean
+    return this.heap_.num = 0
+end function
+
+sub PriorityQueueBy( of T, TLess ).Clear( )
+    this.heap_.Clear( )
+end sub
+
+sub PriorityQueueBy( of T, TLess ).Reserve( byval n as long )
+    this.heap_.Reserve( n )
+end sub
+
+function PriorityQueueBy( of T, TLess ).ToSortedArray( ) as Array( of T )
+    dim as Array( of T ) r = this.heap_
+    SortBy( r, this.less_ )
+    return r
+end function
+
+function PriorityQueueBy( of T, TLess ).GetIterator( ) as ArrayIterator( of T )
+    return this.heap_.GetIterator( )
+end function
