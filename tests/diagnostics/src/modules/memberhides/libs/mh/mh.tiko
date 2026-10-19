@@ -1,0 +1,4 @@
+#module "mh"
+public function Ready( ) as boolean
+    return true
+end function

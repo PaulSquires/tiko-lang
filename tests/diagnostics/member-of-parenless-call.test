@@ -1,0 +1,14 @@
+'' A MEMBER OF A PARENLESS CALL whose result has no members is TKO0972. Inside a method of a
+'' type with a member 'Mh', 'mh.Ready( )' reaches the member first, as fbc's lookup does
+'' (fbc-modern: error 3 for the namespace form), even with a module 'mh' imported; and
+'' 'foo.Bar( )' over 'function Foo( ) as long' is fbc's error 3 too. All three were ICEs,
+'' TKO0993/TKO0994 (tracks-2026 TB-004). A parenless call of a UDT result keeps its members.
+'' TEST: cli
+'' ARGS: -c -i tests/diagnostics/src/modules/memberhides/libs tests/diagnostics/src/modules/memberhides/app/main.tiko -o tests/diagnostics/memberhides.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: main.tiko(20,15): error TKO0972: 'mh' has no member named 'ready': a 'long' has no members
+'' EXPECT-OUT: main.tiko(20,35): error TKO0972: 'ns' has no member named 'ready': a 'long' has no members
+'' EXPECT-OUT: main.tiko(33,27): error TKO0972: 'foo' has no member named 'bar': a 'long' has no members
+'' EXPECT-NOT: TKO0993
+'' EXPECT-NOT: TKO0994
+'' EXPECT-MAX-DIAG: 3

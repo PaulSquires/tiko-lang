@@ -1,0 +1,33 @@
+#import "mh"
+namespace ns
+    function Ready( ) as boolean
+        return true
+    end function
+end namespace
+type T
+    x as long
+    declare function Mh( ) as long
+    declare function Ns( ) as long
+    declare function IsReady( ) as boolean
+end type
+function T.Mh( ) as long
+    return 1
+end function
+function T.Ns( ) as long
+    return 2
+end function
+function T.IsReady( ) as boolean
+    return mh.Ready( ) andalso ns.Ready( )
+end function
+function Foo( ) as long
+    return 1
+end function
+type P
+    x as long
+end type
+function MkP( ) as P
+    dim as P r
+    return r
+end function
+dim as T obj
+print obj.IsReady( ); foo.Bar( ); MkP.x

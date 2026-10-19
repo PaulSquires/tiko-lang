@@ -469,9 +469,14 @@ private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
     case SYM_VARIABLE, SYM_PARAMETER, SYM_FIELD
     '' ...AND A FUNCTION's RESULT, written as a call: 'MkU( ).nope', 'MkT( ).x', 'MkP( )->nope'
     '' and 'MkU( ).Nope( )' are fbc's error 18 as well (measured, fbc-modern 1.20, 2026-09-28),
-    '' and tiko printed nothing for each. A parenless name may be a namespace path, and is not.
+    '' and tiko printed nothing for each. ...AND A PARENLESS CALL: a name that BOUND to a
+    '' procedure is not a namespace path, even when a namespace or an imported module of that
+    '' spelling exists further out. 'foo.Bar( )' over 'function Foo( ) as long' is fbc's error
+    '' 3, and inside a method of a type with a member 'Mm', 'mm.Ready( )' reaches the member
+    '' first, as fbc's lookup does -- both were ICEs, TKO0994/TKO0993 (tracks-2026 TB-004).
     case SYM_PROC
-        if c.ast->Kind( mp->lhs ) <> N_CALL then return
+        dim as NodeKind lk = c.ast->Kind( mp->lhs )
+        if (lk <> N_CALL) andalso (lk <> N_IDENT) then return
     '' ...AND A TYPE NAME: 'U.nope( )', 'm.foo' over 'type m as long', 'E.nope' over an enum.
     '' A member that exists was bound by Check and returned above, so what reaches here is
     '' missing; fbc's error 42 over a type name. tiko stopped with TKO0994 instead.
