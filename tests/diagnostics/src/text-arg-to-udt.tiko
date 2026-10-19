@@ -1,0 +1,44 @@
+'' A TEXT ARGUMENT INTO A UDT THAT NO CONSTRUCTOR BUILDS FROM IT is fbc's error 58, byref and
+'' byval, whatever text it is -- measured on fbc-modern 1.20 for 'ustring', 'wstring * N',
+'' 'zstring * N', 'ustring * N' and 'string * N', into a type with no constructor and into one
+'' with only an 'operator let' (assignment is no way into a parameter). tiko judged only a
+'' 'string' or 'zstring' argument: every other one came out untyped and lowering stopped on
+'' TKO0994. Found as 'hash.ConstantTimeEquals( mac, other )' with two ustrings.
+type Box
+    as long v
+end type
+type LetOnly
+    as long v
+    declare constructor( )
+    declare operator let( byref t as wstring )
+end type
+constructor LetOnly( )
+end constructor
+operator LetOnly.let( byref t as wstring )
+    this.v = len( t )
+end operator
+
+function ByrefBox( byref a as Box ) as long
+    return a.v
+end function
+function ByvalBox( byval a as Box ) as long
+    return a.v
+end function
+function ByvalLet( byval a as LetOnly ) as long
+    return a.v
+end function
+
+dim as ustring u = "x"
+dim as wstring * 4 w = "x"
+dim as zstring * 4 z = "x"
+dim as ustring * 4 fu = "x"
+dim as string * 4 fs = "x"
+print ByrefBox( u )
+print ByvalBox( u )
+print ByvalLet( u )
+print ByrefBox( w )
+print ByvalBox( w )
+print ByrefBox( z )
+print ByvalLet( z )
+print ByvalBox( fu )
+print ByrefBox( fs )

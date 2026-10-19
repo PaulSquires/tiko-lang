@@ -58,6 +58,21 @@ end function
 
 '' A UDT with NO WAY IN OR OUT: no base, and none of the named members. Anything that has
 '' one may convert in a way this file does not model, so it is never judged.
+'' ANY TEXT VALUE an argument can be: AmString_'s two, 'ustring', 'wstring', and every fixed-length
+'' string ('zstring * N', 'wstring * N', 'string * N', 'ustring * N' -- an ARRAY of its element).
+'' Each is fbc's 58 into a UDT that no constructor builds from it (fbc-modern 1.20, byref and byval,
+'' into a plain type and one with only an 'operator let'); judged by AmString_ alone, all but
+'' 'string' came out untyped and lowering stopped on TKO0994.
+private function AmText_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if AmString_( c, t ) then return true
+    if FixedStringElem( t, *c.types ) <> Tko.TYPE_NONE then return true
+    if c.types->Kind( t ) <> Tko.TK_BUILTIN then return false
+    select case c.types->BuiltinOf( t )
+    case Tko.TY_USTRING, Tko.TY_WSTRING : return true
+    end select
+    return false
+end function
+
 private function AmPlainUdt_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref m1 as string, byref m2 as string ) as boolean
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
@@ -326,7 +341,7 @@ private function AmBadPair_ _
         return false
     end if
 
-    if AmString_( c, at ) then
+    if AmText_( c, at ) then
         if AmPlainUdt_( c, pt, "__ctor", "let" ) then return true
     end if
     return false
@@ -362,7 +377,7 @@ private function AmUnbuildable_ _
         dim as string an = left( c.names->Spelling( c.types->NameOf( au ) ), 1 )
         if (an = "(") orelse (an = "$") orelse (an = "~") then return false
         if AmPlainUdt_( c, au, "cast", "" ) = false then return false
-    elseif (AmString_( c, au ) = false) andalso (AmNumeric_( c, au ) = false) then
+    elseif (AmText_( c, au ) = false) andalso (AmNumeric_( c, au ) = false) then
         return false
     end if
     if ConversionCost( at, pt, *c.types ) < CONV_NONE then return false

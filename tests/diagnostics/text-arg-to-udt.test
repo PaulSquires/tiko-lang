@@ -1,0 +1,18 @@
+'' A text argument -- ustring, wstring * N, zstring * N, ustring * N, string * N -- into a UDT that
+'' no constructor builds from it is fbc's 58, byref and byval, into a plain type and into one with
+'' only an 'operator let'. tiko judged only 'string' and 'zstring': the rest came out untyped and
+'' lowering stopped on TKO0994 (found as hash.ConstantTimeEquals with two ustrings).
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/text-arg-to-udt.tiko -o tests/diagnostics/src/text-arg-to-udt.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: text-arg-to-udt.tiko(36,17): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: text-arg-to-udt.tiko(37,17): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: text-arg-to-udt.tiko(38,17): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: text-arg-to-udt.tiko(39,17): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: text-arg-to-udt.tiko(40,17): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: text-arg-to-udt.tiko(41,17): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: text-arg-to-udt.tiko(42,17): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: text-arg-to-udt.tiko(43,17): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: text-arg-to-udt.tiko(44,17): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-NOT: TKO0994
+'' EXPECT-MAX-DIAG: 9
