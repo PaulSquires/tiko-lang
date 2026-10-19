@@ -91,6 +91,16 @@ end sub
 '' unqualified 'N' binds here -- a procedure, a variable, an array, or nothing, which
 '' ReportUndeclared then gives fbc's 42. A TYPE's static member ('U.SF( )', fbc's 7)
 '' is another path and not this one.
+private function IsImportedModuleNs_( byref c as Ctx, byval ns as Tko.Symbol ptr ) as boolean
+    if (ns = nullptr) orelse (ns->inner = Tko.SCOPE_NONE) then return false
+    dim as Tko.SymScope ptr sc = c.syms->ScopeAt( ns->inner )
+    if sc = nullptr then return false
+    for k as int32 = 0 to c.syms->importNs.Count - 1
+        if cast( Tko.SymbolId, c.syms->importNs[k] ) = sc->owner then return true
+    next
+    return false
+end function
+
 sub DropNsPrefix_ _
     ( byref c as Ctx, byval opnd as Tko.NodeId, byval scope_ as Tko.ScopeId )
 
@@ -117,6 +127,11 @@ sub DropNsPrefix_ _
                 n = mb->lhs
                 continue do
             end if
+            '' ...BUT NOT AN IMPORTED MODULE'S PREFIX. fbc has no modules, so its quirk has
+            '' nothing to say about one, and dropping 'mm.' made 'len( mm.F( ) )' bind a bare
+            '' 'F' -- TKO0743, or an ICE where something else of that name was in view
+            '' (tracks-2026 TB-006). An import alias is a view: its scope is the module's.
+            if IsImportedModuleNs_( c, bs ) then return
             if c.ast->Kind( mb->rhs ) <> Tko.N_IDENT then return
             dim as Tko.Symbol ptr ps = c.syms->SymbolAt( c.info->RefOf( mb->rhs ) )
             if ps = nullptr then return

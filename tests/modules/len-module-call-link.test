@@ -1,0 +1,17 @@
+'' 'len( mod.F( ) )' BINDS THE MODULE'S F. fbc drops a NAMESPACE prefix inside len, sizeof
+'' and typeof (resolveintr.tiko DropNsPrefix_), and that quirk was applied to an imported
+'' module too, which fbc has no notion of: 'len( dates.CurrentDate( ) )' was TKO0743 or
+'' an ICE where a bare name of that spelling was in view (tracks-2026 TB-006). A global
+'' 'Num( ) as short' sits beside the module's long one to show which is measured.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i tests/modules/src/lenmod/libs tests/modules/src/lenmod/app/main.tiko -o tests/modules/lenmodlink.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/modules/lenmodlink.exe
+'' RUN: tests/modules/lenmodlink.exe
+'' EXPECT-RUN-OUT:  10
+'' EXPECT-RUN-OUT:  7
+'' EXPECT-RUN-OUT:  4
+'' EXPECT-RUN-OUT:  4
+'' EXPECT-RUN-OUT:  70000
+'' EXPECT-RUN-OUT:  10

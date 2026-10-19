@@ -1,0 +1,10 @@
+#module "lm"
+public function CurrentDate( ) as ustring
+    return "2026-10-19"
+end function
+public function DataDir( ) as string
+    return "C:\data"
+end function
+public function Num( ) as long
+    return 1234
+end function

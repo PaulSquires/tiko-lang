@@ -1,0 +1,12 @@
+'' len/sizeof/typeof over a MODULE-qualified call keep the module's prefix (TB-006).
+#import "lm"
+function Num( ) as short          '' a global of the same name, which the prefix must not reach
+    return 1
+end function
+print len( lm.CurrentDate( ) )
+print len( lm.DataDir( ) )
+print len( lm.Num( ) )
+print sizeof( lm.Num( ) )
+dim as typeof( lm.Num( ) ) t = 70000
+print t
+print len( (lm.CurrentDate( )) )
