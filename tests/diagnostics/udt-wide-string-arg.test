@@ -1,0 +1,20 @@
+'' A UDT with no cast yielding text, at a 'ustring' or 'wstring' parameter: fbc's 58 on one
+'' procedure, 99 on an overload set (a generic instance included). tiko dropped a byval ustring
+'' call (TKO0994), passed a byref one the UDT's address, and never judged a generic instance.
+'' A cast yielding only a character pointer is no text either.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/udt-wide-string-arg.tiko -o tests/diagnostics/src/udt-wide-string-arg.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: udt-wide-string-arg.tiko(38,9): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: udt-wide-string-arg.tiko(39,9): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: udt-wide-string-arg.tiko(40,9): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: udt-wide-string-arg.tiko(41,9): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: udt-wide-string-arg.tiko(42,9): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: udt-wide-string-arg.tiko(43,9): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: udt-wide-string-arg.tiko(44,9): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: udt-wide-string-arg.tiko(45,23): error TKO0632: no overload of 'two' matches these arguments
+'' EXPECT-OUT: udt-wide-string-arg.tiko(56,9): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: udt-wide-string-arg.tiko(57,9): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: udt-wide-string-arg.tiko(58,9): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-NOT: TKO0994
+'' EXPECT-MAX-DIAG: 11

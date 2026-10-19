@@ -1,0 +1,32 @@
+'' ...and a UDT whose cast yields text still binds to every wide string parameter, as fbc
+'' binds it: a 'string' cast and a 'ustring' cast, byval and byref.
+type S8
+    as long v
+    declare operator cast( ) as string
+end type
+operator S8.cast( ) as string
+    return "abc"
+end operator
+type S16
+    as long v
+    declare operator cast( ) as ustring
+end type
+operator S16.cast( ) as ustring
+    return "abc"
+end operator
+
+sub ByvalU( byval a as ustring )
+end sub
+sub ByrefU( byref a as const ustring )
+end sub
+sub ByrefW( byref a as const wstring )
+end sub
+
+dim x as S8
+dim y as S16
+ByvalU( x )
+ByrefU( x )
+ByrefW( x )
+ByvalU( y )
+ByrefU( y )
+ByrefW( y )

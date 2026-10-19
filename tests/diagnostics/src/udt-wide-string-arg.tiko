@@ -1,0 +1,58 @@
+'' A UDT WITH NO CAST YIELDING TEXT, passed to a 'ustring' or 'wstring' parameter, is fbc's
+'' error 58 on one procedure and 99 on an overload set -- measured on fbc-modern 1.20 with no
+'' cast and with only 'cast as long'. tiko reported nothing: a byval ustring was dropped and
+'' lowering stopped on TKO0994; a byref one received the UDT's own address, read as a string
+'' descriptor. And a GENERIC instance into an overload set was never judged at all -- the
+'' first report of it was 'fs.PathJoin( fs.TempDir( ), "x" )', a Result where text belongs.
+type Box
+    as long v
+end type
+type Num
+    as long v
+    declare operator cast( ) as long
+end type
+operator Num.cast( ) as long
+    return this.v
+end operator
+type Holder( of T )
+    as T v
+    as long e
+end type
+
+sub ByvalU( byval a as ustring )
+end sub
+sub ByrefU( byref a as const ustring )
+end sub
+sub ByrefW( byref a as const wstring )
+end sub
+function Two overload ( byref a as const ustring, byref b as const ustring ) as ustring
+    return a & b
+end function
+function Two overload ( byref a as const ustring, byref b as const ustring, byref c as const ustring ) as ustring
+    return a & b & c
+end function
+
+dim b as Box
+dim n as Num
+dim h as Holder( of ustring )
+ByvalU( b )
+ByrefU( b )
+ByrefW( b )
+ByvalU( n )
+ByrefU( n )
+ByrefW( n )
+ByrefU( h )
+dim p as ustring = Two( h, "y" )
+
+'' ...and a cast that yields only a CHARACTER POINTER is no text for a wide parameter: fbc's 58.
+type ZP
+    as long v
+    declare operator cast( ) as zstring ptr
+end type
+operator ZP.cast( ) as zstring ptr
+    return @"abc"
+end operator
+dim z as ZP
+ByvalU( z )
+ByrefU( z )
+ByrefW( z )
