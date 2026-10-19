@@ -2,6 +2,8 @@
 
 # Operating System Functions
 
+The built-in statements and functions below work in every program. The [`std/os`](Category-OS) module adds `Args( )` that keeps empty arguments, `GetEnv` that tells an unset variable from an empty one, host facts such as `CpuCount( )`, and Ctrl-C handling.
+
 - [Chain](Chain)
 - [ChDir](Chdir)
 - [Command](Command)

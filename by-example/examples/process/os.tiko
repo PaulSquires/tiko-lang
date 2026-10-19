@@ -1,0 +1,28 @@
+#import "std/os"
+#import "std/containers"
+#import "std/outcome"
+
+'' Every argument, including an empty one.
+dim args as containers.Array( of ustring ) = os.Args( )
+print "arguments:"; args.num - 1
+for i as int32 = 1 to args.num - 1
+    print "  ["; args.items( i ); "]"
+next
+
+'' Not set, and set to nothing, are different answers.
+os.SetEnv( "BYEXAMPLE_EMPTY", "" )
+print "BYEXAMPLE_EMPTY set? "; os.GetEnv( "BYEXAMPLE_EMPTY" ).HasValue( )
+print "BYEXAMPLE_NONE set?  "; os.GetEnv( "BYEXAMPLE_NONE" ).HasValue( )
+
+'' A default for a variable that is not set.
+dim level as ustring = os.GetEnv( "BYEXAMPLE_LEVEL" ).ValueOr( "info" )
+print "level: "; level
+
+'' Variables inside a string.
+os.SetEnv( "BYEXAMPLE_NAME", "report" )
+print os.ExpandEnv( "${BYEXAMPLE_NAME}-final.txt" )
+os.UnsetEnv( "BYEXAMPLE_NAME" )
+print "after unset: ["; os.ExpandEnv( "$BYEXAMPLE_NAME" ); "]"
+
+'' The system it runs on.
+print "os known? "; cbool( os.OS_NAME = "windows" orelse os.OS_NAME = "linux" ); ", arch: "; os.ARCH_NAME

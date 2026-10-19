@@ -1,0 +1,37 @@
+#import "std/hash"
+#import "std/fs"
+#import "std/codec"
+#import "std/containers"
+
+'' A checksum catches a file that changed by accident.
+print "crc32:  "; hash.DigestHex( hash.HASH_CRC32, "hello" )
+
+'' SHA-256 also stands up to someone changing it on purpose.
+print "sha256: "; hash.DigestHex( hash.HASH_SHA256, "hello" )
+
+'' Feeding the data in pieces gives the same answer.
+dim h as hash.Sha256
+h.UpdateText( "hel" )
+h.UpdateText( "lo" )
+print "pieces match? "; cbool( h.FinishHex( ) = hash.DigestHex( hash.HASH_SHA256, "hello" ) )
+
+'' A file is hashed a block at a time, however large it is.
+dim scratch as ustring = fs.CreateTempDir( ).Value( )
+dim path as ustring = fs.PathJoin( scratch, "hello.txt" )
+fs.WriteAllText( path, "hello" )
+print "file:   "; codec.HexEncode( hash.DigestFile( hash.HASH_SHA256, path ).Value( ) )
+fs.RemoveDirAll( scratch )
+
+'' A keyed hash proves the sender knew the key.
+function Sign( byref key as const ustring, byref msg as const ustring ) as containers.Array( of ubyte )
+    dim mac as hash.Hmac( of hash.Sha256 ) = hash.Hmac( of hash.Sha256 )( key )
+    mac.UpdateText( msg )
+    return mac.Finish( )
+end function
+
+dim sent as containers.Array( of ubyte ) = Sign( "secret", "pay 10 to ada" )
+print "hmac:   "; codec.HexEncode( sent )
+dim fromAda as containers.Array( of ubyte ) = Sign( "secret", "pay 10 to ada" )
+dim forged as containers.Array( of ubyte ) = Sign( "guess", "pay 10 to ada" )
+print "genuine? "; hash.ConstantTimeEquals( sent, fromAda )
+print "forged?  "; hash.ConstantTimeEquals( sent, forged )

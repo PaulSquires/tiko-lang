@@ -1,0 +1,26 @@
+#import "std/os"
+#import "std/containers"
+#import "std/outcome"
+
+'' Every argument, split as the shell passed it; an empty one is kept.
+dim args as containers.Array( of ustring ) = os.Args( )
+for i as int32 = 1 to args.num - 1
+    print i; ": ["; args.items( i ); "]"
+next
+
+'' GetEnv tells a variable that is not set from one set to nothing.
+os.SetEnv( "REPORT_MODE", "" )
+dim m as outcome.Optional( of ustring ) = os.GetEnv( "REPORT_MODE" )
+print "REPORT_MODE set? "; m.HasValue( ); ", value ["; m.ValueOr( "?" ); "]"
+print "UNSET_VARIABLE_XYZ set? "; os.GetEnv( "UNSET_VARIABLE_XYZ" ).HasValue( )
+
+'' $NAME and ${NAME} inside a string.
+os.SetEnv( "REPORT_MODE", "draft" )
+print os.ExpandEnv( "mode: $REPORT_MODE, file: ${REPORT_MODE}.txt" )
+
+'' A refused name is a failure value, not a crash.
+dim r as os.OsResultBool = os.SetEnv( "A=B", "x" )
+print r.Failure( ).Message( )
+
+'' Facts about the machine.
+print "cpus > 0? "; cbool( os.CpuCount( ) > 0 ); ", page: "; os.PageSize( )

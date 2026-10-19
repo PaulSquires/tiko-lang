@@ -297,6 +297,21 @@ its context runs to the end, and one blocked in a system call cannot see the req
 returns. That is deliberate — stopping a thread from outside would skip its destructors and its
 `defer`s, the cleanup the language promises.
 
+`tasks.InterruptContext( )` is a context that **Ctrl-C** cancels (Chapter 24's `os.CatchInterrupt`,
+started for you). Derive from it and every goroutine that watches its context stops on Ctrl-C with
+no code of its own:
+
+```tiko
+{{#include ../examples/ch22/interruptctx.tiko}}
+```
+
+```text
+{{#include ../examples/ch22/interruptctx.out}}
+```
+
+Run without a key press it ends with `deadline exceeded`; press Ctrl-C within the 100 ms and it
+says `cancelled`. Every call returns the same context, so a library can ask for it too.
+
 ## Shared state
 
 Channels move values between goroutines; they do not protect anything the goroutines share. When
@@ -374,7 +389,7 @@ that depend on each other inside one goroutine.
 - `select channel` waits on several operations, with `timeout` or `else`; like `spawn`, it needs
   `#import "std/tasks"` in the file (`TKO0423`).
 - `WaitGroup`: `Add` before `spawn`, `Done` in the goroutine, `Wait` to join. `Context`: cooperative
-  cancellation through a `Done( )` channel, by hand or by deadline.
+  cancellation through a `Done( )` channel, by hand, by deadline, or by Ctrl-C (`InterruptContext`).
 - Shared variables need a mutex or an atomic; per-thread runtime state such as `dir( )`'s listing
   does not follow a goroutine.
 

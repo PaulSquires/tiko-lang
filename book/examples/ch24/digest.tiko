@@ -1,0 +1,24 @@
+#import "std/hash"
+#import "std/fs"
+#import "std/codec"
+
+'' One call: the algorithm, then the data.
+print "sha256: "; hash.DigestHex( hash.HASH_SHA256, "abc" )
+print "crc32:  "; hash.DigestHex( hash.HASH_CRC32, "123456789" )
+
+'' In pieces: the same answer as all at once.
+dim h as hash.Sha256
+h.UpdateText( "a" )
+h.UpdateText( "bc" )
+print "pieces: "; cbool( h.FinishHex( ) = hash.DigestHex( hash.HASH_SHA256, "abc" ) )
+
+'' A file, read in blocks however large it is.
+dim scratch as ustring = fs.CreateTempDir( ).Value( )
+dim path as ustring = fs.PathJoin( scratch, "data.txt" )
+fs.WriteAllText( path, "abc" )
+print "file:   "; codec.HexEncode( hash.DigestFile( hash.HASH_SHA256, path ).Value( ) )
+fs.RemoveDirAll( scratch )
+
+'' A keyed hash: only someone with the key can produce it.
+print "hmac:   "; hash.HmacHex( hash.HASH_SHA256, "key", _
+    "The quick brown fox jumps over the lazy dog" )

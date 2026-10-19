@@ -27,6 +27,8 @@ The pages in this section take each channel in turn:
 - [Command-line arguments](args.md): `command( n )` and its relatives.
 - [Environment variables](environment.md): `environ` and `setenviron`.
 - [Exit codes](exit.md): `end n`.
+- [The os module](os.md): arguments, the environment and the machine, without losing anything.
+- [Ctrl-C](interrupt.md): stopping cleanly when the user asks.
 - [Running other programs](run.md): `exec`, `shell` and `open pipe`.
 
 Reading and writing files is covered in [its own section](../files/index.md).

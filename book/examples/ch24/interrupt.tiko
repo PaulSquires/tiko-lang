@@ -1,0 +1,16 @@
+#import "std/os"
+
+'' From here on, Ctrl-C sets a flag instead of ending the program.
+os.CatchInterrupt( )
+
+dim as int32 done_ = 0
+while os.Interrupted( ) = false andalso done_ < 20
+    sleep 5                         '' one unit of work
+    done_ += 1
+wend
+
+if os.Interrupted( ) then
+    print "stopped early after"; done_; " steps"
+    os.Exit_( 130 )
+end if
+print "finished all"; done_; " steps"

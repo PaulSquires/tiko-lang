@@ -970,6 +970,7 @@ Each was considered and excluded:
 - **Recycle Bin / trash deletion.** Shell APIs, COM-dependent, no POSIX counterpart worth the name.
 - **Extended attributes, alternate data streams, full ACLs.** No portable subset that means anything; NativeAttributes( ) is the escape hatch.
 - **CreateJunction.** Junctions are readable but not creatable -- CreateSymlink with targetIsDir covers the portable need.
+- **Checksums of files.** `hash.DigestFile` in [std/hash](Category-Hash) reads a file in blocks and returns its CRC-32 or SHA-256; `hash.HashStream` does the same for any `Stream`.
 
 ## Implementation
 
