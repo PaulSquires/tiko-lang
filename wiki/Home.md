@@ -39,6 +39,12 @@ Every listing in the book is a real program, compiled and run on Windows and Lin
 
 <br clear="right">
 
+## tiko by Example
+
+***tiko by Example*** teaches the language through short, complete programs, in the style of *Rust by Example*. Each page is one runnable example followed by the output it printed, plus a few activities to try. Sections run from printing, values and control flow through procedures, types and objects to the standard library, concurrency and calling C. Every example is compiled and run on Windows and Linux before it is published.
+
+- **Read it online:** [tiko-lang.net/by-example](https://tiko-lang.net/by-example/), an mdBook.
+
 ## The language
 
 [Generics](Category-Generics) · [Iterator Protocol](Category-Iterators) · [For Each](Category-For-Each) · [Tuples](Category-Tuples) · [Array Results](Category-Array-Results) · [Collection Initializers](Category-Collection-Initializers) · [Defer](Category-Defer) · [Lambdas](Category-Lambdas) · [Block Strings](Category-Block-Strings) · [Typed Variadics](Category-Typed-Variadics) · [UString](Category-UString) · [Fixed-Width Types](Category-Fixed-Width-Types) · [Nullptr](Category-Nullptr) · [Goroutines and Channels](Category-Goroutines-and-Channels)
