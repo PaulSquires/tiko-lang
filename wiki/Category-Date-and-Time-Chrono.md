@@ -326,6 +326,8 @@ WallClock.TimeOfDay -> LocalTime
 WallClock.Resolution -> TimeSpan
 ```
 
+Pages: [UtcNow](Modern-Chrono-WallClock-UtcNow) · [Now](Modern-Chrono-WallClock-Now) · [Today](Modern-Chrono-WallClock-Today) · [TimeOfDay](Modern-Chrono-WallClock-TimeOfDay) · [Resolution](Modern-Chrono-WallClock-Resolution)
+
 Stopwatch -- the monotonic clock
 
 ```freebasic
@@ -354,6 +356,8 @@ number), so the C layer returns -1 for the kernel half and ThreadTime
 reports the total rather than inventing a division.
 ```
 
+Pages: [ProcessTime](Modern-Chrono-CpuClock-ProcessTime) · [ProcessUserTime](Modern-Chrono-CpuClock-ProcessUserTime) · [ProcessKernelTime](Modern-Chrono-CpuClock-ProcessKernelTime) · [ThreadTime](Modern-Chrono-CpuClock-ThreadTime) · [IsSupported](Modern-Chrono-CpuClock-IsSupported)
+
 TimeZoneInfo -- the OS zone
 
 ```freebasic
@@ -367,6 +371,8 @@ LocalOffsetAt EXISTS BECAUSE "the current offset" IS THE WRONG DEFAULT.
 Converting a July timestamp with January's offset is the commonest timezone
 bug there is, and an API offering only LocalOffset makes it the easy path.
 ```
+
+Pages: [LocalOffsetAt](Modern-Chrono-TimeZoneInfo-LocalOffsetAt) · [LocalOffset](Modern-Chrono-TimeZoneInfo-LocalOffset) · [IsDaylightSavingTime](Modern-Chrono-TimeZoneInfo-IsDaylightSavingTime) · [SupportsDaylightSavingTime](Modern-Chrono-TimeZoneInfo-SupportsDaylightSavingTime) · [StandardName](Modern-Chrono-TimeZoneInfo-StandardName) · [DaylightName](Modern-Chrono-TimeZoneInfo-DaylightName)
 
 ## EXACT ARITHMETIC vs CALENDAR ARITHMETIC
 
@@ -787,6 +793,16 @@ ASSERT YOUR TEST GENERATOR'S RANGE. Every fixed-seed sweep here originally drew 
 
 Every entry, grouped by task. [Dates and times](Functions-Dates) lists them beside the rest of the area.
 
+### Get the current date and time
+
+| Function | What it does | From |
+|---|---|---|
+| [WallClock.UtcNow](Modern-Chrono-WallClock-UtcNow) | Returns the current moment on the UTC timeline, read from the system clock. | `std/chrono` |
+| [WallClock.Now](Modern-Chrono-WallClock-Now) | Returns the local date and time, with the UTC offset in force at this moment. | `std/chrono` |
+| [WallClock.Today](Modern-Chrono-WallClock-Today) | Returns today's local date as a LocalDate. | `std/chrono` |
+| [WallClock.TimeOfDay](Modern-Chrono-WallClock-TimeOfDay) | Returns the current local time of day as a LocalTime. | `std/chrono` |
+| [WallClock.Resolution](Modern-Chrono-WallClock-Resolution) | Returns the smallest step the wall clock reports, as a TimeSpan. | `std/chrono` |
+
 ### Time how long something takes
 
 | Function | What it does | From |
@@ -804,18 +820,23 @@ Every entry, grouped by task. [Dates and times](Functions-Dates) lists them besi
 | [Stopwatch.GetTimestamp](Modern-Chrono-Stopwatch-GetTimestamp) | Returns the raw monotonic counter; divide a difference by Frequency to get seconds. | `std/chrono` |
 | [Stopwatch.Frequency](Modern-Chrono-Stopwatch-Frequency) | Returns how many counts per second the raw counter from GetTimestamp makes. | `std/chrono` |
 | [Stopwatch.IsHighResolution](Modern-Chrono-Stopwatch-IsHighResolution) | Returns true if the platform counter is finer than the system tick. | `std/chrono` |
+| [CpuClock.ProcessTime](Modern-Chrono-CpuClock-ProcessTime) | Returns the processor time this process has used so far, user and kernel together. | `std/chrono` |
+| [CpuClock.ProcessUserTime](Modern-Chrono-CpuClock-ProcessUserTime) | Returns the processor time this process has spent running its own code. | `std/chrono` |
+| [CpuClock.ProcessKernelTime](Modern-Chrono-CpuClock-ProcessKernelTime) | Returns the processor time the OS has spent working on behalf of this process. | `std/chrono` |
+| [CpuClock.ThreadTime](Modern-Chrono-CpuClock-ThreadTime) | Returns the processor time the calling thread has used, user and kernel together. | `std/chrono` |
+| [CpuClock.IsSupported](Modern-Chrono-CpuClock-IsSupported) | Returns true if the platform can report processor time. | `std/chrono` |
 
 ### Make a date, a time or a date-time
 
 | Function | What it does | From |
 |---|---|---|
-| [DateTime](Modern-Chrono-Instant-DateTime) | Creates a date-time from a year, month, day and optional time, or Invalid if none. | `std/chrono` |
+| [DateTime](Modern-Chrono-DateTime-DateTime) | Creates a date-time from a year, month, day and optional time, or Invalid if none. | `std/chrono` |
 | [LocalDate.LocalDate](Modern-Chrono-LocalDate-LocalDate) | Creates a date with no time of day from a year, month and day, or Invalid if none. | `std/chrono` |
 | [LocalTime.LocalTime](Modern-Chrono-LocalTime-LocalTime) | Creates a time of day from hours, minutes, seconds and milliseconds; midnight if none. | `std/chrono` |
 | [Instant.Instant](Modern-Chrono-Instant-Instant) | Creates a moment on the UTC timeline from a tick count; Invalid with no argument. | `std/chrono` |
 | [Instant.FromTicks](Modern-Chrono-Instant-FromTicks) | Creates a moment from 100 ns ticks since 0001-01-01, or Invalid if out of range. | `std/chrono` |
-| [DateTime.FromDate](Modern-Chrono-Instant-FromDate) | Returns a date-time at midnight on the given date. | `std/chrono` |
-| [DateTime.FromDateTime](Modern-Chrono-Instant-FromDateTime) | Returns a date-time that joins a date and a time of day. | `std/chrono` |
+| [DateTime.FromDate](Modern-Chrono-DateTime-FromDate) | Returns a date-time at midnight on the given date. | `std/chrono` |
+| [DateTime.FromDateTime](Modern-Chrono-DateTime-FromDateTime) | Returns a date-time that joins a date and a time of day. | `std/chrono` |
 | [LocalDate.FromDayNumber](Modern-Chrono-LocalDate-FromDayNumber) | Creates a date from a count of days since 0001-01-01. | `std/chrono` |
 | [LocalTime.FromTicks](Modern-Chrono-LocalTime-FromTicks) | Creates a time of day from 100 ns ticks since midnight, or Invalid past a whole day. | `std/chrono` |
 | [LocalTime.Midnight](Modern-Chrono-LocalTime-Midnight) | Returns the time of day 00:00:00. | `std/chrono` |
@@ -825,17 +846,17 @@ Every entry, grouped by task. [Dates and times](Functions-Dates) lists them besi
 
 | Function | What it does | From |
 |---|---|---|
-| [DateTime.Year](Modern-Chrono-Instant-Year) | Returns the year, 1 to 9999. | `std/chrono` |
-| [DateTime.Month](Modern-Chrono-Instant-Month) | Returns the month, 1 to 12. | `std/chrono` |
-| [DateTime.Day](Modern-Chrono-Instant-Day) | Returns the day of the month, starting at 1. | `std/chrono` |
-| [DateTime.Hour](Modern-Chrono-Instant-Hour) | Returns the hour, 0 to 23. | `std/chrono` |
-| [DateTime.Minute](Modern-Chrono-Instant-Minute) | Returns the minute, 0 to 59. | `std/chrono` |
-| [DateTime.Second](Modern-Chrono-Instant-Second) | Returns the second, 0 to 59. | `std/chrono` |
-| [DateTime.Millisecond](Modern-Chrono-Instant-Millisecond) | Returns the milliseconds within the second, 0 to 999. | `std/chrono` |
-| [DateTime.Microsecond](Modern-Chrono-Instant-Microsecond) | Returns the microseconds within the second, the milliseconds included. | `std/chrono` |
-| [DateTime.TickOfDay](Modern-Chrono-Instant-TickOfDay) | Returns the time of day as one number: 100 ns ticks since midnight. | `std/chrono` |
-| [DateTime.GetDate](Modern-Chrono-Instant-GetDate) | Returns the date part as a LocalDate, dropping the time and the offset. | `std/chrono` |
-| [DateTime.GetTimeOfDay](Modern-Chrono-Instant-GetTimeOfDay) | Returns the time-of-day part as a LocalTime. | `std/chrono` |
+| [DateTime.Year](Modern-Chrono-DateTime-Year) | Returns the year, 1 to 9999. | `std/chrono` |
+| [DateTime.Month](Modern-Chrono-DateTime-Month) | Returns the month, 1 to 12. | `std/chrono` |
+| [DateTime.Day](Modern-Chrono-DateTime-Day) | Returns the day of the month, starting at 1. | `std/chrono` |
+| [DateTime.Hour](Modern-Chrono-DateTime-Hour) | Returns the hour, 0 to 23. | `std/chrono` |
+| [DateTime.Minute](Modern-Chrono-DateTime-Minute) | Returns the minute, 0 to 59. | `std/chrono` |
+| [DateTime.Second](Modern-Chrono-DateTime-Second) | Returns the second, 0 to 59. | `std/chrono` |
+| [DateTime.Millisecond](Modern-Chrono-DateTime-Millisecond) | Returns the milliseconds within the second, 0 to 999. | `std/chrono` |
+| [DateTime.Microsecond](Modern-Chrono-DateTime-Microsecond) | Returns the microseconds within the second, the milliseconds included. | `std/chrono` |
+| [DateTime.TickOfDay](Modern-Chrono-DateTime-TickOfDay) | Returns the time of day as one number: 100 ns ticks since midnight. | `std/chrono` |
+| [DateTime.GetDate](Modern-Chrono-DateTime-GetDate) | Returns the date part as a LocalDate, dropping the time and the offset. | `std/chrono` |
+| [DateTime.GetTimeOfDay](Modern-Chrono-DateTime-GetTimeOfDay) | Returns the time-of-day part as a LocalTime. | `std/chrono` |
 | [LocalDate.Year](Modern-Chrono-LocalDate-Year) | Returns the year, 1 to 9999. | `std/chrono` |
 | [LocalDate.Month](Modern-Chrono-LocalDate-Month) | Returns the month, 1 to 12. | `std/chrono` |
 | [LocalDate.Day](Modern-Chrono-LocalDate-Day) | Returns the day of the month, starting at 1. | `std/chrono` |
@@ -855,17 +876,17 @@ Every entry, grouped by task. [Dates and times](Functions-Dates) lists them besi
 | [AddCalendarMonths](Modern-Chrono-AddCalendarMonths) | Adds calendar months, then works out the UTC offset again for the new date. | `std/chrono` |
 | [Instant.Add](Modern-Chrono-Instant-Add) | Returns the date-time moved forward by a TimeSpan. | `std/chrono` |
 | [Instant.Subtract](Modern-Chrono-Instant-Subtract) | Returns the date-time moved back by a TimeSpan, or Invalid past the earliest date. | `std/chrono` |
-| [DateTime.AddTicks](Modern-Chrono-Instant-AddTicks) | Returns the date-time moved by a number of 100 ns ticks. | `std/chrono` |
-| [DateTime.AddMilliseconds](Modern-Chrono-Instant-AddMilliseconds) | Returns the date-time moved by a number of milliseconds, fractions allowed. | `std/chrono` |
-| [DateTime.AddSeconds](Modern-Chrono-Instant-AddSeconds) | Returns the date-time moved by a number of seconds, fractions allowed. | `std/chrono` |
-| [DateTime.AddMinutes](Modern-Chrono-Instant-AddMinutes) | Returns the date-time moved by a number of minutes, fractions allowed. | `std/chrono` |
-| [DateTime.AddHours](Modern-Chrono-Instant-AddHours) | Returns the date-time moved by a number of hours, fractions allowed. | `std/chrono` |
-| [DateTime.AddDays](Modern-Chrono-Instant-AddDays) | Returns the date-time moved by days of exactly 24 hours, fractions allowed. | `std/chrono` |
-| [DateTime.AddMonths](Modern-Chrono-Instant-AddMonths) | Returns the date-time moved by whole months, clamping the day to the month's end. | `std/chrono` |
-| [DateTime.AddYears](Modern-Chrono-Instant-AddYears) | Returns the date-time moved by whole years; 29 February becomes the 28th if needed. | `std/chrono` |
-| [DateTime.AddCalendarDays](Modern-Chrono-Instant-AddCalendarDays) | Returns the same clock time a number of days later, even across a DST change. | `std/chrono` |
-| [DateTime.AddCalendarMonths](Modern-Chrono-Instant-AddCalendarMonths) | Returns the same clock time some months later, clamping the day to the month's end. | `std/chrono` |
-| [DateTime.AddCalendarYears](Modern-Chrono-Instant-AddCalendarYears) | Returns the same clock time some years later, with the UTC offset worked out again. | `std/chrono` |
+| [DateTime.AddTicks](Modern-Chrono-DateTime-AddTicks) | Returns the date-time moved by a number of 100 ns ticks. | `std/chrono` |
+| [DateTime.AddMilliseconds](Modern-Chrono-DateTime-AddMilliseconds) | Returns the date-time moved by a number of milliseconds, fractions allowed. | `std/chrono` |
+| [DateTime.AddSeconds](Modern-Chrono-DateTime-AddSeconds) | Returns the date-time moved by a number of seconds, fractions allowed. | `std/chrono` |
+| [DateTime.AddMinutes](Modern-Chrono-DateTime-AddMinutes) | Returns the date-time moved by a number of minutes, fractions allowed. | `std/chrono` |
+| [DateTime.AddHours](Modern-Chrono-DateTime-AddHours) | Returns the date-time moved by a number of hours, fractions allowed. | `std/chrono` |
+| [DateTime.AddDays](Modern-Chrono-DateTime-AddDays) | Returns the date-time moved by days of exactly 24 hours, fractions allowed. | `std/chrono` |
+| [DateTime.AddMonths](Modern-Chrono-DateTime-AddMonths) | Returns the date-time moved by whole months, clamping the day to the month's end. | `std/chrono` |
+| [DateTime.AddYears](Modern-Chrono-DateTime-AddYears) | Returns the date-time moved by whole years; 29 February becomes the 28th if needed. | `std/chrono` |
+| [DateTime.AddCalendarDays](Modern-Chrono-DateTime-AddCalendarDays) | Returns the same clock time a number of days later, even across a DST change. | `std/chrono` |
+| [DateTime.AddCalendarMonths](Modern-Chrono-DateTime-AddCalendarMonths) | Returns the same clock time some months later, clamping the day to the month's end. | `std/chrono` |
+| [DateTime.AddCalendarYears](Modern-Chrono-DateTime-AddCalendarYears) | Returns the same clock time some years later, with the UTC offset worked out again. | `std/chrono` |
 | [LocalDate.AddDays](Modern-Chrono-LocalDate-AddDays) | Returns the date moved by a number of days. | `std/chrono` |
 | [LocalDate.AddMonths](Modern-Chrono-LocalDate-AddMonths) | Returns the date moved by whole months, clamping the day to the month's end. | `std/chrono` |
 | [LocalDate.AddYears](Modern-Chrono-LocalDate-AddYears) | Returns the date moved by whole years; 29 February becomes the 28th if needed. | `std/chrono` |
@@ -885,7 +906,7 @@ Every entry, grouped by task. [Dates and times](Functions-Dates) lists them besi
 |---|---|---|
 | [Instant.ToIsoString](Modern-Chrono-Instant-ToIsoString) | Returns the date-time as ISO 8601 text, with Z or the offset when it has one. | `std/chrono` |
 | [Instant.ToString](Modern-Chrono-Instant-ToString) | Returns ISO 8601 text, or the date-time laid out by a pattern such as "yyyy-MM-dd". | `std/chrono` |
-| [DateTime.TryFormat](Modern-Chrono-Instant-TryFormat) | Formats the date-time with a pattern into a variable; returns false if the pattern is bad. | `std/chrono` |
+| [DateTime.TryFormat](Modern-Chrono-DateTime-TryFormat) | Formats the date-time with a pattern into a variable; returns false if the pattern is bad. | `std/chrono` |
 | [LocalDate.ToIsoString](Modern-Chrono-LocalDate-ToIsoString) | Returns the date as text in the form 2026-08-13, or empty text if it is Invalid. | `std/chrono` |
 | [LocalDate.ToString](Modern-Chrono-LocalDate-ToString) | Returns the date as ISO 8601 text, the same as ToIsoString. | `std/chrono` |
 | [LocalTime.ToIsoString](Modern-Chrono-LocalTime-ToIsoString) | Returns the time of day as ISO 8601 text, such as 14:30:05. | `std/chrono` |
@@ -900,9 +921,9 @@ Every entry, grouped by task. [Dates and times](Functions-Dates) lists them besi
 |---|---|---|
 | [Instant.ParseIso](Modern-Chrono-Instant-ParseIso) | Reads ISO 8601 text into a date-time, or Invalid if it is not ISO 8601. | `std/chrono` |
 | [Instant.TryParseIso](Modern-Chrono-Instant-TryParseIso) | Reads ISO 8601 text into a date-time; returns false and sets it Invalid on failure. | `std/chrono` |
-| [DateTime.TryParse](Modern-Chrono-Instant-TryParse) | Reads ISO 8601 text into a date-time, the same as TryParseIso. | `std/chrono` |
-| [DateTime.ParseExact](Modern-Chrono-Instant-ParseExact) | Reads text laid out by a pattern such as "dd/MM/yyyy", or Invalid if it does not match. | `std/chrono` |
-| [DateTime.TryParseExact](Modern-Chrono-Instant-TryParseExact) | Reads text laid out by a pattern into a date-time; returns false if it does not match. | `std/chrono` |
+| [DateTime.TryParse](Modern-Chrono-DateTime-TryParse) | Reads ISO 8601 text into a date-time, the same as TryParseIso. | `std/chrono` |
+| [DateTime.ParseExact](Modern-Chrono-DateTime-ParseExact) | Reads text laid out by a pattern such as "dd/MM/yyyy", or Invalid if it does not match. | `std/chrono` |
+| [DateTime.TryParseExact](Modern-Chrono-DateTime-TryParseExact) | Reads text laid out by a pattern into a date-time; returns false if it does not match. | `std/chrono` |
 | [LocalDate.ParseIso](Modern-Chrono-LocalDate-ParseIso) | Reads ISO text such as 2026-08-13 into a date, or Invalid on failure. | `std/chrono` |
 | [LocalDate.TryParseIso](Modern-Chrono-LocalDate-TryParseIso) | Reads ISO text into a date; returns false and sets it Invalid on failure. | `std/chrono` |
 | [LocalTime.ParseIso](Modern-Chrono-LocalTime-ParseIso) | Reads ISO text such as 14:30:05 into a time of day, or Invalid on failure. | `std/chrono` |
@@ -914,11 +935,11 @@ Every entry, grouped by task. [Dates and times](Functions-Dates) lists them besi
 
 | Function | What it does | From |
 |---|---|---|
-| [DateTime.DayOfWeek](Modern-Chrono-Instant-DayOfWeek) | Returns the day of the week, 1 for Monday to 7 for Sunday. | `std/chrono` |
-| [DateTime.DayOfYear](Modern-Chrono-Instant-DayOfYear) | Returns the day of the year, starting at 1. | `std/chrono` |
-| [DateTime.IsoWeek](Modern-Chrono-Instant-IsoWeek) | Returns the ISO week number, 1 to 53; pair it with IsoWeekYear. | `std/chrono` |
-| [DateTime.IsoWeekYear](Modern-Chrono-Instant-IsoWeekYear) | Returns the year the ISO week belongs to, which can differ from Year near New Year. | `std/chrono` |
-| [DateTime.Quarter](Modern-Chrono-Instant-Quarter) | Returns the calendar quarter, 1 to 4. | `std/chrono` |
+| [DateTime.DayOfWeek](Modern-Chrono-DateTime-DayOfWeek) | Returns the day of the week, 1 for Monday to 7 for Sunday. | `std/chrono` |
+| [DateTime.DayOfYear](Modern-Chrono-DateTime-DayOfYear) | Returns the day of the year, starting at 1. | `std/chrono` |
+| [DateTime.IsoWeek](Modern-Chrono-DateTime-IsoWeek) | Returns the ISO week number, 1 to 53; pair it with IsoWeekYear. | `std/chrono` |
+| [DateTime.IsoWeekYear](Modern-Chrono-DateTime-IsoWeekYear) | Returns the year the ISO week belongs to, which can differ from Year near New Year. | `std/chrono` |
+| [DateTime.Quarter](Modern-Chrono-DateTime-Quarter) | Returns the calendar quarter, 1 to 4. | `std/chrono` |
 | [LocalDate.DayOfWeek](Modern-Chrono-LocalDate-DayOfWeek) | Returns the day of the week, 1 for Monday to 7 for Sunday. | `std/chrono` |
 | [LocalDate.DayOfYear](Modern-Chrono-LocalDate-DayOfYear) | Returns the day of the year, starting at 1. | `std/chrono` |
 | [LocalDate.IsoWeek](Modern-Chrono-LocalDate-IsoWeek) | Returns the ISO week number, 1 to 53; pair it with IsoWeekYear. | `std/chrono` |
@@ -929,26 +950,26 @@ Every entry, grouped by task. [Dates and times](Functions-Dates) lists them besi
 
 | Function | What it does | From |
 |---|---|---|
-| [DateTime.MonthName](Modern-Chrono-Instant-MonthName) | Returns the English name of a month number, or its three-letter abbreviation. | `std/chrono` |
-| [DateTime.MonthUName](Modern-Chrono-Instant-MonthUName) | Returns the English name of a month number, or its abbreviation, as a ustring. | `std/chrono` |
-| [DateTime.WeekdayName](Modern-Chrono-Instant-WeekdayName) | Returns the English name of a weekday, 1 being Monday, or its abbreviation. | `std/chrono` |
-| [DateTime.WeekdayUName](Modern-Chrono-Instant-WeekdayUName) | Returns the English name of a weekday, 1 being Monday, as a ustring. | `std/chrono` |
+| [DateTime.MonthName](Modern-Chrono-DateTime-MonthName) | Returns the English name of a month number, or its three-letter abbreviation. | `std/chrono` |
+| [DateTime.MonthUName](Modern-Chrono-DateTime-MonthUName) | Returns the English name of a month number, or its abbreviation, as a ustring. | `std/chrono` |
+| [DateTime.WeekdayName](Modern-Chrono-DateTime-WeekdayName) | Returns the English name of a weekday, 1 being Monday, or its abbreviation. | `std/chrono` |
+| [DateTime.WeekdayUName](Modern-Chrono-DateTime-WeekdayUName) | Returns the English name of a weekday, 1 being Monday, as a ustring. | `std/chrono` |
 
 ### Jump to the start or end of a day, week, month or year
 
 | Function | What it does | From |
 |---|---|---|
-| [DateTime.StartOfDay](Modern-Chrono-Instant-StartOfDay) | Returns midnight at the start of the same day, keeping the offset. | `std/chrono` |
-| [DateTime.EndOfDay](Modern-Chrono-Instant-EndOfDay) | Returns the last tick of the same day, 23:59:59.9999999. | `std/chrono` |
-| [DateTime.StartOfWeek](Modern-Chrono-Instant-StartOfWeek) | Returns midnight on the first day of the week, Monday unless told otherwise. | `std/chrono` |
-| [DateTime.StartOfMonth](Modern-Chrono-Instant-StartOfMonth) | Returns midnight on the first day of the month. | `std/chrono` |
-| [DateTime.EndOfMonth](Modern-Chrono-Instant-EndOfMonth) | Returns the last tick of the last day of the month. | `std/chrono` |
-| [DateTime.StartOfYear](Modern-Chrono-Instant-StartOfYear) | Returns midnight on 1 January of the same year. | `std/chrono` |
-| [DateTime.EndOfYear](Modern-Chrono-Instant-EndOfYear) | Returns the last tick of 31 December of the same year. | `std/chrono` |
-| [DateTime.NextWeekday](Modern-Chrono-Instant-NextWeekday) | Returns the same time on the next given weekday, always strictly later. | `std/chrono` |
-| [DateTime.PrevWeekday](Modern-Chrono-Instant-PrevWeekday) | Returns the same time on the previous given weekday, always strictly earlier. | `std/chrono` |
-| [DateTime.IsFirstDayOfMonth](Modern-Chrono-Instant-IsFirstDayOfMonth) | Returns true if the date is the first day of its month. | `std/chrono` |
-| [DateTime.IsLastDayOfMonth](Modern-Chrono-Instant-IsLastDayOfMonth) | Returns true if the date is the last day of its month. | `std/chrono` |
+| [DateTime.StartOfDay](Modern-Chrono-DateTime-StartOfDay) | Returns midnight at the start of the same day, keeping the offset. | `std/chrono` |
+| [DateTime.EndOfDay](Modern-Chrono-DateTime-EndOfDay) | Returns the last tick of the same day, 23:59:59.9999999. | `std/chrono` |
+| [DateTime.StartOfWeek](Modern-Chrono-DateTime-StartOfWeek) | Returns midnight on the first day of the week, Monday unless told otherwise. | `std/chrono` |
+| [DateTime.StartOfMonth](Modern-Chrono-DateTime-StartOfMonth) | Returns midnight on the first day of the month. | `std/chrono` |
+| [DateTime.EndOfMonth](Modern-Chrono-DateTime-EndOfMonth) | Returns the last tick of the last day of the month. | `std/chrono` |
+| [DateTime.StartOfYear](Modern-Chrono-DateTime-StartOfYear) | Returns midnight on 1 January of the same year. | `std/chrono` |
+| [DateTime.EndOfYear](Modern-Chrono-DateTime-EndOfYear) | Returns the last tick of 31 December of the same year. | `std/chrono` |
+| [DateTime.NextWeekday](Modern-Chrono-DateTime-NextWeekday) | Returns the same time on the next given weekday, always strictly later. | `std/chrono` |
+| [DateTime.PrevWeekday](Modern-Chrono-DateTime-PrevWeekday) | Returns the same time on the previous given weekday, always strictly earlier. | `std/chrono` |
+| [DateTime.IsFirstDayOfMonth](Modern-Chrono-DateTime-IsFirstDayOfMonth) | Returns true if the date is the first day of its month. | `std/chrono` |
+| [DateTime.IsLastDayOfMonth](Modern-Chrono-DateTime-IsLastDayOfMonth) | Returns true if the date is the last day of its month. | `std/chrono` |
 | [LocalDate.StartOfMonth](Modern-Chrono-LocalDate-StartOfMonth) | Returns the first day of the date's month. | `std/chrono` |
 | [LocalDate.EndOfMonth](Modern-Chrono-LocalDate-EndOfMonth) | Returns the last day of the date's month. | `std/chrono` |
 | [LocalDate.IsFirstDayOfMonth](Modern-Chrono-LocalDate-IsFirstDayOfMonth) | Returns true if the date is the first day of its month. | `std/chrono` |
@@ -958,10 +979,10 @@ Every entry, grouped by task. [Dates and times](Functions-Dates) lists them besi
 
 | Function | What it does | From |
 |---|---|---|
-| [DateTime.IsLeapYear](Modern-Chrono-Instant-IsLeapYear) | Returns true if a year is a leap year under the full Gregorian rule. | `std/chrono` |
-| [DateTime.DaysInMonth](Modern-Chrono-Instant-DaysInMonth) | Returns the number of days in a month of a given year. | `std/chrono` |
-| [DateTime.DaysInYear](Modern-Chrono-Instant-DaysInYear) | Returns 365 or 366, the number of days in a year. | `std/chrono` |
-| [DateTime.WeeksInYear](Modern-Chrono-Instant-WeeksInYear) | Returns 52 or 53, the number of ISO weeks in a year. | `std/chrono` |
+| [DateTime.IsLeapYear](Modern-Chrono-DateTime-IsLeapYear) | Returns true if a year is a leap year under the full Gregorian rule. | `std/chrono` |
+| [DateTime.DaysInMonth](Modern-Chrono-DateTime-DaysInMonth) | Returns the number of days in a month of a given year. | `std/chrono` |
+| [DateTime.DaysInYear](Modern-Chrono-DateTime-DaysInYear) | Returns 365 or 366, the number of days in a year. | `std/chrono` |
+| [DateTime.WeeksInYear](Modern-Chrono-DateTime-WeeksInYear) | Returns 52 or 53, the number of ISO weeks in a year. | `std/chrono` |
 
 ### TimeSpan: make a duration
 
@@ -1014,26 +1035,32 @@ Every entry, grouped by task. [Dates and times](Functions-Dates) lists them besi
 
 | Function | What it does | From |
 |---|---|---|
-| [DateTime.WithOffset](Modern-Chrono-Instant-WithOffset) | Attaches a UTC offset in minutes, keeping the clock reading and changing the moment. | `std/chrono` |
-| [DateTime.ToOffset](Modern-Chrono-Instant-ToOffset) | Converts to another UTC offset, keeping the moment and changing the clock reading. | `std/chrono` |
-| [DateTime.OffsetMinutes](Modern-Chrono-Instant-OffsetMinutes) | Returns the UTC offset in minutes; check HasOffset first, as no offset reads 32767. | `std/chrono` |
-| [DateTime.HasOffset](Modern-Chrono-Instant-HasOffset) | Returns true if the date-time carries a UTC offset. | `std/chrono` |
-| [DateTime.IsUtc](Modern-Chrono-Instant-IsUtc) | Returns true if the offset is zero; a date-time with no offset is not UTC. | `std/chrono` |
-| [DateTime.ToInstant](Modern-Chrono-Instant-ToInstant) | Returns the moment the date-time names, or Invalid if it has no offset. | `std/chrono` |
-| [DateTime.AssumeUtc](Modern-Chrono-Instant-AssumeUtc) | Returns the moment the date-time names if its clock reading is taken as UTC. | `std/chrono` |
-| [DateTime.ToLocal](Modern-Chrono-Instant-ToLocal) | Returns the same moment shown at the machine's local UTC offset. | `std/chrono` |
-| [DateTime.FromInstant](Modern-Chrono-Instant-FromInstant) | Returns the date-time a moment shows on a clock with the given UTC offset. | `std/chrono` |
+| [DateTime.WithOffset](Modern-Chrono-DateTime-WithOffset) | Attaches a UTC offset in minutes, keeping the clock reading and changing the moment. | `std/chrono` |
+| [DateTime.ToOffset](Modern-Chrono-DateTime-ToOffset) | Converts to another UTC offset, keeping the moment and changing the clock reading. | `std/chrono` |
+| [DateTime.OffsetMinutes](Modern-Chrono-DateTime-OffsetMinutes) | Returns the UTC offset in minutes; check HasOffset first, as no offset reads 32767. | `std/chrono` |
+| [DateTime.HasOffset](Modern-Chrono-DateTime-HasOffset) | Returns true if the date-time carries a UTC offset. | `std/chrono` |
+| [DateTime.IsUtc](Modern-Chrono-DateTime-IsUtc) | Returns true if the offset is zero; a date-time with no offset is not UTC. | `std/chrono` |
+| [DateTime.ToInstant](Modern-Chrono-DateTime-ToInstant) | Returns the moment the date-time names, or Invalid if it has no offset. | `std/chrono` |
+| [DateTime.AssumeUtc](Modern-Chrono-DateTime-AssumeUtc) | Returns the moment the date-time names if its clock reading is taken as UTC. | `std/chrono` |
+| [DateTime.ToLocal](Modern-Chrono-DateTime-ToLocal) | Returns the same moment shown at the machine's local UTC offset. | `std/chrono` |
+| [DateTime.FromInstant](Modern-Chrono-DateTime-FromInstant) | Returns the date-time a moment shows on a clock with the given UTC offset. | `std/chrono` |
+| [TimeZoneInfo.LocalOffsetAt](Modern-Chrono-TimeZoneInfo-LocalOffsetAt) | Returns the local zone's UTC offset in minutes at a given moment, DST included. | `std/chrono` |
+| [TimeZoneInfo.LocalOffset](Modern-Chrono-TimeZoneInfo-LocalOffset) | Returns the local zone's UTC offset in minutes right now. | `std/chrono` |
+| [TimeZoneInfo.IsDaylightSavingTime](Modern-Chrono-TimeZoneInfo-IsDaylightSavingTime) | Returns true if daylight saving time is in force in the local zone at a given moment. | `std/chrono` |
+| [TimeZoneInfo.SupportsDaylightSavingTime](Modern-Chrono-TimeZoneInfo-SupportsDaylightSavingTime) | Returns true if the local zone observes daylight saving time at all. | `std/chrono` |
+| [TimeZoneInfo.StandardName](Modern-Chrono-TimeZoneInfo-StandardName) | Returns the OS's name for the local zone's standard time. | `std/chrono` |
+| [TimeZoneInfo.DaylightName](Modern-Chrono-TimeZoneInfo-DaylightName) | Returns the OS's name for the local zone's daylight saving time. | `std/chrono` |
 
 ### Show a date the way the user's machine writes it
 
 | Function | What it does | From |
 |---|---|---|
-| [DateTime.ToLocaleDateString](Modern-Chrono-Instant-ToLocaleDateString) | Returns the date as the machine's locale writes it, for display only. | `std/chrono` |
-| [DateTime.ToLocaleTimeString](Modern-Chrono-Instant-ToLocaleTimeString) | Returns the time of day as the machine's locale writes it, for display only. | `std/chrono` |
-| [DateTime.ToLocaleString](Modern-Chrono-Instant-ToLocaleString) | Returns the date and time as the machine's locale writes them, for display only. | `std/chrono` |
-| [DateTime.ToLocaleDateUString](Modern-Chrono-Instant-ToLocaleDateUString) | Returns the date in the machine's locale format as a ustring, for display only. | `std/chrono` |
-| [DateTime.ToLocaleTimeUString](Modern-Chrono-Instant-ToLocaleTimeUString) | Returns the time in the machine's locale format as a ustring, for display only. | `std/chrono` |
-| [DateTime.ToLocaleUString](Modern-Chrono-Instant-ToLocaleUString) | Returns the date and time in the machine's locale format as a ustring. | `std/chrono` |
+| [DateTime.ToLocaleDateString](Modern-Chrono-DateTime-ToLocaleDateString) | Returns the date as the machine's locale writes it, for display only. | `std/chrono` |
+| [DateTime.ToLocaleTimeString](Modern-Chrono-DateTime-ToLocaleTimeString) | Returns the time of day as the machine's locale writes it, for display only. | `std/chrono` |
+| [DateTime.ToLocaleString](Modern-Chrono-DateTime-ToLocaleString) | Returns the date and time as the machine's locale writes them, for display only. | `std/chrono` |
+| [DateTime.ToLocaleDateUString](Modern-Chrono-DateTime-ToLocaleDateUString) | Returns the date in the machine's locale format as a ustring, for display only. | `std/chrono` |
+| [DateTime.ToLocaleTimeUString](Modern-Chrono-DateTime-ToLocaleTimeUString) | Returns the time in the machine's locale format as a ustring, for display only. | `std/chrono` |
+| [DateTime.ToLocaleUString](Modern-Chrono-DateTime-ToLocaleUString) | Returns the date and time in the machine's locale format as a ustring. | `std/chrono` |
 
 ### Convert to Unix time, FILETIME and other numbers
 
@@ -1047,15 +1074,15 @@ Every entry, grouped by task. [Dates and times](Functions-Dates) lists them besi
 | [Instant.UnixMicroseconds](Modern-Chrono-Instant-UnixMicroseconds) | Returns the microseconds since 1970-01-01 UTC. | `std/chrono` |
 | [Instant.Ticks](Modern-Chrono-Instant-Ticks) | Returns the 100 ns ticks since 0001-01-01, counted on the value's own clock. | `std/chrono` |
 | [LocalTime.Ticks](Modern-Chrono-LocalTime-Ticks) | Returns the time of day as 100 ns ticks since midnight. | `std/chrono` |
-| [DateTime.Serial](Modern-Chrono-Instant-Serial) | Returns the date-time as a date serial: days since 1899-12-30, with a fraction. | `std/chrono` |
-| [DateTime.FromSerial](Modern-Chrono-Instant-FromSerial) | Creates a date-time from a date serial, the days since 1899-12-30. | `std/chrono` |
-| [DateTime.OleDate](Modern-Chrono-Instant-OleDate) | Returns the date-time as an OLE automation date, the number Excel and ADO use. | `std/chrono` |
-| [DateTime.FromOleDate](Modern-Chrono-Instant-FromOleDate) | Creates a date-time from an OLE automation date. | `std/chrono` |
-| [DateTime.FileTime](Modern-Chrono-Instant-FileTime) | Returns the date-time as a Windows FILETIME: 100 ns ticks since 1601-01-01. | `std/chrono` |
-| [DateTime.FromFileTime](Modern-Chrono-Instant-FromFileTime) | Creates a UTC date-time from a Windows FILETIME. | `std/chrono` |
-| [DateTime.JulianDay](Modern-Chrono-Instant-JulianDay) | Returns the Julian day, a fractional day count whose days start at noon. | `std/chrono` |
-| [DateTime.JulianDayNumber](Modern-Chrono-Instant-JulianDayNumber) | Returns the whole Julian day number, without the fraction. | `std/chrono` |
-| [DateTime.FromJulianDay](Modern-Chrono-Instant-FromJulianDay) | Creates a date-time from a fractional Julian day. | `std/chrono` |
+| [DateTime.Serial](Modern-Chrono-DateTime-Serial) | Returns the date-time as a date serial: days since 1899-12-30, with a fraction. | `std/chrono` |
+| [DateTime.FromSerial](Modern-Chrono-DateTime-FromSerial) | Creates a date-time from a date serial, the days since 1899-12-30. | `std/chrono` |
+| [DateTime.OleDate](Modern-Chrono-DateTime-OleDate) | Returns the date-time as an OLE automation date, the number Excel and ADO use. | `std/chrono` |
+| [DateTime.FromOleDate](Modern-Chrono-DateTime-FromOleDate) | Creates a date-time from an OLE automation date. | `std/chrono` |
+| [DateTime.FileTime](Modern-Chrono-DateTime-FileTime) | Returns the date-time as a Windows FILETIME: 100 ns ticks since 1601-01-01. | `std/chrono` |
+| [DateTime.FromFileTime](Modern-Chrono-DateTime-FromFileTime) | Creates a UTC date-time from a Windows FILETIME. | `std/chrono` |
+| [DateTime.JulianDay](Modern-Chrono-DateTime-JulianDay) | Returns the Julian day, a fractional day count whose days start at noon. | `std/chrono` |
+| [DateTime.JulianDayNumber](Modern-Chrono-DateTime-JulianDayNumber) | Returns the whole Julian day number, without the fraction. | `std/chrono` |
+| [DateTime.FromJulianDay](Modern-Chrono-DateTime-FromJulianDay) | Creates a date-time from a fractional Julian day. | `std/chrono` |
 
 ### Check a value is valid, and the range limits
 

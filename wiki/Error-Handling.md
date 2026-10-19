@@ -126,7 +126,7 @@ End Sub
 ```
 
  If the *[-e](Compiler-Option-E)* switch is used (whatever the *[-lang](Compiler-Option-Lang)* dialect), the error handler must terminate the program.  
- With (*[-ex](Compiler-Option-Ex)* or *[-exx](Compiler-Option-Exx)*) and *[-lang qb](Compiler-Option-Lang)* dialect only, the error routine can end by using [`Resume`](Resume) (retries the statement that caused the error) or [`Resume Next`](Resume-Next) (continues at the next instruction) .
+ tiko has no `Resume` or `Resume Next` statement (error TKO0409), so an error routine cannot retry the statement that failed or continue at the next one.
 
 Error codes
 
@@ -149,8 +149,7 @@ See Runtime Error Codes for a listing of runtime error numbers and their associa
 
  It is advisable to try to write programs compatible with the *[-lang fb](Compiler-Option-Lang)* dialect and *[-exx](Compiler-Option-Exx)* option, because to test programs with option *[-exx](Compiler-Option-Exx)* for debugging purposes is a great helping:
 
-**-** Avoid to use the statement [`Resume`](Resume) or [`Resume Next`](Resume-Next), because it is not at all supported by *[-lang fb](Compiler-Option-Lang)* (compilation error).
- **-** On the other hand, sometimes when it is useful (when no form of a function is available), use the statement *'On \[Local\] Error Goto'*, because it runs with any option among *[-e](Compiler-Option-E)*, *[-ex](Compiler-Option-Ex)*, *[-exx](Compiler-Option-Exx)*. Otherwise (no error checking option), *'On \[Local\] Error Goto'* is inactive (without compilation error), but it consumes CPU time.
+**-** Sometimes, when it is useful (when no form of a function is available), use the statement *'On \[Local\] Error Goto'*, because it runs with any option among *[-e](Compiler-Option-E)*, *[-ex](Compiler-Option-Ex)*, *[-exx](Compiler-Option-Exx)*. Otherwise (no error checking option), *'On \[Local\] Error Goto'* is inactive (without compilation error), but it consumes CPU time.
 
 Accordingly and if necessary, usually write QuickBasic-like error handling (*'On \[Local\] Error Goto label'* ..... *'label:'* .....), with conditional assembly directive depending on the value of [`__FB_ERR__`](Fb-Err), in order not to penalize the execution speed (if not error checking option is used).
 

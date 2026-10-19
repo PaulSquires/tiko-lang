@@ -10,7 +10,7 @@ The `Err()` function returns the FreeBASIC run-time error number (a 32 bit [`Lon
 
  See Runtime Error Codes for a listing of the predefined runtime error numbers and their associated meaning. The program may use additional custom error numbers.
 
- `Err` can always be used, even if QB-like error handling is not enabled. `Err` is reset by [`Resume`](Resume) and [`Resume Next`](Resume-Next).
+ `Err` can always be used, even if QB-like error handling is not enabled.
 
  Note: Care should be taken when calling an internal function (such as [`Print`](Print)) after an error occurred, because it will reset the error value with its own error status. To preserve the `Err` value, it is a good idea to store it in a variable as soon as the error handler is entered.
 
@@ -44,23 +44,21 @@ Err = number
 An example using QBasic style error handling (compile with -ex option)
 
 ```freebasic
-'' Compile with -lang fblite or qb
+'' compile with -ex
 
-#lang "fblite"
+on error goto error_handler
 
-On Error Goto Error_Handler
+error 150
 
-Error 150
+end
 
-End
+error_handler:
 
-Error_Handler:
+  dim as int32 n = err( )
 
-  n = Err()
+  print "Error #"; n
 
-  Print "Error #"; n
-
-  Resume Next
+  end 1
 ```
 
  An example using inline error handling (note: [`Open`](Open) can also return its own error status when called as a function)

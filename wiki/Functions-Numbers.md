@@ -45,6 +45,13 @@ Jump to: [Round a number](#round-a-number) · [Absolute value, sign, smaller and
 | [IPow](Modern-Math-IPow) | Raises a whole number to a whole-number power exactly, with no trip through Double. | `std/numeric` |
 | [ISqrt](Modern-Math-ISqrt) | Returns the exact whole-number square root, rounded down. | `std/numeric` |
 | [Hypot](Modern-Math-Hypot) | Returns the square root of x*x + y*y without overflowing for large values. | `std/numeric` |
+| [Cbrt](Modern-Math-Cbrt) | Returns the cube root of a number, negative numbers included. | `std/numeric` |
+| [Exp2](Modern-Math-Exp2) | Returns 2 raised to a power. | `std/numeric` |
+| [Expm1](Modern-Math-Expm1) | Returns e raised to a power, minus one, accurately for powers near zero. | `std/numeric` |
+| [Log2](Modern-Math-Log2) | Returns the base-2 logarithm of a number. | `std/numeric` |
+| [Log10](Modern-Math-Log10) | Returns the base-10 logarithm of a number. | `std/numeric` |
+| [Log1p](Modern-Math-Log1p) | Returns the natural logarithm of one plus a number, accurately near zero. | `std/numeric` |
+| [Pow](Modern-Math-Pow) | Returns one floating-point number raised to the power of another. | `std/numeric` |
 
 ## Trigonometry and angles
 
@@ -59,6 +66,12 @@ Jump to: [Round a number](#round-a-number) · [Absolute value, sign, smaller and
 | [Atan2](Atan2) | Returns the angle in radians, from -pi to pi, of the point at x, y. | built-in |
 | [DegToRad](Modern-Math-DegToRad) | Converts an angle from degrees to radians. | `std/numeric` |
 | [RadToDeg](Modern-Math-RadToDeg) | Converts an angle from radians to degrees. | `std/numeric` |
+| [Sinh](Modern-Math-Sinh) | Returns the hyperbolic sine of a number. | `std/numeric` |
+| [Cosh](Modern-Math-Cosh) | Returns the hyperbolic cosine of a number. | `std/numeric` |
+| [Tanh](Modern-Math-Tanh) | Returns the hyperbolic tangent of a number, which lies between -1 and 1. | `std/numeric` |
+| [Asinh](Modern-Math-Asinh) | Returns the inverse hyperbolic sine of a number. | `std/numeric` |
+| [Acosh](Modern-Math-Acosh) | Returns the inverse hyperbolic cosine of a number of 1 or more. | `std/numeric` |
+| [Atanh](Modern-Math-Atanh) | Returns the inverse hyperbolic tangent of a number between -1 and 1. | `std/numeric` |
 
 ## Divide whole numbers
 
@@ -193,6 +206,9 @@ Jump to: [Round a number](#round-a-number) · [Absolute value, sign, smaller and
 | [ScaleB](Modern-Math-ScaleB) | Multiplies a number by a power of two exactly, by adjusting its exponent. | `std/numeric` |
 | [Ulp](Modern-Math-Ulp) | Returns the gap between a number and the next one its type can hold. | `std/numeric` |
 | [Fma](Modern-Math-Fma) | Returns x * y + z with a single rounding at the end. | `std/numeric` |
+| [LogB](Modern-Math-LogB) | Returns the binary exponent of a number as a floating-point value. | `std/numeric` |
+| [CopySign](Modern-Math-CopySign) | Returns a number's size with the sign of a second number, zero's sign included. | `std/numeric` |
+| [NextAfter](Modern-Math-NextAfter) | Returns the next representable number after x in the direction of y. | `std/numeric` |
 
 ## Control floating-point rounding and exceptions
 

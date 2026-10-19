@@ -138,8 +138,6 @@ List of FreeBASIC keywords sorted by the function they perform.
 - [Error](Error)
 - [Local](Local)
 - [On Error](On-Error)
-- [Resume](Resume)
-- [Resume Next](Resume-Next)
 
 ***Files***
 

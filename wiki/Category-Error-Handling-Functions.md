@@ -31,8 +31,6 @@ Grouped by task. [Errors and missing values](Functions-Errors) lists them beside
 ## Also in this category
 
 - [Error Handling Functions](Error-Handling-Functions)
-- [Resume](Resume)
-- [Resume Next](Resume-Next)
 
 <!-- finder:end -->
 

@@ -2,7 +2,7 @@
 
 # Compiler Option: -ex
 
-Add error checking with [`Resume`](Resume) support
+Add error checking, the same as -e
 
 Syntax
 
@@ -10,7 +10,7 @@ Syntax
 
 Description
 
-The `-ex` compiler option adds error handling as with the *[-e](Compiler-Option-E)* option plus support for [`Resume`](Resume).
+The `-ex` compiler option adds error handling as with the *[-e](Compiler-Option-E)* option. In tiko it adds nothing more: there is no `Resume` statement to support.
 
 See also
 

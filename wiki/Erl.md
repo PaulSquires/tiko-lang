@@ -16,8 +16,6 @@ Declare Function Erl ( ) As Long
 
  `Erl` cannot always be used effectively -- QB-like error handling must be enabled.
 
- `Erl` is reset by RESUME and RESUME NEXT
-
 ## Return Value
 
 An [`Long`](Long) return value containing the line number where the last error occurred.
@@ -40,31 +38,25 @@ An [`Long`](Long) return value containing the line number where the last error o
 ## Examples
 
 ```freebasic
-' compile with -lang fblite or qb
+'' compile with -ex
 
-#lang "fblite"
+on error goto errorhandler
 
-' note: compilation with '-ex' option is required
+'' generate an explicit error
+error 100
 
-On Error Goto ErrorHandler
+end
 
-' Generate an explicit error
+errorhandler:
 
-Error 100
+  dim num as long = err
 
-End
+  print "Error "; num; " on line "; erl
 
-ErrorHandler:
+  end 1
 
-  Dim num As Long = Err
-
-  Print "Error "; num; " on line "; Erl
-
-  Resume Next
-
-' Expected output is
-
-' Error  100 on line  6
+'' Expected output:
+'' Error  100 on line  6
 ```
 
 ---

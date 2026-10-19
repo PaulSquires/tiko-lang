@@ -245,3 +245,19 @@ Modern-Math-CAtanh	CAtanh	-	ctrig	std/numeric	-	Returns the inverse hyperbolic t
 Modern-Math-CAsech	CAsech	-	ctrig	std/numeric	-	Returns the inverse hyperbolic secant of a complex number.
 Modern-Math-CAcsch	CAcsch	-	ctrig	std/numeric	-	Returns the inverse hyperbolic cosecant of a complex number.
 Modern-Math-CAcoth	CAcoth	-	ctrig	std/numeric	-	Returns the inverse hyperbolic cotangent of a complex number.
+Modern-Math-Cbrt	Cbrt	-	power	std/numeric	-	Returns the cube root of a number, negative numbers included.
+Modern-Math-Exp2	Exp2	-	power	std/numeric	-	Returns 2 raised to a power.
+Modern-Math-Expm1	Expm1	-	power	std/numeric	-	Returns e raised to a power, minus one, accurately for powers near zero.
+Modern-Math-Log2	Log2	-	power	std/numeric	-	Returns the base-2 logarithm of a number.
+Modern-Math-Log10	Log10	-	power	std/numeric	-	Returns the base-10 logarithm of a number.
+Modern-Math-Log1p	Log1p	-	power	std/numeric	-	Returns the natural logarithm of one plus a number, accurately near zero.
+Modern-Math-LogB	LogB	-	float	std/numeric	-	Returns the binary exponent of a number as a floating-point value.
+Modern-Math-Pow	Pow	-	power	std/numeric	-	Returns one floating-point number raised to the power of another.
+Modern-Math-Sinh	Sinh	-	trig	std/numeric	-	Returns the hyperbolic sine of a number.
+Modern-Math-Cosh	Cosh	-	trig	std/numeric	-	Returns the hyperbolic cosine of a number.
+Modern-Math-Tanh	Tanh	-	trig	std/numeric	-	Returns the hyperbolic tangent of a number, which lies between -1 and 1.
+Modern-Math-Asinh	Asinh	-	trig	std/numeric	-	Returns the inverse hyperbolic sine of a number.
+Modern-Math-Acosh	Acosh	-	trig	std/numeric	-	Returns the inverse hyperbolic cosine of a number of 1 or more.
+Modern-Math-Atanh	Atanh	-	trig	std/numeric	-	Returns the inverse hyperbolic tangent of a number between -1 and 1.
+Modern-Math-CopySign	CopySign	-	float	std/numeric	-	Returns a number's size with the sign of a second number, zero's sign included.
+Modern-Math-NextAfter	NextAfter	-	float	std/numeric	-	Returns the next representable number after x in the direction of y.

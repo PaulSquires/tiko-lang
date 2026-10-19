@@ -8,8 +8,6 @@ task	handle	Catch runtime errors in a handler
 task	inspect	Find out what went wrong
 task	raise	Raise an error yourself
 ignore	Error-Handling-Functions	an overview page, not a function
-ignore	Resume	not available in tiko: the compiler rejects it (TKO0409)
-ignore	Resume-Next	not available in tiko: the compiler rejects it (TKO0409)
 seealso	Category-Result	Result guide
 seealso	Category-Optional	Optional guide
 seealso	Category-Error-Handling-Functions	Error handling functions

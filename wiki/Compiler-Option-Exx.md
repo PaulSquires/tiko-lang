@@ -2,7 +2,7 @@
 
 # Compiler Option: -exx
 
-Add error checking with [`Resume`](Resume) support and array bounds/dimensions and null-pointer checking, plus stack overflow checking with gas64 backend
+Add error checking with array bounds/dimensions and null-pointer checking, plus stack overflow checking with gas64 backend
 
 Syntax
 
@@ -10,7 +10,7 @@ Syntax
 
 Description
 
-The `-exx` compiler option adds error checking with [`Resume`](Resume) support, array bounds and dimensions, and null-pointer checking (including the procedure pointers), plus stack overflow checking with gas64 backend.
+The `-exx` compiler option adds error checking with array bounds and dimensions, and null-pointer checking (including the procedure pointers), plus stack overflow checking with gas64 backend.
 
  Use of the `-exx` option automatically implies `-e`, `-ex`, `-earray`, `-earraydims`, `-elocation`, and `-enullptr`, error checking and code generation options.
 

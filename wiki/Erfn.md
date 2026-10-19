@@ -43,38 +43,32 @@ Returns a pointer to the string identifying the function where the error occurre
 ## Examples
 
 ```freebasic
-'' test.bas
+'' test.tiko -- compile with: tiko -exx test.tiko
 
-'' compile with fbc -exx -lang fblite test.bas
+sub Generate_Error
 
-#lang "fblite"
+  on error goto handler
 
-Sub Generate_Error
+  error 1000
 
-  On Error Goto Handler
+  exit sub
 
-  Error 1000
+handler:
 
-  Exit Sub
+  print "Error Function: "; *erfn( )
 
-Handler:
+  print "Error Module  : "; *ermn( )
 
-  Print "Error Function: "; *Erfn()
+end sub
 
-  Print "Error Module  : "; *Ermn()
-
-  Resume Next
-
-End Sub
-
-Generate_Error
+Generate_Error( )
 ```
 
  **Output:**
 
 ```freebasic
 Error Function: GENERATE_ERROR
-Error Module  : test.bas
+Error Module  : test.tiko
 ```
 
 ---

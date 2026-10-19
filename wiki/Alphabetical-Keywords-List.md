@@ -438,7 +438,6 @@ Alphabetical listing of keywords, macros and procedures.
 - [New (Expression)](Operator-New-Expression)
 - [New (Placement)](Operator-Placement-New)
 - [Next](Next)
-- [Next (Resume)](Resume-Next)
 - [Not](Operator-Not-Complement)
 - [Now](Now)
 
@@ -514,8 +513,6 @@ Alphabetical listing of keywords, macros and procedures.
 - [Rem](Rem)
 - [Reset](Reset)
 - [Restore](Restore)
-- [Resume](Resume)
-- [Resume Next](Resume-Next)
 - [Return (From Procedure)](Return-From-Procedure)
 - [Return (From Gosub)](Return-From-Gosub)
 - [RGB](Rgb)

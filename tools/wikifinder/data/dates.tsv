@@ -19,13 +19,13 @@ Modern-Chrono-Stopwatch-Frequency	Stopwatch.Frequency	-	timing	std/chrono	-	Retu
 Modern-Chrono-Stopwatch-IsHighResolution	Stopwatch.IsHighResolution	-	timing	std/chrono	-	Returns true if the platform counter is finer than the system tick.
 Dateserial	DateSerial	-	make	datetime.bi	-	Returns the date serial for a year, month and day; out-of-range values roll over.
 Timeserial	TimeSerial	-	make	datetime.bi	-	Returns the fraction of a day for an hour, minute and second, to add to a date serial.
-Modern-Chrono-Instant-DateTime	DateTime	-	make	std/chrono	-	Creates a date-time from a year, month, day and optional time, or Invalid if none.
+Modern-Chrono-DateTime-DateTime	DateTime	-	make	std/chrono	-	Creates a date-time from a year, month, day and optional time, or Invalid if none.
 Modern-Chrono-LocalDate-LocalDate	LocalDate.LocalDate	-	make	std/chrono	-	Creates a date with no time of day from a year, month and day, or Invalid if none.
 Modern-Chrono-LocalTime-LocalTime	LocalTime.LocalTime	-	make	std/chrono	-	Creates a time of day from hours, minutes, seconds and milliseconds; midnight if none.
 Modern-Chrono-Instant-Instant	Instant.Instant	-	make	std/chrono	-	Creates a moment on the UTC timeline from a tick count; Invalid with no argument.
 Modern-Chrono-Instant-FromTicks	Instant.FromTicks	-	make	std/chrono	-	Creates a moment from 100 ns ticks since 0001-01-01, or Invalid if out of range.
-Modern-Chrono-Instant-FromDate	DateTime.FromDate	-	make	std/chrono	-	Returns a date-time at midnight on the given date.
-Modern-Chrono-Instant-FromDateTime	DateTime.FromDateTime	-	make	std/chrono	-	Returns a date-time that joins a date and a time of day.
+Modern-Chrono-DateTime-FromDate	DateTime.FromDate	-	make	std/chrono	-	Returns a date-time at midnight on the given date.
+Modern-Chrono-DateTime-FromDateTime	DateTime.FromDateTime	-	make	std/chrono	-	Returns a date-time that joins a date and a time of day.
 Modern-Chrono-LocalDate-FromDayNumber	LocalDate.FromDayNumber	-	make	std/chrono	-	Creates a date from a count of days since 0001-01-01.
 Modern-Chrono-LocalTime-FromTicks	LocalTime.FromTicks	-	make	std/chrono	-	Creates a time of day from 100 ns ticks since midnight, or Invalid past a whole day.
 Modern-Chrono-LocalTime-Midnight	LocalTime.Midnight	-	make	std/chrono	-	Returns the time of day 00:00:00.
@@ -37,17 +37,17 @@ Hour	Hour	-	parts	datetime.bi	-	Returns the hour of a date serial, 0 to 23.
 Minute	Minute	-	parts	datetime.bi	-	Returns the minute of a date serial.
 Second	Second	-	parts	datetime.bi	-	Returns the second of a date serial.
 Datepart	DatePart	-	parts	datetime.bi	-	Returns one part of a date serial, such as its year, quarter, week or hour.
-Modern-Chrono-Instant-Year	DateTime.Year	-	parts	std/chrono	-	Returns the year, 1 to 9999.
-Modern-Chrono-Instant-Month	DateTime.Month	-	parts	std/chrono	-	Returns the month, 1 to 12.
-Modern-Chrono-Instant-Day	DateTime.Day	-	parts	std/chrono	-	Returns the day of the month, starting at 1.
-Modern-Chrono-Instant-Hour	DateTime.Hour	-	parts	std/chrono	-	Returns the hour, 0 to 23.
-Modern-Chrono-Instant-Minute	DateTime.Minute	-	parts	std/chrono	-	Returns the minute, 0 to 59.
-Modern-Chrono-Instant-Second	DateTime.Second	-	parts	std/chrono	-	Returns the second, 0 to 59.
-Modern-Chrono-Instant-Millisecond	DateTime.Millisecond	-	parts	std/chrono	-	Returns the milliseconds within the second, 0 to 999.
-Modern-Chrono-Instant-Microsecond	DateTime.Microsecond	-	parts	std/chrono	-	Returns the microseconds within the second, the milliseconds included.
-Modern-Chrono-Instant-TickOfDay	DateTime.TickOfDay	-	parts	std/chrono	-	Returns the time of day as one number: 100 ns ticks since midnight.
-Modern-Chrono-Instant-GetDate	DateTime.GetDate	-	parts	std/chrono	-	Returns the date part as a LocalDate, dropping the time and the offset.
-Modern-Chrono-Instant-GetTimeOfDay	DateTime.GetTimeOfDay	-	parts	std/chrono	-	Returns the time-of-day part as a LocalTime.
+Modern-Chrono-DateTime-Year	DateTime.Year	-	parts	std/chrono	-	Returns the year, 1 to 9999.
+Modern-Chrono-DateTime-Month	DateTime.Month	-	parts	std/chrono	-	Returns the month, 1 to 12.
+Modern-Chrono-DateTime-Day	DateTime.Day	-	parts	std/chrono	-	Returns the day of the month, starting at 1.
+Modern-Chrono-DateTime-Hour	DateTime.Hour	-	parts	std/chrono	-	Returns the hour, 0 to 23.
+Modern-Chrono-DateTime-Minute	DateTime.Minute	-	parts	std/chrono	-	Returns the minute, 0 to 59.
+Modern-Chrono-DateTime-Second	DateTime.Second	-	parts	std/chrono	-	Returns the second, 0 to 59.
+Modern-Chrono-DateTime-Millisecond	DateTime.Millisecond	-	parts	std/chrono	-	Returns the milliseconds within the second, 0 to 999.
+Modern-Chrono-DateTime-Microsecond	DateTime.Microsecond	-	parts	std/chrono	-	Returns the microseconds within the second, the milliseconds included.
+Modern-Chrono-DateTime-TickOfDay	DateTime.TickOfDay	-	parts	std/chrono	-	Returns the time of day as one number: 100 ns ticks since midnight.
+Modern-Chrono-DateTime-GetDate	DateTime.GetDate	-	parts	std/chrono	-	Returns the date part as a LocalDate, dropping the time and the offset.
+Modern-Chrono-DateTime-GetTimeOfDay	DateTime.GetTimeOfDay	-	parts	std/chrono	-	Returns the time-of-day part as a LocalTime.
 Modern-Chrono-LocalDate-Year	LocalDate.Year	-	parts	std/chrono	-	Returns the year, 1 to 9999.
 Modern-Chrono-LocalDate-Month	LocalDate.Month	-	parts	std/chrono	-	Returns the month, 1 to 12.
 Modern-Chrono-LocalDate-Day	LocalDate.Day	-	parts	std/chrono	-	Returns the day of the month, starting at 1.
@@ -63,17 +63,17 @@ Modern-Chrono-AddMonths	AddMonths	-	add	std/chrono	-	Adds calendar months and le
 Modern-Chrono-AddCalendarMonths	AddCalendarMonths	-	add	std/chrono	-	Adds calendar months, then works out the UTC offset again for the new date.
 Modern-Chrono-Instant-Add	Instant.Add	-	add	std/chrono	-	Returns the date-time moved forward by a TimeSpan.
 Modern-Chrono-Instant-Subtract	Instant.Subtract	-	add	std/chrono	-	Returns the date-time moved back by a TimeSpan, or Invalid past the earliest date.
-Modern-Chrono-Instant-AddTicks	DateTime.AddTicks	-	add	std/chrono	-	Returns the date-time moved by a number of 100 ns ticks.
-Modern-Chrono-Instant-AddMilliseconds	DateTime.AddMilliseconds	-	add	std/chrono	-	Returns the date-time moved by a number of milliseconds, fractions allowed.
-Modern-Chrono-Instant-AddSeconds	DateTime.AddSeconds	-	add	std/chrono	-	Returns the date-time moved by a number of seconds, fractions allowed.
-Modern-Chrono-Instant-AddMinutes	DateTime.AddMinutes	-	add	std/chrono	-	Returns the date-time moved by a number of minutes, fractions allowed.
-Modern-Chrono-Instant-AddHours	DateTime.AddHours	-	add	std/chrono	-	Returns the date-time moved by a number of hours, fractions allowed.
-Modern-Chrono-Instant-AddDays	DateTime.AddDays	-	add	std/chrono	-	Returns the date-time moved by days of exactly 24 hours, fractions allowed.
-Modern-Chrono-Instant-AddMonths	DateTime.AddMonths	-	add	std/chrono	-	Returns the date-time moved by whole months, clamping the day to the month's end.
-Modern-Chrono-Instant-AddYears	DateTime.AddYears	-	add	std/chrono	-	Returns the date-time moved by whole years; 29 February becomes the 28th if needed.
-Modern-Chrono-Instant-AddCalendarDays	DateTime.AddCalendarDays	-	add	std/chrono	-	Returns the same clock time a number of days later, even across a DST change.
-Modern-Chrono-Instant-AddCalendarMonths	DateTime.AddCalendarMonths	-	add	std/chrono	-	Returns the same clock time some months later, clamping the day to the month's end.
-Modern-Chrono-Instant-AddCalendarYears	DateTime.AddCalendarYears	-	add	std/chrono	-	Returns the same clock time some years later, with the UTC offset worked out again.
+Modern-Chrono-DateTime-AddTicks	DateTime.AddTicks	-	add	std/chrono	-	Returns the date-time moved by a number of 100 ns ticks.
+Modern-Chrono-DateTime-AddMilliseconds	DateTime.AddMilliseconds	-	add	std/chrono	-	Returns the date-time moved by a number of milliseconds, fractions allowed.
+Modern-Chrono-DateTime-AddSeconds	DateTime.AddSeconds	-	add	std/chrono	-	Returns the date-time moved by a number of seconds, fractions allowed.
+Modern-Chrono-DateTime-AddMinutes	DateTime.AddMinutes	-	add	std/chrono	-	Returns the date-time moved by a number of minutes, fractions allowed.
+Modern-Chrono-DateTime-AddHours	DateTime.AddHours	-	add	std/chrono	-	Returns the date-time moved by a number of hours, fractions allowed.
+Modern-Chrono-DateTime-AddDays	DateTime.AddDays	-	add	std/chrono	-	Returns the date-time moved by days of exactly 24 hours, fractions allowed.
+Modern-Chrono-DateTime-AddMonths	DateTime.AddMonths	-	add	std/chrono	-	Returns the date-time moved by whole months, clamping the day to the month's end.
+Modern-Chrono-DateTime-AddYears	DateTime.AddYears	-	add	std/chrono	-	Returns the date-time moved by whole years; 29 February becomes the 28th if needed.
+Modern-Chrono-DateTime-AddCalendarDays	DateTime.AddCalendarDays	-	add	std/chrono	-	Returns the same clock time a number of days later, even across a DST change.
+Modern-Chrono-DateTime-AddCalendarMonths	DateTime.AddCalendarMonths	-	add	std/chrono	-	Returns the same clock time some months later, clamping the day to the month's end.
+Modern-Chrono-DateTime-AddCalendarYears	DateTime.AddCalendarYears	-	add	std/chrono	-	Returns the same clock time some years later, with the UTC offset worked out again.
 Modern-Chrono-LocalDate-AddDays	LocalDate.AddDays	-	add	std/chrono	-	Returns the date moved by a number of days.
 Modern-Chrono-LocalDate-AddMonths	LocalDate.AddMonths	-	add	std/chrono	-	Returns the date moved by whole months, clamping the day to the month's end.
 Modern-Chrono-LocalDate-AddYears	LocalDate.AddYears	-	add	std/chrono	-	Returns the date moved by whole years; 29 February becomes the 28th if needed.
@@ -84,7 +84,7 @@ Modern-Chrono-LocalDate-CompareTo	LocalDate.CompareTo	-	compare	std/chrono	-	Ret
 Modern-Chrono-LocalTime-CompareTo	LocalTime.CompareTo	-	compare	std/chrono	-	Returns -1, 0 or 1 to order two times of day, or -2 if either is Invalid.
 Modern-Chrono-Instant-ToIsoString	Instant.ToIsoString	-	totext	std/chrono	-	Returns the date-time as ISO 8601 text, with Z or the offset when it has one.
 Modern-Chrono-Instant-ToString	Instant.ToString	-	totext	std/chrono	-	Returns ISO 8601 text, or the date-time laid out by a pattern such as "yyyy-MM-dd".
-Modern-Chrono-Instant-TryFormat	DateTime.TryFormat	-	totext	std/chrono	-	Formats the date-time with a pattern into a variable; returns false if the pattern is bad.
+Modern-Chrono-DateTime-TryFormat	DateTime.TryFormat	-	totext	std/chrono	-	Formats the date-time with a pattern into a variable; returns false if the pattern is bad.
 Modern-Chrono-LocalDate-ToIsoString	LocalDate.ToIsoString	-	totext	std/chrono	-	Returns the date as text in the form 2026-08-13, or empty text if it is Invalid.
 Modern-Chrono-LocalDate-ToString	LocalDate.ToString	-	totext	std/chrono	-	Returns the date as ISO 8601 text, the same as ToIsoString.
 Modern-Chrono-LocalTime-ToIsoString	LocalTime.ToIsoString	-	totext	std/chrono	-	Returns the time of day as ISO 8601 text, such as 14:30:05.
@@ -97,9 +97,9 @@ Timevalue	TimeValue	-	fromtext	datetime.bi	-	Returns the date serial of a time w
 Isdate	IsDate	-	fromtext	datetime.bi	-	Returns true if the text can be read as a date in the system's date format.
 Modern-Chrono-Instant-ParseIso	Instant.ParseIso	-	fromtext	std/chrono	-	Reads ISO 8601 text into a date-time, or Invalid if it is not ISO 8601.
 Modern-Chrono-Instant-TryParseIso	Instant.TryParseIso	-	fromtext	std/chrono	-	Reads ISO 8601 text into a date-time; returns false and sets it Invalid on failure.
-Modern-Chrono-Instant-TryParse	DateTime.TryParse	-	fromtext	std/chrono	-	Reads ISO 8601 text into a date-time, the same as TryParseIso.
-Modern-Chrono-Instant-ParseExact	DateTime.ParseExact	-	fromtext	std/chrono	-	Reads text laid out by a pattern such as "dd/MM/yyyy", or Invalid if it does not match.
-Modern-Chrono-Instant-TryParseExact	DateTime.TryParseExact	-	fromtext	std/chrono	-	Reads text laid out by a pattern into a date-time; returns false if it does not match.
+Modern-Chrono-DateTime-TryParse	DateTime.TryParse	-	fromtext	std/chrono	-	Reads ISO 8601 text into a date-time, the same as TryParseIso.
+Modern-Chrono-DateTime-ParseExact	DateTime.ParseExact	-	fromtext	std/chrono	-	Reads text laid out by a pattern such as "dd/MM/yyyy", or Invalid if it does not match.
+Modern-Chrono-DateTime-TryParseExact	DateTime.TryParseExact	-	fromtext	std/chrono	-	Reads text laid out by a pattern into a date-time; returns false if it does not match.
 Modern-Chrono-LocalDate-ParseIso	LocalDate.ParseIso	-	fromtext	std/chrono	-	Reads ISO text such as 2026-08-13 into a date, or Invalid on failure.
 Modern-Chrono-LocalDate-TryParseIso	LocalDate.TryParseIso	-	fromtext	std/chrono	-	Reads ISO text into a date; returns false and sets it Invalid on failure.
 Modern-Chrono-LocalTime-ParseIso	LocalTime.ParseIso	-	fromtext	std/chrono	-	Reads ISO text such as 14:30:05 into a time of day, or Invalid on failure.
@@ -107,11 +107,11 @@ Modern-Chrono-LocalTime-TryParseIso	LocalTime.TryParseIso	-	fromtext	std/chrono	
 Modern-Chrono-TimeSpan-ParseIso	TimeSpan.ParseIso	-	fromtext	std/chrono	-	Reads an ISO 8601 duration such as P1DT2H into a TimeSpan, or Invalid on failure.
 Modern-Chrono-TimeSpan-TryParseIso	TimeSpan.TryParseIso	-	fromtext	std/chrono	-	Reads an ISO 8601 duration; returns false and sets it Invalid on failure.
 Weekday	Weekday	-	week	datetime.bi	-	Returns the day of the week, 1 to 7, counting from Sunday unless told otherwise.
-Modern-Chrono-Instant-DayOfWeek	DateTime.DayOfWeek	-	week	std/chrono	-	Returns the day of the week, 1 for Monday to 7 for Sunday.
-Modern-Chrono-Instant-DayOfYear	DateTime.DayOfYear	-	week	std/chrono	-	Returns the day of the year, starting at 1.
-Modern-Chrono-Instant-IsoWeek	DateTime.IsoWeek	-	week	std/chrono	-	Returns the ISO week number, 1 to 53; pair it with IsoWeekYear.
-Modern-Chrono-Instant-IsoWeekYear	DateTime.IsoWeekYear	-	week	std/chrono	-	Returns the year the ISO week belongs to, which can differ from Year near New Year.
-Modern-Chrono-Instant-Quarter	DateTime.Quarter	-	week	std/chrono	-	Returns the calendar quarter, 1 to 4.
+Modern-Chrono-DateTime-DayOfWeek	DateTime.DayOfWeek	-	week	std/chrono	-	Returns the day of the week, 1 for Monday to 7 for Sunday.
+Modern-Chrono-DateTime-DayOfYear	DateTime.DayOfYear	-	week	std/chrono	-	Returns the day of the year, starting at 1.
+Modern-Chrono-DateTime-IsoWeek	DateTime.IsoWeek	-	week	std/chrono	-	Returns the ISO week number, 1 to 53; pair it with IsoWeekYear.
+Modern-Chrono-DateTime-IsoWeekYear	DateTime.IsoWeekYear	-	week	std/chrono	-	Returns the year the ISO week belongs to, which can differ from Year near New Year.
+Modern-Chrono-DateTime-Quarter	DateTime.Quarter	-	week	std/chrono	-	Returns the calendar quarter, 1 to 4.
 Modern-Chrono-LocalDate-DayOfWeek	LocalDate.DayOfWeek	-	week	std/chrono	-	Returns the day of the week, 1 for Monday to 7 for Sunday.
 Modern-Chrono-LocalDate-DayOfYear	LocalDate.DayOfYear	-	week	std/chrono	-	Returns the day of the year, starting at 1.
 Modern-Chrono-LocalDate-IsoWeek	LocalDate.IsoWeek	-	week	std/chrono	-	Returns the ISO week number, 1 to 53; pair it with IsoWeekYear.
@@ -119,29 +119,29 @@ Modern-Chrono-LocalDate-IsoWeekYear	LocalDate.IsoWeekYear	-	week	std/chrono	-	Re
 Modern-Chrono-LocalDate-Quarter	LocalDate.Quarter	-	week	std/chrono	-	Returns the calendar quarter, 1 to 4.
 Monthname	MonthName	-	names	datetime.bi	-	Returns the name of a month number in the system's language, or its abbreviation.
 Weekdayname	WeekdayName	-	names	datetime.bi	-	Returns the name of a weekday number in the system's language, or its abbreviation.
-Modern-Chrono-Instant-MonthName	DateTime.MonthName	-	names	std/chrono	-	Returns the English name of a month number, or its three-letter abbreviation.
-Modern-Chrono-Instant-MonthUName	DateTime.MonthUName	-	names	std/chrono	-	Returns the English name of a month number, or its abbreviation, as a ustring.
-Modern-Chrono-Instant-WeekdayName	DateTime.WeekdayName	-	names	std/chrono	-	Returns the English name of a weekday, 1 being Monday, or its abbreviation.
-Modern-Chrono-Instant-WeekdayUName	DateTime.WeekdayUName	-	names	std/chrono	-	Returns the English name of a weekday, 1 being Monday, as a ustring.
-Modern-Chrono-Instant-StartOfDay	DateTime.StartOfDay	-	period	std/chrono	-	Returns midnight at the start of the same day, keeping the offset.
-Modern-Chrono-Instant-EndOfDay	DateTime.EndOfDay	-	period	std/chrono	-	Returns the last tick of the same day, 23:59:59.9999999.
-Modern-Chrono-Instant-StartOfWeek	DateTime.StartOfWeek	-	period	std/chrono	-	Returns midnight on the first day of the week, Monday unless told otherwise.
-Modern-Chrono-Instant-StartOfMonth	DateTime.StartOfMonth	-	period	std/chrono	-	Returns midnight on the first day of the month.
-Modern-Chrono-Instant-EndOfMonth	DateTime.EndOfMonth	-	period	std/chrono	-	Returns the last tick of the last day of the month.
-Modern-Chrono-Instant-StartOfYear	DateTime.StartOfYear	-	period	std/chrono	-	Returns midnight on 1 January of the same year.
-Modern-Chrono-Instant-EndOfYear	DateTime.EndOfYear	-	period	std/chrono	-	Returns the last tick of 31 December of the same year.
-Modern-Chrono-Instant-NextWeekday	DateTime.NextWeekday	-	period	std/chrono	-	Returns the same time on the next given weekday, always strictly later.
-Modern-Chrono-Instant-PrevWeekday	DateTime.PrevWeekday	-	period	std/chrono	-	Returns the same time on the previous given weekday, always strictly earlier.
-Modern-Chrono-Instant-IsFirstDayOfMonth	DateTime.IsFirstDayOfMonth	-	period	std/chrono	-	Returns true if the date is the first day of its month.
-Modern-Chrono-Instant-IsLastDayOfMonth	DateTime.IsLastDayOfMonth	-	period	std/chrono	-	Returns true if the date is the last day of its month.
+Modern-Chrono-DateTime-MonthName	DateTime.MonthName	-	names	std/chrono	-	Returns the English name of a month number, or its three-letter abbreviation.
+Modern-Chrono-DateTime-MonthUName	DateTime.MonthUName	-	names	std/chrono	-	Returns the English name of a month number, or its abbreviation, as a ustring.
+Modern-Chrono-DateTime-WeekdayName	DateTime.WeekdayName	-	names	std/chrono	-	Returns the English name of a weekday, 1 being Monday, or its abbreviation.
+Modern-Chrono-DateTime-WeekdayUName	DateTime.WeekdayUName	-	names	std/chrono	-	Returns the English name of a weekday, 1 being Monday, as a ustring.
+Modern-Chrono-DateTime-StartOfDay	DateTime.StartOfDay	-	period	std/chrono	-	Returns midnight at the start of the same day, keeping the offset.
+Modern-Chrono-DateTime-EndOfDay	DateTime.EndOfDay	-	period	std/chrono	-	Returns the last tick of the same day, 23:59:59.9999999.
+Modern-Chrono-DateTime-StartOfWeek	DateTime.StartOfWeek	-	period	std/chrono	-	Returns midnight on the first day of the week, Monday unless told otherwise.
+Modern-Chrono-DateTime-StartOfMonth	DateTime.StartOfMonth	-	period	std/chrono	-	Returns midnight on the first day of the month.
+Modern-Chrono-DateTime-EndOfMonth	DateTime.EndOfMonth	-	period	std/chrono	-	Returns the last tick of the last day of the month.
+Modern-Chrono-DateTime-StartOfYear	DateTime.StartOfYear	-	period	std/chrono	-	Returns midnight on 1 January of the same year.
+Modern-Chrono-DateTime-EndOfYear	DateTime.EndOfYear	-	period	std/chrono	-	Returns the last tick of 31 December of the same year.
+Modern-Chrono-DateTime-NextWeekday	DateTime.NextWeekday	-	period	std/chrono	-	Returns the same time on the next given weekday, always strictly later.
+Modern-Chrono-DateTime-PrevWeekday	DateTime.PrevWeekday	-	period	std/chrono	-	Returns the same time on the previous given weekday, always strictly earlier.
+Modern-Chrono-DateTime-IsFirstDayOfMonth	DateTime.IsFirstDayOfMonth	-	period	std/chrono	-	Returns true if the date is the first day of its month.
+Modern-Chrono-DateTime-IsLastDayOfMonth	DateTime.IsLastDayOfMonth	-	period	std/chrono	-	Returns true if the date is the last day of its month.
 Modern-Chrono-LocalDate-StartOfMonth	LocalDate.StartOfMonth	-	period	std/chrono	-	Returns the first day of the date's month.
 Modern-Chrono-LocalDate-EndOfMonth	LocalDate.EndOfMonth	-	period	std/chrono	-	Returns the last day of the date's month.
 Modern-Chrono-LocalDate-IsFirstDayOfMonth	LocalDate.IsFirstDayOfMonth	-	period	std/chrono	-	Returns true if the date is the first day of its month.
 Modern-Chrono-LocalDate-IsLastDayOfMonth	LocalDate.IsLastDayOfMonth	-	period	std/chrono	-	Returns true if the date is the last day of its month.
-Modern-Chrono-Instant-IsLeapYear	DateTime.IsLeapYear	-	calendar	std/chrono	-	Returns true if a year is a leap year under the full Gregorian rule.
-Modern-Chrono-Instant-DaysInMonth	DateTime.DaysInMonth	-	calendar	std/chrono	-	Returns the number of days in a month of a given year.
-Modern-Chrono-Instant-DaysInYear	DateTime.DaysInYear	-	calendar	std/chrono	-	Returns 365 or 366, the number of days in a year.
-Modern-Chrono-Instant-WeeksInYear	DateTime.WeeksInYear	-	calendar	std/chrono	-	Returns 52 or 53, the number of ISO weeks in a year.
+Modern-Chrono-DateTime-IsLeapYear	DateTime.IsLeapYear	-	calendar	std/chrono	-	Returns true if a year is a leap year under the full Gregorian rule.
+Modern-Chrono-DateTime-DaysInMonth	DateTime.DaysInMonth	-	calendar	std/chrono	-	Returns the number of days in a month of a given year.
+Modern-Chrono-DateTime-DaysInYear	DateTime.DaysInYear	-	calendar	std/chrono	-	Returns 365 or 366, the number of days in a year.
+Modern-Chrono-DateTime-WeeksInYear	DateTime.WeeksInYear	-	calendar	std/chrono	-	Returns 52 or 53, the number of ISO weeks in a year.
 Modern-Chrono-TimeSpan-TimeSpan	TimeSpan.TimeSpan	-	spanmake	std/chrono	-	Creates a duration from ticks, or from hours, minutes and seconds, with or without days.
 Modern-Chrono-TimeSpan-FromDays	TimeSpan.FromDays	-	spanmake	std/chrono	-	Returns a duration of a number of days, fractions allowed.
 Modern-Chrono-TimeSpan-FromHours	TimeSpan.FromHours	-	spanmake	std/chrono	-	Returns a duration of a number of hours, fractions allowed.
@@ -174,21 +174,21 @@ Modern-Chrono-TimeSpan-DivideBy	TimeSpan.DivideBy	-	spanmath	std/chrono	-	Return
 Modern-Chrono-TimeSpan-Negate	TimeSpan.Negate	-	spanmath	std/chrono	-	Returns the duration with its sign flipped.
 Modern-Chrono-TimeSpan-Duration	TimeSpan.Duration	-	spanmath	std/chrono	-	Returns the absolute value of the duration.
 Modern-Chrono-TimeSpan-CompareTo	TimeSpan.CompareTo	-	spanmath	std/chrono	-	Returns -1, 0 or 1 to order two durations, or -2 if either is Invalid.
-Modern-Chrono-Instant-WithOffset	DateTime.WithOffset	-	offset	std/chrono	-	Attaches a UTC offset in minutes, keeping the clock reading and changing the moment.
-Modern-Chrono-Instant-ToOffset	DateTime.ToOffset	-	offset	std/chrono	-	Converts to another UTC offset, keeping the moment and changing the clock reading.
-Modern-Chrono-Instant-OffsetMinutes	DateTime.OffsetMinutes	-	offset	std/chrono	-	Returns the UTC offset in minutes; check HasOffset first, as no offset reads 32767.
-Modern-Chrono-Instant-HasOffset	DateTime.HasOffset	-	offset	std/chrono	-	Returns true if the date-time carries a UTC offset.
-Modern-Chrono-Instant-IsUtc	DateTime.IsUtc	-	offset	std/chrono	-	Returns true if the offset is zero; a date-time with no offset is not UTC.
-Modern-Chrono-Instant-ToInstant	DateTime.ToInstant	-	offset	std/chrono	-	Returns the moment the date-time names, or Invalid if it has no offset.
-Modern-Chrono-Instant-AssumeUtc	DateTime.AssumeUtc	-	offset	std/chrono	-	Returns the moment the date-time names if its clock reading is taken as UTC.
-Modern-Chrono-Instant-ToLocal	DateTime.ToLocal	-	offset	std/chrono	-	Returns the same moment shown at the machine's local UTC offset.
-Modern-Chrono-Instant-FromInstant	DateTime.FromInstant	-	offset	std/chrono	-	Returns the date-time a moment shows on a clock with the given UTC offset.
-Modern-Chrono-Instant-ToLocaleDateString	DateTime.ToLocaleDateString	-	locale	std/chrono	-	Returns the date as the machine's locale writes it, for display only.
-Modern-Chrono-Instant-ToLocaleTimeString	DateTime.ToLocaleTimeString	-	locale	std/chrono	-	Returns the time of day as the machine's locale writes it, for display only.
-Modern-Chrono-Instant-ToLocaleString	DateTime.ToLocaleString	-	locale	std/chrono	-	Returns the date and time as the machine's locale writes them, for display only.
-Modern-Chrono-Instant-ToLocaleDateUString	DateTime.ToLocaleDateUString	-	locale	std/chrono	-	Returns the date in the machine's locale format as a ustring, for display only.
-Modern-Chrono-Instant-ToLocaleTimeUString	DateTime.ToLocaleTimeUString	-	locale	std/chrono	-	Returns the time in the machine's locale format as a ustring, for display only.
-Modern-Chrono-Instant-ToLocaleUString	DateTime.ToLocaleUString	-	locale	std/chrono	-	Returns the date and time in the machine's locale format as a ustring.
+Modern-Chrono-DateTime-WithOffset	DateTime.WithOffset	-	offset	std/chrono	-	Attaches a UTC offset in minutes, keeping the clock reading and changing the moment.
+Modern-Chrono-DateTime-ToOffset	DateTime.ToOffset	-	offset	std/chrono	-	Converts to another UTC offset, keeping the moment and changing the clock reading.
+Modern-Chrono-DateTime-OffsetMinutes	DateTime.OffsetMinutes	-	offset	std/chrono	-	Returns the UTC offset in minutes; check HasOffset first, as no offset reads 32767.
+Modern-Chrono-DateTime-HasOffset	DateTime.HasOffset	-	offset	std/chrono	-	Returns true if the date-time carries a UTC offset.
+Modern-Chrono-DateTime-IsUtc	DateTime.IsUtc	-	offset	std/chrono	-	Returns true if the offset is zero; a date-time with no offset is not UTC.
+Modern-Chrono-DateTime-ToInstant	DateTime.ToInstant	-	offset	std/chrono	-	Returns the moment the date-time names, or Invalid if it has no offset.
+Modern-Chrono-DateTime-AssumeUtc	DateTime.AssumeUtc	-	offset	std/chrono	-	Returns the moment the date-time names if its clock reading is taken as UTC.
+Modern-Chrono-DateTime-ToLocal	DateTime.ToLocal	-	offset	std/chrono	-	Returns the same moment shown at the machine's local UTC offset.
+Modern-Chrono-DateTime-FromInstant	DateTime.FromInstant	-	offset	std/chrono	-	Returns the date-time a moment shows on a clock with the given UTC offset.
+Modern-Chrono-DateTime-ToLocaleDateString	DateTime.ToLocaleDateString	-	locale	std/chrono	-	Returns the date as the machine's locale writes it, for display only.
+Modern-Chrono-DateTime-ToLocaleTimeString	DateTime.ToLocaleTimeString	-	locale	std/chrono	-	Returns the time of day as the machine's locale writes it, for display only.
+Modern-Chrono-DateTime-ToLocaleString	DateTime.ToLocaleString	-	locale	std/chrono	-	Returns the date and time as the machine's locale writes them, for display only.
+Modern-Chrono-DateTime-ToLocaleDateUString	DateTime.ToLocaleDateUString	-	locale	std/chrono	-	Returns the date in the machine's locale format as a ustring, for display only.
+Modern-Chrono-DateTime-ToLocaleTimeUString	DateTime.ToLocaleTimeUString	-	locale	std/chrono	-	Returns the time in the machine's locale format as a ustring, for display only.
+Modern-Chrono-DateTime-ToLocaleUString	DateTime.ToLocaleUString	-	locale	std/chrono	-	Returns the date and time in the machine's locale format as a ustring.
 Modern-Chrono-Instant-FromUnixSeconds	Instant.FromUnixSeconds	-	convert	std/chrono	-	Returns the moment a number of seconds after 1970-01-01 UTC; negative is earlier.
 Modern-Chrono-Instant-FromUnixMilliseconds	Instant.FromUnixMilliseconds	-	convert	std/chrono	-	Returns the moment a number of milliseconds after 1970-01-01 UTC.
 Modern-Chrono-Instant-FromUnixMicroseconds	Instant.FromUnixMicroseconds	-	convert	std/chrono	-	Returns the moment a number of microseconds after 1970-01-01 UTC.
@@ -197,15 +197,15 @@ Modern-Chrono-Instant-UnixMilliseconds	Instant.UnixMilliseconds	-	convert	std/ch
 Modern-Chrono-Instant-UnixMicroseconds	Instant.UnixMicroseconds	-	convert	std/chrono	-	Returns the microseconds since 1970-01-01 UTC.
 Modern-Chrono-Instant-Ticks	Instant.Ticks	-	convert	std/chrono	-	Returns the 100 ns ticks since 0001-01-01, counted on the value's own clock.
 Modern-Chrono-LocalTime-Ticks	LocalTime.Ticks	-	convert	std/chrono	-	Returns the time of day as 100 ns ticks since midnight.
-Modern-Chrono-Instant-Serial	DateTime.Serial	-	convert	std/chrono	-	Returns the date-time as a date serial: days since 1899-12-30, with a fraction.
-Modern-Chrono-Instant-FromSerial	DateTime.FromSerial	-	convert	std/chrono	-	Creates a date-time from a date serial, the days since 1899-12-30.
-Modern-Chrono-Instant-OleDate	DateTime.OleDate	-	convert	std/chrono	-	Returns the date-time as an OLE automation date, the number Excel and ADO use.
-Modern-Chrono-Instant-FromOleDate	DateTime.FromOleDate	-	convert	std/chrono	-	Creates a date-time from an OLE automation date.
-Modern-Chrono-Instant-FileTime	DateTime.FileTime	-	convert	std/chrono	-	Returns the date-time as a Windows FILETIME: 100 ns ticks since 1601-01-01.
-Modern-Chrono-Instant-FromFileTime	DateTime.FromFileTime	-	convert	std/chrono	-	Creates a UTC date-time from a Windows FILETIME.
-Modern-Chrono-Instant-JulianDay	DateTime.JulianDay	-	convert	std/chrono	-	Returns the Julian day, a fractional day count whose days start at noon.
-Modern-Chrono-Instant-JulianDayNumber	DateTime.JulianDayNumber	-	convert	std/chrono	-	Returns the whole Julian day number, without the fraction.
-Modern-Chrono-Instant-FromJulianDay	DateTime.FromJulianDay	-	convert	std/chrono	-	Creates a date-time from a fractional Julian day.
+Modern-Chrono-DateTime-Serial	DateTime.Serial	-	convert	std/chrono	-	Returns the date-time as a date serial: days since 1899-12-30, with a fraction.
+Modern-Chrono-DateTime-FromSerial	DateTime.FromSerial	-	convert	std/chrono	-	Creates a date-time from a date serial, the days since 1899-12-30.
+Modern-Chrono-DateTime-OleDate	DateTime.OleDate	-	convert	std/chrono	-	Returns the date-time as an OLE automation date, the number Excel and ADO use.
+Modern-Chrono-DateTime-FromOleDate	DateTime.FromOleDate	-	convert	std/chrono	-	Creates a date-time from an OLE automation date.
+Modern-Chrono-DateTime-FileTime	DateTime.FileTime	-	convert	std/chrono	-	Returns the date-time as a Windows FILETIME: 100 ns ticks since 1601-01-01.
+Modern-Chrono-DateTime-FromFileTime	DateTime.FromFileTime	-	convert	std/chrono	-	Creates a UTC date-time from a Windows FILETIME.
+Modern-Chrono-DateTime-JulianDay	DateTime.JulianDay	-	convert	std/chrono	-	Returns the Julian day, a fractional day count whose days start at noon.
+Modern-Chrono-DateTime-JulianDayNumber	DateTime.JulianDayNumber	-	convert	std/chrono	-	Returns the whole Julian day number, without the fraction.
+Modern-Chrono-DateTime-FromJulianDay	DateTime.FromJulianDay	-	convert	std/chrono	-	Creates a date-time from a fractional Julian day.
 Modern-Chrono-Instant-IsValid	Instant.IsValid	-	valid	std/chrono	-	Returns true if the date-time is a real, in-range value; the only safe test.
 Modern-Chrono-Instant-Invalid	Instant.Invalid	-	valid	std/chrono	-	Returns the Invalid date-time, which never equals anything, itself included.
 Modern-Chrono-Instant-MinValue	Instant.MinValue	-	valid	std/chrono	-	Returns the earliest date-time, midnight on 0001-01-01.
@@ -223,3 +223,19 @@ Modern-Chrono-TimeSpan-MinValue	TimeSpan.MinValue	-	valid	std/chrono	-	Returns t
 Modern-Chrono-TimeSpan-MaxValue	TimeSpan.MaxValue	-	valid	std/chrono	-	Returns the longest duration a TimeSpan can hold.
 Setdate	SetDate	-	setclock	built-in	-	Sets the system date from text like mm-dd-yyyy; needs admin rights, 0 means success.
 Settime	SetTime	-	setclock	built-in	-	Sets the system time from text like hh:mm:ss; needs admin rights, 0 means success.
+Modern-Chrono-WallClock-UtcNow	WallClock.UtcNow	-	now	std/chrono	-	Returns the current moment on the UTC timeline, read from the system clock.
+Modern-Chrono-WallClock-Now	WallClock.Now	-	now	std/chrono	-	Returns the local date and time, with the UTC offset in force at this moment.
+Modern-Chrono-WallClock-Today	WallClock.Today	-	now	std/chrono	-	Returns today's local date as a LocalDate.
+Modern-Chrono-WallClock-TimeOfDay	WallClock.TimeOfDay	-	now	std/chrono	-	Returns the current local time of day as a LocalTime.
+Modern-Chrono-WallClock-Resolution	WallClock.Resolution	-	now	std/chrono	-	Returns the smallest step the wall clock reports, as a TimeSpan.
+Modern-Chrono-TimeZoneInfo-LocalOffsetAt	TimeZoneInfo.LocalOffsetAt	-	offset	std/chrono	-	Returns the local zone's UTC offset in minutes at a given moment, DST included.
+Modern-Chrono-TimeZoneInfo-LocalOffset	TimeZoneInfo.LocalOffset	-	offset	std/chrono	-	Returns the local zone's UTC offset in minutes right now.
+Modern-Chrono-TimeZoneInfo-IsDaylightSavingTime	TimeZoneInfo.IsDaylightSavingTime	-	offset	std/chrono	-	Returns true if daylight saving time is in force in the local zone at a given moment.
+Modern-Chrono-TimeZoneInfo-SupportsDaylightSavingTime	TimeZoneInfo.SupportsDaylightSavingTime	-	offset	std/chrono	-	Returns true if the local zone observes daylight saving time at all.
+Modern-Chrono-TimeZoneInfo-StandardName	TimeZoneInfo.StandardName	-	offset	std/chrono	-	Returns the OS's name for the local zone's standard time.
+Modern-Chrono-TimeZoneInfo-DaylightName	TimeZoneInfo.DaylightName	-	offset	std/chrono	-	Returns the OS's name for the local zone's daylight saving time.
+Modern-Chrono-CpuClock-ProcessTime	CpuClock.ProcessTime	-	timing	std/chrono	-	Returns the processor time this process has used so far, user and kernel together.
+Modern-Chrono-CpuClock-ProcessUserTime	CpuClock.ProcessUserTime	-	timing	std/chrono	-	Returns the processor time this process has spent running its own code.
+Modern-Chrono-CpuClock-ProcessKernelTime	CpuClock.ProcessKernelTime	-	timing	std/chrono	-	Returns the processor time the OS has spent working on behalf of this process.
+Modern-Chrono-CpuClock-ThreadTime	CpuClock.ThreadTime	-	timing	std/chrono	-	Returns the processor time the calling thread has used, user and kernel together.
+Modern-Chrono-CpuClock-IsSupported	CpuClock.IsSupported	-	timing	std/chrono	-	Returns true if the platform can report processor time.

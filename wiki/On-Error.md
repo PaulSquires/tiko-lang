@@ -42,67 +42,57 @@ On [Local] Error Goto label
 ## Examples
 
 ```freebasic
-'' Compile with QB (-lang qb) dialect
+on error goto errorhandler
 
-'$lang: "qb"
+error 24 '' simulate an error
 
-On Error Goto errorhandler
-
-Error 24 '' simulate an error
-
-Print "this message will not be seen"
+print "this message will not be seen"
 
 errorhandler:
 
-n = Err
+dim as int32 n = err
 
-Print "Error #"; n; "!"
+print "Error #"; n; "!"
 
-End
+end
 ```
 
 ```freebasic
-'' compile as: fbc onerror.bas -ex
+'' compile with: tiko onerror.tiko -ex
 
-#lang "fblite"
+function hFileExists( byref filename as string ) as boolean
 
-Function hFileExists( filename As String ) As Integer Static
+    dim as long f = freefile
 
-    Dim f As Integer
+    on local error goto exitfunction
 
-    hFileExists = 0
+    open filename for input as #f
 
-    On Local Error Goto exitfunction
+    close #f
 
-    f = FreeFile
-
-    Open filename For Input As #f
-
-    Close #f
-
-    hFileExists = -1
+    return true
 
 exitfunction:
 
-    Exit Function
+    return false
 
-End Function
+end function
 
-    Print "File exists (0=false): "; hFileExists( Command )
+print "File exists: "; hFileExists( command( 1 ) )
 
-    On Error Goto errhandler
+on error goto errhandler
 
-    Error 1234
+error 1234
 
-    Print "back from resume next"
+print "not seen: an error handler cannot return here"
 
-    End 0
+end 0
 
 errhandler:
 
-    Print "error number: " + Str( Err ) + " at line: " + Str( Erl )
+print "error number: " + str( err ) + " at line: " + str( erl )
 
-    Resume Next
+end 1
 ```
 
 ---

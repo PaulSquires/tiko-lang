@@ -48,13 +48,6 @@ Sets a global error handler using a label.
 
 Sets a local error handler using a label.
 
-**[Resume](Resume)**
-
-Resumes execution at the line where the error occurred.
-
-**[Resume Next](Resume-Next)**
-
-Resumes execution at the line after where the error occurred.
 
 See also
 
