@@ -1,0 +1,714 @@
+#module "process"
+#import "std/containers"
+#import "std/outcome"
+#import "std/fs"
+#import "std/os"
+using containers
+using outcome
+'' std/process: procwin -- the Windows side, kernel32 only.  CreateProcessW with a
+'' STARTUPINFOEX whose PROC_THREAD_ATTRIBUTE_HANDLE_LIST names the three stdio handles
+'' and nothing else (rule 4); every pipe is a uniquely named pipe whose own end is
+'' overlapped, so Output_ can wait on both of a child's outputs at once (rule 5).
+
+#ifdef __FB_WIN32__
+
+#include once "fbatomic.bi"
+
+type TkpStartupInfoEx
+    as ulong cb
+    as ushort ptr lpReserved, lpDesktop, lpTitle
+    as ulong dwX, dwY, dwXSize, dwYSize, dwXCountChars, dwYCountChars, dwFillAttribute, dwFlags
+    as ushort wShowWindow, cbReserved2
+    as any ptr lpReserved2, hStdInput, hStdOutput, hStdError
+    as any ptr lpAttributeList
+end type
+
+type TkpProcInfo
+    as any ptr hProcess, hThread
+    as ulong dwProcessId, dwThreadId
+end type
+
+type TkpSecAttr
+    as ulong nLength
+    as any ptr lpSecurityDescriptor
+    as long bInheritHandle
+end type
+
+type TkpOverlapped
+    as uinteger internal_, internalHigh
+    as ulong offset_, offsetHigh
+    as any ptr hEvent
+end type
+
+extern "Windows"
+    declare function tkp_CreateProcessW alias "CreateProcessW" ( byval app as const ushort ptr, byval cmd as ushort ptr, _
+        byval pa as any ptr, byval ta as any ptr, byval inherit as long, byval flags as ulong, byval env as any ptr, _
+        byval cwd as const ushort ptr, byval si as any ptr, byval pi as TkpProcInfo ptr ) as long
+    declare function tkp_InitializeProcThreadAttributeList alias "InitializeProcThreadAttributeList" ( _
+        byval list as any ptr, byval count as ulong, byval flags as ulong, byval size as uinteger ptr ) as long
+    declare function tkp_UpdateProcThreadAttribute alias "UpdateProcThreadAttribute" ( byval list as any ptr, _
+        byval flags as ulong, byval attr as uinteger, byval value as any ptr, byval size as uinteger, _
+        byval prev as any ptr, byval retsize as any ptr ) as long
+    declare sub tkp_DeleteProcThreadAttributeList alias "DeleteProcThreadAttributeList" ( byval list as any ptr )
+    declare function tkp_CreateNamedPipeW alias "CreateNamedPipeW" ( byval n as const ushort ptr, byval openMode as ulong, _
+        byval pipeMode as ulong, byval maxInst as ulong, byval outBuf as ulong, byval inBuf as ulong, _
+        byval timeout as ulong, byval sa as any ptr ) as any ptr
+    declare function tkp_CreateFileW alias "CreateFileW" ( byval n as const ushort ptr, byval access_ as ulong, _
+        byval share as ulong, byval sa as any ptr, byval disp as ulong, byval flags as ulong, byval tmpl as any ptr ) as any ptr
+    declare function tkp_CloseHandle alias "CloseHandle" ( byval h as any ptr ) as long
+    declare function tkp_DuplicateHandle alias "DuplicateHandle" ( byval sp as any ptr, byval src as any ptr, _
+        byval dp as any ptr, byval dst as any ptr ptr, byval access_ as ulong, byval inherit as long, byval opts as ulong ) as long
+    declare function tkp_GetCurrentProcess alias "GetCurrentProcess" ( ) as any ptr
+    declare function tkp_GetCurrentProcessId alias "GetCurrentProcessId" ( ) as ulong
+    declare function tkp_GetStdHandle alias "GetStdHandle" ( byval which as long ) as any ptr
+    declare function tkp_GetLastError alias "GetLastError" ( ) as ulong
+    declare sub tkp_SetLastError alias "SetLastError" ( byval e as ulong )
+    declare function tkp_WaitForSingleObject alias "WaitForSingleObject" ( byval h as any ptr, byval ms as ulong ) as ulong
+    declare function tkp_WaitForMultipleObjects alias "WaitForMultipleObjects" ( byval n as ulong, _
+        byval hs as any ptr ptr, byval all_ as long, byval ms as ulong ) as ulong
+    declare function tkp_GetExitCodeProcess alias "GetExitCodeProcess" ( byval h as any ptr, byval code as ulong ptr ) as long
+    declare function tkp_TerminateProcess alias "TerminateProcess" ( byval h as any ptr, byval code as ulong ) as long
+    declare function tkp_ReadFile alias "ReadFile" ( byval h as any ptr, byval buf as any ptr, byval n as ulong, _
+        byval got as ulong ptr, byval ov as TkpOverlapped ptr ) as long
+    declare function tkp_WriteFile alias "WriteFile" ( byval h as any ptr, byval buf as const any ptr, byval n as ulong, _
+        byval done as ulong ptr, byval ov as TkpOverlapped ptr ) as long
+    declare function tkp_GetOverlappedResult alias "GetOverlappedResult" ( byval h as any ptr, _
+        byval ov as TkpOverlapped ptr, byval n as ulong ptr, byval wait_ as long ) as long
+    declare function tkp_CancelIo alias "CancelIo" ( byval h as any ptr ) as long
+    declare function tkp_CreateEventW alias "CreateEventW" ( byval sa as any ptr, byval manual as long, _
+        byval initial as long, byval n as const ushort ptr ) as any ptr
+    declare function tkp_ResetEvent alias "ResetEvent" ( byval h as any ptr ) as long
+    declare function tkp_GetSystemDirectoryW alias "GetSystemDirectoryW" ( byval buf as ushort ptr, byval size as ulong ) as ulong
+end extern
+
+const TKP_INVALID = cptr( any ptr, -1 )
+const TKP_INFINITE = &hFFFFFFFFul
+const TKP_ERROR_BROKEN_PIPE = 109
+const TKP_ERROR_NO_DATA = 232
+const TKP_ERROR_HANDLE_EOF = 38
+const TKP_ERROR_IO_PENDING = 997
+const TKP_CHUNK = 65536
+
+dim shared as long tkp_pipeSeq
+
+'' ---- UTF-16
+
+'' A NUL-terminated copy; the caller deallocates it.
+private function hToW( byref s as const ustring ) as ushort ptr
+    dim as ushort ptr w = callocate( len( s ) + 1, 2 )
+    for i as long = 0 to len( s ) - 1
+        w[i] = s[i]
+    next
+    return w
+end function
+
+private function hFromW( byval w as const ushort ptr, byval n as long ) as ustring
+    if( n <= 0 ) then return ""
+    dim as ustring r = wspace( n )
+    for i as long = 0 to n - 1
+        r[i] = w[i]
+    next
+    return r
+end function
+
+'' ---- the parent's environment, and cmd.exe
+
+function ProcParentEnv( ) as OrderedMap( of ustring, ustring )
+    return os.Environment( )
+end function
+
+function ProcParentVar( byref n as const ustring ) as ustring
+    return os.GetEnv( n ).ValueOr( "" )
+end function
+
+'' The system's own cmd.exe, never one found on PATH or in the current directory.
+private function hCmdExe( ) as ustring
+    dim as ushort buf( 0 to 519 )
+    dim as ulong n = tkp_GetSystemDirectoryW( @buf(0), 520 )
+    if( ( n = 0 ) orelse ( n >= 520 ) ) then return "C:\Windows\System32\cmd.exe"
+    return hFromW( @buf(0), n ) & "\cmd.exe"
+end function
+
+private function hIsBatch( byref p as const ustring ) as boolean
+    dim as ustring e = lcase( right( p, 4 ) )
+    return ( e = ".bat" ) orelse ( e = ".cmd" )
+end function
+
+'' ---- program lookup (rule 2)
+
+'' `base`, then base & each PATHEXT extension -- an exact name only when it already
+'' has an extension.
+private function hTryExts( byref bas as const ustring, byref exts as Array( of ustring ), byref full as ustring ) as boolean
+    if( len( (fs.PathExtension( bas )) ) > 0 ) then
+        if( fs.IsFile( bas ) ) then
+            full = bas
+            return TRUE
+        end if
+    end if
+    for i as long = 0 to exts.num - 1
+        dim as ustring f = bas & exts.items( i )
+        if( fs.IsFile( f ) ) then
+            full = f
+            return TRUE
+        end if
+    next
+    return FALSE
+end function
+
+'' The full path CreateProcessW is given.  A name with a separator is taken from this
+'' process's current directory; one without is searched on the child's PATH, never
+'' in the current directory (Go's exec.ErrDot).
+private function hResolve( byref c as Command, byref full as ustring ) as boolean
+    dim as ustring p = c.hProgram
+    dim as ustring pe = ProcChildVar( c, "PATHEXT" )
+    if( len( pe ) = 0 ) then pe = ".COM;.EXE;.BAT;.CMD"
+    dim as Array( of ustring ) exts
+    dim as long st = 0
+    for i as long = 0 to len( pe )
+        if( ( i = len( pe ) ) orelse ( pe[i] = 59 ) ) then
+            dim as ustring e = trim( mid( pe, st + 1, i - st ) )
+            if( ( len( e ) > 1 ) andalso ( e[0] = 46 ) ) then exts.Push( e )
+            st = i + 1
+        end if
+    next
+    if( ( instr( p, "\" ) > 0 ) orelse ( instr( p, "/" ) > 0 ) orelse ( instr( p, ":" ) > 0 ) ) then
+        dim as fs.FsResultUStr a = fs.AbsolutePath( p )
+        if( a.IsOk( ) = FALSE ) then return FALSE
+        return hTryExts( a.Value( ), exts, full )
+    end if
+    dim as Array( of ustring ) dirs = ProcPathDirs( ProcChildVar( c, "PATH" ), 59 )
+    for i as long = 0 to dirs.num - 1
+        if( hTryExts( fs.PathJoin( dirs.items( i ), p ), exts, full ) ) then return TRUE
+    next
+    return FALSE
+end function
+
+'' ---- handles
+
+private sub hClose( byref h as any ptr )
+    if( ( h <> nullptr ) andalso ( h <> TKP_INVALID ) ) then tkp_CloseHandle( h )
+    h = nullptr
+end sub
+
+'' One pipe.  Our end is overlapped and not inheritable; the child's end is a plain
+'' inheritable handle.  0, or the GetLastError code.
+private function hPipe( byval childReads as boolean, byref ours as any ptr, byref theirs as any ptr ) as ulong
+    dim as long seq = FB.AtomicFetchAddLong( @tkp_pipeSeq, 1 )
+    dim as ushort ptr w = hToW( "\\.\pipe\tiko-process-" & tkp_GetCurrentProcessId( ) & "-" & seq & "-" & hex( cuint( timer * 1000 ) ) )
+    '' PIPE_ACCESS_OUTBOUND (2) or INBOUND (1), FILE_FLAG_OVERLAPPED, FILE_FLAG_FIRST_PIPE_INSTANCE;
+    '' byte mode, blocking, PIPE_REJECT_REMOTE_CLIENTS (8); one instance
+    dim as ulong om = iif( childReads, 2ul, 1ul ) or &h40000000ul or &h80000ul
+    ours = tkp_CreateNamedPipeW( w, om, 8, 1, TKP_CHUNK, TKP_CHUNK, 0, nullptr )
+    if( ours = TKP_INVALID ) then
+        dim as ulong e = tkp_GetLastError( )
+        ours = nullptr
+        deallocate( w )
+        return e
+    end if
+    dim as TkpSecAttr sa
+    sa.nLength = sizeof( TkpSecAttr )
+    sa.bInheritHandle = 1
+    '' GENERIC_READ or GENERIC_WRITE, with FILE_READ_ATTRIBUTES and FILE_WRITE_ATTRIBUTES
+    dim as ulong acc = iif( childReads, &h80000000ul, &h40000000ul ) or &h180ul
+    theirs = tkp_CreateFileW( w, acc, 0, @sa, 3, 0, nullptr )
+    deallocate( w )
+    if( theirs = TKP_INVALID ) then
+        dim as ulong e = tkp_GetLastError( )
+        theirs = nullptr
+        hClose( ours )
+        return e
+    end if
+    return 0
+end function
+
+'' An inheritable copy of one of our own standard handles, or nullptr if we have none.
+private function hInheritStd( byval which as long ) as any ptr
+    dim as any ptr h = tkp_GetStdHandle( which )
+    if( ( h = nullptr ) orelse ( h = TKP_INVALID ) ) then return nullptr
+    dim as any ptr d = nullptr
+    dim as any ptr me_ = tkp_GetCurrentProcess( )
+    if( tkp_DuplicateHandle( me_, h, me_, @d, 0, 1, 2 ) = 0 ) then return nullptr    '' DUPLICATE_SAME_ACCESS
+    return d
+end function
+
+private function hNul( ) as any ptr
+    dim as TkpSecAttr sa
+    sa.nLength = sizeof( TkpSecAttr )
+    sa.bInheritHandle = 1
+    dim as ushort ptr w = hToW( "NUL" )
+    dim as any ptr h = tkp_CreateFileW( w, &hC0000000ul, 3, @sa, 3, 0, nullptr )
+    deallocate( w )
+    if( h = TKP_INVALID ) then return nullptr
+    return h
+end function
+
+private function hMapSpawnError( byval e as ulong ) as ProcErrorCode
+    select case e
+    case 2, 3, 123, 161 : return PROC_NOT_FOUND
+    case 5, 740         : return PROC_ACCESS_DENIED     '' ERROR_ELEVATION_REQUIRED too
+    case 267            : return PROC_BAD_DIRECTORY
+    case 8, 14, 1455    : return PROC_TOO_MANY_PROCESSES
+    case 87             : return PROC_INVALID_ARGUMENT
+    end select
+    return PROC_UNKNOWN
+end function
+
+private sub hSetPipe( byref s as PipeStream, byval h as any ptr, byval writes as boolean )
+    s.hFd = cast( integer, h )
+    s.hWrite = writes
+    s.hEvent = tkp_CreateEventW( nullptr, 1, 0, nullptr )
+end sub
+
+'' ---- starting
+
+'' Spawn's body; Output_ calls it with its own defaults for the slots the Command left
+'' at -1.
+function ProcStart( byref c as Command, byref k as Child, byval dIn as long, byval dOut as long, byval dErr as long, _
+                    byref op as const ustring, byref failure as ProcError ) as boolean
+    if( k.hRunning ) then
+        failure = ProcError( PROC_INVALID_ARGUMENT, 0, op, c.hProgram )
+        return FALSE
+    end if
+    dim as ustring bad
+    if( ProcCheck( c, bad ) = FALSE ) then
+        failure = ProcError( PROC_INVALID_ARGUMENT, 0, op, bad )
+        return FALSE
+    end if
+    if( ( len( c.hCwd ) > 0 ) andalso ( fs.IsDir( c.hCwd ) = FALSE ) ) then
+        failure = ProcError( PROC_BAD_DIRECTORY, 0, op, c.hCwd )
+        return FALSE
+    end if
+
+    '' the program and the command line (rules 1 and 3)
+    dim as ustring app, line_
+    if( c.hRaw ) then
+        app = hCmdExe( )
+        line_ = "cmd.exe /d /s /c """ & c.hArgs.items( 0 ) & """"
+    else
+        if( hResolve( c, app ) = FALSE ) then
+            failure = ProcError( PROC_NOT_FOUND, 0, op, c.hProgram )
+            return FALSE
+        end if
+        if( hIsBatch( app ) ) then
+            line_ = "cmd.exe /d /e:ON /v:OFF /s /c """"" & app & """"
+            for i as long = 0 to c.hArgs.num - 1
+                if( ProcCmdSafe( c.hArgs.items( i ) ) = FALSE ) then
+                    failure = ProcError( PROC_UNSAFE_ARGUMENT, 0, op, c.hArgs.items( i ) )
+                    return FALSE
+                end if
+                line_ &= " " & ProcQuoteCmd( c.hArgs.items( i ) )
+            next
+            line_ &= """"
+            app = hCmdExe( )
+        else
+            line_ = ProcQuoteWinProgram( c.hProgram )
+            for i as long = 0 to c.hArgs.num - 1
+                line_ &= " " & ProcQuoteWin( c.hArgs.items( i ) )
+            next
+        end if
+    end if
+
+    '' the environment block: NAME=VALUE NUL ... NUL, in UTF-16
+    dim as ushort ptr envBlk = nullptr
+    dim as Array( of ustring ) ek, ev
+    if( ProcChildEnv( c, ek, ev ) ) then
+        dim as long total = 2
+        for i as long = 0 to ek.num - 1
+            total += len( ek.items( i ) ) + len( ev.items( i ) ) + 2
+        next
+        envBlk = callocate( total, 2 )  '' zeroed: every NUL, and the two at the end
+        dim as long at = 0
+        for i as long = 0 to ek.num - 1
+            dim as ustring kv = ek.items( i ) & "=" & ev.items( i )
+            for j as long = 0 to len( kv ) - 1
+                envBlk[at + j] = kv[j]
+            next
+            at += len( kv ) + 1
+        next
+    end if
+
+    '' the three stdio handles (rule 4)
+    dim as long mode( 0 to 2 )
+    mode(0) = iif( c.hStdin < 0, dIn, c.hStdin )
+    mode(1) = iif( c.hStdout < 0, dOut, c.hStdout )
+    mode(2) = iif( c.hStderr < 0, dErr, c.hStderr )
+    dim as any ptr theirs( 0 to 2 ), ours( 0 to 2 )
+    dim as ulong perr = 0
+    for i as long = 0 to 2
+        if( ( i = 2 ) andalso c.hMerge ) then exit for
+        select case mode(i)
+        case STDIO_PIPE
+            perr = hPipe( i = 0, ours(i), theirs(i) )
+            if( perr <> 0 ) then exit for
+        case STDIO_NULL
+            theirs(i) = hNul( )
+        case else
+            theirs(i) = hInheritStd( -10 - i )
+        end select
+    next
+    if( perr = 0 ) then
+        if( c.hMerge ) then theirs(2) = theirs(1)
+    end if
+
+    dim as boolean started = FALSE
+    dim as ulong e = perr
+    dim as TkpProcInfo pi
+    if( perr = 0 ) then
+        dim as any ptr list( 0 to 2 )
+        dim as long nl = 0
+        for i as long = 0 to 2
+            if( theirs(i) <> nullptr ) then
+                dim as boolean dup_ = FALSE
+                for j as long = 0 to nl - 1
+                    if( list(j) = theirs(i) ) then dup_ = TRUE
+                next
+                if( dup_ = FALSE ) then
+                    list(nl) = theirs(i)
+                    nl += 1
+                end if
+            end if
+        next
+
+        dim as TkpStartupInfoEx si
+        si.cb = sizeof( TkpStartupInfoEx )
+        si.dwFlags = &h100                                   '' STARTF_USESTDHANDLES
+        si.hStdInput = theirs(0)
+        si.hStdOutput = theirs(1)
+        si.hStdError = theirs(2)
+        dim as ulong flags = &h80000ul or &h400ul            '' EXTENDED_STARTUPINFO_PRESENT, CREATE_UNICODE_ENVIRONMENT
+        if( c.hGroup ) then flags or= &h200ul                '' CREATE_NEW_PROCESS_GROUP
+        if( c.hHide ) then flags or= &h8000000ul             '' CREATE_NO_WINDOW
+
+        dim as any ptr attrs = nullptr
+        dim as boolean listOk = TRUE
+        if( nl > 0 ) then
+            dim as uinteger size = 0
+            tkp_InitializeProcThreadAttributeList( nullptr, 1, 0, @size )
+            attrs = callocate( size, 1 )
+            if( tkp_InitializeProcThreadAttributeList( attrs, 1, 0, @size ) = 0 ) then
+                listOk = FALSE
+            elseif( tkp_UpdateProcThreadAttribute( attrs, 0, &h20002, @list(0), nl * sizeof( any ptr ), nullptr, nullptr ) = 0 ) then
+                listOk = FALSE                               '' PROC_THREAD_ATTRIBUTE_HANDLE_LIST
+                tkp_DeleteProcThreadAttributeList( attrs )
+            end if
+            if( listOk = FALSE ) then
+                e = tkp_GetLastError( )
+                deallocate( attrs )
+                attrs = nullptr
+            end if
+            si.lpAttributeList = attrs
+        end if
+
+        if( listOk ) then
+            dim as ushort ptr wapp = hToW( app ), wline = hToW( line_ )
+            dim as ushort ptr wcwd = iif( len( c.hCwd ) > 0, hToW( c.hCwd ), cptr( ushort ptr, nullptr ) )
+            if( tkp_CreateProcessW( wapp, wline, nullptr, nullptr, iif( nl > 0, 1, 0 ), flags, envBlk, wcwd, @si, @pi ) <> 0 ) then
+                started = TRUE
+            else
+                e = tkp_GetLastError( )
+            end if
+            deallocate( wcwd ) : deallocate( wline ) : deallocate( wapp )
+        end if
+        if( attrs <> nullptr ) then
+            tkp_DeleteProcThreadAttributeList( attrs )
+            deallocate( attrs )
+        end if
+    end if
+    deallocate( envBlk )
+
+    '' the child has its copies now
+    if( c.hMerge ) then theirs(2) = nullptr
+    for i as long = 0 to 2
+        hClose( theirs(i) )
+    next
+    if( started = FALSE ) then
+        for i as long = 0 to 2
+            hClose( ours(i) )
+        next
+        if( perr <> 0 ) then
+            failure = ProcError( PROC_IO, perr, op, c.hProgram )
+        else
+            failure = ProcError( hMapSpawnError( e ), e, op, c.hProgram )
+        end if
+        return FALSE
+    end if
+
+    tkp_CloseHandle( pi.hThread )
+    k.hProc = pi.hProcess
+    k.hPid = pi.dwProcessId
+    k.hRunning = TRUE
+    k.hReaped = FALSE
+    k.hIn.Close( ) : k.hOut.Close( ) : k.hErr.Close( )
+    if( ours(0) <> nullptr ) then hSetPipe( k.hIn, ours(0), TRUE )
+    if( ours(1) <> nullptr ) then hSetPipe( k.hOut, ours(1), FALSE )
+    if( ours(2) <> nullptr ) then hSetPipe( k.hErr, ours(2), FALSE )
+    return TRUE
+end function
+
+function Child.Spawn( byref c as Command ) as ProcResultBool
+    dim as ProcError f
+    if( ProcStart( c, this, STDIO_INHERIT, STDIO_INHERIT, STDIO_INHERIT, "Spawn", f ) = FALSE ) then
+        return Fail( of boolean, ProcError )( f )
+    end if
+    return Ok( of boolean, ProcError )( TRUE )
+end function
+
+'' ---- waiting and signalling
+
+function Child.WaitTimeout( byval ms as long ) as ProcResultMaybe
+    if( this.hReaped ) then return Ok( of ProcMaybeStatus, ProcError )( Some( of ExitStatus )( this.hStatus ) )
+    if( this.hRunning = FALSE ) then return ProcFail( of ProcMaybeStatus )( PROC_NOT_STARTED, 0, "Wait", "" )
+    dim as ulong w = tkp_WaitForSingleObject( this.hProc, iif( ms < 0, TKP_INFINITE, cast( ulong, ms ) ) )
+    if( w = &h102 ) then return Ok( of ProcMaybeStatus, ProcError )( None( of ExitStatus )( ) )   '' WAIT_TIMEOUT
+    dim as ulong code = 0
+    if( ( w <> 0 ) orelse ( tkp_GetExitCodeProcess( this.hProc, @code ) = 0 ) ) then
+        return ProcFail( of ProcMaybeStatus )( PROC_UNKNOWN, tkp_GetLastError( ), "Wait", "" )
+    end if
+    this.hStatus = ExitStatus( cast( long, code ), 0 )
+    this.hReaped = TRUE
+    this.hRunning = FALSE
+    hClose( this.hProc )
+    return Ok( of ProcMaybeStatus, ProcError )( Some( of ExitStatus )( this.hStatus ) )
+end function
+
+function Child.Kill( ) as ProcResultBool
+    if( this.hReaped ) then return ProcFail( of boolean )( PROC_ALREADY_WAITED, 0, "Kill", "" )
+    if( this.hRunning = FALSE ) then return ProcFail( of boolean )( PROC_NOT_STARTED, 0, "Kill", "" )
+    if( tkp_TerminateProcess( this.hProc, 1 ) = 0 ) then
+        dim as ulong e = tkp_GetLastError( )
+        '' a process that has already ended refuses with access denied: nothing to do
+        if( tkp_WaitForSingleObject( this.hProc, 0 ) <> 0 ) then
+            return ProcFail( of boolean )( hMapSpawnError( e ), e, "Kill", "" )
+        end if
+    end if
+    return Ok( of boolean, ProcError )( TRUE )
+end function
+
+function Child.Terminate( ) as ProcResultBool
+    return this.Kill( )
+end function
+
+sub ProcRelease( byref k as Child )
+    hClose( k.hProc )
+end sub
+
+public function CurrentId( ) as ulong
+    return tkp_GetCurrentProcessId( )
+end function
+
+'' ---- PipeStream
+
+'' One overlapped transfer, waited for: 0 with `got` set, or the GetLastError code.
+private function hIo( byval h as any ptr, byval ev as any ptr, byval buf as any ptr, byval n as ulong, _
+                      byval writes as boolean, byref got as ulong ) as ulong
+    dim as TkpOverlapped ov
+    ov.hEvent = ev
+    tkp_ResetEvent( ev )
+    got = 0
+    dim as long ok_
+    if( writes ) then
+        ok_ = tkp_WriteFile( h, buf, n, nullptr, @ov )
+    else
+        ok_ = tkp_ReadFile( h, buf, n, nullptr, @ov )
+    end if
+    if( ok_ = 0 ) then
+        dim as ulong e = tkp_GetLastError( )
+        if( e <> TKP_ERROR_IO_PENDING ) then return e
+    end if
+    if( tkp_GetOverlappedResult( h, @ov, @got, 1 ) = 0 ) then return tkp_GetLastError( )
+    return 0
+end function
+
+private function hFsFail( byval e as ulong, byref op as const ustring ) as fs.FsResultI64
+    tkp_SetLastError( e )
+    return fs.FsFailOs( of longint )( op, "" )
+end function
+
+function PipeStream.Read( byval buf as ubyte ptr, byval n as longint ) as fs.FsResultI64
+    if( this.hFd = -1 ) then return fs.FsFail( of longint )( fs.FS_CLOSED, "Read", "" )
+    if( ( n < 0 ) orelse ( ( buf = nullptr ) andalso ( n > 0 ) ) ) then
+        return fs.FsFail( of longint )( fs.FS_INVALID_ARGUMENT, "Read", "" )
+    end if
+    if( this.hWrite ) then return fs.FsFail( of longint )( fs.FS_UNSUPPORTED, "Read", "" )
+    if( n = 0 ) then return Ok( of longint, fs.FsError )( 0 )
+    if( n > &h40000000 ) then n = &h40000000
+    dim as ulong got = 0
+    dim as ulong e = hIo( cast( any ptr, this.hFd ), this.hEvent, buf, cast( ulong, n ), FALSE, got )
+    if( e <> 0 ) then
+        '' the writer closed: the end of the data
+        if( ( e = TKP_ERROR_BROKEN_PIPE ) orelse ( e = TKP_ERROR_HANDLE_EOF ) ) then return Ok( of longint, fs.FsError )( 0 )
+        return hFsFail( e, "Read" )
+    end if
+    dim as longint g = got
+    return Ok( of longint, fs.FsError )( g )
+end function
+
+function PipeStream.Write( byval buf as const ubyte ptr, byval n as longint ) as fs.FsResultI64
+    if( this.hFd = -1 ) then return fs.FsFail( of longint )( fs.FS_CLOSED, "Write", "" )
+    if( ( n < 0 ) orelse ( ( buf = nullptr ) andalso ( n > 0 ) ) ) then
+        return fs.FsFail( of longint )( fs.FS_INVALID_ARGUMENT, "Write", "" )
+    end if
+    if( this.hWrite = FALSE ) then return fs.FsFail( of longint )( fs.FS_UNSUPPORTED, "Write", "" )
+    if( n = 0 ) then return Ok( of longint, fs.FsError )( 0 )
+    if( n > &h40000000 ) then n = &h40000000
+    dim as ulong got = 0
+    dim as ulong e = hIo( cast( any ptr, this.hFd ), this.hEvent, cast( any ptr, buf ), cast( ulong, n ), TRUE, got )
+    if( e <> 0 ) then
+        if( ( e = TKP_ERROR_NO_DATA ) orelse ( e = TKP_ERROR_BROKEN_PIPE ) ) then
+            return fs.FsFail( of longint )( fs.FS_BROKEN_PIPE, "Write", "" )
+        end if
+        return hFsFail( e, "Write" )
+    end if
+    dim as longint g = got
+    return Ok( of longint, fs.FsError )( g )
+end function
+
+sub PipeStream.Close( )
+    if( this.hFd <> -1 ) then tkp_CloseHandle( cast( any ptr, this.hFd ) )
+    this.hFd = -1
+    hClose( this.hEvent )
+end sub
+
+'' ---- Output_ (rule 5): overlapped reads of stdout and stderr and writes of stdin,
+'' all outstanding at once, under one WaitForMultipleObjects.
+
+type TkpOp
+    as PipeStream ptr s
+    as boolean active          '' still has work
+    as boolean pending         '' a transfer is in flight
+    as TkpOverlapped ov
+    as ubyte ptr buf
+    as long sent               '' stdin: bytes of stdinData written
+end type
+
+'' Starts the next transfer of op i.  FALSE with `e` on a real failure; an end of
+'' data or a gone reader just makes the op inactive.
+private function hIssue( byref o as TkpOp, byval i as long, byref stdinData as Array( of ubyte ), byref e as ulong ) as boolean
+    dim as any ptr h = cast( any ptr, o.s->hFd )
+    o.ov.internal_ = 0 : o.ov.internalHigh = 0 : o.ov.offset_ = 0 : o.ov.offsetHigh = 0
+    o.ov.hEvent = o.s->hEvent
+    tkp_ResetEvent( o.s->hEvent )
+    dim as long ok_
+    if( i = 2 ) then
+        dim as long n = stdinData.num - o.sent
+        if( n > TKP_CHUNK ) then n = TKP_CHUNK
+        for j as long = 0 to n - 1
+            o.buf[j] = stdinData.items( o.sent + j )
+        next
+        ok_ = tkp_WriteFile( h, o.buf, n, nullptr, @o.ov )
+    else
+        ok_ = tkp_ReadFile( h, o.buf, TKP_CHUNK, nullptr, @o.ov )
+    end if
+    if( ok_ = 0 ) then
+        e = tkp_GetLastError( )
+        if( e <> TKP_ERROR_IO_PENDING ) then
+            o.active = FALSE
+            if( ( e = TKP_ERROR_BROKEN_PIPE ) orelse ( e = TKP_ERROR_NO_DATA ) orelse ( e = TKP_ERROR_HANDLE_EOF ) ) then
+                e = 0
+                return TRUE
+            end if
+            return FALSE
+        end if
+    end if
+    o.pending = TRUE
+    e = 0
+    return TRUE
+end function
+
+function ProcOutput( byref c as Command, byref stdinData as Array( of ubyte ) ) as ProcResultOutput
+    dim as Child k
+    dim as ProcError f
+    dim as long dIn = iif( stdinData.num > 0, STDIO_PIPE, STDIO_NULL )
+    if( ProcStart( c, k, dIn, STDIO_PIPE, STDIO_PIPE, "Output", f ) = FALSE ) then
+        return Fail( of ProcessOutput, ProcError )( f )
+    end if
+
+    dim as ProcessOutput po
+    dim as TkpOp ops( 0 to 2 )
+    ops(0).s = @k.hOut
+    ops(1).s = @k.hErr
+    ops(2).s = @k.hIn
+    dim as ulong e = 0
+    dim as boolean failed = FALSE
+    for i as long = 0 to 2
+        ops(i).active = ops(i).s->IsOpen( )
+        if( ( i = 2 ) andalso ( stdinData.num = 0 ) ) then
+            ops(i).active = FALSE
+            k.hIn.Close( )
+        end if
+        if( ops(i).active ) then
+            ops(i).buf = callocate( TKP_CHUNK, 1 )
+            if( hIssue( ops(i), i, stdinData, e ) = FALSE ) then failed = TRUE
+        end if
+    next
+
+    do while( failed = FALSE )
+        dim as any ptr evs( 0 to 2 )
+        dim as long which( 0 to 2 ), nw = 0
+        for i as long = 0 to 2
+            if( ops(i).active andalso ops(i).pending ) then
+                evs(nw) = ops(i).s->hEvent
+                which(nw) = i
+                nw += 1
+            end if
+        next
+        if( nw = 0 ) then exit do
+        dim as ulong w = tkp_WaitForMultipleObjects( nw, @evs(0), 0, TKP_INFINITE )
+        if( w >= cast( ulong, nw ) ) then
+            e = tkp_GetLastError( )
+            failed = TRUE
+            exit do
+        end if
+        dim as long i = which(w)
+        ops(i).pending = FALSE
+        dim as ulong got = 0
+        if( tkp_GetOverlappedResult( cast( any ptr, ops(i).s->hFd ), @ops(i).ov, @got, 0 ) = 0 ) then
+            e = tkp_GetLastError( )
+            if( ( e = TKP_ERROR_BROKEN_PIPE ) orelse ( e = TKP_ERROR_NO_DATA ) orelse ( e = TKP_ERROR_HANDLE_EOF ) ) then
+                e = 0
+                ops(i).active = FALSE
+                if( i = 2 ) then k.hIn.Close( )
+                continue do
+            end if
+            failed = TRUE
+            exit do
+        end if
+        if( i = 2 ) then
+            ops(i).sent += got
+            if( ops(i).sent >= stdinData.num ) then
+                ops(i).active = FALSE
+                k.hIn.Close( )               '' the child sees the end of its input
+                continue do
+            end if
+        else
+            dim as Array( of ubyte ) ptr dst = iif( i = 0, @po.Stdout, @po.Stderr )
+            for j as long = 0 to cast( long, got ) - 1
+                dst->Push( ops(i).buf[j] )
+            next
+        end if
+        if( hIssue( ops(i), i, stdinData, e ) = FALSE ) then failed = TRUE
+    loop
+
+    for i as long = 0 to 2
+        if( ops(i).pending ) then
+            '' only after a failure: take the transfer back before its buffer goes
+            tkp_CancelIo( cast( any ptr, ops(i).s->hFd ) )
+            dim as ulong got = 0
+            tkp_GetOverlappedResult( cast( any ptr, ops(i).s->hFd ), @ops(i).ov, @got, 1 )
+        end if
+        deallocate( ops(i).buf )
+    next
+    k.hOut.Close( ) : k.hErr.Close( ) : k.hIn.Close( )
+    if( failed ) then
+        k.Kill( )
+        k.Wait( )
+        return ProcFail( of ProcessOutput )( PROC_IO, e, "Output", c.hProgram )
+    end if
+
+    dim as ProcResultStatus st = k.Wait( )
+    if( st.IsOk( ) = FALSE ) then return Fail( of ProcessOutput, ProcError )( st.Failure( ) )
+    po.Status = st.Value( )
+    return Ok( of ProcessOutput, ProcError )( po )
+end function
+
+#endif

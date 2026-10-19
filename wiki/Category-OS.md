@@ -139,6 +139,7 @@ It calls `os.CatchInterrupt( )` for you and returns the same context every time.
 
 ## See Also
 
+- [Process](Category-Process) — starting other programs, and sending a child Ctrl-Break
 - [Filesystem Library](Category-Filesystem) — home and config folders, the executable's path
 - [Goroutines and Channels](Category-Goroutines-and-Channels) — `Context` and cancellation
 - [Operating System Functions](Category-Operating-System-Functions) — the built-in `COMMAND`, `ENVIRON`, `SHELL`

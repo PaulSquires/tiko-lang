@@ -1,0 +1,449 @@
+'' std/process phase P5 (C:\dev\docs\tiko-stdlib\RFC-0001 section 9), and std/os's
+'' cross-process tests that waited for it (section 8.6).  The program spawns ITSELF: with
+'' a mode in argv[1] it is the child (argv echo, env echo, cwd echo, exit N, sleep, spew
+'' N bytes on both pipes, echo stdin, probe a handle, wait for an interrupt); with none
+'' it is the parent and prints "ok".
+''
+'' The expected values are not tiko's.  Arguments are the literals below, and on Windows
+'' the child also splits its command line with shell32's CommandLineToArgvW -- the OS's
+'' own parser -- and both splits must give the literal back.  The .cmd case is checked
+'' against what cmd.exe's own `echo %1` prints; the exit codes and signals against the
+'' values the OS defines (TerminateProcess( h, 1 ), SIGKILL 9).
+#import "std/process"
+#import "std/os"
+#import "std/fs"
+#import "std/containers"
+#import "std/outcome"
+using containers
+using outcome
+
+#ifdef __FB_WIN32__
+#include once "file.bi"          '' FILEATTR
+extern "Windows"
+    declare function t_GetStdHandle alias "GetStdHandle" ( byval which as long ) as any ptr
+    declare function t_WriteFile alias "WriteFile" ( byval h as any ptr, byval buf as const any ptr, byval n as ulong, _
+        byval done as ulong ptr, byval ov as any ptr ) as long
+    declare function t_ReadFile alias "ReadFile" ( byval h as any ptr, byval buf as any ptr, byval n as ulong, _
+        byval got as ulong ptr, byval ov as any ptr ) as long
+    declare function t_GetCommandLineW alias "GetCommandLineW" ( ) as ushort ptr
+    declare function t_LoadLibraryW alias "LoadLibraryW" ( byval n as const wstring ptr ) as any ptr
+    declare function t_GetProcAddress alias "GetProcAddress" ( byval m as any ptr, byval n as const zstring ptr ) as any ptr
+    declare function t_LocalFree alias "LocalFree" ( byval p as any ptr ) as any ptr
+    declare function t_GetFileType alias "GetFileType" ( byval h as any ptr ) as ulong
+    declare function t_GetFinalPathNameByHandleW alias "GetFinalPathNameByHandleW" ( byval h as any ptr, _
+        byval buf as ushort ptr, byval n as ulong, byval flags as ulong ) as ulong
+    declare function t_SetHandleInformation alias "SetHandleInformation" ( byval h as any ptr, byval mask as ulong, _
+        byval flags as ulong ) as long
+    declare function t_GenerateConsoleCtrlEvent alias "GenerateConsoleCtrlEvent" ( byval ev as ulong, byval grp as ulong ) as long
+end extern
+extern "C"
+    declare function t_fileno alias "_fileno" ( byval f as any ptr ) as long
+    declare function t_get_osfhandle alias "_get_osfhandle" ( byval fd as long ) as integer
+end extern
+type TCmdLineToArgv as function stdcall ( byval cmd as const ushort ptr, byval n as long ptr ) as ushort ptr ptr
+#else
+extern "C"
+    declare function t_write alias "write" ( byval fd as long, byval buf as const any ptr, byval n as uinteger ) as integer
+    declare function t_read alias "read" ( byval fd as long, byval buf as any ptr, byval n as uinteger ) as integer
+end extern
+#endif
+
+'' ---- raw stdio, so nothing is buffered or re-encoded
+
+sub RawWrite( byval fd as long, byval p as const ubyte ptr, byval n as long )
+#ifdef __FB_WIN32__
+    dim as ulong done = 0
+    t_WriteFile( t_GetStdHandle( -10 - fd ), p, n, @done, nullptr )
+#else
+    while( n > 0 )
+        dim as integer k = t_write( fd, p, n )
+        if( k <= 0 ) then exit while
+        p += k : n -= k
+    wend
+#endif
+end sub
+
+sub RawLine( byref s as const string )
+    dim as string t = s & chr( 10 )
+    RawWrite( 1, strptr( t ), len( t ) )
+end sub
+
+function RawRead( byval p as ubyte ptr, byval n as long ) as long
+#ifdef __FB_WIN32__
+    dim as ulong got = 0
+    if( t_ReadFile( t_GetStdHandle( -10 ), p, n, @got, nullptr ) = 0 ) then return 0
+    return got
+#else
+    dim as integer k = t_read( 0, p, n )
+    if( k < 0 ) then return 0
+    return k
+#endif
+end function
+
+'' UTF-16 units as hex, "-" for none: what both sides compare.
+function Hex16( byref u as const ustring ) as string
+    if( len( u ) = 0 ) then return "-"
+    dim as string r = ""
+    for i as long = 0 to len( u ) - 1
+        r &= hex( u[i], 4 )
+    next
+    return r
+end function
+
+'' ---- the child
+
+#ifdef __FB_WIN32__
+function OracleArgs( ) as Array( of ustring )
+    dim as Array( of ustring ) r
+    dim as any ptr m = t_LoadLibraryW( "shell32.dll" )
+    dim as TCmdLineToArgv fn = cptr( TCmdLineToArgv, t_GetProcAddress( m, "CommandLineToArgvW" ) )
+    dim as long n = 0
+    dim as ushort ptr ptr av = fn( t_GetCommandLineW( ), @n )
+    for i as long = 0 to n - 1
+        dim as long k = 0
+        while( av[i][k] <> 0 )
+            k += 1
+        wend
+        dim as ustring a = wspace( k )
+        for j as long = 0 to k - 1
+            a[j] = av[i][j]
+        next
+        r.Push( a )
+    next
+    t_LocalFree( av )
+    return r
+end function
+#endif
+
+sub ChildMain( byref a as Array( of ustring ) )
+    dim as ustring mode = a.items( 1 )
+    select case mode
+    case "argv"
+#ifdef __FB_WIN32__
+        dim as Array( of ustring ) o = OracleArgs( )
+#else
+        dim as Array( of ustring ) o = a           '' /proc/self/cmdline is the kernel's argv
+#endif
+        RawLine( "n " & a.num & " " & o.num )
+        for i as long = 2 to a.num - 1
+            dim as ustring oi = ""
+            if( i < o.num ) then oi = o.items( i )
+            RawLine( Hex16( a.items( i ) ) & " " & Hex16( oi ) )
+        next
+    case "env"
+        dim as Optional( of ustring ) v = os.GetEnv( a.items( 2 ) )
+        if( v.HasValue( ) ) then RawLine( "=" & Hex16( v.Value( ) ) ) else RawLine( "unset" )
+    case "cwd"
+        RawLine( Hex16( fs.CurrentDir( ).ValueOr( "" ) ) )
+    case "exit"
+        os.Exit_( valint( a.items( 2 ) ) )
+    case "sleep"
+        sleep valint( a.items( 2 ) ), 1
+    case "spew"
+        dim as long n = valint( a.items( 2 ) ), done = 0
+        dim as ubyte bo( 0 to 4095 ), be( 0 to 4095 )
+        while( done < n )
+            dim as long k = n - done
+            if( k > 4096 ) then k = 4096
+            for i as long = 0 to k - 1
+                bo(i) = 65 + ( ( done + i ) mod 26 )
+                be(i) = 97 + ( ( done + i ) mod 26 )
+            next
+            RawWrite( 1, @bo(0), k )
+            RawWrite( 2, @be(0), k )
+            done += k
+        wend
+    case "echo"
+        dim as ubyte b( 0 to 8191 )
+        do
+            dim as long k = RawRead( @b(0), 8192 )
+            if( k <= 0 ) then exit do
+            RawWrite( 1, @b(0), k )
+        loop
+    case "handle"
+        '' a handle value from the parent: exit 1 if it names the parent's file here
+#ifdef __FB_WIN32__
+        dim as any ptr h = cptr( any ptr, valulng( a.items( 2 ) ) )
+        if( t_GetFileType( h ) = 1 ) then
+            dim as ushort buf( 0 to 1023 )
+            dim as ulong n = t_GetFinalPathNameByHandleW( h, @buf(0), 1024, 0 )
+            dim as ustring p = wspace( n )
+            for i as long = 0 to n - 1
+                p[i] = buf(i)
+            next
+            if( lcase( right( p, 15 ) ) = "tkp5-legacy.txt" ) then os.Exit_( 1 )
+        end if
+#endif
+        os.Exit_( 0 )
+    case "break"
+        os.CatchInterrupt( FALSE )
+        RawLine( "ready" )
+        os.WaitInterrupt( 20000 )
+        os.Exit_( 40 + os.LastInterrupt( ) )
+    end select
+end sub
+
+'' ---- the parent
+
+dim shared as long fails = 0
+sub Check( byval cond as boolean, byref what as const string )
+    if( cond = FALSE ) then
+        print "FAIL "; what
+        fails += 1
+    end if
+end sub
+
+dim shared as ustring self_
+
+function Me( byref mode as const ustring ) as process.Command
+    dim as process.Command c = self_
+    c.Arg( mode )
+    return c
+end function
+
+'' The child's stdout as lines, CR dropped.
+function Lines( byref po as process.ProcessOutput ) as Array( of string )
+    dim as Array( of string ) r
+    dim as string cur = ""
+    for i as long = 0 to po.Stdout.num - 1
+        dim as ubyte b = po.Stdout.items( i )
+        if( b = 10 ) then
+            r.Push( cur )
+            cur = ""
+        elseif( b <> 13 ) then
+            cur &= chr( b )
+        end if
+    next
+    if( len( cur ) > 0 ) then r.Push( cur )
+    return r
+end function
+
+function OutOf( byref c as process.Command ) as process.ProcessOutput
+    dim as process.ProcResultOutput r = process.Output_( c )
+    if( r.IsOk( ) = FALSE ) then
+        print "FAIL output: "; r.Failure( ).Message( )
+        fails += 1
+        dim as process.ProcessOutput none
+        return none
+    end if
+    return r.Value( )
+end function
+
+function FirstLine( byref c as process.Command ) as string
+    dim as process.ProcessOutput po = OutOf( c )
+    dim as Array( of string ) l = Lines( po )
+    if( l.num = 0 ) then return ""
+    return l.items( 0 )
+end function
+
+function CodeOf( byref r as process.ProcResultStatus ) as long
+    if( r.IsOk( ) = FALSE ) then return -1000 - r.Failure( ).Code( )
+    return r.Value( ).Code( )
+end function
+
+sub ParentMain( )
+    self_ = fs.ExecutablePath( ).ValueOr( "" )
+    Check( len( self_ ) > 0, "self path" )
+    Check( process.CurrentId( ) = os.ProcessId( ), "CurrentId" )
+
+    '' ---- arguments round trip (and std/os Args, section 8.6)
+    dim as Array( of ustring ) av
+    av.Push( "plain" ) : av.Push( "a b" ) : av.Push( "" ) : av.Push( "q""u" )
+    av.Push( "back\""q" ) : av.Push( "trail\" ) : av.Push( "two\\" ) : av.Push( "\\server\share\" )
+    av.Push( "tab" & chr( 9 ) & "x" ) : av.Push( """" ) : av.Push( "x\\""y" ) : av.Push( "  lead" )
+    dim as ustring nonAscii = wchr( &hFC ) & "n" & wchr( &hEF ) & wchr( &h20AC ) & " " & wchr( &h4E16 ) & wchr( &hD83D ) & wchr( &hDE00 )
+    av.Push( nonAscii )
+    dim as process.Command ca = Me( "argv" )
+    ca.Args( av )
+    dim as Array( of string ) al = Lines( OutOf( ca ) )
+    Check( al.num = av.num + 1, "argv line count" )
+    if( al.num = av.num + 1 ) then
+        Check( al.items( 0 ) = "n " & ( av.num + 2 ) & " " & ( av.num + 2 ), "argv counts agree with the oracle" )
+        for i as long = 0 to av.num - 1
+            dim as string want = Hex16( av.items( i ) )
+            Check( al.items( i + 1 ) = want & " " & want, "argv " & i & ": " & al.items( i + 1 ) )
+        next
+    end if
+
+    '' ---- ToString
+#ifdef __FB_WIN32__
+    Check( process.Command( "my prog" ).Arg( "a b" ).Arg( "" ).Arg( "q""u" ).Arg( "t\" ).Arg( "t\ x\" ).Arg( "c:\x" ).ToString( ) = _
+        """my prog"" ""a b"" """" ""q\""u"" t\ ""t\ x\\"" c:\x", "ToString windows" )
+#else
+    Check( process.Command( "my prog" ).Arg( "a b" ).Arg( "" ).Arg( "it's" ).Arg( "/x-y.z" ).ToString( ) = _
+        "'my prog' 'a b' '' 'it'\''s' /x-y.z", "ToString linux" )
+#endif
+
+    '' ---- exit codes, Run, Shell
+    Check( CodeOf( process.Run( Me( "exit" ).Arg( "42" ) ) ) = 42, "Run exit 42" )
+    Check( CodeOf( process.Run( Me( "exit" ).Arg( "0" ) ) ) = 0, "Run exit 0" )
+    Check( process.Run( Me( "exit" ).Arg( "0" ) ).Value( ).Success( ), "Success" )
+    Check( CodeOf( process.Shell( "exit 3" ) ) = 3, "Shell exit 3" )
+
+    '' ---- Output_: 1 MiB on both pipes at once cannot deadlock
+    dim as process.ProcessOutput big = OutOf( Me( "spew" ).Arg( "1048576" ) )
+    Check( big.Stdout.num = 1048576, "spew stdout size " & big.Stdout.num )
+    Check( big.Stderr.num = 1048576, "spew stderr size " & big.Stderr.num )
+    dim as boolean same = ( big.Stdout.num = 1048576 ) andalso ( big.Stderr.num = 1048576 )
+    if( same ) then
+        for i as long = 0 to 1048575 step 4093
+            if( ( big.Stdout.items( i ) <> 65 + ( i mod 26 ) ) orelse ( big.Stderr.items( i ) <> 97 + ( i mod 26 ) ) ) then same = FALSE
+        next
+    end if
+    Check( same, "spew bytes" )
+    Check( big.Status.Code( ) = 0, "spew status" )
+    dim as process.ProcessOutput merged = OutOf( Me( "spew" ).Arg( "1000" ).StderrToStdout( ) )
+    Check( ( merged.Stdout.num = 2000 ) andalso ( merged.Stderr.num = 0 ), "StderrToStdout" )
+
+    '' ---- stdinData: 300000 bytes in, the same out
+    dim as Array( of ubyte ) inData
+    for i as long = 0 to 299999
+        inData.Push( ( i * 7 + 3 ) and 255 )
+    next
+    dim as process.ProcResultOutput er = process.Output_( Me( "echo" ), inData )
+    Check( er.IsOk( ), "echo ok" )
+    if( er.IsOk( ) ) then
+        dim as boolean eq = ( er.Value( ).Stdout.num = 300000 )
+        if( eq ) then
+            for i as long = 0 to 299999
+                if( er.Value( ).Stdout.items( i ) <> inData.items( i ) ) then eq = FALSE : exit for
+            next
+        end if
+        Check( eq, "echo bytes" )
+    end if
+
+    '' ---- a Child with pipes, through fs.Stream
+    dim as process.Child kp
+    Check( kp.Spawn( Me( "echo" ).StdinFrom( process.STDIO_PIPE ).StdoutTo( process.STDIO_PIPE ) ).IsOk( ), "pipe spawn" )
+    Check( kp.Stdin( ).CanWrite( ) andalso kp.Stdout( ).CanRead( ) andalso ( kp.Stdout( ).CanSeek( ) = FALSE ), "pipe caps" )
+    dim as ustring hello = "h" & wchr( &hE9 ) & "llo"
+    Check( kp.Stdin( ).WriteUtf8( hello ).IsOk( ), "pipe write" )
+    kp.Stdin( ).Close( )
+    dim as Array( of ubyte ) got
+    Check( kp.Stdout( ).ReadToEnd( got ).IsOk( ), "pipe read" )
+    Check( ( got.num = 6 ) andalso ( got.items( 1 ) = &hC3 ) andalso ( got.items( 2 ) = &hA9 ), "pipe bytes" )
+    Check( CodeOf( kp.Wait( ) ) = 0, "pipe wait" )
+
+    '' ---- environment
+    dim as ustring uv = "v " & wchr( &hE9 ) & wchr( &h4E16 )
+    os.SetEnv( "TKP5_PARENT", "p" )
+    Check( FirstLine( Me( "env" ).Arg( "TKP5_PARENT" ) ) = "=" & Hex16( "p" ), "env inherited" )
+    Check( FirstLine( Me( "env" ).Arg( "TKP5_NEW" ).Env( "TKP5_NEW", uv ) ) = "=" & Hex16( uv ), "env set" )
+    Check( FirstLine( Me( "env" ).Arg( "TKP5_NEW" ).Env( "TKP5_NEW", "" ) ) = "=-", "env set empty" )
+    Check( FirstLine( Me( "env" ).Arg( "TKP5_PARENT" ).EnvRemove( "TKP5_PARENT" ) ) = "unset", "env remove" )
+    Check( FirstLine( Me( "env" ).Arg( "TKP5_PARENT" ).EnvClear( ).Env( "TKP5_ONLY", "1" ) ) = "unset", "env clear" )
+    Check( FirstLine( Me( "env" ).Arg( "TKP5_ONLY" ).EnvClear( ).Env( "TKP5_ONLY", "1" ) ) = "=" & Hex16( "1" ), "env clear then set" )
+#ifdef __FB_WIN32__
+    Check( FirstLine( Me( "env" ).Arg( "TKP5_PARENT" ).Env( "tkp5_parent", "low" ) ) = "=" & Hex16( "low" ), "env case-insensitive" )
+#endif
+
+    '' ---- errors, before anything starts
+    dim as process.ProcResultStatus nf = process.Run( process.Command( "tkp5-no-such-program" ) )
+    Check( ( nf.IsOk( ) = FALSE ) andalso ( nf.Failure( ).Code( ) = process.PROC_NOT_FOUND ), "not found" )
+    if( nf.IsOk( ) = FALSE ) then
+        Check( nf.Failure( ).Message( ) = "Spawn 'tkp5-no-such-program': program not found", "not found message" )
+    end if
+    Check( CodeOf( process.Run( Me( "exit" ).Arg( "a" & chr( 0 ) & "b" ) ) ) = -1000 - process.PROC_INVALID_ARGUMENT, "NUL argument" )
+    Check( CodeOf( process.Run( Me( "exit" ).Env( "A=B", "x" ) ) ) = -1000 - process.PROC_INVALID_ARGUMENT, "'=' in env name" )
+
+    '' ---- directories and PATH
+    dim as ustring tmp = fs.CreateTempDir( "tkp5" ).ValueOr( "" )
+    Check( len( tmp ) > 0, "temp dir" )
+    dim as string cl = FirstLine( Me( "cwd" ).Cwd( tmp ) )
+    dim as ustring cwdBack = ""
+    for i as long = 1 to len( cl ) step 4
+        cwdBack &= wchr( valint( "&h" & mid( cl, i, 4 ) ) )
+    next
+    Check( fs.SameFile( cwdBack, tmp ).ValueOr( FALSE ), "Cwd" )
+    Check( CodeOf( process.Run( Me( "exit" ).Cwd( tmp & "/nope" ) ) ) = -1000 - process.PROC_BAD_DIRECTORY, "bad Cwd" )
+#ifdef __FB_WIN32__
+    dim as ustring helper = fs.PathJoin( tmp, "tkp5helper.exe" )
+#else
+    dim as ustring helper = fs.PathJoin( tmp, "tkp5helper" )
+#endif
+    Check( fs.CopyFile( self_, helper ).IsOk( ), "copy helper" )
+#ifndef __FB_WIN32__
+    fs.SetPosixMode( helper, &o755 )
+#endif
+    Check( CodeOf( process.Run( process.Command( "tkp5helper" ).Arg( "exit" ).Arg( "5" ).Env( "PATH", tmp ) ) ) = 5, "child PATH lookup" )
+    Check( CodeOf( process.Run( process.Command( "tkp5helper" ).Arg( "exit" ).Arg( "5" ) ) ) = -1000 - process.PROC_NOT_FOUND, "parent PATH lacks it" )
+    dim as ustring here = fs.CurrentDir( ).ValueOr( "" )
+    fs.SetCurrentDir( tmp )
+    Check( CodeOf( process.Run( process.Command( "tkp5helper" ).Arg( "exit" ).Arg( "5" ) ) ) = -1000 - process.PROC_NOT_FOUND, "never the current directory" )
+    fs.SetCurrentDir( here )
+
+#ifdef __FB_WIN32__
+    '' ---- .cmd (rule 3): cmd.exe's own %1 is the oracle
+    dim as ustring script = fs.PathJoin( tmp, "tkp5.cmd" )
+    fs.WriteAllText( script, "@echo %1" & chr( 13, 10 ) )
+    Check( FirstLine( process.Command( script ).Arg( "hello world" ) ) = """hello world""", ".cmd argument" )
+    Check( FirstLine( process.Command( "tkp5" ).Arg( "a&b" ).Env( "PATH", tmp ) ) = """a&b""", ".cmd by PATHEXT" )
+    dim as process.ProcResultOutput un = process.Output_( process.Command( script ).Arg( "%PATH%" ) )
+    Check( ( un.IsOk( ) = FALSE ) andalso ( un.Failure( ).Code( ) = process.PROC_UNSAFE_ARGUMENT ), ".cmd %PATH% refused" )
+    Check( process.Output_( process.Command( script ).Arg( "say ""x"" & y" ) ).IsOk( ) = FALSE, ".cmd quote+meta refused" )
+
+    '' ---- rule 4: an inheritable legacy OPEN handle does not reach the child
+    dim as ustring legacy = fs.PathJoin( tmp, "tkp5-legacy.txt" )
+    dim as string legacyA = legacy
+    open legacyA for output as #1
+    '' FILEATTR's handle is the C runtime's FILE *; the OS handle is under it
+    dim as any ptr lh = cptr( any ptr, t_get_osfhandle( t_fileno( cptr( any ptr, fileattr( 1, 2 ) ) ) ) )
+    Check( t_SetHandleInformation( lh, 1, 1 ) <> 0, "make legacy handle inheritable" )
+    Check( CodeOf( process.Run( Me( "handle" ).Arg( str( cast( ulongint, lh ) ) ) ) ) = 0, "HANDLE_LIST keeps legacy handle out" )
+    close #1
+#endif
+
+    '' ---- TryWait, WaitTimeout, Kill
+    dim as process.Child ks
+    Check( ks.Spawn( Me( "sleep" ).Arg( "400" ) ).IsOk( ), "sleeper spawn" )
+    Check( ks.Id( ) > 0, "Id" )
+    dim as process.ProcResultMaybe tw = ks.TryWait( )
+    Check( tw.IsOk( ) andalso ( tw.Value( ).HasValue( ) = FALSE ), "TryWait before exit" )
+    Check( CodeOf( ks.Wait( ) ) = 0, "sleeper exits 0" )
+    tw = ks.TryWait( )
+    Check( tw.IsOk( ) andalso tw.Value( ).HasValue( ), "TryWait after exit" )
+    Check( ks.Kill( ).Failure( ).Code( ) = process.PROC_ALREADY_WAITED, "Kill after Wait" )
+
+    dim as process.Child kk
+    Check( kk.Spawn( Me( "sleep" ).Arg( "30000" ) ).IsOk( ), "long sleeper spawn" )
+    dim as process.ProcResultMaybe wt = kk.WaitTimeout( 50 )
+    Check( wt.IsOk( ) andalso ( wt.Value( ).HasValue( ) = FALSE ), "WaitTimeout times out" )
+    Check( kk.Kill( ).IsOk( ), "Kill" )
+    dim as process.ProcResultStatus ws = kk.Wait( )
+#ifdef __FB_WIN32__
+    Check( ws.IsOk( ) andalso ( ws.Value( ).Code( ) = 1 ), "killed: code 1" )
+#else
+    Check( ws.IsOk( ) andalso ( ws.Value( ).Code( ) = -1 ) andalso ( ws.Value( ).Signal( ) = 9 ), "killed: SIGKILL" )
+#endif
+    dim as process.Child k0
+    Check( k0.Wait( ).Failure( ).Code( ) = process.PROC_NOT_STARTED, "Wait without Spawn" )
+
+    '' ---- interrupts across processes (section 8.6): the child reports the kind as 40 + kind
+    dim as process.Child kb
+#ifdef __FB_WIN32__
+    Check( kb.Spawn( Me( "break" ).NewProcessGroup( ).StdoutTo( process.STDIO_PIPE ) ).IsOk( ), "break spawn" )
+#else
+    Check( kb.Spawn( Me( "break" ).StdoutTo( process.STDIO_PIPE ) ).IsOk( ), "break spawn" )
+#endif
+    dim as ubyte rb( 0 to 15 )
+    dim as fs.FsResultI64 rr = kb.Stdout( ).Read( @rb(0), 16 )
+    Check( rr.IsOk( ) andalso ( rr.Value( ) >= 5 ) andalso ( rb(0) = asc( "r" ) ), "child ready" )
+#ifdef __FB_WIN32__
+    '' CTRL_BREAK_EVENT to the child's own process group
+    Check( t_GenerateConsoleCtrlEvent( 1, kb.Id( ) ) <> 0, "GenerateConsoleCtrlEvent" )
+    Check( CodeOf( kb.Wait( ) ) = 40 + os.INT_BREAK, "child saw INT_BREAK" )
+#else
+    Check( kb.Terminate( ).IsOk( ), "Terminate" )
+    Check( CodeOf( kb.Wait( ) ) = 40 + os.INT_TERMINATE, "child saw INT_TERMINATE" )
+#endif
+
+    fs.RemoveDirAll( tmp )
+    if( fails = 0 ) then print "ok"
+end sub
+
+dim as Array( of ustring ) a = os.Args( )
+if( a.num >= 2 ) then
+    ChildMain( a )
+else
+    ParentMain( )
+end if
