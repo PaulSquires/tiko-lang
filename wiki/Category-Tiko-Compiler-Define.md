@@ -33,6 +33,29 @@ Comparing the VALUE is not a portable guard: `#if __TIKO_COMPILER__ = 1` fails o
 error TKO0308: invalid expression in '#if'
 ```
 
+## Which operating system
+
+tiko defines one `TIKO_OS_` name for the target being built, always `1`:
+
+| Target | Defined | Not defined |
+| --- | --- | --- |
+| `windows-x86_64` | `TIKO_OS_WINDOWS` | `TIKO_OS_LINUX` |
+| `linux-x86_64` | `TIKO_OS_LINUX` | `TIKO_OS_WINDOWS` |
+
+The name follows `-target`, not the machine running the compiler, so `-target linux-x86_64` on Windows takes the Linux branch:
+
+```freebasic
+#ifdef TIKO_OS_WINDOWS
+	print "windows"; TIKO_OS_WINDOWS     '' windows-x86_64 prints: windows 1
+#elseif defined( TIKO_OS_LINUX )
+	print "linux"; TIKO_OS_LINUX         '' linux-x86_64 prints: linux 1
+#else
+	print "other"
+#endif
+```
+
+Exactly one of the two is defined on every target. `TIKO_OS_MACOS` is not defined: there is no macOS target.
+
 ## What tiko defines
 
 | Define | tiko |
@@ -43,10 +66,12 @@ error TKO0308: invalid expression in '#if'
 | `__FB_SIGNATURE__` | `"tiko-lang"` |
 | `__FB_BACKEND__` | `"llvm"` |
 | `__FB_MIN_VERSION__` | not defined |
+| `TIKO_OS_WINDOWS` | `1` on `windows-x86_64`, otherwise not defined |
+| `TIKO_OS_LINUX` | `1` on `linux-x86_64`, otherwise not defined |
 
 `__TIKO_COMPILER__` says **which compiler** is building; `__TKO_VERSION__` says which version of it. Neither says which features it has, so code that must build with several versions still tests more than one symbol.
 
-tests/pp/tiko-compiler-define.test holds the define and its value.
+tests/pp/tiko-compiler-define.test holds the define and its value; tests/pp/tiko-target-defines.test holds the `TIKO_OS_` names on each target.
 
 ### See also
 
