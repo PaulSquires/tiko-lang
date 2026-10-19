@@ -15,22 +15,25 @@ area	console	Console and terminal	Functions-Console	print, read the keyboard, co
 area	errors	Errors and missing values	Functions-Errors	return a failure or "no value" that the caller has to check	Category-Result Category-Optional Category-Error-Handling-Functions
 area	concurrency	Running things at once	Functions-Concurrency	start goroutines, pass values over channels, use threads and locks	Category-Goroutines-and-Channels Category-Threading-Support-Functions
 area	memory	Memory and pointers	Functions-Memory	allocate memory, share ownership of objects	Category-Memory-Functions Category-Smart-Pointers
-area	system	Operating system	Functions-System	run other programs, read the command line and environment variables	Category-Operating-System-Functions
+area	system	Operating system	Functions-System	run other programs, read the command line and environment variables	Category-Operating-System-Functions Category-OS Category-Process
 area	graphics	Graphics and windows	Functions-Graphics	draw on a graphics screen, read the mouse, build Windows GUI controls	Category-Screen-Functions Category-2D-Drawing-Functions Category-User-Input-Functions-Graphics-Library Category-PsControls
 area	finance	Money and finance	Functions-Finance	calculate interest, returns and schedules with exact decimals	Category-Finance
 area	logging	Logging	Functions-Logging	write log messages to the console, files or your own sinks	Category-Logging
-area	encoding	Encoding and IDs	Functions-Encoding	encode and decode Base64, hex and percent-encoding; generate UUIDs	Category-Codec Category-UUID
+area	encoding	Encoding, hashes and IDs	Functions-Encoding	encode and decode Base64, hex and percent-encoding; hash and checksum data; generate UUIDs	Category-Codec Category-Hash Category-UUID
 
 from	built-in	builtin	-
 from	std/chrono	import	chrono
 from	std/codec	import	codec
 from	std/containers	import	containers
 from	std/fs	import	fs
+from	std/hash	import	hash
 from	std/logs	import	logs
 from	std/memory	import	memory
 from	std/money	import	money
 from	std/numeric	import	numeric
+from	std/os	import	os
 from	std/outcome	import	outcome
+from	std/process	import	process
 from	std/strings	import	strings
 from	std/tasks	import	tasks
 from	std/tui	import	tui

@@ -5,16 +5,18 @@
 The functions to run other programs, read the command line and environment variables, grouped by what you want to do. The **From** column says what a program needs before it can call one:
 
 - **built-in**: nothing; it is always available.
+- `std/<Name>`: `#import "std/<Name>"`, then `using <Name>` to call it by its bare name.
 - `fbio.bi`: `#include "fbio.bi"`.
 - `file.bi`: `#include "file.bi"`.
 
-Jump to: [Read the command line](#read-the-command-line) · [Run another program](#run-another-program) · [Read and set environment variables](#read-and-set-environment-variables) · [Find the program's folder and the current folder](#find-the-programs-folder-and-the-current-folder) · [Make, remove and list folders](#make-remove-and-list-folders) · [Copy, rename and delete files](#copy-rename-and-delete-files) · [Check whether a file exists, its size and date](#check-whether-a-file-exists-its-size-and-date) · [Work with an open file number](#work-with-an-open-file-number) · [End the program](#end-the-program) · [Check free memory and redirection](#check-free-memory-and-redirection)
+Jump to: [Read the command line](#read-the-command-line) · [Run another program](#run-another-program) · [Set up a program's arguments, folder and pipes](#set-up-a-programs-arguments-folder-and-pipes) · [Talk to a program while it runs](#talk-to-a-program-while-it-runs) · [Read a program's exit code and output](#read-a-programs-exit-code-and-output) · [Read and set environment variables](#read-and-set-environment-variables) · [Catch Ctrl-C and stop cleanly](#catch-ctrl-c-and-stop-cleanly) · [Find out about the computer and this program](#find-out-about-the-computer-and-this-program) · [Find the program's folder and the current folder](#find-the-programs-folder-and-the-current-folder) · [Make, remove and list folders](#make-remove-and-list-folders) · [Copy, rename and delete files](#copy-rename-and-delete-files) · [Check whether a file exists, its size and date](#check-whether-a-file-exists-its-size-and-date) · [Work with an open file number](#work-with-an-open-file-number) · [End the program](#end-the-program) · [Check free memory and redirection](#check-free-memory-and-redirection) · [Find out why a call failed](#find-out-why-a-call-failed)
 
 ## Read the command line
 
 | Function | What it does | From |
 |---|---|---|
 | [Command](Command) | Returns command-line argument n, the program's name for 0, or all of them if omitted. | built-in |
+| [Args](Category-OS#arguments) | Returns every command-line argument as Unicode text, the program first, empty ones kept. | `std/os` |
 
 ## Run another program
 
@@ -24,6 +26,53 @@ Jump to: [Read the command line](#read-the-command-line) · [Run another program
 | [Exec](Exec) | Runs a program by its path with arguments, waits, and returns its exit code or -1. | built-in |
 | [Chain](Chain) | Runs a program without arguments, waits, and returns its exit code or -1. | built-in |
 | [Run](Run) | Hands control to another program and ends this one; returns -1 if it cannot start. | built-in |
+| [Command](Category-Process#commands) (std/process) | Holds a program and its arguments, passed exactly as given with no shell in between. | `std/process` |
+| [Run](Category-Process#running-to-completion) (std/process) | Runs a Command with this program's console, waits, and returns its exit status. | `std/process` |
+| [Output_](Category-Process#running-to-completion) | Runs a Command, waits, and returns its exit status and all it wrote to stdout and stderr. | `std/process` |
+| [Shell](Category-Process#running-to-completion) (std/process) | Runs a command line through cmd.exe or /bin/sh, waits, and returns its exit status. | `std/process` |
+
+## Set up a program's arguments, folder and pipes
+
+| Function | What it does | From |
+|---|---|---|
+| [Command.Arg](Category-Process#commands) | Adds one argument and returns the Command, so calls chain. | `std/process` |
+| [Command.Args](Category-Process#commands) | Adds every string in an Array as an argument. | `std/process` |
+| [Command.Cwd](Category-Process#commands) | Sets the folder the program starts in. | `std/process` |
+| [Command.Env](Category-Process#commands) | Sets one environment variable for the program only. | `std/process` |
+| [Command.EnvRemove](Category-Process#commands) | Removes one environment variable for the program only. | `std/process` |
+| [Command.EnvClear](Category-Process#commands) | Starts the program with an empty environment, which Env calls then add to. | `std/process` |
+| [Command.StdinFrom / StdoutTo / StderrTo](Category-Process#commands) | Connects the program's stdin, stdout or stderr to this console, to nothing, or to a pipe. | `std/process` |
+| [Command.StderrToStdout](Category-Process#commands) | Sends the program's stderr wherever its stdout goes. | `std/process` |
+| [Command.NewProcessGroup](Category-Process#commands) | Starts the program in its own process group, so Windows can send it Ctrl-Break. | `std/process` |
+| [Command.HideWindow](Category-Process#commands) | Starts a console program on Windows without opening a console window. | `std/process` |
+| [Command.ToString](Category-Process#commands) | Returns the command line quoted as the system will see it, for logs. | `std/process` |
+| [Stdio](Category-Process#commands) | Names where a stream goes: STDIO_INHERIT, STDIO_NULL or STDIO_PIPE. | `std/process` |
+
+## Talk to a program while it runs
+
+| Function | What it does | From |
+|---|---|---|
+| [Child](Category-Process#a-running-child) | Holds one running program; destroying it leaves the program running. | `std/process` |
+| [Child.Spawn](Category-Process#a-running-child) | Starts the program a Command describes, or returns why it could not. | `std/process` |
+| [Child.Id](Category-Process#a-running-child) | Returns the running program's process id. | `std/process` |
+| [Child.Stdin / Stdout / Stderr](Category-Process#a-running-child) | Returns the pipe to the program's stdin, stdout or stderr when the Command asked for one. | `std/process` |
+| [Child.Wait](Category-Process#a-running-child) | Closes the program's stdin, waits for it to end, and returns its exit status. | `std/process` |
+| [Child.WaitTimeout](Category-Process#a-running-child) | Waits up to a number of milliseconds; returns the exit status, or none if still running. | `std/process` |
+| [Child.TryWait](Category-Process#a-running-child) | Returns the exit status if the program has ended, or none if it is still running. | `std/process` |
+| [Child.Kill](Category-Process#a-running-child) | Ends the program at once. | `std/process` |
+| [Child.Terminate](Category-Process#a-running-child) | Asks the program to stop; on Windows it ends it at once, as Kill does. | `std/process` |
+| [PipeStream](Category-Process#a-running-child) | Holds one end of a pipe to a program, read and written like any other stream. | `std/process` |
+
+## Read a program's exit code and output
+
+| Function | What it does | From |
+|---|---|---|
+| [ExitStatus](Category-Process#running-to-completion) | Holds how a program ended: its exit code and, on Linux, the signal that ended it. | `std/process` |
+| [ExitStatus.Code](Category-Process#running-to-completion) | Returns the program's exit code, or -1 on Linux when a signal ended it. | `std/process` |
+| [ExitStatus.Success](Category-Process#running-to-completion) | Returns true if the exit code is 0. | `std/process` |
+| [ExitStatus.Signal](Category-Process#running-to-completion) | Returns the Linux signal that ended the program, or 0. | `std/process` |
+| [ProcessOutput](Category-Process#running-to-completion) | Holds a finished program's exit status and the bytes it wrote to stdout and stderr. | `std/process` |
+| [ProcessOutput.StdoutText / StderrText](Category-Process#running-to-completion) | Returns what the program wrote as UTF-8 text, with U+FFFD for any bad bytes. | `std/process` |
 
 ## Read and set environment variables
 
@@ -31,6 +80,41 @@ Jump to: [Read the command line](#read-the-command-line) · [Run another program
 |---|---|---|
 | [Environ](Environ) | Returns the value of an environment variable, or an empty string if it is not set. | built-in |
 | [SetEnviron](Setenviron) | Sets an environment variable from "NAME=value" text; returns 0 on success. | built-in |
+| [GetEnv](Category-OS#environment) | Returns an environment variable's value, or an empty Optional when it is not set. | `std/os` |
+| [SetEnv](Category-OS#environment) | Sets an environment variable for this program and the programs it starts. | `std/os` |
+| [UnsetEnv](Category-OS#environment) | Removes an environment variable; removing one that is not set succeeds. | `std/os` |
+| [Environment](Category-OS#environment) | Returns every environment variable as a map of names to values, sorted by name. | `std/os` |
+| [ExpandEnv](Category-OS#environment) | Replaces $NAME and ${NAME} in text, and %NAME% on Windows, with the variables' values. | `std/os` |
+
+## Catch Ctrl-C and stop cleanly
+
+| Function | What it does | From |
+|---|---|---|
+| [CatchInterrupt](Category-OS#ctrl-c-and-termination) | Turns Ctrl-C, Ctrl-Break and requests to stop into a flag, instead of ending the program. | `std/os` |
+| [Interrupted](Category-OS#ctrl-c-and-termination) | Returns true once an interrupt has arrived; never waits. | `std/os` |
+| [WaitInterrupt](Category-OS#ctrl-c-and-termination) | Waits for an interrupt and returns true, or false if the time runs out first. | `std/os` |
+| [LastInterrupt](Category-OS#ctrl-c-and-termination) | Returns which kind of interrupt arrived, such as INT_CTRL_C, or INT_NONE. | `std/os` |
+| [InterruptCount](Category-OS#ctrl-c-and-termination) | Returns how many interrupts have arrived since the last reset. | `std/os` |
+| [ResetInterrupt](Category-OS#ctrl-c-and-termination) | Clears the interrupt flag and the count. | `std/os` |
+| [ReleaseInterrupt](Category-OS#ctrl-c-and-termination) | Gives Ctrl-C and the other signals back to their default handling. | `std/os` |
+| [InterruptKind](Category-OS#ctrl-c-and-termination) | Names the kinds of interrupt: Ctrl-C, Ctrl-Break, terminate and hang-up. | `std/os` |
+| [InterruptContext](Category-OS#with-goroutines) | Returns a Context cancelled by the first interrupt, so goroutines stop on Ctrl-C. | `std/tasks` |
+
+## Find out about the computer and this program
+
+| Function | What it does | From |
+|---|---|---|
+| [OS_NAME](Category-OS#host-facts) | Holds "windows" or "linux", the system the program was built for. | `std/os` |
+| [ARCH_NAME](Category-OS#host-facts) | Holds "x86_64", the processor the program was built for. | `std/os` |
+| [OsVersion](Category-OS#host-facts) | Returns the Windows version number, or the kernel release on Linux. | `std/os` |
+| [Hostname](Category-OS#host-facts) | Returns the computer's network name, or an error. | `std/os` |
+| [UserName](Category-OS#host-facts) | Returns the name of the user running the program, or an error. | `std/os` |
+| [ProcessId](Category-OS#host-facts) | Returns this program's process id. | `std/os` |
+| [CurrentId](Category-Process#running-to-completion) | Returns this program's process id, the same number as ProcessId. | `std/process` |
+| [CpuCount](Category-OS#host-facts) | Returns how many processors this program may run on, which can be fewer than exist. | `std/os` |
+| [PageSize](Category-OS#host-facts) | Returns the memory page size in bytes. | `std/os` |
+| [TotalMemory](Category-OS#host-facts) | Returns the computer's physical memory in bytes, or 0 if it cannot be found. | `std/os` |
+| [IsTerminal](Category-OS#host-facts) | Returns true if stdin, stdout or stderr is an interactive terminal. | `std/os` |
 
 ## Find the program's folder and the current folder
 
@@ -77,6 +161,8 @@ Jump to: [Read the command line](#read-the-command-line) · [Run another program
 | Function | What it does | From |
 |---|---|---|
 | [System](System) | Closes all open files and ends the program, with an optional exit code. | built-in |
+| [Exit_](Category-OS#exit) | Ends the program with an exit code, running module destructors and flushing files. | `std/os` |
+| [Abort](Category-OS#exit) | Ends the program at once, with no cleanup at all. | `std/os` |
 
 ## Check free memory and redirection
 
@@ -85,10 +171,21 @@ Jump to: [Read the command line](#read-the-command-line) · [Run another program
 | [Fre](Fre) | Returns the amount of free physical memory, in bytes. | built-in |
 | [IsRedirected](Isredirected) | Returns non-zero if standard output, or input if asked, is redirected to a file. | `fbio.bi` |
 
+## Find out why a call failed
+
+| Function | What it does | From |
+|---|---|---|
+| [OsError](Category-OS#errors) | Holds why a std/os call failed: a code, the system's error number and a message. | `std/os` |
+| [OsErrorMessage](Category-OS#errors) | Returns the message text for a std/os error code, such as "invalid argument". | `std/os` |
+| [ProcError](Category-Process#errors) | Holds why a program could not be started or waited for: a code, a number, a message. | `std/process` |
+| [ProcErrorMessage](Category-Process#errors) | Returns the message text for a std/process error code, such as "program not found". | `std/process` |
+
 ## See Also
 
 - [Operating system functions](Category-Operating-System-Functions)
 - [Filesystem guide](Category-Filesystem)
+- [OS guide](Category-OS)
+- [Process guide](Category-Process)
 
 ---
 

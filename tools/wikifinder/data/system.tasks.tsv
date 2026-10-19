@@ -5,7 +5,12 @@
 #   from    <value>  builtin|import|include  <module or ->
 task	args	Read the command line
 task	run	Run another program
+task	cmd	Set up a program's arguments, folder and pipes
+task	child	Talk to a program while it runs
+task	status	Read a program's exit code and output
 task	env	Read and set environment variables
+task	interrupt	Catch Ctrl-C and stop cleanly
+task	host	Find out about the computer and this program
 task	where	Find the program's folder and the current folder
 task	folders	Make, remove and list folders
 task	files	Copy, rename and delete files
@@ -13,8 +18,11 @@ task	info	Check whether a file exists, its size and date
 task	open	Work with an open file number
 task	end	End the program
 task	misc	Check free memory and redirection
+task	oserr	Find out why a call failed
 ignore	Operating-System-Functions	an overview page, not a function
 seealso	Category-Operating-System-Functions	Operating system functions
 seealso	Category-Filesystem	Filesystem guide
+seealso	Category-OS	OS guide
+seealso	Category-Process	Process guide
 from	file.bi	include	-
 from	fbio.bi	include	-

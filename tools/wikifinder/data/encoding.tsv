@@ -1,4 +1,4 @@
-# Encoding and IDs functions. One row per function, per task it belongs to. Tab-separated; see finder.py for the rules.
+# Encoding, hashes and IDs functions. One row per function, per task it belongs to. Tab-separated; see finder.py for the rules.
 page	name	qualifier	task	from	rank	summary
 Category-Codec#base64-base32-and-hex	Base64Encode	-	base64	std/codec	1	Returns bytes or a string as base64 text, in the standard or URL-safe alphabet.
 Category-Codec#base64-base32-and-hex	Base64Decode	-	base64	std/codec	-	Decodes base64 text into a byte array and returns the byte count, or an error.
@@ -34,3 +34,35 @@ Category-UUID#members	Uuid.Variant	-	idinfo	std/uuids	-	Returns the UUID's varia
 Category-UUID#members	Uuid.IsNil	-	idinfo	std/uuids	-	Returns true if all 16 bytes of the UUID are zero.
 Category-UUID#members	Uuid.UnixMillis	-	idinfo	std/uuids	-	Returns when a version 7 UUID was made, in Unix milliseconds, or -1 for any other.
 Category-UUID#members	Uuid.HashOf	-	idinfo	std/uuids	-	Returns a hash of the UUID, used when it is a Map or Set key.
+Category-Hash#one-call	Digest	-	hashone	std/hash	-	Returns the digest of text or a byte array as bytes, for the algorithm named.
+Category-Hash#one-call	DigestHex	-	hashone	std/hash	-	Returns the digest of text or a byte array as lower-case hex.
+Category-Hash#one-call	DigestFile	-	hashone	std/hash	-	Returns the digest of a whole file, read in 64 KB pieces, or why it could not be read.
+Category-Hash#one-call	HashStream	-	hashone	std/hash	-	Feeds a stream from where it is to its end into a hasher; returns the bytes read.
+Category-Hash#one-call	HashAlgorithm	-	hashone	std/hash	-	Names the algorithms the one-call functions take, from HASH_CRC32 to HASH_SHA512.
+Category-Hash#one-call	NewHasher	-	hashone	std/hash	-	Returns a new hasher for an algorithm, which the caller deletes, or nullptr.
+Category-Hash#which-one	Crc32	-	hashalgo	std/hash	-	Holds a CRC-32 checksum, the 4-byte one zip, gzip and PNG use.
+Category-Hash#which-one	Crc32C	-	hashalgo	std/hash	-	Holds a CRC-32C checksum, the 4-byte one iSCSI and ext4 use.
+Category-Hash#which-one	Adler32	-	hashalgo	std/hash	-	Holds an Adler-32 checksum, the 4-byte one zlib streams use.
+Category-Hash#which-one	Fnv1a32	-	hashalgo	std/hash	-	Holds a 32-bit FNV-1a hash, quick for short keys; not for security.
+Category-Hash#which-one	Fnv1a64	-	hashalgo	std/hash	-	Holds a 64-bit FNV-1a hash, quick for short keys; not for security.
+Category-Hash#which-one	XxHash64	-	hashalgo	std/hash	-	Holds a 64-bit xxHash with an optional seed, fast on large data; not for security.
+Category-Hash#which-one	Md5	-	hashalgo	std/hash	-	Holds a 16-byte MD5 hash, only for matching formats that already use it.
+Category-Hash#which-one	Sha1	-	hashalgo	std/hash	-	Holds a 20-byte SHA-1 hash, only for matching formats that already use it.
+Category-Hash#which-one	Sha224	-	hashalgo	std/hash	-	Holds a 28-byte SHA-224 hash, for data someone could tamper with.
+Category-Hash#which-one	Sha256	-	hashalgo	std/hash	-	Holds a 32-byte SHA-256 hash, for data someone could tamper with.
+Category-Hash#which-one	Sha384	-	hashalgo	std/hash	-	Holds a 48-byte SHA-384 hash, faster than SHA-256 on long messages on 64-bit machines.
+Category-Hash#which-one	Sha512	-	hashalgo	std/hash	-	Holds a 64-byte SHA-512 hash, faster than SHA-256 on long messages on 64-bit machines.
+Category-Hash#hashing-in-pieces	Hasher	-	hashpieces	std/hash	-	Holds what every hash type shares, so one procedure can take any of them.
+Category-Hash#hashing-in-pieces	Hasher.Update	-	hashpieces	std/hash	-	Adds a number of bytes at a pointer to the hash.
+Category-Hash#hashing-in-pieces	Hasher.UpdateBytes	-	hashpieces	std/hash	-	Adds the bytes of an Array to the hash.
+Category-Hash#hashing-in-pieces	Hasher.UpdateText	-	hashpieces	std/hash	-	Adds text to the hash as its UTF-8 bytes.
+Category-Hash#hashing-in-pieces	Hasher.UpdateRaw	-	hashpieces	std/hash	-	Adds the bytes of a string to the hash as they are, with no conversion.
+Category-Hash#hashing-in-pieces	Hasher.Finish	-	hashpieces	std/hash	-	Returns the digest so far as bytes; more data can still be added after it.
+Category-Hash#hashing-in-pieces	Hasher.FinishHex	-	hashpieces	std/hash	-	Returns the digest so far as lower-case hex; more data can still be added after it.
+Category-Hash#hashing-in-pieces	Hasher.Reset	-	hashpieces	std/hash	-	Forgets everything added and starts the hash again.
+Category-Hash#hashing-in-pieces	Hasher.DigestSize	-	hashpieces	std/hash	-	Returns the size of the digest in bytes.
+Category-Hash#hashing-in-pieces	Hasher.BlockSize	-	hashpieces	std/hash	-	Returns the size of the block the algorithm works on, in bytes.
+Category-Hash#hashing-in-pieces	Sum32 / Sum64	-	hashpieces	std/hash	-	Returns a checksum or fast hash as a number instead of bytes.
+Category-Hash#hmac	Hmac	-	hmac	std/hash	-	Holds an HMAC: a cryptographic hash with a key, which is itself a Hasher.
+Category-Hash#hmac	HmacHex	-	hmac	std/hash	-	Returns the HMAC of a message under a key as lower-case hex, in one call.
+Category-Hash#hmac	ConstantTimeEquals	-	hmac	std/hash	-	Returns true if two byte arrays match, taking the same time whichever byte differs.

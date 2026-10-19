@@ -1,13 +1,12 @@
-[Home](Home) › [Function Finder](Function-Finder) › **Encoding and IDs**
+[Home](Home) › [Function Finder](Function-Finder) › **Encoding, hashes and IDs**
 
-# Encoding and IDs
+# Encoding, hashes and IDs
 
-The functions to encode and decode Base64, hex and percent-encoding; generate UUIDs, grouped by what you want to do. The **From** column says what a program needs before it can call one:
+The functions to encode and decode Base64, hex and percent-encoding; hash and checksum data; generate UUIDs, grouped by what you want to do. The **From** column says what a program needs before it can call one:
 
-- `std/codec`: `#import "std/codec"`, then `using codec` to call it by its bare name.
-- `std/uuids`: `#import "std/uuids"`, then `using uuids` to call it by its bare name.
+- `std/<Name>`: `#import "std/<Name>"`, then `using <Name>` to call it by its bare name.
 
-Jump to: [Encode and decode base64](#encode-and-decode-base64) · [Encode and decode hex](#encode-and-decode-hex) · [Percent-encode text for URLs](#percent-encode-text-for-urls) · [Encode and decode base32](#encode-and-decode-base32) · [Find out why decoding failed](#find-out-why-decoding-failed) · [Make a UUID](#make-a-uuid) · [Turn a UUID into text or bytes and back](#turn-a-uuid-into-text-or-bytes-and-back) · [Inspect a UUID](#inspect-a-uuid) · [Read numbers from a byte buffer](#read-numbers-from-a-byte-buffer) · [Write numbers into a byte buffer](#write-numbers-into-a-byte-buffer)
+Jump to: [Encode and decode base64](#encode-and-decode-base64) · [Encode and decode hex](#encode-and-decode-hex) · [Percent-encode text for URLs](#percent-encode-text-for-urls) · [Encode and decode base32](#encode-and-decode-base32) · [Find out why decoding failed](#find-out-why-decoding-failed) · [Hash or checksum data in one call](#hash-or-checksum-data-in-one-call) · [Pick a checksum or hash](#pick-a-checksum-or-hash) · [Hash data in pieces](#hash-data-in-pieces) · [Sign and check a message with HMAC](#sign-and-check-a-message-with-hmac) · [Make a UUID](#make-a-uuid) · [Turn a UUID into text or bytes and back](#turn-a-uuid-into-text-or-bytes-and-back) · [Inspect a UUID](#inspect-a-uuid) · [Read numbers from a byte buffer](#read-numbers-from-a-byte-buffer) · [Write numbers into a byte buffer](#write-numbers-into-a-byte-buffer)
 
 ## Encode and decode base64
 
@@ -45,6 +44,58 @@ Jump to: [Encode and decode base64](#encode-and-decode-base64) · [Encode and de
 | Function | What it does | From |
 |---|---|---|
 | [EncodingError](Category-Codec#strict-decoding) | Holds why decoding failed: a code, the position of the first bad character, a message. | `std/codec` |
+
+## Hash or checksum data in one call
+
+| Function | What it does | From |
+|---|---|---|
+| [Digest](Category-Hash#one-call) | Returns the digest of text or a byte array as bytes, for the algorithm named. | `std/hash` |
+| [DigestHex](Category-Hash#one-call) | Returns the digest of text or a byte array as lower-case hex. | `std/hash` |
+| [DigestFile](Category-Hash#one-call) | Returns the digest of a whole file, read in 64 KB pieces, or why it could not be read. | `std/hash` |
+| [HashStream](Category-Hash#one-call) | Feeds a stream from where it is to its end into a hasher; returns the bytes read. | `std/hash` |
+| [HashAlgorithm](Category-Hash#one-call) | Names the algorithms the one-call functions take, from HASH_CRC32 to HASH_SHA512. | `std/hash` |
+| [NewHasher](Category-Hash#one-call) | Returns a new hasher for an algorithm, which the caller deletes, or nullptr. | `std/hash` |
+
+## Pick a checksum or hash
+
+| Function | What it does | From |
+|---|---|---|
+| [Crc32](Category-Hash#which-one) | Holds a CRC-32 checksum, the 4-byte one zip, gzip and PNG use. | `std/hash` |
+| [Crc32C](Category-Hash#which-one) | Holds a CRC-32C checksum, the 4-byte one iSCSI and ext4 use. | `std/hash` |
+| [Adler32](Category-Hash#which-one) | Holds an Adler-32 checksum, the 4-byte one zlib streams use. | `std/hash` |
+| [Fnv1a32](Category-Hash#which-one) | Holds a 32-bit FNV-1a hash, quick for short keys; not for security. | `std/hash` |
+| [Fnv1a64](Category-Hash#which-one) | Holds a 64-bit FNV-1a hash, quick for short keys; not for security. | `std/hash` |
+| [XxHash64](Category-Hash#which-one) | Holds a 64-bit xxHash with an optional seed, fast on large data; not for security. | `std/hash` |
+| [Md5](Category-Hash#which-one) | Holds a 16-byte MD5 hash, only for matching formats that already use it. | `std/hash` |
+| [Sha1](Category-Hash#which-one) | Holds a 20-byte SHA-1 hash, only for matching formats that already use it. | `std/hash` |
+| [Sha224](Category-Hash#which-one) | Holds a 28-byte SHA-224 hash, for data someone could tamper with. | `std/hash` |
+| [Sha256](Category-Hash#which-one) | Holds a 32-byte SHA-256 hash, for data someone could tamper with. | `std/hash` |
+| [Sha384](Category-Hash#which-one) | Holds a 48-byte SHA-384 hash, faster than SHA-256 on long messages on 64-bit machines. | `std/hash` |
+| [Sha512](Category-Hash#which-one) | Holds a 64-byte SHA-512 hash, faster than SHA-256 on long messages on 64-bit machines. | `std/hash` |
+
+## Hash data in pieces
+
+| Function | What it does | From |
+|---|---|---|
+| [Hasher](Category-Hash#hashing-in-pieces) | Holds what every hash type shares, so one procedure can take any of them. | `std/hash` |
+| [Hasher.Update](Category-Hash#hashing-in-pieces) | Adds a number of bytes at a pointer to the hash. | `std/hash` |
+| [Hasher.UpdateBytes](Category-Hash#hashing-in-pieces) | Adds the bytes of an Array to the hash. | `std/hash` |
+| [Hasher.UpdateText](Category-Hash#hashing-in-pieces) | Adds text to the hash as its UTF-8 bytes. | `std/hash` |
+| [Hasher.UpdateRaw](Category-Hash#hashing-in-pieces) | Adds the bytes of a string to the hash as they are, with no conversion. | `std/hash` |
+| [Hasher.Finish](Category-Hash#hashing-in-pieces) | Returns the digest so far as bytes; more data can still be added after it. | `std/hash` |
+| [Hasher.FinishHex](Category-Hash#hashing-in-pieces) | Returns the digest so far as lower-case hex; more data can still be added after it. | `std/hash` |
+| [Hasher.Reset](Category-Hash#hashing-in-pieces) | Forgets everything added and starts the hash again. | `std/hash` |
+| [Hasher.DigestSize](Category-Hash#hashing-in-pieces) | Returns the size of the digest in bytes. | `std/hash` |
+| [Hasher.BlockSize](Category-Hash#hashing-in-pieces) | Returns the size of the block the algorithm works on, in bytes. | `std/hash` |
+| [Sum32 / Sum64](Category-Hash#hashing-in-pieces) | Returns a checksum or fast hash as a number instead of bytes. | `std/hash` |
+
+## Sign and check a message with HMAC
+
+| Function | What it does | From |
+|---|---|---|
+| [Hmac](Category-Hash#hmac) | Holds an HMAC: a cryptographic hash with a key, which is itself a Hasher. | `std/hash` |
+| [HmacHex](Category-Hash#hmac) | Returns the HMAC of a message under a key as lower-case hex, in one call. | `std/hash` |
+| [ConstantTimeEquals](Category-Hash#hmac) | Returns true if two byte arrays match, taking the same time whichever byte differs. | `std/hash` |
 
 ## Make a UUID
 
@@ -96,6 +147,7 @@ Jump to: [Encode and decode base64](#encode-and-decode-base64) · [Encode and de
 ## See Also
 
 - [Codec guide](Category-Codec)
+- [Hash guide](Category-Hash)
 - [UUID guide](Category-UUID)
 - [Array, which holds the bytes](Category-Array)
 - [Result, which the decoders and Parse return](Category-Result)

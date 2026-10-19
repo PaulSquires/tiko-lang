@@ -25,3 +25,67 @@ Fileseteof	FileSetEof	-	open	file.bi	-	Cuts or extends an open file so that it e
 System	System	-	end	built-in	-	Closes all open files and ends the program, with an optional exit code.
 Fre	Fre	-	misc	built-in	-	Returns the amount of free physical memory, in bytes.
 Isredirected	IsRedirected	-	misc	fbio.bi	-	Returns non-zero if standard output, or input if asked, is redirected to a file.
+Category-OS#arguments	Args	-	args	std/os	-	Returns every command-line argument as Unicode text, the program first, empty ones kept.
+Category-Process#commands	Command	std/process	run	std/process	-	Holds a program and its arguments, passed exactly as given with no shell in between.
+Category-Process#running-to-completion	Run	std/process	run	std/process	-	Runs a Command with this program's console, waits, and returns its exit status.
+Category-Process#running-to-completion	Output_	-	run	std/process	-	Runs a Command, waits, and returns its exit status and all it wrote to stdout and stderr.
+Category-Process#running-to-completion	Shell	std/process	run	std/process	-	Runs a command line through cmd.exe or /bin/sh, waits, and returns its exit status.
+Category-Process#commands	Command.Arg	-	cmd	std/process	-	Adds one argument and returns the Command, so calls chain.
+Category-Process#commands	Command.Args	-	cmd	std/process	-	Adds every string in an Array as an argument.
+Category-Process#commands	Command.Cwd	-	cmd	std/process	-	Sets the folder the program starts in.
+Category-Process#commands	Command.Env	-	cmd	std/process	-	Sets one environment variable for the program only.
+Category-Process#commands	Command.EnvRemove	-	cmd	std/process	-	Removes one environment variable for the program only.
+Category-Process#commands	Command.EnvClear	-	cmd	std/process	-	Starts the program with an empty environment, which Env calls then add to.
+Category-Process#commands	Command.StdinFrom / StdoutTo / StderrTo	-	cmd	std/process	-	Connects the program's stdin, stdout or stderr to this console, to nothing, or to a pipe.
+Category-Process#commands	Command.StderrToStdout	-	cmd	std/process	-	Sends the program's stderr wherever its stdout goes.
+Category-Process#commands	Command.NewProcessGroup	-	cmd	std/process	-	Starts the program in its own process group, so Windows can send it Ctrl-Break.
+Category-Process#commands	Command.HideWindow	-	cmd	std/process	-	Starts a console program on Windows without opening a console window.
+Category-Process#commands	Command.ToString	-	cmd	std/process	-	Returns the command line quoted as the system will see it, for logs.
+Category-Process#commands	Stdio	-	cmd	std/process	-	Names where a stream goes: STDIO_INHERIT, STDIO_NULL or STDIO_PIPE.
+Category-Process#a-running-child	Child	-	child	std/process	-	Holds one running program; destroying it leaves the program running.
+Category-Process#a-running-child	Child.Spawn	-	child	std/process	-	Starts the program a Command describes, or returns why it could not.
+Category-Process#a-running-child	Child.Id	-	child	std/process	-	Returns the running program's process id.
+Category-Process#a-running-child	Child.Stdin / Stdout / Stderr	-	child	std/process	-	Returns the pipe to the program's stdin, stdout or stderr when the Command asked for one.
+Category-Process#a-running-child	Child.Wait	-	child	std/process	-	Closes the program's stdin, waits for it to end, and returns its exit status.
+Category-Process#a-running-child	Child.WaitTimeout	-	child	std/process	-	Waits up to a number of milliseconds; returns the exit status, or none if still running.
+Category-Process#a-running-child	Child.TryWait	-	child	std/process	-	Returns the exit status if the program has ended, or none if it is still running.
+Category-Process#a-running-child	Child.Kill	-	child	std/process	-	Ends the program at once.
+Category-Process#a-running-child	Child.Terminate	-	child	std/process	-	Asks the program to stop; on Windows it ends it at once, as Kill does.
+Category-Process#a-running-child	PipeStream	-	child	std/process	-	Holds one end of a pipe to a program, read and written like any other stream.
+Category-Process#running-to-completion	ExitStatus	-	status	std/process	-	Holds how a program ended: its exit code and, on Linux, the signal that ended it.
+Category-Process#running-to-completion	ExitStatus.Code	-	status	std/process	-	Returns the program's exit code, or -1 on Linux when a signal ended it.
+Category-Process#running-to-completion	ExitStatus.Success	-	status	std/process	-	Returns true if the exit code is 0.
+Category-Process#running-to-completion	ExitStatus.Signal	-	status	std/process	-	Returns the Linux signal that ended the program, or 0.
+Category-Process#running-to-completion	ProcessOutput	-	status	std/process	-	Holds a finished program's exit status and the bytes it wrote to stdout and stderr.
+Category-Process#running-to-completion	ProcessOutput.StdoutText / StderrText	-	status	std/process	-	Returns what the program wrote as UTF-8 text, with U+FFFD for any bad bytes.
+Category-OS#environment	GetEnv	-	env	std/os	-	Returns an environment variable's value, or an empty Optional when it is not set.
+Category-OS#environment	SetEnv	-	env	std/os	-	Sets an environment variable for this program and the programs it starts.
+Category-OS#environment	UnsetEnv	-	env	std/os	-	Removes an environment variable; removing one that is not set succeeds.
+Category-OS#environment	Environment	-	env	std/os	-	Returns every environment variable as a map of names to values, sorted by name.
+Category-OS#environment	ExpandEnv	-	env	std/os	-	Replaces $NAME and ${NAME} in text, and %NAME% on Windows, with the variables' values.
+Category-OS#ctrl-c-and-termination	CatchInterrupt	-	interrupt	std/os	-	Turns Ctrl-C, Ctrl-Break and requests to stop into a flag, instead of ending the program.
+Category-OS#ctrl-c-and-termination	Interrupted	-	interrupt	std/os	-	Returns true once an interrupt has arrived; never waits.
+Category-OS#ctrl-c-and-termination	WaitInterrupt	-	interrupt	std/os	-	Waits for an interrupt and returns true, or false if the time runs out first.
+Category-OS#ctrl-c-and-termination	LastInterrupt	-	interrupt	std/os	-	Returns which kind of interrupt arrived, such as INT_CTRL_C, or INT_NONE.
+Category-OS#ctrl-c-and-termination	InterruptCount	-	interrupt	std/os	-	Returns how many interrupts have arrived since the last reset.
+Category-OS#ctrl-c-and-termination	ResetInterrupt	-	interrupt	std/os	-	Clears the interrupt flag and the count.
+Category-OS#ctrl-c-and-termination	ReleaseInterrupt	-	interrupt	std/os	-	Gives Ctrl-C and the other signals back to their default handling.
+Category-OS#ctrl-c-and-termination	InterruptKind	-	interrupt	std/os	-	Names the kinds of interrupt: Ctrl-C, Ctrl-Break, terminate and hang-up.
+Category-OS#with-goroutines	InterruptContext	-	interrupt	std/tasks	-	Returns a Context cancelled by the first interrupt, so goroutines stop on Ctrl-C.
+Category-OS#host-facts	OS_NAME	-	host	std/os	-	Holds "windows" or "linux", the system the program was built for.
+Category-OS#host-facts	ARCH_NAME	-	host	std/os	-	Holds "x86_64", the processor the program was built for.
+Category-OS#host-facts	OsVersion	-	host	std/os	-	Returns the Windows version number, or the kernel release on Linux.
+Category-OS#host-facts	Hostname	-	host	std/os	-	Returns the computer's network name, or an error.
+Category-OS#host-facts	UserName	-	host	std/os	-	Returns the name of the user running the program, or an error.
+Category-OS#host-facts	ProcessId	-	host	std/os	-	Returns this program's process id.
+Category-Process#running-to-completion	CurrentId	-	host	std/process	-	Returns this program's process id, the same number as ProcessId.
+Category-OS#host-facts	CpuCount	-	host	std/os	-	Returns how many processors this program may run on, which can be fewer than exist.
+Category-OS#host-facts	PageSize	-	host	std/os	-	Returns the memory page size in bytes.
+Category-OS#host-facts	TotalMemory	-	host	std/os	-	Returns the computer's physical memory in bytes, or 0 if it cannot be found.
+Category-OS#host-facts	IsTerminal	-	host	std/os	-	Returns true if stdin, stdout or stderr is an interactive terminal.
+Category-OS#exit	Exit_	-	end	std/os	-	Ends the program with an exit code, running module destructors and flushing files.
+Category-OS#exit	Abort	-	end	std/os	-	Ends the program at once, with no cleanup at all.
+Category-OS#errors	OsError	-	oserr	std/os	-	Holds why a std/os call failed: a code, the system's error number and a message.
+Category-OS#errors	OsErrorMessage	-	oserr	std/os	-	Returns the message text for a std/os error code, such as "invalid argument".
+Category-Process#errors	ProcError	-	oserr	std/process	-	Holds why a program could not be started or waited for: a code, a number, a message.
+Category-Process#errors	ProcErrorMessage	-	oserr	std/process	-	Returns the message text for a std/process error code, such as "program not found".

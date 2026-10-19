@@ -1,4 +1,4 @@
-# Encoding and IDs: task headings in display order, pages to skip, see-also links.
+# Encoding, hashes and IDs: task headings in display order, pages to skip, see-also links.
 #   task    <task id>  <heading>
 #   ignore  <page>  <reason>
 #   seealso <page>  <label>
@@ -7,12 +7,17 @@ task	hex	Encode and decode hex
 task	url	Percent-encode text for URLs
 task	base32	Encode and decode base32
 task	decodeerr	Find out why decoding failed
+task	hashone	Hash or checksum data in one call
+task	hashalgo	Pick a checksum or hash
+task	hashpieces	Hash data in pieces
+task	hmac	Sign and check a message with HMAC
 task	newid	Make a UUID
 task	idtext	Turn a UUID into text or bytes and back
 task	idinfo	Inspect a UUID
 task	read	Read numbers from a byte buffer
 task	write	Write numbers into a byte buffer
 seealso	Category-Codec	Codec guide
+seealso	Category-Hash	Hash guide
 seealso	Category-UUID	UUID guide
 seealso	Category-Array	Array, which holds the bytes
 seealso	Category-Result	Result, which the decoders and Parse return
