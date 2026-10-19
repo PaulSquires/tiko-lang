@@ -1,0 +1,21 @@
+#import "std/containers"
+
+'' Keep only the five most recent pages: add at the back, drop the front.
+dim history as containers.Deque( of ustring )
+dim visits( 0 to 6 ) as ustring = _
+    { "home", "news", "sport", "weather", "news", "mail", "shop" }
+
+for each page in visits
+    history.PushBack( page )
+    if history.Count( ) > 5 then history.PopFront( )
+next
+
+print "kept"; history.Count( ); " pages"
+for i as int32 = 0 to history.Count( ) - 1
+    print i; ": "; history[ i ]
+next
+
+'' Both ends work the same way.
+history.PushFront( "start" )
+print "oldest: "; history.Front( ); ", newest: "; history.Back( )
+print "went back to "; history.PopBack( )

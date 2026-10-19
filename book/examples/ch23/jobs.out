@@ -1,0 +1,5 @@
+next up: restart db
+ 0 page on-call
+ 1 restart db
+ 2 rotate keys
+ 3 tidy logs

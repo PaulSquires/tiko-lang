@@ -1,0 +1,19 @@
+#import "std/containers"
+
+'' The last three readings: in at the back, out at the front.
+dim recent as containers.Deque( of int32 )
+dim readings( 0 to 5 ) as int32 = { 20, 22, 21, 25, 30, 28 }
+
+for i as int32 = 0 to 5
+    recent.PushBack( readings( i ) )
+    if recent.Count( ) > 3 then recent.PopFront( )
+    dim total as int32 = 0
+    for each r in recent
+        total += r
+    next
+    print "reading"; readings( i ); ": oldest"; recent[ 0 ]; _
+        ", average"; total \ recent.Count( )
+next
+
+recent.PushFront( 99 )
+print "front"; recent.Front( ); ", back"; recent.Back( )

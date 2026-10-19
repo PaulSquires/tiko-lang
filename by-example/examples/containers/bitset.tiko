@@ -1,0 +1,25 @@
+#import "std/containers"
+
+'' One bit per seat: which seats in a row of 40 are taken?
+dim taken as containers.BitSet = containers.BitSet( 40 )
+taken.Set( 0 ) : taken.Set( 1 ) : taken.Set( 2 ) : taken.Set( 7 )
+taken.Set( 39 )
+
+print "taken:"; taken.CountOnes( ); " of"; taken.Length( )
+print "seat 7 taken? "; taken.Test( 7 )
+print "first free seat:"; taken.NextClear( 0 )
+print "first free after 7:"; taken.NextClear( 7 )
+
+print "taken seats:";
+for each s in taken
+    print s;
+next
+print
+
+'' Seats a group asked for, minus the ones already gone.
+dim wanted as containers.BitSet
+wanted.Set( 2 ) : wanted.Set( 3 ) : wanted.Set( 4 )
+dim clash as containers.BitSet = wanted
+clash.IntersectWith( taken )
+wanted.DifferenceWith( taken )
+print "clash:"; clash.FirstSet( ); ", still free:"; wanted.CountOnes( )

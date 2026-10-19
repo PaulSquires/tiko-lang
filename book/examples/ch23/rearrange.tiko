@@ -1,0 +1,28 @@
+#import "std/containers"
+
+dim times as containers.Array( of int32 ) = _
+    { 41, 17, 88, 23, 17, 65, 9, 52, 23 }
+
+'' The three fastest, in order; the rest are left unsorted.
+dim fast as containers.Array( of int32 ) = times
+containers.PartialSort( fast, 3 )
+print "fastest:"; fast[ 0 ]; fast[ 1 ]; fast[ 2 ]
+
+'' The median, without sorting everything.
+dim middle as containers.Array( of int32 ) = times
+dim k as int32 = middle.Count( ) \ 2
+containers.NthElement( middle, k )
+print "median:"; middle[ k ]
+
+'' Distinct values: sort, then drop neighbours that repeat.
+dim distinct as containers.Array( of int32 ) = times
+containers.Sort( distinct )
+print "repeats removed:"; containers.Dedup( distinct )
+print "distinct values:"; distinct.Count( )
+
+'' A turn order that moves along one seat each round.
+dim seats as containers.Array( of ustring ) = { "ana", "ben", "cai" }
+for r as int32 = 1 to 3
+    print "round"; r; ": "; seats[ 0 ]; " starts"
+    containers.RotateArray( seats, 1 )
+next

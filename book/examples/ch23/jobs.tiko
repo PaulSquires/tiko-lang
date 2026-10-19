@@ -1,0 +1,29 @@
+#import "std/containers"
+
+type Job
+    priority as int32
+    name as ustring
+end type
+
+'' Does a leave the queue before b?  Lower number = more urgent.
+type JobFirst as function( byref a as Job, byref b as Job ) as boolean
+
+dim urgent as JobFirst = function( byref a as Job, _
+                                   byref b as Job ) as boolean
+    return a.priority < b.priority
+end function
+
+dim queue as containers.PriorityQueueBy( of Job, JobFirst ) = _
+    containers.PriorityQueueBy( of Job, JobFirst )( urgent )
+
+dim j as Job
+j.priority = 3 : j.name = "tidy logs"    : queue.Push( j )
+j.priority = 1 : j.name = "restart db"   : queue.Push( j )
+j.priority = 2 : j.name = "rotate keys"  : queue.Push( j )
+print "next up: "; queue.Peek( ).name
+
+j.priority = 0 : j.name = "page on-call" : queue.Push( j )
+do until queue.IsEmpty( )
+    j = queue.Pop( )
+    print j.priority; " "; j.name
+loop
