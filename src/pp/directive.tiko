@@ -1219,9 +1219,9 @@ end sub
 private sub PpDefineBuiltins( byref e as PpEngine )
     '' Identity. __FB_VERSION__ deliberately reports the fbc release tiko-lang is
     '' compatible with, so existing '#if __FB_VERSION__ >= ...' guards keep working;
-    '' tiko-lang's own identity is __TKO_VERSION__ (docs/plan/03 section 6.3).
+    '' tiko-lang's own identity is __TIKO_VERSION__ (docs/plan/03 section 6.3).
     PpDefineValue( e, "__FB_VERSION__", """" & TKO_FBC_COMPAT & """" )
-    PpDefineValue( e, "__TKO_VERSION__", """" & _
+    PpDefineValue( e, "__TIKO_VERSION__", """" & _
         str( TKO_VERSION_MAJOR ) & "." & str( TKO_VERSION_MINOR ) & "." & _
         str( TKO_VERSION_PATCH ) & TKO_VERSION_SUFFIX & """" )
     '' ...and __TIKO_COMPILER__, always 1, is the one to TEST: '#ifdef __TIKO_COMPILER__'

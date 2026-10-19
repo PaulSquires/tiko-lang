@@ -29,7 +29,7 @@ namespace Tko
 
     '' The fbc release whose language and runtime ABI tiko-lang targets. Reported as
     '' __FB_VERSION__ so existing '#if __FB_VERSION__ >= ...' guards keep working;
-    '' tiko-lang's own identity is __TKO_VERSION__. See docs/plan/03 section 6.3.
+    '' tiko-lang's own identity is __TIKO_VERSION__. See docs/plan/03 section 6.3.
     const TKO_FBC_COMPAT as string = "1.20.0"
 
     '' --------------------------------------------------------------- exit codes

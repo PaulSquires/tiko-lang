@@ -6,8 +6,8 @@
 #if __TIKO_COMPILER__ <> 1
     #error "__TIKO_COMPILER__ is not 1"
 #endif
-#if defined( __TIKO_COMPILER__ ) andalso defined( __TKO_VERSION__ )
+#if defined( __TIKO_COMPILER__ ) andalso defined( __TIKO_VERSION__ )
     print __TIKO_COMPILER__
 #else
-    #error "__TIKO_COMPILER__ and __TKO_VERSION__ disagree"
+    #error "__TIKO_COMPILER__ and __TIKO_VERSION__ disagree"
 #endif
