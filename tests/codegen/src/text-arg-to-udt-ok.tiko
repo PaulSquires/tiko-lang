@@ -1,0 +1,38 @@
+'' ...and a UDT that a constructor DOES build from text still takes every text argument, byref and
+'' byval -- a constructor from 'string' or from 'wstring', as fbc-modern 1.20 accepts them.
+type FromStr
+    as long v
+    declare constructor( byref t as string )
+end type
+constructor FromStr( byref t as string )
+    this.v = len( t )
+end constructor
+type FromWide
+    as long v
+    declare constructor( byref t as wstring )
+end type
+constructor FromWide( byref t as wstring )
+    this.v = len( t )
+end constructor
+
+function ByrefS( byref a as FromStr ) as long
+    return a.v
+end function
+function ByvalS( byval a as FromStr ) as long
+    return a.v
+end function
+function ByrefW( byref a as FromWide ) as long
+    return a.v
+end function
+function ByvalW( byval a as FromWide ) as long
+    return a.v
+end function
+
+dim as ustring u = "x"
+dim as wstring * 4 w = "x"
+dim as zstring * 4 z = "x"
+dim as string * 4 fs = "x"
+print "u "; ByrefS( u ) & ByvalS( u ) & ByrefW( u ) & ByvalW( u )
+print "w "; ByrefS( w ) & ByvalS( w ) & ByrefW( w ) & ByvalW( w )
+print "z "; ByrefS( z ) & ByvalS( z ) & ByrefW( z ) & ByvalW( z )
+print "fs "; ByrefS( fs ) & ByvalS( fs ) & ByrefW( fs ) & ByvalW( fs )
