@@ -1,0 +1,10 @@
+'' RUN: 'function = this' copies the receiver into a by-value UDT result, over plain fields and
+'' over a type with constructors -- the store was dropped (TKO0994). Expected output is
+'' fbc-modern 1.20's, byte for byte.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/funcresult-this.tiko -o tests/codegen/funcresultthis.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/funcresultthis.exe
+'' RUN: tests/codegen/funcresultthis.exe
+'' EXPECT-RUN-OUT:  3 4 7

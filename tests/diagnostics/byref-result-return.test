@@ -1,0 +1,20 @@
+'' A byref result binds storage by 'return' as by 'function =': a local, a byval parameter, a
+'' local's field or element, or a by-value call is fbc's 272, '5' its 24, and a value of another
+'' type its 318. Only 'function =' over a scalar name was judged.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/byref-result-return.tiko -o tests/diagnostics/src/byref-result-return.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: byref-result-return.tiko(31,12): error TKO0650:
+'' EXPECT-OUT: byref-result-return.tiko(34,12): error TKO0650:
+'' EXPECT-OUT: byref-result-return.tiko(38,13): error TKO0650:
+'' EXPECT-OUT: byref-result-return.tiko(42,13): error TKO0650:
+'' EXPECT-OUT: byref-result-return.tiko(45,17): error TKO0650:
+'' EXPECT-OUT: byref-result-return.tiko(48,12): error TKO0711:
+'' EXPECT-OUT: byref-result-return.tiko(52,12): error TKO0667:
+'' EXPECT-OUT: byref-result-return.tiko(55,12): error TKO0667:
+'' EXPECT-OUT: byref-result-return.tiko(58,16): error TKO0667:
+'' EXPECT-OUT: byref-result-return.tiko(61,12): error TKO0667:
+'' EXPECT-OUT: byref-result-return.tiko(64,16): error TKO0667:
+'' EXPECT-OUT: byref-result-return.tiko(67,20): error TKO0667:
+'' EXPECT-NOT: TKO0994
+'' EXPECT-MAX-DIAG: 12

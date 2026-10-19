@@ -1,0 +1,16 @@
+'' 'g( p ) = v' OVER A BYREF g IS 'g( p = v )' -- fbc's warning 34, tiko's TKO0931 -- and with
+'' a POINTER parameter the comparison's result is converted to it: false is a null pointer,
+'' true is -1. The comparison Resolve folds was untyped and lowering typed it as the pointer,
+'' so clang refused 'zext i1 to ptr'. The expected output is fbc-modern 1.20's.
+type Box
+    as long k
+end type
+dim shared as Box gb
+function Slot( byval q as Box ptr ) byref as long
+    print cast( integer, q )
+    return gb.k
+end function
+gb.k = 5
+Slot( @gb ) = 9
+Slot( cast( Box ptr, 9 ) ) = 9
+print gb.k

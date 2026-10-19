@@ -1,0 +1,17 @@
+'' A function 'as T' given a value that is not a T is fbc's 181: 'return v' when no constructor
+'' and no 'operator let' takes it, 'function = v' when no 'operator let' does. tiko accepted
+'' them or stopped on TKO0994.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/ctor-result-arg.tiko -o tests/diagnostics/src/ctor-result-arg.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: ctor-result-arg.tiko(42,12): error TKO0738: no conversion between these two types
+'' EXPECT-OUT: ctor-result-arg.tiko(46,12): error TKO0738: no conversion between these two types
+'' EXPECT-OUT: ctor-result-arg.tiko(50,12): error TKO0738: no conversion between these two types
+'' EXPECT-OUT: ctor-result-arg.tiko(53,12): error TKO0738: no conversion between these two types
+'' EXPECT-OUT: ctor-result-arg.tiko(57,12): error TKO0738: no conversion between these two types
+'' EXPECT-OUT: ctor-result-arg.tiko(61,5): error TKO0738: no conversion between these two types
+'' EXPECT-OUT: ctor-result-arg.tiko(65,5): error TKO0738: no conversion between these two types
+'' EXPECT-OUT: ctor-result-arg.tiko(68,5): error TKO0738: no conversion between these two types
+'' EXPECT-OUT: ctor-result-arg.tiko(75,12): error TKO0738: no conversion between these two types
+'' EXPECT-NOT: TKO0994
+'' EXPECT-MAX-DIAG: 9

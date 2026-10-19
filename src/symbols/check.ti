@@ -240,6 +240,10 @@ namespace Tko.Check
           byref names as Tko.Interner, byref info as Tko.SemanticInfo, _
           byval first_ as Tko.SymbolId, byref argT as containers.Array( of uint32 ), _
           byval tiesOut as int32 ptr = nullptr ) as Tko.SymbolId
+    declare function LoneScalarStructor _
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+          byref info as Tko.SemanticInfo, byval first_ as Tko.SymbolId, _
+          byref argT as containers.Array( of uint32 ) ) as Tko.SymbolId
 
     '' WHICH 'operator cast' A STRING CONTEXT CALLS -- one rule, scored as fbc scores it
     '' (castpick.tiko). CR_*: what a cast yields; CT_*: the target a context asks with;

@@ -400,6 +400,74 @@ function PickStructor _
     return best
 end function
 
+'' A NUMBER, AN ENUM OR A POINTER -- what Coerce converts between on its own.
+private function SpScalar_( byref types as Tko.TypeContext, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
+    dim as Tko.TypeId u = types.Unqualify( t )
+    select case types.Kind( u )
+    case Tko.TK_POINTER, Tko.TK_ENUM
+        return true
+    case Tko.TK_BUILTIN
+        select case types.BuiltinOf( u )
+        case Tko.TY_BOOLEAN, Tko.TY_BYTE, Tko.TY_UBYTE, Tko.TY_SHORT, Tko.TY_USHORT, Tko.TY_LONG, _
+             Tko.TY_ULONG, Tko.TY_INTEGER, Tko.TY_UINTEGER, Tko.TY_LONGINT, Tko.TY_ULONGINT, _
+             Tko.TY_SINGLE, Tko.TY_DOUBLE
+            return true
+        end select
+    end select
+    return false
+end function
+
+'' THE ONE CONSTRUCTOR (or 'let') OF A CHAIN, when PickStructor finds it unviable and every
+'' argument and BYVAL parameter is a number, an enum or a pointer. fbc's single procedure only
+'' warns where its overload resolution refuses: 'T( e1 )' over 'constructor( byval p as long
+'' ptr )' with an enum, and 'T( p )' over 'byval as E' with a pointer, are warnings 1 and 2
+'' (fbc-modern 1.20, 2026-10-19), and ConversionCost costs neither -- so no constructor was
+'' picked, and lowering stopped on TKO0994. Check judges what a lone constructor takes
+'' (ctorargs.tiko); what passes is a Coerce. NONE for a set, a generic or anything else.
+function LoneScalarStructor _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+      byref info as Tko.SemanticInfo, byval first_ as Tko.SymbolId, _
+      byref argT as containers.Array( of uint32 ) ) as Tko.SymbolId
+
+    dim as Tko.Symbol ptr s = syms.SymbolAt( first_ )
+    if s = nullptr then return Tko.SYMBOL_NONE
+    if s->nextOverload <> Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
+    if (s->flags and Tko.SYMF_OVERLOAD) <> 0 then return Tko.SYMBOL_NONE
+    dim as Tko.NodeId pn = SpProcNode_( ast, syms, first_ )
+    if pn = Tko.NODE_NONE then return Tko.SYMBOL_NONE
+    dim as Tko.StmtPayload ptr pp = SpStmt_( ast, pn )
+    if (pp->extra and Tko.PF_GENERIC_PROC) <> 0 then return Tko.SYMBOL_NONE
+    dim as int32 ai = 0
+    for i as int32 = 0 to pp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[pp->first + i] )
+        if ast.Kind( prm ) <> Tko.N_PARAM then continue for
+        dim as Tko.StmtPayload ptr psp = SpStmt_( ast, prm )
+        if psp->op = cast( uint16, Tko.TK_ELLIPSIS ) then return Tko.SYMBOL_NONE
+        if (ast.nodes[cast( int32, prm )].flags and (Tko.NF_VARIADIC or Tko.NF_ARRAY)) <> 0 then return Tko.SYMBOL_NONE
+        if ai >= argT.Count then
+            if psp->b = Tko.NODE_NONE then return Tko.SYMBOL_NONE   '' a missing argument
+            ai += 1
+            continue for
+        end if
+        if SpScalar_( types, info.TypeOf_( psp->a ) ) = false then return Tko.SYMBOL_NONE
+        dim as Tko.TypeId at = cast( Tko.TypeId, argT[ai] )
+        if at <> Tko.TYPE_NONE then
+            if types.Kind( types.Unqualify( at ) ) = Tko.TK_REFERENCE then at = types.Inner( types.Unqualify( at ) )
+        end if
+        if SpScalar_( types, at ) = false then return Tko.SYMBOL_NONE
+        '' A BYREF parameter only as a pointer given an enum, which gets a temporary of its own
+        '' type (mir/lowerbyref.tiko ByrefConvArg_); any other pair would pass the wrong width.
+        if (ast.nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0 then
+            if types.Kind( types.Unqualify( info.TypeOf_( psp->a ) ) ) <> Tko.TK_POINTER then return Tko.SYMBOL_NONE
+            if types.Kind( types.Unqualify( at ) ) <> Tko.TK_ENUM then return Tko.SYMBOL_NONE
+        end if
+        ai += 1
+    next
+    if ai < argT.Count then return Tko.SYMBOL_NONE
+    return first_
+end function
+
 '' WHICH NUMERIC 'operator cast' A UDT VALUE TAKES (overload re-pick refactor, Phase 4). Measured on
 '' fbc-modern, over a type casting to BYTE (100) and DOUBLE (2.75), in either declaration order:
 ''

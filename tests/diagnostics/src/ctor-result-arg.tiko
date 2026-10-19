@@ -1,0 +1,76 @@
+'' A FUNCTION 'as T' GIVEN A VALUE THAT IS NOT A T is fbc's 181 (58 for a few), measured on
+'' fbc-modern 1.20: 'return v' when no constructor and no 'operator let' takes v, 'function =
+'' v' when no 'operator let' does -- an assignment, which a constructor does not rescue. tiko
+'' accepted them, or stopped on TKO0994. The accepted half is ctor-result-arg-ok.
+enum Colour
+    red
+    green
+end enum
+type VL
+    as long n
+    declare constructor( )
+    declare constructor( byval t as long )
+end type
+constructor VL( )
+end constructor
+constructor VL( byval t as long )
+end constructor
+type BS
+    as long n
+    declare constructor( byref t as string )
+end type
+constructor BS( byref t as string )
+end constructor
+type PL
+    as long n
+    declare constructor( byval p as long ptr )
+end type
+constructor PL( byval p as long ptr )
+end constructor
+type LetL
+    as long n
+    declare operator let( byval t as long )
+end type
+operator LetL.let( byval t as long )
+end operator
+type Plain
+    as long n
+end type
+
+function R1( ) as VL
+    dim as string s = "s"
+    return s
+end function
+function R2( ) as BS
+    dim as long n = 1
+    return n
+end function
+function R3( ) as PL
+    dim as long n = 1
+    return n
+end function
+function R4( ) as LetL
+    return "x"
+end function
+function R5( ) as Plain
+    dim as Colour c = green
+    return c
+end function
+function F1( ) as VL
+    dim as long n = 1
+    function = n
+end function
+function F2( ) as LetL
+    dim as long ptr p
+    function = p
+end function
+function F3( ) as Plain
+    function = 0
+end function
+type Holder
+    as long n
+    declare property p( ) as VL
+end type
+property Holder.p( ) as VL
+    return "prop"
+end property

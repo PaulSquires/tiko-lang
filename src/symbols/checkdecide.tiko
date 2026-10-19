@@ -273,6 +273,7 @@ private sub DecideCtorCall_( byref c as Ctx, byval id as Tko.NodeId, byval cp as
     dim as Tko.SymbolId first_ = Tko.Check.StructorNamed( *c.syms, *c.types, *c.names, t, "__ctor" )
     if first_ = Tko.SYMBOL_NONE then return
     dim as Tko.SymbolId pick = Tko.Check.PickStructor( *c.ast, *c.syms, *c.types, *c.names, *c.info, first_, argT )
+    if pick = Tko.SYMBOL_NONE then pick = Tko.Check.LoneScalarStructor( *c.ast, *c.syms, *c.types, *c.info, first_, argT )
     c.info->SetDecision( id, pick )
     '' ONE UDT ARGUMENT NO CONSTRUCTOR TAKES -- fbc's 99, measured over 'T( w )' with W unrelated
     '' and over an S that casts only to a number (StructorCastCost). Lowering found nothing

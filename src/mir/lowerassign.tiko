@@ -40,6 +40,70 @@ end function
 
 
 
+'' A PAREN-LESS FUNCTION'S RESULT AS A SOURCE ADDRESS, for an 'operator let'. Through the
+'' hidden pointer the call answers its temporary's address; a small UDT comes back BY VALUE,
+'' and asking for a pointer there handed emission an aggregate call typed 'ptr' -- TKO0993
+'' for 'y = MakeOne' over a type with a same-type 'let' (fbc calls the let: 'let 103'). The
+'' value is spilled to a temporary instead, as 'y = MakeOne( )' gets one.
+private function BareCallSourceAddr_ _
+    ( byref c as Ctx, byval value as Tko.NodeId, byref outv as MirValue ) as boolean
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( value ) )
+    if s <> nullptr then
+        dim as Tko.TypeId rt = s->type_
+        if (s->kind = cast( uint8, Tko.SYM_PROC )) andalso (rt <> Tko.TYPE_NONE) then
+            rt = c.types->Unqualify( rt )
+            if (c.types->Kind( rt ) = Tko.TK_UDT) andalso (UsesSretReturn( c, rt ) = false) andalso _
+               (LowerType( rt, *c.types ) = MT_AGG) then
+                dim as MirValue v
+                if LowerBareProcCall_( c, value, MT_AGG, v ) = false then return false
+                dim as int32 sz = SizeOfType( c, rt )
+                if sz <= 0 then return false
+                dim as int32 tslot = NewTempLocal( c, MT_AGG, sz )
+                if tslot < 0 then return false
+                dim as MirValue ta
+                ta.kind = cast( uint8, MV_LOCAL ) : ta.ty = cast( uint8, MT_PTR ) : ta.id = tslot
+                dim as MirInst st
+                st.op = cast( uint16, M_STORE ) : st.ty = cast( uint8, MT_VOID )
+                st.a = ta : st.b = v
+                Emit( c, st )
+                if TypeNeedsDtor_( c, rt ) then
+                    c.udtTemps.Push( cast( uint32, tslot ) )
+                    c.udtTempTypes.Push( cast( uint32, rt ) )
+                end if
+                outv = ta
+                return true
+            end if
+        end if
+    end if
+    return LowerBareProcCall_( c, value, MT_PTR, outv )
+end function
+
+'' 'function = v' OF THE RESULT'S OWN TYPE -- or 'this' -- IS AN ASSIGNMENT, so the type's
+'' same-type 'operator let' runs on the result, as SretAssignResult_ (lowerprocret.tiko)
+'' already does through the hidden pointer. Measured on fbc-modern 1.20: every 'function ='
+'' calls it -- twice for two -- over a variable, '*p', 'this', and a type with a constructor
+'' (default-constructed at entry first); 'return v' never does, it copies. A result held in
+'' its own slot copied the bytes instead, and the let's work was lost.
+private function ResultSelfLet_( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
+    if (c.udtResult = false) orelse (c.resultSlot < 0) then return false
+    if valueE = Tko.NODE_NONE then return false
+    dim as Tko.TypeId rt = c.types->Unqualify( c.resultType )
+    if c.types->Kind( rt ) <> Tko.TK_UDT then return false
+    dim as Tko.TypeId vt = InitSourceType_( c, valueE )
+    if vt = Tko.TYPE_NONE then return false
+    if c.types->Unqualify( vt ) <> rt then return false
+    dim as Tko.SymbolId ulet = SameTypeLet_( c, rt )
+    if ulet = Tko.SYMBOL_NONE then return false
+    '' A PAREN-LESS FUNCTION IS A CALL, as in LowerAssign below.
+    dim as MirValue sa
+    if BareCallSourceAddr_( c, valueE, sa ) = false then sa = InitSourceAddr_( c, valueE )
+    if sa.kind = cast( uint8, MV_NONE ) then return false
+    dim as containers.Array( of uint32 ) largs
+    largs.Push( cast( uint32, sa.kind ) ) : largs.Push( cast( uint32, sa.id ) )
+    EmitStructorCall( c, ulet, c.resultSlot, nullptr, @largs )
+    return true
+end function
+
 '' 'u = ( a, b )' -- A BARE TUPLE LIST ASSIGNED TO A TUPLE VARIABLE.
 ''
 '' THE DESTINATION DECIDES THE TYPE, and the literal's own inferred type is not just
@@ -720,7 +784,7 @@ private sub LowerAssign _
                 '' FUNCTION with every parameter defaulted, so a procedure-pointer
                 '' assignment still reaches LowerAddr below.
                 dim as MirValue sa
-                if LowerBareProcCall_( c, value, MT_PTR, sa ) = false then
+                if BareCallSourceAddr_( c, value, sa ) = false then
                     sa = LowerAddr( c, value )
                 end if
                 if (da.kind <> cast( uint8, MV_NONE )) andalso _

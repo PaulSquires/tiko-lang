@@ -1,3 +1,4 @@
+global var i32 _ZN2ItIiE5VALUEEv$z
 func void P() {
   local agg c size 4
   local agg i size 4
@@ -91,18 +92,15 @@ func i8 _ZN2ItIiE7ISVALIDEv(ptr $0) {
 func ptr _ZN2ItIiE5VALUEEv(ptr $0) {
   local ptr $tmp0
   local ptr this
-  local i32 z
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const ptr 0
     store @$tmp0, %2
     %3 = alloca ptr this
     store @this, $0
-    %4 = alloca ptr z
-    %5 = call.rtl ptr memset(@z, 0, 4)
-    store @$tmp0, @z
-    %6 = load @$tmp0
-    ret %6
+    store @$tmp0, @@_ZN2ItIiE5VALUEEv$z
+    %4 = load @$tmp0
+    ret %4
 }
 func void _ZN2ItIiE8MOVENEXTEv(ptr $0) {
   local ptr this
@@ -135,4 +133,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 7 functions, 7 blocks, 71 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 7 functions, 7 blocks, 69 insts, 0 statements not lowered, 0 scope imbalance

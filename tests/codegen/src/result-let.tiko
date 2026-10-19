@@ -1,0 +1,95 @@
+'' 'function = v' OF THE RESULT'S OWN TYPE RUNS ITS 'operator let' -- every time, over a
+'' variable, '*p', 'this', a paren-less call and a type with a constructor or a large one --
+'' while 'return v' copies. A result held in its own slot copied the bytes, so the let never
+'' ran; and 'y = MakeOne' (a paren-less call by value) was TKO0993. The expected output is
+'' fbc-modern 1.20's.
+type L
+    as long n
+    declare operator let( byref o as L )
+    declare function SelfF( ) as L
+    declare function SelfR( ) as L
+end type
+operator L.let( byref o as L )
+    print "let";
+    n = o.n + 100
+end operator
+function L.SelfF( ) as L
+    function = this
+end function
+function L.SelfR( ) as L
+    return this
+end function
+type Big
+    as long n
+    as long pad( 0 to 15 )
+    declare operator let( byref o as Big )
+end type
+operator Big.let( byref o as Big )
+    print "biglet";
+    n = o.n + 1000
+end operator
+type LC
+    as long n
+    declare constructor( )
+    declare operator let( byref o as LC )
+end type
+constructor LC( )
+    n = -1
+end constructor
+operator LC.let( byref o as LC )
+    print "lclet";
+    n = o.n + 10
+end operator
+function FVar( byref x as L ) as L
+    function = x
+end function
+function RVar( byref x as L ) as L
+    return x
+end function
+function FDeref( byval p as L ptr ) as L
+    function = *p
+end function
+function FBig( byref x as Big ) as Big
+    function = x
+end function
+function RBig( byref x as Big ) as Big
+    return x
+end function
+function FLC( byref x as LC ) as LC
+    function = x
+end function
+function RLC( byref x as LC ) as LC
+    return x
+end function
+function MakeOne( ) as L
+    dim as L t
+    t.n = 3
+    return t
+end function
+function FBare( ) as L
+    function = MakeOne
+end function
+function FTwice( byref x as L ) as L
+    function = x
+    function = x
+end function
+dim as L lv
+lv.n = 5
+dim as Big bg
+bg.n = 6
+dim as LC lcv
+lcv.n = 7
+print "a"; lv.SelfF( ).n
+print "b"; lv.SelfR( ).n
+print "c"; FVar( lv ).n
+print "d"; RVar( lv ).n
+print "e"; FDeref( @lv ).n
+print "f"; FBig( bg ).n
+print "g"; RBig( bg ).n
+print "h"; FLC( lcv ).n
+print "i"; RLC( lcv ).n
+print "j"; FTwice( lv ).n
+print "k"; FBare( ).n
+dim as L y
+y = MakeOne
+print "l"; y.n

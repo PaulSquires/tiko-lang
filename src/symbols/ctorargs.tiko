@@ -1,7 +1,62 @@
 '' ctorargs.tiko -- AN ARGUMENT A TYPE'S ONLY CONSTRUCTOR CANNOT TAKE, fbc's error 58.
 ''
 '' Included from latesweeps2.tiko, below declshape.tiko, in the same namespace and over the same Ctx.
+
+'' ...AND WHAT A DIRECT CALL REFUSES THAT ProcPtrArgBad_ DOES NOT ASK. 'T( v )' over one
+'' constructor is an ordinary call, so it takes the rule 'g( v )' over the same parameter takes
+'' (argmismatch.tiko AmBadPair_, which this pass cannot reach). Measured on fbc-modern 1.20,
+'' 2026-10-19, as 'var x = T( v )': lowering found no conversion for any of these and stopped
+'' on TKO0994.
 ''
+''     a pointer, a boolean or an enum into a string parameter      58
+''     an enum variable into 'byref as long'                        58
+''     a pointer into a boolean, a float, 'byref as long' or an     warning 2, then 24
+''         integer not of pointer size                              (58 for the byref)
+''     a float, a boolean or a narrower integer VARIABLE into a     warning 1, then 24
+''         pointer -- a literal, a constant or 'i + 1' binds
+''
+'' What binds and still had no constructor -- an enum into a pointer, a pointer into an enum --
+'' is structpick.tiko's LoneScalarStructor.
+private function ExplicitArgBad_ ( byref c as Ctx, byval pt as TypeId, byval arg as NodeId ) as boolean
+    if pt = TYPE_NONE then return false
+    dim as TypeId at = c.info->TypeOf_( arg )
+    if at = TYPE_NONE then return false
+    if c.ast->Kind( arg ) = N_UNARY then
+        dim as UnaryPayload ptr aup = _
+            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, arg )].data )]
+        if cast( TokenKind, aup->op ) = KW_BYVAL then return false
+    end if
+    dim as TypeId pv = c.types->Unqualify( pt )
+    dim as boolean isRef = (c.types->Kind( pv ) = TK_REFERENCE)
+    if isRef then pv = c.types->Unqualify( c.types->Inner( pv ) )
+    dim as TypeId av = c.types->Unqualify( at )
+    if c.types->Kind( av ) = TK_REFERENCE then av = c.types->Unqualify( c.types->Inner( av ) )
+    dim as TypeKind pk = c.types->Kind( pv )
+    dim as TypeKind ak = c.types->Kind( av )
+    dim as int32 pc = ArgClass_( c, pv )
+    dim as int32 ac = ArgClass_( c, av )
+    if pc = 1 then
+        return (ak = TK_POINTER) orelse (ac = 3) orelse (ak = TK_ENUM)
+    end if
+    if ak = TK_POINTER then
+        if pc = 3 then return true
+        if pc = 2 then
+            if isRef orelse IsFloatBuiltin_( c, pv ) then return true
+            return (c.types->Layout( pv ).size <> c.types->Layout( av ).size)
+        end if
+        return false
+    end if
+    if pk = TK_POINTER then
+        if ((ac = 2) orelse (ac = 3)) andalso NamedLvalue_( c, arg ) then
+            if (ac = 3) orelse IsFloatBuiltin_( c, av ) then return true
+            return (c.types->Layout( av ).size <> c.types->Layout( pv ).size)
+        end if
+        return false
+    end if
+    if (ak = TK_ENUM) andalso isRef andalso (pk <> TK_ENUM) then return NamedLvalue_( c, arg )
+    return false
+end function
+
 '' CheckDirectCallArgs_ (latechecks.tiko) judges a SUB or FUNCTION's arguments and leaves a
 '' structor alone, so 'T( 1, "hi" )' over 'constructor( byval a as long, byref w as long )'
 '' compiled, and the constructor read a string descriptor as its long. Measured on
@@ -56,7 +111,7 @@ private sub CheckCtorArgsOf_ _
         dim as TypeId pt = c.info->TypeOf_( pref )
         if pt = TYPE_NONE then continue for
         if (c.ast->nodes[cast( int32, prm )].flags and NF_BYREF) <> 0 then pt = c.types->Reference( pt )
-        if ProcPtrArgBad_( c, pt, warg ) then
+        if ProcPtrArgBad_( c, pt, warg ) orelse ExplicitArgBad_( c, pt, warg ) then
             c.diags->Report( TKO0698, PointRange( c.ast->Loc( warg ) ) )
             return
         end if
@@ -229,8 +284,9 @@ private function InitArgFit_ _
     return 0
 end function
 
-'' True when no constructor of 't' takes the initialiser 'init'.
-private function CtorInitRefused_ ( byref c as Ctx, byval t as TypeId, byval init as NodeId ) as boolean
+'' Is 't' a type these checks judge, and 'init' a value they judge? Not an anonymous,
+'' synthesised or generic type; not a UDT value (JudgeConversion_'s), a tuple or 'this'.
+private function StructorJudged_ ( byref c as Ctx, byref t as TypeId, byval init as NodeId ) as boolean
     t = c.types->Unqualify( t )
     if (t = TYPE_NONE) orelse (c.types->Kind( t ) <> TK_UDT) then return false
     dim as InternId tn = c.types->NameOf( t )
@@ -238,6 +294,7 @@ private function CtorInitRefused_ ( byref c as Ctx, byval t as TypeId, byval ini
     dim as string h = left( c.names->Spelling( tn ), 1 )
     if (h = "(") orelse (h = "$") orelse (h = "~") then return false
     if instr( c.names->Spelling( tn ), "<" ) > 0 then return false
+    if IsThisBase_( c, init ) then return false
     dim as TypeId av = c.info->TypeOf_( init )
     if av = TYPE_NONE then return false
     av = c.types->Unqualify( av )
@@ -249,16 +306,32 @@ private function CtorInitRefused_ ( byref c as Ctx, byval t as TypeId, byval ini
     case else
         return false
     end select
-    dim as Symbol ptr s = StructorOf_( c, t, "__ctor" )
-    if s = nullptr then return false
+    return true
+end function
+
+'' Does one of t's constructors ('__ctor') or 'let' operators ('let') take 'init' as its one
+'' argument? 1 none does -- none declared included -- 0 one does, -1 cannot tell.
+private function StructorChainFit_ _
+    ( byref c as Ctx, byval t as TypeId, byval init as NodeId, byref nm as string ) as int32
+
+    dim as Symbol ptr s = StructorOf_( c, t, nm )
+    if s = nullptr then
+        '' An inherited 'let' is not judged.
+        if nm = "let" then
+            if BaseOf_( c, t ) <> TYPE_NONE then
+                if DeclaresAnywhere_( c, BaseOf_( c, t ), "let" ) then return -1
+            end if
+        end if
+        return 1
+    end if
     dim as int32 guard = 0
     while (s <> nullptr) andalso (guard < 4096)
         guard += 1
-        if s->kind <> cast( uint8, SYM_PROC ) then return false
+        if s->kind <> cast( uint8, SYM_PROC ) then return -1
         dim as NodeId decl = cast( NodeId, s->payload )
-        if (decl = NODE_NONE) orelse (c.ast->Kind( decl ) <> N_PROC) then return false
+        if (decl = NODE_NONE) orelse (c.ast->Kind( decl ) <> N_PROC) then return -1
         dim as StmtPayload ptr pp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, decl )].data )]
-        if (pp->extra and PF_GENERIC_PROC) <> 0 then return false
+        if (pp->extra and PF_GENERIC_PROC) <> 0 then return -1
         '' One argument: a first parameter, every other one defaulted.
         dim as NodeId first_ = NODE_NONE
         dim as boolean oneArg = true
@@ -266,7 +339,7 @@ private function CtorInitRefused_ ( byref c as Ctx, byval t as TypeId, byval ini
             dim as NodeId prm = cast( NodeId, c.ast->children[pp->first + i] )
             if c.ast->Kind( prm ) <> N_PARAM then continue for
             dim as StmtPayload ptr psp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, prm )].data )]
-            if psp->op = cast( uint16, TK_ELLIPSIS ) then return false
+            if psp->op = cast( uint16, TK_ELLIPSIS ) then return -1
             if first_ = NODE_NONE then
                 first_ = prm
             elseif psp->b = NODE_NONE then
@@ -274,11 +347,41 @@ private function CtorInitRefused_ ( byref c as Ctx, byval t as TypeId, byval ini
             end if
         next
         if (first_ <> NODE_NONE) andalso oneArg then
-            if InitArgFit_( c, t, first_, init ) <> 1 then return false
+            dim as int32 fit = InitArgFit_( c, t, first_, init )
+            if fit <> 1 then return fit
         end if
         s = c.syms->SymbolAt( s->nextOverload )
     wend
-    return true
+    return 1
+end function
+
+'' True when no constructor of 't' takes the initialiser 'init'. A type with none is
+'' JudgeConversion_'s.
+private function CtorInitRefused_ ( byref c as Ctx, byval t as TypeId, byval init as NodeId ) as boolean
+    if StructorJudged_( c, t, init ) = false then return false
+    if StructorOf_( c, t, "__ctor" ) = nullptr then return false
+    return (StructorChainFit_( c, t, init, "__ctor" ) = 1)
+end function
+
+'' ...AND A FUNCTION'S RESULT. Measured on fbc-modern 1.20, 2026-10-19, a function 'as T' given
+'' a value that is not a T:
+''
+''     return v        a constructor taking v, as the initialiser's rule above, or failing
+''                     that an 'operator let' taking it -- 'return s' over 'constructor(
+''                     byval as long )' and 'let( byref as string )' builds by the let
+''     function = v    an 'operator let' taking v, and nothing else: it is an ASSIGNMENT,
+''                     so a constructor does not rescue it (Rescued_'s table)
+''
+'' -- otherwise error 181 (58 for a few), and with neither declared too. tiko accepted all
+'' of them, or stopped on TKO0994; and refused 'return d' over a type with only 'let(
+'' byval as long )', which fbc takes. 'byAssign' is true for 'function ='.
+private function ResultValueRefused_ _
+    ( byref c as Ctx, byval t as TypeId, byval v as NodeId, byval byAssign as boolean ) as boolean
+    if StructorJudged_( c, t, v ) = false then return false
+    if byAssign = false then
+        if StructorChainFit_( c, t, v, "__ctor" ) <> 1 then return false
+    end if
+    return (StructorChainFit_( c, t, v, "let" ) = 1)
 end function
 
 '' ...AND EACH ELEMENT OF AN ARRAY'S BRACE LIST: 'dim as T a( 0 to 1 ) = { 1, "x" }' is 24 for

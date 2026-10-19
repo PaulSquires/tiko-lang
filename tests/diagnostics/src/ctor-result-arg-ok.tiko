@@ -1,0 +1,88 @@
+'' ...and what fbc-modern 1.20 accepts into a function's UDT result still builds: 'return v' a
+'' constructor takes (a number, text, a literal, an integer of pointer size into a pointer), or
+'' failing that an 'operator let' takes; 'function = v' an 'operator let' takes; the type itself
+'' and 'this' either way.
+type VL
+    as long n
+    declare constructor( )
+    declare constructor( byval t as long )
+    declare function Self( ) as VL
+end type
+constructor VL( )
+end constructor
+constructor VL( byval t as long )
+    n = t
+end constructor
+function VL.Self( ) as VL
+    return this
+end function
+type BS
+    as long n
+    declare constructor( byref t as string )
+end type
+constructor BS( byref t as string )
+end constructor
+type PL
+    as long n
+    declare constructor( byval p as long ptr )
+end type
+constructor PL( byval p as long ptr )
+end constructor
+type LetL
+    as long n
+    declare operator let( byval t as long )
+end type
+operator LetL.let( byval t as long )
+end operator
+type Both
+    as long n
+    declare constructor( )
+    declare constructor( byval t as long )
+    declare operator let( byref s as string )
+end type
+constructor Both( )
+end constructor
+constructor Both( byval t as long )
+end constructor
+operator Both.let( byref s as string )
+end operator
+
+function R1( ) as VL
+    dim as double d = 2.5
+    return d
+end function
+function R2( ) as BS
+    dim as ustring u = "u"
+    return u
+end function
+function R3( ) as BS
+    return "lit"
+end function
+function R4( ) as PL
+    dim as integer i = 0
+    return i
+end function
+function R5( ) as LetL
+    dim as double d = 2.5
+    return d
+end function
+function R6( ) as Both
+    dim as string s = "s"
+    return s
+end function
+function R7( ) as VL
+    dim as VL v = 3
+    return v
+end function
+function F1( ) as LetL
+    function = 5
+end function
+function F2( ) as Both
+    dim as string s = "s"
+    function = s
+end function
+function F3( ) as VL
+    dim as VL v = 4
+    function = v
+end function
+print R1( ).n; R7( ).n

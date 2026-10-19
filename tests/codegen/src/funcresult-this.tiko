@@ -1,0 +1,31 @@
+'' 'function = this' COPIES THE RECEIVER into a by-value UDT result, as 'return this' does --
+'' over plain fields and over a type with constructors alike. The store was dropped (TKO0994):
+'' 'this' is typed 'T ptr', and the coercion had no destination size to load through it. The
+'' expected output is fbc-modern 1.20's.
+type Pair
+    as long a, b
+    declare function Self( ) as Pair
+end type
+function Pair.Self( ) as Pair
+    function = this
+end function
+type Counted
+    as long n
+    declare constructor( )
+    declare constructor( byval t as long )
+    declare function Self( ) as Counted
+end type
+constructor Counted( )
+end constructor
+constructor Counted( byval t as long )
+    n = t
+end constructor
+function Counted.Self( ) as Counted
+    function = this
+end function
+
+dim as Pair pv = ( 3, 4 )
+dim as Counted k = 7
+dim as Pair pv2 = pv.Self( )
+dim as Counted k2 = k.Self( )
+print pv2.a; pv2.b; k2.n

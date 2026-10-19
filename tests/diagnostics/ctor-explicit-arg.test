@@ -1,0 +1,19 @@
+'' 'T( v )' over one constructor takes the direct call's rule: a pointer, boolean or enum into a
+'' string parameter, an enum variable into 'byref as long', a pointer into a number or boolean,
+'' a long, double or boolean variable into a pointer -- fbc's 58 or 24. tiko stopped on TKO0994.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/ctor-explicit-arg.tiko -o tests/diagnostics/src/ctor-explicit-arg.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: ctor-explicit-arg.tiko(65,14): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: ctor-explicit-arg.tiko(66,14): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: ctor-explicit-arg.tiko(67,14): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: ctor-explicit-arg.tiko(68,14): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: ctor-explicit-arg.tiko(69,14): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: ctor-explicit-arg.tiko(70,14): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: ctor-explicit-arg.tiko(71,14): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: ctor-explicit-arg.tiko(72,14): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: ctor-explicit-arg.tiko(73,14): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: ctor-explicit-arg.tiko(74,15): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: ctor-explicit-arg.tiko(75,15): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-NOT: TKO0994
+'' EXPECT-MAX-DIAG: 11
