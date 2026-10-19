@@ -1,0 +1,15 @@
+'' A STRING INTRINSIC OVER A USTRING AS A 'byval as ustring' ARGUMENT is copied into the
+'' callee's temporary as fbc does: 'vr = fb_UStrUcase( &U, -1 ); fb_UStrAssign( &TMP, -1, vr,
+'' -1, 0 ); TAKEU( &TMP )'. ucase/lcase/trim/ltrim/rtrim/mid reached an arm with no lowering
+'' for an intrinsic and the statement was dropped (TKO0994), and left/right over a chain were
+'' refused (TKO0801) -- tracks-2026 TB-008, every PsControls setter taking 'byval Text as ustring'.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ustring-intrin-byval-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_UStrUcase
+'' EXPECT-OUT: fb_UStrLcase
+'' EXPECT-OUT: fb_UStrTrim
+'' EXPECT-OUT: fb_UStrMid
+'' EXPECT-OUT: fb_UStrAssign

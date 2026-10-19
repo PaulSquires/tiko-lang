@@ -368,8 +368,17 @@ function ByvalStrTemp_ _
     '' A UTF-16 CONCATENATION FOR A USTRING PARAMETER is built as one, into the copy:
     '' 'bv( a & a )' over 'byval u as ustring' went through fb_UStrAssignToA and the
     '' callee read a NARROW descriptor as UTF-16 -- mojibake, and an over-read of 2 x len.
-    if IsUStringType( c, pt ) andalso (c.ast->Kind( Unparen_( c, argNode ) ) = Tko.N_BINARY) then
-        if UStrResultArgTemp_( c, argNode, pt, outa, outSlot, true ) then return true
+    '' ...AND A STRING INTRINSIC OVER A USTRING ('TakeU( ucase( u ) )', mid, trim, ltrim, rtrim,
+    '' lcase): UStrResultArgTemp_ builds its descriptor through LowerStrRvalue and copies it, as
+    '' fbc does ('vr = fb_UStrUcase( &U, -1 ); fb_UStrAssign( &TMP, -1, vr, -1, 0 )'). Only the
+    '' concatenation asked it, so these reached the ustring-source arm below, whose LowerExpr has
+    '' no arm for an intrinsic: the statement was dropped (TKO0994) -- tracks-2026 TB-008, every
+    '' PsControls setter taking 'byval Text as ustring'.
+    if IsUStringType( c, pt ) then
+        dim as Tko.NodeKind uak = c.ast->Kind( Unparen_( c, argNode ) )
+        if (uak = Tko.N_BINARY) orelse (uak = Tko.N_CALL) then
+            if UStrResultArgTemp_( c, argNode, pt, outa, outSlot, true ) then return true
+        end if
     end if
     '' A 'ustring * N' FOR A USTRING PARAMETER is copied with its TAGGED length, as fbc does:
     ''     fb_UStrAssign( &TMP, -1, UF, <tag>, 0 ); TAKEU( &TMP ); fb_UStrDelete( &TMP )
@@ -597,8 +606,9 @@ function UStrResultArgTemp_ _
                 @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, ucp->target )].data )]
             select case Tko.Text.LowerAscii( c.names->Spelling( uip->name ) )
             case "ucase", "lcase", "trim", "ltrim", "rtrim", "left", "right", "mid"
-                intrin = IsUStringType( c, c.info->TypeOf_( _
-                    cast( Tko.NodeId, c.ast->children[ucp->first] ) ) )
+                dim as Tko.NodeId ua0 = cast( Tko.NodeId, c.ast->children[ucp->first] )
+                '' ...or a ustring CHAIN, which Check types STRING: 'TakeU( ucase( u & "x" ) )'
+                intrin = IsUStringType( c, c.info->TypeOf_( ua0 ) ) orelse IsUStrChain_( c, ua0 )
             end select
         end if
         if intrin then
