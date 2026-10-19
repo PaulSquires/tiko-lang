@@ -1,0 +1,54 @@
+'' RUN: a 'ustring * N' declared or assigned from a wide chain, wchr( ), wstr( ), a wstring
+'' variable or deref, a narrow variable, chain or call, a ustring call or chain -- each was TKO0994
+'' or the wrong text. Expected output is fbc-modern 1.20's, byte for byte.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/fixustr-init.tiko -o tests/codegen/fixustrinit.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/fixustrinit.exe
+'' RUN: tests/codegen/fixustrinit.exe
+'' EXPECT-RUN-OUT: dim nw [héllo] 5
+'' EXPECT-RUN-OUT: dim ww [héllo] 5
+'' EXPECT-RUN-OUT: dim wchr [éABCD] 5
+'' EXPECT-RUN-OUT: dim wstr [heyya] 5
+'' EXPECT-RUN-OUT: dim wstrv [narrow] 6
+'' EXPECT-RUN-OUT: dim ufn [héuuu] 5
+'' EXPECT-RUN-OUT: dim sfn [fstring] 7
+'' EXPECT-RUN-OUT: dim nn [abcdef] 6
+'' EXPECT-RUN-OUT: dim nv [narrow!] 7
+'' EXPECT-RUN-OUT: dim uvar [héu0xy] 6
+'' EXPECT-RUN-OUT: dim ufix [qéq0xy] 6
+'' EXPECT-RUN-OUT: dim uc [héu0xy!] 7
+'' EXPECT-RUN-OUT: dim ucase [HÉU0XY] 6
+'' EXPECT-RUN-OUT: dim wvar [héw0xy] 6
+'' EXPECT-RUN-OUT: dim wc [héw0xy!] 7
+'' EXPECT-RUN-OUT: dim svar [narrow] 6
+'' EXPECT-RUN-OUT: dim zvar [zstrng] 6
+'' EXPECT-RUN-OUT: dim fsvar [fixed ] 6
+'' EXPECT-RUN-OUT: dim trim [narrow] 6
+'' EXPECT-RUN-OUT: dim wptr [wépf] 4
+'' EXPECT-RUN-OUT: let nw [héllo] 5
+'' EXPECT-RUN-OUT: let ww [héllo] 5
+'' EXPECT-RUN-OUT: let wchr [éABCD] 5
+'' EXPECT-RUN-OUT: let wstr [heyya] 5
+'' EXPECT-RUN-OUT: let wstrv [narrow] 6
+'' EXPECT-RUN-OUT: let ufn [héuuu] 5
+'' EXPECT-RUN-OUT: let sfn [fstring] 7
+'' EXPECT-RUN-OUT: let nn [abcdef] 6
+'' EXPECT-RUN-OUT: let nv [narrow!] 7
+'' EXPECT-RUN-OUT: let uvar [héu0xy] 6
+'' EXPECT-RUN-OUT: let ufix [qéq0xy] 6
+'' EXPECT-RUN-OUT: let uc [héu0xy!] 7
+'' EXPECT-RUN-OUT: let ucase [HÉU0XY] 6
+'' EXPECT-RUN-OUT: let wvar [héw0xy] 6
+'' EXPECT-RUN-OUT: let wc [héw0xy!] 7
+'' EXPECT-RUN-OUT: let svar [narrow] 6
+'' EXPECT-RUN-OUT: let zvar [zstrng] 6
+'' EXPECT-RUN-OUT: let fsvar [fixed ] 6
+'' EXPECT-RUN-OUT: let trim [narrow] 6
+'' EXPECT-RUN-OUT: let wptr [wépf] 4
+'' EXPECT-RUN-OUT: field [héw0xy]
+'' EXPECT-RUN-OUT: field [narrow!]
+'' EXPECT-RUN-OUT: elems [narrow|Aé|héw0xy]
+'' EXPECT-RUN-OUT: self [abécd] 5
+'' EXPECT-RUN-OUT: self [narrowabécd] 11

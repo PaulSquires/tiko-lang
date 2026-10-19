@@ -624,8 +624,14 @@ sub LowerVarItem_ _
                 end if
             end if
             if needsStore then
-                if LowerZstrAssignTo( c, zdst, zn2, ip->b, true, (zk2 = 4) ) then _
+                if LowerZstrAssignTo( c, zdst, zn2, ip->b, true, (zk2 = 4) ) then
                     needsStore = false
+                elseif zk2 = 4 then
+                    '' A 'ustring * N' NOT INITIALISED IS A DECLINE, not the plain store
+                    '' below: that wrote the source's first eight bytes over the buffer.
+                    SkipHere( c )
+                    needsStore = false
+                end if
             end if
         end if
     end if
