@@ -1,0 +1,20 @@
+'' A constructor's defaulted string parameter (byval or byref, string or ustring) gets a descriptor
+'' built from the default, as fbc does; tiko passed the literal's address: 'T( x )', 'var', 'new'
+'' declined (TKO0994) and 'dim as T v = x' read a garbage length. fbc-modern prints the same.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/ctor-string-default-arg.tiko -o tests/codegen/ctorstringdefaultarg.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/ctorstringdefaultarg.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: [,]true 7
+'' EXPECT-RUN-OUT: [;]true 7
+'' EXPECT-RUN-OUT: [,]true 7
+'' EXPECT-RUN-OUT: [,]true 7
+'' EXPECT-RUN-OUT: [,]true 7
+'' EXPECT-RUN-OUT: [,]true 7
+'' EXPECT-RUN-OUT:  112
+'' EXPECT-RUN-OUT:  312
+'' EXPECT-RUN-OUT:  412
+'' EXPECT-RUN-OUT:  532
+'' EXPECT-RUN-OUT:  612
