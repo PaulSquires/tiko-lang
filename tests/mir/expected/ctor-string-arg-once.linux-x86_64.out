@@ -102,15 +102,15 @@ func void BYVALARG() {
   local agg $tmp1 size 24
   entry0:
     %1 = alloca ptr h
-    %2 = alloca ptr $tmp1
-    %3 = field.addr @$tmp1, 0
-    store %3, 0
-    %4 = field.addr @$tmp1, 8
+    %2 = call ptr FROMNARROW()
+    %3 = alloca ptr $tmp1
+    %4 = field.addr @$tmp1, 0
     store %4, 0
-    %5 = field.addr @$tmp1, 16
+    %5 = field.addr @$tmp1, 8
     store %5, 0
-    %6 = call ptr FROMNARROW()
-    %7 = call.rtl ptr fb_UStrAssign(@$tmp1, -1, %6, -1, 0)
+    %6 = field.addr @$tmp1, 16
+    store %6, 0
+    %7 = call.rtl ptr fb_UStrAssign(@$tmp1, -1, %2, -1, 0)
     call void _ZN7HOLDERVC1E9FBUSTRING(@h, @$tmp1)
     call.rtl void fb_UStrDelete(@$tmp1)
     call void _ZN7HOLDERVD1Ev(@h)
