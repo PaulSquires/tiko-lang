@@ -71,7 +71,15 @@ sub ByvalIndirectRetemp_ _
 
     if ByvalUdtIndirect_( c, pty ) = false then return
     dim as MirValue tv
-    if ByrefAggTempOf_( c, rv, pty, tv ) then rv = tv
+    if ByrefAggTempOf_( c, rv, pty, tv ) = false then return
+    rv = tv
+    '' ...AND THE CALLER DESTROYS IT after the call, as for a written argument (see
+    '' ByvalUdtIndirect_): five 'Wr( .. )' calls over that default built five D2s and
+    '' destroyed none, where a plain 'sub G( byval q as D2 = D2( 9 ) )' destroys each.
+    if TypeNeedsDtor_( c, pty ) then
+        c.udtTemps.Push( cast( uint32, tv.id ) )
+        c.udtTempTypes.Push( cast( uint32, pty ) )
+    end if
 end sub
 
 '' A BYVAL default argument, lowered and then given that home. EmitStructorCall's loop

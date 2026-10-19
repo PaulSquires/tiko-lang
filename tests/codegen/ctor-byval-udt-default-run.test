@@ -1,0 +1,16 @@
+'' A constructor's 'byval q as D2 = D2( 9 )' default, D2 with a destructor (passed indirectly):
+'' 'Wr( 1 )' and 'var b = Wr( 2 )' passed the loaded aggregate where the slot wants a pointer to a
+'' copy (clang, TKO0113), and no call shape destroyed the copy. NOT fbc's output: fbc-modern never
+'' constructs that temporary and prints 0 for q -- see ByvalIndirectRetemp_ in lowerbyref.tiko.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/ctor-byval-udt-default.tiko -o tests/codegen/ctorbyvaludtdefault.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/ctorbyvaludtdefault.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  3 9
+'' EXPECT-RUN-OUT:  4 9
+'' EXPECT-RUN-OUT:  1 9
+'' EXPECT-RUN-OUT:  2 9
+'' EXPECT-RUN-OUT:  5 9
+'' EXPECT-RUN-OUT:  5 5
