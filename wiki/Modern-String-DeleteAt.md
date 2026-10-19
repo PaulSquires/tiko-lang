@@ -2,7 +2,7 @@
 
 # DeleteAt
 
-O(n)
+Deletes a number of characters at a position.
 
 ## Syntax
 

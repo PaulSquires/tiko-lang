@@ -2,6 +2,8 @@
 
 # TuiBuffer.Count
 
+Returns the number of cells: columns times rows.
+
 ## Syntax
 
 ```freebasic

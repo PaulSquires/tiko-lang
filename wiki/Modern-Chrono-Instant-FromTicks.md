@@ -2,6 +2,8 @@
 
 # Instant.FromTicks
 
+Creates a moment from 100 ns ticks since 0001-01-01, or Invalid if out of range.
+
 ## Syntax
 
 ```freebasic

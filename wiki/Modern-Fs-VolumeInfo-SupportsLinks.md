@@ -2,6 +2,8 @@
 
 # VolumeInfo.SupportsLinks
 
+Returns true if the volume can hold symbolic links; false is certain, true a best guess.
+
 ## Syntax
 
 ```freebasic

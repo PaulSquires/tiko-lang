@@ -2,7 +2,7 @@
 
 # Tally
 
-Non-overlapping occurrences. "aaaa" contains "aa" TWICE.
+Counts how many times the text occurs, without overlaps.
 
 ## Syntax
 

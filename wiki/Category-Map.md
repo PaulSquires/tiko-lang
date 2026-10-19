@@ -215,15 +215,61 @@ Complexity is ASSERTED, not assumed: 100k insertions must respect the 0.75 load 
 
 generics/fail-container-nohash.bas pins the missing-HashOf diagnostic.
 
+<!-- finder:start -->
+
 ## API reference
 
-One page per entry, 14 in all:
+Every entry, grouped by task. [Collections](Functions-Collections) lists them beside the rest of the area.
 
-|   |   |   |   |   |   |
-|---|---|---|---|---|---|
-| [Add](Modern-Map-Add) | [Contains](Modern-Map-Contains) | [IsEmpty](Modern-Map-IsEmpty) | [MapIterator](Modern-Map-MapIterator) | [Pairs](Modern-Map-Pairs) | [Reserve](Modern-Map-Reserve) |
-| [Capacity](Modern-Map-Capacity) | [Count](Modern-Map-Count) | [Keys](Modern-Map-Keys) | [MapPairIter](Modern-Map-MapPairIter) | [Put](Modern-Map-Put) | [TryGet](Modern-Map-TryGet) |
-| [Clear](Modern-Map-Clear) | [GetIterator](Modern-Map-GetIterator) | [Map](Modern-Map-Map) | [MapPairView](Modern-Map-MapPairView) | [Remove](Modern-Map-Remove) | [Values](Modern-Map-Values) |
+### Choose a container
+
+| Function | What it does | From |
+|---|---|---|
+| [Map](Modern-Map-Map) | Holds key and value pairs in a hash table, so you find a value by its key. | `std/containers` |
+
+### Map: add and change
+
+| Function | What it does | From |
+|---|---|---|
+| [Map.Put](Modern-Map-Put) | Stores a value under a key, replacing any old one; returns true if the key was new. | `std/containers` |
+| [Map.Add](Modern-Map-Add) | Adds a key and value if the key is new; an existing value is left alone. | `std/containers` |
+| [Map.Remove](Modern-Map-Remove) | Removes a key and its value; returns true if the key was there. | `std/containers` |
+| [Map.Clear](Modern-Map-Clear) | Removes every entry. | `std/containers` |
+
+### Map: look up
+
+| Function | What it does | From |
+|---|---|---|
+| [Map.TryGet](Modern-Map-TryGet) | Copies the value for a key into a variable; returns false, adding nothing, if absent. | `std/containers` |
+| [Map.Contains](Modern-Map-Contains) | Returns true if the key is present, without adding it. | `std/containers` |
+| [Map.Count](Modern-Map-Count) | Returns the number of entries; reading an absent key with m[ k ] adds one. | `std/containers` |
+| [Map.IsEmpty](Modern-Map-IsEmpty) | Returns true if the map has no entries. | `std/containers` |
+
+### Map: list keys and values
+
+| Function | What it does | From |
+|---|---|---|
+| [Map.Keys](Modern-Map-Keys) | Returns a copy of all the keys as an Array, in no particular order. | `std/containers` |
+| [Map.Values](Modern-Map-Values) | Returns a copy of all the values as an Array, in no particular order. | `std/containers` |
+| [Map.Pairs](Modern-Map-Pairs) | Returns a view that lets for each (k, v) give each key and value as two variables. | `std/containers` |
+
+### Walk a container step by step
+
+| Function | What it does | From |
+|---|---|---|
+| [Map.GetIterator](Modern-Map-GetIterator) | Returns an iterator over the entries, each a pair read through .key and .value. | `std/containers` |
+| [MapIterator](Modern-Map-MapIterator) | Holds a position in a Map; each step gives a pair read through .key and .value. | `std/containers` |
+| [MapPairView](Modern-Map-MapPairView) | Holds the view that Map.Pairs returns, for for each (k, v) to walk. | `std/containers` |
+| [MapPairIter](Modern-Map-MapPairIter) | Holds a position in Map.Pairs; each step gives the key and value as a tuple. | `std/containers` |
+
+### Reserve room ahead of time
+
+| Function | What it does | From |
+|---|---|---|
+| [Map.Capacity](Modern-Map-Capacity) | Returns the number of slots in the table, always a power of two. | `std/containers` |
+| [Map.Reserve](Modern-Map-Reserve) | Makes room for n entries, so filling the map does not have to regrow it. | `std/containers` |
+
+<!-- finder:end -->
 
 ---
 

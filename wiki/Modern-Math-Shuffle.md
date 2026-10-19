@@ -2,6 +2,8 @@
 
 # Shuffle
 
+Shuffles an array in place so that every order is equally likely.
+
 ## Syntax
 
 ```freebasic

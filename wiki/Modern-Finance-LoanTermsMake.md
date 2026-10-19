@@ -2,6 +2,8 @@
 
 # LoanTermsMake
 
+Returns loan terms with the payment frequency and compounding you choose.
+
 ## Syntax
 
 ```freebasic

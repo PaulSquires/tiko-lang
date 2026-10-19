@@ -2,6 +2,8 @@
 
 # TuiRedraw
 
+Returns a command that draws the next frame; only the cells that changed are sent.
+
 ## Syntax
 
 ```freebasic

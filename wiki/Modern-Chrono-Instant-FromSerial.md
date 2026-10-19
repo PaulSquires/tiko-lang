@@ -2,6 +2,8 @@
 
 # Instant.FromSerial
 
+Creates a date-time from a date serial, the days since 1899-12-30.
+
 ## Syntax
 
 ```freebasic

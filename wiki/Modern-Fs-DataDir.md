@@ -2,7 +2,7 @@
 
 # DataDir
 
-FsResultUStr -- where user data files belong
+Returns the folder for user data files, such as AppData\Local or ~/.local/share.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # TuiCell
 
+Holds one character cell: the character, its style and its width in columns.
+
 ## Syntax
 
 ```freebasic

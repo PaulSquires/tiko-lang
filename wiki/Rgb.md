@@ -2,7 +2,7 @@
 
 # RGB
 
-Computes a valid color value for hi/truecolor modes
+Returns an opaque colour value from red, green and blue parts of 0 to 255.
 
 ## Syntax
 

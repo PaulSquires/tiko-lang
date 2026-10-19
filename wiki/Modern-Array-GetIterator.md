@@ -2,6 +2,8 @@
 
 # GetIterator
 
+Returns an iterator over the elements, for stepping through them by hand.
+
 ## Syntax
 
 ```freebasic

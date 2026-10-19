@@ -2,7 +2,7 @@
 
 # CIsInfinite
 
-True when either component is infinite.
+Returns true if either part of a complex number is infinite.
 
 ## Syntax
 

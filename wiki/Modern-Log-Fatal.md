@@ -2,7 +2,7 @@
 
 # Fatal
 
-Logs at FATAL level, either directly or by starting a field chain.
+Logs a message at the most severe level, or returns a record; it does not end the program.
 
 ## Syntax
 

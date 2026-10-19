@@ -2,7 +2,7 @@
 
 # TimeSpan.TimeSpan
 
-zero
+Creates a duration from ticks, or from hours, minutes and seconds, with or without days.
 
 ## Syntax
 

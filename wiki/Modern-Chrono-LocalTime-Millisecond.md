@@ -2,6 +2,8 @@
 
 # LocalTime.Millisecond
 
+Returns the milliseconds within the second, 0 to 999.
+
 ## Syntax
 
 ```freebasic

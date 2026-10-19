@@ -2,7 +2,7 @@
 
 # Spc
 
-Output function to skip spaces when writing to screen or file
+Skips a number of columns inside a Print, leaving those cells unchanged.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # TuiTextInputState
 
+Holds a text box's text, cursor, selection and scroll position.
+
 ## Syntax
 
 ```freebasic

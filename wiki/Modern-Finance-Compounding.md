@@ -2,6 +2,8 @@
 
 # Compounding
 
+Lists how often interest compounds, as periods per year, plus simple and continuous.
+
 ## Syntax
 
 ```freebasic

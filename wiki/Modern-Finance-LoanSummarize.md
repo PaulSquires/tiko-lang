@@ -2,6 +2,8 @@
 
 # LoanSummarize
 
+Returns a loan's totals, payment count and payoff date, and what extra payments save.
+
 ## Syntax
 
 ```freebasic

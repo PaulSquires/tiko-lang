@@ -2,6 +2,8 @@
 
 # NetPresentValue
 
+Returns the net present value of flows at a rate; the first flow is not discounted.
+
 ## Syntax
 
 ```freebasic

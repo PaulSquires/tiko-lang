@@ -2,6 +2,8 @@
 
 # TuiScreen.Front
 
+Returns the buffer the terminal is taken to show: the last frame sent.
+
 ## Syntax
 
 ```freebasic

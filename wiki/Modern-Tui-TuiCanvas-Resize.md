@@ -2,6 +2,8 @@
 
 # TuiCanvas.Resize
 
+Changes the canvas size in cells and clears it.
+
 ## Syntax
 
 ```freebasic

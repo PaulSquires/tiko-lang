@@ -2,6 +2,8 @@
 
 # LoanPrincipalBetween
 
+Returns the principal repaid across a range of periods, extra payments included.
+
 ## Syntax
 
 ```freebasic

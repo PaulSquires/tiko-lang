@@ -2,6 +2,8 @@
 
 # DecimalMinValue
 
+Returns the most negative value a Decimal can hold.
+
 ## Syntax
 
 ```freebasic

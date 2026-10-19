@@ -2,6 +2,8 @@
 
 # Stopwatch.Stopwatch
 
+Creates a stopped stopwatch on the monotonic clock, which never jumps.
+
 ## Syntax
 
 ```freebasic

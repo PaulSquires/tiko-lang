@@ -2,7 +2,7 @@
 
 # Deallocate
 
-Frees previously allocated memory
+Frees memory from Allocate, CAllocate or Reallocate; does nothing for a null pointer.
 
 ## Syntax
 

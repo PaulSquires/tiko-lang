@@ -2,6 +2,8 @@
 
 # TuiError
 
+Holds a terminal error: a code and what was being attempted.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # OpenOptionsAppend
 
-OpenOptions
+Returns the OpenOptions for adding to the end of a file, creating it if needed.
 
 ## Syntax
 

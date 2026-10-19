@@ -2,7 +2,7 @@
 
 # IsValid
 
-Whether this Currency holds a real amount.
+Returns false if the Currency is Invalid; the only reliable test for a bad value.
 
 ## Syntax
 

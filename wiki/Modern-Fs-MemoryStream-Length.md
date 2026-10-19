@@ -2,7 +2,7 @@
 
 # MemoryStream.Length
 
-longint
+Returns the number of bytes held, whatever the position.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # Overwrite
 
+Chooses whether CopyDir replaces files already at the destination; false by default.
+
 ## Syntax
 
 ```freebasic

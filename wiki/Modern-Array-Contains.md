@@ -2,6 +2,8 @@
 
 # Contains
 
+Returns true if any element equals the value.
+
 ## Syntax
 
 ```freebasic

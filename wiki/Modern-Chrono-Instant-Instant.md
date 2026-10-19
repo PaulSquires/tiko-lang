@@ -2,6 +2,8 @@
 
 # Instant.Instant
 
+Creates a moment on the UTC timeline from a tick count; Invalid with no argument.
+
 ## Syntax
 
 ```freebasic

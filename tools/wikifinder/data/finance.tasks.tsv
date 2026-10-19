@@ -1,0 +1,29 @@
+# Money and finance: task headings in display order, pages to skip, see-also links.
+#   task    <task id>  <heading>
+#   ignore  <page>  <reason>
+#   seealso <page>  <label>
+task	make	Make a money value
+task	check	Check and convert a value
+task	consts	Zero, one, limits and Invalid
+task	round	Round and split amounts
+task	accum	Total many amounts without rounding drift
+task	policy	Choose a rounding policy
+task	errors	Handle a finance error
+task	rates	Convert interest rates
+task	interest	Simple interest and day counts
+task	growth	Grow and discount over periods
+task	tvm	Present value, future value and payments
+task	loan	Set up a loan and its payment
+task	schedule	Walk an amortization schedule
+task	loanq	Loan totals, payoff and extra payments
+task	cash	Appraise cash flows: NPV, IRR and payback
+task	deprec	Depreciate an asset
+task	returns	Measure investment returns
+task	risk	Measure risk and drawdowns
+task	bench	Compare a portfolio with its benchmark
+task	solver	Find a root of your own function
+seealso	Category-Finance	Finance guide
+seealso	Category-Result	Result, which fallible finance calls return
+seealso	Category-Optional	Optional, which the parse functions return
+seealso	Category-Date-and-Time-Chrono	Date and Time, for the dates of dated flows
+seealso	Functions-Text#format-money	Format money

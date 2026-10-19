@@ -2,6 +2,8 @@
 
 # AmortizationSchedule
 
+Holds a loan schedule's terms and gives its scheduled payment count and payment.
+
 ## Syntax
 
 ```freebasic

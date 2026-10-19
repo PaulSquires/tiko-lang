@@ -2,7 +2,7 @@
 
 # TextWriter
 
-Text to any Stream, as UTF-8.
+Holds a writer that sends text to any Stream as UTF-8, with an optional BOM.
 
 ## Syntax
 

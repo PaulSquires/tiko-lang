@@ -2,6 +2,8 @@
 
 # TuiMagenta
 
+Returns the classic magenta, palette colour 5.
+
 ## Syntax
 
 ```freebasic

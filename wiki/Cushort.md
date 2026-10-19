@@ -2,7 +2,7 @@
 
 # CUShort
 
-Converts numeric or string expression to an unsigned integer (UShort)
+Converts a number or string to a UShort, rounding to the nearest; no overflow check.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # TimeValue
 
-Gets a Date Serial from a time string
+Returns the date serial of a time written like 23:59:59 or 11:59:59PM.
 
 ## Syntax
 

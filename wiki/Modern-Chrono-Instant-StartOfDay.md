@@ -2,6 +2,8 @@
 
 # Instant.StartOfDay
 
+Returns midnight at the start of the same day, keeping the offset.
+
 ## Syntax
 
 ```freebasic

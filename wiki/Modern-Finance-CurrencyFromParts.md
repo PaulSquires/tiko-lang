@@ -2,6 +2,8 @@
 
 # CurrencyFromParts
 
+Returns a Currency from whole units and a ten-thousandths part, exactly.
+
 ## Syntax
 
 ```freebasic

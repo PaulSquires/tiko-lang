@@ -2,7 +2,7 @@
 
 # PadLeft
 
-O(width)
+Pads on the left to a width, with spaces or a given character.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # LogEvent.ConsoleSink
 
-stderr, own TextRenderer
+Holds a sink that writes to stderr or stdout, in colour only on a terminal.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # DecimalCompare
 
+Returns -1, 0 or 1 comparing two Decimals by value, or -2 if either is Invalid.
+
 ## Syntax
 
 ```freebasic

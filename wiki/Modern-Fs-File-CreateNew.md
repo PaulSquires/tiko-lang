@@ -2,7 +2,7 @@
 
 # File.CreateNew
 
-FsResultBool
+Creates a new file for writing; fails if one is already there.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # TuiBlock.AddTitle
 
+Adds a title to one side of the border, aligned left, centre or right.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # ReturnSummary
 
+Holds the figures SummarizeReturns computes, one field each.
+
 ## Syntax
 
 ```freebasic

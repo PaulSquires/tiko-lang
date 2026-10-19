@@ -2,7 +2,7 @@
 
 # Minute
 
-Gets the minute of the hour from a Date Serial
+Returns the minute of a date serial.
 
 ## Syntax
 

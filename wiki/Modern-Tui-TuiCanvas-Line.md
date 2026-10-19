@@ -2,6 +2,8 @@
 
 # TuiCanvas.Line_
 
+Draws a straight line of dots between two points.
+
 ## Syntax
 
 ```freebasic

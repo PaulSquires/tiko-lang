@@ -2,6 +2,8 @@
 
 # TuiLeaveSeq
 
+Returns the escape sequence that Leave writes to undo those options.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # TryParseSingle
 
+Parses a whole string as a Single, returning an empty Optional if it is not one.
+
 ## Syntax
 
 ```freebasic

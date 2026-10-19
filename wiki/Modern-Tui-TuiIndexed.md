@@ -2,6 +2,8 @@
 
 # TuiIndexed
 
+Returns a colour from the 256-colour palette by its number.
+
 ## Syntax
 
 ```freebasic

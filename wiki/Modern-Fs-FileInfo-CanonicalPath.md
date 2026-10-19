@@ -2,7 +2,7 @@
 
 # FileInfo.CanonicalPath
 
-FsResultUStr
+Returns the real path with links resolved; it must exist unless allowMissing is true.
 
 ## Syntax
 

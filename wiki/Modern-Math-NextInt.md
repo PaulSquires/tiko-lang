@@ -2,7 +2,7 @@
 
 # NextInt
 
-INCLUSIVE both ends, matching tiko's TO
+Returns a random whole number from lo to hi, both included, without bias.
 
 ## Syntax
 

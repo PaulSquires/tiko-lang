@@ -2,7 +2,7 @@
 
 # (Print | ?) Using
 
-Outputs formatted text to the screen or output device.
+Writes values formatted by a template such as "##.##" or "&".
 
 ## Syntax
 

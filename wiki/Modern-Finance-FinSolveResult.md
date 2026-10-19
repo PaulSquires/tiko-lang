@@ -2,6 +2,8 @@
 
 # FinSolveResult
 
+Holds the root found, its residual, the iteration count and whether it converged.
+
 ## Syntax
 
 ```freebasic

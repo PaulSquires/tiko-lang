@@ -2,7 +2,7 @@
 
 # Environ
 
-Returns the value of a system environment variable
+Returns the value of an environment variable, or an empty string if it is not set.
 
 ## Syntax
 

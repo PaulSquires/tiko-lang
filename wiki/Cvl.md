@@ -2,7 +2,7 @@
 
 # CVL
 
-Converts a single-precision floating-point number or four-byte string to an integer (Long) variable
+Reads a Long back from a 4-byte string.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # MinValue
 
-The smallest value added to a running accumulator.
+Returns the smallest value added so far.
 
 ## Syntax
 

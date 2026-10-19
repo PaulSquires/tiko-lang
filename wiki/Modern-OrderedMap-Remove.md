@@ -2,6 +2,8 @@
 
 # OrderedMap.Remove
 
+Removes a key and its value; returns true if the key was there.
+
 ## Syntax
 
 ```freebasic

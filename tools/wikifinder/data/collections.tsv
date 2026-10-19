@@ -1,0 +1,198 @@
+# Collections functions. One row per function, per task it belongs to. Tab-separated; see finder.py for the rules.
+page	name	qualifier	task	from	rank	summary
+Modern-Array-Array	Array	-	choose	std/containers	-	Holds a growable list of values in order, reached by position from 0.
+Modern-Map-Map	Map	-	choose	std/containers	-	Holds key and value pairs in a hash table, so you find a value by its key.
+Modern-Set-Set	Set	-	choose	std/containers	-	Holds each value at most once, in no particular order.
+Modern-OrderedMap-OrderedMap	OrderedMap	-	choose	std/containers	-	Holds key and value pairs kept sorted by key.
+Modern-OrderedSet-OrderedSet	OrderedSet	-	choose	std/containers	-	Holds each value at most once, kept in sorted order.
+Modern-LinkedList-LinkedList	LinkedList	-	choose	std/containers	-	Holds a chain of values that is quick to add to and remove from at either end.
+Category-Deque	Deque	-	choose	std/containers	-	Holds a sequence that is quick to change at both ends and can be read by index.
+Category-PriorityQueue	PriorityQueue	-	choose	std/containers	-	Holds values and hands them back smallest first.
+Category-PriorityQueue#any-other-order-priorityqueueby	PriorityQueueBy	-	choose	std/containers	-	Holds values and hands them back in the order your comparer gives.
+Category-BitSet	BitSet	-	choose	std/containers	-	Holds a set of small non-negative whole numbers, one bit each.
+Modern-Array-Push	Array.Push	-	arradd	std/containers	1	Adds a value at the end, growing the array as needed.
+Modern-Array-Pop	Array.Pop	-	arradd	std/containers	-	Removes and returns the last element, or a default value if the array is empty.
+Modern-Array-Insert	Array.Insert	-	arradd	std/containers	-	Inserts a value at a position, moving the later elements up one place.
+Modern-Array-Remove	Array.Remove	-	arradd	std/containers	-	Removes the element at a position, keeping the rest in order.
+Modern-Array-RemoveSwap	Array.RemoveSwap	-	arradd	std/containers	-	Removes the element at a position quickly by moving the last element into its place.
+Modern-Array-Clear	Array.Clear	-	arradd	std/containers	-	Removes every element but keeps the allocated room.
+Modern-Array-At	Array.At	-	arrread	std/containers	-	Returns a reference to the element at a position, like a[ i ].
+Modern-Array-Count	Array.Count	-	arrread	std/containers	-	Returns the number of elements; the valid indices are 0 to Count minus 1.
+Modern-Array-IsEmpty	Array.IsEmpty	-	arrread	std/containers	-	Returns true if the array has no elements.
+Modern-Array-ForEach	ForEach	-	arrread	std/containers	-	Calls a procedure on every element in order, passing each by reference.
+Modern-Array-IndexOf	IndexOf	-	arrfind	std/containers	-	Returns the index of the first element equal to a value, or -1 if there is none.
+Modern-Array-Contains	Contains	-	arrfind	std/containers	-	Returns true if any element equals the value.
+Category-Searching#smallest-and-largest	MinIndex	-	arrfind	std/containers	-	Returns the index of the first smallest element, or -1 if the array is empty.
+Category-Searching#smallest-and-largest	MinIndexBy	-	arrfind	std/containers	-	Returns the index of the first smallest element by your comparer, or -1 if empty.
+Category-Searching#smallest-and-largest	MaxIndex	-	arrfind	std/containers	-	Returns the index of the first largest element, or -1 if the array is empty.
+Category-Searching#smallest-and-largest	MaxIndexBy	-	arrfind	std/containers	-	Returns the index of the first largest element by your comparer, or -1 if empty.
+Category-Searching#searching-a-sorted-array	BinarySearch	-	arrfind	std/containers	-	Returns where a value is in a sorted array, or a negative number if it is absent.
+Category-Searching#searching-a-sorted-array	BinarySearchBy	-	arrfind	std/containers	-	Returns where a value is in an array sorted by your comparer, or a negative number.
+Category-Searching#searching-a-sorted-array	LowerBound	-	arrfind	std/containers	-	Returns the first index whose element is not less than the value, in a sorted array.
+Category-Searching#searching-a-sorted-array	LowerBoundBy	-	arrfind	std/containers	-	Returns the first index not less than the value, in an array sorted by your comparer.
+Category-Searching#searching-a-sorted-array	UpperBound	-	arrfind	std/containers	-	Returns the first index whose element is greater than the value, in a sorted array.
+Category-Searching#searching-a-sorted-array	UpperBoundBy	-	arrfind	std/containers	-	Returns the first index greater than the value, in an array sorted by your comparer.
+Category-Searching#searching-a-sorted-array	PartitionPoint	-	arrfind	std/containers	-	Returns the index of the first element that fails a test, when passing ones come first.
+Modern-Sorting-Sort	Sort	-	sort	std/containers	3	Sorts an Array in ascending order in place; equal elements may change places.
+Modern-Sorting-SortBy	SortBy	-	sort	std/containers	-	Sorts an Array in place by your comparer; equal elements may change places.
+Modern-Sorting-StableSort	StableSort	-	sort	std/containers	-	Sorts an Array in ascending order, keeping equal elements in their original order.
+Modern-Sorting-StableSortBy	StableSortBy	-	sort	std/containers	-	Sorts an Array by your comparer, keeping equal elements in their original order.
+Modern-Sorting-IsSorted	IsSorted	-	sort	std/containers	-	Returns true if the Array is already in ascending order.
+Modern-Sorting-IsSortedBy	IsSortedBy	-	sort	std/containers	-	Returns true if the Array is already in order by your comparer.
+Modern-Sorting-SortList	SortList	-	sort	std/containers	-	Sorts a LinkedList in ascending order by relinking nodes; equal elements keep order.
+Modern-Sorting-SortListBy	SortListBy	-	sort	std/containers	-	Sorts a LinkedList by your comparer, relinking nodes; equal elements keep order.
+Modern-Array-Sort	Sort	Array	sort	std/containers	-	Sorts an Array in ascending order in place; equal elements may change places.
+Modern-Array-SortBy	SortBy	Array	sort	std/containers	-	Sorts an Array in place by your comparer; equal elements may change places.
+Modern-Array-StableSort	StableSort	Array	sort	std/containers	-	Sorts an Array in ascending order, keeping equal elements in their original order.
+Modern-Array-StableSortBy	StableSortBy	Array	sort	std/containers	-	Sorts an Array by your comparer, keeping equal elements in their original order.
+Modern-Array-IsSorted	IsSorted	Array	sort	std/containers	-	Returns true if the Array is already in ascending order.
+Modern-LinkedList-SortList	SortList	LinkedList	sort	std/containers	-	Sorts a LinkedList in ascending order by relinking nodes; equal elements keep order.
+Modern-LinkedList-SortListBy	SortListBy	LinkedList	sort	std/containers	-	Sorts a LinkedList by your comparer, relinking nodes; equal elements keep order.
+Modern-Map-Put	Map.Put	-	mapadd	std/containers	2	Stores a value under a key, replacing any old one; returns true if the key was new.
+Modern-Map-Add	Map.Add	-	mapadd	std/containers	-	Adds a key and value if the key is new; an existing value is left alone.
+Modern-Map-Remove	Map.Remove	-	mapadd	std/containers	-	Removes a key and its value; returns true if the key was there.
+Modern-Map-Clear	Map.Clear	-	mapadd	std/containers	-	Removes every entry.
+Modern-OrderedMap-Put	OrderedMap.Put	-	mapadd	std/containers	-	Stores a value under a key, replacing any old one; returns true if the key was new.
+Modern-OrderedMap-Add	OrderedMap.Add	-	mapadd	std/containers	-	Adds a key and value if the key is new; an existing value is left alone.
+Modern-OrderedMap-Remove	OrderedMap.Remove	-	mapadd	std/containers	-	Removes a key and its value; returns true if the key was there.
+Modern-OrderedMap-Clear	OrderedMap.Clear	-	mapadd	std/containers	-	Removes every entry.
+Modern-Map-TryGet	Map.TryGet	-	mapget	std/containers	-	Copies the value for a key into a variable; returns false, adding nothing, if absent.
+Modern-Map-Contains	Map.Contains	-	mapget	std/containers	-	Returns true if the key is present, without adding it.
+Modern-Map-Count	Map.Count	-	mapget	std/containers	-	Returns the number of entries; reading an absent key with m[ k ] adds one.
+Modern-Map-IsEmpty	Map.IsEmpty	-	mapget	std/containers	-	Returns true if the map has no entries.
+Modern-OrderedMap-TryGet	OrderedMap.TryGet	-	mapget	std/containers	-	Copies the value for a key into a variable; returns false, adding nothing, if absent.
+Modern-OrderedMap-Contains	OrderedMap.Contains	-	mapget	std/containers	-	Returns true if the key is present, without adding it.
+Modern-OrderedMap-Count	OrderedMap.Count	-	mapget	std/containers	-	Returns the number of entries; reading an absent key with m[ k ] adds one.
+Modern-OrderedMap-IsEmpty	OrderedMap.IsEmpty	-	mapget	std/containers	-	Returns true if the map has no entries.
+Modern-Map-Keys	Map.Keys	-	mapwalk	std/containers	-	Returns a copy of all the keys as an Array, in no particular order.
+Modern-Map-Values	Map.Values	-	mapwalk	std/containers	-	Returns a copy of all the values as an Array, in no particular order.
+Modern-Map-Pairs	Map.Pairs	-	mapwalk	std/containers	-	Returns a view that lets for each (k, v) give each key and value as two variables.
+Modern-OrderedMap-Keys	OrderedMap.Keys	-	mapwalk	std/containers	-	Returns a copy of all the keys as an Array, already sorted.
+Modern-OrderedMap-Values	OrderedMap.Values	-	mapwalk	std/containers	-	Returns a copy of all the values as an Array, in the order of their keys.
+Modern-OrderedMap-Pairs	OrderedMap.Pairs	-	mapwalk	std/containers	-	Returns a view that lets for each (k, v) walk keys and values in key order.
+Modern-Set-Add	Set.Add	-	set	std/containers	-	Adds a value; returns false if it was already there.
+Modern-Set-Remove	Set.Remove	-	set	std/containers	-	Removes a value; returns true if it was there.
+Modern-Set-Contains	Set.Contains	-	set	std/containers	-	Returns true if the value is in the set.
+Modern-Set-Count	Set.Count	-	set	std/containers	-	Returns the number of values in the set.
+Modern-Set-IsEmpty	Set.IsEmpty	-	set	std/containers	-	Returns true if the set has no values.
+Modern-Set-Clear	Set.Clear	-	set	std/containers	-	Removes every value.
+Modern-Set-Items	Set.Items	-	set	std/containers	-	Returns a copy of all the values as an Array, in no particular order.
+Modern-OrderedSet-Add	OrderedSet.Add	-	set	std/containers	-	Adds a value; returns false if it was already there.
+Modern-OrderedSet-Remove	OrderedSet.Remove	-	set	std/containers	-	Removes a value; returns true if it was there.
+Modern-OrderedSet-Contains	OrderedSet.Contains	-	set	std/containers	-	Returns true if the value is in the set.
+Modern-OrderedSet-Count	OrderedSet.Count	-	set	std/containers	-	Returns the number of values in the set.
+Modern-OrderedSet-IsEmpty	OrderedSet.IsEmpty	-	set	std/containers	-	Returns true if the set has no values.
+Modern-OrderedSet-Clear	OrderedSet.Clear	-	set	std/containers	-	Removes every value.
+Modern-OrderedSet-Items	OrderedSet.Items	-	set	std/containers	-	Returns a copy of all the values as an Array, already sorted.
+Ubound	UBound	-	builtin	built-in	4	Returns the highest valid index of an array dimension, or -1 if there is none.
+Lbound	LBound	-	builtin	built-in	-	Returns the lowest valid index of an array dimension, or 0 if there is none.
+Arraylen	ArrayLen	-	builtin	fbc-int/array.bi	-	Returns the total number of elements in an array, counting every dimension.
+Arraysize	ArraySize	-	builtin	fbc-int/array.bi	-	Returns the total size of an array's elements in bytes.
+Fbarray-Array-Descriptor-Structure-and-Access	FBARRAY	-	builtin	fbc-int/array.bi	-	Holds an array's descriptor: its bounds, sizes and data pointers.
+Redim	ReDim	-	redim	built-in	-	Creates or resizes a variable-length array; elements are reset unless Preserve is used.
+Preserve	Preserve	-	redim	built-in	-	Keeps the existing elements when ReDim resizes an array.
+Erase	Erase	-	redim	built-in	-	Frees a variable-length array's elements, or resets those of a fixed-length array.
+Modern-LinkedList-PushBack	LinkedList.PushBack	-	queue	std/containers	-	Adds a value at the back of the list.
+Modern-LinkedList-PushFront	LinkedList.PushFront	-	queue	std/containers	-	Adds a value at the front of the list.
+Modern-LinkedList-PopFront	LinkedList.PopFront	-	queue	std/containers	-	Removes and returns the front value, or a default value if the list is empty.
+Modern-LinkedList-PopBack	LinkedList.PopBack	-	queue	std/containers	-	Removes and returns the back value, or a default value if the list is empty.
+Modern-LinkedList-Front	LinkedList.Front	-	queue	std/containers	-	Returns a reference to the front value without removing it.
+Modern-LinkedList-Back	LinkedList.Back	-	queue	std/containers	-	Returns a reference to the back value without removing it.
+Modern-LinkedList-Count	LinkedList.Count	-	queue	std/containers	-	Returns the number of values in the list.
+Modern-LinkedList-IsEmpty	LinkedList.IsEmpty	-	queue	std/containers	-	Returns true if the list has no values.
+Modern-LinkedList-Clear	LinkedList.Clear	-	queue	std/containers	-	Removes every value and frees its nodes.
+Category-Deque#members	Deque.PushBack	-	queue	std/containers	-	Adds a value at the back of the deque.
+Category-Deque#members	Deque.PushFront	-	queue	std/containers	-	Adds a value at the front of the deque.
+Category-Deque#members	Deque.PopFront	-	queue	std/containers	-	Removes and returns the front value, or a default value if the deque is empty.
+Category-Deque#members	Deque.PopBack	-	queue	std/containers	-	Removes and returns the back value, or a default value if the deque is empty.
+Category-Deque#members	Deque.TryPopFront	-	queue	std/containers	-	Removes the front value into a variable; returns false if the deque is empty.
+Category-Deque#members	Deque.TryPopBack	-	queue	std/containers	-	Removes the back value into a variable; returns false if the deque is empty.
+Category-Deque#members	Deque.Front	-	queue	std/containers	-	Returns a reference to the front value; the deque must not be empty.
+Category-Deque#members	Deque.Back	-	queue	std/containers	-	Returns a reference to the back value; the deque must not be empty.
+Category-Deque#members	Deque.At	-	queue	std/containers	-	Returns a reference to the value at a position, 0 being the front, like d[ i ].
+Category-Deque#members	Deque.Count	-	queue	std/containers	-	Returns the number of values in the deque.
+Category-Deque#members	Deque.IsEmpty	-	queue	std/containers	-	Returns true if the deque has no values.
+Category-Deque#members	Deque.Clear	-	queue	std/containers	-	Removes every value but keeps the allocated room.
+Category-PriorityQueue#members	PriorityQueue.Push	-	pq	std/containers	-	Adds a value to the queue.
+Category-PriorityQueue#members	PriorityQueue.Pop	-	pq	std/containers	-	Removes and returns the smallest value, or a default value if the queue is empty.
+Category-PriorityQueue#members	PriorityQueue.TryPop	-	pq	std/containers	-	Removes the smallest value into a variable; returns false if the queue is empty.
+Category-PriorityQueue#members	PriorityQueue.Peek	-	pq	std/containers	-	Returns a reference to the smallest value without removing it; test IsEmpty first.
+Category-PriorityQueue#members	PriorityQueue.Count	-	pq	std/containers	-	Returns the number of values in the queue.
+Category-PriorityQueue#members	PriorityQueue.IsEmpty	-	pq	std/containers	-	Returns true if the queue has no values.
+Category-PriorityQueue#members	PriorityQueue.Clear	-	pq	std/containers	-	Removes every value.
+Category-PriorityQueue#members	PriorityQueue.ToSortedArray	-	pq	std/containers	-	Returns the values as an Array in priority order, leaving the queue unchanged.
+Category-PriorityQueue#building-from-an-array	MakeHeap	-	pq	std/containers	-	Creates a PriorityQueue from an Array's values, leaving the Array unchanged.
+Modern-Set-UnionWith	Set.UnionWith	-	setops	std/containers	-	Adds every value of another set to this one; the other set is unchanged.
+Modern-Set-IntersectWith	Set.IntersectWith	-	setops	std/containers	-	Keeps only the values that are also in another set.
+Modern-Set-ExceptWith	Set.ExceptWith	-	setops	std/containers	-	Removes every value that is also in another set.
+Modern-OrderedSet-UnionWith	OrderedSet.UnionWith	-	setops	std/containers	-	Adds every value of another set to this one; the other set is unchanged.
+Modern-OrderedSet-IntersectWith	OrderedSet.IntersectWith	-	setops	std/containers	-	Keeps only the values that are also in another set.
+Modern-OrderedSet-ExceptWith	OrderedSet.ExceptWith	-	setops	std/containers	-	Removes every value that is also in another set.
+Category-BitSet#set-algebra	BitSet.UnionWith	-	setops	std/containers	-	Sets every bit that is set in another BitSet.
+Category-BitSet#set-algebra	BitSet.IntersectWith	-	setops	std/containers	-	Clears every bit that is not also set in another BitSet.
+Category-BitSet#members	BitSet.DifferenceWith	-	setops	std/containers	-	Clears every bit that is set in another BitSet.
+Category-BitSet#members	BitSet.SymmetricDifferenceWith	-	setops	std/containers	-	Keeps only the bits that are set in exactly one of the two BitSets.
+Category-BitSet#set-algebra	BitSet.IsSubsetOf	-	setops	std/containers	-	Returns true if every bit set here is also set in another BitSet.
+Category-BitSet#set-algebra	BitSet.Equals	-	setops	std/containers	-	Returns true if both BitSets have the same bits set, whatever their lengths.
+Modern-OrderedMap-TryFirst	OrderedMap.TryFirst	-	nearest	std/containers	-	Copies the smallest key and its value into variables; returns false if the map is empty.
+Modern-OrderedMap-TryLast	OrderedMap.TryLast	-	nearest	std/containers	-	Copies the largest key and its value into variables; returns false if the map is empty.
+Modern-OrderedMap-TryFloor	OrderedMap.TryFloor	-	nearest	std/containers	-	Finds the largest key at or below a given one; returns false if there is none.
+Modern-OrderedMap-TryCeiling	OrderedMap.TryCeiling	-	nearest	std/containers	-	Finds the smallest key at or above a given one; returns false if there is none.
+Modern-OrderedSet-TryFirst	OrderedSet.TryFirst	-	nearest	std/containers	-	Copies the smallest value into a variable; returns false if the set is empty.
+Modern-OrderedSet-TryLast	OrderedSet.TryLast	-	nearest	std/containers	-	Copies the largest value into a variable; returns false if the set is empty.
+Modern-OrderedSet-TryFloor	OrderedSet.TryFloor	-	nearest	std/containers	-	Finds the largest value at or below a given one; returns false if there is none.
+Modern-OrderedSet-TryCeiling	OrderedSet.TryCeiling	-	nearest	std/containers	-	Finds the smallest value at or above a given one; returns false if there is none.
+Category-BitSet#members	BitSet.Set	-	bits	std/containers	-	Sets a bit, or clears it when given false, growing the BitSet as needed.
+Category-BitSet#members	BitSet.Reset	-	bits	std/containers	-	Clears a bit.
+Category-BitSet#members	BitSet.Flip	-	bits	std/containers	-	Flips a bit, so a set bit becomes clear and a clear bit becomes set.
+Category-BitSet#members	BitSet.Test	-	bits	std/containers	-	Returns true if a bit is set; a bit beyond Length is never set.
+Category-BitSet#members	BitSet.CountOnes	-	bits	std/containers	-	Counts the bits that are set.
+Category-BitSet#members	BitSet.FirstSet	-	bits	std/containers	-	Returns the first set bit at or after a position, or -1 if there is none.
+Category-BitSet#members	BitSet.NextClear	-	bits	std/containers	-	Returns the first clear bit at or after a position.
+Category-BitSet#members	BitSet.SetAll	-	bits	std/containers	-	Sets every bit below Length.
+Category-BitSet#members	BitSet.ClearAll	-	bits	std/containers	-	Clears every bit.
+Category-BitSet#members	BitSet.IsEmpty	-	bits	std/containers	-	Returns true if no bit is set.
+Category-BitSet#growth-and-length	BitSet.Length	-	bits	std/containers	-	Returns the number of addressable bits, which is not the number that are set.
+Category-BitSet#growth-and-length	BitSet.Resize	-	bits	std/containers	-	Grows or shrinks the BitSet; shrinking clears the bits that fall off.
+Category-Searching#rearranging-in-place	ReverseArray	-	rearrange	std/containers	-	Reverses the order of an Array's elements in place.
+Category-Searching#rearranging-in-place	RotateArray	-	rearrange	std/containers	-	Rotates an Array left by k places, so element k comes first; negative k rotates right.
+Category-Searching#rearranging-in-place	Dedup	-	rearrange	std/containers	-	Removes consecutive duplicates, keeping the first of each run; returns how many went.
+Category-Searching#rearranging-in-place	DedupBy	-	rearrange	std/containers	-	Removes consecutive elements your test calls equal; returns how many went.
+Category-Searching#rearranging-in-place	NextPermutation	-	rearrange	std/containers	-	Rearranges into the next permutation in sorted order; returns false after the last.
+Category-Searching#rearranging-in-place	NextPermutationBy	-	rearrange	std/containers	-	Rearranges into the next permutation by your comparer; returns false after the last.
+Category-Searching#rearranging-in-place	PartialSort	-	rearrange	std/containers	-	Puts the k smallest elements, sorted, at the front; the rest are left in no order.
+Category-Searching#rearranging-in-place	PartialSortBy	-	rearrange	std/containers	-	Puts the k first elements by your comparer, sorted, at the front.
+Category-Searching#rearranging-in-place	NthElement	-	rearrange	std/containers	-	Puts at index k the element a full sort would put there, without sorting the rest.
+Category-Searching#rearranging-in-place	NthElementBy	-	rearrange	std/containers	-	Puts at index k the element a sort by your comparer would put there.
+Modern-Array-GetIterator	Array.GetIterator	-	walk	std/containers	-	Returns an iterator over the elements, for stepping through them by hand.
+Modern-Array-ArrayIterator	ArrayIterator	-	walk	std/containers	-	Holds a position in an Array; steps with IsValid, Value and MoveNext.
+Modern-Map-GetIterator	Map.GetIterator	-	walk	std/containers	-	Returns an iterator over the entries, each a pair read through .key and .value.
+Modern-Map-MapIterator	MapIterator	-	walk	std/containers	-	Holds a position in a Map; each step gives a pair read through .key and .value.
+Modern-Map-MapPairView	MapPairView	-	walk	std/containers	-	Holds the view that Map.Pairs returns, for for each (k, v) to walk.
+Modern-Map-MapPairIter	MapPairIter	-	walk	std/containers	-	Holds a position in Map.Pairs; each step gives the key and value as a tuple.
+Modern-Set-GetIterator	Set.GetIterator	-	walk	std/containers	-	Returns an iterator over the values, in no particular order.
+Modern-Set-SetIterator	SetIterator	-	walk	std/containers	-	Holds a position in a Set; changing a value through it loses that value.
+Modern-LinkedList-GetIterator	LinkedList.GetIterator	-	walk	std/containers	-	Returns an iterator over the values that stays valid when others are added.
+Modern-LinkedList-LinkedListIterator	LinkedListIterator	-	walk	std/containers	-	Holds a position in a LinkedList; it survives changes elsewhere in the list.
+Modern-OrderedMap-GetIterator	OrderedMap.GetIterator	-	walk	std/containers	-	Returns an iterator over the entries in ascending key order.
+Modern-OrderedMap-OrderedMapIterator	OrderedMapIterator	-	walk	std/containers	-	Holds a position in an OrderedMap, stepping in ascending key order.
+Modern-OrderedMap-OrderedMapPairView	OrderedMapPairView	-	walk	std/containers	-	Holds the view that OrderedMap.Pairs returns, for for each (k, v) to walk.
+Modern-OrderedMap-OrderedMapPairIter	OrderedMapPairIter	-	walk	std/containers	-	Holds a position in OrderedMap.Pairs, giving key and value as a tuple in key order.
+Modern-OrderedSet-GetIterator	OrderedSet.GetIterator	-	walk	std/containers	-	Returns an iterator over the values in ascending order.
+Modern-OrderedSet-OrderedSetIterator	OrderedSetIterator	-	walk	std/containers	-	Holds a position in an OrderedSet, stepping in ascending order.
+Category-Deque#members	Deque.GetIterator	-	walk	std/containers	-	Returns an iterator that walks the deque from front to back.
+Category-PriorityQueue#members	PriorityQueue.GetIterator	-	walk	std/containers	-	Returns an iterator over the values in heap order, which is not priority order.
+Category-BitSet#members	BitSet.GetIterator	-	walk	std/containers	-	Returns an iterator over the set bits, in ascending order.
+Modern-Array-Capacity	Array.Capacity	-	room	std/containers	-	Returns how many elements fit before the array has to grow.
+Modern-Array-Reserve	Array.Reserve	-	room	std/containers	-	Makes room for at least n elements without adding any; it never shrinks.
+Modern-Array-Shrink	Array.Shrink	-	room	std/containers	-	Releases unused room, cutting the capacity down to the count.
+Modern-Map-Capacity	Map.Capacity	-	room	std/containers	-	Returns the number of slots in the table, always a power of two.
+Modern-Map-Reserve	Map.Reserve	-	room	std/containers	-	Makes room for n entries, so filling the map does not have to regrow it.
+Modern-Set-Capacity	Set.Capacity	-	room	std/containers	-	Returns the number of slots in the table, always a power of two.
+Modern-Set-Reserve	Set.Reserve	-	room	std/containers	-	Makes room for n values, so filling the set does not have to regrow it.
+Category-Deque#members	Deque.Capacity	-	room	std/containers	-	Returns how many values fit before the deque has to grow, always a power of two.
+Category-Deque#members	Deque.Reserve	-	room	std/containers	-	Makes room for at least n values without adding any.
+Category-PriorityQueue#members	PriorityQueue.Reserve	-	room	std/containers	-	Makes room for at least n values without adding any.
+Modern-OrderedMap-BlackHeight	OrderedMap.BlackHeight	-	internals	std/containers	-	Returns the tree's black height, or -1 if its balancing rules are broken.
+Modern-OrderedSet-BlackHeight	OrderedSet.BlackHeight	-	internals	std/containers	-	Returns the tree's black height, or -1 if its balancing rules are broken.
+Modern-LinkedList-LinkedNode	LinkedNode	-	internals	std/containers	-	Holds one LinkedList value and the links to its neighbours; normal code never uses it.

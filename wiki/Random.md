@@ -2,7 +2,7 @@
 
 # Random
 
-Specifies file or device to be opened for random access mode
+Opens a file with Open for reading and writing fixed-size records, 128 bytes by default.
 
 ## Syntax
 

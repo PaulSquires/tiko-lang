@@ -2,7 +2,7 @@
 
 # Screen (Console)
 
-Gets the character or color attribute at a given location
+Returns the character, or its colour, at a row and column of the console.
 
 ## Syntax
 

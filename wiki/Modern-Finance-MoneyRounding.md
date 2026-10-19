@@ -2,6 +2,8 @@
 
 # MoneyRounding
 
+Holds a rounding policy: decimal places, rounding mode, and whether to round each amount.
+
 ## Syntax
 
 ```freebasic

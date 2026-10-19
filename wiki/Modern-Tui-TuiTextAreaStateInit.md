@@ -2,6 +2,8 @@
 
 # TuiTextAreaStateInit
 
+Sets a text area's state to one empty line; call it before first use.
+
 ## Syntax
 
 ```freebasic

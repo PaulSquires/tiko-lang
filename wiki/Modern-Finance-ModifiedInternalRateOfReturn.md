@@ -2,6 +2,8 @@
 
 # ModifiedInternalRateOfReturn
 
+Returns a rate of return with one answer, from separate finance and reinvestment rates.
+
 ## Syntax
 
 ```freebasic

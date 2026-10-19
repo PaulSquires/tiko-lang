@@ -2,7 +2,7 @@
 
 # RetainChars
 
-O(n*k)
+Keeps only the characters that belong to a set.
 
 ## Syntax
 

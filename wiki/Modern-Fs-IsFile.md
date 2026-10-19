@@ -2,7 +2,7 @@
 
 # IsFile
 
-boolean -- follows links
+Returns true if the path is a file, following links; false if it cannot tell.
 
 ## Syntax
 

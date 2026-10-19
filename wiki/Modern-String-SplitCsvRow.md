@@ -2,7 +2,7 @@
 
 # SplitCsvRow
 
-O(n)   Array( of T )
+Parses one CSV record into an Array of fields.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # Ok
 
+Returns a successful Result holding the value; both types must be written out.
+
 ## Syntax
 
 ```freebasic

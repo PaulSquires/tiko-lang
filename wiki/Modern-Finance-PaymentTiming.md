@@ -2,6 +2,8 @@
 
 # PaymentTiming
 
+Lists whether payments fall at the end or at the start of each period.
+
 ## Syntax
 
 ```freebasic

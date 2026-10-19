@@ -2,7 +2,7 @@
 
 # DivMod
 
-returns a TUPLE
+Returns the quotient and the remainder of one division together, as a tuple.
 
 ## Syntax
 

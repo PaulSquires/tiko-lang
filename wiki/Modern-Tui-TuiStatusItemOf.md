@@ -2,6 +2,8 @@
 
 # TuiStatusItemOf
 
+Returns a status bar item from text, a style and an alignment.
+
 ## Syntax
 
 ```freebasic

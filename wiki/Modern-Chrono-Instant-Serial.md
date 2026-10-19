@@ -2,6 +2,8 @@
 
 # Instant.Serial
 
+Returns the date-time as a date serial: days since 1899-12-30, with a fraction.
+
 ## Syntax
 
 ```freebasic

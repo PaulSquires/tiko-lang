@@ -2,7 +2,7 @@
 
 # CCosh
 
-The hyperbolic cosine.
+Returns the hyperbolic cosine of a complex number.
 
 ## Syntax
 

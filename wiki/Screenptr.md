@@ -2,7 +2,7 @@
 
 # ScreenPtr
 
-Returns a pointer to the current work page's frame buffer
+Returns a pointer to the work page's pixels, or 0 if no graphics mode is set.
 
 ## Syntax
 

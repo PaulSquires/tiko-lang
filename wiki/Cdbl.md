@@ -2,7 +2,7 @@
 
 # CDbl
 
-Converts numeric or string expression to Double precision floating point
+Converts a number or string to a Double.
 
 ## Syntax
 

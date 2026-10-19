@@ -2,6 +2,8 @@
 
 # DiscountFactor
 
+Returns what one unit due after a whole number of periods is worth today.
+
 ## Syntax
 
 ```freebasic

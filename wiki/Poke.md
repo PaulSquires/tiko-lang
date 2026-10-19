@@ -2,7 +2,7 @@
 
 # Poke
 
-Assigns a value to a location in memory.
+Writes a value to an address, as a byte or as a given type.
 
 ## Syntax
 

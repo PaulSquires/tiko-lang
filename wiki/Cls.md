@@ -2,7 +2,7 @@
 
 # Cls
 
-Clears the screen in both text modes and graphics modes
+Clears the screen, or only the text or graphics viewport.
 
 ## Syntax
 

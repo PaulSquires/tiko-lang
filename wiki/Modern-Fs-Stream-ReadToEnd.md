@@ -2,7 +2,7 @@
 
 # Stream.ReadToEnd
 
-FsResultI64
+Appends every remaining byte to an Array; returns how many.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # Stream.Position
 
-FsResultI64
+Returns the current position, or fails on a stream that cannot seek.
 
 ## Syntax
 

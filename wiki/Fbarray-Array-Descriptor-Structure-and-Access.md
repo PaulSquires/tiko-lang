@@ -2,7 +2,7 @@
 
 # Fbarray (Array Descriptor Structure And Access)
 
-Pre-defined structure (UDT) and procedure declarations from the fbc-int/array.bi include file, usable to access the array descriptor data fields.
+Holds an array's descriptor: its bounds, sizes and data pointers.
 
 ## Syntax
 

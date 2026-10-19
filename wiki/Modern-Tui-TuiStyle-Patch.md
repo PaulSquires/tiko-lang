@@ -2,6 +2,8 @@
 
 # TuiStyle.Patch
 
+Returns this style with another laid over it, keeping whatever the other leaves unset.
+
 ## Syntax
 
 ```freebasic

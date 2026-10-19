@@ -2,7 +2,7 @@
 
 # MemoryMappedFile.Open
 
-FsResultBool
+Maps a file into memory, read-only unless writable is true; an empty file fails.
 
 ## Syntax
 

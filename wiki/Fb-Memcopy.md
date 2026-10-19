@@ -2,7 +2,7 @@
 
 # Fb_Memcopy
 
-Copies a block of memory from a location to another
+Copies a number of bytes between two memory areas that do not overlap.
 
 ## Syntax
 

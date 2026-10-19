@@ -2,7 +2,7 @@
 
 # CondCreate
 
-Creates a conditional variable to be used in synchronizing threads
+Creates a condition variable and returns its handle, or 0 on failure.
 
 ## Syntax
 

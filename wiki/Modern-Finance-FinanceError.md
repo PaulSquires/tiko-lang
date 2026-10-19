@@ -2,6 +2,8 @@
 
 # FinanceError
 
+Holds why a finance call failed: a code, a message and, for solvers, how close it got.
+
 ## Syntax
 
 ```freebasic

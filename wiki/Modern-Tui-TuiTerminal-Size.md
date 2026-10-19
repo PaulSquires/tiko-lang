@@ -2,6 +2,8 @@
 
 # TuiTerminal.Size
 
+Returns the terminal's size in columns and rows, or an error if it reports none.
+
 ## Syntax
 
 ```freebasic

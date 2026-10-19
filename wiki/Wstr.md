@@ -2,7 +2,7 @@
 
 # WStr
 
-Returns a wide-character string representation of a number or ASCII character string
+Returns a number as a wide string.
 
 ## Syntax
 

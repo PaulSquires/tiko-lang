@@ -2,6 +2,8 @@
 
 # EuclidMod
 
+Returns a remainder that is never negative, whatever the signs.
+
 ## Syntax
 
 ```freebasic

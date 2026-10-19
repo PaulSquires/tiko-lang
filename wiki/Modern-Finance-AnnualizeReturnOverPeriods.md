@@ -2,6 +2,8 @@
 
 # AnnualizeReturnOverPeriods
 
+Converts a total return over a number of observations to a yearly return.
+
 ## Syntax
 
 ```freebasic

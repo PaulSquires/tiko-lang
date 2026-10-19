@@ -2,7 +2,7 @@
 
 # MKS
 
-Does a binary copy from a Single variable to a String, setting its length to 4 bytes
+Copies a Single's bytes into a 4-byte string.
 
 ## Syntax
 

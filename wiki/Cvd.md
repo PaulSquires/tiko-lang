@@ -2,7 +2,7 @@
 
 # CVD
 
-Converts a 64-bit integer or 8-byte string to a double-precision value
+Reads a Double back from an 8-byte string.
 
 ## Syntax
 

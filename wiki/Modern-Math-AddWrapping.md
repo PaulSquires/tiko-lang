@@ -2,7 +2,7 @@
 
 # AddWrapping
 
-A + b, **wrapping** on overflow -- deliberately.
+Adds two integers and wraps around on overflow, on purpose.
 
 ## Syntax
 

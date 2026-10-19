@@ -2,6 +2,8 @@
 
 # TuiInput.NextEvent
 
+Returns the next complete event, or no value yet; a lone Esc waits for a timeout.
+
 ## Syntax
 
 ```freebasic

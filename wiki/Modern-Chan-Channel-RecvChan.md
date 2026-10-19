@@ -2,7 +2,7 @@
 
 # RecvChan
 
-A receive-only view of a channel.
+Holds a receive-only view of a channel, which cannot send to it or close it.
 
 ## Syntax
 

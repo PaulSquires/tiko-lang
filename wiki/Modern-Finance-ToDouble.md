@@ -2,7 +2,7 @@
 
 # ToDouble
 
-The amount as a double.
+Returns the amount as a double, which loses precision above about 900 billion.
 
 ## Syntax
 

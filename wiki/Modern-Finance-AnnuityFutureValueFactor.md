@@ -2,6 +2,8 @@
 
 # AnnuityFutureValueFactor
 
+Returns what one unit paid each period grows to by the end of the term.
+
 ## Syntax
 
 ```freebasic

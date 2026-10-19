@@ -2,6 +2,8 @@
 
 # FinanceErrorMessage
 
+Returns a short, fixed English description of a failure code.
+
 ## Syntax
 
 ```freebasic

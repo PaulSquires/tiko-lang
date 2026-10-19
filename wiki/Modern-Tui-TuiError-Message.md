@@ -2,6 +2,8 @@
 
 # TuiError.Message
 
+Returns a readable line saying what failed, including any system error number.
+
 ## Syntax
 
 ```freebasic

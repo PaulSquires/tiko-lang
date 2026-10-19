@@ -2,6 +2,8 @@
 
 # TuiSizeOf
 
+Returns a size from columns and rows.
+
 ## Syntax
 
 ```freebasic

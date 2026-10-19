@@ -2,6 +2,8 @@
 
 # DepreciationScheduleToArray
 
+Returns every row of a depreciation schedule as an Array.
+
 ## Syntax
 
 ```freebasic

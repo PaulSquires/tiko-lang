@@ -2,7 +2,7 @@
 
 # NextNormal
 
-A draw from the standard normal distribution: mean 0, standard deviation 1.
+Returns a random value from the normal distribution, mean 0 and standard deviation 1.
 
 ## Syntax
 

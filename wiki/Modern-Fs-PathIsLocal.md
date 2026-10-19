@@ -2,7 +2,7 @@
 
 # PathIsLocal
 
-boolean
+Returns true if a relative path stays inside the folder it is joined to.
 
 ## Syntax
 

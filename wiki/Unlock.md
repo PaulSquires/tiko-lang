@@ -2,7 +2,7 @@
 
 # Unlock
 
-Removes a previous access restriction (lock) on a file
+Removes a restriction that Lock put on a record or byte range.
 
 ## Syntax
 

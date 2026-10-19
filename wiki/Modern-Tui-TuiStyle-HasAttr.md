@@ -2,6 +2,8 @@
 
 # TuiStyle.HasAttr
 
+Returns true if the style has an attribute such as bold or underline.
+
 ## Syntax
 
 ```freebasic

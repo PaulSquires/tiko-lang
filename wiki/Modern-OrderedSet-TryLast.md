@@ -2,6 +2,8 @@
 
 # OrderedSet.TryLast
 
+Copies the largest value into a variable; returns false if the set is empty.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # Mul
 
-Component-wise multiplication of two vectors.
+Multiplies two vectors component by component.
 
 ## Syntax
 

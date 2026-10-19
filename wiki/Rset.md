@@ -2,7 +2,7 @@
 
 # RSet
 
-Right justifies a string in a string buffer
+Copies a string into another, right-justified and padded with spaces.
 
 ## Syntax
 

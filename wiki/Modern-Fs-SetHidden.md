@@ -2,7 +2,7 @@
 
 # SetHidden
 
-portable IN NAME ONLY
+Sets or clears a file's hidden flag on Windows; fails as unsupported on Linux.
 
 ## Syntax
 

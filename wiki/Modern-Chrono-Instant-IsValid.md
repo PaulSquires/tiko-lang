@@ -2,6 +2,8 @@
 
 # Instant.IsValid
 
+Returns true if the date-time is a real, in-range value; the only safe test.
+
 ## Syntax
 
 ```freebasic

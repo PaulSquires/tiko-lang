@@ -2,7 +2,7 @@
 
 # UCase
 
-Returns an upper case copy of a string
+Returns an upper-case copy of the string.
 
 ## Syntax
 

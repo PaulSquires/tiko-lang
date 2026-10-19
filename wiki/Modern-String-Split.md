@@ -2,7 +2,7 @@
 
 # Split
 
-O(n*m)   Array( of T )
+Breaks a string into an Array at each delimiter.
 
 ## Syntax
 

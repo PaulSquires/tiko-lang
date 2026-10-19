@@ -2,7 +2,7 @@
 
 # TransformPoint
 
-Transforms a point by a matrix, including its translation.
+Applies a matrix to a point, translation included.
 
 ## Syntax
 

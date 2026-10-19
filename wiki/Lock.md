@@ -2,7 +2,7 @@
 
 # Lock
 
-Restricts read/write access to a file or portion of a file
+Restricts other programs' access to a record or byte range of an open file.
 
 ## Syntax
 

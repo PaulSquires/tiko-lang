@@ -2,7 +2,7 @@
 
 # ByteSwap
 
-Reverses the order of the bytes.
+Reverses the order of the bytes, converting between big-endian and little-endian.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # Open Scrn
 
-Opens the screen directly for input and output, using it as if it were file operations.
+Opens the screen on a file number, for reading and writing like a file.
 
 ## Syntax
 

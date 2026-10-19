@@ -2,7 +2,7 @@
 
 # ScreenUnlock
 
-Unlocks work page's framebuffer
+Resumes screen updates after ScreenLock and shows what was drawn.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # RateConvertCompounding
 
+Restates a quoted annual rate for a different compounding frequency.
+
 ## Syntax
 
 ```freebasic

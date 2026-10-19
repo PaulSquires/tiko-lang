@@ -2,6 +2,8 @@
 
 # TuiInput.PushEvent
 
+Adds an event to the back of the queue, to inject input yourself.
+
 ## Syntax
 
 ```freebasic

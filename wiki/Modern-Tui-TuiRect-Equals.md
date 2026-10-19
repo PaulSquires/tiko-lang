@@ -2,6 +2,8 @@
 
 # TuiRect.Equals
 
+Returns true if two rectangles have the same position and size.
+
 ## Syntax
 
 ```freebasic

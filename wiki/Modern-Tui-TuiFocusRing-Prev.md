@@ -2,6 +2,8 @@
 
 # TuiFocusRing.Prev
 
+Moves focus to the previous widget, wrapping at the start, as Shift+Tab does.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # CULngInt
 
-Converts numeric or string expression to 64-bit unsigned integer (ULongInt)
+Converts a number or string to a 64-bit ULongInt, rounding to the nearest.
 
 ## Syntax
 

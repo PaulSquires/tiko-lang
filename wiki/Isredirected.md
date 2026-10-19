@@ -2,7 +2,7 @@
 
 # IsRedirected
 
-Checks whether stdin or stdout is redirected to a file
+Returns non-zero if standard output, or input if asked, is redirected to a file.
 
 ## Syntax
 

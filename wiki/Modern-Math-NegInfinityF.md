@@ -2,6 +2,8 @@
 
 # NegInfinityF
 
+Returns negative infinity as a Single.
+
 ## Syntax
 
 ```freebasic

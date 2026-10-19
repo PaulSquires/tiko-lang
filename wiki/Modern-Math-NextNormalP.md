@@ -2,6 +2,8 @@
 
 # NextNormalP
 
+Returns a random value from a normal distribution with the given mean and deviation.
+
 ## Syntax
 
 ```freebasic

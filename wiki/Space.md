@@ -2,7 +2,7 @@
 
 # Space
 
-Creates a string of a given length filled with spaces (" ")
+Returns a string of n spaces.
 
 ## Syntax
 

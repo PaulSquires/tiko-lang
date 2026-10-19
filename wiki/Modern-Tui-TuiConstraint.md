@@ -2,6 +2,8 @@
 
 # TuiConstraint
 
+Holds one sizing rule for a split, such as a fixed length or a share of the rest.
+
 ## Syntax
 
 ```freebasic

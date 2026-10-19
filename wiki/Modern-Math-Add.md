@@ -2,7 +2,7 @@
 
 # Add
 
-Adds one value to a running accumulator.
+Adds one value to a running count, mean, variance, minimum and maximum.
 
 ## Syntax
 

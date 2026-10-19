@@ -2,7 +2,7 @@
 
 # File.OpenAppend
 
-FsResultBool
+Opens a file so every write goes to its end, creating it if needed.
 
 ## Syntax
 

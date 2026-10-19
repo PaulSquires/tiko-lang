@@ -2,6 +2,8 @@
 
 # LoanTermsCanadianMortgage
 
+Returns loan terms for a Canadian mortgage: semi-annual compounding, monthly payments.
+
 ## Syntax
 
 ```freebasic

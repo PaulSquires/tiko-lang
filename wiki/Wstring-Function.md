@@ -2,7 +2,7 @@
 
 # Wstring (Function)
 
-Fills a WString with a certain length of a certain wide character
+Returns a wide string of n copies of one character.
 
 ## Syntax
 

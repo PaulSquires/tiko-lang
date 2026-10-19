@@ -2,7 +2,7 @@
 
 # CSwap
 
-Exchanges two complex numbers.
+Swaps the values of two complex variables.
 
 ## Syntax
 

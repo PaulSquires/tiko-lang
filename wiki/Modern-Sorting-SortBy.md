@@ -2,7 +2,7 @@
 
 # SortBy
 
-O(n log n) worst   in place, unstable
+Sorts an Array in place by your comparer; equal elements may change places.
 
 ## Syntax
 

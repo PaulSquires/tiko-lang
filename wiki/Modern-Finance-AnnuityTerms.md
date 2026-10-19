@@ -2,6 +2,8 @@
 
 # AnnuityTerms
 
+Holds rate, periods, payment, present value, future value and timing for annuity sums.
+
 ## Syntax
 
 ```freebasic

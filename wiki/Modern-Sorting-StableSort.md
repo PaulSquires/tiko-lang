@@ -2,7 +2,7 @@
 
 # StableSort
 
-O(n log n) always  O(n) scratch, STABLE
+Sorts an Array in ascending order, keeping equal elements in their original order.
 
 ## Syntax
 

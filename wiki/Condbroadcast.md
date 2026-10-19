@@ -2,7 +2,7 @@
 
 # CondBroadcast
 
-Restarts all threads CondWaiting for the handle
+Wakes every thread waiting on the condition.
 
 ## Syntax
 

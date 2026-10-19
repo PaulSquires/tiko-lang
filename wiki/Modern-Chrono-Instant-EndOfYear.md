@@ -2,6 +2,8 @@
 
 # Instant.EndOfYear
 
+Returns the last tick of 31 December of the same year.
+
 ## Syntax
 
 ```freebasic

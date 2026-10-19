@@ -2,6 +2,8 @@
 
 # Instant.IsLastDayOfMonth
 
+Returns true if the date is the last day of its month.
+
 ## Syntax
 
 ```freebasic

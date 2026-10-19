@@ -2,7 +2,7 @@
 
 # CSin
 
-The sine.
+Returns the sine of a complex number.
 
 ## Syntax
 

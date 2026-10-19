@@ -2,6 +2,8 @@
 
 # Instant.Add
 
+Returns the date-time moved forward by a TimeSpan.
+
 ## Syntax
 
 ```freebasic

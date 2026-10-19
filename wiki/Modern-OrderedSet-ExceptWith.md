@@ -2,7 +2,7 @@
 
 # OrderedSet.ExceptWith
 
-O(m log n)
+Removes every value that is also in another set.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # Arraysize
 
-Provides the size of an array given its array-name.
+Returns the total size of an array's elements in bytes.
 
 ## Syntax
 

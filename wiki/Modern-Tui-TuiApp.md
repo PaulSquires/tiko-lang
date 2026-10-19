@@ -2,6 +2,8 @@
 
 # TuiApp
 
+Holds your app: you write Init to set up, Update to react and View to draw.
+
 ## Syntax
 
 ```freebasic

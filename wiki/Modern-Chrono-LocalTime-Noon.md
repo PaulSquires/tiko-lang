@@ -2,6 +2,8 @@
 
 # LocalTime.Noon
 
+Returns the time of day 12:00:00.
+
 ## Syntax
 
 ```freebasic

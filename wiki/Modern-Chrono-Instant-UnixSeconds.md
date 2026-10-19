@@ -2,6 +2,8 @@
 
 # Instant.UnixSeconds
 
+Returns the whole seconds since 1970-01-01 UTC, dropping any fraction.
+
 ## Syntax
 
 ```freebasic

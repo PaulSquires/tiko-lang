@@ -2,7 +2,7 @@
 
 # String (Function)
 
-Creates and fills a string of a certain length with a certain character
+Returns a string of n copies of one character.
 
 ## Syntax
 

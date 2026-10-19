@@ -2,6 +2,8 @@
 
 # TimeSpan.Days
 
+Returns the days part of the duration, negative for a negative span.
+
 ## Syntax
 
 ```freebasic

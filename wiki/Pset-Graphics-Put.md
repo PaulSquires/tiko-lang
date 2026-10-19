@@ -2,7 +2,7 @@
 
 # Pset (Graphics Put)
 
-Parameter to the Put graphics statement which selects PSet as the blitting method
+Copies source pixels over the destination unchanged, as a Put method.
 
 ## Syntax
 

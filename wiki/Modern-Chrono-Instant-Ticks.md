@@ -2,6 +2,8 @@
 
 # Instant.Ticks
 
+Returns the 100 ns ticks since 0001-01-01, counted on the value's own clock.
+
 ## Syntax
 
 ```freebasic

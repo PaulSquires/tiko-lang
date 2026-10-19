@@ -2,7 +2,7 @@
 
 # Fb_Memmove
 
-Copies a block of memory from a location to another
+Copies a number of bytes between two memory areas, even when they overlap.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # CPow
 
-Raises a complex number to a complex or real power.
+Raises a complex or real number to a complex or real power.
 
 ## Syntax
 

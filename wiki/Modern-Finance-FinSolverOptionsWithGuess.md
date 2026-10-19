@@ -2,6 +2,8 @@
 
 # FinSolverOptionsWithGuess
 
+Returns the standard solver settings with a starting guess.
+
 ## Syntax
 
 ```freebasic

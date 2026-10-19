@@ -2,6 +2,8 @@
 
 # TuiThemeMono
 
+Returns a theme made from bold, dim, reverse and underline, with no colours.
+
 ## Syntax
 
 ```freebasic

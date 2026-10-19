@@ -2,6 +2,8 @@
 
 # HoldingPeriodReturn
 
+Returns the gain plus income over a holding period, as a fraction of the start value.
+
 ## Syntax
 
 ```freebasic

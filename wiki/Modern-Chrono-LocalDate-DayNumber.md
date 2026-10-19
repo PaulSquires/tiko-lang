@@ -2,6 +2,8 @@
 
 # LocalDate.DayNumber
 
+Returns the days since 0001-01-01; subtract two to count the days between dates.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # TimeSpan.IsValid
 
+Returns true unless the duration overflowed or came from bad input.
+
 ## Syntax
 
 ```freebasic

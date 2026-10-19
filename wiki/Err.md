@@ -2,7 +2,7 @@
 
 # Err
 
-Get or set the run-time error number
+Returns the number of the last runtime error, or sets it without jumping.
 
 ## Description
 

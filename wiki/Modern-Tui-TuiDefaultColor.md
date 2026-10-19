@@ -2,6 +2,8 @@
 
 # TuiDefaultColor
 
+Returns the terminal's own default colour; as a background it does not paint.
+
 ## Syntax
 
 ```freebasic

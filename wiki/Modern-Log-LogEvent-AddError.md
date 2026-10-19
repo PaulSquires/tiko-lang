@@ -2,7 +2,7 @@
 
 # LogEvent.AddError
 
-expands to error, error.code and error.os
+Adds a filesystem error as fields: its message, its code and any system error code.
 
 ## Syntax
 

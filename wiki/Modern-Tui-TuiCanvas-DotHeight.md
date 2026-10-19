@@ -2,6 +2,8 @@
 
 # TuiCanvas.DotHeight
 
+Returns the canvas height in dots, four per cell.
+
 ## Syntax
 
 ```freebasic

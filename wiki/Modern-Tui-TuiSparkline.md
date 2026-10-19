@@ -2,6 +2,8 @@
 
 # TuiSparkline
 
+Draws a one-row trend of values as block characters, one value per cell.
+
 ## Syntax
 
 ```freebasic

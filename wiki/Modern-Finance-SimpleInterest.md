@@ -2,6 +2,8 @@
 
 # SimpleInterest
 
+Returns principal times rate times a fraction of a year, exactly.
+
 ## Syntax
 
 ```freebasic

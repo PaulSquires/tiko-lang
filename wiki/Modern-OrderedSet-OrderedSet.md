@@ -2,7 +2,7 @@
 
 # OrderedSet
 
-A red-black tree set: always sorted.
+Holds each value at most once, kept in sorted order.
 
 ## Syntax
 

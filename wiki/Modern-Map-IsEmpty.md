@@ -2,6 +2,8 @@
 
 # IsEmpty
 
+Returns true if the map has no entries.
+
 ## Syntax
 
 ```freebasic

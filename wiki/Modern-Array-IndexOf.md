@@ -2,7 +2,7 @@
 
 # IndexOf
 
-The index of the first element equal to `v`, or -1 when it is absent.
+Returns the index of the first element equal to a value, or -1 if there is none.
 
 ## Syntax
 

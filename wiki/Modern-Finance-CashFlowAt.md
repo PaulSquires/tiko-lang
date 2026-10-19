@@ -2,6 +2,8 @@
 
 # CashFlowAt
 
+Returns a cash flow with no date, placed by its period number.
+
 ## Syntax
 
 ```freebasic

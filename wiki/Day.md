@@ -2,7 +2,7 @@
 
 # Day
 
-Gets the day of the month from a Date Serial
+Returns the day of the month of a date serial.
 
 ## Syntax
 

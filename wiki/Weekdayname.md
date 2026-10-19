@@ -2,7 +2,7 @@
 
 # WeekdayName
 
-Gets the name of a week day from its integral representation
+Returns the name of a weekday number in the system's language, or its abbreviation.
 
 ## Syntax
 

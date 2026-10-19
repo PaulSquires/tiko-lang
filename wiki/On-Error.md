@@ -2,7 +2,7 @@
 
 # On Error
 
-Error handling statement to set the current error handler
+Sets a label to jump to when a runtime error happens; On Error Goto 0 turns it off.
 
 ## Syntax
 

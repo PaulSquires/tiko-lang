@@ -2,7 +2,7 @@
 
 # Length
 
-The length of a vector.
+Returns the length of a vector.
 
 ## Syntax
 

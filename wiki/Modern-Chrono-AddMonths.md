@@ -2,7 +2,7 @@
 
 # AddMonths
 
-calendar months, offset untouched.
+Adds calendar months and leaves the UTC offset untouched.
 
 ## Syntax
 

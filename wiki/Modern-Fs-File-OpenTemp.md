@@ -2,7 +2,7 @@
 
 # File.OpenTemp
 
-FsResultBool
+Creates and opens a new, randomly named file in a folder or the temporary folder.
 
 ## Syntax
 

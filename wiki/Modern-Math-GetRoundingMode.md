@@ -2,6 +2,8 @@
 
 # GetRoundingMode
 
+Returns the direction floating-point results are currently rounded in.
+
 ## Syntax
 
 ```freebasic

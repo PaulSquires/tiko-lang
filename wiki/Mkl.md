@@ -2,7 +2,7 @@
 
 # MKL
 
-Does a binary copy from a Long variable to a String, setting its length to 4 bytes
+Copies a Long's bytes into a 4-byte string.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # Paint
 
-Fills an area delimited by a border of a specified color
+Fills the area enclosed by a border colour with a colour or a pattern.
 
 ## Syntax
 

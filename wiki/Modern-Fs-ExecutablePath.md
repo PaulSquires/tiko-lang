@@ -2,7 +2,7 @@
 
 # ExecutablePath
 
-FsResultUStr -- the full path of the running program
+Returns the full path of the running program, however it was started.
 
 ## Syntax
 

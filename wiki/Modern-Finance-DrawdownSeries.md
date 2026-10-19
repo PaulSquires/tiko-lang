@@ -2,6 +2,8 @@
 
 # DrawdownSeries
 
+Returns the fall from the running peak at each observation, zero or negative.
+
 ## Syntax
 
 ```freebasic

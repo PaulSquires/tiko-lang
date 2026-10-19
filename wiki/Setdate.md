@@ -2,7 +2,7 @@
 
 # SetDate
 
-Sets the current system date
+Sets the system date from text like mm-dd-yyyy; needs admin rights, 0 means success.
 
 ## Syntax
 

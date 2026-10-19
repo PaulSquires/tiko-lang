@@ -2,7 +2,7 @@
 
 # CSetImag
 
-Assigns the imaginary part in place.
+Sets the imaginary part of a complex variable in place.
 
 ## Syntax
 

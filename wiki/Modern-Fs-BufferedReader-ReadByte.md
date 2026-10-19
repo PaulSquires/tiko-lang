@@ -2,7 +2,7 @@
 
 # BufferedReader.ReadByte
 
-FsResultBool
+Reads the next byte; returns false at the end.
 
 ## Syntax
 

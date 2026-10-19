@@ -2,7 +2,7 @@
 
 # CAsec
 
-The inverse secant.
+Returns the inverse secant of a complex number, or of any real number.
 
 ## Syntax
 

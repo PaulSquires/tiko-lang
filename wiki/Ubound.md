@@ -2,7 +2,7 @@
 
 # UBound
 
-Returns the upper bound of an array's dimension
+Returns the highest valid index of an array dimension, or -1 if there is none.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # ChDir
 
-Changes the current drive and directory
+Changes the current folder; returns 0 on success or -1 on failure.
 
 ## Syntax
 

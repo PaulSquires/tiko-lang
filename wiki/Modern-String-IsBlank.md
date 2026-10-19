@@ -2,7 +2,7 @@
 
 # IsBlank
 
-O(n)     boolean
+Returns true if the string is empty or holds only whitespace.
 
 ## Syntax
 

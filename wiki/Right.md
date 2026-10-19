@@ -2,7 +2,7 @@
 
 # Right
 
-Returns the rightmost substring of a string
+Returns the last n characters.
 
 ## Syntax
 

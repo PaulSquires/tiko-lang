@@ -2,7 +2,7 @@
 
 # Frexp
 
-Splits a value into a fraction in [0.5, 1) and a power of two.
+Splits a number into a fraction from 0.5 to 1 and a power of two.
 
 ## Syntax
 

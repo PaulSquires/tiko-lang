@@ -2,7 +2,7 @@
 
 # TrailingZeros
 
-How many zero bits sit below the lowest set one.
+Counts the zero bits below the lowest set bit; zero gives the type's full width.
 
 ## Syntax
 

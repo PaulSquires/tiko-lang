@@ -2,6 +2,8 @@
 
 # TuiLerpColor
 
+Returns a colour part of the way between two others, for t from 0 to 1.
+
 ## Syntax
 
 ```freebasic

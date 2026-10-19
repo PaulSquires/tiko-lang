@@ -2,6 +2,8 @@
 
 # LocalDate.ToIsoString
 
+Returns the date as text in the form 2026-08-13, or empty text if it is Invalid.
+
 ## Syntax
 
 ```freebasic

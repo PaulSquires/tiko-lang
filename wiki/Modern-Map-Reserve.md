@@ -2,7 +2,7 @@
 
 # Reserve
 
-O(n)
+Makes room for n entries, so filling the map does not have to regrow it.
 
 ## Syntax
 

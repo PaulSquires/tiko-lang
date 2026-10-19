@@ -2,7 +2,7 @@
 
 # CAcos
 
-The inverse cosine.
+Returns the inverse cosine of a complex number, or of any real number.
 
 ## Syntax
 

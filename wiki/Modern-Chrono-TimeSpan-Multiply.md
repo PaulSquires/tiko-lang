@@ -2,6 +2,8 @@
 
 # TimeSpan.Multiply
 
+Returns the duration scaled by a factor, fractions allowed.
+
 ## Syntax
 
 ```freebasic

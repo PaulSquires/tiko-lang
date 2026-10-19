@@ -2,7 +2,7 @@
 
 # NextULongInt
 
-A uniformly random 64-bit value.
+Returns a random 64-bit unsigned value, the generator's raw output.
 
 ## Syntax
 

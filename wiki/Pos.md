@@ -2,7 +2,7 @@
 
 # Pos
 
-Returns the horizontal (left to right) position of the text cursor
+Returns the column the cursor is in, counting from 1 at the left.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # File.Open
 
-FsResultBool
+Opens a file the way an OpenOptions says: read, write, append, create and more.
 
 ## Syntax
 

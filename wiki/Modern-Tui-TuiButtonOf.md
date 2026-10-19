@@ -2,6 +2,8 @@
 
 # TuiButtonOf
 
+Draws a button whose handler is a lambda that captures variables.
+
 ## Syntax
 
 ```freebasic

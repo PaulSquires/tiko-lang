@@ -2,6 +2,8 @@
 
 # MakeShared
 
+Creates a default-constructed object and returns the first SharedPtr to it.
+
 ## Syntax
 
 ```freebasic

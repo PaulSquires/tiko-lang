@@ -2,7 +2,7 @@
 
 # CSign
 
-Converts an expression to signed
+Converts an unsigned value to signed, so division and shifts treat it as signed.
 
 ## Syntax
 

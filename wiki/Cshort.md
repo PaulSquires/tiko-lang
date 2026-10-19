@@ -2,7 +2,7 @@
 
 # CShort
 
-Converts numeric or string expression to an integer (Short)
+Converts a number or string to a Short, rounding to the nearest; no overflow check.
 
 ## Syntax
 

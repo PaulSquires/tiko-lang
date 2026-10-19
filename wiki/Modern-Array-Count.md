@@ -2,6 +2,8 @@
 
 # Count
 
+Returns the number of elements; the valid indices are 0 to Count minus 1.
+
 ## Syntax
 
 ```freebasic

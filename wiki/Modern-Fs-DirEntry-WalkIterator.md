@@ -2,6 +2,8 @@
 
 # DirEntry.WalkIterator
 
+Holds the iterator WalkDir hands out, for stepping through a walk without for each.
+
 ## Syntax
 
 ```freebasic

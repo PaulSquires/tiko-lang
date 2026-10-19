@@ -2,7 +2,7 @@
 
 # Oct
 
-Converts a number to octal representation
+Returns a number as octal text.
 
 ## Syntax
 

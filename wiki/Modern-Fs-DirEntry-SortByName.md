@@ -2,6 +2,8 @@
 
 # WalkOptions.SortByName
 
+Chooses whether a walk lists each folder in name order; false by default.
+
 ## Syntax
 
 ```freebasic

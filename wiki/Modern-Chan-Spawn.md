@@ -2,7 +2,7 @@
 
 # Spawn
 
-Runs a procedure concurrently on the scheduler's worker pool.
+Runs a procedure alongside the program, copying its arguments at that moment.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # CreateTempDir
 
-CREATES it and returns the path
+Creates a uniquely named temporary folder and returns its path; it is not deleted for you.
 
 ## Syntax
 

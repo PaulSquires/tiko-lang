@@ -2,6 +2,8 @@
 
 # TuiBrightCyan
 
+Returns the classic bright cyan, palette colour 14.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # OrderedMap.TryLast
 
-O(log n)  largest key
+Copies the largest key and its value into variables; returns false if the map is empty.
 
 ## Syntax
 

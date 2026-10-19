@@ -2,7 +2,7 @@
 
 # SplitCsv
 
-O(n)   Array( of CsvRow )
+Parses CSV text into rows and fields, quoted fields included.
 
 ## Syntax
 

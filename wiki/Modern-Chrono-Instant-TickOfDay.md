@@ -2,6 +2,8 @@
 
 # Instant.TickOfDay
 
+Returns the time of day as one number: 100 ns ticks since midnight.
+
 ## Syntax
 
 ```freebasic

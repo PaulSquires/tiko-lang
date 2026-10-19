@@ -2,7 +2,7 @@
 
 # BufferedReader.Peek
 
-FsResultI64
+Copies up to n upcoming bytes into an Array without consuming them.
 
 ## Syntax
 

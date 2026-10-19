@@ -2,7 +2,7 @@
 
 # AddSink
 
-the LOGGER DOES NOT OWN THE SINK
+Attaches a sink to the logger, which keeps a pointer to it and does not own it.
 
 ## Syntax
 

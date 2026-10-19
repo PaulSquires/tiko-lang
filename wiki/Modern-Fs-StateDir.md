@@ -2,7 +2,7 @@
 
 # StateDir
 
-FsResultUStr -- where state that should outlive a run but is not configuration belongs: logs, history, recent files
+Returns the folder for logs, history and recent files, such as ~/.local/state.
 
 ## Syntax
 

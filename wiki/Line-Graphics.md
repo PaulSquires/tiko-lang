@@ -2,7 +2,7 @@
 
 # Line (Graphics)
 
-Draws a line
+Draws a line between two points, or a box or filled box with B or BF.
 
 ## Syntax
 

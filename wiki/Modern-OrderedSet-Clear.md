@@ -2,7 +2,7 @@
 
 # OrderedSet.Clear
 
-O(n)
+Removes every value.
 
 ## Syntax
 

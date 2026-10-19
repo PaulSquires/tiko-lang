@@ -2,6 +2,8 @@
 
 # StableSortBy
 
+Sorts an Array by your comparer, keeping equal elements in their original order.
+
 ## Syntax
 
 ```freebasic

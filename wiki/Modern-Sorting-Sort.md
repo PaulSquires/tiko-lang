@@ -2,7 +2,7 @@
 
 # Sort
 
-O(n log n) worst   in place, unstable
+Sorts an Array in ascending order in place; equal elements may change places.
 
 ## Syntax
 

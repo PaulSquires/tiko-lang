@@ -2,6 +2,8 @@
 
 # TuiMargin
 
+Holds an inset for each side, in the order left, top, right, bottom.
+
 ## Syntax
 
 ```freebasic

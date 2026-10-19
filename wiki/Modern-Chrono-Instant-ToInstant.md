@@ -2,6 +2,8 @@
 
 # Instant.ToInstant
 
+Returns the moment the date-time names, or Invalid if it has no offset.
+
 ## Syntax
 
 ```freebasic

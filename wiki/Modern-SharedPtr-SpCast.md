@@ -2,6 +2,8 @@
 
 # SpCast
 
+Returns a SharedPtr to a base type that shares ownership with the derived one.
+
 ## Syntax
 
 ```freebasic

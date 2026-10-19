@@ -2,7 +2,7 @@
 
 # StartsWith
 
-O(m)     boolean
+Returns true if the string begins with the given text.
 
 ## Syntax
 

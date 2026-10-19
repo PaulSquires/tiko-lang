@@ -2,7 +2,7 @@
 
 # CTan
 
-The tangent.
+Returns the tangent of a complex number, finite even for a large imaginary part.
 
 ## Syntax
 

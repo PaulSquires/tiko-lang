@@ -2,6 +2,8 @@
 
 # TuiMessageBox.Cancelled
 
+Returns true once the dialog was dismissed with Esc.
+
 ## Syntax
 
 ```freebasic

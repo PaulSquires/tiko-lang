@@ -2,7 +2,7 @@
 
 # MKI
 
-Does a binary copy from an integer variable to a String of the same length as the size of the input variable
+Copies an integer's bytes into a string.
 
 ## Syntax
 

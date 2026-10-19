@@ -2,6 +2,8 @@
 
 # TuiSeries
 
+Holds one line of a graph: its values, newest last, plus a colour and name.
+
 ## Syntax
 
 ```freebasic

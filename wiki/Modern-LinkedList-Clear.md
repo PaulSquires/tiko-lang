@@ -2,7 +2,7 @@
 
 # Clear
 
-O(n)
+Removes every value and frees its nodes.
 
 ## Syntax
 

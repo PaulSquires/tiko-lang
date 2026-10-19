@@ -2,7 +2,7 @@
 
 # (Print | ?) #
 
-Writes a list of values to a file or device
+Writes values as text to an open file; a trailing comma or semicolon skips the line break.
 
 ## Syntax
 

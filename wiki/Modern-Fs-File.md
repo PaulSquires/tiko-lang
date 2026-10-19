@@ -2,7 +2,7 @@
 
 # File
 
-An open file: a Stream over an operating-system handle it owns.
+Holds an open file: a Stream over a handle it owns and closes when it goes out of scope.
 
 ## Syntax
 

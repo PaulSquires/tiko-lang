@@ -2,6 +2,8 @@
 
 # TimeSpan.MaxValue
 
+Returns the longest duration a TimeSpan can hold.
+
 ## Syntax
 
 ```freebasic

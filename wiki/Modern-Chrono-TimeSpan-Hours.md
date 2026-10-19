@@ -2,6 +2,8 @@
 
 # TimeSpan.Hours
 
+Returns the hours part, 0 to 23, negative for a negative span.
+
 ## Syntax
 
 ```freebasic

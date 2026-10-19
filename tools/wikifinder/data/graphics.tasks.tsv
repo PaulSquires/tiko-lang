@@ -1,0 +1,67 @@
+# Graphics: task headings in display order, pages to skip, see-also links.
+#   task    <task id>  <heading>
+#   ignore  <page>  <reason>
+#   seealso <page>  <label>
+#   from    <value>  builtin|import|include  <module or ->
+task	open	Open a graphics window
+task	draw	Draw lines, shapes and pixels
+task	text	Draw text
+task	color	Make colours
+task	image	Create and inspect images
+task	blit	Copy images to and from the screen
+task	method	Choose how Put combines pixels
+task	file	Load and save images
+task	pages	Draw without flicker
+task	coords	Set the drawing area and coordinates
+task	input	Read the mouse, keyboard and joystick
+task	ctl-text	Take text, numbers and dates from the user
+task	ctl-button	Add buttons and switches
+task	ctl-list	Show lists and choices
+task	ctl-command	Add menus, toolbars and status bars
+task	ctl-layout	Split, scroll and lay out a window
+task	ctl-popup	Show messages, colour pickers and tooltips
+task	ctl-progress	Show progress and charts
+task	ctl-support	Paint and support your own controls
+ignore	Screen-Functions	an overview page, not a function
+ignore	2d-Drawing-Functions	an overview page, not a function
+ignore	User-Input-Functions-Graphics-Library	an overview page, not a function
+ignore	Vendor-Packages	an overview page, not a function
+ignore	Packages-and-Modules-Tutorial	a tutorial, not a function
+ignore	Stick	not available in tiko: the name is not declared (TKO0743)
+ignore	Strig	not available in tiko: the name is not declared (TKO0743)
+seealso	Category-Screen-Functions	Screen functions
+seealso	Category-2D-Drawing-Functions	2D drawing functions
+seealso	Category-User-Input-Functions-Graphics-Library	Graphics input functions
+seealso	Category-PsControls	PsControls guide
+seealso	Vendor-Packages	Vendor packages
+from	fbgfx.bi	include	-
+from	vendor/PsControls/PsTextBox	import	PsTextBox
+from	vendor/PsControls/PsNumericUpDown	import	PsNumericUpDown
+from	vendor/PsControls/PsDatePicker	import	PsDatePicker
+from	vendor/PsControls/PsCalendar	import	PsCalendar
+from	vendor/PsControls/PsButton	import	PsButton
+from	vendor/PsControls/PsCheckBox	import	PsCheckBox
+from	vendor/PsControls/PsOptionButton	import	PsOptionButton
+from	vendor/PsControls/PsToggle	import	PsToggle
+from	vendor/PsControls/PsListTree	import	PsListTree
+from	vendor/PsControls/PsComboBox	import	PsComboBox
+from	vendor/PsControls/PsSelectBar	import	PsSelectBar
+from	vendor/PsControls/PsTabBar	import	PsTabBar
+from	vendor/PsControls/PsMenuBar	import	PsMenuBar
+from	vendor/PsControls/PsToolbar	import	PsToolbar
+from	vendor/PsControls/PsIconPanel	import	PsIconPanel
+from	vendor/PsControls/PsStatusBar	import	PsStatusBar
+from	vendor/PsControls/PsSplitter	import	PsSplitter
+from	vendor/PsControls/PsScrollPanel	import	PsScrollPanel
+from	vendor/PsControls/PsVScrollBar	import	PsVScrollBar
+from	vendor/PsControls/PsHScrollBar	import	PsHScrollBar
+from	vendor/PsControls/PsMessageBox	import	PsMessageBox
+from	vendor/PsControls/PsColorPicker	import	PsColorPicker
+from	vendor/PsControls/PsTooltip	import	PsTooltip
+from	vendor/PsControls/PsProgressBar	import	PsProgressBar
+from	vendor/PsControls/PsChart	import	PsChart
+from	vendor/PsControls/PsBufferPaint	import	PsBufferPaint
+from	vendor/PsControls/PsImage	import	PsImage
+from	vendor/PsControls/PsPopupMenu	import	PsPopupMenu
+from	vendor/PsControls/PsColumnHeader	import	PsColumnHeader
+from	vendor/PsControls/PsTipHost	import	PsTipHost

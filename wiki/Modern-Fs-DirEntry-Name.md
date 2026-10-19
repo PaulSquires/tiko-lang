@@ -2,7 +2,7 @@
 
 # DirEntry.Name
 
-the leaf
+Returns the entry's name, without its folder.
 
 ## Syntax
 

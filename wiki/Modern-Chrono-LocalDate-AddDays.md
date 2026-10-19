@@ -2,6 +2,8 @@
 
 # LocalDate.AddDays
 
+Returns the date moved by a number of days.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # TimeSpan.CompareTo
 
--1 0 1, or -2
+Returns -1, 0 or 1 to order two durations, or -2 if either is Invalid.
 
 ## Syntax
 

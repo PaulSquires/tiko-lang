@@ -2,7 +2,7 @@
 
 # MutexUnlock
 
-Releases a mutex lock
+Unlocks a mutex so that a waiting thread can take it.
 
 ## Syntax
 

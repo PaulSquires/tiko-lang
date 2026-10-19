@@ -2,6 +2,8 @@
 
 # DepreciationMethod
 
+Lists the six methods, from straight line to units of production.
+
 ## Syntax
 
 ```freebasic

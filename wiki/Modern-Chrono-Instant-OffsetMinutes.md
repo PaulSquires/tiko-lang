@@ -2,6 +2,8 @@
 
 # Instant.OffsetMinutes
 
+Returns the UTC offset in minutes; check HasOffset first, as no offset reads 32767.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # TuiTruncate
 
+Cuts a string to fit a number of columns, ending in "..." unless you pass "".
+
 ## Syntax
 
 ```freebasic

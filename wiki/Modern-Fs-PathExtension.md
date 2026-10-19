@@ -2,7 +2,7 @@
 
 # PathExtension
 
-".tiko", WITH the dot; "" when there is none
+Returns the extension with its dot, such as .tiko, or an empty string if there is none.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # Instant.FromFileTime
 
+Creates a UTC date-time from a Windows FILETIME.
+
 ## Syntax
 
 ```freebasic

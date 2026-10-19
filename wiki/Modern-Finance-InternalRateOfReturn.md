@@ -2,6 +2,8 @@
 
 # InternalRateOfReturn
 
+Returns the rate at which the net present value of a series of flows is zero.
+
 ## Syntax
 
 ```freebasic

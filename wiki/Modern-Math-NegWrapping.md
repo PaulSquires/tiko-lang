@@ -2,7 +2,7 @@
 
 # NegWrapping
 
-The negation, wrapping on the one input that overflows -- deliberately.
+Negates an integer within its type, so the most negative value stays as it is.
 
 ## Syntax
 

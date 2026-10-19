@@ -2,7 +2,7 @@
 
 # DegToRad
 
-Converts degrees to radians.
+Converts an angle from degrees to radians.
 
 ## Syntax
 

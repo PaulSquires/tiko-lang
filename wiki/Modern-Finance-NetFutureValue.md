@@ -2,6 +2,8 @@
 
 # NetFutureValue
 
+Returns the net present value carried forward to the end of the series.
+
 ## Syntax
 
 ```freebasic

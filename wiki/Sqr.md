@@ -2,7 +2,7 @@
 
 # Sqr
 
-Returns a square root of a number
+Returns the square root of a number.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # TuiWidget.SetFocused
 
+Tells the widget whether it has focus; the focus ring calls it for you.
+
 ## Syntax
 
 ```freebasic

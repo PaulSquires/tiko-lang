@@ -2,6 +2,8 @@
 
 # Instant.IsUtc
 
+Returns true if the offset is zero; a date-time with no offset is not UTC.
+
 ## Syntax
 
 ```freebasic

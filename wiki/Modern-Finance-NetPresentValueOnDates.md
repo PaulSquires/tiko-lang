@@ -2,6 +2,8 @@
 
 # NetPresentValueOnDates
 
+Returns the net present value of dated flows at an annual rate on a day-count basis.
+
 ## Syntax
 
 ```freebasic

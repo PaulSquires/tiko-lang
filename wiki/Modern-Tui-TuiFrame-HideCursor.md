@@ -2,6 +2,8 @@
 
 # TuiFrame.HideCursor
 
+Hides the text cursor for this frame, which is the default.
+
 ## Syntax
 
 ```freebasic

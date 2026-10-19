@@ -2,7 +2,7 @@
 
 # Read Write (File Access)
 
-File access specifier
+Opens a Binary or Random file for both reading and writing, the default.
 
 ## Syntax
 

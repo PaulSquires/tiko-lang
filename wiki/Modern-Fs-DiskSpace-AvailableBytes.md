@@ -2,6 +2,8 @@
 
 # DiskSpace.AvailableBytes
 
+Returns the bytes this user may still write; the number to check before writing.
+
 ## Syntax
 
 ```freebasic

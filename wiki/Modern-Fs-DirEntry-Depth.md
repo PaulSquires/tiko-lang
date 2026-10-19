@@ -2,7 +2,7 @@
 
 # DirEntry.Depth
 
-0 for the immediate children of the walk root
+Returns how deep the entry is in a walk, 0 for the children of the folder walked.
 
 ## Syntax
 

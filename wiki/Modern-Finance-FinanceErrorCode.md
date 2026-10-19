@@ -2,6 +2,8 @@
 
 # FinanceErrorCode
 
+Lists the failure codes, such as FIN_INVALID_RATE and FIN_NO_SIGN_CHANGE.
+
 ## Syntax
 
 ```freebasic

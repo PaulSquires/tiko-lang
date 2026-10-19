@@ -2,6 +2,8 @@
 
 # Instant.StartOfYear
 
+Returns midnight on 1 January of the same year.
+
 ## Syntax
 
 ```freebasic

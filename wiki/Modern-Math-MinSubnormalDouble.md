@@ -2,6 +2,8 @@
 
 # MinSubnormalDouble
 
+Returns the smallest Double above zero.
+
 ## Syntax
 
 ```freebasic

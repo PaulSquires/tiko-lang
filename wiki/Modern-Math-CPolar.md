@@ -2,7 +2,7 @@
 
 # CPolar
 
-Builds a complex number from a modulus and a phase.
+Builds a complex number from a modulus and an angle in radians.
 
 ## Syntax
 

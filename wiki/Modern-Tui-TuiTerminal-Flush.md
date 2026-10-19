@@ -2,6 +2,8 @@
 
 # TuiTerminal.Flush
 
+Sends the buffered output in one write and empties the buffer.
+
 ## Syntax
 
 ```freebasic

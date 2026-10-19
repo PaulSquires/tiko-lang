@@ -1,0 +1,13 @@
+# Memory: task headings in display order, pages to skip, see-also links.
+#   task    <task id>  <heading>
+#   ignore  <page>  <reason>
+#   seealso <page>  <label>
+task	alloc	Allocate and free memory
+task	address	Read and write memory by address
+task	copy	Copy, fill and swap memory
+task	shared	Share one object between owners
+task	use	Reach the object behind a SharedPtr
+task	weak	Refer to an object without keeping it alive
+ignore	Memory-Functions	an overview page, not a function
+seealso	Category-Smart-Pointers	Smart pointers guide
+seealso	Category-Memory-Functions	Memory functions

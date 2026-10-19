@@ -2,7 +2,7 @@
 
 # Read (File Access)
 
-File access specifier
+Opens a Binary or Random file for reading only, in an Access clause.
 
 ## Syntax
 

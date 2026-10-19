@@ -2,7 +2,7 @@
 
 # BufferedReader
 
-A Stream that reads its inner stream in large pieces.
+Holds a Stream that reads another in large pieces, so many small reads stay fast.
 
 ## Syntax
 

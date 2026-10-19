@@ -2,6 +2,8 @@
 
 # InfinityF
 
+Returns positive infinity as a Single.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # TuiBlack
 
+Returns the classic black, palette colour 0.
+
 ## Syntax
 
 ```freebasic

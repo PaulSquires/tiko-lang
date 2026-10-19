@@ -2,6 +2,8 @@
 
 # TuiCanvas.DotWidth
 
+Returns the canvas width in dots, two per cell.
+
 ## Syntax
 
 ```freebasic

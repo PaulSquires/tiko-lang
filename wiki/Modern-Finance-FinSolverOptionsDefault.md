@@ -2,6 +2,8 @@
 
 # FinSolverOptionsDefault
 
+Returns the standard solver settings: rate bounds, 128 iterations and no guess.
+
 ## Syntax
 
 ```freebasic

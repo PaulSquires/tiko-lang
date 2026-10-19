@@ -2,7 +2,7 @@
 
 # PathIsRoot
 
-the whole path is exactly its root
+Returns true if the whole path is just a root, such as C:\ or /.
 
 ## Syntax
 

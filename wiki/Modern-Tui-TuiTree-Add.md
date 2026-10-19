@@ -2,6 +2,8 @@
 
 # TuiTree.Add
 
+Appends a node at a depth; the deeper nodes after it become its children.
+
 ## Syntax
 
 ```freebasic

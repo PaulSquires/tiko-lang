@@ -2,6 +2,8 @@
 
 # TuiRect.Intersect
 
+Returns the overlap of two rectangles, or an empty one if they do not touch.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # Repeat
 
-O(n*count)
+Returns a string repeated n times.
 
 ## Syntax
 

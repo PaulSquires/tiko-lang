@@ -2,7 +2,7 @@
 
 # CreateDirAll
 
-mkdir -p; SUCCEEDS if it is already a directory
+Creates a folder and any missing parents; succeeds if it already exists.
 
 ## Syntax
 

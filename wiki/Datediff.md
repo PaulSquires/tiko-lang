@@ -2,7 +2,7 @@
 
 # DateDiff
 
-Gets the difference of two dates measured by a specified interval
+Counts the years, months, days or other units between two date serials.
 
 ## Syntax
 

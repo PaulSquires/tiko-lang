@@ -2,6 +2,8 @@
 
 # Beta
 
+Returns how much an asset moves when its benchmark moves by one.
+
 ## Syntax
 
 ```freebasic

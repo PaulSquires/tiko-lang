@@ -2,6 +2,8 @@
 
 # IsSubnormal
 
+Returns true if the value is nonzero but below the smallest normal number.
+
 ## Syntax
 
 ```freebasic

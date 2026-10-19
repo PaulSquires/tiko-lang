@@ -2,7 +2,7 @@
 
 # Abs
 
-Calculates the absolute value of a number
+Returns the absolute value of a number.
 
 ## Syntax
 

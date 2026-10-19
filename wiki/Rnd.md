@@ -2,7 +2,7 @@
 
 # Rnd
 
-Returns a random Double precision number in the range [0, 1)
+Returns a random Double from 0 up to but not including 1.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # LocalDate.ParseIso
 
+Reads ISO text such as 2026-08-13 into a date, or Invalid on failure.
+
 ## Syntax
 
 ```freebasic

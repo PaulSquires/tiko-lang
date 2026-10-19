@@ -2,7 +2,7 @@
 
 # PathChangeExtension
 
-ext with or without its dot; "" removes
+Replaces a path's extension, or removes it when the new one is empty.
 
 ## Syntax
 

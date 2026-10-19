@@ -2,7 +2,7 @@
 
 # StableSortBy
 
-O(n log n) always  O(n) scratch, STABLE
+Sorts an Array by your comparer, keeping equal elements in their original order.
 
 ## Syntax
 

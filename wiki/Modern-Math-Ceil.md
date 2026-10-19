@@ -2,6 +2,8 @@
 
 # Ceil
 
+Rounds up, towards positive infinity, so Ceil(-2.7) is -2.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # AnnuityTermsMake
 
+Returns annuity terms from the six values; the one being solved for is ignored.
+
 ## Syntax
 
 ```freebasic

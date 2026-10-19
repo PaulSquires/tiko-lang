@@ -2,7 +2,7 @@
 
 # BufferedWriter
 
-A Stream that collects small writes and passes them on in large pieces.
+Holds a Stream that gathers small writes and passes them on in large pieces.
 
 ## Syntax
 

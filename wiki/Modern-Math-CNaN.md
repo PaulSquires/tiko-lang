@@ -2,7 +2,7 @@
 
 # CNaN
 
-A complex NaN — both components NaN.
+Returns a complex number whose two parts are both NaN.
 
 ## Syntax
 

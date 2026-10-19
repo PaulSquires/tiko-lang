@@ -2,6 +2,8 @@
 
 # TuiBorderGlyphs
 
+Returns the characters for a border kind, such as plain ASCII for older consoles.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # TuiCanvas.CellRows
 
+Returns the canvas height in cells.
+
 ## Syntax
 
 ```freebasic

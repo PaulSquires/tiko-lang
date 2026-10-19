@@ -2,7 +2,7 @@
 
 # CAcsc
 
-The inverse cosecant.
+Returns the inverse cosecant of a complex number, or of any real number.
 
 ## Syntax
 

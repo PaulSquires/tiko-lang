@@ -2,6 +2,8 @@
 
 # TuiTextInput
 
+Draws a one-line text box with a cursor, selection and optional password masking.
+
 ## Syntax
 
 ```freebasic

@@ -1,0 +1,34 @@
+# Console: task headings in display order, pages to skip, see-also links.
+#   task    <task id>  <heading>
+#   ignore  <page>  <reason>
+#   seealso <page>  <label>
+task	print	Print text to the console
+task	input	Ask the user to type a line or values
+task	keys	Read single keys
+task	screen	Clear, position and colour console text
+task	app	Write a full-screen TUI app
+task	events	Handle keys and the mouse in a TUI
+task	cmd	Redraw, quit and run timers
+task	text	Show boxes, text, tabs and progress
+task	lists	Show lists, tables and trees
+task	forms	Build forms and move focus between fields
+task	overlays	Show pop-ups, dialogs, menus and status bars
+task	charts	Draw graphs, charts and braille dots
+task	layout	Split the screen into panels
+task	rects	Rectangles, sizes and margins
+task	style	Style text: attributes and themes
+task	colour	Pick colours
+task	width	Measure, cut and wrap text by columns
+task	draw	Draw on the frame and write your own widgets
+task	screenbuf	Render frames and test without a terminal
+task	terminal	Drive the terminal and parse input yourself
+ignore	Console-Functions	an overview page, not a function
+ignore	User-Input-Runtime-Library	an overview page, not a function
+ignore	Modern-Tui-Example-Hello	a complete example program, not a function
+ignore	Modern-Tui-Example-Form	a complete example program, not a function
+ignore	Modern-Tui-Example-Dashboard	a complete example program, not a function
+seealso	Console-Functions	Console functions overview
+seealso	User-Input-Runtime-Library	Keyboard input overview
+seealso	Category-Terminal-TUI-Library	Terminal TUI Library guide
+seealso	Modern-Tui-Example-Hello	hello.tiko: the smallest TUI program
+seealso	Modern-Tui-Example-Dashboard	dashboard.tiko: a full TUI dashboard

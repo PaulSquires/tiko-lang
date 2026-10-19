@@ -2,7 +2,7 @@
 
 # Transpose
 
-A matrix with its rows and columns exchanged.
+Returns a matrix with its rows and columns swapped.
 
 ## Syntax
 

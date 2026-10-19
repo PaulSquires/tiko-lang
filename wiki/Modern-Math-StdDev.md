@@ -2,7 +2,7 @@
 
 # StdDev
 
-The **sample** standard deviation: the square root of `Variance`.
+Returns the sample standard deviation of an array, dividing by n-1.
 
 ## Syntax
 

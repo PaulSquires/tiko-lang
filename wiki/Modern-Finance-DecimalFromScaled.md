@@ -2,6 +2,8 @@
 
 # DecimalFromScaled
 
+Returns a whole number over a power of ten as a Decimal: 1999 at scale 2 is 19.99.
+
 ## Syntax
 
 ```freebasic

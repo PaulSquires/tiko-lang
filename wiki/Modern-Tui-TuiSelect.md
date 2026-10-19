@@ -2,6 +2,8 @@
 
 # TuiSelect
 
+Draws a dropdown list of options that opens over whatever is below it.
+
 ## Syntax
 
 ```freebasic

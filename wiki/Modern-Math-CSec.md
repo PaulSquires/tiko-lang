@@ -2,7 +2,7 @@
 
 # CSec
 
-The secant — one over the cosine.
+Returns the secant of a complex number, one over the cosine.
 
 ## Syntax
 

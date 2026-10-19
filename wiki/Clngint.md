@@ -2,7 +2,7 @@
 
 # CLngInt
 
-Converts numeric or string expression to 64-bit integer (LongInt)
+Converts a number or string to a 64-bit LongInt, rounding to the nearest.
 
 ## Syntax
 

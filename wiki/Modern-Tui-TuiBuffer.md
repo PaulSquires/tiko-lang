@@ -2,6 +2,8 @@
 
 # TuiBuffer
 
+Holds a grid of character cells, stored row by row.
+
 ## Syntax
 
 ```freebasic

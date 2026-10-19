@@ -2,6 +2,8 @@
 
 # MoneyWeightedReturn
 
+Returns the dated internal rate of return of contributions and the closing value.
+
 ## Syntax
 
 ```freebasic

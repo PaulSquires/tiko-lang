@@ -2,6 +2,8 @@
 
 # ExtraPaymentRecurring
 
+Returns the same extra principal payment in every period of a range.
+
 ## Syntax
 
 ```freebasic

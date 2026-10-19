@@ -2,7 +2,7 @@
 
 # Year
 
-Gets the year from a Date Serial
+Returns the year of a date serial.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # LOF
 
-Returns the length of an open disk file
+Returns the length in bytes of an open file.
 
 ## Syntax
 

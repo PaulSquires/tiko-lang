@@ -2,7 +2,7 @@
 
 # MCase
 
-O(n)     title case
+Returns a title-case copy: each word capitalised, the rest lower case.
 
 ## Syntax
 

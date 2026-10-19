@@ -2,7 +2,7 @@
 
 # Put (Graphics)
 
-Copies an image on to another image or screen
+Draws an image onto the screen or another image, with a choice of blending method.
 
 ## Syntax
 

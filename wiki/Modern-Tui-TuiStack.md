@@ -2,6 +2,8 @@
 
 # TuiStack
 
+Holds child widgets laid out in a row or column; it deletes them when it goes.
+
 ## Syntax
 
 ```freebasic

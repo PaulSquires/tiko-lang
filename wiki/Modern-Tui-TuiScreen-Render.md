@@ -2,6 +2,8 @@
 
 # TuiScreen.Render
 
+Returns the bytes that change the last frame into the new one, then swaps buffers.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # DepreciationScheduleIterator
 
+Walks a depreciation schedule row by row, for stopping early.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # Enabled
 
-Whether a record at this level would be emitted.
+Returns true if a record at a level would be emitted, to skip building costly messages.
 
 ## Syntax
 

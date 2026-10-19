@@ -2,7 +2,7 @@
 
 # VariancePopulation
 
-The **population** variance, dividing by n.
+Returns the population variance of an array, dividing by n.
 
 ## Syntax
 

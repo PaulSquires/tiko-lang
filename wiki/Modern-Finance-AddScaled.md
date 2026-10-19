@@ -2,7 +2,7 @@
 
 # AddScaled
 
-Adds `c * num / den` to an accumulator, exactly.
+Adds an amount times a fraction, such as one third, to a running total exactly.
 
 ## Syntax
 

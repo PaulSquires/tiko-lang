@@ -2,6 +2,8 @@
 
 # Done
 
+Subtracts one from the work outstanding; raises an error if it would go below zero.
+
 ## Syntax
 
 ```freebasic

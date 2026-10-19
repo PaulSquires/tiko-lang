@@ -2,6 +2,8 @@
 
 # LoanBalanceAt
 
+Returns the balance after a period from a formula, without walking the schedule.
+
 ## Syntax
 
 ```freebasic

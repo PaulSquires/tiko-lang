@@ -2,7 +2,7 @@
 
 # InsertAt
 
-O(n)
+Inserts text at a position.
 
 ## Syntax
 

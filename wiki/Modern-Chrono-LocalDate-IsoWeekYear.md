@@ -2,6 +2,8 @@
 
 # LocalDate.IsoWeekYear
 
+Returns the year the ISO week belongs to, which can differ from Year near New Year.
+
 ## Syntax
 
 ```freebasic

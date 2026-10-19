@@ -2,7 +2,7 @@
 
 # MKShort
 
-Does a binary copy from a Short variable to a String, setting its length to 2 bytes
+Copies a Short's bytes into a 2-byte string.
 
 ## Syntax
 

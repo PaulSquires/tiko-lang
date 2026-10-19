@@ -2,7 +2,7 @@
 
 # PathRootLen
 
-length of the root prefix, in code units
+Returns the length of a path's root, in characters.
 
 ## Syntax
 

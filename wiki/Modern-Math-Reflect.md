@@ -2,7 +2,7 @@
 
 # Reflect
 
-A vector reflected about a surface normal.
+Reflects a vector off a surface, given the surface's normalised normal.
 
 ## Syntax
 

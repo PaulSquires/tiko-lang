@@ -2,7 +2,7 @@
 
 # ISqrt
 
-exact floor of the true root
+Returns the exact whole-number square root, rounded down.
 
 ## Syntax
 

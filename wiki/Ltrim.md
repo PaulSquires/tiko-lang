@@ -2,7 +2,7 @@
 
 # LTrim
 
-Removes surrounding substrings or characters on the left side of a string
+Removes spaces, or the given characters, from the start.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # TuiPercent
 
+Returns a constraint for a percentage of the whole space being split.
+
 ## Syntax
 
 ```freebasic

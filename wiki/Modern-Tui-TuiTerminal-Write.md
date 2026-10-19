@@ -2,6 +2,8 @@
 
 # TuiTerminal.Write
 
+Adds bytes to the output buffer; nothing is sent until Flush.
+
 ## Syntax
 
 ```freebasic

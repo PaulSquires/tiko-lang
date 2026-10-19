@@ -2,6 +2,8 @@
 
 # TimeSpan.TryParseIso
 
+Reads an ISO 8601 duration; returns false and sets it Invalid on failure.
+
 ## Syntax
 
 ```freebasic

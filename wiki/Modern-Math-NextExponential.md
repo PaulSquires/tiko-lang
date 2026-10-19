@@ -2,6 +2,8 @@
 
 # NextExponential
 
+Returns a random waiting time between events at rate lambda; its mean is 1/lambda.
+
 ## Syntax
 
 ```freebasic

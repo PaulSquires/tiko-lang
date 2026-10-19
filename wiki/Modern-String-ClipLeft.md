@@ -2,7 +2,7 @@
 
 # ClipLeft
 
-O(n)
+Removes a number of characters from the start.
 
 ## Syntax
 

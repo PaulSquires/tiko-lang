@@ -2,6 +2,8 @@
 
 # TuiFrame.Area
 
+Returns the whole screen as a rectangle at 0, 0, the start of every layout.
+
 ## Syntax
 
 ```freebasic

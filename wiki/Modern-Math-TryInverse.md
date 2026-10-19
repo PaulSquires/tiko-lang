@@ -2,7 +2,7 @@
 
 # TryInverse
 
-The inverse of a matrix, if it has one.
+Writes the inverse of a matrix into a second one, or returns false if there is none.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # CryptoULongInt
 
+Returns a secure random 64-bit value from the operating system.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # DecimalMinusOne
 
+Returns minus one as a Decimal.
+
 ## Syntax
 
 ```freebasic

@@ -580,52 +580,315 @@ Stated rather than implied:
 
 - No differential test against OleAut32 `VarCy*` or .NET decimal was run for Currency; it is owed.
 
+<!-- finder:start -->
+
 ## API reference
 
-One page per entry, 197 in all:
+Every entry, grouped by task. [Numbers and math](Functions-Numbers) lists them beside the rest of the area.
 
-|   |   |   |   |   |
-|---|---|---|---|---|
-| [AbsChecked](Modern-Math-AbsChecked) | [CIsReal](Modern-Math-CIsReal) | [CToStringPolar](Modern-Math-CToStringPolar) | [Mean](Modern-Math-Mean) | [Range](Modern-Math-Range) |
-| [AbsSaturating](Modern-Math-AbsSaturating) | [CIsZero](Modern-Math-CIsZero) | [CurrentLocaleFormat](Modern-Math-CurrentLocaleFormat) | [Median](Modern-Math-Median) | [Reflect](Modern-Math-Reflect) |
-| [Add](Modern-Math-Add) | [Clamp](Modern-Math-Clamp) | [CZero](Modern-Math-CZero) | [Merge](Modern-Math-Merge) | [Reset](Modern-Math-Reset) |
-| [AddChecked](Modern-Math-AddChecked) | [Classify](Modern-Math-Classify) | [DegToRad](Modern-Math-DegToRad) | [Min](Modern-Math-Min) | [RngFromEntropy](Modern-Math-RngFromEntropy) |
-| [AddSaturating](Modern-Math-AddSaturating) | [ClearFpException](Modern-Math-ClearFpException) | [Determinant](Modern-Math-Determinant) | [MinOf](Modern-Math-MinOf) | [RngSeeded](Modern-Math-RngSeeded) |
-| [AddWrapping](Modern-Math-AddWrapping) | [ClearFpExceptions](Modern-Math-ClearFpExceptions) | [Distance](Modern-Math-Distance) | [MinSubnormalDouble](Modern-Math-MinSubnormalDouble) | [Rotate](Modern-Math-Rotate) |
-| [Angle](Modern-Math-Angle) | [CLog](Modern-Math-CLog) | [DistanceSquared](Modern-Math-DistanceSquared) | [MinSubnormalSingle](Modern-Math-MinSubnormalSingle) | [Round](Modern-Math-Round) |
-| [BitReverse](Modern-Math-BitReverse) | [CLog10](Modern-Math-CLog10) | [DivChecked](Modern-Math-DivChecked) | [MinValue](Modern-Math-MinValue) | [RoundHalfEven](Modern-Math-RoundHalfEven) |
-| [BitWidth](Modern-Math-BitWidth) | [CLogAbs](Modern-Math-CLogAbs) | [DivMod](Modern-Math-DivMod) | [Modf](Modern-Math-Modf) | [ScaleB](Modern-Math-ScaleB) |
-| [ByteSwap](Modern-Math-ByteSwap) | [CNaN](Modern-Math-CNaN) | [Dot](Modern-Math-Dot) | [Mul](Modern-Math-Mul) | [SetRoundingMode](Modern-Math-SetRoundingMode) |
-| [CAbs](Modern-Math-CAbs) | [CNegate](Modern-Math-CNegate) | [EuclidDiv](Modern-Math-EuclidDiv) | [MulChecked](Modern-Math-MulChecked) | [Shuffle](Modern-Math-Shuffle) |
-| [CAcos](Modern-Math-CAcos) | [CNorm](Modern-Math-CNorm) | [EuclidMod](Modern-Math-EuclidMod) | [MulSaturating](Modern-Math-MulSaturating) | [Sign](Modern-Math-Sign) |
-| [CAcosh](Modern-Math-CAcosh) | [CNthRoot](Modern-Math-CNthRoot) | [Floor](Modern-Math-Floor) | [MulWrapping](Modern-Math-MulWrapping) | [Slerp](Modern-Math-Slerp) |
-| [CAcot](Modern-Math-CAcot) | [Complex](Modern-Math-Complex) | [FloorDiv](Modern-Math-FloorDiv) | [NaiveSum](Modern-Math-NaiveSum) | [StdDev](Modern-Math-StdDev) |
-| [CAcoth](Modern-Math-CAcoth) | [Complex operators](Modern-Math-Complex-Operators) | [FloorMod](Modern-Math-FloorMod) | [NaN](Modern-Math-NaN) | [StdDevPopulation](Modern-Math-StdDevPopulation) |
-| [CAcsc](Modern-Math-CAcsc) | [COne](Modern-Math-COne) | [Fma](Modern-Math-Fma) | [NaNF](Modern-Math-NaNF) | [SubChecked](Modern-Math-SubChecked) |
-| [CAcsch](Modern-Math-CAcsch) | [Conjugate](Modern-Math-Conjugate) | [Frexp](Modern-Math-Frexp) | [NegChecked](Modern-Math-NegChecked) | [SubSaturating](Modern-Math-SubSaturating) |
-| [CArg](Modern-Math-CArg) | [Correlation](Modern-Math-Correlation) | [GCD](Modern-Math-GCD) | [NegInfinity](Modern-Math-NegInfinity) | [SubWrapping](Modern-Math-SubWrapping) |
-| [CAsec](Modern-Math-CAsec) | [Count](Modern-Math-Count) | [GetRoundingMode](Modern-Math-GetRoundingMode) | [NegInfinityF](Modern-Math-NegInfinityF) | [Sum](Modern-Math-Sum) |
-| [CAsech](Modern-Math-CAsech) | [Covariance](Modern-Math-Covariance) | [Hypot](Modern-Math-Hypot) | [NegSaturating](Modern-Math-NegSaturating) | [TestFpException](Modern-Math-TestFpException) |
-| [CAsin](Modern-Math-CAsin) | [CPolar](Modern-Math-CPolar) | [Infinity](Modern-Math-Infinity) | [NegWrapping](Modern-Math-NegWrapping) | [ToMatrix](Modern-Math-ToMatrix) |
-| [CAsinh](Modern-Math-CAsinh) | [CPow](Modern-Math-CPow) | [InfinityF](Modern-Math-InfinityF) | [NextBoolean](Modern-Math-NextBoolean) | [ToString](Modern-Math-ToString) |
-| [CAtan](Modern-Math-CAtan) | [CReal](Modern-Math-CReal) | [IPow](Modern-Math-IPow) | [NextBooleanP](Modern-Math-NextBooleanP) | [TrailingZeros](Modern-Math-TrailingZeros) |
-| [CAtanh](Modern-Math-CAtanh) | [CReciprocal](Modern-Math-CReciprocal) | [IPowChecked](Modern-Math-IPowChecked) | [NextDouble](Modern-Math-NextDouble) | [TransformPoint](Modern-Math-TransformPoint) |
-| [CConj](Modern-Math-CConj) | [Cross](Modern-Math-Cross) | [IsFinite](Modern-Math-IsFinite) | [NextDoubleRange](Modern-Math-NextDoubleRange) | [TransformVector](Modern-Math-TransformVector) |
-| [CCos](Modern-Math-CCos) | [CryptoBytes](Modern-Math-CryptoBytes) | [IsInfinite](Modern-Math-IsInfinite) | [NextExponential](Modern-Math-NextExponential) | [Transpose](Modern-Math-Transpose) |
-| [CCosh](Modern-Math-CCosh) | [CryptoULongInt](Modern-Math-CryptoULongInt) | [IsNaN](Modern-Math-IsNaN) | [NextInt](Modern-Math-NextInt) | [Truncate](Modern-Math-Truncate) |
-| [CCot](Modern-Math-CCot) | [CSec](Modern-Math-CSec) | [IsNegative](Modern-Math-IsNegative) | [NextNormal](Modern-Math-NextNormal) | [TryInverse](Modern-Math-TryInverse) |
-| [CCoth](Modern-Math-CCoth) | [CSech](Modern-Math-CSech) | [IsNormal](Modern-Math-IsNormal) | [NextNormalP](Modern-Math-NextNormalP) | [TryParseDouble](Modern-Math-TryParseDouble) |
-| [CCsc](Modern-Math-CCsc) | [CSet](Modern-Math-CSet) | [IsPow2](Modern-Math-IsPow2) | [NextPoisson](Modern-Math-NextPoisson) | [TryParseLong](Modern-Math-TryParseLong) |
-| [CCsch](Modern-Math-CCsch) | [CSetImag](Modern-Math-CSetImag) | [ISqrt](Modern-Math-ISqrt) | [NextPow2](Modern-Math-NextPow2) | [TryParseLongInt](Modern-Math-TryParseLongInt) |
-| [Ceil](Modern-Math-Ceil) | [CSetReal](Modern-Math-CSetReal) | [IsSubnormal](Modern-Math-IsSubnormal) | [NextSingle](Modern-Math-NextSingle) | [TryParseSingle](Modern-Math-TryParseSingle) |
-| [CExp](Modern-Math-CExp) | [CSgn](Modern-Math-CSgn) | [LCM](Modern-Math-LCM) | [NextULong](Modern-Math-NextULong) | [TryParseULong](Modern-Math-TryParseULong) |
-| [Choice](Modern-Math-Choice) | [CSin](Modern-Math-CSin) | [LeadingZeros](Modern-Math-LeadingZeros) | [NextULongInt](Modern-Math-NextULongInt) | [TryParseULongInt](Modern-Math-TryParseULongInt) |
-| [CImag](Modern-Math-CImag) | [CSinh](Modern-Math-CSinh) | [Length](Modern-Math-Length) | [Normalize](Modern-Math-Normalize) | [Ulp](Modern-Math-Ulp) |
-| [CImaginaryOne](Modern-Math-CImaginaryOne) | [CSqrt](Modern-Math-CSqrt) | [LengthSquared](Modern-Math-LengthSquared) | [Parity](Modern-Math-Parity) | [Variance](Modern-Math-Variance) |
-| [CInfinity](Modern-Math-CInfinity) | [CSwap](Modern-Math-CSwap) | [Lerp](Modern-Math-Lerp) | [Percentile](Modern-Math-Percentile) | [VariancePopulation](Modern-Math-VariancePopulation) |
-| [CIsFinite](Modern-Math-CIsFinite) | [CTan](Modern-Math-CTan) | [Max](Modern-Math-Max) | [PopCount](Modern-Math-PopCount) |  |
-| [CIsInfinite](Modern-Math-CIsInfinite) | [CTanh](Modern-Math-CTanh) | [MaxOf](Modern-Math-MaxOf) | [RadToDeg](Modern-Math-RadToDeg) |  |
-| [CIsNaN](Modern-Math-CIsNaN) | [CToString](Modern-Math-CToString) | [MaxValue](Modern-Math-MaxValue) | [RaiseFpException](Modern-Math-RaiseFpException) |  |
+### Round a number
+
+| Function | What it does | From |
+|---|---|---|
+| [Round](Modern-Math-Round) | Rounds to the nearest whole number or number of decimals, halves away from zero. | `std/numeric` |
+| [RoundHalfEven](Modern-Math-RoundHalfEven) | Rounds to the nearest whole number or number of decimals, halves to the even side. | `std/numeric` |
+| [Floor](Modern-Math-Floor) | Rounds down, towards negative infinity, so Floor(-2.1) is -3. | `std/numeric` |
+| [Ceil](Modern-Math-Ceil) | Rounds up, towards positive infinity, so Ceil(-2.7) is -2. | `std/numeric` |
+| [Truncate](Modern-Math-Truncate) | Drops the fraction, rounding towards zero, so Truncate(-2.7) is -2. | `std/numeric` |
+| [Modf](Modern-Math-Modf) | Splits a number into whole and fractional parts that both keep its sign. | `std/numeric` |
+
+### Absolute value, sign, smaller and larger
+
+| Function | What it does | From |
+|---|---|---|
+| [Sign](Modern-Math-Sign) | Returns -1, 0 or 1 for the sign of a number, always as a Long. | `std/numeric` |
+| [Min](Modern-Math-Min) | Returns the smaller of two values; a NaN argument gives NaN. | `std/numeric` |
+| [Max](Modern-Math-Max) | Returns the larger of two values; a NaN argument gives NaN. | `std/numeric` |
+| [Clamp](Modern-Math-Clamp) | Limits a value to a range: below lo gives lo, above hi gives hi. | `std/numeric` |
+| [Lerp](Modern-Math-Lerp) | Returns the point a fraction t of the way from a to b; t is not clamped. | `std/numeric` |
+
+### Powers, roots and logarithms
+
+| Function | What it does | From |
+|---|---|---|
+| [IPow](Modern-Math-IPow) | Raises a whole number to a whole-number power exactly, with no trip through Double. | `std/numeric` |
+| [ISqrt](Modern-Math-ISqrt) | Returns the exact whole-number square root, rounded down. | `std/numeric` |
+| [Hypot](Modern-Math-Hypot) | Returns the square root of x*x + y*y without overflowing for large values. | `std/numeric` |
+
+### Trigonometry and angles
+
+| Function | What it does | From |
+|---|---|---|
+| [DegToRad](Modern-Math-DegToRad) | Converts an angle from degrees to radians. | `std/numeric` |
+| [RadToDeg](Modern-Math-RadToDeg) | Converts an angle from radians to degrees. | `std/numeric` |
+
+### Divide whole numbers
+
+| Function | What it does | From |
+|---|---|---|
+| [FloorDiv](Modern-Math-FloorDiv) | Divides whole numbers rounding towards negative infinity, so FloorDiv(-7, 2) is -4. | `std/numeric` |
+| [FloorMod](Modern-Math-FloorMod) | Returns the remainder with the divisor's sign, so FloorMod(-1, 5) is 4. | `std/numeric` |
+| [EuclidDiv](Modern-Math-EuclidDiv) | Divides whole numbers so that the matching EuclidMod remainder is never negative. | `std/numeric` |
+| [EuclidMod](Modern-Math-EuclidMod) | Returns a remainder that is never negative, whatever the signs. | `std/numeric` |
+| [DivMod](Modern-Math-DivMod) | Returns the quotient and the remainder of one division together, as a tuple. | `std/numeric` |
+| [GCD](Modern-Math-GCD) | Returns the greatest common divisor of two whole numbers. | `std/numeric` |
+| [LCM](Modern-Math-LCM) | Returns the least common multiple of two whole numbers, or 0 if either is 0. | `std/numeric` |
+
+### Catch, clamp or wrap integer overflow
+
+| Function | What it does | From |
+|---|---|---|
+| [AddChecked](Modern-Math-AddChecked) | Adds two integers, returning an empty Optional if the result would overflow. | `std/numeric` |
+| [SubChecked](Modern-Math-SubChecked) | Subtracts two integers, returning an empty Optional if the result would overflow. | `std/numeric` |
+| [MulChecked](Modern-Math-MulChecked) | Multiplies two integers, returning an empty Optional if the result would overflow. | `std/numeric` |
+| [DivChecked](Modern-Math-DivChecked) | Divides two integers, returning an empty Optional on division by zero or overflow. | `std/numeric` |
+| [NegChecked](Modern-Math-NegChecked) | Negates an integer, returning an empty Optional for the most negative value. | `std/numeric` |
+| [AbsChecked](Modern-Math-AbsChecked) | Returns the absolute value as an Optional, empty for the most negative value. | `std/numeric` |
+| [IPowChecked](Modern-Math-IPowChecked) | Raises an integer to a power, returning an empty Optional if the result overflows. | `std/numeric` |
+| [AddSaturating](Modern-Math-AddSaturating) | Adds two integers, clamping the result to the type's minimum or maximum. | `std/numeric` |
+| [SubSaturating](Modern-Math-SubSaturating) | Subtracts two integers, clamping the result to the type's minimum or maximum. | `std/numeric` |
+| [MulSaturating](Modern-Math-MulSaturating) | Multiplies two integers, clamping the result to the type's minimum or maximum. | `std/numeric` |
+| [NegSaturating](Modern-Math-NegSaturating) | Negates an integer; the most negative value becomes the maximum instead. | `std/numeric` |
+| [AbsSaturating](Modern-Math-AbsSaturating) | Returns the absolute value; the most negative value becomes the maximum instead. | `std/numeric` |
+| [AddWrapping](Modern-Math-AddWrapping) | Adds two integers and wraps around on overflow, on purpose. | `std/numeric` |
+| [SubWrapping](Modern-Math-SubWrapping) | Subtracts two integers and wraps around on overflow, on purpose. | `std/numeric` |
+| [MulWrapping](Modern-Math-MulWrapping) | Multiplies two integers and wraps around on overflow, on purpose. | `std/numeric` |
+| [NegWrapping](Modern-Math-NegWrapping) | Negates an integer within its type, so the most negative value stays as it is. | `std/numeric` |
+
+### Convert between numbers and text
+
+| Function | What it does | From |
+|---|---|---|
+| [TryParseDouble](Modern-Math-TryParseDouble) | Parses a whole string as a Double, returning an empty Optional if it is not one. | `std/numeric` |
+| [TryParseSingle](Modern-Math-TryParseSingle) | Parses a whole string as a Single, returning an empty Optional if it is not one. | `std/numeric` |
+| [TryParseLong](Modern-Math-TryParseLong) | Parses a whole string as a Long, returning an empty Optional if invalid or too big. | `std/numeric` |
+| [TryParseULong](Modern-Math-TryParseULong) | Parses a whole string as a ULong, returning an empty Optional if invalid or too big. | `std/numeric` |
+| [TryParseLongInt](Modern-Math-TryParseLongInt) | Parses a whole string as a LongInt, in an optional base; empty if invalid or too big. | `std/numeric` |
+| [TryParseULongInt](Modern-Math-TryParseULongInt) | Parses a whole string as a ULongInt, returning an empty Optional if invalid or too big. | `std/numeric` |
+| [ToString](Modern-Math-ToString) | Returns a number as the shortest text that reads back as exactly the same value. | `std/numeric` |
+| [CurrentLocaleFormat](Modern-Math-CurrentLocaleFormat) | Returns a NumFormat holding this machine's decimal and thousands separators. | `std/numeric` |
+
+### Random numbers
+
+| Function | What it does | From |
+|---|---|---|
+| [RngSeeded](Modern-Math-RngSeeded) | Creates a random generator from a seed, so the same seed repeats the same sequence. | `std/numeric` |
+| [RngFromEntropy](Modern-Math-RngFromEntropy) | Creates a random generator seeded by the operating system, different on every run. | `std/numeric` |
+| [Rng.NextInt](Modern-Math-NextInt) | Returns a random whole number from lo to hi, both included, without bias. | `std/numeric` |
+| [Rng.NextDouble](Modern-Math-NextDouble) | Returns a random Double from 0 up to but not including 1, with 53 random bits. | `std/numeric` |
+| [Rng.NextDoubleRange](Modern-Math-NextDoubleRange) | Returns a random Double from lo up to but not including hi. | `std/numeric` |
+| [Rng.NextSingle](Modern-Math-NextSingle) | Returns a random Single from 0 up to but not including 1. | `std/numeric` |
+| [Rng.NextULong](Modern-Math-NextULong) | Returns a random 32-bit unsigned value. | `std/numeric` |
+| [Rng.NextULongInt](Modern-Math-NextULongInt) | Returns a random 64-bit unsigned value, the generator's raw output. | `std/numeric` |
+| [Rng.NextBoolean](Modern-Math-NextBoolean) | Returns true or false with equal chance. | `std/numeric` |
+| [Rng.NextBooleanP](Modern-Math-NextBooleanP) | Returns true with probability p, from 0 for never to 1 for always. | `std/numeric` |
+| [Rng.NextNormal](Modern-Math-NextNormal) | Returns a random value from the normal distribution, mean 0 and standard deviation 1. | `std/numeric` |
+| [Rng.NextNormalP](Modern-Math-NextNormalP) | Returns a random value from a normal distribution with the given mean and deviation. | `std/numeric` |
+| [Rng.NextExponential](Modern-Math-NextExponential) | Returns a random waiting time between events at rate lambda; its mean is 1/lambda. | `std/numeric` |
+| [Rng.NextPoisson](Modern-Math-NextPoisson) | Returns a random count of events in one interval at rate lambda; its mean is lambda. | `std/numeric` |
+| [Shuffle](Modern-Math-Shuffle) | Shuffles an array in place so that every order is equally likely. | `std/numeric` |
+| [Choice](Modern-Math-Choice) | Returns one element of an array picked at random, by reference. | `std/numeric` |
+
+### Secure random bytes
+
+| Function | What it does | From |
+|---|---|---|
+| [CryptoBytes](Modern-Math-CryptoBytes) | Fills a buffer with secure random bytes from the operating system; false on failure. | `std/numeric` |
+| [CryptoULongInt](Modern-Math-CryptoULongInt) | Returns a secure random 64-bit value from the operating system. | `std/numeric` |
+
+### NaN, infinity and other special values
+
+| Function | What it does | From |
+|---|---|---|
+| [IsNaN](Modern-Math-IsNaN) | Returns true if the value is NaN, which an equality test cannot detect. | `std/numeric` |
+| [IsInfinite](Modern-Math-IsInfinite) | Returns true if the value is plus or minus infinity. | `std/numeric` |
+| [IsFinite](Modern-Math-IsFinite) | Returns true if the value is neither infinite nor NaN. | `std/numeric` |
+| [IsNormal](Modern-Math-IsNormal) | Returns true if the value is finite, not zero and not subnormal. | `std/numeric` |
+| [IsSubnormal](Modern-Math-IsSubnormal) | Returns true if the value is nonzero but below the smallest normal number. | `std/numeric` |
+| [IsNegative](Modern-Math-IsNegative) | Returns true if the sign bit is set, which includes negative zero. | `std/numeric` |
+| [Classify](Modern-Math-Classify) | Returns whether a value is NaN, infinite, zero, subnormal or normal. | `std/numeric` |
+| [NaN](Modern-Math-NaN) | Returns a Double that is NaN, not a number. | `std/numeric` |
+| [NaNF](Modern-Math-NaNF) | Returns a Single that is NaN, not a number. | `std/numeric` |
+| [Infinity](Modern-Math-Infinity) | Returns positive infinity as a Double. | `std/numeric` |
+| [InfinityF](Modern-Math-InfinityF) | Returns positive infinity as a Single. | `std/numeric` |
+| [NegInfinity](Modern-Math-NegInfinity) | Returns negative infinity as a Double. | `std/numeric` |
+| [NegInfinityF](Modern-Math-NegInfinityF) | Returns negative infinity as a Single. | `std/numeric` |
+| [MinSubnormalDouble](Modern-Math-MinSubnormalDouble) | Returns the smallest Double above zero. | `std/numeric` |
+| [MinSubnormalSingle](Modern-Math-MinSubnormalSingle) | Returns the smallest Single above zero. | `std/numeric` |
+
+### Look inside floating-point numbers
+
+| Function | What it does | From |
+|---|---|---|
+| [Frexp](Modern-Math-Frexp) | Splits a number into a fraction from 0.5 to 1 and a power of two. | `std/numeric` |
+| [ScaleB](Modern-Math-ScaleB) | Multiplies a number by a power of two exactly, by adjusting its exponent. | `std/numeric` |
+| [Ulp](Modern-Math-Ulp) | Returns the gap between a number and the next one its type can hold. | `std/numeric` |
+| [Fma](Modern-Math-Fma) | Returns x * y + z with a single rounding at the end. | `std/numeric` |
+
+### Control floating-point rounding and exceptions
+
+| Function | What it does | From |
+|---|---|---|
+| [GetRoundingMode](Modern-Math-GetRoundingMode) | Returns the direction floating-point results are currently rounded in. | `std/numeric` |
+| [SetRoundingMode](Modern-Math-SetRoundingMode) | Sets the direction floating-point results are rounded in; returns true on success. | `std/numeric` |
+| [ClearFpExceptions](Modern-Math-ClearFpExceptions) | Clears every floating-point exception flag. | `std/numeric` |
+| [ClearFpException](Modern-Math-ClearFpException) | Clears one floating-point exception flag and leaves the others alone. | `std/numeric` |
+| [TestFpException](Modern-Math-TestFpException) | Returns true if a floating-point exception flag has been raised since it was cleared. | `std/numeric` |
+| [RaiseFpException](Modern-Math-RaiseFpException) | Raises a floating-point exception flag by hand; returns true on success. | `std/numeric` |
+
+### Count, reverse and swap bits
+
+| Function | What it does | From |
+|---|---|---|
+| [PopCount](Modern-Math-PopCount) | Counts the bits that are set. | `std/numeric` |
+| [LeadingZeros](Modern-Math-LeadingZeros) | Counts the zero bits above the highest set bit; zero gives the type's full width. | `std/numeric` |
+| [TrailingZeros](Modern-Math-TrailingZeros) | Counts the zero bits below the lowest set bit; zero gives the type's full width. | `std/numeric` |
+| [BitWidth](Modern-Math-BitWidth) | Returns how many bits the value needs, or 0 for zero. | `std/numeric` |
+| [Parity](Modern-Math-Parity) | Returns 1 if an odd number of bits are set, or 0 if an even number are. | `std/numeric` |
+| [BitReverse](Modern-Math-BitReverse) | Reverses the order of all the bits in the value's type. | `std/numeric` |
+| [ByteSwap](Modern-Math-ByteSwap) | Reverses the order of the bytes, converting between big-endian and little-endian. | `std/numeric` |
+| [IsPow2](Modern-Math-IsPow2) | Returns true if the value is a power of two; zero is not one. | `std/numeric` |
+| [NextPow2](Modern-Math-NextPow2) | Returns the smallest power of two at or above the value; zero gives 1. | `std/numeric` |
+
+### Summarise an array of numbers
+
+| Function | What it does | From |
+|---|---|---|
+| [Sum](Modern-Math-Sum) | Adds up an array with compensated summation, so small values are not lost. | `std/numeric` |
+| [NaiveSum](Modern-Math-NaiveSum) | Adds up an array with a plain loop: faster than Sum, but small values can be lost. | `std/numeric` |
+| [Count](Modern-Math-Count) | Counts the elements in an array. | `std/numeric` |
+| [Mean](Modern-Math-Mean) | Returns the average of an array, or NaN if it is empty. | `std/numeric` |
+| [Median](Modern-Math-Median) | Returns the middle value of an array, without reordering it. | `std/numeric` |
+| [Percentile](Modern-Math-Percentile) | Returns the value below which p percent of an array falls, with p from 0 to 100. | `std/numeric` |
+| [Variance](Modern-Math-Variance) | Returns the sample variance of an array, dividing by n-1. | `std/numeric` |
+| [VariancePopulation](Modern-Math-VariancePopulation) | Returns the population variance of an array, dividing by n. | `std/numeric` |
+| [StdDev](Modern-Math-StdDev) | Returns the sample standard deviation of an array, dividing by n-1. | `std/numeric` |
+| [StdDevPopulation](Modern-Math-StdDevPopulation) | Returns the population standard deviation of an array, dividing by n. | `std/numeric` |
+| [MinOf](Modern-Math-MinOf) | Returns the smallest value in an array, or NaN if it is empty. | `std/numeric` |
+| [MaxOf](Modern-Math-MaxOf) | Returns the largest value in an array, or NaN if it is empty. | `std/numeric` |
+| [Range](Modern-Math-Range) | Returns the largest value in an array minus the smallest. | `std/numeric` |
+| [Covariance](Modern-Math-Covariance) | Returns the sample covariance of two arrays of the same length. | `std/numeric` |
+| [Correlation](Modern-Math-Correlation) | Returns the Pearson correlation of two arrays, from -1 to 1. | `std/numeric` |
+
+### Keep running statistics
+
+| Function | What it does | From |
+|---|---|---|
+| [RunningStats.Add](Modern-Math-Add) | Adds one value to a running count, mean, variance, minimum and maximum. | `std/numeric` |
+| [RunningStats.Merge](Modern-Math-Merge) | Combines another accumulator's values into this one, exactly. | `std/numeric` |
+| [RunningStats.Reset](Modern-Math-Reset) | Empties the accumulator so that it can be reused. | `std/numeric` |
+| [RunningStats.MinValue](Modern-Math-MinValue) | Returns the smallest value added so far. | `std/numeric` |
+| [RunningStats.MaxValue](Modern-Math-MaxValue) | Returns the largest value added so far. | `std/numeric` |
+
+### Vectors
+
+| Function | What it does | From |
+|---|---|---|
+| [Dot](Modern-Math-Dot) | Returns the dot product of two vectors; zero means they are perpendicular. | `std/numeric` |
+| [Cross](Modern-Math-Cross) | Returns a Vec3 perpendicular to both inputs; swapping them flips its direction. | `std/numeric` |
+| [Mul](Modern-Math-Mul) | Multiplies two vectors component by component. | `std/numeric` |
+| [Length](Modern-Math-Length) | Returns the length of a vector. | `std/numeric` |
+| [LengthSquared](Modern-Math-LengthSquared) | Returns the squared length of a vector, the cheap way to compare lengths. | `std/numeric` |
+| [Distance](Modern-Math-Distance) | Returns the distance between two points. | `std/numeric` |
+| [DistanceSquared](Modern-Math-DistanceSquared) | Returns the squared distance between two points, the cheap way to test a range. | `std/numeric` |
+| [Normalize](Modern-Math-Normalize) | Returns a vector of length 1 in the same direction; a zero vector stays zero. | `std/numeric` |
+| [Reflect](Modern-Math-Reflect) | Reflects a vector off a surface, given the surface's normalised normal. | `std/numeric` |
+| [Angle](Modern-Math-Angle) | Returns the angle between two vectors in radians, from 0 to pi. | `std/numeric` |
+
+### Matrices and rotations
+
+| Function | What it does | From |
+|---|---|---|
+| [Determinant](Modern-Math-Determinant) | Returns the determinant of a matrix; zero means it has no inverse. | `std/numeric` |
+| [Transpose](Modern-Math-Transpose) | Returns a matrix with its rows and columns swapped. | `std/numeric` |
+| [TryInverse](Modern-Math-TryInverse) | Writes the inverse of a matrix into a second one, or returns false if there is none. | `std/numeric` |
+| [TransformPoint](Modern-Math-TransformPoint) | Applies a matrix to a point, translation included. | `std/numeric` |
+| [TransformVector](Modern-Math-TransformVector) | Applies a matrix to a direction, leaving out the translation. | `std/numeric` |
+| [Conjugate](Modern-Math-Conjugate) | Returns the conjugate of a quaternion, the reverse rotation when it is normalised. | `std/numeric` |
+| [Rotate](Modern-Math-Rotate) | Rotates a vector by a normalised quaternion. | `std/numeric` |
+| [ToMatrix](Modern-Math-ToMatrix) | Converts a quaternion into the matching rotation matrix. | `std/numeric` |
+| [Slerp](Modern-Math-Slerp) | Blends between two rotations at constant speed, taking the shorter way round. | `std/numeric` |
+
+### Complex numbers: build, read and print
+
+| Function | What it does | From |
+|---|---|---|
+| [Complex](Modern-Math-Complex) | Holds a complex number as two Doubles, re and im. | `std/numeric` |
+| [Complex operators](Modern-Math-Complex-Operators) | Adds, subtracts, multiplies, divides, raises and compares complex numbers. | `std/numeric` |
+| [CSet](Modern-Math-CSet) | Builds a complex number from its real and imaginary parts. | `std/numeric` |
+| [CPolar](Modern-Math-CPolar) | Builds a complex number from a modulus and an angle in radians. | `std/numeric` |
+| [CZero](Modern-Math-CZero) | Returns the complex number 0. | `std/numeric` |
+| [COne](Modern-Math-COne) | Returns the complex number 1. | `std/numeric` |
+| [CImaginaryOne](Modern-Math-CImaginaryOne) | Returns the imaginary unit i. | `std/numeric` |
+| [CNaN](Modern-Math-CNaN) | Returns a complex number whose two parts are both NaN. | `std/numeric` |
+| [CInfinity](Modern-Math-CInfinity) | Returns a complex number whose two parts are both positive infinity. | `std/numeric` |
+| [CReal](Modern-Math-CReal) | Returns the real part of a complex number. | `std/numeric` |
+| [CImag](Modern-Math-CImag) | Returns the imaginary part of a complex number, without the i. | `std/numeric` |
+| [CSetReal](Modern-Math-CSetReal) | Sets the real part of a complex variable in place. | `std/numeric` |
+| [CSetImag](Modern-Math-CSetImag) | Sets the imaginary part of a complex variable in place. | `std/numeric` |
+| [CSwap](Modern-Math-CSwap) | Swaps the values of two complex variables. | `std/numeric` |
+| [CToString](Modern-Math-CToString) | Returns a complex number as text such as 3+4i that reads back exactly. | `std/numeric` |
+| [CToStringPolar](Modern-Math-CToStringPolar) | Returns a complex number as polar text, such as 5 * exp(0.927i). | `std/numeric` |
+
+### Complex numbers: test and measure
+
+| Function | What it does | From |
+|---|---|---|
+| [CIsNaN](Modern-Math-CIsNaN) | Returns true if a complex number is NaN; one infinite part makes it infinite instead. | `std/numeric` |
+| [CIsInfinite](Modern-Math-CIsInfinite) | Returns true if either part of a complex number is infinite. | `std/numeric` |
+| [CIsFinite](Modern-Math-CIsFinite) | Returns true if both parts of a complex number are finite. | `std/numeric` |
+| [CIsReal](Modern-Math-CIsReal) | Returns true if the imaginary part of a complex number is zero. | `std/numeric` |
+| [CIsZero](Modern-Math-CIsZero) | Returns true if both parts of a complex number are zero. | `std/numeric` |
+| [CAbs](Modern-Math-CAbs) | Returns the modulus, the distance from zero, without overflowing for large parts. | `std/numeric` |
+| [CNorm](Modern-Math-CNorm) | Returns the modulus squared, the cheap way to compare sizes. | `std/numeric` |
+| [CArg](Modern-Math-CArg) | Returns the phase angle of a complex number in radians, from -pi to pi. | `std/numeric` |
+| [CLogAbs](Modern-Math-CLogAbs) | Returns the logarithm of the modulus, without overflowing for large parts. | `std/numeric` |
+| [CConj](Modern-Math-CConj) | Returns the conjugate, the same number with its imaginary part negated. | `std/numeric` |
+| [CNegate](Modern-Math-CNegate) | Returns a complex number with both parts negated. | `std/numeric` |
+| [CReciprocal](Modern-Math-CReciprocal) | Returns one divided by a complex number; zero gives zero. | `std/numeric` |
+| [CSgn](Modern-Math-CSgn) | Returns a complex number scaled to modulus 1, or zero for zero. | `std/numeric` |
+
+### Complex numbers: powers, roots and logarithms
+
+| Function | What it does | From |
+|---|---|---|
+| [CExp](Modern-Math-CExp) | Returns e raised to a complex power. | `std/numeric` |
+| [CLog](Modern-Math-CLog) | Returns the natural logarithm of a complex number, or its logarithm to a given base. | `std/numeric` |
+| [CLog10](Modern-Math-CLog10) | Returns the base-ten logarithm of a complex number. | `std/numeric` |
+| [CSqrt](Modern-Math-CSqrt) | Returns the principal square root of a complex number or of a negative real. | `std/numeric` |
+| [CPow](Modern-Math-CPow) | Raises a complex or real number to a complex or real power. | `std/numeric` |
+| [CNthRoot](Modern-Math-CNthRoot) | Returns any one of the n nth roots of a complex number. | `std/numeric` |
+
+### Complex numbers: trigonometry
+
+| Function | What it does | From |
+|---|---|---|
+| [CSin](Modern-Math-CSin) | Returns the sine of a complex number. | `std/numeric` |
+| [CCos](Modern-Math-CCos) | Returns the cosine of a complex number. | `std/numeric` |
+| [CTan](Modern-Math-CTan) | Returns the tangent of a complex number, finite even for a large imaginary part. | `std/numeric` |
+| [CSec](Modern-Math-CSec) | Returns the secant of a complex number, one over the cosine. | `std/numeric` |
+| [CCsc](Modern-Math-CCsc) | Returns the cosecant of a complex number, one over the sine; zero gives zero. | `std/numeric` |
+| [CCot](Modern-Math-CCot) | Returns the cotangent of a complex number, one over the tangent. | `std/numeric` |
+| [CAsin](Modern-Math-CAsin) | Returns the inverse sine of a complex number, or of any real number. | `std/numeric` |
+| [CAcos](Modern-Math-CAcos) | Returns the inverse cosine of a complex number, or of any real number. | `std/numeric` |
+| [CAtan](Modern-Math-CAtan) | Returns the inverse tangent of a complex number. | `std/numeric` |
+| [CAsec](Modern-Math-CAsec) | Returns the inverse secant of a complex number, or of any real number. | `std/numeric` |
+| [CAcsc](Modern-Math-CAcsc) | Returns the inverse cosecant of a complex number, or of any real number. | `std/numeric` |
+| [CAcot](Modern-Math-CAcot) | Returns the inverse cotangent of a complex number; zero gives zero. | `std/numeric` |
+| [CSinh](Modern-Math-CSinh) | Returns the hyperbolic sine of a complex number. | `std/numeric` |
+| [CCosh](Modern-Math-CCosh) | Returns the hyperbolic cosine of a complex number. | `std/numeric` |
+| [CTanh](Modern-Math-CTanh) | Returns the hyperbolic tangent of a complex number. | `std/numeric` |
+| [CSech](Modern-Math-CSech) | Returns the hyperbolic secant of a complex number, one over its cosh. | `std/numeric` |
+| [CCsch](Modern-Math-CCsch) | Returns the hyperbolic cosecant of a complex number, one over its sinh; zero gives zero. | `std/numeric` |
+| [CCoth](Modern-Math-CCoth) | Returns the hyperbolic cotangent of a complex number, one over its tanh. | `std/numeric` |
+| [CAsinh](Modern-Math-CAsinh) | Returns the inverse hyperbolic sine of a complex number. | `std/numeric` |
+| [CAcosh](Modern-Math-CAcosh) | Returns the inverse hyperbolic cosine of a complex number, or of any real number. | `std/numeric` |
+| [CAtanh](Modern-Math-CAtanh) | Returns the inverse hyperbolic tangent of a complex number, or of any real number. | `std/numeric` |
+| [CAsech](Modern-Math-CAsech) | Returns the inverse hyperbolic secant of a complex number. | `std/numeric` |
+| [CAcsch](Modern-Math-CAcsch) | Returns the inverse hyperbolic cosecant of a complex number. | `std/numeric` |
+| [CAcoth](Modern-Math-CAcoth) | Returns the inverse hyperbolic cotangent of a complex number. | `std/numeric` |
+
+<!-- finder:end -->
 
 ---
 

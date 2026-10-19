@@ -2,6 +2,8 @@
 
 # TuiMarginOf
 
+Returns a margin from left, top, right and bottom.
+
 ## Syntax
 
 ```freebasic

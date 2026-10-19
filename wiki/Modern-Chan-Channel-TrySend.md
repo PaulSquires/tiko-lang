@@ -2,7 +2,7 @@
 
 # TrySend
 
-Sends a value if it can be sent immediately; never blocks.
+Sends a value only if it can go at once; returns false if it would have to wait.
 
 ## Syntax
 

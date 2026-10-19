@@ -2,6 +2,8 @@
 
 # FileInfo.CreatedUtc
 
+Returns the creation time in ticks, or 0 when HasCreated is false.
+
 ## Syntax
 
 ```freebasic

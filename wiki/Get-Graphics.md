@@ -2,7 +2,7 @@
 
 # Get (Graphics)
 
-Gets a copy of a portion of the current work page or an image buffer
+Copies a rectangle of the screen or an image into an image buffer.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # GetMouse
 
-Retrieves the status of the mouse pointing device
+Fills in the mouse position, wheel and buttons, or -1 in each if there is no mouse.
 
 ## Syntax
 

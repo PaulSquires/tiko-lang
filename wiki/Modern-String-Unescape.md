@@ -2,7 +2,7 @@
 
 # Unescape
 
-O(n)
+Turns backslash escapes back into the characters they stand for.
 
 ## Syntax
 

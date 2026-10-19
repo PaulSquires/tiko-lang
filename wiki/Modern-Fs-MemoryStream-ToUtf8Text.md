@@ -2,7 +2,7 @@
 
 # MemoryStream.ToUtf8Text
 
-ustring
+Returns the bytes held decoded as text, the same way ReadAllText decodes a file.
 
 ## Syntax
 

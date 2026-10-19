@@ -2,6 +2,8 @@
 
 # TuiCell.Equals
 
+Returns true if two cells have the same character, style and width.
+
 ## Syntax
 
 ```freebasic

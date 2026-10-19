@@ -2,7 +2,7 @@
 
 # Timer
 
-Returns the amount of time that has passed since a static reference point.
+Returns the seconds since a fixed starting point, for measuring elapsed time.
 
 ## Syntax
 

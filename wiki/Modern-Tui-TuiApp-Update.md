@@ -2,6 +2,8 @@
 
 # TuiApp.Update
 
+Reacts to one event and returns what the loop should do next; it never draws.
+
 ## Syntax
 
 ```freebasic

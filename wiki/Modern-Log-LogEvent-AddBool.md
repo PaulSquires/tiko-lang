@@ -2,6 +2,8 @@
 
 # LogEvent.AddBool
 
+Adds a named true or false field.
+
 ## Syntax
 
 ```freebasic

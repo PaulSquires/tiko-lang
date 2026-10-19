@@ -2,6 +2,8 @@
 
 # Instant.FromInstant
 
+Returns the date-time a moment shows on a clock with the given UTC offset.
+
 ## Syntax
 
 ```freebasic

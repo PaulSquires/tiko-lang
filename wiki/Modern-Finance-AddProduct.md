@@ -2,7 +2,7 @@
 
 # AddProduct
 
-Adds `c * rate` to an accumulator, without rounding at each step.
+Adds an amount times a rate to a running total, rounding only once at the end.
 
 ## Syntax
 

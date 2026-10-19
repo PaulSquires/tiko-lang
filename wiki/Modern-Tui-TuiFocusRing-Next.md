@@ -2,6 +2,8 @@
 
 # TuiFocusRing.Next_
 
+Moves focus to the next widget, wrapping at the end, as Tab does.
+
 ## Syntax
 
 ```freebasic

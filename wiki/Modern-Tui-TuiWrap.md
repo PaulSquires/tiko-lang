@@ -2,6 +2,8 @@
 
 # TuiWrap
 
+Breaks text into lines that fit a number of columns, keeping its line breaks.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # FileInfo.ModifiedUtc
 
-longint -- ticks, see below
+Returns the last-write time in ticks of 100 ns since 0001-01-01 UTC.
 
 ## Syntax
 

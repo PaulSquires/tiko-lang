@@ -2,6 +2,8 @@
 
 # WaitFor
 
+Waits at most ms milliseconds for the work to reach zero; returns false on a timeout.
+
 ## Syntax
 
 ```freebasic

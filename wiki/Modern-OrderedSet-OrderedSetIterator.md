@@ -2,7 +2,7 @@
 
 # OrderedSetIterator
 
-The iterator `for each` uses over an `OrderedSet( of T )`.
+Holds a position in an OrderedSet, stepping in ascending order.
 
 ## Syntax
 

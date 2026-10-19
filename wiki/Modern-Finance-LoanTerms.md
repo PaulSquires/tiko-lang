@@ -2,6 +2,8 @@
 
 # LoanTerms
 
+Holds a loan's principal, rate, term, frequencies, rounding and first payment date.
+
 ## Syntax
 
 ```freebasic

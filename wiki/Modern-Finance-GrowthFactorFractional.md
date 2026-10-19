@@ -2,6 +2,8 @@
 
 # GrowthFactorFractional
 
+Returns what one unit grows to over a fractional number of periods.
+
 ## Syntax
 
 ```freebasic

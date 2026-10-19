@@ -1,0 +1,30 @@
+# Files and folders: task headings in display order, pages to skip, see-also links.
+#   task    <task id>  <heading>
+#   ignore  <page>  <reason>
+#   seealso <page>  <label>
+task	whole	Read or write a whole file
+task	exists	Check that a file or folder exists
+task	paths	Build and take apart paths
+task	pathcheck	Clean up, compare and resolve paths
+task	list	List and walk folders
+task	copy	Copy, move and delete files
+task	folders	Create, copy and remove folders
+task	places	Find standard folders and make temporary files
+task	info	FileInfo: size, kind, times and flags
+task	fnopen	File numbers: open and close files
+task	fnio	File numbers: read, write and seek
+task	text	Read and write text a line at a time
+task	file	File: open a file and work in place
+task	streams	Streams: read and write bytes
+task	glob	Find files by pattern
+task	walk	Control a folder walk
+task	errors	FsError: find out why a call failed
+task	perms	Links, permissions and file identity
+task	volumes	Disk space and volumes
+task	lockwatch	Lock, map and watch files
+task	devices	Open devices, pipes and the console
+ignore	File-I-O-Functions	an overview page, not a function
+seealso	Category-Filesystem	Filesystem library guide
+seealso	Category-File-I-O-Functions	File I/O functions
+seealso	Category-Result	Result
+seealso	Category-Operating-System-Functions	Operating system functions (Kill, FileExists, Dir)

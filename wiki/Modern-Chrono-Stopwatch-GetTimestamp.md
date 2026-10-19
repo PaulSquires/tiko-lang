@@ -2,7 +2,7 @@
 
 # GetTimestamp
 
-The raw monotonic counter value.
+Returns the raw monotonic counter; divide a difference by Frequency to get seconds.
 
 ## Syntax
 

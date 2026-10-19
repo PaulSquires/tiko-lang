@@ -2,7 +2,7 @@
 
 # And (Graphics Put)
 
-Parameter to the Put graphics statement which uses a bit-wise And as the blitting method
+Combines source and destination pixels with a bitwise And, as a Put method.
 
 ## Syntax
 

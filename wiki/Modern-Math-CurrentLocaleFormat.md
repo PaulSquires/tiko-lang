@@ -2,7 +2,7 @@
 
 # CurrentLocaleFormat
 
-The machine's current number-formatting conventions.
+Returns a NumFormat holding this machine's decimal and thousands separators.
 
 ## Syntax
 

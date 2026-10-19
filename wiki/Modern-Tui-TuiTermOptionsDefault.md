@@ -2,6 +2,8 @@
 
 # TuiTermOptionsDefault
 
+Returns the usual terminal settings, with the mouse and focus events left off.
+
 ## Syntax
 
 ```freebasic

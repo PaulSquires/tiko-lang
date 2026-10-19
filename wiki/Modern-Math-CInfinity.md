@@ -2,7 +2,7 @@
 
 # CInfinity
 
-A complex infinity — both components positive infinity.
+Returns a complex number whose two parts are both positive infinity.
 
 ## Syntax
 

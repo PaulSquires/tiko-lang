@@ -2,6 +2,8 @@
 
 # TuiStatusBar.Add
 
+Adds an item at the left or right; include any padding spaces in the text.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # FileLock.Acquire
 
-FsResultBool
+Takes a lock on a file that cooperating programs share, waiting up to a timeout.
 
 ## Syntax
 

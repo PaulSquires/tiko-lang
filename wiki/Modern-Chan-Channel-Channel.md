@@ -2,7 +2,7 @@
 
 # Channel
 
-A typed, thread-safe queue: Go's `hchan`, transliterated.
+Holds a typed queue between goroutines; copies share it, and a new one is nil.
 
 ## Syntax
 

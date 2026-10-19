@@ -2,7 +2,7 @@
 
 # AddDays
 
-time across a DST boundary.
+Adds days of exactly 24 hours, so the clock time can shift across a DST change.
 
 ## Syntax
 

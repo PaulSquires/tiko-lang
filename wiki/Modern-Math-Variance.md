@@ -2,7 +2,7 @@
 
 # Variance
 
-The **sample** variance, dividing by n-1.
+Returns the sample variance of an array, dividing by n-1.
 
 ## Syntax
 

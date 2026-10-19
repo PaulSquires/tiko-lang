@@ -2,7 +2,7 @@
 
 # File.Close
 
-FsResultBool
+Closes the file and reports any error the close itself raised.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # FloorMod
 
+Returns the remainder with the divisor's sign, so FloorMod(-1, 5) is 4.
+
 ## Syntax
 
 ```freebasic

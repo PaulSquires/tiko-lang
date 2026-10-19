@@ -2,6 +2,8 @@
 
 # DecimalFromUInt
 
+Returns an unsigned 64-bit integer as a Decimal, exactly.
+
 ## Syntax
 
 ```freebasic

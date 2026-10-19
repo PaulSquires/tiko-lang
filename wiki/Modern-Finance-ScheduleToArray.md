@@ -2,6 +2,8 @@
 
 # ScheduleToArray
 
+Returns every row of a loan schedule as an Array, for random access.
+
 ## Syntax
 
 ```freebasic

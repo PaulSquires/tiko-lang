@@ -2,6 +2,8 @@
 
 # TuiBrightRed
 
+Returns the classic bright red, palette colour 9.
+
 ## Syntax
 
 ```freebasic

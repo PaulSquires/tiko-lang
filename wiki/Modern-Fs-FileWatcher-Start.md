@@ -2,7 +2,7 @@
 
 # FileWatcher.Start
 
-FsResultBool
+Starts watching a folder for changes, subfolders too when recursive is true.
 
 ## Syntax
 

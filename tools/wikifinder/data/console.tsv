@@ -1,0 +1,274 @@
+# Console functions. One row per function, per task it belongs to. Tab-separated; see finder.py for the rules.
+page	name	qualifier	task	from	rank	summary
+Print	Print	-	print	built-in	1	Writes values to the console, then a new line unless it ends with a comma or semicolon.
+Print-Using	Print Using	-	print	built-in	-	Writes values formatted by a template such as "##.##" or "&".
+Write	Write	-	print	built-in	-	Writes values separated by commas, with strings in double quotes.
+Spc	Spc	-	print	built-in	-	Skips a number of columns inside a Print, leaving those cells unchanged.
+Tab	Tab	-	print	built-in	-	Moves to a column inside a Print, on the next line if already past it.
+procedures-Input	Input	-	input	built-in	2	Reads values the user types, up to Enter, after an optional prompt.
+procedures-Line-Input	Line Input	-	input	built-in	-	Reads a whole typed line into a string, commas included, after an optional prompt.
+Inkey	Inkey	-	keys	built-in	-	Returns the next key waiting, or an empty string at once if there is none.
+Getkey	GetKey	-	keys	built-in	-	Waits for a key and returns its code; the key is not shown on screen.
+Input-2	Input	function	keys	built-in	-	Waits for a number of characters from the keyboard or a file and returns them.
+Winput	WInput	-	keys	built-in	-	Reads a number of wide characters from a file or device and returns them.
+Cls	Cls	-	screen	built-in	-	Clears the screen, or only the text or graphics viewport.
+Locate	Locate	-	screen	built-in	-	Moves the text cursor to a row and column, and can show or hide it.
+Csrlin	CsrLin	-	screen	built-in	-	Returns the row the cursor is on, counting from 1 at the top.
+Pos	Pos	-	screen	built-in	-	Returns the column the cursor is in, counting from 1 at the left.
+Color	Color	-	screen	built-in	3	Sets the colours for text printed from now on, and returns the previous ones.
+Width	Width	-	screen	built-in	-	Sets or returns the number of columns and rows of the console.
+View-Print	View Print	-	screen	built-in	-	Limits printing and scrolling to a range of rows, or to the whole screen again.
+Screen-Console	Screen	-	screen	built-in	-	Returns the character, or its colour, at a row and column of the console.
+Modern-Tui-TuiApp	TuiApp	-	app	std/tui	-	Holds your app: you write Init to set up, Update to react and View to draw.
+Modern-Tui-TuiApp-Init	TuiApp.Init	-	app	std/tui	-	Sets up your app and returns its first command, such as a tick to start animating.
+Modern-Tui-TuiApp-Update	TuiApp.Update	-	app	std/tui	-	Reacts to one event and returns what the loop should do next; it never draws.
+Modern-Tui-TuiApp-View	TuiApp.View	-	app	std/tui	-	Draws the whole screen from your app's state, changing nothing.
+Modern-Tui-TuiApp-Shutdown	TuiApp.Shutdown	-	app	std/tui	-	Runs once as the loop ends, while the terminal is still taken.
+Modern-Tui-TuiRun	TuiRun	-	app	std/tui	4	Runs your app full-screen and restores the terminal; returns the exit code or an error.
+Modern-Tui-TuiRunOptions	TuiRunOptions	-	app	std/tui	-	Holds loop settings: frames per second and whether Ctrl+C quits.
+Modern-Tui-TuiRunOptionsDefault	TuiRunOptionsDefault	-	app	std/tui	-	Returns the default loop settings: 60 frames per second, quit on Ctrl+C.
+Modern-Tui-TuiTermOptions	TuiTermOptions	-	app	std/tui	-	Holds which terminal features to take: alternate screen, raw keys, mouse and more.
+Modern-Tui-TuiTermOptionsDefault	TuiTermOptionsDefault	-	app	std/tui	-	Returns the usual terminal settings, with the mouse and focus events left off.
+Modern-Tui-TuiEvent	TuiEvent	-	events	std/tui	-	Holds one event: a key, mouse action, resize, paste, focus change or tick.
+Modern-Tui-TuiKey	TuiKey	-	events	std/tui	-	Holds a key press: a character or a named key, plus Shift, Ctrl and Alt.
+Modern-Tui-TuiKey-IsChar	TuiKey.IsChar	-	events	std/tui	-	Returns true if the key is a typed character rather than a named key.
+Modern-Tui-TuiKey-HasMod	TuiKey.HasMod	-	events	std/tui	-	Returns true if the given modifier, Shift, Alt or Ctrl, was held.
+Modern-Tui-TuiKeyName	TuiKeyName	-	events	std/tui	-	Returns a readable name for a key, such as "Ctrl+Shift+F5".
+Modern-Tui-TuiMouse	TuiMouse	-	events	std/tui	-	Holds a mouse event: press, release, move or wheel, the button, and the cell.
+Modern-Tui-TuiCmd	TuiCmd	-	cmd	std/tui	-	Holds a command for the loop: what to do, plus a delay or an exit code.
+Modern-Tui-TuiNone	TuiNone	-	cmd	std/tui	-	Returns a command that does nothing, for events your app ignores.
+Modern-Tui-TuiRedraw	TuiRedraw	-	cmd	std/tui	-	Returns a command that draws the next frame; only the cells that changed are sent.
+Modern-Tui-TuiQuit	TuiQuit	-	cmd	std/tui	-	Returns a command that ends the loop, so TuiRun returns the given exit code.
+Modern-Tui-TuiTick	TuiTick	-	cmd	std/tui	-	Returns a command that sends one tick event after a delay; return another to repeat.
+Modern-Tui-TuiInvalidate	TuiInvalidate	-	cmd	std/tui	-	Returns a command that repaints the whole screen instead of only the changes.
+Modern-Tui-TuiSuspend	TuiSuspend	-	cmd	std/tui	-	Returns a command that leaves the terminal, suspends the program, then comes back.
+Modern-Tui-TuiClockMs	TuiClockMs	-	cmd	std/tui	-	Returns a clock in milliseconds that never goes backwards, the one the loop uses.
+Modern-Tui-TuiBlock	TuiBlock	-	text	std/tui	-	Draws a border with titles and an optional fill; Inner gives the space inside.
+Modern-Tui-TuiBlock-AddTitle	TuiBlock.AddTitle	-	text	std/tui	-	Adds a title to one side of the border, aligned left, centre or right.
+Modern-Tui-TuiBlock-Inner	TuiBlock.Inner	-	text	std/tui	-	Returns the space inside the border, which is empty for a very small block.
+Modern-Tui-TuiTitle	TuiTitle	-	text	std/tui	-	Holds one title on a block's border: its text, style and alignment.
+Modern-Tui-TuiTitleOf	TuiTitleOf	-	text	std/tui	-	Returns a title value; the side argument comes before the alignment.
+Modern-Tui-TuiBorderGlyphs	TuiBorderGlyphs	-	text	std/tui	-	Returns the characters for a border kind, such as plain ASCII for older consoles.
+Modern-Tui-TuiBorderSet	TuiBorderSet	-	text	std/tui	-	Holds the six characters a border is drawn from: two lines and four corners.
+Modern-Tui-TuiParagraph	TuiParagraph	-	text	std/tui	-	Draws text, wrapped or not, aligned left, centre or right, and scrollable.
+Modern-Tui-TuiTabs	TuiTabs	-	text	std/tui	-	Draws a one-row strip of tab titles with the selected one highlighted.
+Modern-Tui-TuiGauge	TuiGauge	-	text	std/tui	-	Draws a progress bar for a ratio from 0 to 1, labelled with the percentage.
+Modern-Tui-TuiMeter	TuiMeter	-	text	std/tui	-	Draws a bar filled to a ratio whose colour shades from one end to the other.
+Modern-Tui-TuiSpinner	TuiSpinner	-	text	std/tui	-	Draws a busy indicator that moves on one step each time you call Advance.
+Modern-Tui-TuiSpinner-Advance	TuiSpinner.Advance	-	text	std/tui	-	Moves the spinner to its next frame, wrapping at the end.
+Modern-Tui-TuiSpinnerDefaultFrames	TuiSpinnerDefaultFrames	-	text	std/tui	-	Fills an array with the default braille spinner frames.
+Modern-Tui-TuiList	TuiList	-	lists	std/tui	-	Draws a scrolling list the user moves through with the arrow keys.
+Modern-Tui-TuiListState	TuiListState	-	lists	std/tui	-	Holds a list's selected item and scroll position; -1 means nothing is selected.
+Modern-Tui-TuiTable	TuiTable	-	lists	std/tui	-	Draws a scrolling table with headers, its columns sized like a layout.
+Modern-Tui-TuiTableState	TuiTableState	-	lists	std/tui	-	Holds a table's selected row and scroll position.
+Modern-Tui-TuiRow	TuiRow	-	lists	std/tui	-	Holds one table row: its cell texts in column order.
+Modern-Tui-TuiTree	TuiTree	-	lists	std/tui	-	Draws a tree of nodes that the user expands and collapses with the arrow keys.
+Modern-Tui-TuiTree-Add	TuiTree.Add	-	lists	std/tui	-	Appends a node at a depth; the deeper nodes after it become its children.
+Modern-Tui-TuiTree-VisibleCount	TuiTree.VisibleCount	-	lists	std/tui	-	Counts the nodes currently shown, leaving out those inside collapsed nodes.
+Modern-Tui-TuiTreeNode	TuiTreeNode	-	lists	std/tui	-	Holds one tree node: its label, depth, whether it has children, and your own id.
+Modern-Tui-TuiTreeState	TuiTreeState	-	lists	std/tui	-	Holds a tree's selected node and scroll position.
+Modern-Tui-TuiScrollbar	TuiScrollbar	-	lists	std/tui	-	Draws a scrollbar from a total, the number visible and the current position.
+Modern-Tui-TuiTextInput	TuiTextInput	-	forms	std/tui	-	Draws a one-line text box with a cursor, selection and optional password masking.
+Modern-Tui-TuiTextInputState	TuiTextInputState	-	forms	std/tui	-	Holds a text box's text, cursor, selection and scroll position.
+Modern-Tui-TuiTextInputStateInit	TuiTextInputStateInit	-	forms	std/tui	-	Sets a text box's state to empty with nothing selected; call it before first use.
+Modern-Tui-TuiTextInput-Insert	TuiTextInput.Insert	-	forms	std/tui	-	Inserts text at the cursor, replacing any selection first.
+Modern-Tui-TuiTextInput-DeleteSelection	TuiTextInput.DeleteSelection	-	forms	std/tui	-	Removes the selected text, or does nothing if none is selected.
+Modern-Tui-TuiTextInput-SelectionStart	TuiTextInput.SelectionStart	-	forms	std/tui	-	Returns where the selection starts, or the cursor position if nothing is selected.
+Modern-Tui-TuiTextInput-SelectionEnd	TuiTextInput.SelectionEnd	-	forms	std/tui	-	Returns where the selection ends, or the cursor position if nothing is selected.
+Modern-Tui-TuiTextArea	TuiTextArea	-	forms	std/tui	-	Draws a multi-line text editor with optional line numbers.
+Modern-Tui-TuiTextAreaState	TuiTextAreaState	-	forms	std/tui	-	Holds a text area's lines, cursor line and column, and scroll position.
+Modern-Tui-TuiTextAreaStateInit	TuiTextAreaStateInit	-	forms	std/tui	-	Sets a text area's state to one empty line; call it before first use.
+Modern-Tui-TuiCheckbox	TuiCheckbox	-	forms	std/tui	-	Draws a labelled checkbox that Space or Enter toggles, changing your own boolean.
+Modern-Tui-TuiRadioGroup	TuiRadioGroup	-	forms	std/tui	-	Draws a set of options where one is chosen, stored in your own variable.
+Modern-Tui-TuiSelect	TuiSelect	-	forms	std/tui	-	Draws a dropdown list of options that opens over whatever is below it.
+Modern-Tui-TuiSelect-IsOpen	TuiSelect.IsOpen	-	forms	std/tui	-	Returns true if the dropdown's list is showing.
+Modern-Tui-TuiSelectState	TuiSelectState	-	forms	std/tui	-	Holds a dropdown's chosen option, whether it is open, and the highlighted entry.
+Modern-Tui-TuiButton	TuiButton	-	forms	std/tui	-	Draws a button that calls your procedure when the user presses Enter on it.
+Modern-Tui-TuiButtonOf	TuiButtonOf	-	forms	std/tui	-	Draws a button whose handler is a lambda that captures variables.
+Modern-Tui-TuiFocusRing	TuiFocusRing	-	forms	std/tui	-	Holds the Tab order of your widgets and tells each one when it has focus.
+Modern-Tui-TuiFocusRing-Add	TuiFocusRing.Add	-	forms	std/tui	-	Adds a widget to the end of the Tab order; the widget must outlive the frame.
+Modern-Tui-TuiFocusRing-Next	TuiFocusRing.Next_	-	forms	std/tui	-	Moves focus to the next widget, wrapping at the end, as Tab does.
+Modern-Tui-TuiFocusRing-Prev	TuiFocusRing.Prev	-	forms	std/tui	-	Moves focus to the previous widget, wrapping at the start, as Shift+Tab does.
+Modern-Tui-TuiFocusRing-Focus	TuiFocusRing.Focus	-	forms	std/tui	-	Focuses a given widget, or returns false if it is not in the ring.
+Modern-Tui-TuiFocusRing-Current	TuiFocusRing.Current	-	forms	std/tui	-	Returns the focused widget, or no value if the ring is empty.
+Modern-Tui-TuiFocusRing-Count	TuiFocusRing.Count	-	forms	std/tui	-	Counts the widgets in the Tab order.
+Modern-Tui-TuiFocusRing-Clear	TuiFocusRing.Clear	-	forms	std/tui	-	Empties the Tab order; the widgets themselves are left alone.
+Modern-Tui-TuiPopup	TuiPopup	-	overlays	std/tui	-	Draws a floating panel over the screen, optionally modal and dimming what is behind.
+Modern-Tui-TuiMessageBox	TuiMessageBox	-	overlays	std/tui	-	Draws a dialog with a title, a message and buttons, coloured by its kind.
+Modern-Tui-TuiMessageBox-Accepted	TuiMessageBox.Accepted	-	overlays	std/tui	-	Returns true once Enter was pressed on a button; selected says which.
+Modern-Tui-TuiMessageBox-Cancelled	TuiMessageBox.Cancelled	-	overlays	std/tui	-	Returns true once the dialog was dismissed with Esc.
+Modern-Tui-TuiMenuBar	TuiMenuBar	-	overlays	std/tui	-	Draws a one-row menu bar whose menus drop down with Enter.
+Modern-Tui-TuiMenuBar-IsOpen	TuiMenuBar.IsOpen	-	overlays	std/tui	-	Returns true if one of the menus is dropped down.
+Modern-Tui-TuiMenu	TuiMenu	-	overlays	std/tui	-	Holds one menu of a menu bar: its label and its items.
+Modern-Tui-TuiStatusBar	TuiStatusBar	-	overlays	std/tui	-	Draws one row of status items, some packed to the left and some to the right.
+Modern-Tui-TuiStatusBar-Add	TuiStatusBar.Add	-	overlays	std/tui	-	Adds an item at the left or right; include any padding spaces in the text.
+Modern-Tui-TuiStatusItem	TuiStatusItem	-	overlays	std/tui	-	Holds one status bar item: its text, style and alignment.
+Modern-Tui-TuiStatusItemOf	TuiStatusItemOf	-	overlays	std/tui	-	Returns a status bar item from text, a style and an alignment.
+Modern-Tui-TuiGraph	TuiGraph	-	charts	std/tui	-	Draws a line graph of one or more series, scaled to fit or to a fixed range.
+Modern-Tui-TuiSeries	TuiSeries	-	charts	std/tui	-	Holds one line of a graph: its values, newest last, plus a colour and name.
+Modern-Tui-TuiSparkline	TuiSparkline	-	charts	std/tui	-	Draws a one-row trend of values as block characters, one value per cell.
+Modern-Tui-TuiBarChart	TuiBarChart	-	charts	std/tui	-	Draws labelled bars, vertical or horizontal, scaled to the largest value.
+Modern-Tui-TuiBar	TuiBar	-	charts	std/tui	-	Holds one bar of a bar chart: its label, value and colour.
+Modern-Tui-TuiCanvas	TuiCanvas	-	charts	std/tui	-	Holds a braille drawing surface with a grid of 2 by 4 dots in every cell.
+Modern-Tui-TuiCanvas-Dot	TuiCanvas.Dot	-	charts	std/tui	-	Sets one dot in a colour; a dot outside the canvas is ignored.
+Modern-Tui-TuiCanvas-Line	TuiCanvas.Line_	-	charts	std/tui	-	Draws a straight line of dots between two points.
+Modern-Tui-TuiCanvas-Clear	TuiCanvas.Clear	-	charts	std/tui	-	Turns every dot off.
+Modern-Tui-TuiCanvas-Blit	TuiCanvas.Blit	-	charts	std/tui	-	Draws the canvas into an area of the frame as braille characters.
+Modern-Tui-TuiCanvas-Resize	TuiCanvas.Resize	-	charts	std/tui	-	Changes the canvas size in cells and clears it.
+Modern-Tui-TuiCanvas-CellCols	TuiCanvas.CellCols	-	charts	std/tui	-	Returns the canvas width in cells.
+Modern-Tui-TuiCanvas-CellRows	TuiCanvas.CellRows	-	charts	std/tui	-	Returns the canvas height in cells.
+Modern-Tui-TuiCanvas-DotWidth	TuiCanvas.DotWidth	-	charts	std/tui	-	Returns the canvas width in dots, two per cell.
+Modern-Tui-TuiCanvas-DotHeight	TuiCanvas.DotHeight	-	charts	std/tui	-	Returns the canvas height in dots, four per cell.
+Modern-Tui-TuiCanvas-Pattern	TuiCanvas.Pattern	-	charts	std/tui	-	Returns the braille dot pattern of one cell as a byte.
+Modern-Tui-TuiSplitV	TuiSplitV	-	layout	std/tui	-	Splits a rectangle into rows stacked top to bottom, sized by constraints.
+Modern-Tui-TuiSplitH	TuiSplitH	-	layout	std/tui	-	Splits a rectangle into columns side by side, sized by constraints.
+Modern-Tui-TuiLength	TuiLength	-	layout	std/tui	-	Returns a constraint for exactly n cells.
+Modern-Tui-TuiFill	TuiFill	-	layout	std/tui	-	Returns a constraint that shares the space left over, by weight.
+Modern-Tui-TuiPercent	TuiPercent	-	layout	std/tui	-	Returns a constraint for a percentage of the whole space being split.
+Modern-Tui-TuiRatio	TuiRatio	-	layout	std/tui	-	Returns a constraint for a fraction of the whole space, such as one third.
+Modern-Tui-TuiMin	TuiMin_	-	layout	std/tui	-	Returns a constraint for at least n cells, more if there is room.
+Modern-Tui-TuiMax	TuiMax_	-	layout	std/tui	-	Returns a constraint for at most n cells.
+Modern-Tui-TuiConstraint	TuiConstraint	-	layout	std/tui	-	Holds one sizing rule for a split, such as a fixed length or a share of the rest.
+Modern-Tui-TuiSolve	TuiSolve	-	layout	std/tui	-	Returns the sizes that constraints give a total, adding up to exactly that total.
+Modern-Tui-TuiCenter	TuiCenter	-	layout	std/tui	-	Returns a rectangle of a given size centred in another, as for a dialog.
+Modern-Tui-TuiAlignIn	TuiAlignIn	-	layout	std/tui	-	Returns a rectangle of a given width at the left, centre or right of another.
+Modern-Tui-TuiPad	TuiPad	-	layout	std/tui	-	Returns a rectangle shrunk by a margin.
+Modern-Tui-TuiPadAll	TuiPadAll	-	layout	std/tui	-	Returns a rectangle shrunk by the same amount on every side.
+Modern-Tui-TuiStack	TuiStack	-	layout	std/tui	-	Holds child widgets laid out in a row or column; it deletes them when it goes.
+Modern-Tui-TuiStack-Add	TuiStack.Add	-	layout	std/tui	-	Adds a child widget made with New and the constraint that sizes it.
+Modern-Tui-TuiStack-ChildRect	TuiStack.ChildRect	-	layout	std/tui	-	Returns the rectangle a child got at the last Render, for mouse hit tests.
+Modern-Tui-TuiRect	TuiRect	-	rects	std/tui	-	Holds a rectangle of cells: x, y, width and height, counted from 0.
+Modern-Tui-TuiRectOf	TuiRectOf	-	rects	std/tui	-	Returns a rectangle from x, y, width and height.
+Modern-Tui-TuiRect-Contains	TuiRect.Contains	-	rects	std/tui	-	Returns true if a cell is inside the rectangle; use it to hit-test the mouse.
+Modern-Tui-TuiRect-Intersect	TuiRect.Intersect	-	rects	std/tui	-	Returns the overlap of two rectangles, or an empty one if they do not touch.
+Modern-Tui-TuiRect-Inner	TuiRect.Inner	-	rects	std/tui	-	Returns the rectangle shrunk by a margin, empty rather than negative.
+Modern-Tui-TuiRect-IsEmpty	TuiRect.IsEmpty	-	rects	std/tui	-	Returns true if the rectangle has no width or no height.
+Modern-Tui-TuiRect-Equals	TuiRect.Equals	-	rects	std/tui	-	Returns true if two rectangles have the same position and size.
+Modern-Tui-TuiRect-Right	TuiRect.Right	-	rects	std/tui	-	Returns x plus the width: the first column past the right edge.
+Modern-Tui-TuiRect-Bottom	TuiRect.Bottom	-	rects	std/tui	-	Returns y plus the height: the first row below the bottom edge.
+Modern-Tui-TuiPos	TuiPos	-	rects	std/tui	-	Holds a cell position: x and y.
+Modern-Tui-TuiSize	TuiSize	-	rects	std/tui	-	Holds a size in columns and rows.
+Modern-Tui-TuiSizeOf	TuiSizeOf	-	rects	std/tui	-	Returns a size from columns and rows.
+Modern-Tui-TuiMargin	TuiMargin	-	rects	std/tui	-	Holds an inset for each side, in the order left, top, right, bottom.
+Modern-Tui-TuiMarginOf	TuiMarginOf	-	rects	std/tui	-	Returns a margin from left, top, right and bottom.
+Modern-Tui-TuiMarginAll	TuiMarginAll	-	rects	std/tui	-	Returns a margin of the same size on every side.
+Modern-Tui-TuiStyle	TuiStyle	-	style	std/tui	-	Holds a text style: colours, attributes such as bold, and which of them it sets.
+Modern-Tui-TuiStyleOf	TuiStyleOf	-	style	std/tui	-	Returns a style with a foreground, a background and optional attributes.
+Modern-Tui-TuiStylePatch	TuiStylePatch	-	style	std/tui	-	Returns a partial style that sets only the parts you name, such as just bold.
+Modern-Tui-TuiStyleDefault	TuiStyleDefault	-	style	std/tui	-	Returns the terminal's default style: default colours and no attributes.
+Modern-Tui-TuiStyle-Patch	TuiStyle.Patch	-	style	std/tui	-	Returns this style with another laid over it, keeping whatever the other leaves unset.
+Modern-Tui-TuiStyle-HasAttr	TuiStyle.HasAttr	-	style	std/tui	-	Returns true if the style has an attribute such as bold or underline.
+Modern-Tui-TuiStyle-Equals	TuiStyle.Equals	-	style	std/tui	-	Returns true if two styles are identical, including which parts they set.
+Modern-Tui-TuiTheme	TuiTheme	-	style	std/tui	-	Holds twelve named styles, such as normal, accent, selected and danger.
+Modern-Tui-TuiThemeDefault	TuiThemeDefault	-	style	std/tui	-	Returns the stock colour theme.
+Modern-Tui-TuiThemeMono	TuiThemeMono	-	style	std/tui	-	Returns a theme made from bold, dim, reverse and underline, with no colours.
+Modern-Tui-TuiColor	TuiColor	-	colour	std/tui	-	Holds a colour: the terminal's default, one of 16 or 256, or 24-bit RGB.
+Modern-Tui-TuiRgb	TuiRgb	-	colour	std/tui	-	Returns a 24-bit colour, reduced for you on terminals with fewer colours.
+Modern-Tui-TuiAnsi	TuiAnsi	-	colour	std/tui	-	Returns one of the 16 classic colours, which follow the user's terminal theme.
+Modern-Tui-TuiIndexed	TuiIndexed	-	colour	std/tui	-	Returns a colour from the 256-colour palette by its number.
+Modern-Tui-TuiDefaultColor	TuiDefaultColor	-	colour	std/tui	-	Returns the terminal's own default colour; as a background it does not paint.
+Modern-Tui-TuiBlack	TuiBlack	-	colour	std/tui	-	Returns the classic black, palette colour 0.
+Modern-Tui-TuiRed	TuiRed	-	colour	std/tui	-	Returns the classic red, palette colour 1.
+Modern-Tui-TuiGreen	TuiGreen	-	colour	std/tui	-	Returns the classic green, palette colour 2.
+Modern-Tui-TuiYellow	TuiYellow	-	colour	std/tui	-	Returns the classic yellow, palette colour 3.
+Modern-Tui-TuiBlue	TuiBlue	-	colour	std/tui	-	Returns the classic blue, palette colour 4.
+Modern-Tui-TuiMagenta	TuiMagenta	-	colour	std/tui	-	Returns the classic magenta, palette colour 5.
+Modern-Tui-TuiCyan	TuiCyan	-	colour	std/tui	-	Returns the classic cyan, palette colour 6.
+Modern-Tui-TuiWhite	TuiWhite	-	colour	std/tui	-	Returns the classic white, palette colour 7.
+Modern-Tui-TuiBrightBlack	TuiBrightBlack	-	colour	std/tui	-	Returns the classic bright black, palette colour 8.
+Modern-Tui-TuiBrightRed	TuiBrightRed	-	colour	std/tui	-	Returns the classic bright red, palette colour 9.
+Modern-Tui-TuiBrightGreen	TuiBrightGreen	-	colour	std/tui	-	Returns the classic bright green, palette colour 10.
+Modern-Tui-TuiBrightYellow	TuiBrightYellow	-	colour	std/tui	-	Returns the classic bright yellow, palette colour 11.
+Modern-Tui-TuiBrightBlue	TuiBrightBlue	-	colour	std/tui	-	Returns the classic bright blue, palette colour 12.
+Modern-Tui-TuiBrightMagenta	TuiBrightMagenta	-	colour	std/tui	-	Returns the classic bright magenta, palette colour 13.
+Modern-Tui-TuiBrightCyan	TuiBrightCyan	-	colour	std/tui	-	Returns the classic bright cyan, palette colour 14.
+Modern-Tui-TuiBrightWhite	TuiBrightWhite	-	colour	std/tui	-	Returns the classic bright white, palette colour 15.
+Modern-Tui-TuiColor-Equals	TuiColor.Equals	-	colour	std/tui	-	Returns true if two colours were built the same way with the same values.
+Modern-Tui-TuiColor-Index	TuiColor.Index	-	colour	std/tui	-	Returns the palette number of a 16-colour or 256-colour value.
+Modern-Tui-TuiColor-IsDefault	TuiColor.IsDefault	-	colour	std/tui	-	Returns true if the colour is the terminal's own default.
+Modern-Tui-TuiLerpColor	TuiLerpColor	-	colour	std/tui	-	Returns a colour part of the way between two others, for t from 0 to 1.
+Modern-Tui-TuiDowngrade	TuiDowngrade	-	colour	std/tui	-	Returns the colour that a terminal with fewer colours would show instead.
+Modern-Tui-TuiDowngradeStyle	TuiDowngradeStyle	-	colour	std/tui	-	Returns a style with both its colours reduced to what a terminal can show.
+Modern-Tui-TuiRgbTo256	TuiRgbTo256	-	colour	std/tui	-	Returns the nearest 256-palette colour number for red, green and blue values.
+Modern-Tui-TuiRgbTo16	TuiRgbTo16	-	colour	std/tui	-	Returns the nearest of the 16 classic colours for red, green and blue values.
+Modern-Tui-TuiLuminance	TuiLuminance	-	colour	std/tui	-	Returns how bright a colour looks, from 0.0 to 1.0.
+Modern-Tui-TuiStringWidth	TuiStringWidth	-	width	std/tui	-	Counts the columns a string takes on screen, wide characters as two.
+Modern-Tui-TuiCharWidth	TuiCharWidth	-	width	std/tui	-	Returns the columns one character takes: 0, 1 or 2.
+Modern-Tui-TuiTruncate	TuiTruncate	-	width	std/tui	-	Cuts a string to fit a number of columns, ending in "..." unless you pass "".
+Modern-Tui-TuiWrap	TuiWrap	-	width	std/tui	-	Breaks text into lines that fit a number of columns, keeping its line breaks.
+Modern-Tui-TuiSetAmbiguousWide	TuiSetAmbiguousWide	-	width	std/tui	-	Sets whether characters of ambiguous width count as two columns, for CJK terminals.
+Modern-Tui-TuiAmbiguousWide	TuiAmbiguousWide	-	width	std/tui	-	Returns true if characters of ambiguous width count as two columns.
+Modern-Tui-TuiFrame	TuiFrame	-	draw	std/tui	-	Holds the surface View draws on; drawing never fails and is clipped to fit.
+Modern-Tui-TuiFrame-Area	TuiFrame.Area	-	draw	std/tui	-	Returns the whole screen as a rectangle at 0, 0, the start of every layout.
+Modern-Tui-TuiFrame-DrawText	TuiFrame.DrawText	-	draw	std/tui	-	Draws a string at a cell and returns the number of columns it used.
+Modern-Tui-TuiFrame-SetCell	TuiFrame.SetCell	-	draw	std/tui	-	Writes one character cell, replacing the style that was there.
+Modern-Tui-TuiFrame-FillRect	TuiFrame.FillRect	-	draw	std/tui	-	Fills a rectangle with one character in one style.
+Modern-Tui-TuiFrame-BlendStyle	TuiFrame.BlendStyle	-	draw	std/tui	-	Lays a style over every cell of a rectangle, keeping the characters.
+Modern-Tui-TuiFrame-Clip	TuiFrame.Clip	-	draw	std/tui	-	Returns the rectangle that drawing is currently limited to.
+Modern-Tui-TuiFrame-PushClip	TuiFrame.PushClip	-	draw	std/tui	-	Limits drawing to a rectangle and returns the previous limit, to restore later.
+Modern-Tui-TuiFrame-PopClip	TuiFrame.PopClip	-	draw	std/tui	-	Restores the drawing limit that PushClip returned.
+Modern-Tui-TuiFrame-PushLayer	TuiFrame.PushLayer	-	draw	std/tui	-	Starts an overlay layer, as a popup or an open dropdown uses.
+Modern-Tui-TuiFrame-PopLayer	TuiFrame.PopLayer	-	draw	std/tui	-	Ends the overlay layer that PushLayer started.
+Modern-Tui-TuiFrame-SetCursor	TuiFrame.SetCursor	-	draw	std/tui	-	Shows the text cursor at a cell for this frame.
+Modern-Tui-TuiFrame-HideCursor	TuiFrame.HideCursor	-	draw	std/tui	-	Hides the text cursor for this frame, which is the default.
+Modern-Tui-TuiFrame-CursorVisible	TuiFrame.CursorVisible	-	draw	std/tui	-	Returns true if this frame asked to show the cursor.
+Modern-Tui-TuiFrame-CursorPos	TuiFrame.CursorPos	-	draw	std/tui	-	Returns the cell where the cursor was last put.
+Modern-Tui-TuiWidget	TuiWidget	-	draw	std/tui	-	Holds the base type every widget extends; you write Render and Kind for your own.
+Modern-Tui-TuiWidget-Render	TuiWidget.Render	-	draw	std/tui	-	Draws the widget into an area of the frame, changing no app state.
+Modern-Tui-TuiWidget-HandleEvent	TuiWidget.HandleEvent	-	draw	std/tui	-	Offers an event to the widget and returns true if the widget used it.
+Modern-Tui-TuiWidget-Kind	TuiWidget.Kind	-	draw	std/tui	-	Returns the widget's short type name, such as "Block".
+Modern-Tui-TuiWidget-CanFocus	TuiWidget.CanFocus	-	draw	std/tui	-	Returns true if the widget can take focus; false unless it is interactive.
+Modern-Tui-TuiWidget-SetFocused	TuiWidget.SetFocused	-	draw	std/tui	-	Tells the widget whether it has focus; the focus ring calls it for you.
+Modern-Tui-TuiWidget-SizeHint	TuiWidget.SizeHint	-	draw	std/tui	-	Returns the size the widget would like in the space given; layouts may ignore it.
+Modern-Tui-TuiRenderOnce	TuiRenderOnce	-	screenbuf	std/tui	-	Runs Init and View once with no terminal and returns the bytes it would write.
+Modern-Tui-TuiScreen	TuiScreen	-	screenbuf	std/tui	-	Holds two cell buffers and works out the bytes that turn one frame into the next.
+Modern-Tui-TuiScreen-BeginFrame	TuiScreen.BeginFrame	-	screenbuf	std/tui	-	Clears the back buffer and returns the frame to draw into.
+Modern-Tui-TuiScreen-Render	TuiScreen.Render	-	screenbuf	std/tui	-	Returns the bytes that change the last frame into the new one, then swaps buffers.
+Modern-Tui-TuiScreen-Resize	TuiScreen.Resize	-	screenbuf	std/tui	-	Changes the screen size in cells and forces a full repaint.
+Modern-Tui-TuiScreen-Invalidate	TuiScreen.Invalidate	-	screenbuf	std/tui	-	Makes the next Render clear and repaint the whole screen.
+Modern-Tui-TuiScreen-Cols	TuiScreen.Cols	-	screenbuf	std/tui	-	Returns the screen width in cells.
+Modern-Tui-TuiScreen-Rows	TuiScreen.Rows	-	screenbuf	std/tui	-	Returns the screen height in cells.
+Modern-Tui-TuiScreen-Back	TuiScreen.Back	-	screenbuf	std/tui	-	Returns the buffer being drawn into, so a test can read its cells.
+Modern-Tui-TuiScreen-Front	TuiScreen.Front	-	screenbuf	std/tui	-	Returns the buffer the terminal is taken to show: the last frame sent.
+Modern-Tui-TuiBuffer	TuiBuffer	-	screenbuf	std/tui	-	Holds a grid of character cells, stored row by row.
+Modern-Tui-TuiBuffer-At	TuiBuffer.At	-	screenbuf	std/tui	-	Returns a pointer to the cell at x, y, without checking the bounds.
+Modern-Tui-TuiBuffer-InBounds	TuiBuffer.InBounds	-	screenbuf	std/tui	-	Returns true if x, y is inside the buffer.
+Modern-Tui-TuiBuffer-Clear	TuiBuffer.Clear	-	screenbuf	std/tui	-	Fills every cell with a space in the given style.
+Modern-Tui-TuiBuffer-Resize	TuiBuffer.Resize	-	screenbuf	std/tui	-	Changes the grid size and blanks every cell.
+Modern-Tui-TuiBuffer-Count	TuiBuffer.Count	-	screenbuf	std/tui	-	Returns the number of cells: columns times rows.
+Modern-Tui-TuiCell	TuiCell	-	screenbuf	std/tui	-	Holds one character cell: the character, its style and its width in columns.
+Modern-Tui-TuiCell-SetChar	TuiCell.SetChar	-	screenbuf	std/tui	-	Sets the cell's character and works out its width in columns.
+Modern-Tui-TuiCell-Equals	TuiCell.Equals	-	screenbuf	std/tui	-	Returns true if two cells have the same character, style and width.
+Modern-Tui-TuiCellBlank	TuiCellBlank	-	screenbuf	std/tui	-	Returns a cell holding a space in the given style.
+Modern-Tui-TuiTerminal	TuiTerminal	-	terminal	std/tui	-	Holds the terminal itself, for writing your own loop: modes, size and output.
+Modern-Tui-TuiTerminal-Enter	TuiTerminal.Enter	-	terminal	std/tui	-	Takes over the terminal with the options asked for; fails if output is not a terminal.
+Modern-Tui-TuiTerminal-Leave	TuiTerminal.Leave	-	terminal	std/tui	-	Puts the terminal back the way Enter found it; safe to call more than once.
+Modern-Tui-TuiTerminal-IsActive	TuiTerminal.IsActive	-	terminal	std/tui	-	Returns true between a successful Enter and its Leave.
+Modern-Tui-TuiTerminal-Size	TuiTerminal.Size	-	terminal	std/tui	-	Returns the terminal's size in columns and rows, or an error if it reports none.
+Modern-Tui-TuiTerminal-TakeResize	TuiTerminal.TakeResize	-	terminal	std/tui	-	Returns true once after each resize of the terminal, then false.
+Modern-Tui-TuiTerminal-Write	TuiTerminal.Write	-	terminal	std/tui	-	Adds bytes to the output buffer; nothing is sent until Flush.
+Modern-Tui-TuiTerminal-WriteText	TuiTerminal.WriteText	-	terminal	std/tui	-	Adds a string to the output buffer as UTF-8.
+Modern-Tui-TuiTerminal-Flush	TuiTerminal.Flush	-	terminal	std/tui	-	Sends the buffered output in one write and empties the buffer.
+Modern-Tui-TuiTerminal-Discard	TuiTerminal.Discard	-	terminal	std/tui	-	Throws the buffered output away without sending it.
+Modern-Tui-TuiTerminal-Pending	TuiTerminal.Pending	-	terminal	std/tui	-	Counts the bytes buffered and not yet sent.
+Modern-Tui-TuiTerminal-Caps	TuiTerminal.Caps	-	terminal	std/tui	-	Returns what the terminal can do, as detected once when it was entered.
+Modern-Tui-TuiTerminal-DetectCaps	TuiTerminal.DetectCaps	-	terminal	std/tui	-	Detects what the terminal can do again, without entering it.
+Modern-Tui-TuiCaps	TuiCaps	-	terminal	std/tui	-	Holds what a terminal can do: colour depth, mouse, paste, focus events, Unicode.
+Modern-Tui-TuiError	TuiError	-	terminal	std/tui	-	Holds a terminal error: a code and what was being attempted.
+Modern-Tui-TuiError-Message	TuiError.Message	-	terminal	std/tui	-	Returns a readable line saying what failed, including any system error number.
+Modern-Tui-TuiInput	TuiInput	-	terminal	std/tui	-	Holds the parser that turns raw terminal bytes into events.
+Modern-Tui-TuiInput-Feed	TuiInput.Feed	-	terminal	std/tui	-	Adds raw bytes from the terminal; an unfinished sequence is kept for later.
+Modern-Tui-TuiInput-NextEvent	TuiInput.NextEvent	-	terminal	std/tui	-	Returns the next complete event, or no value yet; a lone Esc waits for a timeout.
+Modern-Tui-TuiInput-PushEvent	TuiInput.PushEvent	-	terminal	std/tui	-	Adds an event to the back of the queue, to inject input yourself.
+Modern-Tui-TuiInput-Queued	TuiInput.Queued	-	terminal	std/tui	-	Counts the parsed events waiting to be taken.
+Modern-Tui-TuiInput-Buffered	TuiInput.Buffered	-	terminal	std/tui	-	Counts the bytes held that do not yet make a whole event.
+Modern-Tui-TuiInput-Reset	TuiInput.Reset	-	terminal	std/tui	-	Throws away the held bytes and the queued events.
+Modern-Tui-TuiInput-WaitingOnLoneEsc	TuiInput.WaitingOnLoneEsc	-	terminal	std/tui	-	Returns true if the parser holds an Esc it cannot yet tell from a key sequence.
+Modern-Tui-TuiEnterSeq	TuiEnterSeq	-	terminal	std/tui	-	Returns the escape sequence that Enter writes for a set of options.
+Modern-Tui-TuiLeaveSeq	TuiLeaveSeq	-	terminal	std/tui	-	Returns the escape sequence that Leave writes to undo those options.
+Modern-Tui-TuiClearScreenSeq	TuiClearScreenSeq	-	terminal	std/tui	-	Returns the escape sequence that clears the terminal screen.
+Modern-Tui-TuiCursorTo	TuiCursorTo	-	terminal	std/tui	-	Returns the escape sequence that moves the cursor to a cell counted from 0.
+Modern-Tui-TuiShowCursorSeq	TuiShowCursorSeq	-	terminal	std/tui	-	Returns the escape sequence that shows or hides the cursor.
+Modern-Tui-TuiSgr	TuiSgr	-	terminal	std/tui	-	Returns the escape sequence that changes the terminal from one style to another.
+Modern-Tui-TuiSgrReset	TuiSgrReset	-	terminal	std/tui	-	Returns the escape sequence that resets every colour and attribute.
+Modern-Tui-TuiWin32InputMode	TuiWin32InputMode	-	terminal	std/tui	-	Returns the Windows console input mode that Enter would set for given options.

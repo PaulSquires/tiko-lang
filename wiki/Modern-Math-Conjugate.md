@@ -2,7 +2,7 @@
 
 # Conjugate
 
-The conjugate of a quaternion.
+Returns the conjugate of a quaternion, the reverse rotation when it is normalised.
 
 ## Syntax
 

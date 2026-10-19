@@ -2,7 +2,7 @@
 
 # Alpha
 
-Parameter to the Put graphics statement which selects alpha blending as the method
+Blends pixels with Put by each pixel's alpha, or by one alpha value you give.
 
 ## Syntax
 

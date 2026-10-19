@@ -2,7 +2,7 @@
 
 # PathNextComponent
 
-the cursor PathSplit uses
+Finds the next part of a path from an offset; returns a negative number when none is left.
 
 ## Syntax
 

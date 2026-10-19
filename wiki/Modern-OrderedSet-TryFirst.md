@@ -2,6 +2,8 @@
 
 # OrderedSet.TryFirst
 
+Copies the smallest value into a variable; returns false if the set is empty.
+
 ## Syntax
 
 ```freebasic

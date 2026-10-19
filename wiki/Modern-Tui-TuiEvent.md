@@ -2,6 +2,8 @@
 
 # TuiEvent
 
+Holds one event: a key, mouse action, resize, paste, focus change or tick.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # FileInfo.Accessed
 
-chrono.Instant
+Returns the last-access time as a chrono.Instant; often not kept up to date.
 
 ## Syntax
 

@@ -1,0 +1,26 @@
+# Memory functions. One row per function, per task it belongs to. Tab-separated; see finder.py for the rules.
+page	name	qualifier	task	from	rank	summary
+Allocate	Allocate	-	alloc	built-in	1	Reserves a number of bytes and returns a pointer to them, or 0; the bytes are not cleared.
+Callocate	CAllocate	-	alloc	built-in	-	Reserves memory for a number of elements, set to zero, and returns a pointer or 0.
+Reallocate	Reallocate	-	alloc	built-in	-	Resizes a block, keeping its contents, and returns the new pointer, or 0 on failure.
+Deallocate	Deallocate	-	alloc	built-in	2	Frees memory from Allocate, CAllocate or Reallocate; does nothing for a null pointer.
+Peek	Peek	-	address	built-in	-	Returns a reference to the value at an address, as a byte or as a given type.
+Poke	Poke	-	address	built-in	-	Writes a value to an address, as a byte or as a given type.
+Sadd	SAdd	-	address	built-in	-	Returns a pointer to the characters of a string.
+Fb-Memcopy	Fb_Memcopy	-	copy	built-in	-	Copies a number of bytes between two memory areas that do not overlap.
+Fb-Memmove	Fb_Memmove	-	copy	built-in	-	Copies a number of bytes between two memory areas, even when they overlap.
+Fb-Memcopyclear	fb_MemCopyClear	-	copy	built-in	-	Copies the first bytes of one area into another and sets the rest to zero.
+Clear	Clear	-	copy	built-in	-	Sets a number of bytes, starting at a variable, to zero or to a given value.
+Swap	Swap	-	copy	built-in	-	Exchanges the values of two variables.
+Modern-SharedPtr-SharedPtr	SharedPtr	-	shared	std/memory	4	Holds an object shared by several owners and destroys it when the last one lets go.
+Modern-SharedPtr-MakeShared	MakeShared	-	shared	std/memory	3	Creates a default-constructed object and returns the first SharedPtr to it.
+Modern-SharedPtr-MakeSharedFrom	MakeSharedFrom	-	shared	std/memory	-	Creates a copy of a value on the heap and returns a SharedPtr to it.
+Modern-SharedPtr-UseCount	SharedPtr.UseCount	-	shared	std/memory	-	Returns how many SharedPtr handles share the object.
+Modern-SharedPtr-Reset	SharedPtr.Reset	-	shared	std/memory	-	Drops this handle's share and leaves it null; the last one out destroys the object.
+Modern-SharedPtr-Ref	SharedPtr.Ref	-	use	std/memory	-	Returns a reference to the object; raises an error if the handle is null.
+Modern-SharedPtr-Get	SharedPtr.Get	-	use	std/memory	-	Returns the raw pointer to the object, or 0 if null, without adding an owner.
+Modern-SharedPtr-IsNull	SharedPtr.IsNull	-	use	std/memory	-	Returns true if the handle owns no object.
+Modern-SharedPtr-SpCast	SpCast	-	use	std/memory	-	Returns a SharedPtr to a base type that shares ownership with the derived one.
+Modern-SharedPtr-WeakPtr	WeakPtr	-	weak	std/memory	-	Holds a link to a shared object that does not keep it alive, to break cycles.
+Modern-SharedPtr-Lock	WeakPtr.Lock	-	weak	std/memory	-	Returns a SharedPtr to the object if it still exists, or a null one if not.
+Modern-SharedPtr-Expired	WeakPtr.Expired	-	weak	std/memory	-	Returns true once the object has been destroyed.

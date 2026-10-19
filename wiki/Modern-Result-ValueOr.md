@@ -2,6 +2,8 @@
 
 # ValueOr
 
+Returns the value, or the fallback you pass if the Result failed.
+
 ## Syntax
 
 ```freebasic

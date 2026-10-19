@@ -2,7 +2,7 @@
 
 # Run
 
-Transfers execution to an external program
+Hands control to another program and ends this one; returns -1 if it cannot start.
 
 ## Syntax
 

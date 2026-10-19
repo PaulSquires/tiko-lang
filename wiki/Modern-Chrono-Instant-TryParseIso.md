@@ -2,6 +2,8 @@
 
 # Instant.TryParseIso
 
+Reads ISO 8601 text into a date-time; returns false and sets it Invalid on failure.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # TuiCellBlank
 
+Returns a cell holding a space in the given style.
+
 ## Syntax
 
 ```freebasic

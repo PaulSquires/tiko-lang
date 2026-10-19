@@ -2,7 +2,7 @@
 
 # PathRoot
 
-"C:\", "\\srv\share\", "/", "" -- see below
+Returns the root of a path, such as C:\ or /, or an empty string for a relative path.
 
 ## Syntax
 

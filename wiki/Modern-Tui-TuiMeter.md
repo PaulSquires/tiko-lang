@@ -2,6 +2,8 @@
 
 # TuiMeter
 
+Draws a bar filled to a ratio whose colour shades from one end to the other.
+
 ## Syntax
 
 ```freebasic

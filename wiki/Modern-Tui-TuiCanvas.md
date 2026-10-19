@@ -2,6 +2,8 @@
 
 # TuiCanvas
 
+Holds a braille drawing surface with a grid of 2 by 4 dots in every cell.
+
 ## Syntax
 
 ```freebasic

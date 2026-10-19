@@ -2,7 +2,7 @@
 
 # Result
 
-"nothing is here, AND this is why"
+Holds either a value or the reason it could not be made; a new one counts as failed.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # Replace
 
-O(n*m)
+Replaces every occurrence of the text with other text.
 
 ## Syntax
 

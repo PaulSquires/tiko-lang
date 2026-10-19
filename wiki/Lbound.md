@@ -2,7 +2,7 @@
 
 # LBound
 
-Returns the lower bound of an array's dimension
+Returns the lowest valid index of an array dimension, or 0 if there is none.
 
 ## Syntax
 

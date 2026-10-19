@@ -2,6 +2,8 @@
 
 # Instant.JulianDay
 
+Returns the Julian day, a fractional day count whose days start at noon.
+
 ## Syntax
 
 ```freebasic

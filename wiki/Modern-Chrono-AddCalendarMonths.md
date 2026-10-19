@@ -2,7 +2,7 @@
 
 # AddCalendarMonths
 
-calendar months, offset re-resolved.
+Adds calendar months, then works out the UTC offset again for the new date.
 
 ## Syntax
 

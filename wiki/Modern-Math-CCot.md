@@ -2,7 +2,7 @@
 
 # CCot
 
-The cotangent — one over the tangent.
+Returns the cotangent of a complex number, one over the tangent.
 
 ## Syntax
 

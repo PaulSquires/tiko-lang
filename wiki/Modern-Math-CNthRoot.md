@@ -2,7 +2,7 @@
 
 # CNthRoot
 
-The k-th of the n n-th roots.
+Returns any one of the n nth roots of a complex number.
 
 ## Syntax
 

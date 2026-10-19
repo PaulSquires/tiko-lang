@@ -2,6 +2,8 @@
 
 # LocalTime.Invalid
 
+Returns the Invalid time of day, which never equals anything, itself included.
+
 ## Syntax
 
 ```freebasic

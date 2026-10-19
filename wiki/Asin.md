@@ -2,7 +2,7 @@
 
 # Asin
 
-Finds the arcsine of a number
+Returns the angle in radians, from -pi/2 to pi/2, whose sine is the number.
 
 ## Syntax
 

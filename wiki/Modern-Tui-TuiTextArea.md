@@ -2,6 +2,8 @@
 
 # TuiTextArea
 
+Draws a multi-line text editor with optional line numbers.
+
 ## Syntax
 
 ```freebasic

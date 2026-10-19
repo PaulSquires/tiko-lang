@@ -2,7 +2,7 @@
 
 # Mid (Function)
 
-Returns a substring of a string
+Returns the characters from a position, optionally for a given length.
 
 ## Syntax
 

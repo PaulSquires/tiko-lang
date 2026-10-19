@@ -2,7 +2,7 @@
 
 # Reset
 
-Empties a running accumulator so it can be reused.
+Empties the accumulator so that it can be reused.
 
 ## Syntax
 

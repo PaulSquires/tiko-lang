@@ -2,6 +2,8 @@
 
 # PopBack
 
+Removes and returns the back value, or a default value if the list is empty.
+
 ## Syntax
 
 ```freebasic

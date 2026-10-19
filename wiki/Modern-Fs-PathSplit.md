@@ -2,7 +2,7 @@
 
 # PathSplit
 
-fills an Array( of ustring ); returns the count
+Splits a normalised path into its parts, without the root, in an Array; returns the count.
 
 ## Syntax
 

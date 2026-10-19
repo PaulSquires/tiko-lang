@@ -2,6 +2,8 @@
 
 # TuiColor.Index
 
+Returns the palette number of a 16-colour or 256-colour value.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # Receive
 
-Receives a value, blocking until one arrives.
+Receives a value, waiting for one; returns false once closed and drained.
 
 ## Syntax
 

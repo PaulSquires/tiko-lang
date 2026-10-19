@@ -2,7 +2,7 @@
 
 # Inkey
 
-Returns a string representing the first key waiting in the keyboard buffer
+Returns the next key waiting, or an empty string at once if there is none.
 
 ## Syntax
 

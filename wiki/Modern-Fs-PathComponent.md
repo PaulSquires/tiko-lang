@@ -2,7 +2,7 @@
 
 # PathComponent
 
-One piece of a path.
+Holds one part of a path: its kind, such as root or parent, and its text.
 
 ## Syntax
 

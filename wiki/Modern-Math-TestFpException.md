@@ -2,6 +2,8 @@
 
 # TestFpException
 
+Returns true if a floating-point exception flag has been raised since it was cleared.
+
 ## Syntax
 
 ```freebasic

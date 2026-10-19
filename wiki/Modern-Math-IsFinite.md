@@ -2,6 +2,8 @@
 
 # IsFinite
 
+Returns true if the value is neither infinite nor NaN.
+
 ## Syntax
 
 ```freebasic

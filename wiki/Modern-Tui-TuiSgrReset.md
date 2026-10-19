@@ -2,6 +2,8 @@
 
 # TuiSgrReset
 
+Returns the escape sequence that resets every colour and attribute.
+
 ## Syntax
 
 ```freebasic

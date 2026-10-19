@@ -2,6 +2,8 @@
 
 # DepreciationSchedule
 
+Holds every period of a write-off, to walk with for each.
+
 ## Syntax
 
 ```freebasic

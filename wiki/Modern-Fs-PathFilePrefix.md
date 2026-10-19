@@ -2,7 +2,7 @@
 
 # PathFilePrefix
 
-ustring
+Returns the file name up to its first dot, so a.tar.gz gives a.
 
 ## Syntax
 

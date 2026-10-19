@@ -2,7 +2,7 @@
 
 # Trim
 
-Removes surrounding substrings or characters on the left and right side of a string
+Removes spaces, or the given characters, from both ends.
 
 ## Syntax
 

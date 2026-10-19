@@ -2,6 +2,8 @@
 
 # Instant.IsFirstDayOfMonth
 
+Returns true if the date is the first day of its month.
+
 ## Syntax
 
 ```freebasic

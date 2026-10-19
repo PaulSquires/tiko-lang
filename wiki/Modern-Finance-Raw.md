@@ -2,7 +2,7 @@
 
 # Raw
 
-The underlying scaled integer: the amount times 10000.
+Returns the stored integer, the amount times 10000, for saving to a file or database.
 
 ## Syntax
 

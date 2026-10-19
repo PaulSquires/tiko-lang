@@ -2,6 +2,8 @@
 
 # TuiWidget.Render
 
+Draws the widget into an area of the frame, changing no app state.
+
 ## Syntax
 
 ```freebasic

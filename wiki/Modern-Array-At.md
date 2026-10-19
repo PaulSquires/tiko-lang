@@ -2,6 +2,8 @@
 
 # At
 
+Returns a reference to the element at a position, like a[ i ].
+
 ## Syntax
 
 ```freebasic

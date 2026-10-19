@@ -2,6 +2,8 @@
 
 # TuiApp.Init
 
+Sets up your app and returns its first command, such as a tick to start animating.
+
 ## Syntax
 
 ```freebasic

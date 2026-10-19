@@ -2,7 +2,7 @@
 
 # CBool
 
-Converts numeric or string expression to a boolean (Boolean)
+Converts a number, or the text "true" or "false", to a boolean; zero gives false.
 
 ## Syntax
 

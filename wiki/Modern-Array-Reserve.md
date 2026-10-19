@@ -2,7 +2,7 @@
 
 # Reserve
 
-O(n)   grow to at least n
+Makes room for at least n elements without adding any; it never shrinks.
 
 ## Syntax
 

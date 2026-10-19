@@ -2,7 +2,7 @@
 
 # Cos
 
-Returns the cosine of an angle
+Returns the cosine of an angle in radians.
 
 ## Syntax
 

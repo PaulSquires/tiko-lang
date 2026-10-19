@@ -2,6 +2,8 @@
 
 # Instant.Quarter
 
+Returns the calendar quarter, 1 to 4.
+
 ## Syntax
 
 ```freebasic

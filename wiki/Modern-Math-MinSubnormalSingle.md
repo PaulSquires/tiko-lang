@@ -2,6 +2,8 @@
 
 # MinSubnormalSingle
 
+Returns the smallest Single above zero.
+
 ## Syntax
 
 ```freebasic

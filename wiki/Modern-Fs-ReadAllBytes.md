@@ -2,7 +2,7 @@
 
 # ReadAllBytes
 
-FsResultI64 -- fills Array( of ubyte )
+Reads a whole file into an Array of bytes; returns the number read.
 
 ## Syntax
 

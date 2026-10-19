@@ -2,7 +2,7 @@
 
 # MoneyRefreshLocale
 
-Re-reads the monetary settings from the system -- after the user has changed Settings > Region, say.
+Rereads the locale's money settings after the user changes them.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # CInt
 
-Converts a numeric or string expression to an Integer or an Integer<bits>
+Converts a number or string to an Integer, rounding to the nearest; no overflow check.
 
 ## Syntax
 

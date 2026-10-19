@@ -2,7 +2,7 @@
 
 # PsChart
 
-An owner-drawn chart control for tiko / Win32, built on the sys/win package.
+Draws a line, column, price or pie chart from the series you supply.
 
 One control draws four kinds of chart: a **line** chart of one or more series, a **column** chart
 with the series grouped side by side, an **HLOC** (high-low-open-close) price chart, and a **pie**

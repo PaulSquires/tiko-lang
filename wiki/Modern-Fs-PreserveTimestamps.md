@@ -2,6 +2,8 @@
 
 # PreserveTimestamps
 
+Chooses whether CopyDir keeps each file's times; false by default.
+
 ## Syntax
 
 ```freebasic

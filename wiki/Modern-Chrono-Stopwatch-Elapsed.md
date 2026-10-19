@@ -2,6 +2,8 @@
 
 # Stopwatch.Elapsed
 
+Returns the time measured so far as a TimeSpan.
+
 ## Syntax
 
 ```freebasic

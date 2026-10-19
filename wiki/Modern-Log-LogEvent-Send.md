@@ -2,7 +2,7 @@
 
 # LogEvent.Send
 
-commits
+Sends the record without a message, for a record that is only fields.
 
 ## Syntax
 

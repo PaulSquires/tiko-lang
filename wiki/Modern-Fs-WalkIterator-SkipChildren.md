@@ -2,6 +2,8 @@
 
 # WalkIterator.SkipChildren
 
+Skips the contents of the folder a walk has just returned.
+
 ## Syntax
 
 ```freebasic

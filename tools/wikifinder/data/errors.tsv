@@ -1,0 +1,23 @@
+# Errors functions. One row per function, per task it belongs to. Tab-separated; see finder.py for the rules.
+page	name	qualifier	task	from	rank	summary
+Modern-Result-Result	Result	-	result	std/outcome	1	Holds either a value or the reason it could not be made; a new one counts as failed.
+Modern-Result-Ok	Ok	-	result	std/outcome	-	Returns a successful Result holding the value; both types must be written out.
+Modern-Result-Fail	Fail	-	result	std/outcome	-	Returns a failed Result holding the reason; both types must be written out.
+Modern-Result-IsOk	Result.IsOk	-	result	std/outcome	-	Returns true if the Result holds a value rather than a reason for failure.
+Modern-Result-Value	Result.Value	-	result	std/outcome	-	Returns the value by reference; raises an error if the Result failed.
+Modern-Result-Failure	Result.Failure	-	result	std/outcome	-	Returns the reason by reference; raises an error if the Result succeeded.
+Modern-Result-ValueOr	Result.ValueOr	-	result	std/outcome	-	Returns the value, or the fallback you pass if the Result failed.
+Modern-Result-Optional	Optional	-	optional	std/outcome	2	Holds one value or nothing at all; a new one is empty.
+Modern-Optional-Some	Some	-	optional	std/outcome	-	Returns an Optional holding the value, its type taken from the argument.
+Modern-Optional-None	None	-	optional	std/outcome	-	Returns an empty Optional of the type you write out.
+Modern-Optional-HasValue	Optional.HasValue	-	optional	std/outcome	-	Returns true if the Optional holds a value.
+Modern-Optional-Value	Optional.Value	-	optional	std/outcome	-	Returns the value by reference; raises an error if the Optional is empty.
+Modern-Optional-ValueOr	Optional.ValueOr	-	optional	std/outcome	-	Returns the value, or the fallback you pass if the Optional is empty.
+Modern-Optional-Clear	Optional.Clear	-	optional	std/outcome	-	Empties the Optional, releasing whatever its value held.
+On-Error	On Error	-	handle	built-in	3	Sets a label to jump to when a runtime error happens; On Error Goto 0 turns it off.
+Local	Local	-	handle	built-in	-	Marks an On Error handler as belonging to the procedure it is set in.
+Err	Err	-	inspect	built-in	4	Returns the number of the last runtime error, or sets it without jumping.
+Erl	Erl	-	inspect	built-in	-	Returns the source line of the last runtime error, or 0 if there was none.
+Erfn	Erfn	-	inspect	built-in	-	Returns a pointer to the name of the failing procedure; null unless built with -exx.
+Ermn	Ermn	-	inspect	built-in	-	Returns a pointer to the name of the source file where the last error happened.
+Error	Error	-	raise	built-in	-	Raises a runtime error by number: jumps to the handler, or ends the program.

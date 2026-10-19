@@ -2,7 +2,7 @@
 
 # SortListBy
 
-ascending, by a comparer
+Sorts a LinkedList by your comparer, relinking nodes; equal elements keep order.
 
 ## Syntax
 

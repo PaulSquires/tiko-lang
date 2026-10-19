@@ -2,7 +2,7 @@
 
 # ScaleB
 
-Multiplies by a power of two, exactly and without overflow in the exponent.
+Multiplies a number by a power of two exactly, by adjusting its exponent.
 
 ## Syntax
 

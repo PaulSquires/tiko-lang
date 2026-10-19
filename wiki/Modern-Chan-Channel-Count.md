@@ -2,7 +2,7 @@
 
 # Count
 
-How many values are currently buffered.
+Returns how many values are buffered right now, as a snapshot.
 
 ## Syntax
 

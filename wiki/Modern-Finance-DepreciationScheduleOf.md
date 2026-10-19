@@ -2,6 +2,8 @@
 
 # DepreciationScheduleOf
 
+Returns the full schedule for a method, including declining balance with a switch.
+
 ## Syntax
 
 ```freebasic

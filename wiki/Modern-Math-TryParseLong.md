@@ -2,6 +2,8 @@
 
 # TryParseLong
 
+Parses a whole string as a Long, returning an empty Optional if invalid or too big.
+
 ## Syntax
 
 ```freebasic

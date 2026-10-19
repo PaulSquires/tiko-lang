@@ -2,6 +2,8 @@
 
 # LogEvent.AddTime
 
+Adds a named field holding a point in time.
+
 ## Syntax
 
 ```freebasic

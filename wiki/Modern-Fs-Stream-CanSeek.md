@@ -2,7 +2,7 @@
 
 # Stream.CanSeek
 
-boolean
+Returns true if Seek can succeed on this stream.
 
 ## Syntax
 

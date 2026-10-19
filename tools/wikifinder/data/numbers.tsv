@@ -1,0 +1,247 @@
+# Numbers and math functions. One row per function, per task it belongs to. Tab-separated; see finder.py for the rules.
+page	name	qualifier	task	from	rank	summary
+Modern-Math-Round	Round	-	round	std/numeric	1	Rounds to the nearest whole number or number of decimals, halves away from zero.
+Modern-Math-RoundHalfEven	RoundHalfEven	-	round	std/numeric	-	Rounds to the nearest whole number or number of decimals, halves to the even side.
+Modern-Math-Floor	Floor	-	round	std/numeric	-	Rounds down, towards negative infinity, so Floor(-2.1) is -3.
+Modern-Math-Ceil	Ceil	-	round	std/numeric	-	Rounds up, towards positive infinity, so Ceil(-2.7) is -2.
+Modern-Math-Truncate	Truncate	-	round	std/numeric	-	Drops the fraction, rounding towards zero, so Truncate(-2.7) is -2.
+Int	Int	-	round	built-in	-	Returns the largest whole number not above the value, so Int(-1.3) is -2.
+Fix	Fix	-	round	built-in	-	Returns the whole-number part, rounding towards zero, so Fix(-4.9) is -4.
+Frac	Frac	-	round	built-in	-	Returns the fractional part, keeping the sign, so Frac(-1.75) is -0.75.
+Modern-Math-Modf	Modf	-	round	std/numeric	-	Splits a number into whole and fractional parts that both keep its sign.
+Abs	Abs	-	compare	built-in	2	Returns the absolute value of a number.
+Sgn	Sgn	-	compare	built-in	-	Returns -1, 0 or 1 for the sign of a number, in the number's own type.
+Modern-Math-Sign	Sign	-	compare	std/numeric	-	Returns -1, 0 or 1 for the sign of a number, always as a Long.
+Modern-Math-Min	Min	-	compare	std/numeric	-	Returns the smaller of two values; a NaN argument gives NaN.
+Modern-Math-Max	Max	-	compare	std/numeric	-	Returns the larger of two values; a NaN argument gives NaN.
+Modern-Math-Clamp	Clamp	-	compare	std/numeric	-	Limits a value to a range: below lo gives lo, above hi gives hi.
+Modern-Math-Lerp	Lerp	-	compare	std/numeric	-	Returns the point a fraction t of the way from a to b; t is not clamped.
+Sqr	Sqr	-	power	built-in	-	Returns the square root of a number.
+Exp	Exp	-	power	built-in	-	Returns e raised to a power.
+Log	Log	-	power	built-in	-	Returns the natural logarithm; zero gives minus infinity and a negative gives NaN.
+Modern-Math-IPow	IPow	-	power	std/numeric	-	Raises a whole number to a whole-number power exactly, with no trip through Double.
+Modern-Math-ISqrt	ISqrt	-	power	std/numeric	-	Returns the exact whole-number square root, rounded down.
+Modern-Math-Hypot	Hypot	-	power	std/numeric	-	Returns the square root of x*x + y*y without overflowing for large values.
+Sin	Sin	-	trig	built-in	-	Returns the sine of an angle in radians.
+Cos	Cos	-	trig	built-in	-	Returns the cosine of an angle in radians.
+Tan	Tan	-	trig	built-in	-	Returns the tangent of an angle in radians.
+Asin	Asin	-	trig	built-in	-	Returns the angle in radians, from -pi/2 to pi/2, whose sine is the number.
+Acos	Acos	-	trig	built-in	-	Returns the angle in radians, from 0 to pi, whose cosine is the number.
+Atn	Atn	-	trig	built-in	-	Returns the angle in radians, from -pi/2 to pi/2, whose tangent is the number.
+Atan2	Atan2	-	trig	built-in	-	Returns the angle in radians, from -pi to pi, of the point at x, y.
+Modern-Math-DegToRad	DegToRad	-	trig	std/numeric	-	Converts an angle from degrees to radians.
+Modern-Math-RadToDeg	RadToDeg	-	trig	std/numeric	-	Converts an angle from radians to degrees.
+Modern-Math-FloorDiv	FloorDiv	-	divide	std/numeric	-	Divides whole numbers rounding towards negative infinity, so FloorDiv(-7, 2) is -4.
+Modern-Math-FloorMod	FloorMod	-	divide	std/numeric	-	Returns the remainder with the divisor's sign, so FloorMod(-1, 5) is 4.
+Modern-Math-EuclidDiv	EuclidDiv	-	divide	std/numeric	-	Divides whole numbers so that the matching EuclidMod remainder is never negative.
+Modern-Math-EuclidMod	EuclidMod	-	divide	std/numeric	-	Returns a remainder that is never negative, whatever the signs.
+Modern-Math-DivMod	DivMod	-	divide	std/numeric	-	Returns the quotient and the remainder of one division together, as a tuple.
+Modern-Math-GCD	GCD	-	divide	std/numeric	-	Returns the greatest common divisor of two whole numbers.
+Modern-Math-LCM	LCM	-	divide	std/numeric	-	Returns the least common multiple of two whole numbers, or 0 if either is 0.
+Modern-Math-AddChecked	AddChecked	-	overflow	std/numeric	-	Adds two integers, returning an empty Optional if the result would overflow.
+Modern-Math-SubChecked	SubChecked	-	overflow	std/numeric	-	Subtracts two integers, returning an empty Optional if the result would overflow.
+Modern-Math-MulChecked	MulChecked	-	overflow	std/numeric	-	Multiplies two integers, returning an empty Optional if the result would overflow.
+Modern-Math-DivChecked	DivChecked	-	overflow	std/numeric	-	Divides two integers, returning an empty Optional on division by zero or overflow.
+Modern-Math-NegChecked	NegChecked	-	overflow	std/numeric	-	Negates an integer, returning an empty Optional for the most negative value.
+Modern-Math-AbsChecked	AbsChecked	-	overflow	std/numeric	-	Returns the absolute value as an Optional, empty for the most negative value.
+Modern-Math-IPowChecked	IPowChecked	-	overflow	std/numeric	-	Raises an integer to a power, returning an empty Optional if the result overflows.
+Modern-Math-AddSaturating	AddSaturating	-	overflow	std/numeric	-	Adds two integers, clamping the result to the type's minimum or maximum.
+Modern-Math-SubSaturating	SubSaturating	-	overflow	std/numeric	-	Subtracts two integers, clamping the result to the type's minimum or maximum.
+Modern-Math-MulSaturating	MulSaturating	-	overflow	std/numeric	-	Multiplies two integers, clamping the result to the type's minimum or maximum.
+Modern-Math-NegSaturating	NegSaturating	-	overflow	std/numeric	-	Negates an integer; the most negative value becomes the maximum instead.
+Modern-Math-AbsSaturating	AbsSaturating	-	overflow	std/numeric	-	Returns the absolute value; the most negative value becomes the maximum instead.
+Modern-Math-AddWrapping	AddWrapping	-	overflow	std/numeric	-	Adds two integers and wraps around on overflow, on purpose.
+Modern-Math-SubWrapping	SubWrapping	-	overflow	std/numeric	-	Subtracts two integers and wraps around on overflow, on purpose.
+Modern-Math-MulWrapping	MulWrapping	-	overflow	std/numeric	-	Multiplies two integers and wraps around on overflow, on purpose.
+Modern-Math-NegWrapping	NegWrapping	-	overflow	std/numeric	-	Negates an integer within its type, so the most negative value stays as it is.
+Cint	CInt	-	convert	built-in	3	Converts a number or string to an Integer, rounding to the nearest; no overflow check.
+Cuint	CUInt	-	convert	built-in	-	Converts a number or string to a UInteger, rounding to the nearest; no overflow check.
+Cbyte	CByte	-	convert	built-in	-	Converts a number or string to a Byte, rounding to the nearest; no overflow check.
+Cubyte	CUByte	-	convert	built-in	-	Converts a number or string to a UByte, rounding to the nearest; no overflow check.
+Cshort	CShort	-	convert	built-in	-	Converts a number or string to a Short, rounding to the nearest; no overflow check.
+Cushort	CUShort	-	convert	built-in	-	Converts a number or string to a UShort, rounding to the nearest; no overflow check.
+Clng	CLng	-	convert	built-in	-	Converts a number or string to a 32-bit Long, rounding to the nearest; no overflow check.
+Culng	CULng	-	convert	built-in	-	Converts a number or string to a 32-bit ULong, rounding to the nearest; no overflow check.
+Clngint	CLngInt	-	convert	built-in	-	Converts a number or string to a 64-bit LongInt, rounding to the nearest.
+Culngint	CULngInt	-	convert	built-in	-	Converts a number or string to a 64-bit ULongInt, rounding to the nearest.
+Cdbl	CDbl	-	convert	built-in	-	Converts a number or string to a Double.
+Csng	CSng	-	convert	built-in	-	Converts a number or string to a Single.
+Cbool	CBool	-	convert	built-in	-	Converts a number, or the text "true" or "false", to a boolean; zero gives false.
+Cast	Cast	-	convert	built-in	-	Converts a value to any named type, such as Cast(Byte, flag).
+Cptr	CPtr	-	convert	built-in	-	Converts a pointer or an integer to the given pointer type.
+Csign	CSign	-	convert	built-in	-	Converts an unsigned value to signed, so division and shifts treat it as signed.
+Cunsg	CUnsg	-	convert	built-in	-	Converts a signed value to unsigned, so division and shifts treat it as unsigned.
+Modern-Math-TryParseDouble	TryParseDouble	-	text	std/numeric	-	Parses a whole string as a Double, returning an empty Optional if it is not one.
+Modern-Math-TryParseSingle	TryParseSingle	-	text	std/numeric	-	Parses a whole string as a Single, returning an empty Optional if it is not one.
+Modern-Math-TryParseLong	TryParseLong	-	text	std/numeric	-	Parses a whole string as a Long, returning an empty Optional if invalid or too big.
+Modern-Math-TryParseULong	TryParseULong	-	text	std/numeric	-	Parses a whole string as a ULong, returning an empty Optional if invalid or too big.
+Modern-Math-TryParseLongInt	TryParseLongInt	-	text	std/numeric	-	Parses a whole string as a LongInt, in an optional base; empty if invalid or too big.
+Modern-Math-TryParseULongInt	TryParseULongInt	-	text	std/numeric	-	Parses a whole string as a ULongInt, returning an empty Optional if invalid or too big.
+Modern-Math-ToString	ToString	-	text	std/numeric	-	Returns a number as the shortest text that reads back as exactly the same value.
+Modern-Math-CurrentLocaleFormat	CurrentLocaleFormat	-	text	std/numeric	-	Returns a NumFormat holding this machine's decimal and thousands separators.
+Str	Str	-	text	built-in	-	Returns a number or boolean as text.
+Wstr	WStr	-	text	built-in	-	Returns a number as a wide string.
+Val	Val	-	text	built-in	-	Converts text to a double.
+Valint	ValInt	-	text	built-in	-	Converts text to a 32-bit integer.
+Vallng	ValLng	-	text	built-in	-	Converts text to a 64-bit integer.
+Valuint	ValUInt	-	text	built-in	-	Converts text to an unsigned 32-bit integer.
+Valulng	ValULng	-	text	built-in	-	Converts text to an unsigned 64-bit integer.
+Rnd	Rnd	-	random	built-in	4	Returns a random Double from 0 up to but not including 1.
+Randomize	Randomize	-	random	built-in	-	Seeds the random number generator that Rnd uses, and can choose its algorithm.
+Modern-Math-RngSeeded	RngSeeded	-	random	std/numeric	-	Creates a random generator from a seed, so the same seed repeats the same sequence.
+Modern-Math-RngFromEntropy	RngFromEntropy	-	random	std/numeric	-	Creates a random generator seeded by the operating system, different on every run.
+Modern-Math-NextInt	Rng.NextInt	-	random	std/numeric	-	Returns a random whole number from lo to hi, both included, without bias.
+Modern-Math-NextDouble	Rng.NextDouble	-	random	std/numeric	-	Returns a random Double from 0 up to but not including 1, with 53 random bits.
+Modern-Math-NextDoubleRange	Rng.NextDoubleRange	-	random	std/numeric	-	Returns a random Double from lo up to but not including hi.
+Modern-Math-NextSingle	Rng.NextSingle	-	random	std/numeric	-	Returns a random Single from 0 up to but not including 1.
+Modern-Math-NextULong	Rng.NextULong	-	random	std/numeric	-	Returns a random 32-bit unsigned value.
+Modern-Math-NextULongInt	Rng.NextULongInt	-	random	std/numeric	-	Returns a random 64-bit unsigned value, the generator's raw output.
+Modern-Math-NextBoolean	Rng.NextBoolean	-	random	std/numeric	-	Returns true or false with equal chance.
+Modern-Math-NextBooleanP	Rng.NextBooleanP	-	random	std/numeric	-	Returns true with probability p, from 0 for never to 1 for always.
+Modern-Math-NextNormal	Rng.NextNormal	-	random	std/numeric	-	Returns a random value from the normal distribution, mean 0 and standard deviation 1.
+Modern-Math-NextNormalP	Rng.NextNormalP	-	random	std/numeric	-	Returns a random value from a normal distribution with the given mean and deviation.
+Modern-Math-NextExponential	Rng.NextExponential	-	random	std/numeric	-	Returns a random waiting time between events at rate lambda; its mean is 1/lambda.
+Modern-Math-NextPoisson	Rng.NextPoisson	-	random	std/numeric	-	Returns a random count of events in one interval at rate lambda; its mean is lambda.
+Modern-Math-Shuffle	Shuffle	-	random	std/numeric	-	Shuffles an array in place so that every order is equally likely.
+Modern-Math-Choice	Choice	-	random	std/numeric	-	Returns one element of an array picked at random, by reference.
+Modern-Math-CryptoBytes	CryptoBytes	-	secure	std/numeric	-	Fills a buffer with secure random bytes from the operating system; false on failure.
+Modern-Math-CryptoULongInt	CryptoULongInt	-	secure	std/numeric	-	Returns a secure random 64-bit value from the operating system.
+Modern-Math-IsNaN	IsNaN	-	special	std/numeric	-	Returns true if the value is NaN, which an equality test cannot detect.
+Modern-Math-IsInfinite	IsInfinite	-	special	std/numeric	-	Returns true if the value is plus or minus infinity.
+Modern-Math-IsFinite	IsFinite	-	special	std/numeric	-	Returns true if the value is neither infinite nor NaN.
+Modern-Math-IsNormal	IsNormal	-	special	std/numeric	-	Returns true if the value is finite, not zero and not subnormal.
+Modern-Math-IsSubnormal	IsSubnormal	-	special	std/numeric	-	Returns true if the value is nonzero but below the smallest normal number.
+Modern-Math-IsNegative	IsNegative	-	special	std/numeric	-	Returns true if the sign bit is set, which includes negative zero.
+Modern-Math-Classify	Classify	-	special	std/numeric	-	Returns whether a value is NaN, infinite, zero, subnormal or normal.
+Modern-Math-NaN	NaN	-	special	std/numeric	-	Returns a Double that is NaN, not a number.
+Modern-Math-NaNF	NaNF	-	special	std/numeric	-	Returns a Single that is NaN, not a number.
+Modern-Math-Infinity	Infinity	-	special	std/numeric	-	Returns positive infinity as a Double.
+Modern-Math-InfinityF	InfinityF	-	special	std/numeric	-	Returns positive infinity as a Single.
+Modern-Math-NegInfinity	NegInfinity	-	special	std/numeric	-	Returns negative infinity as a Double.
+Modern-Math-NegInfinityF	NegInfinityF	-	special	std/numeric	-	Returns negative infinity as a Single.
+Modern-Math-MinSubnormalDouble	MinSubnormalDouble	-	special	std/numeric	-	Returns the smallest Double above zero.
+Modern-Math-MinSubnormalSingle	MinSubnormalSingle	-	special	std/numeric	-	Returns the smallest Single above zero.
+Modern-Math-Frexp	Frexp	-	float	std/numeric	-	Splits a number into a fraction from 0.5 to 1 and a power of two.
+Modern-Math-ScaleB	ScaleB	-	float	std/numeric	-	Multiplies a number by a power of two exactly, by adjusting its exponent.
+Modern-Math-Ulp	Ulp	-	float	std/numeric	-	Returns the gap between a number and the next one its type can hold.
+Modern-Math-Fma	Fma	-	float	std/numeric	-	Returns x * y + z with a single rounding at the end.
+Modern-Math-GetRoundingMode	GetRoundingMode	-	fenv	std/numeric	-	Returns the direction floating-point results are currently rounded in.
+Modern-Math-SetRoundingMode	SetRoundingMode	-	fenv	std/numeric	-	Sets the direction floating-point results are rounded in; returns true on success.
+Modern-Math-ClearFpExceptions	ClearFpExceptions	-	fenv	std/numeric	-	Clears every floating-point exception flag.
+Modern-Math-ClearFpException	ClearFpException	-	fenv	std/numeric	-	Clears one floating-point exception flag and leaves the others alone.
+Modern-Math-TestFpException	TestFpException	-	fenv	std/numeric	-	Returns true if a floating-point exception flag has been raised since it was cleared.
+Modern-Math-RaiseFpException	RaiseFpException	-	fenv	std/numeric	-	Raises a floating-point exception flag by hand; returns true on success.
+Bit	Bit	-	bits	built-in	-	Returns -1 if the numbered bit of an integer is set, or 0 if it is clear.
+Bitset	BitSet	-	bits	built-in	-	Returns a copy of an integer with the numbered bit set to 1.
+Bitreset	BitReset	-	bits	built-in	-	Returns a copy of an integer with the numbered bit cleared to 0.
+Lobyte	LoByte	-	bits	built-in	-	Returns the lowest byte of a number, bits 0 to 7.
+Hibyte	HiByte	-	bits	built-in	-	Returns the second byte of a number, bits 8 to 15.
+Loword	LoWord	-	bits	built-in	-	Returns the lowest 16 bits of a number.
+Hiword	HiWord	-	bits	built-in	-	Returns bits 16 to 31 of a number.
+Modern-Math-PopCount	PopCount	-	bitops	std/numeric	-	Counts the bits that are set.
+Modern-Math-LeadingZeros	LeadingZeros	-	bitops	std/numeric	-	Counts the zero bits above the highest set bit; zero gives the type's full width.
+Modern-Math-TrailingZeros	TrailingZeros	-	bitops	std/numeric	-	Counts the zero bits below the lowest set bit; zero gives the type's full width.
+Modern-Math-BitWidth	BitWidth	-	bitops	std/numeric	-	Returns how many bits the value needs, or 0 for zero.
+Modern-Math-Parity	Parity	-	bitops	std/numeric	-	Returns 1 if an odd number of bits are set, or 0 if an even number are.
+Modern-Math-BitReverse	BitReverse	-	bitops	std/numeric	-	Reverses the order of all the bits in the value's type.
+Modern-Math-ByteSwap	ByteSwap	-	bitops	std/numeric	-	Reverses the order of the bytes, converting between big-endian and little-endian.
+Modern-Math-IsPow2	IsPow2	-	bitops	std/numeric	-	Returns true if the value is a power of two; zero is not one.
+Modern-Math-NextPow2	NextPow2	-	bitops	std/numeric	-	Returns the smallest power of two at or above the value; zero gives 1.
+Modern-Math-Sum	Sum	-	stats	std/numeric	-	Adds up an array with compensated summation, so small values are not lost.
+Modern-Math-NaiveSum	NaiveSum	-	stats	std/numeric	-	Adds up an array with a plain loop: faster than Sum, but small values can be lost.
+Modern-Math-Count	Count	-	stats	std/numeric	-	Counts the elements in an array.
+Modern-Math-Mean	Mean	-	stats	std/numeric	-	Returns the average of an array, or NaN if it is empty.
+Modern-Math-Median	Median	-	stats	std/numeric	-	Returns the middle value of an array, without reordering it.
+Modern-Math-Percentile	Percentile	-	stats	std/numeric	-	Returns the value below which p percent of an array falls, with p from 0 to 100.
+Modern-Math-Variance	Variance	-	stats	std/numeric	-	Returns the sample variance of an array, dividing by n-1.
+Modern-Math-VariancePopulation	VariancePopulation	-	stats	std/numeric	-	Returns the population variance of an array, dividing by n.
+Modern-Math-StdDev	StdDev	-	stats	std/numeric	-	Returns the sample standard deviation of an array, dividing by n-1.
+Modern-Math-StdDevPopulation	StdDevPopulation	-	stats	std/numeric	-	Returns the population standard deviation of an array, dividing by n.
+Modern-Math-MinOf	MinOf	-	stats	std/numeric	-	Returns the smallest value in an array, or NaN if it is empty.
+Modern-Math-MaxOf	MaxOf	-	stats	std/numeric	-	Returns the largest value in an array, or NaN if it is empty.
+Modern-Math-Range	Range	-	stats	std/numeric	-	Returns the largest value in an array minus the smallest.
+Modern-Math-Covariance	Covariance	-	stats	std/numeric	-	Returns the sample covariance of two arrays of the same length.
+Modern-Math-Correlation	Correlation	-	stats	std/numeric	-	Returns the Pearson correlation of two arrays, from -1 to 1.
+Modern-Math-Add	RunningStats.Add	-	running	std/numeric	-	Adds one value to a running count, mean, variance, minimum and maximum.
+Modern-Math-Merge	RunningStats.Merge	-	running	std/numeric	-	Combines another accumulator's values into this one, exactly.
+Modern-Math-Reset	RunningStats.Reset	-	running	std/numeric	-	Empties the accumulator so that it can be reused.
+Modern-Math-MinValue	RunningStats.MinValue	-	running	std/numeric	-	Returns the smallest value added so far.
+Modern-Math-MaxValue	RunningStats.MaxValue	-	running	std/numeric	-	Returns the largest value added so far.
+Modern-Math-Dot	Dot	-	vector	std/numeric	-	Returns the dot product of two vectors; zero means they are perpendicular.
+Modern-Math-Cross	Cross	-	vector	std/numeric	-	Returns a Vec3 perpendicular to both inputs; swapping them flips its direction.
+Modern-Math-Mul	Mul	-	vector	std/numeric	-	Multiplies two vectors component by component.
+Modern-Math-Length	Length	-	vector	std/numeric	-	Returns the length of a vector.
+Modern-Math-LengthSquared	LengthSquared	-	vector	std/numeric	-	Returns the squared length of a vector, the cheap way to compare lengths.
+Modern-Math-Distance	Distance	-	vector	std/numeric	-	Returns the distance between two points.
+Modern-Math-DistanceSquared	DistanceSquared	-	vector	std/numeric	-	Returns the squared distance between two points, the cheap way to test a range.
+Modern-Math-Normalize	Normalize	-	vector	std/numeric	-	Returns a vector of length 1 in the same direction; a zero vector stays zero.
+Modern-Math-Reflect	Reflect	-	vector	std/numeric	-	Reflects a vector off a surface, given the surface's normalised normal.
+Modern-Math-Angle	Angle	-	vector	std/numeric	-	Returns the angle between two vectors in radians, from 0 to pi.
+Modern-Math-Determinant	Determinant	-	matrix	std/numeric	-	Returns the determinant of a matrix; zero means it has no inverse.
+Modern-Math-Transpose	Transpose	-	matrix	std/numeric	-	Returns a matrix with its rows and columns swapped.
+Modern-Math-TryInverse	TryInverse	-	matrix	std/numeric	-	Writes the inverse of a matrix into a second one, or returns false if there is none.
+Modern-Math-TransformPoint	TransformPoint	-	matrix	std/numeric	-	Applies a matrix to a point, translation included.
+Modern-Math-TransformVector	TransformVector	-	matrix	std/numeric	-	Applies a matrix to a direction, leaving out the translation.
+Modern-Math-Conjugate	Conjugate	-	matrix	std/numeric	-	Returns the conjugate of a quaternion, the reverse rotation when it is normalised.
+Modern-Math-Rotate	Rotate	-	matrix	std/numeric	-	Rotates a vector by a normalised quaternion.
+Modern-Math-ToMatrix	ToMatrix	-	matrix	std/numeric	-	Converts a quaternion into the matching rotation matrix.
+Modern-Math-Slerp	Slerp	-	matrix	std/numeric	-	Blends between two rotations at constant speed, taking the shorter way round.
+Modern-Math-Complex	Complex	-	cbuild	std/numeric	-	Holds a complex number as two Doubles, re and im.
+Modern-Math-Complex-Operators	Complex operators	-	cbuild	std/numeric	-	Adds, subtracts, multiplies, divides, raises and compares complex numbers.
+Modern-Math-CSet	CSet	-	cbuild	std/numeric	-	Builds a complex number from its real and imaginary parts.
+Modern-Math-CPolar	CPolar	-	cbuild	std/numeric	-	Builds a complex number from a modulus and an angle in radians.
+Modern-Math-CZero	CZero	-	cbuild	std/numeric	-	Returns the complex number 0.
+Modern-Math-COne	COne	-	cbuild	std/numeric	-	Returns the complex number 1.
+Modern-Math-CImaginaryOne	CImaginaryOne	-	cbuild	std/numeric	-	Returns the imaginary unit i.
+Modern-Math-CNaN	CNaN	-	cbuild	std/numeric	-	Returns a complex number whose two parts are both NaN.
+Modern-Math-CInfinity	CInfinity	-	cbuild	std/numeric	-	Returns a complex number whose two parts are both positive infinity.
+Modern-Math-CReal	CReal	-	cbuild	std/numeric	-	Returns the real part of a complex number.
+Modern-Math-CImag	CImag	-	cbuild	std/numeric	-	Returns the imaginary part of a complex number, without the i.
+Modern-Math-CSetReal	CSetReal	-	cbuild	std/numeric	-	Sets the real part of a complex variable in place.
+Modern-Math-CSetImag	CSetImag	-	cbuild	std/numeric	-	Sets the imaginary part of a complex variable in place.
+Modern-Math-CSwap	CSwap	-	cbuild	std/numeric	-	Swaps the values of two complex variables.
+Modern-Math-CToString	CToString	-	cbuild	std/numeric	-	Returns a complex number as text such as 3+4i that reads back exactly.
+Modern-Math-CToStringPolar	CToStringPolar	-	cbuild	std/numeric	-	Returns a complex number as polar text, such as 5 * exp(0.927i).
+Modern-Math-CIsNaN	CIsNaN	-	cmeasure	std/numeric	-	Returns true if a complex number is NaN; one infinite part makes it infinite instead.
+Modern-Math-CIsInfinite	CIsInfinite	-	cmeasure	std/numeric	-	Returns true if either part of a complex number is infinite.
+Modern-Math-CIsFinite	CIsFinite	-	cmeasure	std/numeric	-	Returns true if both parts of a complex number are finite.
+Modern-Math-CIsReal	CIsReal	-	cmeasure	std/numeric	-	Returns true if the imaginary part of a complex number is zero.
+Modern-Math-CIsZero	CIsZero	-	cmeasure	std/numeric	-	Returns true if both parts of a complex number are zero.
+Modern-Math-CAbs	CAbs	-	cmeasure	std/numeric	-	Returns the modulus, the distance from zero, without overflowing for large parts.
+Modern-Math-CNorm	CNorm	-	cmeasure	std/numeric	-	Returns the modulus squared, the cheap way to compare sizes.
+Modern-Math-CArg	CArg	-	cmeasure	std/numeric	-	Returns the phase angle of a complex number in radians, from -pi to pi.
+Modern-Math-CLogAbs	CLogAbs	-	cmeasure	std/numeric	-	Returns the logarithm of the modulus, without overflowing for large parts.
+Modern-Math-CConj	CConj	-	cmeasure	std/numeric	-	Returns the conjugate, the same number with its imaginary part negated.
+Modern-Math-CNegate	CNegate	-	cmeasure	std/numeric	-	Returns a complex number with both parts negated.
+Modern-Math-CReciprocal	CReciprocal	-	cmeasure	std/numeric	-	Returns one divided by a complex number; zero gives zero.
+Modern-Math-CSgn	CSgn	-	cmeasure	std/numeric	-	Returns a complex number scaled to modulus 1, or zero for zero.
+Modern-Math-CExp	CExp	-	cpower	std/numeric	-	Returns e raised to a complex power.
+Modern-Math-CLog	CLog	-	cpower	std/numeric	-	Returns the natural logarithm of a complex number, or its logarithm to a given base.
+Modern-Math-CLog10	CLog10	-	cpower	std/numeric	-	Returns the base-ten logarithm of a complex number.
+Modern-Math-CSqrt	CSqrt	-	cpower	std/numeric	-	Returns the principal square root of a complex number or of a negative real.
+Modern-Math-CPow	CPow	-	cpower	std/numeric	-	Raises a complex or real number to a complex or real power.
+Modern-Math-CNthRoot	CNthRoot	-	cpower	std/numeric	-	Returns any one of the n nth roots of a complex number.
+Modern-Math-CSin	CSin	-	ctrig	std/numeric	-	Returns the sine of a complex number.
+Modern-Math-CCos	CCos	-	ctrig	std/numeric	-	Returns the cosine of a complex number.
+Modern-Math-CTan	CTan	-	ctrig	std/numeric	-	Returns the tangent of a complex number, finite even for a large imaginary part.
+Modern-Math-CSec	CSec	-	ctrig	std/numeric	-	Returns the secant of a complex number, one over the cosine.
+Modern-Math-CCsc	CCsc	-	ctrig	std/numeric	-	Returns the cosecant of a complex number, one over the sine; zero gives zero.
+Modern-Math-CCot	CCot	-	ctrig	std/numeric	-	Returns the cotangent of a complex number, one over the tangent.
+Modern-Math-CAsin	CAsin	-	ctrig	std/numeric	-	Returns the inverse sine of a complex number, or of any real number.
+Modern-Math-CAcos	CAcos	-	ctrig	std/numeric	-	Returns the inverse cosine of a complex number, or of any real number.
+Modern-Math-CAtan	CAtan	-	ctrig	std/numeric	-	Returns the inverse tangent of a complex number.
+Modern-Math-CAsec	CAsec	-	ctrig	std/numeric	-	Returns the inverse secant of a complex number, or of any real number.
+Modern-Math-CAcsc	CAcsc	-	ctrig	std/numeric	-	Returns the inverse cosecant of a complex number, or of any real number.
+Modern-Math-CAcot	CAcot	-	ctrig	std/numeric	-	Returns the inverse cotangent of a complex number; zero gives zero.
+Modern-Math-CSinh	CSinh	-	ctrig	std/numeric	-	Returns the hyperbolic sine of a complex number.
+Modern-Math-CCosh	CCosh	-	ctrig	std/numeric	-	Returns the hyperbolic cosine of a complex number.
+Modern-Math-CTanh	CTanh	-	ctrig	std/numeric	-	Returns the hyperbolic tangent of a complex number.
+Modern-Math-CSech	CSech	-	ctrig	std/numeric	-	Returns the hyperbolic secant of a complex number, one over its cosh.
+Modern-Math-CCsch	CCsch	-	ctrig	std/numeric	-	Returns the hyperbolic cosecant of a complex number, one over its sinh; zero gives zero.
+Modern-Math-CCoth	CCoth	-	ctrig	std/numeric	-	Returns the hyperbolic cotangent of a complex number, one over its tanh.
+Modern-Math-CAsinh	CAsinh	-	ctrig	std/numeric	-	Returns the inverse hyperbolic sine of a complex number.
+Modern-Math-CAcosh	CAcosh	-	ctrig	std/numeric	-	Returns the inverse hyperbolic cosine of a complex number, or of any real number.
+Modern-Math-CAtanh	CAtanh	-	ctrig	std/numeric	-	Returns the inverse hyperbolic tangent of a complex number, or of any real number.
+Modern-Math-CAsech	CAsech	-	ctrig	std/numeric	-	Returns the inverse hyperbolic secant of a complex number.
+Modern-Math-CAcsch	CAcsch	-	ctrig	std/numeric	-	Returns the inverse hyperbolic cosecant of a complex number.
+Modern-Math-CAcoth	CAcoth	-	ctrig	std/numeric	-	Returns the inverse hyperbolic cotangent of a complex number.

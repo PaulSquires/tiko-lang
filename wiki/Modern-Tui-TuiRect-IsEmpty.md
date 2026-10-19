@@ -2,6 +2,8 @@
 
 # TuiRect.IsEmpty
 
+Returns true if the rectangle has no width or no height.
+
 ## Syntax
 
 ```freebasic

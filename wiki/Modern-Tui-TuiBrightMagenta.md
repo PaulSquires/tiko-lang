@@ -2,6 +2,8 @@
 
 # TuiBrightMagenta
 
+Returns the classic bright magenta, palette colour 13.
+
 ## Syntax
 
 ```freebasic

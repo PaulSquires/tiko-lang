@@ -2,6 +2,8 @@
 
 # Instant.IsLeapYear
 
+Returns true if a year is a leap year under the full Gregorian rule.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # IsEmpty
 
+Returns true if the list has no values.
+
 ## Syntax
 
 ```freebasic

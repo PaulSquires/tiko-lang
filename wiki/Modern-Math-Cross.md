@@ -2,7 +2,7 @@
 
 # Cross
 
-The cross product: a vector perpendicular to both inputs.
+Returns a Vec3 perpendicular to both inputs; swapping them flips its direction.
 
 ## Syntax
 

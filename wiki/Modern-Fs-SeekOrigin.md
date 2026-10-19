@@ -2,7 +2,7 @@
 
 # SeekOrigin
 
-Where Stream.Seek measures from.
+Holds where Stream.Seek measures from: the start, the current position or the end.
 
 ## Syntax
 

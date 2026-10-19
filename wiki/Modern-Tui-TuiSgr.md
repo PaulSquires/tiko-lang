@@ -2,6 +2,8 @@
 
 # TuiSgr
 
+Returns the escape sequence that changes the terminal from one style to another.
+
 ## Syntax
 
 ```freebasic

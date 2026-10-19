@@ -2,7 +2,7 @@
 
 # LocalDate.LocalDate
 
-Invalid
+Creates a date with no time of day from a year, month and day, or Invalid if none.
 
 ## Syntax
 

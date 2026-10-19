@@ -2,6 +2,8 @@
 
 # TimeSpan.Duration
 
+Returns the absolute value of the duration.
+
 ## Syntax
 
 ```freebasic

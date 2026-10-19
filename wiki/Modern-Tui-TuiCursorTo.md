@@ -2,6 +2,8 @@
 
 # TuiCursorTo
 
+Returns the escape sequence that moves the cursor to a cell counted from 0.
+
 ## Syntax
 
 ```freebasic

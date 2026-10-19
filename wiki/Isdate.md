@@ -2,7 +2,7 @@
 
 # IsDate
 
-Tests if a string can be converted to a Date Serial
+Returns true if the text can be read as a date in the system's date format.
 
 ## Syntax
 

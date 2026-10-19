@@ -2,6 +2,8 @@
 
 # Err
 
+Returns why the context ended: "cancelled", "deadline exceeded", or "" while live.
+
 ## Syntax
 
 ```freebasic

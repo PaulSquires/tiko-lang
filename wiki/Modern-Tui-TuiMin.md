@@ -2,6 +2,8 @@
 
 # TuiMin_
 
+Returns a constraint for at least n cells, more if there is room.
+
 ## Syntax
 
 ```freebasic

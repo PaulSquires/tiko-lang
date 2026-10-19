@@ -2,7 +2,7 @@
 
 # Erase
 
-Statement to erase arrays
+Frees a variable-length array's elements, or resets those of a fixed-length array.
 
 ## Syntax
 

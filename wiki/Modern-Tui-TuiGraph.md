@@ -2,6 +2,8 @@
 
 # TuiGraph
 
+Draws a line graph of one or more series, scaled to fit or to a fixed range.
+
 ## Syntax
 
 ```freebasic

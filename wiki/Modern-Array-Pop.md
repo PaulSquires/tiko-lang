@@ -2,6 +2,8 @@
 
 # Pop
 
+Removes and returns the last element, or a default value if the array is empty.
+
 ## Syntax
 
 ```freebasic

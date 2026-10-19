@@ -2,6 +2,8 @@
 
 # TuiTextInput.Insert
 
+Inserts text at the cursor, replacing any selection first.
+
 ## Syntax
 
 ```freebasic

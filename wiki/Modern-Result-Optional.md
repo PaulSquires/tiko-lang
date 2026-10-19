@@ -2,7 +2,7 @@
 
 # Optional
 
-"nothing is here"
+Holds one value or nothing at all; a new one is empty.
 
 ## Syntax
 

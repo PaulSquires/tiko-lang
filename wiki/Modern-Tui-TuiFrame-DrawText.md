@@ -2,6 +2,8 @@
 
 # TuiFrame.DrawText
 
+Draws a string at a cell and returns the number of columns it used.
+
 ## Syntax
 
 ```freebasic

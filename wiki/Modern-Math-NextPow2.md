@@ -2,7 +2,7 @@
 
 # NextPow2
 
-The smallest power of two at or above the value.
+Returns the smallest power of two at or above the value; zero gives 1.
 
 ## Syntax
 

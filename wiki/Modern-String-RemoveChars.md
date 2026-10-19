@@ -2,7 +2,7 @@
 
 # RemoveChars
 
-O(n*k)
+Removes every character that belongs to a set.
 
 ## Syntax
 

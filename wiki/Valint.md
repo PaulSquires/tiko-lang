@@ -2,7 +2,7 @@
 
 # ValInt
 
-Converts a string to a 32bit integer
+Converts text to a 32-bit integer.
 
 ## Syntax
 

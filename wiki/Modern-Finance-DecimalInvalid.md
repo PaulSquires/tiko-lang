@@ -2,6 +2,8 @@
 
 # DecimalInvalid
 
+Returns the Invalid Decimal, which overflow and division by zero also produce.
+
 ## Syntax
 
 ```freebasic

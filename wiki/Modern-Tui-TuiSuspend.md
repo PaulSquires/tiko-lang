@@ -2,6 +2,8 @@
 
 # TuiSuspend
 
+Returns a command that leaves the terminal, suspends the program, then comes back.
+
 ## Syntax
 
 ```freebasic

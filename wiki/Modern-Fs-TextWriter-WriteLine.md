@@ -2,7 +2,7 @@
 
 # TextWriter.WriteLine
 
-FsResultBool
+Writes a string followed by the writer's NewLine.
 
 ## Syntax
 

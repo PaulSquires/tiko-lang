@@ -2,6 +2,8 @@
 
 # TimeSpan.Milliseconds
 
+Returns the milliseconds part, 0 to 999, negative for a negative span.
+
 ## Syntax
 
 ```freebasic

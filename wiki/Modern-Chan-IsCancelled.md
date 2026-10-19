@@ -2,6 +2,8 @@
 
 # IsCancelled
 
+Returns true once the context is cancelled or its deadline has passed.
+
 ## Syntax
 
 ```freebasic

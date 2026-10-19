@@ -2,6 +2,8 @@
 
 # TuiRect.Inner
 
+Returns the rectangle shrunk by a margin, empty rather than negative.
+
 ## Syntax
 
 ```freebasic

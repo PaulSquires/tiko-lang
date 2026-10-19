@@ -2,6 +2,8 @@
 
 # TuiBuffer.Clear
 
+Fills every cell with a space in the given style.
+
 ## Syntax
 
 ```freebasic

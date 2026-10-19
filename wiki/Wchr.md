@@ -2,7 +2,7 @@
 
 # WChr
 
-Returns a wide-character string containing one or more Unicode characters
+Returns a wide string made from one or more Unicode code points.
 
 ## Syntax
 

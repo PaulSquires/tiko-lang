@@ -2,6 +2,8 @@
 
 # TimeSpan.FromDays
 
+Returns a duration of a number of days, fractions allowed.
+
 ## Syntax
 
 ```freebasic

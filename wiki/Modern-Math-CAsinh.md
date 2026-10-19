@@ -2,7 +2,7 @@
 
 # CAsinh
 
-The inverse hyperbolic sine.
+Returns the inverse hyperbolic sine of a complex number.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # Seek (Statement)
 
-Sets the position of the next read/write operation on a file
+Sets the 1-based position of the next read or write: bytes, or records for Random.
 
 ## Syntax
 

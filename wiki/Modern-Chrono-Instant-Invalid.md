@@ -2,6 +2,8 @@
 
 # Instant.Invalid
 
+Returns the Invalid date-time, which never equals anything, itself included.
+
 ## Syntax
 
 ```freebasic

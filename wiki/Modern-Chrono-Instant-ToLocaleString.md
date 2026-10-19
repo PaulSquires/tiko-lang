@@ -2,7 +2,7 @@
 
 # ToLocaleString
 
-The date and time as the machine's locale writes them.
+Returns the date and time as the machine's locale writes them, for display only.
 
 ## Syntax
 

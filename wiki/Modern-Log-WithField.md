@@ -2,6 +2,8 @@
 
 # WithField
 
+Returns a child logger that adds one field to every record it makes.
+
 ## Syntax
 
 ```freebasic

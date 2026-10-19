@@ -2,7 +2,7 @@
 
 # Asc
 
-Returns the corresponding ASCII or Unicode integer representation of a character.
+Returns the character code at a position in a string.
 
 ## Syntax
 

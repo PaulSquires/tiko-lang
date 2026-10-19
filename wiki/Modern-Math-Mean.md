@@ -2,7 +2,7 @@
 
 # Mean
 
-The arithmetic mean of an array.
+Returns the average of an array, or NaN if it is empty.
 
 ## Syntax
 

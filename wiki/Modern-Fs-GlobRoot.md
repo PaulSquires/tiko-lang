@@ -2,7 +2,7 @@
 
 # GlobRoot
 
-the directory a pattern will be walked from
+Returns the folder a pattern search starts from: the part before the first wildcard.
 
 ## Syntax
 

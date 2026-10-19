@@ -2,7 +2,7 @@
 
 # RmDir
 
-Removes a folder/directory from the file system
+Removes an empty folder; returns 0 on success or -1 on failure.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # TuiFrame.PushClip
 
+Limits drawing to a rectangle and returns the previous limit, to restore later.
+
 ## Syntax
 
 ```freebasic

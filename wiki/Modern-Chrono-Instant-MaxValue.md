@@ -2,6 +2,8 @@
 
 # Instant.MaxValue
 
+Returns the latest date-time, the last tick of 9999-12-31.
+
 ## Syntax
 
 ```freebasic

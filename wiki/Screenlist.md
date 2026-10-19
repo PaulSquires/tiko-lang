@@ -2,7 +2,7 @@
 
 # ScreenList
 
-Finds available fullscreen video modes
+Returns the fullscreen resolutions for a colour depth, one per call, then 0.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # TuiAmbiguousWide
 
+Returns true if characters of ambiguous width count as two columns.
+
 ## Syntax
 
 ```freebasic

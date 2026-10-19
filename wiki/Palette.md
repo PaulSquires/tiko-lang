@@ -2,7 +2,7 @@
 
 # Palette
 
-Customizes colors in modes with paletted colors
+Sets or reads the colours of a palette mode, or restores the default palette.
 
 ## Syntax
 

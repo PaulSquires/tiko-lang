@@ -2,7 +2,7 @@
 
 # OrderedMap.Pairs
 
-O(1)      the tuple view
+Returns a view that lets for each (k, v) walk keys and values in key order.
 
 ## Syntax
 

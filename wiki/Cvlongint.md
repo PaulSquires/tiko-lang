@@ -2,7 +2,7 @@
 
 # CVLongInt
 
-Converts a double-precision floating-point number or eight-byte string to a LongInt variable
+Reads a LongInt back from an 8-byte string.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # ThreadCreate
 
-Starts a user-defined procedure in a separate execution thread
+Starts a procedure on a new thread, passing it one pointer; returns the thread handle.
 
 ## Syntax
 

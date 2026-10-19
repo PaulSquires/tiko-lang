@@ -2,6 +2,8 @@
 
 # TuiApp.Shutdown
 
+Runs once as the loop ends, while the terminal is still taken.
+
 ## Syntax
 
 ```freebasic

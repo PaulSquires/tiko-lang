@@ -2,7 +2,7 @@
 
 # MinOf
 
-The smallest value in the array.
+Returns the smallest value in an array, or NaN if it is empty.
 
 ## Syntax
 

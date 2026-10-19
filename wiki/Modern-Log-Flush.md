@@ -2,7 +2,7 @@
 
 # Flush
 
-reaches every attached sink
+Flushes every sink attached to the logger.
 
 ## Syntax
 

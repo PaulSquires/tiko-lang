@@ -2,7 +2,7 @@
 
 # File.SyncData
 
-FsResultBool
+Forces the file's data onto the disk; can be cheaper than Sync on Linux.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # File.Path
 
-ustring
+Returns the path the file was opened with.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # Circle
 
-Graphics statement to draw an ellipse or a circle
+Draws a circle, ellipse or arc, optionally filled.
 
 ## Syntax
 

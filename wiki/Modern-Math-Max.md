@@ -2,6 +2,8 @@
 
 # Max
 
+Returns the larger of two values; a NaN argument gives NaN.
+
 ## Syntax
 
 ```freebasic

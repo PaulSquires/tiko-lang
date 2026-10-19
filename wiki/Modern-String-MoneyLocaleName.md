@@ -2,7 +2,7 @@
 
 # MoneyLocaleName
 
-The name of the locale the monetary settings were read from, as the system reported it.
+Returns the name of the locale that money is formatted for.
 
 ## Syntax
 

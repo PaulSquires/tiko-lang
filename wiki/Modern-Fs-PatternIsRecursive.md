@@ -2,6 +2,8 @@
 
 # PatternIsRecursive
 
+Returns true if a pattern has a double-star part that searches every subfolder.
+
 ## Syntax
 
 ```freebasic

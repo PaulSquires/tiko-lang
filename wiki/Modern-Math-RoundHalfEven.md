@@ -2,7 +2,7 @@
 
 # RoundHalfEven
 
-banker's:             2.5 -> 2,  -2.5 -> -2
+Rounds to the nearest whole number or number of decimals, halves to the even side.
 
 ## Syntax
 

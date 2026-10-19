@@ -2,7 +2,7 @@
 
 # IsNil
 
-Whether this is a default-constructed channel, which blocks forever.
+Returns true for a default-constructed channel, which blocks forever if used.
 
 ## Syntax
 

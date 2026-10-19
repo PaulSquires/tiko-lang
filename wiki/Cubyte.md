@@ -2,7 +2,7 @@
 
 # CUByte
 
-Converts numeric or string expression to an unsigned byte (UByte)
+Converts a number or string to a UByte, rounding to the nearest; no overflow check.
 
 ## Syntax
 

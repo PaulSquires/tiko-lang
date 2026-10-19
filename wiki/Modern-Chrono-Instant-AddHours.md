@@ -2,6 +2,8 @@
 
 # Instant.AddHours
 
+Returns the date-time moved by a number of hours, fractions allowed.
+
 ## Syntax
 
 ```freebasic

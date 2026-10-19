@@ -2,7 +2,7 @@
 
 # TimeSpan.FromSeconds
 
-A TimeSpan of `v` seconds, which may be fractional.
+Returns a duration of a number of seconds, fractions allowed.
 
 ## Syntax
 

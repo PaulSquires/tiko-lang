@@ -2,7 +2,7 @@
 
 # Map
 
-An open-addressed hash map.
+Holds key and value pairs in a hash table, so you find a value by its key.
 
 ## Syntax
 

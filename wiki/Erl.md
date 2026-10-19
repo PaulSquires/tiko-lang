@@ -2,7 +2,7 @@
 
 # Erl
 
-Error handling function to return the line where the error occurred
+Returns the source line of the last runtime error, or 0 if there was none.
 
 ## Syntax
 

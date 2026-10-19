@@ -2,6 +2,8 @@
 
 # TuiBuffer.At
 
+Returns a pointer to the cell at x, y, without checking the bounds.
+
 ## Syntax
 
 ```freebasic

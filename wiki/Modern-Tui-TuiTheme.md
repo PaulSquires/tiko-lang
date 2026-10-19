@@ -2,6 +2,8 @@
 
 # TuiTheme
 
+Holds twelve named styles, such as normal, accent, selected and danger.
+
 ## Syntax
 
 ```freebasic

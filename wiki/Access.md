@@ -2,7 +2,7 @@
 
 # Access
 
-Clause of the Open statement to specify requested privileges
+Limits a Binary or Random file in Open to reading, writing, or both.
 
 ## Syntax
 

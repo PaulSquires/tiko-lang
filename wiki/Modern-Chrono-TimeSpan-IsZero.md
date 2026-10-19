@@ -2,6 +2,8 @@
 
 # TimeSpan.IsZero
 
+Returns true if the duration is exactly zero, and false if it is Invalid.
+
 ## Syntax
 
 ```freebasic

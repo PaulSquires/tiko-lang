@@ -2,7 +2,7 @@
 
 # Binary
 
-Specifies file or device to be opened for binary mode
+Opens a file with Open for reading and writing bytes at any position.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # TuiParagraph
 
+Draws text, wrapped or not, aligned left, centre or right, and scrollable.
+
 ## Syntax
 
 ```freebasic

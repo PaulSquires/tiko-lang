@@ -2,7 +2,7 @@
 
 # TextReader
 
-Decoded lines and text from any Stream.
+Holds a reader that decodes lines and text from any Stream, in UTF-8 or UTF-16.
 
 ## Syntax
 

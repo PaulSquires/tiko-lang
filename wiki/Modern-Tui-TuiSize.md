@@ -2,6 +2,8 @@
 
 # TuiSize
 
+Holds a size in columns and rows.
+
 ## Syntax
 
 ```freebasic

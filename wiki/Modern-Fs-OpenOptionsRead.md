@@ -2,7 +2,7 @@
 
 # OpenOptionsRead
 
-OpenOptions
+Returns the OpenOptions for reading a file that must already exist.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # HasValue
 
+Returns true if the Optional holds a value.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # TuiTerminal.Enter
 
+Takes over the terminal with the options asked for; fails if output is not a terminal.
+
 ## Syntax
 
 ```freebasic

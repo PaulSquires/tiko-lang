@@ -2,6 +2,8 @@
 
 # Back
 
+Returns a reference to the back value without removing it.
+
 ## Syntax
 
 ```freebasic

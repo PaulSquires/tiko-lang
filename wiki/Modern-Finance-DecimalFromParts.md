@@ -2,6 +2,8 @@
 
 # DecimalFromParts
 
+Builds a Decimal from three 32-bit mantissa words, a sign flag and a scale.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # Normalize
 
-The unit vector pointing the same way.
+Returns a vector of length 1 in the same direction; a zero vector stays zero.
 
 ## Syntax
 

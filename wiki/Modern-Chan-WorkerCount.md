@@ -2,7 +2,7 @@
 
 # WorkerCount
 
-How many OS threads the scheduler is running goroutines on.
+Returns how many OS threads the scheduler is running goroutines on.
 
 ## Syntax
 

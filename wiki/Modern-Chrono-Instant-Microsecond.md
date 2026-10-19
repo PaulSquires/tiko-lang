@@ -2,6 +2,8 @@
 
 # Instant.Microsecond
 
+Returns the microseconds within the second, the milliseconds included.
+
 ## Syntax
 
 ```freebasic

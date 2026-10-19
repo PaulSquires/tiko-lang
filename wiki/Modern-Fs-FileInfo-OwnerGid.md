@@ -2,7 +2,7 @@
 
 # FileInfo.OwnerGid
 
-ulong
+Returns the owner's group id, or 0 unless HasOwner is true.
 
 ## Syntax
 

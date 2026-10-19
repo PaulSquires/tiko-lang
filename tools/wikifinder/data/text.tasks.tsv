@@ -1,0 +1,23 @@
+# Text: task headings in display order, pages to skip, see-also links.
+#   task    <task id>  <heading>
+#   ignore  <page>  <reason>
+#   seealso <page>  <label>
+task	find	Find text in a string
+task	inspect	Check what a string holds
+task	part	Take part of a string
+task	case	Change case
+task	trim	Trim, pad and align
+task	edit	Replace, insert and remove
+task	split	Split and join
+task	build	Build and wrap strings
+task	chars	Characters and their codes
+task	totext	Convert numbers to text
+task	tonum	Convert text to numbers
+task	money	Format money
+task	binary	Pack numbers into bytes and back
+ignore	String-Functions	an overview page, not a function
+seealso	Category-String-Library	String Library guide
+seealso	Category-Format	Format guide
+seealso	Category-UString	UString
+seealso	Category-Block-Strings	Block strings
+seealso	Category-Codec	Base64, hex and percent-encoding

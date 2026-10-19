@@ -2,7 +2,7 @@
 
 # MKLongInt
 
-Does a binary copy from a LongInt variable to a String, setting its length to 8 bytes
+Copies a LongInt's bytes into an 8-byte string.
 
 ## Syntax
 

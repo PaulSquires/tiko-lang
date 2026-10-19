@@ -2,6 +2,8 @@
 
 # TuiFocusRing.Clear
 
+Empties the Tab order; the widgets themselves are left alone.
+
 ## Syntax
 
 ```freebasic

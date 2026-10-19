@@ -2,7 +2,7 @@
 
 # TimeSerial
 
-Gets a Date Serial for the specified hours, minutes, and seconds
+Returns the fraction of a day for an hour, minute and second, to add to a date serial.
 
 ## Syntax
 

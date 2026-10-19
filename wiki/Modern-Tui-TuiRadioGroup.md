@@ -2,6 +2,8 @@
 
 # TuiRadioGroup
 
+Draws a set of options where one is chosen, stored in your own variable.
+
 ## Syntax
 
 ```freebasic

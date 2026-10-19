@@ -2,7 +2,7 @@
 
 # Point
 
-Returns the color attribute of a specified pixel coordinate
+Returns the colour of a pixel, or -1 if it is off the screen or image.
 
 ## Syntax
 

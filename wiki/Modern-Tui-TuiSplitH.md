@@ -2,6 +2,8 @@
 
 # TuiSplitH
 
+Splits a rectangle into columns side by side, sized by constraints.
+
 ## Syntax
 
 ```freebasic

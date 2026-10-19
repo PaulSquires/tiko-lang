@@ -2,6 +2,8 @@
 
 # Instant.FileTime
 
+Returns the date-time as a Windows FILETIME: 100 ns ticks since 1601-01-01.
+
 ## Syntax
 
 ```freebasic

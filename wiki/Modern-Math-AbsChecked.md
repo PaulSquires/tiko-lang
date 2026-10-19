@@ -2,7 +2,7 @@
 
 # AbsChecked
 
-The absolute value, or **nothing** for the one input that has none.
+Returns the absolute value as an Optional, empty for the most negative value.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # TuiLength
 
+Returns a constraint for exactly n cells.
+
 ## Syntax
 
 ```freebasic

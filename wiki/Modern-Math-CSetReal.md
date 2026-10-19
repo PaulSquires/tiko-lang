@@ -2,7 +2,7 @@
 
 # CSetReal
 
-Assigns the real part in place.
+Sets the real part of a complex variable in place.
 
 ## Syntax
 

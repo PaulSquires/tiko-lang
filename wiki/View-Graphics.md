@@ -2,7 +2,7 @@
 
 # View (Graphics)
 
-Sets new physical coordinate mapping and clipping region for graphics keywords
+Sets the rectangle that drawing is clipped to, or resets it to the whole screen.
 
 ## Syntax
 

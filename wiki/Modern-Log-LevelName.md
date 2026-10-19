@@ -2,6 +2,8 @@
 
 # LevelName
 
+Returns a level's name, such as "WARN", or its number if it has no name.
+
 ## Syntax
 
 ```freebasic

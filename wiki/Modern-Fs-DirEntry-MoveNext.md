@@ -2,7 +2,7 @@
 
 # DirEntry.MoveNext
 
-advance
+Moves the iterator on to the next entry.
 
 ## Syntax
 

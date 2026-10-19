@@ -2,7 +2,7 @@
 
 # Hour
 
-Gets the hour of day from a Date Serial
+Returns the hour of a date serial, 0 to 23.
 
 ## Syntax
 

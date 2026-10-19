@@ -2,6 +2,8 @@
 
 # TuiFrame.SetCell
 
+Writes one character cell, replacing the style that was there.
+
 ## Syntax
 
 ```freebasic

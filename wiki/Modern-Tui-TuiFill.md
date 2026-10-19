@@ -2,6 +2,8 @@
 
 # TuiFill
 
+Returns a constraint that shares the space left over, by weight.
+
 ## Syntax
 
 ```freebasic

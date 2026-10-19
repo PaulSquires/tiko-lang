@@ -2,7 +2,7 @@
 
 # MemoryMappedFile.Size
 
-ulongint
+Returns the size of the mapped file in bytes.
 
 ## Syntax
 

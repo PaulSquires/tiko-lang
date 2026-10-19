@@ -2,6 +2,8 @@
 
 # LocalTime.MaxValue
 
+Returns the last tick of the day, 23:59:59.9999999.
+
 ## Syntax
 
 ```freebasic

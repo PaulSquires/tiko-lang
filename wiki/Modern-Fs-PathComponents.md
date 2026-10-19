@@ -2,7 +2,7 @@
 
 # PathComponents
 
-PathComponentRange -- for each yields a PathComponent
+Returns the parts of a path as written, drive and root included, for a for each loop.
 
 ## Syntax
 

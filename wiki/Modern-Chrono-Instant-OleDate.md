@@ -2,6 +2,8 @@
 
 # Instant.OleDate
 
+Returns the date-time as an OLE automation date, the number Excel and ADO use.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # ConfigDir
 
-FsResultUStr -- where user configuration belongs
+Returns the folder for user settings, such as AppData\Roaming or ~/.config.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # CondSignal
 
-Restarts a thread suspended by a call to CondWait
+Wakes one thread waiting on the condition; the signal is lost if none is waiting.
 
 ## Syntax
 

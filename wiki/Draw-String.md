@@ -2,7 +2,7 @@
 
 # Draw String
 
-Graphics statement to render text to an image or screen.
+Draws text at a pixel position, on a transparent background, with an optional font.
 
 ## Syntax
 

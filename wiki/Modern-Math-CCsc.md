@@ -2,7 +2,7 @@
 
 # CCsc
 
-The cosecant — one over the sine.
+Returns the cosecant of a complex number, one over the sine; zero gives zero.
 
 ## Syntax
 

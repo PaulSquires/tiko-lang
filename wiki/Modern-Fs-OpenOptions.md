@@ -2,7 +2,7 @@
 
 # OpenOptions
 
-How File.Open opens a file.
+Holds the flags that say how File.Open opens a file: read, write, create, share and more.
 
 ## Syntax
 

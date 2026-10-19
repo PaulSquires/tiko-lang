@@ -2,7 +2,7 @@
 
 # CSqrt
 
-The principal square root.
+Returns the principal square root of a complex number or of a negative real.
 
 ## Syntax
 

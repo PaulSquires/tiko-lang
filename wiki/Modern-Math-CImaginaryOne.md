@@ -2,7 +2,7 @@
 
 # CImaginaryOne
 
-The imaginary unit, i.
+Returns the imaginary unit i.
 
 ## Syntax
 

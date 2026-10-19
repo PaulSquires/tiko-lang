@@ -2,6 +2,8 @@
 
 # Front
 
+Returns a reference to the front value without removing it.
+
 ## Syntax
 
 ```freebasic

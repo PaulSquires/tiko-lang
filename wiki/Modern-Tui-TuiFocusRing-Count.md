@@ -2,6 +2,8 @@
 
 # TuiFocusRing.Count
 
+Counts the widgets in the Tab order.
+
 ## Syntax
 
 ```freebasic

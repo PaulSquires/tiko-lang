@@ -2,7 +2,7 @@
 
 # BitWidth
 
-How many bits are needed to represent the value.
+Returns how many bits the value needs, or 0 for zero.
 
 ## Syntax
 

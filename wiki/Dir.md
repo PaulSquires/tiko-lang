@@ -2,7 +2,7 @@
 
 # Dir
 
-Searches for and returns information about an item in the filesystem; performs a directory searchattrib
+Returns the first name matching a pattern, then the next one on each later call.
 
 ## Syntax
 

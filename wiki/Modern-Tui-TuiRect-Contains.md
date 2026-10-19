@@ -2,6 +2,8 @@
 
 # TuiRect.Contains
 
+Returns true if a cell is inside the rectangle; use it to hit-test the mouse.
+
 ## Syntax
 
 ```freebasic

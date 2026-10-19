@@ -2,7 +2,7 @@
 
 # VerifySet
 
-First position NOT in the set, or 0 if every one is.
+Returns the position of the first character not in a set, or 0 if all are.
 
 ## Syntax
 

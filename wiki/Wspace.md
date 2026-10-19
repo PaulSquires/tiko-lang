@@ -2,7 +2,7 @@
 
 # WSpace
 
-Creates a WString of a given length filled with spaces (" ")
+Returns a wide string of n spaces.
 
 ## Syntax
 

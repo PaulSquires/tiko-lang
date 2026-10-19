@@ -2,6 +2,8 @@
 
 # TuiWhite
 
+Returns the classic white, palette colour 7.
+
 ## Syntax
 
 ```freebasic

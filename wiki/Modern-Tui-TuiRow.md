@@ -2,6 +2,8 @@
 
 # TuiRow
 
+Holds one table row: its cell texts in column order.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # StdDevPopulation
 
-The **population** standard deviation: the square root of `VariancePopulation`.
+Returns the population standard deviation of an array, dividing by n.
 
 ## Syntax
 

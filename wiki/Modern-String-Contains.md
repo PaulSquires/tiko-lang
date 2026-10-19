@@ -2,7 +2,7 @@
 
 # Contains
 
-O(n*m)   boolean
+Returns true if the text appears anywhere in the string.
 
 ## Syntax
 

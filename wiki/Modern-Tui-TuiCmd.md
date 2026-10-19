@@ -2,6 +2,8 @@
 
 # TuiCmd
 
+Holds a command for the loop: what to do, plus a delay or an exit code.
+
 ## Syntax
 
 ```freebasic

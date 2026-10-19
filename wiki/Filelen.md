@@ -2,7 +2,7 @@
 
 # FileLen
 
-Finds the length of a file given its filename
+Returns the size of a named file in bytes.
 
 ## Syntax
 

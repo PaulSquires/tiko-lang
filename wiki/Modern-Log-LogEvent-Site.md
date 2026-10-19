@@ -2,7 +2,7 @@
 
 # LogEvent.Site
 
-what the phase-5 macros will fill in
+Records the file, line and procedure the record came from.
 
 ## Syntax
 

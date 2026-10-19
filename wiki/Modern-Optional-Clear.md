@@ -2,7 +2,7 @@
 
 # Clear
 
-O(1)   becomes empty
+Empties the Optional, releasing whatever its value held.
 
 ## Syntax
 

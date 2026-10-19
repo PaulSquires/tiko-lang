@@ -2,6 +2,8 @@
 
 # LocalDate.MaxValue
 
+Returns the latest date, 9999-12-31.
+
 ## Syntax
 
 ```freebasic

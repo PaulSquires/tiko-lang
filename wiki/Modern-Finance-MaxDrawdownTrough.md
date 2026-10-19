@@ -2,6 +2,8 @@
 
 # MaxDrawdownTrough
 
+Returns the index of the low point of the worst drawdown, or empty if none.
+
 ## Syntax
 
 ```freebasic

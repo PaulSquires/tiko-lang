@@ -2,7 +2,7 @@
 
 # CAcosh
 
-The inverse hyperbolic cosine.
+Returns the inverse hyperbolic cosine of a complex number, or of any real number.
 
 ## Syntax
 

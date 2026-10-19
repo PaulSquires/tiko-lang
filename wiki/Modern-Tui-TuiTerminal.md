@@ -2,6 +2,8 @@
 
 # TuiTerminal
 
+Holds the terminal itself, for writing your own loop: modes, size and output.
+
 ## Syntax
 
 ```freebasic

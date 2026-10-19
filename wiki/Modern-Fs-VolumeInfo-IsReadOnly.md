@@ -2,6 +2,8 @@
 
 # VolumeInfo.IsReadOnly
 
+Returns true if the whole volume is read-only.
+
 ## Syntax
 
 ```freebasic

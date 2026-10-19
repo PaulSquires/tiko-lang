@@ -2,6 +2,8 @@
 
 # LocalDate.DayOfYear
 
+Returns the day of the year, starting at 1.
+
 ## Syntax
 
 ```freebasic

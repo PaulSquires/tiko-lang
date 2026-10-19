@@ -2,7 +2,7 @@
 
 # Shell
 
-Sends a command to the system command interpreter
+Runs a command through the system shell, waits, and returns its exit code or -1.
 
 ## Syntax
 

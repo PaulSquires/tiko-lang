@@ -2,6 +2,8 @@
 
 # ExtraPaymentOnce
 
+Returns a single extra principal payment made in one period.
+
 ## Syntax
 
 ```freebasic

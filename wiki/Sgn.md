@@ -2,7 +2,7 @@
 
 # Sgn
 
-Returns the sign part of a number
+Returns -1, 0 or 1 for the sign of a number, in the number's own type.
 
 ## Syntax
 

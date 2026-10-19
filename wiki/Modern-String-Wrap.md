@@ -2,7 +2,7 @@
 
 # Wrap
 
-O(n)
+Surrounds the string with quotes or a given pair of delimiters.
 
 ## Syntax
 

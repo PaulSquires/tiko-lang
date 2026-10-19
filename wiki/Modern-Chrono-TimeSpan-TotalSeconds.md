@@ -2,6 +2,8 @@
 
 # TimeSpan.TotalSeconds
 
+Returns the whole duration in seconds, with a fraction.
+
 ## Syntax
 
 ```freebasic

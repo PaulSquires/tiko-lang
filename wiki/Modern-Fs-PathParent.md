@@ -2,7 +2,7 @@
 
 # PathParent
 
-"" for a root and for a single relative component
+Returns the path without its last part, or an empty string for a root.
 
 ## Syntax
 

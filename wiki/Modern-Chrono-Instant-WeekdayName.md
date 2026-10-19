@@ -2,6 +2,8 @@
 
 # Instant.WeekdayName
 
+Returns the English name of a weekday, 1 being Monday, or its abbreviation.
+
 ## Syntax
 
 ```freebasic

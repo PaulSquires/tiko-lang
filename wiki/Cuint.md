@@ -2,7 +2,7 @@
 
 # CUInt
 
-Converts numeric or string expression to a UInteger or UInteger<bits>
+Converts a number or string to a UInteger, rounding to the nearest; no overflow check.
 
 ## Syntax
 

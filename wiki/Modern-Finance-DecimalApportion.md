@@ -2,6 +2,8 @@
 
 # DecimalApportion
 
+Splits a Decimal total by weights, at a scale you choose, into parts that add up exactly.
+
 ## Syntax
 
 ```freebasic

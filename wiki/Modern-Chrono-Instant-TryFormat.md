@@ -2,6 +2,8 @@
 
 # Instant.TryFormat
 
+Formats the date-time with a pattern into a variable; returns false if the pattern is bad.
+
 ## Syntax
 
 ```freebasic

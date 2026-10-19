@@ -2,7 +2,7 @@
 
 # WriteAllBytes
 
-FsResultBool
+Writes an Array of bytes to a file, creating the file or replacing it.
 
 ## Syntax
 

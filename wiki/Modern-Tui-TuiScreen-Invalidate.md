@@ -2,6 +2,8 @@
 
 # TuiScreen.Invalidate
 
+Makes the next Render clear and repaint the whole screen.
+
 ## Syntax
 
 ```freebasic

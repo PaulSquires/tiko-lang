@@ -2,6 +2,8 @@
 
 # DepreciationUnitsOfProduction
 
+Returns one period's expense from the units it produced out of the lifetime total.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # Debug
 
-Logs at DEBUG level, either directly or by starting a field chain.
+Logs a message at the debug level, or returns a record to add fields to.
 
 ## Syntax
 

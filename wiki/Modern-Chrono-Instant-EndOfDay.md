@@ -2,6 +2,8 @@
 
 # Instant.EndOfDay
 
+Returns the last tick of the same day, 23:59:59.9999999.
+
 ## Syntax
 
 ```freebasic

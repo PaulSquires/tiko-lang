@@ -2,7 +2,7 @@
 
 # Slerp
 
-Spherical linear interpolation between two rotations.
+Blends between two rotations at constant speed, taking the shorter way round.
 
 ## Syntax
 

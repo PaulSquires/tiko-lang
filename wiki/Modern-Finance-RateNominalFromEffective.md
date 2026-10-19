@@ -2,6 +2,8 @@
 
 # RateNominalFromEffective
 
+Returns the quoted annual rate that earns a given effective yearly return.
+
 ## Syntax
 
 ```freebasic

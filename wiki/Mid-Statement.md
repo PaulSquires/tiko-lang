@@ -2,7 +2,7 @@
 
 # Mid (Statement)
 
-Overwrites a substring of a string with another
+Overwrites part of a string in place with other text.
 
 ## Syntax
 

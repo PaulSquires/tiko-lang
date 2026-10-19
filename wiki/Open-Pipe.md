@@ -2,7 +2,7 @@
 
 # Open Pipe
 
-Opens an external process' standard input (stdin) or output (stdout) stream, using it as if it were file operations.
+Runs a shell command and opens its input or output on a file number.
 
 ## Syntax
 

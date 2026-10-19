@@ -2,6 +2,8 @@
 
 # Stopwatch.Start
 
+Starts the stopwatch, or resumes it and keeps the time already measured.
+
 ## Syntax
 
 ```freebasic

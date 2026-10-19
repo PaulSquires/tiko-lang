@@ -2,6 +2,8 @@
 
 # TuiTitle
 
+Holds one title on a block's border: its text, style and alignment.
+
 ## Syntax
 
 ```freebasic

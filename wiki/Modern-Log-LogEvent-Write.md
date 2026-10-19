@@ -2,6 +2,8 @@
 
 # LogEvent.Write
 
+Writes one record to a sink; the method a sink of your own overrides.
+
 ## Syntax
 
 ```freebasic

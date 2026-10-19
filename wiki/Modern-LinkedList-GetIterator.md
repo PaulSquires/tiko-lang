@@ -2,6 +2,8 @@
 
 # GetIterator
 
+Returns an iterator over the values that stays valid when others are added.
+
 ## Syntax
 
 ```freebasic

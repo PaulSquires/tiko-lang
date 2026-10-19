@@ -2,6 +2,8 @@
 
 # DepreciationStraightLine
 
+Returns one period's expense, with cost less salvage spread evenly over the life.
+
 ## Syntax
 
 ```freebasic

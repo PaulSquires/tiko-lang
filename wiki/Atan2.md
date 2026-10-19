@@ -2,7 +2,7 @@
 
 # Atan2
 
-Returns the arctangent of a ratio
+Returns the angle in radians, from -pi to pi, of the point at x, y.
 
 ## Syntax
 

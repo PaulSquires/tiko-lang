@@ -2,7 +2,7 @@
 
 # LChown
 
-FsResultBool
+Changes a symbolic link's own owner and group, on Linux only.
 
 ## Syntax
 

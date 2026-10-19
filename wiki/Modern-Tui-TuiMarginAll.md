@@ -2,6 +2,8 @@
 
 # TuiMarginAll
 
+Returns a margin of the same size on every side.
+
 ## Syntax
 
 ```freebasic

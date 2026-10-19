@@ -2,6 +2,8 @@
 
 # FinSolverOptions
 
+Holds the root finder's bounds, starting guess, tolerances and iteration limits.
+
 ## Syntax
 
 ```freebasic

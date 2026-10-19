@@ -1,0 +1,99 @@
+# Text functions. One row per function, per task it belongs to. Tab-separated; see finder.py for the rules.
+page	name	qualifier	task	from	rank	summary
+Instr	InStr	-	find	built-in	1	Returns the position of the first match, or 0 if there is none.
+Instrrev	InStrRev	-	find	built-in	-	Returns the position of the last match, or 0 if there is none.
+Modern-String-Contains	Contains	-	find	std/strings	-	Returns true if the text appears anywhere in the string.
+Modern-String-StartsWith	StartsWith	-	find	std/strings	-	Returns true if the string begins with the given text.
+Modern-String-EndsWith	EndsWith	-	find	std/strings	-	Returns true if the string ends with the given text.
+Modern-String-Tally	Tally	-	find	std/strings	-	Counts how many times the text occurs, without overlaps.
+Modern-String-InstrChars	InstrChars	-	find	std/strings	-	Returns the position of the first character from a set, or 0.
+Modern-String-TallyChars	TallyChars	-	find	std/strings	-	Counts the characters that belong to a set.
+Len	Len	-	inspect	built-in	-	Returns the length of a string, or the size of a type.
+Modern-String-IsBlank	IsBlank	-	inspect	std/strings	-	Returns true if the string is empty or holds only whitespace.
+Modern-String-IsNumeric	IsNumeric	-	inspect	std/strings	-	Returns true if the string is a valid number, with spaces allowed around it.
+Modern-String-VerifySet	VerifySet	-	inspect	std/strings	-	Returns the position of the first character not in a set, or 0 if all are.
+Modern-String-SpanOf	SpanOf	-	inspect	std/strings	-	Counts the run of characters from a set that starts at a position.
+Left	Left	-	part	built-in	-	Returns the first n characters.
+Right	Right	-	part	built-in	-	Returns the last n characters.
+Mid-Function	Mid	-	part	built-in	-	Returns the characters from a position, optionally for a given length.
+Modern-String-Between	Between	-	part	std/strings	-	Returns the text between two delimiters.
+Modern-String-Extract	Extract	-	part	std/strings	-	Returns the text before a match, or the whole rest if there is none.
+Modern-String-Remain	Remain	-	part	std/strings	-	Returns the text after a match, or an empty string if there is none.
+Modern-String-ExtractChars	ExtractChars	-	part	std/strings	-	Returns the text before the first character from a set.
+Modern-String-RemainChars	RemainChars	-	part	std/strings	-	Returns the text after the first character from a set.
+Ucase	UCase	-	case	built-in	-	Returns an upper-case copy of the string.
+Lcase	LCase	-	case	built-in	-	Returns a lower-case copy of the string.
+Modern-String-MCase	MCase	-	case	std/strings	-	Returns a title-case copy: each word capitalised, the rest lower case.
+Trim	Trim	-	trim	built-in	-	Removes spaces, or the given characters, from both ends.
+Ltrim	LTrim	-	trim	built-in	-	Removes spaces, or the given characters, from the start.
+Rtrim	RTrim	-	trim	built-in	-	Removes spaces, or the given characters, from the end.
+Modern-String-Shrink	Shrink	-	trim	std/strings	-	Trims both ends and collapses each inner run of spaces to one.
+Modern-String-PadLeft	PadLeft	-	trim	std/strings	-	Pads on the left to a width, with spaces or a given character.
+Modern-String-PadRight	PadRight	-	trim	std/strings	-	Pads on the right to a width, with spaces or a given character.
+Modern-String-PadCenter	PadCenter	-	trim	std/strings	-	Centres the string in a width, padding both sides.
+Lset	LSet	-	trim	built-in	-	Copies a string into another, left-justified and padded with spaces.
+Rset	RSet	-	trim	built-in	-	Copies a string into another, right-justified and padded with spaces.
+Modern-String-Replace	Replace	-	edit	std/strings	2	Replaces every occurrence of the text with other text.
+Modern-String-ReplaceChars	ReplaceChars	-	edit	std/strings	-	Replaces each character from a set with one given character.
+Modern-String-Remove	Remove	-	edit	std/strings	-	Removes every occurrence of the text.
+Modern-String-RemoveChars	RemoveChars	-	edit	std/strings	-	Removes every character that belongs to a set.
+Modern-String-RetainChars	RetainChars	-	edit	std/strings	-	Keeps only the characters that belong to a set.
+Modern-String-RemoveBetween	RemoveBetween	-	edit	std/strings	-	Removes a pair of delimiters and the text between them.
+Modern-String-InsertAt	InsertAt	-	edit	std/strings	-	Inserts text at a position.
+Modern-String-DeleteAt	DeleteAt	-	edit	std/strings	-	Deletes a number of characters at a position.
+Modern-String-ClipLeft	ClipLeft	-	edit	std/strings	-	Removes a number of characters from the start.
+Modern-String-ClipRight	ClipRight	-	edit	std/strings	-	Removes a number of characters from the end.
+Mid-Statement	Mid	statement	edit	built-in	-	Overwrites part of a string in place with other text.
+Modern-String-Split	Split	-	split	std/strings	3	Breaks a string into an Array at each delimiter.
+Modern-String-SplitChars	SplitChars	-	split	std/strings	-	Breaks a string into an Array wherever a character from a set appears.
+Modern-String-Join	Join	-	split	std/strings	-	Joins an Array of strings into one, with a separator between them.
+Modern-String-SplitCsv	SplitCsv	-	split	std/strings	-	Parses CSV text into rows and fields, quoted fields included.
+Modern-String-SplitCsvRow	SplitCsvRow	-	split	std/strings	-	Parses one CSV record into an Array of fields.
+Space	Space	-	build	built-in	-	Returns a string of n spaces.
+Wspace	WSpace	-	build	built-in	-	Returns a wide string of n spaces.
+String-Function	String	-	build	built-in	-	Returns a string of n copies of one character.
+Wstring-Function	WString	-	build	built-in	-	Returns a wide string of n copies of one character.
+Modern-String-Repeat	Repeat	-	build	std/strings	-	Returns a string repeated n times.
+Modern-String-Reverse	Reverse	-	build	std/strings	-	Returns the string with its characters in reverse order.
+Modern-String-Wrap	Wrap	-	build	std/strings	-	Surrounds the string with quotes or a given pair of delimiters.
+Modern-String-Unwrap	Unwrap	-	build	std/strings	-	Removes one surrounding pair of quotes or delimiters, if both are there.
+Modern-String-Escape	Escape	-	build	std/strings	-	Replaces quotes, backslashes and control characters with backslash escapes.
+Modern-String-Unescape	Unescape	-	build	std/strings	-	Turns backslash escapes back into the characters they stand for.
+Asc	Asc	-	chars	built-in	-	Returns the character code at a position in a string.
+Chr	Chr	-	chars	built-in	-	Returns a string made from one or more character codes.
+Wchr	WChr	-	chars	built-in	-	Returns a wide string made from one or more Unicode code points.
+Str	Str	-	totext	built-in	-	Returns a number or boolean as text.
+Wstr	WStr	-	totext	built-in	-	Returns a number as a wide string.
+Category-Format	Format	-	totext	std/strings	4	Builds text from values with a format string such as "{:>6.2f}".
+Format	Format	-	totext	string.bi	-	Formats a number with a picture string such as "#,##0.00".
+Hex	Hex	-	totext	built-in	-	Returns a number as hexadecimal text.
+Whex	WHex	-	totext	built-in	-	Returns a number as hexadecimal wide-string text.
+Bin	Bin	-	totext	built-in	-	Returns a number as binary text.
+Wbin	WBin	-	totext	built-in	-	Returns a number as binary wide-string text.
+Oct	Oct	-	totext	built-in	-	Returns a number as octal text.
+Woct	WOct	-	totext	built-in	-	Returns a number as octal wide-string text.
+Val	Val	-	tonum	built-in	-	Converts text to a double.
+Valint	ValInt	-	tonum	built-in	-	Converts text to a 32-bit integer.
+Vallng	ValLng	-	tonum	built-in	-	Converts text to a 64-bit integer.
+Valuint	ValUInt	-	tonum	built-in	-	Converts text to an unsigned 32-bit integer.
+Valulng	ValULng	-	tonum	built-in	-	Converts text to an unsigned 64-bit integer.
+Modern-String-MoneyFormat	MoneyFormat	-	money	std/money	-	Holds an amount and prints it the way the user's locale writes money.
+Modern-String-MoneySetLocale	MoneySetLocale	-	money	std/money	-	Switches money formatting to a named locale; returns false if it is unknown.
+Modern-String-MoneyLocaleName	MoneyLocaleName	-	money	std/money	-	Returns the name of the locale that money is formatted for.
+Modern-String-MoneyLocaleIsValid	MoneyLocaleIsValid	-	money	std/money	-	Returns false if the system rejected the money locale.
+Modern-String-MoneyRefreshLocale	MoneyRefreshLocale	-	money	std/money	-	Rereads the locale's money settings after the user changes them.
+Modern-String-MoneyCompose	MoneyCompose	-	money	std/money	-	Assembles a number, symbol and sign in one of the standard layouts.
+Modern-String-MoneyLayoutFromICurrency	MoneyLayoutFromICurrency	-	money	std/money	-	Converts a Windows positive-currency code into layout flags.
+Modern-String-MoneyLayoutFromINegCurr	MoneyLayoutFromINegCurr	-	money	std/money	-	Converts a Windows negative-currency code into layout flags.
+Mki	MKI	-	binary	built-in	-	Copies an integer's bytes into a string.
+Mkl	MKL	-	binary	built-in	-	Copies a Long's bytes into a 4-byte string.
+Mkshort	MKShort	-	binary	built-in	-	Copies a Short's bytes into a 2-byte string.
+Mklongint	MKLongInt	-	binary	built-in	-	Copies a LongInt's bytes into an 8-byte string.
+Mks	MKS	-	binary	built-in	-	Copies a Single's bytes into a 4-byte string.
+Mkd	MKD	-	binary	built-in	-	Copies a Double's bytes into an 8-byte string.
+Cvi	CVI	-	binary	built-in	-	Reads an integer back from a string of its bytes.
+Cvl	CVL	-	binary	built-in	-	Reads a Long back from a 4-byte string.
+Cvshort	CVShort	-	binary	built-in	-	Reads a Short back from a 2-byte string.
+Cvlongint	CVLongInt	-	binary	built-in	-	Reads a LongInt back from an 8-byte string.
+Cvs	CVS	-	binary	built-in	-	Reads a Single back from a 4-byte string.
+Cvd	CVD	-	binary	built-in	-	Reads a Double back from an 8-byte string.

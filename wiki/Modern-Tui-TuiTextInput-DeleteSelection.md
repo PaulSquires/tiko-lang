@@ -2,6 +2,8 @@
 
 # TuiTextInput.DeleteSelection
 
+Removes the selected text, or does nothing if none is selected.
+
 ## Syntax
 
 ```freebasic

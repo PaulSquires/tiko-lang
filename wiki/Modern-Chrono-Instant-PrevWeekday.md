@@ -2,6 +2,8 @@
 
 # Instant.PrevWeekday
 
+Returns the same time on the previous given weekday, always strictly earlier.
+
 ## Syntax
 
 ```freebasic

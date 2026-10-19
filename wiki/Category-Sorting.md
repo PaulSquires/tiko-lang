@@ -196,14 +196,26 @@ Element types: long, double, string, a UDT with a global '<', a counting UDT, an
 
 See also: [Array](Category-Array) (containers.Array( of T )), [LinkedList](Category-LinkedList) (containers.LinkedList( of T )), [Lambdas](Category-Lambdas) (capturing and non-capturing lambdas), [Generics](Category-Generics) (the limits above).
 
+<!-- finder:start -->
+
 ## API reference
 
-One page per entry, 8 in all:
+Every entry, grouped by task. [Collections](Functions-Collections) lists them beside the rest of the area.
 
-|   |   |   |   |
-|---|---|---|---|
-| [IsSorted](Modern-Sorting-IsSorted) | [Sort](Modern-Sorting-Sort) | [SortList](Modern-Sorting-SortList) | [StableSort](Modern-Sorting-StableSort) |
-| [IsSortedBy](Modern-Sorting-IsSortedBy) | [SortBy](Modern-Sorting-SortBy) | [SortListBy](Modern-Sorting-SortListBy) | [StableSortBy](Modern-Sorting-StableSortBy) |
+### Sort an Array or a LinkedList
+
+| Function | What it does | From |
+|---|---|---|
+| [Sort](Modern-Sorting-Sort) | Sorts an Array in ascending order in place; equal elements may change places. | `std/containers` |
+| [SortBy](Modern-Sorting-SortBy) | Sorts an Array in place by your comparer; equal elements may change places. | `std/containers` |
+| [StableSort](Modern-Sorting-StableSort) | Sorts an Array in ascending order, keeping equal elements in their original order. | `std/containers` |
+| [StableSortBy](Modern-Sorting-StableSortBy) | Sorts an Array by your comparer, keeping equal elements in their original order. | `std/containers` |
+| [IsSorted](Modern-Sorting-IsSorted) | Returns true if the Array is already in ascending order. | `std/containers` |
+| [IsSortedBy](Modern-Sorting-IsSortedBy) | Returns true if the Array is already in order by your comparer. | `std/containers` |
+| [SortList](Modern-Sorting-SortList) | Sorts a LinkedList in ascending order by relinking nodes; equal elements keep order. | `std/containers` |
+| [SortListBy](Modern-Sorting-SortListBy) | Sorts a LinkedList by your comparer, relinking nodes; equal elements keep order. | `std/containers` |
+
+<!-- finder:end -->
 
 ---
 

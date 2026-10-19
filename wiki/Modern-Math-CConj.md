@@ -2,7 +2,7 @@
 
 # CConj
 
-The conjugate — the imaginary part negated.
+Returns the conjugate, the same number with its imaginary part negated.
 
 ## Syntax
 

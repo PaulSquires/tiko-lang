@@ -2,7 +2,7 @@
 
 # CVI
 
-Converts a floating-point number or string to an integer variable using a binary copy
+Reads an integer back from a string of its bytes.
 
 ## Syntax
 

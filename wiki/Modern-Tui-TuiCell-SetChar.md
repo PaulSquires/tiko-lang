@@ -2,6 +2,8 @@
 
 # TuiCell.SetChar
 
+Sets the cell's character and works out its width in columns.
+
 ## Syntax
 
 ```freebasic

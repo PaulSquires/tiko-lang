@@ -2,6 +2,8 @@
 
 # OrderedMap.Values
 
+Returns a copy of all the values as an Array, in the order of their keys.
+
 ## Syntax
 
 ```freebasic

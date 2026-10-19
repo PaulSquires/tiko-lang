@@ -2,6 +2,8 @@
 
 # Expired
 
+Returns true once the object has been destroyed.
+
 ## Syntax
 
 ```freebasic

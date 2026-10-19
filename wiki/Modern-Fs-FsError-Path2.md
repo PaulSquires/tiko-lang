@@ -2,7 +2,7 @@
 
 # FsError.Path2
 
-the second path, for CopyFile / MoveFile / CreateSymlink.
+Returns the second path of a failed copy, move or link call.
 
 ## Syntax
 

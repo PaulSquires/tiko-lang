@@ -2,7 +2,7 @@
 
 # Send
 
-Sends a value, blocking until it is taken or buffered.
+Sends a value, waiting for room or a receiver; raises an error if the channel is closed.
 
 ## Syntax
 

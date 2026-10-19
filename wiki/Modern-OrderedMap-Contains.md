@@ -2,6 +2,8 @@
 
 # OrderedMap.Contains
 
+Returns true if the key is present, without adding it.
+
 ## Syntax
 
 ```freebasic

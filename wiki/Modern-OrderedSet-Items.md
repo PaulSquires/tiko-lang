@@ -2,6 +2,8 @@
 
 # OrderedSet.Items
 
+Returns a copy of all the values as an Array, already sorted.
+
 ## Syntax
 
 ```freebasic

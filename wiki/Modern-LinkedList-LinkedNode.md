@@ -2,6 +2,8 @@
 
 # LinkedNode
 
+Holds one LinkedList value and the links to its neighbours; normal code never uses it.
+
 ## Syntax
 
 ```freebasic

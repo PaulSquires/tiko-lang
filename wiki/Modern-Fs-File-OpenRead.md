@@ -2,7 +2,7 @@
 
 # File.OpenRead
 
-FsResultBool
+Opens an existing file for reading only.
 
 ## Syntax
 

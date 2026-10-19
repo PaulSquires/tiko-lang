@@ -2,7 +2,7 @@
 
 # CreateHardLink
 
-FsResultBool
+Gives an existing file a second name on the same volume.
 
 ## Syntax
 

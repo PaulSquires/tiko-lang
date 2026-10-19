@@ -2,6 +2,8 @@
 
 # LocalDate.EndOfMonth
 
+Returns the last day of the date's month.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # FileDateTime
 
-Returns the last modified date and time of a file as Date Serial
+Returns when a file was last modified, as a date serial.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # ToLocaleTimeString
 
-The time of day as the machine's locale writes it.
+Returns the time of day as the machine's locale writes it, for display only.
 
 ## Syntax
 

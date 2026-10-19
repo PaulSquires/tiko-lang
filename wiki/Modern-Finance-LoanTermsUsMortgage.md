@@ -2,6 +2,8 @@
 
 # LoanTermsUsMortgage
 
+Returns loan terms for a US mortgage: monthly compounding and monthly payments.
+
 ## Syntax
 
 ```freebasic

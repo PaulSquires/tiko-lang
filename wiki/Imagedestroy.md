@@ -2,7 +2,7 @@
 
 # ImageDestroy
 
-Destroys and deallocates storage for an image
+Frees an image made by ImageCreate.
 
 ## Syntax
 

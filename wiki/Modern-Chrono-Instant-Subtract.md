@@ -2,6 +2,8 @@
 
 # Instant.Subtract
 
+Returns the date-time moved back by a TimeSpan, or Invalid past the earliest date.
+
 ## Syntax
 
 ```freebasic

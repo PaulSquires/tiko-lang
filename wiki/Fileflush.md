@@ -2,7 +2,7 @@
 
 # FileFlush
 
-Flush application stream buffers to system, or system buffers to file
+Writes buffered output for one or all open files to the system, or on to disk.
 
 ## Syntax
 

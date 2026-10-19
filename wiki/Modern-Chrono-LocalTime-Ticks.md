@@ -2,6 +2,8 @@
 
 # LocalTime.Ticks
 
+Returns the time of day as 100 ns ticks since midnight.
+
 ## Syntax
 
 ```freebasic

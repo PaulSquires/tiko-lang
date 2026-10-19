@@ -2,6 +2,8 @@
 
 # InternalRateOfReturnOnDates
 
+Returns the internal rate of return of flows on irregular dates.
+
 ## Syntax
 
 ```freebasic

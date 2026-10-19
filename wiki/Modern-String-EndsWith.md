@@ -2,7 +2,7 @@
 
 # EndsWith
 
-O(m)     boolean
+Returns true if the string ends with the given text.
 
 ## Syntax
 

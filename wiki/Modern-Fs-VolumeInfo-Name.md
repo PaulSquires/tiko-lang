@@ -2,6 +2,8 @@
 
 # VolumeInfo.Name
 
+Returns the volume's label, which may be empty and always is on Linux.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # HomeDir
 
-FsResultUStr -- the user's home directory, without a trailing separator
+Returns the user's home folder, without a trailing separator.
 
 ## Syntax
 

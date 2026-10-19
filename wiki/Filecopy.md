@@ -2,7 +2,7 @@
 
 # FileCopy
 
-Copies a file
+Copies a file, overwriting the destination; returns 0 on success.
 
 ## Syntax
 

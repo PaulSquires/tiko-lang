@@ -2,6 +2,8 @@
 
 # Array
 
+Holds a growable list of values in order, reached by position from 0.
+
 ## Syntax
 
 ```freebasic

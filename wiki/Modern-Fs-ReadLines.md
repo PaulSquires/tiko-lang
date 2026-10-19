@@ -2,7 +2,7 @@
 
 # ReadLines
 
-LineRange -- for each yields one FsResultUStr per line
+Reads a file a line at a time in a for each loop, never holding the whole file in memory.
 
 ## Syntax
 

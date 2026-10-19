@@ -2,6 +2,8 @@
 
 # OrderedSet.TryCeiling
 
+Finds the smallest value at or above a given one; returns false if there is none.
+
 ## Syntax
 
 ```freebasic

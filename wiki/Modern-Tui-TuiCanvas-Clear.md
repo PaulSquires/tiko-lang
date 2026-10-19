@@ -2,6 +2,8 @@
 
 # TuiCanvas.Clear
 
+Turns every dot off.
+
 ## Syntax
 
 ```freebasic

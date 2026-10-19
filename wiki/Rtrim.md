@@ -2,7 +2,7 @@
 
 # RTrim
 
-Removes surrounding substrings or characters on the right side of a string
+Removes spaces, or the given characters, from the end.
 
 ## Syntax
 

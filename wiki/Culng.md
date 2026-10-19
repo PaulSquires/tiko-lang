@@ -2,7 +2,7 @@
 
 # CULng
 
-Converts numeric or string expression to ULong
+Converts a number or string to a 32-bit ULong, rounding to the nearest; no overflow check.
 
 ## Syntax
 

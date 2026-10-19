@@ -2,6 +2,8 @@
 
 # TuiTree
 
+Draws a tree of nodes that the user expands and collapses with the arrow keys.
+
 ## Syntax
 
 ```freebasic

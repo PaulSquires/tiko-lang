@@ -2,6 +2,8 @@
 
 # PeriodsRequiredWhole
 
+Returns how many payments clear a balance, rounded up to a whole number.
+
 ## Syntax
 
 ```freebasic

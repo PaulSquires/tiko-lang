@@ -2,7 +2,7 @@
 
 # CImag
 
-The imaginary part.
+Returns the imaginary part of a complex number, without the i.
 
 ## Syntax
 

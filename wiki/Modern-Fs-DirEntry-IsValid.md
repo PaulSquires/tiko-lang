@@ -2,7 +2,7 @@
 
 # DirEntry.IsValid
 
-still on an element?
+Returns true while the iterator is on an entry.
 
 ## Syntax
 

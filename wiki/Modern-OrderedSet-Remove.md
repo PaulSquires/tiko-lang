@@ -2,6 +2,8 @@
 
 # OrderedSet.Remove
 
+Removes a value; returns true if it was there.
+
 ## Syntax
 
 ```freebasic

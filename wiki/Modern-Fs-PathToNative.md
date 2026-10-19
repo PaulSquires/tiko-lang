@@ -2,7 +2,7 @@
 
 # PathToNative
 
-NO '.' or '..' resolution
+Returns the path with the platform's separators, duplicates collapsed, nothing resolved.
 
 ## Syntax
 

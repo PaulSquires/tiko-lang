@@ -2,6 +2,8 @@
 
 # TuiStyle.Equals
 
+Returns true if two styles are identical, including which parts they set.
+
 ## Syntax
 
 ```freebasic

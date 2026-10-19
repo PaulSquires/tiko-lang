@@ -2,6 +2,8 @@
 
 # PresentValueOfLump
 
+Returns a single future amount discounted back a number of periods.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # SAdd
 
-Returns a pointer to a string variable's data
+Returns a pointer to the characters of a string.
 
 ## Syntax
 

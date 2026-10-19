@@ -2,7 +2,7 @@
 
 # RadToDeg
 
-Converts radians to degrees.
+Converts an angle from radians to degrees.
 
 ## Syntax
 

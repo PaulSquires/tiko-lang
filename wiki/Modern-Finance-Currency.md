@@ -2,6 +2,8 @@
 
 # Currency
 
+Holds an exact amount with four decimal places, for money that needs no more.
+
 ## Syntax
 
 ```freebasic

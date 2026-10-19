@@ -2,7 +2,7 @@
 
 # ScreenEvent
 
-Queries for and retrieves system events.
+Returns -1 if a mouse, keyboard or window event is waiting, and fetches it.
 
 ## Syntax
 

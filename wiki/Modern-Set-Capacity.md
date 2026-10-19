@@ -2,6 +2,8 @@
 
 # Capacity
 
+Returns the number of slots in the table, always a power of two.
+
 ## Syntax
 
 ```freebasic

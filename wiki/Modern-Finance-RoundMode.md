@@ -2,7 +2,7 @@
 
 # RoundMode
 
-Rounded to a number of decimal places, with the rule stated explicitly.
+Returns the amount rounded to 0 to 4 places by a rounding rule you name.
 
 ## Syntax
 

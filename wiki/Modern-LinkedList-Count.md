@@ -2,6 +2,8 @@
 
 # Count
 
+Returns the number of values in the list.
+
 ## Syntax
 
 ```freebasic

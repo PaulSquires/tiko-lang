@@ -2,7 +2,7 @@
 
 # OrderedSet.UnionWith
 
-O(m log n)
+Adds every value of another set to this one; the other set is unchanged.
 
 ## Syntax
 

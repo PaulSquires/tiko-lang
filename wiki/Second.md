@@ -2,7 +2,7 @@
 
 # Second
 
-Gets the seconds from a Date Serial
+Returns the second of a date serial.
 
 ## Syntax
 

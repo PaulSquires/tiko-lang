@@ -2,6 +2,8 @@
 
 # TimeSpan.Add
 
+Returns the sum of two durations, or Invalid on overflow.
+
 ## Syntax
 
 ```freebasic

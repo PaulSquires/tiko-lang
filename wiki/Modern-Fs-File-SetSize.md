@@ -2,7 +2,7 @@
 
 # File.SetSize
 
-FsResultBool
+Truncates the file to a size, or extends it with zero bytes.
 
 ## Syntax
 

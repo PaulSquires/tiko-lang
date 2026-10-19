@@ -2,7 +2,7 @@
 
 # IsClosed
 
-Whether the channel has been closed.
+Returns true once the channel is closed, even while values are still buffered.
 
 ## Syntax
 

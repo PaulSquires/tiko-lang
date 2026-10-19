@@ -2,7 +2,7 @@
 
 # Remain
 
-O(n*m)   text after match
+Returns the text after a match, or an empty string if there is none.
 
 ## Syntax
 

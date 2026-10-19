@@ -2,6 +2,8 @@
 
 # TuiRgbTo16
 
+Returns the nearest of the 16 classic colours for red, green and blue values.
+
 ## Syntax
 
 ```freebasic

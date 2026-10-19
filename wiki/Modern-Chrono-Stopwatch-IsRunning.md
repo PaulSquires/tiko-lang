@@ -2,6 +2,8 @@
 
 # Stopwatch.IsRunning
 
+Returns true while the stopwatch is running.
+
 ## Syntax
 
 ```freebasic

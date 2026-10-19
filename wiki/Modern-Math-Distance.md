@@ -2,7 +2,7 @@
 
 # Distance
 
-The distance between two points.
+Returns the distance between two points.
 
 ## Syntax
 

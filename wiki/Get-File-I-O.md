@@ -2,7 +2,7 @@
 
 # Get (File I/O)
 
-Reads data from a file to a buffer
+Reads a variable, string or array from a file as bytes, at a position or the current one.
 
 ## Syntax
 

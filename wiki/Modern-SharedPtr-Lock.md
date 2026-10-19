@@ -2,6 +2,8 @@
 
 # Lock
 
+Returns a SharedPtr to the object if it still exists, or a null one if not.
+
 ## Syntax
 
 ```freebasic

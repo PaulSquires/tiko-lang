@@ -2,6 +2,8 @@
 
 # TuiInput.Feed
 
+Adds raw bytes from the terminal; an unfinished sequence is kept for later.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # Stream.Read
 
-FsResultI64
+Reads up to n bytes and returns how many; 0 means the end of the data.
 
 ## Syntax
 

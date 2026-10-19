@@ -2,6 +2,8 @@
 
 # TimeSpan.Ticks
 
+Returns the duration as a count of 100 ns ticks.
+
 ## Syntax
 
 ```freebasic

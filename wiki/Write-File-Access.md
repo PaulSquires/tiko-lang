@@ -2,7 +2,7 @@
 
 # Write (File Access)
 
-File access specifier
+Opens a Binary or Random file for writing only; an existing file is emptied first.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # Instant.Second
 
+Returns the second, 0 to 59.
+
 ## Syntax
 
 ```freebasic

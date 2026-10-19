@@ -2,7 +2,7 @@
 
 # NextDoubleRange
 
-A double in [lo, hi).
+Returns a random Double from lo up to but not including hi.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # TuiFrame.BlendStyle
 
+Lays a style over every cell of a rectangle, keeping the characters.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # InStr
 
-Locates the first occurrence of a substring or character within a string
+Returns the position of the first match, or 0 if there is none.
 
 ## Syntax
 

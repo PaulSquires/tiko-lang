@@ -2,7 +2,7 @@
 
 # Chr
 
-Returns a string of characters from one or more ASCII integer values
+Returns a string made from one or more character codes.
 
 ## Syntax
 

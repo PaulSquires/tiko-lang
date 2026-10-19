@@ -1,0 +1,45 @@
+# Concurrency functions. One row per function, per task it belongs to. Tab-separated; see finder.py for the rules.
+page	name	qualifier	task	from	rank	summary
+Modern-Chan-Spawn	spawn	-	spawn	std/tasks	1	Runs a procedure alongside the program, copying its arguments at that moment.
+Modern-Chan-Channel-Channel	Channel	-	channel	std/tasks	2	Holds a typed queue between goroutines; copies share it, and a new one is nil.
+Modern-Chan-Channel-Capacity	Channel.Capacity	-	channel	std/tasks	-	Returns the buffer size the channel was made with; 0 means each value is handed over.
+Modern-Chan-Channel-IsNil	Channel.IsNil	-	channel	std/tasks	-	Returns true for a default-constructed channel, which blocks forever if used.
+Modern-Chan-Channel-Send	Channel.Send	-	sendrecv	std/tasks	-	Sends a value, waiting for room or a receiver; raises an error if the channel is closed.
+Modern-Chan-Channel-Receive	Channel.Receive	-	sendrecv	std/tasks	3	Receives a value, waiting for one; returns false once closed and drained.
+Modern-Chan-Channel-TrySend	Channel.TrySend	-	sendrecv	std/tasks	-	Sends a value only if it can go at once; returns false if it would have to wait.
+Modern-Chan-Channel-TryReceive	Channel.TryReceive	-	sendrecv	std/tasks	-	Receives a value only if one is ready; returns false if empty or closed.
+Modern-Chan-Channel-SendFor	Channel.SendFor	-	sendrecv	std/tasks	-	Sends a value, waiting at most ms milliseconds; returns false on a timeout.
+Modern-Chan-Channel-ReceiveFor	Channel.ReceiveFor	-	sendrecv	std/tasks	-	Receives a value, waiting at most ms milliseconds; false on a timeout or end of stream.
+Modern-Chan-Channel-Close	Channel.Close	-	close	std/tasks	-	Marks that no more values will be sent; values already buffered are still delivered.
+Modern-Chan-Channel-IsClosed	Channel.IsClosed	-	close	std/tasks	-	Returns true once the channel is closed, even while values are still buffered.
+Modern-Chan-Channel-Count	Channel.Count	-	close	std/tasks	-	Returns how many values are buffered right now, as a snapshot.
+Modern-Chan-Channel-GetIterator	Channel.GetIterator	-	close	std/tasks	-	Returns the iterator a for each loop uses to receive until the channel is drained.
+Modern-Chan-Channel-ChannelIterator	ChannelIterator	-	close	std/tasks	-	Holds a for each loop's place while it receives from a channel.
+Modern-Chan-Channel-SendChan	SendChan	-	direction	std/tasks	-	Holds a send-only view of a channel, for a procedure that only produces.
+Modern-Chan-Channel-RecvChan	RecvChan	-	direction	std/tasks	-	Holds a receive-only view of a channel, which cannot send to it or close it.
+Modern-Chan-Add	WaitGroup.Add	-	waitgroup	std/tasks	-	Adds 1, or a given amount, to the work outstanding; call it before the spawn.
+Modern-Chan-Done	WaitGroup.Done	-	waitgroup	std/tasks	-	Subtracts one from the work outstanding; raises an error if it would go below zero.
+Modern-Chan-Wait	WaitGroup.Wait	-	waitgroup	std/tasks	-	Waits until the work outstanding reaches zero.
+Modern-Chan-WaitFor	WaitGroup.WaitFor	-	waitgroup	std/tasks	-	Waits at most ms milliseconds for the work to reach zero; returns false on a timeout.
+Modern-Chan-Count	WaitGroup.Count	-	waitgroup	std/tasks	-	Returns how much work is still outstanding, as a snapshot.
+Modern-Chan-Context	Context	-	cancel	std/tasks	-	Holds the background context, which is never cancelled and is the root of all others.
+Modern-Chan-WithCancel	WithCancel	-	cancel	std/tasks	-	Returns a child context that you cancel yourself.
+Modern-Chan-WithTimeout	WithTimeout	-	cancel	std/tasks	-	Returns a child context that cancels itself after the given milliseconds.
+Modern-Chan-Cancel	CancelContext.Cancel	-	cancel	std/tasks	-	Cancels the context and every context made from it; a second call is harmless.
+Modern-Chan-IsCancelled	Context.IsCancelled	-	cancel	std/tasks	-	Returns true once the context is cancelled or its deadline has passed.
+Modern-Chan-Err	Context.Err	-	cancel	std/tasks	-	Returns why the context ended: "cancelled", "deadline exceeded", or "" while live.
+Modern-Chan-GoroutineCount	GoroutineCount	-	sched	std/tasks	-	Returns how many goroutines exist right now, as a snapshot for diagnostics.
+Modern-Chan-WorkerCount	WorkerCount	-	sched	std/tasks	-	Returns how many OS threads the scheduler is running goroutines on.
+Threadcreate	ThreadCreate	-	thread	built-in	4	Starts a procedure on a new thread, passing it one pointer; returns the thread handle.
+Threadwait	ThreadWait	-	thread	built-in	-	Waits for a thread to finish, then releases its handle.
+Threaddetach	ThreadDetach	-	thread	fbthread.bi	-	Releases a thread handle without waiting; the thread runs on to its end.
+Threadself	ThreadSelf	-	thread	fbthread.bi	-	Returns the handle of the thread that calls it.
+Mutexcreate	MutexCreate	-	mutex	built-in	-	Creates a mutex and returns its handle, or 0 on failure.
+Mutexlock	MutexLock	-	mutex	built-in	-	Locks a mutex, waiting while another thread holds it.
+Mutexunlock	MutexUnlock	-	mutex	built-in	-	Unlocks a mutex so that a waiting thread can take it.
+Mutexdestroy	MutexDestroy	-	mutex	built-in	-	Destroys a mutex once no thread is using it.
+Condcreate	CondCreate	-	cond	built-in	-	Creates a condition variable and returns its handle, or 0 on failure.
+Condwait	CondWait	-	cond	built-in	-	Unlocks the mutex and waits for a signal, then locks the mutex again.
+Condsignal	CondSignal	-	cond	built-in	-	Wakes one thread waiting on the condition; the signal is lost if none is waiting.
+Condbroadcast	CondBroadcast	-	cond	built-in	-	Wakes every thread waiting on the condition.
+Conddestroy	CondDestroy	-	cond	built-in	-	Destroys a condition variable once no thread is waiting on it.

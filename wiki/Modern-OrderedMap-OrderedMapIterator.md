@@ -2,7 +2,7 @@
 
 # OrderedMapIterator
 
-The iterator type behind an `OrderedMap( of TK, TV )`.
+Holds a position in an OrderedMap, stepping in ascending key order.
 
 ## Syntax
 

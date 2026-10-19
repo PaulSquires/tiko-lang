@@ -2,6 +2,8 @@
 
 # Instant.Month
 
+Returns the month, 1 to 12.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # FileSetEof
 
-Sets the length of a open file bound to a file number
+Cuts or extends an open file so that it ends at the current position.
 
 ## Syntax
 

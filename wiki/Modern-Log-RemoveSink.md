@@ -2,6 +2,8 @@
 
 # RemoveSink
 
+Detaches one sink; removing one that was never added does nothing.
+
 ## Syntax
 
 ```freebasic

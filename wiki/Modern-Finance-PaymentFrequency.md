@@ -2,6 +2,8 @@
 
 # PaymentFrequency
 
+Lists how often payments are made, including weekly and accelerated biweekly.
+
 ## Syntax
 
 ```freebasic

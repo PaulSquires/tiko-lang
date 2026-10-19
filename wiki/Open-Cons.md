@@ -2,7 +2,7 @@
 
 # Open Cons
 
-Opens the console's standard input (stdin) or output (stdout) streams, using it as if it were file operations.
+Opens standard input or output on a file number, to use like a file.
 
 ## Syntax
 

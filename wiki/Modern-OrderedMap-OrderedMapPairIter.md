@@ -2,7 +2,7 @@
 
 # OrderedMapPairIter
 
-The iterator type behind `OrderedMap.Pairs( )`.
+Holds a position in OrderedMap.Pairs, giving key and value as a tuple in key order.
 
 ## Syntax
 

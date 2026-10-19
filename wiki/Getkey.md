@@ -2,7 +2,7 @@
 
 # GetKey
 
-Returns the ascii code of the first key in the keyboard buffer
+Waits for a key and returns its code; the key is not shown on screen.
 
 ## Syntax
 

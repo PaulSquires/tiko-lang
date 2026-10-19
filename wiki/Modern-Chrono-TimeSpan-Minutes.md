@@ -2,6 +2,8 @@
 
 # TimeSpan.Minutes
 
+Returns the minutes part, 0 to 59, negative for a negative span.
+
 ## Syntax
 
 ```freebasic

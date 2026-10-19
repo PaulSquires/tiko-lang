@@ -2,7 +2,7 @@
 
 # Trans
 
-Parameter to the Put graphics statement which selects transparent background as the blitting method
+Copies pixels with Put but skips the mask colour, magenta or index 0.
 
 ## Syntax
 

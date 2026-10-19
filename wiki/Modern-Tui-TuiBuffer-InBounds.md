@@ -2,6 +2,8 @@
 
 # TuiBuffer.InBounds
 
+Returns true if x, y is inside the buffer.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # Val
 
-Converts a string to a floating point number
+Converts text to a double.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # Instant.UnixMilliseconds
 
+Returns the milliseconds since 1970-01-01 UTC.
+
 ## Syntax
 
 ```freebasic

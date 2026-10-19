@@ -2,6 +2,8 @@
 
 # TuiScrollbar
 
+Draws a scrollbar from a total, the number visible and the current position.
+
 ## Syntax
 
 ```freebasic

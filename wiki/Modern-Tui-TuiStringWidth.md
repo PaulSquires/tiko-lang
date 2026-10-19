@@ -2,6 +2,8 @@
 
 # TuiStringWidth
 
+Counts the columns a string takes on screen, wide characters as two.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # TuiBlock
 
+Draws a border with titles and an optional fill; Inner gives the space inside.
+
 ## Syntax
 
 ```freebasic

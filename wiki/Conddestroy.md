@@ -2,7 +2,7 @@
 
 # CondDestroy
 
-Destroys a multi-threading conditional variable when it is no more needed
+Destroys a condition variable once no thread is waiting on it.
 
 ## Syntax
 

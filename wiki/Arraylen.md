@@ -2,7 +2,7 @@
 
 # Arraylen
 
-Provides the length of an array given its array-name.
+Returns the total number of elements in an array, counting every dimension.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # DirEntry.IncludeHidden
 
+Chooses whether a walk returns hidden entries; true by default.
+
 ## Syntax
 
 ```freebasic

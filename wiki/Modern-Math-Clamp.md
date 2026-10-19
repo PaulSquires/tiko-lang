@@ -2,6 +2,8 @@
 
 # Clamp
 
+Limits a value to a range: below lo gives lo, above hi gives hi.
+
 ## Syntax
 
 ```freebasic

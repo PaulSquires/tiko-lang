@@ -2,6 +2,8 @@
 
 # LoanPayoffAmount
 
+Returns what settles a loan on a date: the balance plus interest accrued since.
+
 ## Syntax
 
 ```freebasic

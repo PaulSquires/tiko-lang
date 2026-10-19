@@ -2,6 +2,8 @@
 
 # FileInfo.IsSymlink
 
+Returns true if the path is a symbolic link; only ever true from LStat.
+
 ## Syntax
 
 ```freebasic

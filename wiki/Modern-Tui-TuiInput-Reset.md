@@ -2,6 +2,8 @@
 
 # TuiInput.Reset
 
+Throws away the held bytes and the queued events.
+
 ## Syntax
 
 ```freebasic

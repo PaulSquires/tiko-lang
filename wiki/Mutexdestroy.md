@@ -2,7 +2,7 @@
 
 # MutexDestroy
 
-Destroys a mutex
+Destroys a mutex once no thread is using it.
 
 ## Syntax
 

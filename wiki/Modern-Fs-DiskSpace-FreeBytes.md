@@ -2,6 +2,8 @@
 
 # DiskSpace.FreeBytes
 
+Returns the free bytes on the volume, ignoring quotas; the number to report.
+
 ## Syntax
 
 ```freebasic

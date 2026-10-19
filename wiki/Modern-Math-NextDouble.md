@@ -2,7 +2,7 @@
 
 # NextDouble
 
-A double in [0, 1).
+Returns a random Double from 0 up to but not including 1, with 53 random bits.
 
 ## Syntax
 

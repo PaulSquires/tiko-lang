@@ -2,7 +2,7 @@
 
 # Instant.ToOffset
 
-convert
+Converts to another UTC offset, keeping the moment and changing the clock reading.
 
 ## Syntax
 

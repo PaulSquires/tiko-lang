@@ -2,6 +2,8 @@
 
 # TuiScreen.Cols
 
+Returns the screen width in cells.
+
 ## Syntax
 
 ```freebasic

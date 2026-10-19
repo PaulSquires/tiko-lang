@@ -2,6 +2,8 @@
 
 # CryptoBytes
 
+Fills a buffer with secure random bytes from the operating system; false on failure.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # Percentile
 
-The value below which the given fraction of the data falls.
+Returns the value below which p percent of an array falls, with p from 0 to 100.
 
 ## Syntax
 

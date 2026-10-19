@@ -2,7 +2,7 @@
 
 # Shrink
 
-O(n*k)
+Trims both ends and collapses each inner run of spaces to one.
 
 ## Syntax
 

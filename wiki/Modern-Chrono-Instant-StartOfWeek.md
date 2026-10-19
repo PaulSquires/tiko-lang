@@ -2,6 +2,8 @@
 
 # Instant.StartOfWeek
 
+Returns midnight on the first day of the week, Monday unless told otherwise.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # Classify
 
+Returns whether a value is NaN, infinite, zero, subnormal or normal.
+
 ## Syntax
 
 ```freebasic

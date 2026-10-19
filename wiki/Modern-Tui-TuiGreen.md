@@ -2,6 +2,8 @@
 
 # TuiGreen
 
+Returns the classic green, palette colour 2.
+
 ## Syntax
 
 ```freebasic

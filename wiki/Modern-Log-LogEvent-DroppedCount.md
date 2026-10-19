@@ -2,6 +2,8 @@
 
 # LogEvent.DroppedCount
 
+Returns how many records a sink could not write; the count never resets.
+
 ## Syntax
 
 ```freebasic

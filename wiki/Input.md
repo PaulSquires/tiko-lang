@@ -2,7 +2,7 @@
 
 # Input #
 
-Reads a list of values from a text file
+Reads comma- or line-separated values from a text file into variables.
 
 ## Syntax
 

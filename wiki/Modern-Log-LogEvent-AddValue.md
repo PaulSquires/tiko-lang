@@ -2,7 +2,7 @@
 
 # LogEvent.AddValue
 
-any tag, built by hand
+Adds a named field from a value you built yourself, of any supported kind.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # Input()
 
-Reads a number of characters from console or file
+Waits for a number of characters from the keyboard or a file and returns them.
 
 ## Syntax
 

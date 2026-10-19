@@ -2,6 +2,8 @@
 
 # FileInfo.IsFile
 
+Returns true if the path is a regular file.
+
 ## Syntax
 
 ```freebasic

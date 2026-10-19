@@ -2,7 +2,7 @@
 
 # Append
 
-Specifies text file to be opened for append mode
+Opens a text file with Open to add to its end, creating the file if needed.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # FileInfo.IsReadOnly
 
+Returns true if the file cannot be written: the read-only flag, or no write bit on Linux.
+
 ## Syntax
 
 ```freebasic

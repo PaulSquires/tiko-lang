@@ -2,6 +2,8 @@
 
 # TuiMenu
 
+Holds one menu of a menu bar: its label and its items.
+
 ## Syntax
 
 ```freebasic

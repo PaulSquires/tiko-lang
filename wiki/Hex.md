@@ -2,7 +2,7 @@
 
 # Hex
 
-Returns the hexadecimal of the given number
+Returns a number as hexadecimal text.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # Line Input
 
-Reads one line of input from the keyboard
+Reads a whole typed line into a string, commas included, after an optional prompt.
 
 ## Syntax
 

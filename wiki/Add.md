@@ -2,7 +2,7 @@
 
 # Add
 
-Parameter to the Put graphics statement which selects addition as the blitting method
+Adds source and destination colour values with Put, capped at 255.
 
 ## Syntax
 

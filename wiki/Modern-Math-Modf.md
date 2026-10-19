@@ -2,7 +2,7 @@
 
 # Modf
 
-Splits a value into its integer and fractional parts.
+Splits a number into whole and fractional parts that both keep its sign.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # SubWrapping
 
-A - b, **wrapping** on overflow -- deliberately.
+Subtracts two integers and wraps around on overflow, on purpose.
 
 ## Syntax
 

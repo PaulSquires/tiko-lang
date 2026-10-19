@@ -2,6 +2,8 @@
 
 # TuiFrame.CursorPos
 
+Returns the cell where the cursor was last put.
+
 ## Syntax
 
 ```freebasic

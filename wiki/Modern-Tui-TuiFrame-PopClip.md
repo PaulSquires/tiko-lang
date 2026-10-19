@@ -2,6 +2,8 @@
 
 # TuiFrame.PopClip
 
+Restores the drawing limit that PushClip returned.
+
 ## Syntax
 
 ```freebasic

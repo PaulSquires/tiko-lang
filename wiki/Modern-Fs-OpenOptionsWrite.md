@@ -2,7 +2,7 @@
 
 # OpenOptionsWrite
 
-OpenOptions
+Returns the OpenOptions for writing a new file or an existing one emptied.
 
 ## Syntax
 

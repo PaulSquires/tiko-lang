@@ -2,6 +2,8 @@
 
 # FileWatcher.Stop
 
+Stops watching; harmless when not watching.
+
 ## Syntax
 
 ```freebasic

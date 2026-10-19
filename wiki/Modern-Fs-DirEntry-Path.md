@@ -2,7 +2,7 @@
 
 # DirEntry.Path
 
-the full path, directly usable
+Returns the entry's full path, ready to open.
 
 ## Syntax
 

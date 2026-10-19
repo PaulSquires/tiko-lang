@@ -2,7 +2,7 @@
 
 # View Print
 
-Sets the printable text area of the screen
+Limits printing and scrolling to a range of rows, or to the whole screen again.
 
 ## Syntax
 

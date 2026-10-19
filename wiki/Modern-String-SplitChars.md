@@ -2,7 +2,7 @@
 
 # SplitChars
 
-O(n*k)   Array( of T )
+Breaks a string into an Array wherever a character from a set appears.
 
 ## Syntax
 

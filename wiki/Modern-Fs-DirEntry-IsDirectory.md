@@ -2,6 +2,8 @@
 
 # DirEntry.IsDirectory
 
+Returns true if the entry is a folder; a link to a folder reports as a link.
+
 ## Syntax
 
 ```freebasic

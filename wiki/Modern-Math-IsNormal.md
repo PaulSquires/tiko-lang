@@ -2,6 +2,8 @@
 
 # IsNormal
 
+Returns true if the value is finite, not zero and not subnormal.
+
 ## Syntax
 
 ```freebasic

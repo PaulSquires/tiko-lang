@@ -2,7 +2,7 @@
 
 # Flip
 
-Changes the current video display page
+Shows the OpenGL back buffer, or copies a page as ScreenCopy does in other modes.
 
 ## Syntax
 

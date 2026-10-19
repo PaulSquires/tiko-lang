@@ -2,6 +2,8 @@
 
 # DepreciationSumOfYearsDigits
 
+Returns one period's expense, weighted by how many periods of the life are left.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # ReadDir
 
-one level
+Lists the entries of one folder for a for each loop; each entry may be a failure to check.
 
 ## Syntax
 

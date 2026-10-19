@@ -2,7 +2,7 @@
 
 # Between
 
-O(n*m)
+Returns the text between two delimiters.
 
 ## Syntax
 

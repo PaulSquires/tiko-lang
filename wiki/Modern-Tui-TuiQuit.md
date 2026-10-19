@@ -2,6 +2,8 @@
 
 # TuiQuit
 
+Returns a command that ends the loop, so TuiRun returns the given exit code.
+
 ## Syntax
 
 ```freebasic

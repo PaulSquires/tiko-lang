@@ -2,6 +2,8 @@
 
 # TuiTick
 
+Returns a command that sends one tick event after a delay; return another to repeat.
+
 ## Syntax
 
 ```freebasic

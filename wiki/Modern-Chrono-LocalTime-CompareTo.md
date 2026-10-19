@@ -2,6 +2,8 @@
 
 # LocalTime.CompareTo
 
+Returns -1, 0 or 1 to order two times of day, or -2 if either is Invalid.
+
 ## Syntax
 
 ```freebasic

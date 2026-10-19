@@ -2,7 +2,7 @@
 
 # Command
 
-Returns command line parameters used to call the program
+Returns command-line argument n, the program's name for 0, or all of them if omitted.
 
 ## Syntax
 

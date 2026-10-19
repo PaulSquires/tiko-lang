@@ -2,7 +2,7 @@
 
 # Reserve
 
-O(n)
+Makes room for n values, so filling the set does not have to regrow it.
 
 ## Syntax
 

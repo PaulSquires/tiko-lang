@@ -2,7 +2,7 @@
 
 # Angle
 
-The angle between two vectors, in radians.
+Returns the angle between two vectors in radians, from 0 to pi.
 
 ## Syntax
 

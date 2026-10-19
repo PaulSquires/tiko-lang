@@ -2,7 +2,7 @@
 
 # Close
 
-Stream I/O function to terminate access to a device
+Closes one or more file numbers, or every open file when given none.
 
 ## Syntax
 

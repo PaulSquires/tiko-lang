@@ -2,6 +2,8 @@
 
 # TimeSpan.Divide
 
+Returns the duration divided by a number, or Invalid when dividing by zero.
+
 ## Syntax
 
 ```freebasic

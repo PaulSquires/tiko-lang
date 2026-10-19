@@ -2,6 +2,8 @@
 
 # TuiWidget.Kind
 
+Returns the widget's short type name, such as "Block".
+
 ## Syntax
 
 ```freebasic

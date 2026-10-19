@@ -2,7 +2,7 @@
 
 # MaxOf
 
-The largest value in the array.
+Returns the largest value in an array, or NaN if it is empty.
 
 ## Syntax
 

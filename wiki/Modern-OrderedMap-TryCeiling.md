@@ -2,6 +2,8 @@
 
 # OrderedMap.TryCeiling
 
+Finds the smallest key at or above a given one; returns false if there is none.
+
 ## Syntax
 
 ```freebasic

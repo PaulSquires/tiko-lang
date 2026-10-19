@@ -2,7 +2,7 @@
 
 # Width
 
-Sets or gets the number of rows and columns of the display
+Sets or returns the number of columns and rows of the console.
 
 ## Syntax
 

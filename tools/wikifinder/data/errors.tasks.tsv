@@ -1,0 +1,15 @@
+# Errors: task headings in display order, pages to skip, see-also links.
+#   task    <task id>  <heading>
+#   ignore  <page>  <reason>
+#   seealso <page>  <label>
+task	result	Return a value or the reason it failed
+task	optional	Return a value that may be missing
+task	handle	Catch runtime errors in a handler
+task	inspect	Find out what went wrong
+task	raise	Raise an error yourself
+ignore	Error-Handling-Functions	an overview page, not a function
+ignore	Resume	not available in tiko: the compiler rejects it (TKO0409)
+ignore	Resume-Next	not available in tiko: the compiler rejects it (TKO0409)
+seealso	Category-Result	Result guide
+seealso	Category-Optional	Optional guide
+seealso	Category-Error-Handling-Functions	Error handling functions

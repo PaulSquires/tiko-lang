@@ -2,6 +2,8 @@
 
 # Instant.AddCalendarDays
 
+Returns the same clock time a number of days later, even across a DST change.
+
 ## Syntax
 
 ```freebasic

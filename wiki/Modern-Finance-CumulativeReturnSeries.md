@@ -2,6 +2,8 @@
 
 # CumulativeReturnSeries
 
+Returns the compounded return after each observation, as a growth chart plots.
+
 ## Syntax
 
 ```freebasic

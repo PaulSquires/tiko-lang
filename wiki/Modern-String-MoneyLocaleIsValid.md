@@ -2,7 +2,7 @@
 
 # MoneyLocaleIsValid
 
-False when the system rejected the locale, in which case none of the monetary settings are the user's and the formatter is on its fallbacks.
+Returns false if the system rejected the money locale.
 
 ## Syntax
 

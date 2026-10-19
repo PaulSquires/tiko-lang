@@ -2,6 +2,8 @@
 
 # Value
 
+Returns the value by reference; raises an error if the Result failed.
+
 ## Syntax
 
 ```freebasic

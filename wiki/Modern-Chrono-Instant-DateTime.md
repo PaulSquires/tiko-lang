@@ -2,7 +2,7 @@
 
 # Instant.DateTime
 
-Invalid, offset unspecified
+Creates a date-time from a year, month, day and optional time, or Invalid if none.
 
 ## Syntax
 

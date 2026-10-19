@@ -2,7 +2,7 @@
 
 # FloorDiv
 
-Integer division rounding **towards negative infinity**.
+Divides whole numbers rounding towards negative infinity, so FloorDiv(-7, 2) is -4.
 
 ## Syntax
 

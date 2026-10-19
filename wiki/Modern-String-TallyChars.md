@@ -2,7 +2,7 @@
 
 # TallyChars
 
-O(n*k)   long
+Counts the characters that belong to a set.
 
 ## Syntax
 

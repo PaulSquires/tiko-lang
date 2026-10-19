@@ -2,7 +2,7 @@
 
 # GetWin32Attributes
 
-FS_UNSUPPORTED on POSIX
+Returns a file's raw Windows attribute flags; fails as unsupported on Linux.
 
 ## Syntax
 

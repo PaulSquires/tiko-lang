@@ -2,6 +2,8 @@
 
 # PeriodsRequired
 
+Returns how many periods a payment takes to clear a balance, as a fractional double.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # Local
 
-Error handling statement to set the current error handler
+Marks an On Error handler as belonging to the procedure it is set in.
 
 ## Syntax
 

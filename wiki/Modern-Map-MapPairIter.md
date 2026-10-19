@@ -2,7 +2,7 @@
 
 # MapPairIter
 
-The iterator type behind `Map.Pairs( )`.
+Holds a position in Map.Pairs; each step gives the key and value as a tuple.
 
 ## Syntax
 

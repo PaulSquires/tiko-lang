@@ -2,6 +2,8 @@
 
 # TuiKey
 
+Holds a key press: a character or a named key, plus Shift, Ctrl and Alt.
+
 ## Syntax
 
 ```freebasic

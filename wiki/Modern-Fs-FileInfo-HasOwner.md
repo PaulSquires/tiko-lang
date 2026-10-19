@@ -2,7 +2,7 @@
 
 # FileInfo.HasOwner
 
-boolean
+Returns true if OwnerUid and OwnerGid are filled in: on Linux, not on Windows.
 
 ## Syntax
 

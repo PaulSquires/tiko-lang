@@ -2,6 +2,8 @@
 
 # TuiCheckbox
 
+Draws a labelled checkbox that Space or Enter toggles, changing your own boolean.
+
 ## Syntax
 
 ```freebasic

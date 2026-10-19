@@ -2,6 +2,8 @@
 
 # TuiBlue
 
+Returns the classic blue, palette colour 4.
+
 ## Syntax
 
 ```freebasic

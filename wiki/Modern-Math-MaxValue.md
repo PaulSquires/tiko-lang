@@ -2,7 +2,7 @@
 
 # MaxValue
 
-The largest value added to a running accumulator.
+Returns the largest value added so far.
 
 ## Syntax
 

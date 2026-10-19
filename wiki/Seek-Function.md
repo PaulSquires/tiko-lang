@@ -2,7 +2,7 @@
 
 # Seek (Function)
 
-Gets the position of the next read/write operation for a file or device
+Returns the 1-based position of the next read or write: bytes, or records for Random.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # ThreadDetach
 
-Releases a thread handle without waiting for the thread to finish
+Releases a thread handle without waiting; the thread runs on to its end.
 
 ## Syntax
 

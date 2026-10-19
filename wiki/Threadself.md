@@ -2,7 +2,7 @@
 
 # ThreadSelf
 
-Return the thread handle of the current thread.
+Returns the handle of the thread that calls it.
 
 ## Syntax
 

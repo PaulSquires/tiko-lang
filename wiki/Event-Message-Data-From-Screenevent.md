@@ -2,7 +2,7 @@
 
 # Event (Message Data From Screenevent)
 
-Pre-defined structure (UDT) from fbgfx.bi used by ScreenEvent to return event data
+Holds one event fetched by ScreenEvent: its type and its key or mouse data.
 
 ## Syntax
 

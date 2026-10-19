@@ -2,7 +2,7 @@
 
 # Stream.CanRead
 
-boolean
+Returns true if Read can succeed on this stream.
 
 ## Syntax
 

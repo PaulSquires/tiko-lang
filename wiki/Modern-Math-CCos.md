@@ -2,7 +2,7 @@
 
 # CCos
 
-The cosine.
+Returns the cosine of a complex number.
 
 ## Syntax
 

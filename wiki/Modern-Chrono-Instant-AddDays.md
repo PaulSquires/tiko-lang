@@ -2,6 +2,8 @@
 
 # Instant.AddDays
 
+Returns the date-time moved by days of exactly 24 hours, fractions allowed.
+
 ## Syntax
 
 ```freebasic

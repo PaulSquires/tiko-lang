@@ -2,6 +2,8 @@
 
 # Instant.GetDate
 
+Returns the date part as a LocalDate, dropping the time and the offset.
+
 ## Syntax
 
 ```freebasic

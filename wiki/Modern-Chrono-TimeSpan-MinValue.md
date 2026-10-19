@@ -2,6 +2,8 @@
 
 # TimeSpan.MinValue
 
+Returns the most negative duration a TimeSpan can hold.
+
 ## Syntax
 
 ```freebasic

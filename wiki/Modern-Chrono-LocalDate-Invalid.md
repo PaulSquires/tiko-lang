@@ -2,6 +2,8 @@
 
 # LocalDate.Invalid
 
+Returns the Invalid date, which spreads to anything computed from it.
+
 ## Syntax
 
 ```freebasic

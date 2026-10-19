@@ -1,0 +1,38 @@
+# Function Finder areas, in hub order, and what each "from" value means.
+#
+#   area  <id>  <title>  <finder page>  <use it to...>  <source category pages, space separated>
+#   from  <value>  import|include|builtin  <module name for "using", or ->
+#
+# Each area's task headings, ignored pages and see-also links are in
+# data/<id>.tasks.tsv; its function rows are in data/<id>.tsv. Every function
+# page an area's source categories link to must have a row in some area.
+area	text	Text	Functions-Text	search, slice, change, split and format strings	Category-String-Functions Category-String-Library
+area	numbers	Numbers and math	Functions-Numbers	round and convert numbers, do checked arithmetic, trig and random numbers	Category-Mathematical-Functions Category-Math-Library Category-Bit-Manipulation Category-Converting-Data-Types
+area	files	Files and folders	Functions-Files	read and write files, build paths, list and walk directories	Category-Filesystem Category-File-I-O-Functions
+area	dates	Dates and times	Functions-Dates	get the current time, add days and months, parse and print dates	Category-Date-and-Time-Chrono Category-Date-and-Time-Functions
+area	collections	Collections	Functions-Collections	keep lists, lookups and sets of values; sort and search them	Category-Array Category-Map Category-Set Category-LinkedList Category-OrderedMap Category-OrderedSet Category-Deque Category-PriorityQueue Category-BitSet Category-Sorting Category-Searching Category-Array-Functions
+area	console	Console and terminal	Functions-Console	print, read the keyboard, colour text, build full-screen text UIs	Category-Console-Functions Category-User-Input-Runtime-Library Category-Terminal-TUI-Library
+area	errors	Errors and missing values	Functions-Errors	return a failure or "no value" that the caller has to check	Category-Result Category-Optional Category-Error-Handling-Functions
+area	concurrency	Running things at once	Functions-Concurrency	start goroutines, pass values over channels, use threads and locks	Category-Goroutines-and-Channels Category-Threading-Support-Functions
+area	memory	Memory and pointers	Functions-Memory	allocate memory, share ownership of objects	Category-Memory-Functions Category-Smart-Pointers
+area	system	Operating system	Functions-System	run other programs, read the command line and environment variables	Category-Operating-System-Functions
+area	graphics	Graphics and windows	Functions-Graphics	draw on a graphics screen, read the mouse, build Windows GUI controls	Category-Screen-Functions Category-2D-Drawing-Functions Category-User-Input-Functions-Graphics-Library Category-PsControls
+area	finance	Money and finance	Functions-Finance	calculate interest, returns and schedules with exact decimals	Category-Finance
+area	logging	Logging	Functions-Logging	write log messages to the console, files or your own sinks	Category-Logging
+area	encoding	Encoding and IDs	Functions-Encoding	encode and decode Base64, hex and percent-encoding; generate UUIDs	Category-Codec Category-UUID
+
+from	built-in	builtin	-
+from	std/chrono	import	chrono
+from	std/codec	import	codec
+from	std/containers	import	containers
+from	std/fs	import	fs
+from	std/logs	import	logs
+from	std/memory	import	memory
+from	std/money	import	money
+from	std/numeric	import	numeric
+from	std/outcome	import	outcome
+from	std/strings	import	strings
+from	std/tasks	import	tasks
+from	std/tui	import	tui
+from	std/uuids	import	uuids
+from	string.bi	include	-

@@ -2,6 +2,8 @@
 
 # LogEvent.AddFloat
 
+Adds a named floating-point field.
+
 ## Syntax
 
 ```freebasic

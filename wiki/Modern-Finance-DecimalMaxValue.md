@@ -2,6 +2,8 @@
 
 # DecimalMaxValue
 
+Returns the largest value a Decimal can hold.
+
 ## Syntax
 
 ```freebasic

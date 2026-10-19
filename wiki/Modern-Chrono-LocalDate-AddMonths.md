@@ -2,6 +2,8 @@
 
 # LocalDate.AddMonths
 
+Returns the date moved by whole months, clamping the day to the month's end.
+
 ## Syntax
 
 ```freebasic

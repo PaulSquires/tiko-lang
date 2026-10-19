@@ -2,7 +2,7 @@
 
 # Shrink
 
-O(n)   release unused capacity
+Releases unused room, cutting the capacity down to the count.
 
 ## Syntax
 

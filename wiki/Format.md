@@ -2,7 +2,7 @@
 
 # Format
 
-Formats a number in a specified format
+Formats a number with a picture string such as "#,##0.00".
 
 ## Syntax
 

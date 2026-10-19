@@ -2,6 +2,8 @@
 
 # TuiSolve
 
+Returns the sizes that constraints give a total, adding up to exactly that total.
+
 ## Syntax
 
 ```freebasic

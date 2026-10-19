@@ -2,7 +2,7 @@
 
 # File.TryLock
 
-FsResultBool
+Locks the whole file if it is free, or fails at once if another holder has it.
 
 ## Syntax
 

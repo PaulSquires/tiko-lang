@@ -2,7 +2,7 @@
 
 # SharedPtr
 
-Shared ownership of a heap object, by reference count.
+Holds an object shared by several owners and destroys it when the last one lets go.
 
 ## Syntax
 

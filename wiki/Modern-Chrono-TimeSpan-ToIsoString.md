@@ -2,6 +2,8 @@
 
 # TimeSpan.ToIsoString
 
+Returns the duration as ISO 8601 text, such as PT1H30M.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # PathIsAbsolute
 
-see the Windows note below
+Returns true if a path needs no current folder; C:dev and \dev are not absolute.
 
 ## Syntax
 

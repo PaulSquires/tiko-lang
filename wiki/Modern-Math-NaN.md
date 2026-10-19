@@ -2,6 +2,8 @@
 
 # NaN
 
+Returns a Double that is NaN, not a number.
+
 ## Syntax
 
 ```freebasic

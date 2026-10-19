@@ -2,6 +2,8 @@
 
 # Add
 
+Adds 1, or a given amount, to the work outstanding; call it before the spawn.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # FileInfo.OwnerUid
 
-ulong
+Returns the owner's user id, or 0 unless HasOwner is true.
 
 ## Syntax
 

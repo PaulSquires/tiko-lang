@@ -2,6 +2,8 @@
 
 # TuiTerminal.Leave
 
+Puts the terminal back the way Enter found it; safe to call more than once.
+
 ## Syntax
 
 ```freebasic

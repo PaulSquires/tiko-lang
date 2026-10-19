@@ -2,7 +2,7 @@
 
 # Unwrap
 
-O(n)
+Removes one surrounding pair of quotes or delimiters, if both are there.
 
 ## Syntax
 

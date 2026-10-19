@@ -2,6 +2,8 @@
 
 # PopFront
 
+Removes and returns the front value, or a default value if the list is empty.
+
 ## Syntax
 
 ```freebasic

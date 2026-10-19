@@ -2,7 +2,7 @@
 
 # SetPosixMode
 
-FS_UNSUPPORTED on Windows
+Sets a file's Linux permission bits; fails as unsupported on Windows.
 
 ## Syntax
 

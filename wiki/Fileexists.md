@@ -2,7 +2,7 @@
 
 # FileExists
 
-Tests the existence of a file
+Returns non-zero if the file exists, or 0 if it does not.
 
 ## Syntax
 

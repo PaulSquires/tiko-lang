@@ -2,7 +2,7 @@
 
 # Exp
 
-Returns e raised to the power of a given number
+Returns e raised to a power.
 
 ## Syntax
 

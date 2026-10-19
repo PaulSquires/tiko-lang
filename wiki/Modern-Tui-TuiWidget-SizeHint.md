@@ -2,6 +2,8 @@
 
 # TuiWidget.SizeHint
 
+Returns the size the widget would like in the space given; layouts may ignore it.
+
 ## Syntax
 
 ```freebasic

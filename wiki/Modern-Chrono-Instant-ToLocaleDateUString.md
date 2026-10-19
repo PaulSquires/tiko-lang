@@ -2,6 +2,8 @@
 
 # Instant.ToLocaleDateUString
 
+Returns the date in the machine's locale format as a ustring, for display only.
+
 ## Syntax
 
 ```freebasic

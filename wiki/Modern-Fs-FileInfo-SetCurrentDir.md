@@ -2,7 +2,7 @@
 
 # FileInfo.SetCurrentDir
 
-FsResultBool
+Changes the program's current folder, for every thread at once.
 
 ## Syntax
 

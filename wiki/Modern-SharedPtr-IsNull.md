@@ -2,6 +2,8 @@
 
 # IsNull
 
+Returns true if the handle owns no object.
+
 ## Syntax
 
 ```freebasic

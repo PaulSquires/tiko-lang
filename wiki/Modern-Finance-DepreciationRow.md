@@ -2,6 +2,8 @@
 
 # DepreciationRow
 
+Holds one period: opening and closing book value, expense and depreciation so far.
+
 ## Syntax
 
 ```freebasic

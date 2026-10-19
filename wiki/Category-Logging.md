@@ -380,21 +380,104 @@ logger_sinks.bas pins four guarantees -- a filtered event builds no record; two 
 
 See also: [Date and Time](Category-Date-and-Time-Chrono) (Instant, TimeSpan, WallClock, Stopwatch), [Filesystem](Category-Filesystem), [Result](Category-Result) (the convention this module breaks), [Goroutines and Channels](Category-Goroutines-and-Channels).
 
+<!-- finder:start -->
+
 ## API reference
 
-One page per entry, 32 in all:
+Every entry, grouped by task. [Logging](Functions-Logging) lists them beside the rest of the area.
 
-|   |   |   |   |   |
-|---|---|---|---|---|
-| [AddSink](Modern-Log-AddSink) | [LevelFromName](Modern-Log-LevelFromName) | [LogEvent.DroppedCount](Modern-Log-LogEvent-DroppedCount) | [LogEvent.AddSpan](Modern-Log-LogEvent-AddSpan) | [SinkCount](Modern-Log-SinkCount) |
-| [ClearSinks](Modern-Log-ClearSinks) | [LevelName](Modern-Log-LevelName) | [LogEvent.AddError](Modern-Log-LogEvent-AddError) | [LogEvent.AddText](Modern-Log-LogEvent-AddText) | [Trace](Modern-Log-Trace) |
-| [Debug](Modern-Log-Debug) | [LevelNameShort](Modern-Log-LevelNameShort) | [LogEvent.Flush](Modern-Log-LogEvent-Flush) | [LogEvent.AddTime](Modern-Log-LogEvent-AddTime) | [Warn](Modern-Log-Warn) |
-| [Emit](Modern-Log-Emit) | [LevelToSyslog](Modern-Log-LevelToSyslog) | [LogEvent.AddInt](Modern-Log-LogEvent-AddInt) | [LogEvent.AddUInt](Modern-Log-LogEvent-AddUInt) | [WithField](Modern-Log-WithField) |
-| [Enabled](Modern-Log-Enabled) | [Log](Modern-Log-Log) | [LogEvent.Msg](Modern-Log-LogEvent-Msg) | [LogEvent.AddValue](Modern-Log-LogEvent-AddValue) | [WithName](Modern-Log-WithName) |
-| [Error](Modern-Log-Error) | [LogEvent.AddBool](Modern-Log-LogEvent-AddBool) | [LogEvent.AddPtr](Modern-Log-LogEvent-AddPtr) | [LogEvent.Write](Modern-Log-LogEvent-Write) |  |
-| [Fatal](Modern-Log-Fatal) | [LogEvent.Close](Modern-Log-LogEvent-Close) | [LogEvent.Render](Modern-Log-LogEvent-Render) | [MinLevel](Modern-Log-MinLevel) |  |
-| [Flush](Modern-Log-Flush) | [LogEvent.ConsoleSink](Modern-Log-LogEvent-ConsoleSink) | [LogEvent.Send](Modern-Log-LogEvent-Send) | [Name](Modern-Log-Name) |  |
-| [Info](Modern-Log-Info) | [LogEvent.AddFloat](Modern-Log-LogEvent-AddFloat) | [LogEvent.Site](Modern-Log-LogEvent-Site) | [RemoveSink](Modern-Log-RemoveSink) |  |
+### Log a message
+
+| Function | What it does | From |
+|---|---|---|
+| [Logger.Info](Modern-Log-Info) | Logs a message at the info level, or returns a record to add fields to. | `std/logs` |
+| [Logger.Warn](Modern-Log-Warn) | Logs a message at the warn level, or returns a record to add fields to. | `std/logs` |
+| [Logger.Error](Modern-Log-Error) | Logs a message at the error level, or returns a record to add fields to. | `std/logs` |
+| [Logger.Debug](Modern-Log-Debug) | Logs a message at the debug level, or returns a record to add fields to. | `std/logs` |
+| [Logger.Trace](Modern-Log-Trace) | Logs a message at trace, the finest level, or returns a record to add fields to. | `std/logs` |
+| [Logger.Fatal](Modern-Log-Fatal) | Logs a message at the most severe level, or returns a record; it does not end the program. | `std/logs` |
+| [Logger.Log](Modern-Log-Log) | Logs a message at a level you pass, or returns a record to add fields to. | `std/logs` |
+
+### Send logs to the console or a file
+
+| Function | What it does | From |
+|---|---|---|
+| [ConsoleSink](Modern-Log-LogEvent-ConsoleSink) | Holds a sink that writes to stderr or stdout, in colour only on a terminal. | `std/logs` |
+| [Logger.AddSink](Modern-Log-AddSink) | Attaches a sink to the logger, which keeps a pointer to it and does not own it. | `std/logs` |
+| [Logger.RemoveSink](Modern-Log-RemoveSink) | Detaches one sink; removing one that was never added does nothing. | `std/logs` |
+| [Logger.ClearSinks](Modern-Log-ClearSinks) | Detaches every sink, without destroying any of them. | `std/logs` |
+| [Logger.SinkCount](Modern-Log-SinkCount) | Returns how many sinks are attached to the logger. | `std/logs` |
+
+### Add fields to a record
+
+| Function | What it does | From |
+|---|---|---|
+| [LogEvent.AddText](Modern-Log-LogEvent-AddText) | Adds a named text field to the record and returns the record for the next call. | `std/logs` |
+| [LogEvent.AddInt](Modern-Log-LogEvent-AddInt) | Adds a named integer field, which stays a number in JSON output. | `std/logs` |
+| [LogEvent.AddUInt](Modern-Log-LogEvent-AddUInt) | Adds a named unsigned 64-bit integer field. | `std/logs` |
+| [LogEvent.AddFloat](Modern-Log-LogEvent-AddFloat) | Adds a named floating-point field. | `std/logs` |
+| [LogEvent.AddBool](Modern-Log-LogEvent-AddBool) | Adds a named true or false field. | `std/logs` |
+| [LogEvent.AddPtr](Modern-Log-LogEvent-AddPtr) | Adds a named pointer field, such as the address of an object. | `std/logs` |
+| [LogEvent.AddTime](Modern-Log-LogEvent-AddTime) | Adds a named field holding a point in time. | `std/logs` |
+| [LogEvent.AddSpan](Modern-Log-LogEvent-AddSpan) | Adds a named field holding a length of time, such as how long a step took. | `std/logs` |
+| [LogEvent.AddError](Modern-Log-LogEvent-AddError) | Adds a filesystem error as fields: its message, its code and any system error code. | `std/logs` |
+| [LogEvent.AddValue](Modern-Log-LogEvent-AddValue) | Adds a named field from a value you built yourself, of any supported kind. | `std/logs` |
+
+### Finish and send a record
+
+| Function | What it does | From |
+|---|---|---|
+| [LogEvent.Msg](Modern-Log-LogEvent-Msg) | Sets the message and sends the record; a record that is never sent logs nothing. | `std/logs` |
+| [LogEvent.Send](Modern-Log-LogEvent-Send) | Sends the record without a message, for a record that is only fields. | `std/logs` |
+| [LogEvent.Site](Modern-Log-LogEvent-Site) | Records the file, line and procedure the record came from. | `std/logs` |
+| [Logger.Emit](Modern-Log-Emit) | Sends a finished record straight to every attached sink. | `std/logs` |
+
+### Choose which levels are logged
+
+| Function | What it does | From |
+|---|---|---|
+| [Logger.MinLevel](Modern-Log-MinLevel) | Sets or returns the lowest level the logger emits; LOG_OFF silences it. | `std/logs` |
+| [Logger.Enabled](Modern-Log-Enabled) | Returns true if a record at a level would be emitted, to skip building costly messages. | `std/logs` |
+
+### Turn levels into names and back
+
+| Function | What it does | From |
+|---|---|---|
+| [LevelName](Modern-Log-LevelName) | Returns a level's name, such as "WARN", or its number if it has no name. | `std/logs` |
+| [LevelNameShort](Modern-Log-LevelNameShort) | Returns a level's three-letter name, such as "WRN". | `std/logs` |
+| [LevelFromName](Modern-Log-LevelFromName) | Reads a level from a name or number in any case; returns false if it is unknown. | `std/logs` |
+| [LevelToSyslog](Modern-Log-LevelToSyslog) | Returns the syslog severity number for a level. | `std/logs` |
+
+### Give part of a program its own logger
+
+| Function | What it does | From |
+|---|---|---|
+| [Logger.WithField](Modern-Log-WithField) | Returns a child logger that adds one field to every record it makes. | `std/logs` |
+| [Logger.WithName](Modern-Log-WithName) | Returns a child logger with its own component name and the parent's sinks. | `std/logs` |
+| [Logger.Name](Modern-Log-Name) | Sets or returns the logger's component name, attached to every record it makes. | `std/logs` |
+
+### Flush and close sinks
+
+| Function | What it does | From |
+|---|---|---|
+| [Logger.Flush](Modern-Log-Flush) | Flushes every sink attached to the logger. | `std/logs` |
+| [Sink.Flush](Modern-Log-LogEvent-Flush) | Flushes one sink on its own. | `std/logs` |
+| [Sink.Close](Modern-Log-LogEvent-Close) | Closes a sink and releases what it holds; every kind of sink closes the same way. | `std/logs` |
+
+### Format records or write your own sink
+
+| Function | What it does | From |
+|---|---|---|
+| [TextRenderer.Render](Modern-Log-LogEvent-Render) | Appends a record as one line of text to a buffer, without clearing it first. | `std/logs` |
+| [Sink.Write](Modern-Log-LogEvent-Write) | Writes one record to a sink; the method a sink of your own overrides. | `std/logs` |
+
+### Find out when logging fails
+
+| Function | What it does | From |
+|---|---|---|
+| [Sink.DroppedCount](Modern-Log-LogEvent-DroppedCount) | Returns how many records a sink could not write; the count never resets. | `std/logs` |
+
+<!-- finder:end -->
 
 ---
 

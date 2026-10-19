@@ -2,7 +2,7 @@
 
 # DistanceSquared
 
-The squared distance between two points.
+Returns the squared distance between two points, the cheap way to test a range.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # Lerp
 
+Returns the point a fraction t of the way from a to b; t is not clamped.
+
 ## Syntax
 
 ```freebasic

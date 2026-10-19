@@ -2,6 +2,8 @@
 
 # TuiEnterSeq
 
+Returns the escape sequence that Enter writes for a set of options.
+
 ## Syntax
 
 ```freebasic

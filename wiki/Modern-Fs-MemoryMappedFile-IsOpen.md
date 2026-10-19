@@ -2,6 +2,8 @@
 
 # MemoryMappedFile.IsOpen
 
+Returns true while a file is mapped.
+
 ## Syntax
 
 ```freebasic

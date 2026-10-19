@@ -2,6 +2,8 @@
 
 # TuiTree.VisibleCount
 
+Counts the nodes currently shown, leaving out those inside collapsed nodes.
+
 ## Syntax
 
 ```freebasic

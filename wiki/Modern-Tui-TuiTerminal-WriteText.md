@@ -2,6 +2,8 @@
 
 # TuiTerminal.WriteText
 
+Adds a string to the output buffer as UTF-8.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # LCase
 
-Returns a lower case copy of a string
+Returns a lower-case copy of the string.
 
 ## Syntax
 

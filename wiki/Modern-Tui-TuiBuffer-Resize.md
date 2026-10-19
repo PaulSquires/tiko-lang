@@ -2,6 +2,8 @@
 
 # TuiBuffer.Resize
 
+Changes the grid size and blanks every cell.
+
 ## Syntax
 
 ```freebasic

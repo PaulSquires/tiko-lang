@@ -2,6 +2,8 @@
 
 # TuiKey.IsChar
 
+Returns true if the key is a typed character rather than a named key.
+
 ## Syntax
 
 ```freebasic

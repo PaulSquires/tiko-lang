@@ -2,6 +2,8 @@
 
 # LogEvent.AddInt
 
+Adds a named integer field, which stays a number in JSON output.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # OrderedSet.Add
 
+Adds a value; returns false if it was already there.
+
 ## Syntax
 
 ```freebasic

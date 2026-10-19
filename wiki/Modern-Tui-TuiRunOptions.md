@@ -2,6 +2,8 @@
 
 # TuiRunOptions
 
+Holds loop settings: frames per second and whether Ctrl+C quits.
+
 ## Syntax
 
 ```freebasic

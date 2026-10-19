@@ -2,6 +2,8 @@
 
 # TuiGauge
 
+Draws a progress bar for a ratio from 0 to 1, labelled with the percentage.
+
 ## Syntax
 
 ```freebasic

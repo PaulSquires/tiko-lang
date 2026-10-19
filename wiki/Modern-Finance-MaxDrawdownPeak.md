@@ -2,6 +2,8 @@
 
 # MaxDrawdownPeak
 
+Returns the index of the peak the worst drawdown fell from, or empty if none.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # DayCountDays
 
+Counts the days between two dates on a day-count basis.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # Join
 
-O(total) text
+Joins an Array of strings into one, with a separator between them.
 
 ## Syntax
 

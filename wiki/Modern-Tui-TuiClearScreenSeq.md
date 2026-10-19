@@ -2,6 +2,8 @@
 
 # TuiClearScreenSeq
 
+Returns the escape sequence that clears the terminal screen.
+
 ## Syntax
 
 ```freebasic

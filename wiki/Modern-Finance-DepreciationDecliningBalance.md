@@ -2,6 +2,8 @@
 
 # DepreciationDecliningBalance
 
+Returns one period's expense as a fixed fraction of the remaining book value.
+
 ## Syntax
 
 ```freebasic

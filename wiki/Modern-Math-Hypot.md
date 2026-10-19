@@ -2,7 +2,7 @@
 
 # Hypot
 
-The length of the hypotenuse, sqrt(x*x + y*y), without intermediate overflow.
+Returns the square root of x*x + y*y without overflowing for large values.
 
 ## Syntax
 

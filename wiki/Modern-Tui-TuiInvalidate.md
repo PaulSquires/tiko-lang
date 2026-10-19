@@ -2,6 +2,8 @@
 
 # TuiInvalidate
 
+Returns a command that repaints the whole screen instead of only the changes.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # CByte
 
-Converts numeric or string expression to Byte.
+Converts a number or string to a Byte, rounding to the nearest; no overflow check.
 
 ## Syntax
 

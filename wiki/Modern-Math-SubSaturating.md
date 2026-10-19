@@ -2,7 +2,7 @@
 
 # SubSaturating
 
-A - b, **clamped** to the limits of the type instead of overflowing.
+Subtracts two integers, clamping the result to the type's minimum or maximum.
 
 ## Syntax
 

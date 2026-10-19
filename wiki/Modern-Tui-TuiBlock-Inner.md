@@ -2,6 +2,8 @@
 
 # TuiBlock.Inner
 
+Returns the space inside the border, which is empty for a very small block.
+
 ## Syntax
 
 ```freebasic

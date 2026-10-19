@@ -2,6 +2,8 @@
 
 # MakeSharedFrom
 
+Creates a copy of a value on the heap and returns a SharedPtr to it.
+
 ## Syntax
 
 ```freebasic

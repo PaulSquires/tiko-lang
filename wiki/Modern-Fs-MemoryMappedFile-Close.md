@@ -2,6 +2,8 @@
 
 # MemoryMappedFile.Close
 
+Unmaps the file; harmless when nothing is mapped.
+
 ## Syntax
 
 ```freebasic

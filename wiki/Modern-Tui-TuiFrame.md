@@ -2,6 +2,8 @@
 
 # TuiFrame
 
+Holds the surface View draws on; drawing never fails and is clipped to fit.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # Stream
 
-The byte-stream base type.
+Holds the base type of every byte stream, with read, write, seek and flush.
 
 ## Syntax
 

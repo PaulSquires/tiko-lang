@@ -2,7 +2,7 @@
 
 # CreateDir
 
-fails with FS_ALREADY_EXISTS if the target is there
+Creates one folder; fails if something is already there.
 
 ## Syntax
 

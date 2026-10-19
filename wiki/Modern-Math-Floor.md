@@ -2,6 +2,8 @@
 
 # Floor
 
+Rounds down, towards negative infinity, so Floor(-2.1) is -3.
+
 ## Syntax
 
 ```freebasic

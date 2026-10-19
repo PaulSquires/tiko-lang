@@ -2,7 +2,7 @@
 
 # IsNumeric
 
-O(n)     boolean
+Returns true if the string is a valid number, with spaces allowed around it.
 
 ## Syntax
 

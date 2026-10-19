@@ -2,7 +2,7 @@
 
 # CVShort
 
-Converts a two-byte string to a Short integer variable
+Reads a Short back from a 2-byte string.
 
 ## Syntax
 

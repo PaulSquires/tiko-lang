@@ -2,7 +2,7 @@
 
 # CLog
 
-The natural logarithm, or the logarithm to a given base.
+Returns the natural logarithm of a complex number, or its logarithm to a given base.
 
 ## Syntax
 

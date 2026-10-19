@@ -2,6 +2,8 @@
 
 # AmortizationIterator
 
+Walks a loan schedule row by row, for stopping early or reading a window.
+
 ## Syntax
 
 ```freebasic

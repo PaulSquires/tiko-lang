@@ -2,7 +2,7 @@
 
 # OrderedMap
 
-A red-black tree map: always sorted by key.
+Holds key and value pairs kept sorted by key.
 
 ## Syntax
 

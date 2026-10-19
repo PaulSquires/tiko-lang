@@ -2,6 +2,8 @@
 
 # TuiFocusRing
 
+Holds the Tab order of your widgets and tells each one when it has focus.
+
 ## Syntax
 
 ```freebasic

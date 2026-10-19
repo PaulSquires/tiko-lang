@@ -2,6 +2,8 @@
 
 # TuiCyan
 
+Returns the classic cyan, palette colour 6.
+
 ## Syntax
 
 ```freebasic

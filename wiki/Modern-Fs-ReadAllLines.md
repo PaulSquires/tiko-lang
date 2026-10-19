@@ -2,7 +2,7 @@
 
 # ReadAllLines
 
-FsResultLong -- fills Array( of ustring )
+Reads a file's lines into an Array, without their line endings; returns the count.
 
 ## Syntax
 

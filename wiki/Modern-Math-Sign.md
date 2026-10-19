@@ -2,6 +2,8 @@
 
 # Sign
 
+Returns -1, 0 or 1 for the sign of a number, always as a Long.
+
 ## Syntax
 
 ```freebasic

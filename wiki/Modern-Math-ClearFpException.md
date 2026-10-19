@@ -2,6 +2,8 @@
 
 # ClearFpException
 
+Clears one floating-point exception flag and leaves the others alone.
+
 ## Syntax
 
 ```freebasic

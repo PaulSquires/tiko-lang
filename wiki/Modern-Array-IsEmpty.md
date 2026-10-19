@@ -2,6 +2,8 @@
 
 # IsEmpty
 
+Returns true if the array has no elements.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # FromUnixMicroseconds
 
-An Instant from a count of microseconds since the Unix epoch.
+Returns the moment a number of microseconds after 1970-01-01 UTC.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # DecimalFromCurrency
 
+Converts a Currency to a Decimal, exactly.
+
 ## Syntax
 
 ```freebasic

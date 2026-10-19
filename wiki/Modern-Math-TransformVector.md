@@ -2,7 +2,7 @@
 
 # TransformVector
 
-Transforms a direction by a matrix, ignoring its translation.
+Applies a matrix to a direction, leaving out the translation.
 
 ## Syntax
 

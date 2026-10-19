@@ -2,7 +2,7 @@
 
 # BufferedReader.ReadUntil
 
-FsResultI64
+Appends bytes up to and including a delimiter to an Array; returns the count.
 
 ## Syntax
 

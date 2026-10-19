@@ -2,7 +2,7 @@
 
 # System
 
-Closes all open files and ends the program
+Closes all open files and ends the program, with an optional exit code.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # TuiTabs
 
+Draws a one-row strip of tab titles with the selected one highlighted.
+
 ## Syntax
 
 ```freebasic

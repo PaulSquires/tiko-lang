@@ -2,6 +2,8 @@
 
 # TimeSpan.TotalMinutes
 
+Returns the whole duration in minutes, with a fraction.
+
 ## Syntax
 
 ```freebasic

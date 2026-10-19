@@ -2,7 +2,7 @@
 
 # FreeFile
 
-Returns a free file number
+Returns an unused file number for Open, or 0 if all 255 are taken.
 
 ## Syntax
 

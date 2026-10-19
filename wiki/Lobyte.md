@@ -2,7 +2,7 @@
 
 # LoByte
 
-Gets the lowest byte of the operand.
+Returns the lowest byte of a number, bits 0 to 7.
 
 ## Syntax
 

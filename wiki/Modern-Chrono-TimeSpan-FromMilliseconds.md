@@ -2,7 +2,7 @@
 
 # TimeSpan.FromMilliseconds
 
-rounds half away from zero
+Returns a duration of a number of milliseconds, fractions allowed.
 
 ## Syntax
 

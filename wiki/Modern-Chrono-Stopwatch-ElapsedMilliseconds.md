@@ -2,6 +2,8 @@
 
 # Stopwatch.ElapsedMilliseconds
 
+Returns the time measured so far in whole milliseconds.
+
 ## Syntax
 
 ```freebasic

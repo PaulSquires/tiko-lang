@@ -2,6 +2,8 @@
 
 # FutureValueOfLump
 
+Returns a single amount compounded forward a number of periods.
+
 ## Syntax
 
 ```freebasic

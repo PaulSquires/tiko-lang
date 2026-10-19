@@ -2,7 +2,7 @@
 
 # Tab
 
-Sets the column when writing to screen or file
+Moves to a column inside a Print, on the next line if already past it.
 
 ## Syntax
 

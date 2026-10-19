@@ -2,7 +2,7 @@
 
 # MultiKey
 
-Detects the status of keys by keyboard scancode.
+Returns -1 while the key with a given scancode is held down, or 0 if it is not.
 
 ## Syntax
 

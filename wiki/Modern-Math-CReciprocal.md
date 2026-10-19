@@ -2,7 +2,7 @@
 
 # CReciprocal
 
-One divided by the operand.
+Returns one divided by a complex number; zero gives zero.
 
 ## Syntax
 

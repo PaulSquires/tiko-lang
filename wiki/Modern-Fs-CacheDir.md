@@ -2,7 +2,7 @@
 
 # CacheDir
 
-FsResultUStr -- where files that can be regenerated belong
+Returns the folder for files that can be rebuilt, such as AppData\Local or ~/.cache.
 
 ## Syntax
 

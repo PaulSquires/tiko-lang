@@ -2,6 +2,8 @@
 
 # RateContinuousFromEffective
 
+Returns the continuously compounded rate that gives an effective yearly return.
+
 ## Syntax
 
 ```freebasic

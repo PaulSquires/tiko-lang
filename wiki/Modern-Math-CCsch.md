@@ -2,7 +2,7 @@
 
 # CCsch
 
-The hyperbolic cosecant — one over the hyperbolic sine.
+Returns the hyperbolic cosecant of a complex number, one over its sinh; zero gives zero.
 
 ## Syntax
 

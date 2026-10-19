@@ -2,7 +2,7 @@
 
 # HiWord
 
-Gets the second 16bit word of the operand.
+Returns bits 16 to 31 of a number.
 
 ## Syntax
 

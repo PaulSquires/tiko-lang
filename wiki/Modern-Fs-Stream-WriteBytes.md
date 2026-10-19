@@ -2,7 +2,7 @@
 
 # Stream.WriteBytes
 
-FsResultBool
+Writes every byte of an Array.
 
 ## Syntax
 

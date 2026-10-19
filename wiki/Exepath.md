@@ -2,7 +2,7 @@
 
 # ExePath
 
-Returns the path of the running program
+Returns the folder that holds the running program.
 
 ## Syntax
 

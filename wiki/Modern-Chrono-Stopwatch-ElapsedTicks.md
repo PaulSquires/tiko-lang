@@ -2,6 +2,8 @@
 
 # Stopwatch.ElapsedTicks
 
+Returns the time measured so far in 100 ns ticks.
+
 ## Syntax
 
 ```freebasic

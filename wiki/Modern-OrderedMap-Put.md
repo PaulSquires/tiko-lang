@@ -2,6 +2,8 @@
 
 # OrderedMap.Put
 
+Stores a value under a key, replacing any old one; returns true if the key was new.
+
 ## Syntax
 
 ```freebasic

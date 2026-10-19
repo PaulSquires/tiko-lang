@@ -2,6 +2,8 @@
 
 # VolumeInfo.MaxComponentLen
 
+Returns the longest file or folder name the volume allows, not the longest path.
+
 ## Syntax
 
 ```freebasic

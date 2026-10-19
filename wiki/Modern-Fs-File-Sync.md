@@ -2,7 +2,7 @@
 
 # File.Sync
 
-FsResultBool
+Forces the file's data and metadata onto the disk, so a write survives a power cut.
 
 ## Syntax
 

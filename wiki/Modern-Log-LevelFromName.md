@@ -2,6 +2,8 @@
 
 # LevelFromName
 
+Reads a level from a name or number in any case; returns false if it is unknown.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # Cancel
 
-Cancels a `CancelContext`, and every context descended from it.
+Cancels the context and every context made from it; a second call is harmless.
 
 ## Syntax
 

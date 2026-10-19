@@ -2,7 +2,7 @@
 
 # MinLevel
 
-The lowest level this logger will emit.
+Sets or returns the lowest level the logger emits; LOG_OFF silences it.
 
 ## Syntax
 

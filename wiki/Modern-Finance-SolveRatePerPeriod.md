@@ -2,6 +2,8 @@
 
 # SolveRatePerPeriod
 
+Returns the rate per period implied by a known payment, value and term.
+
 ## Syntax
 
 ```freebasic

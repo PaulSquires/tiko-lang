@@ -2,6 +2,8 @@
 
 # TuiMouse
 
+Holds a mouse event: press, release, move or wheel, the button, and the cell.
+
 ## Syntax
 
 ```freebasic

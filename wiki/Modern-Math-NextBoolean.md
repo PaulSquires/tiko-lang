@@ -2,7 +2,7 @@
 
 # NextBoolean
 
-TRUE or FALSE with equal probability.
+Returns true or false with equal chance.
 
 ## Syntax
 

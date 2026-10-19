@@ -2,7 +2,7 @@
 
 # SetEnviron
 
-Sets a system environment variable
+Sets an environment variable from "NAME=value" text; returns 0 on success.
 
 ## Syntax
 

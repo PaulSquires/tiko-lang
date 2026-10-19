@@ -2,7 +2,7 @@
 
 # ImageInfo
 
-Retrieves information about an image
+Fills in an image's width, height, bytes per pixel, pitch and pixel pointer.
 
 ## Syntax
 

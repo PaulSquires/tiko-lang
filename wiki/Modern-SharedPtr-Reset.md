@@ -2,7 +2,7 @@
 
 # Reset
 
-Drops this handle's share of the object, leaving the handle null.
+Drops this handle's share and leaves it null; the last one out destroys the object.
 
 ## Syntax
 

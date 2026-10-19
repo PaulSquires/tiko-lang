@@ -2,6 +2,8 @@
 
 # TuiClockMs
 
+Returns a clock in milliseconds that never goes backwards, the one the loop uses.
+
 ## Syntax
 
 ```freebasic

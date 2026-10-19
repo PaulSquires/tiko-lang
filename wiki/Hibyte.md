@@ -2,7 +2,7 @@
 
 # HiByte
 
-Gets the second byte of the operand.
+Returns the second byte of a number, bits 8 to 15.
 
 ## Syntax
 

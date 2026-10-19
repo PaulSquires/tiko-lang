@@ -2,7 +2,7 @@
 
 # GetIterator
 
-The iterator `for each` uses to drain a channel.
+Returns the iterator a for each loop uses to receive until the channel is drained.
 
 ## Syntax
 

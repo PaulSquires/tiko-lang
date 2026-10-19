@@ -2,6 +2,8 @@
 
 # TuiScreen.Resize
 
+Changes the screen size in cells and forces a full repaint.
+
 ## Syntax
 
 ```freebasic

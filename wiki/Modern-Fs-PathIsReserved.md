@@ -2,7 +2,7 @@
 
 # PathIsReserved
 
-boolean
+Returns true if a part of the path is a Windows device name such as CON or NUL.
 
 ## Syntax
 

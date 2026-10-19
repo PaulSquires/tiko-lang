@@ -2,6 +2,8 @@
 
 # TuiDowngradeStyle
 
+Returns a style with both its colours reduced to what a terminal can show.
+
 ## Syntax
 
 ```freebasic

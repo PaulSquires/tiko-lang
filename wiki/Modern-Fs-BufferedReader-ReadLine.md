@@ -2,7 +2,7 @@
 
 # BufferedReader.ReadLine
 
-FsResultBool
+Reads the next line as raw bytes in a string, not decoded; returns false at the end.
 
 ## Syntax
 

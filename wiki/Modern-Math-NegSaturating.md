@@ -2,7 +2,7 @@
 
 # NegSaturating
 
-The negation, clamping the one input that has none.
+Negates an integer; the most negative value becomes the maximum instead.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # Cast
 
-Converts an expression to a specified data type
+Converts a value to any named type, such as Cast(Byte, flag).
 
 ## Syntax
 

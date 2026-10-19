@@ -2,7 +2,7 @@
 
 # RGBA
 
-Computes a valid color value including alpha (transparency) for hi/truecolor modes
+Returns a colour value from red, green, blue and alpha parts of 0 to 255.
 
 ## Syntax
 

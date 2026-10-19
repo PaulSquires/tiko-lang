@@ -2,7 +2,7 @@
 
 # LogEvent.Msg
 
-sets the message and commits
+Sets the message and sends the record; a record that is never sent logs nothing.
 
 ## Syntax
 

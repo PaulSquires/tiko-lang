@@ -2,7 +2,7 @@
 
 # IPow
 
-EXACT -- IPow( 3LL, 38LL ) = 1350851717672992089
+Raises a whole number to a whole-number power exactly, with no trip through Double.
 
 ## Syntax
 

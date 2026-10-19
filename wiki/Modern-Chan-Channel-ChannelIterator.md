@@ -2,7 +2,7 @@
 
 # ChannelIterator
 
-The iterator `for each` uses to drain a channel.
+Holds a for each loop's place while it receives from a channel.
 
 ## Syntax
 

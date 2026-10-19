@@ -2,6 +2,8 @@
 
 # FileWatcher.IsWatching
 
+Returns true while the watcher is running.
+
 ## Syntax
 
 ```freebasic

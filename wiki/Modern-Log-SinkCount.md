@@ -2,6 +2,8 @@
 
 # SinkCount
 
+Returns how many sinks are attached to the logger.
+
 ## Syntax
 
 ```freebasic

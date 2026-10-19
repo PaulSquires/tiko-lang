@@ -2,6 +2,8 @@
 
 # CopySymlinksAsLinks
 
+Chooses whether CopyDir copies a link as a link rather than its target; true by default.
+
 ## Syntax
 
 ```freebasic

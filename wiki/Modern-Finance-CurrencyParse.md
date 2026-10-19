@@ -2,6 +2,8 @@
 
 # CurrencyParse
 
+Parses text into a Currency exactly; returns empty on bad input or over four places.
+
 ## Syntax
 
 ```freebasic

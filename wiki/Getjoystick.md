@@ -2,7 +2,7 @@
 
 # GetJoystick
 
-Reads buttons and axis information from attached gaming devices
+Fills in a joystick's buttons and axis positions; returns 0 on success or 1.
 
 ## Syntax
 

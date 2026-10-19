@@ -2,6 +2,8 @@
 
 # Instant.NextWeekday
 
+Returns the same time on the next given weekday, always strictly later.
+
 ## Syntax
 
 ```freebasic

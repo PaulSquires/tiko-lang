@@ -2,6 +2,8 @@
 
 # DirEntry.YieldDirectories
 
+Chooses whether a walk returns folders as well as files; true by default.
+
 ## Syntax
 
 ```freebasic

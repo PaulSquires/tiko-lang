@@ -2,6 +2,8 @@
 
 # Instant.MinValue
 
+Returns the earliest date-time, midnight on 0001-01-01.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # FileInfo.Size
 
-ulongint
+Returns the size in bytes.
 
 ## Syntax
 

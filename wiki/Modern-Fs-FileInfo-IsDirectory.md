@@ -2,6 +2,8 @@
 
 # FileInfo.IsDirectory
 
+Returns true if the path is a folder.
+
 ## Syntax
 
 ```freebasic

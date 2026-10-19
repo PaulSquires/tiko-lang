@@ -2,7 +2,7 @@
 
 # Winput()
 
-Reads a number of wide-characters from console or file
+Reads a number of wide characters from a file or device and returns them.
 
 ## Syntax
 

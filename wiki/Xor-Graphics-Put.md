@@ -2,7 +2,7 @@
 
 # Xor (Graphics Put)
 
-Parameter to the Put graphics statement which uses a bit-wise Xor as the blitting method
+Combines source and destination pixels with a bitwise Xor, as a Put method.
 
 ## Syntax
 

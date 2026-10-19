@@ -2,7 +2,7 @@
 
 # Or (Graphics Put)
 
-Parameter to the Put graphics statement which uses a bit-wise Or as the blitting method
+Combines source and destination pixels with a bitwise Or, as a Put method.
 
 ## Syntax
 

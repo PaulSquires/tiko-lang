@@ -2,6 +2,8 @@
 
 # TuiStack.ChildRect
 
+Returns the rectangle a child got at the last Render, for mouse hit tests.
+
 ## Syntax
 
 ```freebasic

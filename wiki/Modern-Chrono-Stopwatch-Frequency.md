@@ -2,7 +2,7 @@
 
 # Frequency
 
-Ticks per second of the underlying monotonic counter.
+Returns how many counts per second the raw counter from GetTimestamp makes.
 
 ## Syntax
 

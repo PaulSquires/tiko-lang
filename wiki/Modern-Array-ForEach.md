@@ -2,7 +2,7 @@
 
 # ForEach
 
-Applies a procedure to every element, in order, passing each byref.
+Calls a procedure on every element in order, passing each by reference.
 
 ## Syntax
 

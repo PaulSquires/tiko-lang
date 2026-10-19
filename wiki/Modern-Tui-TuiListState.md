@@ -2,6 +2,8 @@
 
 # TuiListState
 
+Holds a list's selected item and scroll position; -1 means nothing is selected.
+
 ## Syntax
 
 ```freebasic

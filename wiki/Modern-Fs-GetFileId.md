@@ -2,7 +2,7 @@
 
 # GetFileId
 
-FsResultId
+Returns the FileId of a path, which tells whether two paths are the same file.
 
 ## Syntax
 

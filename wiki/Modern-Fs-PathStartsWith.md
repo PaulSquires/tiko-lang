@@ -2,6 +2,8 @@
 
 # PathStartsWith
 
+Returns true if a path begins with another, comparing whole parts, not characters.
+
 ## Syntax
 
 ```freebasic

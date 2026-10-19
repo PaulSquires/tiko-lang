@@ -2,6 +2,8 @@
 
 # LogEvent.AddSpan
 
+Adds a named field holding a length of time, such as how long a step took.
+
 ## Syntax
 
 ```freebasic

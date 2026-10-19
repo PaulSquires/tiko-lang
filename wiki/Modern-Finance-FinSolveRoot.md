@@ -2,6 +2,8 @@
 
 # FinSolveRoot
 
+Finds where your function is zero between two bounds, and reports how close it got.
+
 ## Syntax
 
 ```freebasic

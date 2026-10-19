@@ -2,7 +2,7 @@
 
 # IsDir
 
-boolean -- follows links
+Returns true if the path is a folder, following links; false if it cannot tell.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # CsrLin
 
-Returns the row position of the cursor
+Returns the row the cursor is on, counting from 1 at the top.
 
 ## Syntax
 

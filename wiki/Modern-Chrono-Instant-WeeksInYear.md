@@ -2,6 +2,8 @@
 
 # Instant.WeeksInYear
 
+Returns 52 or 53, the number of ISO weeks in a year.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # LoanSummary
 
+Holds what LoanSummarize returns: payments, totals, effective rate and savings.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # LoWord
 
-Gets the lowest 16bit word of the operand.
+Returns the lowest 16 bits of a number.
 
 ## Syntax
 

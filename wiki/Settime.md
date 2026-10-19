@@ -2,7 +2,7 @@
 
 # SetTime
 
-Sets the current system time
+Sets the system time from text like hh:mm:ss; needs admin rights, 0 means success.
 
 ## Syntax
 

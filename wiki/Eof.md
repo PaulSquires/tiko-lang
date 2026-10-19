@@ -2,7 +2,7 @@
 
 # EOF
 
-Checks to see if the end of an open file has been reached
+Returns true when an open file has nothing left to read.
 
 ## Syntax
 

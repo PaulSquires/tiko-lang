@@ -2,6 +2,8 @@
 
 # TimeSpan.TotalMicroseconds
 
+Returns the whole duration in whole microseconds.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # BSave
 
-Saves an array of arbitrary data and palette information to a file on disk
+Saves memory or the screen to a file, as a BMP image if the name ends in .bmp.
 
 ## Syntax
 

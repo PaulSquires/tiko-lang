@@ -2,6 +2,8 @@
 
 # TuiStatusItem
 
+Holds one status bar item: its text, style and alignment.
+
 ## Syntax
 
 ```freebasic

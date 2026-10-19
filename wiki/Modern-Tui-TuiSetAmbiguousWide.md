@@ -2,6 +2,8 @@
 
 # TuiSetAmbiguousWide
 
+Sets whether characters of ambiguous width count as two columns, for CJK terminals.
+
 ## Syntax
 
 ```freebasic

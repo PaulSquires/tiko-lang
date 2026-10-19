@@ -2,6 +2,8 @@
 
 # TuiStyleOf
 
+Returns a style with a foreground, a background and optional attributes.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # NaiveSum
 
-the fast one, named so you meant it
+Adds up an array with a plain loop: faster than Sum, but small values can be lost.
 
 ## Syntax
 

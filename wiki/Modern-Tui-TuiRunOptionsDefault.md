@@ -2,6 +2,8 @@
 
 # TuiRunOptionsDefault
 
+Returns the default loop settings: 60 frames per second, quit on Ctrl+C.
+
 ## Syntax
 
 ```freebasic

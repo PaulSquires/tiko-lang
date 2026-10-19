@@ -2,6 +2,8 @@
 
 # AnnualizeReturn
 
+Converts a return per period to a yearly return by compounding, not multiplying.
+
 ## Syntax
 
 ```freebasic

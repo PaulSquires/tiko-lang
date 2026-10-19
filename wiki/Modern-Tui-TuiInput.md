@@ -2,6 +2,8 @@
 
 # TuiInput
 
+Holds the parser that turns raw terminal bytes into events.
+
 ## Syntax
 
 ```freebasic

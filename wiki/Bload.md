@@ -2,7 +2,7 @@
 
 # BLoad
 
-Loads arbitrary data from a file created with BSave, or a compatible BMP image file.
+Loads a BMP file or BSave data onto the screen or into memory.
 
 ## Syntax
 

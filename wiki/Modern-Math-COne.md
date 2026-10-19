@@ -2,7 +2,7 @@
 
 # COne
 
-The complex number one.
+Returns the complex number 1.
 
 ## Syntax
 

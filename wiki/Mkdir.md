@@ -2,7 +2,7 @@
 
 # MkDir
 
-Makes a folder/directory on the local file system
+Creates one folder, whose parent must already exist; returns 0 on success.
 
 ## Syntax
 

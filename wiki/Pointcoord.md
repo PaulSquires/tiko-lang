@@ -2,7 +2,7 @@
 
 # PointCoord
 
-Queries Draw's pen position in graphics mode
+Returns the x or y position of the Draw pen.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # LogEvent.AddPtr
 
+Adds a named pointer field, such as the address of an object.
+
 ## Syntax
 
 ```freebasic

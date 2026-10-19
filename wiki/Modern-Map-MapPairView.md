@@ -2,7 +2,7 @@
 
 # MapPairView
 
-The iterator type behind `Map.Pairs( )`.
+Holds the view that Map.Pairs returns, for for each (k, v) to walk.
 
 ## Syntax
 

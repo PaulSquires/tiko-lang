@@ -2,6 +2,8 @@
 
 # OrderedSet.BlackHeight
 
+Returns the tree's black height, or -1 if its balancing rules are broken.
+
 ## Syntax
 
 ```freebasic

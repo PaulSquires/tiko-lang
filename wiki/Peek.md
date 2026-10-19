@@ -2,7 +2,7 @@
 
 # Peek
 
-Gets the value of an arbitrary type at an address in memory
+Returns a reference to the value at an address, as a byte or as a given type.
 
 ## Syntax
 

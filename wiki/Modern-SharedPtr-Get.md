@@ -2,6 +2,8 @@
 
 # Get
 
+Returns the raw pointer to the object, or 0 if null, without adding an owner.
+
 ## Syntax
 
 ```freebasic

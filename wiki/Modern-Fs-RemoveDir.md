@@ -2,7 +2,7 @@
 
 # RemoveDir
 
-FS_DIR_NOT_EMPTY on a populated directory
+Deletes an empty folder; fails if it still holds anything.
 
 ## Syntax
 

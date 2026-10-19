@@ -2,6 +2,8 @@
 
 # TuiScreen
 
+Holds two cell buffers and works out the bytes that turn one frame into the next.
+
 ## Syntax
 
 ```freebasic

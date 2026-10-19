@@ -2,6 +2,8 @@
 
 # LocalTime.IsValid
 
+Returns true if the time of day is in range.
+
 ## Syntax
 
 ```freebasic

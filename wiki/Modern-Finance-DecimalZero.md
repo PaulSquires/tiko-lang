@@ -2,6 +2,8 @@
 
 # DecimalZero
 
+Returns zero, the same value a new Decimal starts with.
+
 ## Syntax
 
 ```freebasic

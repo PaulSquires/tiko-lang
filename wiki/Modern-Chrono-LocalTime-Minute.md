@@ -2,6 +2,8 @@
 
 # LocalTime.Minute
 
+Returns the minute, 0 to 59.
+
 ## Syntax
 
 ```freebasic

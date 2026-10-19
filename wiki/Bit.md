@@ -2,7 +2,7 @@
 
 # Bit
 
-Gets the state of an individual bit in an integer value.
+Returns -1 if the numbered bit of an integer is set, or 0 if it is clear.
 
 ## Syntax
 

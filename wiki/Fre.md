@@ -2,7 +2,7 @@
 
 # Fre
 
-Returns the amount of free memory available
+Returns the amount of free physical memory, in bytes.
 
 ## Syntax
 

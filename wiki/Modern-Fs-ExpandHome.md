@@ -2,7 +2,7 @@
 
 # ExpandHome
 
-FsResultUStr -- p with a leading ~ replaced by the home directory
+Returns a path with a leading ~ replaced by the user's home folder.
 
 ## Syntax
 

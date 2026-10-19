@@ -2,7 +2,7 @@
 
 # BitReset
 
-Gets the value with a specified bit cleared, from a copied integer.
+Returns a copy of an integer with the numbered bit cleared to 0.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # Custom
 
-Parameter to the Put graphics statement which selects a custom method
+Calls your own function for each pixel to combine source and destination in Put.
 
 ## Syntax
 

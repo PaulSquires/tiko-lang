@@ -2,6 +2,8 @@
 
 # WalkOptions.Filter
 
+Sets a function that decides, entry by entry, what a walk returns and what it enters.
+
 ## Syntax
 
 ```freebasic

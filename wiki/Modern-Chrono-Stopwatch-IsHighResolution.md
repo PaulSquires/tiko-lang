@@ -2,7 +2,7 @@
 
 # IsHighResolution
 
-Whether the platform counter is a high-resolution one.
+Returns true if the platform counter is finer than the system tick.
 
 ## Syntax
 

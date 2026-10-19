@@ -2,7 +2,7 @@
 
 # GoroutineCount
 
-How many goroutines currently exist.
+Returns how many goroutines exist right now, as a snapshot for diagnostics.
 
 ## Syntax
 

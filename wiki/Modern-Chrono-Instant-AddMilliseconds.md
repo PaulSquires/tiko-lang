@@ -2,6 +2,8 @@
 
 # Instant.AddMilliseconds
 
+Returns the date-time moved by a number of milliseconds, fractions allowed.
+
 ## Syntax
 
 ```freebasic

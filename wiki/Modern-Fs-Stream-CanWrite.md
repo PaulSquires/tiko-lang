@@ -2,7 +2,7 @@
 
 # Stream.CanWrite
 
-boolean
+Returns true if Write can succeed on this stream.
 
 ## Syntax
 

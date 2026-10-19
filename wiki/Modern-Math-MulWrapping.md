@@ -2,7 +2,7 @@
 
 # MulWrapping
 
-A * b, **wrapping** on overflow -- deliberately.
+Multiplies two integers and wraps around on overflow, on purpose.
 
 ## Syntax
 

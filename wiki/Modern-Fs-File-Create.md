@@ -2,7 +2,7 @@
 
 # File.Create
 
-FsResultBool
+Opens a file for writing, creating it or emptying it first.
 
 ## Syntax
 

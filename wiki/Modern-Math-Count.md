@@ -2,7 +2,7 @@
 
 # Count
 
-How many elements the array holds.
+Counts the elements in an array.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # SortList
 
-ascending, by '<' on T
+Sorts a LinkedList in ascending order by relinking nodes; equal elements keep order.
 
 ## Syntax
 

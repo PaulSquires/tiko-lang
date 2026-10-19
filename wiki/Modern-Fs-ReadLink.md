@@ -2,7 +2,7 @@
 
 # ReadLink
 
-FsResultUStr
+Returns the target a symbolic link points to, as stored; fails if it is not a link.
 
 ## Syntax
 

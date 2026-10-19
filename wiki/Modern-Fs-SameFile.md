@@ -2,7 +2,7 @@
 
 # SameFile
 
-FsResultBool
+Returns whether two paths name the same file; fails if either is missing.
 
 ## Syntax
 

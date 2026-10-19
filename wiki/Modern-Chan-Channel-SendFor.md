@@ -2,7 +2,7 @@
 
 # SendFor
 
-Sends a value, giving up after `ms` milliseconds.
+Sends a value, waiting at most ms milliseconds; returns false on a timeout.
 
 ## Syntax
 

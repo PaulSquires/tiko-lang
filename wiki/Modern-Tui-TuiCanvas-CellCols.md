@@ -2,6 +2,8 @@
 
 # TuiCanvas.CellCols
 
+Returns the canvas width in cells.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # Complex operators
 
-Arithmetic on complex numbers: `= <> + - * / ^`, each with a `float64` on either side.
+Adds, subtracts, multiplies, divides, raises and compares complex numbers.
 
 ## Syntax
 

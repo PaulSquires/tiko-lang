@@ -2,6 +2,8 @@
 
 # AmortizationRow
 
+Holds one period: due date, balances, payment, interest, principal and running totals.
+
 ## Syntax
 
 ```freebasic

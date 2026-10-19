@@ -2,7 +2,7 @@
 
 # Str
 
-Returns a string representation of a number, boolean or Unicode character string
+Returns a number or boolean as text.
 
 ## Syntax
 

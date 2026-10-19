@@ -2,7 +2,7 @@
 
 # AddChecked
 
-A + b, or **nothing** if the result would overflow.
+Adds two integers, returning an empty Optional if the result would overflow.
 
 ## Syntax
 

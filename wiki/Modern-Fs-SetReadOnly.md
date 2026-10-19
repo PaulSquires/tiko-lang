@@ -2,7 +2,7 @@
 
 # SetReadOnly
 
-portable
+Sets or clears a file's read-only flag, or its write bits on Linux.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # ReturnFrequency
 
+Lists how many observations make a year: annual, quarterly, monthly, weekly or daily.
+
 ## Syntax
 
 ```freebasic

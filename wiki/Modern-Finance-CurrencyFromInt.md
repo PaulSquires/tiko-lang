@@ -2,6 +2,8 @@
 
 # CurrencyFromInt
 
+Returns a Currency of a whole number of units, exactly.
+
 ## Syntax
 
 ```freebasic

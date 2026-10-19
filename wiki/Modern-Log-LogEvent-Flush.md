@@ -2,6 +2,8 @@
 
 # LogEvent.Flush
 
+Flushes one sink on its own.
+
 ## Syntax
 
 ```freebasic

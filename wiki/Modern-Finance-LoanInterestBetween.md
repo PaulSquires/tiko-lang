@@ -2,6 +2,8 @@
 
 # LoanInterestBetween
 
+Returns the interest posted across a range of periods, such as one tax year.
+
 ## Syntax
 
 ```freebasic

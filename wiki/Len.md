@@ -2,7 +2,7 @@
 
 # Len
 
-Returns the length of an expression or data type
+Returns the length of a string, or the size of a type.
 
 ## Syntax
 

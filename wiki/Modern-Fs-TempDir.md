@@ -2,7 +2,7 @@
 
 # TempDir
 
-the system temp directory; creates nothing
+Returns the system's temporary folder; creates nothing.
 
 ## Syntax
 

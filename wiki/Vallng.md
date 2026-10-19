@@ -2,7 +2,7 @@
 
 # ValLng
 
-Converts a string to a 64bit integer
+Converts text to a 64-bit integer.
 
 ## Syntax
 

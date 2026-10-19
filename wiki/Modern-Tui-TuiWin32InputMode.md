@@ -2,6 +2,8 @@
 
 # TuiWin32InputMode
 
+Returns the Windows console input mode that Enter would set for given options.
+
 ## Syntax
 
 ```freebasic

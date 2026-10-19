@@ -2,6 +2,8 @@
 
 # DiscountedPaybackPeriod
 
+Returns when the running total of discounted flows turns positive, or empty if never.
+
 ## Syntax
 
 ```freebasic

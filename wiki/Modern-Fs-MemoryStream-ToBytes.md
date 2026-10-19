@@ -2,7 +2,7 @@
 
 # MemoryStream.ToBytes
 
-longint
+Copies every byte held into an Array; returns the count.
 
 ## Syntax
 

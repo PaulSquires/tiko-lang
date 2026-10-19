@@ -2,7 +2,7 @@
 
 # FileId
 
-What makes two paths the same file.
+Holds a volume and file number that are equal for every name of one file.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # Keys
 
+Returns a copy of all the keys as an Array, in no particular order.
+
 ## Syntax
 
 ```freebasic

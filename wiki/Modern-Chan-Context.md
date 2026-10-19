@@ -2,7 +2,7 @@
 
 # Context
 
-the background context; never cancelled
+Holds the background context, which is never cancelled and is the root of all others.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # TuiTerminal.IsActive
 
+Returns true between a successful Enter and its Leave.
+
 ## Syntax
 
 ```freebasic

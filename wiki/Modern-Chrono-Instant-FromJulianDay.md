@@ -2,6 +2,8 @@
 
 # Instant.FromJulianDay
 
+Creates a date-time from a fractional Julian day.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # Encoding
 
-Specifies character format of a text file
+Sets the Unicode encoding of a text file in Open; a file read this way needs a BOM.
 
 ## Syntax
 

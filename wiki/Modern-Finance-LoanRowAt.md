@@ -2,6 +2,8 @@
 
 # LoanRowAt
 
+Returns one row of a loan schedule, rounded exactly as it would be posted.
+
 ## Syntax
 
 ```freebasic

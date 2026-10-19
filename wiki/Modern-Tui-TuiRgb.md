@@ -2,6 +2,8 @@
 
 # TuiRgb
 
+Returns a 24-bit colour, reduced for you on terminals with fewer colours.
+
 ## Syntax
 
 ```freebasic

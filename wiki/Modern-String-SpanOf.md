@@ -2,7 +2,7 @@
 
 # SpanOf
 
-O(n*k)   long
+Counts the run of characters from a set that starts at a position.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # Instant.ToLocal
 
+Returns the same moment shown at the machine's local UTC offset.
+
 ## Syntax
 
 ```freebasic

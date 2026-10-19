@@ -2,6 +2,8 @@
 
 # TuiRect.Bottom
 
+Returns y plus the height: the first row below the bottom edge.
+
 ## Syntax
 
 ```freebasic

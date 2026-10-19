@@ -2,6 +2,8 @@
 
 # Contains
 
+Returns true if the value is in the set.
+
 ## Syntax
 
 ```freebasic

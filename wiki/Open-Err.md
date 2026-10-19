@@ -2,7 +2,7 @@
 
 # Open Err
 
-Opens both the standard input (stdin) and standard error (stderr) streams, using it as if it were file operations.
+Opens standard input and standard error on a file number, to use like a file.
 
 ## Syntax
 

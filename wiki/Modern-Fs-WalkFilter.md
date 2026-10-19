@@ -2,7 +2,7 @@
 
 # WalkFilter
 
-The type of WalkOptions.Filter.
+Holds the type of a walk filter: a function that says skip, yield, descend or stop.
 
 ## Syntax
 

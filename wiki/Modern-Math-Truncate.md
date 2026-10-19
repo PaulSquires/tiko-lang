@@ -2,6 +2,8 @@
 
 # Truncate
 
+Drops the fraction, rounding towards zero, so Truncate(-2.7) is -2.
+
 ## Syntax
 
 ```freebasic

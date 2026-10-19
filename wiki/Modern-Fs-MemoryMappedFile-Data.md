@@ -2,7 +2,7 @@
 
 # MemoryMappedFile.Data
 
-ubyte ptr
+Returns a pointer to the mapped bytes, valid until Close.
 
 ## Syntax
 

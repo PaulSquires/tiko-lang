@@ -2,7 +2,7 @@
 
 # MKD
 
-Does a binary copy from a Double variable to a String, setting its length to 8 bytes
+Copies a Double's bytes into an 8-byte string.
 
 ## Syntax
 

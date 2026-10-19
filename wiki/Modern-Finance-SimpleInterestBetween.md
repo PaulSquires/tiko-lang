@@ -2,6 +2,8 @@
 
 # SimpleInterestBetween
 
+Returns simple interest between two dates on a day-count basis you choose.
+
 ## Syntax
 
 ```freebasic

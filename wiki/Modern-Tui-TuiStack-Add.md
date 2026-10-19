@@ -2,6 +2,8 @@
 
 # TuiStack.Add
 
+Adds a child widget made with New and the constraint that sizes it.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # LCM
 
+Returns the least common multiple of two whole numbers, or 0 if either is 0.
+
 ## Syntax
 
 ```freebasic

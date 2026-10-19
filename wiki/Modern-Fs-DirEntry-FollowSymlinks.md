@@ -2,6 +2,8 @@
 
 # DirEntry.FollowSymlinks
 
+Chooses whether a walk enters linked folders; false by default, so it cannot loop.
+
 ## Syntax
 
 ```freebasic

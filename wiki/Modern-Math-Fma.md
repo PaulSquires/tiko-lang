@@ -2,7 +2,7 @@
 
 # Fma
 
-Fused multiply-add: `x * y + z`, rounded **once**.
+Returns x * y + z with a single rounding at the end.
 
 ## Syntax
 

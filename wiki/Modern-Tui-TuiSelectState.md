@@ -2,6 +2,8 @@
 
 # TuiSelectState
 
+Holds a dropdown's chosen option, whether it is open, and the highlighted entry.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # SortinoRatio
 
+Returns the annualized return above a target per unit of downside deviation.
+
 ## Syntax
 
 ```freebasic

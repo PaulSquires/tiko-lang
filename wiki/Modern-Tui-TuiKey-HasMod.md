@@ -2,6 +2,8 @@
 
 # TuiKey.HasMod
 
+Returns true if the given modifier, Shift, Alt or Ctrl, was held.
+
 ## Syntax
 
 ```freebasic

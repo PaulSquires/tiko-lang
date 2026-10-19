@@ -2,7 +2,7 @@
 
 # CopyDir
 
-FsResultI64, the number created
+Copies a folder and everything in it; returns how many entries it created.
 
 ## Syntax
 

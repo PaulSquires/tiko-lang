@@ -2,7 +2,7 @@
 
 # PathIsCaseSensitive
 
-compile-time, per platform -- NOT per volume
+Returns true if paths compare case-sensitively on this platform: on Linux, not Windows.
 
 ## Syntax
 

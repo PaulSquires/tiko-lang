@@ -2,7 +2,7 @@
 
 # SendChan
 
-A send-only view of a channel.
+Holds a send-only view of a channel, for a procedure that only produces.
 
 ## Syntax
 

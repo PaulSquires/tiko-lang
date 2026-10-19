@@ -2,6 +2,8 @@
 
 # TuiStylePatch
 
+Returns a partial style that sets only the parts you name, such as just bold.
+
 ## Syntax
 
 ```freebasic

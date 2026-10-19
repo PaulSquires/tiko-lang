@@ -2,7 +2,7 @@
 
 # Stream.Flush
 
-FsResultBool
+Passes any buffered bytes on to where they are going.
 
 ## Syntax
 

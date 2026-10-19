@@ -2,6 +2,8 @@
 
 # TuiTextAreaState
 
+Holds a text area's lines, cursor line and column, and scroll position.
+
 ## Syntax
 
 ```freebasic

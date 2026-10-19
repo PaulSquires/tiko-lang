@@ -2,6 +2,8 @@
 
 # WriteAtomic
 
+Replaces a file so a reader sees the old or the new contents, never a half-written file.
+
 ## Syntax
 
 ```freebasic

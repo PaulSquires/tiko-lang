@@ -2,6 +2,8 @@
 
 # MemoryStream.Clear
 
+Empties the stream; its length and position become 0.
+
 ## Syntax
 
 ```freebasic

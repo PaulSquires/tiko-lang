@@ -2,6 +2,8 @@
 
 # TuiTable
 
+Draws a scrolling table with headers, its columns sized like a layout.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # ScreenCopy
 
-Copies the contents of a graphical page into another graphical page
+Copies one graphics page onto another, by default the work page onto the shown one.
 
 ## Syntax
 

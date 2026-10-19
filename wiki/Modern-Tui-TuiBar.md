@@ -2,6 +2,8 @@
 
 # TuiBar
 
+Holds one bar of a bar chart: its label, value and colour.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # FileInfo.HasCreated
 
+Returns true if the platform records creation times, so Created means something.
+
 ## Syntax
 
 ```freebasic

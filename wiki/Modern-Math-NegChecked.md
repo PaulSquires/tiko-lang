@@ -2,7 +2,7 @@
 
 # NegChecked
 
-The negation, or **nothing** for the one input that has none.
+Negates an integer, returning an empty Optional for the most negative value.
 
 ## Syntax
 

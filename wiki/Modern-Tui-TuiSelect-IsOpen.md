@@ -2,6 +2,8 @@
 
 # TuiSelect.IsOpen
 
+Returns true if the dropdown's list is showing.
+
 ## Syntax
 
 ```freebasic

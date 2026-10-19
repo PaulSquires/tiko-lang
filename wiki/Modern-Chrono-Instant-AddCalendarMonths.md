@@ -2,6 +2,8 @@
 
 # Instant.AddCalendarMonths
 
+Returns the same clock time some months later, clamping the day to the month's end.
+
 ## Syntax
 
 ```freebasic

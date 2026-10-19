@@ -158,15 +158,74 @@ src/tests/generics/container-linkedlist.bas is exhaustive: every member, empty /
 
 The copy and assignment section is load-bearing rather than a formality: it checks independence in BOTH directions after copy construction and after assignment, self-assignment, assigning an empty list over a full one, and copying an empty list.
 
+<!-- finder:start -->
+
 ## API reference
 
-One page per entry, 13 in all:
+Every entry, grouped by task. [Collections](Functions-Collections) lists them beside the rest of the area.
 
-|   |   |   |   |   |
-|---|---|---|---|---|
-| [Back](Modern-LinkedList-Back) | [Front](Modern-LinkedList-Front) | [LinkedList](Modern-LinkedList-LinkedList) | [PopBack](Modern-LinkedList-PopBack) | [PushFront](Modern-LinkedList-PushFront) |
-| [Clear](Modern-LinkedList-Clear) | [GetIterator](Modern-LinkedList-GetIterator) | [LinkedListIterator](Modern-LinkedList-LinkedListIterator) | [PopFront](Modern-LinkedList-PopFront) | [SortList](Modern-LinkedList-SortList) |
-| [Count](Modern-LinkedList-Count) | [IsEmpty](Modern-LinkedList-IsEmpty) | [LinkedNode](Modern-LinkedList-LinkedNode) | [PushBack](Modern-LinkedList-PushBack) | [SortListBy](Modern-LinkedList-SortListBy) |
+### Choose a container
+
+| Function | What it does | From |
+|---|---|---|
+| [LinkedList](Modern-LinkedList-LinkedList) | Holds a chain of values that is quick to add to and remove from at either end. | `std/containers` |
+| [Deque](Category-Deque) | Holds a sequence that is quick to change at both ends and can be read by index. | `std/containers` |
+
+### Sort an Array or a LinkedList
+
+| Function | What it does | From |
+|---|---|---|
+| [SortList](Modern-LinkedList-SortList) (LinkedList) | Sorts a LinkedList in ascending order by relinking nodes; equal elements keep order. | `std/containers` |
+| [SortListBy](Modern-LinkedList-SortListBy) (LinkedList) | Sorts a LinkedList by your comparer, relinking nodes; equal elements keep order. | `std/containers` |
+
+### Queues and stacks: LinkedList and Deque
+
+| Function | What it does | From |
+|---|---|---|
+| [LinkedList.PushBack](Modern-LinkedList-PushBack) | Adds a value at the back of the list. | `std/containers` |
+| [LinkedList.PushFront](Modern-LinkedList-PushFront) | Adds a value at the front of the list. | `std/containers` |
+| [LinkedList.PopFront](Modern-LinkedList-PopFront) | Removes and returns the front value, or a default value if the list is empty. | `std/containers` |
+| [LinkedList.PopBack](Modern-LinkedList-PopBack) | Removes and returns the back value, or a default value if the list is empty. | `std/containers` |
+| [LinkedList.Front](Modern-LinkedList-Front) | Returns a reference to the front value without removing it. | `std/containers` |
+| [LinkedList.Back](Modern-LinkedList-Back) | Returns a reference to the back value without removing it. | `std/containers` |
+| [LinkedList.Count](Modern-LinkedList-Count) | Returns the number of values in the list. | `std/containers` |
+| [LinkedList.IsEmpty](Modern-LinkedList-IsEmpty) | Returns true if the list has no values. | `std/containers` |
+| [LinkedList.Clear](Modern-LinkedList-Clear) | Removes every value and frees its nodes. | `std/containers` |
+| [Deque.PushBack](Category-Deque#members) | Adds a value at the back of the deque. | `std/containers` |
+| [Deque.PushFront](Category-Deque#members) | Adds a value at the front of the deque. | `std/containers` |
+| [Deque.PopFront](Category-Deque#members) | Removes and returns the front value, or a default value if the deque is empty. | `std/containers` |
+| [Deque.PopBack](Category-Deque#members) | Removes and returns the back value, or a default value if the deque is empty. | `std/containers` |
+| [Deque.TryPopFront](Category-Deque#members) | Removes the front value into a variable; returns false if the deque is empty. | `std/containers` |
+| [Deque.TryPopBack](Category-Deque#members) | Removes the back value into a variable; returns false if the deque is empty. | `std/containers` |
+| [Deque.Front](Category-Deque#members) | Returns a reference to the front value; the deque must not be empty. | `std/containers` |
+| [Deque.Back](Category-Deque#members) | Returns a reference to the back value; the deque must not be empty. | `std/containers` |
+| [Deque.At](Category-Deque#members) | Returns a reference to the value at a position, 0 being the front, like d[ i ]. | `std/containers` |
+| [Deque.Count](Category-Deque#members) | Returns the number of values in the deque. | `std/containers` |
+| [Deque.IsEmpty](Category-Deque#members) | Returns true if the deque has no values. | `std/containers` |
+| [Deque.Clear](Category-Deque#members) | Removes every value but keeps the allocated room. | `std/containers` |
+
+### Walk a container step by step
+
+| Function | What it does | From |
+|---|---|---|
+| [LinkedList.GetIterator](Modern-LinkedList-GetIterator) | Returns an iterator over the values that stays valid when others are added. | `std/containers` |
+| [LinkedListIterator](Modern-LinkedList-LinkedListIterator) | Holds a position in a LinkedList; it survives changes elsewhere in the list. | `std/containers` |
+| [Deque.GetIterator](Category-Deque#members) | Returns an iterator that walks the deque from front to back. | `std/containers` |
+
+### Reserve room ahead of time
+
+| Function | What it does | From |
+|---|---|---|
+| [Deque.Capacity](Category-Deque#members) | Returns how many values fit before the deque has to grow, always a power of two. | `std/containers` |
+| [Deque.Reserve](Category-Deque#members) | Makes room for at least n values without adding any. | `std/containers` |
+
+### Check a container's internals
+
+| Function | What it does | From |
+|---|---|---|
+| [LinkedNode](Modern-LinkedList-LinkedNode) | Holds one LinkedList value and the links to its neighbours; normal code never uses it. | `std/containers` |
+
+<!-- finder:end -->
 
 ---
 

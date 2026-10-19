@@ -201,18 +201,69 @@ Under tiko: both files build and run with exit 0 and print `container-orderedmap
 
 See also: [Map](Category-Map) (containers.Map( of TK, TV )), [Set](Category-Set) (containers.Set( of T )), [Sorting](Category-Sorting) (sorting an Array or a LinkedList instead).
 
+<!-- finder:start -->
+
 ## API reference
 
-One page per entry, 17 in all:
+Every entry, grouped by task. [Collections](Functions-Collections) lists them beside the rest of the area.
 
-|   |   |   |   |
-|---|---|---|---|
-| [OrderedMap](Modern-OrderedMap-OrderedMap) | [OrderedMap.GetIterator](Modern-OrderedMap-GetIterator) | [OrderedMap.TryCeiling](Modern-OrderedMap-TryCeiling) | [OrderedMapIterator](Modern-OrderedMap-OrderedMapIterator) |
-| [OrderedMap.Add](Modern-OrderedMap-Add) | [OrderedMap.IsEmpty](Modern-OrderedMap-IsEmpty) | [OrderedMap.TryFirst](Modern-OrderedMap-TryFirst) | [OrderedMapPairIter](Modern-OrderedMap-OrderedMapPairIter) |
-| [OrderedMap.BlackHeight](Modern-OrderedMap-BlackHeight) | [OrderedMap.Keys](Modern-OrderedMap-Keys) | [OrderedMap.TryFloor](Modern-OrderedMap-TryFloor) | [OrderedMapPairView](Modern-OrderedMap-OrderedMapPairView) |
-| [OrderedMap.Clear](Modern-OrderedMap-Clear) | [OrderedMap.Pairs](Modern-OrderedMap-Pairs) | [OrderedMap.TryGet](Modern-OrderedMap-TryGet) |  |
-| [OrderedMap.Contains](Modern-OrderedMap-Contains) | [OrderedMap.Put](Modern-OrderedMap-Put) | [OrderedMap.TryLast](Modern-OrderedMap-TryLast) |  |
-| [OrderedMap.Count](Modern-OrderedMap-Count) | [OrderedMap.Remove](Modern-OrderedMap-Remove) | [OrderedMap.Values](Modern-OrderedMap-Values) |  |
+### Choose a container
+
+| Function | What it does | From |
+|---|---|---|
+| [OrderedMap](Modern-OrderedMap-OrderedMap) | Holds key and value pairs kept sorted by key. | `std/containers` |
+
+### Map: add and change
+
+| Function | What it does | From |
+|---|---|---|
+| [OrderedMap.Put](Modern-OrderedMap-Put) | Stores a value under a key, replacing any old one; returns true if the key was new. | `std/containers` |
+| [OrderedMap.Add](Modern-OrderedMap-Add) | Adds a key and value if the key is new; an existing value is left alone. | `std/containers` |
+| [OrderedMap.Remove](Modern-OrderedMap-Remove) | Removes a key and its value; returns true if the key was there. | `std/containers` |
+| [OrderedMap.Clear](Modern-OrderedMap-Clear) | Removes every entry. | `std/containers` |
+
+### Map: look up
+
+| Function | What it does | From |
+|---|---|---|
+| [OrderedMap.TryGet](Modern-OrderedMap-TryGet) | Copies the value for a key into a variable; returns false, adding nothing, if absent. | `std/containers` |
+| [OrderedMap.Contains](Modern-OrderedMap-Contains) | Returns true if the key is present, without adding it. | `std/containers` |
+| [OrderedMap.Count](Modern-OrderedMap-Count) | Returns the number of entries; reading an absent key with m[ k ] adds one. | `std/containers` |
+| [OrderedMap.IsEmpty](Modern-OrderedMap-IsEmpty) | Returns true if the map has no entries. | `std/containers` |
+
+### Map: list keys and values
+
+| Function | What it does | From |
+|---|---|---|
+| [OrderedMap.Keys](Modern-OrderedMap-Keys) | Returns a copy of all the keys as an Array, already sorted. | `std/containers` |
+| [OrderedMap.Values](Modern-OrderedMap-Values) | Returns a copy of all the values as an Array, in the order of their keys. | `std/containers` |
+| [OrderedMap.Pairs](Modern-OrderedMap-Pairs) | Returns a view that lets for each (k, v) walk keys and values in key order. | `std/containers` |
+
+### Find the first, last or nearest key
+
+| Function | What it does | From |
+|---|---|---|
+| [OrderedMap.TryFirst](Modern-OrderedMap-TryFirst) | Copies the smallest key and its value into variables; returns false if the map is empty. | `std/containers` |
+| [OrderedMap.TryLast](Modern-OrderedMap-TryLast) | Copies the largest key and its value into variables; returns false if the map is empty. | `std/containers` |
+| [OrderedMap.TryFloor](Modern-OrderedMap-TryFloor) | Finds the largest key at or below a given one; returns false if there is none. | `std/containers` |
+| [OrderedMap.TryCeiling](Modern-OrderedMap-TryCeiling) | Finds the smallest key at or above a given one; returns false if there is none. | `std/containers` |
+
+### Walk a container step by step
+
+| Function | What it does | From |
+|---|---|---|
+| [OrderedMap.GetIterator](Modern-OrderedMap-GetIterator) | Returns an iterator over the entries in ascending key order. | `std/containers` |
+| [OrderedMapIterator](Modern-OrderedMap-OrderedMapIterator) | Holds a position in an OrderedMap, stepping in ascending key order. | `std/containers` |
+| [OrderedMapPairView](Modern-OrderedMap-OrderedMapPairView) | Holds the view that OrderedMap.Pairs returns, for for each (k, v) to walk. | `std/containers` |
+| [OrderedMapPairIter](Modern-OrderedMap-OrderedMapPairIter) | Holds a position in OrderedMap.Pairs, giving key and value as a tuple in key order. | `std/containers` |
+
+### Check a container's internals
+
+| Function | What it does | From |
+|---|---|---|
+| [OrderedMap.BlackHeight](Modern-OrderedMap-BlackHeight) | Returns the tree's black height, or -1 if its balancing rules are broken. | `std/containers` |
+
+<!-- finder:end -->
 
 ---
 

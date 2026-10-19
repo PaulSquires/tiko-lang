@@ -2,7 +2,7 @@
 
 # IsPow2
 
-Whether the value is a power of two.
+Returns true if the value is a power of two; zero is not one.
 
 ## Syntax
 

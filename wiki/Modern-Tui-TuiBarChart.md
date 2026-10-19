@@ -2,6 +2,8 @@
 
 # TuiBarChart
 
+Draws labelled bars, vertical or horizontal, scaled to the largest value.
+
 ## Syntax
 
 ```freebasic

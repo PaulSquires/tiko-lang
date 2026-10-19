@@ -2,7 +2,7 @@
 
 # Randomize
 
-Seeds the random number generator
+Seeds the random number generator that Rnd uses, and can choose its algorithm.
 
 ## Syntax
 

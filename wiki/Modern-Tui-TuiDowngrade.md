@@ -2,6 +2,8 @@
 
 # TuiDowngrade
 
+Returns the colour that a terminal with fewer colours would show instead.
+
 ## Syntax
 
 ```freebasic

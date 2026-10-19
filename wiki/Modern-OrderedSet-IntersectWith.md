@@ -2,7 +2,7 @@
 
 # OrderedSet.IntersectWith
 
-O(n log m)
+Keeps only the values that are also in another set.
 
 ## Syntax
 

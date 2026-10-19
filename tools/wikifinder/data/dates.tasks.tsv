@@ -1,0 +1,30 @@
+# Dates and times: task headings in display order, pages to skip, see-also links, extra from values.
+#   task    <task id>  <heading>
+#   ignore  <page>  <reason>
+#   seealso <page>  <label>
+#   from    <value>  import|include|builtin  <module or ->
+task	now	Get the current date and time
+task	timing	Time how long something takes
+task	make	Make a date, a time or a date-time
+task	parts	Read the year, month, day and time
+task	add	Add days, months and years
+task	compare	Compare dates and count the days between
+task	totext	Turn dates and durations into text
+task	fromtext	Read dates and durations from text
+task	week	Weekdays, weeks and quarters
+task	names	Month and weekday names
+task	period	Jump to the start or end of a day, week, month or year
+task	calendar	Leap years and month lengths
+task	spanmake	TimeSpan: make a duration
+task	spanread	TimeSpan: totals and parts
+task	spanmath	TimeSpan: arithmetic and comparison
+task	offset	Work with UTC and time-zone offsets
+task	locale	Show a date the way the user's machine writes it
+task	convert	Convert to Unix time, FILETIME and other numbers
+task	valid	Check a value is valid, and the range limits
+task	setclock	Set the system clock
+ignore	Date-and-Time-Functions	an overview page, not a function
+seealso	Category-Date-and-Time-Chrono	Date and Time (Chrono) guide
+seealso	Category-Date-and-Time-Functions	Date and Time Functions
+seealso	Date-and-Time-Functions	Date and time functions overview
+from	datetime.bi	include	-

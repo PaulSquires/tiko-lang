@@ -2,7 +2,7 @@
 
 # Name
 
-Renames a file on disk
+Renames or moves a file or folder; returns 0 on success.
 
 ## Syntax
 

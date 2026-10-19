@@ -2,6 +2,8 @@
 
 # TrackingError
 
+Returns the annualized standard deviation of the asset's return less the benchmark's.
+
 ## Syntax
 
 ```freebasic

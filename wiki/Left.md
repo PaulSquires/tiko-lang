@@ -2,7 +2,7 @@
 
 # Left
 
-Returns the leftmost substring of a string
+Returns the first n characters.
 
 ## Syntax
 

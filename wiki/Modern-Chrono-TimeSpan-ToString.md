@@ -2,6 +2,8 @@
 
 # TimeSpan.ToString
 
+Returns the duration as ISO 8601 text, the same as ToIsoString.
+
 ## Syntax
 
 ```freebasic

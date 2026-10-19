@@ -2,7 +2,7 @@
 
 # Erfn
 
-Error reporting function
+Returns a pointer to the name of the failing procedure; null unless built with -exx.
 
 ## Syntax
 

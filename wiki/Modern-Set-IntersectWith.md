@@ -2,7 +2,7 @@
 
 # IntersectWith
 
-Keeps only the elements that are also in `other`.
+Keeps only the values that are also in another set.
 
 ## Syntax
 

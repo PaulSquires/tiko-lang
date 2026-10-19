@@ -2,6 +2,8 @@
 
 # RemoveFile
 
+Deletes a file; fails if it is not there.
+
 ## Syntax
 
 ```freebasic

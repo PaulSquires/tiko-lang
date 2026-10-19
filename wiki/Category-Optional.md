@@ -231,11 +231,24 @@ src/tests/generics/optional-empty-value.bas is a COMPILE_AND_RUN_FAIL test pinni
 
 src/tests/generics/fail-optional-nodefaultctor.bas pins the diagnostic for a T with no default constructor.
 
+<!-- finder:start -->
+
 ## API reference
 
-One page per entry, 6 in all:
+Every entry, grouped by task. [Errors and missing values](Functions-Errors) lists them beside the rest of the area.
 
-[Clear](Modern-Optional-Clear) · [HasValue](Modern-Optional-HasValue) · [None](Modern-Optional-None) · [Some](Modern-Optional-Some) · [Value](Modern-Optional-Value) · [ValueOr](Modern-Optional-ValueOr)
+### Return a value that may be missing
+
+| Function | What it does | From |
+|---|---|---|
+| [Some](Modern-Optional-Some) | Returns an Optional holding the value, its type taken from the argument. | `std/outcome` |
+| [None](Modern-Optional-None) | Returns an empty Optional of the type you write out. | `std/outcome` |
+| [Optional.HasValue](Modern-Optional-HasValue) | Returns true if the Optional holds a value. | `std/outcome` |
+| [Optional.Value](Modern-Optional-Value) | Returns the value by reference; raises an error if the Optional is empty. | `std/outcome` |
+| [Optional.ValueOr](Modern-Optional-ValueOr) | Returns the value, or the fallback you pass if the Optional is empty. | `std/outcome` |
+| [Optional.Clear](Modern-Optional-Clear) | Empties the Optional, releasing whatever its value held. | `std/outcome` |
+
+<!-- finder:end -->
 
 ---
 

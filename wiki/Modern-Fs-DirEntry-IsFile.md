@@ -2,6 +2,8 @@
 
 # DirEntry.IsFile
 
+Returns true if the entry is a file; a link reports as a link, not as its target.
+
 ## Syntax
 
 ```freebasic

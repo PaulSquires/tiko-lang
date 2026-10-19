@@ -2,6 +2,8 @@
 
 # TimeSpan.Subtract
 
+Returns the difference of two durations, which may be negative.
+
 ## Syntax
 
 ```freebasic

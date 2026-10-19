@@ -2,6 +2,8 @@
 
 # TuiRect
 
+Holds a rectangle of cells: x, y, width and height, counted from 0.
+
 ## Syntax
 
 ```freebasic

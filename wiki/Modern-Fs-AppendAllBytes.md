@@ -2,7 +2,7 @@
 
 # AppendAllBytes
 
-FsResultBool
+Adds an Array of bytes to the end of a file, creating the file if it is not there.
 
 ## Syntax
 

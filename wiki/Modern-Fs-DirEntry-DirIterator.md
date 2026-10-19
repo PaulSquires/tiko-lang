@@ -2,6 +2,8 @@
 
 # DirEntry.DirIterator
 
+Holds the iterator ReadDir hands out, for stepping through a folder without for each.
+
 ## Syntax
 
 ```freebasic

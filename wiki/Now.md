@@ -2,7 +2,7 @@
 
 # Now
 
-Gets the current system time as a Date Serial
+Returns the current local date and time as a date serial.
 
 ## Syntax
 

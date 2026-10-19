@@ -2,6 +2,8 @@
 
 # TuiPad
 
+Returns a rectangle shrunk by a margin.
+
 ## Syntax
 
 ```freebasic

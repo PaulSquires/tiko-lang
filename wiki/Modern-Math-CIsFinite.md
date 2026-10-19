@@ -2,7 +2,7 @@
 
 # CIsFinite
 
-True when both components are finite.
+Returns true if both parts of a complex number are finite.
 
 ## Syntax
 

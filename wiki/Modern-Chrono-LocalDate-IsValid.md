@@ -2,6 +2,8 @@
 
 # LocalDate.IsValid
 
+Returns true if the date exists and is in range.
+
 ## Syntax
 
 ```freebasic

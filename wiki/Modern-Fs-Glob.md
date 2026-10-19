@@ -2,7 +2,7 @@
 
 # Glob
 
-FsResultLong; fills Array( of ustring )
+Fills an Array with the paths that match a wildcard pattern; returns the count.
 
 ## Syntax
 

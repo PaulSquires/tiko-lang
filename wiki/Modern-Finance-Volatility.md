@@ -2,6 +2,8 @@
 
 # Volatility
 
+Returns the sample standard deviation of returns, annualized.
+
 ## Syntax
 
 ```freebasic

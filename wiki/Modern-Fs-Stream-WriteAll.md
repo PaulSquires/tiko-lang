@@ -2,7 +2,7 @@
 
 # Stream.WriteAll
 
-FsResultBool
+Writes all n bytes, calling Write as often as it takes.
 
 ## Syntax
 

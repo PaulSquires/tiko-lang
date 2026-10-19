@@ -2,7 +2,7 @@
 
 # LengthSquared
 
-The squared length of a vector.
+Returns the squared length of a vector, the cheap way to compare lengths.
 
 ## Syntax
 

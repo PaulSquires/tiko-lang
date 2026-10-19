@@ -2,7 +2,7 @@
 
 # PMap
 
-Maps coordinates between view and physical mapping.
+Converts a coordinate between the Window system and physical pixels.
 
 ## Syntax
 

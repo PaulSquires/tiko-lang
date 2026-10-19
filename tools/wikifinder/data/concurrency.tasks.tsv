@@ -1,0 +1,23 @@
+# Concurrency: task headings in display order, pages to skip, see-also links.
+#   task    <task id>  <heading>
+#   ignore  <page>  <reason>
+#   seealso <page>  <label>
+#   from    <value>  builtin|import|include  <module or ->
+task	spawn	Start a goroutine
+task	channel	Make a channel
+task	sendrecv	Send and receive values
+task	close	Close and drain a channel
+task	direction	Hand out one end of a channel
+task	waitgroup	Wait for a group of goroutines
+task	cancel	Ask goroutines to stop
+task	sched	Check on the scheduler
+task	thread	Start and wait for threads
+task	mutex	Lock shared data with a mutex
+task	cond	Wait for a signal with a condition variable
+ignore	Threading-Support-Functions	an overview page, not a function
+ignore	Modern-Goroutines-Tutorial	a tutorial, listed under See Also
+ignore	Threadcall	not available in tiko: it compiles with warning TKO0797 and never runs the procedure
+seealso	Category-Goroutines-and-Channels	Goroutines and channels guide
+seealso	Modern-Goroutines-Tutorial	Goroutines tutorial
+seealso	Category-Threading-Support-Functions	Threading support functions
+from	fbthread.bi	include	-

@@ -2,6 +2,8 @@
 
 # Instant.DaysInMonth
 
+Returns the number of days in a month of a given year.
+
 ## Syntax
 
 ```freebasic

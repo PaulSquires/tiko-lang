@@ -2,6 +2,8 @@
 
 # RatePerPeriod
 
+Returns a quoted annual rate divided by its compounding periods, exactly.
+
 ## Syntax
 
 ```freebasic

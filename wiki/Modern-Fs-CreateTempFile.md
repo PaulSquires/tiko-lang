@@ -2,7 +2,7 @@
 
 # CreateTempFile
 
-CREATES it and returns the path
+Creates a uniquely named temporary file and returns its path; it is not deleted for you.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # BitReverse
 
-Reverses the order of the bits.
+Reverses the order of all the bits in the value's type.
 
 ## Syntax
 

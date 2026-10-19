@@ -2,7 +2,7 @@
 
 # ReadAllText
 
-FsResultUStr
+Reads a whole file as UTF-8 text into a string, or fails if it cannot be read.
 
 ## Syntax
 

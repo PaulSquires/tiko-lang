@@ -2,6 +2,8 @@
 
 # TuiTerminal.Pending
 
+Counts the bytes buffered and not yet sent.
+
 ## Syntax
 
 ```freebasic

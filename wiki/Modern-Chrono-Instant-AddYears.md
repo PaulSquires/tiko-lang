@@ -2,6 +2,8 @@
 
 # Instant.AddYears
 
+Returns the date-time moved by whole years; 29 February becomes the 28th if needed.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # Reset
 
-Closes all open files, or resets standard I/O handles.
+Closes every open file, or resets a redirected standard input or output stream.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # NextBooleanP
 
+Returns true with probability p, from 0 for never to 1 for always.
+
 ## Syntax
 
 ```freebasic

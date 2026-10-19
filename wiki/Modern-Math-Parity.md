@@ -2,7 +2,7 @@
 
 # Parity
 
-1 if an odd number of bits are set, 0 if even.
+Returns 1 if an odd number of bits are set, or 0 if an even number are.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # Input (File Mode)
 
-Specifies text file to be opened for input mode
+Opens a text file for reading with Open; the file must already exist.
 
 ## Syntax
 

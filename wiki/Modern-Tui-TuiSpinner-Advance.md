@@ -2,6 +2,8 @@
 
 # TuiSpinner.Advance
 
+Moves the spinner to its next frame, wrapping at the end.
+
 ## Syntax
 
 ```freebasic

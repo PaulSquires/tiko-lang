@@ -2,6 +2,8 @@
 
 # LocalDate.ToString
 
+Returns the date as ISO 8601 text, the same as ToIsoString.
+
 ## Syntax
 
 ```freebasic

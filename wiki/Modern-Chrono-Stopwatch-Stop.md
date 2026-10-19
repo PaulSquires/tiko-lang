@@ -2,6 +2,8 @@
 
 # Stopwatch.Stop_
 
+Stops the stopwatch, freezing the elapsed time until it starts again.
+
 ## Syntax
 
 ```freebasic

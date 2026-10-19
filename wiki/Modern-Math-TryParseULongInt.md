@@ -2,6 +2,8 @@
 
 # TryParseULongInt
 
+Parses a whole string as a ULongInt, returning an empty Optional if invalid or too big.
+
 ## Syntax
 
 ```freebasic

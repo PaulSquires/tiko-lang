@@ -2,7 +2,7 @@
 
 # FsChange.Kind
 
-FsChangeKind
+Returns what happened: created, deleted, modified, renamed, or overflow.
 
 ## Syntax
 

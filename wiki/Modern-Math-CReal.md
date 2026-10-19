@@ -2,7 +2,7 @@
 
 # CReal
 
-The real part.
+Returns the real part of a complex number.
 
 ## Syntax
 

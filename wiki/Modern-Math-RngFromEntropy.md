@@ -2,6 +2,8 @@
 
 # RngFromEntropy
 
+Creates a random generator seeded by the operating system, different on every run.
+
 ## Syntax
 
 ```freebasic

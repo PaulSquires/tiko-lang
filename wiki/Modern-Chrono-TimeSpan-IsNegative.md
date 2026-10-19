@@ -2,6 +2,8 @@
 
 # TimeSpan.IsNegative
 
+Returns true if the duration is below zero.
+
 ## Syntax
 
 ```freebasic

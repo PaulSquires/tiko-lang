@@ -2,7 +2,7 @@
 
 # TryReceive
 
-Receives a value if one is available immediately; never blocks.
+Receives a value only if one is ready; returns false if empty or closed.
 
 ## Syntax
 

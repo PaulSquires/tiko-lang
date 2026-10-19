@@ -2,6 +2,8 @@
 
 # GetPosixMode
 
+Returns a file's Linux permission bits; fails as unsupported on Windows.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # Instant.EndOfMonth
 
+Returns the last tick of the last day of the month.
+
 ## Syntax
 
 ```freebasic

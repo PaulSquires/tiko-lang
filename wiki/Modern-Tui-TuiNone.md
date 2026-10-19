@@ -2,6 +2,8 @@
 
 # TuiNone
 
+Returns a command that does nothing, for events your app ignores.
+
 ## Syntax
 
 ```freebasic

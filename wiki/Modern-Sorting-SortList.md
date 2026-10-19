@@ -2,7 +2,7 @@
 
 # SortList
 
-O(n log n) worst   O(1) extra, STABLE
+Sorts a LinkedList in ascending order by relinking nodes; equal elements keep order.
 
 ## Syntax
 

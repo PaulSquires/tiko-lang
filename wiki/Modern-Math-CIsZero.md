@@ -2,7 +2,7 @@
 
 # CIsZero
 
-True when both components are zero.
+Returns true if both parts of a complex number are zero.
 
 ## Syntax
 

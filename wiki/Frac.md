@@ -2,7 +2,7 @@
 
 # Frac
 
-Returns the decimal part of a number
+Returns the fractional part, keeping the sign, so Frac(-1.75) is -0.75.
 
 ## Syntax
 

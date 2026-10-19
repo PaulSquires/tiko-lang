@@ -2,6 +2,8 @@
 
 # LocalTime.Hour
 
+Returns the hour, 0 to 23.
+
 ## Syntax
 
 ```freebasic

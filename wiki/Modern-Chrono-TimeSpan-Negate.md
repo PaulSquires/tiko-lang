@@ -2,6 +2,8 @@
 
 # TimeSpan.Negate
 
+Returns the duration with its sign flipped.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # TuiFocusRing.Current
 
+Returns the focused widget, or no value if the ring is empty.
+
 ## Syntax
 
 ```freebasic

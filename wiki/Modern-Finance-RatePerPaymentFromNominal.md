@@ -2,6 +2,8 @@
 
 # RatePerPaymentFromNominal
 
+Returns the rate per payment when compounding and payment frequency differ.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # Sin
 
-Returns the sine of an angle
+Returns the sine of an angle in radians.
 
 ## Syntax
 

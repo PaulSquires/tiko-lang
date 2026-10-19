@@ -2,7 +2,7 @@
 
 # ValULng
 
-Converts a string to a unsigned 64bit integer
+Converts text to an unsigned 64-bit integer.
 
 ## Syntax
 

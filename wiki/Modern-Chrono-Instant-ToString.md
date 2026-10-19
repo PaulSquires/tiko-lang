@@ -2,6 +2,8 @@
 
 # Instant.ToString
 
+Returns ISO 8601 text, or the date-time laid out by a pattern such as "yyyy-MM-dd".
+
 ## Syntax
 
 ```freebasic

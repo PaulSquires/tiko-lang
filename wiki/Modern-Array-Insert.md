@@ -2,7 +2,7 @@
 
 # Insert
 
-O(n)
+Inserts a value at a position, moving the later elements up one place.
 
 ## Syntax
 

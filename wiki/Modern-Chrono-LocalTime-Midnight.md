@@ -2,6 +2,8 @@
 
 # LocalTime.Midnight
 
+Returns the time of day 00:00:00.
+
 ## Syntax
 
 ```freebasic

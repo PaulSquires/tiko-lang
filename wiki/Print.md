@@ -2,7 +2,7 @@
 
 # Print | ?
 
-Writes text to the screen
+Writes values to the console, then a new line unless it ends with a comma or semicolon.
 
 ## Syntax
 

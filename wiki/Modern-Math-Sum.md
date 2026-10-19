@@ -2,7 +2,7 @@
 
 # Sum
 
-compensated -- Neumaier
+Adds up an array with compensated summation, so small values are not lost.
 
 ## Syntax
 

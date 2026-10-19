@@ -13,6 +13,7 @@ tiko is a compiled, statically typed programming language for building fast, sel
 | [What Is tiko](What-Is-tiko-lang) | What the language is, what it targets, and what it does not do |
 | [Quick Start](Quick-Start) | Build a toolchain and compile a program |
 | [Feature Index](Feature-Index) | Every language feature and library, one line each, with its reference page |
+| [Function Finder](Function-Finder) | Every function, grouped by what you want to do, with one line on what each one does |
 | [FAQ](tiko-lang-FAQ) | Short answers to the questions that come up first |
 
 ## Tutorials

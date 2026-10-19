@@ -2,6 +2,8 @@
 
 # TuiMenuBar.IsOpen
 
+Returns true if one of the menus is dropped down.
+
 ## Syntax
 
 ```freebasic

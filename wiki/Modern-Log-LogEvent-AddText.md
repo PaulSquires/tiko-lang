@@ -2,6 +2,8 @@
 
 # LogEvent.AddText
 
+Adds a named text field to the record and returns the record for the next call.
+
 ## Syntax
 
 ```freebasic

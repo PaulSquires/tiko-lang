@@ -2,7 +2,7 @@
 
 # Output
 
-Specifies text file to be opened for output mode
+Opens a text file for writing with Open, creating it or emptying it first.
 
 ## Syntax
 

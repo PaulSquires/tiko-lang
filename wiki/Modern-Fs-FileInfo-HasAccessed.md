@@ -2,6 +2,8 @@
 
 # FileInfo.HasAccessed
 
+Returns true if the platform records access times, so Accessed means something.
+
 ## Syntax
 
 ```freebasic

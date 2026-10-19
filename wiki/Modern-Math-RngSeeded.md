@@ -2,7 +2,7 @@
 
 # RngSeeded
 
-A generator seeded with a value you choose, so the sequence repeats.
+Creates a random generator from a seed, so the same seed repeats the same sequence.
 
 ## Syntax
 

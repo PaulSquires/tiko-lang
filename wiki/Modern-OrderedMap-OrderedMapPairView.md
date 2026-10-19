@@ -2,7 +2,7 @@
 
 # OrderedMapPairView
 
-The iterator type behind `OrderedMap.Pairs( )`.
+Holds the view that OrderedMap.Pairs returns, for for each (k, v) to walk.
 
 ## Syntax
 

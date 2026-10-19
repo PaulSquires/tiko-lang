@@ -2,6 +2,8 @@
 
 # DayCount
 
+Lists the six day-count bases, such as actual/365 fixed and 30/360 US.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # AbsSaturating
 
-The absolute value, clamping the one input that has none.
+Returns the absolute value; the most negative value becomes the maximum instead.
 
 ## Syntax
 

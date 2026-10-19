@@ -2,7 +2,7 @@
 
 # FileWatcher.Poll
 
-FsResultLong -- the count
+Fills an Array with the changes seen since the last call, waiting up to a timeout.
 
 ## Syntax
 

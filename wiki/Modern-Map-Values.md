@@ -2,6 +2,8 @@
 
 # Values
 
+Returns a copy of all the values as an Array, in no particular order.
+
 ## Syntax
 
 ```freebasic

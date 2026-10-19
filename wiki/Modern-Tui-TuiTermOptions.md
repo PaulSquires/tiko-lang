@@ -2,6 +2,8 @@
 
 # TuiTermOptions
 
+Holds which terminal features to take: alternate screen, raw keys, mouse and more.
+
 ## Syntax
 
 ```freebasic

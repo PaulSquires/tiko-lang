@@ -2,7 +2,7 @@
 
 # DatePart
 
-Gets an interval from a date
+Returns one part of a date serial, such as its year, quarter, week or hour.
 
 ## Syntax
 

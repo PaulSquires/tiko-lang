@@ -311,22 +311,113 @@ On Linux it asks for `LC_MONETARY` alone. Widening it to `LC_ALL` would move `LC
 
 The thirty layout combinations behind [MoneyCompose](Modern-String-MoneyCompose) were generated from glibc, not transcribed: thirty synthetic locales built with `localedef` and formatted with `strfmon(3)`, asserted one cell at a time.
 
+<!-- finder:start -->
+
 ## API reference
 
-One page per entry, 46 in all:
+Every entry, grouped by task. [Text](Functions-Text) lists them beside the rest of the area.
 
-|   |   |   |   |   |
-|---|---|---|---|---|
-| [Between](Modern-String-Between) | [InstrChars](Modern-String-InstrChars) | [Remove](Modern-String-Remove) | [Split](Modern-String-Split) | [Wrap](Modern-String-Wrap) |
-| [ClipLeft](Modern-String-ClipLeft) | [IsBlank](Modern-String-IsBlank) | [RemoveBetween](Modern-String-RemoveBetween) | [SplitChars](Modern-String-SplitChars) | [MoneyCompose](Modern-String-MoneyCompose) |
-| [ClipRight](Modern-String-ClipRight) | [IsNumeric](Modern-String-IsNumeric) | [RemoveChars](Modern-String-RemoveChars) | [SplitCsv](Modern-String-SplitCsv) | [MoneyFormat](Modern-String-MoneyFormat) |
-| [Contains](Modern-String-Contains) | [Join](Modern-String-Join) | [Repeat](Modern-String-Repeat) | [SplitCsvRow](Modern-String-SplitCsvRow) | [MoneyLayoutFromICurrency](Modern-String-MoneyLayoutFromICurrency) |
-| [DeleteAt](Modern-String-DeleteAt) | [MCase](Modern-String-MCase) | [Replace](Modern-String-Replace) | [StartsWith](Modern-String-StartsWith) | [MoneyLayoutFromINegCurr](Modern-String-MoneyLayoutFromINegCurr) |
-| [EndsWith](Modern-String-EndsWith) | [PadCenter](Modern-String-PadCenter) | [ReplaceChars](Modern-String-ReplaceChars) | [Tally](Modern-String-Tally) | [MoneyLocaleIsValid](Modern-String-MoneyLocaleIsValid) |
-| [Escape](Modern-String-Escape) | [PadLeft](Modern-String-PadLeft) | [RetainChars](Modern-String-RetainChars) | [TallyChars](Modern-String-TallyChars) | [MoneyLocaleName](Modern-String-MoneyLocaleName) |
-| [Extract](Modern-String-Extract) | [PadRight](Modern-String-PadRight) | [Reverse](Modern-String-Reverse) | [Unescape](Modern-String-Unescape) | [MoneyRefreshLocale](Modern-String-MoneyRefreshLocale) |
-| [ExtractChars](Modern-String-ExtractChars) | [Remain](Modern-String-Remain) | [Shrink](Modern-String-Shrink) | [Unwrap](Modern-String-Unwrap) | [MoneySetLocale](Modern-String-MoneySetLocale) |
-| [InsertAt](Modern-String-InsertAt) | [RemainChars](Modern-String-RemainChars) | [SpanOf](Modern-String-SpanOf) | [VerifySet](Modern-String-VerifySet) |  |
+### Find text in a string
+
+| Function | What it does | From |
+|---|---|---|
+| [Contains](Modern-String-Contains) | Returns true if the text appears anywhere in the string. | `std/strings` |
+| [StartsWith](Modern-String-StartsWith) | Returns true if the string begins with the given text. | `std/strings` |
+| [EndsWith](Modern-String-EndsWith) | Returns true if the string ends with the given text. | `std/strings` |
+| [Tally](Modern-String-Tally) | Counts how many times the text occurs, without overlaps. | `std/strings` |
+| [InstrChars](Modern-String-InstrChars) | Returns the position of the first character from a set, or 0. | `std/strings` |
+| [TallyChars](Modern-String-TallyChars) | Counts the characters that belong to a set. | `std/strings` |
+
+### Check what a string holds
+
+| Function | What it does | From |
+|---|---|---|
+| [IsBlank](Modern-String-IsBlank) | Returns true if the string is empty or holds only whitespace. | `std/strings` |
+| [IsNumeric](Modern-String-IsNumeric) | Returns true if the string is a valid number, with spaces allowed around it. | `std/strings` |
+| [VerifySet](Modern-String-VerifySet) | Returns the position of the first character not in a set, or 0 if all are. | `std/strings` |
+| [SpanOf](Modern-String-SpanOf) | Counts the run of characters from a set that starts at a position. | `std/strings` |
+
+### Take part of a string
+
+| Function | What it does | From |
+|---|---|---|
+| [Between](Modern-String-Between) | Returns the text between two delimiters. | `std/strings` |
+| [Extract](Modern-String-Extract) | Returns the text before a match, or the whole rest if there is none. | `std/strings` |
+| [Remain](Modern-String-Remain) | Returns the text after a match, or an empty string if there is none. | `std/strings` |
+| [ExtractChars](Modern-String-ExtractChars) | Returns the text before the first character from a set. | `std/strings` |
+| [RemainChars](Modern-String-RemainChars) | Returns the text after the first character from a set. | `std/strings` |
+
+### Change case
+
+| Function | What it does | From |
+|---|---|---|
+| [MCase](Modern-String-MCase) | Returns a title-case copy: each word capitalised, the rest lower case. | `std/strings` |
+
+### Trim, pad and align
+
+| Function | What it does | From |
+|---|---|---|
+| [Shrink](Modern-String-Shrink) | Trims both ends and collapses each inner run of spaces to one. | `std/strings` |
+| [PadLeft](Modern-String-PadLeft) | Pads on the left to a width, with spaces or a given character. | `std/strings` |
+| [PadRight](Modern-String-PadRight) | Pads on the right to a width, with spaces or a given character. | `std/strings` |
+| [PadCenter](Modern-String-PadCenter) | Centres the string in a width, padding both sides. | `std/strings` |
+
+### Replace, insert and remove
+
+| Function | What it does | From |
+|---|---|---|
+| [Replace](Modern-String-Replace) | Replaces every occurrence of the text with other text. | `std/strings` |
+| [ReplaceChars](Modern-String-ReplaceChars) | Replaces each character from a set with one given character. | `std/strings` |
+| [Remove](Modern-String-Remove) | Removes every occurrence of the text. | `std/strings` |
+| [RemoveChars](Modern-String-RemoveChars) | Removes every character that belongs to a set. | `std/strings` |
+| [RetainChars](Modern-String-RetainChars) | Keeps only the characters that belong to a set. | `std/strings` |
+| [RemoveBetween](Modern-String-RemoveBetween) | Removes a pair of delimiters and the text between them. | `std/strings` |
+| [InsertAt](Modern-String-InsertAt) | Inserts text at a position. | `std/strings` |
+| [DeleteAt](Modern-String-DeleteAt) | Deletes a number of characters at a position. | `std/strings` |
+| [ClipLeft](Modern-String-ClipLeft) | Removes a number of characters from the start. | `std/strings` |
+| [ClipRight](Modern-String-ClipRight) | Removes a number of characters from the end. | `std/strings` |
+
+### Split and join
+
+| Function | What it does | From |
+|---|---|---|
+| [Split](Modern-String-Split) | Breaks a string into an Array at each delimiter. | `std/strings` |
+| [SplitChars](Modern-String-SplitChars) | Breaks a string into an Array wherever a character from a set appears. | `std/strings` |
+| [Join](Modern-String-Join) | Joins an Array of strings into one, with a separator between them. | `std/strings` |
+| [SplitCsv](Modern-String-SplitCsv) | Parses CSV text into rows and fields, quoted fields included. | `std/strings` |
+| [SplitCsvRow](Modern-String-SplitCsvRow) | Parses one CSV record into an Array of fields. | `std/strings` |
+
+### Build and wrap strings
+
+| Function | What it does | From |
+|---|---|---|
+| [Repeat](Modern-String-Repeat) | Returns a string repeated n times. | `std/strings` |
+| [Reverse](Modern-String-Reverse) | Returns the string with its characters in reverse order. | `std/strings` |
+| [Wrap](Modern-String-Wrap) | Surrounds the string with quotes or a given pair of delimiters. | `std/strings` |
+| [Unwrap](Modern-String-Unwrap) | Removes one surrounding pair of quotes or delimiters, if both are there. | `std/strings` |
+| [Escape](Modern-String-Escape) | Replaces quotes, backslashes and control characters with backslash escapes. | `std/strings` |
+| [Unescape](Modern-String-Unescape) | Turns backslash escapes back into the characters they stand for. | `std/strings` |
+
+### Convert numbers to text
+
+| Function | What it does | From |
+|---|---|---|
+| [Format](Category-Format) | Builds text from values with a format string such as "{:>6.2f}". | `std/strings` |
+
+### Format money
+
+| Function | What it does | From |
+|---|---|---|
+| [MoneyFormat](Modern-String-MoneyFormat) | Holds an amount and prints it the way the user's locale writes money. | `std/money` |
+| [MoneySetLocale](Modern-String-MoneySetLocale) | Switches money formatting to a named locale; returns false if it is unknown. | `std/money` |
+| [MoneyLocaleName](Modern-String-MoneyLocaleName) | Returns the name of the locale that money is formatted for. | `std/money` |
+| [MoneyLocaleIsValid](Modern-String-MoneyLocaleIsValid) | Returns false if the system rejected the money locale. | `std/money` |
+| [MoneyRefreshLocale](Modern-String-MoneyRefreshLocale) | Rereads the locale's money settings after the user changes them. | `std/money` |
+| [MoneyCompose](Modern-String-MoneyCompose) | Assembles a number, symbol and sign in one of the standard layouts. | `std/money` |
+| [MoneyLayoutFromICurrency](Modern-String-MoneyLayoutFromICurrency) | Converts a Windows positive-currency code into layout flags. | `std/money` |
+| [MoneyLayoutFromINegCurr](Modern-String-MoneyLayoutFromINegCurr) | Converts a Windows negative-currency code into layout flags. | `std/money` |
+
+<!-- finder:end -->
 
 ---
 

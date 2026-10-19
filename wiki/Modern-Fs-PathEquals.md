@@ -2,7 +2,7 @@
 
 # PathEquals
 
-normalized, case-insensitive on Windows
+Returns true if two paths match once normalised; case-insensitive on Windows.
 
 ## Syntax
 

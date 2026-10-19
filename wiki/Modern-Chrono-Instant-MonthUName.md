@@ -2,6 +2,8 @@
 
 # Instant.MonthUName
 
+Returns the English name of a month number, or its abbreviation, as a ustring.
+
 ## Syntax
 
 ```freebasic

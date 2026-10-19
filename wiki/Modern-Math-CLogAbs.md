@@ -2,7 +2,7 @@
 
 # CLogAbs
 
-The logarithm of the modulus, without forming the modulus.
+Returns the logarithm of the modulus, without overflowing for large parts.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # TuiSpinnerDefaultFrames
 
+Fills an array with the default braille spinner frames.
+
 ## Syntax
 
 ```freebasic

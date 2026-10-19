@@ -2,6 +2,8 @@
 
 # TuiRenderOnce
 
+Runs Init and View once with no terminal and returns the bytes it would write.
+
 ## Syntax
 
 ```freebasic

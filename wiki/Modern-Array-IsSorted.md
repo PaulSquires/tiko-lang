@@ -2,7 +2,7 @@
 
 # IsSorted
 
-/ IsSortedBy( a, less )
+Returns true if the Array is already in ascending order.
 
 ## Syntax
 

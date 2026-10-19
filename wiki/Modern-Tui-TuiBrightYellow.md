@@ -2,6 +2,8 @@
 
 # TuiBrightYellow
 
+Returns the classic bright yellow, palette colour 11.
+
 ## Syntax
 
 ```freebasic

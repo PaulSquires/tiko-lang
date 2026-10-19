@@ -2,6 +2,8 @@
 
 # Instant.FromDateTime
 
+Returns a date-time that joins a date and a time of day.
+
 ## Syntax
 
 ```freebasic

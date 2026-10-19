@@ -2,7 +2,7 @@
 
 # ClipRight
 
-O(n)
+Removes a number of characters from the end.
 
 ## Syntax
 

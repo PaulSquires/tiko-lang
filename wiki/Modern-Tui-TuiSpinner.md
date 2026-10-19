@@ -2,6 +2,8 @@
 
 # TuiSpinner
 
+Draws a busy indicator that moves on one step each time you call Advance.
+
 ## Syntax
 
 ```freebasic

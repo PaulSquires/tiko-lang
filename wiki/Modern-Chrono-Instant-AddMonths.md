@@ -2,6 +2,8 @@
 
 # Instant.AddMonths
 
+Returns the date-time moved by whole months, clamping the day to the month's end.
+
 ## Syntax
 
 ```freebasic

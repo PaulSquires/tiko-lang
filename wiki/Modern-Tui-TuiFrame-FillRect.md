@@ -2,6 +2,8 @@
 
 # TuiFrame.FillRect
 
+Fills a rectangle with one character in one style.
+
 ## Syntax
 
 ```freebasic

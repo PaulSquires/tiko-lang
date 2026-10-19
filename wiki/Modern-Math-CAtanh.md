@@ -2,7 +2,7 @@
 
 # CAtanh
 
-The inverse hyperbolic tangent.
+Returns the inverse hyperbolic tangent of a complex number, or of any real number.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # OrderedSet.IsEmpty
 
-O(1)
+Returns true if the set has no values.
 
 ## Syntax
 

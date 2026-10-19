@@ -2,7 +2,7 @@
 
 # MapIterator
 
-The iterator type behind a `Map( of TK, TV )`.
+Holds a position in a Map; each step gives a pair read through .key and .value.
 
 ## Syntax
 

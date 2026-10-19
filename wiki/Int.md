@@ -2,7 +2,7 @@
 
 # Int
 
-Returns the floor of a number
+Returns the largest whole number not above the value, so Int(-1.3) is -2.
 
 ## Syntax
 

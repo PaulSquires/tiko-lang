@@ -2,6 +2,8 @@
 
 # TuiRect.Right
 
+Returns x plus the width: the first column past the right edge.
+
 ## Syntax
 
 ```freebasic

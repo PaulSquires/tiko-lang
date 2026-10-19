@@ -2,7 +2,7 @@
 
 # OrderedMap.GetIterator
 
-O(log n)
+Returns an iterator over the entries in ascending key order.
 
 ## Syntax
 

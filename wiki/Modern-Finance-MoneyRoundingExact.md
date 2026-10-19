@@ -2,6 +2,8 @@
 
 # MoneyRoundingExact
 
+Returns a policy that never rounds, to keep full precision or see what rounding costs.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # EuclidDiv
 
-Integer division whose remainder is always non-negative.
+Divides whole numbers so that the matching EuclidMod remainder is never negative.
 
 ## Syntax
 

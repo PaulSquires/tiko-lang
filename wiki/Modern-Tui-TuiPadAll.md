@@ -2,6 +2,8 @@
 
 # TuiPadAll
 
+Returns a rectangle shrunk by the same amount on every side.
+
 ## Syntax
 
 ```freebasic

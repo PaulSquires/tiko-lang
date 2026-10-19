@@ -2,6 +2,8 @@
 
 # CashFlow
 
+Holds an amount and the date it happens, for the dated value and return functions.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # Push
 
-amortised O(1)
+Adds a value at the end, growing the array as needed.
 
 ## Syntax
 

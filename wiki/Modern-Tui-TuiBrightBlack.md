@@ -2,6 +2,8 @@
 
 # TuiBrightBlack
 
+Returns the classic bright black, palette colour 8.
+
 ## Syntax
 
 ```freebasic

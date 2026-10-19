@@ -2,6 +2,8 @@
 
 # Alpha
 
+Returns the annualized return beyond what the asset's beta to its benchmark explains.
+
 ## Syntax
 
 ```freebasic

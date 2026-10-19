@@ -2,7 +2,7 @@
 
 # PathRelativeTo
 
-FsResultUStr
+Returns a path relative to a base folder; fails if the two have different roots.
 
 ## Syntax
 

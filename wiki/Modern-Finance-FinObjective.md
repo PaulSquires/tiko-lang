@@ -2,6 +2,8 @@
 
 # FinObjective
 
+Holds a pointer to the function the root finder calls with a value and a context.
+
 ## Syntax
 
 ```freebasic

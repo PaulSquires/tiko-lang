@@ -2,7 +2,7 @@
 
 # NextULong
 
-A uniformly random 32-bit value.
+Returns a random 32-bit unsigned value.
 
 ## Syntax
 

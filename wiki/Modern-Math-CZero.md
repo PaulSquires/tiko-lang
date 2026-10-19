@@ -2,7 +2,7 @@
 
 # CZero
 
-The complex number zero.
+Returns the complex number 0.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # Kill
 
-Deletes a file from disk / storage media.
+Deletes a file; returns 0 on success or an error code.
 
 ## Syntax
 

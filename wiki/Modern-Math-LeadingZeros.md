@@ -2,7 +2,7 @@
 
 # LeadingZeros
 
-returns the operand's FULL WIDTH
+Counts the zero bits above the highest set bit; zero gives the type's full width.
 
 ## Syntax
 

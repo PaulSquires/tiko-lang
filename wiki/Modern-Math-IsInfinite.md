@@ -2,6 +2,8 @@
 
 # IsInfinite
 
+Returns true if the value is plus or minus infinity.
+
 ## Syntax
 
 ```freebasic

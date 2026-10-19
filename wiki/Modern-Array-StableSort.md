@@ -2,7 +2,7 @@
 
 # StableSort
 
-merge sort -- equal elements keep their order
+Sorts an Array in ascending order, keeping equal elements in their original order.
 
 ## Syntax
 

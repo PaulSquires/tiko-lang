@@ -1,0 +1,18 @@
+# Logging: task headings in display order, pages to skip, see-also links.
+#   task    <task id>  <heading>
+#   ignore  <page>  <reason>
+#   seealso <page>  <label>
+task	log	Log a message
+task	sinks	Send logs to the console or a file
+task	fields	Add fields to a record
+task	commit	Finish and send a record
+task	levels	Choose which levels are logged
+task	names	Turn levels into names and back
+task	child	Give part of a program its own logger
+task	default	Log from anywhere in the program
+task	flush	Flush and close sinks
+task	custom	Format records or write your own sink
+task	failures	Find out when logging fails
+seealso	Category-Logging	Logging guide
+seealso	Category-Date-and-Time-Chrono	Date and Time, for the Instant and TimeSpan fields
+seealso	Category-Filesystem	Filesystem, for the errors AddError logs

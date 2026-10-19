@@ -2,6 +2,8 @@
 
 # RaiseFpException
 
+Raises a floating-point exception flag by hand; returns true on success.
+
 ## Syntax
 
 ```freebasic

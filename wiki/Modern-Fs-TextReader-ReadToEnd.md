@@ -2,7 +2,7 @@
 
 # TextReader.ReadToEnd
 
-FsResultBool
+Appends all the remaining decoded text to a string.
 
 ## Syntax
 

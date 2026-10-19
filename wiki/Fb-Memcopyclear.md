@@ -2,7 +2,7 @@
 
 # fb_MemCopyClear
 
-Copies the first part of a block of memory from a location to another and clears the rest
+Copies the first bytes of one area into another and sets the rest to zero.
 
 ## Syntax
 

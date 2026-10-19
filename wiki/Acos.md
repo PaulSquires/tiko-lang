@@ -2,7 +2,7 @@
 
 # Acos
 
-Finds the arccosine of an angle
+Returns the angle in radians, from 0 to pi, whose cosine is the number.
 
 ## Syntax
 

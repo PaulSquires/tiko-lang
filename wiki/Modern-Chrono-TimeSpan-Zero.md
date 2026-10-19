@@ -2,6 +2,8 @@
 
 # TimeSpan.Zero
 
+Returns a duration of zero, the same as a new TimeSpan.
+
 ## Syntax
 
 ```freebasic

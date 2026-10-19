@@ -2,6 +2,8 @@
 
 # DecimalOne
 
+Returns one as a Decimal.
+
 ## Syntax
 
 ```freebasic

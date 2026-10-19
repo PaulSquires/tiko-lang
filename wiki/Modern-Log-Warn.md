@@ -2,7 +2,7 @@
 
 # Warn
 
-Logs at WARN level, either directly or by starting a field chain.
+Logs a message at the warn level, or returns a record to add fields to.
 
 ## Syntax
 

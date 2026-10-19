@@ -2,6 +2,8 @@
 
 # Apportion
 
+Splits a Currency total by weights into parts that add up to it exactly.
+
 ## Syntax
 
 ```freebasic

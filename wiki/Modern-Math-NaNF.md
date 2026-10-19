@@ -2,6 +2,8 @@
 
 # NaNF
 
+Returns a Single that is NaN, not a number.
+
 ## Syntax
 
 ```freebasic

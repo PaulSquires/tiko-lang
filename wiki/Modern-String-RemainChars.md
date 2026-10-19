@@ -2,7 +2,7 @@
 
 # RemainChars
 
-O(n*k)
+Returns the text after the first character from a set.
 
 ## Syntax
 

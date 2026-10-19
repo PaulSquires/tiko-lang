@@ -2,7 +2,7 @@
 
 # AddCalendarDays
 
-offset, so across a DST boundary it is 23 or 25 hours of real time.
+Adds calendar days, keeping the same clock time across a DST change.
 
 ## Syntax
 

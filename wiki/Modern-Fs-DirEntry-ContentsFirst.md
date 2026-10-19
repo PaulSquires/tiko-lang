@@ -2,6 +2,8 @@
 
 # WalkOptions.ContentsFirst
 
+Chooses whether a walk returns each folder after its contents; false by default.
+
 ## Syntax
 
 ```freebasic

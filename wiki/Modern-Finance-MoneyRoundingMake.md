@@ -2,6 +2,8 @@
 
 # MoneyRoundingMake
 
+Returns a rounding policy with the places, mode and round-each flag you choose.
+
 ## Syntax
 
 ```freebasic

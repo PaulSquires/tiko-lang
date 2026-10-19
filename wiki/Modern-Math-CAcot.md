@@ -2,7 +2,7 @@
 
 # CAcot
 
-The inverse cotangent.
+Returns the inverse cotangent of a complex number; zero gives zero.
 
 ## Syntax
 

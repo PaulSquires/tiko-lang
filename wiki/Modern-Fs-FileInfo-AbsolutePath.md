@@ -2,7 +2,7 @@
 
 # FileInfo.AbsolutePath
 
-FsResultUStr
+Returns the full form of a path against the current folder; the path need not exist.
 
 ## Syntax
 

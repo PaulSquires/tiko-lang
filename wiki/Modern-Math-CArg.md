@@ -2,7 +2,7 @@
 
 # CArg
 
-The phase — the angle from the positive real axis, in radians.
+Returns the phase angle of a complex number in radians, from -pi to pi.
 
 ## Syntax
 

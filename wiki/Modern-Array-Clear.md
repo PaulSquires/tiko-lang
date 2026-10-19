@@ -2,7 +2,7 @@
 
 # Clear
 
-O(n)   drops elements, KEEPS capacity
+Removes every element but keeps the allocated room.
 
 ## Syntax
 

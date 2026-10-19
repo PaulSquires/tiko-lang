@@ -2,6 +2,8 @@
 
 # IPowChecked
 
+Raises an integer to a power, returning an empty Optional if the result overflows.
+
 ## Syntax
 
 ```freebasic

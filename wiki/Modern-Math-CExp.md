@@ -2,7 +2,7 @@
 
 # CExp
 
-The exponential.
+Returns e raised to a complex power.
 
 ## Syntax
 

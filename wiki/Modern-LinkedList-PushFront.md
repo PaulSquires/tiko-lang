@@ -2,7 +2,7 @@
 
 # PushFront
 
-O(1)
+Adds a value at the front of the list.
 
 ## Syntax
 

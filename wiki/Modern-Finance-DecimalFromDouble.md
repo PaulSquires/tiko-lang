@@ -2,6 +2,8 @@
 
 # DecimalFromDouble
 
+Converts a double to a Decimal of 15 significant digits; NaN or infinity gives Invalid.
+
 ## Syntax
 
 ```freebasic

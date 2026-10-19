@@ -2,6 +2,8 @@
 
 # TuiYellow
 
+Returns the classic yellow, palette colour 3.
+
 ## Syntax
 
 ```freebasic

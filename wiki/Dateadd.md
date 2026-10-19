@@ -2,7 +2,7 @@
 
 # DateAdd
 
-Offset a date with a specified interval
+Returns a date serial moved by a number of years, months, days, hours or other units.
 
 ## Syntax
 

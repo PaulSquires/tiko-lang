@@ -2,6 +2,8 @@
 
 # DirEntry.IsOther
 
+Returns true if the entry is a device, pipe or socket rather than a file, folder or link.
+
 ## Syntax
 
 ```freebasic

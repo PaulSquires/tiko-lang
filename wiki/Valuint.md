@@ -2,7 +2,7 @@
 
 # ValUInt
 
-Converts a string to an unsigned 32bit integer
+Converts text to an unsigned 32-bit integer.
 
 ## Syntax
 

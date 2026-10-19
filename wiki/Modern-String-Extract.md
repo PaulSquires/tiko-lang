@@ -2,7 +2,7 @@
 
 # Extract
 
-O(n*m)   text before match
+Returns the text before a match, or the whole rest if there is none.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # FileInfo.Created
 
-chrono.Instant
+Returns the creation time as a chrono.Instant; check HasCreated first.
 
 ## Syntax
 

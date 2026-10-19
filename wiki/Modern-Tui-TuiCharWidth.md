@@ -2,6 +2,8 @@
 
 # TuiCharWidth
 
+Returns the columns one character takes: 0, 1 or 2.
+
 ## Syntax
 
 ```freebasic

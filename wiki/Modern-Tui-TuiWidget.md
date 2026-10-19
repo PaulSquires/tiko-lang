@@ -2,6 +2,8 @@
 
 # TuiWidget
 
+Holds the base type every widget extends; you write Render and Kind for your own.
+
 ## Syntax
 
 ```freebasic

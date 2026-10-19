@@ -2,6 +2,8 @@
 
 # TuiInput.Queued
 
+Counts the parsed events waiting to be taken.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # Date
 
-Returns the current system date as a string
+Returns today's date as text in the form mm-dd-yyyy.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # Input
 
-Reads a list of values from the keyboard
+Reads values the user types, up to Enter, after an optional prompt.
 
 ## Syntax
 

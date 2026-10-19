@@ -1,0 +1,152 @@
+# Finance functions. One row per function, per task it belongs to. Tab-separated; see finder.py for the rules.
+page	name	qualifier	task	from	rank	summary
+Modern-Finance-Currency	Currency	-	make	std/money	-	Holds an exact amount with four decimal places, for money that needs no more.
+Modern-Finance-Decimal	Decimal	-	make	std/money	-	Holds an exact decimal number with up to 28 places, for rates, prices and results.
+Modern-Finance-DecimalParse	DecimalParse	-	make	std/money	1	Parses text into a Decimal exactly; returns empty on bad input or over 28 places.
+Modern-Finance-CurrencyParse	CurrencyParse	-	make	std/money	2	Parses text into a Currency exactly; returns empty on bad input or over four places.
+Modern-Finance-CurrencyFromInt	CurrencyFromInt	-	make	std/money	-	Returns a Currency of a whole number of units, exactly.
+Modern-Finance-CurrencyFromParts	CurrencyFromParts	-	make	std/money	-	Returns a Currency from whole units and a ten-thousandths part, exactly.
+Modern-Finance-CurrencyFromRaw	CurrencyFromRaw	-	make	std/money	-	Returns a Currency from its stored integer, which is the amount times 10000.
+Modern-Finance-CurrencyFromDouble	CurrencyFromDouble	-	make	std/money	-	Converts a double to a Currency, rounded to four decimal places.
+Modern-Finance-DecimalFromInt	DecimalFromInt	-	make	std/money	-	Returns a 64-bit integer as a Decimal, exactly.
+Modern-Finance-DecimalFromUInt	DecimalFromUInt	-	make	std/money	-	Returns an unsigned 64-bit integer as a Decimal, exactly.
+Modern-Finance-DecimalFromScaled	DecimalFromScaled	-	make	std/money	-	Returns a whole number over a power of ten as a Decimal: 1999 at scale 2 is 19.99.
+Modern-Finance-DecimalFromParts	DecimalFromParts	-	make	std/money	-	Builds a Decimal from three 32-bit mantissa words, a sign flag and a scale.
+Modern-Finance-DecimalFromDouble	DecimalFromDouble	-	make	std/money	-	Converts a double to a Decimal of 15 significant digits; NaN or infinity gives Invalid.
+Modern-Finance-DecimalFromCurrency	DecimalFromCurrency	-	make	std/money	-	Converts a Currency to a Decimal, exactly.
+Modern-Finance-IsValid	Currency.IsValid	-	check	std/money	-	Returns false if the Currency is Invalid; the only reliable test for a bad value.
+Modern-Finance-Raw	Currency.Raw	-	check	std/money	-	Returns the stored integer, the amount times 10000, for saving to a file or database.
+Modern-Finance-ToDouble	Currency.ToDouble	-	check	std/money	-	Returns the amount as a double, which loses precision above about 900 billion.
+Modern-Finance-DecimalCompare	DecimalCompare	-	check	std/money	-	Returns -1, 0 or 1 comparing two Decimals by value, or -2 if either is Invalid.
+Modern-Finance-DecimalZero	DecimalZero	-	consts	std/money	-	Returns zero, the same value a new Decimal starts with.
+Modern-Finance-DecimalOne	DecimalOne	-	consts	std/money	-	Returns one as a Decimal.
+Modern-Finance-DecimalMinusOne	DecimalMinusOne	-	consts	std/money	-	Returns minus one as a Decimal.
+Modern-Finance-DecimalMinValue	DecimalMinValue	-	consts	std/money	-	Returns the most negative value a Decimal can hold.
+Modern-Finance-DecimalMaxValue	DecimalMaxValue	-	consts	std/money	-	Returns the largest value a Decimal can hold.
+Modern-Finance-DecimalInvalid	DecimalInvalid	-	consts	std/money	-	Returns the Invalid Decimal, which overflow and division by zero also produce.
+Modern-Finance-CurrencyInvalid	CurrencyInvalid	-	consts	std/money	-	Returns the Invalid Currency, which overflow also produces; it never equals anything.
+Modern-Finance-Ceiling	Currency.Ceiling	-	round	std/money	-	Returns the amount rounded up to a whole unit, towards positive infinity.
+Modern-Finance-RoundMode	Currency.RoundMode	-	round	std/money	-	Returns the amount rounded to 0 to 4 places by a rounding rule you name.
+Modern-Finance-Apportion	Apportion	-	round	std/money	-	Splits a Currency total by weights into parts that add up to it exactly.
+Modern-Finance-DecimalApportion	DecimalApportion	-	round	std/money	-	Splits a Decimal total by weights, at a scale you choose, into parts that add up exactly.
+Modern-Finance-AddProduct	CurrencyAccum.AddProduct	-	accum	std/money	-	Adds an amount times a rate to a running total, rounding only once at the end.
+Modern-Finance-AddScaled	CurrencyAccum.AddScaled	-	accum	std/money	-	Adds an amount times a fraction, such as one third, to a running total exactly.
+Modern-Finance-Total	CurrencyAccum.Total	-	accum	std/money	-	Returns the running total as a Currency, rounded once; reading it does not reset it.
+Modern-Finance-MoneyRounding	MoneyRounding	-	policy	std/money	-	Holds a rounding policy: decimal places, rounding mode, and whether to round each amount.
+Modern-Finance-MoneyRoundingMake	MoneyRoundingMake	-	policy	std/money	-	Returns a rounding policy with the places, mode and round-each flag you choose.
+Modern-Finance-MoneyRoundingCents	MoneyRoundingCents	-	policy	std/money	-	Returns the default policy: two places, half-to-even, every posted amount rounded.
+Modern-Finance-MoneyRoundingBankersFour	MoneyRoundingBankersFour	-	policy	std/money	-	Returns a policy of four places, half-to-even, to match a Currency ledger.
+Modern-Finance-MoneyRoundingExact	MoneyRoundingExact	-	policy	std/money	-	Returns a policy that never rounds, to keep full precision or see what rounding costs.
+Modern-Finance-MoneyRound	MoneyRound	-	policy	std/money	-	Rounds a Decimal by a policy, or returns it unchanged if the policy does not round.
+Modern-Finance-FinanceError	FinanceError	-	errors	std/money	-	Holds why a finance call failed: a code, a message and, for solvers, how close it got.
+Modern-Finance-FinanceErrorCode	FinanceErrorCode	-	errors	std/money	-	Lists the failure codes, such as FIN_INVALID_RATE and FIN_NO_SIGN_CHANGE.
+Modern-Finance-FinanceErrorMessage	FinanceErrorMessage	-	errors	std/money	-	Returns a short, fixed English description of a failure code.
+Modern-Finance-Compounding	Compounding	-	rates	std/money	-	Lists how often interest compounds, as periods per year, plus simple and continuous.
+Modern-Finance-RatePerPeriod	RatePerPeriod	-	rates	std/money	-	Returns a quoted annual rate divided by its compounding periods, exactly.
+Modern-Finance-RateEffectiveFromNominal	RateEffectiveFromNominal	-	rates	std/money	-	Returns what a quoted annual rate really earns in a year once it compounds.
+Modern-Finance-RateNominalFromEffective	RateNominalFromEffective	-	rates	std/money	-	Returns the quoted annual rate that earns a given effective yearly return.
+Modern-Finance-RateConvertCompounding	RateConvertCompounding	-	rates	std/money	-	Restates a quoted annual rate for a different compounding frequency.
+Modern-Finance-RateContinuousFromEffective	RateContinuousFromEffective	-	rates	std/money	-	Returns the continuously compounded rate that gives an effective yearly return.
+Modern-Finance-RateEffectiveFromContinuous	RateEffectiveFromContinuous	-	rates	std/money	-	Returns the effective yearly return of a continuously compounded rate.
+Modern-Finance-RatePerPaymentFromNominal	RatePerPaymentFromNominal	-	rates	std/money	-	Returns the rate per payment when compounding and payment frequency differ.
+Modern-Finance-SimpleInterest	SimpleInterest	-	interest	std/money	-	Returns principal times rate times a fraction of a year, exactly.
+Modern-Finance-SimpleInterestBetween	SimpleInterestBetween	-	interest	std/money	-	Returns simple interest between two dates on a day-count basis you choose.
+Modern-Finance-DayCount	DayCount	-	interest	std/money	-	Lists the six day-count bases, such as actual/365 fixed and 30/360 US.
+Modern-Finance-DayCountDays	DayCountDays	-	interest	std/money	-	Counts the days between two dates on a day-count basis.
+Modern-Finance-DayCountFraction	DayCountFraction	-	interest	std/money	-	Returns the fraction of a year between two dates on a basis, as an exact Decimal.
+Modern-Finance-DayCountFractionDouble	DayCountFractionDouble	-	interest	std/money	-	Returns the fraction of a year between two dates on a basis, as a double.
+Modern-Finance-GrowthFactor	GrowthFactor	-	growth	std/money	-	Returns what one unit grows to over a whole number of periods at a rate, exactly.
+Modern-Finance-DiscountFactor	DiscountFactor	-	growth	std/money	-	Returns what one unit due after a whole number of periods is worth today.
+Modern-Finance-GrowthFactorFractional	GrowthFactorFractional	-	growth	std/money	-	Returns what one unit grows to over a fractional number of periods.
+Modern-Finance-GrowthFactorContinuous	GrowthFactorContinuous	-	growth	std/money	-	Returns what one unit grows to over a number of years with continuous compounding.
+Modern-Finance-AnnuityTerms	AnnuityTerms	-	tvm	std/money	-	Holds rate, periods, payment, present value, future value and timing for annuity sums.
+Modern-Finance-AnnuityTermsMake	AnnuityTermsMake	-	tvm	std/money	-	Returns annuity terms from the six values; the one being solved for is ignored.
+Modern-Finance-PaymentTiming	PaymentTiming	-	tvm	std/money	-	Lists whether payments fall at the end or at the start of each period.
+Modern-Finance-PresentValue	PresentValue	-	tvm	std/money	-	Returns what a stream of payments plus a final amount is worth today.
+Modern-Finance-FutureValue	FutureValue	-	tvm	std/money	-	Returns what a stream of payments will be worth at the end of the term.
+Modern-Finance-PaymentAmount	PaymentAmount	-	tvm	std/money	-	Returns the level payment per period, negative when the present value is positive.
+Modern-Finance-PresentValueOfLump	PresentValueOfLump	-	tvm	std/money	-	Returns a single future amount discounted back a number of periods.
+Modern-Finance-FutureValueOfLump	FutureValueOfLump	-	tvm	std/money	-	Returns a single amount compounded forward a number of periods.
+Modern-Finance-PeriodsRequired	PeriodsRequired	-	tvm	std/money	-	Returns how many periods a payment takes to clear a balance, as a fractional double.
+Modern-Finance-PeriodsRequiredWhole	PeriodsRequiredWhole	-	tvm	std/money	-	Returns how many payments clear a balance, rounded up to a whole number.
+Modern-Finance-SolveRatePerPeriod	SolveRatePerPeriod	-	tvm	std/money	-	Returns the rate per period implied by a known payment, value and term.
+Modern-Finance-AnnuityPresentValueFactor	AnnuityPresentValueFactor	-	tvm	std/money	-	Returns what one unit paid each period is worth today.
+Modern-Finance-AnnuityFutureValueFactor	AnnuityFutureValueFactor	-	tvm	std/money	-	Returns what one unit paid each period grows to by the end of the term.
+Modern-Finance-LoanTerms	LoanTerms	-	loan	std/money	-	Holds a loan's principal, rate, term, frequencies, rounding and first payment date.
+Modern-Finance-LoanTermsMake	LoanTermsMake	-	loan	std/money	-	Returns loan terms with the payment frequency and compounding you choose.
+Modern-Finance-LoanTermsUsMortgage	LoanTermsUsMortgage	-	loan	std/money	-	Returns loan terms for a US mortgage: monthly compounding and monthly payments.
+Modern-Finance-LoanTermsCanadianMortgage	LoanTermsCanadianMortgage	-	loan	std/money	-	Returns loan terms for a Canadian mortgage: semi-annual compounding, monthly payments.
+Modern-Finance-PaymentFrequency	PaymentFrequency	-	loan	std/money	-	Lists how often payments are made, including weekly and accelerated biweekly.
+Modern-Finance-LoanPayment	LoanPayment	-	loan	std/money	3	Returns a loan's level payment, rounded once; the last payment absorbs the remainder.
+Modern-Finance-LoanImpliedRate	LoanImpliedRate	-	loan	std/money	-	Returns the annual rate implied by a known principal, payment and term.
+Modern-Finance-LoanAnnualPercentageRate	LoanAnnualPercentageRate	-	loan	std/money	-	Returns the annual rate once financed fees are counted as a cost of borrowing.
+Modern-Finance-LoanSchedule	LoanSchedule	-	schedule	std/money	-	Returns a loan's amortization schedule, built lazily, to walk with for each.
+Modern-Finance-AmortizationSchedule	AmortizationSchedule	-	schedule	std/money	-	Holds a loan schedule's terms and gives its scheduled payment count and payment.
+Modern-Finance-AmortizationIterator	AmortizationIterator	-	schedule	std/money	-	Walks a loan schedule row by row, for stopping early or reading a window.
+Modern-Finance-AmortizationRow	AmortizationRow	-	schedule	std/money	-	Holds one period: due date, balances, payment, interest, principal and running totals.
+Modern-Finance-ScheduleToArray	ScheduleToArray	-	schedule	std/money	-	Returns every row of a loan schedule as an Array, for random access.
+Modern-Finance-LoanRowAt	LoanRowAt	-	schedule	std/money	-	Returns one row of a loan schedule, rounded exactly as it would be posted.
+Modern-Finance-LoanBalanceAt	LoanBalanceAt	-	schedule	std/money	-	Returns the balance after a period from a formula, without walking the schedule.
+Modern-Finance-LoanInterestBetween	LoanInterestBetween	-	loanq	std/money	-	Returns the interest posted across a range of periods, such as one tax year.
+Modern-Finance-LoanPrincipalBetween	LoanPrincipalBetween	-	loanq	std/money	-	Returns the principal repaid across a range of periods, extra payments included.
+Modern-Finance-LoanPayoffAmount	LoanPayoffAmount	-	loanq	std/money	-	Returns what settles a loan on a date: the balance plus interest accrued since.
+Modern-Finance-LoanSummarize	LoanSummarize	-	loanq	std/money	-	Returns a loan's totals, payment count and payoff date, and what extra payments save.
+Modern-Finance-LoanSummary	LoanSummary	-	loanq	std/money	-	Holds what LoanSummarize returns: payments, totals, effective rate and savings.
+Modern-Finance-ExtraPayment	ExtraPayment	-	loanq	std/money	-	Holds extra principal paid over a range of periods; overlapping ranges add up.
+Modern-Finance-ExtraPaymentOnce	ExtraPaymentOnce	-	loanq	std/money	-	Returns a single extra principal payment made in one period.
+Modern-Finance-ExtraPaymentRecurring	ExtraPaymentRecurring	-	loanq	std/money	-	Returns the same extra principal payment in every period of a range.
+Modern-Finance-CashFlow	CashFlow	-	cash	std/money	-	Holds an amount and the date it happens, for the dated value and return functions.
+Modern-Finance-CashFlowMake	CashFlowMake	-	cash	std/money	-	Returns a cash flow on a date; the dates in a series must ascend.
+Modern-Finance-CashFlowAt	CashFlowAt	-	cash	std/money	-	Returns a cash flow with no date, placed by its period number.
+Modern-Finance-NetPresentValue	NetPresentValue	-	cash	std/money	4	Returns the net present value of flows at a rate; the first flow is not discounted.
+Modern-Finance-NetFutureValue	NetFutureValue	-	cash	std/money	-	Returns the net present value carried forward to the end of the series.
+Modern-Finance-NetPresentValueOnDates	NetPresentValueOnDates	-	cash	std/money	-	Returns the net present value of dated flows at an annual rate on a day-count basis.
+Modern-Finance-InternalRateOfReturn	InternalRateOfReturn	-	cash	std/money	-	Returns the rate at which the net present value of a series of flows is zero.
+Modern-Finance-InternalRateOfReturnOnDates	InternalRateOfReturnOnDates	-	cash	std/money	-	Returns the internal rate of return of flows on irregular dates.
+Modern-Finance-ModifiedInternalRateOfReturn	ModifiedInternalRateOfReturn	-	cash	std/money	-	Returns a rate of return with one answer, from separate finance and reinvestment rates.
+Modern-Finance-PaybackPeriod	PaybackPeriod	-	cash	std/money	-	Returns when the running total of flows turns positive, or empty if it never does.
+Modern-Finance-DiscountedPaybackPeriod	DiscountedPaybackPeriod	-	cash	std/money	-	Returns when the running total of discounted flows turns positive, or empty if never.
+Modern-Finance-ProfitabilityIndex	ProfitabilityIndex	-	cash	std/money	-	Returns the present value of the later flows divided by the initial outlay.
+Modern-Finance-DepreciationTerms	DepreciationTerms	-	deprec	std/money	-	Holds an asset's cost, salvage value, life in periods and declining-balance factor.
+Modern-Finance-DepreciationTermsMake	DepreciationTermsMake	-	deprec	std/money	-	Returns depreciation terms from cost, salvage and life, with a factor of 2 and cents.
+Modern-Finance-DepreciationMethod	DepreciationMethod	-	deprec	std/money	-	Lists the six methods, from straight line to units of production.
+Modern-Finance-DepreciationStraightLine	DepreciationStraightLine	-	deprec	std/money	-	Returns one period's expense, with cost less salvage spread evenly over the life.
+Modern-Finance-DepreciationDecliningBalance	DepreciationDecliningBalance	-	deprec	std/money	-	Returns one period's expense as a fixed fraction of the remaining book value.
+Modern-Finance-DepreciationDoubleDeclining	DepreciationDoubleDeclining	-	deprec	std/money	-	Returns one period's expense at twice the straight-line rate, never below salvage.
+Modern-Finance-DepreciationSumOfYearsDigits	DepreciationSumOfYearsDigits	-	deprec	std/money	-	Returns one period's expense, weighted by how many periods of the life are left.
+Modern-Finance-DepreciationUnitsOfProduction	DepreciationUnitsOfProduction	-	deprec	std/money	-	Returns one period's expense from the units it produced out of the lifetime total.
+Modern-Finance-DepreciationScheduleOf	DepreciationScheduleOf	-	deprec	std/money	-	Returns the full schedule for a method, including declining balance with a switch.
+Modern-Finance-DepreciationSchedule	DepreciationSchedule	-	deprec	std/money	-	Holds every period of a write-off, to walk with for each.
+Modern-Finance-DepreciationScheduleIterator	DepreciationScheduleIterator	-	deprec	std/money	-	Walks a depreciation schedule row by row, for stopping early.
+Modern-Finance-DepreciationRow	DepreciationRow	-	deprec	std/money	-	Holds one period: opening and closing book value, expense and depreciation so far.
+Modern-Finance-DepreciationScheduleToArray	DepreciationScheduleToArray	-	deprec	std/money	-	Returns every row of a depreciation schedule as an Array.
+Modern-Finance-ReturnFrequency	ReturnFrequency	-	returns	std/money	-	Lists how many observations make a year: annual, quarterly, monthly, weekly or daily.
+Modern-Finance-HoldingPeriodReturn	HoldingPeriodReturn	-	returns	std/money	-	Returns the gain plus income over a holding period, as a fraction of the start value.
+Modern-Finance-CompoundAnnualGrowthRate	CompoundAnnualGrowthRate	-	returns	std/money	-	Returns the steady yearly rate that grows a starting value to an ending value.
+Modern-Finance-AnnualizeReturn	AnnualizeReturn	-	returns	std/money	-	Converts a return per period to a yearly return by compounding, not multiplying.
+Modern-Finance-AnnualizeReturnOverPeriods	AnnualizeReturnOverPeriods	-	returns	std/money	-	Converts a total return over a number of observations to a yearly return.
+Modern-Finance-TimeWeightedReturn	TimeWeightedReturn	-	returns	std/money	-	Returns sub-period returns linked by compounding, ignoring when money moved in or out.
+Modern-Finance-ModifiedDietzReturn	ModifiedDietzReturn	-	returns	std/money	-	Returns an approximate time-weighted return, weighting each flow by days invested.
+Modern-Finance-MoneyWeightedReturn	MoneyWeightedReturn	-	returns	std/money	-	Returns the dated internal rate of return of contributions and the closing value.
+Modern-Finance-CumulativeReturnSeries	CumulativeReturnSeries	-	returns	std/money	-	Returns the compounded return after each observation, as a growth chart plots.
+Modern-Finance-Volatility	Volatility	-	risk	std/money	-	Returns the sample standard deviation of returns, annualized.
+Modern-Finance-DownsideDeviation	DownsideDeviation	-	risk	std/money	-	Returns the annualized shortfall of returns below a target, ignoring gains.
+Modern-Finance-MaxDrawdown	MaxDrawdown	-	risk	std/money	-	Returns the worst fall from a peak to a later low, as a positive fraction.
+Modern-Finance-MaxDrawdownPeak	MaxDrawdownPeak	-	risk	std/money	-	Returns the index of the peak the worst drawdown fell from, or empty if none.
+Modern-Finance-MaxDrawdownTrough	MaxDrawdownTrough	-	risk	std/money	-	Returns the index of the low point of the worst drawdown, or empty if none.
+Modern-Finance-DrawdownSeries	DrawdownSeries	-	risk	std/money	-	Returns the fall from the running peak at each observation, zero or negative.
+Modern-Finance-SharpeRatio	SharpeRatio	-	risk	std/money	-	Returns the annualized return above the risk-free rate per unit of volatility.
+Modern-Finance-SortinoRatio	SortinoRatio	-	risk	std/money	-	Returns the annualized return above a target per unit of downside deviation.
+Modern-Finance-SummarizeReturns	SummarizeReturns	-	risk	std/money	-	Returns total and yearly return, volatility, Sharpe, Sortino and drawdown in one call.
+Modern-Finance-ReturnSummary	ReturnSummary	-	risk	std/money	-	Holds the figures SummarizeReturns computes, one field each.
+Modern-Finance-Beta	Beta	-	bench	std/money	-	Returns how much an asset moves when its benchmark moves by one.
+Modern-Finance-Alpha	Alpha	-	bench	std/money	-	Returns the annualized return beyond what the asset's beta to its benchmark explains.
+Modern-Finance-TrackingError	TrackingError	-	bench	std/money	-	Returns the annualized standard deviation of the asset's return less the benchmark's.
+Modern-Finance-InformationRatio	InformationRatio	-	bench	std/money	-	Returns the return above the benchmark per unit of tracking error.
+Modern-Finance-CorrelationToBenchmark	CorrelationToBenchmark	-	bench	std/money	-	Returns how closely an asset moves with its benchmark, from -1 to 1.
+Modern-Finance-FinSolveRoot	FinSolveRoot	-	solver	std/money	-	Finds where your function is zero between two bounds, and reports how close it got.
+Modern-Finance-FinObjective	FinObjective	-	solver	std/money	-	Holds a pointer to the function the root finder calls with a value and a context.
+Modern-Finance-FinSolverOptions	FinSolverOptions	-	solver	std/money	-	Holds the root finder's bounds, starting guess, tolerances and iteration limits.
+Modern-Finance-FinSolverOptionsDefault	FinSolverOptionsDefault	-	solver	std/money	-	Returns the standard solver settings: rate bounds, 128 iterations and no guess.
+Modern-Finance-FinSolverOptionsWithGuess	FinSolverOptionsWithGuess	-	solver	std/money	-	Returns the standard solver settings with a starting guess.
+Modern-Finance-FinSolveResult	FinSolveResult	-	solver	std/money	-	Holds the root found, its residual, the iteration count and whether it converged.

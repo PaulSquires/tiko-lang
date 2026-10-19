@@ -2,7 +2,7 @@
 
 # StartNew
 
-Creates a Stopwatch and starts it in one step.
+Creates a stopwatch that is already running.
 
 ## Syntax
 

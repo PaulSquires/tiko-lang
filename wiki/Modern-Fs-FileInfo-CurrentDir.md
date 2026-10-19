@@ -2,7 +2,7 @@
 
 # FileInfo.CurrentDir
 
-FsResultUStr
+Returns the program's current folder.
 
 ## Syntax
 

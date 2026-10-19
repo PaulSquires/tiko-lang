@@ -2,7 +2,7 @@
 
 # Copy
 
-FsResultI64
+Copies a stream from its position to its end into another; returns the byte count.
 
 ## Syntax
 

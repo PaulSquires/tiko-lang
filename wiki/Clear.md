@@ -2,7 +2,7 @@
 
 # Clear
 
-Clears or initializes some memory
+Sets a number of bytes, starting at a variable, to zero or to a given value.
 
 ## Syntax
 

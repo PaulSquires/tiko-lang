@@ -2,6 +2,8 @@
 
 # TuiFrame.PopLayer
 
+Ends the overlay layer that PushLayer started.
+
 ## Syntax
 
 ```freebasic

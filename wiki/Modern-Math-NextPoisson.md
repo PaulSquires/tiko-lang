@@ -2,6 +2,8 @@
 
 # NextPoisson
 
+Returns a random count of events in one interval at rate lambda; its mean is lambda.
+
 ## Syntax
 
 ```freebasic

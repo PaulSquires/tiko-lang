@@ -2,7 +2,7 @@
 
 # Stat
 
-FsResultInfo -- FOLLOWS symbolic links
+Returns a path's FileInfo, following symbolic links; fails if the path is missing.
 
 ## Syntax
 

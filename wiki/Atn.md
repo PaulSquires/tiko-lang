@@ -2,7 +2,7 @@
 
 # Atn
 
-Returns the arctangent of a number
+Returns the angle in radians, from -pi/2 to pi/2, whose tangent is the number.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # LocalTime.TryParseIso
 
+Reads ISO text into a time of day; returns false and sets it Invalid on failure.
+
 ## Syntax
 
 ```freebasic

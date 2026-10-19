@@ -2,7 +2,7 @@
 
 # ExceptWith
 
-Removes every element of `other` from this set.
+Removes every value that is also in another set.
 
 ## Syntax
 

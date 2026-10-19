@@ -2,6 +2,8 @@
 
 # InformationRatio
 
+Returns the return above the benchmark per unit of tracking error.
+
 ## Syntax
 
 ```freebasic

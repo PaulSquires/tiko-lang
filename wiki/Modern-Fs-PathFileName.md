@@ -2,7 +2,7 @@
 
 # PathFileName
 
-the leaf; "" for a root
+Returns the last part of a path, the file name, or an empty string for a root.
 
 ## Syntax
 

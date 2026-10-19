@@ -2,7 +2,7 @@
 
 # TextReader.Encoding
 
-ustring
+Returns the encoding found at the start: utf-8, utf-16le or utf-16be.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # TuiMax_
 
+Returns a constraint for at most n cells.
+
 ## Syntax
 
 ```freebasic

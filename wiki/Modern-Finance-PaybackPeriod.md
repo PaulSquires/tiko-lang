@@ -2,6 +2,8 @@
 
 # PaybackPeriod
 
+Returns when the running total of flows turns positive, or empty if it never does.
+
 ## Syntax
 
 ```freebasic

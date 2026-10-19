@@ -2,6 +2,8 @@
 
 # LocalDate.FromDayNumber
 
+Creates a date from a count of days since 0001-01-01.
+
 ## Syntax
 
 ```freebasic

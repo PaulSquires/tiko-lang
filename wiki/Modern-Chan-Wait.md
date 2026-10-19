@@ -2,6 +2,8 @@
 
 # Wait
 
+Waits until the work outstanding reaches zero.
+
 ## Syntax
 
 ```freebasic

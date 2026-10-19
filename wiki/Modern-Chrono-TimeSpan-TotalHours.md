@@ -2,6 +2,8 @@
 
 # TimeSpan.TotalHours
 
+Returns the whole duration in hours, with a fraction.
+
 ## Syntax
 
 ```freebasic

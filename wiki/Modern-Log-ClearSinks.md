@@ -2,6 +2,8 @@
 
 # ClearSinks
 
+Detaches every sink, without destroying any of them.
+
 ## Syntax
 
 ```freebasic

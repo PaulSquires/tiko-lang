@@ -2,6 +2,8 @@
 
 # VolumeInfo.IsCaseSensitive
 
+Returns true if names on this volume are case-sensitive.
+
 ## Syntax
 
 ```freebasic

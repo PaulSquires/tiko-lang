@@ -2,7 +2,7 @@
 
 # WalkDecision
 
-What a walk filter answers for one entry.
+Holds a walk filter's answer: skip, yield, descend into, or stop after an entry.
 
 ## Syntax
 

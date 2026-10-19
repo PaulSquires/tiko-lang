@@ -2,7 +2,7 @@
 
 # Merge
 
-Folds another accumulator's data into this one.
+Combines another accumulator's values into this one, exactly.
 
 ## Syntax
 

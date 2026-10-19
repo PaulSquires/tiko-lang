@@ -2,7 +2,7 @@
 
 # IsLink
 
-boolean
+Returns true if the path itself is a symbolic link.
 
 ## Syntax
 

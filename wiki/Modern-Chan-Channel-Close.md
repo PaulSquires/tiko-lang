@@ -2,7 +2,7 @@
 
 # Close
 
-Declares that no more values will be sent.
+Marks that no more values will be sent; values already buffered are still delivered.
 
 ## Syntax
 

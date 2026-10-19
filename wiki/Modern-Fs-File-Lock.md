@@ -2,7 +2,7 @@
 
 # File.Lock
 
-FsResultBool
+Locks the whole file, waiting until it is free: exclusive by default, or shared.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # Round
 
-half away from zero:  2.5 -> 3,  -2.5 -> -3
+Rounds to the nearest whole number or number of decimals, halves away from zero.
 
 ## Syntax
 

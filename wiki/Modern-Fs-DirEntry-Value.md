@@ -2,7 +2,7 @@
 
 # DirEntry.Value
 
-BYREF DirEntryResult -- see the warning above
+Returns the current entry by reference; the next MoveNext makes it invalid.
 
 ## Syntax
 

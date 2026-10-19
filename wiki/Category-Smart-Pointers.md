@@ -263,14 +263,40 @@ The SharedPtr tests are vendored in tiko-lang under `tests/vendor/fbc-tests/`:
 
 Under tiko: container-sharedptr.bas and global-unary-operators.bas build and run with exit 0; sharedptr-mt.bas, built with -mt against fbcunit, passes 14 of 14 assertions; sharedptr-null-ref.bas aborts with 'runtime error 1 (illegal function call)', naming the line of the ERROR( ) inside Ref( ) in pkg/std/memory/sharedptr.tiko; and fail-sharedptr-scalar-arrow.bas is refused with `TKO0739: 'sharedptr' has no member named 'v'`.
 
+<!-- finder:start -->
+
 ## API reference
 
-One page per entry, 11 in all:
+Every entry, grouped by task. [Memory and pointers](Functions-Memory) lists them beside the rest of the area.
 
-|   |   |   |   |   |   |
-|---|---|---|---|---|---|
-| [Expired](Modern-SharedPtr-Expired) | [IsNull](Modern-SharedPtr-IsNull) | [MakeShared](Modern-SharedPtr-MakeShared) | [Ref](Modern-SharedPtr-Ref) | [SharedPtr](Modern-SharedPtr-SharedPtr) | [UseCount](Modern-SharedPtr-UseCount) |
-| [Get](Modern-SharedPtr-Get) | [Lock](Modern-SharedPtr-Lock) | [MakeSharedFrom](Modern-SharedPtr-MakeSharedFrom) | [Reset](Modern-SharedPtr-Reset) | [SpCast](Modern-SharedPtr-SpCast) | [WeakPtr](Modern-SharedPtr-WeakPtr) |
+### Share one object between owners
+
+| Function | What it does | From |
+|---|---|---|
+| [SharedPtr](Modern-SharedPtr-SharedPtr) | Holds an object shared by several owners and destroys it when the last one lets go. | `std/memory` |
+| [MakeShared](Modern-SharedPtr-MakeShared) | Creates a default-constructed object and returns the first SharedPtr to it. | `std/memory` |
+| [MakeSharedFrom](Modern-SharedPtr-MakeSharedFrom) | Creates a copy of a value on the heap and returns a SharedPtr to it. | `std/memory` |
+| [SharedPtr.UseCount](Modern-SharedPtr-UseCount) | Returns how many SharedPtr handles share the object. | `std/memory` |
+| [SharedPtr.Reset](Modern-SharedPtr-Reset) | Drops this handle's share and leaves it null; the last one out destroys the object. | `std/memory` |
+
+### Reach the object behind a SharedPtr
+
+| Function | What it does | From |
+|---|---|---|
+| [SharedPtr.Ref](Modern-SharedPtr-Ref) | Returns a reference to the object; raises an error if the handle is null. | `std/memory` |
+| [SharedPtr.Get](Modern-SharedPtr-Get) | Returns the raw pointer to the object, or 0 if null, without adding an owner. | `std/memory` |
+| [SharedPtr.IsNull](Modern-SharedPtr-IsNull) | Returns true if the handle owns no object. | `std/memory` |
+| [SpCast](Modern-SharedPtr-SpCast) | Returns a SharedPtr to a base type that shares ownership with the derived one. | `std/memory` |
+
+### Refer to an object without keeping it alive
+
+| Function | What it does | From |
+|---|---|---|
+| [WeakPtr](Modern-SharedPtr-WeakPtr) | Holds a link to a shared object that does not keep it alive, to break cycles. | `std/memory` |
+| [WeakPtr.Lock](Modern-SharedPtr-Lock) | Returns a SharedPtr to the object if it still exists, or a null one if not. | `std/memory` |
+| [WeakPtr.Expired](Modern-SharedPtr-Expired) | Returns true once the object has been destroyed. | `std/memory` |
+
+<!-- finder:end -->
 
 ---
 

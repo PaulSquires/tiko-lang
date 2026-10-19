@@ -2,7 +2,7 @@
 
 # Rotate
 
-Rotates a vector by a quaternion.
+Rotates a vector by a normalised quaternion.
 
 ## Syntax
 

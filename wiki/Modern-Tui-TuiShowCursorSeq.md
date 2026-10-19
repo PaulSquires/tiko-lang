@@ -2,6 +2,8 @@
 
 # TuiShowCursorSeq
 
+Returns the escape sequence that shows or hides the cursor.
+
 ## Syntax
 
 ```freebasic

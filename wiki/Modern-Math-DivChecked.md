@@ -2,7 +2,7 @@
 
 # DivChecked
 
-Integer division, or **nothing** when it is undefined.
+Divides two integers, returning an empty Optional on division by zero or overflow.
 
 ## Syntax
 

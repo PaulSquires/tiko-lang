@@ -2,6 +2,8 @@
 
 # TuiWidget.CanFocus
 
+Returns true if the widget can take focus; false unless it is interactive.
+
 ## Syntax
 
 ```freebasic

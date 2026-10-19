@@ -2,7 +2,7 @@
 
 # LocalTime.LocalTime
 
-midnight
+Creates a time of day from hours, minutes, seconds and milliseconds; midnight if none.
 
 ## Syntax
 

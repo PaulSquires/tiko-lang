@@ -2,7 +2,7 @@
 
 # InStrRev
 
-Locates the last occurrence of a substring or character within a string
+Returns the position of the last match, or 0 if there is none.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # TuiKeyName
 
+Returns a readable name for a key, such as "Ctrl+Shift+F5".
+
 ## Syntax
 
 ```freebasic

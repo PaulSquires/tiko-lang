@@ -2,7 +2,7 @@
 
 # InstrChars
 
-O(n*k)   long
+Returns the position of the first character from a set, or 0.
 
 ## Syntax
 

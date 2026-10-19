@@ -2,7 +2,7 @@
 
 # MulSaturating
 
-A * b, **clamped** to the limits of the type instead of overflowing.
+Multiplies two integers, clamping the result to the type's minimum or maximum.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # LoanPayment
 
+Returns a loan's level payment, rounded once; the last payment absorbs the remainder.
+
 ## Syntax
 
 ```freebasic

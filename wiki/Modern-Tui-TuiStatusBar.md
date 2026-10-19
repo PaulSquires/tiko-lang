@@ -2,6 +2,8 @@
 
 # TuiStatusBar
 
+Draws one row of status items, some packed to the left and some to the right.
+
 ## Syntax
 
 ```freebasic

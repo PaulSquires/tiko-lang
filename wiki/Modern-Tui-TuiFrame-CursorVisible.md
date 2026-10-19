@@ -2,6 +2,8 @@
 
 # TuiFrame.CursorVisible
 
+Returns true if this frame asked to show the cursor.
+
 ## Syntax
 
 ```freebasic

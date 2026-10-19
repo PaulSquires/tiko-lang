@@ -2,6 +2,8 @@
 
 # DepreciationTerms
 
+Holds an asset's cost, salvage value, life in periods and declining-balance factor.
+
 ## Syntax
 
 ```freebasic

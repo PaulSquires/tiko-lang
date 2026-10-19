@@ -2,7 +2,7 @@
 
 # CNorm
 
-The modulus squared — the square root is not taken.
+Returns the modulus squared, the cheap way to compare sizes.
 
 ## Syntax
 

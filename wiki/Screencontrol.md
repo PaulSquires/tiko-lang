@@ -2,7 +2,7 @@
 
 # ScreenControl
 
-Sets or gets internal graphics library settings
+Sets or reads graphics library settings, such as the driver or the window position.
 
 ## Syntax
 

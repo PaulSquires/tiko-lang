@@ -2,6 +2,8 @@
 
 # Instant.ParseIso
 
+Reads ISO 8601 text into a date-time, or Invalid if it is not ISO 8601.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # Screen (Graphics)
 
-Initializes a graphics mode using QB-like mode numbers
+Opens a graphics mode by mode number, or picks the work and visible pages.
 
 ## Syntax
 

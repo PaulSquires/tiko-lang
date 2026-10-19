@@ -2,6 +2,8 @@
 
 # Ref
 
+Returns a reference to the object; raises an error if the handle is null.
+
 ## Syntax
 
 ```freebasic

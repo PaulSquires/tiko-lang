@@ -2,7 +2,7 @@
 
 # Pairs
 
-for 'for each (k, v)'
+Returns a view that lets for each (k, v) give each key and value as two variables.
 
 ## Syntax
 

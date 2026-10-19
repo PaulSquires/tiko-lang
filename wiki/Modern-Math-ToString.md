@@ -2,7 +2,7 @@
 
 # ToString
 
-shortest string that reads back EXACTLY
+Returns a number as the shortest text that reads back as exactly the same value.
 
 ## Syntax
 

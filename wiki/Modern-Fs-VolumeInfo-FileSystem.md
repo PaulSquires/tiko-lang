@@ -2,6 +2,8 @@
 
 # VolumeInfo.FileSystem
 
+Returns the file system's name, such as NTFS or ext4, or an empty string.
+
 ## Syntax
 
 ```freebasic

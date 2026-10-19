@@ -2,6 +2,8 @@
 
 # Instant.AddTicks
 
+Returns the date-time moved by a number of 100 ns ticks.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # ThreadWait
 
-Waits for a thread to finish execution and releases the thread handle
+Waits for a thread to finish, then releases its handle.
 
 ## Syntax
 

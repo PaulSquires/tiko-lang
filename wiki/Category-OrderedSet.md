@@ -201,17 +201,61 @@ Under tiko, both files build and run with exit 0 and print `container-orderedmap
 
 See also: [Map](Category-Map) (containers.Map( of TK, TV )), [Set](Category-Set) (containers.Set( of T )), [Sorting](Category-Sorting) (sorting an Array or a LinkedList instead).
 
+<!-- finder:start -->
+
 ## API reference
 
-One page per entry, 16 in all:
+Every entry, grouped by task. [Collections](Functions-Collections) lists them beside the rest of the area.
 
-|   |   |   |   |
-|---|---|---|---|
-| [OrderedSet](Modern-OrderedSet-OrderedSet) | [OrderedSet.Count](Modern-OrderedSet-Count) | [OrderedSet.Items](Modern-OrderedSet-Items) | [OrderedSet.TryLast](Modern-OrderedSet-TryLast) |
-| [OrderedSet.Add](Modern-OrderedSet-Add) | [OrderedSet.ExceptWith](Modern-OrderedSet-ExceptWith) | [OrderedSet.Remove](Modern-OrderedSet-Remove) | [OrderedSet.UnionWith](Modern-OrderedSet-UnionWith) |
-| [OrderedSet.BlackHeight](Modern-OrderedSet-BlackHeight) | [OrderedSet.GetIterator](Modern-OrderedSet-GetIterator) | [OrderedSet.TryCeiling](Modern-OrderedSet-TryCeiling) | [OrderedSetIterator](Modern-OrderedSet-OrderedSetIterator) |
-| [OrderedSet.Clear](Modern-OrderedSet-Clear) | [OrderedSet.IntersectWith](Modern-OrderedSet-IntersectWith) | [OrderedSet.TryFirst](Modern-OrderedSet-TryFirst) |  |
-| [OrderedSet.Contains](Modern-OrderedSet-Contains) | [OrderedSet.IsEmpty](Modern-OrderedSet-IsEmpty) | [OrderedSet.TryFloor](Modern-OrderedSet-TryFloor) |  |
+### Choose a container
+
+| Function | What it does | From |
+|---|---|---|
+| [OrderedSet](Modern-OrderedSet-OrderedSet) | Holds each value at most once, kept in sorted order. | `std/containers` |
+
+### Set: add, remove and test
+
+| Function | What it does | From |
+|---|---|---|
+| [OrderedSet.Add](Modern-OrderedSet-Add) | Adds a value; returns false if it was already there. | `std/containers` |
+| [OrderedSet.Remove](Modern-OrderedSet-Remove) | Removes a value; returns true if it was there. | `std/containers` |
+| [OrderedSet.Contains](Modern-OrderedSet-Contains) | Returns true if the value is in the set. | `std/containers` |
+| [OrderedSet.Count](Modern-OrderedSet-Count) | Returns the number of values in the set. | `std/containers` |
+| [OrderedSet.IsEmpty](Modern-OrderedSet-IsEmpty) | Returns true if the set has no values. | `std/containers` |
+| [OrderedSet.Clear](Modern-OrderedSet-Clear) | Removes every value. | `std/containers` |
+| [OrderedSet.Items](Modern-OrderedSet-Items) | Returns a copy of all the values as an Array, already sorted. | `std/containers` |
+
+### Combine sets
+
+| Function | What it does | From |
+|---|---|---|
+| [OrderedSet.UnionWith](Modern-OrderedSet-UnionWith) | Adds every value of another set to this one; the other set is unchanged. | `std/containers` |
+| [OrderedSet.IntersectWith](Modern-OrderedSet-IntersectWith) | Keeps only the values that are also in another set. | `std/containers` |
+| [OrderedSet.ExceptWith](Modern-OrderedSet-ExceptWith) | Removes every value that is also in another set. | `std/containers` |
+
+### Find the first, last or nearest key
+
+| Function | What it does | From |
+|---|---|---|
+| [OrderedSet.TryFirst](Modern-OrderedSet-TryFirst) | Copies the smallest value into a variable; returns false if the set is empty. | `std/containers` |
+| [OrderedSet.TryLast](Modern-OrderedSet-TryLast) | Copies the largest value into a variable; returns false if the set is empty. | `std/containers` |
+| [OrderedSet.TryFloor](Modern-OrderedSet-TryFloor) | Finds the largest value at or below a given one; returns false if there is none. | `std/containers` |
+| [OrderedSet.TryCeiling](Modern-OrderedSet-TryCeiling) | Finds the smallest value at or above a given one; returns false if there is none. | `std/containers` |
+
+### Walk a container step by step
+
+| Function | What it does | From |
+|---|---|---|
+| [OrderedSet.GetIterator](Modern-OrderedSet-GetIterator) | Returns an iterator over the values in ascending order. | `std/containers` |
+| [OrderedSetIterator](Modern-OrderedSet-OrderedSetIterator) | Holds a position in an OrderedSet, stepping in ascending order. | `std/containers` |
+
+### Check a container's internals
+
+| Function | What it does | From |
+|---|---|---|
+| [OrderedSet.BlackHeight](Modern-OrderedSet-BlackHeight) | Returns the tree's black height, or -1 if its balancing rules are broken. | `std/containers` |
+
+<!-- finder:end -->
 
 ---
 

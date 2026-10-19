@@ -2,7 +2,7 @@
 
 # TimeSpan.DivideBy
 
-double; NaN on zero or Invalid
+Returns how many times one duration fits in another, as a double.
 
 ## Syntax
 

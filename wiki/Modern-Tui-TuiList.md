@@ -2,6 +2,8 @@
 
 # TuiList
 
+Draws a scrolling list the user moves through with the arrow keys.
+
 ## Syntax
 
 ```freebasic

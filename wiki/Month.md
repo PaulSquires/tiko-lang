@@ -2,7 +2,7 @@
 
 # Month
 
-Gets the month of the year from a Date Serial
+Returns the month of a date serial, 1 to 12.
 
 ## Syntax
 

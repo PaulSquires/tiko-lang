@@ -2,6 +2,8 @@
 
 # TuiMessageBox
 
+Draws a dialog with a title, a message and buttons, coloured by its kind.
+
 ## Syntax
 
 ```freebasic

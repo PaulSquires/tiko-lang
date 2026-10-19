@@ -2,6 +2,8 @@
 
 # TuiInput.WaitingOnLoneEsc
 
+Returns true if the parser holds an Esc it cannot yet tell from a key sequence.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # TextReader.ReadLine
 
-FsResultBool
+Reads the next decoded line into a string; returns false at the end.
 
 ## Syntax
 

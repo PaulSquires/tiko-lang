@@ -2,6 +2,8 @@
 
 # TuiTitleOf
 
+Returns a title value; the side argument comes before the alignment.
+
 ## Syntax
 
 ```freebasic

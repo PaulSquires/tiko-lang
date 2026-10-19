@@ -2,6 +2,8 @@
 
 # FileInfo.Exists
 
+Returns true if the FileInfo describes something that exists.
+
 ## Syntax
 
 ```freebasic

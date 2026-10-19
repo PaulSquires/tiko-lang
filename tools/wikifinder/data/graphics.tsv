@@ -1,0 +1,84 @@
+# Graphics functions. One row per function, per task it belongs to. Tab-separated; see finder.py for the rules.
+page	name	qualifier	task	from	rank	summary
+Screenres	ScreenRes	-	open	built-in	1	Opens a graphics window of a given width, height and colour depth.
+Screen-Graphics	Screen	-	open	built-in	-	Opens a graphics mode by mode number, or picks the work and visible pages.
+Windowtitle	WindowTitle	-	open	built-in	-	Sets the title of the graphics window.
+Screenlist	ScreenList	-	open	built-in	-	Returns the fullscreen resolutions for a colour depth, one per call, then 0.
+Screeninfo	ScreenInfo	-	open	built-in	-	Fills in the screen's width, height, depth and driver, or the desktop's if none is open.
+Screencontrol	ScreenControl	-	open	built-in	-	Sets or reads graphics library settings, such as the driver or the window position.
+Screenglproc	ScreenGLProc	-	open	built-in	-	Returns the address of an OpenGL procedure by name, or 0 if it is not found.
+Pset-Statement	PSet	-	draw	built-in	-	Plots one pixel, in the given colour or the current foreground colour.
+Preset	PReset	-	draw	built-in	-	Plots one pixel, in the given colour or the current background colour.
+Line-Graphics	Line	-	draw	built-in	2	Draws a line between two points, or a box or filled box with B or BF.
+Circle	Circle	-	draw	built-in	-	Draws a circle, ellipse or arc, optionally filled.
+Paint	Paint	-	draw	built-in	-	Fills the area enclosed by a border colour with a colour or a pattern.
+Draw	Draw	-	draw	built-in	-	Draws a figure from a string of pen commands such as "U10 R10".
+Point	Point	-	draw	built-in	-	Returns the colour of a pixel, or -1 if it is off the screen or image.
+Pointcoord	PointCoord	-	draw	built-in	-	Returns the x or y position of the Draw pen.
+Draw-String	Draw String	-	text	built-in	-	Draws text at a pixel position, on a transparent background, with an optional font.
+Rgb	RGB	-	color	built-in	-	Returns an opaque colour value from red, green and blue parts of 0 to 255.
+Rgba	RGBA	-	color	built-in	-	Returns a colour value from red, green, blue and alpha parts of 0 to 255.
+Palette	Palette	-	color	built-in	-	Sets or reads the colours of a palette mode, or restores the default palette.
+Imagecreate	ImageCreate	-	image	built-in	-	Creates an image of a given size filled with one colour; returns 0 on failure.
+Imagedestroy	ImageDestroy	-	image	built-in	-	Frees an image made by ImageCreate.
+Imageinfo	ImageInfo	-	image	built-in	-	Fills in an image's width, height, bytes per pixel, pitch and pixel pointer.
+Imageconvertrow	ImageConvertRow	-	image	built-in	-	Copies a row of pixels to another buffer, converting its colour depth.
+Get-Graphics	Get	-	blit	built-in	-	Copies a rectangle of the screen or an image into an image buffer.
+Put-Graphics	Put	-	blit	built-in	-	Draws an image onto the screen or another image, with a choice of blending method.
+Pset-Graphics-Put	PSet	Put method	method	built-in	-	Copies source pixels over the destination unchanged, as a Put method.
+Trans	Trans	-	method	built-in	-	Copies pixels with Put but skips the mask colour, magenta or index 0.
+Alpha	Alpha	-	method	built-in	-	Blends pixels with Put by each pixel's alpha, or by one alpha value you give.
+Add	Add	-	method	built-in	-	Adds source and destination colour values with Put, capped at 255.
+And-Graphics-Put	And	-	method	built-in	-	Combines source and destination pixels with a bitwise And, as a Put method.
+Or-Graphics-Put	Or	-	method	built-in	-	Combines source and destination pixels with a bitwise Or, as a Put method.
+Xor-Graphics-Put	Xor	-	method	built-in	-	Combines source and destination pixels with a bitwise Xor, as a Put method.
+Custom	Custom	-	method	built-in	-	Calls your own function for each pixel to combine source and destination in Put.
+Bload	BLoad	-	file	built-in	-	Loads a BMP file or BSave data onto the screen or into memory.
+Bsave	BSave	-	file	built-in	-	Saves memory or the screen to a file, as a BMP image if the name ends in .bmp.
+Screenlock	ScreenLock	-	pages	built-in	-	Stops screen updates while you draw, so the user never sees half a frame.
+Screenunlock	ScreenUnlock	-	pages	built-in	-	Resumes screen updates after ScreenLock and shows what was drawn.
+Screenset	ScreenSet	-	pages	built-in	-	Sets which page is drawn on and which page is shown.
+Screencopy	ScreenCopy	-	pages	built-in	-	Copies one graphics page onto another, by default the work page onto the shown one.
+Pcopy	PCopy	-	pages	built-in	-	Copies one graphics or text page onto another.
+Flip	Flip	-	pages	built-in	-	Shows the OpenGL back buffer, or copies a page as ScreenCopy does in other modes.
+Screensync	ScreenSync	-	pages	built-in	-	Waits for the display to finish drawing a frame, to reduce flicker.
+Screenptr	ScreenPtr	-	pages	built-in	-	Returns a pointer to the work page's pixels, or 0 if no graphics mode is set.
+View-Graphics	View	-	coords	built-in	-	Sets the rectangle that drawing is clipped to, or resets it to the whole screen.
+Window	Window	-	coords	built-in	-	Sets the coordinate system mapped onto the current view.
+Pmap	PMap	-	coords	built-in	-	Converts a coordinate between the Window system and physical pixels.
+Getmouse	GetMouse	-	input	built-in	3	Fills in the mouse position, wheel and buttons, or -1 in each if there is no mouse.
+Setmouse	SetMouse	-	input	built-in	-	Moves the mouse pointer, shows or hides it, or keeps it inside the window.
+Multikey	MultiKey	-	input	built-in	-	Returns -1 while the key with a given scancode is held down, or 0 if it is not.
+Getjoystick	GetJoystick	-	input	built-in	-	Fills in a joystick's buttons and axis positions; returns 0 on success or 1.
+Screenevent	ScreenEvent	-	input	built-in	-	Returns -1 if a mouse, keyboard or window event is waiting, and fetches it.
+Event-Message-Data-From-Screenevent	Event	-	input	fbgfx.bi	-	Holds one event fetched by ScreenEvent: its type and its key or mouse data.
+PsTextBox	PsTextBox	-	ctl-text	vendor/PsControls/PsTextBox	-	Lets the user type text in a themed frame, on one line or several.
+PsNumericUpDown	PsNumericUpDown	-	ctl-text	vendor/PsControls/PsNumericUpDown	-	Lets the user pick a number with minus and plus buttons, or type it.
+PsDatePicker	PsDatePicker	-	ctl-text	vendor/PsControls/PsDatePicker	-	Lets the user type a date or pick it from a dropdown calendar.
+PsCalendar	PsCalendar	-	ctl-text	vendor/PsControls/PsCalendar	-	Shows one or more month grids inside your window for choosing a day.
+PsButton	PsButton	-	ctl-button	vendor/PsControls/PsButton	4	Draws a push button with an optional caption and icons on either side.
+PsCheckBox	PsCheckBox	-	ctl-button	vendor/PsControls/PsCheckBox	-	Draws a checkbox, checked or unchecked, with an optional caption.
+PsOptionButton	PsOptionButton	-	ctl-button	vendor/PsControls/PsOptionButton	-	Draws a radio button; checking one in a group unchecks the others.
+PsToggle	PsToggle	-	ctl-button	vendor/PsControls/PsToggle	-	Draws an on and off switch: a pill with a knob at one end.
+PsListTree	PsListTree	-	ctl-list	vendor/PsControls/PsListTree	-	Shows a list, tree or multi-column report of rows you paint, with in-place renaming.
+PsComboBox	PsComboBox	-	ctl-list	vendor/PsControls/PsComboBox	-	Shows the current choice on a button that drops down a list of the others.
+PsSelectBar	PsSelectBar	-	ctl-list	vendor/PsControls/PsSelectBar	-	Shows a row of labels with a line under the current one, for switching views.
+PsTabBar	PsTabBar	-	ctl-list	vendor/PsControls/PsTabBar	-	Shows a strip of tabs that can be selected, closed and dragged to a new place.
+PsMenuBar	PsMenuBar	-	ctl-command	vendor/PsControls/PsMenuBar	-	Shows a menu bar of items such as File and Edit, each with its own dropdown.
+PsToolbar	PsToolbar	-	ctl-command	vendor/PsControls/PsToolbar	-	Shows a strip of command buttons; items that do not fit move into an overflow menu.
+PsIconPanel	PsIconPanel	-	ctl-command	vendor/PsControls/PsIconPanel	-	Shows a strip of icon buttons and toggles, spaced exactly as you declare.
+PsStatusBar	PsStatusBar	-	ctl-command	vendor/PsControls/PsStatusBar	-	Shows panels of text in a strip along the bottom of a window.
+PsSplitter	PsSplitter	-	ctl-layout	vendor/PsControls/PsSplitter	-	Draws a divider between two panes that the user drags, and reports where it went.
+PsScrollPanel	PsScrollPanel	-	ctl-layout	vendor/PsControls/PsScrollPanel	-	Scrolls a page of ordinary child controls that is taller than the space for it.
+PsVScrollBar	PsVScrollBar	-	ctl-layout	vendor/PsControls/PsVScrollBar	-	Draws a vertical scrollbar for content whose scrolling you manage yourself.
+PsHScrollBar	PsHScrollBar	-	ctl-layout	vendor/PsControls/PsHScrollBar	-	Draws a horizontal scrollbar for content whose scrolling you manage yourself.
+PsMessageBox	PsMessageBox	-	ctl-popup	vendor/PsControls/PsMessageBox	-	Shows a themed modal message box with an optional icon and one to three buttons.
+PsColorPicker	PsColorPicker	-	ctl-popup	vendor/PsControls/PsColorPicker	-	Shows a modal colour picker and returns true with the colour, or false if abandoned.
+PsTooltip	PsTooltip	-	ctl-popup	vendor/PsControls/PsTooltip	-	Shows a themed tooltip near the cursor, with an optional title, wrapping and fade.
+PsProgressBar	PsProgressBar	-	ctl-progress	vendor/PsControls/PsProgressBar	-	Draws a progress bar, flat or gradient, solid or in blocks, or with no known end.
+PsChart	PsChart	-	ctl-progress	vendor/PsControls/PsChart	-	Draws a line, column, price or pie chart from the series you supply.
+PsBufferPaint	PsBufferPaint	-	ctl-support	vendor/PsControls/PsBufferPaint	-	Paints a window offscreen and copies it in one go, so drawing never flickers.
+PsImage	PsImage	-	ctl-support	vendor/PsControls/PsImage	-	Loads an icon, PNG, BMP or JPEG file so a control can show it in an icon slot.
+PsPopupMenu	PsPopupMenu	-	ctl-support	vendor/PsControls/PsPopupMenu	-	Shows a themed popup menu with checks, accelerator labels and nested submenus.
+PsColumnHeader	PsColumnHeader	-	ctl-support	vendor/PsControls/PsColumnHeader	-	Draws a band of resizable column headers above a list or grid.
+PsTipHost	PsTipHost	-	ctl-support	vendor/PsControls/PsTipHost	-	Switches the controls' tooltips between the system tooltip and PsTooltip.

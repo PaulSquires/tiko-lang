@@ -2,7 +2,7 @@
 
 # LStat
 
-FsResultInfo -- does NOT follow
+Returns a path's FileInfo without following a symbolic link, so a link describes itself.
 
 ## Syntax
 

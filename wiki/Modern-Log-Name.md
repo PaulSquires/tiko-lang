@@ -2,7 +2,7 @@
 
 # Name
 
-This logger's component name, attached to every record it makes.
+Sets or returns the logger's component name, attached to every record it makes.
 
 ## Syntax
 

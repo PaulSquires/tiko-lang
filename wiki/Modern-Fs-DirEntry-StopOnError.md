@@ -2,6 +2,8 @@
 
 # DirEntry.StopOnError
 
+Chooses whether a walk ends at its first error; false by default, so it carries on.
+
 ## Syntax
 
 ```freebasic

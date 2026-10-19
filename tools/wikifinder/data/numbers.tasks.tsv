@@ -1,0 +1,37 @@
+# Numbers and math: task headings in display order, pages to skip, see-also links.
+#   task    <task id>  <heading>
+#   ignore  <page>  <reason>
+#   seealso <page>  <label>
+task	round	Round a number
+task	compare	Absolute value, sign, smaller and larger
+task	power	Powers, roots and logarithms
+task	trig	Trigonometry and angles
+task	divide	Divide whole numbers
+task	overflow	Catch, clamp or wrap integer overflow
+task	convert	Convert between number types
+task	text	Convert between numbers and text
+task	random	Random numbers
+task	secure	Secure random bytes
+task	special	NaN, infinity and other special values
+task	float	Look inside floating-point numbers
+task	fenv	Control floating-point rounding and exceptions
+task	bits	Read and set bits and bytes
+task	bitops	Count, reverse and swap bits
+task	stats	Summarise an array of numbers
+task	running	Keep running statistics
+task	vector	Vectors
+task	matrix	Matrices and rotations
+task	cbuild	Complex numbers: build, read and print
+task	cmeasure	Complex numbers: test and measure
+task	cpower	Complex numbers: powers, roots and logarithms
+task	ctrig	Complex numbers: trigonometry
+ignore	Mathematical-Functions	an overview page, not a function
+ignore	Bit-Manipulation	an overview page, not a function
+ignore	Converting-Data-Types	an overview page, not a function
+ignore	Double	a data type, not a function
+ignore	Uinteger	a data type, not a function
+seealso	Category-Math-Library	Math Library guide
+seealso	Category-Mathematical-Functions	Mathematical functions
+seealso	Category-Converting-Data-Types	Converting data types
+seealso	Category-Bit-Manipulation	Bit manipulation
+seealso	Category-Finance	Money and finance

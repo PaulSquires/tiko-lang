@@ -2,6 +2,8 @@
 
 # TuiRectOf
 
+Returns a rectangle from x, y, width and height.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # Correlation
 
-The Pearson correlation coefficient: covariance normalised to [-1, 1].
+Returns the Pearson correlation of two arrays, from -1 to 1.
 
 ## Syntax
 

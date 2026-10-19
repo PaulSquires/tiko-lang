@@ -2,7 +2,7 @@
 
 # CToStringPolar
 
-The text form in polar coordinates.
+Returns a complex number as polar text, such as 5 * exp(0.927i).
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # PathSeparator
 
-"\" or "/"
+Returns the platform's path separator: a backslash on Windows, a slash on Linux.
 
 ## Syntax
 

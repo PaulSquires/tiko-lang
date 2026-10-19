@@ -2,6 +2,8 @@
 
 # DepreciationTermsMake
 
+Returns depreciation terms from cost, salvage and life, with a factor of 2 and cents.
+
 ## Syntax
 
 ```freebasic

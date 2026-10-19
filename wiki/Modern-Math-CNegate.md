@@ -2,7 +2,7 @@
 
 # CNegate
 
-The negation — both components negated.
+Returns a complex number with both parts negated.
 
 ## Syntax
 

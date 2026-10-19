@@ -2,7 +2,7 @@
 
 # File.Stat
 
-FsResultInfo
+Returns the open file's FileInfo, read from the handle even if the file was renamed.
 
 ## Syntax
 

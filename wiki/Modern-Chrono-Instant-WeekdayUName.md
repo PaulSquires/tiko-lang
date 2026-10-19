@@ -2,6 +2,8 @@
 
 # Instant.WeekdayUName
 
+Returns the English name of a weekday, 1 being Monday, as a ustring.
+
 ## Syntax
 
 ```freebasic

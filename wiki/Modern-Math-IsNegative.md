@@ -2,6 +2,8 @@
 
 # IsNegative
 
+Returns true if the sign bit is set, which includes negative zero.
+
 ## Syntax
 
 ```freebasic

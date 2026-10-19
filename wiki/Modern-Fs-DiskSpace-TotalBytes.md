@@ -2,6 +2,8 @@
 
 # DiskSpace.TotalBytes
 
+Returns the capacity of the volume in bytes.
+
 ## Syntax
 
 ```freebasic

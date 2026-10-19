@@ -2,7 +2,7 @@
 
 # ScreenRes
 
-Initializes a graphics mode by specifying horizontal and vertical resolution
+Opens a graphics window of a given width, height and colour depth.
 
 ## Syntax
 

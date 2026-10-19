@@ -2,7 +2,7 @@
 
 # Open Lpt
 
-Open a printer device, using it as if it were file operations.
+Opens a printer on a file number, so Print # and Put # send data to it.
 
 ## Syntax
 

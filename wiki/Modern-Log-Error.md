@@ -2,7 +2,7 @@
 
 # Error
 
-Logs at ERROR level, either directly or by starting a field chain.
+Logs a message at the error level, or returns a record to add fields to.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # GetIterator
 
+Returns an iterator over the entries, each a pair read through .key and .value.
+
 ## Syntax
 
 ```freebasic

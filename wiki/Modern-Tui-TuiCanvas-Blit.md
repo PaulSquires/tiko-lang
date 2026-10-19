@@ -2,6 +2,8 @@
 
 # TuiCanvas.Blit
 
+Draws the canvas into an area of the frame as braille characters.
+
 ## Syntax
 
 ```freebasic

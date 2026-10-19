@@ -2,7 +2,7 @@
 
 # Reallocate
 
-Reallocates storage for an existing reserved block of memory
+Resizes a block, keeping its contents, and returns the new pointer, or 0 on failure.
 
 ## Syntax
 

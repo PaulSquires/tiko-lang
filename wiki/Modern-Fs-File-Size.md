@@ -2,7 +2,7 @@
 
 # File.Size
 
-FsResultI64
+Returns the open file's current size in bytes.
 
 ## Syntax
 

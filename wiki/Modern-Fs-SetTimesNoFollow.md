@@ -2,7 +2,7 @@
 
 # SetTimesNoFollow
 
-FsResultBool
+Sets a symbolic link's own times, leaving its target alone.
 
 ## Syntax
 

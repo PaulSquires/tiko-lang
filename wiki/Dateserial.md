@@ -2,7 +2,7 @@
 
 # DateSerial
 
-Creates a date serial
+Returns the date serial for a year, month and day; out-of-range values roll over.
 
 ## Syntax
 

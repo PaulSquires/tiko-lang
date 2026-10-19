@@ -2,7 +2,7 @@
 
 # ScreenGLProc
 
-Gets the address of an OpenGL procedure
+Returns the address of an OpenGL procedure by name, or 0 if it is not found.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # TuiApp.View
 
+Draws the whole screen from your app's state, changing nothing.
+
 ## Syntax
 
 ```freebasic

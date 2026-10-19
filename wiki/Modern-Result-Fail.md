@@ -2,6 +2,8 @@
 
 # Fail
 
+Returns a failed Result holding the reason; both types must be written out.
+
 ## Syntax
 
 ```freebasic

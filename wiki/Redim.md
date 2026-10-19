@@ -2,7 +2,7 @@
 
 # ReDim
 
-Defines or resizes a variable-length array
+Creates or resizes a variable-length array; elements are reset unless Preserve is used.
 
 ## Syntax
 

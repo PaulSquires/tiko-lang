@@ -2,7 +2,7 @@
 
 # Remove
 
-O(n)   preserves order
+Removes the element at a position, keeping the rest in order.
 
 ## Syntax
 

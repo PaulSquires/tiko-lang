@@ -2,7 +2,7 @@
 
 # PathNormalize
 
-duplicate separators and a trailing one
+Returns a tidied path: . removed, .. resolved as text, duplicate separators collapsed.
 
 ## Syntax
 

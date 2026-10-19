@@ -2,6 +2,8 @@
 
 # TimeSpan.TotalDays
 
+Returns the whole duration in days, with a fraction.
+
 ## Syntax
 
 ```freebasic

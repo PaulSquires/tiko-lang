@@ -2,6 +2,8 @@
 
 # LocalDate.TryParseIso
 
+Reads ISO text into a date; returns false and sets it Invalid on failure.
+
 ## Syntax
 
 ```freebasic

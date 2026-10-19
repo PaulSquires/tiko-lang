@@ -2,6 +2,8 @@
 
 # TuiColor
 
+Holds a colour: the terminal's default, one of 16 or 256, or 24-bit RGB.
+
 ## Syntax
 
 ```freebasic

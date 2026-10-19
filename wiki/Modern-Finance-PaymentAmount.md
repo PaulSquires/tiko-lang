@@ -2,6 +2,8 @@
 
 # PaymentAmount
 
+Returns the level payment per period, negative when the present value is positive.
+
 ## Syntax
 
 ```freebasic

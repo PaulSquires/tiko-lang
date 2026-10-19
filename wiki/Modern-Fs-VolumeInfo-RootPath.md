@@ -2,6 +2,8 @@
 
 # VolumeInfo.RootPath
 
+Returns where the volume is mounted, such as C:\ or /.
+
 ## Syntax
 
 ```freebasic

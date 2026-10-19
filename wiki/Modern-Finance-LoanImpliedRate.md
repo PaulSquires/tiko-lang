@@ -2,6 +2,8 @@
 
 # LoanImpliedRate
 
+Returns the annual rate implied by a known principal, payment and term.
+
 ## Syntax
 
 ```freebasic

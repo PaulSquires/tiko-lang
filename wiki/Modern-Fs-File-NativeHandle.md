@@ -2,7 +2,7 @@
 
 # File.NativeHandle
 
-integer
+Returns the operating-system handle or descriptor, or -1 when closed.
 
 ## Syntax
 

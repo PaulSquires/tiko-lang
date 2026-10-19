@@ -2,6 +2,8 @@
 
 # LocalDate.IsoWeek
 
+Returns the ISO week number, 1 to 53; pair it with IsoWeekYear.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # Ermn
 
-Error reporting function
+Returns a pointer to the name of the source file where the last error happened.
 
 ## Syntax
 

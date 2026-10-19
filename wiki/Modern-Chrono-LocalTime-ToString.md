@@ -2,6 +2,8 @@
 
 # LocalTime.ToString
 
+Returns the time of day as ISO 8601 text, the same as ToIsoString.
+
 ## Syntax
 
 ```freebasic

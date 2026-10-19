@@ -2,6 +2,8 @@
 
 # UseCount
 
+Returns how many SharedPtr handles share the object.
+
 ## Syntax
 
 ```freebasic

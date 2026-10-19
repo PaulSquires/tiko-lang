@@ -2,7 +2,7 @@
 
 # CurDir
 
-Returns the current directory/folder
+Returns the current folder.
 
 ## Syntax
 

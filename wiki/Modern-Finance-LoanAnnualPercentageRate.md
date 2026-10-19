@@ -2,6 +2,8 @@
 
 # LoanAnnualPercentageRate
 
+Returns the annual rate once financed fees are counted as a cost of borrowing.
+
 ## Syntax
 
 ```freebasic

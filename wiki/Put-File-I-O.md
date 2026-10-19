@@ -2,7 +2,7 @@
 
 # Put (File I/O)
 
-Writes data from a buffer to a file
+Writes a variable, string or array to a file as bytes, at a position or the current one.
 
 ## Syntax
 

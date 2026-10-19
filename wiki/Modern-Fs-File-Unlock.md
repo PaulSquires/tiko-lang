@@ -2,7 +2,7 @@
 
 # File.Unlock
 
-FsResultBool
+Releases this handle's lock; succeeds when none is held.
 
 ## Syntax
 

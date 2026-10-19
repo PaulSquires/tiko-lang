@@ -2,7 +2,7 @@
 
 # CAbs
 
-The modulus — the distance from the origin.
+Returns the modulus, the distance from zero, without overflowing for large parts.
 
 ## Syntax
 

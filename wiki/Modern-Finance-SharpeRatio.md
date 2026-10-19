@@ -2,6 +2,8 @@
 
 # SharpeRatio
 
+Returns the annualized return above the risk-free rate per unit of volatility.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # Escape
 
-O(n)
+Replaces quotes, backslashes and control characters with backslash escapes.
 
 ## Syntax
 

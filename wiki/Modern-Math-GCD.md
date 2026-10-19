@@ -2,6 +2,8 @@
 
 # GCD
 
+Returns the greatest common divisor of two whole numbers.
+
 ## Syntax
 
 ```freebasic

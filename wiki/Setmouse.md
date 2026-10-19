@@ -2,7 +2,7 @@
 
 # SetMouse
 
-Sets the position and visibility of the mouse cursor
+Moves the mouse pointer, shows or hides it, or keeps it inside the window.
 
 ## Syntax
 

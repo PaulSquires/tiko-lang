@@ -2,6 +2,8 @@
 
 # CashFlowMake
 
+Returns a cash flow on a date; the dates in a series must ascend.
+
 ## Syntax
 
 ```freebasic

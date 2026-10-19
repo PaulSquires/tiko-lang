@@ -2,7 +2,7 @@
 
 # ListDir
 
-eager; fills an Array( of DirEntry )
+Fills an Array with one folder's entries at once; returns the count.
 
 ## Syntax
 

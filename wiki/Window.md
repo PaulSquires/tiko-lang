@@ -2,7 +2,7 @@
 
 # Window
 
-Sets new view coordinates mapping for current viewport
+Sets the coordinate system mapped onto the current view.
 
 ## Syntax
 

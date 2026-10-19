@@ -2,6 +2,8 @@
 
 # Choice
 
+Returns one element of an array picked at random, by reference.
+
 ## Syntax
 
 ```freebasic

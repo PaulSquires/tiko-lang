@@ -2,7 +2,7 @@
 
 # ReceiveFor
 
-Receives a value, giving up after `ms` milliseconds.
+Receives a value, waiting at most ms milliseconds; false on a timeout or end of stream.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # Determinant
 
-The determinant of a matrix.
+Returns the determinant of a matrix; zero means it has no inverse.
 
 ## Syntax
 

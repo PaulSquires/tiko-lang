@@ -2,7 +2,7 @@
 
 # WOct
 
-Converts a number to a Unicode octal representation
+Returns a number as octal wide-string text.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # RemoveDirAll
 
-rm -rf; FsResultI64, the number of objects removed
+Deletes a folder and all it holds without following links; returns how many it removed.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # ExtractChars
 
-O(n*k)
+Returns the text before the first character from a set.
 
 ## Syntax
 

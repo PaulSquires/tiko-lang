@@ -2,7 +2,7 @@
 
 # Ulp
 
-The distance from `x` to the next representable value.
+Returns the gap between a number and the next one its type can hold.
 
 ## Syntax
 

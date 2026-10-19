@@ -2,6 +2,8 @@
 
 # LogEvent.Close
 
+Closes a sink and releases what it holds; every kind of sink closes the same way.
+
 ## Syntax
 
 ```freebasic

@@ -175,15 +175,53 @@ Complexity is ASSERTED, not assumed: 100k insertions must respect the 0.75 load 
 
 src/tests/generics/fail-container-nohash-set.bas pins the missing-HashOf diagnostic.
 
+<!-- finder:start -->
+
 ## API reference
 
-One page per entry, 10 in all:
+Every entry, grouped by task. [Collections](Functions-Collections) lists them beside the rest of the area.
 
-|   |   |   |   |   |
-|---|---|---|---|---|
-| [Add](Modern-Set-Add) | [Contains](Modern-Set-Contains) | [GetIterator](Modern-Set-GetIterator) | [Items](Modern-Set-Items) | [Set](Modern-Set-Set) |
-| [Capacity](Modern-Set-Capacity) | [Count](Modern-Set-Count) | [IntersectWith](Modern-Set-IntersectWith) | [Remove](Modern-Set-Remove) | [SetIterator](Modern-Set-SetIterator) |
-| [Clear](Modern-Set-Clear) | [ExceptWith](Modern-Set-ExceptWith) | [IsEmpty](Modern-Set-IsEmpty) | [Reserve](Modern-Set-Reserve) | [UnionWith](Modern-Set-UnionWith) |
+### Choose a container
+
+| Function | What it does | From |
+|---|---|---|
+| [Set](Modern-Set-Set) | Holds each value at most once, in no particular order. | `std/containers` |
+
+### Set: add, remove and test
+
+| Function | What it does | From |
+|---|---|---|
+| [Set.Add](Modern-Set-Add) | Adds a value; returns false if it was already there. | `std/containers` |
+| [Set.Remove](Modern-Set-Remove) | Removes a value; returns true if it was there. | `std/containers` |
+| [Set.Contains](Modern-Set-Contains) | Returns true if the value is in the set. | `std/containers` |
+| [Set.Count](Modern-Set-Count) | Returns the number of values in the set. | `std/containers` |
+| [Set.IsEmpty](Modern-Set-IsEmpty) | Returns true if the set has no values. | `std/containers` |
+| [Set.Clear](Modern-Set-Clear) | Removes every value. | `std/containers` |
+| [Set.Items](Modern-Set-Items) | Returns a copy of all the values as an Array, in no particular order. | `std/containers` |
+
+### Combine sets
+
+| Function | What it does | From |
+|---|---|---|
+| [Set.UnionWith](Modern-Set-UnionWith) | Adds every value of another set to this one; the other set is unchanged. | `std/containers` |
+| [Set.IntersectWith](Modern-Set-IntersectWith) | Keeps only the values that are also in another set. | `std/containers` |
+| [Set.ExceptWith](Modern-Set-ExceptWith) | Removes every value that is also in another set. | `std/containers` |
+
+### Walk a container step by step
+
+| Function | What it does | From |
+|---|---|---|
+| [Set.GetIterator](Modern-Set-GetIterator) | Returns an iterator over the values, in no particular order. | `std/containers` |
+| [SetIterator](Modern-Set-SetIterator) | Holds a position in a Set; changing a value through it loses that value. | `std/containers` |
+
+### Reserve room ahead of time
+
+| Function | What it does | From |
+|---|---|---|
+| [Set.Capacity](Modern-Set-Capacity) | Returns the number of slots in the table, always a power of two. | `std/containers` |
+| [Set.Reserve](Modern-Set-Reserve) | Makes room for n values, so filling the set does not have to regrow it. | `std/containers` |
+
+<!-- finder:end -->
 
 ---
 

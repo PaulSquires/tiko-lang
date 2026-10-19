@@ -2,7 +2,7 @@
 
 # CTanh
 
-The hyperbolic tangent.
+Returns the hyperbolic tangent of a complex number.
 
 ## Syntax
 

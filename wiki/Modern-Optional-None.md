@@ -2,6 +2,8 @@
 
 # None
 
+Returns an empty Optional of the type you write out.
+
 ## Syntax
 
 ```freebasic

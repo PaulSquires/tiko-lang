@@ -2,7 +2,7 @@
 
 # GetVolumeInfo
 
-FsResultVol
+Returns the VolumeInfo of the volume a path is on: its root, label and file system.
 
 ## Syntax
 

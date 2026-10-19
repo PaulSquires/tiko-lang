@@ -2,7 +2,7 @@
 
 # PadCenter
 
-O(width)
+Centres the string in a width, padding both sides.
 
 ## Syntax
 

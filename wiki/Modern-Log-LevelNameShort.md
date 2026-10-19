@@ -2,6 +2,8 @@
 
 # LevelNameShort
 
+Returns a level's three-letter name, such as "WRN".
+
 ## Syntax
 
 ```freebasic

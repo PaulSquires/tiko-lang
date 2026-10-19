@@ -2,7 +2,7 @@
 
 # ScreenSet
 
-Sets current work and visible pages
+Sets which page is drawn on and which page is shown.
 
 ## Syntax
 

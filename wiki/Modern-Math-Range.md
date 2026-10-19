@@ -2,7 +2,7 @@
 
 # Range
 
-The spread: the largest value minus the smallest.
+Returns the largest value in an array minus the smallest.
 
 ## Syntax
 

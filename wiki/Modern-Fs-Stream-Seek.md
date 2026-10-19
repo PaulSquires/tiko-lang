@@ -2,7 +2,7 @@
 
 # Stream.Seek
 
-FsResultI64
+Moves the position from the start, the current place or the end; returns the new position.
 
 ## Syntax
 

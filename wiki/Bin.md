@@ -2,7 +2,7 @@
 
 # Bin
 
-Returns a binary (base 2) string representation of an integer
+Returns a number as binary text.
 
 ## Syntax
 

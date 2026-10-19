@@ -2,6 +2,8 @@
 
 # TuiPos
 
+Holds a cell position: x and y.
+
 ## Syntax
 
 ```freebasic

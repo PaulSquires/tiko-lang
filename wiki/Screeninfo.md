@@ -2,7 +2,7 @@
 
 # ScreenInfo
 
-Retrieves information about current video mode or the desktop.
+Fills in the screen's width, height, depth and driver, or the desktop's if none is open.
 
 ## Syntax
 

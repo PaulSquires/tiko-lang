@@ -2,6 +2,8 @@
 
 # Count
 
+Returns the number of values in the set.
+
 ## Syntax
 
 ```freebasic

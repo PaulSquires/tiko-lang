@@ -2,6 +2,8 @@
 
 # CurrencyFromDouble
 
+Converts a double to a Currency, rounded to four decimal places.
+
 ## Syntax
 
 ```freebasic

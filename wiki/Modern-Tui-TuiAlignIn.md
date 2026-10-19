@@ -2,6 +2,8 @@
 
 # TuiAlignIn
 
+Returns a rectangle of a given width at the left, centre or right of another.
+
 ## Syntax
 
 ```freebasic

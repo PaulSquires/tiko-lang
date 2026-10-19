@@ -2,6 +2,8 @@
 
 # LocalDate.Day
 
+Returns the day of the month, starting at 1.
+
 ## Syntax
 
 ```freebasic

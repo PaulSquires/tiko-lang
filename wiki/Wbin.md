@@ -2,7 +2,7 @@
 
 # WBin
 
-Returns the binary WString (Unicode) representation of a number
+Returns a number as binary wide-string text.
 
 ## Syntax
 

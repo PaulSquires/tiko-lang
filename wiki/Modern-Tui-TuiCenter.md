@@ -2,6 +2,8 @@
 
 # TuiCenter
 
+Returns a rectangle of a given size centred in another, as for a dialog.
+
 ## Syntax
 
 ```freebasic

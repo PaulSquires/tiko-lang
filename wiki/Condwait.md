@@ -2,7 +2,7 @@
 
 # CondWait
 
-Stops execution of current thread until some condition becomes true
+Unlocks the mutex and waits for a signal, then locks the mutex again.
 
 ## Syntax
 

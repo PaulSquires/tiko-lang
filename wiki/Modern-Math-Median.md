@@ -2,7 +2,7 @@
 
 # Median
 
-The middle value, or the mean of the two middle values.
+Returns the middle value of an array, without reordering it.
 
 ## Syntax
 

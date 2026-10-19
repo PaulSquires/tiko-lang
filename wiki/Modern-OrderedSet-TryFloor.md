@@ -2,6 +2,8 @@
 
 # OrderedSet.TryFloor
 
+Finds the largest value at or below a given one; returns false if there is none.
+
 ## Syntax
 
 ```freebasic

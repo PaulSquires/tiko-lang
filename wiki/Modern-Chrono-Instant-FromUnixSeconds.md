@@ -2,6 +2,8 @@
 
 # Instant.FromUnixSeconds
 
+Returns the moment a number of seconds after 1970-01-01 UTC; negative is earlier.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # TuiLuminance
 
+Returns how bright a colour looks, from 0.0 to 1.0.
+
 ## Syntax
 
 ```freebasic

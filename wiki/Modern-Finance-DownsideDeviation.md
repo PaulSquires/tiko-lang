@@ -2,6 +2,8 @@
 
 # DownsideDeviation
 
+Returns the annualized shortfall of returns below a target, ignoring gains.
+
 ## Syntax
 
 ```freebasic

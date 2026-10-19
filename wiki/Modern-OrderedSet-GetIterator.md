@@ -2,7 +2,7 @@
 
 # OrderedSet.GetIterator
 
-O(log n)
+Returns an iterator over the values in ascending order.
 
 ## Syntax
 

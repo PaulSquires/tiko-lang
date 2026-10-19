@@ -2,6 +2,8 @@
 
 # MoneyRoundingCents
 
+Returns the default policy: two places, half-to-even, every posted amount rounded.
+
 ## Syntax
 
 ```freebasic

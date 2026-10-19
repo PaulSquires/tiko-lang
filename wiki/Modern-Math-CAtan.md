@@ -2,7 +2,7 @@
 
 # CAtan
 
-The inverse tangent.
+Returns the inverse tangent of a complex number.
 
 ## Syntax
 

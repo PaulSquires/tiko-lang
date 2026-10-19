@@ -2,7 +2,7 @@
 
 # Weekday
 
-Gets the number of day of the week from a Date Serial
+Returns the day of the week, 1 to 7, counting from Sunday unless told otherwise.
 
 ## Syntax
 

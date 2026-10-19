@@ -2,7 +2,7 @@
 
 # Stream.Write
 
-FsResultI64
+Writes up to n bytes and returns how many it wrote, which may be fewer.
 
 ## Syntax
 

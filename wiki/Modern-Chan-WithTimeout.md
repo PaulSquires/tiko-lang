@@ -2,7 +2,7 @@
 
 # WithTimeout
 
-cancels itself when the deadline passes
+Returns a child context that cancels itself after the given milliseconds.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # DirEntry.IsSymlink
 
+Returns true if the entry is a symbolic link.
+
 ## Syntax
 
 ```freebasic

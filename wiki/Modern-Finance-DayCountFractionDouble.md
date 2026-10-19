@@ -2,6 +2,8 @@
 
 # DayCountFractionDouble
 
+Returns the fraction of a year between two dates on a basis, as a double.
+
 ## Syntax
 
 ```freebasic

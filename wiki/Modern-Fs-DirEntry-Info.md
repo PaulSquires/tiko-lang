@@ -2,7 +2,7 @@
 
 # DirEntry.Info
 
-FsResultInfo -- MAY cost a stat
+Returns the entry's FileInfo: free on Windows, one extra system call on Linux.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # GrowthFactorContinuous
 
+Returns what one unit grows to over a number of years with continuous compounding.
+
 ## Syntax
 
 ```freebasic

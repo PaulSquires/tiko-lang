@@ -2,7 +2,7 @@
 
 # ScreenSync
 
-Synchronizes display updates with hardware
+Waits for the display to finish drawing a frame, to reduce flicker.
 
 ## Syntax
 

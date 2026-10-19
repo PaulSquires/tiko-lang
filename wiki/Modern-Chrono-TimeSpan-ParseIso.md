@@ -2,6 +2,8 @@
 
 # TimeSpan.ParseIso
 
+Reads an ISO 8601 duration such as P1DT2H into a TimeSpan, or Invalid on failure.
+
 ## Syntax
 
 ```freebasic

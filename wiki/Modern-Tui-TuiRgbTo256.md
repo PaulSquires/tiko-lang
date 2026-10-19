@@ -2,6 +2,8 @@
 
 # TuiRgbTo256
 
+Returns the nearest 256-palette colour number for red, green and blue values.
+
 ## Syntax
 
 ```freebasic

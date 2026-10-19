@@ -2,6 +2,8 @@
 
 # CurrencyFromRaw
 
+Returns a Currency from its stored integer, which is the amount times 10000.
+
 ## Syntax
 
 ```freebasic

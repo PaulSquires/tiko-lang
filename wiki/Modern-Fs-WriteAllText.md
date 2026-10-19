@@ -2,7 +2,7 @@
 
 # WriteAllText
 
-FsResultBool
+Writes a string to a file as UTF-8, creating the file or replacing it.
 
 ## Syntax
 

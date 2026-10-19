@@ -2,7 +2,7 @@
 
 # PathAddExtension
 
-ustring
+Adds an extension after any already there, so a.tar becomes a.tar.gz.
 
 ## Syntax
 

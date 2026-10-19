@@ -2,6 +2,8 @@
 
 # TuiFocusRing.Focus
 
+Focuses a given widget, or returns false if it is not in the ring.
+
 ## Syntax
 
 ```freebasic

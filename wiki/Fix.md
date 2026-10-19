@@ -2,7 +2,7 @@
 
 # Fix
 
-Returns the integer part of a number, rounding towards zero
+Returns the whole-number part, rounding towards zero, so Fix(-4.9) is -4.
 
 ## Syntax
 

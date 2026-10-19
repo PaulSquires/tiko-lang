@@ -2,6 +2,8 @@
 
 # Failure
 
+Returns the reason by reference; raises an error if the Result succeeded.
+
 ## Syntax
 
 ```freebasic

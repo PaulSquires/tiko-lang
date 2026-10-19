@@ -2,6 +2,8 @@
 
 # IsOk
 
+Returns true if the Result holds a value rather than a reason for failure.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # CSng
 
-Converts numeric or string expression to Single precision floating point
+Converts a number or string to a Single.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # SetIterator
 
-The iterator `for each` uses over a `Set( of T )`.
+Holds a position in a Set; changing a value through it loses that value.
 
 ## Syntax
 

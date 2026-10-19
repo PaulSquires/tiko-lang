@@ -2,7 +2,7 @@
 
 # Total
 
-The accumulated total, as a Currency.
+Returns the running total as a Currency, rounded once; reading it does not reset it.
 
 ## Syntax
 

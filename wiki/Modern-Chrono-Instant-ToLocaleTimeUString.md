@@ -2,6 +2,8 @@
 
 # Instant.ToLocaleTimeUString
 
+Returns the time in the machine's locale format as a ustring, for display only.
+
 ## Syntax
 
 ```freebasic

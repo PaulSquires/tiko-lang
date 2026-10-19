@@ -2,6 +2,8 @@
 
 # FileInfo.IsHidden
 
+Returns true if the file is hidden: the hidden flag on Windows, a leading dot on Linux.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # PReset
 
-Plots a single pixel
+Plots one pixel, in the given colour or the current background colour.
 
 ## Syntax
 

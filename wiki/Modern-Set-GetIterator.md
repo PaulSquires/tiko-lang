@@ -2,6 +2,8 @@
 
 # GetIterator
 
+Returns an iterator over the values, in no particular order.
+
 ## Syntax
 
 ```freebasic

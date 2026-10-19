@@ -2,7 +2,7 @@
 
 # LinkedListIterator
 
-The iterator `for each` uses over a `LinkedList( of T )`.
+Holds a position in a LinkedList; it survives changes elsewhere in the list.
 
 ## Syntax
 

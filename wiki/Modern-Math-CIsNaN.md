@@ -2,7 +2,7 @@
 
 # CIsNaN
 
-True when the number is NaN and not merely infinite.
+Returns true if a complex number is NaN; one infinite part makes it infinite instead.
 
 ## Syntax
 

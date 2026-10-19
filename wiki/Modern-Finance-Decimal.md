@@ -2,6 +2,8 @@
 
 # Decimal
 
+Holds an exact decimal number with up to 28 places, for rates, prices and results.
+
 ## Syntax
 
 ```freebasic

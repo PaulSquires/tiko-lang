@@ -2,7 +2,7 @@
 
 # CAcsch
 
-The inverse hyperbolic cosecant.
+Returns the inverse hyperbolic cosecant of a complex number.
 
 ## Syntax
 

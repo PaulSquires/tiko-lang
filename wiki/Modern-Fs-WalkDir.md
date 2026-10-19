@@ -2,7 +2,7 @@
 
 # WalkDir
 
-recursive, pre-order
+Lists every entry under a folder, subfolders included, for a for each loop.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # OrderedMap.Count
 
+Returns the number of entries; reading an absent key with m[ k ] adds one.
+
 ## Syntax
 
 ```freebasic

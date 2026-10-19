@@ -2,7 +2,7 @@
 
 # File.ReadAt
 
-FsResultI64
+Reads up to n bytes at an offset without moving the position.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # Instant.WithOffset
 
+Attaches a UTC offset in minutes, keeping the clock reading and changing the moment.
+
 ## Syntax
 
 ```freebasic

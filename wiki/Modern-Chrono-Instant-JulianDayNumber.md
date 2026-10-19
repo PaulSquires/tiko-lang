@@ -2,6 +2,8 @@
 
 # Instant.JulianDayNumber
 
+Returns the whole Julian day number, without the fraction.
+
 ## Syntax
 
 ```freebasic

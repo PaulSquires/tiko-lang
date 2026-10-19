@@ -2,7 +2,7 @@
 
 # Locate
 
-Sets the current cursor position
+Moves the text cursor to a row and column, and can show or hide it.
 
 ## Syntax
 

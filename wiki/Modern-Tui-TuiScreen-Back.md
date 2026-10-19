@@ -2,6 +2,8 @@
 
 # TuiScreen.Back
 
+Returns the buffer being drawn into, so a test can read its cells.
+
 ## Syntax
 
 ```freebasic

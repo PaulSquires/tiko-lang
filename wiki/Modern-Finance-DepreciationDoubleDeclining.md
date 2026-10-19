@@ -2,6 +2,8 @@
 
 # DepreciationDoubleDeclining
 
+Returns one period's expense at twice the straight-line rate, never below salvage.
+
 ## Syntax
 
 ```freebasic

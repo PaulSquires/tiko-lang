@@ -2,6 +2,8 @@
 
 # DirEntry.MaxDepth
 
+Limits how deep a walk goes: 1 is the immediate children, 0 (the default) no limit.
+
 ## Syntax
 
 ```freebasic

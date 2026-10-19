@@ -2,7 +2,7 @@
 
 # CSech
 
-The hyperbolic secant — one over the hyperbolic cosine.
+Returns the hyperbolic secant of a complex number, one over its cosh.
 
 ## Syntax
 

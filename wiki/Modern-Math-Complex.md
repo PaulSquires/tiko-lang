@@ -2,7 +2,7 @@
 
 # Complex
 
-A complex number: two doubles, a real part and an imaginary one.
+Holds a complex number as two Doubles, re and im.
 
 ## Syntax
 

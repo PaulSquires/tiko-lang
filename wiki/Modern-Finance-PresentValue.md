@@ -2,6 +2,8 @@
 
 # PresentValue
 
+Returns what a stream of payments plus a final amount is worth today.
+
 ## Syntax
 
 ```freebasic

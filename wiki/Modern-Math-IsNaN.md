@@ -2,6 +2,8 @@
 
 # IsNaN
 
+Returns true if the value is NaN, which an equality test cannot detect.
+
 ## Syntax
 
 ```freebasic

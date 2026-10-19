@@ -2,6 +2,8 @@
 
 # ModifiedDietzReturn
 
+Returns an approximate time-weighted return, weighting each flow by days invested.
+
 ## Syntax
 
 ```freebasic

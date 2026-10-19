@@ -2,6 +2,8 @@
 
 # TuiRun
 
+Runs your app full-screen and restores the terminal; returns the exit code or an error.
+
 ## Syntax
 
 ```freebasic

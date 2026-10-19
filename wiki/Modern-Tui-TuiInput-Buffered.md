@@ -2,6 +2,8 @@
 
 # TuiInput.Buffered
 
+Counts the bytes held that do not yet make a whole event.
+
 ## Syntax
 
 ```freebasic

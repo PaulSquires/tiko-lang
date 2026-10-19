@@ -2,7 +2,7 @@
 
 # File.WriteAt
 
-FsResultI64
+Writes bytes at an offset without moving the position; refused in append mode.
 
 ## Syntax
 

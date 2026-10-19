@@ -2,7 +2,7 @@
 
 # LinkedList
 
-A doubly-linked list: O(1) at both ends, and iterators that survive insertion elsewhere.
+Holds a chain of values that is quick to add to and remove from at either end.
 
 ## Syntax
 

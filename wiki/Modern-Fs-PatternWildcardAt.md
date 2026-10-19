@@ -2,7 +2,7 @@
 
 # PatternWildcardAt
 
-offset of the first wildcard, or -1
+Returns the offset of a pattern's first wildcard, or -1 if it has none.
 
 ## Syntax
 

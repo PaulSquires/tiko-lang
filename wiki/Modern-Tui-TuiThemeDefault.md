@@ -2,6 +2,8 @@
 
 # TuiThemeDefault
 
+Returns the stock colour theme.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # WindowTitle
 
-Sets the program window title
+Sets the title of the graphics window.
 
 ## Syntax
 

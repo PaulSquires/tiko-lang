@@ -2,6 +2,8 @@
 
 # SummarizeReturns
 
+Returns total and yearly return, volatility, Sharpe, Sortino and drawdown in one call.
+
 ## Syntax
 
 ```freebasic

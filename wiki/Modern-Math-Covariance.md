@@ -2,7 +2,7 @@
 
 # Covariance
 
-How two arrays vary together.
+Returns the sample covariance of two arrays of the same length.
 
 ## Syntax
 

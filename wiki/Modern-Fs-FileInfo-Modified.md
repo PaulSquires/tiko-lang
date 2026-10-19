@@ -2,7 +2,7 @@
 
 # FileInfo.Modified
 
-chrono.Instant
+Returns the last-write time as a chrono.Instant.
 
 ## Syntax
 

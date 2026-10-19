@@ -2,7 +2,7 @@
 
 # Emit
 
-a finished record, to the sinks
+Sends a finished record straight to every attached sink.
 
 ## Syntax
 

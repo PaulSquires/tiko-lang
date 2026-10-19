@@ -2,6 +2,8 @@
 
 # TuiTextInput.SelectionEnd
 
+Returns where the selection ends, or the cursor position if nothing is selected.
+
 ## Syntax
 
 ```freebasic

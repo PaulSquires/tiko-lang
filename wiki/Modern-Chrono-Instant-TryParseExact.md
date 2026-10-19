@@ -2,6 +2,8 @@
 
 # Instant.TryParseExact
 
+Reads text laid out by a pattern into a date-time; returns false if it does not match.
+
 ## Syntax
 
 ```freebasic

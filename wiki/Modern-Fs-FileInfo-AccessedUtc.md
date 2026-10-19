@@ -2,6 +2,8 @@
 
 # FileInfo.AccessedUtc
 
+Returns the last-access time in ticks, or 0 when HasAccessed is false.
+
 ## Syntax
 
 ```freebasic

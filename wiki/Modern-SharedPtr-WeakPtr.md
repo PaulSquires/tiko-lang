@@ -2,7 +2,7 @@
 
 # WeakPtr
 
-An observer of a SharedPtr's object that does not keep it alive.
+Holds a link to a shared object that does not keep it alive, to break cycles.
 
 ## Syntax
 

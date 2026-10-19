@@ -2,7 +2,7 @@
 
 # WHex
 
-Returns the hexadecimal WString (Unicode) representation of a number
+Returns a number as hexadecimal wide-string text.
 
 ## Syntax
 

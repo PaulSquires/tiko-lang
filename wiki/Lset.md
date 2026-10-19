@@ -2,7 +2,7 @@
 
 # LSet
 
-Left-justifies a string
+Copies a string into another, left-justified and padded with spaces.
 
 ## Syntax
 

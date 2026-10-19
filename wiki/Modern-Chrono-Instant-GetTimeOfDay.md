@@ -2,6 +2,8 @@
 
 # Instant.GetTimeOfDay
 
+Returns the time-of-day part as a LocalTime.
+
 ## Syntax
 
 ```freebasic

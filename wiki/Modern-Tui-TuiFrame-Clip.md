@@ -2,6 +2,8 @@
 
 # TuiFrame.Clip
 
+Returns the rectangle that drawing is currently limited to.
+
 ## Syntax
 
 ```freebasic

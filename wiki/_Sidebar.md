@@ -9,6 +9,7 @@
 
 ### Documentation
 
+- [Function Finder](Function-Finder)
 - [Keyword Index](Keyword-Index)
 - [All Categories](Categories)
 

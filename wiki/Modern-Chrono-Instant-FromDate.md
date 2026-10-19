@@ -2,6 +2,8 @@
 
 # Instant.FromDate
 
+Returns a date-time at midnight on the given date.
+
 ## Syntax
 
 ```freebasic

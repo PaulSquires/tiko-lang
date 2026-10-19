@@ -2,6 +2,8 @@
 
 # TuiFrame.SetCursor
 
+Shows the text cursor at a cell for this frame.
+
 ## Syntax
 
 ```freebasic

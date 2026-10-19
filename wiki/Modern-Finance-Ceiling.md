@@ -2,7 +2,7 @@
 
 # Ceiling
 
-Rounded up to a whole unit.
+Returns the amount rounded up to a whole unit, towards positive infinity.
 
 ## Syntax
 

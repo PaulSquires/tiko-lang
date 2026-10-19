@@ -2,7 +2,7 @@
 
 # MutexCreate
 
-Creates a mutex used for synchronizing the execution of threads
+Creates a mutex and returns its handle, or 0 on failure.
 
 ## Syntax
 

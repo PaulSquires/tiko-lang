@@ -2,6 +2,8 @@
 
 # TuiPopup
 
+Draws a floating panel over the screen, optionally modal and dimming what is behind.
+
 ## Syntax
 
 ```freebasic

@@ -2,7 +2,7 @@
 
 # CSgn
 
-The unit vector in the operand's direction.
+Returns a complex number scaled to modulus 1, or zero for zero.
 
 ## Syntax
 

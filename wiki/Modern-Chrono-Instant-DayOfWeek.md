@@ -2,6 +2,8 @@
 
 # Instant.DayOfWeek
 
+Returns the day of the week, 1 for Monday to 7 for Sunday.
+
 ## Syntax
 
 ```freebasic

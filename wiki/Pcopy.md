@@ -2,7 +2,7 @@
 
 # PCopy
 
-Copies one graphical or text page onto another
+Copies one graphics or text page onto another.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # Instant.Year
 
+Returns the year, 1 to 9999.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # TuiTreeState
 
+Holds a tree's selected node and scroll position.
+
 ## Syntax
 
 ```freebasic

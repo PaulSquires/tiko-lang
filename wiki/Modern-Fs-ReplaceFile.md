@@ -2,6 +2,8 @@
 
 # ReplaceFile
 
+Replaces one file with another in a single step, so the target is never missing.
+
 ## Syntax
 
 ```freebasic

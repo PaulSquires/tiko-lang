@@ -2,7 +2,7 @@
 
 # CUnsg
 
-Converts an expression to unsigned
+Converts a signed value to unsigned, so division and shifts treat it as unsigned.
 
 ## Syntax
 

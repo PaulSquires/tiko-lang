@@ -2,7 +2,7 @@
 
 # Preserve
 
-Used with ReDim to preserve contents will resizing an array
+Keeps the existing elements when ReDim resizes an array.
 
 ## Syntax
 

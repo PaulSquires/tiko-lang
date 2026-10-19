@@ -2,7 +2,7 @@
 
 # FileInfo.NativeAttributes
 
-dwFileAttributes / st_mode
+Returns the raw attribute word: file attributes on Windows, the mode bits on Linux.
 
 ## Syntax
 

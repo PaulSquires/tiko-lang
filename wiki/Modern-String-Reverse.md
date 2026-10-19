@@ -2,7 +2,7 @@
 
 # Reverse
 
-O(n)
+Returns the string with its characters in reverse order.
 
 ## Syntax
 

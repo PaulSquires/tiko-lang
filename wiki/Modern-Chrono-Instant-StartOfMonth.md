@@ -2,6 +2,8 @@
 
 # Instant.StartOfMonth
 
+Returns midnight on the first day of the month.
+
 ## Syntax
 
 ```freebasic

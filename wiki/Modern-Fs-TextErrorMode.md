@@ -2,7 +2,7 @@
 
 # TextErrorMode
 
-What a TextReader does with invalid UTF-8.
+Holds what a TextReader does with invalid UTF-8: replace it or fail.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # TuiStyle
 
+Holds a text style: colours, attributes such as bold, and which of them it sets.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # TuiCaps
 
+Holds what a terminal can do: colour depth, mouse, paste, focus events, Unicode.
+
 ## Syntax
 
 ```freebasic

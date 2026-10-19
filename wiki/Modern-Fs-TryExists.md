@@ -2,7 +2,7 @@
 
 # TryExists
 
-FsResultBool
+Returns whether a path exists, or fails when it cannot tell, as when access is denied.
 
 ## Syntax
 

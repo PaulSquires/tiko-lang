@@ -2,7 +2,7 @@
 
 # SetTimes
 
-0 leaves one alone
+Sets a file's modified and accessed times; a time of 0 leaves that one alone.
 
 ## Syntax
 

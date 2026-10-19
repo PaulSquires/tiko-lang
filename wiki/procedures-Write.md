@@ -2,7 +2,7 @@
 
 # Write #
 
-Outputs a comma-separated list of values to a text file or device
+Writes values to a file as comma-separated text, strings in quotes, for Input # to read.
 
 ## Syntax
 

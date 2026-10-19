@@ -1,0 +1,27 @@
+# Operating system functions. One row per function, per task it belongs to. Tab-separated; see finder.py for the rules.
+page	name	qualifier	task	from	rank	summary
+Command	Command	-	args	built-in	1	Returns command-line argument n, the program's name for 0, or all of them if omitted.
+Shell	Shell	-	run	built-in	2	Runs a command through the system shell, waits, and returns its exit code or -1.
+Exec	Exec	-	run	built-in	-	Runs a program by its path with arguments, waits, and returns its exit code or -1.
+Chain	Chain	-	run	built-in	-	Runs a program without arguments, waits, and returns its exit code or -1.
+Run	Run	-	run	built-in	-	Hands control to another program and ends this one; returns -1 if it cannot start.
+Environ	Environ	-	env	built-in	3	Returns the value of an environment variable, or an empty string if it is not set.
+Setenviron	SetEnviron	-	env	built-in	-	Sets an environment variable from "NAME=value" text; returns 0 on success.
+Exepath	ExePath	-	where	built-in	-	Returns the folder that holds the running program.
+Curdir	CurDir	-	where	built-in	-	Returns the current folder.
+Chdir	ChDir	-	where	built-in	-	Changes the current folder; returns 0 on success or -1 on failure.
+Mkdir	MkDir	-	folders	built-in	-	Creates one folder, whose parent must already exist; returns 0 on success.
+Rmdir	RmDir	-	folders	built-in	-	Removes an empty folder; returns 0 on success or -1 on failure.
+Dir	Dir	-	folders	built-in	-	Returns the first name matching a pattern, then the next one on each later call.
+Filecopy	FileCopy	-	files	file.bi	-	Copies a file, overwriting the destination; returns 0 on success.
+Name	Name	-	files	built-in	-	Renames or moves a file or folder; returns 0 on success.
+Kill	Kill	-	files	built-in	-	Deletes a file; returns 0 on success or an error code.
+Fileexists	FileExists	-	info	file.bi	4	Returns non-zero if the file exists, or 0 if it does not.
+Filelen	FileLen	-	info	file.bi	-	Returns the size of a named file in bytes.
+Filedatetime	FileDateTime	-	info	file.bi	-	Returns when a file was last modified, as a date serial.
+Fileattr	FileAttr	-	open	file.bi	-	Returns an open file number's mode, system handle or encoding.
+Fileflush	FileFlush	-	open	file.bi	-	Writes buffered output for one or all open files to the system, or on to disk.
+Fileseteof	FileSetEof	-	open	file.bi	-	Cuts or extends an open file so that it ends at the current position.
+System	System	-	end	built-in	-	Closes all open files and ends the program, with an optional exit code.
+Fre	Fre	-	misc	built-in	-	Returns the amount of free physical memory, in bytes.
+Isredirected	IsRedirected	-	misc	fbio.bi	-	Returns non-zero if standard output, or input if asked, is redirected to a file.

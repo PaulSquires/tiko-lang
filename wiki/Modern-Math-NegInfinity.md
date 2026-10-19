@@ -2,6 +2,8 @@
 
 # NegInfinity
 
+Returns negative infinity as a Double.
+
 ## Syntax
 
 ```freebasic

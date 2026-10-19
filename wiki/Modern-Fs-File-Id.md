@@ -2,7 +2,7 @@
 
 # File.Id
 
-FsResultId
+Returns the FileId of the open file, still right after a rename.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # TuiRed
 
+Returns the classic red, palette colour 1.
+
 ## Syntax
 
 ```freebasic

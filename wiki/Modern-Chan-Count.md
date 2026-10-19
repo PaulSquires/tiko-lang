@@ -2,6 +2,8 @@
 
 # Count
 
+Returns how much work is still outstanding, as a snapshot.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # TuiTableState
 
+Holds a table's selected row and scroll position.
+
 ## Syntax
 
 ```freebasic

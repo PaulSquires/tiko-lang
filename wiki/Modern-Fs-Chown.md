@@ -2,7 +2,7 @@
 
 # Chown
 
-FsResultBool
+Changes a file's owner and group on Linux, -1 keeping one; unsupported on Windows.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # TuiAnsi
 
+Returns one of the 16 classic colours, which follow the user's terminal theme.
+
 ## Syntax
 
 ```freebasic

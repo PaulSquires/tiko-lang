@@ -2,6 +2,8 @@
 
 # TuiMessageBox.Accepted
 
+Returns true once Enter was pressed on a button; selected says which.
+
 ## Syntax
 
 ```freebasic

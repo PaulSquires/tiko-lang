@@ -4,6 +4,8 @@
 
 The language and its standard library first, then the compatibility reference: the FreeBASIC manual, whose pages describe the `#lang "fb"` dialect tiko compiles.
 
+Looking for a function by what it does? The [Function Finder](Function-Finder) groups every function by task.
+
 ## The tiko language
 
 - [Generics](Category-Generics) — 1 pages

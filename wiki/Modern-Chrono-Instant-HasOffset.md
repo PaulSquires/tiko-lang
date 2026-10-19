@@ -2,6 +2,8 @@
 
 # Instant.HasOffset
 
+Returns true if the date-time carries a UTC offset.
+
 ## Syntax
 
 ```freebasic

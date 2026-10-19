@@ -2,7 +2,7 @@
 
 # Add
 
-does NOT overwrite
+Adds a key and value if the key is new; an existing value is left alone.
 
 ## Syntax
 

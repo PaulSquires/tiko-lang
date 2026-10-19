@@ -2,7 +2,7 @@
 
 # PsProgressBar
 
-An owner-drawn progress bar for tiko / Win32, built on tiko's sys/win package.
+Draws a progress bar, flat or gradient, solid or in blocks, or with no known end.
 
 A rounded track with a fill that grows along it. The fill can be a flat colour or a two-stop
 linear gradient, and it can be continuous or broken into blocks — those two settings are

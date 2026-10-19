@@ -2,7 +2,7 @@
 
 # PopCount
 
-How many bits are set.
+Counts the bits that are set.
 
 ## Syntax
 

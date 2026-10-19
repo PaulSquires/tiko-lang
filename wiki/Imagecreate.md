@@ -2,7 +2,7 @@
 
 # ImageCreate
 
-Allocates and initializes storage for an image
+Creates an image of a given size filled with one colour; returns 0 on failure.
 
 ## Syntax
 

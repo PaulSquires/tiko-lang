@@ -2,6 +2,8 @@
 
 # TuiCanvas.Dot
 
+Sets one dot in a colour; a dot outside the canvas is ignored.
+
 ## Syntax
 
 ```freebasic

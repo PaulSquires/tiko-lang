@@ -2,7 +2,7 @@
 
 # File.IsOpen
 
-boolean
+Returns true if the File has a file open.
 
 ## Syntax
 

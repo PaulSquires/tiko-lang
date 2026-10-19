@@ -2,7 +2,7 @@
 
 # CSinh
 
-The hyperbolic sine.
+Returns the hyperbolic sine of a complex number.
 
 ## Syntax
 

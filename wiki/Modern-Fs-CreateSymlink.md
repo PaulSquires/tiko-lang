@@ -2,7 +2,7 @@
 
 # CreateSymlink
 
-FsResultBool
+Creates a symbolic link to a target; on Windows this usually needs privilege.
 
 ## Syntax
 

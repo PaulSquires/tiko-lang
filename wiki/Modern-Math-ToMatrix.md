@@ -2,7 +2,7 @@
 
 # ToMatrix
 
-The rotation matrix equivalent to a quaternion.
+Converts a quaternion into the matching rotation matrix.
 
 ## Syntax
 

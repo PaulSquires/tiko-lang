@@ -2,6 +2,8 @@
 
 # LoanSchedule
 
+Returns a loan's amortization schedule, built lazily, to walk with for each.
+
 ## Syntax
 
 ```freebasic

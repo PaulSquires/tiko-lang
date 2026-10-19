@@ -2,7 +2,7 @@
 
 # Swap
 
-Exchanges the values of two variables
+Exchanges the values of two variables.
 
 ## Syntax
 

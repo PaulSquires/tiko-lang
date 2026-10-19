@@ -2,6 +2,8 @@
 
 # Instant.ToIsoString
 
+Returns the date-time as ISO 8601 text, with Z or the offset when it has one.
+
 ## Syntax
 
 ```freebasic

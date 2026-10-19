@@ -2,7 +2,7 @@
 
 # Remove
 
-O(n*m)
+Removes every occurrence of the text.
 
 ## Syntax
 

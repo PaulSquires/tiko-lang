@@ -2,7 +2,7 @@
 
 # FileAttr
 
-Returns information about an open file number
+Returns an open file number's mode, system handle or encoding.
 
 ## Syntax
 

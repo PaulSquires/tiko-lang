@@ -2,6 +2,8 @@
 
 # TuiColor.IsDefault
 
+Returns true if the colour is the terminal's own default.
+
 ## Syntax
 
 ```freebasic

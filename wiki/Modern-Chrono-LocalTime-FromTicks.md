@@ -2,6 +2,8 @@
 
 # LocalTime.FromTicks
 
+Creates a time of day from 100 ns ticks since midnight, or Invalid past a whole day.
+
 ## Syntax
 
 ```freebasic

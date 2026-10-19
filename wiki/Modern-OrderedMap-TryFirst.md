@@ -2,7 +2,7 @@
 
 # OrderedMap.TryFirst
 
-O(log n)  smallest key
+Copies the smallest key and its value into variables; returns false if the map is empty.
 
 ## Syntax
 

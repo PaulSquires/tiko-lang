@@ -2,7 +2,7 @@
 
 # CVS
 
-Converts a 32-bit integer or 4-byte string to a single-precision variable
+Reads a Single back from a 4-byte string.
 
 ## Syntax
 

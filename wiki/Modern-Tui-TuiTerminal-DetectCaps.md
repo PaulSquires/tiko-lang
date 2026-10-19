@@ -2,6 +2,8 @@
 
 # TuiTerminal.DetectCaps
 
+Detects what the terminal can do again, without entering it.
+
 ## Syntax
 
 ```freebasic

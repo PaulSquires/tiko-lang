@@ -2,6 +2,8 @@
 
 # TuiFrame.PushLayer
 
+Starts an overlay layer, as a popup or an open dropdown uses.
+
 ## Syntax
 
 ```freebasic

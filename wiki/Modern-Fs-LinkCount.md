@@ -2,7 +2,7 @@
 
 # LinkCount
 
-FsResultULong
+Returns how many hard links, or names, a file has.
 
 ## Syntax
 

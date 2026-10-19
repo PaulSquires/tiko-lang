@@ -2,7 +2,7 @@
 
 # Pset (Statement)
 
-Plots a single pixel
+Plots one pixel, in the given colour or the current foreground colour.
 
 ## Syntax
 

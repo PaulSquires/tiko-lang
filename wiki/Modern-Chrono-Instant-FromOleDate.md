@@ -2,6 +2,8 @@
 
 # Instant.FromOleDate
 
+Creates a date-time from an OLE automation date.
+
 ## Syntax
 
 ```freebasic

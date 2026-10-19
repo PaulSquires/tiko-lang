@@ -2,7 +2,7 @@
 
 # TimeSpan.FromMicroseconds
 
-longint, not double
+Returns a duration of a whole number of microseconds.
 
 ## Syntax
 

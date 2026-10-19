@@ -1,0 +1,36 @@
+# Encoding and IDs functions. One row per function, per task it belongs to. Tab-separated; see finder.py for the rules.
+page	name	qualifier	task	from	rank	summary
+Category-Codec#base64-base32-and-hex	Base64Encode	-	base64	std/codec	1	Returns bytes or a string as base64 text, in the standard or URL-safe alphabet.
+Category-Codec#base64-base32-and-hex	Base64Decode	-	base64	std/codec	-	Decodes base64 text into a byte array and returns the byte count, or an error.
+Category-Codec#base64-base32-and-hex	Base64DecodeText	-	base64	std/codec	-	Decodes base64 text straight to a string; the decoded bytes must be UTF-8.
+Category-Codec#base64-base32-and-hex	Base32Encode	-	base32	std/codec	-	Returns bytes or a string as base32 text, in the standard or sortable hex alphabet.
+Category-Codec#base64-base32-and-hex	Base32Decode	-	base32	std/codec	-	Decodes base32 text into a byte array and returns the byte count, or an error.
+Category-Codec#base64-base32-and-hex	Base32DecodeText	-	base32	std/codec	-	Decodes base32 text straight to a string; the decoded bytes must be UTF-8.
+Category-Codec#base64-base32-and-hex	HexEncode	-	hex	std/codec	4	Returns bytes or a string as hexadecimal text, two digits a byte, lower or upper case.
+Category-Codec#base64-base32-and-hex	HexDecode	-	hex	std/codec	-	Decodes hexadecimal text into a byte array and returns the byte count, or an error.
+Category-Codec#base64-base32-and-hex	HexDecodeText	-	hex	std/codec	-	Decodes hexadecimal text straight to a string; the decoded bytes must be UTF-8.
+Category-Codec#percent-encoding	PercentEncode	-	url	std/codec	3	Returns text with the characters a URL cannot hold written as %XX escapes.
+Category-Codec#percent-encoding	PercentDecode	-	url	std/codec	-	Turns %XX escapes, and + in query mode, back into text, or returns an error.
+Category-Codec#strict-decoding	EncodingError	-	decodeerr	std/codec	-	Holds why decoding failed: a code, the position of the first bad character, a message.
+Category-Codec#numbers-in-a-byte-buffer	GetU16LE … GetF64BE	-	read	std/codec	-	Reads a fixed-width integer or float at a byte offset, little- or big-endian.
+Category-Codec#variable-length-integers	ReadUVarint	-	read	std/codec	-	Reads an unsigned variable-length integer at an offset and moves the offset past it.
+Category-Codec#variable-length-integers	ReadVarint	-	read	std/codec	-	Reads a signed variable-length integer at an offset and moves the offset past it.
+Category-Codec#numbers-in-a-byte-buffer	PutU16LE … PutF64BE	-	write	std/codec	-	Writes a fixed-width number at a byte offset, growing the array if it is too short.
+Category-Codec#numbers-in-a-byte-buffer	AppendU16LE … AppendF64BE	-	write	std/codec	-	Adds a fixed-width number to the end of a byte array, little- or big-endian.
+Category-Codec#variable-length-integers	AppendUVarint	-	write	std/codec	-	Adds an unsigned integer to a byte array in as few bytes as it needs.
+Category-Codec#variable-length-integers	AppendVarint	-	write	std/codec	-	Adds a signed integer to a byte array, keeping small negative numbers short.
+Category-UUID#as-a-key	Uuid	-	newid	std/uuids	-	Holds a 128-bit identifier that can be compared, sorted and used as a Map key.
+Category-UUID#which-kind-to-make	NewV4	-	newid	std/uuids	2	Returns a new random UUID from the system's secure random generator.
+Category-UUID#which-kind-to-make	NewV7	-	newid	std/uuids	-	Returns a new UUID that starts with the time, so each one sorts after the one before.
+Category-UUID#members	NilUuid	-	newid	std/uuids	-	Returns the nil UUID, with all 16 bytes zero.
+Category-UUID#members	MaxUuid	-	newid	std/uuids	-	Returns the max UUID, with every bit set.
+Category-UUID#parsing-and-printing	Parse	-	idtext	std/uuids	-	Parses a UUID with or without hyphens, braces or a urn:uuid: prefix, or returns an error.
+Category-UUID#parsing-and-printing	Uuid.ToString	-	idtext	std/uuids	-	Returns the UUID as 36 characters of lower-case text in the 8-4-4-4-12 form.
+Category-UUID#members	FromBytes	-	idtext	std/uuids	-	Returns a UUID from an array of exactly 16 bytes, or an error.
+Category-UUID#members	Uuid.ToBytes	-	idtext	std/uuids	-	Returns the UUID's 16 bytes as an Array.
+Category-UUID#parsing-and-printing	UuidError	-	idtext	std/uuids	-	Holds why a UUID did not parse: a code and the position of the offending character.
+Category-UUID#members	Uuid.Version	-	idinfo	std/uuids	-	Returns the UUID's version, such as 4 or 7, or 0 for the nil UUID.
+Category-UUID#members	Uuid.Variant	-	idinfo	std/uuids	-	Returns the UUID's variant field, which is 1 for every standard UUID.
+Category-UUID#members	Uuid.IsNil	-	idinfo	std/uuids	-	Returns true if all 16 bytes of the UUID are zero.
+Category-UUID#members	Uuid.UnixMillis	-	idinfo	std/uuids	-	Returns when a version 7 UUID was made, in Unix milliseconds, or -1 for any other.
+Category-UUID#members	Uuid.HashOf	-	idinfo	std/uuids	-	Returns a hash of the UUID, used when it is a Map or Set key.

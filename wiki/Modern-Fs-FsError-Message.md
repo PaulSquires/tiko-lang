@@ -2,7 +2,7 @@
 
 # FsError.Message
 
-a fixed English one-liner derived from Code( ).
+Returns a fixed one-line description of the error code.
 
 ## Syntax
 

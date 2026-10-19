@@ -2,7 +2,7 @@
 
 # Write
 
-Outputs a comma-separated list of values to the screen
+Writes values separated by commas, with strings in double quotes.
 
 ## Syntax
 

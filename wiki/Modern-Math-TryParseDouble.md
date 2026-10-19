@@ -2,6 +2,8 @@
 
 # TryParseDouble
 
+Parses a whole string as a Double, returning an empty Optional if it is not one.
+
 ## Syntax
 
 ```freebasic

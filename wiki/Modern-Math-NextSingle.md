@@ -2,7 +2,7 @@
 
 # NextSingle
 
-A single in [0, 1).
+Returns a random Single from 0 up to but not including 1.
 
 ## Syntax
 

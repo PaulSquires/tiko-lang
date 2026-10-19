@@ -2,7 +2,7 @@
 
 # ScreenLock
 
-Locks the working page's frame buffer
+Stops screen updates while you draw, so the user never sees half a frame.
 
 ## Syntax
 

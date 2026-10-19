@@ -2,6 +2,8 @@
 
 # TuiStyleDefault
 
+Returns the terminal's default style: default colours and no attributes.
+
 ## Syntax
 
 ```freebasic

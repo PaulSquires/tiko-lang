@@ -2,7 +2,7 @@
 
 # CLng
 
-Converts numeric or string expression to Long
+Converts a number or string to a 32-bit Long, rounding to the nearest; no overflow check.
 
 ## Syntax
 

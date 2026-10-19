@@ -2,6 +2,8 @@
 
 # MaxDrawdown
 
+Returns the worst fall from a peak to a later low, as a positive fraction.
+
 ## Syntax
 
 ```freebasic

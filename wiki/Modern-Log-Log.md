@@ -2,7 +2,7 @@
 
 # Log
 
-and the same six taking a message
+Logs a message at a level you pass, or returns a record to add fields to.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # TuiTerminal.Discard
 
+Throws the buffered output away without sending it.
+
 ## Syntax
 
 ```freebasic

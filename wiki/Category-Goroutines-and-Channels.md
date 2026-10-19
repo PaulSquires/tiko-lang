@@ -358,18 +358,83 @@ toolchains\tiko-windows\tiko.exe -mt yourprogram.tiko
 toolchains/tiko-linux/bin/tiko   -mt yourprogram.tiko
 ```
 
+<!-- finder:start -->
+
 ## API reference
 
-One page per entry, 11 in all:
+Every entry, grouped by task. [Running things at once](Functions-Concurrency) lists them beside the rest of the area.
 
-|   |   |   |   |   |
-|---|---|---|---|---|
-| [Add](Modern-Chan-Add) | [Channel.Count](Modern-Chan-Channel-Count) | [Channel.RecvChan](Modern-Chan-Channel-RecvChan) | [Context](Modern-Chan-Context) | [spawn](Modern-Chan-Spawn) |
-| [Cancel](Modern-Chan-Cancel) | [Channel.GetIterator](Modern-Chan-Channel-GetIterator) | [Channel.Send](Modern-Chan-Channel-Send) | [Count](Modern-Chan-Count) | [Wait](Modern-Chan-Wait) |
-| [Channel](Modern-Chan-Channel-Channel) | [Channel.IsClosed](Modern-Chan-Channel-IsClosed) | [Channel.SendChan](Modern-Chan-Channel-SendChan) | [Done](Modern-Chan-Done) | [WaitFor](Modern-Chan-WaitFor) |
-| [Channel.Capacity](Modern-Chan-Channel-Capacity) | [Channel.IsNil](Modern-Chan-Channel-IsNil) | [Channel.SendFor](Modern-Chan-Channel-SendFor) | [Err](Modern-Chan-Err) | [WithCancel](Modern-Chan-WithCancel) |
-| [Channel.ChannelIterator](Modern-Chan-Channel-ChannelIterator) | [Channel.Receive](Modern-Chan-Channel-Receive) | [Channel.TryReceive](Modern-Chan-Channel-TryReceive) | [GoroutineCount](Modern-Chan-GoroutineCount) | [WithTimeout](Modern-Chan-WithTimeout) |
-| [Channel.Close](Modern-Chan-Channel-Close) | [Channel.ReceiveFor](Modern-Chan-Channel-ReceiveFor) | [Channel.TrySend](Modern-Chan-Channel-TrySend) | [IsCancelled](Modern-Chan-IsCancelled) | [WorkerCount](Modern-Chan-WorkerCount) |
+### Start a goroutine
+
+| Function | What it does | From |
+|---|---|---|
+| [spawn](Modern-Chan-Spawn) | Runs a procedure alongside the program, copying its arguments at that moment. | `std/tasks` |
+
+### Make a channel
+
+| Function | What it does | From |
+|---|---|---|
+| [Channel](Modern-Chan-Channel-Channel) | Holds a typed queue between goroutines; copies share it, and a new one is nil. | `std/tasks` |
+| [Channel.Capacity](Modern-Chan-Channel-Capacity) | Returns the buffer size the channel was made with; 0 means each value is handed over. | `std/tasks` |
+| [Channel.IsNil](Modern-Chan-Channel-IsNil) | Returns true for a default-constructed channel, which blocks forever if used. | `std/tasks` |
+
+### Send and receive values
+
+| Function | What it does | From |
+|---|---|---|
+| [Channel.Send](Modern-Chan-Channel-Send) | Sends a value, waiting for room or a receiver; raises an error if the channel is closed. | `std/tasks` |
+| [Channel.Receive](Modern-Chan-Channel-Receive) | Receives a value, waiting for one; returns false once closed and drained. | `std/tasks` |
+| [Channel.TrySend](Modern-Chan-Channel-TrySend) | Sends a value only if it can go at once; returns false if it would have to wait. | `std/tasks` |
+| [Channel.TryReceive](Modern-Chan-Channel-TryReceive) | Receives a value only if one is ready; returns false if empty or closed. | `std/tasks` |
+| [Channel.SendFor](Modern-Chan-Channel-SendFor) | Sends a value, waiting at most ms milliseconds; returns false on a timeout. | `std/tasks` |
+| [Channel.ReceiveFor](Modern-Chan-Channel-ReceiveFor) | Receives a value, waiting at most ms milliseconds; false on a timeout or end of stream. | `std/tasks` |
+
+### Close and drain a channel
+
+| Function | What it does | From |
+|---|---|---|
+| [Channel.Close](Modern-Chan-Channel-Close) | Marks that no more values will be sent; values already buffered are still delivered. | `std/tasks` |
+| [Channel.IsClosed](Modern-Chan-Channel-IsClosed) | Returns true once the channel is closed, even while values are still buffered. | `std/tasks` |
+| [Channel.Count](Modern-Chan-Channel-Count) | Returns how many values are buffered right now, as a snapshot. | `std/tasks` |
+| [Channel.GetIterator](Modern-Chan-Channel-GetIterator) | Returns the iterator a for each loop uses to receive until the channel is drained. | `std/tasks` |
+| [ChannelIterator](Modern-Chan-Channel-ChannelIterator) | Holds a for each loop's place while it receives from a channel. | `std/tasks` |
+
+### Hand out one end of a channel
+
+| Function | What it does | From |
+|---|---|---|
+| [SendChan](Modern-Chan-Channel-SendChan) | Holds a send-only view of a channel, for a procedure that only produces. | `std/tasks` |
+| [RecvChan](Modern-Chan-Channel-RecvChan) | Holds a receive-only view of a channel, which cannot send to it or close it. | `std/tasks` |
+
+### Wait for a group of goroutines
+
+| Function | What it does | From |
+|---|---|---|
+| [WaitGroup.Add](Modern-Chan-Add) | Adds 1, or a given amount, to the work outstanding; call it before the spawn. | `std/tasks` |
+| [WaitGroup.Done](Modern-Chan-Done) | Subtracts one from the work outstanding; raises an error if it would go below zero. | `std/tasks` |
+| [WaitGroup.Wait](Modern-Chan-Wait) | Waits until the work outstanding reaches zero. | `std/tasks` |
+| [WaitGroup.WaitFor](Modern-Chan-WaitFor) | Waits at most ms milliseconds for the work to reach zero; returns false on a timeout. | `std/tasks` |
+| [WaitGroup.Count](Modern-Chan-Count) | Returns how much work is still outstanding, as a snapshot. | `std/tasks` |
+
+### Ask goroutines to stop
+
+| Function | What it does | From |
+|---|---|---|
+| [Context](Modern-Chan-Context) | Holds the background context, which is never cancelled and is the root of all others. | `std/tasks` |
+| [WithCancel](Modern-Chan-WithCancel) | Returns a child context that you cancel yourself. | `std/tasks` |
+| [WithTimeout](Modern-Chan-WithTimeout) | Returns a child context that cancels itself after the given milliseconds. | `std/tasks` |
+| [CancelContext.Cancel](Modern-Chan-Cancel) | Cancels the context and every context made from it; a second call is harmless. | `std/tasks` |
+| [Context.IsCancelled](Modern-Chan-IsCancelled) | Returns true once the context is cancelled or its deadline has passed. | `std/tasks` |
+| [Context.Err](Modern-Chan-Err) | Returns why the context ended: "cancelled", "deadline exceeded", or "" while live. | `std/tasks` |
+
+### Check on the scheduler
+
+| Function | What it does | From |
+|---|---|---|
+| [GoroutineCount](Modern-Chan-GoroutineCount) | Returns how many goroutines exist right now, as a snapshot for diagnostics. | `std/tasks` |
+| [WorkerCount](Modern-Chan-WorkerCount) | Returns how many OS threads the scheduler is running goroutines on. | `std/tasks` |
+
+<!-- finder:end -->
 
 ---
 

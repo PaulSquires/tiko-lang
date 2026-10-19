@@ -2,6 +2,8 @@
 
 # TuiFocusRing.Add
 
+Adds a widget to the end of the Tab order; the widget must outlive the frame.
+
 ## Syntax
 
 ```freebasic

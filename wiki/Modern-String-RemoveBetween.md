@@ -2,7 +2,7 @@
 
 # RemoveBetween
 
-Deletes from each opening delimiter through its matching closing one.
+Removes a pair of delimiters and the text between them.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # Color
 
-Sets the display foreground / background color that is used with console output and graphics output of text
+Sets the colours for text printed from now on, and returns the previous ones.
 
 ## Syntax
 

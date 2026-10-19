@@ -2,6 +2,8 @@
 
 # Infinity
 
+Returns positive infinity as a Double.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # Stopwatch.Reset
 
+Stops the stopwatch and sets its elapsed time back to zero.
+
 ## Syntax
 
 ```freebasic

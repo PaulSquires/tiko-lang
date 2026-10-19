@@ -2,7 +2,7 @@
 
 # MemoryStream
 
-A growable byte buffer that is a Stream.
+Holds a growable byte buffer in memory that reads, writes and seeks like a file.
 
 ## Syntax
 

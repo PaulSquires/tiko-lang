@@ -2,6 +2,8 @@
 
 # LocalDate.CompareTo
 
+Returns -1, 0 or 1 to order two dates, or -2 if either is Invalid.
+
 ## Syntax
 
 ```freebasic

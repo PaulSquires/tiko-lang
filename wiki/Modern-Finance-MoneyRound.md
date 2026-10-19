@@ -2,6 +2,8 @@
 
 # MoneyRound
 
+Rounds a Decimal by a policy, or returns it unchanged if the policy does not round.
+
 ## Syntax
 
 ```freebasic

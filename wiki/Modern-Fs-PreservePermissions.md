@@ -2,6 +2,8 @@
 
 # PreservePermissions
 
+Chooses whether CopyDir keeps permission bits or attributes; false by default.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # TuiMenuBar
 
+Draws a one-row menu bar whose menus drop down with Enter.
+
 ## Syntax
 
 ```freebasic

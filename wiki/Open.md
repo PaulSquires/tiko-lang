@@ -2,7 +2,7 @@
 
 # Open
 
-Opens a disk file for reading or writing using file operations
+Opens a file on a file number for reading or writing text, bytes or records.
 
 ## Syntax
 

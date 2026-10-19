@@ -2,7 +2,7 @@
 
 # CAllocate
 
-Allocates memory for a certain number of elements from the free store and clears the contents
+Reserves memory for a number of elements, set to zero, and returns a pointer or 0.
 
 ## Syntax
 

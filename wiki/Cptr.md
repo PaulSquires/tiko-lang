@@ -2,7 +2,7 @@
 
 # CPtr
 
-Converts a pointer expression to a specified data type pointer
+Converts a pointer or an integer to the given pointer type.
 
 ## Syntax
 

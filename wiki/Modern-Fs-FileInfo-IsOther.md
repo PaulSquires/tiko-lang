@@ -2,6 +2,8 @@
 
 # FileInfo.IsOther
 
+Returns true if the path is a device, pipe or socket rather than a file, folder or link.
+
 ## Syntax
 
 ```freebasic

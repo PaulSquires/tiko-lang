@@ -2,7 +2,7 @@
 
 # Chain
 
-Temporarily transfers control to an external program
+Runs a program without arguments, waits, and returns its exit code or -1.
 
 ## Syntax
 

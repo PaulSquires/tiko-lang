@@ -2,7 +2,7 @@
 
 # PushBack
 
-O(1)
+Adds a value at the back of the list.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # MemoryMappedFile.Flush
 
-FsResultBool
+Writes changed mapped bytes to the disk now.
 
 ## Syntax
 

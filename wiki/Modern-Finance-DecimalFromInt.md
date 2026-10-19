@@ -2,6 +2,8 @@
 
 # DecimalFromInt
 
+Returns a 64-bit integer as a Decimal, exactly.
+
 ## Syntax
 
 ```freebasic

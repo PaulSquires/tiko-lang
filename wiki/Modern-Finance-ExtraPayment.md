@@ -2,6 +2,8 @@
 
 # ExtraPayment
 
+Holds extra principal paid over a range of periods; overlapping ranges add up.
+
 ## Syntax
 
 ```freebasic

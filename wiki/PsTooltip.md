@@ -2,7 +2,7 @@
 
 # PsTooltip
 
-An owner-drawn tooltip for tiko/Win32 applications built on the sys/win package.
+Shows a themed tooltip near the cursor, with an optional title, wrapping and fade.
 
 `PsTooltip` is a `WS_POPUP` window that appears near the cursor after a dwell, shows a message —
 optionally wrapped, optionally under a bold title and an icon glyph — fades in, and goes away

@@ -2,6 +2,8 @@
 
 # LocalDate.AddYears
 
+Returns the date moved by whole years; 29 February becomes the 28th if needed.
+
 ## Syntax
 
 ```freebasic

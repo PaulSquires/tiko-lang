@@ -2,7 +2,7 @@
 
 # Stream.ReadExact
 
-FsResultBool
+Reads exactly n bytes, or fails if the data ends first.
 
 ## Syntax
 

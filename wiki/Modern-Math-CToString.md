@@ -2,7 +2,7 @@
 
 # CToString
 
-The round-tripping text form.
+Returns a complex number as text such as 3+4i that reads back exactly.
 
 ## Syntax
 

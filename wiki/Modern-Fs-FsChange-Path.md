@@ -2,7 +2,7 @@
 
 # FsChange.Path
 
-the FULL path, not a bare leaf
+Returns the full path of the entry that changed.
 
 ## Syntax
 

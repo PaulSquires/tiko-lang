@@ -2,6 +2,8 @@
 
 # Instant.DaysInYear
 
+Returns 365 or 366, the number of days in a year.
+
 ## Syntax
 
 ```freebasic

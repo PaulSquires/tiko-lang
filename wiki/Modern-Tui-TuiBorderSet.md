@@ -2,6 +2,8 @@
 
 # TuiBorderSet
 
+Holds the six characters a border is drawn from: two lines and four corners.
+
 ## Syntax
 
 ```freebasic

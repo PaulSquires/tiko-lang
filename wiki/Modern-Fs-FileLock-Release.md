@@ -2,6 +2,8 @@
 
 # FileLock.Release
 
+Releases the lock; harmless when none is held.
+
 ## Syntax
 
 ```freebasic

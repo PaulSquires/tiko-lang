@@ -1,0 +1,36 @@
+# Collections: task headings in display order, pages to skip, see-also links.
+#   task    <task id>  <heading>
+#   ignore  <page>  <reason>
+#   seealso <page>  <label>
+#   from    <value>  include  -
+task	choose	Choose a container
+task	arradd	Array: add and remove
+task	arrread	Array: read, count and visit
+task	arrfind	Array: find a value
+task	sort	Sort an Array or a LinkedList
+task	mapadd	Map: add and change
+task	mapget	Map: look up
+task	mapwalk	Map: list keys and values
+task	set	Set: add, remove and test
+task	builtin	Built-in arrays: bounds and size
+task	redim	Built-in arrays: resize and erase
+task	queue	Queues and stacks: LinkedList and Deque
+task	pq	PriorityQueue: take the smallest first
+task	setops	Combine sets
+task	nearest	Find the first, last or nearest key
+task	bits	BitSet: flags by number
+task	rearrange	Rearrange an Array
+task	walk	Walk a container step by step
+task	room	Reserve room ahead of time
+task	internals	Check a container's internals
+ignore	Array-Functions	an overview page, not a function
+from	fbc-int/array.bi	include	FB
+seealso	Category-Array	Array guide
+seealso	Category-Map	Map guide
+seealso	Category-OrderedMap	OrderedMap and OrderedSet guide
+seealso	Category-Sorting	Sorting guide
+seealso	Category-Collection-Initializers	Collection initializers
+ignore	Dynamic	not accepted by tiko, so not in the finder
+ignore	Static	not accepted by tiko, so not in the finder
+ignore	Option-Dynamic	not accepted by tiko, so not in the finder
+ignore	Option-Static	not accepted by tiko, so not in the finder

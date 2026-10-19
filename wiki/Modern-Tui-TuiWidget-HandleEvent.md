@@ -2,6 +2,8 @@
 
 # TuiWidget.HandleEvent
 
+Offers an event to the widget and returns true if the widget used it.
+
 ## Syntax
 
 ```freebasic

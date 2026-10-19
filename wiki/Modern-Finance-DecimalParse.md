@@ -2,6 +2,8 @@
 
 # DecimalParse
 
+Parses text into a Decimal exactly; returns empty on bad input or over 28 places.
+
 ## Syntax
 
 ```freebasic

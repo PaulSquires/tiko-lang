@@ -2,6 +2,8 @@
 
 # TuiButton
 
+Draws a button that calls your procedure when the user presses Enter on it.
+
 ## Syntax
 
 ```freebasic

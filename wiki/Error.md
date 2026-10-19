@@ -2,7 +2,7 @@
 
 # Error
 
-Error handling statement to force an error to be generated
+Raises a runtime error by number: jumps to the handler, or ends the program.
 
 ## Syntax
 

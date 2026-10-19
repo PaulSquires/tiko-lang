@@ -2,7 +2,7 @@
 
 # GetDiskSpace
 
-FsResultSpace
+Returns the total, free and available bytes of the volume a path is on.
 
 ## Syntax
 

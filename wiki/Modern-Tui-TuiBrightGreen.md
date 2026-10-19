@@ -2,6 +2,8 @@
 
 # TuiBrightGreen
 
+Returns the classic bright green, palette colour 10.
+
 ## Syntax
 
 ```freebasic

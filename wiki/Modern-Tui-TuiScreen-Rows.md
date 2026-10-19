@@ -2,6 +2,8 @@
 
 # TuiScreen.Rows
 
+Returns the screen height in cells.
+
 ## Syntax
 
 ```freebasic

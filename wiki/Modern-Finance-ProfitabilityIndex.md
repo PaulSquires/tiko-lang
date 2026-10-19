@@ -2,6 +2,8 @@
 
 # ProfitabilityIndex
 
+Returns the present value of the later flows divided by the initial outlay.
+
 ## Syntax
 
 ```freebasic

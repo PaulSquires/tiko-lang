@@ -1,0 +1,51 @@
+# Logging functions. One row per function, per task it belongs to. Tab-separated; see finder.py for the rules.
+page	name	qualifier	task	from	rank	summary
+Modern-Log-Info	Logger.Info	-	log	std/logs	1	Logs a message at the info level, or returns a record to add fields to.
+Modern-Log-Warn	Logger.Warn	-	log	std/logs	-	Logs a message at the warn level, or returns a record to add fields to.
+Modern-Log-Error	Logger.Error	-	log	std/logs	-	Logs a message at the error level, or returns a record to add fields to.
+Modern-Log-Debug	Logger.Debug	-	log	std/logs	-	Logs a message at the debug level, or returns a record to add fields to.
+Modern-Log-Trace	Logger.Trace	-	log	std/logs	-	Logs a message at trace, the finest level, or returns a record to add fields to.
+Modern-Log-Fatal	Logger.Fatal	-	log	std/logs	-	Logs a message at the most severe level, or returns a record; it does not end the program.
+Modern-Log-Log	Logger.Log	-	log	std/logs	-	Logs a message at a level you pass, or returns a record to add fields to.
+Modern-Log-LogEvent-ConsoleSink	ConsoleSink	-	sinks	std/logs	-	Holds a sink that writes to stderr or stdout, in colour only on a terminal.
+Category-Logging#filesink-and-rotation	FileSink	-	sinks	std/logs	-	Holds a sink that appends records to a UTF-8 file, rotating it by size or by day.
+Category-Logging#asyncsink	AsyncSink	-	sinks	std/logs	-	Holds a sink that queues records for a worker thread to write to another sink.
+Modern-Log-AddSink	Logger.AddSink	-	sinks	std/logs	2	Attaches a sink to the logger, which keeps a pointer to it and does not own it.
+Modern-Log-RemoveSink	Logger.RemoveSink	-	sinks	std/logs	-	Detaches one sink; removing one that was never added does nothing.
+Modern-Log-ClearSinks	Logger.ClearSinks	-	sinks	std/logs	-	Detaches every sink, without destroying any of them.
+Modern-Log-SinkCount	Logger.SinkCount	-	sinks	std/logs	-	Returns how many sinks are attached to the logger.
+Modern-Log-LogEvent-AddText	LogEvent.AddText	-	fields	std/logs	3	Adds a named text field to the record and returns the record for the next call.
+Modern-Log-LogEvent-AddInt	LogEvent.AddInt	-	fields	std/logs	-	Adds a named integer field, which stays a number in JSON output.
+Modern-Log-LogEvent-AddUInt	LogEvent.AddUInt	-	fields	std/logs	-	Adds a named unsigned 64-bit integer field.
+Modern-Log-LogEvent-AddFloat	LogEvent.AddFloat	-	fields	std/logs	-	Adds a named floating-point field.
+Modern-Log-LogEvent-AddBool	LogEvent.AddBool	-	fields	std/logs	-	Adds a named true or false field.
+Modern-Log-LogEvent-AddPtr	LogEvent.AddPtr	-	fields	std/logs	-	Adds a named pointer field, such as the address of an object.
+Modern-Log-LogEvent-AddTime	LogEvent.AddTime	-	fields	std/logs	-	Adds a named field holding a point in time.
+Modern-Log-LogEvent-AddSpan	LogEvent.AddSpan	-	fields	std/logs	-	Adds a named field holding a length of time, such as how long a step took.
+Modern-Log-LogEvent-AddError	LogEvent.AddError	-	fields	std/logs	-	Adds a filesystem error as fields: its message, its code and any system error code.
+Modern-Log-LogEvent-AddValue	LogEvent.AddValue	-	fields	std/logs	-	Adds a named field from a value you built yourself, of any supported kind.
+Category-Logging#fields-and-values	LogValue	-	fields	std/logs	-	Holds one field value: null, boolean, number, text, pointer, time or time span.
+Modern-Log-LogEvent-Msg	LogEvent.Msg	-	commit	std/logs	-	Sets the message and sends the record; a record that is never sent logs nothing.
+Modern-Log-LogEvent-Send	LogEvent.Send	-	commit	std/logs	-	Sends the record without a message, for a record that is only fields.
+Modern-Log-LogEvent-Site	LogEvent.Site	-	commit	std/logs	-	Records the file, line and procedure the record came from.
+Modern-Log-Emit	Logger.Emit	-	commit	std/logs	-	Sends a finished record straight to every attached sink.
+Modern-Log-MinLevel	Logger.MinLevel	-	levels	std/logs	4	Sets or returns the lowest level the logger emits; LOG_OFF silences it.
+Modern-Log-Enabled	Logger.Enabled	-	levels	std/logs	-	Returns true if a record at a level would be emitted, to skip building costly messages.
+Modern-Log-LevelName	LevelName	-	names	std/logs	-	Returns a level's name, such as "WARN", or its number if it has no name.
+Modern-Log-LevelNameShort	LevelNameShort	-	names	std/logs	-	Returns a level's three-letter name, such as "WRN".
+Modern-Log-LevelFromName	LevelFromName	-	names	std/logs	-	Reads a level from a name or number in any case; returns false if it is unknown.
+Modern-Log-LevelToSyslog	LevelToSyslog	-	names	std/logs	-	Returns the syslog severity number for a level.
+Modern-Log-WithField	Logger.WithField	-	child	std/logs	-	Returns a child logger that adds one field to every record it makes.
+Modern-Log-WithName	Logger.WithName	-	child	std/logs	-	Returns a child logger with its own component name and the parent's sinks.
+Modern-Log-Name	Logger.Name	-	child	std/logs	-	Sets or returns the logger's component name, attached to every record it makes.
+Category-Logging#the-default-logger-and-the-macros	DefaultLogger	-	default	std/logs	-	Returns the one process-wide logger; LogInit gives it a sink and LogShutdown closes it.
+Modern-Log-Flush	Logger.Flush	-	flush	std/logs	-	Flushes every sink attached to the logger.
+Modern-Log-LogEvent-Flush	Sink.Flush	-	flush	std/logs	-	Flushes one sink on its own.
+Modern-Log-LogEvent-Close	Sink.Close	-	flush	std/logs	-	Closes a sink and releases what it holds; every kind of sink closes the same way.
+Category-Logging#textrenderer	TextRenderer	-	custom	std/logs	-	Holds the plain-text formatter; its fields set the timestamp, colour and call site.
+Modern-Log-LogEvent-Render	TextRenderer.Render	-	custom	std/logs	-	Appends a record as one line of text to a buffer, without clearing it first.
+Category-Logging#jsonrenderer	JsonRenderer	-	custom	std/logs	-	Holds a formatter that writes each record as one line of JSON.
+Category-Logging#writing-your-own-sink	Sink	-	custom	std/logs	-	Holds the interface every sink implements: Write, Flush, Close and DroppedCount.
+Modern-Log-LogEvent-Write	Sink.Write	-	custom	std/logs	-	Writes one record to a sink; the method a sink of your own overrides.
+Modern-Log-LogEvent-DroppedCount	Sink.DroppedCount	-	failures	std/logs	-	Returns how many records a sink could not write; the count never resets.
+Category-Logging#when-logging-fails	SetLogErrorHandler	-	failures	std/logs	-	Sets the one handler told when a sink fails, or 0 to stop the reports.

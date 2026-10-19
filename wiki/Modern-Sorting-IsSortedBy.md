@@ -2,6 +2,8 @@
 
 # IsSortedBy
 
+Returns true if the Array is already in order by your comparer.
+
 ## Syntax
 
 ```freebasic

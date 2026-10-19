@@ -2,7 +2,7 @@
 
 # CurrencyInvalid
 
-The Invalid Currency value.
+Returns the Invalid Currency, which overflow also produces; it never equals anything.
 
 ## Syntax
 

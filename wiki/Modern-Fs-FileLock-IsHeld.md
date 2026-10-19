@@ -2,6 +2,8 @@
 
 # FileLock.IsHeld
 
+Returns true while this FileLock holds its lock.
+
 ## Syntax
 
 ```freebasic

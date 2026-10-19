@@ -2,7 +2,7 @@
 
 # CAsech
 
-The inverse hyperbolic secant.
+Returns the inverse hyperbolic secant of a complex number.
 
 ## Syntax
 

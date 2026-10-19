@@ -2,6 +2,8 @@
 
 # FutureValue
 
+Returns what a stream of payments will be worth at the end of the term.
+
 ## Syntax
 
 ```freebasic

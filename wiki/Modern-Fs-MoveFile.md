@@ -2,6 +2,8 @@
 
 # MoveFile
 
+Moves or renames a file, even across volumes; refuses an existing destination by default.
+
 ## Syntax
 
 ```freebasic

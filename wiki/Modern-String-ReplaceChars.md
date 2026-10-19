@@ -2,7 +2,7 @@
 
 # ReplaceChars
 
-[, all] [, start] [, ic] )    O(n*m)
+Replaces each character from a set with one given character.
 
 ## Syntax
 

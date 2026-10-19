@@ -2,7 +2,7 @@
 
 # MutexLock
 
-Acquires a mutex
+Locks a mutex, waiting while another thread holds it.
 
 ## Syntax
 

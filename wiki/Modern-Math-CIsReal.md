@@ -2,7 +2,7 @@
 
 # CIsReal
 
-True when the imaginary part is zero.
+Returns true if the imaginary part of a complex number is zero.
 
 ## Syntax
 

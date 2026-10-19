@@ -2,6 +2,8 @@
 
 # LevelToSyslog
 
+Returns the syslog severity number for a level.
+
 ## Syntax
 
 ```freebasic

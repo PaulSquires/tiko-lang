@@ -2,6 +2,8 @@
 
 # TimeSpan.ToIsoUString
 
+Returns the duration as ISO 8601 text in a ustring.
+
 ## Syntax
 
 ```freebasic

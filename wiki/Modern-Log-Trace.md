@@ -2,7 +2,7 @@
 
 # Trace
 
-Logs at TRACE level, either directly or by starting a field chain.
+Logs a message at trace, the finest level, or returns a record to add fields to.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # OrderedMap.TryFloor
 
+Finds the largest key at or below a given one; returns false if there is none.
+
 ## Syntax
 
 ```freebasic

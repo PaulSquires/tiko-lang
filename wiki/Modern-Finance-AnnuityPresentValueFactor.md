@@ -2,6 +2,8 @@
 
 # AnnuityPresentValueFactor
 
+Returns what one unit paid each period is worth today.
+
 ## Syntax
 
 ```freebasic

@@ -178,16 +178,71 @@ Complexity is ASSERTED, not assumed: 100k pushes must produce at most 20 realloc
 
 src/tests/generics/fail-container-nosort.bas and fail-container-noequals.bas pin the diagnostics for an element type without '<' or '='.
 
+<!-- finder:start -->
+
 ## API reference
 
-One page per entry, 21 in all:
+Every entry, grouped by task. [Collections](Functions-Collections) lists them beside the rest of the area.
 
-|   |   |   |   |   |   |
-|---|---|---|---|---|---|
-| [Array](Modern-Array-Array) | [Clear](Modern-Array-Clear) | [GetIterator](Modern-Array-GetIterator) | [IsSorted](Modern-Array-IsSorted) | [RemoveSwap](Modern-Array-RemoveSwap) | [SortBy](Modern-Array-SortBy) |
-| [ArrayIterator](Modern-Array-ArrayIterator) | [Contains](Modern-Array-Contains) | [IndexOf](Modern-Array-IndexOf) | [Pop](Modern-Array-Pop) | [Reserve](Modern-Array-Reserve) | [StableSort](Modern-Array-StableSort) |
-| [At](Modern-Array-At) | [Count](Modern-Array-Count) | [Insert](Modern-Array-Insert) | [Push](Modern-Array-Push) | [Shrink](Modern-Array-Shrink) | [StableSortBy](Modern-Array-StableSortBy) |
-| [Capacity](Modern-Array-Capacity) | [ForEach](Modern-Array-ForEach) | [IsEmpty](Modern-Array-IsEmpty) | [Remove](Modern-Array-Remove) | [Sort](Modern-Array-Sort) |  |
+### Choose a container
+
+| Function | What it does | From |
+|---|---|---|
+| [Array](Modern-Array-Array) | Holds a growable list of values in order, reached by position from 0. | `std/containers` |
+
+### Array: add and remove
+
+| Function | What it does | From |
+|---|---|---|
+| [Array.Push](Modern-Array-Push) | Adds a value at the end, growing the array as needed. | `std/containers` |
+| [Array.Pop](Modern-Array-Pop) | Removes and returns the last element, or a default value if the array is empty. | `std/containers` |
+| [Array.Insert](Modern-Array-Insert) | Inserts a value at a position, moving the later elements up one place. | `std/containers` |
+| [Array.Remove](Modern-Array-Remove) | Removes the element at a position, keeping the rest in order. | `std/containers` |
+| [Array.RemoveSwap](Modern-Array-RemoveSwap) | Removes the element at a position quickly by moving the last element into its place. | `std/containers` |
+| [Array.Clear](Modern-Array-Clear) | Removes every element but keeps the allocated room. | `std/containers` |
+
+### Array: read, count and visit
+
+| Function | What it does | From |
+|---|---|---|
+| [Array.At](Modern-Array-At) | Returns a reference to the element at a position, like a[ i ]. | `std/containers` |
+| [Array.Count](Modern-Array-Count) | Returns the number of elements; the valid indices are 0 to Count minus 1. | `std/containers` |
+| [Array.IsEmpty](Modern-Array-IsEmpty) | Returns true if the array has no elements. | `std/containers` |
+| [ForEach](Modern-Array-ForEach) | Calls a procedure on every element in order, passing each by reference. | `std/containers` |
+
+### Array: find a value
+
+| Function | What it does | From |
+|---|---|---|
+| [IndexOf](Modern-Array-IndexOf) | Returns the index of the first element equal to a value, or -1 if there is none. | `std/containers` |
+| [Contains](Modern-Array-Contains) | Returns true if any element equals the value. | `std/containers` |
+
+### Sort an Array or a LinkedList
+
+| Function | What it does | From |
+|---|---|---|
+| [Sort](Modern-Array-Sort) (Array) | Sorts an Array in ascending order in place; equal elements may change places. | `std/containers` |
+| [SortBy](Modern-Array-SortBy) (Array) | Sorts an Array in place by your comparer; equal elements may change places. | `std/containers` |
+| [StableSort](Modern-Array-StableSort) (Array) | Sorts an Array in ascending order, keeping equal elements in their original order. | `std/containers` |
+| [StableSortBy](Modern-Array-StableSortBy) (Array) | Sorts an Array by your comparer, keeping equal elements in their original order. | `std/containers` |
+| [IsSorted](Modern-Array-IsSorted) (Array) | Returns true if the Array is already in ascending order. | `std/containers` |
+
+### Walk a container step by step
+
+| Function | What it does | From |
+|---|---|---|
+| [Array.GetIterator](Modern-Array-GetIterator) | Returns an iterator over the elements, for stepping through them by hand. | `std/containers` |
+| [ArrayIterator](Modern-Array-ArrayIterator) | Holds a position in an Array; steps with IsValid, Value and MoveNext. | `std/containers` |
+
+### Reserve room ahead of time
+
+| Function | What it does | From |
+|---|---|---|
+| [Array.Capacity](Modern-Array-Capacity) | Returns how many elements fit before the array has to grow. | `std/containers` |
+| [Array.Reserve](Modern-Array-Reserve) | Makes room for at least n elements without adding any; it never shrinks. | `std/containers` |
+| [Array.Shrink](Modern-Array-Shrink) | Releases unused room, cutting the capacity down to the count. | `std/containers` |
+
+<!-- finder:end -->
 
 ---
 

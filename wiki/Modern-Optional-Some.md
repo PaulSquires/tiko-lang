@@ -2,6 +2,8 @@
 
 # Some
 
+Returns an Optional holding the value, its type taken from the argument.
+
 ## Syntax
 
 ```freebasic

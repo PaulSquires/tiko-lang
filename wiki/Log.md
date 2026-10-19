@@ -2,7 +2,7 @@
 
 # Log
 
-Returns the natural logarithm of a given number
+Returns the natural logarithm; zero gives minus infinity and a negative gives NaN.
 
 ## Syntax
 

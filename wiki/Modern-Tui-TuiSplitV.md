@@ -2,6 +2,8 @@
 
 # TuiSplitV
 
+Splits a rectangle into rows stacked top to bottom, sized by constraints.
+
 ## Syntax
 
 ```freebasic

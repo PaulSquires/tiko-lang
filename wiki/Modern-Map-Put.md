@@ -2,7 +2,7 @@
 
 # Put
 
-true if the key was new
+Stores a value under a key, replacing any old one; returns true if the key was new.
 
 ## Syntax
 

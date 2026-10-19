@@ -2,7 +2,7 @@
 
 # CCoth
 
-The hyperbolic cotangent — one over the hyperbolic tangent.
+Returns the hyperbolic cotangent of a complex number, one over its tanh.
 
 ## Syntax
 

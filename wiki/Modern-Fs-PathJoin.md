@@ -2,7 +2,7 @@
 
 # PathJoin
 
-also 3- and 4-argument forms
+Joins two to four path parts with one separator; an absolute part drops those before it.
 
 ## Syntax
 

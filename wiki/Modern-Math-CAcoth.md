@@ -2,7 +2,7 @@
 
 # CAcoth
 
-The inverse hyperbolic cotangent.
+Returns the inverse hyperbolic cotangent of a complex number.
 
 ## Syntax
 

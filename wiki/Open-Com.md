@@ -2,7 +2,7 @@
 
 # Open Com
 
-Opens a serial port for input and output, using it as if it were file operations.
+Opens a serial port on a file number, with its speed, parity and other settings.
 
 ## Syntax
 

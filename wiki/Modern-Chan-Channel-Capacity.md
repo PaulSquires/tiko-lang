@@ -2,7 +2,7 @@
 
 # Capacity
 
-The buffer size the channel was constructed with.
+Returns the buffer size the channel was made with; 0 means each value is handed over.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # TuiCanvas.Pattern
 
+Returns the braille dot pattern of one cell as a byte.
+
 ## Syntax
 
 ```freebasic

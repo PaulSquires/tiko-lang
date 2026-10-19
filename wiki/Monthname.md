@@ -2,7 +2,7 @@
 
 # MonthName
 
-Gets the name of a month from its integral representation
+Returns the name of a month number in the system's language, or its abbreviation.
 
 ## Syntax
 

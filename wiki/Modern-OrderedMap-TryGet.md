@@ -2,6 +2,8 @@
 
 # OrderedMap.TryGet
 
+Copies the value for a key into a variable; returns false, adding nothing, if absent.
+
 ## Syntax
 
 ```freebasic

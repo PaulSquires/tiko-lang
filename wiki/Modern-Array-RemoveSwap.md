@@ -2,7 +2,7 @@
 
 # RemoveSwap
 
-O(1)   does NOT preserve order
+Removes the element at a position quickly by moving the last element into its place.
 
 ## Syntax
 

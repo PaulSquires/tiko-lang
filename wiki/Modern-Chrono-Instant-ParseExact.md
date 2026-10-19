@@ -2,6 +2,8 @@
 
 # Instant.ParseExact
 
+Reads text laid out by a pattern such as "dd/MM/yyyy", or Invalid if it does not match.
+
 ## Syntax
 
 ```freebasic

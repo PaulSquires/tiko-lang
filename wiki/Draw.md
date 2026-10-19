@@ -2,7 +2,7 @@
 
 # Draw
 
-Statement for sequenced pixel plotting
+Draws a figure from a string of pen commands such as "U10 R10".
 
 ## Syntax
 

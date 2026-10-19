@@ -2,7 +2,7 @@
 
 # CAsin
 
-The inverse sine.
+Returns the inverse sine of a complex number, or of any real number.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # TuiColor.Equals
 
+Returns true if two colours were built the same way with the same values.
+
 ## Syntax
 
 ```freebasic

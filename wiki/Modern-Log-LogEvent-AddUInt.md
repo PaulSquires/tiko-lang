@@ -2,6 +2,8 @@
 
 # LogEvent.AddUInt
 
+Adds a named unsigned 64-bit integer field.
+
 ## Syntax
 
 ```freebasic

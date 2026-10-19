@@ -2,6 +2,8 @@
 
 # TimeWeightedReturn
 
+Returns sub-period returns linked by compounding, ignoring when money moved in or out.
+
 ## Syntax
 
 ```freebasic

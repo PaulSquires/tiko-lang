@@ -2,6 +2,8 @@
 
 # Instant.AssumeUtc
 
+Returns the moment the date-time names if its clock reading is taken as UTC.
+
 ## Syntax
 
 ```freebasic

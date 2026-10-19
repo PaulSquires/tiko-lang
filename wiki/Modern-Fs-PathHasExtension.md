@@ -2,6 +2,8 @@
 
 # PathHasExtension
 
+Returns true if the file name has an extension; a dotfile has none.
+
 ## Syntax
 
 ```freebasic

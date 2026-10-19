@@ -2,7 +2,7 @@
 
 # Time
 
-Returns the current system time as a string
+Returns the current time as text in the form hh:mm:ss.
 
 ## Syntax
 

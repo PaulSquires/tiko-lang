@@ -2,7 +2,7 @@
 
 # Stream.WriteUtf8
 
-FsResultBool
+Writes a string as UTF-8, with no BOM.
 
 ## Syntax
 

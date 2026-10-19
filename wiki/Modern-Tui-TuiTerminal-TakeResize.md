@@ -2,6 +2,8 @@
 
 # TuiTerminal.TakeResize
 
+Returns true once after each resize of the terminal, then false.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # GrowthFactor
 
+Returns what one unit grows to over a whole number of periods at a rate, exactly.
+
 ## Syntax
 
 ```freebasic

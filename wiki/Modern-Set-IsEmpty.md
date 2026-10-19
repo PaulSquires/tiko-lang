@@ -2,6 +2,8 @@
 
 # IsEmpty
 
+Returns true if the set has no values.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # CorrelationToBenchmark
 
+Returns how closely an asset moves with its benchmark, from -1 to 1.
+
 ## Syntax
 
 ```freebasic

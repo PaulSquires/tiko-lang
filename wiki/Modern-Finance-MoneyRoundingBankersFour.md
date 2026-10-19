@@ -2,6 +2,8 @@
 
 # MoneyRoundingBankersFour
 
+Returns a policy of four places, half-to-even, to match a Currency ledger.
+
 ## Syntax
 
 ```freebasic

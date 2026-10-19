@@ -2,6 +2,8 @@
 
 # TuiTextInputStateInit
 
+Sets a text box's state to empty with nothing selected; call it before first use.
+
 ## Syntax
 
 ```freebasic

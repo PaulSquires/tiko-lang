@@ -2,7 +2,7 @@
 
 # PadRight
 
-O(width)
+Pads on the right to a width, with spaces or a given character.
 
 ## Syntax
 

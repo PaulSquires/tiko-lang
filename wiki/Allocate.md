@@ -2,7 +2,7 @@
 
 # Allocate
 
-Allocates a block of memory from the free store
+Reserves a number of bytes and returns a pointer to them, or 0; the bytes are not cleared.
 
 ## Syntax
 

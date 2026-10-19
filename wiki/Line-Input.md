@@ -2,7 +2,7 @@
 
 # Line Input #
 
-Reads one line of text from a file
+Reads one line of a text file into a string, without its line ending.
 
 ## Syntax
 

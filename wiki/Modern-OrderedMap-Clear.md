@@ -2,7 +2,7 @@
 
 # OrderedMap.Clear
 
-O(n)
+Removes every entry.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 # LOC
 
-Returns the file position where the last file read/write was performed
+Returns where the last read or write happened in an open file, counted in records.
 
 ## Syntax
 

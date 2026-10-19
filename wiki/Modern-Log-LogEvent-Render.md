@@ -2,7 +2,7 @@
 
 # LogEvent.Render
 
-APPENDS, and does not clear
+Appends a record as one line of text to a buffer, without clearing it first.
 
 ## Syntax
 

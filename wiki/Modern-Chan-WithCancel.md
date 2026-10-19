@@ -2,7 +2,7 @@
 
 # WithCancel
 
-a cancellable child
+Returns a child context that you cancel yourself.
 
 ## Syntax
 

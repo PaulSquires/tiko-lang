@@ -2,7 +2,7 @@
 
 # Dot
 
-The dot product of two vectors.
+Returns the dot product of two vectors; zero means they are perpendicular.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # Capacity
 
+Returns how many elements fit before the array has to grow.
+
 ## Syntax
 
 ```freebasic

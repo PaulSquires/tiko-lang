@@ -2,7 +2,7 @@
 
 # CLog10
 
-The base-ten logarithm.
+Returns the base-ten logarithm of a complex number.
 
 ## Syntax
 

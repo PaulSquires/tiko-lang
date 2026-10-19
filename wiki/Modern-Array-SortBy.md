@@ -2,7 +2,7 @@
 
 # SortBy
 
-introsort, ascending, by a comparer
+Sorts an Array in place by your comparer; equal elements may change places.
 
 ## Syntax
 

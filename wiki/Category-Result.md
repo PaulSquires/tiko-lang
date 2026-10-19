@@ -222,14 +222,31 @@ src/tests/generics/result-value-on-failure.bas and result-failure-on-ok.bas are 
 
 src/tests/generics/fail-result-nodefaultctor.bas pins the diagnostic for a type with no default constructor in the E position.
 
+<!-- finder:start -->
+
 ## API reference
 
-One page per entry, 9 in all:
+Every entry, grouped by task. [Errors and missing values](Functions-Errors) lists them beside the rest of the area.
 
-|   |   |   |   |
-|---|---|---|---|
-| [Fail](Modern-Result-Fail) | [IsOk](Modern-Result-IsOk) | [Optional](Modern-Result-Optional) | [Value](Modern-Result-Value) |
-| [Failure](Modern-Result-Failure) | [Ok](Modern-Result-Ok) | [Result](Modern-Result-Result) | [ValueOr](Modern-Result-ValueOr) |
+### Return a value or the reason it failed
+
+| Function | What it does | From |
+|---|---|---|
+| [Result](Modern-Result-Result) | Holds either a value or the reason it could not be made; a new one counts as failed. | `std/outcome` |
+| [Ok](Modern-Result-Ok) | Returns a successful Result holding the value; both types must be written out. | `std/outcome` |
+| [Fail](Modern-Result-Fail) | Returns a failed Result holding the reason; both types must be written out. | `std/outcome` |
+| [Result.IsOk](Modern-Result-IsOk) | Returns true if the Result holds a value rather than a reason for failure. | `std/outcome` |
+| [Result.Value](Modern-Result-Value) | Returns the value by reference; raises an error if the Result failed. | `std/outcome` |
+| [Result.Failure](Modern-Result-Failure) | Returns the reason by reference; raises an error if the Result succeeded. | `std/outcome` |
+| [Result.ValueOr](Modern-Result-ValueOr) | Returns the value, or the fallback you pass if the Result failed. | `std/outcome` |
+
+### Return a value that may be missing
+
+| Function | What it does | From |
+|---|---|---|
+| [Optional](Modern-Result-Optional) | Holds one value or nothing at all; a new one is empty. | `std/outcome` |
+
+<!-- finder:end -->
 
 ---
 

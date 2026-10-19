@@ -2,6 +2,8 @@
 
 # TuiBrightWhite
 
+Returns the classic bright white, palette colour 15.
+
 ## Syntax
 
 ```freebasic

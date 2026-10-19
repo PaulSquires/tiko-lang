@@ -2,6 +2,8 @@
 
 # TuiBrightBlue
 
+Returns the classic bright blue, palette colour 12.
+
 ## Syntax
 
 ```freebasic

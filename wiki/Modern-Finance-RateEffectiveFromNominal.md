@@ -2,6 +2,8 @@
 
 # RateEffectiveFromNominal
 
+Returns what a quoted annual rate really earns in a year once it compounds.
+
 ## Syntax
 
 ```freebasic

@@ -2,6 +2,8 @@
 
 # TimeSpan.Invalid
 
+Returns the Invalid duration, which spreads to anything computed from it.
+
 ## Syntax
 
 ```freebasic

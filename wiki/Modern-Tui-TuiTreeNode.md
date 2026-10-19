@@ -2,6 +2,8 @@
 
 # TuiTreeNode
 
+Holds one tree node: its label, depth, whether it has children, and your own id.
+
 ## Syntax
 
 ```freebasic

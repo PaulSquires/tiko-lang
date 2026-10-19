@@ -2,7 +2,7 @@
 
 # Exists
 
-boolean
+Returns true if a file or folder is there; false also when access is denied.
 
 ## Syntax
 

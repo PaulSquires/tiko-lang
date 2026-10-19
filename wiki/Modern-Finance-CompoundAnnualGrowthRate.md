@@ -2,6 +2,8 @@
 
 # CompoundAnnualGrowthRate
 
+Returns the steady yearly rate that grows a starting value to an ending value.
+
 ## Syntax
 
 ```freebasic

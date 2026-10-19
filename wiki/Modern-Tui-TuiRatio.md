@@ -2,6 +2,8 @@
 
 # TuiRatio
 
+Returns a constraint for a fraction of the whole space, such as one third.
+
 ## Syntax
 
 ```freebasic

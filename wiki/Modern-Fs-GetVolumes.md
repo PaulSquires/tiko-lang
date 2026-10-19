@@ -2,7 +2,7 @@
 
 # GetVolumes
 
-FsResultLong; fills Array( of VolumeInfo )
+Fills an Array with a VolumeInfo for each drive or mounted disk; returns the count.
 
 ## Syntax
 

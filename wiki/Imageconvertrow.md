@@ -2,7 +2,7 @@
 
 # ImageConvertRow
 
-Converts a row of image data into another color depth
+Copies a row of pixels to another buffer, converting its colour depth.
 
 ## Syntax
 

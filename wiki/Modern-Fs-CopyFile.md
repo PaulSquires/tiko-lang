@@ -2,7 +2,7 @@
 
 # CopyFile
 
-overwrite defaults FALSE
+Copies a file; fails if the destination exists unless overwrite is true.
 
 ## Syntax
 

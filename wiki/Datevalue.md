@@ -2,7 +2,7 @@
 
 # DateValue
 
-Returns a Date Serial from a string
+Returns the date serial for text written in the system's date format.
 
 ## Syntax
 

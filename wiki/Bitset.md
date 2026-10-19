@@ -2,7 +2,7 @@
 
 # BitSet
 
-Gets the value with a specified bit set, from a copied integer.
+Returns a copy of an integer with the numbered bit set to 1.
 
 ## Syntax
 

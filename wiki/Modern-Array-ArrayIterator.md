@@ -2,7 +2,7 @@
 
 # ArrayIterator
 
-The iterator `for each` uses over an `Array( of T )`.
+Holds a position in an Array; steps with IsValid, Value and MoveNext.
 
 ## Syntax
 

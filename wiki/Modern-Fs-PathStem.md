@@ -2,7 +2,7 @@
 
 # PathStem
 
-the leaf without its extension
+Returns the file name without its extension; a dotfile such as .gitignore keeps its name.
 
 ## Syntax
 

@@ -2,6 +2,8 @@
 
 # TuiScreen.BeginFrame
 
+Clears the back buffer and returns the frame to draw into.
+
 ## Syntax
 
 ```freebasic

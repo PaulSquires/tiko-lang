@@ -2,7 +2,7 @@
 
 # Sort
 
-introsort, ascending, by '<' on T
+Sorts an Array in ascending order in place; equal elements may change places.
 
 ## Syntax
 

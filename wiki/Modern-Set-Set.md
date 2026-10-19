@@ -2,7 +2,7 @@
 
 # Set
 
-A hash set.
+Holds each value at most once, in no particular order.
 
 ## Syntax
 
