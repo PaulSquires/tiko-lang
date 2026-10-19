@@ -1,0 +1,82 @@
+'' A constructor's WRITTEN byval argument of a non-trivial UDT (D2, passed indirectly): every
+'' shape passes a pointer to a copy the caller destroys. See tests/codegen/ctor-byval-udt-written-run.test.
+dim shared as long made, gone
+type D2
+    v as long
+    declare constructor( byval n as long )
+    declare constructor( byref o as D2 )
+    declare destructor( )
+end type
+constructor D2( byval n as long )
+    v = n : made += 1
+end constructor
+constructor D2( byref o as D2 )
+    v = o.v : made += 1
+end constructor
+destructor D2( )
+    gone += 1
+end destructor
+type Wx
+    q as long
+    declare constructor( byval q as D2 )
+end type
+constructor Wx( byval q as D2 )
+    this.q = q.v
+end constructor
+type Wb
+    q as long
+    declare constructor( byref q as D2, byval k as long = 1 )
+end type
+constructor Wb( byref q as D2, byval k as long )
+    this.q = q.v * k
+end constructor
+type Wr
+    s as long
+    q as long
+    declare constructor( byval s as long, byval q as D2 = D2( 9 ) )
+end type
+constructor Wr( byval s as long, byval q as D2 )
+    this.s = s : this.q = q.v
+end constructor
+sub Show( byref w as Wr )
+    print w.s; w.q
+end sub
+
+function Mk( byval n as long ) as D2
+    return D2( n )
+end function
+sub Main( )
+    dim as D2 d = D2( 8 )
+    dim as Wx a = d
+    print a.q
+    dim as Wx b = D2( 3 )
+    print b.q
+    dim as Wx c = Wx( d )
+    print c.q
+    dim as Wx ptr p = new Wx( d )
+    print p->q
+    delete p
+    dim as Wb e = Wb( d, 2 )
+    print e.q
+    dim as Wr f = Wr( 1, Mk( 5 ) )
+    print f.q
+    dim as Wr g = Wr( 1, 7 )
+    print g.q
+    dim as Wx h = type<Wx>( d )
+    print h.q
+    dim as Wr wa = Wr( 6, D2( 7 ) )
+    Show( wa )
+    var wv = Wr( 5, D2( 3 ) )
+    Show( wv )
+    dim as Wr ptr wp = new Wr( 4, D2( 2 ) )
+    Show( *wp )
+    delete wp
+    dim as Wr we = Wr( 6, d )
+    Show( we )
+    print d.v
+    Show( Wr( 1, d ) )
+    Show( Wr( 2, D2( 4 ) ) )
+end sub
+
+Main( )
+print made; gone

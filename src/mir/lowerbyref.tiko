@@ -725,6 +725,9 @@ function CtorArgLowersLate_( byref c as Ctx, byval a as Tko.NodeId ) as boolean
     if (c.ast->Kind( a ) = Tko.N_TUPLE) andalso ((c.ast->nodes[cast( int32, a )].flags and Tko.NF_TYPE_LITERAL) <> 0) then
         return (c.types->Kind( c.types->Unqualify( t ) ) = Tko.TK_UDT)
     end if
+    '' ...AND ANY ARGUMENT OF A TYPE PASSED INDIRECTLY, which CtorIndirectUdtArg_ copies from its node:
+    '' 'Wr( 6, d )' loaded d here for a value nobody passed, a second evaluation of the argument.
+    if ByvalUdtIndirect_( c, c.types->Unqualify( t ) ) then return true
     if c.ast->Kind( a ) <> Tko.N_CALL then return false
     return (c.types->Kind( c.types->Unqualify( t ) ) = Tko.TK_UDT)
 end function
