@@ -2,7 +2,7 @@
 
 # Operating System Functions
 
-The built-in statements and functions below work in every program. The [`std/os`](Category-OS) module adds `Args( )` that keeps empty arguments, `GetEnv` that tells an unset variable from an empty one, host facts such as `CpuCount( )`, and Ctrl-C handling.
+The built-in statements and functions below work in every program. The [`std/os`](Category-OS) module adds `Args( )` that keeps empty arguments, `GetEnv` that tells an unset variable from an empty one, host facts such as `CpuCount( )`, and Ctrl-C handling; [`std/process`](Category-Process) runs other programs with their arguments passed exactly, no shell in between, and pipes to their input and output.
 
 - [Chain](Chain)
 - [ChDir](Chdir)

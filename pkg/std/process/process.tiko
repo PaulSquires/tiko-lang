@@ -1,0 +1,754 @@
+#module "process"
+#import "std/containers"
+#import "std/outcome"
+#import "std/fs"
+using containers
+using outcome
+'' std/process -- start programs, talk to them through pipes, wait for them
+''
+''     #import "std/process"
+''
+''     dim r as process.ProcResultOutput = process.Output_( process.Command( "git" ).Arg( "status" ).Arg( "--short" ) )
+''     if r.IsOk( ) then print r.Value( ).StdoutText( )
+''     dim st as process.ProcResultStatus = process.Run( process.Command( "tiko" ).Arg( "--version" ) )
+''     if st.IsOk( ) then print st.Value( ).Code( )
+''
+'' C:\dev\docs\tiko-stdlib\RFC-0001 section 9.
+''
+''   Command       a value: the program, its arguments, directory, environment
+''                 changes and what its stdin/stdout/stderr are.  Every setter returns
+''                 the Command, so calls chain.  Copyable and reusable.
+''   Child         one running program (not copyable).  Spawn( cmd ), then Stdin/
+''                 Stdout/Stderr (PipeStreams, which are fs.Streams) when they were
+''                 STDIO_PIPE, then Wait / WaitTimeout / TryWait, Kill, Terminate.
+''                 Destroying a Child neither kills nor waits for the program.
+''   helpers       Run (stdio inherited), Output_ (stdout and stderr collected, stdin
+''                 from a byte array or nothing), Shell (a command line for cmd.exe or
+''                 /bin/sh), CurrentId.  ('Output' is a keyword, hence Output_.)
+''
+'' NO SHELL, EVER, EXCEPT Shell.  A Command passes an argument vector: on Windows it is
+'' quoted into a command line by the rules CommandLineToArgvW undoes; on Linux it is
+'' the argv.  A program name without a path separator is looked up on PATH -- the
+'' child's PATH when Env( "PATH", ... ) changed it -- and, on Windows, with PATHEXT,
+'' and NEVER in the current directory.  Only absolute PATH entries are searched.  A
+'' relative path with a separator is taken from this process's current directory,
+'' whatever Cwd( ) says.  A .bat or .cmd runs through cmd.exe, and an argument cmd
+'' could not be given safely ('%', a line break, or '"' together with & | < > ^ ( ))
+'' is refused with PROC_UNSAFE_ARGUMENT rather than quoted best-effort.
+''
+'' PLATFORM NOTES.  Only the three stdio handles reach a child: Windows passes an
+'' explicit handle list, Linux opens every pipe close-on-exec.  (On Linux a file
+'' opened with the legacy OPEN statement is not close-on-exec and does reach the
+'' child.)  Output_ drains stdout and stderr together without threads -- overlapped
+'' pipes on Windows, poll( ) on Linux -- so a child writing a lot to both cannot
+'' deadlock it.  On Linux the first spawn sets SIGPIPE to ignored in this process
+'' (children start with default signal dispositions), so a write to a pipe whose
+'' reader has gone is FS_BROKEN_PIPE instead of death; and a Child destroyed
+'' without a Wait leaves a zombie until this process ends.  On Windows Terminate is
+'' Kill, and a killed child's code is 1; on Linux a killed child's Code( ) is -1 and
+'' Signal( ) says which signal.
+
+#if __FB_LANG__ <> "fb"
+    #error "std/process requires -lang fb"
+#endif
+
+'' -------------------------------------------------------------- errors
+
+public enum ProcErrorCode
+    PROC_OK = 0
+    PROC_NOT_FOUND              '' no such program, on PATH or at the path given
+    PROC_ACCESS_DENIED          '' the program is there but may not be run
+    PROC_INVALID_ARGUMENT       '' a NUL, an '=' in an env name, an empty program
+    PROC_UNSAFE_ARGUMENT        '' an argument cmd.exe cannot be given safely (.bat/.cmd)
+    PROC_BAD_DIRECTORY          '' Cwd( ) is not a directory
+    PROC_TOO_MANY_PROCESSES     '' the OS refused another process
+    PROC_NOT_STARTED            '' this Child has no process
+    PROC_ALREADY_WAITED         '' the process was reaped, so it cannot be signalled
+    PROC_IO                     '' a pipe failed; OsCode( ) says why
+    PROC_UNKNOWN                '' mapped to nothing; OsCode( ) is the real answer
+end enum
+
+public function ProcErrorMessage( byval c as ProcErrorCode ) as ustring
+    select case c
+    case PROC_OK                 : return "no error"
+    case PROC_NOT_FOUND          : return "program not found"
+    case PROC_ACCESS_DENIED      : return "access denied"
+    case PROC_INVALID_ARGUMENT   : return "invalid argument"
+    case PROC_UNSAFE_ARGUMENT    : return "argument cannot be passed safely to cmd.exe"
+    case PROC_BAD_DIRECTORY      : return "working directory is not a directory"
+    case PROC_TOO_MANY_PROCESSES : return "too many processes"
+    case PROC_NOT_STARTED        : return "no process started"
+    case PROC_ALREADY_WAITED     : return "process already waited for"
+    case PROC_IO                 : return "pipe input/output failed"
+    case PROC_UNKNOWN            : return "operating system call failed"
+    end select
+    return "unknown error"
+end function
+
+public type ProcError
+    '' Default-constructible because Result default-constructs both slots.
+    declare constructor( )
+    declare constructor( byval c as ProcErrorCode, byval osc as long, byref op as const ustring, byref subj as const ustring )
+    declare const function Code( ) as ProcErrorCode
+    declare const function OsCode( ) as long          '' GetLastError / errno; 0 when none
+    declare const function Operation( ) as ustring    '' "Spawn", "Wait", ...
+    declare const function Subject( ) as ustring      '' the program, argument or directory
+    declare const function Message( ) as ustring      '' "Spawn 'nope': program not found"
+private:
+    as ProcErrorCode m_code
+    as long m_os
+    as ustring m_op
+    as ustring m_subj
+end type
+
+constructor ProcError( )
+    this.m_code = PROC_UNKNOWN
+    this.m_os = 0
+end constructor
+
+constructor ProcError( byval c as ProcErrorCode, byval osc as long, byref op as const ustring, byref subj as const ustring )
+    this.m_code = c
+    this.m_os = osc
+    this.m_op = op
+    this.m_subj = subj
+end constructor
+
+const function ProcError.Code( ) as ProcErrorCode
+    return this.m_code
+end function
+
+const function ProcError.OsCode( ) as long
+    return this.m_os
+end function
+
+const function ProcError.Operation( ) as ustring
+    return this.m_op
+end function
+
+const function ProcError.Subject( ) as ustring
+    return this.m_subj
+end function
+
+const function ProcError.Message( ) as ustring
+    dim as ustring m = this.m_op
+    if( len( this.m_subj ) > 0 ) then m &= " '" & this.m_subj & "'"
+    m &= ": " & ProcErrorMessage( this.m_code )
+    if( this.m_os <> 0 ) then m &= " (os error " & this.m_os & ")"
+    return m
+end function
+
+'' -------------------------------------------------------------- values
+
+public enum Stdio
+    STDIO_INHERIT = 0           '' the parent's own handle
+    STDIO_NULL                  '' NUL / /dev/null
+    STDIO_PIPE                  '' a pipe to this process: Child.Stdin/Stdout/Stderr
+end enum
+
+public type ExitStatus
+    declare constructor( )
+    declare constructor( byval cd as long, byval sig as long )
+    declare const function Code( ) as long        '' the exit code; -1 on Linux when a signal ended it
+    declare const function Signal( ) as long      '' the Linux signal that ended it; 0 otherwise
+    declare const function Success( ) as boolean  '' Code( ) = 0
+private:
+    as long m_code
+    as long m_sig
+end type
+
+constructor ExitStatus( )
+    this.m_code = 0
+    this.m_sig = 0
+end constructor
+
+constructor ExitStatus( byval cd as long, byval sig as long )
+    this.m_code = cd
+    this.m_sig = sig
+end constructor
+
+const function ExitStatus.Code( ) as long
+    return this.m_code
+end function
+
+const function ExitStatus.Signal( ) as long
+    return this.m_sig
+end function
+
+const function ExitStatus.Success( ) as boolean
+    return ( this.m_code = 0 )
+end function
+
+public type ProcessOutput
+    as ExitStatus Status
+    as Array( of ubyte ) Stdout, Stderr
+    declare function StdoutText( ) as ustring   '' UTF-8, U+FFFD for bad bytes
+    declare function StderrText( ) as ustring
+end type
+
+'' The ustring conversion of a string is UTF-8 with U+FFFD replacement -- ReadAllText's.
+function ProcBytesText( byref b as Array( of ubyte ) ) as ustring
+    dim as long n = b.num
+    if( n = 0 ) then return ""
+    dim as string s = space( n )
+    for i as long = 0 to n - 1
+        s[i] = b.items( i )
+    next
+    dim as ustring u = s
+    return u
+end function
+
+function ProcessOutput.StdoutText( ) as ustring
+    return ProcBytesText( this.Stdout )
+end function
+
+function ProcessOutput.StderrText( ) as ustring
+    return ProcBytesText( this.Stderr )
+end function
+
+public type ProcResultBool   as Result( of boolean, ProcError )
+public type ProcResultStatus as Result( of ExitStatus, ProcError )
+public type ProcResultOutput as Result( of ProcessOutput, ProcError )
+public type ProcMaybeStatus  as Optional( of ExitStatus )
+public type ProcResultMaybe  as Result( of ProcMaybeStatus, ProcError )   '' TryWait, WaitTimeout
+
+function ProcFail( of T )( byval c as ProcErrorCode, byval osc as long, byref op as const ustring, byref subj as const ustring ) as Result( of T, ProcError )
+    return Fail( of T, ProcError )( ProcError( c, osc, op, subj ) )
+end function
+
+'' -------------------------------------------------------------- Command
+
+public type Command
+    declare constructor( byref program as const ustring )
+    declare function Arg ( byref a as const ustring ) byref as Command
+    declare function Args( byref a as Array( of ustring ) ) byref as Command
+    declare function Cwd ( byref dir_ as const ustring ) byref as Command
+    declare function Env ( byref k as const ustring, byref v as const ustring ) byref as Command
+    declare function EnvRemove( byref k as const ustring ) byref as Command
+    declare function EnvClear( ) byref as Command
+    declare function StdinFrom( byval s as Stdio ) byref as Command
+    declare function StdoutTo ( byval s as Stdio ) byref as Command
+    declare function StderrTo ( byval s as Stdio ) byref as Command
+    declare function StderrToStdout( ) byref as Command     '' 2>&1
+    declare function NewProcessGroup( ) byref as Command    '' CREATE_NEW_PROCESS_GROUP / its own group
+    declare function HideWindow( ) byref as Command         '' CREATE_NO_WINDOW; nothing on Linux
+    declare function ToString( ) as ustring                 '' quoted as the OS will see it
+
+    '' Internal.  Public only because Child and the helpers have to reach it; there
+    '' is no friendship in the language.  Do not touch it.
+    as ustring hProgram
+    as Array( of ustring ) hArgs
+    as ustring hCwd
+    as boolean hEnvClear
+    as Array( of ustring ) hEnvKeys, hEnvVals     '' applied in order to the parent's
+    as Array( of long ) hEnvDel                   '' 1: remove hEnvKeys( i )
+    as long hStdin, hStdout, hStderr              '' -1: the default
+    as boolean hMerge, hGroup, hHide
+    as boolean hRaw                               '' Shell: hArgs( 0 ) is the whole line
+end type
+
+constructor Command( byref program as const ustring )
+    this.hProgram = program
+    this.hEnvClear = FALSE
+    this.hStdin = -1
+    this.hStdout = -1
+    this.hStderr = -1
+    this.hMerge = FALSE
+    this.hGroup = FALSE
+    this.hHide = FALSE
+    this.hRaw = FALSE
+end constructor
+
+function Command.Arg( byref a as const ustring ) byref as Command
+    dim as ustring t = a
+    this.hArgs.Push( t )
+    return this
+end function
+
+function Command.Args( byref a as Array( of ustring ) ) byref as Command
+    for i as long = 0 to a.num - 1
+        this.hArgs.Push( a.items( i ) )
+    next
+    return this
+end function
+
+function Command.Cwd( byref dir_ as const ustring ) byref as Command
+    this.hCwd = dir_
+    return this
+end function
+
+function Command.Env( byref k as const ustring, byref v as const ustring ) byref as Command
+    dim as ustring kk = k, vv = v
+    this.hEnvKeys.Push( kk )
+    this.hEnvVals.Push( vv )
+    this.hEnvDel.Push( 0 )
+    return this
+end function
+
+function Command.EnvRemove( byref k as const ustring ) byref as Command
+    dim as ustring none = "", kk = k
+    this.hEnvKeys.Push( kk )
+    this.hEnvVals.Push( none )
+    this.hEnvDel.Push( 1 )
+    return this
+end function
+
+'' Forgets the parent's environment and every change made so far.
+function Command.EnvClear( ) byref as Command
+    this.hEnvClear = TRUE
+    this.hEnvKeys.Clear( )
+    this.hEnvVals.Clear( )
+    this.hEnvDel.Clear( )
+    return this
+end function
+
+function Command.StdinFrom( byval s as Stdio ) byref as Command
+    this.hStdin = s
+    return this
+end function
+
+function Command.StdoutTo( byval s as Stdio ) byref as Command
+    this.hStdout = s
+    return this
+end function
+
+function Command.StderrTo( byval s as Stdio ) byref as Command
+    this.hStderr = s
+    this.hMerge = FALSE
+    return this
+end function
+
+function Command.StderrToStdout( ) byref as Command
+    this.hMerge = TRUE
+    return this
+end function
+
+function Command.NewProcessGroup( ) byref as Command
+    this.hGroup = TRUE
+    return this
+end function
+
+function Command.HideWindow( ) byref as Command
+    this.hHide = TRUE
+    return this
+end function
+
+'' -------------------------------------------------------------- quoting
+
+'' One argument for a Windows command line, quoted so that CommandLineToArgvW gives it
+'' back: quotes only when it is empty or holds a blank or '"'; inside them, n
+'' backslashes before a '"' (or the closing one) become 2n, and the '"' gets one more.
+function ProcQuoteWin( byref s as const ustring ) as ustring
+    dim as boolean need = ( len( s ) = 0 )
+    for i as long = 0 to len( s ) - 1
+        select case s[i]
+        case 32, 9, 10, 11, 34 : need = TRUE
+        end select
+    next
+    if( need = FALSE ) then return s
+    dim as ustring r = """"
+    dim as long bs = 0
+    for i as long = 0 to len( s ) - 1
+        dim as ulong c = s[i]
+        if( c = 92 ) then
+            bs += 1
+        else
+            if( c = 34 ) then
+                r &= string( bs * 2 + 1, "\" ) & """"
+            else
+                if( bs > 0 ) then r &= string( bs, "\" )
+                r &= mid( s, i + 1, 1 )
+            end if
+            bs = 0
+        end if
+    next
+    return r & string( bs * 2, "\" ) & """"
+end function
+
+'' argv[0] has no escapes at all (CommandLineToArgvW only removes its quotes), so it is
+'' quoted when it holds a blank, and a '"' in it is refused by ProcCheck.
+function ProcQuoteWinProgram( byref s as const ustring ) as ustring
+    for i as long = 0 to len( s ) - 1
+        if( ( s[i] = 32 ) orelse ( s[i] = 9 ) ) then return """" & s & """"
+    next
+    return s
+end function
+
+'' cmd.exe's metacharacters.
+private function hCmdMeta( byval c as ulong ) as boolean
+    select case c
+    case 38, 124, 60, 62, 94, 40, 41 : return TRUE        '' & | < > ^ ( )
+    end select
+    return FALSE
+end function
+
+'' What makes cmd split or interpret an unquoted argument.
+private function hCmdNeedsQuote( byval c as ulong ) as boolean
+    select case c
+    case 32, 9, 34, 38, 40, 41, 91, 93, 123, 125, 94, 61, 59, 33, 39, 43, 44, 96, 126, 124, 60, 62
+        return TRUE                                       '' blank " & ( ) [ ] { } ^ = ; ! ' + , ` ~ | < >
+    end select
+    return FALSE
+end function
+
+'' FALSE when cmd.exe cannot be handed `s` safely: '%' (it expands even inside
+'' quotes), CR or LF (they end the command), or a '"' in an argument that also holds
+'' a metacharacter.
+function ProcCmdSafe( byref s as const ustring ) as boolean
+    dim as boolean q = FALSE, meta = FALSE
+    for i as long = 0 to len( s ) - 1
+        dim as ulong c = s[i]
+        if( ( c = 37 ) orelse ( c = 10 ) orelse ( c = 13 ) ) then return FALSE
+        if( c = 34 ) then q = TRUE
+        if( hCmdMeta( c ) ) then meta = TRUE
+    next
+    return ( ( q andalso meta ) = FALSE )
+end function
+
+'' One argument of a .bat/.cmd line, after ProcCmdSafe: quoted when cmd would split or
+'' interpret it; an inner '"' is doubled after the backslashes before it are.
+function ProcQuoteCmd( byref s as const ustring ) as ustring
+    dim as boolean need = ( len( s ) = 0 )
+    for i as long = 0 to len( s ) - 1
+        if( hCmdNeedsQuote( s[i] ) ) then need = TRUE
+    next
+    if( need = FALSE ) then return s
+    dim as ustring r = """"
+    dim as long bs = 0
+    for i as long = 0 to len( s ) - 1
+        dim as ulong c = s[i]
+        if( c = 92 ) then
+            bs += 1
+        else
+            if( c = 34 ) then r &= string( bs, "\" ) & """"
+            bs = 0
+        end if
+        r &= mid( s, i + 1, 1 )
+    next
+    return r & string( bs, "\" ) & """"
+end function
+
+'' A POSIX shell word, for ToString on Linux: bare when every character is safe,
+'' else single-quoted with each ' as '\''.
+function ProcQuoteSh( byref s as const ustring ) as ustring
+    dim as boolean need = ( len( s ) = 0 )
+    for i as long = 0 to len( s ) - 1
+        dim as ulong c = s[i]
+        dim as boolean safe = ( ( c >= 97 ) andalso ( c <= 122 ) ) orelse ( ( c >= 65 ) andalso ( c <= 90 ) )
+        if( ( c >= 48 ) andalso ( c <= 57 ) ) then safe = TRUE
+        select case c
+        case 95, 64, 37, 43, 61, 58, 44, 46, 47, 45 : safe = TRUE     '' _ @ % + = : , . / -
+        end select
+        if( safe = FALSE ) then need = TRUE
+    next
+    if( need = FALSE ) then return s
+    dim as ustring r = "'"
+    for i as long = 0 to len( s ) - 1
+        if( s[i] = 39 ) then
+            r &= "'\''"
+        else
+            r &= mid( s, i + 1, 1 )
+        end if
+    next
+    return r & "'"
+end function
+
+private function hHasNul( byref s as const ustring ) as boolean
+    for i as long = 0 to len( s ) - 1
+        if( s[i] = 0 ) then return TRUE
+    next
+    return FALSE
+end function
+
+'' Rule 6, before anything starts: no NUL anywhere, a program name (without '"' on
+'' Windows), env names neither empty nor holding '='.  FALSE with the offender in `bad`.
+function ProcCheck( byref c as Command, byref bad as ustring ) as boolean
+    bad = c.hProgram
+    if( ( len( c.hProgram ) = 0 ) orelse hHasNul( c.hProgram ) ) then return FALSE
+#ifdef __FB_WIN32__
+    if( instr( c.hProgram, """" ) > 0 ) then return FALSE
+#endif
+    for i as long = 0 to c.hArgs.num - 1
+        bad = c.hArgs.items( i )
+        if( hHasNul( bad ) ) then return FALSE
+    next
+    bad = c.hCwd
+    if( hHasNul( bad ) ) then return FALSE
+    for i as long = 0 to c.hEnvKeys.num - 1
+        bad = c.hEnvKeys.items( i )
+        if( ( len( bad ) = 0 ) orelse hHasNul( bad ) orelse ( instr( bad, "=" ) > 0 ) ) then return FALSE
+        if( hHasNul( c.hEnvVals.items( i ) ) ) then return FALSE
+    next
+    bad = ""
+    return TRUE
+end function
+
+function Command.ToString( ) as ustring
+#ifdef __FB_WIN32__
+    if( this.hRaw ) then return "cmd.exe /d /s /c """ & this.hArgs.items( 0 ) & """"
+    dim as ustring r = ProcQuoteWinProgram( this.hProgram )
+    for i as long = 0 to this.hArgs.num - 1
+        r &= " " & ProcQuoteWin( this.hArgs.items( i ) )
+    next
+#else
+    if( this.hRaw ) then return "/bin/sh -c " & ProcQuoteSh( this.hArgs.items( 0 ) )
+    dim as ustring r = ProcQuoteSh( this.hProgram )
+    for i as long = 0 to this.hArgs.num - 1
+        r &= " " & ProcQuoteSh( this.hArgs.items( i ) )
+    next
+#endif
+    return r
+end function
+
+'' -------------------------------------------------------------- the child's environment
+
+'' per platform, in procwin / proclinux
+declare function ProcParentEnv( ) as OrderedMap( of ustring, ustring )
+declare function ProcParentVar( byref n as const ustring ) as ustring
+
+'' Windows names are case-insensitive.
+function ProcSameName( byref a as const ustring, byref b as const ustring ) as boolean
+#ifdef __FB_WIN32__
+    return ( ucase( a ) = ucase( b ) )
+#else
+    return ( a = b )
+#endif
+end function
+
+'' TRUE when the Command changes the environment at all; keys/vals are then the
+'' child's whole environment.
+function ProcChildEnv( byref c as Command, byref keys as Array( of ustring ), byref vals as Array( of ustring ) ) as boolean
+    if( ( c.hEnvClear = FALSE ) andalso ( c.hEnvKeys.num = 0 ) ) then return FALSE
+    if( c.hEnvClear = FALSE ) then
+        dim as OrderedMap( of ustring, ustring ) m = ProcParentEnv( )
+        keys = m.Keys( )
+        vals = m.Values( )
+    end if
+    for j as long = 0 to c.hEnvKeys.num - 1
+        dim as ustring k = c.hEnvKeys.items( j )
+        dim as long at = -1
+        for i as long = 0 to keys.num - 1
+            if( ProcSameName( keys.items( i ), k ) ) then
+                at = i
+                exit for
+            end if
+        next
+        if( c.hEnvDel.items( j ) <> 0 ) then
+            if( at >= 0 ) then
+                keys.Remove( at )
+                vals.Remove( at )
+            end if
+        elseif( at >= 0 ) then
+            vals.items( at ) = c.hEnvVals.items( j )
+        else
+            keys.Push( k )
+            vals.Push( c.hEnvVals.items( j ) )
+        end if
+    next
+    return TRUE
+end function
+
+'' The child's value of `n`, for the PATH lookup (rule 2).  "" when unset.
+function ProcChildVar( byref c as Command, byref n as const ustring ) as ustring
+    dim as Array( of ustring ) keys, vals
+    if( ProcChildEnv( c, keys, vals ) ) then
+        for i as long = 0 to keys.num - 1
+            if( ProcSameName( keys.items( i ), n ) ) then return vals.items( i )
+        next
+        return ""
+    end if
+    return ProcParentVar( n )
+end function
+
+'' Each absolute entry of a PATH list, in order.  Relative and empty entries are
+'' skipped: a relative result would depend on the current directory (rule 2).
+function ProcPathDirs( byref p as const ustring, byval sep as ulong ) as Array( of ustring )
+    dim as Array( of ustring ) r
+    dim as long st = 0
+    for i as long = 0 to len( p )
+        if( ( i = len( p ) ) orelse ( p[i] = sep ) ) then
+            dim as ustring d = trim( mid( p, st + 1, i - st ) )
+#ifdef __FB_WIN32__
+            if( ( len( d ) >= 2 ) andalso ( d[0] = 34 ) andalso ( d[len( d ) - 1] = 34 ) ) then d = mid( d, 2, len( d ) - 2 )
+#endif
+            if( ( len( d ) > 0 ) andalso fs.PathIsAbsolute( d ) ) then r.Push( d )
+            st = i + 1
+        end if
+    next
+    return r
+end function
+
+'' -------------------------------------------------------------- PipeStream and Child
+
+public type PipeStream extends fs.Stream
+    declare constructor( )
+    declare destructor( ) override
+    declare const function CanRead ( ) as boolean override
+    declare const function CanWrite( ) as boolean override
+    declare const function CanSeek ( ) as boolean override
+    declare function Read ( byval buf as ubyte ptr, byval n as longint ) as fs.FsResultI64 override
+    declare function Write( byval buf as const ubyte ptr, byval n as longint ) as fs.FsResultI64 override
+    declare function Flush( ) as fs.FsResultBool override
+    declare sub Close( )
+    declare const function IsOpen( ) as boolean
+
+    '' Internal (see Command).  The HANDLE or file descriptor; -1 when closed.
+    as integer hFd
+    as boolean hWrite
+    as any ptr hEvent          '' Windows: the event overlapped I/O waits on
+private:
+    declare constructor( byref other as const PipeStream )
+    declare operator let( byref other as const PipeStream )
+end type
+
+public type Child
+    declare constructor( )
+    declare destructor( )
+    declare function Spawn( byref c as Command ) as ProcResultBool
+    declare const function Id( ) as ulong
+    declare function Stdin ( ) byref as PipeStream      '' runtime error 1 unless STDIO_PIPE
+    declare function Stdout( ) byref as PipeStream
+    declare function Stderr( ) byref as PipeStream
+    declare function Wait( ) as ProcResultStatus        '' closes our Stdin first
+    declare function WaitTimeout( byval ms as long ) as ProcResultMaybe
+    declare function TryWait( ) as ProcResultMaybe
+    declare function Kill( ) as ProcResultBool          '' TerminateProcess( h, 1 ) / SIGKILL
+    declare function Terminate( ) as ProcResultBool     '' SIGTERM; Windows: Kill
+
+    '' Internal (see Command).
+    as PipeStream hIn, hOut, hErr
+    as any ptr hProc           '' Windows: the process handle
+    as ulong hPid
+    as boolean hRunning        '' spawned and not yet reaped
+    as boolean hReaped
+    as ExitStatus hStatus
+private:
+    declare constructor( byref other as const Child )
+    declare operator let( byref other as const Child )
+end type
+
+'' per platform
+declare sub ProcRelease( byref k as Child )
+declare function ProcOutput( byref c as Command, byref stdinData as Array( of ubyte ) ) as ProcResultOutput
+
+constructor PipeStream( )
+    this.hFd = -1
+    this.hWrite = FALSE
+    this.hEvent = nullptr
+end constructor
+
+destructor PipeStream( )
+    this.Close( )
+end destructor
+
+const function PipeStream.CanRead( ) as boolean
+    return ( this.hFd <> -1 ) andalso ( this.hWrite = FALSE )
+end function
+
+const function PipeStream.CanWrite( ) as boolean
+    return ( this.hFd <> -1 ) andalso this.hWrite
+end function
+
+const function PipeStream.CanSeek( ) as boolean
+    return FALSE
+end function
+
+const function PipeStream.IsOpen( ) as boolean
+    return ( this.hFd <> -1 )
+end function
+
+'' Nothing is buffered: a Write is in the pipe when it returns.
+function PipeStream.Flush( ) as fs.FsResultBool
+    return Ok( of boolean, fs.FsError )( TRUE )
+end function
+
+constructor Child( )
+    this.hProc = nullptr
+    this.hPid = 0
+    this.hRunning = FALSE
+    this.hReaped = FALSE
+end constructor
+
+'' Rust's rule: the program goes on running; only our ends of its pipes close.
+destructor Child( )
+    this.hIn.Close( )
+    this.hOut.Close( )
+    this.hErr.Close( )
+    ProcRelease( this )
+end destructor
+
+const function Child.Id( ) as ulong
+    return this.hPid
+end function
+
+function Child.Stdin( ) byref as PipeStream
+    if( this.hIn.IsOpen( ) = FALSE ) then error 1
+    return this.hIn
+end function
+
+function Child.Stdout( ) byref as PipeStream
+    if( this.hOut.IsOpen( ) = FALSE ) then error 1
+    return this.hOut
+end function
+
+function Child.Stderr( ) byref as PipeStream
+    if( this.hErr.IsOpen( ) = FALSE ) then error 1
+    return this.hErr
+end function
+
+'' A second Wait gives the same status again.
+function Child.Wait( ) as ProcResultStatus
+    if( this.hReaped ) then return Ok( of ExitStatus, ProcError )( this.hStatus )
+    if( this.hRunning = FALSE ) then return ProcFail( of ExitStatus )( PROC_NOT_STARTED, 0, "Wait", "" )
+    this.hIn.Close( )
+    dim as ProcResultMaybe r = this.WaitTimeout( -1 )
+    if( r.IsOk( ) = FALSE ) then return Fail( of ExitStatus, ProcError )( r.Failure( ) )
+    return Ok( of ExitStatus, ProcError )( this.hStatus )
+end function
+
+function Child.TryWait( ) as ProcResultMaybe
+    return this.WaitTimeout( 0 )
+end function
+
+'' -------------------------------------------------------------- the surface
+
+public declare function Run( byref c as Command ) as ProcResultStatus
+public declare function Output_ overload ( byref c as Command ) as ProcResultOutput
+public declare function Output_ overload ( byref c as Command, byref stdinData as Array( of ubyte ) ) as ProcResultOutput
+public declare function Shell( byref commandLine as const ustring ) as ProcResultStatus
+public declare function CurrentId( ) as ulong
+
+
+public function Run( byref c as Command ) as ProcResultStatus
+    dim as Child k
+    dim as ProcResultBool s = k.Spawn( c )
+    if( s.IsOk( ) = FALSE ) then return Fail( of ExitStatus, ProcError )( s.Failure( ) )
+    return k.Wait( )
+end function
+
+'' stdout and stderr are pipes and stdin is NUL, unless the Command set them.
+public function Output_( byref c as Command ) as ProcResultOutput
+    dim as Array( of ubyte ) none
+    return ProcOutput( c, none )
+end function
+
+'' ... and stdin is a pipe fed `stdinData`, then closed.
+public function Output_( byref c as Command, byref stdinData as Array( of ubyte ) ) as ProcResultOutput
+    return ProcOutput( c, stdinData )
+end function
+
+'' The one way to a shell: cmd.exe /d /s /c "line" on Windows, /bin/sh -c line on
+'' Linux, stdio inherited.
+public function Shell( byref commandLine as const ustring ) as ProcResultStatus
+    '' (not Command( "..." ): unqualified, that is the built-in COMMAND function)
+#ifdef __FB_WIN32__
+    dim as ustring prog = "cmd.exe"
+    dim as Command c = prog
+#else
+    dim as ustring prog = "/bin/sh"
+    dim as Command c = prog
+#endif
+    dim as ustring l = commandLine
+    c.hArgs.Push( l )
+    c.hRaw = TRUE
+    return Run( c )
+end function
