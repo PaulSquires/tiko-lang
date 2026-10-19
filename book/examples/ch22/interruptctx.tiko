@@ -1,0 +1,18 @@
+#import "std/tasks"
+#cmdline "-mt"
+
+'' Works until its context says stop.
+sub Work( byval ctx as tasks.Context, byval wg as tasks.WaitGroup ptr )
+    while ctx.IsCancelled( ) = false
+        sleep 5
+    wend
+    print "stopped: "; ctx.Err( )
+    wg->Done( )
+end sub
+
+'' Cancelled by Ctrl-C, or after 100 ms, whichever comes first.
+dim ctx as tasks.CancelContext = tasks.WithTimeout( tasks.InterruptContext( ), 100 )
+dim wg as tasks.WaitGroup
+wg.Add( )
+spawn Work( ctx, @wg )
+wg.Wait( )

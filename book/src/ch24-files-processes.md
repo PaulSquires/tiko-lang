@@ -363,6 +363,36 @@ running program however it was started, which `command( 0 )` is not — the way 
 installed beside the program. `ExpandHome` replaces a leading `~` with the home directory and leaves
 every other path as it is.
 
+### Checksums and digests
+
+A **digest** is a short, fixed-size value computed from any amount of data: change one byte and it
+changes. `std/hash` computes them:
+
+```tiko
+{{#include ../examples/ch24/digest.tiko}}
+```
+
+```text
+{{#include ../examples/ch24/digest.out}}
+```
+
+`DigestHex( algorithm, data )` is the one-call form. Every algorithm is also a type that takes its
+data in pieces — `UpdateText`, `UpdateBytes`, or `Update( pointer, count )` — and gives the same
+answer as the one call, so a file of any size is hashed a block at a time; `DigestFile` does that
+for you. `HmacHex` mixes in a key, so only someone holding the key can produce the value: it is how
+a server checks that a message came from someone it trusts.
+
+| Algorithms | Use them for |
+|---|---|
+| `HASH_CRC32`, `HASH_CRC32C`, `HASH_ADLER32` | catching accidental corruption: zip, PNG, network frames |
+| `HASH_FNV1A32`, `HASH_FNV1A64`, `HASH_XXHASH64` | fast hashing of keys and large data |
+| `HASH_SHA256`, `HASH_SHA224`, `HASH_SHA512`, `HASH_SHA384` | **anything someone might tamper with**: downloads, signatures, content addresses |
+| `HASH_MD5`, `HASH_SHA1` | only to match a format or protocol that already uses them |
+
+The first two rows are not security tools: anyone can make two different files with the same CRC
+or FNV value on purpose, and MD5 and SHA-1 have the same weakness. To compare two MACs, use
+`hash.ConstantTimeEquals`, which takes the same time whatever the first differing byte is.
+
 ## Coming from the file statements
 
 tiko still compiles the file statements of the BASIC family — `open`, `print #`, `line input #`,
@@ -436,6 +466,38 @@ In the main module, `__FB_ARGC__` is the number of arguments counting the progra
 command line expects. They belong to the main module's top level, as in fbc: inside a procedure
 they are `TKO0743: '__fb_argc__' is not declared`, and another module's top level reads 0.
 
+### The std/os module
+
+`command` and `environ` are short to write, but each loses something: `command( n )` cannot show
+an empty argument, because an empty string already means "past the last one", and `environ` cannot
+tell a variable that is not set from one set to nothing. `std/os` keeps both apart:
+
+```tiko
+{{#include ../examples/ch24/osenv.tiko}}
+```
+
+Run as `osenv alpha "two words" ""`:
+
+```text
+{{#include ../examples/ch24/osenv.out}}
+```
+
+`os.Args( )` is every argument in an `Array( of ustring )`, the program's own path first, Unicode
+on both systems. `os.GetEnv` returns an `Optional`: empty when the variable is not set, holding
+`""` when it is set to nothing. `SetEnv` and `UnsetEnv` return a `Result`, and refuse a name that
+is empty or contains `=` with an `OsError` rather than passing it to the system. `ExpandEnv`
+replaces `$NAME` and `${NAME}` — and on Windows `%NAME%` — with their values. `Environment( )` is
+a sorted snapshot of every variable, as an `OrderedMap`.
+
+The module also answers questions about the machine: `OS_NAME` and `ARCH_NAME` (constants),
+`OsVersion( )`, `Hostname( )`, `UserName( )`, `ProcessId( )`, `PageSize( )`, `TotalMemory( )`,
+`IsTerminal( fd )`, and `CpuCount( )` — the processors this process may use, which inside a
+container or under an affinity mask is fewer than the machine has. That is the number to size a
+pool of workers by.
+
+**Set the environment before starting threads.** On Linux, changing a variable while another
+thread reads the environment is not safe, whichever function does it.
+
 ### Running other programs
 
 ```tiko
@@ -474,6 +536,35 @@ anything else is a failure whose number the caller can test — `$?` in a Unix s
 in `cmd.exe`, or the return of `shell` and `exec` in another tiko program. A program that can fail
 should say so through its exit code, not only through what it prints.
 
+`os.Exit_( n )` from `std/os` is `end n` under a name a procedure can pass around, and `os.Abort( )`
+ends the program at once, skipping every destructor and every buffered write.
+
+### Stopping cleanly on Ctrl-C
+
+Ctrl-C normally ends a console program wherever it happens to be — halfway through writing a file,
+with a temporary directory left behind. `os.CatchInterrupt( )` turns it into a flag instead:
+
+```tiko
+{{#include ../examples/ch24/interrupt.tiko}}
+```
+
+Left alone, it prints:
+
+```text
+{{#include ../examples/ch24/interrupt.out}}
+```
+
+Press Ctrl-C while it runs and the loop ends at the next check, prints `stopped early after` and
+exits with 130, the code a shell reports for a program stopped by Ctrl-C. The program decides
+where it is safe to stop; nothing of yours runs at the moment the key is pressed.
+
+`os.Interrupted( )` asks without waiting, `os.WaitInterrupt( ms )` waits, and `os.LastInterrupt( )`
+says which kind arrived: `INT_CTRL_C`, `INT_BREAK` (Ctrl-Break, Windows), `INT_TERMINATE` (`SIGTERM`
+on Linux; the console window closing, logoff or shutdown on Windows) or `INT_HANGUP` (`SIGHUP`).
+**A second Ctrl-C ends the program at once**, with code 130, so a program that is stuck can still
+be stopped; `os.CatchInterrupt( false )` turns that off. On Windows a closing console window gives
+the program about five seconds before the system ends it regardless.
+
 ## What it costs
 
 - **A `File` holds an operating-system handle until it is closed or goes out of scope.** Keep it
@@ -511,6 +602,11 @@ should say so through its exit code, not only through what it prints.
 - `IsRedirected( )` decides whether to draw on the console. `inkey` never waits; `getkey` does.
 - `command( n )`, `environ`, `setenviron`; `shell`, `exec`, `chain`, `run`, `open pipe`; `end n`
   sets the exit code.
+- `std/os`: `Args( )` keeps empty arguments, `GetEnv` tells unset from empty, `SetEnv` /
+  `UnsetEnv` / `ExpandEnv`; host facts such as `CpuCount( )`; `CatchInterrupt( )` turns Ctrl-C into
+  a flag the program checks with `Interrupted( )`.
+- `std/hash`: `DigestHex( alg, data )`, the same in pieces, `DigestFile`, `HmacHex`. CRC and FNV
+  catch accidents; only SHA-2 stands up to tampering.
 
 ## Exercises
 
@@ -525,6 +621,10 @@ should say so through its exit code, not only through what it prints.
    want for a file of a few lines, and which for a log of a few gigabytes?
 5. Write a program that runs `exitcode.tiko`'s executable with `exec` and prints a different message
    for exit status 0 and for anything else.
+6. Print the SHA-256 digest of every file under a directory, sorted by path, in the format
+   `sha256sum` uses: the digest, two spaces, the path.
+7. Give `interrupt.tiko` a temporary directory that it creates at the start and removes at the end,
+   and check that it is removed when you press Ctrl-C too.
 6. Write `binformat.tiko`'s buffer to a file with `fs.WriteAllBytes`, read it back with
    `fs.ReadAllBytes`, and check the magic number before reading anything else. What should a
    reader do with a file whose version it does not know?

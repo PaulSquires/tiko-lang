@@ -40,6 +40,7 @@ The pages in this section:
 - [Directories](directories.md): creating, walking and removing trees.
 - [Where files live](userdirs.md): the configuration, data and cache
   directories, and the program's own path.
+- [Checksums and hashes](checksums.md): CRC-32, SHA-256 and HMAC.
 
 ### Activities
 
