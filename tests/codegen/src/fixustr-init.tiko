@@ -1,0 +1,129 @@
+'' A 'ustring * N' INITIALISED OR ASSIGNED from anything but a literal or a ustring variable
+'' (fbc-modern 1.20 prints every line below). A wide source -- a wide chain, wchr( ), wstr( ), a
+'' wstring variable or deref -- was TKO0994 at an assignment and, at a declaration, a plain
+'' eight-byte store over the buffer; a narrow source and a ustring call result were handed to
+'' the UTF-16 or the narrow entry point as the wrong flavour and came out as CJK.
+function UFn( ) as ustring
+    return wchr( &h68, &hE9 ) & "uuu"
+end function
+function SFn( ) as string
+    return "fstr" & "ing"
+end function
+dim shared as wstring * 16 wbuf
+function WPtr( ) as wstring ptr
+    wbuf = wchr( &h77, &hE9, &h70, &h66 )
+    return @wbuf
+end function
+type T
+    as long k
+    as ustring * 8 f
+end type
+
+dim as string s0 = "narrow"
+dim as zstring * 16 z0 = "zstrng"
+dim as string * 6 f0 = "fixed"
+dim as ustring u0 = "h" & wchr( &hE9 ) & "u0xy"
+dim as wstring * 16 w0 = "h" & wchr( &hE9 ) & "w0xy"
+dim as ustring * 16 q0 = "q" & wchr( &hE9 ) & "q0xy"
+
+'' 'dim as ustring * 8 v = <source>'
+dim as ustring * 8 d0 = "h" & wchr( &hE9 ) & "llo"
+print "dim nw ["; d0; "]"; len( d0 )
+dim as ustring * 8 d1 = wchr( &h68 ) & wchr( &hE9, &h6C, &h6C, &h6F )
+print "dim ww ["; d1; "]"; len( d1 )
+dim as ustring * 8 d2 = wchr( &hE9, &h41, &h42, &h43, &h44 )
+print "dim wchr ["; d2; "]"; len( d2 )
+dim as ustring * 8 d3 = wstr( "heyya" )
+print "dim wstr ["; d3; "]"; len( d3 )
+dim as ustring * 8 d4 = wstr( s0 )
+print "dim wstrv ["; d4; "]"; len( d4 )
+dim as ustring * 8 d5 = UFn( )
+print "dim ufn ["; d5; "]"; len( d5 )
+dim as ustring * 8 d6 = SFn( )
+print "dim sfn ["; d6; "]"; len( d6 )
+dim as ustring * 8 d7 = "ab" & "cdef"
+print "dim nn ["; d7; "]"; len( d7 )
+dim as ustring * 8 d8 = s0 & "!"
+print "dim nv ["; d8; "]"; len( d8 )
+dim as ustring * 8 d9 = u0
+print "dim uvar ["; d9; "]"; len( d9 )
+dim as ustring * 8 d10 = q0
+print "dim ufix ["; d10; "]"; len( d10 )
+dim as ustring * 8 d11 = u0 & "!"
+print "dim uc ["; d11; "]"; len( d11 )
+dim as ustring * 8 d12 = ucase( u0 )
+print "dim ucase ["; d12; "]"; len( d12 )
+dim as ustring * 8 d13 = w0
+print "dim wvar ["; d13; "]"; len( d13 )
+dim as ustring * 8 d14 = w0 & "!"
+print "dim wc ["; d14; "]"; len( d14 )
+dim as ustring * 8 d15 = s0
+print "dim svar ["; d15; "]"; len( d15 )
+dim as ustring * 8 d16 = z0
+print "dim zvar ["; d16; "]"; len( d16 )
+dim as ustring * 8 d17 = f0
+print "dim fsvar ["; d17; "]"; len( d17 )
+dim as ustring * 8 d18 = trim( s0 )
+print "dim trim ["; d18; "]"; len( d18 )
+dim as ustring * 8 d19 = *WPtr( )
+print "dim wptr ["; d19; "]"; len( d19 )
+
+'' 's = <source>'
+dim as ustring * 8 s
+s = "h" & wchr( &hE9 ) & "llo"
+print "let nw ["; s; "]"; len( s )
+s = wchr( &h68 ) & wchr( &hE9, &h6C, &h6C, &h6F )
+print "let ww ["; s; "]"; len( s )
+s = wchr( &hE9, &h41, &h42, &h43, &h44 )
+print "let wchr ["; s; "]"; len( s )
+s = wstr( "heyya" )
+print "let wstr ["; s; "]"; len( s )
+s = wstr( s0 )
+print "let wstrv ["; s; "]"; len( s )
+s = UFn( )
+print "let ufn ["; s; "]"; len( s )
+s = SFn( )
+print "let sfn ["; s; "]"; len( s )
+s = "ab" & "cdef"
+print "let nn ["; s; "]"; len( s )
+s = s0 & "!"
+print "let nv ["; s; "]"; len( s )
+s = u0
+print "let uvar ["; s; "]"; len( s )
+s = q0
+print "let ufix ["; s; "]"; len( s )
+s = u0 & "!"
+print "let uc ["; s; "]"; len( s )
+s = ucase( u0 )
+print "let ucase ["; s; "]"; len( s )
+s = w0
+print "let wvar ["; s; "]"; len( s )
+s = w0 & "!"
+print "let wc ["; s; "]"; len( s )
+s = s0
+print "let svar ["; s; "]"; len( s )
+s = z0
+print "let zvar ["; s; "]"; len( s )
+s = f0
+print "let fsvar ["; s; "]"; len( s )
+s = trim( s0 )
+print "let trim ["; s; "]"; len( s )
+s = *WPtr( )
+print "let wptr ["; s; "]"; len( s )
+
+'' A field, an element and a chain reading the destination itself.
+dim as T t
+t.f = w0
+print "field ["; t.f; "]"
+t.f = s0 & "!"
+print "field ["; t.f; "]"
+dim as ustring * 8 a( 0 to 2 )
+a( 0 ) = s0
+a( 1 ) = wchr( &h41, &hE9 )
+a( 2 ) = w0
+print "elems ["; a( 0 ); "|"; a( 1 ); "|"; a( 2 ); "]"
+dim as ustring * 12 g = "ab"
+g = g & wchr( &hE9 ) & "cd"
+print "self ["; g; "]"; len( g )
+g = s0 & g
+print "self ["; g; "]"; len( g )

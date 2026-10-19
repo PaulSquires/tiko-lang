@@ -1109,6 +1109,75 @@ end function
 
 
 
+'' INTO A 'ustring * N' FROM ANYTHING BUT A LITERAL. ARGS already holds the destination and
+'' its tagged length. Every other source either declined as TKO0994 or, worse, lowered: a
+'' narrow one went to fb_StrInit / fb_UStrAssign as if it were UTF-16 ("narrow" came out as
+'' three CJK characters), a ustring call result to fb_StrInit, and a wstring one fell through
+'' to a plain eight-byte STORE over the buffer -- right only while the text fit in four
+'' characters. Measured, fbc-modern 1.20 on 'dim as ustring * 8 s = <source>':
+''
+''     u                fb_UStrInit( S, <tag 7>, &U, -1, -1 )
+''     u & "!"          vr = fb_UStrConcat( &TMP, &U, ... );  fb_UStrInit( S, <tag 7>, vr, -1, -1 )
+''     fu( )            fb_UStrInit( S, <tag 7>, vr, -1, -1 )
+''     w0, w0 & "!"     vr = fb_WstrToUStr( W0 );             fb_UStrInit( S, <tag 7>, vr, -1, -1 )
+''     s0               fb_UStrAssignFromA( S, <tag 7>, &S0, -1, -1, -1 )
+''     z0, f0           fb_UStrAssignFromA( S, <tag 7>, Z0, 16, -1, -1 ), F0 with <tag 6>
+''     trim( s0 )       vr = fb_TRIM( &S0 );                  fb_UStrAssignFromA( S, <tag 7>, vr, -1, -1, -1 )
+''
+'' and 's = <source>' is the same with fb_UStrAssign for fb_UStrInit and a last 0 for the
+'' fb_UStrAssignFromA init flag. fbc folds a CONSTANT wide chain -- '"h" & wchr( &hE9 ) & "llo"',
+'' 'wstr( "x" )' -- to one UTF-16 literal; this builds it through fb_WstrToUStr instead, as a
+'' var-len ustring's initialiser does. The same text either way.
+function LowerFixUStrFrom_ _
+    ( byref c as Ctx, byref args as containers.Array( of uint32 ), _
+      byval value as Tko.NodeId, byval isInit as boolean ) as boolean
+
+    dim as Tko.TypeId st = c.info->TypeOf_( value )
+    dim as int64 sn = -1
+    dim as int32 sk = StrSwapKind_( c, st, sn )
+    dim as MirValue sv
+    dim as int64 sl = -1
+    dim as boolean chainU = IsUStrChain_( c, value )
+    '' ADDRESSABLE ONLY: a chain or a call builds a descriptor instead, and a paren-less call's
+    '' "address" is its code -- see NamesProc_.
+    dim as boolean addrOk = true
+    if chainU orelse NamesProc_( c, value ) then addrOk = false
+
+    if IsUStringType( c, st ) orelse chainU then
+        if addrOk andalso ((sk = 0) orelse (sk = 4)) then
+            sv = LowerAddr( c, value )
+            if sk = 4 then sl = sn
+        end if
+        if sv.kind = cast( uint8, MV_NONE ) then
+            if StrDescriptorOf_( c, value, sv ) = false then return false
+            sl = -1
+        end if
+    elseif TermIsWide_( c, value ) orelse IsWideChain_( c, value ) orelse IsWideString_( c, st ) then
+        if WideTermAsUStr_( c, value, sv ) = false then return false
+    else
+        '' NARROW: transcoded from UTF-8, with the source's own (pointer, length) pair.
+        if addrOk andalso ((sk = 0) orelse (sk = 1) orelse (sk = 3)) then
+            sv = LowerAddr( c, value )
+            sl = sn
+        end if
+        if sv.kind = cast( uint8, MV_NONE ) then
+            if StrDescriptorOf_( c, value, sv ) = false then return false
+            sl = -1
+        end if
+        args.Push( cast( uint32, sv.kind ) ) : args.Push( cast( uint32, sv.id ) )
+        PushStrLen_( c, args, sl )
+        args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, -1 ) )
+        args.Push( cast( uint32, MV_CONST_INT ) )
+        args.Push( cast( uint32, iif( isInit, -1, 0 ) ) )
+        return (EmitRtl( c, RTL_USTR_FROM_A, args ).kind <> cast( uint8, MV_NONE ))
+    end if
+    if sv.kind = cast( uint8, MV_NONE ) then return false
+    args.Push( cast( uint32, sv.kind ) ) : args.Push( cast( uint32, sv.id ) )
+    PushStrLen_( c, args, sl )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, -1 ) )
+    return (EmitRtl( c, iif( isInit, RTL_USTR_INIT, RTL_USTR_ASSIGN ), args ).kind <> cast( uint8, MV_NONE ))
+end function
+
 '' Assigning INTO a fixed-length narrow string -- 'dim t as zstring * 50 = <expr>'.
 ''
 '' A ZSTRING * N has no descriptor: it is a char array. Measured, and the LENGTH
@@ -1207,6 +1276,9 @@ function LowerZstrAssignTo _
         EmitRtl( c, iif( isU, RTL_USTR_ASSIGN, RTL_STR_ASSIGN ), args )
         return true
     end if
+
+    '' ANYTHING ELSE INTO A 'ustring * N' -- see LowerFixUStrFrom_.
+    if isU then return LowerFixUStrFrom_( c, args, value, isInit )
 
     '' A UTF-16 SOURCE INTO A NARROW DESTINATION TRANSCODES, through fb_UStrAssignToA: the
     '' destination's fill flag and then an INIT flag, -1 at a declaration. Measured:
