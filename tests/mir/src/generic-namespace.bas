@@ -44,7 +44,7 @@ function It( of T ).IsValid( ) as boolean
 end function
 
 function It( of T ).Value( ) byref as T
-    dim as T z
+    static as T z
     return z
 end function
 
