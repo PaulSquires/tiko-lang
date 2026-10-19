@@ -388,6 +388,9 @@ end sub
 declare sub JudgeConversion_ _
     ( byref c as Ctx, byval at as NodeId, byval lt as TypeId, byval rt as TypeId, _
       byval byAssign as boolean )
+declare function ResultValueRefused_ _
+    ( byref c as Ctx, byval t as TypeId, byval v as NodeId, byval byAssign as boolean ) as boolean  '' ctorargs.tiko
+declare function StructorJudged_ ( byref c as Ctx, byref t as TypeId, byval init as NodeId ) as boolean       '' ctorargs.tiko
 
 private sub CheckPtrReturn_ ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId, byval byrefResult as boolean = false )
     if resultType = TYPE_NONE then return
@@ -396,6 +399,11 @@ private sub CheckPtrReturn_ ( byref c as Ctx, byval id as NodeId, byval resultTy
     if e = NODE_NONE then return
     if TypeLitTextBad_( c, resultType, e, false ) then return  '' tupleconv.tiko (T30)
     if TupleConvBad_( c, resultType, e, 0 ) then return  '' tupleconv.tiko
+    '' A UDT RESULT given a value no constructor or 'let' takes -- fbc's 181 (ctorargs.tiko).
+    if ResultValueRefused_( c, resultType, e, false ) then
+        c.diags->Report( TKO0738, PointRange( c.ast->Loc( e ) ) )
+        return
+    end if
     PtrWarn_( c, id, resultType, c.info->TypeOf_( e ), e )
     '' 'return p' from a function 'as long' or 'as boolean' is fbc's 181, as 'l = p' is
     '' (TKO0910, declshape.tiko); tiko returned the pointer truncated.
@@ -410,5 +418,8 @@ private sub CheckPtrReturn_ ( byref c as Ctx, byval id as NodeId, byval resultTy
     '' from a double one and 'return 5' from a UDT one are fbc's 181, as 'r = v' is.
     PtrFloatPair_( c, e, resultType, c.info->TypeOf_( e ) )
     '' 'return this' is the object, though tiko types the receiver as its pointer.
+    '' ...which settles a value that is not a UDT: a 'let' takes one too, as Rescued_ does not know.
+    dim as TypeId judged = resultType
+    if StructorJudged_( c, judged, e ) then return
     if IsThisBase_( c, e ) = false then JudgeConversion_( c, e, resultType, c.info->TypeOf_( e ), false )
 end sub

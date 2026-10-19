@@ -196,7 +196,9 @@ end function
 function PickCtor _
     ( byref c as Ctx, byval first_ as Tko.SymbolId, _
       byref argT as containers.Array( of uint32 ) ) as Tko.SymbolId
-    return Tko.Check.PickStructor( *c.ast, *c.syms, *c.types, *c.names, *c.info, first_, argT )
+    dim as Tko.SymbolId pick = Tko.Check.PickStructor( *c.ast, *c.syms, *c.types, *c.names, *c.info, first_, argT )
+    if pick = Tko.SYMBOL_NONE then pick = Tko.Check.LoneScalarStructor( *c.ast, *c.syms, *c.types, *c.info, first_, argT )
+    return pick
 end function
 
 '' (Moved from lowerctor.tiko at its 1500-line cap.)

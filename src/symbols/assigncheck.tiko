@@ -149,6 +149,13 @@ private sub CheckPtrAssign_ _
         '' constructor takes is fbc's 181, as 'q = s' is (latesweeps2.tiko UdtPairConverts_).
         if (c.ast->Kind( sp->a ) = N_FUNCRESULT) andalso (c.types->Kind( c.types->Unqualify( lt ) ) = TK_UDT) andalso _
            (c.types->Kind( c.types->Unqualify( rt ) ) = TK_UDT) then JudgeConversion_( c, id, lt, rt, true )
+        '' ...AND ANY OTHER VALUE: only an 'operator let' takes it (ctorargs.tiko ResultValueRefused_).
+        if (c.ast->Kind( sp->a ) = N_FUNCRESULT) andalso (byrefResult = false) then
+            if ResultValueRefused_( c, lt, sp->b, true ) then
+                c.diags->Report( TKO0738, PointRange( c.ast->Loc( id ) ) )
+                return
+            end if
+        end if
     end if
     if ConstDropped_( c, lt, rt ) then
         c.diags->Report( TKO0747, PointRange( c.ast->Loc( id ) ) )

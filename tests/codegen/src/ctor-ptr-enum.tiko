@@ -1,0 +1,54 @@
+'' AN ENUM INTO A POINTER CONSTRUCTOR, AND A POINTER INTO AN ENUM ONE -- fbc's warnings 1 and 2,
+'' explicit or as an initialiser, and an enum into 'byref as long ptr', which takes a temporary
+'' of the pointer's type. No constructor was picked (ConversionCost costs neither), and tiko
+'' stopped on TKO0994. The expected output is fbc-modern 1.20's.
+enum Colour
+    red
+    green
+    blue
+end enum
+type PL
+    as long ptr p
+    declare constructor( byval q as long ptr )
+end type
+constructor PL( byval q as long ptr )
+    p = q
+end constructor
+type AP
+    as any ptr p
+    declare constructor( byval q as any ptr )
+end type
+constructor AP( byval q as any ptr )
+    p = q
+end constructor
+type RP
+    as long ptr p
+    declare constructor( byref q as long ptr )
+end type
+constructor RP( byref q as long ptr )
+    p = q
+end constructor
+sub ByRefPtr( byref q as long ptr )
+    print cast( integer, q )
+end sub
+type EN
+    as Colour c
+    declare constructor( byval k as Colour )
+end type
+constructor EN( byval k as Colour )
+    c = k
+end constructor
+
+dim as Colour c = blue
+dim as long ptr lp = cast( long ptr, 24 )
+var a = PL( c )
+var b = PL( green )
+var d = AP( c )
+var e = EN( lp )
+dim as PL f = c
+dim as AP g = blue
+var h = RP( c )
+dim as RP k = green
+ByRefPtr( c )
+print cast( integer, h.p ); cast( integer, k.p )
+print cast( integer, a.p ); cast( integer, b.p ); cast( integer, d.p ); e.c; cast( integer, f.p ); cast( integer, g.p )

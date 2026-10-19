@@ -512,6 +512,21 @@ function ByrefConvArg_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
       byref outa as MirValue ) as boolean
 
+    '' A BYREF POINTER PARAMETER GIVEN AN ENUM takes a temporary of the pointer's own type, as
+    '' fbc's does (warning 1): the enum's address would be read at the pointer's width. Only
+    '' a lone constructor reaches this with an enum (structpick.tiko LoneScalarStructor).
+    scope
+        dim as Tko.TypeId bpu = c.types->Unqualify( pt )
+        if c.types->Kind( bpu ) = Tko.TK_REFERENCE then bpu = c.types->Unqualify( c.types->Inner( bpu ) )
+        dim as Tko.TypeId bau = c.types->Unqualify( c.info->TypeOf_( argNode ) )
+        if bau <> Tko.TYPE_NONE then
+            if c.types->Kind( bau ) = Tko.TK_REFERENCE then bau = c.types->Unqualify( c.types->Inner( bau ) )
+        end if
+        if (c.types->Kind( bpu ) = Tko.TK_POINTER) andalso (c.types->Kind( bau ) = Tko.TK_ENUM) then
+            outa = ByrefTemp_( c, argNode, bpu )
+            return true
+        end if
+    end scope
     if ByrefConvNeeded_( c, argNode, pt ) = false then return false
     dim as Tko.TypeId pu = c.types->Unqualify( pt )
     if c.types->Kind( pu ) = Tko.TK_REFERENCE then pu = c.types->Unqualify( c.types->Inner( pu ) )

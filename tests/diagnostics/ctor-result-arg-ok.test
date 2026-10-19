@@ -1,0 +1,6 @@
+'' ...and what fbc accepts into a function's UDT result still builds: a value a constructor or,
+'' failing that, an 'operator let' takes by 'return'; one a 'let' takes by 'function ='; the
+'' type itself and 'this'.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/ctor-result-arg-ok.tiko -o tests/diagnostics/src/ctor-result-arg-ok.o
+'' EXPECT-EXIT: 0

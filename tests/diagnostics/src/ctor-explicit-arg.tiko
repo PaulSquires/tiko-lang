@@ -1,0 +1,75 @@
+'' 'T( v )' OVER ONE CONSTRUCTOR IS AN ORDINARY CALL, and takes the rule 'g( v )' takes: a
+'' pointer, boolean or enum into a string parameter and an enum variable into 'byref as long'
+'' are fbc's 58; a pointer into a long, double, boolean or 'byref as long', and a long, double or
+'' boolean variable into a pointer, are the direct call's TKO0698. tiko stopped on TKO0994 for
+'' all but one. What binds is ctor-ptr-enum-run.
+enum Colour
+    red
+    green
+end enum
+type BW
+    as long n
+    declare constructor( byref t as wstring )
+end type
+constructor BW( byref t as wstring )
+end constructor
+type VU
+    as long n
+    declare constructor( byval t as ustring )
+end type
+constructor VU( byval t as ustring )
+end constructor
+type VS
+    as long n
+    declare constructor( byval t as string )
+end type
+constructor VS( byval t as string )
+end constructor
+type RL
+    as long n
+    declare constructor( byref t as long )
+end type
+constructor RL( byref t as long )
+end constructor
+type VL
+    as long n
+    declare constructor( byval t as long )
+end type
+constructor VL( byval t as long )
+end constructor
+type VD
+    as long n
+    declare constructor( byval t as double )
+end type
+constructor VD( byval t as double )
+end constructor
+type VB
+    as long n
+    declare constructor( byval t as boolean )
+end type
+constructor VB( byval t as boolean )
+end constructor
+type PL
+    as long n
+    declare constructor( byval p as long ptr )
+end type
+constructor PL( byval p as long ptr )
+end constructor
+
+dim as long ptr q
+dim as boolean b
+dim as Colour c = green
+dim as long n
+dim as double d
+
+var a1 = BW( q )
+var a2 = VU( b )
+var a3 = VS( c )
+var a4 = RL( c )
+var a5 = VL( q )
+var a6 = VD( q )
+var a7 = VB( q )
+var a8 = RL( q )
+var a9 = PL( n )
+var a10 = PL( d )
+var a11 = PL( b )
