@@ -1,0 +1,11 @@
+'' TKO0864: A BODY FOR AN IMPORTED MODULE'S PROCEDURE. 'function dm.F( )' over the 'F' that
+'' '#import "dm"' read in was accepted and then refused by the emitter, TKO0993 (tracks-2026
+'' TB-007). A name the module does not have stays TKO0669.
+'' TEST: cli
+'' ARGS: -c -i tests/diagnostics/src/modules/defimported/libs tests/diagnostics/src/modules/defimported/app/main.tiko -o tests/diagnostics/defimported.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: main.tiko(2,1): error TKO0864: 'dm.f' belongs to imported module 'dm'; only that module can define it
+'' EXPECT-OUT: main.tiko(5,1): error TKO0864: 'dm.s' belongs to imported module 'dm'; only that module can define it
+'' EXPECT-OUT: main.tiko(7,1): error TKO0669
+'' EXPECT-NOT: TKO0993
+'' EXPECT-MAX-DIAG: 3

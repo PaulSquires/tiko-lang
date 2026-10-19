@@ -121,6 +121,8 @@
     DIAG( TKO0860, SEV_ERROR,   "'%0' is not public in module '%1'" )
     DIAG( TKO0862, SEV_ERROR,   "alias '%0' is already bound in this file (by '#import ""%1""')" )
     DIAG( TKO0863, SEV_ERROR,   "alias '%0' conflicts with a declaration of the same name" )
+    '' A body for a procedure an imported module declares -- latesweeps.tiko (TB-007).
+    DIAG( TKO0864, SEV_ERROR,   "'%0' belongs to imported module '%1'; only that module can define it" )
     DIAG( TKO0867, SEV_ERROR,   "constant definitions form a cycle: %0" )
     DIAG( TKO0869, SEV_ERROR,   "'%0' is initialised from '%1', which is declared later" )
     DIAG( TKO0868, SEV_ERROR,   "'%0' is module-private but appears in the public declaration of '%1'" )

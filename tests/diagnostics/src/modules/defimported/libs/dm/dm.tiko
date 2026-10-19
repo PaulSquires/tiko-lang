@@ -1,0 +1,6 @@
+#module "dm"
+public function F( ) as boolean
+    return true
+end function
+public sub S( byval n as long )
+end sub

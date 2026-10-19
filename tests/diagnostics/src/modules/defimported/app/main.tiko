@@ -1,0 +1,10 @@
+#import "dm"
+function dm.F( ) as boolean
+    return false
+end function
+sub dm.S( byval n as long )
+end sub
+function dm.G( ) as long
+    return 1
+end function
+print dm.F( )

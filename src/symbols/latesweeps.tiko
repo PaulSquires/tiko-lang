@@ -364,6 +364,19 @@ private sub CheckOutsideNamespace_( byref c as Ctx )
             dim as Symbol ptr hs = c.syms->SymbolAt( have )
             if k = N_PROC then
                 bad = (sp->b = NODE_NONE)
+                '' ...AND NOT A BODY FOR AN IMPORTED MODULE'S PROCEDURE. 'function mm.F( )' over
+                '' the 'F' that '#import "./mm"' read in was accepted, gave the interface's
+                '' declaration a second body, and the emitter refused it (TKO0993, tracks-2026
+                '' TB-007). It is that module's to define, not this file's.
+                dim as boolean imported = false
+                if hs <> nullptr then imported = ((hs->flags and SYMF_IMPORTED) <> 0)
+                if (bad = false) andalso imported then
+                    c.diags->Report( TKO0864, PointRange( c.ast->Loc( id ) ), _
+                                     c.names->Spelling( sp->ownerName ) & "." & _
+                                     c.names->Spelling( sp->name ), _
+                                     c.names->Spelling( sp->ownerName ) )
+                    continue for
+                end if
             elseif isRedim then
                 bad = false
             elseif hs <> nullptr then
