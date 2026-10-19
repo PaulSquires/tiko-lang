@@ -835,6 +835,25 @@ function SetterUdtArg_ _
     return true
 end function
 
+'' A CONSTRUCTOR'S WRITTEN ARGUMENT FOR A BYVAL UDT PASSED INDIRECTLY -- SetterUdtArg_'s copy, for
+'' LowerCtorInit, PushCtorArgs_ and LowerConvCtorInit_ (lowerctor.tiko), whose loops coerced the loaded aggregate where
+'' the slot wants a pointer: 'Wr( 6, D2( 7 ) )', 'new Wr( 6, D2( 7 ) )' and 'Wr( 6, d )' over
+'' 'constructor( byval s as long, byval q as D2 )', D2 with a destructor, were clang's '[4 x i8]'
+'' but expected 'ptr' (TKO0113). Measured, fbc builds an rvalue straight into the temporary and
+'' copy-constructs an lvalue into it, passes its address, and destroys it after the call:
+''
+''     _ZN2D2C1ERS_( &TMP$15$1, &D$1 );  _ZN2WRC1Ei2D2( &E$1, 6, &TMP$15$1 );  _ZN2D2D1Ev( &TMP$15$1 );
+''
+'' LowerConvCtorInit_ asks too: 'dim as Wx a = d' over 'constructor( byval q as D2 )' is the same call.
+'' FALSE, touching nothing, for any other parameter; TRUE with 'outv' NONE when the copy failed.
+function CtorIndirectUdtArg_ _
+    ( byref c as Ctx, byval ctor as Tko.SymbolId, byval idx as int32, _
+      byval argNode as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    if ParamIsIndirectUdt_( c, ctor, idx ) = false then return false
+    return SetterUdtArg_( c, ctor, idx, argNode, outv )
+end function
+
 '' THE OPERAND OF A USER-DEFINED OPERATOR, converted to the parameter's type the way
 '' an ARGUMENT would be. Two shapes, and they are not the same code:
 ''

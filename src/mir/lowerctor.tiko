@@ -426,9 +426,10 @@ function LowerConvCtorInit_ _
     if tookAddr then
     elseif fromArray then
         av = adv
-    elseif CtorArgValue_( c, init_, pt, av ) = false then   '' its temporary's copy-back: NarrowRefStrArg_
-        return false
+    elseif (CtorIndirectUdtArg_( c, pick, 0, init_, av ) = false) andalso (CtorArgValue_( c, init_, pt, av ) = false) then
+        return false   '' CtorArgValue_'s temporary's copy-back: NarrowRefStrArg_
     end if
+    if av.kind = cast( uint8, MV_NONE ) then return false
     dim as containers.Array( of uint32 ) cargs
     cargs.Push( cast( uint32, av.kind ) )
     cargs.Push( cast( uint32, av.id ) )
@@ -880,6 +881,12 @@ function LowerCtorInit _
             end if
         end if
 
+        '' A BYVAL UDT PASSED INDIRECTLY TAKES A COPY'S ADDRESS -- CtorIndirectUdtArg_ (lowercallarg.tiko).
+        if CtorIndirectUdtArg_( c, pick, ai2, cast( Tko.NodeId, argNode[ai2] ), av ) then
+            if av.kind = cast( uint8, MV_NONE ) then return false
+            argKind[ai2] = av.kind : argId[ai2] = av.id : argT[ai2] = cast( uint32, pty ) : ai2 += 1
+            continue for
+        end if
         '' A BYVAL VAR-LENGTH STRING PARAMETER TAKES A DESCRIPTOR THE CALLER BUILDS,
         '' and this path passed the argument's raw operand instead: for
         '' 'Res( of string )( "abc" )' that is the address of the LITERAL, where an
@@ -1229,7 +1236,7 @@ function PushCtorArgs_ _
         '' zstring-pointer and wide cases it knows were all reached through the other
         '' constructor path and not through this one.
         dim as MirValue av
-        if CtorArgValue_( c, ae, pt, av ) = false then return false
+        if (CtorIndirectUdtArg_( c, ctor, pi - 1, ae, av ) = false) andalso (CtorArgValue_( c, ae, pt, av ) = false) then return false
         if av.kind = cast( uint8, MV_NONE ) then return false
         args.Push( cast( uint32, av.kind ) ) : args.Push( cast( uint32, av.id ) )
     next
