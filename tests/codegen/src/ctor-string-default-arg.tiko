@@ -1,0 +1,65 @@
+'' A constructor's defaulted STRING parameter -- byval or byref, string or ustring -- takes a
+'' descriptor the caller builds from the default, as a written argument does.
+
+type Stream extends object
+    n as long
+end type
+
+type File extends Stream
+    tag as long
+end type
+
+'' std/strings' CsvWriter shape: a base-class reference, then the defaults.
+type Writer
+    ps as Stream ptr
+    sep as ustring
+    crlf as boolean
+    declare constructor( byref s as Stream, byval sep as ustring = ",", byval crlf as boolean = true )
+end type
+
+constructor Writer( byref s as Stream, byval sep as ustring = ",", byval crlf as boolean = true )
+    ps = @s
+    this.sep = sep
+    this.crlf = crlf
+end constructor
+
+type Nw
+    k as long
+    declare constructor( byval n as long = 1, byval sep as string = ",", byref r as string = "qq" )
+end type
+
+constructor Nw( byval n as long = 1, byval sep as string = ",", byref r as string = "qq" )
+    k = n * 100 + len( sep ) * 10 + len( r )
+end constructor
+
+sub Show( byref w as Writer )
+    print "[" & w.sep & "]"; w.crlf; w.ps->n
+end sub
+
+dim as File f
+f.n = 7
+dim as Writer w1 = Writer( f )
+Show( w1 )
+var w2 = Writer( f, ";" )
+Show( w2 )
+dim as Stream ptr sp = @f
+dim as Writer w3 = Writer( *sp )
+Show( w3 )
+Show( Writer( f ) )
+dim as Writer ptr wp = new Writer( f )
+Show( *wp )
+delete wp
+dim as Writer w4 = f
+Show( w4 )
+
+dim as Nw a
+print a.k
+dim as Nw b = 3
+print b.k
+dim as Nw c = Nw( 4 )
+print c.k
+var d = Nw( 5, "abc" )
+print d.k
+dim as Nw ptr p = new Nw( 6 )
+print p->k
+delete p

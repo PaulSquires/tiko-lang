@@ -79,6 +79,28 @@ end sub
 function ByvalDefaultArg_ _
     ( byref c as Ctx, byval dv as Tko.NodeId, byval pty as Tko.TypeId ) as MirValue
 
+    '' A STRING DEFAULT IS A DESCRIPTOR, BYVAL OR BYREF: the caller builds the copy, as for a
+    '' written argument, and deletes it after the call. Measured, fbc's C for 'Wr( 1 )' over
+    '' 'constructor( byval s as long, byval sep as string = ",", byref r as string = "q" )':
+    ''
+    ''     fb_StrAssign( &TMP$7$0, -1ll, "q", 2ll, 0 );
+    ''     fb_StrAssign( &TMP$6$0, -1ll, ",", 2ll, 0 );
+    ''     _ZN2WRC1Ei8FBSTRINGRS0_b( &W$0, 1, &TMP$6$0, &TMP$7$0, ... );
+    ''
+    '' The literal's own address went where the FBSTRING* belongs: 'dim as Wr w = 1' read a
+    '' garbage length, and 'Wr( 1 )', 'var w = Wr( 1 )' and 'new Wr( 1 )' declined (TKO0994) --
+    '' std/strings' CsvWriter( byref s as fs.Stream, byval sep as ustring = "," ) was the shape.
+    dim as Tko.TypeId spt = c.types->Unqualify( pty )
+    if IsStringType( c, spt ) then
+        dim as MirValue sv
+        dim as int32 sslot = -1
+        if ByvalStrTemp_( c, dv, spt, sv, sslot ) = false then return sv
+        if sslot >= 0 then
+            c.f->locals[sslot].frontendType = spt
+            c.strTemps.Push( cast( uint32, sslot ) )
+        end if
+        return sv
+    end if
     dim as MirValue av = LowerExpr( c, dv )
     '' ...CONVERTED TO THE PARAMETER'S TYPE FIRST, as PushCtorArgs_ converts a written
     '' one. The default is an expression of its own type -- '= 0' is an INTEGER -- and

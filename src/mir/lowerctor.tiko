@@ -978,6 +978,10 @@ function LowerCtorInit _
                     dref = CtorByrefArgAddr_( c, dsp->b, dt, dv )
                 end if
             end if
+            '' ...AND A STRING DEFAULT, BYVAL OR BYREF, IS A DESCRIPTOR -- ByvalDefaultArg_.
+            if (dref = false) andalso IsStringType( c, c.types->Unqualify( dt ) ) then
+                dv = ByvalDefaultArg_( c, dsp->b, dt ) : dref = (dv.kind <> cast( uint8, MV_NONE ))
+            end if
             if dref = false then
                 dv = LowerExpr( c, dsp->b )
                 if dv.kind = cast( uint8, MV_NONE ) then return false
@@ -1274,16 +1278,10 @@ function PushCtorArgs_ _
                     end if
                 end if
             end if
-            if dref2 = false then
-                dv = LowerExpr( c, dp->b )
-                if dv.kind = cast( uint8, MV_NONE ) then return false
-                if dt <> Tko.TYPE_NONE then
-                    dv = CoerceTy( c, dv, LowerType( dt, *c.types ), dt )
-                    if dv.kind = cast( uint8, MV_NONE ) then return false
-                end if
-                '' ...and a byval non-trivial UDT default takes a POINTER to a copy.
-                ByvalIndirectRetemp_( c, dv, dt )
-            end if
+            '' ...AND ANY OTHER IS ByvalDefaultArg_'s, as in EmitStructorCall: coerced, a string's
+            '' descriptor, a byval non-trivial UDT's pointer to a copy.
+            if dref2 = false then dv = ByvalDefaultArg_( c, dp->b, dt )
+            if dv.kind = cast( uint8, MV_NONE ) then return false
             args.Push( cast( uint32, dv.kind ) ) : args.Push( cast( uint32, dv.id ) )
         end if
         seen2 += 1
