@@ -1,0 +1,51 @@
+#import "std/config"
+
+dim doc as ustring = """
+    # the service's settings
+    title = "inventory"
+    debug = false
+
+    [server]
+    host = "0.0.0.0"
+    port = 8080
+    started = 2026-10-19T09:30:00Z
+
+    [[users]]
+    login = "ada"
+    roles = [ "admin", "dev" ]
+
+    [[users]]
+    login = "lin"
+    roles = [ "dev" ]
+    """
+
+dim r as config.ConfigResultToml = config.ParseToml( doc )
+if r.IsOk( ) = false then
+    print r.Failure( ).Message( )
+    end 1
+end if
+dim cfg as config.TomlValue = r.Value( )
+
+'' The value at a path, or an empty TomlValue when there is none,
+'' whose AsInt( ), AsString( ) and the rest are then empty too.
+function Setting( byref t as config.TomlValue, byref p as ustring ) _
+        as config.TomlValue
+    return t.Path( p ).ValueOr( config.TomlValue( ) )
+end function
+
+print "title:   " & Setting( cfg, "title" ).AsString( ).ValueOr( "?" )
+print "port:    " & Setting( cfg, "server.port" ).AsInt( ).ValueOr( 80 )
+print "debug:   " & Setting( cfg, "debug" ).AsBool( ).ValueOr( true )
+print "wait:    " & Setting( cfg, "server.wait" ).AsInt( ).ValueOr( 30 )
+
+dim started as config.TomlValue = Setting( cfg, "server.started" )
+print "started: " & started.AsDateTime( ).Value( ).ToIsoUString( )
+
+'' [[users]] is an array of tables: index it, or walk it with Count.
+dim users as config.TomlValue = Setting( cfg, "users" )
+for i as int32 = 0 to users.Count( ) - 1
+    print Setting( users[i], "login" ).AsString( ).Value( ) _
+        & ": " & Setting( users[i], "roles" ).Count( ) & " role(s)"
+next
+print "second user's first role: " _
+    & Setting( cfg, "users.1.roles.0" ).AsString( ).ValueOr( "?" )

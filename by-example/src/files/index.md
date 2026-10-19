@@ -41,6 +41,8 @@ The pages in this section:
 - [Where files live](userdirs.md): the configuration, data and cache
   directories, and the program's own path.
 - [Checksums and hashes](checksums.md): CRC-32, SHA-256 and HMAC.
+- [TOML settings](toml.md): reading a configuration file with types.
+- [INI files](ini.md): sections of `key = value`, read and written.
 
 ### Activities
 

@@ -1,0 +1,20 @@
+#import "std/config"
+
+dim r as config.ConfigResultIni = config.ParseIni( """
+    ; written by hand
+    [Database]
+    Host = db.example.org
+    port: 5432
+    motd = "  spaces kept  "
+    """ )
+dim ini as config.IniFile = r.Value( )
+
+print "Settings:"
+'' Section and key names ignore case.
+print ini.Get( "database", "host" ).ValueOr( "?" )
+print "[" & ini.Get( "Database", "motd" ).ValueOr( "" ) & "]"
+print ini.Get( "Database", "timeout" ).ValueOr( "30" )   '' a default
+
+ini.SetValue( "Database", "port", "5433" )
+ini.SetValue( "Cache", "size", "64" )
+print ini.ToText( );

@@ -1,0 +1,24 @@
+#import "std/strings"
+#import "std/containers"
+#import "std/fs"
+using containers
+
+dim header as Array( of ustring ) = { "item", "note", "qty" }
+dim row1 as Array( of ustring ) = { "bolt", "M6, steel", "200" }
+dim row2 as Array( of ustring ) = { "nut", !"says \"hex\"", "150" }
+
+print strings.JoinCsvRow( row1 )
+
+'' Any stream will do: a file, a pipe, or memory, as here.
+dim buffer as fs.MemoryStream
+dim w as strings.CsvWriter = strings.CsvWriter( buffer, ",", false )
+w.WriteRow( header )
+w.WriteRow( row1 )
+w.WriteRow( row2 )
+print "written: "; w.Finish( ).IsOk( )
+print buffer.ToUtf8Text( );
+
+'' SplitCsv reads back exactly what was written.
+dim text as ustring = buffer.ToUtf8Text( )
+dim rows as Array( of strings.CsvURow ) = strings.SplitCsv( text )
+print rows.Count( ) & " rows; row 2, field 1: " & rows[2].fields[1]

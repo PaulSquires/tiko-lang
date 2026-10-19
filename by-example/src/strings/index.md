@@ -39,6 +39,7 @@ The pages in this section:
 - [Unicode](unicode.md): what `len` counts.
 - [Building strings](building.md): assembling text from many pieces.
 - [Base64, hex and URLs](encodings.md): bytes as text, and text inside URLs.
+- [Writing CSV](csv.md): quoting fields so a CSV reader gets them back.
 
 Laying out values with `strings.Format` is covered in
 [Formatted print](../hello/format.md), and making your own types printable in

@@ -1,0 +1,19 @@
+#import "std/strings"
+#import "std/containers"
+#import "std/fs"
+using containers
+
+dim fields as Array( of ustring ) = { "plain", "a,b", !"5\" pipe", " pad" }
+print strings.JoinCsvRow( fields )
+print strings.JoinCsvRow( fields, ";" )
+
+'' CsvWriter writes rows to any stream; this one is in memory.
+dim buffer as fs.MemoryStream
+dim w as strings.CsvWriter = strings.CsvWriter( buffer, ",", false )
+w.WriteRow( fields )
+w.WriteRow( fields )
+print "ok? "; w.Finish( ).IsOk( )
+
+'' Reading it back gives the same fields.
+var rows = strings.SplitCsv( buffer.ToUtf8Text( ) )
+print "rows: "; rows.Count( ); ", third field: "; rows[1].fields[2]

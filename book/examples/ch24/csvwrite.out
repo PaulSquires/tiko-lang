@@ -1,0 +1,6 @@
+bolt,"M6, steel",200
+written: true
+item,note,qty
+bolt,"M6, steel",200
+nut,"says ""hex""",150
+3 rows; row 2, field 1: says "hex"

@@ -1,0 +1,8 @@
+data:  /var/lib/tbe
+logs:  /var/log/tbe ; part of the value
+cache: (none)
+--- written back:
+[Paths]
+Data = /var/lib/tbe
+cache = /var/cache/tbe
+strict: line 3, column 1: duplicate key: 'k'

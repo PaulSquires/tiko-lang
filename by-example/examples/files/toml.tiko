@@ -1,0 +1,37 @@
+#import "std/config"
+#import "std/fs"
+
+'' A settings file, written here so the example has one to read.
+dim scratch as ustring = fs.CreateTempDir( "tbe" ).Value( )
+dim path as ustring = fs.PathJoin( scratch, "app.toml" )
+fs.WriteAllText( path, """
+    name = "tbe"
+    retries = 3
+
+    [window]
+    size = [ 800, 600 ]
+    """ )
+
+var r = config.LoadToml( path )
+if r.IsOk( ) = false then
+    print r.Failure( ).Message( )
+    end 1
+end if
+dim cfg as config.TomlValue = r.Value( )
+
+'' The value at a path, or an empty one whose As... answers are empty.
+function Setting( byref t as config.TomlValue, byref p as ustring ) _
+        as config.TomlValue
+    return t.Path( p ).ValueOr( config.TomlValue( ) )
+end function
+
+print "name:    "; Setting( cfg, "name" ).AsString( ).ValueOr( "" )
+print "retries:"; Setting( cfg, "retries" ).AsInt( ).ValueOr( 1 )
+print "width:  "; Setting( cfg, "window.size.0" ).AsInt( ).ValueOr( 0 )
+print "missing:"; Setting( cfg, "window.dpi" ).AsInt( ).ValueOr( 96 )
+print "keys:    "; cfg.KeyAt( 0 ); ", "; cfg.KeyAt( 1 ); ", "; cfg.KeyAt( 2 )
+
+'' A broken file is a value too.
+fs.WriteAllText( path, !"retries = 3\nretries = 4\n" )
+print "broken:  "; config.LoadToml( path ).Failure( ).Message( )
+fs.RemoveDirAll( scratch )

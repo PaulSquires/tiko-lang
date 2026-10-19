@@ -1,0 +1,6 @@
+name:    tbe
+retries: 3
+width:   800
+missing: 96
+keys:    name, retries, window
+broken:  line 2, column 1: duplicate key: 'retries'
