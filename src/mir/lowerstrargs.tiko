@@ -515,6 +515,19 @@ function ByvalStrTemp_ _
         end if
     end scope
 
+    '' A UDT FOR A USTRING TEMPORARY is 'dim as ustring tmp = u': LowerStringInit asks fbc's cast
+    '' pick with the USTRING target, and the temporary is built as UTF-16 whatever the cast yields.
+    '' It fell to LowerStringAssignToSlot below, which builds a NARROW descriptor -- measured, a
+    '' 'cast as ustring' returning "abc" reached 'byval u as ustring' as len 3 of U+6261, 'c' and
+    '' garbage (the UTF-8 bytes read as UTF-16), where fbc passes "abc".
+    if IsUStringType( c, pt ) andalso IsUdtValue_( c, Unparen_( c, argNode ) ) then
+        c.f->locals[slot].frontendType = c.types->Builtin( Tko.TY_USTRING )
+        if LowerStringInit( c, slot, argNode, argNode ) = false then return false
+        outSlot = slot
+        outa = dst
+        return true
+    end if
+
     if LowerWideToNarrowSlot( c, slot, pt, argNode ) then
     elseif LowerStringAssignToSlot( c, slot, argNode ) = false then
         return false
@@ -680,6 +693,78 @@ function WideArgOperand_ _
     if pa.kind = cast( uint8, MV_NONE ) then return false
     outa = LowerExprLoad( c, pa, MT_PTR )
     return (outa.kind <> cast( uint8, MV_NONE ))
+end function
+
+'' A UDT FOR A WIDE PARAMETER IS ITS CAST, picked for a WSTRING target as fbc picks it. Measured on
+'' fbc-modern 1.20 over 'byref as const wstring', each returning its text whole:
+''
+''     'byref as wstring' or a 'wstring ptr' cast   passed as it is      (UserCastToWide_)
+''     an 'as ustring' cast                         a ustring temporary, its UTF-16 data passed --
+''                                                  WideArgOperand_'s shape for a ustring rvalue
+''     an 'as string' cast                          a string temporary, widened from its data
+''
+'' tiko took the UDT's own ADDRESS as the wide text (len 0), and widening a ustring cast's result
+'' as if it were narrow stopped at its first NUL ("a" of "abc"). FALSE when the type has no cast
+'' that reaches; Check has reported that one (argmismatch.tiko).
+declare function WideConcatStep_( byref c as Ctx, byref args as containers.Array( of uint32 ), byval r as RtlId, byref acc as MirValue ) as boolean   '' lowerwstr.tiko
+function UdtWideArg_ _
+    ( byref c as Ctx, byval argNode as Tko.NodeId, byref outa as MirValue, _
+      byref temps as containers.Array( of uint32 ), byref tempTypes as containers.Array( of uint32 ) ) as boolean
+
+    if IsUdtValue_( c, Unparen_( c, argNode ) ) = false then return false
+    dim as int32 saveT = c.strCastTarget
+    c.strCastTarget = Tko.Check.CT_WSTRING
+    dim as Tko.SymbolId sym
+    dim as int32 sk = ScoredStrTerm_( c, c.types->Unqualify( c.info->TypeOf_( argNode ) ), sym )
+    dim as boolean ok = false
+    if sk = 2 then
+        dim as Tko.TypeId ut = c.types->Builtin( Tko.TY_USTRING )
+        dim as MirValue ud
+        dim as int32 slot = -1
+        if ByvalStrTemp_( c, argNode, ut, ud, slot ) = false then slot = -1
+        if slot >= 0 then
+            c.f->locals[slot].frontendType = ut
+            temps.Push( cast( uint32, slot ) )
+            tempTypes.Push( cast( uint32, ut ) )
+            dim as MirInst fa
+            fa.op = cast( uint16, M_FIELD_ADDR ) : fa.ty = cast( uint8, MT_PTR )
+            fa.a = ud : fa.imm = 0
+            dim as MirValue pa = Emit( c, fa )
+            if pa.kind <> cast( uint8, MV_NONE ) then
+                outa = LowerExprLoad( c, pa, MT_PTR )
+                ok = (outa.kind <> cast( uint8, MV_NONE ))
+            end if
+        end if
+    elseif sk = 1 then
+        '' A NARROW CAST goes into a string temporary the call deletes, and is widened from its data:
+        '' fbc's 'vr = CAST( &U ); fb_StrAssign( &TMP, .., vr, .. ); fb_StrToWstr( TMP.data )'.
+        '' Widening the cast's result directly (NarrowToWideTemp_) never released it, and each call
+        '' kept one of the runtime's 256 temporary descriptors -- after 255 calls in a loop every
+        '' string in the program came back empty.
+        dim as Tko.TypeId st = c.types->Builtin( Tko.TY_STRING )
+        dim as MirValue sd
+        dim as int32 slot = -1
+        if ByvalStrTemp_( c, argNode, st, sd, slot ) = false then slot = -1
+        if slot >= 0 then
+            c.f->locals[slot].frontendType = st
+            temps.Push( cast( uint32, slot ) )
+            tempTypes.Push( cast( uint32, st ) )
+            dim as MirInst fd
+            fd.op = cast( uint16, M_FIELD_ADDR ) : fd.ty = cast( uint8, MT_PTR )
+            fd.a = sd : fd.imm = 0
+            dim as MirValue dpa = Emit( c, fd )
+            if dpa.kind <> cast( uint8, MV_NONE ) then
+                dim as MirValue dp = LowerExprLoad( c, dpa, MT_PTR )
+                dim as containers.Array( of uint32 ) wargs
+                wargs.Push( cast( uint32, dp.kind ) ) : wargs.Push( cast( uint32, dp.id ) )
+                ok = WideConcatStep_( c, wargs, RTL_STR_TO_WSTR, outa )
+            end if
+        end if
+    elseif sk = 3 then
+        ok = UserCastToWide_( c, argNode, outa )
+    end if
+    c.strCastTarget = saveT
+    return ok
 end function
 
 '' A FIXED 'ustring * N' COPIED INTO A DESCRIPTOR, for a byref USTRING parameter.
@@ -1234,6 +1319,12 @@ function UStrRefArg_ _
         if slot >= 0 then backN.Push( cast( uint32, e ) ) : backS.Push( cast( uint32, slot ) )
         back = false
     elseif UStrResultArgTemp_( c, e, ut, outv, slot, true ) then
+        back = false
+    elseif IsUdtValue_( c, Unparen_( c, e ) ) then
+        '' A UDT: its text cast into a ustring temporary (ByvalStrTemp_), nothing copied back --
+        '' measured, fbc over 'byref as const ustring' and a 'cast as ustring' or 'as string'
+        '' passes "abc" where tiko passed the narrow cast's descriptor (len 0 or 3, empty text).
+        if ByvalStrTemp_( c, e, ut, outv, slot ) = false then return false
         back = false
     else
         return false

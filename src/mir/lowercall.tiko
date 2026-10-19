@@ -666,7 +666,9 @@ private function LowerCallPartsBody_ _
             '' 3. Measured, fbc converts: 'fb_StrToWstr( (char*)*(char**)&S$0 )'.
             '' The RVALUE half of this was already right -- it has no address to
             '' fall back on, which is exactly what hid the lvalue half.
-            if WideArgOperand_( c, argNode, a, strTemps, strTempTypes ) = false then
+            '' A UDT IS ITS CAST, for a WSTRING target (UdtWideArg_) -- not its own ADDRESS as the text.
+            if UdtWideArg_( c, argNode, a, strTemps, strTempTypes ) then
+            elseif WideArgOperand_( c, argNode, a, strTemps, strTempTypes ) = false then
                 if IsNarrowStrArg_( c, c.info->TypeOf_( argNode ) ) then
                     NarrowToWideTemp_( c, argNode, a )
                 end if
