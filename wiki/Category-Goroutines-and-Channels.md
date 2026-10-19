@@ -244,6 +244,7 @@ ctx.Cancel( )                        ' ask it to stop
 Context( )                    the background context; never cancelled
 WithCancel( parent )          a cancellable child
 WithTimeout( parent, ms )     cancels itself when the deadline passes
+InterruptContext( )           cancelled by the first Ctrl-C or SIGTERM (std/os)
 IsCancelled( )   Err( )   Done( )
 CancelContext.Cancel( )
 ```

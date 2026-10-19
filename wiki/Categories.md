@@ -38,6 +38,7 @@ The language and its standard library first, then the compatibility reference: t
 - [Deque](Category-Deque) — 1 pages
 - [BitSet](Category-BitSet) — 1 pages
 - [Optional](Category-Optional) — 7 pages
+- [OS](Category-OS) — 1 pages
 - [Result](Category-Result) — 10 pages
 - [Smart Pointers](Category-Smart-Pointers) — 12 pages
 - [Date and Time (Chrono)](Category-Date-and-Time-Chrono) — 191 pages

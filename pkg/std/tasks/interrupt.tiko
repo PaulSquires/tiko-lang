@@ -1,0 +1,49 @@
+#module "tasks"
+#import "std/os"
+'' std/tasks: interrupt -- tasks.InterruptContext, a Context cancelled by Ctrl-C
+''
+'' C:\dev\docs\tiko-stdlib\RFC-0001 section 8.5.
+''
+''     dim ctx as Context = InterruptContext( )
+''     while( ctx.IsCancelled( ) = FALSE )
+''         '' ... one unit of work ...
+''     wend
+''
+'' The first call starts os.CatchInterrupt( ) if the program has not, and one
+'' goroutine that waits in os.WaitInterrupt( ) and cancels the context when an
+'' interrupt arrives.  Every call returns the same context.  That goroutine holds
+'' one pool worker until the first interrupt, or for the life of the program.
+'' os.ResetInterrupt( ) does not un-cancel it: a cancelled context stays cancelled.
+
+#include once "fbatomic.bi"
+
+dim shared as any ptr tkint_st
+dim shared as long tkint_lock
+
+private sub hIntWatch( byval p as any ptr )
+    dim as CtxState ptr s = cptr( CtxState ptr, p )
+    os.WaitInterrupt( -1 )
+    hCtxCancel( s, FALSE )
+    hCtxRelease( s )
+end sub
+
+public function InterruptContext( ) as Context
+    while( FB.AtomicCasLong( @tkint_lock, 0, 1 ) <> 0 )
+        sleep 0, 1
+    wend
+    if( tkint_st = nullptr ) then
+        os.CatchInterrupt( )
+        dim as CtxState ptr s = hCtxNew( nullptr )
+        s->refs += 1                         '' the watcher's reference; ours is never dropped
+        Spawn( @hIntWatch, s )
+        tkint_st = s
+    end if
+    dim as Context c
+    c.st = tkint_st
+    dim as CtxState ptr s = cptr( CtxState ptr, tkint_st )
+    MutexLock( s->lok )
+    s->refs += 1
+    MutexUnlock( s->lok )
+    FB.AtomicFetchAddLong( @tkint_lock, -1 )
+    return c
+end function
