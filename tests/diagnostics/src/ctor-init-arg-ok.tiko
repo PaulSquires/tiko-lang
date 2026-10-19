@@ -1,0 +1,138 @@
+'' ...and what fbc-modern 1.20 accepts as a converting initialiser still builds: a number into
+'' a number, text into text (a fixed string and a literal too), an integer of pointer size, a
+'' literal or an enum into a pointer, a pointer into a pointer of the same, an 'any' or a
+'' same-size integer pointee or of a base type, an enum into its own enum or a number, a value
+'' over a set or a defaulted second parameter, a parameter of another UDT built from the value,
+'' and each in a field, a shared and an array's brace list.
+enum Colour
+    red
+    green
+end enum
+type BS
+    as long n
+    declare constructor( byref t as string )
+end type
+constructor BS( byref t as string )
+end constructor
+type BW
+    as long n
+    declare constructor( byref t as wstring )
+end type
+constructor BW( byref t as wstring )
+end constructor
+type VL
+    as long n
+    declare constructor( byval t as long )
+end type
+constructor VL( byval t as long )
+    n = t
+end constructor
+type VD
+    as double d
+    declare constructor( byval t as double )
+end type
+constructor VD( byval t as double )
+end constructor
+type PL
+    as long n
+    declare constructor( byval p as long ptr )
+end type
+constructor PL( byval p as long ptr )
+end constructor
+type AP
+    as long n
+    declare constructor( byval p as any ptr )
+end type
+constructor AP( byval p as any ptr )
+end constructor
+type VE
+    as long n
+    declare constructor( byval c as Colour )
+end type
+constructor VE( byval c as Colour )
+end constructor
+type RL
+    as long n
+    declare constructor( byref t as long )
+end type
+constructor RL( byref t as long )
+end constructor
+type Two
+    as long n
+    declare constructor( byval t as long )
+    declare constructor( byref t as string )
+end type
+constructor Two( byval t as long )
+end constructor
+constructor Two( byref t as string )
+end constructor
+type Opt
+    as long n
+    declare constructor( byval t as long, byval b as long = 0 )
+end type
+constructor Opt( byval t as long, byval b as long = 0 )
+end constructor
+type Animal extends object
+    as long k
+end type
+type Dog extends Animal
+end type
+type BP
+    as long n
+    declare constructor( byval p as Animal ptr )
+end type
+constructor BP( byval p as Animal ptr )
+end constructor
+type Inner
+    as long k
+    declare constructor( byval t as long )
+end type
+constructor Inner( byval t as long )
+end constructor
+type Outer
+    as long n
+    declare constructor( byref i as Inner )
+end type
+constructor Outer( byref i as Inner )
+end constructor
+type Holder
+    as VL f = 3
+    as BS g = "g"
+    as VL h( 0 to 1 ) = { 4, 5 }
+end type
+
+dim as long n = 1
+dim as double d = 2.5
+dim as integer i = 3
+dim as ustring u = "u"
+dim as zstring * 4 z = "z"
+dim as ustring * 4 uf = "uf"
+dim as long ptr q
+dim as ulong ptr uq
+dim as Dog ptr dq
+dim as Colour c = green
+dim as string s = "s"
+
+dim as VL b1 = d
+dim as VD b2 = n
+dim as BS b3 = u
+dim as BS b4 = uf
+dim as BW b5 = z
+dim as BW b6 = "lit"
+dim as PL b7 = i
+dim as PL b8 = 0
+dim as PL b10 = uq
+dim as AP b11 = q
+dim as PL b12 = cast( any ptr, q )
+dim as BP b13 = dq
+dim as VE b14 = green
+dim as VL b15 = c
+dim as RL b16 = n
+dim as RL b17 = 5
+dim as Two b18 = d
+dim as Two b19 = u
+dim as Opt b20 = n
+dim as Outer b21 = 5
+dim shared as VL b22 = 6
+dim as VL b23( 0 to 1 ) = { 7, 8.5 }
+dim as Holder hv

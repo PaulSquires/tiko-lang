@@ -342,6 +342,9 @@ private sub CheckUdtAssign_ ( byref c as Ctx, byval id as NodeId )
                       IsSpawnFrameField_( c, sp->a ) = false )
 end sub
 
+declare function CtorInitRefused_ ( byref c as Ctx, byval t as TypeId, byval init as NodeId ) as boolean  '' ctorargs.tiko
+declare sub CheckCtorArrayInit_ ( byref c as Ctx, byval t as TypeId, byval init as NodeId )                '' ctorargs.tiko
+
 private sub CheckUdtInits_ ( byref c as Ctx )
     for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
@@ -361,9 +364,11 @@ private sub CheckUdtInits_ ( byref c as Ctx )
         case N_TUPLE, N_PAREN
             if (c.ast->nodes[cast( int32, ip->b )].flags and NF_TYPE_LITERAL) = 0 then continue for
         case N_INITIALIZER
+            CheckCtorArrayInit_( c, s->type_, ip->b )
             continue for
         end select
         JudgeConversion_( c, item, s->type_, c.info->TypeOf_( ip->b ), false )
+        if CtorInitRefused_( c, s->type_, ip->b ) then c.diags->Report( TKO0738, PointRange( c.ast->Loc( item ) ) )
         dim as TypeId idt = ValueType_( c, s->type_ )
         dim as TypeId ivt = ValueType_( c, c.info->TypeOf_( ip->b ) )
         if (idt <> TYPE_NONE) andalso (ivt <> TYPE_NONE) andalso (idt <> ivt) then
@@ -1423,6 +1428,7 @@ end sub
 
 private sub RunLateSweeps2_ ( byref c as Ctx )
     CheckUdtInits_( c )
+    CheckFieldCtorInits_( c )   '' ctorargs.tiko
     CheckByrefInitShapes_( c )
     CheckUsingAmbiguity_( c )
     CheckBareTypeLiterals_( c )

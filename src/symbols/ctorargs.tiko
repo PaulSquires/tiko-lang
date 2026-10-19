@@ -140,6 +140,207 @@ private function CheckCtorArity_ _
     return true
 end function
 
+'' A CONVERTING INITIALISER NO CONSTRUCTOR TAKES -- 'dim as T x = v', v not a T. fbc's error
+'' 24, "Invalid data types" (58 for a few), measured on fbc-modern 1.20, 2026-10-19: a long
+'' into 'byref as string' or 'byref as wstring', a string, ustring or "lit" into 'byval as
+'' long', a double into 'byref as wstring' (58). tiko built a value from the constructor
+'' anyway, or stopped on TKO0994. The explicit 'T( v )' was judged (CheckCtorArgsOf_); this
+'' form never was.
+''
+'' STRICTER THAN 'T( v )'. fbc resolves the initialiser's constructor as an overload, even a
+'' single one, so what a lone call only warns about is refused here -- measured, each 24 as an
+'' initialiser and a warning or nothing as 'T( v )':
+''
+''     a pointer into any parameter that is not a pointer       'long ptr' into 'integer'
+''     a pointer into another pointer, unless one is 'any ptr', the pointee is the same (no
+''         'const' dropped), a derived UDT, or a same-size integer ('ulong ptr' into 'long ptr')
+''     a number into a pointer, unless an integer of pointer size, a literal or an enum:
+''         'long', 'ulong', 'double', 'boolean' and 'const K as long' are 24; 'integer',
+''         'longint', '5' and 'v + 1' over an integer are not
+''     anything into an enum but that enum -- '0' included
+''     an enum variable into 'byref as long' (58)
+''
+'' and the rest is ProcPtrArgBad_, the explicit call's rule. Over a SET, refused when no
+'' candidate takes it: 'byval as long' beside the copy constructor is 24 for a string, and so
+'' are 'long' and 'double' for a pointer. A parameter of ANOTHER UDT may build one from the
+'' value ('byref u as U', U built from a long, takes 5) and declines the whole question; the
+'' copy constructor takes nothing that is not a T. A UDT value is JudgeConversion_'s
+'' (latesweeps2.tiko). Not judged: a generic constructor, an array or variadic parameter, a
+'' generic instance.
+
+'' Does pointer value 'av' convert to pointer parameter 'pv' in an initialiser?
+private function InitPtrTakes_ ( byref c as Ctx, byval av as TypeId, byval pv as TypeId ) as boolean
+    dim as TypeId ai = c.types->Inner( av )
+    dim as TypeId pi = c.types->Inner( pv )
+    dim as TypeId au = c.types->Unqualify( ai )
+    dim as TypeId pu = c.types->Unqualify( pi )
+    if (c.types->Kind( au ) = TK_BUILTIN) andalso (c.types->BuiltinOf( au ) = TY_ANY) then return true
+    if (c.types->Kind( pu ) = TK_BUILTIN) andalso (c.types->BuiltinOf( pu ) = TY_ANY) then return true
+    if c.types->IsConst( ai ) andalso (c.types->IsConst( pi ) = false) then return false
+    if au = pu then return true
+    if (c.types->Kind( au ) = TK_UDT) andalso (c.types->Kind( pu ) = TK_UDT) then
+        return (c.types->BaseDistance( au, pu ) >= 0)
+    end if
+    return (Tko.Check.PtrCastScore( *c.types, av, pv ) > 0)
+end function
+
+'' One candidate's first parameter 'prm' against the value 'arg': 1 refused, 0 taken, -1
+'' cannot tell. 't' is the type being built.
+private function InitArgFit_ _
+    ( byref c as Ctx, byval t as TypeId, byval prm as NodeId, byval arg as NodeId ) as int32
+
+    if (c.ast->nodes[cast( int32, prm )].flags and (NF_ARRAY or NF_VARIADIC)) <> 0 then return -1
+    dim as NodeId pref = c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, prm )].data )].a
+    if pref = NODE_NONE then return -1
+    dim as TypeId pt = c.info->TypeOf_( pref )
+    if pt = TYPE_NONE then return -1
+    dim as boolean isRef = ((c.ast->nodes[cast( int32, prm )].flags and NF_BYREF) <> 0)
+    if isRef then pt = c.types->Reference( pt )
+    dim as TypeId pv = c.types->Unqualify( pt )
+    if c.types->Kind( pv ) = TK_REFERENCE then pv = c.types->Unqualify( c.types->Inner( pv ) )
+    dim as TypeId av = c.types->Unqualify( c.info->TypeOf_( arg ) )
+    if c.types->Kind( av ) = TK_REFERENCE then av = c.types->Unqualify( c.types->Inner( av ) )
+    dim as TypeKind pk = c.types->Kind( pv )
+    dim as TypeKind ak = c.types->Kind( av )
+    if pk = TK_UDT then
+        if pv = t then return 1
+        return -1
+    end if
+    if ProcPtrArgBad_( c, pt, arg ) then return 1
+    if ak = TK_POINTER then
+        if pk <> TK_POINTER then return 1
+        return iif( InitPtrTakes_( c, av, pv ), 0, 1 )
+    end if
+    if pk = TK_POINTER then
+        if ak = TK_ENUM then return 0
+        dim as int32 cls = ArgClass_( c, av )
+        if cls = 3 then return 1
+        if cls = 2 then
+            if IsFloatBuiltin_( c, av ) then return 1
+            if c.ast->Kind( arg ) = N_INT_LIT then return 0
+            if c.types->Layout( av ).size <> c.types->Layout( pv ).size then return 1
+        end if
+        return 0
+    end if
+    if pk = TK_ENUM then return iif( av = pv, 0, 1 )
+    if (ak = TK_ENUM) andalso isRef andalso (av <> pv) then
+        if NamedLvalue_( c, arg ) then return 1
+    end if
+    return 0
+end function
+
+'' True when no constructor of 't' takes the initialiser 'init'.
+private function CtorInitRefused_ ( byref c as Ctx, byval t as TypeId, byval init as NodeId ) as boolean
+    t = c.types->Unqualify( t )
+    if (t = TYPE_NONE) orelse (c.types->Kind( t ) <> TK_UDT) then return false
+    dim as InternId tn = c.types->NameOf( t )
+    if tn = 0 then return false
+    dim as string h = left( c.names->Spelling( tn ), 1 )
+    if (h = "(") orelse (h = "$") orelse (h = "~") then return false
+    if instr( c.names->Spelling( tn ), "<" ) > 0 then return false
+    dim as TypeId av = c.info->TypeOf_( init )
+    if av = TYPE_NONE then return false
+    av = c.types->Unqualify( av )
+    if c.types->Kind( av ) = TK_REFERENCE then av = c.types->Unqualify( c.types->Inner( av ) )
+    select case c.types->Kind( av )
+    case TK_BUILTIN, TK_POINTER, TK_ENUM
+    case TK_ARRAY
+        if ArgClass_( c, av ) <> 1 then return false
+    case else
+        return false
+    end select
+    dim as Symbol ptr s = StructorOf_( c, t, "__ctor" )
+    if s = nullptr then return false
+    dim as int32 guard = 0
+    while (s <> nullptr) andalso (guard < 4096)
+        guard += 1
+        if s->kind <> cast( uint8, SYM_PROC ) then return false
+        dim as NodeId decl = cast( NodeId, s->payload )
+        if (decl = NODE_NONE) orelse (c.ast->Kind( decl ) <> N_PROC) then return false
+        dim as StmtPayload ptr pp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, decl )].data )]
+        if (pp->extra and PF_GENERIC_PROC) <> 0 then return false
+        '' One argument: a first parameter, every other one defaulted.
+        dim as NodeId first_ = NODE_NONE
+        dim as boolean oneArg = true
+        for i as int32 = 0 to pp->count - 1
+            dim as NodeId prm = cast( NodeId, c.ast->children[pp->first + i] )
+            if c.ast->Kind( prm ) <> N_PARAM then continue for
+            dim as StmtPayload ptr psp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, prm )].data )]
+            if psp->op = cast( uint16, TK_ELLIPSIS ) then return false
+            if first_ = NODE_NONE then
+                first_ = prm
+            elseif psp->b = NODE_NONE then
+                oneArg = false
+            end if
+        next
+        if (first_ <> NODE_NONE) andalso oneArg then
+            if InitArgFit_( c, t, first_, init ) <> 1 then return false
+        end if
+        s = c.syms->SymbolAt( s->nextOverload )
+    wend
+    return true
+end function
+
+'' ...AND EACH ELEMENT OF AN ARRAY'S BRACE LIST: 'dim as T a( 0 to 1 ) = { 1, "x" }' is 24 for
+'' the "x", a nested list one level per dimension. A paren list builds a UDT element field by
+'' field and is braceinit.tiko's.
+private sub CheckCtorInitList_ _
+    ( byref c as Ctx, byval n as NodeId, byval elemT as TypeId, byval depth as int32 )
+    if depth > 16 then return
+    dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+    dim as int32 first_ = lp->first
+    dim as int32 count_ = lp->count
+    for i as int32 = 0 to count_ - 1
+        dim as NodeId el = cast( NodeId, c.ast->children[first_ + i] )
+        select case c.ast->Kind( el )
+        case N_INITIALIZER
+            CheckCtorInitList_( c, el, elemT, depth + 1 )
+        case N_TUPLE, N_PAREN, N_ELIDED
+        case else
+            if CtorInitRefused_( c, elemT, el ) then c.diags->Report( TKO0738, PointRange( c.ast->Loc( el ) ) )
+        end select
+    next
+end sub
+
+'' A brace list 'init' for a variable or field of type 't', when t is an array of a UDT.
+private sub CheckCtorArrayInit_ ( byref c as Ctx, byval t as TypeId, byval init as NodeId )
+    if (t = TYPE_NONE) orelse (init = NODE_NONE) then return
+    if c.ast->Kind( init ) <> N_INITIALIZER then return
+    dim as TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) <> TK_ARRAY then return
+    dim as int32 guard = 0
+    while (c.types->Kind( u ) = TK_ARRAY) andalso (guard < 16)
+        guard += 1
+        u = c.types->Unqualify( c.types->Inner( u ) )
+    wend
+    if c.types->Kind( u ) <> TK_UDT then return
+    CheckCtorInitList_( c, init, u, 0 )
+end sub
+
+'' ...AND A FIELD'S: 'type H : dim as T f = v : end type' is the same 24 (58), measured over
+'' the same shapes. A variable's is asked from CheckUdtInits_ (latesweeps2.tiko).
+private sub CheckFieldCtorInits_ ( byref c as Ctx )
+    for i as int32 = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        if s->kind <> cast( uint8, SYM_FIELD ) then continue for
+        if s->type_ = TYPE_NONE then continue for
+        '' A bitfield's payload is its width, and its type never a UDT or an array.
+        dim as TypeKind fk = c.types->Kind( c.types->Unqualify( s->type_ ) )
+        if (fk <> TK_UDT) andalso (fk <> TK_ARRAY) then continue for
+        if s->payload = 0 then continue for
+        dim as NodeId fn = cast( NodeId, s->payload )
+        if c.ast->Kind( fn ) <> N_FIELD then continue for
+        '' The initialiser is in 'c': on an N_FIELD 'b' is a bitfield's width.
+        dim as NodeId iv = c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, fn )].data )].c
+        if iv = NODE_NONE then continue for
+        if fk = TK_ARRAY then
+            CheckCtorArrayInit_( c, s->type_, iv )
+        elseif CtorInitRefused_( c, s->type_, iv ) then
+            c.diags->Report( TKO0738, PointRange( c.ast->Loc( fn ) ) )
+        end if
+    next
+end sub
+
 '' 'T( ... )' naming the type, and 'new T( ... )'.
 private sub CheckCtorCallArgs_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )
     dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]

@@ -1,0 +1,6 @@
+'' ...and what fbc accepts as a converting initialiser still builds: number to number, text to
+'' text, a pointer-size integer, literal or enum into a pointer, a matching pointer, a set, a
+'' defaulted second parameter, another UDT built from the value, a field, a shared, a brace list.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/ctor-init-arg-ok.tiko -o tests/diagnostics/src/ctor-init-arg-ok.o
+'' EXPECT-EXIT: 0

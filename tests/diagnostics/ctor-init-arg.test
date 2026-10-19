@@ -1,0 +1,27 @@
+'' A converting initialiser no constructor takes -- 'dim as T x = v', v not a T -- is fbc's 24
+'' (58 for two), locally, shared, static, in a field and in an array's brace list; stricter than
+'' 'T( v )' over pointers and enums. tiko built the value anyway or stopped on TKO0994.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/ctor-init-arg.tiko -o tests/diagnostics/src/ctor-init-arg.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: ctor-init-arg.tiko(63,11): error TKO0738: no conversion between these two types
+'' EXPECT-OUT: ctor-init-arg.tiko(64,30): error TKO0738: no conversion between these two types
+'' EXPECT-OUT: ctor-init-arg.tiko(77,11): error TKO0738: no conversion between these two types
+'' EXPECT-OUT: ctor-init-arg.tiko(78,11): error TKO0738: no conversion between these two types
+'' EXPECT-OUT: ctor-init-arg.tiko(79,11): error TKO0738: no conversion between these two types
+'' EXPECT-OUT: ctor-init-arg.tiko(80,11): error TKO0738: no conversion between these two types
+'' EXPECT-OUT: ctor-init-arg.tiko(81,11): error TKO0738: no conversion between these two types
+'' EXPECT-OUT: ctor-init-arg.tiko(82,11): error TKO0738: no conversion between these two types
+'' EXPECT-OUT: ctor-init-arg.tiko(83,11): error TKO0738: no conversion between these two types
+'' EXPECT-OUT: ctor-init-arg.tiko(84,11): error TKO0738: no conversion between these two types
+'' EXPECT-OUT: ctor-init-arg.tiko(85,11): error TKO0738: no conversion between these two types
+'' EXPECT-OUT: ctor-init-arg.tiko(86,11): error TKO0738: no conversion between these two types
+'' EXPECT-OUT: ctor-init-arg.tiko(87,11): error TKO0738: no conversion between these two types
+'' EXPECT-OUT: ctor-init-arg.tiko(88,11): error TKO0738: no conversion between these two types
+'' EXPECT-OUT: ctor-init-arg.tiko(89,11): error TKO0738: no conversion between these two types
+'' EXPECT-OUT: ctor-init-arg.tiko(90,16): error TKO0738: no conversion between these two types
+'' EXPECT-OUT: ctor-init-arg.tiko(91,18): error TKO0738: no conversion between these two types
+'' EXPECT-OUT: ctor-init-arg.tiko(92,32): error TKO0738: no conversion between these two types
+'' EXPECT-OUT: ctor-init-arg.tiko(94,18): error TKO0738: no conversion between these two types
+'' EXPECT-NOT: TKO0994
+'' EXPECT-MAX-DIAG: 19
