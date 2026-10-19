@@ -1,0 +1,15 @@
+'' A STRING INTRINSIC OVER A MIXED USTRING CHAIN READS THE FOLD'S OWN TEMPORARY. A chain
+'' with a term to convert ('u & str( i )', 'u & z', 'u & i') was folded and then ASSIGNED
+'' into a fresh descriptor, which fb_UStrAssign leaves an ordinary string: fb_UStrLen,
+'' fb_UStrRightD and the rest free only a runtime temporary, so the copy leaked on every
+'' evaluation -- tracks-2026 TB-010, 1 MB per 30 s of Active Trades repaints. fbc-modern hands
+'' the reader the fold's result: 'vr = fb_UStrConcatUA( &TMP, ... ); fb_UStrLen( vr, -1 )'.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ustring-chain-intrin-temp.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_UStrConcatUA
+'' EXPECT-OUT: fb_UStrConcatAU
+'' EXPECT-OUT: fb_UStrRightD
+'' EXPECT-NOT: fb_UStrAssign(

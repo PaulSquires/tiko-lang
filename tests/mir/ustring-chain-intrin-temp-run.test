@@ -1,0 +1,15 @@
+'' TB-010, RUN: the values are unchanged by reading the fold's temporary directly. Output
+'' measured with fbc-modern 1.20 (2026-10-19).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/mir/src/ustring-chain-intrin-temp.bas -o tests/mir/ustrchainintrintemp.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/mir/ustrchainintrintemp.exe
+'' RUN: tests/mir/ustrchainintrintemp.exe
+'' EXPECT-RUN-OUT:  5
+'' EXPECT-RUN-OUT: c42
+'' EXPECT-RUN-OUT: 42a
+'' EXPECT-RUN-OUT: ABCXY
+'' EXPECT-RUN-OUT: c4
+'' EXPECT-RUN-OUT:  10
+'' EXPECT-RUN-OUT: eq

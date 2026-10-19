@@ -136,14 +136,6 @@ function ConcatTermsToTempDesc_ _
 
     if terms.Count < 2 then return false
 
-    dim as int32 slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
-    if slot < 0 then return false
-    dim as MirValue tmp
-    tmp.kind = cast( uint8, MV_LOCAL )
-    tmp.ty = cast( uint8, MT_PTR )
-    tmp.id = slot
-    ZeroStrDescriptor( c, tmp )
-
     dim as boolean isU = ConcatTermsAreU_( c, terms )
 
     '' A USTRING CHAIN RENDERING A NUMBER FOLDS by flavour -- measured, 'Show( w & " (" & n &
@@ -151,11 +143,29 @@ function ConcatTermsToTempDesc_ _
     '' digits into this temporary as UTF-16 was every garbled "(expected N, got M)".
     '' ...AND SO DOES ANY USTRING CHAIN WITH A TERM TO CONVERT: 'print what & str( dws )'
     '' concat-assigned the NARROW str( ) result as if it were UTF-16 -- a crash in test_dates.
+    ''
+    '' THE OPERAND IS THE FOLD'S OWN LAST TEMPORARY, not a copy of it. This assigned the fold
+    '' into a fresh descriptor, and fb_UStrAssign leaves its DESTINATION an ordinary string:
+    '' the reader -- fb_UStrLen, fb_UStrRightD, a compare, the next concat -- frees an operand
+    '' only when the runtime made it as a temporary, so that copy was never freed by anyone.
+    '' 'len( u & str( i ) )' leaked its text on every evaluation; an Active Trades repaint
+    '' in tracks-2026, 'right( pad & str( kept ), n )' per money cell, grew 1 MB every 30 s
+    '' under a quote stream (TB-010). Measured, fbc-modern hands the reader the fold's result
+    '' directly: 'vr$3 = fb_UStrConcatUA( &TMP, A, -1, vr$0, -1 ); fb_UStrLen( vr$3, -1 )'.
     if isU andalso (ChainHasRenderedNumber_( c, terms ) orelse StrChainNeedsConvert( c, true, terms )) then
-        if LowerUStrChain( c, tmp, true, terms, false ) = false then return false
-        outv = tmp
+        dim as MirValue folded = NoVal( )         '' no destination: LowerUStrChain hands it back
+        if LowerUStrChain( c, folded, true, terms, false ) = false then return false
+        outv = folded
         return true
     end if
+
+    dim as int32 slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+    if slot < 0 then return false
+    dim as MirValue tmp
+    tmp.kind = cast( uint8, MV_LOCAL )
+    tmp.ty = cast( uint8, MT_PTR )
+    tmp.id = slot
+    ZeroStrDescriptor( c, tmp )
 
     dim as containers.Array( of uint32 ) args
     args.Push( cast( uint32, tmp.kind ) ) : args.Push( cast( uint32, tmp.id ) )

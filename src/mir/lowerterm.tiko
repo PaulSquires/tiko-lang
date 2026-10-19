@@ -823,6 +823,8 @@ function LowerUStrChain _
         accU = accU orelse termU
     next
 
+    '' NO DESTINATION (dst MV_NONE) hands back the fold's own temporary: see ConcatTermsToTempDesc_.
+    if dst.kind = cast( uint8, MV_NONE ) then dst = acc : return accU
     '' ...and the accumulator into the destination, which is the same four-way choice
     '' one more time.
     dim as int64 flag = 0
