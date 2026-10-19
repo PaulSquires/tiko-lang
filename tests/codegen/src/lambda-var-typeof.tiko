@@ -1,0 +1,28 @@
+var later = function( byref x as long, byref y as long ) as boolean
+    return x > y
+end function
+print sizeof( typeof( later ) )
+type Holder( of F )
+    as F f
+end type
+dim h as Holder( of typeof( later ) )
+h.f = later
+print h.f( 3, 2 )
+
+function twice( byval a as long ) as long
+    return a * 2
+end function
+var v = @twice
+print sizeof( typeof( v ) )
+dim w as typeof( v ) = v
+print w( 4 )
+
+sub inner( )
+    var bump = function( byval x as long ) as long
+        return x + 1
+    end function
+    print sizeof( typeof( bump ) )
+    dim k as typeof( bump ) = bump
+    print k( 1 )
+end sub
+inner( )

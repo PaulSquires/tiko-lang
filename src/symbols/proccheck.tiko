@@ -1183,6 +1183,50 @@ private sub UdtCastOperands_ ( byref c as Ctx, byval id as NodeId, byval bp as B
     if bad then Report0820_( c, id, lcase( TokenKindText( op ) ) )
 end sub
 
+'' IS t, OR A TYPE IT EXTENDS, THE TYPE p?
+private function IsOrExtends_ ( byref c as Ctx, byval t as TypeId, byval p as TypeId ) as boolean
+    for guard as int32 = 0 to 63
+        if t = TYPE_NONE then return false
+        if t = p then return true
+        t = c.types->Unqualify( c.types->BaseOf( t ) )
+    next
+    return false
+end function
+
+'' COULD ANY OPERATOR OF THIS NAME COMPARE lt WITH rt? Check binds the one that does
+'' (RefOf); this declines only where it might have missed one. Measured on fbc-modern
+'' 1.20, 2026-10-18: with a global 'operator =( Other, Other )' in scope, 'x = y' over a
+'' type with no '=' is still error 20. tiko declined on ANY procedure named '=', the
+'' comparison went untyped, and the build stopped on TKO0994 -- any program importing
+'' std/fs (FileId's '=') hit it. An operator is out only when it is not generic and both
+'' its parameters are UDTs neither operand is or extends; anything less certain declines.
+private function CmpOpMayApply_ _
+    ( byref c as Ctx, byref nm as string, byval lt as TypeId, byval rt as TypeId ) as boolean
+    dim as InternId want = c.names->Fold( c.names->GetString( nm ) )
+    for i as int32 = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        if s->kind <> cast( uint8, SYM_PROC ) then continue for
+        if c.names->Fold( s->name ) <> want then continue for
+        dim as NodeId pn = cast( NodeId, s->payload )
+        if (pn = NODE_NONE) orelse (c.ast->Kind( pn ) <> N_PROC) then return true
+        dim as StmtPayload ptr pp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
+        if (pp->extra and PF_GENERIC_PROC) <> 0 then return true
+        dim as int32 np = 0
+        for k as int32 = 0 to pp->count - 1
+            dim as NodeId prm = cast( NodeId, c.ast->children[pp->first + k] )
+            if c.ast->Kind( prm ) <> N_PARAM then continue for
+            np += 1
+            dim as StmtPayload ptr qp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, prm )].data )]
+            dim as TypeId p = c.types->Unqualify( c.info->TypeOf_( qp->a ) )
+            if c.types->Kind( p ) = TK_REFERENCE then p = c.types->Unqualify( c.types->Inner( p ) )
+            if c.types->Kind( p ) <> TK_UDT then return true
+            if IsOrExtends_( c, lt, p ) orelse IsOrExtends_( c, rt, p ) then return true
+        next
+        if np <> 2 then return true
+    next
+    return false
+end function
+
 private sub CheckUdtCompare_ ( byref c as Ctx, byval id as NodeId )
     dim as BinaryPayload ptr bp = _
         @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
@@ -1230,7 +1274,8 @@ private sub CheckUdtCompare_ ( byref c as Ctx, byval id as NodeId )
     dim as boolean lUdt = (c.types->Kind( lt ) = TK_UDT)
     dim as boolean rUdt = (c.types->Kind( rt ) = TK_UDT)
     if (lUdt orelse rUdt) = false then return
-    if ProcNamedAnywhere_( c, opnm ) then return
+    if c.info->RefOf( id ) <> SYMBOL_NONE then return
+    if CmpOpMayApply_( c, opnm, lt, rt ) then return
     '' A conversion operator on the UDT may turn it into something comparable.
     if lUdt then
         if StructorOf_( c, lt, "cast" ) <> nullptr then return

@@ -180,6 +180,9 @@ declare function ChaseTypedef_ _
     ( byref c as Ctx, byval s as Tko.Symbol ptr ) as boolean
 declare function IdentNameOf _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.InternId
+'' A lone non-generic procedure's pointer type, read from its declaration -- genericinfer.tiko.
+declare function ProcPtrTypeOfName_ _
+    ( byref c as Ctx, byval n as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.TypeId
 declare function InstantiateGenericProc_ _
     ( byref c as Ctx, byval callId as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.SymbolId
 declare sub InstantiatePendingProcs_( byref c as Ctx )
