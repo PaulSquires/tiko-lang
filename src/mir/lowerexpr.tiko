@@ -1198,6 +1198,14 @@ function LowerExpr _
         if IsCmpOp_( op ) andalso IsFloatTy( cast( MirType, ins.ty ) ) then
             ins.ty = cast( uint8, MT_I32 )
         end if
+        '' ...AND NEVER A POINTER. A comparison Check did not type -- the one Resolve folds out
+        '' of 'f( x ) = v' over a byref f (resolveamb.tiko ReadCallAssignAsCall_, fbc's warning
+        '' 34) -- took its OPERANDS' type, so 'g( @gb ) = 9' typed '@gb = 9' as a pointer, the
+        '' argument looked converted already, and clang refused 'zext i1 to ptr'. fbc's
+        '' comparison is an INTEGER, which the argument then converts from.
+        if IsCmpOp_( op ) andalso (cast( MirType, ins.ty ) = MT_PTR) then
+            ins.ty = cast( uint8, LowerType( c.types->Builtin( Tko.TY_INTEGER ), *c.types ) )
+        end if
 
         '' THE OPERANDS ARE WIDENED TO THE RESULT, for an operation whose result IS a
         '' value of that type. The result type comes from what Check decided the

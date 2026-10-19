@@ -270,6 +270,8 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                 '' RESULT's type is the context, exactly as a declaration's is for
                 '' 'dim as P x = ( 1, 2 )'. Lowering it as an expression asked the tuple
                 '' for a type it has not got, so both declined.
+            elseif ResultSelfLet_( c, sp->b ) then
+                '' The result's own type through its same-type 'let' -- see ResultSelfLet_.
             elseif UdtConvResult_( c, sp->b, false ) then
                 '' Another type into a UDT result slot: the type's own 'let'. See UdtConvResult_.
             else

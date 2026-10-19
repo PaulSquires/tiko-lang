@@ -1,0 +1,22 @@
+'' RUN: 'function = v' of the result's own type runs its 'operator let' -- over a variable,
+'' '*p', 'this', a paren-less call, a type with a constructor and a large one -- while 'return
+'' v' copies; and 'y = MakeOne' (a paren-less call returning by value) builds. Expected output
+'' is fbc-modern 1.20's, byte for byte.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/result-let.tiko -o tests/codegen/resultlet.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/resultlet.exe
+'' RUN: tests/codegen/resultlet.exe
+'' EXPECT-RUN-OUT: alet 105
+'' EXPECT-RUN-OUT: b 5
+'' EXPECT-RUN-OUT: clet 105
+'' EXPECT-RUN-OUT: d 5
+'' EXPECT-RUN-OUT: elet 105
+'' EXPECT-RUN-OUT: fbiglet 1006
+'' EXPECT-RUN-OUT: g 6
+'' EXPECT-RUN-OUT: hlclet 17
+'' EXPECT-RUN-OUT: i 7
+'' EXPECT-RUN-OUT: jletlet 105
+'' EXPECT-RUN-OUT: klet 103
+'' EXPECT-RUN-OUT: letl 103
