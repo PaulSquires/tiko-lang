@@ -30,7 +30,7 @@ A brace list fills one at the declaration: `dim l as LinkedList( of long ) = { 1
 
 ## When To Use It
 
-It is the least important of the four containers, and it is here so that the answer to "what if I need a queue" is not "write your own".
+For a queue, reach first for a [Deque](Category-Deque): the same O(1) work at both ends, plus indexing, and no allocation per element.
 
 Prefer Array unless one of these is what you actually need:
 

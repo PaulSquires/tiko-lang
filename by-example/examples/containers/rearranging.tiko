@@ -1,0 +1,34 @@
+#import "std/containers"
+
+sub Show( byref label as ustring, byref xs as containers.Array( of int32 ) )
+    print label;
+    for each x in xs
+        print x;
+    next
+    print
+end sub
+
+dim xs as containers.Array( of int32 ) = { 5, 5, 1, 3, 3, 3, 8 }
+
+containers.ReverseArray( xs )
+Show( "reversed:", xs )
+containers.RotateArray( xs, 2 )
+Show( "rotated 2:", xs )
+
+'' Dedup removes RUNS of equal values; sort first to remove them all.
+containers.Sort( xs )
+print "dedup removed"; containers.Dedup( xs )
+Show( "distinct:", xs )
+
+'' Every ordering of three values, in sorted order.
+dim p as containers.Array( of int32 ) = { 1, 2, 3 }
+do
+    Show( "  ", p )
+loop while containers.NextPermutation( p )
+
+'' The two smallest, and the middle value, without a full sort.
+dim big as containers.Array( of int32 ) = { 42, 7, 19, 88, 3, 61, 25 }
+containers.PartialSort( big, 2 )
+print "two smallest:"; big[ 0 ]; big[ 1 ]
+containers.NthElement( big, 3 )
+print "median:"; big[ 3 ]

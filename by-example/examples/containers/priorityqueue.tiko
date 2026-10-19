@@ -1,0 +1,25 @@
+#import "std/containers"
+
+'' A PriorityQueue hands back its smallest element first.
+dim deadlines as containers.PriorityQueue( of int32 )
+dim days( 0 to 4 ) as int32 = { 14, 3, 30, 7, 3 }
+for i as int32 = 0 to 4
+    deadlines.Push( days( i ) )
+next
+print "soonest:"; deadlines.Peek( )
+do until deadlines.IsEmpty( )
+    print deadlines.Pop( );
+loop
+print
+
+'' Any other order needs a comparer: does a leave before b?
+type Bigger as function( byref a as int32, byref b as int32 ) as boolean
+dim biggest as Bigger = function( byref a as int32, _
+                                  byref b as int32 ) as boolean
+    return a > b
+end function
+
+dim bids as containers.PriorityQueueBy( of int32, Bigger ) = _
+    containers.PriorityQueueBy( of int32, Bigger )( biggest )
+bids.Push( 120 ) : bids.Push( 450 ) : bids.Push( 300 )
+print "top bid:"; bids.Pop( ); ", then"; bids.Pop( )

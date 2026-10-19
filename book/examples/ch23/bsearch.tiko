@@ -1,0 +1,14 @@
+#import "std/containers"
+
+'' A sorted array answers "where?" by halving, not by scanning.
+dim xs as containers.Array( of int32 ) = { 12, 15, 15, 15, 22, 30 }
+dim as int32 v = 15, hit = 22, miss = 20
+
+print "first 15 at"; containers.LowerBound( xs, v )
+print "after the 15s:"; containers.UpperBound( xs, v )
+print "how many 15s:"; _
+    containers.UpperBound( xs, v ) - containers.LowerBound( xs, v )
+
+print "22 found at"; containers.BinarySearch( xs, hit )
+dim r as int32 = containers.BinarySearch( xs, miss )
+print "20 gives "; r; ", so it belongs at"; -( r + 1 )

@@ -27,9 +27,13 @@ so you choose the element type when you declare one, and each works with
 | [`Set( of T )`](set.md) | each value at most once | "is it in?", set operations |
 | [`OrderedMap`, `OrderedSet`](ordered.md) | keys kept sorted | order, nearest key |
 | [`LinkedList( of T )`](linkedlist.md) | elements in a chain | adding and removing at both ends |
+| [`Deque( of T )`](deque.md) | elements in a ring | both ends, and by index |
+| [`PriorityQueue( of T )`](priorityqueue.md) | elements by priority | taking the smallest next |
+| [`BitSet`](bitset.md) | small numbers, one bit each | flags, sets of indices |
 
 The rest of the section covers [sorting](sorting.md),
-[searching](searching.md), [keys of your own](custom-keys.md) and
+[searching](searching.md), [rearranging](rearranging.md),
+[keys of your own](custom-keys.md) and
 [brace-list initialisers](initialisers.md).
 
 Copying a container copies every element in it, so pass containers to

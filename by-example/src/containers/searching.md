@@ -2,7 +2,9 @@
 
 `containers.IndexOf( xs, v )` returns the index of the first element equal to
 `v`, or -1 when there is none; `containers.Contains( xs, v )` says whether there
-is one. Both look at the elements one at a time, from the front.
+is one. Both look at the elements one at a time, from the front. On a
+**sorted** array, `BinarySearch`, `LowerBound` and `UpperBound` halve the range
+at each step instead: about 20 looks for a million elements.
 
 ```tiko
 {{#include ../../examples/containers/searching.tiko}}
@@ -14,24 +16,31 @@ is one. Both look at the elements one at a time, from the front.
 {{#include ../../examples/containers/searching.out}}
 ```
 
-`IndexOf` and `Contains` are free procedures rather than members of `Array`
-because they need `=` on the element type. A member would demand `=` of every
-element type an `Array` is ever declared with; a free procedure asks only where
-it is called.
+| Procedure | Returns | Needs |
+|---|---|---|
+| `IndexOf( xs, v )` | first index equal to `v`, or -1 | `=` |
+| `Contains( xs, v )` | whether there is one | `=` |
+| `BinarySearch( xs, v )` | first index equal to `v`; on a miss, `-( insertion point ) - 1` | sorted, `<` |
+| `LowerBound( xs, v )` | first index not less than `v` | sorted, `<` |
+| `UpperBound( xs, v )` | first index greater than `v` | sorted, `<` |
 
-On a **sorted** array, a binary search finds a value by halving the range at
-each step: about 20 looks for a million elements, where `IndexOf` may need a
-million. The module has no binary search of its own, so `BinarySearch` here is
-written out; it relies on the array being sorted, which is why the example
-calls `Sort` first. When you search the same values often, an
-[`OrderedSet`](ordered.md) keeps them sorted for you, and a [`Set`](set.md)
-answers `Contains` without searching at all.
+A miss in `BinarySearch` is always negative, and `-( r + 1 )` turns it back
+into the index where the value would go. `UpperBound` minus `LowerBound` counts
+the copies of a value. The sorted searches trust the array to be sorted: on an
+unsorted one they return some index without complaint. Each has a `...By` form
+taking a comparer, for an array sorted with `SortBy`.
+
+These are free procedures rather than members of `Array` because they need `=`
+or `<` on the element type. A member would demand that of every element type an
+`Array` is ever declared with; a free procedure asks only where it is called.
+When you search the same values often, an [`OrderedSet`](ordered.md) keeps them
+sorted for you, and a [`Set`](set.md) answers `Contains` without searching.
 
 ## The value must have the element's type
 
-`IndexOf` and `Contains` are generic, and their type is inferred from **both**
-arguments, exactly. That is why the example puts 85 and 60 in `int32`
-variables instead of writing them as literals:
+The searches are generic, and their type is inferred from **both** arguments,
+exactly. That is why the example puts 85, 60 and 90 in `int32` variables instead
+of writing them as literals:
 
 ```tiko
 {{#include ../../examples/containers/searchliteral.tiko}}
@@ -47,6 +56,7 @@ as the message suggests: `containers.Contains( of int32 )( scores, 90 )`.
 
 ### Activities
 
-1. Make `BinarySearch` return the first of several equal values (the array
-   holds 85 twice).
-2. Use `cast( int32, 85 )` as the second argument of `IndexOf`.
+1. Search the sorted scores for 85 with `BinarySearch`, then with
+   `UpperBound`. Which index does each give, and why?
+2. Insert 75 at the position a missed `BinarySearch` reports, and print the
+   array to check it is still sorted.

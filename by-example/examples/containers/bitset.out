@@ -1,0 +1,6 @@
+taken: 5 of 40
+seat 7 taken? true
+first free seat: 3
+first free after 7: 8
+taken seats: 0 1 2 7 39
+clash: 2, still free: 2

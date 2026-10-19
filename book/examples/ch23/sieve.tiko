@@ -1,0 +1,33 @@
+#import "std/containers"
+
+const LIMIT = 50
+
+'' Sieve of Eratosthenes: one bit per number below LIMIT.
+dim composite as containers.BitSet = containers.BitSet( LIMIT )
+for n as int32 = 2 to LIMIT - 1
+    if composite.Test( n ) = false then
+        for m as int32 = n * n to LIMIT - 1 step n
+            composite.Set( m )
+        next
+    end if
+next
+
+dim primes as containers.BitSet
+for n as int32 = 2 to LIMIT - 1
+    if composite.Test( n ) = false then primes.Set( n )
+next
+print "primes below"; LIMIT; ":"; primes.CountOnes( )
+for each p in primes
+    print p;
+next
+print
+
+'' Set algebra, one machine word at a time.
+dim odd as containers.BitSet
+for n as int32 = 1 to LIMIT - 1 step 2
+    odd.Set( n )
+next
+dim even as containers.BitSet = primes
+even.DifferenceWith( odd )
+print "even primes:"; even.CountOnes( ); _
+    ", the first is"; even.FirstSet( )

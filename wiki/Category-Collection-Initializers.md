@@ -34,7 +34,7 @@ A brace list says the same in one line.
 1. **needs construction**: it has a constructor of its own, or a field that needs one (a dynamic array, a `string` or `ustring`, an object with a constructor), and
 2. **has a member procedure** named `Add`, `PushBack` or `Push`, looked for in that order. Members inherited from a base type count.
 
-Every container in `containers` qualifies. So does a type of your own:
+Every container in `containers` qualifies except `BitSet`, which has no `Add`, `PushBack` or `Push` (TKO0843). So does a type of your own:
 
 ```freebasic
 type Bag
