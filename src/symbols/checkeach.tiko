@@ -61,7 +61,15 @@ private function EachTypeName_( byref c as Ctx, byval t as Tko.TypeId ) as strin
     return "(" & r & ")"
 end function
 
-private sub InferForEachVarTypes_( byref c as Ctx )
+'' Returns how many loop variables it typed. A NESTED loop over a member of the OUTER
+'' loop's variable -- 'for each lg in it.derived.legs' -- can only be typed once the outer
+'' variable is, and the inner N_FOREACH node comes FIRST in node order (its statement is
+'' built before the statement that holds it), so one pass left it untyped. Lowering then
+'' typed it late: 'lg.n' compiled, but 'dim as Leg copy = lg' had been checked against an
+'' untyped operand and declined (TKO0994, tracks-2026 TB-009). The caller repeats the
+'' pass until it types nothing more.
+private function InferForEachVarTypes_( byref c as Ctx ) as int32
+    dim as int32 typed = 0
     for i as int32 = 1 to c.ast->Count( )
         dim as Tko.NodeId n = cast( Tko.NodeId, i )
         if c.ast->Kind( n ) <> Tko.N_FOREACH then continue for
@@ -121,8 +129,10 @@ private sub InferForEachVarTypes_( byref c as Ctx )
                 vsym->type_ = c.types->Reference( vsym->type_ )
             end if
         end if
+        if vsym->type_ <> Tko.TYPE_NONE then typed += 1
     next
-end sub
+    return typed
+end function
 
 '' The declaring symbol of a UDT type. Same lookup UdtMemberSym_ does, stopping one step
 '' earlier because what is wanted here is the SCOPE and not one name in it.

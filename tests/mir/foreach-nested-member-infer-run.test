@@ -1,0 +1,16 @@
+'' TB-009, RUN: a nested FOR EACH over a member of the outer loop variable, under an outer
+'' iterator that yields BYREF from a method-call collection ('for each it in gStore.All( )').
+'' The inner N_FOREACH comes first in node order, so one inference pass left its variable
+'' untyped while the outer one was still untyped; 'dim as Leg copy = lg' and passing 'lg'
+'' byref were then TKO0994 (tracks-2026 BuildWantedSet). Inner over a collection, over an
+'' array member, and three deep. fbc-modern prints the first line, then segfaults in its own
+'' array-member loop (and wants 'it.arr( )'); the other two are summed by hand.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/mir/src/foreach-nested-member-infer.bas -o tests/mir/foreachnestedinfer.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/mir/foreachnestedinfer.exe
+'' RUN: tests/mir/foreachnestedinfer.exe
+'' EXPECT-RUN-OUT:  439
+'' EXPECT-RUN-OUT:  22
+'' EXPECT-RUN-OUT:  4710

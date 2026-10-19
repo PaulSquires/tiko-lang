@@ -1481,7 +1481,7 @@ function Run _
     RecordUdtBases_( c )
     InferUnusedVarTypes_( c )
     if CompleteClosureFields_( c ) > 0 then InferUnusedVarTypes_( c )
-    InferForEachVarTypes_( c )
+    while InferForEachVarTypes_( c ) > 0 : wend
     CheckForEach_( c )
     WalkAll( c )
     InferUnusedVarTypes_( c )
