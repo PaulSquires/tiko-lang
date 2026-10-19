@@ -410,6 +410,60 @@ back to.
 the characters themselves, which is what a C function needs — and what makes it your
 responsibility to keep the string alive while the pointer is in use.
 
+## Bytes as text: base64, hex and URLs
+
+Some places take only text: a JSON field, an e-mail body, a URL, a configuration file. Bytes
+that are not text — a hash, a key, an image — have to be spelled in characters that survive the
+trip. `std/codec` has the three common spellings:
+
+```tiko
+{{#include ../examples/ch08/bytesastext.tiko}}
+```
+
+```text
+{{#include ../examples/ch08/bytesastext.out}}
+```
+
+**Hex** writes each byte as two digits: twice the size, and readable. **Base64** packs three bytes
+into four characters, a third bigger than the bytes; its URL-safe alphabet swaps `+` and `/` for
+`-` and `_`, and usually drops the `=` padding. **Base32** (`Base32Encode`) uses only capital
+letters and digits, for codes that people type. Each has an `…Encode`, a `…Decode` that fills a
+`containers.Array( of ubyte )`, and a `…DecodeText` that returns a `ustring` — text is encoded as
+its UTF-8 bytes, so `…DecodeText` gives back exactly the text that went in.
+
+A decoder can be lenient or exact. These are exact:
+
+```tiko
+{{#include ../examples/ch08/strictdecode.tiko}}
+```
+
+```text
+{{#include ../examples/ch08/strictdecode.out}}
+```
+
+The second input lost its padding, the third gained a space, and the fourth has a final character
+whose unused low bits are not zero — three different damages, each refused with the position of
+the first bad character. A lenient decoder would have returned *something* for all three, and the
+fourth would have decoded to `hello`, so a corrupted value would have compared equal to the
+original. When the input is known to be loose, say so: `DECODE_IGNORE_WHITESPACE` and
+`DECODE_ALLOW_MISSING_PAD`, combined with `or`, relax exactly those two rules.
+
+Text inside a URL needs a different treatment. **Percent-encoding** keeps letters, digits and
+`- . _ ~`, and writes every other byte of the UTF-8 as `%` and two hex digits:
+
+```tiko
+{{#include ../examples/ch08/urlencode.tiko}}
+```
+
+```text
+{{#include ../examples/ch08/urlencode.out}}
+```
+
+The mode decides what else survives. `PCT_COMPONENT`, the default, is for one value placed inside a
+URL, and escapes `/` and `&` because they would end it. `PCT_PATH` keeps the path's own `/`.
+`PCT_QUERY` is the encoding an HTML form submits, with a space as `+`. Decode with the mode you
+encoded with: `+` means a space only in `PCT_QUERY`.
+
 ## Working with letters
 
 ```tiko
@@ -481,6 +535,9 @@ form`. Give the type an `operator cast( ) as ustring` — Chapter 12 — and it 
   in a variable is checked when it runs, and a bad one stops the program; for format strings that
   are data, `TryFormat` returns a `Result` instead.
 - **CSV is not a `Split` problem** — use `SplitCsv` or `SplitCsvRow`, which understand quoting.
+- `#import "std/codec"`: `HexEncode`, `Base64Encode` (standard or URL-safe) and `Base32Encode`
+  spell bytes as text; `…Decode` and `…DecodeText` are **strict** and report the position of the
+  first bad character. `PercentEncode` makes text safe in a URL — component, path or form query.
 - `mk*`/`cv*` pack numbers into bytes; `lset`/`rset` align in a fixed-length string; `strptr`/`sadd`
   reach the characters for C.
 - **A value with no printable form is refused by `print`** (`TKO0871`), variable or temporary.
@@ -502,3 +559,5 @@ form`. Give the type an `operator cast( ) as ustring` — Chapter 12 — and it 
 6. Print a multiplication table for 1 to 12 with `strings.Format`, every column right-aligned.
    Then make the column width depend on the largest product, so the table still lines up for 1 to
    99.
+7. Encode the bytes 0 to 255 in base64, then decode the result with one character changed in
+   each position in turn. Does every change get refused? Which ones decode, and to what?

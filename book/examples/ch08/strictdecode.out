@@ -1,0 +1,4 @@
+aGVsbG8= -> hello
+aGVsbG8 -> Base64DecodeText: invalid padding
+aGVs bG8= -> Base64DecodeText: invalid character at 5
+aGVsbG9= -> Base64DecodeText: non-zero trailing bits at 7

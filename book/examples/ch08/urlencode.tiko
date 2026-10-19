@@ -1,0 +1,10 @@
+#import "std/codec"
+
+dim dish as ustring = "fish & chips"
+print "component: "; codec.PercentEncode( dish )
+print "form:      "; codec.PercentEncode( dish, codec.PCT_QUERY )
+print "path:      "; _
+    codec.PercentEncode( "menu/" & dish, codec.PCT_PATH )
+
+var r = codec.PercentDecode( "fish+%26+chips", codec.PCT_QUERY )
+print "decoded:   "; r.Value( )

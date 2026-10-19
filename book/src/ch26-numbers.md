@@ -213,6 +213,33 @@ numbers every time, on every platform, which is what tests and simulations need;
 more than reproducibility, use `CryptoBytes` and `CryptoULongInt` instead: they have no seed and
 are not an `Rng`.
 
+## Identifiers
+
+A record that is made in more than one place — two servers, an offline phone, a program that
+merges files — cannot be numbered by a counter, because no one counter sees every record. A
+**UUID** is a 128-bit number chosen so that the chance of two being equal is negligible, made
+anywhere with no coordination:
+
+```tiko
+{{#include ../examples/ch26/ids.tiko}}
+```
+
+```text
+{{#include ../examples/ch26/ids.out}}
+```
+
+`uuids.NewV4( )` fills 122 bits from the operating system's secure generator, the one behind
+`CryptoBytes`: nothing about the value can be predicted from another. `uuids.NewV7( )` puts the time
+in milliseconds first and random bits after, so identifiers made later **sort later**. As database
+keys, v7 values arrive in order and keep an index compact where v4 values scatter across it; within
+one program, each `NewV7` is greater than the one before even when many are made in the same
+millisecond. The price is that a v7 value tells anyone who sees it when it was made —
+`UnixMillis( )` reads it back.
+
+`Parse` accepts the common spellings — with or without hyphens and braces, any case, or a
+`urn:uuid:` prefix — and `ToString( )` always writes the lower-case 8-4-4-4-12 form. A `Uuid` has
+`=` and `<` and a hash, so it is a `Map` or `Set` key like any built-in type.
+
 ## Statistics
 
 ```tiko
@@ -379,6 +406,8 @@ schedules, day-count conventions and portfolio returns. The calls that can fail 
 - A NaN equals nothing: use `IsNaN` and `Classify`. NaN survives `Min` and `Max`.
 - `ScopedRounding` sets the rounding mode for a scope; the exception flags record what happened.
 - `Rng` is a value: `RngSeeded` for reproducible streams, `NextInt` with both ends included.
+- `#import "std/uuids"`: `NewV4` is random, `NewV7` sorts by creation time; `Parse`,
+  `ToString`, and `Uuid` works as a map key.
 - Statistics take a `containers.Array`; `RunningStats` works in one pass; `Sum` is exact where a
   loop is not.
 - `TryParseDouble` takes the whole text or nothing; `ToString` reads back exactly.
@@ -399,3 +428,6 @@ schedules, day-count conventions and portfolio returns. The calls that can fail 
    values near the top of the range.
 5. Change the `float64` loop in `loan-payment.tiko` so its last payment absorbs the remainder.
    Does the balance now end at exactly zero?
+6. Make 1000 `NewV7` identifiers in an ordinary array, put them in random order with
+   `numeric.Shuffle` and a seeded `Rng`, copy them into a `containers.Array` and `Sort` it, and
+   check they come back in the order they were made. What would the same test show for `NewV4`?
