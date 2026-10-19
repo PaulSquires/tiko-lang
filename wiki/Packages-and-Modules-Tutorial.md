@@ -184,7 +184,7 @@ Every module below is imported as `#import "std/<name>"` and used as `<name>.Som
 | Module | What it holds | Reference |
 |---|---|---|
 | `std/strings` | `Split`, `Join`, `Replace`, `Between`, padding, `Format` | [String Library](Category-String-Library) · [Format](Category-Format) |
-| `std/containers` | `Array`, `Map`, `Set`, `OrderedMap`, `OrderedSet`, `LinkedList`, sorting | [Map](Category-Map) · [Array](Category-Array) · [Sorting](Category-Sorting) |
+| `std/containers` | `Array`, `Map`, `Set`, `OrderedMap`, `OrderedSet`, `LinkedList`, `PriorityQueue`, `Deque`, `BitSet`, sorting, searching | [Map](Category-Map) · [Array](Category-Array) · [Sorting](Category-Sorting) · [Searching](Category-Searching) |
 | `std/fs` | Paths, files, directories, globbing | [Filesystem](Category-Filesystem) |
 | `std/chrono` | Dates, times, durations, time zones | [Date and Time](Category-Date-and-Time-Chrono) |
 | `std/tasks` | `spawn`, channels, `select channel`, wait groups (build with `-mt`) | [Goroutines and Channels](Category-Goroutines-and-Channels) |

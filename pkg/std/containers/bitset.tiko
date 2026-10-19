@@ -1,0 +1,327 @@
+#module "containers"
+'' std/containers: bitset -- containers.BitSet, a growable set of bit indices
+''
+'' C:\dev\docs\tiko-stdlib\RFC-0001 section 4.3.
+''
+''     dim b as containers.BitSet
+''     b.Set( 3 ) : b.Set( 70 )
+''     print b.Test( 70 ), b.CountOnes( )          '' true  2
+''     for each i as long in b                      '' 3, then 70
+''
+'' Bits live in 64-bit words.  Indices are 0-based -- a bit index is not a
+'' string position.  Set grows the set as needed; Test beyond Length( ) is
+'' FALSE; Reset and Flip beyond Length( ) grow it like Set does, so that Flip
+'' of a bit never seen before reads back TRUE.
+''
+'' Length( ) is the number of addressable bits, not the number set: CountOnes( )
+'' is that.  a.Equals( b ) when the two have the same bits set, whatever their
+'' lengths.
+''
+'' EQUALS, NOT '='.  A global 'operator =' exported from this module would sit
+'' in scope for every importer, and while ANY global '=' is in scope, comparing a
+'' type that has no '=' is an internal compiler error (TKO0994) instead of
+'' TKO0720 -- measured 2026-10-18 (tests/std/generics/fail-container-noequals).
+'' Add the operator once that is fixed.
+''
+'' The set operations work in place on the left operand, and a shorter right
+'' operand counts as zeros beyond its length.
+
+public type BitSetIterator
+    as any ptr src
+    as long idx         '' the current set bit, or -1 when done
+    declare function IsValid( ) as boolean
+    declare function Value( ) as long
+    declare sub MoveNext( )
+end type
+
+public type BitSet
+    as ulongint words( any )
+    as long nbits
+
+    declare constructor( byval nbits as long = 0 )
+    declare sub Set( byval i as long, byval v as boolean = TRUE )
+    declare sub Reset( byval i as long )
+    declare sub Flip( byval i as long )
+    declare function Test( byval i as long ) as boolean
+    declare function Length( ) as long
+    declare sub Resize( byval nbits as long )
+    declare function CountOnes( ) as long
+    declare function FirstSet( byval from_ as long = 0 ) as long
+    declare function NextClear( byval from_ as long = 0 ) as long
+    declare sub SetAll( )
+    declare sub ClearAll( )
+    declare sub UnionWith( byref o as BitSet )
+    declare sub IntersectWith( byref o as BitSet )
+    declare sub DifferenceWith( byref o as BitSet )
+    declare sub SymmetricDifferenceWith( byref o as BitSet )
+    declare function IsSubsetOf( byref o as BitSet ) as boolean
+    declare function IsEmpty( ) as boolean
+    declare function Equals( byref o as BitSet ) as boolean
+    declare function GetIterator( ) as BitSetIterator
+end type
+
+'' -------------------------------------------------------------- internal
+
+function BitsPopCount( byval x as ulongint ) as long
+    x = x - ( ( x shr 1 ) and &h5555555555555555ull )
+    x = ( x and &h3333333333333333ull ) + ( ( x shr 2 ) and &h3333333333333333ull )
+    x = ( x + ( x shr 4 ) ) and &h0F0F0F0F0F0F0F0Full
+    return clng( ( x * &h0101010101010101ull ) shr 56 )
+end function
+
+'' Index of the lowest set bit; x must not be 0.
+function BitsLowest( byval x as ulongint ) as long
+    dim as long n = 0
+    if( ( x and &hFFFFFFFFull ) = 0 ) then n += 32 : x shr= 32
+    if( ( x and &hFFFFull ) = 0 ) then n += 16 : x shr= 16
+    if( ( x and &hFFull ) = 0 ) then n += 8 : x shr= 8
+    if( ( x and &hFull ) = 0 ) then n += 4 : x shr= 4
+    if( ( x and &h3ull ) = 0 ) then n += 2 : x shr= 2
+    if( ( x and &h1ull ) = 0 ) then n += 1
+    return n
+end function
+
+'' -------------------------------------------------------------- BitSet
+
+constructor BitSet( byval nbits as long )
+    this.nbits = 0
+    if( nbits > 0 ) then
+        this.Resize( nbits )
+    end if
+end constructor
+
+function BitSet.Length( ) as long
+    return this.nbits
+end function
+
+'' Shrinking clears the bits that fall off, so growing again reads zeros.
+sub BitSet.Resize( byval nbits as long )
+    if( nbits < 0 ) then
+        nbits = 0
+    end if
+    dim as long nw = ( nbits + 63 ) \ 64
+    dim as long have = ubound( this.words ) + 1
+    if( nw <> have ) then
+        if( nw = 0 ) then
+            erase this.words
+        else
+            redim preserve this.words( 0 to nw - 1 )
+        end if
+    end if
+    if( nw > 0 ) then
+        dim as long rem_ = nbits mod 64
+        if( rem_ <> 0 ) then
+            this.words( nw - 1 ) and= ( ( 1ull shl rem_ ) - 1 )
+        end if
+    end if
+    this.nbits = nbits
+end sub
+
+sub BitSet.Set( byval i as long, byval v as boolean )
+    if( i < 0 ) then
+        exit sub
+    end if
+    if( i >= this.nbits ) then
+        if( v = FALSE ) then
+            this.Resize( i + 1 )
+            exit sub
+        end if
+        this.Resize( i + 1 )
+    end if
+    if( v ) then
+        this.words( i shr 6 ) or= ( 1ull shl ( i and 63 ) )
+    else
+        this.words( i shr 6 ) and= not ( 1ull shl ( i and 63 ) )
+    end if
+end sub
+
+sub BitSet.Reset( byval i as long )
+    this.Set( i, FALSE )
+end sub
+
+sub BitSet.Flip( byval i as long )
+    if( i < 0 ) then
+        exit sub
+    end if
+    if( i >= this.nbits ) then
+        this.Resize( i + 1 )
+    end if
+    this.words( i shr 6 ) xor= ( 1ull shl ( i and 63 ) )
+end sub
+
+function BitSet.Test( byval i as long ) as boolean
+    if( ( i < 0 ) orelse ( i >= this.nbits ) ) then
+        return FALSE
+    end if
+    return ( this.words( i shr 6 ) and ( 1ull shl ( i and 63 ) ) ) <> 0
+end function
+
+function BitSet.CountOnes( ) as long
+    dim as long n = 0
+    for w as long = 0 to ubound( this.words )
+        n += BitsPopCount( this.words( w ) )
+    next
+    return n
+end function
+
+function BitSet.IsEmpty( ) as boolean
+    for w as long = 0 to ubound( this.words )
+        if( this.words( w ) <> 0 ) then
+            return FALSE
+        end if
+    next
+    return TRUE
+end function
+
+'' The first set bit at or after from_, or -1.
+function BitSet.FirstSet( byval from_ as long ) as long
+    if( from_ < 0 ) then
+        from_ = 0
+    end if
+    if( from_ >= this.nbits ) then
+        return -1
+    end if
+    dim as long w = from_ shr 6
+    dim as ulongint cur = this.words( w ) and ( ( not 0ull ) shl ( from_ and 63 ) )
+    do
+        if( cur <> 0 ) then
+            return w * 64 + BitsLowest( cur )
+        end if
+        w += 1
+        if( w > ubound( this.words ) ) then
+            return -1
+        end if
+        cur = this.words( w )
+    loop
+end function
+
+'' The first clear bit at or after from_.  Never -1: past Length( ) every bit
+'' is clear, so the answer is at most max( from_, Length( ) ).
+function BitSet.NextClear( byval from_ as long ) as long
+    if( from_ < 0 ) then
+        from_ = 0
+    end if
+    if( from_ >= this.nbits ) then
+        return from_
+    end if
+    dim as long w = from_ shr 6
+    dim as ulongint cur = ( not this.words( w ) ) and ( ( not 0ull ) shl ( from_ and 63 ) )
+    do
+        if( cur <> 0 ) then
+            dim as long r = w * 64 + BitsLowest( cur )
+            if( r > this.nbits ) then
+                r = this.nbits
+            end if
+            return r
+        end if
+        w += 1
+        if( w > ubound( this.words ) ) then
+            return this.nbits
+        end if
+        cur = not this.words( w )
+    loop
+end function
+
+sub BitSet.SetAll( )
+    for w as long = 0 to ubound( this.words )
+        this.words( w ) = not 0ull
+    next
+    this.Resize( this.nbits )       '' clears the unused tail of the last word
+end sub
+
+sub BitSet.ClearAll( )
+    for w as long = 0 to ubound( this.words )
+        this.words( w ) = 0
+    next
+end sub
+
+sub BitSet.UnionWith( byref o as BitSet )
+    if( o.nbits > this.nbits ) then
+        this.Resize( o.nbits )
+    end if
+    for w as long = 0 to ubound( o.words )
+        this.words( w ) or= o.words( w )
+    next
+end sub
+
+sub BitSet.IntersectWith( byref o as BitSet )
+    dim as long ow = ubound( o.words )
+    for w as long = 0 to ubound( this.words )
+        if( w <= ow ) then
+            this.words( w ) and= o.words( w )
+        else
+            this.words( w ) = 0
+        end if
+    next
+end sub
+
+sub BitSet.DifferenceWith( byref o as BitSet )
+    dim as long last = ubound( this.words )
+    if( ubound( o.words ) < last ) then
+        last = ubound( o.words )
+    end if
+    for w as long = 0 to last
+        this.words( w ) and= not o.words( w )
+    next
+end sub
+
+sub BitSet.SymmetricDifferenceWith( byref o as BitSet )
+    if( o.nbits > this.nbits ) then
+        this.Resize( o.nbits )
+    end if
+    for w as long = 0 to ubound( o.words )
+        this.words( w ) xor= o.words( w )
+    next
+end sub
+
+function BitSet.IsSubsetOf( byref o as BitSet ) as boolean
+    dim as long ow = ubound( o.words )
+    for w as long = 0 to ubound( this.words )
+        dim as ulongint theirs = 0
+        if( w <= ow ) then
+            theirs = o.words( w )
+        end if
+        if( ( this.words( w ) and not theirs ) <> 0 ) then
+            return FALSE
+        end if
+    next
+    return TRUE
+end function
+
+function BitSet.GetIterator( ) as BitSetIterator
+    dim it as BitSetIterator
+    it.src = @this
+    it.idx = this.FirstSet( 0 )
+    return it
+end function
+
+function BitSetIterator.IsValid( ) as boolean
+    return this.idx >= 0
+end function
+
+function BitSetIterator.Value( ) as long
+    return this.idx
+end function
+
+sub BitSetIterator.MoveNext( )
+    dim as BitSet ptr b = cptr( BitSet ptr, this.src )
+    this.idx = b->FirstSet( this.idx + 1 )
+end sub
+
+'' Same bits set, whatever the lengths.
+function BitSet.Equals( byref o as BitSet ) as boolean
+    dim as long la = ubound( this.words ), lb = ubound( o.words )
+    dim as long n = la
+    if( lb > n ) then
+        n = lb
+    end if
+    for w as long = 0 to n
+        dim as ulongint x = 0, y = 0
+        if( w <= la ) then x = this.words( w )
+        if( w <= lb ) then y = o.words( w )
+        if( x <> y ) then
+            return FALSE
+        end if
+    next
+    return TRUE
+end function

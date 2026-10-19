@@ -44,7 +44,7 @@ Every listing in the book is a real program, compiled and run on Windows and Lin
 
 ## The standard library
 
-**Collections and algorithms:** [Array](Category-Array) · [Map](Category-Map) · [Set](Category-Set) · [LinkedList](Category-LinkedList) · [OrderedMap and OrderedSet](Category-OrderedMap) · [Sorting](Category-Sorting)
+**Collections and algorithms:** [Array](Category-Array) · [Map](Category-Map) · [Set](Category-Set) · [LinkedList](Category-LinkedList) · [OrderedMap and OrderedSet](Category-OrderedMap) · [Sorting](Category-Sorting) · [Searching](Category-Searching) · [PriorityQueue](Category-PriorityQueue) · [Deque](Category-Deque) · [BitSet](Category-BitSet)
 
 **Values and text:** [Optional](Category-Optional) · [Result](Category-Result) · [SharedPtr and WeakPtr](Category-Smart-Pointers) · [String Library](Category-String-Library) · [Format](Category-Format)
 

@@ -14,7 +14,7 @@ libraries in `inc/fb`; that directory is gone, and its code lives here.
 |---|---|---|
 | `std/strings` | string algorithms: `Split`, `Join`, `Replace`, `Tally`, `PadLeft`, CSV, …; `Format` (C++ `std::format`) | |
 | `std/fs` | paths, directories, files, globs, links, volumes, and `std/path`'s old names | |
-| `std/containers` | `Array`, `Map`, `Set`, `LinkedList`, `OrderedMap`, `OrderedSet`, `Sort`, `HashOf`, `Hashable` | |
+| `std/containers` | `Array`, `Map`, `Set`, `LinkedList`, `OrderedMap`, `OrderedSet`, `PriorityQueue`, `Deque`, `BitSet`, `Sort`, `BinarySearch` and the other searches, `HashOf`, `Hashable` | |
 | `std/chrono` | `DateTime`, `LocalDate`, `TimeSpan`, `Instant`, `Stopwatch`, `WallClock`, the `DT_` constants | |
 | `std/tasks` | `Channel`, `WaitGroup`, `Context`, `Spawn` -- and what `spawn` and `select channel` lower to | `-mt` |
 | `std/outcome` | `Optional`, `Result`, `Some`, `None`, `Ok`, `Fail` | |

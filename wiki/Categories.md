@@ -30,6 +30,10 @@ The language and its standard library first, then the compatibility reference: t
 - [OrderedMap](Category-OrderedMap) — 18 pages
 - [OrderedSet](Category-OrderedSet) — 17 pages
 - [Sorting](Category-Sorting) — 9 pages
+- [Searching](Category-Searching) — 1 pages
+- [PriorityQueue](Category-PriorityQueue) — 1 pages
+- [Deque](Category-Deque) — 1 pages
+- [BitSet](Category-BitSet) — 1 pages
 - [Optional](Category-Optional) — 7 pages
 - [Result](Category-Result) — 10 pages
 - [Smart Pointers](Category-Smart-Pointers) — 12 pages

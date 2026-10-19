@@ -1,0 +1,10 @@
+'' RUN: std/containers phase P1 -- PriorityQueue/PriorityQueueBy/MakeHeap, Deque, BitSet and the
+'' search/rearrange algorithms (C:\dev\docs\tiko-stdlib\RFC-0001 section 4), with seeded random
+'' model checks.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/std-containers-p1.tiko -o tests/codegen/stdcontp1.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/stdcontp1.exe
+'' RUN: tests/codegen/stdcontp1.exe
+'' EXPECT-RUN-OUT: ok

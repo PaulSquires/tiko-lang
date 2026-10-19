@@ -1,0 +1,291 @@
+'' std/containers phase P1 (C:\dev\docs\tiko-stdlib\RFC-0001 section 4): PriorityQueue,
+'' PriorityQueueBy with a capturing comparer, MakeHeap, Deque (both ends, wrap-around while
+'' growing, indexing, iteration, initialiser), BitSet (growth, set algebra, iteration,
+'' equality across lengths), and the algorithms -- each cross-checked against Sort on
+'' seeded random data where a brute-force answer exists.
+#import "std/containers"
+#import "std/numeric"
+using containers
+
+dim shared as integer fails = 0
+
+sub Check( byref what as string, byval ok as boolean )
+    if ok = false then
+        print "FAIL "; what
+        fails += 1
+    end if
+end sub
+
+function Joined( byref a as Array( of long ) ) as string
+    dim as string s
+    for i as long = 0 to a.Count( ) - 1
+        if i > 0 then s &= ","
+        s &= str( a[i] )
+    next
+    return s
+end function
+
+dim as numeric.Rng rng = numeric.RngSeeded( 20261018 )
+
+'' ------------------------------------------------------------ PriorityQueue
+scope
+    dim as PriorityQueue( of long ) q
+    Check( "pq empty", q.IsEmpty( ) andalso q.Count( ) = 0 )
+    dim as long dummy = 99
+    Check( "pq trypop empty", q.TryPop( dummy ) = FALSE andalso dummy = 99 )
+    Check( "pq pop empty default", q.Pop( ) = 0 )
+    dim as long vals( 0 to 7 ) = { 5, 3, 9, 1, 7, 3, 8, 2 }
+    for i as long = 0 to 7
+        q.Push( vals( i ) )
+    next
+    Check( "pq count", q.Count( ) = 8 )
+    Check( "pq peek", q.Peek( ) = 1 )
+    dim as long n = 0
+    for each v as long in q
+        n += 1
+    next
+    Check( "pq foreach visits all", n = 8 )
+    Check( "pq sorted copy", Joined( q.ToSortedArray( ) ) = "1,2,3,3,5,7,8,9" )
+    Check( "pq copy did not drain", q.Count( ) = 8 )
+    dim as string outs
+    while q.IsEmpty( ) = FALSE
+        outs &= str( q.Pop( ) ) & " "
+    wend
+    Check( "pq order", outs = "1 2 3 3 5 7 8 9 " )
+
+    '' random: 1000 pushes and pops interleaved, compared with a sorted model
+    dim as PriorityQueue( of long ) r
+    dim as Array( of long ) model
+    dim as boolean ok = TRUE
+    for i as long = 1 to 2000
+        if ( rng.NextInt( 0, 2 ) > 0 ) orelse model.Count( ) = 0 then
+            dim as long v = rng.NextInt( -500, 500 )
+            r.Push( v ) : model.Push( v )
+        else
+            Sort( model )
+            dim as long want = model[0]
+            model.Remove( 0 )
+            if r.Pop( ) <> want then ok = FALSE
+        end if
+    next
+    Check( "pq random model", ok andalso r.Count( ) = model.Count( ) )
+
+    dim as PriorityQueue( of ustring ) s
+    s.Push( "pear" ) : s.Push( "apple" ) : s.Push( "fig" ) : s.Push( "Äpfel" )
+    dim as ustring first_ = s.Pop( )
+    Check( "pq ustring", first_ = "apple" andalso s.Pop( ) = "fig" andalso s.Pop( ) = "pear" )
+end scope
+
+'' ------------------------------------------------------------ PriorityQueueBy, MakeHeap
+scope
+    dim as long comparisons = 0
+    var later = function[ byref comparisons ]( byref x as long, byref y as long ) as boolean
+        comparisons += 1
+        return x > y
+    end function
+    dim as PriorityQueueBy( of long, typeof( later ) ) q = PriorityQueueBy( of long, typeof( later ) )( later )
+    for i as long = 1 to 10
+        q.Push( ( i * 7 ) mod 11 )
+    next
+    dim as string outs
+    while q.IsEmpty( ) = FALSE
+        outs &= str( q.Pop( ) ) & " "
+    wend
+    Check( "pqby max-first", outs = "10 9 8 7 6 5 4 3 2 1 " )
+    Check( "pqby closure ran", comparisons > 0 )
+
+    dim as Array( of long ) a = { 9, 4, 7, 1, 8, 2 }
+    dim as PriorityQueue( of long ) h = MakeHeap( a )
+    Check( "makeheap count", h.Count( ) = 6 andalso a.Count( ) = 6 )
+    Check( "makeheap order", h.Pop( ) = 1 andalso h.Pop( ) = 2 andalso h.Pop( ) = 4 )
+end scope
+
+'' ------------------------------------------------------------ Deque
+scope
+    dim as Deque( of long ) d
+    Check( "dq empty", d.IsEmpty( ) )
+    dim as long dummy = 7
+    Check( "dq trypop empty", d.TryPopFront( dummy ) = FALSE andalso d.TryPopBack( dummy ) = FALSE andalso dummy = 7 )
+    d.PushBack( 2 ) : d.PushFront( 1 ) : d.PushBack( 3 )
+    Check( "dq index", d[0] = 1 andalso d[1] = 2 andalso d[2] = 3 )
+    Check( "dq front back", d.Front( ) = 1 andalso d.Back( ) = 3 )
+    Check( "dq pops", d.PopBack( ) = 3 andalso d.PopFront( ) = 1 andalso d.Count( ) = 1 )
+
+    '' a model check through many wrap-arounds and growths
+    dim as Deque( of long ) r
+    dim as Array( of long ) model
+    dim as boolean ok = TRUE
+    for i as long = 1 to 5000
+        dim as long op = rng.NextInt( 0, 3 )
+        dim as long v = i
+        select case op
+        case 0
+            r.PushBack( v ) : model.Push( v )
+        case 1
+            r.PushFront( v ) : model.Insert( 0, v )
+        case 2
+            if model.Count( ) > 0 then
+                if r.PopBack( ) <> model.Pop( ) then ok = FALSE
+            end if
+        case 3
+            if model.Count( ) > 0 then
+                if r.PopFront( ) <> model[0] then ok = FALSE
+                model.Remove( 0 )
+            end if
+        end select
+        if r.Count( ) <> model.Count( ) then ok = FALSE
+    next
+    for i as long = 0 to model.Count( ) - 1
+        if r[i] <> model[i] then ok = FALSE
+    next
+    dim as long k = 0
+    for each v as long in r
+        if v <> model[k] then ok = FALSE
+        k += 1
+    next
+    Check( "dq random model", ok andalso k = model.Count( ) )
+    Check( "dq capacity pow2", ( r.Capacity( ) and ( r.Capacity( ) - 1 ) ) = 0 )
+
+    dim as Deque( of ustring ) s
+    for i as long = 1 to 20
+        s.PushFront( "f" & i )
+        s.PushBack( "b" & i )
+    next
+    Check( "dq ustring ends", s.Front( ) = "f20" andalso s.Back( ) = "b20" andalso s[20] = "b1" andalso s.Count( ) = 40 )
+    s.Clear( )
+    Check( "dq clear", s.Count( ) = 0 andalso s.Capacity( ) > 0 )
+
+    dim as Deque( of long ) init_ = { 4, 5, 6 }
+    Check( "dq initialiser", init_.Count( ) = 3 andalso init_[0] = 4 andalso init_[2] = 6 )
+end scope
+
+'' ------------------------------------------------------------ BitSet
+scope
+    dim as BitSet b
+    Check( "bs empty", b.Length( ) = 0 andalso b.IsEmpty( ) andalso b.FirstSet( ) = -1 )
+    b.Set( 3 ) : b.Set( 70 ) : b.Set( 64 )
+    Check( "bs length grows", b.Length( ) = 71 )
+    Check( "bs test", b.Test( 3 ) andalso b.Test( 64 ) andalso b.Test( 70 ) andalso b.Test( 4 ) = FALSE andalso b.Test( 1000 ) = FALSE andalso b.Test( -1 ) = FALSE )
+    Check( "bs count", b.CountOnes( ) = 3 )
+    dim as string seen
+    for each i as long in b
+        seen &= str( i ) & " "
+    next
+    Check( "bs iterate", seen = "3 64 70 " )
+    b.Reset( 64 ) : b.Flip( 3 ) : b.Flip( 200 )
+    Check( "bs reset flip", b.Test( 64 ) = FALSE andalso b.Test( 3 ) = FALSE andalso b.Test( 200 ) andalso b.Length( ) = 201 )
+    Check( "bs firstset from", b.FirstSet( 71 ) = 200 andalso b.FirstSet( 0 ) = 70 )
+    Check( "bs nextclear", b.NextClear( 70 ) = 71 andalso b.NextClear( 500 ) = 500 )
+
+    dim as BitSet full = BitSet( 130 )
+    full.SetAll( )
+    Check( "bs setall", full.CountOnes( ) = 130 andalso full.NextClear( 0 ) = 130 )
+    full.Resize( 65 )
+    Check( "bs shrink", full.CountOnes( ) = 65 )
+    full.Resize( 130 )
+    Check( "bs regrow zeros", full.CountOnes( ) = 65 andalso full.Test( 100 ) = FALSE )
+
+    dim as BitSet x, y
+    x.Set( 1 ) : x.Set( 2 ) : x.Set( 100 )
+    y.Set( 2 ) : y.Set( 3 )
+    dim as BitSet u = x : u.UnionWith( y )
+    dim as BitSet n_ = x : n_.IntersectWith( y )
+    dim as BitSet d_ = x : d_.DifferenceWith( y )
+    dim as BitSet s_ = x : s_.SymmetricDifferenceWith( y )
+    Check( "bs union", u.CountOnes( ) = 4 andalso u.Test( 3 ) andalso u.Test( 100 ) )
+    Check( "bs intersect", n_.CountOnes( ) = 1 andalso n_.Test( 2 ) )
+    Check( "bs difference", d_.CountOnes( ) = 2 andalso d_.Test( 1 ) andalso d_.Test( 100 ) )
+    Check( "bs symdiff", s_.CountOnes( ) = 3 andalso s_.Test( 2 ) = FALSE )
+    Check( "bs subset", n_.IsSubsetOf( x ) andalso n_.IsSubsetOf( y ) andalso x.IsSubsetOf( y ) = FALSE )
+    dim as BitSet p, q
+    p.Set( 5 ) : q.Set( 5 ) : q.Resize( 500 )
+    Check( "bs equal across lengths", p.Equals( q ) andalso q.Equals( p ) )
+    q.Set( 400 )
+    Check( "bs unequal", p.Equals( q ) = FALSE )
+end scope
+
+'' ------------------------------------------------------------ algorithms
+scope
+    dim as Array( of long ) v = { 1, 3, 3, 3, 7, 9 }
+    Check( "lowerbound", LowerBound( v, 3L ) = 1 andalso LowerBound( v, 0L ) = 0 andalso LowerBound( v, 10L ) = 6 )
+    Check( "upperbound", UpperBound( v, 3L ) = 4 andalso UpperBound( v, 9L ) = 6 )
+    Check( "bsearch hit", BinarySearch( v, 3L ) = 1 andalso BinarySearch( v, 9L ) = 5 )
+    Check( "bsearch miss", BinarySearch( v, 5L ) = -5 andalso BinarySearch( v, 0L ) = -1 andalso BinarySearch( v, 99L ) = -7 )
+    dim as Array( of long ) e
+    Check( "bsearch empty", BinarySearch( e, 1L ) = -1 andalso MinIndex( e ) = -1 )
+    var ltSeven = function( byref x as long ) as boolean
+        return x < 7
+    end function
+    Check( "partitionpoint", PartitionPoint( v, ltSeven ) = 4 )
+    Check( "min max index", MinIndex( v ) = 0 andalso MaxIndex( v ) = 5 )
+
+    dim as Array( of long ) w = { 1, 2, 3, 4, 5 }
+    ReverseArray( w ) : Check( "reverse", Joined( w ) = "5,4,3,2,1" )
+    ReverseArray( w )
+    RotateArray( w, 2 ) : Check( "rotate left", Joined( w ) = "3,4,5,1,2" )
+    RotateArray( w, -2 ) : Check( "rotate right", Joined( w ) = "1,2,3,4,5" )
+    RotateArray( w, 12 ) : Check( "rotate mod", Joined( w ) = "3,4,5,1,2" )
+
+    dim as Array( of long ) dd = { 1, 1, 2, 2, 2, 1, 3, 3 }
+    Check( "dedup count", Dedup( dd ) = 4 )
+    Check( "dedup result", Joined( dd ) = "1,2,1,3" )
+    dim as Array( of ustring ) ds = { "a", "A", "b", "B", "b" }
+    var sameCase = function( byref x as ustring, byref y as ustring ) as boolean
+        return lcase( x ) = lcase( y )
+    end function
+    Check( "dedupby", DedupBy( ds, sameCase ) = 3 andalso ds.Count( ) = 2 andalso ds[1] = "b" )
+
+    dim as Array( of long ) perm = { 1, 2, 2 }
+    dim as long count_ = 1
+    while NextPermutation( perm )
+        count_ += 1
+    wend
+    Check( "permutations distinct", count_ = 3 andalso Joined( perm ) = "1,2,2" )
+    dim as Array( of long ) p4 = { 1, 2, 3, 4 }
+    count_ = 1
+    while NextPermutation( p4 )
+        count_ += 1
+    wend
+    Check( "permutations 4!", count_ = 24 )
+
+    '' NthElement and PartialSort against a full sort, random sizes and duplicates
+    dim as boolean okN = TRUE, okP = TRUE
+    for trial as long = 1 to 200
+        dim as Array( of long ) src
+        dim as long n = rng.NextInt( 1, 300 )
+        for i as long = 1 to n
+            src.Push( rng.NextInt( 0, 50 ) )
+        next
+        dim as Array( of long ) sorted_ = src
+        Sort( sorted_ )
+        dim as long k = rng.NextInt( 0, n - 1 )
+        dim as Array( of long ) nth = src
+        NthElement( nth, k )
+        if nth[k] <> sorted_[k] then okN = FALSE
+        for i as long = 0 to k - 1
+            if nth[i] > nth[k] then okN = FALSE
+        next
+        for i as long = k + 1 to n - 1
+            if nth[i] < nth[k] then okN = FALSE
+        next
+        dim as Array( of long ) ps = src
+        PartialSort( ps, k )
+        for i as long = 0 to k - 1
+            if ps[i] <> sorted_[i] then okP = FALSE
+        next
+        Sort( ps )
+        if Joined( ps ) <> Joined( sorted_ ) then okP = FALSE
+    next
+    Check( "nthelement random", okN )
+    Check( "partialsort random", okP )
+
+    '' a sorted input is the classic quickselect degenerate case
+    dim as Array( of long ) ascv
+    for i as long = 0 to 9999
+        ascv.Push( i )
+    next
+    NthElement( ascv, 9998 )
+    Check( "nthelement sorted input", ascv[9998] = 9998 )
+end scope
+
+if fails = 0 then print "ok"
