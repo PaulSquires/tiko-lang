@@ -1,0 +1,388 @@
+#module "hash"
+#import "std/containers"
+using containers
+'' std/hash: checksums and fast non-cryptographic hashes
+''
+''     dim c as hash.Crc32
+''     c.UpdateRaw( "123456789" )
+''     print hex( c.Sum32( ) )            '' CBF43926
+''
+'' Crc32 and Crc32C are table-driven (hashtables.tiko, generated); Adler32 defers
+'' its modulo to every 5552 bytes, as zlib does; Fnv1a32/64 are one multiply
+'' per byte; XxHash64 consumes 32-byte stripes through four accumulators.  The
+'' digest of each is its Sum in big-endian bytes.
+
+'' -------------------------------------------------------------- CRC-32, both polynomials
+
+public type Crc32 extends Hasher
+    as ulong crc_
+    declare constructor( )
+    declare sub Update( byval p as const ubyte ptr, byval n as longint ) override
+    declare sub Reset( ) override
+    declare function DigestSize( ) as long override
+    declare function BlockSize( ) as long override
+    declare sub FinishInto( byval out_ as ubyte ptr ) override
+    declare function Sum32( ) as ulong
+end type
+
+constructor Crc32( )
+    this.crc_ = &hFFFFFFFF
+end constructor
+
+sub Crc32.Update( byval p as const ubyte ptr, byval n as longint )
+    dim as ulong c = this.crc_
+    for i as longint = 0 to n - 1
+        c = HashCrcIeee( ( c xor p[i] ) and &hFF ) xor ( c shr 8 )
+    next
+    this.crc_ = c
+end sub
+
+sub Crc32.Reset( )
+    this.crc_ = &hFFFFFFFF
+end sub
+
+function Crc32.DigestSize( ) as long
+    return 4
+end function
+
+function Crc32.BlockSize( ) as long
+    return 1
+end function
+
+function Crc32.Sum32( ) as ulong
+    return this.crc_ xor &hFFFFFFFF
+end function
+
+sub Crc32.FinishInto( byval out_ as ubyte ptr )
+    HashPutBE32( out_, this.Sum32( ) )
+end sub
+
+public type Crc32C extends Hasher
+    as ulong crc_
+    declare constructor( )
+    declare sub Update( byval p as const ubyte ptr, byval n as longint ) override
+    declare sub Reset( ) override
+    declare function DigestSize( ) as long override
+    declare function BlockSize( ) as long override
+    declare sub FinishInto( byval out_ as ubyte ptr ) override
+    declare function Sum32( ) as ulong
+end type
+
+constructor Crc32C( )
+    this.crc_ = &hFFFFFFFF
+end constructor
+
+sub Crc32C.Update( byval p as const ubyte ptr, byval n as longint )
+    dim as ulong c = this.crc_
+    for i as longint = 0 to n - 1
+        c = HashCrcCastagnoli( ( c xor p[i] ) and &hFF ) xor ( c shr 8 )
+    next
+    this.crc_ = c
+end sub
+
+sub Crc32C.Reset( )
+    this.crc_ = &hFFFFFFFF
+end sub
+
+function Crc32C.DigestSize( ) as long
+    return 4
+end function
+
+function Crc32C.BlockSize( ) as long
+    return 1
+end function
+
+function Crc32C.Sum32( ) as ulong
+    return this.crc_ xor &hFFFFFFFF
+end function
+
+sub Crc32C.FinishInto( byval out_ as ubyte ptr )
+    HashPutBE32( out_, this.Sum32( ) )
+end sub
+
+'' -------------------------------------------------------------- Adler-32
+
+public type Adler32 extends Hasher
+    as ulong a_, b_
+    declare constructor( )
+    declare sub Update( byval p as const ubyte ptr, byval n as longint ) override
+    declare sub Reset( ) override
+    declare function DigestSize( ) as long override
+    declare function BlockSize( ) as long override
+    declare sub FinishInto( byval out_ as ubyte ptr ) override
+    declare function Sum32( ) as ulong
+end type
+
+constructor Adler32( )
+    this.a_ = 1
+end constructor
+
+sub Adler32.Update( byval p as const ubyte ptr, byval n as longint )
+    '' 5552 is the largest run before b can pass 2^32 (zlib's NMAX)
+    dim as ulongint a = this.a_, b = this.b_
+    dim as longint i = 0
+    while( i < n )
+        dim as longint run_ = n - i
+        if( run_ > 5552 ) then
+            run_ = 5552
+        end if
+        for k as longint = 0 to run_ - 1
+            a += p[i + k]
+            b += a
+        next
+        a mod= 65521
+        b mod= 65521
+        i += run_
+    wend
+    this.a_ = a
+    this.b_ = b
+end sub
+
+sub Adler32.Reset( )
+    this.a_ = 1
+    this.b_ = 0
+end sub
+
+function Adler32.DigestSize( ) as long
+    return 4
+end function
+
+function Adler32.BlockSize( ) as long
+    return 1
+end function
+
+function Adler32.Sum32( ) as ulong
+    return ( this.b_ shl 16 ) or this.a_
+end function
+
+sub Adler32.FinishInto( byval out_ as ubyte ptr )
+    HashPutBE32( out_, this.Sum32( ) )
+end sub
+
+'' -------------------------------------------------------------- FNV-1a
+
+public type Fnv1a32 extends Hasher
+    as ulong h_
+    declare constructor( )
+    declare sub Update( byval p as const ubyte ptr, byval n as longint ) override
+    declare sub Reset( ) override
+    declare function DigestSize( ) as long override
+    declare function BlockSize( ) as long override
+    declare sub FinishInto( byval out_ as ubyte ptr ) override
+    declare function Sum32( ) as ulong
+end type
+
+constructor Fnv1a32( )
+    this.h_ = 2166136261
+end constructor
+
+sub Fnv1a32.Update( byval p as const ubyte ptr, byval n as longint )
+    dim as ulong h = this.h_
+    for i as longint = 0 to n - 1
+        h = ( h xor p[i] ) * 16777619ul
+    next
+    this.h_ = h
+end sub
+
+sub Fnv1a32.Reset( )
+    this.h_ = 2166136261
+end sub
+
+function Fnv1a32.DigestSize( ) as long
+    return 4
+end function
+
+function Fnv1a32.BlockSize( ) as long
+    return 1
+end function
+
+function Fnv1a32.Sum32( ) as ulong
+    return this.h_
+end function
+
+sub Fnv1a32.FinishInto( byval out_ as ubyte ptr )
+    HashPutBE32( out_, this.h_ )
+end sub
+
+public type Fnv1a64 extends Hasher
+    as ulongint h_
+    declare constructor( )
+    declare sub Update( byval p as const ubyte ptr, byval n as longint ) override
+    declare sub Reset( ) override
+    declare function DigestSize( ) as long override
+    declare function BlockSize( ) as long override
+    declare sub FinishInto( byval out_ as ubyte ptr ) override
+    declare function Sum64( ) as ulongint
+end type
+
+constructor Fnv1a64( )
+    this.h_ = FNV_OFFSET_BASIS
+end constructor
+
+sub Fnv1a64.Update( byval p as const ubyte ptr, byval n as longint )
+    dim as ulongint h = this.h_
+    for i as longint = 0 to n - 1
+        h = ( h xor p[i] ) * FNV_PRIME
+    next
+    this.h_ = h
+end sub
+
+sub Fnv1a64.Reset( )
+    this.h_ = FNV_OFFSET_BASIS
+end sub
+
+function Fnv1a64.DigestSize( ) as long
+    return 8
+end function
+
+function Fnv1a64.BlockSize( ) as long
+    return 1
+end function
+
+function Fnv1a64.Sum64( ) as ulongint
+    return this.h_
+end function
+
+sub Fnv1a64.FinishInto( byval out_ as ubyte ptr )
+    HashPutBE64( out_, this.h_ )
+end sub
+
+'' -------------------------------------------------------------- xxHash64
+
+const XXH_P1 as ulongint = 11400714785074694791ull
+const XXH_P2 as ulongint = 14029467366897019727ull
+const XXH_P3 as ulongint = 1609587929392839161ull
+const XXH_P4 as ulongint = 9650029242287828579ull
+const XXH_P5 as ulongint = 2870177450012600261ull
+
+function XxhRound( byval acc as ulongint, byval lane as ulongint ) as ulongint
+    acc += lane * XXH_P2
+    acc = HashRotl64( acc, 31 )
+    return acc * XXH_P1
+end function
+
+function XxhMerge( byval acc as ulongint, byval v as ulongint ) as ulongint
+    acc xor= XxhRound( 0, v )
+    return acc * XXH_P1 + XXH_P4
+end function
+
+function XxhLE64( byval p as const ubyte ptr ) as ulongint
+    dim as ulongint v = 0
+    for k as long = 7 to 0 step -1
+        v = ( v shl 8 ) or p[k]
+    next
+    return v
+end function
+
+function XxhLE32( byval p as const ubyte ptr ) as ulongint
+    return cast( ulongint, p[0] ) or ( cast( ulongint, p[1] ) shl 8 ) or _
+           ( cast( ulongint, p[2] ) shl 16 ) or ( cast( ulongint, p[3] ) shl 24 )
+end function
+
+public type XxHash64 extends Hasher
+    as ulongint seed_, v1, v2, v3, v4, total
+    as ubyte buf( 0 to 31 )
+    as long held
+    declare constructor( byval seed as ulongint = 0 )
+    declare sub Update( byval p as const ubyte ptr, byval n as longint ) override
+    declare sub Reset( ) override
+    declare function DigestSize( ) as long override
+    declare function BlockSize( ) as long override
+    declare sub FinishInto( byval out_ as ubyte ptr ) override
+    declare function Sum64( ) as ulongint
+end type
+
+constructor XxHash64( byval seed as ulongint )
+    this.seed_ = seed
+    this.Reset( )
+end constructor
+
+sub XxHash64.Reset( )
+    this.v1 = this.seed_ + XXH_P1 + XXH_P2
+    this.v2 = this.seed_ + XXH_P2
+    this.v3 = this.seed_
+    this.v4 = this.seed_ - XXH_P1
+    this.total = 0
+    this.held = 0
+end sub
+
+sub XxHash64.Update( byval p as const ubyte ptr, byval n as longint )
+    this.total += n
+    dim as longint i = 0
+    '' top up a part-filled stripe first
+    if( this.held > 0 ) then
+        while( ( this.held < 32 ) andalso ( i < n ) )
+            this.buf( this.held ) = p[i]
+            this.held += 1
+            i += 1
+        wend
+        if( this.held < 32 ) then
+            exit sub
+        end if
+        this.v1 = XxhRound( this.v1, XxhLE64( @this.buf( 0 ) ) )
+        this.v2 = XxhRound( this.v2, XxhLE64( @this.buf( 8 ) ) )
+        this.v3 = XxhRound( this.v3, XxhLE64( @this.buf( 16 ) ) )
+        this.v4 = XxhRound( this.v4, XxhLE64( @this.buf( 24 ) ) )
+        this.held = 0
+    end if
+    while( n - i >= 32 )
+        this.v1 = XxhRound( this.v1, XxhLE64( p + i ) )
+        this.v2 = XxhRound( this.v2, XxhLE64( p + i + 8 ) )
+        this.v3 = XxhRound( this.v3, XxhLE64( p + i + 16 ) )
+        this.v4 = XxhRound( this.v4, XxhLE64( p + i + 24 ) )
+        i += 32
+    wend
+    while( i < n )
+        this.buf( this.held ) = p[i]
+        this.held += 1
+        i += 1
+    wend
+end sub
+
+function XxHash64.Sum64( ) as ulongint
+    dim as ulongint h
+    if( this.total >= 32 ) then
+        h = HashRotl64( this.v1, 1 ) + HashRotl64( this.v2, 7 ) + HashRotl64( this.v3, 12 ) + HashRotl64( this.v4, 18 )
+        h = XxhMerge( h, this.v1 )
+        h = XxhMerge( h, this.v2 )
+        h = XxhMerge( h, this.v3 )
+        h = XxhMerge( h, this.v4 )
+    else
+        h = this.seed_ + XXH_P5
+    end if
+    h += this.total
+    dim as long i = 0
+    while( i + 8 <= this.held )
+        h xor= XxhRound( 0, XxhLE64( @this.buf( i ) ) )
+        h = HashRotl64( h, 27 ) * XXH_P1 + XXH_P4
+        i += 8
+    wend
+    if( i + 4 <= this.held ) then
+        h xor= XxhLE32( @this.buf( i ) ) * XXH_P1
+        h = HashRotl64( h, 23 ) * XXH_P2 + XXH_P3
+        i += 4
+    end if
+    while( i < this.held )
+        h xor= this.buf( i ) * XXH_P5
+        h = HashRotl64( h, 11 ) * XXH_P1
+        i += 1
+    wend
+    h xor= h shr 33
+    h *= XXH_P2
+    h xor= h shr 29
+    h *= XXH_P3
+    h xor= h shr 32
+    return h
+end function
+
+function XxHash64.DigestSize( ) as long
+    return 8
+end function
+
+function XxHash64.BlockSize( ) as long
+    return 32
+end function
+
+sub XxHash64.FinishInto( byval out_ as ubyte ptr )
+    HashPutBE64( out_, this.Sum64( ) )
+end sub

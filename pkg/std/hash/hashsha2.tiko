@@ -1,0 +1,315 @@
+#module "hash"
+'' std/hash: SHA-224, SHA-256, SHA-384, SHA-512 (FIPS 180-4 sections 6.2-6.5)
+''
+'' SHA-224 is SHA-256 with other initial values, cut to 7 words; SHA-384 is
+'' SHA-512 with other initial values, cut to 6.  The 512 family eats 128-byte
+'' blocks and ends with a 128-bit length; HashFeed128/HashFinish128 are the
+'' 64-bit twins of the 64-byte engine in hashmd.tiko.
+''
+'' No branch or table index depends on the data, so the time taken depends only
+'' on the length -- the property an HMAC check relies on.
+
+'' -------------------------------------------------------------- SHA-256 block
+
+sub HashSha256Block( byval st as ulong ptr, byval blk as const ubyte ptr )
+    dim as ulong w( 0 to 63 )
+    for i as long = 0 to 15
+        w( i ) = HashLoadBE32( blk + 4 * i )
+    next
+    for i as long = 16 to 63
+        dim as ulong x = w( i - 15 ), y = w( i - 2 )
+        dim as ulong s0 = HashRotr32( x, 7 ) xor HashRotr32( x, 18 ) xor ( x shr 3 )
+        dim as ulong s1 = HashRotr32( y, 17 ) xor HashRotr32( y, 19 ) xor ( y shr 10 )
+        w( i ) = w( i - 16 ) + s0 + w( i - 7 ) + s1
+    next
+    dim as ulong a = st[0], b = st[1], c = st[2], d = st[3]
+    dim as ulong e = st[4], f = st[5], g = st[6], h = st[7]
+    for i as long = 0 to 63
+        dim as ulong S1 = HashRotr32( e, 6 ) xor HashRotr32( e, 11 ) xor HashRotr32( e, 25 )
+        dim as ulong ch = ( e and f ) xor ( ( not e ) and g )
+        dim as ulong t1 = h + S1 + ch + HashSha256K( i ) + w( i )
+        dim as ulong S0 = HashRotr32( a, 2 ) xor HashRotr32( a, 13 ) xor HashRotr32( a, 22 )
+        dim as ulong mj = ( a and b ) xor ( a and c ) xor ( b and c )
+        dim as ulong t2 = S0 + mj
+        h = g : g = f : f = e
+        e = d + t1
+        d = c : c = b : b = a
+        a = t1 + t2
+    next
+    st[0] += a : st[1] += b : st[2] += c : st[3] += d
+    st[4] += e : st[5] += f : st[6] += g : st[7] += h
+end sub
+
+public type Sha256 extends Hasher
+    as ulong st_( 0 to 7 )
+    as ubyte buf_( 0 to 63 )
+    as long held_
+    as ulongint total_
+    declare constructor( )
+    declare sub Update( byval p as const ubyte ptr, byval n as longint ) override
+    declare sub Reset( ) override
+    declare function DigestSize( ) as long override
+    declare function BlockSize( ) as long override
+    declare sub FinishInto( byval out_ as ubyte ptr ) override
+end type
+
+constructor Sha256( )
+    this.Reset( )
+end constructor
+
+sub Sha256.Reset( )
+    for i as long = 0 to 7
+        this.st_( i ) = HashSha256H0( i )
+    next
+    this.held_ = 0
+    this.total_ = 0
+end sub
+
+sub Sha256.Update( byval p as const ubyte ptr, byval n as longint )
+    HashFeed64( @this.st_( 0 ), @this.buf_( 0 ), this.held_, this.total_, p, n, @HashSha256Block )
+end sub
+
+function Sha256.DigestSize( ) as long
+    return 32
+end function
+
+function Sha256.BlockSize( ) as long
+    return 64
+end function
+
+sub Sha256.FinishInto( byval out_ as ubyte ptr )
+    dim as ulong s( 0 to 7 )
+    HashFinish64( @this.st_( 0 ), 8, @this.buf_( 0 ), this.held_, this.total_, TRUE, @HashSha256Block, @s( 0 ) )
+    for i as long = 0 to 7
+        HashPutBE32( out_ + 4 * i, s( i ) )
+    next
+end sub
+
+public type Sha224 extends Hasher
+    as ulong st_( 0 to 7 )
+    as ubyte buf_( 0 to 63 )
+    as long held_
+    as ulongint total_
+    declare constructor( )
+    declare sub Update( byval p as const ubyte ptr, byval n as longint ) override
+    declare sub Reset( ) override
+    declare function DigestSize( ) as long override
+    declare function BlockSize( ) as long override
+    declare sub FinishInto( byval out_ as ubyte ptr ) override
+end type
+
+constructor Sha224( )
+    this.Reset( )
+end constructor
+
+sub Sha224.Reset( )
+    for i as long = 0 to 7
+        this.st_( i ) = HashSha224H0( i )
+    next
+    this.held_ = 0
+    this.total_ = 0
+end sub
+
+sub Sha224.Update( byval p as const ubyte ptr, byval n as longint )
+    HashFeed64( @this.st_( 0 ), @this.buf_( 0 ), this.held_, this.total_, p, n, @HashSha256Block )
+end sub
+
+function Sha224.DigestSize( ) as long
+    return 28
+end function
+
+function Sha224.BlockSize( ) as long
+    return 64
+end function
+
+sub Sha224.FinishInto( byval out_ as ubyte ptr )
+    dim as ulong s( 0 to 7 )
+    HashFinish64( @this.st_( 0 ), 8, @this.buf_( 0 ), this.held_, this.total_, TRUE, @HashSha256Block, @s( 0 ) )
+    for i as long = 0 to 6
+        HashPutBE32( out_ + 4 * i, s( i ) )
+    next
+end sub
+
+'' -------------------------------------------------------------- the 128-byte engine
+
+type HashBlock64 as sub( byval st as ulongint ptr, byval blk as const ubyte ptr )
+
+sub HashFeed128( byval st as ulongint ptr, byval buf as ubyte ptr, byref held as long, byref total as ulongint, _
+                 byval p as const ubyte ptr, byval n as longint, byval blockFn as HashBlock64 )
+    total += n
+    dim as longint i = 0
+    if( held > 0 ) then
+        while( ( held < 128 ) andalso ( i < n ) )
+            buf[held] = p[i]
+            held += 1
+            i += 1
+        wend
+        if( held < 128 ) then
+            exit sub
+        end if
+        blockFn( st, buf )
+        held = 0
+    end if
+    while( n - i >= 128 )
+        blockFn( st, p + i )
+        i += 128
+    wend
+    while( i < n )
+        buf[held] = p[i]
+        held += 1
+        i += 1
+    wend
+end sub
+
+'' The length field is 128 bits; the high 64 are zero for any message this can hold.
+sub HashFinish128( byval st as const ulongint ptr, byval buf as const ubyte ptr, byval held as long, _
+                   byval total as ulongint, byval blockFn as HashBlock64, byval stOut as ulongint ptr )
+    dim as ubyte tail( 0 to 255 )
+    for i as long = 0 to held - 1
+        tail( i ) = buf[i]
+    next
+    tail( held ) = &h80
+    dim as long tl = 128
+    if( held >= 112 ) then
+        tl = 256
+    end if
+    dim as ulongint bits = total * 8
+    for i as long = 0 to 7
+        tail( tl - 1 - i ) = ( bits shr ( 8 * i ) ) and &hFF
+    next
+    tail( tl - 9 ) = ( total shr 61 ) and &hFF       '' the bits that * 8 shifted out
+    for i as long = 0 to 7
+        stOut[i] = st[i]
+    next
+    blockFn( stOut, @tail( 0 ) )
+    if( tl = 256 ) then
+        blockFn( stOut, @tail( 128 ) )
+    end if
+end sub
+
+function HashLoadBE64( byval p as const ubyte ptr ) as ulongint
+    dim as ulongint v = 0
+    for k as long = 0 to 7
+        v = ( v shl 8 ) or p[k]
+    next
+    return v
+end function
+
+sub HashSha512Block( byval st as ulongint ptr, byval blk as const ubyte ptr )
+    dim as ulongint w( 0 to 79 )
+    for i as long = 0 to 15
+        w( i ) = HashLoadBE64( blk + 8 * i )
+    next
+    for i as long = 16 to 79
+        dim as ulongint x = w( i - 15 ), y = w( i - 2 )
+        dim as ulongint s0 = HashRotr64( x, 1 ) xor HashRotr64( x, 8 ) xor ( x shr 7 )
+        dim as ulongint s1 = HashRotr64( y, 19 ) xor HashRotr64( y, 61 ) xor ( y shr 6 )
+        w( i ) = w( i - 16 ) + s0 + w( i - 7 ) + s1
+    next
+    dim as ulongint a = st[0], b = st[1], c = st[2], d = st[3]
+    dim as ulongint e = st[4], f = st[5], g = st[6], h = st[7]
+    for i as long = 0 to 79
+        dim as ulongint S1 = HashRotr64( e, 14 ) xor HashRotr64( e, 18 ) xor HashRotr64( e, 41 )
+        dim as ulongint ch = ( e and f ) xor ( ( not e ) and g )
+        dim as ulongint t1 = h + S1 + ch + HashSha512K( i ) + w( i )
+        dim as ulongint S0 = HashRotr64( a, 28 ) xor HashRotr64( a, 34 ) xor HashRotr64( a, 39 )
+        dim as ulongint mj = ( a and b ) xor ( a and c ) xor ( b and c )
+        dim as ulongint t2 = S0 + mj
+        h = g : g = f : f = e
+        e = d + t1
+        d = c : c = b : b = a
+        a = t1 + t2
+    next
+    st[0] += a : st[1] += b : st[2] += c : st[3] += d
+    st[4] += e : st[5] += f : st[6] += g : st[7] += h
+end sub
+
+public type Sha512 extends Hasher
+    as ulongint st_( 0 to 7 )
+    as ubyte buf_( 0 to 127 )
+    as long held_
+    as ulongint total_
+    declare constructor( )
+    declare sub Update( byval p as const ubyte ptr, byval n as longint ) override
+    declare sub Reset( ) override
+    declare function DigestSize( ) as long override
+    declare function BlockSize( ) as long override
+    declare sub FinishInto( byval out_ as ubyte ptr ) override
+end type
+
+constructor Sha512( )
+    this.Reset( )
+end constructor
+
+sub Sha512.Reset( )
+    for i as long = 0 to 7
+        this.st_( i ) = HashSha512H0( i )
+    next
+    this.held_ = 0
+    this.total_ = 0
+end sub
+
+sub Sha512.Update( byval p as const ubyte ptr, byval n as longint )
+    HashFeed128( @this.st_( 0 ), @this.buf_( 0 ), this.held_, this.total_, p, n, @HashSha512Block )
+end sub
+
+function Sha512.DigestSize( ) as long
+    return 64
+end function
+
+function Sha512.BlockSize( ) as long
+    return 128
+end function
+
+sub Sha512.FinishInto( byval out_ as ubyte ptr )
+    dim as ulongint s( 0 to 7 )
+    HashFinish128( @this.st_( 0 ), @this.buf_( 0 ), this.held_, this.total_, @HashSha512Block, @s( 0 ) )
+    for i as long = 0 to 7
+        HashPutBE64( out_ + 8 * i, s( i ) )
+    next
+end sub
+
+public type Sha384 extends Hasher
+    as ulongint st_( 0 to 7 )
+    as ubyte buf_( 0 to 127 )
+    as long held_
+    as ulongint total_
+    declare constructor( )
+    declare sub Update( byval p as const ubyte ptr, byval n as longint ) override
+    declare sub Reset( ) override
+    declare function DigestSize( ) as long override
+    declare function BlockSize( ) as long override
+    declare sub FinishInto( byval out_ as ubyte ptr ) override
+end type
+
+constructor Sha384( )
+    this.Reset( )
+end constructor
+
+sub Sha384.Reset( )
+    for i as long = 0 to 7
+        this.st_( i ) = HashSha384H0( i )
+    next
+    this.held_ = 0
+    this.total_ = 0
+end sub
+
+sub Sha384.Update( byval p as const ubyte ptr, byval n as longint )
+    HashFeed128( @this.st_( 0 ), @this.buf_( 0 ), this.held_, this.total_, p, n, @HashSha512Block )
+end sub
+
+function Sha384.DigestSize( ) as long
+    return 48
+end function
+
+function Sha384.BlockSize( ) as long
+    return 128
+end function
+
+sub Sha384.FinishInto( byval out_ as ubyte ptr )
+    dim as ulongint s( 0 to 7 )
+    HashFinish128( @this.st_( 0 ), @this.buf_( 0 ), this.held_, this.total_, @HashSha512Block, @s( 0 ) )
+    for i as long = 0 to 5
+        HashPutBE64( out_ + 8 * i, s( i ) )
+    next
+end sub

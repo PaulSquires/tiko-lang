@@ -1,0 +1,237 @@
+#module "hash"
+'' std/hash: the block-hash engine, MD5 and SHA-1
+''
+'' MD5, SHA-1, SHA-224 and SHA-256 all eat 64-byte blocks and end the same way:
+'' 0x80, zeros, and the message length in bits in the last 8 bytes (little-endian
+'' for MD5, big-endian for the SHAs).  HashFeed64 and HashFinish64 do that once;
+'' each algorithm supplies only its block function.  SHA-384/512 have the
+'' 128-byte twins in hashsha2.tiko.
+''
+'' FinishInto pads a COPY of the state and the buffer, so a Hasher can report its
+'' digest and go on taking data.
+''
+'' MD5 AND SHA-1 ARE BROKEN for security: chosen-prefix collisions are practical
+'' for both.  They are here because file formats, protocols and old checksum
+'' files still name them.
+
+type HashBlock32 as sub( byval st as ulong ptr, byval blk as const ubyte ptr )
+
+sub HashFeed64( byval st as ulong ptr, byval buf as ubyte ptr, byref held as long, byref total as ulongint, _
+                byval p as const ubyte ptr, byval n as longint, byval blockFn as HashBlock32 )
+    total += n
+    dim as longint i = 0
+    if( held > 0 ) then
+        while( ( held < 64 ) andalso ( i < n ) )
+            buf[held] = p[i]
+            held += 1
+            i += 1
+        wend
+        if( held < 64 ) then
+            exit sub
+        end if
+        blockFn( st, buf )
+        held = 0
+    end if
+    while( n - i >= 64 )
+        blockFn( st, p + i )
+        i += 64
+    wend
+    while( i < n )
+        buf[held] = p[i]
+        held += 1
+        i += 1
+    wend
+end sub
+
+'' Pads into a scratch copy and runs the last block(s) on stOut, a copy of st.
+sub HashFinish64( byval st as const ulong ptr, byval nwords as long, byval buf as const ubyte ptr, _
+                  byval held as long, byval total as ulongint, byval bigEnd as boolean, _
+                  byval blockFn as HashBlock32, byval stOut as ulong ptr )
+    dim as ubyte tail( 0 to 127 )
+    for i as long = 0 to held - 1
+        tail( i ) = buf[i]
+    next
+    tail( held ) = &h80
+    dim as long tl = 64
+    if( held >= 56 ) then
+        tl = 128
+    end if
+    dim as ulongint bits = total * 8
+    for i as long = 0 to 7
+        if( bigEnd ) then
+            tail( tl - 1 - i ) = ( bits shr ( 8 * i ) ) and &hFF
+        else
+            tail( tl - 8 + i ) = ( bits shr ( 8 * i ) ) and &hFF
+        end if
+    next
+    for i as long = 0 to nwords - 1
+        stOut[i] = st[i]
+    next
+    blockFn( stOut, @tail( 0 ) )
+    if( tl = 128 ) then
+        blockFn( stOut, @tail( 64 ) )
+    end if
+end sub
+
+function HashLoadBE32( byval p as const ubyte ptr ) as ulong
+    return ( cast( ulong, p[0] ) shl 24 ) or ( cast( ulong, p[1] ) shl 16 ) or ( cast( ulong, p[2] ) shl 8 ) or p[3]
+end function
+
+'' -------------------------------------------------------------- MD5 (RFC 1321)
+
+dim shared as long HashMd5S( 0 to 15 ) = { 7, 12, 17, 22, 5, 9, 14, 20, 4, 11, 16, 23, 6, 10, 15, 21 }
+
+sub HashMd5Block( byval st as ulong ptr, byval blk as const ubyte ptr )
+    dim as ulong m( 0 to 15 )
+    for i as long = 0 to 15
+        m( i ) = cast( ulong, blk[4 * i] ) or ( cast( ulong, blk[4 * i + 1] ) shl 8 ) or _
+                 ( cast( ulong, blk[4 * i + 2] ) shl 16 ) or ( cast( ulong, blk[4 * i + 3] ) shl 24 )
+    next
+    dim as ulong a = st[0], b = st[1], c = st[2], d = st[3]
+    for i as long = 0 to 63
+        dim as ulong f
+        dim as long g
+        select case i
+        case 0 to 15
+            f = ( b and c ) or ( ( not b ) and d )
+            g = i
+        case 16 to 31
+            f = ( d and b ) or ( ( not d ) and c )
+            g = ( 5 * i + 1 ) and 15
+        case 32 to 47
+            f = b xor c xor d
+            g = ( 3 * i + 5 ) and 15
+        case else
+            f = c xor ( b or ( not d ) )
+            g = ( 7 * i ) and 15
+        end select
+        dim as ulong sum_ = a + f + HashMd5K( i ) + m( g )
+        dim as ulong t = d
+        d = c
+        c = b
+        b = b + HashRotl32( sum_, HashMd5S( ( i shr 4 ) * 4 + ( i and 3 ) ) )
+        a = t
+    next
+    st[0] += a : st[1] += b : st[2] += c : st[3] += d
+end sub
+
+public type Md5 extends Hasher
+    as ulong st_( 0 to 3 )
+    as ubyte buf_( 0 to 63 )
+    as long held_
+    as ulongint total_
+    declare constructor( )
+    declare sub Update( byval p as const ubyte ptr, byval n as longint ) override
+    declare sub Reset( ) override
+    declare function DigestSize( ) as long override
+    declare function BlockSize( ) as long override
+    declare sub FinishInto( byval out_ as ubyte ptr ) override
+end type
+
+constructor Md5( )
+    this.Reset( )
+end constructor
+
+sub Md5.Reset( )
+    this.st_( 0 ) = &h67452301 : this.st_( 1 ) = &hEFCDAB89
+    this.st_( 2 ) = &h98BADCFE : this.st_( 3 ) = &h10325476
+    this.held_ = 0
+    this.total_ = 0
+end sub
+
+sub Md5.Update( byval p as const ubyte ptr, byval n as longint )
+    HashFeed64( @this.st_( 0 ), @this.buf_( 0 ), this.held_, this.total_, p, n, @HashMd5Block )
+end sub
+
+function Md5.DigestSize( ) as long
+    return 16
+end function
+
+function Md5.BlockSize( ) as long
+    return 64
+end function
+
+sub Md5.FinishInto( byval out_ as ubyte ptr )
+    dim as ulong s( 0 to 3 )
+    HashFinish64( @this.st_( 0 ), 4, @this.buf_( 0 ), this.held_, this.total_, FALSE, @HashMd5Block, @s( 0 ) )
+    for i as long = 0 to 3
+        HashPutLE32( out_ + 4 * i, s( i ) )
+    next
+end sub
+
+'' -------------------------------------------------------------- SHA-1 (FIPS 180-4 6.1)
+
+sub HashSha1Block( byval st as ulong ptr, byval blk as const ubyte ptr )
+    dim as ulong w( 0 to 79 )
+    for i as long = 0 to 15
+        w( i ) = HashLoadBE32( blk + 4 * i )
+    next
+    for i as long = 16 to 79
+        w( i ) = HashRotl32( w( i - 3 ) xor w( i - 8 ) xor w( i - 14 ) xor w( i - 16 ), 1 )
+    next
+    dim as ulong a = st[0], b = st[1], c = st[2], d = st[3], e = st[4]
+    for i as long = 0 to 79
+        dim as ulong f, k
+        select case i
+        case 0 to 19
+            f = ( b and c ) or ( ( not b ) and d ) : k = &h5A827999
+        case 20 to 39
+            f = b xor c xor d : k = &h6ED9EBA1
+        case 40 to 59
+            f = ( b and c ) or ( b and d ) or ( c and d ) : k = &h8F1BBCDC
+        case else
+            f = b xor c xor d : k = &hCA62C1D6
+        end select
+        dim as ulong t = HashRotl32( a, 5 ) + f + e + k + w( i )
+        e = d
+        d = c
+        c = HashRotl32( b, 30 )
+        b = a
+        a = t
+    next
+    st[0] += a : st[1] += b : st[2] += c : st[3] += d : st[4] += e
+end sub
+
+public type Sha1 extends Hasher
+    as ulong st_( 0 to 4 )
+    as ubyte buf_( 0 to 63 )
+    as long held_
+    as ulongint total_
+    declare constructor( )
+    declare sub Update( byval p as const ubyte ptr, byval n as longint ) override
+    declare sub Reset( ) override
+    declare function DigestSize( ) as long override
+    declare function BlockSize( ) as long override
+    declare sub FinishInto( byval out_ as ubyte ptr ) override
+end type
+
+constructor Sha1( )
+    this.Reset( )
+end constructor
+
+sub Sha1.Reset( )
+    this.st_( 0 ) = &h67452301 : this.st_( 1 ) = &hEFCDAB89 : this.st_( 2 ) = &h98BADCFE
+    this.st_( 3 ) = &h10325476 : this.st_( 4 ) = &hC3D2E1F0
+    this.held_ = 0
+    this.total_ = 0
+end sub
+
+sub Sha1.Update( byval p as const ubyte ptr, byval n as longint )
+    HashFeed64( @this.st_( 0 ), @this.buf_( 0 ), this.held_, this.total_, p, n, @HashSha1Block )
+end sub
+
+function Sha1.DigestSize( ) as long
+    return 20
+end function
+
+function Sha1.BlockSize( ) as long
+    return 64
+end function
+
+sub Sha1.FinishInto( byval out_ as ubyte ptr )
+    dim as ulong s( 0 to 4 )
+    HashFinish64( @this.st_( 0 ), 5, @this.buf_( 0 ), this.held_, this.total_, TRUE, @HashSha1Block, @s( 0 ) )
+    for i as long = 0 to 4
+        HashPutBE32( out_ + 4 * i, s( i ) )
+    next
+end sub

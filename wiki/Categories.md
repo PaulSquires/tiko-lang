@@ -24,6 +24,7 @@ The language and its standard library first, then the compatibility reference: t
 - [String Library](Category-String-Library) — 39 pages
 - [Format](Category-Format) — 1 pages
 - [Codec](Category-Codec) — 1 pages
+- [Hash](Category-Hash) — 1 pages
 - [UUID](Category-UUID) — 1 pages
 - [Array](Category-Array) — 22 pages
 - [Map](Category-Map) — 15 pages
