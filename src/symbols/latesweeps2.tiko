@@ -447,6 +447,7 @@ end function
 '' is not evidence.
 declare sub TupleMemberBad_ ( byref c as Ctx, byval t as TypeId, byval lhs as NodeId, byval rhs as NodeId )  '' latesweeps4.tiko
 
+#include once "symbols/hiddenns.tiko"
 private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
     dim as BinaryPayload ptr mp = _
         @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
@@ -514,6 +515,7 @@ private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
         c.diags->Report( TKO0972, PointRange( c.ast->Loc( mp->rhs ) ), lnm, _
             c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, mp->rhs )].data )].name ), _
             c.types->Name( bu ) )
+        if c.ast->Kind( mp->lhs ) = N_IDENT then HiddenNsNote_( c, bs, mp->lhs, lnm )
         return
     end if
     '' AN ENUM'S members are its names, and Check binds every one that exists: 'E.nope'

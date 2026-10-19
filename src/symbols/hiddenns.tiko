@@ -1,0 +1,46 @@
+'' hiddenns.tiko -- HiddenNsNote_, the TKO0865 note beside TKO0972 (tracks-2026 TB-004).
+'' Included from latesweeps2.tiko above CheckMemberExists_, in the same namespace and over the
+'' same Ctx.
+
+'' ...AND WHAT THE PROCEDURE HIDES, when a namespace or an imported module of its name sits
+'' further out: 'mm.Ready( )' in a method of a type with a member 'Mm' reaches the member,
+'' as fbc's lookup does (tracks-2026 TB-004), and the note says how to reach the other.
+private sub HiddenNsNote_ _
+    ( byref c as Ctx, byval ps as Symbol ptr, byval at as NodeId, byref nm as string )
+    dim as ScopeId sc = ps->parent
+    dim as int32 guard = 0
+    while (sc <> SCOPE_NONE) andalso (guard < SCOPE_WALK_MAX)
+        guard += 1
+        dim as Symbol ptr ns = c.syms->SymbolAt( c.syms->LookupLocal( sc, ps->name ) )
+        dim as int32 hops = 0
+        while (ns <> nullptr) andalso (hops < 4)
+            if ns->kind = cast( uint8, SYM_NAMESPACE ) then exit while
+            ns = c.syms->SymbolAt( ns->altClass ) : hops += 1
+        wend
+        if (ns <> nullptr) andalso (hops < 4) then
+            dim as boolean isMod = false
+            dim as SymScope ptr isc = c.syms->ScopeAt( ns->inner )
+            if isc <> nullptr then
+                for k as int32 = 0 to c.syms->importNs.Count - 1
+                    if cast( SymbolId, c.syms->importNs[k] ) = isc->owner then isMod = true
+                next
+            end if
+            dim as string pn = c.names->Spelling( ps->name )
+            dim as SymScope ptr psc = c.syms->ScopeAt( ps->parent )
+            if psc <> nullptr then
+                dim as Symbol ptr os = c.syms->SymbolAt( psc->owner )
+                if os <> nullptr then
+                    if os->kind = cast( uint8, SYM_UDT ) then pn = c.names->Spelling( os->name ) & "." & pn
+                end if
+            end if
+            dim as string how = "the namespace '" & nm & "'; to reach it, rename the procedure"
+            if isMod then how = "the imported module '" & nm & "'; to reach it, alias the import " & _
+                                "(#import ""..."" as <name>) or rename the procedure"
+            c.diags->AddNote( TKO0865, PointRange( c.ast->Loc( at ) ), nm, pn, how )
+            return
+        end if
+        dim as SymScope ptr s_ = c.syms->ScopeAt( sc )
+        if s_ = nullptr then return
+        sc = s_->parent
+    wend
+end sub
