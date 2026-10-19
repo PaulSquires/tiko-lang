@@ -240,6 +240,11 @@ function StrArgOwnDescriptor_ _
         '' does not have, emitted underneath a diagnostic.
         dim as int64 fn_
         dim as int32 fk = StrSwapKind_( c, at, fn_ )
+        '' ...AND A 'ustring * N' FOR A NARROW PARAMETER is a conversion into a temporary, as a
+        '' var-length ustring is (below): fbc-modern 1.20 copies it through fb_UStrAssignToA.
+        '' Answering 'owns it' sent a constructor's 'byref as string' the UTF-16 buffer itself,
+        '' read as an FBSTRING -- 'B( uf )' and 'dim b as B = uf' saw "" where fbc prints the text.
+        if (fk = 4) andalso (IsUStringType( c, pt ) = false) then return false
         return (fk <> 1) andalso (fk <> 3)
     end if
     '' A ustring into a narrow parameter is copied -- see above.
@@ -365,6 +370,14 @@ function ByvalStrTemp_ _
     '' callee read a NARROW descriptor as UTF-16 -- mojibake, and an over-read of 2 x len.
     if IsUStringType( c, pt ) andalso (c.ast->Kind( Unparen_( c, argNode ) ) = Tko.N_BINARY) then
         if UStrResultArgTemp_( c, argNode, pt, outa, outSlot, true ) then return true
+    end if
+    '' A 'ustring * N' FOR A USTRING PARAMETER is copied with its TAGGED length, as fbc does:
+    ''     fb_UStrAssign( &TMP, -1, UF, <tag>, 0 ); TAKEU( &TMP ); fb_UStrDelete( &TMP )
+    '' IsUStringType says yes to it, so the var-length arm below claimed it and passed the
+    '' buffer's address with length -1 -- read as a descriptor, and every 'byval as ustring'
+    '' parameter, constructor or method alike, received "" (fbc-modern 1.20 prints the text).
+    if IsUStringType( c, pt ) then
+        if FixedUStrArgTemp_( c, argNode, outa, outSlot ) then return true
     end if
     dim as int32 slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
     if slot < 0 then return false

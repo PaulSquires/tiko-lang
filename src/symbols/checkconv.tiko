@@ -56,6 +56,20 @@ function ConversionCost _
             if types.BuiltinOf( fel ) = Tko.TY_FIXUSTR then return CONV_NONE
         end if
     end if
+    '' ...NOR A BARE 'wstring' OR 'zstring' -- a 'byref as wstring' / 'byref as zstring'
+    '' parameter, the only place one is a destination: fbc's 58 (fbc-modern 1.20), which
+    '' assigncheck.tiko already reported for an ordinary call. Mapped to USTRING it stayed
+    '' viable here, so a CONSTRUCTOR taking 'byref as wstring' was chosen for one -- 'T( uf )',
+    '' 'dim x as T = uf', and 'Q( uf )' through it into a 'T' parameter all compiled.
+    if types.Kind( types.Unqualify( to_ ) ) = Tko.TK_BUILTIN then
+        select case types.BuiltinOf( types.Unqualify( to_ ) )
+        case Tko.TY_WSTRING, Tko.TY_ZSTRING
+            dim as Tko.TypeId fwl = FixedStringElem( from_, types )
+            if fwl <> Tko.TYPE_NONE then
+                if types.BuiltinOf( fwl ) = Tko.TY_FIXUSTR then return CONV_NONE
+            end if
+        end select
+    end if
     from_ = StrFlavourOf_( types, from_ )
     to_ = StrFlavourOf_( types, to_ )
     if from_ = to_ then return CONV_EXACT

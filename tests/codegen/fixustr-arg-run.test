@@ -1,0 +1,19 @@
+'' RUN: a 'ustring * N' argument arrives whole into 'byval as ustring' (procedure, function, method,
+'' constructor) and into a constructor's 'byref as string' / 'byref as const string', explicitly
+'' and by implicit conversion -- each was empty. Expected output is fbc-modern 1.20's, byte for byte.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/fixustr-arg.tiko -o tests/codegen/fixustrarg.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/fixustrarg.exe
+'' RUN: tests/codegen/fixustrarg.exe
+'' EXPECT-RUN-OUT: P [héllo]
+'' EXPECT-RUN-OUT: Echo [héllo]
+'' EXPECT-RUN-OUT: ByStr [héllo]
+'' EXPECT-RUN-OUT: ByStr= [héllo]
+'' EXPECT-RUN-OUT: Take [héllo]
+'' EXPECT-RUN-OUT: ByConstStr [héllo]
+'' EXPECT-RUN-OUT: ByValU [héllo]
+'' EXPECT-RUN-OUT: M [héllo]
+'' EXPECT-RUN-OUT: ByWide [wide]
+'' EXPECT-RUN-OUT: s unchanged [héllo]

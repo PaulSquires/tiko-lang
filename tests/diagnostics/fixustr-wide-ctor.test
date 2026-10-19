@@ -1,0 +1,13 @@
+'' A 'ustring * N' into a constructor taking 'byref as wstring' or 'byref as zstring' is fbc's 58,
+'' as it was already for an ordinary call -- explicit, 'var', 'new', and an implicit conversion
+'' into a parameter of the type. tiko chose the constructor and compiled each.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/fixustr-wide-ctor.tiko -o tests/diagnostics/src/fixustr-wide-ctor.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: fixustr-wide-ctor.tiko(25,8): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: fixustr-wide-ctor.tiko(22,17): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: fixustr-wide-ctor.tiko(23,12): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: fixustr-wide-ctor.tiko(24,25): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: fixustr-wide-ctor.tiko(26,17): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-NOT: TKO0994
+'' EXPECT-MAX-DIAG: 5
