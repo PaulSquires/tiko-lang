@@ -949,7 +949,8 @@ private sub CheckExternRange_ ( byref c as Ctx, byval first as int32, byval coun
             if ep->a <> NODE_NONE then et = c.types->Unqualify( c.info->TypeOf_( ep->a ) )
             dim as boolean isString = false
             if (et <> TYPE_NONE) andalso (c.types->Kind( et ) = TK_BUILTIN) then
-                isString = (c.types->BuiltinOf( et ) = TY_STRING)
+                isString = (c.types->BuiltinOf( et ) = TY_STRING) orelse _
+                           (c.types->BuiltinOf( et ) = TY_USTRING)
             end if
             '' Every later declaration of the name in this block.
             for k as int32 = i + 1 to count - 1

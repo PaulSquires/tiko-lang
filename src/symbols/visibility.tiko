@@ -1381,7 +1381,8 @@ private sub CheckQualifiedStringInits_( byref c as Ctx )
         if t = TYPE_NONE then continue for
         dim as TypeId u = c.types->Unqualify( t )
         if c.types->Kind( u ) <> TK_BUILTIN then continue for
-        if c.types->BuiltinOf( u ) <> TY_STRING then continue for
+        '' A USTRING TOO: nothing lowers its static initialiser either (TKO0994, tracks-2026 TB-005).
+        if (c.types->BuiltinOf( u ) <> TY_STRING) andalso (c.types->BuiltinOf( u ) <> TY_USTRING) then continue for
 
         dim as boolean qualified = _
             ((c.ast->nodes[n].flags and NF_QUALIFIED) <> 0)
@@ -1413,7 +1414,8 @@ private sub CheckStaticStringInits( byref c as Ctx )
         while c.types->Kind( u ) = TK_ARRAY : u = c.types->Unqualify( c.types->Inner( u ) ) : wend
         '' A FIXED string (an ARRAY of a character builtin) is NOT this: the loader fills it.
         if c.types->Kind( u ) <> TK_BUILTIN then continue for
-        if c.types->BuiltinOf( u ) <> TY_STRING then continue for
+        '' ...a ustring too (TB-005).
+        if (c.types->BuiltinOf( u ) <> TY_STRING) andalso (c.types->BuiltinOf( u ) <> TY_USTRING) then continue for
 
         '' A DEFINITION OF AN EXTERN IS THE EXTERN SWEEP'S -- latesweeps2.tiko reports that
         '' shape at this very item; reporting it here too gave 'extern s as string' with

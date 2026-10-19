@@ -1,0 +1,14 @@
+'' A USTRING with static storage and an initialiser is TKO0628, as a 'string' is (fbc's
+'' 87): nothing lowers the initialiser, so 'static names( 0 to 2 ) as ustring = { ... }'
+'' and 'dim shared' alike were TKO0994 (tracks-2026 TB-005). An ordinary module-level DIM
+'' is not static storage and stays accepted.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/ustr-static-init.bas -o tests/diagnostics/src/ustr-static-init.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: ustr-static-init.bas(1,12): error TKO0628
+'' EXPECT-OUT: ustr-static-init.bas(2,12): error TKO0628
+'' EXPECT-OUT: ustr-static-init.bas(4,12): error TKO0628
+'' EXPECT-OUT: ustr-static-init.bas(5,12): error TKO0628
+'' EXPECT-OUT: ustr-static-init.bas(9,9): error TKO0628
+'' EXPECT-NOT: TKO0994
+'' EXPECT-MAX-DIAG: 5
