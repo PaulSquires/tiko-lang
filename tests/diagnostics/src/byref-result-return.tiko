@@ -1,0 +1,68 @@
+'' A BYREF RESULT BINDS STORAGE, by 'return' as by 'function ='. Measured on fbc-modern 1.20:
+'' 'return v' over a local, a byval parameter, a local's field or element, '(v)' or a by-value
+'' call's result is error 272, and 'return 5' error 24; a value of another type -- a static
+'' double for 'byref as long', a shared U or long for 'byref as B', a byref call returning
+'' another type -- is 318 by either spelling. Only 'function =' was judged, and only over a
+'' scalar name: 'return v' handed back a dead frame. The accepted half is
+'' byref-result-return-ok.
+type B extends object
+    as long k
+end type
+type U
+    as long k
+end type
+type T
+    as long n
+    declare constructor( byval t as long )
+end type
+constructor T( byval t as long )
+end constructor
+dim shared as U gu
+dim shared as long gl
+function Fresh( ) as U
+    return gu
+end function
+function RefU( ) byref as U
+    return gu
+end function
+
+function Rr1( ) byref as long
+    dim as long v
+    return v
+end function
+function Rr2( byval p as long ) byref as long
+    return p
+end function
+function Rr3( ) byref as long
+    dim as B v
+    return v.k
+end function
+function Rr4( ) byref as long
+    dim as long v( 0 to 1 )
+    return v( 0 )
+end function
+function Rr5( ) byref as U
+    return Fresh( )
+end function
+function Rr6( ) byref as long
+    return 5
+end function
+function Rr7( ) byref as long
+    static as double s
+    return s
+end function
+function Rr8( ) byref as B
+    return gu
+end function
+function Rr9( ) byref as B
+    return RefU( )
+end function
+function Rr10( ) byref as T
+    return gl
+end function
+function Rf1( ) byref as U
+    function = gl
+end function
+function Rf2( ) byref as long
+    function = RefU( )
+end function

@@ -400,7 +400,8 @@ private sub CheckPtrReturn_ ( byref c as Ctx, byval id as NodeId, byval resultTy
     if TypeLitTextBad_( c, resultType, e, false ) then return  '' tupleconv.tiko (T30)
     if TupleConvBad_( c, resultType, e, 0 ) then return  '' tupleconv.tiko
     '' A UDT RESULT given a value no constructor or 'let' takes -- fbc's 181 (ctorargs.tiko).
-    if ResultValueRefused_( c, resultType, e, false ) then
+    '' Not a BYREF one, which is never constructed: CheckByrefResultType_ judges it (318).
+    if (byrefResult = false) andalso ResultValueRefused_( c, resultType, e, false ) then
         c.diags->Report( TKO0738, PointRange( c.ast->Loc( e ) ) )
         return
     end if
@@ -419,6 +420,8 @@ private sub CheckPtrReturn_ ( byref c as Ctx, byval id as NodeId, byval resultTy
     PtrFloatPair_( c, e, resultType, c.info->TypeOf_( e ) )
     '' 'return this' is the object, though tiko types the receiver as its pointer.
     '' ...which settles a value that is not a UDT: a 'let' takes one too, as Rescued_ does not know.
+    '' A BYREF result is CheckByrefResultType_'s.
+    if byrefResult then return
     dim as TypeId judged = resultType
     if StructorJudged_( c, judged, e ) then return
     if IsThisBase_( c, e ) = false then JudgeConversion_( c, e, resultType, c.info->TypeOf_( e ), false )

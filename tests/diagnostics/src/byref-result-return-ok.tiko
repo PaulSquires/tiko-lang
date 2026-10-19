@@ -1,0 +1,55 @@
+'' ...and what a byref result binds by 'return', as fbc-modern 1.20 accepts it: a static, a
+'' shared, a byref parameter, a dereference -- '*q', 'q->k', 'q[ 1 ]' through a local pointer --
+'' a byref call's result of the same type, an object of a type derived from the result's, and a
+'' const result over a plain value.
+type B extends object
+    as long k
+end type
+type D extends B
+end type
+dim shared as B gb
+dim shared as D gd
+dim shared as long gl
+function RefB( ) byref as B
+    return gb
+end function
+
+function Ok1( ) byref as long
+    static as long s
+    return s
+end function
+function Ok2( ) byref as long
+    return gl
+end function
+function Ok3( byref p as long ) byref as long
+    return p
+end function
+function Ok4( byval q as long ptr ) byref as long
+    return *q
+end function
+function Ok5( ) byref as B
+    return RefB( )
+end function
+function Ok6( ) byref as B
+    return gd
+end function
+function Ok7( ) byref as const long
+    return gl
+end function
+function Ok8( ) byref as B
+    return gb
+end function
+function Ok9( byval q as B ptr ) byref as long
+    dim as B ptr r = q
+    return r->k
+end function
+function Ok10( byval q as long ptr ) byref as long
+    dim as long ptr r = q
+    return r[ 1 ]
+end function
+dim as long two( 0 to 1 ) = { 1, 2 }
+( Ok2( ) ) = 7
+( Ok9( @gb ) ) = 9
+( Ok10( @two( 0 ) ) ) = 8
+print gb.k; two( 1 );
+print gl; Ok1( ); Ok7( )

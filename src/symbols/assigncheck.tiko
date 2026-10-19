@@ -147,7 +147,8 @@ private sub CheckPtrAssign_ _
         if TupleConvBad_( c, lt, sp->b, 0 ) then return  '' tupleconv.tiko
         '' 'function = x' BETWEEN TWO UDTs IS AN ASSIGNMENT: a T result given an S that only a
         '' constructor takes is fbc's 181, as 'q = s' is (latesweeps2.tiko UdtPairConverts_).
-        if (c.ast->Kind( sp->a ) = N_FUNCRESULT) andalso (c.types->Kind( c.types->Unqualify( lt ) ) = TK_UDT) andalso _
+        '' Not a BYREF result, whose value is judged by CheckByrefResultType_ (318).
+        if (c.ast->Kind( sp->a ) = N_FUNCRESULT) andalso (byrefResult = false) andalso (c.types->Kind( c.types->Unqualify( lt ) ) = TK_UDT) andalso _
            (c.types->Kind( c.types->Unqualify( rt ) ) = TK_UDT) then JudgeConversion_( c, id, lt, rt, true )
         '' ...AND ANY OTHER VALUE: only an 'operator let' takes it (ctorargs.tiko ResultValueRefused_).
         if (c.ast->Kind( sp->a ) = N_FUNCRESULT) andalso (byrefResult = false) then

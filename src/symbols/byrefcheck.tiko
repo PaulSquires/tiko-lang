@@ -26,6 +26,9 @@ private sub CheckByrefResultAgrees_ ( byref c as Ctx, byval id as NodeId )
                      c.names->Spelling( sp->name ) )
 end sub
 
+declare function ByrefResultUdtBad_ ( byref c as Ctx, byval v as NodeId, byval resultType as TypeId ) as boolean
+declare function ByrefCallValue_ ( byref c as Ctx, byval v as NodeId ) as boolean
+
 '' A BYREF RESULT MUST BE ASSIGNED SOMETHING OF EXACTLY ITS TYPE -- fbc error 318, "Type
 '' mismatch in byref function result assignment". A byref result hands back the storage
 '' itself, so there is nowhere for a conversion to happen.
@@ -41,10 +44,18 @@ private sub CheckByrefResultType_ _
       byval resultType as TypeId )
 
     if byrefResult = false then return
-    if c.info->AmbiguousOf( id ) <> AMB_RESULT then return
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
-    if sp->b = NODE_NONE then return
+    '' ...AND 'return v', the same binding (CheckByrefResultValue_): measured on fbc-modern
+    '' 1.20, 'return s' over a 'static as double' into 'byref as long' is 318 as 'function = s'
+    '' is. Only 'function =' was judged.
+    dim as NodeId rv = sp->b
+    if c.ast->Kind( id ) = N_RETURN then
+        rv = sp->a
+    elseif c.info->AmbiguousOf( id ) <> AMB_RESULT then
+        return
+    end if
+    if rv = NODE_NONE then return
     '' ONLY WHAT WAS MEASURED: a NAMED variable of a non-string scalar builtin, on both
     '' sides. The corpus scan reported no false rejection, and this suite's own MIR tests
     '' then found four -- every one of them a STRING:
@@ -61,20 +72,25 @@ private sub CheckByrefResultType_ _
     '' PROOF: 1222 files said nothing about any of the four.
     '' A STRING LITERAL INTO A 'byref as STRING' RESULT -- fbc error 318 -- while the same
     '' literal into a 'byref as zstring' result is accepted (above). Measured both.
-    if c.ast->Kind( sp->b ) = N_STRING_LIT then
+    if c.ast->Kind( rv ) = N_STRING_LIT then
         dim as TypeId lrt = resultType
         if lrt = TYPE_NONE then return
         if c.types->Kind( lrt ) = TK_REFERENCE then lrt = c.types->Inner( lrt )
         lrt = c.types->Unqualify( lrt )
         if c.types->Kind( lrt ) <> TK_BUILTIN then return
         if c.types->BuiltinOf( lrt ) = TY_STRING then
-            c.diags->Report( TKO0667, PointRange( c.ast->Loc( sp->b ) ) )
+            c.diags->Report( TKO0667, PointRange( c.ast->Loc( rv ) ) )
         end if
         return
     end if
-    if c.ast->Kind( sp->b ) <> N_IDENT then return
+    if ByrefResultUdtBad_( c, rv, resultType ) then
+        c.diags->Report( TKO0667, PointRange( c.ast->Loc( rv ) ) )
+        return
+    end if
+    '' ...and a BYREF CALL's result is storage of its own type, judged as a name is.
+    if (c.ast->Kind( rv ) <> N_IDENT) andalso (ByrefCallValue_( c, rv ) = false) then return
     dim as TypeId rt = resultType
-    dim as TypeId vt = c.info->TypeOf_( sp->b )
+    dim as TypeId vt = c.info->TypeOf_( rv )
     if (rt = TYPE_NONE) orelse (vt = TYPE_NONE) then return
     if rt = vt then return
     '' A REFERENCE ON EITHER SIDE IS THE SAME TYPE. A byref parameter's type is spelled
@@ -104,11 +120,11 @@ private sub CheckByrefResultType_ _
     dim as boolean valueConst = c.types->IsConst( vt )
     dim as boolean resConst = c.types->IsConst( rt )
     if c.types->Unqualify( rt ) <> c.types->Unqualify( vt ) then
-        c.diags->Report( TKO0667, PointRange( c.ast->Loc( sp->b ) ) )
+        c.diags->Report( TKO0667, PointRange( c.ast->Loc( rv ) ) )
         return
     end if
     if valueConst andalso (resConst = false) then
-        c.diags->Report( TKO0667, PointRange( c.ast->Loc( sp->b ) ) )
+        c.diags->Report( TKO0667, PointRange( c.ast->Loc( rv ) ) )
     end if
 end sub
 
@@ -161,6 +177,66 @@ private function PassedByHiddenRef_ ( byref c as Ctx, byval t as TypeId, byval d
     return false
 end function
 
+'' A CALL OF A FUNCTION THAT RETURNS BYREF: storage, not a temporary.
+private function ByrefCallValue_ ( byref c as Ctx, byval v as NodeId ) as boolean
+    if c.ast->Kind( v ) <> N_CALL then return false
+    dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, v )].data )]
+    dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+    if ts = nullptr then return false
+    if ts->kind <> cast( uint8, SYM_PROC ) then return false
+    dim as NodeId cd = cast( NodeId, ts->payload )
+    if (cd = NODE_NONE) orelse (c.ast->Kind( cd ) <> N_PROC) then return false
+    return ((c.ast->nodes[cast( int32, cd )].flags and NF_BYREF) <> 0)
+end function
+
+'' A UDT ON EITHER SIDE OF A BYREF RESULT -- fbc's 318 too, measured on fbc-modern 1.20 over
+'' 'byref as B' given a shared U, a byref U call or a shared long, 'byref as U' given a long or
+'' a byref long call, and 'byref as long' given a byref U call, by 'return' and 'function ='
+'' alike. The same type or a type derived from the result's is the storage itself and binds.
+'' A byref result is never CONSTRUCTED, so a constructor taking the value does not help. Not
+'' a local (CheckByrefResultValue_'s 272) nor a string flavour on the other side.
+private function ByrefResultUdtBad_ ( byref c as Ctx, byval v as NodeId, byval resultType as TypeId ) as boolean
+    if (resultType = TYPE_NONE) orelse (v = NODE_NONE) then return false
+    if c.ast->Kind( v ) = N_IDENT then
+        dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( v ) )
+        if s = nullptr then return false
+        select case cast( SymbolKind, s->kind )
+        case SYM_VARIABLE
+            if (s->flags and (SYMF_SHARED or SYMF_STATIC or SYMF_EXTERN or SYMF_COMMON)) = 0 then return false
+        case SYM_PARAMETER
+            if IsThisBase_( c, v ) then return false
+            if s->type_ = TYPE_NONE then return false
+            if c.types->Kind( c.types->Unqualify( s->type_ ) ) <> TK_REFERENCE then return false
+        case else
+            return false
+        end select
+    elseif ByrefCallValue_( c, v ) = false then
+        return false
+    end if
+    dim as TypeId rt = c.types->Unqualify( resultType )
+    if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
+    dim as TypeId vt = c.info->TypeOf_( v )
+    if vt = TYPE_NONE then return false
+    vt = c.types->Unqualify( vt )
+    if c.types->Kind( vt ) = TK_REFERENCE then vt = c.types->Unqualify( c.types->Inner( vt ) )
+    dim as boolean rUdt = (c.types->Kind( rt ) = TK_UDT)
+    dim as boolean vUdt = (c.types->Kind( vt ) = TK_UDT)
+    if (rUdt orelse vUdt) = false then return false
+    if rUdt andalso vUdt then return (c.types->BaseDistance( vt, rt ) < 0)
+    dim as TypeId other = iif( rUdt, vt, rt )
+    select case c.types->Kind( other )
+    case TK_POINTER, TK_ENUM
+        return true
+    case TK_BUILTIN
+        select case c.types->BuiltinOf( other )
+        case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR, TY_ANY, TY_VOID
+            return false
+        end select
+        return true
+    end select
+    return false
+end function
+
 '' A BYREF RESULT CANNOT RETURN A LOCAL -- fbc error 272, "Local symbols can't be
 '' referenced". The caller is handed a reference, and the frame it points into is gone by
 '' the time it is read. Measured, all three shapes:
@@ -177,10 +253,20 @@ private sub CheckByrefResultValue_ _
     ( byref c as Ctx, byval id as NodeId, byval byrefResult as boolean )
 
     if byrefResult = false then return
-    if c.info->AmbiguousOf( id ) <> AMB_RESULT then return
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
-    if sp->b = NODE_NONE then return
+    '' ...AND 'return v', THE SAME BINDING: measured on fbc-modern 1.20, 'return v' over a
+    '' local, a byval parameter, a local's field or element, '(v)' or a by-value call's
+    '' result is error 272 and 'return 5' error 24, exactly as 'function = v' -- in a
+    '' 'byref as long', 'byref as string' and 'byref as T' function alike. Only 'function ='
+    '' was judged, so 'return v' handed the caller the address of a dead frame.
+    dim as NodeId rv = sp->b
+    if c.ast->Kind( id ) = N_RETURN then
+        rv = sp->a
+    elseif c.info->AmbiguousOf( id ) <> AMB_RESULT then
+        return
+    end if
+    if rv = NODE_NONE then return
 
     '' THE VALUE MUST HAVE AN ADDRESS. Measured, in a 'byref as integer' function:
     ''     function = 123               error 24     function = @g       error 24
@@ -188,25 +274,32 @@ private sub CheckByrefResultValue_ _
     ''     function = type<UDT>( 123 )  error 24
     '' ...and 'function = "also good"' in a 'byref as zstring' function is ACCEPTED,
     '' so a string literal is left alone.
-    select case c.ast->Kind( sp->b )
+    select case c.ast->Kind( rv )
     case N_INT_LIT, N_FLOAT_LIT, N_ADDROF, N_BINARY, N_IIF
-        c.diags->Report( TKO0711, PointRange( c.ast->Loc( sp->b ) ) )
+        c.diags->Report( TKO0711, PointRange( c.ast->Loc( rv ) ) )
         return
     case N_TUPLE
-        if (c.ast->nodes[cast( int32, sp->b )].flags and NF_TYPE_LITERAL) <> 0 then
-            c.diags->Report( TKO0711, PointRange( c.ast->Loc( sp->b ) ) )
+        if (c.ast->nodes[cast( int32, rv )].flags and NF_TYPE_LITERAL) <> 0 then
+            c.diags->Report( TKO0711, PointRange( c.ast->Loc( rv ) ) )
             return
         end if
     end select
 
     '' Down to the head of the chain.
-    dim as NodeId head = sp->b
+    dim as NodeId head = rv
     dim as int32 guard = 0
     while guard < 64
         guard += 1
         dim as NodeKind hk = c.ast->Kind( head )
         if hk = N_MEMBER then
-            head = c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, head )].data )].lhs
+            '' THROUGH A POINTER IS SOMEBODY ELSE'S STORAGE: 'return n->value' and 'return
+            '' b->items( i )' bind what the local points at, not the local -- pkg/std's
+            '' containers do both. The arrow is the flag (CheckDeref_), and so is any
+            '' member of a pointer-typed base.
+            if (c.ast->nodes[cast( int32, head )].flags and NF_ARROW) <> 0 then return
+            dim as BinaryPayload ptr hmp = @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, head )].data )]
+            if cast( TokenKind, hmp->op ) = TK_ARROW then return
+            head = hmp->lhs
         elseif hk = N_CALL then
             '' AN ARRAY SUBSCRIPT IS SPELLED LIKE A CALL. 'x.a(0)' over a FIELD array
             '' stopped the walk here: the branch below resolved the target 'x.a' to a
@@ -226,6 +319,11 @@ private sub CheckByrefResultValue_ _
                 if lp->count <> 1 then exit while
                 head = cast( NodeId, c.ast->children[lp->first] )
             else
+                '' 'p[ i ]' over a POINTER is a dereference too.
+                dim as TypeId ixt = c.info->TypeOf_( lp->target )
+                if ixt <> TYPE_NONE then
+                    if c.types->Kind( c.types->Unqualify( ixt ) ) = TK_POINTER then return
+                end if
                 head = lp->target
             end if
         else
@@ -246,7 +344,7 @@ private sub CheckByrefResultValue_ _
                 dim as string tn = c.names->Spelling( _
                     c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )].name )
                 if lcase( tn ) = "iif" then
-                    c.diags->Report( TKO0711, PointRange( c.ast->Loc( sp->b ) ) )
+                    c.diags->Report( TKO0711, PointRange( c.ast->Loc( rv ) ) )
                 end if
             end if
             return
@@ -256,14 +354,14 @@ private sub CheckByrefResultValue_ _
             if ts->kind <> cast( uint8, SYM_VARIABLE ) then return
             if (ts->flags and (SYMF_SHARED or SYMF_STATIC or SYMF_EXTERN or _
                                SYMF_COMMON)) <> 0 then return
-            c.diags->Report( TKO0650, PointRange( c.ast->Loc( sp->b ) ) )
+            c.diags->Report( TKO0650, PointRange( c.ast->Loc( rv ) ) )
             return
         end if
         dim as NodeId cd = cast( NodeId, ts->payload )
         if (cd <> NODE_NONE) andalso (c.ast->Kind( cd ) = N_PROC) then
             if (c.ast->nodes[cast( int32, cd )].flags and NF_BYREF) <> 0 then return
         end if
-        c.diags->Report( TKO0650, PointRange( c.ast->Loc( sp->b ) ) )
+        c.diags->Report( TKO0650, PointRange( c.ast->Loc( rv ) ) )
         return
     end if
 
@@ -283,14 +381,14 @@ private sub CheckByrefResultValue_ _
         case TK_REFERENCE, TK_ARRAY
             return
         end select
-        c.diags->Report( TKO0650, PointRange( c.ast->Loc( sp->b ) ), _
+        c.diags->Report( TKO0650, PointRange( c.ast->Loc( rv ) ), _
                          c.names->Spelling( s->name ) )
         return
     end if
     if s->kind <> cast( uint8, SYM_VARIABLE ) then return
     if (s->flags and (SYMF_SHARED or SYMF_STATIC or SYMF_EXTERN or _
                       SYMF_COMMON)) <> 0 then return
-    c.diags->Report( TKO0650, PointRange( c.ast->Loc( sp->b ) ), _
+    c.diags->Report( TKO0650, PointRange( c.ast->Loc( rv ) ), _
                      c.names->Spelling( s->name ) )
 end sub
 
