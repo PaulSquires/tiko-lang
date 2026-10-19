@@ -323,6 +323,41 @@ end function
 declare function ResolveTypeRefAt_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.TypeId
 
+'' 'typeof( v )' OVER 'var v = <lambda>' -- or 'var v = @f'. The initialiser is '@' over
+'' the generated procedure's name, and nothing types that before Check, so the typeof
+'' below had no answer: 'sizeof( typeof( v ) )' and 'Holder( of typeof( v ) )' were left
+'' out of the program, TKO0994. Measured on fbc-modern 1.20, 2026-10-18: both are the
+'' procedure pointer -- sizeof 8, and the field calls through it. A capturing lambda
+'' worked because its closure type is built here. The type is the procedure's own
+'' signature, as generic inference reads it (genericinfer.tiko); a shape that reading
+'' does not model as Check's ProcTypeOfSymbol_ does -- a member, an array or variadic
+'' parameter, a byref result -- is left to decline as before.
+private function AddrOfProcVarType_ _
+    ( byref c as Ctx, byval iv as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.TypeId
+    if c.ast->Kind( iv ) <> Tko.N_ADDROF then return Tko.TYPE_NONE
+    dim as Tko.NodeId opnd = c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, iv )].data )].operand
+    if (opnd = Tko.NODE_NONE) orelse (c.ast->Kind( opnd ) <> Tko.N_IDENT) then return Tko.TYPE_NONE
+    dim as Tko.SymbolId sid = c.syms->Lookup( scope_, IdentNameOf( c, opnd ) )
+    dim as Tko.SymbolId bound = c.info->RefOf( opnd )
+    if (bound <> Tko.SYMBOL_NONE) andalso (bound <> sid) then return Tko.TYPE_NONE
+    dim as Tko.Symbol ptr sy = c.syms->SymbolAt( sid )
+    if sy = nullptr then return Tko.TYPE_NONE
+    if sy->kind <> cast( uint8, Tko.SYM_PROC ) then return Tko.TYPE_NONE
+    dim as Tko.SymScope ptr osc = c.syms->ScopeAt( sy->parent )
+    if (osc <> nullptr) andalso (osc->kind = cast( uint8, Tko.SCOPEK_TYPE )) then return Tko.TYPE_NONE
+    dim as Tko.NodeId pn = cast( Tko.NodeId, sy->payload )
+    if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then return Tko.TYPE_NONE
+    dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+    if (pp->extra and Tko.PF_BYREF_RESULT) <> 0 then return Tko.TYPE_NONE
+    for i as int32 = 0 to pp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        if StmtOf( c, prm )->op = cast( uint16, Tko.TK_ELLIPSIS ) then return Tko.TYPE_NONE
+        if (c.ast->nodes[cast( int32, prm )].flags and (Tko.NF_ARRAY or Tko.NF_VARIADIC)) <> 0 then return Tko.TYPE_NONE
+    next
+    return ProcPtrTypeOfName_( c, opnd, scope_ )
+end function
+
 '' THE TYPE NAME'S OWN NODE is where an import alias in it is looked up from (M22): a file
 '' that never imported 'util' cannot write 'util.Pair' however the declaration is reached.
 function ResolveTypeRef _
@@ -596,6 +631,7 @@ function ResolveTypeRefAt_ _
                                 dim as Tko.NodeId iv = StmtOf( c, vit )->b
                                 if iv <> Tko.NODE_NONE then
                                     dim as Tko.TypeId it2 = c.info->TypeOf_( iv )
+                                    if it2 = Tko.TYPE_NONE then it2 = AddrOfProcVarType_( c, iv, scope_ )
                                     if it2 <> Tko.TYPE_NONE then ts2->type_ = it2
                                 end if
                             end if

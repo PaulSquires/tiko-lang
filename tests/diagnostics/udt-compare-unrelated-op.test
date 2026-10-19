@@ -1,0 +1,10 @@
+'' TKO0720, fbc's 20, for a type with no '=' while an UNRELATED global 'operator =' is in
+'' scope. The check declined on any procedure named '=', the comparison went untyped and the
+'' build stopped on TKO0994 -- every program importing std/fs (FileId's '=') hit it. An
+'' operator over a BASE of the operands still applies, as on fbc-modern: 'p = q' is fine.
+'' See symbols/proccheck.tiko, CmpOpMayApply_.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/udt-compare-unrelated-op.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: udt-compare-unrelated-op.tiko(22,9): error TKO0720: no operator = compares this type
+'' EXPECT-MAX-DIAG: 1

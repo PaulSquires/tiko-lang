@@ -24,7 +24,7 @@
 declare function TypeMemberNamed_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId
 
-private function ProcPtrTypeOfName_ _
+function ProcPtrTypeOfName_ _
     ( byref c as Ctx, byval n as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.TypeId
 
     if n = Tko.NODE_NONE then return Tko.TYPE_NONE

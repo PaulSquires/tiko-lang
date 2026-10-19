@@ -1,0 +1,22 @@
+type Other
+    as long w
+end type
+operator = ( byref l as const Other, byref r as const Other ) as boolean
+    return l.w = r.w
+end operator
+type Animal extends object
+    as long w
+end type
+operator = ( byref l as Animal, byref r as Animal ) as boolean
+    return l.w = r.w
+end operator
+type Dog extends Animal
+    as long z
+end type
+type NoEq
+    as long a
+end type
+dim as Dog p, q
+print p = q
+dim as NoEq x, y
+print x = y
