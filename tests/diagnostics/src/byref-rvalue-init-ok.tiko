@@ -1,0 +1,15 @@
+'' ...and what fbc accepts beside them still binds: a cast to the operand's own type IS the
+'' operand, parentheses around a variable, an element through a pointer, a dereference.
+dim shared y as long = 4
+dim shared pp as long ptr
+dim shared s as string
+
+sub accepted( )
+    dim byref a1 as long = cast( long, y )
+    dim byref a2 as long = ( y )
+    dim byref a3 as long = pp[0]
+    dim byref a4 as long = *pp
+    dim byref a5 as zstring = *strptr( s )
+    dim byref a6 as long ptr = cast( long ptr, pp )
+    var byref a7 = y
+end sub

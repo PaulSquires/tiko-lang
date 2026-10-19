@@ -750,6 +750,7 @@ private sub CheckByrefInitShapes_ ( byref c as Ctx )
         ''
         '' dim/byref-shared-from-global-dynamic-array-element and byref-static-from-static-field
         '' write two. tiko bound them at run time. A local variable is TKO0730's, below.
+        if ByrefInitIsValue_( c, init ) then continue for     '' TKO0643's alone, as fbc's 24 (byrefrvalue.tiko)
         if (s->flags and (SYMF_SHARED or SYMF_STATIC)) <> 0 then
             dim as NodeId sb = init
             for upi as int32 = 0 to 15

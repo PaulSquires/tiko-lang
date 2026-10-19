@@ -1,0 +1,5 @@
+'' ...and what fbc accepts beside them still binds: a cast to the operand's own type, a
+'' parenthesised variable, a pointer's element, a dereference.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/byref-rvalue-init-ok.tiko -o tests/diagnostics/src/byref-rvalue-init-ok.o
+'' EXPECT-EXIT: 0

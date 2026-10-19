@@ -1,0 +1,21 @@
+'' A byref variable bound to a VALUE -- '@', varptr, strptr, procptr, a lambda, iif, an
+'' operator, a converting cast -- is fbc's error 24, one per line. tiko let each through to
+'' lowering, which found no address and stopped on TKO0994, an internal error.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/byref-rvalue-init.tiko -o tests/diagnostics/src/byref-rvalue-init.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: byref-rvalue-init.tiko(1,16): error TKO0643: 'fn' is byref
+'' EXPECT-OUT: byref-rvalue-init.tiko(18,59): error TKO0643: 'f2' is byref
+'' EXPECT-OUT: byref-rvalue-init.tiko(19,20): error TKO0643: 'r1' is byref
+'' EXPECT-OUT: byref-rvalue-init.tiko(20,38): error TKO0643: 'r2' is byref
+'' EXPECT-OUT: byref-rvalue-init.tiko(21,41): error TKO0643: 'r3' is byref
+'' EXPECT-OUT: byref-rvalue-init.tiko(22,20): error TKO0643: 'r4' is byref
+'' EXPECT-OUT: byref-rvalue-init.tiko(23,31): error TKO0643: 'r5' is byref
+'' EXPECT-OUT: byref-rvalue-init.tiko(24,28): error TKO0643: 'r6' is byref
+'' EXPECT-OUT: byref-rvalue-init.tiko(25,28): error TKO0643: 'r7' is byref
+'' EXPECT-OUT: byref-rvalue-init.tiko(26,30): error TKO0643: 'r8' is byref
+'' EXPECT-OUT: byref-rvalue-init.tiko(27,32): error TKO0643: 'r9' is byref
+'' EXPECT-OUT: byref-rvalue-init.tiko(29,35): error TKO0643: 'r10' is byref
+'' EXPECT-NOT: TKO0994
+'' EXPECT-NOT: TKO0888
+'' EXPECT-MAX-DIAG: 12

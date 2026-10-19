@@ -1,0 +1,30 @@
+dim byref fn = function( byval x as long ) as long
+    return x
+end function
+print fn( 3 )
+
+'' A BYREF VARIABLE BOUND TO A VALUE that has no address of its own. Every line below is
+'' fbc's error 24 (or 14 or 3, for the operators, which its parser refuses sooner); tiko let
+'' them all through to lowering, which left the statement out and stopped on TKO0994, an
+'' internal error. The four lines above are the report: a lambda is '@' of its procedure.
+'' (Without 'as', fbc's -lang fb also says 147; tiko infers the type, as for 'dim x = 5'.)
+function g( byval x as long ) as long
+    return x
+end function
+dim shared y as long = 4
+dim shared s as string
+
+sub refused( )
+    dim byref f2 as function( byval x as long ) as long = @g
+    var byref r1 = @y
+    dim byref r2 as long ptr = varptr( y )
+    dim byref r3 as zstring ptr = strptr( s )
+    dim byref r4 = procptr( g )
+    dim byref r5 as long = iif( y, y, y )
+    dim byref r6 as long = -y
+    dim byref r7 as long = ( y + 1 )
+    dim byref r8 as single = cast( single, y )
+    dim byref r9 as long ptr = cptr( long ptr, 0 )
+    '' ...and a STATIC one says it once: this is not also TKO0888's unbound static.
+    static byref r10 as long = iif( y, y, y )
+end sub

@@ -1,0 +1,62 @@
+'' byrefrvalue.tiko -- AN INITIALISER THAT IS A VALUE, NOT A PLACE, cannot be what a byref
+'' variable binds to. Measured, fbc-modern 1.20, 2026-10-18:
+''
+''     dim byref r as long ptr = @y                    error 24    so varptr, strptr, procptr
+''     dim byref fn as function( ... ) as long = @g    error 24
+''     var byref fn = function( ... ) ... end function error 24    a lambda is '@' of its proc
+''     dim byref r as long = iif( y, y, y )            error 24
+''     dim byref r as long = (y + 1)                   error 24    '-y', 'y + 1' are 14 and 3
+''     dim byref r as long ptr = cptr( long ptr, 0 )   error 24
+''     dim byref r as single = cast( single, y )       error 24    a conversion is a value
+''     dim byref r as long = cast( long, y )           OK          the same type is y itself
+''     dim byref r as long = (y)                       OK
+''     var byref fn = function[ byval y ]( ... ) ...    OK          a CLOSURE is an object, not '@'
+''
+'' tiko let every refused one through to lowering, which found no address to store and left
+'' the statement out: TKO0994, an internal error, for what is a plain mistake in the program.
+'' Included from latechecks.tiko, before CheckByrefBinding_, which asks it after its own
+'' literal and call shapes.
+
+private function ByrefInitIsValue_ ( byref c as Ctx, byval e as NodeId ) as boolean
+    for depth as int32 = 0 to 15
+        if e = NODE_NONE then return false
+        select case c.ast->Kind( e )
+        case N_PAREN
+            dim as ListPayload ptr pp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+            if pp->count <> 1 then return false
+            e = cast( NodeId, c.ast->children[pp->first] )
+        case N_ADDROF, N_UNARY, N_BINARY
+            return true
+        case N_CALL
+            dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+            '' A BUILTIN has no symbol; a program's own 'iif' or 'cast' is not this question.
+            if lp->target = NODE_NONE then return false
+            if c.ast->Kind( lp->target ) <> N_IDENT then return false
+            if c.syms->SymbolAt( c.info->RefOf( lp->target ) ) <> nullptr then return false
+            if c.syms->SymbolAt( c.info->RefOf( e ) ) <> nullptr then return false
+            dim as string bn = Tko.Text.LowerAscii( c.names->Spelling( _
+                c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )].name ) )
+            select case bn
+            case "varptr", "strptr", "sadd", "procptr", "iif"
+                return true
+            case "cast", "cptr"
+                if lp->count <> 2 then return false
+                dim as NodeId opnd = cast( NodeId, c.ast->children[lp->first + 1] )
+                dim as TypeId rt = c.types->Unqualify( c.info->TypeOf_( e ) )
+                dim as TypeId ot = c.info->TypeOf_( opnd )
+                if (rt = TYPE_NONE) orelse (ot = TYPE_NONE) then return false
+                ot = c.types->Unqualify( ot )
+                if c.types->Kind( ot ) = TK_REFERENCE then ot = c.types->Unqualify( c.types->Inner( ot ) )
+                '' A UDT's 'operator cast( ) byref' returns a place -- not this rule's.
+                if c.types->Kind( ot ) = TK_UDT then return false
+                if rt <> ot then return true
+                e = opnd
+            case else
+                return false
+            end select
+        case else
+            return false
+        end select
+    next
+    return false
+end function
