@@ -1,0 +1,5 @@
+'' ...and a UDT whose cast yields text ('string' or 'ustring') still binds to every wide string
+'' parameter, byval and byref, as fbc binds it.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/udt-wide-string-arg-ok.tiko -o tests/diagnostics/src/udt-wide-string-arg-ok.o
+'' EXPECT-EXIT: 0

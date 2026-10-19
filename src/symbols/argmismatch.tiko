@@ -274,6 +274,23 @@ private function AmBadPair_ _
             '' [as zstring ptr, as ustring], where tiko passed the pointer as the string.
             if Tko.Check.UdtStrCastFit( *c.ast, *c.syms, *c.types, *c.names, at, Tko.Check.CT_STRING ) > 0 then return true
         end if
+        '' ...AND A WIDE STRING PARAMETER the same way, byref or byval: a UDT whose best cast for a
+        '' 'ustring' or 'wstring' is not text -- no cast, a number, or a 'zstring ptr' / 'wstring ptr'
+        '' -- is fbc's 58 (fbc-modern 1.20, each measured at byval ustring, byref const ustring and
+        '' byref const wstring); a 'string', 'ustring' or 'byref wstring' cast is accepted. tiko
+        '' reported nothing: a BYVAL ustring was dropped (TKO0994), and a BYREF one received the
+        '' UDT's own address, read as a string descriptor -- 'len( a )' printed a pointer.
+        if c.types->Kind( pt ) = Tko.TK_BUILTIN then
+            dim as int32 wideT = 0
+            select case c.types->BuiltinOf( pt )
+            case Tko.TY_USTRING : wideT = Tko.Check.CT_USTRING
+            case Tko.TY_WSTRING : wideT = Tko.Check.CT_WSTRING
+            end select
+            if wideT <> 0 then
+                if Tko.Check.UdtHasStrCast( *c.syms, *c.types, *c.names, at ) = false then return true
+                if Tko.Check.UdtStrCastFit( *c.ast, *c.syms, *c.types, *c.names, at, wideT ) > 0 then return true
+            end if
+        end if
         if AmPlainUdt_( c, at, "cast", "" ) = false then return false
         if AmPtrLike_( c, pt ) then return true
         if AmString_( c, pt ) then
