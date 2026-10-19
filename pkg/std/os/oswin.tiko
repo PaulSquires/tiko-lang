@@ -1,0 +1,415 @@
+#module "os"
+#import "std/containers"
+#import "std/outcome"
+using containers
+using outcome
+'' std/os: oswin -- the Windows side: kernel32 throughout; advapi32's GetUserNameW and
+'' ntdll's RtlGetVersion are reached through GetProcAddress, so nothing beyond
+'' kernel32 is linked.
+
+#ifdef __FB_WIN32__
+
+#include once "fbatomic.bi"
+
+type TkosCtrlHandler as function stdcall ( byval ctrl as ulong ) as long
+
+extern "Windows"
+    declare function tkos_GetCommandLineW alias "GetCommandLineW" ( ) as ushort ptr
+    declare function tkos_GetEnvironmentVariableW alias "GetEnvironmentVariableW" ( byval n as const ushort ptr, _
+        byval buf as ushort ptr, byval size as ulong ) as ulong
+    declare function tkos_SetEnvironmentVariableW alias "SetEnvironmentVariableW" ( byval n as const ushort ptr, _
+        byval v as const ushort ptr ) as long
+    declare function tkos_GetEnvironmentStringsW alias "GetEnvironmentStringsW" ( ) as ushort ptr
+    declare function tkos_FreeEnvironmentStringsW alias "FreeEnvironmentStringsW" ( byval p as ushort ptr ) as long
+    declare function tkos_GetLastError alias "GetLastError" ( ) as ulong
+    declare sub tkos_SetLastError alias "SetLastError" ( byval e as ulong )
+    declare function tkos_GetModuleHandleW alias "GetModuleHandleW" ( byval n as const ushort ptr ) as any ptr
+    declare function tkos_LoadLibraryW alias "LoadLibraryW" ( byval n as const ushort ptr ) as any ptr
+    declare function tkos_GetProcAddress alias "GetProcAddress" ( byval m as any ptr, byval n as const zstring ptr ) as any ptr
+    declare function tkos_GetComputerNameExW alias "GetComputerNameExW" ( byval kind as long, _
+        byval buf as ushort ptr, byval size as ulong ptr ) as long
+    declare function tkos_GetCurrentProcessId alias "GetCurrentProcessId" ( ) as ulong
+    declare function tkos_GetCurrentProcess alias "GetCurrentProcess" ( ) as any ptr
+    declare function tkos_GetProcessAffinityMask alias "GetProcessAffinityMask" ( byval h as any ptr, _
+        byval procmask as ulongint ptr, byval sysmask as ulongint ptr ) as long
+    declare sub tkos_GetSystemInfo alias "GetSystemInfo" ( byval si as any ptr )
+    declare function tkos_GlobalMemoryStatusEx alias "GlobalMemoryStatusEx" ( byval ms as any ptr ) as long
+    declare function tkos_GetStdHandle alias "GetStdHandle" ( byval which as long ) as any ptr
+    declare function tkos_GetConsoleMode alias "GetConsoleMode" ( byval h as any ptr, byval mode as ulong ptr ) as long
+    declare function tkos_TerminateProcess alias "TerminateProcess" ( byval h as any ptr, byval code as ulong ) as long
+    declare sub tkos_ExitProcess alias "ExitProcess" ( byval code as ulong )
+    declare function tkos_SetConsoleCtrlHandler alias "SetConsoleCtrlHandler" ( byval fn as TkosCtrlHandler, _
+        byval add as long ) as long
+    declare function tkos_CreateEventW alias "CreateEventW" ( byval sa as any ptr, byval manual as long, _
+        byval initial as long, byval n as const ushort ptr ) as any ptr
+    declare function tkos_SetEvent alias "SetEvent" ( byval h as any ptr ) as long
+    declare function tkos_ResetEvent alias "ResetEvent" ( byval h as any ptr ) as long
+    declare function tkos_WaitForSingleObject alias "WaitForSingleObject" ( byval h as any ptr, byval ms as ulong ) as ulong
+end extern
+
+'' ---- UTF-16 in and out
+
+private function hFromW( byval w as const ushort ptr, byval n as long = -1 ) as ustring
+    if( w = nullptr ) then return ""
+    if( n < 0 ) then
+        n = 0
+        while( w[n] <> 0 )
+            n += 1
+        wend
+    end if
+    if( n = 0 ) then return ""
+    dim as ustring r = wspace( n )
+    for i as long = 0 to n - 1
+        r[i] = w[i]
+    next
+    return r
+end function
+
+'' A NUL-terminated copy; the caller deallocates it.
+private function hToW( byref s as const ustring ) as ushort ptr
+    dim as ushort ptr w = callocate( len( s ) + 1, 2 )
+    for i as long = 0 to len( s ) - 1
+        w[i] = s[i]
+    next
+    return w
+end function
+
+'' ---- arguments
+
+'' The CommandLineToArgvW rules.  argv[0] runs to the first blank outside quotes and
+'' its quotes are just removed.  After it: 2n backslashes then '"' give n backslashes
+'' and toggle quoting; 2n+1 give n and a literal '"'; backslashes before anything
+'' else are literal; '""' inside quotes is one literal '"'.
+function OsSplitCommandLine( byref cmd as const ustring ) as Array( of ustring )
+    dim as Array( of ustring ) r
+    dim as long i = 0, n = len( cmd )
+    dim as ustring a = ""
+    dim as boolean inq = FALSE
+    while( i < n )
+        if( ( inq = FALSE ) andalso ( ( cmd[i] = 32 ) orelse ( cmd[i] = 9 ) ) ) then exit while
+        if( cmd[i] = 34 ) then
+            inq = not inq
+        else
+            a &= mid( cmd, i + 1, 1 )
+        end if
+        i += 1
+    wend
+    r.Push( a )
+    inq = FALSE
+    do
+        while( ( i < n ) andalso ( ( cmd[i] = 32 ) orelse ( cmd[i] = 9 ) ) )
+            i += 1
+        wend
+        if( i >= n ) then exit do
+        a = ""
+        while( i < n )
+            dim as ulong c = cmd[i]
+            if( ( ( c = 32 ) orelse ( c = 9 ) ) andalso ( inq = FALSE ) ) then exit while
+            if( c = 92 ) then
+                dim as long nb = 0
+                while( ( i < n ) andalso ( cmd[i] = 92 ) )
+                    nb += 1
+                    i += 1
+                wend
+                if( ( i < n ) andalso ( cmd[i] = 34 ) ) then
+                    a &= string( nb \ 2, "\" )
+                    if( ( nb and 1 ) = 1 ) then
+                        a &= """"
+                        i += 1
+                    end if
+                else
+                    a &= string( nb, "\" )
+                end if
+            elseif( c = 34 ) then
+                if( inq andalso ( i + 1 < n ) andalso ( cmd[i + 1] = 34 ) ) then
+                    a &= """"
+                    i += 2
+                else
+                    inq = not inq
+                    i += 1
+                end if
+            else
+                a &= mid( cmd, i + 1, 1 )
+                i += 1
+            end if
+        wend
+        r.Push( a )
+    loop
+    return r
+end function
+
+public function Args( ) as Array( of ustring )
+    return OsSplitCommandLine( hFromW( tkos_GetCommandLineW( ) ) )
+end function
+
+'' ---- environment
+
+public function GetEnv( byref name_ as const ustring ) as Optional( of ustring )
+    if( OsValidName( name_ ) = FALSE ) then return None( of ustring )( )
+    dim as ushort ptr wn = hToW( name_ )
+    dim as ushort ptr buf = nullptr
+    dim as ulong cap = 0
+    do
+        tkos_SetLastError( 0 )
+        dim as ulong got = tkos_GetEnvironmentVariableW( wn, buf, cap )
+        if( got = 0 ) then
+            '' 0 is both "unset" (ERROR_ENVVAR_NOT_FOUND) and "set to nothing"
+            dim as ulong e = tkos_GetLastError( )
+            deallocate( buf ) : deallocate( wn )
+            if( e = 203 ) then return None( of ustring )( )
+            dim as ustring empty = ""
+            return Some( of ustring )( empty )
+        end if
+        if( got < cap ) then
+            dim as ustring v = hFromW( buf, got )
+            deallocate( buf ) : deallocate( wn )
+            return Some( of ustring )( v )
+        end if
+        deallocate( buf )
+        cap = got + 1                       '' 'got' counts the NUL when the buffer was short
+        buf = callocate( cap, 2 )
+    loop
+end function
+
+public function SetEnv( byref name_ as const ustring, byref value as const ustring ) as OsResultBool
+    if( ( OsValidName( name_ ) = FALSE ) orelse OsHasNul( value ) ) then
+        return OsFail( of boolean )( OS_INVALID_ARGUMENT, 0, "SetEnv", name_ )
+    end if
+    dim as ushort ptr wn = hToW( name_ ), wv = hToW( value )
+    dim as long rc = tkos_SetEnvironmentVariableW( wn, wv )
+    dim as ulong e = tkos_GetLastError( )
+    deallocate( wv ) : deallocate( wn )
+    if( rc = 0 ) then return OsFail( of boolean )( OS_SYSTEM, e, "SetEnv", name_ )
+    return Ok( of boolean, OsError )( TRUE )
+end function
+
+public function UnsetEnv( byref name_ as const ustring ) as OsResultBool
+    if( OsValidName( name_ ) = FALSE ) then
+        return OsFail( of boolean )( OS_INVALID_ARGUMENT, 0, "UnsetEnv", name_ )
+    end if
+    dim as ushort ptr wn = hToW( name_ )
+    dim as long rc = tkos_SetEnvironmentVariableW( wn, nullptr )
+    dim as ulong e = tkos_GetLastError( )
+    deallocate( wn )
+    '' removing a variable that is not there succeeds, as on Linux
+    if( ( rc = 0 ) andalso ( e <> 203 ) ) then return OsFail( of boolean )( OS_SYSTEM, e, "UnsetEnv", name_ )
+    return Ok( of boolean, OsError )( TRUE )
+end function
+
+'' The block is NAME=VALUE entries, each NUL-terminated, then one more NUL.  Entries
+'' that start with '=' are cmd's per-drive current directories, not variables.
+public function Environment( ) as OrderedMap( of ustring, ustring )
+    dim as OrderedMap( of ustring, ustring ) m
+    dim as ushort ptr blk = tkos_GetEnvironmentStringsW( )
+    if( blk = nullptr ) then return m
+    dim as ushort ptr p = blk
+    while( p[0] <> 0 )
+        dim as long n = 0
+        while( p[n] <> 0 )
+            n += 1
+        wend
+        if( p[0] <> 61 ) then
+            dim as ustring e = hFromW( p, n )
+            dim as long eq = instr( e, "=" )
+            if( eq > 1 ) then
+                dim as ustring k = left( e, eq - 1 ), v = mid( e, eq + 1 )
+                m.Add( k, v )
+            end if
+        end if
+        p += n + 1
+    wend
+    tkos_FreeEnvironmentStringsW( blk )
+    return m
+end function
+
+'' ---- host facts
+
+type TkosVersionInfo
+    as ulong size, major, minor, build, platform
+    as ushort csd( 0 to 127 )
+end type
+type TkosRtlGetVersion as function stdcall ( byval vi as TkosVersionInfo ptr ) as long
+
+'' RtlGetVersion, because GetVersionExW reports 6.2 to any program without a
+'' compatibility manifest.
+public function OsVersion( ) as ustring
+    dim as ushort ptr wn = hToW( "ntdll.dll" )
+    dim as any ptr m = tkos_GetModuleHandleW( wn )
+    deallocate( wn )
+    if( m = nullptr ) then return ""
+    dim as TkosRtlGetVersion fn = cptr( TkosRtlGetVersion, tkos_GetProcAddress( m, "RtlGetVersion" ) )
+    if( fn = nullptr ) then return ""
+    dim as TkosVersionInfo vi
+    vi.size = sizeof( TkosVersionInfo )
+    if( fn( @vi ) <> 0 ) then return ""
+    return vi.major & "." & vi.minor & "." & vi.build
+end function
+
+public function Hostname( ) as OsResultStr
+    dim as ushort buf( 0 to 259 )
+    dim as ulong size = 260
+    if( tkos_GetComputerNameExW( 1, @buf(0), @size ) = 0 ) then      '' ComputerNameDnsHostname
+        return OsFail( of ustring )( OS_SYSTEM, tkos_GetLastError( ), "Hostname", "" )
+    end if
+    return Ok( of ustring, OsError )( hFromW( @buf(0), size ) )
+end function
+
+type TkosGetUserName as function stdcall ( byval buf as ushort ptr, byval size as ulong ptr ) as long
+
+public function UserName( ) as OsResultStr
+    dim as ushort ptr wn = hToW( "advapi32.dll" )
+    dim as any ptr m = tkos_LoadLibraryW( wn )
+    deallocate( wn )
+    if( m <> nullptr ) then
+        dim as TkosGetUserName fn = cptr( TkosGetUserName, tkos_GetProcAddress( m, "GetUserNameW" ) )
+        if( fn <> nullptr ) then
+            dim as ushort buf( 0 to 256 )
+            dim as ulong size = 257
+            if( fn( @buf(0), @size ) <> 0 ) then
+                return Ok( of ustring, OsError )( hFromW( @buf(0) ) )
+            end if
+        end if
+    end if
+    dim as Optional( of ustring ) u = GetEnv( "USERNAME" )
+    if( u.HasValue( ) ) then return Ok( of ustring, OsError )( u.Value( ) )
+    return OsFail( of ustring )( OS_NOT_FOUND, 0, "UserName", "" )
+end function
+
+public function ProcessId( ) as ulong
+    return tkos_GetCurrentProcessId( )
+end function
+
+'' SYSTEM_INFO is 48 bytes on x86_64: dwPageSize at 4, dwNumberOfProcessors at 32.
+private function hSysInfo( byval offs as long ) as long
+    dim as ubyte si( 0 to 47 )
+    tkos_GetSystemInfo( @si(0) )
+    return *cptr( long ptr, @si(offs) )
+end function
+
+'' The bits of this process's affinity mask: what it may run on, not what the
+'' machine has.  (A process in more than one processor group sees its own group.)
+public function CpuCount( ) as long
+    dim as ulongint pm = 0, sm = 0
+    if( tkos_GetProcessAffinityMask( tkos_GetCurrentProcess( ), @pm, @sm ) <> 0 ) then
+        dim as long n = 0
+        while( pm <> 0 )
+            if( ( pm and 1 ) <> 0 ) then n += 1
+            pm shr= 1
+        wend
+        if( n > 0 ) then return n
+    end if
+    dim as long n = hSysInfo( 32 )
+    if( n < 1 ) then n = 1
+    return n
+end function
+
+public function PageSize( ) as long
+    return hSysInfo( 4 )
+end function
+
+'' MEMORYSTATUSEX is 64 bytes: dwLength at 0, ullTotalPhys at 8.
+public function TotalMemory( ) as ulongint
+    dim as ubyte ms( 0 to 63 )
+    *cptr( ulong ptr, @ms(0) ) = 64
+    if( tkos_GlobalMemoryStatusEx( @ms(0) ) = 0 ) then return 0
+    return *cptr( ulongint ptr, @ms(8) )
+end function
+
+'' A console handle: GetConsoleMode succeeds on nothing else.
+public function IsTerminal( byval fd as long ) as boolean
+    if( ( fd < 0 ) orelse ( fd > 2 ) ) then return FALSE
+    dim as any ptr h = tkos_GetStdHandle( -10 - fd )
+    if( ( h = nullptr ) orelse ( h = cptr( any ptr, -1 ) ) ) then return FALSE
+    dim as ulong mode = 0
+    return ( tkos_GetConsoleMode( h, @mode ) <> 0 )
+end function
+
+'' 3 is the code the C runtime's abort( ) leaves on Windows.
+public sub Abort( )
+    tkos_TerminateProcess( tkos_GetCurrentProcess( ), 3 )
+end sub
+
+'' ---- interrupts
+''
+'' The handler runs on a thread Windows creates for it.  It records the kind,
+'' counts, and sets a manual-reset event; nothing else.  The count's atomic
+'' add is the barrier that publishes the kind.
+
+dim shared as long tkos_intKind, tkos_intCount, tkos_intForce, tkos_intOn
+dim shared as any ptr tkos_intEvent
+
+private sub hStore( byval p as long ptr, byval v as long )
+    do
+        dim as long o = FB.AtomicLoadLong( p )
+        if( FB.AtomicCasLong( p, o, v ) = o ) then exit do
+    loop
+end sub
+
+private function hCtrlHandler stdcall ( byval ctrl as ulong ) as long
+    dim as long k
+    select case ctrl
+    case 0       : k = INT_CTRL_C
+    case 1       : k = INT_BREAK
+    case 2, 5, 6 : k = INT_TERMINATE         '' close, logoff, shutdown
+    case else    : return 0                  '' not ours: the next handler decides
+    end select
+    tkos_intKind = k
+    dim as long before = FB.AtomicFetchAddLong( @tkos_intCount, 1 )
+    if( ( before >= 1 ) andalso ( FB.AtomicLoadLong( @tkos_intForce ) <> 0 ) ) then
+        tkos_ExitProcess( 130 )
+    end if
+    tkos_SetEvent( tkos_intEvent )
+    return 1
+end function
+
+public function CatchInterrupt( byval forceOnSecond as boolean = TRUE ) as OsResultBool
+    hStore( @tkos_intForce, iif( forceOnSecond, 1, 0 ) )
+    if( tkos_intOn <> 0 ) then return Ok( of boolean, OsError )( TRUE )
+    if( tkos_intEvent = nullptr ) then
+        tkos_intEvent = tkos_CreateEventW( nullptr, 1, 0, nullptr )
+        if( tkos_intEvent = nullptr ) then
+            return OsFail( of boolean )( OS_SYSTEM, tkos_GetLastError( ), "CatchInterrupt", "" )
+        end if
+    end if
+    if( tkos_SetConsoleCtrlHandler( @hCtrlHandler, 1 ) = 0 ) then
+        return OsFail( of boolean )( OS_SYSTEM, tkos_GetLastError( ), "CatchInterrupt", "" )
+    end if
+    tkos_intOn = 1
+    return Ok( of boolean, OsError )( TRUE )
+end function
+
+public function InterruptCount( ) as long
+    return FB.AtomicLoadLong( @tkos_intCount )
+end function
+
+public function Interrupted( ) as boolean
+    return ( InterruptCount( ) > 0 )
+end function
+
+public function LastInterrupt( ) as InterruptKind
+    if( Interrupted( ) = FALSE ) then return INT_NONE
+    return cast( InterruptKind, FB.AtomicLoadLong( @tkos_intKind ) )
+end function
+
+'' -1 waits for ever.  Without CatchInterrupt nothing can arrive, so it reports at once.
+public function WaitInterrupt( byval timeoutMs as long = -1 ) as boolean
+    if( Interrupted( ) ) then return TRUE
+    if( tkos_intEvent = nullptr ) then return FALSE
+    dim as ulong ms = iif( timeoutMs < 0, &hFFFFFFFFul, cast( ulong, timeoutMs ) )
+    tkos_WaitForSingleObject( tkos_intEvent, ms )
+    return Interrupted( )
+end function
+
+public sub ResetInterrupt( )
+    if( tkos_intEvent <> nullptr ) then tkos_ResetEvent( tkos_intEvent )
+    hStore( @tkos_intKind, INT_NONE )
+    hStore( @tkos_intCount, 0 )
+end sub
+
+public sub ReleaseInterrupt( )
+    if( tkos_intOn = 0 ) then exit sub
+    tkos_SetConsoleCtrlHandler( @hCtrlHandler, 0 )
+    tkos_intOn = 0
+end sub
+
+#endif

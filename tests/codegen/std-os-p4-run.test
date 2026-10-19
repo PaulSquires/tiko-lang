@@ -1,0 +1,13 @@
+'' RUN: std/os phase P4 -- Args, GetEnv unset vs empty, a Unicode value round trip that ENVIRON
+'' agrees with, Environment, ExpandEnv ($, ${}, % on Windows), name validation and the error
+'' message, host facts, CatchInterrupt / WaitInterrupt / InterruptContext without an interrupt,
+'' and Exit_'s code (C:\dev\docs\tiko-stdlib\RFC-0001 section 8).  The SIGINT half is compiled
+'' for Linux and run there by hand; Windows' CTRL_BREAK case needs std/process (P5).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -mt tests/codegen/src/std-os-p4.tiko -o tests/codegen/stdosp4.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/stdosp4.exe
+'' RUN: tests/codegen/stdosp4.exe
+'' EXPECT-RUN-OUT: ok
+'' EXPECT-RUN-EXIT: 7

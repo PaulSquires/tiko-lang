@@ -1,0 +1,256 @@
+#module "os"
+#import "std/containers"
+#import "std/outcome"
+using containers
+using outcome
+'' std/os -- the process and its host: arguments, environment, host facts, exit,
+'' and Ctrl-C / SIGTERM
+''
+''     #import "std/os"
+''
+''     for each a as ustring in os.Args( )
+''         print a
+''     next
+''     dim home as Optional( of ustring ) = os.GetEnv( "HOME" )
+''     print os.OS_NAME, os.Hostname( ).ValueOr( "?" ), os.CpuCount( )
+''
+'' C:\dev\docs\tiko-stdlib\RFC-0001 section 8.
+''
+''   arguments     Args( ) -- argv[0] included, Unicode on both OSes.  Windows splits
+''                 GetCommandLineW by the CommandLineToArgvW rules; Linux reads
+''                 /proc/self/cmdline.
+''   environment   GetEnv tells UNSET (empty Optional) from EMPTY, which ENVIRON cannot.
+''                 SetEnv, UnsetEnv, Environment( ) (a sorted snapshot), ExpandEnv
+''                 ($VAR and ${VAR}; %VAR% too on Windows).  Names are case-insensitive
+''                 on Windows, as the OS treats them.
+''   host          OS_NAME, ARCH_NAME, OsVersion, Hostname, UserName, ProcessId,
+''                 CpuCount (the processors this process may run on), PageSize,
+''                 TotalMemory, IsTerminal.  Home and config folders are std/fs's.
+''   exit          Exit_( code ) is END code: module destructors run, files flush.
+''                 Abort( ) ends at once with no cleanup.  ('Exit' is a keyword.)
+''   interrupts    CatchInterrupt( ) turns Ctrl-C, Ctrl-Break, SIGTERM, SIGHUP and the
+''                 console's close/logoff/shutdown into a flag the program polls
+''                 (Interrupted) or waits on (WaitInterrupt).  No user code runs in
+''                 signal context.  A second interrupt ends the process with code 130
+''                 unless CatchInterrupt( FALSE ).  std/tasks' InterruptContext( ) is a
+''                 Context cancelled by the first one.
+''
+'' PLATFORM NOTES.  On Linux SetEnv is setenv(3), never putenv, and is NOT safe
+'' against a getenv running on another thread at the same moment (glibc) -- set
+'' the environment before starting threads.  On Windows a console close, logoff
+'' or shutdown gives the program about five seconds after the interrupt before
+'' Windows ends it regardless.  IsTerminal is FALSE under mintty and other
+'' pipe-based terminals on Windows.
+
+#if __FB_LANG__ <> "fb"
+    #error "std/os requires -lang fb"
+#endif
+
+'' -------------------------------------------------------------- errors
+
+public enum OsErrorCode
+    OS_OK = 0
+    OS_INVALID_ARGUMENT     '' an empty name, or one with '=' or a NUL in it
+    OS_NOT_FOUND            '' nothing to report: no such user name, host name
+    OS_UNSUPPORTED          '' this platform cannot do it
+    OS_SYSTEM               '' the OS call failed; OsCode( ) says why
+end enum
+
+public function OsErrorMessage( byval c as OsErrorCode ) as ustring
+    select case c
+    case OS_OK               : return "no error"
+    case OS_INVALID_ARGUMENT : return "invalid argument"
+    case OS_NOT_FOUND        : return "not found"
+    case OS_UNSUPPORTED      : return "not supported on this platform"
+    case OS_SYSTEM           : return "operating system call failed"
+    end select
+    return "unknown error"
+end function
+
+public type OsError
+    '' Default-constructible because Result default-constructs both slots.
+    declare constructor( )
+    declare constructor( byval c as OsErrorCode, byval osc as long, byref op as const ustring, byref subj as const ustring )
+    declare const function Code( ) as OsErrorCode
+    declare const function OsCode( ) as long          '' GetLastError / errno; 0 when none
+    declare const function Operation( ) as ustring    '' "SetEnv", ...
+    declare const function Subject( ) as ustring      '' the name it was about, or ""
+    declare const function Message( ) as ustring      '' "SetEnv 'A=B': invalid argument"
+private:
+    as OsErrorCode m_code
+    as long m_os
+    as ustring m_op
+    as ustring m_subj
+end type
+
+constructor OsError( )
+    this.m_code = OS_SYSTEM
+    this.m_os = 0
+end constructor
+
+constructor OsError( byval c as OsErrorCode, byval osc as long, byref op as const ustring, byref subj as const ustring )
+    this.m_code = c
+    this.m_os = osc
+    this.m_op = op
+    this.m_subj = subj
+end constructor
+
+const function OsError.Code( ) as OsErrorCode
+    return this.m_code
+end function
+
+const function OsError.OsCode( ) as long
+    return this.m_os
+end function
+
+const function OsError.Operation( ) as ustring
+    return this.m_op
+end function
+
+const function OsError.Subject( ) as ustring
+    return this.m_subj
+end function
+
+const function OsError.Message( ) as ustring
+    dim as ustring m = this.m_op
+    if( len( this.m_subj ) > 0 ) then m &= " '" & this.m_subj & "'"
+    m &= ": " & OsErrorMessage( this.m_code )
+    if( this.m_os <> 0 ) then m &= " (os error " & this.m_os & ")"
+    return m
+end function
+
+public type OsResultBool as Result( of boolean, OsError )
+public type OsResultStr  as Result( of ustring, OsError )
+
+function OsFail( of T )( byval c as OsErrorCode, byval osc as long, byref op as const ustring, byref subj as const ustring ) as Result( of T, OsError )
+    return Fail( of T, OsError )( OsError( c, osc, op, subj ) )
+end function
+
+'' -------------------------------------------------------------- host constants
+
+#ifdef __FB_WIN32__
+public const OS_NAME as string = "windows"
+#else
+public const OS_NAME as string = "linux"
+#endif
+public const ARCH_NAME as string = "x86_64"
+
+'' -------------------------------------------------------------- interrupts
+
+public enum InterruptKind
+    INT_NONE = 0
+    INT_CTRL_C              '' Ctrl-C (Windows CTRL_C_EVENT; SIGINT)
+    INT_BREAK               '' Ctrl-Break (Windows only)
+    INT_TERMINATE           '' SIGTERM; Windows console close, logoff, shutdown
+    INT_HANGUP              '' SIGHUP (Linux only)
+end enum
+
+'' -------------------------------------------------------------- the surface
+
+public declare function Args( ) as Array( of ustring )
+public declare function GetEnv( byref name_ as const ustring ) as Optional( of ustring )
+public declare function SetEnv( byref name_ as const ustring, byref value as const ustring ) as OsResultBool
+public declare function UnsetEnv( byref name_ as const ustring ) as OsResultBool
+public declare function Environment( ) as OrderedMap( of ustring, ustring )
+public declare function ExpandEnv( byref s as const ustring ) as ustring
+
+public declare function OsVersion( ) as ustring
+public declare function Hostname( ) as OsResultStr
+public declare function UserName( ) as OsResultStr
+public declare function ProcessId( ) as ulong
+public declare function CpuCount( ) as long
+public declare function PageSize( ) as long
+public declare function TotalMemory( ) as ulongint
+public declare function IsTerminal( byval fd as long ) as boolean
+
+public declare sub Exit_( byval code as long )
+public declare sub Abort( )
+
+public declare function CatchInterrupt( byval forceOnSecond as boolean = TRUE ) as OsResultBool
+public declare function Interrupted( ) as boolean
+public declare function LastInterrupt( ) as InterruptKind
+public declare function InterruptCount( ) as long
+public declare function WaitInterrupt( byval timeoutMs as long = -1 ) as boolean
+public declare sub ResetInterrupt( )
+public declare sub ReleaseInterrupt( )
+
+'' -------------------------------------------------------------- shared helpers
+
+'' A name the OS can store: not empty, no '=' (Windows allows one in position 0
+'' only for its hidden drive variables, which are not for setting), no NUL.
+function OsValidName( byref n as const ustring ) as boolean
+    if( len( n ) = 0 ) then return FALSE
+    for i as long = 0 to len( n ) - 1
+        if( ( n[i] = 61 ) orelse ( n[i] = 0 ) ) then return FALSE
+    next
+    return TRUE
+end function
+
+function OsHasNul( byref s as const ustring ) as boolean
+    for i as long = 0 to len( s ) - 1
+        if( s[i] = 0 ) then return TRUE
+    next
+    return FALSE
+end function
+
+'' ExpandEnv's name characters: A-Z a-z 0-9 _
+private function hNameChar( byval c as ulong ) as boolean
+    if( ( c >= 65 ) andalso ( c <= 90 ) ) then return TRUE
+    if( ( c >= 97 ) andalso ( c <= 122 ) ) then return TRUE
+    if( ( c >= 48 ) andalso ( c <= 57 ) ) then return TRUE
+    return ( c = 95 )
+end function
+
+'' $NAME and ${NAME} become the variable's value, or nothing when it is unset (as a
+'' shell does).  On Windows %NAME% does too, except that an unset %NAME% stays as
+'' it was written (as cmd does).  A '$' or '%' that starts no name is kept.
+public function ExpandEnv( byref s as const ustring ) as ustring
+    dim as ustring r = ""
+    dim as long i = 0, n = len( s )
+    while( i < n )
+        dim as ulong c = s[i]
+        if( ( c = 36 ) andalso ( i + 1 < n ) ) then                  '' $
+            if( s[i + 1] = 123 ) then                                '' ${NAME}
+                dim as long j = i + 2
+                while( ( j < n ) andalso ( s[j] <> 125 ) )
+                    j += 1
+                wend
+                if( ( j < n ) andalso ( j > i + 2 ) ) then
+                    r &= GetEnv( mid( s, i + 3, j - i - 2 ) ).ValueOr( "" )
+                    i = j + 1
+                    continue while
+                end if
+            elseif( hNameChar( s[i + 1] ) ) then                     '' $NAME
+                dim as long j = i + 1
+                while( ( j < n ) andalso hNameChar( s[j] ) )
+                    j += 1
+                wend
+                r &= GetEnv( mid( s, i + 2, j - i - 1 ) ).ValueOr( "" )
+                i = j
+                continue while
+            end if
+#ifdef __FB_WIN32__
+        elseif( c = 37 ) then                                        '' %NAME%
+            dim as long j = i + 1
+            while( ( j < n ) andalso ( s[j] <> 37 ) andalso ( s[j] <> 61 ) )
+                j += 1
+            wend
+            if( ( j < n ) andalso ( s[j] = 37 ) andalso ( j > i + 1 ) ) then
+                dim as Optional( of ustring ) v = GetEnv( mid( s, i + 2, j - i - 1 ) )
+                if( v.HasValue( ) ) then
+                    r &= v.Value( )
+                    i = j + 1
+                    continue while
+                end if
+            end if
+#endif
+        end if
+        r &= mid( s, i + 1, 1 )
+        i += 1
+    wend
+    return r
+end function
+
+public sub Exit_( byval code as long )
+    end code
+end sub

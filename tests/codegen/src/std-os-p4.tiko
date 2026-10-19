@@ -1,0 +1,101 @@
+'' std/os phase P4 (C:\dev\docs\tiko-stdlib\RFC-0001 section 8) and std/tasks' InterruptContext.
+'' Prints "ok" and ends through os.Exit_( 7 ).  The real-interrupt half runs on Linux only
+'' (kill( getpid( ), SIGINT )); Windows' CTRL_BREAK test needs a child process (std/process, P5).
+#import "std/os"
+#import "std/tasks"
+#import "std/containers"
+#import "std/outcome"
+using containers
+using outcome
+using tasks
+
+#ifndef __FB_WIN32__
+extern "C"
+    declare function c_kill alias "kill" ( byval pid as long, byval sig as long ) as long
+end extern
+#endif
+
+dim shared as long fails = 0
+sub Check( byval cond as boolean, byref what as const string )
+    if( cond = FALSE ) then
+        print "FAIL "; what
+        fails += 1
+    end if
+end sub
+
+'' ---- arguments
+dim as Array( of ustring ) a = os.Args( )
+Check( a.num >= 1, "args count" )
+if( a.num >= 1 ) then Check( len( a.items( 0 ) ) > 0, "argv0" )
+
+'' ---- environment
+Check( os.GetEnv( "TKOS_P4_NOPE" ).HasValue( ) = FALSE, "unset" )
+Check( os.SetEnv( "TKOS_P4", "" ).IsOk( ), "set empty" )
+dim as Optional( of ustring ) e = os.GetEnv( "TKOS_P4" )
+Check( e.HasValue( ), "empty is set" )
+Check( e.ValueOr( "x" ) = "", "empty value" )
+dim as ustring uv = "h" & wchr( &hE9 ) & "llo " & wchr( &h4E16 ) & wchr( &h754C )
+Check( os.SetEnv( "TKOS_P4", uv ).IsOk( ), "set unicode" )
+Check( os.GetEnv( "TKOS_P4" ).ValueOr( "" ) = uv, "unicode round trip" )
+dim as ustring viaRt = environ( "TKOS_P4" )
+Check( viaRt = uv, "ENVIRON agrees" )
+Check( os.Environment( ).Contains( "TKOS_P4" ), "Environment has it" )
+Check( os.ExpandEnv( "<$TKOS_P4|${TKOS_P4}|$|${}|$TKOS_P4_NOPE|$$>" ) = "<" & uv & "|" & uv & "|$|${}||$$>", "expand" )
+#ifdef __FB_WIN32__
+Check( os.ExpandEnv( "%TKOS_P4%|%TKOS_P4_NOPE%|100%" ) = uv & "|%TKOS_P4_NOPE%|100%", "expand %" )
+Check( os.OS_NAME = "windows", "OS_NAME" )
+#else
+Check( os.ExpandEnv( "%TKOS_P4%" ) = "%TKOS_P4%", "no % on linux" )
+Check( os.OS_NAME = "linux", "OS_NAME" )
+#endif
+Check( os.UnsetEnv( "TKOS_P4" ).IsOk( ), "unset ok" )
+Check( os.GetEnv( "TKOS_P4" ).HasValue( ) = FALSE, "unset gone" )
+Check( os.UnsetEnv( "TKOS_P4" ).IsOk( ), "unset twice ok" )
+dim as os.OsResultBool r = os.SetEnv( "A=B", "x" )
+Check( r.IsOk( ) = FALSE, "bad name fails" )
+Check( r.Failure( ).Code( ) = os.OS_INVALID_ARGUMENT, "bad name code" )
+Check( r.Failure( ).Message( ) = "SetEnv 'A=B': invalid argument", "bad name message" )
+Check( os.SetEnv( "", "x" ).IsOk( ) = FALSE, "empty name fails" )
+Check( os.GetEnv( "" ).HasValue( ) = FALSE, "empty name get" )
+
+'' ---- host
+Check( os.ARCH_NAME = "x86_64", "ARCH_NAME" )
+Check( len( (os.OsVersion( )) ) > 0, "OsVersion" )
+dim as os.OsResultStr h = os.Hostname( )
+Check( h.IsOk( ) andalso ( len( h.ValueOr( "" ) ) > 0 ), "Hostname" )
+Check( os.UserName( ).IsOk( ), "UserName" )
+Check( os.ProcessId( ) > 0, "ProcessId" )
+Check( os.CpuCount( ) >= 1, "CpuCount" )
+Check( os.PageSize( ) >= 4096, "PageSize" )
+Check( os.TotalMemory( ) > 0, "TotalMemory" )
+Check( os.IsTerminal( 7 ) = FALSE, "IsTerminal bad fd" )
+
+'' ---- interrupts
+Check( os.Interrupted( ) = FALSE, "none yet" )
+Check( os.WaitInterrupt( 0 ) = FALSE, "wait before catch" )
+Check( os.CatchInterrupt( ).IsOk( ), "catch" )
+Check( os.CatchInterrupt( ).IsOk( ), "catch twice" )
+Check( os.WaitInterrupt( 20 ) = FALSE, "wait times out" )
+Check( os.LastInterrupt( ) = os.INT_NONE, "kind none" )
+dim as Context ctx = InterruptContext( )
+Check( ctx.IsCancelled( ) = FALSE, "context live" )
+#ifndef __FB_WIN32__
+c_kill( os.ProcessId( ), 2 )
+Check( os.WaitInterrupt( 2000 ), "SIGINT arrives" )
+Check( os.LastInterrupt( ) = os.INT_CTRL_C, "SIGINT kind" )
+Check( os.InterruptCount( ) = 1, "SIGINT count" )
+dim as long n = 0
+while( ( ctx.IsCancelled( ) = FALSE ) andalso ( n < 200 ) )
+    sleep 10, 1
+    n += 1
+wend
+Check( ctx.IsCancelled( ), "context cancelled" )
+os.ResetInterrupt( )
+Check( os.Interrupted( ) = FALSE, "reset" )
+Check( os.WaitInterrupt( 20 ) = FALSE, "reset drains" )
+#endif
+os.ReleaseInterrupt( )
+
+if( fails = 0 ) then print "ok"
+os.Exit_( 7 )
+print "not reached"
