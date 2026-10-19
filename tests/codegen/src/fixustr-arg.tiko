@@ -1,0 +1,68 @@
+'' A 'ustring * N' ARGUMENT arrives whole (fbc-modern 1.20 prints every line below). It came
+'' through EMPTY into any 'byval as ustring' parameter -- a procedure, a function, a method or a
+'' constructor -- and into a constructor's 'byref as string' (and 'const string'), directly or by
+'' an implicit conversion: the buffer itself was passed where a descriptor belongs.
+type ByStr
+    as ustring t
+    declare constructor( byref t as string )
+end type
+constructor ByStr( byref t as string )
+    this.t = t
+end constructor
+type ByConstStr
+    as ustring t
+    declare constructor( byref t as const string )
+end type
+constructor ByConstStr( byref t as const string )
+    this.t = t
+end constructor
+type ByValU
+    as ustring t
+    declare constructor( byval t as ustring )
+    declare sub M( byval t as ustring )
+end type
+constructor ByValU( byval t as ustring )
+    this.t = t
+end constructor
+sub ByValU.M( byval t as ustring )
+    this.t = t
+end sub
+type ByWide
+    as ustring t
+    declare constructor( byref t as wstring )
+end type
+constructor ByWide( byref t as wstring )
+    this.t = t
+end constructor
+
+sub P( byval t as ustring )
+    print "P [" & t & "]"
+end sub
+function Echo( byval t as ustring ) as ustring
+    return t
+end function
+function Take( byref b as ByStr ) as ustring
+    return b.t
+end function
+
+dim as ustring u0 = "h" & wchr( &hE9 ) & "llo"
+dim as ustring * 8 s = u0
+P( s )
+print "Echo [" & Echo( s ) & "]"
+dim as ByStr a = ByStr( s )
+print "ByStr [" & a.t & "]"
+dim as ByStr a2 = s
+print "ByStr= [" & a2.t & "]"
+print "Take [" & Take( s ) & "]"
+dim as ByConstStr b = ByConstStr( s )
+print "ByConstStr [" & b.t & "]"
+dim as ByValU v = ByValU( s )
+print "ByValU [" & v.t & "]"
+v.M( "reset" )
+v.M( s )
+print "M [" & v.t & "]"
+'' a var-length ustring still reaches a 'byref as wstring' constructor
+dim as ustring vs = "wide"
+dim as ByWide w = ByWide( vs )
+print "ByWide [" & w.t & "]"
+print "s unchanged [" & s & "]"

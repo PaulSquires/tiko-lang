@@ -444,6 +444,18 @@ private function ProcPtrArgBad_ ( byref c as Ctx, byval pt as TypeId, byval arg 
 
     '' A STRING becomes no number, boolean, enum or non-character pointer.
     if ac = 1 then
+        '' ...and a 'ustring * N' is no 'byref as wstring' or 'byref as zstring' -- fbc's 58,
+        '' assigncheck.tiko's rule for an ordinary call, here for a constructor's: 'T( uf )'
+        '' over 'constructor( byref t as wstring )' compiled (fbc-modern 1.20).
+        if isRef andalso (pk = TK_BUILTIN) then
+            select case c.types->BuiltinOf( pv )
+            case TY_WSTRING, TY_ZSTRING
+                dim as TypeId fue = Tko.Check.FixedStringElem( av, *c.types )
+                if fue <> TYPE_NONE then
+                    if c.types->BuiltinOf( fue ) = TY_FIXUSTR then return true
+                end if
+            end select
+        end if
         if (pc = 2) orelse (pc = 3) then return true
         if pk = TK_ENUM then return true
         if pk = TK_POINTER then

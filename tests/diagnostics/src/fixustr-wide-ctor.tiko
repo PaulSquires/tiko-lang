@@ -1,0 +1,26 @@
+'' A 'ustring * N' FOR A CONSTRUCTOR'S 'byref as wstring' or 'byref as zstring' is fbc's error 58
+'' (fbc-modern 1.20), as it already was for an ordinary call: explicitly, through 'var' and
+'' 'new', and by an implicit conversion into a parameter of the type. tiko chose the
+'' constructor and compiled every one. A var-length ustring is accepted (the -ok half,
+'' tests/codegen/fixustr-arg-run).
+type W
+    as long v
+    declare constructor( byref t as wstring )
+end type
+constructor W( byref t as wstring )
+end constructor
+type Z
+    as long v
+    declare constructor( byref t as zstring )
+end type
+constructor Z( byref t as zstring )
+end constructor
+sub TakeW( byref x as W )
+end sub
+
+dim as ustring * 4 s = "x"
+dim as W a = W( s )
+var b = W( s )
+dim as W ptr p = new W( s )
+TakeW( s )
+dim as Z d = Z( s )
