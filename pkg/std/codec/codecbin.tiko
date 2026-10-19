@@ -1,0 +1,350 @@
+#module "codec"
+#import "std/containers"
+#import "std/outcome"
+using containers
+using outcome
+'' std/codec: fixed-width values in a byte buffer, and LEB128 varints
+''
+''     dim b as containers.Array( of ubyte )
+''     codec.AppendU32LE( b, &h11223344 )        '' 44 33 22 11
+''     codec.AppendU16BE( b, 513 )               '' 02 01
+''     print hex( codec.GetU32LE( b, 0 ) )       '' 11223344
+''     codec.AppendUVarint( b, 300 )             '' AC 02
+''     dim at as long = 6
+''     print codec.ReadUVarint( b, at ).Value( ) '' 300, and at is now 8
+''
+'' Get<T><LE|BE>( b, off ) reads at a 0-based byte offset.  Reading past the end
+'' is runtime error 6 (out of bounds), as indexing an Array is: an offset is
+'' the program's own arithmetic, not data from outside.
+''
+'' Put<T><LE|BE>( b, off, v ) writes at off and GROWS b, zero-filled, when the
+'' value would end past Count( ).  Append<T><LE|BE>( b, v ) writes at the end.
+''
+'' T is U16 U32 U64 I16 I32 I64 F32 F64.  Signed Gets sign-extend; Puts keep
+'' the low bytes, as a cast would.  Floats move as their IEEE 754 bit pattern,
+'' through an integer of the same size, so -0.0 and NaN payloads survive.
+''
+'' VARINTS are unsigned LEB128 (7 bits a byte, low group first, the high bit set
+'' on every byte but the last) -- what protobuf, DWARF and WebAssembly use.  The
+'' signed form zig-zags first, so small negative numbers stay short:
+'' 0 -1 1 -2 2 ... become 0 1 2 3 4 ....  Data that ends inside a value is
+'' ENC_TRUNCATED; more than ten bytes, or a tenth byte above 1, is ENC_OVERFLOW.
+
+'' -------------------------------------------------------------- internal
+
+function EncGetRaw( byref b as Array( of ubyte ), byval off as long, byval w as long, byval be as boolean ) as ulongint
+    if( ( off < 0 ) orelse ( off + w > b.num ) ) then
+        error 6
+        return 0
+    end if
+    dim as ulongint v = 0
+    for k as long = 0 to w - 1
+        dim as long idx = off + w - 1 - k
+        if( be ) then
+            idx = off + k
+        end if
+        v = ( v shl 8 ) or b.items( idx )
+    next
+    return v
+end function
+
+sub EncPutRaw( byref b as Array( of ubyte ), byval off as long, byval w as long, byval v as ulongint, byval be as boolean )
+    if( off < 0 ) then
+        error 6
+        exit sub
+    end if
+    if( off + w > b.num ) then
+        b.Reserve( off + w )
+        for k as long = b.num to off + w - 1
+            b.items( k ) = 0
+        next
+        b.num = off + w
+    end if
+    for k as long = 0 to w - 1
+        dim as long idx = off + k
+        if( be ) then
+            idx = off + w - 1 - k
+        end if
+        b.items( idx ) = cubyte( v and &hFF )
+        v shr= 8
+    next
+end sub
+
+function EncSignExtend( byval v as ulongint, byval w as long ) as longint
+    if( w >= 8 ) then
+        return cast( longint, v )
+    end if
+    dim as long sh = 64 - 8 * w
+    return cast( longint, v shl sh ) shr sh
+end function
+
+'' -------------------------------------------------------------- varints
+
+public sub AppendUVarint( byref b as Array( of ubyte ), byval v as ulongint )
+    do
+        dim as ulongint g = v and &h7F
+        v shr= 7
+        if( v <> 0 ) then
+            b.Push( cubyte( g or &h80 ) )
+        else
+            b.Push( cubyte( g ) )
+            exit do
+        end if
+    loop
+end sub
+
+public sub AppendVarint( byref b as Array( of ubyte ), byval v as longint )
+    dim as ulongint z
+    if( v < 0 ) then
+        z = ( ( not cast( ulongint, v ) ) shl 1 ) or 1
+    else
+        z = cast( ulongint, v ) shl 1
+    end if
+    AppendUVarint( b, z )
+end sub
+
+'' Reads one value at 'off' and advances 'off' past it.  On failure 'off' is
+'' left where it was.
+public function ReadUVarint( byref b as Array( of ubyte ), byref off as long ) as EncResultU64
+    dim as ulongint v = 0
+    dim as long i = off
+    for k as long = 0 to 9
+        if( ( i < 0 ) orelse ( i >= b.num ) ) then
+            return EncFail( of ulongint )( ENC_TRUNCATED, 0, "ReadUVarint" )
+        end if
+        dim as ulongint g = b.items( i )
+        i += 1
+        if( k = 9 ) then
+            if( g > 1 ) then
+                return EncFail( of ulongint )( ENC_OVERFLOW, 0, "ReadUVarint" )
+            end if
+        end if
+        v or= ( g and &h7F ) shl ( 7 * k )
+        if( ( g and &h80 ) = 0 ) then
+            off = i
+            return Ok( of ulongint, EncodingError )( v )
+        end if
+    next
+    return EncFail( of ulongint )( ENC_OVERFLOW, 0, "ReadUVarint" )
+end function
+
+public function ReadVarint( byref b as Array( of ubyte ), byref off as long ) as EncResultI64
+    dim as EncResultU64 r = ReadUVarint( b, off )
+    if( r.IsOk( ) = FALSE ) then
+        dim as EncodingError e = EncodingError( r.Failure( ).Code( ), 0, "ReadVarint" )
+        return Fail( of longint, EncodingError )( e )
+    end if
+    dim as ulongint z = r.Value( )
+    dim as longint v
+    if( ( z and 1 ) <> 0 ) then
+        v = cast( longint, not ( z shr 1 ) )
+    else
+        v = cast( longint, z shr 1 )
+    end if
+    return Ok( of longint, EncodingError )( v )
+end function
+
+'' -------------------------------------------------------------- fixed width
+''
+'' Generated, one Get, Put and Append per type and byte order, so that every
+'' name can be found with a search.  Each is one call into the helpers above.
+
+public function GetU16LE( byref b as Array( of ubyte ), byval off as long ) as ushort
+    return cast( ushort, EncGetRaw( b, off, 2, FALSE ) )
+end function
+
+public sub PutU16LE( byref b as Array( of ubyte ), byval off as long, byval v as ushort )
+    EncPutRaw( b, off, 2, cast( ulongint, v ), FALSE )
+end sub
+
+public sub AppendU16LE( byref b as Array( of ubyte ), byval v as ushort )
+    PutU16LE( b, b.num, v )
+end sub
+
+public function GetU16BE( byref b as Array( of ubyte ), byval off as long ) as ushort
+    return cast( ushort, EncGetRaw( b, off, 2, TRUE ) )
+end function
+
+public sub PutU16BE( byref b as Array( of ubyte ), byval off as long, byval v as ushort )
+    EncPutRaw( b, off, 2, cast( ulongint, v ), TRUE )
+end sub
+
+public sub AppendU16BE( byref b as Array( of ubyte ), byval v as ushort )
+    PutU16BE( b, b.num, v )
+end sub
+
+public function GetU32LE( byref b as Array( of ubyte ), byval off as long ) as ulong
+    return cast( ulong, EncGetRaw( b, off, 4, FALSE ) )
+end function
+
+public sub PutU32LE( byref b as Array( of ubyte ), byval off as long, byval v as ulong )
+    EncPutRaw( b, off, 4, cast( ulongint, v ), FALSE )
+end sub
+
+public sub AppendU32LE( byref b as Array( of ubyte ), byval v as ulong )
+    PutU32LE( b, b.num, v )
+end sub
+
+public function GetU32BE( byref b as Array( of ubyte ), byval off as long ) as ulong
+    return cast( ulong, EncGetRaw( b, off, 4, TRUE ) )
+end function
+
+public sub PutU32BE( byref b as Array( of ubyte ), byval off as long, byval v as ulong )
+    EncPutRaw( b, off, 4, cast( ulongint, v ), TRUE )
+end sub
+
+public sub AppendU32BE( byref b as Array( of ubyte ), byval v as ulong )
+    PutU32BE( b, b.num, v )
+end sub
+
+public function GetU64LE( byref b as Array( of ubyte ), byval off as long ) as ulongint
+    return cast( ulongint, EncGetRaw( b, off, 8, FALSE ) )
+end function
+
+public sub PutU64LE( byref b as Array( of ubyte ), byval off as long, byval v as ulongint )
+    EncPutRaw( b, off, 8, cast( ulongint, v ), FALSE )
+end sub
+
+public sub AppendU64LE( byref b as Array( of ubyte ), byval v as ulongint )
+    PutU64LE( b, b.num, v )
+end sub
+
+public function GetU64BE( byref b as Array( of ubyte ), byval off as long ) as ulongint
+    return cast( ulongint, EncGetRaw( b, off, 8, TRUE ) )
+end function
+
+public sub PutU64BE( byref b as Array( of ubyte ), byval off as long, byval v as ulongint )
+    EncPutRaw( b, off, 8, cast( ulongint, v ), TRUE )
+end sub
+
+public sub AppendU64BE( byref b as Array( of ubyte ), byval v as ulongint )
+    PutU64BE( b, b.num, v )
+end sub
+
+public function GetI16LE( byref b as Array( of ubyte ), byval off as long ) as short
+    return cast( short, EncSignExtend( EncGetRaw( b, off, 2, FALSE ), 2 ) )
+end function
+
+public sub PutI16LE( byref b as Array( of ubyte ), byval off as long, byval v as short )
+    EncPutRaw( b, off, 2, cast( ulongint, cast( longint, v ) ), FALSE )
+end sub
+
+public sub AppendI16LE( byref b as Array( of ubyte ), byval v as short )
+    PutI16LE( b, b.num, v )
+end sub
+
+public function GetI16BE( byref b as Array( of ubyte ), byval off as long ) as short
+    return cast( short, EncSignExtend( EncGetRaw( b, off, 2, TRUE ), 2 ) )
+end function
+
+public sub PutI16BE( byref b as Array( of ubyte ), byval off as long, byval v as short )
+    EncPutRaw( b, off, 2, cast( ulongint, cast( longint, v ) ), TRUE )
+end sub
+
+public sub AppendI16BE( byref b as Array( of ubyte ), byval v as short )
+    PutI16BE( b, b.num, v )
+end sub
+
+public function GetI32LE( byref b as Array( of ubyte ), byval off as long ) as long
+    return cast( long, EncSignExtend( EncGetRaw( b, off, 4, FALSE ), 4 ) )
+end function
+
+public sub PutI32LE( byref b as Array( of ubyte ), byval off as long, byval v as long )
+    EncPutRaw( b, off, 4, cast( ulongint, cast( longint, v ) ), FALSE )
+end sub
+
+public sub AppendI32LE( byref b as Array( of ubyte ), byval v as long )
+    PutI32LE( b, b.num, v )
+end sub
+
+public function GetI32BE( byref b as Array( of ubyte ), byval off as long ) as long
+    return cast( long, EncSignExtend( EncGetRaw( b, off, 4, TRUE ), 4 ) )
+end function
+
+public sub PutI32BE( byref b as Array( of ubyte ), byval off as long, byval v as long )
+    EncPutRaw( b, off, 4, cast( ulongint, cast( longint, v ) ), TRUE )
+end sub
+
+public sub AppendI32BE( byref b as Array( of ubyte ), byval v as long )
+    PutI32BE( b, b.num, v )
+end sub
+
+public function GetI64LE( byref b as Array( of ubyte ), byval off as long ) as longint
+    return cast( longint, EncSignExtend( EncGetRaw( b, off, 8, FALSE ), 8 ) )
+end function
+
+public sub PutI64LE( byref b as Array( of ubyte ), byval off as long, byval v as longint )
+    EncPutRaw( b, off, 8, cast( ulongint, cast( longint, v ) ), FALSE )
+end sub
+
+public sub AppendI64LE( byref b as Array( of ubyte ), byval v as longint )
+    PutI64LE( b, b.num, v )
+end sub
+
+public function GetI64BE( byref b as Array( of ubyte ), byval off as long ) as longint
+    return cast( longint, EncSignExtend( EncGetRaw( b, off, 8, TRUE ), 8 ) )
+end function
+
+public sub PutI64BE( byref b as Array( of ubyte ), byval off as long, byval v as longint )
+    EncPutRaw( b, off, 8, cast( ulongint, cast( longint, v ) ), TRUE )
+end sub
+
+public sub AppendI64BE( byref b as Array( of ubyte ), byval v as longint )
+    PutI64BE( b, b.num, v )
+end sub
+
+public function GetF32LE( byref b as Array( of ubyte ), byval off as long ) as single
+    dim as ulong raw = cast( ulong, EncGetRaw( b, off, 4, FALSE ) )
+    return *cptr( single ptr, @raw )
+end function
+
+public sub PutF32LE( byref b as Array( of ubyte ), byval off as long, byval v as single )
+    dim as ulong raw = *cptr( ulong ptr, @v )
+    EncPutRaw( b, off, 4, raw, FALSE )
+end sub
+
+public sub AppendF32LE( byref b as Array( of ubyte ), byval v as single )
+    PutF32LE( b, b.num, v )
+end sub
+
+public function GetF32BE( byref b as Array( of ubyte ), byval off as long ) as single
+    dim as ulong raw = cast( ulong, EncGetRaw( b, off, 4, TRUE ) )
+    return *cptr( single ptr, @raw )
+end function
+
+public sub PutF32BE( byref b as Array( of ubyte ), byval off as long, byval v as single )
+    dim as ulong raw = *cptr( ulong ptr, @v )
+    EncPutRaw( b, off, 4, raw, TRUE )
+end sub
+
+public sub AppendF32BE( byref b as Array( of ubyte ), byval v as single )
+    PutF32BE( b, b.num, v )
+end sub
+
+public function GetF64LE( byref b as Array( of ubyte ), byval off as long ) as double
+    dim as ulongint raw = cast( ulongint, EncGetRaw( b, off, 8, FALSE ) )
+    return *cptr( double ptr, @raw )
+end function
+
+public sub PutF64LE( byref b as Array( of ubyte ), byval off as long, byval v as double )
+    dim as ulongint raw = *cptr( ulongint ptr, @v )
+    EncPutRaw( b, off, 8, raw, FALSE )
+end sub
+
+public sub AppendF64LE( byref b as Array( of ubyte ), byval v as double )
+    PutF64LE( b, b.num, v )
+end sub
+
+public function GetF64BE( byref b as Array( of ubyte ), byval off as long ) as double
+    dim as ulongint raw = cast( ulongint, EncGetRaw( b, off, 8, TRUE ) )
+    return *cptr( double ptr, @raw )
+end function
+
+public sub PutF64BE( byref b as Array( of ubyte ), byval off as long, byval v as double )
+    dim as ulongint raw = *cptr( ulongint ptr, @v )
+    EncPutRaw( b, off, 8, raw, TRUE )
+end sub
+
+public sub AppendF64BE( byref b as Array( of ubyte ), byval v as double )
+    PutF64BE( b, b.num, v )
+end sub

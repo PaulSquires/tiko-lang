@@ -1,0 +1,106 @@
+#module "codec"
+#import "std/containers"
+#import "std/outcome"
+using containers
+using outcome
+'' std/codec: percent-encoding (RFC 3986 section 2, and HTML form encoding)
+''
+''     print codec.PercentEncode( "a b/c?d" )                          '' a%20b%2Fc%3Fd
+''     print codec.PercentEncode( "a b/c", codec.PCT_PATH )         '' a%20b/c
+''     print codec.PercentEncode( "q=a b&x", codec.PCT_QUERY )      '' q%3Da+b%26x
+''     print codec.PercentDecode( "caf%C3%A9" ).Value( )               '' café
+''
+'' Text is encoded as its UTF-8 bytes; every byte that the mode does not keep
+'' becomes %XX, upper-case hex as RFC 3986 recommends.
+''
+''   PCT_COMPONENT   keeps only the unreserved characters  A-Z a-z 0-9 - . _ ~
+''                   (JavaScript's encodeURIComponent; a value inside a URL)
+''   PCT_PATH        also keeps / : @ and the sub-delims ! $ & ' ( ) * + , ; =
+''                   (a path that already has its separators)
+''   PCT_QUERY       application/x-www-form-urlencoded: unreserved kept, a
+''                   space becomes '+', everything else is escaped
+''
+'' Decoding turns %XX back into bytes (either case), and '+' into a space in
+'' PCT_QUERY mode only.  A '%' not followed by two hex digits is
+'' ENC_INVALID_CHAR at that position; decoded bytes that are not UTF-8 are
+'' ENC_INVALID_UTF8.  Characters that were never escaped -- including non-ASCII
+'' ones -- pass through as they are.
+
+public enum PercentMode
+    PCT_COMPONENT = 0
+    PCT_PATH
+    PCT_QUERY
+end enum
+
+function EncPctKeep( byval c as long, byval m as PercentMode ) as boolean
+    select case c
+    case asc( "A" ) to asc( "Z" ), asc( "a" ) to asc( "z" ), asc( "0" ) to asc( "9" )
+        return TRUE
+    case asc( "-" ), asc( "." ), asc( "_" ), asc( "~" )
+        return TRUE
+    case asc( "/" ), asc( ":" ), asc( "@" ), asc( "!" ), asc( "$" ), asc( "&" ), asc( "'" ), _
+         asc( "(" ), asc( ")" ), asc( "*" ), asc( "+" ), asc( "," ), asc( ";" ), asc( "=" )
+        return m = PCT_PATH
+    end select
+    return FALSE
+end function
+
+public function PercentEncode( byref s as const ustring, byval m as PercentMode = PCT_COMPONENT ) as ustring
+    dim as string b = s
+    dim as const ubyte ptr p = cptr( const ubyte ptr, strptr( b ) )
+    dim as string digits = "0123456789ABCDEF"
+    dim as const ubyte ptr d = cptr( const ubyte ptr, strptr( digits ) )
+    dim as string r = space( len( b ) * 3 )
+    dim as ubyte ptr q = cptr( ubyte ptr, strptr( r ) )
+    dim as long o = 0
+    for i as long = 0 to len( b ) - 1
+        dim as long c = p[i]
+        if( EncPctKeep( c, m ) ) then
+            q[o] = c : o += 1
+        elseif( ( c = 32 ) andalso ( m = PCT_QUERY ) ) then
+            q[o] = asc( "+" ) : o += 1
+        else
+            q[o] = asc( "%" )
+            q[o + 1] = d[c shr 4]
+            q[o + 2] = d[c and 15]
+            o += 3
+        end if
+    next
+    return left( r, o )
+end function
+
+public function PercentDecode( byref s as const ustring, byval m as PercentMode = PCT_COMPONENT ) as EncResultText
+    '' Work on the UTF-16 code units so that error positions are INSTR positions;
+    '' escapes and '+' are ASCII, anything else is carried through as UTF-8.
+    dim as string bytes
+    dim as long n = len( s )
+    dim as long i = 1
+    while( i <= n )
+        dim as long c = asc( s, i )
+        if( c = asc( "%" ) ) then
+            dim as long hi = -1, lo = -1
+            if( i + 2 <= n ) then
+                hi = EncHexDigit( asc( s, i + 1 ) )
+                lo = EncHexDigit( asc( s, i + 2 ) )
+            end if
+            if( ( hi < 0 ) orelse ( lo < 0 ) ) then
+                return EncFail( of ustring )( ENC_INVALID_CHAR, i, "PercentDecode" )
+            end if
+            bytes &= chr( hi * 16 + lo )
+            i += 3
+        elseif( ( c = asc( "+" ) ) andalso ( m = PCT_QUERY ) ) then
+            bytes &= " "
+            i += 1
+        else
+            '' one code unit, or a surrogate pair, as UTF-8
+            dim as long units = 1
+            if( ( c >= &hD800 ) andalso ( c <= &hDBFF ) andalso ( i < n ) ) then
+                units = 2
+            end if
+            dim as string u8 = mid( s, i, units )
+            bytes &= u8
+            i += units
+        end if
+    wend
+    return EncBytesToText( cptr( const ubyte ptr, strptr( bytes ) ), len( bytes ), "PercentDecode" )
+end function

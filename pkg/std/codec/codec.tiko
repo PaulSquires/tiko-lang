@@ -1,0 +1,211 @@
+#module "codec"
+#import "std/containers"
+#import "std/outcome"
+using containers
+using outcome
+'' std/codec -- turning bytes into text and back
+''
+''     #import "std/codec"
+''
+''     print codec.Base64Encode( "hello" )                  '' aGVsbG8=
+''     print codec.HexEncode( "hi" )                        '' 6869
+''     print codec.PercentEncode( "a b&c" )                 '' a%20b%26c
+''     print codec.Base64DecodeText( "aGVsbG8=" ).Value( )  '' hello
+''
+'' C:\dev\docs\tiko-stdlib\RFC-0001 section 5.  Four families:
+''
+''   base64, base32, hex    RFC 4648.  Encode bytes as text, decode text to bytes.
+''   percent-encoding       RFC 3986 and HTML form encoding, for URLs.
+''   endian get/put         fixed-width integers and floats in a byte buffer,
+''                          little- or big-endian, for binary file formats.
+''   LEB128 varints         variable-length integers (protobuf, DWARF, wasm).
+''
+'' BYTES ARE Array( of ubyte ), as in std/fs.  TEXT IS ustring.  Where text has
+'' to become bytes -- encoding a ustring, or decoding to one -- it is UTF-8.  A
+'' 'string' argument is taken as RAW BYTES with no encoding assumed; a literal
+'' resolves to the string overload, which is harmless because literals are
+'' UTF-8 already.
+''
+'' DECODING IS STRICT BY DEFAULT.  The exact alphabet, padding exactly as the
+'' encoder writes it, no whitespace, and no stray low bits in the last
+'' character -- so every byte sequence has exactly one accepted encoding.  The
+'' decode options relax that, one rule at a time:
+''
+''     DECODE_IGNORE_WHITESPACE   skip spaces, tabs, CR and LF (MIME line breaks)
+''     DECODE_ALLOW_MISSING_PAD   accept base64/base32 with the '=' left off
+''
+'' A failure is an EncodingError: a code, and the 1-based position of the first
+'' offending character in the text (a UTF-16 code unit index, as INSTR counts).
+
+public const DECODE_STRICT            as long = 0
+public const DECODE_IGNORE_WHITESPACE as long = 1
+public const DECODE_ALLOW_MISSING_PAD as long = 2
+
+public enum EncodingErrorCode
+    ENC_OK = 0
+    ENC_INVALID_CHAR        '' a character outside the alphabet
+    ENC_INVALID_LENGTH      '' a length no encoder produces
+    ENC_INVALID_PADDING     '' '=' missing, misplaced or excessive
+    ENC_TRAILING_BITS       '' the last character carries non-zero unused bits
+    ENC_INVALID_UTF8        '' decoded bytes asked for as text are not UTF-8
+    ENC_TRUNCATED           '' the data ended inside a value
+    ENC_OVERFLOW            '' a varint wider than 64 bits
+end enum
+
+'' Fixed English text for a code.
+public function EncodingErrorMessage( byval c as EncodingErrorCode ) as ustring
+    select case c
+    case ENC_OK              : return "no error"
+    case ENC_INVALID_CHAR    : return "invalid character"
+    case ENC_INVALID_LENGTH  : return "invalid length"
+    case ENC_INVALID_PADDING : return "invalid padding"
+    case ENC_TRAILING_BITS   : return "non-zero trailing bits"
+    case ENC_INVALID_UTF8    : return "decoded data is not valid UTF-8"
+    case ENC_TRUNCATED       : return "data ends inside a value"
+    case ENC_OVERFLOW        : return "value does not fit in 64 bits"
+    end select
+    return "unknown error"
+end function
+
+public type EncodingError
+    '' Default-constructible because Result default-constructs both slots.
+    declare constructor( )
+    declare constructor( byval c as EncodingErrorCode, byval pos_ as long, byref op as const ustring )
+    declare const function Code( ) as EncodingErrorCode
+    declare const function Position( ) as long        '' 1-based; 0 when it is not about one character
+    declare const function Operation( ) as ustring    '' "Base64Decode", ...
+    declare const function Message( ) as ustring      '' "Base64Decode: invalid character at 5"
+private:
+    as EncodingErrorCode m_code
+    as long m_pos
+    as ustring m_op
+end type
+
+constructor EncodingError( )
+    this.m_code = ENC_INVALID_CHAR
+    this.m_pos = 0
+end constructor
+
+constructor EncodingError( byval c as EncodingErrorCode, byval pos_ as long, byref op as const ustring )
+    this.m_code = c
+    this.m_pos = pos_
+    this.m_op = op
+end constructor
+
+const function EncodingError.Code( ) as EncodingErrorCode
+    return this.m_code
+end function
+
+const function EncodingError.Position( ) as long
+    return this.m_pos
+end function
+
+const function EncodingError.Operation( ) as ustring
+    return this.m_op
+end function
+
+const function EncodingError.Message( ) as ustring
+    dim as ustring m = this.m_op & ": " & EncodingErrorMessage( this.m_code )
+    if( this.m_pos > 0 ) then
+        m &= " at " & this.m_pos
+    end if
+    return m
+end function
+
+public type EncResultI64  as Result( of longint, EncodingError )
+public type EncResultU64  as Result( of ulongint, EncodingError )
+public type EncResultText as Result( of ustring, EncodingError )
+
+'' -------------------------------------------------------------- internal
+
+function EncFail( of T )( byval c as EncodingErrorCode, byval pos_ as long, byref op as const ustring ) as Result( of T, EncodingError )
+    return Fail( of T, EncodingError )( EncodingError( c, pos_, op ) )
+end function
+
+'' The bytes of a string, as an Array.
+sub EncStringToBytes( byref s as const string, byref out_ as Array( of ubyte ) )
+    dim as long n = len( s )
+    out_.Clear( )
+    out_.Reserve( n )
+    dim as const ubyte ptr p = cptr( const ubyte ptr, strptr( s ) )
+    for i as long = 0 to n - 1
+        out_.Push( p[i] )
+    next
+end sub
+
+'' A string holding n bytes from p.
+function EncBytesToString( byval p as const ubyte ptr, byval n as long ) as string
+    dim as string s = space( n )
+    if( n > 0 ) then
+        dim as ubyte ptr q = cptr( ubyte ptr, strptr( s ) )
+        for i as long = 0 to n - 1
+            q[i] = p[i]
+        next
+    end if
+    return s
+end function
+
+function EncArrayPtr( byref a as Array( of ubyte ) ) as const ubyte ptr
+    if( a.num = 0 ) then
+        return nullptr
+    end if
+    return @a.items( 0 )
+end function
+
+'' 0 when p[0 .. n-1] is well-formed UTF-8 (no overlongs, no surrogates, nothing
+'' above U+10FFFF); otherwise the 1-based offset of the first bad byte.
+function EncFirstBadUtf8( byval p as const ubyte ptr, byval n as long ) as long
+    dim as long i = 0
+    while( i < n )
+        dim as long c = p[i]
+        dim as long need, lo = &h80, hi = &hBF
+        if( c < &h80 ) then
+            i += 1
+            continue while
+        elseif( c >= &hC2 andalso c <= &hDF ) then
+            need = 1
+        elseif( c = &hE0 ) then
+            need = 2 : lo = &hA0
+        elseif( c = &hED ) then
+            need = 2 : hi = &h9F
+        elseif( c >= &hE1 andalso c <= &hEF ) then
+            need = 2
+        elseif( c = &hF0 ) then
+            need = 3 : lo = &h90
+        elseif( c >= &hF1 andalso c <= &hF3 ) then
+            need = 3
+        elseif( c = &hF4 ) then
+            need = 3 : hi = &h8F
+        else
+            return i + 1
+        end if
+        for k as long = 1 to need
+            if( i + k >= n ) then
+                return i + 1
+            end if
+            dim as long b = p[i + k]
+            if( k = 1 ) then
+                if( b < lo orelse b > hi ) then
+                    return i + 1
+                end if
+            elseif( b < &h80 orelse b > &hBF ) then
+                return i + 1
+            end if
+        next
+        i += need + 1
+    wend
+    return 0
+end function
+
+'' Bytes to ustring, refusing anything that is not UTF-8.
+function EncBytesToText( byval p as const ubyte ptr, byval n as long, byref op as const ustring ) as EncResultText
+    if( EncFirstBadUtf8( p, n ) <> 0 ) then
+        return EncFail( of ustring )( ENC_INVALID_UTF8, 0, op )
+    end if
+    dim as ustring u = EncBytesToString( p, n )
+    return Ok( of ustring, EncodingError )( u )
+end function
+
+function EncIsSpace( byval c as long ) as boolean
+    return ( c = 32 ) orelse ( c = 9 ) orelse ( c = 10 ) orelse ( c = 13 )
+end function

@@ -1,0 +1,356 @@
+#module "uuids"
+#import "std/containers"
+#import "std/outcome"
+#import "std/numeric"
+#import "std/chrono"
+using containers
+using outcome
+'' std/uuids -- universally unique identifiers (RFC 9562)
+''
+''     #import "std/uuids"
+''
+''     dim id as uuids.Uuid = uuids.NewV7( )
+''     print id.ToString( )              '' 019a1c2e-7b3f-7c41-9d2a-5f0e8b6a1c33
+''     print id.Version( )               '' 7
+''
+''     var r = uuids.Parse( "{F81D4FAE-7DEC-11D0-A765-00A0C91E6BF6}" )
+''     if r.IsOk( ) then print r.Value( ).ToString( )
+''
+'' C:\dev\docs\tiko-stdlib\RFC-0001 section 7.  A Uuid is 16 bytes, in the
+'' order they are written.  Two kinds are generated:
+''
+''   NewV4( )   122 random bits from the operating system's CSPRNG
+''              (numeric.CryptoBytes).  Use it when nothing about the value
+''              should be guessable.
+''   NewV7( )   48 bits of Unix time in milliseconds, then random bits.  Values
+''              made later sort later, so as database keys they insert in order
+''              and keep an index compact.  Within one process every NewV7 is
+''              strictly greater than the one before, even inside a millisecond
+''              (RFC 9562 section 6.2, method 1: a 12-bit counter seeded at
+''              random each millisecond).  The time it carries is readable with
+''              UnixMillis( ) -- do not use v7 where creation time is a secret.
+''
+'' Every version PARSES: the canonical 8-4-4-4-12 form, in braces, with a
+'' "urn:uuid:" prefix, or as 32 bare hex digits, in either case.  ToString( )
+'' writes the canonical form in lower case.
+''
+'' NilUuid( ) and MaxUuid( ), not Nil and Max: numeric.Max exists, and a program
+'' 'using' both modules would find the bare name ambiguous (TKO0919).
+''
+'' Uuid extends containers.Hashable and has '=' and '<', so it can be a Map or
+'' Set key, an OrderedMap key, or sorted.  '<' compares the bytes in order,
+'' which for v7 is creation order.
+
+public enum UuidErrorCode
+    UUID_OK = 0
+    UUID_INVALID_LENGTH     '' not 32, 36, 38 or 45 characters / not 16 bytes
+    UUID_INVALID_CHAR       '' not a hex digit where one belongs
+    UUID_INVALID_FORMAT     '' a hyphen, brace or prefix in the wrong place
+end enum
+
+public function UuidErrorMessage( byval c as UuidErrorCode ) as ustring
+    select case c
+    case UUID_OK             : return "no error"
+    case UUID_INVALID_LENGTH : return "invalid length"
+    case UUID_INVALID_CHAR   : return "invalid character"
+    case UUID_INVALID_FORMAT : return "invalid format"
+    end select
+    return "unknown error"
+end function
+
+public type UuidError
+    declare constructor( )
+    declare constructor( byval c as UuidErrorCode, byval pos_ as long )
+    declare const function Code( ) as UuidErrorCode
+    declare const function Position( ) as long        '' 1-based; 0 when not about one character
+    declare const function Message( ) as ustring
+private:
+    as UuidErrorCode m_code
+    as long m_pos
+end type
+
+constructor UuidError( )
+    this.m_code = UUID_INVALID_FORMAT
+end constructor
+
+constructor UuidError( byval c as UuidErrorCode, byval pos_ as long )
+    this.m_code = c
+    this.m_pos = pos_
+end constructor
+
+const function UuidError.Code( ) as UuidErrorCode
+    return this.m_code
+end function
+
+const function UuidError.Position( ) as long
+    return this.m_pos
+end function
+
+const function UuidError.Message( ) as ustring
+    dim as ustring m = "uuid: " & UuidErrorMessage( this.m_code )
+    if( this.m_pos > 0 ) then
+        m &= " at " & this.m_pos
+    end if
+    return m
+end function
+
+public type Uuid extends Hashable
+    as ubyte b( 0 to 15 )
+
+    declare constructor( )
+    declare function ToString( ) as ustring
+    declare function ToBytes( ) as Array( of ubyte )
+    declare function Version( ) as long          '' the 4-bit version field
+    declare function Variant( ) as long          '' 0 NCS, 1 RFC 9562, 2 Microsoft, 3 reserved
+    declare function IsNil( ) as boolean
+    declare function HashOf( ) as ulongint override
+    declare function UnixMillis( ) as longint    '' v7 only; -1 otherwise
+end type
+
+constructor Uuid( )
+end constructor
+
+function Uuid.ToString( ) as ustring
+    dim as string digits = "0123456789abcdef"
+    dim as const ubyte ptr d = cptr( const ubyte ptr, strptr( digits ) )
+    dim as string s = space( 36 )
+    dim as ubyte ptr q = cptr( ubyte ptr, strptr( s ) )
+    dim as long o = 0
+    for i as long = 0 to 15
+        if( ( i = 4 ) orelse ( i = 6 ) orelse ( i = 8 ) orelse ( i = 10 ) ) then
+            q[o] = asc( "-" )
+            o += 1
+        end if
+        q[o] = d[this.b( i ) shr 4]
+        q[o + 1] = d[this.b( i ) and 15]
+        o += 2
+    next
+    return s
+end function
+
+function Uuid.ToBytes( ) as Array( of ubyte )
+    dim as Array( of ubyte ) a
+    a.Reserve( 16 )
+    for i as long = 0 to 15
+        a.Push( this.b( i ) )
+    next
+    return a
+end function
+
+function Uuid.Version( ) as long
+    return this.b( 6 ) shr 4
+end function
+
+function Uuid.Variant( ) as long
+    dim as long v = this.b( 8 )
+    if( ( v and &h80 ) = 0 ) then
+        return 0
+    elseif( ( v and &h40 ) = 0 ) then
+        return 1
+    elseif( ( v and &h20 ) = 0 ) then
+        return 2
+    end if
+    return 3
+end function
+
+function Uuid.IsNil( ) as boolean
+    for i as long = 0 to 15
+        if( this.b( i ) <> 0 ) then
+            return FALSE
+        end if
+    next
+    return TRUE
+end function
+
+function Uuid.HashOf( ) as ulongint
+    return HashBytes( @this.b( 0 ), 16 )
+end function
+
+function Uuid.UnixMillis( ) as longint
+    if( this.Version( ) <> 7 ) then
+        return -1
+    end if
+    dim as longint ms = 0
+    for i as long = 0 to 5
+        ms = ( ms shl 8 ) or this.b( i )
+    next
+    return ms
+end function
+
+public operator = ( byref x as const Uuid, byref y as const Uuid ) as boolean
+    for i as long = 0 to 15
+        if( x.b( i ) <> y.b( i ) ) then
+            return FALSE
+        end if
+    next
+    return TRUE
+end operator
+
+public operator <> ( byref x as const Uuid, byref y as const Uuid ) as boolean
+    return ( x = y ) = FALSE
+end operator
+
+public operator < ( byref x as const Uuid, byref y as const Uuid ) as boolean
+    for i as long = 0 to 15
+        if( x.b( i ) <> y.b( i ) ) then
+            return x.b( i ) < y.b( i )
+        end if
+    next
+    return FALSE
+end operator
+
+'' -------------------------------------------------------------- making one
+
+public function NilUuid( ) as Uuid
+    dim as Uuid u
+    return u
+end function
+
+public function MaxUuid( ) as Uuid
+    dim as Uuid u
+    for i as long = 0 to 15
+        u.b( i ) = &hFF
+    next
+    return u
+end function
+
+sub UuidSetVersion( byref u as Uuid, byval ver as long )
+    u.b( 6 ) = ( u.b( 6 ) and &h0F ) or ( ver shl 4 )
+    u.b( 8 ) = ( u.b( 8 ) and &h3F ) or &h80
+end sub
+
+public function NewV4( ) as Uuid
+    dim as Uuid u
+    numeric.CryptoBytes( @u.b( 0 ), 16 )
+    UuidSetVersion( u, 4 )
+    return u
+end function
+
+'' v7 state, one per process.  Under -mt it is guarded by a spin lock: the work
+'' inside is a few arithmetic steps, so a sleeping lock would cost more.
+#ifdef __FB_MT__
+    #include once "fbatomic.bi"
+    using FB
+#endif
+
+dim shared as long uuidLock
+dim shared as longint uuidLastMs = -1
+dim shared as long uuidCounter
+
+sub UuidAcquire( )
+#ifdef __FB_MT__
+    while( AtomicCasLong( @uuidLock, 0, 1 ) <> 0 )
+    wend
+#endif
+end sub
+
+sub UuidRelease( )
+#ifdef __FB_MT__
+    AtomicCasLong( @uuidLock, 1, 0 )
+#endif
+end sub
+
+public function NewV7( ) as Uuid
+    dim as Uuid u
+    numeric.CryptoBytes( @u.b( 0 ), 16 )
+
+    UuidAcquire( )
+    dim as longint ms = chrono.WallClock.UtcNow( ).UnixMilliseconds
+    if( ms > uuidLastMs ) then
+        '' a new millisecond: seed the counter at random, low enough to leave
+        '' room for 3072 more values in this millisecond
+        uuidLastMs = ms
+        uuidCounter = ( ( clng( u.b( 6 ) ) shl 8 ) or u.b( 7 ) ) and &h3FF
+    else
+        '' the same millisecond, or the clock stepped back: count on from the
+        '' last value, moving to the next millisecond when the counter is full
+        uuidCounter += 1
+        if( uuidCounter > &hFFF ) then
+            uuidLastMs += 1
+            uuidCounter = 0
+        end if
+        ms = uuidLastMs
+    end if
+    dim as long counter = uuidCounter
+    UuidRelease( )
+
+    for i as long = 0 to 5
+        u.b( i ) = cubyte( ( ms shr ( 8 * ( 5 - i ) ) ) and &hFF )
+    next
+    u.b( 6 ) = cubyte( &h70 or ( counter shr 8 ) )
+    u.b( 7 ) = cubyte( counter and &hFF )
+    u.b( 8 ) = ( u.b( 8 ) and &h3F ) or &h80
+    return u
+end function
+
+public function FromBytes( byref a as Array( of ubyte ) ) as Result( of Uuid, UuidError )
+    if( a.num <> 16 ) then
+        return Fail( of Uuid, UuidError )( UuidError( UUID_INVALID_LENGTH, 0 ) )
+    end if
+    dim as Uuid u
+    for i as long = 0 to 15
+        u.b( i ) = a.items( i )
+    next
+    return Ok( of Uuid, UuidError )( u )
+end function
+
+function UuidHex( byval c as long ) as long
+    select case c
+    case asc( "0" ) to asc( "9" ) : return c - asc( "0" )
+    case asc( "a" ) to asc( "f" ) : return c - asc( "a" ) + 10
+    case asc( "A" ) to asc( "F" ) : return c - asc( "A" ) + 10
+    end select
+    return -1
+end function
+
+public function Parse( byref s as const ustring ) as Result( of Uuid, UuidError )
+    dim as long n = len( s )
+    dim as long first = 1, last = n
+    if( n = 45 ) then
+        if( lcase( left( s, 9 ) ) <> "urn:uuid:" ) then
+            return Fail( of Uuid, UuidError )( UuidError( UUID_INVALID_FORMAT, 1 ) )
+        end if
+        first = 10
+    elseif( n = 38 ) then
+        if( asc( s, 1 ) <> asc( "{" ) ) then
+            return Fail( of Uuid, UuidError )( UuidError( UUID_INVALID_FORMAT, 1 ) )
+        end if
+        if( asc( s, 38 ) <> asc( "}" ) ) then
+            return Fail( of Uuid, UuidError )( UuidError( UUID_INVALID_FORMAT, 38 ) )
+        end if
+        first = 2
+        last = 37
+    elseif( ( n <> 36 ) andalso ( n <> 32 ) ) then
+        return Fail( of Uuid, UuidError )( UuidError( UUID_INVALID_LENGTH, 0 ) )
+    end if
+    dim as boolean hyphens = ( last - first + 1 ) = 36
+
+    dim as Uuid u
+    dim as long nib = 0
+    for i as long = first to last
+        dim as long rel = i - first
+        dim as long c = asc( s, i )
+        if( hyphens ) then
+            if( ( rel = 8 ) orelse ( rel = 13 ) orelse ( rel = 18 ) orelse ( rel = 23 ) ) then
+                if( c <> asc( "-" ) ) then
+                    return Fail( of Uuid, UuidError )( UuidError( UUID_INVALID_FORMAT, i ) )
+                end if
+                continue for
+            end if
+        end if
+        dim as long h = UuidHex( c )
+        if( h < 0 ) then
+            if( c = asc( "-" ) ) then
+                return Fail( of Uuid, UuidError )( UuidError( UUID_INVALID_FORMAT, i ) )
+            end if
+            return Fail( of Uuid, UuidError )( UuidError( UUID_INVALID_CHAR, i ) )
+        end if
+        if( ( nib and 1 ) = 0 ) then
+            u.b( nib \ 2 ) = h shl 4
+        else
+            u.b( nib \ 2 ) or= h
+        end if
+        nib += 1
+    next
+    return Ok( of Uuid, UuidError )( u )
+end function

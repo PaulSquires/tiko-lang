@@ -23,6 +23,8 @@ The language and its standard library first, then the compatibility reference: t
 - [Nullptr](Category-Nullptr) — 1 pages
 - [String Library](Category-String-Library) — 39 pages
 - [Format](Category-Format) — 1 pages
+- [Codec](Category-Codec) — 1 pages
+- [UUID](Category-UUID) — 1 pages
 - [Array](Category-Array) — 22 pages
 - [Map](Category-Map) — 15 pages
 - [Set](Category-Set) — 11 pages

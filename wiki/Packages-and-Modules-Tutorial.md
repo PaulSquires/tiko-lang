@@ -194,6 +194,8 @@ Every module below is imported as `#import "std/<name>"` and used as `<name>.Som
 | `std/logs` | Logging at levels, to the console or a file | [Logging](Category-Logging) |
 | `std/tui` | Terminal user interfaces | [Terminal UI](Category-Terminal-TUI-Library) |
 | `std/memory` | Smart pointers | [Smart Pointers](Category-Smart-Pointers) |
+| `std/codec` | Base64, hex and percent-encoding; numbers in byte buffers | [Codec](Category-Codec) |
+| `std/uuids` | UUIDs: random and time-ordered | [UUID](Category-UUID) |
 
 A few language statements need a module too. `spawn` and `select channel` are built on
 `std/tasks`, so a file that uses them writes `#import "std/tasks"` (without it, the compiler says
