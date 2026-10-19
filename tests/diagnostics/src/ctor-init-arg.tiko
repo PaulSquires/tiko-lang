@@ -1,0 +1,95 @@
+'' A CONVERTING INITIALISER NO CONSTRUCTOR TAKES -- 'dim as T x = v', v not a T -- is fbc's
+'' error 24 (58 for a few), measured on fbc-modern 1.20: locally, shared, static, in a field and
+'' in an array's brace list. tiko built a value from the constructor anyway, or stopped on
+'' TKO0994. The initialiser resolves its constructor as an overload, so it is stricter than
+'' 'T( v )' over pointers and enums. The accepted half is ctor-init-arg-ok.
+enum Colour
+    red
+    green
+end enum
+type BS
+    as long n
+    declare constructor( byref t as string )
+end type
+constructor BS( byref t as string )
+end constructor
+type BW
+    as long n
+    declare constructor( byref t as wstring )
+end type
+constructor BW( byref t as wstring )
+end constructor
+type VL
+    as long n
+    declare constructor( byval t as long )
+end type
+constructor VL( byval t as long )
+end constructor
+type VI
+    as long n
+    declare constructor( byval t as integer )
+end type
+constructor VI( byval t as integer )
+end constructor
+type PL
+    as long n
+    declare constructor( byval p as long ptr )
+end type
+constructor PL( byval p as long ptr )
+end constructor
+type VE
+    as long n
+    declare constructor( byval c as Colour )
+end type
+constructor VE( byval c as Colour )
+end constructor
+type RL
+    as long n
+    declare constructor( byref t as long )
+end type
+constructor RL( byref t as long )
+end constructor
+type CC
+    as long n
+    declare constructor( byval t as long )
+    declare constructor( byref t as CC )
+end type
+constructor CC( byval t as long )
+end constructor
+constructor CC( byref t as CC )
+end constructor
+type VLAlias as VL
+type Holder
+    as VL f = "f"
+    as VL g( 0 to 1 ) = { 1, "g" }
+end type
+
+dim as long n = 1
+dim as ustring u = "u"
+dim as zstring * 4 z = "z"
+dim as ustring * 4 uf = "uf"
+dim as long ptr q
+dim as short ptr sq
+dim as const long ptr cq
+dim as Colour c = green
+dim as string s = "s"
+
+dim as BS a1 = n
+dim as BW a2 = n
+dim as VL a3 = u
+dim as VL a4 = "lit"
+dim as VL a5 = z
+dim as BW a6 = 2.5
+dim as VI a7 = q
+dim as PL a8 = n
+dim as PL a9 = sq
+dim as PL a10 = cq
+dim as VE a11 = 0
+dim as RL a12 = c
+dim as CC a13 = s
+dim as VLAlias a14 = "alias"
+dim shared as VL a15 = "shared"
+dim as VL a16( 0 to 1 ) = { 2, "elem" }
+sub Proc( )
+    static as VL a17 = "static"
+end sub
