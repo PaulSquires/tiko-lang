@@ -1,0 +1,187 @@
+#module "config"
+#import "std/containers"
+#import "std/outcome"
+#import "std/strings"
+using containers
+using outcome
+'' std/config: configtomlw -- the TOML writer.  Output is valid TOML 1.0: no 1.1 escapes,
+'' seconds always written, inline tables on one line.
+''
+'' A table's plain entries come first as key = value, then its sub-tables as [a.b] sections
+'' and its arrays of tables as [[a.b]] sections, each in insertion order.  A table that has
+'' only sub-sections gets no header of its own (the deeper headers define it).  Inline
+'' tables appear only where TOML leaves no choice: an empty table ({}) and a table inside an
+'' array that is not wholly tables.  Floats are the shortest text that reads back as the
+'' same double; inf and nan are spelled as TOML spells them.
+
+function TwBareKey_( byref k as const ustring ) as boolean
+    if( len( k ) = 0 ) then return FALSE
+    for i as long = 0 to len( k ) - 1
+        dim as long c = k[i]
+        dim as boolean ok = ( ( c >= 65 ) andalso ( c <= 90 ) ) orelse ( ( c >= 97 ) andalso ( c <= 122 ) ) _
+            orelse ( ( c >= 48 ) andalso ( c <= 57 ) ) orelse ( c = 95 ) orelse ( c = 45 )
+        if( ok = FALSE ) then return FALSE
+    next
+    return TRUE
+end function
+
+function TwQuote_( byref s as const ustring ) as ustring
+    dim as ustring o = wchr( 34 )
+    dim as long n = len( s )
+    dim as long run_ = 0
+    for i as long = 0 to n - 1
+        dim as long c = s[i]
+        dim as ustring esc
+        select case c
+        case 34  : esc = wchr( 92, 34 )
+        case 92  : esc = wchr( 92, 92 )
+        case 8   : esc = wchr( 92 ) & "b"
+        case 9   : esc = wchr( 92 ) & "t"
+        case 10  : esc = wchr( 92 ) & "n"
+        case 12  : esc = wchr( 92 ) & "f"
+        case 13  : esc = wchr( 92 ) & "r"
+        case 0 to 31, 127
+            esc = wchr( 92 ) & "u" & hex( c, 4 )
+        case else
+            continue for
+        end select
+        o &= mid( s, run_ + 1, i - run_ ) & esc
+        run_ = i + 1
+    next
+    o &= mid( s, run_ + 1 ) & wchr( 34 )
+    return o
+end function
+
+function TwKey_( byref k as const ustring ) as ustring
+    if( TwBareKey_( k ) ) then return k
+    return TwQuote_( k )
+end function
+
+function TwPad_( byval v as long, byval w as long ) as string
+    dim as string s = str( v )
+    while( len( s ) < w )
+        s = "0" & s
+    wend
+    return s
+end function
+
+function TwTime_( byref v as TomlValue ) as string
+    dim as string s = TwPad_( v.hH, 2 ) & ":" & TwPad_( v.hMi, 2 ) & ":" & TwPad_( v.hS, 2 )
+    if( v.hFrac > 0 ) then
+        dim as string f = TwPad_( v.hFrac, 7 )
+        while( right( f, 1 ) = "0" )
+            f = left( f, len( f ) - 1 )
+        wend
+        s &= "." & f
+    end if
+    return s
+end function
+
+function TwFloat_( byval d as double ) as ustring
+    if( d <> d ) then return "nan"
+    dim as ustring s = strings.Format( "{}", d )
+    '' "inf", "-inf", "1e+100" and "0.5" are TOML already; "3" and "-0" need a fraction.
+    dim as boolean plain = ( instr( s, "." ) = 0 ) andalso ( instr( s, "e" ) = 0 ) andalso ( instr( s, "n" ) = 0 )
+    if( plain ) then s &= ".0"
+    return s
+end function
+
+function TwAllTables_( byref v as TomlValue ) as boolean
+    if( ( v.hKind <> TOML_ARRAY ) orelse ( v.hCount = 0 ) ) then return FALSE
+    for i as long = 0 to v.hCount - 1
+        if( v.hKids[i]->hKind <> TOML_TABLE ) then return FALSE
+    next
+    return TRUE
+end function
+
+'' A [section] or [[section]] rather than key = value.
+function TwIsSection_( byref v as TomlValue ) as boolean
+    if( ( v.hKind = TOML_TABLE ) andalso ( v.hCount > 0 ) ) then return TRUE
+    return TwAllTables_( v )
+end function
+
+function TwInline_( byref v as TomlValue, byref bad as boolean ) as ustring
+    select case v.hKind
+    case TOML_STRING : return TwQuote_( v.hStr )
+    case TOML_INT    : return str( v.hInt )
+    case TOML_FLOAT  : return TwFloat_( v.hFlt )
+    case TOML_BOOL   : return iif( v.hBool, "true", "false" )
+    case TOML_LOCAL_DATE
+        return TwPad_( v.hY, 4 ) & "-" & TwPad_( v.hMo, 2 ) & "-" & TwPad_( v.hD, 2 )
+    case TOML_LOCAL_TIME
+        return TwTime_( v )
+    case TOML_LOCAL_DATETIME, TOML_OFFSET_DATETIME
+        dim as string s = TwPad_( v.hY, 4 ) & "-" & TwPad_( v.hMo, 2 ) & "-" & TwPad_( v.hD, 2 ) & "T" & TwTime_( v )
+        if( v.hKind = TOML_OFFSET_DATETIME ) then
+            if( v.hOff = 0 ) then
+                s &= "Z"
+            else
+                dim as long a = abs( v.hOff )
+                s &= iif( v.hOff < 0, "-", "+" ) & TwPad_( a \ 60, 2 ) & ":" & TwPad_( a mod 60, 2 )
+            end if
+        end if
+        return s
+    case TOML_ARRAY
+        dim as ustring s = "["
+        for i as long = 0 to v.hCount - 1
+            if( i > 0 ) then s &= ", "
+            s &= TwInline_( *v.hKids[i], bad )
+        next
+        return s & "]"
+    case TOML_TABLE
+        if( v.hCount = 0 ) then return "{}"
+        dim as ustring s = "{ "
+        for i as long = 0 to v.hCount - 1
+            if( i > 0 ) then s &= ", "
+            s &= TwKey_( v.hKids[i]->hKey ) & " = " & TwInline_( *v.hKids[i], bad )
+        next
+        return s & " }"
+    end select
+    bad = TRUE                                  '' TOML_NONE has no TOML form
+    return ""
+end function
+
+sub TwTable_( byref o as ustring, byref t as TomlValue, byref prefix as const ustring, byref bad as boolean )
+    for i as long = 0 to t.hCount - 1
+        dim as TomlValue ptr c = t.hKids[i]
+        if( TwIsSection_( *c ) = FALSE ) then
+            o &= TwKey_( c->hKey ) & " = " & TwInline_( *c, bad ) & wchr( 10 )
+        end if
+    next
+    for i as long = 0 to t.hCount - 1
+        dim as TomlValue ptr c = t.hKids[i]
+        if( TwIsSection_( *c ) = FALSE ) then continue for
+        dim as ustring path = TwKey_( c->hKey )
+        if( len( prefix ) > 0 ) then path = prefix & "." & path
+        if( c->hKind = TOML_TABLE ) then
+            dim as boolean plain = FALSE
+            for j as long = 0 to c->hCount - 1
+                if( TwIsSection_( *c->hKids[j] ) = FALSE ) then plain = TRUE
+            next
+            if( plain ) then
+                if( len( o ) > 0 ) then o &= wchr( 10 )
+                o &= "[" & path & "]" & wchr( 10 )
+            end if
+            TwTable_( o, *c, path, bad )
+        else
+            for j as long = 0 to c->hCount - 1
+                if( len( o ) > 0 ) then o &= wchr( 10 )
+                o &= "[[" & path & "]]" & wchr( 10 )
+                TwTable_( o, *c->hKids[j], path, bad )
+            next
+        end if
+    next
+end sub
+
+public function ToTomlText( byref root as TomlValue ) as ConfigResultText
+    if( root.hKind <> TOML_TABLE ) then
+        return Fail( of ustring, ConfigError )( ConfigError( CFG_NOT_REPRESENTABLE, 0, 0, "the root is not a table" ) )
+    end if
+    dim as ustring o
+    dim as boolean bad = FALSE
+    TwTable_( o, root, "", bad )
+    if( bad ) then
+        return Fail( of ustring, ConfigError )( ConfigError( CFG_NOT_REPRESENTABLE, 0, 0, "an empty TomlValue" ) )
+    end if
+    return Ok( of ustring, ConfigError )( o )
+end function

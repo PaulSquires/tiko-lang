@@ -1,0 +1,114 @@
+#module "strings"
+#import "std/containers"
+#import "std/outcome"
+#import "std/fs"
+using containers
+using outcome
+'' std/strings -- the CSV writer: JoinCsvRow and CsvWriter, the other half of SplitCsv
+'' (C:\dev\docs\tiko-stdlib\RFC-0001 section 12.3).
+''
+''     dim as containers.Array( of ustring ) row
+''     row.Push( "name" ) : row.Push( "a, b" ) : row.Push( !"say \"hi\"" )
+''     print strings.JoinCsvRow( row )               '' name,"a, b","say ""hi"""
+''
+''     dim as fs.File f
+''     if f.Create( "out.csv" ).IsOk( ) then
+''         dim as strings.CsvWriter w = strings.CsvWriter( f )
+''         w.WriteRow( row )
+''         if w.Finish( ).IsOk( ) = FALSE then print "write failed"
+''     end if
+''
+'' RFC 4180: a field is quoted when it holds the separator, a double quote, CR or LF, or
+'' starts or ends with a space or tab; a double quote inside is doubled.  Records end with
+'' CRLF (RFC 4180) unless the writer is told LF.  A separator that is not exactly one code
+'' unit is still written between fields, but SplitCsv will not read it back.  Text goes
+'' to the stream as UTF-8.
+''
+'' CsvWriter keeps the first failure: a row after a failed write is not written, and
+'' Finish( ) reports that failure, or else the stream's Flush( ).
+
+function CsvField_( byref f as const ustring, byref sep as const ustring ) as ustring
+    dim as long n = len( f )
+    if( n = 0 ) then return ""
+    dim as boolean q = ( f[0] = 32 ) orelse ( f[0] = 9 ) orelse ( f[n - 1] = 32 ) orelse ( f[n - 1] = 9 )
+    if( ( q = FALSE ) andalso ( len( sep ) > 0 ) ) then q = ( instr( f, sep ) > 0 )
+    if( q = FALSE ) then
+        for i as long = 0 to n - 1
+            dim as long c = f[i]
+            if( ( c = 34 ) orelse ( c = 13 ) orelse ( c = 10 ) ) then
+                q = TRUE
+                exit for
+            end if
+        next
+    end if
+    if( q = FALSE ) then return f
+    dim as ustring o = wchr( 34 )
+    dim as long run_ = 0
+    for i as long = 0 to n - 1
+        if( f[i] = 34 ) then
+            o &= mid( f, run_ + 1, i - run_ + 1 ) & wchr( 34 )
+            run_ = i + 1
+        end if
+    next
+    o &= mid( f, run_ + 1 ) & wchr( 34 )
+    return o
+end function
+
+public function JoinCsvRow( byref fields as Array( of ustring ), byval sep as ustring = "," ) as ustring
+    dim as ustring o
+    for i as long = 0 to fields.Count( ) - 1
+        if( i > 0 ) then o &= sep
+        o &= CsvField_( fields[i], sep )
+    next
+    return o
+end function
+
+public type CsvWriter
+    '' Three constructors rather than defaulted parameters: a defaulted ustring parameter
+    '' on this constructor, called from another module, is a TKO0994 internal error.
+    declare constructor( byref s as fs.Stream )
+    declare constructor( byref s as fs.Stream, byval sep as ustring )
+    declare constructor( byref s as fs.Stream, byval sep as ustring, byval crlf as boolean )
+    declare sub WriteRow( byref fields as Array( of ustring ) )
+    declare function Finish( ) as fs.FsResultBool
+private:
+    as fs.Stream ptr m_s
+    as ustring m_sep
+    as ustring m_eol
+    as boolean m_failed
+    as fs.FsError m_err
+    declare sub Init_( byref s as fs.Stream, byref sep as const ustring, byval crlf as boolean )
+end type
+
+sub CsvWriter.Init_( byref s as fs.Stream, byref sep as const ustring, byval crlf as boolean )
+    this.m_s = @s
+    this.m_sep = sep
+    this.m_eol = iif( crlf, wchr( 13, 10 ), wchr( 10 ) )
+    this.m_failed = FALSE
+end sub
+
+constructor CsvWriter( byref s as fs.Stream )
+    this.Init_( s, ",", TRUE )
+end constructor
+
+constructor CsvWriter( byref s as fs.Stream, byval sep as ustring )
+    this.Init_( s, sep, TRUE )
+end constructor
+
+constructor CsvWriter( byref s as fs.Stream, byval sep as ustring, byval crlf as boolean )
+    this.Init_( s, sep, crlf )
+end constructor
+
+sub CsvWriter.WriteRow( byref fields as Array( of ustring ) )
+    if( this.m_failed ) then exit sub
+    dim as fs.FsResultBool r = this.m_s->WriteUtf8( JoinCsvRow( fields, this.m_sep ) & this.m_eol )
+    if( r.IsOk( ) = FALSE ) then
+        this.m_failed = TRUE
+        this.m_err = r.Failure( )
+    end if
+end sub
+
+function CsvWriter.Finish( ) as fs.FsResultBool
+    if( this.m_failed ) then return Fail( of boolean, fs.FsError )( this.m_err )
+    return this.m_s->Flush( )
+end function

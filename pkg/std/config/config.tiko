@@ -1,0 +1,148 @@
+#module "config"
+#import "std/containers"
+#import "std/outcome"
+#import "std/fs"
+#import "std/chrono"
+using containers
+using outcome
+'' std/config -- INI and TOML configuration files
+''
+''     #import "std/config"
+''
+''     dim r as config.ConfigResultToml = config.LoadToml( "app.toml" )
+''     if r.IsOk( ) = FALSE then print r.Failure( ).Message( ) : end 1
+''     dim as config.TomlValue port = r.Value( ).Path( "server.port" ).ValueOr( config.TomlValue( ) )
+''     print port.AsInt( ).ValueOr( 8080 )
+''     dim ini as config.ConfigResultIni = config.ParseIni( !"[db]\nhost = localhost\n" )
+''     print ini.Value( ).Get( "db", "host" ).ValueOr( "?" )
+''
+'' C:\dev\docs\tiko-stdlib\RFC-0001 section 12.
+''
+''   TomlValue     one TOML value: a string, integer (longint), float, boolean, one of the
+''                 four date-time kinds, an array or a table.  A copyable value -- copying
+''                 a table copies the whole tree.  Tables keep their keys in insertion order.
+''   ParseToml     text -> the root table.  TOML 1.1 is read (so every 1.0 document is).
+''   LoadToml      the same from a UTF-8 file (BOM skipped).
+''   ToTomlText    the root table -> text, valid TOML 1.0.  Comments are not kept: a
+''                 document read and written back loses them.
+''   IniFile       sections and keys in file order; ParseIni, LoadIni, SaveIni.
+''
+'' INI DIALECT.  [section]; key = value and key: value; ';' and '#' start a comment only at
+'' the start of a line (a ';' inside a value is data); keys before the first section are in
+'' section ""; whitespace around keys and values is trimmed, and a value in double quotes
+'' keeps its edge whitespace (the quotes are removed, nothing inside is unescaped).  No
+'' continuation lines, no interpolation.  IniOptions.CaseSensitiveKeys (FALSE) governs section
+'' and key names alike; IniOptions.Duplicates says whether a repeated key replaces the first
+'' (INI_LAST_WINS, the default) or is an error.
+''
+'' TOML LIMITS.  Integers are 64-bit; an integer out of range is an error, never a float.
+'' Fractional seconds are kept to chrono's 100 ns; further digits are dropped (the TOML spec
+'' allows it).  The date-time accessors hand back chrono values, so a date outside chrono's
+'' years 1..9999 parses but its AsDateTime/AsLocalDate is empty.  Positions in errors are
+'' 1-based lines and UTF-16 columns.  Not here (RFC section 12.2): TomlToJson/JsonToToml --
+'' there is no std/json.
+
+#if __FB_LANG__ <> "fb"
+    #error "std/config requires -lang fb"
+#endif
+
+'' -------------------------------------------------------------- errors
+
+public enum ConfigErrorCode
+    CFG_OK = 0
+    CFG_SYNTAX                  '' the text is not the format
+    CFG_DUPLICATE_KEY           '' a key or table defined twice
+    CFG_TYPE_REDEFINED          '' a key used as a table that is not one, or a fixed one extended
+    CFG_INVALID_ESCAPE          '' a bad backslash escape in a TOML string
+    CFG_NUMBER_RANGE            '' an integer outside 64 bits
+    CFG_INVALID_DATETIME        '' a date-time that is malformed or does not exist
+    CFG_NOT_REPRESENTABLE       '' a value the output format cannot hold
+    CFG_IO                      '' reading the file failed; OsCode( ) is the fs.FsErrorCode
+end enum
+
+public function ConfigErrorMessage( byval c as ConfigErrorCode ) as ustring
+    select case c
+    case CFG_OK                : return "no error"
+    case CFG_SYNTAX            : return "syntax error"
+    case CFG_DUPLICATE_KEY     : return "duplicate key"
+    case CFG_TYPE_REDEFINED    : return "type redefined"
+    case CFG_INVALID_ESCAPE    : return "invalid escape"
+    case CFG_NUMBER_RANGE      : return "number out of range"
+    case CFG_INVALID_DATETIME  : return "invalid date-time"
+    case CFG_NOT_REPRESENTABLE : return "value not representable"
+    case CFG_IO                : return "input/output error"
+    end select
+    return "unknown error"
+end function
+
+public type ConfigError
+    '' Default-constructible because Result default-constructs both slots.
+    declare constructor( )
+    declare constructor( byval c as ConfigErrorCode, byval ln as long, byval col as long, byref det as const ustring )
+    declare const function Code( ) as ConfigErrorCode
+    declare const function Line( ) as long            '' 1-based; 0 when there is no position
+    declare const function Column( ) as long          '' 1-based UTF-16 column; 0 when none
+    declare const function Detail( ) as ustring       '' "expected '='", the key, the path
+    declare const function OsCode( ) as long          '' CFG_IO: the fs.FsErrorCode; else 0
+    declare const function Message( ) as ustring      '' "line 3, column 7: duplicate key: 'name'"
+
+    '' Internal: set by LoadIni/LoadToml.
+    as long hOs
+private:
+    as ConfigErrorCode m_code
+    as long m_line
+    as long m_col
+    as ustring m_det
+end type
+
+constructor ConfigError( )
+    this.m_code = CFG_SYNTAX
+    this.m_line = 0
+    this.m_col = 0
+    this.hOs = 0
+end constructor
+
+constructor ConfigError( byval c as ConfigErrorCode, byval ln as long, byval col as long, byref det as const ustring )
+    this.m_code = c
+    this.m_line = ln
+    this.m_col = col
+    this.m_det = det
+    this.hOs = 0
+end constructor
+
+const function ConfigError.Code( ) as ConfigErrorCode
+    return this.m_code
+end function
+
+const function ConfigError.Line( ) as long
+    return this.m_line
+end function
+
+const function ConfigError.Column( ) as long
+    return this.m_col
+end function
+
+const function ConfigError.Detail( ) as ustring
+    return this.m_det
+end function
+
+const function ConfigError.OsCode( ) as long
+    return this.hOs
+end function
+
+const function ConfigError.Message( ) as ustring
+    dim as ustring m
+    if( this.m_line > 0 ) then m = "line " & this.m_line & ", column " & this.m_col & ": "
+    m &= ConfigErrorMessage( this.m_code )
+    if( len( this.m_det ) > 0 ) then m &= ": " & this.m_det
+    return m
+end function
+
+function CfgIoError_( byref fe as fs.FsError ) as ConfigError
+    dim as ConfigError e = ConfigError( CFG_IO, 0, 0, fe.Message( ) )
+    e.hOs = fe.Code( )
+    return e
+end function
+
+public type ConfigResultBool as Result( of boolean, ConfigError )
+public type ConfigResultText as Result( of ustring, ConfigError )

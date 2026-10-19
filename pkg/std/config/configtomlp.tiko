@@ -1,0 +1,754 @@
+#module "config"
+#import "std/containers"
+#import "std/outcome"
+#import "std/fs"
+using containers
+using outcome
+'' std/config: configtomlp -- the TOML reader.  TOML 1.1: 1.0 plus newlines, comments and a
+'' trailing comma inside inline tables, \e and \xHH escapes, and times without seconds.
+''
+'' One pass over the UTF-16 text with a cursor; no tokenizer.  The table rules (a table is
+'' defined once; dotted keys define the tables they pass through, which a later [header]
+'' may not reopen; inline tables and static arrays are never extended) are tomllib's
+'' bookkeeping, kept as flags on the nodes themselves:
+''
+''   TKF_EXPLICIT  set by [header] on its table, and on the tables a section's dotted keys
+''                 created once the next header starts (they are "pending" until then, so
+''                 a.b = 1 and a.c = 2 in one section may share a)
+''   TKF_FROZEN    an inline table or array value; a path through one is an error
+''   TKF_AOT       an array made by [[header]], the one kind of array a header may extend
+
+extern "c"
+    declare function cfg_strtod_ alias "strtod" ( byval as const zstring ptr, byval as zstring ptr ptr ) as double
+end extern
+
+type TomlKeyList_ as Array( of ustring )
+type TomlPending_ as Array( of TomlValue ptr )
+
+type TomlParser_
+    as ustring src
+    as long n
+    as long i
+    as boolean failed
+    as ConfigError err
+    as TomlValue ptr root
+    as TomlValue ptr cur
+    as TomlPending_ pending
+end type
+
+'' -------------------------------------------------------------- cursor
+
+function TpCh_( byref p as TomlParser_, byval at as long ) as long
+    if( at >= p.n ) then return -1
+    return p.src[at]
+end function
+
+'' First failure wins; the position is the cursor's unless 'at' is given.
+function TpFail_( byref p as TomlParser_, byval c as ConfigErrorCode, byref det as const ustring, byval at as long = -1 ) as boolean
+    if( p.failed ) then return FALSE
+    p.failed = TRUE
+    if( at < 0 ) then at = p.i
+    if( at > p.n ) then at = p.n
+    dim as long ln = 1, col = 1
+    for k as long = 0 to at - 1
+        if( p.src[k] = 10 ) then
+            ln += 1
+            col = 1
+        else
+            col += 1
+        end if
+    next
+    p.err = ConfigError( c, ln, col, det )
+    return FALSE
+end function
+
+function TpIsCtl_( byval c as long ) as boolean
+    '' Control characters TOML forbids in comments and strings (tab is allowed).
+    return ( ( c >= 0 ) andalso ( c < 32 ) andalso ( c <> 9 ) ) orelse ( c = 127 )
+end function
+
+sub TpWs_( byref p as TomlParser_ )
+    while( p.i < p.n )
+        dim as long c = p.src[p.i]
+        if( ( c <> 32 ) andalso ( c <> 9 ) ) then exit while
+        p.i += 1
+    wend
+end sub
+
+'' At '#': skip the comment, stopping before the line break.
+function TpComment_( byref p as TomlParser_ ) as boolean
+    p.i += 1
+    while( p.i < p.n )
+        dim as long c = p.src[p.i]
+        if( c = 10 ) then exit while
+        if( ( c = 13 ) andalso ( TpCh_( p, p.i + 1 ) = 10 ) ) then exit while
+        if( TpIsCtl_( c ) ) then return TpFail_( p, CFG_SYNTAX, "control character in comment" )
+        p.i += 1
+    wend
+    return TRUE
+end function
+
+'' A line break at the cursor: TRUE and consumed.  A lone CR is an error.
+function TpNewline_( byref p as TomlParser_ ) as boolean
+    dim as long c = TpCh_( p, p.i )
+    if( c = 10 ) then
+        p.i += 1
+        return TRUE
+    end if
+    if( ( c = 13 ) andalso ( TpCh_( p, p.i + 1 ) = 10 ) ) then
+        p.i += 2
+        return TRUE
+    end if
+    return FALSE
+end function
+
+'' Whitespace, line breaks and comments: between array elements and inline-table entries.
+function TpBlank_( byref p as TomlParser_ ) as boolean
+    do
+        TpWs_( p )
+        dim as long c = TpCh_( p, p.i )
+        if( c = 35 ) then
+            if( TpComment_( p ) = FALSE ) then return FALSE
+        elseif( TpNewline_( p ) = FALSE ) then
+            if( c = 13 ) then return TpFail_( p, CFG_SYNTAX, "carriage return without line feed" )
+            return TRUE
+        end if
+    loop
+end function
+
+'' After a key/value or a header: optional whitespace and comment, then a line break or the end.
+function TpEndLine_( byref p as TomlParser_ ) as boolean
+    TpWs_( p )
+    if( TpCh_( p, p.i ) = 35 ) then
+        if( TpComment_( p ) = FALSE ) then return FALSE
+    end if
+    if( p.i >= p.n ) then return TRUE
+    if( TpNewline_( p ) ) then return TRUE
+    return TpFail_( p, CFG_SYNTAX, "expected the end of the line" )
+end function
+
+'' -------------------------------------------------------------- strings
+
+function TpHexVal_( byval c as long ) as long
+    if( ( c >= 48 ) andalso ( c <= 57 ) ) then return c - 48
+    if( ( c >= 65 ) andalso ( c <= 70 ) ) then return c - 55
+    if( ( c >= 97 ) andalso ( c <= 102 ) ) then return c - 87
+    return -1
+end function
+
+function TpCodePoint_( byval cp as ulong ) as ustring
+    if( cp < &h10000 ) then return wchr( cp )
+    cp -= &h10000
+    return wchr( &hD800 + ( cp shr 10 ) ) & wchr( &hDC00 + ( cp and &h3FF ) )
+end function
+
+'' At a backslash inside a basic string: append the escape's text.  'ml' allows the
+'' line-ending backslash of a multi-line string.
+function TpEscape_( byref p as TomlParser_, byref outs as ustring, byval ml as boolean ) as boolean
+    dim as long at = p.i
+    dim as long c = TpCh_( p, p.i + 1 )
+    p.i += 2
+    select case c
+    case 98  : outs &= wchr( 8 )
+    case 116 : outs &= wchr( 9 )
+    case 110 : outs &= wchr( 10 )
+    case 102 : outs &= wchr( 12 )
+    case 114 : outs &= wchr( 13 )
+    case 101 : outs &= wchr( 27 )          '' \e, TOML 1.1
+    case 34  : outs &= wchr( 34 )
+    case 92  : outs &= wchr( 92 )
+    case 117, 85, 120                      '' \uXXXX \UXXXXXXXX \xHH (1.1)
+        dim as long digits = iif( c = 117, 4, iif( c = 85, 8, 2 ) )
+        dim as ulongint cp = 0
+        for k as long = 0 to digits - 1
+            dim as long h = TpHexVal_( TpCh_( p, p.i ) )
+            if( h < 0 ) then return TpFail_( p, CFG_INVALID_ESCAPE, "bad hex digit in escape", at )
+            cp = cp * 16 + h
+            p.i += 1
+        next
+        dim as boolean bad = ( cp > &h10FFFF ) orelse ( ( cp >= &hD800 ) andalso ( cp <= &hDFFF ) )
+        if( bad ) then return TpFail_( p, CFG_INVALID_ESCAPE, "escape is not a Unicode scalar value", at )
+        outs &= TpCodePoint_( culng( cp ) )
+    case 32, 9, 10, 13
+        if( ml = FALSE ) then return TpFail_( p, CFG_INVALID_ESCAPE, "invalid escape", at )
+        '' Line-ending backslash: only whitespace may follow it on its line; then every
+        '' whitespace character and line break up to the next other character goes.
+        p.i -= 1
+        TpWs_( p )
+        if( TpNewline_( p ) = FALSE ) then return TpFail_( p, CFG_INVALID_ESCAPE, "invalid escape", at )
+        do
+            TpWs_( p )
+            if( TpNewline_( p ) = FALSE ) then exit do
+        loop
+    case else
+        return TpFail_( p, CFG_INVALID_ESCAPE, "invalid escape", at )
+    end select
+    return TRUE
+end function
+
+'' At the opening quote(s).  q is 34 (basic) or 39 (literal); multi-line when tripled.
+function TpString_( byref p as TomlParser_, byref outs as ustring ) as boolean
+    dim as long q = p.src[p.i]
+    dim as boolean ml = ( TpCh_( p, p.i + 1 ) = q ) andalso ( TpCh_( p, p.i + 2 ) = q )
+    dim as long at = p.i
+    outs = ""
+    if( ml ) then
+        p.i += 3
+        TpNewline_( p )                     '' a line break right after the opener is trimmed
+    else
+        p.i += 1
+    end if
+    dim as long run_ = p.i
+    do
+        if( p.i >= p.n ) then return TpFail_( p, CFG_SYNTAX, "unterminated string", at )
+        dim as long c = p.src[p.i]
+        if( c = q ) then
+            if( ml = FALSE ) then
+                outs &= mid( p.src, run_ + 1, p.i - run_ )
+                p.i += 1
+                return TRUE
+            end if
+            dim as long nq = 0
+            while( TpCh_( p, p.i + nq ) = q )
+                nq += 1
+            wend
+            if( nq >= 3 ) then
+                if( nq > 5 ) then return TpFail_( p, CFG_SYNTAX, "too many quotes", p.i )
+                outs &= mid( p.src, run_ + 1, p.i - run_ + nq - 3 )
+                p.i += nq
+                return TRUE
+            end if
+            p.i += nq
+        elseif( ( c = 92 ) andalso ( q = 34 ) ) then
+            outs &= mid( p.src, run_ + 1, p.i - run_ )
+            if( TpEscape_( p, outs, ml ) = FALSE ) then return FALSE
+            run_ = p.i
+        elseif( ( c = 10 ) orelse ( c = 13 ) ) then
+            if( ml = FALSE ) then return TpFail_( p, CFG_SYNTAX, "line break in a single-line string" )
+            if( ( c = 13 ) andalso ( TpCh_( p, p.i + 1 ) <> 10 ) ) then return TpFail_( p, CFG_SYNTAX, "carriage return without line feed" )
+            p.i += 1
+        elseif( TpIsCtl_( c ) ) then
+            return TpFail_( p, CFG_SYNTAX, "control character in string" )
+        else
+            p.i += 1
+        end if
+    loop
+end function
+
+'' -------------------------------------------------------------- keys
+
+function TpIsBare_( byval c as long ) as boolean
+    return ( ( c >= 65 ) andalso ( c <= 90 ) ) orelse ( ( c >= 97 ) andalso ( c <= 122 ) ) _
+        orelse ( ( c >= 48 ) andalso ( c <= 57 ) ) orelse ( c = 95 ) orelse ( c = 45 )
+end function
+
+'' A dotted key: its parts into 'keys'.  Stops after trailing whitespace.
+function TpKey_( byref p as TomlParser_, byref keys as TomlKeyList_ ) as boolean
+    keys.Clear( )
+    do
+        TpWs_( p )
+        dim as long c = TpCh_( p, p.i )
+        dim as ustring part
+        if( ( c = 34 ) orelse ( c = 39 ) ) then
+            dim as boolean ml = ( TpCh_( p, p.i + 1 ) = c ) andalso ( TpCh_( p, p.i + 2 ) = c )
+            if( ml ) then return TpFail_( p, CFG_SYNTAX, "a key cannot be a multi-line string" )
+            if( TpString_( p, part ) = FALSE ) then return FALSE
+        elseif( TpIsBare_( c ) ) then
+            dim as long st = p.i
+            while( TpIsBare_( TpCh_( p, p.i ) ) )
+                p.i += 1
+            wend
+            part = mid( p.src, st + 1, p.i - st )
+        else
+            return TpFail_( p, CFG_SYNTAX, "expected a key" )
+        end if
+        keys.Push( part )
+        TpWs_( p )
+        if( TpCh_( p, p.i ) <> 46 ) then exit do
+        p.i += 1
+    loop
+    return TRUE
+end function
+
+function TpKeyText_( byref keys as TomlKeyList_, byval upto as long ) as ustring
+    dim as ustring s
+    for k as long = 0 to upto
+        if( k > 0 ) then s &= "."
+        s &= keys[k]
+    next
+    return s
+end function
+
+'' -------------------------------------------------------------- numbers and date-times
+
+function TpIsDigit_( byval c as long ) as boolean
+    return ( c >= 48 ) andalso ( c <= 57 )
+end function
+
+'' Digits with single underscores between them, in base 'b'; the digit text into 'digs'.
+function TpDigits_( byref t as const string, byref pos_ as long, byval b as long, byref digs as string ) as boolean
+    dim as long st = pos_
+    dim as boolean lastUs = TRUE
+    while( pos_ < len( t ) )
+        dim as long c = t[pos_]
+        dim as long v = -1
+        if( TpIsDigit_( c ) ) then
+            v = c - 48
+        elseif( b = 16 ) then
+            v = TpHexVal_( c )
+        end if
+        if( c = 95 ) then
+            if( lastUs ) then return FALSE
+            lastUs = TRUE
+        elseif( ( v >= 0 ) andalso ( v < b ) ) then
+            digs &= chr( c )
+            lastUs = FALSE
+        else
+            exit while
+        end if
+        pos_ += 1
+    wend
+    return ( pos_ > st ) andalso ( lastUs = FALSE )
+end function
+
+function TpNumber_( byref p as TomlParser_, byref t as const string, byval at as long, byref v as TomlValue ) as boolean
+    dim as long n = len( t )
+    dim as string body = t
+    dim as long sg = 0
+    if( ( n > 0 ) andalso ( ( t[0] = 43 ) orelse ( t[0] = 45 ) ) ) then
+        sg = iif( t[0] = 45, -1, 1 )
+        body = mid( t, 2 )
+    end if
+    if( ( body = "inf" ) orelse ( body = "nan" ) ) then
+        dim as double z = 0
+        v.hKind = TOML_FLOAT
+        if( body = "inf" ) then v.hFlt = 1 / z else v.hFlt = z / z
+        if( body = "nan" ) then v.hFlt = abs( v.hFlt )
+        if( sg < 0 ) then v.hFlt = -v.hFlt
+        return TRUE
+    end if
+    dim as long b = 10
+    dim as long pos_ = 0
+    if( ( len( body ) > 1 ) andalso ( body[0] = 48 ) ) then
+        select case body[1]
+        case 120 : b = 16
+        case 111 : b = 8
+        case 98  : b = 2
+        end select
+    end if
+    dim as string digs
+    if( b <> 10 ) then
+        if( sg <> 0 ) then return TpFail_( p, CFG_SYNTAX, "a sign on a hex, octal or binary integer", at )
+        pos_ = 2
+        if( ( TpDigits_( body, pos_, b, digs ) = FALSE ) orelse ( pos_ <> len( body ) ) ) then
+            return TpFail_( p, CFG_SYNTAX, "malformed integer '" & t & "'", at )
+        end if
+        dim as ulongint acc = 0
+        for k as long = 0 to len( digs ) - 1
+            dim as long d = TpHexVal_( digs[k] )
+            if( acc > ( &h7FFFFFFFFFFFFFFFull - d ) \ b ) then return TpFail_( p, CFG_NUMBER_RANGE, t, at )
+            acc = acc * b + d
+        next
+        v.hKind = TOML_INT
+        v.hInt = clngint( acc )
+        return TRUE
+    end if
+    '' decimal: integer part, then a fraction and/or an exponent for a float
+    if( TpDigits_( body, pos_, 10, digs ) = FALSE ) then return TpFail_( p, CFG_SYNTAX, "malformed number '" & t & "'", at )
+    dim as boolean lead0 = ( len( digs ) > 1 ) andalso ( digs[0] = 48 )
+    if( lead0 ) then return TpFail_( p, CFG_SYNTAX, "leading zero in '" & t & "'", at )
+    dim as string num = iif( sg < 0, "-", "" ) & digs
+    dim as boolean isFloat = FALSE
+    if( ( pos_ < len( body ) ) andalso ( body[pos_] = 46 ) ) then
+        pos_ += 1
+        dim as string fd
+        if( TpDigits_( body, pos_, 10, fd ) = FALSE ) then return TpFail_( p, CFG_SYNTAX, "malformed float '" & t & "'", at )
+        num &= "." & fd
+        isFloat = TRUE
+    end if
+    if( ( pos_ < len( body ) ) andalso ( ( body[pos_] = 101 ) orelse ( body[pos_] = 69 ) ) ) then
+        pos_ += 1
+        num &= "e"
+        if( ( pos_ < len( body ) ) andalso ( ( body[pos_] = 43 ) orelse ( body[pos_] = 45 ) ) ) then
+            num &= chr( body[pos_] )
+            pos_ += 1
+        end if
+        dim as string ed
+        if( TpDigits_( body, pos_, 10, ed ) = FALSE ) then return TpFail_( p, CFG_SYNTAX, "malformed exponent '" & t & "'", at )
+        num &= ed
+        isFloat = TRUE
+    end if
+    if( pos_ <> len( body ) ) then return TpFail_( p, CFG_SYNTAX, "malformed number '" & t & "'", at )
+    if( isFloat ) then
+        v.hKind = TOML_FLOAT
+        v.hFlt = cfg_strtod_( strptr( num ), 0 )
+        return TRUE
+    end if
+    dim as ulongint acc = 0
+    dim as ulongint lim = iif( sg < 0, &h8000000000000000ull, &h7FFFFFFFFFFFFFFFull )
+    for k as long = 0 to len( digs ) - 1
+        dim as long d = digs[k] - 48
+        if( acc > ( lim - d ) \ 10 ) then return TpFail_( p, CFG_NUMBER_RANGE, t, at )
+        acc = acc * 10 + d
+    next
+    v.hKind = TOML_INT
+    if( sg < 0 ) then v.hInt = -clngint( acc - 1 ) - 1 else v.hInt = clngint( acc )
+    return TRUE
+end function
+
+'' 'cnt' digits at t[pos_] as a number, or -1.
+function TpFixed_( byref t as const string, byval pos_ as long, byval cnt as long ) as long
+    if( pos_ + cnt > len( t ) ) then return -1
+    dim as long v = 0
+    for k as long = pos_ to pos_ + cnt - 1
+        if( TpIsDigit_( t[k] ) = FALSE ) then return -1
+        v = v * 10 + ( t[k] - 48 )
+    next
+    return v
+end function
+
+'' HH:MM[:SS[.frac]] at t[pos_]; advances pos_.
+function TpTime_( byref t as const string, byref pos_ as long, byref v as TomlValue ) as boolean
+    v.hH = TpFixed_( t, pos_, 2 )
+    if( ( v.hH < 0 ) orelse ( pos_ + 2 >= len( t ) ) ) then return FALSE
+    if( t[pos_ + 2] <> 58 ) then return FALSE
+    v.hMi = TpFixed_( t, pos_ + 3, 2 )
+    if( v.hMi < 0 ) then return FALSE
+    pos_ += 5
+    v.hS = 0
+    v.hFrac = 0
+    if( ( pos_ < len( t ) ) andalso ( t[pos_] = 58 ) ) then
+        v.hS = TpFixed_( t, pos_ + 1, 2 )
+        if( v.hS < 0 ) then return FALSE
+        pos_ += 3
+        if( ( pos_ < len( t ) ) andalso ( t[pos_] = 46 ) ) then
+            pos_ += 1
+            dim as long nd = 0
+            while( ( pos_ < len( t ) ) andalso TpIsDigit_( t[pos_] ) )
+                if( nd < 7 ) then v.hFrac = v.hFrac * 10 + ( t[pos_] - 48 )
+                nd += 1
+                pos_ += 1
+            wend
+            if( nd = 0 ) then return FALSE
+            for k as long = nd to 6
+                v.hFrac *= 10
+            next
+        end if
+    end if
+    dim as boolean ok = ( v.hH <= 23 ) andalso ( v.hMi <= 59 ) andalso ( v.hS <= 59 )
+    return ok
+end function
+
+function TpDaysIn_( byval y as long, byval m as long ) as long
+    select case m
+    case 4, 6, 9, 11 : return 30
+    case 2
+        dim as boolean leap = ( ( y mod 4 ) = 0 ) andalso ( ( ( y mod 100 ) <> 0 ) orelse ( ( y mod 400 ) = 0 ) )
+        return iif( leap, 29, 28 )
+    end select
+    return 31
+end function
+
+function TpDateTime_( byref p as TomlParser_, byref t as const string, byval at as long, byref v as TomlValue ) as boolean
+    dim as long pos_ = 0
+    dim as boolean hasDate = ( len( t ) >= 10 ) andalso ( TpFixed_( t, 0, 4 ) >= 0 )
+    if( hasDate ) then hasDate = ( t[4] = 45 ) andalso ( t[7] = 45 )
+    if( hasDate ) then
+        v.hY = TpFixed_( t, 0, 4 )
+        v.hMo = TpFixed_( t, 5, 2 )
+        v.hD = TpFixed_( t, 8, 2 )
+        dim as boolean ok = ( v.hMo >= 1 ) andalso ( v.hMo <= 12 ) andalso ( v.hD >= 1 )
+        if( ok ) then ok = ( v.hD <= TpDaysIn_( v.hY, v.hMo ) )
+        if( ok = FALSE ) then return TpFail_( p, CFG_INVALID_DATETIME, "'" & t & "'", at )
+        pos_ = 10
+        if( pos_ = len( t ) ) then
+            v.hKind = TOML_LOCAL_DATE
+            return TRUE
+        end if
+        dim as long sep = t[pos_]
+        dim as boolean okSep = ( sep = 84 ) orelse ( sep = 116 ) orelse ( sep = 32 )
+        if( okSep = FALSE ) then return TpFail_( p, CFG_INVALID_DATETIME, "'" & t & "'", at )
+        pos_ += 1
+    end if
+    if( TpTime_( t, pos_, v ) = FALSE ) then return TpFail_( p, CFG_INVALID_DATETIME, "'" & t & "'", at )
+    if( hasDate = FALSE ) then
+        if( pos_ <> len( t ) ) then return TpFail_( p, CFG_INVALID_DATETIME, "'" & t & "'", at )
+        v.hKind = TOML_LOCAL_TIME
+        return TRUE
+    end if
+    if( pos_ = len( t ) ) then
+        v.hKind = TOML_LOCAL_DATETIME
+        return TRUE
+    end if
+    dim as long z = t[pos_]
+    if( ( z = 90 ) orelse ( z = 122 ) ) then
+        v.hOff = 0
+        pos_ += 1
+    elseif( ( z = 43 ) orelse ( z = 45 ) ) then
+        dim as long oh = TpFixed_( t, pos_ + 1, 2 )
+        dim as long om = TpFixed_( t, pos_ + 4, 2 )
+        dim as boolean ok = ( oh >= 0 ) andalso ( oh <= 23 ) andalso ( om >= 0 ) andalso ( om <= 59 ) andalso ( pos_ + 6 <= len( t ) )
+        if( ok ) then ok = ( t[pos_ + 3] = 58 )
+        if( ok = FALSE ) then return TpFail_( p, CFG_INVALID_DATETIME, "'" & t & "'", at )
+        v.hOff = ( oh * 60 + om ) * iif( z = 45, -1, 1 )
+        pos_ += 6
+    end if
+    if( pos_ <> len( t ) ) then return TpFail_( p, CFG_INVALID_DATETIME, "'" & t & "'", at )
+    v.hKind = TOML_OFFSET_DATETIME
+    return TRUE
+end function
+
+function TpIsTokCh_( byval c as long ) as boolean
+    return TpIsBare_( c ) orelse ( c = 43 ) orelse ( c = 46 ) orelse ( c = 58 )
+end function
+
+'' A number, boolean or date-time: the run of token characters decides which.
+function TpAtom_( byref p as TomlParser_, byref v as TomlValue ) as boolean
+    dim as long at = p.i
+    while( TpIsTokCh_( TpCh_( p, p.i ) ) )
+        p.i += 1
+    wend
+    '' "1979-05-27 07:32:00": a date, a space, then a time
+    dim as boolean dateOnly = ( p.i - at = 10 ) andalso ( TpCh_( p, at + 4 ) = 45 ) andalso ( TpCh_( p, at + 7 ) = 45 )
+    if( dateOnly andalso ( TpCh_( p, p.i ) = 32 ) ) then
+        dim as boolean tm = TpIsDigit_( TpCh_( p, p.i + 1 ) ) andalso TpIsDigit_( TpCh_( p, p.i + 2 ) ) andalso ( TpCh_( p, p.i + 3 ) = 58 )
+        if( tm ) then
+            p.i += 1
+            while( TpIsTokCh_( TpCh_( p, p.i ) ) )
+                p.i += 1
+            wend
+        end if
+    end if
+    if( p.i = at ) then return TpFail_( p, CFG_SYNTAX, "expected a value" )
+    dim as string t = mid( p.src, at + 1, p.i - at )      '' ASCII by construction
+    if( t = "true" ) then
+        v.hKind = TOML_BOOL
+        v.hBool = TRUE
+        return TRUE
+    end if
+    if( t = "false" ) then
+        v.hKind = TOML_BOOL
+        v.hBool = FALSE
+        return TRUE
+    end if
+    dim as boolean isDate = ( len( t ) >= 10 ) andalso ( t[4] = 45 ) andalso TpIsDigit_( t[0] )
+    dim as boolean isTime = ( len( t ) >= 5 ) andalso ( t[2] = 58 ) andalso TpIsDigit_( t[0] )
+    if( isDate orelse isTime ) then return TpDateTime_( p, t, at, v )
+    return TpNumber_( p, t, at, v )
+end function
+
+'' -------------------------------------------------------------- values and tables
+
+declare function TpValue_( byref p as TomlParser_, byref v as TomlValue ) as boolean
+declare function TpInsert_( byref p as TomlParser_, byval tbl as TomlValue ptr, byref keys as TomlKeyList_, byref v as TomlValue, byval at as long ) as boolean
+
+function TpArray_( byref p as TomlParser_, byref v as TomlValue ) as boolean
+    v = TomlValue.NewArray( )
+    p.i += 1
+    do
+        if( TpBlank_( p ) = FALSE ) then return FALSE
+        if( TpCh_( p, p.i ) = 93 ) then exit do
+        dim as TomlValue e
+        if( TpValue_( p, e ) = FALSE ) then return FALSE
+        v.AddKid_( "", e )
+        if( TpBlank_( p ) = FALSE ) then return FALSE
+        dim as long c = TpCh_( p, p.i )
+        if( c = 93 ) then exit do
+        if( c <> 44 ) then return TpFail_( p, CFG_SYNTAX, "expected ',' or ']'" )
+        p.i += 1
+    loop
+    p.i += 1
+    v.hFlags = TKF_FROZEN
+    return TRUE
+end function
+
+function TpInline_( byref p as TomlParser_, byref v as TomlValue ) as boolean
+    v = TomlValue.NewTable( )
+    p.i += 1
+    dim as TomlKeyList_ keys
+    '' Tables the dotted keys below create live in 'v', which the caller copies into the
+    '' tree: they must not stay pending (and they are frozen with 'v' anyway).
+    dim as long np = p.pending.Count( )
+    do
+        if( TpBlank_( p ) = FALSE ) then return FALSE
+        if( TpCh_( p, p.i ) = 125 ) then exit do
+        dim as long at = p.i
+        if( TpKey_( p, keys ) = FALSE ) then return FALSE
+        if( TpCh_( p, p.i ) <> 61 ) then return TpFail_( p, CFG_SYNTAX, "expected '='" )
+        p.i += 1
+        TpWs_( p )
+        dim as TomlValue e
+        if( TpValue_( p, e ) = FALSE ) then return FALSE
+        if( TpInsert_( p, @v, keys, e, at ) = FALSE ) then return FALSE
+        if( TpBlank_( p ) = FALSE ) then return FALSE
+        dim as long c = TpCh_( p, p.i )
+        if( c = 125 ) then exit do
+        if( c <> 44 ) then return TpFail_( p, CFG_SYNTAX, "expected ',' or '}'" )
+        p.i += 1
+    loop
+    p.i += 1
+    while( p.pending.Count( ) > np )
+        p.pending.Pop( )
+    wend
+    v.hFlags = TKF_FROZEN
+    return TRUE
+end function
+
+function TpValue_( byref p as TomlParser_, byref v as TomlValue ) as boolean
+    dim as long c = TpCh_( p, p.i )
+    select case c
+    case 34, 39
+        dim as ustring s
+        if( TpString_( p, s ) = FALSE ) then return FALSE
+        v = TomlValue.FromString( s )
+        return TRUE
+    case 91
+        return TpArray_( p, v )
+    case 123
+        return TpInline_( p, v )
+    case -1, 10, 13, 35, 44, 93, 125
+        return TpFail_( p, CFG_SYNTAX, "expected a value" )
+    end select
+    return TpAtom_( p, v )
+end function
+
+'' keys = v into tbl: the parts before the last name tables, created (pending) as needed.
+function TpInsert_( byref p as TomlParser_, byval tbl as TomlValue ptr, byref keys as TomlKeyList_, byref v as TomlValue, byval at as long ) as boolean
+    dim as TomlValue ptr t = tbl
+    dim as long last = keys.Count( ) - 1
+    for k as long = 0 to last - 1
+        dim as TomlValue ptr c = t->Find( keys[k] )
+        if( c = 0 ) then
+            c = t->AddKid_( keys[k], TomlValue.NewTable( ) )
+            p.pending.Push( c )
+        elseif( c->hKind <> TOML_TABLE ) then
+            return TpFail_( p, CFG_TYPE_REDEFINED, "'" & TpKeyText_( keys, k ) & "' is not a table", at )
+        elseif( ( c->hFlags and TKF_FROZEN ) <> 0 ) then
+            return TpFail_( p, CFG_TYPE_REDEFINED, "'" & TpKeyText_( keys, k ) & "' is an inline table", at )
+        elseif( ( c->hFlags and TKF_EXPLICIT ) <> 0 ) then
+            return TpFail_( p, CFG_DUPLICATE_KEY, "table '" & TpKeyText_( keys, k ) & "' already defined", at )
+        end if
+        t = c
+    next
+    if( t->Find( keys[last] ) <> 0 ) then
+        return TpFail_( p, CFG_DUPLICATE_KEY, "'" & TpKeyText_( keys, last ) & "'", at )
+    end if
+    t->AddKid_( keys[last], v )
+    return TRUE
+end function
+
+sub TpFinalize_( byref p as TomlParser_ )
+    for k as long = 0 to p.pending.Count( ) - 1
+        p.pending[k]->hFlags or= TKF_EXPLICIT
+    next
+    p.pending.Clear( )
+end sub
+
+'' At '[': a [table] or an [[array of tables]] header.
+function TpHeader_( byref p as TomlParser_ ) as boolean
+    dim as long at = p.i
+    dim as boolean aot = ( TpCh_( p, p.i + 1 ) = 91 )
+    p.i += iif( aot, 2, 1 )
+    TpFinalize_( p )
+    dim as TomlKeyList_ keys
+    if( TpKey_( p, keys ) = FALSE ) then return FALSE
+    if( TpCh_( p, p.i ) <> 93 ) then return TpFail_( p, CFG_SYNTAX, "expected ']'" )
+    p.i += 1
+    if( aot ) then
+        if( TpCh_( p, p.i ) <> 93 ) then return TpFail_( p, CFG_SYNTAX, "expected ']]'" )
+        p.i += 1
+    end if
+    dim as TomlValue ptr t = p.root
+    dim as long last = keys.Count( ) - 1
+    for k as long = 0 to last - 1
+        dim as TomlValue ptr c = t->Find( keys[k] )
+        if( c = 0 ) then
+            c = t->AddKid_( keys[k], TomlValue.NewTable( ) )
+        elseif( ( c->hFlags and TKF_FROZEN ) <> 0 ) then
+            return TpFail_( p, CFG_TYPE_REDEFINED, "'" & TpKeyText_( keys, k ) & "' cannot be extended", at )
+        elseif( ( c->hKind = TOML_ARRAY ) andalso ( ( c->hFlags and TKF_AOT ) <> 0 ) ) then
+            c = c->hKids[c->hCount - 1]
+        elseif( c->hKind <> TOML_TABLE ) then
+            return TpFail_( p, CFG_TYPE_REDEFINED, "'" & TpKeyText_( keys, k ) & "' is not a table", at )
+        end if
+        t = c
+    next
+    dim as TomlValue ptr c = t->Find( keys[last] )
+    dim as ustring nm = TpKeyText_( keys, last )
+    if( aot ) then
+        if( c = 0 ) then
+            c = t->AddKid_( keys[last], TomlValue.NewArray( ) )
+            c->hFlags = TKF_AOT
+        elseif( ( c->hKind <> TOML_ARRAY ) orelse ( ( c->hFlags and TKF_AOT ) = 0 ) ) then
+            return TpFail_( p, CFG_TYPE_REDEFINED, "'" & nm & "' is not an array of tables", at )
+        end if
+        p.cur = c->AddKid_( "", TomlValue.NewTable( ) )
+        p.cur->hFlags = TKF_EXPLICIT
+    else
+        if( c = 0 ) then
+            c = t->AddKid_( keys[last], TomlValue.NewTable( ) )
+        elseif( c->hKind <> TOML_TABLE ) then
+            return TpFail_( p, CFG_TYPE_REDEFINED, "'" & nm & "' is not a table", at )
+        elseif( ( c->hFlags and ( TKF_EXPLICIT or TKF_FROZEN ) ) <> 0 ) then
+            return TpFail_( p, CFG_DUPLICATE_KEY, "table '" & nm & "' already defined", at )
+        end if
+        c->hFlags or= TKF_EXPLICIT
+        p.cur = c
+    end if
+    return TpEndLine_( p )
+end function
+
+function TpDocument_( byref p as TomlParser_ ) as boolean
+    dim as TomlKeyList_ keys
+    if( TpCh_( p, 0 ) = &hFEFF ) then p.i = 1
+    do
+        TpWs_( p )
+        if( p.i >= p.n ) then exit do
+        dim as long c = p.src[p.i]
+        if( c = 35 ) then
+            if( TpEndLine_( p ) = FALSE ) then return FALSE
+        elseif( ( c = 10 ) orelse ( c = 13 ) ) then
+            if( TpNewline_( p ) = FALSE ) then return TpFail_( p, CFG_SYNTAX, "carriage return without line feed" )
+        elseif( c = 91 ) then
+            if( TpHeader_( p ) = FALSE ) then return FALSE
+        else
+            dim as long at = p.i
+            if( TpKey_( p, keys ) = FALSE ) then return FALSE
+            if( TpCh_( p, p.i ) <> 61 ) then return TpFail_( p, CFG_SYNTAX, "expected '='" )
+            p.i += 1
+            TpWs_( p )
+            dim as TomlValue v
+            if( TpValue_( p, v ) = FALSE ) then return FALSE
+            if( TpInsert_( p, p.cur, keys, v, at ) = FALSE ) then return FALSE
+            if( TpEndLine_( p ) = FALSE ) then return FALSE
+        end if
+    loop
+    return TRUE
+end function
+
+'' Clears the parser's flags from a finished tree, so a copy edited by SetKey/Push and
+'' written back carries no state.
+sub TpClearFlags_( byref v as TomlValue )
+    v.hFlags = 0
+    for k as long = 0 to v.hCount - 1
+        TpClearFlags_( *v.hKids[k] )
+    next
+end sub
+
+public function ParseToml( byref text as const ustring ) as ConfigResultToml
+    dim as TomlParser_ p
+    dim as TomlValue root = TomlValue.NewTable( )
+    p.src = text
+    p.n = len( text )
+    p.root = @root
+    p.cur = @root
+    if( TpDocument_( p ) = FALSE ) then return Fail( of TomlValue, ConfigError )( p.err )
+    TpClearFlags_( root )
+    return Ok( of TomlValue, ConfigError )( root )
+end function
+
+public function LoadToml( byref path as const ustring ) as ConfigResultToml
+    dim as fs.FsResultUStr r = fs.ReadAllText( path )
+    if( r.IsOk( ) = FALSE ) then return Fail( of TomlValue, ConfigError )( CfgIoError_( r.Failure( ) ) )
+    return ParseToml( r.Value( ) )
+end function

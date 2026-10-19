@@ -254,6 +254,29 @@ Ported from the finara import engine (fnr\_CsvParse), itself ported from tracks.
 
 The column profiles and transaction mapping that surround the parser in finara did not come with it. They are that application's schema, not a string algorithm.
 
+### Writing CSV
+
+`JoinCsvRow( fields [, sep] )` is SplitCsv's other half: it turns an `Array( of ustring )` into one CSV record, and `CsvWriter` writes records to any `fs.Stream` -- a file, a pipe -- as UTF-8.
+
+```freebasic
+#import "std/strings"
+#import "std/containers"
+#import "std/fs"
+
+dim as containers.Array( of ustring ) row
+row.Push( "name" ) : row.Push( "a, b" ) : row.Push( !"say \"hi\"" )
+print strings.JoinCsvRow( row )                 ' name,"a, b","say ""hi"""
+
+dim as fs.File f
+if f.Create( "out.csv" ).IsOk( ) then
+    dim as strings.CsvWriter w = strings.CsvWriter( f )
+    w.WriteRow( row )
+    if w.Finish( ).IsOk( ) = false then print "write failed"
+end if
+```
+
+A field is quoted when it holds the separator, a double quote, CR or LF, or starts or ends with a space or tab; a quote inside is doubled (RFC 4180). Records end with CRLF; `CsvWriter( f, sep, false )` ends them with LF. Whatever JoinCsvRow writes, SplitCsv reads back as the same fields. The writer keeps the first failure: rows after it are not written, and `Finish( )` reports it, or else the stream's `Flush( )`.
+
 ## Reverse Is The One Function Whose Families Disagree
 
 On the wide family SURROGATE PAIRS ARE KEPT INTACT. A ustring is UTF-16 by definition, so reversing its code units blindly would emit a low surrogate before its high one -- invalid UTF-16 every time an astral character is present, not occasionally.
@@ -386,6 +409,7 @@ Every entry, grouped by task. [Text](Functions-Text) lists them beside the rest 
 | [Join](Modern-String-Join) | Joins an Array of strings into one, with a separator between them. | `std/strings` |
 | [SplitCsv](Modern-String-SplitCsv) | Parses CSV text into rows and fields, quoted fields included. | `std/strings` |
 | [SplitCsvRow](Modern-String-SplitCsvRow) | Parses one CSV record into an Array of fields. | `std/strings` |
+| JoinCsvRow, CsvWriter | Write CSV records: a row as text, or rows to a stream ([Writing CSV](#writing-csv)). | `std/strings` |
 
 ### Build and wrap strings
 
