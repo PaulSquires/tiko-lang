@@ -389,7 +389,8 @@ wrong, and gets it wrong on exactly the rows a test file does not contain.
 
 `strings.SplitCsv( text )` parses a whole table and returns rows, each with a `.fields` array.
 `strings.SplitCsvRow( line )` parses a single record and returns the fields directly. Both handle
-quoting, embedded delimiters and embedded newlines.
+quoting, embedded delimiters and embedded newlines. Going the other way, `strings.JoinCsvRow`
+quotes each field that needs it, and `strings.CsvWriter` writes rows to a file (Chapter 24).
 
 ## A string as bytes
 

@@ -33,7 +33,8 @@ or a comma.
 ```admonish note
 A comma-separated *file* is not a `Split` problem: a quoted field such as
 `"London, UK"` contains the delimiter. `strings.SplitCsvRow` and
-`strings.SplitCsv` read quoting correctly.
+`strings.SplitCsv` read quoting correctly, and [Writing CSV](csv.md)
+shows the other direction.
 ```
 
 ### Activities

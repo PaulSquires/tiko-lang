@@ -1,0 +1,8 @@
+title:   inventory
+port:    8080
+debug:   false
+wait:    30
+started: 2026-10-19T09:30:00Z
+ada: 2 role(s)
+lin: 1 role(s)
+second user's first role: dev

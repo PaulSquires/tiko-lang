@@ -1,0 +1,4 @@
+plain,"a,b","5"" pipe"," pad"
+plain;a,b;"5"" pipe";" pad"
+ok? true
+rows:  2, third field: 5" pipe

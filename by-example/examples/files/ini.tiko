@@ -1,0 +1,23 @@
+#import "std/config"
+
+var r = config.ParseIni( """
+    ; comments start with ; or #
+    [Paths]
+    Data = /var/lib/tbe
+    logs: /var/log/tbe ; part of the value
+    """ )
+dim ini as config.IniFile = r.Value( )
+
+print "data:  "; ini.Get( "paths", "data" ).ValueOr( "?" )
+print "logs:  "; ini.Get( "Paths", "logs" ).ValueOr( "?" )
+print "cache: "; ini.Get( "Paths", "cache" ).ValueOr( "(none)" )
+
+ini.SetValue( "Paths", "cache", "/var/cache/tbe" )
+ini.Remove( "Paths", "logs" )
+print "--- written back:"
+print ini.ToText( );
+
+dim strict as config.IniOptions
+strict.Duplicates = config.INI_DUP_ERROR
+var bad = config.ParseIni( !"[a]\nk = 1\nk = 2\n", strict )
+print "strict: "; bad.Failure( ).Message( )

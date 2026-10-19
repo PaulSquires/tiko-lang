@@ -5,9 +5,10 @@
 The functions to read and write files, build paths, list and walk directories, grouped by what you want to do. The **From** column says what a program needs before it can call one:
 
 - **built-in**: nothing; it is always available.
+- `std/config`: `#import "std/config"`, then `using config` to call it by its bare name.
 - `std/fs`: `#import "std/fs"`, then `using fs` to call it by its bare name.
 
-Jump to: [Read or write a whole file](#read-or-write-a-whole-file) · [Check that a file or folder exists](#check-that-a-file-or-folder-exists) · [Build and take apart paths](#build-and-take-apart-paths) · [Clean up, compare and resolve paths](#clean-up-compare-and-resolve-paths) · [List and walk folders](#list-and-walk-folders) · [Copy, move and delete files](#copy-move-and-delete-files) · [Create, copy and remove folders](#create-copy-and-remove-folders) · [Find standard folders and make temporary files](#find-standard-folders-and-make-temporary-files) · [FileInfo: size, kind, times and flags](#fileinfo-size-kind-times-and-flags) · [File numbers: open and close files](#file-numbers-open-and-close-files) · [File numbers: read, write and seek](#file-numbers-read-write-and-seek) · [Read and write text a line at a time](#read-and-write-text-a-line-at-a-time) · [File: open a file and work in place](#file-open-a-file-and-work-in-place) · [Streams: read and write bytes](#streams-read-and-write-bytes) · [Find files by pattern](#find-files-by-pattern) · [Control a folder walk](#control-a-folder-walk) · [FsError: find out why a call failed](#fserror-find-out-why-a-call-failed) · [Links, permissions and file identity](#links-permissions-and-file-identity) · [Disk space and volumes](#disk-space-and-volumes) · [Lock, map and watch files](#lock-map-and-watch-files) · [Open devices, pipes and the console](#open-devices-pipes-and-the-console)
+Jump to: [Read or write a whole file](#read-or-write-a-whole-file) · [Check that a file or folder exists](#check-that-a-file-or-folder-exists) · [Build and take apart paths](#build-and-take-apart-paths) · [Clean up, compare and resolve paths](#clean-up-compare-and-resolve-paths) · [List and walk folders](#list-and-walk-folders) · [Copy, move and delete files](#copy-move-and-delete-files) · [Create, copy and remove folders](#create-copy-and-remove-folders) · [Find standard folders and make temporary files](#find-standard-folders-and-make-temporary-files) · [FileInfo: size, kind, times and flags](#fileinfo-size-kind-times-and-flags) · [File numbers: open and close files](#file-numbers-open-and-close-files) · [File numbers: read, write and seek](#file-numbers-read-write-and-seek) · [Read and write text a line at a time](#read-and-write-text-a-line-at-a-time) · [File: open a file and work in place](#file-open-a-file-and-work-in-place) · [Streams: read and write bytes](#streams-read-and-write-bytes) · [Find files by pattern](#find-files-by-pattern) · [Control a folder walk](#control-a-folder-walk) · [FsError: find out why a call failed](#fserror-find-out-why-a-call-failed) · [Links, permissions and file identity](#links-permissions-and-file-identity) · [Disk space and volumes](#disk-space-and-volumes) · [Lock, map and watch files](#lock-map-and-watch-files) · [Open devices, pipes and the console](#open-devices-pipes-and-the-console) · [Read and write settings files: TOML and INI](#read-and-write-settings-files-toml-and-ini)
 
 ## Read or write a whole file
 
@@ -381,10 +382,24 @@ Jump to: [Read or write a whole file](#read-or-write-a-whole-file) · [Check tha
 | [Open Pipe](Open-Pipe) | Runs a shell command and opens its input or output on a file number. | built-in |
 | [Open Scrn](Open-Scrn) | Opens the screen on a file number, for reading and writing like a file. | built-in |
 
+## Read and write settings files: TOML and INI
+
+| Function | What it does | From |
+|---|---|---|
+| [ParseToml](Category-Config#toml) | Parses TOML text into a TomlValue tree whose root is a table, or a ConfigError. | `std/config` |
+| [LoadToml](Category-Config#toml) | Reads a UTF-8 TOML file into a TomlValue tree, or a ConfigError. | `std/config` |
+| [TomlValue](Category-Config#looking-things-up) | Holds one TOML value or table; look keys up with Get, Find or a dotted Path. | `std/config` |
+| [ToTomlText](Category-Config#building-and-writing) | Returns a TomlValue table as TOML text; comments are not kept. | `std/config` |
+| [ParseIni](Category-Config#ini) | Parses INI text into an IniFile of sections and keys, or a ConfigError. | `std/config` |
+| [LoadIni](Category-Config#ini) | Reads an INI file into an IniFile, or a ConfigError. | `std/config` |
+| [SaveIni](Category-Config#ini) | Writes an IniFile to a file as INI text. | `std/config` |
+| [IniFile](Category-Config#ini) | Holds an INI file's sections and keys in file order: Get, SetValue, Remove. | `std/config` |
+
 ## See Also
 
 - [Filesystem library guide](Category-Filesystem)
 - [File I/O functions](Category-File-I-O-Functions)
+- [Config: INI and TOML files](Category-Config)
 - [Result](Category-Result)
 - [Operating system functions (Kill, FileExists, Dir)](Category-Operating-System-Functions)
 

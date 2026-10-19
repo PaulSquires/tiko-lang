@@ -1,0 +1,5 @@
+Rejected documents:
+line 2, column 1: duplicate key: 'port'
+line 3, column 1: duplicate key: table 'server' already defined
+line 3, column 1: duplicate key: table 'fruit.apple' already defined
+line 1, column 8: number out of range: 9223372036854775808

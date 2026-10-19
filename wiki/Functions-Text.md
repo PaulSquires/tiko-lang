@@ -94,6 +94,8 @@ Jump to: [Find text in a string](#find-text-in-a-string) · [Check what a string
 | [Join](Modern-String-Join) | Joins an Array of strings into one, with a separator between them. | `std/strings` |
 | [SplitCsv](Modern-String-SplitCsv) | Parses CSV text into rows and fields, quoted fields included. | `std/strings` |
 | [SplitCsvRow](Modern-String-SplitCsvRow) | Parses one CSV record into an Array of fields. | `std/strings` |
+| [JoinCsvRow](Category-String-Library#writing-csv) | Returns an Array of fields as one CSV record, quoting each field that needs it. | `std/strings` |
+| [CsvWriter](Category-String-Library#writing-csv) | Writes CSV records to any fs.Stream as UTF-8, CRLF or LF line endings. | `std/strings` |
 
 ## Build and wrap strings
 

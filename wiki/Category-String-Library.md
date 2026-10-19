@@ -409,7 +409,6 @@ Every entry, grouped by task. [Text](Functions-Text) lists them beside the rest 
 | [Join](Modern-String-Join) | Joins an Array of strings into one, with a separator between them. | `std/strings` |
 | [SplitCsv](Modern-String-SplitCsv) | Parses CSV text into rows and fields, quoted fields included. | `std/strings` |
 | [SplitCsvRow](Modern-String-SplitCsvRow) | Parses one CSV record into an Array of fields. | `std/strings` |
-| JoinCsvRow, CsvWriter | Write CSV records: a row as text, or rows to a stream ([Writing CSV](#writing-csv)). | `std/strings` |
 
 ### Build and wrap strings
 

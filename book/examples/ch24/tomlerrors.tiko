@@ -1,0 +1,13 @@
+#import "std/config"
+
+dim docs( 0 to 3 ) as ustring = { _
+    !"port = 80\nport = 8080", _
+    !"[server]\nhost = \"a\"\n[server]", _
+    !"[fruit]\napple.color = \"red\"\n[fruit.apple]", _
+    "size = 9223372036854775808" }
+
+print "Rejected documents:"
+for i as int32 = 0 to 3
+    dim r as config.ConfigResultToml = config.ParseToml( docs( i ) )
+    print r.Failure( ).Message( )
+next

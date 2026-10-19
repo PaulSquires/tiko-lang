@@ -97,3 +97,5 @@ Cvshort	CVShort	-	binary	built-in	-	Reads a Short back from a 2-byte string.
 Cvlongint	CVLongInt	-	binary	built-in	-	Reads a LongInt back from an 8-byte string.
 Cvs	CVS	-	binary	built-in	-	Reads a Single back from a 4-byte string.
 Cvd	CVD	-	binary	built-in	-	Reads a Double back from an 8-byte string.
+Category-String-Library#writing-csv	JoinCsvRow	-	split	std/strings	-	Returns an Array of fields as one CSV record, quoting each field that needs it.
+Category-String-Library#writing-csv	CsvWriter	-	split	std/strings	-	Writes CSV records to any fs.Stream as UTF-8, CRLF or LF line endings.

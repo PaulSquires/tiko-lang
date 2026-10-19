@@ -1,0 +1,24 @@
+#import "std/config"
+
+dim r as config.ConfigResultToml = config.ParseToml( """
+    # edited by the program below
+    [server]
+    port = 8080
+    title = "inventory"
+    """ )
+dim cfg as config.TomlValue = r.Value( )
+
+'' Change a value, add a key and a whole table.
+dim server as config.TomlValue ptr = cfg.Find( "server" )
+server->SetKey( "port", config.TomlValue.FromInt( 9090 ) )
+server->SetKey( "tls", config.TomlValue.FromBool( true ) )
+
+dim logging as config.TomlValue = config.TomlValue.NewTable( )
+logging.SetKey( "level", config.TomlValue.FromString( "info" ) )
+dim files as config.TomlValue = config.TomlValue.NewArray( )
+files.Push( config.TomlValue.FromString( "app.log" ) )
+files.Push( config.TomlValue.FromString( "audit.log" ) )
+logging.SetKey( "files", files )
+cfg.SetKey( "logging", logging )
+
+print config.ToTomlText( cfg ).Value( );

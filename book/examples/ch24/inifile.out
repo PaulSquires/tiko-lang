@@ -1,0 +1,11 @@
+Settings:
+db.example.org
+[  spaces kept  ]
+30
+[Database]
+Host = db.example.org
+port = 5433
+motd = "  spaces kept  "
+
+[Cache]
+size = 64

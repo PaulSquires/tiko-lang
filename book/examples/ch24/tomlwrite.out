@@ -1,0 +1,8 @@
+[server]
+port = 9090
+title = "inventory"
+tls = true
+
+[logging]
+level = "info"
+files = ["app.log", "audit.log"]

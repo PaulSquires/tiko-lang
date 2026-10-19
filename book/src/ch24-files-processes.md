@@ -7,7 +7,8 @@ console it talks through, and the other programs it starts.
 
 Files are the **`std/fs` module**: an open `File` and the streams layered on it, a path algebra, a
 single `Stat` call for every fact about a file, directory walks with `for each`, whole-file reads
-and writes, and the directories a program keeps its own files in. Every operation that can fail
+and writes, and the directories a program keeps its own files in. Configuration files in TOML and
+INI are **`std/config`**. Every operation that can fail
 returns a `Result` (Chapter 17) rather than raising a runtime error, so a missing file is a value
 the program looks at, not a crash.
 
@@ -393,6 +394,136 @@ The first two rows are not security tools: anyone can make two different files w
 or FNV value on purpose, and MD5 and SHA-1 have the same weakness. To compare two MACs, use
 `hash.ConstantTimeEquals`, which takes the same time whatever the first differing byte is.
 
+## Configuration files and CSV
+
+A program that people install needs settings they can edit, and a program that produces data is
+often asked for a spreadsheet. `std/config` reads and writes the two configuration formats most
+programs meet, **TOML** and **INI**; the CSV writer sits in `std/strings`, beside `SplitCsv`.
+
+### Reading TOML
+
+TOML is a configuration format with real types: strings, integers, floats, booleans, dates and
+times, arrays, and tables that nest. `config.ParseToml` turns the text into a tree of
+`TomlValue`s, and `config.LoadToml( path )` does the same for a file:
+
+```tiko
+{{#include ../examples/ch24/tomlconfig.tiko}}
+```
+
+```text
+{{#include ../examples/ch24/tomlconfig.out}}
+```
+
+**Every lookup answers a value or nothing, never a crash.** `Path( "server.port" )` follows keys
+separated by dots, with a number indexing an array (`"users.1.roles.0"`), and returns an
+`Optional`; `AsInt( )`, `AsString( )`, `AsBool( )`, `AsFloat( )` return one too, empty when the
+value is of another kind. `Setting` folds the two steps into one, so a missing key such as
+`server.wait` falls through to the default the program chose. A default-constructed `TomlValue`
+has the kind `TOML_NONE`, and every `As…` on it is empty.
+
+| TOML | `Kind( )` | Read with |
+|---|---|---|
+| `"text"`, `'text'`, `"""…"""` | `TOML_STRING` | `AsString( )` |
+| `42`, `0xFF`, `1_000` | `TOML_INT` | `AsInt( )`, a 64-bit `longint` |
+| `3.14`, `5e+22`, `inf`, `nan` | `TOML_FLOAT` | `AsFloat( )`, which also reads an integer |
+| `true`, `false` | `TOML_BOOL` | `AsBool( )` |
+| `2026-10-19T09:30:00Z` | `TOML_OFFSET_DATETIME` | `AsDateTime( )`, a `chrono.DateTime` with an offset |
+| `2026-10-19T09:30:00` | `TOML_LOCAL_DATETIME` | `AsDateTime( )`, without one |
+| `2026-10-19`, `09:30:00` | `TOML_LOCAL_DATE`, `TOML_LOCAL_TIME` | `AsLocalDate( )`, `AsLocalTime( )` |
+| `[ 1, 2 ]`, `[[users]]` | `TOML_ARRAY` | `Count( )` and `[ i ]` |
+| `[server]`, `{ x = 1 }` | `TOML_TABLE` | `Get`, `Find`, `Path`, `Keys`, `KeyAt( i )` |
+
+A table keeps its keys **in the order the file wrote them**, so `Keys( )` and `KeyAt( i )` walk
+it the way a reader of the file would. `[[users]]` is an *array of tables*: each `[[users]]`
+header starts one more table in the `users` array.
+
+### When a document is wrong
+
+`ParseToml` refuses a document that breaks the format's rules, and the `ConfigError` says where:
+
+```tiko
+{{#include ../examples/ch24/tomlerrors.tiko}}
+```
+
+```text
+{{#include ../examples/ch24/tomlerrors.out}}
+```
+
+**A key, or a table, is defined once.** The third document is the subtle one: `apple.color`
+under `[fruit]` *defines* the table `fruit.apple` through its dotted key, so a later
+`[fruit.apple]` header is a second definition. An integer that does not fit in 64 bits is an
+error rather than a float that has quietly lost digits. `Code( )` gives the reason as a
+`ConfigErrorCode` — `CFG_SYNTAX`, `CFG_DUPLICATE_KEY`, `CFG_TYPE_REDEFINED`,
+`CFG_INVALID_ESCAPE`, `CFG_NUMBER_RANGE`, `CFG_INVALID_DATETIME` — and `Line( )` and `Column( )`
+the position, so a program can point its user at the line to fix.
+
+### Changing and writing TOML
+
+The tree can be changed and written back:
+
+```tiko
+{{#include ../examples/ch24/tomlwrite.tiko}}
+```
+
+```text
+{{#include ../examples/ch24/tomlwrite.out}}
+```
+
+`Find( key )` returns a pointer into the tree, so `server->SetKey` changes the table in place;
+`Get( key )` returns a copy. `SetKey` replaces a key's value or adds the key at the end, `Push`
+appends to an array, and `RemoveKey` deletes. `FromInt`, `FromString`, `FromBool`, `FromFloat`,
+`FromDateTime`, `FromLocalDate`, `FromLocalTime`, `NewTable` and `NewArray` make the values.
+
+`config.ToTomlText( root )` writes the tree out: each table's plain keys first, then its
+sub-tables as `[section]` headers, in the order they were added. **The comment is gone.** The
+tree holds values, not the text they came from, so a program that rewrites a hand-edited file
+loses its comments. Write settings the program owns to a file of their own, and leave the
+user's file to the user.
+
+### INI files
+
+INI is older and simpler: sections of `key = value` lines, every value text.
+
+```tiko
+{{#include ../examples/ch24/inifile.tiko}}
+```
+
+```text
+{{#include ../examples/ch24/inifile.out}}
+```
+
+**Names ignore case** unless `IniOptions.CaseSensitiveKeys` says otherwise, so
+`Get( "database", "host" )` finds `Host` under `[Database]`. `key: value` works as well as
+`key = value`. A line beginning with `;` or `#` is a comment, but a `;` later in a line belongs
+to the value. Spaces around a value are dropped unless the value is in double quotes, and the
+quotes themselves are removed. Keys before the first `[section]` belong to the section `""`.
+
+`SetValue` replaces a value or adds the key, and the section, at the end; `Remove( section, key )`
+deletes a key and `Remove( section )` a whole section. `ToText( )` writes the file back, quoting
+the value that needed its quotes. A repeated key replaces the first one, which is what most INI
+readers do; `IniOptions.Duplicates = config.INI_DUP_ERROR` makes it an error instead.
+`config.LoadIni( path )` and `config.SaveIni( ini, path )` read and write the file itself.
+
+### Writing CSV
+
+`strings.JoinCsvRow` turns an `Array( of ustring )` into one line of CSV, and `CsvWriter`
+writes rows to any `fs.Stream`:
+
+```tiko
+{{#include ../examples/ch24/csvwrite.tiko}}
+```
+
+```text
+{{#include ../examples/ch24/csvwrite.out}}
+```
+
+**A field is quoted only when it has to be**: when it holds the separator, a double quote or a
+line break, or starts or ends with a space. A quote inside a field is doubled. That is the
+standard CSV form (RFC 4180), and `SplitCsv` reads it back field for field, as the last line
+shows. Records end with CR LF, the standard's line ending, unless the third argument is
+`false`; the listing uses LF so that its output prints cleanly. `CsvWriter` keeps the first
+failure: later rows are not written, and `Finish( )` reports it.
+
 ## Coming from the file statements
 
 tiko still compiles the file statements of the BASIC family — `open`, `print #`, `line input #`,
@@ -578,6 +709,9 @@ the program about five seconds before the system ends it regardless.
   tree. `ReadAllText` and `ReadAllLines` hold the whole file in memory.
 - **`WriteAtomic` writes the file twice over** — a temporary and a rename — which is the price of
   never leaving it half-written.
+- **A `TomlValue` is a value**: `Get( key )` and copying a table copy the whole subtree under it.
+  `Find( key )` and `[ i ]` reach into the tree without a copy. Looking a key up scans its table,
+  which is what a configuration file's tables can afford.
 
 ## Summary
 
@@ -607,6 +741,10 @@ the program about five seconds before the system ends it regardless.
   a flag the program checks with `Interrupted( )`.
 - `std/hash`: `DigestHex( alg, data )`, the same in pieces, `DigestFile`, `HmacHex`. CRC and FNV
   catch accidents; only SHA-2 stands up to tampering.
+- `std/config`: `ParseToml` / `LoadToml` give a `TomlValue` tree read with `Path` and `As…`, each
+  an `Optional`; `ToTomlText` writes it back, without comments. `ParseIni` / `LoadIni` give an
+  `IniFile` with `Get`, `SetValue` and `ToText`. Errors are `ConfigError`s with a line and column.
+- `strings.JoinCsvRow` and `strings.CsvWriter` write CSV that `SplitCsv` reads back.
 
 ## Exercises
 
@@ -625,6 +763,10 @@ the program about five seconds before the system ends it regardless.
    `sha256sum` uses: the digest, two spaces, the path.
 7. Give `interrupt.tiko` a temporary directory that it creates at the start and removes at the end,
    and check that it is removed when you press Ctrl-C too.
-6. Write `binformat.tiko`'s buffer to a file with `fs.WriteAllBytes`, read it back with
+8. Write `binformat.tiko`'s buffer to a file with `fs.WriteAllBytes`, read it back with
    `fs.ReadAllBytes`, and check the magic number before reading anything else. What should a
    reader do with a file whose version it does not know?
+9. Give `tomlconfig.tiko` a `[server]` key `port = "8080"`, written as a string. What does it
+   print, and how would you report the mistake to the user who wrote the file?
+10. Read a TOML file of `[[items]]` tables, each with a `name` and a `price`, and write them to a
+    CSV file with `CsvWriter`, a header row first.

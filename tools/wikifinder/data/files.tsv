@@ -267,3 +267,11 @@ Open-Err	Open Err	-	devices	built-in	-	Opens standard input and standard error o
 Open-Lpt	Open Lpt	-	devices	built-in	-	Opens a printer on a file number, so Print # and Put # send data to it.
 Open-Pipe	Open Pipe	-	devices	built-in	-	Runs a shell command and opens its input or output on a file number.
 Open-Scrn	Open Scrn	-	devices	built-in	-	Opens the screen on a file number, for reading and writing like a file.
+Category-Config#toml	ParseToml	-	config	std/config	-	Parses TOML text into a TomlValue tree whose root is a table, or a ConfigError.
+Category-Config#toml	LoadToml	-	config	std/config	-	Reads a UTF-8 TOML file into a TomlValue tree, or a ConfigError.
+Category-Config#looking-things-up	TomlValue	-	config	std/config	-	Holds one TOML value or table; look keys up with Get, Find or a dotted Path.
+Category-Config#building-and-writing	ToTomlText	-	config	std/config	-	Returns a TomlValue table as TOML text; comments are not kept.
+Category-Config#ini	ParseIni	-	config	std/config	-	Parses INI text into an IniFile of sections and keys, or a ConfigError.
+Category-Config#ini	LoadIni	-	config	std/config	-	Reads an INI file into an IniFile, or a ConfigError.
+Category-Config#ini	SaveIni	-	config	std/config	-	Writes an IniFile to a file as INI text.
+Category-Config#ini	IniFile	-	config	std/config	-	Holds an INI file's sections and keys in file order: Get, SetValue, Remove.
