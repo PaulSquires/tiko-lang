@@ -108,11 +108,9 @@ func ptr MKCOPY(ptr $0, ptr $1) {
     store @o, $1
     %4 = load @$tmp0
     %5 = load @o
-    %6 = load %5
-    %7 = load @o
-    call void _ZN2CCC1ERS_(%4, %7)
-    %8 = load @$tmp0
-    ret %8
+    call void _ZN2CCC1ERS_(%4, %5)
+    %6 = load @$tmp0
+    ret %6
 }
 func ptr _ZplR2CCi(ptr $0, ptr $1, i32 $2) {
   local ptr $tmp0
@@ -228,4 +226,4 @@ declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 8 functions, 8 blocks, 165 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 8 functions, 8 blocks, 163 insts, 0 statements not lowered, 0 scope imbalance
