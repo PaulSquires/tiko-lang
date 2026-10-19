@@ -1,0 +1,280 @@
+#module "hash"
+#import "std/containers"
+#import "std/outcome"
+#import "std/fs"
+using containers
+using outcome
+'' std/hash -- checksums, hashes and HMAC
+''
+''     #import "std/hash"
+''
+''     print hash.DigestHex( hash.HASH_SHA256, "abc" )
+''     '' ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+''
+''     dim h as hash.Sha256
+''     h.UpdateText( "a" ) : h.UpdateText( "bc" )        '' streaming: same answer
+''     print h.FinishHex( )
+''
+''     dim mac as hash.Hmac( of hash.Sha256 ) = hash.Hmac( of hash.Sha256 )( "key" )
+''     mac.UpdateText( "message" )
+''     print mac.FinishHex( )
+''
+'' C:\dev\docs\tiko-stdlib\RFC-0001 section 6.  Every algorithm is a type that
+'' extends Hasher, so code that hashes a stream takes 'byref h as Hasher' and
+'' works with any of them:
+''
+''   checksums       Crc32 (IEEE: zlib, PNG, gzip), Crc32C (Castagnoli: iSCSI,
+''                   ext4), Adler32 (zlib) -- each also has Sum32( )
+''   fast hashes     Fnv1a32, Fnv1a64, XxHash64 (with a seed) -- Sum32/Sum64( )
+''                   NOT for security: easy to collide on purpose.
+''   cryptographic   Sha224, Sha256, Sha384, Sha512, and Hmac( of H ) over any
+''                   of them.  Md5 and Sha1 are here for interoperability ONLY:
+''                   collisions in both are practical, so never use them where an
+''                   attacker chooses the input.
+''
+'' Bytes go in through Update( p, n ), UpdateBytes( array ), UpdateText( ustring )
+'' -- the text's UTF-8 bytes -- or UpdateRaw( string ), the string's bytes as
+'' they are.  Finish( ) returns the digest without changing the state, so more
+'' data may follow; Reset( ) starts again.  A checksum's digest is its value in
+'' big-endian bytes, as Go and Python give it.
+''
+'' There is no password hashing here, no key derivation and no encryption: those
+'' need reviewed constant-time code, and belong to a vendor library.
+
+public type Hasher extends object
+    declare constructor( )
+    declare virtual destructor( )
+    '' the primitives
+    declare abstract sub Update( byval p as const ubyte ptr, byval n as longint )
+    declare abstract sub Reset( )
+    declare abstract function DigestSize( ) as long          '' bytes
+    declare abstract function BlockSize( ) as long           '' bytes; HMAC needs it
+    declare abstract sub FinishInto( byval out_ as ubyte ptr )   '' DigestSize( ) bytes; state unchanged
+    '' composed on them
+    declare sub UpdateBytes( byref b as Array( of ubyte ) )
+    declare sub UpdateText( byref s as const ustring )
+    declare sub UpdateRaw( byref s as const string )
+    declare function Finish( ) as Array( of ubyte )
+    declare function FinishHex( ) as ustring                 '' lower case
+end type
+
+constructor Hasher( )
+end constructor
+
+destructor Hasher( )
+end destructor
+
+sub Hasher.UpdateBytes( byref b as Array( of ubyte ) )
+    if( b.num > 0 ) then
+        this.Update( @b.items( 0 ), b.num )
+    end if
+end sub
+
+sub Hasher.UpdateText( byref s as const ustring )
+    dim as string b = s
+    this.Update( cptr( const ubyte ptr, strptr( b ) ), len( b ) )
+end sub
+
+sub Hasher.UpdateRaw( byref s as const string )
+    this.Update( cptr( const ubyte ptr, strptr( s ) ), len( s ) )
+end sub
+
+function Hasher.Finish( ) as Array( of ubyte )
+    dim as Array( of ubyte ) a
+    dim as long n = this.DigestSize( )
+    dim as ubyte d( 0 to 63 )
+    this.FinishInto( @d( 0 ) )
+    a.Reserve( n )
+    for i as long = 0 to n - 1
+        a.Push( d( i ) )
+    next
+    return a
+end function
+
+function HashHexOf( byval p as const ubyte ptr, byval n as long ) as ustring
+    dim as string digits = "0123456789abcdef"
+    dim as const ubyte ptr d = cptr( const ubyte ptr, strptr( digits ) )
+    dim as string s = space( n * 2 )
+    dim as ubyte ptr q = cptr( ubyte ptr, strptr( s ) )
+    for i as long = 0 to n - 1
+        q[2 * i] = d[p[i] shr 4]
+        q[2 * i + 1] = d[p[i] and 15]
+    next
+    return s
+end function
+
+function Hasher.FinishHex( ) as ustring
+    dim as ubyte d( 0 to 63 )
+    this.FinishInto( @d( 0 ) )
+    return HashHexOf( @d( 0 ), this.DigestSize( ) )
+end function
+
+'' -------------------------------------------------------------- shared helpers
+
+function HashRotl32( byval x as ulong, byval r as long ) as ulong
+    return ( x shl r ) or ( x shr ( 32 - r ) )
+end function
+
+function HashRotr32( byval x as ulong, byval r as long ) as ulong
+    return ( x shr r ) or ( x shl ( 32 - r ) )
+end function
+
+function HashRotl64( byval x as ulongint, byval r as long ) as ulongint
+    return ( x shl r ) or ( x shr ( 64 - r ) )
+end function
+
+function HashRotr64( byval x as ulongint, byval r as long ) as ulongint
+    return ( x shr r ) or ( x shl ( 64 - r ) )
+end function
+
+sub HashPutBE32( byval q as ubyte ptr, byval v as ulong )
+    q[0] = ( v shr 24 ) and &hFF : q[1] = ( v shr 16 ) and &hFF
+    q[2] = ( v shr 8 ) and &hFF  : q[3] = v and &hFF
+end sub
+
+sub HashPutBE64( byval q as ubyte ptr, byval v as ulongint )
+    for i as long = 0 to 7
+        q[i] = ( v shr ( 56 - 8 * i ) ) and &hFF
+    next
+end sub
+
+sub HashPutLE32( byval q as ubyte ptr, byval v as ulong )
+    q[0] = v and &hFF : q[1] = ( v shr 8 ) and &hFF
+    q[2] = ( v shr 16 ) and &hFF : q[3] = ( v shr 24 ) and &hFF
+end sub
+
+'' -------------------------------------------------------------- one-shot
+
+public enum HashAlgorithm
+    HASH_CRC32 = 1
+    HASH_CRC32C
+    HASH_ADLER32
+    HASH_FNV1A32
+    HASH_FNV1A64
+    HASH_XXHASH64
+    HASH_MD5
+    HASH_SHA1
+    HASH_SHA224
+    HASH_SHA256
+    HASH_SHA384
+    HASH_SHA512
+end enum
+
+'' A new hasher of the algorithm, or nullptr for a value outside the enum.
+'' The caller deletes it; the destructor is virtual.
+public function NewHasher( byval alg as HashAlgorithm ) as Hasher ptr
+    select case alg
+    case HASH_CRC32     : return new Crc32( )
+    case HASH_CRC32C    : return new Crc32C( )
+    case HASH_ADLER32   : return new Adler32( )
+    case HASH_FNV1A32   : return new Fnv1a32( )
+    case HASH_FNV1A64   : return new Fnv1a64( )
+    case HASH_XXHASH64  : return new XxHash64( 0 )
+    case HASH_MD5       : return new Md5( )
+    case HASH_SHA1      : return new Sha1( )
+    case HASH_SHA224    : return new Sha224( )
+    case HASH_SHA256    : return new Sha256( )
+    case HASH_SHA384    : return new Sha384( )
+    case HASH_SHA512    : return new Sha512( )
+    end select
+    return nullptr
+end function
+
+function HashNewOrDie( byval alg as HashAlgorithm ) as Hasher ptr
+    dim as Hasher ptr h = NewHasher( alg )
+    if( h = nullptr ) then
+        error 1
+    end if
+    return h
+end function
+
+public function Digest overload ( byval alg as HashAlgorithm, byref b as Array( of ubyte ) ) as Array( of ubyte )
+    dim as Hasher ptr h = HashNewOrDie( alg )
+    h->UpdateBytes( b )
+    dim as Array( of ubyte ) r = h->Finish( )
+    delete h
+    return r
+end function
+
+public function Digest overload ( byval alg as HashAlgorithm, byref s as const ustring ) as Array( of ubyte )
+    dim as Hasher ptr h = HashNewOrDie( alg )
+    h->UpdateText( s )
+    dim as Array( of ubyte ) r = h->Finish( )
+    delete h
+    return r
+end function
+
+public function DigestHex overload ( byval alg as HashAlgorithm, byref b as Array( of ubyte ) ) as ustring
+    dim as Hasher ptr h = HashNewOrDie( alg )
+    h->UpdateBytes( b )
+    dim as ustring r = h->FinishHex( )
+    delete h
+    return r
+end function
+
+public function DigestHex overload ( byval alg as HashAlgorithm, byref s as const ustring ) as ustring
+    dim as Hasher ptr h = HashNewOrDie( alg )
+    h->UpdateText( s )
+    dim as ustring r = h->FinishHex( )
+    delete h
+    return r
+end function
+
+public function DigestHex overload ( byval alg as HashAlgorithm, byref s as const string ) as ustring
+    dim as Hasher ptr h = HashNewOrDie( alg )
+    h->UpdateRaw( s )
+    dim as ustring r = h->FinishHex( )
+    delete h
+    return r
+end function
+
+'' Reads the stream from its current position to its end into h.
+public function HashStream( byref h as Hasher, byref s as fs.Stream ) as fs.FsResultI64
+    dim as ubyte buf( 0 to 65535 )
+    dim as longint total = 0
+    do
+        dim as fs.FsResultI64 r = s.Read( @buf( 0 ), 65536 )
+        if( r.IsOk( ) = FALSE ) then
+            return r
+        end if
+        dim as longint got = r.Value( )
+        if( got = 0 ) then
+            exit do
+        end if
+        h.Update( @buf( 0 ), got )
+        total += got
+    loop
+    return Ok( of longint, fs.FsError )( total )
+end function
+
+'' The digest of a whole file, read in 64 KB pieces.
+public function DigestFile( byval alg as HashAlgorithm, byref path as const ustring ) as Result( of Array( of ubyte ), fs.FsError )
+    dim as fs.File f
+    dim as fs.FsResultBool o = f.OpenRead( path )
+    if( o.IsOk( ) = FALSE ) then
+        return Fail( of Array( of ubyte ), fs.FsError )( o.Failure( ) )
+    end if
+    dim as Hasher ptr h = HashNewOrDie( alg )
+    dim as fs.FsResultI64 r = HashStream( *h, f )
+    if( r.IsOk( ) = FALSE ) then
+        delete h
+        return Fail( of Array( of ubyte ), fs.FsError )( r.Failure( ) )
+    end if
+    dim as Array( of ubyte ) d = h->Finish( )
+    delete h
+    return Ok( of Array( of ubyte ), fs.FsError )( d )
+end function
+
+'' TRUE when a and b hold the same bytes, taking the same time whichever byte
+'' differs -- for comparing a MAC or a token with the one expected.  Different
+'' lengths return FALSE at once: the length is not the secret.
+public function ConstantTimeEquals( byref a as Array( of ubyte ), byref b as Array( of ubyte ) ) as boolean
+    if( a.num <> b.num ) then
+        return FALSE
+    end if
+    dim as ulong diff = 0
+    for i as long = 0 to a.num - 1
+        diff or= ( a.items( i ) xor b.items( i ) )
+    next
+    return diff = 0
+end function

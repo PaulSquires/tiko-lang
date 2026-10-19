@@ -25,6 +25,7 @@ libraries in `inc/fb`; that directory is gone, and its code lives here.
 | `std/memory` | `SharedPtr`, `WeakPtr`, `MakeShared` | |
 | `std/codec` | base64, base32, hex, percent-encoding; endian get/put; LEB128 varints | |
 | `std/uuids` | `Uuid`, `NewV4`, `NewV7`, `Parse` | |
+| `std/hash` | `Hasher`: CRC-32/32C, Adler-32, FNV-1a, xxHash64, MD5, SHA-1, SHA-2; `Hmac( of H )`; `DigestFile` | |
 
 **How a module's names are used:**
 - **Qualified, or through `using`.** `strings.Replace( s, "a", "b" )`, or `using strings` and

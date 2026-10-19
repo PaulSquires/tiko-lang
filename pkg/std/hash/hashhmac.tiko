@@ -1,0 +1,119 @@
+#module "hash"
+#import "std/containers"
+using containers
+'' std/hash: HMAC (RFC 2104) over any of the hashers
+''
+''     dim mac as hash.Hmac( of hash.Sha256 ) = hash.Hmac( of hash.Sha256 )( "key" )
+''     mac.UpdateText( "The quick brown fox jumps over the lazy dog" )
+''     print mac.FinishHex( )
+''     '' f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8
+''
+'' Hmac( of H ) is a Hasher itself, so anything that hashes a stream can MAC one.
+'' H is named in the type -- Hmac( of Sha256 ) -- so a key cannot be paired with
+'' the wrong algorithm at run time.  A key longer than H's block is hashed first,
+'' as the RFC says; a shorter one is padded with zeros.
+''
+'' Compare a MAC with the one you expected using ConstantTimeEquals, never '=':
+'' an ordinary comparison stops at the first different byte, and how long it
+'' takes tells an attacker how many leading bytes were right.
+''
+'' Meant for the cryptographic hashers.  Over a checksum it computes something,
+'' and that something is not a MAC.
+
+public type Hmac( of H ) extends Hasher
+    as H inner_
+    as H outer_
+    as ubyte ipad_( 0 to 127 )
+    declare constructor( byref key as Array( of ubyte ) )
+    declare constructor( byref key as const ustring )
+    declare sub Keyed_( byval k as const ubyte ptr, byval n as long )
+    declare sub Update( byval p as const ubyte ptr, byval n as longint ) override
+    declare sub Reset( ) override
+    declare function DigestSize( ) as long override
+    declare function BlockSize( ) as long override
+    declare sub FinishInto( byval out_ as ubyte ptr ) override
+end type
+
+constructor Hmac( of H )( byref key as Array( of ubyte ) )
+    if( key.num > 0 ) then
+        this.Keyed_( @key.items( 0 ), key.num )
+    else
+        this.Keyed_( nullptr, 0 )
+    end if
+end constructor
+
+constructor Hmac( of H )( byref key as const ustring )
+    dim as string b = key
+    this.Keyed_( cptr( const ubyte ptr, strptr( b ) ), len( b ) )
+end constructor
+
+sub Hmac( of H ).Keyed_( byval k as const ubyte ptr, byval n as long )
+    dim as long bs = this.inner_.BlockSize( )
+    dim as ubyte kb( 0 to 127 )
+    if( n > bs ) then
+        dim as H kh
+        kh.Update( k, n )
+        kh.FinishInto( @kb( 0 ) )
+    else
+        for i as long = 0 to n - 1
+            kb( i ) = k[i]
+        next
+    end if
+    dim as ubyte opad( 0 to 127 )
+    for i as long = 0 to bs - 1
+        this.ipad_( i ) = kb( i ) xor &h36
+        opad( i ) = kb( i ) xor &h5C
+    next
+    this.outer_.Reset( )
+    this.outer_.Update( @opad( 0 ), bs )
+    this.Reset( )
+end sub
+
+sub Hmac( of H ).Reset( )
+    this.inner_.Reset( )
+    this.inner_.Update( @this.ipad_( 0 ), this.inner_.BlockSize( ) )
+end sub
+
+sub Hmac( of H ).Update( byval p as const ubyte ptr, byval n as longint )
+    this.inner_.Update( p, n )
+end sub
+
+function Hmac( of H ).DigestSize( ) as long
+    return this.inner_.DigestSize( )
+end function
+
+function Hmac( of H ).BlockSize( ) as long
+    return this.inner_.BlockSize( )
+end function
+
+sub Hmac( of H ).FinishInto( byval out_ as ubyte ptr )
+    dim as ubyte d( 0 to 63 )
+    this.inner_.FinishInto( @d( 0 ) )
+    dim as H o = this.outer_
+    o.Update( @d( 0 ), this.inner_.DigestSize( ) )
+    o.FinishInto( out_ )
+end sub
+
+'' -------------------------------------------------------------- one-shot
+
+function HmacHexOf( of H )( byref key as const ustring, byref msg as const ustring ) as ustring
+    dim as Hmac( of H ) m = Hmac( of H )( key )
+    m.UpdateText( msg )
+    return m.FinishHex( )
+end function
+
+'' HMAC of msg under key, both as UTF-8, in lower-case hex.  For the
+'' cryptographic algorithms only (MD5 through SHA-512); anything else is runtime
+'' error 1.
+public function HmacHex( byval alg as HashAlgorithm, byref key as const ustring, byref msg as const ustring ) as ustring
+    select case alg
+    case HASH_MD5    : return HmacHexOf( of Md5 )( key, msg )
+    case HASH_SHA1   : return HmacHexOf( of Sha1 )( key, msg )
+    case HASH_SHA224 : return HmacHexOf( of Sha224 )( key, msg )
+    case HASH_SHA256 : return HmacHexOf( of Sha256 )( key, msg )
+    case HASH_SHA384 : return HmacHexOf( of Sha384 )( key, msg )
+    case HASH_SHA512 : return HmacHexOf( of Sha512 )( key, msg )
+    end select
+    error 1
+    return ""
+end function

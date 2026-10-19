@@ -1,0 +1,745 @@
+'' std/hash phase P3 (C:\dev\docs\tiko-stdlib\RFC-0001 section 6), GENERATED: every expected
+'' value below was computed by Python's hashlib, hmac and zlib, and by reference CRC-32C and
+'' xxHash64 implementations checked against their published vectors first. Covers each
+'' algorithm at every padding/stripe boundary length, streaming in every split of 200 bytes,
+'' the million-'a' messages, HMAC RFC 4231 cases 1-4, 6, 7 over all six cryptographic
+'' hashers (keys longer than the block included), Finish not disturbing the state, Reset,
+'' DigestFile against a temp file, and ConstantTimeEquals.
+#import "std/hash"
+#import "std/containers"
+#import "std/fs"
+using containers
+
+dim shared as integer fails = 0
+
+sub Check( byref what as string, byval ok as boolean )
+    if ok = false then
+        print "FAIL "; what
+        fails += 1
+    end if
+end sub
+
+function Msg( byval n as long ) as Array( of ubyte )
+    dim as Array( of ubyte ) a
+    for i as long = 0 to n - 1
+        a.Push( cubyte( ( i * 167 + 13 ) and 255 ) )
+    next
+    return a
+end function
+
+function Unhex( byref h as string ) as Array( of ubyte )
+    dim as Array( of ubyte ) a
+    for i as long = 1 to len( h ) step 2
+        a.Push( cubyte( valint( "&h" & mid( h, i, 2 ) ) ) )
+    next
+    return a
+end function
+
+function HexOf( byref a as Array( of ubyte ) ) as string
+    dim as string s
+    for i as long = 0 to a.Count( ) - 1
+        s &= lcase( hex( a[i], 2 ) )
+    next
+    return s
+end function
+
+'' ------------------------------------------------------------ every algorithm, boundary lengths
+dim as long lens( 0 to 21 ) = { 0, 1, 3, 31, 32, 33, 55, 56, 57, 63, 64, 65, 111, 112, 113, 127, 128, 129, 200, 1000, 5553, 70000 }
+scope
+    dim as string want( 0 to 21 ) = { _
+        "00000000", _
+        "acb39330", _
+        "8b89a981", _
+        "4af0031f", _
+        "c0fff6de", _
+        "6d12716d", _
+        "eb018a09", _
+        "ec8799dc", _
+        "ddee9120", _
+        "db23bac6", _
+        "72d32e4f", _
+        "d1c6deaf", _
+        "0f06f9d2", _
+        "03b68e85", _
+        "2cd54275", _
+        "bdacf4d1", _
+        "6a02e676", _
+        "f807c6ff", _
+        "1009c381", _
+        "81a76a55", _
+        "6b4e918b", _
+        "c718635e" }
+    for k as long = 0 to 21
+        dim as Array( of ubyte ) m = Msg( lens( k ) )
+        Check( "HASH_CRC32 len " & lens( k ), hash.DigestHex( hash.HASH_CRC32, m ) = want( k ) )
+    next
+end scope
+scope
+    dim as string want( 0 to 21 ) = { _
+        "00000000", _
+        "ed551f82", _
+        "5e015395", _
+        "96648041", _
+        "8621533a", _
+        "55e2f742", _
+        "e67d462d", _
+        "8246fb27", _
+        "01d11794", _
+        "4d20f47e", _
+        "89ccf1b9", _
+        "e4f65cb2", _
+        "2dff9587", _
+        "535540b2", _
+        "ae768f93", _
+        "27b0ea85", _
+        "20cc832d", _
+        "f0162a74", _
+        "7a9404af", _
+        "308444c2", _
+        "f92dfe2f", _
+        "7e388d5c" }
+    for k as long = 0 to 21
+        dim as Array( of ubyte ) m = Msg( lens( k ) )
+        Check( "HASH_CRC32C len " & lens( k ), hash.DigestHex( hash.HASH_CRC32C, m ) = want( k ) )
+    next
+end scope
+scope
+    dim as string want( 0 to 21 ) = { _
+        "00000001", _
+        "000e000e", _
+        "01ed011d", _
+        "eaef0eeb", _
+        "fa200f31", _
+        "0a4d101e", _
+        "e6811a87", _
+        "02051b75", _
+        "1e0f1c0a", _
+        "d10c1f3b", _
+        "f06d1f61", _
+        "10aa202e", _
+        "e2ec3733", _
+        "1aa437a9", _
+        "526a37c6", _
+        "92a03edb", _
+        "d2613fc1", _
+        "12be404e", _
+        "e9a264cd", _
+        "718bf28c", _
+        "e1a2cefc", _
+        "78db3721" }
+    for k as long = 0 to 21
+        dim as Array( of ubyte ) m = Msg( lens( k ) )
+        Check( "HASH_ADLER32 len " & lens( k ), hash.DigestHex( hash.HASH_ADLER32, m ) = want( k ) )
+    next
+end scope
+scope
+    dim as string want( 0 to 21 ) = { _
+        "811c9dc5", _
+        "080c61d8", _
+        "5959fc8d", _
+        "1dd84181", _
+        "c26f8c45", _
+        "bd9a6c78", _
+        "5e2c9539", _
+        "172fe175", _
+        "606093a0", _
+        "89f39861", _
+        "7178b7c5", _
+        "a9082198", _
+        "a3894ed1", _
+        "1826d0e5", _
+        "fd1af668", _
+        "dda009a1", _
+        "29ee9ac5", _
+        "4a9cdf58", _
+        "18a2d655", _
+        "a2c6c915", _
+        "f2721fa8", _
+        "4d6d32e5" }
+    for k as long = 0 to 21
+        dim as Array( of ubyte ) m = Msg( lens( k ) )
+        Check( "HASH_FNV1A32 len " & lens( k ), hash.DigestHex( hash.HASH_FNV1A32, m ) = want( k ) )
+    next
+end scope
+scope
+    dim as string want( 0 to 21 ) = { _
+        "cbf29ce484222325", _
+        "af63c04c8601bcf8", _
+        "f101561878d726cd", _
+        "20fb075504282641", _
+        "32b37c7610389de5", _
+        "5f99849d9032d498", _
+        "912b2786dff30539", _
+        "9f5a012e89f2ec55", _
+        "b8dcc21467c84a40", _
+        "4bd525435a8b3861", _
+        "66669872da90a0a5", _
+        "90f5732963c090b8", _
+        "e4ccc93133510191", _
+        "18fbc59a32a63b85", _
+        "1a0c5d0410774348", _
+        "d72456942cd1a421", _
+        "6463e4c8283afe25", _
+        "d0bc681c5c3eb778", _
+        "04f735a090d8fbf5", _
+        "3f68bf08512e6ef5", _
+        "acb642176bbc3208", _
+        "53d731e3e02ca985" }
+    for k as long = 0 to 21
+        dim as Array( of ubyte ) m = Msg( lens( k ) )
+        Check( "HASH_FNV1A64 len " & lens( k ), hash.DigestHex( hash.HASH_FNV1A64, m ) = want( k ) )
+    next
+end scope
+scope
+    dim as string want( 0 to 21 ) = { _
+        "ef46db3751d8e999", _
+        "2078e1ad38ad738b", _
+        "634d95fc01a189cd", _
+        "65c5feb01da7464d", _
+        "7665c921c9bf2ec7", _
+        "b5a9d9ef259ae821", _
+        "6e297f430d2b50c5", _
+        "6e8a76d67ce79b64", _
+        "0c9629d011cf1646", _
+        "b0289cd9324034f0", _
+        "fff2525c99bf2005", _
+        "01fbd6d6ac20fbaf", _
+        "6494fbf62ffb1ac5", _
+        "ffe1132155bcb987", _
+        "1c41a19ad2e4d300", _
+        "48b995c66a54ba1c", _
+        "048add5a12b8c247", _
+        "fa5c536b0660d56c", _
+        "4d9d64ca846491af", _
+        "626443c8029d0542", _
+        "e0c55d15612efed4", _
+        "1264bd3c5b162aae" }
+    for k as long = 0 to 21
+        dim as Array( of ubyte ) m = Msg( lens( k ) )
+        Check( "HASH_XXHASH64 len " & lens( k ), hash.DigestHex( hash.HASH_XXHASH64, m ) = want( k ) )
+    next
+end scope
+scope
+    dim as string want( 0 to 21 ) = { _
+        "d41d8cd98f00b204e9800998ecf8427e", _
+        "dcb9be2f604e5df91deb9659bed4748d", _
+        "5edefab10a615a1d2801e8e5f2387821", _
+        "35cb80b09895deed3333b6a1c6fb0ac1", _
+        "ccb3a7ad5ac7c9bb64ed96be021397cc", _
+        "db20660935290e3dc730a824f374ebdf", _
+        "63f2b43e0234f014ba086687f7ec7e4d", _
+        "129a7df2069f6dcc689cbeed82142a42", _
+        "141a2b37feaa5343465412f413f5569a", _
+        "95ae047ff945b6702ed7bd87e7ccd08d", _
+        "0741d4196478884c19bf239ab5442e2f", _
+        "913e0b1e4763382ffb6125227bb42e56", _
+        "7d7d6b16f16245394550666da6d0ade2", _
+        "3f0b51095db3978dfd35d74f57f41775", _
+        "5e649e4cbe23f91047fd544ad1e3961f", _
+        "1e64802a75fd06dcdc53483bd621a1f3", _
+        "4506929ce5cac6afcee12bd44aaf184f", _
+        "be04c254e90b4c572685a02d1a10db90", _
+        "f68674f3c396bf12dbb87682c1cd9a07", _
+        "ab2d9e9f4a241f8274c3132a64ab8abc", _
+        "9b41c69a87a560fcfdfb839a82a118cf", _
+        "ab467fca099b54bcabbd95da029f5ece" }
+    for k as long = 0 to 21
+        dim as Array( of ubyte ) m = Msg( lens( k ) )
+        Check( "HASH_MD5 len " & lens( k ), hash.DigestHex( hash.HASH_MD5, m ) = want( k ) )
+    next
+end scope
+scope
+    dim as string want( 0 to 21 ) = { _
+        "da39a3ee5e6b4b0d3255bfef95601890afd80709", _
+        "11f4de6b8b45cf8051b1d17fa4cde9ad935cea41", _
+        "02326a7c3345b141c062f696179bcf6464b5326f", _
+        "634567c52f32999aa6f7c26989068014cb652381", _
+        "e1a63b3b1dcbc8716f082a67518ae211755f8301", _
+        "b0dc33fbf122f47b12047d42dbb5c98a6acd3578", _
+        "f223d32a2821747cda0c953869fd4e80cca94476", _
+        "a4e4673ac7e9635f02f2290c408782276f2b74f3", _
+        "1bf5b2b6c7804748764b640a4f8752ca36bbf6bf", _
+        "a2659af75500214170228bc208373a7fa71187db", _
+        "03876d2bfc87786e413d3db303deb59e5eb0e44a", _
+        "cc2db95e81ddadc0da1832c505d12f06b2a81582", _
+        "c23ff0a4da588554dc2f77de333e59ff3d78dfc8", _
+        "ffdf910036ef1517ccd5e3ef754ac676bbd95722", _
+        "97e41ce366e2e0be5e0e839f0a33bf0b647a9b02", _
+        "ed31e9f2976bb919fce07a4e7db6051bb90711e9", _
+        "947f065ae440d3b4d479a77442e8841b94f9a22d", _
+        "e6f246cf931fda6987bd840cf4c98fe93b950714", _
+        "5226efcec2c9809bbd4e422a1a0e940306246169", _
+        "f8e264c802c3142d9ab4071f469b2b16ac655aaf", _
+        "ba23c33f12cc7f024f159bb18ffaa63ca9991b57", _
+        "a47e3ab9d47f2a8bbf517f88dda751f968351bea" }
+    for k as long = 0 to 21
+        dim as Array( of ubyte ) m = Msg( lens( k ) )
+        Check( "HASH_SHA1 len " & lens( k ), hash.DigestHex( hash.HASH_SHA1, m ) = want( k ) )
+    next
+end scope
+scope
+    dim as string want( 0 to 21 ) = { _
+        "d14a028c2a3a2bc9476102bb288234c415a2b01f828ea62ac5b3e42f", _
+        "6f4f5700ec1f482446784e4dda7961b7686c3adec330653437a000fc", _
+        "fc12f93883402550f359c6d358388594c88c4e909e98c5438580fee2", _
+        "948697e75ef5fb1ffc52d04c55be269144fbcc1709c3dae4f5a8b73a", _
+        "35e0d719b1e84e4db38a48acdb1a7a36c6150bb6f8980365406e0b48", _
+        "6bf6906d7d1ba63d8985e162d642d4a5330e6c7419aecb79cf7a3695", _
+        "8e5a4c9d32e4841c0b27dd21cee041bd6dfcbe7af8bf129fcc9415d2", _
+        "0c93234e3a1f8da2b77491f3a1a6ed5750d516eaf82154f1cad0ed81", _
+        "8388fc37e4aa3f01486d6a4f8e734b951d9a833b7b9c4b3697b9d8f5", _
+        "60af6a494a81be4cfd57d55f3933317e9b0d41f09659bda2f0c1cd8e", _
+        "84b8118153d68316739f41c787a2df425ce65edc39af0647252f1c3e", _
+        "77baa4a4f205c6bc42042bda3191e15205daea08acef604a2ffce3cd", _
+        "69ce7bc5bd44a7130f9d45aa62b995866814b3d52794f266af93a84c", _
+        "07859c8be569418dd0283235c80805db7ae590874101bb6e867e4c2e", _
+        "2c955e6dc42dfe449dbae157c2abfbecdfac088bec618158836f6d65", _
+        "ff1475c4043bd385ed70abd84dab104bd4b7ee66cdfc1f5c3f70c8fa", _
+        "17c409c835b6919a78b4424d3915187c5088feb32600ebe0561cc3da", _
+        "b165ba66b52809621b1657c903c8fbeaab5b647b37bc06f89a350c23", _
+        "71eeec38ff1798b4b9ab058b8984670f8f524a8f4aed9fe61cf5d0bb", _
+        "478b835f63ea1e56deaf0bf6f0bd88acdf456f6a0e43870952d8f50f", _
+        "5d9a2fa0dd907ed2b4e97c225ce45f8c26224b8bec532e082995db17", _
+        "9b595c6dea877af7d0590e71812dafd47965a62b96d51078fd9ab3ea" }
+    for k as long = 0 to 21
+        dim as Array( of ubyte ) m = Msg( lens( k ) )
+        Check( "HASH_SHA224 len " & lens( k ), hash.DigestHex( hash.HASH_SHA224, m ) = want( k ) )
+    next
+end scope
+scope
+    dim as string want( 0 to 21 ) = { _
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", _
+        "9d1e0e2d9459d06523ad13e28a4093c2316baafe7aec5b25f30eba2e113599c4", _
+        "13c425a746ac9e72be4760dd13b156260d7ad6ea6b8750fbf1c7b0d5a484b852", _
+        "e0f1595aeb4ed77b4c5f5c85c81096fa428fca936041d094a0cc2bbada7b9ba9", _
+        "a0005a1a507e6d6488e4d36992e99f7c693e5c1b68018f8488149346a4a06b23", _
+        "f456e3e94bd025e42cf609cab6be7081fea007870beb80fe3433c2236ce8a511", _
+        "b2ca0adc388a66d3a5a7f6541239331d5a867eede554e11262241271faaf36c5", _
+        "3768eff44f1df02704a832cf708935fbed9bb74d0714fbe75454c266c4e12856", _
+        "a35b6298adfbc5ec16dc51a8d52145daa2a68f1d66e837d85bed6783d874c5cb", _
+        "dc06ea9e456da9f9fc2276564018231c36196ff7745bf505fd7f503aec5c67fd", _
+        "b68fe543b0b5a544e32eb08712e697bfcd3a3cb491563c3b1cba112d378f4bdb", _
+        "587cdb9ad9be371721f2f84a84eb09f2b698ec19bbe2d7c222179996547a04a6", _
+        "9905ec11d55cf034f183156b0e03736c10f3374050b17a3c76b50cca3b9be4d0", _
+        "a11fc5c7ba41fca737a1664f29faebe1dc677f44ae1a4147bad8804d9c981d30", _
+        "3e37bc2fb8bac1683a55a67eb991deedd8a11dac4826e0cd11ab58a250ad17c6", _
+        "805f2702e76ff5d578052c965ded05a689d9293fd86c5584b0db399d33e9745c", _
+        "cd77acfc16d0964a4c3ef06f0678a5c88d2d610de00f7b997676fea5b4d2ae9e", _
+        "2c0b373b4a62770395098399a7d08ca18fce440e3b6c35a22e5910eaf515b72c", _
+        "db057a75ef112511a720d3e712bc7299cc1a3037fc53cd8fe11197fc6df0c6dc", _
+        "fa10d4e76ab24b0ff9d6c596a00df178cd2a80a15c70770dee68d374ccb39bc6", _
+        "63040848d628fff9eccdc62b59282ac5004faa6445d5639a5f0a8cde0f0fac03", _
+        "ce3cbb522831158539892f0a6301258f71148dacd23d73cd5e1c77c32ed00ec3" }
+    for k as long = 0 to 21
+        dim as Array( of ubyte ) m = Msg( lens( k ) )
+        Check( "HASH_SHA256 len " & lens( k ), hash.DigestHex( hash.HASH_SHA256, m ) = want( k ) )
+    next
+end scope
+scope
+    dim as string want( 0 to 21 ) = { _
+        "38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc7bf63f6e1da274edebfe76f65fbd51ad2f14898b95b", _
+        "7d5d757ae15b98de35a81e794a617420734f4ab8ef87622a104bbfe5c299132ebc15b0e415f3c1db8d4e10e9afd15458", _
+        "ff8bb70d0dd61ada5c49f9e27132a70e0696be73d5f67c61d366aee3689d6052e5e1230fe89985cb542fb8da69524546", _
+        "a171bcf504fe2cdccbf48006b9262e4ce16f86405305a44f5fedc54e2c85a170e3fa0e73723400bb1ce9b3c4cf79dfb3", _
+        "b75500de2e8249cdacc2ed1c657d8aaf34039311e79f3ad8436c2d0e68ea57506588de7432845215c996d16cc503a375", _
+        "9038b36aa6ddae12b4e29b3b3882f1801f065189e2fb9b2a73e0c62abd2be34a29be609fa5cb5ff675eeceb2355c2c64", _
+        "40e68cfaede800021e90421ee72e65da7b85c2777fdeb47dfd2871191b8708da74da474794a534aaacf35bbfc2b9a514", _
+        "61b2021554e5650d9cae2cb45f83f89a2901308183355db9129644dcd653f2d67020f0b3bb6fd7ca517f7eed9605c548", _
+        "6e4803936b82f40dfa1e2057753c4e7fe0c9b1bdc0ed4c9220cf9253ed4990da8d7797352cc2c481d5b9c39675837c87", _
+        "51b6a44e2b1ddf1c34408cf770a1ab349c50502905e3c9fb1da563f664b8fc9f446424a10a07f883da3ca9708d1fc18e", _
+        "1cf2f9c254a4ffb455b5287ca1c66962de1f459f0b3735989f90c136bd8c59ef67b1c4b8adcdf194acf0594dcd42088f", _
+        "a221ec217bcd6cb6b9075c87c7dcdc57298afbd2e0e732446f45cda679cf85d75f56800a1e6128481839954d5c4d5509", _
+        "ac3bd5606ba2d304c2f3e6e21efcaf4cf9a8d1a8812d41190e0f1a20d71ff9431bb0a7caeccebfc85e8854e9b90e49c2", _
+        "a3e142fab80e32a2584ea94c3b976d3010d521a90d59cd0cf8fdfc89f01519a98b497ba4dcf8097df073c625ddfdfe43", _
+        "e1ac2143f5719cc273d13f37a46f70202e574e476c2a04a3bc8721c13e8a1408d551a73cd042aff26dfe7233de972be1", _
+        "c76c630b9b18240c492c053ac457f7dbc5d54b66e7550261c96fe5ae7b85cd83a7f0100e37388ae2eda1536b3df163b0", _
+        "e8255a1641f505d1abf6c789adf361223d12e091fc76e2ba501002008249121f9dced50cbed9f83ed2d680d0e9ad8b63", _
+        "7fda30cc7355e6816c8237972c70e40854ce2857108d7d05d32ccfba3590ee04b0a88c2d54bf2148552a7c02c21dac7e", _
+        "ef12528eca05eb7736af4c02c3f00919ce8aebf43af088fe61a9c5eb96ef05e2ff5ba477313ff79a3483771e5bf59ac0", _
+        "e35611ffb5e3b148ed788d9a6fd340e2431a4cf327708e012617ba61098bbf7bee9c6a201529b4f0d1e6b1de1ab98fee", _
+        "c074288b60788fce713ae351d2dfa2ecc20d166ef8114de8a71d28ac2934aa894ab15efc15faf8798b6bbb27708a4cd2", _
+        "26a35f0b18ba81e2d79e5418828b5e3d82b602439df957d9d715e29204c9fdbc90fb0e2019b5a7ea7b01ed3a18ae111a" }
+    for k as long = 0 to 21
+        dim as Array( of ubyte ) m = Msg( lens( k ) )
+        Check( "HASH_SHA384 len " & lens( k ), hash.DigestHex( hash.HASH_SHA384, m ) = want( k ) )
+    next
+end scope
+scope
+    dim as string want( 0 to 21 ) = { _
+        "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e", _
+        "9f7102ccf37b042af0a2f9d84ff258807b205c5c0d99da7ccd44ce0e7ee4d27465c19f66198a2afef699e0db38b5dfca0437df66e7f9140612296930a4881b2c", _
+        "141faa9a5c405bd6a06aab30ea1c62c6ef1be0ee18e021a3f590108802cb450b30cfd96eb0966fa64cc446b2415a7476ffd30dc3f0c124334835a705e71d4748", _
+        "4bf989d072f05efc10b5a459046d1975995f8840d70c056f46efb2c6783a4d66f472818521c63e910ca8b51724dbecbdb0b5c9f20c3d90fa5524e8bdce54c05d", _
+        "8d3b2cb7547038e0e4b699dcc399be1e7fc2086f7eb63262de7aa7f38dc7b3ab37bc2b01388bebe272079b252db0f70f8990ff52405a84c072ac251946755d62", _
+        "f67b0012ccfb09c56c8354d3e0ed8a7b5f7aaf4898b8f4c39ac69d20ee5555b83e3d861f2ae47728c71dc9a434930ba85e01518b08173b76497734ea21fd71c0", _
+        "fb03b2e6edc882833224b7cbbe72910f22adb7d02fe74fac695307b069723f4ea303fcc9a85d506b7aad8e4e976c87b45431f991b8a5a684923c19a3bc9abf57", _
+        "b0863748d19be4c5ec1142b477a686e4f117b0086645df0caddc37dc55b8b65b94bcf47c372cdc856cef5e1e6be41c8eb6f9a19a52efe940cb192ffb62d4dab3", _
+        "040b004983c265abcc2dcf874756336a067bedaec0c6a352f313c7cec6977572569708ee66fff9417e4e6683dd9d0077a939ea8b8d9dfa88f9f3aeb12d77b339", _
+        "a28ddceade9f5bf59e408fb9daa0992eb70f67d0b0c45cd72565b67cdf152cd994189e90d383458a087a6e1ec21636e498259cdab9bfea856b30b70d6bb13ecc", _
+        "6fca7d4ce5af14d7209eac33355d3194a2ab064d3fb5335a8e4106512b3b25c8f1fc5f805488eb4496b6b591063372d266445e2d9a5f56d7048ffbf8ffda1ff8", _
+        "78a0b72f193f69471b71455b9bcb6b3b048717f3aec1da1bc2e86aea1cc09cabd4c7122a2a49f08f50937b887d8857cf34dbd1843eeb10bbd991620746b5679a", _
+        "72c2d5a9772b1473ff5865116426a3794d6cdd76331e67bf3cccf125bd1bfdd829904c3bf972e4ce8dc87767bc51cb06ef67a87b59205f0375b9710132c95914", _
+        "d058b2b14e3f3a9b8b914576250d7c1b2b92d5131af533368442b630a219c48a2c97dab22d3faf7554bcae58dc5249fa297bd7c258d6ec4e7158514f46962502", _
+        "e95a09b4b1f20386575e63d5a6b91ccb1b74c1a9a9251ade1114eb634b9bbe63bf606f538da360052d6c3fae64389bb93f13930ec838aa8f3284d060ff3f614a", _
+        "d1b6418ae53af06b0ef85ee4b7f7b7ac6b300a4be2d2103ebf1662649de8f9c37eb66ca338fce74c1b60eb73c7dbf353c4826fbc08ca7d3d58d272f004094793", _
+        "73e456928289cc55e5cc09ae1544b43cb3cccba11f383e8d5191c556325fcda7d6c6bf9acdc750562d7fc0a1ee63b5d7376c14183e3392517270967a28b185e2", _
+        "7821a739e1b5dbf18964b2afe6470ace8d02264d1ba1ca845748bd82449dda3128e732145e83cbdcffb8bc1bfbc137153ed9baa6270c0376b4f8642bdcea808b", _
+        "f696b5ae2948a424820c50c5fedf101db291cf7ebedad89e9009f6ea8e48a53dc8ed4d37d8abc3be4bfcd18559a50dd30f0025071c8d631b3dbc02cc7aa8f1e3", _
+        "24c75ddd82934ca6ed91d78791a00a51b5c605ef754aa4440b3c7ef4d2d8e2f0c8170cb7ae5b614ffe44761abdab94c5254be6dab4aa93495d5dc1661d4875d0", _
+        "14850d96b9bfe7ab13c9bd1993a930cc4c067d37ebf203b262bbd35d5e2be46058b0ebe389da83d6970d709574949ea5444f2a428a27ac4e8e48d41db271e3f3", _
+        "aebb33f7ffc90e1a79c345a2fe9adfe5aa5397a787ff1629e941a1200ec7286fa0519ae676455aade47fff06bfd515804693ddb4fe233c487c17fa2ebb565645" }
+    for k as long = 0 to 21
+        dim as Array( of ubyte ) m = Msg( lens( k ) )
+        Check( "HASH_SHA512 len " & lens( k ), hash.DigestHex( hash.HASH_SHA512, m ) = want( k ) )
+    next
+end scope
+
+'' ------------------------------------------------------------ streaming: every split of 200 bytes
+scope
+    dim as Array( of ubyte ) m = Msg( 200 )
+    dim as long algs( 0 to 11 ) = { _
+        hash.HASH_CRC32, hash.HASH_CRC32C, hash.HASH_ADLER32, hash.HASH_FNV1A32, hash.HASH_FNV1A64, hash.HASH_XXHASH64, hash.HASH_MD5, hash.HASH_SHA1, hash.HASH_SHA224, hash.HASH_SHA256, hash.HASH_SHA384, hash.HASH_SHA512 }
+    dim as boolean ok = TRUE
+    for a as long = 0 to 11
+        dim as string whole = hash.DigestHex( cast( hash.HashAlgorithm, algs( a ) ), m )
+        for cut as long = 0 to 200
+            dim as hash.Hasher ptr h = hash.NewHasher( cast( hash.HashAlgorithm, algs( a ) ) )
+            if cut > 0 then h->Update( @m[0], cut )
+            if cut < 200 then h->Update( @m[cut], 200 - cut )
+            if h->FinishHex( ) <> whole then ok = FALSE
+            delete h
+        next
+    next
+    Check( "streaming equals one-shot", ok )
+end scope
+
+'' ------------------------------------------------------------ the million-'a' messages
+scope
+    scope
+        dim as hash.Md5 h
+        dim as string chunk = string( 1000, "a" )
+        for i as long = 1 to 1000
+            h.UpdateRaw( chunk )
+        next
+        Check( "million a Md5", h.FinishHex( ) = "7707d6ae4e027c70eea2a935c2296f21" )
+    end scope
+    scope
+        dim as hash.Sha1 h
+        dim as string chunk = string( 1000, "a" )
+        for i as long = 1 to 1000
+            h.UpdateRaw( chunk )
+        next
+        Check( "million a Sha1", h.FinishHex( ) = "34aa973cd4c4daa4f61eeb2bdbad27316534016f" )
+    end scope
+    scope
+        dim as hash.Sha256 h
+        dim as string chunk = string( 1000, "a" )
+        for i as long = 1 to 1000
+            h.UpdateRaw( chunk )
+        next
+        Check( "million a Sha256", h.FinishHex( ) = "cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0" )
+    end scope
+    scope
+        dim as hash.Sha512 h
+        dim as string chunk = string( 1000, "a" )
+        for i as long = 1 to 1000
+            h.UpdateRaw( chunk )
+        next
+        Check( "million a Sha512", h.FinishHex( ) = "e718483d0ce769644e2e42c7bc15b4638e1f98b13b2044285632a803afa973ebde0ff244877ea60a4cb0432ce577c31beb009c5c2c49aa2e4eadb217ad8cc09b" )
+    end scope
+end scope
+
+'' ------------------------------------------------------------ HMAC
+scope
+    dim as Array( of ubyte ) key = Unhex( "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b" )
+    dim as Array( of ubyte ) dat = Unhex( "4869205468657265" )
+    dim as hash.Hmac( of hash.Md5 ) mac = hash.Hmac( of hash.Md5 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Md5 case 0", mac.FinishHex( ) = "5ccec34ea9656392457fa1ac27f08fbc" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "4a656665" )
+    dim as Array( of ubyte ) dat = Unhex( "7768617420646f2079612077616e7420666f72206e6f7468696e673f" )
+    dim as hash.Hmac( of hash.Md5 ) mac = hash.Hmac( of hash.Md5 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Md5 case 1", mac.FinishHex( ) = "750c783e6ab0b503eaa86e310a5db738" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" )
+    dim as Array( of ubyte ) dat = Unhex( "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" )
+    dim as hash.Hmac( of hash.Md5 ) mac = hash.Hmac( of hash.Md5 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Md5 case 2", mac.FinishHex( ) = "2ab8b9a9f7d3894d15ad8383b97044b2" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "0102030405060708090a0b0c0d0e0f10111213141516171819" )
+    dim as Array( of ubyte ) dat = Unhex( "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd" )
+    dim as hash.Hmac( of hash.Md5 ) mac = hash.Hmac( of hash.Md5 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Md5 case 3", mac.FinishHex( ) = "697eaf0aca3a3aea3a75164746ffaa79" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" )
+    dim as Array( of ubyte ) dat = Unhex( "54657374205573696e67204c6172676572205468616e20426c6f636b2d53697a65204b6579202d2048617368204b6579204669727374" )
+    dim as hash.Hmac( of hash.Md5 ) mac = hash.Hmac( of hash.Md5 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Md5 case 4", mac.FinishHex( ) = "bfecaf4efff90a3a668f3922fec3762d" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" )
+    dim as Array( of ubyte ) dat = Unhex( "5468697320697320612074657374207573696e672061206c6172676572207468616e20626c6f636b2d73697a65206b657920616e642061206c6172676572207468616e20626c6f636b2d73697a6520646174612e20546865206b6579206e6565647320746f20626520686173686564206265666f7265206265696e6720757365642062792074686520484d414320616c676f726974686d2e" )
+    dim as hash.Hmac( of hash.Md5 ) mac = hash.Hmac( of hash.Md5 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Md5 case 5", mac.FinishHex( ) = "09b8ae7b15adbbb243aca3491b51512b" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b" )
+    dim as Array( of ubyte ) dat = Unhex( "4869205468657265" )
+    dim as hash.Hmac( of hash.Sha1 ) mac = hash.Hmac( of hash.Sha1 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha1 case 0", mac.FinishHex( ) = "b617318655057264e28bc0b6fb378c8ef146be00" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "4a656665" )
+    dim as Array( of ubyte ) dat = Unhex( "7768617420646f2079612077616e7420666f72206e6f7468696e673f" )
+    dim as hash.Hmac( of hash.Sha1 ) mac = hash.Hmac( of hash.Sha1 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha1 case 1", mac.FinishHex( ) = "effcdf6ae5eb2fa2d27416d5f184df9c259a7c79" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" )
+    dim as Array( of ubyte ) dat = Unhex( "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" )
+    dim as hash.Hmac( of hash.Sha1 ) mac = hash.Hmac( of hash.Sha1 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha1 case 2", mac.FinishHex( ) = "125d7342b9ac11cd91a39af48aa17b4f63f175d3" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "0102030405060708090a0b0c0d0e0f10111213141516171819" )
+    dim as Array( of ubyte ) dat = Unhex( "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd" )
+    dim as hash.Hmac( of hash.Sha1 ) mac = hash.Hmac( of hash.Sha1 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha1 case 3", mac.FinishHex( ) = "4c9007f4026250c6bc8414f9bf50c86c2d7235da" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" )
+    dim as Array( of ubyte ) dat = Unhex( "54657374205573696e67204c6172676572205468616e20426c6f636b2d53697a65204b6579202d2048617368204b6579204669727374" )
+    dim as hash.Hmac( of hash.Sha1 ) mac = hash.Hmac( of hash.Sha1 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha1 case 4", mac.FinishHex( ) = "90d0dace1c1bdc957339307803160335bde6df2b" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" )
+    dim as Array( of ubyte ) dat = Unhex( "5468697320697320612074657374207573696e672061206c6172676572207468616e20626c6f636b2d73697a65206b657920616e642061206c6172676572207468616e20626c6f636b2d73697a6520646174612e20546865206b6579206e6565647320746f20626520686173686564206265666f7265206265696e6720757365642062792074686520484d414320616c676f726974686d2e" )
+    dim as hash.Hmac( of hash.Sha1 ) mac = hash.Hmac( of hash.Sha1 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha1 case 5", mac.FinishHex( ) = "217e44bb08b6e06a2d6c30f3cb9f537f97c63356" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b" )
+    dim as Array( of ubyte ) dat = Unhex( "4869205468657265" )
+    dim as hash.Hmac( of hash.Sha224 ) mac = hash.Hmac( of hash.Sha224 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha224 case 0", mac.FinishHex( ) = "896fb1128abbdf196832107cd49df33f47b4b1169912ba4f53684b22" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "4a656665" )
+    dim as Array( of ubyte ) dat = Unhex( "7768617420646f2079612077616e7420666f72206e6f7468696e673f" )
+    dim as hash.Hmac( of hash.Sha224 ) mac = hash.Hmac( of hash.Sha224 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha224 case 1", mac.FinishHex( ) = "a30e01098bc6dbbf45690f3a7e9e6d0f8bbea2a39e6148008fd05e44" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" )
+    dim as Array( of ubyte ) dat = Unhex( "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" )
+    dim as hash.Hmac( of hash.Sha224 ) mac = hash.Hmac( of hash.Sha224 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha224 case 2", mac.FinishHex( ) = "7fb3cb3588c6c1f6ffa9694d7d6ad2649365b0c1f65d69d1ec8333ea" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "0102030405060708090a0b0c0d0e0f10111213141516171819" )
+    dim as Array( of ubyte ) dat = Unhex( "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd" )
+    dim as hash.Hmac( of hash.Sha224 ) mac = hash.Hmac( of hash.Sha224 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha224 case 3", mac.FinishHex( ) = "6c11506874013cac6a2abc1bb382627cec6a90d86efc012de7afec5a" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" )
+    dim as Array( of ubyte ) dat = Unhex( "54657374205573696e67204c6172676572205468616e20426c6f636b2d53697a65204b6579202d2048617368204b6579204669727374" )
+    dim as hash.Hmac( of hash.Sha224 ) mac = hash.Hmac( of hash.Sha224 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha224 case 4", mac.FinishHex( ) = "95e9a0db962095adaebe9b2d6f0dbce2d499f112f2d2b7273fa6870e" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" )
+    dim as Array( of ubyte ) dat = Unhex( "5468697320697320612074657374207573696e672061206c6172676572207468616e20626c6f636b2d73697a65206b657920616e642061206c6172676572207468616e20626c6f636b2d73697a6520646174612e20546865206b6579206e6565647320746f20626520686173686564206265666f7265206265696e6720757365642062792074686520484d414320616c676f726974686d2e" )
+    dim as hash.Hmac( of hash.Sha224 ) mac = hash.Hmac( of hash.Sha224 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha224 case 5", mac.FinishHex( ) = "3a854166ac5d9f023f54d517d0b39dbd946770db9c2b95c9f6f565d1" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b" )
+    dim as Array( of ubyte ) dat = Unhex( "4869205468657265" )
+    dim as hash.Hmac( of hash.Sha256 ) mac = hash.Hmac( of hash.Sha256 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha256 case 0", mac.FinishHex( ) = "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "4a656665" )
+    dim as Array( of ubyte ) dat = Unhex( "7768617420646f2079612077616e7420666f72206e6f7468696e673f" )
+    dim as hash.Hmac( of hash.Sha256 ) mac = hash.Hmac( of hash.Sha256 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha256 case 1", mac.FinishHex( ) = "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" )
+    dim as Array( of ubyte ) dat = Unhex( "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" )
+    dim as hash.Hmac( of hash.Sha256 ) mac = hash.Hmac( of hash.Sha256 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha256 case 2", mac.FinishHex( ) = "773ea91e36800e46854db8ebd09181a72959098b3ef8c122d9635514ced565fe" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "0102030405060708090a0b0c0d0e0f10111213141516171819" )
+    dim as Array( of ubyte ) dat = Unhex( "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd" )
+    dim as hash.Hmac( of hash.Sha256 ) mac = hash.Hmac( of hash.Sha256 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha256 case 3", mac.FinishHex( ) = "82558a389a443c0ea4cc819899f2083a85f0faa3e578f8077a2e3ff46729665b" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" )
+    dim as Array( of ubyte ) dat = Unhex( "54657374205573696e67204c6172676572205468616e20426c6f636b2d53697a65204b6579202d2048617368204b6579204669727374" )
+    dim as hash.Hmac( of hash.Sha256 ) mac = hash.Hmac( of hash.Sha256 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha256 case 4", mac.FinishHex( ) = "60e431591ee0b67f0d8a26aacbf5b77f8e0bc6213728c5140546040f0ee37f54" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" )
+    dim as Array( of ubyte ) dat = Unhex( "5468697320697320612074657374207573696e672061206c6172676572207468616e20626c6f636b2d73697a65206b657920616e642061206c6172676572207468616e20626c6f636b2d73697a6520646174612e20546865206b6579206e6565647320746f20626520686173686564206265666f7265206265696e6720757365642062792074686520484d414320616c676f726974686d2e" )
+    dim as hash.Hmac( of hash.Sha256 ) mac = hash.Hmac( of hash.Sha256 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha256 case 5", mac.FinishHex( ) = "9b09ffa71b942fcb27635fbcd5b0e944bfdc63644f0713938a7f51535c3a35e2" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b" )
+    dim as Array( of ubyte ) dat = Unhex( "4869205468657265" )
+    dim as hash.Hmac( of hash.Sha384 ) mac = hash.Hmac( of hash.Sha384 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha384 case 0", mac.FinishHex( ) = "afd03944d84895626b0825f4ab46907f15f9dadbe4101ec682aa034c7cebc59cfaea9ea9076ede7f4af152e8b2fa9cb6" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "4a656665" )
+    dim as Array( of ubyte ) dat = Unhex( "7768617420646f2079612077616e7420666f72206e6f7468696e673f" )
+    dim as hash.Hmac( of hash.Sha384 ) mac = hash.Hmac( of hash.Sha384 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha384 case 1", mac.FinishHex( ) = "af45d2e376484031617f78d2b58a6b1b9c7ef464f5a01b47e42ec3736322445e8e2240ca5e69e2c78b3239ecfab21649" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" )
+    dim as Array( of ubyte ) dat = Unhex( "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" )
+    dim as hash.Hmac( of hash.Sha384 ) mac = hash.Hmac( of hash.Sha384 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha384 case 2", mac.FinishHex( ) = "88062608d3e6ad8a0aa2ace014c8a86f0aa635d947ac9febe83ef4e55966144b2a5ab39dc13814b94e3ab6e101a34f27" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "0102030405060708090a0b0c0d0e0f10111213141516171819" )
+    dim as Array( of ubyte ) dat = Unhex( "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd" )
+    dim as hash.Hmac( of hash.Sha384 ) mac = hash.Hmac( of hash.Sha384 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha384 case 3", mac.FinishHex( ) = "3e8a69b7783c25851933ab6290af6ca77a9981480850009cc5577c6e1f573b4e6801dd23c4a7d679ccf8a386c674cffb" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" )
+    dim as Array( of ubyte ) dat = Unhex( "54657374205573696e67204c6172676572205468616e20426c6f636b2d53697a65204b6579202d2048617368204b6579204669727374" )
+    dim as hash.Hmac( of hash.Sha384 ) mac = hash.Hmac( of hash.Sha384 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha384 case 4", mac.FinishHex( ) = "4ece084485813e9088d2c63a041bc5b44f9ef1012a2b588f3cd11f05033ac4c60c2ef6ab4030fe8296248df163f44952" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" )
+    dim as Array( of ubyte ) dat = Unhex( "5468697320697320612074657374207573696e672061206c6172676572207468616e20626c6f636b2d73697a65206b657920616e642061206c6172676572207468616e20626c6f636b2d73697a6520646174612e20546865206b6579206e6565647320746f20626520686173686564206265666f7265206265696e6720757365642062792074686520484d414320616c676f726974686d2e" )
+    dim as hash.Hmac( of hash.Sha384 ) mac = hash.Hmac( of hash.Sha384 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha384 case 5", mac.FinishHex( ) = "6617178e941f020d351e2f254e8fd32c602420feb0b8fb9adccebb82461e99c5a678cc31e799176d3860e6110c46523e" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b" )
+    dim as Array( of ubyte ) dat = Unhex( "4869205468657265" )
+    dim as hash.Hmac( of hash.Sha512 ) mac = hash.Hmac( of hash.Sha512 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha512 case 0", mac.FinishHex( ) = "87aa7cdea5ef619d4ff0b4241a1d6cb02379f4e2ce4ec2787ad0b30545e17cdedaa833b7d6b8a702038b274eaea3f4e4be9d914eeb61f1702e696c203a126854" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "4a656665" )
+    dim as Array( of ubyte ) dat = Unhex( "7768617420646f2079612077616e7420666f72206e6f7468696e673f" )
+    dim as hash.Hmac( of hash.Sha512 ) mac = hash.Hmac( of hash.Sha512 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha512 case 1", mac.FinishHex( ) = "164b7a7bfcf819e2e395fbe73b56e0a387bd64222e831fd610270cd7ea2505549758bf75c05a994a6d034f65f8f0e6fdcaeab1a34d4a6b4b636e070a38bce737" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" )
+    dim as Array( of ubyte ) dat = Unhex( "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" )
+    dim as hash.Hmac( of hash.Sha512 ) mac = hash.Hmac( of hash.Sha512 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha512 case 2", mac.FinishHex( ) = "fa73b0089d56a284efb0f0756c890be9b1b5dbdd8ee81a3655f83e33b2279d39bf3e848279a722c806b485a47e67c807b946a337bee8942674278859e13292fb" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "0102030405060708090a0b0c0d0e0f10111213141516171819" )
+    dim as Array( of ubyte ) dat = Unhex( "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd" )
+    dim as hash.Hmac( of hash.Sha512 ) mac = hash.Hmac( of hash.Sha512 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha512 case 3", mac.FinishHex( ) = "b0ba465637458c6990e5a8c5f61d4af7e576d97ff94b872de76f8050361ee3dba91ca5c11aa25eb4d679275cc5788063a5f19741120c4f2de2adebeb10a298dd" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" )
+    dim as Array( of ubyte ) dat = Unhex( "54657374205573696e67204c6172676572205468616e20426c6f636b2d53697a65204b6579202d2048617368204b6579204669727374" )
+    dim as hash.Hmac( of hash.Sha512 ) mac = hash.Hmac( of hash.Sha512 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha512 case 4", mac.FinishHex( ) = "80b24263c7c1a3ebb71493c1dd7be8b49b46d1f41b4aeec1121b013783f8f3526b56d037e05f2598bd0fd2215d6a1e5295e64f73f63f0aec8b915a985d786598" )
+end scope
+scope
+    dim as Array( of ubyte ) key = Unhex( "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" )
+    dim as Array( of ubyte ) dat = Unhex( "5468697320697320612074657374207573696e672061206c6172676572207468616e20626c6f636b2d73697a65206b657920616e642061206c6172676572207468616e20626c6f636b2d73697a6520646174612e20546865206b6579206e6565647320746f20626520686173686564206265666f7265206265696e6720757365642062792074686520484d414320616c676f726974686d2e" )
+    dim as hash.Hmac( of hash.Sha512 ) mac = hash.Hmac( of hash.Sha512 )( key )
+    mac.UpdateBytes( dat )
+    Check( "hmac Sha512 case 5", mac.FinishHex( ) = "e37b6a775dc87dbaa4dfa9f96e5e3ffddebd71f8867289865df5a32d20cdc944b6022cac3c4982b10d5eeb55c3e4de15134676fb6de0446065c97440fa8c6a58" )
+end scope
+Check( "HmacHex", hash.HmacHex( hash.HASH_SHA256, "key", "The quick brown fox jumps over the lazy dog" ) = "f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8" )
+
+'' ------------------------------------------------------------ Finish, Reset, text, sums
+scope
+    dim as hash.Sha256 h
+    h.UpdateText( "a" )
+    dim as string mid_ = h.FinishHex( )
+    h.UpdateText( "bc" )
+    Check( "finish keeps state", mid_ = "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb" andalso h.FinishHex( ) = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad" )
+    h.Reset( )
+    h.UpdateText( "abc" )
+    Check( "reset", h.FinishHex( ) = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad" )
+    dim as ustring u = "caf" & wchr( &hE9 )
+    Check( "text is utf-8", hash.DigestHex( hash.HASH_SHA1, u ) = "f424452a9673918c6f09b0cdd35b20be8e6ae7d7" )
+    dim as hash.Crc32 c
+    c.UpdateRaw( "123456789" )
+    Check( "crc sum", c.Sum32( ) = &hCBF43926 )
+    dim as hash.XxHash64 x = hash.XxHash64( 0 )
+    x.UpdateRaw( "abc" )
+    Check( "xxh sum", x.Sum64( ) = &h44BC2CF5AD770999ull )
+    dim as Array( of ubyte ) d = hash.Digest( hash.HASH_ADLER32, "Wikipedia" )
+    Check( "adler wikipedia", HexOf( d ) = "11e60398" )
+end scope
+
+'' ------------------------------------------------------------ DigestFile, ConstantTimeEquals
+scope
+    dim as ustring dir_ = fs.CreateTempDir( ).Value( )
+    dim as ustring p = fs.PathJoin( dir_, "data.bin" )
+    dim as Array( of ubyte ) m = Msg( 70000 )
+    fs.WriteAllBytes( p, m )
+    var r = hash.DigestFile( hash.HASH_SHA256, p )
+    Check( "digest file", r.IsOk( ) andalso HexOf( r.Value( ) ) = "ce3cbb522831158539892f0a6301258f71148dacd23d73cd5e1c77c32ed00ec3" )
+    var missing = hash.DigestFile( hash.HASH_SHA256, fs.PathJoin( dir_, "nope" ) )
+    Check( "digest missing file", missing.IsOk( ) = FALSE andalso missing.Failure( ).Code( ) = fs.FS_NOT_FOUND )
+    fs.RemoveDirAll( dir_ )
+    dim as Array( of ubyte ) a = Unhex( "00ff10" ), b = Unhex( "00ff10" ), c = Unhex( "00ff11" ), e = Unhex( "00ff" )
+    Check( "cte equal", hash.ConstantTimeEquals( a, b ) )
+    Check( "cte differ", hash.ConstantTimeEquals( a, c ) = FALSE andalso hash.ConstantTimeEquals( a, e ) = FALSE )
+end scope
+
+if fails = 0 then print "ok"

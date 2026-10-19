@@ -1,0 +1,10 @@
+'' RUN: std/hash phase P3 -- every algorithm at padding/stripe boundaries, streaming in every
+'' split, million-'a' messages, HMAC RFC 4231 cases over six hashers, DigestFile, constant-time
+'' compare (C:\dev\docs\tiko-stdlib\RFC-0001 section 6). Expected values from Python's hashlib.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/std-hash-p3.tiko -o tests/codegen/stdhashp3.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/stdhashp3.exe
+'' RUN: tests/codegen/stdhashp3.exe
+'' EXPECT-RUN-OUT: ok
