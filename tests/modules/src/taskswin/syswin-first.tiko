@@ -1,0 +1,4 @@
+'' sys/win, THEN std/tasks: the order that compiled before, binding the result to Win32's CONTEXT.
+#import "sys/win"
+#import "std/tasks"
+print sizeof( tasks.InterruptContext( ) ) = sizeof( tasks.Context )

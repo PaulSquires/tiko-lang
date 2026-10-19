@@ -1,0 +1,12 @@
+'' TB-001, RUN: a type in a module's interface is the module's own wherever it sits there.
+'' std/tasks declares 'InterruptContext( ) as Context' (interrupt.tiko) above 'type Context'
+'' (sync.tiko), and the declared-below walk bound Win32's CONTEXT instead: TKO0811 with
+'' windows.bi or sys/win after the import, the wrong result type silently with sys/win first.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/modules/src/taskswin/syswin-after.tiko -o tests/modules/taskswinsyswinafter.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0811
+'' EXPECT-FILE: tests/modules/taskswinsyswinafter.exe
+'' RUN: tests/modules/taskswinsyswinafter.exe
+'' EXPECT-RUN-OUT: -1

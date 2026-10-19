@@ -1,0 +1,4 @@
+'' std/tasks, THEN sys/win.
+#import "std/tasks"
+#import "sys/win"
+print sizeof( tasks.InterruptContext( ) ) = sizeof( tasks.Context )

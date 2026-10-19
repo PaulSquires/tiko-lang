@@ -152,6 +152,13 @@ private function LookupTypeAtPoint_ _
     dim as Tko.Symbol ptr ps = c.syms->SymbolAt( plain )
     if ps = nullptr then return plain
     if ps->loc = Tko.LOC_NONE then return plain
+    '' A TYPE READ IN FROM A MODULE'S INTERFACE is the module's own wherever it sits in that
+    '' interface: the module compiled as a whole, so fbc's single-pass rule has nothing to
+    '' say about the order its files were written out in. std/tasks' 'InterruptContext( ) as
+    '' Context' (interrupt.tiko) comes before 'type Context' (sync.tiko), and the walk below
+    '' then bound the importer's Win32 CONTEXT from windows.bi -- TKO0811 when windows.bi
+    '' followed the import, the wrong type silently when it came first (tracks-2026 TB-001).
+    if (ps->flags and Tko.SYMF_IMPORTED) <> 0 then return plain
     dim as Tko.SourceLoc rl = c.ast->Loc( at )
     if rl = Tko.LOC_NONE then return plain
     dim as Tko.DecodedLoc dd = c.srcMgr->Decode( ps->loc )

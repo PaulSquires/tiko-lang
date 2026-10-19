@@ -1,0 +1,4 @@
+'' std/tasks, THEN windows.bi: the interface's 'Context' is tasks', not Win32's CONTEXT.
+#import "std/tasks"
+#include once "windows.bi"
+print sizeof( tasks.InterruptContext( ) ) = sizeof( tasks.Context ); sizeof( CONTEXT ) > 100
