@@ -1,0 +1,70 @@
+'' A UDT WITH A TEXT CAST passed to a wide parameter -- 'byval as ustring', 'byref as const
+'' ustring', 'byref as const wstring' -- takes fbc's pick for that target and arrives whole.
+'' Measured on fbc-modern 1.20: every line below is 3, 4 or 5 and the text. tiko passed a NARROW
+'' descriptor for a ustring (len 3 of mojibake byval, len 0 or empty text byref) and the UDT's
+'' own address for a wstring (len 0); a ustring cast widened as narrow stopped at "a".
+type BoxU
+    as long v
+    declare operator cast( ) as ustring
+end type
+operator BoxU.cast( ) as ustring
+    return "abc"
+end operator
+type BoxS
+    as long v
+    declare operator cast( ) as string
+end type
+operator BoxS.cast( ) as string
+    return "abcd"
+end operator
+type BoxW
+    as long v
+    declare operator cast( ) byref as wstring
+end type
+operator BoxW.cast( ) byref as wstring
+    static as wstring * 8 w = "abcde"
+    return w
+end operator
+
+dim shared as long fails = 0
+sub Check( byref what as string, byval ok as boolean )
+    if ok = false then
+        print "FAIL "; what
+        fails += 1
+    end if
+end sub
+
+sub JW( byref a as const wstring, byref what as string, byval n as long, byref want as const wstring )
+    Check( what & " wstring len", len( a ) = n )
+    Check( what & " wstring text", a = want )
+end sub
+sub JU( byref a as const ustring, byref what as string, byval n as long, byref want as const ustring )
+    Check( what & " byref ustring len", len( a ) = n )
+    Check( what & " byref ustring text", a = want )
+end sub
+sub JV( byval a as ustring, byref what as string, byval n as long, byref want as const ustring )
+    Check( what & " byval ustring len", len( a ) = n )
+    Check( what & " byval ustring text", a = want )
+    Check( what & " byval ustring first unit", asc( a, 1 ) = asc( want, 1 ) )
+end sub
+
+dim u as BoxU
+dim s as BoxS
+dim w as BoxW
+JW( u, "ustring cast", 3, "abc" )
+JW( s, "string cast", 4, "abcd" )
+JW( w, "wstring cast", 5, "abcde" )
+JU( u, "ustring cast", 3, "abc" )
+JU( s, "string cast", 4, "abcd" )
+JU( w, "wstring cast", 5, "abcde" )
+JV( u, "ustring cast", 3, "abc" )
+JV( s, "string cast", 4, "abcd" )
+JV( w, "wstring cast", 5, "abcde" )
+
+'' ...in a loop too, so a temporary that is not released shows as a leak-driven crash or drift
+for i as long = 1 to 1000
+    JU( u, "loop", 3, "abc" )
+    JW( s, "loop", 4, "abcd" )
+next
+
+if fails = 0 then print "ok"
