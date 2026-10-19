@@ -371,7 +371,13 @@ function LowerConvIntrinsic _
                     tda.Push( cast( uint32, sd.kind ) ) : tda.Push( cast( uint32, sd.id ) )
                     sd = EmitRtl( c, RTL_STR_TEMPZ_NOLEN, tda )
                 end if
-            else
+            '' A USTRING IS CONVERTED FIRST, exactly as 'val( u )' is (UStrToStrTemp_). Its own
+            '' descriptor holds UTF-16, and fb_VALINT read those bytes as narrow text, stopping at
+            '' the first NUL: 'clng( u )' over "2027" answered 2, and so did cint, clngint,
+            '' culngint, cdbl and csng. Silent wrong data (tracks-2026 TB-003). fbc-modern cannot
+            '' compile 'clng( u )' at all (its C is '(int32)U$0', an aggregate cast), so the
+            '' model is fbc's own 'val( u )': 'fb_VALINT( fb_UStrToStr( &U, -1 ) )'.
+            elseif UStrToStrTemp_( c, arg, sd ) = false then
                 if StrDescriptorOf_( c, arg, sd ) = false then return v
             end if
             if sd.kind = cast( uint8, MV_NONE ) then return v

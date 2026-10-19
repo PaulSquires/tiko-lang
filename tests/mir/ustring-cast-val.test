@@ -1,0 +1,15 @@
+'' A USTRING OPERAND OF clng/cint/clngint/culngint/culng/cdbl/csng/cbyte/cushort/cbool is
+'' converted with fb_UStrToStr before the narrow VAL entry point, as 'val( u )' already was.
+'' Its own UTF-16 descriptor read as narrow made 'clng( u )' over "2027" answer 2 (tracks-2026
+'' TB-003: a rollover year of 2). A 'ustring * N' and a ustring chain take the same path.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ustring-cast-val.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_UStrToStr
+'' EXPECT-OUT: fb_VALINT
+'' EXPECT-OUT: fb_VALLNG
+'' EXPECT-OUT: fb_VALULNG
+'' EXPECT-OUT: fb_VALUINT
+'' EXPECT-OUT: fb_VALBOOL
