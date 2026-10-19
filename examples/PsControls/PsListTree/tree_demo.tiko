@@ -198,9 +198,12 @@ function WinMain( byval hInstance as HINSTANCE, byval hPrevInstance as HINSTANCE
 
     CoInitialize( null )
 
-    ' The twisties are Segoe Fluent Icons glyphs; load the bundled font privately.
-    dim as ustring wszFontFile = win.GetExePathName + "..\SegoeFluentIcons.ttf"
-    if AddFontResourceEx( PsWPtr(wszFontFile), FR_PRIVATE, NULL ) = 0 then
+    ' Load the Segoe Fluent Icons ttf file that supplies the demo's glyphs. The CONTROL has no
+    ' opinion about which font its glyphs come from -- it just draws the string it is given
+    ' with the HFONT it is handed -- so this is the demo's business, not the control's.
+    dim as ustring wszFontFile
+    wszFontFile = "..\SegoeFluentIcons.ttf"
+    if AddFontResourceEx(wszFontFile, FR_PRIVATE, NULL) = 0 then
         MessageBox( 0, "Unable to load 'SegoeFluentIcons.ttf'. Aborting.", "Error", MB_OK or MB_ICONWARNING )
         return 1
     end if
@@ -288,7 +291,9 @@ function WinMain( byval hInstance as HINSTANCE, byval hPrevInstance as HINSTANCE
         end if
     loop
 
-    if len(wszFontFile) then RemoveFontResourceEx( PsWPtr(wszFontFile), FR_PRIVATE, NULL )
+    ' Unload the font file. Must mirror the AddFontResourceEx call above, flags included --
+    ' plain RemoveFontResource does not match an FR_PRIVATE registration and leaks it.
+    if len(wszFontFile) then RemoveFontResourceEx( wszFontFile, FR_PRIVATE, NULL )
     gdiplus.Uninit( gdipToken )
     CoUninitialize()
     function = uMsg.wParam

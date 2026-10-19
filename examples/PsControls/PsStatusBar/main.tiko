@@ -85,11 +85,12 @@ function WinMain( _
     ' Initialize the COM library
     CoInitialize(null)
 
-    ' Load the Segoe Fluent Icons ttf file that is used for displaying the various
-    ' icons used within the editor.
-    dim as ustring wszFontFile 
-    wszFontFile = win.GetExePathName + "..\SegoeFluentIcons.ttf"
-    if AddFontResourceEx(PsWPtr(wszFontFile), FR_PRIVATE, NULL) = 0 then
+    ' Load the Segoe Fluent Icons ttf file that supplies the demo's glyphs. The CONTROL has no
+    ' opinion about which font its glyphs come from -- it just draws the string it is given
+    ' with the HFONT it is handed -- so this is the demo's business, not the control's.
+    dim as ustring wszFontFile
+    wszFontFile = "..\SegoeFluentIcons.ttf"
+    if AddFontResourceEx(wszFontFile, FR_PRIVATE, NULL) = 0 then
         MessageBox( 0, _
                     "Unable to load application font 'SegoeFluentIcons.ttf'. Aborting application." , _
                     "Error", _
@@ -109,7 +110,7 @@ function WinMain( _
 
     ' Unload the font file. Must mirror the AddFontResourceEx call above, flags included --
     ' plain RemoveFontResource does not match an FR_PRIVATE registration and leaks it.
-    if len(wszFontFile) then RemoveFontResourceEx( PsWPtr(wszFontFile), FR_PRIVATE, NULL )
+    if len(wszFontFile) then RemoveFontResourceEx( wszFontFile, FR_PRIVATE, NULL )
 
     ' Uninitialize the COM library
     ' Every window is destroyed and every PsBufferPaint has run its destructor by here,
