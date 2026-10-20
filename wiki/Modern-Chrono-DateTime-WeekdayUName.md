@@ -2,7 +2,7 @@
 
 # DateTime.WeekdayUName
 
-Returns the English name of a weekday, 1 being Monday, as a ustring.
+Returns a weekday's name in the user's language, 1 being Monday, as a ustring.
 
 ## Syntax
 
@@ -18,7 +18,7 @@ using chrono
 
 dim as ustring s = DateTime.WeekdayUName( 4 )
 
-print s                      '' Thursday
+print s                      '' Thursday, on an English system
 print DateTime.WeekdayUName( 7, true )  '' Sun
 ```
 

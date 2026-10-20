@@ -188,10 +188,10 @@ Jump to: [Get the current date and time](#get-the-current-date-and-time) · [Tim
 |---|---|---|
 | [MonthName](Monthname) | Returns the name of a month number in the system's language, or its abbreviation. | `datetime.bi` |
 | [WeekdayName](Weekdayname) | Returns the name of a weekday number in the system's language, or its abbreviation. | `datetime.bi` |
-| [DateTime.MonthName](Modern-Chrono-DateTime-MonthName) | Returns the English name of a month number, or its three-letter abbreviation. | `std/chrono` |
-| [DateTime.MonthUName](Modern-Chrono-DateTime-MonthUName) | Returns the English name of a month number, or its abbreviation, as a ustring. | `std/chrono` |
-| [DateTime.WeekdayName](Modern-Chrono-DateTime-WeekdayName) | Returns the English name of a weekday, 1 being Monday, or its abbreviation. | `std/chrono` |
-| [DateTime.WeekdayUName](Modern-Chrono-DateTime-WeekdayUName) | Returns the English name of a weekday, 1 being Monday, as a ustring. | `std/chrono` |
+| [DateTime.MonthName](Modern-Chrono-DateTime-MonthName) | Returns a month's name in the user's language, or its abbreviation. | `std/chrono` |
+| [DateTime.MonthUName](Modern-Chrono-DateTime-MonthUName) | Returns a month's name in the user's language, or its abbreviation, as a ustring. | `std/chrono` |
+| [DateTime.WeekdayName](Modern-Chrono-DateTime-WeekdayName) | Returns a weekday's name in the user's language, 1 being Monday, or its abbreviation. | `std/chrono` |
+| [DateTime.WeekdayUName](Modern-Chrono-DateTime-WeekdayUName) | Returns a weekday's name in the user's language, 1 being Monday, as a ustring. | `std/chrono` |
 
 ## Jump to the start or end of a day, week, month or year
 

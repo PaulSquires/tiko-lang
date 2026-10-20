@@ -436,8 +436,8 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [DateTime.Millisecond](Modern-Chrono-DateTime-Millisecond) | Returns the milliseconds within the second, 0 to 999. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [DateTime.Minute](Modern-Chrono-DateTime-Minute) | Returns the minute, 0 to 59. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [DateTime.Month](Modern-Chrono-DateTime-Month) | Returns the month, 1 to 12. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [DateTime.MonthName](Modern-Chrono-DateTime-MonthName) | Returns the English name of a month number, or its three-letter abbreviation. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [DateTime.MonthUName](Modern-Chrono-DateTime-MonthUName) | Returns the English name of a month number, or its abbreviation, as a ustring. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.MonthName](Modern-Chrono-DateTime-MonthName) | Returns a month's name in the user's language, or its abbreviation. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.MonthUName](Modern-Chrono-DateTime-MonthUName) | Returns a month's name in the user's language, or its abbreviation, as a ustring. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [DateTime.NextWeekday](Modern-Chrono-DateTime-NextWeekday) | Returns the same time on the next given weekday, always strictly later. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [DateTime.OffsetMinutes](Modern-Chrono-DateTime-OffsetMinutes) | Returns the UTC offset in minutes; check HasOffset first, as no offset reads 32767. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [DateTime.OleDate](Modern-Chrono-DateTime-OleDate) | Returns the date-time as an OLE automation date, the number Excel and ADO use. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
@@ -463,8 +463,8 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [DateTime.TryFormat](Modern-Chrono-DateTime-TryFormat) | Formats the date-time with a pattern into a variable; returns false if the pattern is bad. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [DateTime.TryParse](Modern-Chrono-DateTime-TryParse) | Reads ISO 8601 text into a date-time, the same as TryParseIso. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [DateTime.TryParseExact](Modern-Chrono-DateTime-TryParseExact) | Reads text laid out by a pattern into a date-time; returns false if it does not match. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [DateTime.WeekdayName](Modern-Chrono-DateTime-WeekdayName) | Returns the English name of a weekday, 1 being Monday, or its abbreviation. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [DateTime.WeekdayUName](Modern-Chrono-DateTime-WeekdayUName) | Returns the English name of a weekday, 1 being Monday, as a ustring. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.WeekdayName](Modern-Chrono-DateTime-WeekdayName) | Returns a weekday's name in the user's language, 1 being Monday, or its abbreviation. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
+| [DateTime.WeekdayUName](Modern-Chrono-DateTime-WeekdayUName) | Returns a weekday's name in the user's language, 1 being Monday, as a ustring. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [DateTime.WeeksInYear](Modern-Chrono-DateTime-WeeksInYear) | Returns 52 or 53, the number of ISO weeks in a year. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [DateTime.WithOffset](Modern-Chrono-DateTime-WithOffset) | Attaches a UTC offset in minutes, keeping the clock reading and changing the moment. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [DateTime.Year](Modern-Chrono-DateTime-Year) | Returns the year, 1 to 9999. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |

@@ -2,7 +2,7 @@
 
 # DateTime.WeekdayName
 
-Returns the English name of a weekday, 1 being Monday, or its abbreviation.
+Returns a weekday's name in the user's language, 1 being Monday, or its abbreviation.
 
 ## Syntax
 
@@ -17,10 +17,10 @@ DateTime.WeekdayName( dow [, abbrev] )
 using chrono
 
 '' Takes the ISO day number: Monday 1 through Sunday 7
-print DateTime.WeekdayName( 4 )         '' Thursday
+print DateTime.WeekdayName( 4 )         '' Thursday, on an English system
 print DateTime.WeekdayName( 4, true )   '' Thu
 
-'' Invariant English, like MonthName
+'' In the user's language, like MonthName
 ```
 
 ---

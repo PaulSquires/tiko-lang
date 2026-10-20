@@ -2,7 +2,7 @@
 
 # DateTime.MonthName
 
-Returns the English name of a month number, or its three-letter abbreviation.
+Returns a month's name in the user's language, or its abbreviation.
 
 ## Syntax
 
@@ -16,11 +16,11 @@ DateTime.MonthName( mo [, abbrev] )
 #import "std/chrono"
 using chrono
 
-print DateTime.MonthName( 8 )           '' August
+print DateTime.MonthName( 8 )           '' August, on an English system
 print DateTime.MonthName( 8, true )     '' Aug -- abbreviated
 
-'' INVARIANT ENGLISH, never the OS locale, so it is safe to write to a
-'' file and read back. ToLocaleDateString is the locale-aware one.
+'' The OS locale's name, in the user's language: the output varies by
+'' machine, so it is for display, not for a file that is read back.
 ```
 
 ---

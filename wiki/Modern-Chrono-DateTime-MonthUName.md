@@ -2,7 +2,7 @@
 
 # DateTime.MonthUName
 
-Returns the English name of a month number, or its abbreviation, as a ustring.
+Returns a month's name in the user's language, or its abbreviation, as a ustring.
 
 ## Syntax
 
@@ -16,10 +16,10 @@ DateTime.MonthUName
 #import "std/chrono"
 using chrono
 
-'' The same invariant English name as MonthName, as a USTRING
+'' The same name as MonthName, in the user's language, as a USTRING
 dim as ustring s = DateTime.MonthUName( 8 )
 
-print s                      '' August
+print s                      '' August, on an English system
 print DateTime.MonthUName( 8, true )    '' Aug
 ```
 

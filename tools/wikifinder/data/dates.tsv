@@ -119,10 +119,10 @@ Modern-Chrono-LocalDate-IsoWeekYear	LocalDate.IsoWeekYear	-	week	std/chrono	-	Re
 Modern-Chrono-LocalDate-Quarter	LocalDate.Quarter	-	week	std/chrono	-	Returns the calendar quarter, 1 to 4.
 Monthname	MonthName	-	names	datetime.bi	-	Returns the name of a month number in the system's language, or its abbreviation.
 Weekdayname	WeekdayName	-	names	datetime.bi	-	Returns the name of a weekday number in the system's language, or its abbreviation.
-Modern-Chrono-DateTime-MonthName	DateTime.MonthName	-	names	std/chrono	-	Returns the English name of a month number, or its three-letter abbreviation.
-Modern-Chrono-DateTime-MonthUName	DateTime.MonthUName	-	names	std/chrono	-	Returns the English name of a month number, or its abbreviation, as a ustring.
-Modern-Chrono-DateTime-WeekdayName	DateTime.WeekdayName	-	names	std/chrono	-	Returns the English name of a weekday, 1 being Monday, or its abbreviation.
-Modern-Chrono-DateTime-WeekdayUName	DateTime.WeekdayUName	-	names	std/chrono	-	Returns the English name of a weekday, 1 being Monday, as a ustring.
+Modern-Chrono-DateTime-MonthName	DateTime.MonthName	-	names	std/chrono	-	Returns a month's name in the user's language, or its abbreviation.
+Modern-Chrono-DateTime-MonthUName	DateTime.MonthUName	-	names	std/chrono	-	Returns a month's name in the user's language, or its abbreviation, as a ustring.
+Modern-Chrono-DateTime-WeekdayName	DateTime.WeekdayName	-	names	std/chrono	-	Returns a weekday's name in the user's language, 1 being Monday, or its abbreviation.
+Modern-Chrono-DateTime-WeekdayUName	DateTime.WeekdayUName	-	names	std/chrono	-	Returns a weekday's name in the user's language, 1 being Monday, as a ustring.
 Modern-Chrono-DateTime-StartOfDay	DateTime.StartOfDay	-	period	std/chrono	-	Returns midnight at the start of the same day, keeping the offset.
 Modern-Chrono-DateTime-EndOfDay	DateTime.EndOfDay	-	period	std/chrono	-	Returns the last tick of the same day, 23:59:59.9999999.
 Modern-Chrono-DateTime-StartOfWeek	DateTime.StartOfWeek	-	period	std/chrono	-	Returns midnight on the first day of the week, Monday unless told otherwise.
