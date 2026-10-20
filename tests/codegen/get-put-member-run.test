@@ -1,0 +1,14 @@
+'' RUN: a method named GET or PUT called from a sibling method as 'get( x )' is the member: the
+'' parser took any 'get(' as the file function, and the one-argument call declined (fbc-examples
+'' r2ice10, fbfrog tk.bas). The file function form, which always has a comma, still parses.
+'' Expected output measured with fbc-modern.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/get-put-member.bas -o tests/codegen/getputmember.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0994
+'' EXPECT-FILE: tests/codegen/getputmember.exe
+'' RUN: tests/codegen/getputmember.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  191            30            41
+'' EXPECT-RUN-OUT:  0 0 77

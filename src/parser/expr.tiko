@@ -1197,12 +1197,12 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
     end if
 
     '' 'get( #f, 1, b )' yields the error code, and the '#channel' marker is not an
-    '' expression either -- see GetPutExprCall. Only with a '(' immediately after, so
-    '' the STATEMENT form is untouched.
+    '' expression either -- see GetPutExprCall. Only with a '(' immediately after, so the
+    '' STATEMENT form is untouched, and a comma inside: 'get( x )' is a method (GetPutHasComma).
     if (k = Tko.KW_GET) orelse (k = Tko.KW_PUT) then
         if HasTok( p, p.pos + 1 ) then
             if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_LPAREN then
-                return GetPutExprCall( p )
+                if GetPutHasComma( p ) then return GetPutExprCall( p )
             end if
         end if
     end if

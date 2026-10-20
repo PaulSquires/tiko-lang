@@ -185,6 +185,7 @@ declare sub TasksQual( byref p as Tko.ParserState, byval n as Tko.NodeId, byval 
 '' because Primary needs it and expr.tiko is compiled before that file.
 declare function OpenExprCall( byref p as Tko.ParserState ) as Tko.NodeId
 declare function GetPutExprCall( byref p as Tko.ParserState ) as Tko.NodeId
+declare function GetPutHasComma( byref p as Tko.ParserState ) as boolean
 declare function CloseExprCall( byref p as Tko.ParserState ) as Tko.NodeId
 
 '' Defined in decl.tiko: an ANONYMOUS procedure used as a value --
