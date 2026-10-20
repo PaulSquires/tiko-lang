@@ -47,8 +47,15 @@ with `PSAPP_OPTIONS.ThemeMode` or `app.SetThemeMode( PSAPP_THEME_LIGHT )`.
 | `PsTheme_Light( )` | Light |
 | `PsTheme_System( )` | Dark or Light, following Windows. `PsTheme_SystemIsDark( )` tells you which. |
 
-`PsTheme_ApplyTitleBar( hwnd, bDark )` makes a window's title bar and frame dark or light
-through DWM. PsApp does this for every form.
+**The caption follows the theme.** Every captioned top-level window that hosts a themed control
+gets a dark or light caption and frame to match: when the theme is set or switched, and when a
+control registers while a theme is current. That covers PsApp's forms and a program's own
+windows alike. A popup, menu or tooltip has no caption and is left alone. A switch repaints the
+caption at once, Windows 10 included.
+
+`PsTheme_ApplyTitleBar( hwnd, bDark )` does it for one window, and does nothing when the caption
+already matches. `PsTheme_ApplyCaptionOf( h, bDark )` does it for the top-level window that `h`
+sits in.
 
 `PsTheme_Equal( a, b )` compares two themes.
 

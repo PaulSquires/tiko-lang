@@ -192,7 +192,11 @@ public sub PsRegistry_SetThemeProcs( byval h as HWND, byval pTheme as PSREG_Them
     gREG_Rows(idx).pTheme = pTheme
     gREG_Rows(idx).pFonts = pFonts
     gREG_Rows(idx).pRescale = pRescale
-    if gREG_bHasTheme andalso (pTheme <> 0) then pTheme( h, gREG_Theme )
+    if gREG_bHasTheme andalso (pTheme <> 0) then
+        pTheme( h, gREG_Theme )
+        ' The caption follows the theme too: the window this control sits in.
+        PsTheme_ApplyCaptionOf( h, gREG_Theme.IsDark )
+    end if
     if gREG_FontHook then gREG_FontHook( h, pFonts, pRescale )
 end sub
 
@@ -212,6 +216,14 @@ public sub PsRegistry_SetTheme( byref t as PSTHEME_COLORS )
         dim as HWND h = gREG_Rows(i).hwnd
         if IsWindow( h ) = 0 then continue for
         p( h, gREG_Theme )
+    next
+    ' Then every captioned top-level window that hosts a themed control takes the theme's
+    ' caption -- PsApp's forms and a host's own windows alike. ApplyTitleBar does nothing for a
+    ' caption that already matches, so a window hosting many controls costs one DWM read each.
+    for i as long = 0 to nRows - 1
+        if gREG_Rows(i).bDead orelse (gREG_Rows(i).pTheme = 0) then continue for
+        if IsWindow( gREG_Rows(i).hwnd ) = 0 then continue for
+        PsTheme_ApplyCaptionOf( gREG_Rows(i).hwnd, gREG_Theme.IsDark )
     next
     gREG_WalkDepth -= 1
     REG_Compact()

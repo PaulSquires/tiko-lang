@@ -105,6 +105,11 @@ private sub TT_SendDpi( byval f as PsForm ptr, byval newDpi as long )
     SendMessageW( h, &h02E0, MAKEWPARAM( newDpi, newDpi ), cast( LPARAM, @rcNew ) )
 end sub
 
+private function TT_PlainProc( byval hwnd as HWND, byval uMsg as UINT, byval wParam as WPARAM, _
+                               byval lParam as LPARAM ) as LRESULT
+    return DefWindowProcW( hwnd, uMsg, wParam, lParam )
+end function
+
 private function TT_TitleBarDark( byval h as HWND ) as boolean
     dim as BOOL v = FALSE
     DwmGetWindowAttribute( h, 20, @v, sizeof( v ) )
@@ -171,6 +176,23 @@ function ThemeSelfTest_Run( byval f as PsForm ptr ) as long
     TT_DARKINFO( PsNumericUpDown, PSNUMERICUPDOWN_COLORS )
     TT_DARKINFO( PsDatePicker, PSDATEPICKER_COLORS )
     TT_DARKINFO( PsProgressBar, PSPROGRESSBAR_COLORS )
+
+    ' ---- a host window PsApp does not know: its caption follows the theme too ------------
+    ' A plain CWindow (not a PsForm) with one PsButton on it, themed through the registry alone.
+    dim as CWindow ptr pPlain = new CWindow( "PsTheme.PlainHost" )
+    dim as HWND hPlain = pPlain->Create( null, "plain host", @TT_PlainProc, 0, 0, 300, 200 )
+    ShowWindow( hPlain, SW_SHOWNOACTIVATE )
+    PsRegistry_SetTheme( tDark )
+    dim as HWND hPlainBtn = PsButton_Create( hPlain, 1 )
+    TT_Check( TT_TitleBarDark( hPlain ), "a host window's caption turns dark when a control registers under Dark" )
+    PsRegistry_SetTheme( tLight )
+    TT_Check( TT_TitleBarDark( hPlain ) = false, "...and light when the theme switches to Light" )
+    PsRegistry_SetTheme( tDark )
+    TT_Check( TT_TitleBarDark( hPlain ), "...and dark again" )
+    DestroyWindow( hPlain )
+    delete pPlain
+    app.SetThemeMode( PSAPP_THEME_LIGHT )
+    TT_Check( TT_TitleBarDark( hForm ) = false, "the form's caption follows app.SetThemeMode" )
 
     ' ---- per-monitor DPI (P4): a simulated monitor change, out and back -------------------
     f->OnDpiChanged( @TT_OnDpi )

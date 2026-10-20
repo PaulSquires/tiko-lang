@@ -44,7 +44,7 @@ PsRegistry_Add( h, prio, pFilter, pDismiss = 0 )   ' prio: PSREG_PRIO_OWNER or P
 PsRegistry_Remove( h )                             ' a no-op when h has no row
 PsRegistry_ClearFilter( h )                        ' a popup handed to an owner: row kept, filter gone
 PsRegistry_SetThemeProcs( h, pTheme, pFonts )      ' theme now if one is current; fonts through the hook
-PsRegistry_SetTheme( t ), PsRegistry_GetTheme( t ), PsRegistry_ClearTheme( )
+PsRegistry_SetTheme( t ), PsRegistry_GetTheme( t ), PsRegistry_ClearTheme( )   ' SetTheme also sets the captions
 PsRegistry_SetFontHook( p )                        ' PsApp's: gives a new control its form's fonts
 PsRegistry_ApplyFonts( hRoot, hText, hGlyph )      ' every row under hRoot
 PsRegistry_AddGlobalFilter( p )                    ' one more reference
