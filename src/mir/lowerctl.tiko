@@ -532,6 +532,14 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
             SkipHere( c )
             return
         end if
+        '' A BOOLEAN SUBJECT IS STORED NORMALISED, as every case value is compared. The literal
+        '' TRUE lowers as i8 -1, and the slot kept those bits while LowerCaseTest coerces each
+        '' case value to the subject's type, which gives 1: 'select case true' matched no case,
+        '' 'case true' included, and fell to 'case else'. A boolean variable already holds 0 or
+        '' 1, which is why 'select case b' and 'select case false' worked. fbc: 'take a coat'.
+        if IsBooleanType( c, subjT ) then
+            subj = CoerceTy( c, subj, mt, c.info->TypeOf_( sp->a ), subjT )
+        end if
         dim as int32 slot = NewTempLocal( c, mt, c.types->Layout( subjT ).size )
         slotAddr.kind = cast( uint8, MV_LOCAL )
         slotAddr.ty = cast( uint8, MT_PTR )

@@ -1,0 +1,14 @@
+'' TKO0617, fbc's 119: an element of a 'const' array parameter is written by '=' or '+=' --
+'' a fixed parameter and a typed variadic one alike -- and TKO0692, fbc's 275, for a REDIM of
+'' one. tiko accepted all four and wrote the caller's array (by-example BUG-arrays-2): the
+'' subscripted-target check judged a VARIABLE's element only. Reads, a variadic read and a
+'' non-const array parameter stay accepted. Every line measured against fbc-modern. See
+'' CheckConstWriteTarget_ and the REDIM sweep in symbols/latesweeps3.tiko.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/const-array-param-write.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: const-array-param-write.bas(3,6): error TKO0617
+'' EXPECT-OUT: const-array-param-write.bas(6,6): error TKO0617
+'' EXPECT-OUT: const-array-param-write.bas(9,11): error TKO0692
+'' EXPECT-OUT: const-array-param-write.bas(12,11): error TKO0617
+'' EXPECT-MAX-DIAG: 4

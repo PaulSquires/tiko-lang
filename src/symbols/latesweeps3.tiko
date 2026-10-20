@@ -123,9 +123,12 @@ private sub CheckConstWriteTarget_ ( byref c as Ctx, byval id as NodeId )
             @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, sp->a )].data )]
         if lp->target <> NODE_NONE then
             if c.ast->Kind( lp->target ) = N_IDENT then
-                '' A SUBSCRIPTED VARIABLE -- an array element -- is judged like an index.
+                '' A SUBSCRIPTED VARIABLE OR PARAMETER -- an array element -- is judged like an index.
                 dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
-                if ts <> nullptr then judged = (cast( SymbolKind, ts->kind ) = SYM_VARIABLE)
+                if ts <> nullptr then
+                    dim as SymbolKind tk = cast( SymbolKind, ts->kind )
+                    judged = (tk = SYM_VARIABLE) orelse (tk = SYM_PARAMETER)
+                end if
                 if c.info->RefOf( lp->target ) = SYMBOL_NONE then
                     dim as string cn = lcase( c.names->Spelling( _
                         c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )].name ) )
@@ -863,6 +866,21 @@ private sub CheckRedimDeclShape_( byref c as Ctx )
                 continue for
             end if
 
+            '' A REDIM OF A CONST ARRAY ('v( ) as const long' included) is fbc error 275.
+            if ip->a = NODE_NONE then
+                dim as Symbol ptr rs = c.syms->SymbolAt( c.info->RefOf( item ) )
+                if (rs <> nullptr) andalso (rs->type_ <> TYPE_NONE) then
+                    dim as TypeId rt = rs->type_
+                    if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Inner( rt )
+                    if c.types->Kind( rt ) = TK_ARRAY then
+                        if c.types->IsConst( c.types->Inner( rt ) ) then
+                            c.diags->Report( TKO0692, PointRange( c.ast->Loc( item ) ), _
+                                             c.names->Spelling( ip->name ) )
+                            continue for
+                        end if
+                    end if
+                end if
+            end if
             if ip->a <> NODE_NONE then continue for
             '' A QUALIFIED or object-target redim names something declared elsewhere.
             if (c.ast->nodes[cast( int32, item )].flags and NF_QUALIFIED) <> 0 then continue for

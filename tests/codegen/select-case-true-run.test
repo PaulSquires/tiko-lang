@@ -1,0 +1,17 @@
+'' RUN: 'select case true' matches the first true case (by-example BUG-flow-1). The literal
+'' TRUE lowers as i8 -1, and the subject slot kept those bits while every case value is
+'' coerced to the boolean subject, giving 1: no case matched, 'case true' included. The
+'' subject is now stored normalised. A boolean variable subject and 'select case false'
+'' were right already. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/select-case-true.bas -o tests/codegen/selectcasetrue.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/selectcasetrue.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: take a coat
+'' EXPECT-RUN-OUT: lit ok
+'' EXPECT-RUN-OUT: const ok
+'' EXPECT-RUN-OUT: is ok
+'' EXPECT-RUN-OUT: false ok
+'' EXPECT-RUN-OUT: var ok
