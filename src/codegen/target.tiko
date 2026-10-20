@@ -21,6 +21,10 @@ const DL_WIN64 as string = _
     "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
 const DL_LINUX64 as string = _
     "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
+'' 'clang -target arm64-apple-macosx13.0 -S -emit-llvm', clang 21.1.0 (2026-10-20). 'm:o' is
+'' Mach-O mangling: LLVM adds the leading underscore to every C symbol itself.
+const DL_MACOS_ARM64 as string = _
+    "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32"
 
 '' WINDOWS IS THE MinGW ABI, not the Microsoft one. D13 as originally written said the
 '' opposite -- the runtime was to be recompiled with clang for
@@ -86,11 +90,21 @@ function TargetFor( byval t as TargetId ) as TargetDescription
         d.dataLayout = DL_WIN64
         d.objFormat = OBJ_COFF
         d.abi = ABI_WIN64
-    case else                   '' TARGET_WIN64
+    case TARGET_WIN64
         d.triple = "x86_64-w64-windows-gnu"
         d.dataLayout = DL_WIN64
         d.objFormat = OBJ_COFF
         d.abi = ABI_WIN64
+    case TARGET_MACOS_ARM64
+        '' VERSIONED, unlike the two above: the deployment target is part of a Darwin
+        '' triple, and macOS 13 is the minimum (docs/tiko-macos D5). clang prints it back
+        '' as 'macosx13.0.0'.
+        d.triple = "arm64-apple-macosx13.0"
+        d.dataLayout = DL_MACOS_ARM64
+        d.objFormat = OBJ_MACHO
+        d.abi = ABI_AAPCS64_APPLE
+    case else
+        Tko.TargetIce( "TargetFor", t )
     end select
     return d
 end function

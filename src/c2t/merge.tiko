@@ -180,18 +180,26 @@ end function
 '' A tiko #if condition true for exactly the passes in 'mask', or "" when none can say it.
 private function Guard_( byref outs as C2tPassOutVec, byval mask as uint32 ) as string
     dim as int32 n = outs.Count
-    dim as uint32 winM = 0, linM = 0
+    dim as uint32 winM = 0, linM = 0, macM = 0
     dim as int32 maxExtra = 0
     for p as int32 = 0 to n - 1
-        if outs[p].isWindows then winM or= (1u shl p) else linM or= (1u shl p)
+        select case outs[p].osKind
+        case Tko.OS_WINDOWS : winM or= (1u shl p)
+        case Tko.OS_LINUX   : linM or= (1u shl p)
+        case Tko.OS_DARWIN  : macM or= (1u shl p)
+        case else           : Tko.TargetIce( "c2t Guard_", outs[p].osKind )
+        end select
         if outs[p].extraNo > maxExtra then maxExtra = outs[p].extraNo
     next
     '' THE CANDIDATES: each target, each --pass's define, the base passes (none of the defines),
-    '' and every target-and-define pair.
+    '' and every target-and-define pair. macOS's only when a macOS pass ran (--macos-sysroot),
+    '' and after the other two, so a two-target translation guards exactly as it did; with
+    '' three, "Linux and macOS" is the negation of Windows, below.
     dim as Tko.StrVec expr
     dim as containers.Array( of uint32 ) em
     expr.Push( "defined(TIKO_OS_WINDOWS)" ) : em.Push( winM )
     expr.Push( "defined(TIKO_OS_LINUX)" ) : em.Push( linM )
+    if macM <> 0 then expr.Push( "defined(TIKO_OS_MACOS)" ) : em.Push( macM )
     dim as Tko.StrVec dexpr
     dim as containers.Array( of uint32 ) dm
     dim as boolean allNamed = true
@@ -226,6 +234,9 @@ private function Guard_( byref outs as C2tPassOutVec, byval mask as uint32 ) as 
         expr.Push( dexpr[i] ) : em.Push( dm[i] )
         expr.Push( "(defined(TIKO_OS_WINDOWS) andalso " & dexpr[i] & ")" ) : em.Push( winM and dm[i] )
         expr.Push( "(defined(TIKO_OS_LINUX) andalso " & dexpr[i] & ")" ) : em.Push( linM and dm[i] )
+        if macM <> 0 then
+            expr.Push( "(defined(TIKO_OS_MACOS) andalso " & dexpr[i] & ")" ) : em.Push( macM and dm[i] )
+        end if
     next
     for i as int32 = 0 to expr.Count - 1
         if em[i] = mask then return expr[i]

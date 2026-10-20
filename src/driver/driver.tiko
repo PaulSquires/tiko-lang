@@ -159,8 +159,12 @@ end function
 private function OutputSuffix_( byref o as Tko.DriverOptions ) as string
     select case o.outKind
     case Tko.OUT_DLL
-        if Tko.TargetIsWindows( o.target ) then return ".dll"
-        return ".so"
+        select case Tko.TargetOs( o.target )
+        case Tko.OS_WINDOWS : return ".dll"
+        case Tko.OS_LINUX   : return ".so"
+        case Tko.OS_DARWIN  : return ".dylib"
+        end select
+        Tko.TargetIce( "OutputSuffix_", o.target )
     case Tko.OUT_STATICLIB
         return ".a"
     end select
@@ -263,8 +267,8 @@ function MakePpConfig( byref ctx as Tko.CompilerContext ) as Tko.PpConfig
     cfg.preludeProcs = prelude_
     cfg.includePaths = @ctx.options.includePaths
     cfg.defines = @ctx.options.defines
-    cfg.targetIsWindows = Tko.TargetIsWindows( ctx.options.target )
-    cfg.targetIs64 = Tko.TargetIs64( ctx.options.target )
+    cfg.targetOs = Tko.TargetOs( ctx.options.target )
+    cfg.targetArch = Tko.TargetArch( ctx.options.target )
     cfg.targetIsMsvc = (ctx.options.target = Tko.TARGET_WINDOWS_X86_64)
     cfg.threadSafe = ctx.options.threadSafe
     cfg.errFlags = ctx.options.errFlags
@@ -387,36 +391,7 @@ end function
 '' while its objFormat said COFF would get a MinGW link line for an ELF object and
 '' fail somewhere well downstream of the mistake.
 ''
-'' Four bytes settle it. ELF starts 7F 'E' 'L' 'F'; a COFF object starts with its
-'' machine word, 0x8664 little-endian for x86-64, or FF FF for the bigobj header
-'' clang emits when a module has more sections than the short form can count.
-''
-'' ONLY A DEFINITE MISMATCH IS AN ERROR. Anything unrecognised is left alone --
-'' '-flto' would put LLVM bitcode here, which is neither of these and is not wrong.
-private function ObjectLooksElf_( byref path_ as string, byref known as boolean ) as boolean
-    known = false
-    dim as int32 fh = freefile
-    if open( path_ for binary access read as #fh ) <> 0 then return false
-    dim as uint8 b(0 to 3)
-    dim as int64 n = 4
-    get #fh, 1, b(0), n
-    close #fh
-    if n < 4 then return false
-    if (b(0) = &h7F) andalso (b(1) = asc( "E" )) andalso _
-       (b(2) = asc( "L" )) andalso (b(3) = asc( "F" )) then
-        known = true
-        return true
-    end if
-    if (b(0) = &h64) andalso (b(1) = &h86) then
-        known = true
-        return false
-    end if
-    if (b(0) = &hFF) andalso (b(1) = &hFF) then
-        known = true
-        return false
-    end if
-    return false
-end function
+'' Four bytes settle it: codegen/objinfo.tiko, ObjectFormatOf.
 
 '' '--emit-ir' AND '--emit-asm' WRITE THEIR FILE AND STOP -- docs/plan/10 section 4: "writes
 '' the .ll and stops; --emit-asm runs clang -S". What they did was build: with an -o, both
@@ -466,7 +441,7 @@ end function
 
 private function ObjectChecks_ _
     ( byref ctx as Tko.CompilerContext, byval rc as int32, byref irPath as string, _
-      byref objPath as string, byval wantElf as boolean, byref triple as string ) as int32
+      byref objPath as string, byval wantFmt as Tko.Codegen.ObjFormat, byref triple as string ) as int32
 
     if rc <> 0 then
         return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0113, irPath, str( rc ) )
@@ -477,13 +452,13 @@ private function ObjectChecks_ _
     close #ofh
 
     dim as boolean fmtKnown = false
-    dim as boolean isElf = ObjectLooksElf_( objPath, fmtKnown )
+    dim as Tko.Codegen.ObjFormat got_ = Tko.Codegen.ObjectFormatOf( objPath, fmtKnown )
     if fmtKnown then
-        if isElf <> wantElf then
-            '' The object format and the triple are one fact -- the other format is
-            '' implied, so the message names the one found and the triple that disagrees.
-            dim as string got_ = iif( isElf, "ELF", "COFF" )
-            return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0114, objPath, got_, triple )
+        if got_ <> wantFmt then
+            '' The object format and the triple are one fact, so the message names the
+            '' format found and the triple that disagrees.
+            return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0114, objPath, _
+                              Tko.Codegen.ObjFormatName( got_ ), triple )
         end if
     end if
     return Tko.EXIT_OK
@@ -501,7 +476,7 @@ private function Reap_( byref ctx as Tko.CompilerContext, byval k as int32 ) as 
     ctx.timing.clangJobs += 1
     if (rc = 0) andalso (ctx.objq.keepTemps = false) then kill( ctx.objq.irPaths[k] )
     return ObjectChecks_( ctx, rc, ctx.objq.irPaths[k], ctx.objq.objPaths[k], _
-                          ctx.objq.wantElf[k] <> 0, ctx.objq.triples[k] )
+                          cast( Tko.Codegen.ObjFormat, ctx.objq.wantFmt[k] ), ctx.objq.triples[k] )
 end function
 
 '' AT CAPACITY, THE OLDEST JOB IS WAITED FOR before another starts. Returns the first failure
@@ -518,13 +493,12 @@ private function QueueObject_ _
         ctx.objq.reaped += 1
         if (r <> Tko.EXIT_OK) andalso (fail = Tko.EXIT_OK) then fail = r
     wend
-    dim as boolean wantElf = (td.objFormat = Tko.Codegen.OBJ_ELF)
     dim as float64 tSpawn = timer
     dim as Tko.Spawn.Proc pr = Tko.Codegen.StartCompileIr( tools, td, irPath, objPath )
     ctx.timing.Add( Tko.PH_SPAWN, tSpawn )
     if pr = 0 then
         '' NOT STARTED: what exec reported for a clang it could not run.
-        dim as int32 r = ObjectChecks_( ctx, -1, irPath, objPath, wantElf, td.triple )
+        dim as int32 r = ObjectChecks_( ctx, -1, irPath, objPath, td.objFormat, td.triple )
         return iif( fail <> Tko.EXIT_OK, fail, r )
     end if
     ctx.objq.keepTemps = ctx.options.keepTemps
@@ -532,8 +506,8 @@ private function QueueObject_ _
     ctx.objq.irPaths.Push( irPath )
     ctx.objq.objPaths.Push( objPath )
     ctx.objq.triples.Push( td.triple )
-    dim as uint8 elfFlag = iif( wantElf, 1, 0 )
-    ctx.objq.wantElf.Push( elfFlag )
+    dim as uint8 fmt_ = cast( uint8, td.objFormat )
+    ctx.objq.wantFmt.Push( fmt_ )
     ctx.objq.starts.Push( timer )
     return fail
 end function
@@ -601,7 +575,6 @@ function BuildFromIr _
     '' a link error -- or, with an object left from an earlier build, not at all (audit F-74,
     '' CG-17). So the old object goes first, and the new one must exist afterwards.
     dim as int32 okill = kill( objPath )
-    dim as boolean wantElf = (td.objFormat = Tko.Codegen.OBJ_ELF)
     '' QUEUED, unless TKO_JOBS=1 asked for one at a time (driver/objqueue.ti).
     if ctx.objq.maxJobs = 0 then ctx.objq.maxJobs = Tko.Spawn.DefaultJobs( )
     if ctx.objq.maxJobs > 1 then return QueueObject_( ctx, tools, td, irPath, objPath )
@@ -611,7 +584,7 @@ function BuildFromIr _
     ctx.timing.Add( Tko.PH_CLANG, tClang )
     ctx.timing.clangBusy += timer - tClang
     ctx.timing.clangJobs += 1
-    return ObjectChecks_( ctx, rc, irPath, objPath, wantElf, td.triple )
+    return ObjectChecks_( ctx, rc, irPath, objPath, td.objFormat, td.triple )
 end function
 
 
@@ -645,6 +618,13 @@ end function
 private function LinkAll _
     ( byref ctx as Tko.CompilerContext, byref objs as Tko.StrVec, _
       byref td as Tko.Codegen.TargetDescription, byref keep as Tko.StrVec ) as int32
+
+    '' NO MACH-O LINK YET (docs/tiko-macos M2: ld64, the SDK, @rpath, the init order). The
+    '' objects are built; the link line is not written, and an ELF one would be wrong.
+    if td.objFormat = Tko.Codegen.OBJ_MACHO then
+        return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0992, _
+            "linking for " & Tko.TargetName( ctx.options.target ) & "; build objects with -c" )
+    end if
 
     dim as Tko.Codegen.ToolPaths tools = _
         Tools_( ctx )

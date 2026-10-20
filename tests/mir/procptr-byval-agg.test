@@ -3,6 +3,9 @@
 '' TEST: cli
 '' ARGS: --emit-ir tests/mir/src/procptr-byval-agg.bas
 '' EXPECT-EXIT: 0
+'' A BY-VALUE AGGREGATE (a std module's, or the test's own): macos-arm64 refuses it until AAPCS64 lands.
+'' EXPECT-EXIT[macos-arm64]: 1
+'' EXPECT-OUT[macos-arm64]: error TKO0992: not implemented in this build: an aggregate passed or returned by value on macos-arm64
 
 '' NO CALL PASSES A RAW AGGREGATE VALUE. That was every one through the pointer.
 '' EXPECT-NOT: ([8 x i8] %t

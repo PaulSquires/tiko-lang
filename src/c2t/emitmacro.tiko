@@ -102,27 +102,39 @@ end function
 
 '' ---------------------------------------------------------------- the platform
 
-'' What the C platform macros are in tiko, for this pass's target.
-private sub Platform_( byref env as CxEnv, byval isWindows as boolean )
+'' What the C platform macros are in tiko, for this pass's target. Each OS and each
+'' architecture tiko has is a TIKO_OS_* / TIKO_ARCH_* name, true in the passes for it: the
+'' Apple and arm64 spellings are macOS's, measured from clang's '-dM -E' for
+'' arm64-apple-macosx13.0 (__APPLE__ __MACH__ __aarch64__ __arm64__, and no __unix__).
+private sub Platform_( byref env as CxEnv, byval os_ as Tko.TargetOsKind, byval arch_ as Tko.TargetArchKind )
     dim as string win( 0 to 4 ) = { "_WIN32", "_WIN64", "WIN32", "__WIN32__", "__WINDOWS__" }
     for i as int32 = 0 to 4
-        CxEnvAdd( env, win( i ), "TIKO_OS_WINDOWS", CXV_INT, isWindows, 1 )
+        CxEnvAdd( env, win( i ), "TIKO_OS_WINDOWS", CXV_INT, os_ = Tko.OS_WINDOWS, 1 )
     next
     dim as string lin( 0 to 5 ) = { "__linux__", "__linux", "linux", "__gnu_linux__", "__unix__", "__unix" }
     for i as int32 = 0 to 5
-        CxEnvAdd( env, lin( i ), "TIKO_OS_LINUX", CXV_INT, isWindows = false, 1 )
+        CxEnvAdd( env, lin( i ), "TIKO_OS_LINUX", CXV_INT, os_ = Tko.OS_LINUX, 1 )
+    next
+    dim as string mac( 0 to 1 ) = { "__APPLE__", "__MACH__" }
+    for i as int32 = 0 to 1
+        CxEnvAdd( env, mac( i ), "TIKO_OS_MACOS", CXV_INT, os_ = Tko.OS_DARWIN, 1 )
     next
     dim as string arch( 0 to 5 ) = { "__x86_64__", "__x86_64", "_M_X64", "_M_AMD64", "__amd64__", "__amd64" }
     for i as int32 = 0 to 5
-        CxEnvAdd( env, arch( i ), "TIKO_ARCH_X86_64", CXV_INT, true, 1 )
+        CxEnvAdd( env, arch( i ), "TIKO_ARCH_X86_64", CXV_INT, arch_ = Tko.ARCH_X86_64, 1 )
+    next
+    dim as string arm( 0 to 1 ) = { "__aarch64__", "__arm64__" }
+    for i as int32 = 0 to 1
+        CxEnvAdd( env, arm( i ), "TIKO_ARCH_ARM64", CXV_INT, arch_ = Tko.ARCH_ARM64, 1 )
     next
     '' NO tiko TARGET: always 0 -- and C++ never, for c2t reads C. MinGW and Cygwin too:
-    '' tiko's one Windows target is the MSVC ABI, which is what c2t's Windows pass parses.
-    dim as string never( 0 to 18 ) = { "__APPLE__", "__MACH__", "__ANDROID__", "__EMSCRIPTEN__", _
+    '' tiko's one Windows target is the MSVC ABI, which is what c2t's Windows pass parses,
+    '' and _M_ARM64 is Windows on ARM, which tiko does not target.
+    dim as string never( 0 to 15 ) = { "__ANDROID__", "__EMSCRIPTEN__", _
         "__FreeBSD__", "__OpenBSD__", "__NetBSD__", "__DragonFly__", "__HAIKU__", "__sun", _
-        "_M_ARM64", "__aarch64__", "__arm__", "_M_IX86", "__i386__", "__cplusplus", _
+        "_M_ARM64", "__arm__", "_M_IX86", "__i386__", "__cplusplus", _
         "__MINGW32__", "__MINGW64__", "__CYGWIN__" }
-    for i as int32 = 0 to 18
+    for i as int32 = 0 to 15
         CxEnvAdd( env, never( i ), "0", CXV_INT, false, 0 )
     next
     CxEnvAdd( env, "__STDC__", "1", CXV_INT, true, 1 )
@@ -594,7 +606,12 @@ sub MacroDirectives( byref e as C2tEmit, byref p as C2tPass, byref dirs as C2tDi
     env.owner = @e
     env.lookup = @LookupDecl_
     env.typeLookup = @LookupType_
-    Platform_( env, instr( p.triple, "windows" ) > 0 )
+    '' The pass's target, from its triple: the three tiko translates for (c2t.tiko C2tTargets_).
+    dim as Tko.TargetOsKind pos_ = Tko.OS_LINUX
+    dim as Tko.TargetArchKind parch = Tko.ARCH_X86_64
+    if instr( p.triple, "windows" ) > 0 then pos_ = Tko.OS_WINDOWS
+    if instr( p.triple, "apple" ) > 0 then pos_ = Tko.OS_DARWIN : parch = Tko.ARCH_ARM64
+    Platform_( env, pos_, parch )
     '' THE PASS'S OWN DEFINES (-D, --pass "-DFOO"): clang parsed with them, so the conditions
     '' are judged with them -- and printed as the names they are, which a tiko program defines
     '' the same way before it includes the file.

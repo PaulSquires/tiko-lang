@@ -24,6 +24,7 @@ namespace Tko.Codegen
     enum ObjFormat
         OBJ_COFF = 0        '' Windows
         OBJ_ELF             '' Linux
+        OBJ_MACHO           '' macOS: no COMDAT, no numbered init sections, linked by ld64
     end enum
 
     '' Which classifier the ABI pass runs. They are genuinely different algorithms, not
@@ -33,6 +34,10 @@ namespace Tko.Codegen
     enum AbiKind
         ABI_WIN64 = 0
         ABI_SYSV_AMD64
+        '' AAPCS64 with Apple's variations (HFAs as [N x float|double], >16 bytes by
+        '' pointer to a caller copy, sret in x8). A PLACEHOLDER: the classifier is not
+        '' written, and the ABI pass refuses a by-value aggregate for it (abi.tiko).
+        ABI_AAPCS64_APPLE
     end enum
 
     type TargetDescription

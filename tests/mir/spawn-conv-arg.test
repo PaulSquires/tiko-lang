@@ -12,6 +12,9 @@
 '' TEST: cli
 '' ARGS: -mt --dump-ir -i toolchains/tiko-windows/inc tests/mir/src/spawn-conv-arg.bas
 '' EXPECT-EXIT: 0
+'' A BY-VALUE AGGREGATE (a std module's, or the test's own): macos-arm64 refuses it until AAPCS64 lands.
+'' EXPECT-EXIT[macos-arm64]: 1
+'' EXPECT-OUT[macos-arm64]: error TKO0992: not implemented in this build: an aggregate passed or returned by value on macos-arm64
 '' EXPECT-OUT: call void _ZN4VIEWC1ER7COUNTED(
 '' EXPECT-OUT: call void _ZN4VIEWaSERKS_(
 '' EXPECT-OUT: call void _ZN3STD5TASKS8SendChanIiEC1ER7ChannelIiE(

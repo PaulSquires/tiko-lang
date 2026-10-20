@@ -110,10 +110,10 @@ function VersionText( byref clangExe as string ) as string
                       str( Tko.TKO_VERSION_MINOR ) & "." & _
                       str( Tko.TKO_VERSION_PATCH ) & Tko.TKO_VERSION_SUFFIX
 
-    dim as string arch = "x86_64"
-    '' THE DEFAULT TARGET, asked rather than repeated. This said "win64" as a
-    '' literal, so it kept saying so after the default became windows-x86_64 -- a
-    '' version banner that names the wrong ABI is worse than one that names none.
+    '' THE DEFAULT TARGET, asked rather than repeated. This said "win64" as a literal, so
+    '' it kept saying so after the default became windows-x86_64 -- a version banner that
+    '' names the wrong ABI is worse than one that names none. The name carries the
+    '' architecture too, so no second, hard-coded "x86_64" goes stale on an arm64 host.
     dim as string os_ = Tko.TargetName( Tko.HostTarget( ) )
 
     dim as string outp = ""

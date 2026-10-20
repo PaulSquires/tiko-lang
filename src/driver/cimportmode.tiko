@@ -41,6 +41,9 @@ function NotFoundHint( byref ctx as Tko.CompilerContext ) as string
     case Tko.TARGET_WIN64
         return "win64 imports against MinGW-w64's headers; put its gcc on PATH, " & _
                "or set the sysroot with -csysroot"
+    case Tko.TARGET_MACOS_ARM64
+        return "macos-arm64 imports against the macOS SDK; set it with -csysroot " & _
+               "(on the Mac, 'xcrun --show-sdk-path' prints it)"
     case else
         return "add the directory with -cinclude, or set the sysroot with -csysroot " & _
                "(a Linux target imported from another host needs one)"
@@ -68,6 +71,7 @@ sub FillOptions _
     io.targetName = Tko.TargetName( ctx.options.target )
     io.triple = td.triple
     io.isWindows = Tko.TargetIsWindows( ctx.options.target )
+    io.osKind = Tko.TargetOs( ctx.options.target )
     io.clangExe = clangExe
 end sub
 

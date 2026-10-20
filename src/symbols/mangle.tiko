@@ -284,7 +284,7 @@ end function
 '' out of IsSubstitutable rather than needing a rule.
 private function BuiltinCode _
     ( byval b as Tko.BuiltinType, byval is32 as boolean, _
-      byval isWin as boolean = true ) as string
+      byval cvaPtr as boolean = true ) as string
 
     '' 'cva_list' IS NOT ONE TYPE ACROSS TARGETS, and the mangling is where that shows.
     '' Measured, 'namespace N: sub P( byref a as cva_list )':
@@ -295,9 +295,11 @@ private function BuiltinCode _
     ''
     '' So on Windows fbc's own type for it is literally 'zstring ptr', and on Linux it
     '' is an array of one 24-byte struct. Neither is derivable from the other and
-    '' neither is guessable from the width, which is why both are written out.
+    '' neither is guessable from the width, which is why both are written out. Which one
+    '' a target has is TargetLayout.cvaListIsPointer: Darwin's arm64 va_list is 'char *'
+    '' too, so it mangles as Windows does (clang: '_Z1fRPc' for 'void f(va_list&)').
     if b = Tko.TY_CVA_LIST then
-        if isWin then return "Pc"
+        if cvaPtr then return "Pc"
         return "A1_13__va_list_tag"
     end if
 
@@ -571,7 +573,7 @@ function TypeCode _
 
     case Tko.TK_BUILTIN
         enc = BuiltinCode( types.BuiltinOf( t ), (types.target.pointerBits = 32), _
-                           types.target.isWindows )
+                           types.target.cvaListIsPointer )
 
     case else
         enc = "v"

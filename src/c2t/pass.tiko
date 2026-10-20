@@ -92,6 +92,10 @@ function RunPass( byref api as Tko.CImport.ClangApi, byref src as C2tSource, _
     '' A LINUX PASS ON ANOTHER HOST needs Linux's system headers: --sysroot names them (the WSL
     '' root works: '//wsl.localhost/Ubuntu'). The Windows pass finds the SDK itself.
     if (len( opts.sysroot ) > 0) andalso (instr( triple, "linux" ) > 0) then av.Push( "--sysroot=" & opts.sysroot )
+    '' ...and a macOS pass the SDK, which nothing finds by itself off a Mac.
+    if (len( opts.macSysroot ) > 0) andalso (instr( triple, "apple" ) > 0) then
+        av.Push( "-isysroot" ) : av.Push( opts.macSysroot )
+    end if
     dim as zstring ptr argv( 0 to av.Count )
     for i as int32 = 0 to av.Count - 1
         argv( i ) = strptr( av[i] )

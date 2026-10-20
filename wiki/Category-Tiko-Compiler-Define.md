@@ -39,8 +39,9 @@ tiko defines one `TIKO_OS_` name for the target being built, always `1`:
 
 | Target | Defined | Not defined |
 | --- | --- | --- |
-| `windows-x86_64` | `TIKO_OS_WINDOWS` | `TIKO_OS_LINUX` |
-| `linux-x86_64` | `TIKO_OS_LINUX` | `TIKO_OS_WINDOWS` |
+| `windows-x86_64` | `TIKO_OS_WINDOWS` | `TIKO_OS_LINUX`, `TIKO_OS_MACOS` |
+| `linux-x86_64` | `TIKO_OS_LINUX` | `TIKO_OS_WINDOWS`, `TIKO_OS_MACOS` |
+| `macos-arm64` | `TIKO_OS_MACOS` | `TIKO_OS_WINDOWS`, `TIKO_OS_LINUX` |
 
 The name follows `-target`, not the machine running the compiler, so `-target linux-x86_64` on Windows takes the Linux branch:
 
@@ -49,12 +50,14 @@ The name follows `-target`, not the machine running the compiler, so `-target li
 	print "windows"; TIKO_OS_WINDOWS     '' windows-x86_64 prints: windows 1
 #elseif defined( TIKO_OS_LINUX )
 	print "linux"; TIKO_OS_LINUX         '' linux-x86_64 prints: linux 1
+#elseif defined( TIKO_OS_MACOS )
+	print "macos"; TIKO_OS_MACOS         '' macos-arm64 prints: macos 1
 #else
 	print "other"
 #endif
 ```
 
-Exactly one of the two is defined on every target. `TIKO_OS_MACOS` is not defined: there is no macOS target.
+Exactly one of the three is defined on every target.
 
 ## What tiko defines
 
@@ -68,10 +71,13 @@ Exactly one of the two is defined on every target. `TIKO_OS_MACOS` is not define
 | `__FB_MIN_VERSION__` | not defined |
 | `TIKO_OS_WINDOWS` | `1` on `windows-x86_64`, otherwise not defined |
 | `TIKO_OS_LINUX` | `1` on `linux-x86_64`, otherwise not defined |
+| `TIKO_OS_MACOS` | `1` on `macos-arm64`, otherwise not defined |
+| `TIKO_ARCH_X86_64` | `1` on `windows-x86_64` and `linux-x86_64`, otherwise not defined |
+| `TIKO_ARCH_ARM64` | `1` on `macos-arm64`, otherwise not defined |
 
 `__TIKO_COMPILER__` says **which compiler** is building; `__TIKO_VERSION__` says which version of it. Neither says which features it has, so code that must build with several versions still tests more than one symbol.
 
-tests/pp/tiko-compiler-define.test holds the define and its value; tests/pp/tiko-target-defines.test holds the `TIKO_OS_` names on each target.
+tests/pp/tiko-compiler-define.test holds the define and its value; tests/pp/tiko-target-defines.test holds the `TIKO_OS_` and `TIKO_ARCH_` names on each target.
 
 ### See also
 

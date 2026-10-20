@@ -19,6 +19,7 @@
 #define __TKO_OBJINFO_BI__
 
 #include once "tko.ti"
+#include once "codegen/target.ti"
 
 namespace Tko.Codegen
 
@@ -37,6 +38,12 @@ namespace Tko.Codegen
         ( byref path as string, byref libs as StrVec, _
           byref libPaths as StrVec, byref libFiles as StrVec, _
           byref threadSafe as boolean, byref modObjs as StrVec )
+
+    '' The format of an object file, from its first four bytes; known = false for anything
+    '' else (LLVM bitcode under '-flto', a short or unreadable file).
+    declare function ObjectFormatOf( byref path_ as string, byref known as boolean ) as ObjFormat
+    '' "COFF", "ELF" or "Mach-O", for a message.
+    declare function ObjFormatName( byval f as ObjFormat ) as string
 
 end namespace
 

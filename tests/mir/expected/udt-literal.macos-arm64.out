@@ -1,0 +1,254 @@
+func agg:8[I] MAKEP() {
+  local agg $tmp0 size 8
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = call.rtl ptr memset(@$tmp0, 0, 8)
+    %3 = const i64 1
+    %4 = trunc %3
+    %5 = const i64 2
+    %6 = trunc %5
+    %7 = field.addr @$tmp0, 0
+    store %7, %4
+    %8 = field.addr @$tmp0, 4
+    store %8, %6
+    %9 = load @$tmp0
+    ret %9
+}
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+func agg:8[I] MAKEPTYPED() {
+  local agg $tmp0 size 8
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = call.rtl ptr memset(@$tmp0, 0, 8)
+    %3 = const i64 3
+    %4 = trunc %3
+    %5 = const i64 4
+    %6 = trunc %5
+    %7 = field.addr @$tmp0, 0
+    store %7, %4
+    %8 = field.addr @$tmp0, 4
+    store %8, %6
+    %9 = load @$tmp0
+    ret %9
+}
+func void _ZN7CTORUDTC1Ev(ptr $0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = call.rtl ptr memset(%3, 0, 4)
+    %5 = load @this
+    %6 = field.addr %5, 0
+    %7 = const i64 1
+    %8 = neg %7
+    %9 = trunc %8
+    store %6, %9
+    ret
+}
+func void _ZN7CTORUDTC1Ei(ptr $0, i32 $1) {
+  local ptr this
+  local i32 n
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr n
+    store @n, $1
+    %3 = load @this
+    %4 = field.addr %3, 0
+    %5 = call.rtl ptr memset(%4, 0, 4)
+    %6 = load @this
+    %7 = field.addr %6, 0
+    %8 = load @n
+    store %7, %8
+    ret
+}
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local agg d size 8
+  local agg e size 8
+  local agg $tmp3 size 8
+  local agg $tmp4 size 8
+  local agg $tmp5 size 8
+  local agg o size 12
+  local agg short_ size 8
+  local agg iid size 16
+  local agg base1 size 4
+  local agg y size 12
+  local agg flatouter size 12
+  local agg witharg size 4
+  local agg withnone size 4
+  local agg viacall size 4
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr d
+    %5 = const i64 3
+    %6 = trunc %5
+    %7 = const i64 4
+    %8 = trunc %7
+    %9 = field.addr @d, 0
+    store %9, %6
+    %10 = field.addr @d, 4
+    store %10, %8
+    %11 = alloca ptr e
+    %12 = const i64 5
+    %13 = trunc %12
+    %14 = const i64 6
+    %15 = trunc %14
+    %16 = field.addr @e, 0
+    store %16, %13
+    %17 = field.addr @e, 4
+    store %17, %15
+    %18 = alloca ptr $tmp3
+    %19 = const i64 9
+    %20 = trunc %19
+    %21 = const i64 10
+    %22 = trunc %21
+    %23 = field.addr @$tmp3, 0
+    store %23, %20
+    %24 = field.addr @$tmp3, 4
+    store %24, %22
+    %25 = load @$tmp3
+    call void Q(%25)
+    %26 = alloca ptr $tmp4
+    %27 = const i64 11
+    %28 = trunc %27
+    %29 = const i64 12
+    %30 = trunc %29
+    %31 = field.addr @$tmp4, 0
+    store %31, %28
+    %32 = field.addr @$tmp4, 4
+    store %32, %30
+    call void R(@$tmp4)
+    %33 = alloca ptr $tmp5
+    %34 = const i64 7
+    %35 = trunc %34
+    %36 = const i64 8
+    %37 = trunc %36
+    %38 = field.addr @$tmp5, 0
+    store %38, %35
+    %39 = field.addr @$tmp5, 4
+    store %39, %37
+    call void S(@$tmp5)
+    %40 = alloca ptr o
+    %41 = const i64 1
+    %42 = trunc %41
+    %43 = const i64 2
+    %44 = trunc %43
+    %45 = const i64 3
+    %46 = trunc %45
+    %47 = field.addr @o, 0
+    store %47, %42
+    %48 = field.addr @o, 4
+    store %48, %44
+    %49 = field.addr @o, 8
+    store %49, %46
+    %50 = alloca ptr short_
+    %51 = const i64 42
+    %52 = trunc %51
+    %53 = field.addr @short_, 0
+    store %53, %52
+    %54 = field.addr @short_, 4
+    %55 = call.rtl ptr memset(%54, 0, 4)
+    %56 = alloca ptr iid
+    %57 = const i64 132096
+    %58 = trunc %57
+    %59 = const i64 0
+    %60 = trunc %59
+    %61 = const i64 0
+    %62 = trunc %61
+    %63 = const i64 192
+    %64 = trunc %63
+    %65 = const i64 0
+    %66 = trunc %65
+    %67 = const i64 0
+    %68 = trunc %67
+    %69 = const i64 0
+    %70 = trunc %69
+    %71 = const i64 0
+    %72 = trunc %71
+    %73 = const i64 0
+    %74 = trunc %73
+    %75 = const i64 0
+    %76 = trunc %75
+    %77 = const i64 70
+    %78 = trunc %77
+    %79 = field.addr @iid, 0
+    store %79, %58
+    %80 = field.addr @iid, 4
+    store %80, %60
+    %81 = field.addr @iid, 6
+    store %81, %62
+    %82 = field.addr @iid, 8
+    store %82, %64
+    %83 = field.addr @iid, 9
+    store %83, %66
+    %84 = field.addr @iid, 10
+    store %84, %68
+    %85 = field.addr @iid, 11
+    store %85, %70
+    %86 = field.addr @iid, 12
+    store %86, %72
+    %87 = field.addr @iid, 13
+    store %87, %74
+    %88 = field.addr @iid, 14
+    store %88, %76
+    %89 = field.addr @iid, 15
+    store %89, %78
+    %90 = alloca ptr base1
+    %91 = const i64 11
+    %92 = trunc %91
+    %93 = field.addr @base1, 0
+    store %93, %92
+    %94 = alloca ptr y
+    %95 = load @base1
+    %96 = const i64 31
+    %97 = trunc %96
+    %98 = const i64 301
+    %99 = trunc %98
+    %100 = field.addr @y, 0
+    store %100, %95
+    %101 = field.addr @y, 4
+    store %101, %97
+    %102 = field.addr @y, 8
+    store %102, %99
+    %103 = alloca ptr flatouter
+    %104 = const i64 1
+    %105 = trunc %104
+    %106 = const i64 2
+    %107 = trunc %106
+    %108 = const i64 3
+    %109 = trunc %108
+    %110 = field.addr @flatouter, 0
+    store %110, %105
+    %111 = field.addr @flatouter, 4
+    store %111, %107
+    %112 = field.addr @flatouter, 8
+    store %112, %109
+    %113 = alloca ptr witharg
+    %114 = const i64 123
+    %115 = trunc %114
+    call void _ZN7CTORUDTC1Ei(@witharg, %115)
+    %116 = alloca ptr withnone
+    call void _ZN7CTORUDTC1Ev(@withnone)
+    %117 = alloca ptr viacall
+    %118 = const i64 456
+    %119 = trunc %118
+    call void _ZN7CTORUDTC1Ei(@viacall, %119)
+    %120 = const i32 0
+    call.rtl void fb_End(%120)
+    %121 = load @$tmp0
+    ret %121
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void Q(agg:8[I] $0)
+declare void R(ptr $0)
+declare void S(ptr $0)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 5 functions, 5 blocks, 206 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (3 by-value aggregate signatures, no classifier for this target)

@@ -185,9 +185,9 @@ namespace Tko
     '' it is a THIRD set of layout numbers (wchar is 4 bytes there, and 8-byte
     '' alignment differs) and nobody asked for it.
     ''
-    '' ARM64 is considered and not implemented. When it arrives it is a new member
-    '' here, a new TargetLayout, and a THIRD AbiKind -- AAPCS64 is not a variation
-    '' on either of the two that exist. See tiko-rt RFC-0007 section 9.
+    '' ARM64 ARRIVES AS macOS ON APPLE SILICON (docs/tiko-macos RFC-0001): a new member
+    '' here, a new TargetLayout, and a THIRD AbiKind -- AAPCS64 is not a variation on
+    '' either of the two that existed. See tiko-rt RFC-0007 section 9.
     enum TargetId
         TARGET_WIN64 = 0
         TARGET_LINUX_X86_64
@@ -199,6 +199,10 @@ namespace Tko
         '' __acrt_iob_func and _stricmp where the MinGW one has __iob_func and
         '' strcasecmp. Mixing them links and then fails at runtime.
         TARGET_WINDOWS_X86_64
+        '' APPLE SILICON, Mach-O, 'arm64-apple-macosx13.0' (macOS 13 is the minimum).
+        '' Its classifier (AAPCS64 with Apple's variations) is not written yet, so the
+        '' ABI pass refuses an aggregate by value for it rather than run SysV's.
+        TARGET_MACOS_ARM64
     end enum
 
     '' Target facts, injected. The frontend never hard-codes a size.
@@ -215,8 +219,21 @@ namespace Tko
         '' pointer. Getting it wrong is a stack overwrite, not a wrong number.
         as int32 cvaListBytes
         as int32 cvaListAlign
-        '' Windows or not. Only cva_list needs it so far, and only for its MANGLING,
-        '' which is target-dependent in a way no width explains -- see BuiltinCode.
+        '' WHETHER A cva_list IS ONE POINTER -- 'char *' to C -- or a record. Its MANGLING
+        '' follows from it ('Pc' against 'A1_13__va_list_tag'), which is target-dependent
+        '' in a way no width explains -- see BuiltinCode. Windows and Darwin/arm64 say
+        '' pointer; SysV x86-64 says record.
+        as boolean cvaListIsPointer
+        '' Whether C's plain 'char' is signed. It is on all three targets (Apple's arm64
+        '' keeps it signed where AAPCS64 itself says unsigned); recorded so that a target
+        '' where it is not cannot inherit the assumption.
+        as boolean charSigned
+        '' THE OPERATING SYSTEM AND THE ARCHITECTURE, the two facts every other boolean
+        '' here was standing in for.
+        as TargetOsKind   osKind
+        as TargetArchKind arch
+        '' Windows or not: DERIVED from osKind (= OS_WINDOWS) by TargetLayoutFor and kept
+        '' as a field because the record layout and a calling-convention rule ask it.
         as boolean isWindows
         '' THE C LIBRARY, NOT THE PLATFORM. windows-x86_64 links ucrtbase and win64 links
         '' MinGW's msvcrt, and they do not export the same setjmp: the UCRT has
@@ -402,6 +419,8 @@ namespace Tko
     declare function TargetFromName( byval nm as string, byref ok as boolean ) as TargetId
     declare function TargetIs64( byval t as TargetId ) as boolean
     declare function TargetIsWindows( byval t as TargetId ) as boolean
+    declare function TargetOs( byval t as TargetId ) as TargetOsKind
+    declare function TargetArch( byval t as TargetId ) as TargetArchKind
 
     '' --dump-types. Byte-stable: a golden artefact, and the thing the layout
     '' differential compares against fbc.

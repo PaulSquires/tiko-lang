@@ -341,6 +341,14 @@ function LinkExe _
     '' vcruntime.lib and oldnames.lib come from Visual Studio. Linking msvcrt.dll
     '' instead -- we ship an import library for it -- is a decision about which CRT
     '' the runtime uses, not a flag.
+    '' COFF AND ELF ONLY. Every branch below tells the two apart and takes the ELF line for
+    '' "not COFF"; a Mach-O object given it would get an ELF link. The driver refuses that
+    '' link before it gets here (LinkAll), so reaching this with one is a compiler bug.
+    select case target.objFormat
+    case OBJ_COFF, OBJ_ELF
+    case else
+        Tko.TargetIce( "LinkExe", target.id )
+    end select
     dim as string cmd = "-target " & target.triple & " -fuse-ld=lld"
     dim as boolean viaLld = true
     '' ...WHERE THERE IS ONE. Ubuntu's clang package does not carry lld, and on such a

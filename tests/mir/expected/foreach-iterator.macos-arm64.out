@@ -1,0 +1,173 @@
+func i8 _ZN4ITER7ISVALIDEv(ptr $0) {
+  local i8 $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i8 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = load @this
+    %5 = field.addr %4, 0
+    %6 = load %5
+    %7 = load @this
+    %8 = field.addr %7, 4
+    %9 = load %8
+    %10 = icmp.slt %6, %9
+    %11 = neg %10
+    %12 = const i64 0
+    %13 = icmp.ne %11, %12
+    ret %13
+}
+func i32 _ZN4ITER5VALUEEv(ptr $0) {
+  local i32 $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = load @this
+    %5 = field.addr %4, 0
+    %6 = load %5
+    %7 = const i64 10
+    %8 = sext %6
+    %9 = mul %8, %7
+    %10 = trunc %9
+    ret %10
+}
+func void _ZN4ITER8MOVENEXTEv(ptr $0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = load %3
+    %5 = sext %4
+    %6 = const i64 1
+    %7 = add %5, %6
+    %8 = trunc %7
+    store %3, %8
+    ret
+}
+func agg:8[I] _ZN4COLL11GETITERATOREv(ptr $0) {
+  local agg $tmp0 size 8
+  local ptr this
+  local agg t size 8
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = call.rtl ptr memset(@$tmp0, 0, 8)
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = alloca ptr t
+    %5 = call.rtl ptr memset(@t, 0, 8)
+    %6 = field.addr @t, 4
+    %7 = load @this
+    %8 = field.addr %7, 0
+    %9 = load %8
+    store %6, %9
+    %10 = load @t
+    store @$tmp0, %10
+    %11 = load @$tmp0
+    ret %11
+}
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+func void P() {
+  local agg c size 4
+  local i32 total
+  local i32 x
+  local agg $tmp3 size 8
+  local i32 y
+  local agg $tmp5 size 8
+  entry0:
+    %1 = alloca ptr c
+    %2 = call.rtl ptr memset(@c, 0, 4)
+    %3 = alloca ptr total
+    %4 = call.rtl ptr memset(@total, 0, 4)
+    %5 = alloca ptr x
+    %6 = alloca ptr $tmp3
+    %7 = call agg _ZN4COLL11GETITERATOREv(@c)
+    store @$tmp3, %7
+    %16 = alloca ptr y
+    %17 = alloca ptr $tmp5
+    br each.test3
+  each.body1:
+    %8 = call i32 _ZN4ITER5VALUEEv(@$tmp3)
+    store @x, %8
+    %9 = load @total
+    %10 = sext %9
+    %11 = load @x
+    %12 = sext %11
+    %13 = add %10, %12
+    %14 = trunc %13
+    store @total, %14
+    br each.cont2
+  each.cont2:
+    call void _ZN4ITER8MOVENEXTEv(@$tmp3)
+    br each.test3
+  each.test3:
+    %15 = call i8 _ZN4ITER7ISVALIDEv(@$tmp3)
+    condbr %15, each.body1, each.exit4
+  each.exit4:
+    %18 = call agg _ZN4COLL11GETITERATOREv(@c)
+    store @$tmp5, %18
+    br each.test7
+  each.body5:
+    %19 = call i32 _ZN4ITER5VALUEEv(@$tmp5)
+    store @y, %19
+    %20 = load @y
+    %21 = const i64 20
+    %22 = sext %20
+    %23 = icmp.eq %22, %21
+    condbr %23, if.then10, if.else11
+  each.cont6:
+    call void _ZN4ITER8MOVENEXTEv(@$tmp5)
+    br each.test7
+  each.test7:
+    %34 = call i8 _ZN4ITER7ISVALIDEv(@$tmp5)
+    condbr %34, each.body5, each.exit8
+  each.exit8:
+    ret
+  if.join9:
+    %24 = load @y
+    %25 = const i64 40
+    %26 = sext %24
+    %27 = icmp.eq %26, %25
+    condbr %27, if.then13, if.else14
+  if.then10:
+    br each.cont6
+  if.else11:
+    br if.join9
+  if.join12:
+    %28 = load @total
+    %29 = sext %28
+    %30 = load @y
+    %31 = sext %30
+    %32 = add %29, %31
+    %33 = trunc %32
+    store @total, %33
+    br each.cont6
+  if.then13:
+    br each.exit8
+  if.else14:
+    br if.join12
+}
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 6 functions, 20 blocks, 101 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (1 by-value aggregate signatures, no classifier for this target)

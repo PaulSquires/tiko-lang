@@ -201,12 +201,15 @@ namespace Tko
         as string     moduleChain
         '' The target, as the two FACTS the preprocessor needs rather than as a target
         '' id: it has no business knowing the type model, and handing it one invites it
-        '' to grow more target knowledge than seeding predefines requires.
+        '' to grow more target knowledge than seeding predefines requires. They were two
+        '' booleans, 'is Windows' and 'is 64-bit', and every target that was not Windows
+        '' was therefore Linux on x86-64 -- which a third target is not.
         ''
         '' Getting these wrong does not fail -- it silently selects the other half of
-        '' every header. The corpus branches on __FB_64BIT__ alone 214 times.
-        as boolean    targetIsWindows
-        as boolean    targetIs64
+        '' every header. The corpus branches on __FB_64BIT__ alone 214 times. Every
+        '' architecture tiko has is 64-bit, so __FB_64BIT__ follows from the arch.
+        as TargetOsKind   targetOs
+        as TargetArchKind targetArch
         '' WHETHER THE TARGET USES THE MSVC ABI, which is the same kind of fact and
         '' the same kind of silent failure. fbc-modern's crt/win32/stdio.bi branches
         '' on __FB_MSVC__ and hard-codes MinGW's spellings otherwise: __iob_func,

@@ -198,4 +198,46 @@ sub ReadObjInfo _
     next
 end sub
 
+'' WHAT CLANG ACTUALLY WROTE, for the driver's check that it is what the target makes
+'' (driver.tiko, ObjectChecks_).
+''
+'' Four bytes settle it. ELF starts 7F 'E' 'L' 'F'; a COFF object starts with its
+'' machine word, 0x8664 little-endian for x86-64, or FF FF for the bigobj header
+'' clang emits when a module has more sections than the short form can count; a 64-bit
+'' Mach-O object starts CF FA ED FE.
+''
+'' ONLY A DEFINITE MISMATCH IS AN ERROR. Anything unrecognised is left alone --
+'' '-flto' would put LLVM bitcode here, which is neither of these and is not wrong.
+function ObjectFormatOf( byref path_ as string, byref known as boolean ) as ObjFormat
+    known = false
+    dim as int32 fh = freefile
+    if open( path_ for binary access read as #fh ) <> 0 then return OBJ_COFF
+    dim as uint8 b(0 to 3)
+    dim as int64 n = 4
+    get #fh, 1, b(0), n
+    close #fh
+    if n < 4 then return OBJ_COFF
+    known = true
+    if (b(0) = &h7F) andalso (b(1) = asc( "E" )) andalso _
+       (b(2) = asc( "L" )) andalso (b(3) = asc( "F" )) then return OBJ_ELF
+    if (b(0) = &h64) andalso (b(1) = &h86) then return OBJ_COFF
+    if (b(0) = &hFF) andalso (b(1) = &hFF) then return OBJ_COFF
+    '' MH_MAGIC_64, 0xFEEDFACF, little-endian: a 64-bit Mach-O object.
+    if (b(0) = &hCF) andalso (b(1) = &hFA) andalso (b(2) = &hED) andalso (b(3) = &hFE) then
+        return OBJ_MACHO
+    end if
+    known = false
+    return OBJ_COFF
+end function
+
+function ObjFormatName( byval f as ObjFormat ) as string
+    select case f
+    case OBJ_COFF  : return "COFF"
+    case OBJ_ELF   : return "ELF"
+    case OBJ_MACHO : return "Mach-O"
+    end select
+    Tko.TargetIce( "ObjFormatName", f )
+    return ""
+end function
+
 end namespace

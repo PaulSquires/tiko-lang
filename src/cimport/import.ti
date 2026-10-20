@@ -40,9 +40,10 @@ type CImportOptions
     as string     csysroot       '' -csysroot
     as Tko.StrVec copts          '' -copt: passed to clang verbatim
     as boolean    noMacros       '' -cnomacros
-    as string     targetName     '' "windows-x86_64", "win64", "linux-x86_64"
+    as string     targetName     '' "windows-x86_64", "win64", "linux-x86_64", "macos-arm64"
     as string     triple         '' TargetFor( t ).triple
     as boolean    isWindows
+    as Tko.TargetOsKind osKind   '' the OS half of the target; isWindows is 'osKind = OS_WINDOWS'
     as string     clangExe       '' the toolchain's clang; libclang is looked for beside it
     '' Records to refuse, by FreeBASIC name, with the reason for the ledger: the ones whose
     '' layout tiko could not reproduce last time round (driver/cimportverify.tiko).

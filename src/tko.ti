@@ -47,6 +47,30 @@ namespace Tko
         EXIT_CHILD_CRASHED = 6
     end enum
 
+    '' ------------------------------------------------------------ target facts
+    '' THE OPERATING SYSTEM AND THE INSTRUCTION SET of a target, as two facts rather than
+    '' as booleans that each assume the other half. Here, not in types/type.ti, because
+    '' the preprocessor seeds its predefines from them and may not depend on the type
+    '' model. A select over either has a 'case else' that is an internal compiler error,
+    '' never a default: an unknown target that quietly became Windows is how a third one
+    '' would have shipped half-built.
+
+    enum TargetOsKind
+        OS_WINDOWS = 0
+        OS_LINUX
+        OS_DARWIN
+    end enum
+
+    enum TargetArchKind
+        ARCH_X86_64 = 0
+        ARCH_ARM64
+    end enum
+
+    '' A select over targets, OSes or architectures that met a value it does not know. AN
+    '' INTERNAL COMPILER ERROR: says where on stderr and ends with EXIT_ICE; never returns.
+    '' Defined in types/type.tiko.
+    declare sub TargetIce( byref where as string, byval t as int32 )
+
     '' -------------------------------------------------------------- scalar ids
     '' Handles, not pointers. 0 always means "none" so a zeroed record is empty.
 

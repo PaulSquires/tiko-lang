@@ -1,0 +1,160 @@
+global str $str0 "made"
+global var agg gx size 8
+func void _ZN1TC1Eu7INTEGERR1X(ptr $0, i64 $1, ptr $2) {
+  local ptr this
+  local i64 i
+  local ptr impl
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr i
+    store @i, $1
+    %3 = alloca ptr impl
+    store @impl, $2
+    %4 = load @this
+    %5 = field.addr %4, 0
+    %6 = call.rtl ptr memset(%5, 0, 8)
+    %7 = load @this
+    %8 = field.addr %7, 0
+    %9 = load @i
+    %10 = load @impl
+    %11 = field.addr %10, 0
+    %12 = load %11
+    %13 = add %9, %12
+    store %8, %13
+    ret
+}
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+func void TAKE(ptr $0) {
+  local ptr tv
+  entry0:
+    %1 = alloca ptr tv
+    store @tv, $0
+    %2 = load @tv
+    %3 = field.addr %2, 0
+    %4 = load %3
+    call.rtl void fb_PrintLongint(0, %4, 1)
+    ret
+}
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+func agg:8[I] _ZN6HOLDER8P__get__Ei(ptr $0, i32 $1) {
+  local agg $tmp0 size 8
+  local ptr this
+  local i32 i
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = call.rtl ptr memset(@$tmp0, 0, 8)
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = alloca ptr i
+    store @i, $1
+    %5 = load @this
+    %6 = field.addr %5, 0
+    %7 = load @i
+    %8 = sext %7
+    %9 = const i64 8
+    %10 = mul %8, %9
+    %11 = ptr.add %6, %10
+    %12 = load %11
+    store @$tmp0, %12
+    %13 = load @$tmp0
+    ret %13
+}
+func void _ZN6HOLDER8P__set__EiR1X(ptr $0, i32 $1, ptr $2) {
+  local ptr this
+  local i32 i
+  local ptr v
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr i
+    store @i, $1
+    %3 = alloca ptr v
+    store @v, $2
+    %4 = load @this
+    %5 = field.addr %4, 0
+    %6 = load @i
+    %7 = sext %6
+    %8 = const i64 8
+    %9 = mul %7, %8
+    %10 = ptr.add %5, %9
+    %11 = load @v
+    %12 = load %11
+    store %10, %12
+    ret
+}
+func ptr MAKENAME() {
+  local agg $tmp0 size 24
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = field.addr @$tmp0, 0
+    store %2, 0
+    %3 = field.addr @$tmp0, 8
+    store %3, 0
+    %4 = field.addr @$tmp0, 16
+    store %4, 0
+    %5 = call.rtl ptr fb_StrAssign(@$tmp0, -1, @@$str0, 5, 0)
+    %6 = call.rtl ptr fb_StrAllocTempResult(@$tmp0)
+    ret %6
+}
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_StrAllocTempResult(ptr $0)
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local agg $tmp1 size 8
+  local agg h size 32
+  local agg a size 8
+  local agg $tmp4 size 8
+  local ptr pf
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = field.addr @@gx, 0
+    %5 = const i64 7
+    store %4, %5
+    %6 = alloca ptr $tmp1
+    %7 = const i64 420
+    call void _ZN1TC1Eu7INTEGERR1X(@$tmp1, %7, @@gx)
+    call void TAKE(@$tmp1)
+    %8 = alloca ptr h
+    %9 = call.rtl ptr memset(@h, 0, 32)
+    %10 = alloca ptr a
+    %11 = call.rtl ptr memset(@a, 0, 8)
+    %12 = field.addr @a, 0
+    %13 = const i64 101
+    store %12, %13
+    %14 = const i64 2
+    %15 = trunc %14
+    call void _ZN6HOLDER8P__set__EiR1X(@h, %15, @a)
+    %16 = const i64 2
+    %17 = trunc %16
+    %18 = call agg _ZN6HOLDER8P__get__Ei(@h, %17)
+    %19 = alloca ptr $tmp4
+    store @$tmp4, %18
+    %20 = field.addr @$tmp4, 0
+    %21 = load %20
+    call.rtl void fb_PrintLongint(0, %21, 1)
+    %22 = alloca ptr pf
+    %23 = func.addr ptr MAKENAME
+    store @pf, %23
+    %24 = load @pf
+    %25 = call.ind ptr %24()
+    %26 = call.rtl i32 fb_hStrDelTemp(%25)
+    %27 = load @pf
+    %28 = call.ind ptr %27()
+    call.rtl void fb_PrintString(0, %28, 1)
+    %29 = const i32 0
+    call.rtl void fb_End(%29)
+    %30 = load @$tmp0
+    ret %30
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr $tko.procsig.42()
+declare i32 fb_hStrDelTemp(ptr $0)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 6 functions, 6 blocks, 106 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (1 by-value aggregate signatures, no classifier for this target)

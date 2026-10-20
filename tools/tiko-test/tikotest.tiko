@@ -8,6 +8,9 @@
 ''     '' TEST: cli                 kind of test (see below)
 ''     '' ARGS: --dump-source %s    argument vector; %s is this file's path
 ''     '' EXPECT-EXIT: 0            required exit code
+''     '' EXPECT-EXIT[macos-arm64]: 1  ...for that target instead -- a target that does not
+''                              build this yet, and says so (TKO0992). When it differs from
+''                              EXPECT-EXIT, that target checks only its own EXPECT-OUT[t]
 ''     '' GOLDEN: expected/foo.out  golden output, relative to the test's directory
 ''     '' EXPECT-OUT: some text     required substring of the output (repeatable)
 ''     '' EXPECT-OUT[win64]: ...    required only when running for that target
@@ -105,6 +108,8 @@ type TestCase
     as string args
     as int32   expectExit
     as boolean haveExpectExit
+    '' EXPECT-EXIT[<target>]: '<target>' & tab & '<n>', overriding expectExit for that target.
+    as containers.Array( of string ) expectExitFor
     as string golden          '' relative to dir_, or "" for none
     as containers.Array( of string ) targets   '' from <dir>TARGETS, else just win64
     as int32   maxDiag
@@ -362,6 +367,11 @@ function ParseTest( byval path as string, byref tc as TestCase ) as boolean
             tc.noLane = (lcase( left( Trim_( mid( ln, 10 ) ), 2 ) ) = "no")
         elseif StartsWith( ln, "ARGS:" ) then
             tc.args = Trim_( mid( ln, 6 ) )
+        elseif StartsWith( ln, "EXPECT-EXIT[" ) then
+            dim as int32 rbx = instr( ln, "]:" )
+            if rbx > 0 then
+                tc.expectExitFor.Push( mid( ln, 13, rbx - 13 ) & chr( 9 ) & Trim_( mid( ln, rbx + 2 ) ) )
+            end if
         elseif StartsWith( ln, "EXPECT-EXIT:" ) then
             tc.expectExit = valint( Trim_( mid( ln, 13 ) ) )
             tc.haveExpectExit = true
@@ -715,11 +725,14 @@ function TargetGolden_ _
 end function
 
 '' CAN THIS HOST RUN WHAT A BUILD FOR tgt PRODUCES? Both Windows targets' programs run on
-'' Windows (win64 links MinGW's CRT, windows-x86_64 the UCRT; both are PE executables), and
-'' linux-x86_64's on Linux. Anything else would need an emulator, and is skipped.
+'' Windows (win64 links MinGW's CRT, windows-x86_64 the UCRT; both are PE executables),
+'' linux-x86_64's on Linux and macos-arm64's on a Mac. Anything else would need an
+'' emulator, and is skipped.
 function IsHostTarget_( byval tgt as string ) as boolean
-    #ifdef __FB_WIN32__
+    #if defined( __FB_WIN32__ )
         return (tgt = "win64") orelse (tgt = "windows-x86_64")
+    #elseif defined( __FB_DARWIN__ )
+        return (tgt = "macos-arm64")
     #else
         return (tgt = "linux-x86_64")
     #endif
@@ -983,9 +996,33 @@ function CheckOne_ _
     ( byref tc as TestCase, byref opts as Options, byval tgt as string, _
       byval rc as int32, byref outText as string, byref why as string ) as boolean
 
-    if tc.haveExpectExit andalso (rc <> tc.expectExit) then
-        why = "exit code " & rc & ", expected " & tc.expectExit
+    dim as boolean haveExit = tc.haveExpectExit
+    dim as int32 wantExit = tc.expectExit
+    for each ee as string in tc.expectExitFor
+        dim as int32 tb = instr( ee, chr( 9 ) )
+        if left( ee, tb - 1 ) = tgt then
+            haveExit = true
+            wantExit = valint( mid( ee, tb + 1 ) )
+        end if
+    next
+    if haveExit andalso (rc <> wantExit) then
+        why = "exit code " & rc & ", expected " & wantExit
         return false
+    end if
+    '' A TARGET THAT EXITS OTHERWISE THAN THE TEST DOES (EXPECT-EXIT[t]) is one that does not
+    '' build this yet: only its own EXPECT-OUT[t] lines apply -- what it says instead -- and
+    '' none of the test's assertions about what the others produce.
+    dim as boolean onlyOwn = haveExit andalso tc.haveExpectExit andalso (wantExit <> tc.expectExit)
+    if onlyOwn then
+        for each want as string in tc.expectOut
+            dim as int32 tab_ = instr( want, chr( 9 ) )
+            if left( want, tab_ - 1 ) <> tgt then continue for
+            if instr( outText, mid( want, tab_ + 1 ) ) = 0 then
+                why = "output does not contain: " & mid( want, tab_ + 1 )
+                return false
+            end if
+        next
+        return true
     end if
 
     '' THE RUN LANE checks the PROGRAM: the compile's own messages (a cache hit, a

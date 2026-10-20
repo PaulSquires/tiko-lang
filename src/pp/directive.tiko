@@ -1234,39 +1234,65 @@ private sub PpDefineBuiltins( byref e as PpEngine )
 
     '' Target. From the TARGET, not from an '#ifdef' at tiko-lang's own compile time, which
     '' is what made '-target linux-x86_64' produce a Windows environment.
-    dim as boolean onWindows = true
-    dim as boolean on64 = true
+    dim as TargetOsKind os_ = OS_WINDOWS
+    dim as TargetArchKind arch_ = ARCH_X86_64
     if e.cfg <> nullptr then
-        onWindows = e.cfg->targetIsWindows
-        on64 = e.cfg->targetIs64
+        os_ = e.cfg->targetOs
+        arch_ = e.cfg->targetArch
     end if
     '' EMPTY-BODIED, like __FB_64BIT__ below and for the same measured reason:
     '' '#if __FB_WIN32__' is error 9 "Expected expression" in fbc, not a true branch.
-    if onWindows then
+    ''
+    '' THE OS, AS fbc-modern SPELLS IT, measured with '#print' under -target
+    '' win64 / linux-x86_64 / darwin-aarch64: __FB_<target>__, then __FB_UNIX__ for a
+    '' Unix and __FB_PCOS__ for anything else. "PC OS" is DOS and Windows: tiko-lang
+    '' once defined it everywhere, so a Linux build took the Windows half of every
+    '' '#ifdef __FB_PCOS__' (T96).
+    ''
+    '' tiko's own spellings of the same facts sit beside the legacy ones rather than in
+    '' place of them. Bodied "1", as __TIKO_COMPILER__ is, so '#ifdef' and '#if' both
+    '' work -- they are tiko's, and no fbc header tests them.
+    select case os_
+    case OS_WINDOWS
         PpDefineValue( e, "__FB_WIN32__", "" )
-        '' "PC OS" is DOS and Windows: fbc-modern defines it there and NOT on Linux,
-        '' measured. tiko-lang defined it everywhere, so a Linux build took the Windows
-        '' half of every '#ifdef __FB_PCOS__' (T96).
         PpDefineValue( e, "__FB_PCOS__", "" )
-    else
+        PpDefineValue( e, "TIKO_OS_WINDOWS", "1" )
+    case OS_LINUX
         PpDefineValue( e, "__FB_LINUX__", "" )
         PpDefineValue( e, "__FB_UNIX__", "" )
-    end if
-    '' tiko's own spellings of the same facts, beside the legacy ones rather than in
-    '' place of them. Bodied "1", as __TIKO_COMPILER__ is, so '#ifdef' and '#if' both
-    '' work -- they are tiko's, and no fbc header tests them. TIKO_OS_MACOS and
-    '' TIKO_ARCH_AARCH64 belong here too, once PpConfig carries the OS and CPU of a
-    '' macOS or aarch64 target; every target today is Windows or Linux on x86-64.
-    PpDefineValue( e, iif( onWindows, "TIKO_OS_WINDOWS", "TIKO_OS_LINUX" ), "1" )
-    PpDefineValue( e, "TIKO_ARCH_X86_64", "1" )
+        PpDefineValue( e, "TIKO_OS_LINUX", "1" )
+    case OS_DARWIN
+        PpDefineValue( e, "__FB_DARWIN__", "" )
+        PpDefineValue( e, "__FB_UNIX__", "" )
+        PpDefineValue( e, "TIKO_OS_MACOS", "1" )
+    case else
+        TargetIce( "pp predefines (os)", os_ )
+    end select
 
+    '' THE INSTRUCTION SET, empty-bodied like the rest of this group. fbc defines
+    '' __FB_X86__ on x86 and x86-64 alike -- 11 corpus references, every one an '#ifdef'
+    '' or a 'defined( )', and tiko-lang once defined it NOWHERE, so all eleven took the
+    '' wrong branch -- and __FB_ASM__ beside it, the inline-assembler dialect, which no
+    '' ARM target has. On aarch64 it defines __FB_ARM__ instead, and neither of those
+    '' (measured, fbc-modern -target darwin-aarch64).
+    ''
     '' DEFINED AND EMPTY on a 64-bit target, and NOT DEFINED AT ALL on a 32-bit one.
     '' Measured: fbc errors on '#if __FB_64BIT__' -- "Expected expression" -- because
     '' the macro has no body, and the corpus agrees, testing it with #ifdef, #ifndef or
-    '' defined() in all 208 places it appears and never with #if.
-    if on64 then
-        PpDefineValue( e, "__FB_64BIT__", "" )
-    end if
+    '' defined() in all 208 places it appears and never with #if. Both architectures
+    '' tiko has are 64-bit.
+    select case arch_
+    case ARCH_X86_64
+        PpDefineValue( e, "__FB_X86__", "" )
+        PpDefineValue( e, "__FB_ASM__", """intel""" )
+        PpDefineValue( e, "TIKO_ARCH_X86_64", "1" )
+    case ARCH_ARM64
+        PpDefineValue( e, "__FB_ARM__", "" )
+        PpDefineValue( e, "TIKO_ARCH_ARM64", "1" )
+    case else
+        TargetIce( "pp predefines (arch)", arch_ )
+    end select
+    PpDefineValue( e, "__FB_64BIT__", "" )
 
     '' __FB_MSVC__ -- EMPTY-BODIED, and defined only on the MSVC-ABI target.
     ''
@@ -1286,11 +1312,6 @@ private sub PpDefineBuiltins( byref e as PpEngine )
         if e.cfg->targetIsMsvc then PpDefineValue( e, "__FB_MSVC__", "" )
     end if
 
-    '' The instruction set, empty-bodied like the rest of this group. fbc defines it
-    '' on x86 and x86-64 alike; 11 corpus references, every one an '#ifdef' or a
-    '' 'defined( )', and tiko-lang defined it NOWHERE -- so all eleven took the wrong branch.
-    PpDefineValue( e, "__FB_X86__", "" )
-
     '' Everything tiko-lang is not is NOT DEFINED AT ALL.
     ''
     '' They used to be defined and zero, on the reasoning that the corpus writes
@@ -1299,7 +1320,8 @@ private sub PpDefineBuiltins( byref e as PpEngine )
     '' __FB_XBOX__ and __FB_SSE__ in the corpus, the number written as a bare '#if'
     '' is ZERO -- every one is '#ifdef', '#ifndef' or 'defined( )'. Defining them at
     '' all inverted all 43, silently, in the direction that compiles the wrong half
-    '' of a platform test. fbc defines none of them on this target.
+    '' of a platform test. fbc defines none of them by default (__FB_ARM__ only on
+    '' an ARM target, above).
     '' -1 UNDER '-mt', 0 OTHERWISE, which is fbc's spelling of a true boolean and
     '' was measured rather than assumed: '#print __FB_MT__' emits 0 without the
     '' flag and -1 with it. Note it is DEFINED either way, so '#ifdef __FB_MT__' is
@@ -1332,11 +1354,12 @@ private sub PpDefineBuiltins( byref e as PpEngine )
     PpDefineValue( e, "__FB_GCC__", "0" )
     '' STRINGS, not numbers. The corpus writes '#if __FB_FPMODE__ = "fast"' and
     '' '#if __FB_FPMODE__ <> "fast"' -- comparing those against 0 is not false, it is
-    '' meaningless, and six files depend on the answer. Measured from fbc on this
-    '' target: FPMODE "precise", FPU "x87", ASM "intel".
+    '' meaningless, and six files depend on the answer. Measured from fbc: FPMODE
+    '' "precise" and FPU "x87" -- ON EVERY TARGET, darwin-aarch64 included. fbc's FPU type
+    '' is a global default (FB_DEFAULT_FPUTYPE) that only '-fpu' changes, never the
+    '' target, and tiko has no '-fpu'. __FB_ASM__ ("intel") is x86's alone, above.
     PpDefineValue( e, "__FB_FPU__", """x87""" )
     PpDefineValue( e, "__FB_FPMODE__", """precise""" )
-    PpDefineValue( e, "__FB_ASM__", """intel""" )
     PpDefineValue( e, "__FB_OPTION_BYVAL__", "0" )
     PpDefineValue( e, "__FB_OPTION_DYNAMIC__", "0" )
     PpDefineValue( e, "__FB_OPTION_ESCAPE__", "0" )
@@ -1357,16 +1380,13 @@ private sub PpDefineBuiltins( byref e as PpEngine )
     if len( e.cfg->moduleChain ) > 0 then PpDefineValue( e, "__TKO_MODULE__", """" & e.cfg->moduleChain & """" )
 
     '' The BYTE/WORD extractors. Bodies copied from 'fbc -pp', which prints them
-    '' verbatim; HIWORD is the one that differs by target, because on win32 the
-    '' &hFFFF0000 mask is redundant once the shift has run and fbc omits it.
+    '' verbatim; HIWORD is the one that differed by target, because on win32 the
+    '' &hFFFF0000 mask is redundant once the shift has run and fbc omits it. Every
+    '' architecture tiko has is 64-bit, so it is the 64-bit body.
     PpDefineFunc1( e, "lobyte", "(cuint(x) and &h000000FF)" )
     PpDefineFunc1( e, "hibyte", "((cuint(x) and &h0000FF00) shr 8)" )
     PpDefineFunc1( e, "loword", "(cuint(x) and &h0000FFFF)" )
-    if on64 then
-        PpDefineFunc1( e, "hiword", "((cuint(x) and &hFFFF0000) shr 16)" )
-    else
-        PpDefineFunc1( e, "hiword", "(cuint(x) shr 16)" )
-    end if
+    PpDefineFunc1( e, "hiword", "((cuint(x) and &hFFFF0000) shr 16)" )
 
     '' TRUE AND FALSE ARE DEFINED TO THE PREPROCESSOR. Measured on fbc 1.10 and
     '' fbc-modern: '#ifdef TRUE' and '#ifdef FALSE' both take the true branch, and

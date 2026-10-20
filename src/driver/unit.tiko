@@ -482,6 +482,17 @@ function CompileUnit _
         '' void slot IS the declined declaration, and the message the user
         '' needs is the one above it.
         if FrontendFailed_( ctx ) then doCodegen = false
+        '' THE ABI PASS REFUSED: a by-value aggregate on a target with no classifier yet
+        '' (macos-arm64 until AAPCS64 lands). No code is produced -- SysV's answer would link
+        '' and then pass the wrong registers. '--dump-ir' alone produces none anyway, and
+        '' shows the MIR as lowering left it, saying so in its summary line.
+        if doCodegen andalso (abist.refused > 0) then
+            ctx.diags.ReportGlobal( Tko.TKO0992, "an aggregate passed or returned by value on " & _
+                Tko.TargetName( ctx.options.target ) & " (" & abist.refusedWhat & _
+                "): its calling convention, AAPCS64, is not implemented yet" )
+            ctx.diags.Flush( )
+            doCodegen = false
+        end if
         '' THE VERIFIER RUNS BEFORE THE EMITTER, and a module it rejects, or one with a
         '' statement lowering declined, is NOT BUILT. Both used to be reported after the
         '' object and the link already existed -- a verify failure on stderr, a decline as
@@ -678,6 +689,11 @@ function CompileUnit _
         '' worth reading even though it is not itself a failure.
         if lst.blocksRepaired > 0 then
             sum_ += ", " & str( lst.blocksRepaired ) & " blocks repaired"
+        end if
+        '' ...and when the ABI pass refused the module (see above): the dump is pre-ABI.
+        if abist.refused > 0 then
+            sum_ += ", ABI NOT APPLIED (" & str( abist.refused ) & _
+                    " by-value aggregate signatures, no classifier for this target)"
         end if
         '' THE WHOLE REPORT IS SUPPRESSED UNDER '--emit-ir', not just the
         '' summary line: stdout is a .ll file and EVERY line of this is a

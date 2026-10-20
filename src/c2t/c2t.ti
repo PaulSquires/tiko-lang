@@ -137,6 +137,9 @@ end type
 type C2tPassOut
     as string triple
     as boolean isWindows
+    '' Which of the translated targets this pass is (Tko.TargetOsKind); isWindows is its
+    '' 'osKind = OS_WINDOWS', kept for the readers that ask only that.
+    as int32 osKind
     as int32 extraNo               '' 0 the base pass; k for the k-th --pass
     as string extra                '' that --pass's clang arguments
     '' The name a guard over this pass says, when it is not the --pass's own define: the
@@ -166,6 +169,10 @@ type C2tOptions
     undefs as Tko.StrVec       '' -U
     passArgs as Tko.StrVec     '' --pass, each one string of clang arguments
     as string sysroot          '' --sysroot: the Linux passes' system headers, from a Windows host
+    '' --macos-sysroot: the macOS SDK. Given, a THIRD target is translated, macos-arm64 with
+    '' '-isysroot' (docs/tiko-macos RFC-0001 section 5); absent, the two passes are as they
+    '' were. Opt-in because the SDK exists only on a Mac, and its headers never leave it.
+    as string macSysroot
     '' --shared-macro NAME (D25): the library's shared-build macro, USE_LIBTYPE_SHARED. A pass
     '' is made with it defined, and whatever it changes -- an 'extern import' variable -- is
     '' guarded by TIKO_LINK_DYNAMIC, the link mode an '#import ... link dynamic' defines.

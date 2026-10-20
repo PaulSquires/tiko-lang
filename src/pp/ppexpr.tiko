@@ -64,6 +64,16 @@ private function StrTokenIsEscaped_ _
     return ((*e.lits)[li].strKind = cast( uint8, STRK_ESCAPED ))
 end function
 
+'' WHETHER INTEGER IS 64 BITS WIDE on the target: every architecture tiko has is, and an
+'' unknown one is a compiler bug rather than a 32-bit guess.
+private function PxIs64_( byref x as PpExprState ) as boolean
+    select case x.e->cfg->targetArch
+    case ARCH_X86_64, ARCH_ARM64 : return true
+    end select
+    TargetIce( "pp integer width", x.e->cfg->targetArch )
+    return true
+end function
+
 private function PxPeek( byref x as PpExprState ) as TokenKind
     if x.pos >= x.toks->Count then return TK_EOF
     return cast( TokenKind, x.toks->At( x.pos ).kind )
@@ -144,7 +154,7 @@ end function
 private function PxIntLit_( byref x as PpExprState, byval v as int64, byval sf as NumSuffix, byval dec as boolean ) as PpValue
     '' THE LITERAL MODEL (lexer/littype.tiko) -- the one Check types the literal by, so '#if' and code
     '' cannot disagree about a literal's type.
-    dim as boolean is64 = x.e->cfg->targetIs64
+    dim as boolean is64 = PxIs64_( x )
     dim as int32 lc = LiteralClassOf( sf, iif( dec, 10, 16 ), cast( uint64, v ), false, is64 )
     select case lc
     case LC_LONG     : return PxNum( cast( int32, v ) )
@@ -780,12 +790,12 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
         end if
         select case k
         case KW_CINT
-            if x.e->cfg->targetIs64 then return PxNum( ci )
+            if PxIs64_( x ) then return PxNum( ci )
             return PxNum( cast( int32, ci ) )
         case KW_CLNG      : return PxNum( cast( int32, ci ) )
         case KW_CLNGINT   : return PxNum( ci )
         case KW_CUINT
-            if x.e->cfg->targetIs64 then return PxNumU( ci, true )
+            if PxIs64_( x ) then return PxNumU( ci, true )
             return PxNum( cast( int64, cast( uint32, ci ) ) )
         case KW_CULNG     : return PxNum( cast( int64, cast( uint32, ci ) ) )
         case KW_CULNGINT  : return PxNumU( ci, true )
@@ -839,7 +849,7 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
         dim as TokenKind inner = PxPeek( x )
         dim as int32 v = -1
         if k = KW_SIZEOF then
-            v = BuiltinSizeOf( inner, x.e->cfg->targetIs64 )
+            v = BuiltinSizeOf( inner, PxIs64_( x ) )
         else
             v = TypeIdentityOf( inner )
         end if

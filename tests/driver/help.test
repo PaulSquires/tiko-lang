@@ -4,7 +4,7 @@
 '' EXPECT-OUT: usage: tiko [options] <inputs...>
 '' EXPECT-OUT: Subcommands:
 '' EXPECT-OUT: tiko build    build the targets of tiko.toml
-'' EXPECT-OUT: windows-x86_64 (the Windows default) or linux-x86_64
+'' EXPECT-OUT: windows-x86_64 (the Windows default), linux-x86_64 or macos-arm64
 '' EXPECT-NOT: RESUME support
 '' EXPECT-OUT: Diagnostics:
 '' EXPECT-OUT: --diagnostics-file <path>

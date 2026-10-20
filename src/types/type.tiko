@@ -97,19 +97,38 @@ end function
 '' '-target win64' still selects the MinGW ABI, and the toolchain still ships
 '' lib/win64 and lib/win64-fb for it.
 function HostTarget( ) as TargetId
-    #ifdef __FB_WIN32__
+    #if defined( __FB_WIN32__ )
         return TARGET_WINDOWS_X86_64
-    #else
+    #elseif defined( __FB_DARWIN__ )
+        return TARGET_MACOS_ARM64
+    #elseif defined( __FB_LINUX__ )
         return TARGET_LINUX_X86_64
+    #else
+        #error "HostTarget: a host with no tiko target"
     #endif
 end function
 
+'' EVERY SELECT OVER TARGETS ENDS HERE when it meets one it does not know. It used to end
+'' in a Windows default -- TargetIsWindows was 't <> TARGET_LINUX_X86_64' -- so a third
+'' target would have compiled as Windows wherever nobody had thought of it yet. stderr,
+'' because stdout may be carrying '--emit-ir'.
+sub TargetIce( byref where as string, byval t as int32 )
+    dim as int32 fh = freefile
+    open err for output as #fh
+    print #fh, "tiko: internal compiler error: " & where & ": no case for target " & str( t )
+    close #fh
+    end EXIT_ICE
+end sub
+
 function TargetName( byval t as TargetId ) as string
     select case t
+    case TARGET_WIN64           : return "win64"
     case TARGET_LINUX_X86_64    : return "linux-x86_64"
     case TARGET_WINDOWS_X86_64  : return "windows-x86_64"
+    case TARGET_MACOS_ARM64     : return "macos-arm64"
     end select
-    return "win64"
+    TargetIce( "TargetName", t )
+    return ""
 end function
 
 function TargetFromName( byval nm as string, byref ok as boolean ) as TargetId
@@ -118,6 +137,7 @@ function TargetFromName( byval nm as string, byref ok as boolean ) as TargetId
     if s = "win64" then return TARGET_WIN64
     if s = "windows-x86_64" then return TARGET_WINDOWS_X86_64
     if s = "linux-x86_64" then return TARGET_LINUX_X86_64
+    if s = "macos-arm64" then return TARGET_MACOS_ARM64
     ok = false
     return HostTarget( )
 end function
@@ -130,8 +150,27 @@ function TargetIs64( byval t as TargetId ) as boolean
     return true
 end function
 
+function TargetOs( byval t as TargetId ) as TargetOsKind
+    select case t
+    case TARGET_WIN64, TARGET_WINDOWS_X86_64 : return OS_WINDOWS
+    case TARGET_LINUX_X86_64                 : return OS_LINUX
+    case TARGET_MACOS_ARM64                  : return OS_DARWIN
+    end select
+    TargetIce( "TargetOs", t )
+    return OS_WINDOWS
+end function
+
+function TargetArch( byval t as TargetId ) as TargetArchKind
+    select case t
+    case TARGET_WIN64, TARGET_WINDOWS_X86_64, TARGET_LINUX_X86_64 : return ARCH_X86_64
+    case TARGET_MACOS_ARM64                                       : return ARCH_ARM64
+    end select
+    TargetIce( "TargetArch", t )
+    return ARCH_X86_64
+end function
+
 function TargetIsWindows( byval t as TargetId ) as boolean
-    return t <> TARGET_LINUX_X86_64
+    return TargetOs( t ) = OS_WINDOWS
 end function
 
 '' MEASURED PER TARGET rather than derived from the pointer width. That mattered
@@ -142,6 +181,7 @@ end function
 function TargetLayoutFor( byval t as TargetId ) as TargetLayout
     dim as TargetLayout r
     r.maxAlign = 8
+    r.charSigned = true
     select case t
     case TARGET_LINUX_X86_64
         r.pointerBits = 64
@@ -151,17 +191,34 @@ function TargetLayoutFor( byval t as TargetId ) as TargetLayout
         '' The SysV register-save record, not a pointer: 24 bytes, 8-aligned.
         r.cvaListBytes = 24
         r.cvaListAlign = 8
-        r.isWindows = false
-    case else                   '' TARGET_WIN64
+        r.cvaListIsPointer = false
+    case TARGET_WIN64, TARGET_WINDOWS_X86_64
         r.pointerBits = 64
         r.wcharBytes = 2
         r.stringBytes = 24      '' FBSTRING: data ptr + len + size
         r.stringAlign = 8
         r.cvaListBytes = 8
         r.cvaListAlign = 8
-        r.isWindows = true
+        r.cvaListIsPointer = true
         r.isMsvc = (t = TARGET_WINDOWS_X86_64)
+    case TARGET_MACOS_ARM64
+        '' FROM CLANG FOR 'arm64-apple-macosx13.0' (-dM -E and -emit-llvm, clang 21): an
+        '' LP64 machine with a 4-byte wchar_t, a 'char *' va_list (Apple's, not AAPCS64's
+        '' 32-byte record), a signed plain char and a long double that is a double. The
+        '' FBSTRING descriptor is three pointer-sized words, as on the other two.
+        r.pointerBits = 64
+        r.wcharBytes = 4
+        r.stringBytes = 24
+        r.stringAlign = 8
+        r.cvaListBytes = 8
+        r.cvaListAlign = 8
+        r.cvaListIsPointer = true
+    case else
+        TargetIce( "TargetLayoutFor", t )
     end select
+    r.osKind = TargetOs( t )
+    r.arch = TargetArch( t )
+    r.isWindows = (r.osKind = OS_WINDOWS)
     return r
 end function
 

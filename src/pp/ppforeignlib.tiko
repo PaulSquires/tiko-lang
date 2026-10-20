@@ -15,35 +15,50 @@
 ''
 '' with the extensions the kind and target allow. An axis with no tag drops the
 '' variants that would need it rather than inventing a spelling.
+'' The tags are the OS and arch halves of the target's name, so 'stem_macos_arm64' is what a
+'' library built for macos-arm64 is called, as 'stem_linux_x86_64' is for linux-x86_64.
 private function ForeignLibOsTag_( byref e as PpEngine ) as string
-    if e.cfg->targetIsWindows then return "windows"
-    return "linux"
+    select case e.cfg->targetOs
+    case OS_WINDOWS : return "windows"
+    case OS_LINUX   : return "linux"
+    case OS_DARWIN  : return "macos"
+    end select
+    TargetIce( "ForeignLibOsTag_", e.cfg->targetOs )
+    return ""
 end function
 
-'' x86-64 IS THE ONLY ARCHITECTURE (D14), so this is not a choice today. It stays a
-'' function because the variant list is built around an axis that CAN be empty, and
-'' an ARM64 target would fill this in rather than rewrite the loop.
+'' It stays a function because the variant list is built around an axis that CAN be
+'' empty: every target has one today.
 private function ForeignLibArchTag_( byref e as PpEngine ) as string
-    if e.cfg->targetIs64 then return "x86_64"
-    return "x86"
+    select case e.cfg->targetArch
+    case ARCH_X86_64 : return "x86_64"
+    case ARCH_ARM64  : return "arm64"
+    end select
+    TargetIce( "ForeignLibArchTag_", e.cfg->targetArch )
+    return ""
 end function
 
 '' STATIC prefers an archive, DYNAMIC an import library. Windows gets '.lib' in
-'' both: it is the MSVC spelling of each.
+'' both: it is the MSVC spelling of each. A Darwin shared library is a '.dylib'.
 private sub ForeignLibExts_ _
     ( byref e as PpEngine, byval isStatic as boolean, byref outp as StrVec )
     if isStatic then
         outp.Push( ".a" )
-        if e.cfg->targetIsWindows then outp.Push( ".lib" )
-    else
-        if e.cfg->targetIsWindows then
-            outp.Push( ".dll.a" )
-            outp.Push( ".lib" )
-            outp.Push( ".dll" )
-        else
-            outp.Push( ".so" )
-        end if
+        if e.cfg->targetOs = OS_WINDOWS then outp.Push( ".lib" )
+        return
     end if
+    select case e.cfg->targetOs
+    case OS_WINDOWS
+        outp.Push( ".dll.a" )
+        outp.Push( ".lib" )
+        outp.Push( ".dll" )
+    case OS_LINUX
+        outp.Push( ".so" )
+    case OS_DARWIN
+        outp.Push( ".dylib" )
+    case else
+        TargetIce( "ForeignLibExts_", e.cfg->targetOs )
+    end select
 end sub
 
 '' One spec to a file on disk, or "" if nothing matched. 'tried' collects every

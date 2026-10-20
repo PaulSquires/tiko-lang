@@ -52,9 +52,17 @@ private function StructorSection_ _
         return iif( isCtor, ".init_array.", ".fini_array." ) & right( "0000" & str( prio ), 5 )
     case Tko.TARGET_WIN64
         return iif( isCtor, ".ctors.", ".dtors." ) & right( "0000" & str( 65535 - prio ), 5 )
-    case else
+    case Tko.TARGET_WINDOWS_X86_64
         return iif( isCtor, ".CRT$XCV", ".CRT$XTY" ) & right( "0000" & str( 65535 - prio ), 5 )
+    case Tko.TARGET_MACOS_ARM64
+        '' PROVISIONAL (docs/tiko-macos M2). Mach-O has one initialiser section per image
+        '' and no number to sort by, so the priority is DROPPED here; whether ld64 keeps
+        '' input order, or a generated init chain has to carry it, is M2's measurement.
+        '' The spelling is the one clang accepts for a Mach-O section.
+        return iif( isCtor, "__DATA,__mod_init_func,mod_init_funcs", "__DATA,__mod_term_func,mod_term_funcs" )
     end select
+    Tko.TargetIce( "StructorSection_", e.tgt->id )
+    return ""
 end function
 
 '' MODULE INITIALISATION (ADR 0017; RFC-0006 §2-3), and why it sits where it does.

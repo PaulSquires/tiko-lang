@@ -8,10 +8,10 @@
 '' -- with the extensions the kind and target allow. "system:name" resolves nothing
 '' and is handed to the linker as a bare name.
 ''
-'' THE VARIANT ORDER IS WHAT THIS PINS. src/vendor holds probe_windows_x86_64.a AND
-'' probe_linux_x86_64.a, so a build that ignored the os tag, or took the plain stem,
-'' or picked by directory order, would resolve to the wrong file or to none -- and
-'' the test runs for both targets, so each has to choose its own.
+'' THE VARIANT ORDER IS WHAT THIS PINS. src/vendor holds probe_windows_x86_64.a,
+'' probe_linux_x86_64.a AND probe_macos_arm64.a, so a build that ignored the os tag, or
+'' took the plain stem, or picked by directory order, would resolve to the wrong file or
+'' to none -- and the test runs for every target, so each has to choose its own.
 '' TEST: cli
 '' ARGS: --parse-only %s
 '' EXPECT-EXIT: 0
