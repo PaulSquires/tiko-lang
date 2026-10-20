@@ -354,6 +354,11 @@ extern "c"   '' NON-FBCALL: libc, not rtlib entry points.
 	declare sub u_tzset alias "tzset" ( )
 	declare function u_strftime alias "strftime" _
 		( byval s as zstring ptr, byval maxs as uinteger, byval fmt as zstring ptr, byval tmv as tm_ ptr ) as uinteger
+	declare function u_strftime_l alias "strftime_l" _
+		( byval s as zstring ptr, byval maxs as uinteger, byval fmt as zstring ptr, byval tmv as tm_ ptr, byval l as any ptr ) as uinteger
+	declare function u_newlocale alias "newlocale" _
+		( byval mask as int32, byval lname as zstring ptr, byval base_ as any ptr ) as any ptr
+	declare sub u_freelocale alias "freelocale" ( byval l as any ptr )
 	'' tzname is DATA, not a function: two char pointers set by tzset.
 	'' Wrapped in a one-member TYPE because an EXTERN declaration cannot
 	'' carry array bounds -- the same restriction that made utf/core.tiko wrap
@@ -462,8 +467,28 @@ private sub hFillTm( byval ticks as int64, byval tmv as tm_ ptr )
 	tmv->tm_zone = nullptr
 end sub
 
-'' strftime with "%x"/"%X" rather than nl_langinfo: the langinfo path needs
-'' another header for the same locale-driven answer. The LONG style is spelled
+'' glibc's LC_TIME is category 2, so its mask is 1 shl 2 (measured).
+const U_LC_TIME_MASK = 4
+
+'' THE USER'S LOCALE, NOT THE PROCESS'S. Nothing calls setlocale, so plain
+'' strftime runs in the C locale and always says "March". setlocale would fix
+'' that for the whole process -- and break snprintf-based number formatting,
+'' which expects ".". A private LC_TIME locale built from "" (LC_ALL, then
+'' LC_TIME, then LANG) is read fresh on every call, so it follows the
+'' environment, and is UTF-8 for a UTF-8 locale without LC_CTYPE. A locale
+'' that has not been generated gives NULL, and the C locale stands.
+private function hStrftime( byval buf as zstring ptr, byval buflen as int32, _
+	byval fmt as zstring ptr, byval tmv as tm_ ptr ) as int32
+	dim as any ptr l = u_newlocale( U_LC_TIME_MASK, @"", nullptr )
+	dim as int32 n = any
+	if( l = nullptr ) then return cast( int32, u_strftime( buf, buflen, fmt, tmv ) )
+	n = cast( int32, u_strftime_l( buf, buflen, fmt, tmv, l ) )
+	u_freelocale( l )
+	return n
+end function
+
+'' strftime_l with "%x"/"%X" rather than nl_langinfo_l: the same locale-driven
+'' answer, with the formatting done for us. The LONG style is spelled
 '' out because no locale item corresponds to it.
 function tkort_DtLocaleDateString alias "fb_DtLocaleDateString" _
 	( byval ticks as int64, byval style as int32, byval buf as zstring ptr, byval buflen as int32 ) as int32
@@ -474,9 +499,9 @@ function tkort_DtLocaleDateString alias "fb_DtLocaleDateString" _
 	if( tkrt_DtIsValidTicks( ticks ) = 0 ) then return 0
 	hFillTm( ticks, @tmv )
 	if( style = DT_ZONE_STYLE_SHORT ) then
-		return cast( int32, u_strftime( buf, buflen, @"%x", @tmv ) )
+		return hStrftime( buf, buflen, @"%x", @tmv )
 	end if
-	return cast( int32, u_strftime( buf, buflen, @"%A %d %B %Y", @tmv ) )
+	return hStrftime( buf, buflen, @"%A %d %B %Y", @tmv )
 end function
 
 function tkort_DtLocaleTimeString alias "fb_DtLocaleTimeString" _
@@ -490,9 +515,9 @@ function tkort_DtLocaleTimeString alias "fb_DtLocaleTimeString" _
 	'' SHORT drops the seconds with an explicit format, because no locale
 	'' item means "without seconds".
 	if( style = DT_ZONE_STYLE_SHORT ) then
-		return cast( int32, u_strftime( buf, buflen, @"%H:%M", @tmv ) )
+		return hStrftime( buf, buflen, @"%H:%M", @tmv )
 	end if
-	return cast( int32, u_strftime( buf, buflen, @"%X", @tmv ) )
+	return hStrftime( buf, buflen, @"%X", @tmv )
 end function
 
 function tkort_DtLocaleMonthName alias "fb_DtLocaleMonthName" _
@@ -506,9 +531,9 @@ function tkort_DtLocaleMonthName alias "fb_DtLocaleMonthName" _
 	tmv.tm_mon = mo - 1
 	tmv.tm_mday = 1
 	if( abbreviated <> 0 ) then
-		return cast( int32, u_strftime( buf, buflen, @"%b", @tmv ) )
+		return hStrftime( buf, buflen, @"%b", @tmv )
 	end if
-	return cast( int32, u_strftime( buf, buflen, @"%B", @tmv ) )
+	return hStrftime( buf, buflen, @"%B", @tmv )
 end function
 
 '' THE CONVERSION WINDOWS DOES NOT NEED: this library is ISO 1 = Monday and
@@ -523,9 +548,9 @@ function tkort_DtLocaleWeekdayName alias "fb_DtLocaleWeekdayName" _
 	hFillTm( FB_DT_TICKS_PER_DAY, @tmv )
 	tmv.tm_wday = dow mod 7
 	if( abbreviated <> 0 ) then
-		return cast( int32, u_strftime( buf, buflen, @"%a", @tmv ) )
+		return hStrftime( buf, buflen, @"%a", @tmv )
 	end if
-	return cast( int32, u_strftime( buf, buflen, @"%A", @tmv ) )
+	return hStrftime( buf, buflen, @"%A", @tmv )
 end function
 
 function tkort_DtLocaleIsSupported alias "fb_DtLocaleIsSupported" ( ) as int32

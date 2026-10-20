@@ -1,0 +1,85 @@
+'' std/chrono's month and weekday names and ToLocale* output come from the OS locale
+'' (RFC-0007 section 3). On Linux they were the C locale's ("March", "Tuesday") under
+'' every LC_ALL until 2026-10-20: tiko-rt's strftime ran in a process locale nothing
+'' had set. Prints "ok".
+'' Windows: compared with an independent GetLocaleInfoEx read.
+'' Linux: run under LC_ALL=de_DE.UTF-8 and LC_ALL=C, which must differ; run there by
+'' hand, and checks only the C half when de_DE.UTF-8 has not been generated.
+#import "std/chrono"
+using chrono
+
+#ifdef __FB_WIN32__
+extern "Windows"
+    declare function tstGetLocaleInfoEx alias "GetLocaleInfoEx" _
+        ( byval lpLocaleName as const wstring ptr, byval LCType as ulong, _
+          byval lpLCData as wstring ptr, byval cchData as long ) as long
+end extern
+
+'' An independent read of the user's Region settings; NULL = LOCALE_NAME_USER_DEFAULT.
+function tstLocaleText( byval lctype as ulong ) as string
+    dim as wstring * 128 buf
+    if( tstGetLocaleInfoEx( nullptr, lctype, @buf, 128 ) <= 0 ) then return "?"
+    dim as ustring u = buf
+    return u
+end function
+#else
+extern "C"
+    declare function tstNewLocale alias "newlocale" ( byval mask as long, byval lname as const zstring ptr, byval base_ as any ptr ) as any ptr
+    declare sub tstFreeLocale alias "freelocale" ( byval l as any ptr )
+end extern
+#endif
+
+dim shared as long fails = 0
+sub Check( byval cond as boolean, byref what as const string )
+    if( cond = FALSE ) then
+        print "FAIL "; what
+        fails += 1
+    end if
+end sub
+
+'' Tuesday 4 March 2025
+dim as DateTime d = DateTime( 2025, 3, 4, 14, 30, 5, 0 )
+
+#ifdef __FB_WIN32__
+'' LOCALE_SMONTHNAME1 = &h38, LOCALE_SABBREVMONTHNAME1 = &h44, LOCALE_SDAYNAME1 = &h2A
+'' (Monday), LOCALE_SABBREVDAYNAME1 = &h31
+Check( DateTime.MonthName( 3 ) = tstLocaleText( &h3A ), "MonthName = LOCALE_SMONTHNAME3" )
+Check( DateTime.MonthName( 3, true ) = tstLocaleText( &h46 ), "abbreviated = LOCALE_SABBREVMONTHNAME3" )
+Check( DateTime.WeekdayName( 2 ) = tstLocaleText( &h2B ), "WeekdayName = LOCALE_SDAYNAME2" )
+Check( DateTime.WeekdayName( 2, true ) = tstLocaleText( &h32 ), "abbreviated = LOCALE_SABBREVDAYNAME2" )
+#else
+'' putenv keeps the pointer, so the strings must outlive the call
+static as string envDe, envC, envBack
+dim as string was = environ( "LC_ALL" )
+
+envC = "LC_ALL=C"
+setenviron envC
+dim as string cMonth = DateTime.MonthName( 3 )
+dim as string cDay = DateTime.WeekdayName( 2 )
+Check( cMonth = "March", "C month" )
+Check( cDay = "Tuesday", "C weekday" )
+Check( d.ToLocaleDateString( lsShort ) = "03/04/25", "C short date" )
+
+'' glibc LC_TIME_MASK = 4. A locale that has not been generated gives NULL.
+envDe = "LC_ALL=de_DE.UTF-8"
+setenviron envDe
+dim as any ptr l = tstNewLocale( 4, "", nullptr )
+if( l <> nullptr ) then
+    tstFreeLocale( l )
+    Check( DateTime.MonthName( 3 ) = "M" + chr( &hC3, &hA4 ) + "rz", "de month" )
+    Check( DateTime.MonthName( 3, true ) = "M" + chr( &hC3, &hA4 ) + "r", "de abbreviated month" )
+    Check( DateTime.WeekdayName( 2 ) = "Dienstag", "de weekday" )
+    Check( DateTime.WeekdayName( 2, true ) = "Di", "de abbreviated weekday" )
+    Check( DateTime.WeekdayName( 7 ) = "Sonntag", "de Sunday" )
+    Check( d.ToLocaleDateString( lsShort ) = "04.03.2025", "de short date" )
+    Check( instr( d.ToLocaleDateString( lsLong ), "Dienstag" ) > 0, "de long date" )
+    Check( DateTime.MonthName( 3 ) <> cMonth, "de differs from C" )
+else
+    print "note: de_DE.UTF-8 not generated, C half only"
+end if
+
+envBack = "LC_ALL=" + was
+setenviron envBack
+#endif
+
+if( fails = 0 ) then print "ok"
