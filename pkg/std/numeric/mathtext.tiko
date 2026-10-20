@@ -1,5 +1,9 @@
 #module "numeric"
 #import "std/outcome"
+#ifdef __FB_UNIX__
+#include once "../../sys/posix/posix.ti"
+using posix
+#endif
 using outcome
 '' std/numeric: mathtext -- numeric text: a parse that can fail, a format that round-trips
 ''
@@ -573,18 +577,15 @@ end function
         dim as ustring u = buf
         return u
     end function
-#else
-    '' glibc values: LC_NUMERIC is category 1, and the nl_items are the ones
-    '' lib/rt/src/dt/intldrv.tiko measured under WSL.
-    const as long numLC_NUMERIC_MASK = 2
-    const as long numNL_RADIXCHAR    = 65536
-    const as long numNL_THOUSEP      = 65537
-
+#elseif defined( __FB_UNIX__ )
+    '' LC_NUMERIC_MASK, RADIXCHAR and THOUSEP are the target's, from sys/posix.
     extern "c"
         declare function numNewLocale_  alias "newlocale"    ( byval mask as long, byval lname as const zstring ptr, byval base_ as any ptr ) as any ptr
         declare sub      numFreeLocale_ alias "freelocale"   ( byval l as any ptr )
         declare function numLangInfoL_  alias "nl_langinfo_l" ( byval item as long, byval l as any ptr ) as zstring ptr
     end extern
+#else
+    #error "std/numeric: no CurrentLocaleFormat backend for this target"
 #endif
 
 public function CurrentLocaleFormat overload ( ) as NumFormat
@@ -599,17 +600,19 @@ public function CurrentLocaleFormat overload ( ) as NumFormat
     #ifdef __FB_WIN32__
         dec = numNlsText_( numLC_SDECIMAL )
         grp = numNlsText_( numLC_STHOUSAND )
-    #else
+    #elseif defined( __FB_UNIX__ )
         '' "" = the environment's LC_ALL / LC_NUMERIC / LANG. A locale that has
         '' not been generated fails here, and the defaults stand.
-        dim as any ptr l = numNewLocale_( numLC_NUMERIC_MASK, "", nullptr )
+        dim as any ptr l = numNewLocale_( LC_NUMERIC_MASK, "", nullptr )
         if( l <> nullptr ) then
-            dim as zstring ptr p = numLangInfoL_( numNL_RADIXCHAR, l )
+            dim as zstring ptr p = numLangInfoL_( RADIXCHAR, l )
             if( p <> nullptr ) then dec = *p
-            p = numLangInfoL_( numNL_THOUSEP, l )
+            p = numLangInfoL_( THOUSEP, l )
             if( p <> nullptr ) then grp = *p
             numFreeLocale_( l )
         end if
+    #else
+        #error "std/numeric: no CurrentLocaleFormat backend for this target"
     #endif
 
     if( len( dec ) > 0 ) then f.decimalSep = dec

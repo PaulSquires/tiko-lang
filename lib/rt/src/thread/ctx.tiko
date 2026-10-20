@@ -27,8 +27,10 @@
 '' process-wide by construction.
 #if defined( ENABLE_MT ) and (defined( __FB_WIN32__ ) or defined( __FB_WIN64__ ))
 	type TKORT_TLSENTRY as uint32          '' a TlsAlloc index
+#elseif defined( ENABLE_MT ) and defined( __FB_UNIX__ )
+	type TKORT_TLSENTRY as pthread_key_t   '' the binding's typedef
 #elseif defined( ENABLE_MT )
-	type TKORT_TLSENTRY as uint32          '' a pthread_key_t
+	#error "thread/ctx: no TLS backend for this target"
 #else
 	type TKORT_TLSENTRY as any ptr        '' the value itself
 #endif
@@ -42,7 +44,7 @@ dim shared as TKORT_TLSENTRY tkort_tls_ctxtb( 0 to FB_TLSKEYS - 1 )
 	#define TKORT_TLSFREE( k )      w_TlsFree( k )
 	#define TKORT_TLSSET( k, v )    w_TlsSetValue( k, v )
 	#define TKORT_TLSGET( k )       w_TlsGetValue( k )
-#elseif defined( ENABLE_MT )
+#elseif defined( ENABLE_MT ) and defined( __FB_UNIX__ )
 	#define TKORT_TLSALLOC( k )     u_pthread_key_create( @(k), nullptr )
 	#define TKORT_TLSFREE( k )      u_pthread_key_delete( k )
 	#define TKORT_TLSSET( k, v )    u_pthread_setspecific( k, v )

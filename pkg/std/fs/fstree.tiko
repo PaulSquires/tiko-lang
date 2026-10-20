@@ -1,6 +1,10 @@
 #module "fs"
 #import "std/outcome"
 #import "std/containers"
+#ifdef __FB_UNIX__
+#include once "../../sys/posix/posix.ti"
+using posix
+#endif
 using outcome
 using containers
 '' std/fs: fstree -- RemoveDirAll on handle-relative primitives
@@ -14,7 +18,7 @@ using containers
 '' PARENT and WITHOUT FOLLOWING a final link, and every deletion is made relative to an
 '' open handle too, so a swapped name can only ever be removed as the link it now is.
 ''
-''   Linux    openat( parent, name, O_DIRECTORY | O_NOFOLLOW ), unlinkat( parent, name )
+''   POSIX    openat( parent, name, O_DIRECTORY | O_NOFOLLOW ), unlinkat( parent, name )
 ''   Windows  NtOpenFile with RootDirectory = the parent handle and FILE_OPEN_REPARSE_POINT;
 ''            a handle that turns out to be a reparse point is deleted as the link it is,
 ''            never listed; deletion is FILE_DISPOSITION_INFO_EX (POSIX semantics, read-only
@@ -292,23 +296,11 @@ public function RemoveDirAll( byref p as const ustring ) as FsResultI64
     return Ok( of longint, FsError )( removed + 1 )
 end function
 
-#else
+#elseif defined( __FB_UNIX__ )
 
-const FBT_O_RDONLY    = &o0
-const FBT_O_DIRECTORY = &o200000
-const FBT_O_NOFOLLOW  = &o400000
-const FBT_O_CLOEXEC   = &o2000000
-const FBT_OPEN_DIR    = FBT_O_RDONLY or FBT_O_DIRECTORY or FBT_O_NOFOLLOW or FBT_O_CLOEXEC
-const FBT_AT_REMOVEDIR = &h200
-const FBT_AT_SYMLINK_NOFOLLOW = &h100
-const FBT_DT_UNKNOWN  = 0
-const FBT_DT_DIR      = 4
-const FBT_S_IFMT      = &o170000
-const FBT_S_IFDIR     = &o040000
-const FBT_ENOENT      = 2
-const FBT_ENOTDIR     = 20
-const FBT_EISDIR      = 21
-const FBT_ELOOP       = 40
+'' O_*, AT_*, DT_*, S_IF*, E* and struct_stat/struct_dirent are sys/posix's; errno is
+'' fslinux.tiko's hErrno.
+const FBT_OPEN_DIR    = O_RDONLY or O_DIRECTORY or O_NOFOLLOW or O_CLOEXEC
 
 extern "C"
     declare function fbt_open alias "open" ( byval p as const zstring ptr, byval flags as long, ... ) as long
@@ -316,12 +308,11 @@ extern "C"
     declare function fbt_close alias "close" ( byval fd as long ) as long
     declare function fbt_dup alias "dup" ( byval fd as long ) as long
     declare function fbt_fdopendir alias "fdopendir" ( byval fd as long ) as any ptr
-    declare function fbt_readdir alias "readdir" ( byval d as any ptr ) as ubyte ptr
+    declare function fbt_readdir alias "readdir" ( byval d as any ptr ) as struct_dirent ptr
     declare function fbt_closedir alias "closedir" ( byval d as any ptr ) as long
     declare function fbt_unlinkat alias "unlinkat" ( byval dirfd as long, byval p as const zstring ptr, byval flags as long ) as long
-    declare function fbt_fstatat alias "fstatat" ( byval dirfd as long, byval p as const zstring ptr, byval st as ubyte ptr, byval flags as long ) as long
+    declare function fbt_fstatat alias "fstatat" ( byval dirfd as long, byval p as const zstring ptr, byval st as struct_stat ptr, byval flags as long ) as long
     declare function fbt_rmdir alias "rmdir" ( byval p as const zstring ptr ) as long
-    declare function fbt_errno_location alias "__errno_location" ( ) as long ptr
 end extern
 
 private function hFail( byref op as const ustring, byref p as const ustring ) as FsError
@@ -339,14 +330,14 @@ private function hRemoveDirAt( byval fd as long, byref name_ as const string, by
         byref removed as longint, byref f as FsError ) as boolean
     dim as long cfd = fbt_openat( fd, strptr( name_ ), FBT_OPEN_DIR )
     if( cfd < 0 ) then
-        dim as long e = *fbt_errno_location( )
-        if( e = FBT_ENOENT ) then return TRUE
-        if( ( e = FBT_ELOOP ) orelse ( e = FBT_ENOTDIR ) ) then
+        dim as long e = hErrno( )
+        if( e = ENOENT ) then return TRUE
+        if( ( e = ELOOP ) orelse ( e = ENOTDIR ) ) then
             if( fbt_unlinkat( fd, strptr( name_ ), 0 ) = 0 ) then
                 removed += 1
                 return TRUE
             end if
-            if( *fbt_errno_location( ) = FBT_ENOENT ) then return TRUE
+            if( hErrno( ) = ENOENT ) then return TRUE
         end if
         f = hFail( "RemoveDirAll", path )
         return FALSE
@@ -354,8 +345,8 @@ private function hRemoveDirAt( byval fd as long, byref name_ as const string, by
     dim as boolean ok_ = hClear( cfd, path, removed, f )
     fbt_close( cfd )
     if( ok_ = FALSE ) then return FALSE
-    if( fbt_unlinkat( fd, strptr( name_ ), FBT_AT_REMOVEDIR ) <> 0 ) then
-        if( *fbt_errno_location( ) = FBT_ENOENT ) then return TRUE
+    if( fbt_unlinkat( fd, strptr( name_ ), AT_REMOVEDIR ) <> 0 ) then
+        if( hErrno( ) = ENOENT ) then return TRUE
         f = hFail( "RemoveDirAll", path )
         return FALSE
     end if
@@ -379,14 +370,13 @@ function hClear( byval fd as long, byref path as const ustring, byref removed as
     dim as Array( of string ) names
     dim as Array( of long ) types
     do
-        '' struct dirent: d_type at offset 18, d_name at 19
-        dim as ubyte ptr e = fbt_readdir( d )
+        dim as struct_dirent ptr e = fbt_readdir( d )
         if( e = nullptr ) then exit do
-        dim as zstring ptr nm = cptr( zstring ptr, e + 19 )
+        dim as zstring ptr nm = @e->d_name
         dim as string s = *nm
         if( ( s = "." ) orelse ( s = ".." ) ) then continue do
         names.Push( s )
-        dim as long ty = e[18]
+        dim as long ty = e->d_type
         types.Push( ty )
     loop
     fbt_closedir( d )
@@ -394,22 +384,22 @@ function hClear( byval fd as long, byref path as const ustring, byref removed as
     for i as long = 0 to names.Count( ) - 1
         dim as ustring child = PathJoin( path, names[i] )
         dim as long t = types[i]
-        if( t = FBT_DT_UNKNOWN ) then
-            dim as ubyte st( 0 to 143 )
-            if( fbt_fstatat( fd, strptr( names[i] ), @st(0), FBT_AT_SYMLINK_NOFOLLOW ) = 0 ) then
-                if( ( *cptr( ulong ptr, @st(24) ) and FBT_S_IFMT ) = FBT_S_IFDIR ) then t = FBT_DT_DIR
+        if( t = DT_UNKNOWN ) then
+            dim as struct_stat st
+            if( fbt_fstatat( fd, strptr( names[i] ), @st, AT_SYMLINK_NOFOLLOW ) = 0 ) then
+                if( ( st.st_mode and S_IFMT ) = S_IFDIR ) then t = DT_DIR
             end if
         end if
-        if( t = FBT_DT_DIR ) then
+        if( t = DT_DIR ) then
             if( hRemoveDirAt( fd, names[i], child, removed, f ) = FALSE ) then return FALSE
         else
             if( fbt_unlinkat( fd, strptr( names[i] ), 0 ) = 0 ) then
                 removed += 1
             else
-                dim as long e = *fbt_errno_location( )
-                if( e = FBT_ENOENT ) then continue for
+                dim as long e = hErrno( )
+                if( e = ENOENT ) then continue for
                 '' swapped for a directory meanwhile: remove it as one
-                if( e = FBT_EISDIR ) then
+                if( e = EISDIR ) then
                     if( hRemoveDirAt( fd, names[i], child, removed, f ) = FALSE ) then return FALSE
                     continue for
                 end if
@@ -426,7 +416,7 @@ public function RemoveDirAll( byref p as const ustring ) as FsResultI64
     dim as long fd = fbt_open( strptr( narrow ), FBT_OPEN_DIR )
     if( fd < 0 ) then
         '' rule 5: p itself a link is refused, and so is a file
-        if( *fbt_errno_location( ) = FBT_ELOOP ) then return FsFail( of longint )( FS_NOT_A_DIRECTORY, "RemoveDirAll", p )
+        if( hErrno( ) = ELOOP ) then return FsFail( of longint )( FS_NOT_A_DIRECTORY, "RemoveDirAll", p )
         return Fail( of longint, FsError )( hFail( "RemoveDirAll", p ) )
     end if
     dim as longint removed = 0
@@ -438,4 +428,6 @@ public function RemoveDirAll( byref p as const ustring ) as FsResultI64
     return Ok( of longint, FsError )( removed + 1 )
 end function
 
+#else
+    #error "fs/fstree: no backend for this target"
 #endif

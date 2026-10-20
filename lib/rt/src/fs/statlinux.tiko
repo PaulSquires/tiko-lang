@@ -1,0 +1,41 @@
+'' statlinux.tiko -- fs/stat's birth time on Linux: statx( STATX_BTIME ).
+''
+'' #INCLUDED by fs/stat.tiko's POSIX branch, never compiled on its own and not in
+'' build/sources.txt. It provides one private procedure,
+''
+''     hTryBirthTime( byval path_ as zstring ptr, byval follow as int32,
+''                    byval out_ as FB_FSINFO ptr )
+''
+'' which sets out_->ctime and FB_FSFLAG_HAS_CTIME when the OS can supply the
+'' birth time of path_ (lstat semantics when follow = 0) and leaves both alone
+'' otherwise. It may use hUnixToTicks from the includer.
+''
+'' The Darwin sibling (statdarwin.tiko, M5) must provide the same procedure; it
+'' needs no syscall, since Darwin's struct stat carries st_birthtimespec.
+''
+'' statx has no glibc wrapper older than 2.28, so it is reached through
+'' syscall( SYS_statx ). struct_statx, SYS_statx, STATX_BTIME and the AT_*
+'' flags all come from the posix binding.
+
+#if defined( __FB_LINUX__ )
+
+extern "c"   '' NON-FBCALL: libc.
+	declare function u_syscall alias "syscall" ( byval n as int64, ... ) as int64
+end extern
+
+'' Best effort. A kernel or filesystem without birth-time support leaves
+'' HAS_CTIME clear, which is the honest answer.
+private sub hTryBirthTime( byval path_ as zstring ptr, byval follow as int32, byval out_ as FB_FSINFO ptr )
+	dim as struct_statx stx = any
+	dim as int32 flags = AT_STATX_SYNC_AS_STAT
+
+	if( follow = 0 ) then flags or= AT_SYMLINK_NOFOLLOW
+
+	if( u_syscall( SYS_statx, AT_FDCWD, path_, flags, STATX_BTIME, @stx ) <> 0 ) then exit sub
+	if( (stx.stx_mask and STATX_BTIME) = 0 ) then exit sub
+
+	out_->ctime = hUnixToTicks( stx.stx_btime.tv_sec, cast( int64, stx.stx_btime.tv_nsec ) )
+	out_->flags or= FB_FSFLAG_HAS_CTIME
+end sub
+
+#endif

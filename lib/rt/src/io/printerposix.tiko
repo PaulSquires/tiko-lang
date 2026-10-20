@@ -16,7 +16,8 @@
 ''
 ''   PORT 0  the CUPS SPOOLER, driven by shelling out to `lp` through popen.
 ''           driver_opaque is the pipe.
-''   PORT n  /dev/lp(n-1), opened with fopen. driver_opaque is the FILE*.
+''   PORT n  the OS's parallel-port node -- /dev/lp(n-1) on Linux, named by
+''           printerlinux.tiko -- opened with fopen. driver_opaque is the FILE*.
 ''
 '' Nothing distinguishes them afterwards except iPort, which is why Close reads
 '' it again to decide between pclose and fclose -- calling the wrong one on the
@@ -62,7 +63,14 @@
 #include once "inc/file.ti"
 #include once "inc/sysbind.ti"
 
-#ifndef __FB_WIN32__
+#ifdef __FB_UNIX__
+
+'' The parallel-port device node's name: TKORT_LPT_DEVFMT, one per OS.
+#if defined( __FB_LINUX__ )
+	#include once "printerlinux.tiko"
+#else
+	#error "io/printerposix: no parallel-port device name for this OS"
+#endif
 
 '' DEV_LPT_INFO and DEV_LPT_PROTOCOL, from fb_printer.h -- spelled again here as
 '' in src/io/devlptio.tiko and src/io/devlptopen.tiko, with the same #asserts
@@ -241,14 +249,15 @@ function tkort_PrinterOpen alias "fb_PrinterOpen" _
 	else
 		'' ------------------------------------------------- THE DEVICE NODE
 		''
-		'' /dev/lp0 IS LPT1 -- the port number is one-based and the node is not.
-		filename = cast( zstring ptr, malloc( 7 + 11 + 1 ) )
+		'' The node's name, per OS (TKORT_LPT_DEVFMT): the format less its "%d",
+		'' plus 11 for any int32 and 1 for the terminator.
+		filename = cast( zstring ptr, malloc( (len( TKORT_LPT_DEVFMT ) - 2) + 11 + 1 ) )
 		if( filename = nullptr ) then
 			if( lpt_proto <> nullptr ) then free( lpt_proto )
 			return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
 		end if
 
-		sprintf( filename, @"/dev/lp%d", devInfo->iPort - 1 )
+		sprintf( filename, @TKORT_LPT_DEVFMT, devInfo->iPort - 1 )
 		fp = fopen( filename, @"wb" )
 
 		if( fp = nullptr ) then

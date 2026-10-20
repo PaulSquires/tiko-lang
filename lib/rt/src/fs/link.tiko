@@ -409,29 +409,20 @@ end function
 
 end extern
 
-#else
+#elseif defined( __FB_UNIX__ )
 
 '' ------------------------------------------------------------ POSIX backend
 ''
-'' struct stat on linux-x86_64: st_dev 0, st_ino 8, st_nlink 16, st_mode 24.
-'' The size offset 48 is the one fs/mmap.tiko already measures against, so the
-'' whole prefix is pinned by a test that passes.
-const STAT_BUF_SIZE     = 144
-const STAT_NLINK_OFFSET = 16
-const STAT_MODE_OFFSET  = 24
-const PERM_MASK         = &o7777
-
-type stat_
-	as uint8 raw( 0 to STAT_BUF_SIZE - 1 )
-end type
+'' struct stat and ALLPERMS (S_ISUID | S_ISGID | S_ISVTX | 0777) come from the
+'' posix binding (inc/sysbind.ti), measured on the target's own libc.
 
 extern "c"   '' NON-FBCALL: libc, not rtlib entry points.
 	declare function u_symlink alias "symlink" ( byval target as zstring ptr, byval lnk as zstring ptr ) as int32
 	declare function u_link alias "link" ( byval target as zstring ptr, byval lnk as zstring ptr ) as int32
 	declare function u_readlink alias "readlink" ( byval p as zstring ptr, byval buf as zstring ptr, byval cap as uinteger ) as integer
-	declare function u_lstat alias "lstat" ( byval p as zstring ptr, byval st as stat_ ptr ) as int32
-	declare function u_stat alias "stat" ( byval p as zstring ptr, byval st as stat_ ptr ) as int32
-	declare function u_chmod alias "chmod" ( byval p as zstring ptr, byval mode_ as uint32 ) as int32
+	declare function u_lstat alias "lstat" ( byval p as zstring ptr, byval st as struct_stat ptr ) as int32
+	declare function u_stat alias "stat" ( byval p as zstring ptr, byval st as struct_stat ptr ) as int32
+	declare function u_chmod alias "chmod" ( byval p as zstring ptr, byval mode_ as mode_t ) as int32
 	declare function u_utf16to8 alias "fb_hUtf16ToUtf8" _
 		( byval src as FB_UCHAR ptr, byval units as integer, byval dst as zstring ptr, byval cap as integer ) as integer
 	declare function u_utf8to16 alias "fb_hUtf8ToUtf16" _
@@ -586,7 +577,7 @@ function tkort_UStrFsLinkCount alias "fb_UStrFsLinkCount" _
 	( byval p as FBUSTRING ptr, byval out_ as uint32 ptr ) as int32
 
 	dim as zstring ptr path_ = hFsNarrow( p )
-	dim as stat_ st = any
+	dim as struct_stat st = any
 	dim as int32 r = FB_FS_OK
 
 	*out_ = 0
@@ -595,7 +586,7 @@ function tkort_UStrFsLinkCount alias "fb_UStrFsLinkCount" _
 	if( u_lstat( path_, @st ) <> 0 ) then
 		r = tkrt_FsMapOsError( )
 	else
-		*out_ = cast( uint32, *cptr( uint64 ptr, @st.raw(STAT_NLINK_OFFSET) ) )
+		*out_ = cast( uint32, st.st_nlink )
 	end if
 
 	free( path_ )
@@ -611,7 +602,7 @@ function tkort_UStrFsGetPerm alias "fb_UStrFsGetPerm" _
 	( byval p as FBUSTRING ptr, byval out_ as uint32 ptr ) as int32
 
 	dim as zstring ptr path_ = hFsNarrow( p )
-	dim as stat_ st = any
+	dim as struct_stat st = any
 	dim as int32 r = FB_FS_OK
 
 	*out_ = 0
@@ -620,7 +611,7 @@ function tkort_UStrFsGetPerm alias "fb_UStrFsGetPerm" _
 	if( u_stat( path_, @st ) <> 0 ) then
 		r = tkrt_FsMapOsError( )
 	else
-		*out_ = *cptr( uint32 ptr, @st.raw(STAT_MODE_OFFSET) ) and PERM_MASK
+		*out_ = st.st_mode and ALLPERMS
 	end if
 
 	free( path_ )
@@ -634,7 +625,7 @@ function tkort_UStrFsSetPerm alias "fb_UStrFsSetPerm" _
 	dim as int32 r = FB_FS_OK
 
 	if( path_ = nullptr ) then return FB_FS_UNKNOWN
-	if( u_chmod( path_, v and PERM_MASK ) <> 0 ) then r = tkrt_FsMapOsError( )
+	if( u_chmod( path_, v and ALLPERMS ) <> 0 ) then r = tkrt_FsMapOsError( )
 	free( path_ )
 	return r
 end function
@@ -648,4 +639,6 @@ end function
 
 end extern
 
+#else
+	#error "fs/link: no backend for this target"
 #endif

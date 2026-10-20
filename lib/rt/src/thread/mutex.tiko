@@ -45,31 +45,33 @@ sub tkort_MutexUnlock alias "fb_MutexUnlock" ( byval m as FBMUTEX ptr )
 	w_ReleaseSemaphore( m->id, 1, nullptr )
 end sub
 
-#else
+#elseif defined( __FB_UNIX__ )
 
 function tkort_MutexCreate alias "fb_MutexCreate" ( ) as FBMUTEX ptr
 	dim as FBMUTEX ptr m = malloc( sizeof( FBMUTEX ) )
 	if( m = nullptr ) then return nullptr
-	u_pthread_mutex_init( @m->id(0), nullptr )
+	u_pthread_mutex_init( @m->id, nullptr )
 	return m
 end function
 
 sub tkort_MutexDestroy alias "fb_MutexDestroy" ( byval m as FBMUTEX ptr )
 	if( m = nullptr ) then exit sub
-	u_pthread_mutex_destroy( @m->id(0) )
+	u_pthread_mutex_destroy( @m->id )
 	free( m )
 end sub
 
 sub tkort_MutexLock alias "fb_MutexLock" ( byval m as FBMUTEX ptr )
 	if( m = nullptr ) then exit sub
-	u_pthread_mutex_lock( @m->id(0) )
+	u_pthread_mutex_lock( @m->id )
 end sub
 
 sub tkort_MutexUnlock alias "fb_MutexUnlock" ( byval m as FBMUTEX ptr )
 	if( m = nullptr ) then exit sub
-	u_pthread_mutex_unlock( @m->id(0) )
+	u_pthread_mutex_unlock( @m->id )
 end sub
 
+#else
+	#error "thread/mutex: no mutex backend for this target"
 #endif
 
 end extern

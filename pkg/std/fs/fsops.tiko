@@ -1,6 +1,10 @@
 #module "fs"
 #import "std/outcome"
 #import "std/containers"
+#ifdef __FB_UNIX__
+#include once "../../sys/posix/posix.ti"
+using posix
+#endif
 using outcome
 using containers
 ''  LOCAL NAMES HERE AVOID `count`, `e` AND `norm`, FOR A REASON THAT IS NOW
@@ -305,9 +309,9 @@ public function CreateDirAll( byref p as const ustring ) as FsResultBool
     return Ok( of boolean, FsError )( TRUE )
 end function
 
-#ifndef __FB_WIN32__
+#ifdef __FB_UNIX__
 extern "C"
-    declare function fbo_mkdir alias "mkdir" ( byval p as const zstring ptr, byval mode as ulong ) as long
+    declare function fbo_mkdir alias "mkdir" ( byval p as const zstring ptr, byval mode as mode_t ) as long
 end extern
 #endif
 
@@ -317,7 +321,7 @@ end extern
 public function CreateDirAll( byref p as const ustring, byval posixMode as ulong ) as FsResultBool
 #ifdef __FB_WIN32__
     return CreateDirAll( p )
-#else
+#elseif defined( __FB_UNIX__ )
     dim as ustring normalized = PathNormalize( p )
 
     if( len( normalized ) = 0 ) then
@@ -344,6 +348,8 @@ public function CreateDirAll( byref p as const ustring, byval posixMode as ulong
     next
 
     return Ok( of boolean, FsError )( TRUE )
+#else
+    #error "fs/fsops: no backend for this target"
 #endif
 end function
 
@@ -574,9 +580,9 @@ private function hWriteAtomic( byref p as const ustring, byref s as const ustrin
         return FsFail( of boolean )( cast( FsErrorCode, r ), "WriteAtomic", p )
     end if
 
-    #ifndef __FB_WIN32__
+    #ifdef __FB_UNIX__
         var mode_ = GetPosixMode( p )
-        if( mode_.IsOk( ) ) then SetPosixMode( tmp, mode_.Value( ) and &o7777 )
+        if( mode_.IsOk( ) ) then SetPosixMode( tmp, mode_.Value( ) and ALLPERMS )
     #endif
 
     r = FsReplaceFileRaw( p, tmp )

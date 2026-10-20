@@ -47,8 +47,9 @@
 #include once "inc/rterror.ti"
 #include once "inc/sysbind.ti"
 
-'' MEASURED, per platform, with a C probe -- see the file header. A shared table
-'' sized to the wrong NSIG indexes out of bounds.
+'' PER PLATFORM: measured with a C probe on Windows, the posix binding's own
+'' NSIG and SIG* on a POSIX target. A shared table sized to the wrong NSIG
+'' indexes out of bounds.
 #ifdef __FB_WIN32__
 	const TKORT_NSIG     = 23
 	const TKORT_SIGABRT  = 22
@@ -59,15 +60,17 @@
 	const TKORT_SIGINT   = 2
 	'' SIGQUIT DOES NOT EXIST ON WINDOWS. fbc guards its setup with #ifdef, and
 	'' so does this.
+#elseif defined( __FB_UNIX__ )
+	const TKORT_NSIG     = NSIG
+	const TKORT_SIGABRT  = SIGABRT
+	const TKORT_SIGFPE   = SIGFPE
+	const TKORT_SIGILL   = SIGILL
+	const TKORT_SIGSEGV  = SIGSEGV
+	const TKORT_SIGTERM  = SIGTERM
+	const TKORT_SIGINT   = SIGINT
+	const TKORT_SIGQUIT  = SIGQUIT
 #else
-	const TKORT_NSIG     = 65
-	const TKORT_SIGABRT  = 6
-	const TKORT_SIGFPE   = 8
-	const TKORT_SIGILL   = 4
-	const TKORT_SIGSEGV  = 11
-	const TKORT_SIGTERM  = 15
-	const TKORT_SIGINT   = 2
-	const TKORT_SIGQUIT  = 3
+	#error "error/signals: no signal numbers for this target"
 #endif
 
 type FB_SIGHANDLER_PROC as sub cdecl ( byval sig as int32 )
@@ -198,7 +201,7 @@ sub tkort_InitSignals alias "fb_InitSignals" ( )
 	TKORT_SETUPSIGNAL( TKORT_SIGTERM, FB_RTERROR_SIGTERM )
 	TKORT_SETUPSIGNAL( TKORT_SIGINT,  FB_RTERROR_SIGINT )
 
-	#ifndef __FB_WIN32__
+	#ifdef __FB_UNIX__
 		'' GUARDED, because Windows has no SIGQUIT at all.
 		TKORT_SETUPSIGNAL( TKORT_SIGQUIT, FB_RTERROR_SIGQUIT )
 	#endif

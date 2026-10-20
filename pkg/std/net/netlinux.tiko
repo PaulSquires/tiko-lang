@@ -1,0 +1,65 @@
+#module "net"
+'' std/net: netlinux -- the Linux-only pieces of std/net's POSIX code
+''
+'' Everything else netsock.tiko says to the OS on POSIX is POSIX, written against
+'' sys/posix there; only what has no POSIX spelling is here, as the smallest
+'' module-private names, so a second POSIX target supplies the same five and nothing
+'' more. The Darwin sibling (netdarwin.tiko, M5) must provide:
+''
+''   hLastErr( ) as long                  errno -- *__error( )
+''   hSocket( v6, type_ ) as integer      a socket nothing inherits, -1 on failure --
+''                                        socket( ), fcntl( F_SETFD, FD_CLOEXEC ), and
+''                                        setsockopt( SOL_SOCKET, SO_NOSIGPIPE, 1 )
+''   hAccept( fd ) as long                accept( fd, NULL, NULL ) likewise: FD_CLOEXEC
+''                                        and SO_NOSIGPIPE on the new socket, -1 on failure
+''   TKN_MSG_NOSIGNAL                     the send flags that keep a write to a reset peer
+''                                        from raising SIGPIPE -- 0 there (SO_NOSIGPIPE)
+''   hRecvDgram( fd, p, n, sa, sn )       one datagram (recvfrom, or recv when sa is
+''                                        NULL); the result is its FULL length, larger
+''                                        than n when it did not fit -- recvmsg( ) and
+''                                        MSG_TRUNC in msg_flags
+''
+'' libc only, as in netsock.tiko.
+
+#ifdef __FB_LINUX__
+#include once "../../sys/posix/posix.ti"
+using posix
+
+extern "C"
+    declare function tknl_errno_location alias "__errno_location" ( ) as long ptr
+    declare function tknl_socket alias "socket" ( byval af as long, byval type_ as long, byval proto as long ) as long
+    declare function tknl_accept4 alias "accept4" ( byval fd as long, byval sa as any ptr, byval n as socklen_t ptr, _
+        byval flags as long ) as long
+    declare function tknl_recv alias "recv" ( byval fd as long, byval buf as any ptr, byval n as uinteger, byval flags as long ) as integer
+    declare function tknl_recvfrom alias "recvfrom" ( byval fd as long, byval buf as any ptr, byval n as uinteger, _
+        byval flags as long, byval sa as any ptr, byval sn as socklen_t ptr ) as integer
+end extern
+
+'' Linux has the flag: a write to a reset peer fails with EPIPE instead.
+const TKN_MSG_NOSIGNAL = MSG_NOSIGNAL
+
+'' errno of the calling thread -- the one place std/net names glibc's accessor.
+function hLastErr( ) as long
+    return *tknl_errno_location( )
+end function
+
+'' SOCK_CLOEXEC: no child process inherits it.
+function hSocket( byval v6 as boolean, byval type_ as long ) as integer
+    dim as long fd = tknl_socket( iif( v6, AF_INET6, AF_INET ), type_ or SOCK_CLOEXEC, 0 )
+    if( fd < 0 ) then return -1
+    return fd
+end function
+
+'' accept4 with SOCK_CLOEXEC, likewise.
+function hAccept( byval fd as integer ) as long
+    return tknl_accept4( fd, nullptr, nullptr, SOCK_CLOEXEC )
+end function
+
+'' MSG_TRUNC as an input flag: Linux returns the datagram's real length.
+function hRecvDgram( byval fd as integer, byval p as ubyte ptr, byval n as long, byval sa as any ptr, _
+        byval sn as socklen_t ptr ) as integer
+    if( sa = nullptr ) then return tknl_recv( fd, p, n, MSG_TRUNC )
+    return tknl_recvfrom( fd, p, n, MSG_TRUNC, sa, sn )
+end function
+
+#endif

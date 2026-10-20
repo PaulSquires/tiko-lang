@@ -1,5 +1,9 @@
 #module "fs"
 #import "std/outcome"
+#ifdef __FB_UNIX__
+#include once "../../sys/posix/posix.ti"
+using posix
+#endif
 using outcome
 '' std/fs: fsfile -- OpenOptions and File, the open-file handle
 ''
@@ -15,7 +19,9 @@ using outcome
 '' author's decision for P3). std/fs is compiled into tiko itself by the pinned seed,
 '' which links the seed's runtime; a File built on new runtime entry points could not
 '' land until a seed carrying them was cut. kernel32 and libc are in every link, so
-'' declaring them here builds with any seed. The error mapping is still the runtime's
+'' declaring them here builds with any seed. On POSIX every constant and struct comes
+'' from sys/posix, and what is Linux-only (errno's accessor, fdatasync) is in
+'' fslinux.tiko. The error mapping is still the runtime's
 '' (fb_FsMapOsError, fb_FsOsError), so a File reports exactly what every other std/fs
 '' call reports for the same native error.
 ''
@@ -186,53 +192,28 @@ extern "C"
     declare sub fbf_ReleaseSRWLockExclusive stdcall alias "ReleaseSRWLockExclusive" ( byval l as any ptr ptr )
 end extern
 
-#else
+#elseif defined( __FB_UNIX__ )
 
-const FBF_O_RDONLY   = &o0
-const FBF_O_WRONLY   = &o1
-const FBF_O_RDWR     = &o2
-const FBF_O_CREAT    = &o100
-const FBF_O_EXCL     = &o200
-const FBF_O_TRUNC    = &o1000
-const FBF_O_APPEND   = &o2000
-const FBF_O_NOFOLLOW = &o400000
-const FBF_O_CLOEXEC  = &o2000000
-const FBF_EINTR      = 4
-const FBF_SEEK_SET   = 0
-const FBF_LOCK_SH    = 1
-const FBF_LOCK_EX    = 2
-const FBF_LOCK_NB    = 4
-const FBF_LOCK_UN    = 8
-const FBF_S_IFMT     = &o170000
-const FBF_S_IFREG    = &o100000
-const FBF_S_IFDIR    = &o040000
-const FBF_S_IFLNK    = &o120000
-const FBF_S_IFBLK    = &o060000
 const FBF_IO_MAX     = &h40000000ll
 
-'' struct stat on linux-x86_64 -- the same offsets tiko-rt's fs/stat.tiko uses
-const FBF_STAT_SIZE = 144
-const FBF_ST_MODE   = 24
-const FBF_ST_SIZE   = 48
-const FBF_ST_ATIM   = 72
-const FBF_ST_MTIM   = 88
-
+'' O_*, LOCK_*, S_IF*, EINTR, EINVAL, SEEK_* and struct_stat are sys/posix's;
+'' errno and fdatasync are fslinux.tiko's hErrno and hSyncData.
 extern "C"
     declare function fbf_open alias "open" ( byval p as zstring ptr, byval flags as long, ... ) as long
     declare function fbf_close alias "close" ( byval fd as long ) as long
     declare function fbf_read alias "read" ( byval fd as long, byval buf as any ptr, byval n as uinteger ) as integer
     declare function fbf_write alias "write" ( byval fd as long, byval buf as const any ptr, byval n as uinteger ) as integer
-    declare function fbf_pread alias "pread" ( byval fd as long, byval buf as any ptr, byval n as uinteger, byval off as longint ) as integer
-    declare function fbf_pwrite alias "pwrite" ( byval fd as long, byval buf as const any ptr, byval n as uinteger, byval off as longint ) as integer
-    declare function fbf_lseek alias "lseek" ( byval fd as long, byval off as longint, byval whence as long ) as longint
-    declare function fbf_fstat alias "fstat" ( byval fd as long, byval st as ubyte ptr ) as long
-    declare function fbf_ftruncate alias "ftruncate" ( byval fd as long, byval n as longint ) as long
+    declare function fbf_pread alias "pread" ( byval fd as long, byval buf as any ptr, byval n as uinteger, byval off as off_t ) as integer
+    declare function fbf_pwrite alias "pwrite" ( byval fd as long, byval buf as const any ptr, byval n as uinteger, byval off as off_t ) as integer
+    declare function fbf_lseek alias "lseek" ( byval fd as long, byval off as off_t, byval whence as long ) as off_t
+    declare function fbf_fstat alias "fstat" ( byval fd as long, byval st as struct_stat ptr ) as long
+    declare function fbf_ftruncate alias "ftruncate" ( byval fd as long, byval n as off_t ) as long
     declare function fbf_fsync alias "fsync" ( byval fd as long ) as long
-    declare function fbf_fdatasync alias "fdatasync" ( byval fd as long ) as long
     declare function fbf_flock alias "flock" ( byval fd as long, byval op as long ) as long
-    declare function fbf_errno_location alias "__errno_location" ( ) as long ptr
 end extern
 
+#else
+    #error "fs/fsfile: no backend for this target"
 #endif
 
 '' ------------------------------------------------------------------- File
@@ -443,38 +424,40 @@ function File.Open( byref p as const ustring, byref opts as const OpenOptions ) 
 
     this.m_h = cast( integer, h )
     this.m_seekable = ( fbf_GetFileType( h ) = FBF_FILE_TYPE_DISK )
-#else
-    dim as long flags = FBF_O_RDONLY
+#elseif defined( __FB_UNIX__ )
+    dim as long flags = O_RDONLY
     if( opts.Read andalso wr ) then
-        flags = FBF_O_RDWR
+        flags = O_RDWR
     elseif( wr ) then
-        flags = FBF_O_WRONLY
+        flags = O_WRONLY
     end if
-    if( opts.Append ) then flags or= FBF_O_APPEND
+    if( opts.Append ) then flags or= O_APPEND
     if( opts.CreateNew ) then
-        flags or= FBF_O_CREAT or FBF_O_EXCL
+        flags or= O_CREAT or O_EXCL
     else
-        if( opts.Create ) then flags or= FBF_O_CREAT
-        if( opts.Truncate ) then flags or= FBF_O_TRUNC
+        if( opts.Create ) then flags or= O_CREAT
+        if( opts.Truncate ) then flags or= O_TRUNC
     end if
-    if( opts.Inheritable = FALSE ) then flags or= FBF_O_CLOEXEC
-    if( opts.NoFollow ) then flags or= FBF_O_NOFOLLOW
+    if( opts.Inheritable = FALSE ) then flags or= O_CLOEXEC
+    if( opts.NoFollow ) then flags or= O_NOFOLLOW
 
     dim as string narrow = p
     dim as long fd = fbf_open( strptr( narrow ), flags, cast( ulong, opts.PosixMode ) )
     if( fd < 0 ) then return Fail( of boolean, FsError )( this.hOsFail( "Open" ) )
 
-    dim as ubyte st( 0 to FBF_STAT_SIZE - 1 )
+    dim as struct_stat st
     dim as ulong mode_ = 0
-    if( fbf_fstat( fd, @st(0) ) = 0 ) then mode_ = *cptr( ulong ptr, @st(FBF_ST_MODE) )
+    if( fbf_fstat( fd, @st ) = 0 ) then mode_ = st.st_mode
     '' open( ) SUCCEEDS on a directory for reading; a File is never one.
-    if( ( mode_ and FBF_S_IFMT ) = FBF_S_IFDIR ) then
+    if( ( mode_ and S_IFMT ) = S_IFDIR ) then
         fbf_close( fd )
         return FsFail( of boolean )( FS_IS_A_DIRECTORY, "Open", p )
     end if
 
     this.m_h = fd
-    this.m_seekable = ( ( mode_ and FBF_S_IFMT ) = FBF_S_IFREG ) orelse ( ( mode_ and FBF_S_IFMT ) = FBF_S_IFBLK )
+    this.m_seekable = ( ( mode_ and S_IFMT ) = S_IFREG ) orelse ( ( mode_ and S_IFMT ) = S_IFBLK )
+#else
+    #error "fs/fsfile: no backend for this target"
 #endif
 
     return Ok( of boolean, FsError )( TRUE )
@@ -546,11 +529,13 @@ function File.Close( ) as FsResultBool
         f = this.hOsFail( "Close" )
         ok_ = FALSE
     end if
-#else
+#elseif defined( __FB_UNIX__ )
     if( fbf_close( cast( long, this.m_h ) ) <> 0 ) then
         f = this.hOsFail( "Close" )
         ok_ = FALSE
     end if
+#else
+    #error "fs/fsfile: no backend for this target"
 #endif
     this.m_h = -1
     this.m_lock = 0
@@ -580,13 +565,15 @@ function File.Read( byval buf as ubyte ptr, byval n as longint ) as FsResultI64
     end if
     dim as longint got64 = got
     return Ok( of longint, FsError )( got64 )
-#else
+#elseif defined( __FB_UNIX__ )
     do
         dim as integer k = fbf_read( cast( long, this.m_h ), buf, cast( uinteger, n ) )
         if( k >= 0 ) then return Ok( of longint, FsError )( k )
-        if( *fbf_errno_location( ) <> FBF_EINTR ) then exit do
+        if( hErrno( ) <> EINTR ) then exit do
     loop
     return Fail( of longint, FsError )( this.hOsFail( "Read" ) )
+#else
+    #error "fs/fsfile: no backend for this target"
 #endif
 end function
 
@@ -607,13 +594,15 @@ function File.Write( byval buf as const ubyte ptr, byval n as longint ) as FsRes
     end if
     dim as longint done64 = done
     return Ok( of longint, FsError )( done64 )
-#else
+#elseif defined( __FB_UNIX__ )
     do
         dim as integer k = fbf_write( cast( long, this.m_h ), buf, cast( uinteger, n ) )
         if( k >= 0 ) then return Ok( of longint, FsError )( k )
-        if( *fbf_errno_location( ) <> FBF_EINTR ) then exit do
+        if( hErrno( ) <> EINTR ) then exit do
     loop
     return Fail( of longint, FsError )( this.hOsFail( "Write" ) )
+#else
+    #error "fs/fsfile: no backend for this target"
 #endif
 end function
 
@@ -634,14 +623,17 @@ function File.Seek( byval offset as longint, byval origin as SeekOrigin ) as FsR
         return Fail( of longint, FsError )( this.hOsFail( "Seek" ) )
     end if
     return Ok( of longint, FsError )( np )
-#else
-    '' SEEK_SET/CUR/END are 0/1/2 on Linux too
+#elseif defined( __FB_UNIX__ )
+    '' SeekOrigin goes to lseek as it is: its values are SEEK_SET/CUR/END's, asserted
+    #assert ( SEEK_FROM_START = SEEK_SET ) andalso ( SEEK_FROM_CURRENT = SEEK_CUR ) andalso ( SEEK_FROM_END = SEEK_END )
     dim as longint np = fbf_lseek( cast( long, this.m_h ), offset, cast( long, origin ) )
     if( np < 0 ) then
-        if( *fbf_errno_location( ) = 22 ) then return FsFail( of longint )( FS_INVALID_ARGUMENT, "Seek", this.m_path )
+        if( hErrno( ) = EINVAL ) then return FsFail( of longint )( FS_INVALID_ARGUMENT, "Seek", this.m_path )
         return Fail( of longint, FsError )( this.hOsFail( "Seek" ) )
     end if
     return Ok( of longint, FsError )( np )
+#else
+    #error "fs/fsfile: no backend for this target"
 #endif
 end function
 
@@ -693,13 +685,15 @@ function File.ReadAt( byval pos_ as longint, byval buf as ubyte ptr, byval n as 
     if( eof_ ) then return Ok( of longint, FsError )( 0 )
     dim as longint got64 = got
     return Ok( of longint, FsError )( got64 )
-#else
+#elseif defined( __FB_UNIX__ )
     do
         dim as integer k = fbf_pread( cast( long, this.m_h ), buf, cast( uinteger, n ), pos_ )
         if( k >= 0 ) then return Ok( of longint, FsError )( k )
-        if( *fbf_errno_location( ) <> FBF_EINTR ) then exit do
+        if( hErrno( ) <> EINTR ) then exit do
     loop
     return Fail( of longint, FsError )( this.hOsFail( "ReadAt" ) )
+#else
+    #error "fs/fsfile: no backend for this target"
 #endif
 end function
 
@@ -735,13 +729,15 @@ function File.WriteAt( byval pos_ as longint, byval buf as const ubyte ptr, byva
     if( ok_ = FALSE ) then return Fail( of longint, FsError )( f )
     dim as longint done64 = done
     return Ok( of longint, FsError )( done64 )
-#else
+#elseif defined( __FB_UNIX__ )
     do
         dim as integer k = fbf_pwrite( cast( long, this.m_h ), buf, cast( uinteger, n ), pos_ )
         if( k >= 0 ) then return Ok( of longint, FsError )( k )
-        if( *fbf_errno_location( ) <> FBF_EINTR ) then exit do
+        if( hErrno( ) <> EINTR ) then exit do
     loop
     return Fail( of longint, FsError )( this.hOsFail( "WriteAt" ) )
+#else
+    #error "fs/fsfile: no backend for this target"
 #endif
 end function
 
@@ -756,12 +752,14 @@ function File.Size( ) as FsResultI64
         return Fail( of longint, FsError )( this.hOsFail( "Size" ) )
     end if
     return Ok( of longint, FsError )( sz )
-#else
-    dim as ubyte st( 0 to FBF_STAT_SIZE - 1 )
-    if( fbf_fstat( cast( long, this.m_h ), @st(0) ) <> 0 ) then
+#elseif defined( __FB_UNIX__ )
+    dim as struct_stat st
+    if( fbf_fstat( cast( long, this.m_h ), @st ) <> 0 ) then
         return Fail( of longint, FsError )( this.hOsFail( "Size" ) )
     end if
-    return Ok( of longint, FsError )( *cptr( longint ptr, @st(FBF_ST_SIZE) ) )
+    return Ok( of longint, FsError )( st.st_size )
+#else
+    #error "fs/fsfile: no backend for this target"
 #endif
 end function
 
@@ -775,10 +773,12 @@ function File.SetSize( byval n as longint ) as FsResultBool
     if( fbf_SetFileInformationByHandle( cast( any ptr, this.m_h ), FBF_FILE_END_OF_FILE_INFO, @eof_, 8 ) = 0 ) then
         return Fail( of boolean, FsError )( this.hOsFail( "SetSize" ) )
     end if
-#else
+#elseif defined( __FB_UNIX__ )
     if( fbf_ftruncate( cast( long, this.m_h ), n ) <> 0 ) then
         return Fail( of boolean, FsError )( this.hOsFail( "SetSize" ) )
     end if
+#else
+    #error "fs/fsfile: no backend for this target"
 #endif
     return Ok( of boolean, FsError )( TRUE )
 end function
@@ -789,20 +789,25 @@ function File.Sync( ) as FsResultBool
     if( this.hClosedOr( "Sync", f ) ) then return Fail( of boolean, FsError )( f )
 #ifdef __FB_WIN32__
     if( fbf_FlushFileBuffers( cast( any ptr, this.m_h ) ) = 0 ) then return Fail( of boolean, FsError )( this.hOsFail( "Sync" ) )
-#else
+#elseif defined( __FB_UNIX__ )
     if( fbf_fsync( cast( long, this.m_h ) ) <> 0 ) then return Fail( of boolean, FsError )( this.hOsFail( "Sync" ) )
+#else
+    #error "fs/fsfile: no backend for this target"
 #endif
     return Ok( of boolean, FsError )( TRUE )
 end function
 
-'' The data only: fdatasync. Windows has no lighter call, so it is Sync there.
+'' The data only: fdatasync on Linux (fslinux.tiko's hSyncData). Windows has no lighter
+'' call, so it is Sync there.
 function File.SyncData( ) as FsResultBool
     dim as FsError f
     if( this.hClosedOr( "SyncData", f ) ) then return Fail( of boolean, FsError )( f )
 #ifdef __FB_WIN32__
     if( fbf_FlushFileBuffers( cast( any ptr, this.m_h ) ) = 0 ) then return Fail( of boolean, FsError )( this.hOsFail( "SyncData" ) )
+#elseif defined( __FB_UNIX__ )
+    if( hSyncData( cast( long, this.m_h ) ) <> 0 ) then return Fail( of boolean, FsError )( this.hOsFail( "SyncData" ) )
 #else
-    if( fbf_fdatasync( cast( long, this.m_h ) ) <> 0 ) then return Fail( of boolean, FsError )( this.hOsFail( "SyncData" ) )
+    #error "fs/fsfile: no backend for this target"
 #endif
     return Ok( of boolean, FsError )( TRUE )
 end function
@@ -838,38 +843,40 @@ function File.Stat( ) as FsResultInfo
     fi.m_flags = FB_FSFLAG_HAS_CTIME or FB_FSFLAG_HAS_ATIME
     if( ( attrs and FBF_ATTR_READONLY ) <> 0 ) then fi.m_flags or= FB_FSFLAG_READONLY
     if( ( attrs and FBF_ATTR_HIDDEN ) <> 0 ) then fi.m_flags or= FB_FSFLAG_HIDDEN
-#else
-    dim as ubyte st( 0 to FBF_STAT_SIZE - 1 )
-    if( fbf_fstat( cast( long, this.m_h ), @st(0) ) <> 0 ) then
+#elseif defined( __FB_UNIX__ )
+    dim as struct_stat st
+    if( fbf_fstat( cast( long, this.m_h ), @st ) <> 0 ) then
         return Fail( of FileInfo, FsError )( this.hOsFail( "Stat" ) )
     end if
     const TO_1970 = 621355968000000000ll
-    dim as ulong m = *cptr( ulong ptr, @st(FBF_ST_MODE) )
+    dim as ulong m = st.st_mode
     fi.m_attrs = m
-    fi.m_size = cast( ulongint, *cptr( longint ptr, @st(FBF_ST_SIZE) ) )
-    fi.m_mtime = TO_1970 + *cptr( longint ptr, @st(FBF_ST_MTIM) ) * 10000000ll + *cptr( longint ptr, @st(FBF_ST_MTIM + 8) ) \ 100ll
-    fi.m_atime = TO_1970 + *cptr( longint ptr, @st(FBF_ST_ATIM) ) * 10000000ll + *cptr( longint ptr, @st(FBF_ST_ATIM + 8) ) \ 100ll
+    fi.m_size = cast( ulongint, st.st_size )
+    fi.m_mtime = TO_1970 + st.st_mtim.tv_sec * 10000000ll + st.st_mtim.tv_nsec \ 100ll
+    fi.m_atime = TO_1970 + st.st_atim.tv_sec * 10000000ll + st.st_atim.tv_nsec \ 100ll
     fi.m_ctime = 0
-    select case m and FBF_S_IFMT
-    case FBF_S_IFREG
+    select case m and S_IFMT
+    case S_IFREG
         fi.m_kind = FB_FSKIND_FILE
-    case FBF_S_IFDIR
+    case S_IFDIR
         fi.m_kind = FB_FSKIND_DIR
-    case FBF_S_IFLNK
+    case S_IFLNK
         fi.m_kind = FB_FSKIND_LINK
     case else
         fi.m_kind = FB_FSKIND_OTHER
     end select
     '' fstat has no birth time (statx by descriptor would): HasCreated( ) is FALSE
     fi.m_flags = FB_FSFLAG_HAS_ATIME or FB_FSFLAG_HAS_OWNER
-    fi.m_uid = *cptr( ulong ptr, @st(28) )      '' st_uid
-    fi.m_gid = *cptr( ulong ptr, @st(32) )      '' st_gid
-    if( ( m and &o222 ) = 0 ) then fi.m_flags or= FB_FSFLAG_READONLY
+    fi.m_uid = st.st_uid
+    fi.m_gid = st.st_gid
+    if( ( m and ( S_IWUSR or S_IWGRP or S_IWOTH ) ) = 0 ) then fi.m_flags or= FB_FSFLAG_READONLY
     '' hidden on POSIX is a leading dot in the NAME, which Stat( path ) also reads
     dim as ustring nm = PathFileName( this.m_path )
     if( len( nm ) > 0 ) then
         if( nm[0] = 46 ) then fi.m_flags or= FB_FSFLAG_HIDDEN
     end if
+#else
+    #error "fs/fsfile: no backend for this target"
 #endif
     return Ok( of FileInfo, FsError )( fi )
 end function
@@ -902,14 +909,16 @@ function File.hLock( byval exclusive as boolean, byval wait_ as boolean, byref o
         end if
         return Fail( of boolean, FsError )( this.hOsFail( op ) )
     end if
-#else
+#elseif defined( __FB_UNIX__ )
     '' flock converts shared <-> exclusive itself
-    dim as long lop = iif( exclusive, FBF_LOCK_EX, FBF_LOCK_SH )
-    if( wait_ = FALSE ) then lop or= FBF_LOCK_NB
+    dim as long lop = iif( exclusive, LOCK_EX, LOCK_SH )
+    if( wait_ = FALSE ) then lop or= LOCK_NB
     do
         if( fbf_flock( cast( long, this.m_h ), lop ) = 0 ) then exit do
-        if( *fbf_errno_location( ) <> FBF_EINTR ) then return Fail( of boolean, FsError )( this.hOsFail( op ) )
+        if( hErrno( ) <> EINTR ) then return Fail( of boolean, FsError )( this.hOsFail( op ) )
     loop
+#else
+    #error "fs/fsfile: no backend for this target"
 #endif
     this.m_lock = want
     return Ok( of boolean, FsError )( TRUE )
@@ -934,10 +943,12 @@ function File.Unlock( ) as FsResultBool
     if( fbf_UnlockFileEx( cast( any ptr, this.m_h ), 0, &hFFFFFFFFul, &hFFFFFFFFul, @ov ) = 0 ) then
         if( fbf_GetLastError( ) <> FBF_ERROR_NOT_LOCKED ) then return Fail( of boolean, FsError )( this.hOsFail( "Unlock" ) )
     end if
-#else
-    if( fbf_flock( cast( long, this.m_h ), FBF_LOCK_UN ) <> 0 ) then
+#elseif defined( __FB_UNIX__ )
+    if( fbf_flock( cast( long, this.m_h ), LOCK_UN ) <> 0 ) then
         return Fail( of boolean, FsError )( this.hOsFail( "Unlock" ) )
     end if
+#else
+    #error "fs/fsfile: no backend for this target"
 #endif
     this.m_lock = 0
     return Ok( of boolean, FsError )( TRUE )

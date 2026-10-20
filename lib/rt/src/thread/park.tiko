@@ -19,8 +19,9 @@
 '' condition variable. Not CONDITION_VARIABLE/SleepConditionVariableSRW on
 '' Windows: an event is the simpler match for a one-thread parker and does not
 '' assume a Vista-era API surface. Not sem_timedwait on POSIX: it does not exist
-'' on macOS, and the deadline computation is isolated in hDeadline so a target
-'' without pthread_condattr_setclock is a change in one place.
+'' on macOS, and the deadline computation is isolated in hDeadline and the clock
+'' binding in hCondSetMonotonic (thread/parklinux.tiko), so a target without
+'' pthread_condattr_setclock is a per-OS file and nothing else.
 ''
 '' A TIMED PARK MUST NOT BECOME AN HOUR-LONG PARK BECAUSE SOMEONE CHANGED THE
 '' TIME ZONE. The POSIX condition variable is bound to CLOCK_MONOTONIC where the
@@ -33,6 +34,16 @@
 
 #include once "inc/thread.ti"
 #include once "inc/sysbind.ti"
+
+'' Binding the condition variable to CLOCK_MONOTONIC is the one OS-specific
+'' step: pthread_condattr_setclock is Linux's, and absent on macOS.
+#ifdef __FB_UNIX__
+	#if defined( __FB_LINUX__ )
+		#include once "parklinux.tiko"
+	#else
+		#error "thread/park: no monotonic condition-variable backend for this OS"
+	#endif
+#endif
 
 extern "rtlib"
 
@@ -145,47 +156,47 @@ function tkort_CpuCount alias "fb_CpuCount" ( ) as int32
 	return iif( n > 0, cast( int32, n ), 1 )
 end function
 
-#else
+#elseif defined( __FB_UNIX__ )
 
 type FBPARKER
-	as uint8 lock_( 0 to TKORT_PTHREAD_MUTEX_SIZE - 1 )
-	as uint8 cond_( 0 to TKORT_PTHREAD_COND_SIZE - 1 )
+	as pthread_mutex_t lock_
+	as pthread_cond_t  cond_
 	as int32  permit
 	as int32  monotonic                     '' cond is bound to CLOCK_MONOTONIC
 end type
 
 function tkort_ParkerCreate alias "fb_ParkerCreate" ( ) as FBPARKER ptr
 	dim as FBPARKER ptr p = malloc( sizeof( FBPARKER ) )
-	dim as uint8 attr( 0 to TKORT_CONDATTR_SIZE - 1 ) = any
+	dim as pthread_condattr_t attr = any
 
 	if( p = nullptr ) then return nullptr
 
 	p->permit = 0
 	p->monotonic = 0
 
-	u_pthread_mutex_init( @p->lock_(0), nullptr )
+	u_pthread_mutex_init( @p->lock_, nullptr )
 
-	u_pthread_condattr_init( @attr(0) )
+	u_pthread_condattr_init( @attr )
 	'' Where the platform refuses, we fall back to the realtime clock and
 	'' hDeadline reads the matching one.
-	if( u_pthread_condattr_setclock( @attr(0), CLOCK_MONOTONIC_ ) = 0 ) then p->monotonic = 1
-	u_pthread_cond_init( @p->cond_(0), @attr(0) )
-	u_pthread_condattr_destroy( @attr(0) )
+	if( hCondSetMonotonic( @attr ) = 0 ) then p->monotonic = 1
+	u_pthread_cond_init( @p->cond_, @attr )
+	u_pthread_condattr_destroy( @attr )
 
 	return p
 end function
 
 sub tkort_ParkerDestroy alias "fb_ParkerDestroy" ( byval p as FBPARKER ptr )
 	if( p = nullptr ) then exit sub
-	u_pthread_cond_destroy( @p->cond_(0) )
-	u_pthread_mutex_destroy( @p->lock_(0) )
+	u_pthread_cond_destroy( @p->cond_ )
+	u_pthread_mutex_destroy( @p->lock_ )
 	free( p )
 end sub
 
-private sub hDeadline( byval p as FBPARKER ptr, byval ms as uint32, byval ts as timespec_ ptr )
-	dim as int32 clk = CLOCK_REALTIME_
+private sub hDeadline( byval p as FBPARKER ptr, byval ms as uint32, byval ts as struct_timespec ptr )
+	dim as clockid_t clk = CLOCK_REALTIME
 
-	if( p->monotonic <> 0 ) then clk = CLOCK_MONOTONIC_
+	if( p->monotonic <> 0 ) then clk = CLOCK_MONOTONIC
 
 	u_clock_gettime( clk, ts )
 
@@ -200,23 +211,23 @@ end sub
 sub tkort_Park alias "fb_Park" ( byval p as FBPARKER ptr )
 	if( p = nullptr ) then exit sub
 
-	u_pthread_mutex_lock( @p->lock_(0) )
+	u_pthread_mutex_lock( @p->lock_ )
 	'' A loop, not an if: pthread_cond_wait may return spuriously, and the
 	'' predicate is the permit.
 	while( p->permit = 0 )
-		u_pthread_cond_wait( @p->cond_(0), @p->lock_(0) )
+		u_pthread_cond_wait( @p->cond_, @p->lock_ )
 	wend
 	p->permit = 0
-	u_pthread_mutex_unlock( @p->lock_(0) )
+	u_pthread_mutex_unlock( @p->lock_ )
 end sub
 
 function tkort_ParkTimed alias "fb_ParkTimed" ( byval p as FBPARKER ptr, byval ms as uint32 ) as int32
-	dim as timespec_ ts = any
+	dim as struct_timespec ts = any
 	dim as int32 got = any
 
 	if( p = nullptr ) then return 0
 
-	u_pthread_mutex_lock( @p->lock_(0) )
+	u_pthread_mutex_lock( @p->lock_ )
 
 	if( ms = 0 ) then
 		'' A poll. pthread_cond_timedwait with an already-passed deadline is
@@ -224,14 +235,14 @@ function tkort_ParkTimed alias "fb_ParkTimed" ( byval p as FBPARKER ptr, byval m
 		'' what we already know is pure cost.
 		got = p->permit
 		if( got <> 0 ) then p->permit = 0
-		u_pthread_mutex_unlock( @p->lock_(0) )
+		u_pthread_mutex_unlock( @p->lock_ )
 		return got
 	end if
 
 	hDeadline( p, ms, @ts )
 
 	while( p->permit = 0 )
-		if( u_pthread_cond_timedwait( @p->cond_(0), @p->lock_(0), @ts ) = ETIMEDOUT_ ) then exit while
+		if( u_pthread_cond_timedwait( @p->cond_, @p->lock_, @ts ) = ETIMEDOUT ) then exit while
 	wend
 
 	'' Read the FLAG rather than the return code: the permit may have arrived
@@ -239,7 +250,7 @@ function tkort_ParkTimed alias "fb_ParkTimed" ( byval p as FBPARKER ptr, byval m
 	got = p->permit
 	if( got <> 0 ) then p->permit = 0
 
-	u_pthread_mutex_unlock( @p->lock_(0) )
+	u_pthread_mutex_unlock( @p->lock_ )
 
 	return got
 end function
@@ -247,22 +258,24 @@ end function
 sub tkort_Unpark alias "fb_Unpark" ( byval p as FBPARKER ptr )
 	if( p = nullptr ) then exit sub
 
-	u_pthread_mutex_lock( @p->lock_(0) )
+	u_pthread_mutex_lock( @p->lock_ )
 	if( p->permit = 0 ) then
 		p->permit = 1
-		u_pthread_cond_signal( @p->cond_(0) )
+		u_pthread_cond_signal( @p->cond_ )
 	end if
-	u_pthread_mutex_unlock( @p->lock_(0) )
+	u_pthread_mutex_unlock( @p->lock_ )
 end sub
 
 function tkort_CpuCount alias "fb_CpuCount" ( ) as int32
-	dim as int64 n = u_sysconf( SC_NPROCESSORS_ONLN_ )
+	dim as int64 n = u_sysconf( _SC_NPROCESSORS_ONLN )
 
 	'' Wrong inside a container with a CPU quota, and it is what every other
 	'' language's runtime uses.
 	return iif( n > 0, cast( int32, n ), 1 )
 end function
 
+#else
+	#error "thread/park: no parker backend for this target"
 #endif
 
 end extern

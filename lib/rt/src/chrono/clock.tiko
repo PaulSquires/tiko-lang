@@ -206,48 +206,30 @@ end function
 
 end extern
 
-#else
+#elseif defined( __FB_UNIX__ )
 
 '' ------------------------------------------------------------- the Unix half
-
-type timespec_
-	as clong tv_sec
-	as clong tv_nsec
-end type
-
-type timeval_
-	as clong tv_sec
-	as clong tv_usec
-end type
-
-type rusage_
-	as timeval_ ru_utime
-	as timeval_ ru_stime
-	as clong    ru_rest( 0 to 13 )
-end type
-
-const CLOCK_REALTIME          = 0
-const CLOCK_MONOTONIC         = 1
-const CLOCK_THREAD_CPUTIME_ID = 3
-const RUSAGE_SELF             = 0
+''
+'' The clock ids, RUSAGE_SELF and the timespec / timeval / rusage / tm layouts are the
+'' posix binding's (inc/sysbind.ti), measured on the target -- none is written here.
 
 '' PREFIXED u_ for the same reason as the w_ imports above: localtime_r is
 '' already declared by a header reached through the includes, and a second
 '' DECLARE is an error. The alias carries the real libc name.
 extern "c"   '' NON-FBCALL: libc, not rtlib entry points.
-	declare function u_clock_gettime alias "clock_gettime" ( byval id as int32, byval ts as timespec_ ptr ) as int32
-	declare function u_clock_getres alias "clock_getres" ( byval id as int32, byval ts as timespec_ ptr ) as int32
-	declare function u_gettimeofday alias "gettimeofday" ( byval tv as timeval_ ptr, byval tz as any ptr ) as int32
-	declare function u_getrusage alias "getrusage" ( byval who as int32, byval ru as rusage_ ptr ) as int32
-	declare function u_localtime_r alias "localtime_r" ( byval t as clong ptr, byval result as any ptr ) as any ptr
-	declare function u_time alias "time" ( byval t as clong ptr ) as clong
+	declare function u_clock_gettime alias "clock_gettime" ( byval id as clockid_t, byval ts as struct_timespec ptr ) as int32
+	declare function u_clock_getres alias "clock_getres" ( byval id as clockid_t, byval ts as struct_timespec ptr ) as int32
+	declare function u_gettimeofday alias "gettimeofday" ( byval tv as struct_timeval ptr, byval tz as any ptr ) as int32
+	declare function u_getrusage alias "getrusage" ( byval who as int32, byval ru as struct_rusage ptr ) as int32
+	declare function u_localtime_r alias "localtime_r" ( byval t as time_t ptr, byval result as struct_tm ptr ) as struct_tm ptr
+	declare function u_time alias "time" ( byval t as time_t ptr ) as time_t
 end extern
 
 extern "rtlib"
 
 function tkort_DtClockUtcNow alias "fb_DtClockUtcNow" ( ) as int64
-	dim as timespec_ ts = any
-	dim as timeval_ tv = any
+	dim as struct_timespec ts = any
+	dim as struct_timeval tv = any
 	dim as int64 ticks = any
 
 	if( u_clock_gettime( CLOCK_REALTIME, @ts ) = 0 ) then
@@ -270,7 +252,7 @@ function tkort_DtClockUtcNow alias "fb_DtClockUtcNow" ( ) as int64
 end function
 
 function tkort_DtClockResolution alias "fb_DtClockResolution" ( ) as int64
-	dim as timespec_ res = any
+	dim as struct_timespec res = any
 	dim as int64 t = any
 	if( u_clock_getres( CLOCK_REALTIME, @res ) = 0 ) then
 		t = cast( int64, res.tv_sec ) * FB_DT_TICKS_PER_SECOND _
@@ -286,26 +268,22 @@ end function
 '' TZ and /etc/localtime here, which is where the system tz database is read,
 '' so historical correctness comes for free and this library ships no copy.
 ''
-'' tm_gmtoff is at a fixed offset in glibc's struct tm; it is read positionally
-'' rather than through a declared struct, because the layout past the first
-'' nine ints is what varies between libcs and only this field is wanted.
+'' tm_gmtoff is not ISO C, but glibc and Darwin both have it. It is read through
+'' the binding's struct_tm, whose layout is measured on the target (glibc x86-64:
+'' offset 40, BEFORE the tm_zone pointer at 48 -- the binding asserts both).
 function tkort_DtClockLocalOffsetNow alias "fb_DtClockLocalOffsetNow" ( ) as int32
-	dim as clong now_ = any
-	dim as uint8 tmv( 0 to 127 )
-	dim as clong ptr gmtoff = any
+	dim as time_t now_ = any
+	dim as struct_tm tmv
 
 	now_ = u_time( nullptr )
-	if( u_localtime_r( @now_, @tmv(0) ) = nullptr ) then return 0
+	if( u_localtime_r( @now_, @tmv ) = nullptr ) then return 0
 
-	'' struct tm: nine ints, then tm_gmtoff (a long) after the tm_zone
-	'' pointer on glibc -- offset 40 on LP64 with the pointer at 32.
-	gmtoff = cptr( clong ptr, @tmv(0) + 40 )
-	return cast( int32, *gmtoff \ 60 )
+	return cast( int32, tmv.tm_gmtoff \ 60 )
 end function
 
 function tkort_DtMonoTimestamp alias "fb_DtMonoTimestamp" ( ) as int64
-	dim as timespec_ ts = any
-	dim as timeval_ tv = any
+	dim as struct_timespec ts = any
+	dim as struct_timeval tv = any
 	'' CLOCK_MONOTONIC rather than _RAW: slewed but never stepped, which is
 	'' what a stopwatch wants, and it is the one that is cheap via the vDSO.
 	if( u_clock_gettime( CLOCK_MONOTONIC, @ts ) = 0 ) then
@@ -328,7 +306,7 @@ end function
 '' resolution.
 function tkort_DtCpuProcessTime alias "fb_DtCpuProcessTime" _
 	( byval user as int64 ptr, byval kernel as int64 ptr ) as int32
-	dim as rusage_ ru = any
+	dim as struct_rusage ru = any
 	if( u_getrusage( RUSAGE_SELF, @ru ) <> 0 ) then return 1
 	if( user <> nullptr ) then
 		*user = cast( int64, ru.ru_utime.tv_sec ) * FB_DT_TICKS_PER_SECOND _
@@ -346,7 +324,7 @@ end function
 '' a sentinel, not a time. Inventing a split would be worse than reporting none.
 function tkort_DtCpuThreadTime alias "fb_DtCpuThreadTime" _
 	( byval user as int64 ptr, byval kernel as int64 ptr ) as int32
-	dim as timespec_ ts = any
+	dim as struct_timespec ts = any
 	if( u_clock_gettime( CLOCK_THREAD_CPUTIME_ID, @ts ) = 0 ) then
 		if( user <> nullptr ) then
 			*user = cast( int64, ts.tv_sec ) * FB_DT_TICKS_PER_SECOND _
@@ -364,4 +342,6 @@ end function
 
 end extern
 
+#else
+	#error "chrono/clock: no backend for this target"
 #endif

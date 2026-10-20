@@ -13,9 +13,10 @@
 '' That is exactly fbc's structure and it is why fb_TlsInit/fb_TlsExit exist only
 '' in the MT archive.
 ''
-'' EVERY SIZE HERE IS MEASURED, NOT ASSUMED, and each one is stated with what it
-'' was measured against. A wrong size in this file is a heap corruption, not a
-'' compile error, and it would show up as an unrelated test failing under -mt.
+'' EVERY SIZE HERE IS MEASURED, NOT ASSUMED: the Windows ones are stated with
+'' what they were measured against, the POSIX ones come from the generated
+'' binding. A wrong size in this file is a heap corruption, not a compile error,
+'' and it would show up as an unrelated test failing under -mt.
 
 #pragma once
 
@@ -97,81 +98,65 @@ end type
 		declare function w_GetProcAddress stdcall alias "GetProcAddress" ( byval h as any ptr, byval n as zstring ptr ) as any ptr
 	end extern
 
-#else
+#elseif defined( __FB_UNIX__ )
 
-	'' MEASURED AGAINST glibc ON linux-x86_64, which is the only POSIX target
-	'' in R3. These are the __SIZEOF_* macros glibc's own headers use:
-	''
-	''     pthread_mutex_t   40      pthread_cond_t     48
-	''     pthread_condattr_t 4      pthread_key_t       4
-	''     pthread_t          8      struct timespec    16
-	''
-	'' Held as raw byte storage rather than transcribed field by field: nothing
-	'' here reads a member, and transcribing a union of anonymous internals
-	'' would be a much larger surface to get wrong.
-	const TKORT_PTHREAD_MUTEX_SIZE = 40
-	const TKORT_PTHREAD_COND_SIZE  = 48
-	const TKORT_CONDATTR_SIZE      = 4
-	const TKORT_TIMESPEC_SIZE      = 16
-
-	'' pthread_attr_t is 56 bytes on glibc x86-64, and PTHREAD_STACK_MIN is
-	'' 16384 there. The minimum matters: pthread_attr_setstacksize REJECTS a
-	'' smaller value outright, so a caller asking for 0 -- which is fbc's own
-	'' THREADCREATE default -- would never get a thread.
-	const TKORT_PTHREAD_ATTR_SIZE  = 56
-	const TKORT_PTHREAD_STACK_MIN  = 16384
+	'' THE pthread TYPES ARE THE BINDING'S (inc/sysbind.ti): pthread_mutex_t,
+	'' pthread_cond_t, pthread_condattr_t and pthread_attr_t are opaque storage of
+	'' the target's measured size and alignment -- nothing here reads a member,
+	'' only the address is ever passed on -- and pthread_t, pthread_key_t and
+	'' clockid_t are its integer typedefs. Likewise CLOCK_*, ETIMEDOUT,
+	'' _SC_NPROCESSORS_ONLN and PTHREAD_STACK_MIN. The minimum matters:
+	'' pthread_attr_setstacksize REJECTS a smaller value outright, so a caller
+	'' asking for 0 -- which is fbc's own THREADCREATE default -- would never get
+	'' a thread.
 
 	type FBMUTEX
-		as uint8 id( 0 to TKORT_PTHREAD_MUTEX_SIZE - 1 )
+		as pthread_mutex_t id
 	end type
 
 	type FBTHREAD
-		as uint64 id                 '' pthread_t
+		as pthread_t id
 		as int32     flags
 	end type
 
-	type timespec_
-		as int64 tv_sec
-		as int64 tv_nsec
-	end type
-
-	const CLOCK_REALTIME_  = 0
-	const CLOCK_MONOTONIC_ = 1
-	const ETIMEDOUT_       = 110
-	const SC_NPROCESSORS_ONLN_ = 84
-
 	extern "c"   '' NON-FBCALL: libc and libpthread, not rtlib entry points.
-		declare function u_pthread_mutex_init alias "pthread_mutex_init" ( byval m as any ptr, byval a as any ptr ) as int32
-		declare function u_pthread_mutex_destroy alias "pthread_mutex_destroy" ( byval m as any ptr ) as int32
-		declare function u_pthread_mutex_lock alias "pthread_mutex_lock" ( byval m as any ptr ) as int32
-		declare function u_pthread_mutex_unlock alias "pthread_mutex_unlock" ( byval m as any ptr ) as int32
-		declare function u_pthread_cond_init alias "pthread_cond_init" ( byval c as any ptr, byval a as any ptr ) as int32
-		declare function u_pthread_cond_destroy alias "pthread_cond_destroy" ( byval c as any ptr ) as int32
-		declare function u_pthread_cond_signal alias "pthread_cond_signal" ( byval c as any ptr ) as int32
-		declare function u_pthread_cond_broadcast alias "pthread_cond_broadcast" ( byval c as any ptr ) as int32
-		declare function u_pthread_cond_wait alias "pthread_cond_wait" ( byval c as any ptr, byval m as any ptr ) as int32
+		declare function u_pthread_mutex_init alias "pthread_mutex_init" _
+			( byval m as pthread_mutex_t ptr, byval a as pthread_mutexattr_t ptr ) as int32
+		declare function u_pthread_mutex_destroy alias "pthread_mutex_destroy" ( byval m as pthread_mutex_t ptr ) as int32
+		declare function u_pthread_mutex_lock alias "pthread_mutex_lock" ( byval m as pthread_mutex_t ptr ) as int32
+		declare function u_pthread_mutex_unlock alias "pthread_mutex_unlock" ( byval m as pthread_mutex_t ptr ) as int32
+		declare function u_pthread_cond_init alias "pthread_cond_init" _
+			( byval c as pthread_cond_t ptr, byval a as pthread_condattr_t ptr ) as int32
+		declare function u_pthread_cond_destroy alias "pthread_cond_destroy" ( byval c as pthread_cond_t ptr ) as int32
+		declare function u_pthread_cond_signal alias "pthread_cond_signal" ( byval c as pthread_cond_t ptr ) as int32
+		declare function u_pthread_cond_broadcast alias "pthread_cond_broadcast" ( byval c as pthread_cond_t ptr ) as int32
+		declare function u_pthread_cond_wait alias "pthread_cond_wait" _
+			( byval c as pthread_cond_t ptr, byval m as pthread_mutex_t ptr ) as int32
 		declare function u_pthread_cond_timedwait alias "pthread_cond_timedwait" _
-			( byval c as any ptr, byval m as any ptr, byval ts as any ptr ) as int32
-		declare function u_pthread_condattr_init alias "pthread_condattr_init" ( byval a as any ptr ) as int32
-		declare function u_pthread_condattr_destroy alias "pthread_condattr_destroy" ( byval a as any ptr ) as int32
-		declare function u_pthread_condattr_setclock alias "pthread_condattr_setclock" ( byval a as any ptr, byval c as int32 ) as int32
-		declare function u_pthread_key_create alias "pthread_key_create" ( byval k as uint32 ptr, byval d as any ptr ) as int32
-		declare function u_pthread_key_delete alias "pthread_key_delete" ( byval k as uint32 ) as int32
-		declare function u_pthread_setspecific alias "pthread_setspecific" ( byval k as uint32, byval v as any ptr ) as int32
-		declare function u_pthread_getspecific alias "pthread_getspecific" ( byval k as uint32 ) as any ptr
-		declare function u_pthread_self alias "pthread_self" ( ) as uint64
-		declare function u_pthread_attr_init alias "pthread_attr_init" ( byval a as any ptr ) as int32
-		declare function u_pthread_attr_destroy alias "pthread_attr_destroy" ( byval a as any ptr ) as int32
+			( byval c as pthread_cond_t ptr, byval m as pthread_mutex_t ptr, byval ts as struct_timespec ptr ) as int32
+		declare function u_pthread_condattr_init alias "pthread_condattr_init" ( byval a as pthread_condattr_t ptr ) as int32
+		declare function u_pthread_condattr_destroy alias "pthread_condattr_destroy" ( byval a as pthread_condattr_t ptr ) as int32
+		'' pthread_condattr_setclock is not here: it is Linux-only -- thread/parklinux.tiko.
+		declare function u_pthread_key_create alias "pthread_key_create" _
+			( byval k as pthread_key_t ptr, byval d as any ptr ) as int32
+		declare function u_pthread_key_delete alias "pthread_key_delete" ( byval k as pthread_key_t ) as int32
+		declare function u_pthread_setspecific alias "pthread_setspecific" ( byval k as pthread_key_t, byval v as any ptr ) as int32
+		declare function u_pthread_getspecific alias "pthread_getspecific" ( byval k as pthread_key_t ) as any ptr
+		declare function u_pthread_self alias "pthread_self" ( ) as pthread_t
+		declare function u_pthread_attr_init alias "pthread_attr_init" ( byval a as pthread_attr_t ptr ) as int32
+		declare function u_pthread_attr_destroy alias "pthread_attr_destroy" ( byval a as pthread_attr_t ptr ) as int32
 		declare function u_pthread_attr_setstacksize alias "pthread_attr_setstacksize" _
-			( byval a as any ptr, byval n as uinteger ) as int32
+			( byval a as pthread_attr_t ptr, byval n as uinteger ) as int32
 		declare function u_pthread_create alias "pthread_create" _
-			( byval t as uint64 ptr, byval attr as any ptr, byval proc as any ptr, byval arg as any ptr ) as int32
-		declare function u_pthread_join alias "pthread_join" ( byval t as uint64, byval ret as any ptr ptr ) as int32
-		declare function u_pthread_detach alias "pthread_detach" ( byval t as uint64 ) as int32
-		declare function u_clock_gettime alias "clock_gettime" ( byval clk as int32, byval ts as any ptr ) as int32
+			( byval t as pthread_t ptr, byval attr as pthread_attr_t ptr, byval proc as any ptr, byval arg as any ptr ) as int32
+		declare function u_pthread_join alias "pthread_join" ( byval t as pthread_t, byval ret as any ptr ptr ) as int32
+		declare function u_pthread_detach alias "pthread_detach" ( byval t as pthread_t ) as int32
+		declare function u_clock_gettime alias "clock_gettime" ( byval clk as clockid_t, byval ts as struct_timespec ptr ) as int32
 		declare function u_sysconf alias "sysconf" ( byval n as int32 ) as int64
 	end extern
 
+#else
+	#error "inc/thread.ti: no thread backend for this target"
 #endif
 
 '' The per-thread FBTHREAD context. One pointer, and fb_AllocateMainFBThread

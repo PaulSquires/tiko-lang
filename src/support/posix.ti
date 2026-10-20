@@ -1,0 +1,16 @@
+'' posix.ti -- the POSIX constants and struct layouts of the host tiko runs on, for the
+'' compiler's own host-side code (build/lock.tiko, support/spawn.tiko).
+''
+'' The SAME generated binding tiko-rt and pkg/std are written against: build/posixgen.sh
+'' measures it with the host's C compiler and writes lib/rt/src/inc/sysbind/<target>-posix.ti
+'' (docs/tiko-macos RFC-0001 §4). Included by path rather than '#import "sys/posix"', because
+'' tiko's own source imports nothing but std/ (build/lint.sh, rule 9). Include it inside the
+'' unit's __FB_UNIX__ arm only: it is five hundred names.
+
+#pragma once
+
+#if defined( __FB_LINUX__ )
+    #include once "../../lib/rt/src/inc/sysbind/linux-x86_64-posix.ti"
+#else
+    #error "support/posix.ti: no posix binding for this host"
+#endif

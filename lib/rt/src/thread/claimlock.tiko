@@ -139,24 +139,25 @@ end sub
 
 end extern
 
-#else
+#elseif defined( __FB_UNIX__ )
 
-'' MEASURED: pthread_mutex_t is 40 bytes and PTHREAD_MUTEX_INITIALIZER is ALL
-'' ZERO BYTES -- so .bss initialises it and there is nothing to do lazily.
-type TKORT_PTHREAD_MUTEX
-	as uint8 raw( 0 to 39 )
-end type
-
-#assert sizeof( TKORT_PTHREAD_MUTEX ) = 40
+'' pthread_mutex_t is the binding's, and where the binding says
+'' PTHREAD_MUTEX_INITIALIZER is ALL ZERO BYTES (glibc) .bss initialises it and
+'' there is nothing to do lazily. Where it is not -- macOS's initializer carries
+'' a signature word -- a zero-filled mutex is invalid and locking it does not
+'' lock, so such a target must not build until M5 gives it a real initialiser.
+#if PTHREAD_MUTEX_INITIALIZER_IS_ZERO = 0
+	#error "thread/claimlock: a zero-filled pthread_mutex_t is not a valid mutex on this libc (M5)"
+#endif
 
 extern "c"   '' NON-FBCALL: libpthread.
 	declare function c_pthread_mutex_lock alias "pthread_mutex_lock" _
-		( byval m as TKORT_PTHREAD_MUTEX ptr ) as int32
+		( byval m as pthread_mutex_t ptr ) as int32
 	declare function c_pthread_mutex_unlock alias "pthread_mutex_unlock" _
-		( byval m as TKORT_PTHREAD_MUTEX ptr ) as int32
+		( byval m as pthread_mutex_t ptr ) as int32
 end extern
 
-dim shared as TKORT_PTHREAD_MUTEX tkort_claimmx
+dim shared as pthread_mutex_t tkort_claimmx
 
 extern "rtlib"   '' FBCALL, as above.
 
@@ -170,4 +171,6 @@ end sub
 
 end extern
 
+#else
+	#error "thread/claimlock: no claim-lock backend for this target"
 #endif

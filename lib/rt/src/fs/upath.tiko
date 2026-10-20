@@ -49,7 +49,7 @@ extern "c"   '' NON-FBCALL: Win32 and the UCRT's wide file functions.
 		( byval c as const wstring ptr, byval m as const wstring ptr ) as FILE ptr
 end extern
 
-#else
+#elseif defined( __FB_UNIX__ )
 
 extern "c"   '' NON-FBCALL: libc.
 	declare function crt_remove alias "remove" ( byval p as const zstring ptr ) as int32
@@ -58,6 +58,8 @@ extern "c"   '' NON-FBCALL: libc.
 		( byval c as const zstring ptr, byval m as const zstring ptr ) as FILE ptr
 end extern
 
+#else
+	#error "fs/upath: no backend for this target"
 #endif
 
 extern "c"   '' NON-FBCALL: called from the runtime's own files (inc/upath.ti) and, for
@@ -192,8 +194,10 @@ function tkort_PathPopen alias "fb_hPathPopen" _
 		dim as FILE ptr f = crt_wpopen( w, @wm )
 		free( w )
 		return f
-	#else
+	#elseif defined( __FB_UNIX__ )
 		return crt_popen( c, m )
+	#else
+		#error "fs/upath: no popen for this target"
 	#endif
 end function
 

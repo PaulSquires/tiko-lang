@@ -208,7 +208,7 @@ end function
 
 end extern
 
-#else
+#elseif defined( __FB_UNIX__ )
 
 '' ------------------------------------------------------------- Unix backend
 
@@ -219,32 +219,16 @@ type FB_FSMAP
 	as int32       writable
 end type
 
-const O_RDONLY_ = 0
-const O_RDWR_   = 2
-const PROT_READ_  = 1
-const PROT_WRITE_ = 2
-const MAP_SHARED_ = 1
-const MS_SYNC_    = 4
-const S_IFMT_  = &o170000
-const S_IFDIR_ = &o040000
-
-'' Only the two fields this file reads are named; the rest of struct stat is
-'' padding as far as the mapping is concerned. st_mode and st_size are at fixed
-'' offsets on x86-64 glibc.
-type stat_
-	as uint8 raw( 0 to 143 )
-end type
-
-const STAT_MODE_OFFSET = 24
-const STAT_SIZE_OFFSET = 48
+'' O_*, PROT_*, MAP_*, MS_*, S_IF* and struct stat (st_mode, st_size) all come
+'' from the posix binding (inc/sysbind.ti), measured on the target's own libc.
 
 extern "c"   '' NON-FBCALL: libc, not rtlib entry points.
 	declare function u_open alias "open" ( byval path as zstring ptr, byval flags as int32, ... ) as int32
 	declare function u_close alias "close" ( byval fd as int32 ) as int32
-	declare function u_fstat alias "fstat" ( byval fd as int32, byval st as stat_ ptr ) as int32
+	declare function u_fstat alias "fstat" ( byval fd as int32, byval st as struct_stat ptr ) as int32
 	declare function u_mmap alias "mmap" _
 		( byval addr as any ptr, byval length as uinteger, byval prot as int32, _
-		  byval flags as int32, byval fd as int32, byval off as int64 ) as any ptr
+		  byval flags as int32, byval fd as int32, byval off as off_t ) as any ptr
 	declare function u_munmap alias "munmap" ( byval addr as any ptr, byval length as uinteger ) as int32
 	declare function u_msync alias "msync" ( byval addr as any ptr, byval length as uinteger, byval flags as int32 ) as int32
 	declare function u_utf16to8 alias "fb_hUtf16ToUtf8" _
@@ -276,10 +260,10 @@ function tkort_UStrFsMmapOpen alias "fb_UStrFsMmapOpen" _
 
 	dim as zstring ptr path_ = any
 	dim as FB_FSMAP ptr m = any
-	dim as stat_ st = any
+	dim as struct_stat st = any
 	dim as int32 fd = any, r = any
 	dim as any ptr addr = any
-	dim as uint32 mode_ = any
+	dim as mode_t mode_ = any
 	dim as int64 size_ = any
 
 	*out_ = nullptr
@@ -287,7 +271,7 @@ function tkort_UStrFsMmapOpen alias "fb_UStrFsMmapOpen" _
 	path_ = hFsNarrow( p )
 	if( path_ = nullptr ) then return FB_FS_UNKNOWN
 
-	fd = u_open( path_, iif( writable <> 0, O_RDWR_, O_RDONLY_ ) )
+	fd = u_open( path_, iif( writable <> 0, O_RDWR, O_RDONLY ) )
 	free( path_ )
 
 	if( fd < 0 ) then return tkrt_FsMapOsError( )
@@ -298,12 +282,12 @@ function tkort_UStrFsMmapOpen alias "fb_UStrFsMmapOpen" _
 		return r
 	end if
 
-	mode_ = *cptr( uint32 ptr, @st.raw(STAT_MODE_OFFSET) )
-	size_ = *cptr( int64 ptr, @st.raw(STAT_SIZE_OFFSET) )
+	mode_ = st.st_mode
+	size_ = st.st_size
 
 	'' open( ) ON A DIRECTORY SUCCEEDS on POSIX, as everywhere; the refusal
 	'' has to be explicit so this matches what Windows does on its own.
-	if( (mode_ and S_IFMT_) = S_IFDIR_ ) then
+	if( (mode_ and S_IFMT) = S_IFDIR ) then
 		u_close( fd )
 		return FB_FS_IS_A_DIRECTORY
 	end if
@@ -314,12 +298,12 @@ function tkort_UStrFsMmapOpen alias "fb_UStrFsMmapOpen" _
 	end if
 
 	addr = u_mmap( nullptr, cast( uinteger, size_ ), _
-		iif( writable <> 0, PROT_READ_ or PROT_WRITE_, PROT_READ_ ), _
-		MAP_SHARED_, fd, 0 )
+		iif( writable <> 0, PROT_READ or PROT_WRITE, PROT_READ ), _
+		MAP_SHARED, fd, 0 )
 
 	'' MAP_FAILED is (void*)-1, NOT NULL -- a NULL test here would treat a
 	'' failed mapping as a successful one at address zero.
-	if( cast( integer, addr ) = -1 ) then
+	if( cast( integer, addr ) = MAP_FAILED ) then
 		r = tkrt_FsMapOsError( )
 		u_close( fd )
 		return r
@@ -363,10 +347,12 @@ end function
 function tkort_FsMmapFlush alias "fb_FsMmapFlush" ( byval m as FB_FSMAP ptr ) as int32
 	if( m = nullptr ) then return FB_FS_UNKNOWN
 	if( m->writable = 0 ) then return FB_FS_OK
-	if( u_msync( m->data_, cast( uinteger, m->size_ ), MS_SYNC_ ) <> 0 ) then return tkrt_FsMapOsError( )
+	if( u_msync( m->data_, cast( uinteger, m->size_ ), MS_SYNC ) <> 0 ) then return tkrt_FsMapOsError( )
 	return FB_FS_OK
 end function
 
 end extern
 
+#else
+	#error "fs/mmap: no backend for this target"
 #endif

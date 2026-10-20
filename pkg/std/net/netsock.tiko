@@ -2,13 +2,18 @@
 #import "std/containers"
 #import "std/outcome"
 #import "std/fs"
+#ifdef __FB_UNIX__
+#include once "../../sys/posix/posix.ti"
+using posix
+#endif
 using containers
 using outcome
 '' std/net: netsock -- Resolve, TcpStream, TcpListener, UdpSocket.  ws2_32 on
-'' Windows, libc on Linux, both declared here (RFC-0001 S12); the BSD calls are the
+'' Windows, libc on POSIX, both declared here (RFC-0001 S12); the BSD calls are the
 '' same on both, so one body serves both and only the declarations, the constants
-'' and a few helpers differ.  sockaddr_in and sockaddr_in6 have the same layout on
-'' both systems; only AF_INET6's value differs.  Rules: RFC-0001 section 15.3.
+'' and a few helpers differ.  On POSIX every constant and struct is sys/posix's, and
+'' what is Linux-only (errno's accessor, SOCK_CLOEXEC, accept4, MSG_NOSIGNAL, MSG_TRUNC
+'' as a receive flag) is netlinux.tiko's.  Rules: RFC-0001 section 15.3.
 
 #ifdef __FB_WIN32__
 
@@ -70,7 +75,14 @@ extern "Windows"
     declare sub tkn_Sleep alias "Sleep" ( byval ms as ulong )
 end extern
 
+const TKN_AF_UNSPEC = 0
+const TKN_AF_INET = 2
 const TKN_AF_INET6 = 23
+const TKN_SOCK_STREAM = 1
+const TKN_SOCK_DGRAM = 2
+const TKN_IPPROTO_TCP = 6
+const TKN_IPPROTO_IPV6 = 41
+const TKN_TCP_NODELAY = 1
 const TKN_SOL_SOCKET = &hFFFF
 const TKN_SO_EXCLUSIVEADDRUSE = -5
 const TKN_SO_KEEPALIVE = 8
@@ -166,86 +178,62 @@ private function hScope( byref z as const ustring ) as ulong
     return tkn_if_nametoindex( strptr( n ) )
 end function
 
-#else
+#elseif defined( __FB_UNIX__ )
 
-type TknAddrInfo
-    as long ai_flags, ai_family, ai_socktype, ai_protocol
-    as ulong ai_addrlen
-    as any ptr ai_addr
-    as zstring ptr ai_canonname
-    as TknAddrInfo ptr ai_next
-end type
+'' Every constant and struct here is sys/posix's.  hLastErr (errno), hSocket and
+'' hAccept (a socket nothing inherits), TKN_MSG_NOSIGNAL and hRecvDgram (a datagram's
+'' full length) have no POSIX spelling: they are netlinux.tiko's.
 
-type TknPollFd
-    as long fd
-    as short events, revents
-end type
-
-type TknTimeval
-    as longint sec, usec
-end type
+type TknAddrInfo as struct_addrinfo
 
 extern "C"
-    declare function tkn_socket alias "socket" ( byval af as long, byval type_ as long, byval proto as long ) as long
     declare function tkn_close alias "close" ( byval fd as long ) as long
-    declare function tkn_connect alias "connect" ( byval fd as long, byval sa as const any ptr, byval n as ulong ) as long
-    declare function tkn_bind alias "bind" ( byval fd as long, byval sa as const any ptr, byval n as ulong ) as long
+    declare function tkn_connect alias "connect" ( byval fd as long, byval sa as const any ptr, byval n as socklen_t ) as long
+    declare function tkn_bind alias "bind" ( byval fd as long, byval sa as const any ptr, byval n as socklen_t ) as long
     declare function tkn_listen alias "listen" ( byval fd as long, byval backlog as long ) as long
-    declare function tkn_accept4 alias "accept4" ( byval fd as long, byval sa as any ptr, byval n as ulong ptr, byval flags as long ) as long
     declare function tkn_send alias "send" ( byval fd as long, byval buf as const any ptr, byval n as uinteger, byval flags as long ) as integer
     declare function tkn_recv alias "recv" ( byval fd as long, byval buf as any ptr, byval n as uinteger, byval flags as long ) as integer
     declare function tkn_sendto alias "sendto" ( byval fd as long, byval buf as const any ptr, byval n as uinteger, _
-        byval flags as long, byval sa as const any ptr, byval sn as ulong ) as integer
-    declare function tkn_recvfrom alias "recvfrom" ( byval fd as long, byval buf as any ptr, byval n as uinteger, _
-        byval flags as long, byval sa as any ptr, byval sn as ulong ptr ) as integer
+        byval flags as long, byval sa as const any ptr, byval sn as socklen_t ) as integer
     declare function tkn_setsockopt alias "setsockopt" ( byval fd as long, byval lvl as long, byval nm as long, _
-        byval v as const any ptr, byval n as ulong ) as long
+        byval v as const any ptr, byval n as socklen_t ) as long
     declare function tkn_getsockopt alias "getsockopt" ( byval fd as long, byval lvl as long, byval nm as long, _
-        byval v as any ptr, byval n as ulong ptr ) as long
-    declare function tkn_getsockname alias "getsockname" ( byval fd as long, byval sa as any ptr, byval n as ulong ptr ) as long
-    declare function tkn_getpeername alias "getpeername" ( byval fd as long, byval sa as any ptr, byval n as ulong ptr ) as long
+        byval v as any ptr, byval n as socklen_t ptr ) as long
+    declare function tkn_getsockname alias "getsockname" ( byval fd as long, byval sa as any ptr, byval n as socklen_t ptr ) as long
+    declare function tkn_getpeername alias "getpeername" ( byval fd as long, byval sa as any ptr, byval n as socklen_t ptr ) as long
     declare function tkn_shutdown alias "shutdown" ( byval fd as long, byval how as long ) as long
     declare function tkn_fcntl alias "fcntl" ( byval fd as long, byval cmd as long, ... ) as long
-    declare function tkn_poll alias "poll" ( byval fds as TknPollFd ptr, byval n as uinteger, byval ms as long ) as long
+    declare function tkn_poll alias "poll" ( byval fds as struct_pollfd ptr, byval n as nfds_t, byval ms as long ) as long
     declare function tkn_getaddrinfo alias "getaddrinfo" ( byval node as const zstring ptr, byval svc as const zstring ptr, _
         byval hints as const TknAddrInfo ptr, byval res as TknAddrInfo ptr ptr ) as long
     declare sub tkn_freeaddrinfo alias "freeaddrinfo" ( byval ai as TknAddrInfo ptr )
     declare function tkn_if_nametoindex alias "if_nametoindex" ( byval n as const zstring ptr ) as ulong
-    declare function tkn_errno_location alias "__errno_location" ( ) as long ptr
 end extern
 
-const TKN_AF_INET6 = 10
-const TKN_SOL_SOCKET = 1
-const TKN_SO_REUSEADDR = 2
-const TKN_SO_KEEPALIVE = 9
-const TKN_SO_BROADCAST = 6
-const TKN_SO_ERROR = 4
-const TKN_SO_RCVTIMEO = 20
-const TKN_SO_SNDTIMEO = 21
-const TKN_IPV6_V6ONLY = 26
-const TKN_IP_ADD_MEMBERSHIP = 35
-const TKN_IPV6_ADD_MEMBERSHIP = 20
-const TKN_SOCK_CLOEXEC = &h80000
-const TKN_MSG_NOSIGNAL = &h4000
-const TKN_MSG_TRUNC = &h20
-const TKN_ETIMEDOUT = 110
-const TKN_EAGAIN = 11                  '' a blocking recv/send past SO_RCVTIMEO/SNDTIMEO
-const TKN_EINTR = 4
-const TKN_EINPROGRESS = 115
-const TKN_EMSGSIZE = 90
-
-private function hLastErr( ) as long
-    return *tkn_errno_location( )
-end function
+'' The names the shared code below uses, on both systems.
+const TKN_AF_UNSPEC = AF_UNSPEC
+const TKN_AF_INET = AF_INET
+const TKN_AF_INET6 = AF_INET6
+const TKN_SOCK_STREAM = SOCK_STREAM
+const TKN_SOCK_DGRAM = SOCK_DGRAM
+const TKN_IPPROTO_TCP = IPPROTO_TCP
+const TKN_IPPROTO_IPV6 = IPPROTO_IPV6
+const TKN_TCP_NODELAY = TCP_NODELAY
+const TKN_SOL_SOCKET = SOL_SOCKET
+const TKN_SO_KEEPALIVE = SO_KEEPALIVE
+const TKN_SO_BROADCAST = SO_BROADCAST
+const TKN_SO_ERROR = SO_ERROR
+const TKN_SO_RCVTIMEO = SO_RCVTIMEO
+const TKN_SO_SNDTIMEO = SO_SNDTIMEO
+const TKN_IPV6_V6ONLY = IPV6_V6ONLY
+const TKN_ETIMEDOUT = ETIMEDOUT
+const TKN_EAGAIN = EAGAIN              '' a blocking recv/send past SO_RCVTIMEO/SNDTIMEO
+const TKN_EINTR = EINTR
+const TKN_EINPROGRESS = EINPROGRESS
+const TKN_EMSGSIZE = EMSGSIZE
 
 private function hStartup( ) as long
     return 0
-end function
-
-private function hSocket( byval v6 as boolean, byval type_ as long ) as integer
-    dim as long fd = tkn_socket( iif( v6, TKN_AF_INET6, 2 ), type_ or TKN_SOCK_CLOEXEC, 0 )
-    if( fd < 0 ) then return -1
-    return fd
 end function
 
 private sub hCloseFd( byval fd as integer )
@@ -253,18 +241,18 @@ private sub hCloseFd( byval fd as integer )
 end sub
 
 private function hSetBlocking( byval fd as integer, byval on_ as boolean ) as boolean
-    dim as long fl = tkn_fcntl( fd, 3 )                        '' F_GETFL
+    dim as long fl = tkn_fcntl( fd, F_GETFL )
     if( fl < 0 ) then return FALSE
-    if( on_ ) then fl and= not &o4000 else fl or= &o4000        '' O_NONBLOCK
-    return ( tkn_fcntl( fd, 4, fl ) = 0 )                       '' F_SETFL
+    if( on_ ) then fl and= not O_NONBLOCK else fl or= O_NONBLOCK
+    return ( tkn_fcntl( fd, F_SETFL, fl ) = 0 )
 end function
 
 private function hWait( byval fd as integer, byval forWrite as boolean, byval ms as long ) as long
     dim as double deadline = timer + ms / 1000
     do
-        dim as TknPollFd p
+        dim as struct_pollfd p
         p.fd = fd
-        p.events = iif( forWrite, 4, 1 )                        '' POLLOUT / POLLIN
+        p.events = iif( forWrite, POLLOUT, POLLIN )
         p.revents = 0
         dim as long left_ = ms
         if( ms >= 0 ) then
@@ -274,17 +262,17 @@ private function hWait( byval fd as integer, byval forWrite as boolean, byval ms
         dim as long rc = tkn_poll( @p, 1, left_ )
         if( rc > 0 ) then return 1
         if( rc = 0 ) then return 0
-        if( hLastErr( ) <> TKN_EINTR ) then return -1
+        if( hLastErr( ) <> EINTR ) then return -1
     loop
 end function
 
 private function hTimeoutOpt( byval fd as integer, byval nm as long, byval ms as long ) as boolean
-    dim as TknTimeval tv
+    dim as struct_timeval tv
     if( ms > 0 ) then
-        tv.sec = ms \ 1000
-        tv.usec = ( ms mod 1000 ) * 1000
+        tv.tv_sec = ms \ 1000
+        tv.tv_usec = ( ms mod 1000 ) * 1000
     end if
-    return ( tkn_setsockopt( fd, TKN_SOL_SOCKET, nm, @tv, sizeof( TknTimeval ) ) = 0 )
+    return ( tkn_setsockopt( fd, SOL_SOCKET, nm, @tv, sizeof( struct_timeval ) ) = 0 )
 end function
 
 private function hScope( byref z as const ustring ) as ulong
@@ -293,6 +281,8 @@ private function hScope( byref z as const ustring ) as ulong
     return tkn_if_nametoindex( strptr( n ) )
 end function
 
+#else
+    #error "net/netsock: no backend for this target"
 #endif
 
 '' -------------------------------------------------------------- shared helpers
@@ -306,8 +296,10 @@ private function hSoError( byval fd as integer ) as long
     dim as long v = 0
 #ifdef __FB_WIN32__
     dim as long n = 4
+#elseif defined( __FB_UNIX__ )
+    dim as socklen_t n = 4
 #else
-    dim as ulong n = 4
+    #error "net/netsock: no backend for this target"
 #endif
     if( tkn_getsockopt( fd, TKN_SOL_SOCKET, TKN_SO_ERROR, @v, @n ) <> 0 ) then return hLastErr( )
     return v
@@ -329,18 +321,20 @@ private function hMapErr( byval e as long ) as NetErrorCode
     case 10047               : return NET_INVALID_ADDRESS
     case 11001, 11004        : return NET_HOST_NOT_FOUND
     case 11002               : return NET_TEMPORARY_FAILURE
+#elseif defined( __FB_UNIX__ )
+    case ECONNREFUSED                : return NET_CONNECTION_REFUSED
+    case ECONNRESET, ECONNABORTED    : return NET_CONNECTION_RESET
+    case ETIMEDOUT, EAGAIN           : return NET_TIMED_OUT
+    case EADDRINUSE                  : return NET_ADDRESS_IN_USE
+    case EADDRNOTAVAIL               : return NET_ADDRESS_NOT_AVAILABLE
+    case ENETUNREACH, ENETDOWN       : return NET_NETWORK_UNREACHABLE
+    case EHOSTUNREACH                : return NET_HOST_UNREACHABLE
+    case EACCES, EPERM               : return NET_ACCESS_DENIED
+    case EMSGSIZE                    : return NET_MESSAGE_TOO_LONG
+    case ENOTCONN, EPIPE             : return NET_NOT_CONNECTED
+    case EAFNOSUPPORT                : return NET_INVALID_ADDRESS
 #else
-    case 111                 : return NET_CONNECTION_REFUSED
-    case 104, 103            : return NET_CONNECTION_RESET
-    case 110, 11             : return NET_TIMED_OUT
-    case 98                  : return NET_ADDRESS_IN_USE
-    case 99                  : return NET_ADDRESS_NOT_AVAILABLE
-    case 101, 100            : return NET_NETWORK_UNREACHABLE
-    case 113                 : return NET_HOST_UNREACHABLE
-    case 13, 1               : return NET_ACCESS_DENIED
-    case 90                  : return NET_MESSAGE_TOO_LONG
-    case 107, 32             : return NET_NOT_CONNECTED
-    case 97                  : return NET_INVALID_ADDRESS
+    #error "net/netsock: no backend for this target"
 #endif
     end select
     return NET_UNKNOWN
@@ -356,11 +350,13 @@ private function hFsFail( byval e as long, byref op as const ustring ) as fs.FsR
     case 10058               : c = fs.FS_BROKEN_PIPE
     case 10057               : c = fs.FS_CLOSED
     case 10004               : c = fs.FS_INTERRUPTED
+#elseif defined( __FB_UNIX__ )
+    case EAGAIN                      : c = fs.FS_TIMED_OUT
+    case ECONNRESET, ECONNABORTED    : c = fs.FS_CONNECTION_RESET
+    case EPIPE                       : c = fs.FS_BROKEN_PIPE
+    case ENOTCONN                    : c = fs.FS_CLOSED
 #else
-    case 11                  : c = fs.FS_TIMED_OUT
-    case 104, 103            : c = fs.FS_CONNECTION_RESET
-    case 32                  : c = fs.FS_BROKEN_PIPE
-    case 107                 : c = fs.FS_CLOSED
+    #error "net/netsock: no backend for this target"
 #endif
     end select
     return Fail( of longint, fs.FsError )( fs.FsError( c, e, op, "" ) )
@@ -378,6 +374,7 @@ end function
 
 '' The sockaddr_in / sockaddr_in6 for `a` in buf (at least 28 bytes); its length,
 '' or 0 when a zone names no interface.
+#ifdef __FB_WIN32__
 private function hSockaddr( byref a as const SocketAddress, byval buf as ubyte ptr ) as long
     for i as long = 0 to 27
         buf[i] = 0
@@ -425,14 +422,78 @@ private function hFromSockaddr( byval buf as const ubyte ptr ) as SocketAddress
     end if
     return r
 end function
+#elseif defined( __FB_UNIX__ )
+'' sys/posix's struct_sockaddr_in / struct_sockaddr_in6, field by field; the port and
+'' the v4 address are written byte by byte in network order.
+#assert sizeof( struct_sockaddr_in6 ) <= 28
+#assert offsetof( struct_sockaddr_in6, sin6_port ) = offsetof( struct_sockaddr_in, sin_port )
+private function hSockaddr( byref a as const SocketAddress, byval buf as ubyte ptr ) as long
+    for i as long = 0 to sizeof( struct_sockaddr_in6 ) - 1
+        buf[i] = 0
+    next
+    if( a.Ip.IsV6( ) = FALSE ) then
+        dim as struct_sockaddr_in ptr s4 = cptr( struct_sockaddr_in ptr, buf )
+        s4->sin_family = AF_INET
+        cptr( ubyte ptr, @s4->sin_port )[0] = a.Port shr 8
+        cptr( ubyte ptr, @s4->sin_port )[1] = a.Port and 255
+        for i as long = 0 to 3
+            cptr( ubyte ptr, @s4->sin_addr )[i] = a.Ip.hB( i )
+        next
+        return sizeof( struct_sockaddr_in )
+    end if
+    dim as struct_sockaddr_in6 ptr s6 = cptr( struct_sockaddr_in6 ptr, buf )
+    s6->sin6_family = AF_INET6
+    cptr( ubyte ptr, @s6->sin6_port )[0] = a.Port shr 8
+    cptr( ubyte ptr, @s6->sin6_port )[1] = a.Port and 255
+    for i as long = 0 to 15
+        s6->sin6_addr.s6_addr( i ) = a.Ip.hB( i )
+    next
+    dim as ustring z = a.Ip.hZone
+    if( len( z ) > 0 ) then
+        dim as ulong sc = 0
+        dim as boolean digits = TRUE
+        for i as long = 0 to len( z ) - 1
+            if( ( z[i] < 48 ) orelse ( z[i] > 57 ) ) then digits = FALSE
+        next
+        if( digits andalso ( len( z ) <= 9 ) ) then sc = culng( valuint( z ) ) else sc = hScope( z )
+        if( sc = 0 ) then return 0
+        s6->sin6_scope_id = sc
+    end if
+    return sizeof( struct_sockaddr_in6 )
+end function
+
+private function hFromSockaddr( byval buf as const ubyte ptr ) as SocketAddress
+    dim as SocketAddress r
+    dim as const struct_sockaddr ptr sa = cptr( const struct_sockaddr ptr, buf )
+    dim as const struct_sockaddr_in ptr s4 = cptr( const struct_sockaddr_in ptr, buf )
+    dim as const ubyte ptr pp = cptr( const ubyte ptr, @s4->sin_port )     '' sin6_port is there too
+    r.Port = pp[0] * 256 + pp[1]
+    if( sa->sa_family = AF_INET ) then
+        dim as const ubyte ptr ap = cptr( const ubyte ptr, @s4->sin_addr )
+        r.Ip = Ipv4( ap[0], ap[1], ap[2], ap[3] )
+    elseif( sa->sa_family = AF_INET6 ) then
+        dim as const struct_sockaddr_in6 ptr s6 = cptr( const struct_sockaddr_in6 ptr, buf )
+        r.Ip.hV6 = TRUE
+        for i as long = 0 to 15
+            r.Ip.hB( i ) = s6->sin6_addr.s6_addr( i )
+        next
+        if( s6->sin6_scope_id <> 0 ) then r.Ip.hZone = str( s6->sin6_scope_id )
+    end if
+    return r
+end function
+#else
+    #error "net/netsock: no backend for this target"
+#endif
 
 private function hName( byval fd as integer, byval peer as boolean, byref op as const ustring ) as NetResultAddr
     if( fd = -1 ) then return NetFail( of SocketAddress )( NET_CLOSED, 0, op, "" )
     dim as ubyte buf( 0 to 127 )
 #ifdef __FB_WIN32__
     dim as long n = 128
+#elseif defined( __FB_UNIX__ )
+    dim as socklen_t n = 128
 #else
-    dim as ulong n = 128
+    #error "net/netsock: no backend for this target"
 #endif
     dim as long rc
     if( peer ) then rc = tkn_getpeername( fd, @buf( 0 ), @n ) else rc = tkn_getsockname( fd, @buf( 0 ), @n )
@@ -491,8 +552,8 @@ public function Resolve( byref host as const ustring, byval port as ushort = 0, 
     dim as long st = hStartup( )
     if( st <> 0 ) then return NetFail( of NetAddrList )( NET_UNKNOWN, st, "Resolve", host )
     dim as TknAddrInfo hints
-    hints.ai_family = iif( family = AF_IPV4, 2, iif( family = AF_IPV6, TKN_AF_INET6, 0 ) )
-    hints.ai_socktype = 1                                       '' SOCK_STREAM: one entry per address
+    hints.ai_family = iif( family = AF_IPV4, TKN_AF_INET, iif( family = AF_IPV6, TKN_AF_INET6, TKN_AF_UNSPEC ) )
+    hints.ai_socktype = TKN_SOCK_STREAM                         '' one entry per address
     dim as TknAddrInfo ptr res = nullptr
     dim as long rc
 #ifdef __FB_WIN32__
@@ -503,25 +564,27 @@ public function Resolve( byref host as const ustring, byval port as ushort = 0, 
     rc = tkn_GetAddrInfoW( w, nullptr, @hints, @res )
     deallocate( w )
     if( rc <> 0 ) then return NetFail( of NetAddrList )( hMapErr( rc ), rc, "Resolve", host )
-#else
+#elseif defined( __FB_UNIX__ )
     dim as string z = h
     z &= chr( 0 )
     rc = tkn_getaddrinfo( strptr( z ), nullptr, @hints, @res )
     if( rc <> 0 ) then
         dim as NetErrorCode c = NET_UNKNOWN
         select case rc
-        case -2, -5 : c = NET_HOST_NOT_FOUND                    '' EAI_NONAME EAI_NODATA
-        case -3     : c = NET_TEMPORARY_FAILURE                 '' EAI_AGAIN
-        case -11                                                '' EAI_SYSTEM
+        case EAI_NONAME, EAI_NODATA : c = NET_HOST_NOT_FOUND
+        case EAI_AGAIN              : c = NET_TEMPORARY_FAILURE
+        case EAI_SYSTEM
             rc = hLastErr( )
             c = hMapErr( rc )
         end select
         return NetFail( of NetAddrList )( c, rc, "Resolve", host )
     end if
+#else
+    #error "net/netsock: no backend for this target"
 #endif
     dim as TknAddrInfo ptr p = res
     while( p <> nullptr )
-        if( ( p->ai_family = 2 ) orelse ( p->ai_family = TKN_AF_INET6 ) ) then
+        if( ( p->ai_family = TKN_AF_INET ) orelse ( p->ai_family = TKN_AF_INET6 ) ) then
             dim as SocketAddress a = hFromSockaddr( p->ai_addr )
             a.Port = port
             dim as boolean seen = FALSE
@@ -534,8 +597,10 @@ public function Resolve( byref host as const ustring, byval port as ushort = 0, 
     wend
 #ifdef __FB_WIN32__
     tkn_FreeAddrInfoW( res )
-#else
+#elseif defined( __FB_UNIX__ )
     tkn_freeaddrinfo( res )
+#else
+    #error "net/netsock: no backend for this target"
 #endif
     if( r.num = 0 ) then return NetFail( of NetAddrList )( NET_HOST_NOT_FOUND, 0, "Resolve", host )
     return Ok( of NetAddrList, NetError )( r )
@@ -585,7 +650,7 @@ function TcpStream.Connect( byref addr as const SocketAddress, byval timeoutMs a
     dim as ubyte sa( 0 to 31 )
     dim as long n = hSockaddr( addr, @sa( 0 ) )
     if( n = 0 ) then return NetFail( of boolean )( NET_INVALID_ADDRESS, 0, "Connect", subj )
-    dim as integer fd = hSocket( addr.Ip.IsV6( ), 1 )
+    dim as integer fd = hSocket( addr.Ip.IsV6( ), TKN_SOCK_STREAM )
     if( fd = -1 ) then return hFailBool( hLastErr( ), "Connect", subj )
     dim as long e = hConnect( fd, @sa( 0 ), n, timeoutMs )
     if( e <> 0 ) then
@@ -655,7 +720,7 @@ end function
 
 function TcpStream.SetNoDelay( byval on_ as boolean ) as NetResultBool
     if( this.hFd = -1 ) then return NetFail( of boolean )( NET_CLOSED, 0, "SetNoDelay", "" )
-    if( hSetOpt( this.hFd, 6, 1, iif( on_, 1, 0 ) ) = FALSE ) then return hFailBool( hLastErr( ), "SetNoDelay", "" )   '' IPPROTO_TCP TCP_NODELAY
+    if( hSetOpt( this.hFd, TKN_IPPROTO_TCP, TKN_TCP_NODELAY, iif( on_, 1, 0 ) ) = FALSE ) then return hFailBool( hLastErr( ), "SetNoDelay", "" )
     return hOkBool( )
 end function
 
@@ -725,14 +790,16 @@ function TcpListener.Bind( byref addr as const SocketAddress, byval backlog as l
     dim as ubyte sa( 0 to 31 )
     dim as long n = hSockaddr( addr, @sa( 0 ) )
     if( n = 0 ) then return NetFail( of boolean )( NET_INVALID_ADDRESS, 0, "Bind", subj )
-    dim as integer fd = hSocket( addr.Ip.IsV6( ), 1 )
+    dim as integer fd = hSocket( addr.Ip.IsV6( ), TKN_SOCK_STREAM )
     if( fd = -1 ) then return hFailBool( hLastErr( ), "Bind", subj )
 #ifdef __FB_WIN32__
     hSetOpt( fd, TKN_SOL_SOCKET, TKN_SO_EXCLUSIVEADDRUSE, 1 )
+#elseif defined( __FB_UNIX__ )
+    hSetOpt( fd, SOL_SOCKET, SO_REUSEADDR, 1 )
 #else
-    hSetOpt( fd, TKN_SOL_SOCKET, TKN_SO_REUSEADDR, 1 )
+    #error "net/netsock: no backend for this target"
 #endif
-    if( addr.Ip.IsV6( ) ) then hSetOpt( fd, 41, TKN_IPV6_V6ONLY, iif( dualStack, 0, 1 ) )
+    if( addr.Ip.IsV6( ) ) then hSetOpt( fd, TKN_IPPROTO_IPV6, TKN_IPV6_V6ONLY, iif( dualStack, 0, 1 ) )
     dim as long e = 0
     if( tkn_bind( fd, @sa( 0 ), n ) <> 0 ) then
         e = hLastErr( )
@@ -763,12 +830,14 @@ function TcpListener.Accept( byref conn as TcpStream, byval timeoutMs as long = 
             conn.hFd = cast( integer, s )
             exit do
         end if
-#else
-        dim as long s = tkn_accept4( this.hFd, nullptr, nullptr, TKN_SOCK_CLOEXEC )
+#elseif defined( __FB_UNIX__ )
+        dim as long s = hAccept( this.hFd )
         if( s >= 0 ) then
             conn.hFd = s
             exit do
         end if
+#else
+        #error "net/netsock: no backend for this target"
 #endif
         dim as long e = hLastErr( )
         if( e <> TKN_EINTR ) then return hFailBool( e, "Accept", "" )
@@ -806,9 +875,9 @@ end function
 '' Opens the socket for `v6` when it is not open yet.  0, or the OS error.
 private function hUdpOpen( byref u as UdpSocket, byval v6 as boolean ) as long
     if( u.hFd <> -1 ) then return 0
-    dim as integer fd = hSocket( v6, 2 )
+    dim as integer fd = hSocket( v6, TKN_SOCK_DGRAM )
     if( fd = -1 ) then return hLastErr( )
-    if( v6 ) then hSetOpt( fd, 41, TKN_IPV6_V6ONLY, 0 )
+    if( v6 ) then hSetOpt( fd, TKN_IPPROTO_IPV6, TKN_IPV6_V6ONLY, 0 )
     if( u.hReadMs > 0 ) then hTimeoutOpt( fd, TKN_SO_RCVTIMEO, u.hReadMs )
     u.hFd = fd
     u.hV6 = v6
@@ -905,9 +974,11 @@ function UdpSocket.ReceiveFrom( byval p as ubyte ptr, byval n as long, byref src
 #ifdef __FB_WIN32__
         dim as long sn = 128
         dim as longint got = tkn_recvfrom( this.hFd, p, n, 0, @sa( 0 ), @sn )
+#elseif defined( __FB_UNIX__ )
+        dim as socklen_t sn = 128
+        dim as longint got = hRecvDgram( this.hFd, p, n, @sa( 0 ), @sn )
 #else
-        dim as ulong sn = 128
-        dim as longint got = tkn_recvfrom( this.hFd, p, n, TKN_MSG_TRUNC, @sa( 0 ), @sn )
+        #error "net/netsock: no backend for this target"
 #endif
         if( got >= 0 ) then
             src = hFromSockaddr( @sa( 0 ) )
@@ -942,8 +1013,10 @@ function UdpSocket.Receive( byval p as ubyte ptr, byval n as long ) as NetResult
     do
 #ifdef __FB_WIN32__
         dim as longint got = tkn_recv( this.hFd, p, n, 0 )
+#elseif defined( __FB_UNIX__ )
+        dim as longint got = hRecvDgram( this.hFd, p, n, nullptr, nullptr )
 #else
-        dim as longint got = tkn_recv( this.hFd, p, n, TKN_MSG_TRUNC )
+        #error "net/netsock: no backend for this target"
 #endif
         if( got > n ) then return NetFail( of longint )( NET_MESSAGE_TOO_LONG, 0, "Receive", "" )
         if( got >= 0 ) then return Ok( of longint, NetError )( got )
@@ -966,6 +1039,7 @@ function UdpSocket.JoinMulticast( byref group as const IpAddress ) as NetResultB
     if( ( group.IsMulticast( ) = FALSE ) orelse ( group.IsV6( ) <> this.hV6 ) ) then
         return NetFail( of boolean )( NET_INVALID_ADDRESS, 0, "JoinMulticast", subj )
     end if
+#ifdef __FB_WIN32__
     dim as ubyte m( 0 to 19 )
     dim as long rc
     if( group.IsV4( ) ) then
@@ -987,6 +1061,30 @@ function UdpSocket.JoinMulticast( byref group as const IpAddress ) as NetResultB
         end if
         rc = tkn_setsockopt( this.hFd, 41, TKN_IPV6_ADD_MEMBERSHIP, @m( 0 ), 20 )
     end if
+#elseif defined( __FB_UNIX__ )
+    dim as long rc
+    if( group.IsV4( ) ) then
+        dim as struct_ip_mreq mr                                '' imr_interface = INADDR_ANY (zero)
+        for i as long = 0 to 3
+            cptr( ubyte ptr, @mr.imr_multiaddr )[i] = group.hB( i )
+        next
+        rc = tkn_setsockopt( this.hFd, IPPROTO_IP, IP_ADD_MEMBERSHIP, @mr, sizeof( struct_ip_mreq ) )
+    else
+        dim as struct_ipv6_mreq mr
+        for i as long = 0 to 15
+            mr.ipv6mr_multiaddr.s6_addr( i ) = group.hB( i )
+        next
+        if( len( group.hZone ) > 0 ) then
+            dim as SocketAddress t = SocketAddress( group, 0 )
+            dim as struct_sockaddr_in6 sa
+            if( hSockaddr( t, cptr( ubyte ptr, @sa ) ) = 0 ) then return NetFail( of boolean )( NET_INVALID_ADDRESS, 0, "JoinMulticast", subj )
+            mr.ipv6mr_interface = sa.sin6_scope_id
+        end if
+        rc = tkn_setsockopt( this.hFd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP, @mr, sizeof( struct_ipv6_mreq ) )
+    end if
+#else
+    #error "net/netsock: no backend for this target"
+#endif
     if( rc <> 0 ) then return hFailBool( hLastErr( ), "JoinMulticast", subj )
     return hOkBool( )
 end function

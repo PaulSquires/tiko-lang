@@ -98,6 +98,20 @@ def own_names(src_dir):
     return own
 
 
+def posix_names(src_dir, target):
+    """What the generated POSIX binding (inc/sysbind/<target>-posix.ti, build/posixgen.sh)
+    defines -- the constants and struct layouts measured with the C compiler. Those are its
+    to carry; a copy here would be a second definition of EPERM beside it. Windows has none."""
+    path = os.path.join(src_dir, "inc", "sysbind", target + "-posix.ti")
+    names = set()
+    if os.path.exists(path):
+        for ln in open(path, encoding="utf-8"):
+            m = re.match(r"^(?:const|type) (\w+)", ln)
+            if m:
+                names.add(m.group(1).lower())
+    return names
+
+
 def used_names(src_dir):
     used = set()
     for dp, dn, fn in os.walk(src_dir):
@@ -122,7 +136,7 @@ def main():
     for k, (names, body) in enumerate(its):
         for n in names:
             declares.setdefault(n, k)
-    used = used_names(src_dir) - own_names(src_dir)
+    used = used_names(src_dir) - own_names(src_dir) - posix_names(src_dir, target)
     want = [k for k, (names, body) in enumerate(its)
             if (names & used) and not (names & NOT_HERE)]
     keep = set()

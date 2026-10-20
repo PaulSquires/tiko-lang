@@ -1,5 +1,9 @@
 #module "tui"
 #import "std/outcome"
+#ifdef __FB_UNIX__
+#include once "../../sys/posix/posix.ti"
+using posix
+#endif
 using outcome
 '' std/tui: tuiterm -- the terminal backend
 ''
@@ -47,9 +51,8 @@ using outcome
 
 #ifdef __FB_WIN32__
     #include once "windows.bi"
-#else
-    #include once "crt.bi"
 #endif
+'' No crt.bi on POSIX: its O_/E*/CLOCKS_PER_SEC macros would redefine sys/posix's names.
 
 
 '' ============================================================== errors
@@ -174,24 +177,13 @@ end function
     public const TUI_REC_MOUSE  as ushort = &h0002
     public const TUI_REC_RESIZE as ushort = &h0004
 
-#else
+#elseif defined( __FB_UNIX__ )
 
-    const TUI_NCCS = 32
-    type tui_termios
-        as ulong c_iflag, c_oflag, c_cflag, c_lflag
-        as ubyte c_line
-        as ubyte c_cc( 0 to TUI_NCCS-1 )
-        as ulong c_ispeed, c_ospeed
-    end type
+    '' termios, winsize and pollfd are sys/posix's struct_termios, struct_winsize
+    '' and struct_pollfd; every flag, request and signal number below is its
+    '' constant too.
 
-    type tui_winsize
-        as ushort ws_row, ws_col, ws_xpixel, ws_ypixel
-    end type
-
-    type tui_pollfd
-        as long fd
-        as short events, revents
-    end type
+    #include once "crt/long.bi"       '' culong: C's unsigned long, ioctl's request
 
     '' EVERY ONE OF THESE IS PREFIXED, AND THAT IS NOT COSMETIC.
     ''
@@ -202,31 +194,21 @@ end function
     '' WRITE()`, naming a parameter that is not ours. The alias carries the
     '' real C symbol, so the prefix costs nothing at link.
     extern "c"
-        declare function tui_tcgetattr alias "tcgetattr" ( byval fd as long, byval t as tui_termios ptr ) as long
-        declare function tui_tcsetattr alias "tcsetattr" ( byval fd as long, byval act as long, byval t as tui_termios ptr ) as long
-        declare function tui_ioctl     alias "ioctl"     ( byval fd as long, byval req as ulongint, byval p as any ptr ) as long
+        declare function tui_tcgetattr alias "tcgetattr" ( byval fd as long, byval t as struct_termios ptr ) as long
+        declare function tui_tcsetattr alias "tcsetattr" ( byval fd as long, byval act as long, byval t as struct_termios ptr ) as long
+        '' Variadic, as C declares it: Apple arm64 passes variadic arguments on
+        '' the stack, so a pointer declared as a fixed third argument is never seen.
+        declare function tui_ioctl     alias "ioctl"     ( byval fd as long, byval req as culong, ... ) as long
         declare function tui_isatty    alias "isatty"    ( byval fd as long ) as long
         declare function tui_read      alias "read"      ( byval fd as long, byval buf as any ptr, byval n as uinteger ) as integer
         declare function tui_write     alias "write"     ( byval fd as long, byval buf as any ptr, byval n as uinteger ) as integer
         declare function tui_signal    alias "signal"    ( byval sig as long, byval h as any ptr ) as any ptr
-        declare function tui_poll      alias "poll"      ( byval fds as any ptr, byval n as ulongint, byval ms as long ) as long
+        declare function tui_poll      alias "poll"      ( byval fds as struct_pollfd ptr, byval n as nfds_t, byval ms as long ) as long
         declare function tui_raise     alias "raise"     ( byval sig as long ) as long
     end extern
 
-    '' glibc x86_64 values. sizeof( tui_termios ) = 60 and
-    '' sizeof( tui_winsize ) = 8 were both measured, not assumed.
-    const TUI_ICANON = &h0002, TUI_ECHO = &h0008, TUI_ISIG = &h0001, TUI_IEXTEN = &h8000
-    const TUI_IXON = &h0400, TUI_ICRNL = &h0100, TUI_BRKINT = &h0002
-    const TUI_INPCK = &h0010, TUI_ISTRIP = &h0020
-    const TUI_OPOST = &h0001
-    const TUI_TCSAFLUSH = 2
-    const TUI_TIOCGWINSZ = &h5413
-    const TUI_VMIN = 6, TUI_VTIME = 5
-    const TUI_POLLIN = &h0001
-
-    const TUI_SIGINT = 2, TUI_SIGQUIT = 3, TUI_SIGSEGV = 11
-    const TUI_SIGTERM = 15, TUI_SIGHUP = 1, TUI_SIGWINCH = 28, TUI_SIGTSTP = 20
-
+#else
+    #error "tui/tuiterm: no backend for this target"
 #endif
 
 '' ============================================================== restore state
@@ -247,9 +229,11 @@ type TuiSavedMode
         as HANDLE hOut, hIn
         as DWORD outMode, inMode
         as ulong outCP
-    #else
-        as tui_termios orig
+    #elseif defined( __FB_UNIX__ )
+        as struct_termios orig
         as boolean haveOrig
+    #else
+        #error "tui/tuiterm: no backend for this target"
     #endif
     '' A FIXED buffer, not a string. Two reasons, and the second is the one
     '' that matters: a var-len string in this type makes its implicit
@@ -299,11 +283,13 @@ sub TuiEmergencyRestore( )
         SetConsoleMode( s->hOut, s->outMode )
         SetConsoleMode( s->hIn, s->inMode )
         if( s->outCP <> 0 ) then SetConsoleOutputCP( s->outCP )
-    #else
+    #elseif defined( __FB_UNIX__ )
         if( s->leaveLen > 0 ) then
-            tui_write( 1, @s->leaveSeq[0], s->leaveLen )
+            tui_write( STDOUT_FILENO, @s->leaveSeq[0], s->leaveLen )
         end if
-        if( s->haveOrig ) then tui_tcsetattr( 0, TUI_TCSAFLUSH, @s->orig )
+        if( s->haveOrig ) then tui_tcsetattr( STDIN_FILENO, TCSAFLUSH, @s->orig )
+    #else
+        #error "tui/tuiterm: no backend for this target"
     #endif
 end sub
 
@@ -312,16 +298,18 @@ end sub
         TuiEmergencyRestore( )
         return FALSE       '' let the default handler terminate us
     end function
-#else
+#elseif defined( __FB_UNIX__ )
     sub TuiSignalHandler cdecl ( byval sig as long )
         TuiEmergencyRestore( )
-        tui_signal( sig, nullptr )   '' SIG_DFL
+        tui_signal( sig, cast( any ptr, SIG_DFL ) )
         tui_raise( sig )
     end sub
 
     sub TuiWinchHandler cdecl ( byval sig as long )
         *TuiResizeFlag( ) = 1
     end sub
+#else
+    #error "tui/tuiterm: no backend for this target"
 #endif
 
 '' ============================================================== the terminal
@@ -417,8 +405,8 @@ function TuiTerminal.DetectCaps( ) as TuiCaps
             c.depth = TUIDEPTH_ANSI16
             c.mouse = TRUE
         end if
-    #else
-        if( tui_isatty( 1 ) = 0 ) then return c
+    #elseif defined( __FB_UNIX__ )
+        if( tui_isatty( STDOUT_FILENO ) = 0 ) then return c
         c.isTerminal = TRUE
 
         dim as string ct = lcase( environ( "COLORTERM" ) )
@@ -442,6 +430,8 @@ function TuiTerminal.DetectCaps( ) as TuiCaps
 
         dim as string loc = lcase( environ( "LC_ALL" ) & environ( "LC_CTYPE" ) & environ( "LANG" ) )
         c.unicode = ( instr( loc, "utf-8" ) > 0 ) orelse ( instr( loc, "utf8" ) > 0 )
+    #else
+        #error "tui/tuiterm: no backend for this target"
     #endif
 
     return c
@@ -464,12 +454,12 @@ function TuiTerminal.Size( ) as TuiSizeResult
             return Ok( of TuiSize, TuiError )( TuiSizeOf( 80, 24 ) )
         end if
         return Ok( of TuiSize, TuiError )( TuiSizeOf( cols, rows ) )
-    #else
+    #elseif defined( __FB_UNIX__ )
         '' TIOCGWINSZ CAN SUCCEED AND REPORT 0x0 -- measured under a pty
         '' (probe #35). Success is not a size, so the fallback chain runs on
         '' the VALUE, not on the return code.
-        dim as tui_winsize ws
-        if( tui_ioctl( 1, TUI_TIOCGWINSZ, @ws ) = 0 ) then
+        dim as struct_winsize ws
+        if( tui_ioctl( STDOUT_FILENO, TIOCGWINSZ, @ws ) = 0 ) then
             if( ( ws.ws_col > 0 ) andalso ( ws.ws_row > 0 ) ) then
                 return Ok( of TuiSize, TuiError )( TuiSizeOf( ws.ws_col, ws.ws_row ) )
             end if
@@ -482,6 +472,8 @@ function TuiTerminal.Size( ) as TuiSizeResult
         end if
 
         return Ok( of TuiSize, TuiError )( TuiSizeOf( 80, 24 ) )
+    #else
+        #error "tui/tuiterm: no backend for this target"
     #endif
 end function
 
@@ -596,33 +588,35 @@ function TuiTerminal.Enter( byval opts as TuiTermOptions ) as TuiUnitResult
         SetConsoleOutputCP( 65001 )        '' CP_UTF8
 
         SetConsoleCtrlHandler( @TuiCtrlHandler, TRUE )
-    #else
+    #elseif defined( __FB_UNIX__ )
         if( opts.rawMode ) then
-            if( tui_tcgetattr( 0, @sv->orig ) <> 0 ) then
+            if( tui_tcgetattr( STDIN_FILENO, @sv->orig ) <> 0 ) then
                 return TuiFailUnit( TUIERR_RAWMODE, "tcgetattr(0)" )
             end if
             sv->haveOrig = TRUE
 
-            dim as tui_termios raw = sv->orig
-            raw.c_iflag and= not ( TUI_BRKINT or TUI_ICRNL or TUI_INPCK or TUI_ISTRIP or TUI_IXON )
-            raw.c_oflag and= not TUI_OPOST
-            raw.c_lflag and= not ( TUI_ECHO or TUI_ICANON or TUI_ISIG or TUI_IEXTEN )
+            dim as struct_termios raw = sv->orig
+            raw.c_iflag and= not ( BRKINT or ICRNL or INPCK or ISTRIP or IXON )
+            raw.c_oflag and= not OPOST
+            raw.c_lflag and= not ( ECHO or ICANON or ISIG or IEXTEN )
             '' VMIN = 0, VTIME = 0 makes read( ) non-blocking: the waiting is
             '' poll( )'s job, which is what gives PollEvent its timeout.
-            raw.c_cc( TUI_VMIN )  = 0
-            raw.c_cc( TUI_VTIME ) = 0
+            raw.c_cc( VMIN )  = 0
+            raw.c_cc( VTIME ) = 0
 
-            if( tui_tcsetattr( 0, TUI_TCSAFLUSH, @raw ) <> 0 ) then
+            if( tui_tcsetattr( STDIN_FILENO, TCSAFLUSH, @raw ) <> 0 ) then
                 return TuiFailUnit( TUIERR_RAWMODE, "tcsetattr(raw)" )
             end if
         end if
 
-        tui_signal( TUI_SIGINT,  cast( any ptr, @TuiSignalHandler ) )
-        tui_signal( TUI_SIGTERM, cast( any ptr, @TuiSignalHandler ) )
-        tui_signal( TUI_SIGHUP,  cast( any ptr, @TuiSignalHandler ) )
-        tui_signal( TUI_SIGQUIT, cast( any ptr, @TuiSignalHandler ) )
-        tui_signal( TUI_SIGSEGV, cast( any ptr, @TuiSignalHandler ) )
-        tui_signal( TUI_SIGWINCH, cast( any ptr, @TuiWinchHandler ) )
+        tui_signal( SIGINT,  cast( any ptr, @TuiSignalHandler ) )
+        tui_signal( SIGTERM, cast( any ptr, @TuiSignalHandler ) )
+        tui_signal( SIGHUP,  cast( any ptr, @TuiSignalHandler ) )
+        tui_signal( SIGQUIT, cast( any ptr, @TuiSignalHandler ) )
+        tui_signal( SIGSEGV, cast( any ptr, @TuiSignalHandler ) )
+        tui_signal( SIGWINCH, cast( any ptr, @TuiWinchHandler ) )
+    #else
+        #error "tui/tuiterm: no backend for this target"
     #endif
 
     '' Arm the emergency path BEFORE writing anything, so a crash between here
@@ -658,14 +652,16 @@ function TuiTerminal.Leave( ) as TuiUnitResult
         SetConsoleMode( m_hIn,  sv->inMode )
         if( sv->outCP <> 0 ) then SetConsoleOutputCP( sv->outCP )
         SetConsoleCtrlHandler( @TuiCtrlHandler, FALSE )
+    #elseif defined( __FB_UNIX__ )
+        if( sv->haveOrig ) then tui_tcsetattr( STDIN_FILENO, TCSAFLUSH, @sv->orig )
+        tui_signal( SIGINT,   cast( any ptr, SIG_DFL ) )
+        tui_signal( SIGTERM,  cast( any ptr, SIG_DFL ) )
+        tui_signal( SIGHUP,   cast( any ptr, SIG_DFL ) )
+        tui_signal( SIGQUIT,  cast( any ptr, SIG_DFL ) )
+        tui_signal( SIGSEGV,  cast( any ptr, SIG_DFL ) )
+        tui_signal( SIGWINCH, cast( any ptr, SIG_DFL ) )
     #else
-        if( sv->haveOrig ) then tui_tcsetattr( 0, TUI_TCSAFLUSH, @sv->orig )
-        tui_signal( TUI_SIGINT,   nullptr )
-        tui_signal( TUI_SIGTERM,  nullptr )
-        tui_signal( TUI_SIGHUP,   nullptr )
-        tui_signal( TUI_SIGQUIT,  nullptr )
-        tui_signal( TUI_SIGSEGV,  nullptr )
-        tui_signal( TUI_SIGWINCH, nullptr )
+        #error "tui/tuiterm: no backend for this target"
     #endif
 
     return w
@@ -721,16 +717,18 @@ function TuiTerminal.Flush( ) as TuiUnitResult
             m_buf = ""
             return TuiFailUnit( TUIERR_IO, "WriteFile", GetLastError( ) )
         end if
-    #else
+    #elseif defined( __FB_UNIX__ )
         dim as long off = 0
         while( off < n )
-            dim as integer w = tui_write( 1, strptr( m_buf ) + off, n - off )
+            dim as integer w = tui_write( STDOUT_FILENO, strptr( m_buf ) + off, n - off )
             if( w <= 0 ) then
                 m_buf = ""
                 return TuiFailUnit( TUIERR_IO, "write" )
             end if
             off += w
         wend
+    #else
+        #error "tui/tuiterm: no backend for this target"
     #endif
 
     '' Reset the length but keep the capacity, so steady-state rendering does

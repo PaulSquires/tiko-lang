@@ -50,7 +50,7 @@
 #include once "inc/iolock.ti"
 #include once "inc/sysbind.ti"
 
-#ifndef __FB_WIN32__
+#ifdef __FB_UNIX__
 
 '' A BITMASK OVER CODES 0..31, not a list. Bit n set means code n cannot be
 '' printed as itself. 0x0800D101 is bits 0, 8, 12, 13, 15, 27 -- NUL, backspace,

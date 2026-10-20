@@ -40,7 +40,14 @@
 
 #include once "inc/descriptors.ti"
 
-#ifndef __FB_WIN32__
+#ifdef __FB_UNIX__
+
+'' The file name libX11 is loaded by: TKORT_X11_LIBNAME, one per OS.
+#if defined( __FB_LINUX__ )
+	#include once "x11liblinux.tiko"
+#else
+	#error "io/xfocus: no libX11 name for this OS"
+#endif
 
 '' Window is an XID -- `unsigned long`, eight bytes here. See the file header.
 type XWINDOW as uint64
@@ -101,7 +108,7 @@ function tkort_hXTermInitFocus alias "fb_hXTermInitFocus" ( ) as int32
 
 	'' THE ORDER OF THESE NAMES IS THE ORDER OF X_FUNCS' FIELDS -- fb_hDynLoad
 	'' walks both in lockstep and never checks that they correspond.
-	tkort_xf_xlib = tkrt_hDynLoad( @"libX11.so", @tkort_xf_names(0), _
+	tkort_xf_xlib = tkrt_hDynLoad( @TKORT_X11_LIBNAME, @tkort_xf_names(0), _
 	                               cptr( any ptr ptr, @tkort_xf_X ) )
 	if( tkort_xf_xlib = nullptr ) then return -1
 

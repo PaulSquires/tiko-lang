@@ -2,6 +2,10 @@
 #import "std/chrono"
 #import "std/outcome"
 #import "std/containers"
+#ifdef __FB_UNIX__
+#include once "../../sys/posix/posix.ti"
+using posix
+#endif
 using chrono
 using outcome
 using containers
@@ -31,9 +35,8 @@ using containers
 
 #ifdef __FB_WIN32__
     #include once "windows.bi"
-#else
-    #include once "crt.bi"
 #endif
+'' No crt.bi on POSIX: its O_/E*/CLOCKS_PER_SEC macros would redefine sys/posix's names.
 
 
 '' ============================================================== commands
@@ -270,8 +273,8 @@ public function TuiRun overload( byref app as TuiApp, _
                 '' Ctrl+Z does not suspend in raw mode -- ISIG is cleared -- so
                 '' the application must do it deliberately.
                 term.Leave( )
-                #ifndef __FB_WIN32__
-                    tui_raise( 20 )         '' SIGTSTP
+                #ifdef __FB_UNIX__
+                    tui_raise( SIGTSTP )
                 #endif
                 term.Enter( opts )
                 scr.Invalidate( )

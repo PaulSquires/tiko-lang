@@ -1,0 +1,17 @@
+#module "numeric"
+'' std/numeric: randomlinux -- CryptoBytes' Linux half, getrandom( 2 ).  A Darwin
+'' build needs a randomdarwin.tiko defining hOsRandomBytes the same way; Darwin has
+'' no getrandom (getentropy in calls of at most 256 bytes, or arc4random_buf).
+
+#ifdef __FB_LINUX__
+
+extern "c"
+    declare function c_getrandom alias "getrandom" ( byval as any ptr, byval as uinteger, byval as ulong ) as integer
+end extern
+
+'' No GRND_ flag: it blocks only until the kernel's pool is first seeded.
+private function hOsRandomBytes( byval dst as any ptr, byval nbytes as ulong ) as boolean
+    function = ( c_getrandom( dst, nbytes, 0 ) = cast( integer, nbytes ) )
+end function
+
+#endif

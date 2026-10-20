@@ -1,0 +1,51 @@
+'' posix.ti -- the POSIX constants and struct layouts of this target, measured: the binding
+'' the std modules' __FB_UNIX__ code is written against.
+''
+''     #ifdef __FB_UNIX__
+''     #include once "../../sys/posix/posix.ti"
+''     using posix
+''     #endif
+''
+''     dim st as struct_stat
+''     if( lstat( p, @st ) = 0 ) andalso ( ( st.st_mode and S_IFMT ) = S_IFDIR ) then ...
+''
+'' INTERNAL. It exists so pkg/std carries no OS value of its own (docs/tiko-macos RFC-0001 §4,
+'' decision D2): every O_, AT_, errno, signal, termios, socket, locale and fenv constant, and
+'' every struct the std modules hand to libc (struct_stat, struct_termios, struct_sockaddr_in,
+'' ...), comes from <target>-posix.ti beside this file. build/posixgen.sh writes that file on
+'' the target's own host, from build/posix.spec, by compiling and running a C probe -- the
+'' values are what the C compiler says, never typed in -- and asserts every struct size and
+'' offset, so a layout tiko would lay out differently fails to compile rather than read the
+'' wrong bytes. tiko-rt includes the same bytes as lib/rt/src/inc/sysbind/<target>-posix.ti;
+'' build/lint.sh holds the two copies identical.
+''
+'' A HEADER, NOT A MODULE, AND ONE NAMESPACE. The plan was a facade module, '#import
+'' "sys/posix"'. Measured with tiko and seed-6: a module's public names reach every program
+'' that imports the module that imported it -- privately, with or without 'using' -- far
+'' enough that the program can no longer include crt.bi, whose headers #define O_RDONLY,
+'' EPERM, CLOCKS_PER_SEC and the rest (TKO0371); tiko's own units include crt.bi and import
+'' std/fs. A private include goes no further than the module's own names, EXCEPT that a std
+'' module's interface replays its libc declares, which name these types, and so carries this
+'' header to every importer too. Hence the namespace: the binding is posix.O_RDONLY to
+'' everyone, which no macro of crt.bi collides with, and the including module says
+'' 'using posix' to write it bare.
+''
+'' NAMES ARE C's. A constant keeps its macro's name (O_CREAT, EINTR, TIOCGWINSZ); a struct is
+'' struct_<tag> (struct_stat), so it can never collide with the C function of the same name
+'' -- stat(), sigaction(), flock() -- in tiko's case-insensitive namespace; a C typedef keeps
+'' its name (pthread_mutex_t, sigset_t, socklen_t). Functions are not here: each module
+'' declares the libc calls it makes, with these types. Every name is in the including module's
+'' scope, so a module-local may not reuse one (TKO0945), and the module may not include crt.bi.
+''
+'' A name missing for a target is the binding's to add (build/posix.spec), never a module's
+'' to define.
+
+#pragma once
+
+#if defined( __FB_LINUX__ )
+    #include once "linux-x86_64-posix.ti"
+#elseif defined( __FB_UNIX__ )
+    #error "sys/posix: no binding for this target yet -- run build/posixgen.sh on its host"
+#else
+    #error "sys/posix is for POSIX targets: build for -target linux-x86_64"
+#endif

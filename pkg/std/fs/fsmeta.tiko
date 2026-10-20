@@ -1,6 +1,10 @@
 #module "fs"
 #import "std/outcome"
 #import "std/chrono"
+#ifdef __FB_UNIX__
+#include once "../../sys/posix/posix.ti"
+using posix
+#endif
 using outcome
 '' std/fs: fsmeta -- FileId and SameFile, owner changes, times as Instant, and times set
 '' on a symbolic link itself
@@ -87,30 +91,29 @@ private function hIdOfHandle( byval h as any ptr, byref id as FileId ) as boolea
     return TRUE
 end function
 
-#else
+#elseif defined( __FB_UNIX__ )
 
-const FBM_STAT_SIZE = 144
-const FBM_AT_FDCWD = -100
-const FBM_AT_SYMLINK_NOFOLLOW = &h100
-const FBM_UTIME_OMIT = ( ( 1 shl 30 ) - 2 )
+'' AT_*, UTIME_OMIT, struct_stat and struct_timespec are sys/posix's.
 const FBM_TO_1970 = 621355968000000000ll
 
 extern "C"
-    declare function fbm_stat alias "stat" ( byval p as const zstring ptr, byval st as ubyte ptr ) as long
-    declare function fbm_lstat alias "lstat" ( byval p as const zstring ptr, byval st as ubyte ptr ) as long
-    declare function fbm_fstat alias "fstat" ( byval fd as long, byval st as ubyte ptr ) as long
-    declare function fbm_chown alias "chown" ( byval p as const zstring ptr, byval uid as ulong, byval gid as ulong ) as long
-    declare function fbm_lchown alias "lchown" ( byval p as const zstring ptr, byval uid as ulong, byval gid as ulong ) as long
+    declare function fbm_stat alias "stat" ( byval p as const zstring ptr, byval st as struct_stat ptr ) as long
+    declare function fbm_lstat alias "lstat" ( byval p as const zstring ptr, byval st as struct_stat ptr ) as long
+    declare function fbm_fstat alias "fstat" ( byval fd as long, byval st as struct_stat ptr ) as long
+    declare function fbm_chown alias "chown" ( byval p as const zstring ptr, byval uid as uid_t, byval gid as gid_t ) as long
+    declare function fbm_lchown alias "lchown" ( byval p as const zstring ptr, byval uid as uid_t, byval gid as gid_t ) as long
     declare function fbm_utimensat alias "utimensat" ( byval dirfd as long, byval p as const zstring ptr, _
-        byval times as const longint ptr, byval flags as long ) as long
+        byval times as const struct_timespec ptr, byval flags as long ) as long
 end extern
 
-private sub hIdOfStat( byval st as const ubyte ptr, byref id as FileId )
-    id.Device = *cptr( const ulongint ptr, st )          '' st_dev
+private sub hIdOfStat( byval st as const struct_stat ptr, byref id as FileId )
+    id.Device = st->st_dev
     id.IdHigh = 0
-    id.IdLow  = *cptr( const ulongint ptr, st + 8 )      '' st_ino
+    id.IdLow  = st->st_ino
 end sub
 
+#else
+    #error "fs/fsmeta: no backend for this target"
 #endif
 
 private function hOsFail( byref op as const ustring, byref p as const ustring ) as FsError
@@ -135,12 +138,14 @@ public function GetFileId( byref p as const ustring, byval followLinks as boolea
     if( ok_ = FALSE ) then f = hOsFail( "GetFileId", p )
     fbm_CloseHandle( h )
     if( ok_ = FALSE ) then return Fail( of FileId, FsError )( f )
-#else
+#elseif defined( __FB_UNIX__ )
     dim as string narrow = p
-    dim as ubyte st( 0 to FBM_STAT_SIZE - 1 )
-    dim as long r = iif( followLinks, fbm_stat( strptr( narrow ), @st(0) ), fbm_lstat( strptr( narrow ), @st(0) ) )
+    dim as struct_stat st
+    dim as long r = iif( followLinks, fbm_stat( strptr( narrow ), @st ), fbm_lstat( strptr( narrow ), @st ) )
     if( r <> 0 ) then return Fail( of FileId, FsError )( hOsFail( "GetFileId", p ) )
-    hIdOfStat( @st(0), id )
+    hIdOfStat( @st, id )
+#else
+    #error "fs/fsmeta: no backend for this target"
 #endif
     return Ok( of FileId, FsError )( id )
 end function
@@ -169,12 +174,14 @@ function File.Id( ) as FsResultId
     if( hIdOfHandle( cast( any ptr, this.m_h ), fid ) = FALSE ) then
         return Fail( of FileId, FsError )( this.hOsFail( "Id" ) )
     end if
-#else
-    dim as ubyte st( 0 to FBM_STAT_SIZE - 1 )
-    if( fbm_fstat( cast( long, this.m_h ), @st(0) ) <> 0 ) then
+#elseif defined( __FB_UNIX__ )
+    dim as struct_stat st
+    if( fbm_fstat( cast( long, this.m_h ), @st ) <> 0 ) then
         return Fail( of FileId, FsError )( this.hOsFail( "Id" ) )
     end if
-    hIdOfStat( @st(0), fid )
+    hIdOfStat( @st, fid )
+#else
+    #error "fs/fsmeta: no backend for this target"
 #endif
     return Ok( of FileId, FsError )( fid )
 end function
@@ -189,12 +196,14 @@ public declare function LChown overload ( byref p as const ustring, byval uid as
 public function Chown( byref p as const ustring, byval uid as long, byval gid as long ) as FsResultBool
 #ifdef __FB_WIN32__
     return FsFail( of boolean )( FS_UNSUPPORTED, "Chown", p )
-#else
+#elseif defined( __FB_UNIX__ )
     dim as string narrow = p
-    if( fbm_chown( strptr( narrow ), cast( ulong, uid ), cast( ulong, gid ) ) <> 0 ) then
+    if( fbm_chown( strptr( narrow ), cast( uid_t, uid ), cast( gid_t, gid ) ) <> 0 ) then
         return Fail( of boolean, FsError )( hOsFail( "Chown", p ) )
     end if
     return Ok( of boolean, FsError )( TRUE )
+#else
+    #error "fs/fsmeta: no backend for this target"
 #endif
 end function
 
@@ -202,12 +211,14 @@ end function
 public function LChown( byref p as const ustring, byval uid as long, byval gid as long ) as FsResultBool
 #ifdef __FB_WIN32__
     return FsFail( of boolean )( FS_UNSUPPORTED, "LChown", p )
-#else
+#elseif defined( __FB_UNIX__ )
     dim as string narrow = p
-    if( fbm_lchown( strptr( narrow ), cast( ulong, uid ), cast( ulong, gid ) ) <> 0 ) then
+    if( fbm_lchown( strptr( narrow ), cast( uid_t, uid ), cast( gid_t, gid ) ) <> 0 ) then
         return Fail( of boolean, FsError )( hOsFail( "LChown", p ) )
     end if
     return Ok( of boolean, FsError )( TRUE )
+#else
+    #error "fs/fsmeta: no backend for this target"
 #endif
 end function
 
@@ -240,27 +251,29 @@ public function SetTimesNoFollow( byref p as const ustring, byval mtimeUtc as lo
     if( ok_ = FALSE ) then f = hOsFail( "SetTimesNoFollow", p )
     fbm_CloseHandle( h )
     if( ok_ = FALSE ) then return Fail( of boolean, FsError )( f )
-#else
+#elseif defined( __FB_UNIX__ )
     '' struct timespec times[2] = { atime, mtime }; UTIME_OMIT leaves one alone
-    dim as longint ts( 0 to 3 )
+    dim as struct_timespec ts( 0 to 1 )
     if( atimeUtc <> 0 ) then
         dim as longint u = atimeUtc - FBM_TO_1970
-        ts(0) = u \ 10000000ll : ts(1) = ( u mod 10000000ll ) * 100
-        if( ts(1) < 0 ) then ts(0) -= 1 : ts(1) += 1000000000ll
+        ts(0).tv_sec = u \ 10000000ll : ts(0).tv_nsec = ( u mod 10000000ll ) * 100
+        if( ts(0).tv_nsec < 0 ) then ts(0).tv_sec -= 1 : ts(0).tv_nsec += 1000000000ll
     else
-        ts(0) = 0 : ts(1) = FBM_UTIME_OMIT
+        ts(0).tv_sec = 0 : ts(0).tv_nsec = UTIME_OMIT
     end if
     if( mtimeUtc <> 0 ) then
         dim as longint u = mtimeUtc - FBM_TO_1970
-        ts(2) = u \ 10000000ll : ts(3) = ( u mod 10000000ll ) * 100
-        if( ts(3) < 0 ) then ts(2) -= 1 : ts(3) += 1000000000ll
+        ts(1).tv_sec = u \ 10000000ll : ts(1).tv_nsec = ( u mod 10000000ll ) * 100
+        if( ts(1).tv_nsec < 0 ) then ts(1).tv_sec -= 1 : ts(1).tv_nsec += 1000000000ll
     else
-        ts(2) = 0 : ts(3) = FBM_UTIME_OMIT
+        ts(1).tv_sec = 0 : ts(1).tv_nsec = UTIME_OMIT
     end if
     dim as string narrow = p
-    if( fbm_utimensat( FBM_AT_FDCWD, strptr( narrow ), @ts(0), FBM_AT_SYMLINK_NOFOLLOW ) <> 0 ) then
+    if( fbm_utimensat( AT_FDCWD, strptr( narrow ), @ts(0), AT_SYMLINK_NOFOLLOW ) <> 0 ) then
         return Fail( of boolean, FsError )( hOsFail( "SetTimesNoFollow", p ) )
     end if
+#else
+    #error "fs/fsmeta: no backend for this target"
 #endif
     return Ok( of boolean, FsError )( TRUE )
 end function

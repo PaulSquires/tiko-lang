@@ -622,68 +622,32 @@ end function
 
 end extern
 
-#else
+#elseif defined( __FB_UNIX__ )
 
 '' ------------------------------------------------------------ POSIX backend
 ''
-'' struct stat on linux-x86_64: st_dev 0, st_ino 8, st_mode 24, st_size 48.
-const STAT_BUF_SIZE = 144
-const STAT_DEV_     = 0
-const STAT_INO_     = 8
-const STAT_MODE_    = 24
-const STAT_SIZE_    = 48
-
-const S_IFMT_  = &o170000
-const S_IFDIR_ = &o040000
-const S_IWUSR_ = &o000200
-const S_IWGRP_ = &o000020
-const S_IWOTH_ = &o000002
-
-const O_RDONLY_ = &o0
-const O_WRONLY_ = &o1
-const O_CREAT_  = &o100
-const O_EXCL_   = &o200
-const O_TRUNC_  = &o1000
-const O_APPEND_ = &o2000
-const O_DIRECTORY_ = &o200000
-const O_CLOEXEC_   = &o2000000
-const S_IFREG_     = &o100000
-
-const EINTR_ = 4
-'' For the no-replace rename (MoveFile, overwrite = 0). Named here and not shared with
-'' error.tiko, whose constants are that file's own.
-const EPERM_ = 1, EEXIST_ = 17, EINVAL_ = 22, ENOSYS_ = 38, EOPNOTSUPP_ = 95
-
-const SYS_renameat2_    = 316
-const AT_FDCWD_         = -100
-const RENAME_NOREPLACE_ = 1
-
-const SYS_getrandom_ = 318
+'' Every O_, S_, E and permission value and the struct stat layout come from the
+'' posix binding (inc/sysbind.ti); the two Linux-only system calls are behind
+'' fs/opslinux.tiko.
 
 const COPY_CHUNK_ = 65536
-
-type stat_
-	as uint8 raw( 0 to STAT_BUF_SIZE - 1 )
-end type
 
 extern "c"   '' NON-FBCALL: libc, not rtlib entry points.
 	declare function u_open alias "open" ( byval p as zstring ptr, byval flags as int32, ... ) as int32
 	declare function u_close alias "close" ( byval fd as int32 ) as int32
 	declare function u_read alias "read" ( byval fd as int32, byval buf as any ptr, byval n as uinteger ) as integer
 	declare function u_write alias "write" ( byval fd as int32, byval buf as any ptr, byval n as uinteger ) as integer
-	declare function u_fstat alias "fstat" ( byval fd as int32, byval st as stat_ ptr ) as int32
-	declare function u_stat alias "stat" ( byval p as zstring ptr, byval st as stat_ ptr ) as int32
-	declare function u_lstat alias "lstat" ( byval p as zstring ptr, byval st as stat_ ptr ) as int32
-	declare function u_mkdir alias "mkdir" ( byval p as zstring ptr, byval mode_ as uint32 ) as int32
+	declare function u_fstat alias "fstat" ( byval fd as int32, byval st as struct_stat ptr ) as int32
+	declare function u_stat alias "stat" ( byval p as zstring ptr, byval st as struct_stat ptr ) as int32
+	declare function u_lstat alias "lstat" ( byval p as zstring ptr, byval st as struct_stat ptr ) as int32
+	declare function u_mkdir alias "mkdir" ( byval p as zstring ptr, byval mode_ as mode_t ) as int32
 	declare function u_rmdir alias "rmdir" ( byval p as zstring ptr ) as int32
 	declare function u_unlink alias "unlink" ( byval p as zstring ptr ) as int32
 	declare function u_rename alias "rename" ( byval s as zstring ptr, byval d as zstring ptr ) as int32
-	declare function u_chmod alias "chmod" ( byval p as zstring ptr, byval mode_ as uint32 ) as int32
-	declare function u_umask alias "umask" ( byval m as uint32 ) as uint32
+	declare function u_chmod alias "chmod" ( byval p as zstring ptr, byval mode_ as mode_t ) as int32
+	declare function u_umask alias "umask" ( byval m as mode_t ) as mode_t
 	declare function u_getenv alias "getenv" ( byval n as zstring ptr ) as zstring ptr
 	declare function u_strlen alias "strlen" ( byval s as zstring ptr ) as uinteger
-	declare function u_errno_location alias "__errno_location" ( ) as int32 ptr
-	declare function u_syscall alias "syscall" ( byval n as int64, ... ) as int64
 	declare function u_link alias "link" ( byval s as zstring ptr, byval d as zstring ptr ) as int32
 	declare function u_fsync alias "fsync" ( byval fd as int32 ) as int32
 	declare function u_utf16to8 alias "fb_hUtf16ToUtf8" _
@@ -692,7 +656,13 @@ extern "c"   '' NON-FBCALL: libc, not rtlib entry points.
 		( byval src as zstring ptr, byval bytes as integer, byval dst as FB_UCHAR ptr, byval cap as integer ) as integer
 end extern
 
-#define TKORT_ERRNO (*u_errno_location( ))
+'' The exclusive rename and the kernel's random bytes: hOsRenameExclusive( sp, dp )
+'' and hOsRandom( buf, n ), one per OS.
+#if defined( __FB_LINUX__ )
+	#include once "opslinux.tiko"
+#else
+	#error "fs/ops: no exclusive-rename or random-bytes backend for this OS"
+#endif
 
 private function hFsNarrow( byval p as FBUSTRING ptr ) as zstring ptr
 	dim as FB_UCHAR ptr s = any
@@ -748,7 +718,7 @@ function tkort_UStrFsReadWhole alias "fb_UStrFsReadWhole" _
 	( byval p as FBUSTRING ptr, byval out_ as uint8 ptr ptr, byval outlen as int64 ptr ) as int32
 
 	dim as zstring ptr path_ = any
-	dim as stat_ st = any
+	dim as struct_stat st = any
 	dim as uint8 ptr buf = any
 	dim as int64 sz = any, got = 0
 	dim as int32 fd = any, e = any
@@ -760,7 +730,7 @@ function tkort_UStrFsReadWhole alias "fb_UStrFsReadWhole" _
 	path_ = hFsNarrow( p )
 	if( path_ = nullptr ) then return FB_FS_UNKNOWN
 
-	fd = u_open( path_, O_RDONLY_ )
+	fd = u_open( path_, O_RDONLY )
 	if( fd < 0 ) then
 		e = tkrt_FsMapOsError( )
 		free( path_ )
@@ -778,12 +748,12 @@ function tkort_UStrFsReadWhole alias "fb_UStrFsReadWhole" _
 	'' POSIX open( ) on a directory SUCCEEDS; only the read fails, and with
 	'' EISDIR. Checked here so the code is FS_IS_A_DIRECTORY either way and the
 	'' two platforms agree.
-	if( (*cptr( uint32 ptr, @st.raw(STAT_MODE_) ) and S_IFMT_) = S_IFDIR_ ) then
+	if( (st.st_mode and S_IFMT) = S_IFDIR ) then
 		u_close( fd )
 		return FB_FS_IS_A_DIRECTORY
 	end if
 
-	sz = *cptr( int64 ptr, @st.raw(STAT_SIZE_) )
+	sz = st.st_size
 
 	if( cast( uint64, sz ) > cast( uint64, cast( uinteger, -1 ) ) - 1 ) then
 		u_close( fd )
@@ -801,7 +771,7 @@ function tkort_UStrFsReadWhole alias "fb_UStrFsReadWhole" _
 
 		if( n < 0 ) then
 			'' the promised retry
-			if( TKORT_ERRNO = EINTR_ ) then continue while
+			if( errno = EINTR ) then continue while
 
 			e = tkrt_FsMapOsError( )
 			free( buf )
@@ -835,12 +805,12 @@ function tkort_UStrFsWriteWhole alias "fb_UStrFsWriteWhole" _
 	if( path_ = nullptr ) then return FB_FS_UNKNOWN
 
 	if( append_ = WHOLE_NEW_SYNCED_ ) then
-		flags = O_WRONLY_ or O_CREAT_ or O_EXCL_ or O_CLOEXEC_
+		flags = O_WRONLY or O_CREAT or O_EXCL or O_CLOEXEC
 	else
-		flags = O_WRONLY_ or O_CREAT_ or iif( append_ <> WHOLE_TRUNCATE_, O_APPEND_, O_TRUNC_ )
+		flags = O_WRONLY or O_CREAT or iif( append_ <> WHOLE_TRUNCATE_, O_APPEND, O_TRUNC )
 	end if
 
-	fd = u_open( path_, flags, &o666 )
+	fd = u_open( path_, flags, DEFFILEMODE )
 	free( path_ )
 
 	if( fd < 0 ) then return tkrt_FsMapOsError( )
@@ -849,7 +819,7 @@ function tkort_UStrFsWriteWhole alias "fb_UStrFsWriteWhole" _
 		n = u_write( fd, data_ + done, cast( uinteger, len_ - done ) )
 
 		if( n < 0 ) then
-			if( TKORT_ERRNO = EINTR_ ) then continue while
+			if( errno = EINTR ) then continue while
 
 			e = tkrt_FsMapOsError( )
 			u_close( fd )
@@ -877,7 +847,7 @@ function tkort_UStrFsCreateDir alias "fb_UStrFsCreateDir" ( byval p as FBUSTRING
 	dim as int32 r = FB_FS_OK
 
 	if( path_ = nullptr ) then return FB_FS_UNKNOWN
-	if( u_mkdir( path_, &o777 ) <> 0 ) then r = tkrt_FsMapOsError( )
+	if( u_mkdir( path_, ACCESSPERMS ) <> 0 ) then r = tkrt_FsMapOsError( )
 	free( path_ )
 	return r
 end function
@@ -904,7 +874,7 @@ end function
 
 function tkort_UStrFsRemoveFile alias "fb_UStrFsRemoveFile" ( byval p as FBUSTRING ptr ) as int32
 	dim as zstring ptr path_ = hFsNarrow( p )
-	dim as stat_ st = any
+	dim as struct_stat st = any
 	dim as int32 r = FB_FS_OK
 
 	if( path_ = nullptr ) then return FB_FS_UNKNOWN
@@ -913,7 +883,7 @@ function tkort_UStrFsRemoveFile alias "fb_UStrFsRemoveFile" ( byval p as FBUSTRI
 	'' whatever unlink happens to report (EPERM on some systems, EISDIR on
 	'' others -- neither is portable).
 	if( u_lstat( path_, @st ) = 0 ) then
-		if( (*cptr( uint32 ptr, @st.raw(STAT_MODE_) ) and S_IFMT_) = S_IFDIR_ ) then
+		if( (st.st_mode and S_IFMT) = S_IFDIR ) then
 			free( path_ )
 			return FB_FS_IS_A_DIRECTORY
 		end if
@@ -932,10 +902,10 @@ function tkort_UStrFsCopyFile alias "fb_UStrFsCopyFile" _
 	( byval s as FBUSTRING ptr, byval d as FBUSTRING ptr, byval overwrite as int32 ) as int32
 
 	dim as zstring ptr sp = any, dp = any
-	dim as stat_ st = any
+	dim as struct_stat st = any
 	dim as uint8 buf( 0 to COPY_CHUNK_ - 1 ) = any
 	dim as int32 sfd = any, dfd = any, flags = any, r = FB_FS_OK
-	dim as uint32 mode_ = any
+	dim as mode_t mode_ = any
 	dim as integer n = any, w = any, k = any
 
 	sp = hFsNarrow( s )
@@ -946,7 +916,7 @@ function tkort_UStrFsCopyFile alias "fb_UStrFsCopyFile" _
 		return FB_FS_UNKNOWN
 	end if
 
-	sfd = u_open( sp, O_RDONLY_ )
+	sfd = u_open( sp, O_RDONLY )
 	if( sfd < 0 ) then
 		r = tkrt_FsMapOsError( )
 		free( sp ) : free( dp )
@@ -954,15 +924,15 @@ function tkort_UStrFsCopyFile alias "fb_UStrFsCopyFile" _
 	end if
 
 	if( u_fstat( sfd, @st ) <> 0 ) then
-		mode_ = &o666
+		mode_ = DEFFILEMODE
 	else
-		mode_ = *cptr( uint32 ptr, @st.raw(STAT_MODE_) )
+		mode_ = st.st_mode
 	end if
 
 	'' O_EXCL is what makes "do not overwrite" the default and atomic.
-	flags = O_WRONLY_ or O_CREAT_ or iif( overwrite <> 0, O_TRUNC_, O_EXCL_ )
+	flags = O_WRONLY or O_CREAT or iif( overwrite <> 0, O_TRUNC, O_EXCL )
 
-	dfd = u_open( dp, flags, mode_ and &o777 )
+	dfd = u_open( dp, flags, mode_ and ACCESSPERMS )
 	if( dfd < 0 ) then
 		r = tkrt_FsMapOsError( )
 		u_close( sfd )
@@ -974,7 +944,7 @@ function tkort_UStrFsCopyFile alias "fb_UStrFsCopyFile" _
 		n = u_read( sfd, @buf(0), COPY_CHUNK_ )
 
 		if( n < 0 ) then
-			if( TKORT_ERRNO = EINTR_ ) then continue do
+			if( errno = EINTR ) then continue do
 			r = tkrt_FsMapOsError( )
 			exit do
 		end if
@@ -985,7 +955,7 @@ function tkort_UStrFsCopyFile alias "fb_UStrFsCopyFile" _
 		while( w < n )
 			k = u_write( dfd, @buf(w), cast( uinteger, n - w ) )
 			if( k < 0 ) then
-				if( TKORT_ERRNO = EINTR_ ) then continue while
+				if( errno = EINTR ) then continue while
 				r = tkrt_FsMapOsError( )
 				exit while
 			end if
@@ -1006,8 +976,8 @@ end function
 '' (C:\dev\docs\tiko-fs\RFC-0001 section 9.3, defect D3). rename(2) always replaces,
 '' and the old check-then-rename destroyed a file created in between.
 ''
-''   1. renameat2( RENAME_NOREPLACE ), through syscall( ) as statx is reached: the
-''      kernel refuses with EEXIST, no window.
+''   1. the OS's exclusive rename, hOsRenameExclusive (fs/opslinux.tiko: renameat2(
+''      RENAME_NOREPLACE )): the kernel refuses with EEXIST, no window.
 ''   2. ENOSYS (an old kernel) or EINVAL (a filesystem without the flag): link( )
 ''      then unlink( ) for a REGULAR file -- link refuses EEXIST atomically too. If
 ''      the unlink fails the link is undone, so the source is never left doubled.
@@ -1015,20 +985,17 @@ end function
 ''      or a source that is not a regular file: the old check-then-rename. THIS LAST
 ''      RESORT IS NOT ATOMIC, and is documented as such.
 private function hRenameNoReplace( byval sp as zstring ptr, byval dp as zstring ptr ) as int32
-	dim as stat_ st = any
+	dim as struct_stat st = any
 	dim as int32 err_ = any, e = any
 
-	if( u_syscall( SYS_renameat2_, cast( int64, AT_FDCWD_ ), sp, cast( int64, AT_FDCWD_ ), dp, _
-	               cast( int64, RENAME_NOREPLACE_ ) ) = 0 ) then
-		return FB_FS_OK
-	end if
+	if( hOsRenameExclusive( sp, dp ) = 0 ) then return FB_FS_OK
 
-	err_ = TKORT_ERRNO
-	if( (err_ <> ENOSYS_) andalso (err_ <> EINVAL_) ) then return tkrt_FsMapOsError( )
+	err_ = errno
+	if( (err_ <> ENOSYS) andalso (err_ <> EINVAL) ) then return tkrt_FsMapOsError( )
 
 	if( u_lstat( sp, @st ) <> 0 ) then return tkrt_FsMapOsError( )
 
-	if( (*cptr( uint32 ptr, @st.raw(STAT_MODE_) ) and S_IFMT_) = S_IFREG_ ) then
+	if( (st.st_mode and S_IFMT) = S_IFREG ) then
 		if( u_link( sp, dp ) = 0 ) then
 			if( u_unlink( sp ) = 0 ) then return FB_FS_OK
 			e = tkrt_FsMapOsError( )
@@ -1036,8 +1003,8 @@ private function hRenameNoReplace( byval sp as zstring ptr, byval dp as zstring 
 			return e
 		end if
 
-		err_ = TKORT_ERRNO
-		if( (err_ <> EPERM_) andalso (err_ <> EOPNOTSUPP_) ) then return tkrt_FsMapOsError( )
+		err_ = errno
+		if( (err_ <> EPERM) andalso (err_ <> EOPNOTSUPP) ) then return tkrt_FsMapOsError( )
 	end if
 
 	if( u_lstat( dp, @st ) = 0 ) then return FB_FS_ALREADY_EXISTS
@@ -1082,11 +1049,11 @@ private function hSyncDir( byval dirp as zstring ptr ) as int32
 
 	if( dirp = nullptr ) then return FB_FS_UNKNOWN
 
-	fd = u_open( dirp, O_RDONLY_ or O_DIRECTORY_ or O_CLOEXEC_ )
+	fd = u_open( dirp, O_RDONLY or O_DIRECTORY or O_CLOEXEC )
 	if( fd < 0 ) then return tkrt_FsMapOsError( )
 
 	if( u_fsync( fd ) <> 0 ) then
-		if( TKORT_ERRNO <> EINVAL_ ) then e = tkrt_FsMapOsError( )
+		if( errno <> EINVAL ) then e = tkrt_FsMapOsError( )
 	end if
 
 	u_close( fd )
@@ -1150,7 +1117,7 @@ function tkort_UStrFsIdentity alias "fb_UStrFsIdentity" _
 	( byval p as FBUSTRING ptr, byval vol as uint64 ptr, byval id as uint64 ptr ) as int32
 
 	dim as zstring ptr path_ = any
-	dim as stat_ st = any
+	dim as struct_stat st = any
 	dim as int32 e = any
 
 	*vol = 0
@@ -1167,8 +1134,8 @@ function tkort_UStrFsIdentity alias "fb_UStrFsIdentity" _
 
 	free( path_ )
 
-	*vol = *cptr( uint64 ptr, @st.raw(STAT_DEV_) )
-	*id  = *cptr( uint64 ptr, @st.raw(STAT_INO_) )
+	*vol = st.st_dev
+	*id  = st.st_ino
 	return FB_FS_OK
 end function
 
@@ -1180,9 +1147,9 @@ function tkort_FsRandomBytes alias "fb_FsRandomBytes" ( byval buf as uint8 ptr, 
 	dim as integer k = any
 
 	while( got < len_ )
-		n = u_syscall( SYS_getrandom_, buf + got, cast( uinteger, len_ - got ), 0 )
+		n = hOsRandom( buf + got, cast( uinteger, len_ - got ) )
 		if( n < 0 ) then
-			if( TKORT_ERRNO = EINTR_ ) then continue while
+			if( errno = EINTR ) then continue while
 			'' fall through to /dev/urandom
 			exit while
 		end if
@@ -1191,15 +1158,15 @@ function tkort_FsRandomBytes alias "fb_FsRandomBytes" ( byval buf as uint8 ptr, 
 
 	if( got >= len_ ) then return FB_FS_OK
 
-	'' Fallback for kernels without getrandom.
-	fd = u_open( @"/dev/urandom", O_RDONLY_ )
+	'' Fallback for a system without hOsRandom's call (a kernel older than getrandom).
+	fd = u_open( @"/dev/urandom", O_RDONLY )
 	if( fd < 0 ) then return FB_FS_UNSUPPORTED
 
 	got = 0
 	while( got < len_ )
 		k = u_read( fd, buf + got, cast( uinteger, len_ - got ) )
 		if( k < 0 ) then
-			if( TKORT_ERRNO = EINTR_ ) then continue while
+			if( errno = EINTR ) then continue while
 			exit while
 		end if
 		if( k = 0 ) then exit while
@@ -1265,12 +1232,12 @@ private function hCreateTemp( byval prefix as FBUSTRING ptr, byval wantdir as in
 		made = 0
 
 		if( wantdir <> 0 ) then
-			made = iif( u_mkdir( full, &o700 ) = 0, 1, 0 )
+			made = iif( u_mkdir( full, S_IRWXU ) = 0, 1, 0 )
 		else
 			'' O_EXCL is the atomic part: no window between choosing the name
 			'' and creating the file. 0600, because a world-readable temp file
 			'' is the other half of the same mistake.
-			fd = u_open( full, O_WRONLY_ or O_CREAT_ or O_EXCL_, &o600 )
+			fd = u_open( full, O_WRONLY or O_CREAT or O_EXCL, (S_IRUSR or S_IWUSR) )
 			if( fd >= 0 ) then
 				u_close( fd )
 				made = 1
@@ -1317,8 +1284,8 @@ function tkort_UStrFsSetReadOnly alias "fb_UStrFsSetReadOnly" _
 	( byval p as FBUSTRING ptr, byval v as int32 ) as int32
 
 	dim as zstring ptr path_ = hFsNarrow( p )
-	dim as stat_ st = any
-	dim as uint32 m = any, mask = any
+	dim as struct_stat st = any
+	dim as mode_t m = any, mask = any
 	dim as int32 r = FB_FS_OK
 
 	if( path_ = nullptr ) then return FB_FS_UNKNOWN
@@ -1329,14 +1296,14 @@ function tkort_UStrFsSetReadOnly alias "fb_UStrFsSetReadOnly" _
 		return r
 	end if
 
-	m = *cptr( uint32 ptr, @st.raw(STAT_MODE_) )
+	m = st.st_mode
 
 	if( v <> 0 ) then
-		m and= not cast( uint32, S_IWUSR_ or S_IWGRP_ or S_IWOTH_ )
+		m and= not cast( mode_t, S_IWUSR or S_IWGRP or S_IWOTH )
 	else
 		mask = u_umask( 0 )
 		u_umask( mask )
-		m or= (cast( uint32, S_IWUSR_ or S_IWGRP_ or S_IWOTH_ ) and (not mask))
+		m or= (cast( mode_t, S_IWUSR or S_IWGRP or S_IWOTH ) and (not mask))
 	end if
 
 	if( u_chmod( path_, m ) <> 0 ) then r = tkrt_FsMapOsError( )

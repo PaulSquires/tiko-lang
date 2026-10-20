@@ -1,0 +1,274 @@
+'' watchlinux.tiko -- fs/watch's backend on Linux: inotify.
+''
+'' #INCLUDED by fs/watch.tiko's POSIX branch, never compiled on its own and not in
+'' build/sources.txt. It provides
+''
+''     FB_FSWATCH                   the watcher; it must hold the shared change
+''                                  queue as its field q (FB_FSWATCHQ)
+''     hOsWatchClose( w )           release what the watcher holds, except w itself
+''     fb_UStrFsWatchStart, fb_FsWatchPoll
+''                                  the two entry points that watch -- Next and
+''                                  Stop are fs/watch.tiko's
+''
+'' and may use hFsNarrow, hJoin and hPushChange from the includer.
+''
+'' The Darwin sibling (watchdarwin.tiko, M5) must provide the same: kqueue with
+'' EVFILT_VNODE (one descriptor per directory, NOTE_WRITE/NOTE_DELETE/NOTE_RENAME,
+'' no names, so a directory event means a rescan) or FSEvents. Nothing here --
+'' inotify, poll( ) on its descriptor, IN_* -- has a Darwin equivalent.
+''
+'' inotify is not recursive: every directory gets its own watch descriptor, at
+'' Start and for every directory created while watching. struct_inotify_event,
+'' struct_pollfd, struct_dirent, struct_stat and every IN_ value come from the
+'' posix binding; an event's name follows its header at
+'' sizeof( struct_inotify_event ).
+
+#if defined( __FB_LINUX__ )
+
+const FB_FSWATCH_MASK = IN_CREATE or IN_DELETE or IN_MODIFY or _
+                        IN_MOVED_FROM or IN_MOVED_TO or IN_CLOSE_WRITE
+
+type FB_FSWATCHDIR
+	as int32     wd
+	as zstring * FB_FSWATCH_PATHMAX path_
+end type
+
+type FB_FSWATCH
+	as int32        fd
+	as int32        recursive
+
+	as FB_FSWATCHDIR dirs( 0 to FB_FSWATCH_MAXWATCH - 1 )
+	as int32        ndirs
+
+	as FB_FSWATCHQ  q
+
+	as uint8       buf( 0 to FB_FSWATCH_BUFBYTES - 1 )
+end type
+
+extern "c"   '' NON-FBCALL: libc.
+	declare function u_inotify_init1 alias "inotify_init1" ( byval flags as int32 ) as int32
+	declare function u_inotify_add_watch alias "inotify_add_watch" _
+		( byval fd as int32, byval p as zstring ptr, byval mask as uint32 ) as int32
+	declare function u_close alias "close" ( byval fd as int32 ) as int32
+	declare function u_read alias "read" ( byval fd as int32, byval buf as any ptr, byval n as uinteger ) as integer
+	declare function u_poll alias "poll" ( byval fds as struct_pollfd ptr, byval n as nfds_t, byval ms as int32 ) as int32
+	declare function u_opendir alias "opendir" ( byval p as zstring ptr ) as any ptr
+	declare function u_readdir alias "readdir" ( byval d as any ptr ) as struct_dirent ptr
+	declare function u_closedir alias "closedir" ( byval d as any ptr ) as int32
+	declare function u_lstat alias "lstat" ( byval p as zstring ptr, byval st as struct_stat ptr ) as int32
+end extern
+
+private function hAddWatch( byval w as FB_FSWATCH ptr, byval path_ as zstring ptr ) as int32
+	dim as int32 wd = any
+
+	if( w->ndirs >= FB_FSWATCH_MAXWATCH ) then return -1
+
+	wd = u_inotify_add_watch( w->fd, path_, FB_FSWATCH_MASK )
+	if( wd < 0 ) then return -1
+
+	w->dirs(w->ndirs).wd = wd
+	hJoin( @w->dirs(w->ndirs).path_, FB_FSWATCH_PATHMAX, path_, nullptr )
+	w->ndirs += 1
+
+	return wd
+end function
+
+private function hPathForWd( byval w as FB_FSWATCH ptr, byval wd as int32 ) as zstring ptr
+	dim as int32 i = any
+	for i = 0 to w->ndirs - 1
+		if( w->dirs(i).wd = wd ) then return @w->dirs(i).path_
+	next
+	return nullptr
+end function
+
+'' Walk the tree at Start, one watch per directory. Symbolic links are NOT
+'' followed -- the same rule WalkDir applies, and for the same reason: a link to
+'' an ancestor would otherwise add watches forever.
+private sub hAddTree( byval w as FB_FSWATCH ptr, byval path_ as zstring ptr, byval depth as int32 )
+	dim as any ptr d = any
+	dim as struct_dirent ptr e = any
+	dim as zstring ptr nm = any
+	dim as zstring * FB_FSWATCH_PATHMAX child = any
+	dim as struct_stat st = any
+	dim as int32 isdir = any
+
+	if( depth > 64 ) then exit sub
+	if( hAddWatch( w, path_ ) < 0 ) then exit sub
+	if( w->recursive = 0 ) then exit sub
+
+	d = u_opendir( path_ )
+	if( d = nullptr ) then exit sub
+
+	do
+		e = u_readdir( d )
+		if( e = nullptr ) then exit do
+
+		nm = @e->d_name
+
+		if( nm[0] = 46 ) then                       '' '.'
+			if( nm[1] = 0 ) then continue do
+			if( (nm[1] = 46) andalso (nm[2] = 0) ) then continue do
+		end if
+
+		hJoin( @child, FB_FSWATCH_PATHMAX, path_, nm )
+
+		'' lstat rather than d_type, because the link rule above needs the
+		'' UNRESOLVED kind and d_type reports DT_LNK for a link to a directory.
+		if( u_lstat( @child, @st ) <> 0 ) then continue do
+
+		isdir = iif( (st.st_mode and S_IFMT) = S_IFDIR, 1, 0 )
+		if( isdir <> 0 ) then hAddTree( w, @child, depth + 1 )
+	loop
+
+	u_closedir( d )
+end sub
+
+private sub hHandleEvent( byval w as FB_FSWATCH ptr, byval e as uint8 ptr )
+	dim as struct_inotify_event ptr ev = cptr( struct_inotify_event ptr, e )
+	dim as uint32 mask = ev->mask
+	dim as uint32 elen = ev->len_
+	dim as int32 wd = ev->wd
+	dim as zstring ptr dir_ = any
+	dim as zstring * FB_FSWATCH_PATHMAX full = any
+	dim as int32 kind = any
+
+	if( (mask and IN_Q_OVERFLOW) <> 0 ) then
+		hPushChange( @w->q, FB_FSCHANGE_OVERFLOW, nullptr )
+		exit sub
+	end if
+
+	'' the kernel dropped a dead watch
+	if( (mask and IN_IGNORED) <> 0 ) then exit sub
+
+	dir_ = hPathForWd( w, wd )
+	if( dir_ = nullptr ) then exit sub
+
+	if( elen > 0 ) then
+		hJoin( @full, FB_FSWATCH_PATHMAX, dir_, cptr( zstring ptr, e + sizeof( struct_inotify_event ) ) )
+	else
+		hJoin( @full, FB_FSWATCH_PATHMAX, dir_, nullptr )
+	end if
+
+	if( (mask and IN_CREATE) <> 0 ) then
+		kind = FB_FSCHANGE_CREATED
+	elseif( (mask and IN_DELETE) <> 0 ) then
+		kind = FB_FSCHANGE_DELETED
+	elseif( (mask and IN_MOVED_FROM) <> 0 ) then
+		kind = FB_FSCHANGE_RENAMED_FROM
+	elseif( (mask and IN_MOVED_TO) <> 0 ) then
+		kind = FB_FSCHANGE_RENAMED_TO
+	else
+		kind = FB_FSCHANGE_MODIFIED
+	end if
+
+	hPushChange( @w->q, kind, @full )
+
+	'' A DIRECTORY CREATED WHILE WATCHING NEEDS ITS OWN WATCH, or everything
+	'' inside it is invisible for the life of the watcher. This is the piece
+	'' that has no Windows counterpart at all.
+	if( (w->recursive <> 0) andalso ((mask and IN_ISDIR) <> 0) andalso _
+	    ((mask and (IN_CREATE or IN_MOVED_TO)) <> 0) ) then
+		hAddTree( w, @full, 0 )
+	end if
+end sub
+
+'' closing the inotify fd drops every watch it holds
+private sub hOsWatchClose( byval w as FB_FSWATCH ptr )
+	if( w->fd >= 0 ) then u_close( w->fd )
+end sub
+
+extern "rtlib"
+
+function tkort_UStrFsWatchStart alias "fb_UStrFsWatchStart" _
+	( byval p as FBUSTRING ptr, byval recursive as int32, byval out_ as FB_FSWATCH ptr ptr ) as int32
+
+	dim as zstring ptr path_ = any
+	dim as FB_FSWATCH ptr w = any
+	dim as int32 r = any
+
+	*out_ = nullptr
+
+	path_ = hFsNarrow( p )
+	if( path_ = nullptr ) then return FB_FS_UNKNOWN
+
+	w = calloc( 1, sizeof( FB_FSWATCH ) )
+	if( w = nullptr ) then
+		free( path_ )
+		return FB_FS_UNKNOWN
+	end if
+
+	'' NONBLOCK, because Poll uses poll( ) for the timeout and then reads
+	'' whatever is ready -- a blocking fd would hang past the deadline.
+	w->fd = u_inotify_init1( IN_NONBLOCK )
+	if( w->fd < 0 ) then
+		r = tkrt_FsMapOsError( )
+		free( path_ )
+		free( w )
+		return r
+	end if
+
+	w->recursive = recursive
+	hAddTree( w, path_, 0 )
+
+	free( path_ )
+
+	if( w->ndirs = 0 ) then
+		u_close( w->fd )
+		free( w )
+		return FB_FS_NOT_FOUND
+	end if
+
+	*out_ = w
+	return FB_FS_OK
+end function
+
+function tkort_FsWatchPoll alias "fb_FsWatchPoll" _
+	( byval w as FB_FSWATCH ptr, byval timeoutms as int32 ) as int32
+
+	dim as struct_pollfd pfd = any
+	dim as integer got = any
+	dim as int32 pr = any
+	dim as uint8 ptr at_ = any, stop_ = any
+	dim as uint32 elen = any
+
+	if( w = nullptr ) then return FB_FS_UNKNOWN
+	if( w->q.nread < w->q.nitems ) then return FB_FS_OK
+
+	do
+		memset( @pfd, 0, sizeof( struct_pollfd ) )
+		pfd.fd = w->fd
+		pfd.events = POLLIN
+
+		pr = u_poll( @pfd, 1, timeoutms )
+
+		if( pr < 0 ) then
+			if( errno = EINTR ) then continue do
+			return tkrt_FsMapOsError( )
+		end if
+
+		if( pr = 0 ) then return FB_FS_EXHAUSTED
+
+		exit do
+	loop
+
+	got = u_read( w->fd, @w->buf(0), FB_FSWATCH_BUFBYTES )
+	if( got <= 0 ) then return FB_FS_EXHAUSTED
+
+	w->q.nitems = 0
+	w->q.nread = 0
+
+	at_ = @w->buf(0)
+	stop_ = at_ + got
+
+	while( at_ < stop_ )
+		hHandleEvent( w, at_ )
+		elen = cptr( struct_inotify_event ptr, at_ )->len_
+		at_ += sizeof( struct_inotify_event ) + elen
+	wend
+
+	return iif( w->q.nitems > 0, FB_FS_OK, FB_FS_EXHAUSTED )
+end function
+
+end extern
+
+#endif

@@ -69,7 +69,7 @@
 #include once "inc/iolock.ti"
 #include once "inc/sysbind.ti"
 
-#ifndef __FB_WIN32__
+#ifdef __FB_UNIX__
 
 const KEY_BUFFER_LEN_ = 256
 

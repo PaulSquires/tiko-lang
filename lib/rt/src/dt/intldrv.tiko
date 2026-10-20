@@ -126,24 +126,26 @@ end extern
 			  byval defchar as any ptr, byval useddef as any ptr ) as int32
 	end extern
 
-#else
+#elseif defined( __FB_UNIX__ )
 
-	'' nl_item constants, MEASURED under WSL against glibc -- they are macros
-	'' built from a category number and an index, and nothing about their values
-	'' is guessable.
-	const NL_RADIXCHAR = 65536
-	const NL_THOUSEP   = 65537
-	const NL_MON_1     = 131098
-	const NL_ABMON_1   = 131086
-	const NL_DAY_1     = 131079
-	const NL_ABDAY_1   = 131072
-	const NL_D_FMT     = 131113
-	const NL_T_FMT     = 131114
+	'' The nl_item constants (RADIXCHAR, MON_1, ...) are the posix binding's
+	'' (inc/sysbind.ti), measured on the target -- they are macros built from a
+	'' category number and an index, and nothing about their values is guessable.
+	''
+	'' THE NAME LOOKUPS ADD AN INDEX TO THE FIRST ITEM (MON_1 + 0..11, DAY_1 +
+	'' 0..6), which is only right where a libc numbers each run contiguously.
+	'' glibc and Darwin both do; a libc that does not fails to build here.
+	#assert MON_12_MINUS_MON_1 = 11
+	#assert ABMON_12_MINUS_ABMON_1 = 11
+	#assert DAY_7_MINUS_DAY_1 = 6
+	#assert ABDAY_7_MINUS_ABDAY_1 = 6
 
 	extern "c"   '' NON-FBCALL: libc.
 		declare function u_nl_langinfo alias "nl_langinfo" ( byval item as int32 ) as zstring ptr
 	end extern
 
+#else
+	#error "dt/intldrv: no backend for this target"
 #endif
 
 extern "c"   '' NON-FBCALL: every driver is declared plain in fb_datetime.h and
@@ -323,14 +325,16 @@ function tkort_DrvIntlGet alias "fb_DrvIntlGet" ( byval index_ as int32 ) as zst
 			return @buf
 		end if
 		return nullptr
-	#else
+	#elseif defined( __FB_UNIX__ )
 		select case index_
 		case eFIL_DateDivider           : return @"/"
 		case eFIL_TimeDivider           : return @":"
-		case eFIL_NumDecimalPoint       : return u_nl_langinfo( NL_RADIXCHAR )
-		case eFIL_NumThousandsSeparator : return u_nl_langinfo( NL_THOUSEP )
+		case eFIL_NumDecimalPoint       : return u_nl_langinfo( RADIXCHAR )
+		case eFIL_NumThousandsSeparator : return u_nl_langinfo( THOUSEP )
 		end select
 		return nullptr
+	#else
+		#error "dt/intldrv: no backend for this target"
 	#endif
 end function
 
@@ -351,12 +355,12 @@ function tkort_DrvIntlGetMonthName alias "fb_DrvIntlGetMonthName" _
 			lctype = LOCALE_SMONTHNAME1_ + month_ - 1
 		end if
 		return hLocaleName( lctype )
-	#else
+	#elseif defined( __FB_UNIX__ )
 		dim as int32 item = any
 		if( short_names <> 0 ) then
-			item = NL_ABMON_1 + month_ - 1
+			item = ABMON_1 + month_ - 1
 		else
-			item = NL_MON_1 + month_ - 1
+			item = MON_1 + month_ - 1
 		end if
 
 		dim as zstring ptr pszName = u_nl_langinfo( item )
@@ -368,6 +372,8 @@ function tkort_DrvIntlGetMonthName alias "fb_DrvIntlGetMonthName" _
 		dim as FBSTRING ptr result = tkrt_hStrAllocTemp( nullptr, name_len )
 		if( result <> nullptr ) then memcpy( result->data, pszName, name_len + 1 )
 		return result
+	#else
+		#error "dt/intldrv: no backend for this target"
 	#endif
 end function
 
@@ -391,12 +397,12 @@ function tkort_DrvIntlGetWeekdayName alias "fb_DrvIntlGetWeekdayName" _
 			lctype = LOCALE_SDAYNAME1_ + weekday_ - 2
 		end if
 		return hLocaleName( lctype )
-	#else
+	#elseif defined( __FB_UNIX__ )
 		dim as int32 item = any
 		if( short_names <> 0 ) then
-			item = NL_ABDAY_1 + weekday_ - 1
+			item = ABDAY_1 + weekday_ - 1
 		else
-			item = NL_DAY_1 + weekday_ - 1
+			item = DAY_1 + weekday_ - 1
 		end if
 
 		dim as zstring ptr pszName = u_nl_langinfo( item )
@@ -406,12 +412,14 @@ function tkort_DrvIntlGetWeekdayName alias "fb_DrvIntlGetWeekdayName" _
 		dim as FBSTRING ptr result = tkrt_hStrAllocTemp( nullptr, name_len )
 		if( result <> nullptr ) then memcpy( result->data, pszName, name_len + 1 )
 		return result
+	#else
+		#error "dt/intldrv: no backend for this target"
 	#endif
 end function
 
 '' -------------------------------------------------------- the two formats
 
-#ifndef __FB_WIN32__
+#ifdef __FB_UNIX__
 
 '' THE strftime-TO-VB TRANSLATOR, written TWICE -- once for dates and once for
 '' times -- because the two differ only in their directive table, and a macro
@@ -530,8 +538,8 @@ function tkort_DrvIntlGetDateFormat alias "fb_DrvIntlGetDateFormat" _
 		end if
 
 		return 0
-	#else
-		dim as zstring ptr pszCurrent = u_nl_langinfo( NL_D_FMT )
+	#elseif defined( __FB_UNIX__ )
+		dim as zstring ptr pszCurrent = u_nl_langinfo( D_FMT )
 		dim as XLAT_ x
 		x.do_esc = 0 : x.do_fmt = 0 : x.out = buffer : x.remaining = len_ - 1
 		x.one[0] = 0 : x.one[1] = 0
@@ -587,6 +595,8 @@ function tkort_DrvIntlGetDateFormat alias "fb_DrvIntlGetDateFormat" _
 		wend
 
 		return 1
+	#else
+		#error "dt/intldrv: no backend for this target"
 	#endif
 end function
 
@@ -647,8 +657,8 @@ function tkort_DrvIntlGetTimeFormat alias "fb_DrvIntlGetTimeFormat" _
 		buffer[i] = 0
 
 		return 1
-	#else
-		dim as zstring ptr pszCurrent = u_nl_langinfo( NL_T_FMT )
+	#elseif defined( __FB_UNIX__ )
+		dim as zstring ptr pszCurrent = u_nl_langinfo( T_FMT )
 		dim as XLAT_ x
 		x.do_esc = 0 : x.do_fmt = 0 : x.out = buffer : x.remaining = len_ - 1
 		x.one[0] = 0 : x.one[1] = 0
@@ -695,6 +705,8 @@ function tkort_DrvIntlGetTimeFormat alias "fb_DrvIntlGetTimeFormat" _
 		wend
 
 		return 1
+	#else
+		#error "dt/intldrv: no backend for this target"
 	#endif
 end function
 

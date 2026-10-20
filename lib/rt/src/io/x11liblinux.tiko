@@ -1,0 +1,19 @@
+'' x11liblinux.tiko -- the file name libX11 is dlopen'd by on Linux.
+''
+'' #INCLUDED by io/multikeyposix.tiko (MULTIKEY under X11) and io/xfocus.tiko
+'' (fb_hXTermInitFocus), never compiled on its own and not in build/sources.txt.
+'' It provides one constant,
+''
+''     TKORT_X11_LIBNAME    the name handed to fb_hDynLoad
+''
+'' The Darwin sibling (x11libdarwin.tiko, M5) must provide the same constant -- XQuartz
+'' installs libX11 as a .dylib, under /opt/X11/lib.
+''
+'' "libX11.so" is fbc's choice and is kept: it is the -dev package's symlink, so a
+'' system with only the runtime package (libX11.so.6) does not have it.
+
+#if defined( __FB_LINUX__ )
+
+const TKORT_X11_LIBNAME = "libX11.so"
+
+#endif

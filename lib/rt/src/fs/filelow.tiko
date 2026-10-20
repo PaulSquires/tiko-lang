@@ -107,37 +107,15 @@ end extern
 		declare function tkrt_hConsoleGetHandle alias "fb_hConsoleGetHandle" ( byval is_input as int32 ) as any ptr
 	end extern
 
-#else
+#elseif defined( __FB_UNIX__ )
 
-	'' struct flock, MEASURED under WSL against glibc: sizeof 32, l_type 0,
-	'' l_whence 2, l_start 8, l_len 16, l_pid 24. Bound as fields rather than a
-	'' raw buffer because every one of the first four is written.
-	type FLOCK_
-		as int16 l_type
-		as int16 l_whence
-		as int32  pad0_
-		as int64 l_start
-		as int64 l_len
-		as int32  l_pid
-		as int32  pad1_
-	end type
-
-	#assert sizeof( FLOCK_ ) = 32
-	#assert offsetof( FLOCK_, l_start ) = 8
-	#assert offsetof( FLOCK_, l_len ) = 16
-
-	'' Measured with the same probe.
-	const F_GETFL_  = 3
-	const F_SETLKW_ = 7
-	const F_RDLCK_  = 0
-	const F_WRLCK_  = 1
-	const F_UNLCK_  = 2
-	const O_RDONLY_ = 0
-	const SEEK_SET_ = 0
+	'' struct flock (struct_flock), the F_* commands and lock types, O_RDONLY and
+	'' SEEK_SET all come from the posix binding (inc/sysbind.ti), measured on the
+	'' target's own libc. Every one of the first four flock fields is written.
 
 	extern "c"   '' NON-FBCALL: libc.
 		declare function u_fsync alias "fsync" ( byval fd as int32 ) as int32
-		declare function u_ftruncate alias "ftruncate" ( byval fd as int32, byval length_ as int64 ) as int32
+		declare function u_ftruncate alias "ftruncate" ( byval fd as int32, byval length_ as off_t ) as int32
 		'' fcntl IS VARIADIC -- 'int fcntl( int fd, int cmd, ... )' -- and is declared so,
 		'' once. Two fixed declarations under one alias, two arguments and three, were
 		'' the same symbol twice: tiko keys a declaration by its link name and refused the
@@ -147,6 +125,8 @@ end extern
 		declare function u_fcntl alias "fcntl" ( byval fd as int32, byval cmd as int32, ... ) as int32
 	end extern
 
+#else
+	#error "fs/filelow: no backend for this target"
 #endif
 
 '' ------------------------------------------------------- the path converter
@@ -180,10 +160,12 @@ function tkort_hFileFlushEx alias "fb_hFileFlushEx" ( byval f as FILE ptr ) as i
 		if( FlushFileBuffers_( crt_get_osfhandle( crt_fileno( f ) ) ) = 0 ) then
 			return tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
 		end if
-	#else
+	#elseif defined( __FB_UNIX__ )
 		if( u_fsync( crt_fileno( f ) ) <> 0 ) then
 			return tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
 		end if
+	#else
+		#error "fs/filelow: no flush for this target"
 	#endif
 
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )
@@ -200,11 +182,13 @@ function tkort_hFileSetEofEx alias "fb_hFileSetEofEx" ( byval f as FILE ptr ) as
 		if( SetEndOfFile_( crt_get_osfhandle( crt_fileno( f ) ) ) = 0 ) then
 			return tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
 		end if
-	#else
+	#elseif defined( __FB_UNIX__ )
 		dim as int64 pos_ = crt_ftello( f )
 		if( u_ftruncate( crt_fileno( f ), pos_ ) <> 0 ) then
 			return tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
 		end if
+	#else
+		#error "fs/filelow: no set-EOF for this target"
 	#endif
 
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )
@@ -212,7 +196,7 @@ end function
 
 '' ------------------------------------------------------------------ locking
 
-#ifndef __FB_WIN32__
+#ifdef __FB_UNIX__
 
 '' THE READ-LOCK BRANCH IS DEAD CODE AND IS KEPT DEAD. `fcntl(fd, F_GETFL) &
 '' O_RDONLY` with O_RDONLY == 0 is always false, so every lock is a WRITE lock --
@@ -220,25 +204,25 @@ end function
 private function hDoLock( byval f as FILE ptr, byval lock_ as int32, _
                           byval inipos as int64, byval size_ as int64 ) as int32
 
-	dim as FLOCK_ lck
+	dim as struct_flock lck
 	dim as int32 fd = crt_fileno( f )
 
 	if( lock_ <> 0 ) then
-		if( (u_fcntl( fd, F_GETFL_ ) and O_RDONLY_) <> 0 ) then
-			lck.l_type = F_RDLCK_
+		if( (u_fcntl( fd, F_GETFL ) and O_RDONLY) <> 0 ) then
+			lck.l_type = F_RDLCK
 		else
-			lck.l_type = F_WRLCK_
+			lck.l_type = F_WRLCK
 		end if
 	else
-		lck.l_type = F_UNLCK_
+		lck.l_type = F_UNLCK
 	end if
 
-	lck.l_whence = SEEK_SET_
+	lck.l_whence = SEEK_SET
 	lck.l_start = inipos
 	lck.l_len = size_
 
 	'' F_SETLKW BLOCKS until a conflicting lock clears.
-	return tkrt_ErrorSetNum( iif( u_fcntl( fd, F_SETLKW_, @lck ) <> 0, _
+	return tkrt_ErrorSetNum( iif( u_fcntl( fd, F_SETLKW, @lck ) <> 0, _
 	                              FB_RTERROR_FILEIO, FB_RTERROR_OK ) )
 end function
 
@@ -255,8 +239,10 @@ function tkort_hFileLock alias "fb_hFileLock" _
 		                                         cast( uint32, inipos ), 0, _
 		                                         cast( uint32, size_ ), 0 ) <> 0, _
 		                              FB_RTERROR_OK, FB_RTERROR_FILEIO ) )
-	#else
+	#elseif defined( __FB_UNIX__ )
 		return hDoLock( f, 1, inipos, size_ )
+	#else
+		#error "fs/filelow: no lock for this target"
 	#endif
 end function
 
@@ -268,8 +254,10 @@ function tkort_hFileUnlock alias "fb_hFileUnlock" _
 		                                           cast( uint32, inipos ), 0, _
 		                                           cast( uint32, size_ ), 0 ) <> 0, _
 		                              FB_RTERROR_OK, FB_RTERROR_FILEIO ) )
-	#else
+	#elseif defined( __FB_UNIX__ )
 		return hDoLock( f, 0, inipos, size_ )
+	#else
+		#error "fs/filelow: no unlock for this target"
 	#endif
 end function
 
@@ -300,12 +288,14 @@ function tkort_hFileResetEx alias "fb_hFileResetEx" ( byval streamno as int32 ) 
 		'' And re-read it NOW rather than lazily, so the next call does not
 		'' find an empty cache mid-print.
 		tkrt_hConsoleGetHandle( -1 )
-	#else
+	#elseif defined( __FB_UNIX__ )
 		if( streamno = 0 ) then
 			f = crt_freopen( @"/dev/tty", @"r", stdin )
 		else
 			f = crt_freopen( @"/dev/tty", @"w", stdout )
 		end if
+	#else
+		#error "fs/filelow: no stream reset for this target"
 	#endif
 
 	return iif( f <> nullptr, 1, 0 )

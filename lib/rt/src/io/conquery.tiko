@@ -244,7 +244,7 @@ end function
 
 end extern
 
-#else
+#elseif defined( __FB_UNIX__ )
 
 '' ------------------------------------------------------------ POSIX backend
 ''
@@ -371,13 +371,16 @@ end extern
 
 extern "c"   '' NON-FBCALL: undecorated in fbc's win32 archive.
 
-'' isatty on the underlying descriptor -- 0 and 1 are stdin and stdout by
-'' definition, so there is no need to go through FILE* and fileno.
+'' isatty on the underlying descriptor -- STDIN_FILENO and STDOUT_FILENO (the
+'' binding's) are stdin and stdout by definition, so there is no need to go
+'' through FILE* and fileno.
 function tkort_ConsoleIsRedirected alias "fb_ConsoleIsRedirected" ( byval is_input as int32 ) as int32
 	'' FB_TRUE is -1 -- see the Windows half.
-	return iif( c_isatty( iif( is_input <> 0, 0, 1 ) ) = 0, TKORT_FB_TRUE, TKORT_FB_FALSE )
+	return iif( c_isatty( iif( is_input <> 0, STDIN_FILENO, STDOUT_FILENO ) ) = 0, TKORT_FB_TRUE, TKORT_FB_FALSE )
 end function
 
 end extern
 
+#else
+	#error "io/conquery: no backend for this target"
 #endif

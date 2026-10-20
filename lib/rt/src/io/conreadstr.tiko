@@ -87,7 +87,7 @@ function tkort_ConsoleReadStr alias "fb_ConsoleReadStr" _
 
 end function
 
-#else
+#elseif defined( __FB_UNIX__ )
 
 	'' SEQ_LOCATE and SEQ_DEL_CHAR, from unix/fb_private_console.h -- indices
 	'' into the terminfo capability table, not escape sequences themselves.
@@ -171,6 +171,8 @@ function tkort_ConsoleReadStr alias "fb_ConsoleReadStr" _
 
 end function
 
+#else
+	#error "io/conreadstr: no backend for this target"
 #endif
 
 end extern

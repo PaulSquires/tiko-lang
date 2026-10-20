@@ -58,53 +58,56 @@ const FB_FILE_ATTR_ENCODING = 3
 
 const COPY_BUFFER_SIZE = 512
 
-'' ---------------------------------------------------- struct stat, measured
+'' ---------------------------------------------------- struct stat
 ''
-'' FreeBASIC's own crt/sys/stat.bi is `#error Unsupported platform` off Windows,
-'' so the layout is bound as a RAW BUFFER with one measured offset -- the same
-'' idiom fs/dir.tiko already uses for st_mode.
+'' On Windows the layout is bound as a RAW BUFFER with one measured offset. On
+'' a POSIX target it is the posix binding's struct_stat (inc/sysbind.ti),
+'' measured on the target's own libc, and the mtime is st_mtim.tv_sec.
 ''
-'' MEASURED THREE WAYS, all agreeing:
+'' THE WINDOWS OFFSET WAS MEASURED TWO WAYS, both agreeing:
 ''
 ''   win64   a C probe: sizeof(struct _stat)=48, offsetof(st_mtime)=32
 ''   win32   DISASSEMBLING fbc's own file_datetime.o -- the buffer is passed
 ''           from -0x40(%ebp) and the mtime is read from -0x20(%ebp), a gap of
 ''           exactly 0x20. No 32-bit MinGW headers exist on this machine, so
 ''           the probe could not be compiled and the object was read instead.
-''   linux   a WSL probe AND fbc's object: buffer at -0xa0(%rbp), mtime read
-''           from -0x48(%rbp), a gap of 0x58 = 88; sizeof(struct stat)=144.
 ''
-'' AND THE FUNCTION IS NOT `stat`. fbc's objects call `_stat64i32` on Windows
-'' and `stat64` on Linux -- the 64-bit-time variants -- with `_localtime64` and
-'' `localtime` respectively. Calling plain `stat` would bind a different struct
-'' layout on MinGW, where `stat` is a macro.
+'' AND THE WINDOWS FUNCTION IS NOT `stat`. fbc's objects call `_stat64i32` with
+'' `_localtime64` -- the 64-bit-time variants. Calling plain `stat` would bind
+'' a different struct layout on MinGW, where `stat` is a macro. On a POSIX
+'' target plain `stat` is right: on glibc x86-64 it is the same function and
+'' the same struct as the `stat64` fbc's object calls.
 #ifdef __FB_WIN32__
 	const STAT_BUF_SIZE_ = 64          '' 48 measured; rounded up, it is a local
 	const STAT_MTIME_    = 32
+
+	type TKORT_STATBUF
+		as uint8 raw( 0 to STAT_BUF_SIZE_ - 1 )
+	end type
+
+	'' struct tm, whose first six ints are sec, min, hour, mday, mon, year -- the
+	'' only fields used.
+	type TKORT_TM
+		as int32 tm_sec, tm_min, tm_hour, tm_mday, tm_mon, tm_year
+	end type
+#elseif defined( __FB_UNIX__ )
+	type TKORT_STATBUF as struct_stat
+	type TKORT_TM as struct_tm
 #else
-	const STAT_BUF_SIZE_ = 144
-	const STAT_MTIME_    = 88
+	#error "fs/fileops2: no struct stat for this target"
 #endif
-
-type TKORT_STATBUF
-	as uint8 raw( 0 to STAT_BUF_SIZE_ - 1 )
-end type
-
-'' struct tm, whose first six ints are sec, min, hour, mday, mon, year -- the
-'' only fields used, and identical on all three targets.
-type TKORT_TM
-	as int32 tm_sec, tm_min, tm_hour, tm_mday, tm_mon, tm_year
-end type
 
 extern "c"   '' NON-FBCALL: libc.
 	#ifdef __FB_WIN32__
 		declare function crt_wstat alias "_wstat64i32" _
 			( byval p as wstring ptr, byval st as TKORT_STATBUF ptr ) as int32
 		declare function crt_localtime alias "_localtime64" ( byval t as int64 ptr ) as TKORT_TM ptr
-	#else
-		declare function crt_stat alias "stat64" _
+	#elseif defined( __FB_UNIX__ )
+		declare function crt_stat alias "stat" _
 			( byval p as zstring ptr, byval st as TKORT_STATBUF ptr ) as int32
 		declare function crt_localtime alias "localtime" ( byval t as int64 ptr ) as TKORT_TM ptr
+	#else
+		#error "fs/fileops2: no stat or localtime for this target"
 	#endif
 end extern
 
@@ -253,14 +256,22 @@ function tkort_FileDateTime alias "fb_FileDateTime" ( byval filename as zstring 
 		dim as int32 sres = crt_wstat( wname, @buf )
 		free( wname )
 		if( sres <> 0 ) then return 0.0
-	#else
+	#elseif defined( __FB_UNIX__ )
 		if( crt_stat( filename, @buf ) <> 0 ) then return 0.0
+	#else
+		#error "fs/fileops2: no FILEDATETIME backend for this target"
 	#endif
 
 	'' The mtime is copied OUT of the buffer before localtime is called, exactly
 	'' as fbc's object does -- localtime takes a pointer to a time_t, not a
 	'' pointer into a struct.
-	dim as int64 t = *cptr( int64 ptr, @buf.raw(STAT_MTIME_) )
+	#ifdef __FB_WIN32__
+		dim as int64 t = *cptr( int64 ptr, @buf.raw(STAT_MTIME_) )
+	#elseif defined( __FB_UNIX__ )
+		dim as int64 t = buf.st_mtim.tv_sec
+	#else
+		#error "fs/fileops2: no st_mtime for this target"
+	#endif
 
 	dim as TKORT_TM ptr ptm = crt_localtime( @t )
 	if( ptm = nullptr ) then return 0.0

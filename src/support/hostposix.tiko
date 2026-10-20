@@ -1,0 +1,45 @@
+'' hostposix.tiko -- see hostposix.ti. No tko.ti, so no crt.bi: the posix binding's names are
+'' the only ones here.
+
+#include once "support/hostposix.ti"
+
+#ifdef __FB_UNIX__
+
+#include once "support/posix.ti"
+using posix
+
+extern "C"
+    declare function hp_open_ alias "open" ( byval p as zstring ptr, byval flags as int32, ... ) as int32
+    declare function hp_flock_ alias "flock" ( byval fd as int32, byval op as int32 ) as int32
+    declare function hp_close_ alias "close" ( byval fd as int32 ) as int32
+    declare function hp_dup2_ alias "dup2" ( byval a as int32, byval b as int32 ) as int32
+    declare function hp_sysconf_ alias "sysconf" ( byval name_ as int32 ) as integer   '' C long: 64-bit on every LP64 POSIX host
+end extern
+
+namespace Tko.HostPosix
+
+function LockFile( byval path_ as zstring ptr ) as int32
+    dim as int32 fd = hp_open_( path_, O_RDWR or O_CREAT, S_IRUSR or S_IWUSR or S_IRGRP or S_IROTH )
+    if fd < 0 then return -1
+    if hp_flock_( fd, LOCK_EX or LOCK_NB ) <> 0 then
+        hp_close_( fd )
+        return -2
+    end if
+    return fd
+end function
+
+sub QuietStdio( )
+    dim as int32 fd = hp_open_( "/dev/null", O_WRONLY )
+    if fd >= 0 then
+        hp_dup2_( fd, STDOUT_FILENO )
+        hp_dup2_( fd, STDERR_FILENO )
+    end if
+end sub
+
+function OnlineCpus( ) as int32
+    return cast( int32, hp_sysconf_( _SC_NPROCESSORS_ONLN ) )
+end function
+
+end namespace
+
+#endif

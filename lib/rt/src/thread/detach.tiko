@@ -31,8 +31,10 @@ sub tkort_ThreadDetach alias "fb_ThreadDetach" ( byval thread as FBTHREAD ptr )
 
 #if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
 	w_CloseHandle( thread->id )
-#else
+#elseif defined( __FB_UNIX__ )
 	u_pthread_detach( thread->id )
+#else
+	#error "thread/detach: no thread backend for this target"
 #endif
 
 	'' already exited: nobody else will ever look at this again

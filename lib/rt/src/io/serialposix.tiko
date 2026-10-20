@@ -9,34 +9,18 @@
 '' has to express the same intent in termios, and the two vocabularies do not
 '' line up -- which is where most of the surprises below come from.
 ''
-'' EVERY CONSTANT AND OFFSET HERE WAS MEASURED, not transcribed. A C probe
-'' compiled by gcc 13.3 under WSL against glibc's own headers printed all of
-'' them; the numbers that would be easiest to get wrong are called out where
-'' they are used. This matters more than usual because a wrong termios bit does
-'' not fail to compile and does not fail to open -- it misconfigures a live
-'' port.
+'' EVERY OS CONSTANT AND LAYOUT HERE COMES FROM THE POSIX BINDING (inc/sysbind.ti,
+'' measured by build/posixgen.sh against the target's own headers): the open()
+'' flags, every termios bit, VMIN/VTIME, TCSAFLUSH/TCIOFLUSH, FIONREAD, SIGALRM,
+'' struct_termios, fd_set and struct_timeval. This matters more than usual because
+'' a wrong termios bit does not fail to compile and does not fail to open -- it
+'' misconfigures a live port. CRTSCTS deserves its note: on glibc it is the ONLY
+'' flag here with the sign bit set, which is harmless only because c_cflag is
+'' unsigned.
 ''
-''   struct termios   60 bytes: c_iflag 0, c_oflag 4, c_cflag 8, c_lflag 12,
-''                    c_line 16, c_cc 17 (NCCS = 32), c_ispeed 52, c_ospeed 56.
-''                    NOTE c_cc AT 17 -- it is deliberately unaligned, sitting
-''                    immediately after the one-byte c_line, and the struct then
-''                    pads from 49 to 52.
-''   CRTSCTS          &h80000000. It is the ONLY flag here that sets the sign
-''                    bit, so it must be handled as UNSIGNED or the OR turns
-''                    into a sign-extension.
-''   VTIME 5, VMIN 6  in that order -- VTIME is the LOWER index, which is the
-''                    reverse of how the pair is always written.
-''   FIONREAD         &h541B.
-''
-'' THE BAUD RATE IS OR'd STRAIGHT INTO c_cflag. On Linux the Bnnnn constants ARE
-'' the CBAUD bit pattern (B9600 is 13, B115200 is 4098), so there is no
-'' cfsetspeed call -- the speed is just another set of bits in the control flag.
-''
-'' THE SPEED TABLE'S SENTINEL IS REACHABLE AS A SPEED. The lookup runs
-'' `while sp(n).speed <> wanted` and tests for the ENDSPD sentinel INSIDE the
-'' body, so asking for 111111 baud exits the loop ON the sentinel row and
-'' returns its value -- which is 0, i.e. B0, hanging up the line. Every other
-'' unlisted speed correctly returns BADSPEED. Reproduced.
+'' THE DEVICE NAME AND THE BAUD RATE ARE PER OS -- seriallinux.tiko holds COMn ->
+'' /dev/ttyS(n-1), and the speed table whose codes are OR'd straight into c_cflag
+'' (with the reachable-sentinel quirk recorded there).
 ''
 '' DS AND CD ARE INVERTED RELATIVE TO WINDOWS. On Windows a non-zero DurationCD
 '' or DurationDSR means "wait for that line"; here it means "do NOT set CLOCAL",
@@ -86,61 +70,12 @@
 #include once "inc/file.ti"
 #include once "inc/sysbind.ti"
 
-#ifndef __FB_WIN32__
+#ifdef __FB_UNIX__
 
 const FB_FILE_ACCESS_READ_      = 1
 const FB_FILE_ACCESS_WRITE_     = 2
 const FB_FILE_ACCESS_READWRITE_ = 3
 const FB_FILE_ACCESS_ANY_       = 0
-
-'' MEASURED (see the file header). open() flags.
-const O_RDONLY_   = 0
-const O_WRONLY_   = 1
-const O_RDWR_     = 2
-const O_NOCTTY_   = 256
-const O_NONBLOCK_ = 2048
-
-'' c_iflag
-const IGNPAR_ = 4
-const PARMRK_ = 8
-const INPCK_  = 16
-const ISTRIP_ = 32
-const IXON_   = 1024
-const IXANY_  = 2048
-const IXOFF_  = 4096
-
-'' c_oflag
-const OPOST_ = 1
-const ONLCR_ = 4
-
-'' c_cflag
-const CSTOPB_ = 64
-const CREAD_  = 128
-const PARENB_ = 256
-const PARODD_ = 512
-const HUPCL_  = 1024
-const CLOCAL_ = 2048
-const CSIZE_  = 48
-const CS5_    = 0
-const CS6_    = 16
-const CS7_    = 32
-const CS8_    = 48
-'' THE ONLY FLAG WITH THE SIGN BIT SET -- see the file header.
-const CRTSCTS_ = &h80000000u
-
-'' c_lflag
-const ICANON_ = 2
-
-'' c_cc indices. VTIME IS THE LOWER ONE.
-const VTIME_ = 5
-const VMIN_  = 6
-
-const TCSAFLUSH_ = 2
-const TCIOFLUSH_ = 2
-const FIONREAD_  = &h541B
-const SIGALRM_   = 14
-
-const NCCS_ = 32
 
 '' Three seconds around open and write; 70 ms for a read poll.
 const SERIAL_TIMEOUT_ = 3
@@ -159,25 +94,6 @@ const FB_SERIAL_PARITY_MARK_  = 4
 const FB_SERIAL_STOP_BITS_1_   = 0
 const FB_SERIAL_STOP_BITS_1_5_ = 1
 const FB_SERIAL_STOP_BITS_2_   = 2
-
-'' MEASURED: 60 bytes, and c_cc is at 17 rather than 20 -- see the file header.
-type TERMIOS_
-	as uint32 c_iflag
-	as uint32 c_oflag
-	as uint32 c_cflag
-	as uint32 c_lflag
-	as uint8 c_line
-	as uint8 c_cc( 0 to NCCS_ - 1 )
-	as uint8 pad_( 0 to 2 )
-	as uint32 c_ispeed
-	as uint32 c_ospeed
-end type
-
-#assert sizeof( TERMIOS_ ) = 60
-#assert offsetof( TERMIOS_, c_cflag ) = 8
-#assert offsetof( TERMIOS_, c_line ) = 16
-#assert offsetof( TERMIOS_, c_cc(0) ) = 17
-#assert offsetof( TERMIOS_, c_ispeed ) = 52
 
 type FB_SERIAL_OPTIONS
 	as uint32 uiSpeed
@@ -204,40 +120,26 @@ end type
 '' LINUX_SERIAL_INFO without HAS_LOCKDEV -- see the file header.
 type LINUX_SERIAL_INFO
 	as int32     sfd
-	as TERMIOS_ oldtty
-	as TERMIOS_ newtty
+	as struct_termios oldtty
+	as struct_termios newtty
 	as int32     iPort
 	as FB_SERIAL_OPTIONS ptr pOptions
 end type
-
-'' fd_set is 1024 bits. MEASURED at 128 bytes.
-type FDSET_
-	as uint64 fds_bits( 0 to 15 )
-end type
-
-#assert sizeof( FDSET_ ) = 128
-
-type TIMEVAL_
-	as int64 tv_sec
-	as int64 tv_usec
-end type
-
-#assert sizeof( TIMEVAL_ ) = 16
 
 extern "c"   '' NON-FBCALL: libc.
 	declare function c_open alias "open" ( byval path as zstring ptr, byval flags as int32, ... ) as int32
 	declare function c_close alias "close" ( byval fd as int32 ) as int32
 	declare function c_read alias "read" ( byval fd as int32, byval buf as any ptr, byval n as uinteger ) as integer
 	declare function c_write alias "write" ( byval fd as int32, byval buf as any ptr, byval n as uinteger ) as integer
-	declare function c_ioctl alias "ioctl" ( byval fd as int32, byval req as uint32, ... ) as int32
+	declare function c_ioctl alias "ioctl" ( byval fd as int32, byval req as culong, ... ) as int32
 	declare function c_select alias "select" _
-		( byval nfds as int32, byval rd as FDSET_ ptr, byval wr as FDSET_ ptr, _
-		  byval ex as FDSET_ ptr, byval tv as TIMEVAL_ ptr ) as int32
-	declare function c_tcgetattr alias "tcgetattr" ( byval fd as int32, byval t as TERMIOS_ ptr ) as int32
+		( byval nfds as int32, byval rd as fd_set ptr, byval wr as fd_set ptr, _
+		  byval ex as fd_set ptr, byval tv as struct_timeval ptr ) as int32
+	declare function c_tcgetattr alias "tcgetattr" ( byval fd as int32, byval t as struct_termios ptr ) as int32
 	declare function c_tcsetattr alias "tcsetattr" _
-		( byval fd as int32, byval act as int32, byval t as TERMIOS_ ptr ) as int32
+		( byval fd as int32, byval act as int32, byval t as struct_termios ptr ) as int32
 	declare function c_tcflush alias "tcflush" ( byval fd as int32, byval q as int32 ) as int32
-	declare sub c_cfmakeraw alias "cfmakeraw" ( byval t as TERMIOS_ ptr )
+	declare sub c_cfmakeraw alias "cfmakeraw" ( byval t as struct_termios ptr )
 	declare function c_alarm alias "alarm" ( byval secs as uint32 ) as uint32
 	declare function c_signal alias "signal" ( byval sig as int32, byval h as any ptr ) as any ptr
 	'' _strnicmp / _stricmp ON THE MICROSOFT ABI. The UCRT has no strncasecmp or
@@ -262,42 +164,19 @@ end extern
 private sub tkort_alrm cdecl ( byval signal_number as int32 )
 end sub
 
-'' The speed table. The sentinel row is REACHABLE AS A SPEED -- see the file
-'' header.
-type TKORT_SPEEDROW
-	as uint32 speed
-	as uint32 bits
-end type
+'' COMn's device node and the speed codes: hOsSerialDevName, hOsSerialSpeed and
+'' hOsSerialApplySpeed, one set per OS.
+#if defined( __FB_LINUX__ )
+	#include once "seriallinux.tiko"
+#else
+	#error "io/serialposix: no serial device or speed backend for this OS"
+#endif
 
-#define _SP( s, b ) type<TKORT_SPEEDROW>( s, b )
-
-dim shared as TKORT_SPEEDROW tkort_speeds( 0 to 28 ) = { _
-	_SP(       0,    0 ), _SP(      50,    1 ), _SP(     150,    5 ), _
-	_SP(     300,    7 ), _SP(     600,    8 ), _SP(    1200,    9 ), _
-	_SP(    1800,   10 ), _SP(    2400,   11 ), _SP(    4800,   12 ), _
-	_SP(    9600,   13 ), _SP(   19200,   14 ), _SP(   38400,   15 ), _
-	_SP(   57600, 4097 ), _SP(  115200, 4098 ), _SP(  230400, 4099 ), _
-	_SP(  460800, 4100 ), _SP(  500000, 4101 ), _SP(  576000, 4102 ), _
-	_SP(  921600, 4103 ), _SP( 1000000, 4104 ), _SP( 1152000, 4105 ), _
-	_SP( 1500000, 4106 ), _SP( 2000000, 4107 ), _SP( 2500000, 4108 ), _
-	_SP( 3000000, 4109 ), _SP( 3500000, 4110 ), _SP( 4000000, 4111 ), _
-	_SP( ENDSPD_,    0 ), _SP(       0,    0 ) }
-
-'' THE SENTINEL TEST IS INSIDE THE LOOP BODY, exactly as fbc's is, which is what
-'' makes 111111 baud resolve to B0 instead of an error.
-private function tkort_get_speed( byval speed as uint32 ) as uint32
-	dim as integer n = 0
-	while( tkort_speeds(n).speed <> speed )
-		if( tkort_speeds(n).speed = ENDSPD_ ) then return BADSPEED_
-		n += 1
-	wend
-	return tkort_speeds(n).bits
-end function
-
-'' FD_ZERO / FD_SET / FD_ISSET, which are macros in C.
-#define TKORT_FD_ZERO( s ) for i_ as integer = 0 to 15 : (s).fds_bits(i_) = 0 : next
-#define TKORT_FD_SET( fd, s )   (s).fds_bits( (fd) \ 64 ) or= (1ull shl ((fd) mod 64))
-#define TKORT_FD_ISSET( fd, s ) (((s).fds_bits( (fd) \ 64 ) and (1ull shl ((fd) mod 64))) <> 0)
+'' FD_ZERO / FD_SET / FD_ISSET, which are macros in C. fd_set is the binding's
+'' opaque array of NFDBITS-bit words, FD_SETSIZE bits in all.
+#define TKORT_FD_ZERO( s ) for i_ as integer = 0 to (FD_SETSIZE \ NFDBITS) - 1 : (s).__opaque(i_) = 0 : next
+#define TKORT_FD_SET( fd, s )   (s).__opaque( (fd) \ NFDBITS ) or= (1ull shl ((fd) mod NFDBITS))
+#define TKORT_FD_ISSET( fd, s ) (((s).__opaque( (fd) \ NFDBITS ) and (1ull shl ((fd) mod NFDBITS))) <> 0)
 
 extern "c"   '' NON-FBCALL: fb_serial.h declares all five plainly.
 
@@ -306,10 +185,10 @@ function tkort_SerialOpen alias "fb_SerialOpen" _
 	  byval pszDevice as zstring ptr, byval ppvHandle as any ptr ptr ) as int32
 
 	dim as int32 res = FB_RTERROR_OK
-	dim as int32 DesiredAccess = O_RDWR_ or O_NOCTTY_ or O_NONBLOCK_
+	dim as int32 DesiredAccess = O_RDWR or O_NOCTTY or O_NONBLOCK
 	dim as int32 SerialFD = -1
 	dim as zstring * 512 DeviceName
-	dim as TERMIOS_ oldserp, nwserp
+	dim as struct_termios oldserp, nwserp
 	dim as uint32 TermSpeed = any
 
 	if( options->IRQNumber <> 0 ) then
@@ -323,29 +202,19 @@ function tkort_SerialOpen alias "fb_SerialOpen" _
 	'' O_RDWR or O_WRONLY is 3, which is not a valid access mode. fbc's, kept.
 	select case handle->access
 	case FB_FILE_ACCESS_READ_
-		DesiredAccess or= O_RDONLY_
+		DesiredAccess or= O_RDONLY
 	case FB_FILE_ACCESS_WRITE_
-		DesiredAccess or= O_WRONLY_
+		DesiredAccess or= O_WRONLY
 	case FB_FILE_ACCESS_READWRITE_, FB_FILE_ACCESS_ANY_
-		DesiredAccess or= O_RDWR_
+		DesiredAccess or= O_RDWR
 	end select
 
 	DeviceName[0] = 0
 
-	if( iPort = 0 ) then
-		'' A BARE "COM" MEANS /dev/modem; anything else is taken as a literal
-		'' device path.
-		if( c_strcasecmp( pszDevice, @"COM" ) = 0 ) then
-			strcpy( @DeviceName, @"/dev/modem" )
-		else
-			strcpy( @DeviceName, pszDevice )
-		end if
-	else
-		'' /dev/ttyS0 IS COM1 -- the port number is one-based, the node is not.
-		sprintf( @DeviceName, @"/dev/ttyS%d", iPort - 1 )
-	end if
+	'' The node is the OS's -- see seriallinux.tiko.
+	hOsSerialDevName( iPort, pszDevice, @DeviceName )
 
-	TermSpeed = tkort_get_speed( options->uiSpeed )
+	TermSpeed = hOsSerialSpeed( options->uiSpeed )
 	if( TermSpeed = BADSPEED_ ) then
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
@@ -363,7 +232,7 @@ function tkort_SerialOpen alias "fb_SerialOpen" _
 		res = tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
 
-	if( c_tcflush( SerialFD, TCIOFLUSH_ ) <> 0 ) then
+	if( c_tcflush( SerialFD, TCIOFLUSH ) <> 0 ) then
 		res = tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
 
@@ -374,104 +243,104 @@ function tkort_SerialOpen alias "fb_SerialOpen" _
 	if( res = FB_RTERROR_OK ) then
 		'' CREAD is set twice in fbc's source, once here and once two lines on.
 		'' Idempotent, and kept so the shape matches.
-		nwserp.c_cflag or= CREAD_
-		nwserp.c_iflag and= not (IXON_ or IXOFF_ or IXANY_)
-		nwserp.c_cflag or= CREAD_
+		nwserp.c_cflag or= CREAD
+		nwserp.c_iflag and= not (IXON or IXOFF or IXANY)
+		nwserp.c_cflag or= CREAD
 
 		if( options->AddLF <> 0 ) then
 			'' CANONICAL MODE -- see the file header on how differently this
 			'' option behaves from its Windows counterpart.
-			nwserp.c_lflag or= ICANON_
-			nwserp.c_oflag or= (OPOST_ or ONLCR_)
+			nwserp.c_lflag or= ICANON
+			nwserp.c_oflag or= (OPOST or ONLCR)
 		else
 			c_cfmakeraw( @nwserp )
-			nwserp.c_cc(VMIN_) = 1
-			nwserp.c_cc(VTIME_) = 0
+			nwserp.c_cc(VMIN) = 1
+			nwserp.c_cc(VTIME) = 0
 		end if
 
 		if( options->KeepDTREnabled <> 0 ) then
-			nwserp.c_cflag and= not HUPCL_
+			nwserp.c_cflag and= not HUPCL
 		else
-			nwserp.c_cflag or= HUPCL_
+			nwserp.c_cflag or= HUPCL
 		end if
 
 		'' INVERTED RELATIVE TO WINDOWS: a duration here means "do not ignore
 		'' the modem lines". See the file header.
 		if( (options->DurationDSR <> 0) orelse (options->DurationCD <> 0) ) then
-			nwserp.c_cflag and= not CLOCAL_
+			nwserp.c_cflag and= not CLOCAL
 		else
-			nwserp.c_cflag or= CLOCAL_
+			nwserp.c_cflag or= CLOCAL
 		end if
 
 		'' CTS BECOMES FLOW CONTROL, NOT A TIMEOUT.
 		if( (options->DurationCTS <> 0) andalso (options->SuppressRTS = 0) ) then
-			nwserp.c_cflag or= CRTSCTS_
+			nwserp.c_cflag or= CRTSCTS
 		else
-			nwserp.c_cflag and= not CRTSCTS_
+			nwserp.c_cflag and= not CRTSCTS
 		end if
 
-		'' THE SPEED IS JUST MORE c_cflag BITS -- no cfsetspeed.
-		nwserp.c_cflag or= TermSpeed
-		nwserp.c_cflag and= not CSIZE_
+		'' THE SPEED, the OS's way -- see seriallinux.tiko.
+		hOsSerialApplySpeed( @nwserp, TermSpeed )
+		nwserp.c_cflag and= not CSIZE
 
 		select case options->uiDataBits
-		case 5 : nwserp.c_cflag or= CS5_
-		case 6 : nwserp.c_cflag or= CS6_
-		case 7 : nwserp.c_cflag or= CS7_
-		case else : nwserp.c_cflag or= CS8_
+		case 5 : nwserp.c_cflag or= CS5
+		case 6 : nwserp.c_cflag or= CS6
+		case 7 : nwserp.c_cflag or= CS7
+		case else : nwserp.c_cflag or= CS8
 		end select
 
 		select case options->Parity
 		case FB_SERIAL_PARITY_NONE_
-			nwserp.c_cflag and= not PARENB_
+			nwserp.c_cflag and= not PARENB
 
 		case FB_SERIAL_PARITY_SPACE_
 			'' 7S1 AND 8N1 PUT THE SAME BITS ON THE WIRE, so space parity is
 			'' eight bits and no parity -- OVERRIDING the data-bit setting just
 			'' applied above.
-			nwserp.c_cflag and= not PARENB_
-			nwserp.c_cflag or= CS8_
+			nwserp.c_cflag and= not PARENB
+			nwserp.c_cflag or= CS8
 
 		case FB_SERIAL_PARITY_MARK_
 			'' fbc: "I'm not sure for mark parity ... Fix me!". It sets PARMRK
 			'' and then FALLS THROUGH into EVEN, so mark parity is even parity
 			'' with input marking.
-			nwserp.c_iflag or= PARMRK_
-			nwserp.c_iflag or= (INPCK_ or ISTRIP_)
-			nwserp.c_cflag or= PARENB_
+			nwserp.c_iflag or= PARMRK
+			nwserp.c_iflag or= (INPCK or ISTRIP)
+			nwserp.c_cflag or= PARENB
 
 		case FB_SERIAL_PARITY_EVEN_
-			nwserp.c_iflag or= (INPCK_ or ISTRIP_)
-			nwserp.c_cflag or= PARENB_
+			nwserp.c_iflag or= (INPCK or ISTRIP)
+			nwserp.c_cflag or= PARENB
 
 		case FB_SERIAL_PARITY_ODD_
-			nwserp.c_iflag or= (INPCK_ or ISTRIP_)
-			nwserp.c_cflag or= (PARENB_ or PARODD_)
+			nwserp.c_iflag or= (INPCK or ISTRIP)
+			nwserp.c_cflag or= (PARENB or PARODD)
 		end select
 
 		if( options->IgnoreAllErrors <> 0 ) then
-			nwserp.c_iflag or= IGNPAR_
+			nwserp.c_iflag or= IGNPAR
 		else
-			nwserp.c_iflag and= not IGNPAR_
+			nwserp.c_iflag and= not IGNPAR
 		end if
 
 		select case options->StopBits
 		case FB_SERIAL_STOP_BITS_1_
-			nwserp.c_cflag and= not CSTOPB_
+			nwserp.c_cflag and= not CSTOPB
 		case FB_SERIAL_STOP_BITS_1_5_, FB_SERIAL_STOP_BITS_2_
 			'' 1.5 IS NOT EXPRESSIBLE and falls through to 2.
-			nwserp.c_cflag or= CSTOPB_
+			nwserp.c_cflag or= CSTOPB
 		end select
 
 		if( options->SuppressRTS <> 0 ) then
 			'' CLEARED AND THEN TWO PUT BACK -- the clear exists only to drop
 			'' IXOFF. See the file header.
-			nwserp.c_iflag and= not (IXON_ or IXOFF_ or IXANY_)
-			nwserp.c_iflag or= (IXON_ or IXANY_)
+			nwserp.c_iflag and= not (IXON or IXOFF or IXANY)
+			nwserp.c_iflag or= (IXON or IXANY)
 		end if
 
 		if( res = FB_RTERROR_OK ) then
-			if( c_tcsetattr( SerialFD, TCSAFLUSH_, @nwserp ) <> 0 ) then
+			if( c_tcsetattr( SerialFD, TCSAFLUSH, @nwserp ) <> 0 ) then
 				res = tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 			end if
 		end if
@@ -479,7 +348,7 @@ function tkort_SerialOpen alias "fb_SerialOpen" _
 
 	if( res <> FB_RTERROR_OK ) then
 		'' The old discipline is put back before the descriptor is dropped.
-		c_tcsetattr( SerialFD, TCSAFLUSH_, @oldserp )
+		c_tcsetattr( SerialFD, TCSAFLUSH, @oldserp )
 		c_close( SerialFD )
 	else
 		dim as LINUX_SERIAL_INFO ptr pInfo = _
@@ -503,7 +372,7 @@ function tkort_SerialGetRemaining alias "fb_SerialGetRemaining" _
 	dim as LINUX_SERIAL_INFO ptr pInfo = cast( LINUX_SERIAL_INFO ptr, pvHandle )
 	dim as int32 rBytes = any
 
-	if( c_ioctl( pInfo->sfd, FIONREAD_, @rBytes ) <> 0 ) then
+	if( c_ioctl( pInfo->sfd, FIONREAD, @rBytes ) <> 0 ) then
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
 
@@ -521,7 +390,7 @@ function tkort_SerialWrite alias "fb_SerialWrite" _
 	dim as LINUX_SERIAL_INFO ptr pInfo = cast( LINUX_SERIAL_INFO ptr, pvHandle )
 	dim as integer rlng = 0
 
-	c_signal( SIGALRM_, cast( any ptr, @tkort_alrm ) )
+	c_signal( SIGALRM, cast( any ptr, @tkort_alrm ) )
 	c_alarm( SERIAL_TIMEOUT_ )
 	rlng = c_write( pInfo->sfd, data_, length_ )
 	c_alarm( 0 )
@@ -544,8 +413,8 @@ function tkort_SerialRead alias "fb_SerialRead" _
 
 	dim as LINUX_SERIAL_INFO ptr pInfo = cast( LINUX_SERIAL_INFO ptr, pvHandle )
 	dim as integer count_ = 0
-	dim as FDSET_ rfds
-	dim as TIMEVAL_ tmout
+	dim as fd_set rfds
+	dim as struct_timeval tmout
 
 	TKORT_FD_ZERO( rfds )
 	TKORT_FD_SET( pInfo->sfd, rfds )
@@ -571,10 +440,10 @@ function tkort_SerialClose alias "fb_SerialClose" _
 	( byval handle as FB_FILE ptr, byval pvHandle as any ptr ) as int32
 
 	dim as LINUX_SERIAL_INFO ptr pInfo = cast( LINUX_SERIAL_INFO ptr, pvHandle )
-	dim as TERMIOS_ oserp = pInfo->oldtty
+	dim as struct_termios oserp = pInfo->oldtty
 
 	'' The saved discipline is restored from the COPY taken at open.
-	c_tcsetattr( pInfo->sfd, TCSAFLUSH_, @oserp )
+	c_tcsetattr( pInfo->sfd, TCSAFLUSH, @oserp )
 
 	c_close( pInfo->sfd )
 	free( pInfo )

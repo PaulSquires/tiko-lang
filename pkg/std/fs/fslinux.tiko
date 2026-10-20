@@ -1,0 +1,66 @@
+#module "fs"
+#import "std/outcome"
+using outcome
+'' std/fs: fslinux -- the Linux-only pieces of std/fs's POSIX code
+''
+'' Everything else std/fs says to the OS on POSIX is POSIX, written against sys/posix in
+'' the file that uses it; only what has no POSIX spelling is here -- two private helpers
+'' and the one public function that is Linux through and through -- so a second POSIX
+'' target supplies the same three and nothing more. The Darwin sibling (fsdarwin.tiko,
+'' M5) must provide:
+''
+''   private hErrno( ) as long              errno       -- *__error( )
+''   private hSyncData( fd ) as long        durable data flush, 0 or -1 with errno set --
+''                                          fcntl( fd, F_FULLFSYNC ): Darwin's fsync does
+''                                          not flush the drive cache, and it has no fdatasync
+''   public ExecutablePath( )               the running image's full path --
+''                                          _NSGetExecutablePath( ) then realpath( )
+''
+'' libc only, as in the files that call these: std/fs is compiled into tiko by the
+'' pinned seed (fsfile.tiko's header).
+
+#ifdef __FB_LINUX__
+
+extern "C"
+    declare function fsl_errno_location alias "__errno_location" ( ) as long ptr
+    declare function fsl_fdatasync alias "fdatasync" ( byval fd as long ) as long
+    declare function fsl_readlink alias "readlink" ( byval p as const zstring ptr, byval buf as zstring ptr, _
+        byval n as uinteger ) as integer
+end extern
+
+'' errno of the calling thread -- the one place std/fs names glibc's accessor.
+private function hErrno( ) as long
+    return *fsl_errno_location( )
+end function
+
+'' The data only: fdatasync.
+private function hSyncData( byval fd as long ) as long
+    return fsl_fdatasync( fd )
+end function
+
+'' /proc/self/exe, which the kernel resolves to the running image's real path.
+public function ExecutablePath( ) as FsResultUStr
+    dim as uinteger cap = 4096
+    do
+        dim as zstring ptr buf = callocate( cap + 1, 1 )
+        if( buf = nullptr ) then return FsFail( of ustring )( FS_NO_SPACE, "ExecutablePath", "" )
+        dim as integer n = fsl_readlink( @"/proc/self/exe", buf, cap )
+        if( n < 0 ) then
+            deallocate( buf )
+            dim as long c = FsMapOsError( ), o = FsOsError( )
+            return Fail( of ustring, FsError )( FsError( cast( FsErrorCode, c ), o, "ExecutablePath", "" ) )
+        end if
+        if( n < cap ) then
+            buf[n] = 0
+            dim as string s = *buf
+            deallocate( buf )
+            dim as ustring r = s
+            return Ok( of ustring, FsError )( r )
+        end if
+        deallocate( buf )
+        cap *= 2
+    loop while( cap <= 1048576 )
+    return FsFail( of ustring )( FS_NAME_TOO_LONG, "ExecutablePath", "" )
+end function
+
+#endif

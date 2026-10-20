@@ -324,7 +324,7 @@ end sub
 
 end extern
 
-#else
+#elseif defined( __FB_UNIX__ )
 
 '' ------------------------------------------------------------ POSIX backend
 
@@ -496,6 +496,8 @@ end sub
 
 end extern
 
+#else
+	#error "io/conattr: no backend for this target"
 #endif
 
 '' ------------------------------------------------------------- VIEW PRINT

@@ -21,13 +21,20 @@
 ''   errno         a macro over a call on every target
 ''   jmp_buf       C's is an ARRAY type, which FreeBASIC has no typedef for; its size and
 ''                 alignment were measured with clang: 256 bytes and 16 on both Windows
-''                 ABIs, 200 and 8 on x86-64 glibc. The GOSUB stack aligns its own copy
-''                 to 16 (ctrl/gosub.tiko). longjmp is declared against it.
+''                 ABIs. On a POSIX target it comes from the posix binding instead, measured
+''                 by build/posixgen.sh (200 and 8 on x86-64 glibc). The GOSUB stack aligns
+''                 its own copy to 16 (ctrl/gosub.tiko). longjmp is declared against it.
 
-#if defined( __FB_LINUX__ )
-	#include once "inc/sysbind/linux-x86_64.ti"
-#else
+#if defined( __FB_WIN32__ )
 	#include once "inc/sysbind/win64.ti"
+#elseif defined( __FB_LINUX__ )
+	#include once "inc/sysbind/linux-x86_64.ti"
+	'' THE POSIX LAYER: every constant and struct layout the runtime's __FB_UNIX__ code names,
+	'' measured by build/posixgen.sh on the target's own host (D2 of docs/tiko-macos RFC-0001).
+	#include once "inc/sysbind/linux-x86_64-posix.ti"
+	using posix
+#else
+	#error "inc/sysbind.ti: no C library binding for this target"
 #endif
 
 extern "C"   '' NON-FBCALL: the C library, not rtlib entry points.
@@ -41,11 +48,9 @@ extern "C"   '' NON-FBCALL: the C library, not rtlib entry points.
 	declare function __errno_location( ) as int32 ptr
 	#define errno (*__errno_location( ))
 
-	type jmp_buf
-		__opaque( 0 to 24 ) as uint64     '' 200 bytes
-	end type
+	'' jmp_buf is the posix binding's: its size and alignment measured, 200 and 8 here.
 
-#else
+#elseif defined( __FB_WIN32__ )
 
 	#ifdef TKORT_MSVC
 		'' THE UCRT HAS NO __iob_func. It exports one stream per call from
@@ -72,6 +77,8 @@ extern "C"   '' NON-FBCALL: the C library, not rtlib entry points.
 		__opaque( 0 to 31 ) as uint64     '' 256 bytes
 	end type
 
+#else
+	#error "inc/sysbind.ti: no streams, errno or jmp_buf for this target"
 #endif
 
 declare sub longjmp( byval env as jmp_buf ptr, byval value as int32 )

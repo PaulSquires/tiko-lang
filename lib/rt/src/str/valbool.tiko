@@ -35,7 +35,7 @@ end extern
 #ifdef __FB_WIN32__
 	'' _stricmp is what fbc's own Windows build imports.
 	#define TKORT_CASECMP( a, b ) _stricmp( (a), (b) )
-#else
+#elseif defined( __FB_UNIX__ )
 	extern "c" '' NON-FBCALL -- plain libc, no @N anywhere.
 		'' _strnicmp / _stricmp ON THE MICROSOFT ABI. The UCRT has no strncasecmp or
 		'' strcasecmp -- they are POSIX names, and MSVC spells the pair with a leading
@@ -51,6 +51,8 @@ end extern
 		#endif
 	end extern
 	#define TKORT_CASECMP( a, b ) strcasecmp( (a), (b) )
+#else
+	#error "str/valbool: no case-insensitive compare for this target"
 #endif
 
 extern "rtlib"

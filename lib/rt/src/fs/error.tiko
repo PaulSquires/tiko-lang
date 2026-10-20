@@ -146,94 +146,85 @@ end function
 
 end extern
 
-#else
+#elseif defined( __FB_UNIX__ )
 
 '' errno is a MACRO in C -- *__errno_location( ) on glibc -- not a variable, so
-'' it is reached through the accessor rather than declared as data. Getting
-'' that wrong reads a fixed address that is not this thread's errno.
-extern "c"   '' NON-FBCALL: libc, not an rtlib entry point.
-	declare function u_errno_location alias "__errno_location" ( ) as int32 ptr
-end extern
-
-const EPERM_ = 1, ENOENT_ = 2, EINTR_ = 4, EIO_ = 5
-const EBADF_ = 9, EACCES_ = 13, EBUSY_ = 16, EEXIST_ = 17
-const EXDEV_ = 18, ENOTDIR_ = 20, EISDIR_ = 21, EINVAL_ = 22
-const EFBIG_ = 27, ENOSPC_ = 28, EROFS_ = 30, ENAMETOOLONG_ = 36
-const ENOSYS_ = 38, ENOTEMPTY_ = 39, ELOOP_ = 40, EILSEQ_ = 84
-const EOPNOTSUPP_ = 95, ETXTBSY_ = 26, EDQUOT_ = 122
-const EAGAIN_ = 11, ESPIPE_ = 29, EMLINK_ = 31, EPIPE_ = 32, EOVERFLOW_ = 75
+'' it is reached through inc/sysbind.ti's errno accessor rather than declared as
+'' data. Getting that wrong reads a fixed address that is not this thread's errno.
+'' The E* names below are the posix binding's, measured on the target's libc.
+#include once "inc/sysbind.ti"
 
 extern "rtlib"
 
 function tkort_FsOsError alias "fb_FsOsError" ( ) as int32
-	return *u_errno_location( )
+	return errno
 end function
 
 function tkort_FsMapOsError alias "fb_FsMapOsError" ( ) as int32
-	select case *u_errno_location( )
-	case ENOENT_
+	select case errno
+	case ENOENT
 		return FB_FS_NOT_FOUND
 
-	case EACCES_, EPERM_
+	case EACCES, EPERM
 		return FB_FS_ACCESS_DENIED
 
 	'' Right for every call but rmdir, which re-maps it itself.
-	case EEXIST_
+	case EEXIST
 		return FB_FS_ALREADY_EXISTS
 
-	case ENOTDIR_
+	case ENOTDIR
 		return FB_FS_NOT_A_DIRECTORY
 
-	case EISDIR_
+	case EISDIR
 		return FB_FS_IS_A_DIRECTORY
 
-	case ENOTEMPTY_
+	case ENOTEMPTY
 		return FB_FS_DIR_NOT_EMPTY
 
-	case EINVAL_, EILSEQ_
+	case EINVAL, EILSEQ
 		return FB_FS_INVALID_PATH
 
-	case ENAMETOOLONG_
+	case ENAMETOOLONG
 		return FB_FS_NAME_TOO_LONG
 
-	case ELOOP_
+	case ELOOP
 		return FB_FS_LOOP
 
-	case ENOSPC_, EDQUOT_
+	case ENOSPC, EDQUOT
 		return FB_FS_NO_SPACE
 
 	'' EFBIG was NO_SPACE until FS_TOO_LARGE existed: the volume is not full, the
 	'' file has reached a size limit (RLIMIT_FSIZE, the filesystem's maximum).
-	case EFBIG_, EOVERFLOW_
+	case EFBIG, EOVERFLOW
 		return FB_FS_TOO_LARGE
 
-	case ESPIPE_
+	case ESPIPE
 		return FB_FS_NOT_SEEKABLE
 
-	case EMLINK_
+	case EMLINK
 		return FB_FS_TOO_MANY_LINKS
 
-	case EPIPE_
+	case EPIPE
 		return FB_FS_BROKEN_PIPE
 
 	'' EWOULDBLOCK is EAGAIN on Linux: a non-blocking flock found the lock held.
-	case EAGAIN_
+	case EAGAIN
 		return FB_FS_WOULD_BLOCK
 
-	case EROFS_
+	case EROFS
 		return FB_FS_READ_ONLY
 
-	case EBUSY_, ETXTBSY_
+	case EBUSY, ETXTBSY
 		return FB_FS_IN_USE
 
-	case EXDEV_
+	case EXDEV
 		return FB_FS_CROSS_DEVICE
 
 	'' Mapped, not retried -- see the header.
-	case EINTR_
+	case EINTR
 		return FB_FS_INTERRUPTED
 
-	case ENOSYS_, EOPNOTSUPP_
+	case ENOSYS, EOPNOTSUPP
 		return FB_FS_UNSUPPORTED
 
 	case 0
@@ -245,4 +236,6 @@ end function
 
 end extern
 
+#else
+	#error "fs/error: no backend for this target"
 #endif

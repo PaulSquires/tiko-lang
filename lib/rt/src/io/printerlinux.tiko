@@ -1,0 +1,19 @@
+'' printerlinux.tiko -- io/printerposix's parallel-port device node on Linux.
+''
+'' #INCLUDED by io/printerposix.tiko's POSIX branch, never compiled on its own and
+'' not in build/sources.txt. It provides one constant,
+''
+''     TKORT_LPT_DEVFMT    the sprintf format of the node for LPTn, given n - 1
+''                         as its single %d
+''
+'' The Darwin sibling (printerdarwin.tiko, M5) must provide the same constant. Darwin
+'' has no parallel-port nodes, so any name that does not exist will do: fopen fails
+'' and OPEN "LPTn:" reports FILE NOT FOUND, as it does on a Linux box without one.
+''
+'' /dev/lp0 IS LPT1 -- the port number is one-based and the node is not.
+
+#if defined( __FB_LINUX__ )
+
+const TKORT_LPT_DEVFMT = "/dev/lp%d"
+
+#endif

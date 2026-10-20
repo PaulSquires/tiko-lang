@@ -1,0 +1,34 @@
+'' hostposix.ti -- the compiler's own calls into a POSIX host's C library that need the host's
+'' constants: the build lock (build/lock.tiko) and the child-process plumbing
+'' (support/spawn.tiko).
+''
+'' A UNIT OF ITS OWN BECAUSE OF crt.bi. Every other compiler unit includes tko.ti, and tko.ti
+'' includes crt.bi, whose headers define O_RDWR, EPERM and the rest as MACROS with glibc's
+'' numbers -- typed in, not measured, and fatal beside the posix binding's constants of the
+'' same names (a macro rewrites 'const O_RDWR = 2' into 'const 2 = 2'). This unit includes
+'' neither, only support/posix.ti: the binding build/posixgen.sh measured on the host
+'' (docs/tiko-macos RFC-0001 §4), so a new POSIX host brings its own values.
+''
+'' Nothing here on Windows; the callers keep their Windows code.
+
+#pragma once
+
+#ifdef __FB_UNIX__
+
+namespace Tko.HostPosix
+
+    '' open( path, O_RDWR or O_CREAT, 0644 ), then flock( LOCK_EX or LOCK_NB ), which fails at
+    '' once when another process holds it. The descriptor; -1 when the file cannot be made;
+    '' -2 when the lock is held elsewhere (the file is closed again).
+    declare function LockFile( byval path_ as zstring ptr ) as int32
+
+    '' In a forked child, before exec: stdout and stderr to /dev/null, for a child whose output
+    '' nobody reads. Silently does nothing when /dev/null cannot be opened.
+    declare sub QuietStdio( )
+
+    '' The processors online: sysconf( _SC_NPROCESSORS_ONLN ), possibly < 1 on failure.
+    declare function OnlineCpus( ) as int32
+
+end namespace
+
+#endif

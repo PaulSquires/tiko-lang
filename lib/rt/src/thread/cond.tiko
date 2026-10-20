@@ -228,14 +228,14 @@ end sub
 
 end extern
 
-#else
+#elseif defined( __FB_UNIX__ )
 
 '' ------------------------------------------------------------ POSIX backend
 ''
 '' pthread has the primitive, so this is a wrapper and nothing more.
 
 type FBCOND
-	as uint8 id( 0 to TKORT_PTHREAD_COND_SIZE - 1 )
+	as pthread_cond_t id
 end type
 
 extern "rtlib"
@@ -243,32 +243,34 @@ extern "rtlib"
 function tkort_CondCreate alias "fb_CondCreate" ( ) as FBCOND ptr
 	dim as FBCOND ptr c = malloc( sizeof( FBCOND ) )
 	if( c = nullptr ) then return nullptr
-	u_pthread_cond_init( @c->id(0), nullptr )
+	u_pthread_cond_init( @c->id, nullptr )
 	return c
 end function
 
 sub tkort_CondDestroy alias "fb_CondDestroy" ( byval c as FBCOND ptr )
 	if( c = nullptr ) then exit sub
-	u_pthread_cond_destroy( @c->id(0) )
+	u_pthread_cond_destroy( @c->id )
 	free( c )
 end sub
 
 sub tkort_CondSignal alias "fb_CondSignal" ( byval c as FBCOND ptr )
 	if( c = nullptr ) then exit sub
-	u_pthread_cond_signal( @c->id(0) )
+	u_pthread_cond_signal( @c->id )
 end sub
 
 sub tkort_CondBroadcast alias "fb_CondBroadcast" ( byval c as FBCOND ptr )
 	if( c = nullptr ) then exit sub
-	u_pthread_cond_broadcast( @c->id(0) )
+	u_pthread_cond_broadcast( @c->id )
 end sub
 
 sub tkort_CondWait alias "fb_CondWait" ( byval c as FBCOND ptr, byval m as FBMUTEX ptr )
 	if( c = nullptr ) then exit sub
 	if( m = nullptr ) then exit sub
-	u_pthread_cond_wait( @c->id(0), @m->id(0) )
+	u_pthread_cond_wait( @c->id, @m->id )
 end sub
 
 end extern
 
+#else
+	#error "thread/cond: no condition-variable backend for this target"
 #endif

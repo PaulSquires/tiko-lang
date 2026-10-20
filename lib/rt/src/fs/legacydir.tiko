@@ -128,7 +128,7 @@ end extern
 
 	const FIND_INVALID_ = -1
 
-#else
+#elseif defined( __FB_UNIX__ )
 
 	'' The POSIX context: no find record, but two MAX_PATH buffers -- the
 	'' pattern and the directory it was split off -- because opendir cannot glob
@@ -141,43 +141,22 @@ end extern
 		as zstring * TKORT_DIR_MAX_PATH dirname
 	end type
 
-	'' struct stat and struct dirent, MEASURED under WSL against glibc:
-	''   stat   size 144, st_mode 24, st_uid 28, st_gid 32
-	''   dirent size 280, d_name 19
-	const STAT_BUF_SIZE_ = 144
-	const STAT_MODE_     = 24
-	const STAT_UID_      = 28
-	const STAT_GID_      = 32
-	const DIRENT_NAME_   = 19
-
-	'' The mode bits, measured with the same probe -- they are macros in C and
-	'' the numbers are not universal across libcs.
-	const S_IWUSR_ = &o200
-	const S_IWGRP_ = &o20
-	const S_IWOTH_ = &o2
-	const S_IFMT_  = &o170000
-	const S_IFDIR_ = &o40000
-	const S_IFCHR_ = &o20000
-	const S_IFBLK_ = &o60000
-	const S_IFIFO_ = &o10000
-	const S_IFSOCK_= &o140000
-
-	type STATBUF_
-		as uint8 raw( 0 to STAT_BUF_SIZE_ - 1 )
-	end type
-
-	extern "c"   '' NON-FBCALL: libc. `stat64` and not `stat`, for the same
-	             '' reason fs/fileops2.tiko gives -- plain `stat` is a macro whose
-	             '' expansion binds a different struct.
-		declare function u_stat alias "stat64" _
-			( byval path as zstring ptr, byval buf as STATBUF_ ptr ) as int32
+	'' struct stat, struct dirent and the S_IF* / S_IW* mode bits -- macros in C,
+	'' not universal across libcs -- all come from the posix binding
+	'' (inc/sysbind.ti), measured on the target's own libc.
+	extern "c"   '' NON-FBCALL: libc. Plain `stat`: on glibc x86-64 the same
+	             '' function and struct as the `stat64` fbc's object calls.
+		declare function u_stat alias "stat" _
+			( byval path as zstring ptr, byval buf as struct_stat ptr ) as int32
 		declare function u_opendir alias "opendir" ( byval path as zstring ptr ) as any ptr
-		declare function u_readdir alias "readdir" ( byval d as any ptr ) as any ptr
+		declare function u_readdir alias "readdir" ( byval d as any ptr ) as struct_dirent ptr
 		declare function u_closedir alias "closedir" ( byval d as any ptr ) as int32
-		declare function u_geteuid alias "geteuid" ( ) as uint32
-		declare function u_getegid alias "getegid" ( ) as uint32
+		declare function u_geteuid alias "geteuid" ( ) as uid_t
+		declare function u_getegid alias "getegid" ( ) as gid_t
 	end extern
 
+#else
+	#error "fs/legacydir: no backend for this target"
 #endif
 
 '' The one place the context is fetched. fbc's FB_TLSGETCTX macro pastes three
@@ -203,8 +182,10 @@ extern "c"   '' NON-FBCALL for the destructor; fb_Dir itself is FBCALL and is
 private sub hCloseDirInternal( byval ctx as FB_DIRCTX_ ptr )
 	#ifdef __FB_WIN32__
 		w_FindClose( ctx->handle )
-	#else
+	#elseif defined( __FB_UNIX__ )
 		u_closedir( ctx->dir_ )
+	#else
+		#error "fs/legacydir: no closedir for this target"
 	#endif
 	ctx->in_use = 0
 end sub
@@ -220,7 +201,7 @@ private sub hCloseDir( )
 	hCloseDirInternal( TKORT_TLSGET_DIR( ) )
 end sub
 
-#ifndef __FB_WIN32__
+#ifdef __FB_UNIX__
 
 '' THE DOS ATTRIBUTE BITS, SYNTHESISED FROM A POSIX MODE. Nothing here is a
 '' translation of a real attribute -- POSIX has none -- so each bit is a
@@ -233,30 +214,30 @@ end sub
 ''                    hidden rather than filtered -- see the file header.
 ''   0x04 system      a character device, block device, FIFO or socket.
 ''   0x10 directory / 0x20 archive, and exactly one of the two is always set.
-private function hGetAttrib( byval name_ as zstring ptr, byval info as STATBUF_ ptr ) as int32
+private function hGetAttrib( byval name_ as zstring ptr, byval info as struct_stat ptr ) as int32
 
 	dim as int32 attrib = 0, mask = any
-	dim as uint32 mode_ = *cptr( uint32 ptr, @info->raw(STAT_MODE_) )
-	dim as uint32 uid = *cptr( uint32 ptr, @info->raw(STAT_UID_) )
-	dim as uint32 gid = *cptr( uint32 ptr, @info->raw(STAT_GID_) )
+	dim as mode_t mode_ = info->st_mode
+	dim as uid_t uid = info->st_uid
+	dim as gid_t gid = info->st_gid
 
 	if( uid = u_geteuid( ) ) then
-		mask = S_IWUSR_
+		mask = S_IWUSR
 	elseif( gid = u_getegid( ) ) then
-		mask = S_IWGRP_
+		mask = S_IWGRP
 	else
-		mask = S_IWOTH_
+		mask = S_IWOTH
 	end if
 
 	if( (mode_ and mask) = 0 ) then attrib or= &h1
 
 	if( name_[0] = 46 ) then attrib or= &h2          '' '.'
 
-	dim as uint32 fmt = mode_ and S_IFMT_
-	if( (fmt = S_IFCHR_) orelse (fmt = S_IFBLK_) orelse _
-	    (fmt = S_IFIFO_) orelse (fmt = S_IFSOCK_) ) then attrib or= &h4
+	dim as uint32 fmt = mode_ and S_IFMT
+	if( (fmt = S_IFCHR) orelse (fmt = S_IFBLK) orelse _
+	    (fmt = S_IFIFO) orelse (fmt = S_IFSOCK) ) then attrib or= &h4
 
-	if( fmt = S_IFDIR_ ) then
+	if( fmt = S_IFDIR ) then
 		attrib or= &h10
 	else
 		attrib or= &h20
@@ -349,17 +330,17 @@ private function hFindNext( byval attrib as int32 ptr ) as zstring ptr
 		'' sees a Windows-only attribute the mask was widened to tolerate.
 		*attrib = ctx->d_attrib and (not &hFFFFFF00)
 		return name_
-	#else
-		dim as STATBUF_ info = any
+	#elseif defined( __FB_UNIX__ )
+		dim as struct_stat info = any
 		dim as zstring * TKORT_DIR_MAX_PATH buffer = any
 
 		do
-			dim as any ptr entry = u_readdir( ctx->dir_ )
+			dim as struct_dirent ptr entry = u_readdir( ctx->dir_ )
 			if( entry = nullptr ) then
 				hCloseDir( )
 				return nullptr
 			end if
-			name_ = cptr( zstring ptr, cptr( uint8 ptr, entry ) + DIRENT_NAME_ )
+			name_ = @entry->d_name
 
 			'' THE FULL PATH IS REBUILT FOR EVERY ENTRY because readdir gives a
 			'' bare name and stat needs a path. Both concatenations are bounded
@@ -379,6 +360,8 @@ private function hFindNext( byval attrib as int32 ptr ) as zstring ptr
 				end if
 			end if
 		loop
+	#else
+		#error "fs/legacydir: no find-next for this target"
 	#endif
 end function
 
@@ -439,7 +422,7 @@ function tkort_Dir alias "fb_Dir" _
 
 				if( name_ <> nullptr ) then ctx->in_use = 1
 			end if
-		#else
+		#elseif defined( __FB_UNIX__ )
 			'' TWO ENTIRELY DIFFERENT PATHS, chosen by whether the spec has a
 			'' wildcard in it: opendir for a pattern, a single stat for a name.
 			if( (strchr( filespec->data, 42 ) <> nullptr) orelse _
@@ -482,7 +465,7 @@ function tkort_Dir alias "fb_Dir" _
 				'' NO WILDCARD: one stat, no scan opened, and in_use stays
 				'' FALSE -- so a following DIR("") returns nothing rather than
 				'' re-reporting this file.
-				dim as STATBUF_ info = any
+				dim as struct_stat info = any
 				if( u_stat( filespec->data, @info ) = 0 ) then
 					tmp_attrib = hGetAttrib( filespec->data, @info )
 					if( (tmp_attrib and (not attrib)) = 0 ) then
@@ -496,6 +479,8 @@ function tkort_Dir alias "fb_Dir" _
 					end if
 				end if
 			end if
+		#else
+			#error "fs/legacydir: no find-first for this target"
 		#endif
 	else
 		'' -------------------------------------------------------- FINDNEXT

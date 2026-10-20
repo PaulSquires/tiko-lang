@@ -22,6 +22,7 @@
 #   7. NARROW LOOP COUNTERS in lib/gfx hot loops (see below -- costs 4x).
 #   8. ATTRIBUTION HEADER on every lib/gfx source (LGPL obligation).
 #   9. MODULE DIRECTIVES in tiko's own source: '#import "std/..."' only.
+#  10. THE POSIX BINDING's two generated copies are identical.
 #
 # TODO: port to tools/tiko-lang-lint once tiko-lang can compile itself, so the lint is
 # self-hosted like everything else.
@@ -190,6 +191,25 @@ done
 # an include of one would find a stale copy in some seed's inc/ or nothing at all.
 for f in $(grep_files '^[[:space:]]*#[[:space:]]*include[[:space:]]+(once[[:space:]]+)?"(fb/|containers\.bi")' $(find src tools pkg \( -name '*.bas' -o -name '*.bi' -o -name '*.tiko' -o -name '*.ti' \) -print | sort)); do
     note "MODULES $f includes an fb/ library header or containers.bi; #import the std module instead"
+done
+
+# ------------------------------------ 10. the posix binding, one set of bytes
+#
+# build/posixgen.sh writes each POSIX target's measured binding twice: lib/rt/src/inc/sysbind/
+# for tiko-rt, pkg/sys/posix/ for the std modules (the packaged toolchain ships pkg/ but not
+# lib/rt/src). A hand edit to one copy, or a regeneration that wrote only one, would give the
+# runtime and the standard library different ideas of the same struct.
+for f in lib/rt/src/inc/sysbind/*-posix.ti pkg/sys/posix/*-posix.ti; do
+    [ -f "$f" ] || continue
+    case "$f" in
+        lib/*) other="pkg/sys/posix/${f##*/}" ;;
+        *)     other="lib/rt/src/inc/sysbind/${f##*/}" ;;
+    esac
+    if [ ! -f "$other" ]; then
+        note "POSIXBIND $f has no copy at $other (rerun build/posixgen.sh)"
+    elif ! cmp -s "$f" "$other"; then
+        case "$f" in lib/*) note "POSIXBIND $f and $other differ (rerun build/posixgen.sh)" ;; esac
+    fi
 done
 
 # ------------------------------------- 4/5. trailing whitespace and hard tabs

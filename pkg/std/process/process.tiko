@@ -501,7 +501,7 @@ end function
 
 '' -------------------------------------------------------------- the child's environment
 
-'' per platform, in procwin / proclinux
+'' per platform, in procwin / procposix
 declare function ProcParentEnv( ) as OrderedMap( of ustring, ustring )
 declare function ProcParentVar( byref n as const ustring ) as ustring
 

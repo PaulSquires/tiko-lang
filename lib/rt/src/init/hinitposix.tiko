@@ -6,15 +6,13 @@
 ''
 '' THIS MEMBER OWNS __fb_con, WHICH EVERY OTHER POSIX CONSOLE MODULE READS.
 '' src/io/conprint.tiko, conattr.tiko, conttytail.tiko and half a dozen more
-'' currently MIRROR fbc's layout through inc/console.ti; from here on they
-'' mirror THIS definition, so a single wrong offset silently corrupts an
-'' unrelated field in all of them.
+'' read it through inc/console.ti's byte offsets -- and those are now offsetof
+'' THIS object's type, FBCONSOLE_ in inc/conposix.ti, so they cannot drift from
+'' it. Its two termios are the binding's struct_termios.
 ''
-'' THE WHOLE STRUCT WAS RE-MEASURED before it was written: a gcc 13.3 probe
-'' under WSL against glibc's headers printed sizeof = 408 and all 29 offsets,
-'' and every one matched what inc/console.ti had already recorded. That
-'' agreement is the evidence the mirror was right, not an assumption that it
-'' was.
+'' ON glibc THE LAYOUT IS ALSO fbc's: a gcc 13.3 probe under WSL against glibc's
+'' headers printed sizeof = 408 and all 29 offsets, and inc/conposix.ti asserts
+'' them on Linux, because fbc's own console members read the same object.
 ''
 '' ---------------------------------------------------------------------------
 '' THE MT ARCHIVE OWES TEN MORE SYMBOLS THAN THE ST ONE. fb_Lock, fb_Unlock,
@@ -86,50 +84,18 @@
 
 #include once "inc/descriptors.ti"
 '' inc/console.ti IS DELIBERATELY NOT INCLUDED. It declares __fb_con as an
-'' opaque `ubyte` for the modules that MIRROR the struct through byte offsets;
+'' opaque `ubyte` for the modules that read the struct through byte offsets;
 '' this file DEFINES the real object, and having both in scope is a
-'' redefinition of the global. Everything needed from it is spelled out below.
+'' redefinition of the global. The type itself, FBCONSOLE_, is shared through
+'' inc/conposix.ti, which console.ti takes its offsets from.
 #include once "inc/sysbind.ti"
 
-#ifndef __FB_WIN32__
+#ifdef __FB_UNIX__
 
-const NSIG_ = 65
+#include once "inc/conposix.ti"
 
-const SIGABRT_ = 6
-const SIGFPE_  = 8
-const SIGILL_  = 4
-const SIGSEGV_ = 11
-const SIGTERM_ = 15
-const SIGINT_  = 2
-const SIGQUIT_ = 3
-const SIGTTOU_ = 22
-const SIGWINCH_ = 28
-const SIG_IGN_ = 1
-
-const STDIN_FILENO_  = 0
-const STDOUT_FILENO_ = 1
-
-const TIOCGWINSZ_ = &h5413
-const TCSANOW_    = 0
-
-const F_GETFL_ = 3
-const F_SETFL_ = 4
-const O_NONBLOCK_ = 2048
-
-'' termios flags used here -- MEASURED, as in src/io/serialposix.tiko.
-const OPOST_  = 1
-const BRKINT_ = 2
-const IGNBRK_ = 1
-const IXON_   = 1024
-const IXOFF_  = 4096
-const ICANON_ = 2
-const ECHO_   = 8
-const VTIME_  = 5
-const VMIN_   = 6
-const NCCS_   = 32
-
-'' SEQ_* -- the termcap slot indices, then the hard-coded VT100 extras.
-const SEQ_MAX_          = 17
+'' SEQ_* -- the termcap slot indices (SEQ_MAX_ is inc/conposix.ti's), then the
+'' hard-coded VT100 extras.
 const SEQ_EXTRA_        = 100
 const SEQ_INIT_CHARSET_ = 100
 const SEQ_EXIT_CHARSET_ = 101
@@ -143,89 +109,9 @@ const TERM_GENERIC__ = 0
 const TERM_XTERM__   = 1
 const TERM_ETERM__   = 2
 
-type TERMIOS2_
-	as uint32 c_iflag
-	as uint32 c_oflag
-	as uint32 c_cflag
-	as uint32 c_lflag
-	as uint8 c_line
-	as uint8 c_cc( 0 to NCCS_ - 1 )
-	as uint8 pad_( 0 to 2 )
-	as uint32 c_ispeed
-	as uint32 c_ospeed
-end type
-
-#assert sizeof( TERMIOS2_ ) = 60
-
-type WINSIZE_
-	as uint16 ws_row
-	as uint16 ws_col
-	as uint16 ws_xpixel
-	as uint16 ws_ypixel
-end type
-
-#assert sizeof( WINSIZE_ ) = 8
-
-'' THE CONSOLE CONTEXT. MEASURED: sizeof 408, and all 29 offsets agree with
-'' inc/console.ti -- see the file header on why that agreement is the evidence.
-type FBCONSOLE_
-	as int32     inited                        '' 0
-	as int32     term_type                     '' 4
-	as int32     h_in                          '' 8
-	as any ptr  f_in                          '' 16
-	as TERMIOS2_ old_term_out                 '' 24
-	as TERMIOS2_ old_term_in                  '' 84
-	as int32     old_in_flags                  '' 144
-	'' C `bool`, one byte each and NOT padded apart.
-	as uint8    saved_old_term_out            '' 148
-	as uint8    saved_old_term_in             '' 149
-	as uint8    saved_old_in_flags            '' 150
-	as uint8    pad0_                         '' 151
-	as uint32    fg_color                      '' 152
-	as uint32    bg_color                      '' 156
-	as int32     cur_x                         '' 160
-	as int32     cur_y                         '' 164
-	as int32     w                             '' 168
-	as int32     h                             '' 172
-	as uint8 ptr char_buffer                  '' 176
-	as uint8 ptr attr_buffer                  '' 184
-	as int32     has_perm                      '' 192
-	as int32     scroll_region_changed         '' 196
-	as zstring ptr seq( 0 to SEQ_MAX_ - 1 )   '' 200
-	as any ptr  keyboard_getch                '' 336
-	as any ptr  keyboard_init                 '' 344
-	as any ptr  keyboard_exit                 '' 352
-	as any ptr  keyboard_handler              '' 360
-	as any ptr  mouse_init                    '' 368
-	as any ptr  mouse_exit                    '' 376
-	as any ptr  mouse_handler                 '' 384
-	as any ptr  mouse_update                  '' 392
-	as any ptr  gfx_exit                      '' 400
-end type
-
-#assert sizeof( FBCONSOLE_ ) = 408
-#assert offsetof( FBCONSOLE_, old_term_in ) = 84
-#assert offsetof( FBCONSOLE_, saved_old_term_out ) = 148
-#assert offsetof( FBCONSOLE_, fg_color ) = 152
-#assert offsetof( FBCONSOLE_, char_buffer ) = 176
-#assert offsetof( FBCONSOLE_, has_perm ) = 192
-#assert offsetof( FBCONSOLE_, seq(0) ) = 200
-#assert offsetof( FBCONSOLE_, keyboard_getch ) = 336
-#assert offsetof( FBCONSOLE_, gfx_exit ) = 400
-
-'' pthread_mutex_t is 40 bytes and PTHREAD_MUTEX_INITIALIZER is all zeroes --
-'' measured for src/thread/claimlock.tiko. The attr block is 4.
-type PTHREAD_MUTEX2_
-	as uint8 raw( 0 to 39 )
-end type
-
-type PTHREAD_MUTEXATTR_
-	as uint8 raw( 0 to 3 )
-end type
-
-#assert sizeof( PTHREAD_MUTEX2_ ) = 40
-
-const PTHREAD_MUTEX_RECURSIVE_ = 1
+'' Signals, NSIG, termios flags, TIOCGWINSZ, the fcntl commands, struct_winsize,
+'' the pthread types and PTHREAD_MUTEX_RECURSIVE all come from the posix binding
+'' (inc/sysbind.ti); the console context's layout from inc/conposix.ti.
 
 type FNVOID as sub cdecl ( )
 type FNINT  as function cdecl ( ) as int32
@@ -243,19 +129,17 @@ extern "c"   '' NON-FBCALL: libc.
 	declare function c_scanf2 alias "scanf" ( byval fmt as zstring ptr, ... ) as int32
 	declare function c_fprintf2 alias "fprintf" ( byval f as any ptr, byval fmt as zstring ptr, ... ) as int32
 	declare function c_fputs2 alias "fputs" ( byval s as zstring ptr, byval f as any ptr ) as int32
-	declare function c_tcgetattr2 alias "tcgetattr" ( byval fd as int32, byval t as TERMIOS2_ ptr ) as int32
+	declare function c_tcgetattr2 alias "tcgetattr" ( byval fd as int32, byval t as struct_termios ptr ) as int32
 	declare function c_tcsetattr2 alias "tcsetattr" _
-		( byval fd as int32, byval act as int32, byval t as TERMIOS2_ ptr ) as int32
-	declare function c_cfgetospeed alias "cfgetospeed" ( byval t as TERMIOS2_ ptr ) as uint32
-	declare function c_tcgetpgrp alias "tcgetpgrp" ( byval fd as int32 ) as int32
-	declare function c_getpgid alias "getpgid" ( byval pid as int32 ) as int32
-	declare function c_ioctl2 alias "ioctl" ( byval fd as int32, byval req as uint32, ... ) as int32
+		( byval fd as int32, byval act as int32, byval t as struct_termios ptr ) as int32
+	declare function c_cfgetospeed alias "cfgetospeed" ( byval t as struct_termios ptr ) as speed_t
+	declare function c_tcgetpgrp alias "tcgetpgrp" ( byval fd as int32 ) as pid_t
+	declare function c_getpgid alias "getpgid" ( byval pid as pid_t ) as pid_t
+	declare function c_ioctl2 alias "ioctl" ( byval fd as int32, byval req as culong, ... ) as int32
 	declare function c_fcntl alias "fcntl" ( byval fd as int32, byval cmd as int32, ... ) as int32
 	declare function c_signal2 alias "signal" ( byval sig as int32, byval h as any ptr ) as any ptr
 	declare function c_raise alias "raise" ( byval sig as int32 ) as int32
 	declare function c_usleep alias "usleep" ( byval us as uint32 ) as int32
-	declare function c_ioperm alias "ioperm" _
-		( byval from_ as uint64, byval num as uint64, byval turn_on as int32 ) as int32
 	'' _strnicmp / _stricmp ON THE MICROSOFT ABI. The UCRT has no strncasecmp or
 	'' strcasecmp -- they are POSIX names, and MSVC spells the pair with a leading
 	'' underscore and an i. Same signature and same meaning, a different name, and
@@ -270,22 +154,22 @@ extern "c"   '' NON-FBCALL: libc.
 	#endif
 
 	declare function c_pthread_create alias "pthread_create" _
-		( byval t as uint64 ptr, byval attr as any ptr, byval fn_ as any ptr, _
+		( byval t as pthread_t ptr, byval attr as any ptr, byval fn_ as any ptr, _
 		  byval arg as any ptr ) as int32
 	declare function c_pthread_join alias "pthread_join" _
-		( byval t as uint64, byval ret as any ptr ptr ) as int32
+		( byval t as pthread_t, byval ret as any ptr ptr ) as int32
 	declare function c_pthread_mutex_init alias "pthread_mutex_init" _
-		( byval m as PTHREAD_MUTEX2_ ptr, byval attr as PTHREAD_MUTEXATTR_ ptr ) as int32
+		( byval m as pthread_mutex_t ptr, byval attr as pthread_mutexattr_t ptr ) as int32
 	declare function c_pthread_mutex_destroy alias "pthread_mutex_destroy" _
-		( byval m as PTHREAD_MUTEX2_ ptr ) as int32
+		( byval m as pthread_mutex_t ptr ) as int32
 	declare function c_pthread_mutex_lock3 alias "pthread_mutex_lock" _
-		( byval m as PTHREAD_MUTEX2_ ptr ) as int32
+		( byval m as pthread_mutex_t ptr ) as int32
 	declare function c_pthread_mutex_unlock3 alias "pthread_mutex_unlock" _
-		( byval m as PTHREAD_MUTEX2_ ptr ) as int32
+		( byval m as pthread_mutex_t ptr ) as int32
 	declare function c_pthread_mutexattr_init alias "pthread_mutexattr_init" _
-		( byval a as PTHREAD_MUTEXATTR_ ptr ) as int32
+		( byval a as pthread_mutexattr_t ptr ) as int32
 	declare function c_pthread_mutexattr_settype alias "pthread_mutexattr_settype" _
-		( byval a as PTHREAD_MUTEXATTR_ ptr, byval kind as int32 ) as int32
+		( byval a as pthread_mutexattr_t ptr, byval kind as int32 ) as int32
 end extern
 
 '' TERMCAP. tgetent/tgetstr/tgetflag/tgoto/tputs plus FOUR GLOBALS the library
@@ -331,18 +215,18 @@ end extern
 dim shared __fb_con as FBCONSOLE_
 
 '' File-local state.
-dim shared as any ptr    tkort_old_sighandler( 0 to NSIG_ - 1 )
+dim shared as any ptr    tkort_old_sighandler( 0 to NSIG - 1 )
 dim shared as int32       tkort_console_resized
-dim shared as uint64   tkort_bg_thread
+dim shared as pthread_t tkort_bg_thread
 dim shared as int32       tkort_bgthread_inited
-dim shared as PTHREAD_MUTEX2_ tkort_bg_mutex
+dim shared as pthread_mutex_t tkort_bg_mutex
 
 #ifdef ENABLE_MT
-	dim shared as PTHREAD_MUTEX2_ tkort_global_mutex
-	dim shared as PTHREAD_MUTEX2_ tkort_string_mutex
-	dim shared as PTHREAD_MUTEX2_ tkort_graphics_mutex
-	dim shared as PTHREAD_MUTEX2_ tkort_math_mutex
-	dim shared as PTHREAD_MUTEX2_ tkort_profile_mutex
+	dim shared as pthread_mutex_t tkort_global_mutex
+	dim shared as pthread_mutex_t tkort_string_mutex
+	dim shared as pthread_mutex_t tkort_graphics_mutex
+	dim shared as pthread_mutex_t tkort_math_mutex
+	dim shared as pthread_mutex_t tkort_profile_mutex
 #endif
 
 '' The seventeen termcap capability names, in SEQ_ order. Held as real objects
@@ -382,6 +266,13 @@ private sub tkort_init_extra_seq( )
 	'' \e[H\e[J\e[0m -- clean up after console gfx mode
 	tkort_extra_seq(6) = chr( e ) + "[H" + chr( e ) + "[J" + chr( e ) + "[0m"
 end sub
+
+'' Port-I/O permission: hOsPortPermission( ), one per OS.
+#if defined( __FB_LINUX__ )
+	#include once "hinitposixlinux.tiko"
+#else
+	#error "init/hinitposix: no port-permission backend for this OS"
+#endif
 
 '' ------------------------------------------------------------- the bg thread
 
@@ -483,7 +374,7 @@ end sub
 '' RE-ARMS ITSELF -- see the file header.
 private sub tkort_sigwinch_handler cdecl ( byval sig as int32 )
 	tkort_console_resized = -1
-	c_signal2( SIGWINCH_, cast( any ptr, @tkort_sigwinch_handler ) )
+	c_signal2( SIGWINCH, cast( any ptr, @tkort_sigwinch_handler ) )
 end sub
 
 '' ASKS THE TERMINAL AND READS THE ANSWER OFF STDIN. Hangs forever if the
@@ -541,10 +432,10 @@ sub tkort_hRecheckConsoleSize alias "fb_hRecheckConsoleSize" ( byval requery_cur
 
 	tkort_console_resized = 0
 
-	dim as WINSIZE_ win
+	dim as struct_winsize win
 	win.ws_row = 0 : win.ws_col = 0 : win.ws_xpixel = 0 : win.ws_ypixel = 0
 
-	if( c_ioctl2( STDOUT_FILENO_, TIOCGWINSZ_, @win ) <> 0 ) then
+	if( c_ioctl2( STDOUT_FILENO, TIOCGWINSZ, @win ) <> 0 ) then
 		'' The ioctl failed; ask the terminal instead.
 		dim as int32 r = any, c = any
 		if( tkort_hTermQuery( SEQ_QUERY_WINDOW_, @r, @c ) <> 0 ) then
@@ -622,11 +513,11 @@ end function
 '' why every "saved" flag is checked before capturing.
 function tkort_hInitConsole alias "fb_hInitConsole" ( ) as int32
 
-	dim as TERMIOS2_ term_out, term_in
+	dim as struct_termios term_out, term_in
 
 	if( __fb_con.inited = 0 ) then return -1
 
-	if( (c_isatty2( STDOUT_FILENO_ ) = 0) orelse (c_isatty2( STDIN_FILENO_ ) = 0) ) then
+	if( (c_isatty2( STDOUT_FILENO ) = 0) orelse (c_isatty2( STDIN_FILENO ) = 0) ) then
 		return -1
 	end if
 
@@ -639,35 +530,35 @@ function tkort_hInitConsole alias "fb_hInitConsole" ( ) as int32
 	end if
 
 	'' A BACKGROUND PROCESS CANNOT CONTROL THE TERMINAL.
-	if( c_tcgetpgrp( STDOUT_FILENO_ ) <> c_getpgid( 0 ) ) then return -1
+	if( c_tcgetpgrp( STDOUT_FILENO ) <> c_getpgid( 0 ) ) then return -1
 
 	if( __fb_con.saved_old_term_out = 0 ) then
-		if( c_tcgetattr2( STDOUT_FILENO_, @__fb_con.old_term_out ) <> 0 ) then return -1
+		if( c_tcgetattr2( STDOUT_FILENO, @__fb_con.old_term_out ) <> 0 ) then return -1
 		__fb_con.saved_old_term_out = 1
 	end if
-	memcpy( @term_out, @__fb_con.old_term_out, sizeof( TERMIOS2_ ) )
-	term_out.c_oflag or= OPOST_
-	if( c_tcsetattr2( STDOUT_FILENO_, TCSANOW_, @term_out ) <> 0 ) then return -1
+	memcpy( @term_out, @__fb_con.old_term_out, sizeof( struct_termios ) )
+	term_out.c_oflag or= OPOST
+	if( c_tcsetattr2( STDOUT_FILENO, TCSANOW, @term_out ) <> 0 ) then return -1
 
 	if( __fb_con.saved_old_term_in = 0 ) then
 		if( c_tcgetattr2( __fb_con.h_in, @__fb_con.old_term_in ) <> 0 ) then return -1
 		__fb_con.saved_old_term_in = 1
 	end if
-	memcpy( @term_in, @__fb_con.old_term_in, sizeof( TERMIOS2_ ) )
+	memcpy( @term_in, @__fb_con.old_term_in, sizeof( struct_termios ) )
 	'' SIGINT on control-C stays on; Xon/Xoff and BREAK-ignoring go off.
-	term_in.c_iflag or= BRKINT_
-	term_in.c_iflag and= not (IXOFF_ or IXON_ or IGNBRK_)
+	term_in.c_iflag or= BRKINT
+	term_in.c_iflag and= not (IXOFF or IXON or IGNBRK)
 	'' Character oriented, no echo.
-	term_in.c_lflag and= not (ICANON_ or ECHO_)
-	term_in.c_cc(VMIN_) = 1
-	term_in.c_cc(VTIME_) = 0
-	if( c_tcsetattr2( __fb_con.h_in, TCSANOW_, @term_in ) <> 0 ) then return -1
+	term_in.c_lflag and= not (ICANON or ECHO)
+	term_in.c_cc(VMIN) = 1
+	term_in.c_cc(VTIME) = 0
+	if( c_tcsetattr2( __fb_con.h_in, TCSANOW, @term_in ) <> 0 ) then return -1
 
 	if( __fb_con.saved_old_in_flags = 0 ) then
-		__fb_con.old_in_flags = c_fcntl( __fb_con.h_in, F_GETFL_, 0 )
+		__fb_con.old_in_flags = c_fcntl( __fb_con.h_in, F_GETFL, 0 )
 		__fb_con.saved_old_in_flags = 1
 	end if
-	c_fcntl( __fb_con.h_in, F_SETFL_, __fb_con.old_in_flags or O_NONBLOCK_ )
+	c_fcntl( __fb_con.h_in, F_SETFL, __fb_con.old_in_flags or O_NONBLOCK )
 
 	if( __fb_con.inited = INIT_CONSOLE__ ) then
 		tkort_hTermOut( SEQ_INIT_CHARSET_, 0, 0 )
@@ -694,7 +585,7 @@ sub tkort_hExitConsole alias "fb_hExitConsole" ( )
 
 	'' SIGTTOU IGNORED ACROSS THE RESTORE -- see the file header. Restored
 	'' immediately afterwards rather than left ignored.
-	dim as any ptr old_sigttou = c_signal2( SIGTTOU_, cast( any ptr, SIG_IGN_ ) )
+	dim as any ptr old_sigttou = c_signal2( SIGTTOU, cast( any ptr, SIG_IGN ) )
 
 	if( __fb_con.gfx_exit <> nullptr ) then
 		dim as FNVOID fn_ = cast( FNVOID, __fb_con.gfx_exit )
@@ -734,13 +625,13 @@ sub tkort_hExitConsole alias "fb_hExitConsole" ( )
 
 	'' THE SAVED STATE IS KEPT, not cleared -- this may not be the final call.
 	if( __fb_con.saved_old_term_out <> 0 ) then
-		c_tcsetattr2( STDOUT_FILENO_, TCSANOW_, @__fb_con.old_term_out )
+		c_tcsetattr2( STDOUT_FILENO, TCSANOW, @__fb_con.old_term_out )
 	end if
 	if( __fb_con.saved_old_in_flags <> 0 ) then
-		c_fcntl( __fb_con.h_in, F_SETFL_, __fb_con.old_in_flags )
+		c_fcntl( __fb_con.h_in, F_SETFL, __fb_con.old_in_flags )
 	end if
 	if( __fb_con.saved_old_term_in <> 0 ) then
-		c_tcsetattr2( __fb_con.h_in, TCSANOW_, @__fb_con.old_term_in )
+		c_tcsetattr2( __fb_con.h_in, TCSANOW, @__fb_con.old_term_in )
 	end if
 
 	'' The FILE* IS closed though, or it leaks across repeated SHELL calls.
@@ -749,7 +640,7 @@ sub tkort_hExitConsole alias "fb_hExitConsole" ( )
 		__fb_con.f_in = nullptr
 	end if
 
-	c_signal2( SIGTTOU_, old_sigttou )
+	c_signal2( SIGTTOU, old_sigttou )
 end sub
 
 end extern
@@ -758,10 +649,10 @@ end extern
 
 private sub tkort_hInitInner( )
 
-	dim as int32 sigs( 0 to 6 ) = { SIGABRT_, SIGFPE_, SIGILL_, SIGSEGV_, _
-	                               SIGTERM_, SIGINT_, SIGQUIT_ }
+	dim as int32 sigs( 0 to 6 ) = { SIGABRT, SIGFPE, SIGILL, SIGSEGV, _
+	                               SIGTERM, SIGINT, SIGQUIT }
 	dim as zstring * 2048 buffer_
-	dim as TERMIOS2_ tty
+	dim as struct_termios tty
 	dim as zstring ptr term = any
 
 	tkort_init_seqnames( )
@@ -783,7 +674,7 @@ private sub tkort_hInitInner( )
 	dim as zstring ptr p = c_tgetstr( @"pc", nullptr )
 	PC = iif( p <> nullptr, cptr( int8 ptr, p )[0], 0 )
 
-	if( c_tcgetattr2( 1, @tty ) <> 0 ) then exit sub
+	if( c_tcgetattr2( STDOUT_FILENO, @tty ) <> 0 ) then exit sub
 	ospeed = cast( int16, c_cfgetospeed( @tty ) )
 
 	'' NO AUTOMATIC MARGINS MEANS THE TERMINAL IS UNUSABLE for FB's console
@@ -839,7 +730,7 @@ private sub tkort_hInitInner( )
 	__fb_con.cur_x = 1
 	__fb_con.cur_y = 1
 
-	c_signal2( SIGWINCH_, cast( any ptr, @tkort_sigwinch_handler ) )
+	c_signal2( SIGWINCH, cast( any ptr, @tkort_sigwinch_handler ) )
 end sub
 
 extern "c"   '' NON-FBCALL: fb.h declares fb_hInit and fb_hEnd plainly.
@@ -848,9 +739,9 @@ sub tkort_hInit alias "fb_hInit" ( )
 
 	'' THE MUTEXES ARE CREATED BEFORE ANYTHING CAN TAKE THEM. All recursive --
 	'' see the file header on why.
-	dim as PTHREAD_MUTEXATTR_ attr
+	dim as pthread_mutexattr_t attr
 	c_pthread_mutexattr_init( @attr )
-	c_pthread_mutexattr_settype( @attr, PTHREAD_MUTEX_RECURSIVE_ )
+	c_pthread_mutexattr_settype( @attr, PTHREAD_MUTEX_RECURSIVE )
 
 	#ifdef ENABLE_MT
 		c_pthread_mutex_init( @tkort_global_mutex, @attr )
@@ -864,10 +755,9 @@ sub tkort_hInit alias "fb_hInit" ( )
 
 	tkort_hInitInner( )
 
-	'' PORT I/O PERMISSION, x86 only. A non-zero return means it was refused --
-	'' the usual case for a non-root process -- and has_perm then gates every
-	'' INP/OUT.
-	__fb_con.has_perm = iif( c_ioperm( 0, &h400, 1 ) <> 0, 0, -1 )
+	'' PORT I/O PERMISSION, per OS (hOsPortPermission). Refused is the usual
+	'' case for a non-root process, and has_perm then gates every INP/OUT.
+	__fb_con.has_perm = hOsPortPermission( )
 end sub
 
 sub tkort_hStartBgThread alias "fb_hStartBgThread" ( )

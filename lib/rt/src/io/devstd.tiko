@@ -92,10 +92,12 @@ extern "c"   '' NON-FBCALL: CRT.
 		declare function crt_popen alias "_popen" _
 			( byval cmd as zstring ptr, byval mode_ as zstring ptr ) as FILE ptr
 		declare function crt_pclose alias "_pclose" ( byval f as FILE ptr ) as int32
-	#else
+	#elseif defined( __FB_UNIX__ )
 		declare function crt_popen alias "popen" _
 			( byval cmd as zstring ptr, byval mode_ as zstring ptr ) as FILE ptr
 		declare function crt_pclose alias "pclose" ( byval f as FILE ptr ) as int32
+	#else
+		#error "io/devstd: no backend for this target"
 	#endif
 end extern
 

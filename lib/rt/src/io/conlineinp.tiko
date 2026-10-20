@@ -260,7 +260,7 @@ function tkort_ConsoleLineInputWstr alias "fb_ConsoleLineInputWstr" _
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )
 end function
 
-#else
+#elseif defined( __FB_UNIX__ )
 
 '' POSIX: the terminal echoes and advances the cursor itself, so the runtime
 '' reads stdin and then puts the cursor back by hand. See the file header on the
@@ -382,6 +382,8 @@ function tkort_ConsoleLineInputWstr alias "fb_ConsoleLineInputWstr" _
 	return res
 end function
 
+#else
+	#error "io/conlineinp: no backend for this target"
 #endif
 
 end extern

@@ -92,9 +92,12 @@ end function
 
 end extern
 
-#else
+#elseif defined( __FB_LINUX__ )
 
-'' LINUX. fbc's unix/sys_portio.c, read for its contract (reading is permitted --
+'' LINUX, and only Linux: the instructions are src/c/portinsn.c, compiled for
+'' linux-x86_64 alone, and the permission comes from ioperm, which is Linux's.
+'' Another POSIX target must choose its own answer (M5) rather than inherit an
+'' unresolved tkort_inb. fbc's unix/sys_portio.c, read for its contract (reading is permitted --
 '' lib/rt/PROVENANCE.md): no permission is NOPRIVILEGES, negated for fb_hIn for
 '' the reason given above; with it, the instruction and FB_RTERROR_OK. has_perm
 '' is set once, in fb_hInit, from ioperm( 0, &h400, 1 ) -- so it is FALSE for any
@@ -129,4 +132,6 @@ end function
 
 end extern
 
+#else
+	#error "sys/ports: no port I/O backend for this OS"
 #endif

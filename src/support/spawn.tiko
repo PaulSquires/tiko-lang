@@ -42,7 +42,8 @@
         as any ptr  lpSecurityDescriptor
         as int32     bInheritHandle
     end type
-#else
+#elseif defined( __FB_UNIX__ )
+    #include once "support/hostposix.ti"
     extern "c"
         declare function fork_ alias "fork" ( ) as int32
         declare function execvp_ alias "execvp" ( byval file as zstring ptr, _
@@ -50,11 +51,9 @@
         declare sub exit__ alias "_exit" ( byval code as int32 )
         declare function waitpid_ alias "waitpid" ( byval pid as int32, byval status as int32 ptr, _
                                                     byval options as int32 ) as int32
-        declare function sysconf_ alias "sysconf" ( byval name_ as int32 ) as clong
-        declare function sp_open_ alias "open" ( byval p as zstring ptr, byval flags as int32, ... ) as int32
-        declare function sp_dup2_ alias "dup2" ( byval a as int32, byval b as int32 ) as int32
     end extern
-    const SC_NPROCESSORS_ONLN_ as int32 = 84   '' glibc and musl agree
+#else
+    #error "support/spawn.tiko: no process spawning for this target"
 #endif
 
 namespace Tko.Spawn
@@ -165,14 +164,8 @@ function Start( byref exe as string, byref args as string, byval quiet as boolea
     next
     dim as int32 pid = fork_( )
     if pid = 0 then
-        '' ...or /dev/null, for a child whose output nobody reads (O_WRONLY).
-        if quiet then
-            dim as int32 fd = sp_open_( "/dev/null", 1 )
-            if fd >= 0 then
-                sp_dup2_( fd, 1 )
-                sp_dup2_( fd, 2 )
-            end if
-        end if
+        '' ...or /dev/null, for a child whose output nobody reads.
+        if quiet then Tko.HostPosix.QuietStdio( )
         execvp_( argv[0], argv )
         exit__( 127 )
     end if
@@ -206,7 +199,7 @@ function DefaultJobs( ) as int32
 #ifdef __FB_WIN32__
     j = valint( environ( "NUMBER_OF_PROCESSORS" ) )
 #else
-    j = cast( int32, sysconf_( SC_NPROCESSORS_ONLN_ ) )
+    j = Tko.HostPosix.OnlineCpus( )
 #endif
     if j < 1 then j = 1
     if j > 64 then j = 64

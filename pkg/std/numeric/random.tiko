@@ -137,13 +137,13 @@ end function
 
 '' 64x64 -> 128 high half, from 32-bit limbs.  FreeBASIC has no 128-bit type.
 function hMulHigh64( byval a as ulongint, byval b as ulongint, byref lo as ulongint ) as ulongint
-    dim as ulongint a0 = a and &hFFFFFFFFull, a1 = a shr 32
-    dim as ulongint b0 = b and &hFFFFFFFFull, b1 = b shr 32
+    dim as ulongint aLo = a and &hFFFFFFFFull, aHi = a shr 32
+    dim as ulongint bLo = b and &hFFFFFFFFull, bHi = b shr 32
 
-    dim as ulongint p00 = a0 * b0
-    dim as ulongint p01 = a0 * b1
-    dim as ulongint p10 = a1 * b0
-    dim as ulongint p11 = a1 * b1
+    dim as ulongint p00 = aLo * bLo
+    dim as ulongint p01 = aLo * bHi
+    dim as ulongint p10 = aHi * bLo
+    dim as ulongint p11 = aHi * bHi
 
     dim as ulongint mid_ = ( p00 shr 32 ) + ( p01 and &hFFFFFFFFull ) + ( p10 and &hFFFFFFFFull )
     lo = ( p00 and &hFFFFFFFFull ) or ( mid_ shl 32 )
@@ -297,18 +297,21 @@ __FB_RNG_CHOICE( string )
     extern "windows" lib "advapi32"
         declare function SystemFunction036 alias "SystemFunction036" ( byval as any ptr, byval as ulong ) as byte
     end extern
+#elseif defined( __FB_UNIX__ )
+    '' The OS's own CSPRNG differs per OS: randomlinux.tiko.
+    private declare function hOsRandomBytes( byval dst as any ptr, byval nbytes as ulong ) as boolean
 #else
-    extern "c"
-        declare function c_getrandom alias "getrandom" ( byval as any ptr, byval as uinteger, byval as ulong ) as integer
-    end extern
+    #error "std/numeric: no CryptoBytes backend for this target"
 #endif
 
 public function CryptoBytes overload ( byval dst as any ptr, byval nbytes as ulong ) as boolean
     if( dst = nullptr orelse nbytes = 0 ) then return false
     #ifdef __FB_WIN32__
         function = ( SystemFunction036( dst, nbytes ) <> 0 )
+    #elseif defined( __FB_UNIX__ )
+        function = hOsRandomBytes( dst, nbytes )
     #else
-        function = ( c_getrandom( dst, nbytes, 0 ) = cast( integer, nbytes ) )
+        #error "std/numeric: no CryptoBytes backend for this target"
     #endif
 end function
 

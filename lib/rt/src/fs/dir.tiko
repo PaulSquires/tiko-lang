@@ -233,32 +233,13 @@ end sub
 
 end extern
 
-#else
+#elseif defined( __FB_UNIX__ )
 
 '' ------------------------------------------------------------ POSIX backend
 ''
-'' struct dirent on linux-x86_64: d_ino 0 (8), d_off 8 (8), d_reclen 16 (2),
-'' d_type 18 (1), d_name 19. Only d_type and d_name are read.
-const DIRENT_TYPE_ = 18
-const DIRENT_NAME_ = 19
-
-const DT_UNKNOWN_ = 0
-const DT_DIR_     = 4
-const DT_REG_     = 8
-const DT_LNK_     = 10
-
-'' struct stat: st_mode at 24.
-const STAT_BUF_SIZE = 144
-const STAT_MODE_    = 24
-
-const S_IFMT_  = &o170000
-const S_IFDIR_ = &o040000
-const S_IFREG_ = &o100000
-const S_IFLNK_ = &o120000
-
-type stat_
-	as uint8 raw( 0 to STAT_BUF_SIZE - 1 )
-end type
+'' struct dirent (only d_type and d_name are read), the DT_* entry types, struct
+'' stat and the S_IF* mode bits all come from the posix binding (inc/sysbind.ti),
+'' measured on the target's own libc.
 
 type FB_FSDIR
 	as any ptr      d
@@ -268,18 +249,15 @@ end type
 
 extern "c"   '' NON-FBCALL: libc, not rtlib entry points.
 	declare function u_opendir alias "opendir" ( byval p as zstring ptr ) as any ptr
-	declare function u_readdir alias "readdir" ( byval d as any ptr ) as uint8 ptr
+	declare function u_readdir alias "readdir" ( byval d as any ptr ) as struct_dirent ptr
 	declare function u_closedir alias "closedir" ( byval d as any ptr ) as int32
-	declare function u_lstat alias "lstat" ( byval p as zstring ptr, byval st as stat_ ptr ) as int32
+	declare function u_lstat alias "lstat" ( byval p as zstring ptr, byval st as struct_stat ptr ) as int32
 	declare function u_strlen alias "strlen" ( byval s as zstring ptr ) as uinteger
-	declare function u_errno_location alias "__errno_location" ( ) as int32 ptr
 	declare function u_utf16to8 alias "fb_hUtf16ToUtf8" _
 		( byval src as FB_UCHAR ptr, byval units as integer, byval dst as zstring ptr, byval cap as integer ) as integer
 	declare function u_utf8to16 alias "fb_hUtf8ToUtf16" _
 		( byval src as zstring ptr, byval bytes as integer, byval dst as FB_UCHAR ptr, byval cap as integer ) as integer
 end extern
-
-#define TKORT_ERRNO (*u_errno_location( ))
 
 private function hFsNarrow( byval p as FBUSTRING ptr ) as zstring ptr
 	dim as FB_UCHAR ptr s = any
@@ -297,16 +275,16 @@ private function hFsNarrow( byval p as FBUSTRING ptr ) as zstring ptr
 end function
 
 private function hKindFromMode( byval m as uint32 ) as int32
-	dim as uint32 t = m and S_IFMT_
-	if( t = S_IFLNK_ ) then return FB_FSKIND_LINK
-	if( t = S_IFDIR_ ) then return FB_FSKIND_DIR
-	if( t = S_IFREG_ ) then return FB_FSKIND_FILE
+	dim as uint32 t = m and S_IFMT
+	if( t = S_IFLNK ) then return FB_FSKIND_LINK
+	if( t = S_IFDIR ) then return FB_FSKIND_DIR
+	if( t = S_IFREG ) then return FB_FSKIND_FILE
 	return FB_FSKIND_OTHER
 end function
 
 '' One lstat for a single entry whose d_type the filesystem would not tell us.
 private function hKindByLStat( byval d as FB_FSDIR ptr, byval name_ as zstring ptr ) as int32
-	dim as stat_ st = any
+	dim as struct_stat st = any
 	dim as zstring ptr full = any
 	dim as integer n = any, i = any, at = any
 	dim as int32 kind = FB_FSKIND_OTHER
@@ -330,7 +308,7 @@ private function hKindByLStat( byval d as FB_FSDIR ptr, byval name_ as zstring p
 	next
 	full[at] = 0
 
-	if( u_lstat( full, @st ) = 0 ) then kind = hKindFromMode( *cptr( uint32 ptr, @st.raw(STAT_MODE_) ) )
+	if( u_lstat( full, @st ) = 0 ) then kind = hKindFromMode( st.st_mode )
 
 	free( full )
 	return kind
@@ -380,7 +358,7 @@ end function
 function tkort_FsDirRead alias "fb_FsDirRead" _
 	( byval d as FB_FSDIR ptr, byval out_ as FB_FSDIRENT ptr ) as int32
 
-	dim as uint8 ptr e = any
+	dim as struct_dirent ptr e = any
 	dim as zstring ptr nm = any
 	dim as uint8 dtype = any
 	dim as integer n = any
@@ -391,15 +369,15 @@ function tkort_FsDirRead alias "fb_FsDirRead" _
 	do
 		'' readdir returns NULL for both end-of-stream and error; errno is the
 		'' only way to tell them apart, and it MUST be cleared first.
-		TKORT_ERRNO = 0
+		errno = 0
 		e = u_readdir( d->d )
 
 		if( e = nullptr ) then
-			if( TKORT_ERRNO <> 0 ) then return tkrt_FsMapOsError( )
+			if( errno <> 0 ) then return tkrt_FsMapOsError( )
 			return FB_FS_EXHAUSTED
 		end if
 
-		nm = cptr( zstring ptr, e + DIRENT_NAME_ )
+		nm = @e->d_name
 	loop while( hIsDotOrDotDot( nm ) <> 0 )
 
 	n = u_utf8to16( nm, cast( integer, u_strlen( nm ) ), @out_->name(0), FB_FS_MAXNAME - 1 )
@@ -407,15 +385,15 @@ function tkort_FsDirRead alias "fb_FsDirRead" _
 	out_->name(n) = 0
 	out_->namelen = n
 
-	dtype = e[DIRENT_TYPE_]
+	dtype = e->d_type
 
-	if( dtype = DT_DIR_ ) then
+	if( dtype = DT_DIR ) then
 		out_->kind = FB_FSKIND_DIR
-	elseif( dtype = DT_REG_ ) then
+	elseif( dtype = DT_REG ) then
 		out_->kind = FB_FSKIND_FILE
-	elseif( dtype = DT_LNK_ ) then
+	elseif( dtype = DT_LNK ) then
 		out_->kind = FB_FSKIND_LINK
-	elseif( dtype = DT_UNKNOWN_ ) then
+	elseif( dtype = DT_UNKNOWN ) then
 		out_->kind = hKindByLStat( d, nm )
 	else
 		out_->kind = FB_FSKIND_OTHER
@@ -438,4 +416,6 @@ end sub
 
 end extern
 
+#else
+	#error "fs/dir: no backend for this target"
 #endif

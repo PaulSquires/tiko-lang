@@ -2,6 +2,10 @@
 #import "std/numeric"
 #import "std/chrono"
 #import "std/containers"
+#ifdef __FB_UNIX__
+#include once "../../sys/posix/posix.ti"
+using posix
+#endif
 using numeric
 using chrono
 using containers
@@ -142,7 +146,7 @@ const FB_LOG_STD_OUTPUT = cast( ulong, -11 )
 const FB_LOG_STD_ERROR  = cast( ulong, -12 )
 const FB_LOG_FILE_TYPE_CHAR = 2
 const FB_LOG_ENABLE_VT      = 4       '' ENABLE_VIRTUAL_TERMINAL_PROCESSING
-#else
+#elseif defined( __FB_UNIX__ )
 extern "C"
     declare function hWriteFd alias "write"  ( byval fd as long, byval b as any ptr, byval n as uinteger ) as integer
     declare function hIsATty  alias "isatty" ( byval fd as long ) as long
@@ -151,6 +155,8 @@ extern "C"
     declare function hFileFlush alias "fb_FileFlush" _
         ( byval filenumber as long = -1, byval systembuffer as long = 0 ) as long
 end extern
+#else
+    #error "std/logs: no console backend for this target"
 #endif
 
 '' ============================================================== OnLogError
@@ -197,8 +203,10 @@ dim as string u8 = ln                         '' ustring -> string is UTF-8
         end if
     end if
     k.Unload( )
+#elseif defined( __FB_UNIX__ )
+    hWriteFd( STDERR_FILENO, strptr( u8 ), len( u8 ) )
 #else
-    hWriteFd( 2, strptr( u8 ), len( u8 ) )
+    #error "std/logs: no console backend for this target"
 #endif
 end sub
 

@@ -127,7 +127,7 @@ end sub
 
 end extern
 
-#else
+#elseif defined( __FB_UNIX__ )
 
 '' The proxy returns a pointer because that is pthread_create's signature; the
 '' value is never read.
@@ -162,7 +162,7 @@ function tkort_ThreadCreate alias "fb_ThreadCreate" _
 
 	dim as FBTHREAD ptr thread = any
 	dim as FBTHREADINFO ptr info = any
-	dim as uint8 attr( 0 to TKORT_PTHREAD_ATTR_SIZE - 1 ) = any
+	dim as pthread_attr_t attr = any
 	dim as uinteger want = cast( uinteger, stack_size )
 
 	thread = malloc( sizeof( FBTHREAD ) )
@@ -179,7 +179,7 @@ function tkort_ThreadCreate alias "fb_ThreadCreate" _
 	info->thread = thread
 	thread->flags = 0
 
-	if( u_pthread_attr_init( @attr(0) ) <> 0 ) then
+	if( u_pthread_attr_init( @attr ) <> 0 ) then
 		free( thread )
 		free( info )
 		return nullptr
@@ -189,16 +189,16 @@ function tkort_ThreadCreate alias "fb_ThreadCreate" _
 	'' PTHREAD_STACK_MIN -- fbc's own THREADCREATE default is 0 -- and
 	'' pthread_attr_setstacksize REJECTS anything below it, which would make
 	'' every such thread fail to start.
-	if( want < TKORT_PTHREAD_STACK_MIN ) then want = TKORT_PTHREAD_STACK_MIN
-	u_pthread_attr_setstacksize( @attr(0), want )
+	if( want < PTHREAD_STACK_MIN ) then want = PTHREAD_STACK_MIN
+	u_pthread_attr_setstacksize( @attr, want )
 
-	if( u_pthread_create( @thread->id, @attr(0), cast( any ptr, @hThreadProc ), info ) <> 0 ) then
+	if( u_pthread_create( @thread->id, @attr, cast( any ptr, @hThreadProc ), info ) <> 0 ) then
 		free( thread )
 		free( info )
 		thread = nullptr
 	end if
 
-	u_pthread_attr_destroy( @attr(0) )
+	u_pthread_attr_destroy( @attr )
 	return thread
 end function
 
@@ -220,4 +220,6 @@ end sub
 
 end extern
 
+#else
+	#error "thread/core: no thread backend for this target"
 #endif

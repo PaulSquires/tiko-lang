@@ -184,19 +184,12 @@ end sub
 
 end extern
 
-#else
+#elseif defined( __FB_UNIX__ )
 
 '' ------------------------------------------------------------ POSIX backend
-
-const O_RDWR_   = &o2
-const O_CREAT_  = &o100
-
-const LOCK_SH_ = 1
-const LOCK_EX_ = 2
-const LOCK_NB_ = 4
-
-const EINTR_      = 4
-const EAGAIN_     = 11          '' EWOULDBLOCK is the same value on Linux
+''
+'' O_*, LOCK_*, DEFFILEMODE, the E* codes and errno all come from the posix
+'' binding through inc/sysbind.ti, measured on the target's own libc.
 
 type FB_FSLOCK
 	as int32 fd
@@ -207,12 +200,9 @@ extern "c"   '' NON-FBCALL: libc, not rtlib entry points.
 	declare function u_close alias "close" ( byval fd as int32 ) as int32
 	declare function u_flock alias "flock" ( byval fd as int32, byval op as int32 ) as int32
 	declare function u_usleep alias "usleep" ( byval us as uint32 ) as int32
-	declare function u_errno_location alias "__errno_location" ( ) as int32 ptr
 	declare function u_utf16to8 alias "fb_hUtf16ToUtf8" _
 		( byval src as FB_UCHAR ptr, byval units as integer, byval dst as zstring ptr, byval cap as integer ) as integer
 end extern
-
-#define TKORT_ERRNO (*u_errno_location( ))
 
 private function hFsNarrow( byval p as FBUSTRING ptr ) as zstring ptr
 	dim as FB_UCHAR ptr s = any
@@ -245,22 +235,23 @@ function tkort_UStrFsLockAcquire alias "fb_UStrFsLockAcquire" _
 	if( path_ = nullptr ) then return FB_FS_UNKNOWN
 
 	'' Created if absent -- the normal case for a lock guarding a directory
-	'' rather than a document. 0666 so a lock shared between users works; the
-	'' umask narrows it as the system intends.
-	fd = u_open( path_, O_RDWR_ or O_CREAT_, &o666 )
+	'' rather than a document. DEFFILEMODE (0666) so a lock shared between users
+	'' works; the umask narrows it as the system intends.
+	fd = u_open( path_, O_RDWR or O_CREAT, DEFFILEMODE )
 	free( path_ )
 
 	if( fd < 0 ) then return tkrt_FsMapOsError( )
 
-	op = iif( exclusive <> 0, LOCK_EX_, LOCK_SH_ ) or LOCK_NB_
+	op = iif( exclusive <> 0, LOCK_EX, LOCK_SH ) or LOCK_NB
 
 	do
 		if( u_flock( fd, op ) = 0 ) then exit do
 
-		e = TKORT_ERRNO
-		if( e = EINTR_ ) then continue do
+		e = errno
+		if( e = EINTR ) then continue do
 
-		if( e <> EAGAIN_ ) then
+		'' EWOULDBLOCK is EAGAIN's value on glibc (the binding has both).
+		if( e <> EAGAIN ) then
 			r = tkrt_FsMapOsError( )
 			u_close( fd )
 			return r
@@ -299,4 +290,6 @@ end sub
 
 end extern
 
+#else
+	#error "fs/lock: no backend for this target"
 #endif

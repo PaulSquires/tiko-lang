@@ -1,6 +1,10 @@
 #module "tui"
 #import "std/outcome"
 #import "std/containers"
+#ifdef __FB_UNIX__
+#include once "../../sys/posix/posix.ti"
+using posix
+#endif
 using outcome
 using containers
 '' std/tui: tuiinput -- events, the VT input grammar, and PollEvent
@@ -42,9 +46,8 @@ using containers
 
 #ifdef __FB_WIN32__
     #include once "windows.bi"
-#else
-    #include once "crt.bi"
 #endif
+'' No crt.bi on POSIX: its O_/E*/CLOCKS_PER_SEC macros would redefine sys/posix's names.
 
 
 '' ============================================================== events
@@ -224,17 +227,17 @@ public function TuiUtf8At( byref s as string, byval i as long, byref outUsed as 
     dim as long n = len( s )
     if( i > n ) then return 0
 
-    dim as ulong b0 = asc( mid( s, i, 1 ) )
-    if( b0 < &h80 ) then
+    dim as ulong b0_ = asc( mid( s, i, 1 ) )
+    if( b0_ < &h80 ) then
         outUsed = 1
-        return b0
+        return b0_
     end if
 
     dim as long need = 0
     dim as ulong cp = 0
-    if(   ( b0 and &hE0 ) = &hC0 ) then : need = 1 : cp = b0 and &h1F
-    elseif( ( b0 and &hF0 ) = &hE0 ) then : need = 2 : cp = b0 and &h0F
-    elseif( ( b0 and &hF8 ) = &hF0 ) then : need = 3 : cp = b0 and &h07
+    if(   ( b0_ and &hE0 ) = &hC0 ) then : need = 1 : cp = b0_ and &h1F
+    elseif( ( b0_ and &hF0 ) = &hE0 ) then : need = 2 : cp = b0_ and &h0F
+    elseif( ( b0_ and &hF8 ) = &hF0 ) then : need = 3 : cp = b0_ and &h07
     else
         '' a stray continuation byte or an invalid lead: consume it as U+FFFD
         '' rather than stalling the parser forever
@@ -580,14 +583,14 @@ function TuiInput.NextEvent( byval escExpired as boolean ) as TuiEventOpt
     dim as long n = len( m_buf )
     if( n = 0 ) then return None( of TuiEvent )( )
 
-    dim as ulong b0 = asc( m_buf, 1 )
+    dim as ulong b0_ = asc( m_buf, 1 )
 
-    if( b0 <> 27 ) then
-        if( b0 < 32 ) then
+    if( b0_ <> 27 ) then
+        if( b0_ < 32 ) then
             m_buf = mid( m_buf, 2 )
-            return Some( hC0( b0 ) )
+            return Some( hC0( b0_ ) )
         end if
-        if( b0 = 127 ) then
+        if( b0_ = 127 ) then
             m_buf = mid( m_buf, 2 )
             return Some( TuiKeyEvent( TUIKEY_BACKSPACE ) )
         end if
@@ -853,10 +856,10 @@ public function PollEvent( byref t as TuiTerminal, byref src as TuiInput, _
         end if
 
         return src.NextEvent( FALSE )
-    #else
-        dim as tui_pollfd pf
-        pf.fd = 0
-        pf.events = TUI_POLLIN
+    #elseif defined( __FB_UNIX__ )
+        dim as struct_pollfd pf
+        pf.fd = STDIN_FILENO
+        pf.events = POLLIN
 
         dim as long rc = tui_poll( @pf, 1, timeoutMs )
         if( rc < 0 ) then return None( of TuiEvent )( )
@@ -871,7 +874,7 @@ public function PollEvent( byref t as TuiTerminal, byref src as TuiInput, _
         end if
 
         dim as zstring * 1025 buf
-        dim as integer n = tui_read( 0, @buf[0], 1024 )
+        dim as integer n = tui_read( STDIN_FILENO, @buf[0], 1024 )
         if( n <= 0 ) then return None( of TuiEvent )( )
 
         dim as string chunk = space( n )
@@ -891,7 +894,7 @@ public function PollEvent( byref t as TuiTerminal, byref src as TuiInput, _
         if( src.WaitingOnLoneEsc( ) ) then
             dim as long rc2 = tui_poll( @pf, 1, TUI_ESC_TIMEOUT_MS )
             if( rc2 > 0 ) then
-                dim as integer n2 = tui_read( 0, @buf[0], 1024 )
+                dim as integer n2 = tui_read( STDIN_FILENO, @buf[0], 1024 )
                 if( n2 > 0 ) then
                     dim as string c2 = space( n2 )
                     for i as long = 0 to n2 - 1
@@ -905,6 +908,8 @@ public function PollEvent( byref t as TuiTerminal, byref src as TuiInput, _
         end if
 
         return None( of TuiEvent )( )
+    #else
+        #error "tui/tuiinput: no backend for this target"
     #endif
 end function
 

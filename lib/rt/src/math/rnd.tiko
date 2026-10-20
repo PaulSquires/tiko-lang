@@ -31,14 +31,17 @@
 '' RAND_MAX IS A PLATFORM CONSTANT AND CHANGES THE VALUES CRT PRODUCES.
 ''
 '' fbc's crt bindings define it for win32 only (&h7FFF, the MSVCRT value);
-'' glibc's is 2147483647. hRnd_CRT divides by RAND_MAX + 1, so the CRT
+'' a POSIX libc's comes from the posix binding (2147483647 on glibc).
+'' hRnd_CRT divides by RAND_MAX + 1, so the CRT
 '' generator's output legitimately differs between the two -- it is rand()'s
 '' range, not a choice this file makes, and hard-coding either value would be
 '' wrong on the other target.
 #if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
 	const TKORT_RAND_MAX = &h7FFF
+#elseif defined( __FB_UNIX__ )
+	const TKORT_RAND_MAX = RAND_MAX
 #else
-	const TKORT_RAND_MAX = 2147483647
+	#error "math/rnd: no RAND_MAX for this target"
 #endif
 
 const FB_RND_AUTO   = 0
@@ -281,7 +284,7 @@ end sub
 		declare function CryptReleaseContext stdcall alias "CryptReleaseContext" _
 			( byval hProv as any ptr, byval dwFlags as uint32 ) as int32
 	end extern
-#else
+#elseif defined( __FB_UNIX__ )
 	'' NOT console io: these are the POSIX file descriptors, named open/read/
 	'' close, which the freestanding lint reasonably flags on sight. They are
 	'' here to read /dev/urandom and nothing else.
@@ -290,7 +293,9 @@ end sub
 		declare function fdread_ alias "read" ( byval fd as int32, byval buf as any ptr, byval n as uinteger ) as integer
 		declare function fdclose_ alias "close" ( byval fd as int32 ) as int32
 	end extern
-	const O_RDONLY = 0
+	'' O_RDONLY is the posix binding's.
+#else
+	#error "math/rnd: no entropy source for this target"
 #endif
 
 private function hRefillRealRndNumber( ) as int32
@@ -302,7 +307,7 @@ private function hRefillRealRndNumber( ) as int32
 			success = CryptGenRandom( provider, MAX_STATE * 4, cptr( uint8 ptr, @ctx_.state32(0) ) )
 			CryptReleaseContext( provider, 0 )
 		end if
-	#else
+	#elseif defined( __FB_UNIX__ )
 		dim as int32 urandom = fdopen_( @"/dev/urandom", O_RDONLY )
 		if( urandom <> -1 ) then
 			if( fdread_( urandom, @ctx_.state32(0), MAX_STATE * 4 ) = MAX_STATE * 4 ) then
@@ -310,6 +315,8 @@ private function hRefillRealRndNumber( ) as int32
 			end if
 			fdclose_( urandom )
 		end if
+	#else
+		#error "math/rnd: no entropy source for this target"
 	#endif
 
 	if( success <> 0 ) then ctx_.index32 = @ctx_.state32(0)

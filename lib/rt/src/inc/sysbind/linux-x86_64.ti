@@ -135,8 +135,5 @@ declare function y1 cdecl alias "y1" ( byval as double ) as double
 declare function rint cdecl alias "rint" ( byval __x as double ) as double
 declare function write_ cdecl alias "write" ( byval __fd as long, byval __buf as const any ptr, byval __n as size_t ) as ssize_t
 type FILE as _IO_FILE
-const EPERM = 1
-const ENOENT = 2
-const EACCES = 13
 
 end extern

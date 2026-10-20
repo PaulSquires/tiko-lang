@@ -1,0 +1,275 @@
+#module "os"
+#import "std/containers"
+#import "std/outcome"
+#ifdef __FB_UNIX__
+#include once "../../sys/posix/posix.ti"
+using posix
+#endif
+using containers
+using outcome
+'' std/os: osposix -- the POSIX side: libc throughout.  Every constant and struct
+'' layout is the target's, from sys/posix.  What only one OS has -- Args, errno,
+'' environ, the affinity mask, pipe2 -- is that OS's file: oslinux.tiko.
+
+#ifdef __FB_UNIX__
+
+#if not defined( __FB_LINUX__ )
+    #error "std/os: no per-OS file for this target (oslinux.tiko is Linux's)"
+#endif
+
+#include once "fbatomic.bi"
+
+type TkosSigHandler as sub cdecl ( byval sig as long )
+
+extern "C"
+    declare function tkos_getenv alias "getenv" ( byval n as const zstring ptr ) as zstring ptr
+    declare function tkos_setenv alias "setenv" ( byval n as const zstring ptr, byval v as const zstring ptr, _
+        byval overwrite as long ) as long
+    declare function tkos_unsetenv alias "unsetenv" ( byval n as const zstring ptr ) as long
+    declare function tkos_read alias "read" ( byval fd as long, byval buf as any ptr, byval n as uinteger ) as integer
+    declare function tkos_write alias "write" ( byval fd as long, byval buf as const any ptr, byval n as uinteger ) as integer
+    declare function tkos_uname alias "uname" ( byval buf as struct_utsname ptr ) as long
+    declare function tkos_gethostname alias "gethostname" ( byval buf as zstring ptr, byval n as uinteger ) as long
+    declare function tkos_getuid alias "getuid" ( ) as uid_t
+    declare function tkos_getpwuid_r alias "getpwuid_r" ( byval uid as uid_t, byval pwd as struct_passwd ptr, _
+        byval buf as zstring ptr, byval n as uinteger, byval result as struct_passwd ptr ptr ) as long
+    declare function tkos_getpid alias "getpid" ( ) as pid_t
+    declare function tkos_sysconf alias "sysconf" ( byval n as long ) as integer
+    declare function tkos_isatty alias "isatty" ( byval fd as long ) as long
+    declare sub tkos_abort alias "abort" ( )
+    declare sub tkos__exit alias "_exit" ( byval code as long )
+    declare function tkos_sigaction alias "sigaction" ( byval sig as long, byval act as const struct_sigaction ptr, _
+        byval old as struct_sigaction ptr ) as long
+    declare function tkos_poll alias "poll" ( byval fds as struct_pollfd ptr, byval n as nfds_t, byval ms as long ) as long
+end extern
+
+private function hFromZ( byval z as const zstring ptr ) as ustring
+    if( z = nullptr ) then return ""
+    dim as string s = *z
+    dim as ustring u = s
+    return u
+end function
+
+'' ---- environment
+
+public function GetEnv( byref name_ as const ustring ) as Optional( of ustring )
+    if( OsValidName( name_ ) = FALSE ) then return None( of ustring )( )
+    dim as string n = name_
+    dim as zstring ptr v = tkos_getenv( n )
+    if( v = nullptr ) then return None( of ustring )( )
+    return Some( of ustring )( hFromZ( v ) )
+end function
+
+'' setenv(3), never putenv: putenv keeps the caller's pointer.
+public function SetEnv( byref name_ as const ustring, byref value as const ustring ) as OsResultBool
+    if( ( OsValidName( name_ ) = FALSE ) orelse OsHasNul( value ) ) then
+        return OsFail( of boolean )( OS_INVALID_ARGUMENT, 0, "SetEnv", name_ )
+    end if
+    '' an empty string's data pointer is NULL, which setenv would dereference
+    dim as string n = name_, v = value & chr( 0 )
+    if( tkos_setenv( n, strptr( v ), 1 ) <> 0 ) then return OsFail( of boolean )( OS_SYSTEM, hErrno( ), "SetEnv", name_ )
+    return Ok( of boolean, OsError )( TRUE )
+end function
+
+public function UnsetEnv( byref name_ as const ustring ) as OsResultBool
+    if( OsValidName( name_ ) = FALSE ) then
+        return OsFail( of boolean )( OS_INVALID_ARGUMENT, 0, "UnsetEnv", name_ )
+    end if
+    dim as string n = name_
+    if( tkos_unsetenv( n ) <> 0 ) then return OsFail( of boolean )( OS_SYSTEM, hErrno( ), "UnsetEnv", name_ )
+    return Ok( of boolean, OsError )( TRUE )
+end function
+
+public function Environment( ) as OrderedMap( of ustring, ustring )
+    dim as OrderedMap( of ustring, ustring ) m
+    dim as zstring ptr ptr e = hEnviron( )
+    if( e = nullptr ) then return m
+    while( e[0] <> nullptr )
+        dim as ustring kv = hFromZ( e[0] )
+        dim as long eq = instr( kv, "=" )
+        if( eq > 1 ) then
+            dim as ustring k = left( kv, eq - 1 ), v = mid( kv, eq + 1 )
+            m.Add( k, v )
+        end if
+        e += 1
+    wend
+    return m
+end function
+
+'' ---- host facts
+
+public function OsVersion( ) as ustring
+    dim as struct_utsname u
+    if( tkos_uname( @u ) <> 0 ) then return ""
+    return hFromZ( @u.release )
+end function
+
+public function Hostname( ) as OsResultStr
+    dim as zstring * 256 buf
+    if( tkos_gethostname( @buf, 255 ) <> 0 ) then
+        return OsFail( of ustring )( OS_SYSTEM, hErrno( ), "Hostname", "" )
+    end if
+    return Ok( of ustring, OsError )( hFromZ( @buf ) )
+end function
+
+'' The passwd entry for the real user id, else $USER.
+public function UserName( ) as OsResultStr
+    dim as struct_passwd pwd
+    dim as zstring * 4096 buf
+    dim as struct_passwd ptr res = nullptr
+    if( tkos_getpwuid_r( tkos_getuid( ), @pwd, @buf, 4096, @res ) = 0 ) then
+        if( res <> nullptr ) then
+            if( pwd.pw_name <> nullptr ) then return Ok( of ustring, OsError )( hFromZ( pwd.pw_name ) )
+        end if
+    end if
+    dim as Optional( of ustring ) u = GetEnv( "USER" )
+    if( u.HasValue( ) ) then return Ok( of ustring, OsError )( u.Value( ) )
+    return OsFail( of ustring )( OS_NOT_FOUND, 0, "UserName", "" )
+end function
+
+public function ProcessId( ) as ulong
+    return tkos_getpid( )
+end function
+
+'' The CPUs this process may run on where the OS can say, else the ones online.
+public function CpuCount( ) as long
+    dim as long a = hAffinityCount( )
+    if( a > 0 ) then return a
+    dim as integer n = tkos_sysconf( _SC_NPROCESSORS_ONLN )
+    if( n < 1 ) then n = 1
+    return n
+end function
+
+public function PageSize( ) as long
+    return tkos_sysconf( _SC_PAGESIZE )
+end function
+
+public function TotalMemory( ) as ulongint
+    dim as integer pages = tkos_sysconf( _SC_PHYS_PAGES )
+    dim as integer ps = tkos_sysconf( _SC_PAGESIZE )
+    if( ( pages <= 0 ) orelse ( ps <= 0 ) ) then return 0
+    return cast( ulongint, pages ) * cast( ulongint, ps )
+end function
+
+public function IsTerminal( byval fd as long ) as boolean
+    return ( tkos_isatty( fd ) = 1 )
+end function
+
+'' SIGABRT, and a core dump where they are enabled.
+public sub Abort( )
+    tkos_abort( )
+end sub
+
+'' ---- interrupts
+''
+'' The handler is async-signal-safe: an atomic add, a store, and write( ) of one
+'' byte to a non-blocking self-pipe whose read end WaitInterrupt polls.  The
+'' count's atomic add is the barrier that publishes the kind.
+
+dim shared as long tkos_intKind, tkos_intCount, tkos_intForce, tkos_intOn
+dim shared as long tkos_intPipe( 0 to 1 ) = { -1, -1 }
+dim shared as struct_sigaction tkos_intOld( 0 to 2 )
+
+private sub hStore( byval p as long ptr, byval v as long )
+    do
+        dim as long o = FB.AtomicLoadLong( p )
+        if( FB.AtomicCasLong( p, o, v ) = o ) then exit do
+    loop
+end sub
+
+private sub hSigHandler cdecl ( byval sig as long )
+    dim as long k
+    select case sig
+    case SIGINT  : k = INT_CTRL_C
+    case SIGTERM : k = INT_TERMINATE
+    case else    : k = INT_HANGUP
+    end select
+    tkos_intKind = k
+    dim as long before = FB.AtomicFetchAddLong( @tkos_intCount, 1 )
+    if( ( before >= 1 ) andalso ( FB.AtomicLoadLong( @tkos_intForce ) <> 0 ) ) then
+        tkos__exit( 130 )                         '' std/os's documented forced-exit code
+    end if
+    dim as ubyte one = 1
+    tkos_write( tkos_intPipe(1), @one, 1 )        '' a full pipe already says "ready"
+end sub
+
+private function hSigIndex( byval i as long ) as long
+    select case i
+    case 0 : return SIGINT
+    case 1 : return SIGTERM
+    end select
+    return SIGHUP
+end function
+
+public function CatchInterrupt( byval forceOnSecond as boolean = TRUE ) as OsResultBool
+    hStore( @tkos_intForce, iif( forceOnSecond, 1, 0 ) )
+    if( tkos_intOn <> 0 ) then return Ok( of boolean, OsError )( TRUE )
+    if( tkos_intPipe(0) < 0 ) then
+        if( hPipeNonBlockCloexec( @tkos_intPipe(0) ) <> 0 ) then
+            tkos_intPipe(0) = -1 : tkos_intPipe(1) = -1
+            return OsFail( of boolean )( OS_SYSTEM, hErrno( ), "CatchInterrupt", "" )
+        end if
+    end if
+    dim as struct_sigaction sa
+    sa.sa_handler = cptr( any ptr, @hSigHandler )
+    sa.sa_flags = SA_RESTART
+    for i as long = 0 to 2
+        if( tkos_sigaction( hSigIndex( i ), @sa, @tkos_intOld( i ) ) <> 0 ) then
+            dim as long e = hErrno( )
+            for j as long = 0 to i - 1
+                tkos_sigaction( hSigIndex( j ), @tkos_intOld( j ), nullptr )
+            next
+            return OsFail( of boolean )( OS_SYSTEM, e, "CatchInterrupt", "" )
+        end if
+    next
+    tkos_intOn = 1
+    return Ok( of boolean, OsError )( TRUE )
+end function
+
+public function InterruptCount( ) as long
+    return FB.AtomicLoadLong( @tkos_intCount )
+end function
+
+public function Interrupted( ) as boolean
+    return ( InterruptCount( ) > 0 )
+end function
+
+public function LastInterrupt( ) as InterruptKind
+    if( Interrupted( ) = FALSE ) then return INT_NONE
+    return cast( InterruptKind, FB.AtomicLoadLong( @tkos_intKind ) )
+end function
+
+'' -1 waits for ever.  Without CatchInterrupt nothing can arrive, so it reports at once.
+public function WaitInterrupt( byval timeoutMs as long = -1 ) as boolean
+    if( Interrupted( ) ) then return TRUE
+    if( tkos_intPipe(0) < 0 ) then return FALSE
+    dim as struct_pollfd pf
+    pf.fd = tkos_intPipe(0)
+    pf.events = POLLIN
+    do
+        dim as long r = tkos_poll( @pf, 1, iif( timeoutMs < 0, -1, timeoutMs ) )
+        if( ( r >= 0 ) orelse ( hErrno( ) <> EINTR ) ) then exit do
+        if( Interrupted( ) ) then exit do
+    loop
+    return Interrupted( )
+end function
+
+public sub ResetInterrupt( )
+    if( tkos_intPipe(0) >= 0 ) then
+        dim as ubyte junk( 0 to 63 )
+        while( tkos_read( tkos_intPipe(0), @junk(0), 64 ) > 0 )
+        wend
+    end if
+    hStore( @tkos_intKind, INT_NONE )
+    hStore( @tkos_intCount, 0 )
+end sub
+
+public sub ReleaseInterrupt( )
+    if( tkos_intOn = 0 ) then exit sub
+    for i as long = 0 to 2
+        tkos_sigaction( hSigIndex( i ), @tkos_intOld( i ), nullptr )
+    next
+    tkos_intOn = 0
+end sub
+
+#endif

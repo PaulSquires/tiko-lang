@@ -1,5 +1,9 @@
 #module "fs"
 #import "std/outcome"
+#ifdef __FB_UNIX__
+#include once "../../sys/posix/posix.ti"
+using posix
+#endif
 using outcome
 '' std/fs: fsenv -- where a program keeps things: the home, config, data, cache and
 '' state directories, the running executable, and ~ expansion
@@ -180,14 +184,12 @@ public function ExecutablePath( ) as FsResultUStr
     return FsFail( of ustring )( FS_NAME_TOO_LONG, "ExecutablePath", "" )
 end function
 
-#else
+#elseif defined( __FB_UNIX__ )
 
 extern "C"
-    declare function fbe_getuid alias "getuid" ( ) as ulong
-    declare function fbe_getpwuid_r alias "getpwuid_r" ( byval uid as ulong, byval pwd as any ptr, _
-        byval buf as zstring ptr, byval n as uinteger, byval result as any ptr ptr ) as long
-    declare function fbe_readlink alias "readlink" ( byval p as const zstring ptr, byval buf as zstring ptr, _
-        byval n as uinteger ) as integer
+    declare function fbe_getuid alias "getuid" ( ) as uid_t
+    declare function fbe_getpwuid_r alias "getpwuid_r" ( byval uid as uid_t, byval pwd as struct_passwd ptr, _
+        byval buf as zstring ptr, byval n as uinteger, byval result as struct_passwd ptr ptr ) as long
 end extern
 
 private function hAbsolute( byref s as const ustring ) as boolean
@@ -198,13 +200,13 @@ public function HomeDir( ) as FsResultUStr
     dim as ustring h = environ( "HOME" )
     if( hAbsolute( h ) ) then return Ok( of ustring, FsError )( hNoTrail( h ) )
 
-    '' the passwd entry: struct passwd is 48 bytes on x86_64, pw_dir at offset 32
-    dim as ubyte pwd( 0 to 47 )
+    '' the passwd entry; its strings live in buf
+    dim as struct_passwd pwd
     dim as zstring * 4096 buf
-    dim as any ptr res = nullptr
-    if( fbe_getpwuid_r( fbe_getuid( ), @pwd(0), @buf, 4096, @res ) = 0 ) then
+    dim as struct_passwd ptr res = nullptr
+    if( fbe_getpwuid_r( fbe_getuid( ), @pwd, @buf, 4096, @res ) = 0 ) then
         if( res <> nullptr ) then
-            dim as zstring ptr d = *cptr( zstring ptr ptr, @pwd(32) )
+            dim as zstring ptr d = pwd.pw_dir
             if( d <> nullptr ) then
                 dim as string sd = *d
                 dim as ustring ud = sd
@@ -240,31 +242,10 @@ public function StateDir( ) as FsResultUStr
     return hXdg( "XDG_STATE_HOME", ".local/state", "StateDir" )
 end function
 
-'' /proc/self/exe, which the kernel resolves to the running image's real path.
-public function ExecutablePath( ) as FsResultUStr
-    dim as uinteger cap = 4096
-    do
-        dim as zstring ptr buf = callocate( cap + 1, 1 )
-        if( buf = nullptr ) then return FsFail( of ustring )( FS_NO_SPACE, "ExecutablePath", "" )
-        dim as integer n = fbe_readlink( @"/proc/self/exe", buf, cap )
-        if( n < 0 ) then
-            deallocate( buf )
-            dim as long c = FsMapOsError( ), o = FsOsError( )
-            return Fail( of ustring, FsError )( FsError( cast( FsErrorCode, c ), o, "ExecutablePath", "" ) )
-        end if
-        if( n < cap ) then
-            buf[n] = 0
-            dim as string s = *buf
-            deallocate( buf )
-            dim as ustring r = s
-            return Ok( of ustring, FsError )( r )
-        end if
-        deallocate( buf )
-        cap *= 2
-    loop while( cap <= 1048576 )
-    return FsFail( of ustring )( FS_NAME_TOO_LONG, "ExecutablePath", "" )
-end function
+'' ExecutablePath is fslinux.tiko's: /proc/self/exe is Linux's alone.
 
+#else
+    #error "fs/fsenv: no backend for this target"
 #endif
 
 '' A leading "~" alone, "~/..." and (Windows) "~\..." become the home directory. "~user"

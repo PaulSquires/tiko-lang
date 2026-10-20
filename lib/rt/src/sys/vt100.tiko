@@ -32,7 +32,7 @@
 
 #include once "inc/config.ti"
 
-#ifndef __FB_WIN32__
+#ifdef __FB_UNIX__
 
 extern "c"   '' NON-FBCALL: a data symbol carries no decoration, and the
              '' declaration is what gives the definition below external linkage.

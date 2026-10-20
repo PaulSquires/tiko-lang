@@ -312,36 +312,16 @@ end function
 
 end extern
 
-#else
+#elseif defined( __FB_UNIX__ )
 
 '' ------------------------------------------------------------ POSIX backend
-
-const ST_RDONLY_ = 1
-
-'' struct statvfs on linux-x86_64: f_bsize 0, f_frsize 8, f_blocks 16,
-'' f_bfree 24, f_bavail 32, f_files 40, f_ffree 48, f_favail 56, f_fsid 64,
-'' f_flag 72, f_namemax 80. All unsigned long.
-const STATVFS_SIZE_     = 112
-const STATVFS_BSIZE_    = 0
-const STATVFS_FRSIZE_   = 8
-const STATVFS_BLOCKS_   = 16
-const STATVFS_BFREE_    = 24
-const STATVFS_BAVAIL_   = 32
-const STATVFS_FLAG_     = 72
-const STATVFS_NAMEMAX_  = 80
-
-const MOUNTINFO_LINE = 4096
-
-type statvfs_
-	as uint8 raw( 0 to STATVFS_SIZE_ - 1 )
-end type
+''
+'' struct statvfs and ST_RDONLY come from the posix binding (inc/sysbind.ti). The
+'' mount table and the filesystem-type names are per OS: fs/volumelinux.tiko.
 
 extern "c"   '' NON-FBCALL: libc, not rtlib entry points.
-	declare function u_statvfs alias "statvfs" ( byval p as zstring ptr, byval st as statvfs_ ptr ) as int32
+	declare function u_statvfs alias "statvfs" ( byval p as zstring ptr, byval st as struct_statvfs ptr ) as int32
 	declare function u_realpath alias "realpath" ( byval p as zstring ptr, byval resolved as zstring ptr ) as zstring ptr
-	declare function u_fopen alias "fopen" ( byval p as zstring ptr, byval mode_ as zstring ptr ) as any ptr
-	declare function u_fgets alias "fgets" ( byval buf as zstring ptr, byval n as int32, byval f as any ptr ) as zstring ptr
-	declare function u_fclose alias "fclose" ( byval f as any ptr ) as int32
 	declare function u_strlen alias "strlen" ( byval s as zstring ptr ) as uinteger
 	declare function u_strncmp alias "strncmp" ( byval a as zstring ptr, byval b as zstring ptr, byval n as uinteger ) as int32
 	declare function u_utf16to8 alias "fb_hUtf16ToUtf8" _
@@ -377,88 +357,18 @@ private function hSetField( byval src as zstring ptr, byval dst as FB_UCHAR ptr,
 	return n
 end function
 
-'' One parsed line of /proc/self/mountinfo.
-''
-'' The format is: id parent major:minor root mountpoint options
-'' [optional fields...] "-" fstype source superoptions
-''
-'' The optional-field run is VARIABLE LENGTH and terminated by a literal "-",
-'' which is why this scans for the separator rather than counting fields.
-private function hParseMountInfo( byval ln as zstring ptr, byval mountpoint as zstring ptr ptr, _
-                                  byval fstype as zstring ptr ptr, byval source as zstring ptr ptr ) as int32
-	dim as zstring ptr p = ln, tok = any
-	dim as int32 fld = 0
-
-	*mountpoint = nullptr
-	*fstype = nullptr
-	*source = nullptr
-
-	do
-		while( *p = 32 )
-			p += 1
-		wend
-		if( *p = 0 ) then exit do
-
-		tok = p
-		while( (*p <> 0) andalso (*p <> 32) andalso (*p <> 10) )
-			p += 1
-		wend
-		if( *p <> 0 ) then
-			*p = 0
-			p += 1
-		end if
-
-		fld += 1
-
-		if( fld = 5 ) then *mountpoint = tok
-
-		if( (fld >= 7) andalso (tok[0] = 45) andalso (tok[1] = 0) ) then    '' '-'
-			'' fstype and source are the next two
-			while( *p = 32 )
-				p += 1
-			wend
-			tok = p
-			while( (*p <> 0) andalso (*p <> 32) andalso (*p <> 10) )
-				p += 1
-			wend
-			if( *p <> 0 ) then
-				*p = 0
-				p += 1
-			end if
-			*fstype = tok
-
-			while( *p = 32 )
-				p += 1
-			wend
-			tok = p
-			while( (*p <> 0) andalso (*p <> 32) andalso (*p <> 10) )
-				p += 1
-			wend
-			if( *p <> 0 ) then
-				*p = 0
-				p += 1
-			end if
-			*source = tok
-
-			exit do
-		end if
-	loop
-
-	if( *mountpoint = nullptr ) then return 0
-	if( *fstype = nullptr ) then return 0
-	if( *source = nullptr ) then return 0
-	return 1
-end function
-
-'' Is this a real block-device-backed filesystem, or a pseudo one?
-private function hIsRealMount( byval source as zstring ptr ) as int32
-	if( source = nullptr ) then return 0
-	return iif( source[0] = 47, 1, 0 )
-end function
+'' The mount table and the filesystem-type names, one per OS: FB_FSMOUNTS,
+'' FB_FSMOUNT, FB_FSMOUNT_PATHMAX, hOsMountOpen, hOsMountNext, hParseMountInfo,
+'' hOsMountClose, hIsRealMount and hOsFsHasLinks.
+#if defined( __FB_LINUX__ )
+	#include once "volumelinux.tiko"
+#else
+	#error "fs/volume: no mount-table backend for this OS"
+#endif
 
 private sub hFillVolume( byval mountpoint as zstring ptr, byval fstype as zstring ptr, _
                          byval out_ as FB_FSVOLUME ptr )
-	dim as statvfs_ st = any
+	dim as struct_statvfs st = any
 
 	memset( out_, 0, sizeof( FB_FSVOLUME ) )
 
@@ -471,8 +381,8 @@ private sub hFillVolume( byval mountpoint as zstring ptr, byval fstype as zstrin
 	out_->namelen = 0
 
 	if( u_statvfs( mountpoint, @st ) = 0 ) then
-		out_->maxcomp = cast( uint32, *cptr( uint64 ptr, @st.raw(STATVFS_NAMEMAX_) ) )
-		if( (*cptr( uint64 ptr, @st.raw(STATVFS_FLAG_) ) and ST_RDONLY_) <> 0 ) then
+		out_->maxcomp = cast( uint32, st.f_namemax )
+		if( (st.f_flag and ST_RDONLY) <> 0 ) then
 			out_->flags or= FB_FSVOL_READONLY
 		end if
 	end if
@@ -486,12 +396,7 @@ private sub hFillVolume( byval mountpoint as zstring ptr, byval fstype as zstrin
 	'' is not a guarantee. The FAT family and ISO 9660 genuinely cannot hold a
 	'' symlink; everything else is assumed able, and a caller that is wrong
 	'' finds out from CreateSymlink's FS_UNSUPPORTED.
-	if( (u_strncmp( fstype, @"vfat", 4 ) <> 0) andalso _
-	    (u_strncmp( fstype, @"msdos", 5 ) <> 0) andalso _
-	    (u_strncmp( fstype, @"exfat", 5 ) <> 0) andalso _
-	    (u_strncmp( fstype, @"iso9660", 7 ) <> 0) ) then
-		out_->flags or= FB_FSVOL_LINKS
-	end if
+	if( hOsFsHasLinks( fstype ) <> 0 ) then out_->flags or= FB_FSVOL_LINKS
 end sub
 
 extern "rtlib"
@@ -500,7 +405,7 @@ function tkort_UStrFsDiskSpace alias "fb_UStrFsDiskSpace" _
 	( byval p as FBUSTRING ptr, byval out_ as FB_FSSPACE ptr ) as int32
 
 	dim as zstring ptr path_ = any
-	dim as statvfs_ st = any
+	dim as struct_statvfs st = any
 	dim as uint64 unit = any
 	dim as int32 r = FB_FS_OK
 
@@ -514,21 +419,21 @@ function tkort_UStrFsDiskSpace alias "fb_UStrFsDiskSpace" _
 	else
 		'' f_frsize, not f_bsize: the former is the fragment size the block
 		'' counts are expressed in, and the two differ on real filesystems.
-		unit = *cptr( uint64 ptr, @st.raw(STATVFS_FRSIZE_) )
-		if( unit = 0 ) then unit = *cptr( uint64 ptr, @st.raw(STATVFS_BSIZE_) )
+		unit = st.f_frsize
+		if( unit = 0 ) then unit = st.f_bsize
 
-		out_->total     = *cptr( uint64 ptr, @st.raw(STATVFS_BLOCKS_) ) * unit
-		out_->freebytes = *cptr( uint64 ptr, @st.raw(STATVFS_BFREE_) ) * unit
+		out_->total     = st.f_blocks * unit
+		out_->freebytes = st.f_bfree * unit
 
 		'' f_bavail, not f_bfree -- see the file header.
-		out_->avail     = *cptr( uint64 ptr, @st.raw(STATVFS_BAVAIL_) ) * unit
+		out_->avail     = st.f_bavail * unit
 	end if
 
 	free( path_ )
 	return r
 end function
 
-'' The mount point holding `path`: the longest mountinfo mount point that is a
+'' The mount point holding `path`: the longest mount-table mount point that is a
 '' prefix of it. Windows gets this from GetVolumePathNameW; here it has to be
 '' worked out, because statvfs reports the filesystem but not where it is
 '' attached.
@@ -536,9 +441,9 @@ function tkort_UStrFsVolumeInfo alias "fb_UStrFsVolumeInfo" _
 	( byval p as FBUSTRING ptr, byval out_ as FB_FSVOLUME ptr ) as int32
 
 	dim as zstring ptr path_ = any, res = any, mp = any, fs = any, src = any
-	dim as any ptr f = any
-	dim as zstring * MOUNTINFO_LINE ln = any
-	dim as zstring * MOUNTINFO_LINE bestmp = any
+	dim as FB_FSMOUNTS m = any
+	dim as FB_FSMOUNT ent = any
+	dim as zstring * FB_FSMOUNT_PATHMAX bestmp = any
 	dim as zstring * 256 bestfs = any
 	dim as uinteger bestlen = 0, mplen = any
 	dim as int32 found = 0, e = any, i = any
@@ -559,14 +464,13 @@ function tkort_UStrFsVolumeInfo alias "fb_UStrFsVolumeInfo" _
 
 	free( path_ )
 
-	f = u_fopen( @"/proc/self/mountinfo", @"r" )
-	if( f = nullptr ) then
+	if( hOsMountOpen( @m ) = 0 ) then
 		free( res )
 		return FB_FS_UNSUPPORTED
 	end if
 
-	while( u_fgets( @ln, MOUNTINFO_LINE, f ) <> nullptr )
-		if( hParseMountInfo( @ln, @mp, @fs, @src ) = 0 ) then continue while
+	while( hOsMountNext( @m, @ent ) <> 0 )
+		if( hParseMountInfo( @ent, @mp, @fs, @src ) = 0 ) then continue while
 
 		mplen = u_strlen( mp )
 
@@ -586,7 +490,7 @@ function tkort_UStrFsVolumeInfo alias "fb_UStrFsVolumeInfo" _
 		end if
 	wend
 
-	u_fclose( f )
+	hOsMountClose( @m )
 	free( res )
 
 	if( found = 0 ) then return FB_FS_NOT_FOUND
@@ -598,16 +502,15 @@ end function
 function tkort_FsVolumeEnum alias "fb_FsVolumeEnum" _
 	( byval index_ as int32, byval out_ as FB_FSVOLUME ptr ) as int32
 
-	dim as any ptr f = any
-	dim as zstring * MOUNTINFO_LINE ln = any
+	dim as FB_FSMOUNTS m = any
+	dim as FB_FSMOUNT ent = any
 	dim as zstring ptr mp = any, fs = any, src = any
 	dim as int32 seen = 0, r = FB_FS_EXHAUSTED
 
-	f = u_fopen( @"/proc/self/mountinfo", @"r" )
-	if( f = nullptr ) then return FB_FS_UNSUPPORTED
+	if( hOsMountOpen( @m ) = 0 ) then return FB_FS_UNSUPPORTED
 
-	while( u_fgets( @ln, MOUNTINFO_LINE, f ) <> nullptr )
-		if( hParseMountInfo( @ln, @mp, @fs, @src ) = 0 ) then continue while
+	while( hOsMountNext( @m, @ent ) <> 0 )
+		if( hParseMountInfo( @ent, @mp, @fs, @src ) = 0 ) then continue while
 
 		'' the pseudo-filesystem filter
 		if( hIsRealMount( src ) = 0 ) then continue while
@@ -621,7 +524,7 @@ function tkort_FsVolumeEnum alias "fb_FsVolumeEnum" _
 		seen += 1
 	wend
 
-	u_fclose( f )
+	hOsMountClose( @m )
 	return r
 end function
 

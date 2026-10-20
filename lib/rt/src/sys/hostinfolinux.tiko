@@ -1,0 +1,48 @@
+'' hostinfolinux.tiko -- sys/hostinfo's Linux-only answers: the executable's
+'' path through procfs and free physical memory through glibc.
+''
+'' #INCLUDED by sys/hostinfo.tiko's POSIX branch, never compiled on its own and
+'' not in build/sources.txt. It provides three private procedures,
+''
+''     hOsExeLink( byval dst as zstring ptr, byval maxlen as integer ) as integer
+''     hOsExeLinkByPid( byval dst as zstring ptr, byval maxlen as integer ) as integer
+''     hOsFreePhysBytes( ) as uinteger
+''
+'' The first two copy the running executable's full path into dst, at most
+'' maxlen - 1 bytes -- room is left for the terminator -- and NOT terminated,
+'' and return its length or a negative number on failure: readlink's own
+'' contract. The includer terminates and splits it.
+'' hOsExeLink reads /proc/self/exe and hOsExeLinkByPid /proc/<pid>/exe, the same
+'' file by two names, kept apart because a container or a ptrace sandbox can
+'' make exactly one of them fail. hOsFreePhysBytes is free physical memory in
+'' bytes. They may use u_readlink, u_snprintf, u_getpid and u_sysconf from the
+'' includer.
+''
+'' The Darwin sibling (hostinfodarwin.tiko, M5) must provide the same three
+'' procedures: Darwin has no procfs and no get_avphys_pages -- fbc's
+'' rtlib/darwin uses _NSGetExecutablePath for both paths and
+'' host_statistics( HOST_VM_INFO ) free_count times the page size.
+
+#if defined( __FB_LINUX__ )
+
+extern "c"   '' NON-FBCALL: glibc.
+	declare function u_get_avphys_pages alias "get_avphys_pages" ( ) as integer
+end extern
+
+private function hOsExeLink( byval dst as zstring ptr, byval maxlen as integer ) as integer
+	return u_readlink( @"/proc/self/exe", dst, maxlen - 1 )
+end function
+
+private function hOsExeLinkByPid( byval dst as zstring ptr, byval maxlen as integer ) as integer
+	dim as zstring * 1024 linkname = any
+	u_snprintf( @linkname, 1024, @"/proc/%d/exe", u_getpid( ) )
+	return u_readlink( @linkname, dst, maxlen - 1 )
+end function
+
+'' PAGES TIMES PAGE SIZE. get_avphys_pages is glibc's, not POSIX's -- which is
+'' why this body is under linux/ in fbc and not unix/.
+private function hOsFreePhysBytes( ) as uinteger
+	return cast( uinteger, u_get_avphys_pages( ) * u_sysconf( _SC_PAGESIZE ) )
+end function
+
+#endif

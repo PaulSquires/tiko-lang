@@ -544,68 +544,23 @@ end function
 
 end extern
 
-#else
+#elseif defined( __FB_UNIX__ )
 
 '' ------------------------------------------------------------ POSIX backend
 ''
-'' struct stat on linux-x86_64: st_dev 0, st_ino 8, st_nlink 16, st_mode 24,
-'' st_rdev 40, st_size 48, st_atim 72, st_mtim 88, st_ctim 104, sizeof 144.
-'' The size offset is the one fs/mmap.tiko already measures against.
-const STAT_BUF_SIZE   = 144
-const STAT_DEV_       = 0
-const STAT_INO_       = 8
-const STAT_MODE_      = 24
-const STAT_SIZE_      = 48
-const STAT_ATIM_      = 72
-const STAT_MTIM_      = 88
-const STAT_UID_       = 28
-const STAT_GID_       = 32
-
-const S_IFMT_  = &o170000
-const S_IFDIR_ = &o040000
-const S_IFREG_ = &o100000
-const S_IFLNK_ = &o120000
-const S_IWUSR_ = &o000200
-const S_IWGRP_ = &o000020
-const S_IWOTH_ = &o000002
-
-'' statx, for the birth time. The struct is 256 bytes of stable kernel ABI;
-'' only stx_mask and stx_btime are read, so the rest is left as raw storage
-'' rather than transcribed field by field.
-const SYS_statx_          = 332
-const AT_FDCWD_           = -100
-const AT_SYMLINK_NOFOLLOW_ = &h100
-const AT_STATX_SYNC_AS_STAT_ = 0
-const STATX_BTIME_        = &h00000800
-const STATX_BUF_SIZE      = 256
-const STATX_MASK_         = 0
-const STATX_BTIME_SEC_    = 80
-const STATX_BTIME_NSEC_   = 88
-
-const UTIME_OMIT_ = ((1 shl 30) - 2)
-
-type stat_
-	as uint8 raw( 0 to STAT_BUF_SIZE - 1 )
-end type
-
-type statx_
-	as uint8 raw( 0 to STATX_BUF_SIZE - 1 )
-end type
-
-type timespec_
-	as int64 tv_sec
-	as int64 tv_nsec
-end type
+'' struct stat, struct timespec, the S_IF* / S_IW* mode bits, AT_FDCWD and
+'' UTIME_OMIT all come from the posix binding (inc/sysbind.ti), measured on the
+'' target's own libc; no offset or value is written here. The birth time is
+'' the one OS-specific piece, in the per-OS file included below.
 
 extern "c"   '' NON-FBCALL: libc, not rtlib entry points.
-	declare function u_stat alias "stat" ( byval p as zstring ptr, byval st as stat_ ptr ) as int32
-	declare function u_lstat alias "lstat" ( byval p as zstring ptr, byval st as stat_ ptr ) as int32
+	declare function u_stat alias "stat" ( byval p as zstring ptr, byval st as struct_stat ptr ) as int32
+	declare function u_lstat alias "lstat" ( byval p as zstring ptr, byval st as struct_stat ptr ) as int32
 	declare function u_getcwd alias "getcwd" ( byval buf as zstring ptr, byval n as uinteger ) as zstring ptr
 	declare function u_chdir alias "chdir" ( byval p as zstring ptr ) as int32
 	declare function u_realpath alias "realpath" ( byval p as zstring ptr, byval resolved as zstring ptr ) as zstring ptr
 	declare function u_utimensat alias "utimensat" _
-		( byval dirfd as int32, byval p as zstring ptr, byval times as timespec_ ptr, byval flags as int32 ) as int32
-	declare function u_syscall alias "syscall" ( byval n as int64, ... ) as int64
+		( byval dirfd as int32, byval p as zstring ptr, byval times as struct_timespec ptr, byval flags as int32 ) as int32
 	declare function u_strlen alias "strlen" ( byval s as zstring ptr ) as uinteger
 	declare function u_utf16to8 alias "fb_hUtf16ToUtf8" _
 		( byval src as FB_UCHAR ptr, byval units as integer, byval dst as zstring ptr, byval cap as integer ) as integer
@@ -658,54 +613,43 @@ private function hKindFromMode( byval m as uint32 ) as int32
 	'' Plain comparisons rather than SELECT CASE AS CONST: the S_IF* values are
 	'' 0o120000 apart, which is a jump table with 40,000 empty slots and is
 	'' error 69, "range too large".
-	dim as uint32 t = m and S_IFMT_
-	if( t = S_IFLNK_ ) then return FB_FSKIND_LINK
-	if( t = S_IFDIR_ ) then return FB_FSKIND_DIR
-	if( t = S_IFREG_ ) then return FB_FSKIND_FILE
+	dim as uint32 t = m and S_IFMT
+	if( t = S_IFLNK ) then return FB_FSKIND_LINK
+	if( t = S_IFDIR ) then return FB_FSKIND_DIR
+	if( t = S_IFREG ) then return FB_FSKIND_FILE
 	return FB_FSKIND_OTHER
 end function
 
-private sub hFillFromStat( byval st as stat_ ptr, byval out_ as FB_FSINFO ptr )
-	dim as uint32 m = *cptr( uint32 ptr, @st->raw(STAT_MODE_) )
+private sub hFillFromStat( byval st as struct_stat ptr, byval out_ as FB_FSINFO ptr )
+	dim as uint32 m = st->st_mode
 
 	memset( out_, 0, sizeof( FB_FSINFO ) )
 
-	out_->size_ = cast( uint64, *cptr( int64 ptr, @st->raw(STAT_SIZE_) ) )
+	out_->size_ = cast( uint64, st->st_size )
 	out_->native_attrs = m
 	out_->kind = hKindFromMode( m )
 
-	out_->mtime = hUnixToTicks( *cptr( int64 ptr, @st->raw(STAT_MTIM_) ), _
-	                            *cptr( int64 ptr, @st->raw(STAT_MTIM_ + 8) ) )
-	out_->atime = hUnixToTicks( *cptr( int64 ptr, @st->raw(STAT_ATIM_) ), _
-	                            *cptr( int64 ptr, @st->raw(STAT_ATIM_ + 8) ) )
+	out_->mtime = hUnixToTicks( st->st_mtim.tv_sec, st->st_mtim.tv_nsec )
+	out_->atime = hUnixToTicks( st->st_atim.tv_sec, st->st_atim.tv_nsec )
 
 	out_->flags or= FB_FSFLAG_HAS_ATIME
 
-	out_->uid = *cptr( uint32 ptr, @st->raw(STAT_UID_) )
-	out_->gid = *cptr( uint32 ptr, @st->raw(STAT_GID_) )
+	out_->uid = st->st_uid
+	out_->gid = st->st_gid
 	out_->flags or= FB_FSFLAG_HAS_OWNER
 
 	'' Read-only means "no write bit for the calling user" -- the portable
 	'' answer the two platforms can agree on. GetPosixMode is there for code
 	'' that needs the real mode.
-	if( (m and (S_IWUSR_ or S_IWGRP_ or S_IWOTH_)) = 0 ) then out_->flags or= FB_FSFLAG_READONLY
+	if( (m and (S_IWUSR or S_IWGRP or S_IWOTH)) = 0 ) then out_->flags or= FB_FSFLAG_READONLY
 end sub
 
-'' Best effort. A kernel or filesystem without birth-time support leaves
-'' HAS_CTIME clear, which is the honest answer.
-private sub hTryBirthTime( byval path_ as zstring ptr, byval follow as int32, byval out_ as FB_FSINFO ptr )
-	dim as statx_ stx = any
-	dim as int32 flags = AT_STATX_SYNC_AS_STAT_
-
-	if( follow = 0 ) then flags or= AT_SYMLINK_NOFOLLOW_
-
-	if( u_syscall( SYS_statx_, AT_FDCWD_, path_, flags, STATX_BTIME_, @stx ) <> 0 ) then exit sub
-	if( (*cptr( uint32 ptr, @stx.raw(STATX_MASK_) ) and STATX_BTIME_) = 0 ) then exit sub
-
-	out_->ctime = hUnixToTicks( *cptr( int64 ptr, @stx.raw(STATX_BTIME_SEC_) ), _
-	                            cast( int64, *cptr( uint32 ptr, @stx.raw(STATX_BTIME_NSEC_) ) ) )
-	out_->flags or= FB_FSFLAG_HAS_CTIME
-end sub
+'' The birth time: hTryBirthTime( path_, follow, out_ ), one per OS.
+#if defined( __FB_LINUX__ )
+	#include once "statlinux.tiko"
+#else
+	#error "fs/stat: no birth-time backend for this OS"
+#endif
 
 extern "rtlib"
 
@@ -713,7 +657,7 @@ function tkort_UStrFsStat alias "fb_UStrFsStat" _
 	( byval p as FBUSTRING ptr, byval follow as int32, byval out_ as FB_FSINFO ptr ) as int32
 
 	dim as zstring ptr path_ = hFsNarrow( p )
-	dim as stat_ st = any
+	dim as struct_stat st = any
 	dim as int32 r = any
 
 	if( path_ = nullptr ) then return FB_FS_UNKNOWN
@@ -735,11 +679,11 @@ function tkort_UStrFsStat alias "fb_UStrFsStat" _
 end function
 
 function tkort_UStrFsCurrentDir alias "fb_UStrFsCurrentDir" ( byval status as int32 ptr ) as FBUSTRING ptr
-	dim as zstring * 4097 buf = any
+	dim as zstring * (PATH_MAX + 1) buf = any
 
 	if( status <> nullptr ) then *status = FB_FS_OK
 
-	if( u_getcwd( @buf, 4097 ) = nullptr ) then
+	if( u_getcwd( @buf, PATH_MAX + 1 ) = nullptr ) then
 		if( status <> nullptr ) then *status = tkrt_FsMapOsError( )
 		return TKORT_UNULL_DESC()
 	end if
@@ -816,7 +760,7 @@ function tkort_UStrFsSetTimes alias "fb_UStrFsSetTimes" _
 	( byval p as FBUSTRING ptr, byval mtime as int64, byval atime as int64 ) as int32
 
 	dim as zstring ptr path_ = hFsNarrow( p )
-	dim as timespec_ ts( 0 to 1 ) = any
+	dim as struct_timespec ts( 0 to 1 ) = any
 	dim as int32 r = FB_FS_OK
 	dim as int64 v = any
 
@@ -829,7 +773,7 @@ function tkort_UStrFsSetTimes alias "fb_UStrFsSetTimes" _
 		ts(0).tv_nsec = (v mod 10000000ll) * 100ll
 	else
 		ts(0).tv_sec  = 0
-		ts(0).tv_nsec = UTIME_OMIT_
+		ts(0).tv_nsec = UTIME_OMIT
 	end if
 
 	if( mtime > 0 ) then
@@ -838,10 +782,10 @@ function tkort_UStrFsSetTimes alias "fb_UStrFsSetTimes" _
 		ts(1).tv_nsec = (v mod 10000000ll) * 100ll
 	else
 		ts(1).tv_sec  = 0
-		ts(1).tv_nsec = UTIME_OMIT_
+		ts(1).tv_nsec = UTIME_OMIT
 	end if
 
-	if( u_utimensat( AT_FDCWD_, path_, @ts(0), 0 ) <> 0 ) then r = tkrt_FsMapOsError( )
+	if( u_utimensat( AT_FDCWD, path_, @ts(0), 0 ) <> 0 ) then r = tkrt_FsMapOsError( )
 
 	free( path_ )
 	return r
@@ -849,4 +793,6 @@ end function
 
 end extern
 
+#else
+	#error "fs/stat: no backend for this target"
 #endif

@@ -130,10 +130,17 @@ end function
 
 #ifdef __FB_WIN32__
 public const OS_NAME as string = "windows"
-#else
-public const OS_NAME as string = "linux"
-#endif
 public const ARCH_NAME as string = "x86_64"
+#elseif defined( __FB_LINUX__ )
+public const OS_NAME as string = "linux"
+    #if defined( __FB_X86__ ) and defined( __FB_64BIT__ )
+public const ARCH_NAME as string = "x86_64"
+    #else
+    #error "std/os: no ARCH_NAME for this Linux target"
+    #endif
+#else
+    #error "std/os: no OS_NAME for this target"
+#endif
 
 '' -------------------------------------------------------------- interrupts
 

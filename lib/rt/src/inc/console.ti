@@ -23,13 +23,14 @@
 '' definition to a careless read); the only definer on Windows was, and is,
 '' hinit.o.
 ''
-'' The layouts below still MIRROR rather than include those definitions, because
-'' it is read by two dozen members tiko-rt does NOT own, from the print buffer to
-'' the graphics library -- a wrong offset here is a silent write into an
+'' The Windows layout below still MIRRORS rather than includes its definition,
+'' because it is read by two dozen members tiko-rt does NOT own, from the print
+'' buffer to the graphics library -- a wrong offset here is a silent write into an
 '' unrelated field, in fbc's code as much as in ours. The two records are kept
-'' honest by the #asserts in the defining modules, not by the compiler.
+'' honest by the #asserts in the defining module, not by the compiler. The POSIX
+'' offsets are no longer a mirror: they are offsetof the defining type itself.
 ''
-'' EVERY OFFSET IS MEASURED.
+'' EVERY WINDOWS OFFSET IS MEASURED.
 ''
 ''   win64  a C probe compiled with clang --target=x86_64-w64-windows-gnu
 ''          against fbc's own headers: sizeof 80, and the field table below.
@@ -39,8 +40,9 @@
 ''                            -> scrollWasOff at 44
 ''              io_getsize.o  movzwl 0x20 / 0x22 / 0x24 / 0x26
 ''                            -> window.Left/Top/Right/Bottom at 32/34/36/38
-''   linux  a C probe compiled by gcc under WSL against fbc's headers:
-''          sizeof 408, SEQ_MAX 17, and the field table below.
+''   POSIX  NOT TYPED HERE: offsetof into FBCONSOLE_ (inc/conposix.ti), whose two
+''          termios are the binding's. On glibc x86-64 conposix.ti asserts the layout
+''          a gcc probe under WSL measured against fbc's headers: sizeof 408.
 
 #pragma once
 
@@ -155,58 +157,49 @@ const FB_COLOR_BG_DEFAULT = &h2
 	#define TKORT_IN_HANDLE()  tkrt_hConsoleGetHandle( 1 )
 	#define TKORT_OUT_HANDLE() tkrt_hConsoleGetHandle( 0 )
 
-#else
+#elseif defined( __FB_UNIX__ )
 
-	'' MEASURED by a gcc probe under WSL against fbc's headers: sizeof 408.
-	''
-	''   inited                   0    fg_color             152
-	''   term_type                4    bg_color             156
-	''   h_in                     8    cur_x                160
-	''   f_in                    16    cur_y                164
-	''   old_term_out            24    w                    168
-	''   old_term_in             84    h                    172
-	''   old_in_flags           144    char_buffer          176
-	''   saved_old_term_out     148    attr_buffer          184
-	''   saved_old_term_in      149    has_perm             192  (linux/x86)
-	''   saved_old_in_flags     150    scroll_region_changed 196
-	''                                 seq                  200  (17 pointers)
-	''                                 keyboard_getch       336 ... gfx_exit 400
-	const TKORT_CON_INITED    = 0
-	const TKORT_CON_TERMTYPE  = 4
-	const TKORT_CON_FGCOLOR   = 152
-	const TKORT_CON_BGCOLOR   = 156
-	const TKORT_CON_CURX      = 160
-	const TKORT_CON_CURY      = 164
-	const TKORT_CON_W         = 168
-	const TKORT_CON_H         = 172
-	const TKORT_CON_CHARBUF   = 176
-	const TKORT_CON_ATTRBUF   = 184
+	#include once "inc/conposix.ti"
+
+	'' THE OFFSETS ARE TAKEN FROM THE TYPE, not typed: FBCONSOLE_ lives in inc/conposix.ti,
+	'' which src/init/hinitposix.tiko defines __fb_con with, and it embeds the binding's
+	'' struct_termios -- so every offset below follows the target's termios layout. On
+	'' glibc x86-64 conposix.ti asserts fbc's measured C layout (sizeof 408).
+	const TKORT_CON_INITED    = offsetof( FBCONSOLE_, inited )
+	const TKORT_CON_TERMTYPE  = offsetof( FBCONSOLE_, term_type )
+	const TKORT_CON_FGCOLOR   = offsetof( FBCONSOLE_, fg_color )
+	const TKORT_CON_BGCOLOR   = offsetof( FBCONSOLE_, bg_color )
+	const TKORT_CON_CURX      = offsetof( FBCONSOLE_, cur_x )
+	const TKORT_CON_CURY      = offsetof( FBCONSOLE_, cur_y )
+	const TKORT_CON_W         = offsetof( FBCONSOLE_, w )
+	const TKORT_CON_H         = offsetof( FBCONSOLE_, h )
+	const TKORT_CON_CHARBUF   = offsetof( FBCONSOLE_, char_buffer )
+	const TKORT_CON_ATTRBUF   = offsetof( FBCONSOLE_, attr_buffer )
 	'' has_perm, linux/x86: src/init/hinitposix.tiko sets it from ioperm and
 	'' src/sys/ports.tiko reads it before every INP and OUT.
-	const TKORT_CON_HASPERM   = 192
+	const TKORT_CON_HASPERM   = offsetof( FBCONSOLE_, has_perm )
 
 	const INIT_CONSOLE_ = 1
 	const TERM_XTERM_   = 1
 
-	const TKORT_CON_SCROLLREGION = 196
+	const TKORT_CON_SCROLLREGION = offsetof( FBCONSOLE_, scroll_region_changed )
 
-	'' The handler slots, all function pointers -- MEASURED with the rest of the
-	'' struct (gcc 13.3 under WSL, sizeof 408). These are how the keyboard and
+	'' The handler slots, all function pointers. These are how the keyboard and
 	'' mouse drivers install themselves: src/io/multikeyposix.tiko and
 	'' src/io/mouseposix.tiko WRITE them, and src/init/hinitposix.tiko's
 	'' background thread and console init/exit CALL through them.
 	'' h_in is the /dev/tty descriptor the console layer opened.
-	const TKORT_CON_HIN          = 8
+	const TKORT_CON_HIN          = offsetof( FBCONSOLE_, h_in )
 
-	const TKORT_CON_KBGETCH      = 336
-	const TKORT_CON_KBINIT       = 344
-	const TKORT_CON_KBEXIT       = 352
-	const TKORT_CON_KBHANDLER    = 360
-	const TKORT_CON_MOUSEINIT    = 368
-	const TKORT_CON_MOUSEEXIT    = 376
-	const TKORT_CON_MOUSEHANDLER = 384
-	const TKORT_CON_MOUSEUPDATE  = 392
-	const TKORT_CON_GFXEXIT      = 400
+	const TKORT_CON_KBGETCH      = offsetof( FBCONSOLE_, keyboard_getch )
+	const TKORT_CON_KBINIT       = offsetof( FBCONSOLE_, keyboard_init )
+	const TKORT_CON_KBEXIT       = offsetof( FBCONSOLE_, keyboard_exit )
+	const TKORT_CON_KBHANDLER    = offsetof( FBCONSOLE_, keyboard_handler )
+	const TKORT_CON_MOUSEINIT    = offsetof( FBCONSOLE_, mouse_init )
+	const TKORT_CON_MOUSEEXIT    = offsetof( FBCONSOLE_, mouse_exit )
+	const TKORT_CON_MOUSEHANDLER = offsetof( FBCONSOLE_, mouse_handler )
+	const TKORT_CON_MOUSEUPDATE  = offsetof( FBCONSOLE_, mouse_update )
+	const TKORT_CON_GFXEXIT      = offsetof( FBCONSOLE_, gfx_exit )
 
 	const SEQ_LOCATE_       = 0
 	const SEQ_SCROLL_REGION_ = 2
@@ -240,4 +233,6 @@ const FB_COLOR_BG_DEFAULT = &h2
 		declare function c_isatty alias "isatty" ( byval fd as int32 ) as int32
 	end extern
 
+#else
+	#error "inc/console.ti: no console context for this target"
 #endif

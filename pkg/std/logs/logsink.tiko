@@ -2,6 +2,10 @@
 #import "std/numeric"
 #import "std/chrono"
 #import "std/containers"
+#ifdef __FB_UNIX__
+#include once "../../sys/posix/posix.ti"
+using posix
+#endif
 using numeric
 using chrono
 using containers
@@ -155,9 +159,11 @@ sub ConsoleSink.hInit( byval target as ConsoleTarget, byval r as Renderer ptr )
                 wantcolour = FALSE
             end if
         end if
-    #else
-        this.m_fd = iif( target = CT_STDOUT, 1, 2 )
+    #elseif defined( __FB_UNIX__ )
+        this.m_fd = iif( target = CT_STDOUT, STDOUT_FILENO, STDERR_FILENO )
         this.m_isconsole = ( hIsATty( this.m_fd ) <> 0 )
+    #else
+        #error "std/logs: no console backend for this target"
     #endif
 
     '' Test 2: redirected output is a file, and a file full of ESC[32m is the
@@ -238,12 +244,14 @@ function ConsoleSink.hEmit( byref s as ustring, byref os as long ) as ustring
                 return "write failed, record dropped"
             end if
         end if
-    #else
+    #elseif defined( __FB_UNIX__ )
         dim as string u8 = s
         if( len( u8 ) = 0 ) then return ""
         if( hWriteFd( this.m_fd, strptr( u8 ), len( u8 ) ) < 0 ) then
             return "write failed, record dropped"
         end if
+    #else
+        #error "std/logs: no console backend for this target"
     #endif
     return ""
 end function

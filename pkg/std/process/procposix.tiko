@@ -1,0 +1,477 @@
+#module "process"
+#import "std/containers"
+#import "std/outcome"
+#import "std/fs"
+#import "std/os"
+#ifdef __FB_UNIX__
+#include once "../../sys/posix/posix.ti"
+using posix
+#endif
+using containers
+using outcome
+'' std/process: procposix -- the POSIX side, libc only.  posix_spawn with file
+'' actions for the three stdio descriptors and the directory, every pipe opened
+'' close-on-exec (rule 4), default signal dispositions and an empty signal mask in
+'' the child, and poll( ) for Output_ (rule 5).  Every constant and struct layout is
+'' the target's, from sys/posix; errno, environ and pipe2 are the per-OS file's
+'' (proclinux.tiko).  posix_spawn_file_actions_addchdir_np needs glibc 2.29.
+
+#ifdef __FB_UNIX__
+
+#if not defined( __FB_LINUX__ )
+    #error "std/process: no per-OS file for this target (proclinux.tiko is Linux's)"
+#endif
+
+extern "C"
+    declare function tkp_posix_spawn alias "posix_spawn" ( byval pid as pid_t ptr, byval path as const zstring ptr, _
+        byval fa as const posix_spawn_file_actions_t ptr, byval attr as const posix_spawnattr_t ptr, _
+        byval argv as zstring ptr ptr, byval envp as zstring ptr ptr ) as long
+    declare function tkp_fa_init alias "posix_spawn_file_actions_init" ( byval fa as posix_spawn_file_actions_t ptr ) as long
+    declare function tkp_fa_destroy alias "posix_spawn_file_actions_destroy" _
+        ( byval fa as posix_spawn_file_actions_t ptr ) as long
+    declare function tkp_fa_adddup2 alias "posix_spawn_file_actions_adddup2" ( byval fa as posix_spawn_file_actions_t ptr, _
+        byval fd as long, byval newfd as long ) as long
+    declare function tkp_fa_addopen alias "posix_spawn_file_actions_addopen" ( byval fa as posix_spawn_file_actions_t ptr, _
+        byval fd as long, byval path as const zstring ptr, byval oflag as long, byval mode as mode_t ) as long
+    declare function tkp_fa_addchdir alias "posix_spawn_file_actions_addchdir_np" ( byval fa as posix_spawn_file_actions_t ptr, _
+        byval path as const zstring ptr ) as long
+    declare function tkp_attr_init alias "posix_spawnattr_init" ( byval a as posix_spawnattr_t ptr ) as long
+    declare function tkp_attr_destroy alias "posix_spawnattr_destroy" ( byval a as posix_spawnattr_t ptr ) as long
+    declare function tkp_attr_setflags alias "posix_spawnattr_setflags" ( byval a as posix_spawnattr_t ptr, _
+        byval flags as short ) as long
+    declare function tkp_attr_setpgroup alias "posix_spawnattr_setpgroup" ( byval a as posix_spawnattr_t ptr, _
+        byval pg as pid_t ) as long
+    declare function tkp_attr_setsigdefault alias "posix_spawnattr_setsigdefault" ( byval a as posix_spawnattr_t ptr, _
+        byval set_ as const sigset_t ptr ) as long
+    declare function tkp_attr_setsigmask alias "posix_spawnattr_setsigmask" ( byval a as posix_spawnattr_t ptr, _
+        byval set_ as const sigset_t ptr ) as long
+    declare function tkp_sigfillset alias "sigfillset" ( byval set_ as sigset_t ptr ) as long
+    declare function tkp_sigemptyset alias "sigemptyset" ( byval set_ as sigset_t ptr ) as long
+    declare function tkp_signal alias "signal" ( byval sig as long, byval handler as any ptr ) as any ptr
+    declare function tkp_close alias "close" ( byval fd as long ) as long
+    declare function tkp_read alias "read" ( byval fd as long, byval buf as any ptr, byval n as uinteger ) as integer
+    declare function tkp_write alias "write" ( byval fd as long, byval buf as const any ptr, byval n as uinteger ) as integer
+    declare function tkp_fcntl alias "fcntl" ( byval fd as long, byval cmd as long, ... ) as long
+    declare function tkp_poll alias "poll" ( byval fds as struct_pollfd ptr, byval n as nfds_t, byval ms as long ) as long
+    declare function tkp_waitpid alias "waitpid" ( byval pid as pid_t, byval status as long ptr, byval opts as long ) as pid_t
+    declare function tkp_kill alias "kill" ( byval pid as pid_t, byval sig as long ) as long
+    declare function tkp_getpid alias "getpid" ( ) as pid_t
+    declare function tkp_access alias "access" ( byval path as const zstring ptr, byval mode as long ) as long
+    declare function tkp_usleep alias "usleep" ( byval us as ulong ) as long
+end extern
+
+const TKP_CHUNK = 65536
+
+dim shared as long tkp_sigpipeIgnored
+
+'' UTF-8 with a NUL on the end, so even "" has a real data pointer (an empty
+'' string's is NULL on Linux).
+private function hZ( byref u as const ustring ) as string
+    dim as string s = u
+    s &= chr( 0 )
+    return s
+end function
+
+'' ---- the parent's environment
+
+function ProcParentEnv( ) as OrderedMap( of ustring, ustring )
+    return os.Environment( )
+end function
+
+function ProcParentVar( byref n as const ustring ) as ustring
+    return os.GetEnv( n ).ValueOr( "" )
+end function
+
+'' ---- program lookup (rule 2)
+
+private function hExecutable( byref f as const ustring ) as boolean
+    if( fs.IsFile( f ) = FALSE ) then return FALSE
+    dim as string z = hZ( f )
+    return ( tkp_access( strptr( z ), X_OK ) = 0 )
+end function
+
+'' A name with a '/' is taken from this process's current directory; one without is
+'' searched on the child's PATH, absolute entries only.
+private function hResolve( byref c as Command, byref full as ustring ) as boolean
+    dim as ustring p = c.hProgram
+    if( instr( p, "/" ) > 0 ) then
+        dim as fs.FsResultUStr a = fs.AbsolutePath( p )
+        if( a.IsOk( ) = FALSE ) then return FALSE
+        if( fs.IsFile( a.Value( ) ) = FALSE ) then return FALSE
+        full = a.Value( )
+        return TRUE
+    end if
+    dim as ustring path_ = ProcChildVar( c, "PATH" )
+    if( len( path_ ) = 0 ) then path_ = "/usr/local/bin:/usr/bin:/bin"
+    dim as Array( of ustring ) dirs = ProcPathDirs( path_, 58 )
+    for i as long = 0 to dirs.num - 1
+        dim as ustring f = fs.PathJoin( dirs.items( i ), p )
+        if( hExecutable( f ) ) then
+            full = f
+            return TRUE
+        end if
+    next
+    return FALSE
+end function
+
+private function hMapSpawnError( byval e as long ) as ProcErrorCode
+    select case e
+    case ENOENT, ENOTDIR, ENAMETOOLONG, ELOOP : return PROC_NOT_FOUND
+    case EPERM, EACCES, ETXTBSY               : return PROC_ACCESS_DENIED
+    case EAGAIN, ENOMEM                       : return PROC_TOO_MANY_PROCESSES
+    case EINVAL, E2BIG                        : return PROC_INVALID_ARGUMENT
+    end select
+    return PROC_UNKNOWN
+end function
+
+private sub hSetPipe( byref s as PipeStream, byval fd as long, byval writes as boolean )
+    s.hFd = fd
+    s.hWrite = writes
+end sub
+
+'' ---- starting
+
+'' Spawn's body; Output_ calls it with its own defaults for the slots the Command left
+'' at -1.
+function ProcStart( byref c as Command, byref k as Child, byval dIn as long, byval dOut as long, byval dErr as long, _
+                    byref op as const ustring, byref failure as ProcError ) as boolean
+    if( k.hRunning ) then
+        failure = ProcError( PROC_INVALID_ARGUMENT, 0, op, c.hProgram )
+        return FALSE
+    end if
+    dim as ustring bad
+    if( ProcCheck( c, bad ) = FALSE ) then
+        failure = ProcError( PROC_INVALID_ARGUMENT, 0, op, bad )
+        return FALSE
+    end if
+    if( ( len( c.hCwd ) > 0 ) andalso ( fs.IsDir( c.hCwd ) = FALSE ) ) then
+        failure = ProcError( PROC_BAD_DIRECTORY, 0, op, c.hCwd )
+        return FALSE
+    end if
+    dim as ustring app
+    if( c.hRaw ) then
+        app = "/bin/sh"
+    elseif( hResolve( c, app ) = FALSE ) then
+        failure = ProcError( PROC_NOT_FOUND, 0, op, c.hProgram )
+        return FALSE
+    end if
+
+    '' rule 8: once, before the first child
+    if( tkp_sigpipeIgnored = 0 ) then
+        tkp_signal( SIGPIPE, cptr( any ptr, SIG_IGN ) )
+        tkp_sigpipeIgnored = 1
+    end if
+
+    '' argv and envp, kept alive in `keep` until posix_spawn returns
+    dim as Array( of string ) keep
+    keep.Push( hZ( app ) )
+    if( c.hRaw ) then
+        keep.Push( hZ( "/bin/sh" ) )
+        keep.Push( hZ( "-c" ) )
+    else
+        keep.Push( hZ( c.hProgram ) )
+    end if
+    for i as long = 0 to c.hArgs.num - 1
+        keep.Push( hZ( c.hArgs.items( i ) ) )
+    next
+    dim as long nargv = keep.num - 1
+    dim as Array( of ustring ) ek, ev
+    dim as boolean ownEnv = ProcChildEnv( c, ek, ev )
+    if( ownEnv ) then
+        for i as long = 0 to ek.num - 1
+            keep.Push( hZ( ek.items( i ) & "=" & ev.items( i ) ) )
+        next
+    end if
+    dim as zstring ptr ptr argv = callocate( nargv + 1, sizeof( zstring ptr ) )
+    for i as long = 0 to nargv - 1
+        argv[i] = strptr( keep.items( i + 1 ) )
+    next
+    dim as zstring ptr ptr envp = hEnviron( )
+    if( ownEnv ) then
+        envp = callocate( ek.num + 1, sizeof( zstring ptr ) )
+        for i as long = 0 to ek.num - 1
+            envp[i] = strptr( keep.items( nargv + 1 + i ) )
+        next
+    end if
+    dim as string zcwd = hZ( c.hCwd )
+
+    '' the three stdio descriptors (rule 4); slot i is descriptor i, as POSIX numbers
+    '' stdin, stdout and stderr 0, 1 and 2
+    dim as long mode( 0 to 2 )
+    mode(0) = iif( c.hStdin < 0, dIn, c.hStdin )
+    mode(1) = iif( c.hStdout < 0, dOut, c.hStdout )
+    mode(2) = iif( c.hStderr < 0, dErr, c.hStderr )
+    dim as long ours( 0 to 2 ) = { -1, -1, -1 }, theirs( 0 to 2 ) = { -1, -1, -1 }
+    dim as posix_spawn_file_actions_t fa
+    dim as posix_spawnattr_t attr
+    dim as sigset_t sigs
+    tkp_fa_init( @fa )
+    tkp_attr_init( @attr )
+    dim as long perr = 0
+    for i as long = 0 to 2
+        if( ( i = STDERR_FILENO ) andalso c.hMerge ) then
+            tkp_fa_adddup2( @fa, STDOUT_FILENO, STDERR_FILENO )
+            exit for
+        end if
+        select case mode(i)
+        case STDIO_PIPE
+            dim as long p( 0 to 1 )
+            if( hPipeCloexec( @p(0) ) <> 0 ) then
+                perr = hErrno( )
+                exit for
+            end if
+            if( i = STDIN_FILENO ) then
+                theirs(i) = p(0) : ours(i) = p(1)
+            else
+                theirs(i) = p(1) : ours(i) = p(0)
+            end if
+            tkp_fa_adddup2( @fa, theirs(i), i )
+        case STDIO_NULL
+            tkp_fa_addopen( @fa, i, "/dev/null", O_RDWR, 0 )
+        end select
+    next
+    if( len( c.hCwd ) > 0 ) then tkp_fa_addchdir( @fa, strptr( zcwd ) )
+    dim as short flags = POSIX_SPAWN_SETSIGDEF or POSIX_SPAWN_SETSIGMASK
+    if( c.hGroup ) then
+        flags or= POSIX_SPAWN_SETPGROUP
+        tkp_attr_setpgroup( @attr, 0 )
+    end if
+    tkp_attr_setflags( @attr, flags )
+    tkp_sigfillset( @sigs )
+    tkp_attr_setsigdefault( @attr, @sigs )
+    tkp_sigemptyset( @sigs )
+    tkp_attr_setsigmask( @attr, @sigs )
+
+    dim as pid_t pid = 0
+    dim as long e = perr
+    if( perr = 0 ) then
+        e = tkp_posix_spawn( @pid, strptr( keep.items( 0 ) ), @fa, @attr, argv, envp )
+    end if
+    tkp_attr_destroy( @attr )
+    tkp_fa_destroy( @fa )
+    deallocate( argv )
+    if( ownEnv ) then deallocate( envp )
+    for i as long = 0 to 2
+        if( theirs(i) >= 0 ) then tkp_close( theirs(i) )
+    next
+    if( e <> 0 ) then
+        for i as long = 0 to 2
+            if( ours(i) >= 0 ) then tkp_close( ours(i) )
+        next
+        if( perr <> 0 ) then
+            failure = ProcError( PROC_IO, perr, op, c.hProgram )
+        else
+            failure = ProcError( hMapSpawnError( e ), e, op, c.hProgram )
+        end if
+        return FALSE
+    end if
+
+    k.hPid = pid
+    k.hRunning = TRUE
+    k.hReaped = FALSE
+    k.hIn.Close( ) : k.hOut.Close( ) : k.hErr.Close( )
+    if( ours(0) >= 0 ) then hSetPipe( k.hIn, ours(0), TRUE )
+    if( ours(1) >= 0 ) then hSetPipe( k.hOut, ours(1), FALSE )
+    if( ours(2) >= 0 ) then hSetPipe( k.hErr, ours(2), FALSE )
+    return TRUE
+end function
+
+function Child.Spawn( byref c as Command ) as ProcResultBool
+    dim as ProcError f
+    if( ProcStart( c, this, STDIO_INHERIT, STDIO_INHERIT, STDIO_INHERIT, "Spawn", f ) = FALSE ) then
+        return Fail( of boolean, ProcError )( f )
+    end if
+    return Ok( of boolean, ProcError )( TRUE )
+end function
+
+'' ---- waiting and signalling
+
+'' The traditional wait-status encoding every libc shares: the low 7 bits are the
+'' terminating signal, 0 for a normal exit whose code is bits 8..15.
+private function hStatusOf( byval st as long ) as ExitStatus
+    if( ( st and &h7F ) = 0 ) then return ExitStatus( ( st shr 8 ) and &hFF, 0 )
+    return ExitStatus( -1, st and &h7F )
+end function
+
+'' No pidfd and no SIGCHLD handler: a bounded wait polls waitpid( WNOHANG ), sleeping
+'' 1 ms at first and up to 10 ms between looks.
+function Child.WaitTimeout( byval ms as long ) as ProcResultMaybe
+    if( this.hReaped ) then return Ok( of ProcMaybeStatus, ProcError )( Some( of ExitStatus )( this.hStatus ) )
+    if( this.hRunning = FALSE ) then return ProcFail( of ProcMaybeStatus )( PROC_NOT_STARTED, 0, "Wait", "" )
+    dim as long st = 0, r
+    dim as double t0 = timer
+    dim as ulong nap = 1000
+    do
+        r = tkp_waitpid( cast( pid_t, this.hPid ), @st, iif( ms < 0, 0, WNOHANG ) )
+        if( r = cast( long, this.hPid ) ) then exit do
+        if( r < 0 ) then
+            if( hErrno( ) = EINTR ) then continue do
+            return ProcFail( of ProcMaybeStatus )( PROC_UNKNOWN, hErrno( ), "Wait", "" )
+        end if
+        dim as double left_ = ms / 1000.0 - ( timer - t0 )
+        if( left_ <= 0 ) then return Ok( of ProcMaybeStatus, ProcError )( None( of ExitStatus )( ) )
+        dim as ulong us = nap
+        if( left_ * 1000000.0 < us ) then us = cast( ulong, left_ * 1000000.0 ) + 1
+        tkp_usleep( us )
+        if( nap < 10000 ) then nap += 1000
+    loop
+    this.hStatus = hStatusOf( st )
+    this.hReaped = TRUE
+    this.hRunning = FALSE
+    return Ok( of ProcMaybeStatus, ProcError )( Some( of ExitStatus )( this.hStatus ) )
+end function
+
+'' After a Wait the pid may already belong to another process, so it is never
+'' signalled again.
+private function hSignal( byref k as Child, byval sig as long, byref op as const ustring ) as ProcResultBool
+    if( k.hReaped ) then return ProcFail( of boolean )( PROC_ALREADY_WAITED, 0, op, "" )
+    if( k.hRunning = FALSE ) then return ProcFail( of boolean )( PROC_NOT_STARTED, 0, op, "" )
+    if( tkp_kill( cast( pid_t, k.hPid ), sig ) <> 0 ) then
+        dim as long e = hErrno( )
+        return ProcFail( of boolean )( hMapSpawnError( e ), e, op, "" )
+    end if
+    return Ok( of boolean, ProcError )( TRUE )
+end function
+
+function Child.Kill( ) as ProcResultBool
+    return hSignal( this, SIGKILL, "Kill" )
+end function
+
+function Child.Terminate( ) as ProcResultBool
+    return hSignal( this, SIGTERM, "Terminate" )
+end function
+
+'' Nothing to release: the pid needs no handle, and an unwaited child stays a zombie
+'' until this process ends (rule 7).
+sub ProcRelease( byref k as Child )
+end sub
+
+public function CurrentId( ) as ulong
+    return tkp_getpid( )
+end function
+
+'' ---- PipeStream
+
+function PipeStream.Read( byval buf as ubyte ptr, byval n as longint ) as fs.FsResultI64
+    if( this.hFd = -1 ) then return fs.FsFail( of longint )( fs.FS_CLOSED, "Read", "" )
+    if( ( n < 0 ) orelse ( ( buf = nullptr ) andalso ( n > 0 ) ) ) then
+        return fs.FsFail( of longint )( fs.FS_INVALID_ARGUMENT, "Read", "" )
+    end if
+    if( this.hWrite ) then return fs.FsFail( of longint )( fs.FS_UNSUPPORTED, "Read", "" )
+    if( n = 0 ) then return Ok( of longint, fs.FsError )( 0 )
+    if( n > &h40000000 ) then n = &h40000000
+    do
+        dim as integer k = tkp_read( cast( long, this.hFd ), buf, cast( uinteger, n ) )
+        if( k >= 0 ) then return Ok( of longint, fs.FsError )( k )
+        if( hErrno( ) <> EINTR ) then exit do
+    loop
+    return fs.FsFailOs( of longint )( "Read", "" )
+end function
+
+function PipeStream.Write( byval buf as const ubyte ptr, byval n as longint ) as fs.FsResultI64
+    if( this.hFd = -1 ) then return fs.FsFail( of longint )( fs.FS_CLOSED, "Write", "" )
+    if( ( n < 0 ) orelse ( ( buf = nullptr ) andalso ( n > 0 ) ) ) then
+        return fs.FsFail( of longint )( fs.FS_INVALID_ARGUMENT, "Write", "" )
+    end if
+    if( this.hWrite = FALSE ) then return fs.FsFail( of longint )( fs.FS_UNSUPPORTED, "Write", "" )
+    if( n = 0 ) then return Ok( of longint, fs.FsError )( 0 )
+    if( n > &h40000000 ) then n = &h40000000
+    do
+        dim as integer k = tkp_write( cast( long, this.hFd ), buf, cast( uinteger, n ) )
+        if( k >= 0 ) then return Ok( of longint, fs.FsError )( k )
+        if( hErrno( ) = EPIPE ) then return fs.FsFail( of longint )( fs.FS_BROKEN_PIPE, "Write", "" )
+        if( hErrno( ) <> EINTR ) then exit do
+    loop
+    return fs.FsFailOs( of longint )( "Write", "" )
+end function
+
+sub PipeStream.Close( )
+    if( this.hFd <> -1 ) then tkp_close( cast( long, this.hFd ) )
+    this.hFd = -1
+end sub
+
+'' ---- Output_ (rule 5): one poll( ) over stdout, stderr and a non-blocking stdin.
+
+function ProcOutput( byref c as Command, byref stdinData as Array( of ubyte ) ) as ProcResultOutput
+    dim as Child k
+    dim as ProcError f
+    dim as long dIn = iif( stdinData.num > 0, STDIO_PIPE, STDIO_NULL )
+    if( ProcStart( c, k, dIn, STDIO_PIPE, STDIO_PIPE, "Output", f ) = FALSE ) then
+        return Fail( of ProcessOutput, ProcError )( f )
+    end if
+
+    dim as ProcessOutput po
+    if( stdinData.num = 0 ) then k.hIn.Close( )
+    if( k.hIn.IsOpen( ) ) then
+        dim as long fl = tkp_fcntl( cast( long, k.hIn.hFd ), F_GETFL )
+        tkp_fcntl( cast( long, k.hIn.hFd ), F_SETFL, fl or O_NONBLOCK )
+    end if
+    dim as ubyte ptr buf = callocate( TKP_CHUNK, 1 )
+    dim as long sent = 0, e = 0
+    dim as boolean failed = FALSE
+    do
+        dim as struct_pollfd pf( 0 to 2 )
+        dim as long which( 0 to 2 ), np = 0
+        if( k.hOut.IsOpen( ) ) then pf(np).fd = k.hOut.hFd : pf(np).events = POLLIN : which(np) = 0 : np += 1
+        if( k.hErr.IsOpen( ) ) then pf(np).fd = k.hErr.hFd : pf(np).events = POLLIN : which(np) = 1 : np += 1
+        if( k.hIn.IsOpen( ) ) then pf(np).fd = k.hIn.hFd : pf(np).events = POLLOUT : which(np) = 2 : np += 1
+        if( np = 0 ) then exit do
+        if( tkp_poll( @pf(0), np, -1 ) < 0 ) then
+            if( hErrno( ) = EINTR ) then continue do
+            e = hErrno( )
+            failed = TRUE
+            exit do
+        end if
+        for j as long = 0 to np - 1
+            if( pf(j).revents = 0 ) then continue for
+            dim as long w = which(j)
+            if( w = 2 ) then
+                dim as long n = stdinData.num - sent
+                if( n > TKP_CHUNK ) then n = TKP_CHUNK
+                for q as long = 0 to n - 1
+                    buf[q] = stdinData.items( sent + q )
+                next
+                dim as integer got = tkp_write( pf(j).fd, buf, n )
+                if( got > 0 ) then
+                    sent += got
+                    if( sent >= stdinData.num ) then k.hIn.Close( )
+                elseif( got < 0 ) then
+                    dim as long en = hErrno( )
+                    if( en = EPIPE ) then
+                        k.hIn.Close( )               '' the child stopped reading
+                    elseif( ( en <> EAGAIN ) andalso ( en <> EINTR ) ) then
+                        e = en
+                        failed = TRUE
+                    end if
+                end if
+            else
+                dim as integer got = tkp_read( pf(j).fd, buf, TKP_CHUNK )
+                if( got > 0 ) then
+                    dim as Array( of ubyte ) ptr dst = iif( w = 0, @po.Stdout, @po.Stderr )
+                    for q as long = 0 to cast( long, got ) - 1
+                        dst->Push( buf[q] )
+                    next
+                elseif( got = 0 ) then
+                    if( w = 0 ) then k.hOut.Close( ) else k.hErr.Close( )
+                elseif( ( hErrno( ) <> EINTR ) andalso ( hErrno( ) <> EAGAIN ) ) then
+                    e = hErrno( )
+                    failed = TRUE
+                end if
+            end if
+        next
+    loop while( failed = FALSE )
+    deallocate( buf )
+    k.hOut.Close( ) : k.hErr.Close( ) : k.hIn.Close( )
+    if( failed ) then
+        k.Kill( )
+        k.Wait( )
+        return ProcFail( of ProcessOutput )( PROC_IO, e, "Output", c.hProgram )
+    end if
+
+    dim as ProcResultStatus st = k.Wait( )
+    if( st.IsOk( ) = FALSE ) then return Fail( of ProcessOutput, ProcError )( st.Failure( ) )
+    po.Status = st.Value( )
+    return Ok( of ProcessOutput, ProcError )( po )
+end function
+
+#endif

@@ -49,7 +49,7 @@
 
 #include once "inc/descriptors.ti"
 
-#ifndef __FB_WIN32__
+#ifdef __FB_UNIX__
 
 '' KeySym is Xlib's `unsigned long` -- EIGHT bytes here. See the file header.
 type TKORT_XKROW

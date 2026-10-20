@@ -71,16 +71,10 @@
 		as uint64 dwAvailVirtual
 	end type
 
-#else
+#elseif defined( __FB_UNIX__ )
 
-	'' timeval, and its shape is the whole reason fb_Delay is written this way:
-	'' two pointer-width fields on x86-64 Linux.
-	type TIMEVAL_
-		as int64 tv_sec
-		as int64 tv_usec
-	end type
-
-	#assert sizeof( TIMEVAL_ ) = 16
+	'' struct_timeval is the posix binding's -- its shape is the whole reason
+	'' fb_Delay is written this way.
 
 	extern "c"   '' NON-FBCALL: libc.
 		declare function u_getcwd alias "getcwd" ( byval buf as zstring ptr, byval sz as uinteger ) as zstring ptr
@@ -88,18 +82,23 @@
 			( byval path as zstring ptr, byval buf as zstring ptr, byval sz as uinteger ) as integer
 		declare function u_select alias "select" _
 			( byval n as int32, byval r as any ptr, byval w as any ptr, _
-			  byval e as any ptr, byval tv as TIMEVAL_ ptr ) as int32
-		declare function u_get_avphys_pages alias "get_avphys_pages" ( ) as integer
+			  byval e as any ptr, byval tv as struct_timeval ptr ) as int32
 		declare function u_sysconf alias "sysconf" ( byval name_ as int32 ) as integer
 		declare function u_getpid alias "getpid" ( ) as int32
 		declare function u_snprintf alias "snprintf" _
 			( byval buf as zstring ptr, byval sz as uinteger, byval fmt as zstring ptr, ... ) as int32
 	end extern
 
-	'' _SC_PAGE_SIZE, MEASURED under WSL against glibc -- the name is a macro and
-	'' the number is not the same on every libc.
-	const SC_PAGE_SIZE_ = 30
+	'' procfs and get_avphys_pages are Linux's: hOsExeLink, hOsExeLinkByPid and
+	'' hOsFreePhysBytes are per OS.
+	#if defined( __FB_LINUX__ )
+		#include once "hostinfolinux.tiko"
+	#else
+		#error "sys/hostinfo: no executable-path or free-memory backend for this OS"
+	#endif
 
+#else
+	#error "sys/hostinfo: no backend for this target"
 #endif
 
 extern "c"   '' NON-FBCALL for the two helpers; fb_system.h declares
@@ -144,12 +143,12 @@ function tkort_hGetExePath alias "fb_hGetExePath" _
 		end if
 
 		return p
-	#else
+	#elseif defined( __FB_UNIX__ )
 		'' NO stat() FIRST. fbc stats /proc/self/exe and then readlinks it; the
 		'' stat adds nothing a failing readlink would not report, and dropping a
 		'' syscall changes no observable answer. The readlink's own failure is
 		'' the test.
-		dim as integer l = u_readlink( @"/proc/self/exe", dst, maxlen - 1 )
+		dim as integer l = hOsExeLink( dst, maxlen )
 		if( l < 0 ) then return nullptr
 
 		dst[l] = 0
@@ -164,6 +163,8 @@ function tkort_hGetExePath alias "fb_hGetExePath" _
 		end if
 
 		return p
+	#else
+		#error "sys/hostinfo: no backend for this target"
 	#endif
 end function
 
@@ -184,15 +185,12 @@ function tkort_hGetExeName alias "fb_hGetExeName" _
 		end if
 
 		return p
-	#else
+	#elseif defined( __FB_UNIX__ )
 		'' BY PID, not "self". fbc spells the link `/proc/<pid>/exe` here and
 		'' `/proc/self/exe` in fb_hGetExePath -- the same file by two names, and
 		'' the difference is reproduced because a container or a ptrace sandbox
 		'' can make exactly one of the two fail.
-		dim as zstring * 1024 linkname = any
-		u_snprintf( @linkname, 1024, @"/proc/%d/exe", u_getpid( ) )
-
-		dim as integer l = u_readlink( @linkname, dst, maxlen - 1 )
+		dim as integer l = hOsExeLinkByPid( dst, maxlen )
 		if( l < 0 ) then return nullptr
 
 		dst[l] = 0
@@ -204,6 +202,8 @@ function tkort_hGetExeName alias "fb_hGetExeName" _
 		end if
 
 		return p
+	#else
+		#error "sys/hostinfo: no backend for this target"
 	#endif
 end function
 
@@ -227,11 +227,13 @@ function tkort_hGetCurrentDir alias "fb_hGetCurrentDir" _
 			return 0
 		end if
 		return tkrt_PathFromWide( @wd, dst, maxlen )
-	#else
+	#elseif defined( __FB_UNIX__ )
 		if( u_getcwd( dst, cast( uinteger, maxlen ) ) <> nullptr ) then
 			return strlen( dst )
 		end if
 		return 0
+	#else
+		#error "sys/hostinfo: no backend for this target"
 	#endif
 end function
 
@@ -251,10 +253,11 @@ function tkort_GetMemAvail alias "fb_GetMemAvail" ( byval mode_ as int32 ) as ui
 		ms.dwLength = sizeof( MEMSTATUS_ )
 		w_GlobalMemoryStatus( @ms )
 		return cast( uinteger, ms.dwAvailPhys )
+	#elseif defined( __FB_UNIX__ )
+		'' Free physical memory is per OS: hOsFreePhysBytes.
+		return hOsFreePhysBytes( )
 	#else
-		'' PAGES TIMES PAGE SIZE. get_avphys_pages is glibc's, not POSIX's --
-		'' which is why this body is under linux/ in fbc and not unix/.
-		return cast( uinteger, u_get_avphys_pages( ) * u_sysconf( SC_PAGE_SIZE_ ) )
+		#error "sys/hostinfo: no backend for this target"
 	#endif
 end function
 
@@ -264,13 +267,15 @@ sub tkort_Delay alias "fb_Delay" ( byval msecs as int32 )
 
 	#ifdef __FB_WIN32__
 		w_Sleep( cast( uint32, msecs ) )
-	#else
+	#elseif defined( __FB_UNIX__ )
 		'' select() WITH NO DESCRIPTORS is the sleep. n = 0 and three NULL sets
 		'' means "wait for the timeout and nothing else".
-		dim as TIMEVAL_ tv = any
+		dim as struct_timeval tv = any
 		tv.tv_sec = msecs \ 1000
 		tv.tv_usec = (msecs mod 1000) * 1000
 		u_select( 0, nullptr, nullptr, nullptr, @tv )
+	#else
+		#error "sys/hostinfo: no backend for this target"
 	#endif
 end sub
 

@@ -1,0 +1,46 @@
+'' opslinux.tiko -- fs/ops's two Linux-only system calls: renameat2 and getrandom.
+''
+'' #INCLUDED by fs/ops.tiko's POSIX branch, never compiled on its own and not in
+'' build/sources.txt. It provides two private procedures,
+''
+''     hOsRenameExclusive( byval sp as zstring ptr, byval dp as zstring ptr ) as int32
+''
+'' which renames sp to dp only if dp does not exist, atomically, and returns 0, or
+'' -1 with errno set: EEXIST when dp exists, and ENOSYS or EINVAL when the system
+'' or the filesystem cannot do it -- hRenameNoReplace then falls back to link( ) +
+'' unlink( );
+''
+''     hOsRandom( byval buf as uint8 ptr, byval n as uinteger ) as integer
+''
+'' which fills up to n bytes of buf from the kernel's CSPRNG and returns the count,
+'' or -1 with errno set -- tkort_FsRandomBytes retries EINTR and falls back to
+'' /dev/urandom on anything else.
+''
+'' The Darwin sibling (opsdarwin.tiko, M5) must provide the same two procedures:
+'' renamex_np( sp, dp, RENAME_EXCL ) for the first, and getentropy( ) -- at most
+'' 256 bytes per call -- or arc4random_buf for the second.
+''
+'' Neither call has a glibc wrapper as old as the oldest supported glibc, so both
+'' are reached through syscall( ). SYS_renameat2, SYS_getrandom, AT_FDCWD and
+'' RENAME_NOREPLACE come from the posix binding.
+
+#if defined( __FB_LINUX__ )
+
+extern "c"   '' NON-FBCALL: libc.
+	declare function u_syscall alias "syscall" ( byval n as int64, ... ) as int64
+end extern
+
+private function hOsRenameExclusive( byval sp as zstring ptr, byval dp as zstring ptr ) as int32
+	if( u_syscall( SYS_renameat2, cast( int64, AT_FDCWD ), sp, cast( int64, AT_FDCWD ), dp, _
+	               cast( int64, RENAME_NOREPLACE ) ) = 0 ) then
+		return 0
+	end if
+	return -1
+end function
+
+'' flags 0: block until the pool is initialised, then never block again.
+private function hOsRandom( byval buf as uint8 ptr, byval n as uinteger ) as integer
+	return u_syscall( SYS_getrandom, buf, n, 0 )
+end function
+
+#endif

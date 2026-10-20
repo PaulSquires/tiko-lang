@@ -50,8 +50,10 @@
 ''     LC_CTYPE   Windows 2   Linux 0
 ''     LC_ALL     Windows 0   Linux 6
 ''
-'' MEASURED, both. So the Linux value of LC_CTYPE is the Windows value of
-'' LC_ALL -- hard-coding either would silently set the WHOLE locale on one
+'' MEASURED, both -- and on a POSIX target the value now comes from the posix
+'' binding, generated on that target, so another libc brings its own numbers.
+'' The Linux value of LC_CTYPE is the Windows value of LC_ALL -- hard-coding
+'' either would silently set the WHOLE locale on one
 '' platform, which changes LC_NUMERIC, which changes the decimal separator, which
 '' changes every float-to-string conversion in the runtime. No compiler
 '' diagnostic, no crash, and a differential that happened to run in the C locale
@@ -68,12 +70,15 @@
 #include once "inc/file.ti"
 #include once "inc/sysbind.ti"
 
-'' LC_CTYPE, measured with a C probe against each platform's own headers. See
-'' the file header on why guessing this one is unusually dangerous.
+'' LC_CTYPE: measured with a C probe against Windows' own headers, and the
+'' posix binding's on a POSIX target. See the file header on why guessing this
+'' one is unusually dangerous.
 #ifdef __FB_WIN32__
 	const TKORT_LC_CTYPE = 2
+#elseif defined( __FB_UNIX__ )
+	const TKORT_LC_CTYPE = LC_CTYPE
 #else
-	const TKORT_LC_CTYPE = 0
+	#error "init/rtinit: no LC_CTYPE for this target"
 #endif
 
 '' The empty locale name, as a real object with a real address -- strptr( "" )

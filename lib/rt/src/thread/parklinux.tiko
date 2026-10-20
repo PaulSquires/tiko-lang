@@ -1,0 +1,29 @@
+'' parklinux.tiko -- thread/park's monotonic condition variable on Linux:
+'' pthread_condattr_setclock( CLOCK_MONOTONIC ).
+''
+'' #INCLUDED by thread/park.tiko on a POSIX target, never compiled on its own and
+'' not in build/sources.txt. It provides one private procedure,
+''
+''     hCondSetMonotonic( byval attr as pthread_condattr_t ptr ) as int32
+''
+'' which binds a condition-variable attribute to CLOCK_MONOTONIC and returns 0
+'' when the OS accepted it -- pthread_condattr_setclock's own convention -- and
+'' nonzero otherwise, in which case the parker falls back to CLOCK_REALTIME and
+'' hDeadline reads that clock instead.
+''
+'' The Darwin sibling (parkdarwin.tiko, M5) must provide the same procedure.
+'' macOS has no pthread_condattr_setclock at all -- referencing it is a link
+'' error, not a runtime refusal -- so it returns nonzero without touching attr.
+
+#if defined( __FB_LINUX__ )
+
+extern "c"   '' NON-FBCALL: libpthread.
+	declare function u_pthread_condattr_setclock alias "pthread_condattr_setclock" _
+		( byval a as pthread_condattr_t ptr, byval c as clockid_t ) as int32
+end extern
+
+private function hCondSetMonotonic( byval attr as pthread_condattr_t ptr ) as int32
+	return u_pthread_condattr_setclock( attr, CLOCK_MONOTONIC )
+end function
+
+#endif

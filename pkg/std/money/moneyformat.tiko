@@ -88,7 +88,7 @@ using outcome
 #include once "fblimits.bi"
 #include once "fblimits.bi"
 
-#ifndef __FB_WIN32__
+#ifdef __FB_UNIX__
     #include once "crt/locale.bi"
 #endif
 
@@ -406,7 +406,7 @@ mnySnap_.IsValid = true
 
 end sub
 
-#else
+#elseif defined( __FB_UNIX__ )
 
 '' LC_MONETARY, NOT LC_ALL, AND THAT IS NOT A DETAIL.
 ''
@@ -427,7 +427,9 @@ end sub
 '' LC_MONETARY is right here. (On Windows the same constant is msvcrt's
 '' LC_NUMERIC, and the header's LC_ALL of 6 is out of msvcrt's range entirely:
 '' setlocale returns NULL and leaves you in the C locale with nothing to say
-'' so. This branch never runs there -- Windows reads NLS directly.)
+'' so. This branch never runs there -- Windows reads NLS directly.) LC_MONETARY
+'' stays crt/locale.bi's rather than sys/posix's: that header #defines the name,
+'' and lconv, setlocale and localeconv come from it too.
 function mnyLconvText_( byval p as const zstring ptr ) as ustring
 if p = nullptr then return ""
 return *p                        '' zstring -> ustring decodes as UTF-8
@@ -507,6 +509,8 @@ mnySnap_.IsValid = true
 
 end sub
 
+#else
+    #error "std/money: no locale backend for this target"
 #endif
 
 sub mnyEnsureSnap_( )

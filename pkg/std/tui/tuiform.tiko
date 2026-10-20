@@ -23,9 +23,8 @@ using containers
 
 #ifdef __FB_WIN32__
     #include once "windows.bi"
-#else
-    #include once "crt.bi"
 #endif
+'' No crt.bi on POSIX: its O_/E*/CLOCKS_PER_SEC macros would redefine sys/posix's names.
 
 
 '' ============================================================== stepping

@@ -15,13 +15,14 @@
             ( byval cp as uint32, byval flags as uint32, byval src as zstring ptr, byval srcLen as int32, _
               byval dst as wstring ptr, byval dstLen as int32 ) as int32
     end extern
-#else
+#elseif defined( __FB_UNIX__ )
+    #include once "support/hostposix.ti"
     extern "C"
-        declare function C_open_ alias "open" ( byval p as zstring ptr, byval flags as int32, ... ) as int32
-        declare function C_flock_ alias "flock" ( byval fd as int32, byval op as int32 ) as int32
         declare function C_close_ alias "close" ( byval fd as int32 ) as int32
         declare function C_unlink_ alias "unlink" ( byval p as zstring ptr ) as int32
     end extern
+#else
+    #error "build/lock.tiko: no build lock for this target"
 #endif
 
 namespace Tko.Build
@@ -48,13 +49,11 @@ function TakeLock( byref lk as BuildLock, byref path_ as string ) as LockResult
         lk.h = cast( int64, h )
         return LOCK_TAKEN
     #else
-        '' O_RDWR | O_CREAT, 0644; then LOCK_EX | LOCK_NB, which fails at once when held.
-        dim as int32 fd = C_open_( strptr( path_ ), &h42, &o644 )
-        if fd < 0 then return LOCK_UNAVAILABLE
-        if C_flock_( fd, 2 or 4 ) <> 0 then
-            C_close_( fd )
-            return LOCK_BUSY
-        end if
+        '' Made 0644 and flock( )ed exclusively, failing at once when held (support/hostposix:
+        '' the open and lock constants are the host's, from the posix binding).
+        dim as int32 fd = Tko.HostPosix.LockFile( strptr( path_ ) )
+        if fd = -1 then return LOCK_UNAVAILABLE
+        if fd = -2 then return LOCK_BUSY
         lk.h = fd
         return LOCK_TAKEN
     #endif

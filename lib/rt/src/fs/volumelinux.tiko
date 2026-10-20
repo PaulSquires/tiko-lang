@@ -1,0 +1,155 @@
+'' volumelinux.tiko -- fs/volume's mount table and filesystem-type names on Linux:
+'' /proc/self/mountinfo.
+''
+'' #INCLUDED by fs/volume.tiko's POSIX branch, never compiled on its own and not in
+'' build/sources.txt. It provides
+''
+''     FB_FSMOUNTS                  one walk of the mount table (a caller's local)
+''     FB_FSMOUNT                   the walk's current entry (a caller's local)
+''     FB_FSMOUNT_PATHMAX           the size of a buffer that holds any mount point
+''                                  hParseMountInfo can return
+''     hOsMountOpen( m ) as int32   start a walk; 0 when there is no mount table
+''     hOsMountNext( m, e ) as int32
+''                                  read the next entry into e; 0 at the end
+''     hParseMountInfo( e, mp, fs, src ) as int32
+''                                  e's mount point, filesystem type and source,
+''                                  pointing into e; 0 for an entry that does not
+''                                  decode, which the caller skips
+''     hOsMountClose( m )           end the walk
+''     hIsRealMount( src ) as int32 1 for a filesystem backed by a device, 0 for a
+''                                  pseudo-filesystem (fs/volume.tiko's header rule)
+''     hOsFsHasLinks( fstype ) as int32
+''                                  0 for a filesystem type known unable to hold a
+''                                  symbolic link, 1 otherwise
+''
+'' The Darwin sibling (volumedarwin.tiko, M5) must provide the same names over
+'' getmntinfo( ) and struct statfs (f_mntonname, f_fstypename, f_mntfromname),
+'' with Darwin's own type names: "msdos", "exfat", "cd9660".
+
+#if defined( __FB_LINUX__ )
+
+'' fgets' line buffer -- not an OS value, the longest line read in one piece.
+const MOUNTINFO_LINE = 4096
+const FB_FSMOUNT_PATHMAX = MOUNTINFO_LINE
+
+'' The walk is the open file; an entry is one line of it. Two types and not one
+'' so the FILE pointer, which nothing outside these procedures sees, can live in
+'' a register while the line buffer is handed to fgets.
+type FB_FSMOUNTS
+	as any ptr f
+end type
+
+type FB_FSMOUNT
+	as zstring * MOUNTINFO_LINE ln
+end type
+
+extern "c"   '' NON-FBCALL: libc.
+	declare function u_fopen alias "fopen" ( byval p as zstring ptr, byval mode_ as zstring ptr ) as any ptr
+	declare function u_fgets alias "fgets" ( byval buf as zstring ptr, byval n as int32, byval f as any ptr ) as zstring ptr
+	declare function u_fclose alias "fclose" ( byval f as any ptr ) as int32
+end extern
+
+'' One entry: one parsed line of /proc/self/mountinfo.
+''
+'' The format is: id parent major:minor root mountpoint options
+'' [optional fields...] "-" fstype source superoptions
+''
+'' The optional-field run is VARIABLE LENGTH and terminated by a literal "-",
+'' which is why this scans for the separator rather than counting fields.
+private function hParseMountInfo( byval e as FB_FSMOUNT ptr, byval mountpoint as zstring ptr ptr, _
+                                  byval fstype as zstring ptr ptr, byval source as zstring ptr ptr ) as int32
+	dim as zstring ptr p = @e->ln, tok = any
+	dim as int32 fld = 0
+
+	*mountpoint = nullptr
+	*fstype = nullptr
+	*source = nullptr
+
+	do
+		while( *p = 32 )
+			p += 1
+		wend
+		if( *p = 0 ) then exit do
+
+		tok = p
+		while( (*p <> 0) andalso (*p <> 32) andalso (*p <> 10) )
+			p += 1
+		wend
+		if( *p <> 0 ) then
+			*p = 0
+			p += 1
+		end if
+
+		fld += 1
+
+		if( fld = 5 ) then *mountpoint = tok
+
+		if( (fld >= 7) andalso (tok[0] = 45) andalso (tok[1] = 0) ) then    '' '-'
+			'' fstype and source are the next two
+			while( *p = 32 )
+				p += 1
+			wend
+			tok = p
+			while( (*p <> 0) andalso (*p <> 32) andalso (*p <> 10) )
+				p += 1
+			wend
+			if( *p <> 0 ) then
+				*p = 0
+				p += 1
+			end if
+			*fstype = tok
+
+			while( *p = 32 )
+				p += 1
+			wend
+			tok = p
+			while( (*p <> 0) andalso (*p <> 32) andalso (*p <> 10) )
+				p += 1
+			wend
+			if( *p <> 0 ) then
+				*p = 0
+				p += 1
+			end if
+			*source = tok
+
+			exit do
+		end if
+	loop
+
+	if( *mountpoint = nullptr ) then return 0
+	if( *fstype = nullptr ) then return 0
+	if( *source = nullptr ) then return 0
+	return 1
+end function
+
+'' Is this a real block-device-backed filesystem, or a pseudo one?
+private function hIsRealMount( byval source as zstring ptr ) as int32
+	if( source = nullptr ) then return 0
+	return iif( source[0] = 47, 1, 0 )
+end function
+
+'' The FAT family and ISO 9660, by their Linux type names.
+private function hOsFsHasLinks( byval fstype as zstring ptr ) as int32
+	if( (u_strncmp( fstype, @"vfat", 4 ) <> 0) andalso _
+	    (u_strncmp( fstype, @"msdos", 5 ) <> 0) andalso _
+	    (u_strncmp( fstype, @"exfat", 5 ) <> 0) andalso _
+	    (u_strncmp( fstype, @"iso9660", 7 ) <> 0) ) then
+		return 1
+	end if
+	return 0
+end function
+
+private function hOsMountOpen( byval m as FB_FSMOUNTS ptr ) as int32
+	m->f = u_fopen( @"/proc/self/mountinfo", @"r" )
+	return iif( m->f <> nullptr, 1, 0 )
+end function
+
+private function hOsMountNext( byval m as FB_FSMOUNTS ptr, byval e as FB_FSMOUNT ptr ) as int32
+	return iif( u_fgets( @e->ln, MOUNTINFO_LINE, m->f ) <> nullptr, 1, 0 )
+end function
+
+private sub hOsMountClose( byval m as FB_FSMOUNTS ptr )
+	u_fclose( m->f )
+end sub
+
+#endif

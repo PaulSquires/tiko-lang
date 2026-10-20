@@ -5,6 +5,7 @@ src/support/stablevec.tiko
 src/support/intern.tiko
 src/support/platform.tiko
 src/support/spawn.tiko
+src/support/hostposix.tiko
 src/support/fbstr.tiko
 src/support/diskcache.tiko
 src/diag/diagnostic.tiko

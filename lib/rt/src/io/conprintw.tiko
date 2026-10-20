@@ -444,7 +444,7 @@ end sub
 
 end extern
 
-#else
+#elseif defined( __FB_UNIX__ )
 
 '' ======================================================================== POSIX
 
@@ -558,4 +558,6 @@ end sub
 
 end extern
 
+#else
+	#error "io/conprintw: no backend for this target"
 #endif

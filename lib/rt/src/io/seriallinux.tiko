@@ -1,0 +1,87 @@
+'' seriallinux.tiko -- io/serialposix's two Linux facts: what COMn is called, and how
+'' a baud rate is put into a termios.
+''
+'' #INCLUDED by io/serialposix.tiko's POSIX branch, never compiled on its own and not
+'' in build/sources.txt. It provides three private procedures,
+''
+''     hOsSerialDevName( byval iPort as int32, byval pszDevice as zstring ptr,
+''                       byval dst as zstring ptr )
+''         the device node for OPEN COM: COMn for iPort n, else pszDevice -- written
+''         to dst, which holds 512 bytes
+''     hOsSerialSpeed( byval speed as uint32 ) as uint32
+''         the OS's code for a baud rate, or BADSPEED_ when it has none
+''     hOsSerialApplySpeed( byval t as struct_termios ptr, byval code_ as uint32 )
+''         puts that code into t
+''
+'' and may use the includer's ENDSPD_ and BADSPEED_.
+''
+'' The Darwin sibling (serialdarwin.tiko, M5) must provide the same three. Darwin has
+'' no numbered serial nodes (/dev/cu.<name> instead), and its Bnnnn constants ARE the
+'' numeric rate, set with cfsetispeed/cfsetospeed rather than OR'd into c_cflag.
+''
+'' THE BAUD RATE IS OR'd STRAIGHT INTO c_cflag. On Linux the Bnnnn constants ARE the
+'' CBAUD bit pattern (the binding's B9600, B115200, ...), so there is no cfsetspeed
+'' call -- the speed is just another set of bits in the control flag.
+''
+'' THE SPEED TABLE'S SENTINEL IS REACHABLE AS A SPEED. The lookup runs
+'' `while sp(n).speed <> wanted` and tests for the ENDSPD sentinel INSIDE the body,
+'' so asking for 111111 baud exits the loop ON the sentinel row and returns its
+'' value -- which is 0, i.e. B0, hanging up the line. Every other unlisted speed
+'' correctly returns BADSPEED. Reproduced. B75, B110, B134 and B200 are absent: fbc's
+'' table, kept.
+
+#if defined( __FB_LINUX__ )
+
+type TKORT_SPEEDROW
+	as uint32 speed
+	as uint32 bits
+end type
+
+#define _SP( s, b ) type<TKORT_SPEEDROW>( s, b )
+
+dim shared as TKORT_SPEEDROW tkort_speeds( 0 to 28 ) = { _
+	_SP(       0,       B0 ), _SP(      50,      B50 ), _SP(     150,     B150 ), _
+	_SP(     300,     B300 ), _SP(     600,     B600 ), _SP(    1200,    B1200 ), _
+	_SP(    1800,    B1800 ), _SP(    2400,    B2400 ), _SP(    4800,    B4800 ), _
+	_SP(    9600,    B9600 ), _SP(   19200,   B19200 ), _SP(   38400,   B38400 ), _
+	_SP(   57600,   B57600 ), _SP(  115200,  B115200 ), _SP(  230400,  B230400 ), _
+	_SP(  460800,  B460800 ), _SP(  500000,  B500000 ), _SP(  576000,  B576000 ), _
+	_SP(  921600,  B921600 ), _SP( 1000000, B1000000 ), _SP( 1152000, B1152000 ), _
+	_SP( 1500000, B1500000 ), _SP( 2000000, B2000000 ), _SP( 2500000, B2500000 ), _
+	_SP( 3000000, B3000000 ), _SP( 3500000, B3500000 ), _SP( 4000000, B4000000 ), _
+	_SP( ENDSPD_,        0 ), _SP(       0,        0 ) }
+
+'' THE SENTINEL TEST IS INSIDE THE LOOP BODY, exactly as fbc's is, which is what
+'' makes 111111 baud resolve to B0 instead of an error.
+private function hOsSerialSpeed( byval speed as uint32 ) as uint32
+	dim as integer n = 0
+	while( tkort_speeds(n).speed <> speed )
+		if( tkort_speeds(n).speed = ENDSPD_ ) then return BADSPEED_
+		n += 1
+	wend
+	return tkort_speeds(n).bits
+end function
+
+'' THE SPEED IS JUST MORE c_cflag BITS -- no cfsetspeed. See the file header.
+private sub hOsSerialApplySpeed( byval t as struct_termios ptr, byval code_ as uint32 )
+	t->c_cflag or= code_
+end sub
+
+private sub hOsSerialDevName _
+	( byval iPort as int32, byval pszDevice as zstring ptr, byval dst as zstring ptr )
+
+	if( iPort = 0 ) then
+		'' A BARE "COM" MEANS /dev/modem; anything else is taken as a literal
+		'' device path.
+		if( c_strcasecmp( pszDevice, @"COM" ) = 0 ) then
+			strcpy( dst, @"/dev/modem" )
+		else
+			strcpy( dst, pszDevice )
+		end if
+	else
+		'' /dev/ttyS0 IS COM1 -- the port number is one-based, the node is not.
+		sprintf( dst, @"/dev/ttyS%d", iPort - 1 )
+	end if
+end sub
+
+#endif

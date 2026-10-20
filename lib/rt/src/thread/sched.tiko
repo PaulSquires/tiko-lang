@@ -197,24 +197,25 @@ private sub tkort_hUnlockOnce( )
 	tkrt_AtomicCasLong( @tkort_hOnceLock, 1, 0 )
 end sub
 
-#else
+#elseif defined( __FB_UNIX__ )
 
-'' ALL ZERO BYTES IS A VALID MUTEX on glibc -- measured. So .bss is the static
-'' initialiser and there is nothing to run.
-type TKORT_PTHREAD_MUTEX2
-	as uint8 raw( 0 to 39 )
-end type
-
-#assert sizeof( TKORT_PTHREAD_MUTEX2 ) = 40
+'' ALL ZERO BYTES IS A VALID MUTEX where the binding says
+'' PTHREAD_MUTEX_INITIALIZER is all zero (glibc), so .bss is the static
+'' initialiser and there is nothing to run. Where it is not (macOS), a
+'' zero-filled mutex does not lock, so such a target must not build until M5
+'' gives this one a real initialiser.
+#if PTHREAD_MUTEX_INITIALIZER_IS_ZERO = 0
+	#error "thread/sched: a zero-filled pthread_mutex_t is not a valid mutex on this libc (M5)"
+#endif
 
 extern "c"   '' NON-FBCALL: libpthread.
 	declare function c_pthread_mutex_lock2 alias "pthread_mutex_lock" _
-		( byval m as TKORT_PTHREAD_MUTEX2 ptr ) as int32
+		( byval m as pthread_mutex_t ptr ) as int32
 	declare function c_pthread_mutex_unlock2 alias "pthread_mutex_unlock" _
-		( byval m as TKORT_PTHREAD_MUTEX2 ptr ) as int32
+		( byval m as pthread_mutex_t ptr ) as int32
 end extern
 
-dim shared as TKORT_PTHREAD_MUTEX2 tkort_hOnceMx
+dim shared as pthread_mutex_t tkort_hOnceMx
 
 private sub tkort_hLockOnce( )
 	c_pthread_mutex_lock2( @tkort_hOnceMx )
@@ -224,6 +225,8 @@ private sub tkort_hUnlockOnce( )
 	c_pthread_mutex_unlock2( @tkort_hOnceMx )
 end sub
 
+#else
+	#error "thread/sched: no once-lock backend for this target"
 #endif
 
 '' ------------------------------------------------------------------ worker

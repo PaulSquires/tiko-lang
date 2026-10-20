@@ -116,8 +116,10 @@ extern "c"   '' NON-FBCALL: libc and the internal temp-descriptor helpers.
 		'' _putenv, not putenv: MSVCRT spells it with the underscore, and the
 		'' unprefixed name is not exported at all.
 		declare function c_putenv alias "_putenv" ( byval s as zstring ptr ) as int32
-	#else
+	#elseif defined( __FB_UNIX__ )
 		declare function c_putenv alias "putenv" ( byval s as zstring ptr ) as int32
+	#else
+		#error "misc/misc: no putenv for this target"
 	#endif
 	declare function tkrt_StrAllocTempNoLock alias "fb_hStrAllocTemp_NoLock" _
 		( byval s as FBSTRING ptr, byval len_ as integer ) as FBSTRING ptr
@@ -232,8 +234,10 @@ function tkort_SetEnviron alias "fb_SetEnviron" ( byval s as FBSTRING ptr ) as i
 					free( w )
 				end if
 			end if
-		#else
+		#elseif defined( __FB_UNIX__ )
 			if( s->data <> nullptr ) then res = c_putenv( s->data )
+		#else
+			#error "misc/misc: no putenv for this target"
 		#endif
 	end if
 

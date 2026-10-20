@@ -96,25 +96,28 @@ end extern
 			( byval buffer as any ptr, byval l as uinteger, byval mask as int32 )
 	end extern
 
-#else
+#elseif defined( __FB_UNIX__ )
 
 	extern "c"   '' NON-FBCALL: libc, and fbc's console bracket.
-		declare function u_fork alias "fork" ( ) as int32
+		declare function u_fork alias "fork" ( ) as pid_t
 		declare function u_execvp alias "execvp" _
 			( byval file_ as zstring ptr, byval argv as zstring ptr ptr ) as int32
 		declare function u_waitpid alias "waitpid" _
-			( byval pid as int32, byval status as int32 ptr, byval options as int32 ) as int32
+			( byval pid as pid_t, byval status as int32 ptr, byval options as int32 ) as pid_t
 		declare sub u__exit alias "_exit" ( byval code as int32 )
 		declare sub tkrt_hExitConsole alias "fb_hExitConsole" ( )
 		declare sub tkrt_hInitConsole alias "fb_hInitConsole" ( )
 	end extern
 
-	'' WIFEXITED / WEXITSTATUS, spelled out. glibc defines them as macros over
-	'' the raw status word: the low 7 bits are the terminating signal, so a
-	'' normal exit has them clear, and the exit code is bits 8..15.
+	'' WIFEXITED / WEXITSTATUS, spelled out. They are macros over the raw status
+	'' word in every libc, with the traditional POSIX encoding: the low 7 bits
+	'' are the terminating signal, so a normal exit has them clear, and the exit
+	'' code is bits 8..15.
 	#define TKORT_WIFEXITED( s )   (((s) and &h7F) = 0)
 	#define TKORT_WEXITSTATUS( s ) (((s) shr 8) and &hFF)
 
+#else
+	#error "sys/spawn: no process backend for this target"
 #endif
 
 #ifdef __FB_WIN32__
@@ -210,7 +213,7 @@ function tkort_ExecEx alias "fb_ExecEx" _
 		if( wargs <> nullptr ) then free( wargs )
 
 		return res
-	#else
+	#elseif defined( __FB_UNIX__ )
 		strncpy( @buffer, program->data, TKORT_EXEC_MAXPATH )
 		buffer[TKORT_EXEC_MAXPATH - 1] = 0
 
@@ -274,7 +277,7 @@ function tkort_ExecEx alias "fb_ExecEx" _
 		STRUNLOCK()
 
 		if( do_fork <> 0 ) then
-			dim as int32 pid = u_fork( )
+			dim as pid_t pid = u_fork( )
 			if( pid <> -1 ) then
 				if( pid = 0 ) then
 					'' THE CHILD. execvp only returns if it FAILED, and there is
@@ -309,6 +312,8 @@ function tkort_ExecEx alias "fb_ExecEx" _
 		if( (args <> nullptr) andalso (arguments <> nullptr) ) then free( arguments )
 
 		return res
+	#else
+		#error "sys/spawn: no process backend for this target"
 	#endif
 
 end function

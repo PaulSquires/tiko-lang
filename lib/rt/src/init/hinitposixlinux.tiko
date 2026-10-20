@@ -1,0 +1,29 @@
+'' hinitposixlinux.tiko -- init/hinitposix's port-I/O permission on Linux: ioperm.
+''
+'' #INCLUDED by init/hinitposix.tiko's POSIX branch, never compiled on its own and not
+'' in build/sources.txt. It provides one private procedure,
+''
+''     hOsPortPermission( ) as int32
+''
+'' which asks the OS for direct access to the legacy PC port range 0..&h3FF and returns
+'' -1 when it was granted and 0 when it was not. fb_hInit stores the answer in
+'' __fb_con.has_perm, which src/sys/ports.tiko checks before every INP and OUT.
+''
+'' The Darwin sibling (hinitposixdarwin.tiko, M5) must provide the same procedure; Darwin
+'' has no ioperm and no user-mode port access, so it returns 0.
+''
+'' ioperm is glibc's <sys/io.h>, x86 Linux only. A non-zero return means it was refused --
+'' the usual case for a non-root process.
+
+#if defined( __FB_LINUX__ )
+
+extern "c"   '' NON-FBCALL: libc.
+	declare function c_ioperm alias "ioperm" _
+		( byval from_ as culong, byval num as culong, byval turn_on as int32 ) as int32
+end extern
+
+private function hOsPortPermission( ) as int32
+	return iif( c_ioperm( 0, &h400, 1 ) <> 0, 0, -1 )
+end function
+
+#endif

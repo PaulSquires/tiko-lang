@@ -1,0 +1,75 @@
+'' conposix.ti -- the POSIX console context's LAYOUT, FBCONSOLE_, and nothing else.
+''
+'' ONE TYPE, TWO READERS. src/init/hinitposix.tiko DEFINES __fb_con as this type; inc/console.ti
+'' takes every TKORT_CON_* byte offset from it with offsetof, for the two dozen members that
+'' read the object through `@__fb_con + offset`. The two used to be separate records kept honest
+'' by hand; now there is one, and a wrong offset is no longer possible to write.
+''
+'' THE TWO EMBEDDED termios ARE THE BINDING'S struct_termios (inc/sysbind.ti), so every field
+'' from old_term_in onward moves with the target's termios -- 60 bytes on glibc, other sizes
+'' elsewhere -- without a number being typed. Everything else is fbc's own struct
+'' (fb_private_console.h, unix), field for field.
+''
+'' ON LINUX THE LAYOUT IS ALSO fbc's ABI: libfbgfx and fbc's own console members read __fb_con
+'' by the C struct, so the asserts below pin it to what a gcc probe under WSL measured against
+'' fbc's headers (sizeof 408). has_perm is fbc's linux/x86 field; it is kept on every POSIX
+'' target so the layout does not branch.
+
+#pragma once
+
+#include once "inc/sysbind.ti"
+
+#ifdef __FB_UNIX__
+
+'' The number of termcap capability slots in seq() -- fbc's SEQ_MAX.
+const SEQ_MAX_ = 17
+
+type FBCONSOLE_
+	as int32     inited
+	as int32     term_type
+	as int32     h_in
+	as any ptr  f_in
+	as struct_termios old_term_out
+	as struct_termios old_term_in
+	as int32     old_in_flags
+	'' C `bool`, one byte each and NOT padded apart.
+	as uint8    saved_old_term_out
+	as uint8    saved_old_term_in
+	as uint8    saved_old_in_flags
+	as uint8    pad0_
+	as uint32    fg_color
+	as uint32    bg_color
+	as int32     cur_x
+	as int32     cur_y
+	as int32     w
+	as int32     h
+	as uint8 ptr char_buffer
+	as uint8 ptr attr_buffer
+	as int32     has_perm
+	as int32     scroll_region_changed
+	as zstring ptr seq( 0 to SEQ_MAX_ - 1 )
+	as any ptr  keyboard_getch
+	as any ptr  keyboard_init
+	as any ptr  keyboard_exit
+	as any ptr  keyboard_handler
+	as any ptr  mouse_init
+	as any ptr  mouse_exit
+	as any ptr  mouse_handler
+	as any ptr  mouse_update
+	as any ptr  gfx_exit
+end type
+
+#if defined( __FB_LINUX__ )
+	'' fbc's C layout on glibc x86-64 -- see the header.
+	#assert sizeof( FBCONSOLE_ ) = 408
+	#assert offsetof( FBCONSOLE_, old_term_in ) = 84
+	#assert offsetof( FBCONSOLE_, saved_old_term_out ) = 148
+	#assert offsetof( FBCONSOLE_, fg_color ) = 152
+	#assert offsetof( FBCONSOLE_, char_buffer ) = 176
+	#assert offsetof( FBCONSOLE_, has_perm ) = 192
+	#assert offsetof( FBCONSOLE_, seq(0) ) = 200
+	#assert offsetof( FBCONSOLE_, keyboard_getch ) = 336
+	#assert offsetof( FBCONSOLE_, gfx_exit ) = 400
+#endif
+
+#endif '' __FB_UNIX__

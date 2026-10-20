@@ -79,16 +79,18 @@ end extern
 		declare function crt_wmkdir alias "_wmkdir" ( byval p as wstring ptr ) as int32
 		declare function crt_wrmdir alias "_wrmdir" ( byval p as wstring ptr ) as int32
 	end extern
-#else
+#elseif defined( __FB_UNIX__ )
 	extern "c"   '' NON-FBCALL: CRT entry points, not runtime ones.
 		declare function crt_chdir alias "chdir" ( byval p as zstring ptr ) as int32
-		declare function crt_mkdir_ alias "mkdir" ( byval p as zstring ptr, byval m as uint32 ) as int32
+		declare function crt_mkdir_ alias "mkdir" ( byval p as zstring ptr, byval m as mode_t ) as int32
 		declare function crt_rmdir alias "rmdir" ( byval p as zstring ptr ) as int32
 	end extern
-	'' S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH -- 0775. NOT 0777: fbc creates
-	'' directories group-writable and world-readable, and the umask narrows it
-	'' further. A literal 0777 here would be a different directory mode.
-	const MKDIR_MODE = &o775
+	'' S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH -- 0775, from the posix binding. NOT
+	'' 0777: fbc creates directories group-writable and world-readable, and the
+	'' umask narrows it further. 0777 here would be a different directory mode.
+	const MKDIR_MODE = S_IRWXU or S_IRWXG or S_IROTH or S_IXOTH
+#else
+	#error "sys/process: no directory backend for this target"
 #endif
 
 #ifdef __FB_WIN32__
@@ -290,8 +292,10 @@ end function
 function tkort_ChDir alias "fb_ChDir" ( byval path as FBSTRING ptr ) as int32
 	#ifdef __FB_WIN32__
 		dim as int32 res = hWideDirCall( path->data, 0 )
-	#else
+	#elseif defined( __FB_UNIX__ )
 		dim as int32 res = crt_chdir( path->data )
+	#else
+		#error "sys/process: no backend for this target"
 	#endif
 	tkrt_DelTemp( path )
 	return res
@@ -300,8 +304,10 @@ end function
 function tkort_MkDir alias "fb_MkDir" ( byval path as FBSTRING ptr ) as int32
 	#ifdef __FB_WIN32__
 		dim as int32 res = hWideDirCall( path->data, 1 )
-	#else
+	#elseif defined( __FB_UNIX__ )
 		dim as int32 res = crt_mkdir_( path->data, MKDIR_MODE )
+	#else
+		#error "sys/process: no backend for this target"
 	#endif
 	tkrt_DelTemp( path )
 	return res
@@ -310,8 +316,10 @@ end function
 function tkort_RmDir alias "fb_RmDir" ( byval path as FBSTRING ptr ) as int32
 	#ifdef __FB_WIN32__
 		dim as int32 res = hWideDirCall( path->data, 2 )
-	#else
+	#elseif defined( __FB_UNIX__ )
 		dim as int32 res = crt_rmdir( path->data )
+	#else
+		#error "sys/process: no backend for this target"
 	#endif
 	tkrt_DelTemp( path )
 	return res

@@ -126,7 +126,7 @@ end extern
 	'' why it is set before the handles are read.
 	dim shared as int32 tkort_gethnd_inited = 0
 
-#else
+#elseif defined( __FB_UNIX__ )
 
 	'' The terminal escape emitter, which is fbc's and lives in unix/io_hterm.o.
 	'' SEQ_BEEP is 6 -- `#define SEQ_BEEP 6  /* "bl" - beep */` in
@@ -139,6 +139,8 @@ end extern
 	'' and a second declaration is error 4. Its shape there is what this file
 	'' calls; it is a FUNCTION, not a SUB, and the result is discarded.
 
+#else
+	#error "sys/misc: no backend for this target"
 #endif
 
 #ifdef __FB_WIN32__
@@ -229,10 +231,12 @@ function tkort_hShell alias "fb_hShell" ( byval program as zstring ptr ) as int3
 		if( w = nullptr ) then return -1
 		dim as int32 errcode = crt_wsystem( w )
 		free( w )
-	#else
+	#elseif defined( __FB_UNIX__ )
 		dim as int32 errcode = crt_system( program )
+	#else
+		#error "sys/misc: no backend for this target"
 	#endif
-	#ifndef __FB_WIN32__
+	#ifdef __FB_UNIX__
 		if( (errcode <> -1) andalso ((errcode and &h7F) = 0) ) then
 			errcode = (errcode shr 8) and &hFF
 			if( errcode = 127 ) then errcode = -1
@@ -252,8 +256,10 @@ extern "rtlib"   '' FBCALL: fb_Beep, fb_SleepQB and fb_InkeyQB are all decorated
 sub tkort_Beep alias "fb_Beep" ( )
 	#ifdef __FB_WIN32__
 		w_Beep( 1000, 250 )
-	#else
+	#elseif defined( __FB_UNIX__ )
 		tkrt_hTermOut( SEQ_BEEP_, 0, 0 )
+	#else
+		#error "sys/misc: no backend for this target"
 	#endif
 end sub
 

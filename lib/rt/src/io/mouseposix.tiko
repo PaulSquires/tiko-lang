@@ -47,7 +47,7 @@
 #include once "inc/descriptors.ti"
 #include once "inc/rterror.ti"
 
-#ifndef __FB_WIN32__
+#ifdef __FB_UNIX__
 
 const INIT_CONSOLE3_ = 1
 const INIT_X11_3_    = 2
