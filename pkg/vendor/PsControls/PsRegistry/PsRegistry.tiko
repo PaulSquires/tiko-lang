@@ -58,8 +58,12 @@ public type PSREG_GlobalFilterProc as function( byval pMsg as MSG ptr ) as boole
 public type PSREG_DismissProc      as sub( byval h as HWND )
 public type PSREG_ThemeProc        as sub( byval h as HWND, byref t as PSTHEME_COLORS )
 public type PSREG_FontProc         as sub( byval h as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
-' Installed by PsApp: hands a newly registered control the fonts of the form it is on.
-public type PSREG_FontHookProc     as sub( byval h as HWND, byval pFonts as PSREG_FontProc )
+' A control's per-monitor DPI step (RFC-0001 P4): every stored pixel metric times newDpi/oldDpi.
+public type PSREG_RescaleProc      as sub( byval h as HWND, byval oldDpi as long, byval newDpi as long )
+' Installed by PsApp: hands a newly registered control the fonts -- and, under per-monitor DPI,
+' the DPI -- of the form it is on.
+public type PSREG_FontHookProc     as sub( byval h as HWND, byval pFonts as PSREG_FontProc, _
+                                           byval pRescale as PSREG_RescaleProc )
 
 public enum PSREG_PRIO
     PSREG_PRIO_OWNER = 0
@@ -73,6 +77,7 @@ type PSREG_ROW
     pDismiss as PSREG_DismissProc
     pTheme   as PSREG_ThemeProc
     pFonts   as PSREG_FontProc
+    pRescale as PSREG_RescaleProc
     bDead    as boolean
 end type
 
@@ -133,6 +138,7 @@ public sub PsRegistry_Add( byval h as HWND, byval prio as long, _
         gREG_RowCount += 1
         gREG_Rows(idx).pTheme = 0
         gREG_Rows(idx).pFonts = 0
+        gREG_Rows(idx).pRescale = 0
     end if
     gREG_Rows(idx).hwnd     = h
     gREG_Rows(idx).prio     = prio
@@ -174,7 +180,8 @@ end function
 ' The current theme, if any, is applied at once, then the font hook runs.
 ' ========================================================================================
 public sub PsRegistry_SetThemeProcs( byval h as HWND, byval pTheme as PSREG_ThemeProc, _
-                                     byval pFonts as PSREG_FontProc = 0 )
+                                     byval pFonts as PSREG_FontProc = 0, _
+                                     byval pRescale as PSREG_RescaleProc = 0 )
     if h = 0 then exit sub
     dim as long idx = REG_FindRow( h )
     if idx = -1 then
@@ -184,8 +191,9 @@ public sub PsRegistry_SetThemeProcs( byval h as HWND, byval pTheme as PSREG_Them
     end if
     gREG_Rows(idx).pTheme = pTheme
     gREG_Rows(idx).pFonts = pFonts
+    gREG_Rows(idx).pRescale = pRescale
     if gREG_bHasTheme andalso (pTheme <> 0) then pTheme( h, gREG_Theme )
-    if (gREG_FontHook <> 0) andalso (pFonts <> 0) then gREG_FontHook( h, pFonts )
+    if gREG_FontHook then gREG_FontHook( h, pFonts, pRescale )
 end sub
 
 ' ========================================================================================
@@ -223,7 +231,25 @@ public sub PsRegistry_SetFontHook( byval p as PSREG_FontHookProc )
     gREG_FontHook = p
 end sub
 
-' Calls every row's font proc whose top-level window is hRoot (P4: after a DPI change).
+' Calls every row's rescale proc whose top-level window is hRoot (after a DPI change).
+public sub PsRegistry_Rescale( byval hRoot as HWND, byval oldDpi as long, byval newDpi as long )
+    if (oldDpi <= 0) orelse (newDpi <= 0) orelse (oldDpi = newDpi) then exit sub
+    gREG_WalkDepth += 1
+    dim as long nRows = gREG_RowCount
+    for i as long = 0 to nRows - 1
+        if gREG_Rows(i).bDead then continue for
+        dim as PSREG_RescaleProc p = gREG_Rows(i).pRescale
+        if p = 0 then continue for
+        dim as HWND h = gREG_Rows(i).hwnd
+        if IsWindow( h ) = 0 then continue for
+        if (GetAncestor( h, GA_ROOTOWNER ) <> hRoot) andalso (GetAncestor( h, GA_ROOT ) <> hRoot) then continue for
+        p( h, oldDpi, newDpi )
+    next
+    gREG_WalkDepth -= 1
+    REG_Compact()
+end sub
+
+' Calls every row's font proc whose top-level window is hRoot (after a DPI change).
 public sub PsRegistry_ApplyFonts( byval hRoot as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
     gREG_WalkDepth += 1
     dim as long nRows = gREG_RowCount

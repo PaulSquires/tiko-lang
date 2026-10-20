@@ -11,9 +11,11 @@
 #module "PsApp"
 
 #import "sys/win"
+#import "sys/win/gui"
 #import "vendor/PsControls/PsRegistry"
 #import "vendor/PsControls/PsTheme"
 
+using gui
 using PsRegistry
 using PsTheme
 
@@ -28,11 +30,21 @@ using PsTheme
 dim shared gTheme_Mode as long          ' PSAPP_THEMEMODE
 
 
-' The registry's font hook: the control's form, if it is on one, hands it its fonts.
-private sub Theme_FontHook( byval h as HWND, byval pFonts as PSREG_FontProc )
+' The registry's hook for a newly registered control: the control's form, if it is on one, hands
+' it its DPI (a control's CWindow starts at the SYSTEM DPI, which under per-monitor DPI need not
+' be the form's) and then its fonts, which are already at the form's DPI.
+private sub Theme_FontHook( byval h as HWND, byval pFonts as PSREG_FontProc, byval pRescale as PSREG_RescaleProc )
     dim as PsForm ptr f = PsForm.FromHwnd( h )
     if f = 0 then exit sub
-    pFonts( h, f->Font( PSFONT_UI ), f->Font( PSFONT_GLYPH ) )
+    if pRescale then
+        dim as CWindow ptr pCtl = CWindowPtr( h )
+        if pCtl then
+            dim as long ctlDpi = clng( pCtl->DPI )
+            dim as long formDpi = clng( f->DPI )
+            if (ctlDpi > 0) andalso (formDpi > 0) andalso (ctlDpi <> formDpi) then pRescale( h, ctlDpi, formDpi )
+        end if
+    end if
+    if pFonts then pFonts( h, f->Font( PSFONT_UI ), f->Font( PSFONT_GLYPH ) )
 end sub
 
 ' Init's part.

@@ -336,6 +336,7 @@ public declare sub      PsScrollPanel_Recalc( byval hScp as HWND )
 public declare sub      PsScrollPanel_SetColors( byval hScp as HWND, byval backclr as COLORREF, byval foreclr as COLORREF )
 public declare sub      PsScrollPanel_SetScrollBarColors( byval hScp as HWND, byval backclr as COLORREF, byval foreclr as COLORREF, byval foreclrhot as COLORREF )
 public declare sub      PsScrollPanel_ApplyTheme( byval hScp as HWND, byref t as PSTHEME_COLORS )
+public declare sub      PsScrollPanel_Rescale( byval hScp as HWND, byval oldDpi as long, byval newDpi as long )
 public declare sub      PsScrollPanel_UnpinColors( byval hScp as HWND )
 public declare sub      PsScrollPanel_SetScrollBarWidth( byval hScp as HWND, byval nWidth as integer )
 public declare sub      PsScrollPanel_SetLineHeight( byval hScp as HWND, byval nHeight as integer )
@@ -1025,7 +1026,7 @@ public function PsScrollPanel_Create( byval hWndParent as HWND, byval CtrlID as 
     PsVScrollBar_SetColors( pScp->hScrollBar, pScp->BackColor, BGR(53,59,69), BGR(90,98,112) )
 
     ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
-    PsRegistry_SetThemeProcs( hScp, @PsScrollPanel_ApplyTheme, 0 )
+    PsRegistry_SetThemeProcs( hScp, @PsScrollPanel_ApplyTheme, 0, @PsScrollPanel_Rescale )
 
     function = hScp
 end function
@@ -1219,6 +1220,27 @@ public sub PsScrollPanel_ApplyTheme( byval hScp as HWND, byref t as PSTHEME_COLO
     PsScrollPanel_SetColors( hScp, t.Window, t.Text )
     PsScrollPanel_SetScrollBarColors( hScp, t.Window, t.Border, t.TextDisabled )
     pScp->bColorsPinned = false
+end sub
+
+' ========================================================================================
+' Per-monitor DPI (RFC-0001 P4). The content height and the scroll position are pixels of the
+' page, so both are scaled (the same content stays at the top of the viewport). ScrollBarWidth
+' and LineHeight are stored UNSCALED and scaled at use, so they stay. The page's CWindow takes
+' the new DPI with the container's. The host's controls on the page are the host's; the owned
+' PsVScrollBar has its own Rescale. Then the full layout pass re-places page and bar.
+' ========================================================================================
+public sub PsScrollPanel_Rescale( byval hScp as HWND, byval oldDpi as long, byval newDpi as long )
+    dim as PSSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer(hScp)
+    if (pScp = 0) orelse (oldDpi <= 0) orelse (newDpi <= 0) orelse (oldDpi = newDpi) then exit sub
+    pScp->nContentHeight = MulDiv( pScp->nContentHeight, newDpi, oldDpi )
+    pScp->nPos           = MulDiv( pScp->nPos,           newDpi, oldDpi )
+    dim as CWindow ptr pWindow = CWindowPtr( hScp )
+    if pWindow then pWindow->DPI = newDpi
+    if pScp->hPanel then
+        dim as CWindow ptr pPanelWin = CWindowPtr( pScp->hPanel )
+        if pPanelWin then pPanelWin->DPI = newDpi
+    end if
+    PsScrollPanel_Recalc( hScp )
 end sub
 
 ' Hands the panel back to the theme, which is applied at once.

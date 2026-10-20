@@ -634,6 +634,7 @@ public declare function PsProgressBar_ThemeColors( byref t as PSTHEME_COLORS ) a
 public declare sub      PsProgressBar_ApplyTheme( byval hProgressBar as HWND, byref t as PSTHEME_COLORS )
 public declare sub      PsProgressBar_UnpinColors( byval hProgressBar as HWND )
 public declare sub      PsProgressBar_ApplyFonts( byval hProgressBar as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+public declare sub      PsProgressBar_Rescale( byval hProgressBar as HWND, byval oldDpi as long, byval newDpi as long )
 ' The state x enabled precedence, resolved. Public because it is a pure decision the host may
 ' need to mirror, and because that makes the precedence table assertable.
 public declare sub      PsProgressBar_ResolveBarColors( byval hProgressBar as HWND, byref clr1 as COLORREF, byref clr2 as COLORREF )
@@ -1389,7 +1390,7 @@ public function PsProgressBar_Create( byval hWndParent as HWND, _
     PsTipHost_Ensure( @pBar->tip, hCtrl, @PsProgressBar_TipTextCallback )
 
     ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
-    PsRegistry_SetThemeProcs( hCtrl, @PsProgressBar_ApplyTheme, @PsProgressBar_ApplyFonts )
+    PsRegistry_SetThemeProcs( hCtrl, @PsProgressBar_ApplyTheme, @PsProgressBar_ApplyFonts, @PsProgressBar_Rescale )
 
     function = hCtrl
 
@@ -1895,6 +1896,28 @@ end sub
 ' The form's fonts (PsApp), handed over when the bar is created on a form. No glyph font.
 public sub PsProgressBar_ApplyFonts( byval hProgressBar as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
     if hTextFont then PsProgressBar_SetFont( hProgressBar, hTextFont )
+end sub
+
+' ========================================================================================
+' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric -- the scaled Create defaults and
+' whatever the host set since -- times newDpi/oldDpi, the marquee step included (it is a
+' pixel distance per tick). nBorderThick and nCurvature stay as they are: both are documented
+' as never DPI-scaled (the curvature is a sentinel or a host-chosen corner size). The bar's
+' own CWindow takes the new DPI. The fonts are not ours: PsApp hands new ones over after this.
+' ========================================================================================
+public sub PsProgressBar_Rescale( byval hProgressBar as HWND, byval oldDpi as long, byval newDpi as long )
+    dim as PSPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer(hProgressBar)
+    if (pBar = 0) orelse (oldDpi <= 0) orelse (newDpi <= 0) orelse (oldDpi = newDpi) then exit sub
+    pBar->nThickness   = MulDiv( pBar->nThickness,   newDpi, oldDpi )
+    pBar->nBarInset    = MulDiv( pBar->nBarInset,    newDpi, oldDpi )
+    pBar->nBlockLength = MulDiv( pBar->nBlockLength, newDpi, oldDpi )
+    pBar->nBlockGap    = MulDiv( pBar->nBlockGap,    newDpi, oldDpi )
+    pBar->nMarqueeStep = MulDiv( pBar->nMarqueeStep, newDpi, oldDpi )
+    if pBar->nBlockLength < 1 then pBar->nBlockLength = 1
+    if pBar->nMarqueeStep < 1 then pBar->nMarqueeStep = 1
+    dim as CWindow ptr pWindow = CWindowPtr( hProgressBar )
+    if pWindow then pWindow->DPI = newDpi
+    pBar->Refresh()
 end sub
 
 sub PsProgressBar_ResolveBarColors( byval hProgressBar as HWND, byref clr1 as COLORREF, byref clr2 as COLORREF )

@@ -1098,6 +1098,7 @@ public declare function PsListTree_SetBackColor( byval hListControl as HWND, byv
 public declare sub      PsListTree_ApplyTheme( byval hListControl as HWND, byref t as PSTHEME_COLORS )
 public declare sub      PsListTree_UnpinColors( byval hListControl as HWND )
 public declare sub      PsListTree_ApplyFonts( byval hListControl as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+public declare sub      PsListTree_Rescale( byval hListControl as HWND, byval oldDpi as long, byval newDpi as long )
 public declare function PsListTree_GetRowHeight( byval hListControl as HWND ) as integer
 public declare function PsListTree_SetRowHeight( byval hListControl as HWND, byval height as integer ) as integer
 public declare function PsListTree_GetFont( byval hListControl as HWND ) as HFONT
@@ -4464,6 +4465,30 @@ public sub PsListTree_ApplyFonts( byval hListControl as HWND, byval hTextFont as
     if hGlyphFont then PsListTree_SetTwistyFont( hListControl, hGlyphFont )
 end sub
 
+' ========================================================================================
+' Per-monitor DPI (RFC-0001 P4). RowHeight, IndentWidth, TwistyWidth, HeaderHeight and
+' ScrollBarWidth are stored UNSCALED and scaled at use, so they stay; their pixel caches
+' (row height, indent, twisty band) are dropped and re-derived at the new DPI. The editor's
+' text inset is a host pixel value, so it is scaled. The border is a hairline (never scaled).
+' The scroll position is a ROW index (topRow / nTopVis), so the same rows stay in view with
+' nothing to convert. The header, scrollbar and editor have their own Rescale; the strips
+' they sit in are re-laid out here. The fonts are not ours: PsApp hands new ones over after.
+' ========================================================================================
+public sub PsListTree_Rescale( byval hListControl as HWND, byval oldDpi as long, byval newDpi as long )
+    dim as PSLISTTREE_STATE ptr pList = GetListTreePointer(hListControl)
+    if (pList = 0) orelse (oldDpi <= 0) orelse (newDpi <= 0) orelse (oldDpi = newDpi) then exit sub
+    if pList->nEditTextInset > 0 then pList->nEditTextInset = MulDiv( pList->nEditTextInset, newDpi, oldDpi )
+    pList->nItemHeightPx = 0
+    pList->nIndentPx     = 0
+    pList->nTwistyPx     = 0
+    dim as CWindow ptr pWindow = CWindowPtr( hListControl )
+    if pWindow then pWindow->DPI = newDpi
+    PsListTree_ItemHeightPx( pList )
+    PsListTree_PositionWindows( hListControl )
+    PsListTree_SyncScrollBar( pList )
+    PsListTree_RepaintSurface( pList )
+end sub
+
 public sub PsListTree_SetEditSelectAll( byval hListControl as HWND, byval enable as boolean )
     dim as PSLISTTREE_STATE ptr pList = GetListTreePointer(hListControl)
     if pList = null then return
@@ -5267,7 +5292,7 @@ public function PsListTree_Create( byval hWndParent as HWND, byval CtrlID as int
     PsColumnHeader_SetWidthChangedCallback( pList->hHeader, @PsListTree_OnHeaderWidthChanged )
 
     ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
-    PsRegistry_SetThemeProcs( hForm, @PsListTree_ApplyTheme, @PsListTree_ApplyFonts )
+    PsRegistry_SetThemeProcs( hForm, @PsListTree_ApplyTheme, @PsListTree_ApplyFonts, @PsListTree_Rescale )
 
     function = hForm
 

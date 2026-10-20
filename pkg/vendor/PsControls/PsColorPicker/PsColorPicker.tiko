@@ -1269,6 +1269,7 @@ public declare function PsColorPicker_ThemeColors( byref t as PSTHEME_COLORS ) a
 public declare sub      PsColorPicker_ApplyTheme( byval hCtrl as HWND, byref t as PSTHEME_COLORS )
 public declare sub      PsColorPicker_UnpinColors( byval hCtrl as HWND )
 public declare sub      PsColorPicker_ApplyFonts( byval hCtrl as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+public declare sub      PsColorPicker_Rescale( byval hCtrl as HWND, byval oldDpi as long, byval newDpi as long )
 public declare sub      PsColorPicker_SetFont( byval hCtrl as HWND, byval hFont as HFONT )
 public declare function PsColorPicker_GetFont( byval hCtrl as HWND ) as HFONT
 ' The OK button's caption, the two preview labels, and the four field labels. Settable because
@@ -3402,7 +3403,7 @@ public function PsColorPicker_Create( byval hParent as HWND, byval id as long = 
     PsColorPicker_SyncBodySel( pClr )
 
     ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
-    PsRegistry_SetThemeProcs( hCtrl, @PsColorPicker_ApplyTheme, @PsColorPicker_ApplyFonts )
+    PsRegistry_SetThemeProcs( hCtrl, @PsColorPicker_ApplyTheme, @PsColorPicker_ApplyFonts, @PsColorPicker_Rescale )
 
     function = hCtrl
 
@@ -3820,6 +3821,42 @@ end sub
 ' The form's fonts (PsApp), handed over when the picker is created on a form. No glyph font.
 public sub PsColorPicker_ApplyFonts( byval hCtrl as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
     if hTextFont then PsColorPicker_SetFont( hCtrl, hTextFont )
+end sub
+
+' ========================================================================================
+' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric -- the scaled Create defaults and
+' whatever the host set since -- times newDpi/oldDpi. nBorderThick and nFocusThick stay as
+' they are (PaintRoundOutline scales those pens through the CWindow, which is why the
+' picker's own CWindow takes the new DPI here); the matrix and list row COUNTS are not pixels.
+' The list scrollbar has its own registry row and rescales itself; the next paint re-seats it
+' on the new rcScroll. The popup's window size is taken from GetIdealSize when it is next
+' placed. The fonts are not ours: PsApp hands new ones over after this.
+' ========================================================================================
+public sub PsColorPicker_Rescale( byval hCtrl as HWND, byval oldDpi as long, byval newDpi as long )
+    dim as PSCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if (pClr = 0) orelse (oldDpi <= 0) orelse (newDpi <= 0) orelse (oldDpi = newDpi) then exit sub
+    pClr->nPad        = MulDiv( pClr->nPad,        newDpi, oldDpi )
+    pClr->nGap        = MulDiv( pClr->nGap,        newDpi, oldDpi )
+    pClr->nTabHeight  = MulDiv( pClr->nTabHeight,  newDpi, oldDpi )
+    pClr->nTabPad     = MulDiv( pClr->nTabPad,     newDpi, oldDpi )
+    pClr->nCellW      = MulDiv( pClr->nCellW,      newDpi, oldDpi )
+    pClr->nCellH      = MulDiv( pClr->nCellH,      newDpi, oldDpi )
+    pClr->nSwatchW    = MulDiv( pClr->nSwatchW,    newDpi, oldDpi )
+    pClr->nScrollBarW = MulDiv( pClr->nScrollBarW, newDpi, oldDpi )
+    pClr->nPreviewW   = MulDiv( pClr->nPreviewW,   newDpi, oldDpi )
+    pClr->nPreviewH   = MulDiv( pClr->nPreviewH,   newDpi, oldDpi )
+    pClr->nFieldW     = MulDiv( pClr->nFieldW,     newDpi, oldDpi )
+    pClr->nFieldH     = MulDiv( pClr->nFieldH,     newDpi, oldDpi )
+    pClr->nOKW        = MulDiv( pClr->nOKW,        newDpi, oldDpi )
+    pClr->nOKH        = MulDiv( pClr->nOKH,        newDpi, oldDpi )
+    pClr->nLabelW     = MulDiv( pClr->nLabelW,     newDpi, oldDpi )
+    pClr->nRowH       = MulDiv( pClr->nRowH,       newDpi, oldDpi )
+    pClr->nCurvature  = MulDiv( pClr->nCurvature,  newDpi, oldDpi )
+    if pClr->nCellW < 1 then pClr->nCellW = 1
+    if pClr->nCellH < 1 then pClr->nCellH = 1
+    dim as CWindow ptr pWindow = CWindowPtr( hCtrl )
+    if pWindow then pWindow->DPI = newDpi
+    pClr->Refresh()
 end sub
 
 sub PsColorPicker_GetColors( byval hCtrl as HWND, byval pColors as PSCOLORPICKER_COLORS ptr )

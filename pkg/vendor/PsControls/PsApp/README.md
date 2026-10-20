@@ -95,7 +95,7 @@ end sub
 |---|---|---|
 | `ComMode` | `COINIT_APARTMENTTHREADED` | `-1` means no COM |
 | `GlyphFontFile` | `""` | A font file to load privately when "Segoe Fluent Icons" is not installed |
-| `DpiMode` | `PSAPP_DPI_SYSTEM` | `PSAPP_DPI_PERMONITORV2`, or `PSAPP_DPI_MANIFEST` to keep what the manifest says |
+| `DpiMode` | `PSAPP_DPI_PERMONITORV2` | `PSAPP_DPI_SYSTEM`, or `PSAPP_DPI_MANIFEST` to keep what the manifest says. A manifest that already declares an awareness wins over either. |
 | `ThemeMode` | `PSAPP_THEME_SYSTEM` | `PSAPP_THEME_LIGHT`, `PSAPP_THEME_DARK`, or `PSAPP_THEME_NONE` to leave the controls' built-in colours |
 | `FontUI`, `FontUISize` | `"Segoe UI"`, `10` | The face and point size of the `PSFONT_UI*` roles |
 | `FontMono` | `"Cascadia Mono"` | `PSFONT_MONO`; Consolas when it is not installed |
@@ -137,7 +137,7 @@ Every callback receives the form first. A null proc clears a callback.
 | `OnActivateApp( p )` | `sub( f, bActive as boolean )` | |
 | `OnMessage( uMsg, p )` | `function( f, uMsg, wParam, lParam, byref result as LRESULT ) as boolean` | Any message. Setting the same message again replaces its entry. TRUE returns `result`. |
 | `OnThemeChanged( p )` | `sub( f )` | After a theme switch, so a form that paints itself can pick up the new roles from `app.Theme( )` |
-| `OnDpiChanged( p )` | | Accepted now; it starts firing in a later phase of RFC-0001. |
+| `OnDpiChanged( p )` | `sub( f, oldDpi, newDpi )` | After the form moved to a monitor with another DPI (see below) |
 
 A message goes, in order:
 1. to the built-ins that always run (see the next table);
@@ -183,6 +183,26 @@ Messages sent inside `CreateWindowEx` (`WM_NCCREATE`, `WM_CREATE`, ...) arrive b
 | `PSFONT_UI_LARGE` | Two points larger |
 | `PSFONT_GLYPH`, `PSFONT_GLYPH_LARGE` | The glyph face, at the size and two points larger |
 | `PSFONT_MONO` | The monospace face |
+
+### Per-monitor DPI
+
+Under `PSAPP_DPI_PERMONITORV2`, which is the default and is also declared in the examples'
+manifests, each form follows the DPI of the monitor it is on.
+
+When a form moves to a monitor with another DPI (`WM_DPICHANGED`):
+1. The form takes the new DPI, so `ScaleX`/`ScaleY` agree with it.
+2. Its role fonts are re-created at the new DPI.
+3. Every control on the form scales its pixel metrics by new/old (`Ps<X>_Rescale`).
+4. Every control is given the form's new `PSFONT_UI` and `PSFONT_GLYPH`.
+5. The window takes the rect Windows suggests, which runs `OnSize`.
+6. `OnDpiChanged` fires.
+
+A control created on a form whose DPI is not the system DPI is rescaled to the form's DPI as
+it is created.
+
+**Your own fonts.** Step 4 replaces any font you gave a control yourself. If you use fonts of
+your own, re-create them at the new DPI and set them again in `OnDpiChanged`. If you keep role
+fonts in variables, read `f->Font( role )` again there: the old handles are deleted.
 
 ### Things to know
 

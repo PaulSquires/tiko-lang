@@ -75,6 +75,36 @@ private sub TT_AllFollow( byval f as PsForm ptr, byref t as PSTHEME_COLORS, byva
     TT_Check( PsTextBox_GetBackColor( f->Item( IDC_TEXT ) ) = t.Surface, "PsTextBox follows the " & tag & " theme" )
 end sub
 
+dim shared gTT_DpiOld as long
+dim shared gTT_DpiNew as long
+private sub TT_OnDpi( byval f as PsForm ptr, byval oldDpi as long, byval newDpi as long )
+    gTT_DpiOld = oldDpi
+    gTT_DpiNew = newDpi
+end sub
+
+' The gallery's controls (the option buttons, button, check box, toggle, combo, text box, number,
+' date picker, progress bar) and the menubar.
+private function TT_AllAtDpi( byval f as PsForm ptr, byval dpi as long ) as long
+    dim as long nWrong = 0
+    for id as long = IDC_MENUBAR to IDC_PROGRESS
+        dim as CWindow ptr p = CWindowPtr( f->Item( id ) )
+        if (p = 0) orelse (clng( p->DPI ) <> dpi) then nWrong += 1
+    next
+    return nWrong
+end function
+
+' Sends the WM_DPICHANGED Windows would, with the window's rect scaled about its top-left corner.
+private sub TT_SendDpi( byval f as PsForm ptr, byval newDpi as long )
+    dim as HWND h = f->hWindow
+    dim as long oldDpi = clng( f->DPI )
+    dim as RECT rc
+    ..GetWindowRect( h, @rc )
+    dim as RECT rcNew
+    SetRect( @rcNew, rc.left, rc.top, rc.left + MulDiv( rc.right - rc.left, newDpi, oldDpi ), _
+             rc.top + MulDiv( rc.bottom - rc.top, newDpi, oldDpi ) )
+    SendMessageW( h, &h02E0, MAKEWPARAM( newDpi, newDpi ), cast( LPARAM, @rcNew ) )
+end sub
+
 private function TT_TitleBarDark( byval h as HWND ) as boolean
     dim as BOOL v = FALSE
     DwmGetWindowAttribute( h, 20, @v, sizeof( v ) )
@@ -141,6 +171,36 @@ function ThemeSelfTest_Run( byval f as PsForm ptr ) as long
     TT_DARKINFO( PsNumericUpDown, PSNUMERICUPDOWN_COLORS )
     TT_DARKINFO( PsDatePicker, PSDATEPICKER_COLORS )
     TT_DARKINFO( PsProgressBar, PSPROGRESSBAR_COLORS )
+
+    ' ---- per-monitor DPI (P4): a simulated monitor change, out and back -------------------
+    f->OnDpiChanged( @TT_OnDpi )
+    dim as long dpi0 = clng( f->DPI )
+    dim as long dpi1 = iif( dpi0 = 96, 144, 96 )
+    dim as long w0, h0, w1, h1, w2, h2
+    PsButton_GetIdealSize( f->Item( IDC_BUTTON ), w0, h0 )
+    dim as HFONT hUI0 = f->Font( PSFONT_UI )
+    TT_Check( TT_AllAtDpi( f, dpi0 ) = 0, "every control starts at the form's DPI", "dpi=" & str( dpi0 ) )
+
+    TT_SendDpi( f, dpi1 )
+    dim as RECT rcWant, rcGot
+    ..GetWindowRect( hForm, @rcGot )
+    TT_Check( clng( f->DPI ) = dpi1, "the form takes the new DPI", str( dpi0 ) & " -> " & str( dpi1 ) )
+    TT_Check( (gTT_DpiOld = dpi0) andalso (gTT_DpiNew = dpi1), "OnDpiChanged reports old and new" )
+    TT_Check( TT_AllAtDpi( f, dpi1 ) = 0, "every control moved to the new DPI", _
+              "wrong=" & str( TT_AllAtDpi( f, dpi1 ) ) )
+    TT_Check( f->Font( PSFONT_UI ) <> hUI0, "the UI font was re-created" )
+    TT_Check( PsTextBox_GetFont( f->Item( IDC_TEXT ) ) = f->Font( PSFONT_UI ), "the text box holds the new font" )
+    TT_Check( PsButton_GetFont( f->Item( IDC_BUTTON ) ) = f->Font( PSFONT_UI ), "the button holds the new font" )
+    PsButton_GetIdealSize( f->Item( IDC_BUTTON ), w1, h1 )
+    dim as double rw = w1 / w0, rexp = dpi1 / dpi0
+    TT_Check( abs( rw - rexp ) <= 0.15 * rexp, "the button's ideal width follows the DPI", _
+              str( w0 ) & " -> " & str( w1 ) & " (x" & left( str( rw ), 5 ) & ", DPI x" & left( str( rexp ), 5 ) & ")" )
+
+    TT_SendDpi( f, dpi0 )
+    PsButton_GetIdealSize( f->Item( IDC_BUTTON ), w2, h2 )
+    TT_Check( (abs( w2 - w0 ) <= 2) andalso (abs( h2 - h0 ) <= 2), "out and back restores the ideal size within 2 px", _
+              str( w0 ) & "x" & str( h0 ) & " -> " & str( w2 ) & "x" & str( h2 ) )
+    TT_Check( TT_AllAtDpi( f, dpi0 ) = 0, "every control is back at the original DPI" )
 
     ' ---- tear-down ----------------------------------------------------------------------
     PostMessageW( hForm, WM_CLOSE, 0, 0 )

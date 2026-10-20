@@ -98,8 +98,9 @@ public type PSFORM_T extends CWindow
     declare sub      FocusFirst( )
     declare static function FromHwnd( byval h as HWND ) as PsForm ptr
 
-    ' The window procedure's entry point, and the theme switch's call. Not for app code.
+    ' The window procedure's entry point, the theme switch's call and the DPI step. Not for app code.
     declare sub      FireThemeChanged( )
+    declare sub      ChangeDpi( byval oldDpi as long, byval newDpi as long )
     declare function Dispatch( byval hwnd as HWND, byval uMsg as UINT, byval wParam as WPARAM, _
                                byval lParam as LPARAM ) as LRESULT
 
@@ -122,8 +123,13 @@ private:
     m_msgCount      as long
     m_fonts( 0 to 6 ) as HFONT      ' one per PSFONT_ROLE
     m_pModal        as PSF_MODALSTATE ptr
+    m_retired( 0 to 63 ) as HFONT   ' old role fonts DeleteObject refused (still selected); retried at destruction
+    m_retiredCount  as long
     m_bShown        as boolean
 end type
+
+' WM_DPICHANGED (winuser.h 0x02E0): inc/win/winuser.bi does not declare it.
+const PSF_WM_DPICHANGED = &h02E0
 
 ' The property every form sets on its own HWND; FromHwnd and the pump read it.
 const PSF_PROP = wstr( "PsApp.Form" )
@@ -140,6 +146,9 @@ destructor PSFORM_T( )
     for i as long = 0 to ubound( m_fonts )
         if m_fonts(i) then DeleteObject( m_fonts(i) )
         m_fonts(i) = 0
+    next
+    for i as long = 0 to m_retiredCount - 1
+        DeleteObject( m_retired(i) )
     next
 end destructor
 
@@ -279,6 +288,35 @@ sub PSFORM_T.Close( )
     if this.hWindow then SendMessageW( this.hWindow, WM_CLOSE, 0, 0 )
 end sub
 
+' The DPI step: the form's own scale, its role fonts, every control's metrics and fonts. The old
+' fonts are deleted only after every control holds the new ones.
+sub PSFORM_T.ChangeDpi( byval oldDpi as long, byval newDpi as long )
+    this.DPI = newDpi
+    dim as HFONT hOld( 0 to 6 )
+    for i as long = 0 to ubound( m_fonts )
+        hOld(i) = m_fonts(i)
+        m_fonts(i) = 0
+    next
+    for i as long = 0 to ubound( m_fonts )
+        if hOld(i) then this.Font( i )         ' re-created at the new DPI
+    next
+    PsRegistry_Rescale( this.hWindow, oldDpi, newDpi )
+    PsRegistry_ApplyFonts( this.hWindow, this.Font( PSFONT_UI ), this.Font( PSFONT_GLYPH ) )
+    ' Repaint everything with the new fonts BEFORE deleting the old ones: a control can still
+    ' have an old font selected into a DC it keeps, and DeleteObject refuses a selected font.
+    RedrawWindow( this.hWindow, null, null, RDW_INVALIDATE or RDW_ERASE or RDW_ALLCHILDREN or RDW_UPDATENOW )
+    for i as long = 0 to 6
+        if hOld(i) then
+            ' A font still selected into a DC is freed by GDI once it is deselected; a refusal
+            ' (some GDI versions) is kept and retried when the form goes.
+            if (DeleteObject( hOld(i) ) = 0) andalso (m_retiredCount <= ubound( m_retired )) then
+                m_retired( m_retiredCount ) = hOld(i)
+                m_retiredCount += 1
+            end if
+        end if
+    next
+end sub
+
 sub PSFORM_T.FireThemeChanged( )
     if m_onTheme then m_onTheme( @this )
 end sub
@@ -380,6 +418,19 @@ function PSFORM_T.Dispatch( byval hwnd as HWND, byval uMsg as UINT, byval wParam
     select case uMsg
     case WM_ACTIVATEAPP
         if wParam = 0 then PsRegistry_Dismiss( hwnd )
+    case PSF_WM_DPICHANGED
+        ' Per-monitor DPI: the form, its fonts and every control on it move to the new DPI, then
+        ' the window takes the rect Windows suggests (its WM_SIZE runs OnSize), then OnDpiChanged.
+        dim as long newDpi = LOWORD( wParam )
+        dim as long oldDpi = clng( this.DPI )
+        if (newDpi > 0) andalso (newDpi <> oldDpi) then this.ChangeDpi( oldDpi, newDpi )
+        dim as RECT ptr prc = cast( RECT ptr, lParam )
+        if prc then
+            SetWindowPos( hwnd, null, prc->left, prc->top, prc->right - prc->left, prc->bottom - prc->top, _
+                          SWP_NOZORDER or SWP_NOACTIVATE )
+        end if
+        if m_onDpiChanged then m_onDpiChanged( @this, oldDpi, newDpi )
+        return 0
     case WM_SETTINGCHANGE
         if lParam then
             if *cast( wstring ptr, lParam ) = "ImmersiveColorSet" then App_ThemeSystemChanged()
@@ -507,6 +558,19 @@ function PsApplication.NewForm( byval title as ustring, byval cx as long, byval 
     SetPropW( h, PSF_PROP, cast( HANDLE, f ) )
     App_AddForm( h )
     App_ThemeForm( h )
+    ' Per-monitor DPI: CWindow created the form at the SYSTEM DPI; if its monitor has another,
+    ' the form takes that one, and its size follows (nothing is on it yet, so nothing else moves).
+    if App_DpiMode() = PSAPP_DPI_PERMONITORV2 then
+        dim as long dpi = GetDpiForWindow( h )
+        dim as long sysDpi = clng( f->DPI )
+        if (dpi > 0) andalso (sysDpi > 0) andalso (dpi <> sysDpi) then
+            f->DPI = dpi
+            dim as RECT rc
+            ..GetWindowRect( h, @rc )
+            SetWindowPos( h, null, 0, 0, MulDiv( rc.right - rc.left, dpi, sysDpi ), _
+                          MulDiv( rc.bottom - rc.top, dpi, sysDpi ), SWP_NOZORDER or SWP_NOMOVE or SWP_NOACTIVATE )
+        end if
+    end if
     f->Center( h, hParent )
     return f
 end function

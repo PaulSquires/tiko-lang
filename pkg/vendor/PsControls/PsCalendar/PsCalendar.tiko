@@ -555,6 +555,7 @@ public declare function PsCalendar_ThemeColors( byref t as PSTHEME_COLORS ) as P
 public declare sub      PsCalendar_ApplyTheme( byval hCtrl as HWND, byref t as PSTHEME_COLORS )
 public declare sub      PsCalendar_UnpinColors( byval hCtrl as HWND )
 public declare sub      PsCalendar_ApplyFonts( byval hCtrl as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+public declare sub      PsCalendar_Rescale( byval hCtrl as HWND, byval oldDpi as long, byval newDpi as long )
 
 ' --- callbacks ---
 public declare sub      PsCalendar_SetSelChangeCallback( byval hCtrl as HWND, byval usersub as CAL_SelChangeCallbackSub )
@@ -2385,7 +2386,7 @@ public function PsCalendar_Create( byval hWndParent as HWND, byval CtrlID as lon
     pWindow->UserData(0) = cast(LONG_PTR, pCal)
 
     ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
-    PsRegistry_SetThemeProcs( hCtrl, @PsCalendar_ApplyTheme, @PsCalendar_ApplyFonts )
+    PsRegistry_SetThemeProcs( hCtrl, @PsCalendar_ApplyTheme, @PsCalendar_ApplyFonts, @PsCalendar_Rescale )
 
     return hCtrl
 end function
@@ -3011,6 +3012,33 @@ end sub
 ' font: the chevrons are drawn.
 public sub PsCalendar_ApplyFonts( byval hCtrl as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
     if hTextFont then PsCalendar_SetFont( hCtrl, hTextFont )
+end sub
+
+' ========================================================================================
+' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric -- the scaled Create defaults and
+' whatever the host set since -- times newDpi/oldDpi. The three THICKNESS values stay as they
+' are: PaintLine and PaintRoundOutline scale those pens through the CWindow, which is why the
+' control's own CWindow takes the new DPI here. The fonts are not ours: PsApp hands new ones
+' over after this.
+' ========================================================================================
+public sub PsCalendar_Rescale( byval hCtrl as HWND, byval oldDpi as long, byval newDpi as long )
+    dim as PSCALENDAR_STATE ptr pCal = GetCalendarPointer(hCtrl)
+    if (pCal = 0) orelse (oldDpi <= 0) orelse (newDpi <= 0) orelse (oldDpi = newDpi) then exit sub
+    pCal->nPad      = MulDiv( pCal->nPad,      newDpi, oldDpi )
+    pCal->nNavBandH = MulDiv( pCal->nNavBandH, newDpi, oldDpi )
+    pCal->nNavGap   = MulDiv( pCal->nNavGap,   newDpi, oldDpi )
+    pCal->nChevW    = MulDiv( pCal->nChevW,    newDpi, oldDpi )
+    pCal->nGutterX  = MulDiv( pCal->nGutterX,  newDpi, oldDpi )
+    pCal->nGutterY  = MulDiv( pCal->nGutterY,  newDpi, oldDpi )
+    pCal->nCaptionH = MulDiv( pCal->nCaptionH, newDpi, oldDpi )
+    pCal->nWeekdayH = MulDiv( pCal->nWeekdayH, newDpi, oldDpi )
+    pCal->nCellMinW = MulDiv( pCal->nCellMinW, newDpi, oldDpi )
+    pCal->nCellMinH = MulDiv( pCal->nCellMinH, newDpi, oldDpi )
+    if pCal->nCellMinW < 1 then pCal->nCellMinW = 1
+    if pCal->nCellMinH < 1 then pCal->nCellMinH = 1
+    dim as CWindow ptr pWindow = CWindowPtr( hCtrl )
+    if pWindow then pWindow->DPI = newDpi
+    CAL_Relayout( pCal )
 end sub
 
 ' --- callbacks ----------------------------------------------------------------------------

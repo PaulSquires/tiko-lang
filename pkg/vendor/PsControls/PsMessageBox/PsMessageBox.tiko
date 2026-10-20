@@ -798,6 +798,7 @@ public declare function PsMessageBox_ThemeColors( byref t as PSTHEME_COLORS ) as
 public declare sub      PsMessageBox_ApplyTheme( byval hMsgBox as HWND, byref t as PSTHEME_COLORS )
 public declare sub      PsMessageBox_UnpinColors( byval hMsgBox as HWND )
 public declare sub      PsMessageBox_ApplyFonts( byval hMsgBox as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+public declare sub      PsMessageBox_Rescale( byval hMsgBox as HWND, byval oldDpi as long, byval newDpi as long )
 public declare function PsMessageBox_GetFont( byval hMsgBox as HWND ) as HFONT
 public declare sub      PsMessageBox_SetFont( byval hMsgBox as HWND, byval hTextFont as HFONT )
 public declare function PsMessageBox_GetCaptionFont( byval hMsgBox as HWND ) as HFONT
@@ -1473,7 +1474,7 @@ public function PsMessageBox_Create( byval hWndParent as HWND ) as HWND
     pWindow->UserData(0) = cast(LONG_PTR, pBox)
 
     ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
-    PsRegistry_SetThemeProcs( hCtrl, @PsMessageBox_ApplyTheme, @PsMessageBox_ApplyFonts )
+    PsRegistry_SetThemeProcs( hCtrl, @PsMessageBox_ApplyTheme, @PsMessageBox_ApplyFonts, @PsMessageBox_Rescale )
 
     function = hCtrl
 
@@ -1939,6 +1940,36 @@ end sub
 public sub PsMessageBox_ApplyFonts( byval hMsgBox as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
     if hTextFont then PsMessageBox_SetFont( hMsgBox, hTextFont )
     if hGlyphFont then PsMessageBox_SetGlyphFont( hMsgBox, hGlyphFont )
+end sub
+
+' ========================================================================================
+' Per-monitor DPI (RFC-0001 P4). Every layout input -- the scaled Create defaults and whatever
+' the host set since -- times newDpi/oldDpi; the border and divider THICKNESS values stay as
+' they are (they were never scaled). The footer buttons are PsButtons with their own Rescale.
+' The layout stays lazy (Refresh), so the measuring pass runs after the buttons and the new
+' fonts are in; DoModal sizes the window from it. The fonts are not ours: PsApp hands new ones
+' over after this.
+' ========================================================================================
+public sub PsMessageBox_Rescale( byval hMsgBox as HWND, byval oldDpi as long, byval newDpi as long )
+    dim as PSMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer(hMsgBox)
+    if (pBox = 0) orelse (oldDpi <= 0) orelse (newDpi <= 0) orelse (oldDpi = newDpi) then exit sub
+    pBox->nCaptionHeight  = MulDiv( pBox->nCaptionHeight,  newDpi, oldDpi )
+    pBox->nCaptionPadX    = MulDiv( pBox->nCaptionPadX,    newDpi, oldDpi )
+    pBox->nCloseWidth     = MulDiv( pBox->nCloseWidth,     newDpi, oldDpi )
+    pBox->nBodyPadX       = MulDiv( pBox->nBodyPadX,       newDpi, oldDpi )
+    pBox->nBodyPadY       = MulDiv( pBox->nBodyPadY,       newDpi, oldDpi )
+    pBox->nFooterPadX     = MulDiv( pBox->nFooterPadX,     newDpi, oldDpi )
+    pBox->nFooterPadY     = MulDiv( pBox->nFooterPadY,     newDpi, oldDpi )
+    pBox->nIconWidth      = MulDiv( pBox->nIconWidth,      newDpi, oldDpi )
+    pBox->nIconHeight     = MulDiv( pBox->nIconHeight,     newDpi, oldDpi )
+    pBox->nIconGap        = MulDiv( pBox->nIconGap,        newDpi, oldDpi )
+    pBox->nButtonGap      = MulDiv( pBox->nButtonGap,      newDpi, oldDpi )
+    pBox->nButtonMinWidth = MulDiv( pBox->nButtonMinWidth, newDpi, oldDpi )
+    pBox->nMaxWidth       = MulDiv( pBox->nMaxWidth,       newDpi, oldDpi )
+    pBox->nMinWidth       = MulDiv( pBox->nMinWidth,       newDpi, oldDpi )
+    dim as CWindow ptr pWindow = CWindowPtr( hMsgBox )
+    if pWindow then pWindow->DPI = newDpi
+    pBox->Refresh()
 end sub
 
 function PsMessageBox_GetFont( byval hMsgBox as HWND ) as HFONT

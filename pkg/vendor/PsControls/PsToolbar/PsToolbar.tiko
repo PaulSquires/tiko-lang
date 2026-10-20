@@ -1467,6 +1467,7 @@ public declare function PsToolbar_ThemeColors( byref t as PSTHEME_COLORS ) as PS
 public declare sub      PsToolbar_ApplyTheme( byval hToolbar as HWND, byref t as PSTHEME_COLORS )
 public declare sub      PsToolbar_UnpinColors( byval hToolbar as HWND )
 public declare sub      PsToolbar_ApplyFonts( byval hToolbar as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+public declare sub      PsToolbar_Rescale( byval hToolbar as HWND, byval oldDpi as long, byval newDpi as long )
 public declare function PsToolbar_SetItemForeColor( byval hToolbar as HWND, byval idx as long, byval clr as COLORREF ) as boolean
 public declare function PsToolbar_ClearItemForeColor( byval hToolbar as HWND, byval idx as long ) as boolean
 public declare function PsToolbar_GetTextFont( byval hToolbar as HWND ) as HFONT
@@ -2939,7 +2940,7 @@ public function PsToolbar_Create( byval hWndParent as HWND, byval CtrlID as long
     PsTipHost_Ensure( @pTB->tip, hCtrl, @PsToolbar_TipTextCallback )
 
     ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
-    PsRegistry_SetThemeProcs( hCtrl, @PsToolbar_ApplyTheme, @PsToolbar_ApplyFonts )
+    PsRegistry_SetThemeProcs( hCtrl, @PsToolbar_ApplyTheme, @PsToolbar_ApplyFonts, @PsToolbar_Rescale )
 
     function = hCtrl
 end function
@@ -3644,6 +3645,48 @@ end sub
 public sub PsToolbar_ApplyFonts( byval hToolbar as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
     if hTextFont then PsToolbar_SetTextFont( hToolbar, hTextFont )
     if hGlyphFont then PsToolbar_SetGlyphFont( hToolbar, hGlyphFont )
+end sub
+
+' ========================================================================================
+' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric -- the scaled Create defaults and
+' whatever the host set since, nCurvature and a declared nSepHeight included -- times
+' newDpi/oldDpi, and so is every per-item value that is set: the padding and icon-size
+' overrides (the -1 / 0 inherit sentinels are left alone) and a CONTROL cell's declared
+' width and height. nDividerThick stays as it is: PaintLine scales it at paint time from the
+' CWindow DPI, which takes the new value here. Text widths, cell widths, the overflow split
+' and rcOverflow are LayoutItems caches and are re-derived, and that layout re-positions the
+' CONTROL children (a Ps* child rescales itself through its own registry row, as do the item
+' and overflow menus). An item's PsImage is not re-decoded: it is fitted into the (rescaled)
+' icon cell at paint time. The fonts are not ours: PsApp hands new ones over after this.
+' ========================================================================================
+public sub PsToolbar_Rescale( byval hToolbar as HWND, byval oldDpi as long, byval newDpi as long )
+    dim as PSTOOLBAR_STATE ptr pTB = GetToolbarPointer(hToolbar)
+    if (pTB = 0) orelse (oldDpi <= 0) orelse (newDpi <= 0) orelse (oldDpi = newDpi) then exit sub
+    pTB->nIconWidth    = MulDiv( pTB->nIconWidth,    newDpi, oldDpi )
+    pTB->nIconHeight   = MulDiv( pTB->nIconHeight,   newDpi, oldDpi )
+    pTB->nPadBefore    = MulDiv( pTB->nPadBefore,    newDpi, oldDpi )
+    pTB->nPadAfter     = MulDiv( pTB->nPadAfter,     newDpi, oldDpi )
+    pTB->nPadTop       = MulDiv( pTB->nPadTop,       newDpi, oldDpi )
+    pTB->nPadBottom    = MulDiv( pTB->nPadBottom,    newDpi, oldDpi )
+    pTB->nTextGap      = MulDiv( pTB->nTextGap,      newDpi, oldDpi )
+    pTB->nSepWidth     = MulDiv( pTB->nSepWidth,     newDpi, oldDpi )
+    pTB->nChevronWidth = MulDiv( pTB->nChevronWidth, newDpi, oldDpi )
+    pTB->nChevronGap   = MulDiv( pTB->nChevronGap,   newDpi, oldDpi )
+    pTB->nCurvature    = MulDiv( pTB->nCurvature,    newDpi, oldDpi )
+    pTB->nSepHeight    = MulDiv( pTB->nSepHeight,    newDpi, oldDpi )
+    for i as long = 0 to pTB->itemCount - 1
+        with pTB->items(i)
+            if .nPadBefore     > 0 then .nPadBefore     = MulDiv( .nPadBefore,     newDpi, oldDpi )
+            if .nPadAfter      > 0 then .nPadAfter      = MulDiv( .nPadAfter,      newDpi, oldDpi )
+            if .nIconWidth     > 0 then .nIconWidth     = MulDiv( .nIconWidth,     newDpi, oldDpi )
+            if .nIconHeight    > 0 then .nIconHeight    = MulDiv( .nIconHeight,    newDpi, oldDpi )
+            if .nControlWidth  > 0 then .nControlWidth  = MulDiv( .nControlWidth,  newDpi, oldDpi )
+            if .nControlHeight > 0 then .nControlHeight = MulDiv( .nControlHeight, newDpi, oldDpi )
+        end with
+    next
+    dim as CWindow ptr pWindow = CWindowPtr( hToolbar )
+    if pWindow then pWindow->DPI = newDpi
+    pTB->Refresh()
 end sub
 
 public function PsToolbar_SetItemForeColor( byval hToolbar as HWND, byval idx as long, byval clr as COLORREF ) as boolean

@@ -9,7 +9,11 @@
 
       <asmv3:application>
          <asmv3:windowsSettings xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">
-            <dpiAware>true</dpiAware>
+            <dpiAware>true/pm</dpiAware>
+         </asmv3:windowsSettings>
+         <!-- Per-monitor v2: each form follows its monitor's DPI (vendor/PsControls/PsApp) -->
+         <asmv3:windowsSettings xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">
+            <dpiAwareness>PerMonitorV2, PerMonitor</dpiAwareness>
          </asmv3:windowsSettings>
       </asmv3:application>
 

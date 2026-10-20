@@ -1563,6 +1563,7 @@ public declare function PsChart_ThemeColors( byref t as PSTHEME_COLORS ) as PSCH
 public declare sub      PsChart_ApplyTheme( byval hChart as HWND, byref t as PSTHEME_COLORS )
 public declare sub      PsChart_UnpinColors( byval hChart as HWND )
 public declare sub      PsChart_ApplyFonts( byval hChart as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+public declare sub      PsChart_Rescale( byval hChart as HWND, byval oldDpi as long, byval newDpi as long )
 public declare sub      PsChart_SetPaletteColor( byval hChart as HWND, byval idx as long, byval clr as COLORREF )
 public declare function PsChart_GetPaletteColor( byval hChart as HWND, byval idx as long ) as COLORREF
 
@@ -2784,7 +2785,7 @@ public function PsChart_Create( byval hWndParent as HWND, byval CtrlID as long, 
     PsTipHost_Ensure( @pChart->tip, hCtrl, @PsChart_TipTextCallback )
 
     ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
-    PsRegistry_SetThemeProcs( hCtrl, @PsChart_ApplyTheme, @PsChart_ApplyFonts )
+    PsRegistry_SetThemeProcs( hCtrl, @PsChart_ApplyTheme, @PsChart_ApplyFonts, @PsChart_Rescale )
 
     function = hCtrl
 end function
@@ -3515,6 +3516,38 @@ end sub
 ' the title and subtitle fall back to the label font.
 public sub PsChart_ApplyFonts( byval hChart as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
     if hTextFont then PsChart_SetFont( hChart, hTextFont )
+end sub
+
+' ========================================================================================
+' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric -- the scaled Create defaults and
+' whatever the host set since -- times newDpi/oldDpi: the chrome metrics, each series' marker
+' size and each point's pie explode offset. The hairlines (nAxisThick, nGridThick,
+' nPieSliceGap) and the series line widths stay as they are: every one of them is a pen width
+' that PaintLine / PaintPolyline / PaintCurve / PaintPie DPI-scale through the CWindow, which
+' is why the chart's own CWindow takes the new DPI here. The fonts are not ours: PsApp hands
+' new ones over after this.
+' ========================================================================================
+public sub PsChart_Rescale( byval hChart as HWND, byval oldDpi as long, byval newDpi as long )
+    dim as PSCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if (pChart = 0) orelse (oldDpi <= 0) orelse (newDpi <= 0) orelse (oldDpi = newDpi) then exit sub
+    pChart->nPadding   = MulDiv( pChart->nPadding,   newDpi, oldDpi )
+    pChart->nChromeGap = MulDiv( pChart->nChromeGap, newDpi, oldDpi )
+    pChart->nTickLen   = MulDiv( pChart->nTickLen,   newDpi, oldDpi )
+    pChart->nBarGap    = MulDiv( pChart->nBarGap,    newDpi, oldDpi )
+    pChart->nHlocTick  = MulDiv( pChart->nHlocTick,  newDpi, oldDpi )
+    pChart->nHitRadius = MulDiv( pChart->nHitRadius, newDpi, oldDpi )
+    if pChart->nHlocTick < 1 then pChart->nHlocTick = 1
+    if pChart->nHitRadius < 1 then pChart->nHitRadius = 1
+    for i as long = 0 to pChart->seriesCount - 1
+        pChart->series(i).nSymbolSize = MulDiv( pChart->series(i).nSymbolSize, newDpi, oldDpi )
+        if pChart->series(i).nSymbolSize < 2 then pChart->series(i).nSymbolSize = 2
+        for j as long = 0 to pChart->series(i).pointCount - 1
+            pChart->series(i).points(j).nExplode = MulDiv( pChart->series(i).points(j).nExplode, newDpi, oldDpi )
+        next
+    next
+    dim as CWindow ptr pWindow = CWindowPtr( hChart )
+    if pWindow then pWindow->DPI = newDpi
+    pChart->Refresh()
 end sub
 
 sub PsChart_SetPaletteColor( byval hChart as HWND, byval idx as long, byval clr as COLORREF )

@@ -552,6 +552,7 @@ public declare function PsSelectBar_ThemeColors( byref t as PSTHEME_COLORS ) as 
 public declare sub      PsSelectBar_ApplyTheme( byval hSelectBar as HWND, byref t as PSTHEME_COLORS )
 public declare sub      PsSelectBar_UnpinColors( byval hSelectBar as HWND )
 public declare sub      PsSelectBar_ApplyFonts( byval hSelectBar as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+public declare sub      PsSelectBar_Rescale( byval hSelectBar as HWND, byval oldDpi as long, byval newDpi as long )
 public declare function PsSelectBar_GetFont( byval hSelectBar as HWND ) as HFONT
 public declare function PsSelectBar_SetFont( byval hSelectBar as HWND, byval hPanelFont as HFONT ) as boolean
 public declare function PsSelectBar_GetTooltipHandle( byval hSelectBar as HWND ) as HWND
@@ -1029,6 +1030,32 @@ end sub
 ' The form's fonts (PsApp), handed over when the bar is created on a form.
 public sub PsSelectBar_ApplyFonts( byval hSelectBar as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
     if hTextFont then PsSelectBar_SetFont( hSelectBar, hTextFont )
+end sub
+
+' ========================================================================================
+' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric -- the scaled Create defaults and
+' whatever the host set since -- times newDpi/oldDpi, and so is every per-panel padding
+' override that is set (the -1 inherit sentinel is left alone). The text height, the cell
+' widths and the run width are LayoutPanels caches and are re-derived. The bar's own CWindow
+' takes the new DPI so later ScaleX calls agree. The font is not ours: PsApp hands a new one
+' over after this.
+' ========================================================================================
+public sub PsSelectBar_Rescale( byval hSelectBar as HWND, byval oldDpi as long, byval newDpi as long )
+    dim as PSSELECTBAR_STATE ptr pSel = GetSelectBarPointer(hSelectBar)
+    if (pSel = 0) orelse (oldDpi <= 0) orelse (newDpi <= 0) orelse (oldDpi = newDpi) then exit sub
+    pSel->nPadLeft         = MulDiv( pSel->nPadLeft,         newDpi, oldDpi )
+    pSel->nPadRight        = MulDiv( pSel->nPadRight,        newDpi, oldDpi )
+    pSel->nIndicatorHeight = MulDiv( pSel->nIndicatorHeight, newDpi, oldDpi )
+    pSel->nIndicatorGap    = MulDiv( pSel->nIndicatorGap,    newDpi, oldDpi )
+    for i as long = 0 to pSel->panelCount - 1
+        with pSel->panels(i)
+            if .nPadLeft  > 0 then .nPadLeft  = MulDiv( .nPadLeft,  newDpi, oldDpi )
+            if .nPadRight > 0 then .nPadRight = MulDiv( .nPadRight, newDpi, oldDpi )
+        end with
+    next
+    dim as CWindow ptr pWindow = CWindowPtr( hSelectBar )
+    if pWindow then pWindow->DPI = newDpi
+    pSel->Refresh()
 end sub
 
 
@@ -1667,7 +1694,7 @@ public function PsSelectBar_Create( byval hWndParent as HWND, byval CtrlID as lo
     PsTipHost_Ensure( @pSel->tip, hCtrl, @PsSelectBar_TipTextCallback )
 
     ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
-    PsRegistry_SetThemeProcs( hCtrl, @PsSelectBar_ApplyTheme, @PsSelectBar_ApplyFonts )
+    PsRegistry_SetThemeProcs( hCtrl, @PsSelectBar_ApplyTheme, @PsSelectBar_ApplyFonts, @PsSelectBar_Rescale )
 
 
     function = hCtrl

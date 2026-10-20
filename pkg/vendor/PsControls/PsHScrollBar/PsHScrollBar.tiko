@@ -166,6 +166,7 @@ public declare function PsHScrollBar_NeedsThumb( byval hSB as HWND ) as boolean
 public declare function PsHScrollBar_IsDragging( byval hSB as HWND ) as boolean
 public declare sub      PsHScrollBar_SetColors( byval hSB as HWND, byval backclr as COLORREF, byval foreclr as COLORREF, byval foreclrhot as COLORREF )
 public declare sub      PsHScrollBar_ApplyTheme( byval hSB as HWND, byref t as PSTHEME_COLORS )
+public declare sub      PsHScrollBar_Rescale( byval hSB as HWND, byval oldDpi as long, byval newDpi as long )
 public declare sub      PsHScrollBar_UnpinColors( byval hSB as HWND )
 public declare sub      PsHScrollBar_SetPaintCallback( byval hSB as HWND, byval usersub as HScrollPaintCallbackSub )
 public declare sub      PsHScrollBar_SetScrollCallback( byval hSB as HWND, byval usersub as HScrollCallbackSub )
@@ -577,7 +578,7 @@ public function PsHScrollBar_Create( byval hWndParent as HWND, byval CtrlID as i
     SetWindowLongPtr( hSB, GWLP_ID, CtrlID )
 
     ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
-    PsRegistry_SetThemeProcs( hSB, @PsHScrollBar_ApplyTheme, 0 )
+    PsRegistry_SetThemeProcs( hSB, @PsHScrollBar_ApplyTheme, 0, @PsHScrollBar_Rescale )
 
     function = hSB
 end function
@@ -660,6 +661,21 @@ public sub PsHScrollBar_ApplyTheme( byval hSB as HWND, byref t as PSTHEME_COLORS
     if (pSB = 0) orelse pSB->bColorsPinned then exit sub
     PsHScrollBar_SetColors( hSB, t.Window, t.Border, t.TextDisabled )
     pSB->bColorsPinned = false
+end sub
+
+' ========================================================================================
+' Per-monitor DPI (RFC-0001 P4). The scrollbar stores no pixel metric of its own: the range
+' is in the host's units, the thumb rect is derived from range and track (Recalc) and the
+' minimum thumb width is scaled at use. So the CWindow takes the new DPI -- which Recalc's
+' ScaleX/ScaleY then follow -- and the thumb is re-derived; the host re-sizes the track.
+' ========================================================================================
+public sub PsHScrollBar_Rescale( byval hSB as HWND, byval oldDpi as long, byval newDpi as long )
+    dim as PSHSCROLLBAR_STATE ptr pSB = GetHScrollBarPointer(hSB)
+    if (pSB = 0) orelse (oldDpi <= 0) orelse (newDpi <= 0) orelse (oldDpi = newDpi) then exit sub
+    dim as CWindow ptr pWindow = CWindowPtr( hSB )
+    if pWindow then pWindow->DPI = newDpi
+    pSB->Recalc()
+    InvalidateRect( hSB, NULL, FALSE )
 end sub
 
 ' Hands the scrollbar back to the theme, which is applied at once.

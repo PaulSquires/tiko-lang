@@ -46,8 +46,8 @@ using PsTheme
 ' Specified in C:\dev\docs\tiko-psapp\RFC-0001-psapp.md.
 
 public enum PSAPP_DPIMODE
-    PSAPP_DPI_SYSTEM = 0          ' system-aware: what the demos' manifests declare
-    PSAPP_DPI_PERMONITORV2        ' per-monitor v2 (WM_DPICHANGED is handled from RFC phase P4)
+    PSAPP_DPI_SYSTEM = 0          ' system-aware: one DPI for the whole process
+    PSAPP_DPI_PERMONITORV2        ' per-monitor v2, the default: forms and controls follow their monitor
     PSAPP_DPI_MANIFEST            ' leave whatever the manifest set
 end enum
 
@@ -72,7 +72,7 @@ end enum
 public type PSAPP_OPTIONS
     ComMode       as long = COINIT_APARTMENTTHREADED    ' -1: no COM
     GlyphFontFile as ustring                            ' loaded FR_PRIVATE when the face is not installed
-    DpiMode       as long = PSAPP_DPI_SYSTEM
+    DpiMode       as long = PSAPP_DPI_PERMONITORV2
     ThemeMode     as long = PSAPP_THEME_SYSTEM
     FontUI        as ustring = "Segoe UI"
     FontUISize    as long = 10
@@ -168,6 +168,10 @@ end function
 
 function App_FontUISize( ) as long
     return gApp_Opts.FontUISize
+end function
+
+function App_DpiMode( ) as long
+    return gApp_Opts.DpiMode
 end function
 
 
