@@ -1,0 +1,74 @@
+'' std/numeric CurrentLocaleFormat reads the OS's separators. It returned NumFormat's
+'' defaults ("." and ",") outright until 2026-10-20, and tests/std/math/text.bas only
+'' checks the shape, which the defaults satisfy on an en-US machine.
+'' Prints "ok". The Linux half sets LC_ALL to a comma locale and is run there by hand;
+'' it checks nothing when de_DE.UTF-8 has not been generated.
+#import "std/numeric"
+using numeric
+
+#ifdef __FB_WIN32__
+extern "Windows"
+    declare function tstGetLocaleInfoEx alias "GetLocaleInfoEx" _
+        ( byval lpLocaleName as const wstring ptr, byval LCType as ulong, _
+          byval lpLCData as wstring ptr, byval cchData as long ) as long
+end extern
+
+'' An independent read of the user's Region settings; NULL = LOCALE_NAME_USER_DEFAULT.
+function tstLocaleText( byval lctype as ulong ) as string
+    dim as wstring * 16 buf
+    if( tstGetLocaleInfoEx( nullptr, lctype, @buf, 16 ) <= 0 ) then return "?"
+    dim as ustring u = buf
+    return u
+end function
+#else
+extern "C"
+    declare function tstNewLocale alias "newlocale" ( byval mask as long, byval lname as const zstring ptr, byval base_ as any ptr ) as any ptr
+    declare sub tstFreeLocale alias "freelocale" ( byval l as any ptr )
+end extern
+#endif
+
+dim shared as long fails = 0
+sub Check( byval cond as boolean, byref what as const string )
+    if( cond = FALSE ) then
+        print "FAIL "; what
+        fails += 1
+    end if
+end sub
+
+dim as NumFormat f = CurrentLocaleFormat( )
+
+'' the shape: usable separators, grouping left to the caller
+Check( len( f.decimalSep ) > 0, "decimal non-empty" )
+Check( len( f.groupSep ) > 0, "group non-empty" )
+Check( f.grouping = FALSE, "grouping off" )
+
+#ifdef __FB_WIN32__
+Check( f.decimalSep = tstLocaleText( &h0E ), "decimal = LOCALE_SDECIMAL" )
+Check( f.groupSep = tstLocaleText( &h0F ), "group = LOCALE_STHOUSAND" )
+#else
+'' putenv keeps the pointer, so the strings must outlive the call
+static as string envSet, envBack
+dim as string was = environ( "LC_ALL" )
+envSet = "LC_ALL=de_DE.UTF-8"
+setenviron envSet
+dim as any ptr l = tstNewLocale( 2, "", nullptr )
+if( l <> nullptr ) then
+    tstFreeLocale( l )
+    f = CurrentLocaleFormat( )
+    Check( f.decimalSep = ",", "de decimal" )
+    Check( f.groupSep = ".", "de group" )
+end if
+envBack = "LC_ALL=" + was
+setenviron envBack
+#endif
+
+'' the process locale is untouched: ToString still finds snprintf's "."
+f.grouping = TRUE
+f.style = NUM_FIXED
+f.digits = 2
+dim as string g = ToString( 1234567.891, f )
+Check( right( g, len( f.decimalSep ) + 2 ) = f.decimalSep + "89", "fixed tail" )
+Check( instr( g, f.groupSep ) > 0, "grouped" )
+Check( ToString( 1.5 ) = "1.5", "invariant ToString" )
+
+if( fails = 0 ) then print "ok"

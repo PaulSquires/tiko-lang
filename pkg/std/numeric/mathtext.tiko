@@ -545,11 +545,75 @@ public function ToString overload ( byval v as double, byref f as NumFormat ) as
     function = f.prefix + sgn_ + r + tail + f.suffix
 end function
 
+'' CurrentLocaleFormat's OS queries, self-declared -- std/money's moneyformat.tiko
+'' explains why nothing here comes from inc/win (GetLocaleInfoEx is behind a
+'' _WIN32_WINNT guard the shipped headers do not raise).
+''
+'' NEITHER PATH TOUCHES THE PROCESS LOCALE. setlocale( LC_NUMERIC ) would make
+'' snprintf write "1,5" -- and ToString above finds the decimal point by looking
+'' for "." in snprintf's output. So Windows reads NLS directly (the user's
+'' Region settings, as UTF-16, which the ustring hop turns into UTF-8), and
+'' Linux builds a private locale_t from the environment and asks it alone.
+'' The rt's fb_DrvIntlGet answers neither: ANSI code page on Windows, and on
+'' Linux nl_langinfo without a locale, which is the C locale's "." and "".
+#ifdef __FB_WIN32__
+    extern "Windows"
+        declare function numGetLocaleInfoEx_ alias "GetLocaleInfoEx" _
+            ( byval lpLocaleName as const wstring ptr, byval LCType as ulong, _
+              byval lpLCData as wstring ptr, byval cchData as long ) as long
+    end extern
+
+    const as ulong numLC_SDECIMAL  = &h0000000E
+    const as ulong numLC_STHOUSAND = &h0000000F
+
+    '' "" when NLS has no answer; NULL locale name = LOCALE_NAME_USER_DEFAULT.
+    function numNlsText_( byval lctype as ulong ) as string
+        dim as wstring * 16 buf
+        if( numGetLocaleInfoEx_( nullptr, lctype, @buf, 16 ) <= 0 ) then return ""
+        dim as ustring u = buf
+        return u
+    end function
+#else
+    '' glibc values: LC_NUMERIC is category 1, and the nl_items are the ones
+    '' lib/rt/src/dt/intldrv.tiko measured under WSL.
+    const as long numLC_NUMERIC_MASK = 2
+    const as long numNL_RADIXCHAR    = 65536
+    const as long numNL_THOUSEP      = 65537
+
+    extern "c"
+        declare function numNewLocale_  alias "newlocale"    ( byval mask as long, byval lname as const zstring ptr, byval base_ as any ptr ) as any ptr
+        declare sub      numFreeLocale_ alias "freelocale"   ( byval l as any ptr )
+        declare function numLangInfoL_  alias "nl_langinfo_l" ( byval item as long, byval l as any ptr ) as zstring ptr
+    end extern
+#endif
+
 public function CurrentLocaleFormat overload ( ) as NumFormat
     '' Deliberately minimal: the OS separators and nothing else.  Digit
     '' shaping, per-locale currency placement and non-Gregorian digits are out
     '' of scope, and pretending otherwise would be worse than not offering it.
+    '' Grouping stays off: the caller turns it on.  A separator the OS does not
+    '' answer keeps NumFormat's default.
     dim as NumFormat f
+    dim as string dec, grp
+
+    #ifdef __FB_WIN32__
+        dec = numNlsText_( numLC_SDECIMAL )
+        grp = numNlsText_( numLC_STHOUSAND )
+    #else
+        '' "" = the environment's LC_ALL / LC_NUMERIC / LANG. A locale that has
+        '' not been generated fails here, and the defaults stand.
+        dim as any ptr l = numNewLocale_( numLC_NUMERIC_MASK, "", nullptr )
+        if( l <> nullptr ) then
+            dim as zstring ptr p = numLangInfoL_( numNL_RADIXCHAR, l )
+            if( p <> nullptr ) then dec = *p
+            p = numLangInfoL_( numNL_THOUSEP, l )
+            if( p <> nullptr ) then grp = *p
+            numFreeLocale_( l )
+        end if
+    #endif
+
+    if( len( dec ) > 0 ) then f.decimalSep = dec
+    if( len( grp ) > 0 ) then f.groupSep = grp
     function = f
 end function
 
