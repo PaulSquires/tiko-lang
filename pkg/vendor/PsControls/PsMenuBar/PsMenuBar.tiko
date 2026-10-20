@@ -11,11 +11,13 @@
 #import "sys/win/gdiplus"
 #import "vendor/PsControls/PsPopupMenu"
 #import "vendor/PsControls/PsBufferPaint"
+#import "vendor/PsControls/PsRegistry"
 
 using gui
 using gdiplus
 using PsPopupMenu
 using PsBufferPaint
+using PsRegistry
 
 ' The bar's dropdowns ARE PsPopupMenu windows; the dependency is one-way (PsPopupMenu
 ' never knows about the bar -- it reports through CPM_NOTIFY_* messages to whatever
@@ -540,6 +542,7 @@ function PsMenuBar_WndProc( _
         return true
 
     case WM_DESTROY
+        PsRegistry_Remove( hwnd )
         if (pBar <> 0) andalso pBar->hotTimerOn then
             KillTimer( hwnd, IDT_CMENUBAR_HOTTRACK )
             pBar->hotTimerOn = false
@@ -588,6 +591,10 @@ public function PsMenuBar_Create( byval hWndParent as HWND, byval CtrlID as long
     SetWindowLongPtr( hCtrl, GWLP_ID, CtrlID )
 
     pWindow->UserData(0) = cast(LONG_PTR, pBar)
+
+    ' The pump obligation, registered: a PsApp pump calls our filter (which covers every
+    ' dropdown and submenu), and closes the open menu when the form loses the activation.
+    PsRegistry_Add( hCtrl, PSREG_PRIO_OWNER, @PsMenuBar_FilterMessage, @PsMenuBar_CloseMenu )
     return hCtrl
 end function
 
@@ -650,6 +657,9 @@ public function PsMenuBar_SetDropDown( byval hMenuBar as HWND, byval idx as long
     if pBar->IsValidItem(idx) = false then return false
     dim as HWND hOld = pBar->items(idx).hDropDown
     if (hOld <> 0) andalso (hOld <> hPopup) then DestroyWindow( hOld )
+    ' Our filter drives the dropdown from here on; its own row would see the bar's clicks as
+    ' outside clicks (the popup-row rule in PsRegistry).
+    if hPopup then PsRegistry_Remove( hPopup )
     pBar->items(idx).hDropDown = hPopup
     return true
 end function

@@ -30,4 +30,4 @@
 ' The collapse-until-answered row.
 #define COMBO_WHENSEL   6
 
-declare function frmMain_Show( byval hWndParent as HWND ) as LRESULT
+declare function frmMain_Build( byref app as PsApplication ) as PsForm ptr

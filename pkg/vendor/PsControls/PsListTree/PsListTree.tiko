@@ -15,6 +15,7 @@
 #import "vendor/PsControls/PsColumnHeader"
 #import "vendor/PsControls/PsTextBox"
 #import "vendor/PsControls/PsVScrollBar"
+#import "vendor/PsControls/PsRegistry"
 
 using gui
 using gdiplus
@@ -24,6 +25,7 @@ using PsTipHost
 using PsColumnHeader
 using PsTextBox
 using PsVScrollBar
+using PsRegistry
 
 ' The tooltip backend switch. The control ships on the SYSTEM (comctl32) backend exactly
 ' as it always has; a host opts an instance into PsTooltip with PsListTree_SetTooltipMode.
@@ -3762,6 +3764,7 @@ function PsListTree_WndProc( _
     ' now, empty or not, so the problem cannot arise. pList->hBackBrush went with it.
 
     case WM_NCDESTROY
+        PsRegistry_ReleaseGlobalFilter( @PsListTree_FilterMessage )
         ' Delete the stored listbox data pointer
         dim as PSLISTTREE_STATE ptr pList = GetListTreePointer(hwnd)
         if pList then
@@ -5126,6 +5129,10 @@ public function PsListTree_Create( byval hWndParent as HWND, byval CtrlID as int
 
     ' Store the new pointer into the user data area of the listbox window
     pWindow->UserData(0) = cast(LONG_PTR, pList)
+
+    ' The pump obligation, registered: a PsApp pump calls our filter (one for every instance),
+    ' which claims Enter and Esc for an in-place edit before IsDialogMessage can.
+    PsRegistry_AddGlobalFilter( @PsListTree_FilterMessage )
     
 
     ' ------------------------------------------------------------------------------------

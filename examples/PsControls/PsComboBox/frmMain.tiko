@@ -52,10 +52,8 @@ end function
 ' no container window between them -- the same arrangement tiko's Output panel uses for its
 ' PsSelectBar + PsIconPanel pair.
 ' ========================================================================================
-function frmMain_OnPaint( byval hwnd as HWND ) as LRESULT
-    dim as PsPaintBuffer b
-
-    b.BeginDoubleBuffer(hwnd)
+sub frmMain_OnPaint( byval f as PsForm ptr, byref b as PsPaintBuffer )
+    dim as HWND hwnd = f->hWindow
     b.SetBackColor( theme.BackColor )
     b.PaintClientRect()
 
@@ -94,11 +92,7 @@ function frmMain_OnPaint( byval hwnd as HWND ) as LRESULT
         b.SetBackColor( theme.Divider )
         b.PaintRect( @rcLine )
     next
-
-    b.EndDoubleBuffer()
-
-    function = 0
-end function
+end sub
 
 
 ' ========================================================================================
@@ -305,13 +299,9 @@ private sub frmMain_OnCommand_AutoSize( byval hwnd as HWND )
     InvalidateRect( hwnd, NULL, TRUE )
 end sub
 
-function frmMain_OnCommand( _
-            byval hwnd    as HWND, _
-            byval id      as long, _
-            byval hwndCtl as HWND, _
-            byval codeNotify as UINT _
-            ) as LRESULT
-
+function frmMain_OnCommand( byval f as PsForm ptr, byval id as long, byval codeNotify as long, _
+                           byval hwndCtl as HWND ) as boolean
+    dim as HWND hwnd = f->hWindow
     select case id
     case IDC_FRMMAIN_BTN_ADD
         if codeNotify = BN_CLICKED then frmMain_OnCommand_Add( hwnd )
@@ -319,100 +309,37 @@ function frmMain_OnCommand( _
         if codeNotify = BN_CLICKED then frmMain_OnCommand_Delete( hwnd )
     case IDC_FRMMAIN_BTN_AUTOSIZE
         if codeNotify = BN_CLICKED then frmMain_OnCommand_AutoSize( hwnd )
+    case else
+        return false
     end select
-    function = 0
-end function
-
-
-' ========================================================================================
-' frmMain message handlers
-' ========================================================================================
-function frmMain_OnCreate( _
-            byval hwnd as HWND, _
-            byval lpCreateStructPtr as LPCREATESTRUCT _
-            ) as boolean
     return true
 end function
 
-function frmMain_OnSize( _
-            byval hwnd as HWND, _
-            byval state as UINT, _
-            byval cx as long, _
-            byval cy as long _
-            ) as LRESULT
-    if state <> SIZE_MINIMIZED then
-        frmMain_PositionCombos( hwnd )
-        InvalidateRect( hwnd, NULL, TRUE )
-    end if
-    function = 0
-end function
 
-function frmMain_OnClose( byval hwnd as HWND ) as LRESULT
-    DestroyWindow(hwnd)
-    function = 0
-end function
-
-function frmMain_OnDestroy( byval hwnd as HWND ) as LRESULT
-    PostQuitMessage(0)
-    function = 0
-end function
-
-
-function frmMain_WndProc( _
-            byval hwnd   as HWND, _
-            byval uMsg   as UINT, _
-            byval wParam as WPARAM, _
-            byval lParam as LPARAM _
-            ) as LRESULT
-
-    select case uMsg
-        HANDLE_MSG (hwnd, WM_CREATE,        frmMain_OnCreate)
-        HANDLE_MSG (hwnd, WM_SIZE,          frmMain_OnSize)
-        HANDLE_MSG (hwnd, WM_PAINT,         frmMain_OnPaint)
-        HANDLE_MSG (hwnd, WM_COMMAND,       frmMain_OnCommand)
-        HANDLE_MSG (hwnd, WM_CLOSE,         frmMain_OnClose)
-        HANDLE_MSG (hwnd, WM_DESTROY,       frmMain_OnDestroy)
-
-        case WM_NCDESTROY
-            ' delete the allocated memory for window
-            dim as CWindow ptr pWindow = CWindowPtr(hwnd)
-            if pWindow then delete(pWindow)
-            HWND_FRMMAIN = 0
-            return 0
-
-        case WM_ERASEBKGND
-            return true      ' prevents painting the background
-
-        case WM_SYSCOMMAND
-            if (wParam and &HFFF0) = SC_CLOSE then
-                SendMessage( hwnd, WM_CLOSE, wParam, lParam )
-                exit function
-            end if
-
-    end select
-
-    ' for messages that we don't deal with
-    function = DefWindowProc(HWnd, uMsg, wParam, lParam)
-
-end function
+' ========================================================================================
+' frmMain message handlers. PsForm already does what the WndProc used to: no background
+' erase, WM_CLOSE -> DestroyWindow, the main form's WM_DESTROY -> PostQuitMessage, and
+' deleting the window object in WM_NCDESTROY.
+' ========================================================================================
+sub frmMain_OnSize( byval f as PsForm ptr, byval cx as long, byval cy as long )
+    frmMain_PositionCombos( f->hWindow )
+    InvalidateRect( f->hWindow, NULL, TRUE )
+end sub
 
 
 ' ========================================================================================
-' frmMain_Show
+' frmMain_Build
 ' ========================================================================================
-function frmMain_Show( byval hWndParent as HWND ) as LRESULT
+function frmMain_Build( byref app as PsApplication ) as PsForm ptr
 
     '  Create the main window and child controls
-    dim pWindow as CWindow ptr = new CWindow(APPCLASSNAME)
+    dim as PsForm ptr f = app.NewForm( APPNAME, 700, 540 )
+    HWND_FRMMAIN = f->hWindow
 
-    ghFont(GUIFONT_9)      = pWindow->CreateFont(GUIFONT, 9, FW_NORMAL)
-    ghFont(GUIFONT_10)     = pWindow->CreateFont(GUIFONT, 10, FW_NORMAL)
-    ghFont(GUIFONTBOLD_10) = pWindow->CreateFont(GUIFONT, 10, FW_HEAVY)
-
-    HWND_FRMMAIN = pWindow->Create( _
-            null, APPNAME, @frmMain_WndProc, _
-            100, 100, 700, 540 _
-            )
+    ' The form owns its fonts: created at its DPI, deleted with it.
+    ghFont(GUIFONT_9)      = f->Font( PSFONT_UI_SMALL )
+    ghFont(GUIFONT_10)     = f->Font( PSFONT_UI )
+    ghFont(GUIFONTBOLD_10) = f->Font( PSFONT_UI_BOLD )
 
     gRows(0).wszLabel = "The reference screenshot"
     gRows(0).wszNote  = "two items, the longer one selected"
@@ -500,10 +427,13 @@ function frmMain_Show( byval hWndParent as HWND ) as LRESULT
     PsComboBox_SetTextMode( ghCombo(COMBO_WHENSEL), CBO_TEXT_WHENSELECTED )
     PsComboBox_SetAutoSize( ghCombo(COMBO_WHENSEL), true )
 
-    ' The three push buttons. Plain Win32 BUTTONs -- this demo is about the combobox.
-    pWindow->AddControl( "Button", HWND_FRMMAIN, IDC_FRMMAIN_BTN_ADD, "Add item", 0, 0, 10, 10 )
-    pWindow->AddControl( "Button", HWND_FRMMAIN, IDC_FRMMAIN_BTN_DELETE, "Delete first", 0, 0, 10, 10 )
-    pWindow->AddControl( "Button", HWND_FRMMAIN, IDC_FRMMAIN_BTN_AUTOSIZE, "AutoSize: OFF", 0, 0, 10, 10 )
+    ' The three push buttons. Plain Win32 BUTTONs -- this demo is about the combobox. They
+    ' come AFTER the comboboxes, so the first tab stop -- where PsForm puts the focus when it
+    ' is shown -- is a combobox: those buttons are what masked the WS_EX_CONTROLPARENT bug for
+    ' so long, since Tab moved between them and never once reached a combobox.
+    f->AddControl( "Button", HWND_FRMMAIN, IDC_FRMMAIN_BTN_ADD, "Add item", 0, 0, 10, 10 )
+    f->AddControl( "Button", HWND_FRMMAIN, IDC_FRMMAIN_BTN_DELETE, "Delete first", 0, 0, 10, 10 )
+    f->AddControl( "Button", HWND_FRMMAIN, IDC_FRMMAIN_BTN_AUTOSIZE, "AutoSize: OFF", 0, 0, 10, 10 )
 
     dim as long iw, ih
     PsComboBox_GetIdealSize( ghCombo(0), iw, ih )
@@ -521,57 +451,10 @@ function frmMain_Show( byval hWndParent as HWND ) as LRESULT
     ' Self-gated on PSCOMBOBOX_SELFTEST=1.
     PsComboBox_RunSelfTest( HWND_FRMMAIN )
 
-    UpdateWindow( pWindow->hWindow )
-    ShowWindow( pWindow->hWindow, SW_SHOW )
-
-    ' Give the first combobox the focus. A real dialog does this in WM_INITDIALOG; an ordinary
-    ' window must do it itself, and without it IsDialogMessage ignores the FIRST Tab entirely --
-    ' it only acts when the focused window is a DESCENDANT of the window it is passed, and at
-    ' startup the focus is on the form.
-    '
-    ' Note it starts on a COMBOBOX rather than on one of the plain buttons below, deliberately:
-    ' those buttons are what masked the WS_EX_CONTROLPARENT bug for so long, since Tab moved
-    ' between them and navigation looked fine while never once reaching a combobox.
-    SetFocus( ghCombo(0) )
-
-    ' Process windows events
-    dim uMsg as MSG
-
-    ' Message loop
-    do while GetMessage(@uMsg, null, 0, 0)
-        if uMsg.message = WM_QUIT then exit do
-
-        ' THE PUMP CONTRACT. One call per combobox, and it must come FIRST: it owns the
-        ' dropdown's keyboard navigation and its outside-click dismissal, and it arms the
-        ' guard that stops a click on an open combobox's own button from reopening the list
-        ' it just dismissed. Each call returns immediately when that control's list is closed.
-        dim as boolean bEaten = false
-        for i as long = 0 to COMBO_COUNT - 1
-            if PsComboBox_FilterMessage( ghCombo(i), @uMsg ) then
-                bEaten = true
-                exit for
-            end if
-        next
-        if bEaten then continue do
-
-        ' Processes accelerator keys for menu commands
-        if (pWindow->AccelHandle = 0) orelse (TranslateAccelerator(pWindow->hWindow, pWindow->AccelHandle, @uMsg) = 0) then
-
-            ' IsDialogMessage is what makes Tab move between the comboboxes. A host without
-            ' it still gets full mouse behaviour and, once a combobox has focus, the arrow
-            ' keys and Enter.
-            if IsDialogMessage(pWindow->hWindow, @uMsg) = 0 then
-                TranslateMessage @uMsg    ' Translates virtual-key messages into character messages.
-                DispatchMessage @uMsg     ' Dispatches a message to a window procedure.
-            end if
-
-        end if  ' accelerators
-    loop  ' message loop
-
-    function = uMsg.wParam
-
-    for i as long = 0 to MAXFONTS
-        if ghFont(i) then DeleteObject(ghFont(i))
-    next
-
+    ' There is no pump here any more. Each combobox registered its pump obligation with
+    ' PsRegistry when it was created, and PsApp's pump calls every registered filter first.
+    f->OnPaint( @frmMain_OnPaint )
+    f->OnSize( @frmMain_OnSize )
+    f->OnCommand( @frmMain_OnCommand )
+    return f
 end function
