@@ -30,8 +30,9 @@ combobox, a button and a modal About box.
 
 ![The PsApp starter](PsApp.png)
 
-**Importing.** `PsApp` re-exports `sys/win`, `sys/win/gui`, `PsBufferPaint` and `PsRegistry`, so
-`using gui` and `using PsBufferPaint` work without importing those modules yourself. You still
+**Importing.** `PsApp` re-exports `sys/win`, `sys/win/gui`, `PsBufferPaint`, `PsRegistry` and
+`PsTheme`, so `using gui`, `using PsBufferPaint` and `using PsTheme` work without importing those
+modules yourself. You still
 import each control you use.
 
 ## PsApplication
@@ -40,19 +41,17 @@ There is one application per process, and its state is the module's.
 
 | Member | What it does |
 |---|---|
-| `Init( )` / `Init( byref opts as PSAPP_OPTIONS )` | Starts COM, sets DPI awareness, starts GDI+ and chooses the glyph face. Call it once, before any window exists. Returns FALSE if called a second time or if COM fails. |
+| `Init( )` / `Init( byref opts as PSAPP_OPTIONS )` | Starts COM, sets DPI awareness, starts GDI+, chooses the glyph face and applies the theme `ThemeMode` asks for. Call it once, before any window exists. Returns FALSE if called a second time or if COM fails. |
 | `NewForm( title, cx, cy [, dwStyle, dwExStyle, hParent] ) as PsForm ptr` | Creates a form, hidden and centred on `hParent` or the screen. `cx`/`cy` are in DIPs. `hParent` becomes the owner of a top-level form. |
 | `Run( mainForm ) as long` | Shows the main form, pumps messages until it is destroyed (or `Quit`), destroys any forms still open and undoes `Init`. Returns the exit code. |
 | `Quit( exitCode = 0 )` | `PostQuitMessage`: `Run` returns `exitCode`. |
 | `GlyphFace( ) as ustring` | The glyph face `Init` chose (see below). |
 | `Options( ) as PSAPP_OPTIONS` | The options `Init` was given. |
 | `AddMessageFilter( p )` / `RemoveMessageFilter( p )` | Your own pre-translate step: `function( byval pMsg as MSG ptr ) as boolean`. It runs after the controls' filters. Returning TRUE consumes the message. |
-
 | `RunOnUI( p [, payload] ) as boolean` | **Any thread.** Queues `sub( byval payload as any ptr )` to run on the UI thread, in call order. Returns FALSE when no application is running. |
 | `IsUIThread( ) as boolean` | TRUE on the thread that called `Init` |
 | `SetTimer( ms, p [, payload] ) as long` | A timer that needs no form: `sub( byval id as long, byval payload as any ptr )`. Returns the id, never 0 (0 means it failed). UI thread only. |
 | `KillTimer( id )` | Stops it; safe to call from the timer's own proc |
-
 | `SetTheme( t )` / `Theme( )` | Sets the current [theme](PsTheme) and returns it. Every control whose colours are not pinned is restyled, every form gets the theme's background and title bar, and `OnThemeChanged` fires. |
 | `SetThemeMode( mode )` / `ThemeMode( )` | `PSAPP_THEME_SYSTEM` follows the Windows light/dark setting live. `LIGHT` or `DARK` fixes the theme. |
 
