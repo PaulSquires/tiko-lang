@@ -613,6 +613,7 @@ public declare function PsNumericUpDown_ThemeColors( byref t as PSTHEME_COLORS )
 public declare sub      PsNumericUpDown_ApplyTheme( byval hCtrl as HWND, byref t as PSTHEME_COLORS )
 public declare sub      PsNumericUpDown_UnpinColors( byval hCtrl as HWND )
 public declare sub      PsNumericUpDown_ApplyFonts( byval hCtrl as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+public declare sub      PsNumericUpDown_Rescale( byval hCtrl as HWND, byval oldDpi as long, byval newDpi as long )
 
 ' ----------------------------------------------------------------------------------------
 ' Callbacks.  See the type declarations above for each signature and contract.
@@ -1633,7 +1634,7 @@ public function PsNumericUpDown_Create( byval hWndParent as HWND, byval CtrlID a
     end if
 
     ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
-    PsRegistry_SetThemeProcs( hCtrl, @PsNumericUpDown_ApplyTheme, @PsNumericUpDown_ApplyFonts )
+    PsRegistry_SetThemeProcs( hCtrl, @PsNumericUpDown_ApplyTheme, @PsNumericUpDown_ApplyFonts, @PsNumericUpDown_Rescale )
 
     function = hCtrl
 
@@ -2096,6 +2097,32 @@ end sub
 ' the +/- glyphs are drawn bars.
 public sub PsNumericUpDown_ApplyFonts( byval hCtrl as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
     if hTextFont then PsNumericUpDown_SetFont( hCtrl, hTextFont )
+end sub
+
+' ========================================================================================
+' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric -- the scaled Create defaults and
+' whatever the host set since -- times newDpi/oldDpi; nBorderThick and nDividerThick stay as
+' they are (hairlines, never scaled). The embedded PsTextBox has its own registry row and
+' rescales itself, its margins included, so they are NOT pushed to it from here (that would
+' scale them twice); the re-layout only moves it onto the new rcValue. The control's own
+' CWindow takes the new DPI. The fonts are not ours: PsApp hands new ones over after this.
+' ========================================================================================
+public sub PsNumericUpDown_Rescale( byval hCtrl as HWND, byval oldDpi as long, byval newDpi as long )
+    dim as PSNUMERICUPDOWN_STATE ptr pNud = GetNumericUpDownPointer(hCtrl)
+    if (pNud = 0) orelse (oldDpi <= 0) orelse (newDpi <= 0) orelse (oldDpi = newDpi) then exit sub
+    pNud->nButtonWidth   = MulDiv( pNud->nButtonWidth,   newDpi, oldDpi )
+    pNud->nValuePadLeft  = MulDiv( pNud->nValuePadLeft,  newDpi, oldDpi )
+    pNud->nValuePadRight = MulDiv( pNud->nValuePadRight, newDpi, oldDpi )
+    pNud->nVertPadding   = MulDiv( pNud->nVertPadding,   newDpi, oldDpi )
+    pNud->nCornerRadius  = MulDiv( pNud->nCornerRadius,  newDpi, oldDpi )
+    pNud->nGlyphLength   = MulDiv( pNud->nGlyphLength,   newDpi, oldDpi )
+    pNud->nGlyphThick    = MulDiv( pNud->nGlyphThick,    newDpi, oldDpi )
+    if pNud->nGlyphLength < 1 then pNud->nGlyphLength = 1
+    if pNud->nGlyphThick < 1 then pNud->nGlyphThick = 1
+    dim as CWindow ptr pWindow = CWindowPtr( hCtrl )
+    if pWindow then pWindow->DPI = newDpi
+    pNud->Refresh()
+    NUD_SyncChild( pNud )
 end sub
 
 

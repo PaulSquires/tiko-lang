@@ -333,6 +333,7 @@ public declare function PsPopupMenu_ThemeColors( byref t as PSTHEME_COLORS ) as 
 public declare sub      PsPopupMenu_ApplyTheme( byval hPopup as HWND, byref t as PSTHEME_COLORS )
 public declare sub      PsPopupMenu_UnpinColors( byval hPopup as HWND )
 public declare sub      PsPopupMenu_ApplyFonts( byval hPopup as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+public declare sub      PsPopupMenu_Rescale( byval hPopup as HWND, byval oldDpi as long, byval newDpi as long )
 public declare sub      PsPopupMenu_SetFonts( byval hPopup as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT = 0 )
 public declare sub      PsPopupMenu_SetGlyphs( byval hPopup as HWND, byval wszCheck as ustring, byval wszChevron as ustring )
 
@@ -1233,7 +1234,7 @@ public function PsPopupMenu_Create( byval hOwner as HWND, byval CtrlID as long =
     PsRegistry_Add( hCtrl, PSREG_PRIO_POPUP, @PsPopupMenu_FilterMessage, @PsPopupMenu_CloseChain )
 
     ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
-    PsRegistry_SetThemeProcs( hCtrl, @PsPopupMenu_ApplyTheme, @PsPopupMenu_ApplyFonts )
+    PsRegistry_SetThemeProcs( hCtrl, @PsPopupMenu_ApplyTheme, @PsPopupMenu_ApplyFonts, @PsPopupMenu_Rescale )
 
     return hCtrl
 end function
@@ -1542,6 +1543,34 @@ public sub PsPopupMenu_ApplyFonts( byval hPopup as HWND, byval hTextFont as HFON
     if hTextFont then hText = hTextFont
     if hGlyphFont then hGlyph = hGlyphFont
     PsPopupMenu_SetFonts( hPopup, hText, hGlyph )
+end sub
+
+' ========================================================================================
+' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric -- the scaled Create defaults and
+' whatever the host set since, nMinWidth included -- times newDpi/oldDpi; the border keeps
+' Create's one-pixel floor. nSeparatorThickness stays as it is: PaintLine scales it at paint
+' time from the CWindow DPI, which takes the new value here. An OPEN chain is not re-laid-out
+' in place: it is closed the way the foreground-loss poll closes it (PM_CloseChain, notifying
+' the root's owner so its open state clears), and the next show measures afresh. The fonts
+' are not ours: PsApp hands new ones over after this.
+' ========================================================================================
+public sub PsPopupMenu_Rescale( byval hPopup as HWND, byval oldDpi as long, byval newDpi as long )
+    dim as PSPOPUPMENU_STATE ptr pThis = GetPopupMenuPointer(hPopup)
+    if (pThis = 0) orelse (oldDpi <= 0) orelse (newDpi <= 0) orelse (oldDpi = newDpi) then exit sub
+    if IsWindowVisible( hPopup ) then PM_CloseChain( hPopup, 0, true )
+    pThis->nItemHeight      = MulDiv( pThis->nItemHeight,      newDpi, oldDpi )
+    pThis->nSeparatorHeight = MulDiv( pThis->nSeparatorHeight, newDpi, oldDpi )
+    pThis->nCheckColWidth   = MulDiv( pThis->nCheckColWidth,   newDpi, oldDpi )
+    pThis->nChevronColWidth = MulDiv( pThis->nChevronColWidth, newDpi, oldDpi )
+    pThis->nAccelGap        = MulDiv( pThis->nAccelGap,        newDpi, oldDpi )
+    pThis->nHPadding        = MulDiv( pThis->nHPadding,        newDpi, oldDpi )
+    pThis->nVPadding        = MulDiv( pThis->nVPadding,        newDpi, oldDpi )
+    pThis->nBorderWidth     = MulDiv( pThis->nBorderWidth,     newDpi, oldDpi )
+    pThis->nMinWidth        = MulDiv( pThis->nMinWidth,        newDpi, oldDpi )
+    if pThis->nBorderWidth < 1 then pThis->nBorderWidth = 1
+    dim as CWindow ptr pWindow = CWindowPtr( hPopup )
+    if pWindow then pWindow->DPI = newDpi
+    pThis->Refresh()
 end sub
 
 

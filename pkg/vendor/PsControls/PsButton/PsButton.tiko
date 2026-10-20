@@ -839,6 +839,7 @@ public declare function PsButton_ThemeColors( byref t as PSTHEME_COLORS ) as PSB
 public declare sub      PsButton_ApplyTheme( byval hButton as HWND, byref t as PSTHEME_COLORS )
 public declare sub      PsButton_UnpinColors( byval hButton as HWND )
 public declare sub      PsButton_ApplyFonts( byval hButton as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+public declare sub      PsButton_Rescale( byval hButton as HWND, byval oldDpi as long, byval newDpi as long )
 public declare function PsButton_GetFont( byval hButton as HWND ) as HFONT
 public declare sub      PsButton_SetFont( byval hButton as HWND, byval hTextFont as HFONT )
 public declare function PsButton_GetGlyphFont( byval hButton as HWND ) as HFONT
@@ -1684,7 +1685,7 @@ public function PsButton_Create( byval hWndParent as HWND, byval CtrlID as long 
     PsTipHost_Ensure( @pBtn->tip, hCtrl, @PsButton_TipTextCallback )
 
     ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
-    PsRegistry_SetThemeProcs( hCtrl, @PsButton_ApplyTheme, @PsButton_ApplyFonts )
+    PsRegistry_SetThemeProcs( hCtrl, @PsButton_ApplyTheme, @PsButton_ApplyFonts, @PsButton_Rescale )
 
     function = hCtrl
 
@@ -2160,6 +2161,30 @@ end sub
 public sub PsButton_ApplyFonts( byval hButton as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
     if hTextFont then PsButton_SetFont( hButton, hTextFont )
     if hGlyphFont then PsButton_SetGlyphFont( hButton, hGlyphFont )
+end sub
+
+' ========================================================================================
+' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric -- the scaled Create defaults and
+' whatever the host set since -- times newDpi/oldDpi; the two THICKNESS values stay as they
+' are (they were never scaled). The button's own CWindow takes the new DPI so later ScaleX
+' calls agree. The fonts are not ours: PsApp hands new ones over after this.
+' ========================================================================================
+public sub PsButton_Rescale( byval hButton as HWND, byval oldDpi as long, byval newDpi as long )
+    dim as PSBUTTON_STATE ptr pBtn = GetButtonPointer(hButton)
+    if (pBtn = 0) orelse (oldDpi <= 0) orelse (newDpi <= 0) orelse (oldDpi = newDpi) then exit sub
+    pBtn->nPadLeft    = MulDiv( pBtn->nPadLeft,    newDpi, oldDpi )
+    pBtn->nPadRight   = MulDiv( pBtn->nPadRight,   newDpi, oldDpi )
+    pBtn->nPadTop     = MulDiv( pBtn->nPadTop,     newDpi, oldDpi )
+    pBtn->nPadBottom  = MulDiv( pBtn->nPadBottom,  newDpi, oldDpi )
+    pBtn->nIconGap    = MulDiv( pBtn->nIconGap,    newDpi, oldDpi )
+    pBtn->nIconWidth  = MulDiv( pBtn->nIconWidth,  newDpi, oldDpi )
+    pBtn->nIconHeight = MulDiv( pBtn->nIconHeight, newDpi, oldDpi )
+    pBtn->nCurvature  = MulDiv( pBtn->nCurvature,  newDpi, oldDpi )
+    pBtn->nFocusGap   = MulDiv( pBtn->nFocusGap,   newDpi, oldDpi )
+    dim as CWindow ptr pWindow = CWindowPtr( hButton )
+    if pWindow then pWindow->DPI = newDpi
+    pBtn->Refresh()
+    PsButton_ApplyAutoSize( pBtn )
 end sub
 
 function PsButton_GetFont( byval hButton as HWND ) as HFONT

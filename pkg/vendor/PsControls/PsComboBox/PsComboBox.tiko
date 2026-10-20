@@ -885,6 +885,7 @@ public declare function PsComboBox_ThemeColors( byref t as PSTHEME_COLORS ) as P
 public declare sub      PsComboBox_ApplyTheme( byval hCombo as HWND, byref t as PSTHEME_COLORS )
 public declare sub      PsComboBox_UnpinColors( byval hCombo as HWND )
 public declare sub      PsComboBox_ApplyFonts( byval hCombo as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+public declare sub      PsComboBox_Rescale( byval hCombo as HWND, byval oldDpi as long, byval newDpi as long )
 public declare function PsComboBox_GetFont( byval hCombo as HWND ) as HFONT
 public declare sub      PsComboBox_SetFont( byval hCombo as HWND, byval hTextFont as HFONT )
 public declare function PsComboBox_GetPlaceholderText( byval hCombo as HWND ) as ustring
@@ -1850,7 +1851,7 @@ public function PsComboBox_Create( byval hWndParent as HWND, byval CtrlID as lon
     PsRegistry_Add( hCtrl, PSREG_PRIO_OWNER, @PsComboBox_FilterMessage, @PsComboBox_CloseUp )
 
     ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
-    PsRegistry_SetThemeProcs( hCtrl, @PsComboBox_ApplyTheme, @PsComboBox_ApplyFonts )
+    PsRegistry_SetThemeProcs( hCtrl, @PsComboBox_ApplyTheme, @PsComboBox_ApplyFonts, @PsComboBox_Rescale )
 
     function = hCtrl
 
@@ -2521,6 +2522,34 @@ end sub
 ' The form's fonts (PsApp), handed over when the combobox is created on a form.
 public sub PsComboBox_ApplyFonts( byval hCombo as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
     if hTextFont then PsComboBox_SetFont( hCombo, hTextFont )
+end sub
+
+' ========================================================================================
+' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric -- the scaled Create defaults and
+' whatever the host set since -- times newDpi/oldDpi. nBorderThick and nFocusThick stay as
+' they are (they were never scaled), and so does nChevronThick, which PaintLine scales at
+' paint time from the CWindow DPI. The combobox's own CWindow takes the new DPI so later
+' ScaleX calls agree. The dropdown (hList) is a PsPopupMenu with its own registry row and is
+' rescaled by its own proc, not from here. The font is not ours: PsApp hands a new one over
+' after this.
+' ========================================================================================
+public sub PsComboBox_Rescale( byval hCombo as HWND, byval oldDpi as long, byval newDpi as long )
+    dim as PSCOMBOBOX_STATE ptr pCombo = GetComboBoxPointer(hCombo)
+    if (pCombo = 0) orelse (oldDpi <= 0) orelse (newDpi <= 0) orelse (oldDpi = newDpi) then exit sub
+    pCombo->nPadLeft       = MulDiv( pCombo->nPadLeft,       newDpi, oldDpi )
+    pCombo->nPadRight      = MulDiv( pCombo->nPadRight,      newDpi, oldDpi )
+    pCombo->nPadTop        = MulDiv( pCombo->nPadTop,        newDpi, oldDpi )
+    pCombo->nPadBottom     = MulDiv( pCombo->nPadBottom,     newDpi, oldDpi )
+    pCombo->nTextGap       = MulDiv( pCombo->nTextGap,       newDpi, oldDpi )
+    pCombo->nChevronWidth  = MulDiv( pCombo->nChevronWidth,  newDpi, oldDpi )
+    pCombo->nChevronHeight = MulDiv( pCombo->nChevronHeight, newDpi, oldDpi )
+    pCombo->nChevronGap    = MulDiv( pCombo->nChevronGap,    newDpi, oldDpi )
+    pCombo->nCurvature     = MulDiv( pCombo->nCurvature,     newDpi, oldDpi )
+    pCombo->nFocusGap      = MulDiv( pCombo->nFocusGap,      newDpi, oldDpi )
+    dim as CWindow ptr pWindow = CWindowPtr( hCombo )
+    if pWindow then pWindow->DPI = newDpi
+    pCombo->Refresh()
+    PsComboBox_ApplyAutoSize( pCombo )
 end sub
 
 function PsComboBox_GetFont( byval hCombo as HWND ) as HFONT

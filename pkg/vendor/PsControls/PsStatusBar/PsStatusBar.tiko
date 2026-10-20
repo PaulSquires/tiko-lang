@@ -381,6 +381,7 @@ public declare function PsStatusBar_SetBackColor( byval hStatusBarControl as HWN
 public declare sub      PsStatusBar_ApplyTheme( byval hStatusBarControl as HWND, byref t as PSTHEME_COLORS )
 public declare sub      PsStatusBar_UnpinColors( byval hStatusBarControl as HWND )
 public declare sub      PsStatusBar_ApplyFonts( byval hStatusBarControl as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+public declare sub      PsStatusBar_Rescale( byval hStatusBarControl as HWND, byval oldDpi as long, byval newDpi as long )
 public declare function PsStatusBar_GetFont( byval hStatusBarControl as HWND ) as HFONT
 public declare function PsStatusBar_SetFont( byval hStatusBarControl as HWND, byval hFont as HFONT ) as boolean
 public declare function PsStatusBar_GetTooltipHandle( byval hStatusBarControl as HWND ) as HWND
@@ -825,6 +826,23 @@ public sub PsStatusBar_ApplyFonts( byval hStatusBarControl as HWND, byval hTextF
     if hTextFont then PsStatusBar_SetFont( hStatusBarControl, hTextFont )
 end sub
 
+' ========================================================================================
+' Per-monitor DPI (RFC-0001 P4). The padding (scaled at Create, or the host's since) and every
+' panel's minimum width are pixels, so they are scaled; the panel rects are layout's and are
+' simply re-derived. The font is not ours: PsApp hands the new one over after this.
+' ========================================================================================
+public sub PsStatusBar_Rescale( byval hStatusBarControl as HWND, byval oldDpi as long, byval newDpi as long )
+    dim as PSSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer(hStatusBarControl)
+    if (pStatus = 0) orelse (oldDpi <= 0) orelse (newDpi <= 0) orelse (oldDpi = newDpi) then exit sub
+    pStatus->nPadding = MulDiv( pStatus->nPadding, newDpi, oldDpi )
+    for i as integer = 0 to pStatus->panelCount - 1
+        pStatus->panels(i).nMinWidth = MulDiv( pStatus->panels(i).nMinWidth, newDpi, oldDpi )
+    next
+    dim as CWindow ptr pWindow = CWindowPtr( hStatusBarControl )
+    if pWindow then pWindow->DPI = newDpi
+    pStatus->Refresh()
+end sub
+
 
 ' ========================================================================================
 ' Retrieve the current panel count in the custom statusbar control.
@@ -1158,7 +1176,7 @@ public function PsStatusBar_Create( byval hWndParent as HWND, byval CtrlID as in
     PsTipHost_Ensure( @pStatus->tip, hCtrl, @PsStatusBar_TipTextCallback )
     
     ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
-    PsRegistry_SetThemeProcs( hCtrl, @PsStatusBar_ApplyTheme, @PsStatusBar_ApplyFonts )
+    PsRegistry_SetThemeProcs( hCtrl, @PsStatusBar_ApplyTheme, @PsStatusBar_ApplyFonts, @PsStatusBar_Rescale )
 
     function = hCtrl
     

@@ -599,6 +599,7 @@ public declare function PsIconPanel_ThemeColors( byref t as PSTHEME_COLORS ) as 
 public declare sub      PsIconPanel_ApplyTheme( byval hIconPanel as HWND, byref t as PSTHEME_COLORS )
 public declare sub      PsIconPanel_UnpinColors( byval hIconPanel as HWND )
 public declare sub      PsIconPanel_ApplyFonts( byval hIconPanel as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+public declare sub      PsIconPanel_Rescale( byval hIconPanel as HWND, byval oldDpi as long, byval newDpi as long )
 public declare function PsIconPanel_SetItemForeColor( byval hIconPanel as HWND, byval idx as long, byval clr as COLORREF ) as boolean
 public declare function PsIconPanel_ClearItemForeColor( byval hIconPanel as HWND, byval idx as long ) as boolean
 public declare function PsIconPanel_GetFont( byval hIconPanel as HWND ) as HFONT
@@ -1159,6 +1160,36 @@ end sub
 ' The form's fonts (PsApp), handed over when the panel is created on a form.
 public sub PsIconPanel_ApplyFonts( byval hIconPanel as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
     if hGlyphFont then PsIconPanel_SetFont( hIconPanel, hGlyphFont )
+end sub
+
+' ========================================================================================
+' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric -- the scaled Create defaults and
+' whatever the host set since -- times newDpi/oldDpi, and so is every per-item override
+' that is set (the -1 / 0 inherit sentinels are left alone). The cell widths and the run
+' width are LayoutItems caches and are re-derived. An item's PsImage is not re-decoded: it is
+' fitted into the (rescaled) icon cell at paint time. The panel's own CWindow takes the new
+' DPI so later ScaleX calls agree. The font is not ours: PsApp hands a new one over after
+' this.
+' ========================================================================================
+public sub PsIconPanel_Rescale( byval hIconPanel as HWND, byval oldDpi as long, byval newDpi as long )
+    dim as PSICONPANEL_STATE ptr pIcon = GetIconPanelPointer(hIconPanel)
+    if (pIcon = 0) orelse (oldDpi <= 0) orelse (newDpi <= 0) orelse (oldDpi = newDpi) then exit sub
+    pIcon->nIconWidth  = MulDiv( pIcon->nIconWidth,  newDpi, oldDpi )
+    pIcon->nIconHeight = MulDiv( pIcon->nIconHeight, newDpi, oldDpi )
+    pIcon->nPadBefore  = MulDiv( pIcon->nPadBefore,  newDpi, oldDpi )
+    pIcon->nPadAfter   = MulDiv( pIcon->nPadAfter,   newDpi, oldDpi )
+    pIcon->nSepWidth   = MulDiv( pIcon->nSepWidth,   newDpi, oldDpi )
+    for i as long = 0 to pIcon->itemCount - 1
+        with pIcon->items(i)
+            if .nPadBefore  > 0 then .nPadBefore  = MulDiv( .nPadBefore,  newDpi, oldDpi )
+            if .nPadAfter   > 0 then .nPadAfter   = MulDiv( .nPadAfter,   newDpi, oldDpi )
+            if .nIconWidth  > 0 then .nIconWidth  = MulDiv( .nIconWidth,  newDpi, oldDpi )
+            if .nIconHeight > 0 then .nIconHeight = MulDiv( .nIconHeight, newDpi, oldDpi )
+        end with
+    next
+    dim as CWindow ptr pWindow = CWindowPtr( hIconPanel )
+    if pWindow then pWindow->DPI = newDpi
+    pIcon->Refresh()
 end sub
 
 
@@ -1830,7 +1861,7 @@ public function PsIconPanel_Create( byval hWndParent as HWND, byval CtrlID as lo
     PsTipHost_Ensure( @pIcon->tip, hCtrl, @PsIconPanel_TipTextCallback )
 
     ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
-    PsRegistry_SetThemeProcs( hCtrl, @PsIconPanel_ApplyTheme, @PsIconPanel_ApplyFonts )
+    PsRegistry_SetThemeProcs( hCtrl, @PsIconPanel_ApplyTheme, @PsIconPanel_ApplyFonts, @PsIconPanel_Rescale )
 
 
     function = hCtrl

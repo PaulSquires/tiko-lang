@@ -29,6 +29,7 @@ using PsApp
 using PsBufferPaint
 using PsTheme
 using PsRegistry
+using gui
 using PsMenuBar
 using PsPopupMenu
 using PsOptionButton

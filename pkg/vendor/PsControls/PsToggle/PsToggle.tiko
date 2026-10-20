@@ -456,6 +456,7 @@ public declare sub      PsToggle_SetColors( byval hToggle as HWND, byval pColors
 public declare function PsToggle_ThemeColors( byref t as PSTHEME_COLORS ) as PSTOGGLE_COLORS
 public declare sub      PsToggle_ApplyTheme( byval hToggle as HWND, byref t as PSTHEME_COLORS )
 public declare sub      PsToggle_UnpinColors( byval hToggle as HWND )
+public declare sub      PsToggle_Rescale( byval hToggle as HWND, byval oldDpi as long, byval newDpi as long )
 
 ' ----------------------------------------------------------------------------------------
 ' Callbacks.  See the type declarations above for each signature and contract.
@@ -1046,7 +1047,7 @@ public function PsToggle_Create( byval hWndParent as HWND, byval CtrlID as long 
     pWindow->UserData(0) = cast(LONG_PTR, pTog)
 
     ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
-    PsRegistry_SetThemeProcs( hCtrl, @PsToggle_ApplyTheme, 0 )
+    PsRegistry_SetThemeProcs( hCtrl, @PsToggle_ApplyTheme, 0, @PsToggle_Rescale )
 
     function = hCtrl
 
@@ -1319,6 +1320,24 @@ public sub PsToggle_UnpinColors( byval hToggle as HWND )
     pTog->bColorsPinned = false
     dim as PSTHEME_COLORS t
     if PsRegistry_GetTheme( t ) then PsToggle_ApplyTheme( hToggle, t )
+end sub
+
+' ========================================================================================
+' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric -- the scaled Create defaults and
+' whatever the host set since -- times newDpi/oldDpi; nBorderThick and nFocusThick stay as
+' they are (they were never scaled). The toggle's own CWindow takes the new DPI so later
+' ScaleX calls agree. The toggle has no font.
+' ========================================================================================
+public sub PsToggle_Rescale( byval hToggle as HWND, byval oldDpi as long, byval newDpi as long )
+    dim as PSTOGGLE_STATE ptr pTog = GetTogglePointer(hToggle)
+    if (pTog = 0) orelse (oldDpi <= 0) orelse (newDpi <= 0) orelse (oldDpi = newDpi) then exit sub
+    pTog->nTrackWidth  = MulDiv( pTog->nTrackWidth,  newDpi, oldDpi )
+    pTog->nTrackHeight = MulDiv( pTog->nTrackHeight, newDpi, oldDpi )
+    pTog->nKnobInset   = MulDiv( pTog->nKnobInset,   newDpi, oldDpi )
+    pTog->nFocusGap    = MulDiv( pTog->nFocusGap,    newDpi, oldDpi )
+    dim as CWindow ptr pWindow = CWindowPtr( hToggle )
+    if pWindow then pWindow->DPI = newDpi
+    pTog->Refresh()
 end sub
 
 

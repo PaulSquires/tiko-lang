@@ -711,6 +711,7 @@ public declare function PsTabBar_SetBorderColor( byval hTabBar as HWND, byval cl
 public declare sub      PsTabBar_ApplyTheme( byval hTabBar as HWND, byref t as PSTHEME_COLORS )
 public declare sub      PsTabBar_UnpinColors( byval hTabBar as HWND )
 public declare sub      PsTabBar_ApplyFonts( byval hTabBar as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+public declare sub      PsTabBar_Rescale( byval hTabBar as HWND, byval oldDpi as long, byval newDpi as long )
 public declare function PsTabBar_GetBorderWidth( byval hTabBar as HWND ) as integer
 public declare sub      PsTabBar_SetBorderWidth( byval hTabBar as HWND, byval nBorderWidth as integer )
 public declare function PsTabBar_GetFont( byval hTabBar as HWND ) as HFONT
@@ -1382,6 +1383,29 @@ public sub PsTabBar_ApplyFonts( byval hTabBar as HWND, byval hTextFont as HFONT,
     if hTextFont then PsTabBar_SetFont( hTabBar, hTextFont )
 end sub
 
+' ========================================================================================
+' Per-monitor DPI (RFC-0001 P4). Padding, icon width and border width (all scaled at Create,
+' or the host's since) and every tab's minimum width are pixels, so they are scaled; a border
+' that was there stays at least one pixel. The tab rects are layout's and are re-derived. The
+' font is not ours: PsApp hands the new one over after this.
+' ========================================================================================
+public sub PsTabBar_Rescale( byval hTabBar as HWND, byval oldDpi as long, byval newDpi as long )
+    dim as PSTABBAR_STATE ptr pTabBar = GetTabBarPointer(hTabBar)
+    if (pTabBar = 0) orelse (oldDpi <= 0) orelse (newDpi <= 0) orelse (oldDpi = newDpi) then exit sub
+    pTabBar->nPadding   = MulDiv( pTabBar->nPadding,   newDpi, oldDpi )
+    pTabBar->nIconWidth = MulDiv( pTabBar->nIconWidth, newDpi, oldDpi )
+    if pTabBar->nBorderWidth > 0 then
+        pTabBar->nBorderWidth = MulDiv( pTabBar->nBorderWidth, newDpi, oldDpi )
+        if pTabBar->nBorderWidth < 1 then pTabBar->nBorderWidth = 1
+    end if
+    for i as integer = 0 to pTabBar->tabCount - 1
+        pTabBar->tabs(i).nMinWidth = MulDiv( pTabBar->tabs(i).nMinWidth, newDpi, oldDpi )
+    next
+    dim as CWindow ptr pWindow = CWindowPtr( hTabBar )
+    if pWindow then pWindow->DPI = newDpi
+    pTabBar->Refresh()
+end sub
+
 
 ' ========================================================================================
 ' Retrieve the current tab count in the custom tab bar.
@@ -2008,7 +2032,7 @@ public function PsTabBar_Create( byval hWndParent as HWND, byval CtrlID as integ
     PsTipHost_Ensure( @pTabBar->tip, hCtrl, @PsTabBar_TipTextCallback )
     
     ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
-    PsRegistry_SetThemeProcs( hCtrl, @PsTabBar_ApplyTheme, @PsTabBar_ApplyFonts )
+    PsRegistry_SetThemeProcs( hCtrl, @PsTabBar_ApplyTheme, @PsTabBar_ApplyFonts, @PsTabBar_Rescale )
 
     function = hCtrl
     

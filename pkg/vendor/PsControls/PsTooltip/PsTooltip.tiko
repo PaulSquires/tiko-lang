@@ -470,6 +470,7 @@ public declare function PsTooltip_ThemeColors( byref t as PSTHEME_COLORS ) as PS
 public declare sub      PsTooltip_ApplyTheme( byval hTooltip as HWND, byref t as PSTHEME_COLORS )
 public declare sub      PsTooltip_UnpinColors( byval hTooltip as HWND )
 public declare sub      PsTooltip_ApplyFonts( byval hTooltip as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+public declare sub      PsTooltip_Rescale( byval hTooltip as HWND, byval oldDpi as long, byval newDpi as long )
 ' All three fonts are BORROWED. The caller keeps ownership and must not delete one while the
 ' tip is alive. hTitleFont 0 falls back to hTextFont; hGlyphFont 0 falls back to hTextFont.
 public declare sub      PsTooltip_SetFonts( byval hTooltip as HWND, byval hText as HFONT, _
@@ -1952,7 +1953,7 @@ public function PsTooltip_Create( byval hAttach as HWND, byval CtrlID as long = 
     PsTooltip_Attach( hCtrl, hAttach )
 
     ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
-    PsRegistry_SetThemeProcs( hCtrl, @PsTooltip_ApplyTheme, @PsTooltip_ApplyFonts )
+    PsRegistry_SetThemeProcs( hCtrl, @PsTooltip_ApplyTheme, @PsTooltip_ApplyFonts, @PsTooltip_Rescale )
 
     return hCtrl
 end function
@@ -2118,6 +2119,31 @@ public sub PsTooltip_ApplyFonts( byval hTooltip as HWND, byval hTextFont as HFON
     if hTextFont then hText = hTextFont
     if hGlyphFont then hGlyph = hGlyphFont
     PsTooltip_SetFonts( hTooltip, hText, pTip->hTitleFont, hGlyph )
+end sub
+
+' ========================================================================================
+' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric of THIS tip -- the scaled Create
+' defaults and whatever the host (or ApplyDefaults) set since, the wrap width included -- times
+' newDpi/oldDpi. The border width stays: it is a pen width the painter scales itself. The
+' process-wide defaults (gTIP_Def*) are the host's and are left alone. The layout is re-derived
+' on the next show; the fonts are not ours (PsApp hands new ones over after this).
+' ========================================================================================
+public sub PsTooltip_Rescale( byval hTooltip as HWND, byval oldDpi as long, byval newDpi as long )
+    dim as PSTOOLTIP_STATE ptr pTip = GetTooltipPointer(hTooltip)
+    if (pTip = 0) orelse (oldDpi <= 0) orelse (newDpi <= 0) orelse (oldDpi = newDpi) then exit sub
+    pTip->nMaxWidth      = MulDiv( pTip->nMaxWidth,      newDpi, oldDpi )
+    pTip->nPadX          = MulDiv( pTip->nPadX,          newDpi, oldDpi )
+    pTip->nPadY          = MulDiv( pTip->nPadY,          newDpi, oldDpi )
+    pTip->nCurvature     = MulDiv( pTip->nCurvature,     newDpi, oldDpi )
+    pTip->nStemW         = MulDiv( pTip->nStemW,         newDpi, oldDpi )
+    pTip->nStemH         = MulDiv( pTip->nStemH,         newDpi, oldDpi )
+    pTip->nGlyphCell     = MulDiv( pTip->nGlyphCell,     newDpi, oldDpi )
+    pTip->nGlyphGap      = MulDiv( pTip->nGlyphGap,      newDpi, oldDpi )
+    pTip->nTitleGap      = MulDiv( pTip->nTitleGap,      newDpi, oldDpi )
+    pTip->nMoveTolerance = MulDiv( pTip->nMoveTolerance, newDpi, oldDpi )
+    dim as CWindow ptr pWindow = CWindowPtr( hTooltip )
+    if pWindow then pWindow->DPI = newDpi
+    pTip->Refresh()
 end sub
 
 public sub PsTooltip_GetColors( byval hTooltip as HWND, byval pColors as PSTOOLTIP_COLORS ptr )

@@ -911,6 +911,7 @@ public declare function PsOptionButton_ThemeColors( byref t as PSTHEME_COLORS ) 
 public declare sub      PsOptionButton_ApplyTheme( byval hOptionButton as HWND, byref t as PSTHEME_COLORS )
 public declare sub      PsOptionButton_UnpinColors( byval hOptionButton as HWND )
 public declare sub      PsOptionButton_ApplyFonts( byval hOptionButton as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+public declare sub      PsOptionButton_Rescale( byval hOptionButton as HWND, byval oldDpi as long, byval newDpi as long )
 public declare function PsOptionButton_GetFont( byval hOptionButton as HWND ) as HFONT
 public declare sub      PsOptionButton_SetFont( byval hOptionButton as HWND, byval hTextFont as HFONT )
 
@@ -2082,7 +2083,7 @@ public function PsOptionButton_Create( _
     PsOptionButton_SyncTabStop( hWndParent, nGroupID )
 
     ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
-    PsRegistry_SetThemeProcs( hCtrl, @PsOptionButton_ApplyTheme, @PsOptionButton_ApplyFonts )
+    PsRegistry_SetThemeProcs( hCtrl, @PsOptionButton_ApplyTheme, @PsOptionButton_ApplyFonts, @PsOptionButton_Rescale )
 
     function = hCtrl
 
@@ -2572,6 +2573,32 @@ end sub
 ' The form's fonts (PsApp), handed over when the option button is created on a form.
 public sub PsOptionButton_ApplyFonts( byval hOptionButton as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
     if hTextFont then PsOptionButton_SetFont( hOptionButton, hTextFont )
+end sub
+
+' ========================================================================================
+' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric -- the scaled Create defaults and
+' whatever the host set since -- times newDpi/oldDpi (a derived nDotSize of 0 stays 0). The
+' two pens, nRingThick and nFocusThick, stay as they are: PaintRoundOutline scales them at
+' paint time from the CWindow DPI, which takes the new value here. The font is not ours:
+' PsApp hands a new one over after this.
+' ========================================================================================
+public sub PsOptionButton_Rescale( byval hOptionButton as HWND, byval oldDpi as long, byval newDpi as long )
+    dim as PSOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer(hOptionButton)
+    if (pOpt = 0) orelse (oldDpi <= 0) orelse (newDpi <= 0) orelse (oldDpi = newDpi) then exit sub
+    pOpt->nPadLeft        = MulDiv( pOpt->nPadLeft,        newDpi, oldDpi )
+    pOpt->nPadTop         = MulDiv( pOpt->nPadTop,         newDpi, oldDpi )
+    pOpt->nPadRight       = MulDiv( pOpt->nPadRight,       newDpi, oldDpi )
+    pOpt->nPadBottom      = MulDiv( pOpt->nPadBottom,      newDpi, oldDpi )
+    pOpt->nBoxGap         = MulDiv( pOpt->nBoxGap,         newDpi, oldDpi )
+    pOpt->nBoxWidth       = MulDiv( pOpt->nBoxWidth,       newDpi, oldDpi )
+    pOpt->nBoxHeight      = MulDiv( pOpt->nBoxHeight,      newDpi, oldDpi )
+    pOpt->nDotSize        = MulDiv( pOpt->nDotSize,        newDpi, oldDpi )
+    pOpt->nFocusGap       = MulDiv( pOpt->nFocusGap,       newDpi, oldDpi )
+    pOpt->nFocusCurvature = MulDiv( pOpt->nFocusCurvature, newDpi, oldDpi )
+    dim as CWindow ptr pWindow = CWindowPtr( hOptionButton )
+    if pWindow then pWindow->DPI = newDpi
+    pOpt->Refresh()
+    PsOptionButton_ApplyAutoSize( pOpt )
 end sub
 
 public function PsOptionButton_GetFont( byval hOptionButton as HWND ) as HFONT

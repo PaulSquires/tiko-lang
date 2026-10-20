@@ -196,6 +196,7 @@ public declare function PsMenuBar_ThemeColors( byref t as PSTHEME_COLORS ) as PS
 public declare sub      PsMenuBar_ApplyTheme( byval hMenuBar as HWND, byref t as PSTHEME_COLORS )
 public declare sub      PsMenuBar_UnpinColors( byval hMenuBar as HWND )
 public declare sub      PsMenuBar_ApplyFonts( byval hMenuBar as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+public declare sub      PsMenuBar_Rescale( byval hMenuBar as HWND, byval oldDpi as long, byval newDpi as long )
 public declare sub      PsMenuBar_SetFont( byval hMenuBar as HWND, byval hBarFont as HFONT )
 
 ' ----------------------------------------------------------------------------------------
@@ -606,7 +607,7 @@ public function PsMenuBar_Create( byval hWndParent as HWND, byval CtrlID as long
     PsRegistry_Add( hCtrl, PSREG_PRIO_OWNER, @PsMenuBar_FilterMessage, @PsMenuBar_CloseMenu )
 
     ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
-    PsRegistry_SetThemeProcs( hCtrl, @PsMenuBar_ApplyTheme, @PsMenuBar_ApplyFonts )
+    PsRegistry_SetThemeProcs( hCtrl, @PsMenuBar_ApplyTheme, @PsMenuBar_ApplyFonts, @PsMenuBar_Rescale )
 
     return hCtrl
 end function
@@ -815,6 +816,23 @@ end sub
 ' The form's fonts (PsApp), handed over when the menu bar is created on a form.
 public sub PsMenuBar_ApplyFonts( byval hMenuBar as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
     if hTextFont then PsMenuBar_SetFont( hMenuBar, hTextFont )
+end sub
+
+' ========================================================================================
+' Per-monitor DPI (RFC-0001 P4). The one stored pixel metric, nPadding -- the scaled Create
+' default or whatever the host set since -- times newDpi/oldDpi; the item widths are a
+' LayoutItems cache and are re-measured. The bar's own CWindow takes the new DPI so later
+' ScaleX calls agree. The dropdowns are PsPopupMenus with their own registry rows and are
+' rescaled by their own proc, not from here. The font is not ours: PsApp hands a new one
+' over after this.
+' ========================================================================================
+public sub PsMenuBar_Rescale( byval hMenuBar as HWND, byval oldDpi as long, byval newDpi as long )
+    dim as PSMENUBAR_STATE ptr pBar = GetMenuBarPointer(hMenuBar)
+    if (pBar = 0) orelse (oldDpi <= 0) orelse (newDpi <= 0) orelse (oldDpi = newDpi) then exit sub
+    pBar->nPadding = MulDiv( pBar->nPadding, newDpi, oldDpi )
+    dim as CWindow ptr pWindow = CWindowPtr( hMenuBar )
+    if pWindow then pWindow->DPI = newDpi
+    pBar->Refresh()
 end sub
 
 

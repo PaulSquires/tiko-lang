@@ -318,6 +318,7 @@ public declare sub      PsTextBox_SetOuterBackColor( byval hTextBoxControl as HW
 public declare sub      PsTextBox_ApplyTheme( byval hTextBoxControl as HWND, byref t as PSTHEME_COLORS )
 public declare sub      PsTextBox_UnpinColors( byval hTextBoxControl as HWND )
 public declare sub      PsTextBox_ApplyFonts( byval hTextBoxControl as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+public declare sub      PsTextBox_Rescale( byval hTextBoxControl as HWND, byval oldDpi as long, byval newDpi as long )
 ' Localize the built-in right-click menu (Cut/Copy/Paste/Select All). An empty
 ' SelectAllText keeps the current Select All label, so 3-argument callers are unaffected.
 public declare sub      PsTextBox_SetMenuText( byval hTextBoxControl as HWND, byval CutText as ustring, byval CopyText as ustring, byval PasteText as ustring, byval SelectAllText as ustring = "" )
@@ -1348,6 +1349,25 @@ public sub PsTextBox_ApplyFonts( byval hTextBoxControl as HWND, byval hTextFont 
     if hTextFont then PsTextBox_SetFont( hTextBoxControl, hTextFont )
 end sub
 
+' ========================================================================================
+' Per-monitor DPI (RFC-0001 P4). The stored pixel metrics -- the two EM_SETMARGINS values and
+' the corner radius -- times newDpi/oldDpi. nBorderWidth stays as it is: it is the frame's
+' pen width, which PaintRoundBorderRect DPI-scales itself. The control's own CWindow takes the
+' new DPI so that pen agrees. The fonts are not ours: PsApp hands new ones over after this.
+' ========================================================================================
+public sub PsTextBox_Rescale( byval hTextBoxControl as HWND, byval oldDpi as long, byval newDpi as long )
+    dim as PSTEXTBOX_STATE ptr pTextBox = GetTextBoxPointer(hTextBoxControl)
+    if (pTextBox = null) orelse (oldDpi <= 0) orelse (newDpi <= 0) orelse (oldDpi = newDpi) then exit sub
+    pTextBox->nMarginLeft   = MulDiv( pTextBox->nMarginLeft,   newDpi, oldDpi )
+    pTextBox->nMarginRight  = MulDiv( pTextBox->nMarginRight,  newDpi, oldDpi )
+    pTextBox->nCornerRadius = MulDiv( pTextBox->nCornerRadius, newDpi, oldDpi )
+    dim as CWindow ptr pWindow = CWindowPtr( hTextBoxControl )
+    if pWindow then pWindow->DPI = newDpi
+    PsTextBox_PositionRichEdit( pTextBox )    ' re-applies the margins too
+    InvalidateRect( pTextBox->hWin, null, true )
+    InvalidateRect( pTextBox->hRichEdit, null, true )
+end sub
+
 
 ' ========================================================================================
 ' Localize the built-in context menu. An empty SelectAllText keeps the current Select All
@@ -1909,7 +1929,7 @@ public function PsTextBox_Create( byval hWndParent as HWND, byval CtrlID as inte
     PsTextBox_ApplyCharFormat( pTextBox )
 
     ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
-    PsRegistry_SetThemeProcs( hForm, @PsTextBox_ApplyTheme, @PsTextBox_ApplyFonts )
+    PsRegistry_SetThemeProcs( hForm, @PsTextBox_ApplyTheme, @PsTextBox_ApplyFonts, @PsTextBox_Rescale )
 
     return hForm
 end function

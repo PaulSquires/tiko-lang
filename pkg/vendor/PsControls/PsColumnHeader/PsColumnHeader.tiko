@@ -491,6 +491,7 @@ public declare function PsColumnHeader_SetBackColor( byval hHeader as HWND, byva
 public declare sub      PsColumnHeader_ApplyTheme( byval hHeader as HWND, byref t as PSTHEME_COLORS )
 public declare sub      PsColumnHeader_UnpinColors( byval hHeader as HWND )
 public declare sub      PsColumnHeader_ApplyFonts( byval hHeader as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+public declare sub      PsColumnHeader_Rescale( byval hHeader as HWND, byval oldDpi as long, byval newDpi as long )
 public declare function PsColumnHeader_GetFont( byval hHeader as HWND ) as HFONT
 public declare function PsColumnHeader_SetFont( byval hHeader as HWND, byval hFont as HFONT ) as boolean
 public declare function PsColumnHeader_GetTooltipHandle( byval hHeader as HWND ) as HWND
@@ -839,6 +840,27 @@ end sub
 ' The form's fonts (PsApp), handed over when the header is created on a form.
 public sub PsColumnHeader_ApplyFonts( byval hHeader as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
     if hTextFont then PsColumnHeader_SetFont( hHeader, hTextFont )
+end sub
+
+' ========================================================================================
+' Per-monitor DPI (RFC-0001 P4). Every column's stored width and minimum width, the padding
+' (scaled at Create, or the host's since) and the horizontal scroll offset are pixels, so
+' they are scaled, column by column; the rects are layout's and are re-derived. The gutter
+' and the default minimum are scaled at use. The font is not ours: PsApp hands the new one
+' over after this.
+' ========================================================================================
+public sub PsColumnHeader_Rescale( byval hHeader as HWND, byval oldDpi as long, byval newDpi as long )
+    dim as PSCOLUMNHEADER_STATE ptr pHdr = GetColumnHeaderPointer(hHeader)
+    if (pHdr = 0) orelse (oldDpi <= 0) orelse (newDpi <= 0) orelse (oldDpi = newDpi) then exit sub
+    for i as integer = 0 to pHdr->colCount - 1
+        pHdr->cols(i).nWidth    = MulDiv( pHdr->cols(i).nWidth,    newDpi, oldDpi )
+        pHdr->cols(i).nMinWidth = MulDiv( pHdr->cols(i).nMinWidth, newDpi, oldDpi )
+    next
+    pHdr->nPadding = MulDiv( pHdr->nPadding, newDpi, oldDpi )
+    pHdr->xOffset  = MulDiv( pHdr->xOffset,  newDpi, oldDpi )
+    dim as CWindow ptr pWindow = CWindowPtr( hHeader )
+    if pWindow then pWindow->DPI = newDpi
+    pHdr->Refresh()
 end sub
 
 function PsColumnHeader_GetFont( byval hHeader as HWND ) as HFONT
@@ -1477,7 +1499,7 @@ public function PsColumnHeader_Create( byval hWndParent as HWND, byval CtrlID as
     PsTipHost_Ensure( @pHdr->tip, hCtrl, @PsColumnHeader_TipTextCallback )
 
     ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
-    PsRegistry_SetThemeProcs( hCtrl, @PsColumnHeader_ApplyTheme, @PsColumnHeader_ApplyFonts )
+    PsRegistry_SetThemeProcs( hCtrl, @PsColumnHeader_ApplyTheme, @PsColumnHeader_ApplyFonts, @PsColumnHeader_Rescale )
 
     function = hCtrl
 

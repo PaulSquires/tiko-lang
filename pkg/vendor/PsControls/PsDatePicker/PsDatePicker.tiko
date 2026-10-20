@@ -514,6 +514,7 @@ public declare function PsDatePicker_ThemeColors( byref t as PSTHEME_COLORS ) as
 public declare sub      PsDatePicker_ApplyTheme( byval hCtrl as HWND, byref t as PSTHEME_COLORS )
 public declare sub      PsDatePicker_UnpinColors( byval hCtrl as HWND )
 public declare sub      PsDatePicker_ApplyFonts( byval hCtrl as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+public declare sub      PsDatePicker_Rescale( byval hCtrl as HWND, byval oldDpi as long, byval newDpi as long )
 
 ' --- callbacks ---
 public declare sub      PsDatePicker_SetParseCallback( byval hCtrl as HWND, byval userfunc as DTP_ParseCallbackFunc )
@@ -1668,6 +1669,10 @@ function DTP_EnsureCalendar( byval hCtrl as HWND ) as HWND
     pCal->idc    = pCtrl->idc_Ctrl
 
     ' DPI-scale the calendar metrics once, here (the family rule).
+    ' The picker's DPI, not the system's: under per-monitor DPI the picker may have been rescaled
+    ' (PsDatePicker_Rescale) before the calendar is first opened.
+    dim as CWindow ptr pPicker = CWindowPtr( hCtrl )
+    if pPicker then pWindow->DPI = pPicker->DPI
     pCal->nPad      = pWindow->ScaleX( CDTP_CAL_PAD )
     pCal->nGutter   = pWindow->ScaleX( CDTP_CAL_GUTTER )
     pCal->nHeaderH  = pWindow->ScaleY( CDTP_CAL_HEADERH )
@@ -2322,7 +2327,7 @@ public function PsDatePicker_Create( byval hWndParent as HWND, byval CtrlID as l
     end if
 
     ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
-    PsRegistry_SetThemeProcs( hCtrl, @PsDatePicker_ApplyTheme, @PsDatePicker_ApplyFonts )
+    PsRegistry_SetThemeProcs( hCtrl, @PsDatePicker_ApplyTheme, @PsDatePicker_ApplyFonts, @PsDatePicker_Rescale )
 
     function = hCtrl
 end function
@@ -2810,6 +2815,56 @@ end sub
 public sub PsDatePicker_ApplyFonts( byval hCtrl as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
     if hTextFont then PsDatePicker_SetFont( hCtrl, hTextFont )
     if hGlyphFont then PsDatePicker_SetIconFont( hCtrl, hGlyphFont )
+end sub
+
+' ========================================================================================
+' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric -- the scaled Create defaults and
+' whatever the host set since -- times newDpi/oldDpi; nBorderThick and nDividerThick stay as
+' they are (hairlines, never scaled). The control's own CWindow takes the new DPI, and the
+' control-OWNED default icon font is re-created at the new size (a host or PsApp icon font
+' is not ours: PsApp hands new fonts over after this). The embedded PsTextBox has its own
+' registry row and rescales itself, margins included, so they are not pushed to it from here;
+' the re-layout only moves it onto the new rcField. The calendar popup, once it exists, is
+' kept for the picker's lifetime, so its metrics and its CWindow follow too.
+' ========================================================================================
+public sub PsDatePicker_Rescale( byval hCtrl as HWND, byval oldDpi as long, byval newDpi as long )
+    dim as PSDATEPICKER_STATE ptr pCtrl = GetDatePickerPointer(hCtrl)
+    if (pCtrl = 0) orelse (oldDpi <= 0) orelse (newDpi <= 0) orelse (oldDpi = newDpi) then exit sub
+    pCtrl->nIconWidth     = MulDiv( pCtrl->nIconWidth,     newDpi, oldDpi )
+    pCtrl->nFieldPadLeft  = MulDiv( pCtrl->nFieldPadLeft,  newDpi, oldDpi )
+    pCtrl->nFieldPadRight = MulDiv( pCtrl->nFieldPadRight, newDpi, oldDpi )
+    pCtrl->nVertPadding   = MulDiv( pCtrl->nVertPadding,   newDpi, oldDpi )
+    pCtrl->nCornerRadius  = MulDiv( pCtrl->nCornerRadius,  newDpi, oldDpi )
+    dim as CWindow ptr pWindow = CWindowPtr( hCtrl )
+    if pWindow then
+        pWindow->DPI = newDpi
+        dim as long fontPx = pWindow->ScaleY( CDTP_DEFAULT_ICONFONTPT * 96 \ 72 )
+        dim as HFONT hNew = CreateFontW( -fontPx, 0, 0, 0, FW_NORMAL, 0, 0, 0, _
+                DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, _
+                DEFAULT_PITCH or FF_DONTCARE, @wstr("Segoe Fluent Icons") )
+        if hNew then
+            if pCtrl->hIconFontDefault then DeleteObject( pCtrl->hIconFontDefault )
+            pCtrl->hIconFontDefault = hNew
+        end if
+    end if
+    if pCtrl->hCal then
+        dim as PSDATEPICKER_CAL ptr pCal = GetDatePickerCalPointer( pCtrl->hCal )
+        if pCal then
+            pCal->nPad      = MulDiv( pCal->nPad,      newDpi, oldDpi )
+            pCal->nGutter   = MulDiv( pCal->nGutter,   newDpi, oldDpi )
+            pCal->nHeaderH  = MulDiv( pCal->nHeaderH,  newDpi, oldDpi )
+            pCal->nChevW    = MulDiv( pCal->nChevW,    newDpi, oldDpi )
+            pCal->nWeekdayH = MulDiv( pCal->nWeekdayH, newDpi, oldDpi )
+            pCal->nCellMinW = MulDiv( pCal->nCellMinW, newDpi, oldDpi )
+            pCal->nCellMinH = MulDiv( pCal->nCellMinH, newDpi, oldDpi )
+            pCal->bLayoutDirty = true
+        end if
+        dim as CWindow ptr pCalWindow = CWindowPtr( pCtrl->hCal )
+        if pCalWindow then pCalWindow->DPI = newDpi
+        InvalidateRect( pCtrl->hCal, NULL, TRUE )
+    end if
+    pCtrl->Refresh()
+    DTP_SyncChild( pCtrl )
 end sub
 
 
