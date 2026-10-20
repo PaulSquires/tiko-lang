@@ -1166,7 +1166,7 @@ sub InitSharedGlobal _
     '' fbcunit.bas declares three of its own flags that way.
     dim as Tko.Check.ConstVal cv = Tko.Check.ConstOf( _
         *c.ast, init, *c.srcMgr, *c.names, c.types->target.pointerBits, c.syms, _
-        VarScopeOf_( c, sid ) )
+        VarScopeOf_( c, sid ), 0, c.types, c.info )   '' the types: a cast narrows, and folds a float
     '' ...AND A FLOAT CONSTANT INTO AN INTEGER rounds half to even, as fbc folds it:
     '' 'dim shared as integer a = 2.5' is 'static int64 A$ = 2ll', and 'cast( ulong,
     '' 0.5 * 255.f )' is 128. Every D3DCOLOR_COLORVALUE in a shared table declined.

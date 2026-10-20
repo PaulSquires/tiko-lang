@@ -753,6 +753,20 @@ private function ConstCall_ _
         '' it -- 'dim as long z = BOTH' printed correctly all along -- and wrong
         '' wherever the constant IS the answer, which is every PRINT of one and
         '' every further fold built on it.
+        '' ...AND A FLOAT OPERAND CAST TO AN INTEGER folds too, half to even as fbc folds it:
+        '' D3DCOLOR_COLORVALUE's 'cast( DWORD, 1.0 * 255.f )' in a shared vertex table
+        '' (fbc examples win32/d3d9_primitives) had no value and the table declined.
+        if (cvv.known = false) andalso (types <> nullptr) andalso (info <> nullptr) then
+            dim as Tko.TypeId fct = types->Unqualify( info->TypeOf_( cast( Tko.NodeId, ast.children[cp->first] ) ) )
+            if types->Kind( fct ) = Tko.TK_BUILTIN then
+                if (Tko.BuiltinClass( types->BuiltinOf( fct ) ) = Tko.TC_INT) orelse (Tko.BuiltinClass( types->BuiltinOf( fct ) ) = Tko.TC_INTPTR) then
+                    dim as float64 fcd
+                    if ConstFloatOf( ast, cast( Tko.NodeId, ast.children[cp->first + 1] ), fcd, 0, syms, scope_, @names ) then
+                        cvv = CV_( RoundHalfEven_( fcd ) )
+                    end if
+                end if
+            end if
+        end if
         if (cvv.known) andalso (types <> nullptr) andalso (info <> nullptr) then
             dim as Tko.NodeId cta = cast( Tko.NodeId, ast.children[cp->first] )
             dim as Tko.TypeId ctt = info->TypeOf_( cta )

@@ -1428,7 +1428,7 @@ function FoldAggInit_ _
             '' needs: 'dim shared a(11 to ...) = { 1, lbound( a ), 3 }'.
             dim as Tko.Check.ConstVal cv = Tko.Check.ConstOf( _
                 *c.ast, e, *c.srcMgr, *c.names, c.types->target.pointerBits, _
-                c.syms, fsc, 0, c.types )
+                c.syms, fsc, 0, c.types, c.info )
             if cv.known = false then return false
             bits = cv.value
         end if

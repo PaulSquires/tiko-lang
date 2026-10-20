@@ -1,0 +1,13 @@
+'' RUN: a float constant CAST to an integer type -- 'cast( ulong, 0.5 * 255.f )' -- folds half to
+'' even, in the integer constant folder itself: a shared UDT table built with
+'' D3DCOLOR_COLORVALUE's shape had no value for the leaf and declined (TKO0994; fbc examples
+'' win32/d3d9_primitives), and a const of one had none. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/const-cast-float-to-int.bas -o tests/codegen/constcastfloattoint.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0994
+'' EXPECT-FILE: tests/codegen/constcastfloattoint.exe
+'' RUN: tests/codegen/constcastfloattoint.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: FFFF8000 800000FF 6-2 2
