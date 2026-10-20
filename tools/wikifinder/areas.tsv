@@ -20,6 +20,7 @@ area	graphics	Graphics and windows	Functions-Graphics	draw on a graphics screen,
 area	finance	Money and finance	Functions-Finance	calculate interest, returns and schedules with exact decimals	Category-Finance
 area	logging	Logging	Functions-Logging	write log messages to the console, files or your own sinks	Category-Logging
 area	encoding	Encoding, hashes and IDs	Functions-Encoding	encode and decode Base64, hex and percent-encoding; hash and checksum data; generate UUIDs	Category-Codec Category-Hash Category-UUID
+area	network	Networking	Functions-Network	look up hosts, connect over TCP and UDP, parse and build URLs	Category-Net
 
 from	built-in	builtin	-
 from	std/chrono	import	chrono
@@ -31,6 +32,7 @@ from	std/hash	import	hash
 from	std/logs	import	logs
 from	std/memory	import	memory
 from	std/money	import	money
+from	std/net	import	net
 from	std/numeric	import	numeric
 from	std/os	import	os
 from	std/outcome	import	outcome

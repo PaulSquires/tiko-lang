@@ -200,6 +200,7 @@ Every module below is imported as `#import "std/<name>"` and used as `<name>.Som
 | `std/os` | Arguments, environment, host facts, Ctrl-C | [OS](Category-OS) |
 | `std/process` | Running other programs, pipes, exit codes | [Process](Category-Process) |
 | `std/config` | INI and TOML files: read, query, write | [Config](Category-Config) |
+| `std/net` | IP addresses, host lookup, TCP and UDP sockets, URLs and query strings | [Net](Category-Net) |
 
 A few language statements need a module too. `spawn` and `select channel` are built on
 `std/tasks`, so a file that uses them writes `#import "std/tasks"` (without it, the compiler says
