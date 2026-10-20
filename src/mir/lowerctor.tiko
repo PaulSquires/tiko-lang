@@ -584,18 +584,6 @@ function LowerUserLetConv_ _
                     ulTook = true
                 end if
             end if
-            '' ...AND A NARROW STRING RVALUE FOR 'byref as zstring' -- 'v = v & "def"' over a type
-            '' that 'extends zstring' (manual udt/extendszstring1/2) -- passes its descriptor's
-            '' characters; it had no address and declined.
-            if (ulTook = false) andalso (c.types->Kind( pu ) = Tko.TK_BUILTIN) andalso IsStringType( c, vu ) andalso (IsUStringType( c, vu ) = false) then
-                dim as MirValue zsd
-                if (c.types->BuiltinOf( pu ) = Tko.TY_ZSTRING) andalso StrDescriptorOf_( c, value, zsd ) then
-                    dim as MirInst zfa
-                    zfa.op = cast( uint16, M_FIELD_ADDR ) : zfa.ty = cast( uint8, MT_PTR ) : zfa.a = zsd : zfa.imm = 0
-                    av = LowerExprLoad( c, Emit( c, zfa ), MT_PTR )
-                    ulTook = (av.kind <> cast( uint8, MV_NONE ))
-                end if
-            end if
             '' ...AND AN UNTYPED WIDE EXPRESSION passes a wide temporary's characters: 'pt' is the
             '' bare builtin here, not a reference, so CtorArgValue_'s wide arm never sees it.
             '' ...AND SO DOES A WIDE VALUE WideCharOverload_ chose the 'let' for.
@@ -605,7 +593,19 @@ function LowerUserLetConv_ _
         end if
     end if
     if (ulTook = false) andalso (CtorArgValue_( c, value, pt, av ) = false) then
-        return false
+        '' ...A NARROW STRING RVALUE FOR 'byref as zstring' -- 'v = v & "def"' over a type that
+        '' 'extends zstring' (manual udt/extendszstring1/2) -- passes its descriptor's
+        '' characters; it had no address and declined.
+        dim as Tko.TypeId zpu = c.types->Unqualify( pt )
+        dim as Tko.TypeId zvu = c.types->Unqualify( c.info->TypeOf_( value ) )
+        if (ulByref = false) orelse (c.types->Kind( zpu ) <> Tko.TK_BUILTIN) then return false
+        if (c.types->BuiltinOf( zpu ) <> Tko.TY_ZSTRING) orelse (IsStringType( c, zvu ) = false) orelse IsUStringType( c, zvu ) then return false
+        dim as MirValue zsd
+        if StrDescriptorOf_( c, value, zsd ) = false then return false
+        dim as MirInst zfa
+        zfa.op = cast( uint16, M_FIELD_ADDR ) : zfa.ty = cast( uint8, MT_PTR ) : zfa.a = zsd : zfa.imm = 0
+        av = LowerExprLoad( c, Emit( c, zfa ), MT_PTR )
+        if av.kind = cast( uint8, MV_NONE ) then return false
     end if
     dim as containers.Array( of uint32 ) largs
     largs.Push( cast( uint32, av.kind ) ) : largs.Push( cast( uint32, av.id ) )
