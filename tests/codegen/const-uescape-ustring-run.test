@@ -1,0 +1,22 @@
+'' RUN: a string constant over a unicode-escaped literal, read into a USTRING (PsApp finding
+'' F6). 'const G = !"\uE73A"' then 'dim as ustring v = G' held the six characters of the
+'' spelling, so every PsCheckBox default glyph drew as text; an escaped literal holding raw
+'' UTF-8 kept one unit per byte. Declaration, assignment, a field through a pointer, a mixed
+'' literal, raw UTF-8, a constant naming a constant, and the literal itself. Output identical
+'' to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/const-uescape-ustring.bas -o tests/codegen/constuescapeustring.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: verify:
+'' EXPECT-FILE: tests/codegen/constuescapeustring.exe
+'' RUN: tests/codegen/constuescapeustring.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: dim 1 E73A E73A
+'' EXPECT-RUN-OUT: assign 1 E73A E73A
+'' EXPECT-RUN-OUT: field 1 E73A E73A
+'' EXPECT-RUN-OUT: mixed 3 61 A
+'' EXPECT-RUN-OUT: raw 1 E73A E73A
+'' EXPECT-RUN-OUT: alias 1 E73A E73A
+'' EXPECT-RUN-OUT: literal 1 E73A E73A
+'' EXPECT-RUN-OUT: wstring 1 E73A

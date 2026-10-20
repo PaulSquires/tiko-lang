@@ -87,8 +87,9 @@ function EmitStrTerm _
         dim as string ct
         if ConstStringTextOf_( c, term, ct ) then
             if isU then
-                dim as int32 cch = 0
-                dim as int32 cgi = WideFoldedText_( c, term, ct, cch )
+                dim as int32 cch = 0   '' THE LITERAL'S UNITS FIRST: the fold keeps a unicode escape's spelling (F6)
+                dim as int32 cgi = WideLitGlobal_( c, term, cch )
+                if cgi < 0 then cgi = WideFoldedText_( c, term, ct, cch )
                 PushUStrLiteralArg( c, args, cgi, cch )
             else
                 PushStrLiteralArg( args, c.m->AddStringLiteral( ct, *c.names ), len( ct ) )
