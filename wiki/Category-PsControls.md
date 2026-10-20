@@ -29,6 +29,36 @@ A module imports the modules it is built from, so importing `PsButton` compiles 
 
 Runnable demos for every control are in the toolchain's `examples/PsControls/`, one folder each, built with [`tiko build`](Category-Tiko-Build).
 
+## The application framework
+
+[PsApp](PsApp) is the quick way to a running program. It does the start-up (COM, GDI+, DPI awareness, the icon font), the message loop and the tear-down, and each form's messages arrive as callbacks:
+
+```freebasic
+#import "vendor/PsControls/PsApp"
+#import "vendor/PsControls/PsButton"
+using PsApp
+using PsButton
+
+dim app as PsApplication
+app.Init( )
+dim f as PsForm ptr = app.NewForm( "Hello", 640, 400 )
+dim hOk as HWND = PsButton_Create( f->hWindow, 1001 )   ' themed, with the form's font
+PsButton_SetText( hOk, "OK" )
+f->OnSize( sub( byval f as PsForm ptr, byval cx as long, byval cy as long )
+               SetWindowPos( f->Item( 1001 ), null, cx - f->ScaleX( 100 ), cy - f->ScaleY( 44 ), _
+                             f->ScaleX( 88 ), f->ScaleY( 32 ), SWP_NOZORDER or SWP_SHOWWINDOW )
+           end sub )
+end app.Run( f )
+```
+
+| Module | What it is |
+|---|---|
+| [PsApp](PsApp) | `PsApplication` (start-up, the message loop, tear-down, `RunOnUI` for background threads, timers) and `PsForm` (a window whose messages arrive as callbacks; modal forms; per-monitor DPI) |
+| [PsTheme](PsTheme) | The shared theme: semantic colour roles, Dark and Light presets, following the Windows setting live |
+| [PsRegistry](PsRegistry) | Where each control registers what the message loop must do for it, and its theme, font and DPI procs |
+
+The toolchain's `examples/PsControls/PsApp` is a starter to copy; `PsTheme` is a gallery of the controls under the theme, and `PsAppWorker` shows background work reporting to the window.
+
 ## The controls
 
 | Group | Pages |
