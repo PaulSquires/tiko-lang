@@ -65,3 +65,4 @@ from	vendor/PsControls/PsImage	import	PsImage
 from	vendor/PsControls/PsPopupMenu	import	PsPopupMenu
 from	vendor/PsControls/PsColumnHeader	import	PsColumnHeader
 from	vendor/PsControls/PsTipHost	import	PsTipHost
+ignore	Notepad-Tutorial	a tutorial, not a function

@@ -4,6 +4,7 @@
 
 The application framework for PsControls. `PsApplication` handles start-up, the message loop and
 tear-down. A `PsForm` is a window whose messages arrive as callbacks.
+The [Notepad Tutorial](Notepad-Tutorial) builds a complete program on it.
 
 ```freebasic
 #import "vendor/PsControls/PsApp"

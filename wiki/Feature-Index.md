@@ -58,7 +58,7 @@ Libraries the toolchain ships in `vendor/`, each reached with one `#import` and 
 | [SDL3](SDL3-Tutorial) | SDL 3 for windows, input, audio and 2D rendering, with `vendor/SDL3/image`, `vendor/SDL3/ttf` and `vendor/SDL3/mixer` for images, fonts and mixing. |
 | [raylib6](Raylib-Tutorial) | raylib, for games and graphics programs, with `vendor/raylib6/raymath` and `vendor/raylib6/rlgl`. |
 | [cJSON](Vendor-Packages) | cJSON, a small JSON parser and writer, with `vendor/cJSON/utils` for JSON Pointer, Patch and Merge Patch. |
-| [PsControls](Category-PsControls) | Owner-drawn Win32 controls written in tiko and shipped as source, one module per control: text, numeric and date entry, buttons and switches, a list/tree, menus, toolbars, tabs, splitters, scroll bars, a message box, a colour picker, tooltips, a progress bar and a chart. Nothing underneath is a system control, so every colour is settable. [PsApp](PsApp) runs a program of them in a dozen lines: forms with message callbacks, the message loop, a shared light/dark theme, background-thread hand-off and per-monitor DPI. |
+| [PsControls](Category-PsControls) | Owner-drawn Win32 controls written in tiko and shipped as source, one module per control: text, numeric and date entry, buttons and switches, a list/tree, menus, toolbars, tabs, splitters, scroll bars, a message box, a colour picker, tooltips, a progress bar and a chart. Nothing underneath is a system control, so every colour is settable. [PsApp](PsApp) runs a program of them in a dozen lines: forms with message callbacks, the message loop, a shared light/dark theme, background-thread hand-off and per-monitor DPI. Start with the [tutorial](Notepad-Tutorial). |
 
 ## Toolchain
 

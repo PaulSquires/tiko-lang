@@ -57,7 +57,7 @@ end app.Run( f )
 | [PsTheme](PsTheme) | The shared theme: semantic colour roles, Dark and Light presets, following the Windows setting live |
 | [PsRegistry](PsRegistry) | Where each control registers what the message loop must do for it, and its theme, font and DPI procs |
 
-The toolchain's `examples/PsControls/PsApp` is a starter to copy; `PsTheme` is a gallery of the controls under the theme, and `PsAppWorker` shows background work reporting to the window.
+The [Notepad Tutorial](Notepad-Tutorial) builds a complete program with it: a text editor with menus, a status bar, Find and a self-test. The toolchain's `examples/PsControls/PsApp` is a starter to copy; `PsTheme` is a gallery of the controls under the theme, and `PsAppWorker` shows background work reporting to the window.
 
 ## The controls
 
@@ -106,6 +106,7 @@ Every constant the controls define (`PSTOGGLE_DEFAULT_TRACKW`, `CCOLHDR_FILL_LAS
 
 ### See also
 
+- [Notepad Tutorial](Notepad-Tutorial)
 - [Vendor Packages](Vendor-Packages)
 - [Packages and Modules Tutorial](Packages-and-Modules-Tutorial)
 - [tiko build](Category-Tiko-Build)
