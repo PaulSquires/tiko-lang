@@ -1,0 +1,10 @@
+scheme http, user user, host shop.example, port 8080
+/catégorie/../items
+id=7&sort=price+asc
+reviews
+http://user@shop.example:8080/item?id=8
+http://user@shop.example:8080/
+http://cdn.example/app.js
+price asc     (none)
+id=9&sort=price+asc&tag=new+%26+used
+http://user@shop.example:8080/items/summer%20sale?id=9&sort=price+asc&tag=new+%26+used

@@ -3,12 +3,13 @@
 Almost every useful program reads something it did not make and leaves something behind: a
 configuration file, a log, a folder of results, an exit code a build script checks. This chapter
 is about that boundary — the files a program reads and writes, the directories around them, the
-console it talks through, and the other programs it starts.
+console it talks through, the other programs it starts, and the machines it talks to over the
+network.
 
 Files are the **`std/fs` module**: an open `File` and the streams layered on it, a path algebra, a
 single `Stat` call for every fact about a file, directory walks with `for each`, whole-file reads
 and writes, and the directories a program keeps its own files in. Configuration files in TOML and
-INI are **`std/config`**. Every operation that can fail
+INI are **`std/config`**; addresses, sockets and URLs are **`std/net`**. Every operation that can fail
 returns a `Result` (Chapter 17) rather than raising a runtime error, so a missing file is a value
 the program looks at, not a crash.
 
@@ -696,6 +697,87 @@ on Linux; the console window closing, logoff or shutdown on Windows) or `INT_HAN
 be stopped; `os.CatchInterrupt( false )` turns that off. On Windows a closing console window gives
 the program about five seconds before the system ends it regardless.
 
+## Talking over the network
+
+`std/net` holds the three things a program needs to talk to another machine: **addresses** to say
+where, **sockets** to carry the bytes — TCP for a connection, UDP for single messages — and
+**URLs**, the text form in which addresses usually arrive.
+
+### Addresses
+
+```tiko
+{{#include ../examples/ch24/ipaddr.tiko}}
+```
+
+```text
+{{#include ../examples/ch24/ipaddr.out}}
+```
+
+An `IpAddress` is a value, IPv4 or IPv6, that prints in one canonical form whatever way it was
+written: IPv6 in lower case with the longest run of zero groups as `::`. **Parsing is strict.**
+`010.0.0.1` is refused rather than read — some systems read a leading zero as octal and reach
+`8.0.0.1`, others as decimal, and a filter that checks one reading while a connection uses the other
+is a security hole. The `Is…` functions classify an address — `IsLoopback`, `IsPrivate`,
+`IsLinkLocal`, `IsMulticast`, `IsGlobalUnicast` — and look through an IPv4 address written as IPv6.
+A `SocketAddress` adds a port; written as text an IPv6 one needs brackets, `[::1]:8080`, because
+the address itself is full of colons.
+
+`net.Resolve( "example.com", 443 )` asks the system's resolver for a name's addresses and returns
+them all, each with the port. An address written as text comes back as itself without a lookup.
+
+### A TCP connection
+
+```tiko
+{{#include ../examples/ch24/tcpecho.tiko}}
+```
+
+```text
+{{#include ../examples/ch24/tcpecho.out}}
+```
+
+A `TcpListener` is a server: `Bind` to an address and port — port 0 asks the system for a free one,
+which `LocalAddress( )` then reports — and `Accept` each connection into a `TcpStream`. A client
+`TcpStream` calls `Connect` with a `SocketAddress`, or `ConnectHost( "example.com", 80 )`, which
+resolves the name and tries its addresses in turn. Each of them takes a timeout in milliseconds;
+without one a call waits as long as the system lets it.
+
+**A `TcpStream` is a stream**, the same `fs.Stream` as a `File`: `WriteUtf8`, `WriteAll`,
+`ReadExact`, `ReadToEnd`, a `BufferedReader` or a `TextReader` all work on a connection. A read
+returns what has arrived, which may be less than asked for — TCP carries a stream of bytes, not
+messages, so `ReadExact` or a line reader is what puts the messages back together. A read of 0
+bytes means the other side has finished sending, as `Shutdown( SHUTDOWN_WRITE )` shows. Reads and
+writes report `FsError`s like a file's: `FS_TIMED_OUT` after `SetReadTimeout`,
+`FS_CONNECTION_RESET` when the peer drops the connection. Everything else — connecting, binding,
+accepting — reports a `NetError`, whose code says what happened: `NET_CONNECTION_REFUSED`,
+`NET_TIMED_OUT`, `NET_ADDRESS_IN_USE`, `NET_HOST_NOT_FOUND`.
+
+A `UdpSocket` sends single datagrams instead: `Bind`, then `SendTo( p, n, address )` and
+`ReceiveFrom( p, n, sender )`. A datagram arrives whole or not at all, and one longer than the
+buffer fails with `NET_MESSAGE_TOO_LONG` rather than arriving cut short without a word.
+
+**Every socket call blocks** until it is done or its timeout ends. A goroutine (Chapter 22) in a
+socket call holds its worker thread while it waits, so a server that gives each connection a
+goroutine should give every connection a timeout, or serve no more connections at once than it has
+workers.
+
+### URLs
+
+```tiko
+{{#include ../examples/ch24/urls.tiko}}
+```
+
+```text
+{{#include ../examples/ch24/urls.out}}
+```
+
+`ParseUrl` follows RFC 3986. The fields of a `Url` hold the parts **decoded** — `Path` is
+`/docs/a b.html`, not `a%20b` — except `RawQuery`, kept as written because only its own parser
+knows where its pairs begin and end; `Query( )` parses it into `QueryValues`, an ordered list of
+pairs in which a name may repeat. `ToString( )` escapes each part again as it prints it, so a field
+can be set to any text. `Resolve` turns a relative link into an absolute one the way a browser does,
+removing `.` and `..`. An invalid escape such as a lone `%` is `NET_INVALID_URL` rather than a guess
+at what was meant.
+
 ## What it costs
 
 - **A `File` holds an operating-system handle until it is closed or goes out of scope.** Keep it
@@ -712,6 +794,9 @@ the program about five seconds before the system ends it regardless.
 - **A `TomlValue` is a value**: `Get( key )` and copying a table copy the whole subtree under it.
   `Find( key )` and `[ i ]` reach into the tree without a copy. Looking a key up scans its table,
   which is what a configuration file's tables can afford.
+- **A socket holds an operating-system handle and, while a call waits, a thread.** Close
+  connections in the narrowest scope that needs them, and give every network read a timeout:
+  without one a peer that stops answering stops the program with it.
 
 ## Summary
 
@@ -745,6 +830,10 @@ the program about five seconds before the system ends it regardless.
   an `Optional`; `ToTomlText` writes it back, without comments. `ParseIni` / `LoadIni` give an
   `IniFile` with `Get`, `SetValue` and `ToText`. Errors are `ConfigError`s with a line and column.
 - `strings.JoinCsvRow` and `strings.CsvWriter` write CSV that `SplitCsv` reads back.
+- `std/net`: `ParseIp` (strict) and `IpAddress`; `SocketAddress`; `Resolve`. `TcpListener.Bind` and
+  `Accept`, `TcpStream.Connect` / `ConnectHost` — a `TcpStream` is an `fs.Stream`. `UdpSocket`
+  for datagrams. Every call blocks; give it a timeout. `ParseUrl` gives a `Url` of decoded fields,
+  `Resolve` makes links absolute, `QueryValues` reads and writes query strings.
 
 ## Exercises
 
@@ -770,3 +859,8 @@ the program about five seconds before the system ends it regardless.
    print, and how would you report the mistake to the user who wrote the file?
 10. Read a TOML file of `[[items]]` tables, each with a `name` and a `price`, and write them to a
     CSV file with `CsvWriter`, a header row first.
+11. Change `tcpecho.tiko` so that the client sends three lines and the server answers each with its
+    length, reading with a `TextReader` on the server's side. What happens if the client sends all
+    three before the server reads any?
+12. Write `LinkReport( pageUrl, links )`: resolve each link of a page against its URL and print the
+    ones that leave the page's host.

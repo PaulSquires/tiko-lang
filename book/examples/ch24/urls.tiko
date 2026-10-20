@@ -1,0 +1,29 @@
+#import "std/net"
+
+dim u as net.Url = net.ParseUrl( "https://ann@example.com:8443/docs/a%20b.html?q=tiko+lang&page=2#intro" ).Value( )
+print "scheme   "; u.Scheme
+print "user     "; u.User
+print "host     "; u.Host; "  port "; u.Port
+print "path     "; u.Path                       '' decoded
+print "query    "; u.RawQuery                   '' as written
+print "q        "; u.Query( ).Get( "q" ).ValueOr( "" )
+print "fragment "; u.Fragment
+
+'' A link on that page, made absolute.
+print u.Resolve( "../img/logo.png" ).Value( ).ToString( )
+print u.Resolve( "?page=3" ).Value( ).ToString( )
+
+'' Built from fields: each part is escaped as it is printed.
+dim q as net.QueryValues
+q.Add( "name", "Zoë Wu" )
+q.Add( "tags", "a&b" )
+dim v as net.Url
+v.Scheme = "http"
+v.Host = "localhost"
+v.Port = 8080
+v.Path = "/search results"
+v.RawQuery = q.Encode( )
+print v.ToString( )
+
+'' A bad escape is an error, not a guess.
+print net.ParseUrl( "http://example.com/100%" ).Failure( ).Message( )

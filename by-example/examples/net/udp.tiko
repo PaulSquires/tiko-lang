@@ -1,0 +1,26 @@
+#import "std/net"
+
+dim a as net.UdpSocket, b as net.UdpSocket
+a.Bind( net.SocketAddress( net.Loopback( ), 0 ) )
+b.Bind( net.SocketAddress( net.Loopback( ), 0 ) )
+b.SetReadTimeout( 1000 )
+
+'' One datagram, sent to b's address.
+dim as string msg = "hello, datagram"
+a.SendTo( cptr( ubyte ptr, strptr( msg ) ), len( msg ), b.LocalAddress( ).Value( ) )
+
+dim as string buf = space( 64 )
+dim from as net.SocketAddress
+var r = b.ReceiveFrom( cptr( ubyte ptr, strptr( buf ) ), 64, from )
+print left( buf, r.Value( ) ); " ("; r.Value( ); " bytes, from a: "; from.Equals( a.LocalAddress( ).Value( ) ); ")"
+
+'' A buffer too small: the datagram is cut, and the receive says so.
+a.SendTo( cptr( ubyte ptr, strptr( msg ) ), len( msg ), b.LocalAddress( ).Value( ) )
+dim as string small = space( 5 )
+r = b.ReceiveFrom( cptr( ubyte ptr, strptr( small ) ), 5, from )
+print "["; small; "] too long: "; cbool( r.Failure( ).Code( ) = net.NET_MESSAGE_TOO_LONG )
+
+'' Nothing more is coming: the timeout ends the wait.
+b.SetReadTimeout( 100 )
+r = b.ReceiveFrom( cptr( ubyte ptr, strptr( buf ) ), 64, from )
+print cbool( r.Failure( ).Code( ) = net.NET_TIMED_OUT )

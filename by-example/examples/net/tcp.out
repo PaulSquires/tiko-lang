@@ -1,0 +1,6 @@
+connected: true
+server read: ping
+client read: pong
+same ends: true
+read: timed out, code FS_TIMED_OUT: true
+after close:  0 bytes

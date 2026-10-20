@@ -1,0 +1,37 @@
+#import "std/net"
+#import "std/fs"
+
+'' A server on a free port of this machine.
+dim server as net.TcpListener
+server.Bind( net.SocketAddress( net.Loopback( ), 0 ) )
+var where = server.LocalAddress( ).Value( )
+
+'' Connect, then accept: the system completes the connection on its own,
+'' so one thread can be both client and server.
+dim client as net.TcpStream
+var ok = client.Connect( where, 2000 )
+print "connected: "; ok.IsOk( )
+dim conn as net.TcpStream
+server.Accept( conn, 2000 )
+
+'' A TcpStream is an fs.Stream, so the stream helpers work on it.
+client.WriteUtf8( "ping" )
+dim as string buf = space( 4 )
+conn.ReadExact( cptr( ubyte ptr, strptr( buf ) ), 4 )
+print "server read: "; buf
+conn.WriteUtf8( "pong" )
+client.ReadExact( cptr( ubyte ptr, strptr( buf ) ), 4 )
+print "client read: "; buf
+
+'' The peer's address is the client's own.
+print "same ends: "; conn.PeerAddress( ).Value( ).Equals( client.LocalAddress( ).Value( ) )
+
+'' With nothing to read, a timeout ends the wait.
+client.SetReadTimeout( 100 )
+dim as ubyte one( 0 to 0 )
+var r = client.Read( @one( 0 ), 1 )
+print "read: "; r.Failure( ).Message( ); ", code FS_TIMED_OUT: "; cbool( r.Failure( ).Code( ) = fs.FS_TIMED_OUT )
+
+'' Closing the connection: the other side reads 0 bytes, the end of the data.
+client.Close( )
+print "after close: "; conn.Read( @one( 0 ), 1 ).Value( ); " bytes"
