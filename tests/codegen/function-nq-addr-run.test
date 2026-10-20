@@ -1,0 +1,12 @@
+'' RUN: '@__FUNCTION_NQ__', the address of the enclosing procedure -- __FUNCTION_NQ__ is its name
+'' unquoted. It was declared and left untyped on the grounds that fbc refuses it in -lang fb; fbc
+'' refuses only a VALUE use, and the address declined (TKO0994; manual defines/functionnq;
+'' fbc-examples repro ice06). Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/function-nq-addr.bas -o tests/codegen/functionnqaddr.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/functionnqaddr.exe
+'' RUN: tests/codegen/functionnqaddr.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: -1-1

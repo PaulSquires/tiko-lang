@@ -612,6 +612,7 @@ end function
 
 declare function TypeOfUncached_ _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
+declare function RepairTypeofRef_( byref c as Ctx, byval tr as Tko.NodeId, byval depth as int32 ) as Tko.TypeId
 
 '' A NODE FOUND UNTYPED STAYS UNTYPED within one outermost question, until a SetType or
 '' SetRef anywhere (SemanticInfo.version). 'f( f( ... f( zz ) ... ) )' re-typed every
@@ -1265,6 +1266,8 @@ private function TypeOfUncached_ _
             @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         if np->target <> Tko.NODE_NONE then
             dim as Tko.TypeId nt = c.info->TypeOf_( np->target )
+            '' 'new typeof( *pd )': Resolve could not answer a typeof (ice04, manual cast2).
+            if nt = Tko.TYPE_NONE then nt = RepairTypeofRef_( c, np->target, 0 ) : if nt <> Tko.TYPE_NONE then c.info->SetType( np->target, nt )
             if nt <> Tko.TYPE_NONE then t = c.types->Pointer_( nt )
         end if
 

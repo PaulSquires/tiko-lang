@@ -1,0 +1,11 @@
+'' RUN: '@type<integer>( 123 )' -- the address of a SCALAR type literal, as an argument and an
+'' initialiser. fbc builds a temporary, 'TMP = 123ll; SHOW( &TMP )'; LowerAddr answered only a UDT
+'' literal and the call declined (TKO0994; manual variadic_arguments/cva_3; fbc-examples repro ice13).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/addr-of-scalar-type-literal.bas -o tests/codegen/addrofscalartypeliteral.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/addrofscalartypeliteral.exe
+'' RUN: tests/codegen/addrofscalartypeliteral.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 123 5 2.5

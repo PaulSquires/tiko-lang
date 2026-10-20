@@ -1,0 +1,104 @@
+'' lowerbaseinit.tiko -- 'base( ... )' over a base that declares no constructor.
+''
+'' Split out of lowerctor.tiko at the 1500-line cap and INCLUDED from it, inside the
+'' same namespace.
+
+'' 'base( ... )' WHERE THE BASE DECLARES NO CONSTRUCTOR IS A FIELD-WISE INITIALISER,
+'' not a call -- there is nothing to call.
+''
+'' Measured against fbc, at the very top of the derived constructor's body:
+''
+''   base( 1, 2, 3 )   *(int64*)THIS=1; *(THIS+8)=2; *(THIS+16)=3;
+''   base( 123 )       *(int64*)THIS=123; memset( THIS+8, 0, 16 );   -- the supplied
+''                     values go to the LEADING base fields and THE REST OF THE BASE
+''                     SUBOBJECT IS ZEROED
+''   base( p0 )        memcpy( (P*)THIS, P0, 16 )   -- one argument of the base's own
+''                     type is a whole-subobject copy
+''
+'' The base subobject sits at offset 0, which is the same fact single inheritance rests
+'' on everywhere else in this file.
+function LowerBaseFieldInit_ _
+    ( byref c as Ctx, byval selfAddr as MirValue, byval bt as Tko.TypeId, _
+      byval first_ as int32, byval count as int32 ) as boolean
+
+    dim as int32 bsz = SizeOfType( c, bt )
+    if bsz <= 0 then return false
+    dim as int32 bui = c.udts->Find( bt )
+    if bui < 0 then return false
+
+    '' A SINGLE ARGUMENT OF THE BASE'S OWN TYPE IS A COPY of the whole subobject.
+    if count = 1 then
+        dim as Tko.NodeId only_ = cast( Tko.NodeId, c.ast->children[first_] )
+        dim as Tko.TypeId ot2 = c.types->Unqualify( c.info->TypeOf_( only_ ) )
+        '' ...OR OF A TYPE DERIVED FROM IT: 'base( u )' in D's copy constructor over 'byref u
+        '' as D' copies u's base part (manual proguide udt/ctordtor-dynamicarray4, varlendata4).
+        '' A base holding a string or an array is COPY-CONSTRUCTED, not memcpy'd: the
+        '' subobject is raw here, and two descriptors owning one buffer are a double free.
+        dim as boolean derivedSrc = (ot2 <> c.types->Unqualify( bt )) andalso IsBaseOf_( c, c.types->Unqualify( bt ), ot2 )
+        if (ot2 = c.types->Unqualify( bt )) orelse derivedSrc then
+            dim as MirValue src = LowerAddr( c, only_ )
+            if src.kind = cast( uint8, MV_NONE ) then return false
+            if NeedsLetBody_( c, c.types->Unqualify( bt ) ) then
+                CallImplicitCopy_( c, c.types->Unqualify( bt ), selfAddr, src )
+                return true
+            end if
+            '' WITH THE BASE'S SIZE. 'src' is a computed address -- for
+            '' 'constructor C3( byref p0 as P )' doing 'base( p0 )' it is the
+            '' pointer loaded out of the reference -- and a temp has no storage for
+            '' the emitter to size an aggregate from. It loaded '[0 x i8]' and
+            '' stored nothing: the program printed two stack addresses where fbc
+            '' prints 9 and 8.
+            dim as MirValue whole = LowerExprLoad( c, src, MT_AGG, bsz )
+            if whole.kind = cast( uint8, MV_NONE ) then return false
+            StoreThrough( c, selfAddr, whole )
+            return true
+        end if
+    end if
+
+    '' THE LEADING FIELDS, one value each, in declaration order.
+    dim as containers.Array( of uint32 ) lOff, lTy   '' a base subobject is entered -- lowernew.tiko BaseLeafSlots_
+    if BaseLeafSlots_( c, bt, first_, count, lOff, lTy ) = false then return false
+    dim as int32 tailOff = bsz
+    for i as int32 = 0 to count - 1
+        dim as Tko.TypeId fty = cast( Tko.TypeId, lTy[i] ) : dim as int32 foff = cast( int32, lOff[i] )
+        dim as MirType fmt = LowerType( fty, *c.types )
+        if fmt = MT_VOID then return false
+        dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[first_ + i] )
+        '' A RECORD-TYPED FIELD takes a value of exactly its type, stored whole with its
+        '' size: 'new Line2( type<Point>( 1, 2 ), 9 )' (T32). Anything else is declined.
+        if fmt = MT_AGG then
+            if c.types->Unqualify( c.info->TypeOf_( a ) ) <> c.types->Unqualify( fty ) then return false
+        end if
+        dim as MirValue av = LowerExpr( c, a )
+        if av.kind = cast( uint8, MV_NONE ) then return false
+        if fmt <> MT_AGG then av = CoerceTy( c, av, fmt, c.info->TypeOf_( a ))
+        if av.kind = cast( uint8, MV_NONE ) then return false
+        dim as MirInst fa
+        fa.op = cast( uint16, M_FIELD_ADDR )
+        fa.ty = cast( uint8, MT_PTR )
+        fa.a = selfAddr
+        fa.imm = foff
+        dim as MirValue faddr = Emit( c, fa )
+        if faddr.kind = cast( uint8, MV_NONE ) then return false
+        StoreThrough( c, faddr, av )
+        if i = count - 1 then tailOff = foff + SizeOfType( c, fty )
+    next
+
+    '' ...AND THE REST OF THE SUBOBJECT ZEROED. Measured: fbc emits the memset even
+    '' where the derived constructor writes those bytes again a line later.
+    if (count > 0) andalso (tailOff < bsz) then
+        dim as MirInst ta
+        ta.op = cast( uint16, M_FIELD_ADDR )
+        ta.ty = cast( uint8, MT_PTR )
+        ta.a = selfAddr
+        ta.imm = tailOff
+        dim as MirValue taddr = Emit( c, ta )
+        if taddr.kind = cast( uint8, MV_NONE ) then return false
+        dim as containers.Array( of uint32 ) za
+        za.Push( cast( uint32, taddr.kind ) ) : za.Push( cast( uint32, taddr.id ) )
+        za.Push( cast( uint32, MV_CONST_INT ) ) : za.Push( 0 )
+        za.Push( cast( uint32, MV_CONST_INT ) ) : za.Push( cast( uint32, bsz - tailOff ) )
+        EmitRtl( c, RTL_MEMSET, za )
+    end if
+    return true
+end function

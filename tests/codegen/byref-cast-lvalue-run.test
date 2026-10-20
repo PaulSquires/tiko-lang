@@ -1,0 +1,12 @@
+'' RUN: 'cast( integer, u ) = 78' over 'operator cast( ) byref as integer': the cast's result is an
+'' lvalue, the reference the operator returns. LowerAddr had no case for it and the assignment
+'' declined (TKO0994; manual casting/opcast2; fbc-examples repro ice05). Output identical to
+'' fbc-modern's.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/byref-cast-lvalue.bas -o tests/codegen/byrefcastlvalue.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/byrefcastlvalue.exe
+'' RUN: tests/codegen/byrefcastlvalue.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 79 2.5

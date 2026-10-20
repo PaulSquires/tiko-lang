@@ -328,6 +328,16 @@ private sub WalkExpr _
                         *c.syms, scope_, *c.names )
                     c.info->SetType( id, c.types->ArrayOf( _
                         c.types->Builtin( Tko.TY_ZSTRING ), 1, len( fn ) + 1 ) )
+                elseif (fs->type_ = Tko.TYPE_NONE) andalso (fs->parent = Tko.SCOPE_GLOBAL) andalso (lcase( c.names->Spelling( nm ) ) = "__function_nq__") then
+                    '' __FUNCTION_NQ__ IS THE ENCLOSING PROCEDURE, UNQUOTED: '@__FUNCTION_NQ__' is its
+                    '' address (fbc's manual defines/functionnq.bas), and a value use stays an error.
+                    dim as Tko.ScopeId fq = scope_
+                    while fq <> Tko.SCOPE_NONE
+                        dim as Tko.SymScope ptr fqs = c.syms->ScopeAt( fq )
+                        if fqs = nullptr then exit while
+                        if fqs->kind = cast( uint8, Tko.SCOPEK_PROC ) then c.info->SetRef( id, fqs->owner ) : exit while
+                        fq = fqs->parent
+                    wend
                 end if
             end if
         elseif InheritedMember_( c, scope_, nm, sid ) then

@@ -1,0 +1,14 @@
+'' RUN: 'base( u )' in a derived copy constructor, u of the DERIVED type, over a base with no
+'' constructor that holds a string and a dynamic array. The field-wise path copied a whole
+'' subobject only for an argument of exactly the base type, and declined (TKO0994; manual proguide
+'' udt/ctordtor-dynamicarray4 and varlendata4; fbc-examples repro ice12). Now an upcast, and the
+'' base COPY-CONSTRUCTED -- a memcpy of its string would leave two owners of one buffer.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/base-copy-from-derived.bas -o tests/codegen/basecopyfromderived.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/basecopyfromderived.exe
+'' RUN: tests/codegen/basecopyfromderived.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: hello 2 9 2 changed
+'' EXPECT-RUN-OUT: ok

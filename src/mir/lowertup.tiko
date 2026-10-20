@@ -480,6 +480,24 @@ function LowerDestructure _
 
         dim as MirType emt = LowerType( et, *c.types )
         if emt = MT_VOID then return false
+        '' A UDT ELEMENT -- the BASE of a derived source: 'let( c, i1, i2 ) = gc' over a GrandChild
+        '' takes its Child, and 'let( p, j1, j2 ) = gc' that Child's Parent part, measured (manual
+        '' operator/let-list2). Copied as an assignment of the DESTINATION's type is: its implicit
+        '' let body, or bitwise. A user 'operator let' is lowerassign's to call, and declines here.
+        dim as Tko.TypeId uet = c.types->Unqualify( c.info->TypeOf_( nm ) )
+        dim as boolean udtElem = (emt = MT_AGG) andalso (c.types->Kind( c.types->Unqualify( et ) ) = Tko.TK_UDT)
+        if udtElem then udtElem = (uet = c.types->Unqualify( et )) orelse IsBaseOf_( c, uet, c.types->Unqualify( et ) )
+        if udtElem then
+            if UdtMemberNamed_( c, uet, "let" ) <> Tko.SYMBOL_NONE then return false
+            if NeedsLetBody_( c, uet ) then
+                CallImplicitLet_( c, uet, daddr, saddr )
+            else
+                dim as MirValue uv = LowerExprLoad( c, saddr, MT_AGG, SizeOfType( c, uet ) )
+                if uv.kind = cast( uint8, MV_NONE ) then return false
+                StoreThrough( c, daddr, uv )
+            end if
+            continue for
+        end if
         if emt = MT_AGG then return false
         dim as MirValue ev = LowerExprLoad( c, saddr, emt )
         if ev.kind = cast( uint8, MV_NONE ) then return false

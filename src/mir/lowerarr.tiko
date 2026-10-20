@@ -168,6 +168,41 @@ private function NoConvFamily_ _
     return 0
 end function
 
+'' 'cast( integer, u ) = 78' over 'operator cast( ) byref as integer' -- THE CAST'S RESULT IS
+'' AN LVALUE, the reference the operator returns (manual casting/opcast2). The overload whose
+'' result is the written type and BYREF (its N_PROC's NF_BYREF); false for anything else.
+private function ByrefCastLvalue_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    if (lp->count <> 2) orelse (lp->target = Tko.NODE_NONE) then return false
+    if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
+    if lcase( c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )].name ) ) <> "cast" then return false
+    dim as Tko.NodeId op = cast( Tko.NodeId, c.ast->children[lp->first + 1] )
+    dim as Tko.TypeId ut = c.types->Unqualify( c.info->TypeOf_( op ) )
+    dim as Tko.TypeId want = c.types->Unqualify( c.info->TypeOf_( id ) )
+    if (c.types->Kind( ut ) <> Tko.TK_UDT) orelse (want = Tko.TYPE_NONE) then return false
+    dim as Tko.SymbolId cur = UdtMemberNamed_( c, ut, "cast" )
+    dim as int32 guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
+        guard += 1
+        dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
+        if cs = nullptr then exit while
+        dim as Tko.NodeId cpn = cast( Tko.NodeId, cs->payload )
+        dim as boolean byrefRes = false
+        if (cpn <> Tko.NODE_NONE) andalso (c.ast->Kind( cpn ) = Tko.N_PROC) then byrefRes = ((c.ast->nodes[cast( int32, cpn )].flags and Tko.NF_BYREF) <> 0)
+        dim as Tko.TypeId rt = c.types->Unqualify( cs->type_ )
+        if c.types->Kind( rt ) = Tko.TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
+        if byrefRes andalso (rt = want) then
+            dim as MirValue self_
+            if UdtSelfAddr_( c, op, self_ ) = false then return false
+            outv = EmitMemberCall( c, cur, self_, MT_PTR )
+            return (outv.kind <> cast( uint8, MV_NONE ))
+        end if
+        cur = cs->nextOverload
+    wend
+    return false
+end function
+
 '' The operand of a no-op conversion, or NODE_NONE. Handles both spellings:
 '' 'cast( T, x )' and the one-argument intrinsics 'cuint( x )', 'clng( x )', ...
 function NoConvOperand_ _
@@ -344,6 +379,8 @@ function LowerAddr _
     if c.ast->Kind( id ) = Tko.N_CALL then
         dim as Tko.NodeId ncop = NoConvOperand_( c, id )
         if ncop <> Tko.NODE_NONE then return LowerAddr( c, ncop )
+        dim as MirValue bcv
+        if ByrefCastLvalue_( c, id, bcv ) then return bcv
     end if
 
     '' 'peek( T, p )' IS AN LVALUE: it IS '*(T*)p', and fbc emits no load for it at all.
@@ -359,6 +396,16 @@ function LowerAddr _
     if c.ast->Kind( id ) = Tko.N_TUPLE then
         dim as MirValue ula
         if LowerUdtLiteralAddr_( c, id, ula ) then return ula
+        '' ...AND A SCALAR ONE: '@type<integer>( 123 )' is fbc's 'TMP = 123ll; SHOW( &TMP )'
+        '' (manual variadic_arguments cva_3). A temporary of the written type, as a byref
+        '' argument's (ByrefTemp_).
+        dim as Tko.TypeId slt = c.info->TypeOf_( id )
+        dim as MirType smt = LowerType( slt, *c.types )
+        if (slt <> Tko.TYPE_NONE) andalso (smt <> MT_VOID) andalso (smt <> MT_AGG) andalso _
+           ((c.ast->nodes[cast( int32, id )].flags and Tko.NF_TYPE_LITERAL) <> 0) then
+            dim as Tko.ListPayload ptr stp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            if stp->count = 1 then return ByrefTemp_( c, cast( Tko.NodeId, c.ast->children[stp->first] ), slt )
+        end if
         return v
     end if
 

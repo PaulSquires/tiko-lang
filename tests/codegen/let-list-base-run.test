@@ -1,0 +1,13 @@
+'' RUN: LET( a, b, c ) = derived, the first name of the BASE type or an ancestor of it: the base
+'' subobject is its element, copied as an assignment of that type. Any aggregate element declined
+'' the whole destructuring (TKO0994; manual operator/let-list2; fbc-examples repro ice07). Output
+'' identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/let-list-base.bas -o tests/codegen/letlistbase.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/letlistbase.exe
+'' RUN: tests/codegen/letlistbase.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 1 2 3 4 5 6
+'' EXPECT-RUN-OUT: 1 2 5 6
