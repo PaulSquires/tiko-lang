@@ -8,6 +8,7 @@ that exercises it, and `tiko.toml` builds `main.exe` with `UNICODE` defined and 
 | Folder | Control |
 | --- | --- |
 | `PsApp` | **the starter**: a PsApp program (menubar, text box, combobox, button, modal About box) to copy |
+| `PsAppWorker` | background work: a `std/tasks` goroutine reporting progress through `app.RunOnUI` (built with `-mt`) |
 | `PsBufferPaint` | the drawing surface every control paints through: a specimen sheet of its primitives |
 | `PsButton`, `PsCheckBox`, `PsOptionButton`, `PsToggle` | buttons and switches |
 | `PsTextBox`, `PsNumericUpDown`, `PsDatePicker`, `PsCalendar` | text, numbers and dates |

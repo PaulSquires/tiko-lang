@@ -47,7 +47,45 @@ There is one application per process, and its state is the module's.
 | `Options( ) as PSAPP_OPTIONS` | The options `Init` was given. |
 | `AddMessageFilter( p )` / `RemoveMessageFilter( p )` | Your own pre-translate step: `function( byval pMsg as MSG ptr ) as boolean`. It runs after the controls' filters. Returning TRUE consumes the message. |
 
+| `RunOnUI( p [, payload] ) as boolean` | **Any thread.** Queues `sub( byval payload as any ptr )` to run on the UI thread, in call order. Returns FALSE when no application is running. |
+| `IsUIThread( ) as boolean` | TRUE on the thread that called `Init` |
+| `SetTimer( ms, p [, payload] ) as long` | A timer that needs no form: `sub( byval id as long, byval payload as any ptr )`. Returns the id, never 0 (0 means it failed). UI thread only. |
+| `KillTimer( id )` | Stops it; safe to call from the timer's own proc |
+
 `PsApp_Instance( )` returns the application `Init` was called on, or null.
+
+### Background work
+
+A window belongs to the thread that created it, so a worker (a raw thread, or a `std/tasks`
+goroutine) never touches one. It hands each result back with `RunOnUI`:
+
+```freebasic
+sub Worker( byval nSteps as long )              ' spawn Worker( 100 ) -- another thread
+    for i as long = 1 to nSteps
+        ' ... the work ...
+        app.RunOnUI( @Ui_Progress, cast( any ptr, cast( integer, i ) ) )
+    next
+end sub
+
+sub Ui_Progress( byval payload as any ptr )     ' the UI thread
+    PsProgressBar_SetPos( hBar, cast( long, cast( integer, payload ) ) )
+end sub
+```
+
+**How `RunOnUI` works.**
+- It appends to a locked queue and wakes a hidden message-only window. Every message loop on the
+  thread dispatches that window's messages, including `MessageBox`, a modal form and a control's
+  own modal loop, so queued work runs inside those loops too.
+- It posts at most one wake-up message per batch, so a burst of calls cannot exhaust the thread's
+  post quota.
+- It copies the payload pointer, never what it points at. The payload's lifetime is the caller's.
+- Work still queued when `Run` returns is dropped.
+
+**Polling a channel instead.** To drain a `std/tasks` channel, poll it with `TryReceive` from a
+`SetTimer` proc; never call `Receive` on the UI thread.
+
+`examples/PsControls/PsAppWorker` is the complete example. It is built with `-mt`, which
+`std/tasks` requires.
 
 **`PSAPP_OPTIONS`**
 
