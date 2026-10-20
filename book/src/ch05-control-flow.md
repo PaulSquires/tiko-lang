@@ -37,13 +37,10 @@ Cases are tested in order and the first match wins; there is no fall-through and
 cases — and it accepts only constant values, so `case is < 0` inside one is `TKO0419`.
 ```
 
-```admonish danger title="Pitfall"
-**A comparison produces an integer, not a `boolean`.** `( n mod 3 ) = 0` evaluates to −1 or 0, 8
-bytes wide, while `true` is a 1-byte `boolean`.
-
-That makes `select case true` … `case ( n mod 3 ) = 0` silently match nothing: the compiler is
-comparing a `boolean` against an integer. Wrap the test — `case cbool( ( n mod 3 ) = 0 )` — or
-use `if` / `elseif`, which is the better shape when each branch asks a different question.
+```admonish note
+**`select case true` runs the first case whose test is true.** `case ( n mod 3 ) = 0` works
+there: the comparison's −1 or 0 is converted to the `boolean` subject, as every case value is.
+When each branch asks a different question, though, `if` / `elseif` is usually the clearer shape.
 ```
 
 ## Repeating
