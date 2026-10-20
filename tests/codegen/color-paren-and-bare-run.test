@@ -1,0 +1,14 @@
+'' RUN: 'color( fg, bg )' as a STATEMENT -- its one argument parsed as a tuple, and even
+'' 'color( 1, 2 )' declined (Rosetta Draw_a_sphere, fbc manual criticalsectionfaq9-3) -- and a
+'' bare 'color' as a value, 'dim as integer old = color' (fbc examples/console/color.bas),
+'' an N_IDENT nothing claimed. fbc: 'fb_Color( fg, bg, 0 )' and 'fb_Color( 0, 0, 3 )'.
+'' fbc-examples repros ice01 and ice10.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/color-paren-and-bare.bas -o tests/codegen/colorparenandbare.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0994
+'' EXPECT-FILE: tests/codegen/colorparenandbare.exe
+'' RUN: tests/codegen/colorparenandbare.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: -1-1

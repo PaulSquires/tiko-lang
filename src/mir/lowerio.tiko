@@ -670,6 +670,16 @@ function PrintOne _
     '' TYPE_NONE and no entry point could be chosen -- 'print iif( c, 1, 2 )'
     '' declined while 'n = iif( c, 1, 2 )' worked. The arms carry the type.
     if t = Tko.TYPE_NONE then t = IifArmType_( c, it )
+    '' ...nor for a bare 'dir', which is 'dir( )' -- a string (LowerDir).
+    if t = Tko.TYPE_NONE then
+        dim as MirValue dv
+        if LowerDir( c, it, dv ) then
+            args.Push( cast( uint32, dv.kind ) ) : args.Push( cast( uint32, dv.id ) )
+            PushConst( args, mask )
+            EmitRtl( c, RTL_PRINT_STRING, args )
+            return true
+        end if
+    end if
 
     dim as RtlId which = PrintRtlFor( c, t )
     if which = RTL_NONE then return false

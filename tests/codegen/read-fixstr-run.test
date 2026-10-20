@@ -1,0 +1,12 @@
+'' RUN: READ into a 'string * N', space-padded and truncated. LowerRead lowered only a var-len
+'' string and a 'zstring * N' -- a stale note said a 'string * N' could not be told apart -- and
+'' the statement declined (TKO0994; Rosetta Top_rank_per_group; fbc-examples repro ice24).
+'' Measured, fbc: 'fb_DataReadStr( &E, <tagged 8>, -1 )'. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/read-fixstr.bas -o tests/codegen/readfixstr.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/readfixstr.exe
+'' RUN: tests/codegen/readfixstr.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: [Tyler   ][Zed][Longer]

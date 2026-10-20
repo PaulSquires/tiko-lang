@@ -196,6 +196,17 @@ end function
 private function LowerColorStmt_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     dim as MirValue cv
+    '' 'color( fg, bg )' -- PARENTHESISED, the statement's one argument is a TUPLE of the
+    '' two, and it declined: 'color( 1, 2 )' itself, and Rosetta Draw_a_sphere's
+    '' 'Color( RGB(..), RGB(..) )'. fbc: 'fb_Color( fg, bg, 0 )', as the bare spelling.
+    if sp->count = 1 then
+        dim as Tko.NodeId t1 = cast( Tko.NodeId, c.ast->children[sp->first] )
+        if (c.ast->Kind( t1 ) = Tko.N_TUPLE) andalso _
+           ((c.ast->nodes[cast( int32, t1 )].flags and Tko.NF_TYPE_LITERAL) = 0) then
+            dim as Tko.ListPayload ptr tl = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, t1 )].data )]
+            return LowerColorArgs_( c, tl->first, tl->count, cv )
+        end if
+    end if
     return LowerColorArgs_( c, sp->first, sp->count, cv )
 end function
 

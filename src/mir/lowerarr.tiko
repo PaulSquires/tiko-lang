@@ -1100,6 +1100,16 @@ function LowerPtrIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
             fromConst = true
         end if
     end if
+    '' ...AND A STRING LITERAL, which fbc takes: '("rev 1.20")[ i ]' is '*(uint8*)((uint8*)
+    '' "rev 1.20" + I)', measured. It had no address and declined (manual multithreading faq17).
+    if (fromConst = false) andalso (wideLit = false) andalso (dsz <= 1) andalso (esz <= 1) then
+        dim as Tko.NodeId slt = Unparen_( c, sp->target )
+        if c.ast->Kind( slt ) = Tko.N_STRING_LIT then
+            base_ = LowerTextAddr( c, StringLitText_( c, slt ) )
+            esz = 1
+            fromConst = true
+        end if
+    end if
 
     if fromConst then
         '' the base is the literal's address, above

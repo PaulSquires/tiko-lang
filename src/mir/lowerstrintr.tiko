@@ -233,6 +233,18 @@ end function
 function LowerDir _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
+    '' A BARE 'dir' -- no parentheses -- continues the walk, as 'dir( )' does: fbc emits
+    '' 'fb_DirNext( (int32*)0ull )' for both. It is an N_IDENT, not a call, and declined
+    '' (TKO0994; three Rosetta directory walkers, 'f = dir' in a loop).
+    if c.ast->Kind( id ) = Tko.N_IDENT then
+        if c.info->RefOf( id ) <> Tko.SYMBOL_NONE then return false
+        dim as Tko.IdentPayload ptr dip = @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        if Tko.Text.LowerAscii( c.names->Spelling( dip->name ) ) <> "dir" then return false
+        dim as containers.Array( of uint32 ) dargs
+        dargs.Push( cast( uint32, MV_CONST_INT ) ) : dargs.Push( 0 )
+        outv = EmitRtl( c, RTL_DIR_NEXT, dargs )
+        return (outv.kind <> cast( uint8, MV_NONE ))
+    end if
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
         @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]

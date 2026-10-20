@@ -364,9 +364,9 @@ function LowerRead( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 
         if r = RTL_DATA_READ_STR then
             '' (pointer, length, isFixed). A var-len string passes -1 and 0; a
-            '' 'zstring * n' passes n and 0; an FB 'string * n' passes n or SSIZE_MIN
-            '' and -1. tiko-lang cannot tell the last two apart -- both are an array of
-            '' TY_ZSTRING -- so only the first two are lowered.
+            '' 'zstring * n' passes n and 0; a 'string * n' passes its TAGGED length and
+            '' -1 -- measured, 'fb_DataReadStr( &E$0, -9223372036854775800ll, -1 )' for a
+            '' 'string * 8' field. It declined (TKO0994, rosetta Top_rank_per_group).
             dim as int64 zn
             dim as int32 sk = StrSwapKind_( c, t, zn )
             if sk = 0 then
@@ -374,10 +374,13 @@ function LowerRead( byref c as Ctx, byval id as Tko.NodeId ) as boolean
                 args.Push( cast( uint32, cast( uint64, -1 ) ) )
             elseif sk = 1 then
                 args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, zn ) )
+            elseif sk = 3 then
+                PushStrLen_( c, args, zn )
             else
                 return false
             end if
-            args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )
+            args.Push( cast( uint32, MV_CONST_INT ) )
+            args.Push( cast( uint32, iif( sk = 3, cast( uint64, -1 ), 0 ) ) )
         elseif r = RTL_DATA_READ_WSTR then
             dim as int32 wn = WideStringElems( c, t )
             if wn <= 0 then return false
@@ -396,7 +399,8 @@ private function DataReadRtlFor_( byref c as Ctx, byval t as Tko.TypeId ) as Rtl
     if WideStringElems( c, t ) > 0 then return RTL_DATA_READ_WSTR
     if IsStringType( c, t ) then return RTL_DATA_READ_STR
     dim as int64 zn
-    if StrSwapKind_( c, t, zn ) = 1 then return RTL_DATA_READ_STR
+    dim as int32 rsk = StrSwapKind_( c, t, zn )
+    if (rsk = 1) orelse (rsk = 3) then return RTL_DATA_READ_STR
 
     select case c.types->Kind( t )
     '' A POINTER TARGET READS AS AN UNSIGNED WORD. Measured: 'read ps' over a

@@ -1,0 +1,12 @@
+'' RUN: a bare 'dir', with no parentheses, continues the walk -- 'f = dir' in the loop and
+'' 'print dir'. fbc emits fb_DirNext( 0 ) for it exactly as for 'dir( )'; tiko had only the
+'' call form and the statement declined (TKO0994; Rosetta's Empty_directory,
+'' Walk_a_directory and Globally_replace_text; fbc-examples repro ice21).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/dir-bare-continue.bas -o tests/codegen/dirbarecontinue.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/dirbarecontinue.exe
+'' RUN: tests/codegen/dirbarecontinue.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: found 3 last=[] next=[]

@@ -1,0 +1,11 @@
+'' RUN: '("hello")[ i ]' -- a parenthesised string literal subscripted. fbc reads the literal's
+'' byte, '*(uint8*)((uint8*)"hello" + I)'; tiko had no address for it and declined (TKO0994;
+'' fbc manual proguide multithreading criticalsectionfaq17; fbc-examples repro ice09).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/string-literal-index.bas -o tests/codegen/stringliteralindex.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/stringliteralindex.exe
+'' RUN: tests/codegen/stringliteralindex.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 1017098

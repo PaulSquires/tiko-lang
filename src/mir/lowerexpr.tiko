@@ -289,6 +289,9 @@ function LowerExpr _
             if LowerBuiltinProc( c, id, 0, 0, bpc, true ) then
                 if bpc.kind <> cast( uint8, MV_NONE ) then return bpc
             end if
+            '' ...AND A BARE 'color', which is 'color( )': 'fb_Color( 0, 0, 3u )' (fbc's
+            '' examples/console/color.bas, 'dim as integer oldcolor = color').
+            if LowerColorCall_( c, id, 0, 0, bpc ) then return bpc
         end if
 
         dim as MirValue addr = LowerAddr( c, id )

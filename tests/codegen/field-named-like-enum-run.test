@@ -1,0 +1,13 @@
+'' RUN: 'kind as kind', a field named like its own ENUM type. The typed lookup stepped past a
+'' variable, parameter or constant of the enum's name to reach the enum, but not past a FIELD:
+'' the field resolved to itself, the record was never laid out, and every use of the type
+'' declined (TKO0994; Rosetta Associative_array_Creation's 'datatype as datatype'; fbc-examples
+'' repro ice22). Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/field-named-like-enum.bas -o tests/codegen/fieldnamedlikeenum.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/fieldnamedlikeenum.exe
+'' RUN: tests/codegen/fieldnamedlikeenum.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 2 1 16

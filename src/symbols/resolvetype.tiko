@@ -121,8 +121,11 @@ private function EnumPastValue_ _
 
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
     if s = nullptr then return sid
+    '' ...AND A FIELD: 'kind as kind' in a TYPE found the field itself, the record was not
+    '' laid out, and every use of the type declined (TKO0994; rosetta Associative_array's
+    '' 'datatype as datatype'). fbc lays it out and the field is the enum.
     select case cast( Tko.SymbolKind, s->kind )
-    case Tko.SYM_VARIABLE, Tko.SYM_PARAMETER, Tko.SYM_CONSTANT
+    case Tko.SYM_VARIABLE, Tko.SYM_PARAMETER, Tko.SYM_CONSTANT, Tko.SYM_FIELD
     case else
         return sid
     end select

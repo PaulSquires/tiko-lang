@@ -1,0 +1,16 @@
+'' RUN: fb_memcopy, fb_memmove, fb_MemCopyClear, fb_fileput and fb_fileget called by name, as
+'' the fbc manual writes them -- built-ins with no declaration, each data argument 'byref as
+'' any'. None was bound and every call declined (TKO0994; manual array/memcopy, memmove,
+'' memcopyclear and faq gfxlib2/bload-workaround; fbc-examples repros ice03 and ice18).
+'' Measured, fbc: 'memcpy( &B, &A, n )', 'fb_FilePut( F, 0, &X, n )'. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/mem-file-builtins.bas -o tests/codegen/memfilebuiltins.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/memfilebuiltins.exe
+'' RUN: tests/codegen/memfilebuiltins.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: Pierre de Fermat 46
+'' EXPECT-RUN-OUT: abcabcdeijklmnopqrstuvwxyz
+'' EXPECT-RUN-OUT: 7 8 0 0
+'' EXPECT-RUN-OUT: 1234

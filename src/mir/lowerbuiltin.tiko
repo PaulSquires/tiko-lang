@@ -56,6 +56,15 @@ private function BuiltinProcRtl _
     '' where there used to be none.
     if unboundOnly then
         select case nm
+        '' fbc's memory and file built-ins, each 'byref as any' where it takes data
+        '' (ByrefAnyArg_). Measured: 'fb_memcopy( b, a, 8 )' is 'memcpy( &B, &A, 8 )',
+        '' 'fb_MemCopyClear( d, 8, s, 4 )' the runtime's, 'fb_fileput( f, 0, x, n )'
+        '' 'fb_FilePut( F, 0, &X, N )'. No name bound and each call declined (TKO0994).
+        case "fb_memcopy"      : retTy = MT_PTR  : return RTL_MEM_COPY
+        case "fb_memmove"      : retTy = MT_PTR  : return RTL_MEM_MOVE
+        case "fb_memcopyclear" : retTy = MT_VOID : return RTL_MEM_COPY_CLEAR
+        case "fb_fileput"      : retTy = MT_I32  : return RTL_FILE_PUT32
+        case "fb_fileget"      : retTy = MT_I32  : return RTL_FILE_GET32
         '' 'run' AND 'width' KEEP THEIR ARITY GUARD AND SO STILL DECLINE WHERE THE
         '' CALL IS SHORT. Measured: 'run( cmd )' is
         '' 'fb_Run( &CMD, fb_StrAllocTempDescZEx( "", 0 ) )' -- a DEFAULTED second
@@ -309,8 +318,13 @@ function LowerBuiltinProc _
             continue for
         end if
 
-        '' CLEAR's first argument is an LVALUE whose ADDRESS is passed, not its value.
-        if (r = RTL_MEMSET) andalso (i = 0) then
+        '' CLEAR's first argument is an LVALUE whose ADDRESS is passed, not its value --
+        '' and so is every 'byref as any' of the memory and file built-ins above.
+        dim as boolean byrefAny = (r = RTL_MEMSET) andalso (i = 0)
+        if (r = RTL_MEM_COPY) orelse (r = RTL_MEM_MOVE) then byrefAny = (i <= 1)
+        if r = RTL_MEM_COPY_CLEAR then byrefAny = (i = 0) orelse (i = 2)
+        if (r = RTL_FILE_PUT32) orelse (r = RTL_FILE_GET32) then byrefAny = (i = 2)
+        if byrefAny then
             dim as MirValue da = LowerAddr( c, a )
             if da.kind = cast( uint8, MV_NONE ) then
                 '' NOT AN LVALUE. 'clear' takes 'byref as any', and fbc has three
