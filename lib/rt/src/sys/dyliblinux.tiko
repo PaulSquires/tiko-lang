@@ -12,14 +12,14 @@
 '' own Darwin list tries "lib%s.dylib" before "lib%s.so" and "./lib%s.dylib"
 '' before "./lib%s.so".
 ''
-'' NOTE: the "hlib" spellings below are what the runtime has shipped since
-'' 70f420058, and fbc's table (and this file's includer's header) say "lib".
-'' Moved here unchanged -- M4 changes no behaviour -- and reported, not fixed.
+'' fbc's Linux list, measured: unix/sys_dylib.c tries exactly these six, and a
+'' bare DYLIBLOAD( "foo" ) reaches libfoo.so through the third. From 70f420058
+'' until this fix the four lib spellings read "hlib", so that name never loaded.
 
 #if defined( __FB_LINUX__ )
 
 '' The filename conventions, tried in order. A trailing 0 terminates the table.
 dim shared as zstring ptr tkort_libfmt( 0 to 6 ) = { _
-	@"%s", @"hlib%s", @"hlib%s.so", @"./%s", @"./hlib%s", @"./hlib%s.so", 0 }
+	@"%s", @"lib%s", @"lib%s.so", @"./%s", @"./lib%s", @"./lib%s.so", 0 }
 
 #endif
