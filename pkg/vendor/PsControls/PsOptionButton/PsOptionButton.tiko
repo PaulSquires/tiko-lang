@@ -16,12 +16,16 @@
 #import "vendor/PsControls/PsBufferPaint"
 #import "vendor/PsControls/PsTipHost"
 #import "vendor/PsControls/PsTooltip"
+#import "vendor/PsControls/PsRegistry"
+#import "vendor/PsControls/PsTheme"
 
 using gui
 using gdiplus
 using PsBufferPaint
 using PsTipHost
 using PsTooltip
+using PsRegistry
+using PsTheme
 
 ' The family names its booleans bOK, never "ok" -- a convention from AfxNova, where GDI+'s
 ' Ok = 0 made an "ok" a duplicate definition. Under sys/win an "ok" of your own compiles.
@@ -316,6 +320,9 @@ public type PSOPTIONBUTTON_STATE
     ' PSOPTIONBUTTON_SIGNATURE above.
     dwSignature       as DWORD = PSOPTIONBUTTON_SIGNATURE
     hWin              as HWND
+    ' TRUE once the host set the colours itself (PsOptionButton_SetColors): the theme then leaves this
+    ' option button alone until PsOptionButton_UnpinColors.
+    bColorsPinned     as boolean
     ' The tooltip, whichever backend it is on. Replaces the old hToolTip + HoverTime
     ' pair; PsOptionButton_GetTooltipHandle still answers the comctl32 handle, and 0 while
     ' this instance is on PsTooltip.
@@ -900,6 +907,10 @@ public declare function PsOptionButton_GetVisualRect( byval hOptionButton as HWN
 
 public declare sub      PsOptionButton_GetColors( byval hOptionButton as HWND, byval pColors as PSOPTIONBUTTON_COLORS ptr )
 public declare sub      PsOptionButton_SetColors( byval hOptionButton as HWND, byval pColors as PSOPTIONBUTTON_COLORS ptr )
+public declare function PsOptionButton_ThemeColors( byref t as PSTHEME_COLORS ) as PSOPTIONBUTTON_COLORS
+public declare sub      PsOptionButton_ApplyTheme( byval hOptionButton as HWND, byref t as PSTHEME_COLORS )
+public declare sub      PsOptionButton_UnpinColors( byval hOptionButton as HWND )
+public declare sub      PsOptionButton_ApplyFonts( byval hOptionButton as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
 public declare function PsOptionButton_GetFont( byval hOptionButton as HWND ) as HFONT
 public declare sub      PsOptionButton_SetFont( byval hOptionButton as HWND, byval hTextFont as HFONT )
 
@@ -1925,6 +1936,7 @@ function PsOptionButton_WndProc( _
         end if
 
     case WM_DESTROY
+        PsRegistry_Remove( hwnd )
         if pOpt then
             ' Don't let the hot-tracking timer outlive the window...
             if pOpt->hotTimerOn then
@@ -2068,6 +2080,9 @@ public function PsOptionButton_Create( _
     ' Join the registry BEFORE the tab-stop sync, or the sync cannot see us.
     PsOptionButton_RegistryAdd( pOpt )
     PsOptionButton_SyncTabStop( hWndParent, nGroupID )
+
+    ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
+    PsRegistry_SetThemeProcs( hCtrl, @PsOptionButton_ApplyTheme, @PsOptionButton_ApplyFonts )
 
     function = hCtrl
 
@@ -2503,7 +2518,60 @@ public sub PsOptionButton_SetColors( byval hOptionButton as HWND, byval pColors 
     dim as PSOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer(hOptionButton)
     if pOpt = 0 then exit sub
     pOpt->colors = *pColors
+    pOpt->bColorsPinned = true
     if pOpt->hWin then InvalidateRect( pOpt->hWin, NULL, FALSE )
+end sub
+
+' ========================================================================================
+' The theme (vendor/PsControls/PsTheme). ThemeColors is the adapter: the option button's colours
+' derived from the theme's roles. ApplyTheme applies them unless the host pinned its own.
+' ========================================================================================
+public function PsOptionButton_ThemeColors( byref t as PSTHEME_COLORS ) as PSOPTIONBUTTON_COLORS
+    dim as PSOPTIONBUTTON_COLORS c
+    c.BackColor                = t.Window
+    c.BackColorHot             = t.Window
+    c.BackColorPressed         = t.Window
+    c.BackColorDisabled        = t.Window
+    c.ForeColor                = t.Text
+    c.ForeColorHot             = t.TextHot
+    c.ForeColorPressed         = t.TextStrong
+    c.ForeColorDisabled        = t.TextDisabled
+    c.RingColor                = t.TextDim
+    c.RingColorHot             = t.Text
+    c.RingColorPressed         = t.TextHot
+    c.RingColorDisabled        = t.TextDisabled
+    c.RingColorChecked         = t.Accent
+    c.RingColorCheckedHot      = t.AccentHot
+    c.RingColorCheckedPressed  = t.AccentHot
+    c.RingColorCheckedDisabled = t.Border
+    c.DotColor                 = t.SelectedText
+    c.DotColorHot              = t.SelectedText
+    c.DotColorPressed          = t.SelectedText
+    c.DotColorDisabled         = t.Window
+    c.FocusRingColor           = t.FocusRing
+    return c
+end function
+
+public sub PsOptionButton_ApplyTheme( byval hOptionButton as HWND, byref t as PSTHEME_COLORS )
+    dim as PSOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer(hOptionButton)
+    if (pOpt = 0) orelse pOpt->bColorsPinned then exit sub
+    dim as PSOPTIONBUTTON_COLORS c = PsOptionButton_ThemeColors( t )
+    PsOptionButton_SetColors( hOptionButton, @c )
+    pOpt->bColorsPinned = false
+end sub
+
+' Hands the option button back to the theme, which is applied at once.
+public sub PsOptionButton_UnpinColors( byval hOptionButton as HWND )
+    dim as PSOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer(hOptionButton)
+    if pOpt = 0 then exit sub
+    pOpt->bColorsPinned = false
+    dim as PSTHEME_COLORS t
+    if PsRegistry_GetTheme( t ) then PsOptionButton_ApplyTheme( hOptionButton, t )
+end sub
+
+' The form's fonts (PsApp), handed over when the option button is created on a form.
+public sub PsOptionButton_ApplyFonts( byval hOptionButton as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+    if hTextFont then PsOptionButton_SetFont( hOptionButton, hTextFont )
 end sub
 
 public function PsOptionButton_GetFont( byval hOptionButton as HWND ) as HFONT

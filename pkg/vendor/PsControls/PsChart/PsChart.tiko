@@ -15,11 +15,15 @@
 #import "sys/win/gdiplus"
 #import "vendor/PsControls/PsBufferPaint"
 #import "vendor/PsControls/PsTipHost"
+#import "vendor/PsControls/PsRegistry"
+#import "vendor/PsControls/PsTheme"
 
 using gui
 using gdiplus
 using PsBufferPaint
 using PsTipHost
+using PsRegistry
+using PsTheme
 
 ' The family names its booleans bOK, never "ok" -- a convention from AfxNova, where GDI+'s
 ' Ok = 0 made an "ok" a duplicate definition. Under sys/win an "ok" of your own compiles.
@@ -400,6 +404,9 @@ public declare sub CHT_MeasureText( byval hWin as HWND, byval hFont as HFONT, _
 ' ========================================================================================
 public type PSCHART_STATE
     hWin           as HWND
+    ' TRUE once the host set the colours itself (PsChart_SetColors): the theme then
+    ' leaves this chart alone until PsChart_UnpinColors.
+    bColorsPinned  as boolean
     nChartType     as long = PSCHART_TYPE_LINE
 
     ' Fonts are BORROWED. The host owns every HFONT here and destroys it; this control only
@@ -1552,6 +1559,10 @@ public declare sub      PsChart_SetPieSliceGap( byval hChart as HWND, byval nGap
 ' Read-modify-write: Get the struct, change the fields you care about, Set it back.
 public declare sub      PsChart_GetColors( byval hChart as HWND, byval pColors as PSCHART_COLORS ptr )
 public declare sub      PsChart_SetColors( byval hChart as HWND, byval pColors as PSCHART_COLORS ptr )
+public declare function PsChart_ThemeColors( byref t as PSTHEME_COLORS ) as PSCHART_COLORS
+public declare sub      PsChart_ApplyTheme( byval hChart as HWND, byref t as PSTHEME_COLORS )
+public declare sub      PsChart_UnpinColors( byval hChart as HWND )
+public declare sub      PsChart_ApplyFonts( byval hChart as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
 public declare sub      PsChart_SetPaletteColor( byval hChart as HWND, byval idx as long, byval clr as COLORREF )
 public declare function PsChart_GetPaletteColor( byval hChart as HWND, byval idx as long ) as COLORREF
 
@@ -2688,6 +2699,7 @@ function PsChart_WndProc( byval hwnd as HWND, byval uMsg as UINT, _
         return DLGC_STATIC
 
     case WM_NCDESTROY
+        PsRegistry_Remove( hwnd )
         if pChart then
             CHT_StopPolling( pChart )
             PsTipHost_Destroy( @pChart->tip )
@@ -2770,6 +2782,9 @@ public function PsChart_Create( byval hWndParent as HWND, byval CtrlID as long, 
     pWindow->UserData(0) = cast( LONG_PTR, pChart )
 
     PsTipHost_Ensure( @pChart->tip, hCtrl, @PsChart_TipTextCallback )
+
+    ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
+    PsRegistry_SetThemeProcs( hCtrl, @PsChart_ApplyTheme, @PsChart_ApplyFonts )
 
     function = hCtrl
 end function
@@ -3450,7 +3465,56 @@ public sub PsChart_SetColors( byval hChart as HWND, byval pColors as PSCHART_COL
     dim as PSCHART_STATE ptr pChart = GetChartPointer( hChart )
     if (pChart = 0) orelse (pColors = 0) then exit sub
     pChart->colors = *pColors
+    pChart->bColorsPinned = true
     InvalidateRect( hChart, NULL, TRUE )
+end sub
+
+' ========================================================================================
+' The theme (vendor/PsControls/PsTheme). ThemeColors is the adapter: the chart's colours
+' derived from the theme's roles. ApplyTheme applies them unless the host pinned its own.
+' The palette, series and point colours are data and are never themed.
+' ========================================================================================
+public function PsChart_ThemeColors( byref t as PSTHEME_COLORS ) as PSCHART_COLORS
+    dim as PSCHART_COLORS c
+    c.BackColor          = t.Window
+    c.PlotBackColor      = t.Window
+    c.GridColor          = t.Divider
+    c.AxisColor          = t.Border
+    c.LabelColor         = t.TextDim
+    c.TitleColor         = t.Text
+    c.SubtitleColor      = t.TextDim
+    c.LegendTextColor    = t.Text
+    c.SliceLabelColor    = t.SelectedText
+    c.SliceLabelOutColor = t.Text
+    c.LeaderColor        = t.TextDim
+    c.SliceGapColor      = t.Window
+    c.UpColor            = t.Success
+    c.DownColor          = t.Error
+    c.ForeColorDisabled  = t.TextDisabled
+    return c
+end function
+
+public sub PsChart_ApplyTheme( byval hChart as HWND, byref t as PSTHEME_COLORS )
+    dim as PSCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if (pChart = 0) orelse pChart->bColorsPinned then exit sub
+    dim as PSCHART_COLORS c = PsChart_ThemeColors( t )
+    PsChart_SetColors( hChart, @c )
+    pChart->bColorsPinned = false
+end sub
+
+' Hands the chart back to the theme, which is applied at once.
+public sub PsChart_UnpinColors( byval hChart as HWND )
+    dim as PSCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then exit sub
+    pChart->bColorsPinned = false
+    dim as PSTHEME_COLORS t
+    if PsRegistry_GetTheme( t ) then PsChart_ApplyTheme( hChart, t )
+end sub
+
+' The form's fonts (PsApp), handed over when the chart is created on a form. No glyph font;
+' the title and subtitle fall back to the label font.
+public sub PsChart_ApplyFonts( byval hChart as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+    if hTextFont then PsChart_SetFont( hChart, hTextFont )
 end sub
 
 sub PsChart_SetPaletteColor( byval hChart as HWND, byval idx as long, byval clr as COLORREF )

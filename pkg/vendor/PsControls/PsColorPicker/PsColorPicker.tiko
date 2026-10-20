@@ -98,11 +98,15 @@
 #import "sys/win/gdiplus"
 #import "vendor/PsControls/PsBufferPaint"
 #import "vendor/PsControls/PsVScrollBar"
+#import "vendor/PsControls/PsRegistry"
+#import "vendor/PsControls/PsTheme"
 
 using gui
 using gdiplus
 using PsBufferPaint
 using PsVScrollBar
+using PsRegistry
+using PsTheme
 
 ' The family names its booleans bOK, never "ok" -- a convention from AfxNova, where GDI+'s
 ' Ok = 0 made an "ok" a duplicate definition. Under sys/win an "ok" of your own compiles.
@@ -389,6 +393,9 @@ public type PSCOLORPICKER_STATE
     ' MUST BE FIRST and must be checked before any other field is read.
     dwSignature      as DWORD = PSCOLORPICKER_SIGNATURE
     hWin             as HWND
+    ' TRUE once the host set the colours itself (PsColorPicker_SetColors): the theme then
+    ' leaves this picker alone until PsColorPicker_UnpinColors.
+    bColorsPinned    as boolean
     hParent          as HWND
     idc_ColorPicker  as long = 0
     id               as long = 0
@@ -1258,6 +1265,10 @@ public declare function PsColorPicker_GetTab( byval hCtrl as HWND ) as long
 
 public declare sub      PsColorPicker_SetColors( byval hCtrl as HWND, byval pColors as PSCOLORPICKER_COLORS ptr )
 public declare sub      PsColorPicker_GetColors( byval hCtrl as HWND, byval pColors as PSCOLORPICKER_COLORS ptr )
+public declare function PsColorPicker_ThemeColors( byref t as PSTHEME_COLORS ) as PSCOLORPICKER_COLORS
+public declare sub      PsColorPicker_ApplyTheme( byval hCtrl as HWND, byref t as PSTHEME_COLORS )
+public declare sub      PsColorPicker_UnpinColors( byval hCtrl as HWND )
+public declare sub      PsColorPicker_ApplyFonts( byval hCtrl as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
 public declare sub      PsColorPicker_SetFont( byval hCtrl as HWND, byval hFont as HFONT )
 public declare function PsColorPicker_GetFont( byval hCtrl as HWND ) as HFONT
 ' The OK button's caption, the two preview labels, and the four field labels. Settable because
@@ -3262,6 +3273,7 @@ function PsColorPicker_WndProc( _
         end if
 
     case WM_DESTROY
+        PsRegistry_Remove( hwnd )
         if pClr then
             if pClr->hotTimerOn then
                 KillTimer( hwnd, IDT_PSCOLORPICKER_HOTTRACK )
@@ -3388,6 +3400,9 @@ public function PsColorPicker_Create( byval hParent as HWND, byval id as long = 
     ShowWindow( pClr->hScroll, SW_HIDE )
 
     PsColorPicker_SyncBodySel( pClr )
+
+    ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
+    PsRegistry_SetThemeProcs( hCtrl, @PsColorPicker_ApplyTheme, @PsColorPicker_ApplyFonts )
 
     function = hCtrl
 
@@ -3752,7 +3767,59 @@ sub PsColorPicker_SetColors( byval hCtrl as HWND, byval pColors as PSCOLORPICKER
     dim as PSCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
     if pClr = 0 then exit sub
     pClr->colors = *pColors
+    pClr->bColorsPinned = true
     if pClr->hWin then InvalidateRect( pClr->hWin, NULL, FALSE )
+end sub
+
+' ========================================================================================
+' The theme (vendor/PsControls/PsTheme). ThemeColors is the adapter: the picker's CHROME
+' colours derived from the theme's roles (the colours it edits are content, never themed).
+' ApplyTheme applies them unless the host pinned its own.
+' ========================================================================================
+public function PsColorPicker_ThemeColors( byref t as PSTHEME_COLORS ) as PSCOLORPICKER_COLORS
+    dim as PSCOLORPICKER_COLORS c
+    c.BackColor           = t.Popup
+    c.ForeColor           = t.Text
+    c.BorderColor         = t.Border
+    c.TabBackColor        = t.Popup
+    c.TabBackColorSel     = t.SurfaceHot
+    c.TabForeColor        = t.TextDim
+    c.TabForeColorSel     = t.TextHot
+    c.FieldBackColor      = t.Window
+    c.FieldForeColor      = t.Text
+    c.FieldBorderColor    = t.Border
+    c.FieldBorderColorSel = t.FocusRing
+    c.HotRingColor        = t.TextStrong
+    c.SelRingColor        = t.FocusRing
+    c.FocusRingColor      = t.FocusRing
+    c.OKBackColor         = t.Surface
+    c.OKBackColorHot      = t.SurfaceHot
+    c.OKBackColorPressed  = t.Selected
+    c.OKForeColor         = t.Text
+    c.OKBorderColor       = t.Border
+    return c
+end function
+
+public sub PsColorPicker_ApplyTheme( byval hCtrl as HWND, byref t as PSTHEME_COLORS )
+    dim as PSCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if (pClr = 0) orelse pClr->bColorsPinned then exit sub
+    dim as PSCOLORPICKER_COLORS c = PsColorPicker_ThemeColors( t )
+    PsColorPicker_SetColors( hCtrl, @c )
+    pClr->bColorsPinned = false
+end sub
+
+' Hands the picker back to the theme, which is applied at once.
+public sub PsColorPicker_UnpinColors( byval hCtrl as HWND )
+    dim as PSCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then exit sub
+    pClr->bColorsPinned = false
+    dim as PSTHEME_COLORS t
+    if PsRegistry_GetTheme( t ) then PsColorPicker_ApplyTheme( hCtrl, t )
+end sub
+
+' The form's fonts (PsApp), handed over when the picker is created on a form. No glyph font.
+public sub PsColorPicker_ApplyFonts( byval hCtrl as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+    if hTextFont then PsColorPicker_SetFont( hCtrl, hTextFont )
 end sub
 
 sub PsColorPicker_GetColors( byval hCtrl as HWND, byval pColors as PSCOLORPICKER_COLORS ptr )

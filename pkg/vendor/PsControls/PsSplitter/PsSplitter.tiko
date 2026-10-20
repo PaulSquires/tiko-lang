@@ -32,10 +32,14 @@
 #import "sys/win/gui"
 #import "sys/win/gdiplus"
 #import "vendor/PsControls/PsBufferPaint"
+#import "vendor/PsControls/PsRegistry"
+#import "vendor/PsControls/PsTheme"
 
 using gui
 using gdiplus
 using PsBufferPaint
+using PsRegistry
+using PsTheme
 
 ' Polling timer that guarantees hot-tracking is cleared when the mouse leaves the control.
 ' WM_MOUSELEAVE (TME_LEAVE) is not reliably delivered on fast exits, so a periodic cursor
@@ -106,6 +110,9 @@ public type SPL_PosChangedCallbackSub as sub( byval hSplitter as HWND, byval new
 
 public type PSSPLITTER_STATE
     hWin           as HWND
+    ' TRUE once the host set the colours itself (PsSplitter_SetColors): the theme then leaves
+    ' this splitter alone until PsSplitter_UnpinColors.
+    bColorsPinned  as boolean
     hParent        as HWND                ' the coordinate space nPos lives in
     nOrientation   as integer = PSSPLITTER_VERTICAL
     ' --- Position model. nPos is the bar's leading edge in hParent's client coords. ---
@@ -270,6 +277,8 @@ public declare function PsSplitter_IsDragging( byval hSplit as HWND ) as boolean
 ' ----------------------------------------------------------------------------------------
 public declare function PsSplitter_GetBackColor( byval hSplit as HWND ) as COLORREF
 public declare sub      PsSplitter_SetColors( byval hSplit as HWND, byval backclr as COLORREF, byval hotclr as COLORREF )
+public declare sub      PsSplitter_ApplyTheme( byval hSplit as HWND, byref t as PSTHEME_COLORS )
+public declare sub      PsSplitter_UnpinColors( byval hSplit as HWND )
 
 ' ----------------------------------------------------------------------------------------
 ' Callbacks. See the type declarations above for each signature and contract.
@@ -554,6 +563,7 @@ function PsSplitter_WndProc( _
         end if
 
     case WM_NCDESTROY
+        PsRegistry_Remove( hwnd )
         if pSpl then
             if pSpl->hotTimerOn then KillTimer( hwnd, IDT_CSPLITTER_HOTTRACK )
             if GetCapture() = hwnd then ReleaseCapture()
@@ -610,6 +620,9 @@ public function PsSplitter_Create( _
 
     pWindow->UserData(0) = cast(LONG_PTR, pSpl)
     SetWindowLongPtr( hSplit, GWLP_ID, CtrlID )
+
+    ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
+    PsRegistry_SetThemeProcs( hSplit, @PsSplitter_ApplyTheme, 0 )
 
     function = hSplit
 end function
@@ -698,7 +711,28 @@ public sub PsSplitter_SetColors( byval hSplit as HWND, byval backclr as COLORREF
     if pSpl = 0 then return
     pSpl->BackColor = backclr
     pSpl->HotColor  = hotclr
+    pSpl->bColorsPinned = true
     InvalidateRect( hSplit, NULL, FALSE )
+end sub
+
+' ========================================================================================
+' The theme (vendor/PsControls/PsTheme). ApplyTheme sets the splitter's colours from the
+' theme's roles unless the host pinned its own.
+' ========================================================================================
+public sub PsSplitter_ApplyTheme( byval hSplit as HWND, byref t as PSTHEME_COLORS )
+    dim as PSSPLITTER_STATE ptr pSpl = GetSplitterPointer(hSplit)
+    if (pSpl = 0) orelse pSpl->bColorsPinned then exit sub
+    PsSplitter_SetColors( hSplit, t.Divider, t.TextDisabled )
+    pSpl->bColorsPinned = false
+end sub
+
+' Hands the splitter back to the theme, which is applied at once.
+public sub PsSplitter_UnpinColors( byval hSplit as HWND )
+    dim as PSSPLITTER_STATE ptr pSpl = GetSplitterPointer(hSplit)
+    if pSpl = 0 then exit sub
+    pSpl->bColorsPinned = false
+    dim as PSTHEME_COLORS t
+    if PsRegistry_GetTheme( t ) then PsSplitter_ApplyTheme( hSplit, t )
 end sub
 
 

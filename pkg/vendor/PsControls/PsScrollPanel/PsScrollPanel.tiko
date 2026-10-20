@@ -41,11 +41,15 @@
 #import "sys/win/gdiplus"
 #import "vendor/PsControls/PsBufferPaint"
 #import "vendor/PsControls/PsVScrollBar"
+#import "vendor/PsControls/PsRegistry"
+#import "vendor/PsControls/PsTheme"
 
 using gui
 using gdiplus
 using PsBufferPaint
 using PsVScrollBar
+using PsRegistry
+using PsTheme
 
 ' Reveal/focus poll timer. Timer ids are per-window, so every instance can share this one.
 ' (&hCB10/&hCB11 belong to the PsVScrollBar this control owns -- do not reuse them here.)
@@ -119,6 +123,9 @@ public type SCP_ScrollCallbackSub as sub( byval hScrollPanel as HWND, byval newP
 
 public type PSSCROLLPANEL_STATE
     hWin           as HWND               ' the container / viewport
+    ' TRUE once the host set the colours itself (PsScrollPanel_SetColors): the theme then leaves
+    ' this panel alone until PsScrollPanel_UnpinColors.
+    bColorsPinned  as boolean
     hPanel         as HWND               ' the page
     hScrollBar     as HWND               ' the PsVScrollBar
     ' --- Scroll model. Both in PIXELS; nPos is the page's first visible row of pixels. ---
@@ -328,6 +335,8 @@ public declare sub      PsScrollPanel_Recalc( byval hScp as HWND )
 ' ----------------------------------------------------------------------------------------
 public declare sub      PsScrollPanel_SetColors( byval hScp as HWND, byval backclr as COLORREF, byval foreclr as COLORREF )
 public declare sub      PsScrollPanel_SetScrollBarColors( byval hScp as HWND, byval backclr as COLORREF, byval foreclr as COLORREF, byval foreclrhot as COLORREF )
+public declare sub      PsScrollPanel_ApplyTheme( byval hScp as HWND, byref t as PSTHEME_COLORS )
+public declare sub      PsScrollPanel_UnpinColors( byval hScp as HWND )
 public declare sub      PsScrollPanel_SetScrollBarWidth( byval hScp as HWND, byval nWidth as integer )
 public declare sub      PsScrollPanel_SetLineHeight( byval hScp as HWND, byval nHeight as integer )
 public declare sub      PsScrollPanel_SetFont( byval hScp as HWND, byval hFont as HFONT )
@@ -948,6 +957,7 @@ function PsScrollPanel_WndProc( _
         exit select
 
     case WM_NCDESTROY
+        PsRegistry_Remove( hwnd )
         if pScp then
             PsScrollPanel_KillRevealTimer( pScp )
             if pScp->hBackBrushObj then DeleteObject( pScp->hBackBrushObj )
@@ -1013,6 +1023,9 @@ public function PsScrollPanel_Create( byval hWndParent as HWND, byval CtrlID as 
     pScp->hScrollBar = PsVScrollBar_Create( hScp, CtrlID + 2 )
     PsVScrollBar_SetScrollCallback( pScp->hScrollBar, @PsScrollPanel_OnScrollBarScroll )
     PsVScrollBar_SetColors( pScp->hScrollBar, pScp->BackColor, BGR(53,59,69), BGR(90,98,112) )
+
+    ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
+    PsRegistry_SetThemeProcs( hScp, @PsScrollPanel_ApplyTheme, 0 )
 
     function = hScp
 end function
@@ -1177,6 +1190,7 @@ public sub PsScrollPanel_SetColors( byval hScp as HWND, byval backclr as COLORRE
         end if
     end if
 
+    pScp->bColorsPinned = true
     InvalidateRect( pScp->hWin, NULL, FALSE )
     InvalidateRect( pScp->hPanel, NULL, TRUE )   ' TRUE: the host's controls repaint too
 end sub
@@ -1192,6 +1206,28 @@ public sub PsScrollPanel_SetScrollBarColors( _
     dim as PSSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer(hScp)
     if pScp = 0 then return
     if pScp->hScrollBar then PsVScrollBar_SetColors( pScp->hScrollBar, backclr, foreclr, foreclrhot )
+    pScp->bColorsPinned = true
+end sub
+
+' ========================================================================================
+' The theme (vendor/PsControls/PsTheme). ApplyTheme sets the panel's colours, and its
+' scrollbar's, from the theme's roles unless the host pinned its own.
+' ========================================================================================
+public sub PsScrollPanel_ApplyTheme( byval hScp as HWND, byref t as PSTHEME_COLORS )
+    dim as PSSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer(hScp)
+    if (pScp = 0) orelse pScp->bColorsPinned then exit sub
+    PsScrollPanel_SetColors( hScp, t.Window, t.Text )
+    PsScrollPanel_SetScrollBarColors( hScp, t.Window, t.Border, t.TextDisabled )
+    pScp->bColorsPinned = false
+end sub
+
+' Hands the panel back to the theme, which is applied at once.
+public sub PsScrollPanel_UnpinColors( byval hScp as HWND )
+    dim as PSSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer(hScp)
+    if pScp = 0 then exit sub
+    pScp->bColorsPinned = false
+    dim as PSTHEME_COLORS t
+    if PsRegistry_GetTheme( t ) then PsScrollPanel_ApplyTheme( hScp, t )
 end sub
 
 

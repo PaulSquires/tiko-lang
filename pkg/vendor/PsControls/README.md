@@ -38,9 +38,8 @@ using PsButton
 dim app as PsApplication
 app.Init( )
 dim f as PsForm ptr = app.NewForm( "Hello", 640, 400 )
-dim hOk as HWND = PsButton_Create( f->hWindow, 1001 )
+dim hOk as HWND = PsButton_Create( f->hWindow, 1001 )   ' themed, with the form's font
 PsButton_SetText( hOk, "OK" )
-PsButton_SetFont( hOk, f->Font( PSFONT_UI ) )
 f->OnSize( sub( byval f as PsForm ptr, byval cx as long, byval cy as long )
                SetWindowPos( f->Item( 1001 ), null, cx - f->ScaleX( 100 ), cy - f->ScaleY( 44 ), _
                              f->ScaleX( 88 ), f->ScaleY( 32 ), SWP_NOZORDER or SWP_SHOWWINDOW )
@@ -51,8 +50,10 @@ end app.Run( f )
 A control that needs the message loop to do something for it (PsComboBox, PsMenuBar,
 PsToolbar, PsPopupMenu, PsTextBox, PsNumericUpDown, PsDatePicker, PsListTree) registers that
 obligation with [PsRegistry](PsRegistry/README.md) when it is created. PsApp's loop then meets
-it, and an app needs no hand-written message loop. `examples/PsControls/PsApp` is a starter to
-copy.
+it, and an app needs no hand-written message loop. Every control also follows a shared
+[theme](PsTheme/README.md) (light, dark, or the Windows setting, switched live) and is given its
+form's fonts as it is created. `examples/PsControls/PsApp` is a starter to copy;
+`examples/PsControls/PsTheme` shows the theme.
 
 ## The modules
 
@@ -67,7 +68,7 @@ Each directory is one module, `vendor/PsControls/<name>`, with its own README.
 | Layout and scrolling | [PsSplitter](PsSplitter/README.md), [PsScrollPanel](PsScrollPanel/README.md), [PsVScrollBar](PsVScrollBar/README.md), [PsHScrollBar](PsHScrollBar/README.md) |
 | Popups and feedback | [PsMessageBox](PsMessageBox/README.md), [PsColorPicker](PsColorPicker/README.md), [PsTooltip](PsTooltip/README.md), [PsProgressBar](PsProgressBar/README.md) |
 | Data display | [PsChart](PsChart/README.md) |
-| Application | [PsApp](PsApp/README.md) (start-up, forms with message callbacks, the message loop, modal forms), [PsRegistry](PsRegistry/README.md) (the controls' message-loop obligations) |
+| Application | [PsApp](PsApp/README.md) (start-up, forms with message callbacks, the message loop, modal forms), [PsTheme](PsTheme/README.md) (the shared theme), [PsRegistry](PsRegistry/README.md) (the controls' message-loop obligations, theme and fonts) |
 | Support | [PsBufferPaint](PsBufferPaint/README.md) (the drawing surface every control paints through), [PsImage](PsImage/README.md) (image files for icon slots), [PsPopupMenu](PsPopupMenu/README.md) (the dropdown behind menus, combos and toolbars), [PsColumnHeader](PsColumnHeader/README.md) (PsListTree's header band), PsTipHost (the tooltip backend switch) |
 
 A module imports the modules it is built from, so importing `PsButton` compiles `PsBufferPaint`,

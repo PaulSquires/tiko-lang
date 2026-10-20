@@ -25,11 +25,15 @@
 #import "sys/win/gdiplus"
 #import "vendor/PsControls/PsBufferPaint"
 #import "vendor/PsControls/PsTipHost"
+#import "vendor/PsControls/PsRegistry"
+#import "vendor/PsControls/PsTheme"
 
 using gui
 using gdiplus
 using PsBufferPaint
 using PsTipHost
+using PsRegistry
+using PsTheme
 
 ' The tooltip backend switch. The control ships on the SYSTEM (comctl32) backend exactly
 ' as it always has; a host opts an instance into PsTooltip with PsColumnHeader_SetTooltipMode.
@@ -130,6 +134,9 @@ public type HDR_AutoSizeCallbackFunc as function( byval hHeader as HWND, byval i
 
 public type PSCOLUMNHEADER_STATE
     hWin              as HWND
+    ' TRUE once the host set the colours itself (PsColumnHeader_SetBackColor): the theme then
+    ' leaves this header alone until PsColumnHeader_UnpinColors.
+    bColorsPinned     as boolean
     ' The tooltip, whichever backend it is on. Replaces the old hToolTip + HoverTime
     ' pair; PsColumnHeader_GetTooltipHandle still answers the comctl32 handle, and 0 while
     ' this instance is on PsTooltip.
@@ -481,6 +488,9 @@ public declare sub      PsColumnHeader_SetXOffset( byval hHeader as HWND, byval 
 ' ----------------------------------------------------------------------------------------
 public declare function PsColumnHeader_GetBackColor( byval hHeader as HWND ) as COLORREF
 public declare function PsColumnHeader_SetBackColor( byval hHeader as HWND, byval clr as COLORREF ) as COLORREF
+public declare sub      PsColumnHeader_ApplyTheme( byval hHeader as HWND, byref t as PSTHEME_COLORS )
+public declare sub      PsColumnHeader_UnpinColors( byval hHeader as HWND )
+public declare sub      PsColumnHeader_ApplyFonts( byval hHeader as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
 public declare function PsColumnHeader_GetFont( byval hHeader as HWND ) as HFONT
 public declare function PsColumnHeader_SetFont( byval hHeader as HWND, byval hFont as HFONT ) as boolean
 public declare function PsColumnHeader_GetTooltipHandle( byval hHeader as HWND ) as HWND
@@ -801,9 +811,35 @@ public function PsColumnHeader_SetBackColor( byval hHeader as HWND, byval clr as
     if pHdr = 0 then return 0
     dim as COLORREF oldClr = pHdr->BackColor
     pHdr->BackColor = clr
+    pHdr->bColorsPinned = true
     InvalidateRect( hHeader, NULL, FALSE )
     return oldClr
 end function
+
+' ========================================================================================
+' The theme (vendor/PsControls/PsTheme). ApplyTheme sets the header's colour from the
+' theme's roles unless the host pinned its own.
+' ========================================================================================
+public sub PsColumnHeader_ApplyTheme( byval hHeader as HWND, byref t as PSTHEME_COLORS )
+    dim as PSCOLUMNHEADER_STATE ptr pHdr = GetColumnHeaderPointer(hHeader)
+    if (pHdr = 0) orelse pHdr->bColorsPinned then exit sub
+    PsColumnHeader_SetBackColor( hHeader, t.Surface )
+    pHdr->bColorsPinned = false
+end sub
+
+' Hands the header back to the theme, which is applied at once.
+public sub PsColumnHeader_UnpinColors( byval hHeader as HWND )
+    dim as PSCOLUMNHEADER_STATE ptr pHdr = GetColumnHeaderPointer(hHeader)
+    if pHdr = 0 then exit sub
+    pHdr->bColorsPinned = false
+    dim as PSTHEME_COLORS t
+    if PsRegistry_GetTheme( t ) then PsColumnHeader_ApplyTheme( hHeader, t )
+end sub
+
+' The form's fonts (PsApp), handed over when the header is created on a form.
+public sub PsColumnHeader_ApplyFonts( byval hHeader as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+    if hTextFont then PsColumnHeader_SetFont( hHeader, hTextFont )
+end sub
 
 function PsColumnHeader_GetFont( byval hHeader as HWND ) as HFONT
     dim as PSCOLUMNHEADER_STATE ptr pHdr = GetColumnHeaderPointer(hHeader)
@@ -1369,6 +1405,7 @@ function PsColumnHeader_WndProc( _
         end if
 
     case WM_DESTROY
+        PsRegistry_Remove( hwnd )
         if pHdr then
             if pHdr->hotTimerOn then
                 KillTimer( hwnd, IDT_CCOLHDR_HOTTRACK )
@@ -1439,6 +1476,8 @@ public function PsColumnHeader_Create( byval hWndParent as HWND, byval CtrlID as
     ' GetColumnHeaderPointer(hAttached), which reads exactly that slot.
     PsTipHost_Ensure( @pHdr->tip, hCtrl, @PsColumnHeader_TipTextCallback )
 
+    ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
+    PsRegistry_SetThemeProcs( hCtrl, @PsColumnHeader_ApplyTheme, @PsColumnHeader_ApplyFonts )
 
     function = hCtrl
 

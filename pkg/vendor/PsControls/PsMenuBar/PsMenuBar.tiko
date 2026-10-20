@@ -12,12 +12,14 @@
 #import "vendor/PsControls/PsPopupMenu"
 #import "vendor/PsControls/PsBufferPaint"
 #import "vendor/PsControls/PsRegistry"
+#import "vendor/PsControls/PsTheme"
 
 using gui
 using gdiplus
 using PsPopupMenu
 using PsBufferPaint
 using PsRegistry
+using PsTheme
 
 ' The bar's dropdowns ARE PsPopupMenu windows; the dependency is one-way (PsPopupMenu
 ' never knows about the bar -- it reports through CPM_NOTIFY_* messages to whatever
@@ -90,6 +92,9 @@ public type MB_PaintItemCallbackSub as sub( byval p as PSMENUBAR_PAINTINFO ptr )
 
 public type PSMENUBAR_STATE
     hWin              as HWND
+    ' TRUE once the host set the colours itself (PsMenuBar_SetColors): the theme then leaves this
+    ' menu bar alone until PsMenuBar_UnpinColors.
+    bColorsPinned     as boolean
     items(any)        as PSMENUBAR_ITEM
     itemCount         as long = 0
     idc_MenuBar       as long = 0
@@ -187,6 +192,10 @@ public declare function PsMenuBar_SetActiveIndex( byval hMenuBar as HWND, byval 
 ' Appearance. The font is borrowed (caller owns it) and is also the measuring font.
 ' ----------------------------------------------------------------------------------------
 public declare sub      PsMenuBar_SetColors( byval hMenuBar as HWND, byval pColors as PSMENUBAR_COLORS ptr )
+public declare function PsMenuBar_ThemeColors( byref t as PSTHEME_COLORS ) as PSMENUBAR_COLORS
+public declare sub      PsMenuBar_ApplyTheme( byval hMenuBar as HWND, byref t as PSTHEME_COLORS )
+public declare sub      PsMenuBar_UnpinColors( byval hMenuBar as HWND )
+public declare sub      PsMenuBar_ApplyFonts( byval hMenuBar as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
 public declare sub      PsMenuBar_SetFont( byval hMenuBar as HWND, byval hBarFont as HFONT )
 
 ' ----------------------------------------------------------------------------------------
@@ -595,6 +604,10 @@ public function PsMenuBar_Create( byval hWndParent as HWND, byval CtrlID as long
     ' The pump obligation, registered: a PsApp pump calls our filter (which covers every
     ' dropdown and submenu), and closes the open menu when the form loses the activation.
     PsRegistry_Add( hCtrl, PSREG_PRIO_OWNER, @PsMenuBar_FilterMessage, @PsMenuBar_CloseMenu )
+
+    ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
+    PsRegistry_SetThemeProcs( hCtrl, @PsMenuBar_ApplyTheme, @PsMenuBar_ApplyFonts )
+
     return hCtrl
 end function
 
@@ -657,9 +670,9 @@ public function PsMenuBar_SetDropDown( byval hMenuBar as HWND, byval idx as long
     if pBar->IsValidItem(idx) = false then return false
     dim as HWND hOld = pBar->items(idx).hDropDown
     if (hOld <> 0) andalso (hOld <> hPopup) then DestroyWindow( hOld )
-    ' Our filter drives the dropdown from here on; its own row would see the bar's clicks as
-    ' outside clicks (the popup-row rule in PsRegistry).
-    if hPopup then PsRegistry_Remove( hPopup )
+    ' Our filter drives the dropdown from here on; its own filter would see the bar's clicks as
+    ' outside clicks (the popup-row rule in PsRegistry). The row stays for the theme.
+    if hPopup then PsRegistry_ClearFilter( hPopup )
     pBar->items(idx).hDropDown = hPopup
     return true
 end function
@@ -765,7 +778,43 @@ public sub PsMenuBar_SetColors( byval hMenuBar as HWND, byval pColors as PSMENUB
     if pBar = null then exit sub
     if pColors = null then exit sub
     pBar->colors = *pColors               ' copied; the caller's struct stays theirs
+    pBar->bColorsPinned = true
     if pBar->hWin then InvalidateRect( pBar->hWin, NULL, TRUE )
+end sub
+
+' ========================================================================================
+' The theme (vendor/PsControls/PsTheme). ThemeColors is the adapter: the menu bar's colours
+' derived from the theme's roles. ApplyTheme applies them unless the host pinned its own.
+' ========================================================================================
+public function PsMenuBar_ThemeColors( byref t as PSTHEME_COLORS ) as PSMENUBAR_COLORS
+    dim as PSMENUBAR_COLORS c
+    c.BackColor    = t.Window
+    c.ForeColor    = t.Text
+    c.BackColorHot = t.SurfaceHot
+    c.ForeColorHot = t.TextHot
+    return c
+end function
+
+public sub PsMenuBar_ApplyTheme( byval hMenuBar as HWND, byref t as PSTHEME_COLORS )
+    dim as PSMENUBAR_STATE ptr pBar = GetMenuBarPointer(hMenuBar)
+    if (pBar = 0) orelse pBar->bColorsPinned then exit sub
+    dim as PSMENUBAR_COLORS c = PsMenuBar_ThemeColors( t )
+    PsMenuBar_SetColors( hMenuBar, @c )
+    pBar->bColorsPinned = false
+end sub
+
+' Hands the menu bar back to the theme, which is applied at once.
+public sub PsMenuBar_UnpinColors( byval hMenuBar as HWND )
+    dim as PSMENUBAR_STATE ptr pBar = GetMenuBarPointer(hMenuBar)
+    if pBar = 0 then exit sub
+    pBar->bColorsPinned = false
+    dim as PSTHEME_COLORS t
+    if PsRegistry_GetTheme( t ) then PsMenuBar_ApplyTheme( hMenuBar, t )
+end sub
+
+' The form's fonts (PsApp), handed over when the menu bar is created on a form.
+public sub PsMenuBar_ApplyFonts( byval hMenuBar as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+    if hTextFont then PsMenuBar_SetFont( hMenuBar, hTextFont )
 end sub
 
 

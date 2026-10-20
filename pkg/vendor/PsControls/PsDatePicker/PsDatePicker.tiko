@@ -17,6 +17,7 @@
 #import "vendor/PsControls/PsTipHost"
 #import "vendor/PsControls/PsTextBox"
 #import "vendor/PsControls/PsRegistry"
+#import "vendor/PsControls/PsTheme"
 
 using gui
 using gdiplus
@@ -24,6 +25,7 @@ using PsBufferPaint
 using PsTipHost
 using PsTextBox
 using PsRegistry
+using PsTheme
 
 #include once "vbcompat.bi"                 ' format()
 
@@ -367,6 +369,9 @@ end type
 
 public type PSDATEPICKER_STATE
     hWin            as HWND
+    ' TRUE once the host set the colours itself (PsDatePicker_SetColors): the theme then
+    ' leaves this picker alone until PsDatePicker_UnpinColors.
+    bColorsPinned   as boolean
     hTextBox        as HWND               ' the embedded PsTextBox (borderless, plain text)
     hCal            as HWND               ' the calendar popup (lazy; 0 until first opened)
     ' Which tooltip backend the popup's day-cell tip should use. Held HERE rather than on
@@ -505,6 +510,10 @@ public declare sub      PsDatePicker_Refresh( byval hCtrl as HWND )
 ' --- colours ---
 public declare sub      PsDatePicker_GetColors( byval hCtrl as HWND, byval pColors as PSDATEPICKER_COLORS ptr )
 public declare sub      PsDatePicker_SetColors( byval hCtrl as HWND, byval pColors as PSDATEPICKER_COLORS ptr )
+public declare function PsDatePicker_ThemeColors( byref t as PSTHEME_COLORS ) as PSDATEPICKER_COLORS
+public declare sub      PsDatePicker_ApplyTheme( byval hCtrl as HWND, byref t as PSTHEME_COLORS )
+public declare sub      PsDatePicker_UnpinColors( byval hCtrl as HWND )
+public declare sub      PsDatePicker_ApplyFonts( byval hCtrl as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
 
 ' --- callbacks ---
 public declare sub      PsDatePicker_SetParseCallback( byval hCtrl as HWND, byval userfunc as DTP_ParseCallbackFunc )
@@ -2312,6 +2321,9 @@ public function PsDatePicker_Create( byval hWndParent as HWND, byval CtrlID as l
         ShowWindow( pCtrl->hTextBox, SW_SHOW )
     end if
 
+    ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
+    PsRegistry_SetThemeProcs( hCtrl, @PsDatePicker_ApplyTheme, @PsDatePicker_ApplyFonts )
+
     function = hCtrl
 end function
 
@@ -2727,9 +2739,77 @@ sub PsDatePicker_SetColors( byval hCtrl as HWND, byval pColors as PSDATEPICKER_C
     dim as PSDATEPICKER_STATE ptr pCtrl = GetDatePickerPointer(hCtrl)
     if (pCtrl = 0) orelse (pColors = 0) then exit sub
     pCtrl->colors = *pColors
+    pCtrl->bColorsPinned = true
     DTP_ApplyFieldColors( pCtrl )
     InvalidateRect( hCtrl, NULL, TRUE )
     if pCtrl->hCal then InvalidateRect( pCtrl->hCal, NULL, TRUE )
+end sub
+
+' ========================================================================================
+' The theme (vendor/PsControls/PsTheme). ThemeColors is the adapter: the picker's colours
+' derived from the theme's roles. ApplyTheme applies them unless the host pinned its own.
+' ========================================================================================
+public function PsDatePicker_ThemeColors( byref t as PSTHEME_COLORS ) as PSDATEPICKER_COLORS
+    dim as PSDATEPICKER_COLORS c
+    c.BackColor                = t.Window
+    c.BorderColor              = t.Border
+    c.FocusBorderColor         = t.FocusRing
+    c.BorderColorDisabled      = t.BorderDisabled
+    c.DividerColor             = t.Divider
+    c.DividerColorDisabled     = t.BorderDisabled
+    c.FieldBackColor           = t.Surface
+    c.FieldForeColor           = t.Text
+    c.FieldBackColorDisabled   = t.SurfaceDisabled
+    c.FieldForeColorDisabled   = t.TextDisabled
+    c.IconColor                = t.Surface
+    c.IconGlyphColor           = t.Text
+    c.IconGlyphColorHot        = t.TextHot
+    c.IconBackColorHot         = t.SurfaceHot
+    c.IconGlyphColorDisabled   = t.TextDisabled
+    c.CalBackColor             = t.Popup
+    c.CalBorderColor           = t.Border
+    c.TitleColor               = t.TextHot
+    c.TitleColorHot            = t.TextStrong
+    c.NavGlyphColor            = t.Text
+    c.NavGlyphColorHot         = t.TextHot
+    c.NavGlyphColorDisabled    = t.TextDisabled
+    c.WeekdayColor             = t.TextDim
+    c.DayColor                 = t.PopupText
+    c.DayColorWeekend          = t.AccentHot
+    c.DayColorAdjacent         = t.TextDim
+    c.DayColorDisabled         = t.TextDisabled
+    c.DayBackColorHot          = t.SurfaceHot
+    c.DayForeColorHot          = t.TextHot
+    c.DayBackColorSelected     = t.Selected
+    c.DayForeColorSelected     = t.SelectedText
+    c.TodayRingColor           = t.Accent
+    c.TodayFooterColor         = t.TextDim
+    c.TodayFooterColorHot      = t.TextHot
+    c.TodayFooterColorDisabled = t.TextDisabled
+    return c
+end function
+
+public sub PsDatePicker_ApplyTheme( byval hCtrl as HWND, byref t as PSTHEME_COLORS )
+    dim as PSDATEPICKER_STATE ptr pCtrl = GetDatePickerPointer(hCtrl)
+    if (pCtrl = 0) orelse pCtrl->bColorsPinned then exit sub
+    dim as PSDATEPICKER_COLORS c = PsDatePicker_ThemeColors( t )
+    PsDatePicker_SetColors( hCtrl, @c )
+    pCtrl->bColorsPinned = false
+end sub
+
+' Hands the picker back to the theme, which is applied at once.
+public sub PsDatePicker_UnpinColors( byval hCtrl as HWND )
+    dim as PSDATEPICKER_STATE ptr pCtrl = GetDatePickerPointer(hCtrl)
+    if pCtrl = 0 then exit sub
+    pCtrl->bColorsPinned = false
+    dim as PSTHEME_COLORS t
+    if PsRegistry_GetTheme( t ) then PsDatePicker_ApplyTheme( hCtrl, t )
+end sub
+
+' The form's fonts (PsApp), handed over when the picker is created on a form.
+public sub PsDatePicker_ApplyFonts( byval hCtrl as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+    if hTextFont then PsDatePicker_SetFont( hCtrl, hTextFont )
+    if hGlyphFont then PsDatePicker_SetIconFont( hCtrl, hGlyphFont )
 end sub
 
 

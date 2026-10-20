@@ -14,10 +14,14 @@
 #import "sys/win/gui"
 #import "sys/win/gdiplus"
 #import "vendor/PsControls/PsBufferPaint"
+#import "vendor/PsControls/PsRegistry"
+#import "vendor/PsControls/PsTheme"
 
 using gui
 using gdiplus
 using PsBufferPaint
+using PsRegistry
+using PsTheme
 
 ' Polling timer that guarantees hot-tracking is cleared when the mouse leaves the control.
 ' WM_MOUSELEAVE (TME_LEAVE) is not reliably delivered on fast exits, so a periodic cursor
@@ -163,6 +167,9 @@ public type TOG_CheckChangedCallbackSub as sub( byval hToggle as HWND, byval isC
 
 public type PSTOGGLE_STATE
     hWin           as HWND
+    ' TRUE once the host set the colours itself (PsToggle_SetColors): the theme then leaves this
+    ' toggle alone until PsToggle_UnpinColors.
+    bColorsPinned  as boolean
     idc_Toggle     as long = 0
     ' --- State. All single-valued: there is exactly one of this control, so unlike the
     '     collection siblings there are no indices here to be left dangling, and none of
@@ -446,6 +453,9 @@ public declare function PsToggle_GetVisualRect( byval hToggle as HWND, byref rc 
 ' ----------------------------------------------------------------------------------------
 public declare sub      PsToggle_GetColors( byval hToggle as HWND, byval pColors as PSTOGGLE_COLORS ptr )
 public declare sub      PsToggle_SetColors( byval hToggle as HWND, byval pColors as PSTOGGLE_COLORS ptr )
+public declare function PsToggle_ThemeColors( byref t as PSTHEME_COLORS ) as PSTOGGLE_COLORS
+public declare sub      PsToggle_ApplyTheme( byval hToggle as HWND, byref t as PSTHEME_COLORS )
+public declare sub      PsToggle_UnpinColors( byval hToggle as HWND )
 
 ' ----------------------------------------------------------------------------------------
 ' Callbacks.  See the type declarations above for each signature and contract.
@@ -952,6 +962,7 @@ function PsToggle_WndProc( _
         end if
 
     case WM_DESTROY
+        PsRegistry_Remove( hwnd )
         if pTog then
             ' Don't let the hot-tracking timer outlive the window...
             if pTog->hotTimerOn then
@@ -1033,6 +1044,9 @@ public function PsToggle_Create( byval hWndParent as HWND, byval CtrlID as long 
 
     ' Store the new pointer into the user data area of the toggle window
     pWindow->UserData(0) = cast(LONG_PTR, pTog)
+
+    ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
+    PsRegistry_SetThemeProcs( hCtrl, @PsToggle_ApplyTheme, 0 )
 
     function = hCtrl
 
@@ -1257,7 +1271,54 @@ public sub PsToggle_SetColors( byval hToggle as HWND, byval pColors as PSTOGGLE_
     dim as PSTOGGLE_STATE ptr pTog = GetTogglePointer(hToggle)
     if pTog = 0 then exit sub
     pTog->colors = *pColors
+    pTog->bColorsPinned = true
     if pTog->hWin then InvalidateRect( pTog->hWin, NULL, TRUE )
+end sub
+
+' ========================================================================================
+' The theme (vendor/PsControls/PsTheme). ThemeColors is the adapter: the toggle's colours
+' derived from the theme's roles. ApplyTheme applies them unless the host pinned its own.
+' ========================================================================================
+public function PsToggle_ThemeColors( byref t as PSTHEME_COLORS ) as PSTOGGLE_COLORS
+    dim as PSTOGGLE_COLORS c
+    c.BackColor                   = t.Window
+    c.FocusRingColor              = t.FocusRing
+    c.TrackColorOn                = t.Accent
+    c.TrackColorOnHot             = t.AccentHot
+    c.TrackColorOnDisabled        = t.Border
+    c.TrackBorderColorOn          = t.Accent
+    c.TrackBorderColorOnHot       = t.AccentHot
+    c.TrackBorderColorOnDisabled  = t.Border
+    c.KnobColorOn                 = t.SelectedText
+    c.KnobColorOnHot              = t.SelectedText
+    c.KnobColorOnDisabled         = t.TextDisabled
+    c.TrackColorOff               = t.Track
+    c.TrackColorOffHot            = t.SurfaceHot
+    c.TrackColorOffDisabled       = t.SurfaceDisabled
+    c.TrackBorderColorOff         = t.TextDim
+    c.TrackBorderColorOffHot      = t.Text
+    c.TrackBorderColorOffDisabled = t.TextDisabled
+    c.KnobColorOff                = t.TextDim
+    c.KnobColorOffHot             = t.Text
+    c.KnobColorOffDisabled        = t.TextDisabled
+    return c
+end function
+
+public sub PsToggle_ApplyTheme( byval hToggle as HWND, byref t as PSTHEME_COLORS )
+    dim as PSTOGGLE_STATE ptr pTog = GetTogglePointer(hToggle)
+    if (pTog = 0) orelse pTog->bColorsPinned then exit sub
+    dim as PSTOGGLE_COLORS c = PsToggle_ThemeColors( t )
+    PsToggle_SetColors( hToggle, @c )
+    pTog->bColorsPinned = false
+end sub
+
+' Hands the toggle back to the theme, which is applied at once.
+public sub PsToggle_UnpinColors( byval hToggle as HWND )
+    dim as PSTOGGLE_STATE ptr pTog = GetTogglePointer(hToggle)
+    if pTog = 0 then exit sub
+    pTog->bColorsPinned = false
+    dim as PSTHEME_COLORS t
+    if PsRegistry_GetTheme( t ) then PsToggle_ApplyTheme( hToggle, t )
 end sub
 
 

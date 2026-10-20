@@ -92,22 +92,27 @@ function PsAppSelfTest_Run( byref app as PsApplication, byval f as PsForm ptr ) 
     dim as HWND hOk    = f->Item( IDC_OK )
 
     ' ---- the registry --------------------------------------------------------------------
-    ' Rows: the menubar and the combobox (their dropdowns were handed over). Globals: PsTextBox.
-    ST_Check( PsRegistry_Count() = 2, "rows: menubar + combobox, popups handed over", _
-              "count=" & str( PsRegistry_Count() ) )
+    ' Filter rows: the menubar and the combobox (their dropdowns were handed over and keep a row
+    ' for the theme only). Globals: PsTextBox.
+    ST_Check( PsRegistry_FilterRowCount() = 2, "filter rows: menubar + combobox, popups handed over", _
+              "count=" & str( PsRegistry_FilterRowCount() ) )
     ST_Check( PsRegistry_GlobalCount() = 1, "one global filter (PsTextBox)", _
               "globals=" & str( PsRegistry_GlobalCount() ) )
     ST_Check( PsRegistry_HasRow( hBar ) andalso PsRegistry_HasRow( hGreet ), "menubar and combobox have rows" )
-    ST_Check( PsRegistry_HasRow( PsMenuBar_GetDropDown( hBar, 0 ) ) = false, "a menubar dropdown has no row" )
+    ST_Check( PsRegistry_HasFilter( PsMenuBar_GetDropDown( hBar, 0 ) ) = false, "a menubar dropdown has no filter" )
 
     dim as HWND hCtx = PsPopupMenu_Create( hForm )
-    ST_Check( PsRegistry_HasRow( hCtx ), "a standalone popup has a row" )
+    ST_Check( PsRegistry_HasFilter( hCtx ), "a standalone popup has a filter" )
     dim as HWND hSub = PsPopupMenu_Create( hForm )
     PsPopupMenu_AddItem( hCtx, 1, "Sub" )
     PsPopupMenu_SetItemSubMenu( hCtx, 1, hSub )
-    ST_Check( PsRegistry_HasRow( hSub ) = false, "an attached submenu has no row" )
+    ST_Check( PsRegistry_HasFilter( hSub ) = false, "an attached submenu has no filter" )
     DestroyWindow( hCtx )                 ' destroys the attached submenu with it
-    ST_Check( PsRegistry_Count() = 2, "destroying the popup removes its row", _
+    dim as long nRows = PsRegistry_Count()
+    dim as HWND hCtx2 = PsPopupMenu_Create( hForm )
+    ST_Check( PsRegistry_Count() = nRows + 1, "a new popup adds a row" )
+    DestroyWindow( hCtx2 )
+    ST_Check( PsRegistry_Count() = nRows, "destroying it removes the row", _
               "count=" & str( PsRegistry_Count() ) )
 
     dim as HWND hName2 = PsTextBox_Create( hForm, 999 )

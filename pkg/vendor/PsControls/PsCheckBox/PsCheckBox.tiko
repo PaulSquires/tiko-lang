@@ -16,12 +16,16 @@
 #import "vendor/PsControls/PsBufferPaint"
 #import "vendor/PsControls/PsTipHost"
 #import "vendor/PsControls/PsTooltip"
+#import "vendor/PsControls/PsRegistry"
+#import "vendor/PsControls/PsTheme"
 
 using gui
 using gdiplus
 using PsBufferPaint
 using PsTipHost
 using PsTooltip
+using PsRegistry
+using PsTheme
 
 ' The family names its booleans bOK, never "ok" -- a convention from AfxNova, where GDI+'s
 ' Ok = 0 made an "ok" a duplicate definition. Under sys/win an "ok" of your own compiles.
@@ -270,6 +274,9 @@ public type CHK_CheckChangedCallbackSub as sub( byval hCheckBox as HWND, byval i
 
 public type PSCHECKBOX_STATE
     hWin              as HWND
+    ' TRUE once the host set the colours itself (PsCheckBox_SetColors): the theme then leaves this
+    ' checkbox alone until PsCheckBox_UnpinColors.
+    bColorsPinned     as boolean
     ' The tooltip, whichever backend it is on. Replaces the old hToolTip + HoverTime
     ' pair; PsCheckBox_GetTooltipHandle still answers the comctl32 handle, and 0 while
     ' this instance is on PsTooltip.
@@ -839,6 +846,10 @@ public declare function PsCheckBox_GetVisualRect( byval hCheckBox as HWND, byref
 ' ----------------------------------------------------------------------------------------
 public declare sub      PsCheckBox_GetColors( byval hCheckBox as HWND, byval pColors as PSCHECKBOX_COLORS ptr )
 public declare sub      PsCheckBox_SetColors( byval hCheckBox as HWND, byval pColors as PSCHECKBOX_COLORS ptr )
+public declare function PsCheckBox_ThemeColors( byref t as PSTHEME_COLORS ) as PSCHECKBOX_COLORS
+public declare sub      PsCheckBox_ApplyTheme( byval hCheckBox as HWND, byref t as PSTHEME_COLORS )
+public declare sub      PsCheckBox_UnpinColors( byval hCheckBox as HWND )
+public declare sub      PsCheckBox_ApplyFonts( byval hCheckBox as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
 public declare function PsCheckBox_GetFont( byval hCheckBox as HWND ) as HFONT
 public declare sub      PsCheckBox_SetFont( byval hCheckBox as HWND, byval hTextFont as HFONT )
 public declare function PsCheckBox_GetGlyphFont( byval hCheckBox as HWND ) as HFONT
@@ -1557,6 +1568,7 @@ function PsCheckBox_WndProc( _
         end if
 
     case WM_DESTROY
+        PsRegistry_Remove( hwnd )
         if pChk then
             ' Don't let the hot-tracking timer outlive the window...
             if pChk->hotTimerOn then
@@ -1669,6 +1681,9 @@ public function PsCheckBox_Create( byval hWndParent as HWND, byval CtrlID as lon
     ' AFTER UserData, not before: PsCheckBox_TipTextCallback resolves the control through
     ' GetCheckBoxPointer(hAttached), which reads exactly that slot.
     PsTipHost_Ensure( @pChk->tip, hCtrl, @PsCheckBox_TipTextCallback )
+
+    ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
+    PsRegistry_SetThemeProcs( hCtrl, @PsCheckBox_ApplyTheme, @PsCheckBox_ApplyFonts )
 
     function = hCtrl
 
@@ -2014,7 +2029,57 @@ public sub PsCheckBox_SetColors( byval hCheckBox as HWND, byval pColors as PSCHE
     dim as PSCHECKBOX_STATE ptr pChk = GetCheckBoxPointer(hCheckBox)
     if pChk = 0 then exit sub
     pChk->colors = *pColors
+    pChk->bColorsPinned = true
     InvalidateRect( hCheckBox, NULL, TRUE )
+end sub
+
+' ========================================================================================
+' The theme (vendor/PsControls/PsTheme). ThemeColors is the adapter: the checkbox's colours
+' derived from the theme's roles. ApplyTheme applies them unless the host pinned its own.
+' ========================================================================================
+public function PsCheckBox_ThemeColors( byref t as PSTHEME_COLORS ) as PSCHECKBOX_COLORS
+    dim as PSCHECKBOX_COLORS c
+    c.BackColor               = t.Window
+    c.BackColorHot            = t.Window
+    c.BackColorPressed        = t.Window
+    c.BackColorDisabled       = t.Window
+    c.ForeColor               = t.Text
+    c.ForeColorHot            = t.TextHot
+    c.ForeColorPressed        = t.TextStrong
+    c.ForeColorDisabled       = t.TextDisabled
+    c.BoxColor                = t.TextDim
+    c.BoxColorHot             = t.Text
+    c.BoxColorPressed         = t.TextHot
+    c.BoxColorDisabled        = t.TextDisabled
+    c.BoxColorChecked         = t.Accent
+    c.BoxColorCheckedHot      = t.AccentHot
+    c.BoxColorCheckedPressed  = t.AccentHot
+    c.BoxColorCheckedDisabled = t.Border
+    c.FocusRingColor          = t.FocusRing
+    return c
+end function
+
+public sub PsCheckBox_ApplyTheme( byval hCheckBox as HWND, byref t as PSTHEME_COLORS )
+    dim as PSCHECKBOX_STATE ptr pChk = GetCheckBoxPointer(hCheckBox)
+    if (pChk = 0) orelse pChk->bColorsPinned then exit sub
+    dim as PSCHECKBOX_COLORS c = PsCheckBox_ThemeColors( t )
+    PsCheckBox_SetColors( hCheckBox, @c )
+    pChk->bColorsPinned = false
+end sub
+
+' Hands the checkbox back to the theme, which is applied at once.
+public sub PsCheckBox_UnpinColors( byval hCheckBox as HWND )
+    dim as PSCHECKBOX_STATE ptr pChk = GetCheckBoxPointer(hCheckBox)
+    if pChk = 0 then exit sub
+    pChk->bColorsPinned = false
+    dim as PSTHEME_COLORS t
+    if PsRegistry_GetTheme( t ) then PsCheckBox_ApplyTheme( hCheckBox, t )
+end sub
+
+' The form's fonts (PsApp), handed over when the checkbox is created on a form.
+public sub PsCheckBox_ApplyFonts( byval hCheckBox as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+    if hTextFont then PsCheckBox_SetFont( hCheckBox, hTextFont )
+    if hGlyphFont then PsCheckBox_SetGlyphFont( hCheckBox, hGlyphFont )
 end sub
 
 function PsCheckBox_GetFont( byval hCheckBox as HWND ) as HFONT

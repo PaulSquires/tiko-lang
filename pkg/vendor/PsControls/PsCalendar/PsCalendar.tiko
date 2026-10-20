@@ -26,11 +26,15 @@
 #import "sys/win/gdiplus"
 #import "vendor/PsControls/PsBufferPaint"
 #import "vendor/PsControls/PsTipHost"
+#import "vendor/PsControls/PsRegistry"
+#import "vendor/PsControls/PsTheme"
 
 using gui
 using gdiplus
 using PsBufferPaint
 using PsTipHost
+using PsRegistry
+using PsTheme
 
 ' The tooltip backend switch. This control's tip is a TRACKED one -- the control decides
 ' when and where -- which PsTipHost supports as its third shape; see PsTipHost_TrackShow.
@@ -324,6 +328,9 @@ public type CAL_TooltipCallbackFunc as function( byval t as PSCALENDAR_TOOLTIPIN
 ' ========================================================================================
 public type PSCALENDAR_STATE
     hWin            as HWND
+    ' TRUE once the host set the colours itself (PsCalendar_SetColors): the theme then
+    ' leaves this calendar alone until PsCalendar_UnpinColors.
+    bColorsPinned   as boolean
     idc_Calendar    as long = 0
 
     ' --- state ---
@@ -544,6 +551,10 @@ public declare function PsCalendar_IsNextDisabled( byval hCtrl as HWND ) as bool
 ' --- colours ---
 public declare sub      PsCalendar_GetColors( byval hCtrl as HWND, byval pColors as PSCALENDAR_COLORS ptr )
 public declare sub      PsCalendar_SetColors( byval hCtrl as HWND, byval pColors as PSCALENDAR_COLORS ptr )
+public declare function PsCalendar_ThemeColors( byref t as PSTHEME_COLORS ) as PSCALENDAR_COLORS
+public declare sub      PsCalendar_ApplyTheme( byval hCtrl as HWND, byref t as PSTHEME_COLORS )
+public declare sub      PsCalendar_UnpinColors( byval hCtrl as HWND )
+public declare sub      PsCalendar_ApplyFonts( byval hCtrl as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
 
 ' --- callbacks ---
 public declare sub      PsCalendar_SetSelChangeCallback( byval hCtrl as HWND, byval usersub as CAL_SelChangeCallbackSub )
@@ -2298,6 +2309,7 @@ function PsCalendar_WndProc( _
         return 0
 
     case WM_DESTROY
+        PsRegistry_Remove( hwnd )
         if pCal then
             CAL_StopHotTimer( pCal )
             PsTipHost_Destroy( @pCal->tip )
@@ -2371,6 +2383,10 @@ public function PsCalendar_Create( byval hWndParent as HWND, byval CtrlID as lon
     pCal->stAnchor = PsCalendar_MakeDate( pCal->stToday.wYear, pCal->stToday.wMonth, 1 )
 
     pWindow->UserData(0) = cast(LONG_PTR, pCal)
+
+    ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
+    PsRegistry_SetThemeProcs( hCtrl, @PsCalendar_ApplyTheme, @PsCalendar_ApplyFonts )
+
     return hCtrl
 end function
 
@@ -2942,7 +2958,59 @@ sub PsCalendar_SetColors( byval hCtrl as HWND, byval pColors as PSCALENDAR_COLOR
     dim as PSCALENDAR_STATE ptr pCal = GetCalendarPointer(hCtrl)
     if (pCal = 0) orelse (pColors = 0) then exit sub
     pCal->colors = *pColors
+    pCal->bColorsPinned = true
     if pCal->hWin then InvalidateRect( pCal->hWin, NULL, FALSE )
+end sub
+
+' ========================================================================================
+' The theme (vendor/PsControls/PsTheme). ThemeColors is the adapter: the calendar's colours
+' derived from the theme's roles. ApplyTheme applies them unless the host pinned its own.
+' ========================================================================================
+public function PsCalendar_ThemeColors( byref t as PSTHEME_COLORS ) as PSCALENDAR_COLORS
+    dim as PSCALENDAR_COLORS c
+    c.BackColor             = t.Window
+    c.BorderColor           = t.Border
+    c.FocusRingColor        = t.FocusRing
+    c.TitleColor            = t.TextHot
+    c.TitleColorHot         = t.TextStrong
+    c.CaptionColor          = t.Text
+    c.NavGlyphColor         = t.Text
+    c.NavGlyphColorHot      = t.TextHot
+    c.NavGlyphColorDisabled = t.TextDisabled
+    c.WeekdayColor          = t.TextDim
+    c.DayColor              = t.Text
+    c.DayColorWeekend       = t.AccentHot
+    c.DayColorAdjacent      = t.TextDim
+    c.DayColorDisabled      = t.TextDisabled
+    c.DayBackColorHot       = t.SurfaceHot
+    c.DayForeColorHot       = t.TextHot
+    c.DayBackColorSelected  = t.Selected
+    c.DayForeColorSelected  = t.SelectedText
+    c.TodayRingColor        = t.Accent
+    return c
+end function
+
+public sub PsCalendar_ApplyTheme( byval hCtrl as HWND, byref t as PSTHEME_COLORS )
+    dim as PSCALENDAR_STATE ptr pCal = GetCalendarPointer(hCtrl)
+    if (pCal = 0) orelse pCal->bColorsPinned then exit sub
+    dim as PSCALENDAR_COLORS c = PsCalendar_ThemeColors( t )
+    PsCalendar_SetColors( hCtrl, @c )
+    pCal->bColorsPinned = false
+end sub
+
+' Hands the calendar back to the theme, which is applied at once.
+public sub PsCalendar_UnpinColors( byval hCtrl as HWND )
+    dim as PSCALENDAR_STATE ptr pCal = GetCalendarPointer(hCtrl)
+    if pCal = 0 then exit sub
+    pCal->bColorsPinned = false
+    dim as PSTHEME_COLORS t
+    if PsRegistry_GetTheme( t ) then PsCalendar_ApplyTheme( hCtrl, t )
+end sub
+
+' The form's fonts (PsApp), handed over when the calendar is created on a form. No glyph
+' font: the chevrons are drawn.
+public sub PsCalendar_ApplyFonts( byval hCtrl as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+    if hTextFont then PsCalendar_SetFont( hCtrl, hTextFont )
 end sub
 
 ' --- callbacks ----------------------------------------------------------------------------

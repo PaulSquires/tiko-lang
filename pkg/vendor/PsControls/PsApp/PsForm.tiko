@@ -98,7 +98,8 @@ public type PSFORM_T extends CWindow
     declare sub      FocusFirst( )
     declare static function FromHwnd( byval h as HWND ) as PsForm ptr
 
-    ' The window procedure's entry point. Not for app code.
+    ' The window procedure's entry point, and the theme switch's call. Not for app code.
+    declare sub      FireThemeChanged( )
     declare function Dispatch( byval hwnd as HWND, byval uMsg as UINT, byval wParam as WPARAM, _
                                byval lParam as LPARAM ) as LRESULT
 
@@ -278,6 +279,10 @@ sub PSFORM_T.Close( )
     if this.hWindow then SendMessageW( this.hWindow, WM_CLOSE, 0, 0 )
 end sub
 
+sub PSFORM_T.FireThemeChanged( )
+    if m_onTheme then m_onTheme( @this )
+end sub
+
 function PSFORM_T.IsModal( ) as boolean
     return m_pModal <> 0
 end function
@@ -375,6 +380,10 @@ function PSFORM_T.Dispatch( byval hwnd as HWND, byval uMsg as UINT, byval wParam
     select case uMsg
     case WM_ACTIVATEAPP
         if wParam = 0 then PsRegistry_Dismiss( hwnd )
+    case WM_SETTINGCHANGE
+        if lParam then
+            if *cast( wstring ptr, lParam ) = "ImmersiveColorSet" then App_ThemeSystemChanged()
+        end if
     case WM_DESTROY
         if m_onDestroy then m_onDestroy( @this )
         if hwnd = App_MainForm() then PostQuitMessage( 0 )
@@ -449,7 +458,7 @@ function PSFORM_T.Dispatch( byval hwnd as HWND, byval uMsg as UINT, byval wParam
     case WM_PAINT
         dim as PsPaintBuffer b
         b.BeginDoubleBuffer( hwnd )
-        b.SetBackColor( GetSysColor( COLOR_BTNFACE ) )
+        b.SetBackColor( App_FormBackColor() )
         b.PaintClientRect()
         b.EndDoubleBuffer()
         return 0
@@ -497,6 +506,7 @@ function PsApplication.NewForm( byval title as ustring, byval cx as long, byval 
     end if
     SetPropW( h, PSF_PROP, cast( HANDLE, f ) )
     App_AddForm( h )
+    App_ThemeForm( h )
     f->Center( h, hParent )
     return f
 end function

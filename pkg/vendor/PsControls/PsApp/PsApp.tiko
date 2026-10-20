@@ -15,11 +15,13 @@
 #import "sys/win/gdiplus"
 #import "vendor/PsControls/PsBufferPaint" public
 #import "vendor/PsControls/PsRegistry" public
+#import "vendor/PsControls/PsTheme" public
 
 using gui
 using gdiplus
 using PsBufferPaint
 using PsRegistry
+using PsTheme
 
 ' A PsControls program in a dozen lines:
 '
@@ -49,6 +51,13 @@ public enum PSAPP_DPIMODE
     PSAPP_DPI_MANIFEST            ' leave whatever the manifest set
 end enum
 
+public enum PSAPP_THEMEMODE
+    PSAPP_THEME_SYSTEM = 0        ' follow the Windows app mode, live
+    PSAPP_THEME_LIGHT
+    PSAPP_THEME_DARK              ' the family's built-in look
+    PSAPP_THEME_NONE              ' no theme: controls keep their built-in colours
+end enum
+
 public enum PSFONT_ROLE
     PSFONT_UI = 0                 ' FontUI at FontUISize
     PSFONT_UI_SMALL               ' FontUI, one point smaller
@@ -64,6 +73,7 @@ public type PSAPP_OPTIONS
     ComMode       as long = COINIT_APARTMENTTHREADED    ' -1: no COM
     GlyphFontFile as ustring                            ' loaded FR_PRIVATE when the face is not installed
     DpiMode       as long = PSAPP_DPI_SYSTEM
+    ThemeMode     as long = PSAPP_THEME_SYSTEM
     FontUI        as ustring = "Segoe UI"
     FontUISize    as long = 10
     FontMono      as ustring = "Cascadia Mono"
@@ -90,6 +100,10 @@ public type PsApplication
     declare function IsUIThread( ) as boolean
     declare function SetTimer( byval ms as ulong, byval p as PSAPP_TimerProc, byval payload as any ptr = 0 ) as long
     declare sub      KillTimer( byval id as long )
+    declare sub      SetTheme( byref t as PSTHEME_COLORS )
+    declare function Theme( ) as PSTHEME_COLORS
+    declare sub      SetThemeMode( byval mode as long )
+    declare function ThemeMode( ) as long
 private:
     m_unused as long        ' the state is the module's (one application per process); a TYPE needs a field
 end type
@@ -231,6 +245,9 @@ function PsApplication.Init( byref opts as PSAPP_OPTIONS ) as boolean
     ' RunOnUI's queue and window, and the window-less timers (PsAppUI.tiko).
     App_UIInit()
 
+    ' The theme every control is given as it registers, and the automatic fonts (PsAppTheme.tiko).
+    App_ThemeInit( opts.ThemeMode )
+
     gApp_Instance = @this
     return true
 end function
@@ -348,6 +365,7 @@ function PsApplication.Run( byval mainForm as PsForm ptr ) as long
     loop
     ' After the forms (a form's OnDestroy may still queue work, which is then dropped).
     App_UITeardown()
+    App_ThemeTeardown()
     if len( gApp_PrivateFont ) then
         dim as wstring * MAX_PATH wszFile = gApp_PrivateFont
         RemoveFontResourceExW( @wszFile, FR_PRIVATE, 0 )
