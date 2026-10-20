@@ -16,12 +16,14 @@
 #import "vendor/PsControls/PsBufferPaint"
 #import "vendor/PsControls/PsTipHost"
 #import "vendor/PsControls/PsTextBox"
+#import "vendor/PsControls/PsRegistry"
 
 using gui
 using gdiplus
 using PsBufferPaint
 using PsTipHost
 using PsTextBox
+using PsRegistry
 
 #include once "vbcompat.bi"                 ' format()
 
@@ -2188,6 +2190,8 @@ function PsDatePicker_WndProc( byval hwnd as HWND, byval uMsg as UINT, byval wPa
         end if
 
     case WM_DESTROY
+        PsRegistry_ReleaseGlobalFilter( @PsDatePicker_FilterMessage )
+        PsRegistry_Remove( hwnd )
         if pCtrl then
             if pCtrl->hotTimerOn then
                 KillTimer( hwnd, IDT_CDATEPICKER_HOTTRACK )
@@ -2288,6 +2292,12 @@ public function PsDatePicker_Create( byval hWndParent as HWND, byval CtrlID as l
 
     ' Store the pointer BEFORE creating the child (the child's creation sends messages back).
     pWindow->UserData(0) = cast(LONG_PTR, pCtrl)
+
+    ' The pump obligation, registered: a PsApp pump calls our filter (one for every instance),
+    ' and the row -- which has no filter of its own -- closes an open calendar when the form
+    ' loses the activation.
+    PsRegistry_AddGlobalFilter( @PsDatePicker_FilterMessage )
+    PsRegistry_Add( hCtrl, PSREG_PRIO_OWNER, 0, @PsDatePicker_CloseUp )
 
     ' the editable field: borderless, plain text (dates are free-form)
     pCtrl->hTextBox = PsTextBox_Create( hCtrl, CtrlID )

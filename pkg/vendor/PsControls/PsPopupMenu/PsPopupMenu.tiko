@@ -10,10 +10,12 @@
 #import "sys/win/gui"
 #import "sys/win/gdiplus"
 #import "vendor/PsControls/PsBufferPaint"
+#import "vendor/PsControls/PsRegistry"
 
 using gui
 using gdiplus
 using PsBufferPaint
+using PsRegistry
 
 ' Safety-net poll timer, run on the ROOT of an open popup chain only. It does two jobs:
 '   1. Hover net: WM_MOUSELEAVE (TME_LEAVE) is not reliably delivered on fast exits, so
@@ -1130,6 +1132,7 @@ function PsPopupMenu_WndProc( _
         return true
 
     case WM_DESTROY
+        PsRegistry_Remove( hwnd )
         if pThis then
             if pThis->pollTimerOn then
                 KillTimer( hwnd, IDT_CPOPUPMENU_POLL )
@@ -1212,6 +1215,13 @@ public function PsPopupMenu_Create( byval hOwner as HWND, byval CtrlID as long =
     SetWindowLongPtr( hCtrl, GWLP_ID, CtrlID )
 
     pWindow->UserData(0) = cast(LONG_PTR, pThis)
+
+    ' Every popup starts STANDALONE, with a row of its own: a PsApp pump filters it and closes
+    ' its chain when the form loses the activation. An owner that takes it over -- a parent
+    ' popup (SetItemSubMenu), PsMenuBar, PsComboBox, PsToolbar, PsTextBox -- removes the row,
+    ' because the owner's filter is the one that must see the message first (the popup-row
+    ' rule in PsRegistry).
+    PsRegistry_Add( hCtrl, PSREG_PRIO_POPUP, @PsPopupMenu_FilterMessage, @PsPopupMenu_CloseChain )
     return hCtrl
 end function
 
@@ -1261,6 +1271,8 @@ public function PsPopupMenu_SetItemSubMenu( byval hPopup as HWND, byval id as lo
     if pLevel = null then return false
     dim as HWND hOld = pLevel->items(idx).hSubMenu
     if (hOld <> 0) andalso (hOld <> hSubMenu) then DestroyWindow( hOld )
+    ' An attached submenu belongs to its parent's chain and has no row of its own.
+    if hSubMenu then PsRegistry_Remove( hSubMenu )
     pLevel->items(idx).hSubMenu = hSubMenu
     pLevel->Refresh()
     return true

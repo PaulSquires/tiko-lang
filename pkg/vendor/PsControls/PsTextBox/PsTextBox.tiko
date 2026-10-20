@@ -12,12 +12,14 @@
 #import "sys/win/richedit"
 #import "vendor/PsControls/PsBufferPaint"
 #import "vendor/PsControls/PsPopupMenu"
+#import "vendor/PsControls/PsRegistry"
 
 using gui
 using gdiplus
 using richedit
 using PsBufferPaint
 using PsPopupMenu
+using PsRegistry
 
 #include once "vbcompat.bi"                 ' format() -- numeric mode formatting
 ' The built-in context menu is a PsPopupMenu (the vendor/PsControls/PsPopupMenu module,
@@ -1753,6 +1755,7 @@ function PsTextBox_WndProc( _
             if pTextBox then return SendMessage( pTextBox->hRichEdit, uMsg, wParam, lParam )
 
         case WM_NCDESTROY
+            PsRegistry_ReleaseGlobalFilter( @PsTextBox_FilterMessage )
             if pTextBox then
                 ' The context menu is a WS_POPUP window, not a child, so it is not
                 ' destroyed with this control's window tree -- do it explicitly. If its
@@ -1814,6 +1817,11 @@ public function PsTextBox_Create( byval hWndParent as HWND, byval CtrlID as inte
     ' this child container instead would break dismissal on alt-tab.
     pTextBox->hContextMenu = PsPopupMenu_Create( GetAncestor( hForm, GA_ROOT ) )
     PsPopupMenu_SetSelectCallback( pTextBox->hContextMenu, @PsTextBox_ContextMenuSelect )
+    ' The menu is filtered through PsTextBox_FilterMessage, never a row of its own (the
+    ' popup-row rule in PsRegistry); that one filter serves every PsTextBox, so each instance
+    ' holds a reference to it while it lives.
+    PsRegistry_Remove( pTextBox->hContextMenu )
+    PsRegistry_AddGlobalFilter( @PsTextBox_FilterMessage )
 
     ' Store the new pointer into the user data area of the container window
     pWindow->UserData(0) = cast(LONG_PTR, pTextBox)

@@ -14,6 +14,7 @@
 #import "vendor/PsControls/PsImage"
 #import "vendor/PsControls/PsTipHost"
 #import "vendor/PsControls/PsTooltip"
+#import "vendor/PsControls/PsRegistry"
 
 using gui
 using gdiplus
@@ -22,6 +23,7 @@ using PsPopupMenu
 using PsImage
 using PsTipHost
 using PsTooltip
+using PsRegistry
 
 ' ========================================================================================
 ' PsToolbar -- a reusable owner-drawn command toolbar.
@@ -1850,6 +1852,8 @@ private function PsToolbar_EnsureItemMenu( _
 
     dim as HWND hM = PsPopupMenu_Create( hToolbar, pItem->id )
     if hM = 0 then return 0
+    ' Filtered through PsToolbar_FilterMessage, never a row of its own (the popup-row rule).
+    PsRegistry_Remove( hM )
     PsPopupMenu_SetNotifyWindow( hM, hToolbar )
     PsPopupMenu_SetFonts( hM, pTB->hTextFont, pTB->hGlyphFont )
     pItem->hMenu = hM
@@ -1870,6 +1874,8 @@ private function PsToolbar_EnsureOverflowMenu( _
 
     dim as HWND hM = PsPopupMenu_Create( hToolbar, 0 )
     if hM = 0 then return 0
+    ' Filtered through PsToolbar_FilterMessage, never a row of its own (the popup-row rule).
+    PsRegistry_Remove( hM )
     PsPopupMenu_SetNotifyWindow( hM, hToolbar )
     PsPopupMenu_SetFonts( hM, pTB->hTextFont, pTB->hGlyphFont )
     pTB->hOverflowMenu = hM
@@ -2809,6 +2815,7 @@ function PsToolbar_WndProc( _
         end if
 
     case WM_DESTROY
+        PsRegistry_Remove( hwnd )
         if pTB then
             ' Don't let the hot-tracking timer outlive the window...
             if pTB->hotTimerOn then
@@ -2911,6 +2918,10 @@ public function PsToolbar_Create( byval hWndParent as HWND, byval CtrlID as long
 
     SetWindowLongPtr( hCtrl, GWLP_ID, CtrlID )
     pWindow->UserData(0) = cast(LONG_PTR, pTB)
+
+    ' The pump obligation, registered: a PsApp pump calls our filter, and closes an open
+    ' item menu or the overflow menu when the form loses the activation.
+    PsRegistry_Add( hCtrl, PSREG_PRIO_OWNER, @PsToolbar_FilterMessage, @PsToolbar_CloseUp )
 
     ' AFTER UserData, not before: PsToolbar_TipTextCallback resolves the control through
     ' GetToolbarPointer(hAttached), which reads exactly that slot.

@@ -15,11 +15,13 @@
 #import "sys/win/gdiplus"
 #import "vendor/PsControls/PsBufferPaint"
 #import "vendor/PsControls/PsTextBox"
+#import "vendor/PsControls/PsRegistry"
 
 using gui
 using gdiplus
 using PsBufferPaint
 using PsTextBox
+using PsRegistry
 
 #include once "vbcompat.bi"                 ' format()
 
@@ -1503,6 +1505,7 @@ function PsNumericUpDown_WndProc( _
         end if
 
     case WM_DESTROY
+        PsRegistry_ReleaseGlobalFilter( @PsNumericUpDown_FilterMessage )
         if pNud then
             ' Don't let either timer outlive the window...
             if pNud->hotTimerOn then
@@ -1585,6 +1588,9 @@ public function PsNumericUpDown_Create( byval hWndParent as HWND, byval CtrlID a
     ' Store the pointer BEFORE creating the child: the child's creation sends messages to
     ' this window, and a handler that found a null pointer would silently do nothing.
     pWindow->UserData(0) = cast(LONG_PTR, pNud)
+
+    ' The pump obligation, registered: a PsApp pump calls our filter (one for every instance).
+    PsRegistry_AddGlobalFilter( @PsNumericUpDown_FilterMessage )
 
     ' ---- the value field ----------------------------------------------------------------
     ' Borderless, because THIS control owns every pixel of chrome; numeric, because that is

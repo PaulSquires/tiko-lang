@@ -15,11 +15,13 @@
 #import "sys/win/gdiplus"
 #import "vendor/PsControls/PsBufferPaint"
 #import "vendor/PsControls/PsPopupMenu"
+#import "vendor/PsControls/PsRegistry"
 
 using gui
 using gdiplus
 using PsBufferPaint
 using PsPopupMenu
+using PsRegistry
 
 ' BOTH dependencies are imported HERE, so a host needs nothing beyond #import of this module.
 ' A host that imports PsPopupMenu for its own use gets the same single module, which is how
@@ -1008,6 +1010,9 @@ function PsComboBox_EnsureList( byval hCombo as HWND ) as HWND
     if hList = 0 then return 0
 
     pCombo->hList = hList
+    ' Our list is filtered through PsComboBox_FilterMessage, never through a row of its own
+    ' (the popup-row rule in PsRegistry).
+    PsRegistry_Remove( hList )
     ' We are our own notify target: CPM_NOTIFY_COMMAND and CPM_NOTIFY_CLOSED are handled in
     ' our WndProc. One door -- no PM_SelectCallback plumbing on top of it.
     PsPopupMenu_SetNotifyWindow( hList, hCombo )
@@ -1739,6 +1744,7 @@ function PsComboBox_WndProc( _
         end if
 
     case WM_DESTROY
+        PsRegistry_Remove( hwnd )
         if pCombo then
             ' Don't let the hot-tracking timer outlive the window...
             if pCombo->hotTimerOn then
@@ -1828,6 +1834,11 @@ public function PsComboBox_Create( byval hWndParent as HWND, byval CtrlID as lon
 
     ' Store the new pointer into the user data area of the control window
     pWindow->UserData(0) = cast(LONG_PTR, pCombo)
+
+    ' The pump obligation, registered: a PsApp pump calls our filter, and closes our list when
+    ' the form loses the activation. A hand-written pump that calls the filter itself is
+    ' unaffected.
+    PsRegistry_Add( hCtrl, PSREG_PRIO_OWNER, @PsComboBox_FilterMessage, @PsComboBox_CloseUp )
 
     function = hCtrl
 
