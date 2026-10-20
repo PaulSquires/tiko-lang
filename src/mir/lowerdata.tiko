@@ -303,6 +303,37 @@ private function DataItemText_ _
 end function
 
 
+'' 'read u' over a var-len ustring: fb_DataReadStr into a narrow temporary, then
+'' fb_UStrAssignFromA( u, -1, tmp, -1, 0, 0 ), then the temporary released. A
+'' 'ustring * N' declines -- its tagged length is not this shape.
+private function ReadUStr_ _
+    ( byref c as Ctx, byref u as MirValue, byval t as Tko.TypeId ) as boolean
+    dim as int64 un
+    if StrSwapKind_( c, t, un ) <> 0 then return false
+    dim as int32 slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+    if slot < 0 then return false
+    dim as MirValue tmp
+    tmp.kind = cast( uint8, MV_LOCAL ) : tmp.ty = cast( uint8, MT_PTR ) : tmp.id = slot
+    ZeroStrDescriptor( c, tmp )
+    dim as containers.Array( of uint32 ) r
+    r.Push( cast( uint32, tmp.kind ) ) : r.Push( cast( uint32, tmp.id ) )
+    r.Push( cast( uint32, MV_CONST_INT ) ) : r.Push( cast( uint32, cast( uint64, -1 ) ) )
+    r.Push( cast( uint32, MV_CONST_INT ) ) : r.Push( 0 )
+    EmitRtl( c, RTL_DATA_READ_STR, r )
+    dim as containers.Array( of uint32 ) a
+    a.Push( cast( uint32, u.kind ) ) : a.Push( cast( uint32, u.id ) )
+    PushStrLen_( c, a, -1 )
+    a.Push( cast( uint32, tmp.kind ) ) : a.Push( cast( uint32, tmp.id ) )
+    PushStrLen_( c, a, -1 )
+    a.Push( cast( uint32, MV_CONST_INT ) ) : a.Push( 0 )
+    a.Push( cast( uint32, MV_CONST_INT ) ) : a.Push( 0 )
+    EmitRtl( c, RTL_USTR_FROM_A, a )
+    dim as containers.Array( of uint32 ) d
+    d.Push( cast( uint32, tmp.kind ) ) : d.Push( cast( uint32, tmp.id ) )
+    EmitRtl( c, RTL_STR_DELETE, d )
+    return true
+end function
+
 '' READ.
 ''
 '' The DESTINATION TYPE alone picks the entry point -- no mask, no channel -- and
@@ -318,6 +349,15 @@ function LowerRead( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         if r = RTL_NONE then return false
         dim as MirValue a = LowerAddr( c, dst )
         if a.kind = cast( uint8, MV_NONE ) then return false
+
+        '' A USTRING DESTINATION READS THROUGH A NARROW TEMPORARY. DATA is narrow text, and
+        '' fb_DataReadStr given the ustring wrote narrow bytes into its UTF-16 buffer:
+        '' 'read a' over "hello" printed three unrelated characters, a different three
+        '' on each run. Same shape as LINE INPUT's (lowerio.tiko, UStrFromLineTemp_).
+        if IsUStringType( c, t ) then
+            if ReadUStr_( c, a, t ) = false then return false
+            continue for
+        end if
 
         dim as containers.Array( of uint32 ) args
         args.Push( cast( uint32, a.kind ) ) : args.Push( cast( uint32, a.id ) )

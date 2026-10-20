@@ -1154,6 +1154,31 @@ sub InitSharedGlobal _
     dim as Tko.Check.ConstVal cv = Tko.Check.ConstOf( _
         *c.ast, init, *c.srcMgr, *c.names, c.types->target.pointerBits, c.syms, _
         VarScopeOf_( c, sid ) )
+    '' ...AND A FLOAT CONSTANT INTO AN INTEGER rounds half to even, as fbc folds it:
+    '' 'dim shared as integer a = 2.5' is 'static int64 A$ = 2ll', and 'cast( ulong,
+    '' 0.5 * 255.f )' is 128. Every D3DCOLOR_COLORVALUE in a shared table declined.
+    '' 'cast( long, 1.0 * 255.f )' is the same fold through the cast, which the float folder
+    '' does not take: an integer TARGET (MIR's own type says so) has its operand rounded.
+    if cv.known = false then
+        dim as Tko.NodeId fe = init
+        if c.ast->Kind( fe ) = Tko.N_CALL then
+            dim as Tko.ListPayload ptr fcp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, fe )].data )]
+            if (fcp->count = 2) andalso (fcp->target <> Tko.NODE_NONE) then
+                if c.ast->Kind( fcp->target ) = Tko.N_IDENT then
+                    dim as string fcn = lcase( c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, fcp->target )].data )].name ) )
+                    dim as MirType ftt = LowerType( c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[fcp->first] ) ), *c.types )
+                    if (fcn = "cast") andalso (ftt <> MT_VOID) andalso (ftt <> MT_AGG) andalso (IsFloatTy( ftt ) = false) then
+                        fe = cast( Tko.NodeId, c.ast->children[fcp->first + 1] )
+                    end if
+                end if
+            end if
+        end if
+        dim as float64 fd
+        if Tko.Check.ConstFloatOf( *c.ast, fe, fd, 0, c.syms, VarScopeOf_( c, sid ), c.names ) then
+            cv.known = true
+            cv.value = Tko.Check.RoundHalfEven( fd )
+        end if
+    end if
     if cv.known = false then
         SkipHere( c )
         return

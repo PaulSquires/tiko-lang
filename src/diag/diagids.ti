@@ -882,6 +882,9 @@
     '' fbc's warning 25, "Overflow in constant conversion", which fbc gives over a case value
     '' only under AS CONST -- symbols/proccheck.tiko CaseValueRange_.
     DIAG( TKO0979, SEV_WARNING, "overflow in constant conversion: the case value %0 does not fit in a '%1'" )
+    '' fbc's error 24, "Invalid data types": LSET and RSET take no ustring source, in any
+    '' spelling. tiko had no entry point for one and stopped on TKO0994.
+    DIAG( TKO0980, SEV_ERROR,   "'%0' cannot take a ustring source; convert it with str( ) first" )
     DIAG( TKO0965, SEV_ERROR,   "'%0' has a field with a constructor, which an initializer list cannot fill" )
     DIAG( TKO0955, SEV_ERROR,   "'end %0' closes no '%0' block" )
     DIAG( TKO0956, SEV_ERROR,   "a second 'case else' -- a select has one, and it comes last" )

@@ -1,0 +1,15 @@
+'' RUN: a 'zstring * N' / 'string * N' given a PAREN-LESS string call -- a property getter,
+'' a method, a static method -- at a declaration and in an assignment. The addressable-source
+'' branch of LowerZstrAssignTo took the procedure's address as a descriptor: an access
+'' violation (fbc-examples repro run01). Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/fixstr-from-parenless-call.bas -o tests/codegen/fixstrfromparenlesscall.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/fixstrfromparenlesscall.exe
+'' RUN: tests/codegen/fixstrfromparenlesscall.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: Ada
+'' EXPECT-RUN-OUT: Ada!
+'' EXPECT-RUN-OUT: [Ada     ]
+'' EXPECT-RUN-OUT: static

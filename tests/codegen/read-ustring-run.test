@@ -1,0 +1,12 @@
+'' RUN: READ into a ustring -- a variable, an array element, a field. fb_DataReadStr was
+'' given the ustring itself and wrote narrow bytes into its UTF-16 buffer: "hello" printed
+'' three unrelated characters, different on each run (fbc-examples repro run02). Now a
+'' narrow temporary, then fb_UStrAssignFromA, as LINE INPUT does.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/read-ustring.bas -o tests/codegen/readustring.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/readustring.exe
+'' RUN: tests/codegen/readustring.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: hello|world|elem|field| 5 4

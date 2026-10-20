@@ -1352,6 +1352,28 @@ end function
 
 #include once "codegen/llvmstructors.tiko"
 
+'' A MODULE'S OWN VARIABLE NAMED LIKE A FUNCTION IS RENAMED, fbc's way: 'dim shared pow'
+'' is 'POW$' there, never 'pow'. LLVM has one namespace for globals and functions, so
+'' '@"pow" = internal global' beside the 'declare double @"pow"' that '^' calls was
+'' 'redefinition of function @pow' (rosetta Balanced_ternary). Internal only -- nothing
+'' outside the module can name one -- and only on a clash, so no other name moves.
+private sub RenameClashingGlobals_( byref m as MirModule, byref names as Tko.Interner )
+    dim as string libm( ... ) = { "tan", "asin", "acos", "atan", "tanf", "asinf", "acosf", "atanf" }
+    for gi as int32 = 0 to m.globals.Count - 1
+        if (m.globals[gi].isInternal = false) orelse (m.globals[gi].isVar = false) then continue for
+        dim as Tko.InternId gn = m.globals[gi].name
+        dim as boolean clash = false
+        for fi as int32 = 0 to m.functions.Count - 1
+            if m.functions[fi]->name = gn then clash = true : exit for
+        next
+        dim as string sp = names.Spelling( gn )
+        for k as int32 = lbound( libm ) to ubound( libm )
+            if libm( k ) = sp then clash = true
+        next
+        if clash then m.globals[gi].name = names.GetString( sp & "$" )
+    next
+end sub
+
 function EmitLlvm _
     ( byref m as MirModule, byref names as Tko.Interner, _
       byref target as TargetDescription, byval sm as Tko.SourceManager ptr, _
@@ -1368,6 +1390,7 @@ function EmitLlvm _
         e.dbg = @dbg
     end if
 
+    RenameClashingGlobals_( m, names )
     for gi as int32 = 0 to m.globals.Count - 1
         EmitGlobal( e, m.globals[gi] )
     next

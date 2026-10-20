@@ -1,0 +1,10 @@
+'' TKO0980, fbc's 24 ("Invalid data types"): LSET / RSET with a ustring source. Lowering had
+'' no entry point for one and the statement stopped on TKO0994 (the ustring variant of rosetta
+'' Align_columns; fbc-examples repro uice01). A string source into a ustring stays legal.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/lset-ustring-source.bas -o tests/diagnostics/src/lset-ustring-source.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: lset-ustring-source.bas(5,12): error TKO0980: 'lset' cannot take a ustring source
+'' EXPECT-OUT: lset-ustring-source.bas(6,9): error TKO0980: 'rset' cannot take a ustring source
+'' EXPECT-NOT: TKO0994
+'' EXPECT-MAX-DIAG: 2

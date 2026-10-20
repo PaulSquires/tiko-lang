@@ -1,0 +1,12 @@
+'' RUN: 'print x.conj' -- a method returning a UDT, called without parentheses, printed
+'' through the UDT's 'operator cast( ) as string'. StrDescriptorOf_ called it as if it
+'' returned a descriptor -- no sret, no cast -- and the emitter stopped on TKO0993, "the ABI
+'' pass has not run" (rosetta Arithmetic_Complex; fbc-examples repro ice25).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/print-parenless-udt-call.bas -o tests/codegen/printparenlessudtcall.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/printparenlessudtcall.exe
+'' RUN: tests/codegen/printparenlessudtcall.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 1,-3|1,-3|1,-3

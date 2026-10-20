@@ -145,6 +145,21 @@ private sub CheckConstOutput_ ( byref c as Ctx, byval id as NodeId )
         case KW_LSET, KW_RSET
             if sp->count < 1 then return
             dim as NodeId t0 = cast( NodeId, c.ast->children[sp->first] )
+            '' A USTRING SOURCE -- TKO0980, fbc's 24. Lowering had no entry point for it and
+            '' stopped on TKO0994 (the ustring variant of rosetta Align_columns).
+            if c.ast->Kind( t0 ) = N_BINARY then
+                dim as NodeId ls = c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, t0 )].data )].rhs
+                dim as TypeId lt = c.types->Unqualify( c.info->TypeOf_( ls ) )
+                if c.types->Kind( lt ) = TK_REFERENCE then lt = c.types->Unqualify( c.types->Inner( lt ) )
+                if c.types->Kind( lt ) = TK_ARRAY then lt = c.types->Unqualify( c.types->Inner( lt ) )
+                if c.types->Kind( lt ) = TK_BUILTIN then
+                    dim as BuiltinType lb = c.types->BuiltinOf( lt )
+                    if (lb = TY_USTRING) orelse (lb = TY_FIXUSTR) then
+                        c.diags->Report( TKO0980, PointRange( c.ast->Loc( ls ) ), _
+                                         iif( cast( TokenKind, sp->op ) = KW_RSET, "rset", "lset" ) )
+                    end if
+                end if
+            end if
             if c.ast->Kind( t0 ) = N_BINARY then t0 = c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, t0 )].data )].lhs
             ConstOutReport_( c, t0 )
         end select

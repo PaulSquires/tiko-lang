@@ -432,6 +432,10 @@ private function RoundHalfEven_( byval d as float64 ) as int64
     return fi + 1
 end function
 
+function RoundHalfEven( byval d as float64 ) as int64
+    return RoundHalfEven_( d )
+end function
+
 '' The intrinsics fbc folds at compile time. Anything not listed simply does not fold,
 '' which is an absence rather than an error.
 '' THE SYMBOL TABLE COMES WITH IT. Every argument here was folded WITHOUT it, so a

@@ -1,0 +1,13 @@
+'' RUN: a shared integer initialised from a float constant -- 'dim shared as integer c =
+'' 255.0', and D3DCOLOR_COLORVALUE's 'cast( DWORD, 1.0 * 255.f )' in a shared table. The
+'' integer folder had no value for it and the declaration declined (TKO0994, fbc's
+'' win32/d3d9_primitives.bas; fbc-examples repro ice19). Now folded half to even, as fbc
+'' does: 2.5 is 2, 3.5 is 4, 127.5 is 128. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/shared-int-float-init.bas -o tests/codegen/sharedintfloatinit.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/sharedintfloatinit.exe
+'' RUN: tests/codegen/sharedintfloatinit.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 2 4-2 255 255128 1000

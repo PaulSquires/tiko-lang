@@ -833,8 +833,13 @@ end function
 function UdtSelfAddr_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
-    outv = LowerAddr( c, id )
-    if outv.kind <> cast( uint8, MV_NONE ) then return true
+    '' A PAREN-LESS CALL HAS NO ADDRESS: 'print x.conj' over a UDT-returning method gave
+    '' the METHOD'S address as the object, and its string cast read the code. It is a
+    '' value like any call's, and goes to the temporary below (rosetta Arithmetic_Complex).
+    if NamesProc_( c, id ) = false then
+        outv = LowerAddr( c, id )
+        if outv.kind <> cast( uint8, MV_NONE ) then return true
+    end if
     dim as Tko.TypeId t = c.types->Unqualify( c.info->TypeOf_( id ) )
     if t = Tko.TYPE_NONE then return false
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
@@ -1330,7 +1335,13 @@ function LowerZstrAssignTo _
     '' encoded length -- kind 3, which this test used to exclude, so 'a = b' over two
     '' 'string * 32's fell through to the descriptor path and then declined.
     '' Kind 4 is a fixed USTRING source, addressable and encoded the same way.
-    if (sk = 0) orelse (sk = 1) orelse (sk = 3) orelse (sk = 4) then
+    '' ...BUT NOT A PAREN-LESS CALL: 'z = pp.Tag' over a string PROPERTY or method is
+    '' typed STRING, and its "address" is the getter's code -- fb_StrAssign then read
+    '' a descriptor out of the function and the program faulted. NamesProc_ sends it
+    '' to the descriptor path below, which makes the call.
+    dim as boolean srcAddr = (sk = 0) orelse (sk = 1) orelse (sk = 3) orelse (sk = 4)
+    if srcAddr then srcAddr = (NamesProc_( c, value ) = false)
+    if srcAddr then
         dim as MirValue src = LowerAddr( c, value )
         if src.kind <> cast( uint8, MV_NONE ) then
             args.Push( cast( uint32, src.kind ) ) : args.Push( cast( uint32, src.id ) )

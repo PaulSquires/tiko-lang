@@ -306,6 +306,9 @@ namespace Tko.Check
         ( byref ast as Tko.AstArena, byval tref as Tko.NodeId, _
           byref v as ConstVal, byval intBits as int32 ) as ConstVal
 
+    '' A float constant converted to an integer the way fbc folds it: half to EVEN.
+    declare function RoundHalfEven( byval d as float64 ) as int64
+
     '' 'names' is OPTIONAL and enables one thing: folding an exact INTRINSIC over a
     '' constant ('abs( 42.3 )'), whose name has to be spelled to be recognised.
     declare function ConstFloatOf _

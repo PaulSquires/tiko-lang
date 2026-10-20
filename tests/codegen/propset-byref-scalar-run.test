@@ -1,0 +1,12 @@
+'' RUN: a property setter with a BYREF scalar parameter. 's.push = m - 1' passed the VALUE
+'' where the setter takes a pointer, and clang refused the module ('%t10' defined with type
+'' 'i64' but expected 'ptr'); five fbc manual recursion examples (fbc-examples repro ir01).
+'' Now the variable's address, or a temporary's. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/propset-byref-scalar.bas -o tests/codegen/propsetbyrefscalar.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/propsetbyrefscalar.exe
+'' RUN: tests/codegen/propsetbyrefscalar.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 4 5 7 9 2.5

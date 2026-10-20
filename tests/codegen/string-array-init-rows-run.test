@@ -1,0 +1,13 @@
+'' RUN: a multi-dimensional var-len string array given its initialiser in ROWS. Each row
+'' reached fb_StrInit as if it were one element and the declaration declined (TKO0994): ABC_problem,
+'' Biorhythms, Days_between_dates, Iterators, Old_lady_swallowed_a_fly and
+'' Permutations_with_repetitions on Rosetta Code (fbc-examples repro ice20). A ustring array the
+'' same, and a short row leaves its rest empty. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/string-array-init-rows.bas -o tests/codegen/stringarrayinitrows.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/stringarrayinitrows.exe
+'' RUN: tests/codegen/stringarrayinitrows.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: abcd|rs[]|y[]

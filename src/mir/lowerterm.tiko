@@ -231,8 +231,8 @@ function EmitStrTerm _
     '' 's = curdir' names a function whose TYPE is string, so the type test takes its
     '' ADDRESS -- and a function's address is a well-typed pointer, so fb_CurDir's entry
     '' point was handed to fb_StrAssign as a descriptor and the whole thing verified.
-    dim as MirValue bpv
-    if LowerBareProcCall_( c, term, MT_PTR, bpv ) then
+    dim as MirValue bpv   '' ...not a UDT one: that converts through its cast below (StrDescriptorOf_)
+    if (IsUdtValue_( c, term ) = false) andalso LowerBareProcCall_( c, term, MT_PTR, bpv ) then
         PushStrArg( args, bpv )
         return true
     end if

@@ -1,0 +1,13 @@
+'' RUN: a 'dim shared' named like a function the module declares -- 'pow', which '^' calls,
+'' and 'malloc'. LLVM has one namespace for both, and '@"pow" = internal global' beside
+'' 'declare double @"pow"' was 'redefinition of function @pow' (rosetta Balanced_ternary,
+'' fbc-examples repro ir02). Now renamed 'pow$', fbc's own spelling, on a clash only.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/global-named-like-function.bas -o tests/codegen/globalnamedlikefunction.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/globalnamedlikefunction.exe
+'' RUN: tests/codegen/globalnamedlikefunction.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  27 2 4 0.5
+'' EXPECT-RUN-OUT: -1

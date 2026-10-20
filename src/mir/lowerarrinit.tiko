@@ -414,8 +414,11 @@ private function LowerStrArrayInit_ _
     dim as int32 esz = c.types->Layout( el ).size
     if esz <= 0 then return false
     dim as int32 total = c.types->ElemCount( t )
-    dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init )].data )]
+    '' ROWS, for more than one dimension -- see ArrayInitLeaves_. 'dim as string a( 1 to 2,
+    '' 1 to 2 ) = { { "a", "b" }, { "c", "d" } }' handed each ROW to fb_StrInit as an
+    '' element and declined (TKO0994; six Rosetta programs, ABC_problem among them).
+    dim as containers.Array( of uint32 ) leaves, lidx
+    ArrayInitLeaves_( c, t, init, leaves, lidx )
 
     dim as MirValue base_
     if selfv <> nullptr then
@@ -426,14 +429,14 @@ private function LowerStrArrayInit_ _
         base_.id = slot
     end if
 
-    for i as int32 = 0 to lp->count - 1
-        if (total > 0) andalso (i >= total) then exit for
-        dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+    for i as int32 = 0 to leaves.Count - 1
+        if (total > 0) andalso (cast( int32, lidx[i] ) >= total) then exit for
+        dim as Tko.NodeId e = cast( Tko.NodeId, leaves[i] )
         dim as MirInst fa
         fa.op = cast( uint16, M_FIELD_ADDR )
         fa.ty = cast( uint8, MT_PTR )
         fa.a = base_
-        fa.imm = i * esz
+        fa.imm = cast( int32, lidx[i] ) * esz
         dim as MirValue ea = Emit( c, fa )
         if ea.kind = cast( uint8, MV_NONE ) then return false
         '' THE ANSWER IS READ. An element that will not build is the whole

@@ -179,8 +179,13 @@ function StrDescriptorOf_ _
     ''
     '' The call's RESULT IS the descriptor pointer -- fbc writes 'FBSTRING* vr =
     '' fb_CurDir( ); fb_StrAssign( &S, -1, vr, -1, 0 )'.
+    '' ...NOT ONE RETURNING A UDT: 'print x.conj' over 'function conj( ) as Complex'
+    '' with a string cast was called as if it returned a descriptor -- no sret, no cast
+    '' -- and the emitter stopped on TKO0993 (rosetta Arithmetic_Complex). It is a UDT
+    '' value, and the 'operator cast' branch below converts it.
     dim as MirValue bpv
-    if LowerBareProcCall_( c, id, MT_PTR, bpv ) then
+    if IsUdtValue_( c, id ) then
+    elseif LowerBareProcCall_( c, id, MT_PTR, bpv ) then
         outv = bpv
         return true
     end if
