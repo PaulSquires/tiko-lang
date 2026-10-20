@@ -57,6 +57,7 @@
 - [32. Capstone: a CLI Search Tool](ch32-tsearch.md)
 - [33. Capstone: a Concurrent Pipeline](ch33-thash.md)
 - [34. Capstone: a TUI Ledger](ch34-tledger.md)
+- [35. Capstone: a Notepad for Windows](ch35-tpad.md)
 
 # Appendices
 

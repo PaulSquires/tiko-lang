@@ -1,0 +1,495 @@
+'' ANCHOR: all
+'' ANCHOR: head
+#module "pad"
+#import "vendor/PsControls/PsApp"
+#import "vendor/PsControls/PsMenuBar"
+#import "vendor/PsControls/PsPopupMenu"
+#import "vendor/PsControls/PsTextBox"
+#import "vendor/PsControls/PsVScrollBar"
+#import "vendor/PsControls/PsStatusBar"
+#import "vendor/PsControls/PsMessageBox"
+#import "vendor/PsControls/PsButton"
+#import "vendor/PsControls/PsCheckBox"
+#import "../textfile"
+
+using PsApp
+using PsTheme
+using PsBufferPaint
+using PsMenuBar
+using PsPopupMenu
+using PsTextBox
+using PsVScrollBar
+using PsStatusBar
+using PsMessageBox
+using PsButton
+using PsCheckBox
+using gui
+'' ANCHOR_END: head
+
+'' ANCHOR: state
+'' Every command the menus and the keyboard can give.
+public enum Cmd
+    CmdNew = 1000
+    CmdOpen
+    CmdSave
+    CmdSaveAs
+    CmdExit
+    CmdUndo
+    CmdCut
+    CmdCopy
+    CmdPaste
+    CmdSelectAll
+    CmdFind
+    CmdFindNext
+end enum
+
+'' The two things a person answers: a question in a message box, and
+'' a file name in a file dialog. Each is reached through a pointer, so
+'' a test can answer in the person's place.
+public type AskProc as function( byval f as PsForm ptr, _
+    byref text as ustring, byval buttons as long ) as long
+public type PickProc as function( byval f as PsForm ptr, _
+    byval saving as boolean, byref suggest as ustring ) as ustring
+
+'' One open file and its window. The form's Tag points here.
+public type Editor
+    as PsForm ptr form
+    as HWND text, scroll, status
+    as textfile.Document doc
+    as ustring findWhat
+    as boolean matchCase
+    as AskProc ask
+    as PickProc pick
+end type
+
+enum
+    IDC_BAR = 100
+    IDC_TEXT
+    IDC_SCROLL
+    IDC_STATUS
+    IDC_WHAT
+    IDC_CASE
+end enum
+
+'' Posted to the form after a key or a click in the text, so the
+'' status bar is read once the control has moved the caret.
+const WM_CARETMOVED = WM_APP + 1
+
+function EditorOf( byval h as HWND ) as Editor ptr
+    return PsForm.FromHwnd( h )->Tag
+end function
+'' ANCHOR_END: state
+
+'' ANCHOR: people
+'' The real answers come from a person.
+function AskPerson( byval f as PsForm ptr, byref text as ustring, _
+                    byval buttons as long ) as long
+    return PsMessageBox_Show( f->hWindow, text, "tpad", _
+        iif( buttons = MBX_BTN_OK, MBX_ICON_INFO, MBX_ICON_QUESTION ), _
+        buttons )
+end function
+
+function PickFile( byval f as PsForm ptr, byval saving as boolean, _
+                   byref suggest as ustring ) as ustring
+    if saving then
+        dim as CISaveFileDialog d
+        d.AddFileType( "Text files", "*.txt" )
+        d.AddFileType( "All files", "*.*" )
+        d.SetFileTypes( )
+        d.SetDefaultExtension( "txt" )
+        d.SetFileName( suggest )
+        if d.ShowSave( f->hWindow ) <> S_OK then return ""
+        return d.GetResultString( SIGDN_FILESYSPATH )
+    end if
+    dim as CIOpenFileDialog d
+    d.AddFileType( "Text files", "*.txt" )
+    d.AddFileType( "All files", "*.*" )
+    d.SetFileTypes( )
+    if d.ShowOpen( f->hWindow ) <> S_OK then return ""
+    return d.GetResultString( SIGDN_FILESYSPATH )
+end function
+'' ANCHOR_END: people
+
+'' ANCHOR: refresh
+'' The editor's text, with one LF per line break, as textfile wants.
+function TextOf( byval ed as Editor ptr ) as ustring
+    return textfile.ToLf( PsTextBox_GetText( ed->text ) )
+end function
+
+sub ShowTitle( byval ed as Editor ptr )
+    SetWindowTextW( ed->form->hWindow, textfile.Caption( ed->doc, _
+                    PsTextBox_GetModify( ed->text ) ) )
+end sub
+
+sub ShowStatus( byval ed as Editor ptr )
+    dim as integer first, last
+    PsTextBox_GetSel( ed->text, first, last )
+    dim as int32 ln, col
+    textfile.LineColumn( TextOf( ed ), last, ln, col )
+    PsStatusBar_SetText( ed->status, 0, _
+                         "Ln " & ln & ", Col " & col )
+    PsStatusBar_SetText( ed->status, 1, _
+        iif( ed->doc.ending = textfile.LineEnding.CrLf, _
+             "Windows (CRLF)", "Unix (LF)" ) )
+    PsStatusBar_SetText( ed->status, 2, _
+        iif( ed->doc.hasBom, "UTF-8 with BOM", "UTF-8" ) )
+end sub
+'' ANCHOR_END: refresh
+
+'' ANCHOR: files
+'' Puts doc in the window, replacing what was there.
+sub ShowDocument( byval ed as Editor ptr, _
+                  byref doc as textfile.Document )
+    ed->doc = doc
+    PsTextBox_SetText( ed->text, doc.text )
+    PsTextBox_SetModify( ed->text, false )
+    PsTextBox_SetSel( ed->text, 0, 0 )
+    ShowTitle( ed )
+    ShowStatus( ed )
+end sub
+
+'' Opens path; says why not if it cannot.
+public function OpenPath( byval ed as Editor ptr, _
+                          byref path as ustring ) as boolean
+    dim as textfile.Document doc
+    dim as ustring e = textfile.Load( path, doc )
+    if len( e ) then
+        ed->ask( ed->form, e, MBX_BTN_OK )
+        return false
+    end if
+    ShowDocument( ed, doc )
+    if doc.lossy then
+        ed->ask( ed->form, textfile.DisplayName( doc ) & _
+            " is not UTF-8. Characters that could not be read show" & _
+            " as U+FFFD, and saving writes them that way.", MBX_BTN_OK )
+    end if
+    return true
+end function
+
+'' Saves, asking for a name when there is none (or when asked to).
+function SaveDocument( byval ed as Editor ptr, _
+                       byval newName as boolean ) as boolean
+    if newName orelse len( ed->doc.path ) = 0 then
+        dim as ustring p = ed->pick( ed->form, true, _
+                                     textfile.DisplayName( ed->doc ) )
+        if len( p ) = 0 then return false
+        ed->doc.path = p
+    end if
+    ed->doc.text = TextOf( ed )
+    dim as ustring e = textfile.Save( ed->doc )
+    if len( e ) then
+        ed->ask( ed->form, e, MBX_BTN_OK )
+        return false
+    end if
+    PsTextBox_SetModify( ed->text, false )
+    ShowTitle( ed )
+    return true
+end function
+
+'' True when it is all right to throw the text away: it is saved,
+'' the person saved it now, or said not to.
+function MayDiscard( byval ed as Editor ptr ) as boolean
+    if PsTextBox_GetModify( ed->text ) = false then return true
+    select case ed->ask( ed->form, "Do you want to save changes to " & _
+                         textfile.DisplayName( ed->doc ) & "?", _
+                         MBX_BTN_SAVE_DONTSAVE_CANCEL )
+    case IDYES
+        return SaveDocument( ed, false )
+    case IDNO
+        return true
+    end select
+    return false
+end function
+'' ANCHOR_END: files
+
+'' ANCHOR: finding
+sub FindAgain( byval ed as Editor ptr )
+    if len( ed->findWhat ) = 0 then exit sub
+    dim as integer first, last
+    PsTextBox_GetSel( ed->text, first, last )
+    dim as int32 at = textfile.FindNext( TextOf( ed ), ed->findWhat, _
+                                         last, ed->matchCase )
+    if at < 0 then
+        ed->ask( ed->form, "Cannot find """ & ed->findWhat & """", _
+                 MBX_BTN_OK )
+        exit sub
+    end if
+    PsTextBox_SetSel( ed->text, at, at + len( ed->findWhat ) )
+    SendMessageW( ed->text, EM_SCROLLCARET, 0, 0 )
+    ShowStatus( ed )
+end sub
+
+'' The Find box: a modal form that only collects the search.
+sub FindBox_OnSize( byval f as PsForm ptr, byval cx as long, _
+                    byval cy as long )
+    '' Two rows, each as tall as a button: the search and its button,
+    '' then the option and Cancel.
+    dim as long pad = f->ScaleX( 12 ), bw, bh
+    PsButton_GetIdealSize( f->Item( IDOK ), bw, bh )
+    dim as long w = cx - 3 * pad - bw
+    SetWindowPos( f->Item( IDC_WHAT ), null, pad, pad, w, bh, _
+                  SWP_NOZORDER or SWP_SHOWWINDOW )
+    SetWindowPos( f->Item( IDC_CASE ), null, pad, 2 * pad + bh, _
+                  w, bh, SWP_NOZORDER or SWP_SHOWWINDOW )
+    SetWindowPos( f->Item( IDOK ), null, cx - pad - bw, pad, bw, bh, _
+                  SWP_NOZORDER or SWP_SHOWWINDOW )
+    SetWindowPos( f->Item( IDCANCEL ), null, cx - pad - bw, _
+                  2 * pad + bh, bw, bh, SWP_NOZORDER or SWP_SHOWWINDOW )
+end sub
+
+sub FindBox_Ok( byval h as HWND, byval id as long )
+    dim as PsForm ptr f = PsForm.FromHwnd( h )
+    dim as Editor ptr ed = f->Tag
+    ed->findWhat = PsTextBox_GetText( f->Item( IDC_WHAT ) )
+    ed->matchCase = PsCheckBox_GetChecked( f->Item( IDC_CASE ) )
+    f->EndModal( IDOK )
+end sub
+
+sub AskWhatToFind( byval ed as Editor ptr )
+    dim as PsForm ptr f = PsApp_Instance( )->NewForm( "Find", 420, _
+        150, WS_POPUP or WS_CAPTION or WS_SYSMENU or WS_CLIPCHILDREN, _
+        WS_EX_CONTROLPARENT or WS_EX_DLGMODALFRAME, ed->form->hWindow )
+    f->Tag = ed
+    dim as HWND hWhat = PsTextBox_Create( f->hWindow, IDC_WHAT )
+    PsTextBox_SetText( hWhat, ed->findWhat )
+    PsTextBox_SetSelectOnFocus( hWhat, true )
+    dim as HWND hCase = PsCheckBox_Create( f->hWindow, IDC_CASE )
+    PsCheckBox_SetText( hCase, "Match case" )
+    PsCheckBox_SetChecked( hCase, ed->matchCase )
+    dim as HWND hOk = PsButton_Create( f->hWindow, IDOK )
+    PsButton_SetText( hOk, "Find Next" )
+    PsButton_SetClickCallback( hOk, @FindBox_Ok )
+    dim as HWND hCancel = PsButton_Create( f->hWindow, IDCANCEL )
+    PsButton_SetText( hCancel, "Cancel" )
+    PsButton_SetClickCallback( hCancel, _
+        sub( byval h as HWND, byval id as long )
+            PsForm.FromHwnd( h )->EndModal( IDCANCEL )
+        end sub )
+    f->OnSize( @FindBox_OnSize )
+    f->SetClientSize( 420, 112 )
+    if f->ShowModal( ed->form->hWindow ) = IDOK then FindAgain( ed )
+end sub
+'' ANCHOR_END: finding
+
+'' ANCHOR: commands
+'' The one place a command is carried out, wherever it came from.
+public sub Execute( byval ed as Editor ptr, byval id as long )
+    select case id
+    case CmdNew
+        if MayDiscard( ed ) then
+            dim as textfile.Document blank
+            ShowDocument( ed, blank )
+        end if
+    case CmdOpen
+        if MayDiscard( ed ) then
+            dim as ustring p = ed->pick( ed->form, false, "" )
+            if len( p ) then OpenPath( ed, p )
+        end if
+    case CmdSave
+        SaveDocument( ed, false )
+    case CmdSaveAs
+        SaveDocument( ed, true )
+    case CmdExit
+        ed->form->Close( )
+    case CmdUndo
+        PsTextBox_Undo( ed->text )
+    case CmdCut
+        PsTextBox_Cut( ed->text )
+    case CmdCopy
+        PsTextBox_Copy( ed->text )
+    case CmdPaste
+        PsTextBox_Paste( ed->text )
+    case CmdSelectAll
+        PsTextBox_SelectAll( ed->text )
+    case CmdFind
+        AskWhatToFind( ed )
+    case CmdFindNext
+        if len( ed->findWhat ) then
+            FindAgain( ed )
+        else
+            AskWhatToFind( ed )
+        end if
+    end select
+end sub
+'' ANCHOR_END: commands
+
+'' ANCHOR: layout
+sub Main_OnSize( byval f as PsForm ptr, byval cx as long, _
+                 byval cy as long )
+    dim as long barH = f->ScaleY( 30 ), statusH = f->ScaleY( 26 )
+    dim as long sbW = f->ScaleX( 14 )
+    dim as long textH = cy - barH - statusH
+    SetWindowPos( f->Item( IDC_BAR ), null, 0, 0, cx, barH, _
+                  SWP_NOZORDER or SWP_SHOWWINDOW )
+    SetWindowPos( f->Item( IDC_TEXT ), null, 0, barH, cx - sbW, _
+                  textH, SWP_NOZORDER or SWP_SHOWWINDOW )
+    SetWindowPos( f->Item( IDC_SCROLL ), null, cx - sbW, barH, sbW, _
+                  textH, SWP_NOZORDER or SWP_SHOWWINDOW )
+    SetWindowPos( f->Item( IDC_STATUS ), null, 0, cy - statusH, cx, _
+                  statusH, SWP_NOZORDER or SWP_SHOWWINDOW )
+end sub
+'' ANCHOR_END: layout
+
+'' ANCHOR: menus
+function AddMenu( byval f as PsForm ptr, byval bar as HWND, _
+                  byref title as ustring ) as HWND
+    dim as long i = PsMenuBar_AddItem( bar, title, 0 )
+    dim as HWND m = PsPopupMenu_Create( f->hWindow )
+    PsMenuBar_SetDropDown( bar, i, m )
+    return m
+end function
+
+sub BuildMenus( byval f as PsForm ptr )
+    dim as HWND bar = PsMenuBar_Create( f->hWindow, IDC_BAR )
+    PsMenuBar_SetCommandCallback( bar, _
+        sub( byval h as HWND, byval id as long )
+            Execute( EditorOf( h ), id )
+        end sub )
+    dim as HWND m = AddMenu( f, bar, "File" )
+    PsPopupMenu_AddItem( m, CmdNew, "New", "Ctrl+N" )
+    PsPopupMenu_AddItem( m, CmdOpen, "Open...", "Ctrl+O" )
+    PsPopupMenu_AddItem( m, CmdSave, "Save", "Ctrl+S" )
+    PsPopupMenu_AddItem( m, CmdSaveAs, "Save As...", "Ctrl+Shift+S" )
+    PsPopupMenu_AddSeparator( m )
+    PsPopupMenu_AddItem( m, CmdExit, "Exit" )
+    m = AddMenu( f, bar, "Edit" )
+    PsPopupMenu_AddItem( m, CmdUndo, "Undo", "Ctrl+Z" )
+    PsPopupMenu_AddSeparator( m )
+    PsPopupMenu_AddItem( m, CmdCut, "Cut", "Ctrl+X" )
+    PsPopupMenu_AddItem( m, CmdCopy, "Copy", "Ctrl+C" )
+    PsPopupMenu_AddItem( m, CmdPaste, "Paste", "Ctrl+V" )
+    PsPopupMenu_AddItem( m, CmdSelectAll, "Select All", "Ctrl+A" )
+    PsPopupMenu_AddSeparator( m )
+    PsPopupMenu_AddItem( m, CmdFind, "Find...", "Ctrl+F" )
+    PsPopupMenu_AddItem( m, CmdFindNext, "Find Next", "F3" )
+
+    '' The text control handles Ctrl+Z, X, C, V and A itself. These are
+    '' the keys only tpad knows.
+    f->AddAccelerator( FVIRTKEY or FCONTROL, asc( "N" ), CmdNew )
+    f->AddAccelerator( FVIRTKEY or FCONTROL, asc( "O" ), CmdOpen )
+    f->AddAccelerator( FVIRTKEY or FCONTROL, asc( "S" ), CmdSave )
+    f->AddAccelerator( FVIRTKEY or FCONTROL or FSHIFT, asc( "S" ), _
+                       CmdSaveAs )
+    f->AddAccelerator( FVIRTKEY or FCONTROL, asc( "F" ), CmdFind )
+    f->AddAccelerator( FVIRTKEY, VK_F3, CmdFindNext )
+    f->CreateAcceleratorTable( )
+    f->OnCommand( _
+        function( byval f as PsForm ptr, byval id as long, _
+                  byval code as long, byval hCtl as HWND ) as boolean
+            if id < CmdNew orelse id > CmdFindNext then return false
+            Execute( f->Tag, id )
+            return true
+        end function )
+end sub
+'' ANCHOR_END: menus
+
+'' ANCHOR: text
+sub BuildText( byval f as PsForm ptr, byval ed as Editor ptr )
+    ed->text = PsTextBox_Create( f->hWindow, IDC_TEXT, true )
+    PsTextBox_SetFont( ed->text, f->Font( PSFONT_MONO ) )
+    PsTextBox_SetLimitText( ed->text, &h7FFFFFFE )
+    PsTextBox_SetMargins( ed->text, f->ScaleX( 6 ), f->ScaleX( 6 ) )
+
+    '' The person typed, cut, pasted or undid something.
+    PsTextBox_SetChangeCallback( ed->text, _
+        sub( byval h as HWND )
+            ShowTitle( EditorOf( h ) )
+            ShowStatus( EditorOf( h ) )
+        end sub )
+
+    '' The caret may have moved: look once the control has acted.
+    PsTextBox_SetMessageCallback( ed->text, _
+        function( byval m as PSTEXTBOX_MESSAGEINFO ptr ) as boolean
+            select case m->uMsg
+            case WM_KEYDOWN, WM_KEYUP, WM_LBUTTONDOWN, WM_LBUTTONUP
+                PostMessageW( GetParent( m->hTextBox ), _
+                              WM_CARETMOVED, 0, 0 )
+            end select
+            return false
+        end function )
+    f->OnMessage( WM_CARETMOVED, _
+        function( byval f as PsForm ptr, byval uMsg as UINT, _
+                  byval wParam as WPARAM, byval lParam as LPARAM, _
+                  byref result as LRESULT ) as boolean
+            ShowStatus( f->Tag )
+            return true
+        end function )
+
+    '' The control draws no scroll bar of its own; it tells one.
+    ed->scroll = PsVScrollBar_Create( f->hWindow, IDC_SCROLL )
+    PsTextBox_SetScrollChangedCallback( ed->text, _
+        sub( byval h as HWND )
+            dim as integer total, page, top
+            PsTextBox_GetVScrollInfo( h, total, page, top )
+            PsVScrollBar_SetRange( EditorOf( h )->scroll, total, _
+                                   page, top )
+        end sub )
+    PsVScrollBar_SetScrollCallback( ed->scroll, _
+        sub( byval h as HWND, byval newPos as integer )
+            PsTextBox_ScrollToLine( EditorOf( h )->text, newPos )
+        end sub )
+end sub
+'' ANCHOR_END: text
+
+'' ANCHOR: status
+sub BuildStatus( byval f as PsForm ptr, byval ed as Editor ptr )
+    ed->status = PsStatusBar_Create( f->hWindow, IDC_STATUS )
+    PsStatusBar_AddPanel( ed->status, "" )      '' Ln, Col: springs
+    PsStatusBar_AddPanel( ed->status, "" )      '' line ending
+    PsStatusBar_AddPanel( ed->status, "" )      '' encoding
+    PsStatusBar_SetExpandPanel( ed->status, 0 )
+    '' The bar lays the panels out; what is inside one, it leaves to
+    '' the program. Without this, the panels are blank.
+    PsStatusBar_SetPaintCallback( ed->status, _
+        sub( byval p as PSSTATUSBAR_PAINTINFO ptr )
+            dim as PSTHEME_COLORS t = PsApp_Instance( )->Theme( )
+            p->b->SetColors( t.TextDim, t.Window )
+            p->b->PaintRect( @p->rc )
+            dim as RECT r = p->rc
+            r.left += PsStatusBar_GetPadding( p->hStatusBar )
+            p->b->SetFont( PsStatusBar_GetFont( p->hStatusBar ) )
+            p->b->PaintText( p->wszCaption, @r, DT_LEFT )
+        end sub )
+end sub
+'' ANCHOR_END: status
+
+'' ANCHOR: create
+'' Builds the main window, with an empty, untitled document.
+public function Create( byref app as PsApplication ) as Editor ptr
+    dim as Editor ptr ed = new Editor
+    ed->ask = @AskPerson
+    ed->pick = @PickFile
+    dim as PsForm ptr f = app.NewForm( "tpad", 720, 480 )
+    ed->form = f
+    f->Tag = ed
+
+    BuildMenus( f )
+    BuildText( f, ed )
+    BuildStatus( f, ed )
+
+    f->OnSize( @Main_OnSize )
+    '' Asked before the window closes, however it is closed.
+    f->OnClose( _
+        function( byval f as PsForm ptr ) as boolean
+            return MayDiscard( f->Tag )
+        end function )
+    '' A new DPI gives every control the form's UI font: put the
+    '' monospaced one back.
+    f->OnDpiChanged( _
+        sub( byval f as PsForm ptr, byval oldDpi as long, _
+             byval newDpi as long )
+            dim as Editor ptr ed = f->Tag
+            PsTextBox_SetFont( ed->text, f->Font( PSFONT_MONO ) )
+        end sub )
+    f->OnDestroy( _
+        sub( byval f as PsForm ptr )
+            delete cast( Editor ptr, f->Tag )
+            f->Tag = 0
+        end sub )
+
+    ShowTitle( ed )
+    ShowStatus( ed )
+    return ed
+end function
+'' ANCHOR_END: create
+'' ANCHOR_END: all

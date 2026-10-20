@@ -1,0 +1,24 @@
+== a Windows file with a byte-order mark
+load: []
+crlf: true, bom: true, lossy: false
+length:  11, title: win.tmp - tpad
+== finding
+'hi' from 0, any case:   0
+next one:                3
+next wraps to the top:   0
+'hi' from 0, exact case: 3
+'bye':                  -1
+== line and column
+offset 0 -> Ln 1, Col 1
+offset 2 -> Ln 1, Col 3
+offset 3 -> Ln 2, Col 1
+offset 11 -> Ln 2, Col 9
+== save keeps the BOM and CR LF
+save: [] *copy.tmp - tpad
+EF BB BF 48 69 0D 0A 68 69 20 74 68 65 72 65 0D 0A 74 68 69 72 64
+== a Linux file that is not UTF-8
+load: []
+lf: true, bom: false, lossy: true
+last character: U+FFFD
+== a file that is not there
+refused: true, doc kept: latin.tmp

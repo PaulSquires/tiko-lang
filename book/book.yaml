@@ -89,6 +89,7 @@ parts:
       - { n: 32, file: src/ch32-tsearch.md,             status: drafted }
       - { n: 33, file: src/ch33-thash.md,               status: drafted }
       - { n: 34, file: src/ch34-tledger.md,             status: drafted }
+      - { n: 35, file: src/ch35-tpad.md,                status: drafted }
 
 appendices:
   - { id: A, file: src/appendix-A-keywords.md,   status: generated, generated: true }

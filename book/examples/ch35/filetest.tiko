@@ -1,0 +1,78 @@
+'' The textfile module on its own, with no window: load, find, the
+'' status-bar numbers, and a save that keeps the file's own format.
+#import "./textfile"
+#import "std/fs"
+#import "std/containers"
+
+'' Writes exact bytes, so the test does not depend on how this source
+'' file's own line endings were checked out.
+sub WriteBytes( byref p as ustring, bytes( ) as ubyte )
+    dim as containers.Array( of ubyte ) buf
+    for i as int32 = lbound( bytes ) to ubound( bytes )
+        buf.Push( bytes( i ) )
+    next
+    fs.WriteAllBytes( p, buf )
+end sub
+
+function HexOf( byref p as ustring ) as ustring
+    dim as containers.Array( of ubyte ) buf
+    fs.ReadAllBytes( p, buf )
+    dim as ustring s
+    for i as int32 = 0 to buf.Count( ) - 1
+        s &= hex( buf[i], 2 ) & " "
+    next
+    return rtrim( s )
+end function
+
+print "== a Windows file with a byte-order mark"
+'' BOM, "Hi", CR LF, "hi there"
+dim as ubyte win( ... ) = { &hEF, &hBB, &hBF, 72, 105, 13, 10, _
+                            104, 105, 32, 116, 104, 101, 114, 101 }
+WriteBytes( "win.tmp", win( ) )
+dim as textfile.Document doc
+print "load: ["; textfile.Load( "win.tmp", doc ); "]"
+print "crlf: "; cbool( doc.ending = textfile.LineEnding.CrLf ); _
+      ", bom: "; doc.hasBom; ", lossy: "; doc.lossy
+print "length: "; len( doc.text ); ", title: "; _
+      textfile.Caption( doc, false )
+
+print "== finding"
+dim as int32 at = textfile.FindNext( doc.text, "hi", 0, false )
+print "'hi' from 0, any case:  "; at
+at = textfile.FindNext( doc.text, "hi", at + 1, false )
+print "next one:               "; at
+at = textfile.FindNext( doc.text, "hi", at + 1, false )
+print "next wraps to the top:  "; at
+print "'hi' from 0, exact case:"; _
+      textfile.FindNext( doc.text, "hi", 0, true )
+print "'bye':                  "; _
+      textfile.FindNext( doc.text, "bye", 0, false )
+
+print "== line and column"
+dim as int32 ln, col
+dim as int32 offsets( ... ) = { 0, 2, 3, 11 }
+for each offset as int32 in offsets
+    textfile.LineColumn( doc.text, offset, ln, col )
+    print "offset"; offset; " -> Ln"; ln; ", Col"; col
+next
+
+print "== save keeps the BOM and CR LF"
+doc.text &= !"\nthird"
+doc.path = "copy.tmp"
+print "save: ["; textfile.Save( doc ); "] "; _
+      textfile.Caption( doc, true )
+print HexOf( "copy.tmp" )
+
+print "== a Linux file that is not UTF-8"
+'' "caf", the Latin-1 byte for e-acute, LF
+dim as ubyte latin( ... ) = { 99, 97, 102, &hE9, 10 }
+WriteBytes( "latin.tmp", latin( ) )
+print "load: ["; textfile.Load( "latin.tmp", doc ); "]"
+print "lf: "; cbool( doc.ending = textfile.LineEnding.Lf ); _
+      ", bom: "; doc.hasBom; ", lossy: "; doc.lossy
+print "last character: U+"; hex( asc( doc.text, 4 ), 4 )
+
+print "== a file that is not there"
+dim as ustring e = textfile.Load( "missing.tmp", doc )
+print "refused: "; cbool( len( e ) > 0 ); ", doc kept: "; _
+      textfile.DisplayName( doc )
