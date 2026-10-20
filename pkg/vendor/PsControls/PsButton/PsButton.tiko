@@ -17,6 +17,8 @@
 #import "vendor/PsControls/PsImage"
 #import "vendor/PsControls/PsTipHost"
 #import "vendor/PsControls/PsTooltip"
+#import "vendor/PsControls/PsRegistry"
+#import "vendor/PsControls/PsTheme"
 
 using gui
 using gdiplus
@@ -24,6 +26,8 @@ using PsBufferPaint
 using PsImage
 using PsTipHost
 using PsTooltip
+using PsRegistry
+using PsTheme
 
 ' The family names its booleans bOK, never "ok" -- a convention from AfxNova, where GDI+'s
 ' Ok = 0 made an "ok" a duplicate definition. Under sys/win an "ok" of your own compiles.
@@ -253,6 +257,9 @@ public type BTN_ClickCallbackSub as sub( byval hButton as HWND, byval id as long
 
 public type PSBUTTON_STATE
     hWin            as HWND
+    ' TRUE once the host set the colours itself (PsButton_SetColors): the theme then leaves this
+    ' button alone until PsButton_UnpinColors.
+    bColorsPinned   as boolean
     ' The tooltip, whichever backend it is on. Replaces the old `hToolTip as HWND` +
     ' `HoverTime as long` pair; PsButton_GetTooltipHandle still answers the comctl32 handle
     ' for hosts that reach through it, and returns 0 while this instance is on PsTooltip.
@@ -828,6 +835,10 @@ public declare function PsButton_GetVisualRect( byval hButton as HWND, byref rc 
 ' ----------------------------------------------------------------------------------------
 public declare sub      PsButton_GetColors( byval hButton as HWND, byval pColors as PSBUTTON_COLORS ptr )
 public declare sub      PsButton_SetColors( byval hButton as HWND, byval pColors as PSBUTTON_COLORS ptr )
+public declare function PsButton_ThemeColors( byref t as PSTHEME_COLORS ) as PSBUTTON_COLORS
+public declare sub      PsButton_ApplyTheme( byval hButton as HWND, byref t as PSTHEME_COLORS )
+public declare sub      PsButton_UnpinColors( byval hButton as HWND )
+public declare sub      PsButton_ApplyFonts( byval hButton as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
 public declare function PsButton_GetFont( byval hButton as HWND ) as HFONT
 public declare sub      PsButton_SetFont( byval hButton as HWND, byval hTextFont as HFONT )
 public declare function PsButton_GetGlyphFont( byval hButton as HWND ) as HFONT
@@ -1558,6 +1569,7 @@ function PsButton_WndProc( _
         end if
 
     case WM_DESTROY
+        PsRegistry_Remove( hwnd )
         if pBtn then
             ' Don't let the hot-tracking timer outlive the window...
             if pBtn->hotTimerOn then
@@ -1670,6 +1682,9 @@ public function PsButton_Create( byval hWndParent as HWND, byval CtrlID as long 
     ' GetButtonPointer(hAttached), which reads exactly that slot -- so building the tip first
     ' would leave a window in which a resolve returns "" for a button that has text.
     PsTipHost_Ensure( @pBtn->tip, hCtrl, @PsButton_TipTextCallback )
+
+    ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
+    PsRegistry_SetThemeProcs( hCtrl, @PsButton_ApplyTheme, @PsButton_ApplyFonts )
 
     function = hCtrl
 
@@ -2092,8 +2107,59 @@ public sub PsButton_SetColors( byval hButton as HWND, byval pColors as PSBUTTON_
     dim as PSBUTTON_STATE ptr pBtn = GetButtonPointer(hButton)
     if pBtn = 0 then exit sub
     pBtn->colors = *pColors
+    pBtn->bColorsPinned = true
     ' Colours only -- nothing measured changes, so no layout and no auto-size.
     if pBtn->hWin then InvalidateRect( pBtn->hWin, NULL, FALSE )
+end sub
+
+' ========================================================================================
+' The theme (vendor/PsControls/PsTheme). ThemeColors is the adapter: the button's colours
+' derived from the theme's roles. ApplyTheme applies them unless the host pinned its own.
+' ========================================================================================
+public function PsButton_ThemeColors( byref t as PSTHEME_COLORS ) as PSBUTTON_COLORS
+    dim as PSBUTTON_COLORS c
+    c.BackColor           = t.Surface
+    c.ForeColor           = t.Text
+    c.BorderColor         = t.Surface
+    c.IconColor           = t.Text
+    c.BackColorHot        = t.SurfaceHot
+    c.ForeColorHot        = t.TextHot
+    c.BorderColorHot      = t.SurfaceHot
+    c.IconColorHot        = t.TextHot
+    c.BackColorPressed    = t.Selected
+    c.ForeColorPressed    = t.SelectedText
+    c.BorderColorPressed  = t.Selected
+    c.IconColorPressed    = t.SelectedText
+    c.BackColorDisabled   = t.SurfaceDisabled
+    c.ForeColorDisabled   = t.TextDisabled
+    c.BorderColorDisabled = t.SurfaceDisabled
+    c.IconColorDisabled   = t.TextDisabled
+    c.FocusRingColor      = t.FocusRing
+    c.DefaultBorderColor  = t.FocusRing
+    return c
+end function
+
+public sub PsButton_ApplyTheme( byval hButton as HWND, byref t as PSTHEME_COLORS )
+    dim as PSBUTTON_STATE ptr pBtn = GetButtonPointer(hButton)
+    if (pBtn = 0) orelse pBtn->bColorsPinned then exit sub
+    dim as PSBUTTON_COLORS c = PsButton_ThemeColors( t )
+    PsButton_SetColors( hButton, @c )
+    pBtn->bColorsPinned = false
+end sub
+
+' Hands the button back to the theme, which is applied at once.
+public sub PsButton_UnpinColors( byval hButton as HWND )
+    dim as PSBUTTON_STATE ptr pBtn = GetButtonPointer(hButton)
+    if pBtn = 0 then exit sub
+    pBtn->bColorsPinned = false
+    dim as PSTHEME_COLORS t
+    if PsRegistry_GetTheme( t ) then PsButton_ApplyTheme( hButton, t )
+end sub
+
+' The form's fonts (PsApp), handed over when the button is created on a form.
+public sub PsButton_ApplyFonts( byval hButton as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+    if hTextFont then PsButton_SetFont( hButton, hTextFont )
+    if hGlyphFont then PsButton_SetGlyphFont( hButton, hGlyphFont )
 end sub
 
 function PsButton_GetFont( byval hButton as HWND ) as HFONT

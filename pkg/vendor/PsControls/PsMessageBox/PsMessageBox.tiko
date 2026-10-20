@@ -15,11 +15,15 @@
 #import "sys/win/gdiplus"
 #import "vendor/PsControls/PsBufferPaint"
 #import "vendor/PsControls/PsButton"
+#import "vendor/PsControls/PsRegistry"
+#import "vendor/PsControls/PsTheme"
 
 using gui
 using gdiplus
 using PsBufferPaint
 using PsButton
+using PsRegistry
+using PsTheme
 
 ' The family names its booleans bOK, never "ok" -- a convention from AfxNova, where GDI+'s
 ' Ok = 0 made an "ok" a duplicate definition. Under sys/win an "ok" of your own compiles.
@@ -225,6 +229,9 @@ public type MBX_MessageCallbackFunc as function( byval m as MBX_MESSAGEINFO ptr 
 
 public type PSMESSAGEBOX_STATE
     hWin            as HWND
+    ' TRUE once the host set the colours itself (PsMessageBox_SetColors/SetButtonColors): the
+    ' theme then leaves this box alone until PsMessageBox_UnpinColors.
+    bColorsPinned   as boolean
     hParent         as HWND = 0        ' disabled for the duration of DoModal. 0 is legal.
     ' --- Content ---
     wszCaption      as ustring        ' the title. "" draws an empty band, it does not remove it
@@ -787,6 +794,10 @@ public declare function PsMessageBox_GetButtonRect( byval hMsgBox as HWND, byval
 public declare sub      PsMessageBox_GetColors( byval hMsgBox as HWND, byval pColors as MBX_COLORS ptr )
 public declare sub      PsMessageBox_SetColors( byval hMsgBox as HWND, byval pColors as MBX_COLORS ptr )
 public declare sub      PsMessageBox_SetButtonColors( byval hMsgBox as HWND, byval pColors as PSBUTTON_COLORS ptr )
+public declare function PsMessageBox_ThemeColors( byref t as PSTHEME_COLORS ) as MBX_COLORS
+public declare sub      PsMessageBox_ApplyTheme( byval hMsgBox as HWND, byref t as PSTHEME_COLORS )
+public declare sub      PsMessageBox_UnpinColors( byval hMsgBox as HWND )
+public declare sub      PsMessageBox_ApplyFonts( byval hMsgBox as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
 public declare function PsMessageBox_GetFont( byval hMsgBox as HWND ) as HFONT
 public declare sub      PsMessageBox_SetFont( byval hMsgBox as HWND, byval hTextFont as HFONT )
 public declare function PsMessageBox_GetCaptionFont( byval hMsgBox as HWND ) as HFONT
@@ -1363,6 +1374,7 @@ function PsMessageBox_WndProc( _
         return 0
 
     case WM_DESTROY
+        PsRegistry_Remove( hwnd )
         if pBox then
             PsMessageBox_CallMessage( pBox, hwnd, uMsg, wParam, lParam )
             ' Don't let the hot-tracking timer outlive the window...
@@ -1459,6 +1471,9 @@ public function PsMessageBox_Create( byval hWndParent as HWND ) as HWND
 
     ' Store the new pointer into the user data area of the control window
     pWindow->UserData(0) = cast(LONG_PTR, pBox)
+
+    ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
+    PsRegistry_SetThemeProcs( hCtrl, @PsMessageBox_ApplyTheme, @PsMessageBox_ApplyFonts )
 
     function = hCtrl
 
@@ -1857,6 +1872,7 @@ public sub PsMessageBox_SetColors( byval hMsgBox as HWND, byval pColors as MBX_C
     dim as PSMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer(hMsgBox)
     if (pBox = 0) orelse (pColors = 0) then exit sub
     pBox->colors = *pColors
+    pBox->bColorsPinned = true
     if pBox->hWin then InvalidateRect( pBox->hWin, NULL, FALSE )
 end sub
 
@@ -1866,9 +1882,63 @@ public sub PsMessageBox_SetButtonColors( byval hMsgBox as HWND, byval pColors as
     dim as PSMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer(hMsgBox)
     if (pBox = 0) orelse (pColors = 0) then exit sub
     pBox->btnColors = *pColors
+    pBox->bColorsPinned = true
     for i as long = 0 to pBox->nButtonCount - 1
         PsButton_SetColors( pBox->hButtons(i), pColors )
     next
+end sub
+
+' ========================================================================================
+' The theme (vendor/PsControls/PsTheme). ThemeColors is the adapter: the box's colours
+' derived from the theme's roles. ApplyTheme applies them, and PsButton's adapter to the
+' buttons, unless the host pinned its own.
+' ========================================================================================
+public function PsMessageBox_ThemeColors( byref t as PSTHEME_COLORS ) as MBX_COLORS
+    dim as MBX_COLORS c
+    c.BorderColor           = t.Border
+    c.CaptionBackColor      = t.Surface
+    c.CaptionForeColor      = t.Text
+    c.CloseBackColor        = t.Surface
+    c.CloseForeColor        = t.Text
+    c.CloseBackColorHot     = t.Error
+    c.CloseForeColorHot     = t.SelectedText
+    c.CloseBackColorPressed = t.Error
+    c.CloseForeColorPressed = t.SelectedText
+    c.BackColor             = t.Window
+    c.ForeColor             = t.Text
+    c.FooterBackColor       = t.SurfaceDisabled
+    c.DividerColor          = t.Divider
+    c.IconColorInfo         = t.FocusRing
+    c.IconColorWarning      = t.Warning
+    c.IconColorError        = t.Error
+    c.IconColorQuestion     = t.FocusRing
+    return c
+end function
+
+public sub PsMessageBox_ApplyTheme( byval hMsgBox as HWND, byref t as PSTHEME_COLORS )
+    dim as PSMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer(hMsgBox)
+    if (pBox = 0) orelse pBox->bColorsPinned then exit sub
+    dim as MBX_COLORS c = PsMessageBox_ThemeColors( t )
+    PsMessageBox_SetColors( hMsgBox, @c )
+    dim as PSBUTTON_COLORS cb = PsButton_ThemeColors( t )
+    PsMessageBox_SetButtonColors( hMsgBox, @cb )
+    pBox->bColorsPinned = false
+end sub
+
+' Hands the box back to the theme, which is applied at once.
+public sub PsMessageBox_UnpinColors( byval hMsgBox as HWND )
+    dim as PSMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer(hMsgBox)
+    if pBox = 0 then exit sub
+    pBox->bColorsPinned = false
+    dim as PSTHEME_COLORS t
+    if PsRegistry_GetTheme( t ) then PsMessageBox_ApplyTheme( hMsgBox, t )
+end sub
+
+' The form's fonts (PsApp), handed over when the box is created: the message font and the
+' icon font (both also pushed into the buttons).
+public sub PsMessageBox_ApplyFonts( byval hMsgBox as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+    if hTextFont then PsMessageBox_SetFont( hMsgBox, hTextFont )
+    if hGlyphFont then PsMessageBox_SetGlyphFont( hMsgBox, hGlyphFont )
 end sub
 
 function PsMessageBox_GetFont( byval hMsgBox as HWND ) as HFONT

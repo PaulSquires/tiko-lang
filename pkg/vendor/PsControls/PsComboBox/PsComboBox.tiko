@@ -16,12 +16,14 @@
 #import "vendor/PsControls/PsBufferPaint"
 #import "vendor/PsControls/PsPopupMenu"
 #import "vendor/PsControls/PsRegistry"
+#import "vendor/PsControls/PsTheme"
 
 using gui
 using gdiplus
 using PsBufferPaint
 using PsPopupMenu
 using PsRegistry
+using PsTheme
 
 ' BOTH dependencies are imported HERE, so a host needs nothing beyond #import of this module.
 ' A host that imports PsPopupMenu for its own use gets the same single module, which is how
@@ -238,6 +240,9 @@ public type CBO_DropDownCallbackSub as sub( byval hCombo as HWND, byval isOpen a
 
 public type PSCOMBOBOX_STATE
     hWin              as HWND
+    ' TRUE once the host set the colours itself (PsComboBox_SetColors / SetListColors): the theme
+    ' then leaves this combobox alone until PsComboBox_UnpinColors.
+    bColorsPinned     as boolean
     idc_ComboBox      as long = 0
     items(any)        as PSCOMBOBOX_ITEM
     itemCount         as long = 0
@@ -876,6 +881,10 @@ public declare function PsComboBox_GetVisualRect( byval hCombo as HWND, byref rc
 ' ----------------------------------------------------------------------------------------
 public declare sub      PsComboBox_GetColors( byval hCombo as HWND, byval pColors as PSCOMBOBOX_COLORS ptr )
 public declare sub      PsComboBox_SetColors( byval hCombo as HWND, byval pColors as PSCOMBOBOX_COLORS ptr )
+public declare function PsComboBox_ThemeColors( byref t as PSTHEME_COLORS ) as PSCOMBOBOX_COLORS
+public declare sub      PsComboBox_ApplyTheme( byval hCombo as HWND, byref t as PSTHEME_COLORS )
+public declare sub      PsComboBox_UnpinColors( byval hCombo as HWND )
+public declare sub      PsComboBox_ApplyFonts( byval hCombo as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
 public declare function PsComboBox_GetFont( byval hCombo as HWND ) as HFONT
 public declare sub      PsComboBox_SetFont( byval hCombo as HWND, byval hTextFont as HFONT )
 public declare function PsComboBox_GetPlaceholderText( byval hCombo as HWND ) as ustring
@@ -1010,9 +1019,9 @@ function PsComboBox_EnsureList( byval hCombo as HWND ) as HWND
     if hList = 0 then return 0
 
     pCombo->hList = hList
-    ' Our list is filtered through PsComboBox_FilterMessage, never through a row of its own
-    ' (the popup-row rule in PsRegistry).
-    PsRegistry_Remove( hList )
+    ' Our list is filtered through PsComboBox_FilterMessage, never through its own row (the
+    ' popup-row rule in PsRegistry); the row stays for the theme.
+    PsRegistry_ClearFilter( hList )
     ' We are our own notify target: CPM_NOTIFY_COMMAND and CPM_NOTIFY_CLOSED are handled in
     ' our WndProc. One door -- no PM_SelectCallback plumbing on top of it.
     PsPopupMenu_SetNotifyWindow( hList, hCombo )
@@ -1840,6 +1849,9 @@ public function PsComboBox_Create( byval hWndParent as HWND, byval CtrlID as lon
     ' unaffected.
     PsRegistry_Add( hCtrl, PSREG_PRIO_OWNER, @PsComboBox_FilterMessage, @PsComboBox_CloseUp )
 
+    ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
+    PsRegistry_SetThemeProcs( hCtrl, @PsComboBox_ApplyTheme, @PsComboBox_ApplyFonts )
+
     function = hCtrl
 
 end function
@@ -2457,8 +2469,58 @@ sub PsComboBox_SetColors( byval hCombo as HWND, byval pColors as PSCOMBOBOX_COLO
     dim as PSCOMBOBOX_STATE ptr pCombo = GetComboBoxPointer(hCombo)
     if pCombo = 0 then exit sub
     pCombo->colors = *pColors
+    pCombo->bColorsPinned = true
     PsComboBox_ApplyDerivedListColors( pCombo )
     if pCombo->hWin then InvalidateRect( pCombo->hWin, NULL, TRUE )
+end sub
+
+' ========================================================================================
+' The theme (vendor/PsControls/PsTheme). ThemeColors is the adapter: the combobox's colours
+' derived from the theme's roles. ApplyTheme applies them unless the host pinned its own.
+' ========================================================================================
+public function PsComboBox_ThemeColors( byref t as PSTHEME_COLORS ) as PSCOMBOBOX_COLORS
+    dim as PSCOMBOBOX_COLORS c
+    c.BackColor            = t.Surface
+    c.ForeColor            = t.Text
+    c.BorderColor          = t.Surface
+    c.ChevronColor         = t.Text
+    c.BackColorHot         = t.SurfaceHot
+    c.ForeColorHot         = t.TextHot
+    c.BorderColorHot       = t.SurfaceHot
+    c.ChevronColorHot      = t.TextHot
+    c.BackColorOpen        = t.Surface
+    c.ForeColorOpen        = t.Accent
+    c.BorderColorOpen      = t.Surface
+    c.ChevronColorOpen     = t.Accent
+    c.BackColorDisabled    = t.SurfaceDisabled
+    c.ForeColorDisabled    = t.TextDisabled
+    c.BorderColorDisabled  = t.SurfaceDisabled
+    c.ChevronColorDisabled = t.TextDisabled
+    c.ForeColorPlaceholder = t.TextDim
+    c.FocusRingColor       = t.FocusRing
+    return c
+end function
+
+public sub PsComboBox_ApplyTheme( byval hCombo as HWND, byref t as PSTHEME_COLORS )
+    dim as PSCOMBOBOX_STATE ptr pCombo = GetComboBoxPointer(hCombo)
+    if (pCombo = 0) orelse pCombo->bColorsPinned then exit sub
+    dim as PSCOMBOBOX_COLORS c = PsComboBox_ThemeColors( t )
+    PsComboBox_SetColors( hCombo, @c )
+    pCombo->bColorsPinned = false
+end sub
+
+' Hands the combobox back to the theme, which is applied at once.
+public sub PsComboBox_UnpinColors( byval hCombo as HWND )
+    dim as PSCOMBOBOX_STATE ptr pCombo = GetComboBoxPointer(hCombo)
+    if pCombo = 0 then exit sub
+    pCombo->bColorsPinned = false
+    dim as PSTHEME_COLORS t
+    if PsRegistry_GetTheme( t ) then PsComboBox_ApplyTheme( hCombo, t )
+end sub
+
+' The form's fonts (PsApp), handed over when the combobox is created on a form.
+public sub PsComboBox_ApplyFonts( byval hCombo as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+    if hTextFont then PsComboBox_SetFont( hCombo, hTextFont )
 end sub
 
 function PsComboBox_GetFont( byval hCombo as HWND ) as HFONT
@@ -2511,6 +2573,7 @@ public sub PsComboBox_SetListColors( byval hCombo as HWND, byval pColors as PSPO
     if pCombo = 0 then exit sub
     if PsComboBox_EnsureList( hCombo ) = 0 then exit sub
     pCombo->bListColorsCustom = true
+    pCombo->bColorsPinned = true
     PsPopupMenu_SetColors( pCombo->hList, pColors )
 end sub
 

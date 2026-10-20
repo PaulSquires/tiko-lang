@@ -15,6 +15,7 @@
 #import "vendor/PsControls/PsTipHost"
 #import "vendor/PsControls/PsTooltip"
 #import "vendor/PsControls/PsRegistry"
+#import "vendor/PsControls/PsTheme"
 
 using gui
 using gdiplus
@@ -24,6 +25,7 @@ using PsImage
 using PsTipHost
 using PsTooltip
 using PsRegistry
+using PsTheme
 
 ' ========================================================================================
 ' PsToolbar -- a reusable owner-drawn command toolbar.
@@ -434,6 +436,9 @@ public declare function PsToolbar_ResolveMood( _
 ' ========================================================================================
 public type PSTOOLBAR_STATE
     hWin               as HWND
+    ' TRUE once the host set the colours itself (PsToolbar_SetColors / SetMenuColors): the theme
+    ' then leaves this toolbar alone until PsToolbar_UnpinColors.
+    bColorsPinned      as boolean
     ' The tooltip, whichever backend it is on. Replaces the old hToolTip + HoverTime
     ' pair; PsToolbar_GetTooltipHandle still answers the comctl32 handle, and 0 while
     ' this instance is on PsTooltip.
@@ -1458,6 +1463,10 @@ public declare function PsToolbar_GetOverflowCount( byval hToolbar as HWND ) as 
 ' ----------------------------------------------------------------------------------------
 public declare sub      PsToolbar_GetColors( byval hToolbar as HWND, byval pColors as PSTOOLBAR_COLORS ptr )
 public declare sub      PsToolbar_SetColors( byval hToolbar as HWND, byval pColors as PSTOOLBAR_COLORS ptr )
+public declare function PsToolbar_ThemeColors( byref t as PSTHEME_COLORS ) as PSTOOLBAR_COLORS
+public declare sub      PsToolbar_ApplyTheme( byval hToolbar as HWND, byref t as PSTHEME_COLORS )
+public declare sub      PsToolbar_UnpinColors( byval hToolbar as HWND )
+public declare sub      PsToolbar_ApplyFonts( byval hToolbar as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
 public declare function PsToolbar_SetItemForeColor( byval hToolbar as HWND, byval idx as long, byval clr as COLORREF ) as boolean
 public declare function PsToolbar_ClearItemForeColor( byval hToolbar as HWND, byval idx as long ) as boolean
 public declare function PsToolbar_GetTextFont( byval hToolbar as HWND ) as HFONT
@@ -1852,8 +1861,9 @@ private function PsToolbar_EnsureItemMenu( _
 
     dim as HWND hM = PsPopupMenu_Create( hToolbar, pItem->id )
     if hM = 0 then return 0
-    ' Filtered through PsToolbar_FilterMessage, never a row of its own (the popup-row rule).
-    PsRegistry_Remove( hM )
+    ' Filtered through PsToolbar_FilterMessage, never its own row (the popup-row rule); the row
+    ' stays for the theme.
+    PsRegistry_ClearFilter( hM )
     PsPopupMenu_SetNotifyWindow( hM, hToolbar )
     PsPopupMenu_SetFonts( hM, pTB->hTextFont, pTB->hGlyphFont )
     pItem->hMenu = hM
@@ -1874,8 +1884,9 @@ private function PsToolbar_EnsureOverflowMenu( _
 
     dim as HWND hM = PsPopupMenu_Create( hToolbar, 0 )
     if hM = 0 then return 0
-    ' Filtered through PsToolbar_FilterMessage, never a row of its own (the popup-row rule).
-    PsRegistry_Remove( hM )
+    ' Filtered through PsToolbar_FilterMessage, never its own row (the popup-row rule); the row
+    ' stays for the theme.
+    PsRegistry_ClearFilter( hM )
     PsPopupMenu_SetNotifyWindow( hM, hToolbar )
     PsPopupMenu_SetFonts( hM, pTB->hTextFont, pTB->hGlyphFont )
     pTB->hOverflowMenu = hM
@@ -2927,6 +2938,9 @@ public function PsToolbar_Create( byval hWndParent as HWND, byval CtrlID as long
     ' GetToolbarPointer(hAttached), which reads exactly that slot.
     PsTipHost_Ensure( @pTB->tip, hCtrl, @PsToolbar_TipTextCallback )
 
+    ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
+    PsRegistry_SetThemeProcs( hCtrl, @PsToolbar_ApplyTheme, @PsToolbar_ApplyFonts )
+
     function = hCtrl
 end function
 
@@ -3585,9 +3599,51 @@ sub PsToolbar_SetColors( byval hToolbar as HWND, byval pColors as PSTOOLBAR_COLO
     dim as PSTOOLBAR_STATE ptr pTB = GetToolbarPointer(hToolbar)
     if pTB = null then exit sub
     pTB->colors = *pColors
+    pTB->bColorsPinned = true
     ' Theming the bar themes its menus for free -- unless the host claimed them.
     PsToolbar_ReapplyAllMenuColors( pTB )
     if pTB->hWin then InvalidateRect( pTB->hWin, NULL, TRUE )
+end sub
+
+' ========================================================================================
+' The theme (vendor/PsControls/PsTheme). ThemeColors is the adapter: the toolbar's colours
+' derived from the theme's roles. ApplyTheme applies them unless the host pinned its own.
+' ========================================================================================
+public function PsToolbar_ThemeColors( byref t as PSTHEME_COLORS ) as PSTOOLBAR_COLORS
+    dim as PSTOOLBAR_COLORS c
+    c.BackColor         = t.Window
+    c.ForeColor         = t.Text
+    c.BackColorHot      = t.SurfaceHot
+    c.ForeColorHot      = t.TextHot
+    c.BackColorSelect   = t.Selected
+    c.ForeColorSelect   = t.SelectedText
+    c.ForeColorDisabled = t.TextDisabled
+    c.SeparatorColor    = t.Divider
+    c.SplitDividerColor = t.Divider
+    return c
+end function
+
+public sub PsToolbar_ApplyTheme( byval hToolbar as HWND, byref t as PSTHEME_COLORS )
+    dim as PSTOOLBAR_STATE ptr pTB = GetToolbarPointer(hToolbar)
+    if (pTB = 0) orelse pTB->bColorsPinned then exit sub
+    dim as PSTOOLBAR_COLORS c = PsToolbar_ThemeColors( t )
+    PsToolbar_SetColors( hToolbar, @c )
+    pTB->bColorsPinned = false
+end sub
+
+' Hands the toolbar back to the theme, which is applied at once.
+public sub PsToolbar_UnpinColors( byval hToolbar as HWND )
+    dim as PSTOOLBAR_STATE ptr pTB = GetToolbarPointer(hToolbar)
+    if pTB = 0 then exit sub
+    pTB->bColorsPinned = false
+    dim as PSTHEME_COLORS t
+    if PsRegistry_GetTheme( t ) then PsToolbar_ApplyTheme( hToolbar, t )
+end sub
+
+' The form's fonts (PsApp), handed over when the toolbar is created on a form.
+public sub PsToolbar_ApplyFonts( byval hToolbar as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+    if hTextFont then PsToolbar_SetTextFont( hToolbar, hTextFont )
+    if hGlyphFont then PsToolbar_SetGlyphFont( hToolbar, hGlyphFont )
 end sub
 
 public function PsToolbar_SetItemForeColor( byval hToolbar as HWND, byval idx as long, byval clr as COLORREF ) as boolean
@@ -3690,6 +3746,7 @@ sub PsToolbar_SetMenuColors( byval hToolbar as HWND, byval pColors as PSPOPUPMEN
     ' Claimed permanently, and applied to every menu that already exists.
     pTB->bMenuColorsCustom = true
     pTB->menuColors        = *pColors
+    pTB->bColorsPinned     = true
     if pTB->hOverflowMenu <> 0 then
         if IsWindow( pTB->hOverflowMenu ) then PsPopupMenu_SetColors( pTB->hOverflowMenu, pColors )
     end if

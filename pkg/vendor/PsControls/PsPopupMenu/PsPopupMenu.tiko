@@ -11,11 +11,13 @@
 #import "sys/win/gdiplus"
 #import "vendor/PsControls/PsBufferPaint"
 #import "vendor/PsControls/PsRegistry"
+#import "vendor/PsControls/PsTheme"
 
 using gui
 using gdiplus
 using PsBufferPaint
 using PsRegistry
+using PsTheme
 
 ' Safety-net poll timer, run on the ROOT of an open popup chain only. It does two jobs:
 '   1. Hover net: WM_MOUSELEAVE (TME_LEAVE) is not reliably delivered on fast exits, so
@@ -162,6 +164,9 @@ public type PM_PaintItemCallbackSub as sub( byval p as PSPOPUPMENU_PAINTINFO ptr
 
 public type PSPOPUPMENU_STATE
     hWin              as HWND
+    ' TRUE once the host set the colours itself (PsPopupMenu_SetColors): the theme then leaves this
+    ' popup alone until PsPopupMenu_UnpinColors.
+    bColorsPinned     as boolean
     items(any)        as PSPOPUPMENU_ITEM
     itemCount         as long = 0
     idc_Popup         as long = 0
@@ -324,6 +329,10 @@ public declare sub      PsPopupMenu_SetSeparatorThickness( byval hPopup as HWND,
 ' plain Unicode characters that render in any text font.
 ' ----------------------------------------------------------------------------------------
 public declare sub      PsPopupMenu_SetColors( byval hPopup as HWND, byval pColors as PSPOPUPMENU_COLORS ptr )
+public declare function PsPopupMenu_ThemeColors( byref t as PSTHEME_COLORS ) as PSPOPUPMENU_COLORS
+public declare sub      PsPopupMenu_ApplyTheme( byval hPopup as HWND, byref t as PSTHEME_COLORS )
+public declare sub      PsPopupMenu_UnpinColors( byval hPopup as HWND )
+public declare sub      PsPopupMenu_ApplyFonts( byval hPopup as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
 public declare sub      PsPopupMenu_SetFonts( byval hPopup as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT = 0 )
 public declare sub      PsPopupMenu_SetGlyphs( byval hPopup as HWND, byval wszCheck as ustring, byval wszChevron as ustring )
 
@@ -1218,10 +1227,14 @@ public function PsPopupMenu_Create( byval hOwner as HWND, byval CtrlID as long =
 
     ' Every popup starts STANDALONE, with a row of its own: a PsApp pump filters it and closes
     ' its chain when the form loses the activation. An owner that takes it over -- a parent
-    ' popup (SetItemSubMenu), PsMenuBar, PsComboBox, PsToolbar, PsTextBox -- removes the row,
-    ' because the owner's filter is the one that must see the message first (the popup-row
-    ' rule in PsRegistry).
+    ' popup (SetItemSubMenu), PsMenuBar, PsComboBox, PsToolbar, PsTextBox -- clears the row's
+    ' filter, because the owner's filter is the one that must see the message first (the
+    ' popup-row rule in PsRegistry); the row stays for the theme.
     PsRegistry_Add( hCtrl, PSREG_PRIO_POPUP, @PsPopupMenu_FilterMessage, @PsPopupMenu_CloseChain )
+
+    ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
+    PsRegistry_SetThemeProcs( hCtrl, @PsPopupMenu_ApplyTheme, @PsPopupMenu_ApplyFonts )
+
     return hCtrl
 end function
 
@@ -1271,8 +1284,9 @@ public function PsPopupMenu_SetItemSubMenu( byval hPopup as HWND, byval id as lo
     if pLevel = null then return false
     dim as HWND hOld = pLevel->items(idx).hSubMenu
     if (hOld <> 0) andalso (hOld <> hSubMenu) then DestroyWindow( hOld )
-    ' An attached submenu belongs to its parent's chain and has no row of its own.
-    if hSubMenu then PsRegistry_Remove( hSubMenu )
+    ' An attached submenu belongs to its parent's chain: no filter of its own (its row stays for
+    ' the theme).
+    if hSubMenu then PsRegistry_ClearFilter( hSubMenu )
     pLevel->items(idx).hSubMenu = hSubMenu
     pLevel->Refresh()
     return true
@@ -1480,7 +1494,54 @@ public sub PsPopupMenu_SetColors( byval hPopup as HWND, byval pColors as PSPOPUP
     if pThis = null then exit sub
     if pColors = null then exit sub
     pThis->colors = *pColors              ' copied; the caller's struct stays theirs
+    pThis->bColorsPinned = true
     if pThis->hWin then InvalidateRect( pThis->hWin, NULL, TRUE )
+end sub
+
+' ========================================================================================
+' The theme (vendor/PsControls/PsTheme). ThemeColors is the adapter: the popup's colours
+' derived from the theme's roles. ApplyTheme applies them unless the host pinned its own.
+' ========================================================================================
+public function PsPopupMenu_ThemeColors( byref t as PSTHEME_COLORS ) as PSPOPUPMENU_COLORS
+    dim as PSPOPUPMENU_COLORS c
+    c.BackColor         = t.Popup
+    c.ForeColor         = t.PopupText
+    c.BackColorHot      = t.Selected
+    c.ForeColorHot      = t.SelectedText
+    c.ForeColorDisabled = t.TextDisabled
+    c.BorderColor       = t.Border
+    c.SeparatorColor    = t.Divider
+    return c
+end function
+
+public sub PsPopupMenu_ApplyTheme( byval hPopup as HWND, byref t as PSTHEME_COLORS )
+    dim as PSPOPUPMENU_STATE ptr pThis = GetPopupMenuPointer(hPopup)
+    if (pThis = 0) orelse pThis->bColorsPinned then exit sub
+    dim as PSPOPUPMENU_COLORS c = PsPopupMenu_ThemeColors( t )
+    PsPopupMenu_SetColors( hPopup, @c )
+    pThis->bColorsPinned = false
+end sub
+
+' Hands the popup back to the theme, which is applied at once.
+public sub PsPopupMenu_UnpinColors( byval hPopup as HWND )
+    dim as PSPOPUPMENU_STATE ptr pThis = GetPopupMenuPointer(hPopup)
+    if pThis = 0 then exit sub
+    pThis->bColorsPinned = false
+    dim as PSTHEME_COLORS t
+    if PsRegistry_GetTheme( t ) then PsPopupMenu_ApplyTheme( hPopup, t )
+end sub
+
+' The form's fonts (PsApp), handed over when the popup is created on a form. SetFonts takes
+' both at once, so a font not handed over keeps the one the popup has.
+public sub PsPopupMenu_ApplyFonts( byval hPopup as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+    dim as PSPOPUPMENU_STATE ptr pThis = GetPopupMenuPointer(hPopup)
+    if pThis = 0 then exit sub
+    if (hTextFont = 0) andalso (hGlyphFont = 0) then exit sub
+    dim as HFONT hText = pThis->hTextFont
+    dim as HFONT hGlyph = pThis->hGlyphFont
+    if hTextFont then hText = hTextFont
+    if hGlyphFont then hGlyph = hGlyphFont
+    PsPopupMenu_SetFonts( hPopup, hText, hGlyph )
 end sub
 
 

@@ -16,6 +16,7 @@
 #import "vendor/PsControls/PsTextBox"
 #import "vendor/PsControls/PsVScrollBar"
 #import "vendor/PsControls/PsRegistry"
+#import "vendor/PsControls/PsTheme"
 
 using gui
 using gdiplus
@@ -26,6 +27,7 @@ using PsColumnHeader
 using PsTextBox
 using PsVScrollBar
 using PsRegistry
+using PsTheme
 
 ' The tooltip backend switch. The control ships on the SYSTEM (comctl32) backend exactly
 ' as it always has; a host opts an instance into PsTooltip with PsListTree_SetTooltipMode.
@@ -253,6 +255,9 @@ public type ExpandCollapseCallbackSub as sub( byval hListControl as HWND, byval 
 
 public type PSLISTTREE_STATE
     hWin            as HWND
+    ' TRUE once the host set the colours itself (any PsListTree colour setter): the theme then
+    ' leaves this list alone until PsListTree_UnpinColors.
+    bColorsPinned   as boolean
     ' The tooltip, whichever backend it is on. Replaces the old hToolTip + HoverTime
     ' pair; PsListTree_GetTooltipHandle still answers the comctl32 handle, and 0 while
     ' this instance is on PsTooltip.
@@ -1090,6 +1095,9 @@ public declare function PsListTree_GetDragIndicatorColor( byval hListControl as 
 ' ----------------------------------------------------------------------------------------
 public declare function PsListTree_GetBackColor( byval hListControl as HWND ) as COLORREF
 public declare function PsListTree_SetBackColor( byval hListControl as HWND, byval clr as COLORREF ) as COLORREF
+public declare sub      PsListTree_ApplyTheme( byval hListControl as HWND, byref t as PSTHEME_COLORS )
+public declare sub      PsListTree_UnpinColors( byval hListControl as HWND )
+public declare sub      PsListTree_ApplyFonts( byval hListControl as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
 public declare function PsListTree_GetRowHeight( byval hListControl as HWND ) as integer
 public declare function PsListTree_SetRowHeight( byval hListControl as HWND, byval height as integer ) as integer
 public declare function PsListTree_GetFont( byval hListControl as HWND ) as HFONT
@@ -2101,6 +2109,7 @@ function PsListTree_SetDragIndicatorColor( byval hListControl as HWND, byval clr
     if pList = null then return 0
     dim as COLORREF prev = pList->dragIndicatorColor
     pList->dragIndicatorColor = clr
+    pList->bColorsPinned = true
     return prev
 end function
 
@@ -2602,6 +2611,7 @@ public sub PsListTree_SetTwistyColor( byval hListControl as HWND, byval clr as C
     dim as PSLISTTREE_STATE ptr pList = GetListTreePointer(hListControl)
     if pList = null then return
     pList->TwistyColor = clr
+    pList->bColorsPinned = true
     PsListTree_RepaintSurface( pList )
 end sub
 
@@ -2644,12 +2654,14 @@ public sub PsListTree_SetScrollBarColors( byval hListControl as HWND, byval back
     dim as PSLISTTREE_STATE ptr pList = GetListTreePointer(hListControl)
     if pList = null then return
     if pList->hScrollBar then PsVScrollBar_SetColors( pList->hScrollBar, backclr, foreclr, foreclrhot )
+    pList->bColorsPinned = true
 end sub
 
 public sub PsListTree_SetScrollBarDividerColor( byval hListControl as HWND, byval clr as COLORREF, byval bShow as boolean = true )
     dim as PSLISTTREE_STATE ptr pList = GetListTreePointer(hListControl)
     if pList = null then return
     if pList->hScrollBar then PsVScrollBar_SetDividerColor( pList->hScrollBar, clr, bShow )
+    pList->bColorsPinned = true
 end sub
 
 sub PsListTree_SetScrollBarPaintCallback( byval hListControl as HWND, byval usersub as VScrollPaintCallbackSub )
@@ -2924,6 +2936,7 @@ public sub PsListTree_SetHeaderBackColor( byval hListControl as HWND, byval clr 
     dim as PSLISTTREE_STATE ptr pList = GetListTreePointer(hListControl)
     if pList = null then return
     if pList->hHeader then PsColumnHeader_SetBackColor( pList->hHeader, clr )
+    pList->bColorsPinned = true
 end sub
 
 public sub PsListTree_SetHeaderFont( byval hListControl as HWND, byval hFont as HFONT )
@@ -2967,6 +2980,7 @@ public function PsListTree_SetBackColor( byval hListControl as HWND, byval clr a
     if pList = null then return 0
     dim as COLORREF oldClr = pList->BackColor
     pList->BackColor = clr
+    pList->bColorsPinned = true
     return oldClr
 end function
 
@@ -2984,6 +2998,7 @@ end function
 public sub PsListTree_SetBorderColor( byval hListControl as HWND, byval clr as COLORREF )
     dim as PSLISTTREE_STATE ptr pList = GetListTreePointer(hListControl)
     if pList = null then exit sub
+    pList->bColorsPinned = true
     if pList->BorderColor = clr then exit sub
     pList->BorderColor = clr
     InvalidateRect( hListControl, NULL, TRUE )
@@ -3764,6 +3779,7 @@ function PsListTree_WndProc( _
     ' now, empty or not, so the problem cannot arise. pList->hBackBrush went with it.
 
     case WM_NCDESTROY
+        PsRegistry_Remove( hwnd )
         PsRegistry_ReleaseGlobalFilter( @PsListTree_FilterMessage )
         ' Delete the stored listbox data pointer
         dim as PSLISTTREE_STATE ptr pList = GetListTreePointer(hwnd)
@@ -4395,6 +4411,7 @@ public sub PsListTree_SetEditColors( byval hListControl as HWND, byval clrBack a
     pList->clrEditBorder   = clrBorder
     pList->clrEditFocusBdr = clrFocusBorder
     pList->bEditColorsSet  = true
+    pList->bColorsPinned   = true
     ' An editor already created (this control keeps it for the instance's life) is re-coloured
     ' now, so a theme change part-way through a session is not one edit behind.
     if pList->hEdit then
@@ -4404,6 +4421,47 @@ public sub PsListTree_SetEditColors( byval hListControl as HWND, byval clrBack a
         PsTextBox_SetFocusBorderColor( pList->hEdit, clrFocusBorder )
         PsTextBox_SetOuterBackColor( pList->hEdit, clrBack )
     end if
+end sub
+
+' ========================================================================================
+' The theme (vendor/PsControls/PsTheme). ApplyTheme sets the list's colours -- its own, its
+' scrollbar's, its header's and its in-place editor's -- from the theme's roles unless the
+' host pinned its own. The scrollbar divider keeps its shown/hidden state.
+' ========================================================================================
+public sub PsListTree_ApplyTheme( byval hListControl as HWND, byref t as PSTHEME_COLORS )
+    dim as PSLISTTREE_STATE ptr pList = GetListTreePointer(hListControl)
+    if (pList = null) orelse pList->bColorsPinned then exit sub
+    PsListTree_SetBackColor( hListControl, t.Window )
+    PsListTree_SetBorderColor( hListControl, t.Border )
+    PsListTree_SetTwistyColor( hListControl, t.TextDim )
+    PsListTree_SetDragIndicatorColor( hListControl, t.Accent )
+    PsListTree_SetScrollBarColors( hListControl, t.Window, t.Border, t.TextDisabled )
+    dim as boolean bShowDivider = false
+    if pList->hScrollBar then
+        dim as PSVSCROLLBAR_STATE ptr pSB = GetVScrollBarPointer( pList->hScrollBar )
+        if pSB then bShowDivider = pSB->bHasDivider
+    end if
+    PsListTree_SetScrollBarDividerColor( hListControl, t.Divider, bShowDivider )
+    PsListTree_SetHeaderBackColor( hListControl, t.Surface )
+    PsListTree_SetEditColors( hListControl, t.Surface, t.Text, t.Border, t.FocusRing )
+    pList->bColorsPinned = false
+end sub
+
+' Hands the list back to the theme, which is applied at once.
+public sub PsListTree_UnpinColors( byval hListControl as HWND )
+    dim as PSLISTTREE_STATE ptr pList = GetListTreePointer(hListControl)
+    if pList = null then exit sub
+    pList->bColorsPinned = false
+    dim as PSTHEME_COLORS t
+    if PsRegistry_GetTheme( t ) then PsListTree_ApplyTheme( hListControl, t )
+end sub
+
+' The form's fonts (PsApp), handed over when the list is created on a form: the row font and
+' the twisty glyph font. The header is a PsColumnHeader of its own and takes the form's font
+' itself.
+public sub PsListTree_ApplyFonts( byval hListControl as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+    if hTextFont then PsListTree_SetFont( hListControl, hTextFont )
+    if hGlyphFont then PsListTree_SetTwistyFont( hListControl, hGlyphFont )
 end sub
 
 public sub PsListTree_SetEditSelectAll( byval hListControl as HWND, byval enable as boolean )
@@ -5207,6 +5265,9 @@ public function PsListTree_Create( byval hWndParent as HWND, byval CtrlID as int
     ' subscribe through PsListTree_SetColumnResizeCallback.
     pList->hHeader = PsColumnHeader_Create( hForm, CtrlID + 2 )
     PsColumnHeader_SetWidthChangedCallback( pList->hHeader, @PsListTree_OnHeaderWidthChanged )
+
+    ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
+    PsRegistry_SetThemeProcs( hForm, @PsListTree_ApplyTheme, @PsListTree_ApplyFonts )
 
     function = hForm
 

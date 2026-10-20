@@ -17,9 +17,8 @@ end sub
 dim app as PsApplication
 app.Init( )
 dim f as PsForm ptr = app.NewForm( "Hello", 640, 400 )
-dim hOk as HWND = PsButton_Create( f->hWindow, 1001 )
+dim hOk as HWND = PsButton_Create( f->hWindow, 1001 )   ' themed, with the form's font
 PsButton_SetText( hOk, "OK" )
-PsButton_SetFont( hOk, f->Font( PSFONT_UI ) )
 f->OnSize( @frmMain_OnSize )
 end app.Run( f )
 ```
@@ -51,6 +50,9 @@ There is one application per process, and its state is the module's.
 | `IsUIThread( ) as boolean` | TRUE on the thread that called `Init` |
 | `SetTimer( ms, p [, payload] ) as long` | A timer that needs no form: `sub( byval id as long, byval payload as any ptr )`. Returns the id, never 0 (0 means it failed). UI thread only. |
 | `KillTimer( id )` | Stops it; safe to call from the timer's own proc |
+
+| `SetTheme( t )` / `Theme( )` | Sets the current [theme](../PsTheme/README.md) and returns it. Every control whose colours are not pinned is restyled, every form gets the theme's background and title bar, and `OnThemeChanged` fires. |
+| `SetThemeMode( mode )` / `ThemeMode( )` | `PSAPP_THEME_SYSTEM` follows the Windows light/dark setting live. `LIGHT` or `DARK` fixes the theme. |
 
 `PsApp_Instance( )` returns the application `Init` was called on, or null.
 
@@ -94,6 +96,7 @@ end sub
 | `ComMode` | `COINIT_APARTMENTTHREADED` | `-1` means no COM |
 | `GlyphFontFile` | `""` | A font file to load privately when "Segoe Fluent Icons" is not installed |
 | `DpiMode` | `PSAPP_DPI_SYSTEM` | `PSAPP_DPI_PERMONITORV2`, or `PSAPP_DPI_MANIFEST` to keep what the manifest says |
+| `ThemeMode` | `PSAPP_THEME_SYSTEM` | `PSAPP_THEME_LIGHT`, `PSAPP_THEME_DARK`, or `PSAPP_THEME_NONE` to leave the controls' built-in colours |
 | `FontUI`, `FontUISize` | `"Segoe UI"`, `10` | The face and point size of the `PSFONT_UI*` roles |
 | `FontMono` | `"Cascadia Mono"` | `PSFONT_MONO`; Consolas when it is not installed |
 
@@ -133,7 +136,8 @@ Every callback receives the form first. A null proc clears a callback.
 | `OnDestroy( p )` | `sub( f )` | |
 | `OnActivateApp( p )` | `sub( f, bActive as boolean )` | |
 | `OnMessage( uMsg, p )` | `function( f, uMsg, wParam, lParam, byref result as LRESULT ) as boolean` | Any message. Setting the same message again replaces its entry. TRUE returns `result`. |
-| `OnDpiChanged( p )`, `OnThemeChanged( p )` | | Accepted now; they start firing in later phases of RFC-0001. |
+| `OnThemeChanged( p )` | `sub( f )` | After a theme switch, so a form that paints itself can pick up the new roles from `app.Theme( )` |
+| `OnDpiChanged( p )` | | Accepted now; it starts firing in a later phase of RFC-0001. |
 
 A message goes, in order:
 1. to the built-ins that always run (see the next table);
@@ -184,6 +188,10 @@ Messages sent inside `CreateWindowEx` (`WM_NCCREATE`, `WM_CREATE`, ...) arrive b
 
 - **Controls are created hidden and zero-sized**, as in the rest of the family. Position and show them in `OnSize`; `SWP_SHOWWINDOW` does both.
 - **Every form gets a window class of its own** (`PsApp.Form:<n>`), because CWindow refuses to register a class name twice.
-- **Pass fonts to controls yourself**, with `Ps<X>_SetFont( h, f->Font( PSFONT_UI ) )`. Automatic fonts and a shared theme come in a later phase of RFC-0001.
+- **Fonts are automatic.** A control created on a form gets the form's `PSFONT_UI` and
+  `PSFONT_GLYPH` when it is created. A `Ps<X>_SetFont` call afterwards replaces them.
+- **The theme is automatic.** Every control is themed as it is created. Calling one of its colour
+  setters pins its colours (see [PsTheme](../PsTheme/README.md)). A form without `OnPaint` paints
+  the theme's `Window` role.
 
 Specified in `C:\dev\docs\tiko-psapp\RFC-0001-psapp.md`.

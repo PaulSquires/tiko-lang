@@ -13,6 +13,7 @@
 #import "vendor/PsControls/PsBufferPaint"
 #import "vendor/PsControls/PsPopupMenu"
 #import "vendor/PsControls/PsRegistry"
+#import "vendor/PsControls/PsTheme"
 
 using gui
 using gdiplus
@@ -20,6 +21,7 @@ using richedit
 using PsBufferPaint
 using PsPopupMenu
 using PsRegistry
+using PsTheme
 
 #include once "vbcompat.bi"                 ' format() -- numeric mode formatting
 ' The built-in context menu is a PsPopupMenu (the vendor/PsControls/PsPopupMenu module,
@@ -90,6 +92,9 @@ end enum
 
 public type PSTEXTBOX_STATE
     hWin            as HWND
+    ' TRUE once the host set the colours itself (the PsTextBox_Set*Color setters): the theme then
+    ' leaves this textbox alone until PsTextBox_UnpinColors.
+    bColorsPinned   as boolean
     hRichEdit       as HWND               ' the RichEdit50W child that does the editing
     idc_TextBox     as integer = 1000
     ' Multiline mode. Fixed at creation (ES_MULTILINE cannot be toggled on a live
@@ -310,6 +315,9 @@ public declare function PsTextBox_GetCornerRadius( byval hTextBoxControl as HWND
 public declare sub      PsTextBox_SetCornerRadius( byval hTextBoxControl as HWND, byval nRadius as integer )
 public declare function PsTextBox_GetOuterBackColor( byval hTextBoxControl as HWND ) as COLORREF
 public declare sub      PsTextBox_SetOuterBackColor( byval hTextBoxControl as HWND, byval clr as COLORREF )
+public declare sub      PsTextBox_ApplyTheme( byval hTextBoxControl as HWND, byref t as PSTHEME_COLORS )
+public declare sub      PsTextBox_UnpinColors( byval hTextBoxControl as HWND )
+public declare sub      PsTextBox_ApplyFonts( byval hTextBoxControl as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
 ' Localize the built-in right-click menu (Cut/Copy/Paste/Select All). An empty
 ' SelectAllText keeps the current Select All label, so 3-argument callers are unaffected.
 public declare sub      PsTextBox_SetMenuText( byval hTextBoxControl as HWND, byval CutText as ustring, byval CopyText as ustring, byval PasteText as ustring, byval SelectAllText as ustring = "" )
@@ -1134,6 +1142,7 @@ public function PsTextBox_SetForeColor( byval hTextBoxControl as HWND, byval clr
     if pTextBox = null then return 0
     dim as COLORREF oldclr = pTextBox->ForeColor
     pTextBox->ForeColor = clr
+    pTextBox->bColorsPinned = true
     PsTextBox_ApplyCharFormat( pTextBox )
     return oldclr
 end function
@@ -1153,6 +1162,7 @@ public function PsTextBox_SetBackColor( byval hTextBoxControl as HWND, byval clr
     if pTextBox = null then return 0
     dim as COLORREF oldclr = pTextBox->BackColor
     pTextBox->BackColor = clr
+    pTextBox->bColorsPinned = true
     SendMessage( pTextBox->hRichEdit, EM_SETBKGNDCOLOR, 0, cast(LPARAM, clr) )
     InvalidateRect( pTextBox->hWin, null, true )
     return oldclr
@@ -1185,6 +1195,7 @@ public sub PsTextBox_SetCueBannerColor( byval hTextBoxControl as HWND, byval clr
     dim as PSTEXTBOX_STATE ptr pTextBox = GetTextBoxPointer(hTextBoxControl)
     if pTextBox = null then exit sub
     pTextBox->CueColor = clr
+    pTextBox->bColorsPinned = true
     InvalidateRect( pTextBox->hRichEdit, null, true )
 end sub
 
@@ -1215,6 +1226,7 @@ public sub PsTextBox_SetBorderColor( byval hTextBoxControl as HWND, byval clr as
     dim as PSTEXTBOX_STATE ptr pTextBox = GetTextBoxPointer(hTextBoxControl)
     if pTextBox = null then exit sub
     pTextBox->BorderColor = clr
+    pTextBox->bColorsPinned = true
     InvalidateRect( pTextBox->hWin, null, true )
 end sub
 
@@ -1228,6 +1240,7 @@ public sub PsTextBox_SetFocusBorderColor( byval hTextBoxControl as HWND, byval c
     dim as PSTEXTBOX_STATE ptr pTextBox = GetTextBoxPointer(hTextBoxControl)
     if pTextBox = null then exit sub
     pTextBox->FocusBorderColor = clr
+    pTextBox->bColorsPinned = true
     InvalidateRect( pTextBox->hWin, null, true )
 end sub
 
@@ -1301,7 +1314,38 @@ public sub PsTextBox_SetOuterBackColor( byval hTextBoxControl as HWND, byval clr
     dim as PSTEXTBOX_STATE ptr pTextBox = GetTextBoxPointer(hTextBoxControl)
     if pTextBox = null then exit sub
     pTextBox->OuterBackColor = clr
+    pTextBox->bColorsPinned = true
     InvalidateRect( pTextBox->hWin, null, true )
+end sub
+
+' ========================================================================================
+' The theme (vendor/PsControls/PsTheme). The textbox has no colours type, so ApplyTheme
+' calls each colour setter with its role, unless the host pinned its own colours.
+' ========================================================================================
+public sub PsTextBox_ApplyTheme( byval hTextBoxControl as HWND, byref t as PSTHEME_COLORS )
+    dim as PSTEXTBOX_STATE ptr pTextBox = GetTextBoxPointer(hTextBoxControl)
+    if (pTextBox = null) orelse pTextBox->bColorsPinned then exit sub
+    PsTextBox_SetBackColor( hTextBoxControl, t.Surface )
+    PsTextBox_SetForeColor( hTextBoxControl, t.Text )
+    PsTextBox_SetCueBannerColor( hTextBoxControl, t.TextDim )
+    PsTextBox_SetBorderColor( hTextBoxControl, t.Border )
+    PsTextBox_SetFocusBorderColor( hTextBoxControl, t.FocusRing )
+    PsTextBox_SetOuterBackColor( hTextBoxControl, t.Window )
+    pTextBox->bColorsPinned = false
+end sub
+
+' Hands the textbox back to the theme, which is applied at once.
+public sub PsTextBox_UnpinColors( byval hTextBoxControl as HWND )
+    dim as PSTEXTBOX_STATE ptr pTextBox = GetTextBoxPointer(hTextBoxControl)
+    if pTextBox = null then exit sub
+    pTextBox->bColorsPinned = false
+    dim as PSTHEME_COLORS t
+    if PsRegistry_GetTheme( t ) then PsTextBox_ApplyTheme( hTextBoxControl, t )
+end sub
+
+' The form's fonts (PsApp), handed over when the textbox is created on a form. No glyph font.
+public sub PsTextBox_ApplyFonts( byval hTextBoxControl as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+    if hTextFont then PsTextBox_SetFont( hTextBoxControl, hTextFont )
 end sub
 
 
@@ -1755,6 +1799,7 @@ function PsTextBox_WndProc( _
             if pTextBox then return SendMessage( pTextBox->hRichEdit, uMsg, wParam, lParam )
 
         case WM_NCDESTROY
+            PsRegistry_Remove( hwnd )
             PsRegistry_ReleaseGlobalFilter( @PsTextBox_FilterMessage )
             if pTextBox then
                 ' The context menu is a WS_POPUP window, not a child, so it is not
@@ -1820,7 +1865,7 @@ public function PsTextBox_Create( byval hWndParent as HWND, byval CtrlID as inte
     ' The menu is filtered through PsTextBox_FilterMessage, never a row of its own (the
     ' popup-row rule in PsRegistry); that one filter serves every PsTextBox, so each instance
     ' holds a reference to it while it lives.
-    PsRegistry_Remove( pTextBox->hContextMenu )
+    PsRegistry_ClearFilter( pTextBox->hContextMenu )
     PsRegistry_AddGlobalFilter( @PsTextBox_FilterMessage )
 
     ' Store the new pointer into the user data area of the container window
@@ -1862,6 +1907,9 @@ public function PsTextBox_Create( byval hWndParent as HWND, byval CtrlID as inte
     ' PsTextBox_SetTextAlign never executes any of that machinery -- and adding the setter
     ' therefore changed nothing whatsoever for the hosts that predate it.
     PsTextBox_ApplyCharFormat( pTextBox )
+
+    ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
+    PsRegistry_SetThemeProcs( hForm, @PsTextBox_ApplyTheme, @PsTextBox_ApplyFonts )
 
     return hForm
 end function

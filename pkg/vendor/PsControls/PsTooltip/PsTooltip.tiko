@@ -12,10 +12,14 @@
 #import "sys/win/gui"
 #import "sys/win/gdiplus"
 #import "vendor/PsControls/PsBufferPaint"
+#import "vendor/PsControls/PsRegistry"
+#import "vendor/PsControls/PsTheme"
 
 using gui
 using gdiplus
 using PsBufferPaint
+using PsRegistry
+using PsTheme
 
 ' ========================================================================================
 ' PsTooltip -- an owner-drawn replacement for the comctl32 tooltip.
@@ -268,6 +272,9 @@ public type PSTOOLTIP_STATE
     ' PSTOOLTIP_SIGNATURE above.
     dwSignature      as DWORD = PSTOOLTIP_SIGNATURE
     hWin             as HWND        ' the tip popup
+    ' TRUE once the host set the colours itself (PsTooltip_SetColors): the theme then leaves
+    ' this tip alone until PsTooltip_UnpinColors.
+    bColorsPinned    as boolean
     hAttached        as HWND        ' the control being watched. 0 = detached, never shows
     idc_Tooltip      as long
 
@@ -459,6 +466,10 @@ public declare function PsTooltip_GetToolIndex( byval hTooltip as HWND ) as long
 ' --- appearance -----------------------------------------------------------------------------
 public declare sub      PsTooltip_SetColors( byval hTooltip as HWND, byval pColors as PSTOOLTIP_COLORS ptr )
 public declare sub      PsTooltip_GetColors( byval hTooltip as HWND, byval pColors as PSTOOLTIP_COLORS ptr )
+public declare function PsTooltip_ThemeColors( byref t as PSTHEME_COLORS ) as PSTOOLTIP_COLORS
+public declare sub      PsTooltip_ApplyTheme( byval hTooltip as HWND, byref t as PSTHEME_COLORS )
+public declare sub      PsTooltip_UnpinColors( byval hTooltip as HWND )
+public declare sub      PsTooltip_ApplyFonts( byval hTooltip as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
 ' All three fonts are BORROWED. The caller keeps ownership and must not delete one while the
 ' tip is alive. hTitleFont 0 falls back to hTextFont; hGlyphFont 0 falls back to hTextFont.
 public declare sub      PsTooltip_SetFonts( byval hTooltip as HWND, byval hText as HFONT, _
@@ -1823,6 +1834,7 @@ private function PsTooltip_WndProc( byval hwnd as HWND, byval uMsg as UINT, _
         return true
 
     case WM_DESTROY
+        PsRegistry_Remove( hwnd )
         ' Result deliberately ignored -- see the MessageCallback comment at the top of this file.
         TIP_CallMessage( pTip, hwnd, uMsg, wParam, lParam )
         if pTip then
@@ -1938,6 +1950,10 @@ public function PsTooltip_Create( byval hAttach as HWND, byval CtrlID as long = 
 
     TIP_RegistryAdd( hCtrl )
     PsTooltip_Attach( hCtrl, hAttach )
+
+    ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
+    PsRegistry_SetThemeProcs( hCtrl, @PsTooltip_ApplyTheme, @PsTooltip_ApplyFonts )
+
     return hCtrl
 end function
 
@@ -2055,7 +2071,53 @@ public sub PsTooltip_SetColors( byval hTooltip as HWND, byval pColors as PSTOOLT
     if pTip = 0 then exit sub
     if pColors = 0 then exit sub
     pTip->colors = *pColors
+    pTip->bColorsPinned = true
     if pTip->hWin then InvalidateRect( pTip->hWin, NULL, TRUE )
+end sub
+
+' ========================================================================================
+' The theme (vendor/PsControls/PsTheme). ThemeColors is the adapter: the tip's colours
+' derived from the theme's roles. ApplyTheme applies them unless the host pinned its own
+' (PsTooltip_SetDefaultColors pins too: ApplyDefaults sets them through SetColors).
+' ========================================================================================
+public function PsTooltip_ThemeColors( byref t as PSTHEME_COLORS ) as PSTOOLTIP_COLORS
+    dim as PSTOOLTIP_COLORS c
+    c.BackColor   = t.Popup
+    c.BorderColor = t.Border
+    c.ForeColor   = t.PopupText
+    c.TitleColor  = t.TextStrong
+    c.GlyphColor  = t.Accent
+    return c
+end function
+
+public sub PsTooltip_ApplyTheme( byval hTooltip as HWND, byref t as PSTHEME_COLORS )
+    dim as PSTOOLTIP_STATE ptr pTip = GetTooltipPointer(hTooltip)
+    if (pTip = 0) orelse pTip->bColorsPinned then exit sub
+    dim as PSTOOLTIP_COLORS c = PsTooltip_ThemeColors( t )
+    PsTooltip_SetColors( hTooltip, @c )
+    pTip->bColorsPinned = false
+end sub
+
+' Hands the tip back to the theme, which is applied at once.
+public sub PsTooltip_UnpinColors( byval hTooltip as HWND )
+    dim as PSTOOLTIP_STATE ptr pTip = GetTooltipPointer(hTooltip)
+    if pTip = 0 then exit sub
+    pTip->bColorsPinned = false
+    dim as PSTHEME_COLORS t
+    if PsRegistry_GetTheme( t ) then PsTooltip_ApplyTheme( hTooltip, t )
+end sub
+
+' The form's fonts (PsApp), handed over when the tip is created. SetFonts sets all three at
+' once, so the title font, and whichever of the other two is not handed over, are kept.
+public sub PsTooltip_ApplyFonts( byval hTooltip as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+    dim as PSTOOLTIP_STATE ptr pTip = GetTooltipPointer(hTooltip)
+    if pTip = 0 then exit sub
+    if (hTextFont = 0) andalso (hGlyphFont = 0) then exit sub
+    dim as HFONT hText = pTip->hTextFont
+    dim as HFONT hGlyph = pTip->hGlyphFont
+    if hTextFont then hText = hTextFont
+    if hGlyphFont then hGlyph = hGlyphFont
+    PsTooltip_SetFonts( hTooltip, hText, pTip->hTitleFont, hGlyph )
 end sub
 
 public sub PsTooltip_GetColors( byval hTooltip as HWND, byval pColors as PSTOOLTIP_COLORS ptr )

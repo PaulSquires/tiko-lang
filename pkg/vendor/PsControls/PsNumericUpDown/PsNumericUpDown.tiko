@@ -16,12 +16,14 @@
 #import "vendor/PsControls/PsBufferPaint"
 #import "vendor/PsControls/PsTextBox"
 #import "vendor/PsControls/PsRegistry"
+#import "vendor/PsControls/PsTheme"
 
 using gui
 using gdiplus
 using PsBufferPaint
 using PsTextBox
 using PsRegistry
+using PsTheme
 
 #include once "vbcompat.bi"                 ' format()
 
@@ -200,6 +202,9 @@ public type NUD_ValueChangedCallbackSub as sub( byval hCtrl as HWND, byval nValu
 
 public type PSNUMERICUPDOWN_STATE
     hWin            as HWND
+    ' TRUE once the host set the colours itself (PsNumericUpDown_SetColors): the theme then
+    ' leaves this control alone until PsNumericUpDown_UnpinColors.
+    bColorsPinned   as boolean
     hTextBox        as HWND               ' the embedded PsTextBox (numeric mode, borderless)
     idc_Ctrl        as long = 0
     ' --- State. Single-valued: there is exactly one of this control, so unlike the
@@ -604,6 +609,10 @@ public declare function PsNumericUpDown_HitTest( byval hCtrl as HWND, byval pt a
 ' ----------------------------------------------------------------------------------------
 public declare sub      PsNumericUpDown_GetColors( byval hCtrl as HWND, byval pColors as PSNUMERICUPDOWN_COLORS ptr )
 public declare sub      PsNumericUpDown_SetColors( byval hCtrl as HWND, byval pColors as PSNUMERICUPDOWN_COLORS ptr )
+public declare function PsNumericUpDown_ThemeColors( byref t as PSTHEME_COLORS ) as PSNUMERICUPDOWN_COLORS
+public declare sub      PsNumericUpDown_ApplyTheme( byval hCtrl as HWND, byref t as PSTHEME_COLORS )
+public declare sub      PsNumericUpDown_UnpinColors( byval hCtrl as HWND )
+public declare sub      PsNumericUpDown_ApplyFonts( byval hCtrl as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
 
 ' ----------------------------------------------------------------------------------------
 ' Callbacks.  See the type declarations above for each signature and contract.
@@ -1505,6 +1514,7 @@ function PsNumericUpDown_WndProc( _
         end if
 
     case WM_DESTROY
+        PsRegistry_Remove( hwnd )
         PsRegistry_ReleaseGlobalFilter( @PsNumericUpDown_FilterMessage )
         if pNud then
             ' Don't let either timer outlive the window...
@@ -1621,6 +1631,9 @@ public function PsNumericUpDown_Create( byval hWndParent as HWND, byval CtrlID a
         PsTextBox_SetValue( pNud->hTextBox, pNud->nValue )
         ShowWindow( pNud->hTextBox, SW_SHOW )
     end if
+
+    ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
+    PsRegistry_SetThemeProcs( hCtrl, @PsNumericUpDown_ApplyTheme, @PsNumericUpDown_ApplyFonts )
 
     function = hCtrl
 
@@ -2030,8 +2043,59 @@ public sub PsNumericUpDown_SetColors( byval hCtrl as HWND, byval pColors as PSNU
     dim as PSNUMERICUPDOWN_STATE ptr pNud = GetNumericUpDownPointer(hCtrl)
     if (pNud = 0) orelse (pColors = 0) then exit sub
     pNud->colors = *pColors
+    pNud->bColorsPinned = true
     NUD_ApplyStateColors( pNud )
     pNud->Refresh()
+end sub
+
+' ========================================================================================
+' The theme (vendor/PsControls/PsTheme). ThemeColors is the adapter: the control's colours
+' derived from the theme's roles. ApplyTheme applies them unless the host pinned its own.
+' ========================================================================================
+public function PsNumericUpDown_ThemeColors( byref t as PSTHEME_COLORS ) as PSNUMERICUPDOWN_COLORS
+    dim as PSNUMERICUPDOWN_COLORS c
+    c.BackColor               = t.Window
+    c.BorderColor             = t.Border
+    c.FocusBorderColor        = t.FocusRing
+    c.BorderColorDisabled     = t.BorderDisabled
+    c.DividerColor            = t.Divider
+    c.DividerColorDisabled    = t.BorderDisabled
+    c.ValueBackColor          = t.Surface
+    c.ValueForeColor          = t.Text
+    c.ValueBackColorDisabled  = t.SurfaceDisabled
+    c.ValueForeColorDisabled  = t.TextDisabled
+    c.ButtonBackColor         = t.Surface
+    c.ButtonBackColorHot      = t.SurfaceHot
+    c.ButtonBackColorPressed  = t.Selected
+    c.ButtonBackColorDisabled = t.SurfaceDisabled
+    c.GlyphColor              = t.Text
+    c.GlyphColorHot           = t.TextHot
+    c.GlyphColorPressed       = t.SelectedText
+    c.GlyphColorDisabled      = t.TextDisabled
+    return c
+end function
+
+public sub PsNumericUpDown_ApplyTheme( byval hCtrl as HWND, byref t as PSTHEME_COLORS )
+    dim as PSNUMERICUPDOWN_STATE ptr pNud = GetNumericUpDownPointer(hCtrl)
+    if (pNud = 0) orelse pNud->bColorsPinned then exit sub
+    dim as PSNUMERICUPDOWN_COLORS c = PsNumericUpDown_ThemeColors( t )
+    PsNumericUpDown_SetColors( hCtrl, @c )
+    pNud->bColorsPinned = false
+end sub
+
+' Hands the control back to the theme, which is applied at once.
+public sub PsNumericUpDown_UnpinColors( byval hCtrl as HWND )
+    dim as PSNUMERICUPDOWN_STATE ptr pNud = GetNumericUpDownPointer(hCtrl)
+    if pNud = 0 then exit sub
+    pNud->bColorsPinned = false
+    dim as PSTHEME_COLORS t
+    if PsRegistry_GetTheme( t ) then PsNumericUpDown_ApplyTheme( hCtrl, t )
+end sub
+
+' The form's fonts (PsApp), handed over when the control is created on a form. No glyph font:
+' the +/- glyphs are drawn bars.
+public sub PsNumericUpDown_ApplyFonts( byval hCtrl as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+    if hTextFont then PsNumericUpDown_SetFont( hCtrl, hTextFont )
 end sub
 
 

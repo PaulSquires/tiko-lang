@@ -11,6 +11,9 @@
 #module "PsRegistry"
 
 #import "sys/win"
+#import "vendor/PsControls/PsTheme" public
+
+using PsTheme
 
 ' Every PsControl that places an obligation on the host's message pump registers here, and
 ' vendor/PsControls/PsApp's pump walks the registry instead of naming each control. A host with
@@ -38,6 +41,14 @@
 ' toggle handler gets it, and a popup row walked after it would treat that click as an outside
 ' click and close the chain. Every API that hands a popup to an owner therefore removes its row.
 '
+' THEME AND FONTS (RFC-0001 P3). Every themable control also gives its row a theme proc
+' (Ps<X>_ApplyTheme) and a font proc (Ps<X>_ApplyFonts) -- a control with no filter gets a row for
+' them alone. The registry holds the current theme: PsRegistry_SetTheme applies it to every row,
+' and a row that gains a theme proc while a theme is current gets it at once, so a control is
+' themed from the moment it is created. Fonts go through a hook PsApp installs, because which
+' fonts a control gets depends on the form it is on. A popup handed to an owner keeps its row --
+' only its filter is cleared (PsRegistry_ClearFilter) -- so it still follows the theme.
+'
 ' RE-ENTRANCY. A filter can destroy windows, and a destroyed control removes its row from its
 ' WM_DESTROY. During a walk a removal only marks the row dead; the walk compacts the table when
 ' it ends. Rows added during a walk are first visited on the next message.
@@ -45,6 +56,10 @@
 public type PSREG_FilterProc       as function( byval h as HWND, byval pMsg as MSG ptr ) as boolean
 public type PSREG_GlobalFilterProc as function( byval pMsg as MSG ptr ) as boolean
 public type PSREG_DismissProc      as sub( byval h as HWND )
+public type PSREG_ThemeProc        as sub( byval h as HWND, byref t as PSTHEME_COLORS )
+public type PSREG_FontProc         as sub( byval h as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+' Installed by PsApp: hands a newly registered control the fonts of the form it is on.
+public type PSREG_FontHookProc     as sub( byval h as HWND, byval pFonts as PSREG_FontProc )
 
 public enum PSREG_PRIO
     PSREG_PRIO_OWNER = 0
@@ -56,6 +71,8 @@ type PSREG_ROW
     prio     as long
     pFilter  as PSREG_FilterProc
     pDismiss as PSREG_DismissProc
+    pTheme   as PSREG_ThemeProc
+    pFonts   as PSREG_FontProc
     bDead    as boolean
 end type
 
@@ -70,6 +87,9 @@ dim shared gREG_Globals( any ) as PSREG_GLOBAL
 dim shared gREG_GlobalCount as long
 dim shared gREG_WalkDepth as long        ' > 0 while a walk is in progress (walks can nest)
 dim shared gREG_HasDead as boolean
+dim shared gREG_Theme as PSTHEME_COLORS
+dim shared gREG_bHasTheme as boolean
+dim shared gREG_FontHook as PSREG_FontHookProc
 
 
 private function REG_FindRow( byval h as HWND ) as long
@@ -111,6 +131,8 @@ public sub PsRegistry_Add( byval h as HWND, byval prio as long, _
         end if
         idx = gREG_RowCount
         gREG_RowCount += 1
+        gREG_Rows(idx).pTheme = 0
+        gREG_Rows(idx).pFonts = 0
     end if
     gREG_Rows(idx).hwnd     = h
     gREG_Rows(idx).prio     = prio
@@ -128,6 +150,93 @@ public sub PsRegistry_Remove( byval h as HWND )
     if idx = -1 then exit sub
     gREG_Rows(idx).bDead = true
     gREG_HasDead = true
+    REG_Compact()
+end sub
+
+' ========================================================================================
+' A popup handed to an owner: its filter and dismiss procs go, its row (and theme) stays.
+' ========================================================================================
+public sub PsRegistry_ClearFilter( byval h as HWND )
+    dim as long idx = REG_FindRow( h )
+    if idx = -1 then exit sub
+    gREG_Rows(idx).pFilter = 0
+    gREG_Rows(idx).pDismiss = 0
+end sub
+
+public function PsRegistry_HasFilter( byval h as HWND ) as boolean
+    dim as long idx = REG_FindRow( h )
+    if idx = -1 then return false
+    return gREG_Rows(idx).pFilter <> 0
+end function
+
+' ========================================================================================
+' A control's theme and font procs (at the end of its Create). Adds a row when h has none.
+' The current theme, if any, is applied at once, then the font hook runs.
+' ========================================================================================
+public sub PsRegistry_SetThemeProcs( byval h as HWND, byval pTheme as PSREG_ThemeProc, _
+                                     byval pFonts as PSREG_FontProc = 0 )
+    if h = 0 then exit sub
+    dim as long idx = REG_FindRow( h )
+    if idx = -1 then
+        PsRegistry_Add( h, PSREG_PRIO_OWNER, 0, 0 )
+        idx = REG_FindRow( h )
+        if idx = -1 then exit sub
+    end if
+    gREG_Rows(idx).pTheme = pTheme
+    gREG_Rows(idx).pFonts = pFonts
+    if gREG_bHasTheme andalso (pTheme <> 0) then pTheme( h, gREG_Theme )
+    if (gREG_FontHook <> 0) andalso (pFonts <> 0) then gREG_FontHook( h, pFonts )
+end sub
+
+' ========================================================================================
+' The current theme. SetTheme applies it to every row; ClearTheme stops new controls from
+' being themed (controls already themed keep their colours).
+' ========================================================================================
+public sub PsRegistry_SetTheme( byref t as PSTHEME_COLORS )
+    gREG_Theme = t
+    gREG_bHasTheme = true
+    gREG_WalkDepth += 1
+    dim as long nRows = gREG_RowCount
+    for i as long = 0 to nRows - 1
+        if gREG_Rows(i).bDead then continue for
+        dim as PSREG_ThemeProc p = gREG_Rows(i).pTheme
+        if p = 0 then continue for
+        dim as HWND h = gREG_Rows(i).hwnd
+        if IsWindow( h ) = 0 then continue for
+        p( h, gREG_Theme )
+    next
+    gREG_WalkDepth -= 1
+    REG_Compact()
+end sub
+
+public sub PsRegistry_ClearTheme( )
+    gREG_bHasTheme = false
+end sub
+
+public function PsRegistry_GetTheme( byref t as PSTHEME_COLORS ) as boolean
+    if gREG_bHasTheme = false then return false
+    t = gREG_Theme
+    return true
+end function
+
+public sub PsRegistry_SetFontHook( byval p as PSREG_FontHookProc )
+    gREG_FontHook = p
+end sub
+
+' Calls every row's font proc whose top-level window is hRoot (P4: after a DPI change).
+public sub PsRegistry_ApplyFonts( byval hRoot as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+    gREG_WalkDepth += 1
+    dim as long nRows = gREG_RowCount
+    for i as long = 0 to nRows - 1
+        if gREG_Rows(i).bDead then continue for
+        dim as PSREG_FontProc p = gREG_Rows(i).pFonts
+        if p = 0 then continue for
+        dim as HWND h = gREG_Rows(i).hwnd
+        if IsWindow( h ) = 0 then continue for
+        if (GetAncestor( h, GA_ROOTOWNER ) <> hRoot) andalso (GetAncestor( h, GA_ROOT ) <> hRoot) then continue for
+        p( h, hTextFont, hGlyphFont )
+    next
+    gREG_WalkDepth -= 1
     REG_Compact()
 end sub
 
@@ -254,6 +363,15 @@ public function PsRegistry_GlobalCount( ) as long
     dim as long n = 0
     for i as long = 0 to gREG_GlobalCount - 1
         if gREG_Globals(i).nRefs > 0 then n += 1
+    next
+    return n
+end function
+
+' Rows that carry a filter (the pump obligations alone, for tests).
+public function PsRegistry_FilterRowCount( ) as long
+    dim as long n = 0
+    for i as long = 0 to gREG_RowCount - 1
+        if (gREG_Rows(i).bDead = false) andalso (gREG_Rows(i).pFilter <> 0) then n += 1
     next
     return n
 end function

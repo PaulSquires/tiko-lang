@@ -11,11 +11,15 @@
 #import "sys/win/gdiplus"
 #import "vendor/PsControls/PsBufferPaint"
 #import "vendor/PsControls/PsTipHost"
+#import "vendor/PsControls/PsRegistry"
+#import "vendor/PsControls/PsTheme"
 
 using gui
 using gdiplus
 using PsBufferPaint
 using PsTipHost
+using PsRegistry
+using PsTheme
 
 ' The tooltip backend switch. The control ships on the SYSTEM (comctl32) backend exactly
 ' as it always has; a host opts an instance into PsTooltip with PsSelectBar_SetTooltipMode.
@@ -150,6 +154,9 @@ public type SEL_SelChangeCallbackSub as sub( byval hSelectBar as HWND, byval idx
 
 public type PSSELECTBAR_STATE
     hWin              as HWND
+    ' TRUE once the host set the colours itself (PsSelectBar_SetColors): the theme then leaves this
+    ' bar alone until PsSelectBar_UnpinColors.
+    bColorsPinned     as boolean
     ' The tooltip, whichever backend it is on. Replaces the old hToolTip + HoverTime
     ' pair; PsSelectBar_GetTooltipHandle still answers the comctl32 handle, and 0 while
     ' this instance is on PsTooltip.
@@ -541,6 +548,10 @@ public declare function PsSelectBar_GetIdealWidth( byval hSelectBar as HWND ) as
 ' ----------------------------------------------------------------------------------------
 public declare sub      PsSelectBar_GetColors( byval hSelectBar as HWND, byval pColors as PSSELECTBAR_COLORS ptr )
 public declare sub      PsSelectBar_SetColors( byval hSelectBar as HWND, byval pColors as PSSELECTBAR_COLORS ptr )
+public declare function PsSelectBar_ThemeColors( byref t as PSTHEME_COLORS ) as PSSELECTBAR_COLORS
+public declare sub      PsSelectBar_ApplyTheme( byval hSelectBar as HWND, byref t as PSTHEME_COLORS )
+public declare sub      PsSelectBar_UnpinColors( byval hSelectBar as HWND )
+public declare sub      PsSelectBar_ApplyFonts( byval hSelectBar as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
 public declare function PsSelectBar_GetFont( byval hSelectBar as HWND ) as HFONT
 public declare function PsSelectBar_SetFont( byval hSelectBar as HWND, byval hPanelFont as HFONT ) as boolean
 public declare function PsSelectBar_GetTooltipHandle( byval hSelectBar as HWND ) as HWND
@@ -977,7 +988,47 @@ public sub PsSelectBar_SetColors( byval hSelectBar as HWND, byval pColors as PSS
     dim as PSSELECTBAR_STATE ptr pSel = GetSelectBarPointer(hSelectBar)
     if pSel = null then exit sub
     pSel->colors = *pColors
+    pSel->bColorsPinned = true
     if pSel->hWin then InvalidateRect( pSel->hWin, NULL, TRUE )
+end sub
+
+' ========================================================================================
+' The theme (vendor/PsControls/PsTheme). ThemeColors is the adapter: the bar's colours
+' derived from the theme's roles. ApplyTheme applies them unless the host pinned its own.
+' ========================================================================================
+public function PsSelectBar_ThemeColors( byref t as PSTHEME_COLORS ) as PSSELECTBAR_COLORS
+    dim as PSSELECTBAR_COLORS c
+    c.BackColor         = t.Window
+    c.ForeColor         = t.TextDim
+    c.BackColorHot      = t.Window
+    c.ForeColorHot      = t.TextHot
+    c.BackColorSelect   = t.Window
+    c.ForeColorSelect   = t.TextStrong
+    c.ForeColorDisabled = t.TextDisabled
+    c.IndicatorColor    = t.TextStrong
+    return c
+end function
+
+public sub PsSelectBar_ApplyTheme( byval hSelectBar as HWND, byref t as PSTHEME_COLORS )
+    dim as PSSELECTBAR_STATE ptr pSel = GetSelectBarPointer(hSelectBar)
+    if (pSel = 0) orelse pSel->bColorsPinned then exit sub
+    dim as PSSELECTBAR_COLORS c = PsSelectBar_ThemeColors( t )
+    PsSelectBar_SetColors( hSelectBar, @c )
+    pSel->bColorsPinned = false
+end sub
+
+' Hands the bar back to the theme, which is applied at once.
+public sub PsSelectBar_UnpinColors( byval hSelectBar as HWND )
+    dim as PSSELECTBAR_STATE ptr pSel = GetSelectBarPointer(hSelectBar)
+    if pSel = 0 then exit sub
+    pSel->bColorsPinned = false
+    dim as PSTHEME_COLORS t
+    if PsRegistry_GetTheme( t ) then PsSelectBar_ApplyTheme( hSelectBar, t )
+end sub
+
+' The form's fonts (PsApp), handed over when the bar is created on a form.
+public sub PsSelectBar_ApplyFonts( byval hSelectBar as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+    if hTextFont then PsSelectBar_SetFont( hSelectBar, hTextFont )
 end sub
 
 
@@ -1527,6 +1578,7 @@ function PsSelectBar_WndProc( _
         end if
 
     case WM_DESTROY
+        PsRegistry_Remove( hwnd )
         if pSel then
             ' Don't let the hot-tracking timer outlive the window...
             if pSel->hotTimerOn then
@@ -1613,6 +1665,9 @@ public function PsSelectBar_Create( byval hWndParent as HWND, byval CtrlID as lo
     ' AFTER UserData, not before: PsSelectBar_TipTextCallback resolves the control through
     ' GetSelectBarPointer(hAttached), which reads exactly that slot.
     PsTipHost_Ensure( @pSel->tip, hCtrl, @PsSelectBar_TipTextCallback )
+
+    ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
+    PsRegistry_SetThemeProcs( hCtrl, @PsSelectBar_ApplyTheme, @PsSelectBar_ApplyFonts )
 
 
     function = hCtrl

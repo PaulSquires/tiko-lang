@@ -16,12 +16,16 @@
 #import "vendor/PsControls/PsBufferPaint"
 #import "vendor/PsControls/PsTipHost"
 #import "vendor/PsControls/PsTooltip"
+#import "vendor/PsControls/PsRegistry"
+#import "vendor/PsControls/PsTheme"
 
 using gui
 using gdiplus
 using PsBufferPaint
 using PsTipHost
 using PsTooltip
+using PsRegistry
+using PsTheme
 
 ' The family names its booleans bOK, never "ok" -- a convention from AfxNova, where GDI+'s
 ' Ok = 0 made an "ok" a duplicate definition. Under sys/win an "ok" of your own compiles.
@@ -230,6 +234,9 @@ public type PRG_TextCallbackFunc as function( byval hProgressBar as HWND, _
 
 public type PSPROGRESSBAR_STATE
     hWin            as HWND
+    ' TRUE once the host set the colours itself (PsProgressBar_SetColors): the theme then
+    ' leaves this bar alone until PsProgressBar_UnpinColors.
+    bColorsPinned   as boolean
     idc_ProgressBar as long = 0
     ' The tooltip, whichever backend it is on. Replaces the old hToolTip field;
     ' PsProgressBar_GetTooltipHandle still answers the comctl32 handle, and 0 while this
@@ -623,6 +630,10 @@ public declare function PsProgressBar_GetDisplayText( byval hProgressBar as HWND
 ' --- Colors ---
 public declare sub      PsProgressBar_GetColors( byval hProgressBar as HWND, byval pColors as PSPROGRESSBAR_COLORS ptr )
 public declare sub      PsProgressBar_SetColors( byval hProgressBar as HWND, byval pColors as PSPROGRESSBAR_COLORS ptr )
+public declare function PsProgressBar_ThemeColors( byref t as PSTHEME_COLORS ) as PSPROGRESSBAR_COLORS
+public declare sub      PsProgressBar_ApplyTheme( byval hProgressBar as HWND, byref t as PSTHEME_COLORS )
+public declare sub      PsProgressBar_UnpinColors( byval hProgressBar as HWND )
+public declare sub      PsProgressBar_ApplyFonts( byval hProgressBar as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
 ' The state x enabled precedence, resolved. Public because it is a pure decision the host may
 ' need to mirror, and because that makes the precedence table assertable.
 public declare sub      PsProgressBar_ResolveBarColors( byval hProgressBar as HWND, byref clr1 as COLORREF, byref clr2 as COLORREF )
@@ -1280,6 +1291,7 @@ function PsProgressBar_WndProc( _
         end if
 
     case WM_DESTROY
+        PsRegistry_Remove( hwnd )
         if pBar then
             ' Don't let the marquee timer outlive the window. There is no capture to release
             ' and no press to cancel -- this control never took either.
@@ -1375,6 +1387,9 @@ public function PsProgressBar_Create( byval hWndParent as HWND, _
     ' AFTER UserData, not before: PsProgressBar_TipTextCallback resolves the control through
     ' GetProgressBarPointer(hAttached), which reads exactly that slot.
     PsTipHost_Ensure( @pBar->tip, hCtrl, @PsProgressBar_TipTextCallback )
+
+    ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
+    PsRegistry_SetThemeProcs( hCtrl, @PsProgressBar_ApplyTheme, @PsProgressBar_ApplyFonts )
 
     function = hCtrl
 
@@ -1832,7 +1847,54 @@ sub PsProgressBar_SetColors( byval hProgressBar as HWND, byval pColors as PSPROG
     dim as PSPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer(hProgressBar)
     if (pBar = 0) orelse (pColors = 0) then exit sub
     pBar->colors = *pColors
+    pBar->bColorsPinned = true
     if pBar->hWin then InvalidateRect( pBar->hWin, NULL, FALSE )
+end sub
+
+' ========================================================================================
+' The theme (vendor/PsControls/PsTheme). ThemeColors is the adapter: the bar's colours
+' derived from the theme's roles. ApplyTheme applies them unless the host pinned its own.
+' Each state's End stop takes the same role as its start, so a themed gradient is flat.
+' ========================================================================================
+public function PsProgressBar_ThemeColors( byref t as PSTHEME_COLORS ) as PSPROGRESSBAR_COLORS
+    dim as PSPROGRESSBAR_COLORS c
+    c.BackColor           = t.Window
+    c.TrackColor          = t.Track
+    c.TrackBorderColor    = t.Border
+    c.BarColor            = t.Accent
+    c.BarColorEnd         = t.Accent
+    c.BarColorPaused      = t.Warning
+    c.BarColorPausedEnd   = t.Warning
+    c.BarColorError       = t.Error
+    c.BarColorErrorEnd    = t.Error
+    c.BarColorDisabled    = t.TextDisabled
+    c.BarColorDisabledEnd = t.TextDisabled
+    c.TextColor           = t.Text
+    c.TextColorOnBar      = t.SelectedText
+    c.TextColorDisabled   = t.TextDisabled
+    return c
+end function
+
+public sub PsProgressBar_ApplyTheme( byval hProgressBar as HWND, byref t as PSTHEME_COLORS )
+    dim as PSPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer(hProgressBar)
+    if (pBar = 0) orelse pBar->bColorsPinned then exit sub
+    dim as PSPROGRESSBAR_COLORS c = PsProgressBar_ThemeColors( t )
+    PsProgressBar_SetColors( hProgressBar, @c )
+    pBar->bColorsPinned = false
+end sub
+
+' Hands the bar back to the theme, which is applied at once.
+public sub PsProgressBar_UnpinColors( byval hProgressBar as HWND )
+    dim as PSPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer(hProgressBar)
+    if pBar = 0 then exit sub
+    pBar->bColorsPinned = false
+    dim as PSTHEME_COLORS t
+    if PsRegistry_GetTheme( t ) then PsProgressBar_ApplyTheme( hProgressBar, t )
+end sub
+
+' The form's fonts (PsApp), handed over when the bar is created on a form. No glyph font.
+public sub PsProgressBar_ApplyFonts( byval hProgressBar as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+    if hTextFont then PsProgressBar_SetFont( hProgressBar, hTextFont )
 end sub
 
 sub PsProgressBar_ResolveBarColors( byval hProgressBar as HWND, byref clr1 as COLORREF, byref clr2 as COLORREF )

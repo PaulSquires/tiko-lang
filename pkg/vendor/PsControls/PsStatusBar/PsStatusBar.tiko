@@ -11,11 +11,15 @@
 #import "sys/win/gdiplus"
 #import "vendor/PsControls/PsBufferPaint"
 #import "vendor/PsControls/PsTipHost"
+#import "vendor/PsControls/PsRegistry"
+#import "vendor/PsControls/PsTheme"
 
 using gui
 using gdiplus
 using PsBufferPaint
 using PsTipHost
+using PsRegistry
+using PsTheme
 
 ' The tooltip backend switch. The control ships on the SYSTEM (comctl32) backend exactly
 ' as it always has; a host opts an instance into PsTooltip with PsStatusBar_SetTooltipMode.
@@ -86,6 +90,9 @@ public type SB_TooltipCallbackFunc as function( byval hStatusBar as HWND, byval 
 
 public type PSSTATUSBAR_STATE
     hWin            as HWND
+    ' TRUE once the host set the colours itself (PsStatusBar_SetBackColor): the theme then leaves
+    ' this status bar alone until PsStatusBar_UnpinColors.
+    bColorsPinned   as boolean
     ' The tooltip, whichever backend it is on. Replaces the old hToolTip + HoverTime
     ' pair; PsStatusBar_GetTooltipHandle still answers the comctl32 handle, and 0 while
     ' this instance is on PsTooltip.
@@ -371,6 +378,9 @@ public declare function PsStatusBar_GetPanelRect( byval hStatusBarControl as HWN
 ' ----------------------------------------------------------------------------------------
 public declare function PsStatusBar_GetBackColor( byval hStatusBarControl as HWND ) as COLORREF
 public declare function PsStatusBar_SetBackColor( byval hStatusBarControl as HWND, byval clr as COLORREF ) as COLORREF
+public declare sub      PsStatusBar_ApplyTheme( byval hStatusBarControl as HWND, byref t as PSTHEME_COLORS )
+public declare sub      PsStatusBar_UnpinColors( byval hStatusBarControl as HWND )
+public declare sub      PsStatusBar_ApplyFonts( byval hStatusBarControl as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
 public declare function PsStatusBar_GetFont( byval hStatusBarControl as HWND ) as HFONT
 public declare function PsStatusBar_SetFont( byval hStatusBarControl as HWND, byval hFont as HFONT ) as boolean
 public declare function PsStatusBar_GetTooltipHandle( byval hStatusBarControl as HWND ) as HWND
@@ -786,8 +796,34 @@ public function PsStatusBar_SetBackColor( byval hStatusBarControl as HWND, byval
     if pStatus = null then return 0
     dim as COLORREF oldClr = pStatus->BackColor
     pStatus->BackColor = clr
+    pStatus->bColorsPinned = true
     return oldClr
 end function
+
+' ========================================================================================
+' The theme (vendor/PsControls/PsTheme). ApplyTheme sets the status bar's colour from the
+' theme's roles unless the host pinned its own.
+' ========================================================================================
+public sub PsStatusBar_ApplyTheme( byval hStatusBarControl as HWND, byref t as PSTHEME_COLORS )
+    dim as PSSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer(hStatusBarControl)
+    if (pStatus = 0) orelse pStatus->bColorsPinned then exit sub
+    PsStatusBar_SetBackColor( hStatusBarControl, t.Window )
+    pStatus->bColorsPinned = false
+end sub
+
+' Hands the status bar back to the theme, which is applied at once.
+public sub PsStatusBar_UnpinColors( byval hStatusBarControl as HWND )
+    dim as PSSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer(hStatusBarControl)
+    if pStatus = 0 then exit sub
+    pStatus->bColorsPinned = false
+    dim as PSTHEME_COLORS t
+    if PsRegistry_GetTheme( t ) then PsStatusBar_ApplyTheme( hStatusBarControl, t )
+end sub
+
+' The form's fonts (PsApp), handed over when the status bar is created on a form.
+public sub PsStatusBar_ApplyFonts( byval hStatusBarControl as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+    if hTextFont then PsStatusBar_SetFont( hStatusBarControl, hTextFont )
+end sub
 
 
 ' ========================================================================================
@@ -1043,6 +1079,7 @@ function PsStatusBar_WndProc( _
         end if
 
     case WM_DESTROY
+        PsRegistry_Remove( hwnd )
         ' Don't let the hot-tracking timer outlive the window.
         if (pStatus <> 0) andalso pStatus->hotTimerOn then
             KillTimer( hwnd, IDT_CSTATUSBAR_HOTTRACK )
@@ -1120,6 +1157,8 @@ public function PsStatusBar_Create( byval hWndParent as HWND, byval CtrlID as in
     ' GetStatusBarPointer(hAttached), which reads exactly that slot.
     PsTipHost_Ensure( @pStatus->tip, hCtrl, @PsStatusBar_TipTextCallback )
     
+    ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
+    PsRegistry_SetThemeProcs( hCtrl, @PsStatusBar_ApplyTheme, @PsStatusBar_ApplyFonts )
 
     function = hCtrl
     

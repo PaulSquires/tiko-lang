@@ -18,10 +18,14 @@
 #import "sys/win/gui"
 #import "sys/win/gdiplus"
 #import "vendor/PsControls/PsBufferPaint"
+#import "vendor/PsControls/PsRegistry"
+#import "vendor/PsControls/PsTheme"
 
 using gui
 using gdiplus
 using PsBufferPaint
+using PsRegistry
+using PsTheme
 
 ' Timer ids are per-window, so every instance can share these values.
 public const IDT_CVSCROLL_HOTTRACK = &hCB10
@@ -47,6 +51,9 @@ public type VScrollCallbackSub as sub( byval hScrollBar as HWND, byval newPos as
 
 public type PSVSCROLLBAR_STATE
     hWin          as HWND
+    ' TRUE once the host set the colours itself (PsVScrollBar_SetColors): the theme then leaves
+    ' this scrollbar alone until PsVScrollBar_UnpinColors.
+    bColorsPinned as boolean
     ' --- Range model. Deliberately generic: "total" units, "page" units visible,
     '     "pos" = index of the first visible unit. ---
     nTotal        as integer = 0
@@ -167,6 +174,8 @@ public declare sub      PsVScrollBar_SetColors( byval hSB as HWND, byval backclr
 ' The left-edge rule. Call with bShow = false (the default) to remove it again.
 public declare sub      PsVScrollBar_SetDividerColor( byval hSB as HWND, byval clr as COLORREF, byval bShow as boolean = true )
 public declare function PsVScrollBar_GetDividerColor( byval hSB as HWND ) as COLORREF
+public declare sub      PsVScrollBar_ApplyTheme( byval hSB as HWND, byref t as PSTHEME_COLORS )
+public declare sub      PsVScrollBar_UnpinColors( byval hSB as HWND )
 public declare sub      PsVScrollBar_SetPaintCallback( byval hSB as HWND, byval usersub as VScrollPaintCallbackSub )
 public declare sub      PsVScrollBar_SetScrollCallback( byval hSB as HWND, byval usersub as VScrollCallbackSub )
 
@@ -545,6 +554,7 @@ function PsVScrollBar_WndProc( _
         end if
 
     case WM_NCDESTROY
+        PsRegistry_Remove( hwnd )
         if pSB then
             PsVScrollBar_StopRepeat( pSB )
             if pSB->hotTimerOn then KillTimer( hwnd, IDT_CVSCROLL_HOTTRACK )
@@ -577,6 +587,9 @@ public function PsVScrollBar_Create( byval hWndParent as HWND, byval CtrlID as i
     pSB->hWin = hSB
     pWindow->UserData(0) = cast(LONG_PTR, pSB)
     SetWindowLongPtr( hSB, GWLP_ID, CtrlID )
+
+    ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
+    PsRegistry_SetThemeProcs( hSB, @PsVScrollBar_ApplyTheme, 0 )
 
     function = hSB
 end function
@@ -635,6 +648,7 @@ public sub PsVScrollBar_SetColors( byval hSB as HWND, byval backclr as COLORREF,
     pSB->BackColor    = backclr
     pSB->ForeColor    = foreclr
     pSB->ForeColorHot = foreclrhot
+    pSB->bColorsPinned = true
     InvalidateRect( hSB, NULL, FALSE )
 end sub
 
@@ -644,6 +658,7 @@ public sub PsVScrollBar_SetDividerColor( byval hSB as HWND, byval clr as COLORRE
     if pSB = 0 then exit sub
     pSB->DividerColor = clr
     pSB->bHasDivider  = bShow
+    pSB->bColorsPinned = true
     InvalidateRect( hSB, NULL, FALSE )
 end sub
 
@@ -652,6 +667,27 @@ public function PsVScrollBar_GetDividerColor( byval hSB as HWND ) as COLORREF
     if pSB = 0 then return 0
     return pSB->DividerColor
 end function
+
+' ========================================================================================
+' The theme (vendor/PsControls/PsTheme). ApplyTheme sets the scrollbar's colours from the
+' theme's roles unless the host pinned its own. The divider keeps its shown/hidden state.
+' ========================================================================================
+public sub PsVScrollBar_ApplyTheme( byval hSB as HWND, byref t as PSTHEME_COLORS )
+    dim as PSVSCROLLBAR_STATE ptr pSB = GetVScrollBarPointer(hSB)
+    if (pSB = 0) orelse pSB->bColorsPinned then exit sub
+    PsVScrollBar_SetColors( hSB, t.Window, t.Border, t.TextDisabled )
+    PsVScrollBar_SetDividerColor( hSB, t.Divider, pSB->bHasDivider )
+    pSB->bColorsPinned = false
+end sub
+
+' Hands the scrollbar back to the theme, which is applied at once.
+public sub PsVScrollBar_UnpinColors( byval hSB as HWND )
+    dim as PSVSCROLLBAR_STATE ptr pSB = GetVScrollBarPointer(hSB)
+    if pSB = 0 then exit sub
+    pSB->bColorsPinned = false
+    dim as PSTHEME_COLORS t
+    if PsRegistry_GetTheme( t ) then PsVScrollBar_ApplyTheme( hSB, t )
+end sub
 
 public sub PsVScrollBar_SetPaintCallback( byval hSB as HWND, byval usersub as VScrollPaintCallbackSub )
     dim as PSVSCROLLBAR_STATE ptr pSB = GetVScrollBarPointer(hSB)

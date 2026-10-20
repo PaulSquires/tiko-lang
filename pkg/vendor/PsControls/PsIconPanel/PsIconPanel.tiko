@@ -12,12 +12,16 @@
 #import "vendor/PsControls/PsBufferPaint"
 #import "vendor/PsControls/PsImage"
 #import "vendor/PsControls/PsTipHost"
+#import "vendor/PsControls/PsRegistry"
+#import "vendor/PsControls/PsTheme"
 
 using gui
 using gdiplus
 using PsBufferPaint
 using PsImage
 using PsTipHost
+using PsRegistry
+using PsTheme
 
 ' An item can show a real image file (.ico/.png/.bmp/.jpg) instead of a Fluent glyph.
 ' PsImage owns the decode; PsPaintBuffer.PaintImage draws it. See PsIconPanel_SetImage.
@@ -199,6 +203,9 @@ public type IP_SelChangeCallbackSub as sub( byval hIconPanel as HWND, byval idx 
 
 public type PSICONPANEL_STATE
     hWin              as HWND
+    ' TRUE once the host set the colours itself (PsIconPanel_SetColors): the theme then leaves this
+    ' panel alone until PsIconPanel_UnpinColors.
+    bColorsPinned     as boolean
     ' The tooltip, whichever backend it is on. Replaces the old hToolTip + HoverTime
     ' pair; PsIconPanel_GetTooltipHandle still answers the comctl32 handle, and 0 while
     ' this instance is on PsTooltip.
@@ -588,6 +595,10 @@ public declare function PsIconPanel_GetIdealWidth( byval hIconPanel as HWND ) as
 ' ----------------------------------------------------------------------------------------
 public declare sub      PsIconPanel_GetColors( byval hIconPanel as HWND, byval pColors as PSICONPANEL_COLORS ptr )
 public declare sub      PsIconPanel_SetColors( byval hIconPanel as HWND, byval pColors as PSICONPANEL_COLORS ptr )
+public declare function PsIconPanel_ThemeColors( byref t as PSTHEME_COLORS ) as PSICONPANEL_COLORS
+public declare sub      PsIconPanel_ApplyTheme( byval hIconPanel as HWND, byref t as PSTHEME_COLORS )
+public declare sub      PsIconPanel_UnpinColors( byval hIconPanel as HWND )
+public declare sub      PsIconPanel_ApplyFonts( byval hIconPanel as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
 public declare function PsIconPanel_SetItemForeColor( byval hIconPanel as HWND, byval idx as long, byval clr as COLORREF ) as boolean
 public declare function PsIconPanel_ClearItemForeColor( byval hIconPanel as HWND, byval idx as long ) as boolean
 public declare function PsIconPanel_GetFont( byval hIconPanel as HWND ) as HFONT
@@ -1107,7 +1118,47 @@ public sub PsIconPanel_SetColors( byval hIconPanel as HWND, byval pColors as PSI
     dim as PSICONPANEL_STATE ptr pIcon = GetIconPanelPointer(hIconPanel)
     if pIcon = null then exit sub
     pIcon->colors = *pColors
+    pIcon->bColorsPinned = true
     if pIcon->hWin then InvalidateRect( pIcon->hWin, NULL, TRUE )
+end sub
+
+' ========================================================================================
+' The theme (vendor/PsControls/PsTheme). ThemeColors is the adapter: the panel's colours
+' derived from the theme's roles. ApplyTheme applies them unless the host pinned its own.
+' ========================================================================================
+public function PsIconPanel_ThemeColors( byref t as PSTHEME_COLORS ) as PSICONPANEL_COLORS
+    dim as PSICONPANEL_COLORS c
+    c.BackColor         = t.Window
+    c.ForeColor         = t.Text
+    c.BackColorHot      = t.SurfaceHot
+    c.ForeColorHot      = t.TextHot
+    c.BackColorSelect   = t.Selected
+    c.ForeColorSelect   = t.SelectedText
+    c.ForeColorDisabled = t.TextDisabled
+    c.SeparatorColor    = t.Divider
+    return c
+end function
+
+public sub PsIconPanel_ApplyTheme( byval hIconPanel as HWND, byref t as PSTHEME_COLORS )
+    dim as PSICONPANEL_STATE ptr pIcon = GetIconPanelPointer(hIconPanel)
+    if (pIcon = 0) orelse pIcon->bColorsPinned then exit sub
+    dim as PSICONPANEL_COLORS c = PsIconPanel_ThemeColors( t )
+    PsIconPanel_SetColors( hIconPanel, @c )
+    pIcon->bColorsPinned = false
+end sub
+
+' Hands the panel back to the theme, which is applied at once.
+public sub PsIconPanel_UnpinColors( byval hIconPanel as HWND )
+    dim as PSICONPANEL_STATE ptr pIcon = GetIconPanelPointer(hIconPanel)
+    if pIcon = 0 then exit sub
+    pIcon->bColorsPinned = false
+    dim as PSTHEME_COLORS t
+    if PsRegistry_GetTheme( t ) then PsIconPanel_ApplyTheme( hIconPanel, t )
+end sub
+
+' The form's fonts (PsApp), handed over when the panel is created on a form.
+public sub PsIconPanel_ApplyFonts( byval hIconPanel as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+    if hGlyphFont then PsIconPanel_SetFont( hIconPanel, hGlyphFont )
 end sub
 
 
@@ -1688,6 +1739,7 @@ function PsIconPanel_WndProc( _
         end if
 
     case WM_DESTROY
+        PsRegistry_Remove( hwnd )
         if pIcon then
             ' Don't let the hot-tracking timer outlive the window...
             if pIcon->hotTimerOn then
@@ -1776,6 +1828,9 @@ public function PsIconPanel_Create( byval hWndParent as HWND, byval CtrlID as lo
     ' AFTER UserData, not before: PsIconPanel_TipTextCallback resolves the control through
     ' GetIconPanelPointer(hAttached), which reads exactly that slot.
     PsTipHost_Ensure( @pIcon->tip, hCtrl, @PsIconPanel_TipTextCallback )
+
+    ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
+    PsRegistry_SetThemeProcs( hCtrl, @PsIconPanel_ApplyTheme, @PsIconPanel_ApplyFonts )
 
 
     function = hCtrl

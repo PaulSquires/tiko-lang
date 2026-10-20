@@ -11,11 +11,15 @@
 #import "sys/win/gdiplus"
 #import "vendor/PsControls/PsBufferPaint"
 #import "vendor/PsControls/PsTipHost"
+#import "vendor/PsControls/PsRegistry"
+#import "vendor/PsControls/PsTheme"
 
 using gui
 using gdiplus
 using PsBufferPaint
 using PsTipHost
+using PsRegistry
+using PsTheme
 
 ' The tooltip backend switch. The control ships on the SYSTEM (comctl32) backend exactly
 ' as it always has; a host opts an instance into PsTooltip with PsTabBar_SetTooltipMode.
@@ -161,6 +165,9 @@ public type TB_ReorderCallbackSub as sub( byval hTabBar as HWND, byval idxFrom a
 
 public type PSTABBAR_STATE
     hWin            as HWND
+    ' TRUE once the host set the colours itself (PsTabBar_SetBackColor/SetBorderColor): the theme
+    ' then leaves this tab bar alone until PsTabBar_UnpinColors.
+    bColorsPinned   as boolean
     ' The tooltip, whichever backend it is on. Replaces the old hToolTip + HoverTime
     ' pair; PsTabBar_GetTooltipHandle still answers the comctl32 handle, and 0 while
     ' this instance is on PsTooltip.
@@ -701,6 +708,9 @@ public declare function PsTabBar_GetBackColor( byval hTabBar as HWND ) as COLORR
 public declare function PsTabBar_SetBackColor( byval hTabBar as HWND, byval clr as COLORREF ) as COLORREF
 public declare function PsTabBar_GetBorderColor( byval hTabBar as HWND ) as COLORREF
 public declare function PsTabBar_SetBorderColor( byval hTabBar as HWND, byval clr as COLORREF ) as COLORREF
+public declare sub      PsTabBar_ApplyTheme( byval hTabBar as HWND, byref t as PSTHEME_COLORS )
+public declare sub      PsTabBar_UnpinColors( byval hTabBar as HWND )
+public declare sub      PsTabBar_ApplyFonts( byval hTabBar as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
 public declare function PsTabBar_GetBorderWidth( byval hTabBar as HWND ) as integer
 public declare sub      PsTabBar_SetBorderWidth( byval hTabBar as HWND, byval nBorderWidth as integer )
 public declare function PsTabBar_GetFont( byval hTabBar as HWND ) as HFONT
@@ -1186,6 +1196,7 @@ public function PsTabBar_SetBorderColor( byval hTabBar as HWND, byval clr as COL
     if pTabBar = null then return 0
     dim as COLORREF oldClr = pTabBar->BorderColor
     pTabBar->BorderColor = clr
+    pTabBar->bColorsPinned = true
     if pTabBar->hWin then InvalidateRect( pTabBar->hWin, NULL, TRUE )
     return oldClr
 end function
@@ -1341,8 +1352,35 @@ public function PsTabBar_SetBackColor( byval hTabBar as HWND, byval clr as COLOR
     if pTabBar = null then return 0
     dim as COLORREF oldClr = pTabBar->BackColor
     pTabBar->BackColor = clr
+    pTabBar->bColorsPinned = true
     return oldClr
 end function
+
+' ========================================================================================
+' The theme (vendor/PsControls/PsTheme). ApplyTheme sets the tab bar's colours from the
+' theme's roles unless the host pinned its own.
+' ========================================================================================
+public sub PsTabBar_ApplyTheme( byval hTabBar as HWND, byref t as PSTHEME_COLORS )
+    dim as PSTABBAR_STATE ptr pTabBar = GetTabBarPointer(hTabBar)
+    if (pTabBar = 0) orelse pTabBar->bColorsPinned then exit sub
+    PsTabBar_SetBackColor( hTabBar, t.Window )
+    PsTabBar_SetBorderColor( hTabBar, t.Border )
+    pTabBar->bColorsPinned = false
+end sub
+
+' Hands the tab bar back to the theme, which is applied at once.
+public sub PsTabBar_UnpinColors( byval hTabBar as HWND )
+    dim as PSTABBAR_STATE ptr pTabBar = GetTabBarPointer(hTabBar)
+    if pTabBar = 0 then exit sub
+    pTabBar->bColorsPinned = false
+    dim as PSTHEME_COLORS t
+    if PsRegistry_GetTheme( t ) then PsTabBar_ApplyTheme( hTabBar, t )
+end sub
+
+' The form's fonts (PsApp), handed over when the tab bar is created on a form.
+public sub PsTabBar_ApplyFonts( byval hTabBar as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
+    if hTextFont then PsTabBar_SetFont( hTabBar, hTextFont )
+end sub
 
 
 ' ========================================================================================
@@ -1884,6 +1922,7 @@ function PsTabBar_WndProc( _
         end if
 
     case WM_DESTROY
+        PsRegistry_Remove( hwnd )
         ' Don't let the hot-tracking timer -- or a live mouse capture -- outlive the window.
         if (pTabBar <> 0) andalso pTabBar->hotTimerOn then
             KillTimer( hwnd, IDT_CTABBAR_HOTTRACK )
@@ -1968,6 +2007,8 @@ public function PsTabBar_Create( byval hWndParent as HWND, byval CtrlID as integ
     ' GetTabBarPointer(hAttached), which reads exactly that slot.
     PsTipHost_Ensure( @pTabBar->tip, hCtrl, @PsTabBar_TipTextCallback )
     
+    ' The theme and the form's fonts, applied now if a PsApp program has them (PsRegistry).
+    PsRegistry_SetThemeProcs( hCtrl, @PsTabBar_ApplyTheme, @PsTabBar_ApplyFonts )
 
     function = hCtrl
     
