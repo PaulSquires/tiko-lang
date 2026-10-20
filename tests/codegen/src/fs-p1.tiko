@@ -36,7 +36,8 @@ Check( "msg block", fs.FsErrorMessage( fs.FS_WOULD_BLOCK ) = "would block" )
 Check( "msg links", fs.FsErrorMessage( fs.FS_TOO_MANY_LINKS ) = "too many links" )
 Check( "msg pipe", fs.FsErrorMessage( fs.FS_BROKEN_PIPE ) = "broken pipe" )
 Check( "msg arg", fs.FsErrorMessage( fs.FS_INVALID_ARGUMENT ) = "invalid argument" )
-Check( "msg past end", fs.FsErrorMessage( cast( fs.FsErrorCode, 26 ) ) = "unknown error" )
+'' One past the last code std/fs defines, so the table's bound is what is tested
+Check( "msg past end", fs.FsErrorMessage( cast( fs.FsErrorCode, fs.FS_CONNECTION_RESET + 1 ) ) = "unknown error" )
 
 dim as ustring tmp = fs.CreateTempDir( ).ValueOr( "" )
 if len( tmp ) = 0 then print "no temp dir" : end 1

@@ -8,4 +8,4 @@
 '' EXPECT-EXIT: 1
 '' EXPECT-MAX-DIAG: 1
 '' EXPECT-OUT: qy.tiko(6,8): error TKO0677: 'getdesktopwindow' is already declared with these parameter types
-'' EXPECT-OUT: winuser.bi(4589,9): note: declared here
+'' EXPECT-OUT: winuser.bi(4594,9): note: declared here
