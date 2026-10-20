@@ -418,6 +418,9 @@
     '' beats the silence this replaced: Check accepted the loop, lowering declined it, and the
     '' program ran zero iterations with no diagnostic at all (tiko-book T17).
     DIAG( TKO0688, SEV_ERROR,   "'for each' cannot walk a ustring; index it with 'for' and 'mid' instead" )
+    '' fbc's error 181 for a STRING STORED INTO A POINTER -- a literal, a constant, a variable,
+    '' a concatenation, by '=', 'function =' or 'return' -- symbols/assigncheck.tiko.
+    DIAG( TKO0689, SEV_ERROR,   "a string does not convert to a pointer" )
     '' fbc's errors 275, 77, 237 and 67.
     DIAG( TKO0690, SEV_ERROR,   "the dynamic array field '%0' cannot have a const element type" )
     DIAG( TKO0691, SEV_ERROR,   "the array field '%0' cannot take an ellipsis bound" )

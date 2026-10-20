@@ -1,0 +1,17 @@
+'' PsApp finding F5: TKO0689, fbc's 181, for a string stored into a pointer -- a constant
+'' over 'wstr( )' into a 'const wstring ptr' field (internal compiler error TKO0994 before),
+'' a narrow constant, a literal into an 'any ptr' (compiled before, storing the literal's
+'' address), a string, a ustring, a concatenation, 'return' and 'function ='. Every line
+'' fbc refuses, and no other: strptr( ), '@', a pointer and a character are fine.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/string-to-pointer.bas -o tests/diagnostics/strtoptr.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: string-to-pointer.bas(9,1): error TKO0689
+'' EXPECT-OUT: string-to-pointer.bas(11,1): error TKO0689
+'' EXPECT-OUT: string-to-pointer.bas(13,1): error TKO0689
+'' EXPECT-OUT: string-to-pointer.bas(15,1): error TKO0689
+'' EXPECT-OUT: string-to-pointer.bas(17,1): error TKO0689
+'' EXPECT-OUT: string-to-pointer.bas(18,1): error TKO0689
+'' EXPECT-OUT: string-to-pointer.bas(20,5): error TKO0689
+'' EXPECT-OUT: string-to-pointer.bas(23,5): error TKO0689
+'' EXPECT-MAX-DIAG: 8

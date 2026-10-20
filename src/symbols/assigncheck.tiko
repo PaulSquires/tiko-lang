@@ -634,6 +634,8 @@ end function
 declare function StrNumMismatch_ _
     ( byref c as Ctx, byval lt as TypeId, byval rt as TypeId, _
       byval ln as NodeId, byval rn as NodeId ) as boolean
+declare function StrPtrMismatch_ _
+    ( byref c as Ctx, byval lt as TypeId, byval rt as TypeId, byval rn as NodeId ) as boolean
 
 '' AN UNTARGETED 'type( ... )' TAKES ITS DESTINATION'S TYPE -- the result, for 'function ='
 '' and 'return', and the target for '=' -- as an argument already takes its parameter's
@@ -702,6 +704,8 @@ private sub CheckStringNumberAssign_ _
         if c.types->Kind( c.types->Unqualify( resultType ) ) = TK_ARRAY then return
         if StrNumMismatch_( c, resultType, c.info->TypeOf_( v ), NODE_NONE, v ) then
             c.diags->Report( TKO0702, PointRange( c.ast->Loc( id ) ) )
+        elseif StrPtrMismatch_( c, resultType, c.info->TypeOf_( v ), v ) then
+            c.diags->Report( TKO0689, PointRange( c.ast->Loc( id ) ) )
         end if
         return
     end if
@@ -715,6 +719,8 @@ private sub CheckStringNumberAssign_ _
     if (lps <> nullptr) andalso (lps->kind = cast( uint8, SYM_PROC )) then return
     if StrNumMismatch_( c, c.info->TypeOf_( sp->a ), c.info->TypeOf_( sp->b ), sp->a, sp->b ) then
         c.diags->Report( TKO0702, PointRange( c.ast->Loc( id ) ) )
+    elseif StrPtrMismatch_( c, c.info->TypeOf_( sp->a ), c.info->TypeOf_( sp->b ), sp->b ) then
+        c.diags->Report( TKO0689, PointRange( c.ast->Loc( id ) ) )
     end if
 end sub
 
@@ -756,5 +762,28 @@ private function StrNumMismatch_ _
     case else
         return false
     end select
+    return true
+end function
+
+'' Would storing a value of type rt into lt put a STRING INTO A POINTER? fbc's error 181 in
+'' every form measured (PsApp finding F5): 'p = "x"' over an 'any ptr', 't.p = KLASS' over
+'' 'const KLASS = wstr( "X" )' and a 'const wstring ptr' field, 'p = s' over a string, a
+'' fixed zstring or a ustring, 'p = "a" & "b"', and 'return "abc"' or 'function = "abc"'
+'' from an 'as zstring ptr' function. tiko-lang accepted the literal forms -- storing
+'' whatever the literal's address made of it -- and declined to lower the rest, which
+'' surfaced as internal compiler error TKO0994. A character reached through a dereference
+'' or an index is StrNumMismatch_'s question, and is left to it.
+private function StrPtrMismatch_ _
+    ( byref c as Ctx, byval lt as TypeId, byval rt as TypeId, byval rn as NodeId ) as boolean
+    if (lt = TYPE_NONE) orelse (rt = TYPE_NONE) then return false
+    dim as TypeId lu = c.types->Unqualify( lt )
+    dim as TypeId ru = c.types->Unqualify( rt )
+    if c.types->Kind( lu ) = TK_REFERENCE then lu = c.types->Unqualify( c.types->Inner( lu ) )
+    if c.types->Kind( ru ) = TK_REFERENCE then ru = c.types->Unqualify( c.types->Inner( ru ) )
+    if c.types->Kind( lu ) <> TK_POINTER then return false
+    if IsStringyType_( c, ru ) = false then return false
+    dim as TypeId re = ru
+    if c.types->Kind( re ) = TK_ARRAY then re = c.types->Unqualify( c.types->Inner( re ) )
+    if CharAccess_( c, rn, re ) then return false
     return true
 end function
