@@ -1,0 +1,17 @@
+'' RUN: a shared, a shared array and a static UDT, each initialised from a tuple that fills a
+'' 'string * N' field. The aggregate folder refused a 'string * N' leaf because fbc-modern refuses
+'' the shape (error 7), while tiko already took the LOCAL form -- so the shared one stopped on
+'' TKO0994 (Rosetta Four_is_magic; fbc-examples repro ice23). Supported now by the author's
+'' decision (2026-10-20): space-padded and truncated as a 'string * N' is, and the folded image is
+'' not then refilled by the implicit constructor at start-up.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/shared-udt-fixstr-init.bas -o tests/codegen/sharedudtfixstrinit.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0994
+'' EXPECT-FILE: tests/codegen/sharedudtfixstrinit.exe
+'' RUN: tests/codegen/sharedudtfixstrinit.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: [trillion][billion ][thousand] 1000000000
+'' EXPECT-RUN-OUT: [ab      ] 5
+'' EXPECT-RUN-OUT: [static  ] 7

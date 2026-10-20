@@ -41,6 +41,7 @@ sub EmitModuleInit_( byref c as Ctx )
         for k as int32 = 0 to n - 1
             dim as int32 i = iif( isCtor, k, n - 1 - k )
             dim as Tko.TypeId gt = cast( Tko.TypeId, c.modInitType[i] )
+            if gt = Tko.TYPE_NONE then continue for   '' its folded image is its construction (InitSharedGlobal)
             dim as MirValue ga
             ga.kind = cast( uint8, MV_GLOBAL )
             ga.ty = cast( uint8, MT_PTR )

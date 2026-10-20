@@ -1111,6 +1111,16 @@ sub InitSharedGlobal _
                          c.m->globals[g].size, img, VarScopeOf_( c, sid ) ) then
             c.m->globals[g].initBytes = img
             c.m->globals[g].hasInit = true
+            '' ...AND THE IMAGE IS THE CONSTRUCTION when nothing the source wrote constructs or
+            '' destroys it: the implicit constructor a 'string * N' field asks for refilled the
+            '' folded text with spaces at start-up (fbc-examples ice23). TYPE_NONE = skip.
+            dim as Tko.TypeId it_ = c.types->Unqualify( c.m->globals[g].frontendType )
+            if c.types->Kind( it_ ) = Tko.TK_ARRAY then it_ = c.types->Unqualify( c.types->Inner( it_ ) )
+            if (c.types->Kind( it_ ) = Tko.TK_UDT) andalso (StructorOf( c, it_, "__ctor" ) = Tko.SYMBOL_NONE) andalso (TypeNeedsDtor_( c, it_ ) = false) then
+                for i as int32 = 0 to c.modInitGlobal.Count - 1
+                    if (c.modInitGlobal[i] = g) andalso (cast( Tko.NodeId, c.modInitCall[i] ) = Tko.NODE_NONE) then c.modInitType[i] = cast( uint32, Tko.TYPE_NONE )
+                next
+            end if
             return
         end if
         '' ADDRESSES AMONG THE DATA. 'dim shared pl as PL = ( @ga, 5 )' over a pointer

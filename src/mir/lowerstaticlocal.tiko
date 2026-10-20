@@ -205,6 +205,16 @@ function LowerStaticLocalInit_ _
     '' A TYPE WITH ONLY A DESTRUCTOR keeps its initialiser IMAGE: 'static as DtorUDT x = ( 123 )' is
     '' emitted as any global's, and only the atexit registration is guarded (dim/udt-init.bas).
     if isUdt andalso (wantsC = false) andalso (init_ <> Tko.NODE_NONE) then InitSharedGlobal( c, sid, init_ )
+    '' ...AND SO DOES ONE THAT ONLY ITS IMPLICIT CONSTRUCTOR WOULD BUILD -- a 'string * N' field's
+    '' space fill -- given a tuple: 'static as T y = ( 6, "xy" )'. The run-once construction below
+    '' ignored the tuple, and y read as zeros and blanks with nothing declined (fbc-examples ice23).
+    if isUdt andalso (ctors = Tko.SYMBOL_NONE) andalso (wantsD = false) andalso (init_ <> Tko.NODE_NONE) then
+        select case c.ast->Kind( init_ )
+        case Tko.N_TUPLE, Tko.N_INITIALIZER, Tko.N_PAREN
+            InitSharedGlobal( c, sid, init_ )
+            if c.m->globals[g].hasInit then return true
+        end select
+    end if
     dim as int32 skipB = StaticOnceBegin_( c, g, "$init" )
     if skipB < 0 then return false
 

@@ -1063,12 +1063,12 @@ function FlattenUdtFields_ _
                 ''       { (uint8)17u, (uint8)34u, (uint8)51u } };
                 dim as int64 fsn
                 dim as int32 fsk = StrSwapKind_( c, fld->type_, fsn )
-                '' NOT 'string * N' (kind 3). Measured: fbc REFUSES a UDT holding one
-                '' in any initialiser -- 'static y as U2 = ( 7, "ab" )' is error 7
-                '' and the brace form is error 63 -- so folding it here would accept
-                '' a program fbc rejects.
-                dim as boolean fixStrLeaf = (fsk = 1) orelse (fsk = 2)
-                if fixStrLeaf = false then fixStrLeaf = (fsk = 4)
+                '' ...AND 'string * N' (kind 3), SPACE-padded: a tiko extension by the author's
+                '' decision (2026-10-20). fbc-modern REFUSES a UDT holding one in an initialiser
+                '' -- 'static y as U2 = ( 7, "ab" )' is error 7, the brace form error 63 --
+                '' while tiko already took the LOCAL form, so a shared or static one stopped on
+                '' TKO0994 (rosetta Four_is_magic, which older fbc built; fbc-examples ice23).
+                dim as boolean fixStrLeaf = (fsk >= 1) andalso (fsk <= 4)
                 if fixStrLeaf then
                     offs.Push( cast( uint32, base_ + fld->offset ) )
                     tys.Push( cast( uint32, fmt ) )
@@ -1339,8 +1339,7 @@ function FoldAggInit_ _
             dim as Tko.TypeId lft = cast( Tko.TypeId, fFt[i] )
             dim as int64 lsn
             dim as int32 lsk = StrSwapKind_( c, lft, lsn )
-            dim as boolean lIsFix = (lsk = 1) orelse (lsk = 2)
-            if lIsFix = false then lIsFix = (lsk = 4)
+            dim as boolean lIsFix = (lsk >= 1) andalso (lsk <= 4)   '' 'string * N' too (above)
             if lIsFix then
                 dim as int32 lcap = cast( int32, c.types->ElemCount( _
                     c.types->Unqualify( lft ) ) )
