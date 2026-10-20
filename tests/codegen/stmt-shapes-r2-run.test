@@ -1,0 +1,16 @@
+'' RUN: statements that stopped on TKO0994 (fbc-examples round 2): a field typed through a pointer
+'' typedef to a typedef declared later, indexed (r2ice03); an array field named like the constant
+'' that sizes it, which became a dynamic array (r2ice06); PUT of an rvalue (r2ice07); 'deallocate .p'
+'' inside WITH, read as 'deallocate.p' (r2ice09). Expected output measured with fbc-modern.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/stmt-shapes-r2.bas -o tests/codegen/stmtshapesr2.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0994
+'' EXPECT-FILE: tests/codegen/stmtshapesr2.exe
+'' RUN: tests/codegen/stmtshapesr2.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  42 42 8
+'' EXPECT-RUN-OUT:  3 2 20
+'' EXPECT-RUN-OUT:  12 1234 2468
+'' EXPECT-RUN-OUT: -1

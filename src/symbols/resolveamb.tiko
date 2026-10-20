@@ -218,8 +218,20 @@ private function ReadDotArgAsCall_ _
     '' resolves at all has its symbol here; one that does not is left to the ordinary
     '' path and its ordinary diagnostic.
     dim as Tko.Symbol ptr bs = c.syms->SymbolAt( c.info->RefOf( base_ ) )
-    if bs = nullptr then return false
-    if bs->kind <> cast( uint8, Tko.SYM_PROC ) then return false
+    '' ...OR A RUNTIME PROCEDURE, which binds to nothing: 'deallocate .pStart' inside a WITH is
+    '' fbc's call with the member as its argument, and parsed as 'deallocate.pStart' it
+    '' declined (fbc-examples r2ice09, fbsound). Only an UNBOUND plain name -- a user's own
+    '' variable called 'kill' is a symbol and takes the path above.
+    dim as boolean rtlBase = false
+    if (bs = nullptr) andalso (c.ast->Kind( base_ ) = Tko.N_IDENT) then
+        dim as boolean rtlOverloadable
+        rtlBase = RtlProcName_( Tko.Text.LowerAscii( c.names->Spelling( _
+            c.ast->idents[cast( int32, c.ast->nodes[cast( int32, base_ )].data )].name ) ), rtlOverloadable )
+    end if
+    if rtlBase = false then
+        if bs = nullptr then return false
+        if bs->kind <> cast( uint8, Tko.SYM_PROC ) then return false
+    end if
 
     '' THE REWRITE. Dropping the member's base turns '<.Proc>.Fn' back into the '.Fn'
     '' it was written as, and the whole of what the postfix parser built becomes the

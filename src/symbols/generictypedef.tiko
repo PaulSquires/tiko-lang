@@ -192,8 +192,10 @@ sub BackpatchTypedefs( byref c as Ctx )
         if fsp->name = baseNm then continue for
         dim as Tko.TypeId ft = ResolveTypeRef( c, fsp->a, fhere )
         if ft = Tko.TYPE_NONE then continue for
+        '' FORCED: a field pended because its type was INCOMPLETE already has that type, and the
+        '' revisit exists to replace it. An untyped one has none, so forcing changes nothing there.
         BindDeclType( c, fhere, fsp->name, _
-            ArrayFromBounds( c, ft, fsp->first, fsp->count, fhere ), false )
+            ArrayFromBounds( c, ft, fsp->first, fsp->count, fhere ), true )
     next
 
     '' PROCEDURE TYPES whose RESULT named a typedef declared later. The type is

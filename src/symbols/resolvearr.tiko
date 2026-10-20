@@ -38,6 +38,18 @@ function FieldArrayType_ _
     if sp->op <> cast( uint16, Tko.KW_REDIM ) then
         dim as Tko.TypeId fat = ArrayFromBounds( c, t, sp->first, sp->count, here )
         if c.types->IsDynArray( fat ) = false then return fat
+        '' ...UNLESS A FIELD SHADOWED THE CONSTANT. 'as single bias( bias )' names the
+        '' module's 'const bias' -- fbc sizes it 0 to 3 -- but looked up in the type's own
+        '' scope the bound found the FIELD, was not constant, and the field silently became a
+        '' dynamic array whose constructor then declined (fbc-examples r2ice06). The type's
+        '' enclosing scope is asked before giving up.
+        dim as Tko.SymScope ptr hsc = c.syms->ScopeAt( here )
+        if hsc <> nullptr then
+            if hsc->parent <> Tko.SCOPE_NONE then
+                dim as Tko.TypeId pat = ArrayFromBounds( c, t, sp->first, sp->count, hsc->parent )
+                if c.types->IsDynArray( pat ) = false then return pat
+            end if
+        end if
     end if
     '' 'redim g( any )' is a plain dynamic field, unsized: ArrayFromBounds already answers that.
     for i as int32 = 0 to sp->count - 1

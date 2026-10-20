@@ -290,6 +290,10 @@ function LowerFileGetPut _
     dim as int32 vsz = SizeOfType( c, vt )
     if vsz <= 0 then return false
     dim as MirValue va = LowerAddr( c, varN )
+    '' PUT OF A VALUE, not a variable -- 'put #f, , clng( x )', 'put #f, , x * 2' -- writes it
+    '' through a temporary of its own type, as fbc does: 4 bytes for the clng, 8 for the
+    '' integer product. It declined (fbc-examples r2ice07, a Flappy-bird save routine).
+    if isPut andalso (va.kind = cast( uint8, MV_NONE )) then va = ByrefTemp_( c, varN, vt )
     if va.kind = cast( uint8, MV_NONE ) then return false
 
     dim as containers.Array( of uint32 ) args

@@ -1227,7 +1227,13 @@ sub WalkStmt _
             end if
         end if
         dim as Tko.TypeId t = ResolveTypeRef( c, sp->a, fhere )
-        if t = Tko.TYPE_NONE then c.pendField.Push( cast( uint32, id ) ) : c.pendFieldScope.Push( cast( uint32, here ) )
+        '' ...AND A SCALAR FIELD BUILT OVER A TYPEDEF STILL UNFILLED is revisited too, as a local is
+        '' (TypeIsIncomplete_): 'as LPHANDLE ph' over 'type LPHANDLE as HANDLE ptr' written above
+        '' 'type HANDLE as any ptr' -- windows.bi's order -- kept a pointer to the placeholder, and
+        '' '*m.ph' / 'm.ph[ i ]' declined (fbc-examples r2ice03, fbsound plug-ds).
+        dim as boolean pendIt = (t = Tko.TYPE_NONE)
+        if (pendIt = false) andalso (sp->count = 0) then pendIt = TypeIsIncomplete_( c, t )
+        if pendIt then c.pendField.Push( cast( uint32, id ) ) : c.pendFieldScope.Push( cast( uint32, here ) )
         '' ...AND IF IT STILL FOUND ITSELF, from one scope further out. A namespace
         '' holds the type being declared as well, so stepping out ONE level is not
         '' enough for 'namespace ns1 : type UDT1 extends UDT1'. Stepping out
