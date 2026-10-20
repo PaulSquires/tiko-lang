@@ -434,6 +434,7 @@ end function
 ''
 '' ALPHA with a value is mode 9, as it is for PUT.
 const PGFX_DSMODE_SHIFT as int32 = 16
+declare function PutBlender( byval mode as int32 ) as RtlId
 function LowerGfxDrawString_ _
     ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 
@@ -453,10 +454,17 @@ function LowerGfxDrawString_ _
     dim as MirValue col = GfxInt( c, sp, 3, 0, hasCol, ok )
     if ok = false then return false
 
-    '' THE FONT IS A POINTER. A written font declines rather than being passed as
-    '' something it is not.
+    '' THE FONT IS A POINTER -- an image holding the glyphs -- and with one the PUTTER is
+    '' passed too, the method's blender: measured, 'draw string (1,1), "x", , f' is
+    '' '..., (void*)F, 0, (void*)&fb_hPutTrans, ...' and ', f, xor' is mode 5 with
+    '' fb_hPutXor. It declined (manual gfx/drawstring-custom; fbc-examples repro ice17).
     dim as Tko.NodeId fn = GfxArg( c, sp, 4 )
-    if fn <> Tko.NODE_NONE then return false
+    dim as MirValue fontv
+    if fn <> Tko.NODE_NONE then
+        fontv = LowerExpr( c, fn )
+        if fontv.kind = cast( uint8, MV_NONE ) then return false
+        fontv = Coerce( c, fontv, MT_PTR )
+    end if
 
     dim as int32 flags = GfxFlags1( sp->extra )
     if hasCol = false then flags or= GFXF_NOCOLOUR
@@ -504,9 +512,17 @@ function LowerGfxDrawString_ _
     args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, flags ) )
     PushV( args, sv )
     PushV( args, col )
-    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )             '' font
+    if fn <> Tko.NODE_NONE then
+        PushV( args, fontv )
+    else
+        args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )         '' no font
+    end if
     args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, mode ) )
-    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )             '' always null
+    if fn <> Tko.NODE_NONE then
+        PushV( args, FuncAddrOfRtl( c, PutBlender( mode ) ) )
+    else
+        args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )         '' null without a font
+    end if
     if hasBl then
         PushV( args, blender )
     else

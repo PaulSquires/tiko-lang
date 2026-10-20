@@ -675,7 +675,9 @@ private function TypeOfUncached_ _
         end if
 
     case Tko.N_IDENT
-        dim as Tko.SymbolId sid = ParenlessMethodOf_( c, c.info->RefOf( id ), id )
+        dim as Tko.SymbolId sid = PropertyReadAccessor_( c, c.info->RefOf( id ) )   '' a bare property in a method: its getter, recorded as 'x.P' records one
+        if sid <> c.info->RefOf( id ) then c.info->SetRef( id, sid )
+        sid = ParenlessMethodOf_( c, sid, id )
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
         if s <> nullptr then t = s->type_ : if (s->kind = cast( uint8, Tko.SYM_PROC )) andalso c.types->IsDynArray( t ) then t = Tko.TYPE_NONE   '' an ARRAY RESULT is not the procedure's own type: the callee of 'f( )' must not read as an array being subscripted
 

@@ -1,0 +1,13 @@
+'' RUN: a property named WITHOUT 'this.' inside its own type's methods -- 'color = &hffffff' in fbc's
+'' OpenGL fbgl constructor, 'size = size + 1' -- is 'this.color'. PropertyAt_ took only a member
+'' expression; the bare name reached the store path and declined (TKO0994; fbc-examples repro
+'' ice16). Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/implicit-this-property.bas -o tests/codegen/implicitthisproperty.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0994
+'' EXPECT-FILE: tests/codegen/implicitthisproperty.exe
+'' RUN: tests/codegen/implicitthisproperty.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: FFFFFF 4

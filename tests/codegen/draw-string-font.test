@@ -1,0 +1,10 @@
+'' DRAW STRING with a custom FONT: the font image's pointer, and the method's putter beside it --
+'' measured, fbc's '..., (void*)F, 0, (void*)&fb_hPutTrans, ...' for the default (TRANS) and
+'' fb_hPutPSet for ', f, pset'. A written font declined (TKO0994; manual gfx/drawstring-custom;
+'' fbc-examples repro ice17). Compiled only: the run would open a window.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/draw-string-font.bas --dump-ir
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: fb_hPutTrans
+'' EXPECT-OUT: fb_hPutPSet
+'' EXPECT-OUT: 0 statements not lowered

@@ -1,0 +1,14 @@
+'' RUN: static initialisers holding a procedure's ADDRESS named through its type -- '{ @Dog.speak }'
+'' in a static member array, and '( cast( any ptr, @C.Get ) )' in a static local UDT. AddrWordOf_
+'' took only '@name', and the declarations declined (TKO0994; manual proguide
+'' emulation_polymorphism-animal, fbc examples win32/COM/DropTarget; fbc-examples repros ice08,
+'' ice15). Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/static-init-member-addr.bas -o tests/codegen/staticinitmemberaddr.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0994
+'' EXPECT-FILE: tests/codegen/staticinitmemberaddr.exe
+'' RUN: tests/codegen/staticinitmemberaddr.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: woof-1 5

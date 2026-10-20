@@ -885,6 +885,9 @@
     '' fbc's error 24, "Invalid data types": LSET and RSET take no ustring source, in any
     '' spelling. tiko had no entry point for one and stopped on TKO0994.
     DIAG( TKO0980, SEV_ERROR,   "'%0' cannot take a ustring source; convert it with str( ) first" )
+    '' fbc's error 286, "Unsupported statement in -gen gcc/clang mode": the old variadic
+    '' intrinsics walk the stack, which no 64-bit target lays out for them.
+    DIAG( TKO0981, SEV_ERROR,   "'%0' is not supported on this target; read a variadic argument list with 'cva_list', 'cva_start' and 'cva_arg'" )
     DIAG( TKO0965, SEV_ERROR,   "'%0' has a field with a constructor, which an initializer list cannot fill" )
     DIAG( TKO0955, SEV_ERROR,   "'end %0' closes no '%0' block" )
     DIAG( TKO0956, SEV_ERROR,   "a second 'case else' -- a select has one, and it comes last" )

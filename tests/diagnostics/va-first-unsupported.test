@@ -1,0 +1,12 @@
+'' TKO0981, fbc's 286 ("Unsupported statement in -gen gcc/clang mode"): VA_FIRST, VA_ARG and
+'' VA_NEXT. 'va_first( )' went on to an internal compiler error (TKO0994; fbc's NeHe OpenGL
+'' lessons 21, 24, 32; fbc-examples repro ice02) and the other two said "not declared".
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/va-first-unsupported.bas -o tests/diagnostics/src/va-first-unsupported.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: va-first-unsupported.bas(3,
+'' EXPECT-OUT: error TKO0981: 'va_first' is not supported on this target
+'' EXPECT-OUT: error TKO0981: 'va_arg' is not supported on this target
+'' EXPECT-OUT: error TKO0981: 'va_next' is not supported on this target
+'' EXPECT-NOT: TKO0994
+'' EXPECT-NOT: TKO0743

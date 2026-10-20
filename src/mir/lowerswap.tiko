@@ -704,6 +704,19 @@ private function PropIndexCost_ _
     return total
 end function
 
+'' A BARE NAME THAT IS A PROPERTY of the type whose method this is: 'color = &hffffff' inside
+'' fbgl's constructor, over its own 'property color( byval as ulong )' -- fbc calls the setter on
+'' THIS, and a read calls the getter. Only a member can be a property, so the symbol says it.
+private function ImplicitThisProp_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    if c.ast->Kind( id ) <> Tko.N_IDENT then return false
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
+    if s = nullptr then return false
+    if (s->kind <> cast( uint8, Tko.SYM_PROC )) orelse (s->payload = 0) then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return false
+    return (StmtOf( c, pn )->op = cast( uint16, Tko.KW_PROPERTY ))
+end function
+
 function PropertyAt_ _
     ( byref c as Ctx, byval node as Tko.NodeId, byval want as int32, _
       byref self_ as MirValue, byref outIdxFirst as int32, _
@@ -721,12 +734,13 @@ function PropertyAt_ _
         dim as Tko.ListPayload ptr ip2 = _
             @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, node )].data )]
         if ip2->target = Tko.NODE_NONE then return Tko.SYMBOL_NONE
-        if c.ast->Kind( ip2->target ) <> Tko.N_MEMBER then return Tko.SYMBOL_NONE
+        if (c.ast->Kind( ip2->target ) <> Tko.N_MEMBER) andalso (ImplicitThisProp_( c, ip2->target ) = false) then return Tko.SYMBOL_NONE
         member = ip2->target
         idxFirst = ip2->first
         idxCount = ip2->count
     end if
-    if c.ast->Kind( member ) <> Tko.N_MEMBER then return Tko.SYMBOL_NONE
+    dim as boolean implicitThis = (c.ast->Kind( member ) = Tko.N_IDENT) andalso ImplicitThisProp_( c, member )
+    if (c.ast->Kind( member ) <> Tko.N_MEMBER) andalso (implicitThis = false) then return Tko.SYMBOL_NONE
     dim as Tko.SymbolId sid = c.info->RefOf( member )
     if sid = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
     outIdxFirst = idxFirst
@@ -815,6 +829,19 @@ function PropertyAt_ _
     if want_ = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
     if ties > 0 then return Tko.SYMBOL_NONE
 
+    '' ...AND A BARE NAME IN A METHOD IS 'this.V', the receiver THIS's value (ImplicitThisProp_).
+    if implicitThis then
+        if c.curProcSym = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr me_ = c.syms->SymbolAt( c.curProcSym )
+        if (me_ = nullptr) orelse (me_->inner = Tko.SCOPE_NONE) then return Tko.SYMBOL_NONE
+        dim as Tko.SymbolId tsid = c.syms->LookupLocal( me_->inner, c.names->Fold( c.names->GetString( "this" ) ) )
+        if tsid = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
+        dim as MirValue ta = AddrOfVar( c, tsid )
+        if ta.kind = cast( uint8, MV_NONE ) then return Tko.SYMBOL_NONE
+        self_ = LowerExprLoad( c, ta, MT_PTR )
+        if self_.kind = cast( uint8, MV_NONE ) then return Tko.SYMBOL_NONE
+        return want_
+    end if
     '' The RECEIVER is the member's base, by address -- 'p.V' through a pointer takes
     '' the pointer's value instead, exactly as a field access does.
     dim as Tko.BinaryPayload ptr mp = _

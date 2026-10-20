@@ -49,6 +49,78 @@ end function
 '' "f", 2 )' then 'fb_StrAssign( Z, 10, vr, -1, 0 )' -- and a narrow source appended
 '' to a WIDE destination needs a temporary's lifetime as well. Those decline, which
 '' is the honest answer where half of the model would be a wrong one.
+'' 'z &= " compiler"' OVER A UDT with no 'operator &=' of its own, a text cast and an 'operator let'
+'' from a string or a zstring -- BYREF, or a 'zstring ptr': fbc's 'z = z & " compiler"' (manual udt/extendszstring1
+'' and 2) -- the text through the cast into a temporary string, the value appended, the let
+'' called with it. It declined (TKO0994).
+private function UdtCatAssignViaLet_ _
+    ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, byval tt as Tko.TypeId ) as boolean
+    if UdtMemberNamed_( c, tt, "&=" ) <> Tko.SYMBOL_NONE then return false
+    dim as Tko.SymbolId cur = StructorOf( c, tt, "let" )
+    dim as Tko.SymbolId pick = Tko.SYMBOL_NONE
+    dim as boolean viaZ = false
+    dim as int32 guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (pick = Tko.SYMBOL_NONE) andalso (guard < 256)
+        guard += 1
+        dim as Tko.Symbol ptr ls = c.syms->SymbolAt( cur )
+        if ls = nullptr then exit while
+        dim as Tko.NodeId ln = cast( Tko.NodeId, ls->payload )
+        if (ln <> Tko.NODE_NONE) andalso (c.ast->Kind( ln ) = Tko.N_PROC) then
+            dim as Tko.StmtPayload ptr lp = StmtOf( c, ln )
+            if lp->count >= 1 then
+                dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[lp->first] )
+                dim as Tko.TypeId pu = Tko.TYPE_NONE
+                if c.ast->Kind( prm ) = Tko.N_PARAM then pu = c.types->Unqualify( c.info->TypeOf_( StmtOf( c, prm )->a ) )
+                '' ...or 'byval as const zstring ptr' (extendszstring2): the characters' address too.
+                if c.types->Kind( pu ) = Tko.TK_POINTER then
+                    dim as Tko.TypeId pz = c.types->Unqualify( c.types->Inner( pu ) )
+                    if c.types->Kind( pz ) = Tko.TK_BUILTIN then
+                        if c.types->BuiltinOf( pz ) = Tko.TY_ZSTRING then pick = cur : viaZ = true
+                    end if
+                elseif (c.ast->Kind( prm ) = Tko.N_PARAM) andalso ((c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0) then
+                    if c.types->Kind( pu ) = Tko.TK_BUILTIN then
+                        if c.types->BuiltinOf( pu ) = Tko.TY_ZSTRING then pick = cur : viaZ = true
+                        if c.types->BuiltinOf( pu ) = Tko.TY_STRING then pick = cur
+                    end if
+                end if
+            end if
+        end if
+        cur = ls->nextOverload
+    wend
+    if pick = Tko.SYMBOL_NONE then return false
+    dim as MirValue cur0
+    if StrDescriptorOf_( c, target, cur0 ) = false then return false
+    dim as int32 slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+    if slot < 0 then return false
+    dim as MirValue tmp
+    tmp.kind = cast( uint8, MV_LOCAL ) : tmp.ty = cast( uint8, MT_PTR ) : tmp.id = slot
+    ZeroStrDescriptor( c, tmp )
+    dim as containers.Array( of uint32 ) aa
+    PushStrArg( aa, tmp ) : PushStrArg( aa, cur0 )
+    aa.Push( cast( uint32, MV_CONST_INT ) ) : aa.Push( 0 )
+    EmitRtl( c, RTL_STR_ASSIGN, aa )
+    dim as containers.Array( of uint32 ) ca
+    PushStrArg( ca, tmp )
+    if EmitStrTerm( c, ca, value ) = false then return false
+    ca.Push( cast( uint32, MV_CONST_INT ) ) : ca.Push( 0 )
+    EmitRtl( c, RTL_STR_CONCAT_ASSIGN, ca )
+    dim as MirValue av = tmp
+    if viaZ then
+        dim as MirInst fa
+        fa.op = cast( uint16, M_FIELD_ADDR ) : fa.ty = cast( uint8, MT_PTR ) : fa.a = tmp : fa.imm = 0
+        av = LowerExprLoad( c, Emit( c, fa ), MT_PTR )
+    end if
+    dim as MirValue da = LowerAddr( c, target )
+    if (da.kind = cast( uint8, MV_NONE )) orelse (av.kind = cast( uint8, MV_NONE )) then return false
+    dim as containers.Array( of uint32 ) largs
+    largs.Push( cast( uint32, av.kind ) ) : largs.Push( cast( uint32, av.id ) )
+    EmitStructorCall( c, pick, -1, @da, @largs )
+    dim as containers.Array( of uint32 ) dd
+    dd.Push( cast( uint32, tmp.kind ) ) : dd.Push( cast( uint32, tmp.id ) )
+    EmitRtl( c, RTL_STR_DELETE, dd )
+    return true
+end function
+
 function LowerConcatAssignStmt _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _
       byval op as Tko.TokenKind ) as boolean
@@ -56,6 +128,9 @@ function LowerConcatAssignStmt _
     if (op <> Tko.TK_AMPEQ) andalso (op <> Tko.TK_PLUSEQ) then return false
     dim as Tko.TypeId tt = c.info->TypeOf_( target )
     if tt = Tko.TYPE_NONE then return false
+    if (op = Tko.TK_AMPEQ) andalso (c.types->Kind( c.types->Unqualify( tt ) ) = Tko.TK_UDT) then
+        return UdtCatAssignViaLet_( c, target, value, c.types->Unqualify( tt ) )
+    end if
 
     if IsStringType( c, tt ) then
         dim as MirValue dst = LowerAddr( c, target )

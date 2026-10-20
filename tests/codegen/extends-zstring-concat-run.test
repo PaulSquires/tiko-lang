@@ -1,0 +1,14 @@
+'' RUN: 'v = v & "def"' over a type that EXTENDS ZSTRING, through 'operator let( byref as zstring )':
+'' a concatenation has no address, and the let's argument declined (TKO0994; manual
+'' udt/extendszstring1 and 2; fbc-examples repro ice11). Now the descriptor's characters -- and
+'' 'v &= x' with no 'operator &=' is 'v = v & x', as fbc lowers it.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/extends-zstring-concat.bas -o tests/codegen/extendszstringconcat.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0994
+'' EXPECT-FILE: tests/codegen/extendszstringconcat.exe
+'' RUN: tests/codegen/extendszstringconcat.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: xabcdefy!xabcdefy!
+'' EXPECT-RUN-OUT: [ab  c]

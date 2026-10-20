@@ -1,0 +1,14 @@
+'' RUN: THREADCALL passing a literal to a BYREF string parameter and an rvalue to a byref
+'' integer: each binds a temporary, as fbc's 'fb_StrAssign( &TMP, -1, "A", 2, 0 ); TMP2 = &TMP'.
+'' The byref arm took an address only and declined (TKO0994; manual threads/threadcall;
+'' fbc-examples repro ice14). THREADCALL itself still warns TKO0797, as before.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/threadcall-byref-rvalue.bas -o tests/codegen/threadcallbyrefrvalue.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0994
+'' EXPECT-FILE: tests/codegen/threadcallbyrefrvalue.exe
+'' RUN: tests/codegen/threadcallbyrefrvalue.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-OUT: TKO0797
+'' EXPECT-RUN-OUT: done

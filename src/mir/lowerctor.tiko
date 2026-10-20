@@ -584,6 +584,18 @@ function LowerUserLetConv_ _
                     ulTook = true
                 end if
             end if
+            '' ...AND A NARROW STRING RVALUE FOR 'byref as zstring' -- 'v = v & "def"' over a type
+            '' that 'extends zstring' (manual udt/extendszstring1/2) -- passes its descriptor's
+            '' characters; it had no address and declined.
+            if (ulTook = false) andalso (c.types->Kind( pu ) = Tko.TK_BUILTIN) andalso IsStringType( c, vu ) andalso (IsUStringType( c, vu ) = false) then
+                dim as MirValue zsd
+                if (c.types->BuiltinOf( pu ) = Tko.TY_ZSTRING) andalso StrDescriptorOf_( c, value, zsd ) then
+                    dim as MirInst zfa
+                    zfa.op = cast( uint16, M_FIELD_ADDR ) : zfa.ty = cast( uint8, MT_PTR ) : zfa.a = zsd : zfa.imm = 0
+                    av = LowerExprLoad( c, Emit( c, zfa ), MT_PTR )
+                    ulTook = (av.kind <> cast( uint8, MV_NONE ))
+                end if
+            end if
             '' ...AND AN UNTYPED WIDE EXPRESSION passes a wide temporary's characters: 'pt' is the
             '' bare builtin here, not a reference, so CtorArgValue_'s wide arm never sees it.
             '' ...AND SO DOES A WIDE VALUE WideCharOverload_ chose the 'let' for.

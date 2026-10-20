@@ -640,10 +640,24 @@ function AddrWordOf_ _
       byval onlyStatic as boolean = true ) as boolean
 
     e = Unparen_( c, e )
+    '' 'cast( any ptr, @C.Get )' IS THE SAME WORD: a pointer cast changes no address (CDropTarget's
+    '' vtable, fbc examples win32/COM).
+    dim as Tko.NodeId pce = NoConvOperand_( c, e )
+    if pce <> Tko.NODE_NONE then e = Unparen_( c, pce )
     if c.ast->Kind( e ) <> Tko.N_ADDROF then return false
     dim as Tko.UnaryPayload ptr up = _
         @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, e )].data )]
     dim as Tko.NodeId opnd = Unparen_( c, up->operand )
+    '' '@Dog.speak' -- A MEMBER PROCEDURE, static or not, named through its type: a procedure
+    '' word like '@f' (manual proguide emulation_polymorphism's callback tables).
+    if c.ast->Kind( opnd ) = Tko.N_MEMBER then
+        dim as Tko.Symbol ptr msy = c.syms->SymbolAt( c.info->RefOf( opnd ) )
+        if msy = nullptr then return false
+        if msy->kind <> cast( uint8, Tko.SYM_PROC ) then return false
+    elseif c.ast->Kind( opnd ) = Tko.N_IDENT then
+    else
+        if c.ast->Kind( opnd ) <> Tko.N_STRING_LIT then return false
+    end if
     '' '@"a1"' IS THE LITERAL'S OWN GLOBAL, which is where a string literal already
     '' lives.
     if c.ast->Kind( opnd ) = Tko.N_STRING_LIT then
@@ -651,7 +665,6 @@ function AddrWordOf_ _
         ref = cast( uint32, c.m->AddStringLiteral( StringLitText_( c, opnd ), *c.names ) )
         return true
     end if
-    if c.ast->Kind( opnd ) <> Tko.N_IDENT then return false
     dim as Tko.SymbolId osid = c.info->RefOf( opnd )
     '' OVER AN OVERLOAD SET, the one the target's type names -- Check's decision, as ProcAddrForWanted_
     '' reads it. 'static fsng as fnsng = @proc' took the FIRST overload (overload/addressof.bas).

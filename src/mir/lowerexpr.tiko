@@ -263,7 +263,8 @@ function LowerExpr _
         '' 't.V' WITH NO PARENTHESES over a property is a call to its GETTER. With them
         '' it is an ordinary call and never reaches here -- so the only spelling that
         '' was missing is the one properties are actually used in.
-        if c.ast->Kind( id ) = Tko.N_MEMBER then
+        '' ...and a BARE property name inside a method is 'this.V' (lowerswap ImplicitThisProp_).
+        if (c.ast->Kind( id ) = Tko.N_MEMBER) orelse (c.ast->Kind( id ) = Tko.N_IDENT) then
             dim as MirValue pgv
             if LowerPropertyGet_( c, id, pgv ) then return pgv
         end if

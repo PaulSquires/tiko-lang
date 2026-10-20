@@ -303,6 +303,13 @@ sub ReportUndeclared _
         if seen then continue for
         done.Push( cast( uint32, dl.file ) )
         done.Push( cast( uint32, dl.physLine ) )
+        '' 'va_first', 'va_arg' AND 'va_next' are fbc's 286 on every 64-bit target, not undeclared
+        '' names -- and 'va_first( )' went on to an internal compiler error (TKO0994; the NeHe
+        '' OpenGL lessons). TKO0981 says so, and what to use instead.
+        if (nm = "va_first") orelse (nm = "va_arg") orelse (nm = "va_next") then
+            diags.Report( Tko.TKO0981, Tko.PointRange( ast.Loc( id ) ), nm )
+            continue for
+        end if
         dim as Tko.DiagId d = Tko.TKO0743
         if skip[cast( int32, id )] = SKIP_PROCPTR then d = Tko.TKO0783
         dim as string modOf = syms.HiddenModuleOf( rawNm )

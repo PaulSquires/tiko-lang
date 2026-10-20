@@ -517,6 +517,19 @@ function LowerThreadCall_ _
                 ad = LowerExpr( c, ae )
             else
                 ad = LowerAddr( c, ae )
+                '' AN RVALUE BINDS A TEMPORARY: 'threadcall worker( "A", 6 )' over 'byref id as
+                '' string' is fbc's 'fb_StrAssign( &TMP, -1, "A", 2, 0 ); TMP2 = &TMP', the copy
+                '' released after the call like a byval one's (manual threads/threadcall.bas).
+                if ad.kind = cast( uint8, MV_NONE ) then
+                    if IsStringType( c, pt ) then
+                        dim as int32 rsl = -1
+                        if ByvalStrTemp_( c, ae, pt, ad, rsl ) andalso (rsl >= 0) then
+                            strTemps.Push( cast( uint32, rsl ) ) : strTempTypes.Push( cast( uint32, pt ) )
+                        end if
+                    else
+                        ad = ByrefTemp_( c, ae, pt )
+                    end if
+                end if
             end if
             if ad.kind = cast( uint8, MV_NONE ) then return false
             dim as int32 rslot = NewTempLocal( c, MT_PTR, pbytes )
