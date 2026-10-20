@@ -48,46 +48,17 @@ Every language feature and library that ships with tiko, one row each, with the 
 | [Finance](Category-Finance) | Money, and what you do with it. **The two money types** first, because a `DOUBLE` is the wrong place to keep an amount and `0.1 + 0.2 <> 0.3` says so: `Currency` is a `LONGINT` scaled by 10,000 -- eight bytes, four places, exact, the VB6 / COM `CY` / SQL Server `money` shape -- and `Decimal` is the .NET `System.Decimal`, a 96-bit mantissa with a per-value scale of 0..28. Both round **half-to-even** and report overflow as an infectious `Invalid`. **Then the finance functions**: interest and rate conventions with day count, the time value of money, loans and amortization schedules, cash-flow appraisal, depreciation, and portfolio returns and risk. Compounding frequency and payment frequency are **separate parameters**, so one code path serves both the US and Canadian mortgage conventions; growth over an integer number of periods is **exact**, solvers take a `float64` kernel and say so; and an amortization schedule's final balance lands on **exactly** zero. |
 | [Logging](Category-Logging) | A structured logger: levels spaced by ten, typed fields, a zero-allocation disabled path, and an event that lives on the caller's stack so it is thread-safe without thread-local storage. |
 
-## Vendor controls
+## Vendor packages
 
-Owner-drawn Win32 controls written in tiko, shipped as source in the `vendor` package: `#import "vendor/PsControls/PsButton"` and nothing on the command line. Nothing underneath is a system control, so every colour is settable, dark palettes included. [PsControls](Category-PsControls) covers importing, type names and requirements; demos for every control are in the toolchain's `examples/PsControls/`.
+Libraries the toolchain ships in `vendor/`, each reached with one `#import` and nothing on the command line. [Vendor Packages](Vendor-Packages) explains `link static` and `link dynamic` and what is inside a package.
 
-| Control | What it is |
+| Package | What it is |
 |---|---|
-| [PsTextBox](PsTextBox) | A themeable frame — border, rounded corners, outer fill — around a RichEdit editor that does the typing, selection, clipboard and undo. |
-| [PsNumericUpDown](PsNumericUpDown) | A spinner: a rounded frame holding a `−` button, an editable numeric field and a `+` button. |
-| [PsDatePicker](PsDatePicker) | An editable date field with a calendar icon and a popup calendar; typing and picking reach the same `SYSTEMTIME`. |
-| [PsCalendar](PsCalendar) | A month calendar inside your window: one month or a grid of up to twelve, a min/max range, and drill-down from days to months and years. |
-| [PsButton](PsButton) | A momentary command button: a rounded rectangle with an optional glyph either side of an optional caption. |
-| [PsCheckBox](PsCheckBox) | A checkbox drawn from a font glyph, with an optional caption on either side and a focus ring. |
-| [PsOptionButton](PsOptionButton) | A radio button: a circle and an optional caption, with a focus ring around the pair. |
-| [PsToggle](PsToggle) | An ON/OFF switch: a rounded pill whose fill follows the state and a knob that slides end to end. |
-| [PsListTree](PsListTree) | A list **and** tree of rows you paint yourself: unlimited-depth nodes, in-place label editing, group headers, single, multiple or extended selection, and a multi-column report mode. |
-| [PsComboBox](PsComboBox) | A dropdown selector: a button showing the current choice that drops a list with that choice checkmarked. |
-| [PsSelectBar](PsSelectBar) | A flat row of text labels, exactly one current, marked by a coloured underline. |
-| [PsTabBar](PsTabBar) | A strip of tabs with an icon and a close X each; click to select, drag to reorder. |
-| [PsMenuBar](PsMenuBar) | A menu bar of text items, each owning a dropdown; moving across items while one is open switches menus. |
-| [PsToolbar](PsToolbar) | A command toolbar: buttons with icon and caption, separators, split and dropdown buttons, cells holding your own child windows, and overflow when it runs out of room. |
-| [PsIconPanel](PsIconPanel) | A horizontal strip of glyph cells: latching toggles, momentary buttons and separator rules. |
-| [PsStatusBar](PsStatusBar) | A status bar of text panels along the bottom of a window, one able to stretch. |
-| [PsSplitter](PsSplitter) | A draggable divider between two panes that reports where the user dragged it. |
-| [PsScrollPanel](PsScrollPanel) | A scrolling viewport onto a page of ordinary child controls taller than the space for it. |
-| [PsVScrollBar](PsVScrollBar) / [PsHScrollBar](PsHScrollBar) | Flat vertical and horizontal scrollbars for content whose scrolling you already own. |
-| [PsMessageBox](PsMessageBox) | A modal message box: caption band, optional icon, wrapped message, one to three buttons. |
-| [PsColorPicker](PsColorPicker) | A modal colour picker popup; `PsColorPicker_DoModal` blocks until the user answers. |
-| [PsTooltip](PsTooltip) | A themed tooltip near the cursor, with an optional title and icon, wrapping and fade. |
-| [PsProgressBar](PsProgressBar) | A progress bar, flat or gradient, solid or in blocks, or with no known end. |
-| [PsChart](PsChart) | Line, column, high-low-open-close price and pie charts from the series you supply. |
-
-The support modules the controls are built from:
-
-| Module | What it is |
-|---|---|
-| [PsBufferPaint](PsBufferPaint) | The flicker-free drawing surface every control paints through: an offscreen bitmap copied to the screen in one blit. |
-| [PsImage](PsImage) | Loads `.ico`, `.png`, `.bmp` or `.jpg` files, or an existing `HBITMAP`/`HICON`, for a control's icon slots. |
-| [PsPopupMenu](PsPopupMenu) | The floating menu behind menu bars, combo boxes and toolbars: check glyphs, accelerators, submenus. |
-| [PsColumnHeader](PsColumnHeader) | A column header band with draggable dividers; PsListTree places one above its rows. |
-| [PsTipHost](PsTipHost) | The tooltip backend switch: the system tooltip or PsTooltip. |
+| [sqlite3](SQLite-Tutorial) | SQLite, the embedded SQL database: `#import "vendor/sqlite3"`, linked statically or dynamically. |
+| [SDL3](SDL3-Tutorial) | SDL 3 for windows, input, audio and 2D rendering, with `vendor/SDL3/image`, `vendor/SDL3/ttf` and `vendor/SDL3/mixer` for images, fonts and mixing. |
+| [raylib6](Raylib-Tutorial) | raylib, for games and graphics programs, with `vendor/raylib6/raymath` and `vendor/raylib6/rlgl`. |
+| [cJSON](Vendor-Packages) | cJSON, a small JSON parser and writer, with `vendor/cJSON/utils` for JSON Pointer, Patch and Merge Patch. |
+| [PsControls](Category-PsControls) | Owner-drawn Win32 controls written in tiko and shipped as source, one module per control: text, numeric and date entry, buttons and switches, a list/tree, menus, toolbars, tabs, splitters, scroll bars, a message box, a colour picker, tooltips, a progress bar and a chart. Nothing underneath is a system control, so every colour is settable. |
 
 ## Toolchain
 
