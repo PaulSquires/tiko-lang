@@ -619,13 +619,6 @@ private function LinkAll _
     ( byref ctx as Tko.CompilerContext, byref objs as Tko.StrVec, _
       byref td as Tko.Codegen.TargetDescription, byref keep as Tko.StrVec ) as int32
 
-    '' NO MACH-O LINK YET (docs/tiko-macos M2: ld64, the SDK, @rpath, the init order). The
-    '' objects are built; the link line is not written, and an ELF one would be wrong.
-    if td.objFormat = Tko.Codegen.OBJ_MACHO then
-        return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0992, _
-            "linking for " & Tko.TargetName( ctx.options.target ) & "; build objects with -c" )
-    end if
-
     dim as Tko.Codegen.ToolPaths tools = _
         Tools_( ctx )
     if tools.found = false then

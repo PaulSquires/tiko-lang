@@ -621,7 +621,7 @@ function CompileUnit _
                             ctx.options.pragmaLibs, ctx.options.libPaths, _
                             ctx.options.pragmaLibPaths, _
                             ctx.options.pragmaLibFiles, ctx.options.threadSafe, _
-                            iif( records, ctx.modObjPaths, noMods ) )
+                            iif( records, ctx.modObjPaths, noMods ), td.objFormat )
                     end if
                     '' THE FIRST FAILURE STAYS. Assigned straight to toolExit,
                     '' module 2 compiling cleanly reset module 1's clang failure

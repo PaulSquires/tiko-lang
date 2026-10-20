@@ -60,8 +60,12 @@ function FindTools _
             ''    On Linux the conventional install is the distribution's, which is
             ''    where Ubuntu's clang-18 package puts it; the Windows path is what a
             ''    Linux build used to look for, and every link failed.
+            ''    On macOS it is Homebrew's LLVM (docs/tiko-macos D6): /usr/bin/clang there is
+            ''    Apple's, an LLVM fork with its own version numbers, reached only by PATH.
             #ifdef __FB_WIN32__
                 t.clangExe = "C:\Program Files\LLVM\bin\clang.exe"
+            #elseif defined( __FB_DARWIN__ )
+                t.clangExe = "/opt/homebrew/opt/llvm/bin/clang"
             #else
                 t.clangExe = "/usr/bin/clang"
             #endif
@@ -341,14 +345,14 @@ function LinkExe _
     '' vcruntime.lib and oldnames.lib come from Visual Studio. Linking msvcrt.dll
     '' instead -- we ship an import library for it -- is a decision about which CRT
     '' the runtime uses, not a flag.
-    '' COFF AND ELF ONLY. Every branch below tells the two apart and takes the ELF line for
-    '' "not COFF"; a Mach-O object given it would get an ELF link. The driver refuses that
-    '' link before it gets here (LinkAll), so reaching this with one is a compiler bug.
+    '' COFF, ELF AND MACH-O, and every branch below names the one it is for: an unknown
+    '' format is a compiler bug, not an ELF link.
     select case target.objFormat
-    case OBJ_COFF, OBJ_ELF
+    case OBJ_COFF, OBJ_ELF, OBJ_MACHO
     case else
         Tko.TargetIce( "LinkExe", target.id )
     end select
+    dim as boolean macho = (target.objFormat = OBJ_MACHO)
     dim as string cmd = "-target " & target.triple & " -fuse-ld=lld"
     dim as boolean viaLld = true
     '' ...WHERE THERE IS ONE. Ubuntu's clang package does not carry lld, and on such a
@@ -363,6 +367,32 @@ function LinkExe _
             viaLld = false
         end if
     #endif
+    '' MACH-O LINKS WITH APPLE'S ld64, never lld (docs/tiko-macos D6): ld64 is the linker
+    '' the SDK's .tbd stubs and the ad-hoc code signature arm64 requires are measured
+    '' against. It searches archives until nothing new resolves, so, like lld, it needs each
+    '' library named once -- and warns 'ignoring duplicate libraries' when it is not.
+    dim as boolean dedupe = viaLld
+    if macho then
+        cmd = "-target " & target.triple
+        viaLld = false
+        dedupe = true
+        '' THE SDK, for libSystem's stubs and the crt startup. TKO_SDKROOT, then the SDKROOT
+        '' xcrun itself honours, then the Command Line Tools' and Xcode's fixed locations;
+        '' none found leaves it to clang. PROVISIONAL until measured on the Mac (FACTS.md).
+        dim as string sdk = environ( "TKO_SDKROOT" )
+        if len( sdk ) = 0 then sdk = environ( "SDKROOT" )
+        if len( sdk ) = 0 then
+            dim as string cltSdk = "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk"
+            dim as string xcSdk = "/Applications/Xcode.app/Contents/Developer/Platforms/" & _
+                                  "MacOSX.platform/Developer/SDKs/MacOSX.sdk"
+            if FileExists_( cltSdk & "/SDKSettings.json" ) then
+                sdk = cltSdk
+            elseif FileExists_( xcSdk & "/SDKSettings.json" ) then
+                sdk = xcSdk
+            end if
+        end if
+        if len( sdk ) > 0 then cmd += " -isysroot " & Q( sdk )
+    end if
 
     '' A REPRODUCIBLE LINK. lld writes the wall clock into the COFF header's TimeDateStamp,
     '' and that was the ONLY difference left between stage3 and stage4 of the bootstrap:
@@ -419,7 +449,14 @@ function LinkExe _
                     exit for
                 end if
             next
-            cmd += " -shared -Wl,-soname," & mid( outPath, cut_ + 1 )
+            '' MACH-O: a dylib names itself by its INSTALL NAME, which a program linked
+            '' against it records and dyld looks up. '@rpath/<basename>' is the soname's
+            '' counterpart: found through the program's run path (see @loader_path below).
+            if macho then
+                cmd += " -dynamiclib -Wl,-install_name," & Q( "@rpath/" & mid( outPath, cut_ + 1 ) )
+            else
+                cmd += " -shared -Wl,-soname," & mid( outPath, cut_ + 1 )
+            end if
         end if
     end if
 
@@ -433,7 +470,13 @@ function LinkExe _
     '' NOT ON THE MSVC TARGET. '-s' is a gnu-linker flag, and MSVC keeps debug data
     '' in a separate PDB rather than in the image -- stripping the msvc output
     '' changes nothing, measured.
-    if (target.id <> TARGET_WINDOWS_X86_64) andalso t.stripSymbols then
+    ''
+    '' ON MACH-O AT THE LINK, AND NEVER AFTER IT: ld64 signs an arm64 image ad hoc as its last
+    '' step, and a 'strip' run on the result invalidates that signature. ld64's own spellings:
+    '' -S drops the debug-map stabs, -x the local symbols.
+    if macho then
+        if t.stripSymbols then cmd += " -Wl,-S -Wl,-x"
+    elseif (target.id <> TARGET_WINDOWS_X86_64) andalso t.stripSymbols then
         cmd += " -s"
     end if
     '' '-g' ON THE MSVC TARGET: lld-link drops .debug_* unless told to keep them, and
@@ -453,8 +496,12 @@ function LinkExe _
     '' procedures with identical code into one, and two such procedures' addresses then
     '' compare equal -- fbc's ld does no folding, so a program comparing procptrs must not
     '' see it here. The MinGW frontend folds nothing unless asked.
+    '' ld64's is -dead_strip, which keeps __mod_init_func and exported symbols as roots; it
+    '' folds nothing unless asked.
     if target.id = TARGET_WINDOWS_X86_64 then
         cmd += " -Xlinker -opt:ref -Xlinker -opt:noicf"
+    elseif macho then
+        cmd += " -Wl,-dead_strip"
     else
         cmd += " -Wl,--gc-sections"
     end if
@@ -492,9 +539,11 @@ function LinkExe _
     '' tiko-rt's own since 2026-10-09 (lib/rt/src/c/fbrt0.c), in lib/<target>/ beside
     '' libfb.a, which the search reaches before lib/<target>-fb/. NOT on windows-x86_64, where
     '' tiko-rt's msvcinit.c does the same job, pulled in by /INCLUDE:tkort_msvc_init_ below.
+    '' MACH-O HAS NO PIC VARIANTS: every arm64 Mach-O object is position-independent, and
+    '' tiko-rt builds one fbrt0.o and one pair of archives there.
     if target.id <> TARGET_WINDOWS_X86_64 then
         dim as string rt0 = "fbrt0.o"
-        if t.buildDll andalso (target.objFormat <> OBJ_COFF) then rt0 = "fbrt0pic.o"
+        if t.buildDll andalso (target.objFormat = OBJ_ELF) then rt0 = "fbrt0pic.o"
         for i as int32 = 0 to t.libPaths.Count - 1
             dim as string rt0Path = t.libPaths[i] & "/" & rt0
             if FileExists_( rt0Path ) then
@@ -569,7 +618,7 @@ function LinkExe _
     '' 'Crypt32' and 'crypt32' are one file.
     dim as string seenLib = chr( 0 )
     for i as int32 = 0 to t.libFiles.Count - 1
-        if viaLld then
+        if dedupe then
             dim as string key = t.libFiles[i]
             if target.objFormat = OBJ_COFF then key = lcase( key )
             if FirstTime_( seenLib, key ) = false then continue for
@@ -644,7 +693,7 @@ function LinkExe _
         end if
         '' Once, judged on what reaches the linker: 'dwmapi.dll' and 'dwmapi' are one
         '' '-ldwmapi' here, and a found libgreet.a is the same file however it was asked.
-        if viaLld then
+        if dedupe then
             dim as string key = named
             if target.objFormat = OBJ_COFF then key = lcase( key )
             if FirstTime_( seenLib, key ) = false then continue for
@@ -663,7 +712,7 @@ function LinkExe _
     '' fbc's names and fbc's rule ('-lfbpic' on its Linux '-dll' line). The plain
     '' archives are not position-independent and ld refuses them in a .so.
     dim as string rtName = iif( t.threadSafe, "/libfbmt.a", "/libfb.a" )
-    if t.buildDll andalso (target.objFormat <> OBJ_COFF) then
+    if t.buildDll andalso (target.objFormat = OBJ_ELF) then
         rtName = iif( t.threadSafe, "/libfbmtpic.a", "/libfbpic.a" )
     end if
     for i as int32 = 0 to t.libPaths.Count - 1
@@ -760,6 +809,10 @@ function LinkExe _
         '' gets away without them because nothing reaches that entry point unless a
         '' program opens a file.
         cmd += " -lwinspool -lgdi32"
+    elseif macho then
+        '' MACH-O. libm and pthreads are inside libSystem, which clang's darwin driver always
+        '' links; tgoto and tputs come from the SDK's ncurses, macOS's terminfo.
+        cmd += " -lncurses"
     else
         '' ELF. '-ltinfo' is the counterpart of the pair above: the runtime's console
         '' layer calls tgoto and tputs, which live in terminfo. '-lm' and '-lpthread'
@@ -773,16 +826,22 @@ function LinkExe _
     '' object asks for it: 'system:' and '-l' libraries are ld.so's to find, and every other
     '' program's bytes stay as they were. An '-rpath' the program passes through '-Wl' stands,
     '' and '-norpath' turns this off. fbc never writes one: a difference (Compatibility.md).
-    if (target.objFormat = OBJ_ELF) andalso (t.noRpath = false) then
+    '' MACH-O THE SAME WAY, its spellings: a '.dylib' file asks for '@loader_path', the
+    '' directory of the image doing the loading, which its '@rpath/' install name is found by.
+    if (target.objFormat <> OBJ_COFF) andalso (t.noRpath = false) then
         dim as boolean shared_ = false
         for i as int32 = 0 to t.libFiles.Count - 1
             dim as string lf = lcase( t.libFiles[i] )
-            if (right( lf, 3 ) = ".so") orelse (instr( lf, ".so." ) > 0) then shared_ = true
+            if macho then
+                if right( lf, 6 ) = ".dylib" then shared_ = true
+            elseif (right( lf, 3 ) = ".so") orelse (instr( lf, ".so." ) > 0) then
+                shared_ = true
+            end if
         next
         for i as int32 = 0 to t.linkerOpts.Count - 1
             if instr( lcase( t.linkerOpts[i] ), "rpath" ) > 0 then shared_ = false
         next
-        if shared_ then cmd += " -Xlinker -rpath -Xlinker " & Q( "$ORIGIN" )
+        if shared_ then cmd += " -Xlinker -rpath -Xlinker " & Q( iif( macho, "@loader_path", "$ORIGIN" ) )
     end if
     '' '-Wl' LAST, where fbc puts it: after the runtime and the system libraries, so an
     '' option that applies to what follows it (as GNU ld's --as-needed does) has nothing

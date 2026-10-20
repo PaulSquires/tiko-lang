@@ -1,0 +1,10 @@
+'' A MACH-O OBJECT'S '__fbctinf' IS READ AT THE LINK. src/objinfo-macos.o is
+'' src/objinfo-lib.bas built '-target macos-arm64 -c'; it names winhttp only in that
+'' section, and '-v' shows the link asking for it. The link itself fails on every host --
+'' there is no ld64 on Windows or Linux and no winhttp on macOS -- which is the exit 5.
+'' TEST: cli
+'' ARGS: -target macos-arm64 -v tests/driver/src/objinfo-macos.o -o tests/driver/objinfomac
+'' EXPECT-EXIT: 5
+'' EXPECT-OUT: "-lwinhttp"
+'' EXPECT-OUT: -Wl,-dead_strip
+'' EXPECT-NOT: -fuse-ld=lld

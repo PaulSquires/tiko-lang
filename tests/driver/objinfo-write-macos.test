@@ -1,0 +1,8 @@
+'' '-c' ON MACH-O WRITES THE SECTION as '__DATA,__fbctinf': a Mach-O section is named
+'' segment,section, and clang refuses a bare '.fbctinf' there. See src/codegen/objinfo.tiko.
+'' TEST: cli
+'' ARGS: -target macos-arm64 -c tests/driver/src/objinfo-lib.bas -o tests/driver/objinfolib-macos.o
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/objinfolib-macos.o
+'' EXPECT-FILE-HAS: tests/driver/objinfolib-macos.o :: __fbctinf
+'' EXPECT-FILE-HAS: tests/driver/objinfolib-macos.o :: winhttp

@@ -1,0 +1,7 @@
+'' MACH-O HAS NO COMDAT: clang's backend dies on one ("MachO doesn't support COMDATs").
+'' A generic instantiation is linkonce_odr alone there, a weak definition ld64 folds.
+'' TEST: cli
+'' ARGS: -target macos-arm64 --emit-ir tests/codegen/src/weak-generic.tiko
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: define linkonce_odr i32 @"_Z5TwiceIiEi"(
+'' EXPECT-NOT: comdat

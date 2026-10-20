@@ -1,0 +1,10 @@
+'' macos-arm64: NO SECTIONS. Mach-O has one __mod_init_func and no numbered ones, so every
+'' structor goes in LLVM's lists with its number, in declaration order; LLVM stable-sorts
+'' each list by number. See src/codegen/llvmstructors.tiko.
+'' TEST: cli
+'' ARGS: -target macos-arm64 --emit-ir tests/codegen/src/structor-order.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: @llvm.global_ctors = appending global [6 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 200, ptr @"P200", ptr null }, { i32, ptr, ptr } { i32 101, ptr @"P101", ptr null }, { i32, ptr, ptr } { i32 65535, ptr @"A1", ptr null }, { i32, ptr, ptr } { i32 65535, ptr @"B2", ptr null }, { i32, ptr, ptr } { i32 65535, ptr @"C3", ptr null }, { i32, ptr, ptr } { i32 65535, ptr @"P65535", ptr null }]
+'' EXPECT-OUT: @llvm.global_dtors = appending global [3 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 101, ptr @"Q101", ptr null }, { i32, ptr, ptr } { i32 65535, ptr @"D1", ptr null }, { i32, ptr, ptr } { i32 65535, ptr @"D2", ptr null }]
+'' EXPECT-NOT: section ".
+'' EXPECT-NOT: @llvm.used

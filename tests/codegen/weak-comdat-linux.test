@@ -1,0 +1,6 @@
+'' ...and ELF keeps the COMDAT beside linkonce_odr. The macOS change must not reach it.
+'' TEST: cli
+'' ARGS: -target linux-x86_64 --emit-ir tests/codegen/src/weak-generic.tiko
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: $"_Z5TwiceIiEi" = comdat any
+'' EXPECT-OUT: define linkonce_odr i32 @"_Z5TwiceIiEi"(

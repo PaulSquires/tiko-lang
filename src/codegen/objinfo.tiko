@@ -43,12 +43,13 @@ private function Exists_( byref p as string ) as boolean
 end function
 
 '' fbc's shape: an internal constant in the section, kept alive by llvm.compiler.used so
-'' the optimiser does not drop a global nothing references.
+'' the optimiser does not drop a global nothing references. A Mach-O section is named
+'' 'segment,section' -- '__DATA,__fbctinf', the section name 16 bytes at most.
 function ObjInfoIr _
     ( byref libs as StrVec, byref pragmaLibs as StrVec, _
       byref libPaths as StrVec, byref pragmaLibPaths as StrVec, _
       byref libFiles as StrVec, byval threadSafe as boolean, _
-      byref modObjs as StrVec ) as string
+      byref modObjs as StrVec, byval fmt as ObjFormat ) as string
 
     dim as string blob
     '' A '#foreignlib' file as ':name' and its directory, ABSOLUTE: the object is
@@ -77,8 +78,9 @@ function ObjInfoIr _
     if threadSafe then blob += "-mt" & chr( 0 )
     AddEntries_( blob, "-tkomod", modObjs )
     if len( blob ) = 0 then return ""
+    dim as string sect = iif( fmt = OBJ_MACHO, "__DATA,__fbctinf", ".fbctinf" )
     return chr( 10 ) & "@__fbctinf = internal constant [" & str( len( blob ) ) & " x i8] " & _
-           IrBytes_( blob ) & ", section "".fbctinf""" & chr( 10 ) & _
+           IrBytes_( blob ) & ", section " & chr( 34 ) & sect & chr( 34 ) & chr( 10 ) & _
            "@llvm.compiler.used = appending global [1 x ptr] [ptr @__fbctinf], " & _
            "section ""llvm.metadata""" & chr( 10 )
 end function
@@ -99,11 +101,37 @@ private function SliceOf_( byref b as string, byval off as int64, byval n as int
     return mid( b, off + 1, n )
 end function
 
-'' The section's bytes in an x86-64 ELF64 or COFF object, or "" when it has none. The two
-'' formats tiko targets; anything else answers "" rather than guessing.
+'' The section's bytes in a 64-bit Mach-O object. An MH_OBJECT's one LC_SEGMENT_64 (&h19,
+'' 72-byte header, nsects at +64) holds every section_64 -- 80 bytes: sectname 16,
+'' segname 16, addr 8, size 8, offset 4, ... -- and ours is '__fbctinf' in '__DATA'.
+private function MachoSectionBytes_( byref b as string ) as string
+    dim as int64 lc = 32
+    for c as int64 = 1 to U32_( b, 16 )
+        dim as int64 csz = U32_( b, lc + 4 )
+        if csz < 8 then return ""
+        if U32_( b, lc ) = &h19 then
+            for i as int64 = 0 to U32_( b, lc + 64 ) - 1
+                dim as int64 h = lc + 72 + i * 80
+                dim as boolean hit = (SliceOf_( b, h, 10 ) = "__fbctinf" & chr( 0 ))
+                if hit then hit = (SliceOf_( b, h + 16, 7 ) = "__DATA" & chr( 0 ))
+                if hit then
+                    return SliceOf_( b, U32_( b, h + 48 ), U32_( b, h + 40 ) or (U32_( b, h + 44 ) shl 32) )
+                end if
+            next
+        end if
+        lc += csz
+    next
+    return ""
+end function
+
+'' The section's bytes in an x86-64 ELF64, COFF or 64-bit Mach-O object, or "" when it has
+'' none. The formats tiko targets; anything else answers "" rather than guessing.
 private function SectionBytes_( byref b as string ) as string
     dim as int64 sz = len( b )
     if sz < 64 then return ""
+    if (b[0] = &hCF) andalso (b[1] = &hFA) andalso (b[2] = &hED) andalso (b[3] = &hFE) then
+        return MachoSectionBytes_( b )
+    end if
     if (b[0] = &h7F) andalso (b[1] = &h45) andalso (b[2] = &h4C) andalso (b[3] = &h46) then
         if b[4] <> 2 then return ""
         dim as int64 shoff = U32_( b, &h28 ) or (U32_( b, &h2C ) shl 32)

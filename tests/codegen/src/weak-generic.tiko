@@ -1,0 +1,6 @@
+'' A generic instantiation is a weak, foldable definition: linkonce_odr everywhere, plus a
+'' COMDAT except on Mach-O, which has none.
+function Twice( of T )( byval x as T ) as T
+    return x + x
+end function
+print Twice( of long )( 21 )

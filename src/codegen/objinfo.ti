@@ -30,7 +30,7 @@ namespace Tko.Codegen
         ( byref libs as StrVec, byref pragmaLibs as StrVec, _
           byref libPaths as StrVec, byref pragmaLibPaths as StrVec, _
           byref libFiles as StrVec, byval threadSafe as boolean, _
-          byref modObjs as StrVec ) as string
+          byref modObjs as StrVec, byval fmt as ObjFormat ) as string
 
     '' Adds what an object file's section asks for. An unreadable file, another format or
     '' no section adds nothing, and the link then says what is missing, as it did before.

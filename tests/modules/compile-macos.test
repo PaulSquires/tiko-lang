@@ -1,0 +1,13 @@
+'' A MODULE BUILD FOR MACH-O COMPILES: the finaliser stack and its two procedures are
+'' linkonce_odr with no COMDAT (Mach-O has none), and the root's '__tko_initall' goes in
+'' llvm.global_ctors at 65534 rather than a numbered section. Compile only -- the link
+'' needs ld64 (docs/tiko-macos M2).
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.mct-mac/cache
+'' CLEAN: build/.mct-mac
+'' CLEAN: build/.mct-mac/obj
+'' ARGS: -c -m main -target macos-arm64 -i tests/modules/src/init/libs tests/modules/src/init/app/main.bas -o build/.mct-mac/obj/main.o
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: build/.mct-mac/obj/main.o
+'' EXPECT-FILE-HAS: build/.mct-mac/obj/main.o :: ___tko_initall
+'' EXPECT-FILE-HAS: build/.mct-mac/obj/main.o :: ___tko_modfini_drain

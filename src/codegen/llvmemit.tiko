@@ -1153,16 +1153,22 @@ private sub EmitFunction( byref e as EmitCtx, byval f as MirFunction ptr )
     '' 'linkonce_odr' is the linkage and COMDAT is what COFF needs to act on it: the
     '' key is declared beside the definition and every copy after the first is
     '' dropped. A PRIVATE instantiation is already module-local and needs neither.
+    ''
+    '' MACH-O HAS NO COMDAT: clang dies in the backend with "MachO doesn't support
+    '' COMDATs, 'f' cannot be lowered" (measured, clang 21, arm64-apple-macosx13.0).
+    '' There 'linkonce_odr' alone is a weak definition and ld64 keeps one copy.
     dim as string cmdt = ""
     if f->isWeak andalso (f->isPrivate = false) then
         linkage = "linkonce_odr "
-        dim as string gn = GlobalName( e, f->name )
-        dim as string key = "$" & mid( gn, 2 )
-        e.outp += key & " = comdat any" & chr( 10 )
-        '' AFTER the function attributes, which is where LLVM's grammar puts it:
-        '' 'define ... ( args ) nounwind comdat {'. Written before them it is
-        '' "expected '{' in function body", 71 modules deep.
-        cmdt = " comdat"
+        if e.tgt->objFormat <> OBJ_MACHO then
+            dim as string gn = GlobalName( e, f->name )
+            dim as string key = "$" & mid( gn, 2 )
+            e.outp += key & " = comdat any" & chr( 10 )
+            '' AFTER the function attributes, which is where LLVM's grammar puts it:
+            '' 'define ... ( args ) nounwind comdat {'. Written before them it is
+            '' "expected '{' in function body", 71 modules deep.
+            cmdt = " comdat"
+        end if
     end if
     '' The subprogram goes after the attributes and the comdat, LLVM's order.
     dim as string dbgAttr = ""
